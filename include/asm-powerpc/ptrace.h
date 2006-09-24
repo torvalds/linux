@@ -215,12 +215,10 @@ do {									      \
 #define PTRACE_GETVRREGS	18
 #define PTRACE_SETVRREGS	19
 
-#ifndef __powerpc64__
 /* Get/set all the upper 32-bits of the SPE registers, accumulator, and
  * spefscr, in one go */
 #define PTRACE_GETEVRREGS	20
 #define PTRACE_SETEVRREGS	21
-#endif /* __powerpc64__ */
 
 /*
  * Get or set a debug register. The first 16 are DABR registers and the
@@ -235,7 +233,6 @@ do {									      \
 #define PPC_PTRACE_GETFPREGS	0x97	/* Get FPRs 0 - 31 */
 #define PPC_PTRACE_SETFPREGS	0x96	/* Set FPRs 0 - 31 */
 
-#ifdef __powerpc64__
 /* Calls to trace a 64bit program from a 32bit program */
 #define PPC_PTRACE_PEEKTEXT_3264 0x95
 #define PPC_PTRACE_PEEKDATA_3264 0x94
@@ -243,6 +240,5 @@ do {									      \
 #define PPC_PTRACE_POKEDATA_3264 0x92
 #define PPC_PTRACE_PEEKUSR_3264  0x91
 #define PPC_PTRACE_POKEUSR_3264  0x90
-#endif /* __powerpc64__ */
 
 #endif /* _ASM_POWERPC_PTRACE_H */

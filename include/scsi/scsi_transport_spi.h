@@ -53,7 +53,8 @@ struct spi_transport_attrs {
 	unsigned int support_ius; /* support Information Units */
 	unsigned int support_qas; /* supports quick arbitration and selection */
 	/* Private Fields */
-	unsigned int dv_pending:1; /* Internal flag */
+	unsigned int dv_pending:1; /* Internal flag: DV Requested */
+	unsigned int dv_in_progress:1;	/* Internal: DV started */
 	struct mutex dv_mutex; /* semaphore to serialise dv */
 };
 

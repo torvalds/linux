@@ -32,7 +32,6 @@
 #include <asm/rtas.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
 
@@ -183,8 +182,14 @@ static unsigned int h_get_ppp(unsigned long *entitled,
 			      unsigned long *resource)
 {
 	unsigned long rc;
-	rc = plpar_hcall_4out(H_GET_PPP, 0, 0, 0, 0, entitled, unallocated,
-			      aggregation, resource);
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall(H_GET_PPP, retbuf);
+
+	*entitled = retbuf[0];
+	*unallocated = retbuf[1];
+	*aggregation = retbuf[2];
+	*resource = retbuf[3];
 
 	log_plpar_hcall_return(rc, "H_GET_PPP");
 
@@ -194,8 +199,12 @@ static unsigned int h_get_ppp(unsigned long *entitled,
 static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 {
 	unsigned long rc;
-	unsigned long dummy;
-	rc = plpar_hcall(H_PIC, 0, 0, 0, 0, pool_idle_time, num_procs, &dummy);
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall(H_PIC, retbuf);
+
+	*pool_idle_time = retbuf[0];
+	*num_procs = retbuf[1];
 
 	if (rc != H_AUTHORITY)
 		log_plpar_hcall_return(rc, "H_PIC");
@@ -310,12 +319,11 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	int partition_potential_processors;
 	int partition_active_processors;
 	struct device_node *rtas_node;
-	int *lrdrp = NULL;
+	const int *lrdrp = NULL;
 
 	rtas_node = find_path_device("/rtas");
 	if (rtas_node)
-		lrdrp = (int *)get_property(rtas_node, "ibm,lrdr-capacity",
-		                            NULL);
+		lrdrp = get_property(rtas_node, "ibm,lrdr-capacity", NULL);
 
 	if (lrdrp == NULL) {
 		partition_potential_processors = vdso_data->processorCount;
@@ -520,7 +528,8 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	const char *model = "";
 	const char *system_id = "";
 	const char *tmp;
-	unsigned int *lp_index_ptr, lp_index = 0;
+	const unsigned int *lp_index_ptr;
+	unsigned int lp_index = 0;
 
 	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
 
@@ -540,8 +549,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 			if (firmware_has_feature(FW_FEATURE_ISERIES))
 				system_id += 4;
 		}
-		lp_index_ptr = (unsigned int *)
-			get_property(rootdn, "ibm,partition-no", NULL);
+		lp_index_ptr = get_property(rootdn, "ibm,partition-no", NULL);
 		if (lp_index_ptr)
 			lp_index = *lp_index_ptr;
 	}

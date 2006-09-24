@@ -26,7 +26,6 @@
 #define NLM_HOST_REBIND		(60 * HZ)
 #define NLM_HOST_EXPIRE		((nrhosts > NLM_HOST_MAX)? 300 * HZ : 120 * HZ)
 #define NLM_HOST_COLLECT	((nrhosts > NLM_HOST_MAX)? 120 * HZ :  60 * HZ)
-#define NLM_HOST_ADDR(sv)	(&(sv)->s_nlmclnt->cl_xprt->addr)
 
 static struct nlm_host *	nlm_hosts[NLM_HOST_NRHASH];
 static unsigned long		next_gc;
@@ -167,7 +166,6 @@ struct rpc_clnt *
 nlm_bind_host(struct nlm_host *host)
 {
 	struct rpc_clnt	*clnt;
-	struct rpc_xprt	*xprt;
 
 	dprintk("lockd: nlm_bind_host(%08x)\n",
 			(unsigned)ntohl(host->h_addr.sin_addr.s_addr));
@@ -179,7 +177,6 @@ nlm_bind_host(struct nlm_host *host)
 	 * RPC rebind is required
 	 */
 	if ((clnt = host->h_rpcclnt) != NULL) {
-		xprt = clnt->cl_xprt;
 		if (time_after_eq(jiffies, host->h_nextrebind)) {
 			rpc_force_rebind(clnt);
 			host->h_nextrebind = jiffies + NLM_HOST_REBIND;
@@ -187,31 +184,37 @@ nlm_bind_host(struct nlm_host *host)
 					host->h_nextrebind - jiffies);
 		}
 	} else {
-		xprt = xprt_create_proto(host->h_proto, &host->h_addr, NULL);
-		if (IS_ERR(xprt))
-			goto forgetit;
+		unsigned long increment = nlmsvc_timeout * HZ;
+		struct rpc_timeout timeparms = {
+			.to_initval	= increment,
+			.to_increment	= increment,
+			.to_maxval	= increment * 6UL,
+			.to_retries	= 5U,
+		};
+		struct rpc_create_args args = {
+			.protocol	= host->h_proto,
+			.address	= (struct sockaddr *)&host->h_addr,
+			.addrsize	= sizeof(host->h_addr),
+			.timeout	= &timeparms,
+			.servername	= host->h_name,
+			.program	= &nlm_program,
+			.version	= host->h_version,
+			.authflavor	= RPC_AUTH_UNIX,
+			.flags		= (RPC_CLNT_CREATE_HARDRTRY |
+					   RPC_CLNT_CREATE_AUTOBIND),
+		};
 
-		xprt_set_timeout(&xprt->timeout, 5, nlmsvc_timeout);
-		xprt->resvport = 1;	/* NLM requires a reserved port */
-
-		/* Existing NLM servers accept AUTH_UNIX only */
-		clnt = rpc_new_client(xprt, host->h_name, &nlm_program,
-					host->h_version, RPC_AUTH_UNIX);
-		if (IS_ERR(clnt))
-			goto forgetit;
-		clnt->cl_autobind = 1;	/* turn on pmap queries */
-		clnt->cl_softrtry = 1; /* All queries are soft */
-
-		host->h_rpcclnt = clnt;
+		clnt = rpc_create(&args);
+		if (!IS_ERR(clnt))
+			host->h_rpcclnt = clnt;
+		else {
+			printk("lockd: couldn't create RPC handle for %s\n", host->h_name);
+			clnt = NULL;
+		}
 	}
 
 	mutex_unlock(&host->h_mutex);
 	return clnt;
-
-forgetit:
-	printk("lockd: couldn't create RPC handle for %s\n", host->h_name);
-	mutex_unlock(&host->h_mutex);
-	return NULL;
 }
 
 /*

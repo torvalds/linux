@@ -117,6 +117,14 @@ struct rdma_cm_id {
 struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
 				  void *context, enum rdma_port_space ps);
 
+/**
+  * rdma_destroy_id - Destroys an RDMA identifier.
+  *
+  * @id: RDMA identifier.
+  *
+  * Note: calling this function has the effect of canceling in-flight
+  * asynchronous operations associated with the id.
+  */
 void rdma_destroy_id(struct rdma_cm_id *id);
 
 /**
@@ -237,6 +245,10 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
  * Typically, this routine is only called by the listener to accept a connection
  * request.  It must also be called on the active side of a connection if the
  * user is performing their own QP transitions.
+ *
+ * In the case of error, a reject message is sent to the remote side and the
+ * state of the qp associated with the id is modified to error, such that any
+ * previously posted receive buffers would be flushed.
  */
 int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 

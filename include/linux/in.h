@@ -52,7 +52,7 @@ enum {
 
 /* Internet address. */
 struct in_addr {
-	__u32	s_addr;
+	__be32	s_addr;
 };
 
 #define IP_TOS		1
@@ -177,7 +177,7 @@ struct in_pktinfo
 #define __SOCK_SIZE__	16		/* sizeof(struct sockaddr)	*/
 struct sockaddr_in {
   sa_family_t		sin_family;	/* Address family		*/
-  unsigned short int	sin_port;	/* Port number			*/
+  __be16		sin_port;	/* Port number			*/
   struct in_addr	sin_addr;	/* Internet address		*/
 
   /* Pad to size of `struct sockaddr'. */

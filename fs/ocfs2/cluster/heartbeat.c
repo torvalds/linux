@@ -320,8 +320,12 @@ static int compute_max_sectors(struct block_device *bdev)
 		max_pages = q->max_hw_segments;
 	max_pages--; /* Handle I/Os that straddle a page */
 
-	max_sectors = max_pages << (PAGE_SHIFT - 9);
-
+	if (max_pages) {
+		max_sectors = max_pages << (PAGE_SHIFT - 9);
+	} else {
+		/* If BIO contains 1 or less than 1 page. */
+		max_sectors = q->max_sectors;
+	}
 	/* Why is fls() 1-based???? */
 	pow_two_sectors = 1 << (fls(max_sectors) - 1);
 

@@ -40,7 +40,6 @@
  ********************************************************************/
 
 #include <linux/module.h>
-#include <linux/config.h> 
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -117,7 +116,7 @@ static int __init w83977af_init(void)
 
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
 
-	for (i=0; (io[i] < 2000) && (i < 4); i++) { 
+	for (i=0; (io[i] < 2000) && (i < ARRAY_SIZE(dev_self)); i++) {
 		if (w83977af_open(i, io[i], irq[i], dma[i]) == 0)
 			return 0;
 	}
@@ -136,7 +135,7 @@ static void __exit w83977af_cleanup(void)
 
         IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
 
-	for (i=0; i < 4; i++) {
+	for (i=0; i < ARRAY_SIZE(dev_self); i++) {
 		if (dev_self[i])
 			w83977af_close(dev_self[i]);
 	}

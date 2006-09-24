@@ -81,8 +81,6 @@ static inline int init_info_for_card(struct snd_card *card)
 #define init_info_for_card(card)
 #endif
 
-static void snd_card_free_thread(void * __card);
-
 /**
  *  snd_card_new - create and initialize a soundcard structure
  *  @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
@@ -145,7 +143,6 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	INIT_LIST_HEAD(&card->ctl_files);
 	spin_lock_init(&card->files_lock);
 	init_waitqueue_head(&card->shutdown_sleep);
-	INIT_WORK(&card->free_workq, snd_card_free_thread, card);
 #ifdef CONFIG_PM
 	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
@@ -310,6 +307,7 @@ int snd_card_disconnect(struct snd_card *card)
 	if (err < 0)
 		snd_printk(KERN_ERR "not all devices for card %i can be disconnected\n", card->number);
 
+	snd_info_card_disconnect(card);
 	return 0;	
 }
 
@@ -326,21 +324,9 @@ EXPORT_SYMBOL(snd_card_disconnect);
  *  Returns zero. Frees all associated devices and frees the control
  *  interface associated to given soundcard.
  */
-int snd_card_free(struct snd_card *card)
+static int snd_card_do_free(struct snd_card *card)
 {
 	struct snd_shutdown_f_ops *s_f_ops;
-
-	if (card == NULL)
-		return -EINVAL;
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	mutex_unlock(&snd_card_mutex);
-
-#ifdef CONFIG_PM
-	wake_up(&card->power_sleep);
-#endif
-	/* wait, until all devices are ready for the free operation */
-	wait_event(card->shutdown_sleep, card->files == NULL);
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
@@ -360,7 +346,7 @@ int snd_card_free(struct snd_card *card)
 	}
 	if (card->private_free)
 		card->private_free(card);
-	snd_info_unregister(card->proc_id);
+	snd_info_free_entry(card->proc_id);
 	if (snd_info_card_free(card) < 0) {
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
@@ -370,61 +356,59 @@ int snd_card_free(struct snd_card *card)
 		card->s_f_ops = s_f_ops->next;
 		kfree(s_f_ops);
 	}
-	mutex_lock(&snd_card_mutex);
-	snd_cards_lock &= ~(1 << card->number);
-	mutex_unlock(&snd_card_mutex);
 	kfree(card);
 	return 0;
 }
 
+static int snd_card_free_prepare(struct snd_card *card)
+{
+	if (card == NULL)
+		return -EINVAL;
+	(void) snd_card_disconnect(card);
+	mutex_lock(&snd_card_mutex);
+	snd_cards[card->number] = NULL;
+	snd_cards_lock &= ~(1 << card->number);
+	mutex_unlock(&snd_card_mutex);
+#ifdef CONFIG_PM
+	wake_up(&card->power_sleep);
+#endif
+	return 0;
+}
+
+int snd_card_free_when_closed(struct snd_card *card)
+{
+	int free_now = 0;
+	int ret = snd_card_free_prepare(card);
+	if (ret)
+		return ret;
+
+	spin_lock(&card->files_lock);
+	if (card->files == NULL)
+		free_now = 1;
+	else
+		card->free_on_last_close = 1;
+	spin_unlock(&card->files_lock);
+
+	if (free_now)
+		snd_card_do_free(card);
+	return 0;
+}
+
+EXPORT_SYMBOL(snd_card_free_when_closed);
+
+int snd_card_free(struct snd_card *card)
+{
+	int ret = snd_card_free_prepare(card);
+	if (ret)
+		return ret;
+
+	/* wait, until all devices are ready for the free operation */
+	wait_event(card->shutdown_sleep, card->files == NULL);
+	snd_card_do_free(card);
+	return 0;
+}
+
 EXPORT_SYMBOL(snd_card_free);
-
-static void snd_card_free_thread(void * __card)
-{
-	struct snd_card *card = __card;
-	struct module * module = card->module;
-
-	if (!try_module_get(module)) {
-		snd_printk(KERN_ERR "unable to lock toplevel module for card %i in free thread\n", card->number);
-		module = NULL;
-	}
-
-	snd_card_free(card);
-
-	module_put(module);
-}
-
-/**
- *  snd_card_free_in_thread - call snd_card_free() in thread
- *  @card: soundcard structure
- *
- *  This function schedules the call of snd_card_free() function in a
- *  work queue.  When all devices are released (non-busy), the work
- *  is woken up and calls snd_card_free().
- *
- *  When a card can be disconnected at any time by hotplug service,
- *  this function should be used in disconnect (or detach) callback
- *  instead of calling snd_card_free() directly.
- *  
- *  Returns - zero otherwise a negative error code if the start of thread failed.
- */
-int snd_card_free_in_thread(struct snd_card *card)
-{
-	if (card->files == NULL) {
-		snd_card_free(card);
-		return 0;
-	}
-
-	if (schedule_work(&card->free_workq))
-		return 0;
-
-	snd_printk(KERN_ERR "schedule_work() failed in snd_card_free_in_thread for card %i\n", card->number);
-	/* try to free the structure immediately */
-	snd_card_free(card);
-	return -EFAULT;
-}
-
-EXPORT_SYMBOL(snd_card_free_in_thread);
 
 static void choose_default_id(struct snd_card *card)
 {
@@ -625,9 +609,9 @@ int __init snd_card_info_init(void)
 
 int __exit snd_card_info_done(void)
 {
-	snd_info_unregister(snd_card_info_entry);
+	snd_info_free_entry(snd_card_info_entry);
 #ifdef MODULE
-	snd_info_unregister(snd_card_module_info_entry);
+	snd_info_free_entry(snd_card_module_info_entry);
 #endif
 	return 0;
 }
@@ -708,15 +692,16 @@ EXPORT_SYMBOL(snd_card_file_add);
  *
  *  This function removes the file formerly added to the card via
  *  snd_card_file_add() function.
- *  If all files are removed and the release of the card is
- *  scheduled, it will wake up the the thread to call snd_card_free()
- *  (see snd_card_free_in_thread() function).
+ *  If all files are removed and snd_card_free_when_closed() was
+ *  called beforehand, it processes the pending release of
+ *  resources.
  *
  *  Returns zero or a negative error code.
  */
 int snd_card_file_remove(struct snd_card *card, struct file *file)
 {
 	struct snd_monitor_file *mfile, *pfile = NULL;
+	int last_close = 0;
 
 	spin_lock(&card->files_lock);
 	mfile = card->files;
@@ -731,9 +716,14 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 		pfile = mfile;
 		mfile = mfile->next;
 	}
-	spin_unlock(&card->files_lock);
 	if (card->files == NULL)
+		last_close = 1;
+	spin_unlock(&card->files_lock);
+	if (last_close) {
 		wake_up(&card->shutdown_sleep);
+		if (card->free_on_last_close)
+			snd_card_do_free(card);
+	}
 	if (!mfile) {
 		snd_printk(KERN_ERR "ALSA card file remove problem (%p)\n", file);
 		return -ENOENT;

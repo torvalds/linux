@@ -8,10 +8,10 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/openprom_fs.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/magic.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>

@@ -86,6 +86,32 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 	return sd;
 }
 
+/*
+ *
+ * Return -EEXIST if there is already a configfs element with the same
+ * name for the same parent.
+ *
+ * called with parent inode's i_mutex held
+ */
+int configfs_dirent_exists(struct configfs_dirent *parent_sd,
+			   const unsigned char *new)
+{
+	struct configfs_dirent * sd;
+
+	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
+		if (sd->s_element) {
+			const unsigned char *existing = configfs_get_name(sd);
+			if (strcmp(existing, new))
+				continue;
+			else
+				return -EEXIST;
+		}
+	}
+
+	return 0;
+}
+
+
 int configfs_make_dirent(struct configfs_dirent * parent_sd,
 			 struct dentry * dentry, void * element,
 			 umode_t mode, int type)
@@ -136,8 +162,10 @@ static int create_dir(struct config_item * k, struct dentry * p,
 	int error;
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 
-	error = configfs_make_dirent(p->d_fsdata, d, k, mode,
-				     CONFIGFS_DIR);
+	error = configfs_dirent_exists(p->d_fsdata, d->d_name.name);
+	if (!error)
+		error = configfs_make_dirent(p->d_fsdata, d, k, mode,
+					     CONFIGFS_DIR);
 	if (!error) {
 		error = configfs_create(d, mode, init_dir);
 		if (!error) {

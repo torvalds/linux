@@ -3488,7 +3488,7 @@ static int stli_initecp(stlibrd_t *brdp)
  */
 	EBRDENABLE(brdp);
 	sigsp = (cdkecpsig_t __iomem *) EBRDGETMEMPTR(brdp, CDK_SIGADDR);
-	memcpy(&sig, sigsp, sizeof(cdkecpsig_t));
+	memcpy_fromio(&sig, sigsp, sizeof(cdkecpsig_t));
 	EBRDDISABLE(brdp);
 
 	if (sig.magic != cpu_to_le32(ECP_MAGIC))

@@ -34,8 +34,9 @@
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
 
 #define CHECKSUM_NONE 0
-#define CHECKSUM_HW 1
+#define CHECKSUM_PARTIAL 1
 #define CHECKSUM_UNNECESSARY 2
+#define CHECKSUM_COMPLETE 3
 
 #define SKB_DATA_ALIGN(X)	(((X) + (SMP_CACHE_BYTES - 1)) & \
 				 ~(SMP_CACHE_BYTES - 1))
@@ -56,17 +57,17 @@
  *	      Apparently with secret goal to sell you new device, when you
  *	      will add new protocol to your host. F.e. IPv6. 8)
  *
- *	HW: the most generic way. Device supplied checksum of _all_
+ *	COMPLETE: the most generic way. Device supplied checksum of _all_
  *	    the packet as seen by netif_rx in skb->csum.
  *	    NOTE: Even if device supports only some protocols, but
- *	    is able to produce some skb->csum, it MUST use HW,
+ *	    is able to produce some skb->csum, it MUST use COMPLETE,
  *	    not UNNECESSARY.
  *
  * B. Checksumming on output.
  *
  *	NONE: skb is checksummed by protocol or csum is not required.
  *
- *	HW: device is required to csum packet as seen by hard_start_xmit
+ *	PARTIAL: device is required to csum packet as seen by hard_start_xmit
  *	from skb->h.raw to the end and to record the checksum
  *	at skb->h.raw+skb->csum.
  *
@@ -1261,14 +1262,14 @@ static inline int skb_linearize_cow(struct sk_buff *skb)
  *	@len: length of data pulled
  *
  *	After doing a pull on a received packet, you need to call this to
- *	update the CHECKSUM_HW checksum, or set ip_summed to CHECKSUM_NONE
- *	so that it can be recomputed from scratch.
+ *	update the CHECKSUM_COMPLETE checksum, or set ip_summed to
+ *	CHECKSUM_NONE so that it can be recomputed from scratch.
  */
 
 static inline void skb_postpull_rcsum(struct sk_buff *skb,
 				      const void *start, unsigned int len)
 {
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
 }
 
@@ -1287,7 +1288,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 {
 	if (likely(len >= skb->len))
 		return 0;
-	if (skb->ip_summed == CHECKSUM_HW)
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 	return __pskb_trim(skb, len);
 }

@@ -12,12 +12,12 @@
 	Annapolis MD 21403
 
 
-	2000/2/2- Added support for kernel-level ISAPnP 
+	2000/2/2- Added support for kernel-level ISAPnP
 		by Stephen Frost <sfrost@snowman.net> and Alessandro Zummo
 	Cleaned up for 2.3.x/softnet by Jeff Garzik and Alan Cox.
-	
+
 	2001/11/17 - Added ethtool support (jgarzik)
-	
+
 	2002/10/28 - Locking updates for 2.5 (alan@redhat.com)
 
 */
@@ -187,9 +187,9 @@ enum corkscrew_cmd {
 	TotalReset = 0 << 11, SelectWindow = 1 << 11, StartCoax = 2 << 11,
 	RxDisable = 3 << 11, RxEnable = 4 << 11, RxReset = 5 << 11,
 	UpStall = 6 << 11, UpUnstall = (6 << 11) + 1, DownStall = (6 << 11) + 2,
-	DownUnstall = (6 << 11) + 3, RxDiscard = 8 << 11, TxEnable = 9 << 11, 
-	TxDisable = 10 << 11, TxReset = 11 << 11, FakeIntr = 12 << 11, 
-	AckIntr = 13 << 11, SetIntrEnb = 14 << 11, SetStatusEnb = 15 << 11, 
+	DownUnstall = (6 << 11) + 3, RxDiscard = 8 << 11, TxEnable = 9 << 11,
+	TxDisable = 10 << 11, TxReset = 11 << 11, FakeIntr = 12 << 11,
+	AckIntr = 13 << 11, SetIntrEnb = 14 << 11, SetStatusEnb = 15 << 11,
 	SetRxFilter = 16 << 11, SetRxThreshold = 17 << 11,
 	SetTxThreshold = 18 << 11, SetTxStart = 19 << 11, StartDMAUp = 20 << 11,
 	StartDMADown = (20 << 11) + 1, StatsEnable = 21 << 11,
@@ -338,15 +338,15 @@ static struct media_table {
 		mask:8,			/* The transceiver-present bit in Wn3_Config. */
 		next:8;			/* The media type to try next. */
 	short wait;			/* Time before we check media status. */
-} media_tbl[] = {	
-	{ "10baseT", Media_10TP, 0x08, XCVR_10base2, (14 * HZ) / 10 }, 
-	{ "10Mbs AUI", Media_SQE, 0x20, XCVR_Default, (1 * HZ) / 10}, 
-	{ "undefined", 0, 0x80, XCVR_10baseT, 10000}, 
-	{ "10base2", 0, 0x10, XCVR_AUI, (1 * HZ) / 10}, 
-	{ "100baseTX", Media_Lnk, 0x02, XCVR_100baseFx, (14 * HZ) / 10}, 
-	{ "100baseFX", Media_Lnk, 0x04, XCVR_MII, (14 * HZ) / 10}, 
-	{ "MII", 0, 0x40, XCVR_10baseT, 3 * HZ}, 
-	{ "undefined", 0, 0x01, XCVR_10baseT, 10000}, 
+} media_tbl[] = {
+	{ "10baseT", Media_10TP, 0x08, XCVR_10base2, (14 * HZ) / 10 },
+	{ "10Mbs AUI", Media_SQE, 0x20, XCVR_Default, (1 * HZ) / 10},
+	{ "undefined", 0, 0x80, XCVR_10baseT, 10000},
+	{ "10base2", 0, 0x10, XCVR_AUI, (1 * HZ) / 10},
+	{ "100baseTX", Media_Lnk, 0x02, XCVR_100baseFx, (14 * HZ) / 10},
+	{ "100baseFX", Media_Lnk, 0x04, XCVR_MII, (14 * HZ) / 10},
+	{ "MII", 0, 0x40, XCVR_10baseT, 3 * HZ},
+	{ "undefined", 0, 0x01, XCVR_10baseT, 10000},
 	{ "Default", 0, 0xFF, XCVR_10baseT, 10000},
 };
 
@@ -379,10 +379,10 @@ static int corkscrew_close(struct net_device *dev);
 static void update_stats(int addr, struct net_device *dev);
 static struct net_device_stats *corkscrew_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
-static struct ethtool_ops netdev_ethtool_ops;
-
+static const struct ethtool_ops netdev_ethtool_ops;
 
-/* 
+
+/*
    Unfortunately maximizing the shared code between the integrated and
    module version of the driver results in a complicated set of initialization
    procedures.
@@ -612,7 +612,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	printk(KERN_INFO "%s: 3Com %s at %#3x,", dev->name, vp->product_name, ioaddr);
 
 	spin_lock_init(&vp->lock);
-	
+
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
 	for (i = 0; i < 0x18; i++) {
@@ -691,7 +691,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 
 	return register_netdev(dev);
 }
-
+
 
 static int corkscrew_open(struct net_device *dev)
 {
@@ -715,7 +715,7 @@ static int corkscrew_open(struct net_device *dev)
 	} else if (vp->autoselect) {
 		/* Find first available media type, starting with 100baseTx. */
 		dev->if_port = 4;
-		while (!(vp->available_media & media_tbl[dev->if_port].mask)) 
+		while (!(vp->available_media & media_tbl[dev->if_port].mask))
 			dev->if_port = media_tbl[dev->if_port].next;
 
 		if (corkscrew_debug > 1)
@@ -871,7 +871,7 @@ static void corkscrew_timer(unsigned long data)
 		       dev->name, media_tbl[dev->if_port].name);
 
 	spin_lock_irqsave(&vp->lock, flags);
-	
+
 	{
 		int old_window = inw(ioaddr + EL3_CMD) >> 13;
 		int media_status;
@@ -911,7 +911,7 @@ static void corkscrew_timer(unsigned long data)
 				    media_tbl[dev->if_port].next;
 			}
 			while (!(vp->available_media & media_tbl[dev->if_port].mask));
-			
+
 			if (dev->if_port == 8) {	/* Go back to default. */
 				dev->if_port = vp->default_media;
 				if (corkscrew_debug > 1)
@@ -940,7 +940,7 @@ static void corkscrew_timer(unsigned long data)
 		}
 		EL3WINDOW(old_window);
 	}
-	
+
 	spin_unlock_irqrestore(&vp->lock, flags);
 	if (corkscrew_debug > 1)
 		printk("%s: Media selection timer finished, %s.\n",
@@ -1026,7 +1026,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 		outw(DownStall, ioaddr + EL3_CMD);
 		/* Wait for the stall to complete. */
 		for (i = 20; i >= 0; i--)
-			if ((inw(ioaddr + EL3_STATUS) & CmdInProgress) == 0) 
+			if ((inw(ioaddr + EL3_STATUS) & CmdInProgress) == 0)
 				break;
 		if (prev_entry)
 			prev_entry->next = isa_virt_to_bus(&vp->tx_ring[entry]);
@@ -1102,7 +1102,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 					int j;
 					outw(TxReset, ioaddr + EL3_CMD);
 					for (j = 20; j >= 0; j--)
-						if (!(inw(ioaddr + EL3_STATUS) & CmdInProgress)) 
+						if (!(inw(ioaddr + EL3_STATUS) & CmdInProgress))
 							break;
 				}
 				outw(TxEnable, ioaddr + EL3_CMD);
@@ -1130,7 +1130,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id,
 	latency = inb(ioaddr + Timer);
 
 	spin_lock(&lp->lock);
-	
+
 	status = inw(ioaddr + EL3_STATUS);
 
 	if (corkscrew_debug > 4)
@@ -1249,7 +1249,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id,
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 
 	} while ((status = inw(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
-	
+
 	spin_unlock(&lp->lock);
 
 	if (corkscrew_debug > 4)
@@ -1308,7 +1308,7 @@ static int corkscrew_rx(struct net_device *dev)
 				vp->stats.rx_bytes += pkt_len;
 				/* Wait a limited time to go to next packet. */
 				for (i = 200; i >= 0; i--)
-					if (! (inw(ioaddr + EL3_STATUS) & CmdInProgress)) 
+					if (! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
 						break;
 				continue;
 			} else if (corkscrew_debug)
@@ -1561,13 +1561,13 @@ static void netdev_set_msglevel(struct net_device *dev, u32 level)
 	corkscrew_debug = level;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
 };
 
-
+
 #ifdef MODULE
 void cleanup_module(void)
 {
@@ -1584,7 +1584,7 @@ void cleanup_module(void)
 	}
 }
 #endif				/* MODULE */
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c 3c515.c"

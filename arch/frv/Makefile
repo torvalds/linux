@@ -108,11 +108,8 @@ Image: vmlinux
 bootstrap:
 	$(Q)$(MAKEBOOT) bootstrap
 
-archmrproper:
-	$(Q)$(MAKE) $(build)=arch/frv/boot mrproper
-
 archclean:
-	$(Q)$(MAKE) $(build)=arch/frv/boot clean
+	$(Q)$(MAKE) $(clean)=arch/frv/boot
 
 archdep: scripts/mkdep symlinks
 	$(Q)$(MAKE) $(build)=arch/frv/boot dep

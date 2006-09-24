@@ -32,7 +32,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h> /* for CONFIG_DLCI_MAX */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

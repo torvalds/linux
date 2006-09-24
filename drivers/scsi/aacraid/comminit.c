@@ -180,7 +180,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 			  -2 /* Timeout silently */, 1,
 			  NULL, NULL);
 
-	if (status == 0)
+	if (status >= 0)
 		aac_fib_complete(fibctx);
 	aac_fib_free(fibctx);
 	return status;
@@ -307,17 +307,12 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		if (status[1] & AAC_OPT_NEW_COMM)
 			dev->new_comm_interface = dev->a_ops.adapter_send != 0;
 		if (dev->new_comm_interface && (status[2] > dev->base_size)) {
-			iounmap(dev->regs.sa);
+			aac_adapter_ioremap(dev, 0);
 			dev->base_size = status[2];
-			dprintk((KERN_DEBUG "ioremap(%lx,%d)\n",
-			  host->base, status[2]));
-			dev->regs.sa = ioremap(host->base, status[2]);
-			if (dev->regs.sa == NULL) {
+			if (aac_adapter_ioremap(dev, status[2])) {
 				/* remap failed, go back ... */
 				dev->new_comm_interface = 0;
-				dev->regs.sa = ioremap(host->base, 
-						AAC_MIN_FOOTPRINT_SIZE);
-				if (dev->regs.sa == NULL) {	
+				if (aac_adapter_ioremap(dev, AAC_MIN_FOOTPRINT_SIZE)) {
 					printk(KERN_WARNING
 					  "aacraid: unable to map adapter.\n");
 					return NULL;

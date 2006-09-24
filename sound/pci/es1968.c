@@ -1905,7 +1905,7 @@ static void es1968_update_hw_volume(unsigned long private_data)
 	/* Figure out which volume control button was pushed,
 	   based on differences from the default register
 	   values. */
-	x = inb(chip->io_port + 0x1c);
+	x = inb(chip->io_port + 0x1c) & 0xee;
 	/* Reset the volume control registers. */
 	outb(0x88, chip->io_port + 0x1c);
 	outb(0x88, chip->io_port + 0x1d);
@@ -1921,7 +1921,8 @@ static void es1968_update_hw_volume(unsigned long private_data)
 	/* FIXME: we can't call snd_ac97_* functions since here is in tasklet. */
 	spin_lock_irqsave(&chip->ac97_lock, flags);
 	val = chip->ac97->regs[AC97_MASTER];
-	if (x & 1) {
+	switch (x) {
+	case 0x88:
 		/* mute */
 		val ^= 0x8000;
 		chip->ac97->regs[AC97_MASTER] = val;
@@ -1929,26 +1930,31 @@ static void es1968_update_hw_volume(unsigned long private_data)
 		outb(AC97_MASTER, chip->io_port + ESM_AC97_INDEX);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_switch->id);
-	} else {
-		val &= 0x7fff;
-		if (((x>>1) & 7) > 4) {
-			/* volume up */
-			if ((val & 0xff) > 0)
-				val--;
-			if ((val & 0xff00) > 0)
-				val -= 0x0100;
-		} else {
-			/* volume down */
-			if ((val & 0xff) < 0x1f)
-				val++;
-			if ((val & 0xff00) < 0x1f00)
-				val += 0x0100;
-		}
+		break;
+	case 0xaa:
+		/* volume up */
+		if ((val & 0x7f) > 0)
+			val--;
+		if ((val & 0x7f00) > 0)
+			val -= 0x0100;
 		chip->ac97->regs[AC97_MASTER] = val;
 		outw(val, chip->io_port + ESM_AC97_DATA);
 		outb(AC97_MASTER, chip->io_port + ESM_AC97_INDEX);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->master_volume->id);
+		break;
+	case 0x66:
+		/* volume down */
+		if ((val & 0x7f) < 0x1f)
+			val++;
+		if ((val & 0x7f00) < 0x1f00)
+			val += 0x0100;
+		chip->ac97->regs[AC97_MASTER] = val;
+		outw(val, chip->io_port + ESM_AC97_DATA);
+		outb(AC97_MASTER, chip->io_port + ESM_AC97_INDEX);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->master_volume->id);
+		break;
 	}
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 }

@@ -755,19 +755,13 @@ static const u64 c[KHAZAD_ROUNDS + 1] = {
 };
 
 static int khazad_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-			 unsigned int key_len, u32 *flags)
+			 unsigned int key_len)
 {
 	struct khazad_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __be32 *key = (const __be32 *)in_key;
 	int r;
 	const u64 *S = T7;
 	u64 K2, K1;
-	
-	if (key_len != 16)
-	{
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
 
 	/* key is supposed to be 32-bit aligned */
 	K2 = ((u64)be32_to_cpu(key[0]) << 32) | be32_to_cpu(key[1]);

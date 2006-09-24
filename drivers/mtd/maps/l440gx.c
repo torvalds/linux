@@ -61,14 +61,17 @@ static int __init init_l440gx(void)
 	struct resource *pm_iobase;
 	__u16 word;
 
-	dev = pci_find_device(PCI_VENDOR_ID_INTEL,
+	dev = pci_get_device(PCI_VENDOR_ID_INTEL,
 		PCI_DEVICE_ID_INTEL_82371AB_0, NULL);
 
-	pm_dev = pci_find_device(PCI_VENDOR_ID_INTEL,
+	pm_dev = pci_get_device(PCI_VENDOR_ID_INTEL,
 		PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+
+	pci_dev_put(dev);
 
 	if (!dev || !pm_dev) {
 		printk(KERN_NOTICE "L440GX flash mapping: failed to find PIIX4 ISA bridge, cannot continue\n");
+		pci_dev_put(pm_dev);
 		return -ENODEV;
 	}
 
@@ -76,6 +79,7 @@ static int __init init_l440gx(void)
 
 	if (!l440gx_map.virt) {
 		printk(KERN_WARNING "Failed to ioremap L440GX flash region\n");
+		pci_dev_put(pm_dev);
 		return -ENOMEM;
 	}
 	simple_map_init(&l440gx_map);
@@ -99,8 +103,12 @@ static int __init init_l440gx(void)
 		pm_iobase->start += iobase & ~1;
 		pm_iobase->end += iobase & ~1;
 
+		pci_dev_put(pm_dev);
+
 		/* Allocate the resource region */
 		if (pci_assign_resource(pm_dev, PIIXE_IOBASE_RESOURCE) != 0) {
+			pci_dev_put(dev);
+			pci_dev_put(pm_dev);
 			printk(KERN_WARNING "Could not allocate pm iobase resource\n");
 			iounmap(l440gx_map.virt);
 			return -ENXIO;

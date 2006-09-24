@@ -1826,8 +1826,8 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 {
 	struct riva_par *par = info->par;
 	struct device_node *dp;
-	unsigned char *pedid = NULL;
-	unsigned char *disptype = NULL;
+	const unsigned char *pedid = NULL;
+	const unsigned char *disptype = NULL;
 	static char *propnames[] = {
 		"DFP,EDID", "LCD,EDID", "EDID", "EDID1", "EDID,B", "EDID,A", NULL };
 	int i;
@@ -1835,14 +1835,13 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 	NVTRACE_ENTER();
 	dp = pci_device_to_OF_node(pd);
 	for (; dp != NULL; dp = dp->child) {
-		disptype = (unsigned char *)get_property(dp, "display-type", NULL);
+		disptype = get_property(dp, "display-type", NULL);
 		if (disptype == NULL)
 			continue;
 		if (strncmp(disptype, "LCD", 3) != 0)
 			continue;
 		for (i = 0; propnames[i] != NULL; ++i) {
-			pedid = (unsigned char *)
-				get_property(dp, propnames[i], NULL);
+			pedid = get_property(dp, propnames[i], NULL);
 			if (pedid != NULL) {
 				par->EDID = pedid;
 				NVTRACE("LCD found.\n");

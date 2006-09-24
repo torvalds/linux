@@ -29,6 +29,7 @@ struct in6_ifreq {
 
 #define IPV6_SRCRT_STRICT	0x01	/* this hop must be a neighbor	*/
 #define IPV6_SRCRT_TYPE_0	0	/* IPv6 type 0 Routing Header	*/
+#define IPV6_SRCRT_TYPE_2	2	/* IPv6 type 2 Routing Header	*/
 
 /*
  *	routing header
@@ -72,6 +73,28 @@ struct rt0_hdr {
 
 #define rt0_type		rt_hdr.type
 };
+
+/*
+ *	routing header type 2
+ */
+
+struct rt2_hdr {
+	struct ipv6_rt_hdr	rt_hdr;
+	__u32			reserved;
+	struct in6_addr		addr;
+
+#define rt2_type		rt_hdr.type
+};
+
+/*
+ *	home address option in destination options header
+ */
+
+struct ipv6_destopt_hao {
+	__u8			type;
+	__u8			length;
+	struct in6_addr		addr;
+} __attribute__ ((__packed__));
 
 struct ipv6_auth_hdr {
 	__u8  nexthdr;
@@ -153,6 +176,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
+	__s32		proxy_ndp;
 	void		*sysctl;
 };
 
@@ -180,6 +204,7 @@ enum {
 	DEVCONF_ACCEPT_RA_RTR_PREF,
 	DEVCONF_RTR_PROBE_INTERVAL,
 	DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN,
+	DEVCONF_PROXY_NDP,
 	DEVCONF_MAX
 };
 
@@ -206,6 +231,9 @@ struct inet6_skb_parm {
 	__u16			lastopt;
 	__u32			nhoff;
 	__u16			flags;
+#ifdef CONFIG_IPV6_MIP6
+	__u16			dsthao;
+#endif
 
 #define IP6SKB_XFRM_TRANSFORMED	1
 };
@@ -242,6 +270,9 @@ struct ipv6_pinfo {
 	struct in6_addr 	rcv_saddr;
 	struct in6_addr		daddr;
 	struct in6_addr		*daddr_cache;
+#ifdef CONFIG_IPV6_SUBTREES
+	struct in6_addr		*saddr_cache;
+#endif
 
 	__u32			flow_label;
 	__u32			frag_size;

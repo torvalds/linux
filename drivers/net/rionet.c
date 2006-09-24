@@ -427,7 +427,7 @@ static void rionet_set_msglevel(struct net_device *ndev, u32 value)
 	rnet->msg_enable = value;
 }
 
-static struct ethtool_ops rionet_ethtool_ops = {
+static const struct ethtool_ops rionet_ethtool_ops = {
 	.get_drvinfo = rionet_get_drvinfo,
 	.get_msglevel = rionet_get_msglevel,
 	.set_msglevel = rionet_set_msglevel,

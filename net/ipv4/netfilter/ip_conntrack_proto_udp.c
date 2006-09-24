@@ -18,8 +18,8 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
 
-unsigned int ip_ct_udp_timeout = 30*HZ;
-unsigned int ip_ct_udp_timeout_stream = 180*HZ;
+unsigned int ip_ct_udp_timeout __read_mostly = 30*HZ;
+unsigned int ip_ct_udp_timeout_stream __read_mostly = 180*HZ;
 
 static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
@@ -117,8 +117,7 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 
 	/* Checksum invalid? Ignore.
 	 * We skip checking packets on the outgoing path
-	 * because the semantic of CHECKSUM_HW is different there 
-	 * and moreover root might send raw packets.
+	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
 	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_UDP)) {

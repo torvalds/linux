@@ -104,7 +104,7 @@ smp_call_function_on(void (*func) (void *info), void *info,
 #define smp_cpu_not_running(cpu)	1
 #define smp_get_cpu(cpu) ({ 0; })
 #define smp_put_cpu(cpu) ({ 0; })
-#define smp_setup_cpu_possible_map()
+#define smp_setup_cpu_possible_map()	do { } while (0)
 #endif
 
 #endif

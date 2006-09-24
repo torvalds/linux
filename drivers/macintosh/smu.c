@@ -454,7 +454,7 @@ EXPORT_SYMBOL(smu_present);
 int __init smu_init (void)
 {
 	struct device_node *np;
-	u32 *data;
+	const u32 *data;
 
         np = of_find_node_by_type(NULL, "smu");
         if (np == NULL)
@@ -490,7 +490,7 @@ int __init smu_init (void)
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO !\n");
 		goto fail;
 	}
-	data = (u32 *)get_property(smu->db_node, "reg", NULL);
+	data = get_property(smu->db_node, "reg", NULL);
 	if (data == NULL) {
 		of_node_put(smu->db_node);
 		smu->db_node = NULL;
@@ -511,7 +511,7 @@ int __init smu_init (void)
 		smu->msg_node = of_find_node_by_name(NULL, "smu-interrupt");
 		if (smu->msg_node == NULL)
 			break;
-		data = (u32 *)get_property(smu->msg_node, "reg", NULL);
+		data = get_property(smu->msg_node, "reg", NULL);
 		if (data == NULL) {
 			of_node_put(smu->msg_node);
 			smu->msg_node = NULL;
@@ -982,11 +982,11 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 /* Note: Only allowed to return error code in pointers (using ERR_PTR)
  * when interruptible is 1
  */
-struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
-						int interruptible)
+const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
+		unsigned int *size, int interruptible)
 {
 	char pname[32];
-	struct smu_sdbp_header *part;
+	const struct smu_sdbp_header *part;
 
 	if (!smu)
 		return NULL;
@@ -1003,8 +1003,7 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 	} else
 		mutex_lock(&smu_part_access);
 
-	part = (struct smu_sdbp_header *)get_property(smu->of_node,
-						      pname, size);
+	part = get_property(smu->of_node, pname, size);
 	if (part == NULL) {
 		DPRINTK("trying to extract from SMU ...\n");
 		part = smu_create_sdb_partition(id);
@@ -1015,7 +1014,7 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 	return part;
 }
 
-struct smu_sdbp_header *smu_get_sdb_partition(int id, unsigned int *size)
+const struct smu_sdbp_header *smu_get_sdb_partition(int id, unsigned int *size)
 {
 	return __smu_get_sdb_partition(id, size, 0);
 }
@@ -1094,7 +1093,7 @@ static ssize_t smu_write(struct file *file, const char __user *buf,
 		pp->mode = smu_file_events;
 		return 0;
 	} else if (hdr.cmdtype == SMU_CMDTYPE_GET_PARTITION) {
-		struct smu_sdbp_header *part;
+		const struct smu_sdbp_header *part;
 		part = __smu_get_sdb_partition(hdr.cmd, NULL, 1);
 		if (part == NULL)
 			return -EINVAL;

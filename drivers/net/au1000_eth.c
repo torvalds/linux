@@ -6,8 +6,8 @@
  * Copyright 2002 TimeSys Corp.
  * Added ethtool/mii-tool support,
  * Copyright 2004 Matt Porter <mporter@kernel.crashing.org>
- * Update: 2004 Bjoern Riemer, riemer@fokus.fraunhofer.de 
- * or riemer@riemer-nt.de: fixed the link beat detection with 
+ * Update: 2004 Bjoern Riemer, riemer@fokus.fraunhofer.de
+ * or riemer@riemer-nt.de: fixed the link beat detection with
  * ioctls (SIOCGMIIPHY)
  * Copyright 2006 Herbert Valerio Riedel <hvr@gnu.org>
  *  converted to use linux-2.6.x's PHY framework
@@ -32,7 +32,7 @@
  *
  * ########################################################################
  *
- * 
+ *
  */
 
 #include <linux/module.h>
@@ -72,7 +72,7 @@ static int au1000_debug = 3;
 #endif
 
 #define DRV_NAME	"au1000_eth"
-#define DRV_VERSION	"1.5"
+#define DRV_VERSION	"1.6"
 #define DRV_AUTHOR	"Pete Popov <ppopov@embeddedalley.com>"
 #define DRV_DESC	"Au1xxx on-chip Ethernet driver"
 
@@ -107,13 +107,13 @@ extern char * __init prom_getcmdline(void);
 /*
  * Theory of operation
  *
- * The Au1000 MACs use a simple rx and tx descriptor ring scheme. 
- * There are four receive and four transmit descriptors.  These 
- * descriptors are not in memory; rather, they are just a set of 
+ * The Au1000 MACs use a simple rx and tx descriptor ring scheme.
+ * There are four receive and four transmit descriptors.  These
+ * descriptors are not in memory; rather, they are just a set of
  * hardware registers.
  *
  * Since the Au1000 has a coherent data cache, the receive and
- * transmit buffers are allocated from the KSEG0 segment. The 
+ * transmit buffers are allocated from the KSEG0 segment. The
  * hardware registers, however, are still mapped at KSEG1 to
  * make sure there's no out-of-order writes, and that all writes
  * complete immediately.
@@ -123,7 +123,7 @@ extern char * __init prom_getcmdline(void);
  * the mac address is, and the mac address is not passed on the
  * command line.
  */
-static unsigned char au1000_mac_addr[6] __devinitdata = { 
+static unsigned char au1000_mac_addr[6] __devinitdata = {
 	0x00, 0x50, 0xc2, 0x0c, 0x30, 0x00
 };
 
@@ -207,13 +207,13 @@ static int mdio_read(struct net_device *dev, int phy_addr, int reg)
 	while (*mii_control_reg & MAC_MII_BUSY) {
 		mdelay(1);
 		if (--timedout == 0) {
-			printk(KERN_ERR "%s: read_MII busy timeout!!\n", 
+			printk(KERN_ERR "%s: read_MII busy timeout!!\n",
 					dev->name);
 			return -1;
 		}
 	}
 
-	mii_control = MAC_SET_MII_SELECT_REG(reg) | 
+	mii_control = MAC_SET_MII_SELECT_REG(reg) |
 		MAC_SET_MII_SELECT_PHY(phy_addr) | MAC_MII_READ;
 
 	*mii_control_reg = mii_control;
@@ -222,7 +222,7 @@ static int mdio_read(struct net_device *dev, int phy_addr, int reg)
 	while (*mii_control_reg & MAC_MII_BUSY) {
 		mdelay(1);
 		if (--timedout == 0) {
-			printk(KERN_ERR "%s: mdio_read busy timeout!!\n", 
+			printk(KERN_ERR "%s: mdio_read busy timeout!!\n",
 					dev->name);
 			return -1;
 		}
@@ -241,13 +241,13 @@ static void mdio_write(struct net_device *dev, int phy_addr, int reg, u16 value)
 	while (*mii_control_reg & MAC_MII_BUSY) {
 		mdelay(1);
 		if (--timedout == 0) {
-			printk(KERN_ERR "%s: mdio_write busy timeout!!\n", 
+			printk(KERN_ERR "%s: mdio_write busy timeout!!\n",
 					dev->name);
 			return;
 		}
 	}
 
-	mii_control = MAC_SET_MII_SELECT_REG(reg) | 
+	mii_control = MAC_SET_MII_SELECT_REG(reg) |
 		MAC_SET_MII_SELECT_PHY(phy_addr) | MAC_MII_WRITE;
 
 	*mii_data_reg = value;
@@ -394,7 +394,7 @@ static int mii_probe (struct net_device *dev)
 
 /*
  * Buffer allocation/deallocation routines. The buffer descriptor returned
- * has the virtual and dma address of a buffer suitable for 
+ * has the virtual and dma address of a buffer suitable for
  * both, receive and transmit operations.
  */
 static db_dest_t *GetFreeDB(struct au1000_private *aup)
@@ -500,22 +500,22 @@ static void reset_mac(struct net_device *dev)
 	spin_unlock_irqrestore(&aup->lock, flags);
 }
 
-/* 
+/*
  * Setup the receive and transmit "rings".  These pointers are the addresses
  * of the rx and tx MAC DMA registers so they are fixed by the hardware --
  * these are not descriptors sitting in memory.
  */
-static void 
+static void
 setup_hw_rings(struct au1000_private *aup, u32 rx_base, u32 tx_base)
 {
 	int i;
 
 	for (i = 0; i < NUM_RX_DMA; i++) {
-		aup->rx_dma_ring[i] = 
+		aup->rx_dma_ring[i] =
 			(volatile rx_dma_t *) (rx_base + sizeof(rx_dma_t)*i);
 	}
 	for (i = 0; i < NUM_TX_DMA; i++) {
-		aup->tx_dma_ring[i] = 
+		aup->tx_dma_ring[i] =
 			(volatile tx_dma_t *) (tx_base + sizeof(tx_dma_t)*i);
 	}
 }
@@ -608,7 +608,7 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	info->regdump_len = 0;
 }
 
-static struct ethtool_ops au1000_ethtool_ops = {
+static const struct ethtool_ops au1000_ethtool_ops = {
 	.get_settings = au1000_get_settings,
 	.set_settings = au1000_set_settings,
 	.get_drvinfo = au1000_get_drvinfo,
@@ -691,7 +691,7 @@ static struct net_device * au1000_probe(int port_num)
 				/* Use the hard coded MAC addresses */
 			else {
 				str2eaddr(ethaddr, pmac + strlen("ethaddr="));
-				memcpy(au1000_mac_addr, ethaddr, 
+				memcpy(au1000_mac_addr, ethaddr,
 				       sizeof(au1000_mac_addr));
 			}
 		}
@@ -780,8 +780,8 @@ static struct net_device * au1000_probe(int port_num)
 	dev->tx_timeout = au1000_tx_timeout;
 	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
-	/* 
-	 * The boot code uses the ethernet controller, so reset it to start 
+	/*
+	 * The boot code uses the ethernet controller, so reset it to start
 	 * fresh.  au1000_init() expects that the device is in reset state.
 	 */
 	reset_mac(dev);
@@ -810,7 +810,7 @@ err_out:
 	return NULL;
 }
 
-/* 
+/*
  * Initialize the interface.
  *
  * When the device powers up, the clocks are disabled and the
@@ -826,7 +826,7 @@ static int au1000_init(struct net_device *dev)
 	int i;
 	u32 control;
 
-	if (au1000_debug > 4) 
+	if (au1000_debug > 4)
 		printk("%s: au1000_init\n", dev->name);
 
 	/* bring the device out of reset */
@@ -1102,8 +1102,8 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	int i;
 
 	if (au1000_debug > 5)
-		printk("%s: tx: aup %x len=%d, data=%p, head %d\n", 
-				dev->name, (unsigned)aup, skb->len, 
+		printk("%s: tx: aup %x len=%d, data=%p, head %d\n",
+				dev->name, (unsigned)aup, skb->len,
 				skb->data, aup->tx_head);
 
 	ptxd = aup->tx_dma_ring[aup->tx_head];
@@ -1127,7 +1127,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	pDB = aup->tx_db_inuse[aup->tx_head];
 	memcpy((void *)pDB->vaddr, skb->data, skb->len);
 	if (skb->len < ETH_ZLEN) {
-		for (i=skb->len; i<ETH_ZLEN; i++) { 
+		for (i=skb->len; i<ETH_ZLEN; i++) {
 			((char *)pDB->vaddr)[i] = 0;
 		}
 		ptxd->len = ETH_ZLEN;
@@ -1166,7 +1166,7 @@ static inline void update_rx_stats(struct net_device *dev, u32 status)
 		if (status & RX_COLL)
 			ps->collisions++;
 	}
-	else 
+	else
 		ps->rx_bytes += status & RX_FRAME_LEN_MASK;
 
 }
@@ -1215,13 +1215,13 @@ static int au1000_rx(struct net_device *dev)
 		}
 		else {
 			if (au1000_debug > 4) {
-				if (status & RX_MISSED_FRAME) 
+				if (status & RX_MISSED_FRAME)
 					printk("rx miss\n");
-				if (status & RX_WDOG_TIMER) 
+				if (status & RX_WDOG_TIMER)
 					printk("rx wdog\n");
-				if (status & RX_RUNT) 
+				if (status & RX_RUNT)
 					printk("rx runt\n");
-				if (status & RX_OVERLEN) 
+				if (status & RX_OVERLEN)
 					printk("rx overlen\n");
 				if (status & RX_COLL)
 					printk("rx coll\n");
@@ -1287,12 +1287,11 @@ static void set_rx_mode(struct net_device *dev)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
 
-	if (au1000_debug > 4) 
+	if (au1000_debug > 4)
 		printk("%s: set_rx_mode: flags=%x\n", dev->name, dev->flags);
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		aup->mac->control |= MAC_PROMISCUOUS;
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 	} else if ((dev->flags & IFF_ALLMULTI)  ||
 			   dev->mc_count > MULTICAST_FILTER_LIMIT) {
 		aup->mac->control |= MAC_PASS_ALL_MULTI;
@@ -1306,7 +1305,7 @@ static void set_rx_mode(struct net_device *dev)
 		mc_filter[1] = mc_filter[0] = 0;
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 			 i++, mclist = mclist->next) {
-			set_bit(ether_crc(ETH_ALEN, mclist->dmi_addr)>>26, 
+			set_bit(ether_crc(ETH_ALEN, mclist->dmi_addr)>>26,
 					(long *)mc_filter);
 		}
 		aup->mac->multi_hash_high = mc_filter[1];

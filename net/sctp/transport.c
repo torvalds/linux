@@ -75,7 +75,7 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	 * parameter 'RTO.Initial'.
 	 */
 	peer->rtt = 0;
-	peer->rto = sctp_rto_initial;
+	peer->rto = msecs_to_jiffies(sctp_rto_initial);
 	peer->rttvar = 0;
 	peer->srtt = 0;
 	peer->rto_pending = 0;

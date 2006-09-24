@@ -40,8 +40,6 @@
 #define DPRINTK(fmt,args...) do {} while(0)
 #endif
 
-#define AUTOFS_SUPER_MAGIC 0x0187
-
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
    structure.  It holds a reference to the dentry, so dentries are never

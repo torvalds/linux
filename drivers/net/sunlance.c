@@ -64,7 +64,7 @@
  *		  David S. Miller (davem@redhat.com)
  * 2.01:
  *      11/08/01: Use library crc32 functions (Matt_Domsch@dell.com)
- *		  
+ *
  */
 
 #undef DEBUG_DRIVER
@@ -209,7 +209,7 @@ struct lance_tx_desc {
 	s16 	length;		/* Length is 2s complement (negative)! */
 	u16 	misc;
 };
-		
+
 /* The LANCE initialization block, described in databook. */
 /* On the Sparc, this block should be on a DMA region     */
 struct lance_init_block {
@@ -222,11 +222,11 @@ struct lance_init_block {
 	u16	rx_len;		/* receive len and high addr */
 	u16	tx_ptr;		/* transmit descriptor addr */
 	u16	tx_len;		/* transmit len and high addr */
-    
+
 	/* The Tx and Rx ring entries must aligned on 8-byte boundaries. */
 	struct lance_rx_desc brx_ring[RX_RING_SIZE];
 	struct lance_tx_desc btx_ring[TX_RING_SIZE];
-    
+
 	u8	tx_buf [TX_RING_SIZE][TX_BUFF_SIZE];
 	u8	pad[2];		/* align rx_buf for copy_and_sum(). */
 	u8	rx_buf [RX_RING_SIZE][RX_BUFF_SIZE];
@@ -243,12 +243,12 @@ struct lance_private {
 	void __iomem	*dregs;		/* DMA controller regs.		*/
 	struct lance_init_block __iomem *init_block_iomem;
 	struct lance_init_block *init_block_mem;
-    
+
 	spinlock_t	lock;
 
 	int		rx_new, tx_new;
 	int		rx_old, tx_old;
-    
+
 	struct net_device_stats	stats;
 	struct sbus_dma *ledma;	/* If set this points to ledma	*/
 	char		tpe;		/* cable-selection is TPE	*/
@@ -325,7 +325,7 @@ static void lance_init_ring_dvma(struct net_device *dev)
 	dma_addr_t aib = lp->init_block_dvma;
 	__u32 leptr;
 	int i;
-    
+
 	/* Lock out other processes while setting up hardware */
 	netif_stop_queue(dev);
 	lp->rx_new = lp->tx_new = 0;
@@ -363,12 +363,12 @@ static void lance_init_ring_dvma(struct net_device *dev)
 	}
 
 	/* Setup the initialization block */
-    
+
 	/* Setup rx descriptor pointer */
 	leptr = LANCE_ADDR(aib + libdesc_offset(brx_ring, 0));
 	ib->rx_len = (LANCE_LOG_RX_BUFFERS << 13) | (leptr >> 16);
 	ib->rx_ptr = leptr;
-    
+
 	/* Setup tx descriptor pointer */
 	leptr = LANCE_ADDR(aib + libdesc_offset(btx_ring, 0));
 	ib->tx_len = (LANCE_LOG_TX_BUFFERS << 13) | (leptr >> 16);
@@ -381,7 +381,7 @@ static void lance_init_ring_pio(struct net_device *dev)
 	struct lance_init_block __iomem *ib = lp->init_block_iomem;
 	u32 leptr;
 	int i;
-    
+
 	/* Lock out other processes while setting up hardware */
 	netif_stop_queue(dev);
 	lp->rx_new = lp->tx_new = 0;
@@ -422,13 +422,13 @@ static void lance_init_ring_pio(struct net_device *dev)
 	}
 
 	/* Setup the initialization block */
-    
+
 	/* Setup rx descriptor pointer */
 	leptr = libdesc_offset(brx_ring, 0);
 	sbus_writew((LANCE_LOG_RX_BUFFERS << 13) | (leptr >> 16),
 		    &ib->rx_len);
 	sbus_writew(leptr, &ib->rx_ptr);
-    
+
 	/* Setup tx descriptor pointer */
 	leptr = libdesc_offset(btx_ring, 0);
 	sbus_writew((LANCE_LOG_TX_BUFFERS << 13) | (leptr >> 16),
@@ -544,7 +544,7 @@ static void lance_rx_dvma(struct net_device *dev)
 				lp->rx_new = RX_NEXT(entry);
 				return;
 			}
-	    
+
 			lp->stats.rx_bytes += len;
 
 			skb->dev = dev;
@@ -584,10 +584,10 @@ static void lance_tx_dvma(struct net_device *dev)
 		/* If we hit a packet not owned by us, stop */
 		if (bits & LE_T1_OWN)
 			break;
-		
+
 		if (bits & LE_T1_ERR) {
 			u16 status = td->misc;
-	    
+
 			lp->stats.tx_errors++;
 			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
 			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
@@ -636,7 +636,7 @@ static void lance_tx_dvma(struct net_device *dev)
 
 			lp->stats.tx_packets++;
 		}
-	
+
 		j = TX_NEXT(j);
 	}
 	lp->tx_old = j;
@@ -718,7 +718,7 @@ static void lance_rx_pio(struct net_device *dev)
 				lp->rx_new = RX_NEXT(entry);
 				return;
 			}
-	    
+
 			lp->stats.rx_bytes += len;
 
 			skb->dev = dev;
@@ -756,10 +756,10 @@ static void lance_tx_pio(struct net_device *dev)
 		/* If we hit a packet not owned by us, stop */
 		if (bits & LE_T1_OWN)
 			break;
-		
+
 		if (bits & LE_T1_ERR) {
 			u16 status = sbus_readw(&td->misc);
-	    
+
 			lp->stats.tx_errors++;
 			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
 			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
@@ -808,7 +808,7 @@ static void lance_tx_pio(struct net_device *dev)
 
 			lp->stats.tx_packets++;
 		}
-	
+
 		j = TX_NEXT(j);
 	}
 	lp->tx_old = j;
@@ -825,27 +825,27 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct lance_private *lp = netdev_priv(dev);
 	int csr0;
-    
+
 	sbus_writew(LE_CSR0, lp->lregs + RAP);
 	csr0 = sbus_readw(lp->lregs + RDP);
 
 	/* Acknowledge all the interrupt sources ASAP */
 	sbus_writew(csr0 & (LE_C0_INTR | LE_C0_TINT | LE_C0_RINT),
 		    lp->lregs + RDP);
-    
+
 	if ((csr0 & LE_C0_ERR) != 0) {
 		/* Clear the error condition */
 		sbus_writew((LE_C0_BABL | LE_C0_ERR | LE_C0_MISS |
 			     LE_C0_CERR | LE_C0_MERR),
 			    lp->lregs + RDP);
 	}
-    
+
 	if (csr0 & LE_C0_RINT)
 		lp->rx(dev);
-    
+
 	if (csr0 & LE_C0_TINT)
 		lp->tx(dev);
-    
+
 	if (csr0 & LE_C0_BABL)
 		lp->stats.tx_errors++;
 
@@ -992,7 +992,7 @@ static int lance_reset(struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
 	int status;
-    
+
 	STOP_LANCE(lp);
 
 	/* On the 4m, reset the dma too */
@@ -1169,7 +1169,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
-    
+
 	return 0;
 }
 
@@ -1189,7 +1189,7 @@ static void lance_load_multicast(struct net_device *dev)
 	int i;
 	u32 crc;
 	u32 val;
-	
+
 	/* set all multicast bits */
 	if (dev->flags & IFF_ALLMULTI)
 		val = ~0;
@@ -1208,7 +1208,7 @@ static void lance_load_multicast(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI)
 		return;
-	
+
 	/* Add addresses */
 	for (i = 0; i < dev->mc_count; i++) {
 		addrs = dmi->dmi_addr;
@@ -1318,7 +1318,7 @@ static u32 sparc_lance_get_link(struct net_device *dev)
 	return 1;
 }
 
-static struct ethtool_ops sparc_lance_ethtool_ops = {
+static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_drvinfo		= sparc_lance_get_drvinfo,
 	.get_link		= sparc_lance_get_link,
 };

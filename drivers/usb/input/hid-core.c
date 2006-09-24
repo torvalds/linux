@@ -1818,7 +1818,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	int n, len, insize = 0;
 
         /* Ignore all Wacom devices */
-        if (dev->descriptor.idVendor == USB_VENDOR_ID_WACOM)
+        if (le16_to_cpu(dev->descriptor.idVendor) == USB_VENDOR_ID_WACOM)
                 return NULL;
 
 	for (n = 0; hid_blacklist[n].idVendor; n++)

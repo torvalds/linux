@@ -488,9 +488,13 @@ static struct snd_kcontrol_new ad1986a_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Volume",
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
 		.info = ad1986a_pcm_amp_vol_info,
 		.get = ad1986a_pcm_amp_vol_get,
 		.put = ad1986a_pcm_amp_vol_put,
+		.tlv = { .c = snd_hda_mixer_amp_tlv },
 		.private_value = HDA_COMPOSE_AMP_VAL(AD1986A_FRONT_DAC, 3, 0, HDA_OUTPUT)
 	},
 	{
@@ -637,6 +641,7 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 		.info = snd_hda_mixer_amp_volume_info,
 		.get = snd_hda_mixer_amp_volume_get,
 		.put = ad1986a_laptop_master_vol_put,
+		.tlv = { .c = snd_hda_mixer_amp_tlv },
 		.private_value = HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
 	},
 	{
@@ -791,6 +796,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_3STACK }, /* ASUS A8N-VM CSM */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81b3,
 	  .config = AD1986A_3STACK }, /* ASUS P5RD2-VM / P5GPL-X SE */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x81cb,
+	  .config = AD1986A_3STACK }, /* ASUS M2NPV-VM */
 	{ .modelname = "laptop",	.config = AD1986A_LAPTOP },
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc01e,
 	  .config = AD1986A_LAPTOP }, /* FSC V2060 */
@@ -803,6 +810,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X60 Chane */
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
+	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc026,
+	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung X10-T2300 Culesa */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1153,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS M9 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
@@ -1626,10 +1635,12 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
-	if (spec->need_dac_fix)
+	int err = snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
+				      spec->num_channel_mode,
+				      &spec->multiout.max_channels);
+	if (! err && spec->need_dac_fix)
 		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
-	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
-				   spec->num_channel_mode, &spec->multiout.max_channels);
+	return err;
 }
 
 /* 6-stack mode */
@@ -2460,7 +2471,7 @@ static void ad1988_auto_init_extra_out(struct hda_codec *codec)
 	pin = spec->autocfg.speaker_pins[0];
 	if (pin) /* connect to front */
 		ad1988_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
-	pin = spec->autocfg.hp_pin;
+	pin = spec->autocfg.hp_pins[0];
 	if (pin) /* connect to front */
 		ad1988_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
 }
@@ -2512,7 +2523,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 	    (err = ad1988_auto_create_extra_out(codec,
 						spec->autocfg.speaker_pins[0],
 						"Speaker")) < 0 ||
-	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.hp_pin,
+	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.hp_pins[0],
 						"Headphone")) < 0 ||
 	    (err = ad1988_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;

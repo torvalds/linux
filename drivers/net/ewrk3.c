@@ -305,8 +305,8 @@ static int ewrk3_close(struct net_device *dev);
 static struct net_device_stats *ewrk3_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops ethtool_ops_203;
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops_203;
+static const struct ethtool_ops ethtool_ops;
 
 /*
    ** Private functions
@@ -359,13 +359,13 @@ struct net_device * __init ewrk3_probe(int unit)
 	SET_MODULE_OWNER(dev);
 
 	err = ewrk3_probe1(dev, dev->base_addr, dev->irq);
-	if (err) 
+	if (err)
 		goto out;
 	return dev;
 out:
 	free_netdev(dev);
 	return ERR_PTR(err);
-	
+
 }
 #endif
 
@@ -378,7 +378,7 @@ static int __init ewrk3_probe1(struct net_device *dev, u_long iobase, int irq)
 
 	/* Address PROM pattern */
 	err = isa_probe(dev, iobase);
-	if (err != 0) 
+	if (err != 0)
 		err = eisa_probe(dev, iobase);
 
 	if (err)
@@ -391,7 +391,7 @@ static int __init ewrk3_probe1(struct net_device *dev, u_long iobase, int irq)
 	return err;
 }
 
-static int __init 
+static int __init
 ewrk3_hw_init(struct net_device *dev, u_long iobase)
 {
 	struct ewrk3_private *lp;
@@ -435,19 +435,19 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 		printk("%s: Device has a bad on-board EEPROM.\n", dev->name);
 		return -ENXIO;
 	}
-	
+
 	EthwrkSignature(name, eeprom_image);
-	if (*name == '\0') 
+	if (*name == '\0')
 		return -ENXIO;
 
 	dev->base_addr = iobase;
-				
+
 	if (iobase > 0x400) {
 		outb(eisa_cr, EISA_CR);		/* Rewrite the EISA CR */
 	}
 	lemac = eeprom_image[EEPROM_CHIPVER];
 	cmr = inb(EWRK3_CMR);
-	
+
 	if (((lemac == LeMAC) && ((cmr & CMR_NO_EEPROM) != CMR_NO_EEPROM)) ||
 	    ((lemac == LeMAC2) && !(cmr & CMR_HS))) {
 		printk("%s: %s at %#4lx", dev->name, name, iobase);
@@ -468,7 +468,7 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 		printk("%2.2x:", dev->dev_addr[i]);
 	}
 	printk("%2.2x,\n", dev->dev_addr[i]);
-	
+
 	if (status) {
 		printk("      which has an EEPROM CRC error.\n");
 		return -ENXIO;
@@ -490,7 +490,7 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	if (eeprom_image[EEPROM_SETUP] & SETUP_DRAM)
 		cmr |= CMR_DRAM;
 	outb(cmr, EWRK3_CMR);
-	
+
 	cr = inb(EWRK3_CR);	/* Set up the Control Register */
 	cr |= eeprom_image[EEPROM_SETUP] & SETUP_APD;
 	if (cr & SETUP_APD)
@@ -524,7 +524,7 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	** uncommenting this line.
 	*/
 /*          FORCE_2K_MODE; */
-	
+
 	if (hard_strapped) {
 		printk("      is hard strapped.\n");
 	} else if (mem_start) {
@@ -544,44 +544,44 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	lp->hard_strapped = hard_strapped;
 	lp->led_mask = CR_LED;
 	spin_lock_init(&lp->hw_lock);
-	
+
 	lp->mPage = 64;
 	if (cmr & CMR_DRAM)
 		lp->mPage <<= 1;	/* 2 DRAMS on module */
-	
+
 	sprintf(lp->adapter_name, "%s (%s)", name, dev->name);
-	
+
 	lp->irq_mask = ICR_TNEM | ICR_TXDM | ICR_RNEM | ICR_RXDM;
-	
+
 	if (!hard_strapped) {
 		/*
 		** Enable EWRK3 board interrupts for autoprobing
 		*/
 		icr |= ICR_IE;	/* Enable interrupts */
 		outb(icr, EWRK3_ICR);
-		
+
 		/* The DMA channel may be passed in on this parameter. */
 		dev->dma = 0;
-		
+
 		/* To auto-IRQ we enable the initialization-done and DMA err,
 		   interrupts. For now we will always get a DMA error. */
 		if (dev->irq < 2) {
 #ifndef MODULE
 			u_char irqnum;
 			unsigned long irq_mask;
-			
+
 
 			irq_mask = probe_irq_on();
-			
+
 			/*
 			** Trigger a TNE interrupt.
 			*/
 			icr |= ICR_TNEM;
 			outb(1, EWRK3_TDQ);	/* Write to the TX done queue */
 			outb(icr, EWRK3_ICR);	/* Unmask the TXD interrupt */
-			
+
 			irqnum = irq[((icr & IRQ_SEL) >> 4)];
-			
+
 			mdelay(20);
 			dev->irq = probe_irq_off(irq_mask);
 			if ((dev->irq) && (irqnum == dev->irq)) {
@@ -622,12 +622,12 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 		SET_ETHTOOL_OPS(dev, &ethtool_ops);
 	dev->tx_timeout = ewrk3_timeout;
 	dev->watchdog_timeo = QUEUE_PKT_TIMEOUT;
-	
+
 	dev->mem_start = 0;
 
 	return 0;
 }
-
+
 
 static int ewrk3_open(struct net_device *dev)
 {
@@ -732,14 +732,14 @@ static void ewrk3_init(struct net_device *dev)
 /*
  *  Transmit timeout
  */
- 
+
 static void ewrk3_timeout(struct net_device *dev)
 {
 	struct ewrk3_private *lp = netdev_priv(dev);
 	u_char icr, csr;
 	u_long iobase = dev->base_addr;
-	
-	if (!lp->hard_strapped) 
+
+	if (!lp->hard_strapped)
 	{
 		printk(KERN_WARNING"%s: transmit timed/locked out, status %04x, resetting.\n",
 		       dev->name, inb(EWRK3_CSR));
@@ -1108,7 +1108,7 @@ static int ewrk3_close(struct net_device *dev)
 	u_char icr, csr;
 
 	netif_stop_queue(dev);
-	
+
 	if (ewrk3_debug > 1) {
 		printk("%s: Shutting down ethercard, status was %2.2x.\n",
 		       dev->name, inb(EWRK3_CSR));
@@ -1666,14 +1666,14 @@ static int ewrk3_phys_id(struct net_device *dev, u32 data)
 	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
-static struct ethtool_ops ethtool_ops_203 = {
+static const struct ethtool_ops ethtool_ops_203 = {
 	.get_drvinfo = ewrk3_get_drvinfo,
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,
 	.phys_id = ewrk3_phys_id,
 };
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = ewrk3_get_drvinfo,
 	.get_settings = ewrk3_get_settings,
 	.set_settings = ewrk3_set_settings,
@@ -1697,7 +1697,7 @@ static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		u_char addr[HASH_TABLE_LEN * ETH_ALEN];
 		u_short val[(HASH_TABLE_LEN * ETH_ALEN) >> 1];
 	};
-	
+
 	union ewrk3_addr *tmp;
 
 	/* All we handle are private IOCTLs */
@@ -1717,7 +1717,7 @@ static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_to_user(ioc->data, tmp->addr, ioc->len))
 			status = -EFAULT;
 		break;
-		
+
 	case EWRK3_SET_HWADDR:	/* Set the hardware address */
 		if (capable(CAP_NET_ADMIN)) {
 			spin_lock_irqsave(&lp->hw_lock, flags);
@@ -1990,7 +1990,7 @@ module_init(ewrk3_init_module);
 #endif				/* MODULE */
 MODULE_LICENSE("GPL");
 
-
+
 
 /*
  * Local variables:

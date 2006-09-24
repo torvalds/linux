@@ -156,7 +156,7 @@ static int __init rtctimer_init(void)
 static void __exit rtctimer_exit(void)
 {
 	if (rtctimer) {
-		snd_timer_global_unregister(rtctimer);
+		snd_timer_global_free(rtctimer);
 		rtctimer = NULL;
 	}
 }

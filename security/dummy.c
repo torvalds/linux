@@ -709,10 +709,10 @@ static int dummy_socket_create (int family, int type,
 	return 0;
 }
 
-static void dummy_socket_post_create (struct socket *sock, int family, int type,
-				      int protocol, int kern)
+static int dummy_socket_post_create (struct socket *sock, int family, int type,
+				     int protocol, int kern)
 {
-	return;
+	return 0;
 }
 
 static int dummy_socket_bind (struct socket *sock, struct sockaddr *address,
@@ -805,14 +805,38 @@ static inline void dummy_sk_free_security (struct sock *sk)
 {
 }
 
-static unsigned int dummy_sk_getsid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void dummy_sk_clone_security (const struct sock *sk, struct sock *newsk)
+{
+}
+
+static inline void dummy_sk_getsecid(struct sock *sk, u32 *secid)
+{
+}
+
+static inline void dummy_sock_graft(struct sock* sk, struct socket *parent)
+{
+}
+
+static inline int dummy_inet_conn_request(struct sock *sk,
+			struct sk_buff *skb, struct request_sock *req)
 {
 	return 0;
+}
+
+static inline void dummy_inet_csk_clone(struct sock *newsk,
+			const struct request_sock *req)
+{
+}
+
+static inline void dummy_req_classify_flow(const struct request_sock *req,
+			struct flowi *fl)
+{
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp,
+		struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk)
 {
 	return 0;
 }
@@ -831,7 +855,8 @@ static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
 	return 0;
 }
 
-static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+static int dummy_xfrm_state_alloc_security(struct xfrm_state *x,
+	struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *pol, u32 secid)
 {
 	return 0;
 }
@@ -849,6 +874,23 @@ static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
 {
 	return 0;
 }
+
+static int dummy_xfrm_state_pol_flow_match(struct xfrm_state *x,
+				struct xfrm_policy *xp, struct flowi *fl)
+{
+	return 1;
+}
+
+static int dummy_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+{
+	return 1;
+}
+
+static int dummy_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall)
+{
+	return 0;
+}
+
 #endif /* CONFIG_SECURITY_NETWORK_XFRM */
 static int dummy_register_security (const char *name, struct security_operations *ops)
 {
@@ -1060,7 +1102,12 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, socket_getpeersec_dgram);
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
-	set_to_dummy_if_null(ops, sk_getsid);
+	set_to_dummy_if_null(ops, sk_clone_security);
+	set_to_dummy_if_null(ops, sk_getsecid);
+	set_to_dummy_if_null(ops, sock_graft);
+	set_to_dummy_if_null(ops, inet_conn_request);
+	set_to_dummy_if_null(ops, inet_csk_clone);
+	set_to_dummy_if_null(ops, req_classify_flow);
  #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef  CONFIG_SECURITY_NETWORK_XFRM
 	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);
@@ -1071,6 +1118,9 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_state_free_security);
 	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
+	set_to_dummy_if_null(ops, xfrm_state_pol_flow_match);
+	set_to_dummy_if_null(ops, xfrm_flow_state_match);
+	set_to_dummy_if_null(ops, xfrm_decode_session);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS
 	set_to_dummy_if_null(ops, key_alloc);

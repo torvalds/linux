@@ -22,6 +22,8 @@
 #include <asm/paca.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
+#include <asm/smp.h>
+#include <linux/compiler.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -50,9 +52,32 @@ static inline unsigned long mk_vsid_data(unsigned long ea, unsigned long flags)
 	return (get_kernel_vsid(ea) << SLB_VSID_SHIFT) | flags;
 }
 
-static inline void create_slbe(unsigned long ea, unsigned long flags,
-			       unsigned long entry)
+static inline void slb_shadow_update(unsigned long esid, unsigned long vsid,
+				     unsigned long entry)
 {
+	/*
+	 * Clear the ESID first so the entry is not valid while we are
+	 * updating it.
+	 */
+	get_slb_shadow()->save_area[entry].esid = 0;
+	barrier();
+	get_slb_shadow()->save_area[entry].vsid = vsid;
+	barrier();
+	get_slb_shadow()->save_area[entry].esid = esid;
+
+}
+
+static inline void create_shadowed_slbe(unsigned long ea, unsigned long flags,
+					unsigned long entry)
+{
+	/*
+	 * Updating the shadow buffer before writing the SLB ensures
+	 * we don't get a stale entry here if we get preempted by PHYP
+	 * between these two statements.
+	 */
+	slb_shadow_update(mk_esid_data(ea, entry), mk_vsid_data(ea, flags),
+			  entry);
+
 	asm volatile("slbmte  %0,%1" :
 		     : "r" (mk_vsid_data(ea, flags)),
 		       "r" (mk_esid_data(ea, entry))
@@ -76,6 +101,10 @@ void slb_flush_and_rebolt(void)
 	ksp_esid_data = mk_esid_data(get_paca()->kstack, 2);
 	if ((ksp_esid_data & ESID_MASK) == PAGE_OFFSET)
 		ksp_esid_data &= ~SLB_ESID_V;
+
+	/* Only third entry (stack) may change here so only resave that */
+	slb_shadow_update(ksp_esid_data,
+			  mk_vsid_data(ksp_esid_data, lflags), 2);
 
 	/* We need to do this all in asm, so we're sure we don't touch
 	 * the stack between the slbia and rebolting it. */
@@ -209,9 +238,9 @@ void slb_initialize(void)
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
-	create_slbe(PAGE_OFFSET, lflags, 0);
+	create_shadowed_slbe(PAGE_OFFSET, lflags, 0);
 
-	create_slbe(VMALLOC_START, vflags, 1);
+	create_shadowed_slbe(VMALLOC_START, vflags, 1);
 
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes

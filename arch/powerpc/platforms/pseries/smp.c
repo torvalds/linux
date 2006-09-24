@@ -62,7 +62,7 @@
  */
 static cpumask_t of_spin_map;
 
-extern void pSeries_secondary_smp_init(unsigned long);
+extern void generic_secondary_smp_init(unsigned long);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -145,9 +145,9 @@ static int pSeries_add_processor(struct device_node *np)
 	unsigned int cpu;
 	cpumask_t candidate_map, tmp = CPU_MASK_NONE;
 	int err = -ENOSPC, len, nthreads, i;
-	u32 *intserv;
+	const u32 *intserv;
 
-	intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return 0;
 
@@ -205,9 +205,9 @@ static void pSeries_remove_processor(struct device_node *np)
 {
 	unsigned int cpu;
 	int len, nthreads, i;
-	u32 *intserv;
+	const u32 *intserv;
 
-	intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s", &len);
+	intserv = get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return;
 
@@ -270,7 +270,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 {
 	int status;
 	unsigned long start_here = __pa((u32)*((unsigned long *)
-					       pSeries_secondary_smp_init));
+					       generic_secondary_smp_init));
 	unsigned int pcpu;
 	int start_cpu;
 

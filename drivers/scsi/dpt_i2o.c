@@ -46,7 +46,6 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 
 #include <linux/stat.h>
 #include <linux/slab.h>		/* for kmalloc() */
-#include <linux/config.h>	/* for CONFIG_PCI */
 #include <linux/pci.h>		/* for PCI support */
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
@@ -185,7 +184,7 @@ static int adpt_detect(struct scsi_host_template* sht)
 	PINFO("Detecting Adaptec I2O RAID controllers...\n");
 
         /* search for all Adatpec I2O RAID cards */
-	while ((pDev = pci_find_device( PCI_DPT_VENDOR_ID, PCI_ANY_ID, pDev))) {
+	while ((pDev = pci_get_device( PCI_DPT_VENDOR_ID, PCI_ANY_ID, pDev))) {
 		if(pDev->device == PCI_DPT_DEVICE_ID ||
 		   pDev->device == PCI_DPT_RAPTOR_DEVICE_ID){
 			if(adpt_install_hba(sht, pDev) ){
@@ -193,8 +192,11 @@ static int adpt_detect(struct scsi_host_template* sht)
 				PERROR("Will not try to detect others.\n");
 				return hba_count-1;
 			}
+			pci_dev_get(pDev);
 		}
 	}
+	if (pDev)
+		pci_dev_put(pDev);
 
 	/* In INIT state, Activate IOPs */
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
@@ -1076,6 +1078,7 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 			}
 		}
 	}
+	pci_dev_put(pHba->pDev);
 	kfree(pHba);
 
 	if(hba_count <= 0){

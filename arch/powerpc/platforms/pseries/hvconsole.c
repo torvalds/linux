@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
+#include "plpar_wrappers.h"
 
 /**
  * hvc_get_chars - retrieve characters from firmware for denoted vterm adatper
@@ -40,9 +41,9 @@ int hvc_get_chars(uint32_t vtermno, char *buf, int count)
 {
 	unsigned long got;
 
-	if (plpar_hcall(H_GET_TERM_CHAR, vtermno, 0, 0, 0, &got,
-		(unsigned long *)buf, (unsigned long *)buf+1) == H_SUCCESS)
+	if (plpar_get_term_char(vtermno, &got, buf) == H_SUCCESS)
 		return got;
+
 	return 0;
 }
 

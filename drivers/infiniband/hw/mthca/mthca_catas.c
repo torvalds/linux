@@ -34,6 +34,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 
 #include "mthca_dev.h"
 
@@ -48,9 +49,41 @@ enum {
 
 static DEFINE_SPINLOCK(catas_lock);
 
+static LIST_HEAD(catas_list);
+static struct workqueue_struct *catas_wq;
+static struct work_struct catas_work;
+
+static int catas_reset_disable;
+module_param_named(catas_reset_disable, catas_reset_disable, int, 0644);
+MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if nonzero");
+
+static void catas_reset(void *work_ptr)
+{
+	struct mthca_dev *dev, *tmpdev;
+	LIST_HEAD(tlist);
+	int ret;
+
+	mutex_lock(&mthca_device_mutex);
+
+	spin_lock_irq(&catas_lock);
+	list_splice_init(&catas_list, &tlist);
+	spin_unlock_irq(&catas_lock);
+
+	list_for_each_entry_safe(dev, tmpdev, &tlist, catas_err.list) {
+		ret = __mthca_restart_one(dev->pdev);
+		if (ret)
+			mthca_err(dev, "Reset failed (%d)\n", ret);
+		else
+			mthca_dbg(dev, "Reset succeeded\n");
+	}
+
+	mutex_unlock(&mthca_device_mutex);
+}
+
 static void handle_catas(struct mthca_dev *dev)
 {
 	struct ib_event event;
+	unsigned long flags;
 	const char *type;
 	int i;
 
@@ -82,6 +115,14 @@ static void handle_catas(struct mthca_dev *dev)
 	for (i = 0; i < dev->catas_err.size; ++i)
 		mthca_err(dev, "  buf[%02x]: %08x\n",
 			  i, swab32(readl(dev->catas_err.map + i)));
+
+	if (catas_reset_disable)
+		return;
+
+	spin_lock_irqsave(&catas_lock, flags);
+	list_add(&dev->catas_err.list, &catas_list);
+	queue_work(catas_wq, &catas_work);
+	spin_unlock_irqrestore(&catas_lock, flags);
 }
 
 static void poll_catas(unsigned long dev_ptr)
@@ -135,6 +176,7 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 	dev->catas_err.timer.data     = (unsigned long) dev;
 	dev->catas_err.timer.function = poll_catas;
 	dev->catas_err.timer.expires  = jiffies + MTHCA_CATAS_POLL_INTERVAL;
+	INIT_LIST_HEAD(&dev->catas_err.list);
 	add_timer(&dev->catas_err.timer);
 }
 
@@ -153,4 +195,24 @@ void mthca_stop_catas_poll(struct mthca_dev *dev)
 				    dev->catas_err.addr),
 				   dev->catas_err.size * 4);
 	}
+
+	spin_lock_irq(&catas_lock);
+	list_del(&dev->catas_err.list);
+	spin_unlock_irq(&catas_lock);
+}
+
+int __init mthca_catas_init(void)
+{
+	INIT_WORK(&catas_work, catas_reset, NULL);
+
+	catas_wq = create_singlethread_workqueue("mthca_catas");
+	if (!catas_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mthca_catas_cleanup(void)
+{
+	destroy_workqueue(catas_wq);
 }

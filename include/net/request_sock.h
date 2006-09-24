@@ -53,6 +53,7 @@ struct request_sock {
 	unsigned long			expires;
 	struct request_sock_ops		*rsk_ops;
 	struct sock			*sk;
+	u32				secid;
 };
 
 static inline struct request_sock *reqsk_alloc(struct request_sock_ops *ops)

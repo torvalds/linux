@@ -35,14 +35,20 @@ static unsigned int ip_list_tot = 100;
 static unsigned int ip_pkt_list_tot = 20;
 static unsigned int ip_list_hash_size = 0;
 static unsigned int ip_list_perms = 0644;
+static unsigned int ip_list_uid = 0;
+static unsigned int ip_list_gid = 0;
 module_param(ip_list_tot, uint, 0400);
 module_param(ip_pkt_list_tot, uint, 0400);
 module_param(ip_list_hash_size, uint, 0400);
 module_param(ip_list_perms, uint, 0400);
+module_param(ip_list_uid, uint, 0400);
+module_param(ip_list_gid, uint, 0400);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
 MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP to remember (max. 255)");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/ipt_recent/* files");
+MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/ipt_recent/* files");
+MODULE_PARM_DESC(ip_list_gid,"owning group of /proc/net/ipt_recent/* files");
 
 
 struct recent_entry {
@@ -232,7 +238,7 @@ out:
 static int
 ipt_recent_checkentry(const char *tablename, const void *ip,
 		      const struct xt_match *match, void *matchinfo,
-		      unsigned int matchsize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
@@ -274,6 +280,8 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 		goto out;
 	}
 	t->proc->proc_fops = &recent_fops;
+	t->proc->uid       = ip_list_uid;
+	t->proc->gid       = ip_list_gid;
 	t->proc->data      = t;
 #endif
 	spin_lock_bh(&recent_lock);
@@ -286,8 +294,7 @@ out:
 }
 
 static void
-ipt_recent_destroy(const struct xt_match *match, void *matchinfo,
-		   unsigned int matchsize)
+ipt_recent_destroy(const struct xt_match *match, void *matchinfo)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;

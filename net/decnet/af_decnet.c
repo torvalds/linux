@@ -130,6 +130,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <linux/poll.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_nsp.h>
 #include <net/dn_dev.h>

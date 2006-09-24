@@ -87,7 +87,7 @@ unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 	unsigned int csum = 0;
 
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (hook != NF_IP6_PRE_ROUTING && hook != NF_IP6_LOCAL_IN)
 			break;
 		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,

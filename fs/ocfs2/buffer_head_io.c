@@ -100,6 +100,9 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 	mlog_entry("(block=(%llu), nr=(%d), flags=%d, inode=%p)\n",
 		   (unsigned long long)block, nr, flags, inode);
 
+	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
+	       (!inode || !(flags & OCFS2_BH_CACHED)));
+
 	if (osb == NULL || osb->sb == NULL || bhs == NULL) {
 		status = -EINVAL;
 		mlog_errno(status);
@@ -140,6 +143,30 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		bh = bhs[i];
 		ignore_cache = 0;
 
+		/* There are three read-ahead cases here which we need to
+		 * be concerned with. All three assume a buffer has
+		 * previously been submitted with OCFS2_BH_READAHEAD
+		 * and it hasn't yet completed I/O.
+		 *
+		 * 1) The current request is sync to disk. This rarely
+		 *    happens these days, and never when performance
+		 *    matters - the code can just wait on the buffer
+		 *    lock and re-submit.
+		 *
+		 * 2) The current request is cached, but not
+		 *    readahead. ocfs2_buffer_uptodate() will return
+		 *    false anyway, so we'll wind up waiting on the
+		 *    buffer lock to do I/O. We re-check the request
+		 *    with after getting the lock to avoid a re-submit.
+		 *
+		 * 3) The current request is readahead (and so must
+		 *    also be a caching one). We short circuit if the
+		 *    buffer is locked (under I/O) and if it's in the
+		 *    uptodate cache. The re-check from #2 catches the
+		 *    case that the previous read-ahead completes just
+		 *    before our is-it-in-flight check.
+		 */
+
 		if (flags & OCFS2_BH_CACHED &&
 		    !ocfs2_buffer_uptodate(inode, bh)) {
 			mlog(ML_UPTODATE,
@@ -169,6 +196,14 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 				continue;
 			}
 
+			/* A read-ahead request was made - if the
+			 * buffer is already under read-ahead from a
+			 * previously submitted request than we are
+			 * done here. */
+			if ((flags & OCFS2_BH_READAHEAD)
+			    && ocfs2_buffer_read_ahead(inode, bh))
+				continue;
+
 			lock_buffer(bh);
 			if (buffer_jbd(bh)) {
 #ifdef CATCH_BH_JBD_RACES
@@ -181,13 +216,22 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 				continue;
 #endif
 			}
+
+			/* Re-check ocfs2_buffer_uptodate() as a
+			 * previously read-ahead buffer may have
+			 * completed I/O while we were waiting for the
+			 * buffer lock. */
+			if ((flags & OCFS2_BH_CACHED)
+			    && !(flags & OCFS2_BH_READAHEAD)
+			    && ocfs2_buffer_uptodate(inode, bh)) {
+				unlock_buffer(bh);
+				continue;
+			}
+
 			clear_buffer_uptodate(bh);
 			get_bh(bh); /* for end_buffer_read_sync() */
 			bh->b_end_io = end_buffer_read_sync;
-			if (flags & OCFS2_BH_READAHEAD)
-				submit_bh(READA, bh);
-			else
-				submit_bh(READ, bh);
+			submit_bh(READ, bh);
 			continue;
 		}
 	}
@@ -197,34 +241,39 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 	for (i = (nr - 1); i >= 0; i--) {
 		bh = bhs[i];
 
-		/* We know this can't have changed as we hold the
-		 * inode sem. Avoid doing any work on the bh if the
-		 * journal has it. */
-		if (!buffer_jbd(bh))
-			wait_on_buffer(bh);
+		if (!(flags & OCFS2_BH_READAHEAD)) {
+			/* We know this can't have changed as we hold the
+			 * inode sem. Avoid doing any work on the bh if the
+			 * journal has it. */
+			if (!buffer_jbd(bh))
+				wait_on_buffer(bh);
 
-		if (!buffer_uptodate(bh)) {
-			/* Status won't be cleared from here on out,
-			 * so we can safely record this and loop back
-			 * to cleanup the other buffers. Don't need to
-			 * remove the clustered uptodate information
-			 * for this bh as it's not marked locally
-			 * uptodate. */
-			status = -EIO;
-			brelse(bh);
-			bhs[i] = NULL;
-			continue;
+			if (!buffer_uptodate(bh)) {
+				/* Status won't be cleared from here on out,
+				 * so we can safely record this and loop back
+				 * to cleanup the other buffers. Don't need to
+				 * remove the clustered uptodate information
+				 * for this bh as it's not marked locally
+				 * uptodate. */
+				status = -EIO;
+				brelse(bh);
+				bhs[i] = NULL;
+				continue;
+			}
 		}
 
+		/* Always set the buffer in the cache, even if it was
+		 * a forced read, or read-ahead which hasn't yet
+		 * completed. */
 		if (inode)
 			ocfs2_set_buffer_uptodate(inode, bh);
 	}
 	if (inode)
 		mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
-	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s\n", 
+	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
 	     (unsigned long long)block, nr,
-	     (!(flags & OCFS2_BH_CACHED) || ignore_cache) ? "no" : "yes");
+	     (!(flags & OCFS2_BH_CACHED) || ignore_cache) ? "no" : "yes", flags);
 
 bail:
 

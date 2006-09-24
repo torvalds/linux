@@ -12,6 +12,8 @@
  * any later version.
  *
  */
+
+#include <asm/atomic.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/rwsem.h>
@@ -54,6 +56,7 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
 	seq_printf(m, "priority     : %d\n", alg->cra_priority);
+	seq_printf(m, "refcnt       : %d\n", atomic_read(&alg->cra_refcnt));
 	
 	switch (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_CIPHER:
@@ -75,7 +78,10 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "type         : compression\n");
 		break;
 	default:
-		seq_printf(m, "type         : unknown\n");
+		if (alg->cra_type && alg->cra_type->show)
+			alg->cra_type->show(m, alg);
+		else
+			seq_printf(m, "type         : unknown\n");
 		break;
 	}
 
@@ -109,4 +115,9 @@ void __init crypto_init_proc(void)
 	proc = create_proc_entry("crypto", 0, NULL);
 	if (proc)
 		proc->proc_fops = &proc_crypto_ops;
+}
+
+void __exit crypto_exit_proc(void)
+{
+	remove_proc_entry("crypto", NULL);
 }

@@ -396,7 +396,7 @@ static void wf_smu_sys_fans_tick(struct wf_smu_sys_fans_state *st)
 static void wf_smu_create_cpu_fans(void)
 {
 	struct wf_cpu_pid_param pid_param;
-	struct smu_sdbp_header *hdr;
+	const struct smu_sdbp_header *hdr;
 	struct smu_sdbp_cpupiddata *piddata;
 	struct smu_sdbp_fvt *fvt;
 	s32 tmax, tdelta, maxpow, powadj;
@@ -702,7 +702,7 @@ static struct notifier_block wf_smu_events = {
 
 static int wf_init_pm(void)
 {
-	struct smu_sdbp_header *hdr;
+	const struct smu_sdbp_header *hdr;
 
 	hdr = smu_get_sdb_partition(SMU_SDB_SENSORTREE_ID, NULL);
 	if (hdr != 0) {

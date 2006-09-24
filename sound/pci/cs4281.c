@@ -33,6 +33,7 @@
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
 #include <sound/ac97_codec.h>
+#include <sound/tlv.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
 
@@ -1054,6 +1055,8 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
+
 static struct snd_kcontrol_new snd_cs4281_fm_vol = 
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1062,6 +1065,7 @@ static struct snd_kcontrol_new snd_cs4281_fm_vol =
 	.get = snd_cs4281_get_volume,
 	.put = snd_cs4281_put_volume, 
 	.private_value = ((BA0_FMLVC << 16) | BA0_FMRVC),
+	.tlv = { .p = db_scale_dsp },
 };
 
 static struct snd_kcontrol_new snd_cs4281_pcm_vol = 
@@ -1072,6 +1076,7 @@ static struct snd_kcontrol_new snd_cs4281_pcm_vol =
 	.get = snd_cs4281_get_volume,
 	.put = snd_cs4281_put_volume, 
 	.private_value = ((BA0_PPLVC << 16) | BA0_PPRVC),
+	.tlv = { .p = db_scale_dsp },
 };
 
 static void snd_cs4281_mixer_free_ac97_bus(struct snd_ac97_bus *bus)

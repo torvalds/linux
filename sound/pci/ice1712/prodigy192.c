@@ -35,6 +35,7 @@
 #include "envy24ht.h"
 #include "prodigy192.h"
 #include "stac946x.h"
+#include <sound/tlv.h>
 
 static inline void stac9460_put(struct snd_ice1712 *ice, int reg, unsigned char val)
 {
@@ -356,6 +357,9 @@ static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 }
 #endif
 
+static DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
+
 /*
  * mixers
  */
@@ -368,14 +372,18 @@ static struct snd_kcontrol_new stac_controls[] __devinitdata = {
 		.get = stac9460_dac_mute_get,
 		.put = stac9460_dac_mute_put,
 		.private_value = 1,
+		.tlv = { .p = db_scale_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Master Playback Volume",
 		.info = stac9460_dac_vol_info,
 		.get = stac9460_dac_vol_get,
 		.put = stac9460_dac_vol_put,
 		.private_value = 1,
+		.tlv = { .p = db_scale_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -387,11 +395,14 @@ static struct snd_kcontrol_new stac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "DAC Volume",
 		.count = 6,
 		.info = stac9460_dac_vol_info,
 		.get = stac9460_dac_vol_get,
 		.put = stac9460_dac_vol_put,
+		.tlv = { .p = db_scale_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -404,11 +415,14 @@ static struct snd_kcontrol_new stac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "ADC Volume",
 		.count = 1,
 		.info = stac9460_adc_vol_info,
 		.get = stac9460_adc_vol_get,
 		.put = stac9460_adc_vol_put,
+		.tlv = { .p = db_scale_adc }
 	},
 #if 0
 	{

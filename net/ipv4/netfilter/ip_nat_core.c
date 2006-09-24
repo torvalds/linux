@@ -22,9 +22,6 @@
 #include <linux/udp.h>
 #include <linux/jhash.h>
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
 #include <linux/netfilter_ipv4/ip_conntrack_protocol.h>
@@ -33,7 +30,6 @@
 #include <linux/netfilter_ipv4/ip_nat_core.h>
 #include <linux/netfilter_ipv4/ip_nat_helper.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #if 0
 #define DEBUGP printk
@@ -100,18 +96,6 @@ static void ip_nat_cleanup_conntrack(struct ip_conntrack *conn)
 	list_del(&conn->nat.info.bysource);
 	write_unlock_bh(&ip_nat_lock);
 }
-
-/* We do checksum mangling, so if they were wrong before they're still
- * wrong.  Also works for incomplete packets (eg. ICMP dest
- * unreachables.) */
-u_int16_t
-ip_nat_cheat_check(u_int32_t oldvalinv, u_int32_t newval, u_int16_t oldcheck)
-{
-	u_int32_t diffs[] = { oldvalinv, newval };
-	return csum_fold(csum_partial((char *)diffs, sizeof(diffs),
-				      oldcheck^0xFFFF));
-}
-EXPORT_SYMBOL(ip_nat_cheat_check);
 
 /* Is this tuple already taken? (not by us) */
 int
@@ -378,12 +362,12 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)(*pskb)->data + iphdroff;
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
-		iph->check = ip_nat_cheat_check(~iph->saddr, target->src.ip,
-						iph->check);
+		iph->check = nf_csum_update(~iph->saddr, target->src.ip,
+					    iph->check);
 		iph->saddr = target->src.ip;
 	} else {
-		iph->check = ip_nat_cheat_check(~iph->daddr, target->dst.ip,
-						iph->check);
+		iph->check = nf_csum_update(~iph->daddr, target->dst.ip,
+					    iph->check);
 		iph->daddr = target->dst.ip;
 	}
 	return 1;
@@ -423,10 +407,10 @@ unsigned int ip_nat_packet(struct ip_conntrack *ct,
 EXPORT_SYMBOL_GPL(ip_nat_packet);
 
 /* Dir is direction ICMP is coming from (opposite to packet it contains) */
-int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
-				  struct ip_conntrack *ct,
-				  enum ip_nat_manip_type manip,
-				  enum ip_conntrack_dir dir)
+int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
+				  enum ip_conntrack_info ctinfo,
+				  unsigned int hooknum,
+				  struct sk_buff **pskb)
 {
 	struct {
 		struct icmphdr icmp;
@@ -434,7 +418,9 @@ int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
 	} *inside;
 	struct ip_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned long statusbit;
+	enum ip_nat_manip_type manip = HOOK2MANIP(hooknum);
 
 	if (!skb_make_writable(pskb, hdrlen + sizeof(*inside)))
 		return 0;
@@ -443,12 +429,8 @@ int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
 
 	/* We're actually going to mangle it beyond trivial checksum
 	   adjustment, so make sure the current checksum is correct. */
-	if ((*pskb)->ip_summed != CHECKSUM_UNNECESSARY) {
-		hdrlen = (*pskb)->nh.iph->ihl * 4;
-		if ((u16)csum_fold(skb_checksum(*pskb, hdrlen,
-						(*pskb)->len - hdrlen, 0)))
-			return 0;
-	}
+	if (nf_ip_checksum(*pskb, hooknum, hdrlen, 0))
+		return 0;
 
 	/* Must be RELATED */
 	IP_NF_ASSERT((*pskb)->nfctinfo == IP_CT_RELATED ||
@@ -487,12 +469,14 @@ int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
 		       !manip))
 		return 0;
 
-	/* Reloading "inside" here since manip_pkt inner. */
-	inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
-	inside->icmp.checksum = 0;
-	inside->icmp.checksum = csum_fold(skb_checksum(*pskb, hdrlen,
-						       (*pskb)->len - hdrlen,
-						       0));
+	if ((*pskb)->ip_summed != CHECKSUM_PARTIAL) {
+		/* Reloading "inside" here since manip_pkt inner. */
+		inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
+		inside->icmp.checksum = 0;
+		inside->icmp.checksum = csum_fold(skb_checksum(*pskb, hdrlen,
+							       (*pskb)->len - hdrlen,
+							       0));
+	}
 
 	/* Change outer to look the reply to an incoming packet
 	 * (proto 0 means don't invert per-proto part). */

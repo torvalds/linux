@@ -438,12 +438,6 @@ config MIPS_JAZZ_SONIC
 	  This is the driver for the onboard card of MIPS Magnum 4000,
 	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
 
-config MIPS_GT96100ETH
-	bool "MIPS GT96100 Ethernet support"
-	depends on NET_ETHERNET && MIPS_GT96100
-	help
-	  Say Y here to support the Ethernet subsystem on your GT96100 card.
-
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on NET_ETHERNET && SOC_AU1X00
@@ -1300,6 +1294,23 @@ config PCNET32
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called pcnet32.
 
+config PCNET32_NAPI
+	bool "Use RX polling (NAPI) (EXPERIMENTAL)"
+	depends on PCNET32 && EXPERIMENTAL
+	help
+	  NAPI is a new driver API designed to reduce CPU and interrupt load
+	  when the driver is receiving lots of packets from the card. It is
+	  still somewhat experimental and thus not yet enabled by default.
+
+	  If your estimated Rx load is 10kpps or more, or if the card will be
+	  deployed on potentially unfriendly networks (e.g. in a firewall),
+	  then say Y here.
+
+	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
+	  information.
+
+	  If in doubt, say N.
+
 config AMD8111_ETH
 	tristate "AMD 8111 (new PCI lance) support"
 	depends on NET_PCI && PCI
@@ -1411,6 +1422,22 @@ config FORCEDETH
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
 	  called forcedeth.
 
+config FORCEDETH_NAPI
+	bool "Use Rx and Tx Polling (NAPI) (EXPERIMENTAL)"
+	depends on FORCEDETH && EXPERIMENTAL
+	help
+	  NAPI is a new driver API designed to reduce CPU and interrupt load
+	  when the driver is receiving lots of packets from the card. It is
+	  still somewhat experimental and thus not yet enabled by default.
+
+	  If your estimated Rx load is 10kpps or more, or if the card will be
+	  deployed on potentially unfriendly networks (e.g. in a firewall),
+	  then say Y here.
+
+	  See <file:Documentation/networking/NAPI_HOWTO.txt> for more
+	  information.
+
+	  If in doubt, say N.
 
 config CS89x0
 	tristate "CS89x0 support"
@@ -2262,7 +2289,7 @@ config UGETH_HAS_GIGA
 
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
-	depends on MOMENCO_OCELOT_C || MOMENCO_JAGUAR_ATX || MV64360 || MOMENCO_OCELOT_3 || PPC_MULTIPLATFORM
+	depends on MOMENCO_OCELOT_C || MOMENCO_JAGUAR_ATX || MV64360 || MOMENCO_OCELOT_3 || (PPC_MULTIPLATFORM && PPC32)
 	select MII
 	help
 	  This driver supports the gigabit Ethernet on the Marvell MV643XX
@@ -2289,6 +2316,15 @@ config MV643XX_ETH_2
 	help
 	  This enables support for Port 2 of the Marvell MV643XX Gigabit
 	  Ethernet.
+
+config QLA3XXX
+	tristate "QLogic QLA3XXX Network Driver Support"
+	depends on PCI
+	help
+	  This driver supports QLogic ISP3XXX gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qla3xxx.
 
 endmenu
 
@@ -2317,6 +2353,15 @@ config CHELSIO_T1
 
           To compile this driver as a module, choose M here: the module
           will be called cxgb.
+
+config EHEA
+	tristate "eHEA Ethernet support"
+	depends on IBMEBUS
+	---help---
+	  This driver supports the IBM pSeries eHEA ethernet adapter.
+
+	  To compile the driver as a module, choose M here. The module
+	  will be called ehea.
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2550,6 +2595,7 @@ config PLIP
 
 config PPP
 	tristate "PPP (point-to-point protocol) support"
+	select SLHC
 	---help---
 	  PPP (Point to Point Protocol) is a newer and better SLIP.  It serves
 	  the same purpose: sending Internet traffic over telephone (and other
@@ -2730,6 +2776,7 @@ config SLIP
 config SLIP_COMPRESSED
 	bool "CSLIP compressed headers"
 	depends on SLIP
+	select SLHC
 	---help---
 	  This protocol is faster than SLIP because it uses compression on the
 	  TCP/IP headers (not on the data itself), but it has to be supported
@@ -2741,6 +2788,12 @@ config SLIP_COMPRESSED
 	  definitely want to say Y here. The NET-3-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>, explains how to configure
 	  CSLIP. This won't enlarge your kernel.
+
+config SLHC
+	tristate
+	help
+	  This option enables Van Jacobsen serial line header compression
+	  routines.
 
 config SLIP_SMART
 	bool "Keepalive and linefill"

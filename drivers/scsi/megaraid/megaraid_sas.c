@@ -53,31 +53,15 @@ MODULE_DESCRIPTION("LSI Logic MegaRAID SAS Driver");
  */
 static struct pci_device_id megasas_pci_table[] = {
 
-	{
-	 PCI_VENDOR_ID_LSI_LOGIC,
-	 PCI_DEVICE_ID_LSI_SAS1064R, /* xscale IOP */
-	 PCI_ANY_ID,
-	 PCI_ANY_ID,
-	 },
-	{
-	 PCI_VENDOR_ID_LSI_LOGIC,
-	 PCI_DEVICE_ID_LSI_SAS1078R, /* ppc IOP */
-	 PCI_ANY_ID,
-	 PCI_ANY_ID,
-	},
-	{
-	 PCI_VENDOR_ID_LSI_LOGIC,
-	 PCI_DEVICE_ID_LSI_VERDE_ZCR,	/* xscale IOP, vega */
-	 PCI_ANY_ID,
-	 PCI_ANY_ID,
-	 },
-	{
-	 PCI_VENDOR_ID_DELL,
-	 PCI_DEVICE_ID_DELL_PERC5, /* xscale IOP */
-	 PCI_ANY_ID,
-	 PCI_ANY_ID,
-	 },
-	{0}			/* Terminating entry */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1064R)},
+	/* xscale IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078R)},
+	/* ppc IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VERDE_ZCR)},
+	/* xscale IOP, vega */
+	{PCI_DEVICE(PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_PERC5)},
+	/* xscale IOP */
+	{}
 };
 
 MODULE_DEVICE_TABLE(pci, megasas_pci_table);
@@ -2854,7 +2838,7 @@ static int __init megasas_init(void)
 	/*
 	 * Register ourselves as PCI hotplug module
 	 */
-	rval = pci_module_init(&megasas_pci_driver);
+	rval = pci_register_driver(&megasas_pci_driver);
 
 	if (rval) {
 		printk(KERN_DEBUG "megasas: PCI hotplug regisration failed \n");

@@ -42,7 +42,7 @@
  *                      Modularization.
  *	- Jan 1995	Bjorn Ekwall
  *			Use ip_fast_csum from ip.h
- *	- July 1995	Christos A. Polyzols 
+ *	- July 1995	Christos A. Polyzols
  *			Spotted bug in tcp option checking
  *
  *
@@ -94,27 +94,23 @@ slhc_init(int rslots, int tslots)
 	register struct cstate *ts;
 	struct slcompress *comp;
 
-	comp = (struct slcompress *)kmalloc(sizeof(struct slcompress),
-					    GFP_KERNEL);
+	comp = kzalloc(sizeof(struct slcompress), GFP_KERNEL);
 	if (! comp)
 		goto out_fail;
-	memset(comp, 0, sizeof(struct slcompress));
 
 	if ( rslots > 0  &&  rslots < 256 ) {
 		size_t rsize = rslots * sizeof(struct cstate);
-		comp->rstate = (struct cstate *) kmalloc(rsize, GFP_KERNEL);
+		comp->rstate = kzalloc(rsize, GFP_KERNEL);
 		if (! comp->rstate)
 			goto out_free;
-		memset(comp->rstate, 0, rsize);
 		comp->rslot_limit = rslots - 1;
 	}
 
 	if ( tslots > 0  &&  tslots < 256 ) {
 		size_t tsize = tslots * sizeof(struct cstate);
-		comp->tstate = (struct cstate *) kmalloc(tsize, GFP_KERNEL);
+		comp->tstate = kzalloc(tsize, GFP_KERNEL);
 		if (! comp->tstate)
 			goto out_free2;
-		memset(comp->tstate, 0, tsize);
 		comp->tslot_limit = tslots - 1;
 	}
 
@@ -141,9 +137,9 @@ slhc_init(int rslots, int tslots)
 	return comp;
 
 out_free2:
-	kfree((unsigned char *)comp->rstate);
+	kfree(comp->rstate);
 out_free:
-	kfree((unsigned char *)comp);
+	kfree(comp);
 out_fail:
 	return NULL;
 }
@@ -242,10 +238,10 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	/*
 	 *	Don't play with runt packets.
 	 */
-	 
+
 	if(isize<sizeof(struct iphdr))
 		return isize;
-		
+
 	ip = (struct iphdr *) icp;
 
 	/* Bail if this packet isn't TCP, or is an IP fragment */
@@ -700,20 +696,6 @@ EXPORT_SYMBOL(slhc_compress);
 EXPORT_SYMBOL(slhc_uncompress);
 EXPORT_SYMBOL(slhc_toss);
 
-#ifdef MODULE
-
-int init_module(void)
-{
-	printk(KERN_INFO "CSLIP: code copyright 1989 Regents of the University of California\n");
-	return 0;
-}
-
-void cleanup_module(void)
-{
-	return;
-}
-
-#endif /* MODULE */
 #else /* CONFIG_INET */
 
 

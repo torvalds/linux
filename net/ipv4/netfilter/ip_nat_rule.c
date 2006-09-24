@@ -19,14 +19,10 @@
 #include <net/route.h>
 #include <linux/bitops.h>
 
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ip_nat.h>
 #include <linux/netfilter_ipv4/ip_nat_core.h>
 #include <linux/netfilter_ipv4/ip_nat_rule.h>
-#include <linux/netfilter_ipv4/listhelp.h>
 
 #if 0
 #define DEBUGP printk
@@ -104,8 +100,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 				    const struct net_device *out,
 				    unsigned int hooknum,
 				    const struct ipt_target *target,
-				    const void *targinfo,
-				    void *userinfo)
+				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
@@ -147,8 +142,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 				    const struct net_device *out,
 				    unsigned int hooknum,
 				    const struct ipt_target *target,
-				    const void *targinfo,
-				    void *userinfo)
+				    const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
@@ -174,7 +168,6 @@ static int ipt_snat_checkentry(const char *tablename,
 			       const void *entry,
 			       const struct ipt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	struct ip_nat_multi_range_compat *mr = targinfo;
@@ -191,7 +184,6 @@ static int ipt_dnat_checkentry(const char *tablename,
 			       const void *entry,
 			       const struct ipt_target *target,
 			       void *targinfo,
-			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	struct ip_nat_multi_range_compat *mr = targinfo;
@@ -255,7 +247,7 @@ int ip_nat_rule_find(struct sk_buff **pskb,
 {
 	int ret;
 
-	ret = ipt_do_table(pskb, hooknum, in, out, &nat_table, NULL);
+	ret = ipt_do_table(pskb, hooknum, in, out, &nat_table);
 
 	if (ret == NF_ACCEPT) {
 		if (!ip_nat_initialized(ct, HOOK2MANIP(hooknum)))

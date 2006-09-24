@@ -28,7 +28,7 @@ static int ipip_xfrm_rcv(struct xfrm_state *x, struct sk_buff *skb)
 
 static int ipip_init_state(struct xfrm_state *x)
 {
-	if (!x->props.mode)
+	if (x->props.mode != XFRM_MODE_TUNNEL)
 		return -EINVAL;
 
 	if (x->encap)

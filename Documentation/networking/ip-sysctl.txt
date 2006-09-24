@@ -375,6 +375,41 @@ tcp_slow_start_after_idle - BOOLEAN
 	be timed out after an idle period.
 	Default: 1
 
+CIPSOv4 Variables:
+
+cipso_cache_enable - BOOLEAN
+	If set, enable additions to and lookups from the CIPSO label mapping
+	cache.  If unset, additions are ignored and lookups always result in a
+	miss.  However, regardless of the setting the cache is still
+	invalidated when required when means you can safely toggle this on and
+	off and the cache will always be "safe".
+	Default: 1
+
+cipso_cache_bucket_size - INTEGER
+	The CIPSO label cache consists of a fixed size hash table with each
+	hash bucket containing a number of cache entries.  This variable limits
+	the number of entries in each hash bucket; the larger the value the
+	more CIPSO label mappings that can be cached.  When the number of
+	entries in a given hash bucket reaches this limit adding new entries
+	causes the oldest entry in the bucket to be removed to make room.
+	Default: 10
+
+cipso_rbm_optfmt - BOOLEAN
+	Enable the "Optimized Tag 1 Format" as defined in section 3.4.2.6 of
+	the CIPSO draft specification (see Documentation/netlabel for details).
+	This means that when set the CIPSO tag will be padded with empty
+	categories in order to make the packet data 32-bit aligned.
+	Default: 0
+
+cipso_rbm_structvalid - BOOLEAN
+	If set, do a very strict check of the CIPSO option when
+	ip_options_compile() is called.  If unset, relax the checks done during
+	ip_options_compile().  Either way is "safe" as errors are caught else
+	where in the CIPSO processing code but setting this to 0 (False) should
+	result in less work (i.e. it should be faster) but could cause problems
+	with other implementations that require strict checking.
+	Default: 0
+
 IP Variables:
 
 ip_local_port_range - 2 INTEGERS
@@ -729,6 +764,9 @@ conf/all/forwarding - BOOLEAN
 	'forwarding' to the specified value.  See below for details.
 
 	This referred to as global forwarding.
+
+proxy_ndp - BOOLEAN
+	Do proxy ndp.
 
 conf/interface/*:
 	Change special settings per interface.

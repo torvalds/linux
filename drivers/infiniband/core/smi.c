@@ -64,7 +64,7 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 
 		/* C14-9:2 */
 		if (hop_ptr && hop_ptr < hop_cnt) {
-			if (node_type != IB_NODE_SWITCH)
+			if (node_type != RDMA_NODE_IB_SWITCH)
 				return 0;
 
 			/* smp->return_path set when received */
@@ -77,7 +77,7 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 		if (hop_ptr == hop_cnt) {
 			/* smp->return_path set when received */
 			smp->hop_ptr++;
-			return (node_type == IB_NODE_SWITCH ||
+			return (node_type == RDMA_NODE_IB_SWITCH ||
 				smp->dr_dlid == IB_LID_PERMISSIVE);
 		}
 
@@ -95,7 +95,7 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 
 		/* C14-13:2 */
 		if (2 <= hop_ptr && hop_ptr <= hop_cnt) {
-			if (node_type != IB_NODE_SWITCH)
+			if (node_type != RDMA_NODE_IB_SWITCH)
 				return 0;
 
 			smp->hop_ptr--;
@@ -107,7 +107,7 @@ int smi_handle_dr_smp_send(struct ib_smp *smp,
 		if (hop_ptr == 1) {
 			smp->hop_ptr--;
 			/* C14-13:3 -- SMPs destined for SM shouldn't be here */
-			return (node_type == IB_NODE_SWITCH ||
+			return (node_type == RDMA_NODE_IB_SWITCH ||
 				smp->dr_slid == IB_LID_PERMISSIVE);
 		}
 
@@ -142,7 +142,7 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 
 		/* C14-9:2 -- intermediate hop */
 		if (hop_ptr && hop_ptr < hop_cnt) {
-			if (node_type != IB_NODE_SWITCH)
+			if (node_type != RDMA_NODE_IB_SWITCH)
 				return 0;
 
 			smp->return_path[hop_ptr] = port_num;
@@ -156,7 +156,7 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 				smp->return_path[hop_ptr] = port_num;
 			/* smp->hop_ptr updated when sending */
 
-			return (node_type == IB_NODE_SWITCH ||
+			return (node_type == RDMA_NODE_IB_SWITCH ||
 				smp->dr_dlid == IB_LID_PERMISSIVE);
 		}
 
@@ -175,7 +175,7 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 
 		/* C14-13:2 */
 		if (2 <= hop_ptr && hop_ptr <= hop_cnt) {
-			if (node_type != IB_NODE_SWITCH)
+			if (node_type != RDMA_NODE_IB_SWITCH)
 				return 0;
 
 			/* smp->hop_ptr updated when sending */
@@ -190,7 +190,7 @@ int smi_handle_dr_smp_recv(struct ib_smp *smp,
 				return 1;
 			}
 			/* smp->hop_ptr updated when sending */
-			return (node_type == IB_NODE_SWITCH);
+			return (node_type == RDMA_NODE_IB_SWITCH);
 		}
 
 		/* C14-13:4 -- hop_ptr = 0 -> give to SM */

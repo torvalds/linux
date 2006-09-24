@@ -1071,7 +1071,7 @@ static u32 bigmac_get_link(struct net_device *dev)
 	return (bp->sw_bmsr & BMSR_LSTATUS);
 }
 
-static struct ethtool_ops bigmac_ethtool_ops = {
+static const struct ethtool_ops bigmac_ethtool_ops = {
 	.get_drvinfo		= bigmac_get_drvinfo,
 	.get_link		= bigmac_get_link,
 };

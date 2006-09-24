@@ -358,7 +358,7 @@ static struct tcp_congestion_ops cubictcp = {
 
 static int __init cubictcp_register(void)
 {
-	BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
 
 	/* Precompute a bunch of the scaling factors that are used per-packet
 	 * based on SRTT of 100ms

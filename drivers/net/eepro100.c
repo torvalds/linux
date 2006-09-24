@@ -494,9 +494,9 @@ static struct net_device_stats *speedo_get_stats(struct net_device *dev);
 static int speedo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void set_rx_mode(struct net_device *dev);
 static void speedo_show_state(struct net_device *dev);
-static struct ethtool_ops ethtool_ops;
+static const struct ethtool_ops ethtool_ops;
 
-
+
 
 #ifdef honor_default_port
 /* Optional driver feature to allow forcing the transceiver setting.
@@ -646,7 +646,7 @@ static int __devinit speedo_found1(struct pci_dev *pdev,
 		option = 0;
 
 	rtnl_lock();
-	if (dev_alloc_name(dev, dev->name) < 0) 
+	if (dev_alloc_name(dev, dev->name) < 0)
 		goto err_free_unlock;
 
 	/* Read the station address EEPROM before doing the reset.
@@ -825,10 +825,10 @@ static int __devinit speedo_found1(struct pci_dev *pdev,
 	sp->mii_if.dev = dev;
 	sp->mii_if.mdio_read = mdio_read;
 	sp->mii_if.mdio_write = mdio_write;
-	
+
 	sp->rx_bug = (eeprom[3] & 0x03) == 3 ? 0 : 1;
-	if (((pdev->device > 0x1030 && (pdev->device < 0x103F))) 
-	    || (pdev->device == 0x2449) || (pdev->device == 0x2459) 
+	if (((pdev->device > 0x1030 && (pdev->device < 0x103F)))
+	    || (pdev->device == 0x2449) || (pdev->device == 0x2459)
             || (pdev->device == 0x245D)) {
 	    	sp->chip_id = 1;
 	}
@@ -1208,7 +1208,7 @@ static void speedo_show_state(struct net_device *dev)
 	int i;
 
 	if (netif_msg_pktdata(sp)) {
-		printk(KERN_DEBUG "%s: Tx ring dump,  Tx queue %u / %u:\n", 
+		printk(KERN_DEBUG "%s: Tx ring dump,  Tx queue %u / %u:\n",
 		    dev->name, sp->cur_tx, sp->dirty_tx);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_DEBUG "%s:  %c%c%2d %8.8x.\n", dev->name,
@@ -1586,7 +1586,7 @@ static irqreturn_t speedo_interrupt(int irq, void *dev_instance, struct pt_regs 
 
 		/* Always check if all rx buffers are allocated.  --SAW */
 		speedo_refill_rx_buffers(dev, 0);
-		
+
 		spin_lock(&sp->lock);
 		/*
 		 * The chip may have suspended reception for various reasons.
@@ -1607,8 +1607,8 @@ static irqreturn_t speedo_interrupt(int irq, void *dev_instance, struct pt_regs 
 			/* these are all reserved values */
 			break;
 		}
-		
-		
+
+
 		/* User interrupt, Command/Tx unit interrupt or CU not active. */
 		if (status & 0xA400) {
 			speedo_tx_buffer_gc(dev);
@@ -1619,7 +1619,7 @@ static irqreturn_t speedo_interrupt(int irq, void *dev_instance, struct pt_regs 
 				netif_wake_queue(dev); /* Attention: under a spinlock.  --SAW */
 			}
 		}
-		
+
 		spin_unlock(&sp->lock);
 
 		if (--boguscnt < 0) {
@@ -2015,7 +2015,7 @@ static void speedo_set_msglevel(struct net_device *dev, u32 v)
 	sp->msg_enable = v;
 }
 
-static struct ethtool_ops ethtool_ops = {
+static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo = speedo_get_drvinfo,
 	.get_settings = speedo_get_settings,
 	.set_settings = speedo_set_settings,
@@ -2263,7 +2263,7 @@ static void set_rx_mode(struct net_device *dev)
 
 	sp->rx_mode = new_rx_mode;
 }
-
+
 #ifdef CONFIG_PM
 static int eepro100_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -2275,12 +2275,12 @@ static int eepro100_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (!netif_running(dev))
 		return 0;
-		
+
 	del_timer_sync(&sp->timer);
 
 	netif_device_detach(dev);
 	iowrite32(PortPartialReset, ioaddr + SCBPort);
-	
+
 	/* XXX call pci_set_power_state ()? */
 	pci_disable_device(pdev);
 	pci_set_power_state (pdev, PCI_D3hot);
@@ -2324,7 +2324,7 @@ static void __devexit eepro100_remove_one (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
 	struct speedo_private *sp = netdev_priv(dev);
-	
+
 	unregister_netdev(dev);
 
 	release_region(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
@@ -2337,7 +2337,7 @@ static void __devexit eepro100_remove_one (struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	free_netdev(dev);
 }
-
+
 static struct pci_device_id eepro100_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, 0x1229, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, 0x1209, PCI_ANY_ID, PCI_ANY_ID, },
@@ -2368,7 +2368,7 @@ static struct pci_device_id eepro100_pci_tbl[] = {
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, eepro100_pci_tbl);
-	
+
 static struct pci_driver eepro100_driver = {
 	.name		= "eepro100",
 	.id_table	= eepro100_pci_tbl,
@@ -2385,7 +2385,7 @@ static int __init eepro100_init_module(void)
 #ifdef MODULE
 	printk(version);
 #endif
-	return pci_module_init(&eepro100_driver);
+	return pci_register_driver(&eepro100_driver);
 }
 
 static void __exit eepro100_cleanup_module(void)
@@ -2395,7 +2395,7 @@ static void __exit eepro100_cleanup_module(void)
 
 module_init(eepro100_init_module);
 module_exit(eepro100_cleanup_module);
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -DMODULE -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -c eepro100.c `[ -f /usr/include/linux/modversions.h ] && echo -DMODVERSIONS`"

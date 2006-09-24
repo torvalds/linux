@@ -41,7 +41,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
-	   unsigned int matchsize, unsigned int hook_mask)
+	   unsigned int hook_mask)
 {
 	struct xt_quota_info *q = (struct xt_quota_info *)matchinfo;
 
@@ -52,46 +52,33 @@ checkentry(const char *tablename, const void *entry,
 	return 1;
 }
 
-static struct xt_match quota_match = {
-	.name		= "quota",
-	.family		= AF_INET,
-	.match		= match,
-	.matchsize	= sizeof(struct xt_quota_info),
-	.checkentry	= checkentry,
-	.me		= THIS_MODULE
-};
-
-static struct xt_match quota_match6 = {
-	.name		= "quota",
-	.family		= AF_INET6,
-	.match		= match,
-	.matchsize	= sizeof(struct xt_quota_info),
-	.checkentry	= checkentry,
-	.me		= THIS_MODULE
+static struct xt_match xt_quota_match[] = {
+	{
+		.name		= "quota",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_quota_info),
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "quota",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_quota_info),
+		.me		= THIS_MODULE
+	},
 };
 
 static int __init xt_quota_init(void)
 {
-	int ret;
-
-	ret = xt_register_match(&quota_match);
-	if (ret)
-		goto err1;
-	ret = xt_register_match(&quota_match6);
-	if (ret)
-		goto err2;
-	return ret;
-
-err2:
-	xt_unregister_match(&quota_match);
-err1:
-	return ret;
+	return xt_register_matches(xt_quota_match, ARRAY_SIZE(xt_quota_match));
 }
 
 static void __exit xt_quota_fini(void)
 {
-	xt_unregister_match(&quota_match6);
-	xt_unregister_match(&quota_match);
+	xt_unregister_matches(xt_quota_match, ARRAY_SIZE(xt_quota_match));
 }
 
 module_init(xt_quota_init);

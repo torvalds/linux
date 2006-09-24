@@ -309,6 +309,7 @@ static void sha256_final(struct crypto_tfm *tfm, u8 *out)
 
 static struct crypto_alg alg = {
 	.cra_name	=	"sha256",
+	.cra_driver_name=	"sha256-generic",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA256_HMAC_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct sha256_ctx),
@@ -337,3 +338,5 @@ module_exit(fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm");
+
+MODULE_ALIAS("sha256-generic");

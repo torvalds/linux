@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/core.h>
+#include <sound/tlv.h>
 #include <sound/ad1816a.h>
 
 #include <asm/io.h>
@@ -765,6 +766,13 @@ static int snd_ad1816a_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	return change;
 }
 
+#define AD1816A_SINGLE_TLV(xname, reg, shift, mask, invert, xtlv)	\
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .info = snd_ad1816a_info_single, \
+  .get = snd_ad1816a_get_single, .put = snd_ad1816a_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 #define AD1816A_SINGLE(xname, reg, shift, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_ad1816a_info_single, \
   .get = snd_ad1816a_get_single, .put = snd_ad1816a_put_single, \
@@ -821,6 +829,14 @@ static int snd_ad1816a_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	spin_unlock_irqrestore(&chip->lock, flags);
 	return change;
 }
+
+#define AD1816A_DOUBLE_TLV(xname, reg, shift_left, shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .info = snd_ad1816a_info_double,		\
+  .get = snd_ad1816a_get_double, .put = snd_ad1816a_put_double, \
+  .private_value = reg | (shift_left << 8) | (shift_right << 12) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 
 #define AD1816A_DOUBLE(xname, reg, shift_left, shift_right, mask, invert) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .info = snd_ad1816a_info_double, \
@@ -890,28 +906,44 @@ static int snd_ad1816a_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_4bit, -4500, 300, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit, -4650, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_6bit, -9450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_rec_gain, 0, 150, 0);
+
 static struct snd_kcontrol_new snd_ad1816a_controls[] __devinitdata = {
 AD1816A_DOUBLE("Master Playback Switch", AD1816A_MASTER_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("Master Playback Volume", AD1816A_MASTER_ATT, 8, 0, 31, 1),
+AD1816A_DOUBLE_TLV("Master Playback Volume", AD1816A_MASTER_ATT, 8, 0, 31, 1,
+		   db_scale_5bit),
 AD1816A_DOUBLE("PCM Playback Switch", AD1816A_VOICE_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("PCM Playback Volume", AD1816A_VOICE_ATT, 8, 0, 63, 1),
+AD1816A_DOUBLE_TLV("PCM Playback Volume", AD1816A_VOICE_ATT, 8, 0, 63, 1,
+		   db_scale_6bit),
 AD1816A_DOUBLE("Line Playback Switch", AD1816A_LINE_GAIN_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("Line Playback Volume", AD1816A_LINE_GAIN_ATT, 8, 0, 31, 1),
+AD1816A_DOUBLE_TLV("Line Playback Volume", AD1816A_LINE_GAIN_ATT, 8, 0, 31, 1,
+		   db_scale_5bit_12db_max),
 AD1816A_DOUBLE("CD Playback Switch", AD1816A_CD_GAIN_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("CD Playback Volume", AD1816A_CD_GAIN_ATT, 8, 0, 31, 1),
+AD1816A_DOUBLE_TLV("CD Playback Volume", AD1816A_CD_GAIN_ATT, 8, 0, 31, 1,
+		   db_scale_5bit_12db_max),
 AD1816A_DOUBLE("Synth Playback Switch", AD1816A_SYNTH_GAIN_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("Synth Playback Volume", AD1816A_SYNTH_GAIN_ATT, 8, 0, 31, 1),
+AD1816A_DOUBLE_TLV("Synth Playback Volume", AD1816A_SYNTH_GAIN_ATT, 8, 0, 31, 1,
+		   db_scale_5bit_12db_max),
 AD1816A_DOUBLE("FM Playback Switch", AD1816A_FM_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("FM Playback Volume", AD1816A_FM_ATT, 8, 0, 63, 1),
+AD1816A_DOUBLE_TLV("FM Playback Volume", AD1816A_FM_ATT, 8, 0, 63, 1,
+		   db_scale_6bit),
 AD1816A_SINGLE("Mic Playback Switch", AD1816A_MIC_GAIN_ATT, 15, 1, 1),
-AD1816A_SINGLE("Mic Playback Volume", AD1816A_MIC_GAIN_ATT, 8, 31, 1),
+AD1816A_SINGLE_TLV("Mic Playback Volume", AD1816A_MIC_GAIN_ATT, 8, 31, 1,
+		   db_scale_5bit_12db_max),
 AD1816A_SINGLE("Mic Boost", AD1816A_MIC_GAIN_ATT, 14, 1, 0),
 AD1816A_DOUBLE("Video Playback Switch", AD1816A_VID_GAIN_ATT, 15, 7, 1, 1),
-AD1816A_DOUBLE("Video Playback Volume", AD1816A_VID_GAIN_ATT, 8, 0, 31, 1),
+AD1816A_DOUBLE_TLV("Video Playback Volume", AD1816A_VID_GAIN_ATT, 8, 0, 31, 1,
+		   db_scale_5bit_12db_max),
 AD1816A_SINGLE("Phone Capture Switch", AD1816A_PHONE_IN_GAIN_ATT, 15, 1, 1),
-AD1816A_SINGLE("Phone Capture Volume", AD1816A_PHONE_IN_GAIN_ATT, 0, 15, 1),
+AD1816A_SINGLE_TLV("Phone Capture Volume", AD1816A_PHONE_IN_GAIN_ATT, 0, 15, 1,
+		   db_scale_4bit),
 AD1816A_SINGLE("Phone Playback Switch", AD1816A_PHONE_OUT_ATT, 7, 1, 1),
-AD1816A_SINGLE("Phone Playback Volume", AD1816A_PHONE_OUT_ATT, 0, 31, 1),
+AD1816A_SINGLE_TLV("Phone Playback Volume", AD1816A_PHONE_OUT_ATT, 0, 31, 1,
+		   db_scale_5bit),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
@@ -920,7 +952,8 @@ AD1816A_SINGLE("Phone Playback Volume", AD1816A_PHONE_OUT_ATT, 0, 31, 1),
 	.put = snd_ad1816a_put_mux,
 },
 AD1816A_DOUBLE("Capture Switch", AD1816A_ADC_PGA, 15, 7, 1, 1),
-AD1816A_DOUBLE("Capture Volume", AD1816A_ADC_PGA, 8, 0, 15, 0),
+AD1816A_DOUBLE_TLV("Capture Volume", AD1816A_ADC_PGA, 8, 0, 15, 0,
+		   db_scale_rec_gain),
 AD1816A_SINGLE("3D Control - Switch", AD1816A_3D_PHAT_CTRL, 15, 1, 1),
 AD1816A_SINGLE("3D Control - Level", AD1816A_3D_PHAT_CTRL, 0, 15, 0),
 };

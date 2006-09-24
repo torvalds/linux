@@ -36,6 +36,18 @@
 
 #include "ipath_verbs.h"
 
+/* Fast memory region */
+struct ipath_fmr {
+	struct ib_fmr ibfmr;
+	u8 page_shift;
+	struct ipath_mregion mr;        /* must be last */
+};
+
+static inline struct ipath_fmr *to_ifmr(struct ib_fmr *ibfmr)
+{
+	return container_of(ibfmr, struct ipath_fmr, ibfmr);
+}
+
 /**
  * ipath_get_dma_mr - get a DMA memory region
  * @pd: protection domain for this memory region

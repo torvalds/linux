@@ -281,6 +281,21 @@ static int aac_sa_check_health(struct aac_dev *dev)
 }
 
 /**
+ *	aac_sa_ioremap
+ *	@size: mapping resize request
+ *
+ */
+static int aac_sa_ioremap(struct aac_dev * dev, u32 size)
+{
+	if (!size) {
+		iounmap(dev->regs.sa);
+		return 0;
+	}
+	dev->base = dev->regs.sa = ioremap(dev->scsi_host_ptr->base, size);
+	return (dev->base == NULL) ? -1 : 0;
+}
+
+/**
  *	aac_sa_init	-	initialize an ARM based AAC card
  *	@dev: device to configure
  *
@@ -298,6 +313,11 @@ int aac_sa_init(struct aac_dev *dev)
 
 	instance = dev->id;
 	name     = dev->name;
+
+	if (aac_sa_ioremap(dev, dev->base_size)) {
+		printk(KERN_WARNING "%s: unable to map adapter.\n", name);
+		goto error_iounmap;
+	}
 
 	/*
 	 *	Check to see if the board failed any self tests.
@@ -341,6 +361,7 @@ int aac_sa_init(struct aac_dev *dev)
 	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
+	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that 

@@ -29,7 +29,7 @@
 
 #define VELOCITY_NAME          "via-velocity"
 #define VELOCITY_FULL_DRV_NAM  "VIA Networking Velocity Family Gigabit Ethernet Adapter Driver"
-#define VELOCITY_VERSION       "1.13"
+#define VELOCITY_VERSION       "1.14"
 
 #define VELOCITY_IO_SIZE	256
 
@@ -246,7 +246,7 @@ struct tdesc1 {
 struct td_buf {
 	u32 pa_low;
 	u16 pa_high;
-	u16 bufsize:14;	
+	u16 bufsize:14;
 	u16 reserved:1;
 	u16 queue:1;
 } __attribute__ ((__packed__));
@@ -261,25 +261,6 @@ struct velocity_rd_info {
 	struct sk_buff *skb;
 	dma_addr_t skb_dma;
 };
-
-/**
- *	alloc_rd_info		-	allocate an rd info block
- *
- *	Alocate and initialize a receive info structure used for keeping
- *	track of kernel side information related to each receive
- *	descriptor we are using
- */
-
-static inline struct velocity_rd_info *alloc_rd_info(void)
-{
-	struct velocity_rd_info *ptr;
-	if ((ptr = kmalloc(sizeof(struct velocity_rd_info), GFP_ATOMIC)) == NULL)
-		return NULL;
-	else {
-		memset(ptr, 0, sizeof(struct velocity_rd_info));
-		return ptr;
-	}
-}
 
 /*
  *	Used to track transmit side buffers.

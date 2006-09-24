@@ -155,7 +155,7 @@ static unsigned int arpt_hook(unsigned int hook,
 			      const struct net_device *out,
 			      int (*okfn)(struct sk_buff *))
 {
-	return arpt_do_table(pskb, hook, in, out, &packet_filter, NULL);
+	return arpt_do_table(pskb, hook, in, out, &packet_filter);
 }
 
 static struct nf_hook_ops arpt_ops[] = {

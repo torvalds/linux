@@ -768,91 +768,6 @@ _GLOBAL(_outsb)
 	bdnz	00b
 	blr
 
-_GLOBAL(_insw)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,2
-	blelr-
-00:	lhbrx	r5,0,r3
-01:	eieio
-02:	sthu	r5,2(r4)
-	ISYNC_8xx
-	.section .fixup,"ax"
-03:	blr
-	.text
-	.section __ex_table, "a"
-		.align 2
-		.long 00b, 03b
-		.long 01b, 03b
-		.long 02b, 03b
-	.text
-	bdnz	00b
-	blr
-
-_GLOBAL(_outsw)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,2
-	blelr-
-00:	lhzu	r5,2(r4)
-01:	eieio
-02:	sthbrx	r5,0,r3
-	ISYNC_8xx
-	.section .fixup,"ax"
-03:	blr
-	.text
-	.section __ex_table, "a"
-		.align 2
-		.long 00b, 03b
-		.long 01b, 03b
-		.long 02b, 03b
-	.text
-	bdnz	00b
-	blr
-
-_GLOBAL(_insl)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,4
-	blelr-
-00:	lwbrx	r5,0,r3
-01:	eieio
-02:	stwu	r5,4(r4)
-	ISYNC_8xx
-	.section .fixup,"ax"
-03:	blr
-	.text
-	.section __ex_table, "a"
-		.align 2
-		.long 00b, 03b
-		.long 01b, 03b
-		.long 02b, 03b
-	.text
-	bdnz	00b
-	blr
-
-_GLOBAL(_outsl)
-	cmpwi	0,r5,0
-	mtctr	r5
-	subi	r4,r4,4
-	blelr-
-00:	lwzu	r5,4(r4)
-01:	stwbrx	r5,0,r3
-02:	eieio
-	ISYNC_8xx
-	.section .fixup,"ax"
-03:	blr
-	.text
-	.section __ex_table, "a"
-		.align 2
-		.long 00b, 03b
-		.long 01b, 03b
-		.long 02b, 03b
-	.text
-	bdnz	00b
-	blr
-
-_GLOBAL(__ide_mm_insw)
 _GLOBAL(_insw_ns)
 	cmpwi	0,r5,0
 	mtctr	r5
@@ -874,7 +789,6 @@ _GLOBAL(_insw_ns)
 	bdnz	00b
 	blr
 
-_GLOBAL(__ide_mm_outsw)
 _GLOBAL(_outsw_ns)
 	cmpwi	0,r5,0
 	mtctr	r5
@@ -896,7 +810,6 @@ _GLOBAL(_outsw_ns)
 	bdnz	00b
 	blr
 
-_GLOBAL(__ide_mm_insl)
 _GLOBAL(_insl_ns)
 	cmpwi	0,r5,0
 	mtctr	r5
@@ -918,7 +831,6 @@ _GLOBAL(_insl_ns)
 	bdnz	00b
 	blr
 
-_GLOBAL(__ide_mm_outsl)
 _GLOBAL(_outsl_ns)
 	cmpwi	0,r5,0
 	mtctr	r5

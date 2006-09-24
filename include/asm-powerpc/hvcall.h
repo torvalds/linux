@@ -164,9 +164,15 @@
 #define H_VIO_SIGNAL		0x104
 #define H_SEND_CRQ		0x108
 #define H_COPY_RDMA		0x110
+#define H_REGISTER_LOGICAL_LAN	0x114
+#define H_FREE_LOGICAL_LAN	0x118
+#define H_ADD_LOGICAL_LAN_BUFFER 0x11C
+#define H_SEND_LOGICAL_LAN	0x120
+#define H_MULTICAST_CTRL	0x130
 #define H_SET_XDABR		0x134
 #define H_STUFF_TCE		0x138
 #define H_PUT_TCE_INDIRECT	0x13C
+#define H_CHANGE_LOGICAL_LAN_MAC 0x14C
 #define H_VTERM_PARTNER_INFO	0x150
 #define H_REGISTER_VTERM	0x154
 #define H_FREE_VTERM		0x158
@@ -196,102 +202,59 @@
 #define H_GET_HCA_INFO          0x1B8
 #define H_GET_PERF_COUNT        0x1BC
 #define H_MANAGE_TRACE          0x1C0
+#define H_FREE_LOGICAL_LAN_BUFFER 0x1D4
 #define H_QUERY_INT_STATE       0x1E4
 #define H_POLL_PENDING		0x1D8
 #define H_JOIN			0x298
 #define H_VASI_STATE            0x2A4
 #define H_ENABLE_CRQ		0x2B0
+#define MAX_HCALL_OPCODE	H_ENABLE_CRQ
 
 #ifndef __ASSEMBLY__
 
-/* plpar_hcall() -- Generic call interface using above opcodes
+/**
+ * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
+ * @opcode: The hypervisor call to make.
  *
- * The actual call interface is a hypervisor call instruction with
- * the opcode in R3 and input args in R4-R7.
- * Status is returned in R3 with variable output values in R4-R11.
- * Only H_PTE_READ with H_READ_4 uses R6-R11 so we ignore it for now
- * and return only two out args which MUST ALWAYS BE PROVIDED.
- */
-long plpar_hcall(unsigned long opcode,
-		 unsigned long arg1,
-		 unsigned long arg2,
-		 unsigned long arg3,
-		 unsigned long arg4,
-		 unsigned long *out1,
-		 unsigned long *out2,
-		 unsigned long *out3);
-
-/* Same as plpar_hcall but for those opcodes that return no values
- * other than status.  Slightly more efficient.
+ * This call supports up to 7 arguments and only returns the status of
+ * the hcall. Use this version where possible, its slightly faster than
+ * the other plpar_hcalls.
  */
 long plpar_hcall_norets(unsigned long opcode, ...);
 
-/*
- * Special hcall interface for ibmveth support.
- * Takes 8 input parms. Returns a rc and stores the
- * R4 return value in *out1.
- */
-long plpar_hcall_8arg_2ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long arg8,
-			   unsigned long *out1);
-
-/* plpar_hcall_4out()
+/**
+ * plpar_hcall: - Make a pseries hypervisor call
+ * @opcode: The hypervisor call to make.
+ * @retbuf: Buffer to store up to 4 return arguments in.
  *
- * same as plpar_hcall except with 4 output arguments.
+ * This call supports up to 6 arguments and 4 return arguments. Use
+ * PLPAR_HCALL_BUFSIZE to size the return argument buffer.
  *
+ * Used for all but the craziest of phyp interfaces (see plpar_hcall9)
  */
-long plpar_hcall_4out(unsigned long opcode,
-		      unsigned long arg1,
-		      unsigned long arg2,
-		      unsigned long arg3,
-		      unsigned long arg4,
-		      unsigned long *out1,
-		      unsigned long *out2,
-		      unsigned long *out3,
-		      unsigned long *out4);
+#define PLPAR_HCALL_BUFSIZE 4
+long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
 
-long plpar_hcall_7arg_7ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long *out1,
-			   unsigned long *out2,
-			   unsigned long *out3,
-			   unsigned long *out4,
-			   unsigned long *out5,
-			   unsigned long *out6,
-			   unsigned long *out7);
+/**
+ * plpar_hcall9: - Make a pseries hypervisor call with up to 9 return arguments
+ * @opcode: The hypervisor call to make.
+ * @retbuf: Buffer to store up to 9 return arguments in.
+ *
+ * This call supports up to 9 arguments and 9 return arguments. Use
+ * PLPAR_HCALL9_BUFSIZE to size the return argument buffer.
+ */
+#define PLPAR_HCALL9_BUFSIZE 9
+long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 
-long plpar_hcall_9arg_9ret(unsigned long opcode,
-			   unsigned long arg1,
-			   unsigned long arg2,
-			   unsigned long arg3,
-			   unsigned long arg4,
-			   unsigned long arg5,
-			   unsigned long arg6,
-			   unsigned long arg7,
-			   unsigned long arg8,
-			   unsigned long arg9,
-			   unsigned long *out1,
-			   unsigned long *out2,
-			   unsigned long *out3,
-			   unsigned long *out4,
-			   unsigned long *out5,
-			   unsigned long *out6,
-			   unsigned long *out7,
-			   unsigned long *out8,
-			   unsigned long *out9);
+/* For hcall instrumentation.  One structure per-hcall, per-CPU */
+struct hcall_stats {
+	unsigned long	num_calls;	/* number of calls (on this CPU) */
+	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
+	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
+};
+void update_hcall_stats(unsigned long opcode, unsigned long tb_delta,
+			unsigned long purr_delta);
+#define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

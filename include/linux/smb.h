@@ -10,6 +10,7 @@
 #define _LINUX_SMB_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
 
 enum smb_protocol { 
 	SMB_PROTOCOL_NONE, 
@@ -100,8 +101,6 @@ enum smb_conn_state {
 	CONN_RETRIED,		/* Tried a reconnection, but was refused */
 	CONN_RETRYING		/* Currently trying to reconnect */
 };
-
-#define SMB_SUPER_MAGIC               0x517B
 
 #define SMB_HEADER_LEN   37     /* includes everything up to, but not
                                  * including smb_bcc */

@@ -27,6 +27,27 @@
 
 #include "spider_net.h"
 
+
+#define SPIDER_NET_NUM_STATS 13
+
+static struct {
+	const char str[ETH_GSTRING_LEN];
+} ethtool_stats_keys[] = {
+	{ "tx_packets" },
+	{ "tx_bytes" },
+	{ "rx_packets" },
+	{ "rx_bytes" },
+	{ "tx_errors" },
+	{ "tx_dropped" },
+	{ "rx_dropped" },
+	{ "rx_descriptor_error" },
+	{ "tx_timeouts" },
+	{ "alloc_rx_skb_error" },
+	{ "rx_iommu_map_error" },
+	{ "tx_iommu_map_error" },
+	{ "rx_desc_unk_state" },
+};
+
 static int
 spider_net_ethtool_get_settings(struct net_device *netdev,
 			       struct ethtool_cmd *cmd)
@@ -142,7 +163,38 @@ spider_net_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_pending = card->rx_desc;
 }
 
-struct ethtool_ops spider_net_ethtool_ops = {
+static int spider_net_get_stats_count(struct net_device *netdev)
+{
+	return SPIDER_NET_NUM_STATS;
+}
+
+static void spider_net_get_ethtool_stats(struct net_device *netdev,
+		struct ethtool_stats *stats, u64 *data)
+{
+	struct spider_net_card *card = netdev->priv;
+
+	data[0] = card->netdev_stats.tx_packets;
+	data[1] = card->netdev_stats.tx_bytes;
+	data[2] = card->netdev_stats.rx_packets;
+	data[3] = card->netdev_stats.rx_bytes;
+	data[4] = card->netdev_stats.tx_errors;
+	data[5] = card->netdev_stats.tx_dropped;
+	data[6] = card->netdev_stats.rx_dropped;
+	data[7] = card->spider_stats.rx_desc_error;
+	data[8] = card->spider_stats.tx_timeouts;
+	data[9] = card->spider_stats.alloc_rx_skb_error;
+	data[10] = card->spider_stats.rx_iommu_map_error;
+	data[11] = card->spider_stats.tx_iommu_map_error;
+	data[12] = card->spider_stats.rx_desc_unk_state;
+}
+
+static void spider_net_get_strings(struct net_device *netdev, u32 stringset,
+				   u8 *data)
+{
+	memcpy(data, ethtool_stats_keys, sizeof(ethtool_stats_keys));
+}
+
+const struct ethtool_ops spider_net_ethtool_ops = {
 	.get_settings		= spider_net_ethtool_get_settings,
 	.get_drvinfo		= spider_net_ethtool_get_drvinfo,
 	.get_wol		= spider_net_ethtool_get_wol,
@@ -154,5 +206,8 @@ struct ethtool_ops spider_net_ethtool_ops = {
 	.get_tx_csum		= spider_net_ethtool_get_tx_csum,
 	.set_tx_csum		= spider_net_ethtool_set_tx_csum,
 	.get_ringparam          = spider_net_ethtool_get_ringparam,
+	.get_strings		= spider_net_get_strings,
+	.get_stats_count	= spider_net_get_stats_count,
+	.get_ethtool_stats	= spider_net_get_ethtool_stats,
 };
 

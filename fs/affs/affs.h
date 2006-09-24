@@ -1,7 +1,6 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/affs_fs.h>
 #include <linux/amigaffs.h>
 
 /* AmigaOS allows file names with up to 30 characters length.

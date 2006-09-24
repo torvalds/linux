@@ -58,7 +58,7 @@
 /* Mapping from NFS error code to "errno" error code. */
 #define errno_NFSERR_IO		EIO
 
-static int nfs_stat_to_errno(int);
+static int nfs4_stat_to_errno(int);
 
 /* NFSv4 COMPOUND tags are only wanted for debugging purposes */
 #ifdef DEBUG
@@ -128,7 +128,7 @@ static int nfs_stat_to_errno(int);
 #define decode_link_maxsz	(op_decode_hdr_maxsz + 5)
 #define encode_symlink_maxsz	(op_encode_hdr_maxsz + \
 				1 + nfs4_name_maxsz + \
-				nfs4_path_maxsz + \
+				1 + \
 				nfs4_fattr_maxsz)
 #define decode_symlink_maxsz	(op_decode_hdr_maxsz + 8)
 #define encode_create_maxsz	(op_encode_hdr_maxsz + \
@@ -529,7 +529,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 	if (iap->ia_valid & ATTR_MODE)
 		len += 4;
 	if (iap->ia_valid & ATTR_UID) {
-		owner_namelen = nfs_map_uid_to_name(server->nfs4_state, iap->ia_uid, owner_name);
+		owner_namelen = nfs_map_uid_to_name(server->nfs_client, iap->ia_uid, owner_name);
 		if (owner_namelen < 0) {
 			printk(KERN_WARNING "nfs: couldn't resolve uid %d to string\n",
 			       iap->ia_uid);
@@ -541,7 +541,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 		len += 4 + (XDR_QUADLEN(owner_namelen) << 2);
 	}
 	if (iap->ia_valid & ATTR_GID) {
-		owner_grouplen = nfs_map_gid_to_group(server->nfs4_state, iap->ia_gid, owner_group);
+		owner_grouplen = nfs_map_gid_to_group(server->nfs_client, iap->ia_gid, owner_group);
 		if (owner_grouplen < 0) {
 			printk(KERN_WARNING "nfs4: couldn't resolve gid %d to string\n",
 			       iap->ia_gid);
@@ -673,9 +673,9 @@ static int encode_create(struct xdr_stream *xdr, const struct nfs4_create_arg *c
 
 	switch (create->ftype) {
 	case NF4LNK:
-		RESERVE_SPACE(4 + create->u.symlink->len);
-		WRITE32(create->u.symlink->len);
-		WRITEMEM(create->u.symlink->name, create->u.symlink->len);
+		RESERVE_SPACE(4);
+		WRITE32(create->u.symlink.len);
+		xdr_write_pages(xdr, create->u.symlink.pages, 0, create->u.symlink.len);
 		break;
 
 	case NF4BLK: case NF4CHR:
@@ -1160,7 +1160,7 @@ static int encode_rename(struct xdr_stream *xdr, const struct qstr *oldname, con
 	return 0;
 }
 
-static int encode_renew(struct xdr_stream *xdr, const struct nfs4_client *client_stateid)
+static int encode_renew(struct xdr_stream *xdr, const struct nfs_client *client_stateid)
 {
 	uint32_t *p;
 
@@ -1246,7 +1246,7 @@ static int encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclien
 	return 0;
 }
 
-static int encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs4_client *client_state)
+static int encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs_client *client_state)
 {
         uint32_t *p;
 
@@ -1945,7 +1945,7 @@ static int nfs4_xdr_enc_server_caps(struct rpc_rqst *req, uint32_t *p, const str
 /*
  * a RENEW request
  */
-static int nfs4_xdr_enc_renew(struct rpc_rqst *req, uint32_t *p, struct nfs4_client *clp)
+static int nfs4_xdr_enc_renew(struct rpc_rqst *req, uint32_t *p, struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -1975,7 +1975,7 @@ static int nfs4_xdr_enc_setclientid(struct rpc_rqst *req, uint32_t *p, struct nf
 /*
  * a SETCLIENTID_CONFIRM request
  */
-static int nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, struct nfs4_client *clp)
+static int nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
@@ -2127,12 +2127,12 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 	}
 	READ32(nfserr);
 	if (nfserr != NFS_OK)
-		return -nfs_stat_to_errno(nfserr);
+		return -nfs4_stat_to_errno(nfserr);
 	return 0;
 }
 
 /* Dummy routine */
-static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs4_client *clp)
+static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs_client *clp)
 {
 	uint32_t *p;
 	unsigned int strlen;
@@ -2636,7 +2636,7 @@ static int decode_attr_nlink(struct xdr_stream *xdr, uint32_t *bitmap, uint32_t 
 	return 0;
 }
 
-static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_client *clp, int32_t *uid)
+static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *uid)
 {
 	uint32_t len, *p;
 
@@ -2660,7 +2660,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap, struct nf
 	return 0;
 }
 
-static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_client *clp, int32_t *gid)
+static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_client *clp, int32_t *gid)
 {
 	uint32_t len, *p;
 
@@ -3051,9 +3051,9 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	fattr->mode |= fmode;
 	if ((status = decode_attr_nlink(xdr, bitmap, &fattr->nlink)) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_owner(xdr, bitmap, server->nfs4_state, &fattr->uid)) != 0)
+	if ((status = decode_attr_owner(xdr, bitmap, server->nfs_client, &fattr->uid)) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_group(xdr, bitmap, server->nfs4_state, &fattr->gid)) != 0)
+	if ((status = decode_attr_group(xdr, bitmap, server->nfs_client, &fattr->gid)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_rdev(xdr, bitmap, &fattr->rdev)) != 0)
 		goto xdr_error;
@@ -3254,7 +3254,7 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 			if (decode_space_limit(xdr, &res->maxsize) < 0)
 				return -EIO;
 	}
-	return decode_ace(xdr, NULL, res->server->nfs4_state);
+	return decode_ace(xdr, NULL, res->server->nfs_client);
 }
 
 static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
@@ -3565,7 +3565,7 @@ static int decode_setattr(struct xdr_stream *xdr, struct nfs_setattrres *res)
 	return 0;
 }
 
-static int decode_setclientid(struct xdr_stream *xdr, struct nfs4_client *clp)
+static int decode_setclientid(struct xdr_stream *xdr, struct nfs_client *clp)
 {
 	uint32_t *p;
 	uint32_t opnum;
@@ -3598,7 +3598,7 @@ static int decode_setclientid(struct xdr_stream *xdr, struct nfs4_client *clp)
 		READ_BUF(len);
 		return -NFSERR_CLID_INUSE;
 	} else
-		return -nfs_stat_to_errno(nfserr);
+		return -nfs4_stat_to_errno(nfserr);
 
 	return 0;
 }
@@ -4256,7 +4256,7 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, uint32_t *p, struct nfs_fsi
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4335,7 +4335,7 @@ static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, uint32_t *p, void *dummy)
  * a SETCLIENTID request
  */
 static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, uint32_t *p,
-		struct nfs4_client *clp)
+		struct nfs_client *clp)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -4346,7 +4346,7 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, uint32_t *p,
 	if (!status)
 		status = decode_setclientid(&xdr, clp);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4368,7 +4368,7 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, s
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs_stat_to_errno(hdr.status);
+		status = -nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4521,7 +4521,7 @@ static struct {
  * This one is used jointly by NFSv2 and NFSv3.
  */
 static int
-nfs_stat_to_errno(int stat)
+nfs4_stat_to_errno(int stat)
 {
 	int i;
 	for (i = 0; nfs_errtbl[i].stat != -1; i++) {

@@ -117,6 +117,9 @@ int __init snd_pmac_tumbler_post_init(void)
 {
 	int err;
 	
+	if (!keywest_ctx || !keywest_ctx->client)
+		return -ENXIO;
+
 	if ((err = keywest_ctx->init_client(keywest_ctx)) < 0) {
 		snd_printk(KERN_ERR "tumbler: %i :cannot initialize the MCS\n", err);
 		return err;

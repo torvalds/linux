@@ -48,13 +48,13 @@ static int xfrm4_output_one(struct sk_buff *skb)
 	struct xfrm_state *x = dst->xfrm;
 	int err;
 	
-	if (skb->ip_summed == CHECKSUM_HW) {
-		err = skb_checksum_help(skb, 0);
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		err = skb_checksum_help(skb);
 		if (err)
 			goto error_nolock;
 	}
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = xfrm4_tunnel_check_size(skb);
 		if (err)
 			goto error_nolock;
@@ -66,7 +66,7 @@ static int xfrm4_output_one(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		err = x->mode->output(skb);
+		err = x->mode->output(x, skb);
 		if (err)
 			goto error;
 
@@ -85,7 +85,7 @@ static int xfrm4_output_one(struct sk_buff *skb)
 		}
 		dst = skb->dst;
 		x = dst->xfrm;
-	} while (x && !x->props.mode);
+	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
 
 	IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
 	err = 0;

@@ -56,7 +56,7 @@ extern int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops);
 
 /* register a vterm for hvc tty operation (module_init or hotplug add) */
 extern struct hvc_struct * __devinit hvc_alloc(uint32_t vtermno, int irq,
-						 struct hv_ops *ops);
+				struct hv_ops *ops, int outbuf_size);
 /* remove a vterm from hvc tty operation (modele_exit or hotplug remove) */
 extern int __devexit hvc_remove(struct hvc_struct *hp);
 

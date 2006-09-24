@@ -93,7 +93,7 @@ struct lance_init_block {
 	unsigned short rx_len;		/* receive len and high addr */
 	unsigned short tx_ptr;		/* transmit descriptor addr */
 	unsigned short tx_len;		/* transmit len and high addr */
-    
+
 	/* The Tx and Rx ring entries must aligned on 8-byte boundaries. */
 	struct lance_rx_desc brx_ring[RX_RING_SIZE];
 	struct lance_tx_desc btx_ring[TX_RING_SIZE];
@@ -115,7 +115,7 @@ struct lance_private {
 
 	int rx_new, tx_new;
 	int rx_old, tx_old;
-    
+
 	int lance_log_rx_bufs, lance_log_tx_bufs;
 	int rx_ring_mod_mask, tx_ring_mod_mask;
 
@@ -190,7 +190,7 @@ static void lance_init_ring (struct net_device *dev)
 
 	if (ZERO)
 		printk(KERN_DEBUG "TX rings:\n");
-    
+
 	/* Setup the Tx ring entries */
 	for (i = 0; i <= (1<<lp->lance_log_tx_bufs); i++) {
 		leptr = LANCE_ADDR(&aib->tx_buf[i][0]);
@@ -219,14 +219,14 @@ static void lance_init_ring (struct net_device *dev)
 	}
 
 	/* Setup the initialization block */
-    
+
 	/* Setup rx descriptor pointer */
 	leptr = LANCE_ADDR(&aib->brx_ring);
 	ib->rx_len = (lp->lance_log_rx_bufs << 13) | (leptr >> 16);
 	ib->rx_ptr = leptr;
 	if (ZERO)
 		printk(KERN_DEBUG "RX ptr: %8.8x\n", leptr);
-    
+
 	/* Setup tx descriptor pointer */
 	leptr = LANCE_ADDR(&aib->btx_ring);
 	ib->tx_len = (lp->lance_log_tx_bufs << 13) | (leptr >> 16);
@@ -286,7 +286,7 @@ static int lance_rx (struct net_device *dev)
 	}
 	printk ("]\n");
 #endif
-    
+
 	ll->rdp = LE_C0_RINT|LE_C0_INEA;
 	for (rd = &ib->brx_ring [lp->rx_new];
 	     !((bits = rd->rmd1_bits) & LE_R1_OWN);
@@ -319,7 +319,7 @@ static int lance_rx (struct net_device *dev)
 				lp->rx_new = (lp->rx_new + 1) & lp->rx_ring_mod_mask;
 				return 0;
 			}
-	    
+
 			skb->dev = dev;
 			skb_reserve (skb, 2);		/* 16 byte align */
 			skb_put (skb, len);		/* make room */
@@ -361,10 +361,10 @@ static int lance_tx (struct net_device *dev)
 		/* If we hit a packet not owned by us, stop */
 		if (td->tmd1_bits & LE_T1_OWN)
 			break;
-		
+
 		if (td->tmd1_bits & LE_T1_ERR) {
 			status = td->misc;
-	    
+
 			lp->stats.tx_errors++;
 			if (status & LE_T3_RTY)  lp->stats.tx_aborted_errors++;
 			if (status & LE_T3_LCOL) lp->stats.tx_window_errors++;
@@ -417,7 +417,7 @@ static int lance_tx (struct net_device *dev)
 
 			lp->stats.tx_packets++;
 		}
-	
+
 		j = (j + 1) & lp->tx_ring_mod_mask;
 	}
 	lp->tx_old = j;
@@ -452,7 +452,7 @@ lance_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 		/* Clear the error condition */
 		ll->rdp = LE_C0_BABL|LE_C0_ERR|LE_C0_MISS|LE_C0_INEA;
 	}
-    
+
 	if (csr0 & LE_C0_RINT)
 		lance_rx (dev);
 
@@ -528,7 +528,7 @@ static inline int lance_reset (struct net_device *dev)
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int status;
-    
+
 	/* Stop the lance */
 	ll->rap = LE_CSR0;
 	ll->rdp = LE_C0_STOP;
@@ -569,7 +569,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	skblen = skb->len;
 	len = skblen;
-	
+
 	if (len < ETH_ZLEN) {
 		len = ETH_ZLEN;
 		if (skb_padto(skb, ETH_ZLEN))
@@ -587,7 +587,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	/* dump the packet */
 	{
 		int i;
-	
+
 		for (i = 0; i < 64; i++) {
 			if ((i % 16) == 0)
 				printk("\n" KERN_DEBUG);
@@ -599,13 +599,13 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring [entry].length = (-len) | 0xf000;
 	ib->btx_ring [entry].misc = 0;
-    
+
 	memcpy ((char *)&ib->tx_buf [entry][0], skb->data, skblen);
 
 	/* Clear the slack of the packet, do I need this? */
 	if (len != skblen)
 		memset ((char *) &ib->tx_buf [entry][skblen], 0, len - skblen);
-    
+
 	/* Now, give the packet to the lance */
 	ib->btx_ring [entry].tmd1_bits = (LE_T1_POK|LE_T1_OWN);
 	lp->tx_new = (lp->tx_new+1) & lp->tx_ring_mod_mask;
@@ -619,7 +619,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	ll->rdp = LE_C0_INEA | LE_C0_TDMD;
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-    
+
 	local_irq_restore(flags);
 
 	return status;
@@ -642,9 +642,9 @@ static void lance_load_multicast (struct net_device *dev)
 	char *addrs;
 	int i;
 	u32 crc;
-	
+
 	/* set all multicast bits */
-	if (dev->flags & IFF_ALLMULTI){ 
+	if (dev->flags & IFF_ALLMULTI){
 		ib->filter [0] = 0xffffffff;
 		ib->filter [1] = 0xffffffff;
 		return;
@@ -661,7 +661,7 @@ static void lance_load_multicast (struct net_device *dev)
 		/* multicast address? */
 		if (!(*addrs & 1))
 			continue;
-		
+
 		crc = ether_crc_le(6, addrs);
 		crc = crc >> 26;
 		mcast_table [crc >> 4] |= 1 << (crc & 0xf);

@@ -87,16 +87,33 @@ static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
  * initialize the chips on M-Audio Revolution cards
  */
 
-static unsigned int revo71_num_stereo_front[] = {2};
-static char *revo71_channel_names_front[] = {"PCM Playback Volume"};
+#define AK_DAC(xname,xch) { .name = xname, .num_channels = xch }
 
-static unsigned int revo71_num_stereo_surround[] = {1, 1, 2, 2};
-static char *revo71_channel_names_surround[] = {"PCM Center Playback Volume", "PCM LFE Playback Volume",
-						"PCM Side Playback Volume", "PCM Rear Playback Volume"};
+static struct snd_akm4xxx_dac_channel revo71_front[] = {
+	AK_DAC("PCM Playback Volume", 2)
+};
 
-static unsigned int revo51_num_stereo[] = {2, 1, 1, 2};
-static char *revo51_channel_names[] = {"PCM Playback Volume", "PCM Center Playback Volume",
-					"PCM LFE Playback Volume", "PCM Rear Playback Volume"};
+static struct snd_akm4xxx_dac_channel revo71_surround[] = {
+	AK_DAC("PCM Center Playback Volume", 1),
+	AK_DAC("PCM LFE Playback Volume", 1),
+	AK_DAC("PCM Side Playback Volume", 2),
+	AK_DAC("PCM Rear Playback Volume", 2),
+};
+
+static struct snd_akm4xxx_dac_channel revo51_dac[] = {
+	AK_DAC("PCM Playback Volume", 2),
+	AK_DAC("PCM Center Playback Volume", 1),
+	AK_DAC("PCM LFE Playback Volume", 1),
+	AK_DAC("PCM Rear Playback Volume", 2),
+};
+
+static struct snd_akm4xxx_adc_channel revo51_adc[] = {
+	{
+		.name = "PCM Capture Volume",
+		.switch_name = "PCM Capture Switch",
+		.num_channels = 2
+	},
+};
 
 static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
@@ -104,8 +121,7 @@ static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.ops = {
 		.set_rate_val = revo_set_rate_val
 	},
-	.num_stereo = revo71_num_stereo_front,
-	.channel_names = revo71_channel_names_front
+	.dac_info = revo71_front,
 };
 
 static struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
@@ -127,8 +143,7 @@ static struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.ops = {
 		.set_rate_val = revo_set_rate_val
 	},
-	.num_stereo = revo71_num_stereo_surround,
-	.channel_names = revo71_channel_names_surround
+	.dac_info = revo71_surround,
 };
 
 static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
@@ -149,8 +164,7 @@ static struct snd_akm4xxx akm_revo51 __devinitdata = {
 	.ops = {
 		.set_rate_val = revo_set_rate_val
 	},
-	.num_stereo = revo51_num_stereo,
-	.channel_names = revo51_channel_names
+	.dac_info = revo51_dac,
 };
 
 static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
@@ -159,7 +173,25 @@ static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
 	.data_mask = VT1724_REVO_CDOUT,
 	.clk_mask = VT1724_REVO_CCLK,
 	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
-	.cs_addr = 0,
+	.cs_addr = VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.add_flags = VT1724_REVO_CCLK, /* high at init */
+	.mask_flags = 0,
+};
+
+static struct snd_akm4xxx akm_revo51_adc __devinitdata = {
+	.type = SND_AK5365,
+	.num_adcs = 2,
+	.adc_info = revo51_adc,
+};
+
+static struct snd_ak4xxx_private akm_revo51_adc_priv __devinitdata = {
+	.caddr = 2,
+	.cif = 0,
+	.data_mask = VT1724_REVO_CDOUT,
+	.clk_mask = VT1724_REVO_CCLK,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_addr = VT1724_REVO_CS0 | VT1724_REVO_CS2,
 	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
@@ -202,8 +234,12 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
 		break;
 	case VT1724_SUBDEVICE_REVOLUTION51:
-		ice->akm_codecs = 1;
+		ice->akm_codecs = 2;
 		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_revo51, &akm_revo51_priv, ice)) < 0)
+			return err;
+		err = snd_ice1712_akm4xxx_init(ak + 1, &akm_revo51_adc,
+					       &akm_revo51_adc_priv, ice);
+		if (err < 0)
 			return err;
 		/* unmute all codecs - needed! */
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);

@@ -46,8 +46,8 @@ struct iommu_table;
  */
 struct vio_dev {
 	struct iommu_table *iommu_table;     /* vio_map_* uses this */
-	char *name;
-	char *type;
+	const char *name;
+	const char *type;
 	uint32_t unit_address;
 	unsigned int irq;
 	struct device dev;

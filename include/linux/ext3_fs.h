@@ -17,6 +17,7 @@
 #define _LINUX_EXT3_FS_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
 
 /*
  * The second extended filesystem constants/structures
@@ -65,11 +66,6 @@
 
 /* First non-reserved inode for old ext3 filesystems */
 #define EXT3_GOOD_OLD_FIRST_INO	11
-
-/*
- * The second extended file system magic number
- */
-#define EXT3_SUPER_MAGIC	0xEF53
 
 /*
  * Maximal count of links to a file

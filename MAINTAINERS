@@ -298,6 +298,14 @@ L:	info-linux@geode.amd.com
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
 
+AMSO1100 RNIC DRIVER
+P:	Tom Tucker
+M:	tom@opengridcomputing.com
+P:	Steve Wise
+M:	swise@opengridcomputing.com
+L:	openib-general@openib.org
+S:	Maintained
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
@@ -449,9 +457,9 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.baycom.org/~tom/ham/ham.html
 S:	Maintained
 
-BCM43XX WIRELESS DRIVER
-P:	Michael Buesch
-M:	mb@bu3sch.de
+BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
+P:	Larry Finger
+M:	Larry.Finger@lwfinger.net
 P:	Stefano Brivio
 M:	st3@riseup.net
 W:	http://bcm43xx.berlios.de/
@@ -990,6 +998,14 @@ S:	Maintained
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
+
+EHCA (IBM GX bus InfiniBand adapter) DRIVER:
+P:	Hoang-Nam Nguyen
+M:	hnguyen@de.ibm.com
+P:	Christoph Raisch
+M:	raisch@de.ibm.com
+L:	openib-general@openib.org
+S:	Supported
 
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
@@ -1783,6 +1799,13 @@ W:     http://www.penguinppc.org/
 L:     linuxppc-embedded@ozlabs.org
 S:     Maintained
 
+LINUX FOR POWERPC PA SEMI PWRFICIENT
+P:	Olof Johansson
+M:	olof@lixom.net
+W:	http://www.pasemi.com/
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
 LLC (802.2)
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -2366,6 +2389,12 @@ M:	linux-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 
+QLOGIC QLA3XXX NETWORK DRIVER
+P:	Ron Mercer
+M:	linux-driver@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 QNX4 FILESYSTEM
 P:	Anders Larsen
 M:	al@alarsen.net
@@ -2445,6 +2474,8 @@ S:      Maintained
 S390
 P:	Martin Schwidefsky
 M:	schwidefsky@de.ibm.com
+P:	Heiko Carstens
+M:	heiko.carstens@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -2459,8 +2490,8 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 S390 ZFCP DRIVER
-P:	Andreas Herrmann
-M:	aherrman@de.ibm.com
+P:	Swen Schillig
+M:	swen@vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -2614,6 +2645,18 @@ S:	Maintained
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
+S:	Maintained
+
+SOFTMAC LAYER (IEEE 802.11)
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+P:	Joe Jezak
+M:	josejx@gentoo.org
+P:	Daniel Drake
+M:	dsd@gentoo.org
+W:	http://softmac.sipsolutions.net/
+L:	softmac-dev@sipsolutions.net
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
@@ -2897,8 +2940,8 @@ W:	http://www.auk.cx/tms380tr/
 S:	Maintained
 
 TULIP NETWORK DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
+P:	Valerie Henson
+M:	val_henson@linux.intel.com
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
 S:	Maintained
@@ -3347,6 +3390,15 @@ M:	jreuter@yaina.de
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+ZD1211RW WIRELESS DRIVER
+P:	Daniel Drake
+M:	dsd@gentoo.org
+P:	Ulrich Kunitz
+M:	kune@deine-taler.de
+W:	http://zd1211.ath.cx/wiki/DriverRewrite
+L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZF MACHZ WATCHDOG

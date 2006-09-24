@@ -19,8 +19,6 @@
 #include <linux/unistd.h>
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/xprt.h>
-#include <linux/sunrpc/timer.h>
 
 #define RPC_RTO_MAX (60*HZ)
 #define RPC_RTO_INIT (HZ/5)

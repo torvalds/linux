@@ -2363,7 +2363,7 @@ int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
 	return 0;
 }
 
-__initdata int hashdist = HASHDIST_DEFAULT;
+int hashdist = HASHDIST_DEFAULT;
 
 #ifdef CONFIG_NUMA
 static int __init set_hashdist(char *str)

@@ -170,7 +170,7 @@ static struct tcp_congestion_ops tcp_hybla = {
 
 static int __init hybla_register(void)
 {
-	BUG_ON(sizeof(struct hybla) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct hybla) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_hybla);
 }
 

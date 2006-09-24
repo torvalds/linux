@@ -662,17 +662,8 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rc != 0)
 		goto out_discard;
 
-	rc = dccp_write_xmit(sk, skb, &timeo);
-	/*
-	 * XXX we don't use sk_write_queue, so just discard the packet.
-	 *     Current plan however is to _use_ sk_write_queue with
-	 *     an algorith similar to tcp_sendmsg, where the main difference
-	 *     is that in DCCP we have to respect packet boundaries, so
-	 *     no coalescing of skbs.
-	 *
-	 *     This bug was _quickly_ found & fixed by just looking at an OSTRA
-	 *     generated callgraph 8) -acme
-	 */
+	skb_queue_tail(&sk->sk_write_queue, skb);
+	dccp_write_xmit(sk,0);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
@@ -846,6 +837,7 @@ static int dccp_close_state(struct sock *sk)
 
 void dccp_close(struct sock *sk, long timeout)
 {
+	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
 	int state;
 
@@ -861,6 +853,8 @@ void dccp_close(struct sock *sk, long timeout)
 
 		goto adjudge_to_death;
 	}
+
+	sk_stop_timer(sk, &dp->dccps_xmit_timer);
 
 	/*
 	 * We need to flush the recv. buffs.  We do this only on the

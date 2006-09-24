@@ -109,6 +109,7 @@ static void sha1_final(struct crypto_tfm *tfm, u8 *out)
 
 static struct crypto_alg alg = {
 	.cra_name	=	"sha1",
+	.cra_driver_name=	"sha1-generic",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA1_HMAC_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct sha1_ctx),
@@ -137,3 +138,5 @@ module_exit(fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm");
+
+MODULE_ALIAS("sha1-generic");

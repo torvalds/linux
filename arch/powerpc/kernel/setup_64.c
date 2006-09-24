@@ -56,7 +56,6 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/lmb.h>
-#include <asm/iseries/it_lp_naca.h>
 #include <asm/firmware.h>
 #include <asm/xmon.h>
 #include <asm/udbg.h>
@@ -79,10 +78,10 @@ u64 ppc64_pft_size;
  * before we've read this from the device tree.
  */
 struct ppc64_caches ppc64_caches = {
-	.dline_size = 0x80,
-	.log_dline_size = 7,
-	.iline_size = 0x80,
-	.log_iline_size = 7
+	.dline_size = 0x40,
+	.log_dline_size = 6,
+	.iline_size = 0x40,
+	.log_iline_size = 6
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
@@ -107,7 +106,7 @@ static int smt_enabled_cmdline;
 static void check_smt_enabled(void)
 {
 	struct device_node *dn;
-	char *smt_option;
+	const char *smt_option;
 
 	/* Allow the command line to overrule the OF option */
 	if (smt_enabled_cmdline)
@@ -116,7 +115,7 @@ static void check_smt_enabled(void)
 	dn = of_find_node_by_path("/options");
 
 	if (dn) {
-		smt_option = (char *)get_property(dn, "ibm,smt-enabled", NULL);
+		smt_option = get_property(dn, "ibm,smt-enabled", NULL);
 
                 if (smt_option) {
 			if (!strcmp(smt_option, "on"))
@@ -293,7 +292,7 @@ static void __init initialize_cache_info(void)
 		 */
 
 		if ( num_cpus == 1 ) {
-			u32 *sizep, *lsizep;
+			const u32 *sizep, *lsizep;
 			u32 size, lsize;
 			const char *dc, *ic;
 
@@ -308,10 +307,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
-			sizep = (u32 *)get_property(np, "d-cache-size", NULL);
+			sizep = get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = (u32 *) get_property(np, dc, NULL);
+			lsizep = get_property(np, dc, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -325,10 +324,10 @@ static void __init initialize_cache_info(void)
 
 			size = 0;
 			lsize = cur_cpu_spec->icache_bsize;
-			sizep = (u32 *)get_property(np, "i-cache-size", NULL);
+			sizep = get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = (u32 *)get_property(np, ic, NULL);
+			lsizep = get_property(np, ic, NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)

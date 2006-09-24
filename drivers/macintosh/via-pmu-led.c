@@ -120,7 +120,7 @@ static int __init via_pmu_led_init(void)
 	dt = of_find_node_by_path("/");
 	if (dt == NULL)
 		return -ENODEV;
-	model = (const char *)get_property(dt, "model", NULL);
+	model = get_property(dt, "model", NULL);
 	if (model == NULL)
 		return -ENODEV;
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&

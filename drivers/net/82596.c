@@ -444,7 +444,7 @@ static inline int wait_cmd(struct net_device *dev, struct i596_private *lp, int 
 static inline int wait_cfg(struct net_device *dev, struct i596_cmd *cmd, int delcnt, char *str)
 {
 	volatile struct i596_cmd *c = cmd;
-	
+
 	while (--delcnt && c->command)
 		udelay(10);
 	if (!delcnt) {
@@ -455,7 +455,7 @@ static inline int wait_cfg(struct net_device *dev, struct i596_cmd *cmd, int del
 		return 0;
 }
 
- 
+
 static void i596_display_data(struct net_device *dev)
 {
 	struct i596_private *lp = dev->priv;
@@ -787,7 +787,7 @@ static inline int i596_rx(struct net_device *dev)
 		}
 		DEB(DEB_RXFRAME, printk(KERN_DEBUG "  rfd %p, rfd.rbd %p, rfd.stat %04x\n",
 			rfd, rfd->rbd, rfd->stat));
-		
+
 		if (rbd != I596_NULL && ((rfd->stat) & STAT_OK)) {
 			/* a good frame */
 			int pkt_len = rbd->count & 0x3fff;
@@ -1208,7 +1208,7 @@ struct net_device * __init i82596_probe(int unit)
 		   Some other boards trip the checksum.. but then appear as
 		   ether address 0. Trap these - AC */
 
-		if ((checksum % 0x100) || 
+		if ((checksum % 0x100) ||
 		    (memcmp(eth_addr, "\x00\x00\x49", 3) != 0)) {
 			err = -ENODEV;
 			goto out1;
@@ -1545,7 +1545,7 @@ static void set_multicast_list(struct net_device *dev)
 		printk(KERN_ERR "%s: Only %d multicast addresses supported",
 			dev->name, cnt);
 	}
-	
+
 	if (dev->mc_count > 0) {
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
@@ -1609,7 +1609,7 @@ void __exit cleanup_module(void)
 }
 
 #endif				/* MODULE */
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c 82596.c"
