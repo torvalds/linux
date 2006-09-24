@@ -921,8 +921,20 @@ depend dep:
 INSTALL_HDR_PATH=$(objtree)/usr
 export INSTALL_HDR_PATH
 
+HDRARCHES=$(filter-out generic,$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
+
+PHONY += headers_install_all
+headers_install_all: include/linux/version.h scripts_basic FORCE
+	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+	$(Q)for arch in $(HDRARCHES); do \
+	 $(MAKE) ARCH=$$arch -f $(srctree)/scripts/Makefile.headersinst obj=include BIASMDIR=-bi-$$arch ;\
+	 done
+
 PHONY += headers_install
 headers_install: include/linux/version.h scripts_basic FORCE
+	@if [ ! -r include/asm-$(ARCH)/Kbuild ]; then \
+	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
+	  exit 1 ; fi
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
 	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include
@@ -1107,13 +1119,17 @@ help:
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
-	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'
+	@if [ -r include/asm-$(ARCH)/Kbuild ]; then \
+	 echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
+	 fi
 	@echo  '                    (default: $(INSTALL_HDR_PATH))'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
-	@echo  '  headers_check   - Sanity check on exported headers'
+	@if [ -r include/asm-$(ARCH)/Kbuild ]; then \
+	 echo  '  headers_check   - Sanity check on exported headers'; \
+	 fi
 	@echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help

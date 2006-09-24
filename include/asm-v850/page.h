@@ -14,6 +14,8 @@
 #ifndef __V850_PAGE_H__
 #define __V850_PAGE_H__
 
+#ifdef __KERNEL__
+
 #include <asm/machdep.h>
 
 
@@ -32,7 +34,6 @@
 #endif
 
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 #define STRICT_MM_TYPECHECKS
@@ -122,9 +123,9 @@ typedef unsigned long pgprot_t;
 #define __va(x)		     ((void *)__phys_to_virt ((unsigned long)(x)))
 
 
-#endif /* KERNEL */
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+#endif /* KERNEL */
 
 #endif /* __V850_PAGE_H__ */
