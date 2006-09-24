@@ -6,7 +6,7 @@ header-y += qeth.h
 header-y += tape390.h
 header-y += ucontext.h
 header-y += vtoc.h
-header-y += z90crypt.h
+header-y += zcrypt.h
 
 unifdef-y += cmb.h
 unifdef-y += debug.h
