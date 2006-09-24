@@ -1,7 +1,7 @@
 /*
  * f71805f.c - driver for the Fintek F71805F/FG Super-I/O chip integrated
  *             hardware monitoring features
- * Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2006  Jean Delvare <khali@linux-fr.org>
  *
  * The F71805F/FG is a LPC Super-I/O chip made by Fintek. It integrates
  * complete hardware monitoring features: voltage, fan and temperature
@@ -147,7 +147,7 @@ struct f71805f_data {
 	u8 temp_high[3];
 	u8 temp_hyst[3];
 	u8 temp_mode;
-	u8 alarms[3];
+	unsigned long alarms;
 };
 
 static inline long in_from_reg(u8 reg)
@@ -311,10 +311,9 @@ static struct f71805f_data *f71805f_update_device(struct device *dev)
 			data->temp[nr] = f71805f_read8(data,
 					 F71805F_REG_TEMP(nr));
 		}
-		for (nr = 0; nr < 3; nr++) {
-			data->alarms[nr] = f71805f_read8(data,
-					   F71805F_REG_STATUS(nr));
-		}
+		data->alarms = f71805f_read8(data, F71805F_REG_STATUS(0))
+			+ (f71805f_read8(data, F71805F_REG_STATUS(1)) << 8)
+			+ (f71805f_read8(data, F71805F_REG_STATUS(2)) << 16);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -557,8 +556,7 @@ static ssize_t show_alarms_in(struct device *dev, struct device_attribute
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
 
-	return sprintf(buf, "%d\n", data->alarms[0] |
-				    ((data->alarms[1] & 0x01) << 8));
+	return sprintf(buf, "%lu\n", data->alarms & 0x1ff);
 }
 
 static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
@@ -566,7 +564,7 @@ static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
 
-	return sprintf(buf, "%d\n", data->alarms[2] & 0x07);
+	return sprintf(buf, "%lu\n", (data->alarms >> 16) & 0x07);
 }
 
 static ssize_t show_alarms_temp(struct device *dev, struct device_attribute
@@ -574,7 +572,17 @@ static ssize_t show_alarms_temp(struct device *dev, struct device_attribute
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
 
-	return sprintf(buf, "%d\n", (data->alarms[1] >> 3) & 0x07);
+	return sprintf(buf, "%lu\n", (data->alarms >> 11) & 0x07);
+}
+
+static ssize_t show_alarm(struct device *dev, struct device_attribute
+			  *devattr, char *buf)
+{
+	struct f71805f_data *data = f71805f_update_device(dev);
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	int bitnr = attr->index;
+
+	return sprintf(buf, "%lu\n", (data->alarms >> bitnr) & 1);
 }
 
 static ssize_t show_name(struct device *dev, struct device_attribute
@@ -655,18 +663,34 @@ static struct sensor_device_attribute f71805f_sensor_attr[] = {
 	SENSOR_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR,
 		    show_temp_hyst, set_temp_hyst, 2),
 	SENSOR_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2),
+
+	SENSOR_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0),
+	SENSOR_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1),
+	SENSOR_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2),
+	SENSOR_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3),
+	SENSOR_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 4),
+	SENSOR_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 5),
+	SENSOR_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 6),
+	SENSOR_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 7),
+	SENSOR_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 8),
+	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 11),
+	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 12),
+	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
 };
 
 static struct sensor_device_attribute f71805f_fan_attr[] = {
 	SENSOR_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0),
 	SENSOR_ATTR(fan1_min, S_IRUGO | S_IWUSR,
 		    show_fan_min, set_fan_min, 0),
+	SENSOR_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 16),
 	SENSOR_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1),
 	SENSOR_ATTR(fan2_min, S_IRUGO | S_IWUSR,
 		    show_fan_min, set_fan_min, 1),
+	SENSOR_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 17),
 	SENSOR_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2),
 	SENSOR_ATTR(fan3_min, S_IRUGO | S_IWUSR,
 		    show_fan_min, set_fan_min, 2),
+	SENSOR_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 18),
 };
 
 /*
@@ -737,7 +761,7 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 			goto exit_class;
 	}
 	for (i = 0; i < ARRAY_SIZE(f71805f_fan_attr); i++) {
-		if (!(data->fan_enabled & (1 << (i / 2))))
+		if (!(data->fan_enabled & (1 << (i / 3))))
 			continue;
 		err = device_create_file(&pdev->dev,
 					 &f71805f_fan_attr[i].dev_attr);

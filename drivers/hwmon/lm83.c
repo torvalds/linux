@@ -1,7 +1,7 @@
 /*
  * lm83.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2006  Jean Delvare <khali@linux-fr.org>
  *
  * Heavily inspired from the lm78, lm75 and adm1021 drivers. The LM83 is
  * a sensor chip made by National Semiconductor. It reports up to four
@@ -191,6 +191,16 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *dummy,
 	return sprintf(buf, "%d\n", data->alarms);
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute
+			  *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct lm83_data *data = lm83_update_device(dev);
+	int bitnr = attr->index;
+
+	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+}
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
 static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
@@ -208,6 +218,20 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp, NULL, 8);
 static SENSOR_DEVICE_ATTR(temp3_crit, S_IWUSR | S_IRUGO, show_temp,
 	set_temp, 8);
 static SENSOR_DEVICE_ATTR(temp4_crit, S_IRUGO, show_temp, NULL, 8);
+
+/* Individual alarm files */
+static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp3_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp3_input_fault, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp3_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 8);
+static SENSOR_DEVICE_ATTR(temp4_crit_alarm, S_IRUGO, show_alarm, NULL, 9);
+static SENSOR_DEVICE_ATTR(temp4_input_fault, S_IRUGO, show_alarm, NULL, 10);
+static SENSOR_DEVICE_ATTR(temp4_max_alarm, S_IRUGO, show_alarm, NULL, 12);
+static SENSOR_DEVICE_ATTR(temp2_input_fault, S_IRUGO, show_alarm, NULL, 13);
+static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 15);
+/* Raw alarm file for compatibility */
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /*
@@ -350,6 +374,16 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_crit.dev_attr);
 
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp3_input_fault.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp3_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_crit_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp3_crit_alarm.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	if (kind == lm83) {
@@ -367,6 +401,19 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 				   &sensor_dev_attr_temp2_crit.dev_attr);
 		device_create_file(&new_client->dev,
 				   &sensor_dev_attr_temp4_crit.dev_attr);
+
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp2_input_fault.dev_attr);
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp4_input_fault.dev_attr);
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp2_max_alarm.dev_attr);
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp4_max_alarm.dev_attr);
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp2_crit_alarm.dev_attr);
+		device_create_file(&new_client->dev,
+				&sensor_dev_attr_temp4_crit_alarm.dev_attr);
 	}
 
 	return 0;

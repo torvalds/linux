@@ -1,7 +1,7 @@
 /*
  * lm90.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2006  Jean Delvare <khali@linux-fr.org>
  *
  * Based on the lm83 driver. The LM90 is a sensor chip made by National
  * Semiconductor. It reports up to two temperatures (its own plus up to
@@ -327,6 +327,16 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *dummy,
 	return sprintf(buf, "%d\n", data->alarms);
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute
+			  *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct lm90_data *data = lm90_update_device(dev);
+	int bitnr = attr->index;
+
+	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
+}
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp8, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp11, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp8,
@@ -344,6 +354,16 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp8,
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temphyst,
 	set_temphyst, 3);
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 4);
+
+/* Individual alarm files */
+static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_input_fault, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
+/* Raw alarm file for compatibility */
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /* pec used for ADM1032 only */
@@ -595,6 +615,21 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 			   &sensor_dev_attr_temp1_crit_hyst.dev_attr);
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp2_crit_hyst.dev_attr);
+
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_input_fault.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_min_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_min_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_crit_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_crit_alarm.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	if (new_client->flags & I2C_CLIENT_PEC)

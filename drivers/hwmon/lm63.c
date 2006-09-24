@@ -1,7 +1,7 @@
 /*
  * lm63.c - driver for the National Semiconductor LM63 temperature sensor
  *          with integrated fan control
- * Copyright (C) 2004-2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2006  Jean Delvare <khali@linux-fr.org>
  * Based on the lm90 driver.
  *
  * The LM63 is a sensor chip made by National Semiconductor. It measures
@@ -330,6 +330,16 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *dummy,
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *devattr,
+			  char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct lm63_data *data = lm63_update_device(dev);
+	int bitnr = attr->index;
+
+	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
+}
+
 static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan,
 	set_fan, 1);
@@ -350,6 +360,14 @@ static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO, show_temp8, NULL, 2);
 static DEVICE_ATTR(temp2_crit_hyst, S_IWUSR | S_IRUGO, show_temp2_crit_hyst,
 	set_temp2_crit_hyst);
 
+/* Individual alarm files */
+static SENSOR_DEVICE_ATTR(fan1_min_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_crit_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_input_fault, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
+/* Raw alarm file for compatibility */
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 /*
@@ -449,6 +467,8 @@ static int lm63_detect(struct i2c_adapter *adapter, int address, int kind)
 				   &sensor_dev_attr_fan1_input.dev_attr);
 		device_create_file(&new_client->dev,
 				   &sensor_dev_attr_fan1_min.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_fan1_min_alarm.dev_attr);
 	}
 	device_create_file(&new_client->dev, &dev_attr_pwm1);
 	device_create_file(&new_client->dev, &dev_attr_pwm1_enable);
@@ -465,6 +485,17 @@ static int lm63_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp2_crit.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_temp2_crit_hyst);
+
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_input_fault.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_min_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_max_alarm.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp2_crit_alarm.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
