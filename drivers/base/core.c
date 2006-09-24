@@ -44,7 +44,7 @@ const char *dev_driver_string(struct device *dev)
 	return dev->driver ? dev->driver->name :
 			(dev->bus ? dev->bus->name : "");
 }
-EXPORT_SYMBOL_GPL(dev_driver_string);
+EXPORT_SYMBOL(dev_driver_string);
 
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
