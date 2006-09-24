@@ -101,7 +101,7 @@ config MTD_REDBOOT_PARTS_READONLY
 
 config MTD_CMDLINE_PARTS
 	bool "Command line partition table parsing"
-	depends on MTD_PARTITIONS = "y"
+	depends on MTD_PARTITIONS = "y" && MTD = "y"
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
@@ -264,7 +264,7 @@ config RFD_FTL
 		http://www.gensw.com/pages/prod/bios/rfd.htm
 
 config SSFDC
-	bool "NAND SSFDC (SmartMedia) read only translation layer"
+	tristate "NAND SSFDC (SmartMedia) read only translation layer"
 	depends on MTD
 	default n
 	help
