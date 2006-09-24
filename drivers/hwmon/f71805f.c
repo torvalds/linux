@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <asm/io.h>
 
 static struct platform_device *pdev;
@@ -593,104 +594,189 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 	return sprintf(buf, "%s\n", data->name);
 }
 
-static struct device_attribute f71805f_dev_attr[] = {
-	__ATTR(in0_input, S_IRUGO, show_in0, NULL),
-	__ATTR(in0_max, S_IRUGO| S_IWUSR, show_in0_max, set_in0_max),
-	__ATTR(in0_min, S_IRUGO| S_IWUSR, show_in0_min, set_in0_min),
-	__ATTR(alarms_in, S_IRUGO, show_alarms_in, NULL),
-	__ATTR(alarms_fan, S_IRUGO, show_alarms_fan, NULL),
-	__ATTR(alarms_temp, S_IRUGO, show_alarms_temp, NULL),
-	__ATTR(name, S_IRUGO, show_name, NULL),
+static DEVICE_ATTR(in0_input, S_IRUGO, show_in0, NULL);
+static DEVICE_ATTR(in0_max, S_IRUGO| S_IWUSR, show_in0_max, set_in0_max);
+static DEVICE_ATTR(in0_min, S_IRUGO| S_IWUSR, show_in0_min, set_in0_min);
+static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_in, NULL, 1);
+static SENSOR_DEVICE_ATTR(in1_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 1);
+static SENSOR_DEVICE_ATTR(in1_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 1);
+static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_in, NULL, 2);
+static SENSOR_DEVICE_ATTR(in2_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 2);
+static SENSOR_DEVICE_ATTR(in2_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 2);
+static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_in, NULL, 3);
+static SENSOR_DEVICE_ATTR(in3_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 3);
+static SENSOR_DEVICE_ATTR(in3_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 3);
+static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_in, NULL, 4);
+static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 4);
+static SENSOR_DEVICE_ATTR(in4_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 4);
+static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_in, NULL, 5);
+static SENSOR_DEVICE_ATTR(in5_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 5);
+static SENSOR_DEVICE_ATTR(in5_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 5);
+static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_in, NULL, 6);
+static SENSOR_DEVICE_ATTR(in6_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 6);
+static SENSOR_DEVICE_ATTR(in6_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 6);
+static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, show_in, NULL, 7);
+static SENSOR_DEVICE_ATTR(in7_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 7);
+static SENSOR_DEVICE_ATTR(in7_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 7);
+static SENSOR_DEVICE_ATTR(in8_input, S_IRUGO, show_in, NULL, 8);
+static SENSOR_DEVICE_ATTR(in8_max, S_IRUGO | S_IWUSR,
+			  show_in_max, set_in_max, 8);
+static SENSOR_DEVICE_ATTR(in8_min, S_IRUGO | S_IWUSR,
+			  show_in_min, set_in_min, 8);
+
+static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
+static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO | S_IWUSR,
+			  show_fan_min, set_fan_min, 0);
+static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
+static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO | S_IWUSR,
+			  show_fan_min, set_fan_min, 1);
+static SENSOR_DEVICE_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2);
+static SENSOR_DEVICE_ATTR(fan3_min, S_IRUGO | S_IWUSR,
+			  show_fan_min, set_fan_min, 2);
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 0);
+static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
+		    show_temp_hyst, set_temp_hyst, 0);
+static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, show_temp_type, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 1);
+static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR,
+		    show_temp_hyst, set_temp_hyst, 1);
+static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO, show_temp_type, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 2);
+static SENSOR_DEVICE_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR,
+		    show_temp_hyst, set_temp_hyst, 2);
+static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2);
+
+static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 8);
+static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 11);
+static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 12);
+static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13);
+static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 16);
+static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 17);
+static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 18);
+static DEVICE_ATTR(alarms_in, S_IRUGO, show_alarms_in, NULL);
+static DEVICE_ATTR(alarms_fan, S_IRUGO, show_alarms_fan, NULL);
+static DEVICE_ATTR(alarms_temp, S_IRUGO, show_alarms_temp, NULL);
+
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
+static struct attribute *f71805f_attributes[] = {
+	&dev_attr_in0_input.attr,
+	&dev_attr_in0_max.attr,
+	&dev_attr_in0_min.attr,
+	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in1_max.dev_attr.attr,
+	&sensor_dev_attr_in1_min.dev_attr.attr,
+	&sensor_dev_attr_in2_input.dev_attr.attr,
+	&sensor_dev_attr_in2_max.dev_attr.attr,
+	&sensor_dev_attr_in2_min.dev_attr.attr,
+	&sensor_dev_attr_in3_input.dev_attr.attr,
+	&sensor_dev_attr_in3_max.dev_attr.attr,
+	&sensor_dev_attr_in3_min.dev_attr.attr,
+	&sensor_dev_attr_in4_input.dev_attr.attr,
+	&sensor_dev_attr_in4_max.dev_attr.attr,
+	&sensor_dev_attr_in4_min.dev_attr.attr,
+	&sensor_dev_attr_in5_input.dev_attr.attr,
+	&sensor_dev_attr_in5_max.dev_attr.attr,
+	&sensor_dev_attr_in5_min.dev_attr.attr,
+	&sensor_dev_attr_in6_input.dev_attr.attr,
+	&sensor_dev_attr_in6_max.dev_attr.attr,
+	&sensor_dev_attr_in6_min.dev_attr.attr,
+	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&sensor_dev_attr_in7_max.dev_attr.attr,
+	&sensor_dev_attr_in7_min.dev_attr.attr,
+	&sensor_dev_attr_in8_input.dev_attr.attr,
+	&sensor_dev_attr_in8_max.dev_attr.attr,
+	&sensor_dev_attr_in8_min.dev_attr.attr,
+
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_type.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_type.dev_attr.attr,
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_max.dev_attr.attr,
+	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp3_type.dev_attr.attr,
+
+	&sensor_dev_attr_in0_alarm.dev_attr.attr,
+	&sensor_dev_attr_in1_alarm.dev_attr.attr,
+	&sensor_dev_attr_in2_alarm.dev_attr.attr,
+	&sensor_dev_attr_in3_alarm.dev_attr.attr,
+	&sensor_dev_attr_in4_alarm.dev_attr.attr,
+	&sensor_dev_attr_in5_alarm.dev_attr.attr,
+	&sensor_dev_attr_in6_alarm.dev_attr.attr,
+	&sensor_dev_attr_in7_alarm.dev_attr.attr,
+	&sensor_dev_attr_in8_alarm.dev_attr.attr,
+	&dev_attr_alarms_in.attr,
+	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
+	&dev_attr_alarms_temp.attr,
+	&dev_attr_alarms_fan.attr,
+
+	&dev_attr_name.attr,
+	NULL
 };
 
-static struct sensor_device_attribute f71805f_sensor_attr[] = {
-	SENSOR_ATTR(in1_input, S_IRUGO, show_in, NULL, 1),
-	SENSOR_ATTR(in1_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 1),
-	SENSOR_ATTR(in1_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 1),
-	SENSOR_ATTR(in2_input, S_IRUGO, show_in, NULL, 2),
-	SENSOR_ATTR(in2_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 2),
-	SENSOR_ATTR(in2_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 2),
-	SENSOR_ATTR(in3_input, S_IRUGO, show_in, NULL, 3),
-	SENSOR_ATTR(in3_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 3),
-	SENSOR_ATTR(in3_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 3),
-	SENSOR_ATTR(in4_input, S_IRUGO, show_in, NULL, 4),
-	SENSOR_ATTR(in4_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 4),
-	SENSOR_ATTR(in4_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 4),
-	SENSOR_ATTR(in5_input, S_IRUGO, show_in, NULL, 5),
-	SENSOR_ATTR(in5_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 5),
-	SENSOR_ATTR(in5_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 5),
-	SENSOR_ATTR(in6_input, S_IRUGO, show_in, NULL, 6),
-	SENSOR_ATTR(in6_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 6),
-	SENSOR_ATTR(in6_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 6),
-	SENSOR_ATTR(in7_input, S_IRUGO, show_in, NULL, 7),
-	SENSOR_ATTR(in7_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 7),
-	SENSOR_ATTR(in7_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 7),
-	SENSOR_ATTR(in8_input, S_IRUGO, show_in, NULL, 8),
-	SENSOR_ATTR(in8_max, S_IRUGO | S_IWUSR,
-		    show_in_max, set_in_max, 8),
-	SENSOR_ATTR(in8_min, S_IRUGO | S_IWUSR,
-		    show_in_min, set_in_min, 8),
-
-	SENSOR_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0),
-	SENSOR_ATTR(temp1_max, S_IRUGO | S_IWUSR,
-		    show_temp_max, set_temp_max, 0),
-	SENSOR_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
-		    show_temp_hyst, set_temp_hyst, 0),
-	SENSOR_ATTR(temp1_type, S_IRUGO, show_temp_type, NULL, 0),
-	SENSOR_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 1),
-	SENSOR_ATTR(temp2_max, S_IRUGO | S_IWUSR,
-		    show_temp_max, set_temp_max, 1),
-	SENSOR_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR,
-		    show_temp_hyst, set_temp_hyst, 1),
-	SENSOR_ATTR(temp2_type, S_IRUGO, show_temp_type, NULL, 1),
-	SENSOR_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 2),
-	SENSOR_ATTR(temp3_max, S_IRUGO | S_IWUSR,
-		    show_temp_max, set_temp_max, 2),
-	SENSOR_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR,
-		    show_temp_hyst, set_temp_hyst, 2),
-	SENSOR_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2),
-
-	SENSOR_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0),
-	SENSOR_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1),
-	SENSOR_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2),
-	SENSOR_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3),
-	SENSOR_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 4),
-	SENSOR_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 5),
-	SENSOR_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 6),
-	SENSOR_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 7),
-	SENSOR_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 8),
-	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 11),
-	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 12),
-	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
+static const struct attribute_group f71805f_group = {
+	.attrs = f71805f_attributes,
 };
 
-static struct sensor_device_attribute f71805f_fan_attr[] = {
-	SENSOR_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0),
-	SENSOR_ATTR(fan1_min, S_IRUGO | S_IWUSR,
-		    show_fan_min, set_fan_min, 0),
-	SENSOR_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 16),
-	SENSOR_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1),
-	SENSOR_ATTR(fan2_min, S_IRUGO | S_IWUSR,
-		    show_fan_min, set_fan_min, 1),
-	SENSOR_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 17),
-	SENSOR_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2),
-	SENSOR_ATTR(fan3_min, S_IRUGO | S_IWUSR,
-		    show_fan_min, set_fan_min, 2),
-	SENSOR_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 18),
+static struct attribute *f71805f_attributes_fan[3][4] = {
+	{
+		&sensor_dev_attr_fan1_input.dev_attr.attr,
+		&sensor_dev_attr_fan1_min.dev_attr.attr,
+		&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+		NULL
+	}, {
+		&sensor_dev_attr_fan2_input.dev_attr.attr,
+		&sensor_dev_attr_fan2_min.dev_attr.attr,
+		&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+		NULL
+	}, {
+		&sensor_dev_attr_fan3_input.dev_attr.attr,
+		&sensor_dev_attr_fan3_min.dev_attr.attr,
+		&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+		NULL
+	}
+};
+
+static const struct attribute_group f71805f_group_fan[3] = {
+	{ .attrs = f71805f_attributes_fan[0] },
+	{ .attrs = f71805f_attributes_fan[1] },
+	{ .attrs = f71805f_attributes_fan[2] },
 };
 
 /*
@@ -738,43 +824,35 @@ static int __devinit f71805f_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
-		dev_err(&pdev->dev, "Class registration failed (%d)\n", err);
-		goto exit_free;
-	}
-
 	/* Initialize the F71805F chip */
 	f71805f_init_device(data);
 
 	/* Register sysfs interface files */
-	for (i = 0; i < ARRAY_SIZE(f71805f_dev_attr); i++) {
-		err = device_create_file(&pdev->dev, &f71805f_dev_attr[i]);
-		if (err)
-			goto exit_class;
-	}
-	for (i = 0; i < ARRAY_SIZE(f71805f_sensor_attr); i++) {
-		err = device_create_file(&pdev->dev,
-					 &f71805f_sensor_attr[i].dev_attr);
-		if (err)
-			goto exit_class;
-	}
-	for (i = 0; i < ARRAY_SIZE(f71805f_fan_attr); i++) {
-		if (!(data->fan_enabled & (1 << (i / 3))))
+	if ((err = sysfs_create_group(&pdev->dev.kobj, &f71805f_group)))
+		goto exit_free;
+	for (i = 0; i < 3; i++) {
+		if (!(data->fan_enabled & (1 << i)))
 			continue;
-		err = device_create_file(&pdev->dev,
-					 &f71805f_fan_attr[i].dev_attr);
-		if (err)
-			goto exit_class;
+		if ((err = sysfs_create_group(&pdev->dev.kobj,
+					      &f71805f_group_fan[i])))
+			goto exit_remove_files;
+	}
+
+	data->class_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		dev_err(&pdev->dev, "Class registration failed (%d)\n", err);
+		goto exit_remove_files;
 	}
 
 	return 0;
 
-exit_class:
-	dev_err(&pdev->dev, "Sysfs interface creation failed\n");
-	hwmon_device_unregister(data->class_dev);
+exit_remove_files:
+	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
+	for (i = 0; i < 3; i++)
+		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_fan[i]);
 exit_free:
+	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 exit:
 	return err;
@@ -783,9 +861,13 @@ exit:
 static int __devexit f71805f_remove(struct platform_device *pdev)
 {
 	struct f71805f_data *data = platform_get_drvdata(pdev);
+	int i;
 
 	platform_set_drvdata(pdev, NULL);
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&pdev->dev.kobj, &f71805f_group);
+	for (i = 0; i < 3; i++)
+		sysfs_remove_group(&pdev->dev.kobj, &f71805f_group_fan[i]);
 	kfree(data);
 
 	return 0;

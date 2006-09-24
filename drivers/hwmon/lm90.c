@@ -79,6 +79,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 /*
  * Addresses to scan
@@ -366,6 +367,33 @@ static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
 /* Raw alarm file for compatibility */
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
+static struct attribute *lm90_attributes[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp2_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
+
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_input_fault.dev_attr.attr,
+	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group lm90_group = {
+	.attrs = lm90_attributes,
+};
+
 /* pec used for ADM1032 only */
 static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
 			char *buf)
@@ -589,54 +617,25 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm90_init_client(new_client);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm90_group)))
+		goto exit_detach;
+	if (new_client->flags & I2C_CLIENT_PEC) {
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_pec)))
+			goto exit_remove_files;
+	}
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
-
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_input.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_input.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_min.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_min.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_max.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_max.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_crit.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_crit.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_crit_hyst.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_crit_hyst.dev_attr);
-
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_input_fault.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_min_alarm.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_min_alarm.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_max_alarm.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_max_alarm.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp1_crit_alarm.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_crit_alarm.dev_attr);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
-
-	if (new_client->flags & I2C_CLIENT_PEC)
-		device_create_file(&new_client->dev, &dev_attr_pec);
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &lm90_group);
+	device_remove_file(&new_client->dev, &dev_attr_pec);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -669,6 +668,8 @@ static int lm90_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &lm90_group);
+	device_remove_file(&client->dev, &dev_attr_pec);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
