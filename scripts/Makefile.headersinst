@@ -7,7 +7,7 @@
 #
 # ==========================================================================
 
-UNIFDEF := unifdef -U__KERNEL__
+UNIFDEF := scripts/unifdef -U__KERNEL__
 
 # Eliminate the contents of (and inclusions of) compiler.h
 HDRSED  := sed 	-e "s/ inline / __inline__ /g" \
