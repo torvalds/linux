@@ -59,6 +59,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 #include <sound/ac97_codec.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
@@ -1277,7 +1278,18 @@ static int snd_via82xx_pcm_close(struct snd_pcm_substream *substream)
 	if (! ratep->used)
 		ratep->rate = 0;
 	spin_unlock_irq(&ratep->lock);
-
+	if (! ratep->rate) {
+		if (! viadev->direction) {
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_FRONT_DAC_RATE, 0);
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_SURR_DAC_RATE, 0);
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_LFE_DAC_RATE, 0);
+		} else
+			snd_ac97_update_power(chip->ac97,
+					      AC97_PCM_LR_ADC_RATE, 0);
+	}
 	viadev->substream = NULL;
 	return 0;
 }
@@ -1687,21 +1699,29 @@ static int snd_via8233_pcmdxs_volume_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_dxs, -9450, 150, 1);
+
 static struct snd_kcontrol_new snd_via8233_pcmdxs_volume_control __devinitdata = {
 	.name = "PCM Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.info = snd_via8233_dxs_volume_info,
 	.get = snd_via8233_pcmdxs_volume_get,
 	.put = snd_via8233_pcmdxs_volume_put,
+	.tlv = { .p = db_scale_dxs }
 };
 
 static struct snd_kcontrol_new snd_via8233_dxs_volume_control __devinitdata = {
 	.name = "VIA DXS Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 	.count = 4,
 	.info = snd_via8233_dxs_volume_info,
 	.get = snd_via8233_dxs_volume_get,
 	.put = snd_via8233_dxs_volume_put,
+	.tlv = { .p = db_scale_dxs }
 };
 
 /*
@@ -2393,6 +2413,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 		{ .subvendor = 0x16f3, .subdevice = 0x6405, .action = VIA_DXS_SRC }, /* Jetway K8M8MS */
 		{ .subvendor = 0x1734, .subdevice = 0x1078, .action = VIA_DXS_SRC }, /* FSC Amilo L7300 */
 		{ .subvendor = 0x1734, .subdevice = 0x1093, .action = VIA_DXS_SRC }, /* FSC */
+		{ .subvendor = 0x1734, .subdevice = 0x10ab, .action = VIA_DXS_SRC }, /* FSC */
 		{ .subvendor = 0x1849, .subdevice = 0x3059, .action = VIA_DXS_NO_VRA }, /* ASRock K7VM2 */
 		{ .subvendor = 0x1849, .subdevice = 0x9739, .action = VIA_DXS_SRC }, /* ASRock mobo(?) */
 		{ .subvendor = 0x1849, .subdevice = 0x9761, .action = VIA_DXS_SRC }, /* ASRock mobo(?) */

@@ -15,9 +15,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
+
 #include "internal.h"
 #include "scatterwalk.h"
 
@@ -27,88 +29,77 @@ enum km_type crypto_km_types[] = {
 	KM_SOFTIRQ0,
 	KM_SOFTIRQ1,
 };
+EXPORT_SYMBOL_GPL(crypto_km_types);
 
-static void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
+static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 {
-	if (out)
-		memcpy(sgdata, buf, nbytes);
-	else
-		memcpy(buf, sgdata, nbytes);
+	void *src = out ? buf : sgdata;
+	void *dst = out ? sgdata : buf;
+
+	memcpy(dst, src, nbytes);
 }
 
 void scatterwalk_start(struct scatter_walk *walk, struct scatterlist *sg)
 {
-	unsigned int rest_of_page;
-
 	walk->sg = sg;
-
-	walk->page = sg->page;
-	walk->len_this_segment = sg->length;
 
 	BUG_ON(!sg->length);
 
-	rest_of_page = PAGE_CACHE_SIZE - (sg->offset & (PAGE_CACHE_SIZE - 1));
-	walk->len_this_page = min(sg->length, rest_of_page);
 	walk->offset = sg->offset;
 }
+EXPORT_SYMBOL_GPL(scatterwalk_start);
 
-void scatterwalk_map(struct scatter_walk *walk, int out)
+void *scatterwalk_map(struct scatter_walk *walk, int out)
 {
-	walk->data = crypto_kmap(walk->page, out) + walk->offset;
+	return crypto_kmap(scatterwalk_page(walk), out) +
+	       offset_in_page(walk->offset);
 }
-
-static inline void scatterwalk_unmap(struct scatter_walk *walk, int out)
-{
-	/* walk->data may be pointing the first byte of the next page;
-	   however, we know we transfered at least one byte.  So,
-	   walk->data - 1 will be a virtual address in the mapped page. */
-	crypto_kunmap(walk->data - 1, out);
-}
+EXPORT_SYMBOL_GPL(scatterwalk_map);
 
 static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 				 unsigned int more)
 {
 	if (out)
-		flush_dcache_page(walk->page);
+		flush_dcache_page(scatterwalk_page(walk));
 
 	if (more) {
-		walk->len_this_segment -= walk->len_this_page;
-
-		if (walk->len_this_segment) {
-			walk->page++;
-			walk->len_this_page = min(walk->len_this_segment,
-						  (unsigned)PAGE_CACHE_SIZE);
-			walk->offset = 0;
-		}
-		else
+		walk->offset += PAGE_SIZE - 1;
+		walk->offset &= PAGE_MASK;
+		if (walk->offset >= walk->sg->offset + walk->sg->length)
 			scatterwalk_start(walk, sg_next(walk->sg));
 	}
 }
 
 void scatterwalk_done(struct scatter_walk *walk, int out, int more)
 {
-	scatterwalk_unmap(walk, out);
-	if (walk->len_this_page == 0 || !more)
+	if (!offset_in_page(walk->offset) || !more)
 		scatterwalk_pagedone(walk, out, more);
 }
+EXPORT_SYMBOL_GPL(scatterwalk_done);
 
-/*
- * Do not call this unless the total length of all of the fragments
- * has been verified as multiple of the block size.
- */
-int scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
-			   size_t nbytes, int out)
+void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
+			    size_t nbytes, int out)
 {
-	while (nbytes > walk->len_this_page) {
-		memcpy_dir(buf, walk->data, walk->len_this_page, out);
-		buf += walk->len_this_page;
-		nbytes -= walk->len_this_page;
+	for (;;) {
+		unsigned int len_this_page = scatterwalk_pagelen(walk);
+		u8 *vaddr;
 
-		scatterwalk_unmap(walk, out);
+		if (len_this_page > nbytes)
+			len_this_page = nbytes;
+
+		vaddr = scatterwalk_map(walk, out);
+		memcpy_dir(buf, vaddr, len_this_page, out);
+		scatterwalk_unmap(vaddr, out);
+
+		if (nbytes == len_this_page)
+			break;
+
+		buf += len_this_page;
+		nbytes -= len_this_page;
+
 		scatterwalk_pagedone(walk, out, 1);
-		scatterwalk_map(walk, out);
 	}
 
-	memcpy_dir(buf, walk->data, nbytes, out);
-	return nbytes;
+	scatterwalk_advance(walk, nbytes);
 }
+EXPORT_SYMBOL_GPL(scatterwalk_copychunks);

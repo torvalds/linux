@@ -48,7 +48,6 @@ static int check(const char *tablename,
 		 const void *inf,
 		 const struct xt_match *match,
 		 void *matchinfo,
-		 unsigned int matchsize,
 		 unsigned int hook_mask)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
@@ -62,54 +61,43 @@ static int check(const char *tablename,
 }
 
 static void
-destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+destroy(const struct xt_match *match, void *matchinfo)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	nf_ct_l3proto_module_put(match->family);
 #endif
 }
 
-static struct xt_match state_match = {
-	.name		= "state",
-	.match		= match,
-	.checkentry	= check,
-	.destroy	= destroy,
-	.matchsize	= sizeof(struct xt_state_info),
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_match state6_match = {
-	.name		= "state",
-	.match		= match,
-	.checkentry	= check,
-	.destroy	= destroy,
-	.matchsize	= sizeof(struct xt_state_info),
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_match xt_state_match[] = {
+	{
+		.name		= "state",
+		.family		= AF_INET,
+		.checkentry	= check,
+		.match		= match,
+		.destroy	= destroy,
+		.matchsize	= sizeof(struct xt_state_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "state",
+		.family		= AF_INET6,
+		.checkentry	= check,
+		.match		= match,
+		.destroy	= destroy,
+		.matchsize	= sizeof(struct xt_state_info),
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_state_init(void)
 {
-	int ret;
-
 	need_conntrack();
-
-	ret = xt_register_match(&state_match);
-	if (ret < 0)
-		return ret;
-
-	ret = xt_register_match(&state6_match);
-	if (ret < 0)
-		xt_unregister_match(&state_match);
-
-	return ret;
+	return xt_register_matches(xt_state_match, ARRAY_SIZE(xt_state_match));
 }
 
 static void __exit xt_state_fini(void)
 {
-	xt_unregister_match(&state_match);
-	xt_unregister_match(&state6_match);
+	xt_unregister_matches(xt_state_match, ARRAY_SIZE(xt_state_match));
 }
 
 module_init(xt_state_init);

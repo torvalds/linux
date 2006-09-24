@@ -175,6 +175,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"Qualified success"},
 	{0x01080000, 1, 1,
 	"FFFE: Soft device bus error recovered by the IOA"},
+	{0x01088100, 0, 1,
+	"4101: Soft device bus fabric error"},
 	{0x01170600, 0, 1,
 	"FFF9: Device sector reassign successful"},
 	{0x01170900, 0, 1,
@@ -225,6 +227,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"3109: IOA timed out a device command"},
 	{0x04088000, 0, 0,
 	"3120: SCSI bus is not operational"},
+	{0x04088100, 0, 1,
+	"4100: Hard device bus fabric error"},
 	{0x04118000, 0, 1,
 	"9000: IOA reserved area data check"},
 	{0x04118100, 0, 1,
@@ -273,6 +277,14 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9091: Incorrect hardware configuration change has been detected"},
 	{0x04678000, 0, 1,
 	"9073: Invalid multi-adapter configuration"},
+	{0x04678100, 0, 1,
+	"4010: Incorrect connection between cascaded expanders"},
+	{0x04678200, 0, 1,
+	"4020: Connections exceed IOA design limits"},
+	{0x04678300, 0, 1,
+	"4030: Incorrect multipath connection"},
+	{0x04679000, 0, 1,
+	"4110: Unsupported enclosure function"},
 	{0x046E0000, 0, 1,
 	"FFF4: Command to logical unit failed"},
 	{0x05240000, 1, 0,
@@ -297,6 +309,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9031: Array protection temporarily suspended, protection resuming"},
 	{0x06040600, 0, 1,
 	"9040: Array protection temporarily suspended, protection resuming"},
+	{0x06288000, 0, 1,
+	"3140: Device bus not ready to ready transition"},
 	{0x06290000, 0, 1,
 	"FFFB: SCSI bus was reset"},
 	{0x06290500, 0, 0,
@@ -319,6 +333,16 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"3150: SCSI bus configuration error"},
 	{0x06678100, 0, 1,
 	"9074: Asymmetric advanced function disk configuration"},
+	{0x06678300, 0, 1,
+	"4040: Incomplete multipath connection between IOA and enclosure"},
+	{0x06678400, 0, 1,
+	"4041: Incomplete multipath connection between enclosure and device"},
+	{0x06678500, 0, 1,
+	"9075: Incomplete multipath connection between IOA and remote IOA"},
+	{0x06678600, 0, 1,
+	"9076: Configuration error, missing remote IOA"},
+	{0x06679100, 0, 1,
+	"4050: Enclosure does not support a required multipath function"},
 	{0x06690200, 0, 1,
 	"9041: Array protection temporarily suspended"},
 	{0x06698200, 0, 1,
@@ -331,6 +355,10 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9072: Link not operational transition"},
 	{0x066B8200, 0, 1,
 	"9032: Array exposed but still protected"},
+	{0x066B9100, 0, 1,
+	"4061: Multipath redundancy level got better"},
+	{0x066B9200, 0, 1,
+	"4060: Multipath redundancy level got worse"},
 	{0x07270000, 0, 0,
 	"Failure due to other device"},
 	{0x07278000, 0, 1,
@@ -4099,8 +4127,7 @@ static int ipr_get_autosense(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
 
-	if ((be32_to_cpu(ioasa->ioasc_specific) &
-	     (IPR_ADDITIONAL_STATUS_FMT | IPR_AUTOSENSE_VALID)) == 0)
+	if ((be32_to_cpu(ioasa->ioasc_specific) & IPR_AUTOSENSE_VALID) == 0)
 		return 0;
 
 	memcpy(ipr_cmd->scsi_cmd->sense_buffer, ioasa->auto_sense.data,
@@ -4190,7 +4217,8 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	case IPR_IOASC_NR_INIT_CMD_REQUIRED:
 		break;
 	default:
-		scsi_cmd->result |= (DID_ERROR << 16);
+		if (IPR_IOASC_SENSE_KEY(ioasc) > RECOVERED_ERROR)
+			scsi_cmd->result |= (DID_ERROR << 16);
 		if (!ipr_is_vset_device(res) && !ipr_is_naca_model(res))
 			res->needs_sync_complete = 1;
 		break;

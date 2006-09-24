@@ -21,6 +21,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/if_addr.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/route.h>

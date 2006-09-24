@@ -2,22 +2,53 @@ menu "Hardware crypto devices"
 
 config CRYPTO_DEV_PADLOCK
 	tristate "Support for VIA PadLock ACE"
-	depends on CRYPTO && X86_32
+	depends on X86_32
+	select CRYPTO_ALGAPI
+	default m
 	help
 	  Some VIA processors come with an integrated crypto engine
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
-	  that provides instructions for very fast {en,de}cryption 
-	  with some algorithms.
+	  that provides instructions for very fast cryptographic
+	  operations with supported algorithms.
 	  
 	  The instructions are used only when the CPU supports them.
-	  Otherwise software encryption is used. If you are unsure,
-	  say Y.
+	  Otherwise software encryption is used.
+
+	  Selecting M for this option will compile a helper module
+	  padlock.ko that should autoload all below configured
+	  algorithms. Don't worry if your hardware does not support
+	  some or all of them. In such case padlock.ko will
+	  simply write a single line into the kernel log informing
+	  about its failure but everything will keep working fine.
+
+	  If you are unsure, say M. The compiled module will be
+	  called padlock.ko
 
 config CRYPTO_DEV_PADLOCK_AES
-	bool "Support for AES in VIA PadLock"
+	tristate "PadLock driver for AES algorithm"
 	depends on CRYPTO_DEV_PADLOCK
-	default y
+	select CRYPTO_BLKCIPHER
+	default m
 	help
 	  Use VIA PadLock for AES algorithm.
+
+	  Available in VIA C3 and newer CPUs.
+
+	  If unsure say M. The compiled module will be
+	  called padlock-aes.ko
+
+config CRYPTO_DEV_PADLOCK_SHA
+	tristate "PadLock driver for SHA1 and SHA256 algorithms"
+	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	default m
+	help
+	  Use VIA PadLock for SHA1/SHA256 algorithms.
+
+	  Available in VIA C7 and newer processors.
+
+	  If unsure say M. The compiled module will be
+	  called padlock-sha.ko
 
 endmenu

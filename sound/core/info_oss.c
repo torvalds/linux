@@ -131,10 +131,8 @@ int snd_info_minor_register(void)
 
 int snd_info_minor_unregister(void)
 {
-	if (snd_sndstat_proc_entry) {
-		snd_info_unregister(snd_sndstat_proc_entry);
-		snd_sndstat_proc_entry = NULL;
-	}
+	snd_info_free_entry(snd_sndstat_proc_entry);
+	snd_sndstat_proc_entry = NULL;
 	return 0;
 }
 

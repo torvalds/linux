@@ -43,40 +43,32 @@ static int match(const struct sk_buff *skb,
 	return (type == info->pkttype) ^ info->invert;
 }
 
-static struct xt_match pkttype_match = {
-	.name		= "pkttype",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_pkttype_info),
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_match pkttype6_match = {
-	.name		= "pkttype",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_pkttype_info),
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_match xt_pkttype_match[] = {
+	{
+		.name		= "pkttype",
+		.family		= AF_INET,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_pkttype_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "pkttype",
+		.family		= AF_INET6,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_pkttype_info),
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_pkttype_init(void)
 {
-	int ret;
-	ret = xt_register_match(&pkttype_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&pkttype6_match);
-	if (ret)
-		xt_unregister_match(&pkttype_match);
-
-	return ret;
+	return xt_register_matches(xt_pkttype_match,
+				   ARRAY_SIZE(xt_pkttype_match));
 }
 
 static void __exit xt_pkttype_fini(void)
 {
-	xt_unregister_match(&pkttype_match);
-	xt_unregister_match(&pkttype6_match);
+	xt_unregister_matches(xt_pkttype_match, ARRAY_SIZE(xt_pkttype_match));
 }
 
 module_init(xt_pkttype_init);

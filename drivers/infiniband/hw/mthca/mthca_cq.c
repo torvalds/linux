@@ -544,11 +544,11 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 		wq = &(*cur_qp)->rq;
 		wqe = be32_to_cpu(cqe->wqe);
 		wqe_index = wqe >> wq->wqe_shift;
-               /*
-		* WQE addr == base - 1 might be reported in receive completion
-		* with error instead of (rq size - 1) by Sinai FW 1.0.800 and
-		* Arbel FW 5.1.400.  This bug should be fixed in later FW revs.
-		*/
+		/*
+		 * WQE addr == base - 1 might be reported in receive completion
+		 * with error instead of (rq size - 1) by Sinai FW 1.0.800 and
+		 * Arbel FW 5.1.400.  This bug should be fixed in later FW revs.
+		 */
 		if (unlikely(wqe_index < 0))
 			wqe_index = wq->max - 1;
 		entry->wr_id = (*cur_qp)->wrid[wqe_index];

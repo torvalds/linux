@@ -264,10 +264,10 @@ enum { SCTP_MAX_DUP_TSNS = 16 };
 enum { SCTP_MAX_GABS = 16 };
 
 /* Heartbeat interval - 30 secs */
-#define SCTP_DEFAULT_TIMEOUT_HEARTBEAT	(30 * HZ)
+#define SCTP_DEFAULT_TIMEOUT_HEARTBEAT	(30*1000)
 
 /* Delayed sack timer - 200ms */
-#define SCTP_DEFAULT_TIMEOUT_SACK	((200 * HZ) / 1000)
+#define SCTP_DEFAULT_TIMEOUT_SACK	(200)
 
 /* RTO.Initial              - 3  seconds
  * RTO.Min                  - 1  second
@@ -275,9 +275,9 @@ enum { SCTP_MAX_GABS = 16 };
  * RTO.Alpha                - 1/8
  * RTO.Beta                 - 1/4
  */
-#define SCTP_RTO_INITIAL	(3 * HZ)
-#define SCTP_RTO_MIN		(1 * HZ)
-#define SCTP_RTO_MAX		(60 * HZ)
+#define SCTP_RTO_INITIAL	(3 * 1000)
+#define SCTP_RTO_MIN		(1 * 1000)
+#define SCTP_RTO_MAX		(60 * 1000)
 
 #define SCTP_RTO_ALPHA          3   /* 1/8 when converted to right shifts. */
 #define SCTP_RTO_BETA           2   /* 1/4 when converted to right shifts. */
@@ -290,8 +290,7 @@ enum { SCTP_MAX_GABS = 16 };
 #define SCTP_DEF_MAX_INIT 6
 #define SCTP_DEF_MAX_SEND 10
 
-#define SCTP_DEFAULT_COOKIE_LIFE_SEC	60 /* seconds */
-#define SCTP_DEFAULT_COOKIE_LIFE_USEC	0  /* microseconds */
+#define SCTP_DEFAULT_COOKIE_LIFE	(60 * 1000) /* 60 seconds */
 
 #define SCTP_DEFAULT_MINWINDOW	1500	/* default minimum rwnd size */
 #define SCTP_DEFAULT_MAXWINDOW	65535	/* default rwnd size */
@@ -312,9 +311,9 @@ enum { SCTP_MAX_GABS = 16 };
 				 */
 
 #if defined (CONFIG_SCTP_HMAC_MD5)
-#define SCTP_COOKIE_HMAC_ALG "md5"
+#define SCTP_COOKIE_HMAC_ALG "hmac(md5)"
 #elif defined (CONFIG_SCTP_HMAC_SHA1)
-#define SCTP_COOKIE_HMAC_ALG "sha1"
+#define SCTP_COOKIE_HMAC_ALG "hmac(sha1)"
 #else
 #define SCTP_COOKIE_HMAC_ALG NULL
 #endif

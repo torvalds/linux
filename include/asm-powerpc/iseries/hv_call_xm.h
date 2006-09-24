@@ -16,23 +16,6 @@
 #define HvCallXmSetTce			HvCallXm + 11
 #define HvCallXmSetTces			HvCallXm + 13
 
-/*
- * Structure passed to HvCallXm_getTceTableParms
- */
-struct iommu_table_cb {
-	unsigned long	itc_busno;	/* Bus number for this tce table */
-	unsigned long	itc_start;	/* Will be NULL for secondary */
-	unsigned long	itc_totalsize;	/* Size (in pages) of whole table */
-	unsigned long	itc_offset;	/* Index into real tce table of the
-					   start of our section */
-	unsigned long	itc_size;	/* Size (in pages) of our section */
-	unsigned long	itc_index;	/* Index of this tce table */
-	unsigned short	itc_maxtables;	/* Max num of tables for partition */
-	unsigned char	itc_virtbus;	/* Flag to indicate virtual bus */
-	unsigned char	itc_slotno;	/* IOA Tce Slot Index */
-	unsigned char	itc_rsvd[4];
-};
-
 static inline void HvCallXm_getTceTableParms(u64 cb)
 {
 	HvCall1(HvCallXmGetTceTableParms, cb);

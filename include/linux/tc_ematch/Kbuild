@@ -1,1 +1,4 @@
-headers-y := tc_em_cmp.h tc_em_meta.h tc_em_nbyte.h tc_em_text.h
+header-y += tc_em_cmp.h
+header-y += tc_em_meta.h
+header-y += tc_em_nbyte.h
+header-y += tc_em_text.h

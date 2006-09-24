@@ -29,6 +29,7 @@
 
 #include <linux/sched.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_netlink.h>
 
 struct scsi_transport_template;
 
@@ -194,6 +195,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	u32 roles;
 	enum fc_port_state port_state;	/* Will only be ONLINE or UNKNOWN */
 	u32 scsi_target_id;
+	u32 fast_io_fail_tmo;
 
 	/* exported data */
 	void *dd_data;			/* Used for driver-specific storage */
@@ -206,6 +208,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	struct device dev;
  	struct work_struct dev_loss_work;
  	struct work_struct scan_work;
+ 	struct work_struct fail_io_work;
  	struct work_struct stgt_delete_work;
 	struct work_struct rport_delete_work;
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -284,6 +287,30 @@ struct fc_host_statistics {
 
 
 /*
+ * FC Event Codes - Polled and Async, following FC HBAAPI v2.0 guidelines
+ */
+
+/*
+ * fc_host_event_code: If you alter this, you also need to alter
+ * scsi_transport_fc.c (for the ascii descriptions).
+ */
+enum fc_host_event_code  {
+	FCH_EVT_LIP			= 0x1,
+	FCH_EVT_LINKUP			= 0x2,
+	FCH_EVT_LINKDOWN		= 0x3,
+	FCH_EVT_LIPRESET		= 0x4,
+	FCH_EVT_RSCN			= 0x5,
+	FCH_EVT_ADAPTER_CHANGE		= 0x103,
+	FCH_EVT_PORT_UNKNOWN		= 0x200,
+	FCH_EVT_PORT_OFFLINE		= 0x201,
+	FCH_EVT_PORT_ONLINE		= 0x202,
+	FCH_EVT_PORT_FABRIC		= 0x204,
+	FCH_EVT_LINK_UNKNOWN		= 0x500,
+	FCH_EVT_VENDOR_UNIQUE		= 0xffff,
+};
+
+
+/*
  * FC Local Port (Host) Attributes
  *
  * Attributes are based on HBAAPI V2.0 definitions.
@@ -312,7 +339,6 @@ struct fc_host_attrs {
 	u64 permanent_port_name;
 	u32 supported_classes;
 	u8  supported_fc4s[FC_FC4_LIST_SIZE];
-	char symbolic_name[FC_SYMBOLIC_NAME_SIZE];
 	u32 supported_speeds;
 	u32 maxframe_size;
 	char serial_number[FC_SERIAL_NUMBER_SIZE];
@@ -324,6 +350,8 @@ struct fc_host_attrs {
 	u8  active_fc4s[FC_FC4_LIST_SIZE];
 	u32 speed;
 	u64 fabric_name;
+	char symbolic_name[FC_SYMBOLIC_NAME_SIZE];
+	char system_hostname[FC_SYMBOLIC_NAME_SIZE];
 
 	/* Private (Transport-managed) Attributes */
 	enum fc_tgtid_binding_type  tgtid_bind_type;
@@ -354,8 +382,6 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->supported_classes)
 #define fc_host_supported_fc4s(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->supported_fc4s)
-#define fc_host_symbolic_name(x)	\
-	(((struct fc_host_attrs *)(x)->shost_data)->symbolic_name)
 #define fc_host_supported_speeds(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->supported_speeds)
 #define fc_host_maxframe_size(x)	\
@@ -374,6 +400,10 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->speed)
 #define fc_host_fabric_name(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->fabric_name)
+#define fc_host_symbolic_name(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->symbolic_name)
+#define fc_host_system_hostname(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->system_hostname)
 #define fc_host_tgtid_bind_type(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->tgtid_bind_type)
 #define fc_host_rports(x) \
@@ -409,11 +439,16 @@ struct fc_function_template {
 	void	(*get_host_active_fc4s)(struct Scsi_Host *);
 	void	(*get_host_speed)(struct Scsi_Host *);
 	void	(*get_host_fabric_name)(struct Scsi_Host *);
+	void	(*get_host_symbolic_name)(struct Scsi_Host *);
+	void	(*set_host_system_hostname)(struct Scsi_Host *);
 
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
 
 	int	(*issue_fc_host_lip)(struct Scsi_Host *);
+
+	void    (*dev_loss_tmo_callbk)(struct fc_rport *);
+	void	(*terminate_rport_io)(struct fc_rport *);
 
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
@@ -445,7 +480,6 @@ struct fc_function_template {
 	unsigned long	show_host_permanent_port_name:1;
 	unsigned long	show_host_supported_classes:1;
 	unsigned long	show_host_supported_fc4s:1;
-	unsigned long	show_host_symbolic_name:1;
 	unsigned long	show_host_supported_speeds:1;
 	unsigned long	show_host_maxframe_size:1;
 	unsigned long	show_host_serial_number:1;
@@ -456,6 +490,8 @@ struct fc_function_template {
 	unsigned long	show_host_active_fc4s:1;
 	unsigned long	show_host_speed:1;
 	unsigned long	show_host_fabric_name:1;
+	unsigned long	show_host_symbolic_name:1;
+	unsigned long	show_host_system_hostname:1;
 };
 
 
@@ -491,6 +527,25 @@ fc_remote_port_chkready(struct fc_rport *rport)
 	return result;
 }
 
+static inline u64 wwn_to_u64(u8 *wwn)
+{
+	return (u64)wwn[0] << 56 | (u64)wwn[1] << 48 |
+	    (u64)wwn[2] << 40 | (u64)wwn[3] << 32 |
+	    (u64)wwn[4] << 24 | (u64)wwn[5] << 16 |
+	    (u64)wwn[6] <<  8 | (u64)wwn[7];
+}
+
+static inline void u64_to_wwn(u64 inm, u8 *wwn)
+{
+	wwn[0] = (inm >> 56) & 0xff;
+	wwn[1] = (inm >> 48) & 0xff;
+	wwn[2] = (inm >> 40) & 0xff;
+	wwn[3] = (inm >> 32) & 0xff;
+	wwn[4] = (inm >> 24) & 0xff;
+	wwn[5] = (inm >> 16) & 0xff;
+	wwn[6] = (inm >> 8) & 0xff;
+	wwn[7] = inm & 0xff;
+}
 
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);
@@ -501,13 +556,14 @@ struct fc_rport *fc_remote_port_add(struct Scsi_Host *shost,
 void fc_remote_port_delete(struct fc_rport  *rport);
 void fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles);
 int scsi_is_fc_rport(const struct device *);
-
-static inline u64 wwn_to_u64(u8 *wwn)
-{
-	return (u64)wwn[0] << 56 | (u64)wwn[1] << 48 |
-	    (u64)wwn[2] << 40 | (u64)wwn[3] << 32 |
-	    (u64)wwn[4] << 24 | (u64)wwn[5] << 16 |
-	    (u64)wwn[6] <<  8 | (u64)wwn[7];
-}
+u32 fc_get_event_number(void);
+void fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
+		enum fc_host_event_code event_code, u32 event_data);
+void fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
+		u32 data_len, char * data_buf, u64 vendor_id);
+	/* Note: when specifying vendor_id to fc_host_post_vendor_event()
+	 *   be sure to read the Vendor Type and ID formatting requirements
+	 *   specified in scsi_netlink.h
+	 */
 
 #endif /* SCSI_TRANSPORT_FC_H */

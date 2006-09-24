@@ -633,12 +633,12 @@ pcibios_alloc_controller(void)
 static void
 make_one_node_map(struct device_node* node, u8 pci_bus)
 {
-	int *bus_range;
+	const int *bus_range;
 	int len;
 
 	if (pci_bus >= pci_bus_count)
 		return;
-	bus_range = (int *) get_property(node, "bus-range", &len);
+	bus_range = get_property(node, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, "
 		       "assuming it starts at 0\n", node->full_name);
@@ -648,13 +648,13 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 
 	for (node=node->child; node != 0;node = node->sibling) {
 		struct pci_dev* dev;
-		unsigned int *class_code, *reg;
+		const unsigned int *class_code, *reg;
 	
-		class_code = (unsigned int *) get_property(node, "class-code", NULL);
+		class_code = get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		reg = (unsigned int *)get_property(node, "reg", NULL);
+		reg = get_property(node, "reg", NULL);
 		if (!reg)
 			continue;
 		dev = pci_find_slot(pci_bus, ((reg[0] >> 8) & 0xff));
@@ -669,7 +669,7 @@ pcibios_make_OF_bus_map(void)
 {
 	int i;
 	struct pci_controller* hose;
-	u8* of_prop_map;
+	struct property *map_prop;
 
 	pci_to_OF_bus_map = (u8*)kmalloc(pci_bus_count, GFP_KERNEL);
 	if (!pci_to_OF_bus_map) {
@@ -691,9 +691,12 @@ pcibios_make_OF_bus_map(void)
 			continue;
 		make_one_node_map(node, hose->first_busno);
 	}
-	of_prop_map = get_property(find_path_device("/"), "pci-OF-bus-map", NULL);
-	if (of_prop_map)
-		memcpy(of_prop_map, pci_to_OF_bus_map, pci_bus_count);
+	map_prop = of_find_property(find_path_device("/"),
+			"pci-OF-bus-map", NULL);
+	if (map_prop) {
+		BUG_ON(pci_bus_count > map_prop->length);
+		memcpy(map_prop->value, pci_to_OF_bus_map, pci_bus_count);
+	}
 #ifdef DEBUG
 	printk("PCI->OF bus map:\n");
 	for (i=0; i<pci_bus_count; i++) {
@@ -712,7 +715,7 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 	struct device_node* sub_node;
 
 	for (; node != 0;node = node->sibling) {
-		unsigned int *class_code;
+		const unsigned int *class_code;
 	
 		if (filter(node, data))
 			return node;
@@ -722,7 +725,7 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 		 * a fake root for all functions of a multi-function device,
 		 * we go down them as well.
 		 */
-		class_code = (unsigned int *) get_property(node, "class-code", NULL);
+		class_code = get_property(node, "class-code", NULL);
 		if ((!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS)) &&
 			strcmp(node->name, "multifunc-device"))
@@ -737,10 +740,10 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 static int
 scan_OF_pci_childs_iterator(struct device_node* node, void* data)
 {
-	unsigned int *reg;
+	const unsigned int *reg;
 	u8* fdata = (u8*)data;
 	
-	reg = (unsigned int *) get_property(node, "reg", NULL);
+	reg = get_property(node, "reg", NULL);
 	if (reg && ((reg[0] >> 8) & 0xff) == fdata[1]
 		&& ((reg[0] >> 16) & 0xff) == fdata[0])
 		return 1;
@@ -841,7 +844,7 @@ find_OF_pci_device_filter(struct device_node* node, void* data)
 int
 pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 {
-	unsigned int *reg;
+	const unsigned int *reg;
 	struct pci_controller* hose;
 	struct pci_dev* dev = NULL;
 	
@@ -854,7 +857,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	if (!scan_OF_pci_childs(((struct device_node*)hose->arch_data)->child,
 			find_OF_pci_device_filter, (void *)node))
 		return -ENODEV;
-	reg = (unsigned int *) get_property(node, "reg", NULL);
+	reg = get_property(node, "reg", NULL);
 	if (!reg)
 		return -ENODEV;
 	*bus = (reg[0] >> 16) & 0xff;
@@ -885,8 +888,8 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			   struct device_node *dev, int primary)
 {
 	static unsigned int static_lc_ranges[256] __initdata;
-	unsigned int *dt_ranges, *lc_ranges, *ranges, *prev;
-	unsigned int size;
+	const unsigned int *dt_ranges;
+	unsigned int *lc_ranges, *ranges, *prev, size;
 	int rlen = 0, orig_rlen;
 	int memno = 0;
 	struct resource *res;
@@ -897,7 +900,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	 * that can have more than 3 ranges, fortunately using contiguous
 	 * addresses -- BenH
 	 */
-	dt_ranges = (unsigned int *) get_property(dev, "ranges", &rlen);
+	dt_ranges = get_property(dev, "ranges", &rlen);
 	if (!dt_ranges)
 		return;
 	/* Sanity check, though hopefully that never happens */

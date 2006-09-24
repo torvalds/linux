@@ -5,7 +5,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 
-static inline void sg_set_buf(struct scatterlist *sg, void *buf,
+static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 			      unsigned int buflen)
 {
 	sg->page = virt_to_page(buf);
@@ -13,7 +13,7 @@ static inline void sg_set_buf(struct scatterlist *sg, void *buf,
 	sg->length = buflen;
 }
 
-static inline void sg_init_one(struct scatterlist *sg, void *buf,
+static inline void sg_init_one(struct scatterlist *sg, const void *buf,
 			       unsigned int buflen)
 {
 	memset(sg, 0, sizeof(*sg));

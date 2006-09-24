@@ -153,6 +153,12 @@ static int xmon_trace[NR_CPUS];
 #define SSTEP	1		/* stepping because of 's' command */
 #define BRSTEP	2		/* stepping over breakpoint */
 
+#ifdef CONFIG_4xx
+#define MSR_SSTEP_ENABLE 0x200
+#else
+#define MSR_SSTEP_ENABLE 0x400
+#endif
+
 static struct pt_regs *xmon_regs[NR_CPUS];
 
 extern inline void sync(void)
@@ -211,6 +217,14 @@ static void get_tb(unsigned *p)
 	p[1] = lo;
 }
 
+static inline void xmon_enable_sstep(struct pt_regs *regs)
+{
+	regs->msr |= MSR_SSTEP_ENABLE;
+#ifdef CONFIG_4xx
+	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
+#endif
+}
+
 int xmon(struct pt_regs *excp)
 {
 	struct pt_regs regs;
@@ -254,10 +268,10 @@ int xmon(struct pt_regs *excp)
 	cmd = cmds(excp);
 	if (cmd == 's') {
 		xmon_trace[smp_processor_id()] = SSTEP;
-		excp->msr |= 0x400;
+		xmon_enable_sstep(excp);
 	} else if (at_breakpoint(excp->nip)) {
 		xmon_trace[smp_processor_id()] = BRSTEP;
-		excp->msr |= 0x400;
+		xmon_enable_sstep(excp);
 	} else {
 		xmon_trace[smp_processor_id()] = 0;
 		insert_bpts();
@@ -298,7 +312,7 @@ xmon_bpt(struct pt_regs *regs)
 		remove_bpts();
 		excprint(regs);
 		xmon_trace[smp_processor_id()] = BRSTEP;
-		regs->msr |= 0x400;
+		xmon_enable_sstep(regs);
 	} else {
 		xmon(regs);
 	}
@@ -385,7 +399,7 @@ insert_bpts(void)
 		}
 		store_inst((void *) bp->address);
 	}
-#if !defined(CONFIG_8xx)
+#if ! (defined(CONFIG_8xx) || defined(CONFIG_4xx))
 	if (dabr.enabled)
 		set_dabr(dabr.address);
 	if (iabr.enabled)
@@ -400,7 +414,7 @@ remove_bpts(void)
 	struct bpt *bp;
 	unsigned instr;
 
-#if !defined(CONFIG_8xx)
+#if ! (defined(CONFIG_8xx) || defined(CONFIG_4xx))
 	set_dabr(0);
 	set_iabr(0);
 #endif
@@ -677,7 +691,7 @@ bpt_cmds(void)
 
 	cmd = inchar();
 	switch (cmd) {
-#if !defined(CONFIG_8xx)
+#if ! (defined(CONFIG_8xx) || defined(CONFIG_4xx))
 	case 'd':
 		mode = 7;
 		cmd = inchar();
@@ -792,7 +806,7 @@ backtrace(struct pt_regs *excp)
 	for (; sp != 0; sp = stack[0]) {
 		if (mread(sp, stack, sizeof(stack)) != sizeof(stack))
 			break;
-		printf("[%.8lx] ", stack);
+		printf("[%.8lx] ", stack[0]);
 		xmon_print_symbol(stack[1], " ", "\n");
 		if (stack[1] == (unsigned) &ret_from_except
 		    || stack[1] == (unsigned) &ret_from_except_full

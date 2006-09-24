@@ -1,0 +1,8 @@
+ifdef CONFIG_INFINIBAND_AMSO1100_DEBUG
+EXTRA_CFLAGS += -DDEBUG
+endif
+
+obj-$(CONFIG_INFINIBAND_AMSO1100) += iw_c2.o
+
+iw_c2-y := c2.o c2_provider.o c2_rnic.o c2_alloc.o c2_mq.o c2_ae.o c2_vq.o \
+	c2_intr.o c2_cq.o c2_qp.o c2_cm.o c2_mm.o c2_pd.o

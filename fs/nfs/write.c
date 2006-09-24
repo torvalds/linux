@@ -396,6 +396,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 out:
 	clear_bit(BDI_write_congested, &bdi->state);
 	wake_up_all(&nfs_write_congestion);
+	writeback_congestion_end();
 	return err;
 }
 
@@ -590,8 +591,8 @@ static void nfs_cancel_commit_list(struct list_head *head)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_inode_remove_request(req);
-		nfs_clear_page_writeback(req);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		nfs_clear_page_writeback(req);
 	}
 }
 
@@ -1252,7 +1253,13 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	dprintk("NFS: %4d nfs_writeback_done (status %d)\n",
 		task->tk_pid, task->tk_status);
 
-	/* Call the NFS version-specific code */
+	/*
+	 * ->write_done will attempt to use post-op attributes to detect
+	 * conflicting writes by other clients.  A strict interpretation
+	 * of close-to-open would allow us to continue caching even if
+	 * another writer had changed the file, but some applications
+	 * depend on tighter cache coherency when writing.
+	 */
 	status = NFS_PROTO(data->inode)->write_done(task, data);
 	if (status != 0)
 		return status;
@@ -1273,7 +1280,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		if (time_before(complain, jiffies)) {
 			dprintk("NFS: faulty NFS server %s:"
 				" (committed = %d) != (stable = %d)\n",
-				NFS_SERVER(data->inode)->hostname,
+				NFS_SERVER(data->inode)->nfs_client->cl_hostname,
 				resp->verf->committed, argp->stable);
 			complain = jiffies + 300 * HZ;
 		}
@@ -1386,8 +1393,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req);
-		nfs_clear_page_writeback(req);
 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		nfs_clear_page_writeback(req);
 	}
 	return -ENOMEM;
 }

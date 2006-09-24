@@ -149,7 +149,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		goto out_err;
 	}
 
-	blocksize = crypto_tfm_alg_blocksize(kctx->enc);
+	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
 	BUG_ON((buf->len - offset) % blocksize);
 	plainlen = blocksize + buf->len - offset;
@@ -346,7 +346,7 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	/* Copy the data back to the right position.  XXX: Would probably be
 	 * better to copy and encrypt at the same time. */
 
-	blocksize = crypto_tfm_alg_blocksize(kctx->enc);
+	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	data_start = ptr + 22 + blocksize;
 	orig_start = buf->head[0].iov_base + offset;
 	data_len = (buf->head[0].iov_base + buf->head[0].iov_len) - data_start;

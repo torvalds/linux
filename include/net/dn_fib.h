@@ -22,7 +22,7 @@ struct dn_kern_rta
 };
 
 struct dn_fib_res {
-	struct dn_fib_rule *r;
+	struct fib_rule *r;
 	struct dn_fib_info *fi;
 	unsigned char prefixlen;
 	unsigned char nh_sel;
@@ -94,7 +94,8 @@ struct dn_fib_node {
 
 
 struct dn_fib_table {
-	int n;
+	struct hlist_node hlist;
+	u32 n;
 
 	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
 			struct dn_kern_rta *rta, struct nlmsghdr *n, 
@@ -130,14 +131,11 @@ extern __le16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type);
 extern void dn_fib_flush(void);
 extern void dn_fib_select_multipath(const struct flowi *fl,
 					struct dn_fib_res *res);
-extern int dn_fib_sync_down(__le16 local, struct net_device *dev,
-				int force);
-extern int dn_fib_sync_up(struct net_device *dev);
 
 /*
  * dn_tables.c
  */
-extern struct dn_fib_table *dn_fib_get_table(int n, int creat);
+extern struct dn_fib_table *dn_fib_get_table(u32 n, int creat);
 extern struct dn_fib_table *dn_fib_empty_table(void);
 extern void dn_fib_table_init(void);
 extern void dn_fib_table_cleanup(void);
@@ -147,10 +145,8 @@ extern void dn_fib_table_cleanup(void);
  */
 extern void dn_fib_rules_init(void);
 extern void dn_fib_rules_cleanup(void);
-extern void dn_fib_rule_put(struct dn_fib_rule *);
-extern __le16 dn_fib_rules_policy(__le16 saddr, struct dn_fib_res *res, unsigned *flags);
 extern unsigned dnet_addr_type(__le16 addr);
-extern int dn_fib_lookup(const struct flowi *fl, struct dn_fib_res *res);
+extern int dn_fib_lookup(struct flowi *fl, struct dn_fib_res *res);
 
 /*
  * rtnetlink interface
@@ -176,10 +172,8 @@ static inline void dn_fib_res_put(struct dn_fib_res *res)
 	if (res->fi)
 		dn_fib_info_put(res->fi);
 	if (res->r)
-		dn_fib_rule_put(res->r);
+		fib_rule_put(res->r);
 }
-
-extern struct dn_fib_table *dn_fib_tables[];
 
 #else /* Endnode */
 

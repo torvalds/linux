@@ -309,9 +309,9 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 		info	      = evt->param.apr_rcvd.apr_info;
 		break;
 	case IB_CM_SIDR_REQ_RECEIVED:
-		uvt->resp.u.sidr_req_resp.pkey = 
+		uvt->resp.u.sidr_req_resp.pkey =
 					evt->param.sidr_req_rcvd.pkey;
-		uvt->resp.u.sidr_req_resp.port = 
+		uvt->resp.u.sidr_req_resp.port =
 					evt->param.sidr_req_rcvd.port;
 		uvt->data_len = IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE;
 		break;
@@ -1237,7 +1237,7 @@ static struct class ucm_class = {
 static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
 {
 	struct ib_ucm_device *dev;
-	
+
 	dev = container_of(class_dev, struct ib_ucm_device, class_dev);
 	return sprintf(buf, "%s\n", dev->ib_dev->name);
 }
@@ -1247,7 +1247,8 @@ static void ib_ucm_add_one(struct ib_device *device)
 {
 	struct ib_ucm_device *ucm_dev;
 
-	if (!device->alloc_ucontext)
+	if (!device->alloc_ucontext ||
+	    rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
 		return;
 
 	ucm_dev = kzalloc(sizeof *ucm_dev, GFP_KERNEL);

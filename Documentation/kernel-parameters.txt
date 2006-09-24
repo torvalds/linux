@@ -1189,8 +1189,6 @@ running once the system is up.
 				Mechanism 2.
 		nommconf	[IA-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
-		mmconf		[IA-32,X86_64] Force MMCONFIG. This is useful
-				to override the builtin blacklist.
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.

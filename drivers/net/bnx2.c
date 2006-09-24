@@ -4423,7 +4423,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ring_prod = TX_RING_IDX(prod);
 
 	vlan_tag_flags = 0;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 

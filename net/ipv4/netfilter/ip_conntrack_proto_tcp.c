@@ -48,19 +48,19 @@ static DEFINE_RWLOCK(tcp_lock);
 /* "Be conservative in what you do, 
     be liberal in what you accept from others." 
     If it's non-zero, we mark only out of window RST segments as INVALID. */
-int ip_ct_tcp_be_liberal = 0;
+int ip_ct_tcp_be_liberal __read_mostly = 0;
 
 /* When connection is picked up from the middle, how many packets are required
    to pass in each direction when we assume we are in sync - if any side uses
    window scaling, we lost the game. 
    If it is set to zero, we disable picking up already established 
    connections. */
-int ip_ct_tcp_loose = 3;
+int ip_ct_tcp_loose __read_mostly = 3;
 
 /* Max number of the retransmitted packets without receiving an (acceptable) 
    ACK from the destination. If this number is reached, a shorter timer 
    will be started. */
-int ip_ct_tcp_max_retrans = 3;
+int ip_ct_tcp_max_retrans __read_mostly = 3;
 
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
@@ -83,19 +83,19 @@ static const char *tcp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS * 24 HOURS
 
-unsigned int ip_ct_tcp_timeout_syn_sent =      2 MINS;
-unsigned int ip_ct_tcp_timeout_syn_recv =     60 SECS;
-unsigned int ip_ct_tcp_timeout_established =   5 DAYS;
-unsigned int ip_ct_tcp_timeout_fin_wait =      2 MINS;
-unsigned int ip_ct_tcp_timeout_close_wait =   60 SECS;
-unsigned int ip_ct_tcp_timeout_last_ack =     30 SECS;
-unsigned int ip_ct_tcp_timeout_time_wait =     2 MINS;
-unsigned int ip_ct_tcp_timeout_close =        10 SECS;
+unsigned int ip_ct_tcp_timeout_syn_sent __read_mostly =      2 MINS;
+unsigned int ip_ct_tcp_timeout_syn_recv __read_mostly =     60 SECS;
+unsigned int ip_ct_tcp_timeout_established __read_mostly =   5 DAYS;
+unsigned int ip_ct_tcp_timeout_fin_wait __read_mostly =      2 MINS;
+unsigned int ip_ct_tcp_timeout_close_wait __read_mostly =   60 SECS;
+unsigned int ip_ct_tcp_timeout_last_ack __read_mostly =     30 SECS;
+unsigned int ip_ct_tcp_timeout_time_wait __read_mostly =     2 MINS;
+unsigned int ip_ct_tcp_timeout_close __read_mostly =        10 SECS;
 
 /* RFC1122 says the R2 limit should be at least 100 seconds.
    Linux uses 15 packets as limit, which corresponds 
    to ~13-30min depending on RTO. */
-unsigned int ip_ct_tcp_timeout_max_retrans =     5 MINS;
+unsigned int ip_ct_tcp_timeout_max_retrans __read_mostly =   5 MINS;
  
 static const unsigned int * tcp_timeouts[]
 = { NULL,                              /*      TCP_CONNTRACK_NONE */
@@ -731,13 +731,15 @@ static int tcp_in_window(struct ip_ct_tcp *state,
 			if (state->last_dir == dir
 			    && state->last_seq == seq
 			    && state->last_ack == ack
-			    && state->last_end == end)
+			    && state->last_end == end
+			    && state->last_win == win)
 				state->retrans++;
 			else {
 				state->last_dir = dir;
 				state->last_seq = seq;
 				state->last_ack = ack;
 				state->last_end = end;
+				state->last_win = win;
 				state->retrans = 0;
 			}
 		}
@@ -865,8 +867,7 @@ static int tcp_error(struct sk_buff *skb,
   
 	/* Checksum invalid? Ignore.
 	 * We skip checking packets on the outgoing path
-	 * because the semantic of CHECKSUM_HW is different there 
-	 * and moreover root might send raw packets.
+	 * because it is assumed to be correct.
 	 */
 	/* FIXME: Source route IP option packets --RR */
 	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&

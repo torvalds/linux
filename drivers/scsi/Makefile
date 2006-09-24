@@ -32,6 +32,7 @@ obj-$(CONFIG_SCSI_SPI_ATTRS)	+= scsi_transport_spi.o
 obj-$(CONFIG_SCSI_FC_ATTRS) 	+= scsi_transport_fc.o
 obj-$(CONFIG_SCSI_ISCSI_ATTRS)	+= scsi_transport_iscsi.o
 obj-$(CONFIG_SCSI_SAS_ATTRS)	+= scsi_transport_sas.o
+obj-$(CONFIG_SCSI_SAS_LIBSAS)	+= libsas/
 
 obj-$(CONFIG_ISCSI_TCP) 	+= libiscsi.o	iscsi_tcp.o
 obj-$(CONFIG_INFINIBAND_ISER) 	+= libiscsi.o
@@ -59,6 +60,7 @@ obj-$(CONFIG_SCSI_PSI240I)	+= psi240i.o
 obj-$(CONFIG_SCSI_BUSLOGIC)	+= BusLogic.o
 obj-$(CONFIG_SCSI_DPT_I2O)	+= dpt_i2o.o
 obj-$(CONFIG_SCSI_U14_34F)	+= u14-34f.o
+obj-$(CONFIG_SCSI_ARCMSR)	+= arcmsr/
 obj-$(CONFIG_SCSI_ULTRASTOR)	+= ultrastor.o
 obj-$(CONFIG_SCSI_AHA152X)	+= aha152x.o
 obj-$(CONFIG_SCSI_AHA1542)	+= aha1542.o
@@ -67,6 +69,7 @@ obj-$(CONFIG_SCSI_AIC7XXX)	+= aic7xxx/
 obj-$(CONFIG_SCSI_AIC79XX)	+= aic7xxx/
 obj-$(CONFIG_SCSI_AACRAID)	+= aacraid/
 obj-$(CONFIG_SCSI_AIC7XXX_OLD)	+= aic7xxx_old.o
+obj-$(CONFIG_SCSI_AIC94XX)	+= aic94xx/
 obj-$(CONFIG_SCSI_IPS)		+= ips.o
 obj-$(CONFIG_SCSI_FD_MCS)	+= fd_mcs.o
 obj-$(CONFIG_SCSI_FUTURE_DOMAIN)+= fdomain.o
@@ -123,6 +126,7 @@ obj-$(CONFIG_SCSI_NSP32)	+= nsp32.o
 obj-$(CONFIG_SCSI_IPR)		+= ipr.o
 obj-$(CONFIG_SCSI_IBMVSCSI)	+= ibmvscsi/
 obj-$(CONFIG_SCSI_HPTIOP)	+= hptiop.o
+obj-$(CONFIG_SCSI_STEX)		+= stex.o
 
 obj-$(CONFIG_ARM)		+= arm/
 
@@ -140,6 +144,7 @@ scsi_mod-y			+= scsi.o hosts.o scsi_ioctl.o constants.o \
 				   scsicam.o scsi_error.o scsi_lib.o \
 				   scsi_scan.o scsi_sysfs.o \
 				   scsi_devinfo.o
+scsi_mod-$(CONFIG_SCSI_NETLINK)	+= scsi_netlink.o
 scsi_mod-$(CONFIG_SYSCTL)	+= scsi_sysctl.o
 scsi_mod-$(CONFIG_SCSI_PROC_FS)	+= scsi_proc.o
 

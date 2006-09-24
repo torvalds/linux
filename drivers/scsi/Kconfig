@@ -27,6 +27,11 @@ config SCSI
 	  However, do not compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
 
+config SCSI_NETLINK
+	bool
+	default	n
+	select NET
+
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
 	depends on SCSI && PROC_FS
@@ -209,7 +214,7 @@ config SCSI_LOGGING
 	  there should be no noticeable performance impact as long as you have
 	  logging turned off.
 
-menu "SCSI Transport Attributes"
+menu "SCSI Transports"
 	depends on SCSI
 
 config SCSI_SPI_ATTRS
@@ -222,6 +227,7 @@ config SCSI_SPI_ATTRS
 config SCSI_FC_ATTRS
 	tristate "FiberChannel Transport Attributes"
 	depends on SCSI
+	select SCSI_NETLINK
 	help
 	  If you wish to export transport-specific information about
 	  each attached FiberChannel device to sysfs, say Y.
@@ -241,6 +247,8 @@ config SCSI_SAS_ATTRS
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.
+
+source "drivers/scsi/libsas/Kconfig"
 
 endmenu
 
@@ -431,6 +439,7 @@ config SCSI_AIC7XXX_OLD
 	  module will be called aic7xxx_old.
 
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
+source "drivers/scsi/aic94xx/Kconfig"
 
 # All the I2O code and drivers do not seem to be 64bit safe.
 config SCSI_DPT_I2O
@@ -468,6 +477,20 @@ config SCSI_IN2000
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called in2000.
+
+config SCSI_ARCMSR
+	tristate "ARECA ARC11X0[PCI-X]/ARC12X0[PCI-EXPRESS] SATA-RAID support"
+	depends on PCI && SCSI
+	help
+	  This driver supports all of ARECA's SATA RAID controller cards.
+	  This is an ARECA-maintained driver by Erich Chen.
+	  If you have any problems, please mail to: < erich@areca.com.tw >
+	  Areca supports Linux RAID config tools.
+
+	  < http://www.areca.com.tw >
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called arcmsr (modprobe arcmsr).
 
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 
@@ -914,6 +937,13 @@ config 53C700_LE_ON_BE
 	bool
 	depends on SCSI_LASI700
 	default y
+
+config SCSI_STEX
+	tristate "Promise SuperTrak EX Series support"
+	depends on PCI && SCSI
+	---help---
+	  This driver supports Promise SuperTrak EX8350/8300/16350/16300
+	  Storage controllers.
 
 config SCSI_SYM53C8XX_2
 	tristate "SYM53C8XX Version 2 SCSI support"

@@ -21,8 +21,7 @@
  *	2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h> 
-#include <linux/module.h> 
+#include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <linux/bitops.h>

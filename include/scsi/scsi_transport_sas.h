@@ -24,15 +24,23 @@ enum sas_protocol {
 };
 
 enum sas_linkrate {
-	SAS_LINK_RATE_UNKNOWN,
-	SAS_PHY_DISABLED,
-	SAS_LINK_RATE_FAILED,
-	SAS_SATA_SPINUP_HOLD,
-	SAS_SATA_PORT_SELECTOR,
-	SAS_LINK_RATE_1_5_GBPS,
-	SAS_LINK_RATE_3_0_GBPS,
-	SAS_LINK_RATE_6_0_GBPS,
-	SAS_LINK_VIRTUAL,
+	/* These Values are defined in the SAS standard */
+	SAS_LINK_RATE_UNKNOWN = 0,
+	SAS_PHY_DISABLED = 1,
+	SAS_PHY_RESET_PROBLEM = 2,
+	SAS_SATA_SPINUP_HOLD = 3,
+	SAS_SATA_PORT_SELECTOR = 4,
+	SAS_PHY_RESET_IN_PROGRESS = 5,
+	SAS_LINK_RATE_1_5_GBPS = 8,
+	SAS_LINK_RATE_G1 = SAS_LINK_RATE_1_5_GBPS,
+	SAS_LINK_RATE_3_0_GBPS = 9,
+	SAS_LINK_RATE_G2 = SAS_LINK_RATE_3_0_GBPS,
+	SAS_LINK_RATE_6_0_GBPS = 10,
+	/* These are virtual to the transport class and may never
+	 * be signalled normally since the standard defined field
+	 * is only 4 bits */
+	SAS_LINK_RATE_FAILED = 0x10,
+	SAS_PHY_VIRTUAL = 0x11,
 };
 
 struct sas_identify {
@@ -56,9 +64,6 @@ struct sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate_hw;
 	enum sas_linkrate	maximum_linkrate;
-
-	/* internal state */
-	unsigned int		local_attached : 1;
 
 	/* link error statistics */
 	u32			invalid_dword_count;
@@ -145,12 +150,18 @@ struct sas_port {
 #define transport_class_to_sas_port(cdev) \
 	dev_to_sas_port((cdev)->dev)
 
+struct sas_phy_linkrates {
+	enum sas_linkrate maximum_linkrate;
+	enum sas_linkrate minimum_linkrate;
+};
+
 /* The functions by which the transport class and the driver communicate */
 struct sas_function_template {
 	int (*get_linkerrors)(struct sas_phy *);
 	int (*get_enclosure_identifier)(struct sas_rphy *, u64 *);
 	int (*get_bay_identifier)(struct sas_rphy *);
 	int (*phy_reset)(struct sas_phy *, int);
+	int (*set_phy_speed)(struct sas_phy *, struct sas_phy_linkrates *);
 };
 
 
@@ -195,5 +206,7 @@ scsi_is_sas_expander_device(struct device *dev)
 	return rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE ||
 		rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE;
 }
+
+#define scsi_is_sas_phy_local(phy)	scsi_is_host_device((phy)->dev.parent)
 
 #endif /* SCSI_TRANSPORT_SAS_H */

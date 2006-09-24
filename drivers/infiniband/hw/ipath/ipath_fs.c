@@ -191,8 +191,8 @@ static ssize_t atomic_port_info_read(struct file *file, char __user *buf,
 	portinfo[4] = (dd->ipath_lid << 16);
 
 	/*
-	 * Notimpl yet SMLID (should we store this in the driver, in case
-	 * SMA dies?)  CapabilityMask is 0, we don't support any of these
+	 * Notimpl yet SMLID.
+	 * CapabilityMask is 0, we don't support any of these
 	 * DiagCode is 0; we don't store any diag info for now Notimpl yet
 	 * M_KeyLeasePeriod (we don't support M_Key)
 	 */

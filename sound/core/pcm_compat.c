@@ -478,7 +478,7 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	 * mmap of PCM status/control records because of the size
 	 * incompatibility.
 	 */
-	substream->no_mmap_ctrl = 1;
+	pcm_file->no_compat_mmap = 1;
 
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:

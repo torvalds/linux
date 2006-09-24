@@ -23,6 +23,28 @@
 #include "internal.h"
 #include "scatterwalk.h"
 
+struct cipher_alg_compat {
+	unsigned int cia_min_keysize;
+	unsigned int cia_max_keysize;
+	int (*cia_setkey)(struct crypto_tfm *tfm, const u8 *key,
+	                  unsigned int keylen);
+	void (*cia_encrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+	void (*cia_decrypt)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+
+	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+};
+
 static inline void xor_64(u8 *a, const u8 *b)
 {
 	((u32 *)a)[0] ^= ((u32 *)b)[0];
@@ -45,15 +67,10 @@ static unsigned int crypt_slow(const struct cipher_desc *desc,
 	u8 buffer[bsize * 2 + alignmask];
 	u8 *src = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	u8 *dst = src + bsize;
-	unsigned int n;
 
-	n = scatterwalk_copychunks(src, in, bsize, 0);
-	scatterwalk_advance(in, n);
-
+	scatterwalk_copychunks(src, in, bsize, 0);
 	desc->prfn(desc, dst, src, bsize);
-
-	n = scatterwalk_copychunks(dst, out, bsize, 1);
-	scatterwalk_advance(out, n);
+	scatterwalk_copychunks(dst, out, bsize, 1);
 
 	return bsize;
 }
@@ -64,12 +81,16 @@ static inline unsigned int crypt_fast(const struct cipher_desc *desc,
 				      unsigned int nbytes, u8 *tmp)
 {
 	u8 *src, *dst;
+	u8 *real_src, *real_dst;
 
-	src = in->data;
-	dst = scatterwalk_samebuf(in, out) ? src : out->data;
+	real_src = scatterwalk_map(in, 0);
+	real_dst = scatterwalk_map(out, 1);
+
+	src = real_src;
+	dst = scatterwalk_samebuf(in, out) ? src : real_dst;
 
 	if (tmp) {
-		memcpy(tmp, in->data, nbytes);
+		memcpy(tmp, src, nbytes);
 		src = tmp;
 		dst = tmp;
 	}
@@ -77,7 +98,10 @@ static inline unsigned int crypt_fast(const struct cipher_desc *desc,
 	nbytes = desc->prfn(desc, dst, src, nbytes);
 
 	if (tmp)
-		memcpy(out->data, tmp, nbytes);
+		memcpy(real_dst, tmp, nbytes);
+
+	scatterwalk_unmap(real_src, 0);
+	scatterwalk_unmap(real_dst, 1);
 
 	scatterwalk_advance(in, nbytes);
 	scatterwalk_advance(out, nbytes);
@@ -126,9 +150,6 @@ static int crypt(const struct cipher_desc *desc,
 			tmp = (u8 *)buffer;
 		}
 
-		scatterwalk_map(&walk_in, 0);
-		scatterwalk_map(&walk_out, 1);
-
 		n = scatterwalk_clamp(&walk_in, n);
 		n = scatterwalk_clamp(&walk_out, n);
 
@@ -145,7 +166,7 @@ static int crypt(const struct cipher_desc *desc,
 		if (!nbytes)
 			break;
 
-		crypto_yield(tfm);
+		crypto_yield(tfm->crt_flags);
 	}
 
 	if (buffer)
@@ -264,12 +285,12 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
 	struct cipher_alg *cia = &tfm->__crt_alg->cra_cipher;
 	
+	tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
 	if (keylen < cia->cia_min_keysize || keylen > cia->cia_max_keysize) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	} else
-		return cia->cia_setkey(tfm, key, keylen,
-		                       &tfm->crt_flags);
+		return cia->cia_setkey(tfm, key, keylen);
 }
 
 static int ecb_encrypt(struct crypto_tfm *tfm,
@@ -277,7 +298,7 @@ static int ecb_encrypt(struct crypto_tfm *tfm,
                        struct scatterlist *src, unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -292,7 +313,7 @@ static int ecb_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
@@ -307,7 +328,7 @@ static int cbc_encrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -323,7 +344,7 @@ static int cbc_encrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_encrypt;
@@ -339,7 +360,7 @@ static int cbc_decrypt(struct crypto_tfm *tfm,
 		       unsigned int nbytes)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
@@ -355,7 +376,7 @@ static int cbc_decrypt_iv(struct crypto_tfm *tfm,
                           unsigned int nbytes, u8 *iv)
 {
 	struct cipher_desc desc;
-	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+	struct cipher_alg_compat *cipher = (void *)&tfm->__crt_alg->cra_cipher;
 
 	desc.tfm = tfm;
 	desc.crfn = cipher->cia_decrypt;
@@ -388,17 +409,67 @@ int crypto_init_cipher_flags(struct crypto_tfm *tfm, u32 flags)
 	return 0;
 }
 
+static void cipher_crypt_unaligned(void (*fn)(struct crypto_tfm *, u8 *,
+					      const u8 *),
+				   struct crypto_tfm *tfm,
+				   u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	unsigned int size = crypto_tfm_alg_blocksize(tfm);
+	u8 buffer[size + alignmask];
+	u8 *tmp = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
+
+	memcpy(tmp, src, size);
+	fn(tfm, tmp, tmp);
+	memcpy(dst, tmp, size);
+}
+
+static void cipher_encrypt_unaligned(struct crypto_tfm *tfm,
+				     u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
+		cipher_crypt_unaligned(cipher->cia_encrypt, tfm, dst, src);
+		return;
+	}
+
+	cipher->cia_encrypt(tfm, dst, src);
+}
+
+static void cipher_decrypt_unaligned(struct crypto_tfm *tfm,
+				     u8 *dst, const u8 *src)
+{
+	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
+		cipher_crypt_unaligned(cipher->cia_decrypt, tfm, dst, src);
+		return;
+	}
+
+	cipher->cia_decrypt(tfm, dst, src);
+}
+
 int crypto_init_cipher_ops(struct crypto_tfm *tfm)
 {
 	int ret = 0;
 	struct cipher_tfm *ops = &tfm->crt_cipher;
+	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
 
 	ops->cit_setkey = setkey;
+	ops->cit_encrypt_one = crypto_tfm_alg_alignmask(tfm) ?
+		cipher_encrypt_unaligned : cipher->cia_encrypt;
+	ops->cit_decrypt_one = crypto_tfm_alg_alignmask(tfm) ?
+		cipher_decrypt_unaligned : cipher->cia_decrypt;
 
 	switch (tfm->crt_cipher.cit_mode) {
 	case CRYPTO_TFM_MODE_ECB:
 		ops->cit_encrypt = ecb_encrypt;
 		ops->cit_decrypt = ecb_decrypt;
+		ops->cit_encrypt_iv = nocrypt_iv;
+		ops->cit_decrypt_iv = nocrypt_iv;
 		break;
 		
 	case CRYPTO_TFM_MODE_CBC:

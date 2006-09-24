@@ -275,6 +275,8 @@ struct ib_uverbs_resize_cq {
 
 struct ib_uverbs_resize_cq_resp {
 	__u32 cqe;
+	__u32 reserved;
+	__u64 driver_data[0];
 };
 
 struct ib_uverbs_poll_cq {

@@ -11,17 +11,11 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
+#include "feat.h"
 
 #ifndef CONFIG_SYSCTL
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
-
-extern int dccp_feat_default_sequence_window;
-extern int dccp_feat_default_rx_ccid;
-extern int dccp_feat_default_tx_ccid;
-extern int dccp_feat_default_ack_ratio;
-extern int dccp_feat_default_send_ack_vector;
-extern int dccp_feat_default_send_ndp_count;
 
 static struct ctl_table dccp_default_table[] = {
 	{

@@ -21,26 +21,14 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
 MODULE_DESCRIPTION("iptables TCP MSS modification module");
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(format, args...)
-#endif
-
-static u_int16_t
-cheat_check(u_int32_t oldvalinv, u_int32_t newval, u_int16_t oldcheck)
-{
-	u_int32_t diffs[] = { oldvalinv, newval };
-	return csum_fold(csum_partial((char *)diffs, sizeof(diffs),
-                                      oldcheck^0xFFFF));
-}
-
 static inline unsigned int
 optlen(const u_int8_t *opt, unsigned int offset)
 {
 	/* Beware zero-length options: make finite progress */
-	if (opt[offset] <= TCPOPT_NOP || opt[offset+1] == 0) return 1;
-	else return opt[offset+1];
+	if (opt[offset] <= TCPOPT_NOP || opt[offset+1] == 0)
+		return 1;
+	else
+		return opt[offset+1];
 }
 
 static unsigned int
@@ -49,8 +37,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 		  const struct net_device *out,
 		  unsigned int hooknum,
 		  const struct xt_target *target,
-		  const void *targinfo,
-		  void *userinfo)
+		  const void *targinfo)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
 	struct tcphdr *tcph;
@@ -62,13 +49,8 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	if (!skb_make_writable(pskb, (*pskb)->len))
 		return NF_DROP;
 
-	if ((*pskb)->ip_summed == CHECKSUM_HW &&
-	    skb_checksum_help(*pskb, out == NULL))
-		return NF_DROP;
-
 	iph = (*pskb)->nh.iph;
 	tcplen = (*pskb)->len - iph->ihl*4;
-
 	tcph = (void *)iph + iph->ihl*4;
 
 	/* Since it passed flags test in tcp match, we know it is is
@@ -84,54 +66,41 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 		return NF_DROP;
 	}
 
-	if(tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) {
-		if(!(*pskb)->dst) {
+	if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) {
+		if (dst_mtu((*pskb)->dst) <= sizeof(struct iphdr) +
+					     sizeof(struct tcphdr)) {
 			if (net_ratelimit())
-				printk(KERN_ERR
-			       		"ipt_tcpmss_target: no dst?! can't determine path-MTU\n");
+				printk(KERN_ERR "ipt_tcpmss_target: "
+				       "unknown or invalid path-MTU (%d)\n",
+				       dst_mtu((*pskb)->dst));
 			return NF_DROP; /* or IPT_CONTINUE ?? */
 		}
 
-		if(dst_mtu((*pskb)->dst) <= (sizeof(struct iphdr) + sizeof(struct tcphdr))) {
-			if (net_ratelimit())
-				printk(KERN_ERR
-		       			"ipt_tcpmss_target: unknown or invalid path-MTU (%d)\n", dst_mtu((*pskb)->dst));
-			return NF_DROP; /* or IPT_CONTINUE ?? */
-		}
-
-		newmss = dst_mtu((*pskb)->dst) - sizeof(struct iphdr) - sizeof(struct tcphdr);
+		newmss = dst_mtu((*pskb)->dst) - sizeof(struct iphdr) -
+						 sizeof(struct tcphdr);
 	} else
 		newmss = tcpmssinfo->mss;
 
  	opt = (u_int8_t *)tcph;
-	for (i = sizeof(struct tcphdr); i < tcph->doff*4; i += optlen(opt, i)){
-		if ((opt[i] == TCPOPT_MSS) &&
-		    ((tcph->doff*4 - i) >= TCPOLEN_MSS) &&
-		    (opt[i+1] == TCPOLEN_MSS)) {
+	for (i = sizeof(struct tcphdr); i < tcph->doff*4; i += optlen(opt, i)) {
+		if (opt[i] == TCPOPT_MSS && tcph->doff*4 - i >= TCPOLEN_MSS &&
+		    opt[i+1] == TCPOLEN_MSS) {
 			u_int16_t oldmss;
 
 			oldmss = (opt[i+2] << 8) | opt[i+3];
 
-			if((tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) &&
-				(oldmss <= newmss))
-					return IPT_CONTINUE;
+			if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU &&
+			    oldmss <= newmss)
+				return IPT_CONTINUE;
 
 			opt[i+2] = (newmss & 0xff00) >> 8;
 			opt[i+3] = (newmss & 0x00ff);
 
-			tcph->check = cheat_check(htons(oldmss)^0xFFFF,
-						  htons(newmss),
-						  tcph->check);
-
-			DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
-			       "->%u.%u.%u.%u:%hu changed TCP MSS option"
-			       " (from %u to %u)\n", 
-			       NIPQUAD((*pskb)->nh.iph->saddr),
-			       ntohs(tcph->source),
-			       NIPQUAD((*pskb)->nh.iph->daddr),
-			       ntohs(tcph->dest),
-			       oldmss, newmss);
-			goto retmodified;
+			tcph->check = nf_proto_csum_update(*pskb,
+							   htons(oldmss)^0xFFFF,
+							   htons(newmss),
+							   tcph->check, 0);
+			return IPT_CONTINUE;
 		}
 	}
 
@@ -143,13 +112,8 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 
 		newskb = skb_copy_expand(*pskb, skb_headroom(*pskb),
 					 TCPOLEN_MSS, GFP_ATOMIC);
-		if (!newskb) {
-			if (net_ratelimit())
-				printk(KERN_ERR "ipt_tcpmss_target:"
-				       " unable to allocate larger skb\n");
+		if (!newskb)
 			return NF_DROP;
-		}
-
 		kfree_skb(*pskb);
 		*pskb = newskb;
 		iph = (*pskb)->nh.iph;
@@ -161,36 +125,29 @@ ipt_tcpmss_target(struct sk_buff **pskb,
  	opt = (u_int8_t *)tcph + sizeof(struct tcphdr);
 	memmove(opt + TCPOLEN_MSS, opt, tcplen - sizeof(struct tcphdr));
 
-	tcph->check = cheat_check(htons(tcplen) ^ 0xFFFF,
-				  htons(tcplen + TCPOLEN_MSS), tcph->check);
-	tcplen += TCPOLEN_MSS;
-
+	tcph->check = nf_proto_csum_update(*pskb,
+					   htons(tcplen) ^ 0xFFFF,
+				           htons(tcplen + TCPOLEN_MSS),
+					   tcph->check, 1);
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
 	opt[3] = (newmss & 0x00ff);
 
-	tcph->check = cheat_check(~0, *((u_int32_t *)opt), tcph->check);
+	tcph->check = nf_proto_csum_update(*pskb, ~0, *((u_int32_t *)opt),
+					   tcph->check, 0);
 
 	oldval = ((u_int16_t *)tcph)[6];
 	tcph->doff += TCPOLEN_MSS/4;
-	tcph->check = cheat_check(oldval ^ 0xFFFF,
-				  ((u_int16_t *)tcph)[6], tcph->check);
+	tcph->check = nf_proto_csum_update(*pskb,
+					   oldval ^ 0xFFFF,
+					   ((u_int16_t *)tcph)[6],
+					   tcph->check, 0);
 
 	newtotlen = htons(ntohs(iph->tot_len) + TCPOLEN_MSS);
-	iph->check = cheat_check(iph->tot_len ^ 0xFFFF,
-				 newtotlen, iph->check);
+	iph->check = nf_csum_update(iph->tot_len ^ 0xFFFF,
+				    newtotlen, iph->check);
 	iph->tot_len = newtotlen;
-
-	DEBUGP(KERN_INFO "ipt_tcpmss_target: %u.%u.%u.%u:%hu"
-	       "->%u.%u.%u.%u:%hu added TCP MSS option (%u)\n",
-	       NIPQUAD((*pskb)->nh.iph->saddr),
-	       ntohs(tcph->source),
-	       NIPQUAD((*pskb)->nh.iph->daddr),
-	       ntohs(tcph->dest),
-	       newmss);
-
- retmodified:
 	return IPT_CONTINUE;
 }
 
@@ -200,9 +157,9 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 {
 	const struct ipt_tcp *tcpinfo = (const struct ipt_tcp *)m->data;
 
-	if (strcmp(m->u.kernel.match->name, "tcp") == 0
-	    && (tcpinfo->flg_cmp & TH_SYN)
-	    && !(tcpinfo->invflags & IPT_TCP_INV_FLAGS))
+	if (strcmp(m->u.kernel.match->name, "tcp") == 0 &&
+	    tcpinfo->flg_cmp & TH_SYN &&
+	    !(tcpinfo->invflags & IPT_TCP_INV_FLAGS))
 		return 1;
 
 	return 0;
@@ -214,17 +171,17 @@ ipt_tcpmss_checkentry(const char *tablename,
 		      const void *e_void,
 		      const struct xt_target *target,
 		      void *targinfo,
-		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
-	if((tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) && 
-			((hook_mask & ~((1 << NF_IP_FORWARD)
-			   	| (1 << NF_IP_LOCAL_OUT)
-			   	| (1 << NF_IP_POST_ROUTING))) != 0)) {
-		printk("TCPMSS: path-MTU clamping only supported in FORWARD, OUTPUT and POSTROUTING hooks\n");
+	if (tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU &&
+	    (hook_mask & ~((1 << NF_IP_FORWARD) |
+			   (1 << NF_IP_LOCAL_OUT) |
+			   (1 << NF_IP_POST_ROUTING))) != 0) {
+		printk("TCPMSS: path-MTU clamping only supported in "
+		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return 0;
 	}
 

@@ -2038,7 +2038,80 @@ MODULE_PARM_DESC(dma2, "DMA 2 # for ES18xx driver.");
 static struct platform_device *platform_devices[SNDRV_CARDS];
 
 #ifdef CONFIG_PNP
-static int pnp_registered;
+static int pnp_registered, pnpc_registered;
+
+static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
+	{ .id = "ESS1869" },
+	{ .id = "" }		/* end */
+};
+
+MODULE_DEVICE_TABLE(pnp, snd_audiodrive_pnpbiosids);
+
+/* PnP main device initialization */
+static int __devinit snd_audiodrive_pnp_init_main(int dev, struct pnp_dev *pdev,
+						  struct pnp_resource_table *cfg)
+{
+	int err;
+
+	pnp_init_resource_table(cfg);
+	if (port[dev] != SNDRV_AUTO_PORT)
+		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
+	if (fm_port[dev] != SNDRV_AUTO_PORT)
+		pnp_resource_change(&cfg->port_resource[1], fm_port[dev], 4);
+	if (mpu_port[dev] != SNDRV_AUTO_PORT)
+		pnp_resource_change(&cfg->port_resource[2], mpu_port[dev], 2);
+	if (dma1[dev] != SNDRV_AUTO_DMA)
+		pnp_resource_change(&cfg->dma_resource[0], dma1[dev], 1);
+	if (dma2[dev] != SNDRV_AUTO_DMA)
+		pnp_resource_change(&cfg->dma_resource[1], dma2[dev], 1);
+	if (irq[dev] != SNDRV_AUTO_IRQ)
+		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
+	if (pnp_device_is_isapnp(pdev)) {
+		err = pnp_manual_config_dev(pdev, cfg, 0);
+		if (err < 0)
+			snd_printk(KERN_ERR PFX "PnP manual resources are invalid, using auto config\n");
+	}
+	err = pnp_activate_dev(pdev);
+	if (err < 0) {
+		snd_printk(KERN_ERR PFX "PnP configure failure (out of resources?)\n");
+		return -EBUSY;
+	}
+	/* ok. hack using Vendor-Defined Card-Level registers */
+	/* skip csn and logdev initialization - already done in isapnp_configure */
+	if (pnp_device_is_isapnp(pdev)) {
+		isapnp_cfg_begin(isapnp_card_number(pdev), isapnp_csn_number(pdev));
+		isapnp_write_byte(0x27, pnp_irq(pdev, 0));	/* Hardware Volume IRQ Number */
+		if (mpu_port[dev] != SNDRV_AUTO_PORT)
+			isapnp_write_byte(0x28, pnp_irq(pdev, 0)); /* MPU-401 IRQ Number */
+		isapnp_write_byte(0x72, pnp_irq(pdev, 0));	/* second IRQ */
+		isapnp_cfg_end();
+	}
+	port[dev] = pnp_port_start(pdev, 0);
+	fm_port[dev] = pnp_port_start(pdev, 1);
+	mpu_port[dev] = pnp_port_start(pdev, 2);
+	dma1[dev] = pnp_dma(pdev, 0);
+	dma2[dev] = pnp_dma(pdev, 1);
+	irq[dev] = pnp_irq(pdev, 0);
+	snd_printdd("PnP ES18xx: port=0x%lx, fm port=0x%lx, mpu port=0x%lx\n", port[dev], fm_port[dev], mpu_port[dev]);
+	snd_printdd("PnP ES18xx: dma1=%i, dma2=%i, irq=%i\n", dma1[dev], dma2[dev], irq[dev]);
+	return 0;
+}
+
+static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
+					struct pnp_dev *pdev)
+{
+	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
+
+	if (!cfg)
+		return -ENOMEM;
+	acard->dev = pdev;
+	if (snd_audiodrive_pnp_init_main(dev, acard->dev, cfg) < 0) {
+		kfree(cfg);
+		return -EBUSY;
+	}
+	kfree(cfg);
+	return 0;
+}
 
 static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
 	/* ESS 1868 (integrated on Compaq dual P-Pro motherboard and Genius 18PnP 3D) */
@@ -2061,13 +2134,11 @@ static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
 
 MODULE_DEVICE_TABLE(pnp_card, snd_audiodrive_pnpids);
 
-static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
+static int __devinit snd_audiodrive_pnpc(int dev, struct snd_audiodrive *acard,
 					struct pnp_card_link *card,
 					const struct pnp_card_device_id *id)
 {
-	struct pnp_dev *pdev;
 	struct pnp_resource_table * cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
-	int err;
 
 	if (!cfg)
 		return -ENOMEM;
@@ -2082,58 +2153,16 @@ static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
 		return -EBUSY;
 	}
 	/* Control port initialization */
-	err = pnp_activate_dev(acard->devc);
-	if (err < 0) {
+	if (pnp_activate_dev(acard->devc) < 0) {
 		snd_printk(KERN_ERR PFX "PnP control configure failure (out of resources?)\n");
-		kfree(cfg);
 		return -EAGAIN;
 	}
 	snd_printdd("pnp: port=0x%llx\n",
 			(unsigned long long)pnp_port_start(acard->devc, 0));
-	/* PnP initialization */
-	pdev = acard->dev;
-	pnp_init_resource_table(cfg);
-	if (port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-	if (fm_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[1], fm_port[dev], 4);
-	if (mpu_port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[2], mpu_port[dev], 2);
-	if (dma1[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma1[dev], 1);
-	if (dma2[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], dma2[dev], 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-	err = pnp_manual_config_dev(pdev, cfg, 0);
-	if (err < 0)
-		snd_printk(KERN_ERR PFX "PnP manual resources are invalid, using auto config\n");
-	err = pnp_activate_dev(pdev);
-	if (err < 0) {
-		snd_printk(KERN_ERR PFX "PnP configure failure (out of resources?)\n");
+	if (snd_audiodrive_pnp_init_main(dev, acard->dev, cfg) < 0) {
 		kfree(cfg);
 		return -EBUSY;
 	}
-	/* ok. hack using Vendor-Defined Card-Level registers */
-	/* skip csn and logdev initialization - already done in isapnp_configure */
-	if (pnp_device_is_isapnp(pdev)) {
-		isapnp_cfg_begin(isapnp_card_number(pdev), isapnp_csn_number(pdev));
-		isapnp_write_byte(0x27, pnp_irq(pdev, 0));	/* Hardware Volume IRQ Number */
-		if (mpu_port[dev] != SNDRV_AUTO_PORT)
-			isapnp_write_byte(0x28, pnp_irq(pdev, 0)); /* MPU-401 IRQ Number */
-		isapnp_write_byte(0x72, pnp_irq(pdev, 0));	/* second IRQ */
-		isapnp_cfg_end();
-	} else {
-		snd_printk(KERN_ERR PFX "unable to install ISA PnP hack, expect malfunction\n");
-	}
-	port[dev] = pnp_port_start(pdev, 0);
-	fm_port[dev] = pnp_port_start(pdev, 1);
-	mpu_port[dev] = pnp_port_start(pdev, 2);
-	dma1[dev] = pnp_dma(pdev, 0);
-	dma2[dev] = pnp_dma(pdev, 1);
-	irq[dev] = pnp_irq(pdev, 0);
-	snd_printdd("PnP ES18xx: port=0x%lx, fm port=0x%lx, mpu port=0x%lx\n", port[dev], fm_port[dev], mpu_port[dev]);
-	snd_printdd("PnP ES18xx: dma1=%i, dma2=%i, irq=%i\n", dma1[dev], dma2[dev], irq[dev]);
 	kfree(cfg);
 	return 0;
 }
@@ -2302,7 +2331,69 @@ static struct platform_driver snd_es18xx_nonpnp_driver = {
 #ifdef CONFIG_PNP
 static unsigned int __devinitdata es18xx_pnp_devices;
 
-static int __devinit snd_audiodrive_pnp_detect(struct pnp_card_link *pcard,
+static int __devinit snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
+					    const struct pnp_device_id *id)
+{
+	static int dev;
+	int err;
+	struct snd_card *card;
+
+	if (pnp_device_is_isapnp(pdev))
+		return -ENOENT;	/* we have another procedure - card */
+	for (; dev < SNDRV_CARDS; dev++) {
+		if (enable[dev] && isapnp[dev])
+			break;
+	}
+	if (dev >= SNDRV_CARDS)
+		return -ENODEV;
+
+	card = snd_es18xx_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+	if ((err = snd_audiodrive_pnp(dev, card->private_data, pdev)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	snd_card_set_dev(card, &pdev->dev);
+	if ((err = snd_audiodrive_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	pnp_set_drvdata(pdev, card);
+	dev++;
+	es18xx_pnp_devices++;
+	return 0;
+}
+
+static void __devexit snd_audiodrive_pnp_remove(struct pnp_dev * pdev)
+{
+	snd_card_free(pnp_get_drvdata(pdev));
+	pnp_set_drvdata(pdev, NULL);
+}
+
+#ifdef CONFIG_PM
+static int snd_audiodrive_pnp_suspend(struct pnp_dev *pdev, pm_message_t state)
+{
+	return snd_es18xx_suspend(pnp_get_drvdata(pdev), state);
+}
+static int snd_audiodrive_pnp_resume(struct pnp_dev *pdev)
+{
+	return snd_es18xx_resume(pnp_get_drvdata(pdev));
+}
+#endif
+
+static struct pnp_driver es18xx_pnp_driver = {
+	.name = "es18xx-pnpbios",
+	.id_table = snd_audiodrive_pnpbiosids,
+	.probe = snd_audiodrive_pnp_detect,
+	.remove = __devexit_p(snd_audiodrive_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_audiodrive_pnp_suspend,
+	.resume = snd_audiodrive_pnp_resume,
+#endif
+};
+
+static int __devinit snd_audiodrive_pnpc_detect(struct pnp_card_link *pcard,
 					       const struct pnp_card_device_id *pid)
 {
 	static int dev;
@@ -2320,7 +2411,7 @@ static int __devinit snd_audiodrive_pnp_detect(struct pnp_card_link *pcard,
 	if (! card)
 		return -ENOMEM;
 
-	if ((res = snd_audiodrive_pnp(dev, card->private_data, pcard, pid)) < 0) {
+	if ((res = snd_audiodrive_pnpc(dev, card->private_data, pcard, pid)) < 0) {
 		snd_card_free(card);
 		return res;
 	}
@@ -2336,19 +2427,19 @@ static int __devinit snd_audiodrive_pnp_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
-static void __devexit snd_audiodrive_pnp_remove(struct pnp_card_link * pcard)
+static void __devexit snd_audiodrive_pnpc_remove(struct pnp_card_link * pcard)
 {
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
 }
 
 #ifdef CONFIG_PM
-static int snd_audiodrive_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+static int snd_audiodrive_pnpc_suspend(struct pnp_card_link *pcard, pm_message_t state)
 {
 	return snd_es18xx_suspend(pnp_get_card_drvdata(pcard), state);
 }
 
-static int snd_audiodrive_pnp_resume(struct pnp_card_link *pcard)
+static int snd_audiodrive_pnpc_resume(struct pnp_card_link *pcard)
 {
 	return snd_es18xx_resume(pnp_get_card_drvdata(pcard));
 }
@@ -2359,11 +2450,11 @@ static struct pnp_card_driver es18xx_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
 	.name = "es18xx",
 	.id_table = snd_audiodrive_pnpids,
-	.probe = snd_audiodrive_pnp_detect,
-	.remove = __devexit_p(snd_audiodrive_pnp_remove),
+	.probe = snd_audiodrive_pnpc_detect,
+	.remove = __devexit_p(snd_audiodrive_pnpc_remove),
 #ifdef CONFIG_PM
-	.suspend	= snd_audiodrive_pnp_suspend,
-	.resume		= snd_audiodrive_pnp_resume,
+	.suspend	= snd_audiodrive_pnpc_suspend,
+	.resume		= snd_audiodrive_pnpc_resume,
 #endif
 };
 #endif /* CONFIG_PNP */
@@ -2373,8 +2464,10 @@ static void __init_or_module snd_es18xx_unregister_all(void)
 	int i;
 
 #ifdef CONFIG_PNP
-	if (pnp_registered)
+	if (pnpc_registered)
 		pnp_unregister_card_driver(&es18xx_pnpc_driver);
+	if (pnp_registered)
+		pnp_unregister_driver(&es18xx_pnp_driver);
 #endif
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
@@ -2405,11 +2498,13 @@ static int __init alsa_card_es18xx_init(void)
 	}
 
 #ifdef CONFIG_PNP
-	err = pnp_register_card_driver(&es18xx_pnpc_driver);
-	if (!err) {
+	err = pnp_register_driver(&es18xx_pnp_driver);
+	if (!err)
 		pnp_registered = 1;
-		cards += es18xx_pnp_devices;
-	}
+	err = pnp_register_card_driver(&es18xx_pnpc_driver);
+	if (!err)
+		pnpc_registered = 1;
+	cards += es18xx_pnp_devices;
 #endif
 
 	if(!cards) {

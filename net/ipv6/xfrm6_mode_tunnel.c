@@ -37,10 +37,9 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
  * its absence, that of the top IP header.  The value of skb->data will always
  * point to the top IP header.
  */
-static int xfrm6_tunnel_output(struct sk_buff *skb)
+static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
 	struct ipv6hdr *iph, *top_iph;
 	int dsfield;
 

@@ -35,6 +35,7 @@
 #include <linux/mutex.h>
 
 #include <sound/core.h>
+#include <sound/tlv.h>
 #include <sound/emu10k1.h>
 
 #if 0		/* for testing purposes - digital out -> capture */
@@ -266,6 +267,7 @@ static const u32 treble_table[41][5] = {
 	{ 0x37c4448b, 0xa45ef51d, 0x262f3267, 0x081e36dc, 0xfd8f5d14 }
 };
 
+/* dB gain = (float) 20 * log10( float(db_table_value) / 0x8000000 ) */
 static const u32 db_table[101] = {
 	0x00000000, 0x01571f82, 0x01674b41, 0x01783a1b, 0x0189f540,
 	0x019c8651, 0x01aff763, 0x01c45306, 0x01d9a446, 0x01eff6b8,
@@ -289,6 +291,9 @@ static const u32 db_table[101] = {
 	0x65ac8c2f, 0x6a773c39, 0x6f7bbc23, 0x74bcc56c, 0x7a3d3272,
 	0x7fffffff,
 };
+
+/* EMU10k1/EMU10k2 DSP control db gain */
+static DECLARE_TLV_DB_SCALE(snd_emu10k1_db_scale1, -4000, 40, 1);
 
 static const u32 onoff_table[2] = {
 	0x00000000, 0x00000001
@@ -755,6 +760,11 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		knew.device = gctl->id.device;
 		knew.subdevice = gctl->id.subdevice;
 		knew.info = snd_emu10k1_gpr_ctl_info;
+		if (gctl->tlv.p) {
+			knew.tlv.p = gctl->tlv.p;
+			knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		} 
 		knew.get = snd_emu10k1_gpr_ctl_get;
 		knew.put = snd_emu10k1_gpr_ctl_put;
 		memset(nctl, 0, sizeof(*nctl));
@@ -1013,6 +1023,7 @@ snd_emu10k1_init_mono_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	ctl->gpr[0] = gpr + 0; ctl->value[0] = defval;
 	ctl->min = 0;
 	ctl->max = 100;
+	ctl->tlv.p = snd_emu10k1_db_scale1;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TABLE100;	
 }
 
@@ -1027,6 +1038,7 @@ snd_emu10k1_init_stereo_control(struct snd_emu10k1_fx8010_control_gpr *ctl,
 	ctl->gpr[1] = gpr + 1; ctl->value[1] = defval;
 	ctl->min = 0;
 	ctl->max = 100;
+	ctl->tlv.p = snd_emu10k1_db_scale1;
 	ctl->translation = EMU10K1_GPR_TRANSLATION_TABLE100;
 }
 

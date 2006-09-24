@@ -134,59 +134,6 @@ static void scsi_unlock_floptical(struct scsi_device *sdev,
 }
 
 /**
- * print_inquiry - printk the inquiry information
- * @inq_result:	printk this SCSI INQUIRY
- *
- * Description:
- *     printk the vendor, model, and other information found in the
- *     INQUIRY data in @inq_result.
- *
- * Notes:
- *     Remove this, and replace with a hotplug event that logs any
- *     relevant information.
- **/
-static void print_inquiry(unsigned char *inq_result)
-{
-	int i;
-
-	printk(KERN_NOTICE "  Vendor: ");
-	for (i = 8; i < 16; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("  Model: ");
-	for (i = 16; i < 32; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("  Rev: ");
-	for (i = 32; i < 36; i++)
-		if (inq_result[i] >= 0x20 && i < inq_result[4] + 5)
-			printk("%c", inq_result[i]);
-		else
-			printk(" ");
-
-	printk("\n");
-
-	i = inq_result[0] & 0x1f;
-
-	printk(KERN_NOTICE "  Type:   %s ",
-	       i <
-	       MAX_SCSI_DEVICE_CODE ? scsi_device_types[i] :
-	       "Unknown          ");
-	printk("                 ANSI SCSI revision: %02x",
-	       inq_result[2] & 0x07);
-	if ((inq_result[2] & 0x07) == 1 && (inq_result[3] & 0x0f) == 1)
-		printk(" CCS\n");
-	else
-		printk("\n");
-}
-
-/**
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  *
  * Description:
@@ -319,6 +266,18 @@ static struct scsi_target *__scsi_find_target(struct device *parent,
 	return found_starget;
 }
 
+/**
+ * scsi_alloc_target - allocate a new or find an existing target
+ * @parent:	parent of the target (need not be a scsi host)
+ * @channel:	target channel number (zero if no channels)
+ * @id:		target id number
+ *
+ * Return an existing target if one exists, provided it hasn't already
+ * gone into STARGET_DEL state, otherwise allocate a new target.
+ *
+ * The target is returned with an incremented reference, so the caller
+ * is responsible for both reaping and doing a last put
+ */
 static struct scsi_target *scsi_alloc_target(struct device *parent,
 					     int channel, uint id)
 {
@@ -384,14 +343,15 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 			return NULL;
 		}
 	}
+	get_device(dev);
 
 	return starget;
 
  found:
 	found_target->reap_ref++;
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	put_device(parent);
 	if (found_target->state != STARGET_DEL) {
+		put_device(parent);
 		kfree(starget);
 		return found_target;
 	}
@@ -450,6 +410,32 @@ void scsi_target_reap(struct scsi_target *starget)
 }
 
 /**
+ * sanitize_inquiry_string - remove non-graphical chars from an INQUIRY result string
+ * @s: INQUIRY result string to sanitize
+ * @len: length of the string
+ *
+ * Description:
+ *	The SCSI spec says that INQUIRY vendor, product, and revision
+ *	strings must consist entirely of graphic ASCII characters,
+ *	padded on the right with spaces.  Since not all devices obey
+ *	this rule, we will replace non-graphic or non-ASCII characters
+ *	with spaces.  Exception: a NUL character is interpreted as a
+ *	string terminator, so all the following characters are set to
+ *	spaces.
+ **/
+static void sanitize_inquiry_string(unsigned char *s, int len)
+{
+	int terminated = 0;
+
+	for (; len > 0; (--len, ++s)) {
+		if (*s == 0)
+			terminated = 1;
+		if (terminated || *s < 0x20 || *s > 0x7e)
+			*s = ' ';
+	}
+}
+
+/**
  * scsi_probe_lun - probe a single LUN using a SCSI INQUIRY
  * @sdev:	scsi_device to probe
  * @inq_result:	area to store the INQUIRY result
@@ -463,7 +449,7 @@ void scsi_target_reap(struct scsi_target *starget)
  *     INQUIRY data is in @inq_result; the scsi_level and INQUIRY length
  *     are copied to the scsi_device any flags value is stored in *@bflags.
  **/
-static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
+static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 			  int result_len, int *bflags)
 {
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
@@ -522,7 +508,11 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 	}
 
 	if (result == 0) {
-		response_len = (unsigned char) inq_result[4] + 5;
+		sanitize_inquiry_string(&inq_result[8], 8);
+		sanitize_inquiry_string(&inq_result[16], 16);
+		sanitize_inquiry_string(&inq_result[32], 4);
+
+		response_len = inq_result[4] + 5;
 		if (response_len > 255)
 			response_len = first_inquiry_len;	/* sanity */
 
@@ -628,7 +618,8 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
  *     SCSI_SCAN_NO_RESPONSE: could not allocate or setup a scsi_device
  *     SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
-static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
+static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
+		int *bflags)
 {
 	/*
 	 * XXX do not save the inquiry, since it can change underneath us,
@@ -653,9 +644,8 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	if (*bflags & BLIST_ISROM) {
 		/*
 		 * It would be better to modify sdev->type, and set
-		 * sdev->removable, but then the print_inquiry() output
-		 * would not show TYPE_ROM; if print_inquiry() is removed
-		 * the issue goes away.
+		 * sdev->removable; this can now be done since
+		 * print_inquiry has gone away.
 		 */
 		inq_result[0] = TYPE_ROM;
 		inq_result[1] |= 0x80;	/* removable */
@@ -683,8 +673,6 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	default:
 		printk(KERN_INFO "scsi: unknown device type %d\n", sdev->type);
 	}
-
-	print_inquiry(inq_result);
 
 	/*
 	 * For a peripheral qualifier (PQ) value of 1 (001b), the SCSI
@@ -714,6 +702,12 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 		sdev->wdtr = 1;
 	if (inq_result[7] & 0x10)
 		sdev->sdtr = 1;
+
+	sdev_printk(KERN_NOTICE, sdev, "%s %.8s %.16s %.4s PQ: %d "
+			"ANSI: %d%s\n", scsi_device_type(sdev->type),
+			sdev->vendor, sdev->model, sdev->rev,
+			sdev->inq_periph_qual, inq_result[2] & 0x07,
+			(inq_result[3] & 0x0f) == 1 ? " CCS" : "");
 
 	/*
 	 * End sysfs code.
@@ -943,11 +937,26 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	}
 
 	/*
-	 * Non-standard SCSI targets may set the PDT to 0x1f (unknown or
-	 * no device type) instead of using the Peripheral Qualifier to
-	 * indicate that no LUN is present.  For example, USB UFI does this.
+	 * Some targets may set slight variations of PQ and PDT to signal
+	 * that no LUN is present, so don't add sdev in these cases.
+	 * Two specific examples are:
+	 * 1) NetApp targets: return PQ=1, PDT=0x1f
+	 * 2) USB UFI: returns PDT=0x1f, with the PQ bits being "reserved"
+	 *    in the UFI 1.0 spec (we cannot rely on reserved bits).
+	 *
+	 * References:
+	 * 1) SCSI SPC-3, pp. 145-146
+	 * PQ=1: "A peripheral device having the specified peripheral
+	 * device type is not connected to this logical unit. However, the
+	 * device server is capable of supporting the specified peripheral
+	 * device type on this logical unit."
+	 * PDT=0x1f: "Unknown or no device type"
+	 * 2) USB UFI 1.0, p. 20
+	 * PDT=00h Direct-access device (floppy)
+	 * PDT=1Fh none (no FDD connected to the requested logical unit)
 	 */
-	if (starget->pdt_1f_for_no_lun && (result[0] & 0x1f) == 0x1f) {
+	if (((result[0] >> 5) == 1 || starget->pdt_1f_for_no_lun) &&
+	     (result[0] & 0x1f) == 0x1f) {
 		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO
 					"scsi scan: peripheral device type"
 					" of 31, no device added\n"));
@@ -1345,7 +1354,6 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (!starget)
 		return ERR_PTR(-ENOMEM);
 
-	get_device(&starget->dev);
 	mutex_lock(&shost->scan_mutex);
 	if (scsi_host_scan_allowed(shost))
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
@@ -1404,7 +1412,6 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 	if (!starget)
 		return;
 
-	get_device(&starget->dev);
 	if (lun != SCAN_WILD_CARD) {
 		/*
 		 * Scan for a specific host/chan/id/lun.
@@ -1586,7 +1593,8 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 	if (sdev) {
 		sdev->sdev_gendev.parent = get_device(&starget->dev);
 		sdev->borken = 0;
-	}
+	} else
+		scsi_target_reap(starget);
 	put_device(&starget->dev);
  out:
 	mutex_unlock(&shost->scan_mutex);

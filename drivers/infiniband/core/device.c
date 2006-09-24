@@ -385,7 +385,7 @@ void *ib_get_client_data(struct ib_device *device, struct ib_client *client)
 EXPORT_SYMBOL(ib_get_client_data);
 
 /**
- * ib_set_client_data - Get IB client context
+ * ib_set_client_data - Set IB client context
  * @device:Device to set context for
  * @client:Client to set context for
  * @data:Context to set
@@ -505,7 +505,7 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		if (port_num)
 			return -EINVAL;
 	} else if (port_num < 1 || port_num > device->phys_port_cnt)
@@ -580,7 +580,7 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		if (port_num)
 			return -EINVAL;
 	} else if (port_num < 1 || port_num > device->phys_port_cnt)

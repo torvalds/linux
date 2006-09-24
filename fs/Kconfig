@@ -325,8 +325,8 @@ config FS_POSIX_ACL
 source "fs/xfs/Kconfig"
 
 config OCFS2_FS
-	tristate "OCFS2 file system support (EXPERIMENTAL)"
-	depends on NET && SYSFS && EXPERIMENTAL
+	tristate "OCFS2 file system support"
+	depends on NET && SYSFS
 	select CONFIGFS_FS
 	select JBD
 	select CRC32
@@ -1471,8 +1471,8 @@ config NFS_V4
 	  If unsure, say N.
 
 config NFS_DIRECTIO
-	bool "Allow direct I/O on NFS files (EXPERIMENTAL)"
-	depends on NFS_FS && EXPERIMENTAL
+	bool "Allow direct I/O on NFS files"
+	depends on NFS_FS
 	help
 	  This option enables applications to perform uncached I/O on files
 	  in NFS file systems using the O_DIRECT open() flag.  When O_DIRECT

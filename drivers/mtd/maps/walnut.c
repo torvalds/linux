@@ -68,6 +68,7 @@ int __init init_walnut(void)
 
 	if (WALNUT_FLASH_ONBD_N(fpga_brds1)) {
 		printk("The on-board flash is disabled (U79 sw 5)!");
+		iounmap(fpga_status_adr);
 		return -EIO;
 	}
 	if (WALNUT_FLASH_SRAM_SEL(fpga_brds1))
@@ -81,6 +82,7 @@ int __init init_walnut(void)
 
 	if (!walnut_map.virt) {
 		printk("Failed to ioremap flash.\n");
+		iounmap(fpga_status_adr);
 		return -EIO;
 	}
 
@@ -93,9 +95,11 @@ int __init init_walnut(void)
 					ARRAY_SIZE(walnut_partitions));
 	} else {
 		printk("map probe failed for flash\n");
+		iounmap(fpga_status_adr);
 		return -ENXIO;
 	}
 
+	iounmap(fpga_status_adr);
 	return 0;
 }
 

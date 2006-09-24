@@ -198,7 +198,7 @@ static int dccp_wait_for_ccid(struct sock *sk, struct sk_buff *skb,
 	while (1) {
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
-		if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
+		if (sk->sk_err)
 			goto do_error;
 		if (!*timeo)
 			goto do_nonblock;
@@ -234,37 +234,72 @@ do_interrupted:
 	goto out;
 }
 
-int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
+static void dccp_write_xmit_timer(unsigned long data) {
+	struct sock *sk = (struct sock *)data;
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk))
+		sk_reset_timer(sk, &dp->dccps_xmit_timer, jiffies+1);
+	else
+		dccp_write_xmit(sk, 0);
+	bh_unlock_sock(sk);
+	sock_put(sk);
+}
+
+void dccp_write_xmit(struct sock *sk, int block)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb,
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct sk_buff *skb;
+	long timeo = 30000; 	/* If a packet is taking longer than 2 secs
+				   we have other issues */
+
+	while ((skb = skb_peek(&sk->sk_write_queue))) {
+		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb,
 					 skb->len);
 
-	if (err > 0)
-		err = dccp_wait_for_ccid(sk, skb, timeo);
+		if (err > 0) {
+			if (!block) {
+				sk_reset_timer(sk, &dp->dccps_xmit_timer,
+						msecs_to_jiffies(err)+jiffies);
+				break;
+			} else
+				err = dccp_wait_for_ccid(sk, skb, &timeo);
+			if (err) {
+				printk(KERN_CRIT "%s:err at dccp_wait_for_ccid"
+						 " %d\n", __FUNCTION__, err);
+				dump_stack();
+			}
+		}
 
-	if (err == 0) {
-		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
-		const int len = skb->len;
+		skb_dequeue(&sk->sk_write_queue);
+		if (err == 0) {
+			struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
+			const int len = skb->len;
 
-		if (sk->sk_state == DCCP_PARTOPEN) {
-			/* See 8.1.5.  Handshake Completion */
-			inet_csk_schedule_ack(sk);
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+			if (sk->sk_state == DCCP_PARTOPEN) {
+				/* See 8.1.5.  Handshake Completion */
+				inet_csk_schedule_ack(sk);
+				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
 						  inet_csk(sk)->icsk_rto,
 						  DCCP_RTO_MAX);
-			dcb->dccpd_type = DCCP_PKT_DATAACK;
-		} else if (dccp_ack_pending(sk))
-			dcb->dccpd_type = DCCP_PKT_DATAACK;
-		else
-			dcb->dccpd_type = DCCP_PKT_DATA;
+				dcb->dccpd_type = DCCP_PKT_DATAACK;
+			} else if (dccp_ack_pending(sk))
+				dcb->dccpd_type = DCCP_PKT_DATAACK;
+			else
+				dcb->dccpd_type = DCCP_PKT_DATA;
 
-		err = dccp_transmit_skb(sk, skb);
-		ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
-	} else
-		kfree_skb(skb);
-
-	return err;
+			err = dccp_transmit_skb(sk, skb);
+			ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
+			if (err) {
+				printk(KERN_CRIT "%s:err from "
+					         "ccid_hc_tx_packet_sent %d\n",
+					         __FUNCTION__, err);
+				dump_stack();
+			}
+		} else
+			kfree(skb);
+	}
 }
 
 int dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
@@ -426,6 +461,9 @@ static inline void dccp_connect_init(struct sock *sk)
 	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
 
 	icsk->icsk_retransmits = 0;
+	init_timer(&dp->dccps_xmit_timer);
+	dp->dccps_xmit_timer.data = (unsigned long)sk;
+	dp->dccps_xmit_timer.function = dccp_write_xmit_timer;
 }
 
 int dccp_connect(struct sock *sk)
@@ -560,8 +598,10 @@ void dccp_send_close(struct sock *sk, const int active)
 					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
 
 	if (active) {
+		dccp_write_xmit(sk, 1);
 		dccp_skb_entail(sk, skb);
 		dccp_transmit_skb(sk, skb_clone(skb, prio));
+		/* FIXME do we need a retransmit timer here? */
 	} else
 		dccp_transmit_skb(sk, skb);
 }

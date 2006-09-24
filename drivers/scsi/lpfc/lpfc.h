@@ -285,6 +285,7 @@ struct lpfc_hba {
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_lun_queue_depth;
 	uint32_t cfg_nodev_tmo;
+	uint32_t cfg_devloss_tmo;
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_fcp_class;
 	uint32_t cfg_use_adisc;
@@ -302,6 +303,9 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
+	uint64_t cfg_soft_wwpn;
+
+	uint32_t dev_loss_tmo_changed;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -351,6 +355,8 @@ struct lpfc_hba {
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
+	uint8_t soft_wwpn_enable;
+
 	struct timer_list fcp_poll_timer;
 	struct timer_list els_tmofunc;
 
@@ -391,3 +397,5 @@ struct rnidrsp {
 	struct list_head list;
 	uint32_t data;
 };
+
+#define FC_REG_DUMP_EVENT	0x10	/* Register for Dump events */

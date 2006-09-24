@@ -151,35 +151,12 @@ static void agp_add_seg_to_client(struct agp_client *client,
 	client->segments = seg;
 }
 
-/* Originally taken from linux/mm/mmap.c from the array
- * protection_map.
- * The original really should be exported to modules, or
- * some routine which does the conversion for you
- */
-
-static const pgprot_t my_protect_map[16] =
-{
-	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
-	__S000, __S001, __S010, __S011, __S100, __S101, __S110, __S111
-};
-
 static pgprot_t agp_convert_mmap_flags(int prot)
 {
-#define _trans(x,bit1,bit2) \
-((bit1==bit2)?(x&bit1):(x&bit1)?bit2:0)
-
 	unsigned long prot_bits;
-	pgprot_t temp;
 
-	prot_bits = _trans(prot, PROT_READ, VM_READ) |
-	    _trans(prot, PROT_WRITE, VM_WRITE) |
-	    _trans(prot, PROT_EXEC, VM_EXEC);
-
-	prot_bits |= VM_SHARED;
-
-	temp = my_protect_map[prot_bits & 0x0000000f];
-
-	return temp;
+	prot_bits = calc_vm_prot_bits(prot) | VM_SHARED;
+	return vm_get_page_prot(prot_bits);
 }
 
 static int agp_create_segment(struct agp_client *client, struct agp_region *region)

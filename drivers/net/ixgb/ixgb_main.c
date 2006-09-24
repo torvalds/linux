@@ -1232,7 +1232,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	unsigned int i;
 	uint8_t css, cso;
 
-	if(likely(skb->ip_summed == CHECKSUM_HW)) {
+	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		css = skb->h.raw - skb->data;
 		cso = (skb->h.raw + skb->csum) - skb->data;
 

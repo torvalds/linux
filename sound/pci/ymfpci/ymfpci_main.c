@@ -36,6 +36,7 @@
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 #include <sound/ymfpci.h>
 #include <sound/asoundef.h>
 #include <sound/mpu401.h>
@@ -1477,11 +1478,15 @@ static int snd_ymfpci_put_single(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static DECLARE_TLV_DB_LINEAR(db_scale_native, TLV_DB_GAIN_MUTE, 0);
+
 #define YMFPCI_DOUBLE(xname, xindex, reg) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
   .info = snd_ymfpci_info_double, \
   .get = snd_ymfpci_get_double, .put = snd_ymfpci_put_double, \
-  .private_value = reg }
+  .private_value = reg, \
+  .tlv = { .p = db_scale_native } }
 
 static int snd_ymfpci_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {

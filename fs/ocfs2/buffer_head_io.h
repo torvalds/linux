@@ -49,7 +49,7 @@ int ocfs2_read_blocks(struct ocfs2_super          *osb,
 
 
 #define OCFS2_BH_CACHED            1
-#define OCFS2_BH_READAHEAD         8	/* use this to pass READA down to submit_bh */
+#define OCFS2_BH_READAHEAD         8
 
 static inline int ocfs2_read_block(struct ocfs2_super * osb, u64 off,
 				   struct buffer_head **bh, int flags,

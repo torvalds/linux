@@ -169,117 +169,129 @@ static int ipoib_ib_post_receives(struct net_device *dev)
 	return 0;
 }
 
-static void ipoib_ib_handle_wc(struct net_device *dev,
-			       struct ib_wc *wc)
+static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
+	struct sk_buff *skb;
+	dma_addr_t addr;
+
+	ipoib_dbg_data(priv, "recv completion: id %d, op %d, status: %d\n",
+		       wr_id, wc->opcode, wc->status);
+
+	if (unlikely(wr_id >= ipoib_recvq_size)) {
+		ipoib_warn(priv, "recv completion event with wrid %d (> %d)\n",
+			   wr_id, ipoib_recvq_size);
+		return;
+	}
+
+	skb  = priv->rx_ring[wr_id].skb;
+	addr = priv->rx_ring[wr_id].mapping;
+
+	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		if (wc->status != IB_WC_WR_FLUSH_ERR)
+			ipoib_warn(priv, "failed recv event "
+				   "(status=%d, wrid=%d vend_err %x)\n",
+				   wc->status, wr_id, wc->vendor_err);
+		dma_unmap_single(priv->ca->dma_device, addr,
+				 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
+		dev_kfree_skb_any(skb);
+		priv->rx_ring[wr_id].skb = NULL;
+		return;
+	}
+
+	/*
+	 * If we can't allocate a new RX buffer, dump
+	 * this packet and reuse the old buffer.
+	 */
+	if (unlikely(ipoib_alloc_rx_skb(dev, wr_id))) {
+		++priv->stats.rx_dropped;
+		goto repost;
+	}
+
+	ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
+		       wc->byte_len, wc->slid);
+
+	dma_unmap_single(priv->ca->dma_device, addr,
+			 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
+
+	skb_put(skb, wc->byte_len);
+	skb_pull(skb, IB_GRH_BYTES);
+
+	if (wc->slid != priv->local_lid ||
+	    wc->src_qp != priv->qp->qp_num) {
+		skb->protocol = ((struct ipoib_header *) skb->data)->proto;
+		skb->mac.raw = skb->data;
+		skb_pull(skb, IPOIB_ENCAP_LEN);
+
+		dev->last_rx = jiffies;
+		++priv->stats.rx_packets;
+		priv->stats.rx_bytes += skb->len;
+
+		skb->dev = dev;
+		/* XXX get correct PACKET_ type here */
+		skb->pkt_type = PACKET_HOST;
+		netif_rx_ni(skb);
+	} else {
+		ipoib_dbg_data(priv, "dropping loopback packet\n");
+		dev_kfree_skb_any(skb);
+	}
+
+repost:
+	if (unlikely(ipoib_ib_post_receive(dev, wr_id)))
+		ipoib_warn(priv, "ipoib_ib_post_receive failed "
+			   "for buf %d\n", wr_id);
+}
+
+static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned int wr_id = wc->wr_id;
+	struct ipoib_tx_buf *tx_req;
+	unsigned long flags;
 
-	ipoib_dbg_data(priv, "called: id %d, op %d, status: %d\n",
+	ipoib_dbg_data(priv, "send completion: id %d, op %d, status: %d\n",
 		       wr_id, wc->opcode, wc->status);
 
-	if (wr_id & IPOIB_OP_RECV) {
-		wr_id &= ~IPOIB_OP_RECV;
-
-		if (wr_id < ipoib_recvq_size) {
-			struct sk_buff *skb  = priv->rx_ring[wr_id].skb;
-			dma_addr_t      addr = priv->rx_ring[wr_id].mapping;
-
-			if (unlikely(wc->status != IB_WC_SUCCESS)) {
-				if (wc->status != IB_WC_WR_FLUSH_ERR)
-					ipoib_warn(priv, "failed recv event "
-						   "(status=%d, wrid=%d vend_err %x)\n",
-						   wc->status, wr_id, wc->vendor_err);
-				dma_unmap_single(priv->ca->dma_device, addr,
-						 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
-				dev_kfree_skb_any(skb);
-				priv->rx_ring[wr_id].skb = NULL;
-				return;
-			}
-
-			/*
-			 * If we can't allocate a new RX buffer, dump
-			 * this packet and reuse the old buffer.
-			 */
-			if (unlikely(ipoib_alloc_rx_skb(dev, wr_id))) {
-				++priv->stats.rx_dropped;
-				goto repost;
-			}
-
-			ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
-				       wc->byte_len, wc->slid);
-
-			dma_unmap_single(priv->ca->dma_device, addr,
-					 IPOIB_BUF_SIZE, DMA_FROM_DEVICE);
-
-			skb_put(skb, wc->byte_len);
-			skb_pull(skb, IB_GRH_BYTES);
-
-			if (wc->slid != priv->local_lid ||
-			    wc->src_qp != priv->qp->qp_num) {
-				skb->protocol = ((struct ipoib_header *) skb->data)->proto;
-				skb->mac.raw = skb->data;
-				skb_pull(skb, IPOIB_ENCAP_LEN);
-
-				dev->last_rx = jiffies;
-				++priv->stats.rx_packets;
-				priv->stats.rx_bytes += skb->len;
-
-				skb->dev = dev;
-				/* XXX get correct PACKET_ type here */
-				skb->pkt_type = PACKET_HOST;
-				netif_rx_ni(skb);
-			} else {
-				ipoib_dbg_data(priv, "dropping loopback packet\n");
-				dev_kfree_skb_any(skb);
-			}
-
-		repost:
-			if (unlikely(ipoib_ib_post_receive(dev, wr_id)))
-				ipoib_warn(priv, "ipoib_ib_post_receive failed "
-					   "for buf %d\n", wr_id);
-		} else
-			ipoib_warn(priv, "completion event with wrid %d\n",
-				   wr_id);
-
-	} else {
-		struct ipoib_tx_buf *tx_req;
-		unsigned long flags;
-
-		if (wr_id >= ipoib_sendq_size) {
-			ipoib_warn(priv, "completion event with wrid %d (> %d)\n",
-				   wr_id, ipoib_sendq_size);
-			return;
-		}
-
-		ipoib_dbg_data(priv, "send complete, wrid %d\n", wr_id);
-
-		tx_req = &priv->tx_ring[wr_id];
-
-		dma_unmap_single(priv->ca->dma_device,
-				 pci_unmap_addr(tx_req, mapping),
-				 tx_req->skb->len,
-				 DMA_TO_DEVICE);
-
-		++priv->stats.tx_packets;
-		priv->stats.tx_bytes += tx_req->skb->len;
-
-		dev_kfree_skb_any(tx_req->skb);
-
-		spin_lock_irqsave(&priv->tx_lock, flags);
-		++priv->tx_tail;
-		if (netif_queue_stopped(dev) &&
-		    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags) &&
-		    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1)
-			netif_wake_queue(dev);
-		spin_unlock_irqrestore(&priv->tx_lock, flags);
-
-		if (wc->status != IB_WC_SUCCESS &&
-		    wc->status != IB_WC_WR_FLUSH_ERR)
-			ipoib_warn(priv, "failed send event "
-				   "(status=%d, wrid=%d vend_err %x)\n",
-				   wc->status, wr_id, wc->vendor_err);
+	if (unlikely(wr_id >= ipoib_sendq_size)) {
+		ipoib_warn(priv, "send completion event with wrid %d (> %d)\n",
+			   wr_id, ipoib_sendq_size);
+		return;
 	}
+
+	tx_req = &priv->tx_ring[wr_id];
+
+	dma_unmap_single(priv->ca->dma_device,
+			 pci_unmap_addr(tx_req, mapping),
+			 tx_req->skb->len,
+			 DMA_TO_DEVICE);
+
+	++priv->stats.tx_packets;
+	priv->stats.tx_bytes += tx_req->skb->len;
+
+	dev_kfree_skb_any(tx_req->skb);
+
+	spin_lock_irqsave(&priv->tx_lock, flags);
+	++priv->tx_tail;
+	if (netif_queue_stopped(dev) &&
+	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags) &&
+	    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1)
+		netif_wake_queue(dev);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
+
+	if (wc->status != IB_WC_SUCCESS &&
+	    wc->status != IB_WC_WR_FLUSH_ERR)
+		ipoib_warn(priv, "failed send event "
+			   "(status=%d, wrid=%d vend_err %x)\n",
+			   wc->status, wr_id, wc->vendor_err);
+}
+
+static void ipoib_ib_handle_wc(struct net_device *dev, struct ib_wc *wc)
+{
+	if (wc->wr_id & IPOIB_OP_RECV)
+		ipoib_ib_handle_rx_wc(dev, wc);
+	else
+		ipoib_ib_handle_tx_wc(dev, wc);
 }
 
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
@@ -320,7 +332,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	dma_addr_t addr;
 
-	if (skb->len > dev->mtu + INFINIBAND_ALEN) {
+	if (unlikely(skb->len > dev->mtu + INFINIBAND_ALEN)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   skb->len, dev->mtu + INFINIBAND_ALEN);
 		++priv->stats.tx_dropped;
@@ -619,8 +631,10 @@ void ipoib_ib_dev_flush(void *_dev)
 	 * The device could have been brought down between the start and when
 	 * we get here, don't bring it back up if it's not configured up
 	 */
-	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		ipoib_ib_dev_up(dev);
+		ipoib_mcast_restart_task(dev);
+	}
 
 	mutex_lock(&priv->vlan_mutex);
 

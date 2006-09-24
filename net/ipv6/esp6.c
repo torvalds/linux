@@ -24,6 +24,7 @@
  * 	This file is derived from net/ipv4/esp.c
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
@@ -44,7 +45,8 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len;
 	struct ipv6hdr *top_iph;
 	struct ipv6_esp_hdr *esph;
-	struct crypto_tfm *tfm;
+	struct crypto_blkcipher *tfm;
+	struct blkcipher_desc desc;
 	struct esp_data *esp;
 	struct sk_buff *trailer;
 	int blksize;
@@ -67,7 +69,9 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	alen = esp->auth.icv_trunc_len;
 	tfm = esp->conf.tfm;
-	blksize = ALIGN(crypto_tfm_alg_blocksize(tfm), 4);
+	desc.tfm = tfm;
+	desc.flags = 0;
+	blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	clen = ALIGN(clen + 2, blksize);
 	if (esp->conf.padlen)
 		clen = ALIGN(clen, esp->conf.padlen);
@@ -95,8 +99,13 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph->seq_no = htonl(++x->replay.oseq);
 	xfrm_aevent_doreplay(x);
 
-	if (esp->conf.ivlen)
-		crypto_cipher_set_iv(tfm, esp->conf.ivec, crypto_tfm_alg_ivsize(tfm));
+	if (esp->conf.ivlen) {
+		if (unlikely(!esp->conf.ivinitted)) {
+			get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+			esp->conf.ivinitted = 1;
+		}
+		crypto_blkcipher_set_iv(tfm, esp->conf.ivec, esp->conf.ivlen);
+	}
 
 	do {
 		struct scatterlist *sg = &esp->sgbuf[0];
@@ -107,23 +116,24 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 				goto error;
 		}
 		skb_to_sgvec(skb, sg, esph->enc_data+esp->conf.ivlen-skb->data, clen);
-		crypto_cipher_encrypt(tfm, sg, sg, clen);
+		err = crypto_blkcipher_encrypt(&desc, sg, sg, clen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
 	} while (0);
 
+	if (unlikely(err))
+		goto error;
+
 	if (esp->conf.ivlen) {
-		memcpy(esph->enc_data, esp->conf.ivec, crypto_tfm_alg_ivsize(tfm));
-		crypto_cipher_get_iv(tfm, esp->conf.ivec, crypto_tfm_alg_ivsize(tfm));
+		memcpy(esph->enc_data, esp->conf.ivec, esp->conf.ivlen);
+		crypto_blkcipher_get_iv(tfm, esp->conf.ivec, esp->conf.ivlen);
 	}
 
 	if (esp->auth.icv_full_len) {
-		esp->auth.icv(esp, skb, (u8*)esph-skb->data,
-			sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen+clen, trailer->tail);
-		pskb_put(skb, trailer, alen);
+		err = esp_mac_digest(esp, skb, (u8 *)esph - skb->data,
+				     sizeof(*esph) + esp->conf.ivlen + clen);
+		memcpy(pskb_put(skb, trailer, alen), esp->auth.work_icv, alen);
 	}
-
-	err = 0;
 
 error:
 	return err;
@@ -134,8 +144,10 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct ipv6hdr *iph;
 	struct ipv6_esp_hdr *esph;
 	struct esp_data *esp = x->data;
+	struct crypto_blkcipher *tfm = esp->conf.tfm;
+	struct blkcipher_desc desc = { .tfm = tfm };
 	struct sk_buff *trailer;
-	int blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
+	int blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
 	int elen = skb->len - sizeof(struct ipv6_esp_hdr) - esp->conf.ivlen - alen;
 
@@ -155,15 +167,16 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* If integrity check is required, do this. */
         if (esp->auth.icv_full_len) {
-		u8 sum[esp->auth.icv_full_len];
-		u8 sum1[alen];
+		u8 sum[alen];
 
-		esp->auth.icv(esp, skb, 0, skb->len-alen, sum);
+		ret = esp_mac_digest(esp, skb, 0, skb->len - alen);
+		if (ret)
+			goto out;
 
-		if (skb_copy_bits(skb, skb->len-alen, sum1, alen))
+		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
 			BUG();
 
-		if (unlikely(memcmp(sum, sum1, alen))) {
+		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
 			x->stats.integrity_failed++;
 			ret = -EINVAL;
 			goto out;
@@ -182,7 +195,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Get ivec. This can be wrong, check against another impls. */
 	if (esp->conf.ivlen)
-		crypto_cipher_set_iv(esp->conf.tfm, esph->enc_data, crypto_tfm_alg_ivsize(esp->conf.tfm));
+		crypto_blkcipher_set_iv(tfm, esph->enc_data, esp->conf.ivlen);
 
         {
 		u8 nexthdr[2];
@@ -197,9 +210,11 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 			}
 		}
 		skb_to_sgvec(skb, sg, sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen, elen);
-		crypto_cipher_decrypt(esp->conf.tfm, sg, sg, elen);
+		ret = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
+		if (unlikely(ret))
+			goto out;
 
 		if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
 			BUG();
@@ -225,9 +240,9 @@ out:
 static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
-	u32 blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
+	u32 blksize = ALIGN(crypto_blkcipher_blocksize(esp->conf.tfm), 4);
 
-	if (x->props.mode) {
+	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		mtu = ALIGN(mtu + 2, blksize);
 	} else {
 		/* The worst case. */
@@ -266,11 +281,11 @@ static void esp6_destroy(struct xfrm_state *x)
 	if (!esp)
 		return;
 
-	crypto_free_tfm(esp->conf.tfm);
+	crypto_free_blkcipher(esp->conf.tfm);
 	esp->conf.tfm = NULL;
 	kfree(esp->conf.ivec);
 	esp->conf.ivec = NULL;
-	crypto_free_tfm(esp->auth.tfm);
+	crypto_free_hash(esp->auth.tfm);
 	esp->auth.tfm = NULL;
 	kfree(esp->auth.work_icv);
 	esp->auth.work_icv = NULL;
@@ -280,6 +295,7 @@ static void esp6_destroy(struct xfrm_state *x)
 static int esp6_init_state(struct xfrm_state *x)
 {
 	struct esp_data *esp = NULL;
+	struct crypto_blkcipher *tfm;
 
 	/* null auth and encryption can have zero length keys */
 	if (x->aalg) {
@@ -298,24 +314,29 @@ static int esp6_init_state(struct xfrm_state *x)
 
 	if (x->aalg) {
 		struct xfrm_algo_desc *aalg_desc;
+		struct crypto_hash *hash;
 
 		esp->auth.key = x->aalg->alg_key;
 		esp->auth.key_len = (x->aalg->alg_key_len+7)/8;
-		esp->auth.tfm = crypto_alloc_tfm(x->aalg->alg_name, 0);
-		if (esp->auth.tfm == NULL)
+		hash = crypto_alloc_hash(x->aalg->alg_name, 0,
+					 CRYPTO_ALG_ASYNC);
+		if (IS_ERR(hash))
 			goto error;
-		esp->auth.icv = esp_hmac_digest;
+
+		esp->auth.tfm = hash;
+		if (crypto_hash_setkey(hash, esp->auth.key, esp->auth.key_len))
+			goto error;
  
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 		BUG_ON(!aalg_desc);
  
 		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
-			crypto_tfm_alg_digestsize(esp->auth.tfm)) {
-				printk(KERN_INFO "ESP: %s digestsize %u != %hu\n",
-					x->aalg->alg_name,
-					crypto_tfm_alg_digestsize(esp->auth.tfm),
-					aalg_desc->uinfo.auth.icv_fullbits/8);
-				goto error;
+		    crypto_hash_digestsize(hash)) {
+			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
+				 x->aalg->alg_name,
+				 crypto_hash_digestsize(hash),
+				 aalg_desc->uinfo.auth.icv_fullbits/8);
+			goto error;
 		}
  
 		esp->auth.icv_full_len = aalg_desc->uinfo.auth.icv_fullbits/8;
@@ -327,24 +348,22 @@ static int esp6_init_state(struct xfrm_state *x)
 	}
 	esp->conf.key = x->ealg->alg_key;
 	esp->conf.key_len = (x->ealg->alg_key_len+7)/8;
-	if (x->props.ealgo == SADB_EALG_NULL)
-		esp->conf.tfm = crypto_alloc_tfm(x->ealg->alg_name, CRYPTO_TFM_MODE_ECB);
-	else
-		esp->conf.tfm = crypto_alloc_tfm(x->ealg->alg_name, CRYPTO_TFM_MODE_CBC);
-	if (esp->conf.tfm == NULL)
+	tfm = crypto_alloc_blkcipher(x->ealg->alg_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
 		goto error;
-	esp->conf.ivlen = crypto_tfm_alg_ivsize(esp->conf.tfm);
+	esp->conf.tfm = tfm;
+	esp->conf.ivlen = crypto_blkcipher_ivsize(tfm);
 	esp->conf.padlen = 0;
 	if (esp->conf.ivlen) {
 		esp->conf.ivec = kmalloc(esp->conf.ivlen, GFP_KERNEL);
 		if (unlikely(esp->conf.ivec == NULL))
 			goto error;
-		get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
+		esp->conf.ivinitted = 0;
 	}
-	if (crypto_cipher_setkey(esp->conf.tfm, esp->conf.key, esp->conf.key_len))
+	if (crypto_blkcipher_setkey(tfm, esp->conf.key, esp->conf.key_len))
 		goto error;
 	x->props.header_len = sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen;
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = esp;
 	return 0;
@@ -365,7 +384,8 @@ static struct xfrm_type esp6_type =
 	.destructor	= esp6_destroy,
 	.get_max_size	= esp6_get_max_size,
 	.input		= esp6_input,
-	.output		= esp6_output
+	.output		= esp6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol esp6_protocol = {

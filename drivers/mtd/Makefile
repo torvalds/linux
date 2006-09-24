@@ -21,6 +21,7 @@ obj-$(CONFIG_FTL)		+= ftl.o mtd_blkdevs.o
 obj-$(CONFIG_NFTL)		+= nftl.o mtd_blkdevs.o
 obj-$(CONFIG_INFTL)		+= inftl.o mtd_blkdevs.o
 obj-$(CONFIG_RFD_FTL)		+= rfd_ftl.o mtd_blkdevs.o
+obj-$(CONFIG_SSFDC)		+= ssfdc.o mtd_blkdevs.o
 
 nftl-objs		:= nftlcore.o nftlmount.o
 inftl-objs		:= inftlcore.o inftlmount.o

@@ -105,13 +105,13 @@ static long long snd_opl4_mem_proc_llseek(struct snd_info_entry *entry, void *fi
 					  struct file *file, long long offset, int orig)
 {
 	switch (orig) {
-	case 0: /* SEEK_SET */
+	case SEEK_SET:
 		file->f_pos = offset;
 		break;
-	case 1: /* SEEK_CUR */
+	case SEEK_CUR:
 		file->f_pos += offset;
 		break;
-	case 2: /* SEEK_END, offset is negative */
+	case SEEK_END: /* offset is negative */
 		file->f_pos = entry->size + offset;
 		break;
 	default:
@@ -159,8 +159,7 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 
 void snd_opl4_free_proc(struct snd_opl4 *opl4)
 {
-	if (opl4->proc_entry)
-		snd_info_unregister(opl4->proc_entry);
+	snd_info_free_entry(opl4->proc_entry);
 }
 
 #endif /* CONFIG_PROC_FS */

@@ -56,6 +56,7 @@
 #include "journal.h"
 #include "namei.h"
 #include "suballoc.h"
+#include "super.h"
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
@@ -310,13 +311,6 @@ static int ocfs2_mknod(struct inode *dir,
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
-	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
-		mlog(ML_ERROR, "inode %llu has i_nlink of %u\n",
-		     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir->i_nlink);
-		status = -EMLINK;
-		goto leave;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		status = -ENOMEM;
@@ -328,6 +322,11 @@ static int ocfs2_mknod(struct inode *dir,
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
+		goto leave;
+	}
+
+	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
+		status = -EMLINK;
 		goto leave;
 	}
 
@@ -643,11 +642,6 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	if (inode->i_nlink >= OCFS2_LINK_MAX) {
-		err = -EMLINK;
-		goto bail;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		err = -ENOMEM;
@@ -658,6 +652,11 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
+		goto bail;
+	}
+
+	if (!dir->i_nlink) {
+		err = -ENOENT;
 		goto bail;
 	}
 
@@ -1964,13 +1963,8 @@ restart:
 				}
 				num++;
 
-				/* XXX: questionable readahead stuff here */
 				bh = ocfs2_bread(dir, b++, &err, 1);
 				bh_use[ra_max] = bh;
-#if 0		// ???
-				if (bh)
-					ll_rw_block(READ, 1, &bh);
-#endif
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1978,6 +1972,10 @@ restart:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
+			ocfs2_error(dir->i_sb, "reading directory %llu, "
+				    "offset %lu\n",
+				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
+				    block);
 			brelse(bh);
 			goto next;
 		}

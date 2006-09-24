@@ -370,7 +370,7 @@ static struct tcp_congestion_ops tcp_vegas = {
 
 static int __init tcp_vegas_register(void)
 {
-	BUG_ON(sizeof(struct vegas) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct vegas) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_vegas);
 	return 0;
 }

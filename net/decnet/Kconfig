@@ -27,6 +27,7 @@ config DECNET
 config DECNET_ROUTER
 	bool "DECnet: router support (EXPERIMENTAL)"
 	depends on DECNET && EXPERIMENTAL
+	select FIB_RULES
 	---help---
 	  Add support for turning your DECnet Endnode into a level 1 or 2
 	  router.  This is an experimental, but functional option.  If you

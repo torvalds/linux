@@ -34,7 +34,7 @@
  * $Id: mthca_cmd.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <linux/sched.h>
+#include <linux/completion.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
 #include <asm/io.h>

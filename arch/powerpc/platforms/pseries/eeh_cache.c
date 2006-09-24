@@ -157,6 +157,7 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 	if (!piar)
 		return NULL;
 
+	pci_dev_get(dev);
 	piar->addr_lo = alo;
 	piar->addr_hi = ahi;
 	piar->pcidev = dev;
@@ -178,7 +179,6 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 	struct device_node *dn;
 	struct pci_dn *pdn;
 	int i;
-	int inserted = 0;
 
 	dn = pci_device_to_OF_node(dev);
 	if (!dn) {
@@ -197,9 +197,6 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 		return;
 	}
 
-	/* The cache holds a reference to the device... */
-	pci_dev_get(dev);
-
 	/* Walk resources on this device, poke them into the tree */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		unsigned long start = pci_resource_start(dev,i);
@@ -212,12 +209,7 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 		if (start == 0 || ~start == 0 || end == 0 || ~end == 0)
 			 continue;
 		pci_addr_cache_insert(dev, start, end, flags);
-		inserted = 1;
 	}
-
-	/* If there was nothing to add, the cache has no reference... */
-	if (!inserted)
-		pci_dev_put(dev);
 }
 
 /**
@@ -240,7 +232,6 @@ void pci_addr_cache_insert_device(struct pci_dev *dev)
 static inline void __pci_addr_cache_remove_device(struct pci_dev *dev)
 {
 	struct rb_node *n;
-	int removed = 0;
 
 restart:
 	n = rb_first(&pci_io_addr_cache_root.rb_root);
@@ -250,16 +241,12 @@ restart:
 
 		if (piar->pcidev == dev) {
 			rb_erase(n, &pci_io_addr_cache_root.rb_root);
-			removed = 1;
+			pci_dev_put(piar->pcidev);
 			kfree(piar);
 			goto restart;
 		}
 		n = rb_next(n);
 	}
-
-	/* The cache no longer holds its reference to this device... */
-	if (removed)
-		pci_dev_put(dev);
 }
 
 /**

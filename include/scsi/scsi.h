@@ -25,13 +25,6 @@ extern const unsigned char scsi_command_size[8];
 #define COMMAND_SIZE(opcode) scsi_command_size[((opcode) >> 5) & 7]
 
 /*
- *	SCSI device types
- */
-
-#define MAX_SCSI_DEVICE_CODE 15
-extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
-
-/*
  * Special value for scanning to specify scanning or rescanning of all
  * possible channels, (target) ids, or luns on a given shost.
  */
@@ -224,6 +217,9 @@ static inline int scsi_status_is_good(int status)
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RBC	    0x0e
 #define TYPE_NO_LUN         0x7f
+
+/* Returns a human-readable name for the device */
+extern const char * scsi_device_type(unsigned type);
 
 /*
  * standard mode-select header prepended to all mode-select commands
@@ -432,5 +428,11 @@ struct scsi_lun {
 
 /* Used to obtain the PCI location of a device */
 #define SCSI_IOCTL_GET_PCI		0x5387
+
+/* Pull a u32 out of a SCSI message (using BE SCSI conventions) */
+static inline u32 scsi_to_u32(u8 *ptr)
+{
+	return (ptr[0]<<24) + (ptr[1]<<16) + (ptr[2]<<8) + ptr[3];
+}
 
 #endif /* _SCSI_SCSI_H */

@@ -11,7 +11,7 @@ config MTD_NAND
 	help
 	  This enables support for accessing all type of NAND flash
 	  devices. For further information see
-	  <http://www.linux-mtd.infradead.org/tech/nand.html>.
+	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
 
 config MTD_NAND_VERIFY_WRITE
 	bool "Verify NAND page writes"

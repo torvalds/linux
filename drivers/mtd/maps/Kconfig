@@ -13,13 +13,13 @@ config MTD_COMPLEX_MAPPINGS
 
 config MTD_PHYSMAP
 	tristate "CFI Flash device in physical memory map"
-	depends on MTD_CFI
+	depends on MTD_CFI || MTD_JEDECPROBE || MTD_ROM
 	help
-	  This provides a 'mapping' driver which allows the CFI probe and
-	  command set driver code to communicate with flash chips which
-	  are mapped physically into the CPU's memory. You will need to
-	  configure the physical address and size of the flash chips on
-	  your particular board as well as the bus width, either statically
+	  This provides a 'mapping' driver which allows the NOR Flash and
+	  ROM driver code to communicate with chips which are mapped
+	  physically into the CPU's memory. You will need to configure
+	  the physical address and size of the flash chips on your
+	  particular board as well as the bus width, either statically
 	  with config options or at run-time.
 
 config MTD_PHYSMAP_START
@@ -446,14 +446,6 @@ config MTD_DC21285
 	  This provides a driver for the flash accessed using Intel's
 	  21285 bridge used with Intel's StrongARM processors. More info at
 	  <http://www.intel.com/design/bridge/docs/21285_documentation.htm>.
-
-config MTD_IQ80310
-	tristate "CFI Flash device mapped on the XScale IQ80310 board"
-	depends on MTD_CFI && ARCH_IQ80310
-	help
-	  This enables access routines for the flash chips on the Intel XScale
-	  IQ80310 evaluation board. If you have one of these boards and would
-	  like to use the flash chips on it, say 'Y'.
 
 config MTD_IXP4XX
 	tristate "CFI Flash device mapped on Intel IXP4xx based systems"

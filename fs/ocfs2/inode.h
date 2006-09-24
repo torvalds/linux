@@ -56,6 +56,7 @@ struct ocfs2_inode_info
 	struct ocfs2_journal_handle	*ip_handle;
 
 	u32				ip_flags; /* see below */
+	u32				ip_attr; /* inode attributes */
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
@@ -141,5 +142,7 @@ int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
 			   struct buffer_head *bh);
 int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);
 int ocfs2_aio_write(struct file *file, struct kiocb *req, struct iocb *iocb);
+
+void ocfs2_set_inode_flags(struct inode *inode);
 
 #endif /* OCFS2_INODE_H */

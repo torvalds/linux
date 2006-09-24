@@ -40,5 +40,7 @@ void ocfs2_set_new_buffer_uptodate(struct inode *inode,
 				   struct buffer_head *bh);
 void ocfs2_remove_from_cache(struct inode *inode,
 			     struct buffer_head *bh);
+int ocfs2_buffer_read_ahead(struct inode *inode,
+			    struct buffer_head *bh);
 
 #endif /* OCFS2_UPTODATE_H */

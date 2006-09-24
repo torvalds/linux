@@ -117,7 +117,7 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 
-int sysctl_unix_max_dgram_qlen = 10;
+int sysctl_unix_max_dgram_qlen __read_mostly = 10;
 
 struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
 DEFINE_SPINLOCK(unix_table_lock);
@@ -2060,10 +2060,7 @@ static int __init af_unix_init(void)
 	int rc = -1;
 	struct sk_buff *dummy_skb;
 
-	if (sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&unix_proto, 1);
         if (rc != 0) {

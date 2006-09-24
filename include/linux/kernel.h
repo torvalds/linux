@@ -31,7 +31,7 @@ extern const char linux_banner[];
 #define STACK_MAGIC	0xdeadbeef
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
+#define ALIGN(x,a) (((x)+(a)-1UL)&~((a)-1UL))
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 #define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
 

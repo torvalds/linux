@@ -31,6 +31,7 @@
 
 #include <sound/core.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 
 #include "ice1712.h"
 #include "envy24ht.h"
@@ -564,6 +565,8 @@ static int pontis_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return changed;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_volume, -6400, 50, 1);
+
 /*
  * mixers
  */
@@ -571,17 +574,23 @@ static int pontis_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static struct snd_kcontrol_new pontis_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "PCM Playback Volume",
 		.info = wm_dac_vol_info,
 		.get = wm_dac_vol_get,
 		.put = wm_dac_vol_put,
+		.tlv = { .p = db_scale_volume },
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Capture Volume",
 		.info = wm_adc_vol_info,
 		.get = wm_adc_vol_get,
 		.put = wm_adc_vol_put,
+		.tlv = { .p = db_scale_volume },
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,

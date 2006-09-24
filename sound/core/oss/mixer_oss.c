@@ -1193,10 +1193,8 @@ static void snd_mixer_oss_proc_init(struct snd_mixer_oss *mixer)
 
 static void snd_mixer_oss_proc_done(struct snd_mixer_oss *mixer)
 {
-	if (mixer->proc_entry) {
-		snd_info_unregister(mixer->proc_entry);
-		mixer->proc_entry = NULL;
-	}
+	snd_info_free_entry(mixer->proc_entry);
+	mixer->proc_entry = NULL;
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_mixer_oss_proc_init(mix)
@@ -1312,21 +1310,19 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 		card->mixer_oss = mixer;
 		snd_mixer_oss_build(mixer);
 		snd_mixer_oss_proc_init(mixer);
-	} else if (cmd == SND_MIXER_OSS_NOTIFY_DISCONNECT) {
-		mixer = card->mixer_oss;
-		if (mixer == NULL || !mixer->oss_dev_alloc)
-			return 0;
-		snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_MIXER, mixer->card, 0);
-		mixer->oss_dev_alloc = 0;
-	} else {		/* free */
+	} else {
 		mixer = card->mixer_oss;
 		if (mixer == NULL)
 			return 0;
+		if (mixer->oss_dev_alloc) {
 #ifdef SNDRV_OSS_INFO_DEV_MIXERS
-		snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_MIXERS, mixer->card->number);
+			snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_MIXERS, mixer->card->number);
 #endif
-		if (mixer->oss_dev_alloc)
 			snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_MIXER, mixer->card, 0);
+			mixer->oss_dev_alloc = 0;
+		}
+		if (cmd == SND_MIXER_OSS_NOTIFY_DISCONNECT)
+			return 0;
 		snd_mixer_oss_proc_done(mixer);
 		return snd_mixer_oss_free1(mixer);
 	}

@@ -1717,17 +1717,29 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 
 			ocfs2_remove_from_cache(inode, eb_bh);
 
-			BUG_ON(eb->h_suballoc_slot);
 			BUG_ON(el->l_recs[0].e_clusters);
 			BUG_ON(el->l_recs[0].e_cpos);
 			BUG_ON(el->l_recs[0].e_blkno);
-			status = ocfs2_free_extent_block(handle,
-							 tc->tc_ext_alloc_inode,
-							 tc->tc_ext_alloc_bh,
-							 eb);
-			if (status < 0) {
-				mlog_errno(status);
-				goto bail;
+			if (eb->h_suballoc_slot == 0) {
+				/*
+				 * This code only understands how to
+				 * lock the suballocator in slot 0,
+				 * which is fine because allocation is
+				 * only ever done out of that
+				 * suballocator too. A future version
+				 * might change that however, so avoid
+				 * a free if we don't know how to
+				 * handle it. This way an fs incompat
+				 * bit will not be necessary.
+				 */
+				status = ocfs2_free_extent_block(handle,
+								 tc->tc_ext_alloc_inode,
+								 tc->tc_ext_alloc_bh,
+								 eb);
+				if (status < 0) {
+					mlog_errno(status);
+					goto bail;
+				}
 			}
 		}
 		brelse(eb_bh);

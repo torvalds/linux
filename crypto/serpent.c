@@ -216,20 +216,13 @@ struct serpent_ctx {
 
 
 static int serpent_setkey(struct crypto_tfm *tfm, const u8 *key,
-			  unsigned int keylen, u32 *flags)
+			  unsigned int keylen)
 {
 	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *k = ctx->expkey;
 	u8  *k8 = (u8 *)k;
 	u32 r0,r1,r2,r3,r4;
 	int i;
-
-	if ((keylen < SERPENT_MIN_KEY_SIZE)
-			|| (keylen > SERPENT_MAX_KEY_SIZE))
-	{
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	}
 
 	/* Copy key, add padding */
 
@@ -497,21 +490,15 @@ static struct crypto_alg serpent_alg = {
 };
 
 static int tnepres_setkey(struct crypto_tfm *tfm, const u8 *key,
-			  unsigned int keylen, u32 *flags)
+			  unsigned int keylen)
 {
 	u8 rev_key[SERPENT_MAX_KEY_SIZE];
 	int i;
 
-	if ((keylen < SERPENT_MIN_KEY_SIZE)
-	    || (keylen > SERPENT_MAX_KEY_SIZE)) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		return -EINVAL;
-	} 
-
 	for (i = 0; i < keylen; ++i)
 		rev_key[keylen - i - 1] = key[i];
  
-	return serpent_setkey(tfm, rev_key, keylen, flags);
+	return serpent_setkey(tfm, rev_key, keylen);
 }
 
 static void tnepres_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)

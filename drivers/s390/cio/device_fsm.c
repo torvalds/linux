@@ -232,10 +232,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	 */
 	old_lpm = sch->lpm;
 	stsch(sch->schid, &sch->schib);
-	sch->lpm = sch->schib.pmcw.pim &
-		sch->schib.pmcw.pam &
-		sch->schib.pmcw.pom &
-		sch->opm;
+	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 	/* Check since device may again have become not operational. */
 	if (!sch->schib.pmcw.dnv)
 		state = DEV_STATE_NOT_OPER;
@@ -267,6 +264,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			notify = 1;
 		}
 		/* fill out sense information */
+		memset(&cdev->id, 0, sizeof(cdev->id));
 		cdev->id.cu_type   = cdev->private->senseid.cu_type;
 		cdev->id.cu_model  = cdev->private->senseid.cu_model;
 		cdev->id.dev_type  = cdev->private->senseid.dev_type;
@@ -454,8 +452,8 @@ ccw_device_sense_pgid_done(struct ccw_device *cdev, int err)
 		return;
 	}
 	/* Start Path Group verification. */
-	sch->vpm = 0;	/* Start with no path groups set. */
 	cdev->private->state = DEV_STATE_VERIFY;
+	cdev->private->flags.doverify = 0;
 	ccw_device_verify_start(cdev);
 }
 
@@ -555,7 +553,19 @@ ccw_device_nopath_notify(void *data)
 void
 ccw_device_verify_done(struct ccw_device *cdev, int err)
 {
-	cdev->private->flags.doverify = 0;
+	struct subchannel *sch;
+
+	sch = to_subchannel(cdev->dev.parent);
+	/* Update schib - pom may have changed. */
+	stsch(sch->schid, &sch->schib);
+	/* Update lpm with verified path mask. */
+	sch->lpm = sch->vpm;
+	/* Repeat path verification? */
+	if (cdev->private->flags.doverify) {
+		cdev->private->flags.doverify = 0;
+		ccw_device_verify_start(cdev);
+		return;
+	}
 	switch (err) {
 	case -EOPNOTSUPP: /* path grouping not supported, just set online. */
 		cdev->private->options.pgroup = 0;
@@ -613,6 +623,7 @@ ccw_device_online(struct ccw_device *cdev)
 	if (!cdev->private->options.pgroup) {
 		/* Start initial path verification. */
 		cdev->private->state = DEV_STATE_VERIFY;
+		cdev->private->flags.doverify = 0;
 		ccw_device_verify_start(cdev);
 		return 0;
 	}
@@ -659,7 +670,6 @@ ccw_device_offline(struct ccw_device *cdev)
 	/* Are we doing path grouping? */
 	if (!cdev->private->options.pgroup) {
 		/* No, set state offline immediately. */
-		sch->vpm = 0;
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;
 	}
@@ -780,6 +790,7 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	}
 	/* Device is idle, we can do the path verification. */
 	cdev->private->state = DEV_STATE_VERIFY;
+	cdev->private->flags.doverify = 0;
 	ccw_device_verify_start(cdev);
 }
 
@@ -1042,9 +1053,9 @@ ccw_device_wait4io_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 }
 
 static void
-ccw_device_wait4io_verify(struct ccw_device *cdev, enum dev_event dev_event)
+ccw_device_delay_verify(struct ccw_device *cdev, enum dev_event dev_event)
 {
-	/* When the I/O has terminated, we have to start verification. */
+	/* Start verification after current task finished. */
 	cdev->private->flags.doverify = 1;
 }
 
@@ -1110,10 +1121,7 @@ device_trigger_reprobe(struct subchannel *sch)
 	 * The pim, pam, pom values may not be accurate, but they are the best
 	 * we have before performing device selection :/
 	 */
-	sch->lpm = sch->schib.pmcw.pim &
-		sch->schib.pmcw.pam &
-		sch->schib.pmcw.pom &
-		sch->opm;
+	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 	/* Re-set some bits in the pmcw that were lost. */
 	sch->schib.pmcw.isc = 3;
 	sch->schib.pmcw.csense = 1;
@@ -1237,7 +1245,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_online_notoper,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_verify_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_onoff_timeout,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
+		[DEV_EVENT_VERIFY]	= ccw_device_delay_verify,
 	},
 	[DEV_STATE_ONLINE] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_online_notoper,
@@ -1280,7 +1288,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_online_notoper,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_wait4io_irq,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_wait4io_timeout,
-		[DEV_EVENT_VERIFY]	= ccw_device_wait4io_verify,
+		[DEV_EVENT_VERIFY]	= ccw_device_delay_verify,
 	},
 	[DEV_STATE_QUIESCE] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_quiesce_done,
@@ -1293,7 +1301,7 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_nop,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_start_id,
 		[DEV_EVENT_TIMEOUT]	= ccw_device_bug,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
+		[DEV_EVENT_VERIFY]	= ccw_device_start_id,
 	},
 	[DEV_STATE_DISCONNECTED_SENSE_ID] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_recog_notoper,

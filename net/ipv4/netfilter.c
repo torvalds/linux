@@ -168,7 +168,7 @@ unsigned int nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 	unsigned int csum = 0;
 
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (hook != NF_IP_PRE_ROUTING && hook != NF_IP_LOCAL_IN)
 			break;
 		if ((protocol == 0 && !(u16)csum_fold(skb->csum)) ||

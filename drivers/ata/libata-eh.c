@@ -32,7 +32,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

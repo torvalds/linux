@@ -385,7 +385,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 	struct pkt_info pkt_info;
 
 	while (budget-- > 0 && eth_port_receive(mp, &pkt_info) == ETH_OK) {
-		dma_unmap_single(NULL, pkt_info.buf_ptr, RX_SKB_SIZE,
+		dma_unmap_single(NULL, pkt_info.buf_ptr, ETH_RX_SKB_SIZE,
 							DMA_FROM_DEVICE);
 		mp->rx_desc_count--;
 		received_packets++;
@@ -1147,7 +1147,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 	desc->byte_cnt = length;
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		BUG_ON(skb->protocol != ETH_P_IP);
 
 		cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |

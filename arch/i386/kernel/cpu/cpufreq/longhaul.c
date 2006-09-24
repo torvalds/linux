@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -52,18 +53,26 @@
 #define	CPU_NEHEMIAH	5
 
 static int cpu_model;
-static unsigned int numscales=16, numvscales;
+static unsigned int numscales=16;
 static unsigned int fsb;
-static int minvid, maxvid;
+
+static struct mV_pos *vrm_mV_table;
+static unsigned char *mV_vrm_table;
+struct f_msr {
+	unsigned char vrm;
+};
+static struct f_msr f_msr_table[32];
+
+static unsigned int highest_speed, lowest_speed; /* kHz */
 static unsigned int minmult, maxmult;
 static int can_scale_voltage;
-static int vrmrev;
 static struct acpi_processor *pr = NULL;
 static struct acpi_processor_cx *cx = NULL;
+static int port22_en;
 
 /* Module parameters */
-static int dont_scale_voltage;
-
+static int scale_voltage;
+static int ignore_latency;
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "longhaul", msg)
 
@@ -71,7 +80,6 @@ static int dont_scale_voltage;
 /* Clock ratios multiplied by 10 */
 static int clock_ratio[32];
 static int eblcr_table[32];
-static int voltage_table[32];
 static unsigned int highest_speed, lowest_speed; /* kHz */
 static int longhaul_version;
 static struct cpufreq_frequency_table *longhaul_table;
@@ -124,10 +132,9 @@ static int longhaul_get_cpu_mult(void)
 
 /* For processor with BCR2 MSR */
 
-static void do_longhaul1(int cx_address, unsigned int clock_ratio_index)
+static void do_longhaul1(unsigned int clock_ratio_index)
 {
 	union msr_bcr2 bcr2;
-	u32 t;
 
 	rdmsrl(MSR_VIA_BCR2, bcr2.val);
 	/* Enable software clock multiplier */
@@ -136,13 +143,11 @@ static void do_longhaul1(int cx_address, unsigned int clock_ratio_index)
 
 	/* Sync to timer tick */
 	safe_halt();
-	ACPI_FLUSH_CPU_CACHE();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_BCR2, bcr2.val);
-	/* Invoke C3 */
-	inb(cx_address);
-	/* Dummy op - must do something useless after P_LVL3 read */
-	t = inl(acpi_fadt.xpm_tmr_blk.address);
+	/* Invoke transition */
+	ACPI_FLUSH_CPU_CACHE();
+	halt();
 
 	/* Disable software clock multiplier */
 	local_irq_disable();
@@ -164,11 +169,16 @@ static void do_powersaver(int cx_address, unsigned int clock_ratio_index)
 	longhaul.bits.SoftBusRatio4 = (clock_ratio_index & 0x10) >> 4;
 	longhaul.bits.EnableSoftBusRatio = 1;
 
+	if (can_scale_voltage) {
+		longhaul.bits.SoftVID = f_msr_table[clock_ratio_index].vrm;
+		longhaul.bits.EnableSoftVID = 1;
+	}
+
 	/* Sync to timer tick */
 	safe_halt();
-	ACPI_FLUSH_CPU_CACHE();
 	/* Change frequency on next halt or sleep */
 	wrmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	ACPI_FLUSH_CPU_CACHE();
 	/* Invoke C3 */
 	inb(cx_address);
 	/* Dummy op - must do something useless after P_LVL3 read */
@@ -227,10 +237,13 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	outb(0xFF,0xA1);	/* Overkill */
 	outb(0xFE,0x21);	/* TMR0 only */
 
-	/* Disable bus master arbitration */
-	if (pr->flags.bm_check) {
+	if (pr->flags.bm_control) {
+ 		/* Disable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 1,
 				  ACPI_MTX_DO_NOT_LOCK);
+	} else if (port22_en) {
+		/* Disable AGP and PCI arbiters */
+		outb(3, 0x22);
 	}
 
 	switch (longhaul_version) {
@@ -244,7 +257,7 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 */
 	case TYPE_LONGHAUL_V1:
 	case TYPE_LONGHAUL_V2:
-		do_longhaul1(cx->address, clock_ratio_index);
+		do_longhaul1(clock_ratio_index);
 		break;
 
 	/*
@@ -259,14 +272,20 @@ static void longhaul_setstate(unsigned int clock_ratio_index)
 	 * to work in practice.
 	 */
 	case TYPE_POWERSAVER:
+		/* Don't allow wakeup */
+		acpi_set_register(ACPI_BITREG_BUS_MASTER_RLD, 0,
+				  ACPI_MTX_DO_NOT_LOCK);
 		do_powersaver(cx->address, clock_ratio_index);
 		break;
 	}
 
-	/* Enable bus master arbitration */
-	if (pr->flags.bm_check) {
+	if (pr->flags.bm_control) {
+		/* Enable bus master arbitration */
 		acpi_set_register(ACPI_BITREG_ARB_DISABLE, 0,
 				  ACPI_MTX_DO_NOT_LOCK);
+	} else if (port22_en) {
+		/* Enable arbiters */
+		outb(0, 0x22);
 	}
 
 	outb(pic2_mask,0xA1);	/* restore mask */
@@ -446,52 +465,56 @@ static int __init longhaul_get_ranges(void)
 static void __init longhaul_setup_voltagescaling(void)
 {
 	union msr_longhaul longhaul;
+	struct mV_pos minvid, maxvid;
+	unsigned int j, speed, pos, kHz_step, numvscales;
 
-	rdmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-	if (!(longhaul.bits.RevisionID & 1))
+	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
+	if (!(longhaul.bits.RevisionID & 1)) {
+		printk(KERN_INFO PFX "Voltage scaling not supported by CPU.\n");
 		return;
+	}
 
-	minvid = longhaul.bits.MinimumVID;
-	maxvid = longhaul.bits.MaximumVID;
-	vrmrev = longhaul.bits.VRMRev;
+	if (!longhaul.bits.VRMRev) {
+		printk (KERN_INFO PFX "VRM 8.5\n");
+		vrm_mV_table = &vrm85_mV[0];
+		mV_vrm_table = &mV_vrm85[0];
+	} else {
+		printk (KERN_INFO PFX "Mobile VRM\n");
+		vrm_mV_table = &mobilevrm_mV[0];
+		mV_vrm_table = &mV_mobilevrm[0];
+	}
 
-	if (minvid == 0 || maxvid == 0) {
+	minvid = vrm_mV_table[longhaul.bits.MinimumVID];
+	maxvid = vrm_mV_table[longhaul.bits.MaximumVID];
+	numvscales = maxvid.pos - minvid.pos + 1;
+	kHz_step = (highest_speed - lowest_speed) / numvscales;
+
+	if (minvid.mV == 0 || maxvid.mV == 0 || minvid.mV > maxvid.mV) {
 		printk (KERN_INFO PFX "Bogus values Min:%d.%03d Max:%d.%03d. "
 					"Voltage scaling disabled.\n",
-					minvid/1000, minvid%1000, maxvid/1000, maxvid%1000);
+					minvid.mV/1000, minvid.mV%1000, maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
-	if (minvid == maxvid) {
+	if (minvid.mV == maxvid.mV) {
 		printk (KERN_INFO PFX "Claims to support voltage scaling but min & max are "
 				"both %d.%03d. Voltage scaling disabled\n",
-				maxvid/1000, maxvid%1000);
+				maxvid.mV/1000, maxvid.mV%1000);
 		return;
 	}
 
-	if (vrmrev==0) {
-		dprintk ("VRM 8.5\n");
-		memcpy (voltage_table, vrm85scales, sizeof(voltage_table));
-		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/25;
-	} else {
-		dprintk ("Mobile VRM\n");
-		memcpy (voltage_table, mobilevrmscales, sizeof(voltage_table));
-		numvscales = (voltage_table[maxvid]-voltage_table[minvid])/5;
+	printk(KERN_INFO PFX "Max VID=%d.%03d  Min VID=%d.%03d, %d possible voltage scales\n",
+		maxvid.mV/1000, maxvid.mV%1000,
+		minvid.mV/1000, minvid.mV%1000,
+		numvscales);
+	
+	j = 0;
+	while (longhaul_table[j].frequency != CPUFREQ_TABLE_END) {
+		speed = longhaul_table[j].frequency;
+		pos = (speed - lowest_speed) / kHz_step + minvid.pos;
+		f_msr_table[longhaul_table[j].index].vrm = mV_vrm_table[pos];
+		j++;
 	}
-
-	/* Current voltage isn't readable at first, so we need to
-	   set it to a known value. The spec says to use maxvid */
-	longhaul.bits.RevisionKey = longhaul.bits.RevisionID;	/* FIXME: This is bad. */
-	longhaul.bits.EnableSoftVID = 1;
-	longhaul.bits.SoftVID = maxvid;
-	wrmsrl (MSR_VIA_LONGHAUL, longhaul.val);
-
-	minvid = voltage_table[minvid];
-	maxvid = voltage_table[maxvid];
-
-	dprintk ("Min VID=%d.%03d Max VID=%d.%03d, %d possible voltage scales\n",
-		maxvid/1000, maxvid%1000, minvid/1000, minvid%1000, numvscales);
 
 	can_scale_voltage = 1;
 }
@@ -540,21 +563,33 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 	return 1;
 }
 
+/* VIA don't support PM2 reg, but have something similar */
+static int enable_arbiter_disable(void)
+{
+	struct pci_dev *dev;
+	u8 pci_cmd;
+
+	/* Find PLE133 host bridge */
+	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0, NULL);
+	if (dev != NULL) {
+		/* Enable access to port 0x22 */
+		pci_read_config_byte(dev, 0x78, &pci_cmd);
+		if ( !(pci_cmd & 1<<7) ) {
+			pci_cmd |= 1<<7;
+			pci_write_config_byte(dev, 0x78, pci_cmd);
+		}
+		return 1;
+	}
+	return 0;
+}
+
 static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = cpu_data;
 	char *cpuname=NULL;
 	int ret;
 
-	/* Check ACPI support for C3 state */
-	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-			 &longhaul_walk_callback, NULL, (void *)&pr);
-	if (pr == NULL) goto err_acpi;
-
-	cx = &pr->power.states[ACPI_STATE_C3];
-	if (cx->address == 0 || cx->latency > 1000) goto err_acpi;
-
-	/* Now check what we have on this motherboard */
+	/* Check what we have on this motherboard */
 	switch (c->x86_model) {
 	case 6:
 		cpu_model = CPU_SAMUEL;
@@ -636,12 +671,36 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 	};
 
+	/* Find ACPI data for processor */
+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+			    &longhaul_walk_callback, NULL, (void *)&pr);
+	if (pr == NULL)
+		goto err_acpi;
+
+	if (longhaul_version == TYPE_POWERSAVER) {
+		/* Check ACPI support for C3 state */
+		cx = &pr->power.states[ACPI_STATE_C3];
+		if (cx->address == 0 ||
+		   (cx->latency > 1000 && ignore_latency == 0) )
+			goto err_acpi;
+
+	} else {
+		/* Check ACPI support for bus master arbiter disable */
+		if (!pr->flags.bm_control) {
+			if (!enable_arbiter_disable()) {
+				printk(KERN_ERR PFX "No ACPI support. No VT8601 host bridge. Aborting.\n");
+				return -ENODEV;
+			} else
+				port22_en = 1;
+		}
+	}
+
 	ret = longhaul_get_ranges();
 	if (ret != 0)
 		return ret;
 
 	if ((longhaul_version==TYPE_LONGHAUL_V2 || longhaul_version==TYPE_POWERSAVER) &&
-		 (dont_scale_voltage==0))
+		 (scale_voltage != 0))
 		longhaul_setup_voltagescaling();
 
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
@@ -729,8 +788,10 @@ static void __exit longhaul_exit(void)
 	kfree(longhaul_table);
 }
 
-module_param (dont_scale_voltage, int, 0644);
-MODULE_PARM_DESC(dont_scale_voltage, "Don't scale voltage of processor");
+module_param (scale_voltage, int, 0644);
+MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
+module_param(ignore_latency, int, 0644);
+MODULE_PARM_DESC(ignore_latency, "Skip ACPI C3 latency test");
 
 MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>");
 MODULE_DESCRIPTION ("Longhaul driver for VIA Cyrix processors.");
@@ -738,4 +799,3 @@ MODULE_LICENSE ("GPL");
 
 late_initcall(longhaul_init);
 module_exit(longhaul_exit);
-

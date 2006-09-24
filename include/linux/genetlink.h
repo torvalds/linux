@@ -16,6 +16,8 @@ struct genlmsghdr {
 
 #define GENL_HDRLEN	NLMSG_ALIGN(sizeof(struct genlmsghdr))
 
+#define GENL_ADMIN_PERM		0x01
+
 /*
  * List of reserved static generic netlink identifiers:
  */
@@ -43,9 +45,25 @@ enum {
 	CTRL_ATTR_UNSPEC,
 	CTRL_ATTR_FAMILY_ID,
 	CTRL_ATTR_FAMILY_NAME,
+	CTRL_ATTR_VERSION,
+	CTRL_ATTR_HDRSIZE,
+	CTRL_ATTR_MAXATTR,
+	CTRL_ATTR_OPS,
 	__CTRL_ATTR_MAX,
 };
 
 #define CTRL_ATTR_MAX (__CTRL_ATTR_MAX - 1)
+
+enum {
+	CTRL_ATTR_OP_UNSPEC,
+	CTRL_ATTR_OP_ID,
+	CTRL_ATTR_OP_FLAGS,
+	CTRL_ATTR_OP_POLICY,
+	CTRL_ATTR_OP_DOIT,
+	CTRL_ATTR_OP_DUMPIT,
+	__CTRL_ATTR_OP_MAX,
+};
+
+#define CTRL_ATTR_OP_MAX (__CTRL_ATTR_OP_MAX - 1)
 
 #endif	/* __LINUX_GENERIC_NETLINK_H */

@@ -171,7 +171,7 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		rdata->args.offset = page_offset(page) + rdata->args.pgbase;
 
 		dprintk("NFS: nfs_proc_read(%s, (%s/%Ld), %Lu, %u)\n",
-			NFS_SERVER(inode)->hostname,
+			NFS_SERVER(inode)->nfs_client->cl_hostname,
 			inode->i_sb->s_id,
 			(long long)NFS_FILEID(inode),
 			(unsigned long long)rdata->args.pgbase,
@@ -204,9 +204,11 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
 	spin_unlock(&inode->i_lock);
 
-	nfs_readpage_truncate_uninitialised_page(rdata);
-	if (rdata->res.eof || rdata->res.count == rdata->args.count)
+	if (rdata->res.eof || rdata->res.count == rdata->args.count) {
 		SetPageUptodate(page);
+		if (rdata->res.eof && count != 0)
+			memclear_highpage_flush(page, rdata->args.pgbase, count);
+	}
 	result = 0;
 
 io_error:
@@ -566,8 +568,13 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 
 	nfs_add_stats(data->inode, NFSIOS_SERVERREADBYTES, resp->count);
 
-	/* Is this a short read? */
-	if (task->tk_status >= 0 && resp->count < argp->count && !resp->eof) {
+	if (task->tk_status < 0) {
+		if (task->tk_status == -ESTALE) {
+			set_bit(NFS_INO_STALE, &NFS_FLAGS(data->inode));
+			nfs_mark_for_revalidate(data->inode);
+		}
+	} else if (resp->count < argp->count && !resp->eof) {
+		/* This is a short read! */
 		nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
 		/* Has the server at least made some progress? */
 		if (resp->count != 0) {
@@ -612,6 +619,10 @@ int nfs_readpage(struct file *file, struct page *page)
 	 */
 	error = nfs_wb_page(inode, page);
 	if (error)
+		goto out_error;
+
+	error = -ESTALE;
+	if (NFS_STALE(inode))
 		goto out_error;
 
 	if (file == NULL) {
@@ -676,13 +687,16 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	};
 	struct inode *inode = mapping->host;
 	struct nfs_server *server = NFS_SERVER(inode);
-	int ret;
+	int ret = -ESTALE;
 
 	dprintk("NFS: nfs_readpages (%s/%Ld %d)\n",
 			inode->i_sb->s_id,
 			(long long)NFS_FILEID(inode),
 			nr_pages);
 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
+
+	if (NFS_STALE(inode))
+		goto out;
 
 	if (filp == NULL) {
 		desc.ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
@@ -699,6 +713,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 			ret = err;
 	}
 	put_nfs_open_context(desc.ctx);
+out:
 	return ret;
 }
 

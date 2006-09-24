@@ -303,8 +303,7 @@ register_proc(void)
 static void
 unregister_proc(void)
 {
-	if (info_entry)
-		snd_info_unregister(info_entry);
+	snd_info_free_entry(info_entry);
 	info_entry = NULL;
 }
 #endif /* CONFIG_PROC_FS */

@@ -271,38 +271,15 @@ static inline int inet_iif(const struct sk_buff *skb)
 	return ((struct rtable *)skb->dst)->rt_iif;
 }
 
-extern struct sock *__inet_lookup_listener(const struct hlist_head *head,
+extern struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
 					   const u32 daddr,
 					   const unsigned short hnum,
 					   const int dif);
 
-/* Optimize the common listener case. */
-static inline struct sock *
-		inet_lookup_listener(struct inet_hashinfo *hashinfo,
-				     const u32 daddr,
-				     const unsigned short hnum, const int dif)
+static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
+						u32 daddr, u16 dport, int dif)
 {
-	struct sock *sk = NULL;
-	const struct hlist_head *head;
-
-	read_lock(&hashinfo->lhash_lock);
-	head = &hashinfo->listening_hash[inet_lhashfn(hnum)];
-	if (!hlist_empty(head)) {
-		const struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
-
-		if (inet->num == hnum && !sk->sk_node.next &&
-		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
-		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if)
-			goto sherry_cache;
-		sk = __inet_lookup_listener(head, daddr, hnum, dif);
-	}
-	if (sk) {
-sherry_cache:
-		sock_hold(sk);
-	}
-	read_unlock(&hashinfo->lhash_lock);
-	return sk;
+	return __inet_lookup_listener(hashinfo, daddr, ntohs(dport), dif);
 }
 
 /* Socket demux engine toys. */
@@ -391,14 +368,25 @@ hit:
 	goto out;
 }
 
+static inline struct sock *
+	inet_lookup_established(struct inet_hashinfo *hashinfo,
+				const u32 saddr, const u16 sport,
+				const u32 daddr, const u16 dport,
+				const int dif)
+{
+	return __inet_lookup_established(hashinfo, saddr, sport, daddr,
+					 ntohs(dport), dif);
+}
+
 static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
 					 const u32 saddr, const u16 sport,
-					 const u32 daddr, const u16 hnum,
+					 const u32 daddr, const u16 dport,
 					 const int dif)
 {
+	u16 hnum = ntohs(dport);
 	struct sock *sk = __inet_lookup_established(hashinfo, saddr, sport, daddr,
 						    hnum, dif);
-	return sk ? : inet_lookup_listener(hashinfo, daddr, hnum, dif);
+	return sk ? : __inet_lookup_listener(hashinfo, daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
@@ -409,7 +397,7 @@ static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __inet_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
+	sk = __inet_lookup(hashinfo, saddr, sport, daddr, dport, dif);
 	local_bh_enable();
 
 	return sk;

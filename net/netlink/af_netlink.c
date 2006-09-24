@@ -1147,7 +1147,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 	err = -ENOBUFS;
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = nlmsg_new(len, GFP_KERNEL);
 	if (skb==NULL)
 		goto out;
 
@@ -1341,19 +1341,18 @@ static int netlink_dump(struct sock *sk)
 	struct netlink_callback *cb;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	int len;
+	int len, err = -ENOBUFS;
 	
 	skb = sock_rmalloc(sk, NLMSG_GOODSIZE, 0, GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		goto errout;
 
 	spin_lock(&nlk->cb_lock);
 
 	cb = nlk->cb;
 	if (cb == NULL) {
-		spin_unlock(&nlk->cb_lock);
-		kfree_skb(skb);
-		return -EINVAL;
+		err = -EINVAL;
+		goto errout_skb;
 	}
 
 	len = cb->dump(skb, cb);
@@ -1365,8 +1364,12 @@ static int netlink_dump(struct sock *sk)
 		return 0;
 	}
 
-	nlh = NLMSG_NEW_ANSWER(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
-	memcpy(NLMSG_DATA(nlh), &len, sizeof(len));
+	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
+	if (!nlh)
+		goto errout_skb;
+
+	memcpy(nlmsg_data(nlh), &len, sizeof(len));
+
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
 
@@ -1378,8 +1381,11 @@ static int netlink_dump(struct sock *sk)
 	netlink_destroy_callback(cb);
 	return 0;
 
-nlmsg_failure:
-	return -ENOBUFS;
+errout_skb:
+	spin_unlock(&nlk->cb_lock);
+	kfree_skb(skb);
+errout:
+	return err;
 }
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -1431,11 +1437,11 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	int size;
 
 	if (err == 0)
-		size = NLMSG_SPACE(sizeof(struct nlmsgerr));
+		size = nlmsg_total_size(sizeof(*errmsg));
 	else
-		size = NLMSG_SPACE(4 + NLMSG_ALIGN(nlh->nlmsg_len));
+		size = nlmsg_total_size(sizeof(*errmsg) + nlmsg_len(nlh));
 
-	skb = alloc_skb(size, GFP_KERNEL);
+	skb = nlmsg_new(size, GFP_KERNEL);
 	if (!skb) {
 		struct sock *sk;
 
@@ -1451,16 +1457,15 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 
 	rep = __nlmsg_put(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
 			  NLMSG_ERROR, sizeof(struct nlmsgerr), 0);
-	errmsg = NLMSG_DATA(rep);
+	errmsg = nlmsg_data(rep);
 	errmsg->error = err;
-	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(struct nlmsghdr));
+	memcpy(&errmsg->msg, nlh, err ? nlh->nlmsg_len : sizeof(*nlh));
 	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
 }
 
 static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 						     struct nlmsghdr *, int *))
 {
-	unsigned int total_len;
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -1469,8 +1474,6 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 
 		if (nlh->nlmsg_len < NLMSG_HDRLEN || skb->len < nlh->nlmsg_len)
 			return 0;
-
-		total_len = min(NLMSG_ALIGN(nlh->nlmsg_len), skb->len);
 
 		if (cb(skb, nlh, &err) < 0) {
 			/* Not an error, but we have to interrupt processing
@@ -1483,7 +1486,7 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 		} else if (nlh->nlmsg_flags & NLM_F_ACK)
 			netlink_ack(skb, nlh, 0);
 
-		skb_pull(skb, total_len);
+		netlink_queue_skip(nlh, skb);
 	}
 
 	return 0;
@@ -1544,6 +1547,38 @@ void netlink_queue_skip(struct nlmsghdr *nlh, struct sk_buff *skb)
 		msglen = skb->len;
 
 	skb_pull(skb, msglen);
+}
+
+/**
+ * nlmsg_notify - send a notification netlink message
+ * @sk: netlink socket to use
+ * @skb: notification message
+ * @pid: destination netlink pid for reports or 0
+ * @group: destination multicast group or 0
+ * @report: 1 to report back, 0 to disable
+ * @flags: allocation flags
+ */
+int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 pid,
+		 unsigned int group, int report, gfp_t flags)
+{
+	int err = 0;
+
+	if (group) {
+		int exclude_pid = 0;
+
+		if (report) {
+			atomic_inc(&skb->users);
+			exclude_pid = pid;
+		}
+
+		/* errors reported via destination sk->sk_err */
+		nlmsg_multicast(sk, skb, exclude_pid, group, flags);
+	}
+
+	if (report)
+		err = nlmsg_unicast(sk, skb, pid);
+
+	return err;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -1727,8 +1762,6 @@ static struct net_proto_family netlink_family_ops = {
 	.owner	= THIS_MODULE,	/* for consistency 8) */
 };
 
-extern void netlink_skb_parms_too_large(void);
-
 static int __init netlink_proto_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -1740,8 +1773,7 @@ static int __init netlink_proto_init(void)
 	if (err != 0)
 		goto out;
 
-	if (sizeof(struct netlink_skb_parms) > sizeof(dummy_skb->cb))
-		netlink_skb_parms_too_large();
+	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > sizeof(dummy_skb->cb));
 
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
 	if (!nl_table)
@@ -1799,4 +1831,4 @@ EXPORT_SYMBOL(netlink_set_err);
 EXPORT_SYMBOL(netlink_set_nonroot);
 EXPORT_SYMBOL(netlink_unicast);
 EXPORT_SYMBOL(netlink_unregister_notifier);
-
+EXPORT_SYMBOL(nlmsg_notify);

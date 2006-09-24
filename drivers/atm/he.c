@@ -1912,7 +1912,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 				skb->tail = skb->data + skb->len;
 #ifdef USE_CHECKSUM_HW
 				if (vcc->vpi == 0 && vcc->vci >= ATM_NOT_RSV_VCI) {
-					skb->ip_summed = CHECKSUM_HW;
+					skb->ip_summed = CHECKSUM_COMPLETE;
 					skb->csum = TCP_CKSUM(skb->data,
 							he_vcc->pdu_len);
 				}
@@ -1928,7 +1928,9 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 #ifdef notdef
 		ATM_SKB(skb)->vcc = vcc;
 #endif
+		spin_unlock(&he_dev->global_lock);
 		vcc->push(vcc, skb);
+		spin_lock(&he_dev->global_lock);
 
 		atomic_inc(&vcc->stats->rx);
 

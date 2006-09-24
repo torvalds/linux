@@ -1230,7 +1230,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 	rp->tx_skbuff[entry] = skb;
 
 	if ((rp->quirks & rqRhineI) &&
-	    (((unsigned long)skb->data & 3) || skb_shinfo(skb)->nr_frags != 0 || skb->ip_summed == CHECKSUM_HW)) {
+	    (((unsigned long)skb->data & 3) || skb_shinfo(skb)->nr_frags != 0 || skb->ip_summed == CHECKSUM_PARTIAL)) {
 		/* Must use alignment buffer. */
 		if (skb->len > PKT_BUF_SZ) {
 			/* packet too long, drop it */

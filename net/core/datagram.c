@@ -417,7 +417,7 @@ unsigned int __skb_checksum_complete(struct sk_buff *skb)
 
 	sum = (u16)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
 	if (likely(!sum)) {
-		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
@@ -462,7 +462,7 @@ int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 			goto fault;
 		if ((unsigned short)csum_fold(csum))
 			goto csum_error;
-		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE))
 			netdev_rx_csum_fault(skb->dev);
 		iov->iov_len -= chunk;
 		iov->iov_base += chunk;
