@@ -898,7 +898,6 @@ headers_install: include/linux/version.h
 	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
 	  exit 1 ; fi
 	$(Q)unifdef -Ux /dev/null
-	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
 
 PHONY += headers_check
