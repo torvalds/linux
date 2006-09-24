@@ -2,7 +2,7 @@
     w83627ehf - Driver for the hardware monitoring functionality of
                 the Winbond W83627EHF Super-I/O chip
     Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
-    Copyright (C) 2006  Yuan Mu <Ymu@Winbond.com.tw>,
+    Copyright (C) 2006  Yuan Mu (Winbond),
                         Rudolf Marek <r.marek@sh.cvut.cz>
                         David Hubbard <david.c.hubbard@gmail.com>
 
