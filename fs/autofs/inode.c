@@ -16,6 +16,7 @@
 #include <linux/file.h>
 #include <linux/parser.h>
 #include <linux/bitops.h>
+#include <linux/magic.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 

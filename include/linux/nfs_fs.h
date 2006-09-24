@@ -9,6 +9,8 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
+#include <linux/magic.h>
+
 /*
  * Enable debugging support for nfs client.
  * Requires RPC_DEBUG.
@@ -20,11 +22,6 @@
 /* Default timeout values */
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
-
-/*
- * superblock magic number for NFS
- */
-#define NFS_SUPER_MAGIC			0x6969
 
 /*
  * When flushing a cluster of dirty pages, there can be different

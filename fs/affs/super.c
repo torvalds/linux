@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/statfs.h>
 #include <linux/parser.h>
+#include <linux/magic.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;

@@ -11,6 +11,7 @@
 #include <linux/parser.h>
 #include <linux/init.h>
 #include <linux/statfs.h>
+#include <linux/magic.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 

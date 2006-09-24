@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/types.h>
+#include <linux/magic.h>
 
 #include <linux/ipx.h>
 #include <linux/ncp_no.h>
@@ -184,10 +185,6 @@ struct ncp_entry_info {
 	unsigned int		volume;
 	__u8			file_handle[6];
 };
-
-/* Guess, what 0x564c is :-) */
-#define NCP_SUPER_MAGIC  0x564c
-
 
 static inline struct ncp_server *NCP_SBP(struct super_block *sb)
 {
