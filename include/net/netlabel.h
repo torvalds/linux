@@ -108,7 +108,7 @@
  */
 static inline struct sk_buff *netlbl_netlink_alloc_skb(size_t head,
 						       size_t body,
-						       int gfp_flags)
+						       gfp_t gfp_flags)
 {
 	struct sk_buff *skb;
 
