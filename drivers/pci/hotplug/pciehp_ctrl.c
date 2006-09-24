@@ -797,8 +797,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	}
 
-	if (p_slot)
-		update_slot_info(p_slot);
+	update_slot_info(p_slot);
 
 	mutex_unlock(&p_slot->ctrl->crit_sect);
 	return rc;
