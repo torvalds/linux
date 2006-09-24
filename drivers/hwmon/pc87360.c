@@ -1018,60 +1018,69 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 		pc87360_init_client(client, use_thermistors);
 	}
 
-	/* Register sysfs hooks */
+	/* Register all-or-nothing sysfs groups */
+
+	if (data->innr &&
+	    (err = sysfs_create_group(&client->dev.kobj,
+				      &pc8736x_vin_group)))
+		goto ERROR3;
+
+	if (data->innr == 14 &&
+	    (err = sysfs_create_group(&client->dev.kobj,
+				      &pc8736x_therm_group)))
+		goto ERROR3;
+
+	/* create device attr-files for varying sysfs groups */
+
+	if (data->tempnr) {
+		for (i = 0; i < data->tempnr; i++) {
+			if ((err = device_create_file(dev,
+					&temp_input[i].dev_attr))
+			    || (err = device_create_file(dev,
+					&temp_min[i].dev_attr))
+			    || (err = device_create_file(dev,
+					&temp_max[i].dev_attr))
+			    || (err = device_create_file(dev,
+					&temp_crit[i].dev_attr))
+			    || (err = device_create_file(dev,
+					&temp_status[i].dev_attr)))
+				goto ERROR3;
+		}
+		if ((err = device_create_file(dev, &dev_attr_alarms_temp)))
+			goto ERROR3;
+	}
+
+	for (i = 0; i < data->fannr; i++) {
+		if (FAN_CONFIG_MONITOR(data->fan_conf, i)
+		    && ((err = device_create_file(dev,
+					&fan_input[i].dev_attr))
+			|| (err = device_create_file(dev,
+					&fan_min[i].dev_attr))
+			|| (err = device_create_file(dev,
+					&fan_div[i].dev_attr))
+			|| (err = device_create_file(dev,
+					&fan_status[i].dev_attr))))
+			goto ERROR3;
+
+		if (FAN_CONFIG_CONTROL(data->fan_conf, i)
+		    && (err = device_create_file(dev, &pwm[i].dev_attr)))
+			goto ERROR3;
+	}
+
 	data->class_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
 		goto ERROR3;
 	}
-
-	if (data->innr) {
-		for (i = 0; i < 11; i++) {
-			device_create_file(dev, &in_input[i].dev_attr);
-			device_create_file(dev, &in_min[i].dev_attr);
-			device_create_file(dev, &in_max[i].dev_attr);
-			device_create_file(dev, &in_status[i].dev_attr);
-		}
-		device_create_file(dev, &dev_attr_cpu0_vid);
-		device_create_file(dev, &dev_attr_vrm);
-		device_create_file(dev, &dev_attr_alarms_in);
-	}
-
-	if (data->tempnr) {
-		for (i = 0; i < data->tempnr; i++) {
-			device_create_file(dev, &temp_input[i].dev_attr);
-			device_create_file(dev, &temp_min[i].dev_attr);
-			device_create_file(dev, &temp_max[i].dev_attr);
-			device_create_file(dev, &temp_crit[i].dev_attr);
-			device_create_file(dev, &temp_status[i].dev_attr);
-		}
-		device_create_file(dev, &dev_attr_alarms_temp);
-	}
-
-	if (data->innr == 14) {
-		for (i = 0; i < 3; i++) {
-			device_create_file(dev, &therm_input[i].dev_attr);
-			device_create_file(dev, &therm_min[i].dev_attr);
-			device_create_file(dev, &therm_max[i].dev_attr);
-			device_create_file(dev, &therm_crit[i].dev_attr);
-			device_create_file(dev, &therm_status[i].dev_attr);
-		}
-	}
-
-	for (i = 0; i < data->fannr; i++) {
-		if (FAN_CONFIG_MONITOR(data->fan_conf, i)) {
-			device_create_file(dev, &fan_input[i].dev_attr);
-			device_create_file(dev, &fan_min[i].dev_attr);
-			device_create_file(dev, &fan_div[i].dev_attr);
-			device_create_file(dev, &fan_status[i].dev_attr);
-		}
-		if (FAN_CONFIG_CONTROL(data->fan_conf, i))
-			device_create_file(dev, &pwm[i].dev_attr);
-	}
-
 	return 0;
 
 ERROR3:
+	/* can still remove groups whose members were added individually */
+	sysfs_remove_group(&client->dev.kobj, &pc8736x_temp_group);
+	sysfs_remove_group(&client->dev.kobj, &pc8736x_fan_group);
+	sysfs_remove_group(&client->dev.kobj, &pc8736x_therm_group);
+	sysfs_remove_group(&client->dev.kobj, &pc8736x_vin_group);
+
 	i2c_detach_client(client);
 ERROR2:
 	for (i = 0; i < 3; i++) {
