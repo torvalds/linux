@@ -275,19 +275,6 @@ zfcp_ccw_register(void)
 }
 
 /**
- * zfcp_ccw_unregister - ccw unregister function
- *
- * Unregisters the driver from common i/o layer. Function will be called at
- * module unload/system shutdown.
- */
-void __exit
-zfcp_ccw_unregister(void)
-{
-	zfcp_sysfs_driver_remove_files(&zfcp_ccw_driver.driver);
-	ccw_driver_unregister(&zfcp_ccw_driver);
-}
-
-/**
  * zfcp_ccw_shutdown - gets called on reboot/shutdown
  *
  * Makes sure that QDIO queues are down when the system gets stopped.

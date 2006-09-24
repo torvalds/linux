@@ -77,6 +77,24 @@ get_sas_##title##_names(u32 table_key, char *buf)		\
 	return len;						\
 }
 
+#define sas_bitfield_name_set(title, table)			\
+static ssize_t							\
+set_sas_##title##_names(u32 *table_key, const char *buf)	\
+{								\
+	ssize_t len = 0;					\
+	int i;							\
+								\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
+		len = strlen(table[i].name);			\
+		if (strncmp(buf, table[i].name, len) == 0 &&	\
+		    (buf[len] == '\n' || buf[len] == '\0')) {	\
+			*table_key = table[i].value;		\
+			return 0;				\
+		}						\
+	}							\
+	return -EINVAL;						\
+}
+
 #define sas_bitfield_name_search(title, table)			\
 static ssize_t							\
 get_sas_##title##_names(u32 table_key, char *buf)		\
@@ -131,7 +149,7 @@ static struct {
 	{ SAS_LINK_RATE_6_0_GBPS,	"6.0 Gbit" },
 };
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
-
+sas_bitfield_name_set(linkspeed, sas_linkspeed_names)
 
 /*
  * SAS host attributes
@@ -253,9 +271,38 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	return get_sas_linkspeed_names(phy->field, buf);		\
 }
 
+/* Fudge to tell if we're minimum or maximum */
+#define sas_phy_store_linkspeed(field)					\
+static ssize_t								\
+store_sas_phy_##field(struct class_device *cdev, const char *buf,	\
+		      size_t count)					\
+{									\
+	struct sas_phy *phy = transport_class_to_phy(cdev);		\
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);	\
+	struct sas_internal *i = to_sas_internal(shost->transportt);	\
+	u32 value;							\
+	struct sas_phy_linkrates rates = {0};				\
+	int error;							\
+									\
+	error = set_sas_linkspeed_names(&value, buf);			\
+	if (error)							\
+		return error;						\
+	rates.field = value;						\
+	error = i->f->set_phy_speed(phy, &rates);			\
+									\
+	return error ? error : count;					\
+}
+
+#define sas_phy_linkspeed_rw_attr(field)				\
+	sas_phy_show_linkspeed(field)					\
+	sas_phy_store_linkspeed(field)					\
+static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field,		\
+	store_sas_phy_##field)
+
 #define sas_phy_linkspeed_attr(field)					\
 	sas_phy_show_linkspeed(field)					\
 static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field, NULL)
+
 
 #define sas_phy_show_linkerror(field)					\
 static ssize_t								\
@@ -265,9 +312,6 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);	\
 	struct sas_internal *i = to_sas_internal(shost->transportt);	\
 	int error;							\
-									\
-	if (!phy->local_attached)					\
-		return -EINVAL;						\
 									\
 	error = i->f->get_linkerrors ? i->f->get_linkerrors(phy) : 0;	\
 	if (error)							\
@@ -299,9 +343,6 @@ static ssize_t do_sas_phy_reset(struct class_device *cdev,
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int error;
 
-	if (!phy->local_attached)
-		return -EINVAL;
-
 	error = i->f->phy_reset(phy, hard_reset);
 	if (error)
 		return error;
@@ -332,9 +373,9 @@ sas_phy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
 //sas_phy_simple_attr(port_identifier, port_identifier, "%d\n", int);
 sas_phy_linkspeed_attr(negotiated_linkrate);
 sas_phy_linkspeed_attr(minimum_linkrate_hw);
-sas_phy_linkspeed_attr(minimum_linkrate);
+sas_phy_linkspeed_rw_attr(minimum_linkrate);
 sas_phy_linkspeed_attr(maximum_linkrate_hw);
-sas_phy_linkspeed_attr(maximum_linkrate);
+sas_phy_linkspeed_rw_attr(maximum_linkrate);
 sas_phy_linkerror_attr(invalid_dword_count);
 sas_phy_linkerror_attr(running_disparity_error_count);
 sas_phy_linkerror_attr(loss_of_dword_sync_count);
@@ -849,7 +890,7 @@ show_sas_rphy_enclosure_identifier(struct class_device *cdev, char *buf)
 	 * Only devices behind an expander are supported, because the
 	 * enclosure identifier is a SMP feature.
 	 */
-	if (phy->local_attached)
+	if (scsi_is_sas_phy_local(phy))
 		return -EINVAL;
 
 	error = i->f->get_enclosure_identifier(rphy, &identifier);
@@ -870,7 +911,7 @@ show_sas_rphy_bay_identifier(struct class_device *cdev, char *buf)
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 	int val;
 
-	if (phy->local_attached)
+	if (scsi_is_sas_phy_local(phy))
 		return -EINVAL;
 
 	val = i->f->get_bay_identifier(rphy);
@@ -1316,13 +1357,23 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
  * Setup / Teardown code
  */
 
-#define SETUP_TEMPLATE(attrb, field, perm, test)				\
+#define SETUP_TEMPLATE(attrb, field, perm, test)			\
 	i->private_##attrb[count] = class_device_attr_##field;		\
 	i->private_##attrb[count].attr.mode = perm;			\
 	i->attrb[count] = &i->private_##attrb[count];			\
 	if (test)							\
 		count++
 
+#define SETUP_TEMPLATE_RW(attrb, field, perm, test, ro_test, ro_perm)	\
+	i->private_##attrb[count] = class_device_attr_##field;		\
+	i->private_##attrb[count].attr.mode = perm;			\
+	if (ro_test) {							\
+		i->private_##attrb[count].attr.mode = ro_perm;		\
+		i->private_##attrb[count].store = NULL;			\
+	}								\
+	i->attrb[count] = &i->private_##attrb[count];			\
+	if (test)							\
+		count++
 
 #define SETUP_RPORT_ATTRIBUTE(field) 					\
 	SETUP_TEMPLATE(rphy_attrs, field, S_IRUGO, 1)
@@ -1332,6 +1383,10 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 
 #define SETUP_PHY_ATTRIBUTE(field)					\
 	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, 1)
+
+#define SETUP_PHY_ATTRIBUTE_RW(field)					\
+	SETUP_TEMPLATE_RW(phy_attrs, field, S_IRUGO | S_IWUSR, 1,	\
+			!i->f->set_phy_speed, S_IRUGO)
 
 #define SETUP_PORT_ATTRIBUTE(field)					\
 	SETUP_TEMPLATE(port_attrs, field, S_IRUGO, 1)
@@ -1413,9 +1468,9 @@ sas_attach_transport(struct sas_function_template *ft)
 	//SETUP_PHY_ATTRIBUTE(port_identifier);
 	SETUP_PHY_ATTRIBUTE(negotiated_linkrate);
 	SETUP_PHY_ATTRIBUTE(minimum_linkrate_hw);
-	SETUP_PHY_ATTRIBUTE(minimum_linkrate);
+	SETUP_PHY_ATTRIBUTE_RW(minimum_linkrate);
 	SETUP_PHY_ATTRIBUTE(maximum_linkrate_hw);
-	SETUP_PHY_ATTRIBUTE(maximum_linkrate);
+	SETUP_PHY_ATTRIBUTE_RW(maximum_linkrate);
 
 	SETUP_PHY_ATTRIBUTE(invalid_dword_count);
 	SETUP_PHY_ATTRIBUTE(running_disparity_error_count);

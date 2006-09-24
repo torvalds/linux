@@ -262,7 +262,6 @@ struct iscsi_iser_conn {
 struct iscsi_iser_cmd_task {
 	struct iser_desc             desc;
 	struct iscsi_iser_conn	     *iser_conn;
-	int			     rdma_data_count;/* RDMA bytes           */
 	enum iser_task_status 	     status;
 	int                          command_sent;  /* set if command  sent  */
 	int                          dir[ISER_DIRS_NUM];      /* set if dir use*/

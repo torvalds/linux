@@ -19,7 +19,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  */ 
 
-
 #ifndef ZFCP_DEF_H
 #define ZFCP_DEF_H
 
@@ -32,6 +31,10 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
+#include <linux/mempool.h>
+#include <linux/syscalls.h>
+#include <linux/ioctl.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_cmnd.h>
@@ -39,14 +42,11 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
-#include "zfcp_fsf.h"
 #include <asm/ccwdev.h>
 #include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
-#include <linux/mempool.h>
-#include <linux/syscalls.h>
-#include <linux/ioctl.h>
+#include "zfcp_fsf.h"
 
 
 /********************* GENERAL DEFINES *********************************/
@@ -137,7 +137,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */
-#define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
+#define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ)
 
 /*************** FIBRE CHANNEL PROTOCOL SPECIFIC DEFINES ********************/
 
@@ -779,7 +779,6 @@ typedef void (*zfcp_send_ct_handler_t)(unsigned long);
  * @handler_data: data passed to handler function
  * @pool: pointer to memory pool for ct request structure
  * @timeout: FSF timeout for this request
- * @timer: timer (e.g. for request initiated by erp)
  * @completion: completion for synchronization purposes
  * @status: used to pass error status to calling function
  */
@@ -793,7 +792,6 @@ struct zfcp_send_ct {
 	unsigned long handler_data;
 	mempool_t *pool;
 	int timeout;
-	struct timer_list *timer;
 	struct completion *completion;
 	int status;
 };
@@ -821,7 +819,6 @@ typedef void (*zfcp_send_els_handler_t)(unsigned long);
  * @resp_count: number of elements in response scatter-gather list
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
- * @timer: timer (e.g. for request initiated by erp)
  * @completion: completion for synchronization purposes
  * @ls_code: hex code of ELS command
  * @status: used to pass error status to calling function
@@ -836,7 +833,6 @@ struct zfcp_send_els {
 	unsigned int resp_count;
 	zfcp_send_els_handler_t handler;
 	unsigned long handler_data;
-	struct timer_list *timer;
 	struct completion *completion;
 	int ls_code;
 	int status;
@@ -886,7 +882,6 @@ struct zfcp_adapter {
 	struct list_head        port_remove_lh;    /* head of ports to be
 						      removed */
 	u32			ports;	           /* number of remote ports */
-	struct timer_list	scsi_er_timer;     /* SCSI err recovery watch */
 	atomic_t		reqs_active;	   /* # active FSF reqs */
 	unsigned long		req_no;		   /* unique FSF req number */
 	struct list_head	*req_list;	   /* list of pending reqs */
@@ -1003,6 +998,7 @@ struct zfcp_fsf_req {
 	struct fsf_qtcb	       *qtcb;	       /* address of associated QTCB */
 	u32		       seq_no;         /* Sequence number of request */
         unsigned long          data;           /* private data of request */ 
+	struct timer_list      timer;	       /* used for erp or scsi er */
 	struct zfcp_erp_action *erp_action;    /* used if this request is
 						  issued on behalf of erp */
 	mempool_t	       *pool;	       /* used if request was alloacted
@@ -1016,6 +1012,7 @@ typedef void zfcp_fsf_req_handler_t(struct zfcp_fsf_req*);
 /* driver data */
 struct zfcp_data {
 	struct scsi_host_template scsi_host_template;
+	struct scsi_transport_template *scsi_transport_template;
         atomic_t                status;             /* Module status flags */
 	struct list_head	adapter_list_head;  /* head of adapter list */
 	struct list_head	adapter_remove_lh;  /* head of adapters to be
@@ -1031,6 +1028,9 @@ struct zfcp_data {
 	wwn_t                   init_wwpn;
 	fcp_lun_t               init_fcp_lun;
 	char 			*driver_version;
+	kmem_cache_t		*fsf_req_qtcb_cache;
+	kmem_cache_t		*sr_buffer_cache;
+	kmem_cache_t		*gid_pn_cache;
 };
 
 /**
@@ -1051,7 +1051,7 @@ struct zfcp_sg_list {
 #define ZFCP_POOL_DATA_GID_PN_NR	1
 
 /* struct used by memory pools for fsf_requests */
-struct zfcp_fsf_req_pool_element {
+struct zfcp_fsf_req_qtcb {
 	struct zfcp_fsf_req fsf_req;
 	struct fsf_qtcb qtcb;
 };

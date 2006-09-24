@@ -852,6 +852,10 @@ static int mptsas_get_linkerrors(struct sas_phy *phy)
 	dma_addr_t dma_handle;
 	int error;
 
+	/* FIXME: only have link errors on local phys */
+	if (!scsi_is_sas_phy_local(phy))
+		return -EINVAL;
+
 	hdr.PageVersion = MPI_SASPHY1_PAGEVERSION;
 	hdr.ExtPageLength = 0;
 	hdr.PageNumber = 1 /* page number 1*/;
@@ -923,6 +927,10 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	MPIHeader_t *hdr;
 	unsigned long timeleft;
 	int error = -ERESTARTSYS;
+
+	/* FIXME: fusion doesn't allow non-local phy reset */
+	if (!scsi_is_sas_phy_local(phy))
+		return -EINVAL;
 
 	/* not implemented for expanders */
 	if (phy->identify.target_port_protocols & SAS_PROTOCOL_SMP)
@@ -1570,9 +1578,6 @@ static int mptsas_probe_one_phy(struct device *dev,
 
 	if (!phy_info->phy) {
 
-		if (local)
-			phy->local_attached = 1;
-
 		error = sas_phy_add(phy);
 		if (error) {
 			sas_phy_free(phy);
@@ -1642,14 +1647,18 @@ static int mptsas_probe_one_phy(struct device *dev,
 
 			for (i = 0; i < port_info->num_phys; i++)
 				if (port_info->phy_info[i].identify.sas_address ==
-				    identify.sas_address)
+				    identify.sas_address) {
+					sas_port_mark_backlink(port);
 					goto out;
+				}
 
 		} else if (scsi_is_sas_rphy(parent)) {
 			struct sas_rphy *parent_rphy = dev_to_rphy(parent);
 			if (identify.sas_address ==
-			    parent_rphy->identify.sas_address)
+			    parent_rphy->identify.sas_address) {
+				sas_port_mark_backlink(port);
 				goto out;
+			}
 		}
 
 		switch (identify.device_type) {

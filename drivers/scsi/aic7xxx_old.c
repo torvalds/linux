@@ -249,8 +249,6 @@
 #include <linux/stat.h>
 #include <linux/slab.h>        /* for kmalloc() */
 
-#include <linux/config.h>        /* for CONFIG_PCI */
-
 #define AIC7XXX_C_VERSION  "5.2.6"
 
 #define ALL_TARGETS -1
@@ -9196,7 +9194,7 @@ aic7xxx_detect(struct scsi_host_template *template)
     for (i = 0; i < ARRAY_SIZE(aic_pdevs); i++)
     {
       pdev = NULL;
-      while ((pdev = pci_find_device(aic_pdevs[i].vendor_id,
+      while ((pdev = pci_get_device(aic_pdevs[i].vendor_id,
                                      aic_pdevs[i].device_id,
                                      pdev))) {
 	if (pci_enable_device(pdev))
@@ -9652,6 +9650,9 @@ aic7xxx_detect(struct scsi_host_template *template)
            * tweaks so it can back out bad settings on specific broken cards.
            */
           aic7xxx_configure_bugs(temp_p);
+
+          /* Hold a pci device reference */
+          pci_dev_get(temp_p->pdev);
 
           if ( list_p == NULL )
           {
@@ -10989,8 +10990,10 @@ aic7xxx_release(struct Scsi_Host *host)
   if(!p->pdev)
     release_region(p->base, MAXREG - MINREG);
 #ifdef CONFIG_PCI
-  else
+  else {
     pci_release_regions(p->pdev);
+    pci_dev_put(p->pdev);
+  }
 #endif
   prev = NULL;
   next = first_aic7xxx;

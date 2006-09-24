@@ -20,8 +20,6 @@
 #ifndef _SCSI_H
 #define _SCSI_H
 
-#include <linux/config.h>	    /* for CONFIG_SCSI_LOGGING */
-
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
