@@ -669,7 +669,7 @@ static s32 *dbri_cmdlock(struct snd_dbri * dbri, int len)
 	else
 		printk(KERN_ERR "DBRI: no space for commands.");
 
-	return 0;
+	return NULL;
 }
 
 /*
@@ -2037,10 +2037,10 @@ static int snd_dbri_open(struct snd_pcm_substream *substream)
 	spin_unlock_irqrestore(&dbri->lock, flags);
 
 	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_CHANNELS,
-			    snd_hw_rule_format, 0, SNDRV_PCM_HW_PARAM_FORMAT,
+			    snd_hw_rule_format, NULL, SNDRV_PCM_HW_PARAM_FORMAT,
 			    -1);
 	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_FORMAT,
-			    snd_hw_rule_channels, 0, 
+			    snd_hw_rule_channels, NULL, 
 			    SNDRV_PCM_HW_PARAM_CHANNELS,
 			    -1);
 				

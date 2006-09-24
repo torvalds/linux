@@ -677,7 +677,7 @@ static int __devinit snd_mts64_ctl_create(struct snd_card *card,
 		&mts64_ctl_smpte_time_seconds,
 		&mts64_ctl_smpte_time_frames,
 		&mts64_ctl_smpte_fps,
-	        0  };
+	        NULL  };
 
 	for (i = 0; control[i]; ++i) {
 		err = snd_ctl_add(card, snd_ctl_new1(control[i], mts));
