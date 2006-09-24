@@ -345,7 +345,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	struct usb_ctrlrequest *cmd;
  	u16		typeReq, wValue, wIndex, wLength;
 	u8		*ubuf = urb->transfer_buffer;
-	u8		tbuf [sizeof (struct usb_hub_descriptor)];
+	u8		tbuf [sizeof (struct usb_hub_descriptor)]
+		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
 	int		len = 0;
 	int		patch_wakeup = 0;
