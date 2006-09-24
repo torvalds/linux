@@ -892,6 +892,15 @@ depend dep:
 INSTALL_HDR_PATH=$(objtree)/usr
 export INSTALL_HDR_PATH
 
+HDRARCHES=$(filter-out generic,$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
+
+PHONY += headers_install_all
+headers_install_all: include/linux/version.h
+	$(Q)unifdef -Ux /dev/null
+	$(Q)for arch in $(HDRARCHES); do \
+	 $(MAKE) ARCH=$$arch -rR -f $(srctree)/scripts/Makefile.headersinst obj=include BIASMDIR=-bi-$$arch ;\
+	 done
+
 PHONY += headers_install
 headers_install: include/linux/version.h
 	@if [ ! -r include/asm-$(ARCH)/Kbuild ]; then \
