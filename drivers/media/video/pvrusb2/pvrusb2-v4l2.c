@@ -671,6 +671,20 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		break;
 	}
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_INT_S_REGISTER:
+	{
+		u32 val;
+		struct v4l2_register *req = (struct v4l2_register *)arg;
+		if (cmd == VIDIOC_INT_S_REGISTER) val = req->val;
+		ret = pvr2_hdw_register_access(
+			hdw,req->i2c_id,req->reg,
+			cmd == VIDIOC_INT_S_REGISTER,&val);
+		if (cmd == 0) req->val = val;
+		break;
+	}
+#endif
 
 	default :
 		ret = v4l_compat_translate_ioctl(inode,file,cmd,

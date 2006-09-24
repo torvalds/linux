@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <asm/semaphore.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
@@ -3128,6 +3129,37 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 		result = hdw->cmd_buffer[0];
 	} while(0); LOCK_GIVE(hdw->ctl_lock);
 	return result;
+}
+
+
+int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
+			     u32 chip_id,unsigned long reg_id,
+			     int setFl,u32 *val_ptr)
+{
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	struct list_head *item;
+	struct pvr2_i2c_client *cp;
+	struct v4l2_register req;
+	int stat;
+
+	req.i2c_id = chip_id;
+	req.reg = reg_id;
+	if (setFl) req.val = *val_ptr;
+	mutex_lock(&hdw->i2c_list_lock); do {
+		list_for_each(item,&hdw->i2c_clients) {
+			cp = list_entry(item,struct pvr2_i2c_client,list);
+			if (cp->client->driver->id != chip_id) continue;
+			stat = pvr2_i2c_client_cmd(
+				cp,(setFl ? VIDIOC_INT_S_REGISTER :
+				    VIDIOC_INT_G_REGISTER),&req);
+			if (!setFl) *val_ptr = req.val;
+			return stat;
+		}
+	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+	return -EINVAL;
+#else
+	return -ENOSYS;
+#endif
 }
 
 
