@@ -80,6 +80,8 @@ static int tune_pci = 0;
 module_param(tune_pci, int, 0444);
 MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if nonzero");
 
+struct mutex mthca_device_mutex;
+
 static const char mthca_version[] __devinitdata =
 	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -978,27 +980,14 @@ static struct {
 					MTHCA_FLAG_SINAI_OPT }
 };
 
-static int __devinit mthca_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *id)
+static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 {
-	static int mthca_version_printed = 0;
 	int ddr_hidden = 0;
 	int err;
 	struct mthca_dev *mdev;
 
-	if (!mthca_version_printed) {
-		printk(KERN_INFO "%s", mthca_version);
-		++mthca_version_printed;
-	}
-
 	printk(KERN_INFO PFX "Initializing %s\n",
 	       pci_name(pdev));
-
-	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
-		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",
-		       pci_name(pdev), id->driver_data);
-		return -ENODEV;
-	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1065,7 +1054,7 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 
 	mdev->pdev = pdev;
 
-	mdev->mthca_flags = mthca_hca_table[id->driver_data].flags;
+	mdev->mthca_flags = mthca_hca_table[hca_type].flags;
 	if (ddr_hidden)
 		mdev->mthca_flags |= MTHCA_FLAG_DDR_HIDDEN;
 
@@ -1099,13 +1088,13 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	if (err)
 		goto err_cmd;
 
-	if (mdev->fw_ver < mthca_hca_table[id->driver_data].latest_fw) {
+	if (mdev->fw_ver < mthca_hca_table[hca_type].latest_fw) {
 		mthca_warn(mdev, "HCA FW version %d.%d.%d is old (%d.%d.%d is current).\n",
 			   (int) (mdev->fw_ver >> 32), (int) (mdev->fw_ver >> 16) & 0xffff,
 			   (int) (mdev->fw_ver & 0xffff),
-			   (int) (mthca_hca_table[id->driver_data].latest_fw >> 32),
-			   (int) (mthca_hca_table[id->driver_data].latest_fw >> 16) & 0xffff,
-			   (int) (mthca_hca_table[id->driver_data].latest_fw & 0xffff));
+			   (int) (mthca_hca_table[hca_type].latest_fw >> 32),
+			   (int) (mthca_hca_table[hca_type].latest_fw >> 16) & 0xffff,
+			   (int) (mthca_hca_table[hca_type].latest_fw & 0xffff));
 		mthca_warn(mdev, "If you have problems, try updating your HCA FW.\n");
 	}
 
@@ -1122,6 +1111,7 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 		goto err_unregister;
 
 	pci_set_drvdata(pdev, mdev);
+	mdev->hca_type = hca_type;
 
 	return 0;
 
@@ -1166,7 +1156,7 @@ err_disable_pdev:
 	return err;
 }
 
-static void __devexit mthca_remove_one(struct pci_dev *pdev)
+static void __mthca_remove_one(struct pci_dev *pdev)
 {
 	struct mthca_dev *mdev = pci_get_drvdata(pdev);
 	u8 status;
@@ -1211,6 +1201,51 @@ static void __devexit mthca_remove_one(struct pci_dev *pdev)
 	}
 }
 
+int __mthca_restart_one(struct pci_dev *pdev)
+{
+	struct mthca_dev *mdev;
+
+	mdev = pci_get_drvdata(pdev);
+	if (!mdev)
+		return -ENODEV;
+	__mthca_remove_one(pdev);
+	return __mthca_init_one(pdev, mdev->hca_type);
+}
+
+static int __devinit mthca_init_one(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
+{
+	static int mthca_version_printed = 0;
+	int ret;
+
+	mutex_lock(&mthca_device_mutex);
+
+	if (!mthca_version_printed) {
+		printk(KERN_INFO "%s", mthca_version);
+		++mthca_version_printed;
+	}
+
+	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
+		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",
+		       pci_name(pdev), id->driver_data);
+		mutex_unlock(&mthca_device_mutex);
+		return -ENODEV;
+	}
+
+	ret = __mthca_init_one(pdev, id->driver_data);
+
+	mutex_unlock(&mthca_device_mutex);
+
+	return ret;
+}
+
+static void __devexit mthca_remove_one(struct pci_dev *pdev)
+{
+	mutex_lock(&mthca_device_mutex);
+	__mthca_remove_one(pdev);
+	mutex_unlock(&mthca_device_mutex);
+}
+
 static struct pci_device_id mthca_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MELLANOX, PCI_DEVICE_ID_MELLANOX_TAVOR),
 	  .driver_data = TAVOR },
@@ -1248,13 +1283,24 @@ static int __init mthca_init(void)
 {
 	int ret;
 
+	mutex_init(&mthca_device_mutex);
+	ret = mthca_catas_init();
+	if (ret)
+		return ret;
+
 	ret = pci_register_driver(&mthca_driver);
-	return ret < 0 ? ret : 0;
+	if (ret < 0) {
+		mthca_catas_cleanup();
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __exit mthca_cleanup(void)
 {
 	pci_unregister_driver(&mthca_driver);
+	mthca_catas_cleanup();
 }
 
 module_init(mthca_init);

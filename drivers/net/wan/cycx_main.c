@@ -40,7 +40,6 @@
 * 1998/08/08	acme		Initial version.
 */
 
-#include <linux/config.h>	/* OS configuration options */
 #include <linux/stddef.h>	/* offsetof(), etc. */
 #include <linux/errno.h>	/* return codes */
 #include <linux/string.h>	/* inline memset(), etc. */

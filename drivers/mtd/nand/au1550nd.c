@@ -21,18 +21,7 @@
 #include <linux/version.h>
 #include <asm/io.h>
 
-/* fixme: this is ugly */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 0)
 #include <asm/mach-au1x00/au1xxx.h>
-#else
-#include <asm/au1000.h>
-#ifdef CONFIG_MIPS_PB1550
-#include <asm/pb1550.h>
-#endif
-#ifdef CONFIG_MIPS_DB1550
-#include <asm/db1x00.h>
-#endif
-#endif
 
 /*
  * MTD structure for NAND controller

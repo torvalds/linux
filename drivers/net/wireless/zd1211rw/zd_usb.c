@@ -16,6 +16,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -39,9 +40,19 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x6891, 0xa727), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x0df6, 0x9071), .driver_info = DEVICE_ZD1211 },
 	{ USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x079b, 0x004a), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x1740, 0x2000), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x157e, 0x3204), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0586, 0x3402), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b3b, 0x5630), .driver_info = DEVICE_ZD1211 },
+	{ USB_DEVICE(0x0b05, 0x170c), .driver_info = DEVICE_ZD1211 },
 	/* ZD1211B */
 	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x079b, 0x0062), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x1582, 0x6003), .driver_info = DEVICE_ZD1211B },
+	/* "Driverless" devices that need ejecting */
+	{ USB_DEVICE(0x0ace, 0x2011), .driver_info = DEVICE_INSTALLER },
 	{}
 };
 
@@ -263,6 +274,39 @@ static char *get_fw_name(char *buffer, size_t size, u8 device_type,
 	return buffer;
 }
 
+static int handle_version_mismatch(struct usb_device *udev, u8 device_type,
+	const struct firmware *ub_fw)
+{
+	const struct firmware *ur_fw = NULL;
+	int offset;
+	int r = 0;
+	char fw_name[128];
+
+	r = request_fw_file(&ur_fw,
+		get_fw_name(fw_name, sizeof(fw_name), device_type, "ur"),
+		&udev->dev);
+	if (r)
+		goto error;
+
+	r = upload_code(udev, ur_fw->data, ur_fw->size, FW_START_OFFSET,
+		REBOOT);
+	if (r)
+		goto error;
+
+	offset = ((EEPROM_REGS_OFFSET + EEPROM_REGS_SIZE) * sizeof(u16));
+	r = upload_code(udev, ub_fw->data + offset, ub_fw->size - offset,
+		E2P_BASE_OFFSET + EEPROM_REGS_SIZE, REBOOT);
+
+	/* At this point, the vendor driver downloads the whole firmware
+	 * image, hacks around with version IDs, and uploads it again,
+	 * completely overwriting the boot code. We do not do this here as
+	 * it is not required on any tested devices, and it is suspected to
+	 * cause problems. */
+error:
+	release_firmware(ur_fw);
+	return r;
+}
+
 static int upload_firmware(struct usb_device *udev, u8 device_type)
 {
 	int r;
@@ -282,15 +326,17 @@ static int upload_firmware(struct usb_device *udev, u8 device_type)
 
 	fw_bcdDevice = get_word(ub_fw->data, EEPROM_REGS_OFFSET);
 
-	/* FIXME: do we have any reason to perform the kludge that the vendor
-	 * driver does when there is a version mismatch? (their driver uploads
-	 * different firmwares and stuff)
-	 */
 	if (fw_bcdDevice != bcdDevice) {
 		dev_info(&udev->dev,
-			"firmware device id %#06x and actual device id "
-			"%#06x differ, continuing anyway\n",
-			fw_bcdDevice, bcdDevice);
+			"firmware version %#06x and device bootcode version "
+			"%#06x differ\n", fw_bcdDevice, bcdDevice);
+		if (bcdDevice <= 0x4313)
+			dev_warn(&udev->dev, "device has old bootcode, please "
+				"report success or failure\n");
+
+		r = handle_version_mismatch(udev, device_type, ub_fw);
+		if (r)
+			goto error;
 	} else {
 		dev_dbg_f(&udev->dev,
 			"firmware device id %#06x is equal to the "
@@ -620,7 +666,7 @@ resubmit:
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-struct urb *alloc_urb(struct zd_usb *usb)
+static struct urb *alloc_urb(struct zd_usb *usb)
 {
 	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct urb *urb;
@@ -644,7 +690,7 @@ struct urb *alloc_urb(struct zd_usb *usb)
 	return urb;
 }
 
-void free_urb(struct urb *urb)
+static void free_urb(struct urb *urb)
 {
 	if (!urb)
 		return;
@@ -864,7 +910,7 @@ void zd_usb_clear(struct zd_usb *usb)
 {
 	usb_set_intfdata(usb->intf, NULL);
 	usb_put_intf(usb->intf);
-	memset(usb, 0, sizeof(*usb));
+	ZD_MEMCLEAR(usb, sizeof(*usb));
 	/* FIXME: usb_interrupt, usb_tx, usb_rx? */
 }
 
@@ -910,6 +956,55 @@ static void print_id(struct usb_device *udev)
 #define print_id(udev) do { } while (0)
 #endif
 
+static int eject_installer(struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_host_interface *iface_desc = &intf->altsetting[0];
+	struct usb_endpoint_descriptor *endpoint;
+	unsigned char *cmd;
+	u8 bulk_out_ep;
+	int r;
+
+	/* Find bulk out endpoint */
+	endpoint = &iface_desc->endpoint[1].desc;
+	if ((endpoint->bEndpointAddress & USB_TYPE_MASK) == USB_DIR_OUT &&
+	    (endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+	    USB_ENDPOINT_XFER_BULK) {
+		bulk_out_ep = endpoint->bEndpointAddress;
+	} else {
+		dev_err(&udev->dev,
+			"zd1211rw: Could not find bulk out endpoint\n");
+		return -ENODEV;
+	}
+
+	cmd = kzalloc(31, GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENODEV;
+
+	/* USB bulk command block */
+	cmd[0] = 0x55;	/* bulk command signature */
+	cmd[1] = 0x53;	/* bulk command signature */
+	cmd[2] = 0x42;	/* bulk command signature */
+	cmd[3] = 0x43;	/* bulk command signature */
+	cmd[14] = 6;	/* command length */
+
+	cmd[15] = 0x1b;	/* SCSI command: START STOP UNIT */
+	cmd[19] = 0x2;	/* eject disc */
+
+	dev_info(&udev->dev, "Ejecting virtual installer media...\n");
+	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, bulk_out_ep),
+		cmd, 31, NULL, 2000);
+	kfree(cmd);
+	if (r)
+		return r;
+
+	/* At this point, the device disconnects and reconnects with the real
+	 * ID numbers. */
+
+	usb_set_intfdata(intf, NULL);
+	return 0;
+}
+
 static int probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	int r;
@@ -917,6 +1012,9 @@ static int probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct net_device *netdev = NULL;
 
 	print_id(udev);
+
+	if (id->driver_info & DEVICE_INSTALLER)
+		return eject_installer(intf);
 
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -983,6 +1081,11 @@ static void disconnect(struct usb_interface *intf)
 	struct zd_mac *mac = zd_netdev_mac(netdev);
 	struct zd_usb *usb = &mac->chip.usb;
 
+	/* Either something really bad happened, or we're just dealing with
+	 * a DEVICE_INSTALLER. */
+	if (netdev == NULL)
+		return;
+
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
 	zd_netdev_disconnect(netdev);
@@ -998,7 +1101,6 @@ static void disconnect(struct usb_interface *intf)
 	 */
 	usb_reset_device(interface_to_usbdev(intf));
 
-	/* If somebody still waits on this lock now, this is an error. */
 	zd_netdev_free(netdev);
 	dev_dbg(&intf->dev, "disconnected\n");
 }

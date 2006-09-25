@@ -106,7 +106,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		if (x->mode->input(x, skb))
 			goto drop;
 
-		if (x->props.mode) {
+		if (x->props.mode == XFRM_MODE_TUNNEL) {
 			decaps = 1;
 			break;
 		}

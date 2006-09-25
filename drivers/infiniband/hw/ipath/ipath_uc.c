@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ipath_common.h"
+#include "ipath_kernel.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_UC_##x
@@ -261,8 +261,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		 * size to 56 bytes so the last 4 bytes of
 		 * the BTH header (PSN) is in the data buffer.
 		 */
-		header_in_data =
-			ipath_layer_get_rcvhdrentsize(dev->dd) == 16;
+		header_in_data = dev->dd->ipath_rcvhdrentsize == 16;
 		if (header_in_data) {
 			psn = be32_to_cpu(((__be32 *) data)[0]);
 			data += sizeof(__be32);

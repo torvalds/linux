@@ -99,8 +99,7 @@ static unsigned long maple_find_nvram_base(void)
 static void maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;
-	unsigned int maple_nvram_offset;
-	unsigned int maple_nvram_command;
+	const unsigned int *maple_nvram_offset, *maple_nvram_command;
 	struct device_node *sp;
 
 	maple_nvram_base = maple_find_nvram_base();
@@ -113,14 +112,12 @@ static void maple_restart(char *cmd)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(sp,
-			"restart-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(sp,
-			"restart-value", NULL);
+	maple_nvram_offset = get_property(sp, "restart-addr", NULL);
+	maple_nvram_command = get_property(sp, "restart-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
-	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
+	outb_p(*maple_nvram_command, maple_nvram_base + *maple_nvram_offset);
 	for (;;) ;
  fail:
 	printk(KERN_EMERG "Maple: Manual Restart Required\n");
@@ -129,8 +126,7 @@ static void maple_restart(char *cmd)
 static void maple_power_off(void)
 {
 	unsigned int maple_nvram_base;
-	unsigned int maple_nvram_offset;
-	unsigned int maple_nvram_command;
+	const unsigned int *maple_nvram_offset, *maple_nvram_command;
 	struct device_node *sp;
 
 	maple_nvram_base = maple_find_nvram_base();
@@ -143,14 +139,12 @@ static void maple_power_off(void)
 		printk(KERN_EMERG "Maple: Unable to find Service Processor\n");
 		goto fail;
 	}
-	maple_nvram_offset = *(unsigned int*) get_property(sp,
-			"power-off-addr", NULL);
-	maple_nvram_command = *(unsigned int*) get_property(sp,
-			"power-off-value", NULL);
+	maple_nvram_offset = get_property(sp, "power-off-addr", NULL);
+	maple_nvram_command = get_property(sp, "power-off-value", NULL);
 	of_node_put(sp);
 
 	/* send command */
-	outb_p(maple_nvram_command, maple_nvram_base + maple_nvram_offset);
+	outb_p(*maple_nvram_command, maple_nvram_base + *maple_nvram_offset);
 	for (;;) ;
  fail:
 	printk(KERN_EMERG "Maple: Manual Power-Down Required\n");
@@ -211,7 +205,7 @@ static void __init maple_init_early(void)
 static void __init maple_init_IRQ(void)
 {
 	struct device_node *root, *np, *mpic_node = NULL;
-	unsigned int *opprop;
+	const unsigned int *opprop;
 	unsigned long openpic_addr = 0;
 	int naddr, n, i, opplen, has_isus = 0;
 	struct mpic *mpic;
@@ -241,8 +235,7 @@ static void __init maple_init_IRQ(void)
 	/* Find address list in /platform-open-pic */
 	root = of_find_node_by_path("/");
 	naddr = prom_n_addr_cells(root);
-	opprop = (unsigned int *) get_property(root, "platform-open-pic",
-					       &opplen);
+	opprop = get_property(root, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		has_isus = (opplen > naddr);

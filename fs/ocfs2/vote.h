@@ -39,11 +39,6 @@ static inline void ocfs2_kick_vote_thread(struct ocfs2_super *osb)
 }
 
 int ocfs2_request_delete_vote(struct inode *inode);
-int ocfs2_request_unlink_vote(struct inode *inode,
-			      struct dentry *dentry,
-			      unsigned int nlink);
-int ocfs2_request_rename_vote(struct inode *inode,
-			      struct dentry *dentry);
 int ocfs2_request_mount_vote(struct ocfs2_super *osb);
 int ocfs2_request_umount_vote(struct ocfs2_super *osb);
 int ocfs2_register_net_handlers(struct ocfs2_super *osb);

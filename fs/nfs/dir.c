@@ -30,7 +30,9 @@
 #include <linux/nfs_mount.h>
 #include <linux/pagemap.h>
 #include <linux/smp_lock.h>
+#include <linux/pagevec.h>
 #include <linux/namei.h>
+#include <linux/mount.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -870,14 +872,14 @@ int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 	return (nd->intent.open.flags & O_EXCL) != 0;
 }
 
-static inline int nfs_reval_fsid(struct inode *dir,
-		struct nfs_fh *fh, struct nfs_fattr *fattr)
+static inline int nfs_reval_fsid(struct vfsmount *mnt, struct inode *dir,
+				 struct nfs_fh *fh, struct nfs_fattr *fattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 
 	if (!nfs_fsid_equal(&server->fsid, &fattr->fsid))
 		/* Revalidate fsid on root dir */
-		return __nfs_revalidate_inode(server, dir->i_sb->s_root->d_inode);
+		return __nfs_revalidate_inode(server, mnt->mnt_root->d_inode);
 	return 0;
 }
 
@@ -902,9 +904,15 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 
 	lock_kernel();
 
-	/* If we're doing an exclusive create, optimize away the lookup */
-	if (nfs_is_exclusive_create(dir, nd))
-		goto no_entry;
+	/*
+	 * If we're doing an exclusive create, optimize away the lookup
+	 * but don't hash the dentry.
+	 */
+	if (nfs_is_exclusive_create(dir, nd)) {
+		d_instantiate(dentry, NULL);
+		res = NULL;
+		goto out_unlock;
+	}
 
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
 	if (error == -ENOENT)
@@ -913,7 +921,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		res = ERR_PTR(error);
 		goto out_unlock;
 	}
-	error = nfs_reval_fsid(dir, &fhandle, &fattr);
+	error = nfs_reval_fsid(nd->mnt, dir, &fhandle, &fattr);
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unlock;
@@ -922,8 +930,9 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	res = (struct dentry *)inode;
 	if (IS_ERR(res))
 		goto out_unlock;
+
 no_entry:
-	res = d_add_unique(dentry, inode);
+	res = d_materialise_unique(dentry, inode);
 	if (res != NULL)
 		dentry = res;
 	nfs_renew_times(dentry);
@@ -1117,11 +1126,13 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		dput(dentry);
 		return NULL;
 	}
-	alias = d_add_unique(dentry, inode);
+
+	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
 		dput(dentry);
 		dentry = alias;
 	}
+
 	nfs_renew_times(dentry);
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	return dentry;
@@ -1143,23 +1154,22 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 		struct inode *dir = dentry->d_parent->d_inode;
 		error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 		if (error)
-			goto out_err;
+			return error;
 	}
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
-		error = server->rpc_ops->getattr(server, fhandle, fattr);
+		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr);
 		if (error < 0)
-			goto out_err;
+			return error;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
 	error = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		goto out_err;
+		return error;
 	d_instantiate(dentry, inode);
+	if (d_unhashed(dentry))
+		d_rehash(dentry);
 	return 0;
-out_err:
-	d_drop(dentry);
-	return error;
 }
 
 /*
@@ -1440,48 +1450,82 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	return error;
 }
 
-static int
-nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+/*
+ * To create a symbolic link, most file systems instantiate a new inode,
+ * add a page to it containing the path, then write it out to the disk
+ * using prepare_write/commit_write.
+ *
+ * Unfortunately the NFS client can't create the in-core inode first
+ * because it needs a file handle to create an in-core inode (see
+ * fs/nfs/inode.c:nfs_fhget).  We only have a file handle *after* the
+ * symlink request has completed on the server.
+ *
+ * So instead we allocate a raw page, copy the symname into it, then do
+ * the SYMLINK request with the page as the buffer.  If it succeeds, we
+ * now have a new file handle and can instantiate an in-core NFS inode
+ * and move the raw page into its mapping.
+ */
+static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
+	struct pagevec lru_pvec;
+	struct page *page;
+	char *kaddr;
 	struct iattr attr;
-	struct nfs_fattr sym_attr;
-	struct nfs_fh sym_fh;
-	struct qstr qsymname;
+	unsigned int pathlen = strlen(symname);
 	int error;
 
 	dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s)\n", dir->i_sb->s_id,
 		dir->i_ino, dentry->d_name.name, symname);
 
-#ifdef NFS_PARANOIA
-if (dentry->d_inode)
-printk("nfs_proc_symlink: %s/%s not negative!\n",
-dentry->d_parent->d_name.name, dentry->d_name.name);
-#endif
-	/*
-	 * Fill in the sattr for the call.
- 	 * Note: SunOS 4.1.2 crashes if the mode isn't initialized!
-	 */
-	attr.ia_valid = ATTR_MODE;
-	attr.ia_mode = S_IFLNK | S_IRWXUGO;
+	if (pathlen > PAGE_SIZE)
+		return -ENAMETOOLONG;
 
-	qsymname.name = symname;
-	qsymname.len  = strlen(symname);
+	attr.ia_mode = S_IFLNK | S_IRWXUGO;
+	attr.ia_valid = ATTR_MODE;
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
-	error = NFS_PROTO(dir)->symlink(dir, &dentry->d_name, &qsymname,
-					  &attr, &sym_fh, &sym_attr);
-	nfs_end_data_update(dir);
-	if (!error) {
-		error = nfs_instantiate(dentry, &sym_fh, &sym_attr);
-	} else {
-		if (error == -EEXIST)
-			printk("nfs_proc_symlink: %s/%s already exists??\n",
-			       dentry->d_parent->d_name.name, dentry->d_name.name);
-		d_drop(dentry);
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page) {
+		unlock_kernel();
+		return -ENOMEM;
 	}
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	memcpy(kaddr, symname, pathlen);
+	if (pathlen < PAGE_SIZE)
+		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	nfs_begin_data_update(dir);
+	error = NFS_PROTO(dir)->symlink(dir, dentry, page, pathlen, &attr);
+	nfs_end_data_update(dir);
+	if (error != 0) {
+		dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s) error %d\n",
+			dir->i_sb->s_id, dir->i_ino,
+			dentry->d_name.name, symname, error);
+		d_drop(dentry);
+		__free_page(page);
+		unlock_kernel();
+		return error;
+	}
+
+	/*
+	 * No big deal if we can't add this page to the page cache here.
+	 * READLINK will get the missing page from the server if needed.
+	 */
+	pagevec_init(&lru_pvec, 0);
+	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
+							GFP_KERNEL)) {
+		if (!pagevec_add(&lru_pvec, page))
+			__pagevec_lru_add(&lru_pvec);
+		SetPageUptodate(page);
+		unlock_page(page);
+	} else
+		__free_page(page);
+
 	unlock_kernel();
-	return error;
+	return 0;
 }
 
 static int 
@@ -1625,8 +1669,7 @@ out:
 	if (rehash)
 		d_rehash(rehash);
 	if (!error) {
-		if (!S_ISDIR(old_inode->i_mode))
-			d_move(old_dentry, new_dentry);
+		d_move(old_dentry, new_dentry);
 		nfs_renew_times(new_dentry);
 		nfs_set_verifier(new_dentry, nfs_save_change_attribute(new_dir));
 	}
@@ -1638,35 +1681,211 @@ out:
 	return error;
 }
 
+static DEFINE_SPINLOCK(nfs_access_lru_lock);
+static LIST_HEAD(nfs_access_lru_list);
+static atomic_long_t nfs_access_nr_entries;
+
+static void nfs_access_free_entry(struct nfs_access_entry *entry)
+{
+	put_rpccred(entry->cred);
+	kfree(entry);
+	smp_mb__before_atomic_dec();
+	atomic_long_dec(&nfs_access_nr_entries);
+	smp_mb__after_atomic_dec();
+}
+
+int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
+{
+	LIST_HEAD(head);
+	struct nfs_inode *nfsi;
+	struct nfs_access_entry *cache;
+
+	spin_lock(&nfs_access_lru_lock);
+restart:
+	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
+		struct inode *inode;
+
+		if (nr_to_scan-- == 0)
+			break;
+		inode = igrab(&nfsi->vfs_inode);
+		if (inode == NULL)
+			continue;
+		spin_lock(&inode->i_lock);
+		if (list_empty(&nfsi->access_cache_entry_lru))
+			goto remove_lru_entry;
+		cache = list_entry(nfsi->access_cache_entry_lru.next,
+				struct nfs_access_entry, lru);
+		list_move(&cache->lru, &head);
+		rb_erase(&cache->rb_node, &nfsi->access_cache);
+		if (!list_empty(&nfsi->access_cache_entry_lru))
+			list_move_tail(&nfsi->access_cache_inode_lru,
+					&nfs_access_lru_list);
+		else {
+remove_lru_entry:
+			list_del_init(&nfsi->access_cache_inode_lru);
+			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
+		}
+		spin_unlock(&inode->i_lock);
+		iput(inode);
+		goto restart;
+	}
+	spin_unlock(&nfs_access_lru_lock);
+	while (!list_empty(&head)) {
+		cache = list_entry(head.next, struct nfs_access_entry, lru);
+		list_del(&cache->lru);
+		nfs_access_free_entry(cache);
+	}
+	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
+}
+
+static void __nfs_access_zap_cache(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct rb_root *root_node = &nfsi->access_cache;
+	struct rb_node *n, *dispose = NULL;
+	struct nfs_access_entry *entry;
+
+	/* Unhook entries from the cache */
+	while ((n = rb_first(root_node)) != NULL) {
+		entry = rb_entry(n, struct nfs_access_entry, rb_node);
+		rb_erase(n, root_node);
+		list_del(&entry->lru);
+		n->rb_left = dispose;
+		dispose = n;
+	}
+	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
+
+	/* Now kill them all! */
+	while (dispose != NULL) {
+		n = dispose;
+		dispose = n->rb_left;
+		nfs_access_free_entry(rb_entry(n, struct nfs_access_entry, rb_node));
+	}
+}
+
+void nfs_access_zap_cache(struct inode *inode)
+{
+	/* Remove from global LRU init */
+	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+		spin_lock(&nfs_access_lru_lock);
+		list_del_init(&NFS_I(inode)->access_cache_inode_lru);
+		spin_unlock(&nfs_access_lru_lock);
+	}
+
+	spin_lock(&inode->i_lock);
+	/* This will release the spinlock */
+	__nfs_access_zap_cache(inode);
+}
+
+static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, struct rpc_cred *cred)
+{
+	struct rb_node *n = NFS_I(inode)->access_cache.rb_node;
+	struct nfs_access_entry *entry;
+
+	while (n != NULL) {
+		entry = rb_entry(n, struct nfs_access_entry, rb_node);
+
+		if (cred < entry->cred)
+			n = n->rb_left;
+		else if (cred > entry->cred)
+			n = n->rb_right;
+		else
+			return entry;
+	}
+	return NULL;
+}
+
 int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_access_entry *cache = &nfsi->cache_access;
+	struct nfs_access_entry *cache;
+	int err = -ENOENT;
 
-	if (cache->cred != cred
-			|| time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode))
-			|| (nfsi->cache_validity & NFS_INO_INVALID_ACCESS))
-		return -ENOENT;
-	memcpy(res, cache, sizeof(*res));
-	return 0;
+	spin_lock(&inode->i_lock);
+	if (nfsi->cache_validity & NFS_INO_INVALID_ACCESS)
+		goto out_zap;
+	cache = nfs_access_search_rbtree(inode, cred);
+	if (cache == NULL)
+		goto out;
+	if (time_after(jiffies, cache->jiffies + NFS_ATTRTIMEO(inode)))
+		goto out_stale;
+	res->jiffies = cache->jiffies;
+	res->cred = cache->cred;
+	res->mask = cache->mask;
+	list_move_tail(&cache->lru, &nfsi->access_cache_entry_lru);
+	err = 0;
+out:
+	spin_unlock(&inode->i_lock);
+	return err;
+out_stale:
+	rb_erase(&cache->rb_node, &nfsi->access_cache);
+	list_del(&cache->lru);
+	spin_unlock(&inode->i_lock);
+	nfs_access_free_entry(cache);
+	return -ENOENT;
+out_zap:
+	/* This will release the spinlock */
+	__nfs_access_zap_cache(inode);
+	return -ENOENT;
+}
+
+static void nfs_access_add_rbtree(struct inode *inode, struct nfs_access_entry *set)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct rb_root *root_node = &nfsi->access_cache;
+	struct rb_node **p = &root_node->rb_node;
+	struct rb_node *parent = NULL;
+	struct nfs_access_entry *entry;
+
+	spin_lock(&inode->i_lock);
+	while (*p != NULL) {
+		parent = *p;
+		entry = rb_entry(parent, struct nfs_access_entry, rb_node);
+
+		if (set->cred < entry->cred)
+			p = &parent->rb_left;
+		else if (set->cred > entry->cred)
+			p = &parent->rb_right;
+		else
+			goto found;
+	}
+	rb_link_node(&set->rb_node, parent, p);
+	rb_insert_color(&set->rb_node, root_node);
+	list_add_tail(&set->lru, &nfsi->access_cache_entry_lru);
+	spin_unlock(&inode->i_lock);
+	return;
+found:
+	rb_replace_node(parent, &set->rb_node, root_node);
+	list_add_tail(&set->lru, &nfsi->access_cache_entry_lru);
+	list_del(&entry->lru);
+	spin_unlock(&inode->i_lock);
+	nfs_access_free_entry(entry);
 }
 
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_access_entry *cache = &nfsi->cache_access;
-
-	if (cache->cred != set->cred) {
-		if (cache->cred)
-			put_rpccred(cache->cred);
-		cache->cred = get_rpccred(set->cred);
-	}
-	/* FIXME: replace current access_cache BKL reliance with inode->i_lock */
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
-	spin_unlock(&inode->i_lock);
+	struct nfs_access_entry *cache = kmalloc(sizeof(*cache), GFP_KERNEL);
+	if (cache == NULL)
+		return;
+	RB_CLEAR_NODE(&cache->rb_node);
 	cache->jiffies = set->jiffies;
+	cache->cred = get_rpccred(set->cred);
 	cache->mask = set->mask;
+
+	nfs_access_add_rbtree(inode, cache);
+
+	/* Update accounting */
+	smp_mb__before_atomic_inc();
+	atomic_long_inc(&nfs_access_nr_entries);
+	smp_mb__after_atomic_inc();
+
+	/* Add inode to global LRU list */
+	if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_FLAGS(inode))) {
+		spin_lock(&nfs_access_lru_lock);
+		list_add_tail(&NFS_I(inode)->access_cache_inode_lru, &nfs_access_lru_list);
+		spin_unlock(&nfs_access_lru_lock);
+	}
 }
 
 static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)

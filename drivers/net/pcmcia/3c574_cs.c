@@ -245,7 +245,7 @@ static int el3_rx(struct net_device *dev, int worklimit);
 static int el3_close(struct net_device *dev);
 static void el3_tx_timeout(struct net_device *dev);
 static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static void set_rx_mode(struct net_device *dev);
 
 static void tc574_detach(struct pcmcia_device *p_dev);
@@ -1095,7 +1095,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, "3c574_cs");
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

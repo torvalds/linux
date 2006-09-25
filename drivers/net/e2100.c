@@ -110,7 +110,7 @@ static void e21_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 
 static int e21_close(struct net_device *dev);
 
-
+
 /*  Probe for the E2100 series ethercards.  These cards have an 8390 at the
 	base address and the station address at both offset 0x10 and 0x18.  I read
 	the station address from offset 0x18 to avoid the dataport of NE2000
@@ -403,7 +403,7 @@ e21_close(struct net_device *dev)
 	return 0;
 }
 
-
+
 #ifdef MODULE
 #define MAX_E21_CARDS	4	/* Max number of E21 cards per module */
 static struct net_device *dev_e21[MAX_E21_CARDS];

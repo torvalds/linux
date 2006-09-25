@@ -2370,7 +2370,8 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 		dput(new_dentry);
 	}
 	if (!error)
-		d_move(old_dentry,new_dentry);
+		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
+			d_move(old_dentry,new_dentry);
 	return error;
 }
 
@@ -2393,8 +2394,7 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 	else
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (!error) {
-		/* The following d_move() should become unconditional */
-		if (!(old_dir->i_sb->s_type->fs_flags & FS_ODD_RENAME))
+		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
 			d_move(old_dentry, new_dentry);
 	}
 	if (target)

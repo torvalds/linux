@@ -1268,7 +1268,7 @@ static void radeon_pm_full_reset_sdram(struct radeonfb_info *rinfo)
 			  0x21320032, 0xa1320032, 0x21320032, 0xffffffff,
 			  0x31320032 };
 
-		u32 *mrtable = default_mrtable;
+		const u32 *mrtable = default_mrtable;
 		int i, mrtable_size = ARRAY_SIZE(default_mrtable);
 
 		mdelay(30);
@@ -1287,7 +1287,7 @@ static void radeon_pm_full_reset_sdram(struct radeonfb_info *rinfo)
 		if (rinfo->of_node != NULL) {
 			int size;
 
-			mrtable = (u32 *)get_property(rinfo->of_node, "ATY,MRT", &size);
+			mrtable = get_property(rinfo->of_node, "ATY,MRT", &size);
 			if (mrtable)
 				mrtable_size = size >> 2;
 			else

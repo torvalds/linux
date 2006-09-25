@@ -104,6 +104,13 @@ struct xfrm_stats {
 
 enum
 {
+	XFRM_POLICY_TYPE_MAIN	= 0,
+	XFRM_POLICY_TYPE_SUB	= 1,
+	XFRM_POLICY_TYPE_MAX	= 2
+};
+
+enum
+{
 	XFRM_POLICY_IN	= 0,
 	XFRM_POLICY_OUT	= 1,
 	XFRM_POLICY_FWD	= 2,
@@ -120,7 +127,9 @@ enum
 
 #define XFRM_MODE_TRANSPORT 0
 #define XFRM_MODE_TUNNEL 1
-#define XFRM_MODE_MAX 2
+#define XFRM_MODE_ROUTEOPTIMIZATION 2
+#define XFRM_MODE_IN_TRIGGER 3
+#define XFRM_MODE_MAX 4
 
 /* Netlink configuration messages.  */
 enum {
@@ -164,6 +173,10 @@ enum {
 #define XFRM_MSG_NEWAE XFRM_MSG_NEWAE
 	XFRM_MSG_GETAE,
 #define XFRM_MSG_GETAE XFRM_MSG_GETAE
+
+	XFRM_MSG_REPORT,
+#define XFRM_MSG_REPORT XFRM_MSG_REPORT
+
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -217,6 +230,12 @@ enum xfrm_ae_ftype_t {
 #define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
 };
 
+struct xfrm_userpolicy_type {
+	__u8		type;
+	__u16		reserved1;
+	__u8		reserved2;
+};
+
 /* Netlink message attributes.  */
 enum xfrm_attr_type_t {
 	XFRMA_UNSPEC,
@@ -232,6 +251,10 @@ enum xfrm_attr_type_t {
 	XFRMA_REPLAY_VAL,
 	XFRMA_REPLAY_THRESH,
 	XFRMA_ETIMER_THRESH,
+	XFRMA_SRCADDR,		/* xfrm_address_t */
+	XFRMA_COADDR,		/* xfrm_address_t */
+	XFRMA_LASTUSED,
+	XFRMA_POLICY_TYPE,	/* struct xfrm_userpolicy_type */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
@@ -247,12 +270,13 @@ struct xfrm_usersa_info {
 	__u32				seq;
 	__u32				reqid;
 	__u16				family;
-	__u8				mode; /* 0=transport,1=tunnel */
+	__u8				mode;		/* XFRM_MODE_xxx */
 	__u8				replay_window;
 	__u8				flags;
 #define XFRM_STATE_NOECN	1
 #define XFRM_STATE_DECAP_DSCP	2
 #define XFRM_STATE_NOPMTUDISC	4
+#define XFRM_STATE_WILDRECV	8
 };
 
 struct xfrm_usersa_id {
@@ -319,12 +343,18 @@ struct xfrm_usersa_flush {
 	__u8				proto;
 };
 
+struct xfrm_user_report {
+	__u8				proto;
+	struct xfrm_selector		sel;
+};
+
 #ifndef __KERNEL__
 /* backwards compatibility for userspace */
 #define XFRMGRP_ACQUIRE		1
 #define XFRMGRP_EXPIRE		2
 #define XFRMGRP_SA		4
 #define XFRMGRP_POLICY		8
+#define XFRMGRP_REPORT		0x10
 #endif
 
 enum xfrm_nlgroups {
@@ -340,6 +370,8 @@ enum xfrm_nlgroups {
 #define XFRMNLGRP_POLICY	XFRMNLGRP_POLICY
 	XFRMNLGRP_AEVENTS,
 #define XFRMNLGRP_AEVENTS	XFRMNLGRP_AEVENTS
+	XFRMNLGRP_REPORT,
+#define XFRMNLGRP_REPORT	XFRMNLGRP_REPORT
 	__XFRMNLGRP_MAX
 };
 #define XFRMNLGRP_MAX	(__XFRMNLGRP_MAX - 1)

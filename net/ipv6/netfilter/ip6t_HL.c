@@ -22,11 +22,10 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 				   const struct net_device *out,
 				   unsigned int hooknum,
 				   const struct xt_target *target,
-				   const void *targinfo, void *userinfo)
+				   const void *targinfo)
 {
 	struct ipv6hdr *ip6h;
 	const struct ip6t_HL_info *info = targinfo;
-	u_int16_t diffs[2];
 	int new_hl;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
@@ -53,11 +52,8 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 			break;
 	}
 
-	if (new_hl != ip6h->hop_limit) {
-		diffs[0] = htons(((unsigned)ip6h->hop_limit) << 8) ^ 0xFFFF;
+	if (new_hl != ip6h->hop_limit)
 		ip6h->hop_limit = new_hl;
-		diffs[1] = htons(((unsigned)ip6h->hop_limit) << 8);
-	}
 
 	return IP6T_CONTINUE;
 }
@@ -66,7 +62,6 @@ static int ip6t_hl_checkentry(const char *tablename,
 		const void *entry,
 		const struct xt_target *target,
 		void *targinfo,
-		unsigned int targinfosize,
 		unsigned int hook_mask)
 {
 	struct ip6t_HL_info *info = targinfo;

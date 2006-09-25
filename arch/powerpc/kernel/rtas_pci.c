@@ -57,7 +57,7 @@ static inline int config_access_valid(struct pci_dn *dn, int where)
 
 static int of_device_available(struct device_node * dn)
 {
-        char * status;
+        const char *status;
 
         status = get_property(dn, "status", NULL);
 
@@ -81,8 +81,7 @@ int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
-		(pdn->devfn << 8) | (where & 0xff);
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
@@ -134,8 +133,7 @@ int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
-		(pdn->devfn << 8) | (where & 0xff);
+	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr,
@@ -178,7 +176,7 @@ struct pci_ops rtas_pci_ops = {
 
 int is_python(struct device_node *dev)
 {
-	char *model = (char *)get_property(dev, "model", NULL);
+	const char *model = get_property(dev, "model", NULL);
 
 	if (model && strstr(model, "Python"))
 		return 1;
@@ -234,7 +232,7 @@ void __init init_pci_config_tokens (void)
 unsigned long __devinit get_phb_buid (struct device_node *phb)
 {
 	int addr_cells;
-	unsigned int *buid_vals;
+	const unsigned int *buid_vals;
 	unsigned int len;
 	unsigned long buid;
 
@@ -247,7 +245,7 @@ unsigned long __devinit get_phb_buid (struct device_node *phb)
 	if (phb->parent->parent)
 		return 0;
 
-	buid_vals = (unsigned int *) get_property(phb, "reg", &len);
+	buid_vals = get_property(phb, "reg", &len);
 	if (buid_vals == NULL)
 		return 0;
 
@@ -264,10 +262,10 @@ unsigned long __devinit get_phb_buid (struct device_node *phb)
 static int phb_set_bus_ranges(struct device_node *dev,
 			      struct pci_controller *phb)
 {
-	int *bus_range;
+	const int *bus_range;
 	unsigned int len;
 
-	bus_range = (int *) get_property(dev, "bus-range", &len);
+	bus_range = get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		return 1;
  	}
@@ -325,15 +323,15 @@ unsigned long __init find_and_init_phbs(void)
 	 * in chosen.
 	 */
 	if (of_chosen) {
-		int *prop;
+		const int *prop;
 
-		prop = (int *)get_property(of_chosen, "linux,pci-probe-only",
-					   NULL);
+		prop = get_property(of_chosen,
+				"linux,pci-probe-only", NULL);
 		if (prop)
 			pci_probe_only = *prop;
 
-		prop = (int *)get_property(of_chosen,
-					   "linux,pci-assign-all-buses", NULL);
+		prop = get_property(of_chosen,
+				"linux,pci-assign-all-buses", NULL);
 		if (prop)
 			pci_assign_all_buses = *prop;
 	}

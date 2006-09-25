@@ -75,7 +75,7 @@ static void hp_init_card(struct net_device *dev);
 /* My default is IRQ5	             0  1  2  3  4  5  6  7  8  9 10 11 */
 static char irqmap[16] __initdata= { 0, 0, 4, 6, 8,10, 0,14, 0, 4, 2,12,0,0,0,0};
 
-
+
 /*	Probe for an HP LAN adaptor.
 	Also initialize the card and fill in STATION_ADDR with the station
 	address. */

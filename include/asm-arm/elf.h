@@ -8,9 +8,6 @@
 
 #include <asm/ptrace.h>
 #include <asm/user.h>
-#ifdef __KERNEL
-#include <asm/procinfo.h>
-#endif
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
@@ -32,11 +29,6 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef struct user_fp elf_fpregset_t;
 
 /*
- * This is used to ensure we don't load something for the wrong architecture.
- */
-#define elf_check_arch(x) ( ((x)->e_machine == EM_ARM) && (ELF_PROC_OK((x))) )
-
-/*
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS32
@@ -46,6 +38,14 @@ typedef struct user_fp elf_fpregset_t;
 #define ELF_DATA	ELFDATA2LSB
 #endif
 #define ELF_ARCH	EM_ARM
+
+#ifdef __KERNEL__
+#include <asm/procinfo.h>
+
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch(x) ( ((x)->e_machine == EM_ARM) && (ELF_PROC_OK((x))) )
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
@@ -82,8 +82,6 @@ typedef struct user_fp elf_fpregset_t;
 #define ELF_PLATFORM_SIZE 8
 extern char elf_platform[];
 #define ELF_PLATFORM	(elf_platform)
-
-#ifdef __KERNEL__
 
 /*
  * 32-bit code is always OK.  Some cpus can do 26-bit, some can't.

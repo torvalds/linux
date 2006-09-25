@@ -101,7 +101,7 @@ int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
 #ifdef CONFIG_SND_VERBOSE_PROCFS
-	snd_info_unregister(substream->proc_prealloc_entry);
+	snd_info_free_entry(substream->proc_prealloc_entry);
 	substream->proc_prealloc_entry = NULL;
 #endif
 	return 0;

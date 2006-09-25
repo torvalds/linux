@@ -34,7 +34,7 @@
 #include <linux/pci.h>
 
 #include "ipath_kernel.h"
-#include "ipath_layer.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 /* These are all rcv-related errors which we want to count for stats */
@@ -201,7 +201,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				  ib_linkstate(lstate));
 		}
 		else
-			ipath_cdbg(SMA, "Unit %u link state %s, last "
+			ipath_cdbg(VERBOSE, "Unit %u link state %s, last "
 				   "was %s\n", dd->ipath_unit,
 				   ib_linkstate(lstate),
 				   ib_linkstate((unsigned)
@@ -213,7 +213,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		if (lstate == IPATH_IBSTATE_INIT ||
 		    lstate == IPATH_IBSTATE_ARM ||
 		    lstate == IPATH_IBSTATE_ACTIVE)
-			ipath_cdbg(SMA, "Unit %u link state down"
+			ipath_cdbg(VERBOSE, "Unit %u link state down"
 				   " (state 0x%x), from %s\n",
 				   dd->ipath_unit,
 				   (u32)val & IPATH_IBSTATE_MASK,
@@ -269,7 +269,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 			     INFINIPATH_IBCS_LINKSTATE_MASK)
 			    == INFINIPATH_IBCS_L_STATE_ACTIVE)
 				/* if from up to down be more vocal */
-				ipath_cdbg(SMA,
+				ipath_cdbg(VERBOSE,
 					   "Unit %u link now down (%s)\n",
 					   dd->ipath_unit,
 					   ipath_ibcstatus_str[ltstate]);
@@ -289,8 +289,6 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		*dd->ipath_statusp |=
 			IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
 		dd->ipath_f_setextled(dd, lstate, ltstate);
-
-		__ipath_layer_intr(dd, IPATH_LAYER_INT_IF_UP);
 	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_INIT) {
 		/*
 		 * set INIT and DOWN.  Down is checked by most of the other
@@ -598,11 +596,11 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	if (!noprint && *msg)
 		ipath_dev_err(dd, "%s error\n", msg);
-	if (dd->ipath_sma_state_wanted & dd->ipath_flags) {
-		ipath_cdbg(VERBOSE, "sma wanted state %x, iflags now %x, "
-			   "waking\n", dd->ipath_sma_state_wanted,
+	if (dd->ipath_state_wanted & dd->ipath_flags) {
+		ipath_cdbg(VERBOSE, "driver wanted state %x, iflags now %x, "
+			   "waking\n", dd->ipath_state_wanted,
 			   dd->ipath_flags);
-		wake_up_interruptible(&ipath_sma_state_wait);
+		wake_up_interruptible(&ipath_state_wait);
 	}
 
 	return chkerrpkts;
@@ -708,11 +706,7 @@ static void handle_layer_pioavail(struct ipath_devdata *dd)
 {
 	int ret;
 
-	ret = __ipath_layer_intr(dd, IPATH_LAYER_INT_SEND_CONTINUE);
-	if (ret > 0)
-		goto set;
-
-	ret = __ipath_verbs_piobufavail(dd);
+	ret = ipath_ib_piobufavail(dd->verbs_dev);
 	if (ret > 0)
 		goto set;
 

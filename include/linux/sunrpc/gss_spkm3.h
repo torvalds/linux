@@ -19,9 +19,9 @@ struct spkm3_ctx {
 	unsigned int		req_flags ;
 	struct xdr_netobj	share_key;
 	int			conf_alg;
-	struct crypto_tfm*	derived_conf_key;
+	struct crypto_blkcipher	*derived_conf_key;
 	int			intg_alg;
-	struct crypto_tfm*	derived_integ_key;
+	struct crypto_blkcipher	*derived_integ_key;
 	int			keyestb_alg;   /* alg used to get share_key */
 	int			owf_alg;   /* one way function */
 };

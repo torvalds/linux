@@ -713,7 +713,6 @@ struct ipw_rx_packet {
 
 struct ipw_rx_mem_buffer {
 	dma_addr_t dma_addr;
-	struct ipw_rx_buffer *rxb;
 	struct sk_buff *skb;
 	struct list_head list;
 };				/* Not transferred over network, so not  __attribute__ ((packed)) */
@@ -1297,6 +1296,7 @@ struct ipw_priv {
 	struct work_struct system_config;
 	struct work_struct rx_replenish;
 	struct work_struct request_scan;
+  	struct work_struct request_passive_scan;
 	struct work_struct adapter_restart;
 	struct work_struct rf_kill;
 	struct work_struct up;
@@ -1381,13 +1381,18 @@ BITC(x,19),BITC(x,18),BITC(x,17),BITC(x,16),\
 BIT_ARG16(x)
 
 
-#ifdef CONFIG_IPW2200_DEBUG
 #define IPW_DEBUG(level, fmt, args...) \
 do { if (ipw_debug_level & (level)) \
   printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
+
+#ifdef CONFIG_IPW2200_DEBUG
+#define IPW_LL_DEBUG(level, fmt, args...) \
+do { if (ipw_debug_level & (level)) \
+  printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
+         in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 #else
-#define IPW_DEBUG(level, fmt, args...) do {} while (0)
+#define IPW_LL_DEBUG(level, fmt, args...) do {} while (0)
 #endif				/* CONFIG_IPW2200_DEBUG */
 
 /*
@@ -1457,28 +1462,27 @@ do { if (ipw_debug_level & (level)) \
 
 #define IPW_DEBUG_WX(f, a...)     IPW_DEBUG(IPW_DL_WX, f, ## a)
 #define IPW_DEBUG_SCAN(f, a...)   IPW_DEBUG(IPW_DL_SCAN, f, ## a)
-#define IPW_DEBUG_STATUS(f, a...) IPW_DEBUG(IPW_DL_STATUS, f, ## a)
-#define IPW_DEBUG_TRACE(f, a...)  IPW_DEBUG(IPW_DL_TRACE, f, ## a)
-#define IPW_DEBUG_RX(f, a...)     IPW_DEBUG(IPW_DL_RX, f, ## a)
-#define IPW_DEBUG_TX(f, a...)     IPW_DEBUG(IPW_DL_TX, f, ## a)
-#define IPW_DEBUG_ISR(f, a...)    IPW_DEBUG(IPW_DL_ISR, f, ## a)
+#define IPW_DEBUG_TRACE(f, a...)  IPW_LL_DEBUG(IPW_DL_TRACE, f, ## a)
+#define IPW_DEBUG_RX(f, a...)     IPW_LL_DEBUG(IPW_DL_RX, f, ## a)
+#define IPW_DEBUG_TX(f, a...)     IPW_LL_DEBUG(IPW_DL_TX, f, ## a)
+#define IPW_DEBUG_ISR(f, a...)    IPW_LL_DEBUG(IPW_DL_ISR, f, ## a)
 #define IPW_DEBUG_MANAGEMENT(f, a...) IPW_DEBUG(IPW_DL_MANAGE, f, ## a)
-#define IPW_DEBUG_LED(f, a...) IPW_DEBUG(IPW_DL_LED, f, ## a)
-#define IPW_DEBUG_WEP(f, a...)    IPW_DEBUG(IPW_DL_WEP, f, ## a)
-#define IPW_DEBUG_HC(f, a...) IPW_DEBUG(IPW_DL_HOST_COMMAND, f, ## a)
-#define IPW_DEBUG_FRAG(f, a...) IPW_DEBUG(IPW_DL_FRAG, f, ## a)
-#define IPW_DEBUG_FW(f, a...) IPW_DEBUG(IPW_DL_FW, f, ## a)
+#define IPW_DEBUG_LED(f, a...) IPW_LL_DEBUG(IPW_DL_LED, f, ## a)
+#define IPW_DEBUG_WEP(f, a...)    IPW_LL_DEBUG(IPW_DL_WEP, f, ## a)
+#define IPW_DEBUG_HC(f, a...) IPW_LL_DEBUG(IPW_DL_HOST_COMMAND, f, ## a)
+#define IPW_DEBUG_FRAG(f, a...) IPW_LL_DEBUG(IPW_DL_FRAG, f, ## a)
+#define IPW_DEBUG_FW(f, a...) IPW_LL_DEBUG(IPW_DL_FW, f, ## a)
 #define IPW_DEBUG_RF_KILL(f, a...) IPW_DEBUG(IPW_DL_RF_KILL, f, ## a)
 #define IPW_DEBUG_DROP(f, a...) IPW_DEBUG(IPW_DL_DROP, f, ## a)
-#define IPW_DEBUG_IO(f, a...) IPW_DEBUG(IPW_DL_IO, f, ## a)
-#define IPW_DEBUG_ORD(f, a...) IPW_DEBUG(IPW_DL_ORD, f, ## a)
-#define IPW_DEBUG_FW_INFO(f, a...) IPW_DEBUG(IPW_DL_FW_INFO, f, ## a)
+#define IPW_DEBUG_IO(f, a...) IPW_LL_DEBUG(IPW_DL_IO, f, ## a)
+#define IPW_DEBUG_ORD(f, a...) IPW_LL_DEBUG(IPW_DL_ORD, f, ## a)
+#define IPW_DEBUG_FW_INFO(f, a...) IPW_LL_DEBUG(IPW_DL_FW_INFO, f, ## a)
 #define IPW_DEBUG_NOTIF(f, a...) IPW_DEBUG(IPW_DL_NOTIF, f, ## a)
 #define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 #define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
-#define IPW_DEBUG_STATS(f, a...) IPW_DEBUG(IPW_DL_STATS, f, ## a)
-#define IPW_DEBUG_MERGE(f, a...) IPW_DEBUG(IPW_DL_MERGE, f, ## a)
-#define IPW_DEBUG_QOS(f, a...)   IPW_DEBUG(IPW_DL_QOS, f, ## a)
+#define IPW_DEBUG_STATS(f, a...) IPW_LL_DEBUG(IPW_DL_STATS, f, ## a)
+#define IPW_DEBUG_MERGE(f, a...) IPW_LL_DEBUG(IPW_DL_MERGE, f, ## a)
+#define IPW_DEBUG_QOS(f, a...)   IPW_LL_DEBUG(IPW_DL_QOS, f, ## a)
 
 #include <linux/ctype.h>
 
@@ -1947,10 +1951,17 @@ struct host_cmd {
 	u32 *param;
 } __attribute__ ((packed));
 
+struct cmdlog_host_cmd {
+	u8 cmd;
+	u8 len;
+	u16 reserved;
+	char param[124];
+} __attribute__ ((packed));
+
 struct ipw_cmd_log {
 	unsigned long jiffies;
 	int retcode;
-	struct host_cmd cmd;
+	struct cmdlog_host_cmd cmd;
 };
 
 /* SysConfig command parameters ... */

@@ -90,7 +90,8 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 	if (!vdev || !id)
 		return -EPERM;
 
-	hp = hvc_alloc(vdev->unit_address, vdev->irq, &hvc_get_put_ops);
+	hp = hvc_alloc(vdev->unit_address, vdev->irq, &hvc_get_put_ops,
+			MAX_VIO_PUT_CHARS);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 	dev_set_drvdata(&vdev->dev, hp);
@@ -140,7 +141,7 @@ static int hvc_find_vtys(void)
 
 	for (vty = of_find_node_by_name(NULL, "vty"); vty != NULL;
 			vty = of_find_node_by_name(vty, "vty")) {
-		uint32_t *vtermno;
+		const uint32_t *vtermno;
 
 		/* We have statically defined space for only a certain number
 		 * of console adapters.
@@ -148,7 +149,7 @@ static int hvc_find_vtys(void)
 		if (num_found >= MAX_NR_HVC_CONSOLES)
 			break;
 
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
+		vtermno = get_property(vty, "reg", NULL);
 		if (!vtermno)
 			continue;
 

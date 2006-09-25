@@ -74,14 +74,14 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	int error = 0;
-	unsigned long offset, blk;
-	int i, num, stored;
+	unsigned long offset, blk, last_ra_blk = 0;
+	int i, stored;
 	struct buffer_head * bh, * tmp;
 	struct ocfs2_dir_entry * de;
 	int err;
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct super_block * sb = inode->i_sb;
-	int have_disk_lock = 0;
+	unsigned int ra_sectors = 16;
 
 	mlog_entry("dirino=%llu\n",
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
@@ -95,9 +95,8 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			mlog_errno(error);
 		/* we haven't got any yet, so propagate the error. */
 		stored = error;
-		goto bail;
+		goto bail_nolock;
 	}
-	have_disk_lock = 1;
 
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
@@ -113,16 +112,21 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			continue;
 		}
 
-		/*
-		 * Do the readahead (8k)
-		 */
-		if (!offset) {
-			for (i = 16 >> (sb->s_blocksize_bits - 9), num = 0;
+		/* The idea here is to begin with 8k read-ahead and to stay
+		 * 4k ahead of our current position.
+		 *
+		 * TODO: Use the pagecache for this. We just need to
+		 * make sure it's cluster-safe... */
+		if (!last_ra_blk
+		    || (((last_ra_blk - blk) << 9) <= (ra_sectors / 2))) {
+			for (i = ra_sectors >> (sb->s_blocksize_bits - 9);
 			     i > 0; i--) {
 				tmp = ocfs2_bread(inode, ++blk, &err, 1);
 				if (tmp)
 					brelse(tmp);
 			}
+			last_ra_blk = blk;
+			ra_sectors = 8;
 		}
 
 revalidate:
@@ -194,9 +198,9 @@ revalidate:
 
 	stored = 0;
 bail:
-	if (have_disk_lock)
-		ocfs2_meta_unlock(inode, 0);
+	ocfs2_meta_unlock(inode, 0);
 
+bail_nolock:
 	mlog_exit(stored);
 
 	return stored;

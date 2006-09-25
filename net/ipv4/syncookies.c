@@ -214,6 +214,10 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	if (!req)
 		goto out;
 
+	if (security_inet_conn_request(sk, skb, req)) {
+		reqsk_free(req);
+		goto out;
+	}
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
 	treq->rcv_isn		= htonl(skb->h.th->seq) - 1;
@@ -259,6 +263,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 				    .uli_u = { .ports =
 					       { .sport = skb->h.th->dest,
 						 .dport = skb->h.th->source } } };
+		security_req_classify_flow(req, &fl);
 		if (ip_route_output_key(&rt, &fl)) {
 			reqsk_free(req);
 			goto out; 

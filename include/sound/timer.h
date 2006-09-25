@@ -129,7 +129,6 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 int snd_timer_global_new(char *id, int device, struct snd_timer **rtimer);
 int snd_timer_global_free(struct snd_timer *timer);
 int snd_timer_global_register(struct snd_timer *timer);
-int snd_timer_global_unregister(struct snd_timer *timer);
 
 int snd_timer_open(struct snd_timer_instance **ti, char *owner, struct snd_timer_id *tid, unsigned int slave_id);
 int snd_timer_close(struct snd_timer_instance *timeri);

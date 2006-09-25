@@ -586,7 +586,7 @@ static __inline__ int dn_queue_skb(struct sock *sk, struct sk_buff *skb, int sig
         	goto out;
         }
 
-	err = sk_filter(sk, skb, 0);
+	err = sk_filter(sk, skb);
 	if (err)
 		goto out;
 

@@ -379,42 +379,39 @@ static struct fib_node *fib_find_node(struct fn_zone *fz, u32 key)
 	return NULL;
 }
 
-static int
-fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
-	       struct nlmsghdr *n, struct netlink_skb_parms *req)
+static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
 	struct fib_node *new_f, *f;
 	struct fib_alias *fa, *new_fa;
 	struct fn_zone *fz;
 	struct fib_info *fi;
-	int z = r->rtm_dst_len;
-	int type = r->rtm_type;
-	u8 tos = r->rtm_tos;
+	u8 tos = cfg->fc_tos;
 	u32 key;
 	int err;
 
-	if (z > 32)
+	if (cfg->fc_dst_len > 32)
 		return -EINVAL;
-	fz = table->fn_zones[z];
-	if (!fz && !(fz = fn_new_zone(table, z)))
+
+	fz = table->fn_zones[cfg->fc_dst_len];
+	if (!fz && !(fz = fn_new_zone(table, cfg->fc_dst_len)))
 		return -ENOBUFS;
 
 	key = 0;
-	if (rta->rta_dst) {
-		u32 dst;
-		memcpy(&dst, rta->rta_dst, 4);
-		if (dst & ~FZ_MASK(fz))
+	if (cfg->fc_dst) {
+		if (cfg->fc_dst & ~FZ_MASK(fz))
 			return -EINVAL;
-		key = fz_key(dst, fz);
+		key = fz_key(cfg->fc_dst, fz);
 	}
 
-	if  ((fi = fib_create_info(r, rta, n, &err)) == NULL)
-		return err;
+	fi = fib_create_info(cfg);
+	if (IS_ERR(fi))
+		return PTR_ERR(fi);
 
 	if (fz->fz_nent > (fz->fz_divisor<<1) &&
 	    fz->fz_divisor < FZ_MAX_DIVISOR &&
-	    (z==32 || (1<<z) > fz->fz_divisor))
+	    (cfg->fc_dst_len == 32 ||
+	     (1 << cfg->fc_dst_len) > fz->fz_divisor))
 		fn_rehash_zone(fz);
 
 	f = fib_find_node(fz, key);
@@ -440,18 +437,18 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		struct fib_alias *fa_orig;
 
 		err = -EEXIST;
-		if (n->nlmsg_flags & NLM_F_EXCL)
+		if (cfg->fc_nlflags & NLM_F_EXCL)
 			goto out;
 
-		if (n->nlmsg_flags & NLM_F_REPLACE) {
+		if (cfg->fc_nlflags & NLM_F_REPLACE) {
 			struct fib_info *fi_drop;
 			u8 state;
 
 			write_lock_bh(&fib_hash_lock);
 			fi_drop = fa->fa_info;
 			fa->fa_info = fi;
-			fa->fa_type = type;
-			fa->fa_scope = r->rtm_scope;
+			fa->fa_type = cfg->fc_type;
+			fa->fa_scope = cfg->fc_scope;
 			state = fa->fa_state;
 			fa->fa_state &= ~FA_S_ACCESSED;
 			fib_hash_genid++;
@@ -474,17 +471,17 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 				break;
 			if (fa->fa_info->fib_priority != fi->fib_priority)
 				break;
-			if (fa->fa_type == type &&
-			    fa->fa_scope == r->rtm_scope &&
+			if (fa->fa_type == cfg->fc_type &&
+			    fa->fa_scope == cfg->fc_scope &&
 			    fa->fa_info == fi)
 				goto out;
 		}
-		if (!(n->nlmsg_flags & NLM_F_APPEND))
+		if (!(cfg->fc_nlflags & NLM_F_APPEND))
 			fa = fa_orig;
 	}
 
 	err = -ENOENT;
-	if (!(n->nlmsg_flags&NLM_F_CREATE))
+	if (!(cfg->fc_nlflags & NLM_F_CREATE))
 		goto out;
 
 	err = -ENOBUFS;
@@ -506,8 +503,8 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
-	new_fa->fa_type = type;
-	new_fa->fa_scope = r->rtm_scope;
+	new_fa->fa_type = cfg->fc_type;
+	new_fa->fa_scope = cfg->fc_scope;
 	new_fa->fa_state = 0;
 
 	/*
@@ -526,7 +523,8 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		fz->fz_nent++;
 	rt_cache_flush(-1);
 
-	rtmsg_fib(RTM_NEWROUTE, key, new_fa, z, tb->tb_id, n, req);
+	rtmsg_fib(RTM_NEWROUTE, key, new_fa, cfg->fc_dst_len, tb->tb_id,
+		  &cfg->fc_nlinfo);
 	return 0;
 
 out_free_new_fa:
@@ -537,30 +535,25 @@ out:
 }
 
 
-static int
-fn_hash_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
-	       struct nlmsghdr *n, struct netlink_skb_parms *req)
+static int fn_hash_delete(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct fn_hash *table = (struct fn_hash*)tb->tb_data;
 	struct fib_node *f;
 	struct fib_alias *fa, *fa_to_delete;
-	int z = r->rtm_dst_len;
 	struct fn_zone *fz;
 	u32 key;
-	u8 tos = r->rtm_tos;
 
-	if (z > 32)
+	if (cfg->fc_dst_len > 32)
 		return -EINVAL;
-	if ((fz  = table->fn_zones[z]) == NULL)
+
+	if ((fz  = table->fn_zones[cfg->fc_dst_len]) == NULL)
 		return -ESRCH;
 
 	key = 0;
-	if (rta->rta_dst) {
-		u32 dst;
-		memcpy(&dst, rta->rta_dst, 4);
-		if (dst & ~FZ_MASK(fz))
+	if (cfg->fc_dst) {
+		if (cfg->fc_dst & ~FZ_MASK(fz))
 			return -EINVAL;
-		key = fz_key(dst, fz);
+		key = fz_key(cfg->fc_dst, fz);
 	}
 
 	f = fib_find_node(fz, key);
@@ -568,7 +561,7 @@ fn_hash_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	if (!f)
 		fa = NULL;
 	else
-		fa = fib_find_alias(&f->fn_alias, tos, 0);
+		fa = fib_find_alias(&f->fn_alias, cfg->fc_tos, 0);
 	if (!fa)
 		return -ESRCH;
 
@@ -577,16 +570,16 @@ fn_hash_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	list_for_each_entry_continue(fa, &f->fn_alias, fa_list) {
 		struct fib_info *fi = fa->fa_info;
 
-		if (fa->fa_tos != tos)
+		if (fa->fa_tos != cfg->fc_tos)
 			break;
 
-		if ((!r->rtm_type ||
-		     fa->fa_type == r->rtm_type) &&
-		    (r->rtm_scope == RT_SCOPE_NOWHERE ||
-		     fa->fa_scope == r->rtm_scope) &&
-		    (!r->rtm_protocol ||
-		     fi->fib_protocol == r->rtm_protocol) &&
-		    fib_nh_match(r, n, rta, fi) == 0) {
+		if ((!cfg->fc_type ||
+		     fa->fa_type == cfg->fc_type) &&
+		    (cfg->fc_scope == RT_SCOPE_NOWHERE ||
+		     fa->fa_scope == cfg->fc_scope) &&
+		    (!cfg->fc_protocol ||
+		     fi->fib_protocol == cfg->fc_protocol) &&
+		    fib_nh_match(cfg, fi) == 0) {
 			fa_to_delete = fa;
 			break;
 		}
@@ -596,7 +589,8 @@ fn_hash_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		int kill_fn;
 
 		fa = fa_to_delete;
-		rtmsg_fib(RTM_DELROUTE, key, fa, z, tb->tb_id, n, req);
+		rtmsg_fib(RTM_DELROUTE, key, fa, cfg->fc_dst_len,
+			  tb->tb_id, &cfg->fc_nlinfo);
 
 		kill_fn = 0;
 		write_lock_bh(&fib_hash_lock);
@@ -684,7 +678,7 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 	struct fib_node *f;
 	int i, s_i;
 
-	s_i = cb->args[3];
+	s_i = cb->args[4];
 	i = 0;
 	hlist_for_each_entry(f, node, head, fn_hash) {
 		struct fib_alias *fa;
@@ -699,19 +693,19 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 					  tb->tb_id,
 					  fa->fa_type,
 					  fa->fa_scope,
-					  &f->fn_key,
+					  f->fn_key,
 					  fz->fz_order,
 					  fa->fa_tos,
 					  fa->fa_info,
 					  NLM_F_MULTI) < 0) {
-				cb->args[3] = i;
+				cb->args[4] = i;
 				return -1;
 			}
 		next:
 			i++;
 		}
 	}
-	cb->args[3] = i;
+	cb->args[4] = i;
 	return skb->len;
 }
 
@@ -722,21 +716,21 @@ fn_hash_dump_zone(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	int h, s_h;
 
-	s_h = cb->args[2];
+	s_h = cb->args[3];
 	for (h=0; h < fz->fz_divisor; h++) {
 		if (h < s_h) continue;
 		if (h > s_h)
-			memset(&cb->args[3], 0,
-			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
+			memset(&cb->args[4], 0,
+			       sizeof(cb->args) - 4*sizeof(cb->args[0]));
 		if (fz->fz_hash == NULL ||
 		    hlist_empty(&fz->fz_hash[h]))
 			continue;
 		if (fn_hash_dump_bucket(skb, cb, tb, fz, &fz->fz_hash[h])<0) {
-			cb->args[2] = h;
+			cb->args[3] = h;
 			return -1;
 		}
 	}
-	cb->args[2] = h;
+	cb->args[3] = h;
 	return skb->len;
 }
 
@@ -746,28 +740,28 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	struct fn_zone *fz;
 	struct fn_hash *table = (struct fn_hash*)tb->tb_data;
 
-	s_m = cb->args[1];
+	s_m = cb->args[2];
 	read_lock(&fib_hash_lock);
 	for (fz = table->fn_zone_list, m=0; fz; fz = fz->fz_next, m++) {
 		if (m < s_m) continue;
 		if (m > s_m)
-			memset(&cb->args[2], 0,
-			       sizeof(cb->args) - 2*sizeof(cb->args[0]));
+			memset(&cb->args[3], 0,
+			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
 		if (fn_hash_dump_zone(skb, cb, tb, fz) < 0) {
-			cb->args[1] = m;
+			cb->args[2] = m;
 			read_unlock(&fib_hash_lock);
 			return -1;
 		}
 	}
 	read_unlock(&fib_hash_lock);
-	cb->args[1] = m;
+	cb->args[2] = m;
 	return skb->len;
 }
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-struct fib_table * fib_hash_init(int id)
+struct fib_table * fib_hash_init(u32 id)
 #else
-struct fib_table * __init fib_hash_init(int id)
+struct fib_table * __init fib_hash_init(u32 id)
 #endif
 {
 	struct fib_table *tb;

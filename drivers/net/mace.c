@@ -113,7 +113,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	struct device_node *mace = macio_get_of_node(mdev);
 	struct net_device *dev;
 	struct mace_data *mp;
-	unsigned char *addr;
+	const unsigned char *addr;
 	int j, rev, rc = -EBUSY;
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
@@ -177,7 +177,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 	mp->chipid = (in_8(&mp->mace->chipid_hi) << 8) |
 			in_8(&mp->mace->chipid_lo);
-		
+
 
 	mp = (struct mace_data *) dev->priv;
 	mp->maccc = ENXMT | ENRCV;
@@ -219,7 +219,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 			mp->port_aaui = 1;
 #else
 			mp->port_aaui = 0;
-#endif			
+#endif
 		}
 	}
 
@@ -264,7 +264,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	printk(", chip revision %d.%d\n", mp->chipid >> 8, mp->chipid & 0xff);
 
 	return 0;
- 
+
  err_free_rx_irq:
 	free_irq(macio_irq(mdev, 2), dev);
  err_free_tx_irq:
@@ -1008,7 +1008,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs)
     return IRQ_HANDLED;
 }
 
-static struct of_device_id mace_match[] = 
+static struct of_device_id mace_match[] =
 {
 	{
 	.name 		= "mace",
@@ -1017,7 +1017,7 @@ static struct of_device_id mace_match[] =
 };
 MODULE_DEVICE_TABLE (of, mace_match);
 
-static struct macio_driver mace_driver = 
+static struct macio_driver mace_driver =
 {
 	.name 		= "mace",
 	.match_table	= mace_match,

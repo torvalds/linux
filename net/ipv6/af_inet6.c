@@ -59,6 +59,9 @@
 #ifdef CONFIG_IPV6_TUNNEL
 #include <net/ip6_tunnel.h>
 #endif
+#ifdef CONFIG_IPV6_MIP6
+#include <net/mip6.h>
+#endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -67,7 +70,7 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-int sysctl_ipv6_bindv6only;
+int sysctl_ipv6_bindv6only __read_mostly;
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
@@ -637,6 +640,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		fl.oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet->dport;
 		fl.fl_ip_sport = inet->sport;
+		security_sk_classify_flow(sk, &fl);
 
 		if (np->opt && np->opt->srcrt) {
 			struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
@@ -658,7 +662,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 			return err;
 		}
 
-		__ip6_dst_store(sk, dst, NULL);
+		__ip6_dst_store(sk, dst, NULL, NULL);
 	}
 
 	return 0;
@@ -757,6 +761,8 @@ static int __init inet6_init(void)
         struct list_head *r;
 	int err;
 
+	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
+
 #ifdef MODULE
 #if 0 /* FIXME --RR */
 	if (!mod_member_present(&__this_module, can_unload))
@@ -765,11 +771,6 @@ static int __init inet6_init(void)
 	__this_module.can_unload = &ipv6_unload;
 #endif
 #endif
-
-	if (sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "inet6_proto_init: size fault\n");
-		return -EINVAL;
-	}
 
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
@@ -856,6 +857,9 @@ static int __init inet6_init(void)
 	ipv6_frag_init();
 	ipv6_nodata_init();
 	ipv6_destopt_init();
+#ifdef CONFIG_IPV6_MIP6
+	mip6_init();
+#endif
 
 	/* Init v6 transport protocols. */
 	udpv6_init();
@@ -918,6 +922,9 @@ static void __exit inet6_exit(void)
  	udp6_proc_exit();
  	tcp6_proc_exit();
  	raw6_proc_exit();
+#endif
+#ifdef CONFIG_IPV6_MIP6
+	mip6_fini();
 #endif
 	/* Cleanup code parts. */
 	sit_cleanup();

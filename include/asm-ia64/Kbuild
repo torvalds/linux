@@ -1,7 +1,17 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += break.h fpu.h fpswa.h gcc_intrin.h ia64regs.h		\
-	 intel_intrin.h intrinsics.h perfmon_default_smpl.h	\
-	 ptrace_offsets.h rse.h setup.h ucontext.h
+header-y += break.h
+header-y += fpu.h
+header-y += fpswa.h
+header-y += gcc_intrin.h
+header-y += ia64regs.h
+header-y += intel_intrin.h
+header-y += intrinsics.h
+header-y += perfmon_default_smpl.h
+header-y += ptrace_offsets.h
+header-y += rse.h
+header-y += setup.h
+header-y += ucontext.h
 
-unifdef-y += perfmon.h ustack.h
+unifdef-y += perfmon.h
+unifdef-y += ustack.h

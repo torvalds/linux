@@ -1090,7 +1090,7 @@ static int __init irport_init(void)
 {
  	int i;
 
- 	for (i=0; (io[i] < 2000) && (i < 4); i++) {
+ 	for (i=0; (io[i] < 2000) && (i < ARRAY_SIZE(dev_self)); i++) {
  		if (irport_open(i, io[i], irq[i]) != NULL)
  			return 0;
  	}
@@ -1112,7 +1112,7 @@ static void __exit irport_cleanup(void)
 
         IRDA_DEBUG( 4, "%s()\n", __FUNCTION__);
 
-	for (i=0; i < 4; i++) {
+	for (i=0; i < ARRAY_SIZE(dev_self); i++) {
  		if (dev_self[i])
  			irport_close(dev_self[i]);
  	}

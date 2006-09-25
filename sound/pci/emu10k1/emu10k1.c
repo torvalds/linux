@@ -232,7 +232,7 @@ static int snd_emu10k1_suspend(struct pci_dev *pci, pm_message_t state)
 	return 0;
 }
 
-int snd_emu10k1_resume(struct pci_dev *pci)
+static int snd_emu10k1_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_emu10k1 *emu = card->private_data;

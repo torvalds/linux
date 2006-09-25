@@ -56,6 +56,7 @@ struct ocfs2_inode_info
 	struct ocfs2_journal_handle	*ip_handle;
 
 	u32				ip_flags; /* see below */
+	u32				ip_attr; /* inode attributes */
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
@@ -121,7 +122,13 @@ struct buffer_head *ocfs2_bread(struct inode *inode, int block,
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
 void ocfs2_drop_inode(struct inode *inode);
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff);
+
+/* Flags for ocfs2_iget() */
+#define OCFS2_FI_FLAG_NOWAIT	0x1
+#define OCFS2_FI_FLAG_DELETE	0x2
+#define OCFS2_FI_FLAG_SYSFILE	0x4
+#define OCFS2_FI_FLAG_NOLOCK	0x8
+struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, int flags);
 struct inode *ocfs2_ilookup_for_vote(struct ocfs2_super *osb,
 				     u64 blkno,
 				     int delete_vote);
@@ -141,5 +148,7 @@ int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
 			   struct buffer_head *bh);
 int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);
 int ocfs2_aio_write(struct file *file, struct kiocb *req, struct iocb *iocb);
+
+void ocfs2_set_inode_flags(struct inode *inode);
 
 #endif /* OCFS2_INODE_H */

@@ -37,15 +37,14 @@ o  e2fsprogs              1.29                    # tune2fs
 o  jfsutils               1.1.3                   # fsck.jfs -V
 o  reiserfsprogs          3.6.3                   # reiserfsck -V 2>&1|grep reiserfsprogs
 o  xfsprogs               2.6.0                   # xfs_db -V
-o  pcmciautils            004
-o  pcmcia-cs              3.1.21                  # cardmgr -V
+o  pcmciautils            004                     # pccardctl -V
 o  quota-tools            3.09                    # quota -V
 o  PPP                    2.4.0                   # pppd --version
 o  isdn4k-utils           3.1pre1                 # isdnctrl 2>&1|grep version
 o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
 o  oprofile               0.9                     # oprofiled --version
-o  udev                   071                     # udevinfo -V
+o  udev                   081                     # udevinfo -V
 
 Kernel compilation
 ==================
@@ -268,7 +267,7 @@ active clients.
 
 To enable this new functionality, you need to:
 
-  mount -t nfsd nfsd /proc/fs/nfs
+  mount -t nfsd nfsd /proc/fs/nfsd
 
 before running exportfs or mountd.  It is recommended that all NFS
 services be protected from the internet-at-large by a firewall where

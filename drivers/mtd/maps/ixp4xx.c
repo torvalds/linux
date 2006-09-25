@@ -253,7 +253,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	/* Use the fast version */
 	info->map.write = ixp4xx_write16,
 
-	err = parse_mtd_partitions(info->mtd, probes, &info->partitions, 0);
+	err = parse_mtd_partitions(info->mtd, probes, &info->partitions, dev->resource->start);
 	if (err > 0) {
 		err = add_mtd_partitions(info->mtd, info->partitions, err);
 		if(err)

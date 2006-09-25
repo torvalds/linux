@@ -2,6 +2,7 @@
 #define _ADFS_FS_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
 
 /*
  * Disc Record at disc address 0xc00
@@ -38,7 +39,6 @@ struct adfs_discrecord {
 #define ADFS_DR_OFFSET		(0x1c0)
 #define ADFS_DR_SIZE		 60
 #define ADFS_DR_SIZE_BITS	(ADFS_DR_SIZE << 3)
-#define ADFS_SUPER_MAGIC	 0xadf5
 
 #ifdef __KERNEL__
 #include <linux/adfs_fs_i.h>

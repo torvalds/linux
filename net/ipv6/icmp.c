@@ -151,7 +151,7 @@ static int is_ineligible(struct sk_buff *skb)
 	return 0;
 }
 
-static int sysctl_icmpv6_time = 1*HZ; 
+static int sysctl_icmpv6_time __read_mostly = 1*HZ;
 
 /* 
  * Check the ICMP output rate limit 
@@ -273,6 +273,29 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 	return 0;
 }
 
+#ifdef CONFIG_IPV6_MIP6
+static void mip6_addr_swap(struct sk_buff *skb)
+{
+	struct ipv6hdr *iph = skb->nh.ipv6h;
+	struct inet6_skb_parm *opt = IP6CB(skb);
+	struct ipv6_destopt_hao *hao;
+	struct in6_addr tmp;
+	int off;
+
+	if (opt->dsthao) {
+		off = ipv6_find_tlv(skb, opt->dsthao, IPV6_TLV_HAO);
+		if (likely(off >= 0)) {
+			hao = (struct ipv6_destopt_hao *)(skb->nh.raw + off);
+			ipv6_addr_copy(&tmp, &iph->saddr);
+			ipv6_addr_copy(&iph->saddr, &hao->addr);
+			ipv6_addr_copy(&hao->addr, &tmp);
+		}
+	}
+}
+#else
+static inline void mip6_addr_swap(struct sk_buff *skb) {}
+#endif
+
 /*
  *	Send an ICMP message in response to a packet in error
  */
@@ -350,6 +373,8 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		return;
 	}
 
+	mip6_addr_swap(skb);
+
 	memset(&fl, 0, sizeof(fl));
 	fl.proto = IPPROTO_ICMPV6;
 	ipv6_addr_copy(&fl.fl6_dst, &hdr->saddr);
@@ -358,6 +383,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	fl.oif = iif;
 	fl.fl_icmp_type = type;
 	fl.fl_icmp_code = code;
+	security_skb_classify_flow(skb, &fl);
 
 	if (icmpv6_xmit_lock())
 		return;
@@ -472,6 +498,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 		ipv6_addr_copy(&fl.fl6_src, saddr);
 	fl.oif = skb->dev->ifindex;
 	fl.fl_icmp_type = ICMPV6_ECHO_REPLY;
+	security_skb_classify_flow(skb, &fl);
 
 	if (icmpv6_xmit_lock())
 		return;
@@ -604,7 +631,7 @@ static int icmpv6_rcv(struct sk_buff **pskb)
 
 	/* Perform checksum. */
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
 				     skb->csum))
 			break;

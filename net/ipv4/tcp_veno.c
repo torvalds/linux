@@ -9,7 +9,6 @@
  * 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -213,7 +212,7 @@ static struct tcp_congestion_ops tcp_veno = {
 
 static int __init tcp_veno_register(void)
 {
-	BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
+	BUILD_BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_veno);
 	return 0;
 }

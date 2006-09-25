@@ -46,6 +46,7 @@
 #include "ice1712.h"
 #include "envy24ht.h"
 #include "phase.h"
+#include <sound/tlv.h>
 
 /* WM8770 registers */
 #define WM_DAC_ATTEN		0x00	/* DAC1-8 analog attenuation */
@@ -696,6 +697,9 @@ static int phase28_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ct
 	return 0;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_wm_dac, -12700, 100, 1);
+static DECLARE_TLV_DB_SCALE(db_scale_wm_pcm, -6400, 50, 1);
+
 static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -706,10 +710,13 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Master Playback Volume",
 		.info = wm_master_vol_info,
 		.get = wm_master_vol_get,
-		.put = wm_master_vol_put
+		.put = wm_master_vol_put,
+		.tlv = { .p = db_scale_wm_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -721,11 +728,14 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Front Playback Volume",
 		.info = wm_vol_info,
 		.get = wm_vol_get,
 		.put = wm_vol_put,
-		.private_value = (2 << 8) | 0
+		.private_value = (2 << 8) | 0,
+		.tlv = { .p = db_scale_wm_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -737,11 +747,14 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Rear Playback Volume",
 		.info = wm_vol_info,
 		.get = wm_vol_get,
 		.put = wm_vol_put,
-		.private_value = (2 << 8) | 2
+		.private_value = (2 << 8) | 2,
+		.tlv = { .p = db_scale_wm_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -753,11 +766,14 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Center Playback Volume",
 		.info = wm_vol_info,
 		.get = wm_vol_get,
 		.put = wm_vol_put,
-		.private_value = (1 << 8) | 4
+		.private_value = (1 << 8) | 4,
+		.tlv = { .p = db_scale_wm_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -769,11 +785,14 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "LFE Playback Volume",
 		.info = wm_vol_info,
 		.get = wm_vol_get,
 		.put = wm_vol_put,
-		.private_value = (1 << 8) | 5
+		.private_value = (1 << 8) | 5,
+		.tlv = { .p = db_scale_wm_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -785,11 +804,14 @@ static struct snd_kcontrol_new phase28_dac_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Side Playback Volume",
 		.info = wm_vol_info,
 		.get = wm_vol_get,
 		.put = wm_vol_put,
-		.private_value = (2 << 8) | 6
+		.private_value = (2 << 8) | 6,
+		.tlv = { .p = db_scale_wm_dac }
 	}
 };
 
@@ -803,10 +825,13 @@ static struct snd_kcontrol_new wm_controls[] __devinitdata = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			   SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "PCM Playback Volume",
 		.info = wm_pcm_vol_info,
 		.get = wm_pcm_vol_get,
-		.put = wm_pcm_vol_put
+		.put = wm_pcm_vol_put,
+		.tlv = { .p = db_scale_wm_pcm }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,

@@ -2,6 +2,7 @@
 #define __LINUX_RTNETLINK_H
 
 #include <linux/netlink.h>
+#include <linux/if.h>
 
 /****
  *		Routing/neighbour discovery messages.
@@ -238,10 +239,8 @@ enum rt_class_t
 	RT_TABLE_DEFAULT=253,
 	RT_TABLE_MAIN=254,
 	RT_TABLE_LOCAL=255,
-	__RT_TABLE_MAX
+	RT_TABLE_MAX=0xFFFFFFFF
 };
-#define RT_TABLE_MAX (__RT_TABLE_MAX - 1)
-
 
 
 /* Routing message attributes */
@@ -263,6 +262,7 @@ enum rtattr_type_t
 	RTA_CACHEINFO,
 	RTA_SESSION,
 	RTA_MP_ALGO,
+	RTA_TABLE,
 	__RTA_MAX
 };
 
@@ -383,226 +383,6 @@ struct rta_session
 	} u;
 };
 
-
-/*********************************************************
- *		Interface address.
- ****/
-
-struct ifaddrmsg
-{
-	unsigned char	ifa_family;
-	unsigned char	ifa_prefixlen;	/* The prefix length		*/
-	unsigned char	ifa_flags;	/* Flags			*/
-	unsigned char	ifa_scope;	/* See above			*/
-	int		ifa_index;	/* Link index			*/
-};
-
-enum
-{
-	IFA_UNSPEC,
-	IFA_ADDRESS,
-	IFA_LOCAL,
-	IFA_LABEL,
-	IFA_BROADCAST,
-	IFA_ANYCAST,
-	IFA_CACHEINFO,
-	IFA_MULTICAST,
-	__IFA_MAX
-};
-
-#define IFA_MAX (__IFA_MAX - 1)
-
-/* ifa_flags */
-
-#define IFA_F_SECONDARY		0x01
-#define IFA_F_TEMPORARY		IFA_F_SECONDARY
-
-#define IFA_F_DEPRECATED	0x20
-#define IFA_F_TENTATIVE		0x40
-#define IFA_F_PERMANENT		0x80
-
-struct ifa_cacheinfo
-{
-	__u32	ifa_prefered;
-	__u32	ifa_valid;
-	__u32	cstamp; /* created timestamp, hundredths of seconds */
-	__u32	tstamp; /* updated timestamp, hundredths of seconds */
-};
-
-
-#define IFA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifaddrmsg))))
-#define IFA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifaddrmsg))
-
-/*
-   Important comment:
-   IFA_ADDRESS is prefix address, rather than local interface address.
-   It makes no difference for normally configured broadcast interfaces,
-   but for point-to-point IFA_ADDRESS is DESTINATION address,
-   local address is supplied in IFA_LOCAL attribute.
- */
-
-/**************************************************************
- *		Neighbour discovery.
- ****/
-
-struct ndmsg
-{
-	unsigned char	ndm_family;
-	unsigned char	ndm_pad1;
-	unsigned short	ndm_pad2;
-	int		ndm_ifindex;	/* Link index			*/
-	__u16		ndm_state;
-	__u8		ndm_flags;
-	__u8		ndm_type;
-};
-
-enum
-{
-	NDA_UNSPEC,
-	NDA_DST,
-	NDA_LLADDR,
-	NDA_CACHEINFO,
-	NDA_PROBES,
-	__NDA_MAX
-};
-
-#define NDA_MAX (__NDA_MAX - 1)
-
-#define NDA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
-#define NDA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ndmsg))
-
-/*
- *	Neighbor Cache Entry Flags
- */
-
-#define NTF_PROXY	0x08	/* == ATF_PUBL */
-#define NTF_ROUTER	0x80
-
-/*
- *	Neighbor Cache Entry States.
- */
-
-#define NUD_INCOMPLETE	0x01
-#define NUD_REACHABLE	0x02
-#define NUD_STALE	0x04
-#define NUD_DELAY	0x08
-#define NUD_PROBE	0x10
-#define NUD_FAILED	0x20
-
-/* Dummy states */
-#define NUD_NOARP	0x40
-#define NUD_PERMANENT	0x80
-#define NUD_NONE	0x00
-
-
-struct nda_cacheinfo
-{
-	__u32		ndm_confirmed;
-	__u32		ndm_used;
-	__u32		ndm_updated;
-	__u32		ndm_refcnt;
-};
-
-
-/*****************************************************************
- *		Neighbour tables specific messages.
- *
- * To retrieve the neighbour tables send RTM_GETNEIGHTBL with the
- * NLM_F_DUMP flag set. Every neighbour table configuration is
- * spread over multiple messages to avoid running into message
- * size limits on systems with many interfaces. The first message
- * in the sequence transports all not device specific data such as
- * statistics, configuration, and the default parameter set.
- * This message is followed by 0..n messages carrying device
- * specific parameter sets.
- * Although the ordering should be sufficient, NDTA_NAME can be
- * used to identify sequences. The initial message can be identified
- * by checking for NDTA_CONFIG. The device specific messages do
- * not contain this TLV but have NDTPA_IFINDEX set to the
- * corresponding interface index.
- *
- * To change neighbour table attributes, send RTM_SETNEIGHTBL
- * with NDTA_NAME set. Changeable attribute include NDTA_THRESH[1-3],
- * NDTA_GC_INTERVAL, and all TLVs in NDTA_PARMS unless marked
- * otherwise. Device specific parameter sets can be changed by
- * setting NDTPA_IFINDEX to the interface index of the corresponding
- * device.
- ****/
-
-struct ndt_stats
-{
-	__u64		ndts_allocs;
-	__u64		ndts_destroys;
-	__u64		ndts_hash_grows;
-	__u64		ndts_res_failed;
-	__u64		ndts_lookups;
-	__u64		ndts_hits;
-	__u64		ndts_rcv_probes_mcast;
-	__u64		ndts_rcv_probes_ucast;
-	__u64		ndts_periodic_gc_runs;
-	__u64		ndts_forced_gc_runs;
-};
-
-enum {
-	NDTPA_UNSPEC,
-	NDTPA_IFINDEX,			/* u32, unchangeable */
-	NDTPA_REFCNT,			/* u32, read-only */
-	NDTPA_REACHABLE_TIME,		/* u64, read-only, msecs */
-	NDTPA_BASE_REACHABLE_TIME,	/* u64, msecs */
-	NDTPA_RETRANS_TIME,		/* u64, msecs */
-	NDTPA_GC_STALETIME,		/* u64, msecs */
-	NDTPA_DELAY_PROBE_TIME,		/* u64, msecs */
-	NDTPA_QUEUE_LEN,		/* u32 */
-	NDTPA_APP_PROBES,		/* u32 */
-	NDTPA_UCAST_PROBES,		/* u32 */
-	NDTPA_MCAST_PROBES,		/* u32 */
-	NDTPA_ANYCAST_DELAY,		/* u64, msecs */
-	NDTPA_PROXY_DELAY,		/* u64, msecs */
-	NDTPA_PROXY_QLEN,		/* u32 */
-	NDTPA_LOCKTIME,			/* u64, msecs */
-	__NDTPA_MAX
-};
-#define NDTPA_MAX (__NDTPA_MAX - 1)
-
-struct ndtmsg
-{
-	__u8		ndtm_family;
-	__u8		ndtm_pad1;
-	__u16		ndtm_pad2;
-};
-
-struct ndt_config
-{
-	__u16		ndtc_key_len;
-	__u16		ndtc_entry_size;
-	__u32		ndtc_entries;
-	__u32		ndtc_last_flush;	/* delta to now in msecs */
-	__u32		ndtc_last_rand;		/* delta to now in msecs */
-	__u32		ndtc_hash_rnd;
-	__u32		ndtc_hash_mask;
-	__u32		ndtc_hash_chain_gc;
-	__u32		ndtc_proxy_qlen;
-};
-
-enum {
-	NDTA_UNSPEC,
-	NDTA_NAME,			/* char *, unchangeable */
-	NDTA_THRESH1,			/* u32 */
-	NDTA_THRESH2,			/* u32 */
-	NDTA_THRESH3,			/* u32 */
-	NDTA_CONFIG,			/* struct ndt_config, read-only */
-	NDTA_PARMS,			/* nested TLV NDTPA_* */
-	NDTA_STATS,			/* struct ndt_stats, read-only */
-	NDTA_GC_INTERVAL,		/* u64, msecs */
-	__NDTA_MAX
-};
-#define NDTA_MAX (__NDTA_MAX - 1)
-
-#define NDTA_RTA(r) ((struct rtattr*)(((char*)(r)) + \
-		     NLMSG_ALIGN(sizeof(struct ndtmsg))))
-#define NDTA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ndtmsg))
-
-
 /****
  *		General form of address family dependent message.
  ****/
@@ -663,138 +443,6 @@ struct prefix_cacheinfo
 	__u32	valid_time;
 };
 
-/* The struct should be in sync with struct net_device_stats */
-struct rtnl_link_stats
-{
-	__u32	rx_packets;		/* total packets received	*/
-	__u32	tx_packets;		/* total packets transmitted	*/
-	__u32	rx_bytes;		/* total bytes received 	*/
-	__u32	tx_bytes;		/* total bytes transmitted	*/
-	__u32	rx_errors;		/* bad packets received		*/
-	__u32	tx_errors;		/* packet transmit problems	*/
-	__u32	rx_dropped;		/* no space in linux buffers	*/
-	__u32	tx_dropped;		/* no space available in linux	*/
-	__u32	multicast;		/* multicast packets received	*/
-	__u32	collisions;
-
-	/* detailed rx_errors: */
-	__u32	rx_length_errors;
-	__u32	rx_over_errors;		/* receiver ring buff overflow	*/
-	__u32	rx_crc_errors;		/* recved pkt with crc error	*/
-	__u32	rx_frame_errors;	/* recv'd frame alignment error */
-	__u32	rx_fifo_errors;		/* recv'r fifo overrun		*/
-	__u32	rx_missed_errors;	/* receiver missed packet	*/
-
-	/* detailed tx_errors */
-	__u32	tx_aborted_errors;
-	__u32	tx_carrier_errors;
-	__u32	tx_fifo_errors;
-	__u32	tx_heartbeat_errors;
-	__u32	tx_window_errors;
-	
-	/* for cslip etc */
-	__u32	rx_compressed;
-	__u32	tx_compressed;
-};
-
-/* The struct should be in sync with struct ifmap */
-struct rtnl_link_ifmap
-{
-	__u64	mem_start;
-	__u64	mem_end;
-	__u64	base_addr;
-	__u16	irq;
-	__u8	dma;
-	__u8	port;
-};
-
-enum
-{
-	IFLA_UNSPEC,
-	IFLA_ADDRESS,
-	IFLA_BROADCAST,
-	IFLA_IFNAME,
-	IFLA_MTU,
-	IFLA_LINK,
-	IFLA_QDISC,
-	IFLA_STATS,
-	IFLA_COST,
-#define IFLA_COST IFLA_COST
-	IFLA_PRIORITY,
-#define IFLA_PRIORITY IFLA_PRIORITY
-	IFLA_MASTER,
-#define IFLA_MASTER IFLA_MASTER
-	IFLA_WIRELESS,		/* Wireless Extension event - see wireless.h */
-#define IFLA_WIRELESS IFLA_WIRELESS
-	IFLA_PROTINFO,		/* Protocol specific information for a link */
-#define IFLA_PROTINFO IFLA_PROTINFO
-	IFLA_TXQLEN,
-#define IFLA_TXQLEN IFLA_TXQLEN
-	IFLA_MAP,
-#define IFLA_MAP IFLA_MAP
-	IFLA_WEIGHT,
-#define IFLA_WEIGHT IFLA_WEIGHT
-	IFLA_OPERSTATE,
-	IFLA_LINKMODE,
-	__IFLA_MAX
-};
-
-
-#define IFLA_MAX (__IFLA_MAX - 1)
-
-#define IFLA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifinfomsg))))
-#define IFLA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifinfomsg))
-
-/* ifi_flags.
-
-   IFF_* flags.
-
-   The only change is:
-   IFF_LOOPBACK, IFF_BROADCAST and IFF_POINTOPOINT are
-   more not changeable by user. They describe link media
-   characteristics and set by device driver.
-
-   Comments:
-   - Combination IFF_BROADCAST|IFF_POINTOPOINT is invalid
-   - If neither of these three flags are set;
-     the interface is NBMA.
-
-   - IFF_MULTICAST does not mean anything special:
-   multicasts can be used on all not-NBMA links.
-   IFF_MULTICAST means that this media uses special encapsulation
-   for multicast frames. Apparently, all IFF_POINTOPOINT and
-   IFF_BROADCAST devices are able to use multicasts too.
- */
-
-/* IFLA_LINK.
-   For usual devices it is equal ifi_index.
-   If it is a "virtual interface" (f.e. tunnel), ifi_link
-   can point to real physical interface (f.e. for bandwidth calculations),
-   or maybe 0, what means, that real media is unknown (usual
-   for IPIP tunnels, when route to endpoint is allowed to change)
- */
-
-/* Subtype attributes for IFLA_PROTINFO */
-enum
-{
-	IFLA_INET6_UNSPEC,
-	IFLA_INET6_FLAGS,	/* link flags			*/
-	IFLA_INET6_CONF,	/* sysctl parameters		*/
-	IFLA_INET6_STATS,	/* statistics			*/
-	IFLA_INET6_MCAST,	/* MC things. What of them?	*/
-	IFLA_INET6_CACHEINFO,	/* time values and max reasm size */
-	__IFLA_INET6_MAX
-};
-
-#define IFLA_INET6_MAX	(__IFLA_INET6_MAX - 1)
-
-struct ifla_cacheinfo
-{
-	__u32	max_reasm_len;
-	__u32	tstamp;		/* ipv6InterfaceTable updated timestamp */
-	__u32	reachable_time;
-	__u32	retrans_time;
-};
 
 /*****************************************************************
  *		Traffic control messages.
@@ -885,10 +533,13 @@ enum rtnetlink_groups {
 	RTNLGRP_NOP2,
 	RTNLGRP_DECnet_ROUTE,
 #define RTNLGRP_DECnet_ROUTE	RTNLGRP_DECnet_ROUTE
-	RTNLGRP_NOP3,
+	RTNLGRP_DECnet_RULE,
+#define RTNLGRP_DECnet_RULE	RTNLGRP_DECnet_RULE
 	RTNLGRP_NOP4,
 	RTNLGRP_IPV6_PREFIX,
 #define RTNLGRP_IPV6_PREFIX	RTNLGRP_IPV6_PREFIX
+	RTNLGRP_IPV6_RULE,
+#define RTNLGRP_IPV6_RULE	RTNLGRP_IPV6_RULE
 	__RTNLGRP_MAX
 };
 #define RTNLGRP_MAX	(__RTNLGRP_MAX - 1)
@@ -923,8 +574,6 @@ extern int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, in
 #define rtattr_parse_nested(tb, max, rta) \
 	rtattr_parse((tb), (max), RTA_DATA((rta)), RTA_PAYLOAD((rta)))
 
-extern struct sock *rtnl;
-
 struct rtnetlink_link
 {
 	int (*doit)(struct sk_buff *, struct nlmsghdr*, void *attr);
@@ -933,6 +582,10 @@ struct rtnetlink_link
 
 extern struct rtnetlink_link * rtnetlink_links[NPROTO];
 extern int rtnetlink_send(struct sk_buff *skb, u32 pid, u32 group, int echo);
+extern int rtnl_unicast(struct sk_buff *skb, u32 pid);
+extern int rtnl_notify(struct sk_buff *skb, u32 pid, u32 group,
+		       struct nlmsghdr *nlh, gfp_t flags);
+extern void rtnl_set_sk_err(u32 group, int error);
 extern int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics);
 
 extern void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
@@ -1064,6 +717,13 @@ extern void __rtnl_unlock(void);
 			#x,  __FILE__ , __LINE__); \
 	} \
 } while(0)
+
+static inline u32 rtm_get_table(struct rtattr **rta, u8 table)
+{
+	return RTA_GET_U32(rta[RTA_TABLE-1]);
+rtattr_failure:
+	return table;
+}
 
 #endif /* __KERNEL__ */
 

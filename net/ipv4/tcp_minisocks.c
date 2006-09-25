@@ -34,8 +34,8 @@
 #define SYNC_INIT 1
 #endif
 
-int sysctl_tcp_syncookies = SYNC_INIT; 
-int sysctl_tcp_abort_on_overflow;
+int sysctl_tcp_syncookies __read_mostly = SYNC_INIT;
+int sysctl_tcp_abort_on_overflow __read_mostly;
 
 struct inet_timewait_death_row tcp_death_row = {
 	.sysctl_max_tw_buckets = NR_FILE * 2,

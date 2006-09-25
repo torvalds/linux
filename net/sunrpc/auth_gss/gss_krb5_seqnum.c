@@ -41,7 +41,7 @@
 #endif
 
 s32
-krb5_make_seq_num(struct crypto_tfm *key,
+krb5_make_seq_num(struct crypto_blkcipher *key,
 		int direction,
 		s32 seqnum,
 		unsigned char *cksum, unsigned char *buf)
@@ -62,7 +62,7 @@ krb5_make_seq_num(struct crypto_tfm *key,
 }
 
 s32
-krb5_get_seq_num(struct crypto_tfm *key,
+krb5_get_seq_num(struct crypto_blkcipher *key,
 	       unsigned char *cksum,
 	       unsigned char *buf,
 	       int *direction, s32 * seqnum)

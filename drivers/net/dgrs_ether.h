@@ -49,7 +49,7 @@ typedef struct
 	int		buf_cnt;	/* Total RBD's allocated */
 
 	/* Rx Statistics */
-	ulong		cnt_rx_cnt;	/* Total packets rcvd, good and bad */ 
+	ulong		cnt_rx_cnt;	/* Total packets rcvd, good and bad */
 	ulong		cnt_rx_good;	/* Total good packets rcvd */
 	ulong		cnt_rx_bad;	/* Total of all bad packets rcvd */
 					/* Subtotals can be gotten from SCB */
@@ -94,7 +94,7 @@ typedef struct
 	 *	Filter 0: input filter
 	 *	Filter 1: output filter
 	 */
-	
+
 	ulong		*filter_space[NFILTERS];
 	FILTER_FUNC	*filter_func[NFILTERS];
 	ulong		filter_cnt[NFILTERS];

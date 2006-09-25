@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc.  All rights reserved.
+ * Copyright (c) 2006 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -75,6 +76,7 @@ struct ib_sa_device {
 struct ib_sa_query {
 	void (*callback)(struct ib_sa_query *, int, struct ib_sa_mad *);
 	void (*release)(struct ib_sa_query *);
+	struct ib_sa_client    *client;
 	struct ib_sa_port      *port;
 	struct ib_mad_send_buf *mad_buf;
 	struct ib_sa_sm_ah     *sm_ah;
@@ -415,6 +417,31 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 	}
 }
 
+void ib_sa_register_client(struct ib_sa_client *client)
+{
+	atomic_set(&client->users, 1);
+	init_completion(&client->comp);
+}
+EXPORT_SYMBOL(ib_sa_register_client);
+
+static inline void ib_sa_client_get(struct ib_sa_client *client)
+{
+	atomic_inc(&client->users);
+}
+
+static inline void ib_sa_client_put(struct ib_sa_client *client)
+{
+	if (atomic_dec_and_test(&client->users))
+		complete(&client->comp);
+}
+
+void ib_sa_unregister_client(struct ib_sa_client *client)
+{
+	ib_sa_client_put(client);
+	wait_for_completion(&client->comp);
+}
+EXPORT_SYMBOL(ib_sa_unregister_client);
+
 /**
  * ib_sa_cancel_query - try to cancel an SA query
  * @id:ID of query to cancel
@@ -557,6 +584,7 @@ static void ib_sa_path_rec_release(struct ib_sa_query *sa_query)
 
 /**
  * ib_sa_path_rec_get - Start a Path get query
+ * @client:SA client
  * @device:device to send query on
  * @port_num: port number to send query on
  * @rec:Path Record to send in query
@@ -579,7 +607,8 @@ static void ib_sa_path_rec_release(struct ib_sa_query *sa_query)
  * error code.  Otherwise it is a query ID that can be used to cancel
  * the query.
  */
-int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
+int ib_sa_path_rec_get(struct ib_sa_client *client,
+		       struct ib_device *device, u8 port_num,
 		       struct ib_sa_path_rec *rec,
 		       ib_sa_comp_mask comp_mask,
 		       int timeout_ms, gfp_t gfp_mask,
@@ -614,8 +643,10 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 		goto err1;
 	}
 
-	query->callback = callback;
-	query->context  = context;
+	ib_sa_client_get(client);
+	query->sa_query.client = client;
+	query->callback        = callback;
+	query->context         = context;
 
 	mad = query->sa_query.mad_buf->mad;
 	init_mad(mad, agent);
@@ -639,6 +670,7 @@ int ib_sa_path_rec_get(struct ib_device *device, u8 port_num,
 
 err2:
 	*sa_query = NULL;
+	ib_sa_client_put(query->sa_query.client);
 	ib_free_send_mad(query->sa_query.mad_buf);
 
 err1:
@@ -671,6 +703,7 @@ static void ib_sa_service_rec_release(struct ib_sa_query *sa_query)
 
 /**
  * ib_sa_service_rec_query - Start Service Record operation
+ * @client:SA client
  * @device:device to send request on
  * @port_num: port number to send request on
  * @method:SA method - should be get, set, or delete
@@ -695,7 +728,8 @@ static void ib_sa_service_rec_release(struct ib_sa_query *sa_query)
  * error code.  Otherwise it is a request ID that can be used to cancel
  * the query.
  */
-int ib_sa_service_rec_query(struct ib_device *device, u8 port_num, u8 method,
+int ib_sa_service_rec_query(struct ib_sa_client *client,
+			    struct ib_device *device, u8 port_num, u8 method,
 			    struct ib_sa_service_rec *rec,
 			    ib_sa_comp_mask comp_mask,
 			    int timeout_ms, gfp_t gfp_mask,
@@ -735,8 +769,10 @@ int ib_sa_service_rec_query(struct ib_device *device, u8 port_num, u8 method,
 		goto err1;
 	}
 
-	query->callback = callback;
-	query->context  = context;
+	ib_sa_client_get(client);
+	query->sa_query.client = client;
+	query->callback        = callback;
+	query->context         = context;
 
 	mad = query->sa_query.mad_buf->mad;
 	init_mad(mad, agent);
@@ -761,6 +797,7 @@ int ib_sa_service_rec_query(struct ib_device *device, u8 port_num, u8 method,
 
 err2:
 	*sa_query = NULL;
+	ib_sa_client_put(query->sa_query.client);
 	ib_free_send_mad(query->sa_query.mad_buf);
 
 err1:
@@ -791,7 +828,8 @@ static void ib_sa_mcmember_rec_release(struct ib_sa_query *sa_query)
 	kfree(container_of(sa_query, struct ib_sa_mcmember_query, sa_query));
 }
 
-int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
+int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
+			     struct ib_device *device, u8 port_num,
 			     u8 method,
 			     struct ib_sa_mcmember_rec *rec,
 			     ib_sa_comp_mask comp_mask,
@@ -827,8 +865,10 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 		goto err1;
 	}
 
-	query->callback = callback;
-	query->context  = context;
+	ib_sa_client_get(client);
+	query->sa_query.client = client;
+	query->callback        = callback;
+	query->context         = context;
 
 	mad = query->sa_query.mad_buf->mad;
 	init_mad(mad, agent);
@@ -853,6 +893,7 @@ int ib_sa_mcmember_rec_query(struct ib_device *device, u8 port_num,
 
 err2:
 	*sa_query = NULL;
+	ib_sa_client_put(query->sa_query.client);
 	ib_free_send_mad(query->sa_query.mad_buf);
 
 err1:
@@ -887,8 +928,9 @@ static void send_handler(struct ib_mad_agent *agent,
 	idr_remove(&query_idr, query->id);
 	spin_unlock_irqrestore(&idr_lock, flags);
 
-        ib_free_send_mad(mad_send_wc->send_buf);
+	ib_free_send_mad(mad_send_wc->send_buf);
 	kref_put(&query->sm_ah->ref, free_sm_ah);
+	ib_sa_client_put(query->client);
 	query->release(query);
 }
 
@@ -919,7 +961,10 @@ static void ib_sa_add_one(struct ib_device *device)
 	struct ib_sa_device *sa_dev;
 	int s, e, i;
 
-	if (device->node_type == IB_NODE_SWITCH)
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
+	if (device->node_type == RDMA_NODE_IB_SWITCH)
 		s = e = 0;
 	else {
 		s = 1;

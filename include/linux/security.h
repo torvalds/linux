@@ -31,6 +31,8 @@
 #include <linux/msg.h>
 #include <linux/sched.h>
 #include <linux/key.h>
+#include <linux/xfrm.h>
+#include <net/flow.h>
 
 struct ctl_table;
 
@@ -88,6 +90,7 @@ extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 struct nfsctl_arg;
 struct sched_param;
 struct swap_info_struct;
+struct request_sock;
 
 /* bprm_apply_creds unsafe reasons */
 #define LSM_UNSAFE_SHARE	1
@@ -812,9 +815,19 @@ struct swap_info_struct;
  *      which is used to copy security attributes between local stream sockets.
  * @sk_free_security:
  *	Deallocate security structure.
- * @sk_getsid:
- *	Retrieve the LSM-specific sid for the sock to enable caching of network
+ * @sk_clone_security:
+ *	Clone/copy security structure.
+ * @sk_getsecid:
+ *	Retrieve the LSM-specific secid for the sock to enable caching of network
  *	authorizations.
+ * @sock_graft:
+ *	Sets the socket's isec sid to the sock's sid.
+ * @inet_conn_request:
+ *	Sets the openreq's sid to socket's sid with MLS portion taken from peer sid.
+ * @inet_csk_clone:
+ *	Sets the new child socket's sid to the openreq sid.
+ * @req_classify_flow:
+ *	Sets the flow's sid to the openreq sid.
  *
  * Security hooks for XFRM operations.
  *
@@ -823,9 +836,10 @@ struct swap_info_struct;
  *	used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
- *	Allocate a security structure to the xp->security field.
- *	The security field is initialized to NULL when the xfrm_policy is
- *	allocated.
+ *	@sk refers to the sock from which to derive the security context.
+ *	Allocate a security structure to the xp->security field; the security
+ *	field is initialized to NULL when the xfrm_policy is allocated. Only
+ *	one of sec_ctx or sock can be specified.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
  *	@old contains an existing xfrm_policy in the SPD.
@@ -844,9 +858,14 @@ struct swap_info_struct;
  *	Database by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level SA generation program (e.g., setkey or racoon).
- *	Allocate a security structure to the x->security field.  The
- *	security field is initialized to NULL when the xfrm_state is
- *	allocated.
+ *	@polsec contains the security context information associated with a xfrm
+ *	policy rule from which to take the base context. polsec must be NULL
+ *	when sec_ctx is specified.
+ *	@secid contains the secid from which to take the mls portion of the context.
+ *	Allocate a security structure to the x->security field; the security
+ *	field is initialized to NULL when the xfrm_state is allocated. Set the
+ *	context to correspond to either sec_ctx or polsec, with the mls portion
+ *	taken from secid in the latter case.
  *	Return 0 if operation was successful (memory to allocate, legal context).
  * @xfrm_state_free_security:
  *	@x contains the xfrm_state.
@@ -857,13 +876,27 @@ struct swap_info_struct;
  * @xfrm_policy_lookup:
  *	@xp contains the xfrm_policy for which the access control is being
  *	checked.
- *	@sk_sid contains the sock security label that is used to authorize
+ *	@fl_secid contains the flow security label that is used to authorize
  *	access to the policy xp.
  *	@dir contains the direction of the flow (input or output).
- *	Check permission when a sock selects a xfrm_policy for processing
+ *	Check permission when a flow selects a xfrm_policy for processing
  *	XFRMs on a packet.  The hook is called when selecting either a
  *	per-socket policy or a generic xfrm policy.
  *	Return 0 if permission is granted.
+ * @xfrm_state_pol_flow_match:
+ *	@x contains the state to match.
+ *	@xp contains the policy to check for a match.
+ *	@fl contains the flow to check for a match.
+ *	Return 1 if there is a match.
+ * @xfrm_flow_state_match:
+ *	@fl contains the flow key to match.
+ *	@xfrm points to the xfrm_state to match.
+ *	Return 1 if there is a match.
+ * @xfrm_decode_session:
+ *	@skb points to skb to decode.
+ *	@secid points to the flow key secid to set.
+ *	@ckall says if all xfrms used should be checked for same secid.
+ *	Return 0 if ckall is zero or all xfrms used have the same secid.
  *
  * Security hooks affecting all Key Management operations
  *
@@ -1308,8 +1341,8 @@ struct security_operations {
 	int (*unix_may_send) (struct socket * sock, struct socket * other);
 
 	int (*socket_create) (int family, int type, int protocol, int kern);
-	void (*socket_post_create) (struct socket * sock, int family,
-				    int type, int protocol, int kern);
+	int (*socket_post_create) (struct socket * sock, int family,
+				   int type, int protocol, int kern);
 	int (*socket_bind) (struct socket * sock,
 			    struct sockaddr * address, int addrlen);
 	int (*socket_connect) (struct socket * sock,
@@ -1332,18 +1365,31 @@ struct security_operations {
 	int (*socket_getpeersec_dgram) (struct socket *sock, struct sk_buff *skb, u32 *secid);
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
-	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
+	void (*sk_clone_security) (const struct sock *sk, struct sock *newsk);
+	void (*sk_getsecid) (struct sock *sk, u32 *secid);
+	void (*sock_graft)(struct sock* sk, struct socket *parent);
+	int (*inet_conn_request)(struct sock *sk, struct sk_buff *skb,
+					struct request_sock *req);
+	void (*inet_csk_clone)(struct sock *newsk, const struct request_sock *req);
+	void (*req_classify_flow)(const struct request_sock *req, struct flowi *fl);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
+	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp,
+			struct xfrm_user_sec_ctx *sec_ctx, struct sock *sk);
 	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
 	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
 	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
-	int (*xfrm_state_alloc_security) (struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx);
+	int (*xfrm_state_alloc_security) (struct xfrm_state *x,
+		struct xfrm_user_sec_ctx *sec_ctx, struct xfrm_sec_ctx *polsec,
+		u32 secid);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
 	int (*xfrm_state_delete_security) (struct xfrm_state *x);
-	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 sk_sid, u8 dir);
+	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
+	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
+			struct xfrm_policy *xp, struct flowi *fl);
+	int (*xfrm_flow_state_match)(struct flowi *fl, struct xfrm_state *xfrm);
+	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 	/* key management security hooks */
@@ -2778,13 +2824,13 @@ static inline int security_socket_create (int family, int type,
 	return security_ops->socket_create(family, type, protocol, kern);
 }
 
-static inline void security_socket_post_create(struct socket * sock, 
-					       int family,
-					       int type, 
-					       int protocol, int kern)
+static inline int security_socket_post_create(struct socket * sock,
+					      int family,
+					      int type,
+					      int protocol, int kern)
 {
-	security_ops->socket_post_create(sock, family, type,
-					 protocol, kern);
+	return security_ops->socket_post_create(sock, family, type,
+						protocol, kern);
 }
 
 static inline int security_socket_bind(struct socket * sock, 
@@ -2885,9 +2931,36 @@ static inline void security_sk_free(struct sock *sk)
 	return security_ops->sk_free_security(sk);
 }
 
-static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
-	return security_ops->sk_getsid(sk, fl, dir);
+	return security_ops->sk_clone_security(sk, newsk);
+}
+
+static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
+{
+	security_ops->sk_getsecid(sk, &fl->secid);
+}
+
+static inline void security_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+	security_ops->req_classify_flow(req, fl);
+}
+
+static inline void security_sock_graft(struct sock* sk, struct socket *parent)
+{
+	security_ops->sock_graft(sk, parent);
+}
+
+static inline int security_inet_conn_request(struct sock *sk,
+			struct sk_buff *skb, struct request_sock *req)
+{
+	return security_ops->inet_conn_request(sk, skb, req);
+}
+
+static inline void security_inet_csk_clone(struct sock *newsk,
+			const struct request_sock *req)
+{
+	security_ops->inet_csk_clone(newsk, req);
 }
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket * sock,
@@ -2909,11 +2982,12 @@ static inline int security_socket_create (int family, int type,
 	return 0;
 }
 
-static inline void security_socket_post_create(struct socket * sock, 
-					       int family,
-					       int type, 
-					       int protocol, int kern)
+static inline int security_socket_post_create(struct socket * sock,
+					      int family,
+					      int type,
+					      int protocol, int kern)
 {
+	return 0;
 }
 
 static inline int security_socket_bind(struct socket * sock, 
@@ -3011,16 +3085,43 @@ static inline void security_sk_free(struct sock *sk)
 {
 }
 
-static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+static inline void security_sk_clone(const struct sock *sk, struct sock *newsk)
+{
+}
+
+static inline void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
+{
+}
+
+static inline void security_req_classify_flow(const struct request_sock *req, struct flowi *fl)
+{
+}
+
+static inline void security_sock_graft(struct sock* sk, struct socket *parent)
+{
+}
+
+static inline int security_inet_conn_request(struct sock *sk,
+			struct sk_buff *skb, struct request_sock *req)
 {
 	return 0;
+}
+
+static inline void security_inet_csk_clone(struct sock *newsk,
+			const struct request_sock *req)
+{
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx);
+	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx, NULL);
+}
+
+static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
+{
+	return security_ops->xfrm_policy_alloc_security(xp, NULL, sk);
 }
 
 static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
@@ -3038,9 +3139,18 @@ static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
 	return security_ops->xfrm_policy_delete_security(xp);
 }
 
-static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_state_alloc(struct xfrm_state *x,
+			struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_state_alloc_security(x, sec_ctx);
+	return security_ops->xfrm_state_alloc_security(x, sec_ctx, NULL, 0);
+}
+
+static inline int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
+				struct xfrm_sec_ctx *polsec, u32 secid)
+{
+	if (!polsec)
+		return 0;
+	return security_ops->xfrm_state_alloc_security(x, NULL, polsec, secid);
 }
 
 static inline int security_xfrm_state_delete(struct xfrm_state *x)
@@ -3053,12 +3163,40 @@ static inline void security_xfrm_state_free(struct xfrm_state *x)
 	security_ops->xfrm_state_free_security(x);
 }
 
-static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
 {
-	return security_ops->xfrm_policy_lookup(xp, sk_sid, dir);
+	return security_ops->xfrm_policy_lookup(xp, fl_secid, dir);
+}
+
+static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
+			struct xfrm_policy *xp, struct flowi *fl)
+{
+	return security_ops->xfrm_state_pol_flow_match(x, xp, fl);
+}
+
+static inline int security_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+{
+	return security_ops->xfrm_flow_state_match(fl, xfrm);
+}
+
+static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
+{
+	return security_ops->xfrm_decode_session(skb, secid, 1);
+}
+
+static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
+{
+	int rc = security_ops->xfrm_decode_session(skb, &fl->secid, 0);
+
+	BUG_ON(rc);
 }
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
 {
 	return 0;
 }
@@ -3077,7 +3215,14 @@ static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
 	return 0;
 }
 
-static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_state_alloc(struct xfrm_state *x,
+					struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
+					struct xfrm_sec_ctx *polsec, u32 secid)
 {
 	return 0;
 }
@@ -3091,10 +3236,32 @@ static inline int security_xfrm_state_delete(struct xfrm_state *x)
 	return 0;
 }
 
-static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
 {
 	return 0;
 }
+
+static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
+			struct xfrm_policy *xp, struct flowi *fl)
+{
+	return 1;
+}
+
+static inline int security_xfrm_flow_state_match(struct flowi *fl,
+                                struct xfrm_state *xfrm)
+{
+	return 1;
+}
+
+static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
+{
+	return 0;
+}
+
+static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
+{
+}
+
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 #ifdef CONFIG_KEYS

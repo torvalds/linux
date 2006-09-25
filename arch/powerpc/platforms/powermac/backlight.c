@@ -60,7 +60,8 @@ int pmac_has_backlight_type(const char *type)
 	struct device_node* bk_node = find_devices("backlight");
 
 	if (bk_node) {
-		char *prop = get_property(bk_node, "backlight-control", NULL);
+		const char *prop = get_property(bk_node,
+				"backlight-control", NULL);
 		if (prop && strncmp(prop, type, strlen(type)) == 0)
 			return 1;
 	}

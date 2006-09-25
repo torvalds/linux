@@ -282,6 +282,12 @@ extern void nf_invalidate_cache(int pf);
    Returns true or false. */
 extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
 
+extern u_int16_t nf_csum_update(u_int32_t oldval, u_int32_t newval,
+				u_int32_t csum);
+extern u_int16_t nf_proto_csum_update(struct sk_buff *skb,
+				      u_int32_t oldval, u_int32_t newval,
+				      u_int16_t csum, int pseudohdr);
+
 struct nf_afinfo {
 	unsigned short	family;
 	unsigned int	(*checksum)(struct sk_buff *skb, unsigned int hook,

@@ -112,7 +112,7 @@ static void hpp_io_block_output(struct net_device *dev, int count,
 static void hpp_io_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 						  int ring_page);
 
-
+
 /*	Probe a list of addresses for an HP LAN+ adaptor.
 	This routine is almost boilerplate. */
 
@@ -430,7 +430,7 @@ hpp_mem_block_output(struct net_device *dev, int count,
 	return;
 }
 
-
+
 #ifdef MODULE
 #define MAX_HPP_CARDS	4	/* Max number of HPP cards per module */
 static struct net_device *dev_hpp[MAX_HPP_CARDS];

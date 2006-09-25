@@ -341,7 +341,8 @@ out:
 	int code = skb->h.icmph->code;
 	int rel_type = 0;
 	int rel_code = 0;
-	int rel_info = 0;
+	__be32 rel_info = 0;
+	__u32 n = 0;
 	struct sk_buff *skb2;
 	struct flowi fl;
 	struct rtable *rt;
@@ -354,14 +355,15 @@ out:
 	default:
 		return 0;
 	case ICMP_PARAMETERPROB:
-		if (skb->h.icmph->un.gateway < hlen)
+		n = ntohl(skb->h.icmph->un.gateway) >> 24;
+		if (n < hlen)
 			return 0;
 
 		/* So... This guy found something strange INSIDE encapsulated
 		   packet. Well, he is fool, but what can we do ?
 		 */
 		rel_type = ICMP_PARAMETERPROB;
-		rel_info = skb->h.icmph->un.gateway - hlen;
+		rel_info = htonl((n - hlen) << 24);
 		break;
 
 	case ICMP_DEST_UNREACH:
@@ -372,13 +374,14 @@ out:
 			return 0;
 		case ICMP_FRAG_NEEDED:
 			/* And it is the only really necessary thing :-) */
-			rel_info = ntohs(skb->h.icmph->un.frag.mtu);
-			if (rel_info < hlen+68)
+			n = ntohs(skb->h.icmph->un.frag.mtu);
+			if (n < hlen+68)
 				return 0;
-			rel_info -= hlen;
+			n -= hlen;
 			/* BSD 4.2 MORE DOES NOT EXIST IN NATURE. */
-			if (rel_info > ntohs(eiph->tot_len))
+			if (n > ntohs(eiph->tot_len))
 				return 0;
+			rel_info = htonl(n);
 			break;
 		default:
 			/* All others are translated to HOST_UNREACH.
@@ -440,12 +443,11 @@ out:
 
 	/* change mtu on this route */
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
-		if (rel_info > dst_mtu(skb2->dst)) {
+		if (n > dst_mtu(skb2->dst)) {
 			kfree_skb(skb2);
 			return 0;
 		}
-		skb2->dst->ops->update_pmtu(skb2->dst, rel_info);
-		rel_info = htonl(rel_info);
+		skb2->dst->ops->update_pmtu(skb2->dst, n);
 	} else if (type == ICMP_TIME_EXCEEDED) {
 		struct ip_tunnel *t = netdev_priv(skb2->dev);
 		if (t->parms.iph.ttl) {

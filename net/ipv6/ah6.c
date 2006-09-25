@@ -74,6 +74,66 @@ bad:
 	return 0;
 }
 
+#ifdef CONFIG_IPV6_MIP6
+/**
+ *	ipv6_rearrange_destopt - rearrange IPv6 destination options header
+ *	@iph: IPv6 header
+ *	@destopt: destionation options header
+ */
+static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *destopt)
+{
+	u8 *opt = (u8 *)destopt;
+	int len = ipv6_optlen(destopt);
+	int off = 0;
+	int optlen = 0;
+
+	off += 2;
+	len -= 2;
+
+	while (len > 0) {
+
+		switch (opt[off]) {
+
+		case IPV6_TLV_PAD0:
+			optlen = 1;
+			break;
+		default:
+			if (len < 2)
+				goto bad;
+			optlen = opt[off+1]+2;
+			if (len < optlen)
+				goto bad;
+
+			/* Rearrange the source address in @iph and the
+			 * addresses in home address option for final source.
+			 * See 11.3.2 of RFC 3775 for details.
+			 */
+			if (opt[off] == IPV6_TLV_HAO) {
+				struct in6_addr final_addr;
+				struct ipv6_destopt_hao *hao;
+
+				hao = (struct ipv6_destopt_hao *)&opt[off];
+				if (hao->length != sizeof(hao->addr)) {
+					if (net_ratelimit())
+						printk(KERN_WARNING "destopt hao: invalid header length: %u\n", hao->length);
+					goto bad;
+				}
+				ipv6_addr_copy(&final_addr, &hao->addr);
+				ipv6_addr_copy(&hao->addr, &iph->saddr);
+				ipv6_addr_copy(&iph->saddr, &final_addr);
+			}
+			break;
+		}
+
+		off += optlen;
+		len -= optlen;
+	}
+	/* Note: ok if len == 0 */
+bad:
+	return;
+}
+#endif
+
 /**
  *	ipv6_rearrange_rthdr - rearrange IPv6 routing header
  *	@iph: IPv6 header
@@ -113,7 +173,7 @@ static void ipv6_rearrange_rthdr(struct ipv6hdr *iph, struct ipv6_rt_hdr *rthdr)
 	ipv6_addr_copy(&iph->daddr, &final_addr);
 }
 
-static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
+static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 {
 	union {
 		struct ipv6hdr *iph;
@@ -128,8 +188,12 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len)
 
 	while (exthdr.raw < end) {
 		switch (nexthdr) {
-		case NEXTHDR_HOP:
 		case NEXTHDR_DEST:
+#ifdef CONFIG_IPV6_MIP6
+			if (dir == XFRM_POLICY_OUT)
+				ipv6_rearrange_destopt(iph, exthdr.opth);
+#endif
+		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
 				LIMIT_NETDEBUG(
 					KERN_WARNING "overrun %sopts\n",
@@ -164,6 +228,9 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	char tmp_base[8];
 	struct {
+#ifdef CONFIG_IPV6_MIP6
+		struct in6_addr saddr;
+#endif
 		struct in6_addr daddr;
 		char hdrs[0];
 	} *tmp_ext;
@@ -188,10 +255,15 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			err = -ENOMEM;
 			goto error;
 		}
+#ifdef CONFIG_IPV6_MIP6
+		memcpy(tmp_ext, &top_iph->saddr, extlen);
+#else
 		memcpy(tmp_ext, &top_iph->daddr, extlen);
+#endif
 		err = ipv6_clear_mutable_options(top_iph,
 						 extlen - sizeof(*tmp_ext) +
-						 sizeof(*top_iph));
+						 sizeof(*top_iph),
+						 XFRM_POLICY_OUT);
 		if (err)
 			goto error_free_iph;
 	}
@@ -213,13 +285,20 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(++x->replay.oseq);
 	xfrm_aevent_doreplay(x);
-	ahp->icv(ahp, skb, ah->auth_data);
+	err = ah_mac_digest(ahp, skb, ah->auth_data);
+	if (err)
+		goto error_free_iph;
+	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
 
 	err = 0;
 
 	memcpy(top_iph, tmp_base, sizeof(tmp_base));
 	if (tmp_ext) {
+#ifdef CONFIG_IPV6_MIP6
+		memcpy(&top_iph->saddr, tmp_ext, extlen);
+#else
 		memcpy(&top_iph->daddr, tmp_ext, extlen);
+#endif
 error_free_iph:
 		kfree(tmp_ext);
 	}
@@ -251,6 +330,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	u16 hdr_len;
 	u16 ah_hlen;
 	int nexthdr;
+	int err = -EINVAL;
 
 	if (!pskb_may_pull(skb, sizeof(struct ip_auth_hdr)))
 		goto out;
@@ -278,7 +358,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!tmp_hdr)
 		goto out;
 	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
-	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len))
+	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len, XFRM_POLICY_IN))
 		goto free_out;
 	skb->nh.ipv6h->priority    = 0;
 	skb->nh.ipv6h->flow_lbl[0] = 0;
@@ -292,8 +372,11 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		memcpy(auth_data, ah->auth_data, ahp->icv_trunc_len);
 		memset(ah->auth_data, 0, ahp->icv_trunc_len);
 		skb_push(skb, hdr_len);
-		ahp->icv(ahp, skb, ah->auth_data);
-		if (memcmp(ah->auth_data, auth_data, ahp->icv_trunc_len)) {
+		err = ah_mac_digest(ahp, skb, ah->auth_data);
+		if (err)
+			goto free_out;
+		err = -EINVAL;
+		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len)) {
 			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
 			x->stats.integrity_failed++;
 			goto free_out;
@@ -310,7 +393,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 free_out:
 	kfree(tmp_hdr);
 out:
-	return -EINVAL;
+	return err;
 }
 
 static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt, 
@@ -338,6 +421,7 @@ static int ah6_init_state(struct xfrm_state *x)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;
+	struct crypto_hash *tfm;
 
 	if (!x->aalg)
 		goto error;
@@ -355,24 +439,27 @@ static int ah6_init_state(struct xfrm_state *x)
 
 	ahp->key = x->aalg->alg_key;
 	ahp->key_len = (x->aalg->alg_key_len+7)/8;
-	ahp->tfm = crypto_alloc_tfm(x->aalg->alg_name, 0);
-	if (!ahp->tfm)
+	tfm = crypto_alloc_hash(x->aalg->alg_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
 		goto error;
-	ahp->icv = ah_hmac_digest;
+
+	ahp->tfm = tfm;
+	if (crypto_hash_setkey(tfm, ahp->key, ahp->key_len))
+		goto error;
 	
 	/*
 	 * Lookup the algorithm description maintained by xfrm_algo,
 	 * verify crypto transform properties, and store information
 	 * we need for AH processing.  This lookup cannot fail here
-	 * after a successful crypto_alloc_tfm().
+	 * after a successful crypto_alloc_hash().
 	 */
 	aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
 	BUG_ON(!aalg_desc);
 
 	if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
-	    crypto_tfm_alg_digestsize(ahp->tfm)) {
+	    crypto_hash_digestsize(tfm)) {
 		printk(KERN_INFO "AH: %s digestsize %u != %hu\n",
-		       x->aalg->alg_name, crypto_tfm_alg_digestsize(ahp->tfm),
+		       x->aalg->alg_name, crypto_hash_digestsize(tfm),
 		       aalg_desc->uinfo.auth.icv_fullbits/8);
 		goto error;
 	}
@@ -387,7 +474,7 @@ static int ah6_init_state(struct xfrm_state *x)
 		goto error;
 	
 	x->props.header_len = XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len);
-	if (x->props.mode)
+	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = ahp;
 
@@ -396,7 +483,7 @@ static int ah6_init_state(struct xfrm_state *x)
 error:
 	if (ahp) {
 		kfree(ahp->work_icv);
-		crypto_free_tfm(ahp->tfm);
+		crypto_free_hash(ahp->tfm);
 		kfree(ahp);
 	}
 	return -EINVAL;
@@ -411,7 +498,7 @@ static void ah6_destroy(struct xfrm_state *x)
 
 	kfree(ahp->work_icv);
 	ahp->work_icv = NULL;
-	crypto_free_tfm(ahp->tfm);
+	crypto_free_hash(ahp->tfm);
 	ahp->tfm = NULL;
 	kfree(ahp);
 }
@@ -424,7 +511,8 @@ static struct xfrm_type ah6_type =
 	.init_state	= ah6_init_state,
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,
-	.output		= ah6_output
+	.output		= ah6_output,
+	.hdr_offset	= xfrm6_find_1stfragopt,
 };
 
 static struct inet6_protocol ah6_protocol = {

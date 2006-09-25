@@ -22,12 +22,12 @@ struct nfqnl_msg_packet_hw {
 	u_int16_t	hw_addrlen;
 	u_int16_t	_pad;
 	u_int8_t	hw_addr[8];
-} __attribute__ ((packed));
+};
 
 struct nfqnl_msg_packet_timestamp {
 	aligned_u64	sec;
 	aligned_u64	usec;
-} __attribute__ ((packed));
+};
 
 enum nfqnl_attr_type {
 	NFQA_UNSPEC,
@@ -49,7 +49,7 @@ enum nfqnl_attr_type {
 struct nfqnl_msg_verdict_hdr {
 	u_int32_t verdict;
 	u_int32_t id;
-} __attribute__ ((packed));
+};
 
 
 enum nfqnl_msg_config_cmds {
@@ -64,7 +64,7 @@ struct nfqnl_msg_config_cmd {
 	u_int8_t	command;	/* nfqnl_msg_config_cmds */
 	u_int8_t	_pad;
 	u_int16_t	pf;		/* AF_xxx for PF_[UN]BIND */
-} __attribute__ ((packed));
+};
 
 enum nfqnl_config_mode {
 	NFQNL_COPY_NONE,

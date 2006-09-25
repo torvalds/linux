@@ -34,9 +34,9 @@
 /* TX and RX packet size: fixed to 2048 bytes, according to HW requirements. */
 #define LAN_SAA9730_PACKET_SIZE                       2048
 
-/* 
- * Number of TX buffers = number of RX buffers = 2, which is fixed according 
- * to HW requirements. 
+/*
+ * Number of TX buffers = number of RX buffers = 2, which is fixed according
+ * to HW requirements.
  */
 #define LAN_SAA9730_BUFFERS                           2
 
@@ -47,10 +47,10 @@
 #define LAN_SAA9730_TXM_Q_SIZE                        15
 
 /*
- * We get an interrupt for each LAN_SAA9730_DEFAULT_RCV_Q_INT_THRESHOLD 
- * packets received. 
+ * We get an interrupt for each LAN_SAA9730_DEFAULT_RCV_Q_INT_THRESHOLD
+ * packets received.
  * If however we receive less than  LAN_SAA9730_DEFAULT_RCV_Q_INT_THRESHOLD
- * packets, the hardware can timeout after a certain time and still tell 
+ * packets, the hardware can timeout after a certain time and still tell
  * us packets have arrived.
  * The timeout value in unit of 32 PCI clocks (33Mhz).
  * The value 200 approximates 0.0002 seconds.
@@ -79,8 +79,8 @@
 #define MACCM_10MB                      1
 #define MACCM_MII                       2
 
-/* 
- * PHY definitions for Basic registers of QS6612 (used on MIPS ATLAS board) 
+/*
+ * PHY definitions for Basic registers of QS6612 (used on MIPS ATLAS board)
  */
 #define PHY_CONTROL                     0x0
 #define PHY_STATUS                      0x1

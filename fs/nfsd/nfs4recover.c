@@ -33,7 +33,7 @@
 *
 */
 
-
+#include <linux/err.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfs4.h>
@@ -87,34 +87,35 @@ int
 nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
-	struct crypto_tfm *tfm;
+	struct hash_desc desc;
 	struct scatterlist sg[1];
 	int status = nfserr_resource;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
-	tfm = crypto_alloc_tfm("md5", CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (tfm == NULL)
-		goto out;
-	cksum.len = crypto_tfm_alg_digestsize(tfm);
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc.tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(desc.tfm))
+		goto out_no_tfm;
+	cksum.len = crypto_hash_digestsize(desc.tfm);
 	cksum.data = kmalloc(cksum.len, GFP_KERNEL);
 	if (cksum.data == NULL)
  		goto out;
-	crypto_digest_init(tfm);
 
 	sg[0].page = virt_to_page(clname->data);
 	sg[0].offset = offset_in_page(clname->data);
 	sg[0].length = clname->len;
 
-	crypto_digest_update(tfm, sg, 1);
-	crypto_digest_final(tfm, cksum.data);
+	if (crypto_hash_digest(&desc, sg, sg->length, cksum.data))
+		goto out;
 
 	md5_to_hex(dname, cksum.data);
 
 	kfree(cksum.data);
 	status = nfs_ok;
 out:
-	crypto_free_tfm(tfm);
+	crypto_free_hash(desc.tfm);
+out_no_tfm:
 	return status;
 }
 

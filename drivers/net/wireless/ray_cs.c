@@ -52,8 +52,8 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
-#include <net/ieee80211.h>
 #include <linux/wireless.h>
+#include <net/iw_handler.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -99,7 +99,7 @@ static int ray_dev_config(struct net_device *dev, struct ifmap *map);
 static struct net_device_stats *ray_get_stats(struct net_device *dev);
 static int ray_dev_init(struct net_device *dev);
 
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 static int ray_open(struct net_device *dev);
 static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -1092,7 +1092,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, "ray_cs");
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

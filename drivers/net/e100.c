@@ -1,7 +1,7 @@
 /*******************************************************************************
 
 
-  Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the Free
@@ -158,10 +158,10 @@
 
 
 #define DRV_NAME		"e100"
-#define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.5.10-k2"DRV_EXT
+#define DRV_EXT			"-NAPI"
+#define DRV_VERSION		"3.5.16-k2"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
-#define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
+#define DRV_COPYRIGHT		"Copyright(c) 1999-2006 Intel Corporation"
 #define PFX			DRV_NAME ": "
 
 #define E100_WATCHDOG_PERIOD	(2 * HZ)
@@ -1395,15 +1395,11 @@ static int e100_phy_init(struct nic *nic)
 	}
 
 	if((nic->mac >= mac_82550_D102) || ((nic->flags & ich) &&
-	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000))) {
-		/* enable/disable MDI/MDI-X auto-switching.
-		   MDI/MDI-X auto-switching is disabled for 82551ER/QM chips */
-		if((nic->mac == mac_82551_E) || (nic->mac == mac_82551_F) ||
-		   (nic->mac == mac_82551_10) || (nic->mii.force_media) ||
-		   !(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))
-			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, 0);
-		else
-			mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG, NCONFIG_AUTO_SWITCH);
+	   (mdio_read(netdev, nic->mii.phy_id, MII_TPISTATUS) & 0x8000) &&
+		!(nic->eeprom[eeprom_cnfg_mdix] & eeprom_mdix_enabled))) {
+		/* enable/disable MDI/MDI-X auto-switching. */
+		mdio_write(netdev, nic->mii.phy_id, MII_NCONFIG,
+				nic->mii.force_media ? 0 : NCONFIG_AUTO_SWITCH);
 	}
 
 	return 0;
@@ -1767,11 +1763,10 @@ static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
 static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 {
-	if(!(rx->skb = dev_alloc_skb(RFD_BUF_LEN + NET_IP_ALIGN)))
+	if(!(rx->skb = netdev_alloc_skb(nic->netdev, RFD_BUF_LEN + NET_IP_ALIGN)))
 		return -ENOMEM;
 
 	/* Align, init, and map the RFD. */
-	rx->skb->dev = nic->netdev;
 	skb_reserve(rx->skb, NET_IP_ALIGN);
 	memcpy(rx->skb->data, &nic->blank_rfd, sizeof(struct rfd));
 	rx->dma_addr = pci_map_single(nic->pdev, rx->skb->data,
@@ -2147,7 +2142,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 
 	e100_start_receiver(nic, NULL);
 
-	if(!(skb = dev_alloc_skb(ETH_DATA_LEN))) {
+	if(!(skb = netdev_alloc_skb(nic->netdev, ETH_DATA_LEN))) {
 		err = -ENOMEM;
 		goto err_loopback_none;
 	}
@@ -2482,7 +2477,7 @@ static void e100_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
-static struct ethtool_ops e100_ethtool_ops = {
+static const struct ethtool_ops e100_ethtool_ops = {
 	.get_settings		= e100_get_settings,
 	.set_settings		= e100_set_settings,
 	.get_drvinfo		= e100_get_drvinfo,
@@ -2799,6 +2794,7 @@ static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel
 	/* Detach; put netif into state similar to hotplug unplug. */
 	netif_poll_enable(netdev);
 	netif_device_detach(netdev);
+	pci_disable_device(pdev);
 
 	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -2877,7 +2873,7 @@ static int __init e100_init_module(void)
 		printk(KERN_INFO PFX "%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 		printk(KERN_INFO PFX "%s\n", DRV_COPYRIGHT);
 	}
-	return pci_module_init(&e100_driver);
+	return pci_register_driver(&e100_driver);
 }
 
 static void __exit e100_cleanup_module(void)

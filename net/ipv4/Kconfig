@@ -88,6 +88,7 @@ config IP_FIB_HASH
 config IP_MULTIPLE_TABLES
 	bool "IP: policy routing"
 	depends on IP_ADVANCED_ROUTER
+	select FIB_RULES
 	---help---
 	  Normally, a router decides what to do with a received packet based
 	  solely on the packet's final destination address. If you say Y here,
@@ -386,6 +387,7 @@ config INET_ESP
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
+	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	---help---

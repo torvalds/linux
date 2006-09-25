@@ -27,7 +27,6 @@
 /** struct ip_options - IP Options
  *
  * @faddr - Saved first hop address
- * @is_setbyuser - Set by setsockopt?
  * @is_data - Options in __data, rather than skb
  * @is_strictroute - Strict source route
  * @srr_is_hit - Packet destination addr was our one
@@ -42,8 +41,7 @@ struct ip_options {
 	unsigned char	srr;
 	unsigned char	rr;
 	unsigned char	ts;
-	unsigned char	is_setbyuser:1,
-			is_data:1,
+	unsigned char	is_data:1,
 			is_strictroute:1,
 			srr_is_hit:1,
 			is_changed:1,
@@ -51,7 +49,7 @@ struct ip_options {
 			ts_needtime:1,
 			ts_needaddr:1;
 	unsigned char	router_alert;
-	unsigned char	__pad1;
+	unsigned char	cipso;
 	unsigned char	__pad2;
 	unsigned char	__data[0];
 };

@@ -15,8 +15,11 @@ hostprogs-$(CONFIG_IKCONFIG)     += bin2c
 
 always		:= $(hostprogs-y)
 
+# The following hostprogs-y programs are only build on demand
+hostprogs-y += unifdef
+
 subdir-$(CONFIG_MODVERSIONS) += genksyms
-subdir-$(CONFIG_MODULES)     += mod
+subdir-y                     += mod
 
 # Let clean descend into subdirs
 subdir-	+= basic kconfig package

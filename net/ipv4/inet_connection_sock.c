@@ -327,6 +327,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 				       { .sport = inet_sk(sk)->sport,
 					 .dport = ireq->rmt_port } } };
 
+	security_req_classify_flow(req, &fl);
 	if (ip_route_output_flow(&rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
@@ -509,6 +510,8 @@ struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 
 		/* Deinitialize accept_queue to trap illegal accesses. */
 		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));
+
+		security_inet_csk_clone(newsk, req);
 	}
 	return newsk;
 }

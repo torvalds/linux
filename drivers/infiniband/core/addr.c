@@ -61,12 +61,15 @@ static LIST_HEAD(req_list);
 static DECLARE_WORK(work, process_req, NULL);
 static struct workqueue_struct *addr_wq;
 
-static int copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
-		     unsigned char *dst_dev_addr)
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
+		     const unsigned char *dst_dev_addr)
 {
 	switch (dev->type) {
 	case ARPHRD_INFINIBAND:
-		dev_addr->dev_type = IB_NODE_CA;
+		dev_addr->dev_type = RDMA_NODE_IB_CA;
+		break;
+	case ARPHRD_ETHER:
+		dev_addr->dev_type = RDMA_NODE_RNIC;
 		break;
 	default:
 		return -EADDRNOTAVAIL;
@@ -78,6 +81,7 @@ static int copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
 	return 0;
 }
+EXPORT_SYMBOL(rdma_copy_addr);
 
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
@@ -89,7 +93,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 	if (!dev)
 		return -EADDRNOTAVAIL;
 
-	ret = copy_addr(dev_addr, dev, NULL);
+	ret = rdma_copy_addr(dev_addr, dev, NULL);
 	dev_put(dev);
 	return ret;
 }
@@ -161,7 +165,7 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 
 	/* If the device does ARP internally, return 'done' */
 	if (rt->idev->dev->flags & IFF_NOARP) {
-		copy_addr(addr, rt->idev->dev, NULL);
+		rdma_copy_addr(addr, rt->idev->dev, NULL);
 		goto put;
 	}
 
@@ -181,7 +185,7 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 		src_in->sin_addr.s_addr = rt->rt_src;
 	}
 
-	ret = copy_addr(addr, neigh->dev, neigh->ha);
+	ret = rdma_copy_addr(addr, neigh->dev, neigh->ha);
 release:
 	neigh_release(neigh);
 put:
@@ -245,7 +249,7 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 	if (ZERONET(src_ip)) {
 		src_in->sin_family = dst_in->sin_family;
 		src_in->sin_addr.s_addr = dst_ip;
-		ret = copy_addr(addr, dev, dev->dev_addr);
+		ret = rdma_copy_addr(addr, dev, dev->dev_addr);
 	} else if (LOOPBACK(src_ip)) {
 		ret = rdma_translate_ip((struct sockaddr *)dst_in, addr);
 		if (!ret)
@@ -327,10 +331,10 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_cancel);
 
-static int netevent_callback(struct notifier_block *self, unsigned long event, 
+static int netevent_callback(struct notifier_block *self, unsigned long event,
 	void *ctx)
 {
-	if (event == NETEVENT_NEIGH_UPDATE) {  
+	if (event == NETEVENT_NEIGH_UPDATE) {
 		struct neighbour *neigh = ctx;
 
 		if (neigh->dev->type == ARPHRD_INFINIBAND &&

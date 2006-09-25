@@ -447,14 +447,6 @@ config MTD_DC21285
 	  21285 bridge used with Intel's StrongARM processors. More info at
 	  <http://www.intel.com/design/bridge/docs/21285_documentation.htm>.
 
-config MTD_IQ80310
-	tristate "CFI Flash device mapped on the XScale IQ80310 board"
-	depends on MTD_CFI && ARCH_IQ80310
-	help
-	  This enables access routines for the flash chips on the Intel XScale
-	  IQ80310 evaluation board. If you have one of these boards and would
-	  like to use the flash chips on it, say 'Y'.
-
 config MTD_IXP4XX
 	tristate "CFI Flash device mapped on Intel IXP4xx based systems"
 	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP4XX

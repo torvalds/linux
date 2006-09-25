@@ -70,9 +70,6 @@ do {								\
 #define IP_NF_ASSERT(x)
 #endif
 
-
-#include <linux/netfilter_ipv4/listhelp.h>
-
 #if 0
 /* All the better to debug you with... */
 #define static
@@ -220,8 +217,7 @@ ip6t_error(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	if (net_ratelimit())
 		printk("ip6_tables: error: `%s'\n", (char *)targinfo);
@@ -258,8 +254,7 @@ ip6t_do_table(struct sk_buff **pskb,
 	      unsigned int hook,
 	      const struct net_device *in,
 	      const struct net_device *out,
-	      struct xt_table *table,
-	      void *userdata)
+	      struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	int offset = 0;
@@ -349,8 +344,7 @@ ip6t_do_table(struct sk_buff **pskb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,
-								     t->data,
-								     userdata);
+								     t->data);
 
 #ifdef CONFIG_NETFILTER_DEBUG
 				if (((struct ip6t_entry *)table_base)->comefrom
@@ -507,8 +501,7 @@ cleanup_match(struct ip6t_entry_match *m, unsigned int *i)
 		return 1;
 
 	if (m->u.kernel.match->destroy)
-		m->u.kernel.match->destroy(m->u.kernel.match, m->data,
-					   m->u.match_size - sizeof(*m));
+		m->u.kernel.match->destroy(m->u.kernel.match, m->data);
 	module_put(m->u.kernel.match->me);
 	return 0;
 }
@@ -561,7 +554,6 @@ check_match(struct ip6t_entry_match *m,
 
 	if (m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ipv6, match,  m->data,
-					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
@@ -618,12 +610,10 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	if (t->u.kernel.target == &ip6t_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
-			goto cleanup_matches;
+			goto err;
 		}
 	} else if (t->u.kernel.target->checkentry
 		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
-						      t->u.target_size
-						      - sizeof(*t),
 						      e->comefrom)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
@@ -695,8 +685,7 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 	IP6T_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ip6t_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
-					    t->u.target_size - sizeof(*t));
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
 	module_put(t->u.kernel.target->me);
 	return 0;
 }
@@ -1352,7 +1341,6 @@ icmp6_checkentry(const char *tablename,
 	   const void *entry,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_icmp *icmpinfo = matchinfo;

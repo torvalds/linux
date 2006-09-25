@@ -606,7 +606,7 @@ static u32 netdev_get_link(struct net_device *dev) {
 	return 1;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.get_link		= netdev_get_link,
@@ -702,7 +702,8 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 					     desc[3].desc,
 					     desc[4].desc,
 					     desc[5].desc,
-					     correlator);
+					     correlator,
+					     &correlator);
 	} while ((lpar_rc == H_BUSY) && (retry_count--));
 
 	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {

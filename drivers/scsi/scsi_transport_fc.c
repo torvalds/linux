@@ -32,6 +32,9 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_cmnd.h>
+#include <linux/netlink.h>
+#include <net/netlink.h>
+#include <scsi/scsi_netlink_fc.h>
 #include "scsi_priv.h"
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
@@ -91,6 +94,29 @@ static struct {
 };
 fc_enum_name_search(port_type, fc_port_type, fc_port_type_names)
 #define FC_PORTTYPE_MAX_NAMELEN		50
+
+
+/* Convert fc_host_event_code values to ascii string name */
+static const struct {
+	enum fc_host_event_code		value;
+	char				*name;
+} fc_host_event_code_names[] = {
+	{ FCH_EVT_LIP,			"lip" },
+	{ FCH_EVT_LINKUP,		"link_up" },
+	{ FCH_EVT_LINKDOWN,		"link_down" },
+	{ FCH_EVT_LIPRESET,		"lip_reset" },
+	{ FCH_EVT_RSCN,			"rscn" },
+	{ FCH_EVT_ADAPTER_CHANGE,	"adapter_chg" },
+	{ FCH_EVT_PORT_UNKNOWN,		"port_unknown" },
+	{ FCH_EVT_PORT_ONLINE,		"port_online" },
+	{ FCH_EVT_PORT_OFFLINE,		"port_offline" },
+	{ FCH_EVT_PORT_FABRIC,		"port_fabric" },
+	{ FCH_EVT_LINK_UNKNOWN,		"link_unknown" },
+	{ FCH_EVT_VENDOR_UNIQUE,	"vendor_unique" },
+};
+fc_enum_name_search(host_event_code, fc_host_event_code,
+		fc_host_event_code_names)
+#define FC_HOST_EVENT_CODE_MAX_NAMELEN	30
 
 
 /* Convert fc_port_state values to ascii string name */
@@ -216,6 +242,7 @@ fc_bitfield_name_search(remote_port_roles, fc_remote_port_role_names)
 
 
 static void fc_timeout_deleted_rport(void *data);
+static void fc_timeout_fail_rport_io(void *data);
 static void fc_scsi_scan_rport(void *data);
 
 /*
@@ -223,7 +250,7 @@ static void fc_scsi_scan_rport(void *data);
  * Increase these values if you add attributes
  */
 #define FC_STARGET_NUM_ATTRS 	3
-#define FC_RPORT_NUM_ATTRS	9
+#define FC_RPORT_NUM_ATTRS	10
 #define FC_HOST_NUM_ATTRS	17
 
 struct fc_internal {
@@ -301,8 +328,6 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->supported_classes = FC_COS_UNSPECIFIED;
 	memset(fc_host->supported_fc4s, 0,
 		sizeof(fc_host->supported_fc4s));
-	memset(fc_host->symbolic_name, 0,
-		sizeof(fc_host->symbolic_name));
 	fc_host->supported_speeds = FC_PORTSPEED_UNKNOWN;
 	fc_host->maxframe_size = -1;
 	memset(fc_host->serial_number, 0,
@@ -315,6 +340,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 		sizeof(fc_host->active_fc4s));
 	fc_host->speed = FC_PORTSPEED_UNKNOWN;
 	fc_host->fabric_name = -1;
+	memset(fc_host->symbolic_name, 0, sizeof(fc_host->symbolic_name));
+	memset(fc_host->system_hostname, 0, sizeof(fc_host->system_hostname));
 
 	fc_host->tgtid_bind_type = FC_TGTID_BIND_BY_WWPN;
 
@@ -377,10 +404,184 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " exceeded, the scsi target is removed. Value should be"
 		 " between 1 and SCSI_DEVICE_BLOCK_MAX_TIMEOUT.");
 
+/**
+ * Netlink Infrastructure
+ **/
+
+static atomic_t fc_event_seq;
+
+/**
+ * fc_get_event_number - Obtain the next sequential FC event number
+ *
+ * Notes:
+ *   We could have inline'd this, but it would have required fc_event_seq to
+ *   be exposed. For now, live with the subroutine call.
+ *   Atomic used to avoid lock/unlock...
+ **/
+u32
+fc_get_event_number(void)
+{
+	return atomic_add_return(1, &fc_event_seq);
+}
+EXPORT_SYMBOL(fc_get_event_number);
+
+
+/**
+ * fc_host_post_event - called to post an even on an fc_host.
+ *
+ * @shost:		host the event occurred on
+ * @event_number:	fc event number obtained from get_fc_event_number()
+ * @event_code:		fc_host event being posted
+ * @event_data:		32bits of data for the event being posted
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ **/
+void
+fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
+		enum fc_host_event_code event_code, u32 event_data)
+{
+	struct sk_buff *skb;
+	struct nlmsghdr	*nlh;
+	struct fc_nl_event *event;
+	const char *name;
+	u32 len, skblen;
+	int err;
+
+	if (!scsi_nl_sock) {
+		err = -ENOENT;
+		goto send_fail;
+	}
+
+	len = FC_NL_MSGALIGN(sizeof(*event));
+	skblen = NLMSG_SPACE(len);
+
+	skb = alloc_skb(skblen, GFP_KERNEL);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto send_fail;
+	}
+
+	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG,
+				skblen - sizeof(*nlh), 0);
+	if (!nlh) {
+		err = -ENOBUFS;
+		goto send_fail_skb;
+	}
+	event = NLMSG_DATA(nlh);
+
+	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
+				FC_NL_ASYNC_EVENT, len);
+	event->seconds = get_seconds();
+	event->vendor_id = 0;
+	event->host_no = shost->host_no;
+	event->event_datalen = sizeof(u32);	/* bytes */
+	event->event_num = event_number;
+	event->event_code = event_code;
+	event->event_data = event_data;
+
+	err = nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
+			      GFP_KERNEL);
+	if (err && (err != -ESRCH))	/* filter no recipient errors */
+		/* nlmsg_multicast already kfree_skb'd */
+		goto send_fail;
+
+	return;
+
+send_fail_skb:
+	kfree_skb(skb);
+send_fail:
+	name = get_fc_host_event_code_name(event_code);
+	printk(KERN_WARNING
+		"%s: Dropped Event : host %d %s data 0x%08x - err %d\n",
+		__FUNCTION__, shost->host_no,
+		(name) ? name : "<unknown>", event_data, err);
+	return;
+}
+EXPORT_SYMBOL(fc_host_post_event);
+
+
+/**
+ * fc_host_post_vendor_event - called to post a vendor unique event on
+ *                             a fc_host
+ *
+ * @shost:		host the event occurred on
+ * @event_number:	fc event number obtained from get_fc_event_number()
+ * @data_len:		amount, in bytes, of vendor unique data
+ * @data_buf:		pointer to vendor unique data
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ **/
+void
+fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
+		u32 data_len, char * data_buf, u64 vendor_id)
+{
+	struct sk_buff *skb;
+	struct nlmsghdr	*nlh;
+	struct fc_nl_event *event;
+	u32 len, skblen;
+	int err;
+
+	if (!scsi_nl_sock) {
+		err = -ENOENT;
+		goto send_vendor_fail;
+	}
+
+	len = FC_NL_MSGALIGN(sizeof(*event) + data_len);
+	skblen = NLMSG_SPACE(len);
+
+	skb = alloc_skb(skblen, GFP_KERNEL);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto send_vendor_fail;
+	}
+
+	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG,
+				skblen - sizeof(*nlh), 0);
+	if (!nlh) {
+		err = -ENOBUFS;
+		goto send_vendor_fail_skb;
+	}
+	event = NLMSG_DATA(nlh);
+
+	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
+				FC_NL_ASYNC_EVENT, len);
+	event->seconds = get_seconds();
+	event->vendor_id = vendor_id;
+	event->host_no = shost->host_no;
+	event->event_datalen = data_len;	/* bytes */
+	event->event_num = event_number;
+	event->event_code = FCH_EVT_VENDOR_UNIQUE;
+	memcpy(&event->event_data, data_buf, data_len);
+
+	err = nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
+			      GFP_KERNEL);
+	if (err && (err != -ESRCH))	/* filter no recipient errors */
+		/* nlmsg_multicast already kfree_skb'd */
+		goto send_vendor_fail;
+
+	return;
+
+send_vendor_fail_skb:
+	kfree_skb(skb);
+send_vendor_fail:
+	printk(KERN_WARNING
+		"%s: Dropped Event : host %d vendor_unique - err %d\n",
+		__FUNCTION__, shost->host_no, err);
+	return;
+}
+EXPORT_SYMBOL(fc_host_post_vendor_event);
+
+
 
 static __init int fc_transport_init(void)
 {
-	int error = transport_class_register(&fc_host_class);
+	int error;
+
+	atomic_set(&fc_event_seq, 0);
+
+	error = transport_class_register(&fc_host_class);
 	if (error)
 		return error;
 	error = transport_class_register(&fc_rport_class);
@@ -424,11 +625,14 @@ store_fc_rport_##field(struct class_device *cdev, const char *buf,	\
 	struct fc_rport *rport = transport_class_to_rport(cdev);	\
 	struct Scsi_Host *shost = rport_to_shost(rport);		\
 	struct fc_internal *i = to_fc_internal(shost->transportt);	\
+	char *cp;							\
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||		\
 	    (rport->port_state == FC_PORTSTATE_DELETED) ||		\
 	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))		\
 		return -EBUSY;						\
-	val = simple_strtoul(buf, NULL, 0);				\
+	val = simple_strtoul(buf, &cp, 0);				\
+	if (*cp && (*cp != '\n'))					\
+		return -EINVAL;						\
 	i->f->set_rport_##field(rport, val);				\
 	return count;							\
 }
@@ -510,6 +714,13 @@ static FC_CLASS_DEVICE_ATTR(rport, title, S_IRUGO,			\
 	if (i->f->show_rport_##field)					\
 		count++
 
+#define SETUP_PRIVATE_RPORT_ATTRIBUTE_RW(field)				\
+{									\
+	i->private_rport_attrs[count] = class_device_attr_rport_##field; \
+	i->rport_attrs[count] = &i->private_rport_attrs[count];		\
+	count++;							\
+}
+
 
 /* The FC Transport Remote Port Attributes: */
 
@@ -542,12 +753,14 @@ store_fc_rport_dev_loss_tmo(struct class_device *cdev, const char *buf,
 	struct fc_rport *rport = transport_class_to_rport(cdev);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
+	char *cp;
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
 	    (rport->port_state == FC_PORTSTATE_DELETED) ||
 	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
 		return -EBUSY;
-	val = simple_strtoul(buf, NULL, 0);
-	if ((val < 0) || (val > SCSI_DEVICE_BLOCK_MAX_TIMEOUT))
+	val = simple_strtoul(buf, &cp, 0);
+	if ((*cp && (*cp != '\n')) ||
+	    (val < 0) || (val > SCSI_DEVICE_BLOCK_MAX_TIMEOUT))
 		return -EINVAL;
 	i->f->set_rport_dev_loss_tmo(rport, val);
 	return count;
@@ -597,6 +810,44 @@ static FC_CLASS_DEVICE_ATTR(rport, roles, S_IRUGO,
 fc_private_rport_rd_enum_attr(port_state, FC_PORTSTATE_MAX_NAMELEN);
 fc_private_rport_rd_attr(scsi_target_id, "%d\n", 20);
 
+/*
+ * fast_io_fail_tmo attribute
+ */
+static ssize_t
+show_fc_rport_fast_io_fail_tmo (struct class_device *cdev, char *buf)
+{
+	struct fc_rport *rport = transport_class_to_rport(cdev);
+
+	if (rport->fast_io_fail_tmo == -1)
+		return snprintf(buf, 5, "off\n");
+	return snprintf(buf, 20, "%d\n", rport->fast_io_fail_tmo);
+}
+
+static ssize_t
+store_fc_rport_fast_io_fail_tmo(struct class_device *cdev, const char *buf,
+			   size_t count)
+{
+	int val;
+	char *cp;
+	struct fc_rport *rport = transport_class_to_rport(cdev);
+
+	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
+	    (rport->port_state == FC_PORTSTATE_DELETED) ||
+	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
+		return -EBUSY;
+	if (strncmp(buf, "off", 3) == 0)
+		rport->fast_io_fail_tmo = -1;
+	else {
+		val = simple_strtoul(buf, &cp, 0);
+		if ((*cp && (*cp != '\n')) ||
+		    (val < 0) || (val >= rport->dev_loss_tmo))
+			return -EINVAL;
+		rport->fast_io_fail_tmo = val;
+	}
+	return count;
+}
+static FC_CLASS_DEVICE_ATTR(rport, fast_io_fail_tmo, S_IRUGO | S_IWUSR,
+	show_fc_rport_fast_io_fail_tmo, store_fc_rport_fast_io_fail_tmo);
 
 
 /*
@@ -682,9 +933,31 @@ store_fc_host_##field(struct class_device *cdev, const char *buf,	\
 	int val;							\
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);	\
 	struct fc_internal *i = to_fc_internal(shost->transportt);	\
+	char *cp;							\
 									\
-	val = simple_strtoul(buf, NULL, 0);				\
+	val = simple_strtoul(buf, &cp, 0);				\
+	if (*cp && (*cp != '\n'))					\
+		return -EINVAL;						\
 	i->f->set_host_##field(shost, val);				\
+	return count;							\
+}
+
+#define fc_host_store_str_function(field, slen)				\
+static ssize_t								\
+store_fc_host_##field(struct class_device *cdev, const char *buf,	\
+			   size_t count)				\
+{									\
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);	\
+	struct fc_internal *i = to_fc_internal(shost->transportt);	\
+	unsigned int cnt=count;						\
+									\
+	/* count may include a LF at end of string */			\
+	if (buf[cnt-1] == '\n')						\
+		cnt--;							\
+	if (cnt > ((slen) - 1))						\
+		return -EINVAL;						\
+	memcpy(fc_host_##field(shost), buf, cnt);			\
+	i->f->set_host_##field(shost);					\
 	return count;							\
 }
 
@@ -815,7 +1088,6 @@ fc_private_host_rd_attr_cast(node_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(port_name, "0x%llx\n", 20, unsigned long long);
 fc_private_host_rd_attr_cast(permanent_port_name, "0x%llx\n", 20,
 			     unsigned long long);
-fc_private_host_rd_attr(symbolic_name, "%s\n", (FC_SYMBOLIC_NAME_SIZE +1));
 fc_private_host_rd_attr(maxframe_size, "%u bytes\n", 20);
 fc_private_host_rd_attr(serial_number, "%s\n", (FC_SERIAL_NUMBER_SIZE +1));
 
@@ -858,6 +1130,13 @@ fc_host_rd_attr(port_id, "0x%06x\n", 20);
 fc_host_rd_enum_attr(port_type, FC_PORTTYPE_MAX_NAMELEN);
 fc_host_rd_enum_attr(port_state, FC_PORTSTATE_MAX_NAMELEN);
 fc_host_rd_attr_cast(fabric_name, "0x%llx\n", 20, unsigned long long);
+fc_host_rd_attr(symbolic_name, "%s\n", FC_SYMBOLIC_NAME_SIZE + 1);
+
+fc_private_host_show_function(system_hostname, "%s\n",
+		FC_SYMBOLIC_NAME_SIZE + 1, )
+fc_host_store_str_function(system_hostname, FC_SYMBOLIC_NAME_SIZE)
+static FC_CLASS_DEVICE_ATTR(host, system_hostname, S_IRUGO | S_IWUSR,
+		show_fc_host_system_hostname, store_fc_host_system_hostname);
 
 
 /* Private Host Attributes */
@@ -1223,7 +1502,6 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_HOST_ATTRIBUTE_RD(permanent_port_name);
 	SETUP_HOST_ATTRIBUTE_RD(supported_classes);
 	SETUP_HOST_ATTRIBUTE_RD(supported_fc4s);
-	SETUP_HOST_ATTRIBUTE_RD(symbolic_name);
 	SETUP_HOST_ATTRIBUTE_RD(supported_speeds);
 	SETUP_HOST_ATTRIBUTE_RD(maxframe_size);
 	SETUP_HOST_ATTRIBUTE_RD(serial_number);
@@ -1234,6 +1512,8 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_HOST_ATTRIBUTE_RD(active_fc4s);
 	SETUP_HOST_ATTRIBUTE_RD(speed);
 	SETUP_HOST_ATTRIBUTE_RD(fabric_name);
+	SETUP_HOST_ATTRIBUTE_RD(symbolic_name);
+	SETUP_HOST_ATTRIBUTE_RW(system_hostname);
 
 	/* Transport-managed attributes */
 	SETUP_PRIVATE_HOST_ATTRIBUTE_RW(tgtid_bind_type);
@@ -1257,6 +1537,8 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(roles);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_state);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(scsi_target_id);
+	if (ft->terminate_rport_io)
+		SETUP_PRIVATE_RPORT_ATTRIBUTE_RW(fast_io_fail_tmo);
 
 	BUG_ON(count > FC_RPORT_NUM_ATTRS);
 
@@ -1328,7 +1610,7 @@ fc_flush_work(struct Scsi_Host *shost)
  * @delay:	jiffies to delay the work queuing
  *
  * Return value:
- * 	0 on success / != 0 for error
+ * 	1 on success / 0 already queued / < 0 for error
  **/
 static int
 fc_queue_devloss_work(struct Scsi_Host *shost, struct work_struct *work,
@@ -1342,6 +1624,9 @@ fc_queue_devloss_work(struct Scsi_Host *shost, struct work_struct *work,
 
 		return -EINVAL;
 	}
+
+	if (delay == 0)
+		return queue_work(fc_host_devloss_work_q(shost), work);
 
 	return queue_delayed_work(fc_host_devloss_work_q(shost), work, delay);
 }
@@ -1435,10 +1720,23 @@ fc_starget_delete(void *data)
 	struct fc_rport *rport = (struct fc_rport *)data;
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	unsigned long flags;
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+
+	/*
+	 * Involve the LLDD if possible. All io on the rport is to
+	 * be terminated, either as part of the dev_loss_tmo callback
+	 * processing, or via the terminate_rport_io function.
+	 */
+	if (i->f->dev_loss_tmo_callbk)
+		i->f->dev_loss_tmo_callbk(rport);
+	else if (i->f->terminate_rport_io)
+		i->f->terminate_rport_io(rport);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (rport->flags & FC_RPORT_DEVLOSS_PENDING) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
+		if (!cancel_delayed_work(&rport->fail_io_work))
+			fc_flush_devloss(shost);
 		if (!cancel_delayed_work(&rport->dev_loss_work))
 			fc_flush_devloss(shost);
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -1461,10 +1759,7 @@ fc_rport_final_delete(void *data)
 	struct fc_rport *rport = (struct fc_rport *)data;
 	struct device *dev = &rport->dev;
 	struct Scsi_Host *shost = rport_to_shost(rport);
-
-	/* Delete SCSI target and sdevs */
-	if (rport->scsi_target_id != -1)
-		fc_starget_delete(data);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
 
 	/*
 	 * if a scan is pending, flush the SCSI Host work_q so that 
@@ -1472,6 +1767,14 @@ fc_rport_final_delete(void *data)
 	 */
 	if (rport->flags & FC_RPORT_SCAN_PENDING)
 		scsi_flush_work(shost);
+
+	/* Delete SCSI target and sdevs */
+	if (rport->scsi_target_id != -1)
+		fc_starget_delete(data);
+	else if (i->f->dev_loss_tmo_callbk)
+		i->f->dev_loss_tmo_callbk(rport);
+	else if (i->f->terminate_rport_io)
+		i->f->terminate_rport_io(rport);
 
 	transport_remove_device(dev);
 	device_del(dev);
@@ -1524,8 +1827,10 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	if (fci->f->dd_fcrport_size)
 		rport->dd_data = &rport[1];
 	rport->channel = channel;
+	rport->fast_io_fail_tmo = -1;
 
 	INIT_WORK(&rport->dev_loss_work, fc_timeout_deleted_rport, rport);
+	INIT_WORK(&rport->fail_io_work, fc_timeout_fail_rport_io, rport);
 	INIT_WORK(&rport->scan_work, fc_scsi_scan_rport, rport);
 	INIT_WORK(&rport->stgt_delete_work, fc_starget_delete, rport);
 	INIT_WORK(&rport->rport_delete_work, fc_rport_final_delete, rport);
@@ -1689,11 +1994,13 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				/* restart the target */
 
 				/*
-				 * Stop the target timer first. Take no action
+				 * Stop the target timers first. Take no action
 				 * on the del_timer failure as the state
 				 * machine state change will validate the
 				 * transaction.
 				 */
+				if (!cancel_delayed_work(&rport->fail_io_work))
+					fc_flush_devloss(shost);
 				if (!cancel_delayed_work(work))
 					fc_flush_devloss(shost);
 
@@ -1837,6 +2144,7 @@ void
 fc_remote_port_delete(struct fc_rport  *rport)
 {
 	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
 	int timeout = rport->dev_loss_tmo;
 	unsigned long flags;
 
@@ -1866,6 +2174,12 @@ fc_remote_port_delete(struct fc_rport  *rport)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	scsi_target_block(&rport->dev);
+
+	/* see if we need to kill io faster than waiting for device loss */
+	if ((rport->fast_io_fail_tmo != -1) &&
+	    (rport->fast_io_fail_tmo < timeout) && (i->f->terminate_rport_io))
+		fc_queue_devloss_work(shost, &rport->fail_io_work,
+					rport->fast_io_fail_tmo * HZ);
 
 	/* cap the length the devices can be blocked until they are deleted */
 	fc_queue_devloss_work(shost, &rport->dev_loss_work, timeout * HZ);
@@ -1926,6 +2240,8 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		 * machine state change will validate the
 		 * transaction.
 		 */
+		if (!cancel_delayed_work(&rport->fail_io_work))
+			fc_flush_devloss(shost);
 		if (!cancel_delayed_work(&rport->dev_loss_work))
 			fc_flush_devloss(shost);
 
@@ -2044,6 +2360,28 @@ fc_timeout_deleted_rport(void  *data)
 
 	scsi_target_unblock(&rport->dev);
 	fc_queue_work(shost, &rport->stgt_delete_work);
+}
+
+/**
+ * fc_timeout_fail_rport_io - Timeout handler for a fast io failing on a
+ *                       disconnected SCSI target.
+ *
+ * @data:	rport to terminate io on.
+ *
+ * Notes: Only requests the failure of the io, not that all are flushed
+ *    prior to returning.
+ **/
+static void
+fc_timeout_fail_rport_io(void  *data)
+{
+	struct fc_rport *rport = (struct fc_rport *)data;
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+
+	if (rport->port_state != FC_PORTSTATE_BLOCKED)
+		return;
+
+	i->f->terminate_rport_io(rport);
 }
 
 /**

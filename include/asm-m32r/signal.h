@@ -6,7 +6,6 @@
 /* orig : i386 2.4.18 */
 
 #include <linux/types.h>
-#include <linux/linkage.h>
 #include <linux/time.h>
 #include <linux/compiler.h>
 

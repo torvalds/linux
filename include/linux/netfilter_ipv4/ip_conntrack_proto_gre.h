@@ -49,18 +49,18 @@ struct gre_hdr {
 #else
 #error "Adjust your <asm/byteorder.h> defines"
 #endif
-	__u16	protocol;
+	__be16	protocol;
 };
 
 /* modified GRE header for PPTP */
 struct gre_hdr_pptp {
-	__u8  flags;		/* bitfield */
-	__u8  version;		/* should be GRE_VERSION_PPTP */
-	__u16 protocol;		/* should be GRE_PROTOCOL_PPTP */
-	__u16 payload_len;	/* size of ppp payload, not inc. gre header */
-	__u16 call_id;		/* peer's call_id for this session */
-	__u32 seq;		/* sequence number.  Present if S==1 */
-	__u32 ack;		/* seq number of highest packet recieved by */
+	__u8   flags;		/* bitfield */
+	__u8   version;		/* should be GRE_VERSION_PPTP */
+	__be16 protocol;	/* should be GRE_PROTOCOL_PPTP */
+	__be16 payload_len;	/* size of ppp payload, not inc. gre header */
+	__be16 call_id;		/* peer's call_id for this session */
+	__be32 seq;		/* sequence number.  Present if S==1 */
+	__be32 ack;		/* seq number of highest packet recieved by */
 				/*  sender in this session */
 };
 
@@ -92,13 +92,13 @@ void ip_ct_gre_keymap_destroy(struct ip_conntrack *ct);
 
 
 /* get pointer to gre key, if present */
-static inline u_int32_t *gre_key(struct gre_hdr *greh)
+static inline __be32 *gre_key(struct gre_hdr *greh)
 {
 	if (!greh->key)
 		return NULL;
 	if (greh->csum || greh->routing)
-		return (u_int32_t *) (greh+sizeof(*greh)+4);
-	return (u_int32_t *) (greh+sizeof(*greh));
+		return (__be32 *) (greh+sizeof(*greh)+4);
+	return (__be32 *) (greh+sizeof(*greh));
 }
 
 /* get pointer ot gre csum, if present */

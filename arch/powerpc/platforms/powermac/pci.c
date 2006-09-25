@@ -66,16 +66,16 @@ struct device_node *k2_skiplist[2];
 static int __init fixup_one_level_bus_range(struct device_node *node, int higher)
 {
 	for (; node != 0;node = node->sibling) {
-		int * bus_range;
-		unsigned int *class_code;
+		const int * bus_range;
+		const unsigned int *class_code;
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = (unsigned int *) get_property(node, "class-code", NULL);
+		class_code = get_property(node, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = (int *) get_property(node, "bus-range", &len);
+		bus_range = get_property(node, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
@@ -93,13 +93,15 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
  */
 static void __init fixup_bus_range(struct device_node *bridge)
 {
-	int * bus_range;
-	int len;
+	int *bus_range, len;
+	struct property *prop;
 
 	/* Lookup the "bus-range" property for the hose */
-	bus_range = (int *) get_property(bridge, "bus-range", &len);
-	if (bus_range == NULL || len < 2 * sizeof(int))
+	prop = of_find_property(bridge, "bus-range", &len);
+	if (prop == NULL || prop->length < 2 * sizeof(int))
 		return;
+
+	bus_range = (int *)prop->value;
 	bus_range[1] = fixup_one_level_bus_range(bridge->child, bus_range[1]);
 }
 
@@ -237,7 +239,7 @@ static struct pci_ops macrisc_pci_ops =
 static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 {
 	struct device_node *np;
-	u32 *vendor, *device;
+	const u32 *vendor, *device;
 
 	if (offset >= 0x100)
 		return  PCIBIOS_BAD_REGISTER_NUMBER;
@@ -245,8 +247,8 @@ static int chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 	if (np == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	vendor = (u32 *)get_property(np, "vendor-id", NULL);
-	device = (u32 *)get_property(np, "device-id", NULL);
+	vendor = get_property(np, "vendor-id", NULL);
+	device = get_property(np, "device-id", NULL);
 	if (vendor == NULL || device == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -686,20 +688,21 @@ static void __init fixup_nec_usb2(void)
 
 	for (nec = NULL; (nec = of_find_node_by_name(nec, "usb")) != NULL;) {
 		struct pci_controller *hose;
-		u32 data, *prop;
+		u32 data;
+		const u32 *prop;
 		u8 bus, devfn;
 
-		prop = (u32 *)get_property(nec, "vendor-id", NULL);
+		prop = get_property(nec, "vendor-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x1033 != *prop)
 			continue;
-		prop = (u32 *)get_property(nec, "device-id", NULL);
+		prop = get_property(nec, "device-id", NULL);
 		if (prop == NULL)
 			continue;
 		if (0x0035 != *prop)
 			continue;
-		prop = (u32 *)get_property(nec, "reg", NULL);
+		prop = get_property(nec, "reg", NULL);
 		if (prop == NULL)
 			continue;
 		devfn = (prop[0] >> 8) & 0xff;
@@ -898,7 +901,7 @@ static int __init add_bridge(struct device_node *dev)
 	struct pci_controller *hose;
 	struct resource rsrc;
 	char *disp_name;
-	int *bus_range;
+	const int *bus_range;
 	int primary = 1, has_address = 0;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
@@ -907,7 +910,7 @@ static int __init add_bridge(struct device_node *dev)
 	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
 
 	/* Get bus range if any */
-	bus_range = (int *) get_property(dev, "bus-range", &len);
+	bus_range = get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
 		       " bus 0\n", dev->full_name);

@@ -7,7 +7,7 @@
 #
 # ==========================================================================
 
-UNIFDEF := unifdef -U__KERNEL__
+UNIFDEF := scripts/unifdef -U__KERNEL__
 
 # Eliminate the contents of (and inclusions of) compiler.h
 HDRSED  := sed 	-e "s/ inline / __inline__ /g" \
@@ -23,30 +23,30 @@ HDRSED  := sed 	-e "s/ inline / __inline__ /g" \
 
 _dst := $(if $(dst),$(dst),$(obj))
 
-.PHONY: __headersinst
-__headersinst:
-
-
 ifeq (,$(patsubst include/asm/%,,$(obj)/))
 # For producing the generated stuff in include/asm for biarch builds, include
 # both sets of Kbuild files; we'll generate anything which is mentioned in
 # _either_ arch, and recurse into subdirectories which are mentioned in either
 # arch. Since some directories may exist in one but not the other, we must
-# use '-include'.
+# use $(wildcard...). 
 GENASM := 1
 archasm	   := $(subst include/asm,asm-$(ARCH),$(obj))
 altarchasm := $(subst include/asm,asm-$(ALTARCH),$(obj))
--include $(srctree)/include/$(archasm)/Kbuild
--include $(srctree)/include/$(altarchasm)/Kbuild
+KBUILDFILES := $(wildcard $(srctree)/include/$(archasm)/Kbuild $(srctree)/include/$(altarchasm)/Kbuild)
 else
-include $(srctree)/$(obj)/Kbuild
+KBUILDFILES := $(srctree)/$(obj)/Kbuild
 endif
 
-include scripts/Kbuild.include
+include $(KBUILDFILES)
+
+include scripts/Kbuild.include 
 
 # If this is include/asm-$(ARCH) and there's no $(ALTARCH), then
 # override $(_dst) so that we install to include/asm directly.
-ifeq ($(obj)$(ALTARCH),include/asm-$(ARCH))
+# Unless $(BIASMDIR) is set, in which case we're probably doing
+# a 'headers_install_all' build and we should keep the -$(ARCH)
+# in the directory name.
+ifeq ($(obj)$(ALTARCH),include/asm-$(ARCH)$(BIASMDIR))
      _dst := include/asm
 endif
 
@@ -55,6 +55,23 @@ unifdef-y	:= $(sort $(unifdef-y))
 subdir-y	:= $(patsubst %/,%,$(filter %/, $(header-y)))
 header-y	:= $(filter-out %/, $(header-y))
 header-y	:= $(filter-out $(unifdef-y),$(header-y))
+
+# stamp files for header checks
+check-y		:= $(patsubst %,.check.%,$(header-y) $(unifdef-y) $(objhdr-y))
+
+# Work out what needs to be removed
+oldheaders	:= $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$(wildcard $(INSTALL_HDR_PATH)/$(_dst)/*.h))
+unwanted	:= $(filter-out $(header-y) $(unifdef-y) $(objhdr-y),$(oldheaders))
+
+oldcheckstamps	:= $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$(wildcard $(INSTALL_HDR_PATH)/$(_dst)/.check.*.h))
+unwanted	+= $(filter-out $(check-y),$(oldcheckstamps))
+
+# Prefix them all with full paths to $(INSTALL_HDR_PATH)
+header-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(header-y))
+unifdef-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(unifdef-y))
+objhdr-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(objhdr-y))
+check-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(check-y))
+
 
 ifdef ALTARCH
 ifeq ($(obj),include/asm-$(ARCH))
@@ -67,43 +84,47 @@ export ALTARCH
 export ARCHDEF
 export ALTARCHDEF
 
-quiet_cmd_o_hdr_install   = INSTALL $(_dst)/$@
-      cmd_o_hdr_install   = cp $(objtree)/$(obj)/$@ $(INSTALL_HDR_PATH)/$(_dst)
+quiet_cmd_o_hdr_install   = INSTALL $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
+      cmd_o_hdr_install   = cp $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(objtree)/$(obj)/%,$@) \
+			    $(INSTALL_HDR_PATH)/$(_dst)
 
-quiet_cmd_headers_install = INSTALL $(_dst)/$@
-      cmd_headers_install = $(HDRSED) $(srctree)/$(obj)/$@		\
-			    > $(INSTALL_HDR_PATH)/$(_dst)/$@
+quiet_cmd_headers_install = INSTALL $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
+      cmd_headers_install = $(HDRSED) $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(srctree)/$(obj)/%,$@)	\
+			    > $@
 
-quiet_cmd_unifdef	  = UNIFDEF $(_dst)/$@
-      cmd_unifdef	  = $(UNIFDEF) $(srctree)/$(obj)/$@ | $(HDRSED)	\
-                            > $(INSTALL_HDR_PATH)/$(_dst)/$@ || :
+quiet_cmd_unifdef	  = UNIFDEF $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
+      cmd_unifdef	  = $(UNIFDEF) $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(srctree)/$(obj)/%,$@) \
+				   | $(HDRSED) > $@ || :
 
-quiet_cmd_check		  = CHECK   $(_dst)/$@
+quiet_cmd_check		  = CHECK   $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/.check.%,$(_dst)/%,$@)
       cmd_check		  = $(srctree)/scripts/hdrcheck.sh		\
-                              $(INSTALL_HDR_PATH)/include		\
-			      $(INSTALL_HDR_PATH)/$(_dst)/$@
+                              $(INSTALL_HDR_PATH)/include $(subst /.check.,/,$@) $@
 
-quiet_cmd_mkdir		  = MKDIR   $@
-      cmd_mkdir		  = mkdir -p $(INSTALL_HDR_PATH)/$@
+quiet_cmd_remove	  = REMOVE  $(_dst)/$@
+      cmd_remove	  = rm -f $(INSTALL_HDR_PATH)/$(_dst)/$@
 
-quiet_cmd_gen		  = GEN     $(_dst)/$@
+quiet_cmd_mkdir		  = MKDIR   $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
+      cmd_mkdir		  = mkdir -p $@
+
+quiet_cmd_gen		  = GEN     $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
       cmd_gen		  = \
-STUBDEF=__ASM_STUB_`echo $@ | tr a-z. A-Z_`;				\
+FNAME=$(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$@)			\
+STUBDEF=__ASM_STUB_`echo $$FNAME | tr a-z. A-Z_`;			\
 (echo "/* File autogenerated by 'make headers_install' */" ;		\
 echo "\#ifndef $$STUBDEF" ;						\
 echo "\#define $$STUBDEF" ;						\
 echo "\# if $(ARCHDEF)" ;						\
-if [ -r $(INSTALL_HDR_PATH)/include/$(archasm)/$@ ]; then		\
-	echo "\#  include <$(archasm)/$@>" ;				\
+if [ -r $(subst /$(_dst)/,/include/$(archasm)/,$@) ]; then		\
+	echo "\#  include <$(archasm)/$$FNAME>" ;			\
 else									\
-	echo "\#  error $(archasm)/$@ does not exist in"		\
+	echo "\#  error $(archasm)/$$FNAME does not exist in"		\
 			"the $(ARCH) architecture" ;			\
 fi ;									\
 echo "\# elif $(ALTARCHDEF)" ;						\
-if [ -r $(INSTALL_HDR_PATH)/include/$(altarchasm)/$@ ]; then		\
-	echo "\#  include <$(altarchasm)/$@>" ;				\
+if [ -r $(subst /$(_dst)/,/include/$(altarchasm)/,$@) ]; then		\
+	echo "\#  include <$(altarchasm)/$$FNAME>" ;			\
 else									\
-	echo "\#  error $(altarchasm)/$@ does not exist in"		\
+	echo "\#  error $(altarchasm)/$$FNAME does not exist in"	\
 			"the $(ALTARCH) architecture" ;			\
 fi ;									\
 echo "\# else" ;							\
@@ -111,37 +132,49 @@ echo "\#  warning This machine appears to be"				\
 		 "neither $(ARCH) nor $(ALTARCH)." ;			\
 echo "\# endif" ;							\
 echo "\#endif /* $$STUBDEF */" ;					\
-) > $(INSTALL_HDR_PATH)/$(_dst)/$@
+) > $@
 
-__headersinst: $(subdir-y) $(header-y) $(unifdef-y) $(altarch-y) $(objhdr-y)
-
-.PHONY: $(header-y) $(unifdef-y) $(subdir-y)
+.PHONY: __headersinst __headerscheck
 
 ifdef HDRCHECK
-# Rules for checking headers
-$(objhdr-y) $(header-y) $(unifdef-y):
+__headerscheck: $(subdir-y) $(check-y)
+	@true
+
+$(check-y) : $(INSTALL_HDR_PATH)/$(_dst)/.check.%.h : $(INSTALL_HDR_PATH)/$(_dst)/%.h 
 	$(call cmd,check)
+
+# Other dependencies for $(check-y)
+-include /dev/null $(check-y)
+
+# ... but leave $(check-y) as .PHONY for now until those deps are actually correct.
+.PHONY: $(check-y)
+
 else
 # Rules for installing headers
+__headersinst: $(subdir-y) $(header-y) $(unifdef-y) $(altarch-y) $(objhdr-y)
+	@true
 
-$(objhdr-y) $(subdir-y) $(header-y) $(unifdef-y): $(_dst)
+$(objhdr-y) $(subdir-y) $(header-y) $(unifdef-y): | $(INSTALL_HDR_PATH)/$(_dst) $(unwanted)
 
-.PHONY: $(_dst)
-$(_dst):
+$(INSTALL_HDR_PATH)/$(_dst):
 	$(call cmd,mkdir)
 
+.PHONY: $(unwanted)
+$(unwanted):
+	$(call cmd,remove)
+
 ifdef GENASM
-$(objhdr-y) $(header-y) $(unifdef-y):
+$(objhdr-y) $(header-y) $(unifdef-y): $(KBUILDFILES)
 	$(call cmd,gen)
 
 else
-$(objhdr-y):
+$(objhdr-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
 	$(call cmd,o_hdr_install)
 
-$(header-y):
+$(header-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
 	$(call cmd,headers_install)
 
-$(unifdef-y):
+$(unifdef-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
 	$(call cmd,unifdef)
 endif
 endif
@@ -153,8 +186,9 @@ hdrinst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
 # for their existence.
 altarch-dir: $(subdir-y) $(header-y) $(unifdef-y) $(objhdr-y)
 	$(Q)$(MAKE) $(hdrinst)=include/asm-$(ALTARCH) dst=include/asm-$(ALTARCH)
-	$(Q)$(MAKE) $(hdrinst)=include/asm dst=include/asm
+	$(Q)$(MAKE) $(hdrinst)=include/asm dst=include/asm$(BIASMDIR)
 
 # Recursion
+.PHONY: $(subdir-y)
 $(subdir-y):
 	$(Q)$(MAKE) $(hdrinst)=$(obj)/$@ dst=$(_dst)/$@ rel=../$(rel)

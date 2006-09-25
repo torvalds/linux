@@ -32,6 +32,10 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+#define RT6_LOOKUP_F_IFACE	0x1
+#define RT6_LOOKUP_F_REACHABLE	0x2
+#define RT6_LOOKUP_F_HAS_SADDR	0x4
+
 struct pol_chain {
 	int			type;
 	int			priority;
@@ -41,6 +45,11 @@ struct pol_chain {
 
 extern struct rt6_info	ip6_null_entry;
 
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+extern struct rt6_info	ip6_prohibit_entry;
+extern struct rt6_info	ip6_blk_hole_entry;
+#endif
+
 extern int ip6_rt_gc_interval;
 
 extern void			ip6_route_input(struct sk_buff *skb);
@@ -48,25 +57,14 @@ extern void			ip6_route_input(struct sk_buff *skb);
 extern struct dst_entry *	ip6_route_output(struct sock *sk,
 						 struct flowi *fl);
 
-extern int			ip6_route_me_harder(struct sk_buff *skb);
-
 extern void			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
 
 extern int			ipv6_route_ioctl(unsigned int cmd, void __user *arg);
 
-extern int			ip6_route_add(struct in6_rtmsg *rtmsg,
-					      struct nlmsghdr *,
-					      void *rtattr,
-					      struct netlink_skb_parms *req);
-extern int			ip6_ins_rt(struct rt6_info *,
-					   struct nlmsghdr *,
-					   void *rtattr,
-					   struct netlink_skb_parms *req);
-extern int			ip6_del_rt(struct rt6_info *,
-					   struct nlmsghdr *,
-					   void *rtattr,
-					   struct netlink_skb_parms *req);
+extern int			ip6_route_add(struct fib6_config *cfg);
+extern int			ip6_ins_rt(struct rt6_info *);
+extern int			ip6_del_rt(struct rt6_info *);
 
 extern int			ip6_rt_addr_add(struct in6_addr *addr,
 						struct net_device *dev,
@@ -114,6 +112,7 @@ extern int			rt6_route_rcv(struct net_device *dev,
 					      struct in6_addr *gwaddr);
 
 extern void			rt6_redirect(struct in6_addr *dest,
+					     struct in6_addr *src,
 					     struct in6_addr *saddr,
 					     struct neighbour *neigh,
 					     u8 *lladdr,
@@ -131,6 +130,13 @@ extern int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *a
 extern int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet6_rtm_getroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 
+struct rt6_rtnl_dump_arg
+{
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+};
+
+extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
 extern void rt6_ifdown(struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 
@@ -140,21 +146,24 @@ extern rwlock_t rt6_lock;
  *	Store a destination cache entry in a socket
  */
 static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				   struct in6_addr *daddr)
+				   struct in6_addr *daddr, struct in6_addr *saddr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct rt6_info *rt = (struct rt6_info *) dst;
 
 	sk_setup_caps(sk, dst);
 	np->daddr_cache = daddr;
+#ifdef CONFIG_IPV6_SUBTREES
+	np->saddr_cache = saddr;
+#endif
 	np->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
 }
 
 static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				 struct in6_addr *daddr)
+				 struct in6_addr *daddr, struct in6_addr *saddr)
 {
 	write_lock(&sk->sk_dst_lock);
-	__ip6_dst_store(sk, dst, daddr);
+	__ip6_dst_store(sk, dst, daddr, saddr);
 	write_unlock(&sk->sk_dst_lock);
 }
 

@@ -1493,7 +1493,8 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			if (de->name_len == 2 && !strncmp("..", de->name, 2))
 				continue;
 
-			iter = ocfs2_iget(osb, le64_to_cpu(de->inode));
+			iter = ocfs2_iget(osb, le64_to_cpu(de->inode),
+					  OCFS2_FI_FLAG_NOLOCK);
 			if (IS_ERR(iter))
 				continue;
 

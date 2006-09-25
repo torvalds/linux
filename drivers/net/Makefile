@@ -2,14 +2,11 @@
 # Makefile for the Linux network (ethercard) device drivers.
 #
 
-ifeq ($(CONFIG_ISDN_PPP),y)
-  obj-$(CONFIG_ISDN) += slhc.o
-endif
-
 obj-$(CONFIG_E1000) += e1000/
 obj-$(CONFIG_IBM_EMAC) += ibm_emac/
 obj-$(CONFIG_IXGB) += ixgb/
 obj-$(CONFIG_CHELSIO_T1) += chelsio/
+obj-$(CONFIG_EHEA) += ehea/
 obj-$(CONFIG_BONDING) += bonding/
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
 
@@ -113,8 +110,9 @@ obj-$(CONFIG_FORCEDETH) += forcedeth.o
 obj-$(CONFIG_NE_H8300) += ne-h8300.o 8390.o
 
 obj-$(CONFIG_MV643XX_ETH) += mv643xx_eth.o
+obj-$(CONFIG_QLA3XXX) += qla3xxx.o
 
-obj-$(CONFIG_PPP) += ppp_generic.o slhc.o
+obj-$(CONFIG_PPP) += ppp_generic.o
 obj-$(CONFIG_PPP_ASYNC) += ppp_async.o
 obj-$(CONFIG_PPP_SYNC_TTY) += ppp_synctty.o
 obj-$(CONFIG_PPP_DEFLATE) += ppp_deflate.o
@@ -123,9 +121,7 @@ obj-$(CONFIG_PPP_MPPE) += ppp_mppe.o
 obj-$(CONFIG_PPPOE) += pppox.o pppoe.o
 
 obj-$(CONFIG_SLIP) += slip.o
-ifeq ($(CONFIG_SLIP_COMPRESSED),y)
-  obj-$(CONFIG_SLIP) += slhc.o
-endif
+obj-$(CONFIG_SLHC) += slhc.o
 
 obj-$(CONFIG_DUMMY) += dummy.o
 obj-$(CONFIG_IFB) += ifb.o
@@ -174,7 +170,6 @@ obj-$(CONFIG_HPLANCE) += hplance.o 7990.o
 obj-$(CONFIG_MVME147_NET) += mvme147.o 7990.o
 obj-$(CONFIG_EQUALIZER) += eql.o
 obj-$(CONFIG_MIPS_JAZZ_SONIC) += jazzsonic.o
-obj-$(CONFIG_MIPS_GT96100ETH) += gt96100eth.o
 obj-$(CONFIG_MIPS_AU1X00_ENET) += au1000_eth.o
 obj-$(CONFIG_MIPS_SIM_NET) += mipsnet.o
 obj-$(CONFIG_SGI_IOC3_ETH) += ioc3-eth.o

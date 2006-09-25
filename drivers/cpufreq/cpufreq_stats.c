@@ -350,12 +350,10 @@ __init cpufreq_stats_init(void)
 	}
 
 	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
-	lock_cpu_hotplug();
 	for_each_online_cpu(cpu) {
 		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier, CPU_ONLINE,
 			(void *)(long)cpu);
 	}
-	unlock_cpu_hotplug();
 	return 0;
 }
 static void

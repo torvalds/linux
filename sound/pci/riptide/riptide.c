@@ -673,9 +673,13 @@ static struct lbuspath lbus_rec_path = {
 #define FIRMWARE_VERSIONS 1
 static union firmware_version firmware_versions[] = {
 	{
-	 .firmware.ASIC = 3,.firmware.CODEC = 2,
-	 .firmware.AUXDSP = 3,.firmware.PROG = 773,
-	 },
+		.firmware = {
+			.ASIC = 3,
+			.CODEC = 2,
+			.AUXDSP = 3,
+			.PROG = 773,
+		},
+	},
 };
 
 static u32 atoh(unsigned char *in, unsigned int len)

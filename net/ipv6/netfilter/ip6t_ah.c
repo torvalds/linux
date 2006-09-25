@@ -102,7 +102,6 @@ checkentry(const char *tablename,
           const void *entry,
 	  const struct xt_match *match,
           void *matchinfo,
-          unsigned int matchinfosize,
           unsigned int hook_mask)
 {
 	const struct ip6t_ah *ahinfo = matchinfo;

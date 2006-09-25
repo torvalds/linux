@@ -90,7 +90,7 @@
 */
 
 #define DRV_NAME	"8139too"
-#define DRV_VERSION	"0.9.27"
+#define DRV_VERSION	"0.9.28"
 
 
 #include <linux/module.h>
@@ -639,7 +639,7 @@ static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
 static void rtl8139_thread (void *_data);
 static void rtl8139_tx_timeout_task(void *_data);
-static struct ethtool_ops rtl8139_ethtool_ops;
+static const struct ethtool_ops rtl8139_ethtool_ops;
 
 /* write MMIO register, with flush */
 /* Flush avoids rtl8139 bug w/ posted MMIO writes */
@@ -2446,7 +2446,7 @@ static void rtl8139_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	memcpy(data, ethtool_stats_keys, sizeof(ethtool_stats_keys));
 }
 
-static struct ethtool_ops rtl8139_ethtool_ops = {
+static const struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_drvinfo		= rtl8139_get_drvinfo,
 	.get_settings		= rtl8139_get_settings,
 	.set_settings		= rtl8139_set_settings,
@@ -2512,9 +2512,6 @@ static void __set_rx_mode (struct net_device *dev)
 
 	/* Note: do not reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		printk (KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;
@@ -2629,7 +2626,7 @@ static int __init rtl8139_init_module (void)
 	printk (KERN_INFO RTL8139_DRIVER_NAME "\n");
 #endif
 
-	return pci_module_init (&rtl8139_pci_driver);
+	return pci_register_driver(&rtl8139_pci_driver);
 }
 
 

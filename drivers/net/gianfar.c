@@ -143,7 +143,7 @@ void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
 
-extern struct ethtool_ops gfar_ethtool_ops;
+extern const struct ethtool_ops gfar_ethtool_ops;
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
@@ -947,7 +947,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set up checksumming */
 	if (likely((dev->features & NETIF_F_IP_CSUM)
-			&& (CHECKSUM_HW == skb->ip_summed))) {
+			&& (CHECKSUM_PARTIAL == skb->ip_summed))) {
 		fcb = gfar_add_fcb(skb, txbdp);
 		status |= TXBD_TOE;
 		gfar_tx_checksum(skb, fcb);
@@ -1063,7 +1063,7 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		tempval |= TCTRL_VLINS;
 
 		gfar_write(&priv->regs->tctrl, tempval);
-		
+
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
 		tempval |= RCTRL_VLEX;
@@ -1708,9 +1708,6 @@ static void gfar_set_multi(struct net_device *dev)
 	u32 tempval;
 
 	if(dev->flags & IFF_PROMISC) {
-		if (netif_msg_drv(priv))
-			printk(KERN_INFO "%s: Entering promiscuous mode.\n",
-					dev->name);
 		/* Set RCTRL to PROM */
 		tempval = gfar_read(&regs->rctrl);
 		tempval |= RCTRL_PROM;
@@ -1721,7 +1718,7 @@ static void gfar_set_multi(struct net_device *dev)
 		tempval &= ~(RCTRL_PROM);
 		gfar_write(&regs->rctrl, tempval);
 	}
-	
+
 	if(dev->flags & IFF_ALLMULTI) {
 		/* Set the hash to rx all multicast frames */
 		gfar_write(&regs->igaddr0, 0xffffffff);
@@ -1957,7 +1954,7 @@ static int __init gfar_init(void)
 
 	if (err)
 		gfar_mdio_exit();
-	
+
 	return err;
 }
 

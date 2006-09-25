@@ -33,6 +33,7 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include <asm/io.h>
 
@@ -337,6 +338,14 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id, struct pt_regs *
   .info = snd_opl3sa2_info_single, \
   .get = snd_opl3sa2_get_single, .put = snd_opl3sa2_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
+#define OPL3SA2_SINGLE_TLV(xname, xindex, reg, shift, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .index = xindex, \
+  .info = snd_opl3sa2_info_single, \
+  .get = snd_opl3sa2_get_single, .put = snd_opl3sa2_put_single, \
+  .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24), \
+  .tlv = { .p = (xtlv) } }
 
 static int snd_opl3sa2_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -395,6 +404,14 @@ static int snd_opl3sa2_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_
   .info = snd_opl3sa2_info_double, \
   .get = snd_opl3sa2_get_double, .put = snd_opl3sa2_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
+#define OPL3SA2_DOUBLE_TLV(xname, xindex, left_reg, right_reg, shift_left, shift_right, mask, invert, xtlv) \
+{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
+  .name = xname, .index = xindex, \
+  .info = snd_opl3sa2_info_double, \
+  .get = snd_opl3sa2_get_double, .put = snd_opl3sa2_put_double, \
+  .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22), \
+  .tlv = { .p = (xtlv) } }
 
 static int snd_opl3sa2_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
@@ -469,11 +486,16 @@ static int snd_opl3sa2_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	return change;
 }
 
+static DECLARE_TLV_DB_SCALE(db_scale_master, -3000, 200, 0);
+static DECLARE_TLV_DB_SCALE(db_scale_5bit_12db_max, -3450, 150, 0);
+
 static struct snd_kcontrol_new snd_opl3sa2_controls[] = {
 OPL3SA2_DOUBLE("Master Playback Switch", 0, 0x07, 0x08, 7, 7, 1, 1),
-OPL3SA2_DOUBLE("Master Playback Volume", 0, 0x07, 0x08, 0, 0, 15, 1),
+OPL3SA2_DOUBLE_TLV("Master Playback Volume", 0, 0x07, 0x08, 0, 0, 15, 1,
+		   db_scale_master),
 OPL3SA2_SINGLE("Mic Playback Switch", 0, 0x09, 7, 1, 1),
-OPL3SA2_SINGLE("Mic Playback Volume", 0, 0x09, 0, 31, 1)
+OPL3SA2_SINGLE_TLV("Mic Playback Volume", 0, 0x09, 0, 31, 1,
+		   db_scale_5bit_12db_max),
 };
 
 static struct snd_kcontrol_new snd_opl3sa2_tone_controls[] = {

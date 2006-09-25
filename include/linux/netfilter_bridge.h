@@ -5,9 +5,8 @@
  */
 
 #include <linux/netfilter.h>
-#if defined(__KERNEL__) && defined(CONFIG_BRIDGE_NETFILTER)
 #include <linux/if_ether.h>
-#endif
+#include <linux/if_vlan.h>
 
 /* Bridge Hooks */
 /* After promisc drops, checksum checks. */
@@ -47,40 +46,20 @@ enum nf_br_hook_priorities {
 
 
 /* Only used in br_forward.c */
-static inline
-int nf_bridge_maybe_copy_header(struct sk_buff *skb)
+extern int nf_bridge_copy_header(struct sk_buff *skb);
+static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
 {
-	int err;
-
-	if (skb->nf_bridge) {
-		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
-			err = skb_cow(skb, 18);
-			if (err)
-				return err;
-			memcpy(skb->data - 18, skb->nf_bridge->data, 18);
-			skb_push(skb, 4);
-		} else {
-			err = skb_cow(skb, 16);
-			if (err)
-				return err;
-			memcpy(skb->data - 16, skb->nf_bridge->data, 16);
-		}
-	}
-	return 0;
+	if (skb->nf_bridge)
+		return nf_bridge_copy_header(skb);
+  	return 0;
 }
 
 /* This is called by the IP fragmenting code and it ensures there is
  * enough room for the encapsulating header (if there is one). */
-static inline
-int nf_bridge_pad(struct sk_buff *skb)
+static inline int nf_bridge_pad(const struct sk_buff *skb)
 {
-	if (skb->protocol == __constant_htons(ETH_P_IP))
-		return 0;
-	if (skb->nf_bridge) {
-		if (skb->protocol == __constant_htons(ETH_P_8021Q))
-			return 4;
-	}
-	return 0;
+ 	return (skb->nf_bridge && skb->protocol == htons(ETH_P_8021Q))
+		? VLAN_HLEN : 0;
 }
 
 struct bridge_skb_cb {
@@ -90,6 +69,9 @@ struct bridge_skb_cb {
 };
 
 extern int brnf_deferred_hooks;
+#else
+#define nf_bridge_maybe_copy_header(skb)	(0)
+#define nf_bridge_pad(skb)			(0)
 #endif /* CONFIG_BRIDGE_NETFILTER */
 
 #endif /* __KERNEL__ */

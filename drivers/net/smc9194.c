@@ -529,7 +529,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 		}
 		length = ETH_ZLEN;
 	}
-		
+
 	/*
 	** The MMU wants the number of pages to be the number of 256 bytes
 	** 'pages', minus 1 ( since a packet can't ever have 0 pages :) )
@@ -1159,7 +1159,7 @@ static int smc_open(struct net_device *dev)
 		address  |= dev->dev_addr[ i ];
 		outw( address, ioaddr + ADDR0 + i );
 	}
-	
+
 	netif_start_queue(dev);
 	return 0;
 }

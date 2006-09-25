@@ -180,8 +180,7 @@ ipt_error(struct sk_buff **pskb,
 	  const struct net_device *out,
 	  unsigned int hooknum,
 	  const struct xt_target *target,
-	  const void *targinfo,
-	  void *userinfo)
+	  const void *targinfo)
 {
 	if (net_ratelimit())
 		printk("ip_tables: error: `%s'\n", (char *)targinfo);
@@ -217,8 +216,7 @@ ipt_do_table(struct sk_buff **pskb,
 	     unsigned int hook,
 	     const struct net_device *in,
 	     const struct net_device *out,
-	     struct ipt_table *table,
-	     void *userdata)
+	     struct ipt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	u_int16_t offset;
@@ -308,8 +306,7 @@ ipt_do_table(struct sk_buff **pskb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,
-								     t->data,
-								     userdata);
+								     t->data);
 
 #ifdef CONFIG_NETFILTER_DEBUG
 				if (((struct ipt_entry *)table_base)->comefrom
@@ -467,8 +464,7 @@ cleanup_match(struct ipt_entry_match *m, unsigned int *i)
 		return 1;
 
 	if (m->u.kernel.match->destroy)
-		m->u.kernel.match->destroy(m->u.kernel.match, m->data,
-					   m->u.match_size - sizeof(*m));
+		m->u.kernel.match->destroy(m->u.kernel.match, m->data);
 	module_put(m->u.kernel.match->me);
 	return 0;
 }
@@ -521,7 +517,6 @@ check_match(struct ipt_entry_match *m,
 
 	if (m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ip, match, m->data,
-					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
@@ -578,12 +573,10 @@ check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 	if (t->u.kernel.target == &ipt_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
-			goto cleanup_matches;
+			goto err;
 		}
 	} else if (t->u.kernel.target->checkentry
 		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
-						      t->u.target_size
-						      - sizeof(*t),
 						      e->comefrom)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
@@ -655,8 +648,7 @@ cleanup_entry(struct ipt_entry *e, unsigned int *i)
 	IPT_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ipt_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
-					    t->u.target_size - sizeof(*t));
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
 	module_put(t->u.kernel.target->me);
 	return 0;
 }
@@ -950,73 +942,28 @@ static short compat_calc_jump(u_int16_t offset)
 	return delta;
 }
 
-struct compat_ipt_standard_target
+static void compat_standard_from_user(void *dst, void *src)
 {
-	struct compat_xt_entry_target target;
-	compat_int_t verdict;
-};
+	int v = *(compat_int_t *)src;
 
-struct compat_ipt_standard
+	if (v > 0)
+		v += compat_calc_jump(v);
+	memcpy(dst, &v, sizeof(v));
+}
+
+static int compat_standard_to_user(void __user *dst, void *src)
 {
-	struct compat_ipt_entry entry;
-	struct compat_ipt_standard_target target;
-};
+	compat_int_t cv = *(int *)src;
 
-#define IPT_ST_LEN		XT_ALIGN(sizeof(struct ipt_standard_target))
-#define IPT_ST_COMPAT_LEN	COMPAT_XT_ALIGN(sizeof(struct compat_ipt_standard_target))
-#define IPT_ST_OFFSET		(IPT_ST_LEN - IPT_ST_COMPAT_LEN)
-
-static int compat_ipt_standard_fn(void *target,
-		void **dstptr, int *size, int convert)
-{
-	struct compat_ipt_standard_target compat_st, *pcompat_st;
-	struct ipt_standard_target st, *pst;
-	int ret;
-
-	ret = 0;
-	switch (convert) {
-		case COMPAT_TO_USER:
-			pst = target;
-			memcpy(&compat_st.target, &pst->target,
-				sizeof(compat_st.target));
-			compat_st.verdict = pst->verdict;
-			if (compat_st.verdict > 0)
-				compat_st.verdict -=
-					compat_calc_jump(compat_st.verdict);
-			compat_st.target.u.user.target_size = IPT_ST_COMPAT_LEN;
-			if (copy_to_user(*dstptr, &compat_st, IPT_ST_COMPAT_LEN))
-				ret = -EFAULT;
-			*size -= IPT_ST_OFFSET;
-			*dstptr += IPT_ST_COMPAT_LEN;
-			break;
-		case COMPAT_FROM_USER:
-			pcompat_st = target;
-			memcpy(&st.target, &pcompat_st->target, IPT_ST_COMPAT_LEN);
-			st.verdict = pcompat_st->verdict;
-			if (st.verdict > 0)
-				st.verdict += compat_calc_jump(st.verdict);
-			st.target.u.user.target_size = IPT_ST_LEN;
-			memcpy(*dstptr, &st, IPT_ST_LEN);
-			*size += IPT_ST_OFFSET;
-			*dstptr += IPT_ST_LEN;
-			break;
-		case COMPAT_CALC_SIZE:
-			*size += IPT_ST_OFFSET;
-			break;
-		default:
-			ret = -ENOPROTOOPT;
-			break;
-	}
-	return ret;
+	if (cv > 0)
+		cv -= compat_calc_jump(cv);
+	return copy_to_user(dst, &cv, sizeof(cv)) ? -EFAULT : 0;
 }
 
 static inline int
 compat_calc_match(struct ipt_entry_match *m, int * size)
 {
-	if (m->u.kernel.match->compat)
-		m->u.kernel.match->compat(m, NULL, size, COMPAT_CALC_SIZE);
-	else
-		xt_compat_match(m, NULL, size, COMPAT_CALC_SIZE);
+	*size += xt_compat_match_offset(m->u.kernel.match);
 	return 0;
 }
 
@@ -1031,10 +978,7 @@ static int compat_calc_entry(struct ipt_entry *e, struct xt_table_info *info,
 	entry_offset = (void *)e - base;
 	IPT_MATCH_ITERATE(e, compat_calc_match, &off);
 	t = ipt_get_target(e);
-	if (t->u.kernel.target->compat)
-		t->u.kernel.target->compat(t, NULL, &off, COMPAT_CALC_SIZE);
-	else
-		xt_compat_target(t, NULL, &off, COMPAT_CALC_SIZE);
+	off += xt_compat_target_offset(t->u.kernel.target);
 	newinfo->size -= off;
 	ret = compat_add_offset(entry_offset, off);
 	if (ret)
@@ -1422,17 +1366,13 @@ struct compat_ipt_replace {
 static inline int compat_copy_match_to_user(struct ipt_entry_match *m,
 		void __user **dstptr, compat_uint_t *size)
 {
-	if (m->u.kernel.match->compat)
-		return m->u.kernel.match->compat(m, dstptr, size,
-				COMPAT_TO_USER);
-	else
-		return xt_compat_match(m, dstptr, size, COMPAT_TO_USER);
+	return xt_compat_match_to_user(m, dstptr, size);
 }
 
 static int compat_copy_entry_to_user(struct ipt_entry *e,
 		void __user **dstptr, compat_uint_t *size)
 {
-	struct ipt_entry_target __user *t;
+	struct ipt_entry_target *t;
 	struct compat_ipt_entry __user *ce;
 	u_int16_t target_offset, next_offset;
 	compat_uint_t origsize;
@@ -1450,11 +1390,7 @@ static int compat_copy_entry_to_user(struct ipt_entry *e,
 	if (ret)
 		goto out;
 	t = ipt_get_target(e);
-	if (t->u.kernel.target->compat)
-		ret = t->u.kernel.target->compat(t, dstptr, size,
-				COMPAT_TO_USER);
-	else
-		ret = xt_compat_target(t, dstptr, size, COMPAT_TO_USER);
+	ret = xt_compat_target_to_user(t, dstptr, size);
 	if (ret)
 		goto out;
 	ret = -EFAULT;
@@ -1486,11 +1422,7 @@ compat_check_calc_match(struct ipt_entry_match *m,
 		return match ? PTR_ERR(match) : -ENOENT;
 	}
 	m->u.kernel.match = match;
-
-	if (m->u.kernel.match->compat)
-		m->u.kernel.match->compat(m, NULL, size, COMPAT_CALC_SIZE);
-	else
-		xt_compat_match(m, NULL, size, COMPAT_CALC_SIZE);
+	*size += xt_compat_match_offset(match);
 
 	(*i)++;
 	return 0;
@@ -1537,7 +1469,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	ret = IPT_MATCH_ITERATE(e, compat_check_calc_match, name, &e->ip,
 			e->comefrom, &off, &j);
 	if (ret != 0)
-		goto out;
+		goto cleanup_matches;
 
 	t = ipt_get_target(e);
 	target = try_then_request_module(xt_find_target(AF_INET,
@@ -1547,14 +1479,11 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	if (IS_ERR(target) || !target) {
 		duprintf("check_entry: `%s' not found\n", t->u.user.name);
 		ret = target ? PTR_ERR(target) : -ENOENT;
-		goto out;
+		goto cleanup_matches;
 	}
 	t->u.kernel.target = target;
 
-	if (t->u.kernel.target->compat)
-		t->u.kernel.target->compat(t, NULL, &off, COMPAT_CALC_SIZE);
-	else
-		xt_compat_target(t, NULL, &off, COMPAT_CALC_SIZE);
+	off += xt_compat_target_offset(target);
 	*size += off;
 	ret = compat_add_offset(entry_offset, off);
 	if (ret)
@@ -1574,14 +1503,17 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 
 	(*i)++;
 	return 0;
+
 out:
+	module_put(t->u.kernel.target->me);
+cleanup_matches:
 	IPT_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;
 }
 
 static inline int compat_copy_match_from_user(struct ipt_entry_match *m,
 	void **dstptr, compat_uint_t *size, const char *name,
-	const struct ipt_ip *ip, unsigned int hookmask)
+	const struct ipt_ip *ip, unsigned int hookmask, int *i)
 {
 	struct ipt_entry_match *dm;
 	struct ipt_match *match;
@@ -1589,26 +1521,28 @@ static inline int compat_copy_match_from_user(struct ipt_entry_match *m,
 
 	dm = (struct ipt_entry_match *)*dstptr;
 	match = m->u.kernel.match;
-	if (match->compat)
-		match->compat(m, dstptr, size, COMPAT_FROM_USER);
-	else
-		xt_compat_match(m, dstptr, size, COMPAT_FROM_USER);
+	xt_compat_match_from_user(m, dstptr, size);
 
 	ret = xt_check_match(match, AF_INET, dm->u.match_size - sizeof(*dm),
 			     name, hookmask, ip->proto,
 			     ip->invflags & IPT_INV_PROTO);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ip, match, dm->data,
-					      dm->u.match_size - sizeof(*dm),
 					      hookmask)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
+	(*i)++;
 	return 0;
+
+err:
+	module_put(m->u.kernel.match->me);
+	return ret;
 }
 
 static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
@@ -1619,25 +1553,23 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	struct ipt_target *target;
 	struct ipt_entry *de;
 	unsigned int origsize;
-	int ret, h;
+	int ret, h, j;
 
 	ret = 0;
 	origsize = *size;
 	de = (struct ipt_entry *)*dstptr;
 	memcpy(de, e, sizeof(struct ipt_entry));
 
+	j = 0;
 	*dstptr += sizeof(struct compat_ipt_entry);
 	ret = IPT_MATCH_ITERATE(e, compat_copy_match_from_user, dstptr, size,
-			name, &de->ip, de->comefrom);
+			name, &de->ip, de->comefrom, &j);
 	if (ret)
-		goto out;
+		goto cleanup_matches;
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = ipt_get_target(e);
 	target = t->u.kernel.target;
-	if (target->compat)
-		target->compat(t, dstptr, size, COMPAT_FROM_USER);
-	else
-		xt_compat_target(t, dstptr, size, COMPAT_FROM_USER);
+	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);
 	for (h = 0; h < NF_IP_NUMHOOKS; h++) {
@@ -1653,22 +1585,26 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 			      name, e->comefrom, e->ip.proto,
 			      e->ip.invflags & IPT_INV_PROTO);
 	if (ret)
-		goto out;
+		goto err;
 
 	ret = -EINVAL;
 	if (t->u.kernel.target == &ipt_standard_target) {
 		if (!standard_check(t, *size))
-			goto out;
+			goto err;
 	} else if (t->u.kernel.target->checkentry
 		   && !t->u.kernel.target->checkentry(name, de, target,
-				t->data, t->u.target_size - sizeof(*t),
-				de->comefrom)) {
+						      t->data, de->comefrom)) {
 		duprintf("ip_tables: compat: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
-		goto out;
+		goto err;
 	}
 	ret = 0;
-out:
+	return ret;
+
+err:
+	module_put(t->u.kernel.target->me);
+cleanup_matches:
+	IPT_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;
 }
 
@@ -1989,6 +1925,8 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 	return ret;
 }
 
+static int do_ipt_get_ctl(struct sock *, int, void __user *, int *);
+
 static int
 compat_do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
@@ -2002,8 +1940,7 @@ compat_do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		ret = compat_get_entries(user, len);
 		break;
 	default:
-		duprintf("compat_do_ipt_get_ctl: unknown request %i\n", cmd);
-		ret = -EINVAL;
+		ret = do_ipt_get_ctl(sk, cmd, user, len);
 	}
 	return ret;
 }
@@ -2185,7 +2122,6 @@ icmp_checkentry(const char *tablename,
 	   const void *info,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct ipt_icmp *icmpinfo = matchinfo;
@@ -2200,7 +2136,9 @@ static struct ipt_target ipt_standard_target = {
 	.targetsize	= sizeof(int),
 	.family		= AF_INET,
 #ifdef CONFIG_COMPAT
-	.compat		= &compat_ipt_standard_fn,
+	.compatsize	= sizeof(compat_int_t),
+	.compat_from_user = compat_standard_from_user,
+	.compat_to_user	= compat_standard_to_user,
 #endif
 };
 

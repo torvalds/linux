@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004-2006 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004, 2005 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -73,6 +74,7 @@ static struct ib_cm {
 	struct rb_root remote_id_table;
 	struct rb_root remote_sidr_table;
 	struct idr local_id_table;
+	__be32 random_id_operand;
 	struct workqueue_struct *wq;
 } cm;
 
@@ -177,7 +179,7 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn, 
+	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn,
 			       cm_id_priv->av.pkey_index,
 			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
 			       GFP_ATOMIC);
@@ -299,15 +301,17 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 {
 	unsigned long flags;
-	int ret;
+	int ret, id;
 	static int next_id;
 
 	do {
 		spin_lock_irqsave(&cm.lock, flags);
-		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv, next_id++,
-					(__force int *) &cm_id_priv->id.local_id);
+		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv,
+					next_id++, &id);
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
+
+	cm_id_priv->id.local_id = (__force __be32) (id ^ cm.random_id_operand);
 	return ret;
 }
 
@@ -316,7 +320,8 @@ static void cm_free_id(__be32 local_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cm.lock, flags);
-	idr_remove(&cm.local_id_table, (__force int) local_id);
+	idr_remove(&cm.local_id_table,
+		   (__force int) (local_id ^ cm.random_id_operand));
 	spin_unlock_irqrestore(&cm.lock, flags);
 }
 
@@ -324,7 +329,8 @@ static struct cm_id_private * cm_get_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 
-	cm_id_priv = idr_find(&cm.local_id_table, (__force int) local_id);
+	cm_id_priv = idr_find(&cm.local_id_table,
+			      (__force int) (local_id ^ cm.random_id_operand));
 	if (cm_id_priv) {
 		if (cm_id_priv->id.remote_id == remote_id)
 			atomic_inc(&cm_id_priv->refcount);
@@ -678,6 +684,8 @@ static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
 static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 {
 	int wait_time;
+
+	cm_cleanup_timewait(cm_id_priv->timewait_info);
 
 	/*
 	 * The cm_id could be destroyed by the user before we exit timewait.
@@ -1354,7 +1362,7 @@ static int cm_req_handler(struct cm_work *work)
 							    id.local_id);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
 		ret = PTR_ERR(cm_id_priv->timewait_info);
-		goto error1;
+		goto destroy;
 	}
 	cm_id_priv->timewait_info->work.remote_id = req_msg->local_comm_id;
 	cm_id_priv->timewait_info->remote_ca_guid = req_msg->local_ca_guid;
@@ -1363,7 +1371,8 @@ static int cm_req_handler(struct cm_work *work)
 	listen_cm_id_priv = cm_match_req(work, cm_id_priv);
 	if (!listen_cm_id_priv) {
 		ret = -EINVAL;
-		goto error2;
+		kfree(cm_id_priv->timewait_info);
+		goto destroy;
 	}
 
 	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
@@ -1373,12 +1382,22 @@ static int cm_req_handler(struct cm_work *work)
 
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
-	if (ret)
-		goto error3;
+	if (ret) {
+		ib_get_cached_gid(work->port->cm_dev->device,
+				  work->port->port_num, 0, &work->path[0].sgid);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
+			       &work->path[0].sgid, sizeof work->path[0].sgid,
+			       NULL, 0);
+		goto rejected;
+	}
 	if (req_msg->alt_local_lid) {
 		ret = cm_init_av_by_path(&work->path[1], &cm_id_priv->alt_av);
-		if (ret)
-			goto error3;
+		if (ret) {
+			ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_ALT_GID,
+				       &work->path[0].sgid,
+				       sizeof work->path[0].sgid, NULL, 0);
+			goto rejected;
+		}
 	}
 	cm_id_priv->tid = req_msg->hdr.tid;
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
@@ -1400,12 +1419,11 @@ static int cm_req_handler(struct cm_work *work)
 	cm_deref_id(listen_cm_id_priv);
 	return 0;
 
-error3:	atomic_dec(&cm_id_priv->refcount);
+rejected:
+	atomic_dec(&cm_id_priv->refcount);
 	cm_deref_id(listen_cm_id_priv);
-	cm_cleanup_timewait(cm_id_priv->timewait_info);
-error2:	kfree(cm_id_priv->timewait_info);
-	cm_id_priv->timewait_info = NULL;
-error1:	ib_destroy_cm_id(&cm_id_priv->id);
+destroy:
+	ib_destroy_cm_id(cm_id);
 	return ret;
 }
 
@@ -2072,8 +2090,9 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 			spin_unlock_irqrestore(&cm.lock, flags);
 			return NULL;
 		}
-		cm_id_priv = idr_find(&cm.local_id_table,
-				      (__force int) timewait_info->work.local_id);
+		cm_id_priv = idr_find(&cm.local_id_table, (__force int)
+				      (timewait_info->work.local_id ^
+				       cm.random_id_operand));
 		if (cm_id_priv) {
 			if (cm_id_priv->id.remote_id == remote_id)
 				atomic_inc(&cm_id_priv->refcount);
@@ -3125,7 +3144,8 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE |
 					   IB_ACCESS_REMOTE_WRITE;
 		if (cm_id_priv->responder_resources)
-			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ;
+			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ |
+						    IB_ACCESS_REMOTE_ATOMIC;
 		qp_attr->pkey_index = cm_id_priv->av.pkey_index;
 		qp_attr->port_num = cm_id_priv->av.port->port_num;
 		ret = 0;
@@ -3262,6 +3282,9 @@ static void cm_add_one(struct ib_device *device)
 	int ret;
 	u8 i;
 
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
 	cm_dev = kmalloc(sizeof(*cm_dev) + sizeof(*port) *
 			 device->phys_port_cnt, GFP_KERNEL);
 	if (!cm_dev)
@@ -3349,6 +3372,7 @@ static int __init ib_cm_init(void)
 	cm.remote_qp_table = RB_ROOT;
 	cm.remote_sidr_table = RB_ROOT;
 	idr_init(&cm.local_id_table);
+	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	idr_pre_get(&cm.local_id_table, GFP_KERNEL);
 
 	cm.wq = create_workqueue("ib_cm");

@@ -207,7 +207,8 @@ static int i2c_powermac_probe(struct device *dev)
 	struct pmac_i2c_bus *bus = dev->platform_data;
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
-	char name[32], *basename;
+	char name[32];
+	const char *basename;
 	int rc;
 
 	if (bus == NULL)

@@ -53,6 +53,7 @@ struct user_lock_res {
 
 #define USER_DLM_LOCK_ID_MAX_LEN  32
 	char                     l_name[USER_DLM_LOCK_ID_MAX_LEN];
+	int                      l_namelen;
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;

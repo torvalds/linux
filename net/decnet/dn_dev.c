@@ -34,6 +34,7 @@
 #include <linux/seq_file.h>
 #include <linux/timer.h>
 #include <linux/string.h>
+#include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
@@ -45,6 +46,7 @@
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_dev.h>
 #include <net/dn_route.h>
@@ -744,20 +746,23 @@ rtattr_failure:
 static void rtmsg_ifa(int event, struct dn_ifaddr *ifa)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_SPACE(sizeof(struct ifaddrmsg)+128);
+	int payload = sizeof(struct ifaddrmsg) + 128;
+	int err = -ENOBUFS;
 
-	skb = alloc_skb(size, GFP_KERNEL);
-	if (!skb) {
-		netlink_set_err(rtnl, 0, RTNLGRP_DECnet_IFADDR, ENOBUFS);
-		return;
-	}
-	if (dn_dev_fill_ifaddr(skb, ifa, 0, 0, event, 0) < 0) {
+	skb = alloc_skb(nlmsg_total_size(payload), GFP_KERNEL);
+	if (skb == NULL)
+		goto errout;
+
+	err = dn_dev_fill_ifaddr(skb, ifa, 0, 0, event, 0);
+	if (err < 0) {
 		kfree_skb(skb);
-		netlink_set_err(rtnl, 0, RTNLGRP_DECnet_IFADDR, EINVAL);
-		return;
+		goto errout;
 	}
-	NETLINK_CB(skb).dst_group = RTNLGRP_DECnet_IFADDR;
-	netlink_broadcast(rtnl, skb, 0, RTNLGRP_DECnet_IFADDR, GFP_KERNEL);
+
+	err = rtnl_notify(skb, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(RTNLGRP_DECnet_IFADDR, err);
 }
 
 static int dn_dev_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1417,8 +1422,6 @@ static struct rtnetlink_link dnet_rtnetlink_table[RTM_NR_MSGTYPES] =
 	[RTM_DELROUTE - RTM_BASE] = { .doit	= dn_fib_rtm_delroute,	},
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,
 				      .dumpit	= dn_fib_dump,		},
-	[RTM_NEWRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_newrule,	},
-	[RTM_DELRULE  - RTM_BASE] = { .doit	= dn_fib_rtm_delrule,	},
 	[RTM_GETRULE  - RTM_BASE] = { .dumpit	= dn_fib_dump_rules,	},
 #else
 	[RTM_GETROUTE - RTM_BASE] = { .doit	= dn_cache_getroute,

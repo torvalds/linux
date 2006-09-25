@@ -149,7 +149,7 @@ static int __init do_netcard_probe(struct net_device *dev)
 
 	return -ENODEV;
 }
- 
+
 static void cleanup_card(struct net_device *dev)
 {
 #ifdef jumpered_dma
@@ -200,10 +200,10 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 		return -EBUSY;
 
 	/*
-	 * For ethernet adaptors the first three octets of the station address 
+	 * For ethernet adaptors the first three octets of the station address
 	 * contains the manufacturer's unique code. That might be a good probe
 	 * method. Ideally you would add additional checks.
-	 */ 
+	 */
 	if (inb(ioaddr + 0) != SA_ADDR0
 		||	 inb(ioaddr + 1) != SA_ADDR1
 		||	 inb(ioaddr + 2) != SA_ADDR2)
@@ -292,7 +292,7 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 		if (i <= 0) {
 			printk("DMA probe failed.\n");
 			goto out1;
-		} 
+		}
 		if (request_dma(dev->dma, cardname)) {
 			printk("probed DMA %d allocation failed.\n", dev->dma);
 			goto out1;
@@ -310,7 +310,7 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 	dev->set_multicast_list = &set_multicast_list;
 
         dev->tx_timeout		= &net_tx_timeout;
-        dev->watchdog_timeo	= MY_TX_TIMEOUT; 
+        dev->watchdog_timeo	= MY_TX_TIMEOUT;
 
 	err = register_netdev(dev);
 	if (err)
@@ -551,7 +551,7 @@ net_rx(struct net_device *dev)
 	do {
 		int status = inw(ioaddr);
 		int pkt_len = inw(ioaddr);
-	  
+
 		if (pkt_len == 0)		/* Read all the frames? */
 			break;			/* Done for now */
 
@@ -566,7 +566,7 @@ net_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			lp->stats.rx_bytes+=pkt_len;
-			
+
 			skb = dev_alloc_skb(pkt_len);
 			if (skb == NULL) {
 				printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n",
@@ -663,7 +663,7 @@ set_multicast_list(struct net_device *dev)
 
 		outw(MULTICAST, ioaddr);
 	}
-	else 
+	else
 		outw(0, ioaddr);
 }
 

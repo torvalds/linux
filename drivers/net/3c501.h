@@ -13,7 +13,7 @@ static void el_reset(struct net_device *dev);
 static int  el1_close(struct net_device *dev);
 static struct net_device_stats *el1_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 #define EL1_IO_EXTENT	16
 
@@ -37,7 +37,7 @@ struct net_local
 	spinlock_t	lock;		/* Serializing lock */
 };
 
-
+
 #define RX_STATUS (ioaddr + 0x06)
 #define RX_CMD	  RX_STATUS
 #define TX_STATUS (ioaddr + 0x07)

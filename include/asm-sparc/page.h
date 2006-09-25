@@ -8,6 +8,8 @@
 #ifndef _SPARC_PAGE_H
 #define _SPARC_PAGE_H
 
+#ifdef __KERNEL__
+
 #ifdef CONFIG_SUN4
 #define PAGE_SHIFT   13
 #else
@@ -20,8 +22,6 @@
 #define PAGE_SIZE    (1 << PAGE_SHIFT)
 #endif
 #define PAGE_MASK    (~(PAGE_SIZE-1))
-
-#ifdef __KERNEL__
 
 #include <asm/btfixup.h>
 
@@ -160,9 +160,9 @@ extern unsigned long pfn_base;
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _SPARC_PAGE_H */

@@ -143,7 +143,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 
 	if (!ops->get_drvinfo)
 		return -EOPNOTSUPP;
@@ -169,7 +169,7 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_regs regs;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	void *regbuf;
 	int reglen, ret;
 
@@ -282,7 +282,7 @@ static int ethtool_get_link(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_eeprom eeprom;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -327,7 +327,7 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_eeprom eeprom;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -640,7 +640,7 @@ static int ethtool_set_gso(struct net_device *dev, char __user *useraddr)
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_test test;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
 	int ret;
 
@@ -673,7 +673,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gstrings gstrings;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -733,7 +733,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_stats stats;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
 	int ret;
 

@@ -113,11 +113,16 @@ udp_manip_pkt(struct sk_buff **pskb,
 		newport = tuple->dst.u.udp.port;
 		portptr = &hdr->dest;
 	}
-	if (hdr->check) /* 0 is a special case meaning no checksum */
-		hdr->check = ip_nat_cheat_check(~oldip, newip,
-					ip_nat_cheat_check(*portptr ^ 0xFFFF,
-							   newport,
-							   hdr->check));
+
+	if (hdr->check || (*pskb)->ip_summed == CHECKSUM_PARTIAL) {
+		hdr->check = nf_proto_csum_update(*pskb, ~oldip, newip,
+						  hdr->check, 1);
+		hdr->check = nf_proto_csum_update(*pskb,
+						  *portptr ^ 0xFFFF, newport,
+						  hdr->check, 0);
+		if (!hdr->check)
+			hdr->check = -1;
+	}
 	*portptr = newport;
 	return 1;
 }

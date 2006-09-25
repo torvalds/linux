@@ -34,6 +34,7 @@
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
+#include <net/fib_rules.h>
 #include <net/dn.h>
 #include <net/dn_route.h>
 #include <net/dn_fib.h>
@@ -54,11 +55,9 @@
 
 #define endfor_nexthops(fi) }
 
-extern int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb);
-
 static DEFINE_SPINLOCK(dn_fib_multipath_lock);
 static struct dn_fib_info *dn_fib_info_list;
-static DEFINE_RWLOCK(dn_fib_info_lock);
+static DEFINE_SPINLOCK(dn_fib_info_lock);
 
 static struct
 {
@@ -79,6 +78,9 @@ static struct
 	[RTN_XRESOLVE] =    { .error = -EINVAL, .scope = RT_SCOPE_NOWHERE },
 };
 
+static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force);
+static int dn_fib_sync_up(struct net_device *dev);
+
 void dn_fib_free_info(struct dn_fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
@@ -96,7 +98,7 @@ void dn_fib_free_info(struct dn_fib_info *fi)
 
 void dn_fib_release_info(struct dn_fib_info *fi)
 {
-	write_lock(&dn_fib_info_lock);
+	spin_lock(&dn_fib_info_lock);
 	if (fi && --fi->fib_treeref == 0) {
 		if (fi->fib_next)
 			fi->fib_next->fib_prev = fi->fib_prev;
@@ -107,7 +109,7 @@ void dn_fib_release_info(struct dn_fib_info *fi)
 		fi->fib_dead = 1;
 		dn_fib_info_put(fi);
 	}
-	write_unlock(&dn_fib_info_lock);
+	spin_unlock(&dn_fib_info_lock);
 }
 
 static inline int dn_fib_nh_comp(const struct dn_fib_info *fi, const struct dn_fib_info *ofi)
@@ -378,13 +380,13 @@ link_it:
 
 	fi->fib_treeref++;
 	atomic_inc(&fi->fib_clntref);
-	write_lock(&dn_fib_info_lock);
+	spin_lock(&dn_fib_info_lock);
 	fi->fib_next = dn_fib_info_list;
 	fi->fib_prev = NULL;
 	if (dn_fib_info_list)
 		dn_fib_info_list->fib_prev = fi;
 	dn_fib_info_list = fi;
-	write_unlock(&dn_fib_info_lock);
+	spin_unlock(&dn_fib_info_lock);
 	return fi;
 
 err_inval:
@@ -490,7 +492,8 @@ static int dn_fib_check_attr(struct rtmsg *r, struct rtattr **rta)
 		if (attr) {
 			if (RTA_PAYLOAD(attr) < 4 && RTA_PAYLOAD(attr) != 2)
 				return -EINVAL;
-			if (i != RTA_MULTIPATH && i != RTA_METRICS)
+			if (i != RTA_MULTIPATH && i != RTA_METRICS &&
+			    i != RTA_TABLE)
 				rta[i-1] = (struct rtattr *)RTA_DATA(attr);
 		}
 	}
@@ -507,7 +510,7 @@ int dn_fib_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = dn_fib_get_table(r->rtm_table, 0);
+	tb = dn_fib_get_table(rtm_get_table(rta, r->rtm_table), 0);
 	if (tb)
 		return tb->delete(tb, r, (struct dn_kern_rta *)rta, nlh, &NETLINK_CB(skb));
 
@@ -523,44 +526,11 @@ int dn_fib_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (dn_fib_check_attr(r, rta))
 		return -EINVAL;
 
-	tb = dn_fib_get_table(r->rtm_table, 1);
+	tb = dn_fib_get_table(rtm_get_table(rta, r->rtm_table), 1);
 	if (tb) 
 		return tb->insert(tb, r, (struct dn_kern_rta *)rta, nlh, &NETLINK_CB(skb));
 
 	return -ENOBUFS;
-}
-
-
-int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	int t;
-	int s_t;
-	struct dn_fib_table *tb;
-
-	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
-		((struct rtmsg *)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)
-			return dn_cache_dump(skb, cb);
-
-	s_t = cb->args[0];
-	if (s_t == 0)
-		s_t = cb->args[0] = RT_MIN_TABLE;
-
-	for(t = s_t; t <= RT_TABLE_MAX; t++) {
-		if (t < s_t)
-			continue;
-		if (t > s_t)
-			memset(&cb->args[1], 0,
-			       sizeof(cb->args) - sizeof(cb->args[0]));
-		tb = dn_fib_get_table(t, 0);
-		if (tb == NULL)
-			continue;
-		if (tb->dump(tb, skb, cb) < 0)
-			break;
-	}
-
-	cb->args[0] = t;
-
-	return skb->len;
 }
 
 static void fib_magic(int cmd, int type, __le16 dst, int dst_len, struct dn_ifaddr *ifa)
@@ -682,7 +652,7 @@ static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
+static int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 {
         int ret = 0;
         int scope = RT_SCOPE_NOWHERE;
@@ -726,7 +696,7 @@ int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 }
 
 
-int dn_fib_sync_up(struct net_device *dev)
+static int dn_fib_sync_up(struct net_device *dev)
 {
         int ret = 0;
 
@@ -758,22 +728,6 @@ int dn_fib_sync_up(struct net_device *dev)
                 }
         } endfor_fib_info();
         return ret;
-}
-
-void dn_fib_flush(void)
-{
-        int flushed = 0;
-        struct dn_fib_table *tb;
-        int id;
-
-        for(id = RT_TABLE_MAX; id > 0; id--) {
-                if ((tb = dn_fib_get_table(id, 0)) == NULL)
-                        continue;
-                flushed += tb->flush(tb);
-        }
-
-        if (flushed)
-                dn_rt_cache_flush(-1);
 }
 
 static struct notifier_block dn_fib_dnaddr_notifier = {

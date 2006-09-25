@@ -1992,35 +1992,9 @@ int snd_pcm_hw_constraints_complete(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void snd_pcm_add_file(struct snd_pcm_str *str,
-			     struct snd_pcm_file *pcm_file)
-{
-	pcm_file->next = str->files;
-	str->files = pcm_file;
-}
-
-static void snd_pcm_remove_file(struct snd_pcm_str *str,
-				struct snd_pcm_file *pcm_file)
-{
-	struct snd_pcm_file * pcm_file1;
-	if (str->files == pcm_file) {
-		str->files = pcm_file->next;
-	} else {
-		pcm_file1 = str->files;
-		while (pcm_file1 && pcm_file1->next != pcm_file)
-			pcm_file1 = pcm_file1->next;
-		if (pcm_file1 != NULL)
-			pcm_file1->next = pcm_file->next;
-	}
-}
-
 static void pcm_release_private(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_file *pcm_file = substream->file;
-
 	snd_pcm_unlink(substream);
-	snd_pcm_remove_file(substream->pstr, pcm_file);
-	kfree(pcm_file);
 }
 
 void snd_pcm_release_substream(struct snd_pcm_substream *substream)
@@ -2060,7 +2034,6 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 		return 0;
 	}
 
-	substream->no_mmap_ctrl = 0;
 	err = snd_pcm_hw_constraints_init(substream);
 	if (err < 0) {
 		snd_printd("snd_pcm_hw_constraints_init failed\n");
@@ -2105,19 +2078,16 @@ static int snd_pcm_open_file(struct file *file,
 	if (err < 0)
 		return err;
 
-	if (substream->ref_count > 1)
-		pcm_file = substream->file;
-	else {
-		pcm_file = kzalloc(sizeof(*pcm_file), GFP_KERNEL);
-		if (pcm_file == NULL) {
-			snd_pcm_release_substream(substream);
-			return -ENOMEM;
-		}
+	pcm_file = kzalloc(sizeof(*pcm_file), GFP_KERNEL);
+	if (pcm_file == NULL) {
+		snd_pcm_release_substream(substream);
+		return -ENOMEM;
+	}
+	pcm_file->substream = substream;
+	if (substream->ref_count == 1) {
 		str = substream->pstr;
 		substream->file = pcm_file;
 		substream->pcm_release = pcm_release_private;
-		pcm_file->substream = substream;
-		snd_pcm_add_file(str, pcm_file);
 	}
 	file->private_data = pcm_file;
 	*rpcm_file = pcm_file;
@@ -2209,6 +2179,7 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	fasync_helper(-1, file, 0, &substream->runtime->fasync);
 	mutex_lock(&pcm->open_mutex);
 	snd_pcm_release_substream(substream);
+	kfree(pcm_file);
 	mutex_unlock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	module_put(pcm->card->module);
@@ -3270,11 +3241,11 @@ static int snd_pcm_mmap(struct file *file, struct vm_area_struct *area)
 	offset = area->vm_pgoff << PAGE_SHIFT;
 	switch (offset) {
 	case SNDRV_PCM_MMAP_OFFSET_STATUS:
-		if (substream->no_mmap_ctrl)
+		if (pcm_file->no_compat_mmap)
 			return -ENXIO;
 		return snd_pcm_mmap_status(substream, file, area);
 	case SNDRV_PCM_MMAP_OFFSET_CONTROL:
-		if (substream->no_mmap_ctrl)
+		if (pcm_file->no_compat_mmap)
 			return -ENXIO;
 		return snd_pcm_mmap_control(substream, file, area);
 	default:

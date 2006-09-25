@@ -300,8 +300,7 @@ extern unsigned int ip6t_do_table(struct sk_buff **pskb,
 				  unsigned int hook,
 				  const struct net_device *in,
 				  const struct net_device *out,
-				  struct ip6t_table *table,
-				  void *userdata);
+				  struct ip6t_table *table);
 
 /* Check for an extension */
 extern int ip6t_ext_hdr(u8 nexthdr);

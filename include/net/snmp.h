@@ -100,12 +100,6 @@ struct udp_mib {
 	unsigned long	mibs[UDP_MIB_MAX];
 } __SNMP_MIB_ALIGN__;
 
-/* SCTP */
-#define SCTP_MIB_MAX	__SCTP_MIB_MAX
-struct sctp_mib {
-	unsigned long	mibs[SCTP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
-
 /* Linux */
 #define LINUX_MIB_MAX	__LINUX_MIB_MAX
 struct linux_mib {

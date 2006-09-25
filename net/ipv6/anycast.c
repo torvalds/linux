@@ -56,7 +56,7 @@ ip6_onlink(struct in6_addr *addr, struct net_device *dev)
 	int	onlink;
 
 	onlink = 0;
-	read_lock(&addrconf_lock);
+	rcu_read_lock();
 	idev = __in6_dev_get(dev);
 	if (idev) {
 		read_lock_bh(&idev->lock);
@@ -68,7 +68,7 @@ ip6_onlink(struct in6_addr *addr, struct net_device *dev)
 		}
 		read_unlock_bh(&idev->lock);
 	}
-	read_unlock(&addrconf_lock);
+	rcu_read_unlock();
 	return onlink;
 }
 
@@ -335,7 +335,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, struct in6_addr *addr)
 	write_unlock_bh(&idev->lock);
 
 	dst_hold(&rt->u.dst);
-	if (ip6_ins_rt(rt, NULL, NULL, NULL))
+	if (ip6_ins_rt(rt))
 		dst_release(&rt->u.dst);
 
 	addrconf_join_solict(dev, &aca->aca_addr);
@@ -378,7 +378,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	addrconf_leave_solict(idev, &aca->aca_addr);
 
 	dst_hold(&aca->aca_rt->u.dst);
-	if (ip6_del_rt(aca->aca_rt, NULL, NULL, NULL))
+	if (ip6_del_rt(aca->aca_rt))
 		dst_free(&aca->aca_rt->u.dst);
 	else
 		dst_release(&aca->aca_rt->u.dst);

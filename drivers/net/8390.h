@@ -106,7 +106,7 @@ struct ei_device {
  *	Only generate indirect loads given a machine that needs them.
  *      - removed AMIGA_PCMCIA from this list, handled as ISA io now
  */
- 
+
 #if defined(CONFIG_MAC) ||  \
     defined(CONFIG_ZORRO8390) || defined(CONFIG_ZORRO8390_MODULE) || \
     defined(CONFIG_HYDRA) || defined(CONFIG_HYDRA_MODULE)

@@ -53,10 +53,10 @@
 #include <net/ndisc.h>
 #include <net/addrconf.h>
 
-int sysctl_ip6frag_high_thresh = 256*1024;
-int sysctl_ip6frag_low_thresh = 192*1024;
+int sysctl_ip6frag_high_thresh __read_mostly = 256*1024;
+int sysctl_ip6frag_low_thresh __read_mostly = 192*1024;
 
-int sysctl_ip6frag_time = IPV6_FRAG_TIMEOUT;
+int sysctl_ip6frag_time __read_mostly = IPV6_FRAG_TIMEOUT;
 
 struct ip6frag_skb_cb
 {
@@ -152,7 +152,7 @@ static unsigned int ip6qhashfn(u32 id, struct in6_addr *saddr,
 }
 
 static struct timer_list ip6_frag_secret_timer;
-int sysctl_ip6frag_secret_interval = 10 * 60 * HZ;
+int sysctl_ip6frag_secret_interval __read_mostly = 10 * 60 * HZ;
 
 static void ip6_frag_secret_rebuild(unsigned long dummy)
 {
@@ -433,7 +433,7 @@ static void ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
  		return;
 	}
 
- 	if (skb->ip_summed == CHECKSUM_HW)
+ 	if (skb->ip_summed == CHECKSUM_COMPLETE)
  		skb->csum = csum_sub(skb->csum,
  				     csum_partial(skb->nh.raw, (u8*)(fhdr+1)-skb->nh.raw, 0));
 
@@ -647,7 +647,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 		head->len += fp->len;
 		if (head->ip_summed != fp->ip_summed)
 			head->ip_summed = CHECKSUM_NONE;
-		else if (head->ip_summed == CHECKSUM_HW)
+		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
 		atomic_sub(fp->truesize, &ip6_frag_mem);
@@ -662,7 +662,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff **skb_in,
 	*skb_in = head;
 
 	/* Yes, and fold redundant checksum back. 8) */
-	if (head->ip_summed == CHECKSUM_HW)
+	if (head->ip_summed == CHECKSUM_COMPLETE)
 		head->csum = csum_partial(head->nh.raw, head->h.raw-head->nh.raw, head->csum);
 
 	IP6_INC_STATS_BH(IPSTATS_MIB_REASMOKS);

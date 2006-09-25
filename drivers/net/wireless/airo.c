@@ -19,6 +19,7 @@
 
 ======================================================================*/
 
+#include <linux/err.h>
 #include <linux/init.h>
 
 #include <linux/kernel.h>
@@ -47,6 +48,7 @@
 #include <linux/pci.h>
 #include <asm/uaccess.h>
 #include <net/ieee80211.h>
+#include <linux/kthread.h>
 
 #include "airo.h"
 
@@ -1187,11 +1189,10 @@ struct airo_info {
 			int whichbap);
 	unsigned short *flash;
 	tdsRssiEntry *rssi;
-	struct task_struct *task;
+	struct task_struct *list_bss_task;
+	struct task_struct *airo_thread_task;
 	struct semaphore sem;
-	pid_t thr_pid;
 	wait_queue_head_t thr_wait;
-	struct completion thr_exited;
 	unsigned long expires;
 	struct {
 		struct sk_buff *skb;
@@ -1203,7 +1204,7 @@ struct airo_info {
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
 	/* MIC stuff */
-	struct crypto_tfm	*tfm;
+	struct crypto_cipher	*tfm;
 	mic_module		mod[2];
 	mic_statistics		micstats;
 	HostRxDesc rxfids[MPI_MAX_FIDS]; // rx/tx/config MPI350 descriptors
@@ -1271,7 +1272,8 @@ static int flashrestart(struct airo_info *ai,struct net_device *dev);
 
 static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSeq);
 static void MoveWindow(miccntx *context, u32 micSeq);
-static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *);
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
+			   struct crypto_cipher *tfm);
 static void emmh32_init(emmh32_context *context);
 static void emmh32_update(emmh32_context *context, u8 *pOctets, int len);
 static void emmh32_final(emmh32_context *context, u8 digest[4]);
@@ -1339,10 +1341,11 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
+	        ai->tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 
-        if (ai->tfm == NULL) {
+        if (IS_ERR(ai->tfm)) {
                 airo_print_err(ai->dev->name, "failed to load transform for AES");
+                ai->tfm = NULL;
                 return ERROR;
         }
 
@@ -1608,7 +1611,8 @@ static void MoveWindow(miccntx *context, u32 micSeq)
 static unsigned char aes_counter[16];
 
 /* expand the key to fill the MMH coefficient array */
-static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct crypto_tfm *tfm)
+static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
+			   struct crypto_cipher *tfm)
 {
   /* take the keying material, expand if necessary, truncate at 16-bytes */
   /* run through AES counter mode to generate context->coeff[] */
@@ -1616,7 +1620,6 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct
 	int i,j;
 	u32 counter;
 	u8 *cipher, plain[16];
-	struct scatterlist sg[1];
 
 	crypto_cipher_setkey(tfm, pkey, 16);
 	counter = 0;
@@ -1627,9 +1630,8 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen, struct
 		aes_counter[12] = (u8)(counter >> 24);
 		counter++;
 		memcpy (plain, aes_counter, 16);
-		sg_set_buf(sg, plain, 16);
-		crypto_cipher_encrypt(tfm, sg, sg, 16);
-		cipher = kmap(sg->page) + sg->offset;
+		crypto_cipher_encrypt_one(tfm, plain, plain);
+		cipher = plain;
 		for (j=0; (j<16) && (i< (sizeof(context->coeff)/sizeof(context->coeff[0]))); ) {
 			context->coeff[i++] = ntohl(*(u32 *)&cipher[j]);
 			j += 4;
@@ -1733,12 +1735,12 @@ static int readBSSListRid(struct airo_info *ai, int first,
 		cmd.cmd=CMD_LISTBSS;
 		if (down_interruptible(&ai->sem))
 			return -ERESTARTSYS;
+		ai->list_bss_task = current;
 		issuecommand(ai, &cmd, &rsp);
 		up(&ai->sem);
 		/* Let the command take effect */
-		ai->task = current;
-		ssleep(3);
-		ai->task = NULL;
+		schedule_timeout_uninterruptible(3 * HZ);
+		ai->list_bss_task = NULL;
 	}
 	rc = PC4500_readrid(ai, first ? ai->bssListFirst : ai->bssListNext,
 			    list, ai->bssListRidLen, 1);
@@ -2400,8 +2402,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 		clear_bit(FLAG_REGISTERED, &ai->flags);
 	}
 	set_bit(JOB_DIE, &ai->jobs);
-	kill_proc(ai->thr_pid, SIGTERM, 1);
-	wait_for_completion(&ai->thr_exited);
+	kthread_stop(ai->airo_thread_task);
 
 	/*
 	 * Clean out tx queue
@@ -2432,7 +2433,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 				ai->shared, ai->shared_dma);
 		}
         }
-	crypto_free_tfm(ai->tfm);
+	crypto_free_cipher(ai->tfm);
 	del_airo_dev( dev );
 	free_netdev( dev );
 }
@@ -2811,9 +2812,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->config.len = 0;
 	ai->pci = pci;
 	init_waitqueue_head (&ai->thr_wait);
-	init_completion (&ai->thr_exited);
-	ai->thr_pid = kernel_thread(airo_thread, dev, CLONE_FS | CLONE_FILES);
-	if (ai->thr_pid < 0)
+	ai->airo_thread_task = kthread_run(airo_thread, dev, dev->name);
+	if (IS_ERR(ai->airo_thread_task))
 		goto err_out_free;
 	ai->tfm = NULL;
 	rc = add_airo_dev( dev );
@@ -2930,8 +2930,7 @@ err_out_unlink:
 	del_airo_dev(dev);
 err_out_thr:
 	set_bit(JOB_DIE, &ai->jobs);
-	kill_proc(ai->thr_pid, SIGTERM, 1);
-	wait_for_completion(&ai->thr_exited);
+	kthread_stop(ai->airo_thread_task);
 err_out_free:
 	free_netdev(dev);
 	return NULL;
@@ -3063,13 +3062,7 @@ static int airo_thread(void *data) {
 	struct airo_info *ai = dev->priv;
 	int locked;
 	
-	daemonize("%s", dev->name);
-	allow_signal(SIGTERM);
-
 	while(1) {
-		if (signal_pending(current))
-			flush_signals(current);
-
 		/* make swsusp happy with our thread */
 		try_to_freeze();
 
@@ -3097,7 +3090,7 @@ static int airo_thread(void *data) {
 						set_bit(JOB_AUTOWEP, &ai->jobs);
 						break;
 					}
-					if (!signal_pending(current)) {
+					if (!kthread_should_stop()) {
 						unsigned long wake_at;
 						if (!ai->expires || !ai->scan_timeout) {
 							wake_at = max(ai->expires,
@@ -3109,7 +3102,7 @@ static int airo_thread(void *data) {
 						schedule_timeout(wake_at - jiffies);
 						continue;
 					}
-				} else if (!signal_pending(current)) {
+				} else if (!kthread_should_stop()) {
 					schedule();
 					continue;
 				}
@@ -3154,7 +3147,8 @@ static int airo_thread(void *data) {
 		else  /* Shouldn't get here, but we make sure to unlock */
 			up(&ai->sem);
 	}
-	complete_and_exit (&ai->thr_exited, 0);
+
+	return 0;
 }
 
 static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
@@ -3235,8 +3229,8 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			if(newStatus == ASSOCIATED || newStatus == REASSOCIATED) {
 				if (auto_wep)
 					apriv->expires = 0;
-				if (apriv->task)
-					wake_up_process (apriv->task);
+				if (apriv->list_bss_task)
+					wake_up_process(apriv->list_bss_task);
 				set_bit(FLAG_UPDATE_UNI, &apriv->flags);
 				set_bit(FLAG_UPDATE_MULTI, &apriv->flags);
 
@@ -3950,13 +3944,11 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 	pRsp->rsp0 = IN4500(ai, RESP0);
 	pRsp->rsp1 = IN4500(ai, RESP1);
 	pRsp->rsp2 = IN4500(ai, RESP2);
-	if ((pRsp->status & 0xff00)!=0 && pCmd->cmd != CMD_SOFTRESET) {
-		airo_print_err(ai->dev->name, "cmd= %x\n", pCmd->cmd);
-		airo_print_err(ai->dev->name, "status= %x\n", pRsp->status);
-		airo_print_err(ai->dev->name, "Rsp0= %x\n", pRsp->rsp0);
-		airo_print_err(ai->dev->name, "Rsp1= %x\n", pRsp->rsp1);
-		airo_print_err(ai->dev->name, "Rsp2= %x\n", pRsp->rsp2);
-	}
+	if ((pRsp->status & 0xff00)!=0 && pCmd->cmd != CMD_SOFTRESET)
+		airo_print_err(ai->dev->name,
+			"cmd:%x status:%x rsp0:%x rsp1:%x rsp2:%x",
+			pCmd->cmd, pRsp->status, pRsp->rsp0, pRsp->rsp1,
+			pRsp->rsp2);
 
 	// clear stuck command busy if necessary
 	if (IN4500(ai, COMMAND) & COMMAND_BUSY) {

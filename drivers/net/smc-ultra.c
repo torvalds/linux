@@ -111,7 +111,7 @@ static struct isapnp_device_id ultra_device_ids[] __initdata = {
 MODULE_DEVICE_TABLE(isapnp, ultra_device_ids);
 #endif
 
-
+
 #define START_PG		0x00	/* First page of TX buffer */
 
 #define ULTRA_CMDREG	0		/* Offset to ASIC command register. */
@@ -122,7 +122,7 @@ MODULE_DEVICE_TABLE(isapnp, ultra_device_ids);
 #define ULTRA_NIC_OFFSET  16	/* NIC register offset from the base_addr. */
 #define ULTRA_IO_EXTENT 32
 #define EN0_ERWCNT		0x08	/* Early receive warning count. */
-
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void ultra_poll(struct net_device *dev)
 {
@@ -536,7 +536,7 @@ ultra_close_card(struct net_device *dev)
 	return 0;
 }
 
-
+
 #ifdef MODULE
 #define MAX_ULTRA_CARDS	4	/* Max number of Ultra cards per module */
 static struct net_device *dev_ultra[MAX_ULTRA_CARDS];
