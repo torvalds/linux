@@ -216,7 +216,7 @@ static inline int gpio_valid(int gpio)
 		return -1;
 #ifndef CONFIG_ARCH_OMAP24XX
 	if (OMAP_GPIO_IS_MPUIO(gpio)) {
-		if (gpio >= MAX_GPIO_LINES + 16)
+		if (gpio >= OMAP_MAX_GPIO_LINES + 16)
 			return -1;
 		return 0;
 	}
