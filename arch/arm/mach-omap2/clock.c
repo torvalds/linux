@@ -32,6 +32,8 @@
 #include "memory.h"
 #include "clock.h"
 
+#undef DEBUG
+
 //#define DOWN_VARIABLE_DPLL 1			/* Experimental */
 
 static struct prcm_config *curr_prcm_set;
@@ -114,9 +116,51 @@ static void omap2_clk_fixed_enable(struct clk *clk)
 	while (!(CM_IDLEST_CKGEN & cval)) {		/* Wait for lock */
 		++i;
 		udelay(1);
-		if (i == 100000)
+		if (i == 100000) {
+			printk(KERN_ERR "Clock %s didn't lock\n", clk->name);
 			break;
+		}
 	}
+}
+
+static void omap2_clk_wait_ready(struct clk *clk)
+{
+	unsigned long reg, other_reg, st_reg;
+	u32 bit;
+	int i;
+
+	reg = (unsigned long) clk->enable_reg;
+	if (reg == (unsigned long) &CM_FCLKEN1_CORE ||
+	    reg == (unsigned long) &CM_FCLKEN2_CORE)
+		other_reg = (reg & ~0xf0) | 0x10;
+	else if (reg == (unsigned long) &CM_ICLKEN1_CORE ||
+		 reg == (unsigned long) &CM_ICLKEN2_CORE)
+		other_reg = (reg & ~0xf0) | 0x00;
+	else
+		return;
+
+	/* No check for DSS or cam clocks */
+	if ((reg & 0x0f) == 0) {
+		if (clk->enable_bit <= 1 || clk->enable_bit == 31)
+			return;
+	}
+
+	/* Check if both functional and interface clocks
+	 * are running. */
+	bit = 1 << clk->enable_bit;
+	if (!(__raw_readl(other_reg) & bit))
+		return;
+	st_reg = (other_reg & ~0xf0) | 0x20;
+	i = 0;
+	while (!(__raw_readl(st_reg) & bit)) {
+		i++;
+		if (i == 100000) {
+			printk(KERN_ERR "Timeout enabling clock %s\n", clk->name);
+			break;
+		}
+	}
+	if (i)
+		pr_debug("Clock %s stable after %d loops\n", clk->name, i);
 }
 
 /* Enables clock without considering parent dependencies or use count
@@ -149,6 +193,8 @@ static int _omap2_clk_enable(struct clk * clk)
 	regval32 |= (1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
 	wmb();
+
+	omap2_clk_wait_ready(clk);
 
 	return 0;
 }
