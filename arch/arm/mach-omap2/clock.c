@@ -1025,12 +1025,29 @@ static int omap2_select_table_rate(struct clk * clk, unsigned long rate)
  * Omap2 clock reset and init functions
  *-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_OMAP_RESET_CLOCKS
+static void __init omap2_clk_disable_unused(struct clk *clk)
+{
+	u32 regval32;
+
+	regval32 = __raw_readl(clk->enable_reg);
+	if ((regval32 & (1 << clk->enable_bit)) == 0)
+		return;
+
+	printk(KERN_INFO "Disabling unused clock \"%s\"\n", clk->name);
+	_omap2_clk_disable(clk);
+}
+#else
+#define omap2_clk_disable_unused	NULL
+#endif
+
 static struct clk_functions omap2_clk_functions = {
 	.clk_enable		= omap2_clk_enable,
 	.clk_disable		= omap2_clk_disable,
 	.clk_round_rate		= omap2_clk_round_rate,
 	.clk_set_rate		= omap2_clk_set_rate,
 	.clk_set_parent		= omap2_clk_set_parent,
+	.clk_disable_unused	= omap2_clk_disable_unused,
 };
 
 static void __init omap2_get_crystal_rate(struct clk *osc, struct clk *sys)
@@ -1069,28 +1086,6 @@ void omap2_clk_prepare_for_reboot(void)
 	rate = clk_get_rate(sclk);
 	clk_set_rate(vclk, rate);
 }
-
-#ifdef CONFIG_OMAP_RESET_CLOCKS
-static void __init omap2_disable_unused_clocks(void)
-{
-	struct clk *ck;
-	u32 regval32;
-
-	list_for_each_entry(ck, &clocks, node) {
-		if (ck->usecount > 0 || (ck->flags & ALWAYS_ENABLED) ||
-			ck->enable_reg == 0)
-			continue;
-
-		regval32 = __raw_readl(ck->enable_reg);
-		if ((regval32 & (1 << ck->enable_bit)) == 0)
-			continue;
-
-		printk(KERN_INFO "Disabling unused clock \"%s\"\n", ck->name);
-		_omap2_clk_disable(ck);
-	}
-}
-late_initcall(omap2_disable_unused_clocks);
-#endif
 
 /*
  * Switch the MPU rate if specified on cmdline.
