@@ -76,8 +76,8 @@ enum cx88_deemph_type {
 
 enum cx88_board_type {
 	CX88_BOARD_NONE = 0,
-	CX88_BOARD_DVB,
-	CX88_BOARD_BLACKBIRD
+	CX88_MPEG_DVB,
+	CX88_MPEG_BLACKBIRD
 };
 
 /* ----------------------------------------------------------- */

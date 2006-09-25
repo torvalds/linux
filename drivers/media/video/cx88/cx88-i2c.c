@@ -220,7 +220,7 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	if (core->tuner_type != TUNER_ABSENT)
 		core->i2c_adap.class |= I2C_CLASS_TV_ANALOG;
-	if (cx88_boards[core->board].mpeg & CX88_BOARD_DVB)
+	if (cx88_boards[core->board].mpeg & CX88_MPEG_DVB)
 		core->i2c_adap.class |= I2C_CLASS_TV_DIGITAL;
 
 	core->i2c_adap.dev.parent = &pci->dev;

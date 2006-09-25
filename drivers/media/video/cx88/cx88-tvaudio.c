@@ -142,7 +142,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
 	cx88_start_audio_dma(core);
 
-	if (cx88_boards[core->board].mpeg & CX88_BOARD_BLACKBIRD) {
+	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
 		/* sets sound input from external adc */
 		switch (core->board) {
 		case CX88_BOARD_HAUPPAUGE_ROSLYN:
@@ -164,7 +164,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		cx_write(AUD_I2SCNTL, 0);
 		/* cx_write(AUD_APB_IN_RATE_ADJ, 0); */
 	}
-	if ((always_analog) || (!(cx88_boards[core->board].mpeg & CX88_BOARD_BLACKBIRD))) {
+	if ((always_analog) || (!(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD))) {
 		ctl |= EN_DAC_ENABLE;
 		cx_write(AUD_CTL, ctl);
 	}

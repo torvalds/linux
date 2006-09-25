@@ -1086,7 +1086,7 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 		return -EINVAL;
 
 	err = -ENODEV;
-	if (!(cx88_boards[core->board].mpeg & CX88_BOARD_BLACKBIRD))
+	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD))
 		goto fail_core;
 
 	err = -ENOMEM;
