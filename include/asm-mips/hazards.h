@@ -11,7 +11,7 @@
 #define _ASM_HAZARDS_H
 
 
-#ifdef __ASSEMBLER__
+#ifdef __ASSEMBLY__
 #define ASMMACRO(name, code...) .macro name; code; .endm
 #else
 
