@@ -338,10 +338,6 @@ config PPC_MULTIPLATFORM
 	  RS/6000 machine, an Apple machine, or a PReP, CHRP,
 	  Maple or Cell-based machine.
 
-config PPC_ISERIES
-	bool "IBM Legacy iSeries"
-	depends on PPC64
-
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
 	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
@@ -364,6 +360,10 @@ config PPC_PSERIES
 	select RTAS_ERROR_LOGGING
 	select PPC_UDBG_16550
 	default y
+
+config PPC_ISERIES
+	bool "IBM Legacy iSeries"
+	depends on PPC_MULTIPLATFORM && PPC64
 
 config PPC_CHRP
 	bool "Common Hardware Reference Platform (CHRP) based machines"
