@@ -100,6 +100,7 @@ void clk_disable(struct clk *clk)
 		return;
 
 	spin_lock_irqsave(&clockfw_lock, flags);
+	BUG_ON(clk->usecount == 0);
 	if (arch_clock->clk_disable)
 		arch_clock->clk_disable(clk);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
