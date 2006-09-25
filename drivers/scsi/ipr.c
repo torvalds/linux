@@ -6996,7 +6996,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	struct Scsi_Host *host;
 	unsigned long ipr_regs_pci;
 	void __iomem *ipr_regs;
-	u32 rc = PCIBIOS_SUCCESSFUL;
+	int rc = PCIBIOS_SUCCESSFUL;
 	volatile u32 mask, uproc;
 
 	ENTER;
