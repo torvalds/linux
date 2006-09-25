@@ -34,175 +34,71 @@
 #include <net/netlabel.h>
 
 /*
- * The following NetLabel payloads are supported by the CIPSO subsystem, all
- * of which are preceeded by the nlmsghdr struct.
- *
- * o ACK:
- *   Sent by the kernel in response to an applications message, applications
- *   should never send this message.
- *
- *   +----------------------+-----------------------+
- *   | seq number (32 bits) | return code (32 bits) |
- *   +----------------------+-----------------------+
- *
- *     seq number:  the sequence number of the original message, taken from the
- *                  nlmsghdr structure
- *     return code: return value, based on errno values
+ * The following NetLabel payloads are supported by the CIPSO subsystem.
  *
  * o ADD:
- *   Sent by an application to add a new DOI mapping table, after completion
- *   of the task the kernel should ACK this message.
+ *   Sent by an application to add a new DOI mapping table.
  *
- *   +---------------+--------------------+---------------------+
- *   | DOI (32 bits) | map type (32 bits) | tag count (32 bits) | ...
- *   +---------------+--------------------+---------------------+
+ *   Required attributes:
  *
- *   +-----------------+
- *   | tag #X (8 bits) | ... repeated
- *   +-----------------+
+ *     NLBL_CIPSOV4_A_DOI
+ *     NLBL_CIPSOV4_A_MTYPE
+ *     NLBL_CIPSOV4_A_TAGLST
  *
- *   +-------------- ---- --- -- -
- *   | mapping data
- *   +-------------- ---- --- -- -
+ *   If using CIPSO_V4_MAP_STD the following attributes are required:
  *
- *     DOI:          the DOI value
- *     map type:     the mapping table type (defined in the cipso_ipv4.h header
- *                   as CIPSO_V4_MAP_*)
- *     tag count:    the number of tags, must be greater than zero
- *     tag:          the CIPSO tag for the DOI, tags listed first are given
- *                   higher priorirty when sending packets
- *     mapping data: specific to the map type (see below)
+ *     NLBL_CIPSOV4_A_MLSLVLLST
+ *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   CIPSO_V4_MAP_STD
- *
- *   +------------------+-----------------------+----------------------+
- *   | levels (32 bits) | max l level (32 bits) | max r level (8 bits) | ...
- *   +------------------+-----------------------+----------------------+
- *
- *   +----------------------+---------------------+---------------------+
- *   | categories (32 bits) | max l cat (32 bits) | max r cat (16 bits) | ...
- *   +----------------------+---------------------+---------------------+
- *
- *   +--------------------------+-------------------------+
- *   | local level #X (32 bits) | CIPSO level #X (8 bits) | ... repeated
- *   +--------------------------+-------------------------+
- *
- *   +-----------------------------+-----------------------------+
- *   | local category #X (32 bits) | CIPSO category #X (16 bits) | ... repeated
- *   +-----------------------------+-----------------------------+
- *
- *     levels:         the number of level mappings
- *     max l level:    the highest local level
- *     max r level:    the highest remote/CIPSO level
- *     categories:     the number of category mappings
- *     max l cat:      the highest local category
- *     max r cat:      the highest remote/CIPSO category
- *     local level:    the local part of a level mapping
- *     CIPSO level:    the remote/CIPSO part of a level mapping
- *     local category: the local part of a category mapping
- *     CIPSO category: the remote/CIPSO part of a category mapping
- *
- *   CIPSO_V4_MAP_PASS
- *
- *   No mapping data is needed for this map type.
+ *   If using CIPSO_V4_MAP_PASS no additional attributes are required.
  *
  * o REMOVE:
  *   Sent by an application to remove a specific DOI mapping table from the
- *   CIPSO V4 system.  The kernel should ACK this message.
+ *   CIPSO V4 system.
  *
- *   +---------------+
- *   | DOI (32 bits) |
- *   +---------------+
+ *   Required attributes:
  *
- *     DOI:          the DOI value
+ *     NLBL_CIPSOV4_A_DOI
  *
  * o LIST:
- *   Sent by an application to list the details of a DOI definition.  The
- *   kernel should send an ACK on error or a response as indicated below.  The
- *   application generated message format is shown below.
+ *   Sent by an application to list the details of a DOI definition.  On
+ *   success the kernel should send a response using the following format.
  *
- *   +---------------+
- *   | DOI (32 bits) |
- *   +---------------+
+ *   Required attributes:
  *
- *     DOI:          the DOI value
+ *     NLBL_CIPSOV4_A_DOI
  *
  *   The valid response message format depends on the type of the DOI mapping,
- *   the known formats are shown below.
+ *   the defined formats are shown below.
  *
- *   +--------------------+
- *   | map type (32 bits) | ...
- *   +--------------------+
+ *   Required attributes:
  *
- *     map type:       the DOI mapping table type (defined in the cipso_ipv4.h
- *                     header as CIPSO_V4_MAP_*)
+ *     NLBL_CIPSOV4_A_MTYPE
+ *     NLBL_CIPSOV4_A_TAGLST
  *
- *   (map type == CIPSO_V4_MAP_STD)
+ *   If using CIPSO_V4_MAP_STD the following attributes are required:
  *
- *   +----------------+------------------+----------------------+
- *   | tags (32 bits) | levels (32 bits) | categories (32 bits) | ...
- *   +----------------+------------------+----------------------+
+ *     NLBL_CIPSOV4_A_MLSLVLLST
+ *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   +-----------------+
- *   | tag #X (8 bits) | ... repeated
- *   +-----------------+
- *
- *   +--------------------------+-------------------------+
- *   | local level #X (32 bits) | CIPSO level #X (8 bits) | ... repeated
- *   +--------------------------+-------------------------+
- *
- *   +-----------------------------+-----------------------------+
- *   | local category #X (32 bits) | CIPSO category #X (16 bits) | ... repeated
- *   +-----------------------------+-----------------------------+
- *
- *     tags:           the number of CIPSO tag types
- *     levels:         the number of level mappings
- *     categories:     the number of category mappings
- *     tag:            the tag number, tags listed first are given higher
- *                     priority when sending packets
- *     local level:    the local part of a level mapping
- *     CIPSO level:    the remote/CIPSO part of a level mapping
- *     local category: the local part of a category mapping
- *     CIPSO category: the remote/CIPSO part of a category mapping
- *
- *   (map type == CIPSO_V4_MAP_PASS)
- *
- *   +----------------+
- *   | tags (32 bits) | ...
- *   +----------------+
- *
- *   +-----------------+
- *   | tag #X (8 bits) | ... repeated
- *   +-----------------+
- *
- *     tags:           the number of CIPSO tag types
- *     tag:            the tag number, tags listed first are given higher
- *                     priority when sending packets
+ *   If using CIPSO_V4_MAP_PASS no additional attributes are required.
  *
  * o LISTALL:
  *   This message is sent by an application to list the valid DOIs on the
- *   system.  There is no payload and the kernel should respond with an ACK
- *   or the following message.
+ *   system.  When sent by an application there is no payload and the
+ *   NLM_F_DUMP flag should be set.  The kernel should respond with a series of
+ *   the following messages.
  *
- *   +---------------------+------------------+-----------------------+
- *   | DOI count (32 bits) | DOI #X (32 bits) | map type #X (32 bits) |
- *   +---------------------+------------------+-----------------------+
+ *   Required attributes:
  *
- *   +-----------------------+
- *   | map type #X (32 bits) | ...
- *   +-----------------------+
- *
- *     DOI count:      the number of DOIs
- *     DOI:            the DOI value
- *     map type:       the DOI mapping table type (defined in the cipso_ipv4.h
- *                     header as CIPSO_V4_MAP_*)
+ *    NLBL_CIPSOV4_A_DOI
+ *    NLBL_CIPSOV4_A_MTYPE
  *
  */
 
 /* NetLabel CIPSOv4 commands */
 enum {
 	NLBL_CIPSOV4_C_UNSPEC,
-	NLBL_CIPSOV4_C_ACK,
 	NLBL_CIPSOV4_C_ADD,
 	NLBL_CIPSOV4_C_REMOVE,
 	NLBL_CIPSOV4_C_LIST,
@@ -210,6 +106,59 @@ enum {
 	__NLBL_CIPSOV4_C_MAX,
 };
 #define NLBL_CIPSOV4_C_MAX (__NLBL_CIPSOV4_C_MAX - 1)
+
+/* NetLabel CIPSOv4 attributes */
+enum {
+	NLBL_CIPSOV4_A_UNSPEC,
+	NLBL_CIPSOV4_A_DOI,
+	/* (NLA_U32)
+	 * the DOI value */
+	NLBL_CIPSOV4_A_MTYPE,
+	/* (NLA_U32)
+	 * the mapping table type (defined in the cipso_ipv4.h header as
+	 * CIPSO_V4_MAP_*) */
+	NLBL_CIPSOV4_A_TAG,
+	/* (NLA_U8)
+	 * a CIPSO tag type, meant to be used within a NLBL_CIPSOV4_A_TAGLST
+	 * attribute */
+	NLBL_CIPSOV4_A_TAGLST,
+	/* (NLA_NESTED)
+	 * the CIPSO tag list for the DOI, there must be at least one
+	 * NLBL_CIPSOV4_A_TAG attribute, tags listed first are given higher
+	 * priorirty when sending packets */
+	NLBL_CIPSOV4_A_MLSLVLLOC,
+	/* (NLA_U32)
+	 * the local MLS sensitivity level */
+	NLBL_CIPSOV4_A_MLSLVLREM,
+	/* (NLA_U32)
+	 * the remote MLS sensitivity level */
+	NLBL_CIPSOV4_A_MLSLVL,
+	/* (NLA_NESTED)
+	 * a MLS sensitivity level mapping, must contain only one attribute of
+	 * each of the following types: NLBL_CIPSOV4_A_MLSLVLLOC and
+	 * NLBL_CIPSOV4_A_MLSLVLREM */
+	NLBL_CIPSOV4_A_MLSLVLLST,
+	/* (NLA_NESTED)
+	 * the CIPSO level mappings, there must be at least one
+	 * NLBL_CIPSOV4_A_MLSLVL attribute */
+	NLBL_CIPSOV4_A_MLSCATLOC,
+	/* (NLA_U32)
+	 * the local MLS category */
+	NLBL_CIPSOV4_A_MLSCATREM,
+	/* (NLA_U32)
+	 * the remote MLS category */
+	NLBL_CIPSOV4_A_MLSCAT,
+	/* (NLA_NESTED)
+	 * a MLS category mapping, must contain only one attribute of each of
+	 * the following types: NLBL_CIPSOV4_A_MLSCATLOC and
+	 * NLBL_CIPSOV4_A_MLSCATREM */
+	NLBL_CIPSOV4_A_MLSCATLST,
+	/* (NLA_NESTED)
+	 * the CIPSO category mappings, there must be at least one
+	 * NLBL_CIPSOV4_A_MLSCAT attribute */
+	__NLBL_CIPSOV4_A_MAX,
+};
+#define NLBL_CIPSOV4_A_MAX (__NLBL_CIPSOV4_A_MAX - 1)
 
 /* NetLabel protocol functions */
 int netlbl_cipsov4_genl_init(void);

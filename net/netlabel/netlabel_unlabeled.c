@@ -55,9 +55,13 @@ static struct genl_family netlbl_unlabel_gnl_family = {
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_UNLABELED_NAME,
 	.version = NETLBL_PROTO_VERSION,
-	.maxattr = 0,
+	.maxattr = NLBL_UNLABEL_A_MAX,
 };
 
+/* NetLabel Netlink attribute policy */
+static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
+	[NLBL_UNLABEL_A_ACPTFLG] = { .type = NLA_U8 },
+};
 
 /*
  * NetLabel Command Handlers
@@ -75,31 +79,18 @@ static struct genl_family netlbl_unlabel_gnl_family = {
  */
 static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val;
-	struct nlattr *data = netlbl_netlink_payload_data(skb);
-	u32 value;
+	int ret_val = -EINVAL;
+	u8 value;
 
-	ret_val = netlbl_netlink_cap_check(skb, CAP_NET_ADMIN);
-	if (ret_val != 0)
-		return ret_val;
-
-	if (netlbl_netlink_payload_len(skb) == NETLBL_LEN_U32) {
-		value = nla_get_u32(data);
+	if (info->attrs[NLBL_UNLABEL_A_ACPTFLG]) {
+		value = nla_get_u8(info->attrs[NLBL_UNLABEL_A_ACPTFLG]);
 		if (value == 1 || value == 0) {
 			atomic_set(&netlabel_unlabel_accept_flg, value);
-			netlbl_netlink_send_ack(info,
-						netlbl_unlabel_gnl_family.id,
-						NLBL_UNLABEL_C_ACK,
-						NETLBL_E_OK);
-			return 0;
+			ret_val = 0;
 		}
 	}
 
-	netlbl_netlink_send_ack(info,
-				netlbl_unlabel_gnl_family.id,
-				NLBL_UNLABEL_C_ACK,
-				EINVAL);
-	return -EINVAL;
+	return ret_val;
 }
 
 /**
@@ -114,39 +105,39 @@ static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
  */
 static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -ENOMEM;
+	int ret_val = -EINVAL;
 	struct sk_buff *ans_skb;
+	void *data;
 
-	ans_skb = netlbl_netlink_alloc_skb(0,
-					   GENL_HDRLEN + NETLBL_LEN_U32,
-					   GFP_KERNEL);
+	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (ans_skb == NULL)
 		goto list_failure;
-
-	if (netlbl_netlink_hdr_put(ans_skb,
-				   info->snd_pid,
-				   0,
-				   netlbl_unlabel_gnl_family.id,
-				   NLBL_UNLABEL_C_LIST) == NULL)
+	data = netlbl_netlink_hdr_put(ans_skb,
+				      info->snd_pid,
+				      info->snd_seq,
+				      netlbl_unlabel_gnl_family.id,
+				      0,
+				      NLBL_UNLABEL_C_LIST);
+	if (data == NULL) {
+		ret_val = -ENOMEM;
 		goto list_failure;
+	}
 
-	ret_val = nla_put_u32(ans_skb,
-			      NLA_U32,
-			      atomic_read(&netlabel_unlabel_accept_flg));
+	ret_val = nla_put_u8(ans_skb,
+			     NLBL_UNLABEL_A_ACPTFLG,
+			     atomic_read(&netlabel_unlabel_accept_flg));
 	if (ret_val != 0)
 		goto list_failure;
 
-	ret_val = netlbl_netlink_snd(ans_skb, info->snd_pid);
+	genlmsg_end(ans_skb, data);
+
+	ret_val = genlmsg_unicast(ans_skb, info->snd_pid);
 	if (ret_val != 0)
 		goto list_failure;
-
 	return 0;
 
 list_failure:
-	netlbl_netlink_send_ack(info,
-				netlbl_unlabel_gnl_family.id,
-				NLBL_UNLABEL_C_ACK,
-				-ret_val);
+	kfree(ans_skb);
 	return ret_val;
 }
 
@@ -157,7 +148,8 @@ list_failure:
 
 static struct genl_ops netlbl_unlabel_genl_c_accept = {
 	.cmd = NLBL_UNLABEL_C_ACCEPT,
-	.flags = 0,
+	.flags = GENL_ADMIN_PERM,
+	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_accept,
 	.dumpit = NULL,
 };
@@ -165,6 +157,7 @@ static struct genl_ops netlbl_unlabel_genl_c_accept = {
 static struct genl_ops netlbl_unlabel_genl_c_list = {
 	.cmd = NLBL_UNLABEL_C_LIST,
 	.flags = 0,
+	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_list,
 	.dumpit = NULL,
 };
@@ -218,10 +211,8 @@ int netlbl_unlabel_genl_init(void)
  */
 int netlbl_unlabel_getattr(struct netlbl_lsm_secattr *secattr)
 {
-	if (atomic_read(&netlabel_unlabel_accept_flg) == 1) {
-		memset(secattr, 0, sizeof(*secattr));
-		return 0;
-	}
+	if (atomic_read(&netlabel_unlabel_accept_flg) == 1)
+		return netlbl_secattr_init(secattr);
 
 	return -ENOMSG;
 }
