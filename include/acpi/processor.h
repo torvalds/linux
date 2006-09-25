@@ -29,6 +29,9 @@
 #define DOMAIN_COORD_TYPE_SW_ANY	0xfd
 #define DOMAIN_COORD_TYPE_HW_ALL	0xfe
 
+#define ACPI_CSTATE_SYSTEMIO	(0)
+#define ACPI_CSTATE_FFH		(1)
+
 /* Power Management */
 
 struct acpi_processor_cx;
@@ -58,6 +61,8 @@ struct acpi_processor_cx {
 	u8 valid;
 	u8 type;
 	u32 address;
+	u8 space_id;
+	u8 index;
 	u32 latency;
 	u32 latency_ticks;
 	u32 power;
@@ -206,12 +211,25 @@ void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
 #ifdef ARCH_HAS_POWER_INIT
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu);
+int acpi_processor_ffh_cstate_probe(unsigned int cpu,
+		struct acpi_processor_cx *cx, struct acpi_power_register *reg);
+void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cstate);
 #else
 static inline void acpi_processor_power_init_bm_check(struct
 						      acpi_processor_flags
 						      *flags, unsigned int cpu)
 {
 	flags->bm_check = 1;
+	return;
+}
+static inline int acpi_processor_ffh_cstate_probe(unsigned int cpu,
+		struct acpi_processor_cx *cx, struct acpi_power_register *reg)
+{
+	return -1;
+}
+static inline void acpi_processor_ffh_cstate_enter(
+		struct acpi_processor_cx *cstate)
+{
 	return;
 }
 #endif
