@@ -836,7 +836,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (index<=0 || index >= vfd->tvnormsize) {
+		if (index < 0 || index >= vfd->tvnormsize) {
 			ret=-EINVAL;
 			break;
 		}
