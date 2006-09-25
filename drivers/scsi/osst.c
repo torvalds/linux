@@ -4843,8 +4843,7 @@ static int os_scsi_tape_close(struct inode * inode, struct file * filp)
 static int osst_ioctl(struct inode * inode,struct file * file,
 	 unsigned int cmd_in, unsigned long arg)
 {
-	int		      i, cmd_nr, cmd_type, retval = 0;
-	unsigned int	      blk;
+	int		      i, cmd_nr, cmd_type, blk, retval = 0;
 	struct st_modedef   * STm;
 	struct st_partstat  * STps;
 	struct osst_request * SRpnt = NULL;
