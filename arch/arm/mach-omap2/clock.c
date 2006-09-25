@@ -36,6 +36,8 @@
 
 static struct prcm_config *curr_prcm_set;
 static u32 curr_perf_level = PRCM_FULL_SPEED;
+static struct clk *vclk;
+static struct clk *sclk;
 
 /*-------------------------------------------------------------------------
  * Omap2 specific clock functions
@@ -984,6 +986,20 @@ static void __init omap2_get_crystal_rate(struct clk *osc, struct clk *sys)
 	sys->rate = sclk;
 }
 
+/*
+ * Set clocks for bypass mode for reboot to work.
+ */
+void omap2_clk_prepare_for_reboot(void)
+{
+	u32 rate;
+
+	if (vclk == NULL || sclk == NULL)
+		return;
+
+	rate = clk_get_rate(sclk);
+	clk_set_rate(vclk, rate);
+}
+
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 static void __init omap2_disable_unused_clocks(void)
 {
@@ -1079,6 +1095,10 @@ int __init omap2_clk_init(void)
 	clk_enable(&omapctrl_ick);
 	if (cpu_is_omap2430())
 		clk_enable(&sdrc_ick);
+
+	/* Avoid sleeping sleeping during omap2_clk_prepare_for_reboot() */
+	vclk = clk_get(NULL, "virt_prcm_set");
+	sclk = clk_get(NULL, "sys_ck");
 
 	return 0;
 }
