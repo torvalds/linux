@@ -146,6 +146,7 @@
  *   nla_ok(nla, remaining)		does nla fit into remaining bytes?
  *   nla_next(nla, remaining)		get next netlink attribute
  *   nla_validate()			validate a stream of attributes
+ *   nla_validate_nested()		validate a stream of nested attributes
  *   nla_find()				find attribute in stream of attributes
  *   nla_find_nested()			find attribute in nested attributes
  *   nla_parse()			parse and validate stream of attrs
@@ -948,6 +949,24 @@ static inline int nla_nest_end(struct sk_buff *skb, struct nlattr *start)
 static inline int nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
 {
 	return nlmsg_trim(skb, start);
+}
+
+/**
+ * nla_validate_nested - Validate a stream of nested attributes
+ * @start: container attribute
+ * @maxtype: maximum attribute type to be expected
+ * @policy: validation policy
+ *
+ * Validates all attributes in the nested attribute stream against the
+ * specified policy. Attributes with a type exceeding maxtype will be
+ * ignored. See documenation of struct nla_policy for more details.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+static inline int nla_validate_nested(struct nlattr *start, int maxtype,
+				      struct nla_policy *policy)
+{
+	return nla_validate(nla_data(start), nla_len(start), maxtype, policy);
 }
 
 /**
