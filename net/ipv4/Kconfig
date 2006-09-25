@@ -448,7 +448,7 @@ config INET_TCP_DIAG
 	depends on INET_DIAG
 	def_tristate INET_DIAG
 
-config TCP_CONG_ADVANCED
+menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
 	---help---
 	  Support for selection of various TCP congestion control
@@ -459,9 +459,7 @@ config TCP_CONG_ADVANCED
 
 	  If unsure, say N.
 
-# TCP Reno is builtin (required as fallback)
-menu "TCP congestion control"
-	depends on TCP_CONG_ADVANCED
+if TCP_CONG_ADVANCED
 
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
@@ -574,12 +572,49 @@ config TCP_CONG_VENO
 	loss packets.
 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
 
-endmenu
+choice
+	prompt "Default TCP congestion control"
+	default DEFAULT_BIC
+	help
+	  Select the TCP congestion control that will be used by default
+	  for all connections.
+
+	config DEFAULT_BIC
+		bool "Bic" if TCP_CONG_BIC=y
+
+	config DEFAULT_CUBIC
+		bool "Cubic" if TCP_CONG_CUBIC=y
+
+	config DEFAULT_HTCP
+		bool "Htcp" if TCP_CONG_HTCP=y
+
+	config DEFAULT_VEGAS
+		bool "Vegas" if TCP_CONG_VEGAS=y
+
+	config DEFAULT_WESTWOOD
+		bool "Westwood" if TCP_CONG_WESTWOOD=y
+
+	config DEFAULT_RENO
+		bool "Reno"
+
+endchoice
+
+endif
 
 config TCP_CONG_BIC
 	tristate
 	depends on !TCP_CONG_ADVANCED
 	default y
+
+config DEFAULT_TCP_CONG
+	string
+	default "bic" if DEFAULT_BIC
+	default "cubic" if DEFAULT_CUBIC
+	default "htcp" if DEFAULT_HTCP
+	default "vegas" if DEFAULT_VEGAS
+	default "westwood" if DEFAULT_WESTWOOD
+	default "reno" if DEFAULT_RENO
+	default "bic"
 
 source "net/ipv4/ipvs/Kconfig"
 
