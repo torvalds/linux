@@ -209,11 +209,12 @@ static const unsigned char days_in_mo[] =
  */
 static inline unsigned char rtc_is_updating(void)
 {
+	unsigned long flags;
 	unsigned char uip;
 
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	return uip;
 }
 
