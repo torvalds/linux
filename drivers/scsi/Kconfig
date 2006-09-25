@@ -1014,7 +1014,7 @@ config SCSI_SYM53C8XX_MMIO
 
 config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"
-	depends on PCI && SCSI
+	depends on PCI && SCSI && ATA
 	select FW_LOADER
 	---help---
 	  This driver supports the IBM Power Linux family RAID adapters.

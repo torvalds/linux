@@ -28,6 +28,7 @@
 
 #include <linux/types.h>
 #include <linux/completion.h>
+#include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <scsi/scsi.h>
@@ -36,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.1.4"
-#define IPR_DRIVER_DATE "(August 2, 2006)"
+#define IPR_DRIVER_VERSION "2.2.0"
+#define IPR_DRIVER_DATE "(September 25, 2006)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -849,6 +850,13 @@ struct ipr_bus_attributes {
 	u32 max_xfer_rate;
 };
 
+struct ipr_sata_port {
+	struct ipr_ioa_cfg *ioa_cfg;
+	struct ata_port *ap;
+	struct ipr_resource_entry *res;
+	struct ipr_ioasa_gata ioasa;
+};
+
 struct ipr_resource_entry {
 	struct ipr_config_table_entry cfgte;
 	u8 needs_sync_complete:1;
@@ -858,6 +866,7 @@ struct ipr_resource_entry {
 	u8 resetting_device:1;
 
 	struct scsi_device *sdev;
+	struct ipr_sata_port *sata_port;
 	struct list_head queue;
 };
 
@@ -928,10 +937,11 @@ struct ipr_trace_entry {
 	u32 time;
 
 	u8 op_code;
+	u8 ata_op_code;
 	u8 type;
 #define IPR_TRACE_START			0x00
 #define IPR_TRACE_FINISH		0xff
-	u16 cmd_index;
+	u8 cmd_index;
 
 	__be32 res_handle;
 	union {
@@ -1073,6 +1083,7 @@ struct ipr_ioa_cfg {
 
 	struct ipr_cmnd *reset_cmd;
 
+	struct ata_host ata_host;
 	char ipr_cmd_label[8];
 #define IPR_CMD_LABEL		"ipr_cmnd"
 	struct ipr_cmnd *ipr_cmnd_list[IPR_NUM_CMD_BLKS];
@@ -1085,6 +1096,7 @@ struct ipr_cmnd {
 	struct ipr_ioadl_desc ioadl[IPR_NUM_IOADL_ENTRIES];
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
+	struct ata_queued_cmd *qc;
 	struct completion completion;
 	struct timer_list timer;
 	void (*done) (struct ipr_cmnd *);
