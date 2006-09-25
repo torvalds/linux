@@ -135,6 +135,7 @@ static int _omap2_clk_enable(struct clk * clk)
 	regval32 = __raw_readl(clk->enable_reg);
 	regval32 |= (1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
+	wmb();
 
 	return 0;
 }
@@ -168,6 +169,7 @@ static void _omap2_clk_disable(struct clk *clk)
 	regval32 = __raw_readl(clk->enable_reg);
 	regval32 &= ~(1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
+	wmb();
 }
 
 static int omap2_clk_enable(struct clk *clk)
@@ -697,12 +699,14 @@ static int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 		reg_val = __raw_readl(reg);
 		reg_val &= ~(field_mask << div_off);
 		reg_val |= (field_val << div_off);
-
 		__raw_writel(reg_val, reg);
+		wmb();
 		clk->rate = clk->parent->rate / field_val;
 
-		if (clk->flags & DELAYED_APP)
+		if (clk->flags & DELAYED_APP) {
 			__raw_writel(0x1, (void __iomem *)&PRCM_CLKCFG_CTRL);
+			wmb();
+		}
 		ret = 0;
 	} else if (clk->set_rate != 0)
 		ret = clk->set_rate(clk, rate);
@@ -838,10 +842,12 @@ static int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		reg_val = __raw_readl(reg) & ~(field_mask << src_off);
 		reg_val |= (field_val << src_off);
 		__raw_writel(reg_val, reg);
+		wmb();
 
-		if (clk->flags & DELAYED_APP)
+		if (clk->flags & DELAYED_APP) {
 			__raw_writel(0x1, (void __iomem *)&PRCM_CLKCFG_CTRL);
-
+			wmb();
+		}
 		if (clk->usecount > 0)
 			_omap2_clk_enable(clk);
 
