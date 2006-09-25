@@ -802,7 +802,7 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 		return -EINVAL;
 
 	err = -ENODEV;
-	if (!cx88_boards[core->board].dvb)
+	if (!(cx88_boards[core->board].mpeg & CX88_BOARD_DVB))
 		goto fail_core;
 
 	err = -ENOMEM;

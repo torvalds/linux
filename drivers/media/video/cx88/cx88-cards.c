@@ -294,7 +294,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000bd62,
 		},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_IODATA_GVVCP3PCI] = {
 		.name		= "IODATA GV-VCP3/PCI",
@@ -358,7 +358,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x0000fde2,
 		},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_MSI_TVANYWHERE] = {
 		.name           = "MSI TV-@nywhere",
@@ -401,7 +401,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1] = {
 		.name           = "DViCO FusionHDTV DVB-T1",
@@ -418,7 +418,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_KWORLD_LTV883] = {
 		.name           = "KWorld LTV883RF",
@@ -488,7 +488,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0	= 0x0f00,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_DVB_T1] = {
 		.name           = "Hauppauge Nova-T DVB-T",
@@ -500,7 +500,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_CONEXANT_DVB_T1] = {
 		.name           = "Conexant DVB-T reference design",
@@ -512,7 +512,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_PROVIDEO_PV259] = {
 		.name		= "Provideo PV259",
@@ -524,7 +524,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 		}},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS] = {
 		.name           = "DViCO FusionHDTV DVB-T Plus",
@@ -541,7 +541,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_DNTV_LIVE_DVB_T] = {
 		.name		= "digitalnow DNTV Live! DVB-T",
@@ -560,7 +560,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x00000700,
 			.gpio2  = 0x00000101,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_PCHDTV_HD3000] = {
 		.name           = "pcHDTV HD3000 HDTV",
@@ -599,7 +599,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio2  = 0x00000000,
 			.gpio3  = 0x00000000,
 		},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_ROSLYN] = {
 		// entry added by Kaustubh D. Bhalerao <bhalerao.1@osu.edu>
@@ -633,7 +633,7 @@ struct cx88_board cx88_boards[] = {
 			 .gpio0  = 0xed96,
 			 .gpio2  = 0x00ff,
 		 },
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_DIGITALLOGIC_MEC] = {
 		.name           = "Digital-Logic MICROSPACE Entertainment Center (MEC)",
@@ -659,7 +659,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x00009d00,
 		},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_IODATA_GVBCTV7E] = {
 		.name           = "IODATA GV/BCTV7E",
@@ -727,7 +727,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x97e9,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_ADSTECH_DVB_T_PCI] = {
 		.name           = "ADS Tech Instant TV DVB-T PCI",
@@ -746,7 +746,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1] = {
 		.name           = "TerraTec Cinergy 1400 DVB-T",
@@ -755,7 +755,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD] = {
 		.name           = "DViCO FusionHDTV 5 Gold",
@@ -777,7 +777,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x87f9,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_AVERMEDIA_ULTRATV_MC_550] = {
 		.name           = "AverMedia UltraTV Media Center PCI 550",
@@ -786,7 +786,7 @@ struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.blackbird      = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 		.input          = {{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 0,
@@ -854,7 +854,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio2  = 0x00000001,
 			.gpio3  = 0x00000000,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_WINFAST_DTV1000] = {
 		.name           = "WinFast DTV1000-T",
@@ -866,7 +866,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_DVB,
 			.vmux   = 0,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_AVERTV_303] = {
 		.name           = "AVerTV 303 (M126)",
@@ -914,7 +914,7 @@ struct cx88_board cx88_boards[] = {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 		}},
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_NOVASE2_S1] = {
 		.name		= "Hauppauge Nova-SE2 DVB-S",
@@ -926,7 +926,7 @@ struct cx88_board cx88_boards[] = {
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
 		}},
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_KWORLD_DVBS_100] = {
 		.name		= "KWorld DVB-S 100",
@@ -944,7 +944,7 @@ struct cx88_board cx88_boards[] = {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 		}},
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR1100] = {
 		.name		= "Hauppauge WinTV-HVR1100 DVB-T/Hybrid",
@@ -964,7 +964,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux	= 2,
 		}},
 		/* fixme: Add radio support */
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR1100LP] = {
 		.name		= "Hauppauge WinTV-HVR1100 DVB-T/Hybrid (Low Profile)",
@@ -981,7 +981,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux	= 1,
 		}},
 		/* fixme: Add radio support */
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_DNTV_LIVE_DVB_T_PRO] = {
 		.name           = "digitalnow DNTV Live! DVB-T Pro",
@@ -1008,7 +1008,7 @@ struct cx88_board cx88_boards[] = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xf80808,
 		},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_KWORLD_DVB_T_CX22702] = {
 		/* Kworld V-stream Xpert DVB-T with Thomson tuner */
@@ -1030,7 +1030,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x0700,
 			.gpio2  = 0x0101,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL] = {
 		.name           = "DViCO FusionHDTV DVB-T Dual Digital",
@@ -1047,7 +1047,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x000067df,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
 		/* FIXME: Audio not working for s-video / composite inputs. */
@@ -1075,7 +1075,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x3de6,
 			.gpio2  = 0x00ff,
 		},
-		.blackbird      = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID] = {
 		.name           = "DViCO FusionHDTV DVB-T Hybrid",
@@ -1096,7 +1096,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x0000a75b,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_PCHDTV_HD5500] = {
 		.name           = "pcHDTV HD5500 HDTV",
@@ -1118,7 +1118,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x87f9,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_KWORLD_MCE200_DELUXE] = {
 		/* FIXME: tested TV input only, disabled composite,
@@ -1134,7 +1134,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0x0000BDE6
 		}},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_PIXELVIEW_PLAYTV_P7000] = {
 		/* FIXME: SVideo, Composite and FM inputs are untested */
@@ -1150,7 +1150,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0x5da6,
 		}},
-		.blackbird = 1,
+		.mpeg           = CX88_BOARD_BLACKBIRD,
 	},
 	[CX88_BOARD_NPGTECH_REALTV_TOP10FM] = {
 		.name           = "NPG Tech Real TV FM Top 10",
@@ -1192,7 +1192,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio2  = 0x00017304,
 			.gpio3  = 0x02000000,
 		}},
-		.dvb            = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_GENIATECH_DVBS] = {
 		.name          = "Geniatech DVB-S",
@@ -1207,7 +1207,7 @@ struct cx88_board cx88_boards[] = {
 			.type  = CX88_VMUX_COMPOSITE1,
 			.vmux  = 1,
 		}},
-		.dvb      = 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 	[CX88_BOARD_HAUPPAUGE_HVR3000] = {
 		/* FIXME: Add dvb & radio support */
@@ -1302,7 +1302,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0	= 0xe780,
 		}},
 		/* fixme: Add radio support */
-		.dvb		= 1,
+		.mpeg           = CX88_BOARD_DVB,
 	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);

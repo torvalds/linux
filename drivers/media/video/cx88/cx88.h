@@ -74,6 +74,12 @@ enum cx88_deemph_type {
 	FM_DEEMPH_75
 };
 
+enum cx88_board_type {
+	CX88_BOARD_NONE = 0,
+	CX88_BOARD_DVB,
+	CX88_BOARD_BLACKBIRD
+};
+
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */
 
@@ -231,8 +237,7 @@ struct cx88_board {
 	int                     tda9887_conf;
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
-	unsigned int            blackbird:1;
-	unsigned int            dvb:1;
+	enum cx88_board_type    mpeg;
 	enum audiochip          audio_chip;
 };
 
