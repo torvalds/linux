@@ -259,7 +259,7 @@ void cipso_v4_cache_invalidate(void)
 	u32 iter;
 
 	for (iter = 0; iter < CIPSO_V4_CACHE_BUCKETS; iter++) {
-		spin_lock(&cipso_v4_cache[iter].lock);
+		spin_lock_bh(&cipso_v4_cache[iter].lock);
 		list_for_each_entry_safe(entry,
 					 tmp_entry,
 					 &cipso_v4_cache[iter].list, list) {
@@ -267,7 +267,7 @@ void cipso_v4_cache_invalidate(void)
 			cipso_v4_cache_entry_free(entry);
 		}
 		cipso_v4_cache[iter].size = 0;
-		spin_unlock(&cipso_v4_cache[iter].lock);
+		spin_unlock_bh(&cipso_v4_cache[iter].lock);
 	}
 
 	return;
@@ -309,7 +309,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 
 	hash = cipso_v4_map_cache_hash(key, key_len);
 	bkt = hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
-	spin_lock(&cipso_v4_cache[bkt].lock);
+	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	list_for_each_entry(entry, &cipso_v4_cache[bkt].list, list) {
 		if (entry->hash == hash &&
 		    entry->key_len == key_len &&
@@ -318,7 +318,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 			secattr->cache.free = entry->lsm_data.free;
 			secattr->cache.data = entry->lsm_data.data;
 			if (prev_entry == NULL) {
-				spin_unlock(&cipso_v4_cache[bkt].lock);
+				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
 			}
 
@@ -333,12 +333,12 @@ static int cipso_v4_cache_check(const unsigned char *key,
 					   &prev_entry->list);
 			}
 
-			spin_unlock(&cipso_v4_cache[bkt].lock);
+			spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 			return 0;
 		}
 		prev_entry = entry;
 	}
-	spin_unlock(&cipso_v4_cache[bkt].lock);
+	spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 
 	return -ENOENT;
 }
@@ -387,7 +387,7 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	entry->lsm_data.data = secattr->cache.data;
 
 	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
-	spin_lock(&cipso_v4_cache[bkt].lock);
+	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	if (cipso_v4_cache[bkt].size < cipso_v4_cache_bucketsize) {
 		list_add(&entry->list, &cipso_v4_cache[bkt].list);
 		cipso_v4_cache[bkt].size += 1;
@@ -398,7 +398,7 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 		list_add(&entry->list, &cipso_v4_cache[bkt].list);
 		cipso_v4_cache_entry_free(old_entry);
 	}
-	spin_unlock(&cipso_v4_cache[bkt].lock);
+	spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 
 	return 0;
 
