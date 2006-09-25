@@ -1628,6 +1628,12 @@ static int onenand_probe(struct mtd_info *mtd)
 	int bram_maf_id, bram_dev_id, maf_id, dev_id;
 	int version_id;
 	int density;
+	int syscfg;
+
+	/* Save system configuration 1 */
+	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
+	/* Clear Sync. Burst Read mode to read BootRAM */
+	this->write_word((syscfg & ~ONENAND_SYS_CFG1_SYNC_READ), this->base + ONENAND_REG_SYS_CFG1);
 
 	/* Send the command for reading device ID from BootRAM */
 	this->write_word(ONENAND_CMD_READID, this->base + ONENAND_BOOTRAM);
@@ -1636,12 +1642,17 @@ static int onenand_probe(struct mtd_info *mtd)
 	bram_maf_id = this->read_word(this->base + ONENAND_BOOTRAM + 0x0);
 	bram_dev_id = this->read_word(this->base + ONENAND_BOOTRAM + 0x2);
 
+	/* Reset OneNAND to read default register values */
+	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_BOOTRAM);
+	/* Wait reset */
+	this->wait(mtd, FL_RESETING);
+
+	/* Restore system configuration 1 */
+	this->write_word(syscfg, this->base + ONENAND_REG_SYS_CFG1);
+
 	/* Check manufacturer ID */
 	if (onenand_check_maf(bram_maf_id))
 		return -ENXIO;
-
-	/* Reset OneNAND to read default register values */
-	this->write_word(ONENAND_CMD_RESET, this->base + ONENAND_BOOTRAM);
 
 	/* Read manufacturer and device IDs from Register */
 	maf_id = this->read_word(this->base + ONENAND_REG_MANUFACTURER_ID);
