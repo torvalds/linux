@@ -764,7 +764,7 @@ static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 	asd_write_reg_word(asd_ha, LmSEQ_FIRST_INV_SCB_SITE(lseq),
 			   (u16)last_scb_site_no+1);
 	asd_write_reg_word(asd_ha, LmSEQ_INTEN_SAVE(lseq),
-			    (u16) LmM0INTEN_MASK & 0xFFFF0000 >> 16);
+			    (u16) ((LmM0INTEN_MASK & 0xFFFF0000) >> 16));
 	asd_write_reg_word(asd_ha, LmSEQ_INTEN_SAVE(lseq) + 2,
 			    (u16) LmM0INTEN_MASK & 0xFFFF);
 	asd_write_reg_byte(asd_ha, LmSEQ_LINK_RST_FRM_LEN(lseq), 0);
