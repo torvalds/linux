@@ -63,31 +63,12 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
+#include <asm/firmware.h>
 
 #include "mmu_decl.h"
 
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;
-
-#ifdef CONFIG_PPC_ISERIES
-
-void __iomem *ioremap(unsigned long addr, unsigned long size)
-{
-	return (void __iomem *)addr;
-}
-
-extern void __iomem *__ioremap(unsigned long addr, unsigned long size,
-		       unsigned long flags)
-{
-	return (void __iomem *)addr;
-}
-
-void iounmap(volatile void __iomem *addr)
-{
-	return;
-}
-
-#else
 
 /*
  * map_io_page currently only called by __ioremap
@@ -160,6 +141,9 @@ void __iomem * __ioremap(unsigned long addr, unsigned long size,
 {
 	unsigned long pa, ea;
 	void __iomem *ret;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return (void __iomem *)addr;
 
 	/*
 	 * Choose an address to map it to.
@@ -255,6 +239,9 @@ void iounmap(volatile void __iomem *token)
 {
 	void *addr;
 
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return;
+
 	if (!mem_init_done)
 		return;
 	
@@ -314,8 +301,6 @@ int iounmap_explicit(volatile void __iomem *start, unsigned long size)
 	 */
 	return 0;
 }
-
-#endif
 
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(__ioremap);
