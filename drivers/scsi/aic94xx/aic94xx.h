@@ -94,7 +94,7 @@ void asd_dev_gone(struct domain_device *dev);
 
 void asd_invalidate_edb(struct asd_ascb *ascb, int edb_id);
 
-int  asd_execute_task(struct sas_task *, int num, unsigned long gfp_flags);
+int  asd_execute_task(struct sas_task *, int num, gfp_t gfp_flags);
 
 /* ---------- TMFs ---------- */
 int  asd_abort_task(struct sas_task *);

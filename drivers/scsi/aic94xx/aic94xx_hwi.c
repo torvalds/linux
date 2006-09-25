@@ -267,7 +267,7 @@ static int asd_init_dl(struct asd_ha_struct *asd_ha)
 
 /* ---------- EDB and ESCB init ---------- */
 
-static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, unsigned int gfp_flags)
+static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, gfp_t gfp_flags)
 {
 	struct asd_seq_data *seq = &asd_ha->seq;
 	int i;
@@ -298,7 +298,7 @@ Err_unroll:
 }
 
 static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
-			   unsigned int gfp_flags)
+			   gfp_t gfp_flags)
 {
 	struct asd_seq_data *seq = &asd_ha->seq;
 	struct asd_ascb *escb;
@@ -1028,7 +1028,7 @@ irqreturn_t asd_hw_isr(int irq, void *dev_id, struct pt_regs *regs)
 /* ---------- SCB handling ---------- */
 
 static inline struct asd_ascb *asd_ascb_alloc(struct asd_ha_struct *asd_ha,
-					      unsigned int gfp_flags)
+					      gfp_t gfp_flags)
 {
 	extern kmem_cache_t *asd_ascb_cache;
 	struct asd_seq_data *seq = &asd_ha->seq;
@@ -1086,7 +1086,7 @@ undo:
  */
 struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
 				     *asd_ha, int *num,
-				     unsigned int gfp_flags)
+				     gfp_t gfp_flags)
 {
 	struct asd_ascb *first = NULL;
 

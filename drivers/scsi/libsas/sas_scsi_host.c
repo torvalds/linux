@@ -134,7 +134,7 @@ static enum task_attribute sas_scsi_get_task_attr(struct scsi_cmnd *cmd)
 
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
-					       unsigned long gfp_flags)
+					       gfp_t gfp_flags)
 {
 	struct sas_task *task = sas_alloc_task(gfp_flags);
 	struct scsi_lun lun;

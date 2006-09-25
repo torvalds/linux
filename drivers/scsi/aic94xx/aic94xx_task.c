@@ -53,7 +53,7 @@ static const u8 data_dir_flags[] = {
 
 static inline int asd_map_scatterlist(struct sas_task *task,
 				      struct sg_el *sg_arr,
-				      unsigned long gfp_flags)
+				      gfp_t gfp_flags)
 {
 	struct asd_ascb *ascb = task->lldd_task;
 	struct asd_ha_struct *asd_ha = ascb->ha;
@@ -368,7 +368,7 @@ Again:
 /* ---------- ATA ---------- */
 
 static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
-			      unsigned long gfp_flags)
+			      gfp_t gfp_flags)
 {
 	struct domain_device *dev = task->dev;
 	struct scb *scb;
@@ -437,7 +437,7 @@ static void asd_unbuild_ata_ascb(struct asd_ascb *a)
 /* ---------- SMP ---------- */
 
 static int asd_build_smp_ascb(struct asd_ascb *ascb, struct sas_task *task,
-			      unsigned long gfp_flags)
+			      gfp_t gfp_flags)
 {
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct domain_device *dev = task->dev;
@@ -487,7 +487,7 @@ static void asd_unbuild_smp_ascb(struct asd_ascb *a)
 /* ---------- SSP ---------- */
 
 static int asd_build_ssp_ascb(struct asd_ascb *ascb, struct sas_task *task,
-			      unsigned long gfp_flags)
+			      gfp_t gfp_flags)
 {
 	struct domain_device *dev = task->dev;
 	struct scb *scb;
@@ -550,7 +550,7 @@ static inline int asd_can_queue(struct asd_ha_struct *asd_ha, int num)
 }
 
 int asd_execute_task(struct sas_task *task, const int num,
-		     unsigned long gfp_flags)
+		     gfp_t gfp_flags)
 {
 	int res = 0;
 	LIST_HEAD(alist);

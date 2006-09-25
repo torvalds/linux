@@ -242,7 +242,7 @@ struct asd_ha_struct {
 
 /* ---------- DMA allocs ---------- */
 
-static inline struct asd_dma_tok *asd_dmatok_alloc(unsigned int flags)
+static inline struct asd_dma_tok *asd_dmatok_alloc(gfp_t flags)
 {
 	return kmem_cache_alloc(asd_dma_token_cache, flags);
 }
@@ -254,7 +254,7 @@ static inline void asd_dmatok_free(struct asd_dma_tok *token)
 
 static inline struct asd_dma_tok *asd_alloc_coherent(struct asd_ha_struct *
 						     asd_ha, size_t size,
-						     unsigned int flags)
+						     gfp_t flags)
 {
 	struct asd_dma_tok *token = asd_dmatok_alloc(flags);
 	if (token) {
@@ -376,7 +376,7 @@ irqreturn_t asd_hw_isr(int irq, void *dev_id, struct pt_regs *regs);
 
 struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
 				     *asd_ha, int *num,
-				     unsigned int gfp_mask);
+				     gfp_t gfp_mask);
 
 int  asd_post_ascb_list(struct asd_ha_struct *asd_ha, struct asd_ascb *ascb,
 			int num);

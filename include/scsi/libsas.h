@@ -534,7 +534,7 @@ struct sas_task {
 #define SAS_TASK_STATE_DONE     2
 #define SAS_TASK_STATE_ABORTED  4
 
-static inline struct sas_task *sas_alloc_task(unsigned long flags)
+static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
 	extern kmem_cache_t *sas_task_cache;
 	struct sas_task *task = kmem_cache_alloc(sas_task_cache, flags);
@@ -570,7 +570,7 @@ struct sas_domain_function_template {
 	void (*lldd_dev_gone)(struct domain_device *);
 
 	int (*lldd_execute_task)(struct sas_task *, int num,
-				 unsigned long gfp_flags);
+				 gfp_t gfp_flags);
 
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);
