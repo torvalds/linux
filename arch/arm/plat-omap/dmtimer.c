@@ -161,7 +161,7 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 {
 	u32 l;
 
-	if (timer != &dm_timers[0]) {
+	if (!cpu_class_is_omap2() || timer != &dm_timers[0]) {
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
 		omap_dm_timer_wait_for_reset(timer);
 	}
@@ -170,6 +170,13 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	/* Set to smart-idle mode */
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_OCP_CFG_REG);
 	l |= 0x02 << 3;
+
+	if (cpu_class_is_omap2() && timer == &dm_timers[0]) {
+		/* Enable wake-up only for GPT1 on OMAP2 CPUs*/
+		l |= 1 << 2;
+		/* Non-posted mode */
+		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0);
+	}
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_REG, l);
 }
 
@@ -431,6 +438,7 @@ void omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
 				  unsigned int value)
 {
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_INT_EN_REG, value);
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG, value);
 }
 
 unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
