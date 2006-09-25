@@ -990,7 +990,10 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			}
 
 			/* Now read the page into the buffer */
-			ret = chip->ecc.read_page(mtd, chip, bufpoi);
+			if (unlikely(ops->mode == MTD_OOB_RAW))
+				ret = chip->ecc.read_page_raw(mtd, chip, bufpoi);
+			else
+				ret = chip->ecc.read_page(mtd, chip, bufpoi);
 			if (ret < 0)
 				break;
 
@@ -1323,8 +1326,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops)
 {
-	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip,
-			 uint8_t *buf) = NULL;
 	struct nand_chip *chip = mtd->priv;
 	int ret = -ENOTSUPP;
 
@@ -1342,12 +1343,7 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	switch(ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
-		break;
-
 	case MTD_OOB_RAW:
-		/* Replace the read_page algorithm temporary */
-		read_page = chip->ecc.read_page;
-		chip->ecc.read_page = nand_read_page_raw;
 		break;
 
 	default:
@@ -1359,8 +1355,6 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 	else
 		ret = nand_do_read_ops(mtd, from, ops);
 
-	if (unlikely(ops->mode == MTD_OOB_RAW))
-		chip->ecc.read_page = read_page;
  out:
 	nand_release_device(mtd);
 	return ret;
@@ -1479,7 +1473,7 @@ static void nand_write_page_syndrome(struct mtd_info *mtd,
 }
 
 /**
- * nand_write_page - [INTERNAL] write one page
+ * nand_write_page - [REPLACEABLE] write one page
  * @mtd:	MTD device structure
  * @chip:	NAND chip descriptor
  * @buf:	the data to write
@@ -1487,13 +1481,16 @@ static void nand_write_page_syndrome(struct mtd_info *mtd,
  * @cached:	cached programming
  */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			   const uint8_t *buf, int page, int cached)
+			   const uint8_t *buf, int page, int cached, int raw)
 {
 	int status;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
-	chip->ecc.write_page(mtd, chip, buf);
+	if (unlikely(raw))
+		chip->ecc.write_page_raw(mtd, chip, buf);
+	else
+		chip->ecc.write_page(mtd, chip, buf);
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
@@ -1636,7 +1633,8 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		if (unlikely(oob))
 			oob = nand_fill_oob(chip, oob, ops);
 
-		ret = nand_write_page(mtd, chip, buf, page, cached);
+		ret = chip->write_page(mtd, chip, buf, page, cached,
+				       (ops->mode == MTD_OOB_RAW));
 		if (ret)
 			break;
 
@@ -1769,8 +1767,6 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 			  struct mtd_oob_ops *ops)
 {
-	void (*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
-			  const uint8_t *buf) = NULL;
 	struct nand_chip *chip = mtd->priv;
 	int ret = -ENOTSUPP;
 
@@ -1788,12 +1784,7 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 	switch(ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
-		break;
-
 	case MTD_OOB_RAW:
-		/* Replace the write_page algorithm temporary */
-		write_page = chip->ecc.write_page;
-		chip->ecc.write_page = nand_write_page_raw;
 		break;
 
 	default:
@@ -1805,8 +1796,6 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 	else
 		ret = nand_do_write_ops(mtd, to, ops);
 
-	if (unlikely(ops->mode == MTD_OOB_RAW))
-		chip->ecc.write_page = write_page;
  out:
 	nand_release_device(mtd);
 	return ret;
@@ -2383,10 +2372,18 @@ int nand_scan_tail(struct mtd_info *mtd)
 		}
 	}
 
+	if (!chip->write_page)
+		chip->write_page = nand_write_page;
+
 	/*
 	 * check ECC mode, default to software if 3byte/512byte hardware ECC is
 	 * selected and we have 256 byte pagesize fallback to software ECC
 	 */
+	if (!chip->ecc.read_page_raw)
+		chip->ecc.read_page_raw = nand_read_page_raw;
+	if (!chip->ecc.write_page_raw)
+		chip->ecc.write_page_raw = nand_write_page_raw;
+
 	switch (chip->ecc.mode) {
 	case NAND_ECC_HW:
 		/* Use standard hwecc read page function ? */
@@ -2444,6 +2441,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		chip->ecc.size = mtd->writesize;
 		chip->ecc.bytes = 0;
 		break;
+
 	default:
 		printk(KERN_WARNING "Invalid NAND_ECC_MODE %d\n",
 		       chip->ecc.mode);

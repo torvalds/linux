@@ -235,6 +235,8 @@ struct nand_hw_control {
  *		be provided if an hardware ECC is available
  * @calculate:	function for ecc calculation or readback from ecc hardware
  * @correct:	function for ecc correction, matching to ecc generator (sw/hw)
+ * @read_page_raw:	function to read a raw page without ECC
+ * @write_page_raw:	function to write a raw page without ECC
  * @read_page:	function to read a page according to the ecc generator requirements
  * @write_page:	function to write a page according to the ecc generator requirements
  * @read_oob:	function to read chip OOB data
@@ -256,6 +258,12 @@ struct nand_ecc_ctrl {
 	int			(*correct)(struct mtd_info *mtd, uint8_t *dat,
 					   uint8_t *read_ecc,
 					   uint8_t *calc_ecc);
+	int			(*read_page_raw)(struct mtd_info *mtd,
+						 struct nand_chip *chip,
+						 uint8_t *buf);
+	void			(*write_page_raw)(struct mtd_info *mtd,
+						  struct nand_chip *chip,
+						  const uint8_t *buf);
 	int			(*read_page)(struct mtd_info *mtd,
 					     struct nand_chip *chip,
 					     uint8_t *buf);
@@ -344,6 +352,7 @@ struct nand_buffers {
  * @priv:		[OPTIONAL] pointer to private chip date
  * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks
  *			(determine if errors are correctable)
+ * @write_page		[REPLACEABLE] High-level page write function
  */
 
 struct nand_chip {
@@ -366,6 +375,8 @@ struct nand_chip {
 	void		(*erase_cmd)(struct mtd_info *mtd, int page);
 	int		(*scan_bbt)(struct mtd_info *mtd);
 	int		(*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page);
+	int		(*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
+				      const uint8_t *buf, int page, int cached, int raw);
 
 	int		chip_delay;
 	unsigned int	options;
