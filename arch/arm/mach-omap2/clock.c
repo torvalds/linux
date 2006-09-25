@@ -103,7 +103,7 @@ static void omap2_clk_fixed_enable(struct clk *clk)
 	else if (clk == &apll54_ck)
 		cval = (1 << 6);
 
-	while (!CM_IDLEST_CKGEN & cval) {		/* Wait for lock */
+	while (!(CM_IDLEST_CKGEN & cval)) {		/* Wait for lock */
 		++i;
 		udelay(1);
 		if (i == 100000)
