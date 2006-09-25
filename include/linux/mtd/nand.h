@@ -35,6 +35,9 @@ extern int nand_scan_tail(struct mtd_info *mtd);
 /* Free resources held by the NAND device */
 extern void nand_release (struct mtd_info *mtd);
 
+/* Internal helper for board drivers which need to override command function */
+extern void nand_wait_ready(struct mtd_info *mtd);
+
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 
