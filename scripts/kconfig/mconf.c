@@ -401,7 +401,7 @@ static void search_conf(void)
 	struct gstr res;
 	int dres;
 again:
-	reset_dialog();
+	dialog_clear();
 	dres = dialog_inputbox(_("Search Configuration Parameter"),
 			      _("Enter CONFIG_ (sub)string to search for (omit CONFIG_)"),
 			      10, 75, "");
@@ -603,7 +603,7 @@ static void conf(struct menu *menu)
 			item_make(_("    Save an Alternate Configuration File"));
 			item_set_tag('S');
 		}
-		reset_dialog();
+		dialog_clear();
 		res = dialog_menu(prompt ? prompt : _("Main Menu"),
 				  _(menu_instructions),
 				  active_menu, &s_scroll);
@@ -684,7 +684,7 @@ static void conf(struct menu *menu)
 
 static void show_textbox(const char *title, const char *text, int r, int c)
 {
-	reset_dialog();
+	dialog_clear();
 	dialog_textbox(title, text, r, c);
 }
 
@@ -736,7 +736,7 @@ static void conf_choice(struct menu *menu)
 			if (child->sym == sym_get_choice_value(menu->sym))
 				item_set_tag('X');
 		}
-		reset_dialog();
+		dialog_clear();
 		res = dialog_checklist(prompt ? prompt : _("Main Menu"),
 					_(radiolist_instructions),
 					 15, 70, 6);
@@ -785,7 +785,7 @@ static void conf_string(struct menu *menu)
 		default:
 			heading = "Internal mconf error!";
 		}
-		reset_dialog();
+		dialog_clear();
 		res = dialog_inputbox(prompt ? prompt : _("Main Menu"),
 				      heading, 10, 75,
 				      sym_get_string_value(menu->sym));
@@ -809,7 +809,7 @@ static void conf_load(void)
 
 	while (1) {
 		int res;
-		reset_dialog();
+		dialog_clear();
 		res = dialog_inputbox(NULL, load_config_text,
 				      11, 55, filename);
 		switch(res) {
@@ -833,7 +833,7 @@ static void conf_save(void)
 {
 	while (1) {
 		int res;
-		reset_dialog();
+		dialog_clear();
 		res = dialog_inputbox(NULL, save_config_text,
 				      11, 55, filename);
 		switch(res) {
@@ -889,7 +889,7 @@ int main(int ac, char **av)
 	init_dialog(menu_backtitle);
 	do {
 		conf(&rootmenu);
-		reset_dialog();
+		dialog_clear();
 		res = dialog_yesno(NULL,
 				   _("Do you wish to save your "
 				     "new kernel configuration?\n"
