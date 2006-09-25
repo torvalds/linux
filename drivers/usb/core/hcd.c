@@ -836,8 +836,7 @@ void usb_enable_root_hub_irq (struct usb_bus *bus)
 	struct usb_hcd *hcd;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_irq_enable && !hcd->poll_rh &&
-			hcd->state != HC_STATE_HALT)
+	if (hcd->driver->hub_irq_enable && hcd->state != HC_STATE_HALT)
 		hcd->driver->hub_irq_enable (hcd);
 }
 
