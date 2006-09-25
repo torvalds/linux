@@ -3873,21 +3873,26 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
 		curlun->ro = mod_data.ro[i];
+		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
 		dev_set_drvdata(&curlun->dev, fsg);
 		snprintf(curlun->dev.bus_id, BUS_ID_SIZE,
 				"%s-lun%d", gadget->dev.bus_id, i);
 
-		if ((rc = device_register(&curlun->dev)) != 0)
+		if ((rc = device_register(&curlun->dev)) != 0) {
 			INFO(fsg, "failed to register LUN%d: %d\n", i, rc);
-		else {
-			curlun->registered = 1;
-			curlun->dev.release = lun_release;
-			device_create_file(&curlun->dev, &dev_attr_ro);
-			device_create_file(&curlun->dev, &dev_attr_file);
-			kref_get(&fsg->ref);
+			goto out;
 		}
+		if ((rc = device_create_file(&curlun->dev,
+					&dev_attr_ro)) != 0 ||
+				(rc = device_create_file(&curlun->dev,
+					&dev_attr_file)) != 0) {
+			device_unregister(&curlun->dev);
+			goto out;
+		}
+		curlun->registered = 1;
+		kref_get(&fsg->ref);
 
 		if (mod_data.file[i] && *mod_data.file[i]) {
 			if ((rc = open_backing_file(curlun,
