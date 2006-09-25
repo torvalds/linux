@@ -41,6 +41,7 @@ static void ohci_rhsc_enable (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
+	hcd->poll_rh = 0;
 	ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrenable);
 }
 
@@ -117,8 +118,10 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 	/* maybe resume can wake root hub */
 	if (device_may_wakeup(&ohci_to_hcd(ohci)->self.root_hub->dev))
 		ohci->hc_control |= OHCI_CTRL_RWE;
-	else
+	else {
+		ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrdisable);
 		ohci->hc_control &= ~OHCI_CTRL_RWE;
+	}
 
 	/* Suspend hub ... this is the "global (to this bus) suspend" mode,
 	 * which doesn't imply ports will first be individually suspended.
@@ -310,20 +313,16 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		i, changed = 0, length = 1;
-	int		can_suspend;
 	unsigned long	flags;
 
-	can_suspend = device_may_wakeup(&hcd->self.root_hub->dev);
 	spin_lock_irqsave (&ohci->lock, flags);
 
 	/* handle autosuspended root:  finish resuming before
 	 * letting khubd or root hub timer see state changes.
 	 */
 	if (unlikely((ohci->hc_control & OHCI_CTRL_HCFS) != OHCI_USB_OPER
-		     || !HC_IS_RUNNING(hcd->state))) {
-		can_suspend = 0;
+		     || !HC_IS_RUNNING(hcd->state)))
 		goto done;
-	}
 
 	/* undocumented erratum seen on at least rev D */
 	if ((ohci->flags & OHCI_QUIRK_AMD756)
@@ -348,10 +347,6 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
 
-		/* can't autosuspend with active ports */
-		if ((status & RH_PS_PES) && !(status & RH_PS_PSS))
-			can_suspend = 0;
-
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
 				| RH_PS_OCIC | RH_PS_PRSC)) {
 			changed = 1;
@@ -366,41 +361,11 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	/* after root hub changes, stop polling after debouncing
 	 * for a while and maybe kicking in autosuspend
 	 */
-	if (changed) {
+	if (changed)
 		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
-		can_suspend = 0;
-	} else if (time_before (jiffies, ohci->next_statechange)) {
-		can_suspend = 0;
-	} else {
-#ifdef	CONFIG_PM
-		can_suspend = can_suspend
-			&& !ohci->ed_rm_list
-			&& ((OHCI_CTRL_HCFS | OHCI_SCHED_ENABLES)
-					& ohci->hc_control)
-				== OHCI_USB_OPER;
-#endif
-		if (hcd->uses_new_polling) {
-			hcd->poll_rh = 0;
-			/* use INTR_RHSC iff INTR_RD won't apply */
-			if (!can_suspend)
-				ohci_writel (ohci, OHCI_INTR_RHSC,
-						&ohci->regs->intrenable);
-		}
-	}
 
 done:
 	spin_unlock_irqrestore (&ohci->lock, flags);
-
-#ifdef	CONFIG_PM
-	/* save power by autosuspending idle root hubs;
-	 * INTR_RD wakes us when there's work
-	 */
-	if (can_suspend && usb_trylock_device (hcd->self.root_hub) == 0) {
-		ohci_vdbg (ohci, "autosuspend\n");
-		(void) ohci_bus_suspend (hcd);
-		usb_unlock_device (hcd->self.root_hub);
-	}
-#endif
 
 	return changed ? length : 0;
 }
@@ -572,9 +537,6 @@ static int ohci_hub_control (
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			temp = RH_PS_POCI;
-			if ((ohci->hc_control & OHCI_CTRL_HCFS)
-					!= OHCI_USB_OPER)
-				usb_hcd_resume_root_hub(hcd);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			temp = RH_PS_PSSC;
