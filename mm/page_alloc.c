@@ -1845,8 +1845,10 @@ static inline void free_zone_pagesets(int cpu)
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pset = zone_pcp(zone, cpu);
 
+		/* Free per_cpu_pageset if it is slab allocated */
+		if (pset != &boot_pageset[cpu])
+			kfree(pset);
 		zone_pcp(zone, cpu) = NULL;
-		kfree(pset);
 	}
 }
 
