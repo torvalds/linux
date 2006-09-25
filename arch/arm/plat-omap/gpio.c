@@ -1159,8 +1159,8 @@ static int omap_gpio_resume(struct sys_device *dev)
 			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
 			break;
 		case METHOD_GPIO_24XX:
-			wake_clear = bank->base + OMAP1610_GPIO_CLEAR_WAKEUPENA;
-			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
+			wake_clear = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
+			wake_set = bank->base + OMAP24XX_GPIO_SETWKUENA;
 			break;
 		default:
 			continue;
