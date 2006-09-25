@@ -655,9 +655,6 @@ static int __init iseries_probe(void)
 	if (!of_flat_dt_is_compatible(root, "IBM,iSeries"))
 		return 0;
 
-	powerpc_firmware_features |= FW_FEATURE_ISERIES;
-	powerpc_firmware_features |= FW_FEATURE_LPAR;
-
 	hpte_init_iSeries();
 
 	return 1;
@@ -686,6 +683,9 @@ define_machine(iseries) {
 void * __init iSeries_early_setup(void)
 {
 	unsigned long phys_mem_size;
+
+	powerpc_firmware_features |= FW_FEATURE_ISERIES;
+	powerpc_firmware_features |= FW_FEATURE_LPAR;
 
 	iSeries_fixup_klimit();
 
