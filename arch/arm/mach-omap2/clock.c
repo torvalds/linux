@@ -81,6 +81,14 @@ static void omap2_propagate_rate(struct clk * clk)
 	propagate_rate(clk);
 }
 
+static void omap2_set_osc_ck(int enable)
+{
+	if (enable)
+		PRCM_CLKSRC_CTRL &= ~(0x3 << 3);
+	else
+		PRCM_CLKSRC_CTRL |= 0x3 << 3;
+}
+
 /* Enable an APLL if off */
 static void omap2_clk_fixed_enable(struct clk *clk)
 {
@@ -121,6 +129,11 @@ static int _omap2_clk_enable(struct clk * clk)
 	if (clk->flags & ALWAYS_ENABLED)
 		return 0;
 
+	if (unlikely(clk == &osc_ck)) {
+		omap2_set_osc_ck(1);
+		return 0;
+	}
+
 	if (unlikely(clk->enable_reg == 0)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
 		       clk->name);
@@ -157,6 +170,11 @@ static void omap2_clk_fixed_disable(struct clk *clk)
 static void _omap2_clk_disable(struct clk *clk)
 {
 	u32 regval32;
+
+	if (unlikely(clk == &osc_ck)) {
+		omap2_set_osc_ck(0);
+		return;
+	}
 
 	if (clk->enable_reg == 0)
 		return;
