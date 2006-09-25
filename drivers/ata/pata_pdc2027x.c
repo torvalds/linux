@@ -242,7 +242,7 @@ MODULE_DEVICE_TABLE(pci, pdc2027x_pci_tbl);
  *	@ap: Port
  *	@offset: offset from mmio base
  */
-static inline void* port_mmio(struct ata_port *ap, unsigned int offset)
+static inline void __iomem *port_mmio(struct ata_port *ap, unsigned int offset)
 {
 	return ap->host->mmio_base + ap->port_no * 0x100 + offset;
 }
@@ -253,7 +253,7 @@ static inline void* port_mmio(struct ata_port *ap, unsigned int offset)
  *	@adev: device
  *	@offset: offset from mmio base
  */
-static inline void* dev_mmio(struct ata_port *ap, struct ata_device *adev, unsigned int offset)
+static inline void __iomem *dev_mmio(struct ata_port *ap, struct ata_device *adev, unsigned int offset)
 {
 	u8 adj = (adev->devno) ? 0x08 : 0x00;
 	return port_mmio(ap, offset) + adj;
@@ -758,7 +758,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
