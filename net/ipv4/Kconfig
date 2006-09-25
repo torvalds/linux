@@ -455,7 +455,7 @@ menuconfig TCP_CONG_ADVANCED
 	  modules.
 
 	  Nearly all users can safely say no here, and a safe default
-	  selection will be made (BIC-TCP with new Reno as a fallback).
+	  selection will be made (CUBIC with new Reno as a fallback).
 
 	  If unsure, say N.
 
@@ -463,7 +463,7 @@ if TCP_CONG_ADVANCED
 
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
-	default y
+	default m
 	---help---
 	BIC-TCP is a sender-side only change that ensures a linear RTT
 	fairness under large windows while offering both scalability and
@@ -477,7 +477,7 @@ config TCP_CONG_BIC
 
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
-	default m
+	default y
 	---help---
 	This is version 2.0 of BIC-TCP which uses a cubic growth function
 	among other techniques.
@@ -574,7 +574,7 @@ config TCP_CONG_VENO
 
 choice
 	prompt "Default TCP congestion control"
-	default DEFAULT_BIC
+	default DEFAULT_CUBIC
 	help
 	  Select the TCP congestion control that will be used by default
 	  for all connections.
@@ -601,7 +601,7 @@ endchoice
 
 endif
 
-config TCP_CONG_BIC
+config TCP_CONG_CUBIC
 	tristate
 	depends on !TCP_CONG_ADVANCED
 	default y
@@ -614,7 +614,7 @@ config DEFAULT_TCP_CONG
 	default "vegas" if DEFAULT_VEGAS
 	default "westwood" if DEFAULT_WESTWOOD
 	default "reno" if DEFAULT_RENO
-	default "bic"
+	default "cubic"
 
 source "net/ipv4/ipvs/Kconfig"
 
