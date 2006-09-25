@@ -1422,11 +1422,13 @@ EXPORT_SYMBOL(omap_request_dma);
 EXPORT_SYMBOL(omap_free_dma);
 EXPORT_SYMBOL(omap_start_dma);
 EXPORT_SYMBOL(omap_stop_dma);
+EXPORT_SYMBOL(omap_set_dma_callback);
 EXPORT_SYMBOL(omap_enable_dma_irq);
 EXPORT_SYMBOL(omap_disable_dma_irq);
 
 EXPORT_SYMBOL(omap_set_dma_transfer_params);
 EXPORT_SYMBOL(omap_set_dma_color_mode);
+EXPORT_SYMBOL(omap_set_dma_write_mode);
 
 EXPORT_SYMBOL(omap_set_dma_src_params);
 EXPORT_SYMBOL(omap_set_dma_src_index);

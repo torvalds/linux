@@ -338,13 +338,13 @@ struct omap_dma_channel_params {
 
 	int src_port;		/* Only on OMAP1 REVISIT: Is this needed? */
 	int src_amode;		/* constant , post increment, indexed , double indexed */
-	int src_start;		/* source address : physical */
+	unsigned long src_start;	/* source address : physical */
 	int src_ei;		/* source element index */
 	int src_fi;		/* source frame index */
 
 	int dst_port;		/* Only on OMAP1 REVISIT: Is this needed? */
 	int dst_amode;		/* constant , post increment, indexed , double indexed */
-	int dst_start;		/* source address : physical */
+	unsigned long dst_start;	/* source address : physical */
 	int dst_ei;		/* source element index */
 	int dst_fi;		/* source frame index */
 
