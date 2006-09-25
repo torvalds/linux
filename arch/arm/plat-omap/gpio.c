@@ -680,9 +680,7 @@ static int gpio_wake_enable(unsigned int irq, unsigned int enable)
 	if (check_gpio(gpio) < 0)
 		return -ENODEV;
 	bank = get_gpio_bank(gpio);
-	spin_lock(&bank->lock);
 	retval = _set_gpio_wakeup(bank, get_gpio_index(gpio), enable);
-	spin_unlock(&bank->lock);
 
 	return retval;
 }
