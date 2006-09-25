@@ -94,6 +94,8 @@
 #define OMAP24XX_GPIO_SYSCONFIG		0x0010
 #define OMAP24XX_GPIO_SYSSTATUS		0x0014
 #define OMAP24XX_GPIO_IRQSTATUS1	0x0018
+#define OMAP24XX_GPIO_IRQSTATUS2	0x0028
+#define OMAP24XX_GPIO_IRQENABLE2	0x002c
 #define OMAP24XX_GPIO_IRQENABLE1	0x001c
 #define OMAP24XX_GPIO_CTRL		0x0030
 #define OMAP24XX_GPIO_OE		0x0034
@@ -529,6 +531,10 @@ static void _clear_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
 		return;
 	}
 	__raw_writel(gpio_mask, reg);
+
+	/* Workaround for clearing DSP GPIO interrupts to allow retention */
+	if (cpu_is_omap2420())
+		__raw_writel(gpio_mask, bank->base + OMAP24XX_GPIO_IRQSTATUS2);
 }
 
 static inline void _clear_gpio_irqstatus(struct gpio_bank *bank, int gpio)
