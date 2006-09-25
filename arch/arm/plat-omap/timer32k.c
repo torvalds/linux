@@ -105,6 +105,8 @@ static inline unsigned long omap_32k_timer_read(int reg)
 
 static inline void omap_32k_timer_start(unsigned long load_val)
 {
+	if (!load_val)
+		load_val = 1;
 	omap_32k_timer_write(load_val, OMAP1_32K_TIMER_TVR);
 	omap_32k_timer_write(0x0f, OMAP1_32K_TIMER_CR);
 }
@@ -230,7 +232,15 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
  */
 void omap_32k_timer_reprogram(unsigned long next_tick)
 {
-	omap_32k_timer_start(JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1);
+	unsigned long ticks = JIFFIES_TO_HW_TICKS(next_tick, 32768) + 1;
+	unsigned long now = omap_32k_sync_timer_read();
+	unsigned long idled = now - omap_32k_last_tick;
+
+	if (idled + 1 < ticks)
+		ticks -= idled;
+	else
+		ticks = 1;
+	omap_32k_timer_start(ticks);
 }
 
 static struct irqaction omap_32k_timer_irq;
