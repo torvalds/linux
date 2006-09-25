@@ -1117,6 +1117,12 @@ int __init omap2_clk_init(void)
 	 */
 	clk_enable(&sync_32k_ick);
 	clk_enable(&omapctrl_ick);
+
+	/* Force the APLLs active during bootup to avoid disabling and
+	 * enabling them unnecessarily. */
+	clk_enable(&apll96_ck);
+	clk_enable(&apll54_ck);
+
 	if (cpu_is_omap2430())
 		clk_enable(&sdrc_ick);
 
@@ -1126,3 +1132,12 @@ int __init omap2_clk_init(void)
 
 	return 0;
 }
+
+static int __init omap2_disable_aplls(void)
+{
+	clk_disable(&apll96_ck);
+	clk_disable(&apll54_ck);
+
+	return 0;
+}
+late_initcall(omap2_disable_aplls);
