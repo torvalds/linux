@@ -394,14 +394,14 @@ static int ipw_write(struct usb_serial_port *port, const unsigned char *buf, int
 		return 0;
 	}
 
-	spin_lock(&port->lock);
+	spin_lock_bh(&port->lock);
 	if (port->write_urb_busy) {
-		spin_unlock(&port->lock);
+		spin_unlock_bh(&port->lock);
 		dbg("%s - already writing", __FUNCTION__);
 		return 0;
 	}
 	port->write_urb_busy = 1;
-	spin_unlock(&port->lock);
+	spin_unlock_bh(&port->lock);
 
 	count = min(count, port->bulk_out_size);
 	memcpy(port->bulk_out_buffer, buf, count);
