@@ -197,10 +197,11 @@ int locomo_driver_register(struct locomo_driver *);
 void locomo_driver_unregister(struct locomo_driver *);
 
 /* GPIO control functions */
-void locomo_gpio_set_dir(struct locomo_dev *ldev, unsigned int bits, unsigned int dir);
-unsigned int locomo_gpio_read_level(struct locomo_dev *ldev, unsigned int bits);
-unsigned int locomo_gpio_read_output(struct locomo_dev *ldev, unsigned int bits);
-void locomo_gpio_write(struct locomo_dev *ldev, unsigned int bits, unsigned int set);
+void locomo_gpio_set_dir(struct device *dev, unsigned int bits, unsigned int dir);
+int locomo_gpio_read_level(struct device *dev, unsigned int bits);
+int locomo_gpio_read_output(struct device *dev, unsigned int bits);
+void locomo_gpio_write(struct device *dev, unsigned int bits, unsigned int set);
+
 
 /* M62332 control function */
 void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int channel);
