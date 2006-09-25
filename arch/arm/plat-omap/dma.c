@@ -1339,6 +1339,14 @@ static int __init omap_init_dma(void)
 			dma_chan_count = 16;
 		} else
 			dma_chan_count = 9;
+		if (cpu_is_omap16xx()) {
+			u16 w;
+
+			/* this would prevent OMAP sleep */
+			w = omap_readw(OMAP1610_DMA_LCD_CTRL);
+			w &= ~(1 << 8);
+			omap_writew(w, OMAP1610_DMA_LCD_CTRL);
+		}
 	} else if (cpu_is_omap24xx()) {
 		u8 revision = omap_readb(OMAP_DMA4_REVISION);
 		printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
