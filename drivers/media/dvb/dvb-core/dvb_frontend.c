@@ -1014,6 +1014,13 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	if ((ret = dvb_generic_open (inode, file)) < 0)
 		return ret;
 
+	if (fe->ops.ts_bus_ctrl) {
+		if ((ret = fe->ops.ts_bus_ctrl (fe, 1)) < 0) {
+			dvb_generic_release (inode, file);
+			return ret;
+		}
+	}
+
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 
 		/* normal tune mode when opened R/W */
@@ -1042,6 +1049,9 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		fepriv->release_jiffies = jiffies;
+
+	if (fe->ops.ts_bus_ctrl)
+		fe->ops.ts_bus_ctrl (fe, 0);
 
 	return dvb_generic_release (inode, file);
 }
