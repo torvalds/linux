@@ -41,7 +41,7 @@
  40 -> Hauppauge WinTV-HVR1100 DVB-T/Hybrid                [0070:9400,0070:9402]
  41 -> Hauppauge WinTV-HVR1100 DVB-T/Hybrid (Low Profile)  [0070:9800,0070:9802]
  42 -> digitalnow DNTV Live! DVB-T Pro                     [1822:0025,1822:0019]
- 43 -> KWorld/VStream XPert DVB-T with cx22702             [17de:08a1]
+ 43 -> KWorld/VStream XPert DVB-T with cx22702             [17de:08a1,12ab:2300]
  44 -> DViCO FusionHDTV DVB-T Dual Digital                 [18ac:db50,18ac:db54]
  45 -> KWorld HardwareMpegTV XPert                         [17de:0840]
  46 -> DViCO FusionHDTV DVB-T Hybrid                       [18ac:db40,18ac:db44]
