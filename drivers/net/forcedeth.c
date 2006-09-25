@@ -3789,6 +3789,12 @@ static int nv_loopback_test(struct net_device *dev)
 	/* setup packet for tx */
 	pkt_len = ETH_DATA_LEN;
 	tx_skb = dev_alloc_skb(pkt_len);
+	if (!tx_skb) {
+		printk(KERN_ERR "dev_alloc_skb() failed during loopback test"
+			 " of %s\n", dev->name);
+		ret = 0;
+		goto out;
+	}
 	pkt_data = skb_put(tx_skb, pkt_len);
 	for (i = 0; i < pkt_len; i++)
 		pkt_data[i] = (u8)(i & 0xff);
@@ -3853,7 +3859,7 @@ static int nv_loopback_test(struct net_device *dev)
 		       tx_skb->end-tx_skb->data,
 		       PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(tx_skb);
-
+ out:
 	/* stop engines */
 	nv_stop_rx(dev);
 	nv_stop_tx(dev);
