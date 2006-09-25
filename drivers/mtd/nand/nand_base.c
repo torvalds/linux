@@ -415,7 +415,7 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
  * Wait for the ready pin, after a command
  * The timeout is catched later.
  */
-static void nand_wait_ready(struct mtd_info *mtd)
+void nand_wait_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 	unsigned long timeo = jiffies + 2;
@@ -429,6 +429,7 @@ static void nand_wait_ready(struct mtd_info *mtd)
 	} while (time_before(jiffies, timeo));
 	led_trigger_event(nand_led_trigger, LED_OFF);
 }
+EXPORT_SYMBOL_GPL(nand_wait_ready);
 
 /**
  * nand_command - [DEFAULT] Send command to NAND device
