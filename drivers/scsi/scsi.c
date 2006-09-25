@@ -96,22 +96,26 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
+/* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
+ * You may not alter any existing entry (although adding new ones is
+ * encouraged once assigned by ANSI/INCITS T10
+ */
 static const char *const scsi_device_types[] = {
-	"Direct access    ",
-	"Sequential access",
+	"Direct-Access    ",
+	"Sequential-Access",
 	"Printer          ",
 	"Processor        ",
 	"WORM             ",
-	"CD/DVD           ",
+	"CD-ROM           ",
 	"Scanner          ",
-	"Optical memory   ",
-	"Media changer    ",
+	"Optical Device   ",
+	"Medium Changer   ",
 	"Communications   ",
 	"ASC IT8          ",
 	"ASC IT8          ",
 	"RAID             ",
 	"Enclosure        ",
-	"Direct access RBC",
+	"Direct-Access-RBC",
 	"Optical card     ",
 	"Bridge controller",
 	"Object storage   ",
