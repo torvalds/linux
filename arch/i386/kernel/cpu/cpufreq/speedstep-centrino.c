@@ -386,7 +386,7 @@ static int centrino_cpu_early_init_acpi(void)
  * than OS intended it to run at. Detect it and handle it cleanly.
  */
 static int bios_with_sw_any_bug;
-static int __init sw_any_bug_found(struct dmi_system_id *d)
+static int sw_any_bug_found(struct dmi_system_id *d)
 {
 	bios_with_sw_any_bug = 1;
 	return 0;

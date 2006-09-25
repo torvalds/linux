@@ -396,13 +396,13 @@ static int acpi_cpufreq_early_init_acpi(void)
  */
 static int bios_with_sw_any_bug;
 
-static int __init sw_any_bug_found(struct dmi_system_id *d)
+static int sw_any_bug_found(struct dmi_system_id *d)
 {
 	bios_with_sw_any_bug = 1;
 	return 0;
 }
 
-static struct dmi_system_id __initdata sw_any_bug_dmi_table[] = {
+static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	{
 		.callback = sw_any_bug_found,
 		.ident = "Supermicro Server X6DLP",
