@@ -1757,7 +1757,7 @@ static int do_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
    skip the queue_cast(ECANCEL).  It indicates that the request/convert
    completed (and queued a normal ast) just before the cancel; we don't
    want to clobber the sb_result for the normal ast with ECANCEL. */
-   
+ 
 static int do_cancel(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	revert_lock(r, lkb);

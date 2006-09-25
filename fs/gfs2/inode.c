@@ -386,7 +386,6 @@ struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
 
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			   int is_root, struct nameidata *nd)
-		 
 {
 	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *dip = GFS2_I(dir);
@@ -491,7 +490,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, u64 *formal_ino)
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		goto out_end_trans;
-	
+
 	gfs2_inum_range_in(&ir, bh->b_data + sizeof(struct gfs2_dinode));
 
 	if (!ir.ir_length) {
@@ -769,7 +768,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 
 		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
-					 2 * RES_DINODE + 
+					 2 * RES_DINODE +
 					 RES_STATFS + RES_QUOTA, 0);
 		if (error)
 			goto fail_ipreserv;

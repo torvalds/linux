@@ -106,7 +106,7 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 
 	fs_err(sdp, "about to withdraw from the cluster\n");
 	BUG_ON(sdp->sd_args.ar_debug);
-	
+
 
 	fs_err(sdp, "waiting for outstanding I/O\n");
 

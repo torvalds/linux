@@ -522,7 +522,7 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	case S_IFSOCK:
 		break;
 	default:
-		return -EOPNOTSUPP;		
+		return -EOPNOTSUPP;
 	};
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);

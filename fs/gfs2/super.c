@@ -650,8 +650,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	l_sc->sc_total += total;
 	l_sc->sc_free += free;
 	l_sc->sc_dinodes += dinodes;
-	gfs2_statfs_change_out(l_sc, l_bh->b_data +
-			       sizeof(struct gfs2_dinode));	
+	gfs2_statfs_change_out(l_sc, l_bh->b_data + sizeof(struct gfs2_dinode));
 	spin_unlock(&sdp->sd_statfs_spin);
 
 	brelse(l_bh);
@@ -678,7 +677,7 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 
 	spin_lock(&sdp->sd_statfs_spin);
 	gfs2_statfs_change_in(m_sc, m_bh->b_data +
-			      sizeof(struct gfs2_dinode));	
+			      sizeof(struct gfs2_dinode));
 	if (!l_sc->sc_total && !l_sc->sc_free && !l_sc->sc_dinodes) {
 		spin_unlock(&sdp->sd_statfs_spin);
 		goto out_bh;

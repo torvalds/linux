@@ -236,7 +236,7 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	error = gfs2_glock_nq_m_atime(1, &gh);
 	if (error)
 		return error;
-	
+
 	iflags = iflags_cvt(gfs2_to_iflags, ip->i_di.di_flags);
 	if (put_user(iflags, ptr))
 		error = -EFAULT;
@@ -299,7 +299,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		goto out;
 	if (IS_APPEND(inode) && (new_flags & GFS2_DIF_APPENDONLY))
 		goto out;
-	if (((new_flags ^ flags) & GFS2_DIF_IMMUTABLE) && 
+	if (((new_flags ^ flags) & GFS2_DIF_IMMUTABLE) &&
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
 	if (!IS_IMMUTABLE(inode)) {
@@ -541,7 +541,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 			goto out;
 		gfs2_glock_hold(gl);
 		flock_lock_file_wait(file,
-				     &(struct file_lock){.fl_type = F_UNLCK});		
+				     &(struct file_lock){.fl_type = F_UNLCK});
 		gfs2_glock_dq_uninit(fl_gh);
 	} else {
 		error = gfs2_glock_get(GFS2_SB(&ip->i_inode),

@@ -181,7 +181,7 @@ int gfs2_check_acl(struct inode *inode, int mask)
 		error = gfs2_check_acl_locked(inode, mask);
 		gfs2_glock_dq_uninit(&i_gh);
 	}
-	
+
 	return error;
 }
 

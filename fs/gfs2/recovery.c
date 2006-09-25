@@ -444,11 +444,11 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 		switch (error) {
 		case 0:
 			break;
-	
+
 		case GLR_TRYFAILED:
 			fs_info(sdp, "jid=%u: Busy\n", jd->jd_jid);
 			error = 0;
-	
+
 		default:
 			goto fail;
 		};

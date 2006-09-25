@@ -130,7 +130,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto out;
-		
+
 	if (ip->i_di.di_size) {
 		/* Get a free block, fill it with the stuffed data,
 		   and write it out to disk */
@@ -246,7 +246,7 @@ static int build_height(struct inode *inode, unsigned height)
 		blocks[n] = gfs2_meta_new(ip->i_gl, bn);
 		gfs2_trans_add_bh(ip->i_gl, blocks[n], 1);
 	}
-	
+
 	n = 0;
 	bn = blocks[0]->b_blocknr;
 	if (new_height > 1) {

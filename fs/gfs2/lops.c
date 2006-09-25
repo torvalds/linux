@@ -420,7 +420,7 @@ static void rg_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	gfs2_log_lock(sdp);
 	sdp->sd_log_num_rg++;
 	list_add(&le->le_list, &sdp->sd_log_le_rg);
-	gfs2_log_unlock(sdp);	
+	gfs2_log_unlock(sdp);
 }
 
 static void rg_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)

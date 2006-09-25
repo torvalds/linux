@@ -54,7 +54,7 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (lp->lksb.sb_status == -DLM_ECANCEL) {
 		log_info("complete dlm cancel %x,%llx flags %lx",
-		 	 lp->lockname.ln_type, 
+		 	 lp->lockname.ln_type,
 			 (unsigned long long)lp->lockname.ln_number,
 			 lp->flags);
 
@@ -102,7 +102,7 @@ static void process_complete(struct gdlm_lock *lp)
 
 	if (test_and_clear_bit(LFL_CANCEL, &lp->flags)) {
 		log_info("complete internal cancel %x,%llx",
-		 	 lp->lockname.ln_type, 
+		 	 lp->lockname.ln_type,
 			 (unsigned long long)lp->lockname.ln_number);
 		lp->req = lp->cur;
 		acb.lc_ret |= LM_OUT_CANCELED;

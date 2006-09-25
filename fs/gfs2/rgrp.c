@@ -896,7 +896,7 @@ static int get_local_rgrp(struct gfs2_inode *ip)
 	rgd = recent_rgrp_first(sdp, ip->i_last_rg_alloc);
 
 	while (rgd) {
-		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 
+		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
 					   LM_FLAG_TRY, &al->al_rgd_gh);
 		switch (error) {
 		case 0:

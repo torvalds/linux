@@ -77,7 +77,7 @@ static int __init init_gfs2_fs(void)
 	error = -ENOMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
 					      sizeof(struct gfs2_glock),
-					      0, 0, 
+					      0, 0,
 					      gfs2_init_glock_once, NULL);
 	if (!gfs2_glock_cachep)
 		goto fail;

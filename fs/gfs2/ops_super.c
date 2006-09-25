@@ -367,7 +367,7 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	return 0;
 }
 
-/* 
+/*
  * We have to (at the moment) hold the inodes main lock to cover
  * the gap between unlocking the shared lock on the iopen lock and
  * taking the exclusive lock. I'd rather do a shared -> exclusive

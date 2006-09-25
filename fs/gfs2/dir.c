@@ -81,7 +81,7 @@
 #define gfs2_disk_hash2offset(h) (((u64)(h)) >> 1)
 #define gfs2_dir_offset2hash(p) ((u32)(((u64)(p)) << 1))
 
-typedef int (*leaf_call_t) (struct gfs2_inode *dip, u32 index, u32 len, 
+typedef int (*leaf_call_t) (struct gfs2_inode *dip, u32 index, u32 len,
 			    u64 leaf_no, void *data);
 typedef int (*gfs2_dscan_t)(const struct gfs2_dirent *dent,
 			    const struct qstr *name, void *opaque);
@@ -119,7 +119,6 @@ static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, u64 block,
 
 static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 				  unsigned int offset, unsigned int size)
-                               
 {
 	struct buffer_head *dibh;
 	int error;
@@ -685,7 +684,7 @@ static struct gfs2_dirent *gfs2_dirent_alloc(struct inode *inode,
 					     const struct qstr *name)
 {
 	struct gfs2_dirent *dent;
-	dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size, 
+	dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size,
 				gfs2_dirent_find_space, name, NULL);
 	if (!dent || IS_ERR(dent))
 		return dent;
@@ -764,7 +763,7 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 			gfs2_consist_inode(ip);
 			return ERR_PTR(-EIO);
 		}
-		
+
 		index = name->hash >> (32 - ip->i_di.di_depth);
 		error = get_first_leaf(ip, index, &bh);
 		if (error)
@@ -779,14 +778,14 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 			brelse(bh);
 			if (!ln)
 				break;
-			
+
 			error = get_leaf(ip, ln, &bh);
 		} while(!error);
 
 		return error ? ERR_PTR(error) : NULL;
 	}
 
-	
+
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		return ERR_PTR(error);
@@ -810,7 +809,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	struct qstr name = { .name = "", .len = 0, .hash = 0 };
 	if (!bh)
 		return NULL;
-	
+
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	gfs2_metatype_set(bh, GFS2_METATYPE_LF, GFS2_FORMAT_LF);
 	leaf = (struct gfs2_leaf *)bh->b_data;

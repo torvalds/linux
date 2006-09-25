@@ -146,7 +146,7 @@ static int system_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 			if (error == -ENODATA)
 				error = 0;
 		}
-		return error;	
+		return error;
 	}
 
 	return -EPERM;

@@ -296,7 +296,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 				 LM_FLAG_TRY_1CB|GL_ATIME|GL_AOP, &gh);
 		do_unlock = 1;
 		ret = gfs2_glock_nq_m_atime(1, &gh);
-		if (ret == GLR_TRYFAILED) 
+		if (ret == GLR_TRYFAILED)
 			goto out_noerror;
 		if (unlikely(ret))
 			goto out_unlock;
@@ -681,7 +681,7 @@ static unsigned limit = 0;
 
 	gl = bd->bd_gl;
 
-	fs_warn(sdp, "gl = (%u, %llu)\n", 
+	fs_warn(sdp, "gl = (%u, %llu)\n",
 		gl->gl_name.ln_type, (unsigned long long)gl->gl_name.ln_number);
 
 	fs_warn(sdp, "bd_list_tr = %s, bd_le.le_list = %s\n",

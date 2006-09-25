@@ -1133,7 +1133,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(&ip->i_di, dibh->b_data);
 		brelse(dibh);
-	}	
+	}
 
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
 

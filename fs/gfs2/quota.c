@@ -556,7 +556,7 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 		qd_hold(qd);
 		slot_hold(qd);
 	}
-			
+
 	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
@@ -777,7 +777,7 @@ restart:
 
 		gfs2_glock_dq_uninit(&i_gh);
 
-		
+
 		gfs2_quota_in(&q, buf);
 		qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lvb;
 		qlvb->qb_magic = cpu_to_be32(GFS2_MAGIC);
@@ -1062,7 +1062,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	if (!ip->i_di.di_size || ip->i_di.di_size > (64 << 20) ||
 	    ip->i_di.di_size & (sdp->sd_sb.sb_bsize - 1)) {
 		gfs2_consist_inode(ip);
-		return -EIO;		
+		return -EIO;
 	}
 	sdp->sd_quota_slots = blocks * sdp->sd_qc_per_block;
 	sdp->sd_quota_chunks = DIV_ROUND_UP(sdp->sd_quota_slots, 8 * PAGE_SIZE);

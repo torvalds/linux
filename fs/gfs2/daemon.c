@@ -30,7 +30,7 @@
 /* This uses schedule_timeout() instead of msleep() because it's good for
    the daemons to wake up more often than the timeout when unmounting so
    the user's unmount doesn't sit there forever.
-   
+
    The kthread functions used to start these daemons block and flush signals. */
 
 /**

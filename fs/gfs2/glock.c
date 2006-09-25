@@ -371,7 +371,7 @@ fail_aspace:
 	if (gl->gl_aspace)
 		gfs2_aspace_put(gl->gl_aspace);
 fail:
-	kmem_cache_free(gfs2_glock_cachep, gl);	
+	kmem_cache_free(gfs2_glock_cachep, gl);
 	return error;
 }
 
@@ -614,7 +614,7 @@ static int rq_greedy(struct gfs2_holder *gh)
 	gfs2_holder_uninit(gh);
 	kfree(container_of(gh, struct greedy, gr_gh));
 
-	spin_lock(&gl->gl_spin);		
+	spin_lock(&gl->gl_spin);
 
 	return 0;
 }
@@ -1184,11 +1184,11 @@ static void add_to_queue(struct gfs2_holder *gh)
 	if (existing) {
 		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
 		printk(KERN_INFO "pid : %d\n", existing->gh_owner->pid);
-		printk(KERN_INFO "lock type : %d lock state : %d\n", 
+		printk(KERN_INFO "lock type : %d lock state : %d\n",
 				existing->gh_gl->gl_name.ln_type, existing->gh_gl->gl_state);
 		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
 		printk(KERN_INFO "pid : %d\n", gh->gh_owner->pid);
-		printk(KERN_INFO "lock type : %d lock state : %d\n", 
+		printk(KERN_INFO "lock type : %d lock state : %d\n",
 				gl->gl_name.ln_type, gl->gl_state);
 		BUG();
 	}
@@ -1203,7 +1203,7 @@ static void add_to_queue(struct gfs2_holder *gh)
 	if (gh->gh_flags & LM_FLAG_PRIORITY)
 		list_add(&gh->gh_list, &gl->gl_waiters3);
 	else
-		list_add_tail(&gh->gh_list, &gl->gl_waiters3);	
+		list_add_tail(&gh->gh_list, &gl->gl_waiters3);
 }
 
 /**
@@ -2003,7 +2003,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 	for (;;) {
 		cont = 0;
 		for (x = 0; x < GFS2_GL_HASH_SIZE; x++) {
-			if (examine_bucket(clear_glock, sdp, x)) 
+			if (examine_bucket(clear_glock, sdp, x))
 				cont = 1;
 		}
 

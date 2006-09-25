@@ -146,7 +146,7 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 			brelse(bh);
 			return -ENOMEM;
 		}
-		gfs2_sb_in(sb, bh->b_data); 
+		gfs2_sb_in(sb, bh->b_data);
 		brelse(bh);
 
 		error = gfs2_check_sb(sdp, sb, silent);
@@ -272,7 +272,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		}
 		return 0;
 	}
-	
+
 	error = gfs2_glock_nq_num(sdp, GFS2_SB_LOCK, &gfs2_meta_glops,
 				 LM_ST_SHARED, 0, &sb_gh);
 	if (error) {
@@ -358,7 +358,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	error = -EINVAL;
 	if (!gfs2_jindex_size(sdp)) {
 		fs_err(sdp, "no journals!\n");
-		goto fail_jindex;		
+		goto fail_jindex;
 	}
 
 	if (sdp->sd_args.ar_spectator) {
@@ -789,7 +789,7 @@ out:
 	return error;
 }
 
-static int fill_super_meta(struct super_block *sb, struct super_block *new, 
+static int fill_super_meta(struct super_block *sb, struct super_block *new,
 			   void *data, int silent)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
@@ -821,7 +821,7 @@ static int set_bdev_super(struct super_block *s, void *data)
 	s->s_dev = s->s_bdev->bd_dev;
 	return 0;
 }
- 
+
 static int test_bdev_super(struct super_block *s, void *data)
 {
 	return s->s_bdev == data;
@@ -835,10 +835,10 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	struct super_block *sb = NULL, *s;
 	struct list_head *l;
 	int error;
-	
+
 	error = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
 	if (error) {
-		printk(KERN_WARNING "GFS2: path_lookup on %s returned error\n", 
+		printk(KERN_WARNING "GFS2: path_lookup on %s returned error\n",
 		       dev_name);
 		goto out;
 	}
@@ -900,9 +900,9 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		deactivate_super(new);
 		goto error;
 	}
-	
+
 	new->s_flags |= MS_ACTIVE;
-	
+
 	/* Grab a reference to the gfs2 mount point */
 	atomic_inc(&sdp->sd_gfs2mnt->mnt_count);
 	return simple_set_mnt(mnt, new);
