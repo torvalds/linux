@@ -121,6 +121,13 @@ static struct locomo_dev_info locomo_devices[] = {
 		.offset		= 0,
 		.length		= 0,
 	},
+	{
+		.devid		= LOCOMO_DEVID_SPI,
+		.irq		= {},
+		.name		= "locomo-spi",
+		.offset		= LOCOMO_SPI,
+		.length		= 0x30,
+	},
 };
 
 
@@ -374,7 +381,7 @@ static void locomo_spi_handler(unsigned int irq, struct irqdesc *desc,
 	struct irqdesc *d;
 	void __iomem *mapbase = get_irq_chipdata(irq);
 
-	req = locomo_readl(mapbase + LOCOMO_SPIIR) & 0x000F;
+	req = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIIR) & 0x000F;
 	if (req) {
 		irq = LOCOMO_IRQ_SPI_START;
 		d = irq_desc + irq;
@@ -391,35 +398,35 @@ static void locomo_spi_ack_irq(unsigned int irq)
 {
 	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_SPIWE);
+	r = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIWE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_SPI_START));
-	locomo_writel(r, mapbase + LOCOMO_SPIWE);
+	locomo_writel(r, mapbase + LOCOMO_SPI + LOCOMO_SPIWE);
 
-	r = locomo_readl(mapbase + LOCOMO_SPIIS);
+	r = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIIS);
 	r &= ~(0x0001 << (irq - LOCOMO_IRQ_SPI_START));
-	locomo_writel(r, mapbase + LOCOMO_SPIIS);
+	locomo_writel(r, mapbase + LOCOMO_SPI + LOCOMO_SPIIS);
 
-	r = locomo_readl(mapbase + LOCOMO_SPIWE);
+	r = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIWE);
 	r &= ~(0x0001 << (irq - LOCOMO_IRQ_SPI_START));
-	locomo_writel(r, mapbase + LOCOMO_SPIWE);
+	locomo_writel(r, mapbase + LOCOMO_SPI + LOCOMO_SPIWE);
 }
 
 static void locomo_spi_mask_irq(unsigned int irq)
 {
 	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_SPIIE);
+	r = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIIE);
 	r &= ~(0x0001 << (irq - LOCOMO_IRQ_SPI_START));
-	locomo_writel(r, mapbase + LOCOMO_SPIIE);
+	locomo_writel(r, mapbase + LOCOMO_SPI + LOCOMO_SPIIE);
 }
 
 static void locomo_spi_unmask_irq(unsigned int irq)
 {
 	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_SPIIE);
+	r = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIIE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_SPI_START));
-	locomo_writel(r, mapbase + LOCOMO_SPIIE);
+	locomo_writel(r, mapbase + LOCOMO_SPI + LOCOMO_SPIIE);
 }
 
 static struct irq_chip locomo_spi_chip = {
