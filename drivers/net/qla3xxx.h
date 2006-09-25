@@ -1093,7 +1093,7 @@ struct ql3_adapter {
 	spinlock_t hw_lock;
 
 	/* PCI Bus Relative Register Addresses */
-	u8 *mmap_virt_base;	/* stores return value from ioremap() */
+	u8 __iomem *mmap_virt_base;	/* stores return value from ioremap() */
 	struct ql3xxx_port_registers __iomem *mem_map_registers;
 	u32 current_page;	/* tracks current register page */
 
