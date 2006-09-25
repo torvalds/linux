@@ -57,9 +57,8 @@
  * The payload is dependent on the subsystem specified in the
  * 'nlmsghdr->nlmsg_type' and should be defined below, supporting functions
  * should be defined in the corresponding net/netlabel/netlabel_<subsys>.h|c
- * file.  All of the fields in the NetLabel payload are NETLINK attributes, the
- * length of each field is the length of the NETLINK attribute payload, see
- * include/net/netlink.h for more information on NETLINK attributes.
+ * file.  All of the fields in the NetLabel payload are NETLINK attributes, see
+ * the include/net/netlink.h file for more information on NETLINK attributes.
  *
  */
 
@@ -81,50 +80,6 @@
 #define NETLBL_NLTYPE_CIPSOV6_NAME      "NLBL_CIPSOv6"
 #define NETLBL_NLTYPE_UNLABELED         5
 #define NETLBL_NLTYPE_UNLABELED_NAME    "NLBL_UNLBL"
-
-/* NetLabel return codes */
-#define NETLBL_E_OK                     0
-
-/*
- * Helper functions
- */
-
-#define NETLBL_LEN_U8                   nla_total_size(sizeof(u8))
-#define NETLBL_LEN_U16                  nla_total_size(sizeof(u16))
-#define NETLBL_LEN_U32                  nla_total_size(sizeof(u32))
-
-/**
- * netlbl_netlink_alloc_skb - Allocate a NETLINK message buffer
- * @head: the amount of headroom in bytes
- * @body: the desired size (minus headroom) in bytes
- * @gfp_flags: the alloc flags to pass to alloc_skb()
- *
- * Description:
- * Allocate a NETLINK message buffer based on the sizes given in @head and
- * @body.  If @head is greater than zero skb_reserve() is called to reserve
- * @head bytes at the start of the buffer.  Returns a valid sk_buff pointer on
- * success, NULL on failure.
- *
- */
-static inline struct sk_buff *netlbl_netlink_alloc_skb(size_t head,
-						       size_t body,
-						       gfp_t gfp_flags)
-{
-	struct sk_buff *skb;
-
-	skb = alloc_skb(NLMSG_ALIGN(head + body), gfp_flags);
-	if (skb == NULL)
-		return NULL;
-	if (head > 0) {
-		skb_reserve(skb, head);
-		if (skb_tailroom(skb) < body) {
-			kfree_skb(skb);
-			return NULL;
-		}
-	}
-
-	return skb;
-}
 
 /*
  * NetLabel - Kernel API for accessing the network packet label mappings.

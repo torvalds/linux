@@ -61,7 +61,9 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry);
 int netlbl_domhsh_add_default(struct netlbl_dom_map *entry);
 int netlbl_domhsh_remove_default(void);
 struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain);
-struct sk_buff *netlbl_domhsh_dump(size_t headroom);
-struct sk_buff *netlbl_domhsh_dump_default(size_t headroom);
+int netlbl_domhsh_walk(u32 *skip_bkt,
+		     u32 *skip_chain,
+		     int (*callback) (struct netlbl_dom_map *entry, void *arg),
+		     void *cb_arg);
 
 #endif

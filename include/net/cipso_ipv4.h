@@ -130,8 +130,9 @@ extern int cipso_v4_rbm_strictvalid;
 int cipso_v4_doi_add(struct cipso_v4_doi *doi_def);
 int cipso_v4_doi_remove(u32 doi, void (*callback) (struct rcu_head * head));
 struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi);
-struct sk_buff *cipso_v4_doi_dump_all(size_t headroom);
-struct sk_buff *cipso_v4_doi_dump(u32 doi, size_t headroom);
+int cipso_v4_doi_walk(u32 *skip_cnt,
+		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
+	             void *cb_arg);
 int cipso_v4_doi_domhsh_add(struct cipso_v4_doi *doi_def, const char *domain);
 int cipso_v4_doi_domhsh_remove(struct cipso_v4_doi *doi_def,
 			       const char *domain);
@@ -152,14 +153,11 @@ static inline struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi)
 	return NULL;
 }
 
-static inline struct sk_buff *cipso_v4_doi_dump_all(size_t headroom)
+static inline int cipso_v4_doi_walk(u32 *skip_cnt,
+		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
+		     void *cb_arg)
 {
-	return NULL;
-}
-
-static inline struct sk_buff *cipso_v4_doi_dump(u32 doi, size_t headroom)
-{
-	return NULL;
+	return 0;
 }
 
 static inline int cipso_v4_doi_domhsh_add(struct cipso_v4_doi *doi_def,
