@@ -1006,7 +1006,7 @@ static int __init _omap_gpio_init(void)
 		else
 			clk_enable(gpio_ick);
 		gpio_fck = clk_get(NULL, "gpios_fck");
-		if (IS_ERR(gpio_ick))
+		if (IS_ERR(gpio_fck))
 			printk("Could not get gpios_fck\n");
 		else
 			clk_enable(gpio_fck);
