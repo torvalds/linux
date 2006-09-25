@@ -33,6 +33,7 @@
 #include <asm/hvcall.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/thread_info.h>
+#include <asm/firmware.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
@@ -365,19 +366,28 @@ label##_iSeries:							\
 
 #ifdef DO_SOFT_DISABLE
 #define DISABLE_INTS				\
+BEGIN_FW_FTR_SECTION;				\
 	lbz	r10,PACAPROCENABLED(r13);	\
 	li	r11,0;				\
 	std	r10,SOFTE(r1);			\
 	mfmsr	r10;				\
 	stb	r11,PACAPROCENABLED(r13);	\
 	ori	r10,r10,MSR_EE;			\
-	mtmsrd	r10,1
+	mtmsrd	r10,1;				\
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 
 #define ENABLE_INTS				\
+BEGIN_FW_FTR_SECTION;				\
 	lbz	r10,PACAPROCENABLED(r13);	\
 	mfmsr	r11;				\
 	std	r10,SOFTE(r1);			\
 	ori	r11,r11,MSR_EE;			\
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES);	\
+BEGIN_FW_FTR_SECTION;				\
+	ld	r12,_MSR(r1);			\
+	mfmsr	r11;				\
+	rlwimi	r11,r12,0,MSR_EE;		\
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES);	\
 	mtmsrd	r11,1
 
 #else	/* hard enable/disable interrupts */
@@ -1071,8 +1081,10 @@ _GLOBAL(slb_miss_realmode)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 #ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	ld	r11,PACALPPACAPTR(r13)
 	ld	r11,LPPACASRR0(r11)		/* get SRR0 value */
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 
 	mtlr	r10
@@ -1087,8 +1099,10 @@ _GLOBAL(slb_miss_realmode)
 .machine	pop
 
 #ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
@@ -1301,6 +1315,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	cmpdi	r3,0			/* see if hash_page succeeded */
 
 #ifdef DO_SOFT_DISABLE
+BEGIN_FW_FTR_SECTION
 	/*
 	 * If we had interrupts soft-enabled at the point where the
 	 * DSI/ISI occurred, and an interrupt came in during hash_page,
@@ -1321,12 +1336,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	ld	r3,SOFTE(r1)
 	bl	.local_irq_restore
 	b	11f
-#else
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
+#endif
+BEGIN_FW_FTR_SECTION
 	beq	fast_exception_return   /* Return from exception on success */
 	ble-	12f			/* Failure return from hash_page */
 
 	/* fall through */
-#endif
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 /* Here we have a page fault that hash_page can't handle. */
 _GLOBAL(handle_page_fault)
@@ -1861,7 +1878,9 @@ _GLOBAL(__secondary_start)
 	LOAD_REG_ADDR(r3, .start_secondary_prolog)
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
 #ifdef DO_SOFT_DISABLE
+BEGIN_FW_FTR_SECTION
 	ori	r4,r4,MSR_EE
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -1986,6 +2005,7 @@ _STATIC(start_here_common)
 	 */
 	li	r3,0
 	bl	.do_cpu_ftr_fixups
+	bl	.do_fw_ftr_fixups
 
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)
@@ -2000,11 +2020,13 @@ _STATIC(start_here_common)
 	/* Load up the kernel context */
 5:
 #ifdef DO_SOFT_DISABLE
+BEGIN_FW_FTR_SECTION
 	li	r5,0
 	stb	r5,PACAPROCENABLED(r13)	/* Soft Disabled */
 	mfmsr	r5
 	ori	r5,r5,MSR_EE		/* Hard Enabled */
 	mtmsrd	r5
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 
 	bl .start_kernel

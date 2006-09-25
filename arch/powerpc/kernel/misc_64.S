@@ -325,6 +325,52 @@ _GLOBAL(do_cpu_ftr_fixups)
 	isync
 	b	1b
 
+/*
+ * do_fw_ftr_fixups - goes through the list of firmware feature fixups
+ * and writes nop's over sections of code that don't apply for this firmware.
+ * r3 = data offset (not changed)
+ */
+_GLOBAL(do_fw_ftr_fixups)
+	/* Get firmware features */
+	LOAD_REG_IMMEDIATE(r6,powerpc_firmware_features)
+	sub	r6,r6,r3
+	ld	r4,0(r6)
+	/* Get the fixup table */
+	LOAD_REG_IMMEDIATE(r6,__start___fw_ftr_fixup)
+	sub	r6,r6,r3
+	LOAD_REG_IMMEDIATE(r7,__stop___fw_ftr_fixup)
+	sub	r7,r7,r3
+	/* Do the fixup */
+1:	cmpld	r6,r7
+	bgelr
+	addi	r6,r6,32
+	ld	r8,-32(r6)	/* mask */
+	and	r8,r8,r4
+	ld	r9,-24(r6)	/* value */
+	cmpld	r8,r9
+	beq	1b
+	ld	r8,-16(r6)	/* section begin */
+	ld	r9,-8(r6)	/* section end */
+	subf.	r9,r8,r9
+	beq	1b
+	/* write nops over the section of code */
+	/* todo: if large section, add a branch at the start of it */
+	srwi	r9,r9,2
+	mtctr	r9
+	sub	r8,r8,r3
+	lis	r0,0x60000000@h	/* nop */
+3:	stw	r0,0(r8)
+BEGIN_FTR_SECTION
+	dcbst	0,r8		/* suboptimal, but simpler */
+	sync
+	icbi	0,r8
+END_FTR_SECTION_IFSET(CPU_FTR_SPLIT_ID_CACHE)
+	addi	r8,r8,4
+	bdnz	3b
+	sync			/* additional sync needed on g4 */
+	isync
+	b	1b
+
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 /*
  * Do an IO access in real mode
