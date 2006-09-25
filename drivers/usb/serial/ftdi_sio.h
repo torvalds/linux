@@ -472,6 +472,15 @@
  */
 #define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
 
+/*
+ * Tactrix OpenPort (ECU) devices.
+ * OpenPort 1.3M submitted by Donour Sizemore.
+ * OpenPort 1.3S and 1.3U submitted by Ian Abbott.
+ */
+#define FTDI_TACTRIX_OPENPORT_13M_PID	0xCC48	/* OpenPort 1.3 Mitsubishi */
+#define FTDI_TACTRIX_OPENPORT_13S_PID	0xCC49	/* OpenPort 1.3 Subaru */
+#define FTDI_TACTRIX_OPENPORT_13U_PID	0xCC4A	/* OpenPort 1.3 Universal */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
