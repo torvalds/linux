@@ -415,7 +415,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, regs, NULL);
+			handle_sysrq(ch, regs, port->info->tty);
 			port->sysrq = 0;
 			return 1;
 		}
