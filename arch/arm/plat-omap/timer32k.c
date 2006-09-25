@@ -194,13 +194,10 @@ unsigned long long sched_clock(void)
  * issues with dynamic tick. In the dynamic tick case, we need to lock
  * with irqsave.
  */
-static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
-					    struct pt_regs *regs)
+static inline irqreturn_t _omap_32k_timer_interrupt(int irq, void *dev_id,
+					struct pt_regs *regs)
 {
-	unsigned long flags;
 	unsigned long now;
-
-	write_seqlock_irqsave(&xtime_lock, flags);
 
 	omap_32k_timer_ack_irq();
 	now = omap_32k_sync_timer_read();
@@ -217,6 +214,23 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	 * continuous timer can be overridden from pm_idle to be longer.
 	 */
 	omap_32k_timer_start(omap_32k_last_tick + OMAP_32K_TICKS_PER_HZ - now);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t omap_32k_timer_handler(int irq, void *dev_id,
+					struct pt_regs *regs)
+{
+	return _omap_32k_timer_interrupt(irq, dev_id, regs);
+}
+
+static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
+					    struct pt_regs *regs)
+{
+	unsigned long flags;
+
+	write_seqlock_irqsave(&xtime_lock, flags);
+	_omap_32k_timer_interrupt(irq, dev_id, regs);
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	return IRQ_HANDLED;
@@ -262,7 +276,7 @@ static struct dyn_tick_timer omap_dyn_tick_timer = {
 	.enable		= omap_32k_timer_enable_dyn_tick,
 	.disable	= omap_32k_timer_disable_dyn_tick,
 	.reprogram	= omap_32k_timer_reprogram,
-	.handler	= omap_32k_timer_interrupt,
+	.handler	= omap_32k_timer_handler,
 };
 #endif	/* CONFIG_NO_IDLE_HZ */
 
