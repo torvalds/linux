@@ -4949,7 +4949,7 @@ static struct pci_driver dc395x_driver = {
  **/
 static int __init dc395x_module_init(void)
 {
-	return pci_module_init(&dc395x_driver);
+	return pci_register_driver(&dc395x_driver);
 }
 
 
