@@ -94,7 +94,6 @@
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/stat.h>
 #include <linux/delay.h>
@@ -103,11 +102,13 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-#include "scsi.h"
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi.h>
+
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_host.h>
 
-#include <scsi/scsi_ioctl.h>
 
 #ifdef DEBUG
 #define DPRINTK( when, msg... ) do { if ( (DEBUG & (when)) == (when) ) printk( msg ); } while (0)
