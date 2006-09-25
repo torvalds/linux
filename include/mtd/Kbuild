@@ -1,2 +1,1 @@
-unifdef-y := mtd-abi.h
-header-y := inftl-user.h jffs2-user.h mtd-user.h nftl-user.h
+header-y := inftl-user.h jffs2-user.h mtd-abi.h mtd-user.h nftl-user.h
