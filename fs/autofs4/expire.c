@@ -32,7 +32,7 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 
 	if (!do_now) {
 		/* Too young to die */
-		if (time_after(ino->last_used + timeout, now))
+		if (!timeout || time_after(ino->last_used + timeout, now))
 			return 0;
 
 		/* update last_used here :-
@@ -253,7 +253,7 @@ static struct dentry *autofs4_expire_direct(struct super_block *sb,
 	struct dentry *root = dget(sb->s_root);
 	int do_now = how & AUTOFS_EXP_IMMEDIATE;
 
-	if (!sbi->exp_timeout || !root)
+	if (!root)
 		return NULL;
 
 	now = jiffies;
@@ -293,7 +293,7 @@ static struct dentry *autofs4_expire_indirect(struct super_block *sb,
 	int do_now = how & AUTOFS_EXP_IMMEDIATE;
 	int exp_leaves = how & AUTOFS_EXP_LEAVES;
 
-	if ( !sbi->exp_timeout || !root )
+	if (!root)
 		return NULL;
 
 	now = jiffies;
