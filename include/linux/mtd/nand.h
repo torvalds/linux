@@ -183,7 +183,9 @@ typedef enum {
 #define NAND_USE_FLASH_BBT	0x00010000
 /* This option skips the bbt scan during initialization. */
 #define NAND_SKIP_BBTSCAN	0x00020000
-
+/* This option is defined if the board driver allocates its own buffers
+   (e.g. because it needs them DMA-coherent */
+#define NAND_OWN_BUFFERS	0x00040000
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */
 #define NAND_CONTROLLER_ALLOC	0x80000000
@@ -385,7 +387,7 @@ struct nand_chip {
 	struct nand_ecclayout	*ecclayout;
 
 	struct nand_ecc_ctrl ecc;
-	struct nand_buffers buffers;
+	struct nand_buffers *buffers;
 	struct nand_hw_control hwcontrol;
 
 	struct mtd_oob_ops ops;

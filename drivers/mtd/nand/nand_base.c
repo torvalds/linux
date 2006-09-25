@@ -767,8 +767,8 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
 	uint8_t *p = buf;
-	uint8_t *ecc_calc = chip->buffers.ecccalc;
-	uint8_t *ecc_code = chip->buffers.ecccode;
+	uint8_t *ecc_calc = chip->buffers->ecccalc;
+	uint8_t *ecc_code = chip->buffers->ecccode;
 	int *eccpos = chip->ecc.layout->eccpos;
 
 	nand_read_page_raw(mtd, chip, buf);
@@ -809,8 +809,8 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
 	uint8_t *p = buf;
-	uint8_t *ecc_calc = chip->buffers.ecccalc;
-	uint8_t *ecc_code = chip->buffers.ecccode;
+	uint8_t *ecc_calc = chip->buffers->ecccalc;
+	uint8_t *ecc_code = chip->buffers->ecccode;
 	int *eccpos = chip->ecc.layout->eccpos;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
@@ -971,7 +971,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	page = realpage & chip->pagemask;
 
 	col = (int)(from & (mtd->writesize - 1));
-	chip->oob_poi = chip->buffers.oobrbuf;
+	chip->oob_poi = chip->buffers->oobrbuf;
 
 	buf = ops->datbuf;
 	oob = ops->oobbuf;
@@ -982,7 +982,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 
 		/* Is the current page in the buffer ? */
 		if (realpage != chip->pagebuf || oob) {
-			bufpoi = aligned ? buf : chip->buffers.databuf;
+			bufpoi = aligned ? buf : chip->buffers->databuf;
 
 			if (likely(sndcmd)) {
 				chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
@@ -997,7 +997,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			/* Transfer not aligned data */
 			if (!aligned) {
 				chip->pagebuf = realpage;
-				memcpy(buf, chip->buffers.databuf + col, bytes);
+				memcpy(buf, chip->buffers->databuf + col, bytes);
 			}
 
 			buf += bytes;
@@ -1024,7 +1024,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 					nand_wait_ready(mtd);
 			}
 		} else {
-			memcpy(buf, chip->buffers.databuf + col, bytes);
+			memcpy(buf, chip->buffers->databuf + col, bytes);
 			buf += bytes;
 		}
 
@@ -1267,7 +1267,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	realpage = (int)(from >> chip->page_shift);
 	page = realpage & chip->pagemask;
 
-	chip->oob_poi = chip->buffers.oobrbuf;
+	chip->oob_poi = chip->buffers->oobrbuf;
 
 	while(1) {
 		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
@@ -1392,7 +1392,7 @@ static void nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int i, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
-	uint8_t *ecc_calc = chip->buffers.ecccalc;
+	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	const uint8_t *p = buf;
 	int *eccpos = chip->ecc.layout->eccpos;
 
@@ -1418,7 +1418,7 @@ static void nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int i, eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;
 	int eccsteps = chip->ecc.steps;
-	uint8_t *ecc_calc = chip->buffers.ecccalc;
+	uint8_t *ecc_calc = chip->buffers->ecccalc;
 	const uint8_t *p = buf;
 	int *eccpos = chip->ecc.layout->eccpos;
 
@@ -1628,7 +1628,7 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	    (chip->pagebuf << chip->page_shift) < (to + ops->len))
 		chip->pagebuf = -1;
 
-	chip->oob_poi = chip->buffers.oobwbuf;
+	chip->oob_poi = chip->buffers->oobwbuf;
 
 	while(1) {
 		int cached = writelen > bytes && page != blockmask;
@@ -1746,7 +1746,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	if (page == chip->pagebuf)
 		chip->pagebuf = -1;
 
-	chip->oob_poi = chip->buffers.oobwbuf;
+	chip->oob_poi = chip->buffers->oobwbuf;
 	memset(chip->oob_poi, 0xff, mtd->oobsize);
 	nand_fill_oob(chip, ops->oobbuf, ops);
 	status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
@@ -2354,8 +2354,13 @@ int nand_scan_tail(struct mtd_info *mtd)
 	int i;
 	struct nand_chip *chip = mtd->priv;
 
+	if (!(chip->options & NAND_OWN_BUFFERS))
+		chip->buffers = kmalloc(sizeof(*chip->buffers), GFP_KERNEL);
+	if (!chip->buffers)
+		return -ENOMEM;
+
 	/* Preset the internal oob write buffer */
-	memset(chip->buffers.oobwbuf, 0xff, mtd->oobsize);
+	memset(chip->buffers->oobwbuf, 0xff, mtd->oobsize);
 
 	/*
 	 * If no default placement scheme is given, select an appropriate one
@@ -2559,6 +2564,8 @@ void nand_release(struct mtd_info *mtd)
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);
+	if (!(chip->options & NAND_OWN_BUFFERS))
+		kfree(chip->buffers);
 }
 
 EXPORT_SYMBOL_GPL(nand_scan);
