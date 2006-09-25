@@ -3508,7 +3508,7 @@ static void __devexit ql3xxx_remove(struct pci_dev *pdev)
 		qdev->workqueue = NULL;
 	}
 
-	iounmap(qdev->mmap_virt_base);
+	iounmap(qdev->mem_map_registers);
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
