@@ -1928,6 +1928,9 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	if (TUNER_ABSENT != core->tuner_type)
 		request_module("tuner");
 
+	if (cx88_boards[ core->board ].audio_chip == AUDIO_CHIP_WM8775)
+		request_module("wm8775");
+
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
 					&cx8800_video_template,"video");

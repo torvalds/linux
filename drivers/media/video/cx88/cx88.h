@@ -30,6 +30,7 @@
 #include <media/tveeprom.h>
 #include <media/video-buf.h>
 #include <media/cx2341x.h>
+#include <media/audiochip.h>
 #include <media/video-buf-dvb.h>
 
 #include "btcx-risc.h"
@@ -232,6 +233,7 @@ struct cx88_board {
 	struct cx88_input       radio;
 	unsigned int            blackbird:1;
 	unsigned int            dvb:1;
+	enum audiochip          audio_chip;
 };
 
 struct cx88_subid {
