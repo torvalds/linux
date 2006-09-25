@@ -1054,6 +1054,12 @@ static int mod_sysfs_setup(struct module *mod,
 {
 	int err;
 
+	if (!module_subsys.kset.subsys) {
+		printk(KERN_ERR "%s: module_subsys not initialized\n",
+		       mod->name);
+		err = -EINVAL;
+		goto out;
+	}
 	memset(&mod->mkobj.kobj, 0, sizeof(mod->mkobj.kobj));
 	err = kobject_set_name(&mod->mkobj.kobj, "%s", mod->name);
 	if (err)
