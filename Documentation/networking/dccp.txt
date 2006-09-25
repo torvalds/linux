@@ -1,7 +1,6 @@
 DCCP protocol
 ============
 
-Last updated: 10 November 2005
 
 Contents
 ========
@@ -42,8 +41,11 @@ Socket options
 DCCP_SOCKOPT_PACKET_SIZE is used for CCID3 to set default packet size for
 calculations.
 
-DCCP_SOCKOPT_SERVICE sets the service. This is compulsory as per the
-specification. If you don't set it you will get EPROTO.
+DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
+service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
+the socket will fall back to 0 (which means that no meaningful service code
+is present). Connecting sockets set at most one service option; for
+listening sockets, multiple service codes can be specified.
 
 Notes
 =====
