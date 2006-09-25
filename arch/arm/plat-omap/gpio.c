@@ -110,8 +110,6 @@
 #define OMAP24XX_GPIO_CLEARDATAOUT	0x0090
 #define OMAP24XX_GPIO_SETDATAOUT	0x0094
 
-#define OMAP_MPUIO_MASK		(~OMAP_MAX_GPIO_LINES & 0xff)
-
 struct gpio_bank {
 	void __iomem *base;
 	u16 irq;
@@ -216,11 +214,13 @@ static inline int gpio_valid(int gpio)
 {
 	if (gpio < 0)
 		return -1;
+#ifndef CONFIG_ARCH_OMAP24XX
 	if (OMAP_GPIO_IS_MPUIO(gpio)) {
-		if ((gpio & OMAP_MPUIO_MASK) > 16)
+		if (gpio >= MAX_GPIO_LINES + 16)
 			return -1;
 		return 0;
 	}
+#endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap15xx() && gpio < 16)
 		return 0;
