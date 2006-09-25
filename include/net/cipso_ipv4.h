@@ -205,6 +205,7 @@ void cipso_v4_error(struct sk_buff *skb, int error, u32 gateway);
 int cipso_v4_socket_setattr(const struct socket *sock,
 			    const struct cipso_v4_doi *doi_def,
 			    const struct netlbl_lsm_secattr *secattr);
+int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr);
 int cipso_v4_socket_getattr(const struct socket *sock,
 			    struct netlbl_lsm_secattr *secattr);
 int cipso_v4_skbuff_getattr(const struct sk_buff *skb,
@@ -221,6 +222,12 @@ static inline void cipso_v4_error(struct sk_buff *skb,
 static inline int cipso_v4_socket_setattr(const struct socket *sock,
 				  const struct cipso_v4_doi *doi_def,
 				  const struct netlbl_lsm_secattr *secattr)
+{
+	return -ENOSYS;
+}
+
+static inline int cipso_v4_sock_getattr(struct sock *sk,
+					struct netlbl_lsm_secattr *secattr)
 {
 	return -ENOSYS;
 }

@@ -1486,6 +1486,54 @@ socket_setattr_failure:
 }
 
 /**
+ * cipso_v4_sock_getattr - Get the security attributes from a sock
+ * @sk: the sock
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Query @sk to see if there is a CIPSO option attached to the sock and if
+ * there is return the CIPSO security attributes in @secattr.  This function
+ * requires that @sk be locked, or privately held, but it does not do any
+ * locking itself.  Returns zero on success and negative values on failure.
+ *
+ */
+int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	struct inet_sock *sk_inet;
+	unsigned char *cipso_ptr;
+	u32 doi;
+	struct cipso_v4_doi *doi_def;
+
+	sk_inet = inet_sk(sk);
+	if (sk_inet->opt == NULL || sk_inet->opt->cipso == 0)
+		return -ENOMSG;
+	cipso_ptr = sk_inet->opt->__data + sk_inet->opt->cipso -
+		sizeof(struct iphdr);
+	ret_val = cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr);
+	if (ret_val == 0)
+		return ret_val;
+
+	doi = ntohl(*(u32 *)&cipso_ptr[2]);
+	rcu_read_lock();
+	doi_def = cipso_v4_doi_getdef(doi);
+	if (doi_def == NULL) {
+		rcu_read_unlock();
+		return -ENOMSG;
+	}
+	switch (cipso_ptr[6]) {
+	case CIPSO_V4_TAG_RBITMAP:
+		ret_val = cipso_v4_parsetag_rbm(doi_def,
+						&cipso_ptr[6],
+						secattr);
+		break;
+	}
+	rcu_read_unlock();
+
+	return ret_val;
+}
+
+/**
  * cipso_v4_socket_getattr - Get the security attributes from a socket
  * @sock: the socket
  * @secattr: the security attributes
@@ -1499,42 +1547,12 @@ socket_setattr_failure:
 int cipso_v4_socket_getattr(const struct socket *sock,
 			    struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
-	struct sock *sk;
-	struct inet_sock *sk_inet;
-	unsigned char *cipso_ptr;
-	u32 doi;
-	struct cipso_v4_doi *doi_def;
+	int ret_val;
 
-	sk = sock->sk;
-	lock_sock(sk);
-	sk_inet = inet_sk(sk);
-	if (sk_inet->opt == NULL || sk_inet->opt->cipso == 0)
-		goto socket_getattr_return;
-	cipso_ptr = sk_inet->opt->__data + sk_inet->opt->cipso -
-		sizeof(struct iphdr);
-	ret_val = cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr);
-	if (ret_val == 0)
-		goto socket_getattr_return;
+	lock_sock(sock->sk);
+	ret_val = cipso_v4_sock_getattr(sock->sk, secattr);
+	release_sock(sock->sk);
 
-	doi = ntohl(*(u32 *)&cipso_ptr[2]);
-	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
-	if (doi_def == NULL) {
-		rcu_read_unlock();
-		goto socket_getattr_return;
-	}
-	switch (cipso_ptr[6]) {
-	case CIPSO_V4_TAG_RBITMAP:
-		ret_val = cipso_v4_parsetag_rbm(doi_def,
-						&cipso_ptr[6],
-						secattr);
-		break;
-	}
-	rcu_read_unlock();
-
-socket_getattr_return:
-	release_sock(sk);
 	return ret_val;
 }
 

@@ -2502,14 +2502,24 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 {
 	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
+	struct netlbl_lsm_secattr secattr;
+	u32 nlbl_peer_sid;
 
 	sksec->sclass = isec->sclass;
 
 	if (sk->sk_family != PF_INET)
 		return;
 
+	netlbl_secattr_init(&secattr);
+	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
+	    selinux_netlbl_secattr_to_sid(NULL,
+					  &secattr,
+					  sksec->sid,
+					  &nlbl_peer_sid) == 0)
+		sksec->peer_sid = nlbl_peer_sid;
+	netlbl_secattr_destroy(&secattr, 0);
+
 	sksec->nlbl_state = NLBL_REQUIRE;
-	sksec->peer_sid = sksec->sid;
 
 	/* Try to set the NetLabel on the socket to save time later, if we fail
 	 * here we will pick up the pieces in later calls to
