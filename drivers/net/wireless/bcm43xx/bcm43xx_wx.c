@@ -47,9 +47,6 @@
 #define BCM43xx_WX_VERSION	18
 
 #define MAX_WX_STRING		80
-/* FIXME: the next line is a guess as to what the maximum RSSI value might be */
-#define RX_RSSI_MAX		60
-
 
 static int bcm43xx_wx_get_name(struct net_device *net_dev,
                                struct iw_request_info *info,

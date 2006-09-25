@@ -3688,6 +3688,8 @@ static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 		       phy_type);
 		return -ENODEV;
 	};
+	bcm->ieee->perfect_rssi = RX_RSSI_MAX;
+	bcm->ieee->worst_rssi = 0;
 	if (!phy_rev_ok) {
 		printk(KERN_WARNING PFX "Invalid PHY Revision %x\n",
 		       phy_rev);
