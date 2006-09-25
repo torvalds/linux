@@ -28,6 +28,7 @@ config SCSI_AIC94XX
 	tristate "Adaptec AIC94xx SAS/SATA support"
 	depends on PCI
 	select SCSI_SAS_LIBSAS
+	select FW_LOADER
 	help
 		This driver supports Adaptec's SAS/SATA 3Gb/s 64 bit PCI-X
 		AIC94xx chip based host adapters.
