@@ -80,11 +80,7 @@ static inline int user_mode_vm(struct pt_regs *regs)
 	return ((regs->xcs & 3) | (regs->eflags & VM_MASK)) != 0;
 }
 #define instruction_pointer(regs) ((regs)->eip)
-#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 extern unsigned long profile_pc(struct pt_regs *regs);
-#else
-#define profile_pc(regs) instruction_pointer(regs)
-#endif
 #endif /* __KERNEL__ */
 
 #endif

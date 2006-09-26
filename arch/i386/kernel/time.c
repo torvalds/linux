@@ -130,18 +130,33 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 int timer_ack;
 
-#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	if (!user_mode_vm(regs) && in_lock_functions(pc))
+#ifdef CONFIG_SMP
+	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
+#ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->ebp + 4);
-
+#else
+		unsigned long *sp;
+		if ((regs->xcs & 3) == 0)
+			sp = (unsigned long *)&regs->esp;
+		else
+			sp = (unsigned long *)regs->esp;
+		/* Return address is either directly at stack pointer
+		   or above a saved eflags. Eflags has bits 22-31 zero,
+		   kernel addresses don't. */
+ 		if (sp[0] >> 22)
+			return sp[0];
+		if (sp[1] >> 22)
+			return sp[1];
+#endif
+	}
+#endif
 	return pc;
 }
 EXPORT_SYMBOL(profile_pc);
-#endif
 
 /*
  * This is the same as the above, except we _also_ save the current
