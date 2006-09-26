@@ -13,7 +13,7 @@
    away for older version. 
  */
 
-#ifdef CONFIG_UNWIND_INFO
+#ifdef CONFIG_AS_CFI
 
 #define CFI_STARTPROC .cfi_startproc
 #define CFI_ENDPROC .cfi_endproc
