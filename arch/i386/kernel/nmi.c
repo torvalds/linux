@@ -24,7 +24,6 @@
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
-#include <asm/intel_arch_perfmon.h>
 
 #include "mach_traps.h"
 
@@ -95,9 +94,6 @@ int nmi_active;
 #define P4_NMI_IQ_CCCR0	\
 	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
-
-#define ARCH_PERFMON_NMI_EVENT_SEL	ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL
-#define ARCH_PERFMON_NMI_EVENT_UMASK	ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK
 
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
@@ -211,8 +207,6 @@ static int __init setup_nmi_watchdog(char *str)
 
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
-static void disable_intel_arch_watchdog(void);
-
 static void disable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active <= 0)
@@ -222,10 +216,6 @@ static void disable_lapic_nmi_watchdog(void)
 		wrmsr(MSR_K7_EVNTSEL0, 0, 0);
 		break;
 	case X86_VENDOR_INTEL:
-		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
-			disable_intel_arch_watchdog();
-			break;
-		}
 		switch (boot_cpu_data.x86) {
 		case 6:
 			if (boot_cpu_data.x86_model > 0xd)
@@ -454,53 +444,6 @@ static int setup_p4_watchdog(void)
 	return 1;
 }
 
-static void disable_intel_arch_watchdog(void)
-{
-	unsigned ebx;
-
-	/*
-	 * Check whether the Architectural PerfMon supports
-	 * Unhalted Core Cycles Event or not.
-	 * NOTE: Corresponding bit = 0 in ebp indicates event present.
-	 */
-	ebx = cpuid_ebx(10);
-	if (!(ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
-		wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, 0, 0);
-}
-
-static int setup_intel_arch_watchdog(void)
-{
-	unsigned int evntsel;
-	unsigned ebx;
-
-	/*
-	 * Check whether the Architectural PerfMon supports
-	 * Unhalted Core Cycles Event or not.
-	 * NOTE: Corresponding bit = 0 in ebp indicates event present.
-	 */
-	ebx = cpuid_ebx(10);
-	if ((ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
-		return 0;
-
-	nmi_perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
-
-	clear_msr_range(MSR_ARCH_PERFMON_EVENTSEL0, 2);
-	clear_msr_range(MSR_ARCH_PERFMON_PERFCTR0, 2);
-
-	evntsel = ARCH_PERFMON_EVENTSEL_INT
-		| ARCH_PERFMON_EVENTSEL_OS
-		| ARCH_PERFMON_EVENTSEL_USR
-		| ARCH_PERFMON_NMI_EVENT_SEL
-		| ARCH_PERFMON_NMI_EVENT_UMASK;
-
-	wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, evntsel, 0);
-	write_watchdog_counter("INTEL_ARCH_PERFCTR0");
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-	wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, evntsel, 0);
-	return 1;
-}
-
 void setup_apic_nmi_watchdog (void)
 {
 	switch (boot_cpu_data.x86_vendor) {
@@ -510,11 +453,6 @@ void setup_apic_nmi_watchdog (void)
 		setup_k7_watchdog();
 		break;
 	case X86_VENDOR_INTEL:
-		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
-			if (!setup_intel_arch_watchdog())
-				return;
-			break;
-		}
 		switch (boot_cpu_data.x86) {
 		case 6:
 			if (boot_cpu_data.x86_model > 0xd)
@@ -619,8 +557,7 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
 			apic_write(APIC_LVTPC, APIC_DM_NMI);
 		}
-		else if (nmi_perfctr_msr == MSR_P6_PERFCTR0 ||
-		         nmi_perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+		else if (nmi_perfctr_msr == MSR_P6_PERFCTR0) {
 			/* Only P6 based Pentium M need to re-unmask
 			 * the apic vector but it doesn't hurt
 			 * other P6 variant */

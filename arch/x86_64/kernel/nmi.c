@@ -26,7 +26,6 @@
 #include <asm/proto.h>
 #include <asm/kdebug.h>
 #include <asm/mce.h>
-#include <asm/intel_arch_perfmon.h>
 
 /*
  * lapic_nmi_owner tracks the ownership of the lapic NMI hardware:
@@ -66,9 +65,6 @@ static unsigned int nmi_p4_cccr_val;
 #define K7_EVENT_CYCLES_PROCESSOR_IS_RUNNING	0x76
 #define K7_NMI_EVENT		K7_EVENT_CYCLES_PROCESSOR_IS_RUNNING
 
-#define ARCH_PERFMON_NMI_EVENT_SEL	ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL
-#define ARCH_PERFMON_NMI_EVENT_UMASK	ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK
-
 #define MSR_P4_MISC_ENABLE	0x1A0
 #define MSR_P4_MISC_ENABLE_PERF_AVAIL	(1<<7)
 #define MSR_P4_MISC_ENABLE_PEBS_UNAVAIL	(1<<12)
@@ -100,10 +96,7 @@ static __cpuinit inline int nmi_known_cpu(void)
 	case X86_VENDOR_AMD:
 		return boot_cpu_data.x86 == 15;
 	case X86_VENDOR_INTEL:
-		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-			return 1;
-		else
-			return (boot_cpu_data.x86 == 15);
+		return boot_cpu_data.x86 == 15;
 	}
 	return 0;
 }
@@ -209,8 +202,6 @@ int __init setup_nmi_watchdog(char *str)
 
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
-static void disable_intel_arch_watchdog(void);
-
 static void disable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active <= 0)
@@ -223,8 +214,6 @@ static void disable_lapic_nmi_watchdog(void)
 		if (boot_cpu_data.x86 == 15) {
 			wrmsr(MSR_P4_IQ_CCCR0, 0, 0);
 			wrmsr(MSR_P4_CRU_ESCR0, 0, 0);
-		} else if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
-			disable_intel_arch_watchdog();
 		}
 		break;
 	}
@@ -377,53 +366,6 @@ static void setup_k7_watchdog(void)
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
 }
 
-static void disable_intel_arch_watchdog(void)
-{
-	unsigned ebx;
-
-	/*
-	 * Check whether the Architectural PerfMon supports
-	 * Unhalted Core Cycles Event or not.
-	 * NOTE: Corresponding bit = 0 in ebp indicates event present.
-	 */
-	ebx = cpuid_ebx(10);
-	if (!(ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
-		wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, 0, 0);
-}
-
-static int setup_intel_arch_watchdog(void)
-{
-	unsigned int evntsel;
-	unsigned ebx;
-
-	/*
-	 * Check whether the Architectural PerfMon supports
-	 * Unhalted Core Cycles Event or not.
-	 * NOTE: Corresponding bit = 0 in ebp indicates event present.
-	 */
-	ebx = cpuid_ebx(10);
-	if ((ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
-		return 0;
-
-	nmi_perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
-
-	clear_msr_range(MSR_ARCH_PERFMON_EVENTSEL0, 2);
-	clear_msr_range(MSR_ARCH_PERFMON_PERFCTR0, 2);
-
-	evntsel = ARCH_PERFMON_EVENTSEL_INT
-		| ARCH_PERFMON_EVENTSEL_OS
-		| ARCH_PERFMON_EVENTSEL_USR
-		| ARCH_PERFMON_NMI_EVENT_SEL
-		| ARCH_PERFMON_NMI_EVENT_UMASK;
-
-	wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, evntsel, 0);
-	wrmsrl(MSR_ARCH_PERFMON_PERFCTR0, -((u64)cpu_khz * 1000 / nmi_hz));
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-	wrmsr(MSR_ARCH_PERFMON_EVENTSEL0, evntsel, 0);
-	return 1;
-}
-
 
 static int setup_p4_watchdog(void)
 {
@@ -477,16 +419,10 @@ void setup_apic_nmi_watchdog(void)
 		setup_k7_watchdog();
 		break;
 	case X86_VENDOR_INTEL:
-		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
-			if (!setup_intel_arch_watchdog())
-				return;
-		} else if (boot_cpu_data.x86 == 15) {
-			if (!setup_p4_watchdog())
-				return;
-		} else {
+		if (boot_cpu_data.x86 != 15)
 			return;
-		}
-
+		if (!setup_p4_watchdog())
+			return;
 		break;
 
 	default:
@@ -571,14 +507,7 @@ void __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
  			 */
  			wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
  			apic_write(APIC_LVTPC, APIC_DM_NMI);
- 		} else if (nmi_perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
-			/*
-			 * For Intel based architectural perfmon
-			 * - LVTPC is masked on interrupt and must be
-			 *   unmasked by the LVTPC handler.
-			 */
-			apic_write(APIC_LVTPC, APIC_DM_NMI);
-		}
+ 		}
 		wrmsrl(nmi_perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
 	}
 }
