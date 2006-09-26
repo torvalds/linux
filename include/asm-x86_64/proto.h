@@ -124,6 +124,8 @@ extern int fix_aperture;
 extern int reboot_force;
 extern int notsc_setup(char *);
 
+extern int gsi_irq_sharing(int gsi);
+
 extern void smp_local_timer_interrupt(struct pt_regs * regs);
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);

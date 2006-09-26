@@ -47,9 +47,6 @@ EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
 
-extern void __init clustered_apic_check(void);
-
-extern int gsi_irq_sharing(int gsi);
 #include <asm/proto.h>
 
 static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
