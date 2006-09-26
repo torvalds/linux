@@ -34,12 +34,12 @@ struct iommu_table {
 	unsigned long  it_base;      /* mapped address of tce table */
 	unsigned long  it_hint;      /* Hint for next alloc */
 	unsigned long *it_map;       /* A simple allocation bitmap for now */
+	void __iomem  *bbar;         /* Bridge BAR */
+	u64	       tar_val;      /* Table Address Register */
+	struct timer_list watchdog_timer;
 	spinlock_t     it_lock;      /* Protects it_map */
 	unsigned int   it_size;      /* Size of iommu table in entries */
 	unsigned char  it_busno;     /* Bus number this table belongs to */
-	void __iomem  *bbar;
-	u64	       tar_val;
-	struct timer_list watchdog_timer;
 };
 
 #define TCE_TABLE_SIZE_UNSPECIFIED	~0
