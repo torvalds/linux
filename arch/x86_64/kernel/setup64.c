@@ -24,7 +24,7 @@
 #include <asm/proto.h>
 #include <asm/sections.h>
 
-char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
+char x86_boot_params[BOOT_PARAM_SIZE] __initdata;
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
