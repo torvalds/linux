@@ -579,7 +579,7 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 	return 0;
 }
 
-void __init find_intel_smp (void)
+void __init find_smp_config(void)
 {
 	unsigned int address;
 
@@ -616,15 +616,6 @@ void __init find_intel_smp (void)
 	/* If we have come this far, we did not find an MP table  */
 	 printk(KERN_INFO "No mptable found.\n");
 }
-
-/*
- * - Intel MP Configuration Table
- */
-void __init find_smp_config (void)
-{
-	find_intel_smp();
-}
-
 
 /* --------------------------------------------------------------------------
                             ACPI-based MP Configuration
