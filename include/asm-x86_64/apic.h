@@ -18,6 +18,7 @@
 extern int apic_verbosity;
 extern int apic_runs_main_timer;
 extern int ioapic_force;
+extern int apic_mapped;
 
 /*
  * Define the default level of output to be very little

@@ -526,7 +526,7 @@ int safe_smp_processor_id(void)
 {
 	unsigned apicid, i;
 
-	if (disable_apic)
+	if (disable_apic || !apic_mapped)
 		return 0;
 
 	apicid = hard_smp_processor_id();
