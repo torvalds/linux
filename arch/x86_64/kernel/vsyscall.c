@@ -77,7 +77,8 @@ static __always_inline void do_vgettimeofday(struct timeval * tv)
 				 __vxtime.tsc_quot) >> 32;
 			/* See comment in x86_64 do_gettimeofday. */
 		} else {
-			usec += ((readl((void *)fix_to_virt(VSYSCALL_HPET) + 0xf0) -
+			usec += ((readl((void __iomem *)
+				   fix_to_virt(VSYSCALL_HPET) + 0xf0) -
 				  __vxtime.last) * __vxtime.quot) >> 32;
 		}
 	} while (read_seqretry(&__xtime_lock, sequence));
@@ -191,7 +192,8 @@ static int vsyscall_sysctl_change(ctl_table *ctl, int write, struct file * filp,
                         void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	extern u16 vsysc1, vsysc2;
-	u16 *map1, *map2;
+	u16 __iomem *map1;
+	u16 __iomem *map2;
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
 	if (!write)
 		return ret;
@@ -206,11 +208,11 @@ static int vsyscall_sysctl_change(ctl_table *ctl, int write, struct file * filp,
 		goto out;
 	}
 	if (!sysctl_vsyscall) {
-		*map1 = SYSCALL;
-		*map2 = SYSCALL;
+		writew(SYSCALL, map1);
+		writew(SYSCALL, map2);
 	} else {
-		*map1 = NOP2;
-		*map2 = NOP2;
+		writew(NOP2, map1);
+		writew(NOP2, map2);
 	}
 	iounmap(map2);
 out:
