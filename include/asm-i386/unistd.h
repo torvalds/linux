@@ -323,10 +323,11 @@
 #define __NR_tee		315
 #define __NR_vmsplice		316
 #define __NR_move_pages		317
+#define __NR_getcpu		318
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 318
+#define NR_syscalls 319
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

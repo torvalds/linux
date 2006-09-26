@@ -713,4 +713,5 @@ ia32_sys_call_table:
 	.quad sys_tee
 	.quad compat_sys_vmsplice
 	.quad compat_sys_move_pages
+	.quad sys_getcpu
 ia32_syscall_end:		
