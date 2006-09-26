@@ -7,6 +7,9 @@
 #include <asm/processor.h>
 #include <linux/compiler.h>
 
+#define CLI_STRING	"cli"
+#define STI_STRING	"sti"
+
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  *
@@ -55,12 +58,12 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 		"2:\t"
 		"testl $0x200, %1\n\t"
 		"jz 4f\n\t"
-		"sti\n"
+		STI_STRING "\n"
 		"3:\t"
 		"rep;nop\n\t"
 		"cmpb $0, %0\n\t"
 		"jle 3b\n\t"
-		"cli\n\t"
+		CLI_STRING "\n\t"
 		"jmp 1b\n"
 		"4:\t"
 		"rep;nop\n\t"

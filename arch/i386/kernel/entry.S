@@ -76,8 +76,15 @@ DF_MASK		= 0x00000400
 NT_MASK		= 0x00004000
 VM_MASK		= 0x00020000
 
+/* These are replaces for paravirtualization */
+#define DISABLE_INTERRUPTS		cli
+#define ENABLE_INTERRUPTS		sti
+#define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit
+#define INTERRUPT_RETURN		iret
+#define GET_CR0_INTO_EAX		movl %cr0, %eax
+
 #ifdef CONFIG_PREEMPT
-#define preempt_stop		cli; TRACE_IRQS_OFF
+#define preempt_stop		DISABLE_INTERRUPTS; TRACE_IRQS_OFF
 #else
 #define preempt_stop
 #define resume_kernel		restore_nocheck
@@ -236,7 +243,7 @@ check_userspace:
 	testl $(VM_MASK | 3), %eax
 	jz resume_kernel
 ENTRY(resume_userspace)
- 	cli				# make sure we don't miss an interrupt
+ 	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	movl TI_flags(%ebp), %ecx
@@ -247,7 +254,7 @@ ENTRY(resume_userspace)
 
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
-	cli
+	DISABLE_INTERRUPTS
 	cmpl $0,TI_preempt_count(%ebp)	# non-zero preempt_count ?
 	jnz restore_nocheck
 need_resched:
@@ -275,7 +282,7 @@ sysenter_past_esp:
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
 	 */
-	sti
+	ENABLE_INTERRUPTS
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ss, 0*/
@@ -320,7 +327,7 @@ sysenter_past_esp:
 	jae syscall_badsys
 	call *sys_call_table(,%eax,4)
 	movl %eax,EAX(%esp)
-	cli
+	DISABLE_INTERRUPTS
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
 	testw $_TIF_ALLWORK_MASK, %cx
@@ -330,8 +337,7 @@ sysenter_past_esp:
 	movl OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
-	sti
-	sysexit
+	ENABLE_INTERRUPTS_SYSEXIT
 	CFI_ENDPROC
 
 
@@ -356,7 +362,7 @@ syscall_call:
 	call *sys_call_table(,%eax,4)
 	movl %eax,EAX(%esp)		# store the return value
 syscall_exit:
-	cli				# make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
@@ -381,11 +387,11 @@ restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp
 	CFI_ADJUST_CFA_OFFSET -4
-1:	iret
+1:	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
 	TRACE_IRQS_ON
-	sti
+	ENABLE_INTERRUPTS
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code
@@ -409,7 +415,7 @@ ldt_ss:
 	 * dosemu and wine happy. */
 	subl $8, %esp		# reserve space for switch16 pointer
 	CFI_ADJUST_CFA_OFFSET 8
-	cli
+	DISABLE_INTERRUPTS
 	TRACE_IRQS_OFF
 	movl %esp, %eax
 	/* Set up the 16bit stack frame with switch32 pointer on top,
@@ -419,7 +425,7 @@ ldt_ss:
 	TRACE_IRQS_IRET
 	RESTORE_REGS
 	lss 20+4(%esp), %esp	# switch to 16bit stack
-1:	iret
+1:	INTERRUPT_RETURN
 .section __ex_table,"a"
 	.align 4
 	.long 1b,iret_exc
@@ -434,7 +440,7 @@ work_pending:
 	jz work_notifysig
 work_resched:
 	call schedule
-	cli				# make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
@@ -490,7 +496,7 @@ syscall_exit_work:
 	testb $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP), %cl
 	jz work_pending
 	TRACE_IRQS_ON
-	sti				# could let do_syscall_trace() call
+	ENABLE_INTERRUPTS		# could let do_syscall_trace() call
 					# schedule() instead
 	movl %esp, %eax
 	movl $1, %edx
@@ -668,7 +674,7 @@ ENTRY(device_not_available)
 	pushl $-1			# mark this as an int
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
-	movl %cr0, %eax
+	GET_CR0_INTO_EAX
 	testl $0x4, %eax		# EM (math emulation bit)
 	jne device_not_available_emulate
 	preempt_stop
@@ -811,7 +817,7 @@ nmi_16bit_stack:
 	call do_nmi
 	RESTORE_REGS
 	lss 12+4(%esp), %esp		# back to 16bit stack
-1:	iret
+1:	INTERRUPT_RETURN
 	CFI_ENDPROC
 .section __ex_table,"a"
 	.align 4
