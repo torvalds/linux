@@ -70,16 +70,6 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 void selinux_audit_set_callback(int (*callback)(void));
 
 /**
- *	selinux_task_ctxid - determine a context ID for a process.
- *	@tsk: the task object
- *	@ctxid: ID value returned via this
- *
- *	On return, ctxid will contain an ID for the context.  This value
- *	should only be used opaquely.
- */
-void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid);
-
-/**
  *     selinux_ctxid_to_string - map a security context ID to a string
  *     @ctxid: security context ID to be converted.
  *     @ctx: address of context string to be returned
@@ -164,11 +154,6 @@ static inline int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 static inline void selinux_audit_set_callback(int (*callback)(void))
 {
 	return;
-}
-
-static inline void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid)
-{
-	*ctxid = 0;
 }
 
 static inline int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
