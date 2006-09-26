@@ -167,7 +167,7 @@ static __cpuinit inline int nmi_known_cpu(void)
 }
 
 /* Run after command line and cpu_init init, but before all other checks */
-void __cpuinit nmi_watchdog_default(void)
+void nmi_watchdog_default(void)
 {
 	if (nmi_watchdog != NMI_DEFAULT)
 		return;
@@ -766,32 +766,19 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 
 	if (atomic_read(&nmi_active) < 0) {
 		printk( KERN_WARNING "NMI watchdog is permanently disabled\n");
-		return -EINVAL;
+		return -EIO;
 	}
 
 	/* if nmi_watchdog is not set yet, then set it */
 	nmi_watchdog_default();
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-	{
+	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		if (nmi_watchdog_enabled)
 			enable_lapic_nmi_watchdog();
 		else
 			disable_lapic_nmi_watchdog();
-	} else if (nmi_watchdog == NMI_IO_APIC) {
-		/* FIXME
-		 * for some reason these functions don't work
-		 */
-		printk("Can not enable/disable NMI on IO APIC\n");
-		return -EIO;
-#if 0
-		if (nmi_watchdog_enabled)
-			enable_timer_nmi_watchdog();
-		else
-			disable_timer_nmi_watchdog();
-#endif
 	} else {
-		printk(KERN_WARNING
+		printk( KERN_WARNING
 			"NMI watchdog doesn't know what hardware to touch\n");
 		return -EIO;
 	}
