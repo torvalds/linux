@@ -102,7 +102,8 @@ static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
  * might be used for boot-time allocations - or it might get added
  * to the free page pool later on.
  */
-static void __init reserve_bootmem_core(bootmem_data_t *bdata, unsigned long addr, unsigned long size)
+static void __init reserve_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
+					unsigned long size)
 {
 	unsigned long i;
 	/*
@@ -127,7 +128,8 @@ static void __init reserve_bootmem_core(bootmem_data_t *bdata, unsigned long add
 		}
 }
 
-static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr, unsigned long size)
+static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr,
+				     unsigned long size)
 {
 	unsigned long i;
 	unsigned long start;
@@ -355,17 +357,20 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	return total;
 }
 
-unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn, unsigned long startpfn, unsigned long endpfn)
+unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn,
+				unsigned long startpfn, unsigned long endpfn)
 {
 	return(init_bootmem_core(pgdat, freepfn, startpfn, endpfn));
 }
 
-void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size)
+void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr,
+				  unsigned long size)
 {
 	reserve_bootmem_core(pgdat->bdata, physaddr, size);
 }
 
-void __init free_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size)
+void __init free_bootmem_node (pg_data_t *pgdat, unsigned long physaddr,
+			       unsigned long size)
 {
 	free_bootmem_core(pgdat->bdata, physaddr, size);
 }
@@ -399,7 +404,8 @@ unsigned long __init free_all_bootmem (void)
 	return(free_all_bootmem_core(NODE_DATA(0)));
 }
 
-void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align, unsigned long goal)
+void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+				      unsigned long goal)
 {
 	bootmem_data_t *bdata;
 	void *ptr;
@@ -410,7 +416,8 @@ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align, u
 	return NULL;
 }
 
-void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
+void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+			      unsigned long goal)
 {
 	void *mem = __alloc_bootmem_nopanic(size,align,goal);
 	if (mem)
@@ -424,8 +431,8 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned 
 }
 
 
-void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size, unsigned long align,
-				   unsigned long goal)
+void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+				   unsigned long align, unsigned long goal)
 {
 	void *ptr;
 
@@ -438,7 +445,8 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size, unsigne
 
 #define LOW32LIMIT 0xffffffff
 
-void * __init __alloc_bootmem_low(unsigned long size, unsigned long align, unsigned long goal)
+void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+				  unsigned long goal)
 {
 	bootmem_data_t *bdata;
 	void *ptr;
