@@ -1039,8 +1039,16 @@ static int timer_resume(struct sys_device *dev)
 	unsigned long flags;
 	unsigned long sec;
 	unsigned long ctime = get_cmos_time();
-	unsigned long sleep_length = (ctime - sleep_start) * HZ;
+	long sleep_length = (ctime - sleep_start) * HZ;
 
+	if (sleep_length < 0) {
+		printk(KERN_WARNING "Time skew detected in timer resume!\n");
+		/* The time after the resume must not be earlier than the time
+		 * before the suspend or some nasty things will happen
+		 */
+		sleep_length = 0;
+		ctime = sleep_start;
+	}
 	if (vxtime.hpet_address)
 		hpet_reenable();
 	else
