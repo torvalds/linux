@@ -1467,11 +1467,21 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto gotten;
 
 	/*
-	 * Only catch write-faults on shared writable pages, read-only
-	 * shared pages can get COWed by get_user_pages(.write=1, .force=1).
+	 * Take out anonymous pages first, anonymous shared vmas are
+	 * not dirty accountable.
 	 */
-	if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+	if (PageAnon(old_page)) {
+		if (!TestSetPageLocked(old_page)) {
+			reuse = can_share_swap_page(old_page);
+			unlock_page(old_page);
+		}
+	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 					(VM_WRITE|VM_SHARED))) {
+		/*
+		 * Only catch write-faults on shared writable pages,
+		 * read-only shared pages can get COWed by
+		 * get_user_pages(.write=1, .force=1).
+		 */
 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
 			/*
 			 * Notify the address space that the page is about to
@@ -1503,9 +1513,6 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		dirty_page = old_page;
 		get_page(dirty_page);
 		reuse = 1;
-	} else if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
-		reuse = can_share_swap_page(old_page);
-		unlock_page(old_page);
 	}
 
 	if (reuse) {
