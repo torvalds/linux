@@ -25,8 +25,6 @@ extern int nonx_setup(char *str);
 extern void paging_init(void);
 extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
 
-extern unsigned long pgkern_mask;
-
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
