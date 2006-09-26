@@ -156,9 +156,8 @@ static __init void unreachable_devices(void)
 			addr = pci_dev_base(0, k, PCI_DEVFN(i, 0));
 			if (addr == NULL|| readl(addr) != val1) {
 				set_bit(i + 32*k, fallback_slots);
-				printk(KERN_NOTICE
-				"PCI: No mmconfig possible on device %x:%x\n",
-					k, i);
+				printk(KERN_NOTICE "PCI: No mmconfig possible"
+				       " on device %02x:%02x\n", k, i);
 			}
 		}
 	}
