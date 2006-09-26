@@ -511,9 +511,6 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
 	/* SAL spec states this should run w/ interrupts enabled */
 	local_irq_enable();
 
-	/* Get the CPE error record and log it */
-	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_CPE);
-
 	spin_lock(&cpe_history_lock);
 	if (!cpe_poll_enabled && cpe_vector >= 0) {
 
@@ -542,7 +539,7 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
 			mod_timer(&cpe_poll_timer, jiffies + MIN_CPE_POLL_INTERVAL);
 
 			/* lock already released, get out now */
-			return IRQ_HANDLED;
+			goto out;
 		} else {
 			cpe_history[index++] = now;
 			if (index == CPE_HISTORY_LENGTH)
@@ -550,6 +547,10 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
 		}
 	}
 	spin_unlock(&cpe_history_lock);
+out:
+	/* Get the CPE error record and log it */
+	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_CPE);
+
 	return IRQ_HANDLED;
 }
 
@@ -1278,9 +1279,6 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg, struct pt_regs *ptregs)
 	/* SAL spec states this should run w/ interrupts enabled */
 	local_irq_enable();
 
-	/* Get the CMC error record and log it */
-	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_CMC);
-
 	spin_lock(&cmc_history_lock);
 	if (!cmc_polling_enabled) {
 		int i, count = 1; /* we know 1 happened now */
@@ -1313,7 +1311,7 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg, struct pt_regs *ptregs)
 			mod_timer(&cmc_poll_timer, jiffies + CMC_POLL_INTERVAL);
 
 			/* lock already released, get out now */
-			return IRQ_HANDLED;
+			goto out;
 		} else {
 			cmc_history[index++] = now;
 			if (index == CMC_HISTORY_LENGTH)
@@ -1321,6 +1319,10 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg, struct pt_regs *ptregs)
 		}
 	}
 	spin_unlock(&cmc_history_lock);
+out:
+	/* Get the CMC error record and log it */
+	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_CMC);
+
 	return IRQ_HANDLED;
 }
 
