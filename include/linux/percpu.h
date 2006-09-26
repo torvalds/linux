@@ -11,8 +11,14 @@
 #define PERCPU_ENOUGH_ROOM 32768
 #endif
 
-/* Must be an lvalue. */
-#define get_cpu_var(var) (*({ preempt_disable(); &__get_cpu_var(var); }))
+/*
+ * Must be an lvalue. Since @var must be a simple identifier,
+ * we force a syntax error here if it isn't.
+ */
+#define get_cpu_var(var) (*({				\
+	extern int simple_indentifier_##var(void);	\
+	preempt_disable();				\
+	&__get_cpu_var(var); }))
 #define put_cpu_var(var) preempt_enable()
 
 #ifdef CONFIG_SMP
