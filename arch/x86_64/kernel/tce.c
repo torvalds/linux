@@ -1,4 +1,6 @@
 /*
+ * This file manages the translation entries for the IBM Calgary IOMMU.
+ *
  * Derived from arch/powerpc/platforms/pseries/iommu.c
  *
  * Copyright (C) IBM Corporation, 2006
