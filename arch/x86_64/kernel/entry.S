@@ -617,8 +617,7 @@ retint_signal:
 #ifdef CONFIG_PREEMPT
 	/* Returning to kernel space. Check if we need preemption */
 	/* rcx:	 threadinfo. interrupts off. */
-	.p2align
-retint_kernel:	
+ENTRY(retint_kernel)
 	cmpl $0,threadinfo_preempt_count(%rcx)
 	jnz  retint_restore_args
 	bt  $TIF_NEED_RESCHED,threadinfo_flags(%rcx)
