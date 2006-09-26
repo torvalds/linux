@@ -299,7 +299,9 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 #define HANDLE_STACK(cond) \
 	do while (cond) { \
 		unsigned long addr = *stack++; \
-		if (kernel_text_address(addr)) { \
+		if (oops_in_progress ? 		\
+			__kernel_text_address(addr) : \
+			kernel_text_address(addr)) { \
 			/* \
 			 * If the address is either in the text segment of the \
 			 * kernel, or in the region which contains vmalloc'ed \
