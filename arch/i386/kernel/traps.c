@@ -171,7 +171,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	        unsigned long *stack,
 		struct stacktrace_ops *ops, void *data)
 {
-	unsigned long ebp;
+	unsigned long ebp = 0;
 
 	if (!task)
 		task = current;
@@ -199,6 +199,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 					stack = (void *)UNW_SP(&info);
 					if (!stack)
 						return;
+					ebp = UNW_FP(&info);
 				} else
 					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
@@ -207,20 +208,25 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				ops->warning(data, "Full inexact backtrace again:\n");
 		} else
 			ops->warning(data, "Inexact backtrace:\n");
-	} else 	if (!stack) {
+	}
+	if (!stack) {
 		unsigned long dummy;
 		stack = &dummy;
 		if (task && task != current)
 			stack = (unsigned long *)task->thread.esp;
 	}
 
-	if (task == current) {
-		/* Grab ebp right from our regs */
-		asm ("movl %%ebp, %0" : "=r" (ebp) : );
-	} else {
-		/* ebp is the last reg pushed by switch_to */
-		ebp = *(unsigned long *) task->thread.esp;
+#ifdef CONFIG_FRAME_POINTER
+	if (!ebp) {
+		if (task == current) {
+			/* Grab ebp right from our regs */
+			asm ("movl %%ebp, %0" : "=r" (ebp) : );
+		} else {
+			/* ebp is the last reg pushed by switch_to */
+			ebp = *(unsigned long *) task->thread.esp;
+		}
 	}
+#endif
 
 	while (1) {
 		struct thread_info *context;

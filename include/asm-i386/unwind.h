@@ -28,6 +28,8 @@ struct unwind_frame_info
 #define FRAME_LINK_OFFSET    0
 #define STACK_BOTTOM(tsk)    STACK_LIMIT((tsk)->thread.esp0)
 #define STACK_TOP(tsk)       ((tsk)->thread.esp0)
+#else
+#define UNW_FP(frame) ((void)(frame), 0)
 #endif
 #define STACK_LIMIT(ptr)     (((ptr) - 1) & ~(THREAD_SIZE - 1))
 
@@ -88,6 +90,7 @@ static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 
 #define UNW_PC(frame) ((void)(frame), 0)
 #define UNW_SP(frame) ((void)(frame), 0)
+#define UNW_FP(frame) ((void)(frame), 0)
 
 static inline int arch_unw_user_mode(const void *info)
 {
