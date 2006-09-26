@@ -470,7 +470,7 @@ void split_page(struct page *page, unsigned int order);
 #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
 #define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
 
-static inline unsigned long page_zonenum(struct page *page)
+static inline enum zone_type page_zonenum(struct page *page)
 {
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
@@ -499,11 +499,12 @@ static inline unsigned long page_to_section(struct page *page)
 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
 
-static inline void set_page_zone(struct page *page, unsigned long zone)
+static inline void set_page_zone(struct page *page, enum zone_type zone)
 {
 	page->flags &= ~(ZONES_MASK << ZONES_PGSHIFT);
 	page->flags |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
 }
+
 static inline void set_page_node(struct page *page, unsigned long node)
 {
 	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
@@ -515,7 +516,7 @@ static inline void set_page_section(struct page *page, unsigned long section)
 	page->flags |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
 }
 
-static inline void set_page_links(struct page *page, unsigned long zone,
+static inline void set_page_links(struct page *page, enum zone_type zone,
 	unsigned long node, unsigned long pfn)
 {
 	set_page_zone(page, zone);

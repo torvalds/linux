@@ -88,14 +88,53 @@ struct per_cpu_pageset {
 #define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
 #endif
 
-#define ZONE_DMA		0
-#define ZONE_DMA32		1
-#define ZONE_NORMAL		2
-#define ZONE_HIGHMEM		3
+enum zone_type {
+	/*
+	 * ZONE_DMA is used when there are devices that are not able
+	 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
+	 * carve out the portion of memory that is needed for these devices.
+	 * The range is arch specific.
+	 *
+	 * Some examples
+	 *
+	 * Architecture		Limit
+	 * ---------------------------
+	 * parisc, ia64, sparc	<4G
+	 * s390			<2G
+	 * arm26		<48M
+	 * arm			Various
+	 * alpha		Unlimited or 0-16MB.
+	 *
+	 * i386, x86_64 and multiple other arches
+	 * 			<16M.
+	 */
+	ZONE_DMA,
+	/*
+	 * x86_64 needs two ZONE_DMAs because it supports devices that are
+	 * only able to do DMA to the lower 16M but also 32 bit devices that
+	 * can only do DMA areas below 4G.
+	 */
+	ZONE_DMA32,
+	/*
+	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
+	 * performed on pages in ZONE_NORMAL if the DMA devices support
+	 * transfers to all addressable memory.
+	 */
+	ZONE_NORMAL,
+	/*
+	 * A memory area that is only addressable by the kernel through
+	 * mapping portions into its own address space. This is for example
+	 * used by i386 to allow the kernel to address the memory beyond
+	 * 900MB. The kernel will set up special mappings (page
+	 * table entries on i386) for each page that the kernel needs to
+	 * access.
+	 */
+	ZONE_HIGHMEM,
 
-#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
+	MAX_NR_ZONES
+};
 
+#define	ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
 
 /*
  * When a memory allocation must conform to specific limitations (such
@@ -125,16 +164,6 @@ struct per_cpu_pageset {
 #define GFP_ZONEMASK	0x07
 /* #define GFP_ZONETYPES       (GFP_ZONEMASK + 1) */           /* Non-loner */
 #define GFP_ZONETYPES  ((GFP_ZONEMASK + 1) / 2 + 1)            /* Loner */
-
-/*
- * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a 32bit PC we have 4 zones:
- *
- * ZONE_DMA	  < 16 MB	ISA DMA capable memory
- * ZONE_DMA32	     0 MB 	Empty
- * ZONE_NORMAL	16-896 MB	direct mapped by the kernel
- * ZONE_HIGHMEM	 > 896 MB	only page cache and user processes
- */
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
@@ -266,7 +295,6 @@ struct zone {
 	char			*name;
 } ____cacheline_internodealigned_in_smp;
 
-
 /*
  * The "priority" of VM scanning is how much of the queues we will scan in one
  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
@@ -373,12 +401,12 @@ static inline int populated_zone(struct zone *zone)
 	return (!!zone->present_pages);
 }
 
-static inline int is_highmem_idx(int idx)
+static inline int is_highmem_idx(enum zone_type idx)
 {
 	return (idx == ZONE_HIGHMEM);
 }
 
-static inline int is_normal_idx(int idx)
+static inline int is_normal_idx(enum zone_type idx)
 {
 	return (idx == ZONE_NORMAL);
 }

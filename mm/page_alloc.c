@@ -68,7 +68,11 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  * TBD: should special case ZONE_DMA32 machines here - in those we normally
  * don't need any ZONE_NORMAL reservation
  */
-int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+	 256,
+	 256,
+	 32
+};
 
 EXPORT_SYMBOL(totalram_pages);
 
@@ -79,7 +83,13 @@ EXPORT_SYMBOL(totalram_pages);
 struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
 EXPORT_SYMBOL(zone_table);
 
-static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
+static char *zone_names[MAX_NR_ZONES] = {
+	 "DMA",
+	 "DMA32",
+	 "Normal",
+	 "HighMem"
+};
+
 int min_free_kbytes = 1024;
 
 unsigned long __meminitdata nr_kernel_pages;
@@ -1487,7 +1497,9 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 
 static void __meminit build_zonelists(pg_data_t *pgdat)
 {
-	int i, j, k, node, local_node;
+	int i, node, local_node;
+	enum zone_type k;
+	enum zone_type j;
 
 	local_node = pgdat->node_id;
 	for (i = 0; i < GFP_ZONETYPES; i++) {
@@ -1675,8 +1687,8 @@ void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone,
 }
 
 #define ZONETABLE_INDEX(x, zone_nr)	((x << ZONES_SHIFT) | zone_nr)
-void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
-		unsigned long size)
+void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+		unsigned long pfn, unsigned long size)
 {
 	unsigned long snum = pfn_to_section_nr(pfn);
 	unsigned long end = pfn_to_section_nr(pfn + size);
@@ -1960,7 +1972,7 @@ __meminit int init_currently_empty_zone(struct zone *zone,
 static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		unsigned long *zones_size, unsigned long *zholes_size)
 {
-	unsigned long j;
+	enum zone_type j;
 	int nid = pgdat->node_id;
 	unsigned long zone_start_pfn = pgdat->node_start_pfn;
 	int ret;
