@@ -422,7 +422,6 @@ config IOMMU
 
 config CALGARY_IOMMU
 	bool "IBM Calgary IOMMU support"
-	default y
 	select SWIOTLB
 	depends on PCI && EXPERIMENTAL
 	help
