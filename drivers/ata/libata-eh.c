@@ -1515,7 +1515,11 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	if (prereset) {
 		rc = prereset(ap);
 		if (rc) {
-			ata_port_printk(ap, KERN_ERR,
+			if (rc == -ENOENT) {
+				ata_port_printk(ap, KERN_DEBUG, "port disabled. ignoring.\n");
+				ap->eh_context.i.action &= ~ATA_EH_RESET_MASK;
+			} else
+				ata_port_printk(ap, KERN_ERR,
 					"prereset failed (errno=%d)\n", rc);
 			return rc;
 		}

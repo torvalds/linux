@@ -18,7 +18,7 @@
  * The driver conciously keeps this logic internally to avoid pushing quirky
  * PATA history into the clean libata layer.
  *
- * Thinkpad specific note: If you boot an MPIIX using thinkpad with a PCMCIA
+ * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA
  * hard disk present this driver will not detect it. This is not a bug. In this
  * configuration the secondary port of the MPIIX is disabled and the addresses
  * are decoded by the PCMCIA bridge and therefore are for a generic IDE driver
@@ -35,7 +35,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_mpiix"
-#define DRV_VERSION "0.7.1"
+#define DRV_VERSION "0.7.2"
 
 enum {
 	IDETIM = 0x6C,		/* IDE control register */
@@ -54,11 +54,8 @@ static int mpiix_pre_reset(struct ata_port *ap)
 		{ 0x6F, 1, 0x80, 0x80 }
 	};
 
-	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &mpiix_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }

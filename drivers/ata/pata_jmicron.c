@@ -51,7 +51,7 @@ static int jmicron_pre_reset(struct ata_port *ap)
 	/* Check if our port is enabled */
 	pci_read_config_dword(pdev, 0x40, &control);
 	if ((control & port_mask) == 0)
-		return 0;
+		return -ENOENT;
 
 	/* There are two basic mappings. One has the two SATA ports merged
 	   as master/slave and the secondary as PATA, the other has only the

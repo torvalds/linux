@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_amd"
-#define DRV_VERSION "0.2.3"
+#define DRV_VERSION "0.2.4"
 
 /**
  *	timing_setup		-	shared timing computation and load
@@ -137,11 +137,8 @@ static int amd_pre_reset(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 ata66;
 
-	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no]))
+		return -ENOENT;
 
 	pci_read_config_byte(pdev, 0x42, &ata66);
 	if (ata66 & bitmask[ap->port_no])
@@ -167,11 +164,9 @@ static int amd_early_pre_reset(struct ata_port *ap)
 		{ 0x40, 1, 0x01, 0x01 }
 	};
 
-	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	/* No host side cable detection */
 	ap->cbl = ATA_CBL_PATA80;
 	return ata_std_prereset(ap);
@@ -262,12 +257,8 @@ static int nv_pre_reset(struct ata_port *ap) {
 	u8 ata66;
 	u16 udma;
 
-	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
-
+	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no]))
+		return -ENOENT;
 
 	pci_read_config_byte(pdev, 0x52, &ata66);
 	if (ata66 & bitmask[ap->port_no])

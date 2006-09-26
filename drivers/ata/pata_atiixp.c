@@ -22,7 +22,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_atiixp"
-#define DRV_VERSION "0.4.2"
+#define DRV_VERSION "0.4.3"
 
 enum {
 	ATIIXP_IDE_PIO_TIMING	= 0x40,
@@ -41,11 +41,9 @@ static int atiixp_pre_reset(struct ata_port *ap)
 		{ 0x48, 1, 0x08, 0x00 }
 	};
 
-	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_no]))
+		return -ENOENT;
+
 	ap->cbl = ATA_CBL_PATA80;
 	return ata_std_prereset(ap);
 }
