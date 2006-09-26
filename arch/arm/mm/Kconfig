@@ -25,6 +25,19 @@ config CPU_ARM610
 	  Say Y if you want support for the ARM610 processor.
 	  Otherwise, say N.
 
+# ARM7TDMI
+config CPU_ARM7TDMI
+	bool "Support ARM7TDMI processor"
+	select CPU_32v4T
+	select CPU_ABRT_LV4T
+	select CPU_CACHE_V4
+	help
+	  A 32-bit RISC microprocessor based on the ARM7 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM7TDMI processor.
+	  Otherwise, say N.
+
 # ARM710
 config CPU_ARM710
 	bool "Support ARM710 processor" if !ARCH_CLPS7500 && ARCH_RPC

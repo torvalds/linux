@@ -33,7 +33,7 @@
 # endif
 #endif
 
-#if defined(CONFIG_CPU_ARM720T)
+#if defined(CONFIG_CPU_ARM720T) || defined(CONFIG_CPU_ARM7TDMI)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
 # else
