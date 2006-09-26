@@ -715,17 +715,8 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 		return IRQ_NOTMINE;
 	}
 
-	/* NOTE:  vendors didn't always make the same implementation
-	 * choices for RHSC.  Sometimes it triggers on an edge (like
-	 * setting and maybe clearing a port status change bit); and
-	 * it's level-triggered on other silicon, active until khubd
-	 * clears all active port status change bits.  Poll by timer
-	 * til it's fully debounced and the difference won't matter.
-	 */
 	if (ints & OHCI_INTR_RHSC) {
 		ohci_vdbg (ohci, "rhsc\n");
-		ohci_writel (ohci, OHCI_INTR_RHSC, &regs->intrdisable);
-		hcd->poll_rh = 1;
 		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
 		ohci_writel (ohci, OHCI_INTR_RHSC, &regs->intrstatus);
 		usb_hcd_poll_rh_status(hcd);
@@ -743,13 +734,18 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 	if (ints & OHCI_INTR_RD) {
 		ohci_vdbg (ohci, "resume detect\n");
 		ohci_writel (ohci, OHCI_INTR_RD, &regs->intrstatus);
-		if (hcd->state != HC_STATE_QUIESCING)
+		hcd->poll_rh = 1;
+		if (ohci->autostop) {
+			spin_lock (&ohci->lock);
+			ohci_rh_resume (ohci);
+			spin_unlock (&ohci->lock);
+		} else
 			usb_hcd_resume_root_hub(hcd);
 	}
 
 	if (ints & OHCI_INTR_WDH) {
 		if (HC_IS_RUNNING(hcd->state))
-			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrdisable);	
+			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrdisable);
 		spin_lock (&ohci->lock);
 		dl_done_list (ohci, ptregs);
 		spin_unlock (&ohci->lock);
