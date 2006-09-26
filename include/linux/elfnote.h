@@ -31,22 +31,24 @@
 /*
  * Generate a structure with the same shape as Elf{32,64}_Nhdr (which
  * turn out to be the same size and shape), followed by the name and
- * desc data with appropriate padding.  The 'desc' argument includes
- * the assembler pseudo op defining the type of the data: .asciz
- * "hello, world"
+ * desc data with appropriate padding.  The 'desctype' argument is the
+ * assembler pseudo op defining the type of the data e.g. .asciz while
+ * 'descdata' is the data itself e.g.  "hello, world".
+ *
+ * e.g. ELFNOTE(XYZCo, 42, .asciz, "forty-two")
+ *      ELFNOTE(XYZCo, 12, .long, 0xdeadbeef)
  */
-.macro ELFNOTE name type desc:vararg
-.pushsection ".note.\name"
-  .align 4
-  .long 2f - 1f			/* namesz */
-  .long 4f - 3f			/* descsz */
-  .long \type
-1:.asciz "\name"
-2:.align 4
-3:\desc
-4:.align 4
-.popsection
-.endm
+#define ELFNOTE(name, type, desctype, descdata)	\
+.pushsection .note.name			;	\
+  .align 4				;	\
+  .long 2f - 1f		/* namesz */	;	\
+  .long 4f - 3f		/* descsz */	;	\
+  .long type				;	\
+1:.asciz "name"				;	\
+2:.align 4				;	\
+3:desctype descdata			;	\
+4:.align 4				;	\
+.popsection				;
 #else	/* !__ASSEMBLER__ */
 #include <linux/elf.h>
 /*
