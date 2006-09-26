@@ -65,6 +65,14 @@
 #   define CPU_NAME cpu_arm740
 #  endif
 # endif
+# ifdef CONFIG_CPU_ARM9TDMI
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_arm9tdmi
+#  endif
+# endif
 # ifdef CONFIG_CPU_ARM920T
 #  ifdef CPU_NAME
 #   undef  MULTI_CPU

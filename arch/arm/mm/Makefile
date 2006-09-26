@@ -49,6 +49,7 @@ obj-$(CONFIG_CPU_ARM710)	+= proc-arm6_7.o
 obj-$(CONFIG_CPU_ARM7TDMI)	+= proc-arm7tdmi.o
 obj-$(CONFIG_CPU_ARM720T)	+= proc-arm720.o
 obj-$(CONFIG_CPU_ARM740T)	+= proc-arm740.o
+obj-$(CONFIG_CPU_ARM9TDMI)	+= proc-arm9tdmi.o
 obj-$(CONFIG_CPU_ARM920T)	+= proc-arm920.o
 obj-$(CONFIG_CPU_ARM922T)	+= proc-arm922.o
 obj-$(CONFIG_CPU_ARM925T)	+= proc-arm925.o

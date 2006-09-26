@@ -90,6 +90,19 @@ config CPU_ARM740T
 	  Say Y if you want support for the ARM740T processor.
 	  Otherwise, say N.
 
+# ARM9TDMI
+config CPU_ARM9TDMI
+	bool "Support ARM9TDMI processor"
+	select CPU_32v4T
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_V4
+	help
+	  A 32-bit RISC microprocessor based on the ARM9 processor core
+	  which has no memory control unit and cache.
+
+	  Say Y if you want support for the ARM9TDMI processor.
+	  Otherwise, say N.
+
 # ARM920T
 config CPU_ARM920T
 	bool "Support ARM920T processor"
