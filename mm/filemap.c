@@ -599,8 +599,8 @@ void fastcall __lock_page_nosync(struct page *page)
  * @mapping: the address_space to search
  * @offset: the page index
  *
- * A rather lightweight function, finding and getting a reference to a
- * hashed page atomically.
+ * Is there a pagecache struct page at the given (mapping, offset) tuple?
+ * If yes, increment its refcount and return it; if no, return NULL.
  */
 struct page * find_get_page(struct address_space *mapping, unsigned long offset)
 {
@@ -987,7 +987,7 @@ page_not_up_to_date:
 		/* Get exclusive access to the page ... */
 		lock_page(page);
 
-		/* Did it get unhashed before we got the lock? */
+		/* Did it get truncated before we got the lock? */
 		if (!page->mapping) {
 			unlock_page(page);
 			page_cache_release(page);
@@ -1627,7 +1627,7 @@ no_cached_page:
 page_not_uptodate:
 	lock_page(page);
 
-	/* Did it get unhashed while we waited for it? */
+	/* Did it get truncated while we waited for it? */
 	if (!page->mapping) {
 		unlock_page(page);
 		goto err;

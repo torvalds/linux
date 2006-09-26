@@ -219,7 +219,8 @@ struct inode;
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
  * moment. Note that we have no way to track which tasks are using
- * a page.
+ * a page, though if it is a pagecache page, rmap structures can tell us
+ * who is mapping it.
  */
 struct page {
 	unsigned long flags;		/* Atomic flags, some possibly
@@ -299,8 +300,7 @@ struct page {
  */
 
 /*
- * Drop a ref, return true if the logical refcount fell to zero (the page has
- * no users)
+ * Drop a ref, return true if the refcount fell to zero (the page has no users)
  */
 static inline int put_page_testzero(struct page *page)
 {
@@ -356,43 +356,55 @@ void split_page(struct page *page, unsigned int order);
  * For the non-reserved pages, page_count(page) denotes a reference count.
  *   page_count() == 0 means the page is free. page->lru is then used for
  *   freelist management in the buddy allocator.
- *   page_count() == 1 means the page is used for exactly one purpose
- *   (e.g. a private data page of one process).
+ *   page_count() > 0  means the page has been allocated.
  *
- * A page may be used for kmalloc() or anyone else who does a
- * __get_free_page(). In this case the page_count() is at least 1, and
- * all other fields are unused but should be 0 or NULL. The
- * management of this page is the responsibility of the one who uses
- * it.
+ * Pages are allocated by the slab allocator in order to provide memory
+ * to kmalloc and kmem_cache_alloc. In this case, the management of the
+ * page, and the fields in 'struct page' are the responsibility of mm/slab.c
+ * unless a particular usage is carefully commented. (the responsibility of
+ * freeing the kmalloc memory is the caller's, of course).
  *
- * The other pages (we may call them "process pages") are completely
+ * A page may be used by anyone else who does a __get_free_page().
+ * In this case, page_count still tracks the references, and should only
+ * be used through the normal accessor functions. The top bits of page->flags
+ * and page->virtual store page management information, but all other fields
+ * are unused and could be used privately, carefully. The management of this
+ * page is the responsibility of the one who allocated it, and those who have
+ * subsequently been given references to it.
+ *
+ * The other pages (we may call them "pagecache pages") are completely
  * managed by the Linux memory manager: I/O, buffers, swapping etc.
  * The following discussion applies only to them.
  *
- * A page may belong to an inode's memory mapping. In this case,
- * page->mapping is the pointer to the inode, and page->index is the
- * file offset of the page, in units of PAGE_CACHE_SIZE.
+ * A pagecache page contains an opaque `private' member, which belongs to the
+ * page's address_space. Usually, this is the address of a circular list of
+ * the page's disk buffers. PG_private must be set to tell the VM to call
+ * into the filesystem to release these pages.
  *
- * A page contains an opaque `private' member, which belongs to the
- * page's address_space.  Usually, this is the address of a circular
- * list of the page's disk buffers.
+ * A page may belong to an inode's memory mapping. In this case, page->mapping
+ * is the pointer to the inode, and page->index is the file offset of the page,
+ * in units of PAGE_CACHE_SIZE.
  *
- * For pages belonging to inodes, the page_count() is the number of
- * attaches, plus 1 if `private' contains something, plus one for
- * the page cache itself.
+ * If pagecache pages are not associated with an inode, they are said to be
+ * anonymous pages. These may become associated with the swapcache, and in that
+ * case PG_swapcache is set, and page->private is an offset into the swapcache.
  *
- * Instead of keeping dirty/clean pages in per address-space lists, we instead
- * now tag pages as dirty/under writeback in the radix tree.
+ * In either case (swapcache or inode backed), the pagecache itself holds one
+ * reference to the page. Setting PG_private should also increment the
+ * refcount. The each user mapping also has a reference to the page.
  *
- * There is also a per-mapping radix tree mapping index to the page
- * in memory if present. The tree is rooted at mapping->root.  
+ * The pagecache pages are stored in a per-mapping radix tree, which is
+ * rooted at mapping->page_tree, and indexed by offset.
+ * Where 2.4 and early 2.6 kernels kept dirty/clean pages in per-address_space
+ * lists, we instead now tag pages as dirty/writeback in the radix tree.
  *
- * All process pages can do I/O:
+ * All pagecache pages may be subject to I/O:
  * - inode pages may need to be read from disk,
  * - inode pages which have been modified and are MAP_SHARED may need
- *   to be written to disk,
- * - private pages which have been modified may need to be swapped out
- *   to swap space and (later) to be read back into memory.
+ *   to be written back to the inode on disk,
+ * - anonymous pages (including MAP_PRIVATE file mappings) which have been
+ *   modified may need to be swapped out to swap space and (later) to be read
+ *   back into memory.
  */
 
 /*
