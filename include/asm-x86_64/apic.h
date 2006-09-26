@@ -29,8 +29,6 @@ extern int apic_runs_main_timer;
 			printk(s, ##a);    \
 	} while (0)
 
-#ifdef CONFIG_X86_LOCAL_APIC
-
 struct pt_regs;
 
 /*
@@ -103,8 +101,6 @@ void switch_APIC_timer_to_ipi(void *cpumask);
 void switch_ipi_to_APIC_timer(void *cpumask);
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
-
-#endif /* CONFIG_X86_LOCAL_APIC */
 
 extern unsigned boot_cpu_id;
 

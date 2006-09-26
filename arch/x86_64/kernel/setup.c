@@ -340,10 +340,8 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		else if (fullarg(from, "acpi=strict")) {
 			acpi_strict = 1;
 		}
-#ifdef CONFIG_X86_IO_APIC
 		else if (fullarg(from, "acpi_skip_timer_override"))
 			acpi_skip_timer_override = 1;
-#endif
 #endif
 
 		if (fullarg(from, "disable_timer_pin_1"))
@@ -625,12 +623,10 @@ void __init setup_arch(char **cmdline_p)
         */
        acpi_reserve_bootmem();
 #endif
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
-#endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (end_pfn << PAGE_SHIFT)) {
@@ -674,14 +670,12 @@ void __init setup_arch(char **cmdline_p)
 
 	init_cpu_to_node();
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		get_smp_config();
 	init_apic_mappings();
-#endif
 
 	/*
 	 * Request address space for all standard RAM and ROM resources

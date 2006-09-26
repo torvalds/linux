@@ -194,9 +194,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	if(cpu_has_apic)
 		 disable_local_APIC();
 
-#if defined(CONFIG_X86_IO_APIC)
 	disable_IO_APIC();
-#endif
 
 	crash_save_self(regs);
 }

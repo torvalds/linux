@@ -74,14 +74,10 @@ physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 /* ACPI MADT entry parsing functions */
 #ifdef CONFIG_ACPI
 extern struct acpi_boot_flags acpi_boot;
-#ifdef CONFIG_X86_LOCAL_APIC
 extern int acpi_parse_lapic (acpi_table_entry_header *header);
 extern int acpi_parse_lapic_addr_ovr (acpi_table_entry_header *header);
 extern int acpi_parse_lapic_nmi (acpi_table_entry_header *header);
-#endif /*CONFIG_X86_LOCAL_APIC*/
-#ifdef CONFIG_X86_IO_APIC
 extern int acpi_parse_ioapic (acpi_table_entry_header *header);
-#endif /*CONFIG_X86_IO_APIC*/
 #endif /*CONFIG_ACPI*/
 
 u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
@@ -661,9 +657,7 @@ void __init find_intel_smp (void)
  */
 void __init find_smp_config (void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	find_intel_smp();
-#endif
 }
 
 
@@ -716,8 +710,6 @@ void __cpuinit mp_register_lapic (
 
 	MP_processor_info(&processor);
 }
-
-#ifdef CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
@@ -997,5 +989,4 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	return gsi;
 }
 
-#endif /*CONFIG_X86_IO_APIC*/
 #endif /*CONFIG_ACPI*/

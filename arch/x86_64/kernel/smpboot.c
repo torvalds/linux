@@ -1175,13 +1175,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	smp_cleanup_boot();
-
-#ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
-#endif
-
 	check_nmi_watchdog();
-
 	time_init_gtod();
 }
 

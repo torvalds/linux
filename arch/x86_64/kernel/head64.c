@@ -111,10 +111,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (s != NULL)
 		numa_setup(s+5);
 #endif
-#ifdef CONFIG_X86_IO_APIC
 	if (strstr(saved_command_line, "disableapic"))
 		disable_apic = 1;
-#endif
 	/* You need early console to see that */
 	if (__pa_symbol(&_end) >= KERNEL_TEXT_SIZE)
 		panic("Kernel too big for kernel mapping\n");

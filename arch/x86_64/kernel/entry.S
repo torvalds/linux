@@ -676,7 +676,6 @@ ENTRY(call_function_interrupt)
 END(call_function_interrupt)
 #endif
 
-#ifdef CONFIG_X86_LOCAL_APIC	
 ENTRY(apic_timer_interrupt)
 	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
 END(apic_timer_interrupt)
@@ -688,7 +687,6 @@ END(error_interrupt)
 ENTRY(spurious_interrupt)
 	apicinterrupt SPURIOUS_APIC_VECTOR,smp_spurious_interrupt
 END(spurious_interrupt)
-#endif
 				
 /*
  * Exception entry points.

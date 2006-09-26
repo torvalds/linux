@@ -10,8 +10,6 @@
  * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
  */
 
-#ifdef CONFIG_X86_IO_APIC
-
 #ifdef CONFIG_PCI_MSI
 static inline int use_pci_vector(void)	{return 1;}
 static inline void disable_edge_ioapic_vector(unsigned int vector) { }
@@ -208,10 +206,6 @@ extern int timer_uses_ioapic_pin_0;
 #endif
 
 extern int sis_apic_bug; /* dummy */ 
-
-#else  /* !CONFIG_X86_IO_APIC */
-#define io_apic_assign_pci_irqs 0
-#endif
 
 extern int assign_irq_vector(int irq);
 

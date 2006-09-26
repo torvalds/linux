@@ -41,9 +41,7 @@
 #include <asm/sections.h>
 #include <linux/cpufreq.h>
 #include <linux/hpet.h>
-#ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/apic.h>
-#endif
 
 #ifdef CONFIG_CPU_FREQ
 static void cpufreq_delayed_get(void);
@@ -438,12 +436,8 @@ void main_timer_handler(struct pt_regs *regs)
  * have to call the local interrupt handler.
  */
 
-#ifndef CONFIG_X86_LOCAL_APIC
-	profile_tick(CPU_PROFILING, regs);
-#else
 	if (!using_apic_timer)
 		smp_local_timer_interrupt(regs);
-#endif
 
 /*
  * If we have an externally synchronized Linux clock, then update CMOS clock
@@ -467,10 +461,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (apic_runs_main_timer > 1)
 		return IRQ_HANDLED;
 	main_timer_handler(regs);
-#ifdef CONFIG_X86_LOCAL_APIC
 	if (using_apic_timer)
 		smp_send_timer_broadcast_ipi();
-#endif
 	return IRQ_HANDLED;
 }
 

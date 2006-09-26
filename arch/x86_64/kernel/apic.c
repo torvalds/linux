@@ -661,7 +661,6 @@ void __init init_apic_mappings(void)
 	 */
 	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
 
-#ifdef CONFIG_X86_IO_APIC
 	{
 		unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 		int i;
@@ -679,7 +678,6 @@ void __init init_apic_mappings(void)
 			idx++;
 		}
 	}
-#endif
 }
 
 /*
@@ -1129,12 +1127,10 @@ int __init APIC_init_uniprocessor (void)
 
 	setup_local_APIC();
 
-#ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
-			setup_IO_APIC();
+		setup_IO_APIC();
 	else
 		nr_ioapics = 0;
-#endif
 	setup_boot_APIC_clock();
 	check_nmi_watchdog();
 	return 0;

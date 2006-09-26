@@ -9,15 +9,11 @@
 #include <linux/bitops.h>
 extern int disable_apic;
 
-#ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
-#ifdef CONFIG_X86_IO_APIC
 #include <asm/io_apic.h>
-#endif
 #include <asm/apic.h>
 #include <asm/thread_info.h>
-#endif
 
 #ifdef CONFIG_SMP
 
