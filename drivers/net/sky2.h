@@ -1774,10 +1774,10 @@ struct sky2_status_le {
 struct tx_ring_info {
 	struct sk_buff	*skb;
 	DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	u16		idx;
+	DECLARE_PCI_UNMAP_ADDR(maplen);
 };
 
-struct ring_info {
+struct rx_ring_info {
 	struct sk_buff	*skb;
 	dma_addr_t	mapaddr;
 };
@@ -1799,7 +1799,7 @@ struct sky2_port {
 	u16		     tx_last_mss;
 	u32		     tx_tcpsum;
 
-	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
+	struct rx_ring_info  *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
 	u32		     rx_addr64;
 	u16		     rx_next;		/* next re to check */
