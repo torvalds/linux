@@ -79,13 +79,6 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
  *
  * On x86, we implement read-write locks as a 32-bit counter
  * with the high bit (sign) being the "contended" bit.
- *
- * The inline assembly is non-obvious. Think about it.
- *
- * Changed to use the same technique as rw semaphores.  See
- * semaphore.h for details.  -ben
- *
- * the helpers are in arch/i386/kernel/semaphore.c
  */
 
 #define __raw_read_can_lock(x)		((int)(x)->lock > 0)
@@ -93,12 +86,12 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
-	__build_read_lock(rw, "__read_lock_failed");
+	__build_read_lock(rw);
 }
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
-	__build_write_lock(rw, "__write_lock_failed");
+	__build_write_lock(rw);
 }
 
 static inline int __raw_read_trylock(raw_rwlock_t *lock)
