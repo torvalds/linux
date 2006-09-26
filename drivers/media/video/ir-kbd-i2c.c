@@ -64,23 +64,32 @@ MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults
 static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[3];
-	int start, toggle, dev, code;
+	int start, range, toggle, dev, code;
 
 	/* poll IR chip */
 	if (3 != i2c_master_recv(&ir->c,buf,3))
 		return -EIO;
 
 	/* split rc5 data block ... */
-	start  = (buf[0] >> 6) &    3;
+	start  = (buf[0] >> 7) &    1;
+	range  = (buf[0] >> 6) &    1;
 	toggle = (buf[0] >> 5) &    1;
 	dev    =  buf[0]       & 0x1f;
 	code   = (buf[1] >> 2) & 0x3f;
 
-	if (3 != start)
+	/* rc5 has two start bits
+	 * the first bit must be one
+	 * the second bit defines the command range (1 = 0-63, 0 = 64 - 127)
+	 */
+	if (!start)
 		/* no key pressed */
 		return 0;
-	dprintk(1,"ir hauppauge (rc5): s%d t%d dev=%d code=%d\n",
-		start, toggle, dev, code);
+
+	if (!range)
+		code += 64;
+
+	dprintk(1,"ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
+		start, range, toggle, dev, code);
 
 	/* return key */
 	*ir_key = code;
