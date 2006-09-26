@@ -3,7 +3,7 @@
 #
 
 # Multipart objects.
-wacom-objs	:= wacom_sys.o wacom_wac.o
+wacom-objs	:= wacom_wac.o wacom_sys.o
 usbhid-objs	:= hid-core.o
 
 # Optional parts of multipart objects.
