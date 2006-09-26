@@ -1090,7 +1090,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/*
 	 * Switch from PIC to APIC mode.
 	 */
-	connect_bsp_APIC();
 	setup_local_APIC();
 
 	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id) {

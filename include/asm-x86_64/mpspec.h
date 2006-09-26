@@ -178,7 +178,6 @@ extern int mp_irq_entries;
 extern struct mpc_config_intsrc mp_irqs [MAX_IRQ_SOURCES];
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
-extern int pic_mode;
 
 #ifdef CONFIG_ACPI
 extern void mp_register_lapic (u8 id, u8 enabled);

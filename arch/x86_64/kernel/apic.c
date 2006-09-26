@@ -136,72 +136,40 @@ void clear_local_APIC(void)
 	apic_read(APIC_ESR);
 }
 
-void __init connect_bsp_APIC(void)
-{
-	if (pic_mode) {
-		/*
-		 * Do not trust the local APIC being empty at bootup.
-		 */
-		clear_local_APIC();
-		/*
-		 * PIC mode, enable APIC mode in the IMCR, i.e.
-		 * connect BSP's local APIC to INT and NMI lines.
-		 */
-		apic_printk(APIC_VERBOSE, "leaving PIC mode, enabling APIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x01, 0x23);
-	}
-}
-
 void disconnect_bsp_APIC(int virt_wire_setup)
 {
-	if (pic_mode) {
-		/*
-		 * Put the board back into PIC mode (has an effect
-		 * only on certain older boards).  Note that APIC
-		 * interrupts, including IPIs, won't work beyond
-		 * this point!  The only exception are INIT IPIs.
-		 */
-		apic_printk(APIC_QUIET, "disabling APIC mode, entering PIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x00, 0x23);
+	/* Go back to Virtual Wire compatibility mode */
+	unsigned long value;
+
+	/* For the spurious interrupt use vector F, and enable it */
+	value = apic_read(APIC_SPIV);
+	value &= ~APIC_VECTOR_MASK;
+	value |= APIC_SPIV_APIC_ENABLED;
+	value |= 0xf;
+	apic_write(APIC_SPIV, value);
+
+	if (!virt_wire_setup) {
+		/* For LVT0 make it edge triggered, active high, external and enabled */
+		value = apic_read(APIC_LVT0);
+		value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
+			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
+			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
+		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
+		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
+		apic_write(APIC_LVT0, value);
+	} else {
+		/* Disable LVT0 */
+		apic_write(APIC_LVT0, APIC_LVT_MASKED);
 	}
-	else {
-		/* Go back to Virtual Wire compatibility mode */
-		unsigned long value;
 
-		/* For the spurious interrupt use vector F, and enable it */
-		value = apic_read(APIC_SPIV);
-		value &= ~APIC_VECTOR_MASK;
-		value |= APIC_SPIV_APIC_ENABLED;
-		value |= 0xf;
-		apic_write(APIC_SPIV, value);
-
-		if (!virt_wire_setup) {
-			/* For LVT0 make it edge triggered, active high, external and enabled */
-			value = apic_read(APIC_LVT0);
-			value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
-				APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
-				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
-			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
-			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
-			apic_write(APIC_LVT0, value);
-		}
-		else {
-			/* Disable LVT0 */
-			apic_write(APIC_LVT0, APIC_LVT_MASKED);
-		}
-
-		/* For LVT1 make it edge triggered, active high, nmi and enabled */
-		value = apic_read(APIC_LVT1);
-		value &= ~(
-			APIC_MODE_MASK | APIC_SEND_PENDING |
+	/* For LVT1 make it edge triggered, active high, nmi and enabled */
+	value = apic_read(APIC_LVT1);
+	value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
 			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
-		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
-		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
-		apic_write(APIC_LVT1, value);
-	}
+	value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
+	value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
+	apic_write(APIC_LVT1, value);
 }
 
 void disable_local_APIC(void)
@@ -418,7 +386,7 @@ void __cpuinit setup_local_APIC (void)
 	 * TODO: set up through-local-APIC from through-I/O-APIC? --macro
 	 */
 	value = apic_read(APIC_LVT0) & APIC_LVT_MASKED;
-	if (!smp_processor_id() && (pic_mode || !value)) {
+	if (!smp_processor_id() && !value) {
 		value = APIC_DM_EXTINT;
 		apic_printk(APIC_VERBOSE, "enabled ExtINT on CPU#%d\n", smp_processor_id());
 	} else {
@@ -1095,8 +1063,6 @@ int __init APIC_init_uniprocessor (void)
 	}
 
 	verify_local_APIC();
-
-	connect_bsp_APIC();
 
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_id));

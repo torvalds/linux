@@ -33,7 +33,6 @@ extern cpumask_t cpu_initialized;
  
 extern void smp_alloc_memory(void);
 extern volatile unsigned long smp_invalidate_needed;
-extern int pic_mode;
 extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;

@@ -56,7 +56,6 @@ struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 int mp_irq_entries;
 
 int nr_ioapics;
-int pic_mode;
 unsigned long mp_lapic_addr = 0;
 
 
@@ -514,13 +513,6 @@ void __init get_smp_config (void)
  		printk(KERN_INFO "Using ACPI for processor (LAPIC) configuration information\n");
 
 	printk("Intel MultiProcessor Specification v1.%d\n", mpf->mpf_specification);
-	if (mpf->mpf_feature2 & (1<<7)) {
-		printk(KERN_INFO "    IMCR and PIC compatibility mode.\n");
-		pic_mode = 1;
-	} else {
-		printk(KERN_INFO "    Virtual Wire compatibility mode.\n");
-		pic_mode = 0;
-	}
 
 	/*
 	 * Now see if we need to read further.
