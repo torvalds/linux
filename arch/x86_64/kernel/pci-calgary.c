@@ -844,6 +844,8 @@ error:
 		dev = pci_find_device_reverse(PCI_VENDOR_ID_IBM,
 					      PCI_DEVICE_ID_IBM_CALGARY,
 					      dev);
+		if (!dev)
+			break;
 		if (!translate_phb(dev)) {
 			pci_dev_put(dev);
 			continue;
