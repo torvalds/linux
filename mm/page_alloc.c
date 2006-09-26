@@ -448,9 +448,11 @@ static void free_pages_bulk(struct zone *zone, int count,
 
 static void free_one_page(struct zone *zone, struct page *page, int order)
 {
-	LIST_HEAD(list);
-	list_add(&page->lru, &list);
-	free_pages_bulk(zone, 1, &list, order);
+	spin_lock(&zone->lock);
+	zone->all_unreclaimable = 0;
+	zone->pages_scanned = 0;
+	__free_one_page(page, zone ,order);
+	spin_unlock(&zone->lock);
 }
 
 static void __free_pages_ok(struct page *page, unsigned int order)
