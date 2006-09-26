@@ -233,7 +233,7 @@ void fastcall __page_cache_release(struct page *page)
 		struct zone *zone = page_zone(page);
 
 		spin_lock_irqsave(&zone->lru_lock, flags);
-		BUG_ON(!PageLRU(page));
+		VM_BUG_ON(!PageLRU(page));
 		__ClearPageLRU(page);
 		del_page_from_lru(zone, page);
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
@@ -284,7 +284,7 @@ void release_pages(struct page **pages, int nr, int cold)
 				zone = pagezone;
 				spin_lock_irq(&zone->lru_lock);
 			}
-			BUG_ON(!PageLRU(page));
+			VM_BUG_ON(!PageLRU(page));
 			__ClearPageLRU(page);
 			del_page_from_lru(zone, page);
 		}
@@ -337,7 +337,7 @@ void __pagevec_release_nonlru(struct pagevec *pvec)
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		if (put_page_testzero(page))
 			pagevec_add(&pages_to_free, page);
 	}
@@ -364,7 +364,7 @@ void __pagevec_lru_add(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
 		add_page_to_inactive_list(zone, page);
 	}
@@ -391,9 +391,9 @@ void __pagevec_lru_add_active(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
-		BUG_ON(PageActive(page));
+		VM_BUG_ON(PageActive(page));
 		SetPageActive(page);
 		add_page_to_active_list(zone, page);
 	}

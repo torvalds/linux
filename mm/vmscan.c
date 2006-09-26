@@ -440,7 +440,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (TestSetPageLocked(page))
 			goto keep;
 
-		BUG_ON(PageActive(page));
+		VM_BUG_ON(PageActive(page));
 
 		sc->nr_scanned++;
 
@@ -564,7 +564,7 @@ keep_locked:
 		unlock_page(page);
 keep:
 		list_add(&page->lru, &ret_pages);
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 	}
 	list_splice(&ret_pages, page_list);
 	if (pagevec_count(&freed_pvec))
@@ -603,7 +603,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		BUG_ON(!PageLRU(page));
+		VM_BUG_ON(!PageLRU(page));
 
 		list_del(&page->lru);
 		target = src;
@@ -674,7 +674,7 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		 */
 		while (!list_empty(&page_list)) {
 			page = lru_to_page(&page_list);
-			BUG_ON(PageLRU(page));
+			VM_BUG_ON(PageLRU(page));
 			SetPageLRU(page);
 			list_del(&page->lru);
 			if (PageActive(page))
@@ -797,9 +797,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
-		BUG_ON(!PageActive(page));
+		VM_BUG_ON(!PageActive(page));
 		ClearPageActive(page);
 
 		list_move(&page->lru, &zone->inactive_list);
@@ -827,9 +827,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	while (!list_empty(&l_active)) {
 		page = lru_to_page(&l_active);
 		prefetchw_prev_lru_page(page, &l_active, flags);
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
-		BUG_ON(!PageActive(page));
+		VM_BUG_ON(!PageActive(page));
 		list_move(&page->lru, &zone->active_list);
 		pgmoved++;
 		if (!pagevec_add(&pvec, page)) {

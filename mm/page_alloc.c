@@ -127,7 +127,6 @@ static int bad_range(struct zone *zone, struct page *page)
 
 	return 0;
 }
-
 #else
 static inline int bad_range(struct zone *zone, struct page *page)
 {
@@ -218,12 +217,12 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
 {
 	int i;
 
-	BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
+	VM_BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
 	/*
 	 * clear_highpage() will use KM_USER0, so it's a bug to use __GFP_ZERO
 	 * and __GFP_HIGHMEM from hard or soft interrupt context.
 	 */
-	BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
+	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
 	for (i = 0; i < (1 << order); i++)
 		clear_highpage(page + i);
 }
@@ -347,8 +346,8 @@ static inline void __free_one_page(struct page *page,
 
 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
 
-	BUG_ON(page_idx & (order_size - 1));
-	BUG_ON(bad_range(zone, page));
+	VM_BUG_ON(page_idx & (order_size - 1));
+	VM_BUG_ON(bad_range(zone, page));
 
 	zone->free_pages += order_size;
 	while (order < MAX_ORDER-1) {
@@ -421,7 +420,7 @@ static void free_pages_bulk(struct zone *zone, int count,
 	while (count--) {
 		struct page *page;
 
-		BUG_ON(list_empty(list));
+		VM_BUG_ON(list_empty(list));
 		page = list_entry(list->prev, struct page, lru);
 		/* have to delete it as __free_one_page list manipulates */
 		list_del(&page->lru);
@@ -512,7 +511,7 @@ static inline void expand(struct zone *zone, struct page *page,
 		area--;
 		high--;
 		size >>= 1;
-		BUG_ON(bad_range(zone, &page[size]));
+		VM_BUG_ON(bad_range(zone, &page[size]));
 		list_add(&page[size].lru, &area->free_list);
 		area->nr_free++;
 		set_page_order(&page[size], high);
@@ -761,8 +760,8 @@ void split_page(struct page *page, unsigned int order)
 {
 	int i;
 
-	BUG_ON(PageCompound(page));
-	BUG_ON(!page_count(page));
+	VM_BUG_ON(PageCompound(page));
+	VM_BUG_ON(!page_count(page));
 	for (i = 1; i < (1 << order); i++)
 		set_page_refcounted(page + i);
 }
@@ -809,7 +808,7 @@ again:
 	local_irq_restore(flags);
 	put_cpu();
 
-	BUG_ON(bad_range(zone, page));
+	VM_BUG_ON(bad_range(zone, page));
 	if (prep_new_page(page, order, gfp_flags))
 		goto again;
 	return page;
@@ -1083,7 +1082,7 @@ fastcall unsigned long get_zeroed_page(gfp_t gfp_mask)
 	 * get_zeroed_page() returns a 32-bit address, which cannot represent
 	 * a highmem page
 	 */
-	BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
 
 	page = alloc_pages(gfp_mask | __GFP_ZERO, 0);
 	if (page)
@@ -1116,7 +1115,7 @@ EXPORT_SYMBOL(__free_pages);
 fastcall void free_pages(unsigned long addr, unsigned int order)
 {
 	if (addr != 0) {
-		BUG_ON(!virt_addr_valid((void *)addr));
+		VM_BUG_ON(!virt_addr_valid((void *)addr));
 		__free_pages(virt_to_page((void *)addr), order);
 	}
 }
