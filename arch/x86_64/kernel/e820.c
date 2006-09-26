@@ -24,6 +24,8 @@
 #include <asm/bootsetup.h>
 #include <asm/sections.h>
 
+struct e820map e820 __initdata;
+
 /* 
  * PFN of last memory page.
  */

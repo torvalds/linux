@@ -97,7 +97,6 @@ struct sys_desc_table_struct {
 
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
-struct e820map e820;
 
 extern int root_mountflags;
 
