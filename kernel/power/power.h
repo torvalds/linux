@@ -50,17 +50,65 @@ extern asmlinkage int swsusp_arch_resume(void);
 
 extern unsigned int count_data_pages(void);
 
+/**
+ *	Auxiliary structure used for reading the snapshot image data and
+ *	metadata from and writing them to the list of page backup entries
+ *	(PBEs) which is the main data structure of swsusp.
+ *
+ *	Using struct snapshot_handle we can transfer the image, including its
+ *	metadata, as a continuous sequence of bytes with the help of
+ *	snapshot_read_next() and snapshot_write_next().
+ *
+ *	The code that writes the image to a storage or transfers it to
+ *	the user land is required to use snapshot_read_next() for this
+ *	purpose and it should not make any assumptions regarding the internal
+ *	structure of the image.  Similarly, the code that reads the image from
+ *	a storage or transfers it from the user land is required to use
+ *	snapshot_write_next().
+ *
+ *	This may allow us to change the internal structure of the image
+ *	in the future with considerably less effort.
+ */
+
 struct snapshot_handle {
-	loff_t		offset;
-	unsigned int	page;
-	unsigned int	page_offset;
-	unsigned int	prev;
-	struct pbe	*pbe, *last_pbe;
-	void		*buffer;
-	unsigned int	buf_offset;
-	int		sync_read;
+	loff_t		offset;	/* number of the last byte ready for reading
+				 * or writing in the sequence
+				 */
+	unsigned int	cur;	/* number of the block of PAGE_SIZE bytes the
+				 * next operation will refer to (ie. current)
+				 */
+	unsigned int	cur_offset;	/* offset with respect to the current
+					 * block (for the next operation)
+					 */
+	unsigned int	prev;	/* number of the block of PAGE_SIZE bytes that
+				 * was the current one previously
+				 */
+	struct pbe	*pbe;	/* PBE that corresponds to 'buffer' */
+	struct pbe	*last_pbe;	/* When the image is restored (eg. read
+					 * from disk) we can store some image
+					 * data directly in the page frames
+					 * in which they were before suspend.
+					 * In such a case the PBEs that
+					 * correspond to them will be unused.
+					 * This is the last PBE, so far, that
+					 * does not correspond to such data.
+					 */
+	void		*buffer;	/* address of the block to read from
+					 * or write to
+					 */
+	unsigned int	buf_offset;	/* location to read from or write to,
+					 * given as a displacement from 'buffer'
+					 */
+	int		sync_read;	/* Set to one to notify the caller of
+					 * snapshot_write_next() that it may
+					 * need to call wait_on_bio_chain()
+					 */
 };
 
+/* This macro returns the address from/to which the caller of
+ * snapshot_read_next()/snapshot_write_next() is allowed to
+ * read/write data after the function returns
+ */
 #define data_of(handle)	((handle).buffer + (handle).buf_offset)
 
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);

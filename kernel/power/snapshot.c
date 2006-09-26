@@ -555,7 +555,7 @@ static inline struct pbe *pack_orig_addresses(unsigned long *buf, struct pbe *pb
 
 int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 {
-	if (handle->page > nr_meta_pages + nr_copy_pages)
+	if (handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
 	if (!buffer) {
 		/* This makes the buffer be freed by swsusp_free() */
@@ -568,8 +568,8 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		handle->buffer = buffer;
 		handle->pbe = pagedir_nosave;
 	}
-	if (handle->prev < handle->page) {
-		if (handle->page <= nr_meta_pages) {
+	if (handle->prev < handle->cur) {
+		if (handle->cur <= nr_meta_pages) {
 			handle->pbe = pack_orig_addresses(buffer, handle->pbe);
 			if (!handle->pbe)
 				handle->pbe = pagedir_nosave;
@@ -577,15 +577,15 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 			handle->buffer = (void *)handle->pbe->address;
 			handle->pbe = handle->pbe->next;
 		}
-		handle->prev = handle->page;
+		handle->prev = handle->cur;
 	}
-	handle->buf_offset = handle->page_offset;
-	if (handle->page_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->page_offset;
-		handle->page_offset = 0;
-		handle->page++;
+	handle->buf_offset = handle->cur_offset;
+	if (handle->cur_offset + count >= PAGE_SIZE) {
+		count = PAGE_SIZE - handle->cur_offset;
+		handle->cur_offset = 0;
+		handle->cur++;
 	} else {
-		handle->page_offset += count;
+		handle->cur_offset += count;
 	}
 	handle->offset += count;
 	return count;
@@ -820,7 +820,7 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 {
 	int error = 0;
 
-	if (handle->prev && handle->page > nr_meta_pages + nr_copy_pages)
+	if (handle->prev && handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
 	if (!buffer) {
 		/* This makes the buffer be freed by swsusp_free() */
@@ -831,7 +831,7 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 	if (!handle->offset)
 		handle->buffer = buffer;
 	handle->sync_read = 1;
-	if (handle->prev < handle->page) {
+	if (handle->prev < handle->cur) {
 		if (!handle->prev) {
 			error = load_header(handle,
 					(struct swsusp_info *)buffer);
@@ -854,15 +854,15 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 			handle->buffer = get_buffer(handle);
 			handle->sync_read = 0;
 		}
-		handle->prev = handle->page;
+		handle->prev = handle->cur;
 	}
-	handle->buf_offset = handle->page_offset;
-	if (handle->page_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->page_offset;
-		handle->page_offset = 0;
-		handle->page++;
+	handle->buf_offset = handle->cur_offset;
+	if (handle->cur_offset + count >= PAGE_SIZE) {
+		count = PAGE_SIZE - handle->cur_offset;
+		handle->cur_offset = 0;
+		handle->cur++;
 	} else {
-		handle->page_offset += count;
+		handle->cur_offset += count;
 	}
 	handle->offset += count;
 	return count;
@@ -871,5 +871,5 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 int snapshot_image_loaded(struct snapshot_handle *handle)
 {
 	return !(!handle->pbe || handle->pbe->next || !nr_copy_pages ||
-		handle->page <= nr_meta_pages + nr_copy_pages);
+		handle->cur <= nr_meta_pages + nr_copy_pages);
 }
