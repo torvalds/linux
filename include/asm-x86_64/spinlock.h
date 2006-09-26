@@ -22,14 +22,13 @@
 #define __raw_spin_lock_string \
 	"\n1:\t" \
 	LOCK_PREFIX " ; decl %0\n\t" \
-	"js 2f\n" \
-	LOCK_SECTION_START("") \
-	"2:\t" \
+	"jns 2f\n" \
+	"3:\n" \
 	"rep;nop\n\t" \
 	"cmpl $0,%0\n\t" \
-	"jle 2b\n\t" \
+	"jle 3b\n\t" \
 	"jmp 1b\n" \
-	LOCK_SECTION_END
+	"2:\t" \
 
 #define __raw_spin_lock_string_up \
 	"\n\tdecl %0"
