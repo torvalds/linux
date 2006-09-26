@@ -21,8 +21,7 @@ static inline dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(direction == DMA_NONE);
 	WARN_ON(size == 0);
 	flush_write_buffers();
 	return virt_to_phys(ptr);
@@ -32,8 +31,7 @@ static inline void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(direction == DMA_NONE);
 }
 
 static inline int
@@ -42,8 +40,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 {
 	int i;
 
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(direction == DMA_NONE);
 	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	for (i = 0; i < nents; i++ ) {

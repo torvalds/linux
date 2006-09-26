@@ -190,7 +190,9 @@ static inline int pgd_bad(pgd_t pgd)		{ return 0; }
 #endif
 
 
-#define pgd_page(pgd_entry)	((unsigned long) (pgd_val(pgd_entry) & PAGE_MASK))
+#define pgd_page_vaddr(pgd_entry)	((unsigned long) (pgd_val(pgd_entry) & PAGE_MASK))
+#define pgd_page(pgd)	(virt_to_page(pgd_val(pgd)))
+
 
 /*
  * PMD defines. Middle level.
@@ -219,7 +221,7 @@ static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 #define pmd_none(pmd_entry)	(pmd_val((pmd_entry)) == _PMD_EMPTY)
 #define pmd_bad(pmd_entry)	((pmd_val(pmd_entry) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
-#define pmd_page_kernel(pmd_entry) \
+#define pmd_page_vaddr(pmd_entry) \
 	((unsigned long) __va(pmd_val(pmd_entry) & PAGE_MASK))
 
 #define pmd_page(pmd) \

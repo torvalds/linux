@@ -530,22 +530,21 @@ int mls_compute_sid(struct context *scontext,
 		    u32 specified,
 		    struct context *newcontext)
 {
+	struct range_trans *rtr;
+
 	if (!selinux_mls_enabled)
 		return 0;
 
 	switch (specified) {
 	case AVTAB_TRANSITION:
-		if (tclass == SECCLASS_PROCESS) {
-			struct range_trans *rangetr;
-			/* Look for a range transition rule. */
-			for (rangetr = policydb.range_tr; rangetr;
-			     rangetr = rangetr->next) {
-				if (rangetr->dom == scontext->type &&
-				    rangetr->type == tcontext->type) {
-					/* Set the range from the rule */
-					return mls_range_set(newcontext,
-					                     &rangetr->range);
-				}
+		/* Look for a range transition rule. */
+		for (rtr = policydb.range_tr; rtr; rtr = rtr->next) {
+			if (rtr->source_type == scontext->type &&
+			    rtr->target_type == tcontext->type &&
+			    rtr->target_class == tclass) {
+				/* Set the range from the rule */
+				return mls_range_set(newcontext,
+				                     &rtr->target_range);
 			}
 		}
 		/* Fallthrough */

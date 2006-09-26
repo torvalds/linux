@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#include <setjmp.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
@@ -107,11 +106,11 @@ int setjmp_wrapper(void (*proc)(void *, void *), ...)
 	jmp_buf buf;
 	int n;
 
-	n = sigsetjmp(buf, 1);
+	n = UML_SETJMP(&buf);
 	if(n == 0){
 		va_start(args, proc);
 		(*proc)(&buf, &args);
 	}
 	va_end(args);
-	return(n);
+	return n;
 }

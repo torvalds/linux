@@ -1154,9 +1154,11 @@ out:
 
 static void set_time(void)
 {
+	struct timespec ts;
 	if (got_clock_diff) {	/* Must know time zone in order to set clock */
-		xtime.tv_sec = get_cmos_time() + clock_cmos_diff;
-		xtime.tv_nsec = 0; 
+		ts.tv_sec = get_cmos_time() + clock_cmos_diff;
+		ts.tv_nsec = 0;
+		do_settimeofday(&ts);
 	} 
 }
 
@@ -1232,13 +1234,8 @@ static int suspend(int vetoable)
 	restore_processor_state();
 
 	local_irq_disable();
-	write_seqlock(&xtime_lock);
-	spin_lock(&i8253_lock);
-	reinit_timer();
 	set_time();
-
-	spin_unlock(&i8253_lock);
-	write_sequnlock(&xtime_lock);
+	reinit_timer();
 
 	if (err == APM_NO_ERROR)
 		err = APM_SUCCESS;
@@ -1365,9 +1362,7 @@ static void check_events(void)
 			ignore_bounce = 1;
 			if ((event != APM_NORMAL_RESUME)
 			    || (ignore_normal_resume == 0)) {
-				write_seqlock_irq(&xtime_lock);
 				set_time();
-				write_sequnlock_irq(&xtime_lock);
 				device_resume();
 				pm_send_all(PM_RESUME, (void *)0);
 				queue_event(event, NULL);
@@ -1383,9 +1378,7 @@ static void check_events(void)
 			break;
 
 		case APM_UPDATE_TIME:
-			write_seqlock_irq(&xtime_lock);
 			set_time();
-			write_sequnlock_irq(&xtime_lock);
 			break;
 
 		case APM_CRITICAL_SUSPEND:
@@ -2339,6 +2332,7 @@ static int __init apm_init(void)
 	ret = kernel_thread(apm, NULL, CLONE_KERNEL | SIGCHLD);
 	if (ret < 0) {
 		printk(KERN_ERR "apm: disabled - Unable to start kernel thread.\n");
+		remove_proc_entry("apm", NULL);
 		return -ENOMEM;
 	}
 
@@ -2348,7 +2342,13 @@ static int __init apm_init(void)
 		return 0;
 	}
 
-	misc_register(&apm_device);
+	/*
+	 * Note we don't actually care if the misc_device cannot be registered.
+	 * this driver can do its job without it, even if userspace can't
+	 * control it.  just log the error
+	 */
+	if (misc_register(&apm_device))
+		printk(KERN_WARNING "apm: Could not register misc device.\n");
 
 	if (HZ != 100)
 		idle_period = (idle_period * HZ) / 100;

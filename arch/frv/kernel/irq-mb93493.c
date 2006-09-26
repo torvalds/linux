@@ -1,6 +1,6 @@
 /* irq-mb93493.c: MB93493 companion chip interrupt handler
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,84 +24,126 @@
 #include <asm/delay.h>
 #include <asm/irq.h>
 #include <asm/irc-regs.h>
-#include <asm/irq-routing.h>
 #include <asm/mb93493-irqs.h>
+#include <asm/mb93493-regs.h>
 
-static void frv_mb93493_doirq(struct irq_source *source);
+#define IRQ_ROUTE_ONE(X) (X##_ROUTE << (X - IRQ_BASE_MB93493))
 
-/*****************************************************************************/
+#define IRQ_ROUTING					\
+	(IRQ_ROUTE_ONE(IRQ_MB93493_VDC)		|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_VCC)		|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_AUDIO_OUT)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_I2C_0)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_I2C_1)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_USB)		|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_LOCAL_BUS)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_PCMCIA)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_GPIO)	|	\
+	 IRQ_ROUTE_ONE(IRQ_MB93493_AUDIO_IN))
+
 /*
- * MB93493 companion chip IRQ multiplexor
+ * daughter board PIC operations
+ * - there is no way to ACK interrupts in the MB93493 chip
  */
-static struct irq_source frv_mb93493[2] = {
-	[0] = {
-		.muxname		= "mb93493.0",
-		.muxdata		= __region_CS3 + 0x3d0,
-		.doirq			= frv_mb93493_doirq,
-		.irqmask		= 0x0000,
-	},
-	[1] = {
-		.muxname		= "mb93493.1",
-		.muxdata		= __region_CS3 + 0x3d4,
-		.doirq			= frv_mb93493_doirq,
-		.irqmask		= 0x0000,
-	},
+static void frv_mb93493_mask(unsigned int irq)
+{
+	uint32_t iqsr;
+	volatile void *piqsr;
+
+	if (IRQ_ROUTING & (1 << (irq - IRQ_BASE_MB93493)))
+		piqsr = __addr_MB93493_IQSR(1);
+	else
+		piqsr = __addr_MB93493_IQSR(0);
+
+	iqsr = readl(piqsr);
+	iqsr &= ~(1 << (irq - IRQ_BASE_MB93493 + 16));
+	writel(iqsr, piqsr);
+}
+
+static void frv_mb93493_ack(unsigned int irq)
+{
+}
+
+static void frv_mb93493_unmask(unsigned int irq)
+{
+	uint32_t iqsr;
+	volatile void *piqsr;
+
+	if (IRQ_ROUTING & (1 << (irq - IRQ_BASE_MB93493)))
+		piqsr = __addr_MB93493_IQSR(1);
+	else
+		piqsr = __addr_MB93493_IQSR(0);
+
+	iqsr = readl(piqsr);
+	iqsr |= 1 << (irq - IRQ_BASE_MB93493 + 16);
+	writel(iqsr, piqsr);
+}
+
+static struct irq_chip frv_mb93493_pic = {
+	.name		= "mb93093",
+	.ack		= frv_mb93493_ack,
+	.mask		= frv_mb93493_mask,
+	.mask_ack	= frv_mb93493_mask,
+	.unmask		= frv_mb93493_unmask,
 };
 
-static void frv_mb93493_control(struct irq_group *group, int index, int on)
+/*
+ * MB93493 PIC interrupt handler
+ */
+static irqreturn_t mb93493_interrupt(int irq, void *_piqsr, struct pt_regs *regs)
 {
-	struct irq_source *source;
+	volatile void *piqsr = _piqsr;
 	uint32_t iqsr;
 
-	if ((frv_mb93493[0].irqmask & (1 << index)))
-		source = &frv_mb93493[0];
-	else
-		source = &frv_mb93493[1];
+	iqsr = readl(piqsr);
+	iqsr = iqsr & (iqsr >> 16) & 0xffff;
 
-	iqsr = readl(source->muxdata);
-	if (on)
-		iqsr |= 1 << (index + 16);
-	else
-		iqsr &= ~(1 << (index + 16));
+	/* poll all the triggered IRQs */
+	while (iqsr) {
+		int irq;
 
-	writel(iqsr, source->muxdata);
+		asm("scan %1,gr0,%0" : "=r"(irq) : "r"(iqsr));
+		irq = 31 - irq;
+		iqsr &= ~(1 << irq);
+
+		generic_handle_irq(IRQ_BASE_MB93493 + irq, regs);
+	}
+
+	return IRQ_HANDLED;
 }
 
-static struct irq_group frv_mb93493_irqs = {
-	.first_irq	= IRQ_BASE_MB93493,
-	.control	= frv_mb93493_control,
+/*
+ * define an interrupt action for each MB93493 PIC output
+ * - use dev_id to indicate the MB93493 PIC input to output mappings
+ */
+static struct irqaction mb93493_irq[2]  = {
+	[0] = {
+		.handler	= mb93493_interrupt,
+		.flags		= IRQF_DISABLED | IRQF_SHARED,
+		.mask		= CPU_MASK_NONE,
+		.name		= "mb93493.0",
+		.dev_id		= (void *) __addr_MB93493_IQSR(0),
+	},
+	[1] = {
+		.handler	= mb93493_interrupt,
+		.flags		= IRQF_DISABLED | IRQF_SHARED,
+		.mask		= CPU_MASK_NONE,
+		.name		= "mb93493.1",
+		.dev_id		= (void *) __addr_MB93493_IQSR(1),
+	}
 };
 
-static void frv_mb93493_doirq(struct irq_source *source)
+/*
+ * initialise the motherboard MB93493's PIC
+ */
+void __init mb93493_init(void)
 {
-	uint32_t mask = readl(source->muxdata);
-	mask = mask & (mask >> 16) & 0xffff;
+	int irq;
 
-	if (mask)
-		distribute_irqs(&frv_mb93493_irqs, mask);
-}
+	for (irq = IRQ_BASE_MB93493 + 0; irq <= IRQ_BASE_MB93493 + 10; irq++)
+		set_irq_chip_and_handler(irq, &frv_mb93493_pic, handle_edge_irq);
 
-static void __init mb93493_irq_route(int irq, int source)
-{
-	frv_mb93493[source].irqmask |= 1 << (irq - IRQ_BASE_MB93493);
-	frv_mb93493_irqs.sources[irq - IRQ_BASE_MB93493] = &frv_mb93493[source];
-}
-
-void __init route_mb93493_irqs(void)
-{
-	frv_irq_route_external(&frv_mb93493[0], IRQ_CPU_MB93493_0);
-	frv_irq_route_external(&frv_mb93493[1], IRQ_CPU_MB93493_1);
-
-	frv_irq_set_group(&frv_mb93493_irqs);
-
-	mb93493_irq_route(IRQ_MB93493_VDC,		IRQ_MB93493_VDC_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_VCC,		IRQ_MB93493_VCC_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_AUDIO_IN,		IRQ_MB93493_AUDIO_IN_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_I2C_0,		IRQ_MB93493_I2C_0_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_I2C_1,		IRQ_MB93493_I2C_1_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_USB,		IRQ_MB93493_USB_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_LOCAL_BUS,	IRQ_MB93493_LOCAL_BUS_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_PCMCIA,		IRQ_MB93493_PCMCIA_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_GPIO,		IRQ_MB93493_GPIO_ROUTE);
-	mb93493_irq_route(IRQ_MB93493_AUDIO_OUT,	IRQ_MB93493_AUDIO_OUT_ROUTE);
+	/* the MB93493 drives external IRQ inputs on the CPU PIC */
+	setup_irq(IRQ_CPU_MB93493_0, &mb93493_irq[0]);
+	setup_irq(IRQ_CPU_MB93493_1, &mb93493_irq[1]);
 }

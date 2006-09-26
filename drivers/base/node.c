@@ -54,10 +54,12 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       "Node %d MemUsed:      %8lu kB\n"
 		       "Node %d Active:       %8lu kB\n"
 		       "Node %d Inactive:     %8lu kB\n"
+#ifdef CONFIG_HIGHMEM
 		       "Node %d HighTotal:    %8lu kB\n"
 		       "Node %d HighFree:     %8lu kB\n"
 		       "Node %d LowTotal:     %8lu kB\n"
 		       "Node %d LowFree:      %8lu kB\n"
+#endif
 		       "Node %d Dirty:        %8lu kB\n"
 		       "Node %d Writeback:    %8lu kB\n"
 		       "Node %d FilePages:    %8lu kB\n"
@@ -66,16 +68,20 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       "Node %d PageTables:   %8lu kB\n"
 		       "Node %d NFS_Unstable: %8lu kB\n"
 		       "Node %d Bounce:       %8lu kB\n"
-		       "Node %d Slab:         %8lu kB\n",
+		       "Node %d Slab:         %8lu kB\n"
+		       "Node %d SReclaimable: %8lu kB\n"
+		       "Node %d SUnreclaim:   %8lu kB\n",
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
 		       nid, K(active),
 		       nid, K(inactive),
+#ifdef CONFIG_HIGHMEM
 		       nid, K(i.totalhigh),
 		       nid, K(i.freehigh),
 		       nid, K(i.totalram - i.totalhigh),
 		       nid, K(i.freeram - i.freehigh),
+#endif
 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
@@ -84,7 +90,10 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
 		       nid, K(node_page_state(nid, NR_BOUNCE)),
-		       nid, K(node_page_state(nid, NR_SLAB)));
+		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
 	n += hugetlb_report_node_meminfo(nid, buf + n);
 	return n;
 }

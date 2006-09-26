@@ -24,11 +24,15 @@ static inline void flush_kernel_dcache_page(struct page *page)
 
 /* declarations for linux/mm/highmem.c */
 unsigned int nr_free_highpages(void);
+extern unsigned long totalhigh_pages;
 
 #else /* CONFIG_HIGHMEM */
 
 static inline unsigned int nr_free_highpages(void) { return 0; }
 
+#define totalhigh_pages 0
+
+#ifndef ARCH_HAS_KMAP
 static inline void *kmap(struct page *page)
 {
 	might_sleep();
@@ -41,6 +45,7 @@ static inline void *kmap(struct page *page)
 #define kunmap_atomic(addr, idx)	do { } while (0)
 #define kmap_atomic_pfn(pfn, idx)	page_address(pfn_to_page(pfn))
 #define kmap_atomic_to_page(ptr)	virt_to_page(ptr)
+#endif
 
 #endif /* CONFIG_HIGHMEM */
 

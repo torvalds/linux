@@ -9,17 +9,16 @@ struct vm_area_struct;
 
 /*
  * GFP bitmasks..
+ *
+ * Zone modifiers (see linux/mmzone.h - low three bits)
+ *
+ * Do not put any conditional on these. If necessary modify the definitions
+ * without the underscores and use the consistently. The definitions here may
+ * be used in bit comparisons.
  */
-/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
 #define __GFP_DMA	((__force gfp_t)0x01u)
 #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
-#ifdef CONFIG_DMA_IS_DMA32
-#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
-#elif BITS_PER_LONG < 64
-#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
-#else
-#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
-#endif
+#define __GFP_DMA32	((__force gfp_t)0x04u)
 
 /*
  * Action modifiers - doesn't change the zoning
@@ -46,6 +45,7 @@ struct vm_area_struct;
 #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
 #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
 #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+#define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
 
 #define __GFP_BITS_SHIFT 20	/* Room for 20 __GFP_FOO bits */
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
@@ -54,7 +54,7 @@ struct vm_area_struct;
 #define GFP_LEVEL_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS| \
 			__GFP_COLD|__GFP_NOWARN|__GFP_REPEAT| \
 			__GFP_NOFAIL|__GFP_NORETRY|__GFP_NO_GROW|__GFP_COMP| \
-			__GFP_NOMEMALLOC|__GFP_HARDWALL)
+			__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_THISNODE)
 
 /* This equals 0, but use constants in case they ever change */
 #define GFP_NOWAIT	(GFP_ATOMIC & ~__GFP_HIGH)
@@ -67,6 +67,8 @@ struct vm_area_struct;
 #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HARDWALL | \
 			 __GFP_HIGHMEM)
 
+#define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
+
 /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
    platforms, used as appropriate on others */
 
@@ -76,11 +78,19 @@ struct vm_area_struct;
 #define GFP_DMA32	__GFP_DMA32
 
 
-static inline int gfp_zone(gfp_t gfp)
+static inline enum zone_type gfp_zone(gfp_t flags)
 {
-	int zone = GFP_ZONEMASK & (__force int) gfp;
-	BUG_ON(zone >= GFP_ZONETYPES);
-	return zone;
+	if (flags & __GFP_DMA)
+		return ZONE_DMA;
+#ifdef CONFIG_ZONE_DMA32
+	if (flags & __GFP_DMA32)
+		return ZONE_DMA32;
+#endif
+#ifdef CONFIG_HIGHMEM
+	if (flags & __GFP_HIGHMEM)
+		return ZONE_HIGHMEM;
+#endif
+	return ZONE_NORMAL;
 }
 
 /*

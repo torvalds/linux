@@ -316,7 +316,7 @@ typedef struct dbdma_chan_config {
 	au1x_ddma_desc_t	*chan_desc_base;
 	au1x_ddma_desc_t	*get_ptr, *put_ptr, *cur_ptr;
 	void			*chan_callparam;
-	void (*chan_callback)(int, void *, struct pt_regs *);
+	void (*chan_callback)(int, void *);
 } chan_tab_t;
 
 #define DEV_FLAGS_INUSE		(1 << 0)
@@ -334,8 +334,8 @@ typedef struct dbdma_chan_config {
  * meaningful name.  The 'callback' is called during dma completion
  * interrupt.
  */
-u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
-       void (*callback)(int, void *, struct pt_regs *), void *callparam);
+extern u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
+	void (*callback)(int, void *), void *callparam);
 
 #define DBDMA_MEM_CHAN	DSCR_CMD0_ALWAYS
 

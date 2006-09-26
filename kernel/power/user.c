@@ -19,6 +19,7 @@
 #include <linux/swapops.h>
 #include <linux/pm.h>
 #include <linux/fs.h>
+#include <linux/cpu.h>
 
 #include <asm/uaccess.h>
 
@@ -139,12 +140,15 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (data->frozen)
 			break;
 		down(&pm_sem);
-		disable_nonboot_cpus();
-		if (freeze_processes()) {
-			thaw_processes();
-			enable_nonboot_cpus();
-			error = -EBUSY;
+		error = disable_nonboot_cpus();
+		if (!error) {
+			error = freeze_processes();
+			if (error) {
+				thaw_processes();
+				error = -EBUSY;
+			}
 		}
+		enable_nonboot_cpus();
 		up(&pm_sem);
 		if (!error)
 			data->frozen = 1;
@@ -189,6 +193,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
+		snapshot_free_unused_memory(&data->handle);
 		down(&pm_sem);
 		pm_prepare_console();
 		error = device_suspend(PMSG_FREEZE);

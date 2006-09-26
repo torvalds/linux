@@ -67,11 +67,30 @@ static __init void do_uml_initcalls(void)
 
 static void last_ditch_exit(int sig)
 {
-	signal(SIGINT, SIG_DFL);
-	signal(SIGTERM, SIG_DFL);
-	signal(SIGHUP, SIG_DFL);
 	uml_cleanup();
 	exit(1);
+}
+
+static void install_fatal_handler(int sig)
+{
+	struct sigaction action;
+
+	/* All signals are enabled in this handler ... */
+	sigemptyset(&action.sa_mask);
+
+	/* ... including the signal being handled, plus we want the
+	 * handler reset to the default behavior, so that if an exit
+	 * handler is hanging for some reason, the UML will just die
+	 * after this signal is sent a second time.
+	 */
+	action.sa_flags = SA_RESETHAND | SA_NODEFER;
+	action.sa_restorer = NULL;
+	action.sa_handler = last_ditch_exit;
+	if(sigaction(sig, &action, NULL) < 0){
+		printf("failed to install handler for signal %d - errno = %d\n",
+		       errno);
+		exit(1);
+	}
 }
 
 #define UML_LIB_PATH	":/usr/lib/uml"
@@ -158,9 +177,12 @@ int main(int argc, char **argv, char **envp)
 	}
 	new_argv[argc] = NULL;
 
-	set_handler(SIGINT, last_ditch_exit, SA_ONESHOT | SA_NODEFER, -1);
-	set_handler(SIGTERM, last_ditch_exit, SA_ONESHOT | SA_NODEFER, -1);
-	set_handler(SIGHUP, last_ditch_exit, SA_ONESHOT | SA_NODEFER, -1);
+	/* Allow these signals to bring down a UML if all other
+	 * methods of control fail.
+	 */
+	install_fatal_handler(SIGINT);
+	install_fatal_handler(SIGTERM);
+	install_fatal_handler(SIGHUP);
 
 	scan_elf_aux( envp);
 

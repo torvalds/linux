@@ -1363,6 +1363,11 @@ running once the system is up.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
+	reservetop=	[IA-32]
+			Format: nn[KMG]
+			Reserves a hole at the top of the kernel virtual
+			address space.
+
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
 

@@ -21,6 +21,8 @@
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 
 int sysctl_panic_on_oom;
 /* #define DEBUG */
@@ -56,6 +58,12 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 		task_unlock(p);
 		return 0;
 	}
+
+	/*
+	 * swapoff can easily use up all memory, so kill those first.
+	 */
+	if (p->flags & PF_SWAPOFF)
+		return ULONG_MAX;
 
 	/*
 	 * The memory size of the process is the basis for the badness.
@@ -127,6 +135,14 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 		points /= 4;
 
 	/*
+	 * If p's nodes don't overlap ours, it may still help to kill p
+	 * because p may have allocated or otherwise mapped memory on
+	 * this node before. However it will be less likely.
+	 */
+	if (!cpuset_excl_nodes_overlap(p))
+		points /= 8;
+
+	/*
 	 * Adjust the score by oomkilladj.
 	 */
 	if (p->oomkilladj) {
@@ -161,8 +177,7 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 
 	for (z = zonelist->zones; *z; z++)
 		if (cpuset_zone_allowed(*z, gfp_mask))
-			node_clear((*z)->zone_pgdat->node_id,
-					nodes);
+			node_clear(zone_to_nid(*z), nodes);
 		else
 			return CONSTRAINT_CPUSET;
 
@@ -191,25 +206,38 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		unsigned long points;
 		int releasing;
 
+		/* skip kernel threads */
+		if (!p->mm)
+			continue;
 		/* skip the init task with pid == 1 */
 		if (p->pid == 1)
-			continue;
-		if (p->oomkilladj == OOM_DISABLE)
-			continue;
-		/* If p's nodes don't overlap ours, it won't help to kill p. */
-		if (!cpuset_excl_nodes_overlap(p))
 			continue;
 
 		/*
 		 * This is in the process of releasing memory so wait for it
 		 * to finish before killing some other task by mistake.
+		 *
+		 * However, if p is the current task, we allow the 'kill' to
+		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
+		 * which will allow it to gain access to memory reserves in
+		 * the process of exiting and releasing its resources.
+		 * Otherwise we could get an OOM deadlock.
 		 */
 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
 						p->flags & PF_EXITING;
-		if (releasing && !(p->flags & PF_DEAD))
+		if (releasing) {
+			/* PF_DEAD tasks have already released their mm */
+			if (p->flags & PF_DEAD)
+				continue;
+			if (p->flags & PF_EXITING && p == current) {
+				chosen = p;
+				*ppoints = ULONG_MAX;
+				break;
+			}
 			return ERR_PTR(-1UL);
-		if (p->flags & PF_SWAPOFF)
-			return p;
+		}
+		if (p->oomkilladj == OOM_DISABLE)
+			continue;
 
 		points = badness(p, uptime.tv_sec);
 		if (points > *ppoints || !chosen) {
@@ -221,9 +249,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 }
 
 /**
- * We must be careful though to never send SIGKILL a process with
- * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
- * we select a process with CAP_SYS_RAW_IO set).
+ * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
+ * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+ * set.
  */
 static void __oom_kill_task(struct task_struct *p, const char *message)
 {
@@ -241,8 +269,11 @@ static void __oom_kill_task(struct task_struct *p, const char *message)
 		return;
 	}
 	task_unlock(p);
-	printk(KERN_ERR "%s: Killed process %d (%s).\n",
+
+	if (message) {
+		printk(KERN_ERR "%s: Killed process %d (%s).\n",
 				message, p->pid, p->comm);
+	}
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
@@ -293,8 +324,17 @@ static int oom_kill_process(struct task_struct *p, unsigned long points,
 	struct task_struct *c;
 	struct list_head *tsk;
 
-	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li and "
-		"children.\n", p->pid, p->comm, points);
+	/*
+	 * If the task is already exiting, don't alarm the sysadmin or kill
+	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+	 */
+	if (p->flags & PF_EXITING) {
+		__oom_kill_task(p, NULL);
+		return 0;
+	}
+
+	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li"
+			" and children.\n", p->pid, p->comm, points);
 	/* Try to kill a child first */
 	list_for_each(tsk, &p->children) {
 		c = list_entry(tsk, struct task_struct, sibling);
@@ -305,6 +345,20 @@ static int oom_kill_process(struct task_struct *p, unsigned long points,
 	}
 	return oom_kill_task(p, message);
 }
+
+static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+
+int register_oom_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&oom_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_oom_notifier);
+
+int unregister_oom_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_oom_notifier);
 
 /**
  * out_of_memory - kill the "best" process when we run out of memory
@@ -318,10 +372,17 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
 	struct task_struct *p;
 	unsigned long points = 0;
+	unsigned long freed = 0;
+
+	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+	if (freed > 0)
+		/* Got some memory back in the last second. */
+		return;
 
 	if (printk_ratelimit()) {
-		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
-			gfp_mask, order);
+		printk(KERN_WARNING "%s invoked oom-killer: "
+			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
+			current->comm, gfp_mask, order, current->oomkilladj);
 		dump_stack();
 		show_mem();
 	}

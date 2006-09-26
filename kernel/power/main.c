@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/console.h>
+#include <linux/cpu.h>
+#include <linux/resume-trace.h>
 
 #include "power.h"
 
@@ -51,7 +53,7 @@ void pm_set_ops(struct pm_ops * ops)
 
 static int suspend_prepare(suspend_state_t state)
 {
-	int error = 0;
+	int error;
 	unsigned int free_pages;
 
 	if (!pm_ops || !pm_ops->enter)
@@ -59,12 +61,9 @@ static int suspend_prepare(suspend_state_t state)
 
 	pm_prepare_console();
 
-	disable_nonboot_cpus();
-
-	if (num_online_cpus() != 1) {
-		error = -EPERM;
+	error = disable_nonboot_cpus();
+	if (error)
 		goto Enable_cpu;
-	}
 
 	if (freeze_processes()) {
 		error = -EAGAIN;
@@ -283,10 +282,39 @@ static ssize_t state_store(struct subsystem * subsys, const char * buf, size_t n
 
 power_attr(state);
 
+#ifdef CONFIG_PM_TRACE
+int pm_trace_enabled;
+
+static ssize_t pm_trace_show(struct subsystem * subsys, char * buf)
+{
+	return sprintf(buf, "%d\n", pm_trace_enabled);
+}
+
+static ssize_t
+pm_trace_store(struct subsystem * subsys, const char * buf, size_t n)
+{
+	int val;
+
+	if (sscanf(buf, "%d", &val) == 1) {
+		pm_trace_enabled = !!val;
+		return n;
+	}
+	return -EINVAL;
+}
+
+power_attr(pm_trace);
+
+static struct attribute * g[] = {
+	&state_attr.attr,
+	&pm_trace_attr.attr,
+	NULL,
+};
+#else
 static struct attribute * g[] = {
 	&state_attr.attr,
 	NULL,
 };
+#endif /* CONFIG_PM_TRACE */
 
 static struct attribute_group attr_group = {
 	.attrs = g,

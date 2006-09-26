@@ -67,7 +67,6 @@ extern void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
 extern const char *kmem_cache_name(kmem_cache_t *);
-extern kmem_cache_t *kmem_find_general_cachep(size_t size, gfp_t gfpflags);
 
 /* Size description struct for general caches. */
 struct cache_sizes {
@@ -203,7 +202,30 @@ extern int slab_is_available(void);
 
 #ifdef CONFIG_NUMA
 extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t flags, int node);
-extern void *kmalloc_node(size_t size, gfp_t flags, int node);
+extern void *__kmalloc_node(size_t size, gfp_t flags, int node);
+
+static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	if (__builtin_constant_p(size)) {
+		int i = 0;
+#define CACHE(x) \
+		if (size <= x) \
+			goto found; \
+		else \
+			i++;
+#include "kmalloc_sizes.h"
+#undef CACHE
+		{
+			extern void __you_cannot_kmalloc_that_much(void);
+			__you_cannot_kmalloc_that_much();
+		}
+found:
+		return kmem_cache_alloc_node((flags & GFP_DMA) ?
+			malloc_sizes[i].cs_dmacachep :
+			malloc_sizes[i].cs_cachep, flags, node);
+	}
+	return __kmalloc_node(size, flags, node);
+}
 #else
 static inline void *kmem_cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int node)
 {
@@ -223,7 +245,6 @@ extern int FASTCALL(kmem_ptr_validate(kmem_cache_t *cachep, void *ptr));
 /* SLOB allocator routines */
 
 void kmem_cache_init(void);
-struct kmem_cache *kmem_find_general_cachep(size_t, gfp_t gfpflags);
 struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
 	unsigned long,
 	void (*)(void *, struct kmem_cache *, unsigned long),
@@ -262,8 +283,6 @@ extern kmem_cache_t	*filp_cachep;
 extern kmem_cache_t	*fs_cachep;
 extern kmem_cache_t	*sighand_cachep;
 extern kmem_cache_t	*bio_cachep;
-
-extern atomic_t slab_reclaim_pages;
 
 #endif	/* __KERNEL__ */
 

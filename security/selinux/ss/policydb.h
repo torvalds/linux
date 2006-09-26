@@ -106,9 +106,10 @@ struct cat_datum {
 };
 
 struct range_trans {
-	u32 dom;			/* current process domain */
-	u32 type;			/* program executable type */
-	struct mls_range range;		/* new range */
+	u32 source_type;
+	u32 target_type;
+	u32 target_class;
+	struct mls_range target_range;
 	struct range_trans *next;
 };
 

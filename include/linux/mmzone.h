@@ -51,7 +51,8 @@ enum zone_stat_item {
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
 	NR_FILE_PAGES,
-	NR_SLAB,	/* Pages used by slab allocator */
+	NR_SLAB_RECLAIMABLE,
+	NR_SLAB_UNRECLAIMABLE,
 	NR_PAGETABLE,	/* used for pagetables */
 	NR_FILE_DIRTY,
 	NR_WRITEBACK,
@@ -88,53 +89,68 @@ struct per_cpu_pageset {
 #define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
 #endif
 
-#define ZONE_DMA		0
-#define ZONE_DMA32		1
-#define ZONE_NORMAL		2
-#define ZONE_HIGHMEM		3
-
-#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
-
+enum zone_type {
+	/*
+	 * ZONE_DMA is used when there are devices that are not able
+	 * to do DMA to all of addressable memory (ZONE_NORMAL). Then we
+	 * carve out the portion of memory that is needed for these devices.
+	 * The range is arch specific.
+	 *
+	 * Some examples
+	 *
+	 * Architecture		Limit
+	 * ---------------------------
+	 * parisc, ia64, sparc	<4G
+	 * s390			<2G
+	 * arm26		<48M
+	 * arm			Various
+	 * alpha		Unlimited or 0-16MB.
+	 *
+	 * i386, x86_64 and multiple other arches
+	 * 			<16M.
+	 */
+	ZONE_DMA,
+#ifdef CONFIG_ZONE_DMA32
+	/*
+	 * x86_64 needs two ZONE_DMAs because it supports devices that are
+	 * only able to do DMA to the lower 16M but also 32 bit devices that
+	 * can only do DMA areas below 4G.
+	 */
+	ZONE_DMA32,
+#endif
+	/*
+	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
+	 * performed on pages in ZONE_NORMAL if the DMA devices support
+	 * transfers to all addressable memory.
+	 */
+	ZONE_NORMAL,
+#ifdef CONFIG_HIGHMEM
+	/*
+	 * A memory area that is only addressable by the kernel through
+	 * mapping portions into its own address space. This is for example
+	 * used by i386 to allow the kernel to address the memory beyond
+	 * 900MB. The kernel will set up special mappings (page
+	 * table entries on i386) for each page that the kernel needs to
+	 * access.
+	 */
+	ZONE_HIGHMEM,
+#endif
+	MAX_NR_ZONES
+};
 
 /*
  * When a memory allocation must conform to specific limitations (such
  * as being suitable for DMA) the caller will pass in hints to the
  * allocator in the gfp_mask, in the zone modifier bits.  These bits
  * are used to select a priority ordered list of memory zones which
- * match the requested limits.  GFP_ZONEMASK defines which bits within
- * the gfp_mask should be considered as zone modifiers.  Each valid
- * combination of the zone modifier bits has a corresponding list
- * of zones (in node_zonelists).  Thus for two zone modifiers there
- * will be a maximum of 4 (2 ** 2) zonelists, for 3 modifiers there will
- * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
- * combinations of zone modifiers in "zone modifier space".
- *
- * As an optimisation any zone modifier bits which are only valid when
- * no other zone modifier bits are set (loners) should be placed in
- * the highest order bits of this field.  This allows us to reduce the
- * extent of the zonelists thus saving space.  For example in the case
- * of three zone modifier bits, we could require up to eight zonelists.
- * If the left most zone modifier is a "loner" then the highest valid
- * zonelist would be four allowing us to allocate only five zonelists.
- * Use the first form for GFP_ZONETYPES when the left most bit is not
- * a "loner", otherwise use the second.
- *
- * NOTE! Make sure this matches the zones in <linux/gfp.h>
+ * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
-#define GFP_ZONEMASK	0x07
-/* #define GFP_ZONETYPES       (GFP_ZONEMASK + 1) */           /* Non-loner */
-#define GFP_ZONETYPES  ((GFP_ZONEMASK + 1) / 2 + 1)            /* Loner */
 
-/*
- * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a 32bit PC we have 4 zones:
- *
- * ZONE_DMA	  < 16 MB	ISA DMA capable memory
- * ZONE_DMA32	     0 MB 	Empty
- * ZONE_NORMAL	16-896 MB	direct mapped by the kernel
- * ZONE_HIGHMEM	 > 896 MB	only page cache and user processes
- */
+#if !defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_HIGHMEM)
+#define ZONES_SHIFT 1
+#else
+#define ZONES_SHIFT 2
+#endif
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
@@ -154,7 +170,8 @@ struct zone {
 	/*
 	 * zone reclaim becomes active if more unmapped pages exist.
 	 */
-	unsigned long		min_unmapped_ratio;
+	unsigned long		min_unmapped_pages;
+	unsigned long		min_slab_pages;
 	struct per_cpu_pageset	*pageset[NR_CPUS];
 #else
 	struct per_cpu_pageset	pageset[NR_CPUS];
@@ -266,7 +283,6 @@ struct zone {
 	char			*name;
 } ____cacheline_internodealigned_in_smp;
 
-
 /*
  * The "priority" of VM scanning is how much of the queues we will scan in one
  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
@@ -304,7 +320,7 @@ struct zonelist {
 struct bootmem_data;
 typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
-	struct zonelist node_zonelists[GFP_ZONETYPES];
+	struct zonelist node_zonelists[MAX_NR_ZONES];
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
 	struct page *node_mem_map;
@@ -373,12 +389,16 @@ static inline int populated_zone(struct zone *zone)
 	return (!!zone->present_pages);
 }
 
-static inline int is_highmem_idx(int idx)
+static inline int is_highmem_idx(enum zone_type idx)
 {
+#ifdef CONFIG_HIGHMEM
 	return (idx == ZONE_HIGHMEM);
+#else
+	return 0;
+#endif
 }
 
-static inline int is_normal_idx(int idx)
+static inline int is_normal_idx(enum zone_type idx)
 {
 	return (idx == ZONE_NORMAL);
 }
@@ -391,7 +411,11 @@ static inline int is_normal_idx(int idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
+#ifdef CONFIG_HIGHMEM
 	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
+#else
+	return 0;
+#endif
 }
 
 static inline int is_normal(struct zone *zone)
@@ -401,7 +425,11 @@ static inline int is_normal(struct zone *zone)
 
 static inline int is_dma32(struct zone *zone)
 {
+#ifdef CONFIG_ZONE_DMA32
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
+#else
+	return 0;
+#endif
 }
 
 static inline int is_dma(struct zone *zone)
@@ -420,6 +448,8 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
+			struct file *, void __user *, size_t *, loff_t *);
+int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
 			struct file *, void __user *, size_t *, loff_t *);
 
 #include <linux/topology.h>

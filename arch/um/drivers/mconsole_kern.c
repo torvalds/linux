@@ -497,7 +497,7 @@ static void mconsole_get_config(int (*get_config)(char *, char *, int,
 	}
 
 	error = NULL;
-	size = sizeof(default_buf)/sizeof(default_buf[0]);
+	size = ARRAY_SIZE(default_buf);
 	buf = default_buf;
 
 	while(1){

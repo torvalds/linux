@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
-#include <setjmp.h>
 #include <sched.h>
 #include "ptrace_user.h"
 #include <sys/wait.h>
@@ -156,11 +155,15 @@ extern int __syscall_stub_start;
 static int userspace_tramp(void *stack)
 {
 	void *addr;
+	int err;
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
 	init_new_thread_signals();
-	enable_timer();
+	err = set_interval(1);
+	if(err)
+		panic("userspace_tramp - setting timer failed, errno = %d\n",
+		      err);
 
 	if(!proc_mm){
 		/* This has a pte, but it can't be mapped in with the usual
@@ -190,14 +193,25 @@ static int userspace_tramp(void *stack)
 		}
 	}
 	if(!ptrace_faultinfo && (stack != NULL)){
+		struct sigaction sa;
+
 		unsigned long v = UML_CONFIG_STUB_CODE +
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
 
 		set_sigstack((void *) UML_CONFIG_STUB_DATA, page_size());
-		set_handler(SIGSEGV, (void *) v, SA_ONSTACK,
-			    SIGIO, SIGWINCH, SIGALRM, SIGVTALRM,
-			    SIGUSR1, -1);
+		sigemptyset(&sa.sa_mask);
+		sigaddset(&sa.sa_mask, SIGIO);
+		sigaddset(&sa.sa_mask, SIGWINCH);
+		sigaddset(&sa.sa_mask, SIGALRM);
+		sigaddset(&sa.sa_mask, SIGVTALRM);
+		sigaddset(&sa.sa_mask, SIGUSR1);
+		sa.sa_flags = SA_ONSTACK;
+		sa.sa_handler = (void *) v;
+		sa.sa_restorer = NULL;
+		if(sigaction(SIGSEGV, &sa, NULL) < 0)
+			panic("userspace_tramp - setting SIGSEGV handler "
+			      "failed - errno = %d\n", errno);
 	}
 
 	os_stop_process(os_getpid());
@@ -470,7 +484,7 @@ void thread_wait(void *sw, void *fb)
 	*switch_buf = &buf;
 	fork_buf = fb;
 	if(UML_SETJMP(&buf) == 0)
-		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
+		UML_LONGJMP(fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)

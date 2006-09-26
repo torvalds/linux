@@ -29,6 +29,36 @@ EXPORT_SYMBOL(cpu_to_node_map);
 
 cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;
 
+void __cpuinit map_cpu_to_node(int cpu, int nid)
+{
+	int oldnid;
+	if (nid < 0) { /* just initialize by zero */
+		cpu_to_node_map[cpu] = 0;
+		return;
+	}
+	/* sanity check first */
+	oldnid = cpu_to_node_map[cpu];
+	if (cpu_isset(cpu, node_to_cpu_mask[oldnid])) {
+		return; /* nothing to do */
+	}
+	/* we don't have cpu-driven node hot add yet...
+	   In usual case, node is created from SRAT at boot time. */
+	if (!node_online(nid))
+		nid = first_online_node;
+	cpu_to_node_map[cpu] = nid;
+	cpu_set(cpu, node_to_cpu_mask[nid]);
+	return;
+}
+
+void __cpuinit unmap_cpu_from_node(int cpu, int nid)
+{
+	WARN_ON(!cpu_isset(cpu, node_to_cpu_mask[nid]));
+	WARN_ON(cpu_to_node_map[cpu] != nid);
+	cpu_to_node_map[cpu] = 0;
+	cpu_clear(cpu, node_to_cpu_mask[nid]);
+}
+
+
 /**
  * build_cpu_to_node_map - setup cpu to node and node to cpumask arrays
  *
@@ -49,8 +79,6 @@ void __init build_cpu_to_node_map(void)
 				node = node_cpuid[i].nid;
 				break;
 			}
-		cpu_to_node_map[cpu] = (node >= 0) ? node : 0;
-		if (node >= 0)
-			cpu_set(cpu, node_to_cpu_mask[node]);
+		map_cpu_to_node(cpu, node);
 	}
 }

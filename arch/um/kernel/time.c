@@ -35,9 +35,6 @@ unsigned long long sched_clock(void)
 	return (unsigned long long)jiffies_64 * (1000000000 / HZ);
 }
 
-/* Changed at early boot */
-int timer_irq_inited = 0;
-
 static unsigned long long prev_nsecs;
 #ifdef CONFIG_UML_REAL_TIME_CLOCK
 static long long delta;   		/* Deviation per interval */
@@ -113,12 +110,13 @@ static void register_timer(void)
 
 	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
 	if(err != 0)
-		printk(KERN_ERR "timer_init : request_irq failed - "
+		printk(KERN_ERR "register_timer : request_irq failed - "
 		       "errno = %d\n", -err);
 
-	timer_irq_inited = 1;
-
-	user_time_init();
+	err = set_interval(1);
+	if(err != 0)
+		printk(KERN_ERR "register_timer : set_interval failed - "
+		       "errno = %d\n", -err);
 }
 
 extern void (*late_time_init)(void);

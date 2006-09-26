@@ -56,9 +56,6 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	dp->dccps_role = DCCP_ROLE_CLIENT;
 
-	if (dccp_service_not_initialized(sk))
-		return -EPROTO;
-
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
 

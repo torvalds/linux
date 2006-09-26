@@ -31,6 +31,11 @@
 #include "irq_user.h"
 #include "irq_kern.h"
 
+static inline void set_ether_mac(struct net_device *dev, unsigned char *addr)
+{
+	memcpy(dev->dev_addr, addr, ETH_ALEN);
+}
+
 #define DRIVER_NAME "uml-netdev"
 
 static DEFINE_SPINLOCK(opened_lock);
@@ -242,7 +247,7 @@ static int uml_net_set_mac(struct net_device *dev, void *addr)
 	struct sockaddr *hwaddr = addr;
 
 	spin_lock(&lp->lock);
-	memcpy(dev->dev_addr, hwaddr->sa_data, ETH_ALEN);
+	set_ether_mac(dev, hwaddr->sa_data);
 	spin_unlock(&lp->lock);
 
 	return(0);
@@ -788,13 +793,6 @@ void dev_ip_addr(void *d, unsigned char *bin_buf)
 		return;
 	}
 	memcpy(bin_buf, &in->ifa_address, sizeof(in->ifa_address));
-}
-
-void set_ether_mac(void *d, unsigned char *addr)
-{
-	struct net_device *dev = d;
-
-	memcpy(dev->dev_addr, addr, ETH_ALEN);	
 }
 
 struct sk_buff *ether_adjust_skb(struct sk_buff *skb, int extra)

@@ -2003,7 +2003,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 	return rc;
 }
 
-int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                              struct selinux_audit_rule *rule,
                              struct audit_context *actx)
 {
@@ -2026,11 +2026,11 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 		goto out;
 	}
 
-	ctxt = sidtab_search(&sidtab, ctxid);
+	ctxt = sidtab_search(&sidtab, sid);
 	if (!ctxt) {
 		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		          "selinux_audit_rule_match: unrecognized SID %d\n",
-		          ctxid);
+		          sid);
 		match = -ENOENT;
 		goto out;
 	}
@@ -2502,14 +2502,24 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 {
 	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
+	struct netlbl_lsm_secattr secattr;
+	u32 nlbl_peer_sid;
 
 	sksec->sclass = isec->sclass;
 
 	if (sk->sk_family != PF_INET)
 		return;
 
+	netlbl_secattr_init(&secattr);
+	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
+	    selinux_netlbl_secattr_to_sid(NULL,
+					  &secattr,
+					  sksec->sid,
+					  &nlbl_peer_sid) == 0)
+		sksec->peer_sid = nlbl_peer_sid;
+	netlbl_secattr_destroy(&secattr, 0);
+
 	sksec->nlbl_state = NLBL_REQUIRE;
-	sksec->peer_sid = sksec->sid;
 
 	/* Try to set the NetLabel on the socket to save time later, if we fail
 	 * here we will pick up the pieces in later calls to
@@ -2568,7 +2578,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 	sock = SOCKET_I(inode);
 	isec = inode->i_security;
 	sksec = sock->sk->sk_security;
-	down(&isec->sem);
+	mutex_lock(&isec->lock);
 	if (unlikely(sksec->nlbl_state == NLBL_REQUIRE &&
 		     (mask & (MAY_WRITE | MAY_APPEND)))) {
 		lock_sock(sock->sk);
@@ -2576,7 +2586,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 		release_sock(sock->sk);
 	} else
 		rc = 0;
-	up(&isec->sem);
+	mutex_unlock(&isec->lock);
 
 	return rc;
 }
@@ -2601,7 +2611,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 	u32 netlbl_sid;
 	u32 recv_perm;
 
-	rc = selinux_netlbl_skbuff_getsid(skb, sksec->sid, &netlbl_sid);
+	rc = selinux_netlbl_skbuff_getsid(skb, SECINITSID_NETMSG, &netlbl_sid);
 	if (rc != 0)
 		return rc;
 
@@ -2610,13 +2620,13 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 
 	switch (sksec->sclass) {
 	case SECCLASS_UDP_SOCKET:
-		recv_perm = UDP_SOCKET__RECV_MSG;
+		recv_perm = UDP_SOCKET__RECVFROM;
 		break;
 	case SECCLASS_TCP_SOCKET:
-		recv_perm = TCP_SOCKET__RECV_MSG;
+		recv_perm = TCP_SOCKET__RECVFROM;
 		break;
 	default:
-		recv_perm = RAWIP_SOCKET__RECV_MSG;
+		recv_perm = RAWIP_SOCKET__RECVFROM;
 	}
 
 	rc = avc_has_perm(sksec->sid,

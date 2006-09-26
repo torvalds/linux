@@ -320,7 +320,9 @@ handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
  * Monolithic do_IRQ implementation.
  * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
+#ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
+#endif
 
 /*
  * Architectures call this to let the generic IRQ layer
@@ -332,10 +334,14 @@ static inline void generic_handle_irq(unsigned int irq, struct pt_regs *regs)
 {
 	struct irq_desc *desc = irq_desc + irq;
 
+#ifdef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
+	desc->handle_irq(irq, desc, regs);
+#else
 	if (likely(desc->handle_irq))
 		desc->handle_irq(irq, desc, regs);
 	else
 		__do_IRQ(irq, regs);
+#endif
 }
 
 /* Handling of unhandled and spurious interrupts: */

@@ -138,9 +138,7 @@ extern struct cpuinfo_um cpu_data[];
 
 #ifdef CONFIG_MODE_SKAS
 #define KSTK_REG(tsk, reg) \
-	({ union uml_pt_regs regs; \
-	   get_thread_regs(&regs, tsk->thread.mode.skas.switch_buf); \
-	   UPT_REG(&regs, reg); })
+	get_thread_reg(reg, tsk->thread.mode.skas.switch_buf)
 #else
 #define KSTK_REG(tsk, reg) (0xbadbabe)
 #endif

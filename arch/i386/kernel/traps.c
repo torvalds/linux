@@ -313,6 +313,8 @@ void show_registers(struct pt_regs *regs)
 	 */
 	if (in_kernel) {
 		u8 __user *eip;
+		int code_bytes = 64;
+		unsigned char c;
 
 		printk("\n" KERN_EMERG "Stack: ");
 		show_stack_log_lvl(NULL, regs, (unsigned long *)esp, KERN_EMERG);
@@ -320,9 +322,12 @@ void show_registers(struct pt_regs *regs)
 		printk(KERN_EMERG "Code: ");
 
 		eip = (u8 __user *)regs->eip - 43;
-		for (i = 0; i < 64; i++, eip++) {
-			unsigned char c;
-
+		if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
+			/* try starting at EIP */
+			eip = (u8 __user *)regs->eip;
+			code_bytes = 32;
+		}
+		for (i = 0; i < code_bytes; i++, eip++) {
 			if (eip < (u8 __user *)PAGE_OFFSET || __get_user(c, eip)) {
 				printk(" Bad EIP value.");
 				break;

@@ -186,12 +186,12 @@ extern struct page *empty_zero_page;
  * return a pointer to memory (no special alignment)
  */
 #define pmd_page(pmd)  ((struct page *)(pmd_val((pmd)) & ~_PMD_PRESENT))
-#define pmd_page_kernel(pmd) ((pte_t *)(pmd_val((pmd)) & ~_PMD_PRESENT))
+#define pmd_page_vaddr(pmd) ((pte_t *)(pmd_val((pmd)) & ~_PMD_PRESENT))
 
-#define pte_offset_kernel(dir,addr)     (pmd_page_kernel(*(dir)) + __pte_index(addr))
+#define pte_offset_kernel(dir,addr)     (pmd_page_vaddr(*(dir)) + __pte_index(addr))
 
-#define pte_offset_map(dir,addr)        (pmd_page_kernel(*(dir)) + __pte_index(addr))
-#define pte_offset_map_nested(dir,addr) (pmd_page_kernel(*(dir)) + __pte_index(addr))
+#define pte_offset_map(dir,addr)        (pmd_page_vaddr(*(dir)) + __pte_index(addr))
+#define pte_offset_map_nested(dir,addr) (pmd_page_vaddr(*(dir)) + __pte_index(addr))
 #define pte_unmap(pte)                  do { } while (0)
 #define pte_unmap_nested(pte)           do { } while (0)
 

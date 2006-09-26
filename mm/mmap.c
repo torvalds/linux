@@ -116,7 +116,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 		 * which are reclaimable, under pressure.  The dentry
 		 * cache and most inode caches should fall into this
 		 */
-		free += atomic_read(&slab_reclaim_pages);
+		free += global_page_state(NR_SLAB_RECLAIMABLE);
 
 		/*
 		 * Leave the last 3% for root
@@ -1105,12 +1105,6 @@ munmap_back:
 			goto free_vma;
 	}
 
-	/* Don't make the VMA automatically writable if it's shared, but the
-	 * backer wishes to know when pages are first written to */
-	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
-		vma->vm_page_prot =
-			protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC)];
-
 	/* We set VM_ACCOUNT in a shared mapping's vm_flags, to inform
 	 * shmem_zero_setup (perhaps called through /dev/zero's ->mmap)
 	 * that memory reservation must be checked; but that reservation
@@ -1127,6 +1121,10 @@ munmap_back:
 	addr = vma->vm_start;
 	pgoff = vma->vm_pgoff;
 	vm_flags = vma->vm_flags;
+
+	if (vma_wants_writenotify(vma))
+		vma->vm_page_prot =
+			protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC)];
 
 	if (!file || !vma_merge(mm, prev, addr, vma->vm_end,
 			vma->vm_flags, NULL, file, pgoff, vma_policy(vma))) {

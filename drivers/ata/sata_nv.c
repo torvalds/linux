@@ -484,7 +484,7 @@ static void nv_error_handler(struct ata_port *ap)
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version = 0;
-	struct ata_port_info *ppi;
+	struct ata_port_info *ppi[2];
 	struct ata_probe_ent *probe_ent;
 	int pci_dev_busy = 0;
 	int rc;
@@ -520,8 +520,8 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = -ENOMEM;
 
-	ppi = &nv_port_info[ent->driver_data];
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
+	ppi[0] = ppi[1] = &nv_port_info[ent->driver_data];
+	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		goto err_out_regions;
 

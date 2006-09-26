@@ -1,5 +1,5 @@
 obj-y = bugs.o checksum.o delay.o fault.o ksyms.o ldt.o ptrace.o \
-	ptrace_user.o signal.o sigcontext.o syscalls.o sysrq.o \
+	ptrace_user.o setjmp.o signal.o sigcontext.o syscalls.o sysrq.o \
 	sys_call_table.o tls.o
 
 obj-$(CONFIG_MODE_SKAS) += stub.o stub_segv.o

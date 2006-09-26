@@ -53,6 +53,7 @@
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
+#include <asm/mmzone.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
@@ -934,6 +935,24 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 }
 
 /*
+ * reservetop=size reserves a hole at the top of the kernel address space which
+ * a hypervisor can load into later.  Needed for dynamically loaded hypervisors,
+ * so relocating the fixmap can be done before paging initialization.
+ */
+static int __init parse_reservetop(char *arg)
+{
+	unsigned long address;
+
+	if (!arg)
+		return -EINVAL;
+
+	address = memparse(arg, &arg);
+	reserve_top_address(address);
+	return 0;
+}
+early_param("reservetop", parse_reservetop);
+
+/*
  * Callback for efi_memory_walk.
  */
 static int __init
@@ -1181,7 +1200,7 @@ static unsigned long __init setup_memory(void)
 
 void __init zone_sizes_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 	unsigned int max_dma, low;
 
 	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
@@ -1258,7 +1277,7 @@ void __init setup_bootmem_allocator(void)
 	 */
 	find_smp_config();
 #endif
-
+	numa_kva_reserve();
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {

@@ -45,6 +45,7 @@
 #include <linux/namei.h>
 #include <linux/ctype.h>
 #include <linux/migrate.h>
+#include <linux/highmem.h>
 
 #include <asm/uaccess.h>
 #include <asm/div64.h>

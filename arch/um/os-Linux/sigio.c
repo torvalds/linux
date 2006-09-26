@@ -43,17 +43,9 @@ struct pollfds {
 /* Protected by sigio_lock().  Used by the sigio thread, but the UML thread
  * synchronizes with it.
  */
-static struct pollfds current_poll = {
-	.poll  		= NULL,
-	.size 		= 0,
-	.used 		= 0
-};
-
-static struct pollfds next_poll = {
-	.poll  		= NULL,
-	.size 		= 0,
-	.used 		= 0
-};
+static struct pollfds current_poll;
+static struct pollfds next_poll;
+static struct pollfds all_sigio_fds;
 
 static int write_sigio_thread(void *unused)
 {
@@ -78,7 +70,8 @@ static int write_sigio_thread(void *unused)
 				n = os_read_file(sigio_private[1], &c, sizeof(c));
 				if(n != sizeof(c))
 					printk("write_sigio_thread : "
-					       "read failed, err = %d\n", -n);
+					       "read on socket failed, "
+					       "err = %d\n", -n);
 				tmp = current_poll;
 				current_poll = next_poll;
 				next_poll = tmp;
@@ -93,35 +86,36 @@ static int write_sigio_thread(void *unused)
 
 			n = os_write_file(respond_fd, &c, sizeof(c));
 			if(n != sizeof(c))
-				printk("write_sigio_thread : write failed, "
-				       "err = %d\n", -n);
+				printk("write_sigio_thread : write on socket "
+				       "failed, err = %d\n", -n);
 		}
 	}
 
 	return 0;
 }
 
-static int need_poll(int n)
+static int need_poll(struct pollfds *polls, int n)
 {
-	if(n <= next_poll.size){
-		next_poll.used = n;
-		return(0);
+	if(n <= polls->size){
+		polls->used = n;
+		return 0;
 	}
-	kfree(next_poll.poll);
-	next_poll.poll = um_kmalloc_atomic(n * sizeof(struct pollfd));
-	if(next_poll.poll == NULL){
+	kfree(polls->poll);
+	polls->poll = um_kmalloc_atomic(n * sizeof(struct pollfd));
+	if(polls->poll == NULL){
 		printk("need_poll : failed to allocate new pollfds\n");
-		next_poll.size = 0;
-		next_poll.used = 0;
-		return(-1);
+		polls->size = 0;
+		polls->used = 0;
+		return -ENOMEM;
 	}
-	next_poll.size = n;
-	next_poll.used = n;
-	return(0);
+	polls->size = n;
+	polls->used = n;
+	return 0;
 }
 
 /* Must be called with sigio_lock held, because it's needed by the marked
- * critical section. */
+ * critical section.
+ */
 static void update_thread(void)
 {
 	unsigned long flags;
@@ -156,34 +150,39 @@ static void update_thread(void)
 	set_signals(flags);
 }
 
-static int add_sigio_fd(int fd, int read)
+int add_sigio_fd(int fd)
 {
-	int err = 0, i, n, events;
+	struct pollfd *p;
+	int err = 0, i, n;
 
 	sigio_lock();
+	for(i = 0; i < all_sigio_fds.used; i++){
+		if(all_sigio_fds.poll[i].fd == fd)
+			break;
+	}
+	if(i == all_sigio_fds.used)
+		goto out;
+
+	p = &all_sigio_fds.poll[i];
+
 	for(i = 0; i < current_poll.used; i++){
 		if(current_poll.poll[i].fd == fd)
 			goto out;
 	}
 
 	n = current_poll.used + 1;
-	err = need_poll(n);
+	err = need_poll(&next_poll, n);
 	if(err)
 		goto out;
 
 	for(i = 0; i < current_poll.used; i++)
 		next_poll.poll[i] = current_poll.poll[i];
 
-	if(read) events = POLLIN;
-	else events = POLLOUT;
-
-	next_poll.poll[n - 1] = ((struct pollfd) { .fd  	= fd,
-						   .events 	= events,
-						   .revents 	= 0 });
+	next_poll.poll[n - 1] = *p;
 	update_thread();
  out:
 	sigio_unlock();
-	return(err);
+	return err;
 }
 
 int ignore_sigio_fd(int fd)
@@ -205,18 +204,14 @@ int ignore_sigio_fd(int fd)
 	if(i == current_poll.used)
 		goto out;
 
-	err = need_poll(current_poll.used - 1);
+	err = need_poll(&next_poll, current_poll.used - 1);
 	if(err)
 		goto out;
 
 	for(i = 0; i < current_poll.used; i++){
 		p = &current_poll.poll[i];
-		if(p->fd != fd) next_poll.poll[n++] = current_poll.poll[i];
-	}
-	if(n == i){
-		printk("ignore_sigio_fd : fd %d not found\n", fd);
-		err = -1;
-		goto out;
+		if(p->fd != fd)
+			next_poll.poll[n++] = *p;
 	}
 
 	update_thread();
@@ -234,7 +229,7 @@ static struct pollfd *setup_initial_poll(int fd)
 		printk("setup_initial_poll : failed to allocate poll\n");
 		return NULL;
 	}
-	*p = ((struct pollfd) { .fd  	= fd,
+	*p = ((struct pollfd) { .fd		= fd,
 				.events 	= POLLIN,
 				.revents 	= 0 });
 	return p;
@@ -323,6 +318,8 @@ out_close1:
 
 void maybe_sigio_broken(int fd, int read)
 {
+	int err;
+
 	if(!isatty(fd))
 		return;
 
@@ -330,7 +327,19 @@ void maybe_sigio_broken(int fd, int read)
 		return;
 
 	write_sigio_workaround();
-	add_sigio_fd(fd, read);
+
+	sigio_lock();
+	err = need_poll(&all_sigio_fds, all_sigio_fds.used + 1);
+	if(err){
+		printk("maybe_sigio_broken - failed to add pollfd\n");
+		goto out;
+	}
+	all_sigio_fds.poll[all_sigio_fds.used++] =
+		((struct pollfd) { .fd  	= fd,
+				   .events 	= read ? POLLIN : POLLOUT,
+				   .revents 	= 0 });
+out:
+	sigio_unlock();
 }
 
 static void sigio_cleanup(void)

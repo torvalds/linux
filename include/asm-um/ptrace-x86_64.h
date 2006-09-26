@@ -11,14 +11,10 @@
 #include "asm/errno.h"
 #include "asm/host_ldt.h"
 
-#define signal_fault signal_fault_x86_64
 #define __FRAME_OFFSETS /* Needed to get the R* macros */
 #include "asm/ptrace-generic.h"
-#undef signal_fault
 
 #define HOST_AUDIT_ARCH AUDIT_ARCH_X86_64
-
-void signal_fault(struct pt_regs_subarch *regs, void *frame, char *where);
 
 #define FS_BASE (21 * sizeof(unsigned long))
 #define GS_BASE (22 * sizeof(unsigned long))

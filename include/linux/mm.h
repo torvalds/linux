@@ -15,6 +15,7 @@
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/debug_locks.h>
+#include <linux/backing-dev.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -218,7 +219,8 @@ struct inode;
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
  * moment. Note that we have no way to track which tasks are using
- * a page.
+ * a page, though if it is a pagecache page, rmap structures can tell us
+ * who is mapping it.
  */
 struct page {
 	unsigned long flags;		/* Atomic flags, some possibly
@@ -278,6 +280,12 @@ struct page {
  */
 #include <linux/page-flags.h>
 
+#ifdef CONFIG_DEBUG_VM
+#define VM_BUG_ON(cond) BUG_ON(cond)
+#else
+#define VM_BUG_ON(condition) do { } while(0)
+#endif
+
 /*
  * Methods to modify the page usage count.
  *
@@ -292,12 +300,11 @@ struct page {
  */
 
 /*
- * Drop a ref, return true if the logical refcount fell to zero (the page has
- * no users)
+ * Drop a ref, return true if the refcount fell to zero (the page has no users)
  */
 static inline int put_page_testzero(struct page *page)
 {
-	BUG_ON(atomic_read(&page->_count) == 0);
+	VM_BUG_ON(atomic_read(&page->_count) == 0);
 	return atomic_dec_and_test(&page->_count);
 }
 
@@ -307,10 +314,9 @@ static inline int put_page_testzero(struct page *page)
  */
 static inline int get_page_unless_zero(struct page *page)
 {
+	VM_BUG_ON(PageCompound(page));
 	return atomic_inc_not_zero(&page->_count);
 }
-
-extern void FASTCALL(__page_cache_release(struct page *));
 
 static inline int page_count(struct page *page)
 {
@@ -323,6 +329,7 @@ static inline void get_page(struct page *page)
 {
 	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
+	VM_BUG_ON(atomic_read(&page->_count) == 0);
 	atomic_inc(&page->_count);
 }
 
@@ -349,43 +356,55 @@ void split_page(struct page *page, unsigned int order);
  * For the non-reserved pages, page_count(page) denotes a reference count.
  *   page_count() == 0 means the page is free. page->lru is then used for
  *   freelist management in the buddy allocator.
- *   page_count() == 1 means the page is used for exactly one purpose
- *   (e.g. a private data page of one process).
+ *   page_count() > 0  means the page has been allocated.
  *
- * A page may be used for kmalloc() or anyone else who does a
- * __get_free_page(). In this case the page_count() is at least 1, and
- * all other fields are unused but should be 0 or NULL. The
- * management of this page is the responsibility of the one who uses
- * it.
+ * Pages are allocated by the slab allocator in order to provide memory
+ * to kmalloc and kmem_cache_alloc. In this case, the management of the
+ * page, and the fields in 'struct page' are the responsibility of mm/slab.c
+ * unless a particular usage is carefully commented. (the responsibility of
+ * freeing the kmalloc memory is the caller's, of course).
  *
- * The other pages (we may call them "process pages") are completely
+ * A page may be used by anyone else who does a __get_free_page().
+ * In this case, page_count still tracks the references, and should only
+ * be used through the normal accessor functions. The top bits of page->flags
+ * and page->virtual store page management information, but all other fields
+ * are unused and could be used privately, carefully. The management of this
+ * page is the responsibility of the one who allocated it, and those who have
+ * subsequently been given references to it.
+ *
+ * The other pages (we may call them "pagecache pages") are completely
  * managed by the Linux memory manager: I/O, buffers, swapping etc.
  * The following discussion applies only to them.
  *
- * A page may belong to an inode's memory mapping. In this case,
- * page->mapping is the pointer to the inode, and page->index is the
- * file offset of the page, in units of PAGE_CACHE_SIZE.
+ * A pagecache page contains an opaque `private' member, which belongs to the
+ * page's address_space. Usually, this is the address of a circular list of
+ * the page's disk buffers. PG_private must be set to tell the VM to call
+ * into the filesystem to release these pages.
  *
- * A page contains an opaque `private' member, which belongs to the
- * page's address_space.  Usually, this is the address of a circular
- * list of the page's disk buffers.
+ * A page may belong to an inode's memory mapping. In this case, page->mapping
+ * is the pointer to the inode, and page->index is the file offset of the page,
+ * in units of PAGE_CACHE_SIZE.
  *
- * For pages belonging to inodes, the page_count() is the number of
- * attaches, plus 1 if `private' contains something, plus one for
- * the page cache itself.
+ * If pagecache pages are not associated with an inode, they are said to be
+ * anonymous pages. These may become associated with the swapcache, and in that
+ * case PG_swapcache is set, and page->private is an offset into the swapcache.
  *
- * Instead of keeping dirty/clean pages in per address-space lists, we instead
- * now tag pages as dirty/under writeback in the radix tree.
+ * In either case (swapcache or inode backed), the pagecache itself holds one
+ * reference to the page. Setting PG_private should also increment the
+ * refcount. The each user mapping also has a reference to the page.
  *
- * There is also a per-mapping radix tree mapping index to the page
- * in memory if present. The tree is rooted at mapping->root.  
+ * The pagecache pages are stored in a per-mapping radix tree, which is
+ * rooted at mapping->page_tree, and indexed by offset.
+ * Where 2.4 and early 2.6 kernels kept dirty/clean pages in per-address_space
+ * lists, we instead now tag pages as dirty/writeback in the radix tree.
  *
- * All process pages can do I/O:
+ * All pagecache pages may be subject to I/O:
  * - inode pages may need to be read from disk,
  * - inode pages which have been modified and are MAP_SHARED may need
- *   to be written to disk,
- * - private pages which have been modified may need to be swapped out
- *   to swap space and (later) to be read back into memory.
+ *   to be written back to the inode on disk,
+ * - anonymous pages (including MAP_PRIVATE file mappings) which have been
+ *   modified may need to be swapped out to swap space and (later) to be read
+ *   back into memory.
  */
 
 /*
@@ -463,7 +482,7 @@ void split_page(struct page *page, unsigned int order);
 #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
 #define ZONETABLE_MASK		((1UL << ZONETABLE_SHIFT) - 1)
 
-static inline unsigned long page_zonenum(struct page *page)
+static inline enum zone_type page_zonenum(struct page *page)
 {
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
@@ -480,23 +499,29 @@ static inline struct zone *page_zone(struct page *page)
 	return zone_table[page_zone_id(page)];
 }
 
+static inline unsigned long zone_to_nid(struct zone *zone)
+{
+	return zone->zone_pgdat->node_id;
+}
+
 static inline unsigned long page_to_nid(struct page *page)
 {
 	if (FLAGS_HAS_NODE)
 		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 	else
-		return page_zone(page)->zone_pgdat->node_id;
+		return zone_to_nid(page_zone(page));
 }
 static inline unsigned long page_to_section(struct page *page)
 {
 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
 
-static inline void set_page_zone(struct page *page, unsigned long zone)
+static inline void set_page_zone(struct page *page, enum zone_type zone)
 {
 	page->flags &= ~(ZONES_MASK << ZONES_PGSHIFT);
 	page->flags |= (zone & ZONES_MASK) << ZONES_PGSHIFT;
 }
+
 static inline void set_page_node(struct page *page, unsigned long node)
 {
 	page->flags &= ~(NODES_MASK << NODES_PGSHIFT);
@@ -508,7 +533,7 @@ static inline void set_page_section(struct page *page, unsigned long section)
 	page->flags |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
 }
 
-static inline void set_page_links(struct page *page, unsigned long zone,
+static inline void set_page_links(struct page *page, enum zone_type zone,
 	unsigned long node, unsigned long pfn)
 {
 	set_page_zone(page, zone);
@@ -801,6 +826,39 @@ typedef int (*shrinker_t)(int nr_to_scan, gfp_t gfp_mask);
 struct shrinker;
 extern struct shrinker *set_shrinker(int, shrinker_t);
 extern void remove_shrinker(struct shrinker *shrinker);
+
+/*
+ * Some shared mappigns will want the pages marked read-only
+ * to track write events. If so, we'll downgrade vm_page_prot
+ * to the private version (using protection_map[] without the
+ * VM_SHARED bit).
+ */
+static inline int vma_wants_writenotify(struct vm_area_struct *vma)
+{
+	unsigned int vm_flags = vma->vm_flags;
+
+	/* If it was private or non-writable, the write bit is already clear */
+	if ((vm_flags & (VM_WRITE|VM_SHARED)) != ((VM_WRITE|VM_SHARED)))
+		return 0;
+
+	/* The backer wishes to know when pages are first written to? */
+	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+		return 1;
+
+	/* The open routine did something to the protections already? */
+	if (pgprot_val(vma->vm_page_prot) !=
+	    pgprot_val(protection_map[vm_flags &
+		    (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]))
+		return 0;
+
+	/* Specialty mapping? */
+	if (vm_flags & (VM_PFNMAP|VM_INSERTPAGE))
+		return 0;
+
+	/* Can the mapping track the dirty pages? */
+	return vma->vm_file && vma->vm_file->f_mapping &&
+		mapping_cap_account_dirty(vma->vm_file->f_mapping);
+}
 
 extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
 

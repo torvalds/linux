@@ -46,9 +46,10 @@
 #include <linux/bootmem.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
-
 #include <linux/delay.h>
 #include <linux/mc146818rtc.h>
+#include <linux/smp.h>
+
 #include <asm/mtrr.h>
 #include <asm/pgalloc.h>
 #include <asm/desc.h>

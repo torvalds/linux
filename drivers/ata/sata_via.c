@@ -318,9 +318,10 @@ static void vt6421_init_addrs(struct ata_probe_ent *probe_ent,
 static struct ata_probe_ent *vt6420_init_probe_ent(struct pci_dev *pdev)
 {
 	struct ata_probe_ent *probe_ent;
-	struct ata_port_info *ppi = &vt6420_port_info;
-
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
+	struct ata_port_info *ppi[2];
+	
+	ppi[0] = ppi[1] = &vt6420_port_info;
+	probe_ent = ata_pci_init_native_mode(pdev, ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		return NULL;
 

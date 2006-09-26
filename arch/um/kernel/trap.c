@@ -227,9 +227,16 @@ void bad_segv(struct faultinfo fi, unsigned long ip)
 
 void relay_signal(int sig, union uml_pt_regs *regs)
 {
-	if(arch_handle_signal(sig, regs)) return;
-	if(!UPT_IS_USER(regs))
+	if(arch_handle_signal(sig, regs))
+		return;
+
+	if(!UPT_IS_USER(regs)){
+		if(sig == SIGBUS)
+			printk("Bus error - the /dev/shm or /tmp mount likely "
+			       "just ran out of space\n");
 		panic("Kernel mode signal %d", sig);
+	}
+
         current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
 	force_sig(sig, current);
 }

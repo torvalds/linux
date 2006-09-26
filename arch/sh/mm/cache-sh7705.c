@@ -30,7 +30,7 @@
 
 #define __pte_offset(address) \
 		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset(dir, address) ((pte_t *) pmd_page_kernel(*(dir)) + \
+#define pte_offset(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
 		__pte_offset(address))
 
 static inline void cache_wback_all(void)

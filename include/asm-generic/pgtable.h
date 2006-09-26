@@ -1,6 +1,8 @@
 #ifndef _ASM_GENERIC_PGTABLE_H
 #define _ASM_GENERIC_PGTABLE_H
 
+#ifndef __ASSEMBLY__
+
 #ifndef __HAVE_ARCH_PTEP_ESTABLISH
 /*
  * Establish a new mapping:
@@ -188,7 +190,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 })
 #endif
 
-#ifndef __ASSEMBLY__
 /*
  * When walking page tables, we usually want to skip any p?d_none entries;
  * and any p?d_bad entries - reporting the error before resetting to none.

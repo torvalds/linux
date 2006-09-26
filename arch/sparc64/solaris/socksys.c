@@ -168,8 +168,7 @@ static struct file_operations socksys_fops = {
 	.release =	socksys_release,
 };
 
-int __init
-init_socksys(void)
+int __init init_socksys(void)
 {
 	int ret;
 	struct file * file;
@@ -199,8 +198,7 @@ init_socksys(void)
 	return 0;
 }
 
-void
-cleanup_socksys(void)
+void __exit cleanup_socksys(void)
 {
 	if (unregister_chrdev(30, "socksys"))
 		printk ("Couldn't unregister socksys character device\n");

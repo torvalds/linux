@@ -46,7 +46,7 @@ void selinux_audit_rule_free(struct selinux_audit_rule *rule);
 
 /**
  *	selinux_audit_rule_match - determine if a context ID matches a rule.
- *	@ctxid: the context ID to check
+ *	@sid: the context ID to check
  *	@field: the field this rule refers to
  *	@op: the operater the rule uses
  *	@rule: pointer to the audit rule to check against
@@ -55,7 +55,7 @@ void selinux_audit_rule_free(struct selinux_audit_rule *rule);
  *	Returns 1 if the context id matches the rule, 0 if it does not, and
  *	-errno on failure.
  */
-int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                              struct selinux_audit_rule *rule,
                              struct audit_context *actx);
 
@@ -70,18 +70,8 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 void selinux_audit_set_callback(int (*callback)(void));
 
 /**
- *	selinux_task_ctxid - determine a context ID for a process.
- *	@tsk: the task object
- *	@ctxid: ID value returned via this
- *
- *	On return, ctxid will contain an ID for the context.  This value
- *	should only be used opaquely.
- */
-void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid);
-
-/**
- *     selinux_ctxid_to_string - map a security context ID to a string
- *     @ctxid: security context ID to be converted.
+ *     selinux_sid_to_string - map a security context ID to a string
+ *     @sid: security context ID to be converted.
  *     @ctx: address of context string to be returned
  *     @ctxlen: length of returned context string.
  *
@@ -89,7 +79,7 @@ void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid);
  *     string will be allocated internally, and the caller must call
  *     kfree() on it after use.
  */
-int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen);
+int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen);
 
 /**
  *     selinux_get_inode_sid - get the inode's security context ID
@@ -154,7 +144,7 @@ static inline void selinux_audit_rule_free(struct selinux_audit_rule *rule)
 	return;
 }
 
-static inline int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+static inline int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                                            struct selinux_audit_rule *rule,
                                            struct audit_context *actx)
 {
@@ -166,12 +156,7 @@ static inline void selinux_audit_set_callback(int (*callback)(void))
 	return;
 }
 
-static inline void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid)
-{
-	*ctxid = 0;
-}
-
-static inline int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
+static inline int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen)
 {
        *ctx = NULL;
        *ctxlen = 0;

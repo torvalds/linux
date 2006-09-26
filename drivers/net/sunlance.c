@@ -1323,9 +1323,9 @@ static const struct ethtool_ops sparc_lance_ethtool_ops = {
 	.get_link		= sparc_lance_get_link,
 };
 
-static int __init sparc_lance_probe_one(struct sbus_dev *sdev,
-					struct sbus_dma *ledma,
-					struct sbus_dev *lebuffer)
+static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
+					   struct sbus_dma *ledma,
+					   struct sbus_dev *lebuffer)
 {
 	static unsigned version_printed;
 	struct net_device *dev;
@@ -1515,7 +1515,7 @@ fail:
 }
 
 /* On 4m, find the associated dma for the lance chip */
-static inline struct sbus_dma *find_ledma(struct sbus_dev *sdev)
+static struct sbus_dma * __devinit find_ledma(struct sbus_dev *sdev)
 {
 	struct sbus_dma *p;
 
@@ -1533,7 +1533,7 @@ static inline struct sbus_dma *find_ledma(struct sbus_dev *sdev)
 
 /* Find all the lance cards on the system and initialize them */
 static struct sbus_dev sun4_sdev;
-static int __init sparc_lance_init(void)
+static int __devinit sparc_lance_init(void)
 {
 	if ((idprom->id_machtype == (SM_SUN4|SM_4_330)) ||
 	    (idprom->id_machtype == (SM_SUN4|SM_4_470))) {

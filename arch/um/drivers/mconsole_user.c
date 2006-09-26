@@ -16,6 +16,7 @@
 #include "user.h"
 #include "mconsole.h"
 #include "umid.h"
+#include "user_util.h"
 
 static struct mconsole_command commands[] = {
 	/* With uts namespaces, uts information becomes process-specific, so
@@ -65,14 +66,14 @@ static struct mconsole_command *mconsole_parse(struct mc_request *req)
 	struct mconsole_command *cmd;
 	int i;
 
-	for(i=0;i<sizeof(commands)/sizeof(commands[0]);i++){
+	for(i = 0; i < ARRAY_SIZE(commands); i++){
 		cmd = &commands[i];
 		if(!strncmp(req->request.data, cmd->command, 
 			    strlen(cmd->command))){
-			return(cmd);
+			return cmd;
 		}
 	}
-	return(NULL);
+	return NULL;
 }
 
 #define MIN(a,b) ((a)<(b) ? (a):(b))

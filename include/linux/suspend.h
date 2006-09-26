@@ -10,29 +10,11 @@
 #include <linux/pm.h>
 
 /* page backup entry */
-typedef struct pbe {
+struct pbe {
 	unsigned long address;		/* address of the copy */
 	unsigned long orig_address;	/* original address of page */
 	struct pbe *next;
-} suspend_pagedir_t;
-
-#define for_each_pbe(pbe, pblist) \
-	for (pbe = pblist ; pbe ; pbe = pbe->next)
-
-#define PBES_PER_PAGE      (PAGE_SIZE/sizeof(struct pbe))
-#define PB_PAGE_SKIP       (PBES_PER_PAGE-1)
-
-#define for_each_pb_page(pbe, pblist) \
-	for (pbe = pblist ; pbe ; pbe = (pbe+PB_PAGE_SKIP)->next)
-
-
-#define SWAP_FILENAME_MAXLENGTH	32
-
-
-extern dev_t swsusp_resume_device;
-   
-/* mm/vmscan.c */
-extern int shrink_mem(void);
+};
 
 /* mm/page_alloc.c */
 extern void drain_local_pages(void);
@@ -53,17 +35,9 @@ static inline void pm_restore_console(void) {}
 static inline int software_suspend(void)
 {
 	printk("Warning: fake suspend called\n");
-	return -EPERM;
+	return -ENOSYS;
 }
 #endif /* CONFIG_PM */
-
-#ifdef CONFIG_SUSPEND_SMP
-extern void disable_nonboot_cpus(void);
-extern void enable_nonboot_cpus(void);
-#else
-static inline void disable_nonboot_cpus(void) {}
-static inline void enable_nonboot_cpus(void) {}
-#endif
 
 void save_processor_state(void);
 void restore_processor_state(void);

@@ -630,8 +630,9 @@ static inline unsigned long pte_present(pte_t pte)
 #define __pmd_page(pmd)		\
 	((unsigned long) __va((((unsigned long)pmd_val(pmd))<<11UL)))
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
-#define pud_page(pud)		\
+#define pud_page_vaddr(pud)		\
 	((unsigned long) __va((((unsigned long)pud_val(pud))<<11UL)))
+#define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_none(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(0)
 #define pmd_present(pmd)		(pmd_val(pmd) != 0U)
@@ -653,7 +654,7 @@ static inline unsigned long pte_present(pte_t pte)
 
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pudp, address)	\
-	((pmd_t *) pud_page(*(pudp)) + \
+	((pmd_t *) pud_page_vaddr(*(pudp)) + \
 	 (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1)))
 
 /* Find an entry in the third-level page table.. */

@@ -230,7 +230,7 @@ EXPORT_SYMBOL(au1xxx_ddma_add_device);
 */
 u32
 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
-       void (*callback)(int, void *, struct pt_regs *), void *callparam)
+       void (*callback)(int, void *), void *callparam)
 {
 	unsigned long   flags;
 	u32		used, chan, rv;
@@ -248,8 +248,10 @@ au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		au1xxx_dbdma_init();
 	dbdma_initialized = 1;
 
-	if ((stp = find_dbdev_id(srcid)) == NULL) return 0;
-	if ((dtp = find_dbdev_id(destid)) == NULL) return 0;
+	if ((stp = find_dbdev_id(srcid)) == NULL)
+		return 0;
+	if ((dtp = find_dbdev_id(destid)) == NULL)
+		return 0;
 
 	used = 0;
 	rv = 0;
@@ -869,7 +871,7 @@ dbdma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	au_sync();
 
 	if (ctp->chan_callback)
-		(ctp->chan_callback)(irq, ctp->chan_callparam, regs);
+		(ctp->chan_callback)(irq, ctp->chan_callparam);
 
 	ctp->cur_ptr = phys_to_virt(DSCR_GET_NXTPTR(dp->dscr_nxtptr));
 	return IRQ_RETVAL(1);

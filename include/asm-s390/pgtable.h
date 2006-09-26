@@ -664,11 +664,13 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 #define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-#define pmd_page_kernel(pmd) (pmd_val(pmd) & PAGE_MASK)
+#define pmd_page_vaddr(pmd) (pmd_val(pmd) & PAGE_MASK)
 
 #define pmd_page(pmd) (mem_map+(pmd_val(pmd) >> PAGE_SHIFT))
 
-#define pgd_page_kernel(pgd) (pgd_val(pgd) & PAGE_MASK)
+#define pgd_page_vaddr(pgd) (pgd_val(pgd) & PAGE_MASK)
+
+#define pgd_page(pgd) (mem_map+(pgd_val(pgd) >> PAGE_SHIFT))
 
 /* to find an entry in a page-table-directory */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
@@ -690,14 +692,14 @@ static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 /* Find an entry in the second-level page table.. */
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 #define pmd_offset(dir,addr) \
-	((pmd_t *) pgd_page_kernel(*(dir)) + pmd_index(addr))
+	((pmd_t *) pgd_page_vaddr(*(dir)) + pmd_index(addr))
 
 #endif /* __s390x__ */
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
 #define pte_offset_kernel(pmd, address) \
-	((pte_t *) pmd_page_kernel(*(pmd)) + pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(pmd)) + pte_index(address))
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_offset_map_nested(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_unmap(pte) do { } while (0)

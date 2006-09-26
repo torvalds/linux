@@ -46,6 +46,19 @@ static void *mempool_alloc_pages_isa(gfp_t gfp_mask, void *data)
  */
 #ifdef CONFIG_HIGHMEM
 
+unsigned long totalhigh_pages __read_mostly;
+
+unsigned int nr_free_highpages (void)
+{
+	pg_data_t *pgdat;
+	unsigned int pages = 0;
+
+	for_each_online_pgdat(pgdat)
+		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
+
+	return pages;
+}
+
 static int pkmap_count[LAST_PKMAP];
 static unsigned int last_pkmap_nr;
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);

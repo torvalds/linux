@@ -771,16 +771,19 @@ int acpi_map_cpu2node(acpi_handle handle, int cpu, long physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int pxm_id;
+	int nid;
 
 	pxm_id = acpi_get_pxm(handle);
-
 	/*
-	 * Assuming that the container driver would have set the proximity
-	 * domain and would have initialized pxm_to_node(pxm_id) && pxm_flag
+	 * We don't have cpu-only-node hotadd. But if the system equips
+	 * SRAT table, pxm is already found and node is ready.
+  	 * So, just pxm_to_nid(pxm) is OK.
+	 * This code here is for the system which doesn't have full SRAT
+  	 * table for possible cpus.
 	 */
-	node_cpuid[cpu].nid = (pxm_id < 0) ? 0 : pxm_to_node(pxm_id);
-
+	nid = acpi_map_pxm_to_node(pxm_id);
 	node_cpuid[cpu].phys_id = physid;
+	node_cpuid[cpu].nid = nid;
 #endif
 	return (0);
 }

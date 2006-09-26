@@ -36,6 +36,9 @@ int arch_register_cpu(int num)
 	 */
 	if (!can_cpei_retarget() && is_cpu_cpei_target(num))
 		sysfs_cpus[num].cpu.no_control = 1;
+#ifdef CONFIG_NUMA
+	map_cpu_to_node(num, node_cpuid[num].nid);
+#endif
 #endif
 
 	return register_cpu(&sysfs_cpus[num].cpu, num);
@@ -45,7 +48,8 @@ int arch_register_cpu(int num)
 
 void arch_unregister_cpu(int num)
 {
-	return unregister_cpu(&sysfs_cpus[num].cpu);
+	unregister_cpu(&sysfs_cpus[num].cpu);
+	unmap_cpu_from_node(num, cpu_to_node(num));
 }
 EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);

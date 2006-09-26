@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/delayacct.h>
 #include <linux/init.h>
+#include <linux/writeback.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -1226,7 +1227,12 @@ out:
 	return retval;
 }
 
-/*
+/**
+ * vm_insert_page - insert single page into user vma
+ * @vma: user vma to map to
+ * @addr: target user address of this page
+ * @page: source kernel page
+ *
  * This allows drivers to insert individual pages they've allocated
  * into a user vma.
  *
@@ -1318,7 +1324,16 @@ static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
 	return 0;
 }
 
-/*  Note: this is only safe if the mm semaphore is held when called. */
+/**
+ * remap_pfn_range - remap kernel memory to userspace
+ * @vma: user vma to map to
+ * @addr: target user address to start at
+ * @pfn: physical address of kernel memory
+ * @size: size of map area
+ * @prot: page protection flags for this mapping
+ *
+ *  Note: this is only safe if the mm semaphore is held when called.
+ */
 int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 		    unsigned long pfn, unsigned long size, pgprot_t prot)
 {
@@ -1458,14 +1473,29 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct page *old_page, *new_page;
 	pte_t entry;
-	int reuse, ret = VM_FAULT_MINOR;
+	int reuse = 0, ret = VM_FAULT_MINOR;
+	struct page *dirty_page = NULL;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
 	if (!old_page)
 		goto gotten;
 
-	if (unlikely((vma->vm_flags & (VM_SHARED|VM_WRITE)) ==
-				(VM_SHARED|VM_WRITE))) {
+	/*
+	 * Take out anonymous pages first, anonymous shared vmas are
+	 * not dirty accountable.
+	 */
+	if (PageAnon(old_page)) {
+		if (!TestSetPageLocked(old_page)) {
+			reuse = can_share_swap_page(old_page);
+			unlock_page(old_page);
+		}
+	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+					(VM_WRITE|VM_SHARED))) {
+		/*
+		 * Only catch write-faults on shared writable pages,
+		 * read-only shared pages can get COWed by
+		 * get_user_pages(.write=1, .force=1).
+		 */
 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
 			/*
 			 * Notify the address space that the page is about to
@@ -1494,13 +1524,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			if (!pte_same(*page_table, orig_pte))
 				goto unlock;
 		}
-
+		dirty_page = old_page;
+		get_page(dirty_page);
 		reuse = 1;
-	} else if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
-		reuse = can_share_swap_page(old_page);
-		unlock_page(old_page);
-	} else {
-		reuse = 0;
 	}
 
 	if (reuse) {
@@ -1566,6 +1592,10 @@ gotten:
 		page_cache_release(old_page);
 unlock:
 	pte_unmap_unlock(page_table, ptl);
+	if (dirty_page) {
+		set_page_dirty_balance(dirty_page);
+		put_page(dirty_page);
+	}
 	return ret;
 oom:
 	if (old_page)
@@ -1785,9 +1815,10 @@ void unmap_mapping_range(struct address_space *mapping,
 }
 EXPORT_SYMBOL(unmap_mapping_range);
 
-/*
- * Handle all mappings that got truncated by a "truncate()"
- * system call.
+/**
+ * vmtruncate - unmap mappings "freed" by truncate() syscall
+ * @inode: inode of the file used
+ * @offset: file offset to start truncating
  *
  * NOTE! We have to be ready to update the memory sharing
  * between the file and the memory map for a potential last
@@ -1856,11 +1887,16 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 }
 EXPORT_UNUSED_SYMBOL(vmtruncate_range);  /*  June 2006  */
 
-/* 
+/**
+ * swapin_readahead - swap in pages in hope we need them soon
+ * @entry: swap entry of this memory
+ * @addr: address to start
+ * @vma: user vma this addresses belong to
+ *
  * Primitive swap readahead code. We simply read an aligned block of
  * (1 << page_cluster) entries in the swap area. This method is chosen
  * because it doesn't cost us any seek time.  We also make sure to queue
- * the 'original' request together with the readahead ones...  
+ * the 'original' request together with the readahead ones...
  *
  * This has been extended to use the NUMA policies from the mm triggering
  * the readahead.
@@ -2098,6 +2134,7 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	unsigned int sequence = 0;
 	int ret = VM_FAULT_MINOR;
 	int anon = 0;
+	struct page *dirty_page = NULL;
 
 	pte_unmap(page_table);
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
@@ -2192,6 +2229,10 @@ retry:
 		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
+			if (write_access) {
+				dirty_page = new_page;
+				get_page(dirty_page);
+			}
 		}
 	} else {
 		/* One of our sibling threads was faster, back out. */
@@ -2204,6 +2245,10 @@ retry:
 	lazy_mmu_prot_update(entry);
 unlock:
 	pte_unmap_unlock(page_table, ptl);
+	if (dirty_page) {
+		set_page_dirty_balance(dirty_page);
+		put_page(dirty_page);
+	}
 	return ret;
 oom:
 	page_cache_release(new_page);

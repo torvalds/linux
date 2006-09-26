@@ -75,6 +75,7 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 #define VALID_PAGE(page)	(((page) - mem_map) < max_mapnr)
 
 #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> 32))
+#define pgd_page(pgd)		(pfn_to_page(pgd_val(pgd) >> 32))
 #define pte_pfn(pte)		(pte_val(pte) >> 32)
 
 #define mk_pte(page, pgprot)						     \

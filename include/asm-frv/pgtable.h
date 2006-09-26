@@ -217,7 +217,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
 }
 
 #define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
-#define pgd_page_kernel(pgd)			(pud_page_kernel((pud_t){ pgd }))
+#define pgd_page_vaddr(pgd)			(pud_page_vaddr((pud_t){ pgd }))
 
 /*
  * allocating and freeing a pud is trivial: the 1-entry pud is
@@ -246,7 +246,7 @@ static inline void pud_clear(pud_t *pud)	{ }
 #define set_pud(pudptr, pudval)			set_pmd((pmd_t *)(pudptr), (pmd_t) { pudval })
 
 #define pud_page(pud)				(pmd_page((pmd_t){ pud }))
-#define pud_page_kernel(pud)			(pmd_page_kernel((pmd_t){ pud }))
+#define pud_page_vaddr(pud)			(pmd_page_vaddr((pmd_t){ pud }))
 
 /*
  * (pmds are folded into pgds so this doesn't get actually called,
@@ -362,7 +362,7 @@ static inline pmd_t *pmd_offset(pud_t *dir, unsigned long address)
 #define	pmd_bad(x)	(pmd_val(x) & xAMPRx_SS)
 #define pmd_clear(xp)	do { __set_pmd(xp, 0); } while(0)
 
-#define pmd_page_kernel(pmd) \
+#define pmd_page_vaddr(pmd) \
 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 #ifndef CONFIG_DISCONTIGMEM
@@ -458,7 +458,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_index(address) \
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
 
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \

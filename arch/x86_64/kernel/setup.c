@@ -689,6 +689,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	probe_roms();
 	e820_reserve_resources(); 
+	e820_mark_nosave_regions();
 
 	request_resource(&iomem_resource, &video_ram_resource);
 

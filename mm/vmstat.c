@@ -321,6 +321,9 @@ void refresh_cpu_vm_stats(int cpu)
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pcp;
 
+		if (!populated_zone(zone))
+			continue;
+
 		pcp = zone_pcp(zone, cpu);
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
@@ -435,12 +438,28 @@ struct seq_operations fragmentation_op = {
 	.show	= frag_show,
 };
 
+#ifdef CONFIG_ZONE_DMA32
+#define TEXT_FOR_DMA32(xx) xx "_dma32",
+#else
+#define TEXT_FOR_DMA32(xx)
+#endif
+
+#ifdef CONFIG_HIGHMEM
+#define TEXT_FOR_HIGHMEM(xx) xx "_high",
+#else
+#define TEXT_FOR_HIGHMEM(xx)
+#endif
+
+#define TEXTS_FOR_ZONES(xx) xx "_dma", TEXT_FOR_DMA32(xx) xx "_normal", \
+					TEXT_FOR_HIGHMEM(xx)
+
 static char *vmstat_text[] = {
 	/* Zoned VM counters */
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",
-	"nr_slab",
+	"nr_slab_reclaimable",
+	"nr_slab_unreclaimable",
 	"nr_page_table_pages",
 	"nr_dirty",
 	"nr_writeback",
@@ -462,10 +481,7 @@ static char *vmstat_text[] = {
 	"pswpin",
 	"pswpout",
 
-	"pgalloc_dma",
-	"pgalloc_dma32",
-	"pgalloc_normal",
-	"pgalloc_high",
+	TEXTS_FOR_ZONES("pgalloc")
 
 	"pgfree",
 	"pgactivate",
@@ -474,25 +490,10 @@ static char *vmstat_text[] = {
 	"pgfault",
 	"pgmajfault",
 
-	"pgrefill_dma",
-	"pgrefill_dma32",
-	"pgrefill_normal",
-	"pgrefill_high",
-
-	"pgsteal_dma",
-	"pgsteal_dma32",
-	"pgsteal_normal",
-	"pgsteal_high",
-
-	"pgscan_kswapd_dma",
-	"pgscan_kswapd_dma32",
-	"pgscan_kswapd_normal",
-	"pgscan_kswapd_high",
-
-	"pgscan_direct_dma",
-	"pgscan_direct_dma32",
-	"pgscan_direct_normal",
-	"pgscan_direct_high",
+	TEXTS_FOR_ZONES("pgrefill")
+	TEXTS_FOR_ZONES("pgsteal")
+	TEXTS_FOR_ZONES("pgscan_kswapd")
+	TEXTS_FOR_ZONES("pgscan_direct")
 
 	"pginodesteal",
 	"slabs_scanned",
