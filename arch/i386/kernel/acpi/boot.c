@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
+#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/irq.h>
@@ -512,16 +513,76 @@ EXPORT_SYMBOL(acpi_register_gsi);
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
-	/* TBD */
-	return -EINVAL;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	struct acpi_table_lapic *lapic;
+	cpumask_t tmp_map, new_map;
+	u8 physid;
+	int cpu;
+
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
+		return -EINVAL;
+
+	if (!buffer.length || !buffer.pointer)
+		return -EINVAL;
+
+	obj = buffer.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER ||
+	    obj->buffer.length < sizeof(*lapic)) {
+		kfree(buffer.pointer);
+		return -EINVAL;
+	}
+
+	lapic = (struct acpi_table_lapic *)obj->buffer.pointer;
+
+	if ((lapic->header.type != ACPI_MADT_LAPIC) ||
+	    (!lapic->flags.enabled)) {
+		kfree(buffer.pointer);
+		return -EINVAL;
+	}
+
+	physid = lapic->id;
+
+	kfree(buffer.pointer);
+	buffer.length = ACPI_ALLOCATE_BUFFER;
+	buffer.pointer = NULL;
+
+	tmp_map = cpu_present_map;
+	mp_register_lapic(physid, lapic->flags.enabled);
+
+	/*
+	 * If mp_register_lapic successfully generates a new logical cpu
+	 * number, then the following will get us exactly what was mapped
+	 */
+	cpus_andnot(new_map, cpu_present_map, tmp_map);
+	if (cpus_empty(new_map)) {
+		printk ("Unable to map lapic to logical cpu number\n");
+		return -EINVAL;
+	}
+
+	cpu = first_cpu(new_map);
+
+	*pcpu = cpu;
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)
 {
-	/* TBD */
-	return -EINVAL;
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (x86_acpiid_to_apicid[i] == x86_cpu_to_apicid[cpu]) {
+			x86_acpiid_to_apicid[i] = -1;
+			break;
+		}
+	}
+	x86_cpu_to_apicid[cpu] = -1;
+	cpu_clear(cpu, cpu_present_map);
+	num_processors--;
+
+	return (0);
 }
 
 EXPORT_SYMBOL(acpi_unmap_lsapic);

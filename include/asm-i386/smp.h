@@ -84,6 +84,7 @@ static inline int hard_smp_processor_id(void)
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
+extern unsigned int num_processors;
 
 #endif /* !__ASSEMBLY__ */
 
