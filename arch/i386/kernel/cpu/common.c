@@ -675,7 +675,7 @@ old_gdt:
 #endif
 
 	/* Clear %fs and %gs. */
-	asm volatile ("xorl %eax, %eax; movl %eax, %fs; movl %eax, %gs");
+	asm volatile ("movl %0, %%fs; movl %0, %%gs" : : "r" (0));
 
 	/* Clear all 6 debug registers: */
 	set_debugreg(0, 0);
