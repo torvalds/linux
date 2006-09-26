@@ -661,6 +661,10 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
+	/* Set the LNB polarity */
+	if(state->config->lnb_polarity)
+		cx24123_writereg(state, 0x32, cx24123_readreg(state, 0x32) | 0x02);
+
 	return 0;
 }
 
@@ -678,6 +682,9 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	case SEC_VOLTAGE_18:
 		dprintk("%s: setting voltage 18V\n", __FUNCTION__);
 		return cx24123_writereg(state, 0x29, val | 0x80);
+	case SEC_VOLTAGE_OFF:
+		/* already handled in cx88-dvb */
+		return 0;
 	default:
 		return -EINVAL;
 	};

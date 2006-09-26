@@ -498,6 +498,7 @@ static struct cx24123_config hauppauge_novas_config = {
 static struct cx24123_config kworld_dvbs_100_config = {
 	.demod_address = 0x15,
 	.set_ts_params = cx24123_set_ts_param,
+	.lnb_polarity  = 1,
 };
 
 static int dvb_register(struct cx8802_dev *dev)
