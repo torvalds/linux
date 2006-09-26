@@ -20,9 +20,6 @@
 #include <asm/idle.h>
 
 atomic_t irq_err_count;
-#ifdef APIC_MISMATCH_DEBUG
-atomic_t irq_mis_count;
-#endif
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 /*
@@ -95,9 +92,6 @@ skip:
 			seq_printf(p, "%10u ", cpu_pda(j)->apic_timer_irqs);
 		seq_putc(p, '\n');
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-#ifdef APIC_MISMATCH_DEBUG
-		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
-#endif
 	}
 	return 0;
 }
