@@ -4,8 +4,7 @@
  * Licensed under the GPL
  */
 
-#include <setjmp.h>
-#include <string.h>
+#include <stddef.h>
 #include "longjmp.h"
 
 unsigned long __do_user_copy(void *to, const void *from, int n,

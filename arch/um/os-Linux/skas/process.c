@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
-#include <setjmp.h>
 #include <sched.h>
 #include "ptrace_user.h"
 #include <sys/wait.h>
@@ -470,7 +469,7 @@ void thread_wait(void *sw, void *fb)
 	*switch_buf = &buf;
 	fork_buf = fb;
 	if(UML_SETJMP(&buf) == 0)
-		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
+		UML_LONGJMP(fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)

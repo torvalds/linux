@@ -5,11 +5,11 @@
 
 #include <errno.h>
 #include <string.h>
-#include <setjmp.h>
 #include "ptrace_user.h"
 #include "uml-config.h"
 #include "skas_ptregs.h"
 #include "registers.h"
+#include "longjmp.h"
 #include "user.h"
 
 /* These are set once at boot time and not changed thereafter */
@@ -80,9 +80,9 @@ void get_safe_registers(unsigned long *regs, unsigned long *fp_regs)
 
 void get_thread_regs(union uml_pt_regs *uml_regs, void *buffer)
 {
-	struct __jmp_buf_tag *jmpbuf = buffer;
+	struct __jmp_buf *jmpbuf = buffer;
 
-	UPT_SET(uml_regs, RIP, jmpbuf->__jmpbuf[JB_PC]);
-	UPT_SET(uml_regs, RSP, jmpbuf->__jmpbuf[JB_RSP]);
-	UPT_SET(uml_regs, RBP, jmpbuf->__jmpbuf[JB_RBP]);
+	UPT_SET(uml_regs, RIP, jmpbuf->__rip);
+	UPT_SET(uml_regs, RSP, jmpbuf->__rsp);
+	UPT_SET(uml_regs, RBP, jmpbuf->__rbp);
 }

@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <signal.h>
-#include <setjmp.h>
 #include <linux/unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
