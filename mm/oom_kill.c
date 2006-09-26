@@ -21,6 +21,8 @@
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 
 int sysctl_panic_on_oom;
 /* #define DEBUG */
@@ -306,6 +308,20 @@ static int oom_kill_process(struct task_struct *p, unsigned long points,
 	return oom_kill_task(p, message);
 }
 
+static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+
+int register_oom_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&oom_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_oom_notifier);
+
+int unregister_oom_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&oom_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+
 /**
  * out_of_memory - kill the "best" process when we run out of memory
  *
@@ -318,6 +334,12 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
 	struct task_struct *p;
 	unsigned long points = 0;
+	unsigned long freed = 0;
+
+	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+	if (freed > 0)
+		/* Got some memory back in the last second. */
+		return;
 
 	if (printk_ratelimit()) {
 		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
