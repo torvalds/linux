@@ -100,13 +100,10 @@ static inline void down(struct semaphore * sem)
 	__asm__ __volatile__(
 		"# atomic down operation\n\t"
 		LOCK_PREFIX "decl %0\n\t"     /* --sem->count */
-		"js 2f\n"
-		"1:\n"
-		LOCK_SECTION_START("")
-		"2:\tlea %0,%%eax\n\t"
-		"call __down_failed\n\t"
-		"jmp 1b\n"
-		LOCK_SECTION_END
+		"jns 2f\n"
+		"\tlea %0,%%eax\n\t"
+		"call __down_failed\n"
+		"2:"
 		:"+m" (sem->count)
 		:
 		:"memory","ax");
@@ -123,15 +120,12 @@ static inline int down_interruptible(struct semaphore * sem)
 	might_sleep();
 	__asm__ __volatile__(
 		"# atomic interruptible down operation\n\t"
+		"xorl %0,%0\n\t"
 		LOCK_PREFIX "decl %1\n\t"     /* --sem->count */
-		"js 2f\n\t"
-		"xorl %0,%0\n"
-		"1:\n"
-		LOCK_SECTION_START("")
-		"2:\tlea %1,%%eax\n\t"
-		"call __down_failed_interruptible\n\t"
-		"jmp 1b\n"
-		LOCK_SECTION_END
+		"jns 2f\n\t"
+		"lea %1,%%eax\n\t"
+		"call __down_failed_interruptible\n"
+		"2:"
 		:"=a" (result), "+m" (sem->count)
 		:
 		:"memory");
@@ -148,15 +142,12 @@ static inline int down_trylock(struct semaphore * sem)
 
 	__asm__ __volatile__(
 		"# atomic interruptible down operation\n\t"
+		"xorl %0,%0\n\t"
 		LOCK_PREFIX "decl %1\n\t"     /* --sem->count */
-		"js 2f\n\t"
-		"xorl %0,%0\n"
-		"1:\n"
-		LOCK_SECTION_START("")
-		"2:\tlea %1,%%eax\n\t"
+		"jns 2f\n\t"
+		"lea %1,%%eax\n\t"
 		"call __down_failed_trylock\n\t"
-		"jmp 1b\n"
-		LOCK_SECTION_END
+		"2:\n"
 		:"=a" (result), "+m" (sem->count)
 		:
 		:"memory");
@@ -166,22 +157,16 @@ static inline int down_trylock(struct semaphore * sem)
 /*
  * Note! This is subtle. We jump to wake people up only if
  * the semaphore was negative (== somebody was waiting on it).
- * The default case (no contention) will result in NO
- * jumps for both down() and up().
  */
 static inline void up(struct semaphore * sem)
 {
 	__asm__ __volatile__(
 		"# atomic up operation\n\t"
 		LOCK_PREFIX "incl %0\n\t"     /* ++sem->count */
-		"jle 2f\n"
-		"1:\n"
-		LOCK_SECTION_START("")
-		"2:\tlea %0,%%eax\n\t"
-		"call __up_wakeup\n\t"
-		"jmp 1b\n"
-		LOCK_SECTION_END
-		".subsection 0\n"
+		"jg 1f\n\t"
+		"lea %0,%%eax\n\t"
+		"call __up_wakeup\n"
+		"1:"
 		:"+m" (sem->count)
 		:
 		:"memory","ax");
