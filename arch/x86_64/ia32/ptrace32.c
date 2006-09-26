@@ -375,8 +375,10 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		ret = -EIO;
 		if (!access_ok(VERIFY_READ, u, sizeof(*u)))
 			break;
-		/* no checking to be bug-to-bug compatible with i386 */
-		__copy_from_user(&child->thread.i387.fxsave, u, sizeof(*u));
+		/* no checking to be bug-to-bug compatible with i386. */
+		/* but silence warning */
+		if (__copy_from_user(&child->thread.i387.fxsave, u, sizeof(*u)))
+			;
 		set_stopped_child_used_math(child);
 		child->thread.i387.fxsave.mxcsr &= mxcsr_feature_mask;
 		ret = 0; 

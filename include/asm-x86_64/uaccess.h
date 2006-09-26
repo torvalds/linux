@@ -237,14 +237,18 @@ do {									\
  */
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
-extern unsigned long copy_user_generic(void *to, const void *from, unsigned len); 
-extern unsigned long copy_user_generic_dontzero(void *to, const void *from, unsigned len);
+__must_check unsigned long
+copy_user_generic(void *to, const void *from, unsigned len);
 
-extern unsigned long copy_to_user(void __user *to, const void *from, unsigned len); 
-extern unsigned long copy_from_user(void *to, const void __user *from, unsigned len); 
-extern unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len); 
+__must_check unsigned long
+copy_to_user(void __user *to, const void *from, unsigned len);
+__must_check unsigned long
+copy_from_user(void *to, const void __user *from, unsigned len);
+__must_check unsigned long
+copy_in_user(void __user *to, const void __user *from, unsigned len);
 
-static __always_inline int __copy_from_user(void *dst, const void __user *src, unsigned size)
+static __always_inline __must_check
+int __copy_from_user(void *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -273,7 +277,8 @@ static __always_inline int __copy_from_user(void *dst, const void __user *src, u
 	}
 }	
 
-static __always_inline int __copy_to_user(void __user *dst, const void *src, unsigned size)
+static __always_inline __must_check
+int __copy_to_user(void __user *dst, const void *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -304,7 +309,8 @@ static __always_inline int __copy_to_user(void __user *dst, const void *src, uns
 	}
 }	
 
-static __always_inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
+static __always_inline __must_check
+int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -344,15 +350,17 @@ static __always_inline int __copy_in_user(void __user *dst, const void __user *s
 	}
 }	
 
-long strncpy_from_user(char *dst, const char __user *src, long count);
-long __strncpy_from_user(char *dst, const char __user *src, long count);
-long strnlen_user(const char __user *str, long n);
-long __strnlen_user(const char __user *str, long n);
-long strlen_user(const char __user *str);
-unsigned long clear_user(void __user *mem, unsigned long len);
-unsigned long __clear_user(void __user *mem, unsigned long len);
+__must_check long 
+strncpy_from_user(char *dst, const char __user *src, long count);
+__must_check long 
+__strncpy_from_user(char *dst, const char __user *src, long count);
+__must_check long strnlen_user(const char __user *str, long n);
+__must_check long __strnlen_user(const char __user *str, long n);
+__must_check long strlen_user(const char __user *str);
+__must_check unsigned long clear_user(void __user *mem, unsigned long len);
+__must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
-extern long __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size);
+__must_check long __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size);
 #define __copy_to_user_inatomic copy_user_generic
 
 #endif /* __X86_64_UACCESS_H */

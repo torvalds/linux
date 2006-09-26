@@ -137,8 +137,8 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 #else
 		     : [fx] "cdaSDb" (fx), "0" (0));
 #endif
-	if (unlikely(err))
-		__clear_user(fx, sizeof(struct i387_fxsave_struct));
+	if (unlikely(err) && __clear_user(fx, sizeof(struct i387_fxsave_struct)))
+		err = -EFAULT;
 	/* No need to clear here because the caller clears USED_MATH */
 	return err;
 } 
