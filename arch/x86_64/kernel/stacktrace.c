@@ -109,9 +109,10 @@ out_restore:
  * Save stack-backtrace addresses into a stack_trace buffer:
  */
 static inline unsigned long
-save_context_stack(struct stack_trace *trace, unsigned int skip,
+save_context_stack(struct stack_trace *trace,
 		   unsigned long stack, unsigned long stack_end)
 {
+	int skip = trace->skip;
 	unsigned long addr;
 
 #ifdef CONFIG_FRAME_POINTER
@@ -159,12 +160,8 @@ save_context_stack(struct stack_trace *trace, unsigned int skip,
 
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
- * If all_contexts is set, all contexts (hardirq, softirq and process)
- * are saved. If not set then only the current context is saved.
  */
-void save_stack_trace(struct stack_trace *trace,
-		      struct task_struct *task, int all_contexts,
-		      unsigned int skip)
+void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
 {
 	unsigned long stack = (unsigned long)&stack;
 	int i, nr_stacks = 0, stacks_done[MAX_STACKS];
@@ -207,9 +204,8 @@ void save_stack_trace(struct stack_trace *trace,
 				return;
 		stacks_done[nr_stacks] = stack_end;
 
-		stack = save_context_stack(trace, skip, stack, stack_end);
-		if (!all_contexts || !stack ||
-				trace->nr_entries >= trace->max_entries)
+		stack = save_context_stack(trace, stack, stack_end);
+		if (!stack || trace->nr_entries >= trace->max_entries)
 			return;
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 		if (trace->nr_entries >= trace->max_entries)

@@ -61,12 +61,8 @@ save_context_stack(struct stack_trace *trace, unsigned int skip,
 
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
- * If all_contexts is set, all contexts (hardirq, softirq and process)
- * are saved. If not set then only the current context is saved.
  */
-void save_stack_trace(struct stack_trace *trace,
-		      struct task_struct *task, int all_contexts,
-		      unsigned int skip)
+void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
 {
 	unsigned long ebp;
 	unsigned long *stack = &ebp;
@@ -85,10 +81,9 @@ void save_stack_trace(struct stack_trace *trace,
 		struct thread_info *context = (struct thread_info *)
 				((unsigned long)stack & (~(THREAD_SIZE - 1)));
 
-		ebp = save_context_stack(trace, skip, context, stack, ebp);
+		ebp = save_context_stack(trace, trace->skip, context, stack, ebp);
 		stack = (unsigned long *)context->previous_esp;
-		if (!all_contexts || !stack ||
-				trace->nr_entries >= trace->max_entries)
+		if (!stack || trace->nr_entries >= trace->max_entries)
 			break;
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 		if (trace->nr_entries >= trace->max_entries)
