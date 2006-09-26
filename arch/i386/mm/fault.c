@@ -27,6 +27,7 @@
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/kdebug.h>
+#include <asm/segment.h>
 
 extern void die(const char *,struct pt_regs *,long);
 
@@ -113,10 +114,10 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	}
 
 	/* The standard kernel/user address space limit. */
-	*eip_limit = (seg & 3) ? USER_DS.seg : KERNEL_DS.seg;
+	*eip_limit = user_mode(regs) ? USER_DS.seg : KERNEL_DS.seg;
 	
 	/* By far the most common cases. */
-	if (likely(seg == __USER_CS || seg == __KERNEL_CS))
+	if (likely(SEGMENT_IS_FLAT_CODE(seg)))
 		return eip;
 
 	/* Check the segment exists, is within the current LDT/GDT size,
@@ -430,11 +431,7 @@ good_area:
 	write = 0;
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
-#ifdef TEST_VERIFY_AREA
-			if (regs->cs == KERNEL_CS)
-				printk("WP fault at %08lx\n", regs->eip);
-#endif
-			/* fall through */
+				/* fall through */
 		case 2:		/* write, not present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto bad_area;
