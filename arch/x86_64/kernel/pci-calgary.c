@@ -127,15 +127,19 @@ static void tce_cache_blast(struct iommu_table *tbl);
 
 /* enable this to stress test the chip's TCE cache */
 #ifdef CONFIG_IOMMU_DEBUG
+int debugging __read_mostly = 1;
+
 static inline void tce_cache_blast_stress(struct iommu_table *tbl)
 {
 	tce_cache_blast(tbl);
 }
-#else
+#else /* debugging is disabled */
+int debugging __read_mostly = 0;
+
 static inline void tce_cache_blast_stress(struct iommu_table *tbl)
 {
 }
-#endif /* BLAST_TCE_CACHE_ON_UNMAP */
+#endif /* CONFIG_IOMMU_DEBUG */
 
 static inline unsigned int num_dma_pages(unsigned long dma, unsigned int dmalen)
 {
@@ -944,8 +948,10 @@ void __init detect_calgary(void)
 	if (calgary_found) {
 		iommu_detected = 1;
 		calgary_detected = 1;
-		printk(KERN_INFO "PCI-DMA: Calgary IOMMU detected. "
-		       "TCE table spec is %d.\n", specified_table_size);
+		printk(KERN_INFO "PCI-DMA: Calgary IOMMU detected.\n");
+		printk(KERN_INFO "PCI-DMA: Calgary TCE table spec is %d, "
+		       "CONFIG_IOMMU_DEBUG is %s.\n", specified_table_size,
+		       debugging ? "enabled" : "disabled");
 	}
 	return;
 
