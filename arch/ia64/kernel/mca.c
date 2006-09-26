@@ -54,6 +54,9 @@
  *
  * 2005-10-07 Keith Owens <kaos@sgi.com>
  *	      Add notify_die() hooks.
+ *
+ * 2006-09-15 Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
+ * 	      Add printing support for MCA/INIT.
  */
 #include <linux/types.h>
 #include <linux/init.h>
@@ -136,11 +139,175 @@ extern void salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe);
 
 static int mca_init __initdata;
 
+/*
+ * limited & delayed printing support for MCA/INIT handler
+ */
+
+#define mprintk(fmt...) ia64_mca_printk(fmt)
+
+#define MLOGBUF_SIZE (512+256*NR_CPUS)
+#define MLOGBUF_MSGMAX 256
+static char mlogbuf[MLOGBUF_SIZE];
+static DEFINE_SPINLOCK(mlogbuf_wlock);	/* mca context only */
+static DEFINE_SPINLOCK(mlogbuf_rlock);	/* normal context only */
+static unsigned long mlogbuf_start;
+static unsigned long mlogbuf_end;
+static unsigned int mlogbuf_finished = 0;
+static unsigned long mlogbuf_timestamp = 0;
+
+static int loglevel_save = -1;
+#define BREAK_LOGLEVEL(__console_loglevel)		\
+	oops_in_progress = 1;				\
+	if (loglevel_save < 0)				\
+		loglevel_save = __console_loglevel;	\
+	__console_loglevel = 15;
+
+#define RESTORE_LOGLEVEL(__console_loglevel)		\
+	if (loglevel_save >= 0) {			\
+		__console_loglevel = loglevel_save;	\
+		loglevel_save = -1;			\
+	}						\
+	mlogbuf_finished = 0;				\
+	oops_in_progress = 0;
+
+/*
+ * Push messages into buffer, print them later if not urgent.
+ */
+void ia64_mca_printk(const char *fmt, ...)
+{
+	va_list args;
+	int printed_len;
+	char temp_buf[MLOGBUF_MSGMAX];
+	char *p;
+
+	va_start(args, fmt);
+	printed_len = vscnprintf(temp_buf, sizeof(temp_buf), fmt, args);
+	va_end(args);
+
+	/* Copy the output into mlogbuf */
+	if (oops_in_progress) {
+		/* mlogbuf was abandoned, use printk directly instead. */
+		printk(temp_buf);
+	} else {
+		spin_lock(&mlogbuf_wlock);
+		for (p = temp_buf; *p; p++) {
+			unsigned long next = (mlogbuf_end + 1) % MLOGBUF_SIZE;
+			if (next != mlogbuf_start) {
+				mlogbuf[mlogbuf_end] = *p;
+				mlogbuf_end = next;
+			} else {
+				/* buffer full */
+				break;
+			}
+		}
+		mlogbuf[mlogbuf_end] = '\0';
+		spin_unlock(&mlogbuf_wlock);
+	}
+}
+EXPORT_SYMBOL(ia64_mca_printk);
+
+/*
+ * Print buffered messages.
+ *  NOTE: call this after returning normal context. (ex. from salinfod)
+ */
+void ia64_mlogbuf_dump(void)
+{
+	char temp_buf[MLOGBUF_MSGMAX];
+	char *p;
+	unsigned long index;
+	unsigned long flags;
+	unsigned int printed_len;
+
+	/* Get output from mlogbuf */
+	while (mlogbuf_start != mlogbuf_end) {
+		temp_buf[0] = '\0';
+		p = temp_buf;
+		printed_len = 0;
+
+		spin_lock_irqsave(&mlogbuf_rlock, flags);
+
+		index = mlogbuf_start;
+		while (index != mlogbuf_end) {
+			*p = mlogbuf[index];
+			index = (index + 1) % MLOGBUF_SIZE;
+			if (!*p)
+				break;
+			p++;
+			if (++printed_len >= MLOGBUF_MSGMAX - 1)
+				break;
+		}
+		*p = '\0';
+		if (temp_buf[0])
+			printk(temp_buf);
+		mlogbuf_start = index;
+
+		mlogbuf_timestamp = 0;
+		spin_unlock_irqrestore(&mlogbuf_rlock, flags);
+	}
+}
+EXPORT_SYMBOL(ia64_mlogbuf_dump);
+
+/*
+ * Call this if system is going to down or if immediate flushing messages to
+ * console is required. (ex. recovery was failed, crash dump is going to be
+ * invoked, long-wait rendezvous etc.)
+ *  NOTE: this should be called from monarch.
+ */
+static void ia64_mlogbuf_finish(int wait)
+{
+	BREAK_LOGLEVEL(console_loglevel);
+
+	spin_lock_init(&mlogbuf_rlock);
+	ia64_mlogbuf_dump();
+	printk(KERN_EMERG "mlogbuf_finish: printing switched to urgent mode, "
+		"MCA/INIT might be dodgy or fail.\n");
+
+	if (!wait)
+		return;
+
+	/* wait for console */
+	printk("Delaying for 5 seconds...\n");
+	udelay(5*1000000);
+
+	mlogbuf_finished = 1;
+}
+EXPORT_SYMBOL(ia64_mlogbuf_finish);
+
+/*
+ * Print buffered messages from INIT context.
+ */
+static void ia64_mlogbuf_dump_from_init(void)
+{
+	if (mlogbuf_finished)
+		return;
+
+	if (mlogbuf_timestamp && (mlogbuf_timestamp + 30*HZ > jiffies)) {
+		printk(KERN_ERR "INIT: mlogbuf_dump is interrupted by INIT "
+			" and the system seems to be messed up.\n");
+		ia64_mlogbuf_finish(0);
+		return;
+	}
+
+	if (!spin_trylock(&mlogbuf_rlock)) {
+		printk(KERN_ERR "INIT: mlogbuf_dump is interrupted by INIT. "
+			"Generated messages other than stack dump will be "
+			"buffered to mlogbuf and will be printed later.\n");
+		printk(KERN_ERR "INIT: If messages would not printed after "
+			"this INIT, wait 30sec and assert INIT again.\n");
+		if (!mlogbuf_timestamp)
+			mlogbuf_timestamp = jiffies;
+		return;
+	}
+	spin_unlock(&mlogbuf_rlock);
+	ia64_mlogbuf_dump();
+}
 
 static void inline
 ia64_mca_spin(const char *func)
 {
-	printk(KERN_EMERG "%s: spinning here, not returning to SAL\n", func);
+	if (monarch_cpu == smp_processor_id())
+		ia64_mlogbuf_finish(0);
+	mprintk(KERN_EMERG "%s: spinning here, not returning to SAL\n", func);
 	while (1)
 		cpu_relax();
 }
@@ -988,18 +1155,22 @@ ia64_wait_for_slaves(int monarch, const char *type)
 	}
 	if (!missing)
 		goto all_in;
-	printk(KERN_INFO "OS %s slave did not rendezvous on cpu", type);
+	/*
+	 * Maybe slave(s) dead. Print buffered messages immediately.
+	 */
+	ia64_mlogbuf_finish(0);
+	mprintk(KERN_INFO "OS %s slave did not rendezvous on cpu", type);
 	for_each_online_cpu(c) {
 		if (c == monarch)
 			continue;
 		if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE)
-			printk(" %d", c);
+			mprintk(" %d", c);
 	}
-	printk("\n");
+	mprintk("\n");
 	return;
 
 all_in:
-	printk(KERN_INFO "All OS %s slaves have reached rendezvous\n", type);
+	mprintk(KERN_INFO "All OS %s slaves have reached rendezvous\n", type);
 	return;
 }
 
@@ -1027,10 +1198,8 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	struct ia64_mca_notify_die nd =
 		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
-	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
-	console_loglevel = 15;	/* make sure printks make it to console */
-	printk(KERN_INFO "Entered OS MCA handler. PSP=%lx cpu=%d monarch=%ld\n",
-		sos->proc_state_param, cpu, sos->monarch);
+	mprintk(KERN_INFO "Entered OS MCA handler. PSP=%lx cpu=%d "
+		"monarch=%ld\n", sos->proc_state_param, cpu, sos->monarch);
 
 	previous_current = ia64_mca_modify_original_stack(regs, sw, sos, "MCA");
 	monarch_cpu = cpu;
@@ -1066,6 +1235,9 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		rh->severity = sal_log_severity_corrected;
 		ia64_sal_clear_state_info(SAL_INFO_TYPE_MCA);
 		sos->os_status = IA64_MCA_CORRECTED;
+	} else {
+		/* Dump buffered message to console */
+		ia64_mlogbuf_finish(1);
 	}
 	if (notify_die(DIE_MCA_MONARCH_LEAVE, "MCA", regs, (long)&nd, 0, recover)
 			== NOTIFY_STOP)
@@ -1305,6 +1477,15 @@ default_monarch_init_process(struct notifier_block *self, unsigned long val, voi
 	struct task_struct *g, *t;
 	if (val != DIE_INIT_MONARCH_PROCESS)
 		return NOTIFY_DONE;
+
+	/*
+	 * FIXME: mlogbuf will brim over with INIT stack dumps.
+	 * To enable show_stack from INIT, we use oops_in_progress which should
+	 * be used in real oops. This would cause something wrong after INIT.
+	 */
+	BREAK_LOGLEVEL(console_loglevel);
+	ia64_mlogbuf_dump_from_init();
+
 	printk(KERN_ERR "Processes interrupted by INIT -");
 	for_each_online_cpu(c) {
 		struct ia64_sal_os_state *s;
@@ -1326,6 +1507,8 @@ default_monarch_init_process(struct notifier_block *self, unsigned long val, voi
 		} while_each_thread (g, t);
 		read_unlock(&tasklist_lock);
 	}
+	/* FIXME: This will not restore zapped printk locks. */
+	RESTORE_LOGLEVEL(console_loglevel);
 	return NOTIFY_DONE;
 }
 
@@ -1357,12 +1540,9 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	struct ia64_mca_notify_die nd =
 		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
-	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
-	console_loglevel = 15;	/* make sure printks make it to console */
-
 	(void) notify_die(DIE_INIT_ENTER, "INIT", regs, (long)&nd, 0, 0);
 
-	printk(KERN_INFO "Entered OS INIT handler. PSP=%lx cpu=%d monarch=%ld\n",
+	mprintk(KERN_INFO "Entered OS INIT handler. PSP=%lx cpu=%d monarch=%ld\n",
 		sos->proc_state_param, cpu, sos->monarch);
 	salinfo_log_wakeup(SAL_INFO_TYPE_INIT, NULL, 0, 0);
 
@@ -1375,7 +1555,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * fix their proms and get their customers updated.
 	 */
 	if (!sos->monarch && atomic_add_return(1, &slaves) == num_online_cpus()) {
-		printk(KERN_WARNING "%s: Promoting cpu %d to monarch.\n",
+		mprintk(KERN_WARNING "%s: Promoting cpu %d to monarch.\n",
 		       __FUNCTION__, cpu);
 		atomic_dec(&slaves);
 		sos->monarch = 1;
@@ -1387,7 +1567,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * fix their proms and get their customers updated.
 	 */
 	if (sos->monarch && atomic_add_return(1, &monarchs) > 1) {
-		printk(KERN_WARNING "%s: Demoting cpu %d to slave.\n",
+		mprintk(KERN_WARNING "%s: Demoting cpu %d to slave.\n",
 			       __FUNCTION__, cpu);
 		atomic_dec(&monarchs);
 		sos->monarch = 0;
@@ -1408,7 +1588,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 		if (notify_die(DIE_INIT_SLAVE_LEAVE, "INIT", regs, (long)&nd, 0, 0)
 				== NOTIFY_STOP)
 			ia64_mca_spin(__FUNCTION__);
-		printk("Slave on cpu %d returning to normal service.\n", cpu);
+		mprintk("Slave on cpu %d returning to normal service.\n", cpu);
 		set_curr_task(cpu, previous_current);
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 		atomic_dec(&slaves);
@@ -1426,7 +1606,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * same serial line, the user will need some time to switch out of the BMC before
 	 * the dump begins.
 	 */
-	printk("Delaying for 5 seconds...\n");
+	mprintk("Delaying for 5 seconds...\n");
 	udelay(5*1000000);
 	ia64_wait_for_slaves(cpu, "INIT");
 	/* If nobody intercepts DIE_INIT_MONARCH_PROCESS then we drop through
@@ -1439,7 +1619,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	if (notify_die(DIE_INIT_MONARCH_LEAVE, "INIT", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
-	printk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
+	mprintk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
 	atomic_dec(&monarchs);
 	set_curr_task(cpu, previous_current);
 	monarch_cpu = -1;
