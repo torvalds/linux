@@ -1136,6 +1136,7 @@ asmlinkage void math_state_restore(void)
 		init_fpu(me);
 	restore_fpu_checking(&me->thread.i387.fxsave);
 	task_thread_info(me)->status |= TS_USEDFPU;
+	me->fpu_counter++;
 }
 
 void __init trap_init(void)

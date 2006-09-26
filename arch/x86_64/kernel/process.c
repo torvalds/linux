@@ -552,6 +552,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	int cpu = smp_processor_id();  
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 
+	/* we're going to use this soon, after a few expensive things */
+	if (next_p->fpu_counter>5)
+		prefetch(&next->i387.fxsave);
+
 	/*
 	 * Reload esp0, LDT and the page table pointer:
 	 */
@@ -629,6 +633,12 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	    || test_tsk_thread_flag(prev_p, TIF_IO_BITMAP))
 		__switch_to_xtra(prev_p, next_p, tss);
 
+	/* If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next_p->fpu_counter>5)
+		math_state_restore();
 	return prev_p;
 }
 
