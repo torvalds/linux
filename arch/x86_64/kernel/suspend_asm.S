@@ -54,7 +54,7 @@ ENTRY(restore_image)
 	movq	%rcx, %cr3;
 	movq	%rax, %cr4;  # turn PGE back on
 
-	movq	pagedir_nosave(%rip), %rdx
+	movq	restore_pblist(%rip), %rdx
 loop:
 	testq	%rdx, %rdx
 	jz	done

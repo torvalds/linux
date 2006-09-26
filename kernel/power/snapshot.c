@@ -34,7 +34,9 @@
 
 #include "power.h"
 
-struct pbe *pagedir_nosave;
+/* List of PBEs used for creating and restoring the suspend image */
+struct pbe *restore_pblist;
+
 static unsigned int nr_copy_pages;
 static unsigned int nr_meta_pages;
 static unsigned long *buffer;
@@ -415,7 +417,7 @@ void swsusp_free(void)
 	}
 	nr_copy_pages = 0;
 	nr_meta_pages = 0;
-	pagedir_nosave = NULL;
+	restore_pblist = NULL;
 	buffer = NULL;
 }
 
@@ -490,15 +492,15 @@ asmlinkage int swsusp_save(void)
 		return -ENOMEM;
 	}
 
-	pagedir_nosave = swsusp_alloc(nr_pages);
-	if (!pagedir_nosave)
+	restore_pblist = swsusp_alloc(nr_pages);
+	if (!restore_pblist)
 		return -ENOMEM;
 
 	/* During allocating of suspend pagedir, new cold pages may appear.
 	 * Kill them.
 	 */
 	drain_local_pages();
-	copy_data_pages(pagedir_nosave);
+	copy_data_pages(restore_pblist);
 
 	/*
 	 * End of critical section. From now on, we can write to memory,
@@ -580,13 +582,13 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 	if (!handle->offset) {
 		init_header((struct swsusp_info *)buffer);
 		handle->buffer = buffer;
-		handle->pbe = pagedir_nosave;
+		handle->pbe = restore_pblist;
 	}
 	if (handle->prev < handle->cur) {
 		if (handle->cur <= nr_meta_pages) {
 			handle->pbe = pack_orig_addresses(buffer, handle->pbe);
 			if (!handle->pbe)
-				handle->pbe = pagedir_nosave;
+				handle->pbe = restore_pblist;
 		} else {
 			handle->buffer = (void *)handle->pbe->address;
 			handle->pbe = handle->pbe->next;
@@ -689,7 +691,7 @@ static int load_header(struct snapshot_handle *handle,
 		pblist = alloc_pagedir(info->image_pages, GFP_ATOMIC, 0);
 		if (!pblist)
 			return -ENOMEM;
-		pagedir_nosave = pblist;
+		restore_pblist = pblist;
 		handle->pbe = pblist;
 		nr_copy_pages = info->image_pages;
 		nr_meta_pages = info->pages - info->image_pages - 1;
@@ -716,7 +718,7 @@ static inline struct pbe *unpack_orig_addresses(unsigned long *buf,
 
 /**
  *	prepare_image - use metadata contained in the PBE list
- *	pointed to by pagedir_nosave to mark the pages that will
+ *	pointed to by restore_pblist to mark the pages that will
  *	be overwritten in the process of restoring the system
  *	memory state from the image ("unsafe" pages) and allocate
  *	memory for the image
@@ -741,7 +743,7 @@ static int prepare_image(struct snapshot_handle *handle)
 	unsigned int nr_pages = nr_copy_pages;
 	struct pbe *p, *pblist = NULL;
 
-	p = pagedir_nosave;
+	p = restore_pblist;
 	error = mark_unsafe_pages(p);
 	if (!error) {
 		pblist = alloc_pagedir(nr_pages, GFP_ATOMIC, 1);
@@ -773,7 +775,7 @@ static int prepare_image(struct snapshot_handle *handle)
 		}
 	}
 	if (!error) {
-		pagedir_nosave = pblist;
+		restore_pblist = pblist;
 	} else {
 		handle->pbe = NULL;
 		swsusp_free();
@@ -858,7 +860,7 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 				error = prepare_image(handle);
 				if (error)
 					return error;
-				handle->pbe = pagedir_nosave;
+				handle->pbe = restore_pblist;
 				handle->last_pbe = NULL;
 				handle->buffer = get_buffer(handle);
 				handle->sync_read = 0;

@@ -38,8 +38,6 @@ extern struct subsystem power_subsys;
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
-extern struct pbe *pagedir_nosave;
-
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
 extern int in_suspend;
