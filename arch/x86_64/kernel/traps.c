@@ -162,26 +162,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	 * 'stack' is in one of them:
 	 */
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
-		unsigned long end;
-
-		/*
-		 * set 'end' to the end of the exception stack.
-		 */
-		switch (k + 1) {
-		/*
-		 * TODO: this block is not needed i think, because
-		 * setup64.c:cpu_init() sets up t->ist[DEBUG_STACK]
-		 * properly too.
-		 */
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-		case DEBUG_STACK:
-			end = cpu_pda(cpu)->debugstack + DEBUG_STKSZ;
-			break;
-#endif
-		default:
-			end = per_cpu(orig_ist, cpu).ist[k];
-			break;
-		}
+		unsigned long end = per_cpu(orig_ist, cpu).ist[k];
 		/*
 		 * Is 'stack' above this exception frame's end?
 		 * If yes then skip to the next frame.

@@ -237,28 +237,17 @@ void __cpuinit cpu_init (void)
 	 * set up and load the per-CPU TSS
 	 */
 	for (v = 0; v < N_EXCEPTION_STACKS; v++) {
+		static const unsigned int order[N_EXCEPTION_STACKS] = {
+			[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+			[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+		};
 		if (cpu) {
-			static const unsigned int order[N_EXCEPTION_STACKS] = {
-				[0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
-				[DEBUG_STACK - 1] = DEBUG_STACK_ORDER
-			};
-
 			estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
 			if (!estacks)
 				panic("Cannot allocate exception stack %ld %d\n",
 				      v, cpu); 
 		}
-		switch (v + 1) {
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-		case DEBUG_STACK:
-			cpu_pda(cpu)->debugstack = (unsigned long)estacks;
-			estacks += DEBUG_STKSZ;
-			break;
-#endif
-		default:
-			estacks += EXCEPTION_STKSZ;
-			break;
-		}
+		estacks += PAGE_SIZE << order[v];
 		orig_ist->ist[v] = t->ist[v] = (unsigned long)estacks;
 	}
 

@@ -13,9 +13,6 @@ struct x8664_pda {
 	unsigned long data_offset;	/* Per cpu data offset from linker address */
 	unsigned long kernelstack;  /* top of kernel stack for current */ 
 	unsigned long oldrsp; 	    /* user rsp for system call */
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-	unsigned long debugstack;   /* #DB/#BP stack. */
-#endif
         int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
 	int cpunumber;		    /* Logical CPU number */
 	char *irqstackptr;	/* top of irqstack */
