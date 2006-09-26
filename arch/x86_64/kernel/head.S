@@ -185,12 +185,15 @@ startup_64:
 	
 	/* Finally jump to run C code and to be on real kernel address
 	 * Since we are running on identity-mapped space we have to jump
-	 * to the full 64bit address , this is only possible as indirect
-	 * jump
+	 * to the full 64bit address, this is only possible as indirect
+	 * jump.  In addition we need to ensure %cs is set so we make this
+	 * a far return.
 	 */
 	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address
-	jmp	*%rax
+	pushq	$0		# fake return address to stop unwinder
+	pushq	$__KERNEL_CS	# set correct cs
+	pushq	%rax		# target address in negative space
+	lretq
 
 	/* SMP bootup changes these two */
 	.align	8
