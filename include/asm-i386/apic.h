@@ -16,19 +16,7 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
-extern int enable_local_apic;
 extern int apic_verbosity;
-
-static inline void lapic_disable(void)
-{
-	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-}
-
-static inline void lapic_enable(void)
-{
-	enable_local_apic = 1;
-}
 
 /*
  * Define the default level of output to be very little
