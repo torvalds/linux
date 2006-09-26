@@ -265,7 +265,7 @@ static void __init early_cpu_detect(void)
 	}
 }
 
-void __cpuinit generic_identify(struct cpuinfo_x86 * c)
+static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 {
 	u32 tfms, xlvl;
 	int ebx;

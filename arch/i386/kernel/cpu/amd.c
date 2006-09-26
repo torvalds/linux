@@ -275,7 +275,6 @@ static struct cpu_dev amd_cpu_dev __initdata = {
 		},
 	},
 	.c_init		= init_amd,
-	.c_identify	= generic_identify,
 	.c_size_cache	= amd_size_cache,
 };
 

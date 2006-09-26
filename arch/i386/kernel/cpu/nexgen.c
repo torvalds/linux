@@ -38,7 +38,6 @@ static void __init nexgen_identify(struct cpuinfo_x86 * c)
 	if ( deep_magic_nexgen_probe() ) {
 		strcpy(c->x86_vendor_id, "NexGenDriven");
 	}
-	generic_identify(c);
 }
 
 static struct cpu_dev nexgen_cpu_dev __initdata = {

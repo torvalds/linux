@@ -427,7 +427,6 @@ static void cyrix_identify(struct cpuinfo_x86 * c)
 			local_irq_restore(flags);
 		}
 	}
-	generic_identify(c);
 }
 
 static struct cpu_dev cyrix_cpu_dev __initdata = {
@@ -457,7 +456,6 @@ static struct cpu_dev nsc_cpu_dev __initdata = {
 	.c_vendor	= "NSC",
 	.c_ident 	= { "Geode by NSC" },
 	.c_init		= init_nsc,
-	.c_identify	= generic_identify,
 };
 
 int __init nsc_init_cpu(void)

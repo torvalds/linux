@@ -88,7 +88,6 @@ static void __init init_transmeta(struct cpuinfo_x86 *c)
 static void __init transmeta_identify(struct cpuinfo_x86 * c)
 {
 	u32 xlvl;
-	generic_identify(c);
 
 	/* Transmeta-defined flags: level 0x80860001 */
 	xlvl = cpuid_eax(0x80860000);

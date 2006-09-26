@@ -263,7 +263,6 @@ static struct cpu_dev intel_cpu_dev __cpuinitdata = {
 		},
 	},
 	.c_init		= init_intel,
-	.c_identify	= generic_identify,
 	.c_size_cache	= intel_size_cache,
 };
 
