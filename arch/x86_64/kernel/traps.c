@@ -292,6 +292,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 				if ((long)UNW_SP(&info) < 0) {
 					ops->warning(data, "Leftover inexact backtrace:\n");
 					stack = (unsigned long *)UNW_SP(&info);
+					if (!stack)
+						return;
 				} else
 					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
