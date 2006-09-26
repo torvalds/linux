@@ -3725,22 +3725,26 @@ static void do_ccupdate_local(void *info)
 static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 				int batchcount, int shared)
 {
-	struct ccupdate_struct new;
+	struct ccupdate_struct *new;
 	int i;
 
-	memset(&new.new, 0, sizeof(new.new));
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
 	for_each_online_cpu(i) {
-		new.new[i] = alloc_arraycache(cpu_to_node(i), limit,
+		new->new[i] = alloc_arraycache(cpu_to_node(i), limit,
 						batchcount);
-		if (!new.new[i]) {
+		if (!new->new[i]) {
 			for (i--; i >= 0; i--)
-				kfree(new.new[i]);
+				kfree(new->new[i]);
+			kfree(new);
 			return -ENOMEM;
 		}
 	}
-	new.cachep = cachep;
+	new->cachep = cachep;
 
-	on_each_cpu(do_ccupdate_local, (void *)&new, 1, 1);
+	on_each_cpu(do_ccupdate_local, (void *)new, 1, 1);
 
 	check_irq_on();
 	cachep->batchcount = batchcount;
@@ -3748,7 +3752,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	cachep->shared = shared;
 
 	for_each_online_cpu(i) {
-		struct array_cache *ccold = new.new[i];
+		struct array_cache *ccold = new->new[i];
 		if (!ccold)
 			continue;
 		spin_lock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
@@ -3756,7 +3760,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 		spin_unlock_irq(&cachep->nodelists[cpu_to_node(i)]->list_lock);
 		kfree(ccold);
 	}
-
+	kfree(new);
 	return alloc_kmemlist(cachep);
 }
 
@@ -4274,6 +4278,7 @@ static int leaks_show(struct seq_file *m, void *p)
 		show_symbol(m, n[2*i+2]);
 		seq_putc(m, '\n');
 	}
+
 	return 0;
 }
 
