@@ -23,6 +23,7 @@
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/mpage.h>
+#include <linux/rmap.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
@@ -550,7 +551,7 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		return 0;
 	wbc->for_writepages = 1;
 	if (mapping->a_ops->writepages)
-		ret =  mapping->a_ops->writepages(mapping, wbc);
+		ret = mapping->a_ops->writepages(mapping, wbc);
 	else
 		ret = generic_writepages(mapping, wbc);
 	wbc->for_writepages = 0;
@@ -712,9 +713,15 @@ int test_clear_page_dirty(struct page *page)
 			radix_tree_tag_clear(&mapping->page_tree,
 						page_index(page),
 						PAGECACHE_TAG_DIRTY);
-			if (mapping_cap_account_dirty(mapping))
-				__dec_zone_page_state(page, NR_FILE_DIRTY);
 			write_unlock_irqrestore(&mapping->tree_lock, flags);
+			/*
+			 * We can continue to use `mapping' here because the
+			 * page is locked, which pins the address_space
+			 */
+			if (mapping_cap_account_dirty(mapping)) {
+				page_mkclean(page);
+				dec_zone_page_state(page, NR_FILE_DIRTY);
+			}
 			return 1;
 		}
 		write_unlock_irqrestore(&mapping->tree_lock, flags);
@@ -744,8 +751,10 @@ int clear_page_dirty_for_io(struct page *page)
 
 	if (mapping) {
 		if (TestClearPageDirty(page)) {
-			if (mapping_cap_account_dirty(mapping))
+			if (mapping_cap_account_dirty(mapping)) {
+				page_mkclean(page);
 				dec_zone_page_state(page, NR_FILE_DIRTY);
+			}
 			return 1;
 		}
 		return 0;
