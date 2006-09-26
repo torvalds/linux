@@ -2206,8 +2206,17 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 		cachep->gfpflags |= GFP_DMA;
 	cachep->buffer_size = size;
 
-	if (flags & CFLGS_OFF_SLAB)
+	if (flags & CFLGS_OFF_SLAB) {
 		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
+		/*
+		 * This is a possibility for one of the malloc_sizes caches.
+		 * But since we go off slab only for object size greater than
+		 * PAGE_SIZE/8, and malloc_sizes gets created in ascending order,
+		 * this should not happen at all.
+		 * But leave a BUG_ON for some lucky dude.
+		 */
+		BUG_ON(!cachep->slabp_cache);
+	}
 	cachep->ctor = ctor;
 	cachep->dtor = dtor;
 	cachep->name = name;
@@ -2441,7 +2450,17 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
-/* Get the memory for a slab management obj. */
+/*
+ * Get the memory for a slab management obj.
+ * For a slab cache when the slab descriptor is off-slab, slab descriptors
+ * always come from malloc_sizes caches.  The slab descriptor cannot
+ * come from the same cache which is getting created because,
+ * when we are searching for an appropriate cache for these
+ * descriptors in kmem_cache_create, we search through the malloc_sizes array.
+ * If we are creating a malloc_sizes cache here it would not be visible to
+ * kmem_find_general_cachep till the initialization is complete.
+ * Hence we cannot have slabp_cache same as the original cache.
+ */
 static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 				   int colour_off, gfp_t local_flags,
 				   int nodeid)
@@ -3125,6 +3144,12 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
 		if (slabp->inuse == 0) {
 			if (l3->free_objects > l3->free_limit) {
 				l3->free_objects -= cachep->num;
+				/* No need to drop any previously held
+				 * lock here, even if we have a off-slab slab
+				 * descriptor it is guaranteed to come from
+				 * a different cache, refer to comments before
+				 * alloc_slabmgmt.
+				 */
 				slab_destroy(cachep, slabp);
 			} else {
 				list_add(&slabp->list, &l3->slabs_free);
