@@ -40,7 +40,7 @@ static void __init nexgen_identify(struct cpuinfo_x86 * c)
 	}
 }
 
-static struct cpu_dev nexgen_cpu_dev __initdata = {
+static struct cpu_dev nexgen_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Nexgen",
 	.c_ident	= { "NexGenDriven" },
 	.c_models = {

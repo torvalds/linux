@@ -10,7 +10,7 @@ static void __init init_umc(struct cpuinfo_x86 * c)
 
 }
 
-static struct cpu_dev umc_cpu_dev __initdata = {
+static struct cpu_dev umc_cpu_dev __cpuinitdata = {
 	.c_vendor	= "UMC",
 	.c_ident 	= { "UMC UMC UMC" },
 	.c_models = {

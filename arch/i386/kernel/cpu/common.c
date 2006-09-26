@@ -49,7 +49,7 @@ static void default_init(struct cpuinfo_x86 * c)
 	}
 }
 
-static struct cpu_dev default_cpu = {
+static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_init	= default_init,
 	.c_vendor = "Unknown",
 };

@@ -28,7 +28,7 @@ static void __init init_rise(struct cpuinfo_x86 *c)
 	set_bit(X86_FEATURE_CX8, c->x86_capability);
 }
 
-static struct cpu_dev rise_cpu_dev __initdata = {
+static struct cpu_dev rise_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Rise",
 	.c_ident	= { "RiseRiseRise" },
 	.c_models = {
