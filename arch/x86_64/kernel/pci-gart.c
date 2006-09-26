@@ -239,8 +239,6 @@ dma_addr_t gart_map_single(struct device *dev, void *addr, size_t size, int dir)
 {
 	unsigned long phys_mem, bus;
 
-	BUG_ON(dir == DMA_NONE);
-
 	if (!dev)
 		dev = &fallback_dev;
 
@@ -383,7 +381,6 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 	unsigned long pages = 0;
 	int need = 0, nextneed;
 
-	BUG_ON(dir == DMA_NONE);
 	if (nents == 0) 
 		return 0;
 
