@@ -196,8 +196,8 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
 #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
 #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
-#define pmd_page_kernel(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
-#define pmd_page(pmd)		virt_to_page(pmd_page_kernel(pmd))
+#define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
+#define pmd_page(pmd)		virt_to_page(pmd_page_vaddr(pmd))
 
 #define pud_set(pudp, pudval)	(pud_val(*(pudp)) = (pudval))
 #define pud_none(pud)		(!pud_val(pud))
@@ -205,7 +205,8 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
 #define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
-#define pud_page(pud)		(pud_val(pud) & ~PUD_MASKED_BITS)
+#define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
+#define pud_page(pud)		virt_to_page(pud_page_vaddr(pud))
 
 #define pgd_set(pgdp, pudp)	({pgd_val(*(pgdp)) = (unsigned long)(pudp);})
 
@@ -219,10 +220,10 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 
 #define pmd_offset(pudp,addr) \
-  (((pmd_t *) pud_page(*(pudp))) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
+  (((pmd_t *) pud_page_vaddr(*(pudp))) + (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1)))
 
 #define pte_offset_kernel(dir,addr) \
-  (((pte_t *) pmd_page_kernel(*(dir))) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
+  (((pte_t *) pmd_page_vaddr(*(dir))) + (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))

@@ -299,7 +299,7 @@ static int vmalloc_fault(unsigned long address)
 	if (pgd_none(*pgd))
 		set_pgd(pgd, *pgd_ref);
 	else
-		BUG_ON(pgd_page(*pgd) != pgd_page(*pgd_ref));
+		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
 
 	/* Below here mismatches are bugs because these lower tables
 	   are shared */
@@ -308,7 +308,7 @@ static int vmalloc_fault(unsigned long address)
 	pud_ref = pud_offset(pgd_ref, address);
 	if (pud_none(*pud_ref))
 		return -1;
-	if (pud_none(*pud) || pud_page(*pud) != pud_page(*pud_ref))
+	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
 		BUG();
 	pmd = pmd_offset(pud, address);
 	pmd_ref = pmd_offset(pud_ref, address);
@@ -641,7 +641,7 @@ void vmalloc_sync_all(void)
 				if (pgd_none(*pgd))
 					set_pgd(pgd, *pgd_ref);
 				else
-					BUG_ON(pgd_page(*pgd) != pgd_page(*pgd_ref));
+					BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
 			}
 			spin_unlock(&pgd_lock);
 			set_bit(pgd_index(address), insync);

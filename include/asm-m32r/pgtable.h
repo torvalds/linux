@@ -336,7 +336,7 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 	pmd_val(*pmdp) = (((unsigned long) ptep) & PAGE_MASK);
 }
 
-#define pmd_page_kernel(pmd)	\
+#define pmd_page_vaddr(pmd)	\
 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 #ifndef CONFIG_DISCONTIGMEM
@@ -358,7 +358,7 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 #define pte_index(address)	\
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address)	\
-	((pte_t *)pmd_page_kernel(*(dir)) + pte_index(address))
+	((pte_t *)pmd_page_vaddr(*(dir)) + pte_index(address))
 #define pte_offset_map(dir, address)	\
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
 #define pte_offset_map_nested(dir, address)	pte_offset_map(dir, address)

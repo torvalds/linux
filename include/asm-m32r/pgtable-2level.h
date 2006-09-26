@@ -52,8 +52,12 @@ static inline int pgd_present(pgd_t pgd)	{ return 1; }
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
 #define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
 
-#define pgd_page(pgd) \
+#define pgd_page_vaddr(pgd) \
 ((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+
+#ifndef CONFIG_DISCONTIGMEM
+#define pgd_page(pgd)	(mem_map + ((pgd_val(pgd) >> PAGE_SHIFT) - PFN_BASE))
+#endif /* !CONFIG_DISCONTIGMEM */
 
 static inline pmd_t *pmd_offset(pgd_t * dir, unsigned long address)
 {

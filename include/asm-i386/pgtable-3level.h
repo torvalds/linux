@@ -77,7 +77,7 @@ static inline void pud_clear (pud_t * pud) { }
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))
 
-#define pud_page_kernel(pud) \
+#define pud_page_vaddr(pud) \
 ((unsigned long) __va(pud_val(pud) & PAGE_MASK))
 
 

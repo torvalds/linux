@@ -225,7 +225,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { set_pte(&pte, __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot))); return pte; }
 
-#define pmd_page_kernel(pmd) \
+#define pmd_page_vaddr(pmd) \
 ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 #define pmd_page(pmd) \
@@ -242,7 +242,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_index(address) \
 		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(address))
 #define pte_offset_map(dir, address) pte_offset_kernel(dir, address)
 #define pte_offset_map_nested(dir, address) pte_offset_kernel(dir, address)
 #define pte_unmap(pte)		do { } while (0)
