@@ -76,7 +76,7 @@ int pcap_setup(char *str, char **mac_out, void *data)
 	if(host_if != NULL)
 		init->host_if = host_if;
 
-	for(i = 0; i < sizeof(options)/sizeof(options[0]); i++){
+	for(i = 0; i < ARRAY_SIZE(options); i++){
 		if(options[i] == NULL)
 			continue;
 		if(!strcmp(options[i], "promisc"))

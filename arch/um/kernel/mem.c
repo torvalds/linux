@@ -223,8 +223,9 @@ void paging_init(void)
 
 	empty_zero_page = (unsigned long *) alloc_bootmem_low_pages(PAGE_SIZE);
 	empty_bad_page = (unsigned long *) alloc_bootmem_low_pages(PAGE_SIZE);
-	for(i=0;i<sizeof(zones_size)/sizeof(zones_size[0]);i++) 
+	for(i = 0; i < ARRAY_SIZE(zones_size); i++)
 		zones_size[i] = 0;
+
 	zones_size[ZONE_DMA] = (end_iomem >> PAGE_SHIFT) - (uml_physmem >> PAGE_SHIFT);
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highmem >> PAGE_SHIFT;

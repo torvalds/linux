@@ -15,6 +15,7 @@
 #include "user.h"
 #include "os.h"
 #include "uml-config.h"
+#include "user_util.h"
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {
@@ -51,7 +52,7 @@ static void write_debugregs(int pid, unsigned long *regs)
 	int nregs, i;
 
 	dummy = NULL;
-	nregs = sizeof(dummy->u_debugreg)/sizeof(dummy->u_debugreg[0]);
+	nregs = ARRAY_SIZE(dummy->u_debugreg);
 	for(i = 0; i < nregs; i++){
 		if((i == 4) || (i == 5)) continue;
 		if(ptrace(PTRACE_POKEUSR, pid, &dummy->u_debugreg[i],
@@ -68,7 +69,7 @@ static void read_debugregs(int pid, unsigned long *regs)
 	int nregs, i;
 
 	dummy = NULL;
-	nregs = sizeof(dummy->u_debugreg)/sizeof(dummy->u_debugreg[0]);
+	nregs = ARRAY_SIZE(dummy->u_debugreg);
 	for(i = 0; i < nregs; i++){
 		regs[i] = ptrace(PTRACE_PEEKUSR, pid,
 				 &dummy->u_debugreg[i], 0);

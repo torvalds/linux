@@ -544,7 +544,7 @@ static struct chan *parse_chan(struct line *line, char *str, int device,
 
 	ops = NULL;
 	data = NULL;
-	for(i = 0; i < sizeof(chan_table)/sizeof(chan_table[0]); i++){
+	for(i = 0; i < ARRAY_SIZE(chan_table); i++){
 		entry = &chan_table[i];
 		if(!strncmp(str, entry->key, strlen(entry->key))){
 			ops = entry->ops;

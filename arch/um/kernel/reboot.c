@@ -22,7 +22,7 @@ static void kill_idlers(int me)
 	struct task_struct *p;
 	int i;
 
-	for(i = 0; i < sizeof(idle_threads)/sizeof(idle_threads[0]); i++){
+	for(i = 0; i < ARRAY_SIZE(idle_threads); i++){
 		p = idle_threads[i];
 		if((p != NULL) && (p->thread.mode.tt.extern_pid != me))
 			os_kill_process(p->thread.mode.tt.extern_pid, 0);
@@ -62,14 +62,3 @@ void machine_halt(void)
 {
 	machine_power_off();
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

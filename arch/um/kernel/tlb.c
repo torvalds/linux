@@ -137,10 +137,11 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
         int r, w, x;
         struct host_vm_op ops[1];
         void *flush = NULL;
-        int op_index = -1, last_op = sizeof(ops) / sizeof(ops[0]) - 1;
+        int op_index = -1, last_op = ARRAY_SIZE(ops) - 1;
         int ret = 0;
 
-        if(mm == NULL) return;
+        if(mm == NULL)
+		return;
 
         ops[0].type = NONE;
         for(addr = start_addr; addr < end_addr && !ret;){
