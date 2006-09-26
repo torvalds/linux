@@ -689,7 +689,8 @@ gp_in_kernel:
 	}
 }
 
-static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
 		"CPU %d.\n", reason, smp_processor_id());
@@ -704,7 +705,8 @@ static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
 	clear_mem_error(reason);
 }
 
-static void io_check_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+io_check_error(unsigned char reason, struct pt_regs * regs)
 {
 	unsigned long i;
 
@@ -720,7 +722,8 @@ static void io_check_error(unsigned char reason, struct pt_regs * regs)
 	outb(reason, 0x61);
 }
 
-static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {
 #ifdef CONFIG_MCA
 	/* Might actually be able to figure out what the guilty party
@@ -741,7 +744,7 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 
 static DEFINE_SPINLOCK(nmi_print_lock);
 
-void die_nmi (struct pt_regs *regs, const char *msg)
+void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 {
 	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 2, SIGINT) ==
 	    NOTIFY_STOP)
@@ -773,7 +776,7 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	do_exit(SIGSEGV);
 }
 
-static void default_do_nmi(struct pt_regs * regs)
+static __kprobes void default_do_nmi(struct pt_regs * regs)
 {
 	unsigned char reason = 0;
 
@@ -811,7 +814,7 @@ static void default_do_nmi(struct pt_regs * regs)
 	reassert_nmi();
 }
 
-fastcall void do_nmi(struct pt_regs * regs, long error_code)
+fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu;
 

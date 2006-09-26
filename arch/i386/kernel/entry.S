@@ -729,7 +729,7 @@ KPROBE_END(debug)
  * check whether we got an NMI on the debug path where the debug
  * fault happened on the sysenter path.
  */
-ENTRY(nmi)
+KPROBE_ENTRY(nmi)
 	RING0_INT_FRAME
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
@@ -805,6 +805,7 @@ nmi_16bit_stack:
 	.align 4
 	.long 1b,iret_exc
 .previous
+KPROBE_END(nmi)
 
 KPROBE_ENTRY(int3)
 	RING0_INT_FRAME

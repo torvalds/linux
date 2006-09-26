@@ -22,6 +22,7 @@
 #include <linux/sysctl.h>
 #include <linux/percpu.h>
 #include <linux/dmi.h>
+#include <linux/kprobes.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -882,7 +883,7 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
 
 extern void die_nmi(struct pt_regs *, const char *msg);
 
-int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
+__kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 {
 
 	/*
@@ -962,8 +963,7 @@ int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 			 * This matches the old behaviour.
 			 */
 			rc = 1;
-		} else
-			printk(KERN_WARNING "Unknown enabled NMI hardware?!\n");
+		}
 	}
 done:
 	return rc;
