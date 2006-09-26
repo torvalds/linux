@@ -318,8 +318,6 @@ static inline int get_page_unless_zero(struct page *page)
 	return atomic_inc_not_zero(&page->_count);
 }
 
-extern void FASTCALL(__page_cache_release(struct page *));
-
 static inline int page_count(struct page *page)
 {
 	if (unlikely(PageCompound(page)))

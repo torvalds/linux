@@ -24,6 +24,9 @@
 DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
 
+static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
+			    int node);
+
 static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
@@ -478,8 +481,8 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
  *	allocator with @gfp_mask flags.  Map them into contiguous
  *	kernel virtual space, using a pagetable protection of @prot.
  */
-void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
-			int node)
+static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
+			    int node)
 {
 	struct vm_struct *area;
 
@@ -493,7 +496,6 @@ void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
 
 	return __vmalloc_area_node(area, gfp_mask, prot, node);
 }
-EXPORT_SYMBOL(__vmalloc_node);
 
 void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {

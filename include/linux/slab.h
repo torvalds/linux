@@ -67,7 +67,6 @@ extern void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
 extern const char *kmem_cache_name(kmem_cache_t *);
-extern kmem_cache_t *kmem_find_general_cachep(size_t size, gfp_t gfpflags);
 
 /* Size description struct for general caches. */
 struct cache_sizes {
@@ -223,7 +222,6 @@ extern int FASTCALL(kmem_ptr_validate(kmem_cache_t *cachep, void *ptr));
 /* SLOB allocator routines */
 
 void kmem_cache_init(void);
-struct kmem_cache *kmem_find_general_cachep(size_t, gfp_t gfpflags);
 struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
 	unsigned long,
 	void (*)(void *, struct kmem_cache *, unsigned long),
