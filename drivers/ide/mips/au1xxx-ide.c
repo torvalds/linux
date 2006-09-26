@@ -476,13 +476,13 @@ static int auide_dma_lostirq(ide_drive_t *drive)
 	return 0;
 }
 
-static void auide_ddma_tx_callback(int irq, void *param, struct pt_regs *regs)
+static void auide_ddma_tx_callback(int irq, void *param)
 {
 	_auide_hwif *ahwif = (_auide_hwif*)param;
 	ahwif->drive->waiting_for_dma = 0;
 }
 
-static void auide_ddma_rx_callback(int irq, void *param, struct pt_regs *regs)
+static void auide_ddma_rx_callback(int irq, void *param)
 {
 	_auide_hwif *ahwif = (_auide_hwif*)param;
 	ahwif->drive->waiting_for_dma = 0;

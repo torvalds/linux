@@ -719,8 +719,7 @@ prog_dmabuf_dac(struct au1550_state *s)
 }
 
 
-static void
-dac_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void dac_dma_interrupt(int irq, void *dev_id)
 {
 	struct au1550_state *s = (struct au1550_state *) dev_id;
 	struct dmabuf  *db = &s->dma_dac;
@@ -754,8 +753,7 @@ dac_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 
-static void
-adc_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void adc_dma_interrupt(int irq, void *dev_id)
 {
 	struct	au1550_state *s = (struct au1550_state *)dev_id;
 	struct	dmabuf  *dp = &s->dma_adc;

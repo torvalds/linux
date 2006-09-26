@@ -731,7 +731,7 @@ static void au1xmmc_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	}
 }
 
-static void au1xmmc_dma_callback(int irq, void *dev_id, struct pt_regs *regs)
+static void au1xmmc_dma_callback(int irq, void *dev_id)
 {
 	struct au1xmmc_host *host = (struct au1xmmc_host *) dev_id;
 
