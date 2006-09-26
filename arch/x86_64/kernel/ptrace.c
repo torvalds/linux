@@ -116,17 +116,17 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 	return addr;
 }
 
-static int is_at_popf(struct task_struct *child, struct pt_regs *regs)
+static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 {
 	int i, copied;
-	unsigned char opcode[16];
+	unsigned char opcode[15];
 	unsigned long addr = convert_rip_to_linear(child, regs);
 
 	copied = access_process_vm(child, addr, opcode, sizeof(opcode), 0);
 	for (i = 0; i < copied; i++) {
 		switch (opcode[i]) {
-		/* popf */
-		case 0x9d:
+		/* popf and iret */
+		case 0x9d: case 0xcf:
 			return 1;
 
 			/* CHECKME: 64 65 */
@@ -189,10 +189,8 @@ static void set_singlestep(struct task_struct *child)
 	 * ..but if TF is changed by the instruction we will trace,
 	 * don't mark it as being "us" that set it, so that we
 	 * won't clear it by hand later.
-	 *
-	 * AK: this is not enough, LAHF and IRET can change TF in user space too.
 	 */
-	if (is_at_popf(child, regs))
+	if (is_setting_trap_flag(child, regs))
 		return;
 
 	child->ptrace |= PT_DTRACE;
