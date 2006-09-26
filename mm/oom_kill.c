@@ -210,11 +210,26 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		/*
 		 * This is in the process of releasing memory so wait for it
 		 * to finish before killing some other task by mistake.
+		 *
+		 * However, if p is the current task, we allow the 'kill' to
+		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
+		 * which will allow it to gain access to memory reserves in
+		 * the process of exiting and releasing its resources.
+		 * Otherwise we could get an OOM deadlock.
 		 */
 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
 						p->flags & PF_EXITING;
-		if (releasing && !(p->flags & PF_DEAD))
+		if (releasing) {
+			/* PF_DEAD tasks have already released their mm */
+			if (p->flags & PF_DEAD)
+				continue;
+			if (p->flags & PF_EXITING && p == current) {
+				chosen = p;
+				*ppoints = ULONG_MAX;
+				break;
+			}
 			return ERR_PTR(-1UL);
+		}
 		if (p->flags & PF_SWAPOFF)
 			return p;
 
@@ -248,8 +263,11 @@ static void __oom_kill_task(struct task_struct *p, const char *message)
 		return;
 	}
 	task_unlock(p);
-	printk(KERN_ERR "%s: Killed process %d (%s).\n",
+
+	if (message) {
+		printk(KERN_ERR "%s: Killed process %d (%s).\n",
 				message, p->pid, p->comm);
+	}
 
 	/*
 	 * We give our sacrificial lamb high priority and access to
@@ -300,8 +318,17 @@ static int oom_kill_process(struct task_struct *p, unsigned long points,
 	struct task_struct *c;
 	struct list_head *tsk;
 
-	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li and "
-		"children.\n", p->pid, p->comm, points);
+	/*
+	 * If the task is already exiting, don't alarm the sysadmin or kill
+	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+	 */
+	if (p->flags & PF_EXITING) {
+		__oom_kill_task(p, NULL);
+		return 0;
+	}
+
+	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li"
+			" and children.\n", p->pid, p->comm, points);
 	/* Try to kill a child first */
 	list_for_each(tsk, &p->children) {
 		c = list_entry(tsk, struct task_struct, sibling);
