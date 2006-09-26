@@ -207,6 +207,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		unsigned long points;
 		int releasing;
 
+		/* skip kernel threads */
+		if (!p->mm)
+			continue;
 		/* skip the init task with pid == 1 */
 		if (p->pid == 1)
 			continue;
