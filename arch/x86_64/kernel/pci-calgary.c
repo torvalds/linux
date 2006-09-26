@@ -117,7 +117,7 @@ static int calgary_detected __read_mostly = 0;
 
 struct calgary_bus_info {
 	void *tce_space;
-	int translation_disabled;
+	unsigned char translation_disabled;
 	signed char phbid;
 };
 
