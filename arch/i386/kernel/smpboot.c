@@ -177,6 +177,9 @@ static void __devinit smp_store_cpu_info(int id)
 	 */
 	if ((c->x86_vendor == X86_VENDOR_AMD) && (c->x86 == 6)) {
 
+		if (num_possible_cpus() == 1)
+			goto valid_k7;
+
 		/* Athlon 660/661 is valid. */	
 		if ((c->x86_model==6) && ((c->x86_mask==0) || (c->x86_mask==1)))
 			goto valid_k7;
