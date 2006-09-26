@@ -26,6 +26,7 @@
 #define CFI_RESTORE .cfi_restore
 #define CFI_REMEMBER_STATE .cfi_remember_state
 #define CFI_RESTORE_STATE .cfi_restore_state
+#define CFI_UNDEFINED .cfi_undefined
 
 #else
 
@@ -46,6 +47,7 @@
 #define CFI_RESTORE	ignore
 #define CFI_REMEMBER_STATE ignore
 #define CFI_RESTORE_STATE ignore
+#define CFI_UNDEFINED ignore
 
 #endif
 

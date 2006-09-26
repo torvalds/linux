@@ -701,9 +701,15 @@ device_not_available_emulate:
 	jne ok;					\
 label:						\
 	movl TSS_sysenter_esp0+offset(%esp),%esp;	\
+	CFI_DEF_CFA esp, 0;			\
+	CFI_UNDEFINED eip;			\
 	pushfl;					\
+	CFI_ADJUST_CFA_OFFSET 4;		\
 	pushl $__KERNEL_CS;			\
-	pushl $sysenter_past_esp
+	CFI_ADJUST_CFA_OFFSET 4;		\
+	pushl $sysenter_past_esp;		\
+	CFI_ADJUST_CFA_OFFSET 4;		\
+	CFI_REL_OFFSET eip, 0
 
 KPROBE_ENTRY(debug)
 	RING0_INT_FRAME
@@ -754,6 +760,7 @@ KPROBE_ENTRY(nmi)
 	cmpl $sysenter_entry,12(%esp)
 	je nmi_debug_stack_check
 nmi_stack_correct:
+	/* We have a RING0_INT_FRAME here */
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
@@ -764,9 +771,12 @@ nmi_stack_correct:
 	CFI_ENDPROC
 
 nmi_stack_fixup:
+	RING0_INT_FRAME
 	FIX_STACK(12,nmi_stack_correct, 1)
 	jmp nmi_stack_correct
+
 nmi_debug_stack_check:
+	/* We have a RING0_INT_FRAME here */
 	cmpw $__KERNEL_CS,16(%esp)
 	jne nmi_stack_correct
 	cmpl $debug,(%esp)
@@ -777,8 +787,10 @@ nmi_debug_stack_check:
 	jmp nmi_stack_correct
 
 nmi_16bit_stack:
-	RING0_INT_FRAME
-	/* create the pointer to lss back */
+	/* We have a RING0_INT_FRAME here.
+	 *
+	 * create the pointer to lss back
+	 */
 	pushl %ss
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %esp
