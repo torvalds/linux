@@ -265,8 +265,6 @@ void __init sync_Arb_IDs(void)
 				| APIC_DM_INIT);
 }
 
-extern void __error_in_apic_c (void);
-
 /*
  * An initial setup of the virtual wire mode.
  */
@@ -313,8 +311,7 @@ void __cpuinit setup_local_APIC (void)
 
 	value = apic_read(APIC_LVR);
 
-	if ((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f)
-		__error_in_apic_c();
+	BUILD_BUG_ON((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f);
 
 	/*
 	 * Double-check whether this APIC is really registered.
