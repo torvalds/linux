@@ -163,6 +163,7 @@ struct cpuinfo_ia64 {
 	__u8 family;
 	__u8 archrev;
 	char vendor[16];
+	char *model_name;
 
 #ifdef CONFIG_NUMA
 	struct ia64_node_data *node_data;

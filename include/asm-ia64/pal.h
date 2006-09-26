@@ -78,6 +78,7 @@
 #define PAL_VM_TR_READ		261	/* read contents of translation register */
 #define PAL_GET_PSTATE		262	/* get the current P-state */
 #define PAL_SET_PSTATE		263	/* set the P-state */
+#define PAL_BRAND_INFO		274	/* Processor branding information */
 
 #ifndef __ASSEMBLY__
 
@@ -1130,6 +1131,15 @@ ia64_pal_set_pstate (u64 pstate_index)
 {
 	struct ia64_pal_retval iprv;
 	PAL_CALL_STK(iprv, PAL_SET_PSTATE, pstate_index, 0, 0);
+	return iprv.status;
+}
+
+/* Processor branding information*/
+static inline s64
+ia64_pal_get_brand_info (char *brand_info)
+{
+	struct ia64_pal_retval iprv;
+	PAL_CALL_STK(iprv, PAL_BRAND_INFO, 0, (u64)brand_info, 0);
 	return iprv.status;
 }
 
