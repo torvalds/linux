@@ -308,7 +308,7 @@ static int __init find_isa_irq_pin(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if (mp_bus_id_to_type[lbus] == MP_BUS_ISA &&
+		if (test_bit(lbus, mp_bus_not_pci) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 
@@ -324,7 +324,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA) &&
+		if (test_bit(lbus, mp_bus_not_pci) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 			break;
@@ -364,7 +364,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 			    mp_irqs[i].mpc_dstapic == MP_APIC_ALL)
 				break;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_PCI) &&
+		if (!test_bit(lbus, mp_bus_not_pci) &&
 		    !mp_irqs[i].mpc_irqtype &&
 		    (bus == lbus) &&
 		    (slot == ((mp_irqs[i].mpc_srcbusirq >> 2) & 0x1f))) {
@@ -410,28 +410,11 @@ static int __init MPBIOS_polarity(int idx)
 	switch (mp_irqs[idx].mpc_irqflag & 3)
 	{
 		case 0: /* conforms, ie. bus-type dependent polarity */
-		{
-			switch (mp_bus_id_to_type[bus])
-			{
-				case MP_BUS_ISA: /* ISA pin */
-				{
-					polarity = default_ISA_polarity(idx);
-					break;
-				}
-				case MP_BUS_PCI: /* PCI pin */
-				{
-					polarity = default_PCI_polarity(idx);
-					break;
-				}
-				default:
-				{
-					printk(KERN_WARNING "broken BIOS!!\n");
-					polarity = 1;
-					break;
-				}
-			}
+			if (test_bit(bus, mp_bus_not_pci))
+				polarity = default_ISA_polarity(idx);
+			else
+				polarity = default_PCI_polarity(idx);
 			break;
-		}
 		case 1: /* high active */
 		{
 			polarity = 0;
@@ -469,28 +452,11 @@ static int MPBIOS_trigger(int idx)
 	switch ((mp_irqs[idx].mpc_irqflag>>2) & 3)
 	{
 		case 0: /* conforms, ie. bus-type dependent */
-		{
-			switch (mp_bus_id_to_type[bus])
-			{
-				case MP_BUS_ISA: /* ISA pin */
-				{
-					trigger = default_ISA_trigger(idx);
-					break;
-				}
-				case MP_BUS_PCI: /* PCI pin */
-				{
-					trigger = default_PCI_trigger(idx);
-					break;
-				}
-				default:
-				{
-					printk(KERN_WARNING "broken BIOS!!\n");
-					trigger = 1;
-					break;
-				}
-			}
+			if (test_bit(bus, mp_bus_not_pci))
+				trigger = default_ISA_trigger(idx);
+			else
+				trigger = default_PCI_trigger(idx);
 			break;
-		}
 		case 1: /* edge */
 		{
 			trigger = 0;
@@ -596,31 +562,17 @@ static int pin_2_irq(int idx, int apic, int pin)
 	if (mp_irqs[idx].mpc_dstirq != pin)
 		printk(KERN_ERR "broken BIOS or MPTABLE parser, ayiee!!\n");
 
-	switch (mp_bus_id_to_type[bus])
-	{
-		case MP_BUS_ISA: /* ISA pin */
-		{
-			irq = mp_irqs[idx].mpc_srcbusirq;
-			break;
-		}
-		case MP_BUS_PCI: /* PCI pin */
-		{
-			/*
-			 * PCI IRQs are mapped in order
-			 */
-			i = irq = 0;
-			while (i < apic)
-				irq += nr_ioapic_registers[i++];
-			irq += pin;
-			irq = gsi_irq_sharing(irq);
-			break;
-		}
-		default:
-		{
-			printk(KERN_ERR "unknown bus type %d.\n",bus); 
-			irq = 0;
-			break;
-		}
+	if (test_bit(bus, mp_bus_not_pci)) {
+		irq = mp_irqs[idx].mpc_srcbusirq;
+	} else {
+		/*
+		 * PCI IRQs are mapped in order
+		 */
+		i = irq = 0;
+		while (i < apic)
+			irq += nr_ioapic_registers[i++];
+		irq += pin;
+		irq = gsi_irq_sharing(irq);
 	}
 	BUG_ON(irq >= NR_IRQS);
 	return irq;

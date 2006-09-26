@@ -159,13 +159,7 @@ struct mpc_config_lintsrc
 #define MAX_MP_BUSSES 256
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
-enum mp_bustype {
-	MP_BUS_ISA = 1,
-	MP_BUS_EISA,
-	MP_BUS_PCI,
-	MP_BUS_MCA
-};
-extern unsigned char mp_bus_id_to_type [MAX_MP_BUSSES];
+extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
 
 extern unsigned int boot_cpu_physical_apicid;

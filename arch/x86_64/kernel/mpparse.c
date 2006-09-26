@@ -42,7 +42,7 @@ int acpi_found_madt;
  * MP-table.
  */
 unsigned char apic_version [MAX_APICS];
-unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
+DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 
 static int mp_current_pci_id = 0;
@@ -173,9 +173,9 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
 
 	if (strncmp(str, "ISA", 3) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
+		set_bit(m->mpc_busid, mp_bus_not_pci);
 	} else if (strncmp(str, "PCI", 3) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
+		clear_bit(m->mpc_busid, mp_bus_not_pci);
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;
 	} else {
@@ -808,8 +808,7 @@ void __init mp_config_acpi_legacy_irqs (void)
 	/* 
 	 * Fabricate the legacy ISA bus (bus #31).
 	 */
-	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
-	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
+	set_bit(MP_ISA_BUS, mp_bus_not_pci);
 
 	/* 
 	 * Locate the IOAPIC that manages the ISA IRQs (0-15). 
