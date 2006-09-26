@@ -51,6 +51,7 @@
 #include <asm/smp.h>
 #include <asm/arch_hooks.h>
 #include <asm/kdebug.h>
+#include <asm/stacktrace.h>
 
 #include <linux/module.h>
 
@@ -118,26 +119,16 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
-/*
- * Print one address/symbol entries per line.
- */
-static inline void print_addr_and_symbol(unsigned long addr, char *log_lvl)
-{
-	printk(" [<%08lx>] ", addr);
-
-	print_symbol("%s\n", addr);
-}
-
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				unsigned long *stack, unsigned long ebp,
-				char *log_lvl)
+				struct stacktrace_ops *ops, void *data)
 {
 	unsigned long addr;
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		print_addr_and_symbol(addr, log_lvl);
+		ops->address(data, addr);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function):
@@ -150,28 +141,35 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			print_addr_and_symbol(addr, log_lvl);
+			ops->address(data, addr);
 	}
 #endif
 	return ebp;
 }
 
+struct ops_and_data {
+	struct stacktrace_ops *ops;
+	void *data;
+};
+
 static asmlinkage int
-show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
+dump_trace_unwind(struct unwind_frame_info *info, void *data)
 {
+	struct ops_and_data *oad = (struct ops_and_data *)data;
 	int n = 0;
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
-		print_addr_and_symbol(UNW_PC(info), log_lvl);
+		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
 	}
 	return n;
 }
 
-static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			       unsigned long *stack, char *log_lvl)
+void dump_trace(struct task_struct *task, struct pt_regs *regs,
+	        unsigned long *stack,
+		struct stacktrace_ops *ops, void *data)
 {
 	unsigned long ebp;
 
@@ -181,31 +179,37 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	if (call_trace >= 0) {
 		int unw_ret = 0;
 		struct unwind_frame_info info;
+		struct ops_and_data oad = { .ops = ops, .data = data };
 
 		if (regs) {
 			if (unwind_init_frame_info(&info, task, regs) == 0)
-				unw_ret = show_trace_unwind(&info, log_lvl);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (task == current)
-			unw_ret = unwind_init_running(&info, show_trace_unwind, log_lvl);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
 		else {
 			if (unwind_init_blocked(&info, task) == 0)
-				unw_ret = show_trace_unwind(&info, log_lvl);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				print_symbol("DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
 					     UNW_PC(&info));
 				if (UNW_SP(&info) >= PAGE_OFFSET) {
-					printk("Leftover inexact backtrace:\n");
+					ops->warning(data, "Leftover inexact backtrace:\n");
 					stack = (void *)UNW_SP(&info);
 				} else
-					printk("Full inexact backtrace again:\n");
+					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
 				return;
 			else
-				printk("Full inexact backtrace again:\n");
+				ops->warning(data, "Full inexact backtrace again:\n");
 		} else
-			printk("Inexact backtrace:\n");
+			ops->warning(data, "Inexact backtrace:\n");
+	} else 	if (!stack) {
+		unsigned long dummy;
+		stack = &dummy;
+		if (task && task != current)
+			stack = (unsigned long *)task->thread.esp;
 	}
 
 	if (task == current) {
@@ -220,15 +224,63 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		struct thread_info *context;
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		ebp = print_context_stack(context, stack, ebp, log_lvl);
+		ebp = print_context_stack(context, stack, ebp, ops, data);
+		/* Should be after the line below, but somewhere
+		   in early boot context comes out corrupted and we
+		   can't reference it -AK */
+		if (ops->stack(data, "IRQ") < 0)
+			break;
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk("%s =======================\n", log_lvl);
 	}
 }
+EXPORT_SYMBOL(dump_trace);
 
-void show_trace(struct task_struct *task, struct pt_regs *regs, unsigned long * stack)
+static void
+print_trace_warning_symbol(void *data, char *msg, unsigned long symbol)
+{
+	printk(data);
+	print_symbol(msg, symbol);
+	printk("\n");
+}
+
+static void print_trace_warning(void *data, char *msg)
+{
+	printk("%s%s\n", (char *)data, msg);
+}
+
+static int print_trace_stack(void *data, char *name)
+{
+	return 0;
+}
+
+/*
+ * Print one address/symbol entries per line.
+ */
+static void print_trace_address(void *data, unsigned long addr)
+{
+	printk("%s [<%08lx>] ", (char *)data, addr);
+	print_symbol("%s\n", addr);
+}
+
+static struct stacktrace_ops print_trace_ops = {
+	.warning = print_trace_warning,
+	.warning_symbol = print_trace_warning_symbol,
+	.stack = print_trace_stack,
+	.address = print_trace_address,
+};
+
+static void
+show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		   unsigned long * stack, char *log_lvl)
+{
+	dump_trace(task, regs, stack, &print_trace_ops, log_lvl);
+	printk("%s =======================\n", log_lvl);
+}
+
+void show_trace(struct task_struct *task, struct pt_regs *regs,
+		unsigned long * stack)
 {
 	show_trace_log_lvl(task, regs, stack, "");
 }

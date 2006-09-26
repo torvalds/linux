@@ -81,4 +81,5 @@ $(obj)/vsyscall-syms.o: $(src)/vsyscall.lds \
 	$(call if_changed,syscall)
 
 k8-y                      += ../../x86_64/kernel/k8.o
+stacktrace-y		  += ../../x86_64/kernel/stacktrace.o
 
