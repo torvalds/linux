@@ -635,6 +635,8 @@ static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
 			"to continue\n");
 	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
 			"chips\n");
+	if (panic_on_unrecovered_nmi)
+                panic("NMI: Not continuing");
 
 	/* Clear and disable the memory parity error line. */
 	clear_mem_error(reason);
@@ -670,6 +672,10 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 		reason, smp_processor_id());
 	printk("Dazed and confused, but trying to continue\n");
 	printk("Do you have a strange power saving mode enabled?\n");
+
+	if (panic_on_unrecovered_nmi)
+                panic("NMI: Not continuing");
+
 }
 
 static DEFINE_SPINLOCK(nmi_print_lock);

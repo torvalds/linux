@@ -21,6 +21,7 @@
 #include <linux/debug_locks.h>
 
 int panic_on_oops;
+int panic_on_unrecovered_nmi;
 int tainted;
 static int pause_on_oops;
 static int pause_on_oops_flag;

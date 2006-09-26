@@ -732,6 +732,8 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk("Uhhuh. NMI received. Dazed and confused, but trying to continue\n");
 	printk("You probably have a hardware problem with your RAM chips\n");
+	if (panic_on_unrecovered_nmi)
+               panic("NMI: Not continuing");
 
 	/* Clear and disable the memory parity error line. */
 	reason = (reason & 0xf) | 4;
@@ -757,6 +759,10 @@ unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {	printk("Uhhuh. NMI received for unknown reason %02x.\n", reason);
 	printk("Dazed and confused, but trying to continue\n");
 	printk("Do you have a strange power saving mode enabled?\n");
+
+	if (panic_on_unrecovered_nmi)
+                panic("NMI: Not continuing");
+
 }
 
 /* Runs on IST stack. This code must keep interrupts off all the time.
