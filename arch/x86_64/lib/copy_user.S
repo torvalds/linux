@@ -9,10 +9,29 @@
 
 #define FIX_ALIGNMENT 1
 
-	#include <asm/current.h>
-	#include <asm/asm-offsets.h>
-	#include <asm/thread_info.h>
-	#include <asm/cpufeature.h>
+#include <asm/current.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
+#include <asm/cpufeature.h>
+
+	.macro ALTERNATIVE_JUMP feature,orig,alt
+0:
+	.byte 0xe9	/* 32bit jump */
+	.long \orig-1f	/* by default jump to orig */
+1:
+	.section .altinstr_replacement,"ax"
+2:	.byte 0xe9	             /* near jump with 32bit immediate */
+	.long \alt-1b /* offset */   /* or alternatively to alt */
+	.previous
+	.section .altinstructions,"a"
+	.align 8
+	.quad  0b
+	.quad  2b
+	.byte  \feature		     /* when feature is set */
+	.byte  5
+	.byte  5
+	.previous
+	.endm
 
 /* Standard copy_to_user with segment limit checking */		
 ENTRY(copy_to_user)
@@ -23,25 +42,21 @@ ENTRY(copy_to_user)
 	jc  bad_to_user
 	cmpq threadinfo_addr_limit(%rax),%rcx
 	jae bad_to_user
-2:
-	.byte 0xe9	/* 32bit jump */
-	.long .Lcug-1f
-1:
+	xorl %eax,%eax	/* clear zero flag */
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
 	CFI_ENDPROC
-ENDPROC(copy_to_user)
 
-	.section .altinstr_replacement,"ax"
-3:	.byte 0xe9			/* replacement jmp with 32 bit immediate */
-	.long copy_user_generic_c-1b	/* offset */
-	.previous
-	.section .altinstructions,"a"
-	.align 8
-	.quad  2b
-	.quad  3b
-	.byte  X86_FEATURE_REP_GOOD
-	.byte  5
-	.byte  5
-	.previous
+ENTRY(copy_user_generic)
+	CFI_STARTPROC
+	movl $1,%ecx	/* set zero flag */
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
+	CFI_ENDPROC
+
+ENTRY(__copy_from_user_inatomic)
+	CFI_STARTPROC
+	xorl %ecx,%ecx	/* clear zero flag */
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
+	CFI_ENDPROC
 
 /* Standard copy_from_user with segment limit checking */	
 ENTRY(copy_from_user)
@@ -52,7 +67,8 @@ ENTRY(copy_from_user)
 	jc  bad_from_user
 	cmpq threadinfo_addr_limit(%rax),%rcx
 	jae  bad_from_user
-	/* FALL THROUGH to copy_user_generic */
+	movl $1,%ecx	/* set zero flag */
+	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
 	CFI_ENDPROC
 ENDPROC(copy_from_user)
 	
@@ -73,37 +89,26 @@ END(bad_from_user)
 	
 		
 /*
- * copy_user_generic - memory copy with exception handling.
+ * copy_user_generic_unrolled - memory copy with exception handling.
+ * This version is for CPUs like P4 that don't have efficient micro code for rep movsq
  * 	
  * Input:	
  * rdi destination
  * rsi source
  * rdx count
+ * ecx zero flag -- if true zero destination on error
  *
  * Output:		
  * eax uncopied bytes or 0 if successful.
  */
-ENTRY(copy_user_generic)
+ENTRY(copy_user_generic_unrolled)
 	CFI_STARTPROC
-	.byte 0x66,0x66,0x90	/* 5 byte nop for replacement jump */
-	.byte 0x66,0x90
-1:
-	.section .altinstr_replacement,"ax"
-2:	.byte 0xe9	             /* near jump with 32bit immediate */
-	.long copy_user_generic_c-1b /* offset */
-	.previous
-	.section .altinstructions,"a"
-	.align 8
-	.quad  copy_user_generic
-	.quad  2b
-	.byte  X86_FEATURE_REP_GOOD
-	.byte  5
-	.byte  5
-	.previous
-.Lcug:
 	pushq %rbx
 	CFI_ADJUST_CFA_OFFSET 8
 	CFI_REL_OFFSET rbx, 0
+	pushq %rcx
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rcx, 0
 	xorl %eax,%eax		/*zero for the exception handler */
 
 #ifdef FIX_ALIGNMENT
@@ -179,6 +184,9 @@ ENTRY(copy_user_generic)
 
 	CFI_REMEMBER_STATE
 .Lende:
+	popq %rcx
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_RESTORE rcx
 	popq %rbx
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_RESTORE rbx
@@ -265,6 +273,8 @@ ENTRY(copy_user_generic)
 	addl %ecx,%edx
 	/* edx: bytes to zero, rdi: dest, eax:zero */
 .Lzero_rest:
+	cmpl $0,(%rsp)
+	jz   .Le_zero
 	movq %rdx,%rcx
 .Le_byte:
 	xorl %eax,%eax
@@ -286,6 +296,7 @@ ENDPROC(copy_user_generic)
  /* rdi	destination
   * rsi source
   * rdx count
+  * ecx zero flag
   *
   * Output:
   * eax uncopied bytes or 0 if successfull.
@@ -296,25 +307,48 @@ ENDPROC(copy_user_generic)
   * And more would be dangerous because both Intel and AMD have
   * errata with rep movsq > 4GB. If someone feels the need to fix
   * this please consider this.
-   */
-copy_user_generic_c:
+  */
+ENTRY(copy_user_generic_string)
 	CFI_STARTPROC
+	movl %ecx,%r8d		/* save zero flag */
 	movl %edx,%ecx
 	shrl $3,%ecx
 	andl $7,%edx	
+	jz   10f
 1:	rep 
 	movsq 
 	movl %edx,%ecx
 2:	rep
 	movsb
-4:	movl %ecx,%eax
+9:	movl %ecx,%eax
 	ret
-3:	lea (%rdx,%rcx,8),%rax
+
+	/* multiple of 8 byte */
+10:	rep
+	movsq
+	xor %eax,%eax
 	ret
+
+	/* exception handling */
+3:      lea (%rdx,%rcx,8),%rax	/* exception on quad loop */
+	jmp 6f
+5:	movl %ecx,%eax		/* exception on byte loop */
+	/* eax: left over bytes */
+6:	testl %r8d,%r8d		/* zero flag set? */
+	jz 7f
+	movl %eax,%ecx		/* initialize x86 loop counter */
+	push %rax
+	xorl %eax,%eax
+8:	rep
+	stosb 			/* zero the rest */
+11:	pop %rax
+7:	ret
 	CFI_ENDPROC
 END(copy_user_generic_c)
 
 	.section __ex_table,"a"
 	.quad 1b,3b
-	.quad 2b,4b
+	.quad 2b,5b
+	.quad 8b,11b
+	.quad 10b,3b
 	.previous

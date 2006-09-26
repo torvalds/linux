@@ -238,6 +238,7 @@ do {									\
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 extern unsigned long copy_user_generic(void *to, const void *from, unsigned len); 
+extern unsigned long copy_user_generic_dontzero(void *to, const void *from, unsigned len);
 
 extern unsigned long copy_to_user(void __user *to, const void *from, unsigned len); 
 extern unsigned long copy_from_user(void *to, const void __user *from, unsigned len); 
@@ -303,7 +304,6 @@ static __always_inline int __copy_to_user(void __user *dst, const void *src, uns
 	}
 }	
 
-
 static __always_inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
@@ -352,7 +352,7 @@ long strlen_user(const char __user *str);
 unsigned long clear_user(void __user *mem, unsigned long len);
 unsigned long __clear_user(void __user *mem, unsigned long len);
 
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+extern long __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size);
+#define __copy_to_user_inatomic copy_user_generic
 
 #endif /* __X86_64_UACCESS_H */
