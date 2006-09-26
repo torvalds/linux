@@ -117,6 +117,10 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 			if ((0x5454 >> ((val >> (16 + 4*i)) & 0xf)) & 1)
 			       return -EIO;
 		child->thread.debugreg7 = val; 
+		if (val)
+			set_tsk_thread_flag(child, TIF_DEBUG);
+		else
+			clear_tsk_thread_flag(child, TIF_DEBUG);
 		break; 
 		    
 	default:

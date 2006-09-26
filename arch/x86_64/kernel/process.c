@@ -350,6 +350,7 @@ void exit_thread(void)
 
 		kfree(t->io_bitmap_ptr);
 		t->io_bitmap_ptr = NULL;
+		clear_thread_flag(TIF_IO_BITMAP);
 		/*
 		 * Careful, clear this in the TSS too:
 		 */
@@ -369,6 +370,7 @@ void flush_thread(void)
 		if (t->flags & _TIF_IA32)
 			current_thread_info()->status |= TS_COMPAT;
 	}
+	t->flags &= ~_TIF_DEBUG;
 
 	tsk->thread.debugreg0 = 0;
 	tsk->thread.debugreg1 = 0;
@@ -461,7 +463,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 	asm("mov %%es,%0" : "=m" (p->thread.es));
 	asm("mov %%ds,%0" : "=m" (p->thread.ds));
 
-	if (unlikely(me->thread.io_bitmap_ptr != NULL)) { 
+	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
 		p->thread.io_bitmap_ptr = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
 		if (!p->thread.io_bitmap_ptr) {
 			p->thread.io_bitmap_max = 0;
@@ -469,6 +471,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 		}
 		memcpy(p->thread.io_bitmap_ptr, me->thread.io_bitmap_ptr,
 				IO_BITMAP_BYTES);
+		set_tsk_thread_flag(p, TIF_IO_BITMAP);
 	} 
 
 	/*
@@ -497,6 +500,40 @@ out:
  * This special macro can be used to load a debugging register
  */
 #define loaddebug(thread,r) set_debugreg(thread->debugreg ## r, r)
+
+static inline void __switch_to_xtra(struct task_struct *prev_p,
+			     	    struct task_struct *next_p,
+			     	    struct tss_struct *tss)
+{
+	struct thread_struct *prev, *next;
+
+	prev = &prev_p->thread,
+	next = &next_p->thread;
+
+	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
+		loaddebug(next, 0);
+		loaddebug(next, 1);
+		loaddebug(next, 2);
+		loaddebug(next, 3);
+		/* no 4 and 5 */
+		loaddebug(next, 6);
+		loaddebug(next, 7);
+	}
+
+	if (test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
+		/*
+		 * Copy the relevant range of the IO bitmap.
+		 * Normally this is 128 bytes or less:
+		 */
+		memcpy(tss->io_bitmap, next->io_bitmap_ptr,
+		       max(prev->io_bitmap_max, next->io_bitmap_max));
+	} else if (test_tsk_thread_flag(prev_p, TIF_IO_BITMAP)) {
+		/*
+		 * Clear any possible leftover bits:
+		 */
+		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
+	}
+}
 
 /*
  *	switch_to(x,y) should switch tasks from x to y.
@@ -586,37 +623,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		  task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
 
 	/*
-	 * Now maybe reload the debug registers
+	 * Now maybe reload the debug registers and handle I/O bitmaps
 	 */
-	if (unlikely(next->debugreg7)) {
-		loaddebug(next, 0);
-		loaddebug(next, 1);
-		loaddebug(next, 2);
-		loaddebug(next, 3);
-		/* no 4 and 5 */
-		loaddebug(next, 6);
-		loaddebug(next, 7);
-	}
-
-
-	/* 
-	 * Handle the IO bitmap 
-	 */ 
-	if (unlikely(prev->io_bitmap_ptr || next->io_bitmap_ptr)) {
-		if (next->io_bitmap_ptr)
-			/*
-			 * Copy the relevant range of the IO bitmap.
-			 * Normally this is 128 bytes or less:
- 			 */
-			memcpy(tss->io_bitmap, next->io_bitmap_ptr,
-				max(prev->io_bitmap_max, next->io_bitmap_max));
-		else {
-			/*
-			 * Clear any possible leftover bits:
-			 */
-			memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
-		}
-	}
+	if (unlikely((task_thread_info(next_p)->flags & _TIF_WORK_CTXSW))
+	    || test_tsk_thread_flag(prev_p, TIF_IO_BITMAP))
+		__switch_to_xtra(prev_p, next_p, tss);
 
 	return prev_p;
 }

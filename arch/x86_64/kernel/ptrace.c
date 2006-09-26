@@ -420,9 +420,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				if ((0x5554 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
 					break;
 			if (i == 4) {
-				child->thread.debugreg7 = data;
+			  child->thread.debugreg7 = data;
+			  if (data)
+			  	set_tsk_thread_flag(child, TIF_DEBUG);
+			  else
+			  	clear_tsk_thread_flag(child, TIF_DEBUG);
 			  ret = 0;
-		  }
+		  	}
 		  break;
 		}
 		break;
