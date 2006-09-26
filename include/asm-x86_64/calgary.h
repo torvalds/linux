@@ -24,7 +24,6 @@
 #ifndef _ASM_X86_64_CALGARY_H
 #define _ASM_X86_64_CALGARY_H
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>

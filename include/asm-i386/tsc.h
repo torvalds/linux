@@ -6,7 +6,6 @@
 #ifndef _ASM_i386_TSC_H
 #define _ASM_i386_TSC_H
 
-#include <linux/config.h>
 #include <asm/processor.h>
 
 /*
