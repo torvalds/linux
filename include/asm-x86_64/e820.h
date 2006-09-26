@@ -19,7 +19,7 @@
 
 #define E820_RAM	1
 #define E820_RESERVED	2
-#define E820_ACPI	3 /* usable as RAM once ACPI tables have been read */
+#define E820_ACPI	3
 #define E820_NVS	4
 
 #ifndef __ASSEMBLY__
