@@ -488,6 +488,12 @@ struct page *page_cache_alloc_cold(struct address_space *x)
 EXPORT_SYMBOL(page_cache_alloc_cold);
 #endif
 
+static int __sleep_on_page_lock(void *word)
+{
+	io_schedule();
+	return 0;
+}
+
 /*
  * In order to wait for pages to become available there must be
  * waitqueues associated with pages. By using a hash table of
@@ -576,6 +582,17 @@ void fastcall __lock_page(struct page *page)
 							TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(__lock_page);
+
+/*
+ * Variant of lock_page that does not require the caller to hold a reference
+ * on the page's mapping.
+ */
+void fastcall __lock_page_nosync(struct page *page)
+{
+	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
+							TASK_UNINTERRUPTIBLE);
+}
 
 /**
  * find_get_page - find and get a page reference
