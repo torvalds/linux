@@ -27,7 +27,6 @@ extern int ncpus;
 extern char *linux_prog;
 extern char *gdb_init;
 extern int kmalloc_ok;
-extern int timer_irq_inited;
 extern int jail;
 extern int nsyscalls;
 

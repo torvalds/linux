@@ -55,15 +55,8 @@ void sig_handler(int sig, struct sigcontext *sc)
 	set_signals(enabled);
 }
 
-extern int timer_irq_inited;
-
 static void real_alarm_handler(int sig, struct sigcontext *sc)
 {
-	if(!timer_irq_inited){
-		signals_enabled = 1;
-		return;
-	}
-
 	if(sig == SIGALRM)
 		switch_timers(0);
 
