@@ -71,12 +71,7 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 		return 1;
 	} 
 #endif
-	/* kernel code + 640k memory hole (later should not be needed, but 
-	   be paranoid for now) */
-	if (last >= 640*1024 && addr < 1024*1024) {
-		*addrp = 1024*1024;
-		return 1;
-	}
+	/* kernel code */
 	if (last >= __pa_symbol(&_text) && last < __pa_symbol(&_end)) {
 		*addrp = __pa_symbol(&_end);
 		return 1;
@@ -519,13 +514,6 @@ static int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
  * If we're lucky and live on a modern system, the setup code
  * will have given us a memory map that we can use to properly
  * set up memory.  If we aren't, we'll fake a memory map.
- *
- * We check to see that the memory map contains at least 2 elements
- * before we'll use it, because the detection code in setup.S may
- * not be perfect and most every PC known to man has two memory
- * regions: one from 0 to 640k, and one from 1mb up.  (The IBM
- * thinkpad 560x, for example, does not cooperate with the memory
- * detection code.)
  */
 static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 {
@@ -542,25 +530,6 @@ static int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)
 			return -1;
-
-		/*
-		 * Some BIOSes claim RAM in the 640k - 1M region.
-		 * Not right. Fix it up.
-		 * 
-		 * This should be removed on Hammer which is supposed to not
-		 * have non e820 covered ISA mappings there, but I had some strange
-		 * problems so it stays for now.  -AK
-		 */
-		if (type == E820_RAM) {
-			if (start < 0x100000ULL && end > 0xA0000ULL) {
-				if (start < 0xA0000ULL)
-					add_memory_region(start, 0xA0000ULL-start, type);
-				if (end <= 0x100000ULL)
-					continue;
-				start = 0x100000ULL;
-				size = end - start;
-			}
-		}
 
 		add_memory_region(start, size, type);
 	} while (biosmap++,--nr_map);
