@@ -400,7 +400,7 @@ void __cpuinit setup_local_APIC (void)
 	value |= APIC_SPIV_APIC_ENABLED;
 
 	/*
-	 * Some unknown Intel IO/APIC (or APIC) errata is biting us with
+	 * Some unknown Intel IO/APIC (or APIC) errata are biting us with
 	 * certain networking cards. If high frequency interrupts are
 	 * happening on a particular IOAPIC pin, plus the IOAPIC routing
 	 * entry is masked/unmasked at a high rate as well then sooner or
@@ -950,7 +950,7 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
 	 *
-	 * we might want to decouple profiling from the 'long path',
+	 * We might want to decouple profiling from the 'long path',
 	 * and do the profiling totally in assembly.
 	 *
 	 * Currently this isn't too much of an issue (performance wise),
