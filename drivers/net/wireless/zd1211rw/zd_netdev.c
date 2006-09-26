@@ -82,7 +82,7 @@ static int iw_get_nick(struct net_device *netdev,
 		       union iwreq_data *req, char *extra)
 {
 	strcpy(extra, "zd1211");
-	req->data.length = strlen(extra) + 1;
+	req->data.length = strlen(extra);
 	req->data.flags = 1;
 	return 0;
 }

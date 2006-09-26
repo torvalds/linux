@@ -33,6 +33,10 @@
 static void ieee_init(struct ieee80211_device *ieee);
 static void softmac_init(struct ieee80211softmac_device *sm);
 
+static void housekeeping_init(struct zd_mac *mac);
+static void housekeeping_enable(struct zd_mac *mac);
+static void housekeeping_disable(struct zd_mac *mac);
+
 int zd_mac_init(struct zd_mac *mac,
 	        struct net_device *netdev,
 	        struct usb_interface *intf)
@@ -46,6 +50,7 @@ int zd_mac_init(struct zd_mac *mac,
 	ieee_init(ieee);
 	softmac_init(ieee80211_priv(netdev));
 	zd_chip_init(&mac->chip, netdev, intf);
+	housekeeping_init(mac);
 	return 0;
 }
 
@@ -178,6 +183,7 @@ int zd_mac_open(struct net_device *netdev)
 	if (r < 0)
 		goto disable_rx;
 
+	housekeeping_enable(mac);
 	ieee80211softmac_start(netdev);
 	return 0;
 disable_rx:
@@ -204,6 +210,7 @@ int zd_mac_stop(struct net_device *netdev)
 	 */
 
 	zd_chip_disable_rx(chip);
+	housekeeping_disable(mac);
 	ieee80211softmac_stop(netdev);
 
 	zd_chip_disable_hwint(chip);
@@ -1080,3 +1087,46 @@ void zd_dump_rx_status(const struct rx_status *status)
 	}
 }
 #endif /* DEBUG */
+
+#define LINK_LED_WORK_DELAY HZ
+
+static void link_led_handler(void *p)
+{
+	struct zd_mac *mac = p;
+	struct zd_chip *chip = &mac->chip;
+	struct ieee80211softmac_device *sm = ieee80211_priv(mac->netdev);
+	int is_associated;
+	int r;
+
+	spin_lock_irq(&mac->lock);
+	is_associated = sm->associated != 0;
+	spin_unlock_irq(&mac->lock);
+
+	r = zd_chip_control_leds(chip,
+		                 is_associated ? LED_ASSOCIATED : LED_SCANNING);
+	if (r)
+		dev_err(zd_mac_dev(mac), "zd_chip_control_leds error %d\n", r);
+
+	queue_delayed_work(zd_workqueue, &mac->housekeeping.link_led_work,
+		           LINK_LED_WORK_DELAY);
+}
+
+static void housekeeping_init(struct zd_mac *mac)
+{
+	INIT_WORK(&mac->housekeeping.link_led_work, link_led_handler, mac);
+}
+
+static void housekeeping_enable(struct zd_mac *mac)
+{
+	dev_dbg_f(zd_mac_dev(mac), "\n");
+	queue_delayed_work(zd_workqueue, &mac->housekeeping.link_led_work,
+			   0);
+}
+
+static void housekeeping_disable(struct zd_mac *mac)
+{
+	dev_dbg_f(zd_mac_dev(mac), "\n");
+	cancel_rearming_delayed_workqueue(zd_workqueue,
+		&mac->housekeeping.link_led_work);
+	zd_chip_control_leds(&mac->chip, LED_OFF);
+}
