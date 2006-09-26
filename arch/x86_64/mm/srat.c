@@ -21,6 +21,8 @@
 #include <asm/numa.h>
 #include <asm/e820.h>
 
+int acpi_numa __initdata;
+
 #if (defined(CONFIG_ACPI_HOTPLUG_MEMORY) || \
 	defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) \
 		&& !defined(CONFIG_MEMORY_HOTPLUG)

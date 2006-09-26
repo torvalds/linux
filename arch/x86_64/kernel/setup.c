@@ -74,8 +74,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-int acpi_numa __initdata;
-
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
 
@@ -812,8 +810,7 @@ static void srat_detect_node(void)
 		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
-	if (acpi_numa > 0)
-		printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
+	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
 }
 
