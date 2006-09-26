@@ -4,15 +4,12 @@
 /*
  * We need the APIC definitions automatically as part of 'smp.h'
  */
-#ifndef __ASSEMBLY__
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/bitops.h>
 extern int disable_apic;
-#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
-#ifndef __ASSEMBLY__
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #ifdef CONFIG_X86_IO_APIC
@@ -21,10 +18,8 @@ extern int disable_apic;
 #include <asm/apic.h>
 #include <asm/thread_info.h>
 #endif
-#endif
 
 #ifdef CONFIG_SMP
-#ifndef ASSEMBLY
 
 #include <asm/pda.h>
 
@@ -83,13 +78,10 @@ extern void prefill_possible_map(void);
 extern unsigned num_processors;
 extern unsigned disabled_cpus;
 
-#endif /* !ASSEMBLY */
-
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
 #endif
 
-#ifndef ASSEMBLY
 /*
  * Some lowlevel functions might want to know about
  * the real APIC ID <-> CPU # mapping.
@@ -111,8 +103,6 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-#endif /* !ASSEMBLY */
-
 #ifndef CONFIG_SMP
 #define stack_smp_processor_id() 0
 #define safe_smp_processor_id() 0
@@ -127,7 +117,6 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 })
 #endif
 
-#ifndef __ASSEMBLY__
 static __inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
@@ -146,6 +135,5 @@ static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
 	return 0;
 }
 #endif /* !CONFIG_SMP */
-#endif /* !__ASSEMBLY */
 #endif
 

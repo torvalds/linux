@@ -27,10 +27,8 @@
  * - schedule it carefully for the final hardware.
  */
 
-#define ASSEMBLY 1
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/smp.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/dwarf2.h>
