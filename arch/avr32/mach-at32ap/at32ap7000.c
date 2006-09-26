@@ -450,6 +450,13 @@ static struct clk hramc_clk = {
 	.users		= 1,
 };
 
+static struct resource smc0_resource[] = {
+	PBMEM(0xfff03400),
+};
+DEFINE_DEV(smc, 0);
+DEV_CLK(pclk, smc0, pbb, 13);
+DEV_CLK(mck, smc0, hsb, 0);
+
 static struct platform_device pdc_device = {
 	.name		= "pdc",
 	.id		= 0,
@@ -503,6 +510,7 @@ void __init at32_add_system_devices(void)
 
 	platform_device_register(&at32_sm_device);
 	platform_device_register(&at32_intc0_device);
+	platform_device_register(&smc0_device);
 	platform_device_register(&pdc_device);
 
 	platform_device_register(&pio0_device);
@@ -796,6 +804,8 @@ struct clk *at32_clock_list[] = {
 	&at32_intc0_pclk,
 	&ebi_clk,
 	&hramc_clk,
+	&smc0_pclk,
+	&smc0_mck,
 	&pdc_hclk,
 	&pdc_pclk,
 	&pico_clk,
