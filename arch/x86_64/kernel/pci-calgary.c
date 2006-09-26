@@ -129,11 +129,6 @@ static void tce_cache_blast(struct iommu_table *tbl);
 #ifdef CONFIG_IOMMU_DEBUG
 int debugging __read_mostly = 1;
 
-static inline void tce_cache_blast_stress(struct iommu_table *tbl)
-{
-	tce_cache_blast(tbl);
-}
-
 static inline unsigned long verify_bit_range(unsigned long* bitmap,
 	int expected, unsigned long start, unsigned long end)
 {
@@ -152,10 +147,6 @@ static inline unsigned long verify_bit_range(unsigned long* bitmap,
 }
 #else /* debugging is disabled */
 int debugging __read_mostly = 0;
-
-static inline void tce_cache_blast_stress(struct iommu_table *tbl)
-{
-}
 
 static inline unsigned long verify_bit_range(unsigned long* bitmap,
 	int expected, unsigned long start, unsigned long end)
@@ -289,8 +280,6 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	}
 
 	__clear_bit_string(tbl->it_map, entry, npages);
-
-	tce_cache_blast_stress(tbl);
 }
 
 static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
