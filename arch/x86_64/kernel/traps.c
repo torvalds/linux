@@ -45,6 +45,7 @@
 #include <asm/pda.h>
 #include <asm/proto.h>
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 
 asmlinkage void divide_error(void);
 asmlinkage void debug(void);
@@ -142,7 +143,7 @@ void printk_address(unsigned long address)
 #endif
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
-					unsigned *usedp, const char **idp)
+					unsigned *usedp, char **idp)
 {
 	static char ids[][8] = {
 		[DEBUG_STACK - 1] = "#DB",
@@ -234,13 +235,19 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 	return NULL;
 }
 
-static int show_trace_unwind(struct unwind_frame_info *info, void *context)
+struct ops_and_data {
+	struct stacktrace_ops *ops;
+	void *data;
+};
+
+static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
 {
+	struct ops_and_data *oad = (struct ops_and_data *)context;
 	int n = 0;
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
-		printk_address(UNW_PC(info));
+		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
 	}
@@ -254,13 +261,12 @@ static int show_trace_unwind(struct unwind_frame_info *info, void *context)
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
-void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack)
+void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
+		struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = safe_smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
-
-	printk("\nCall Trace:\n");
 
 	if (!tsk)
 		tsk = current;
@@ -268,31 +274,38 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	if (call_trace >= 0) {
 		int unw_ret = 0;
 		struct unwind_frame_info info;
+		struct ops_and_data oad = { .ops = ops, .data = data };
 
 		if (regs) {
 			if (unwind_init_frame_info(&info, tsk, regs) == 0)
-				unw_ret = show_trace_unwind(&info, NULL);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (tsk == current)
-			unw_ret = unwind_init_running(&info, show_trace_unwind, NULL);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
 		else {
 			if (unwind_init_blocked(&info, tsk) == 0)
-				unw_ret = show_trace_unwind(&info, NULL);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				print_symbol("DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
 					     UNW_PC(&info));
 				if ((long)UNW_SP(&info) < 0) {
-					printk("Leftover inexact backtrace:\n");
+					ops->warning(data, "Leftover inexact backtrace:\n");
 					stack = (unsigned long *)UNW_SP(&info);
 				} else
-					printk("Full inexact backtrace again:\n");
+					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
 				return;
 			else
-				printk("Full inexact backtrace again:\n");
+				ops->warning(data, "Full inexact backtrace again:\n");
 		} else
-			printk("Inexact backtrace:\n");
+			ops->warning(data, "Inexact backtrace:\n");
+	}
+	if (!stack) {
+		unsigned long dummy;
+		stack = &dummy;
+		if (tsk && tsk != current)
+			stack = (unsigned long *)tsk->thread.rsp;
 	}
 
 	/*
@@ -312,7 +325,7 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 			 * down the cause of the crash will be able to figure \
 			 * out the call path that was taken. \
 			 */ \
-			printk_address(addr); \
+			ops->address(data, addr);   \
 		} \
 	} while (0)
 
@@ -321,16 +334,17 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	 * current stack address. If the stacks consist of nested
 	 * exceptions
 	 */
-	for ( ; ; ) {
-		const char *id;
+	for (;;) {
+		char *id;
 		unsigned long *estack_end;
 		estack_end = in_exception_stack(cpu, (unsigned long)stack,
 						&used, &id);
 
 		if (estack_end) {
-			printk(" <%s>", id);
+			if (ops->stack(data, id) < 0)
+				break;
 			HANDLE_STACK (stack < estack_end);
-			printk(" <EOE>");
+			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
 			 * second-to-last pointer (index -2 to end) in the
@@ -345,7 +359,8 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 				(IRQSTACKSIZE - 64) / sizeof(*irqstack);
 
 			if (stack >= irqstack && stack < irqstack_end) {
-				printk(" <IRQ>");
+				if (ops->stack(data, "IRQ") < 0)
+					break;
 				HANDLE_STACK (stack < irqstack_end);
 				/*
 				 * We link to the next stack (which would be
@@ -354,7 +369,7 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 				 */
 				stack = (unsigned long *) (irqstack_end[-1]);
 				irqstack_end = NULL;
-				printk(" <EOI>");
+				ops->stack(data, "EOI");
 				continue;
 			}
 		}
@@ -362,15 +377,53 @@ void show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * s
 	}
 
 	/*
-	 * This prints the process stack:
+	 * This handles the process stack:
 	 */
 	HANDLE_STACK (((long) stack & (THREAD_SIZE-1)) != 0);
 #undef HANDLE_STACK
+}
+EXPORT_SYMBOL(dump_trace);
 
+static void
+print_trace_warning_symbol(void *data, char *msg, unsigned long symbol)
+{
+	print_symbol(msg, symbol);
 	printk("\n");
 }
 
-static void _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long * rsp)
+static void print_trace_warning(void *data, char *msg)
+{
+	printk("%s\n", msg);
+}
+
+static int print_trace_stack(void *data, char *name)
+{
+	printk(" <%s> ", name);
+	return 0;
+}
+
+static void print_trace_address(void *data, unsigned long addr)
+{
+	printk_address(addr);
+}
+
+static struct stacktrace_ops print_trace_ops = {
+	.warning = print_trace_warning,
+	.warning_symbol = print_trace_warning_symbol,
+	.stack = print_trace_stack,
+	.address = print_trace_address,
+};
+
+void
+show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long *stack)
+{
+	printk("\nCall Trace:\n");
+	dump_trace(tsk, regs, stack, &print_trace_ops, NULL);
+	printk("\n");
+}
+
+static void
+_show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *rsp)
 {
 	unsigned long *stack;
 	int i;
