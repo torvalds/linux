@@ -522,12 +522,15 @@ static int load_image(struct swap_map_handle *handle,
 	unsigned int m;
 	int ret;
 	int error = 0;
+	struct timeval start;
+	struct timeval stop;
 
 	printk("Loading image data pages (%u pages) ...     ", nr_pages);
 	m = nr_pages / 100;
 	if (!m)
 		m = 1;
 	nr_pages = 0;
+	do_gettimeofday(&start);
 	do {
 		ret = snapshot_write_next(snapshot, PAGE_SIZE);
 		if (ret > 0) {
@@ -539,11 +542,13 @@ static int load_image(struct swap_map_handle *handle,
 			nr_pages++;
 		}
 	} while (ret > 0);
+	do_gettimeofday(&stop);
 	if (!error) {
 		printk("\b\b\b\bdone\n");
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
 	}
+	show_speed(&start, &stop, nr_pages, "Read");
 	return error;
 }
 
