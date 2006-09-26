@@ -331,8 +331,7 @@ static int enough_swap(unsigned int nr_pages)
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
 
 	pr_debug("swsusp: free swap pages: %u\n", free_swap);
-	return free_swap > (nr_pages + PAGES_FOR_IO +
-		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
+	return free_swap > nr_pages + PAGES_FOR_IO;
 }
 
 /**
@@ -547,6 +546,7 @@ static int load_image(struct swap_map_handle *handle,
 		error = err2;
 	if (!error) {
 		printk("\b\b\b\bdone\n");
+		snapshot_free_unused_memory(snapshot);
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
 	}

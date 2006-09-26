@@ -193,6 +193,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
+		snapshot_free_unused_memory(&data->handle);
 		down(&pm_sem);
 		pm_prepare_console();
 		error = device_suspend(PMSG_FREEZE);

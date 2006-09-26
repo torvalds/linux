@@ -81,16 +81,6 @@ struct snapshot_handle {
 	unsigned int	prev;	/* number of the block of PAGE_SIZE bytes that
 				 * was the current one previously
 				 */
-	struct pbe	*pbe;	/* PBE that corresponds to 'buffer' */
-	struct pbe	*last_pbe;	/* When the image is restored (eg. read
-					 * from disk) we can store some image
-					 * data directly in the page frames
-					 * in which they were before suspend.
-					 * In such a case the PBEs that
-					 * correspond to them will be unused.
-					 * This is the last PBE, so far, that
-					 * does not correspond to such data.
-					 */
 	void		*buffer;	/* address of the block to read from
 					 * or write to
 					 */
@@ -113,6 +103,7 @@ extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_image_loaded(struct snapshot_handle *handle);
+extern void snapshot_free_unused_memory(struct snapshot_handle *handle);
 
 #define SNAPSHOT_IOC_MAGIC	'3'
 #define SNAPSHOT_FREEZE			_IO(SNAPSHOT_IOC_MAGIC, 1)

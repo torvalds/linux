@@ -16,15 +16,6 @@ struct pbe {
 	struct pbe *next;
 };
 
-#define for_each_pbe(pbe, pblist) \
-	for (pbe = pblist ; pbe ; pbe = pbe->next)
-
-#define PBES_PER_PAGE      (PAGE_SIZE/sizeof(struct pbe))
-#define PB_PAGE_SKIP       (PBES_PER_PAGE-1)
-
-#define for_each_pb_page(pbe, pblist) \
-	for (pbe = pblist ; pbe ; pbe = (pbe+PB_PAGE_SKIP)->next)
-
 /* mm/page_alloc.c */
 extern void drain_local_pages(void);
 extern void mark_free_pages(struct zone *zone);
