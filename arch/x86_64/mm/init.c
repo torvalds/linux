@@ -250,12 +250,13 @@ __init void early_iounmap(void *addr, unsigned long size)
 }
 
 static void __meminit
-phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
+phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {
-	int i;
+	int i = pmd_index(address);
 
-	for (i = 0; i < PTRS_PER_PMD; pmd++, i++, address += PMD_SIZE) {
+	for (; i < PTRS_PER_PMD; i++, address += PMD_SIZE) {
 		unsigned long entry;
+		pmd_t *pmd = pmd_page + pmd_index(address);
 
 		if (address >= end) {
 			if (!after_bootmem)
@@ -263,6 +264,10 @@ phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
 					set_pmd(pmd, __pmd(0));
 			break;
 		}
+
+		if (pmd_val(*pmd))
+			continue;
+
 		entry = _PAGE_NX|_PAGE_PSE|_KERNPG_TABLE|_PAGE_GLOBAL|address;
 		entry &= __supported_pte_mask;
 		set_pmd(pmd, __pmd(entry));
@@ -272,45 +277,41 @@ phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
 static void __meminit
 phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 {
-	pmd_t *pmd = pmd_offset(pud, (unsigned long)__va(address));
-
-	if (pmd_none(*pmd)) {
-		spin_lock(&init_mm.page_table_lock);
-		phys_pmd_init(pmd, address, end);
-		spin_unlock(&init_mm.page_table_lock);
-		__flush_tlb_all();
-	}
+	pmd_t *pmd = pmd_offset(pud,0);
+	spin_lock(&init_mm.page_table_lock);
+	phys_pmd_init(pmd, address, end);
+	spin_unlock(&init_mm.page_table_lock);
+	__flush_tlb_all();
 }
 
-static void __meminit phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 { 
-	long i = pud_index(address);
+	int i = pud_index(addr);
 
-	pud = pud + i;
 
-	if (after_bootmem && pud_val(*pud)) {
-		phys_pmd_update(pud, address, end);
-		return;
-	}
-
-	for (; i < PTRS_PER_PUD; pud++, i++) {
+	for (; i < PTRS_PER_PUD; i++, addr = (addr & PUD_MASK) + PUD_SIZE ) {
 		int map; 
-		unsigned long paddr, pmd_phys;
+		unsigned long pmd_phys;
+		pud_t *pud = pud_page + pud_index(addr);
 		pmd_t *pmd;
 
-		paddr = (address & PGDIR_MASK) + i*PUD_SIZE;
-		if (paddr >= end)
+		if (addr >= end)
 			break;
 
-		if (!after_bootmem && !e820_any_mapped(paddr, paddr+PUD_SIZE, 0)) {
+		if (!after_bootmem && !e820_any_mapped(addr,addr+PUD_SIZE,0)) {
 			set_pud(pud, __pud(0)); 
 			continue;
 		} 
 
+		if (pud_val(*pud)) {
+			phys_pmd_update(pud, addr, end);
+			continue;
+		}
+
 		pmd = alloc_low_page(&map, &pmd_phys);
 		spin_lock(&init_mm.page_table_lock);
 		set_pud(pud, __pud(pmd_phys | _KERNPG_TABLE));
-		phys_pmd_init(pmd, paddr, end);
+		phys_pmd_init(pmd, addr, end);
 		spin_unlock(&init_mm.page_table_lock);
 		unmap_low_page(map);
 	}
