@@ -1290,7 +1290,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 
 	if ((gfp & __GFP_WAIT) && !in_interrupt())
 		cpuset_update_task_memory_state();
-	if (!pol || in_interrupt())
+	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
 	if (pol->policy == MPOL_INTERLEAVE)
 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));

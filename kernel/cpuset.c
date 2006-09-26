@@ -2316,7 +2316,7 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	const struct cpuset *cs;	/* current cpuset ancestors */
 	int allowed;			/* is allocation in zone z allowed? */
 
-	if (in_interrupt())
+	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
 		return 1;
 	node = z->zone_pgdat->node_id;
 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));

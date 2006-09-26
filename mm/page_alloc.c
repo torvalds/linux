@@ -893,6 +893,9 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
 	do {
+		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+			(*z)->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
 				!cpuset_zone_allowed(*z, gfp_mask))
 			continue;
