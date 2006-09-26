@@ -157,8 +157,6 @@ static inline int __test_bit(int nr, const volatile void * addr)
  __constant_test_bit((nr),(addr)) : \
  __test_bit((nr),(addr)))
 
-#include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/find.h>
 
 /**
@@ -225,6 +223,37 @@ int fls64(u64 n)
 	    );
 	return bit;
 
+}
+
+/**
+ * ffs - find first bit set
+ * @x: the word to search
+ *
+ * - return 32..1 to indicate bit 31..0 most least significant bit set
+ * - return 0 to indicate no bits set
+ */
+static inline __attribute__((const))
+int ffs(int x)
+{
+	/* Note: (x & -x) gives us a mask that is the least significant
+	 * (rightmost) 1-bit of the value in x.
+	 */
+	return fls(x & -x);
+}
+
+/**
+ * __ffs - find first bit set
+ * @x: the word to search
+ *
+ * - return 31..0 to indicate bit 31..0 most least significant bit set
+ * - if no bits are set in x, the result is undefined
+ */
+static inline __attribute__((const))
+int __ffs(unsigned long x)
+{
+	int bit;
+	asm("scan %1,gr0,%0" : "=r"(bit) : "r"(x & -x));
+	return 31 - bit;
 }
 
 #include <asm-generic/bitops/sched.h>
