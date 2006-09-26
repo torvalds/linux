@@ -55,8 +55,7 @@ extern void e820_setup_gap(void);
 extern unsigned long e820_hole_size(unsigned long start_pfn,
 				    unsigned long end_pfn);
 
-extern void __init parse_memopt(char *p, char **end);
-extern void __init parse_memmapopt(char *p, char **end);
+extern void finish_e820_parsing(void);
 
 extern struct e820map e820;
 

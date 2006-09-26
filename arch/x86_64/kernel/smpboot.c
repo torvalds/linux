@@ -1270,11 +1270,11 @@ void __cpu_die(unsigned int cpu)
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
 
-__init int setup_additional_cpus(char *s)
+static __init int setup_additional_cpus(char *s)
 {
-	return get_option(&s, &additional_cpus);
+	return s && get_option(&s, &additional_cpus) ? 0 : -EINVAL;
 }
-__setup("additional_cpus=", setup_additional_cpus);
+early_param("additional_cpus", setup_additional_cpus);
 
 #else /* ... !CONFIG_HOTPLUG_CPU */
 

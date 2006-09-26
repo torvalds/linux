@@ -48,7 +48,7 @@ int sis_apic_bug; /* not actually supported, dummy for compile */
 
 static int no_timer_check;
 
-int disable_timer_pin_1 __initdata;
+static int disable_timer_pin_1 __initdata;
 
 int timer_over_8254 __initdata = 0;
 
@@ -253,18 +253,17 @@ int ioapic_force;
 static int __init disable_ioapic_setup(char *str)
 {
 	skip_ioapic_setup = 1;
-	return 1;
+	return 0;
 }
+early_param("noapic", disable_ioapic_setup);
 
-static int __init enable_ioapic_setup(char *str)
+/* Actually the next is obsolete, but keep it for paranoid reasons -AK */
+static int __init disable_timer_pin_setup(char *arg)
 {
-	ioapic_force = 1;
-	skip_ioapic_setup = 0;
+	disable_timer_pin_1 = 1;
 	return 1;
 }
-
-__setup("noapic", disable_ioapic_setup);
-__setup("apic", enable_ioapic_setup);
+__setup("disable_timer_pin_1", disable_timer_pin_setup);
 
 static int __init setup_disable_8254_timer(char *s)
 {

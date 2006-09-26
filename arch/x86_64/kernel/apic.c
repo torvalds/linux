@@ -36,6 +36,7 @@
 #include <asm/idle.h>
 #include <asm/proto.h>
 #include <asm/timex.h>
+#include <asm/apic.h>
 
 int apic_verbosity;
 int apic_runs_main_timer;
@@ -546,18 +547,24 @@ static void apic_pm_activate(void) { }
 
 static int __init apic_set_verbosity(char *str)
 {
+	if (str == NULL)  {
+		skip_ioapic_setup = 0;
+		ioapic_force = 1;
+		return 0;
+	}
 	if (strcmp("debug", str) == 0)
 		apic_verbosity = APIC_DEBUG;
 	else if (strcmp("verbose", str) == 0)
 		apic_verbosity = APIC_VERBOSE;
-	else
+	else {
 		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
-				" use apic=verbose or apic=debug", str);
+				" use apic=verbose or apic=debug\n", str);
+		return -EINVAL;
+	}
 
-	return 1;
+	return 0;
 }
-
-__setup("apic=", apic_set_verbosity);
+early_param("apic", apic_set_verbosity);
 
 /*
  * Detect and enable local APICs on non-SMP boards.
@@ -1078,14 +1085,17 @@ int __init APIC_init_uniprocessor (void)
 static __init int setup_disableapic(char *str) 
 { 
 	disable_apic = 1;
-	return 1;
-} 
+	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	return 0;
+}
+early_param("disableapic", setup_disableapic);
 
+/* same as disableapic, for compatibility */
 static __init int setup_nolapic(char *str) 
 { 
-	disable_apic = 1;
-	return 1;
+	return setup_disableapic(str);
 } 
+early_param("nolapic", setup_nolapic);
 
 static __init int setup_noapictimer(char *str) 
 { 
@@ -1118,11 +1128,5 @@ static __init int setup_apicpmtimer(char *s)
 }
 __setup("apicpmtimer", setup_apicpmtimer);
 
-/* dummy parsing: see setup.c */
-
-__setup("disableapic", setup_disableapic); 
-__setup("nolapic", setup_nolapic);  /* same as disableapic, for compatibility */
-
 __setup("noapictimer", setup_noapictimer); 
 
-/* no "lapic" flag - we only use the lapic when the BIOS tells us so. */

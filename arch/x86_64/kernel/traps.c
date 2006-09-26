@@ -1119,24 +1119,30 @@ void __init trap_init(void)
 }
 
 
-/* Actual parsing is done early in setup.c. */
-static int __init oops_dummy(char *s)
+static int __init oops_setup(char *s)
 { 
-	panic_on_oops = 1;
-	return 1;
+	if (!s)
+		return -EINVAL;
+	if (!strcmp(s, "panic"))
+		panic_on_oops = 1;
+	return 0;
 } 
-__setup("oops=", oops_dummy); 
+early_param("oops", oops_setup);
 
 static int __init kstack_setup(char *s)
 {
+	if (!s)
+		return -EINVAL;
 	kstack_depth_to_print = simple_strtoul(s,NULL,0);
-	return 1;
+	return 0;
 }
-__setup("kstack=", kstack_setup);
+early_param("kstack", kstack_setup);
 
 #ifdef CONFIG_STACK_UNWIND
 static int __init call_trace_setup(char *s)
 {
+	if (!s)
+		return -EINVAL;
 	if (strcmp(s, "old") == 0)
 		call_trace = -1;
 	else if (strcmp(s, "both") == 0)
@@ -1145,7 +1151,7 @@ static int __init call_trace_setup(char *s)
 		call_trace = 1;
 	else if (strcmp(s, "new") == 0)
 		call_trace = 2;
-	return 1;
+	return 0;
 }
-__setup("call_trace=", call_trace_setup);
+early_param("call_trace", call_trace_setup);
 #endif

@@ -58,7 +58,6 @@ static void __init copy_bootdata(char *real_mode_data)
 
 void __init x86_64_start_kernel(char * real_mode_data)
 {
-	char *s;
 	int i;
 
 	for (i = 0; i < 256; i++)
@@ -85,19 +84,5 @@ void __init x86_64_start_kernel(char * real_mode_data)
 #ifdef CONFIG_SMP
 	cpu_set(0, cpu_online_map);
 #endif
-	s = strstr(saved_command_line, "earlyprintk=");
-	if (s != NULL)
-		setup_early_printk(strchr(s, '=') + 1);
-#ifdef CONFIG_NUMA
-	s = strstr(saved_command_line, "numa=");
-	if (s != NULL)
-		numa_setup(s+5);
-#endif
-	if (strstr(saved_command_line, "disableapic"))
-		disable_apic = 1;
-	/* You need early console to see that */
-	if (__pa_symbol(&_end) >= KERNEL_TEXT_SIZE)
-		panic("Kernel too big for kernel mapping\n");
-
 	start_kernel();
 }

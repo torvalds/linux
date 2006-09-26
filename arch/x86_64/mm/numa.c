@@ -348,9 +348,10 @@ void __init paging_init(void)
 	}
 } 
 
-/* [numa=off] */
-__init int numa_setup(char *opt) 
+static __init int numa_setup(char *opt)
 { 
+	if (!opt)
+		return -EINVAL;
 	if (!strncmp(opt,"off",3))
 		numa_off = 1;
 #ifdef CONFIG_NUMA_EMU
@@ -366,8 +367,10 @@ __init int numa_setup(char *opt)
 	if (!strncmp(opt,"hotadd=", 7))
 		hotadd_percent = simple_strtoul(opt+7, NULL, 10);
 #endif
-	return 1;
+	return 0;
 } 
+
+early_param("numa", numa_setup);
 
 /*
  * Setup early cpu_to_node.

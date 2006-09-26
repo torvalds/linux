@@ -76,11 +76,6 @@ unsigned long mmu_cr4_features;
 
 int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
-#ifdef	CONFIG_ACPI
-extern int __initdata acpi_ht;
-extern acpi_interrupt_flags	acpi_sci_flags;
-int __initdata acpi_force = 0;
-#endif
 
 int acpi_numa __initdata;
 
@@ -276,182 +271,21 @@ static void __init probe_roms(void)
 	}
 }
 
-/* Check for full argument with no trailing characters */
-static int fullarg(char *p, char *arg)
-{
-	int l = strlen(arg);
-	return !memcmp(p, arg, l) && (p[l] == 0 || isspace(p[l]));
-}
-
-static __init void parse_cmdline_early (char ** cmdline_p)
-{
-	char c = ' ', *to = command_line, *from = COMMAND_LINE;
-	int len = 0;
-	int userdef = 0;
-
-	for (;;) {
-		if (c != ' ') 
-			goto next_char; 
-
-#ifdef  CONFIG_SMP
-		/*
-		 * If the BIOS enumerates physical processors before logical,
-		 * maxcpus=N at enumeration-time can be used to disable HT.
-		 */
-		else if (!memcmp(from, "maxcpus=", 8)) {
-			extern unsigned int maxcpus;
-
-			maxcpus = simple_strtoul(from + 8, NULL, 0);
-		}
-#endif
-#ifdef CONFIG_ACPI
-		/* "acpi=off" disables both ACPI table parsing and interpreter init */
-		if (fullarg(from,"acpi=off"))
-			disable_acpi();
-
-		if (fullarg(from, "acpi=force")) { 
-			/* add later when we do DMI horrors: */
-			acpi_force = 1;
-			acpi_disabled = 0;
-		}
-
-		/* acpi=ht just means: do ACPI MADT parsing 
-		   at bootup, but don't enable the full ACPI interpreter */
-		if (fullarg(from, "acpi=ht")) { 
-			if (!acpi_force)
-				disable_acpi();
-			acpi_ht = 1; 
-		}
-                else if (fullarg(from, "pci=noacpi")) 
-			acpi_disable_pci();
-		else if (fullarg(from, "acpi=noirq"))
-			acpi_noirq_set();
-
-		else if (fullarg(from, "acpi_sci=edge"))
-			acpi_sci_flags.trigger =  1;
-		else if (fullarg(from, "acpi_sci=level"))
-			acpi_sci_flags.trigger = 3;
-		else if (fullarg(from, "acpi_sci=high"))
-			acpi_sci_flags.polarity = 1;
-		else if (fullarg(from, "acpi_sci=low"))
-			acpi_sci_flags.polarity = 3;
-
-		/* acpi=strict disables out-of-spec workarounds */
-		else if (fullarg(from, "acpi=strict")) {
-			acpi_strict = 1;
-		}
-		else if (fullarg(from, "acpi_skip_timer_override"))
-			acpi_skip_timer_override = 1;
-#endif
-
-		if (fullarg(from, "disable_timer_pin_1"))
-			disable_timer_pin_1 = 1;
-		if (fullarg(from, "enable_timer_pin_1"))
-			disable_timer_pin_1 = -1;
-
-		if (fullarg(from, "nolapic") || fullarg(from, "disableapic")) {
-			clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-			disable_apic = 1;
-		}
-
-		if (fullarg(from, "noapic"))
-			skip_ioapic_setup = 1;
-
-		if (fullarg(from,"apic")) {
-			skip_ioapic_setup = 0;
-			ioapic_force = 1;
-		}
-			
-		if (!memcmp(from, "mem=", 4))
-			parse_memopt(from+4, &from); 
-
-		if (!memcmp(from, "memmap=", 7)) {
-			/* exactmap option is for used defined memory */
-			if (!memcmp(from+7, "exactmap", 8)) {
-#ifdef CONFIG_CRASH_DUMP
-				/* If we are doing a crash dump, we
-				 * still need to know the real mem
-				 * size before original memory map is
-				 * reset.
-				 */
-				saved_max_pfn = e820_end_of_ram();
-#endif
-				from += 8+7;
-				end_pfn_map = 0;
-				e820.nr_map = 0;
-				userdef = 1;
-			}
-			else {
-				parse_memmapopt(from+7, &from);
-				userdef = 1;
-			}
-		}
-
-#ifdef CONFIG_NUMA
-		if (!memcmp(from, "numa=", 5))
-			numa_setup(from+5); 
-#endif
-
-		if (!memcmp(from,"iommu=",6)) { 
-			iommu_setup(from+6); 
-		}
-
-		if (fullarg(from,"oops=panic"))
-			panic_on_oops = 1;
-
-		if (!memcmp(from, "noexec=", 7))
-			nonx_setup(from + 7);
-
-#ifdef CONFIG_KEXEC
-		/* crashkernel=size@addr specifies the location to reserve for
-		 * a crash kernel.  By reserving this memory we guarantee
-		 * that linux never set's it up as a DMA target.
-		 * Useful for holding code to do something appropriate
-		 * after a kernel panic.
-		 */
-		else if (!memcmp(from, "crashkernel=", 12)) {
-			unsigned long size, base;
-			size = memparse(from+12, &from);
-			if (*from == '@') {
-				base = memparse(from+1, &from);
-				/* FIXME: Do I want a sanity check
-				 * to validate the memory range?
-				 */
-				crashk_res.start = base;
-				crashk_res.end   = base + size - 1;
-			}
-		}
-#endif
-
 #ifdef CONFIG_PROC_VMCORE
-		/* elfcorehdr= specifies the location of elf core header
-		 * stored by the crashed kernel. This option will be passed
-		 * by kexec loader to the capture kernel.
-		 */
-		else if(!memcmp(from, "elfcorehdr=", 11))
-			elfcorehdr_addr = memparse(from+11, &from);
-#endif
-
-#ifdef CONFIG_HOTPLUG_CPU
-		else if (!memcmp(from, "additional_cpus=", 16))
-			setup_additional_cpus(from+16);
-#endif
-
-	next_char:
-		c = *(from++);
-		if (!c)
-			break;
-		if (COMMAND_LINE_SIZE <= ++len)
-			break;
-		*(to++) = c;
-	}
-	if (userdef) {
-		printk(KERN_INFO "user-defined physical RAM map:\n");
-		e820_print_map("user");
-	}
-	*to = '\0';
-	*cmdline_p = command_line;
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel. This option will be passed
+ * by kexec loader to the capture kernel.
+ */
+static int __init setup_elfcorehdr(char *arg)
+{
+	char *end;
+	if (!arg)
+		return -EINVAL;
+	elfcorehdr_addr = memparse(arg, &end);
+	return end > arg ? 0 : -EINVAL;
 }
+early_param("elfcorehdr", setup_elfcorehdr);
+#endif
 
 #ifndef CONFIG_NUMA
 static void __init
@@ -547,7 +381,12 @@ void __init setup_arch(char **cmdline_p)
 
 	early_identify_cpu(&boot_cpu_data);
 
-	parse_cmdline_early(cmdline_p);
+	strlcpy(command_line, saved_command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = command_line;
+
+	parse_early_param();
+
+	finish_e820_parsing();
 
 	/*
 	 * partially used pages are not usable - thus

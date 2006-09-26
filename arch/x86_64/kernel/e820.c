@@ -596,31 +596,64 @@ void __init setup_memory_region(void)
 	e820_print_map(who);
 }
 
-void __init parse_memopt(char *p, char **from) 
-{ 
-	end_user_pfn = memparse(p, from);
-	end_user_pfn >>= PAGE_SHIFT;	
-} 
-
-void __init parse_memmapopt(char *p, char **from)
+static int __init parse_memopt(char *p)
 {
+	if (!p)
+		return -EINVAL;
+	end_user_pfn = memparse(p, &p);
+	end_user_pfn >>= PAGE_SHIFT;	
+	return 0;
+} 
+early_param("mem", parse_memopt);
+
+static int userdef __initdata;
+
+static int __init parse_memmap_opt(char *p)
+{
+	char *oldp;
 	unsigned long long start_at, mem_size;
 
-	mem_size = memparse(p, from);
-	p = *from;
+	if (!strcmp(p, "exactmap")) {
+#ifdef CONFIG_CRASH_DUMP
+		/* If we are doing a crash dump, we
+		 * still need to know the real mem
+		 * size before original memory map is
+		 * reset.
+		 */
+		saved_max_pfn = e820_end_of_ram();
+#endif
+		end_pfn_map = 0;
+		e820.nr_map = 0;
+		userdef = 1;
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
 	if (*p == '@') {
-		start_at = memparse(p+1, from);
+		start_at = memparse(p+1, &p);
 		add_memory_region(start_at, mem_size, E820_RAM);
 	} else if (*p == '#') {
-		start_at = memparse(p+1, from);
+		start_at = memparse(p+1, &p);
 		add_memory_region(start_at, mem_size, E820_ACPI);
 	} else if (*p == '$') {
-		start_at = memparse(p+1, from);
+		start_at = memparse(p+1, &p);
 		add_memory_region(start_at, mem_size, E820_RESERVED);
 	} else {
 		end_user_pfn = (mem_size >> PAGE_SHIFT);
 	}
-	p = *from;
+	return *p == '\0' ? 0 : -EINVAL;
+}
+early_param("memmap", parse_memmap_opt);
+
+void finish_e820_parsing(void)
+{
+	if (userdef) {
+		printk(KERN_INFO "user-defined physical RAM map:\n");
+		e820_print_map("user");
+	}
 }
 
 unsigned long pci_mem_start = 0xaeedbabe;
