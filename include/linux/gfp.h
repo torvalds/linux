@@ -9,17 +9,19 @@ struct vm_area_struct;
 
 /*
  * GFP bitmasks..
+ *
+ * Zone modifiers (see linux/mmzone.h - low three bits)
+ *
+ * These may be masked by GFP_ZONEMASK to make allocations with this bit
+ * set fall back to ZONE_NORMAL.
+ *
+ * Do not put any conditional on these. If necessary modify the definitions
+ * without the underscores and use the consistently. The definitions here may
+ * be used in bit comparisons.
  */
-/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
 #define __GFP_DMA	((__force gfp_t)0x01u)
 #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
-#ifndef CONFIG_ZONE_DMA32
-#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
-#elif BITS_PER_LONG < 64
-#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
-#else
-#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
-#endif
+#define __GFP_DMA32	((__force gfp_t)0x04u)
 
 /*
  * Action modifiers - doesn't change the zoning

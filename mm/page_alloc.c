@@ -73,7 +73,9 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 #ifdef CONFIG_ZONE_DMA32
 	 256,
 #endif
+#ifdef CONFIG_HIGHMEM
 	 32
+#endif
 };
 
 EXPORT_SYMBOL(totalram_pages);
@@ -91,7 +93,9 @@ static char *zone_names[MAX_NR_ZONES] = {
 	 "DMA32",
 #endif
 	 "Normal",
+#ifdef CONFIG_HIGHMEM
 	 "HighMem"
+#endif
 };
 
 int min_free_kbytes = 1024;
@@ -1375,8 +1379,10 @@ static int __meminit build_zonelists_node(pg_data_t *pgdat,
 static inline int highest_zone(int zone_bits)
 {
 	int res = ZONE_NORMAL;
+#ifdef CONFIG_HIGHMEM
 	if (zone_bits & (__force int)__GFP_HIGHMEM)
 		res = ZONE_HIGHMEM;
+#endif
 #ifdef CONFIG_ZONE_DMA32
 	if (zone_bits & (__force int)__GFP_DMA32)
 		res = ZONE_DMA32;

@@ -123,6 +123,7 @@ enum zone_type {
 	 * transfers to all addressable memory.
 	 */
 	ZONE_NORMAL,
+#ifdef CONFIG_HIGHMEM
 	/*
 	 * A memory area that is only addressable by the kernel through
 	 * mapping portions into its own address space. This is for example
@@ -132,11 +133,10 @@ enum zone_type {
 	 * access.
 	 */
 	ZONE_HIGHMEM,
-
+#endif
 	MAX_NR_ZONES
 };
 
-#define	ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
 
 /*
  * When a memory allocation must conform to specific limitations (such
@@ -163,12 +163,34 @@ enum zone_type {
  *
  * NOTE! Make sure this matches the zones in <linux/gfp.h>
  */
-#define GFP_ZONETYPES		((GFP_ZONEMASK + 1) / 2 + 1)    /* Loner */
 
 #ifdef CONFIG_ZONE_DMA32
+
+#ifdef CONFIG_HIGHMEM
+#define GFP_ZONETYPES		((GFP_ZONEMASK + 1) / 2 + 1)    /* Loner */
 #define GFP_ZONEMASK		0x07
+#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
 #else
+#define GFP_ZONETYPES		((0x07 + 1) / 2 + 1)    /* Loner */
+/* Mask __GFP_HIGHMEM */
+#define GFP_ZONEMASK		0x05
+#define ZONES_SHIFT		2
+#endif
+
+#else
+#ifdef CONFIG_HIGHMEM
+
 #define GFP_ZONEMASK		0x03
+#define ZONES_SHIFT		2
+#define GFP_ZONETYPES		3
+
+#else
+
+#define GFP_ZONEMASK		0x01
+#define ZONES_SHIFT		1
+#define GFP_ZONETYPES		2
+
+#endif
 #endif
 
 struct zone {
@@ -409,7 +431,11 @@ static inline int populated_zone(struct zone *zone)
 
 static inline int is_highmem_idx(enum zone_type idx)
 {
+#ifdef CONFIG_HIGHMEM
 	return (idx == ZONE_HIGHMEM);
+#else
+	return 0;
+#endif
 }
 
 static inline int is_normal_idx(enum zone_type idx)
@@ -425,7 +451,11 @@ static inline int is_normal_idx(enum zone_type idx)
  */
 static inline int is_highmem(struct zone *zone)
 {
+#ifdef CONFIG_HIGHMEM
 	return zone == zone->zone_pgdat->node_zones + ZONE_HIGHMEM;
+#else
+	return 0;
+#endif
 }
 
 static inline int is_normal(struct zone *zone)
