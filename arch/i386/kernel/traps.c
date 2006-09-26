@@ -351,8 +351,9 @@ void show_registers(struct pt_regs *regs)
 		ss = regs->xss & 0xffff;
 	}
 	print_modules();
-	printk(KERN_EMERG "CPU:    %d\nEIP:    %04x:[<%08lx>]    %s VLI\n"
-			"EFLAGS: %08lx   (%s %.*s) \n",
+	printk(KERN_EMERG "CPU:    %d\n"
+		KERN_EMERG "EIP:    %04x:[<%08lx>]    %s VLI\n"
+		KERN_EMERG "EFLAGS: %08lx   (%s %.*s)\n",
 		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
 		print_tainted(), regs->eflags, system_utsname.release,
 		(int)strcspn(system_utsname.version, " "),
