@@ -316,12 +316,12 @@ static void free_pagedir(struct pbe *pblist, int clear_nosave_free)
  *	fill_pb_page - Create a list of PBEs on a given memory page
  */
 
-static inline void fill_pb_page(struct pbe *pbpage)
+static inline void fill_pb_page(struct pbe *pbpage, unsigned int n)
 {
 	struct pbe *p;
 
 	p = pbpage;
-	pbpage += PB_PAGE_SKIP;
+	pbpage += n - 1;
 	do
 		p->next = p + 1;
 	while (++p < pbpage);
@@ -330,24 +330,26 @@ static inline void fill_pb_page(struct pbe *pbpage)
 /**
  *	create_pbe_list - Create a list of PBEs on top of a given chain
  *	of memory pages allocated with alloc_pagedir()
+ *
+ *	This function assumes that pages allocated by alloc_image_page() will
+ *	always be zeroed.
  */
 
 static inline void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 {
-	struct pbe *pbpage, *p;
+	struct pbe *pbpage;
 	unsigned int num = PBES_PER_PAGE;
 
 	for_each_pb_page (pbpage, pblist) {
 		if (num >= nr_pages)
 			break;
 
-		fill_pb_page(pbpage);
+		fill_pb_page(pbpage, PBES_PER_PAGE);
 		num += PBES_PER_PAGE;
 	}
 	if (pbpage) {
-		for (num -= PBES_PER_PAGE - 1, p = pbpage; num < nr_pages; p++, num++)
-			p->next = p + 1;
-		p->next = NULL;
+		num -= PBES_PER_PAGE;
+		fill_pb_page(pbpage, nr_pages - num);
 	}
 }
 
@@ -374,17 +376,17 @@ static struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask,
 		return NULL;
 
 	pblist = alloc_image_page(gfp_mask, safe_needed);
-	/* FIXME: rewrite this ugly loop */
-	for (pbe = pblist, num = PBES_PER_PAGE; pbe && num < nr_pages;
-        		pbe = pbe->next, num += PBES_PER_PAGE) {
+	pbe = pblist;
+	for (num = PBES_PER_PAGE; num < nr_pages; num += PBES_PER_PAGE) {
+		if (!pbe) {
+			free_pagedir(pblist, 1);
+			return NULL;
+		}
 		pbe += PB_PAGE_SKIP;
 		pbe->next = alloc_image_page(gfp_mask, safe_needed);
+		pbe = pbe->next;
 	}
-	if (!pbe) { /* get_zeroed_page() failed */
-		free_pagedir(pblist, 1);
-		pblist = NULL;
-        } else
-		create_pbe_list(pblist, nr_pages);
+	create_pbe_list(pblist, nr_pages);
 	return pblist;
 }
 
