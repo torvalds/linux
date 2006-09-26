@@ -15,6 +15,7 @@
 
 #include <asm/bug.h>
 #include <asm/io.h>
+#include <asm/processor.h>
 
 #include "internal.h"
 
@@ -453,7 +454,9 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 	return __alloc_bootmem(size, align, goal);
 }
 
-#define LOW32LIMIT 0xffffffff
+#ifndef ARCH_LOW_ADDRESS_LIMIT
+#define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
+#endif
 
 void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 				  unsigned long goal)
@@ -462,7 +465,8 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 	void *ptr;
 
 	list_for_each_entry(bdata, &bdata_list, list) {
-		ptr = __alloc_bootmem_core(bdata, size, align, goal, LOW32LIMIT);
+		ptr = __alloc_bootmem_core(bdata, size, align, goal,
+						ARCH_LOW_ADDRESS_LIMIT);
 		if (ptr)
 			return ptr;
 	}
@@ -478,5 +482,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
 				       unsigned long align, unsigned long goal)
 {
-	return __alloc_bootmem_core(pgdat->bdata, size, align, goal, LOW32LIMIT);
+	return __alloc_bootmem_core(pgdat->bdata, size, align, goal,
+				    ARCH_LOW_ADDRESS_LIMIT);
 }
