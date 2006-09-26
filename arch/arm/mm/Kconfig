@@ -15,6 +15,7 @@ config CPU_ARM610
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
 	help
@@ -31,6 +32,7 @@ config CPU_ARM710
 	select CPU_32v3
 	select CPU_CACHE_V3
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
 	help
@@ -50,6 +52,7 @@ config CPU_ARM720T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WT if MMU
 	select CPU_TLB_V4WT if MMU
 	help
@@ -68,6 +71,7 @@ config CPU_ARM920T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -89,6 +93,7 @@ config CPU_ARM922T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -108,6 +113,7 @@ config CPU_ARM925T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
  	help
@@ -126,6 +132,7 @@ config CPU_ARM926T
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -144,6 +151,7 @@ config CPU_ARM1020
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -161,6 +169,7 @@ config CPU_ARM1020E
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 	depends on n
@@ -172,6 +181,7 @@ config CPU_ARM1022
 	select CPU_32v5
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -189,6 +199,7 @@ config CPU_ARM1026
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
 	select CPU_TLB_V4WBI if MMU
 	help
@@ -207,6 +218,7 @@ config CPU_SA110
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WB if MMU
 	help
@@ -227,6 +239,7 @@ config CPU_SA1100
 	select CPU_ABRT_EV4
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WB if MMU
 
 # XScale
@@ -237,6 +250,7 @@ config CPU_XSCALE
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
 
 # XScale Core Version 3
@@ -247,6 +261,7 @@ config CPU_XSC3
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
 	select IO_36
 
@@ -258,6 +273,7 @@ config CPU_V6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
+	select CPU_CP15_MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
 
@@ -379,6 +395,23 @@ config CPU_TLB_V6
 	bool
 
 endif
+
+config CPU_CP15
+	bool
+	help
+	  Processor has the CP15 register.
+
+config CPU_CP15_MMU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MMU related registers.
+
+config CPU_CP15_MPU
+	bool
+	select CPU_CP15
+	help
+	  Processor has the CP15 register, which has MPU related registers.
 
 #
 # CPU supports 36-bit I/O
