@@ -85,7 +85,7 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __init transmeta_identify(struct cpuinfo_x86 * c)
+static void __cpuinit transmeta_identify(struct cpuinfo_x86 * c)
 {
 	u32 xlvl;
 

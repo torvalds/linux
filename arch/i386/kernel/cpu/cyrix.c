@@ -12,7 +12,7 @@
 /*
  * Read NSC/Cyrix DEVID registers (DIR) to get more detailed info. about the CPU
  */
-static void __init do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
+static void __cpuinit do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 {
 	unsigned char ccr2, ccr3;
 	unsigned long flags;
@@ -394,7 +394,7 @@ static inline int test_cyrix_52div(void)
 	return (unsigned char) (test >> 8) == 0x02;
 }
 
-static void cyrix_identify(struct cpuinfo_x86 * c)
+static void __cpuinit cyrix_identify(struct cpuinfo_x86 * c)
 {
 	/* Detect Cyrix with disabled CPUID */
 	if ( c->x86 == 4 && test_cyrix_52div() ) {
