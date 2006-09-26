@@ -229,7 +229,6 @@ __init void *early_ioremap(unsigned long addr, unsigned long size)
 
 	/* actually usually some more */
 	if (size >= LARGE_PAGE_SIZE) { 
-		printk("SMBIOS area too long %lu\n", size);
 		return NULL;
 	}
 	set_pmd(temp_mappings[0].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
