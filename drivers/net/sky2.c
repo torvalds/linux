@@ -1124,7 +1124,8 @@ static int sky2_up(struct net_device *dev)
 	sky2_qset(hw, txqaddr[port]);
 
 	/* Set almost empty threshold */
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev == 1)
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U
+	    && hw->chip_rev == CHIP_REV_YU_EC_U_A0)
 		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
@@ -1442,6 +1443,13 @@ static int sky2_down(struct net_device *dev)
 
 	sky2_write32(hw, RB_ADDR(txqaddr[port], RB_CTRL),
 		     RB_RST_SET | RB_DIS_OP_MD);
+
+	/* WA for dev. #4.209 */
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U
+	    && hw->chip_rev == CHIP_REV_YU_EC_U_A1)
+		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+			     sky2->speed != SPEED_1000 ?
+			     TX_STFW_ENA : TX_STFW_DIS);
 
 	ctrl = gma_read16(hw, port, GM_GP_CTRL);
 	ctrl &= ~(GM_GPCR_TX_ENA | GM_GPCR_RX_ENA);
