@@ -40,6 +40,7 @@
 #include <asm/elf.h>
 #include <asm/isadep.h>
 #include <asm/inst.h>
+#include <asm/stacktrace.h>
 #ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/mipsmtregs.h>
 extern void smtc_idle_loop_hook(void);

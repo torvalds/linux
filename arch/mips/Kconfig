@@ -1841,6 +1841,14 @@ config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
 
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
