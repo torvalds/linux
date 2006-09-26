@@ -41,20 +41,6 @@ static DEFINE_PER_CPU(unsigned, evntsel_nmi_owner[2]);
  */
 #define NMI_MAX_COUNTER_BITS 66
 
-/*
- * lapic_nmi_owner tracks the ownership of the lapic NMI hardware:
- * - it may be reserved by some other driver, or not
- * - when not reserved by some other driver, it may be used for
- *   the NMI watchdog, or not
- *
- * This is maintained separately from nmi_active because the NMI
- * watchdog may also be driven from the I/O APIC timer.
- */
-static DEFINE_SPINLOCK(lapic_nmi_owner_lock);
-static unsigned int lapic_nmi_owner;
-#define LAPIC_NMI_WATCHDOG	(1<<0)
-#define LAPIC_NMI_RESERVED	(1<<1)
-
 /* nmi_active:
  * >0: the lapic NMI watchdog is active, but can be disabled
  * <0: the lapic NMI watchdog has not been set up, and cannot
@@ -319,33 +305,6 @@ static void enable_lapic_nmi_watchdog(void)
 
 	on_each_cpu(setup_apic_nmi_watchdog, NULL, 0, 1);
 	touch_nmi_watchdog();
-}
-
-int reserve_lapic_nmi(void)
-{
-	unsigned int old_owner;
-
-	spin_lock(&lapic_nmi_owner_lock);
-	old_owner = lapic_nmi_owner;
-	lapic_nmi_owner |= LAPIC_NMI_RESERVED;
-	spin_unlock(&lapic_nmi_owner_lock);
-	if (old_owner & LAPIC_NMI_RESERVED)
-		return -EBUSY;
-	if (old_owner & LAPIC_NMI_WATCHDOG)
-		disable_lapic_nmi_watchdog();
-	return 0;
-}
-
-void release_lapic_nmi(void)
-{
-	unsigned int new_owner;
-
-	spin_lock(&lapic_nmi_owner_lock);
-	new_owner = lapic_nmi_owner & ~LAPIC_NMI_RESERVED;
-	lapic_nmi_owner = new_owner;
-	spin_unlock(&lapic_nmi_owner_lock);
-	if (new_owner & LAPIC_NMI_WATCHDOG)
-		enable_lapic_nmi_watchdog();
 }
 
 void disable_timer_nmi_watchdog(void)
@@ -762,13 +721,6 @@ done:
 	return rc;
 }
 
-static __kprobes int dummy_nmi_callback(struct pt_regs * regs, int cpu)
-{
-	return 0;
-}
- 
-static nmi_callback_t nmi_callback = dummy_nmi_callback;
- 
 asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	nmi_enter();
@@ -779,21 +731,12 @@ asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 
 int do_nmi_callback(struct pt_regs * regs, int cpu)
 {
-	return rcu_dereference(nmi_callback)(regs, cpu);
+#ifdef CONFIG_SYSCTL
+	if (unknown_nmi_panic)
+		return unknown_nmi_panic_callback(regs, cpu);
+#endif
+	return 0;
 }
-
-void set_nmi_callback(nmi_callback_t callback)
-{
-	vmalloc_sync_all();
-	rcu_assign_pointer(nmi_callback, callback);
-}
-EXPORT_SYMBOL_GPL(set_nmi_callback);
-
-void unset_nmi_callback(void)
-{
-	nmi_callback = dummy_nmi_callback;
-}
-EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_SYSCTL
 
@@ -802,37 +745,8 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 	unsigned char reason = get_nmi_reason();
 	char buf[64];
 
-	if (!(reason & 0xc0)) {
-		sprintf(buf, "NMI received for unknown reason %02x\n", reason);
-		die_nmi(buf,regs);
-	}
-	return 0;
-}
-
-/*
- * proc handler for /proc/sys/kernel/unknown_nmi_panic
- */
-int proc_unknown_nmi_panic(struct ctl_table *table, int write, struct file *file,
-			void __user *buffer, size_t *length, loff_t *ppos)
-{
-	int old_state;
-
-	old_state = unknown_nmi_panic;
-	proc_dointvec(table, write, file, buffer, length, ppos);
-	if (!!old_state == !!unknown_nmi_panic)
-		return 0;
-
-	if (unknown_nmi_panic) {
-		if (reserve_lapic_nmi() < 0) {
-			unknown_nmi_panic = 0;
-			return -EBUSY;
-		} else {
-			set_nmi_callback(unknown_nmi_panic_callback);
-		}
-	} else {
-		release_lapic_nmi();
-		unset_nmi_callback();
-	}
+	sprintf(buf, "NMI received for unknown reason %02x\n", reason);
+	die_nmi(buf,regs);
 	return 0;
 }
 
@@ -846,8 +760,6 @@ EXPORT_SYMBOL(reserve_perfctr_nmi);
 EXPORT_SYMBOL(release_perfctr_nmi);
 EXPORT_SYMBOL(reserve_evntsel_nmi);
 EXPORT_SYMBOL(release_evntsel_nmi);
-EXPORT_SYMBOL(reserve_lapic_nmi);
-EXPORT_SYMBOL(release_lapic_nmi);
 EXPORT_SYMBOL(disable_timer_nmi_watchdog);
 EXPORT_SYMBOL(enable_timer_nmi_watchdog);
 EXPORT_SYMBOL(touch_nmi_watchdog);

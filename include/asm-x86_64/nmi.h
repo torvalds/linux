@@ -7,25 +7,6 @@
 #include <linux/pm.h>
 #include <asm/io.h>
  
-struct pt_regs;
-
-typedef int (*nmi_callback_t)(struct pt_regs * regs, int cpu);
-
-/**
- * set_nmi_callback
- *
- * Set a handler for an NMI. Only one handler may be
- * set. Return 1 if the NMI was handled.
- */
-void set_nmi_callback(nmi_callback_t callback);
-
-/**
- * unset_nmi_callback
- *
- * Remove the handler previously set.
- */
-void unset_nmi_callback(void);
-
 /**
  * do_nmi_callback
  *
@@ -72,8 +53,6 @@ extern int reserve_evntsel_nmi(unsigned int);
 extern void release_evntsel_nmi(unsigned int);
 
 extern void setup_apic_nmi_watchdog (void *);
-extern int reserve_lapic_nmi(void);
-extern void release_lapic_nmi(void);
 extern void disable_timer_nmi_watchdog(void);
 extern void enable_timer_nmi_watchdog(void);
 extern int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);

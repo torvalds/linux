@@ -22,6 +22,8 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/kdebug.h>
+
 #include <mach_ipi.h>
 
 
@@ -93,9 +95,18 @@ static void crash_save_self(struct pt_regs *regs)
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 static atomic_t waiting_for_crash_ipi;
 
-static int crash_nmi_callback(struct pt_regs *regs, int cpu)
+static int crash_nmi_callback(struct notifier_block *self,
+			unsigned long val, void *data)
 {
+	struct pt_regs *regs;
 	struct pt_regs fixed_regs;
+	int cpu;
+
+	if (val != DIE_NMI)
+		return NOTIFY_OK;
+
+	regs = ((struct die_args *)data)->regs;
+	cpu = raw_smp_processor_id();
 
 	/* Don't do anything if this handler is invoked on crashing cpu.
 	 * Otherwise, system will completely hang. Crashing cpu can get
@@ -125,13 +136,18 @@ static void smp_send_nmi_allbutself(void)
 	send_IPI_allbutself(NMI_VECTOR);
 }
 
+static struct notifier_block crash_nmi_nb = {
+	.notifier_call = crash_nmi_callback,
+};
+
 static void nmi_shootdown_cpus(void)
 {
 	unsigned long msecs;
 
 	atomic_set(&waiting_for_crash_ipi, num_online_cpus() - 1);
 	/* Would it be better to replace the trap vector here? */
-	set_nmi_callback(crash_nmi_callback);
+	if (register_die_notifier(&crash_nmi_nb))
+		return;		/* return what? */
 	/* Ensure the new callback function is set before sending
 	 * out the NMI
 	 */

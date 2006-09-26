@@ -76,8 +76,6 @@ extern int compat_log;
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
-extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
-				  void __user *, size_t *, loff_t *);
 #endif
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
@@ -628,7 +626,7 @@ static ctl_table kern_table[] = {
 		.data           = &unknown_nmi_panic,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
-		.proc_handler   = &proc_unknown_nmi_panic,
+		.proc_handler   = &proc_dointvec,
 	},
 #endif
 #if defined(CONFIG_X86)

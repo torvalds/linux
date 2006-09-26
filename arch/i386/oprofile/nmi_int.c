@@ -17,14 +17,15 @@
 #include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
+#include <asm/kdebug.h>
  
 #include "op_counter.h"
 #include "op_x86_model.h"
- 
+
 static struct op_x86_model_spec const * model;
 static struct op_msrs cpu_msrs[NR_CPUS];
 static unsigned long saved_lvtpc[NR_CPUS];
- 
+
 static int nmi_start(void);
 static void nmi_stop(void);
 
@@ -82,13 +83,24 @@ static void exit_driverfs(void)
 #define exit_driverfs() do { } while (0)
 #endif /* CONFIG_PM */
 
-
-static int nmi_callback(struct pt_regs * regs, int cpu)
+int profile_exceptions_notify(struct notifier_block *self,
+				unsigned long val, void *data)
 {
-	return model->check_ctrs(regs, &cpu_msrs[cpu]);
+	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+	int cpu = smp_processor_id();
+
+	switch(val) {
+	case DIE_NMI:
+		if (model->check_ctrs(args->regs, &cpu_msrs[cpu]))
+			ret = NOTIFY_STOP;
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
- 
- 
+
 static void nmi_cpu_save_registers(struct op_msrs * msrs)
 {
 	unsigned int const nr_ctrs = model->num_counters;
@@ -174,27 +186,29 @@ static void nmi_cpu_setup(void * dummy)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 }
 
+static struct notifier_block profile_exceptions_nb = {
+	.notifier_call = profile_exceptions_notify,
+	.next = NULL,
+	.priority = 0
+};
 
 static int nmi_setup(void)
 {
+	int err=0;
+
 	if (!allocate_msrs())
 		return -ENOMEM;
 
-	/* We walk a thin line between law and rape here.
-	 * We need to be careful to install our NMI handler
-	 * without actually triggering any NMIs as this will
-	 * break the core code horrifically.
-	 */
-	if (reserve_lapic_nmi() < 0) {
+	if ((err = register_die_notifier(&profile_exceptions_nb))){
 		free_msrs();
-		return -EBUSY;
+		return err;
 	}
+
 	/* We need to serialize save and setup for HT because the subset
 	 * of msrs are distinct for save and setup operations
 	 */
 	on_each_cpu(nmi_save_registers, NULL, 0, 1);
 	on_each_cpu(nmi_cpu_setup, NULL, 0, 1);
-	set_nmi_callback(nmi_callback);
 	nmi_enabled = 1;
 	return 0;
 }
@@ -250,8 +264,7 @@ static void nmi_shutdown(void)
 {
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
-	unset_nmi_callback();
-	release_lapic_nmi();
+	unregister_die_notifier(&profile_exceptions_nb);
 	free_msrs();
 }
 
