@@ -637,7 +637,8 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
  */
 void drain_node_pages(int nodeid)
 {
-	int i, z;
+	int i;
+	enum zone_type z;
 	unsigned long flags;
 
 	for (z = 0; z < MAX_NR_ZONES; z++) {
@@ -1158,7 +1159,8 @@ EXPORT_SYMBOL(nr_free_pages);
 #ifdef CONFIG_NUMA
 unsigned int nr_free_pages_pgdat(pg_data_t *pgdat)
 {
-	unsigned int i, sum = 0;
+	unsigned int sum = 0;
+	enum zone_type i;
 
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		sum += pgdat->node_zones[i].free_pages;
@@ -1358,21 +1360,22 @@ void show_free_areas(void)
  * Add all populated zones of a node to the zonelist.
  */
 static int __meminit build_zonelists_node(pg_data_t *pgdat,
-			struct zonelist *zonelist, int nr_zones, int zone_type)
+			struct zonelist *zonelist, int nr_zones, enum zone_type zone_type)
 {
 	struct zone *zone;
 
 	BUG_ON(zone_type >= MAX_NR_ZONES);
+	zone_type++;
 
 	do {
+		zone_type--;
 		zone = pgdat->node_zones + zone_type;
 		if (populated_zone(zone)) {
 			zonelist->zones[nr_zones++] = zone;
 			check_highest_zone(zone_type);
 		}
-		zone_type--;
 
-	} while (zone_type >= 0);
+	} while (zone_type);
 	return nr_zones;
 }
 
@@ -1441,10 +1444,11 @@ static int __meminit find_next_best_node(int node, nodemask_t *used_node_mask)
 
 static void __meminit build_zonelists(pg_data_t *pgdat)
 {
-	int i, j, k, node, local_node;
+	int i, j, node, local_node;
 	int prev_node, load;
 	struct zonelist *zonelist;
 	nodemask_t used_mask;
+	enum zone_type k;
 
 	/* initialize zonelists */
 	for (i = 0; i < GFP_ZONETYPES; i++) {
@@ -1628,7 +1632,7 @@ static void __init calculate_zone_totalpages(struct pglist_data *pgdat,
 		unsigned long *zones_size, unsigned long *zholes_size)
 {
 	unsigned long realtotalpages, totalpages = 0;
-	int i;
+	enum zone_type i;
 
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		totalpages += zones_size[i];
@@ -2116,7 +2120,7 @@ static void calculate_totalreserve_pages(void)
 {
 	struct pglist_data *pgdat;
 	unsigned long reserve_pages = 0;
-	int i, j;
+	enum zone_type i, j;
 
 	for_each_online_pgdat(pgdat) {
 		for (i = 0; i < MAX_NR_ZONES; i++) {
@@ -2149,7 +2153,7 @@ static void calculate_totalreserve_pages(void)
 static void setup_per_zone_lowmem_reserve(void)
 {
 	struct pglist_data *pgdat;
-	int j, idx;
+	enum zone_type j, idx;
 
 	for_each_online_pgdat(pgdat) {
 		for (j = 0; j < MAX_NR_ZONES; j++) {
@@ -2158,8 +2162,11 @@ static void setup_per_zone_lowmem_reserve(void)
 
 			zone->lowmem_reserve[j] = 0;
 
-			for (idx = j-1; idx >= 0; idx--) {
+			idx = j;
+			while (idx) {
 				struct zone *lower_zone;
+
+				idx--;
 
 				if (sysctl_lowmem_reserve_ratio[idx] < 1)
 					sysctl_lowmem_reserve_ratio[idx] = 1;

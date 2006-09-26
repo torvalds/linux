@@ -105,7 +105,7 @@ static struct kmem_cache *sn_cache;
 
 /* Highest zone. An specific allocation for a zone below that is not
    policied. */
-int policy_zone = ZONE_DMA;
+enum zone_type policy_zone = ZONE_DMA;
 
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
@@ -137,7 +137,8 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 static struct zonelist *bind_zonelist(nodemask_t *nodes)
 {
 	struct zonelist *zl;
-	int num, max, nd, k;
+	int num, max, nd;
+	enum zone_type k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
@@ -148,12 +149,16 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	   lower zones etc. Avoid empty zones because the memory allocator
 	   doesn't like them. If you implement node hot removal you
 	   have to fix that. */
-	for (k = policy_zone; k >= 0; k--) { 
+	k = policy_zone;
+	while (1) {
 		for_each_node_mask(nd, *nodes) { 
 			struct zone *z = &NODE_DATA(nd)->node_zones[k];
 			if (z->present_pages > 0) 
 				zl->zones[num++] = z;
 		}
+		if (k == 0)
+			break;
+		k--;
 	}
 	zl->zones[num] = NULL;
 	return zl;
