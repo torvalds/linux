@@ -95,12 +95,9 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 	/* Copy section for each CPU (we discard the original) */
-	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
-#ifdef CONFIG_MODULES
-	if (size < PERCPU_ENOUGH_ROOM)
-		size = PERCPU_ENOUGH_ROOM;
-#endif
+	size = PERCPU_ENOUGH_ROOM;
 
+	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n", size);
 	for_each_cpu_mask (i, cpu_possible_map) {
 		char *ptr;
 
