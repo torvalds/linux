@@ -40,8 +40,7 @@
 #define PF_RSVD	(1<<3)
 #define PF_INSTR	(1<<4)
 
-#ifdef CONFIG_KPROBES
-ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
 
 /* Hook to register for page fault notifications */
 int register_page_fault_notifier(struct notifier_block *nb)
@@ -49,11 +48,13 @@ int register_page_fault_notifier(struct notifier_block *nb)
 	vmalloc_sync_all();
 	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
 }
+EXPORT_SYMBOL_GPL(register_page_fault_notifier);
 
 int unregister_page_fault_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
 }
+EXPORT_SYMBOL_GPL(unregister_page_fault_notifier);
 
 static inline int notify_page_fault(enum die_val val, const char *str,
 			struct pt_regs *regs, long err, int trap, int sig)
@@ -67,13 +68,6 @@ static inline int notify_page_fault(enum die_val val, const char *str,
 	};
 	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
 }
-#else
-static inline int notify_page_fault(enum die_val val, const char *str,
-			struct pt_regs *regs, long err, int trap, int sig)
-{
-	return NOTIFY_DONE;
-}
-#endif
 
 void bust_spinlocks(int yes)
 {
