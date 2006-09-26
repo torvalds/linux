@@ -20,18 +20,6 @@
 #define RW_LOCK_BIAS		 0x01000000
 #define RW_LOCK_BIAS_STR	"0x01000000"
 
-#define __build_read_lock(rw, helper)   \
-	asm volatile(LOCK_PREFIX " subl $1,(%0)\n\t" \
-			"jns 1f\n" \
-			"call " helper "\n\t" \
-			"1:\n" \
-			::"a" (rw) : "memory")
-
-#define __build_write_lock(rw, helper) \
-	asm volatile(LOCK_PREFIX " subl $" RW_LOCK_BIAS_STR ",(%0)\n\t" \
-			"jz 1f\n" \
-			"call " helper "\n\t" \
-			"1:\n" \
-			::"a" (rw) : "memory")
+/* Code is in asm-i386/spinlock.h */
 
 #endif
