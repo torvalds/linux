@@ -3348,7 +3348,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
-void *kmalloc_node(size_t size, gfp_t flags, int node)
+void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	struct kmem_cache *cachep;
 
@@ -3357,7 +3357,7 @@ void *kmalloc_node(size_t size, gfp_t flags, int node)
 		return NULL;
 	return kmem_cache_alloc_node(cachep, flags, node);
 }
-EXPORT_SYMBOL(kmalloc_node);
+EXPORT_SYMBOL(__kmalloc_node);
 #endif
 
 /**
