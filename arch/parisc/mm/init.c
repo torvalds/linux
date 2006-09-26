@@ -809,7 +809,7 @@ void __init paging_init(void)
 	flush_tlb_all_local(NULL);
 
 	for (i = 0; i < npmem_ranges; i++) {
-		unsigned long zones_size[MAX_NR_ZONES] = { 0, 0, 0 };
+		unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 
 		/* We have an IOMMU, so all memory can go into a single
 		   ZONE_DMA zone. */

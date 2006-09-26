@@ -367,7 +367,7 @@ void __init zone_sizes_init(void)
 
 
 	for_each_online_node(nid) {
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+		unsigned long zones_size[MAX_NR_ZONES] = {0, };
 		unsigned long *zholes_size;
 		unsigned int max_dma;
 

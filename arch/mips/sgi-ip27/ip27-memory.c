@@ -508,7 +508,7 @@ extern unsigned long setup_zero_pages(void);
 
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 	unsigned node;
 
 	pagetable_init();
