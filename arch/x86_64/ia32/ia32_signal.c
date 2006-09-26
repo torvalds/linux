@@ -478,6 +478,11 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->rsp = (unsigned long) frame;
 	regs->rip = (unsigned long) ka->sa.sa_handler;
 
+	/* Make -mregparm=3 work */
+	regs->rax = sig;
+	regs->rdx = 0;
+	regs->rcx = 0;
+
 	asm volatile("movl %0,%%ds" :: "r" (__USER32_DS)); 
 	asm volatile("movl %0,%%es" :: "r" (__USER32_DS)); 
 
