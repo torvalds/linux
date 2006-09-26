@@ -741,7 +741,9 @@ static struct page *new_page_node(struct page *p, unsigned long private,
 
 	*result = &pm->status;
 
-	return alloc_pages_node(pm->node, GFP_HIGHUSER, 0);
+	return alloc_pages_node(pm->node,
+		GFP_HIGHUSER | __GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY,
+		0);
 }
 
 /*
