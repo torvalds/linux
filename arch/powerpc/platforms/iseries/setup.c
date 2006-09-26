@@ -649,6 +649,15 @@ static void iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
+/*
+ * iSeries has no legacy IO, anything calling this function has to
+ * fail or bad things will happen
+ */
+static int iseries_check_legacy_ioport(unsigned int baseport)
+{
+	return -ENODEV;
+}
+
 static int __init iseries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
@@ -677,6 +686,7 @@ define_machine(iseries) {
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= iSeries_progress,
 	.probe		= iseries_probe,
+	.check_legacy_ioport	= iseries_check_legacy_ioport,
 	/* XXX Implement enable_pmcs for iSeries */
 };
 
