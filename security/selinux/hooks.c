@@ -1364,25 +1364,6 @@ static inline u32 file_to_av(struct file *file)
 	return av;
 }
 
-/* Set an inode's SID to a specified value. */
-static int inode_security_set_sid(struct inode *inode, u32 sid)
-{
-	struct inode_security_struct *isec = inode->i_security;
-	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
-
-	if (!sbsec->initialized) {
-		/* Defer initialization to selinux_complete_init. */
-		return 0;
-	}
-
-	down(&isec->sem);
-	isec->sclass = inode_mode_to_security_class(inode->i_mode);
-	isec->sid = sid;
-	isec->initialized = 1;
-	up(&isec->sem);
-	return 0;
-}
-
 /* Hook functions begin here. */
 
 static int selinux_ptrace(struct task_struct *parent, struct task_struct *child)
@@ -2091,7 +2072,13 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 		}
 	}
 
-	inode_security_set_sid(inode, newsid);
+	/* Possibly defer initialization to selinux_complete_init. */
+	if (sbsec->initialized) {
+		struct inode_security_struct *isec = inode->i_security;
+		isec->sclass = inode_mode_to_security_class(inode->i_mode);
+		isec->sid = newsid;
+		isec->initialized = 1;
+	}
 
 	if (!ss_initialized || sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
 		return -EOPNOTSUPP;
