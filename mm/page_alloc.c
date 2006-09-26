@@ -633,7 +633,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 #ifdef CONFIG_NUMA
 /*
  * Called from the slab reaper to drain pagesets on a particular node that
- * belong to the currently executing processor.
+ * belongs to the currently executing processor.
  * Note that this function must be called with the thread pinned to
  * a single processor.
  */
@@ -646,6 +646,9 @@ void drain_node_pages(int nodeid)
 	for (z = 0; z < MAX_NR_ZONES; z++) {
 		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
 		struct per_cpu_pageset *pset;
+
+		if (!populated_zone(zone))
+			continue;
 
 		pset = zone_pcp(zone, smp_processor_id());
 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {

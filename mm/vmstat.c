@@ -321,6 +321,9 @@ void refresh_cpu_vm_stats(int cpu)
 	for_each_zone(zone) {
 		struct per_cpu_pageset *pcp;
 
+		if (!populated_zone(zone))
+			continue;
+
 		pcp = zone_pcp(zone, cpu);
 
 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
