@@ -40,8 +40,8 @@ void disable_timer(void)
 		printk("disnable_timer - setitimer failed, errno = %d\n",
 		       errno);
 	/* If there are signals already queued, after unblocking ignore them */
-	set_handler(SIGALRM, SIG_IGN, 0, -1);
-	set_handler(SIGVTALRM, SIG_IGN, 0, -1);
+	signal(SIGALRM, SIG_IGN);
+	signal(SIGVTALRM, SIG_IGN);
 }
 
 void switch_timers(int to_real)

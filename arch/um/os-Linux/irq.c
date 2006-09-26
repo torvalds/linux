@@ -132,7 +132,7 @@ void os_set_pollfd(int i, int fd)
 
 void os_set_ioignore(void)
 {
-	set_handler(SIGIO, SIG_IGN, 0, -1);
+	signal(SIGIO, SIG_IGN);
 }
 
 void init_irq_signals(int on_sigstack)

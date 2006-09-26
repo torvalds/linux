@@ -246,7 +246,17 @@ void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 		set_sigstack(sig_stack, pages * page_size());
 		flags = SA_ONSTACK;
 	}
-	if(usr1_handler) set_handler(SIGUSR1, usr1_handler, flags, -1);
+	if(usr1_handler){
+		struct sigaction sa;
+
+		sa.sa_handler = usr1_handler;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = flags;
+		sa.sa_restorer = NULL;
+		if(sigaction(SIGUSR1, &sa, NULL) < 0)
+			panic("init_new_thread_stack - sigaction failed - "
+			      "errno = %d\n", errno);
+	}
 }
 
 void init_new_thread_signals(void)

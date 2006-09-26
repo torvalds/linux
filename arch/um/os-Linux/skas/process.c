@@ -189,14 +189,25 @@ static int userspace_tramp(void *stack)
 		}
 	}
 	if(!ptrace_faultinfo && (stack != NULL)){
+		struct sigaction sa;
+
 		unsigned long v = UML_CONFIG_STUB_CODE +
 				  (unsigned long) stub_segv_handler -
 				  (unsigned long) &__syscall_stub_start;
 
 		set_sigstack((void *) UML_CONFIG_STUB_DATA, page_size());
-		set_handler(SIGSEGV, (void *) v, SA_ONSTACK,
-			    SIGIO, SIGWINCH, SIGALRM, SIGVTALRM,
-			    SIGUSR1, -1);
+		sigemptyset(&sa.sa_mask);
+		sigaddset(&sa.sa_mask, SIGIO);
+		sigaddset(&sa.sa_mask, SIGWINCH);
+		sigaddset(&sa.sa_mask, SIGALRM);
+		sigaddset(&sa.sa_mask, SIGVTALRM);
+		sigaddset(&sa.sa_mask, SIGUSR1);
+		sa.sa_flags = SA_ONSTACK;
+		sa.sa_handler = (void *) v;
+		sa.sa_restorer = NULL;
+		if(sigaction(SIGSEGV, &sa, NULL) < 0)
+			panic("userspace_tramp - setting SIGSEGV handler "
+			      "failed - errno = %d\n", errno);
 	}
 
 	os_stop_process(os_getpid());
