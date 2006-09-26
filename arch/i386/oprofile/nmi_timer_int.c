@@ -42,9 +42,7 @@ static void timer_stop(void)
 
 int __init op_nmi_timer_init(struct oprofile_operations * ops)
 {
-	extern int nmi_active;
-
-	if (nmi_active <= 0)
+	if (atomic_read(&nmi_active) <= 0)
 		return -ENODEV;
 
 	ops->start = timer_start;

@@ -724,7 +724,7 @@ static void default_do_nmi(struct pt_regs * regs)
 		 * so it must be the NMI watchdog.
 		 */
 		if (nmi_watchdog) {
-			nmi_watchdog_tick(regs);
+			nmi_watchdog_tick(regs, reason);
 			return;
 		}
 #endif
