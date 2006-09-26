@@ -621,6 +621,7 @@ config LEDS_CPU
 
 config ALIGNMENT_TRAP
 	bool
+	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
 	help
 	  ARM processors can not fetch/store information which is not
@@ -852,7 +853,7 @@ source "drivers/base/Kconfig"
 
 source "drivers/connector/Kconfig"
 
-if ALIGNMENT_TRAP
+if ALIGNMENT_TRAP || !CPU_CP15_MMU
 source "drivers/mtd/Kconfig"
 endif
 

@@ -46,6 +46,7 @@
 #define CPUID_TCM	2
 #define CPUID_TLBTYPE	3
 
+#ifdef CONFIG_CPU_CP15
 #define read_cpuid(reg)							\
 	({								\
 		unsigned int __val;					\
@@ -55,6 +56,9 @@
 		    : "cc");						\
 		__val;							\
 	})
+#else
+#define read_cpuid(reg) (processor_id)
+#endif
 
 /*
  * This is used to ensure the compiler did actually allocate the register we

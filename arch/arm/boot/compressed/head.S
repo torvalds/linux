@@ -82,9 +82,11 @@
 		kphex	r6, 8		/* processor id */
 		kputc	#':'
 		kphex	r7, 8		/* architecture id */
+#ifdef CONFIG_CPU_CP15
 		kputc	#':'
 		mrc	p15, 0, r0, c1, c0
 		kphex	r0, 8		/* control reg */
+#endif
 		kputc	#'\n'
 		kphex	r5, 8		/* decompressed kernel start */
 		kputc	#'-'
@@ -507,7 +509,11 @@ call_kernel:	bl	cache_clean_flush
  */
 
 call_cache_fn:	adr	r12, proc_types
+#ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r6, c0, c0	@ get processor ID
+#else
+		ldr	r6, =CONFIG_PROCESSOR_ID
+#endif
 1:		ldr	r1, [r12, #0]		@ get value
 		ldr	r2, [r12, #4]		@ get mask
 		eor	r1, r1, r6		@ (real ^ match)
