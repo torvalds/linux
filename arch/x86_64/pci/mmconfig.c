@@ -218,7 +218,6 @@ void __init pci_mmcfg_init(int type)
 		return;
 	}
 
-	/* RED-PEN i386 doesn't do _nocache right now */
 	pci_mmcfg_virt = kmalloc(sizeof(*pci_mmcfg_virt) * pci_mmcfg_config_num, GFP_KERNEL);
 	if (pci_mmcfg_virt == NULL) {
 		printk("PCI: Can not allocate memory for mmconfig structures\n");
