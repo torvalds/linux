@@ -200,6 +200,21 @@ config CPU_ARM940T
 	  Say Y if you want support for the ARM940T processor.
 	  Otherwise, say N.
 
+# ARM946E-S
+config CPU_ARM946E
+	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	help
+	  ARM946E-S is a member of the ARM9E-S family of high-
+	  performance, 32-bit system-on-chip processor solutions.
+	  The TCM and ARMv5TE 32-bit instruction set is supported.
+
+	  Say Y if you want support for the ARM946E-S processor.
+	  Otherwise, say N.
+
 # ARM1020 - needs validating
 config CPU_ARM1020
 	bool "Support ARM1020T (rev 0) processor"
@@ -480,7 +495,7 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -515,9 +530,22 @@ config CPU_DCACHE_DISABLE
 	  Say Y here to disable the processor data cache. Unless
 	  you have a reason not to or are unsure, say N.
 
+config CPU_DCACHE_SIZE
+	hex
+	depends on CPU_ARM740T || CPU_ARM946E
+	default 0x00001000 if CPU_ARM740T
+	default 0x00002000 # default size for ARM946E-S
+	help
+	  Some cores are synthesizable to have various sized cache. For
+	  ARM946E-S case, it can vary from 0KB to 1MB.
+	  To support such cache operations, it is efficient to know the size
+	  before compile time.
+	  If your SoC is configured to have a different size, define the value
+	  here with proper conditions.
+
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
-	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
+	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
 	default y if CPU_ARM925T
 	help
 	  Say Y here to use the data cache in writethrough mode. Unless you
@@ -525,7 +553,7 @@ config CPU_DCACHE_WRITETHROUGH
 
 config CPU_CACHE_ROUND_ROBIN
 	bool "Round robin I and D cache replacement algorithm"
-	depends on (CPU_ARM926T || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
+	depends on (CPU_ARM926T || CPU_ARM946E || CPU_ARM1020) && (!CPU_ICACHE_DISABLE || !CPU_DCACHE_DISABLE)
 	help
 	  Say Y here to use the predictable round-robin cache replacement
 	  policy.  Unless you specifically require this or are unsure, say N.
