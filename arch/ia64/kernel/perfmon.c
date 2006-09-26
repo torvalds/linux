@@ -34,6 +34,7 @@
 #include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/vfs.h>
+#include <linux/smp.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/bitops.h>

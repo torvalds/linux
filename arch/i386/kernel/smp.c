@@ -683,8 +683,8 @@ __smp_call_function_single(int cpu, void (*func) (void *info), void *info,
  * or is or has executed.
  */
 
-int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
-	int nonatomic, int wait)
+int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+			int nonatomic, int wait)
 {
 	/* prevent preemption and reschedule on another processor */
 	int me = get_cpu();
