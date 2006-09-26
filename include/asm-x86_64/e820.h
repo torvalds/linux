@@ -22,10 +22,6 @@
 #define E820_ACPI	3 /* usable as RAM once ACPI tables have been read */
 #define E820_NVS	4
 
-#define HIGH_MEMORY	(1024*1024)
-
-#define LOWMEMSIZE()	(0x9f000)
-
 #ifndef __ASSEMBLY__
 struct e820entry {
 	u64 addr;	/* start of memory segment */
