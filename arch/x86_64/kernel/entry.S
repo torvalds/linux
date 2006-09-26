@@ -773,7 +773,9 @@ paranoid_exit\trace:
 	testl $3,CS(%rsp)
 	jnz   paranoid_userspace\trace
 paranoid_swapgs\trace:
+	.if \trace
 	TRACE_IRQS_IRETQ 0
+	.endif
 	swapgs
 paranoid_restore\trace:
 	RESTORE_ALL 8
