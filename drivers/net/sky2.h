@@ -1789,7 +1789,6 @@ struct sky2_port {
 	u32		     msg_enable;
 	spinlock_t	     phy_lock;
 
-	spinlock_t	     tx_lock  ____cacheline_aligned_in_smp;
 	struct tx_ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
 	u16		     tx_cons;		/* next le to check */
