@@ -208,37 +208,36 @@ unsigned int count_data_pages(void)
 	return n;
 }
 
+static inline void copy_data_page(long *dst, long *src)
+{
+	int n;
+
+	/* copy_page and memcpy are not usable for copying task structs. */
+	for (n = PAGE_SIZE / sizeof(long); n; n--)
+		*dst++ = *src++;
+}
+
 static void copy_data_pages(struct pbe *pblist)
 {
 	struct zone *zone;
 	unsigned long pfn, max_zone_pfn;
-	struct pbe *pbe, *p;
+	struct pbe *pbe;
 
 	pbe = pblist;
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			continue;
 		mark_free_pages(zone);
-		/* This is necessary for swsusp_free() */
-		for_each_pb_page (p, pblist)
-			SetPageNosaveFree(virt_to_page(p));
-		for_each_pbe (p, pblist)
-			SetPageNosaveFree(virt_to_page(p->address));
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++) {
 			struct page *page = saveable_page(pfn);
 
 			if (page) {
-				long *src, *dst;
-				int n;
+				void *ptr = page_address(page);
 
 				BUG_ON(!pbe);
-				pbe->orig_address = (unsigned long)page_address(page);
-				/* copy_page and memcpy are not usable for copying task structs. */
-				dst = (long *)pbe->address;
-				src = (long *)pbe->orig_address;
-				for (n = PAGE_SIZE / sizeof(long); n; n--)
-					*dst++ = *src++;
+				copy_data_page((void *)pbe->address, ptr);
+				pbe->orig_address = (unsigned long)ptr;
 				pbe = pbe->next;
 			}
 		}

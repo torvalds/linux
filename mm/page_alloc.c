@@ -694,7 +694,8 @@ static void __drain_pages(unsigned int cpu)
 
 void mark_free_pages(struct zone *zone)
 {
-	unsigned long zone_pfn, flags;
+	unsigned long pfn, max_zone_pfn;
+	unsigned long flags;
 	int order;
 	struct list_head *curr;
 
@@ -702,18 +703,25 @@ void mark_free_pages(struct zone *zone)
 		return;
 
 	spin_lock_irqsave(&zone->lock, flags);
-	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
-		ClearPageNosaveFree(pfn_to_page(zone_pfn + zone->zone_start_pfn));
+
+	max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
+	for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+		if (pfn_valid(pfn)) {
+			struct page *page = pfn_to_page(pfn);
+
+			if (!PageNosave(page))
+				ClearPageNosaveFree(page);
+		}
 
 	for (order = MAX_ORDER - 1; order >= 0; --order)
 		list_for_each(curr, &zone->free_area[order].free_list) {
-			unsigned long start_pfn, i;
+			unsigned long i;
 
-			start_pfn = page_to_pfn(list_entry(curr, struct page, lru));
+			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+			for (i = 0; i < (1UL << order); i++)
+				SetPageNosaveFree(pfn_to_page(pfn + i));
+		}
 
-			for (i=0; i < (1<<order); i++)
-				SetPageNosaveFree(pfn_to_page(start_pfn+i));
-	}
 	spin_unlock_irqrestore(&zone->lock, flags);
 }
 
