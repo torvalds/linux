@@ -697,6 +697,11 @@ done:
 	return nr_reclaimed;
 }
 
+static inline int zone_is_near_oom(struct zone *zone)
+{
+	return zone->pages_scanned >= (zone->nr_active + zone->nr_inactive)*3;
+}
+
 /*
  * This moves pages from the active list to the inactive list.
  *
@@ -731,6 +736,9 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		long mapped_ratio;
 		long distress;
 		long swap_tendency;
+
+		if (zone_is_near_oom(zone))
+			goto force_reclaim_mapped;
 
 		/*
 		 * `distress' is a measure of how much trouble we're having
@@ -767,6 +775,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * memory onto the inactive list.
 		 */
 		if (swap_tendency >= 100)
+force_reclaim_mapped:
 			reclaim_mapped = 1;
 	}
 
@@ -1161,7 +1170,7 @@ scan:
 			if (zone->all_unreclaimable)
 				continue;
 			if (nr_slab == 0 && zone->pages_scanned >=
-				    (zone->nr_active + zone->nr_inactive) * 4)
+				    (zone->nr_active + zone->nr_inactive) * 6)
 				zone->all_unreclaimable = 1;
 			/*
 			 * If we've done a decent amount of scanning and
