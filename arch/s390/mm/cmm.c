@@ -16,6 +16,7 @@
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
 #include <linux/swap.h>
+#include <linux/kthread.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -46,8 +47,7 @@ static struct cmm_page_array *cmm_page_list;
 static struct cmm_page_array *cmm_timed_page_list;
 static DEFINE_SPINLOCK(cmm_lock);
 
-static unsigned long cmm_thread_active;
-static struct work_struct cmm_thread_starter;
+static struct task_struct *cmm_thread_ptr;
 static wait_queue_head_t cmm_thread_wait;
 static struct timer_list cmm_timer;
 
@@ -143,14 +143,12 @@ cmm_thread(void *dummy)
 {
 	int rc;
 
-	daemonize("cmmthread");
 	while (1) {
 		rc = wait_event_interruptible(cmm_thread_wait,
 			(cmm_pages != cmm_pages_target ||
-			 cmm_timed_pages != cmm_timed_pages_target));
-		if (rc == -ERESTARTSYS) {
-			/* Got kill signal. End thread. */
-			clear_bit(0, &cmm_thread_active);
+			 cmm_timed_pages != cmm_timed_pages_target ||
+			 kthread_should_stop()));
+		if (kthread_should_stop() || rc == -ERESTARTSYS) {
 			cmm_pages_target = cmm_pages;
 			cmm_timed_pages_target = cmm_timed_pages;
 			break;
@@ -176,16 +174,8 @@ cmm_thread(void *dummy)
 }
 
 static void
-cmm_start_thread(void)
-{
-	kernel_thread(cmm_thread, NULL, 0);
-}
-
-static void
 cmm_kick_thread(void)
 {
-	if (!test_and_set_bit(0, &cmm_thread_active))
-		schedule_work(&cmm_thread_starter);
 	wake_up(&cmm_thread_wait);
 }
 
@@ -429,22 +419,48 @@ struct ctl_table_header *cmm_sysctl_header;
 static int
 cmm_init (void)
 {
+	int rc = -ENOMEM;
+
 #ifdef CONFIG_CMM_PROC
 	cmm_sysctl_header = register_sysctl_table(cmm_dir_table, 1);
+	if (!cmm_sysctl_header)
+		goto out;
 #endif
 #ifdef CONFIG_CMM_IUCV
-	smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
+	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
+	if (rc < 0)
+		goto out_smsg;
 #endif
-	register_oom_notifier(&cmm_oom_nb);
-	INIT_WORK(&cmm_thread_starter, (void *) cmm_start_thread, NULL);
+	rc = register_oom_notifier(&cmm_oom_nb);
+	if (rc < 0)
+		goto out_oom_notify;
 	init_waitqueue_head(&cmm_thread_wait);
 	init_timer(&cmm_timer);
-	return 0;
+	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
+	rc = IS_ERR(cmm_thread_ptr) ? PTR_ERR(cmm_thread_ptr) : 0;
+	if (!rc)
+		goto out;
+	/*
+	 * kthread_create failed. undo all the stuff from above again.
+	 */
+	unregister_oom_notifier(&cmm_oom_nb);
+
+out_oom_notify:
+#ifdef CONFIG_CMM_IUCV
+	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
+out_smsg:
+#endif
+#ifdef CONFIG_CMM_PROC
+	unregister_sysctl_table(cmm_sysctl_header);
+#endif
+out:
+	return rc;
 }
 
 static void
 cmm_exit(void)
 {
+	kthread_stop(cmm_thread_ptr);
 	unregister_oom_notifier(&cmm_oom_nb);
 	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
 	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
