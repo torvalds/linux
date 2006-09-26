@@ -964,7 +964,8 @@ static inline s64
 ia64_pal_cache_read (pal_cache_line_id_u_t line_id, u64 physical_addr)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL(iprv, PAL_CACHE_READ, line_id.pclid_data, physical_addr, 0);
+	PAL_CALL_PHYS_STK(iprv, PAL_CACHE_READ, line_id.pclid_data,
+				physical_addr, 0);
 	return iprv.status;
 }
 
@@ -986,7 +987,8 @@ static inline s64
 ia64_pal_cache_write (pal_cache_line_id_u_t line_id, u64 physical_addr, u64 data)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL(iprv, PAL_CACHE_WRITE, line_id.pclid_data, physical_addr, data);
+	PAL_CALL_PHYS_STK(iprv, PAL_CACHE_WRITE, line_id.pclid_data,
+				physical_addr, data);
 	return iprv.status;
 }
 
