@@ -625,6 +625,14 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	unlazy_fpu(prev_p);
 	write_pda(kernelstack,
 		  task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
+#ifdef CONFIG_CC_STACKPROTECTOR
+	write_pda(stack_canary, next_p->stack_canary);
+	/*
+	 * Build time only check to make sure the stack_canary is at
+	 * offset 40 in the pda; this is a gcc ABI requirement
+	 */
+	BUILD_BUG_ON(offsetof(struct x8664_pda, stack_canary) != 40);
+#endif
 
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps
