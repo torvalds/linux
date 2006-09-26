@@ -490,9 +490,9 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->ss = __USER32_DS; 
 
 	set_fs(USER_DS);
-    regs->eflags &= ~TF_MASK;
-    if (test_thread_flag(TIF_SINGLESTEP))
-        ptrace_notify(SIGTRAP);
+	regs->eflags &= ~TF_MASK;
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
@@ -587,8 +587,8 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	set_fs(USER_DS);
 	regs->eflags &= ~TF_MASK;
-    if (test_thread_flag(TIF_SINGLESTEP))
-        ptrace_notify(SIGTRAP);
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
