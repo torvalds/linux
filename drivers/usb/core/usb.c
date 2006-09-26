@@ -214,10 +214,10 @@ static void usb_autosuspend_work(void *_udev)
 {
 	struct usb_device	*udev = _udev;
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	udev->auto_pm = 1;
 	usb_suspend_both(udev, PMSG_SUSPEND);
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 }
 
 #else

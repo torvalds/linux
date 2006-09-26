@@ -36,6 +36,16 @@ extern int usb_resume_both(struct usb_device *udev);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);
 
+static inline void usb_pm_lock(struct usb_device *udev)
+{
+	mutex_lock_nested(&udev->pm_mutex, udev->level);
+}
+
+static inline void usb_pm_unlock(struct usb_device *udev)
+{
+	mutex_unlock(&udev->pm_mutex);
+}
+
 #else
 
 #define usb_suspend_both(udev, msg)	0
@@ -45,6 +55,8 @@ static inline int usb_resume_both(struct usb_device *udev)
 }
 #define usb_port_suspend(dev)		0
 #define usb_port_resume(dev)		0
+static inline void usb_pm_lock(struct usb_device *udev) {}
+static inline void usb_pm_unlock(struct usb_device *udev) {}
 
 #endif
 
@@ -58,7 +70,11 @@ extern int usb_autoresume_device(struct usb_device *udev, int inc_busy_cnt);
 #else
 
 #define usb_autosuspend_device(udev, dec_busy_cnt)	do {} while (0)
-#define usb_autoresume_device(udev, inc_busy_cnt)	0
+static inline int usb_autoresume_device(struct usb_device *udev,
+		int inc_busy_cnt)
+{
+	return 0;
+}
 
 #endif
 

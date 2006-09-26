@@ -380,10 +380,10 @@ struct usb_device {
 	int maxchild;			/* Number of ports if hub */
 	struct usb_device *children[USB_MAXCHILDREN];
 
+	int pm_usage_cnt;		/* usage counter for autosuspend */
 #ifdef CONFIG_PM
 	struct work_struct autosuspend;	/* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
-	int pm_usage_cnt;		/* usage counter for autosuspend */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */

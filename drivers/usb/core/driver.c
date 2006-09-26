@@ -303,11 +303,11 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	dev->driver = &driver->drvwrap.driver;
 	usb_set_intfdata(iface, priv);
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	iface->condition = USB_INTERFACE_BOUND;
 	mark_active(iface);
 	iface->pm_usage_cnt = !(driver->supports_autosuspend);
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
@@ -356,11 +356,11 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	dev->driver = NULL;
 	usb_set_intfdata(iface, NULL);
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	iface->condition = USB_INTERFACE_UNBOUND;
 	mark_quiesced(iface);
 	iface->needs_remote_wakeup = 0;
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 }
 EXPORT_SYMBOL(usb_driver_release_interface);
 
@@ -789,7 +789,7 @@ EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
 
 #ifdef CONFIG_PM
 
-/* Caller has locked udev->pm_mutex */
+/* Caller has locked udev's pm_mutex */
 static int suspend_device(struct usb_device *udev, pm_message_t msg)
 {
 	struct usb_device_driver	*udriver;
@@ -816,7 +816,7 @@ done:
 	return status;
 }
 
-/* Caller has locked udev->pm_mutex */
+/* Caller has locked udev's pm_mutex */
 static int resume_device(struct usb_device *udev)
 {
 	struct usb_device_driver	*udriver;
@@ -842,7 +842,7 @@ done:
 	return status;
 }
 
-/* Caller has locked intf's usb_device's pm_mutex */
+/* Caller has locked intf's usb_device's pm mutex */
 static int suspend_interface(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_driver	*driver;
@@ -1064,7 +1064,7 @@ int usb_resume_both(struct usb_device *udev)
 	/* Propagate the resume up the tree, if necessary */
 	if (udev->state == USB_STATE_SUSPENDED) {
 		if (parent) {
-			mutex_lock_nested(&parent->pm_mutex, parent->level);
+			usb_pm_lock(parent);
 			parent->auto_pm = 1;
 			status = usb_resume_both(parent);
 		} else {
@@ -1079,7 +1079,7 @@ int usb_resume_both(struct usb_device *udev)
 		if (status == 0)
 			status = resume_device(udev);
 		if (parent)
-			mutex_unlock(&parent->pm_mutex);
+			usb_pm_unlock(parent);
 	} else {
 
 		/* Needed only for setting udev->dev.power.power_state.event
@@ -1129,12 +1129,12 @@ int usb_resume_both(struct usb_device *udev)
  */
 void usb_autosuspend_device(struct usb_device *udev, int dec_usage_cnt)
 {
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	udev->pm_usage_cnt -= dec_usage_cnt;
 	if (udev->pm_usage_cnt <= 0)
 		queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
 				USB_AUTOSUSPEND_DELAY);
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 	// dev_dbg(&udev->dev, "%s: cnt %d\n",
 	//		__FUNCTION__, udev->pm_usage_cnt);
 }
@@ -1168,13 +1168,13 @@ int usb_autoresume_device(struct usb_device *udev, int inc_usage_cnt)
 {
 	int	status;
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	udev->pm_usage_cnt += inc_usage_cnt;
 	udev->auto_pm = 1;
 	status = usb_resume_both(udev);
 	if (status != 0)
 		udev->pm_usage_cnt -= inc_usage_cnt;
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 	// dev_dbg(&udev->dev, "%s: status %d cnt %d\n",
 	//		__FUNCTION__, status, udev->pm_usage_cnt);
 	return status;
@@ -1215,13 +1215,13 @@ void usb_autopm_put_interface(struct usb_interface *intf)
 {
 	struct usb_device	*udev = interface_to_usbdev(intf);
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	if (intf->condition != USB_INTERFACE_UNBOUND &&
 			--intf->pm_usage_cnt <= 0) {
 		queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
 				USB_AUTOSUSPEND_DELAY);
 	}
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 	// dev_dbg(&intf->dev, "%s: cnt %d\n",
 	//		__FUNCTION__, intf->pm_usage_cnt);
 }
@@ -1263,7 +1263,7 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 	struct usb_device	*udev = interface_to_usbdev(intf);
 	int			status;
 
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	if (intf->condition == USB_INTERFACE_UNBOUND)
 		status = -ENODEV;
 	else {
@@ -1273,7 +1273,7 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 		if (status != 0)
 			--intf->pm_usage_cnt;
 	}
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 	// dev_dbg(&intf->dev, "%s: status %d cnt %d\n",
 	//		__FUNCTION__, status, intf->pm_usage_cnt);
 	return status;
@@ -1289,10 +1289,10 @@ static int usb_suspend(struct device *dev, pm_message_t message)
 	if (is_usb_device(dev)) {
 		struct usb_device *udev = to_usb_device(dev);
 
-		mutex_lock_nested(&udev->pm_mutex, udev->level);
+		usb_pm_lock(udev);
 		udev->auto_pm = 0;
 		status = usb_suspend_both(udev, message);
-		mutex_unlock(&udev->pm_mutex);
+		usb_pm_unlock(udev);
 	} else
 		status = 0;
 	return status;
@@ -1305,10 +1305,10 @@ static int usb_resume(struct device *dev)
 	if (is_usb_device(dev)) {
 		struct usb_device *udev = to_usb_device(dev);
 
-		mutex_lock_nested(&udev->pm_mutex, udev->level);
+		usb_pm_lock(udev);
 		udev->auto_pm = 0;
 		status = usb_resume_both(udev);
-		mutex_unlock(&udev->pm_mutex);
+		usb_pm_unlock(udev);
 
 		/* Rebind drivers that had no suspend method? */
 	} else
