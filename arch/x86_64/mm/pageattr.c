@@ -190,10 +190,12 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 		 * lowmem */
 		if (__pa(address) < KERNEL_TEXT_SIZE) {
 			unsigned long addr2;
-			pgprot_t prot2 = prot;
+			pgprot_t prot2;
 			addr2 = __START_KERNEL_map + __pa(address);
- 			pgprot_val(prot2) &= ~_PAGE_NX;
-			err = __change_page_attr(addr2, pfn, prot2, PAGE_KERNEL_EXEC);
+			/* Make sure the kernel mappings stay executable */
+			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
+			err = __change_page_attr(addr2, pfn, prot2,
+						 PAGE_KERNEL_EXEC);
 		} 
 	} 	
 	up_write(&init_mm.mmap_sem); 
