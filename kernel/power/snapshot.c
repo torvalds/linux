@@ -156,6 +156,58 @@ static inline int save_highmem(void) {return 0;}
 static inline int restore_highmem(void) {return 0;}
 #endif
 
+/**
+ *	@safe_needed - on resume, for storing the PBE list and the image,
+ *	we can only use memory pages that do not conflict with the pages
+ *	used before suspend.
+ *
+ *	The unsafe pages are marked with the PG_nosave_free flag
+ *	and we count them using unsafe_pages
+ */
+
+static unsigned int unsafe_pages;
+
+static void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
+{
+	void *res;
+
+	res = (void *)get_zeroed_page(gfp_mask);
+	if (safe_needed)
+		while (res && PageNosaveFree(virt_to_page(res))) {
+			/* The page is unsafe, mark it for swsusp_free() */
+			SetPageNosave(virt_to_page(res));
+			unsafe_pages++;
+			res = (void *)get_zeroed_page(gfp_mask);
+		}
+	if (res) {
+		SetPageNosave(virt_to_page(res));
+		SetPageNosaveFree(virt_to_page(res));
+	}
+	return res;
+}
+
+unsigned long get_safe_page(gfp_t gfp_mask)
+{
+	return (unsigned long)alloc_image_page(gfp_mask, 1);
+}
+
+/**
+ *	free_image_page - free page represented by @addr, allocated with
+ *	alloc_image_page (page flags set by it must be cleared)
+ */
+
+static inline void free_image_page(void *addr, int clear_nosave_free)
+{
+	ClearPageNosave(virt_to_page(addr));
+	if (clear_nosave_free)
+		ClearPageNosaveFree(virt_to_page(addr));
+	free_page((unsigned long)addr);
+}
+
+/**
+ *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ */
+
 static inline int pfn_is_nosave(unsigned long pfn)
 {
 	unsigned long nosave_begin_pfn = __pa(&__nosave_begin) >> PAGE_SHIFT;
@@ -245,7 +297,6 @@ static void copy_data_pages(struct pbe *pblist)
 	BUG_ON(pbe);
 }
 
-
 /**
  *	free_pagedir - free pages allocated with alloc_pagedir()
  */
@@ -256,10 +307,7 @@ static void free_pagedir(struct pbe *pblist, int clear_nosave_free)
 
 	while (pblist) {
 		pbe = (pblist + PB_PAGE_SKIP)->next;
-		ClearPageNosave(virt_to_page(pblist));
-		if (clear_nosave_free)
-			ClearPageNosaveFree(virt_to_page(pblist));
-		free_page((unsigned long)pblist);
+		free_image_page(pblist, clear_nosave_free);
 		pblist = pbe;
 	}
 }
@@ -301,41 +349,6 @@ static inline void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 			p->next = p + 1;
 		p->next = NULL;
 	}
-}
-
-static unsigned int unsafe_pages;
-
-/**
- *	@safe_needed - on resume, for storing the PBE list and the image,
- *	we can only use memory pages that do not conflict with the pages
- *	used before suspend.
- *
- *	The unsafe pages are marked with the PG_nosave_free flag
- *	and we count them using unsafe_pages
- */
-
-static void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
-{
-	void *res;
-
-	res = (void *)get_zeroed_page(gfp_mask);
-	if (safe_needed)
-		while (res && PageNosaveFree(virt_to_page(res))) {
-			/* The page is unsafe, mark it for swsusp_free() */
-			SetPageNosave(virt_to_page(res));
-			unsafe_pages++;
-			res = (void *)get_zeroed_page(gfp_mask);
-		}
-	if (res) {
-		SetPageNosave(virt_to_page(res));
-		SetPageNosaveFree(virt_to_page(res));
-	}
-	return res;
-}
-
-unsigned long get_safe_page(gfp_t gfp_mask)
-{
-	return (unsigned long)alloc_image_page(gfp_mask, 1);
 }
 
 /**
