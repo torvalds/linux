@@ -780,7 +780,7 @@ asmlinkage long sys32_mmap2(unsigned long addr, unsigned long len,
 
 asmlinkage long sys32_olduname(struct oldold_utsname __user * name)
 {
-	int error;
+	int err;
 
 	if (!name)
 		return -EFAULT;
@@ -789,27 +789,31 @@ asmlinkage long sys32_olduname(struct oldold_utsname __user * name)
   
   	down_read(&uts_sem);
 	
-	error = __copy_to_user(&name->sysname,&system_utsname.sysname,__OLD_UTS_LEN);
-	 __put_user(0,name->sysname+__OLD_UTS_LEN);
-	 __copy_to_user(&name->nodename,&system_utsname.nodename,__OLD_UTS_LEN);
-	 __put_user(0,name->nodename+__OLD_UTS_LEN);
-	 __copy_to_user(&name->release,&system_utsname.release,__OLD_UTS_LEN);
-	 __put_user(0,name->release+__OLD_UTS_LEN);
-	 __copy_to_user(&name->version,&system_utsname.version,__OLD_UTS_LEN);
-	 __put_user(0,name->version+__OLD_UTS_LEN);
+	err = __copy_to_user(&name->sysname,&system_utsname.sysname,
+				__OLD_UTS_LEN);
+	err |= __put_user(0,name->sysname+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->nodename,&system_utsname.nodename,
+				__OLD_UTS_LEN);
+	err |= __put_user(0,name->nodename+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->release,&system_utsname.release,
+				__OLD_UTS_LEN);
+	err |= __put_user(0,name->release+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->version,&system_utsname.version,
+				__OLD_UTS_LEN);
+	err |= __put_user(0,name->version+__OLD_UTS_LEN);
 	 { 
 		 char *arch = "x86_64";
 		 if (personality(current->personality) == PER_LINUX32)
 			 arch = "i686";
 		 
-		 __copy_to_user(&name->machine,arch,strlen(arch)+1);
+		 err |= __copy_to_user(&name->machine,arch,strlen(arch)+1);
 	 }
 	
 	 up_read(&uts_sem);
 	 
-	 error = error ? -EFAULT : 0;
+	 err = err ? -EFAULT : 0;
 	 
-	 return error;
+	 return err;
 }
 
 long sys32_uname(struct old_utsname __user * name)
