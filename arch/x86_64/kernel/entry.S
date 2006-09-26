@@ -519,7 +519,12 @@ END(stub_rt_sigreturn)
 	testl $3,CS(%rdi)
 	je 1f
 	swapgs	
-1:	incl	%gs:pda_irqcount	# RED-PEN should check preempt count
+	/* irqcount is used to check if a CPU is already on an interrupt
+	   stack or not. While this is essentially redundant with preempt_count
+	   it is a little cheaper to use a separate counter in the PDA
+	   (short of moving irq_enter into assembly, which would be too
+	    much work) */
+1:	incl	%gs:pda_irqcount
 	cmoveq %gs:pda_irqstackptr,%rsp
 	push    %rbp			# backlink for old unwinder
 	/*
