@@ -57,14 +57,6 @@ static inline int software_suspend(void)
 }
 #endif /* CONFIG_PM */
 
-#ifdef CONFIG_SUSPEND_SMP
-extern void disable_nonboot_cpus(void);
-extern void enable_nonboot_cpus(void);
-#else
-static inline void disable_nonboot_cpus(void) {}
-static inline void enable_nonboot_cpus(void) {}
-#endif
-
 void save_processor_state(void);
 void restore_processor_state(void);
 struct saved_context;
