@@ -121,7 +121,10 @@ void pda_init(int cpu)
 
 	/* Setup up data that may be needed in __get_free_pages early */
 	asm volatile("movl %0,%%fs ; movl %0,%%gs" :: "r" (0)); 
+	/* Memory clobbers used to order PDA accessed */
+	mb();
 	wrmsrl(MSR_GS_BASE, pda);
+	mb();
 
 	pda->cpunumber = cpu; 
 	pda->irqcount = -1;

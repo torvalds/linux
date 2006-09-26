@@ -36,40 +36,43 @@ extern struct x8664_pda boot_cpu_pda[];
  * There is no fast way to get the base address of the PDA, all the accesses
  * have to mention %fs/%gs.  So it needs to be done this Torvaldian way.
  */ 
-#define sizeof_field(type,field)  (sizeof(((type *)0)->field))
-#define typeof_field(type,field)  typeof(((type *)0)->field)
-
 extern void __bad_pda_field(void);
+
+/* proxy_pda doesn't actually exist, but tell gcc it is accessed
+   for all PDA accesses so it gets read/write dependencies right. */
+extern struct x8664_pda _proxy_pda;
 
 #define pda_offset(field) offsetof(struct x8664_pda, field)
 
 #define pda_to_op(op,field,val) do { \
-	typedef typeof_field(struct x8664_pda, field) T__; \
-       switch (sizeof_field(struct x8664_pda, field)) { 		\
+	typedef typeof(_proxy_pda.field) T__; \
+       switch (sizeof(_proxy_pda.field)) { 		\
 case 2: \
-asm volatile(op "w %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
+asm(op "w %1,%%gs:%P2" : "+m" (_proxy_pda.field) : \
+	"ri" ((T__)val),"i"(pda_offset(field))); break; \
 case 4: \
-asm volatile(op "l %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
+asm(op "l %1,%%gs:%P2" : "+m" (_proxy_pda.field) : \
+	"ri" ((T__)val),"i"(pda_offset(field))); break; \
 case 8: \
-asm volatile(op "q %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
-       default: __bad_pda_field(); 					\
+asm(op "q %1,%%gs:%P2": "+m" (_proxy_pda.field) : \
+	 "ri" ((T__)val),"i"(pda_offset(field))); break; \
+default: __bad_pda_field(); 					\
        } \
        } while (0)
 
-/* 
- * AK: PDA read accesses should be neither volatile nor have an memory clobber.
- * Unfortunately removing them causes all hell to break lose currently.
- */
 #define pda_from_op(op,field) ({ \
-       typeof_field(struct x8664_pda, field) ret__; \
-       switch (sizeof_field(struct x8664_pda, field)) { 		\
+       typeof(_proxy_pda.field) ret__; \
+       switch (sizeof(_proxy_pda.field)) { 		\
 case 2: \
-asm volatile(op "w %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
+asm(op "w %%gs:%P1,%0":"=r" (ret__):\
+	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
 case 4: \
-asm volatile(op "l %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
+asm(op "l %%gs:%P1,%0":"=r" (ret__):\
+	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
 case 8: \
-asm volatile(op "q %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
-       default: __bad_pda_field(); 					\
+asm(op "q %%gs:%P1,%0":"=r" (ret__):\
+	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
+default: __bad_pda_field(); 					\
        } \
        ret__; })
 
