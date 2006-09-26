@@ -26,6 +26,7 @@
 #include <asm/proto.h>
 #include <asm/kdebug.h>
 #include <asm/mce.h>
+#include <asm/intel_arch_perfmon.h>
 
 /* perfctr_nmi_owner tracks the ownership of the perfctr registers:
  * evtsel_nmi_owner tracks the ownership of the event selection
@@ -73,7 +74,10 @@ static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
 	case X86_VENDOR_AMD:
 		return (msr - MSR_K7_PERFCTR0);
 	case X86_VENDOR_INTEL:
-		return (msr - MSR_P4_BPU_PERFCTR0);
+		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+			return (msr - MSR_ARCH_PERFMON_PERFCTR0);
+		else
+			return (msr - MSR_P4_BPU_PERFCTR0);
 	}
 	return 0;
 }
@@ -86,7 +90,10 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 	case X86_VENDOR_AMD:
 		return (msr - MSR_K7_EVNTSEL0);
 	case X86_VENDOR_INTEL:
-		return (msr - MSR_P4_BSU_ESCR0);
+		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+			return (msr - MSR_ARCH_PERFMON_EVENTSEL0);
+		else
+			return (msr - MSR_P4_BSU_ESCR0);
 	}
 	return 0;
 }
@@ -160,7 +167,10 @@ static __cpuinit inline int nmi_known_cpu(void)
 	case X86_VENDOR_AMD:
 		return boot_cpu_data.x86 == 15;
 	case X86_VENDOR_INTEL:
-		return boot_cpu_data.x86 == 15;
+		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+			return 1;
+		else
+			return (boot_cpu_data.x86 == 15);
 	}
 	return 0;
 }
@@ -246,8 +256,22 @@ int __init check_nmi_watchdog (void)
 
 	/* now that we know it works we can reduce NMI frequency to
 	   something more reasonable; makes a difference in some configs */
-	if (nmi_watchdog == NMI_LOCAL_APIC)
+	if (nmi_watchdog == NMI_LOCAL_APIC) {
+		struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
+
 		nmi_hz = 1;
+		/*
+		 * On Intel CPUs with ARCH_PERFMON only 32 bits in the counter
+		 * are writable, with higher bits sign extending from bit 31.
+		 * So, we can only program the counter with 31 bit values and
+		 * 32nd bit should be 1, for 33.. to be 1.
+		 * Find the appropriate nmi_hz
+		 */
+	 	if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0 &&
+			((u64)cpu_khz * 1000) > 0x7fffffffULL) {
+			nmi_hz = ((u64)cpu_khz * 1000) / 0x7fffffffUL + 1;
+		}
+	}
 
 	kfree(counts);
 	return 0;
@@ -563,6 +587,87 @@ static void stop_p4_watchdog(void)
 	release_perfctr_nmi(wd->perfctr_msr);
 }
 
+#define ARCH_PERFMON_NMI_EVENT_SEL	ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL
+#define ARCH_PERFMON_NMI_EVENT_UMASK	ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK
+
+static int setup_intel_arch_watchdog(void)
+{
+	unsigned int ebx;
+	union cpuid10_eax eax;
+	unsigned int unused;
+	unsigned int perfctr_msr, evntsel_msr;
+	unsigned int evntsel;
+	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
+
+	/*
+	 * Check whether the Architectural PerfMon supports
+	 * Unhalted Core Cycles Event or not.
+	 * NOTE: Corresponding bit = 0 in ebx indicates event present.
+	 */
+	cpuid(10, &(eax.full), &ebx, &unused, &unused);
+	if ((eax.split.mask_length < (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX+1)) ||
+	    (ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
+		goto fail;
+
+	perfctr_msr = MSR_ARCH_PERFMON_PERFCTR0;
+	evntsel_msr = MSR_ARCH_PERFMON_EVENTSEL0;
+
+	if (!reserve_perfctr_nmi(perfctr_msr))
+		goto fail;
+
+	if (!reserve_evntsel_nmi(evntsel_msr))
+		goto fail1;
+
+	wrmsrl(perfctr_msr, 0UL);
+
+	evntsel = ARCH_PERFMON_EVENTSEL_INT
+		| ARCH_PERFMON_EVENTSEL_OS
+		| ARCH_PERFMON_EVENTSEL_USR
+		| ARCH_PERFMON_NMI_EVENT_SEL
+		| ARCH_PERFMON_NMI_EVENT_UMASK;
+
+	/* setup the timer */
+	wrmsr(evntsel_msr, evntsel, 0);
+	wrmsrl(perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
+
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+	wrmsr(evntsel_msr, evntsel, 0);
+
+	wd->perfctr_msr = perfctr_msr;
+	wd->evntsel_msr = evntsel_msr;
+	wd->cccr_msr = 0;  //unused
+	wd->check_bit = 1ULL << (eax.split.bit_width - 1);
+	return 1;
+fail1:
+	release_perfctr_nmi(perfctr_msr);
+fail:
+	return 0;
+}
+
+static void stop_intel_arch_watchdog(void)
+{
+	unsigned int ebx;
+	union cpuid10_eax eax;
+	unsigned int unused;
+	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
+
+	/*
+	 * Check whether the Architectural PerfMon supports
+	 * Unhalted Core Cycles Event or not.
+	 * NOTE: Corresponding bit = 0 in ebx indicates event present.
+	 */
+	cpuid(10, &(eax.full), &ebx, &unused, &unused);
+	if ((eax.split.mask_length < (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX+1)) ||
+	    (ebx & ARCH_PERFMON_UNHALTED_CORE_CYCLES_PRESENT))
+		return;
+
+	wrmsr(wd->evntsel_msr, 0, 0);
+
+	release_evntsel_nmi(wd->evntsel_msr);
+	release_perfctr_nmi(wd->perfctr_msr);
+}
+
 void setup_apic_nmi_watchdog(void *unused)
 {
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
@@ -589,6 +694,11 @@ void setup_apic_nmi_watchdog(void *unused)
 				return;
 			break;
 		case X86_VENDOR_INTEL:
+			if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
+				if (!setup_intel_arch_watchdog())
+					return;
+				break;
+			}
 			if (!setup_p4_watchdog())
 				return;
 			break;
@@ -620,6 +730,10 @@ void stop_apic_nmi_watchdog(void *unused)
 			stop_k7_watchdog();
 			break;
 		case X86_VENDOR_INTEL:
+			if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
+				stop_intel_arch_watchdog();
+				break;
+			}
 			stop_p4_watchdog();
 			break;
 		default:
@@ -724,7 +838,13 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 				dummy &= ~P4_CCCR_OVF;
 	 			wrmsrl(wd->cccr_msr, dummy);
 	 			apic_write(APIC_LVTPC, APIC_DM_NMI);
-	 		}
+	 		} else if (wd->perfctr_msr == MSR_ARCH_PERFMON_PERFCTR0) {
+				/*
+				 * ArchPerfom/Core Duo needs to re-unmask
+				 * the apic vector
+				 */
+				apic_write(APIC_LVTPC, APIC_DM_NMI);
+			}
 			/* start the cycle over again */
 			wrmsrl(wd->perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
 			rc = 1;
