@@ -133,13 +133,19 @@ static __inline int logical_smp_processor_id(void)
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(unsigned long *)(APIC_BASE+APIC_LDR));
 }
-#endif
 
 #ifdef CONFIG_SMP
 #define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
 #else
 #define cpu_physical_id(cpu)		boot_cpu_id
-#endif
-
+static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
+				void *info, int retry, int wait)
+{
+	/* Disable interrupts here? */
+	func(info);
+	return 0;
+}
+#endif /* !CONFIG_SMP */
+#endif /* !__ASSEMBLY */
 #endif
 

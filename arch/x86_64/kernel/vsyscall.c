@@ -26,6 +26,7 @@
 #include <linux/seqlock.h>
 #include <linux/jiffies.h>
 #include <linux/sysctl.h>
+#include <linux/getcpu.h>
 
 #include <asm/vsyscall.h>
 #include <asm/pgtable.h>
@@ -33,11 +34,15 @@
 #include <asm/fixmap.h>
 #include <asm/errno.h>
 #include <asm/io.h>
+#include <asm/segment.h>
+#include <asm/desc.h>
+#include <asm/topology.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
 
 int __sysctl_vsyscall __section_sysctl_vsyscall = 1;
 seqlock_t __xtime_lock __section_xtime_lock = SEQLOCK_UNLOCKED;
+int __vgetcpu_mode __section_vgetcpu_mode;
 
 #include <asm/unistd.h>
 
@@ -127,9 +132,46 @@ time_t __vsyscall(1) vtime(time_t *t)
 	return __xtime.tv_sec;
 }
 
-long __vsyscall(2) venosys_0(void)
+/* Fast way to get current CPU and node.
+   This helps to do per node and per CPU caches in user space.
+   The result is not guaranteed without CPU affinity, but usually
+   works out because the scheduler tries to keep a thread on the same
+   CPU.
+
+   tcache must point to a two element sized long array.
+   All arguments can be NULL. */
+long __vsyscall(2)
+vgetcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
 {
-	return -ENOSYS;
+	unsigned int dummy, p;
+	unsigned long j = 0;
+
+	/* Fast cache - only recompute value once per jiffies and avoid
+	   relatively costly rdtscp/cpuid otherwise.
+	   This works because the scheduler usually keeps the process
+	   on the same CPU and this syscall doesn't guarantee its
+	   results anyways.
+	   We do this here because otherwise user space would do it on
+	   its own in a likely inferior way (no access to jiffies).
+	   If you don't like it pass NULL. */
+	if (tcache && tcache->t0 == (j = __jiffies)) {
+		p = tcache->t1;
+	} else if (__vgetcpu_mode == VGETCPU_RDTSCP) {
+		/* Load per CPU data from RDTSCP */
+		rdtscp(dummy, dummy, p);
+	} else {
+		/* Load per CPU data from GDT */
+		asm("lsl %1,%0" : "=r" (p) : "r" (__PER_CPU_SEG));
+	}
+	if (tcache) {
+		tcache->t0 = j;
+		tcache->t1 = p;
+	}
+	if (cpu)
+		*cpu = p & 0xfff;
+	if (node)
+		*node = p >> 12;
+	return 0;
 }
 
 long __vsyscall(3) venosys_1(void)
@@ -200,6 +242,43 @@ static ctl_table kernel_root_table2[] = {
 
 #endif
 
+static void __cpuinit write_rdtscp_cb(void *info)
+{
+	write_rdtscp_aux((unsigned long)info);
+}
+
+void __cpuinit vsyscall_set_cpu(int cpu)
+{
+	unsigned long *d;
+	unsigned long node = 0;
+#ifdef CONFIG_NUMA
+	node = cpu_to_node[cpu];
+#endif
+	if (cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP)) {
+		void *info = (void *)((node << 12) | cpu);
+		/* Can happen on preemptive kernel */
+		if (get_cpu() == cpu)
+			write_rdtscp_cb(info);
+#ifdef CONFIG_SMP
+		else {
+			/* the notifier is unfortunately not executed on the
+			   target CPU */
+			smp_call_function_single(cpu,write_rdtscp_cb,info,0,1);
+		}
+#endif
+		put_cpu();
+	}
+
+	/* Store cpu number in limit so that it can be loaded quickly
+	   in user space in vgetcpu.
+	   12 bits for the CPU and 8 bits for the node. */
+	d = (unsigned long *)(cpu_gdt(cpu) + GDT_ENTRY_PER_CPU);
+	*d = 0x0f40000000000ULL;
+	*d |= cpu;
+	*d |= (node & 0xf) << 12;
+	*d |= (node >> 4) << 48;
+}
+
 static void __init map_vsyscall(void)
 {
 	extern char __vsyscall_0;
@@ -214,6 +293,7 @@ static int __init vsyscall_init(void)
 			VSYSCALL_ADDR(__NR_vgettimeofday)));
 	BUG_ON((unsigned long) &vtime != VSYSCALL_ADDR(__NR_vtime));
 	BUG_ON((VSYSCALL_ADDR(0) != __fix_to_virt(VSYSCALL_FIRST_PAGE)));
+	BUG_ON((unsigned long) &vgetcpu != VSYSCALL_ADDR(__NR_vgetcpu));
 	map_vsyscall();
 #ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2, 0);

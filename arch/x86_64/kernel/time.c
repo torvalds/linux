@@ -899,12 +899,8 @@ static int __cpuinit
 time_cpu_notifier(struct notifier_block *nb, unsigned long action, void *hcpu)
 {
 	unsigned cpu = (unsigned long) hcpu;
-	if (action == CPU_ONLINE &&
-		cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP)) {
-		unsigned p;
-		p = smp_processor_id() | (cpu_to_node(smp_processor_id())<<12);
-		write_rdtscp_aux(p);
-	}
+	if (action == CPU_ONLINE)
+		vsyscall_set_cpu(cpu);
 	return NOTIFY_DONE;
 }
 
@@ -992,6 +988,11 @@ void time_init_gtod(void)
 
 	if (unsynchronized_tsc())
 		notsc = 1;
+
+ 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
+		vgetcpu_mode = VGETCPU_RDTSCP;
+	else
+		vgetcpu_mode = VGETCPU_LSL;
 
 	if (vxtime.hpet_address && notsc) {
 		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";

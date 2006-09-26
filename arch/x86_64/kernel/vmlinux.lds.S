@@ -99,6 +99,9 @@ SECTIONS
   .vxtime : AT(VLOAD(.vxtime)) { *(.vxtime) }
   vxtime = VVIRT(.vxtime);
 
+  .vgetcpu_mode : AT(VLOAD(.vgetcpu_mode)) { *(.vgetcpu_mode) }
+  vgetcpu_mode = VVIRT(.vgetcpu_mode);
+
   .wall_jiffies : AT(VLOAD(.wall_jiffies)) { *(.wall_jiffies) }
   wall_jiffies = VVIRT(.wall_jiffies);
 
