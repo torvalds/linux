@@ -46,7 +46,7 @@ static inline void pack_descriptor(__u32 *a, __u32 *b,
 {
 	*a = ((base & 0xffff) << 16) | (limit & 0xffff);
 	*b = (base & 0xff000000) | ((base & 0xff0000) >> 16) |
-	     ((type & 0xff) << 8) | ((flags & 0xf) << 12);
+		(limit & 0x000f0000) | ((type & 0xff) << 8) | ((flags & 0xf) << 20);
 }
 
 static inline void pack_gate(__u32 *a, __u32 *b,
