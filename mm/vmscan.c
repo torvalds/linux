@@ -1566,6 +1566,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		.gfp_mask = gfp_mask,
 		.swappiness = vm_swappiness,
 	};
+	unsigned long slab_reclaimable;
 
 	disable_swap_token();
 	cond_resched();
@@ -1592,7 +1593,8 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		} while (priority >= 0 && nr_reclaimed < nr_pages);
 	}
 
-	if (zone_page_state(zone, NR_SLAB_RECLAIMABLE) > zone->min_slab_pages) {
+	slab_reclaimable = zone_page_state(zone, NR_SLAB_RECLAIMABLE);
+	if (slab_reclaimable > zone->min_slab_pages) {
 		/*
 		 * shrink_slab() does not currently allow us to determine how
 		 * many pages were freed in this zone. So we take the current
@@ -1603,12 +1605,17 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		 * Note that shrink_slab will free memory on all zones and may
 		 * take a long time.
 		 */
-		unsigned long limit = zone_page_state(zone,
-				NR_SLAB_RECLAIMABLE) - nr_pages;
-
 		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
-			zone_page_state(zone, NR_SLAB_RECLAIMABLE) > limit)
+			zone_page_state(zone, NR_SLAB_RECLAIMABLE) >
+				slab_reclaimable - nr_pages)
 			;
+
+		/*
+		 * Update nr_reclaimed by the number of slab pages we
+		 * reclaimed from this zone.
+		 */
+		nr_reclaimed += slab_reclaimable -
+			zone_page_state(zone, NR_SLAB_RECLAIMABLE);
 	}
 
 	p->reclaim_state = NULL;
