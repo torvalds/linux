@@ -113,12 +113,15 @@ static void register_timer(void)
 
 	err = request_irq(TIMER_IRQ, um_timer, IRQF_DISABLED, "timer", NULL);
 	if(err != 0)
-		printk(KERN_ERR "timer_init : request_irq failed - "
+		printk(KERN_ERR "register_timer : request_irq failed - "
 		       "errno = %d\n", -err);
 
 	timer_irq_inited = 1;
 
-	user_time_init();
+	err = set_interval(1);
+	if(err != 0)
+		printk(KERN_ERR "register_timer : set_interval failed - "
+		       "errno = %d\n", -err);
 }
 
 extern void (*late_time_init)(void);

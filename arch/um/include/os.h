@@ -276,9 +276,11 @@ extern int setjmp_wrapper(void (*proc)(void *, void *), ...);
 
 extern void switch_timers(int to_real);
 extern void idle_sleep(int secs);
+extern int set_interval(int is_virtual);
+#ifdef CONFIG_MODE_TT
 extern void enable_timer(void);
+#endif
 extern void disable_timer(void);
-extern void user_time_init(void);
 extern void uml_idle_timer(void);
 extern unsigned long long os_nsecs(void);
 

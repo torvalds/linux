@@ -155,11 +155,15 @@ extern int __syscall_stub_start;
 static int userspace_tramp(void *stack)
 {
 	void *addr;
+	int err;
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
 	init_new_thread_signals();
-	enable_timer();
+	err = set_interval(1);
+	if(err)
+		panic("userspace_tramp - setting timer failed, errno = %d\n",
+		      err);
 
 	if(!proc_mm){
 		/* This has a pte, but it can't be mapped in with the usual
