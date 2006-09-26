@@ -276,6 +276,7 @@ static void set_rtc_mmss(unsigned long nowtime)
  *		Note: This function is required to return accurate
  *		time even in the absence of multiple timer ticks.
  */
+static inline unsigned long long cycles_2_ns(unsigned long long cyc);
 unsigned long long monotonic_clock(void)
 {
 	unsigned long seq;
@@ -300,8 +301,7 @@ unsigned long long monotonic_clock(void)
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
 		this_offset = get_cycles_sync();
-		/* FIXME: 1000 or 1000000? */
-		offset = (this_offset - last_offset)*1000 / cpu_khz;
+		offset = cycles_2_ns(this_offset - last_offset);
 	}
 	return base + offset;
 }
@@ -405,8 +405,7 @@ void main_timer_handler(struct pt_regs *regs)
 			offset %= USEC_PER_TICK;
 		}
 
-		/* FIXME: 1000 or 1000000? */
-		monotonic_base += (tsc - vxtime.last_tsc) * 1000000 / cpu_khz;
+		monotonic_base += cycles_2_ns(tsc - vxtime.last_tsc);
 
 		vxtime.last_tsc = tsc - vxtime.quot * delay / vxtime.tsc_quot;
 
@@ -929,10 +928,8 @@ void __init time_init(void)
 	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
 	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
 	vxtime.last_tsc = get_cycles_sync();
-	setup_irq(0, &irq0);
-
 	set_cyc2ns_scale(cpu_khz);
-
+	setup_irq(0, &irq0);
 	hotcpu_notifier(time_cpu_notifier, 0);
 	time_cpu_notifier(NULL, CPU_ONLINE, (void *)(long)smp_processor_id());
 
