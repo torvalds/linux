@@ -97,19 +97,8 @@ int show_interrupts(struct seq_file *p, void *v)
 /*
  * on-CPU PIC operations
  */
-static void frv_cpupic_enable(unsigned int irqlevel)
-{
-	__clr_MASK(irqlevel);
-}
-
-static void frv_cpupic_disable(unsigned int irqlevel)
-{
-	__set_MASK(irqlevel);
-}
-
 static void frv_cpupic_ack(unsigned int irqlevel)
 {
-	__set_MASK(irqlevel);
 	__clr_RC(irqlevel);
 	__clr_IRL();
 }
@@ -138,8 +127,6 @@ static void frv_cpupic_end(unsigned int irqlevel)
 
 static struct irq_chip frv_cpu_pic = {
 	.name		= "cpu",
-	.enable		= frv_cpupic_enable,
-	.disable	= frv_cpupic_disable,
 	.ack		= frv_cpupic_ack,
 	.mask		= frv_cpupic_mask,
 	.mask_ack	= frv_cpupic_mask_ack,
@@ -156,7 +143,7 @@ static struct irq_chip frv_cpu_pic = {
 asmlinkage void do_IRQ(void)
 {
 	irq_enter();
-	__do_IRQ(__get_IRL(), __frame);
+	generic_handle_irq(__get_IRL(), __frame);
 	irq_exit();
 }
 

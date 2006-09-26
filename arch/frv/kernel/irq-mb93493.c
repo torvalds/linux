@@ -43,23 +43,9 @@
 
 /*
  * daughter board PIC operations
+ * - there is no way to ACK interrupts in the MB93493 chip
  */
-static void frv_mb93493_enable(unsigned int irq)
-{
-	uint32_t iqsr;
-	volatile void *piqsr;
-
-	if (IRQ_ROUTING & (1 << (irq - IRQ_BASE_MB93493)))
-		piqsr = __addr_MB93493_IQSR(1);
-	else
-		piqsr = __addr_MB93493_IQSR(0);
-
-	iqsr = readl(piqsr);
-	iqsr |= 1 << (irq - IRQ_BASE_MB93493 + 16);
-	writel(iqsr, piqsr);
-}
-
-static void frv_mb93493_disable(unsigned int irq)
+static void frv_mb93493_mask(unsigned int irq)
 {
 	uint32_t iqsr;
 	volatile void *piqsr;
@@ -78,18 +64,27 @@ static void frv_mb93493_ack(unsigned int irq)
 {
 }
 
-static void frv_mb93493_end(unsigned int irq)
+static void frv_mb93493_unmask(unsigned int irq)
 {
+	uint32_t iqsr;
+	volatile void *piqsr;
+
+	if (IRQ_ROUTING & (1 << (irq - IRQ_BASE_MB93493)))
+		piqsr = __addr_MB93493_IQSR(1);
+	else
+		piqsr = __addr_MB93493_IQSR(0);
+
+	iqsr = readl(piqsr);
+	iqsr |= 1 << (irq - IRQ_BASE_MB93493 + 16);
+	writel(iqsr, piqsr);
 }
 
 static struct irq_chip frv_mb93493_pic = {
 	.name		= "mb93093",
-	.enable		= frv_mb93493_enable,
-	.disable	= frv_mb93493_disable,
 	.ack		= frv_mb93493_ack,
-	.mask		= frv_mb93493_disable,
-	.unmask		= frv_mb93493_enable,
-	.end		= frv_mb93493_end,
+	.mask		= frv_mb93493_mask,
+	.mask_ack	= frv_mb93493_mask,
+	.unmask		= frv_mb93493_unmask,
 };
 
 /*
@@ -98,7 +93,6 @@ static struct irq_chip frv_mb93493_pic = {
 static irqreturn_t mb93493_interrupt(int irq, void *_piqsr, struct pt_regs *regs)
 {
 	volatile void *piqsr = _piqsr;
-	irqreturn_t iret = 0;
 	uint32_t iqsr;
 
 	iqsr = readl(piqsr);
@@ -112,11 +106,10 @@ static irqreturn_t mb93493_interrupt(int irq, void *_piqsr, struct pt_regs *regs
 		irq = 31 - irq;
 		iqsr &= ~(1 << irq);
 
-		if (__do_IRQ(IRQ_BASE_MB93493 + irq, regs))
-			iret |= IRQ_HANDLED;
+		generic_handle_irq(IRQ_BASE_MB93493 + irq, regs);
 	}
 
-	return iret;
+	return IRQ_HANDLED;
 }
 
 /*

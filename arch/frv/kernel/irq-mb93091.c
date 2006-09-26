@@ -36,16 +36,7 @@
 /*
  * on-motherboard FPGA PIC operations
  */
-static void frv_fpga_enable(unsigned int irq)
-{
-	uint16_t imr = __get_IMR();
-
-	imr &= ~(1 << (irq - IRQ_BASE_FPGA));
-
-	__set_IMR(imr);
-}
-
-static void frv_fpga_disable(unsigned int irq)
+static void frv_fpga_mask(unsigned int irq)
 {
 	uint16_t imr = __get_IMR();
 
@@ -59,18 +50,31 @@ static void frv_fpga_ack(unsigned int irq)
 	__clr_IFR(1 << (irq - IRQ_BASE_FPGA));
 }
 
-static void frv_fpga_end(unsigned int irq)
+static void frv_fpga_mask_ack(unsigned int irq)
 {
+	uint16_t imr = __get_IMR();
+
+	imr |= 1 << (irq - IRQ_BASE_FPGA);
+	__set_IMR(imr);
+
+	__clr_IFR(1 << (irq - IRQ_BASE_FPGA));
+}
+
+static void frv_fpga_unmask(unsigned int irq)
+{
+	uint16_t imr = __get_IMR();
+
+	imr &= ~(1 << (irq - IRQ_BASE_FPGA));
+
+	__set_IMR(imr);
 }
 
 static struct irq_chip frv_fpga_pic = {
 	.name		= "mb93091",
-	.enable		= frv_fpga_enable,
-	.disable	= frv_fpga_disable,
 	.ack		= frv_fpga_ack,
-	.mask		= frv_fpga_disable,
-	.unmask		= frv_fpga_enable,
-	.end		= frv_fpga_end,
+	.mask		= frv_fpga_mask,
+	.mask_ack	= frv_fpga_mask_ack,
+	.unmask		= frv_fpga_unmask,
 };
 
 /*
@@ -79,7 +83,6 @@ static struct irq_chip frv_fpga_pic = {
 static irqreturn_t fpga_interrupt(int irq, void *_mask, struct pt_regs *regs)
 {
 	uint16_t imr, mask = (unsigned long) _mask;
-	irqreturn_t iret = 0;
 
 	imr = __get_IMR();
 	mask = mask & ~imr & __get_IFR();
@@ -92,11 +95,10 @@ static irqreturn_t fpga_interrupt(int irq, void *_mask, struct pt_regs *regs)
 		irq = 31 - irq;
 		mask &= ~(1 << irq);
 
-		if (__do_IRQ(IRQ_BASE_FPGA + irq, regs))
-			iret |= IRQ_HANDLED;
+		generic_handle_irq(IRQ_BASE_FPGA + irq, regs);
 	}
 
-	return iret;
+	return IRQ_HANDLED;
 }
 
 /*
