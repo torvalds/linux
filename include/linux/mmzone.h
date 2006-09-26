@@ -109,12 +109,14 @@ enum zone_type {
 	 * 			<16M.
 	 */
 	ZONE_DMA,
+#ifdef CONFIG_ZONE_DMA32
 	/*
 	 * x86_64 needs two ZONE_DMAs because it supports devices that are
 	 * only able to do DMA to the lower 16M but also 32 bit devices that
 	 * can only do DMA areas below 4G.
 	 */
 	ZONE_DMA32,
+#endif
 	/*
 	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
 	 * performed on pages in ZONE_NORMAL if the DMA devices support
@@ -161,9 +163,13 @@ enum zone_type {
  *
  * NOTE! Make sure this matches the zones in <linux/gfp.h>
  */
-#define GFP_ZONEMASK	0x07
-/* #define GFP_ZONETYPES       (GFP_ZONEMASK + 1) */           /* Non-loner */
-#define GFP_ZONETYPES  ((GFP_ZONEMASK + 1) / 2 + 1)            /* Loner */
+#define GFP_ZONETYPES		((GFP_ZONEMASK + 1) / 2 + 1)    /* Loner */
+
+#ifdef CONFIG_ZONE_DMA32
+#define GFP_ZONEMASK		0x07
+#else
+#define GFP_ZONEMASK		0x03
+#endif
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
@@ -429,7 +435,11 @@ static inline int is_normal(struct zone *zone)
 
 static inline int is_dma32(struct zone *zone)
 {
+#ifdef CONFIG_ZONE_DMA32
 	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
+#else
+	return 0;
+#endif
 }
 
 static inline int is_dma(struct zone *zone)

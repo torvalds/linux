@@ -124,12 +124,10 @@ static inline unsigned long node_page_state(int node,
 	struct zone *zones = NODE_DATA(node)->node_zones;
 
 	return
-#ifndef CONFIG_DMA_IS_NORMAL
-#if !defined(CONFIG_DMA_IS_DMA32) && BITS_PER_LONG >= 64
+#ifdef CONFIG_ZONE_DMA32
 		zone_page_state(&zones[ZONE_DMA32], item) +
 #endif
 		zone_page_state(&zones[ZONE_NORMAL], item) +
-#endif
 #ifdef CONFIG_HIGHMEM
 		zone_page_state(&zones[ZONE_HIGHMEM], item) +
 #endif

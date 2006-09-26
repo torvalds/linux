@@ -24,6 +24,10 @@ config X86
 	bool
 	default y
 
+config ZONE_DMA32
+	bool
+	default y
+
 config LOCKDEP_SUPPORT
 	bool
 	default y

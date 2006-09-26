@@ -70,7 +70,9 @@ static void __free_pages_ok(struct page *page, unsigned int order);
  */
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
 	 256,
+#ifdef CONFIG_ZONE_DMA32
 	 256,
+#endif
 	 32
 };
 
@@ -85,7 +87,9 @@ EXPORT_SYMBOL(zone_table);
 
 static char *zone_names[MAX_NR_ZONES] = {
 	 "DMA",
+#ifdef CONFIG_ZONE_DMA32
 	 "DMA32",
+#endif
 	 "Normal",
 	 "HighMem"
 };
@@ -1373,8 +1377,10 @@ static inline int highest_zone(int zone_bits)
 	int res = ZONE_NORMAL;
 	if (zone_bits & (__force int)__GFP_HIGHMEM)
 		res = ZONE_HIGHMEM;
+#ifdef CONFIG_ZONE_DMA32
 	if (zone_bits & (__force int)__GFP_DMA32)
 		res = ZONE_DMA32;
+#endif
 	if (zone_bits & (__force int)__GFP_DMA)
 		res = ZONE_DMA;
 	return res;
