@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/sysdev.h>
 #include <linux/bcd.h>
+#include <linux/notifier.h>
+#include <linux/cpu.h>
 #include <linux/kallsyms.h>
 #include <linux/acpi.h>
 #ifdef CONFIG_ACPI
@@ -49,7 +51,7 @@ static void cpufreq_delayed_get(void);
 extern void i8254_timer_resume(void);
 extern int using_apic_timer;
 
-static char *time_init_gtod(void);
+static char *timename = NULL;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -893,11 +895,21 @@ static struct irqaction irq0 = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
+static int __cpuinit
+time_cpu_notifier(struct notifier_block *nb, unsigned long action, void *hcpu)
+{
+	unsigned cpu = (unsigned long) hcpu;
+	if (action == CPU_ONLINE &&
+		cpu_has(&cpu_data[cpu], X86_FEATURE_RDTSCP)) {
+		unsigned p;
+		p = smp_processor_id() | (cpu_to_node(smp_processor_id())<<12);
+		write_rdtscp_aux(p);
+	}
+	return NOTIFY_DONE;
+}
+
 void __init time_init(void)
 {
-	char *timename;
-	char *gtod;
-
 	if (nohpet)
 		vxtime.hpet_address = 0;
 
@@ -931,18 +943,19 @@ void __init time_init(void)
 	}
 
 	vxtime.mode = VXTIME_TSC;
-	gtod = time_init_gtod();
-
-	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
-	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, gtod);
-	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
-		cpu_khz / 1000, cpu_khz % 1000);
 	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
 	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
 	vxtime.last_tsc = get_cycles_sync();
 	setup_irq(0, &irq0);
 
 	set_cyc2ns_scale(cpu_khz);
+
+	hotcpu_notifier(time_cpu_notifier, 0);
+	time_cpu_notifier(NULL, CPU_ONLINE, (void *)(long)smp_processor_id());
+
+#ifndef CONFIG_SMP
+	time_init_gtod();
+#endif
 }
 
 /*
@@ -973,12 +986,13 @@ __cpuinit int unsynchronized_tsc(void)
 /*
  * Decide what mode gettimeofday should use.
  */
-__init static char *time_init_gtod(void)
+void time_init_gtod(void)
 {
 	char *timetype;
 
 	if (unsynchronized_tsc())
 		notsc = 1;
+
 	if (vxtime.hpet_address && notsc) {
 		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";
 		if (hpet_use_timer)
@@ -1001,7 +1015,16 @@ __init static char *time_init_gtod(void)
 		timetype = hpet_use_timer ? "HPET/TSC" : "PIT/TSC";
 		vxtime.mode = VXTIME_TSC;
 	}
-	return timetype;
+
+	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
+	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, timetype);
+	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
+		cpu_khz / 1000, cpu_khz % 1000);
+	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
+	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
+	vxtime.last_tsc = get_cycles_sync();
+
+	set_cyc2ns_scale(cpu_khz);
 }
 
 __setup("report_lost_ticks", time_setup);

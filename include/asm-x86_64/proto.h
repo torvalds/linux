@@ -51,6 +51,7 @@ extern unsigned long long monotonic_base;
 extern int sysctl_vsyscall;
 extern int nohpet;
 extern unsigned long vxtime_hz;
+extern void time_init_gtod(void);
 
 extern int numa_setup(char *opt);
 

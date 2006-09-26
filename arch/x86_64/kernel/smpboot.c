@@ -1181,6 +1181,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 #endif
 
 	check_nmi_watchdog();
+
+	time_init_gtod();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
