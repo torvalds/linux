@@ -154,7 +154,7 @@ config HDLC
 	  If unsure, say N.
 
 config HDLC_RAW
-	bool "Raw HDLC support"
+	tristate "Raw HDLC support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting raw HDLC over WAN connections.
@@ -162,7 +162,7 @@ config HDLC_RAW
 	  If unsure, say N.
 
 config HDLC_RAW_ETH
-	bool "Raw HDLC Ethernet device support"
+	tristate "Raw HDLC Ethernet device support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting raw HDLC Ethernet device emulation
@@ -173,7 +173,7 @@ config HDLC_RAW_ETH
 	  If unsure, say N.
 
 config HDLC_CISCO
-	bool "Cisco HDLC support"
+	tristate "Cisco HDLC support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting Cisco HDLC over WAN connections.
@@ -181,7 +181,7 @@ config HDLC_CISCO
 	  If unsure, say N.
 
 config HDLC_FR
-	bool "Frame Relay support"
+	tristate "Frame Relay support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting Frame Relay over WAN connections.
@@ -189,7 +189,7 @@ config HDLC_FR
 	  If unsure, say N.
 
 config HDLC_PPP
-	bool "Synchronous Point-to-Point Protocol (PPP) support"
+	tristate "Synchronous Point-to-Point Protocol (PPP) support"
 	depends on HDLC
 	help
 	  Generic HDLC driver supporting PPP over WAN connections.
@@ -197,7 +197,7 @@ config HDLC_PPP
 	  If unsure, say N.
 
 config HDLC_X25
-	bool "X.25 protocol support"
+	tristate "X.25 protocol support"
 	depends on HDLC && (LAPB=m && HDLC=m || LAPB=y)
 	help
 	  Generic HDLC driver supporting X.25 over WAN connections.

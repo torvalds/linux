@@ -9,14 +9,13 @@ cyclomx-y                       := cycx_main.o
 cyclomx-$(CONFIG_CYCLOMX_X25)	+= cycx_x25.o
 cyclomx-objs			:= $(cyclomx-y)  
 
-hdlc-y				:= hdlc_generic.o
-hdlc-$(CONFIG_HDLC_RAW)		+= hdlc_raw.o
-hdlc-$(CONFIG_HDLC_RAW_ETH)	+= hdlc_raw_eth.o
-hdlc-$(CONFIG_HDLC_CISCO)	+= hdlc_cisco.o
-hdlc-$(CONFIG_HDLC_FR)		+= hdlc_fr.o
-hdlc-$(CONFIG_HDLC_PPP)		+= hdlc_ppp.o
-hdlc-$(CONFIG_HDLC_X25)		+= hdlc_x25.o
-hdlc-objs			:= $(hdlc-y)
+obj-$(CONFIG_HDLC)		+= hdlc.o
+obj-$(CONFIG_HDLC_RAW)		+= hdlc_raw.o
+obj-$(CONFIG_HDLC_RAW_ETH)	+= hdlc_raw_eth.o
+obj-$(CONFIG_HDLC_CISCO)	+= hdlc_cisco.o
+obj-$(CONFIG_HDLC_FR)		+= hdlc_fr.o
+obj-$(CONFIG_HDLC_PPP)		+= hdlc_ppp.o	syncppp.o
+obj-$(CONFIG_HDLC_X25)		+= hdlc_x25.o
 
 pc300-y				:= pc300_drv.o
 pc300-$(CONFIG_PC300_MLPPP)	+= pc300_tty.o
@@ -38,10 +37,6 @@ obj-$(CONFIG_CYCLADES_SYNC)	+= cycx_drv.o cyclomx.o
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
 obj-$(CONFIG_SBNI)		+= sbni.o
 obj-$(CONFIG_PC300)		+= pc300.o
-obj-$(CONFIG_HDLC)		+= hdlc.o
-ifeq ($(CONFIG_HDLC_PPP),y)
-  obj-$(CONFIG_HDLC)		+= syncppp.o
-endif
 obj-$(CONFIG_N2)		+= n2.o
 obj-$(CONFIG_C101)		+= c101.o
 obj-$(CONFIG_WANXL)		+= wanxl.o

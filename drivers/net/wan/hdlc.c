@@ -1,7 +1,7 @@
 /*
  * Generic HDLC support routines for Linux
  *
- * Copyright (C) 1999 - 2005 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -17,9 +17,9 @@
  * Use sethdlc utility to set line parameters, protocol and PVCs
  *
  * How does it work:
- * - proto.open(), close(), start(), stop() calls are serialized.
+ * - proto->open(), close(), start(), stop() calls are serialized.
  *   The order is: open, [ start, stop ... ] close ...
- * - proto.start() and stop() are called with spin_lock_irq held.
+ * - proto->start() and stop() are called with spin_lock_irq held.
  */
 
 #include <linux/module.h>
@@ -38,9 +38,11 @@
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.19";
+static const char* version = "HDLC support module revision 1.20";
 
 #undef DEBUG_LINK
+
+static struct hdlc_proto *first_proto = NULL;
 
 
 static int hdlc_change_mtu(struct net_device *dev, int new_mtu)
@@ -63,11 +65,11 @@ static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 		    struct packet_type *p, struct net_device *orig_dev)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
-	if (hdlc->proto.netif_rx)
-		return hdlc->proto.netif_rx(skb);
+	struct hdlc_device_desc *desc = dev_to_desc(dev);
+	if (desc->netif_rx)
+		return desc->netif_rx(skb);
 
-	hdlc->stats.rx_dropped++; /* Shouldn't happen */
+	desc->stats.rx_dropped++; /* Shouldn't happen */
 	dev_kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -77,8 +79,8 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 static inline void hdlc_proto_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-	if (hdlc->proto.start)
-		return hdlc->proto.start(dev);
+	if (hdlc->proto->start)
+		return hdlc->proto->start(dev);
 }
 
 
@@ -86,8 +88,8 @@ static inline void hdlc_proto_start(struct net_device *dev)
 static inline void hdlc_proto_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-	if (hdlc->proto.stop)
-		return hdlc->proto.stop(dev);
+	if (hdlc->proto->stop)
+		return hdlc->proto->stop(dev);
 }
 
 
@@ -144,15 +146,15 @@ int hdlc_open(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 #ifdef DEBUG_LINK
-	printk(KERN_DEBUG "hdlc_open() carrier %i open %i\n",
+	printk(KERN_DEBUG "%s: hdlc_open() carrier %i open %i\n", dev->name,
 	       hdlc->carrier, hdlc->open);
 #endif
 
-	if (hdlc->proto.id == -1)
+	if (hdlc->proto == NULL)
 		return -ENOSYS;	/* no protocol attached */
 
-	if (hdlc->proto.open) {
-		int result = hdlc->proto.open(dev);
+	if (hdlc->proto->open) {
+		int result = hdlc->proto->open(dev);
 		if (result)
 			return result;
 	}
@@ -178,7 +180,7 @@ void hdlc_close(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 #ifdef DEBUG_LINK
-	printk(KERN_DEBUG "hdlc_close() carrier %i open %i\n",
+	printk(KERN_DEBUG "%s: hdlc_close() carrier %i open %i\n", dev->name,
 	       hdlc->carrier, hdlc->open);
 #endif
 
@@ -190,68 +192,34 @@ void hdlc_close(struct net_device *dev)
 
 	spin_unlock_irq(&hdlc->state_lock);
 
-	if (hdlc->proto.close)
-		hdlc->proto.close(dev);
+	if (hdlc->proto->close)
+		hdlc->proto->close(dev);
 }
 
 
 
-#ifndef CONFIG_HDLC_RAW
-#define hdlc_raw_ioctl(dev, ifr)	-ENOSYS
-#endif
-
-#ifndef CONFIG_HDLC_RAW_ETH
-#define hdlc_raw_eth_ioctl(dev, ifr)	-ENOSYS
-#endif
-
-#ifndef CONFIG_HDLC_PPP
-#define hdlc_ppp_ioctl(dev, ifr)	-ENOSYS
-#endif
-
-#ifndef CONFIG_HDLC_CISCO
-#define hdlc_cisco_ioctl(dev, ifr)	-ENOSYS
-#endif
-
-#ifndef CONFIG_HDLC_FR
-#define hdlc_fr_ioctl(dev, ifr)		-ENOSYS
-#endif
-
-#ifndef CONFIG_HDLC_X25
-#define hdlc_x25_ioctl(dev, ifr)	-ENOSYS
-#endif
-
-
 int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	hdlc_device *hdlc = dev_to_hdlc(dev);
-	unsigned int proto;
+	struct hdlc_proto *proto = first_proto;
+	int result;
 
 	if (cmd != SIOCWANDEV)
 		return -EINVAL;
 
-	switch(ifr->ifr_settings.type) {
-	case IF_PROTO_HDLC:
-	case IF_PROTO_HDLC_ETH:
-	case IF_PROTO_PPP:
-	case IF_PROTO_CISCO:
-	case IF_PROTO_FR:
-	case IF_PROTO_X25:
-		proto = ifr->ifr_settings.type;
-		break;
-
-	default:
-		proto = hdlc->proto.id;
+	if (dev_to_hdlc(dev)->proto) {
+		result = dev_to_hdlc(dev)->proto->ioctl(dev, ifr);
+		if (result != -EINVAL)
+			return result;
 	}
 
-	switch(proto) {
-	case IF_PROTO_HDLC:	return hdlc_raw_ioctl(dev, ifr);
-	case IF_PROTO_HDLC_ETH:	return hdlc_raw_eth_ioctl(dev, ifr);
-	case IF_PROTO_PPP:	return hdlc_ppp_ioctl(dev, ifr);
-	case IF_PROTO_CISCO:	return hdlc_cisco_ioctl(dev, ifr);
-	case IF_PROTO_FR:	return hdlc_fr_ioctl(dev, ifr);
-	case IF_PROTO_X25:	return hdlc_x25_ioctl(dev, ifr);
-	default:		return -EINVAL;
+	/* Not handled by currently attached protocol (if any) */
+
+	while (proto) {
+		if ((result = proto->ioctl(dev, ifr)) != -EINVAL)
+			return result;
+		proto = proto->next;
 	}
+	return -EINVAL;
 }
 
 void hdlc_setup(struct net_device *dev)
@@ -267,8 +235,6 @@ void hdlc_setup(struct net_device *dev)
 
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 
-	hdlc->proto.id = -1;
-	hdlc->proto.detach = NULL;
 	hdlc->carrier = 1;
 	hdlc->open = 0;
 	spin_lock_init(&hdlc->state_lock);
@@ -277,7 +243,8 @@ void hdlc_setup(struct net_device *dev)
 struct net_device *alloc_hdlcdev(void *priv)
 {
 	struct net_device *dev;
-	dev = alloc_netdev(sizeof(hdlc_device), "hdlc%d", hdlc_setup);
+	dev = alloc_netdev(sizeof(struct hdlc_device_desc) +
+			   sizeof(hdlc_device), "hdlc%d", hdlc_setup);
 	if (dev)
 		dev_to_hdlc(dev)->priv = priv;
 	return dev;
@@ -286,9 +253,67 @@ struct net_device *alloc_hdlcdev(void *priv)
 void unregister_hdlc_device(struct net_device *dev)
 {
 	rtnl_lock();
-	hdlc_proto_detach(dev_to_hdlc(dev));
 	unregister_netdevice(dev);
+	detach_hdlc_protocol(dev);
 	rtnl_unlock();
+}
+
+
+
+int attach_hdlc_protocol(struct net_device *dev, struct hdlc_proto *proto,
+			 int (*rx)(struct sk_buff *skb), size_t size)
+{
+	detach_hdlc_protocol(dev);
+
+	if (!try_module_get(proto->module))
+		return -ENOSYS;
+
+	if (size)
+		if ((dev_to_hdlc(dev)->state = kmalloc(size,
+						       GFP_KERNEL)) == NULL) {
+			printk(KERN_WARNING "Memory squeeze on"
+			       " hdlc_proto_attach()\n");
+			module_put(proto->module);
+			return -ENOBUFS;
+		}
+	dev_to_hdlc(dev)->proto = proto;
+	dev_to_desc(dev)->netif_rx = rx;
+	return 0;
+}
+
+
+void detach_hdlc_protocol(struct net_device *dev)
+{
+	hdlc_device *hdlc = dev_to_hdlc(dev);
+
+	if (hdlc->proto) {
+		if (hdlc->proto->detach)
+			hdlc->proto->detach(dev);
+		module_put(hdlc->proto->module);
+		hdlc->proto = NULL;
+	}
+	kfree(hdlc->state);
+	hdlc->state = NULL;
+}
+
+
+void register_hdlc_protocol(struct hdlc_proto *proto)
+{
+	proto->next = first_proto;
+	first_proto = proto;
+}
+
+
+void unregister_hdlc_protocol(struct hdlc_proto *proto)
+{
+	struct hdlc_proto **p = &first_proto;
+	while (*p) {
+		if (*p == proto) {
+			*p = proto->next;
+			return;
+		}
+		p = &((*p)->next);
+	}
 }
 
 
@@ -303,6 +328,10 @@ EXPORT_SYMBOL(hdlc_ioctl);
 EXPORT_SYMBOL(hdlc_setup);
 EXPORT_SYMBOL(alloc_hdlcdev);
 EXPORT_SYMBOL(unregister_hdlc_device);
+EXPORT_SYMBOL(register_hdlc_protocol);
+EXPORT_SYMBOL(unregister_hdlc_protocol);
+EXPORT_SYMBOL(attach_hdlc_protocol);
+EXPORT_SYMBOL(detach_hdlc_protocol);
 
 static struct packet_type hdlc_packet_type = {
 	.type = __constant_htons(ETH_P_HDLC),
