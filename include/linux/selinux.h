@@ -46,7 +46,7 @@ void selinux_audit_rule_free(struct selinux_audit_rule *rule);
 
 /**
  *	selinux_audit_rule_match - determine if a context ID matches a rule.
- *	@ctxid: the context ID to check
+ *	@sid: the context ID to check
  *	@field: the field this rule refers to
  *	@op: the operater the rule uses
  *	@rule: pointer to the audit rule to check against
@@ -55,7 +55,7 @@ void selinux_audit_rule_free(struct selinux_audit_rule *rule);
  *	Returns 1 if the context id matches the rule, 0 if it does not, and
  *	-errno on failure.
  */
-int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                              struct selinux_audit_rule *rule,
                              struct audit_context *actx);
 
@@ -144,7 +144,7 @@ static inline void selinux_audit_rule_free(struct selinux_audit_rule *rule)
 	return;
 }
 
-static inline int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+static inline int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                                            struct selinux_audit_rule *rule,
                                            struct audit_context *actx)
 {

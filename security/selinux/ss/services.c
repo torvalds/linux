@@ -2003,7 +2003,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 	return rc;
 }
 
-int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
                              struct selinux_audit_rule *rule,
                              struct audit_context *actx)
 {
@@ -2026,11 +2026,11 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 		goto out;
 	}
 
-	ctxt = sidtab_search(&sidtab, ctxid);
+	ctxt = sidtab_search(&sidtab, sid);
 	if (!ctxt) {
 		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		          "selinux_audit_rule_match: unrecognized SID %d\n",
-		          ctxid);
+		          sid);
 		match = -ENOENT;
 		goto out;
 	}
