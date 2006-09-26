@@ -561,6 +561,8 @@ unsigned __kprobes long oops_begin(void)
 	int cpu = safe_smp_processor_id();
 	unsigned long flags;
 
+	oops_enter();
+
 	/* racy, but better than risking deadlock. */
 	local_irq_save(flags);
 	if (!spin_trylock(&die_lock)) { 
@@ -589,6 +591,7 @@ void __kprobes oops_end(unsigned long flags)
 		spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
 		panic("Fatal exception");
+	oops_exit();
 }
 
 void __kprobes __die(const char * str, struct pt_regs * regs, long err)
