@@ -15,7 +15,6 @@
 
 #include <asm/io.h>
 #include <asm/smp.h>
-#include <asm/irq-routing.h>
 
 #include "pci-frv.h"
 

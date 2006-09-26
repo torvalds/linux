@@ -26,7 +26,6 @@
 #include <asm/timer-regs.h>
 #include <asm/mb-regs.h>
 #include <asm/mb86943a.h>
-#include <asm/irq-routing.h>
 
 #include <linux/timex.h>
 

@@ -27,7 +27,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config GENERIC_HARDIRQS
 	bool
-	default n
+	default y
 
 config GENERIC_TIME
 	bool
@@ -250,6 +250,12 @@ config MB93091_NO_MB
 
 endchoice
 endif
+
+config FUJITSU_MB93493
+	bool "MB93493 Multimedia chip"
+	help
+	  Select this option if the MB93493 multimedia chip is going to be
+	  used.
 
 choice
 	prompt "GP-Relative data support"
