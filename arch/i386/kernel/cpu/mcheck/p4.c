@@ -13,6 +13,8 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 
+#include <asm/therm_throt.h>
+
 #include "mce.h"
 
 /* as supported by the P4/Xeon family */
@@ -44,25 +46,12 @@ static void unexpected_thermal_interrupt(struct pt_regs *regs)
 /* P4/Xeon Thermal transition interrupt handler */
 static void intel_thermal_interrupt(struct pt_regs *regs)
 {
-	u32 l, h;
-	unsigned int cpu = smp_processor_id();
-	static unsigned long next[NR_CPUS];
+	__u64 msr_val;
 
 	ack_APIC_irq();
 
-	if (time_after(next[cpu], jiffies))
-		return;
-
-	next[cpu] = jiffies + HZ*5;
-	rdmsr(MSR_IA32_THERM_STATUS, l, h);
-	if (l & 0x1) {
-		printk(KERN_EMERG "CPU%d: Temperature above threshold\n", cpu);
-		printk(KERN_EMERG "CPU%d: Running in modulated clock mode\n",
-				cpu);
-		add_taint(TAINT_MACHINE_CHECK);
-	} else {
-		printk(KERN_INFO "CPU%d: Temperature/speed normal\n", cpu);
-	}
+	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
+	therm_throt_process(msr_val & 0x1);
 }
 
 /* Thermal interrupt handler for this CPU setup */
@@ -122,7 +111,7 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	
 	rdmsr (MSR_IA32_MISC_ENABLE, l, h);
 	wrmsr (MSR_IA32_MISC_ENABLE, l | (1<<3), h);
-	
+
 	l = apic_read (APIC_LVTTHMR);
 	apic_write_around (APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 	printk (KERN_INFO "CPU%d: Thermal monitoring enabled\n", cpu);
