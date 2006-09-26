@@ -41,23 +41,23 @@ typedef struct bootmem_data {
 	struct list_head list;
 } bootmem_data_t;
 
-extern unsigned long __init bootmem_bootmap_pages (unsigned long);
-extern unsigned long __init init_bootmem (unsigned long addr, unsigned long memend);
-extern void __init free_bootmem (unsigned long addr, unsigned long size);
-extern void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal);
-extern void * __init __alloc_bootmem_nopanic (unsigned long size, unsigned long align, unsigned long goal);
-extern void * __init __alloc_bootmem_low(unsigned long size,
+extern unsigned long bootmem_bootmap_pages (unsigned long);
+extern unsigned long init_bootmem (unsigned long addr, unsigned long memend);
+extern void free_bootmem (unsigned long addr, unsigned long size);
+extern void * __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal);
+extern void * __alloc_bootmem_nopanic (unsigned long size, unsigned long align, unsigned long goal);
+extern void * __alloc_bootmem_low(unsigned long size,
 					 unsigned long align,
 					 unsigned long goal);
-extern void * __init __alloc_bootmem_low_node(pg_data_t *pgdat,
+extern void * __alloc_bootmem_low_node(pg_data_t *pgdat,
 					      unsigned long size,
 					      unsigned long align,
 					      unsigned long goal);
-extern void * __init __alloc_bootmem_core(struct bootmem_data *bdata,
+extern void * __alloc_bootmem_core(struct bootmem_data *bdata,
 		unsigned long size, unsigned long align, unsigned long goal,
 		unsigned long limit);
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-extern void __init reserve_bootmem (unsigned long addr, unsigned long size);
+extern void reserve_bootmem (unsigned long addr, unsigned long size);
 #define alloc_bootmem(x) \
 	__alloc_bootmem((x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
 #define alloc_bootmem_low(x) \
@@ -67,12 +67,12 @@ extern void __init reserve_bootmem (unsigned long addr, unsigned long size);
 #define alloc_bootmem_low_pages(x) \
 	__alloc_bootmem_low((x), PAGE_SIZE, 0)
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
-extern unsigned long __init free_all_bootmem (void);
-extern void * __init __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size, unsigned long align, unsigned long goal);
-extern unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn, unsigned long startpfn, unsigned long endpfn);
-extern void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size);
-extern void __init free_bootmem_node (pg_data_t *pgdat, unsigned long addr, unsigned long size);
-extern unsigned long __init free_all_bootmem_node (pg_data_t *pgdat);
+extern unsigned long free_all_bootmem (void);
+extern void * __alloc_bootmem_node (pg_data_t *pgdat, unsigned long size, unsigned long align, unsigned long goal);
+extern unsigned long init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn, unsigned long startpfn, unsigned long endpfn);
+extern void reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr, unsigned long size);
+extern void free_bootmem_node (pg_data_t *pgdat, unsigned long addr, unsigned long size);
+extern unsigned long free_all_bootmem_node (pg_data_t *pgdat);
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
 #define alloc_bootmem_node(pgdat, x) \
 	__alloc_bootmem_node((pgdat), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
@@ -94,14 +94,14 @@ static inline void *alloc_remap(int nid, unsigned long size)
 extern unsigned long __meminitdata nr_kernel_pages;
 extern unsigned long nr_all_pages;
 
-extern void *__init alloc_large_system_hash(const char *tablename,
-					    unsigned long bucketsize,
-					    unsigned long numentries,
-					    int scale,
-					    int flags,
-					    unsigned int *_hash_shift,
-					    unsigned int *_hash_mask,
-					    unsigned long limit);
+extern void * alloc_large_system_hash(const char *tablename,
+				      unsigned long bucketsize,
+				      unsigned long numentries,
+				      int scale,
+				      int flags,
+				      unsigned int *_hash_shift,
+				      unsigned int *_hash_mask,
+				      unsigned long limit);
 
 #define HASH_HIGHMEM	0x00000001	/* Consider highmem? */
 #define HASH_EARLY	0x00000002	/* Allocating during early boot? */
