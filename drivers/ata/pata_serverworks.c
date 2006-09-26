@@ -356,6 +356,8 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
+	.irq_clear	= ata_bmdma_irq_clear,
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
@@ -389,6 +391,8 @@ static struct ata_port_operations serverworks_csb_port_ops = {
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
+	.irq_clear	= ata_bmdma_irq_clear,
+
 	.port_start	= ata_port_start,
 	.port_stop	= ata_port_stop,
 	.host_stop	= ata_host_stop
