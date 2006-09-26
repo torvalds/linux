@@ -52,8 +52,23 @@ static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
 	if (bio->bi_size)
 		return 1;
 
-	if (!uptodate)
+	if (!uptodate) {
 		SetPageError(page);
+		/*
+		 * We failed to write the page out to swap-space.
+		 * Re-dirty the page in order to avoid it being reclaimed.
+		 * Also print a dire warning that things will go BAD (tm)
+		 * very quickly.
+		 *
+		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
+		 */
+		set_page_dirty(page);
+		printk(KERN_ALERT "Write-error on swap-device (%u:%u:%Lu)\n",
+				imajor(bio->bi_bdev->bd_inode),
+				iminor(bio->bi_bdev->bd_inode),
+				(unsigned long long)bio->bi_sector);
+		ClearPageReclaim(page);
+	}
 	end_page_writeback(page);
 	bio_put(bio);
 	return 0;
@@ -70,6 +85,10 @@ static int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
 	if (!uptodate) {
 		SetPageError(page);
 		ClearPageUptodate(page);
+		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
+				imajor(bio->bi_bdev->bd_inode),
+				iminor(bio->bi_bdev->bd_inode),
+				(unsigned long long)bio->bi_sector);
 	} else {
 		SetPageUptodate(page);
 	}
