@@ -468,6 +468,7 @@ asmlinkage void __init start_kernel(void)
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
 	 */
+	unwind_init();
 	lockdep_init();
 
 	local_irq_disable();
@@ -506,7 +507,6 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	sort_main_extable();
-	unwind_init();
 	trap_init();
 	rcu_init();
 	init_IRQ();
