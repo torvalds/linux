@@ -381,8 +381,9 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 		return;
 
 	if (printk_ratelimit()) {
-		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
-			gfp_mask, order);
+		printk(KERN_WARNING "%s invoked oom-killer: "
+			"gfp_mask=0x%x, order=%d, oomkilladj=%d\n",
+			current->comm, gfp_mask, order, current->oomkilladj);
 		dump_stack();
 		show_mem();
 	}
