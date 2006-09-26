@@ -117,7 +117,8 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
 void *node_remap_end_vaddr[MAX_NUMNODES];
 void *node_remap_alloc_vaddr[MAX_NUMNODES];
-
+static unsigned long kva_start_pfn;
+static unsigned long kva_pages;
 /*
  * FLAT - support for basic PC memory model with discontig enabled, essentially
  *        a single node with all available processors in it with a flat
@@ -286,7 +287,6 @@ unsigned long __init setup_memory(void)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
-	unsigned long reserve_pages;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -298,14 +298,23 @@ unsigned long __init setup_memory(void)
 	find_max_pfn();
 	get_memcfg_numa();
 
-	reserve_pages = calculate_numa_remap_pages();
+	kva_pages = calculate_numa_remap_pages();
 
 	/* partially used pages are not usable - thus round upwards */
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
-	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
-			reserve_pages, max_low_pfn + reserve_pages);
+	kva_start_pfn = find_max_low_pfn() - kva_pages;
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/* Numa kva area is below the initrd */
+	if (LOADER_TYPE && INITRD_START)
+		kva_start_pfn = PFN_DOWN(INITRD_START)  - kva_pages;
+#endif
+	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);
+
+	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
+	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
+		kva_start_pfn, max_low_pfn);
 	printk("max_pfn = %ld\n", max_pfn);
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
@@ -323,7 +332,7 @@ unsigned long __init setup_memory(void)
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid) {
 		node_remap_start_vaddr[nid] = pfn_to_kaddr(
-				highstart_pfn + node_remap_offset[nid]);
+				kva_start_pfn + node_remap_offset[nid]);
 		/* Init the node remap allocator */
 		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
 			(node_remap_size[nid] * PAGE_SIZE);
@@ -338,7 +347,6 @@ unsigned long __init setup_memory(void)
 	}
 	printk("High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
-	vmalloc_earlyreserve = reserve_pages * PAGE_SIZE;
 	for_each_online_node(nid)
 		find_max_pfn_node(nid);
 
@@ -346,6 +354,11 @@ unsigned long __init setup_memory(void)
 	NODE_DATA(0)->bdata = &node0_bdata;
 	setup_bootmem_allocator();
 	return max_low_pfn;
+}
+
+void __init numa_kva_reserve(void)
+{
+	reserve_bootmem(PFN_PHYS(kva_start_pfn),PFN_PHYS(kva_pages));
 }
 
 void __init zone_sizes_init(void)

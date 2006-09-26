@@ -53,6 +53,7 @@
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
+#include <asm/mmzone.h>
 #include <asm/setup.h>
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
@@ -1258,7 +1259,7 @@ void __init setup_bootmem_allocator(void)
 	 */
 	find_smp_config();
 #endif
-
+	numa_kva_reserve();
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
