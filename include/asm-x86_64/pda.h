@@ -39,7 +39,7 @@ extern struct x8664_pda boot_cpu_pda[];
  * There is no fast way to get the base address of the PDA, all the accesses
  * have to mention %fs/%gs.  So it needs to be done this Torvaldian way.
  */ 
-extern void __bad_pda_field(void);
+extern void __bad_pda_field(void) __attribute__((noreturn));
 
 /*
  * proxy_pda doesn't actually exist, but tell gcc it is accessed for
