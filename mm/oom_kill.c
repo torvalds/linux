@@ -250,9 +250,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 }
 
 /**
- * We must be careful though to never send SIGKILL a process with
- * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
- * we select a process with CAP_SYS_RAW_IO set).
+ * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
+ * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
+ * set.
  */
 static void __oom_kill_task(struct task_struct *p, const char *message)
 {
