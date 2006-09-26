@@ -205,7 +205,7 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 	unsigned char *mpt=((unsigned char *)mpc)+count;
 
 	if (memcmp(mpc->mpc_signature,MPC_SIGNATURE,4)) {
-		printk("SMP mptable: bad signature [%c%c%c%c]!\n",
+		printk("MPTABLE: bad signature [%c%c%c%c]!\n",
 			mpc->mpc_signature[0],
 			mpc->mpc_signature[1],
 			mpc->mpc_signature[2],
@@ -213,31 +213,31 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 		return 0;
 	}
 	if (mpf_checksum((unsigned char *)mpc,mpc->mpc_length)) {
-		printk("SMP mptable: checksum error!\n");
+		printk("MPTABLE: checksum error!\n");
 		return 0;
 	}
 	if (mpc->mpc_spec!=0x01 && mpc->mpc_spec!=0x04) {
-		printk(KERN_ERR "SMP mptable: bad table version (%d)!!\n",
+		printk(KERN_ERR "MPTABLE: bad table version (%d)!!\n",
 			mpc->mpc_spec);
 		return 0;
 	}
 	if (!mpc->mpc_lapic) {
-		printk(KERN_ERR "SMP mptable: null local APIC address!\n");
+		printk(KERN_ERR "MPTABLE: null local APIC address!\n");
 		return 0;
 	}
 	memcpy(str,mpc->mpc_oem,8);
-	str[8]=0;
-	printk(KERN_INFO "OEM ID: %s ",str);
+	str[8] = 0;
+	printk(KERN_INFO "MPTABLE: OEM ID: %s ",str);
 
 	memcpy(str,mpc->mpc_productid,12);
-	str[12]=0;
-	printk("Product ID: %s ",str);
+	str[12] = 0;
+	printk("MPTABLE: Product ID: %s ",str);
 
-	printk("APIC at: 0x%X\n",mpc->mpc_lapic);
+	printk("MPTABLE: APIC at: 0x%X\n",mpc->mpc_lapic);
 
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
-	mp_lapic_addr = mpc->mpc_lapic;
+		mp_lapic_addr = mpc->mpc_lapic;
 
 	/*
 	 *	Now process the configuration blocks.
@@ -249,7 +249,7 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 				struct mpc_config_processor *m=
 					(struct mpc_config_processor *)mpt;
 				if (!acpi_lapic)
-				MP_processor_info(m);
+					MP_processor_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
@@ -268,8 +268,8 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 				struct mpc_config_ioapic *m=
 					(struct mpc_config_ioapic *)mpt;
 				MP_ioapic_info(m);
-				mpt+=sizeof(*m);
-				count+=sizeof(*m);
+				mpt += sizeof(*m);
+				count += sizeof(*m);
 				break;
 			}
 			case MP_INTSRC:
@@ -278,8 +278,8 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 					(struct mpc_config_intsrc *)mpt;
 
 				MP_intsrc_info(m);
-				mpt+=sizeof(*m);
-				count+=sizeof(*m);
+				mpt += sizeof(*m);
+				count += sizeof(*m);
 				break;
 			}
 			case MP_LINTSRC:
@@ -287,15 +287,15 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 				struct mpc_config_lintsrc *m=
 					(struct mpc_config_lintsrc *)mpt;
 				MP_lintsrc_info(m);
-				mpt+=sizeof(*m);
-				count+=sizeof(*m);
+				mpt += sizeof(*m);
+				count += sizeof(*m);
 				break;
 			}
 		}
 	}
 	clustered_apic_check();
 	if (!num_processors)
-		printk(KERN_ERR "SMP mptable: no processors registered!\n");
+		printk(KERN_ERR "MPTABLE: no processors registered!\n");
 	return num_processors;
 }
 
