@@ -113,25 +113,19 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 }
 
 asmlinkage long
-sys32_sigsuspend(int history0, int history1, old_sigset_t mask,
-		 struct pt_regs *regs)
+sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
 {
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->rax = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage long
@@ -508,11 +502,11 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	return 0;
+	return -EFAULT;
 }
 
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -595,7 +589,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->ss = __USER32_DS; 
 
 	set_fs(USER_DS);
-    regs->eflags &= ~TF_MASK;
+	regs->eflags &= ~TF_MASK;
     if (test_thread_flag(TIF_SINGLESTEP))
         ptrace_notify(SIGTRAP);
 
@@ -604,9 +598,9 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		current->comm, current->pid, frame, regs->rip, frame->pretcode);
 #endif
 
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
-	return 0;
+	return -EFAULT;
 }
