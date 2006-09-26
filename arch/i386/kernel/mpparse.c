@@ -294,19 +294,6 @@ static void __init MP_lintsrc_info (struct mpc_config_lintsrc *m)
 			m->mpc_irqtype, m->mpc_irqflag & 3,
 			(m->mpc_irqflag >> 2) &3, m->mpc_srcbusid,
 			m->mpc_srcbusirq, m->mpc_destapic, m->mpc_destapiclint);
-	/*
-	 * Well it seems all SMP boards in existence
-	 * use ExtINT/LVT1 == LINT0 and
-	 * NMI/LVT2 == LINT1 - the following check
-	 * will show us if this assumptions is false.
-	 * Until then we do not have to add baggage.
-	 */
-	if ((m->mpc_irqtype == mp_ExtINT) &&
-		(m->mpc_destapiclint != 0))
-			BUG();
-	if ((m->mpc_irqtype == mp_NMI) &&
-		(m->mpc_destapiclint != 1))
-			BUG();
 }
 
 #ifdef CONFIG_X86_NUMAQ
