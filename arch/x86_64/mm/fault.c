@@ -102,7 +102,7 @@ void bust_spinlocks(int yes)
 static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 				unsigned long error_code)
 { 
-	unsigned char *instr;
+	unsigned char __user *instr;
 	int scan_more = 1;
 	int prefetch = 0; 
 	unsigned char *max_instr;
@@ -111,7 +111,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	if (error_code & PF_INSTR)
 		return 0;
 	
-	instr = (unsigned char *)convert_rip_to_linear(current, regs);
+	instr = (unsigned char __user *)convert_rip_to_linear(current, regs);
 	max_instr = instr + 15;
 
 	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
@@ -122,7 +122,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 		unsigned char instr_hi;
 		unsigned char instr_lo;
 
-		if (__get_user(opcode, instr))
+		if (__get_user(opcode, (char __user *)instr))
 			break; 
 
 		instr_hi = opcode & 0xf0; 
@@ -160,7 +160,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 		case 0x00:
 			/* Prefetch instruction is 0x0F0D or 0x0F18 */
 			scan_more = 0;
-			if (__get_user(opcode, instr)) 
+			if (__get_user(opcode, (char __user *)instr))
 				break;
 			prefetch = (instr_lo == 0xF) &&
 				(opcode == 0x0D || opcode == 0x18);
@@ -176,7 +176,7 @@ static noinline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 static int bad_address(void *p) 
 { 
 	unsigned long dummy;
-	return __get_user(dummy, (unsigned long *)p);
+	return __get_user(dummy, (unsigned long __user *)p);
 } 
 
 void dump_pagetable(unsigned long address)
