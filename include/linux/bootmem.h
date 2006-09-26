@@ -4,11 +4,8 @@
 #ifndef _LINUX_BOOTMEM_H
 #define _LINUX_BOOTMEM_H
 
-#include <asm/pgtable.h>
-#include <asm/dma.h>
-#include <linux/cache.h>
-#include <linux/init.h>
 #include <linux/mmzone.h>
+#include <asm/dma.h>
 
 /*
  *  simple boot-time physical memory area allocator.

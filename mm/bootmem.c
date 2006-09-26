@@ -8,17 +8,13 @@
  *  free memory collector. It's used to deal with reserved
  *  system memory and memory holes as well.
  */
-
-#include <linux/mm.h>
-#include <linux/kernel_stat.h>
-#include <linux/swap.h>
-#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
-#include <linux/mmzone.h>
 #include <linux/module.h>
-#include <asm/dma.h>
+
+#include <asm/bug.h>
 #include <asm/io.h>
+
 #include "internal.h"
 
 /*
