@@ -218,10 +218,12 @@ UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_NOT_LOCKABLE ),
 
+#ifdef CONFIG_USB_STORAGE_KARMA
 UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		"Rio",
 		"Rio Karma",
 		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
+#endif
 
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
