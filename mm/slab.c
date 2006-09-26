@@ -313,7 +313,7 @@ static int drain_freelist(struct kmem_cache *cache,
 			struct kmem_list3 *l3, int tofree);
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
 			int node);
-static void enable_cpucache(struct kmem_cache *cachep);
+static int enable_cpucache(struct kmem_cache *cachep);
 static void cache_reap(void *unused);
 
 /*
@@ -1490,7 +1490,8 @@ void __init kmem_cache_init(void)
 		struct kmem_cache *cachep;
 		mutex_lock(&cache_chain_mutex);
 		list_for_each_entry(cachep, &cache_chain, next)
-			enable_cpucache(cachep);
+			if (enable_cpucache(cachep))
+				BUG();
 		mutex_unlock(&cache_chain_mutex);
 	}
 
@@ -1924,12 +1925,11 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 	return left_over;
 }
 
-static void setup_cpu_cache(struct kmem_cache *cachep)
+static int setup_cpu_cache(struct kmem_cache *cachep)
 {
-	if (g_cpucache_up == FULL) {
-		enable_cpucache(cachep);
-		return;
-	}
+	if (g_cpucache_up == FULL)
+		return enable_cpucache(cachep);
+
 	if (g_cpucache_up == NONE) {
 		/*
 		 * Note: the first kmem_cache_create must create the cache
@@ -1976,6 +1976,7 @@ static void setup_cpu_cache(struct kmem_cache *cachep)
 	cpu_cache_get(cachep)->touched = 0;
 	cachep->batchcount = 1;
 	cachep->limit = BOOT_CPUCACHE_ENTRIES;
+	return 0;
 }
 
 /**
@@ -2242,8 +2243,11 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->dtor = dtor;
 	cachep->name = name;
 
-
-	setup_cpu_cache(cachep);
+	if (setup_cpu_cache(cachep)) {
+		__kmem_cache_destroy(cachep);
+		cachep = NULL;
+		goto oops;
+	}
 
 	/* cache setup completed, link it into the list */
 	list_add(&cachep->next, &cache_chain);
@@ -3693,7 +3697,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 				int batchcount, int shared)
 {
 	struct ccupdate_struct new;
-	int i, err;
+	int i;
 
 	memset(&new.new, 0, sizeof(new.new));
 	for_each_online_cpu(i) {
@@ -3724,17 +3728,11 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 		kfree(ccold);
 	}
 
-	err = alloc_kmemlist(cachep);
-	if (err) {
-		printk(KERN_ERR "alloc_kmemlist failed for %s, error %d.\n",
-		       cachep->name, -err);
-		BUG();
-	}
-	return 0;
+	return alloc_kmemlist(cachep);
 }
 
 /* Called with cache_chain_mutex held always */
-static void enable_cpucache(struct kmem_cache *cachep)
+static int enable_cpucache(struct kmem_cache *cachep)
 {
 	int err;
 	int limit, shared;
@@ -3786,6 +3784,7 @@ static void enable_cpucache(struct kmem_cache *cachep)
 	if (err)
 		printk(KERN_ERR "enable_cpucache failed for %s, error %d.\n",
 		       cachep->name, -err);
+	return err;
 }
 
 /*
