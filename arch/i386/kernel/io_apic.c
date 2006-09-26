@@ -40,6 +40,7 @@
 #include <asm/nmi.h>
 
 #include <mach_apic.h>
+#include <mach_apicdef.h>
 
 #include "io_ports.h"
 

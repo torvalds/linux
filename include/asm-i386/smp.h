@@ -80,17 +80,11 @@ static inline int hard_smp_processor_id(void)
 	return GET_APIC_ID(*(unsigned long *)(APIC_BASE+APIC_ID));
 }
 #endif
-
-static __inline int logical_smp_processor_id(void)
-{
-	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_LOGICAL_ID(*(unsigned long *)(APIC_BASE+APIC_LDR));
-}
-
 #endif
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
+
 #endif /* !__ASSEMBLY__ */
 
 #else /* CONFIG_SMP */
@@ -100,4 +94,15 @@ extern void __cpu_die(unsigned int cpu);
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
 #endif
+
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_X86_LOCAL_APIC
+static __inline int logical_smp_processor_id(void)
+{
+	/* we don't want to mark this access volatile - bad code generation */
+	return GET_APIC_LOGICAL_ID(*(unsigned long *)(APIC_BASE+APIC_LDR));
+}
+#endif
+#endif
+
 #endif

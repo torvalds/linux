@@ -30,6 +30,7 @@
 #include <asm/io_apic.h>
 
 #include <mach_apic.h>
+#include <mach_apicdef.h>
 #include <mach_mpparse.h>
 #include <bios_ebda.h>
 
