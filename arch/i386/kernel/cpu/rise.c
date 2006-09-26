@@ -5,7 +5,7 @@
 
 #include "cpu.h"
 
-static void __init init_rise(struct cpuinfo_x86 *c)
+static void __cpuinit init_rise(struct cpuinfo_x86 *c)
 {
 	printk("CPU: Rise iDragon");
 	if (c->x86_model > 2)

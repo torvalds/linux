@@ -27,7 +27,7 @@ static int __init deep_magic_nexgen_probe(void)
 	return  ret;
 }
 
-static void __init init_nexgen(struct cpuinfo_x86 * c)
+static void __cpuinit init_nexgen(struct cpuinfo_x86 * c)
 {
 	c->x86_cache_size = 256; /* A few had 1 MB... */
 }

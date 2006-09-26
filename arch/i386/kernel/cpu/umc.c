@@ -5,10 +5,6 @@
 
 /* UMC chips appear to be only either 386 or 486, so no special init takes place.
  */
-static void __init init_umc(struct cpuinfo_x86 * c)
-{
-
-}
 
 static struct cpu_dev umc_cpu_dev __cpuinitdata = {
 	.c_vendor	= "UMC",
@@ -21,7 +17,6 @@ static struct cpu_dev umc_cpu_dev __cpuinitdata = {
 		  }
 		},
 	},
-	.c_init		= init_umc,
 };
 
 int __init umc_init_cpu(void)

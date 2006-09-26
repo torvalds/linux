@@ -36,7 +36,7 @@ struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
 extern int disable_pse;
 
-static void default_init(struct cpuinfo_x86 * c)
+static void __cpuinit default_init(struct cpuinfo_x86 * c)
 {
 	/* Not much we can do here... */
 	/* Check if at least it has cpuid */

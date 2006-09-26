@@ -22,7 +22,7 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-static void __init init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
