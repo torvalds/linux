@@ -25,6 +25,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/module.h>
+#include <linux/ioport.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
@@ -44,6 +45,11 @@ int apic_runs_main_timer;
 int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __initdata;
+
+static struct resource lapic_resource = {
+	.name = "Local APIC",
+	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
+};
 
 /*
  * cpu_mask that denotes the CPUs that needs timer interrupt coming in as
@@ -585,6 +591,40 @@ static int __init detect_init_APIC (void)
 	return 0;
 }
 
+#ifdef CONFIG_X86_IO_APIC
+static struct resource * __init ioapic_setup_resources(void)
+{
+#define IOAPIC_RESOURCE_NAME_SIZE 11
+	unsigned long n;
+	struct resource *res;
+	char *mem;
+	int i;
+
+	if (nr_ioapics <= 0)
+		return NULL;
+
+	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
+	n *= nr_ioapics;
+
+	res = alloc_bootmem(n);
+
+	if (!res)
+		return NULL;
+
+	memset(res, 0, n);
+	mem = (void *)&res[nr_ioapics];
+
+	for (i = 0; i < nr_ioapics; i++) {
+		res[i].name = mem;
+		res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		snprintf(mem, IOAPIC_RESOURCE_NAME_SIZE, "IOAPIC %u", i);
+		mem += IOAPIC_RESOURCE_NAME_SIZE;
+	}
+
+	return res;
+}
+#endif
+
 void __init init_apic_mappings(void)
 {
 	unsigned long apic_phys;
@@ -604,6 +644,11 @@ void __init init_apic_mappings(void)
 	apic_mapped = 1;
 	apic_printk(APIC_VERBOSE,"mapped APIC to %16lx (%16lx)\n", APIC_BASE, apic_phys);
 
+	/* Put local APIC into the resource map. */
+	lapic_resource.start = apic_phys;
+	lapic_resource.end = lapic_resource.start + PAGE_SIZE - 1;
+	insert_resource(&iomem_resource, &lapic_resource);
+
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
@@ -613,7 +658,9 @@ void __init init_apic_mappings(void)
 	{
 		unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 		int i;
+		struct resource *ioapic_res;
 
+		ioapic_res = ioapic_setup_resources();
 		for (i = 0; i < nr_ioapics; i++) {
 			if (smp_found_config) {
 				ioapic_phys = mp_ioapics[i].mpc_apicaddr;
@@ -625,6 +672,13 @@ void __init init_apic_mappings(void)
 			apic_printk(APIC_VERBOSE,"mapped IOAPIC to %016lx (%016lx)\n",
 					__fix_to_virt(idx), ioapic_phys);
 			idx++;
+
+			if (ioapic_res) {
+				ioapic_res->start = ioapic_phys;
+				ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
+				insert_resource(&iomem_resource, ioapic_res);
+				ioapic_res++;
+			}
 		}
 	}
 }
