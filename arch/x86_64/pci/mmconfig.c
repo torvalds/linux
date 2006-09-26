@@ -163,7 +163,7 @@ static __init void unreachable_devices(void)
 	}
 }
 
-void __init pci_mmcfg_init(void)
+void __init pci_mmcfg_init(int type)
 {
 	int i;
 

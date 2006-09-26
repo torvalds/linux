@@ -254,7 +254,16 @@ static int __init pci_check_type2(void)
 	return works;
 }
 
-void __init pci_direct_init(void)
+void __init pci_direct_init(int type)
+{
+	printk(KERN_INFO "PCI: Using configuration type %d\n", type);
+	if (type == 1)
+		raw_pci_ops = &pci_direct_conf1;
+	else
+		raw_pci_ops = &pci_direct_conf2;
+}
+
+int __init pci_direct_probe(void)
 {
 	struct resource *region, *region2;
 
@@ -264,19 +273,16 @@ void __init pci_direct_init(void)
 	if (!region)
 		goto type2;
 
-	if (pci_check_type1()) {
-		printk(KERN_INFO "PCI: Using configuration type 1\n");
-		raw_pci_ops = &pci_direct_conf1;
-		return;
-	}
+	if (pci_check_type1())
+		return 1;
 	release_resource(region);
 
  type2:
 	if ((pci_probe & PCI_PROBE_CONF2) == 0)
-		return;
+		return 0;
 	region = request_region(0xCF8, 4, "PCI conf2");
 	if (!region)
-		return;
+		return 0;
 	region2 = request_region(0xC000, 0x1000, "PCI conf2");
 	if (!region2)
 		goto fail2;
@@ -284,10 +290,11 @@ void __init pci_direct_init(void)
 	if (pci_check_type2()) {
 		printk(KERN_INFO "PCI: Using configuration type 2\n");
 		raw_pci_ops = &pci_direct_conf2;
-		return;
+		return 2;
 	}
 
 	release_resource(region2);
  fail2:
 	release_resource(region);
+	return 0;
 }

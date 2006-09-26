@@ -187,7 +187,7 @@ static __init void unreachable_devices(void)
 	}
 }
 
-void __init pci_mmcfg_init(void)
+void __init pci_mmcfg_init(int type)
 {
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
