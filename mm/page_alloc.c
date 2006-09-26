@@ -2005,6 +2005,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 #ifdef CONFIG_NUMA
 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
 						/ 100;
+		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
 #endif
 		zone->name = zone_names[j];
 		spin_lock_init(&zone->lock);
@@ -2316,6 +2317,22 @@ int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
 	for_each_zone(zone)
 		zone->min_unmapped_pages = (zone->present_pages *
 				sysctl_min_unmapped_ratio) / 100;
+	return 0;
+}
+
+int sysctl_min_slab_ratio_sysctl_handler(ctl_table *table, int write,
+	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+{
+	struct zone *zone;
+	int rc;
+
+	rc = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+	if (rc)
+		return rc;
+
+	for_each_zone(zone)
+		zone->min_slab_pages = (zone->present_pages *
+				sysctl_min_slab_ratio) / 100;
 	return 0;
 }
 #endif

@@ -1527,7 +1527,6 @@ int zone_reclaim_mode __read_mostly;
 #define RECLAIM_ZONE (1<<0)	/* Run shrink_cache on the zone */
 #define RECLAIM_WRITE (1<<1)	/* Writeout pages during reclaim */
 #define RECLAIM_SWAP (1<<2)	/* Swap pages out during reclaim */
-#define RECLAIM_SLAB (1<<3)	/* Do a global slab shrink if the zone is out of memory */
 
 /*
  * Priority for ZONE_RECLAIM. This determines the fraction of pages
@@ -1541,6 +1540,12 @@ int zone_reclaim_mode __read_mostly;
  * occur.
  */
 int sysctl_min_unmapped_ratio = 1;
+
+/*
+ * If the number of slab pages in a zone grows beyond this percentage then
+ * slab reclaim needs to occur.
+ */
+int sysctl_min_slab_ratio = 5;
 
 /*
  * Try to free up some pages from this zone through reclaim.
@@ -1573,29 +1578,37 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
-	/*
-	 * Free memory by calling shrink zone with increasing priorities
-	 * until we have enough memory freed.
-	 */
-	priority = ZONE_RECLAIM_PRIORITY;
-	do {
-		nr_reclaimed += shrink_zone(priority, zone, &sc);
-		priority--;
-	} while (priority >= 0 && nr_reclaimed < nr_pages);
+	if (zone_page_state(zone, NR_FILE_PAGES) -
+		zone_page_state(zone, NR_FILE_MAPPED) >
+		zone->min_unmapped_pages) {
+		/*
+		 * Free memory by calling shrink zone with increasing
+		 * priorities until we have enough memory freed.
+		 */
+		priority = ZONE_RECLAIM_PRIORITY;
+		do {
+			nr_reclaimed += shrink_zone(priority, zone, &sc);
+			priority--;
+		} while (priority >= 0 && nr_reclaimed < nr_pages);
+	}
 
-	if (nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
+	if (zone_page_state(zone, NR_SLAB_RECLAIMABLE) > zone->min_slab_pages) {
 		/*
 		 * shrink_slab() does not currently allow us to determine how
-		 * many pages were freed in this zone. So we just shake the slab
-		 * a bit and then go off node for this particular allocation
-		 * despite possibly having freed enough memory to allocate in
-		 * this zone.  If we freed local memory then the next
-		 * allocations will be local again.
+		 * many pages were freed in this zone. So we take the current
+		 * number of slab pages and shake the slab until it is reduced
+		 * by the same nr_pages that we used for reclaiming unmapped
+		 * pages.
 		 *
-		 * shrink_slab will free memory on all zones and may take
-		 * a long time.
+		 * Note that shrink_slab will free memory on all zones and may
+		 * take a long time.
 		 */
-		shrink_slab(sc.nr_scanned, gfp_mask, order);
+		unsigned long limit = zone_page_state(zone,
+				NR_SLAB_RECLAIMABLE) - nr_pages;
+
+		while (shrink_slab(sc.nr_scanned, gfp_mask, order) &&
+			zone_page_state(zone, NR_SLAB_RECLAIMABLE) > limit)
+			;
 	}
 
 	p->reclaim_state = NULL;
@@ -1609,7 +1622,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	int node_id;
 
 	/*
-	 * Zone reclaim reclaims unmapped file backed pages.
+	 * Zone reclaim reclaims unmapped file backed pages and
+	 * slab pages if we are over the defined limits.
 	 *
 	 * A small portion of unmapped file backed pages is needed for
 	 * file I/O otherwise pages read by file I/O will be immediately
@@ -1618,7 +1632,9 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	 * unmapped file backed pages.
 	 */
 	if (zone_page_state(zone, NR_FILE_PAGES) -
-	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages)
+	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages
+	    && zone_page_state(zone, NR_SLAB_RECLAIMABLE)
+			<= zone->min_slab_pages)
 		return 0;
 
 	/*
