@@ -176,7 +176,9 @@ void __init pci_mmcfg_init(int type)
 	    (pci_mmcfg_config[0].base_address == 0))
 		return;
 
-	if (!e820_all_mapped(pci_mmcfg_config[0].base_address,
+	/* Only do this check when type 1 works. If it doesn't work
+           assume we run on a Mac and always use MCFG */
+	if (type == 1 && !e820_all_mapped(pci_mmcfg_config[0].base_address,
 			pci_mmcfg_config[0].base_address + MMCONFIG_APER_MIN,
 			E820_RESERVED)) {
 		printk(KERN_ERR "PCI: BIOS Bug: MCFG area at %x is not E820-reserved\n",
