@@ -1103,8 +1103,8 @@ int usb_resume_both(struct usb_device *udev)
 
 /**
  * usb_autosuspend_device - delayed autosuspend of a USB device and its interfaces
- * @udev - the usb_device to autosuspend
- * @dec_usage_cnt - flag to decrement @udev's PM-usage counter
+ * @udev: the usb_device to autosuspend
+ * @dec_usage_cnt: flag to decrement @udev's PM-usage counter
  *
  * This routine should be called when a core subsystem is finished using
  * @udev and wants to allow it to autosuspend.  Examples would be when
@@ -1140,8 +1140,8 @@ void usb_autosuspend_device(struct usb_device *udev, int dec_usage_cnt)
 
 /**
  * usb_autoresume_device - immediately autoresume a USB device and its interfaces
- * @udev - the usb_device to autoresume
- * @inc_usage_cnt - flag to increment @udev's PM-usage counter
+ * @udev: the usb_device to autoresume
+ * @inc_usage_cnt: flag to increment @udev's PM-usage counter
  *
  * This routine should be called when a core subsystem wants to use @udev
  * and needs to guarantee that it is not suspended.  In addition, the
@@ -1181,7 +1181,7 @@ int usb_autoresume_device(struct usb_device *udev, int inc_usage_cnt)
 
 /**
  * usb_autopm_put_interface - decrement a USB interface's PM-usage counter
- * @intf - the usb_interface whose counter should be decremented
+ * @intf: the usb_interface whose counter should be decremented
  *
  * This routine should be called by an interface driver when it is
  * finished using @intf and wants to allow it to autosuspend.  A typical
@@ -1228,7 +1228,7 @@ EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
 
 /**
  * usb_autopm_get_interface - increment a USB interface's PM-usage counter
- * @intf - the usb_interface whose counter should be incremented
+ * @intf: the usb_interface whose counter should be incremented
  *
  * This routine should be called by an interface driver when it wants to
  * use @intf and needs to guarantee that it is not suspended.  In addition,
