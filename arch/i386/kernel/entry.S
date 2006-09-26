@@ -950,6 +950,19 @@ ENTRY(arch_unwind_init_running)
 ENDPROC(arch_unwind_init_running)
 #endif
 
+ENTRY(kernel_thread_helper)
+	pushl $0		# fake return address for unwinder
+	CFI_STARTPROC
+	movl %edx,%eax
+	push %edx
+	CFI_ADJUST_CFA_OFFSET 4
+	call *%ebx
+	push %eax
+	CFI_ADJUST_CFA_OFFSET 4
+	call do_exit
+	CFI_ENDPROC
+ENDPROC(kernel_thread_helper)
+
 .section .rodata,"a"
 #include "syscall_table.S"
 
