@@ -389,9 +389,7 @@ static int __init find_isa_irq_pin(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA) &&
+		if (mp_bus_id_to_type[lbus] == MP_BUS_ISA &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 
@@ -407,9 +405,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA) &&
+		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 			break;
@@ -472,27 +468,6 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 	return best_guess;
 }
 
-/*
- * EISA Edge/Level control register, ELCR
- */
-static int EISA_ELCR(unsigned int irq)
-{
-	if (irq < 16) {
-		unsigned int port = 0x4d0 + (irq >> 3);
-		return (inb(port) >> (irq & 7)) & 1;
-	}
-	apic_printk(APIC_VERBOSE, "Broken MPtable reports ISA irq %d\n", irq);
-	return 0;
-}
-
-/* EISA interrupts are always polarity zero and can be edge or level
- * trigger depending on the ELCR value.  If an interrupt is listed as
- * EISA conforming in the MP table, that means its trigger type must
- * be read in from the ELCR */
-
-#define default_EISA_trigger(idx)	(EISA_ELCR(mp_irqs[idx].mpc_srcbusirq))
-#define default_EISA_polarity(idx)	(0)
-
 /* ISA interrupts are always polarity zero edge triggered,
  * when listed as conforming in the MP table. */
 
@@ -504,12 +479,6 @@ static int EISA_ELCR(unsigned int irq)
 
 #define default_PCI_trigger(idx)	(1)
 #define default_PCI_polarity(idx)	(1)
-
-/* MCA interrupts are always polarity zero level triggered,
- * when listed as conforming in the MP table. */
-
-#define default_MCA_trigger(idx)	(1)
-#define default_MCA_polarity(idx)	(0)
 
 static int __init MPBIOS_polarity(int idx)
 {
@@ -530,19 +499,9 @@ static int __init MPBIOS_polarity(int idx)
 					polarity = default_ISA_polarity(idx);
 					break;
 				}
-				case MP_BUS_EISA: /* EISA pin */
-				{
-					polarity = default_EISA_polarity(idx);
-					break;
-				}
 				case MP_BUS_PCI: /* PCI pin */
 				{
 					polarity = default_PCI_polarity(idx);
-					break;
-				}
-				case MP_BUS_MCA: /* MCA pin */
-				{
-					polarity = default_MCA_polarity(idx);
 					break;
 				}
 				default:
@@ -599,19 +558,9 @@ static int MPBIOS_trigger(int idx)
 					trigger = default_ISA_trigger(idx);
 					break;
 				}
-				case MP_BUS_EISA: /* EISA pin */
-				{
-					trigger = default_EISA_trigger(idx);
-					break;
-				}
 				case MP_BUS_PCI: /* PCI pin */
 				{
 					trigger = default_PCI_trigger(idx);
-					break;
-				}
-				case MP_BUS_MCA: /* MCA pin */
-				{
-					trigger = default_MCA_trigger(idx);
 					break;
 				}
 				default:
@@ -731,8 +680,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 	switch (mp_bus_id_to_type[bus])
 	{
 		case MP_BUS_ISA: /* ISA pin */
-		case MP_BUS_EISA:
-		case MP_BUS_MCA:
 		{
 			irq = mp_irqs[idx].mpc_srcbusirq;
 			break;

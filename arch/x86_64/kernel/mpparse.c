@@ -175,14 +175,10 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 
 	if (strncmp(str, "ISA", 3) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
-	} else if (strncmp(str, "EISA", 4) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
 	} else if (strncmp(str, "PCI", 3) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;
-	} else if (strncmp(str, "MCA", 3) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
 	} else {
 		printk(KERN_ERR "Unknown bustype %s\n", str);
 	}
@@ -465,14 +461,6 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 		case 5:
 			memcpy(bus.mpc_bustype, "ISA   ", 6);
 			break;
-		case 2:
-		case 6:
-		case 3:
-			memcpy(bus.mpc_bustype, "EISA  ", 6);
-			break;
-		case 4:
-		case 7:
-			memcpy(bus.mpc_bustype, "MCA   ", 6);
 	}
 	MP_bus_info(&bus);
 	if (mpc_default_type > 4) {
@@ -629,9 +617,7 @@ void __init find_intel_smp (void)
 			smp_scan_config(0xF0000,0x10000))
 		return;
 	/*
-	 * If it is an SMP machine we should know now, unless the
-	 * configuration is in an EISA/MCA bus machine with an
-	 * extended bios data area.
+	 * If it is an SMP machine we should know now.
 	 *
 	 * there is a real-mode segmented pointer pointing to the
 	 * 4K EBDA area at 0x40E, calculate and scan it here.
