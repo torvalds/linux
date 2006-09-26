@@ -1281,10 +1281,6 @@ void show_free_areas(void)
 
 	get_zone_counts(&active, &inactive, &free);
 
-	printk("Free pages: %11ukB (%ukB HighMem)\n",
-		K(nr_free_pages()),
-		K(nr_free_highpages()));
-
 	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
 		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
 		active,
