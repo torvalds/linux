@@ -3349,12 +3349,28 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (!dev)
 		goto err_out_free_pci;
 
+	if (!disable_msi && pci_enable_msi(pdev) == 0) {
+		err = sky2_test_msi(hw);
+		if (err == -EOPNOTSUPP)
+ 			pci_disable_msi(pdev);
+		else if (err)
+			goto err_out_free_netdev;
+ 	}
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot register net device\n",
 		       pci_name(pdev));
 		goto err_out_free_netdev;
 	}
+
+	err = request_irq(pdev->irq,  sky2_intr, IRQF_SHARED, dev->name, hw);
+	if (err) {
+		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
+		       pci_name(pdev), pdev->irq);
+		goto err_out_unregister;
+	}
+	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
 	sky2_show_addr(dev);
 
@@ -3370,23 +3386,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	if (!disable_msi && pci_enable_msi(pdev) == 0) {
-		err = sky2_test_msi(hw);
-		if (err == -EOPNOTSUPP)
- 			pci_disable_msi(pdev);
-		else if (err)
-			goto err_out_unregister;
- 	}
-
-	err = request_irq(pdev->irq,  sky2_intr, IRQF_SHARED, DRV_NAME, hw);
-	if (err) {
-		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
-		       pci_name(pdev), pdev->irq);
-		goto err_out_unregister;
-	}
-
-	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
-
 	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
 	sky2_idle_start(hw);
 
@@ -3396,10 +3395,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 err_out_unregister:
 	pci_disable_msi(pdev);
-	if (dev1) {
-		unregister_netdev(dev1);
-		free_netdev(dev1);
-	}
 	unregister_netdev(dev);
 err_out_free_netdev:
 	free_netdev(dev);
