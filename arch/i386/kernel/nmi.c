@@ -21,6 +21,7 @@
 #include <linux/sysdev.h>
 #include <linux/sysctl.h>
 #include <linux/percpu.h>
+#include <linux/dmi.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
@@ -203,6 +204,14 @@ static int __init check_nmi_watchdog(void)
 	volatile int endflag = 0;
 	unsigned int *prev_nmi_count;
 	int cpu;
+
+	/* Enable NMI watchdog for newer systems.
+           Actually it should be safe for most systems before 2004 too except
+	   for some IBM systems that corrupt registers when NMI happens
+	   during SMM. Unfortunately we don't have more exact information
+ 	   on these and use this coarse check. */
+	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004)
+		nmi_watchdog = NMI_LOCAL_APIC;
 
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DEFAULT))
 		return 0;
