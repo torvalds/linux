@@ -23,6 +23,7 @@
 #include "linux/proc_fs.h"
 #include "linux/ptrace.h"
 #include "linux/random.h"
+#include "linux/personality.h"
 #include "asm/unistd.h"
 #include "asm/mman.h"
 #include "asm/segment.h"
@@ -476,7 +477,7 @@ int singlestepping(void * t)
 #ifndef arch_align_stack
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (randomize_va_space)
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_int() % 8192;
 	return sp & ~0xf;
 }
