@@ -186,7 +186,47 @@ static inline int __test_bit(int nr, const volatile void * addr)
 	bit;						\
 })
 
-#include <asm-generic/bitops/fls64.h>
+/**
+ * fls64 - find last bit set in a 64-bit value
+ * @n: the value to search
+ *
+ * This is defined the same way as ffs:
+ * - return 64..1 to indicate bit 63..0 most significant bit set
+ * - return 0 to indicate no bits set
+ */
+static inline __attribute__((const))
+int fls64(u64 n)
+{
+	union {
+		u64 ll;
+		struct { u32 h, l; };
+	} _;
+	int bit, x, y;
+
+	_.ll = n;
+
+	asm("	subcc.p		%3,gr0,gr0,icc0		\n"
+	    "	subcc		%4,gr0,gr0,icc1		\n"
+	    "	ckne		icc0,cc4		\n"
+	    "	ckne		icc1,cc5		\n"
+	    "	norcr		cc4,cc5,cc6		\n"
+	    "	csub.p		%0,%0,%0	,cc6,1	\n"
+	    "	orcr		cc5,cc4,cc4		\n"
+	    "	andcr		cc4,cc5,cc4		\n"
+	    "	cscan.p		%3,gr0,%0	,cc4,0	\n"
+	    "   setlos		#64,%1			\n"
+	    "	cscan.p		%4,gr0,%0	,cc4,1	\n"
+	    "   setlos		#32,%2			\n"
+	    "	csub.p		%1,%0,%0	,cc4,0	\n"
+	    "	csub		%2,%0,%0	,cc4,1	\n"
+	    : "=&r"(bit), "=r"(x), "=r"(y)
+	    : "0r"(_.h), "r"(_.l)
+	    : "icc0", "icc1", "cc4", "cc5", "cc6"
+	    );
+	return bit;
+
+}
+
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
 
