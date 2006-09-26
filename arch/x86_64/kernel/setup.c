@@ -493,7 +493,9 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
+#ifdef CONFIG_PCI
 	early_quirks();
+#endif
 
 	/*
 	 * set this early, so we dont allocate cpu0

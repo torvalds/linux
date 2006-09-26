@@ -1437,8 +1437,10 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_table_init();
 #endif
 
+#ifdef CONFIG_PCI
 #ifdef CONFIG_X86_IO_APIC
 	check_acpi_pci();	/* Checks more than just ACPI actually */
+#endif
 #endif
 
 #ifdef CONFIG_ACPI

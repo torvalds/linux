@@ -105,6 +105,7 @@ config X86_PC
 
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
+	depends on PCI
 	 help
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
@@ -291,7 +292,7 @@ config NUMA
 
 config K8_NUMA
        bool "Old style AMD Opteron NUMA detection"
-       depends on NUMA
+       depends on NUMA && PCI
        default y
        help
 	 Enable K8 NUMA node topology detection.  You should say Y here if
