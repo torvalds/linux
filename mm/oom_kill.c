@@ -177,8 +177,7 @@ static inline int constrained_alloc(struct zonelist *zonelist, gfp_t gfp_mask)
 
 	for (z = zonelist->zones; *z; z++)
 		if (cpuset_zone_allowed(*z, gfp_mask))
-			node_clear((*z)->zone_pgdat->node_id,
-					nodes);
+			node_clear(zone_to_nid(*z), nodes);
 		else
 			return CONSTRAINT_CPUSET;
 

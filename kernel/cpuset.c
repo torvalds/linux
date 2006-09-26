@@ -2245,7 +2245,7 @@ int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	int i;
 
 	for (i = 0; zl->zones[i]; i++) {
-		int nid = zl->zones[i]->zone_pgdat->node_id;
+		int nid = zone_to_nid(zl->zones[i]);
 
 		if (node_isset(nid, current->mems_allowed))
 			return 1;
@@ -2318,7 +2318,7 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 
 	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
 		return 1;
-	node = z->zone_pgdat->node_id;
+	node = zone_to_nid(z);
 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
 		return 1;

@@ -422,7 +422,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
 		printk("Initializing %s for node %d (%08lx:%08lx)\n",
-				zone->name, zone->zone_pgdat->node_id,
+				zone->name, zone_to_nid(zone),
 				zone_start_pfn, zone_end_pfn);
 
 		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {

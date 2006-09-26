@@ -487,7 +487,7 @@ static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 	switch (p->policy) {
 	case MPOL_BIND:
 		for (i = 0; p->v.zonelist->zones[i]; i++)
-			node_set(p->v.zonelist->zones[i]->zone_pgdat->node_id,
+			node_set(zone_to_nid(p->v.zonelist->zones[i]),
 				*nodes);
 		break;
 	case MPOL_DEFAULT:
@@ -1145,7 +1145,7 @@ unsigned slab_node(struct mempolicy *policy)
 		 * Follow bind policy behavior and start allocation at the
 		 * first node.
 		 */
-		return policy->v.zonelist->zones[0]->zone_pgdat->node_id;
+		return zone_to_nid(policy->v.zonelist->zones[0]);
 
 	case MPOL_PREFERRED:
 		if (policy->v.preferred_node >= 0)
@@ -1649,7 +1649,7 @@ void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
 
 		nodes_clear(nodes);
 		for (z = pol->v.zonelist->zones; *z; z++)
-			node_set((*z)->zone_pgdat->node_id, nodes);
+			node_set(zone_to_nid(*z), nodes);
 		nodes_remap(tmp, nodes, *mpolmask, *newmask);
 		nodes = tmp;
 

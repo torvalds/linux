@@ -1661,7 +1661,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	 * over remote processors and spread off node memory allocations
 	 * as wide as possible.
 	 */
-	node_id = zone->zone_pgdat->node_id;
+	node_id = zone_to_nid(zone);
 	mask = node_to_cpumask(node_id);
 	if (!cpus_empty(mask) && node_id != numa_node_id())
 		return 0;

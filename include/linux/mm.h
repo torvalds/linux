@@ -499,12 +499,17 @@ static inline struct zone *page_zone(struct page *page)
 	return zone_table[page_zone_id(page)];
 }
 
+static inline unsigned long zone_to_nid(struct zone *zone)
+{
+	return zone->zone_pgdat->node_id;
+}
+
 static inline unsigned long page_to_nid(struct page *page)
 {
 	if (FLAGS_HAS_NODE)
 		return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 	else
-		return page_zone(page)->zone_pgdat->node_id;
+		return zone_to_nid(page_zone(page));
 }
 static inline unsigned long page_to_section(struct page *page)
 {

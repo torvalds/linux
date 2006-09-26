@@ -1217,7 +1217,7 @@ unsigned int nr_free_pagecache_pages(void)
 #ifdef CONFIG_NUMA
 static void show_node(struct zone *zone)
 {
-	printk("Node %d ", zone->zone_pgdat->node_id);
+	printk("Node %ld ", zone_to_nid(zone));
 }
 #else
 #define show_node(zone)	do { } while (0)
