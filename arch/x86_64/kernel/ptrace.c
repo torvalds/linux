@@ -141,8 +141,11 @@ static int is_at_popf(struct task_struct *child, struct pt_regs *regs)
 		case 0xf0: case 0xf2: case 0xf3:
 			continue;
 
-		/* REX prefixes */
 		case 0x40 ... 0x4f:
+			if (regs->cs != __USER_CS)
+				/* 32-bit mode: register increment */
+				return 0;
+			/* 64-bit mode: REX prefix */
 			continue;
 
 			/* CHECKME: f0, f2, f3 */
