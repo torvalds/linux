@@ -38,6 +38,13 @@
 
 int __initdata acpi_force = 0;
 
+#ifdef	CONFIG_ACPI
+int acpi_disabled = 0;
+#else
+int acpi_disabled = 1;
+#endif
+EXPORT_SYMBOL(acpi_disabled);
+
 #ifdef	CONFIG_X86_64
 
 extern void __init clustered_apic_check(void);

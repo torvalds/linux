@@ -89,13 +89,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-#ifdef	CONFIG_ACPI
-	int acpi_disabled = 0;
-#else
-	int acpi_disabled = 1;
-#endif
-EXPORT_SYMBOL(acpi_disabled);
-
 /* for MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 #ifdef CONFIG_MCA

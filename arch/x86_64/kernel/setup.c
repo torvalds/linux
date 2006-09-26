@@ -74,9 +74,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-int acpi_disabled;
-EXPORT_SYMBOL(acpi_disabled);
-
 int acpi_numa __initdata;
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
