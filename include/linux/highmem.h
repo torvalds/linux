@@ -24,10 +24,13 @@ static inline void flush_kernel_dcache_page(struct page *page)
 
 /* declarations for linux/mm/highmem.c */
 unsigned int nr_free_highpages(void);
+extern unsigned long totalhigh_pages;
 
 #else /* CONFIG_HIGHMEM */
 
 static inline unsigned int nr_free_highpages(void) { return 0; }
+
+#define totalhigh_pages 0
 
 #ifndef ARCH_HAS_KMAP
 static inline void *kmap(struct page *page)

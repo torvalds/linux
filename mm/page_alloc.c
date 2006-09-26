@@ -51,7 +51,6 @@ EXPORT_SYMBOL(node_online_map);
 nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
 EXPORT_SYMBOL(node_possible_map);
 unsigned long totalram_pages __read_mostly;
-unsigned long totalhigh_pages __read_mostly;
 unsigned long totalreserve_pages __read_mostly;
 long nr_swap_pages;
 int percpu_pagelist_fraction;
@@ -1185,20 +1184,6 @@ unsigned int nr_free_pagecache_pages(void)
 {
 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
 }
-
-#ifdef CONFIG_HIGHMEM
-unsigned int nr_free_highpages (void)
-{
-	pg_data_t *pgdat;
-	unsigned int pages = 0;
-
-	for_each_online_pgdat(pgdat)
-		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
-
-	return pages;
-}
-#endif
-
 #ifdef CONFIG_NUMA
 static void show_node(struct zone *zone)
 {
