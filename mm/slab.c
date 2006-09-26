@@ -1833,6 +1833,27 @@ static void set_up_list3s(struct kmem_cache *cachep, int index)
 	}
 }
 
+static void __kmem_cache_destroy(struct kmem_cache *cachep)
+{
+	int i;
+	struct kmem_list3 *l3;
+
+	for_each_online_cpu(i)
+	    kfree(cachep->array[i]);
+
+	/* NUMA: free the list3 structures */
+	for_each_online_node(i) {
+		l3 = cachep->nodelists[i];
+		if (l3) {
+			kfree(l3->shared);
+			free_alien_cache(l3->alien);
+			kfree(l3);
+		}
+	}
+	kmem_cache_free(&cache_cache, cachep);
+}
+
+
 /**
  * calculate_slab_order - calculate size (page order) of slabs
  * @cachep: pointer to the cache that is being created
@@ -2404,9 +2425,6 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  */
 int kmem_cache_destroy(struct kmem_cache *cachep)
 {
-	int i;
-	struct kmem_list3 *l3;
-
 	BUG_ON(!cachep || in_interrupt());
 
 	/* Don't let CPUs to come and go */
@@ -2432,19 +2450,7 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
 		synchronize_rcu();
 
-	for_each_online_cpu(i)
-	    kfree(cachep->array[i]);
-
-	/* NUMA: free the list3 structures */
-	for_each_online_node(i) {
-		l3 = cachep->nodelists[i];
-		if (l3) {
-			kfree(l3->shared);
-			free_alien_cache(l3->alien);
-			kfree(l3);
-		}
-	}
-	kmem_cache_free(&cache_cache, cachep);
+	__kmem_cache_destroy(cachep);
 	unlock_cpu_hotplug();
 	return 0;
 }
