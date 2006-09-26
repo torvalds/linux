@@ -243,7 +243,7 @@ static DEFINE_SPINLOCK(set_atomicity_lock);
  * has been called.
  */
 
-static void prepare_set(void)
+static void prepare_set(void) __acquires(set_atomicity_lock)
 {
 	unsigned long cr0;
 
@@ -274,7 +274,7 @@ static void prepare_set(void)
 	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo & 0xf300UL, deftype_hi);
 }
 
-static void post_set(void)
+static void post_set(void) __releases(set_atomicity_lock)
 {
 	/*  Flush TLBs (no need to flush caches - they are disabled)  */
 	__flush_tlb();
