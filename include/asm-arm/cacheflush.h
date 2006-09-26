@@ -25,7 +25,8 @@
 #undef _CACHE
 #undef MULTI_CACHE
 
-#if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710)
+#if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710) || \
+    defined(CONFIG_CPU_ARM740T)
 # ifdef _CACHE
 #  define MULTI_CACHE 1
 # else
