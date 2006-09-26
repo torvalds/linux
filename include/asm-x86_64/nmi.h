@@ -26,6 +26,14 @@ void set_nmi_callback(nmi_callback_t callback);
  */
 void unset_nmi_callback(void);
 
+/**
+ * do_nmi_callback
+ *
+ * Check to see if a callback exists and execute it.  Return 1
+ * if the handler exists and was handled successfully.
+ */
+int do_nmi_callback(struct pt_regs *regs, int cpu);
+
 #ifdef CONFIG_PM
  
 /** Replace the PM callback routine for NMI. */
@@ -68,7 +76,7 @@ extern int reserve_lapic_nmi(void);
 extern void release_lapic_nmi(void);
 extern void disable_timer_nmi_watchdog(void);
 extern void enable_timer_nmi_watchdog(void);
-extern void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
+extern int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
 
 extern void nmi_watchdog_default(void);
 extern int setup_nmi_watchdog(char *);

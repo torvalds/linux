@@ -682,16 +682,18 @@ void touch_nmi_watchdog (void)
  	touch_softlockup_watchdog();
 }
 
-void __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
+int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	u64 dummy;
+	int rc=0;
 
 	/* check for other users first */
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
 			== NOTIFY_STOP) {
+		rc = 1;
 		touched = 1;
 	}
 
@@ -746,10 +748,18 @@ void __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	 		}
 			/* start the cycle over again */
 			wrmsrl(wd->perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
-		}
+			rc = 1;
+		} else 	if (nmi_watchdog == NMI_IO_APIC) {
+			/* don't know how to accurately check for this.
+			 * just assume it was a watchdog timer interrupt
+			 * This matches the old behaviour.
+			 */
+			rc = 1;
+		} else
+			printk(KERN_WARNING "Unknown enabled NMI hardware?!\n");
 	}
 done:
-	return;
+	return rc;
 }
 
 static __kprobes int dummy_nmi_callback(struct pt_regs * regs, int cpu)
@@ -761,13 +771,15 @@ static nmi_callback_t nmi_callback = dummy_nmi_callback;
  
 asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
-	int cpu = safe_smp_processor_id();
-
 	nmi_enter();
 	add_pda(__nmi_count,1);
-	if (!rcu_dereference(nmi_callback)(regs, cpu))
-		default_do_nmi(regs);
+	default_do_nmi(regs);
 	nmi_exit();
+}
+
+int do_nmi_callback(struct pt_regs * regs, int cpu)
+{
+	return rcu_dereference(nmi_callback)(regs, cpu);
 }
 
 void set_nmi_callback(nmi_callback_t callback)

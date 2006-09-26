@@ -706,6 +706,13 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	do_exit(SIGSEGV);
 }
 
+static int dummy_nmi_callback(struct pt_regs * regs, int cpu)
+{
+	return 0;
+}
+
+static nmi_callback_t nmi_callback = dummy_nmi_callback;
+
 static void default_do_nmi(struct pt_regs * regs)
 {
 	unsigned char reason = 0;
@@ -723,12 +730,11 @@ static void default_do_nmi(struct pt_regs * regs)
 		 * Ok, so this is none of the documented NMI sources,
 		 * so it must be the NMI watchdog.
 		 */
-		if (nmi_watchdog) {
-			nmi_watchdog_tick(regs, reason);
+		if (nmi_watchdog_tick(regs, reason))
 			return;
-		}
 #endif
-		unknown_nmi_error(reason, regs);
+		if (!rcu_dereference(nmi_callback)(regs, smp_processor_id()))
+			unknown_nmi_error(reason, regs);
 		return;
 	}
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
@@ -744,13 +750,6 @@ static void default_do_nmi(struct pt_regs * regs)
 	reassert_nmi();
 }
 
-static int dummy_nmi_callback(struct pt_regs * regs, int cpu)
-{
-	return 0;
-}
- 
-static nmi_callback_t nmi_callback = dummy_nmi_callback;
- 
 fastcall void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu;
@@ -761,8 +760,7 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 	++nmi_count(cpu);
 
-	if (!rcu_dereference(nmi_callback)(regs, cpu))
-		default_do_nmi(regs);
+	default_do_nmi(regs);
 
 	nmi_exit();
 }

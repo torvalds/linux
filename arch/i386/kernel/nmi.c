@@ -781,7 +781,7 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
 
 extern void die_nmi(struct pt_regs *, const char *msg);
 
-void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
+int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 {
 
 	/*
@@ -794,10 +794,12 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 	int cpu = smp_processor_id();
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	u64 dummy;
+	int rc=0;
 
 	/* check for other users first */
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
 			== NOTIFY_STOP) {
+		rc = 1;
 		touched = 1;
 	}
 
@@ -850,10 +852,18 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 			}
 			/* start the cycle over again */
 			write_watchdog_counter(wd->perfctr_msr, NULL);
-		}
+			rc = 1;
+		} else if (nmi_watchdog == NMI_IO_APIC) {
+			/* don't know how to accurately check for this.
+			 * just assume it was a watchdog timer interrupt
+			 * This matches the old behaviour.
+			 */
+			rc = 1;
+		} else
+			printk(KERN_WARNING "Unknown enabled NMI hardware?!\n");
 	}
 done:
-	return;
+	return rc;
 }
 
 #ifdef CONFIG_SYSCTL
