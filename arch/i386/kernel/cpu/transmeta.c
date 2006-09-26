@@ -5,7 +5,7 @@
 #include <asm/msr.h>
 #include "cpu.h"
 
-static void __init init_transmeta(struct cpuinfo_x86 *c)
+static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 {
 	unsigned int cap_mask, uk, max, dummy;
 	unsigned int cms_rev1, cms_rev2;
@@ -85,10 +85,9 @@ static void __init init_transmeta(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __init transmeta_identify(struct cpuinfo_x86 * c)
+static void __cpuinit transmeta_identify(struct cpuinfo_x86 * c)
 {
 	u32 xlvl;
-	generic_identify(c);
 
 	/* Transmeta-defined flags: level 0x80860001 */
 	xlvl = cpuid_eax(0x80860000);
@@ -98,7 +97,7 @@ static void __init transmeta_identify(struct cpuinfo_x86 * c)
 	}
 }
 
-static struct cpu_dev transmeta_cpu_dev __initdata = {
+static struct cpu_dev transmeta_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Transmeta",
 	.c_ident	= { "GenuineTMx86", "TransmetaCPU" },
 	.c_init		= init_transmeta,

@@ -21,6 +21,7 @@
 #include <linux/debug_locks.h>
 
 int panic_on_oops;
+int panic_on_unrecovered_nmi;
 int tainted;
 static int pause_on_oops;
 static int pause_on_oops_flag;
@@ -270,3 +271,15 @@ void oops_exit(void)
 {
 	do_oops_enter_exit();
 }
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+/*
+ * Called when gcc's -fstack-protector feature is used, and
+ * gcc detects corruption of the on-stack canary value
+ */
+void __stack_chk_fail(void)
+{
+	panic("stack-protector: Kernel stack is corrupted");
+}
+EXPORT_SYMBOL(__stack_chk_fail);
+#endif

@@ -1,6 +1,26 @@
 #ifndef _I386_KEXEC_H
 #define _I386_KEXEC_H
 
+#define PA_CONTROL_PAGE  0
+#define VA_CONTROL_PAGE  1
+#define PA_PGD           2
+#define VA_PGD           3
+#define PA_PTE_0         4
+#define VA_PTE_0         5
+#define PA_PTE_1         6
+#define VA_PTE_1         7
+#ifdef CONFIG_X86_PAE
+#define PA_PMD_0         8
+#define VA_PMD_0         9
+#define PA_PMD_1         10
+#define VA_PMD_1         11
+#define PAGES_NR         12
+#else
+#define PAGES_NR         8
+#endif
+
+#ifndef __ASSEMBLY__
+
 #include <asm/fixmap.h>
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -72,5 +92,12 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
                newregs->eip = (unsigned long)current_text_addr();
        }
 }
+asmlinkage NORET_TYPE void
+relocate_kernel(unsigned long indirection_page,
+		unsigned long control_page,
+		unsigned long start_address,
+		unsigned int has_pae) ATTRIB_NORET;
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _I386_KEXEC_H */

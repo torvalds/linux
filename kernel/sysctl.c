@@ -76,8 +76,9 @@ extern int compat_log;
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
-extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
-				  void __user *, size_t *, loff_t *);
+int nmi_watchdog_enabled;
+extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
+			void __user *, size_t *, loff_t *);
 #endif
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
@@ -628,10 +629,26 @@ static ctl_table kern_table[] = {
 		.data           = &unknown_nmi_panic,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
-		.proc_handler   = &proc_unknown_nmi_panic,
+		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name       = KERN_NMI_WATCHDOG,
+		.procname       = "nmi_watchdog",
+		.data           = &nmi_watchdog_enabled,
+		.maxlen         = sizeof (int),
+		.mode           = 0644,
+		.proc_handler   = &proc_nmi_enabled,
 	},
 #endif
 #if defined(CONFIG_X86)
+	{
+		.ctl_name	= KERN_PANIC_ON_NMI,
+		.procname	= "panic_on_unrecovered_nmi",
+		.data		= &panic_on_unrecovered_nmi,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 	{
 		.ctl_name	= KERN_BOOTLOADER_TYPE,
 		.procname	= "bootloader_type",

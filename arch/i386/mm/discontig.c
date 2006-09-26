@@ -322,6 +322,11 @@ unsigned long __init setup_memory(void)
 		highstart_pfn = system_max_low_pfn;
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highend_pfn - highstart_pfn));
+	num_physpages = highend_pfn;
+	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
+#else
+	num_physpages = system_max_low_pfn;
+	high_memory = (void *) __va(system_max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(system_max_low_pfn));

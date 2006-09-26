@@ -1,4 +1,6 @@
 /*
+ * This file manages the translation entries for the IBM Calgary IOMMU.
+ *
  * Derived from arch/powerpc/platforms/pseries/iommu.c
  *
  * Copyright (C) IBM Corporation, 2006
@@ -104,14 +106,6 @@ static int tce_table_setparms(struct pci_dev *dev, struct iommu_table *tbl)
 	/* set the tce table size - measured in entries */
 	tbl->it_size = table_size_to_number_of_entries(specified_table_size);
 
-	tbl->it_base = (unsigned long)tce_table_kva[dev->bus->number];
-	if (!tbl->it_base) {
-		printk(KERN_ERR "Calgary: iommu_table_setparms: "
-		       "no table allocated?!\n");
-		ret = -ENOMEM;
-		goto done;
-	}
-
 	/*
 	 * number of bytes needed for the bitmap size in number of
 	 * entries; we need one bit per entry
@@ -159,8 +153,6 @@ int build_tce_table(struct pci_dev *dev, void __iomem *bbar)
 	ret = tce_table_setparms(dev, tbl);
 	if (ret)
 		goto free_tbl;
-
-	tce_free(tbl, 0, tbl->it_size);
 
 	tbl->bbar = bbar;
 

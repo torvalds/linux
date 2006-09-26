@@ -4,6 +4,7 @@
 enum vsyscall_num {
 	__NR_vgettimeofday,
 	__NR_vtime,
+	__NR_vgetcpu,
 };
 
 #define VSYSCALL_START (-10UL << 20)
@@ -15,6 +16,7 @@ enum vsyscall_num {
 #include <linux/seqlock.h>
 
 #define __section_vxtime __attribute__ ((unused, __section__ (".vxtime"), aligned(16)))
+#define __section_vgetcpu_mode __attribute__ ((unused, __section__ (".vgetcpu_mode"), aligned(16)))
 #define __section_wall_jiffies __attribute__ ((unused, __section__ (".wall_jiffies"), aligned(16)))
 #define __section_jiffies __attribute__ ((unused, __section__ (".jiffies"), aligned(16)))
 #define __section_sys_tz __attribute__ ((unused, __section__ (".sys_tz"), aligned(16)))
@@ -25,6 +27,9 @@ enum vsyscall_num {
 #define VXTIME_TSC	1
 #define VXTIME_HPET	2
 #define VXTIME_PMTMR	3
+
+#define VGETCPU_RDTSCP	1
+#define VGETCPU_LSL	2
 
 struct vxtime_data {
 	long hpet_address;	/* HPET base address */
@@ -40,6 +45,7 @@ struct vxtime_data {
 
 /* vsyscall space (readonly) */
 extern struct vxtime_data __vxtime;
+extern int __vgetcpu_mode;
 extern struct timespec __xtime;
 extern volatile unsigned long __jiffies;
 extern unsigned long __wall_jiffies;
@@ -48,12 +54,15 @@ extern seqlock_t __xtime_lock;
 
 /* kernel space (writeable) */
 extern struct vxtime_data vxtime;
+extern int vgetcpu_mode;
 extern unsigned long wall_jiffies;
 extern struct timezone sys_tz;
 extern int sysctl_vsyscall;
 extern seqlock_t xtime_lock;
 
 extern int sysctl_vsyscall;
+
+extern void vsyscall_set_cpu(int cpu);
 
 #define ARCH_HAVE_XTIME_LOCK 1
 

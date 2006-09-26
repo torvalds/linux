@@ -421,6 +421,11 @@ more details, with real examples.
 	The second argument is optional, and if supplied will be used
 	if first argument is not supported.
 
+    as-instr
+	as-instr checks if the assembler reports a specific instruction
+	and then outputs either option1 or option2
+	C escapes are supported in the test instruction
+
     cc-option
 	cc-option is used to check if $(CC) supports a given option, and not
 	supported to use an optional second option.

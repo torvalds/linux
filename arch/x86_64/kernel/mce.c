@@ -182,7 +182,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		goto out2;
 
 	memset(&m, 0, sizeof(struct mce));
-	m.cpu = safe_smp_processor_id();
+	m.cpu = smp_processor_id();
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
 		kill_it = 1;
@@ -273,6 +273,33 @@ void do_machine_check(struct pt_regs * regs, long error_code)
  out2:
 	atomic_dec(&mce_entry);
 }
+
+#ifdef CONFIG_X86_MCE_INTEL
+/***
+ * mce_log_therm_throt_event - Logs the thermal throttling event to mcelog
+ * @cpu: The CPU on which the event occured.
+ * @status: Event status information
+ *
+ * This function should be called by the thermal interrupt after the
+ * event has been processed and the decision was made to log the event
+ * further.
+ *
+ * The status parameter will be saved to the 'status' field of 'struct mce'
+ * and historically has been the register value of the
+ * MSR_IA32_THERMAL_STATUS (Intel) msr.
+ */
+void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
+{
+	struct mce m;
+
+	memset(&m, 0, sizeof(m));
+	m.cpu = cpu;
+	m.bank = MCE_THERMAL_BANK;
+	m.status = status;
+	rdtscll(m.tsc);
+	mce_log(&m);
+}
+#endif /* CONFIG_X86_MCE_INTEL */
 
 /*
  * Periodic polling timer for "silent" machine check errors.

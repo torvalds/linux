@@ -1,17 +1,33 @@
 /* Written 2003 by Andi Kleen, based on a kernel by Evandro Menezes */
 	
+#include <linux/config.h>
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
+
+	ALIGN
+copy_page_c:
+	CFI_STARTPROC
+	movl $4096/8,%ecx
+	rep movsq
+	ret
+	CFI_ENDPROC
+ENDPROC(copy_page_c)
+
 /* Don't use streaming store because it's better when the target
    ends up in cache. */
 	    
 /* Could vary the prefetch distance based on SMP/UP */
 
-	.globl copy_page
-	.p2align 4
-copy_page:
+ENTRY(copy_page)
+	CFI_STARTPROC
 	subq	$3*8,%rsp
+	CFI_ADJUST_CFA_OFFSET 3*8
 	movq	%rbx,(%rsp)
+	CFI_REL_OFFSET rbx, 0
 	movq	%r12,1*8(%rsp)
+	CFI_REL_OFFSET r12, 1*8
 	movq	%r13,2*8(%rsp)
+	CFI_REL_OFFSET r13, 2*8
 
 	movl	$(4096/64)-5,%ecx
 	.p2align 4
@@ -72,30 +88,33 @@ copy_page:
 	jnz	.Loop2
 
 	movq	(%rsp),%rbx
+	CFI_RESTORE rbx
 	movq	1*8(%rsp),%r12
+	CFI_RESTORE r12
 	movq	2*8(%rsp),%r13
+	CFI_RESTORE r13
 	addq	$3*8,%rsp
+	CFI_ADJUST_CFA_OFFSET -3*8
 	ret
+.Lcopy_page_end:
+	CFI_ENDPROC
+ENDPROC(copy_page)
 
 	/* Some CPUs run faster using the string copy instructions.
 	   It is also a lot simpler. Use this when possible */
 
 #include <asm/cpufeature.h>
 
+	.section .altinstr_replacement,"ax"
+1:	.byte 0xeb					/* jmp <disp8> */
+	.byte (copy_page_c - copy_page) - (2f - 1b)	/* offset */
+2:
+	.previous
 	.section .altinstructions,"a"
 	.align 8
-	.quad  copy_page
-	.quad  copy_page_c
-	.byte  X86_FEATURE_REP_GOOD
-	.byte  copy_page_c_end-copy_page_c
-	.byte  copy_page_c_end-copy_page_c
-	.previous
-
-	.section .altinstr_replacement,"ax"
-copy_page_c:
-	movl $4096/8,%ecx
-	rep 
-	movsq 
-	ret
-copy_page_c_end:
+	.quad copy_page
+	.quad 1b
+	.byte X86_FEATURE_REP_GOOD
+	.byte .Lcopy_page_end - copy_page
+	.byte 2b - 1b
 	.previous

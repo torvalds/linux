@@ -19,12 +19,8 @@
 
 #define E820_RAM	1
 #define E820_RESERVED	2
-#define E820_ACPI	3 /* usable as RAM once ACPI tables have been read */
+#define E820_ACPI	3
 #define E820_NVS	4
-
-#define HIGH_MEMORY	(1024*1024)
-
-#define LOWMEMSIZE()	(0x9f000)
 
 #ifndef __ASSEMBLY__
 struct e820entry {
@@ -56,8 +52,7 @@ extern void e820_setup_gap(void);
 extern unsigned long e820_hole_size(unsigned long start_pfn,
 				    unsigned long end_pfn);
 
-extern void __init parse_memopt(char *p, char **end);
-extern void __init parse_memmapopt(char *p, char **end);
+extern void finish_e820_parsing(void);
 
 extern struct e820map e820;
 

@@ -5,6 +5,7 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+#include <asm/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>

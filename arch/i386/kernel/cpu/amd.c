@@ -22,7 +22,7 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
-static void __init init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
@@ -246,7 +246,7 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 		num_cache_leaves = 3;
 }
 
-static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)
+static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 {
 	/* AMD errata T13 (order #21922) */
 	if ((c->x86 == 6)) {
@@ -259,7 +259,7 @@ static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 	return size;
 }
 
-static struct cpu_dev amd_cpu_dev __initdata = {
+static struct cpu_dev amd_cpu_dev __cpuinitdata = {
 	.c_vendor	= "AMD",
 	.c_ident 	= { "AuthenticAMD" },
 	.c_models = {
@@ -275,7 +275,6 @@ static struct cpu_dev amd_cpu_dev __initdata = {
 		},
 	},
 	.c_init		= init_amd,
-	.c_identify	= generic_identify,
 	.c_size_cache	= amd_size_cache,
 };
 

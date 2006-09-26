@@ -55,7 +55,6 @@
  */
 BUILD_16_IRQS(0x0)
 
-#ifdef CONFIG_X86_LOCAL_APIC
 /*
  * The IO-APIC gives us many more interrupt sources. Most of these 
  * are unused but an SMP system is supposed to have enough memory ...
@@ -73,8 +72,6 @@ BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd)
 
 #ifdef CONFIG_PCI_MSI
 	BUILD_15_IRQS(0xe)
-#endif
-
 #endif
 
 #undef BUILD_16_IRQS
@@ -100,7 +97,6 @@ BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd)
 void (*interrupt[NR_IRQS])(void) = {
 	IRQLIST_16(0x0),
 
-#ifdef CONFIG_X86_IO_APIC
 			 IRQLIST_16(0x1), IRQLIST_16(0x2), IRQLIST_16(0x3),
 	IRQLIST_16(0x4), IRQLIST_16(0x5), IRQLIST_16(0x6), IRQLIST_16(0x7),
 	IRQLIST_16(0x8), IRQLIST_16(0x9), IRQLIST_16(0xa), IRQLIST_16(0xb),
@@ -110,7 +106,6 @@ void (*interrupt[NR_IRQS])(void) = {
 	, IRQLIST_15(0xe)
 #endif
 
-#endif
 };
 
 #undef IRQ
@@ -127,6 +122,8 @@ void (*interrupt[NR_IRQS])(void) = {
  */
 
 DEFINE_SPINLOCK(i8259A_lock);
+
+static int i8259A_auto_eoi;
 
 static void end_8259A_irq (unsigned int irq)
 {
@@ -341,6 +338,8 @@ void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
+	i8259A_auto_eoi = auto_eoi;
+
 	spin_lock_irqsave(&i8259A_lock, flags);
 
 	outb(0xff, 0x21);	/* mask all of 8259A-1 */
@@ -399,7 +398,7 @@ static void save_ELCR(char *trigger)
 
 static int i8259A_resume(struct sys_device *dev)
 {
-	init_8259A(0);
+	init_8259A(i8259A_auto_eoi);
 	restore_ELCR(irq_trigger);
 	return 0;
 }
@@ -453,9 +452,7 @@ void __init init_ISA_irqs (void)
 {
 	int i;
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	init_bsp_APIC();
-#endif
 	init_8259A(0);
 
 	for (i = 0; i < NR_IRQS; i++) {
@@ -581,14 +578,12 @@ void __init init_IRQ(void)
 	set_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 	set_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */
 	set_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
 
 	/* IPI vectors for APIC spurious and error interrupts */
 	set_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
 	set_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
-#endif
 
 	/*
 	 * Set the clock to HZ Hz, we already have a valid

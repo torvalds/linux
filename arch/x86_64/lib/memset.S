@@ -1,4 +1,9 @@
 /* Copyright 2002 Andi Kleen, SuSE Labs */
+
+#include <linux/config.h>
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
+
 /*
  * ISO C memset - set a memory block to a byte value.
  *	
@@ -8,11 +13,29 @@
  * 
  * rax   original destination
  */	
- 	.globl __memset
-	.globl memset
-	.p2align 4
-memset:	
-__memset:
+	ALIGN
+memset_c:
+	CFI_STARTPROC
+	movq %rdi,%r9
+	movl %edx,%r8d
+	andl $7,%r8d
+	movl %edx,%ecx
+	shrl $3,%ecx
+	/* expand byte value  */
+	movzbl %sil,%esi
+	movabs $0x0101010101010101,%rax
+	mulq %rsi		/* with rax, clobbers rdx */
+	rep stosq
+	movl %r8d,%ecx
+	rep stosb
+	movq %r9,%rax
+	ret
+	CFI_ENDPROC
+ENDPROC(memset_c)
+
+ENTRY(memset)
+ENTRY(__memset)
+	CFI_STARTPROC
 	movq %rdi,%r10
 	movq %rdx,%r11
 
@@ -25,6 +48,7 @@ __memset:
 	movl  %edi,%r9d
 	andl  $7,%r9d
 	jnz  .Lbad_alignment
+	CFI_REMEMBER_STATE
 .Lafter_bad_alignment:
 
 	movl %r11d,%ecx
@@ -75,6 +99,7 @@ __memset:
 	movq	%r10,%rax
 	ret
 
+	CFI_RESTORE_STATE
 .Lbad_alignment:
 	cmpq $7,%r11
 	jbe	.Lhandle_7
@@ -84,42 +109,26 @@ __memset:
 	addq %r8,%rdi
 	subq %r8,%r11
 	jmp .Lafter_bad_alignment
+.Lfinal:
+	CFI_ENDPROC
+ENDPROC(memset)
+ENDPROC(__memset)
 
 	/* Some CPUs run faster using the string instructions.
 	   It is also a lot simpler. Use this when possible */
 
 #include <asm/cpufeature.h>
 
+	.section .altinstr_replacement,"ax"
+1:	.byte 0xeb				/* jmp <disp8> */
+	.byte (memset_c - memset) - (2f - 1b)	/* offset */
+2:
+	.previous
 	.section .altinstructions,"a"
 	.align 8
-	.quad  memset
-	.quad  memset_c
-	.byte  X86_FEATURE_REP_GOOD
-	.byte  memset_c_end-memset_c
-	.byte  memset_c_end-memset_c
-	.previous
-
-	.section .altinstr_replacement,"ax"
- /* rdi	destination
-  * rsi value
-  * rdx count
-  */
-memset_c:
-	movq %rdi,%r9
-	movl %edx,%r8d
-	andl $7,%r8d		
-	movl %edx,%ecx
-	shrl $3,%ecx		
-	/* expand byte value  */
-	movzbl %sil,%esi
-	movabs $0x0101010101010101,%rax
-	mulq   %rsi		/* with rax, clobbers rdx */
-	rep
-	stosq	
-	movl %r8d,%ecx
-	rep
-	stosb
-	movq %r9,%rax
-	ret
-memset_c_end:
+	.quad memset
+	.quad 1b
+	.byte X86_FEATURE_REP_GOOD
+	.byte .Lfinal - memset
+	.byte 2b - 1b
 	.previous

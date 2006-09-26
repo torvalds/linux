@@ -236,6 +236,9 @@ __init int iommu_setup(char *p)
 {
     iommu_merge = 1;
 
+	if (!p)
+		return -EINVAL;
+
     while (*p) {
 	    if (!strncmp(p,"off",3))
 		    no_iommu = 1;
@@ -278,9 +281,9 @@ __init int iommu_setup(char *p)
 	    if (*p == ',')
 		    ++p;
     }
-    return 1;
+    return 0;
 }
-__setup("iommu=", iommu_setup);
+early_param("iommu", iommu_setup);
 
 void __init pci_iommu_alloc(void)
 {

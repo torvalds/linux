@@ -51,6 +51,7 @@
 #include <asm/smp.h>
 #include <asm/arch_hooks.h>
 #include <asm/kdebug.h>
+#include <asm/stacktrace.h>
 
 #include <linux/module.h>
 
@@ -118,26 +119,16 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
-/*
- * Print one address/symbol entries per line.
- */
-static inline void print_addr_and_symbol(unsigned long addr, char *log_lvl)
-{
-	printk(" [<%08lx>] ", addr);
-
-	print_symbol("%s\n", addr);
-}
-
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				unsigned long *stack, unsigned long ebp,
-				char *log_lvl)
+				struct stacktrace_ops *ops, void *data)
 {
 	unsigned long addr;
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		print_addr_and_symbol(addr, log_lvl);
+		ops->address(data, addr);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function):
@@ -150,30 +141,37 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			print_addr_and_symbol(addr, log_lvl);
+			ops->address(data, addr);
 	}
 #endif
 	return ebp;
 }
 
+struct ops_and_data {
+	struct stacktrace_ops *ops;
+	void *data;
+};
+
 static asmlinkage int
-show_trace_unwind(struct unwind_frame_info *info, void *log_lvl)
+dump_trace_unwind(struct unwind_frame_info *info, void *data)
 {
+	struct ops_and_data *oad = (struct ops_and_data *)data;
 	int n = 0;
 
 	while (unwind(info) == 0 && UNW_PC(info)) {
 		n++;
-		print_addr_and_symbol(UNW_PC(info), log_lvl);
+		oad->ops->address(oad->data, UNW_PC(info));
 		if (arch_unw_user_mode(info))
 			break;
 	}
 	return n;
 }
 
-static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			       unsigned long *stack, char *log_lvl)
+void dump_trace(struct task_struct *task, struct pt_regs *regs,
+	        unsigned long *stack,
+		struct stacktrace_ops *ops, void *data)
 {
-	unsigned long ebp;
+	unsigned long ebp = 0;
 
 	if (!task)
 		task = current;
@@ -181,54 +179,116 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	if (call_trace >= 0) {
 		int unw_ret = 0;
 		struct unwind_frame_info info;
+		struct ops_and_data oad = { .ops = ops, .data = data };
 
 		if (regs) {
 			if (unwind_init_frame_info(&info, task, regs) == 0)
-				unw_ret = show_trace_unwind(&info, log_lvl);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		} else if (task == current)
-			unw_ret = unwind_init_running(&info, show_trace_unwind, log_lvl);
+			unw_ret = unwind_init_running(&info, dump_trace_unwind, &oad);
 		else {
 			if (unwind_init_blocked(&info, task) == 0)
-				unw_ret = show_trace_unwind(&info, log_lvl);
+				unw_ret = dump_trace_unwind(&info, &oad);
 		}
 		if (unw_ret > 0) {
 			if (call_trace == 1 && !arch_unw_user_mode(&info)) {
-				print_symbol("DWARF2 unwinder stuck at %s\n",
+				ops->warning_symbol(data, "DWARF2 unwinder stuck at %s\n",
 					     UNW_PC(&info));
 				if (UNW_SP(&info) >= PAGE_OFFSET) {
-					printk("Leftover inexact backtrace:\n");
+					ops->warning(data, "Leftover inexact backtrace:\n");
 					stack = (void *)UNW_SP(&info);
+					if (!stack)
+						return;
+					ebp = UNW_FP(&info);
 				} else
-					printk("Full inexact backtrace again:\n");
+					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
 				return;
 			else
-				printk("Full inexact backtrace again:\n");
+				ops->warning(data, "Full inexact backtrace again:\n");
 		} else
-			printk("Inexact backtrace:\n");
+			ops->warning(data, "Inexact backtrace:\n");
+	}
+	if (!stack) {
+		unsigned long dummy;
+		stack = &dummy;
+		if (task && task != current)
+			stack = (unsigned long *)task->thread.esp;
 	}
 
-	if (task == current) {
-		/* Grab ebp right from our regs */
-		asm ("movl %%ebp, %0" : "=r" (ebp) : );
-	} else {
-		/* ebp is the last reg pushed by switch_to */
-		ebp = *(unsigned long *) task->thread.esp;
+#ifdef CONFIG_FRAME_POINTER
+	if (!ebp) {
+		if (task == current) {
+			/* Grab ebp right from our regs */
+			asm ("movl %%ebp, %0" : "=r" (ebp) : );
+		} else {
+			/* ebp is the last reg pushed by switch_to */
+			ebp = *(unsigned long *) task->thread.esp;
+		}
 	}
+#endif
 
 	while (1) {
 		struct thread_info *context;
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		ebp = print_context_stack(context, stack, ebp, log_lvl);
+		ebp = print_context_stack(context, stack, ebp, ops, data);
+		/* Should be after the line below, but somewhere
+		   in early boot context comes out corrupted and we
+		   can't reference it -AK */
+		if (ops->stack(data, "IRQ") < 0)
+			break;
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk("%s =======================\n", log_lvl);
 	}
 }
+EXPORT_SYMBOL(dump_trace);
 
-void show_trace(struct task_struct *task, struct pt_regs *regs, unsigned long * stack)
+static void
+print_trace_warning_symbol(void *data, char *msg, unsigned long symbol)
+{
+	printk(data);
+	print_symbol(msg, symbol);
+	printk("\n");
+}
+
+static void print_trace_warning(void *data, char *msg)
+{
+	printk("%s%s\n", (char *)data, msg);
+}
+
+static int print_trace_stack(void *data, char *name)
+{
+	return 0;
+}
+
+/*
+ * Print one address/symbol entries per line.
+ */
+static void print_trace_address(void *data, unsigned long addr)
+{
+	printk("%s [<%08lx>] ", (char *)data, addr);
+	print_symbol("%s\n", addr);
+}
+
+static struct stacktrace_ops print_trace_ops = {
+	.warning = print_trace_warning,
+	.warning_symbol = print_trace_warning_symbol,
+	.stack = print_trace_stack,
+	.address = print_trace_address,
+};
+
+static void
+show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
+		   unsigned long * stack, char *log_lvl)
+{
+	dump_trace(task, regs, stack, &print_trace_ops, log_lvl);
+	printk("%s =======================\n", log_lvl);
+}
+
+void show_trace(struct task_struct *task, struct pt_regs *regs,
+		unsigned long * stack)
 {
 	show_trace_log_lvl(task, regs, stack, "");
 }
@@ -291,8 +351,9 @@ void show_registers(struct pt_regs *regs)
 		ss = regs->xss & 0xffff;
 	}
 	print_modules();
-	printk(KERN_EMERG "CPU:    %d\nEIP:    %04x:[<%08lx>]    %s VLI\n"
-			"EFLAGS: %08lx   (%s %.*s) \n",
+	printk(KERN_EMERG "CPU:    %d\n"
+		KERN_EMERG "EIP:    %04x:[<%08lx>]    %s VLI\n"
+		KERN_EMERG "EFLAGS: %08lx   (%s %.*s)\n",
 		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
 		print_tainted(), regs->eflags, system_utsname.release,
 		(int)strcspn(system_utsname.version, " "),
@@ -634,18 +695,24 @@ gp_in_kernel:
 	}
 }
 
-static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
-	printk(KERN_EMERG "Uhhuh. NMI received. Dazed and confused, but trying "
-			"to continue\n");
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
+		"CPU %d.\n", reason, smp_processor_id());
 	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
 			"chips\n");
+	if (panic_on_unrecovered_nmi)
+                panic("NMI: Not continuing");
+
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 
 	/* Clear and disable the memory parity error line. */
 	clear_mem_error(reason);
 }
 
-static void io_check_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+io_check_error(unsigned char reason, struct pt_regs * regs)
 {
 	unsigned long i;
 
@@ -661,7 +728,8 @@ static void io_check_error(unsigned char reason, struct pt_regs * regs)
 	outb(reason, 0x61);
 }
 
-static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
+static __kprobes void
+unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {
 #ifdef CONFIG_MCA
 	/* Might actually be able to figure out what the guilty party
@@ -671,15 +739,18 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 		return;
 	}
 #endif
-	printk("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
-		reason, smp_processor_id());
-	printk("Dazed and confused, but trying to continue\n");
-	printk("Do you have a strange power saving mode enabled?\n");
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
+		"CPU %d.\n", reason, smp_processor_id());
+	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
+	if (panic_on_unrecovered_nmi)
+                panic("NMI: Not continuing");
+
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 }
 
 static DEFINE_SPINLOCK(nmi_print_lock);
 
-void die_nmi (struct pt_regs *regs, const char *msg)
+void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 {
 	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 2, SIGINT) ==
 	    NOTIFY_STOP)
@@ -711,7 +782,7 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	do_exit(SIGSEGV);
 }
 
-static void default_do_nmi(struct pt_regs * regs)
+static __kprobes void default_do_nmi(struct pt_regs * regs)
 {
 	unsigned char reason = 0;
 
@@ -728,12 +799,12 @@ static void default_do_nmi(struct pt_regs * regs)
 		 * Ok, so this is none of the documented NMI sources,
 		 * so it must be the NMI watchdog.
 		 */
-		if (nmi_watchdog) {
-			nmi_watchdog_tick(regs);
+		if (nmi_watchdog_tick(regs, reason))
 			return;
-		}
+		if (!do_nmi_callback(regs, smp_processor_id()))
 #endif
-		unknown_nmi_error(reason, regs);
+			unknown_nmi_error(reason, regs);
+
 		return;
 	}
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
@@ -749,14 +820,7 @@ static void default_do_nmi(struct pt_regs * regs)
 	reassert_nmi();
 }
 
-static int dummy_nmi_callback(struct pt_regs * regs, int cpu)
-{
-	return 0;
-}
- 
-static nmi_callback_t nmi_callback = dummy_nmi_callback;
- 
-fastcall void do_nmi(struct pt_regs * regs, long error_code)
+fastcall __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu;
 
@@ -766,24 +830,10 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 	++nmi_count(cpu);
 
-	if (!rcu_dereference(nmi_callback)(regs, cpu))
-		default_do_nmi(regs);
+	default_do_nmi(regs);
 
 	nmi_exit();
 }
-
-void set_nmi_callback(nmi_callback_t callback)
-{
-	vmalloc_sync_all();
-	rcu_assign_pointer(nmi_callback, callback);
-}
-EXPORT_SYMBOL_GPL(set_nmi_callback);
-
-void unset_nmi_callback(void)
-{
-	nmi_callback = dummy_nmi_callback;
-}
-EXPORT_SYMBOL_GPL(unset_nmi_callback);
 
 #ifdef CONFIG_KPROBES
 fastcall void __kprobes do_int3(struct pt_regs *regs, long error_code)
@@ -1124,20 +1174,6 @@ void __init trap_init_f00f_bug(void)
 }
 #endif
 
-#define _set_gate(gate_addr,type,dpl,addr,seg) \
-do { \
-  int __d0, __d1; \
-  __asm__ __volatile__ ("movw %%dx,%%ax\n\t" \
-	"movw %4,%%dx\n\t" \
-	"movl %%eax,%0\n\t" \
-	"movl %%edx,%1" \
-	:"=m" (*((long *) (gate_addr))), \
-	 "=m" (*(1+(long *) (gate_addr))), "=&a" (__d0), "=&d" (__d1) \
-	:"i" ((short) (0x8000+(dpl<<13)+(type<<8))), \
-	 "3" ((char *) (addr)),"2" ((seg) << 16)); \
-} while (0)
-
-
 /*
  * This needs to use 'idt_table' rather than 'idt', and
  * thus use the _nonmapped_ version of the IDT, as the
@@ -1146,7 +1182,7 @@ do { \
  */
 void set_intr_gate(unsigned int n, void *addr)
 {
-	_set_gate(idt_table+n,14,0,addr,__KERNEL_CS);
+	_set_gate(n, DESCTYPE_INT, addr, __KERNEL_CS);
 }
 
 /*
@@ -1154,22 +1190,22 @@ void set_intr_gate(unsigned int n, void *addr)
  */
 static inline void set_system_intr_gate(unsigned int n, void *addr)
 {
-	_set_gate(idt_table+n, 14, 3, addr, __KERNEL_CS);
+	_set_gate(n, DESCTYPE_INT | DESCTYPE_DPL3, addr, __KERNEL_CS);
 }
 
 static void __init set_trap_gate(unsigned int n, void *addr)
 {
-	_set_gate(idt_table+n,15,0,addr,__KERNEL_CS);
+	_set_gate(n, DESCTYPE_TRAP, addr, __KERNEL_CS);
 }
 
 static void __init set_system_gate(unsigned int n, void *addr)
 {
-	_set_gate(idt_table+n,15,3,addr,__KERNEL_CS);
+	_set_gate(n, DESCTYPE_TRAP | DESCTYPE_DPL3, addr, __KERNEL_CS);
 }
 
 static void __init set_task_gate(unsigned int n, unsigned int gdt_entry)
 {
-	_set_gate(idt_table+n,5,0,0,(gdt_entry<<3));
+	_set_gate(n, DESCTYPE_TASK, (void *)0, (gdt_entry<<3));
 }
 
 

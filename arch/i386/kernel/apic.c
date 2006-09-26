@@ -52,7 +52,18 @@ static cpumask_t timer_bcast_ipi;
 /*
  * Knob to control our willingness to enable the local APIC.
  */
-int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
+static int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
+
+static inline void lapic_disable(void)
+{
+	enable_local_apic = -1;
+	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+}
+
+static inline void lapic_enable(void)
+{
+	enable_local_apic = 1;
+}
 
 /*
  * Debug level
@@ -586,8 +597,7 @@ void __devinit setup_local_APIC(void)
 			printk("No ESR for 82489DX.\n");
 	}
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		setup_apic_nmi_watchdog();
+	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
 }
 
@@ -1373,3 +1383,18 @@ int __init APIC_init_uniprocessor (void)
 
 	return 0;
 }
+
+static int __init parse_lapic(char *arg)
+{
+	lapic_enable();
+	return 0;
+}
+early_param("lapic", parse_lapic);
+
+static int __init parse_nolapic(char *arg)
+{
+	lapic_disable();
+	return 0;
+}
+early_param("nolapic", parse_nolapic);
+

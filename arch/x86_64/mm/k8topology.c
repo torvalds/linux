@@ -54,6 +54,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 	nodes_clear(nodes_parsed);
 
+	if (!early_pci_allowed())
+		return -1;
+
 	nb = find_northbridge(); 
 	if (nb < 0) 
 		return nb;
