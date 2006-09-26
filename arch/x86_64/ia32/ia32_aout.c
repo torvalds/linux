@@ -333,7 +333,8 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 			return error;
 		}
 
-		error = bprm->file->f_op->read(bprm->file, (char *)text_addr,
+		error = bprm->file->f_op->read(bprm->file,
+			 (char __user *)text_addr,
 			  ex.a_text+ex.a_data, &pos);
 		if ((signed long)error < 0) {
 			send_sig(SIGKILL, current, 0);
@@ -366,7 +367,8 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 			down_write(&current->mm->mmap_sem);
 			do_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
 			up_write(&current->mm->mmap_sem);
-			bprm->file->f_op->read(bprm->file,(char *)N_TXTADDR(ex),
+			bprm->file->f_op->read(bprm->file,
+					(char __user *)N_TXTADDR(ex),
 					ex.a_text+ex.a_data, &pos);
 			flush_icache_range((unsigned long) N_TXTADDR(ex),
 					   (unsigned long) N_TXTADDR(ex) +
@@ -477,7 +479,7 @@ static int load_aout_library(struct file *file)
 		do_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
 		up_write(&current->mm->mmap_sem);
 		
-		file->f_op->read(file, (char *)start_addr,
+		file->f_op->read(file, (char __user *)start_addr,
 			ex.a_text + ex.a_data, &pos);
 		flush_icache_range((unsigned long) start_addr,
 				   (unsigned long) start_addr + ex.a_text + ex.a_data);
