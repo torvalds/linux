@@ -2096,6 +2096,15 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	} else {
 		ralign = BYTES_PER_WORD;
 	}
+
+	/*
+	 * Redzoning and user store require word alignment. Note this will be
+	 * overridden by architecture or caller mandated alignment if either
+	 * is greater than BYTES_PER_WORD.
+	 */
+	if (flags & SLAB_RED_ZONE || flags & SLAB_STORE_USER)
+		ralign = BYTES_PER_WORD;
+
 	/* 2) arch mandated alignment: disables debug if necessary */
 	if (ralign < ARCH_SLAB_MINALIGN) {
 		ralign = ARCH_SLAB_MINALIGN;
@@ -2109,8 +2118,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 			flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	}
 	/*
-	 * 4) Store it. Note that the debug code below can reduce
-	 *    the alignment to BYTES_PER_WORD.
+	 * 4) Store it.
 	 */
 	align = ralign;
 
@@ -2122,20 +2130,19 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 #if DEBUG
 	cachep->obj_size = size;
 
+	/*
+	 * Both debugging options require word-alignment which is calculated
+	 * into align above.
+	 */
 	if (flags & SLAB_RED_ZONE) {
-		/* redzoning only works with word aligned caches */
-		align = BYTES_PER_WORD;
-
 		/* add space for red zone words */
 		cachep->obj_offset += BYTES_PER_WORD;
 		size += 2 * BYTES_PER_WORD;
 	}
 	if (flags & SLAB_STORE_USER) {
-		/* user store requires word alignment and
-		 * one word storage behind the end of the real
-		 * object.
+		/* user store requires one word storage behind the end of
+		 * the real object.
 		 */
-		align = BYTES_PER_WORD;
 		size += BYTES_PER_WORD;
 	}
 #if FORCED_DEBUG && defined(CONFIG_DEBUG_PAGEALLOC)
