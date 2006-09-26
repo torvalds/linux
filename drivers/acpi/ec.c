@@ -100,7 +100,7 @@ union acpi_ec {
 		struct acpi_generic_address command_addr;
 		struct acpi_generic_address data_addr;
 		unsigned long global_lock;
-		unsigned int expect_event;
+		u8 expect_event;
 		atomic_t leaving_burst;	/* 0 : No, 1 : Yes, 2: abort */
 		atomic_t pending_gpe;
 		struct semaphore sem;
@@ -121,7 +121,7 @@ union acpi_ec {
 };
 
 static int acpi_ec_poll_wait(union acpi_ec *ec, u8 event);
-static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event);
+static int acpi_ec_intr_wait(union acpi_ec *ec, u8 event);
 static int acpi_ec_poll_transaction(union acpi_ec *ec, u8 command,
                                     const u8 *wdata, unsigned wdata_len,
                                     u8 *rdata, unsigned rdata_len);
@@ -159,6 +159,22 @@ static u32 acpi_ec_read_status(union acpi_ec *ec)
 
 	acpi_hw_low_level_read(8, &status, &ec->common.status_addr);
 	return status;
+}
+
+static int acpi_ec_check_status(u32 status, u8 event) {
+
+	switch (event) {
+	case ACPI_EC_EVENT_OBF:
+		if (status & ACPI_EC_FLAG_OBF)
+			return 1;
+	case ACPI_EC_EVENT_IBE:
+		if (!(status & ACPI_EC_FLAG_IBF))
+			return 1;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static int acpi_ec_wait(union acpi_ec *ec, u8 event)
@@ -203,47 +219,28 @@ static int acpi_ec_poll_wait(union acpi_ec *ec, u8 event)
 
 	return -ETIME;
 }
-static int acpi_ec_intr_wait(union acpi_ec *ec, unsigned int event)
-{
-	int result = 0;
 
+static int acpi_ec_intr_wait(union acpi_ec *ec, u8 event)
+{
+	long		time_left;
 
 	ec->intr.expect_event = event;
-	smp_mb();
 
-	switch (event) {
-	case ACPI_EC_EVENT_IBE:
-		if (~acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) {
+	if (acpi_ec_check_status(acpi_ec_read_status(ec), event)) {
 			ec->intr.expect_event = 0;
 			return 0;
-		}
-		break;
-	default:
-		break;
 	}
 
-	result = wait_event_timeout(ec->intr.wait,
-				    !ec->intr.expect_event,
-				    msecs_to_jiffies(ACPI_EC_DELAY));
+	time_left = wait_event_timeout(ec->intr.wait, !ec->intr.expect_event,
+					msecs_to_jiffies(ACPI_EC_DELAY));
 
 	ec->intr.expect_event = 0;
-	smp_mb();
-
-	/*
-	 * Verify that the event in question has actually happened by
-	 * querying EC status. Do the check even if operation timed-out
-	 * to make sure that we did not miss interrupt.
-	 */
-	switch (event) {
-	case ACPI_EC_EVENT_OBF:
-		if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_OBF)
-			return 0;
-		break;
-
-	case ACPI_EC_EVENT_IBE:
-		if (~acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF)
-			return 0;
-		break;
+	if (time_left <= 0) {
+		if (acpi_ec_check_status(acpi_ec_read_status(ec), event)) {
+				return 0;
+		}
+	} else {
+		return 0;
 	}
 
 	return -ETIME;
@@ -293,7 +290,7 @@ int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 			goto end;
 		acpi_hw_low_level_write(8, ACPI_EC_BURST_DISABLE, &ec->common.command_addr);
 		acpi_ec_wait(ec, ACPI_EC_FLAG_IBF);
-	} 
+	}
 	atomic_set(&ec->intr.leaving_burst, 1);
 	return 0;
 end:
@@ -333,32 +330,32 @@ static int acpi_ec_transaction_unlocked(union acpi_ec *ec, u8 command,
 
 	acpi_hw_low_level_write(8, command, &ec->common.command_addr);
 
-        result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-	if (result)
-		return result;
+	for (; wdata_len > 0; wdata_len --) {
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+		if (result)
+			return result;
 
-        for (; wdata_len > 0; wdata_len --) {
-
-                acpi_hw_low_level_write(8, *(wdata++), &ec->common.data_addr);
-
-                result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
-                if (result)
-                        return result;
+		acpi_hw_low_level_write(8, *(wdata++), &ec->common.data_addr);
         }
 
+	if (command == ACPI_EC_COMMAND_WRITE) {
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
+		if (result)
+			return result;
+	}
 
-        for (; rdata_len > 0; rdata_len --) {
-                u32 d;
+	for (; rdata_len > 0; rdata_len --) {
+		u32 d;
 
-                result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
-                if (result)
-                        return result;
+		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
+		if (result)
+			return result;
 
-                acpi_hw_low_level_read(8, &d, &ec->common.data_addr);
-                *(rdata++) = (u8) d;
-        }
+		acpi_hw_low_level_read(8, &d, &ec->common.data_addr);
+		*(rdata++) = (u8) d;
+	}
 
-        return 0;
+	return 0;
 }
 
 static int acpi_ec_poll_transaction(union acpi_ec *ec, u8 command,
