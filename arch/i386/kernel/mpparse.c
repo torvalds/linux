@@ -810,8 +810,7 @@ int es7000_plat;
 
 #ifdef CONFIG_ACPI
 
-void __init mp_register_lapic_address (
-	u64			address)
+void __init mp_register_lapic_address(u64 address)
 {
 	mp_lapic_addr = (unsigned long) address;
 
@@ -823,13 +822,10 @@ void __init mp_register_lapic_address (
 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
-
-void __devinit mp_register_lapic (
-	u8			id, 
-	u8			enabled)
+void __devinit mp_register_lapic (u8 id, u8 enabled)
 {
 	struct mpc_config_processor processor;
-	int			boot_cpu = 0;
+	int boot_cpu = 0;
 	
 	if (MAX_APICS - id <= 0) {
 		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
@@ -866,11 +862,9 @@ static struct mp_ioapic_routing {
 	u32			pin_programmed[4];
 } mp_ioapic_routing[MAX_IO_APICS];
 
-
-static int mp_find_ioapic (
-	int			gsi)
+static int mp_find_ioapic (int gsi)
 {
-	int			i = 0;
+	int i = 0;
 
 	/* Find the IOAPIC that manages this GSI. */
 	for (i = 0; i < nr_ioapics; i++) {
@@ -883,15 +877,11 @@ static int mp_find_ioapic (
 
 	return -1;
 }
-	
 
-void __init mp_register_ioapic (
-	u8			id, 
-	u32			address,
-	u32			gsi_base)
+void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 {
-	int			idx = 0;
-	int			tmpid;
+	int idx = 0;
+	int tmpid;
 
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
@@ -937,16 +927,10 @@ void __init mp_register_ioapic (
 		mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
 		mp_ioapic_routing[idx].gsi_base,
 		mp_ioapic_routing[idx].gsi_end);
-
-	return;
 }
 
-
-void __init mp_override_legacy_irq (
-	u8			bus_irq,
-	u8			polarity, 
-	u8			trigger, 
-	u32			gsi)
+void __init
+mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 {
 	struct mpc_config_intsrc intsrc;
 	int			ioapic = -1;
@@ -984,15 +968,13 @@ void __init mp_override_legacy_irq (
 	mp_irqs[mp_irq_entries] = intsrc;
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!\n");
-
-	return;
 }
 
 void __init mp_config_acpi_legacy_irqs (void)
 {
 	struct mpc_config_intsrc intsrc;
-	int			i = 0;
-	int			ioapic = -1;
+	int i = 0;
+	int ioapic = -1;
 
 	/* 
 	 * Fabricate the legacy ISA bus (bus #31).
@@ -1061,12 +1043,12 @@ void __init mp_config_acpi_legacy_irqs (void)
 
 #define MAX_GSI_NUM	4096
 
-int mp_register_gsi (u32 gsi, int triggering, int polarity)
+int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
-	int			ioapic = -1;
-	int			ioapic_pin = 0;
-	int			idx, bit = 0;
-	static int		pci_irq = 16;
+	int ioapic = -1;
+	int ioapic_pin = 0;
+	int idx, bit = 0;
+	static int pci_irq = 16;
 	/*
 	 * Mapping between Global System Interrups, which
 	 * represent all possible interrupts, and IRQs
