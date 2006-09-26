@@ -354,160 +354,51 @@ struct netlbl_dom_map *netlbl_domhsh_getentry(const char *domain)
 }
 
 /**
- * netlbl_domhsh_dump - Dump the domain hash table into a sk_buff
+ * netlbl_domhsh_walk - Iterate through the domain mapping hash table
+ * @skip_bkt: the number of buckets to skip at the start
+ * @skip_chain: the number of entries to skip in the first iterated bucket
+ * @callback: callback for each entry
+ * @cb_arg: argument for the callback function
  *
  * Description:
- * Dump the domain hash table into a buffer suitable for returning to an
- * application in response to a NetLabel management DOMAIN message.  This
- * function may fail if another process is growing the hash table at the same
- * time.  The returned sk_buff has room at the front of the sk_buff for
- * @headroom bytes.  See netlabel.h for the DOMAIN message format.  Returns a
- * pointer to a sk_buff on success, NULL on error.
+ * Interate over the domain mapping hash table, skipping the first @skip_bkt
+ * buckets and @skip_chain entries.  For each entry in the table call
+ * @callback, if @callback returns a negative value stop 'walking' through the
+ * table and return.  Updates the values in @skip_bkt and @skip_chain on
+ * return.  Returns zero on succcess, negative values on failure.
  *
  */
-struct sk_buff *netlbl_domhsh_dump(size_t headroom)
+int netlbl_domhsh_walk(u32 *skip_bkt,
+		     u32 *skip_chain,
+		     int (*callback) (struct netlbl_dom_map *entry, void *arg),
+		     void *cb_arg)
 {
-	struct sk_buff *skb = NULL;
-	ssize_t buf_len;
-	u32 bkt_iter;
-	u32 dom_cnt = 0;
-	struct netlbl_domhsh_tbl *hsh_tbl;
-	struct netlbl_dom_map *list_iter;
-	ssize_t tmp_len;
+	int ret_val = -ENOENT;
+	u32 iter_bkt;
+	struct netlbl_dom_map *iter_entry;
+	u32 chain_cnt = 0;
 
-	buf_len = NETLBL_LEN_U32;
 	rcu_read_lock();
-	hsh_tbl = rcu_dereference(netlbl_domhsh);
-	for (bkt_iter = 0; bkt_iter < hsh_tbl->size; bkt_iter++)
-		list_for_each_entry_rcu(list_iter,
-					&hsh_tbl->tbl[bkt_iter], list) {
-			buf_len += NETLBL_LEN_U32 +
-				nla_total_size(strlen(list_iter->domain) + 1);
-			switch (list_iter->type) {
-			case NETLBL_NLTYPE_UNLABELED:
-				break;
-			case NETLBL_NLTYPE_CIPSOV4:
-				buf_len += 2 * NETLBL_LEN_U32;
-				break;
+	for (iter_bkt = *skip_bkt;
+	     iter_bkt < rcu_dereference(netlbl_domhsh)->size;
+	     iter_bkt++, chain_cnt = 0) {
+		list_for_each_entry_rcu(iter_entry,
+					&netlbl_domhsh->tbl[iter_bkt],
+					list)
+			if (iter_entry->valid) {
+				if (chain_cnt++ < *skip_chain)
+					continue;
+				ret_val = callback(iter_entry, cb_arg);
+				if (ret_val < 0) {
+					chain_cnt--;
+					goto walk_return;
+				}
 			}
-			dom_cnt++;
-		}
+	}
 
-	skb = netlbl_netlink_alloc_skb(headroom, buf_len, GFP_ATOMIC);
-	if (skb == NULL)
-		goto dump_failure;
-
-	if (nla_put_u32(skb, NLA_U32, dom_cnt) != 0)
-		goto dump_failure;
-	buf_len -= NETLBL_LEN_U32;
-	hsh_tbl = rcu_dereference(netlbl_domhsh);
-	for (bkt_iter = 0; bkt_iter < hsh_tbl->size; bkt_iter++)
-		list_for_each_entry_rcu(list_iter,
-					&hsh_tbl->tbl[bkt_iter], list) {
-			tmp_len = nla_total_size(strlen(list_iter->domain) +
-						 1);
-			if (buf_len < NETLBL_LEN_U32 + tmp_len)
-				goto dump_failure;
-			if (nla_put_string(skb,
-					   NLA_STRING,
-					   list_iter->domain) != 0)
-				goto dump_failure;
-			if (nla_put_u32(skb, NLA_U32, list_iter->type) != 0)
-				goto dump_failure;
-			buf_len -= NETLBL_LEN_U32 + tmp_len;
-			switch (list_iter->type) {
-			case NETLBL_NLTYPE_UNLABELED:
-				break;
-			case NETLBL_NLTYPE_CIPSOV4:
-				if (buf_len < 2 * NETLBL_LEN_U32)
-					goto dump_failure;
-				if (nla_put_u32(skb,
-				       NLA_U32,
-				       list_iter->type_def.cipsov4->type) != 0)
-					goto dump_failure;
-				if (nla_put_u32(skb,
-				       NLA_U32,
-				       list_iter->type_def.cipsov4->doi) != 0)
-					goto dump_failure;
-				buf_len -= 2 * NETLBL_LEN_U32;
-				break;
-			}
-		}
+walk_return:
 	rcu_read_unlock();
-
-	return skb;
-
-dump_failure:
-	rcu_read_unlock();
-	kfree_skb(skb);
-	return NULL;
-}
-
-/**
- * netlbl_domhsh_dump_default - Dump the default domain mapping into a sk_buff
- *
- * Description:
- * Dump the default domain mapping into a buffer suitable for returning to an
- * application in response to a NetLabel management DEFDOMAIN message.  This
- * function may fail if another process is changing the default domain mapping
- * at the same time.  The returned sk_buff has room at the front of the
- * skb_buff for @headroom bytes.  See netlabel.h for the DEFDOMAIN message
- * format.  Returns a pointer to a sk_buff on success, NULL on error.
- *
- */
-struct sk_buff *netlbl_domhsh_dump_default(size_t headroom)
-{
-	struct sk_buff *skb;
-	ssize_t buf_len;
-	struct netlbl_dom_map *entry;
-
-	buf_len = NETLBL_LEN_U32;
-	rcu_read_lock();
-	entry = rcu_dereference(netlbl_domhsh_def);
-	if (entry != NULL)
-		switch (entry->type) {
-		case NETLBL_NLTYPE_UNLABELED:
-			break;
-		case NETLBL_NLTYPE_CIPSOV4:
-			buf_len += 2 * NETLBL_LEN_U32;
-			break;
-		}
-
-	skb = netlbl_netlink_alloc_skb(headroom, buf_len, GFP_ATOMIC);
-	if (skb == NULL)
-		goto dump_default_failure;
-
-	if (entry != rcu_dereference(netlbl_domhsh_def))
-		goto dump_default_failure;
-	if (entry != NULL) {
-		if (nla_put_u32(skb, NLA_U32, entry->type) != 0)
-			goto dump_default_failure;
-		buf_len -= NETLBL_LEN_U32;
-		switch (entry->type) {
-		case NETLBL_NLTYPE_UNLABELED:
-			break;
-		case NETLBL_NLTYPE_CIPSOV4:
-			if (buf_len < 2 * NETLBL_LEN_U32)
-				goto dump_default_failure;
-			if (nla_put_u32(skb,
-					NLA_U32,
-					entry->type_def.cipsov4->type) != 0)
-				goto dump_default_failure;
-			if (nla_put_u32(skb,
-					NLA_U32,
-					entry->type_def.cipsov4->doi) != 0)
-				goto dump_default_failure;
-			buf_len -= 2 * NETLBL_LEN_U32;
-			break;
-		}
-	} else
-		nla_put_u32(skb, NLA_U32, NETLBL_NLTYPE_NONE);
-	rcu_read_unlock();
-
-	return skb;
-
-dump_default_failure:
-	rcu_read_unlock();
-	kfree_skb(skb);
-	return NULL;
+	*skip_bkt = iter_bkt;
+	*skip_chain = chain_cnt;
+	return ret_val;
 }

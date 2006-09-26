@@ -129,6 +129,12 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 	return ret;
 }
 
+static int __init tcp_congestion_default(void)
+{
+	return tcp_set_default_congestion_control(CONFIG_DEFAULT_TCP_CONG);
+}
+
+late_initcall(tcp_congestion_default);
 
 ctl_table ipv4_table[] = {
         {

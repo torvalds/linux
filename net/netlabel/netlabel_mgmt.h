@@ -34,211 +34,136 @@
 #include <net/netlabel.h>
 
 /*
- * The following NetLabel payloads are supported by the management interface,
- * all of which are preceeded by the nlmsghdr struct.
- *
- * o ACK:
- *   Sent by the kernel in response to an applications message, applications
- *   should never send this message.
- *
- *   +----------------------+-----------------------+
- *   | seq number (32 bits) | return code (32 bits) |
- *   +----------------------+-----------------------+
- *
- *     seq number:  the sequence number of the original message, taken from the
- *                  nlmsghdr structure
- *     return code: return value, based on errno values
+ * The following NetLabel payloads are supported by the management interface.
  *
  * o ADD:
  *   Sent by an application to add a domain mapping to the NetLabel system.
- *   The kernel should respond with an ACK.
  *
- *   +-------------------+
- *   | domains (32 bits) | ...
- *   +-------------------+
+ *   Required attributes:
  *
- *     domains: the number of domains in the message
+ *     NLBL_MGMT_A_DOMAIN
+ *     NLBL_MGMT_A_PROTOCOL
  *
- *   +--------------------------+-------------------------+
- *   | domain string (variable) | protocol type (32 bits) | ...
- *   +--------------------------+-------------------------+
+ *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
  *
- *   +-------------- ---- --- -- -
- *   | mapping data                ... repeated
- *   +-------------- ---- --- -- -
+ *     NLBL_MGMT_A_CV4DOI
  *
- *     domain string: the domain string, NULL terminated
- *     protocol type: the protocol type (defined by NETLBL_NLTYPE_*)
- *     mapping data:  specific to the map type (see below)
- *
- *   NETLBL_NLTYPE_UNLABELED
- *
- *     No mapping data for this protocol type.
- *
- *   NETLBL_NLTYPE_CIPSOV4
- *
- *   +---------------+
- *   | doi (32 bits) |
- *   +---------------+
- *
- *     doi:  the CIPSO DOI value
+ *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
  *
  * o REMOVE:
  *   Sent by an application to remove a domain mapping from the NetLabel
- *   system.  The kernel should ACK this message.
+ *   system.
  *
- *   +-------------------+
- *   | domains (32 bits) | ...
- *   +-------------------+
+ *   Required attributes:
  *
- *     domains: the number of domains in the message
+ *     NLBL_MGMT_A_DOMAIN
  *
- *   +--------------------------+
- *   | domain string (variable) | ...
- *   +--------------------------+
- *
- *     domain string: the domain string, NULL terminated
- *
- * o LIST:
+ * o LISTALL:
  *   This message can be sent either from an application or by the kernel in
- *   response to an application generated LIST message.  When sent by an
- *   application there is no payload.  The kernel should respond to a LIST
- *   message either with a LIST message on success or an ACK message on
- *   failure.
+ *   response to an application generated LISTALL message.  When sent by an
+ *   application there is no payload and the NLM_F_DUMP flag should be set.
+ *   The kernel should respond with a series of the following messages.
  *
- *   +-------------------+
- *   | domains (32 bits) | ...
- *   +-------------------+
+ *   Required attributes:
  *
- *     domains: the number of domains in the message
+ *     NLBL_MGMT_A_DOMAIN
+ *     NLBL_MGMT_A_PROTOCOL
  *
- *   +--------------------------+
- *   | domain string (variable) | ...
- *   +--------------------------+
+ *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
  *
- *   +-------------------------+-------------- ---- --- -- -
- *   | protocol type (32 bits) | mapping data                ... repeated
- *   +-------------------------+-------------- ---- --- -- -
+ *     NLBL_MGMT_A_CV4DOI
  *
- *     domain string: the domain string, NULL terminated
- *     protocol type: the protocol type (defined by NETLBL_NLTYPE_*)
- *     mapping data:  specific to the map type (see below)
- *
- *   NETLBL_NLTYPE_UNLABELED
- *
- *     No mapping data for this protocol type.
- *
- *   NETLBL_NLTYPE_CIPSOV4
- *
- *   +----------------+---------------+
- *   | type (32 bits) | doi (32 bits) |
- *   +----------------+---------------+
- *
- *     type: the CIPSO mapping table type (defined in the cipso_ipv4.h header
- *           as CIPSO_V4_MAP_*)
- *     doi:  the CIPSO DOI value
+ *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
  *
  * o ADDDEF:
  *   Sent by an application to set the default domain mapping for the NetLabel
- *   system.  The kernel should respond with an ACK.
+ *   system.
  *
- *   +-------------------------+-------------- ---- --- -- -
- *   | protocol type (32 bits) | mapping data                ... repeated
- *   +-------------------------+-------------- ---- --- -- -
+ *   Required attributes:
  *
- *     protocol type: the protocol type (defined by NETLBL_NLTYPE_*)
- *     mapping data:  specific to the map type (see below)
+ *     NLBL_MGMT_A_PROTOCOL
  *
- *   NETLBL_NLTYPE_UNLABELED
+ *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
  *
- *     No mapping data for this protocol type.
+ *     NLBL_MGMT_A_CV4DOI
  *
- *   NETLBL_NLTYPE_CIPSOV4
- *
- *   +---------------+
- *   | doi (32 bits) |
- *   +---------------+
- *
- *     doi:  the CIPSO DOI value
+ *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
  *
  * o REMOVEDEF:
  *   Sent by an application to remove the default domain mapping from the
- *   NetLabel system, there is no payload.  The kernel should ACK this message.
+ *   NetLabel system, there is no payload.
  *
  * o LISTDEF:
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated LISTDEF message.  When sent by an
- *   application there is no payload.  The kernel should respond to a
- *   LISTDEF message either with a LISTDEF message on success or an ACK message
- *   on failure.
+ *   application there is no payload.  On success the kernel should send a
+ *   response using the following format.
  *
- *   +-------------------------+-------------- ---- --- -- -
- *   | protocol type (32 bits) | mapping data                ... repeated
- *   +-------------------------+-------------- ---- --- -- -
+ *   Required attributes:
  *
- *     protocol type: the protocol type (defined by NETLBL_NLTYPE_*)
- *     mapping data:  specific to the map type (see below)
+ *     NLBL_MGMT_A_PROTOCOL
  *
- *   NETLBL_NLTYPE_UNLABELED
+ *   If using NETLBL_NLTYPE_CIPSOV4 the following attributes are required:
  *
- *     No mapping data for this protocol type.
+ *     NLBL_MGMT_A_CV4DOI
  *
- *   NETLBL_NLTYPE_CIPSOV4
+ *   If using NETLBL_NLTYPE_UNLABELED no other attributes are required.
  *
- *   +----------------+---------------+
- *   | type (32 bits) | doi (32 bits) |
- *   +----------------+---------------+
+ * o PROTOCOLS:
+ *   Sent by an application to request a list of configured NetLabel protocols
+ *   in the kernel.  When sent by an application there is no payload and the
+ *   NLM_F_DUMP flag should be set.  The kernel should respond with a series of
+ *   the following messages.
  *
- *     type: the CIPSO mapping table type (defined in the cipso_ipv4.h header
- *           as CIPSO_V4_MAP_*)
- *     doi:  the CIPSO DOI value
+ *   Required attributes:
  *
- * o MODULES:
- *   Sent by an application to request a list of configured NetLabel modules
- *   in the kernel.  When sent by an application there is no payload.
- *
- *   +-------------------+
- *   | modules (32 bits) | ...
- *   +-------------------+
- *
- *     modules: the number of modules in the message, if this is an application
- *              generated message and the value is zero then return a list of
- *              the configured modules
- *
- *   +------------------+
- *   | module (32 bits) | ... repeated
- *   +------------------+
- *
- *     module: the module number as defined by NETLBL_NLTYPE_*
+ *     NLBL_MGMT_A_PROTOCOL
  *
  * o VERSION:
- *   Sent by an application to request the NetLabel version string.  When sent
- *   by an application there is no payload.  This message type is also used by
- *   the kernel to respond to an VERSION request.
+ *   Sent by an application to request the NetLabel version.  When sent by an
+ *   application there is no payload.  This message type is also used by the
+ *   kernel to respond to an VERSION request.
  *
- *   +-------------------+
- *   | version (32 bits) |
- *   +-------------------+
+ *   Required attributes:
  *
- *     version: the protocol version number
+ *     NLBL_MGMT_A_VERSION
  *
  */
 
 /* NetLabel Management commands */
 enum {
 	NLBL_MGMT_C_UNSPEC,
-	NLBL_MGMT_C_ACK,
 	NLBL_MGMT_C_ADD,
 	NLBL_MGMT_C_REMOVE,
-	NLBL_MGMT_C_LIST,
+	NLBL_MGMT_C_LISTALL,
 	NLBL_MGMT_C_ADDDEF,
 	NLBL_MGMT_C_REMOVEDEF,
 	NLBL_MGMT_C_LISTDEF,
-	NLBL_MGMT_C_MODULES,
+	NLBL_MGMT_C_PROTOCOLS,
 	NLBL_MGMT_C_VERSION,
 	__NLBL_MGMT_C_MAX,
 };
 #define NLBL_MGMT_C_MAX (__NLBL_MGMT_C_MAX - 1)
+
+/* NetLabel Management attributes */
+enum {
+	NLBL_MGMT_A_UNSPEC,
+	NLBL_MGMT_A_DOMAIN,
+	/* (NLA_NUL_STRING)
+	 * the NULL terminated LSM domain string */
+	NLBL_MGMT_A_PROTOCOL,
+	/* (NLA_U32)
+	 * the NetLabel protocol type (defined by NETLBL_NLTYPE_*) */
+	NLBL_MGMT_A_VERSION,
+	/* (NLA_U32)
+	 * the NetLabel protocol version number (defined by
+	 * NETLBL_PROTO_VERSION) */
+	NLBL_MGMT_A_CV4DOI,
+	/* (NLA_U32)
+	 * the CIPSOv4 DOI value */
+	__NLBL_MGMT_A_MAX,
+};
+#define NLBL_MGMT_A_MAX (__NLBL_MGMT_A_MAX - 1)
 
 /* NetLabel protocol functions */
 int netlbl_mgmt_genl_init(void);

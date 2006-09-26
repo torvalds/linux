@@ -259,7 +259,7 @@ void cipso_v4_cache_invalidate(void)
 	u32 iter;
 
 	for (iter = 0; iter < CIPSO_V4_CACHE_BUCKETS; iter++) {
-		spin_lock(&cipso_v4_cache[iter].lock);
+		spin_lock_bh(&cipso_v4_cache[iter].lock);
 		list_for_each_entry_safe(entry,
 					 tmp_entry,
 					 &cipso_v4_cache[iter].list, list) {
@@ -267,7 +267,7 @@ void cipso_v4_cache_invalidate(void)
 			cipso_v4_cache_entry_free(entry);
 		}
 		cipso_v4_cache[iter].size = 0;
-		spin_unlock(&cipso_v4_cache[iter].lock);
+		spin_unlock_bh(&cipso_v4_cache[iter].lock);
 	}
 
 	return;
@@ -309,7 +309,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 
 	hash = cipso_v4_map_cache_hash(key, key_len);
 	bkt = hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
-	spin_lock(&cipso_v4_cache[bkt].lock);
+	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	list_for_each_entry(entry, &cipso_v4_cache[bkt].list, list) {
 		if (entry->hash == hash &&
 		    entry->key_len == key_len &&
@@ -318,7 +318,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 			secattr->cache.free = entry->lsm_data.free;
 			secattr->cache.data = entry->lsm_data.data;
 			if (prev_entry == NULL) {
-				spin_unlock(&cipso_v4_cache[bkt].lock);
+				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
 			}
 
@@ -333,12 +333,12 @@ static int cipso_v4_cache_check(const unsigned char *key,
 					   &prev_entry->list);
 			}
 
-			spin_unlock(&cipso_v4_cache[bkt].lock);
+			spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 			return 0;
 		}
 		prev_entry = entry;
 	}
-	spin_unlock(&cipso_v4_cache[bkt].lock);
+	spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 
 	return -ENOENT;
 }
@@ -387,7 +387,7 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	entry->lsm_data.data = secattr->cache.data;
 
 	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
-	spin_lock(&cipso_v4_cache[bkt].lock);
+	spin_lock_bh(&cipso_v4_cache[bkt].lock);
 	if (cipso_v4_cache[bkt].size < cipso_v4_cache_bucketsize) {
 		list_add(&entry->list, &cipso_v4_cache[bkt].list);
 		cipso_v4_cache[bkt].size += 1;
@@ -398,7 +398,7 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 		list_add(&entry->list, &cipso_v4_cache[bkt].list);
 		cipso_v4_cache_entry_free(old_entry);
 	}
-	spin_unlock(&cipso_v4_cache[bkt].lock);
+	spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 
 	return 0;
 
@@ -530,197 +530,42 @@ struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi)
 }
 
 /**
- * cipso_v4_doi_dump_all - Dump all the CIPSO DOI definitions into a sk_buff
- * @headroom: the amount of headroom to allocate for the sk_buff
+ * cipso_v4_doi_walk - Iterate through the DOI definitions
+ * @skip_cnt: skip past this number of DOI definitions, updated
+ * @callback: callback for each DOI definition
+ * @cb_arg: argument for the callback function
  *
  * Description:
- * Dump a list of all the configured DOI values into a sk_buff.  The returned
- * sk_buff has room at the front of the sk_buff for @headroom bytes.  See
- * net/netlabel/netlabel_cipso_v4.h for the LISTALL message format.  This
- * function may fail if another process is changing the DOI list at the same
- * time.  Returns a pointer to a sk_buff on success, NULL on error.
+ * Iterate over the DOI definition list, skipping the first @skip_cnt entries.
+ * For each entry call @callback, if @callback returns a negative value stop
+ * 'walking' through the list and return.  Updates the value in @skip_cnt upon
+ * return.  Returns zero on success, negative values on failure.
  *
  */
-struct sk_buff *cipso_v4_doi_dump_all(size_t headroom)
+int cipso_v4_doi_walk(u32 *skip_cnt,
+		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
+		     void *cb_arg)
 {
-	struct sk_buff *skb = NULL;
-	struct cipso_v4_doi *iter;
+	int ret_val = -ENOENT;
 	u32 doi_cnt = 0;
-	ssize_t buf_len;
-
-	buf_len = NETLBL_LEN_U32;
-	rcu_read_lock();
-	list_for_each_entry_rcu(iter, &cipso_v4_doi_list, list)
-		if (iter->valid) {
-			doi_cnt += 1;
-			buf_len += 2 * NETLBL_LEN_U32;
-		}
-
-	skb = netlbl_netlink_alloc_skb(headroom, buf_len, GFP_ATOMIC);
-	if (skb == NULL)
-		goto doi_dump_all_failure;
-
-	if (nla_put_u32(skb, NLA_U32, doi_cnt) != 0)
-		goto doi_dump_all_failure;
-	buf_len -= NETLBL_LEN_U32;
-	list_for_each_entry_rcu(iter, &cipso_v4_doi_list, list)
-		if (iter->valid) {
-			if (buf_len < 2 * NETLBL_LEN_U32)
-				goto doi_dump_all_failure;
-			if (nla_put_u32(skb, NLA_U32, iter->doi) != 0)
-				goto doi_dump_all_failure;
-			if (nla_put_u32(skb, NLA_U32, iter->type) != 0)
-				goto doi_dump_all_failure;
-			buf_len -= 2 * NETLBL_LEN_U32;
-		}
-	rcu_read_unlock();
-
-	return skb;
-
-doi_dump_all_failure:
-	rcu_read_unlock();
-	kfree(skb);
-	return NULL;
-}
-
-/**
- * cipso_v4_doi_dump - Dump a CIPSO DOI definition into a sk_buff
- * @doi: the DOI value
- * @headroom: the amount of headroom to allocate for the sk_buff
- *
- * Description:
- * Lookup the DOI definition matching @doi and dump it's contents into a
- * sk_buff.  The returned sk_buff has room at the front of the sk_buff for
- * @headroom bytes.  See net/netlabel/netlabel_cipso_v4.h for the LIST message
- * format.  This function may fail if another process is changing the DOI list
- * at the same time.  Returns a pointer to a sk_buff on success, NULL on error.
- *
- */
-struct sk_buff *cipso_v4_doi_dump(u32 doi, size_t headroom)
-{
-	struct sk_buff *skb = NULL;
-	struct cipso_v4_doi *iter;
-	u32 tag_cnt = 0;
-	u32 lvl_cnt = 0;
-	u32 cat_cnt = 0;
-	ssize_t buf_len;
-	ssize_t tmp;
+	struct cipso_v4_doi *iter_doi;
 
 	rcu_read_lock();
-	iter = cipso_v4_doi_getdef(doi);
-	if (iter == NULL)
-		goto doi_dump_failure;
-	buf_len = NETLBL_LEN_U32;
-	switch (iter->type) {
-	case CIPSO_V4_MAP_PASS:
-		buf_len += NETLBL_LEN_U32;
-		while(tag_cnt < CIPSO_V4_TAG_MAXCNT &&
-		      iter->tags[tag_cnt] != CIPSO_V4_TAG_INVALID) {
-			tag_cnt += 1;
-			buf_len += NETLBL_LEN_U8;
-		}
-		break;
-	case CIPSO_V4_MAP_STD:
-		buf_len += 3 * NETLBL_LEN_U32;
-		while (tag_cnt < CIPSO_V4_TAG_MAXCNT &&
-		       iter->tags[tag_cnt] != CIPSO_V4_TAG_INVALID) {
-			tag_cnt += 1;
-			buf_len += NETLBL_LEN_U8;
-		}
-		for (tmp = 0; tmp < iter->map.std->lvl.local_size; tmp++)
-			if (iter->map.std->lvl.local[tmp] !=
-			    CIPSO_V4_INV_LVL) {
-				lvl_cnt += 1;
-				buf_len += NETLBL_LEN_U32 + NETLBL_LEN_U8;
+	list_for_each_entry_rcu(iter_doi, &cipso_v4_doi_list, list)
+		if (iter_doi->valid) {
+			if (doi_cnt++ < *skip_cnt)
+				continue;
+			ret_val = callback(iter_doi, cb_arg);
+			if (ret_val < 0) {
+				doi_cnt--;
+				goto doi_walk_return;
 			}
-		for (tmp = 0; tmp < iter->map.std->cat.local_size; tmp++)
-			if (iter->map.std->cat.local[tmp] !=
-			    CIPSO_V4_INV_CAT) {
-				cat_cnt += 1;
-				buf_len += NETLBL_LEN_U32 + NETLBL_LEN_U16;
-			}
-		break;
-	}
+		}
 
-	skb = netlbl_netlink_alloc_skb(headroom, buf_len, GFP_ATOMIC);
-	if (skb == NULL)
-		goto doi_dump_failure;
-
-	if (nla_put_u32(skb, NLA_U32, iter->type) != 0)
-		goto doi_dump_failure;
-	buf_len -= NETLBL_LEN_U32;
-	if (iter != cipso_v4_doi_getdef(doi))
-		goto doi_dump_failure;
-	switch (iter->type) {
-	case CIPSO_V4_MAP_PASS:
-		if (nla_put_u32(skb, NLA_U32, tag_cnt) != 0)
-			goto doi_dump_failure;
-		buf_len -= NETLBL_LEN_U32;
-		for (tmp = 0;
-		     tmp < CIPSO_V4_TAG_MAXCNT &&
-			     iter->tags[tmp] != CIPSO_V4_TAG_INVALID;
-		     tmp++) {
-			if (buf_len < NETLBL_LEN_U8)
-				goto doi_dump_failure;
-			if (nla_put_u8(skb, NLA_U8, iter->tags[tmp]) != 0)
-				goto doi_dump_failure;
-			buf_len -= NETLBL_LEN_U8;
-		}
-		break;
-	case CIPSO_V4_MAP_STD:
-		if (nla_put_u32(skb, NLA_U32, tag_cnt) != 0)
-			goto doi_dump_failure;
-		if (nla_put_u32(skb, NLA_U32, lvl_cnt) != 0)
-			goto doi_dump_failure;
-		if (nla_put_u32(skb, NLA_U32, cat_cnt) != 0)
-			goto doi_dump_failure;
-		buf_len -= 3 * NETLBL_LEN_U32;
-		for (tmp = 0;
-		     tmp < CIPSO_V4_TAG_MAXCNT &&
-			     iter->tags[tmp] != CIPSO_V4_TAG_INVALID;
-		     tmp++) {
-			if (buf_len < NETLBL_LEN_U8)
-				goto doi_dump_failure;
-			if (nla_put_u8(skb, NLA_U8, iter->tags[tmp]) != 0)
-				goto doi_dump_failure;
-			buf_len -= NETLBL_LEN_U8;
-		}
-		for (tmp = 0; tmp < iter->map.std->lvl.local_size; tmp++)
-			if (iter->map.std->lvl.local[tmp] !=
-			    CIPSO_V4_INV_LVL) {
-				if (buf_len < NETLBL_LEN_U32 + NETLBL_LEN_U8)
-					goto doi_dump_failure;
-				if (nla_put_u32(skb, NLA_U32, tmp) != 0)
-					goto doi_dump_failure;
-				if (nla_put_u8(skb,
-					   NLA_U8,
-					   iter->map.std->lvl.local[tmp]) != 0)
-					goto doi_dump_failure;
-				buf_len -= NETLBL_LEN_U32 + NETLBL_LEN_U8;
-			}
-		for (tmp = 0; tmp < iter->map.std->cat.local_size; tmp++)
-			if (iter->map.std->cat.local[tmp] !=
-			    CIPSO_V4_INV_CAT) {
-				if (buf_len < NETLBL_LEN_U32 + NETLBL_LEN_U16)
-					goto doi_dump_failure;
-				if (nla_put_u32(skb, NLA_U32, tmp) != 0)
-					goto doi_dump_failure;
-				if (nla_put_u16(skb,
-					   NLA_U16,
-					   iter->map.std->cat.local[tmp]) != 0)
-					goto doi_dump_failure;
-				buf_len -= NETLBL_LEN_U32 + NETLBL_LEN_U16;
-			}
-		break;
-	}
+doi_walk_return:
 	rcu_read_unlock();
-
-	return skb;
-
-doi_dump_failure:
-	rcu_read_unlock();
-	kfree(skb);
-	return NULL;
+	*skip_cnt = doi_cnt;
+	return ret_val;
 }
 
 /**
@@ -1486,6 +1331,54 @@ socket_setattr_failure:
 }
 
 /**
+ * cipso_v4_sock_getattr - Get the security attributes from a sock
+ * @sk: the sock
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Query @sk to see if there is a CIPSO option attached to the sock and if
+ * there is return the CIPSO security attributes in @secattr.  This function
+ * requires that @sk be locked, or privately held, but it does not do any
+ * locking itself.  Returns zero on success and negative values on failure.
+ *
+ */
+int cipso_v4_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val = -ENOMSG;
+	struct inet_sock *sk_inet;
+	unsigned char *cipso_ptr;
+	u32 doi;
+	struct cipso_v4_doi *doi_def;
+
+	sk_inet = inet_sk(sk);
+	if (sk_inet->opt == NULL || sk_inet->opt->cipso == 0)
+		return -ENOMSG;
+	cipso_ptr = sk_inet->opt->__data + sk_inet->opt->cipso -
+		sizeof(struct iphdr);
+	ret_val = cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr);
+	if (ret_val == 0)
+		return ret_val;
+
+	doi = ntohl(*(u32 *)&cipso_ptr[2]);
+	rcu_read_lock();
+	doi_def = cipso_v4_doi_getdef(doi);
+	if (doi_def == NULL) {
+		rcu_read_unlock();
+		return -ENOMSG;
+	}
+	switch (cipso_ptr[6]) {
+	case CIPSO_V4_TAG_RBITMAP:
+		ret_val = cipso_v4_parsetag_rbm(doi_def,
+						&cipso_ptr[6],
+						secattr);
+		break;
+	}
+	rcu_read_unlock();
+
+	return ret_val;
+}
+
+/**
  * cipso_v4_socket_getattr - Get the security attributes from a socket
  * @sock: the socket
  * @secattr: the security attributes
@@ -1499,42 +1392,12 @@ socket_setattr_failure:
 int cipso_v4_socket_getattr(const struct socket *sock,
 			    struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val = -ENOMSG;
-	struct sock *sk;
-	struct inet_sock *sk_inet;
-	unsigned char *cipso_ptr;
-	u32 doi;
-	struct cipso_v4_doi *doi_def;
+	int ret_val;
 
-	sk = sock->sk;
-	lock_sock(sk);
-	sk_inet = inet_sk(sk);
-	if (sk_inet->opt == NULL || sk_inet->opt->cipso == 0)
-		goto socket_getattr_return;
-	cipso_ptr = sk_inet->opt->__data + sk_inet->opt->cipso -
-		sizeof(struct iphdr);
-	ret_val = cipso_v4_cache_check(cipso_ptr, cipso_ptr[1], secattr);
-	if (ret_val == 0)
-		goto socket_getattr_return;
+	lock_sock(sock->sk);
+	ret_val = cipso_v4_sock_getattr(sock->sk, secattr);
+	release_sock(sock->sk);
 
-	doi = ntohl(*(u32 *)&cipso_ptr[2]);
-	rcu_read_lock();
-	doi_def = cipso_v4_doi_getdef(doi);
-	if (doi_def == NULL) {
-		rcu_read_unlock();
-		goto socket_getattr_return;
-	}
-	switch (cipso_ptr[6]) {
-	case CIPSO_V4_TAG_RBITMAP:
-		ret_val = cipso_v4_parsetag_rbm(doi_def,
-						&cipso_ptr[6],
-						secattr);
-		break;
-	}
-	rcu_read_unlock();
-
-socket_getattr_return:
-	release_sock(sk);
 	return ret_val;
 }
 
