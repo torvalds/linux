@@ -377,8 +377,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 
 int remove_mapping(struct address_space *mapping, struct page *page)
 {
-	if (!mapping)
-		return 0;		/* truncate got there first */
+	BUG_ON(!PageLocked(page));
+	BUG_ON(mapping != page_mapping(page));
 
 	write_lock_irq(&mapping->tree_lock);
 
@@ -547,7 +547,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				goto free_it;
 		}
 
-		if (!remove_mapping(mapping, page))
+		if (!mapping || !remove_mapping(mapping, page))
 			goto keep_locked;
 
 free_it:
