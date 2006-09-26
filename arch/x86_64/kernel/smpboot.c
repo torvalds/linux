@@ -1233,6 +1233,8 @@ int __cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		stop_apic_nmi_watchdog(NULL);
 	clear_local_APIC();
 
 	/*

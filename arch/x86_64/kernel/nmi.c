@@ -63,7 +63,6 @@ struct nmi_watchdog_ctlblk {
 static DEFINE_PER_CPU(struct nmi_watchdog_ctlblk, nmi_watchdog_ctlblk);
 
 /* local prototypes */
-static void stop_apic_nmi_watchdog(void *unused);
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
 
 /* converts an msr to an appropriate reservation bit */
@@ -337,15 +336,20 @@ static int nmi_pm_active; /* nmi_active before suspend */
 
 static int lapic_nmi_suspend(struct sys_device *dev, pm_message_t state)
 {
+	/* only CPU0 goes here, other CPUs should be offline */
 	nmi_pm_active = atomic_read(&nmi_active);
-	disable_lapic_nmi_watchdog();
+	stop_apic_nmi_watchdog(NULL);
+	BUG_ON(atomic_read(&nmi_active) != 0);
 	return 0;
 }
 
 static int lapic_nmi_resume(struct sys_device *dev)
 {
-	if (nmi_pm_active > 0)
-		enable_lapic_nmi_watchdog();
+	/* only CPU0 goes here, other CPUs should be offline */
+	if (nmi_pm_active > 0) {
+		setup_apic_nmi_watchdog(NULL);
+		touch_nmi_watchdog();
+	}
 	return 0;
 }
 
@@ -561,10 +565,20 @@ static void stop_p4_watchdog(void)
 
 void setup_apic_nmi_watchdog(void *unused)
 {
+	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
+
 	/* only support LOCAL and IO APICs for now */
 	if ((nmi_watchdog != NMI_LOCAL_APIC) &&
 	    (nmi_watchdog != NMI_IO_APIC))
 	    	return;
+
+	if (wd->enabled == 1)
+		return;
+
+	/* cheap hack to support suspend/resume */
+	/* if cpu0 is not active neither should the other cpus */
+	if ((smp_processor_id() != 0) && (atomic_read(&nmi_active) <= 0))
+		return;
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		switch (boot_cpu_data.x86_vendor) {
@@ -582,16 +596,21 @@ void setup_apic_nmi_watchdog(void *unused)
 			return;
 		}
 	}
-	__get_cpu_var(nmi_watchdog_ctlblk.enabled) = 1;
+	wd->enabled = 1;
 	atomic_inc(&nmi_active);
 }
 
-static void stop_apic_nmi_watchdog(void *unused)
+void stop_apic_nmi_watchdog(void *unused)
 {
+	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
+
 	/* only support LOCAL and IO APICs for now */
 	if ((nmi_watchdog != NMI_LOCAL_APIC) &&
 	    (nmi_watchdog != NMI_IO_APIC))
 	    	return;
+
+	if (wd->enabled == 0)
+		return;
 
 	if (nmi_watchdog == NMI_LOCAL_APIC) {
 		switch (boot_cpu_data.x86_vendor) {
@@ -607,7 +626,7 @@ static void stop_apic_nmi_watchdog(void *unused)
 			return;
 		}
 	}
-	__get_cpu_var(nmi_watchdog_ctlblk.enabled) = 0;
+	wd->enabled = 0;
 	atomic_dec(&nmi_active);
 }
 
