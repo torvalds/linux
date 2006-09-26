@@ -17,6 +17,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
+#include <linux/ioport.h>
 #include <asm/e820.h>
 #include <asm/io.h>
 #include <asm/proto.h>
@@ -32,6 +33,18 @@ int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata = 0; 
 
 int fix_aperture __initdata = 1;
+
+static struct resource gart_resource = {
+	.name	= "GART",
+	.flags	= IORESOURCE_MEM,
+};
+
+static void __init insert_aperture_resource(u32 aper_base, u32 aper_size)
+{
+	gart_resource.start = aper_base;
+	gart_resource.end = aper_base + aper_size - 1;
+	insert_resource(&iomem_resource, &gart_resource);
+}
 
 /* This code runs before the PCI subsystem is initialized, so just
    access the northbridge directly. */
@@ -62,6 +75,7 @@ static u32 __init allocate_aperture(void)
 	}
 	printk("Mapping aperture over %d KB of RAM @ %lx\n",
 	       aper_size >> 10, __pa(p)); 
+	insert_aperture_resource((u32)__pa(p), aper_size);
 	return (u32)__pa(p); 
 }
 
@@ -233,8 +247,13 @@ void __init iommu_hole_init(void)
 		last_aper_base = aper_base;
 	} 
 
-	if (!fix && !fallback_aper_force) 
+	if (!fix && !fallback_aper_force) {
+		if (last_aper_base) {
+			unsigned long n = (32 * 1024 * 1024) << last_aper_order;
+			insert_aperture_resource((u32)last_aper_base, n);
+		}
 		return; 
+	}
 
 	if (!fallback_aper_force)
 		aper_alloc = search_agp_bridge(&aper_order, &valid_agp); 
