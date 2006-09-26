@@ -62,6 +62,8 @@ struct scan_control {
 	int swap_cluster_max;
 
 	int swappiness;
+
+	int all_unreclaimable;
 };
 
 /*
@@ -925,6 +927,7 @@ static unsigned long shrink_zones(int priority, struct zone **zones,
 	unsigned long nr_reclaimed = 0;
 	int i;
 
+	sc->all_unreclaimable = 1;
 	for (i = 0; zones[i] != NULL; i++) {
 		struct zone *zone = zones[i];
 
@@ -940,6 +943,8 @@ static unsigned long shrink_zones(int priority, struct zone **zones,
 
 		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
 			continue;	/* Let kswapd poll it */
+
+		sc->all_unreclaimable = 0;
 
 		nr_reclaimed += shrink_zone(priority, zone, sc);
 	}
@@ -1021,6 +1026,9 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
 			blk_congestion_wait(WRITE, HZ/10);
 	}
+	/* top priority shrink_caches still had more to do? don't OOM, then */
+	if (!sc.all_unreclaimable)
+		ret = 1;
 out:
 	for (i = 0; zones[i] != 0; i++) {
 		struct zone *zone = zones[i];
