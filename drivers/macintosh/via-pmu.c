@@ -336,8 +336,10 @@ int __init find_via_pmu(void)
 			if (gaddr != OF_BAD_ADDR)
 				gpio_reg = ioremap(gaddr, 0x10);
 		}
-		if (gpio_reg == NULL)
+		if (gpio_reg == NULL) {
 			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
+			goto fail_gpio;
+		}
 	} else
 		pmu_kind = PMU_UNKNOWN;
 
@@ -365,6 +367,9 @@ int __init find_via_pmu(void)
 	return 1;
  fail:
 	of_node_put(vias);
+	iounmap(gpio_reg);
+	gpio_reg = NULL;
+ fail_gpio:
 	vias = NULL;
 	return 0;
 }
