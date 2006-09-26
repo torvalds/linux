@@ -84,7 +84,7 @@ struct exception_table_entry
  */
 
 #define __get_user_x(size,ret,x,ptr) \
-	__asm__ __volatile__("call __get_user_" #size \
+	asm volatile("call __get_user_" #size \
 		:"=a" (ret),"=d" (x) \
 		:"c" (ptr) \
 		:"r8")
@@ -101,7 +101,7 @@ struct exception_table_entry
 	case 8:  __get_user_x(8,__ret_gu,__val_gu,ptr); break;		\
 	default: __get_user_bad(); break;				\
 	}								\
-	(x) = (__typeof__(*(ptr)))__val_gu;				\
+	(x) = (typeof(*(ptr)))__val_gu;				\
 	__ret_gu;							\
 })
 
@@ -112,7 +112,7 @@ extern void __put_user_8(void);
 extern void __put_user_bad(void);
 
 #define __put_user_x(size,ret,x,ptr)					\
-	__asm__ __volatile__("call __put_user_" #size			\
+	asm volatile("call __put_user_" #size			\
 		:"=a" (ret)						\
 		:"c" (ptr),"d" (x)					\
 		:"r8")
@@ -139,7 +139,7 @@ extern void __put_user_bad(void);
 #define __put_user_check(x,ptr,size)			\
 ({							\
 	int __pu_err;					\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);	\
+	typeof(*(ptr)) __user *__pu_addr = (ptr);	\
 	switch (size) { 				\
 	case 1: __put_user_x(1,__pu_err,x,__pu_addr); break;	\
 	case 2: __put_user_x(2,__pu_err,x,__pu_addr); break;	\
@@ -173,7 +173,7 @@ struct __large_struct { unsigned long buf[100]; };
  * aliasing issues.
  */
 #define __put_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	__asm__ __volatile__(					\
+	asm volatile(					\
 		"1:	mov"itype" %"rtype"1,%2\n"		\
 		"2:\n"						\
 		".section .fixup,\"ax\"\n"			\
@@ -193,7 +193,7 @@ struct __large_struct { unsigned long buf[100]; };
 	int __gu_err;						\
 	unsigned long __gu_val;					\
 	__get_user_size(__gu_val,(ptr),(size),__gu_err);	\
-	(x) = (__typeof__(*(ptr)))__gu_val;			\
+	(x) = (typeof(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
@@ -217,7 +217,7 @@ do {									\
 } while (0)
 
 #define __get_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	__asm__ __volatile__(					\
+	asm volatile(					\
 		"1:	mov"itype" %2,%"rtype"1\n"		\
 		"2:\n"						\
 		".section .fixup,\"ax\"\n"			\
@@ -250,7 +250,7 @@ copy_in_user(void __user *to, const void __user *from, unsigned len);
 static __always_inline __must_check
 int __copy_from_user(void *dst, const void __user *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic(dst,(__force void *)src,size);
 	switch (size) { 
@@ -280,7 +280,7 @@ int __copy_from_user(void *dst, const void __user *src, unsigned size)
 static __always_inline __must_check
 int __copy_to_user(void __user *dst, const void *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst,src,size);
 	switch (size) { 
@@ -312,7 +312,7 @@ int __copy_to_user(void __user *dst, const void *src, unsigned size)
 static __always_inline __must_check
 int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst,(__force void *)src,size);
 	switch (size) { 
