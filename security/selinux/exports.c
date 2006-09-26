@@ -21,10 +21,10 @@
 #include "security.h"
 #include "objsec.h"
 
-int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
+int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen)
 {
 	if (selinux_enabled)
-		return security_sid_to_context(ctxid, ctx, ctxlen);
+		return security_sid_to_context(sid, ctx, ctxlen);
 	else {
 		*ctx = NULL;
 		*ctxlen = 0;

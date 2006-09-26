@@ -70,8 +70,8 @@ int selinux_audit_rule_match(u32 ctxid, u32 field, u32 op,
 void selinux_audit_set_callback(int (*callback)(void));
 
 /**
- *     selinux_ctxid_to_string - map a security context ID to a string
- *     @ctxid: security context ID to be converted.
+ *     selinux_sid_to_string - map a security context ID to a string
+ *     @sid: security context ID to be converted.
  *     @ctx: address of context string to be returned
  *     @ctxlen: length of returned context string.
  *
@@ -79,7 +79,7 @@ void selinux_audit_set_callback(int (*callback)(void));
  *     string will be allocated internally, and the caller must call
  *     kfree() on it after use.
  */
-int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen);
+int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen);
 
 /**
  *     selinux_get_inode_sid - get the inode's security context ID
@@ -156,7 +156,7 @@ static inline void selinux_audit_set_callback(int (*callback)(void))
 	return;
 }
 
-static inline int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
+static inline int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen)
 {
        *ctx = NULL;
        *ctxlen = 0;
