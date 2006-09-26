@@ -16,30 +16,23 @@
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-#define __raw_spin_is_locked(x) \
-		(*(volatile signed int *)(&(x)->slock) <= 0)
-
-#define __raw_spin_lock_string \
-	"\n1:\t" \
-	LOCK_PREFIX " ; decl %0\n\t" \
-	"jns 2f\n" \
-	"3:\n" \
-	"rep;nop\n\t" \
-	"cmpl $0,%0\n\t" \
-	"jle 3b\n\t" \
-	"jmp 1b\n" \
-	"2:\t" \
-
-#define __raw_spin_lock_string_up \
-	"\n\tdecl %0"
-
-#define __raw_spin_unlock_string \
-	"movl $1,%0" \
-		:"=m" (lock->slock) : : "memory"
+static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+{
+	return *(volatile signed int *)(&(lock)->slock) <= 0;
+}
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	asm volatile(__raw_spin_lock_string : "=m" (lock->slock) : : "memory");
+	asm volatile(
+		"\n1:\t"
+		LOCK_PREFIX " ; decl %0\n\t"
+		"jns 2f\n"
+		"3:\n"
+		"rep;nop\n\t"
+		"cmpl $0,%0\n\t"
+		"jle 3b\n\t"
+		"jmp 1b\n"
+		"2:\t" : "=m" (lock->slock) : : "memory");
 }
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
@@ -48,7 +41,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int oldval;
 
-	__asm__ __volatile__(
+	asm volatile(
 		"xchgl %0,%1"
 		:"=q" (oldval), "=m" (lock->slock)
 		:"0" (0) : "memory");
@@ -58,13 +51,14 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__(
-		__raw_spin_unlock_string
-	);
+	asm volatile("movl $1,%0" :"=m" (lock->slock) :: "memory");
 }
 
-#define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
+{
+	while (__raw_spin_is_locked(lock))
+		cpu_relax();
+}
 
 /*
  * Read-write spinlocks, allowing multiple readers
@@ -80,17 +74,32 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
  * with the high bit (sign) being the "contended" bit.
  */
 
-#define __raw_read_can_lock(x)		((int)(x)->lock > 0)
-#define __raw_write_can_lock(x)		((x)->lock == RW_LOCK_BIAS)
+static inline int __raw_read_can_lock(raw_rwlock_t *lock)
+{
+	return (int)(lock)->lock > 0;
+}
+
+static inline int __raw_write_can_lock(raw_rwlock_t *lock)
+{
+	return (lock)->lock == RW_LOCK_BIAS;
+}
 
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
-	__build_read_lock(rw);
+	asm volatile(LOCK_PREFIX "subl $1,(%0)\n\t"
+		     "jns 1f\n"
+		     "call __read_lock_failed\n"
+		     "1:\n"
+		     ::"D" (rw), "i" (RW_LOCK_BIAS) : "memory");
 }
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
-	__build_write_lock(rw);
+	asm volatile(LOCK_PREFIX "subl %1,(%0)\n\t"
+		     "jz 1f\n"
+		     "\tcall __write_lock_failed\n\t"
+		     "1:\n"
+		     ::"D" (rw), "i" (RW_LOCK_BIAS) : "memory");
 }
 
 static inline int __raw_read_trylock(raw_rwlock_t *lock)
