@@ -244,6 +244,16 @@ static void balance_dirty_pages(struct address_space *mapping)
 		pdflush_operation(background_writeout, 0);
 }
 
+void set_page_dirty_balance(struct page *page)
+{
+	if (set_page_dirty(page)) {
+		struct address_space *mapping = page_mapping(page);
+
+		if (mapping)
+			balance_dirty_pages_ratelimited(mapping);
+	}
+}
+
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied

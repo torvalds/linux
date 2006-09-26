@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/delayacct.h>
 #include <linux/init.h>
+#include <linux/writeback.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -1571,7 +1572,7 @@ gotten:
 unlock:
 	pte_unmap_unlock(page_table, ptl);
 	if (dirty_page) {
-		set_page_dirty(dirty_page);
+		set_page_dirty_balance(dirty_page);
 		put_page(dirty_page);
 	}
 	return ret;
@@ -2218,7 +2219,7 @@ retry:
 unlock:
 	pte_unmap_unlock(page_table, ptl);
 	if (dirty_page) {
-		set_page_dirty(dirty_page);
+		set_page_dirty_balance(dirty_page);
 		put_page(dirty_page);
 	}
 	return ret;
