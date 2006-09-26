@@ -51,13 +51,13 @@ extern struct x8664_pda _proxy_pda;
 	typedef typeof(_proxy_pda.field) T__; \
        switch (sizeof(_proxy_pda.field)) { 		\
 case 2: \
-asm(op "w %1,%%gs:%P2" : "+m" (_proxy_pda.field) : \
+asm(op "w %1,%%gs:%c2" : "+m" (_proxy_pda.field) : \
 	"ri" ((T__)val),"i"(pda_offset(field))); break; \
 case 4: \
-asm(op "l %1,%%gs:%P2" : "+m" (_proxy_pda.field) : \
+asm(op "l %1,%%gs:%c2" : "+m" (_proxy_pda.field) : \
 	"ri" ((T__)val),"i"(pda_offset(field))); break; \
 case 8: \
-asm(op "q %1,%%gs:%P2": "+m" (_proxy_pda.field) : \
+asm(op "q %1,%%gs:%c2": "+m" (_proxy_pda.field) : \
 	 "ri" ((T__)val),"i"(pda_offset(field))); break; \
 default: __bad_pda_field(); 					\
        } \
@@ -67,13 +67,13 @@ default: __bad_pda_field(); 					\
        typeof(_proxy_pda.field) ret__; \
        switch (sizeof(_proxy_pda.field)) { 		\
 case 2: \
-asm(op "w %%gs:%P1,%0":"=r" (ret__):\
+asm(op "w %%gs:%c1,%0":"=r" (ret__):\
 	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
 case 4: \
-asm(op "l %%gs:%P1,%0":"=r" (ret__):\
+asm(op "l %%gs:%c1,%0":"=r" (ret__):\
 	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
 case 8: \
-asm(op "q %%gs:%P1,%0":"=r" (ret__):\
+asm(op "q %%gs:%c1,%0":"=r" (ret__):\
 	"i" (pda_offset(field)), "m" (_proxy_pda.field)); break;\
 default: __bad_pda_field(); 					\
        } \
