@@ -277,11 +277,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #endif
 
 	/* Set up registers for signal handler */
-	{ 
-		struct exec_domain *ed = current_thread_info()->exec_domain;
-		if (unlikely(ed && ed->signal_invmap && sig < 32))
-			sig = ed->signal_invmap[sig];
-	} 
 	regs->rdi = sig;
 	/* In case the signal handler was declared without prototypes */ 
 	regs->rax = 0;	

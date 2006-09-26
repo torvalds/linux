@@ -431,15 +431,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto give_sigsegv;
 
-	{
-		struct exec_domain *ed = current_thread_info()->exec_domain;
-		err |= __put_user((ed
-		           && ed->signal_invmap
-		           && sig < 32
-		           ? ed->signal_invmap[sig]
-		           : sig),
-		          &frame->sig);
-	}
+	err |= __put_user(sig, &frame->sig);
 	if (err)
 		goto give_sigsegv;
 
