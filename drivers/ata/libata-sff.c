@@ -898,7 +898,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		if (probe_ent->irq)
 			probe_ent->irq2 = ATA_SECONDARY_IRQ;
 		else
-			probe_ent->irq = 15;
+			probe_ent->irq = ATA_SECONDARY_IRQ;
 		probe_ent->port[1].cmd_addr = ATA_SECONDARY_CMD;
 		probe_ent->port[1].altstatus_addr =
 		probe_ent->port[1].ctl_addr = ATA_SECONDARY_CTL;
