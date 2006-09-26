@@ -38,7 +38,7 @@ unsigned long saved_max_pfn;
 #endif
 
 /* return the number of _pages_ that will be allocated for the boot bitmap */
-unsigned long __init bootmem_bootmap_pages (unsigned long pages)
+unsigned long __init bootmem_bootmap_pages(unsigned long pages)
 {
 	unsigned long mapsize;
 
@@ -48,12 +48,14 @@ unsigned long __init bootmem_bootmap_pages (unsigned long pages)
 
 	return mapsize;
 }
+
 /*
  * link bdata in order
  */
 static void __init link_bootmem(bootmem_data_t *bdata)
 {
 	bootmem_data_t *ent;
+
 	if (list_empty(&bdata_list)) {
 		list_add(&bdata->list, &bdata_list);
 		return;
@@ -66,7 +68,6 @@ static void __init link_bootmem(bootmem_data_t *bdata)
 		}
 	}
 	list_add_tail(&bdata->list, &bdata_list);
-	return;
 }
 
 /*
@@ -85,7 +86,7 @@ static unsigned long __init get_mapsize(bootmem_data_t *bdata)
 /*
  * Called once to set up the allocator itself.
  */
-static unsigned long __init init_bootmem_core (pg_data_t *pgdat,
+static unsigned long __init init_bootmem_core(pg_data_t *pgdat,
 	unsigned long mapstart, unsigned long start, unsigned long end)
 {
 	bootmem_data_t *bdata = pgdat->bdata;
@@ -185,7 +186,7 @@ __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	unsigned long i, start = 0, incr, eidx, end_pfn;
 	void *ret;
 
-	if(!size) {
+	if (!size) {
 		printk("__alloc_bootmem_core(): zero-sized request\n");
 		BUG();
 	}
@@ -234,7 +235,7 @@ restart_scan:
 		for (j = i + 1; j < i + areasize; ++j) {
 			if (j >= eidx)
 				goto fail_block;
-			if (test_bit (j, bdata->node_bootmem_map))
+			if (test_bit(j, bdata->node_bootmem_map))
 				goto fail_block;
 		}
 		start = i;
@@ -262,19 +263,21 @@ found:
 	    bdata->last_offset && bdata->last_pos+1 == start) {
 		offset = ALIGN(bdata->last_offset, align);
 		BUG_ON(offset > PAGE_SIZE);
-		remaining_size = PAGE_SIZE-offset;
+		remaining_size = PAGE_SIZE - offset;
 		if (size < remaining_size) {
 			areasize = 0;
 			/* last_pos unchanged */
-			bdata->last_offset = offset+size;
-			ret = phys_to_virt(bdata->last_pos*PAGE_SIZE + offset +
-						bdata->node_boot_start);
+			bdata->last_offset = offset + size;
+			ret = phys_to_virt(bdata->last_pos * PAGE_SIZE +
+					   offset +
+					   bdata->node_boot_start);
 		} else {
 			remaining_size = size - remaining_size;
-			areasize = (remaining_size+PAGE_SIZE-1)/PAGE_SIZE;
-			ret = phys_to_virt(bdata->last_pos*PAGE_SIZE + offset +
-						bdata->node_boot_start);
-			bdata->last_pos = start+areasize-1;
+			areasize = (remaining_size + PAGE_SIZE-1) / PAGE_SIZE;
+			ret = phys_to_virt(bdata->last_pos * PAGE_SIZE +
+					   offset +
+					   bdata->node_boot_start);
+			bdata->last_pos = start + areasize - 1;
 			bdata->last_offset = remaining_size;
 		}
 		bdata->last_offset &= ~PAGE_MASK;
@@ -287,7 +290,7 @@ found:
 	/*
 	 * Reserve the area now:
 	 */
-	for (i = start; i < start+areasize; i++)
+	for (i = start; i < start + areasize; i++)
 		if (unlikely(test_and_set_bit(i, bdata->node_bootmem_map)))
 			BUG();
 	memset(ret, 0, size);
@@ -338,7 +341,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 				}
 			}
 		} else {
-			i+=BITS_PER_LONG;
+			i += BITS_PER_LONG;
 		}
 		pfn += BITS_PER_LONG;
 	}
@@ -361,51 +364,51 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 	return total;
 }
 
-unsigned long __init init_bootmem_node (pg_data_t *pgdat, unsigned long freepfn,
+unsigned long __init init_bootmem_node(pg_data_t *pgdat, unsigned long freepfn,
 				unsigned long startpfn, unsigned long endpfn)
 {
-	return(init_bootmem_core(pgdat, freepfn, startpfn, endpfn));
+	return init_bootmem_core(pgdat, freepfn, startpfn, endpfn);
 }
 
-void __init reserve_bootmem_node (pg_data_t *pgdat, unsigned long physaddr,
-				  unsigned long size)
+void __init reserve_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+				 unsigned long size)
 {
 	reserve_bootmem_core(pgdat->bdata, physaddr, size);
 }
 
-void __init free_bootmem_node (pg_data_t *pgdat, unsigned long physaddr,
-			       unsigned long size)
+void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
+			      unsigned long size)
 {
 	free_bootmem_core(pgdat->bdata, physaddr, size);
 }
 
-unsigned long __init free_all_bootmem_node (pg_data_t *pgdat)
+unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 {
-	return(free_all_bootmem_core(pgdat));
+	return free_all_bootmem_core(pgdat);
 }
 
-unsigned long __init init_bootmem (unsigned long start, unsigned long pages)
+unsigned long __init init_bootmem(unsigned long start, unsigned long pages)
 {
 	max_low_pfn = pages;
 	min_low_pfn = start;
-	return(init_bootmem_core(NODE_DATA(0), start, 0, pages));
+	return init_bootmem_core(NODE_DATA(0), start, 0, pages);
 }
 
 #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
-void __init reserve_bootmem (unsigned long addr, unsigned long size)
+void __init reserve_bootmem(unsigned long addr, unsigned long size)
 {
 	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
 }
 #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
 
-void __init free_bootmem (unsigned long addr, unsigned long size)
+void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
 }
 
-unsigned long __init free_all_bootmem (void)
+unsigned long __init free_all_bootmem(void)
 {
-	return(free_all_bootmem_core(NODE_DATA(0)));
+	return free_all_bootmem_core(NODE_DATA(0));
 }
 
 void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
@@ -414,9 +417,11 @@ void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
 	bootmem_data_t *bdata;
 	void *ptr;
 
-	list_for_each_entry(bdata, &bdata_list, list)
-		if ((ptr = __alloc_bootmem_core(bdata, size, align, goal, 0)))
-			return(ptr);
+	list_for_each_entry(bdata, &bdata_list, list) {
+		ptr = __alloc_bootmem_core(bdata, size, align, goal, 0);
+		if (ptr)
+			return ptr;
+	}
 	return NULL;
 }
 
@@ -424,6 +429,7 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
 			      unsigned long goal)
 {
 	void *mem = __alloc_bootmem_nopanic(size,align,goal);
+
 	if (mem)
 		return mem;
 	/*
@@ -442,7 +448,7 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 
 	ptr = __alloc_bootmem_core(pgdat->bdata, size, align, goal, 0);
 	if (ptr)
-		return (ptr);
+		return ptr;
 
 	return __alloc_bootmem(size, align, goal);
 }
@@ -455,10 +461,11 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 	bootmem_data_t *bdata;
 	void *ptr;
 
-	list_for_each_entry(bdata, &bdata_list, list)
-		if ((ptr = __alloc_bootmem_core(bdata, size,
-						 align, goal, LOW32LIMIT)))
-			return(ptr);
+	list_for_each_entry(bdata, &bdata_list, list) {
+		ptr = __alloc_bootmem_core(bdata, size, align, goal, LOW32LIMIT);
+		if (ptr)
+			return ptr;
+	}
 
 	/*
 	 * Whoops, we cannot satisfy the allocation request.
