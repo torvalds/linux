@@ -1199,13 +1199,8 @@ void si_meminfo(struct sysinfo *val)
 	val->sharedram = 0;
 	val->freeram = nr_free_pages();
 	val->bufferram = nr_blockdev_pages();
-#ifdef CONFIG_HIGHMEM
 	val->totalhigh = totalhigh_pages;
 	val->freehigh = nr_free_highpages();
-#else
-	val->totalhigh = 0;
-	val->freehigh = 0;
-#endif
 	val->mem_unit = PAGE_SIZE;
 }
 
@@ -1218,8 +1213,13 @@ void si_meminfo_node(struct sysinfo *val, int nid)
 
 	val->totalram = pgdat->node_present_pages;
 	val->freeram = nr_free_pages_pgdat(pgdat);
+#ifdef CONFIG_HIGHMEM
 	val->totalhigh = pgdat->node_zones[ZONE_HIGHMEM].present_pages;
 	val->freehigh = pgdat->node_zones[ZONE_HIGHMEM].free_pages;
+#else
+	val->totalhigh = 0;
+	val->freehigh = 0;
+#endif
 	val->mem_unit = PAGE_SIZE;
 }
 #endif
@@ -1344,14 +1344,11 @@ static int __meminit build_zonelists_node(pg_data_t *pgdat,
 {
 	struct zone *zone;
 
-	BUG_ON(zone_type > ZONE_HIGHMEM);
+	BUG_ON(zone_type >= MAX_NR_ZONES);
 
 	do {
 		zone = pgdat->node_zones + zone_type;
 		if (populated_zone(zone)) {
-#ifndef CONFIG_HIGHMEM
-			BUG_ON(zone_type > ZONE_NORMAL);
-#endif
 			zonelist->zones[nr_zones++] = zone;
 			check_highest_zone(zone_type);
 		}
@@ -1981,7 +1978,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		if (zholes_size)
 			realsize -= zholes_size[j];
 
-		if (j < ZONE_HIGHMEM)
+		if (!is_highmem_idx(j))
 			nr_kernel_pages += realsize;
 		nr_all_pages += realsize;
 
