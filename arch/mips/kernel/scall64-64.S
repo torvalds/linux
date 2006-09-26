@@ -34,7 +34,7 @@ NESTED(handle_sys64, PT_SIZE, sp)
 	 */
 	.set	noat
 	SAVE_SOME
-	TRACE_IRQS_ON
+	TRACE_IRQS_ON_RELOAD
 	STI
 	.set	at
 #endif
