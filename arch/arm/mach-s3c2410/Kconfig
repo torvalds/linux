@@ -292,7 +292,7 @@ config S3C2410_PM_CHECK_CHUNKSIZE
 
 config PM_SIMTEC
 	bool
-	depends on PM && (ARCH_BAST || MACH_VR1000)
+	depends on PM && (ARCH_BAST || MACH_VR1000 || MACH_AML_M5900)
 	default y
 
 config S3C2410_LOWLEVEL_UART_PORT

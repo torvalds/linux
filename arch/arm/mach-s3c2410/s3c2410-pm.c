@@ -29,6 +29,8 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 
+#include <asm/mach-types.h>
+
 #include <asm/arch/regs-gpio.h>
 
 #include "cpu.h"
@@ -49,6 +51,10 @@ static void s3c2410_pm_prepare(void)
 
 	DBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
 	DBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));
+
+	if ( machine_is_aml_m5900() )
+		s3c2410_gpio_setpin(S3C2410_GPF2, 1);
+
 }
 
 int s3c2410_pm_resume(struct sys_device *dev)
@@ -60,6 +66,9 @@ int s3c2410_pm_resume(struct sys_device *dev)
 	tmp = __raw_readl(S3C2410_GSTATUS2);
 	tmp &= S3C2410_GSTATUS2_OFFRESET;
 	__raw_writel(tmp, S3C2410_GSTATUS2);
+
+	if ( machine_is_aml_m5900() )
+		s3c2410_gpio_setpin(S3C2410_GPF2, 0);
 
 	return 0;
 }

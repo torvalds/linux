@@ -225,13 +225,34 @@ static struct s3c2410fb_mach_info __initdata amlm5900_lcd_info = {
 };
 #endif
 
+static irqreturn_t
+amlm5900_wake_interrupt(int irq, void *ignored, struct pt_regs *regs)
+{
+	return IRQ_HANDLED;
+}
+
+static void amlm5900_init_pm(void)
+{
+	int ret = 0;
+
+	ret = request_irq(IRQ_EINT9, &amlm5900_wake_interrupt,
+				IRQF_TRIGGER_RISING | IRQF_SHARED,
+				"amlm5900_wakeup", &amlm5900_wake_interrupt);
+	if (ret != 0) {
+		printk(KERN_ERR "AML-M5900: no wakeup irq, %d?\n", ret);
+	} else {
+		enable_irq_wake(IRQ_EINT9);
+		/* configure the suspend/resume status pin */
+		s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPF2_OUTP);
+		s3c2410_gpio_pullup(S3C2410_GPF2, 0);
+	}
+}
 static void __init amlm5900_init(void)
 {
-
+	amlm5900_init_pm();
 #ifdef CONFIG_FB_S3C2410
 	s3c24xx_fb_set_platdata(&amlm5900_lcd_info);
 #endif
-
 }
 
 MACHINE_START(AML_M5900, "AML_M5900")
