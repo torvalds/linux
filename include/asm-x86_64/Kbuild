@@ -11,6 +11,7 @@ header-y += debugreg.h
 header-y += ldt.h
 header-y += msr.h
 header-y += prctl.h
+header-y += ptrace-abi.h
 header-y += setup.h
 header-y += sigcontext32.h
 header-y += ucontext.h

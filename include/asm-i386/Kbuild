@@ -3,6 +3,7 @@ include include/asm-generic/Kbuild.asm
 header-y += boot.h
 header-y += debugreg.h
 header-y += ldt.h
+header-y += ptrace-abi.h
 header-y += ucontext.h
 
 unifdef-y += mtrr.h
