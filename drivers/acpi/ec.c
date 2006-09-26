@@ -112,11 +112,6 @@ static struct acpi_ec *ec_ecdt;
 static struct acpi_device *first_ec;
 static int acpi_ec_mode = EC_INTR;
 
-static void acpi_ec_gpe_poll_query(void *ec_cxt);
-static void acpi_ec_gpe_intr_query(void *ec_cxt);
-static u32 acpi_ec_gpe_poll_handler(void *data);
-static u32 acpi_ec_gpe_intr_handler(void *data);
-
 /* --------------------------------------------------------------------------
                              Transaction Management
    -------------------------------------------------------------------------- */
@@ -428,20 +423,12 @@ static int acpi_ec_query(struct acpi_ec *ec, u32 * data)
                                 Event Management
    -------------------------------------------------------------------------- */
 
-union acpi_ec_query_data {
+struct acpi_ec_query_data {
 	acpi_handle handle;
 	u8 data;
 };
 
 static void acpi_ec_gpe_query(void *ec_cxt)
-{
-	if (acpi_ec_mode == EC_POLL)
-		acpi_ec_gpe_poll_query(ec_cxt);
-	else
-		acpi_ec_gpe_intr_query(ec_cxt);
-}
-
-static void acpi_ec_gpe_poll_query(void *ec_cxt)
 {
 	struct acpi_ec *ec = (struct acpi_ec *)ec_cxt;
 	u32 value = 0;
@@ -454,18 +441,8 @@ static void acpi_ec_gpe_poll_query(void *ec_cxt)
 	if (!ec_cxt)
 		goto end;
 
-	if (down_interruptible (&ec->sem)) {
-		return;
-	}
 	value = acpi_ec_read_status(ec);
-	up(&ec->sem);
 
-	/* TBD: Implement asynch events!
-	 * NOTE: All we care about are EC-SCI's.  Other EC events are
-	 * handled via polling (yuck!).  This is because some systems
-	 * treat EC-SCIs as level (versus EDGE!) triggered, preventing
-	 *  a purely interrupt-driven approach (grumble, grumble).
-	 */
 	if (!(value & ACPI_EC_FLAG_SCI))
 		goto end;
 
@@ -475,96 +452,36 @@ static void acpi_ec_gpe_poll_query(void *ec_cxt)
 	object_name[2] = hex[((value >> 4) & 0x0F)];
 	object_name[3] = hex[(value & 0x0F)];
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s\n", object_name));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s", object_name));
 
 	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
 
       end:
 	acpi_enable_gpe(NULL, ec->gpe_bit, ACPI_NOT_ISR);
 }
-static void acpi_ec_gpe_intr_query(void *ec_cxt)
-{
-	struct acpi_ec *ec = (struct acpi_ec *)ec_cxt;
-	u32 value;
-	int result = -ENODATA;
-	static char object_name[5] = { '_', 'Q', '0', '0', '\0' };
-	const char hex[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-	};
-
-
-	if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_SCI)
-		result = acpi_ec_query(ec, &value);
-
-	if (result)
-		goto end;
-
-	object_name[2] = hex[((value >> 4) & 0x0F)];
-	object_name[3] = hex[(value & 0x0F)];
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluating %s\n", object_name));
-
-	acpi_evaluate_object(ec->handle, object_name, NULL, NULL);
-      end:
-	return;
-}
 
 static u32 acpi_ec_gpe_handler(void *data)
 {
-	if (acpi_ec_mode == EC_POLL)
-		return acpi_ec_gpe_poll_handler(data);
-	else
-		return acpi_ec_gpe_intr_handler(data);
-}
-static u32 acpi_ec_gpe_poll_handler(void *data)
-{
-	acpi_status status = AE_OK;
-	struct acpi_ec *ec = (struct acpi_ec *)data;
-
-	if (!ec)
-		return ACPI_INTERRUPT_NOT_HANDLED;
-
-	acpi_disable_gpe(NULL, ec->gpe_bit, ACPI_ISR);
-
-	status = acpi_os_execute(OSL_EC_POLL_HANDLER, acpi_ec_gpe_query, ec);
-
-	if (status == AE_OK)
-		return ACPI_INTERRUPT_HANDLED;
-	else
-		return ACPI_INTERRUPT_NOT_HANDLED;
-}
-static u32 acpi_ec_gpe_intr_handler(void *data)
-{
 	acpi_status status = AE_OK;
 	u32 value;
+	u8 exec_mode;
 	struct acpi_ec *ec = (struct acpi_ec *)data;
-
-	if (!ec)
-		return ACPI_INTERRUPT_NOT_HANDLED;
 
 	acpi_clear_gpe(NULL, ec->gpe_bit, ACPI_ISR);
 	value = acpi_ec_read_status(ec);
 
-	switch (ec->expect_event) {
-	case ACPI_EC_EVENT_OBF_1:
-		if (!(value & ACPI_EC_FLAG_OBF))
-			break;
-		ec->expect_event = 0;
-		wake_up(&ec->wait);
-		break;
-	case ACPI_EC_EVENT_IBF_0:
-		if ((value & ACPI_EC_FLAG_IBF))
-			break;
-		ec->expect_event = 0;
-		wake_up(&ec->wait);
-		break;
-	default:
-		break;
+	if (acpi_ec_mode == EC_INTR) {
+		if (acpi_ec_check_status(value, ec->expect_event)) {
+			ec->expect_event = 0;
+			wake_up(&ec->wait);
+		}
+		exec_mode = OSL_EC_BURST_HANDLER;
+	} else {
+		exec_mode = OSL_EC_POLL_HANDLER;
 	}
 
 	if (value & ACPI_EC_FLAG_SCI) {
-		status = acpi_os_execute(OSL_EC_BURST_HANDLER,
-						     acpi_ec_gpe_query, ec);
+		status = acpi_os_execute(exec_mode, acpi_ec_gpe_query, ec);
 		return status == AE_OK ?
 		    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 	}
