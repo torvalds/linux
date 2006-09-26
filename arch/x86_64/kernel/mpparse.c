@@ -41,7 +41,6 @@ int acpi_found_madt;
  * Various Linux-internal data structures created from the
  * MP-table.
  */
-unsigned char apic_version [MAX_APICS];
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 
@@ -94,24 +93,21 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
 	int cpu;
-	unsigned char ver;
 	cpumask_t tmp_map;
+	char *bootup_cpu = "";
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
 		disabled_cpus++;
 		return;
 	}
 
-	printk(KERN_INFO "Processor #%d %d:%d APIC version %d\n",
-		m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK)>>8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK)>>4,
-		m->mpc_apicver);
-
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
-		Dprintk("    Bootup CPU\n");
+		bootup_cpu = " (Bootup-CPU)";
 		boot_cpu_id = m->mpc_apicid;
 	}
+
+	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
+
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
 			" Processor ignored.\n", NR_CPUS);
@@ -129,17 +125,7 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 #endif
-	ver = m->mpc_apicver;
-
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
-	/*
-	 * Validate version
-	 */
-	if (ver == 0x0) {
-		printk(KERN_ERR "BIOS bug, APIC version is 0 for CPU#%d! fixing up to 0x10. (tell your hw vendor)\n", m->mpc_apicid);
-		ver = 0x10;
-	}
-	apic_version[m->mpc_apicid] = ver;
  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
  		/*
  		 * bios_cpu_apicid is required to have processors listed
@@ -179,8 +165,8 @@ static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
 		return;
 
-	printk("I/O APIC #%d Version %d at 0x%X.\n",
-		m->mpc_apicid, m->mpc_apicver, m->mpc_apicaddr);
+	printk("I/O APIC #%d at 0x%X.\n",
+		m->mpc_apicid, m->mpc_apicaddr);
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_ERR "Max # of I/O APICs (%d) exceeded (found %d).\n",
 			MAX_IO_APICS, nr_ioapics);
@@ -413,13 +399,10 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	 * 2 CPUs, numbered 0 & 1.
 	 */
 	processor.mpc_type = MP_PROCESSOR;
-	/* Either an integrated APIC or a discrete 82489DX. */
-	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	processor.mpc_apicver = 0;
 	processor.mpc_cpuflag = CPU_ENABLED;
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
-				   (boot_cpu_data.x86_model << 4) |
-				   boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
+	processor.mpc_cpufeature = 0;
+	processor.mpc_featureflag = 0;
 	processor.mpc_reserved[0] = 0;
 	processor.mpc_reserved[1] = 0;
 	for (i = 0; i < 2; i++) {
@@ -448,7 +431,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 
 	ioapic.mpc_type = MP_IOAPIC;
 	ioapic.mpc_apicid = 2;
-	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
+	ioapic.mpc_apicver = 0;
 	ioapic.mpc_flags = MPC_APIC_USABLE;
 	ioapic.mpc_apicaddr = 0xFEC00000;
 	MP_ioapic_info(&ioapic);
@@ -640,12 +623,11 @@ void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 
 	processor.mpc_type = MP_PROCESSOR;
 	processor.mpc_apicid = id;
-	processor.mpc_apicver = GET_APIC_VERSION(apic_read(APIC_LVR));
+	processor.mpc_apicver = 0;
 	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
 	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) | 
-		(boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
+	processor.mpc_cpufeature = 0;
+	processor.mpc_featureflag = 0;
 	processor.mpc_reserved[0] = 0;
 	processor.mpc_reserved[1] = 0;
 
@@ -700,7 +682,7 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	mp_ioapics[idx].mpc_apicid = id;
-	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
+	mp_ioapics[idx].mpc_apicver = 0;
 	
 	/* 
 	 * Build basic IRQ lookup table to facilitate gsi->io_apic lookups
@@ -711,9 +693,9 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	mp_ioapic_routing[idx].gsi_end = gsi_base + 
 		io_apic_get_redir_entries(idx);
 
-	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
+	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, address 0x%x, "
 		"GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid, 
-		mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
+		mp_ioapics[idx].mpc_apicaddr,
 		mp_ioapic_routing[idx].gsi_start,
 		mp_ioapic_routing[idx].gsi_end);
 }
