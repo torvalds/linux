@@ -9,13 +9,14 @@
 
 /* Per processor datastructure. %gs points to it while the kernel runs */ 
 struct x8664_pda {
-	struct task_struct *pcurrent;	/* Current process */
-	unsigned long data_offset;	/* Per cpu data offset from linker address */
-	unsigned long kernelstack;  /* top of kernel stack for current */ 
-	unsigned long oldrsp; 	    /* user rsp for system call */
-        int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
-	int cpunumber;		    /* Logical CPU number */
-	char *irqstackptr;	/* top of irqstack */
+	struct task_struct *pcurrent;	/* 0  Current process */
+	unsigned long data_offset;	/* 8 Per cpu data offset from linker
+					   address */
+	unsigned long kernelstack;  /* 16 top of kernel stack for current */
+	unsigned long oldrsp; 	    /* 24 user rsp for system call */
+        int irqcount;		    /* 32 Irq nesting counter. Starts with -1 */
+	int cpunumber;		    /* 36 Logical CPU number */
+	char *irqstackptr;	/* 40 top of irqstack */
 	int nodenumber;		    /* number of current node */
 	unsigned int __softirq_pending;
 	unsigned int __nmi_count;	/* number of NMI on this CPUs */
