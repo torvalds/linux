@@ -1689,10 +1689,12 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 {
 	struct avc_audit_data ad;
 	struct file *file, *devnull = NULL;
-	struct tty_struct *tty = current->signal->tty;
+	struct tty_struct *tty;
 	struct fdtable *fdt;
 	long j = -1;
 
+	mutex_lock(&tty_mutex);
+	tty = current->signal->tty;
 	if (tty) {
 		file_list_lock();
 		file = list_entry(tty->tty_files.next, typeof(*file), f_u.fu_list);
@@ -1712,6 +1714,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 		}
 		file_list_unlock();
 	}
+	mutex_unlock(&tty_mutex);
 
 	/* Revalidate access to inherited open files. */
 
