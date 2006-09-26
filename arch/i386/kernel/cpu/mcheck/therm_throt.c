@@ -18,7 +18,7 @@
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL              (300 * HZ)
 
-static DEFINE_PER_CPU(unsigned long, next_check);
+static DEFINE_PER_CPU(__u64, next_check);
 
 /***
  * therm_throt_process - Process thermal throttling event
@@ -39,11 +39,12 @@ static DEFINE_PER_CPU(unsigned long, next_check);
 int therm_throt_process(int curr)
 {
 	unsigned int cpu = smp_processor_id();
+	__u64 tmp_jiffs = get_jiffies_64();
 
-	if (time_before(jiffies, __get_cpu_var(next_check)))
+	if (time_before64(tmp_jiffs, __get_cpu_var(next_check)))
 		return 0;
 
-	__get_cpu_var(next_check) = jiffies + CHECK_INTERVAL;
+	__get_cpu_var(next_check) = tmp_jiffs + CHECK_INTERVAL;
 
 	/* if we just entered the thermal event */
 	if (curr) {
