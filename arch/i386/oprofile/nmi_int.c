@@ -98,15 +98,19 @@ static void nmi_cpu_save_registers(struct op_msrs * msrs)
 	unsigned int i;
 
 	for (i = 0; i < nr_ctrs; ++i) {
-		rdmsr(counters[i].addr,
-			counters[i].saved.low,
-			counters[i].saved.high);
+		if (counters[i].addr){
+			rdmsr(counters[i].addr,
+				counters[i].saved.low,
+				counters[i].saved.high);
+		}
 	}
  
 	for (i = 0; i < nr_ctrls; ++i) {
-		rdmsr(controls[i].addr,
-			controls[i].saved.low,
-			controls[i].saved.high);
+		if (controls[i].addr){
+			rdmsr(controls[i].addr,
+				controls[i].saved.low,
+				controls[i].saved.high);
+		}
 	}
 }
 
@@ -205,15 +209,19 @@ static void nmi_restore_registers(struct op_msrs * msrs)
 	unsigned int i;
 
 	for (i = 0; i < nr_ctrls; ++i) {
-		wrmsr(controls[i].addr,
-			controls[i].saved.low,
-			controls[i].saved.high);
+		if (controls[i].addr){
+			wrmsr(controls[i].addr,
+				controls[i].saved.low,
+				controls[i].saved.high);
+		}
 	}
  
 	for (i = 0; i < nr_ctrs; ++i) {
-		wrmsr(counters[i].addr,
-			counters[i].saved.low,
-			counters[i].saved.high);
+		if (counters[i].addr){
+			wrmsr(counters[i].addr,
+				counters[i].saved.low,
+				counters[i].saved.high);
+		}
 	}
 }
  
@@ -234,6 +242,7 @@ static void nmi_cpu_shutdown(void * dummy)
 	apic_write(APIC_LVTPC, saved_lvtpc[cpu]);
 	apic_write(APIC_LVTERR, v);
 	nmi_restore_registers(msrs);
+	model->shutdown(msrs);
 }
 
  
@@ -284,6 +293,14 @@ static int nmi_create_files(struct super_block * sb, struct dentry * root)
 		struct dentry * dir;
 		char buf[4];
  
+ 		/* quick little hack to _not_ expose a counter if it is not
+		 * available for use.  This should protect userspace app.
+		 * NOTE:  assumes 1:1 mapping here (that counters are organized
+		 *        sequentially in their struct assignment).
+		 */
+		if (unlikely(!avail_to_resrv_perfctr_nmi_bit(i)))
+			continue;
+
 		snprintf(buf,  sizeof(buf), "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
 		oprofilefs_create_ulong(sb, dir, "enabled", &counter_config[i].enabled); 
