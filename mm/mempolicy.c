@@ -1096,7 +1096,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 	case MPOL_BIND:
 		/* Lower zones don't get a policy applied */
 		/* Careful: current->mems_allowed might have moved */
-		if (gfp_zone(gfp) >= policy_zone)
+		if (highest_zone(gfp) >= policy_zone)
 			if (cpuset_zonelist_valid_mems_allowed(policy->v.zonelist))
 				return policy->v.zonelist;
 		/*FALL THROUGH*/

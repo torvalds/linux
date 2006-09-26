@@ -85,6 +85,21 @@ static inline int gfp_zone(gfp_t gfp)
 	return zone;
 }
 
+static inline enum zone_type highest_zone(gfp_t flags)
+{
+	if (flags & __GFP_DMA)
+		return ZONE_DMA;
+#ifdef CONFIG_ZONE_DMA32
+	if (flags & __GFP_DMA32)
+		return ZONE_DMA32;
+#endif
+#ifdef CONFIG_HIGHMEM
+	if (flags & __GFP_HIGHMEM)
+		return ZONE_HIGHMEM;
+#endif
+	return ZONE_NORMAL;
+}
+
 /*
  * There is only one page-allocator function, and two main namespaces to
  * it. The alloc_page*() variants return 'struct page *' and as such

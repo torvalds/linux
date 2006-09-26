@@ -1376,22 +1376,6 @@ static int __meminit build_zonelists_node(pg_data_t *pgdat,
 	return nr_zones;
 }
 
-static inline int highest_zone(int zone_bits)
-{
-	int res = ZONE_NORMAL;
-#ifdef CONFIG_HIGHMEM
-	if (zone_bits & (__force int)__GFP_HIGHMEM)
-		res = ZONE_HIGHMEM;
-#endif
-#ifdef CONFIG_ZONE_DMA32
-	if (zone_bits & (__force int)__GFP_DMA32)
-		res = ZONE_DMA32;
-#endif
-	if (zone_bits & (__force int)__GFP_DMA)
-		res = ZONE_DMA;
-	return res;
-}
-
 #ifdef CONFIG_NUMA
 #define MAX_NODE_LOAD (num_online_nodes())
 static int __meminitdata node_load[MAX_NUMNODES];
