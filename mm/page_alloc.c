@@ -887,35 +887,37 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	struct zone **z = zonelist->zones;
 	struct page *page = NULL;
 	int classzone_idx = zone_idx(*z);
+	struct zone *zone;
 
 	/*
 	 * Go through the zonelist once, looking for a zone with enough free.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
 	do {
+		zone = *z;
 		if (unlikely((gfp_mask & __GFP_THISNODE) &&
-			(*z)->zone_pgdat != zonelist->zones[0]->zone_pgdat))
+			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
-				!cpuset_zone_allowed(*z, gfp_mask))
+				!cpuset_zone_allowed(zone, gfp_mask))
 			continue;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 			unsigned long mark;
 			if (alloc_flags & ALLOC_WMARK_MIN)
-				mark = (*z)->pages_min;
+				mark = zone->pages_min;
 			else if (alloc_flags & ALLOC_WMARK_LOW)
-				mark = (*z)->pages_low;
+				mark = zone->pages_low;
 			else
-				mark = (*z)->pages_high;
-			if (!zone_watermark_ok(*z, order, mark,
+				mark = zone->pages_high;
+			if (!zone_watermark_ok(zone , order, mark,
 				    classzone_idx, alloc_flags))
 				if (!zone_reclaim_mode ||
-				    !zone_reclaim(*z, gfp_mask, order))
+				    !zone_reclaim(zone, gfp_mask, order))
 					continue;
 		}
 
-		page = buffered_rmqueue(zonelist, *z, order, gfp_mask);
+		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
 		if (page) {
 			break;
 		}
