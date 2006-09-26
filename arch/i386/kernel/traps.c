@@ -197,6 +197,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				if (UNW_SP(&info) >= PAGE_OFFSET) {
 					ops->warning(data, "Leftover inexact backtrace:\n");
 					stack = (void *)UNW_SP(&info);
+					if (!stack)
+						return;
 				} else
 					ops->warning(data, "Full inexact backtrace again:\n");
 			} else if (call_trace >= 1)
