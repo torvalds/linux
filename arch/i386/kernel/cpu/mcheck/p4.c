@@ -115,6 +115,9 @@ static void intel_init_thermal(struct cpuinfo_x86 *c)
 	l = apic_read (APIC_LVTTHMR);
 	apic_write_around (APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 	printk (KERN_INFO "CPU%d: Thermal monitoring enabled\n", cpu);
+
+	/* enable thermal throttle processing */
+	atomic_set(&therm_throt_en, 1);
 	return;
 }
 #endif /* CONFIG_X86_MCE_P4THERMAL */
