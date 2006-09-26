@@ -1,0 +1,118 @@
+/* Various workarounds for chipset bugs.
+   This code runs very early and can't use the regular PCI subsystem
+   The entries are keyed to PCI bridges which usually identify chipsets
+   uniquely.
+   This is only for whole classes of chipsets with specific problems which
+   need early invasive action (e.g. before the timers are initialized).
+   Most PCI device specific workarounds can be done later and should be
+   in standard PCI quirks
+   Mainboard specific bugs should be handled by DMI entries.
+   CPU specific bugs in setup.c */
+
+#include <linux/pci.h>
+#include <linux/acpi.h>
+#include <linux/pci_ids.h>
+#include <asm/pci-direct.h>
+#include <asm/proto.h>
+#include <asm/dma.h>
+
+static void via_bugs(void)
+{
+#ifdef CONFIG_IOMMU
+	if ((end_pfn > MAX_DMA32_PFN ||  force_iommu) &&
+	    !iommu_aperture_allowed) {
+		printk(KERN_INFO
+  "Looks like a VIA chipset. Disabling IOMMU. Override with iommu=allowed\n");
+		iommu_aperture_disabled = 1;
+	}
+#endif
+}
+
+#ifdef CONFIG_ACPI
+
+static int nvidia_hpet_detected __initdata;
+
+static int __init nvidia_hpet_check(unsigned long phys, unsigned long size)
+{
+	nvidia_hpet_detected = 1;
+	return 0;
+}
+#endif
+
+static void nvidia_bugs(void)
+{
+#ifdef CONFIG_ACPI
+	/*
+	 * All timer overrides on Nvidia are
+	 * wrong unless HPET is enabled.
+	 */
+	nvidia_hpet_detected = 0;
+	acpi_table_parse(ACPI_HPET, nvidia_hpet_check);
+	if (nvidia_hpet_detected == 0) {
+		acpi_skip_timer_override = 1;
+		printk(KERN_INFO "Nvidia board "
+		       "detected. Ignoring ACPI "
+		       "timer override.\n");
+	}
+#endif
+	/* RED-PEN skip them on mptables too? */
+
+}
+
+static void ati_bugs(void)
+{
+#if 1 /* for testing */
+	printk("ATI board detected\n");
+#endif
+	/* No bugs right now */
+}
+
+struct chipset {
+	u16 vendor;
+	void (*f)(void);
+};
+
+static struct chipset early_qrk[] = {
+	{ PCI_VENDOR_ID_NVIDIA, nvidia_bugs },
+	{ PCI_VENDOR_ID_VIA, via_bugs },
+	{ PCI_VENDOR_ID_ATI, ati_bugs },
+	{}
+};
+
+void __init early_quirks(void)
+{
+	int num, slot, func;
+	/* Poor man's PCI discovery */
+	for (num = 0; num < 32; num++) {
+		for (slot = 0; slot < 32; slot++) {
+			for (func = 0; func < 8; func++) {
+				u32 class;
+				u32 vendor;
+				u8 type;
+				int i;
+				class = read_pci_config(num,slot,func,
+							PCI_CLASS_REVISION);
+				if (class == 0xffffffff)
+					break;
+
+		       		if ((class >> 16) != PCI_CLASS_BRIDGE_PCI)
+					continue;
+
+				vendor = read_pci_config(num, slot, func,
+							 PCI_VENDOR_ID);
+				vendor &= 0xffff;
+
+				for (i = 0; early_qrk[i].f; i++)
+					if (early_qrk[i].vendor == vendor) {
+						early_qrk[i].f();
+						return;
+					}
+
+				type = read_pci_config_byte(num, slot, func,
+							    PCI_HEADER_TYPE);
+				if (!(type & 0x80))
+					break;
+			}
+		}
+	}
+}

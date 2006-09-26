@@ -653,7 +653,7 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
-	check_ioapic();
+	early_quirks();
 
 	/*
 	 * set this early, so we dont allocate cpu0
