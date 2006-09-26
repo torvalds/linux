@@ -399,32 +399,8 @@ void __cpuinit setup_local_APIC (void)
 	 */
 	value |= APIC_SPIV_APIC_ENABLED;
 
-	/*
-	 * Some unknown Intel IO/APIC (or APIC) errata are biting us with
-	 * certain networking cards. If high frequency interrupts are
-	 * happening on a particular IOAPIC pin, plus the IOAPIC routing
-	 * entry is masked/unmasked at a high rate as well then sooner or
-	 * later IOAPIC line gets 'stuck', no more interrupts are received
-	 * from the device. If focus CPU is disabled then the hang goes
-	 * away, oh well :-(
-	 *
-	 * [ This bug can be reproduced easily with a level-triggered
-	 *   PCI Ne2000 networking cards and PII/PIII processors, dual
-	 *   BX chipset. ]
-	 */
-	/*
-	 * Actually disabling the focus CPU check just makes the hang less
-	 * frequent as it makes the interrupt distributon model be more
-	 * like LRU than MRU (the short-term load is more even across CPUs).
-	 * See also the comment in end_level_ioapic_irq().  --macro
-	 */
-#if 1
-	/* Enable focus processor (bit==0) */
-	value &= ~APIC_SPIV_FOCUS_DISABLED;
-#else
-	/* Disable focus processor (bit==1) */
-	value |= APIC_SPIV_FOCUS_DISABLED;
-#endif
+	/* We always use processor focus */
+
 	/*
 	 * Set spurious IRQ vector
 	 */
