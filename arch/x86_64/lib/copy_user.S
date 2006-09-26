@@ -4,6 +4,9 @@
  * Functions to copy from and to user space.		
  */		 
 
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
+
 #define FIX_ALIGNMENT 1
 
 	#include <asm/current.h>
@@ -12,9 +15,8 @@
 	#include <asm/cpufeature.h>
 
 /* Standard copy_to_user with segment limit checking */		
-	.globl copy_to_user
-	.p2align 4	
-copy_to_user:
+ENTRY(copy_to_user)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%rax)
 	movq %rdi,%rcx
 	addq %rdx,%rcx
@@ -25,9 +27,11 @@ copy_to_user:
 	.byte 0xe9	/* 32bit jump */
 	.long .Lcug-1f
 1:
+	CFI_ENDPROC
+ENDPROC(copy_to_user)
 
 	.section .altinstr_replacement,"ax"
-3:	.byte 0xe9			/* replacement jmp with 8 bit immediate */
+3:	.byte 0xe9			/* replacement jmp with 32 bit immediate */
 	.long copy_user_generic_c-1b	/* offset */
 	.previous
 	.section .altinstructions,"a"
@@ -40,9 +44,8 @@ copy_to_user:
 	.previous
 
 /* Standard copy_from_user with segment limit checking */	
-	.globl copy_from_user
-	.p2align 4	
-copy_from_user:
+ENTRY(copy_from_user)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%rax)
 	movq %rsi,%rcx
 	addq %rdx,%rcx
@@ -50,10 +53,13 @@ copy_from_user:
 	cmpq threadinfo_addr_limit(%rax),%rcx
 	jae  bad_from_user
 	/* FALL THROUGH to copy_user_generic */
+	CFI_ENDPROC
+ENDPROC(copy_from_user)
 	
 	.section .fixup,"ax"
 	/* must zero dest */
 bad_from_user:
+	CFI_STARTPROC
 	movl %edx,%ecx
 	xorl %eax,%eax
 	rep
@@ -61,6 +67,8 @@ bad_from_user:
 bad_to_user:
 	movl	%edx,%eax
 	ret
+	CFI_ENDPROC
+END(bad_from_user)
 	.previous
 	
 		
@@ -75,9 +83,8 @@ bad_to_user:
  * Output:		
  * eax uncopied bytes or 0 if successful.
  */
-	.globl copy_user_generic
-	.p2align 4
-copy_user_generic:
+ENTRY(copy_user_generic)
+	CFI_STARTPROC
 	.byte 0x66,0x66,0x90	/* 5 byte nop for replacement jump */
 	.byte 0x66,0x90
 1:
@@ -95,6 +102,8 @@ copy_user_generic:
 	.previous
 .Lcug:
 	pushq %rbx
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rbx, 0
 	xorl %eax,%eax		/*zero for the exception handler */
 
 #ifdef FIX_ALIGNMENT
@@ -168,9 +177,13 @@ copy_user_generic:
 	decl %ecx
 	jnz .Lloop_1
 
+	CFI_REMEMBER_STATE
 .Lende:
 	popq %rbx
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_RESTORE rbx
 	ret
+	CFI_RESTORE_STATE
 
 #ifdef FIX_ALIGNMENT
 	/* align destination */
@@ -261,6 +274,9 @@ copy_user_generic:
 .Le_zero:
 	movq %rdx,%rax
 	jmp .Lende
+	CFI_ENDPROC
+ENDPROC(copy_user_generic)
+
 
 	/* Some CPUs run faster using the string copy instructions.
 	   This is also a lot simpler. Use them when possible.
@@ -282,6 +298,7 @@ copy_user_generic:
   * this please consider this.
    */
 copy_user_generic_c:
+	CFI_STARTPROC
 	movl %edx,%ecx
 	shrl $3,%ecx
 	andl $7,%edx	
@@ -294,6 +311,8 @@ copy_user_generic_c:
 	ret
 3:	lea (%rdx,%rcx,8),%rax
 	ret
+	CFI_ENDPROC
+END(copy_user_generic_c)
 
 	.section __ex_table,"a"
 	.quad 1b,3b
