@@ -22,9 +22,21 @@
  * at the top of the kernel process stack.	
  * - partial stack frame: partially saved registers upto R11.
  * - full stack frame: Like partial stack frame, but all register saved. 
- *	
- * TODO:	 
- * - schedule it carefully for the final hardware.
+ *
+ * Some macro usage:
+ * - CFI macros are used to generate dwarf2 unwind information for better
+ * backtraces. They don't change any code.
+ * - SAVE_ALL/RESTORE_ALL - Save/restore all registers
+ * - SAVE_ARGS/RESTORE_ARGS - Save/restore registers that C functions modify.
+ * There are unfortunately lots of special cases where some registers
+ * not touched. The macro is a big mess that should be cleaned up.
+ * - SAVE_REST/RESTORE_REST - Handle the registers not saved by SAVE_ARGS.
+ * Gives a full stack frame.
+ * - ENTRY/END Define functions in the symbol table.
+ * - FIXUP_TOP_OF_STACK/RESTORE_TOP_OF_STACK - Fix up the hardware stack
+ * frame that is otherwise undefined after a SYSCALL
+ * - TRACE_IRQ_* - Trace hard interrupt state for lock debugging.
+ * - errorentry/paranoidentry/zeroentry - Define exception entry points.
  */
 
 #include <linux/linkage.h>
