@@ -103,7 +103,7 @@ static void unprepare_processes(void)
 }
 
 /**
- *	pm_suspend_disk - The granpappy of power management.
+ *	pm_suspend_disk - The granpappy of hibernation power management.
  *
  *	If we're going through the firmware, then get it over with quickly.
  *
@@ -212,7 +212,7 @@ static int software_resume(void)
 
 	pr_debug("PM: Preparing devices for restore.\n");
 
-	if ((error = device_suspend(PMSG_FREEZE))) {
+	if ((error = device_suspend(PMSG_PRETHAW))) {
 		printk("Some devices failed to suspend\n");
 		swsusp_free();
 		goto Thaw;

@@ -1783,10 +1783,15 @@ sl811h_suspend(struct platform_device *dev, pm_message_t state)
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	int		retval = 0;
 
-	if (state.event == PM_EVENT_FREEZE)
+	switch (state.event) {
+	case PM_EVENT_FREEZE:
 		retval = sl811h_bus_suspend(hcd);
-	else if (state.event == PM_EVENT_SUSPEND)
+		break;
+	case PM_EVENT_SUSPEND:
+	case PM_EVENT_PRETHAW:		/* explicitly discard hw state */
 		port_power(sl811, 0);
+		break;
+	}
 	if (retval == 0)
 		dev->dev.power.power_state = state;
 	return retval;

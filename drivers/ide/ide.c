@@ -1207,7 +1207,7 @@ int system_bus_clock (void)
 
 EXPORT_SYMBOL(system_bus_clock);
 
-static int generic_ide_suspend(struct device *dev, pm_message_t state)
+static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
 	struct request rq;
@@ -1221,7 +1221,9 @@ static int generic_ide_suspend(struct device *dev, pm_message_t state)
 	rq.special = &args;
 	rq.end_io_data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
-	rqpm.pm_state = state.event;
+	if (mesg.event == PM_EVENT_PRETHAW)
+		mesg.event = PM_EVENT_FREEZE;
+	rqpm.pm_state = mesg.event;
 
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }

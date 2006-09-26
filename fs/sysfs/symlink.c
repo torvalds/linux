@@ -3,6 +3,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/mount.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
@@ -82,10 +83,19 @@ exit1:
  */
 int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name)
 {
-	struct dentry * dentry = kobj->dentry;
+	struct dentry *dentry = NULL;
 	int error = -EEXIST;
 
-	BUG_ON(!kobj || !kobj->dentry || !name);
+	BUG_ON(!name);
+
+	if (!kobj) {
+		if (sysfs_mount && sysfs_mount->mnt_sb)
+			dentry = sysfs_mount->mnt_sb->s_root;
+	} else
+		dentry = kobj->dentry;
+
+	if (!dentry)
+		return -EFAULT;
 
 	mutex_lock(&dentry->d_inode->i_mutex);
 	if (!sysfs_dirent_exist(dentry->d_fsdata, name))

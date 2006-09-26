@@ -1,208 +1,553 @@
+Most of the code in Linux is device drivers, so most of the Linux power
+management code is also driver-specific.  Most drivers will do very little;
+others, especially for platforms with small batteries (like cell phones),
+will do a lot.
 
-Device Power Management
+This writeup gives an overview of how drivers interact with system-wide
+power management goals, emphasizing the models and interfaces that are
+shared by everything that hooks up to the driver model core.  Read it as
+background for the domain-specific work you'd do with any specific driver.
 
 
-Device power management encompasses two areas - the ability to save
-state and transition a device to a low-power state when the system is
-entering a low-power state; and the ability to transition a device to
-a low-power state while the system is running (and independently of
-any other power management activity). 
+Two Models for Device Power Management
+======================================
+Drivers will use one or both of these models to put devices into low-power
+states:
+
+    System Sleep model:
+	Drivers can enter low power states as part of entering system-wide
+	low-power states like "suspend-to-ram", or (mostly for systems with
+	disks) "hibernate" (suspend-to-disk).
+
+	This is something that device, bus, and class drivers collaborate on
+	by implementing various role-specific suspend and resume methods to
+	cleanly power down hardware and software subsystems, then reactivate
+	them without loss of data.
+
+	Some drivers can manage hardware wakeup events, which make the system
+	leave that low-power state.  This feature may be disabled using the
+	relevant /sys/devices/.../power/wakeup file; enabling it may cost some
+	power usage, but let the whole system enter low power states more often.
+
+    Runtime Power Management model:
+	Drivers may also enter low power states while the system is running,
+	independently of other power management activity.  Upstream drivers
+	will normally not know (or care) if the device is in some low power
+	state when issuing requests; the driver will auto-resume anything
+	that's needed when it gets a request.
+
+	This doesn't have, or need much infrastructure; it's just something you
+	should do when writing your drivers.  For example, clk_disable() unused
+	clocks as part of minimizing power drain for currently-unused hardware.
+	Of course, sometimes clusters of drivers will collaborate with each
+	other, which could involve task-specific power management.
+
+There's not a lot to be said about those low power states except that they
+are very system-specific, and often device-specific.  Also, that if enough
+drivers put themselves into low power states (at "runtime"), the effect may be
+the same as entering some system-wide low-power state (system sleep) ... and
+that synergies exist, so that several drivers using runtime pm might put the
+system into a state where even deeper power saving options are available.
+
+Most suspended devices will have quiesced all I/O:  no more DMA or irqs, no
+more data read or written, and requests from upstream drivers are no longer
+accepted.  A given bus or platform may have different requirements though.
+
+Examples of hardware wakeup events include an alarm from a real time clock,
+network wake-on-LAN packets, keyboard or mouse activity, and media insertion
+or removal (for PCMCIA, MMC/SD, USB, and so on).
 
 
-Methods
+Interfaces for Entering System Sleep States
+===========================================
+Most of the programming interfaces a device driver needs to know about
+relate to that first model:  entering a system-wide low power state,
+rather than just minimizing power consumption by one device.
 
-The methods to suspend and resume devices reside in struct bus_type: 
+
+Bus Driver Methods
+------------------
+The core methods to suspend and resume devices reside in struct bus_type.
+These are mostly of interest to people writing infrastructure for busses
+like PCI or USB, or because they define the primitives that device drivers
+may need to apply in domain-specific ways to their devices:
 
 struct bus_type {
-       ...
-       int             (*suspend)(struct device * dev, pm_message_t state);
-       int             (*resume)(struct device * dev);
+	...
+	int  (*suspend)(struct device *dev, pm_message_t state);
+	int  (*suspend_late)(struct device *dev, pm_message_t state);
+
+	int  (*resume_early)(struct device *dev);
+	int  (*resume)(struct device *dev);
 };
 
-Each bus driver is responsible implementing these methods, translating
-the call into a bus-specific request and forwarding the call to the
-bus-specific drivers. For example, PCI drivers implement suspend() and
-resume() methods in struct pci_driver. The PCI core is simply
-responsible for translating the pointers to PCI-specific ones and
-calling the low-level driver.
+Bus drivers implement those methods as appropriate for the hardware and
+the drivers using it; PCI works differently from USB, and so on.  Not many
+people write bus drivers; most driver code is a "device driver" that
+builds on top of bus-specific framework code.
 
-This is done to a) ease transition to the new power management methods
-and leverage the existing PM code in various bus drivers; b) allow
-buses to implement generic and default PM routines for devices, and c)
-make the flow of execution obvious to the reader. 
+For more information on these driver calls, see the description later;
+they are called in phases for every device, respecting the parent-child
+sequencing in the driver model tree.  Note that as this is being written,
+only the suspend() and resume() are widely available; not many bus drivers
+leverage all of those phases, or pass them down to lower driver levels.
 
 
-System Power Management
+/sys/devices/.../power/wakeup files
+-----------------------------------
+All devices in the driver model have two flags to control handling of
+wakeup events, which are hardware signals that can force the device and/or
+system out of a low power state.  These are initialized by bus or device
+driver code using device_init_wakeup(dev,can_wakeup).
 
-When the system enters a low-power state, the device tree is walked in
-a depth-first fashion to transition each device into a low-power
-state. The ordering of the device tree is guaranteed by the order in
-which devices get registered - children are never registered before
-their ancestors, and devices are placed at the back of the list when
-registered. By walking the list in reverse order, we are guaranteed to
-suspend devices in the proper order. 
+The "can_wakeup" flag just records whether the device (and its driver) can
+physically support wakeup events.  When that flag is clear, the sysfs
+"wakeup" file is empty, and device_may_wakeup() returns false.
 
-Devices are suspended once with interrupts enabled. Drivers are
-expected to stop I/O transactions, save device state, and place the
-device into a low-power state. Drivers may sleep, allocate memory,
-etc. at will. 
+For devices that can issue wakeup events, a separate flag controls whether
+that device should try to use its wakeup mechanism.  The initial value of
+device_may_wakeup() will be true, so that the device's "wakeup" file holds
+the value "enabled".  Userspace can change that to "disabled" so that
+device_may_wakeup() returns false; or change it back to "enabled" (so that
+it returns true again).
 
-Some devices are broken and will inevitably have problems powering
-down or disabling themselves with interrupts enabled. For these
-special cases, they may return -EAGAIN. This will put the device on a
-list to be taken care of later. When interrupts are disabled, before
-we enter the low-power state, their drivers are called again to put
-their device to sleep. 
 
-On resume, the devices that returned -EAGAIN will be called to power
-themselves back on with interrupts disabled. Once interrupts have been
-re-enabled, the rest of the drivers will be called to resume their
-devices. On resume, a driver is responsible for powering back on each
-device, restoring state, and re-enabling I/O transactions for that
-device. 
+EXAMPLE:  PCI Device Driver Methods
+-----------------------------------
+PCI framework software calls these methods when the PCI device driver bound
+to a device device has provided them:
 
+struct pci_driver {
+	...
+	int  (*suspend)(struct pci_device *pdev, pm_message_t state);
+	int  (*suspend_late)(struct pci_device *pdev, pm_message_t state);
+
+	int  (*resume_early)(struct pci_device *pdev);
+	int  (*resume)(struct pci_device *pdev);
+};
+
+Drivers will implement those methods, and call PCI-specific procedures
+like pci_set_power_state(), pci_enable_wake(), pci_save_state(), and
+pci_restore_state() to manage PCI-specific mechanisms.  (PCI config space
+could be saved during driver probe, if it weren't for the fact that some
+systems rely on userspace tweaking using setpci.)  Devices are suspended
+before their bridges enter low power states, and likewise bridges resume
+before their devices.
+
+
+Upper Layers of Driver Stacks
+-----------------------------
+Device drivers generally have at least two interfaces, and the methods
+sketched above are the ones which apply to the lower level (nearer PCI, USB,
+or other bus hardware).  The network and block layers are examples of upper
+level interfaces, as is a character device talking to userspace.
+
+Power management requests normally need to flow through those upper levels,
+which often use domain-oriented requests like "blank that screen".  In
+some cases those upper levels will have power management intelligence that
+relates to end-user activity, or other devices that work in cooperation.
+
+When those interfaces are structured using class interfaces, there is a
+standard way to have the upper layer stop issuing requests to a given
+class device (and restart later):
+
+struct class {
+	...
+	int  (*suspend)(struct device *dev, pm_message_t state);
+	int  (*resume)(struct device *dev);
+};
+
+Those calls are issued in specific phases of the process by which the
+system enters a low power "suspend" state, or resumes from it.
+
+
+Calling Drivers to Enter System Sleep States
+============================================
+When the system enters a low power state, each device's driver is asked
+to suspend the device by putting it into state compatible with the target
+system state.  That's usually some version of "off", but the details are
+system-specific.  Also, wakeup-enabled devices will usually stay partly
+functional in order to wake the system.
+
+When the system leaves that low power state, the device's driver is asked
+to resume it.  The suspend and resume operations always go together, and
+both are multi-phase operations.
+
+For simple drivers, suspend might quiesce the device using the class code
+and then turn its hardware as "off" as possible with late_suspend.  The
+matching resume calls would then completely reinitialize the hardware
+before reactivating its class I/O queues.
+
+More power-aware drivers drivers will use more than one device low power
+state, either at runtime or during system sleep states, and might trigger
+system wakeup events.
+
+
+Call Sequence Guarantees
+------------------------
+To ensure that bridges and similar links needed to talk to a device are
+available when the device is suspended or resumed, the device tree is
+walked in a bottom-up order to suspend devices.  A top-down order is
+used to resume those devices.
+
+The ordering of the device tree is defined by the order in which devices
+get registered:  a child can never be registered, probed or resumed before
+its parent; and can't be removed or suspended after that parent.
+
+The policy is that the device tree should match hardware bus topology.
+(Or at least the control bus, for devices which use multiple busses.)
+
+
+Suspending Devices
+------------------
+Suspending a given device is done in several phases.  Suspending the
+system always includes every phase, executing calls for every device
+before the next phase begins.  Not all busses or classes support all
+these callbacks; and not all drivers use all the callbacks.
+
+The phases are seen by driver notifications issued in this order:
+
+   1	class.suspend(dev, message) is called after tasks are frozen, for
+	devices associated with a class that has such a method.  This
+	method may sleep.
+
+	Since I/O activity usually comes from such higher layers, this is
+	a good place to quiesce all drivers of a given type (and keep such
+	code out of those drivers).
+
+   2	bus.suspend(dev, message) is called next.  This method may sleep,
+	and is often morphed into a device driver call with bus-specific
+	parameters and/or rules.
+
+	This call should handle parts of device suspend logic that require
+	sleeping.  It probably does work to quiesce the device which hasn't
+	been abstracted into class.suspend() or bus.suspend_late().
+
+   3	bus.suspend_late(dev, message) is called with IRQs disabled, and
+	with only one CPU active.  Until the bus.resume_early() phase
+	completes (see later), IRQs are not enabled again.  This method
+	won't be exposed by all busses; for message based busses like USB,
+	I2C, or SPI, device interactions normally require IRQs.  This bus
+	call may be morphed into a driver call with bus-specific parameters.
+
+	This call might save low level hardware state that might otherwise
+	be lost in the upcoming low power state, and actually put the
+	device into a low power state ... so that in some cases the device
+	may stay partly usable until this late.  This "late" call may also
+	help when coping with hardware that behaves badly.
+
+The pm_message_t parameter is currently used to refine those semantics
+(described later).
+
+At the end of those phases, drivers should normally have stopped all I/O
+transactions (DMA, IRQs), saved enough state that they can re-initialize
+or restore previous state (as needed by the hardware), and placed the
+device into a low-power state.  On many platforms they will also use
+clk_disable() to gate off one or more clock sources; sometimes they will
+also switch off power supplies, or reduce voltages.  Drivers which have
+runtime PM support may already have performed some or all of the steps
+needed to prepare for the upcoming system sleep state.
+
+When any driver sees that its device_can_wakeup(dev), it should make sure
+to use the relevant hardware signals to trigger a system wakeup event.
+For example, enable_irq_wake() might identify GPIO signals hooked up to
+a switch or other external hardware, and pci_enable_wake() does something
+similar for PCI's PME# signal.
+
+If a driver (or bus, or class) fails it suspend method, the system won't
+enter the desired low power state; it will resume all the devices it's
+suspended so far.
+
+Note that drivers may need to perform different actions based on the target
+system lowpower/sleep state.  At this writing, there are only platform
+specific APIs through which drivers could determine those target states.
+
+
+Device Low Power (suspend) States
+---------------------------------
+Device low-power states aren't very standard.  One device might only handle
+"on" and "off, while another might support a dozen different versions of
+"on" (how many engines are active?), plus a state that gets back to "on"
+faster than from a full "off".
+
+Some busses define rules about what different suspend states mean.  PCI
+gives one example:  after the suspend sequence completes, a non-legacy
+PCI device may not perform DMA or issue IRQs, and any wakeup events it
+issues would be issued through the PME# bus signal.  Plus, there are
+several PCI-standard device states, some of which are optional.
+
+In contrast, integrated system-on-chip processors often use irqs as the
+wakeup event sources (so drivers would call enable_irq_wake) and might
+be able to treat DMA completion as a wakeup event (sometimes DMA can stay
+active too, it'd only be the CPU and some peripherals that sleep).
+
+Some details here may be platform-specific.  Systems may have devices that
+can be fully active in certain sleep states, such as an LCD display that's
+refreshed using DMA while most of the system is sleeping lightly ... and
+its frame buffer might even be updated by a DSP or other non-Linux CPU while
+the Linux control processor stays idle.
+
+Moreover, the specific actions taken may depend on the target system state.
+One target system state might allow a given device to be very operational;
+another might require a hard shut down with re-initialization on resume.
+And two different target systems might use the same device in different
+ways; the aforementioned LCD might be active in one product's "standby",
+but a different product using the same SOC might work differently.
+
+
+Meaning of pm_message_t.event
+-----------------------------
+Parameters to suspend calls include the device affected and a message of
+type pm_message_t, which has one field:  the event.  If driver does not
+recognize the event code, suspend calls may abort the request and return
+a negative errno.  However, most drivers will be fine if they implement
+PM_EVENT_SUSPEND semantics for all messages.
+
+The event codes are used to refine the goal of suspending the device, and
+mostly matter when creating or resuming system memory image snapshots, as
+used with suspend-to-disk:
+
+    PM_EVENT_SUSPEND -- quiesce the driver and put hardware into a low-power
+	state.  When used with system sleep states like "suspend-to-RAM" or
+	"standby", the upcoming resume() call will often be able to rely on
+	state kept in hardware, or issue system wakeup events.  When used
+	instead with suspend-to-disk, few devices support this capability;
+	most are completely powered off.
+
+    PM_EVENT_FREEZE -- quiesce the driver, but don't necessarily change into
+	any low power mode.  A system snapshot is about to be taken, often
+	followed by a call to the driver's resume() method.  Neither wakeup
+	events nor DMA are allowed.
+
+    PM_EVENT_PRETHAW -- quiesce the driver, knowing that the upcoming resume()
+	will restore a suspend-to-disk snapshot from a different kernel image.
+	Drivers that are smart enough to look at their hardware state during
+	resume() processing need that state to be correct ... a PRETHAW could
+	be used to invalidate that state (by resetting the device), like a
+	shutdown() invocation would before a kexec() or system halt.  Other
+	drivers might handle this the same way as PM_EVENT_FREEZE.  Neither
+	wakeup events nor DMA are allowed.
+
+To enter "standby" (ACPI S1) or "Suspend to RAM" (STR, ACPI S3) states, or
+the similarly named APM states, only PM_EVENT_SUSPEND is used; for "Suspend
+to Disk" (STD, hibernate, ACPI S4), all of those event codes are used.
+
+There's also PM_EVENT_ON, a value which never appears as a suspend event
+but is sometimes used to record the "not suspended" device state.
+
+
+Resuming Devices
+----------------
+Resuming is done in multiple phases, much like suspending, with all
+devices processing each phase's calls before the next phase begins.
+
+The phases are seen by driver notifications issued in this order:
+
+   1	bus.resume_early(dev) is called with IRQs disabled, and with
+   	only one CPU active.  As with bus.suspend_late(), this method
+	won't be supported on busses that require IRQs in order to
+	interact with devices.
+
+	This reverses the effects of bus.suspend_late().
+
+   2	bus.resume(dev) is called next.  This may be morphed into a device
+   	driver call with bus-specific parameters; implementations may sleep.
+
+	This reverses the effects of bus.suspend().
+
+   3	class.resume(dev) is called for devices associated with a class
+	that has such a method.  Implementations may sleep.
+
+	This reverses the effects of class.suspend(), and would usually
+	reactivate the device's I/O queue.
+
+At the end of those phases, drivers should normally be as functional as
+they were before suspending:  I/O can be performed using DMA and IRQs, and
+the relevant clocks are gated on.  The device need not be "fully on"; it
+might be in a runtime lowpower/suspend state that acts as if it were.
+
+However, the details here may again be platform-specific.  For example,
+some systems support multiple "run" states, and the mode in effect at
+the end of resume() might not be the one which preceded suspension.
+That means availability of certain clocks or power supplies changed,
+which could easily affect how a driver works.
+
+
+Drivers need to be able to handle hardware which has been reset since the
+suspend methods were called, for example by complete reinitialization.
+This may be the hardest part, and the one most protected by NDA'd documents
+and chip errata.  It's simplest if the hardware state hasn't changed since
+the suspend() was called, but that can't always be guaranteed.
+
+Drivers must also be prepared to notice that the device has been removed
+while the system was powered off, whenever that's physically possible.
+PCMCIA, MMC, USB, Firewire, SCSI, and even IDE are common examples of busses
+where common Linux platforms will see such removal.  Details of how drivers
+will notice and handle such removals are currently bus-specific, and often
+involve a separate thread.
+
+
+Note that the bus-specific runtime PM wakeup mechanism can exist, and might
+be defined to share some of the same driver code as for system wakeup.  For
+example, a bus-specific device driver's resume() method might be used there,
+so it wouldn't only be called from bus.resume() during system-wide wakeup.
+See bus-specific information about how runtime wakeup events are handled.
+
+
+System Devices
+--------------
 System devices follow a slightly different API, which can be found in
 
 	include/linux/sysdev.h
 	drivers/base/sys.c
 
-System devices will only be suspended with interrupts disabled, and
-after all other devices have been suspended. On resume, they will be
-resumed before any other devices, and also with interrupts disabled.
+System devices will only be suspended with interrupts disabled, and after
+all other devices have been suspended.  On resume, they will be resumed
+before any other devices, and also with interrupts disabled.
+
+That is, IRQs are disabled, the suspend_late() phase begins, then the
+sysdev_driver.suspend() phase, and the system enters a sleep state.  Then
+the sysdev_driver.resume() phase begins, followed by the resume_early()
+phase, after which IRQs are enabled.
+
+Code to actually enter and exit the system-wide low power state sometimes
+involves hardware details that are only known to the boot firmware, and
+may leave a CPU running software (from SRAM or flash memory) that monitors
+the system and manages its wakeup sequence.
 
 
 Runtime Power Management
+========================
+Many devices are able to dynamically power down while the system is still
+running. This feature is useful for devices that are not being used, and
+can offer significant power savings on a running system.  These devices
+often support a range of runtime power states, which might use names such
+as "off", "sleep", "idle", "active", and so on.  Those states will in some
+cases (like PCI) be partially constrained by a bus the device uses, and will
+usually include hardware states that are also used in system sleep states.
 
-Many devices are able to dynamically power down while the system is
-still running. This feature is useful for devices that are not being
-used, and can offer significant power savings on a running system. 
+However, note that if a driver puts a device into a runtime low power state
+and the system then goes into a system-wide sleep state, it normally ought
+to resume into that runtime low power state rather than "full on".  Such
+distinctions would be part of the driver-internal state machine for that
+hardware; the whole point of runtime power management is to be sure that
+drivers are decoupled in that way from the state machine governing phases
+of the system-wide power/sleep state transitions.
 
-In each device's directory, there is a 'power' directory, which
-contains at least a 'state' file. Reading from this file displays what
-power state the device is currently in. Writing to this file initiates
-a transition to the specified power state, which must be a decimal in
-the range 1-3, inclusive; or 0 for 'On'.
 
-The PM core will call the ->suspend() method in the bus_type object
-that the device belongs to if the specified state is not 0, or
-->resume() if it is. 
+Power Saving Techniques
+-----------------------
+Normally runtime power management is handled by the drivers without specific
+userspace or kernel intervention, by device-aware use of techniques like:
 
-Nothing will happen if the specified state is the same state the
-device is currently in. 
+    Using information provided by other system layers
+	- stay deeply "off" except between open() and close()
+	- if transceiver/PHY indicates "nobody connected", stay "off"
+	- application protocols may include power commands or hints
 
-If the device is already in a low-power state, and the specified state
-is another, but different, low-power state, the ->resume() method will
-first be called to power the device back on, then ->suspend() will be
-called again with the new state. 
+    Using fewer CPU cycles
+	- using DMA instead of PIO
+	- removing timers, or making them lower frequency
+	- shortening "hot" code paths
+	- eliminating cache misses
+	- (sometimes) offloading work to device firmware
 
-The driver is responsible for saving the working state of the device
-and putting it into the low-power state specified. If this was
-successful, it returns 0, and the device's power_state field is
-updated. 
+    Reducing other resource costs
+	- gating off unused clocks in software (or hardware)
+	- switching off unused power supplies
+	- eliminating (or delaying/merging) IRQs
+	- tuning DMA to use word and/or burst modes
 
-The driver must take care to know whether or not it is able to
-properly resume the device, including all step of reinitialization
-necessary. (This is the hardest part, and the one most protected by
-NDA'd documents). 
+    Using device-specific low power states
+	- using lower voltages
+	- avoiding needless DMA transfers
 
-The driver must also take care not to suspend a device that is
-currently in use. It is their responsibility to provide their own
-exclusion mechanisms.
+Read your hardware documentation carefully to see the opportunities that
+may be available.  If you can, measure the actual power usage and check
+it against the budget established for your project.
 
-The runtime power transition happens with interrupts enabled. If a
-device cannot support being powered down with interrupts, it may
-return -EAGAIN (as it would during a system power management
-transition),  but it will _not_ be called again, and the transaction
-will fail.
 
-There is currently no way to know what states a device or driver
-supports a priori. This will change in the future. 
+Examples:  USB hosts, system timer, system CPU
+----------------------------------------------
+USB host controllers make interesting, if complex, examples.  In many cases
+these have no work to do:  no USB devices are connected, or all of them are
+in the USB "suspend" state.  Linux host controller drivers can then disable
+periodic DMA transfers that would otherwise be a constant power drain on the
+memory subsystem, and enter a suspend state.  In power-aware controllers,
+entering that suspend state may disable the clock used with USB signaling,
+saving a certain amount of power.
 
-pm_message_t meaning
+The controller will be woken from that state (with an IRQ) by changes to the
+signal state on the data lines of a given port, for example by an existing
+peripheral requesting "remote wakeup" or by plugging a new peripheral.  The
+same wakeup mechanism usually works from "standby" sleep states, and on some
+systems also from "suspend to RAM" (or even "suspend to disk") states.
+(Except that ACPI may be involved instead of normal IRQs, on some hardware.)
 
-pm_message_t has two fields. event ("major"), and flags.  If driver
-does not know event code, it aborts the request, returning error. Some
-drivers may need to deal with special cases based on the actual type
-of suspend operation being done at the system level. This is why
-there are flags.
+System devices like timers and CPUs may have special roles in the platform
+power management scheme.  For example, system timers using a "dynamic tick"
+approach don't just save CPU cycles (by eliminating needless timer IRQs),
+but they may also open the door to using lower power CPU "idle" states that
+cost more than a jiffie to enter and exit.  On x86 systems these are states
+like "C3"; note that periodic DMA transfers from a USB host controller will
+also prevent entry to a C3 state, much like a periodic timer IRQ.
 
-Event codes are:
+That kind of runtime mechanism interaction is common.  "System On Chip" (SOC)
+processors often have low power idle modes that can't be entered unless
+certain medium-speed clocks (often 12 or 48 MHz) are gated off.  When the
+drivers gate those clocks effectively, then the system idle task may be able
+to use the lower power idle modes and thereby increase battery life.
 
-ON -- no need to do anything except special cases like broken
-HW.
+If the CPU can have a "cpufreq" driver, there also may be opportunities
+to shift to lower voltage settings and reduce the power cost of executing
+a given number of instructions.  (Without voltage adjustment, it's rare
+for cpufreq to save much power; the cost-per-instruction must go down.)
 
-# NOTIFICATION -- pretty much same as ON?
 
-FREEZE -- stop DMA and interrupts, and be prepared to reinit HW from
-scratch. That probably means stop accepting upstream requests, the
-actual policy of what to do with them being specific to a given
-driver. It's acceptable for a network driver to just drop packets
-while a block driver is expected to block the queue so no request is
-lost. (Use IDE as an example on how to do that). FREEZE requires no
-power state change, and it's expected for drivers to be able to
-quickly transition back to operating state.
+/sys/devices/.../power/state files
+==================================
+For now you can also test some of this functionality using sysfs.
 
-SUSPEND -- like FREEZE, but also put hardware into low-power state. If
-there's need to distinguish several levels of sleep, additional flag
-is probably best way to do that.
+	DEPRECATED:  USE "power/state" ONLY FOR DRIVER TESTING, AND
+	AVOID USING dev->power.power_state IN DRIVERS.
 
-Transitions are only from a resumed state to a suspended state, never
-between 2 suspended states. (ON -> FREEZE or ON -> SUSPEND can happen,
-FREEZE -> SUSPEND or SUSPEND -> FREEZE can not).
+	THESE WILL BE REMOVED.  IF THE "power/state" FILE GETS REPLACED,
+	IT WILL BECOME SOMETHING COUPLED TO THE BUS OR DRIVER.
 
-All events are:
+In each device's directory, there is a 'power' directory, which contains
+at least a 'state' file.  The value of this field is effectively boolean,
+PM_EVENT_ON or PM_EVENT_SUSPEND.
 
-[NOTE NOTE NOTE: If you are driver author, you should not care; you
-should only look at event, and ignore flags.]
+   *	Reading from this file displays a value corresponding to
+	the power.power_state.event field.  All nonzero values are
+	displayed as "2", corresponding to a low power state; zero
+	is displayed as "0", corresponding to normal operation.
 
-#Prepare for suspend -- userland is still running but we are going to
-#enter suspend state. This gives drivers chance to load firmware from
-#disk and store it in memory, or do other activities taht require
-#operating userland, ability to kmalloc GFP_KERNEL, etc... All of these
-#are forbiden once the suspend dance is started.. event = ON, flags =
-#PREPARE_TO_SUSPEND
+   *	Writing to this file initiates a transition using the
+   	specified event code number; only '0', '2', and '3' are
+	accepted (without a newline); '2' and '3' are both
+	mapped to PM_EVENT_SUSPEND.
 
-Apm standby -- prepare for APM event. Quiesce devices to make life
-easier for APM BIOS. event = FREEZE, flags = APM_STANDBY
+On writes, the PM core relies on that recorded event code and the device/bus
+capabilities to determine whether it uses a partial suspend() or resume()
+sequence to change things so that the recorded event corresponds to the
+numeric parameter.
 
-Apm suspend -- same as APM_STANDBY, but it we should probably avoid
-spinning down disks. event = FREEZE, flags = APM_SUSPEND
+   -	If the bus requires the irqs-disabled suspend_late()/resume_early()
+	phases, writes fail because those operations are not supported here.
 
-System halt, reboot -- quiesce devices to make life easier for BIOS. event
-= FREEZE, flags = SYSTEM_HALT or SYSTEM_REBOOT
+   -	If the recorded value is the expected value, nothing is done.
 
-System shutdown -- at least disks need to be spun down, or data may be
-lost. Quiesce devices, just to make life easier for BIOS. event =
-FREEZE, flags = SYSTEM_SHUTDOWN
+   -	If the recorded value is nonzero, the device is partially resumed,
+	using the bus.resume() and/or class.resume() methods.
 
-Kexec    -- turn off DMAs and put hardware into some state where new
-kernel can take over. event = FREEZE, flags = KEXEC
+   -	If the target value is nonzero, the device is partially suspended,
+	using the class.suspend() and/or bus.suspend() methods and the
+	PM_EVENT_SUSPEND message.
 
-Powerdown at end of swsusp -- very similar to SYSTEM_SHUTDOWN, except wake
-may need to be enabled on some devices. This actually has at least 3
-subtypes, system can reboot, enter S4 and enter S5 at the end of
-swsusp. event = FREEZE, flags = SWSUSP and one of SYSTEM_REBOOT,
-SYSTEM_SHUTDOWN, SYSTEM_S4
-
-Suspend to ram  -- put devices into low power state. event = SUSPEND,
-flags = SUSPEND_TO_RAM
-
-Freeze for swsusp snapshot -- stop DMA and interrupts. No need to put
-devices into low power mode, but you must be able to reinitialize
-device from scratch in resume method. This has two flavors, its done
-once on suspending kernel, once on resuming kernel. event = FREEZE,
-flags = DURING_SUSPEND or DURING_RESUME
-
-Device detach requested from /sys -- deinitialize device; proably same as
-SYSTEM_SHUTDOWN, I do not understand this one too much. probably event
-= FREEZE, flags = DEV_DETACH.
-
-#These are not really events sent:
-#
-#System fully on -- device is working normally; this is probably never
-#passed to suspend() method... event = ON, flags = 0
-#
-#Ready after resume -- userland is now running, again. Time to free any
-#memory you ate during prepare to suspend... event = ON, flags =
-#READY_AFTER_RESUME
-#
+Drivers have no way to tell whether their suspend() and resume() calls
+have come through the sysfs power/state file or as part of entering a
+system sleep state, except that when accessed through sysfs the normal
+parent/child sequencing rules are ignored.  Drivers (such as bus, bridge,
+or hub drivers) which expose child devices may need to enforce those rules
+on their own.

@@ -238,6 +238,12 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	writel (0, &ehci->regs->intr_enable);
 	(void)readl(&ehci->regs->intr_enable);
 
+	/* make sure snapshot being resumed re-enumerates everything */
+	if (message.event == PM_EVENT_PRETHAW) {
+		ehci_halt(ehci);
+		ehci_reset(ehci);
+	}
+
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
  bail:
 	spin_unlock_irqrestore (&ehci->lock, flags);

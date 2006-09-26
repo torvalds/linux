@@ -950,24 +950,25 @@ static struct fb_ops nvidia_fb_ops = {
 };
 
 #ifdef CONFIG_PM
-static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t state)
+static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t mesg)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct nvidia_par *par = info->par;
 
+	if (mesg.event == PM_EVENT_PRETHAW)
+		mesg.event = PM_EVENT_FREEZE;
 	acquire_console_sem();
-	par->pm_state = state.event;
+	par->pm_state = mesg.event;
 
-	if (state.event == PM_EVENT_FREEZE) {
-		dev->dev.power.power_state = state;
-	} else {
+	if (mesg.event == PM_EVENT_SUSPEND) {
 		fb_set_suspend(info, 1);
 		nvidiafb_blank(FB_BLANK_POWERDOWN, info);
 		nvidia_write_regs(par, &par->SavedReg);
 		pci_save_state(dev);
 		pci_disable_device(dev);
-		pci_set_power_state(dev, pci_choose_state(dev, state));
+		pci_set_power_state(dev, pci_choose_state(dev, mesg));
 	}
+	dev->dev.power.power_state = mesg;
 
 	release_console_sem();
 	return 0;

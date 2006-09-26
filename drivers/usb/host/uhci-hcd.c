@@ -734,6 +734,10 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
+	/* make sure snapshot being resumed re-enumerates everything */
+	if (message.event == PM_EVENT_PRETHAW)
+		uhci_hc_died(uhci);
+
 done_okay:
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 done:

@@ -17,6 +17,16 @@
  *  Registration of PCI drivers and handling of hot-pluggable devices.
  */
 
+/* multithreaded probe logic */
+static int pci_multithread_probe =
+#ifdef CONFIG_PCI_MULTITHREAD_PROBE
+	1;
+#else
+	0;
+#endif
+__module_param_call("", pci_multithread_probe, param_set_bool, param_get_bool, &pci_multithread_probe, 0644);
+
+
 /*
  * Dynamic device IDs are disabled for !CONFIG_HOTPLUG
  */
@@ -279,6 +289,18 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 	return i;
 }
 
+static int pci_device_suspend_late(struct device * dev, pm_message_t state)
+{
+	struct pci_dev * pci_dev = to_pci_dev(dev);
+	struct pci_driver * drv = pci_dev->driver;
+	int i = 0;
+
+	if (drv && drv->suspend_late) {
+		i = drv->suspend_late(pci_dev, state);
+		suspend_report_result(drv->suspend_late, i);
+	}
+	return i;
+}
 
 /*
  * Default resume method for devices that have no driver provided resume,
@@ -310,6 +332,17 @@ static int pci_device_resume(struct device * dev)
 		error = drv->resume(pci_dev);
 	else
 		error = pci_default_resume(pci_dev);
+	return error;
+}
+
+static int pci_device_resume_early(struct device * dev)
+{
+	int error = 0;
+	struct pci_dev * pci_dev = to_pci_dev(dev);
+	struct pci_driver * drv = pci_dev->driver;
+
+	if (drv && drv->resume_early)
+		error = drv->resume_early(pci_dev);
 	return error;
 }
 
@@ -385,6 +418,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
+	drv->driver.multithread_probe = pci_multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);
@@ -509,8 +543,10 @@ struct bus_type pci_bus_type = {
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
 	.suspend	= pci_device_suspend,
-	.shutdown	= pci_device_shutdown,
+	.suspend_late	= pci_device_suspend_late,
+	.resume_early	= pci_device_resume_early,
 	.resume		= pci_device_resume,
+	.shutdown	= pci_device_shutdown,
 	.dev_attrs	= pci_dev_attrs,
 };
 

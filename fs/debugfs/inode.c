@@ -162,7 +162,6 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 
 /**
  * debugfs_create_file - create a file in the debugfs filesystem
- *
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have
  * @parent: a pointer to the parent dentry for this file.  This should be a
@@ -182,11 +181,11 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, NULL will be returned.
+ * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
- * If debugfs is not enabled in the kernel, the value -ENODEV will be
+ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.  It is not wise to check for this value, but rather, check for
- * NULL or !NULL instead as to eliminate the need for #ifdef in the calling
+ * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
 struct dentry *debugfs_create_file(const char *name, mode_t mode,
@@ -221,7 +220,6 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
 
 /**
  * debugfs_create_dir - create a directory in the debugfs filesystem
- *
  * @name: a pointer to a string containing the name of the directory to
  *        create.
  * @parent: a pointer to the parent dentry for this file.  This should be a
@@ -233,11 +231,11 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  * This function will return a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the debugfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here.)  If an error occurs, NULL will be returned.
+ * you are responsible here.)  If an error occurs, %NULL will be returned.
  *
- * If debugfs is not enabled in the kernel, the value -ENODEV will be
+ * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.  It is not wise to check for this value, but rather, check for
- * NULL or !NULL instead as to eliminate the need for #ifdef in the calling
+ * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
@@ -250,7 +248,6 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
 
 /**
  * debugfs_remove - removes a file or directory from the debugfs filesystem
- *
  * @dentry: a pointer to a the dentry of the file or directory to be
  *          removed.
  *

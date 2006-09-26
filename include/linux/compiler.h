@@ -99,6 +99,11 @@ extern void __chk_io_ptr(void __iomem *);
 #define __must_check
 #endif
 
+#ifndef CONFIG_ENABLE_MUST_CHECK
+#undef __must_check
+#define __must_check
+#endif
+
 /*
  * Allow us to avoid 'defined but not used' warnings on functions and data,
  * as well as force them to be emitted to the assembly file.

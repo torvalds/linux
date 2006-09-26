@@ -407,6 +407,7 @@ static struct kobj_type dir_ktype = {
 struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 {
 	struct kobject *k;
+	int ret;
 
 	if (!parent)
 		return NULL;
@@ -418,7 +419,13 @@ struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 	k->parent = parent;
 	k->ktype = &dir_ktype;
 	kobject_set_name(k, name);
-	kobject_register(k);
+	ret = kobject_register(k);
+	if (ret < 0) {
+		printk(KERN_WARNING "kobject_add_dir: "
+			"kobject_register error: %d\n", ret);
+		kobject_del(k);
+		return NULL;
+	}
 
 	return k;
 }
