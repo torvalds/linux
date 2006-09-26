@@ -660,9 +660,7 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_notchfilter(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50)
-		? HLNotchFilter135PAL
-		: HLNotchFilter135NTSC;
+	return HLNotchFilter4xFsc;
 }
 
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
