@@ -381,7 +381,7 @@ config ALPHA_EV56
 
 config ALPHA_EV56
 	prompt "EV56 CPU (speed >= 333MHz)?"
-	depends on ALPHA_NORITAKE && ALPHA_PRIMO
+	depends on ALPHA_NORITAKE || ALPHA_PRIMO
 
 config ALPHA_EV56
 	prompt "EV56 CPU (speed >= 400MHz)?"
