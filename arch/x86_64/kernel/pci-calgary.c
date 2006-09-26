@@ -133,11 +133,34 @@ static inline void tce_cache_blast_stress(struct iommu_table *tbl)
 {
 	tce_cache_blast(tbl);
 }
+
+static inline unsigned long verify_bit_range(unsigned long* bitmap,
+	int expected, unsigned long start, unsigned long end)
+{
+	unsigned long idx = start;
+
+	BUG_ON(start >= end);
+
+	while (idx < end) {
+		if (!!test_bit(idx, bitmap) != expected)
+			return idx;
+		++idx;
+	}
+
+	/* all bits have the expected value */
+	return ~0UL;
+}
 #else /* debugging is disabled */
 int debugging __read_mostly = 0;
 
 static inline void tce_cache_blast_stress(struct iommu_table *tbl)
 {
+}
+
+static inline unsigned long verify_bit_range(unsigned long* bitmap,
+	int expected, unsigned long start, unsigned long end)
+{
+	return ~0UL;
 }
 #endif /* CONFIG_IOMMU_DEBUG */
 
@@ -162,6 +185,7 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 {
 	unsigned long index;
 	unsigned long end;
+	unsigned long badbit;
 
 	index = start_addr >> PAGE_SHIFT;
 
@@ -173,14 +197,15 @@ static void iommu_range_reserve(struct iommu_table *tbl,
 	if (end > tbl->it_size) /* don't go off the table */
 		end = tbl->it_size;
 
-	while (index < end) {
-		if (test_bit(index, tbl->it_map))
+	badbit = verify_bit_range(tbl->it_map, 0, index, end);
+	if (badbit != ~0UL) {
+		if (printk_ratelimit())
 			printk(KERN_ERR "Calgary: entry already allocated at "
 			       "0x%lx tbl %p dma 0x%lx npages %u\n",
-			       index, tbl, start_addr, npages);
-		++index;
+			       badbit, tbl, start_addr, npages);
 	}
-	set_bit_string(tbl->it_map, start_addr >> PAGE_SHIFT, npages);
+
+	set_bit_string(tbl->it_map, index, npages);
 }
 
 static unsigned long iommu_range_alloc(struct iommu_table *tbl,
@@ -247,7 +272,7 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
-	unsigned long i;
+	unsigned long badbit;
 
 	entry = dma_addr >> PAGE_SHIFT;
 
@@ -255,11 +280,12 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 
 	tce_free(tbl, entry, npages);
 
-	for (i = 0; i < npages; ++i) {
-		if (!test_bit(entry + i, tbl->it_map))
+	badbit = verify_bit_range(tbl->it_map, 1, entry, entry + npages);
+	if (badbit != ~0UL) {
+		if (printk_ratelimit())
 			printk(KERN_ERR "Calgary: bit is off at 0x%lx "
 			       "tbl %p dma 0x%Lx entry 0x%lx npages %u\n",
-			       entry + i, tbl, dma_addr, entry, npages);
+			       badbit, tbl, dma_addr, entry, npages);
 	}
 
 	__clear_bit_string(tbl->it_map, entry, npages);
