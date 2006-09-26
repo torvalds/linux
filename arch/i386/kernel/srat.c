@@ -42,7 +42,7 @@
 #define PXM_BITMAP_LEN (MAX_PXM_DOMAINS / 8) 
 static u8 pxm_bitmap[PXM_BITMAP_LEN];	/* bitmap of proximity domains */
 
-#define MAX_CHUNKS_PER_NODE	4
+#define MAX_CHUNKS_PER_NODE	3
 #define MAXCHUNKS		(MAX_CHUNKS_PER_NODE * MAX_NUMNODES)
 struct node_memory_chunk_s {
 	unsigned long	start_pfn;
@@ -135,9 +135,6 @@ static void __init parse_memory_affinity_structure (char *sratp)
 		 "enabled and removable" : "enabled" ) );
 }
 
-#if MAX_NR_ZONES != 4
-#error "MAX_NR_ZONES != 4, chunk_to_zone requires review"
-#endif
 /* Take a chunk of pages from page frame cstart to cend and count the number
  * of pages in each zone, returned via zones[].
  */
