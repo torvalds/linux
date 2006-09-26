@@ -4,6 +4,8 @@
 #ifndef _SKY2_H
 #define _SKY2_H
 
+#define ETH_JUMBO_MTU		9000	/* Maximum MTU supported */
+
 /* PCI device specific config registers */
 enum {
 	PCI_DEV_REG1	= 0x40,
@@ -1779,7 +1781,9 @@ struct tx_ring_info {
 
 struct rx_ring_info {
 	struct sk_buff	*skb;
-	dma_addr_t	mapaddr;
+	dma_addr_t	data_addr;
+	DECLARE_PCI_UNMAP_ADDR(data_size);
+	dma_addr_t	frag_addr[ETH_JUMBO_MTU >> PAGE_SHIFT];
 };
 
 struct sky2_port {
@@ -1804,7 +1808,9 @@ struct sky2_port {
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
-	u16		     rx_bufsize;
+	u16		     rx_data_size;
+	u16		     rx_nfrags;
+
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
 	struct vlan_group    *vlgrp;
