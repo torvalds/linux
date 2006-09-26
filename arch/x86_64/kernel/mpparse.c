@@ -70,15 +70,6 @@ unsigned disabled_cpus __initdata;
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 
-/* ACPI MADT entry parsing functions */
-#ifdef CONFIG_ACPI
-extern struct acpi_boot_flags acpi_boot;
-extern int acpi_parse_lapic (acpi_table_entry_header *header);
-extern int acpi_parse_lapic_addr_ovr (acpi_table_entry_header *header);
-extern int acpi_parse_lapic_nmi (acpi_table_entry_header *header);
-extern int acpi_parse_ioapic (acpi_table_entry_header *header);
-#endif /*CONFIG_ACPI*/
-
 u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 
 
