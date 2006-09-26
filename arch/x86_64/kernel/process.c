@@ -80,25 +80,25 @@ void idle_notifier_unregister(struct notifier_block *n)
 }
 EXPORT_SYMBOL(idle_notifier_unregister);
 
-enum idle_state { CPU_IDLE, CPU_NOT_IDLE };
-static DEFINE_PER_CPU(enum idle_state, idle_state) = CPU_NOT_IDLE;
-
 void enter_idle(void)
 {
-	__get_cpu_var(idle_state) = CPU_IDLE;
+	write_pda(isidle, 1);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
 }
 
 static void __exit_idle(void)
 {
-	__get_cpu_var(idle_state) = CPU_NOT_IDLE;
+	if (read_pda(isidle) == 0)
+		return;
+	write_pda(isidle, 0);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
 
 /* Called from interrupts to signify idle end */
 void exit_idle(void)
 {
-	if (current->pid | read_pda(irqcount))
+	/* idle loop has pid 0 */
+	if (current->pid)
 		return;
 	__exit_idle();
 }
@@ -220,6 +220,9 @@ void cpu_idle (void)
 				play_dead();
 			enter_idle();
 			idle();
+			/* In many cases the interrupt that ended idle
+			   has already called exit_idle. But some idle
+			   loops can be woken up without interrupt. */
 			__exit_idle();
 		}
 
