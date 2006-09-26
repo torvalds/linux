@@ -314,7 +314,7 @@ static unsigned int unsafe_pages;
  *	and we count them using unsafe_pages
  */
 
-static inline void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
+static void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
 {
 	void *res;
 
@@ -828,13 +828,16 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 	}
 	if (!handle->offset)
 		handle->buffer = buffer;
+	handle->sync_read = 1;
 	if (handle->prev < handle->page) {
 		if (!handle->prev) {
-			error = load_header(handle, (struct swsusp_info *)buffer);
+			error = load_header(handle,
+					(struct swsusp_info *)buffer);
 			if (error)
 				return error;
 		} else if (handle->prev <= nr_meta_pages) {
-			handle->pbe = unpack_orig_addresses(buffer, handle->pbe);
+			handle->pbe = unpack_orig_addresses(buffer,
+							handle->pbe);
 			if (!handle->pbe) {
 				error = prepare_image(handle);
 				if (error)
@@ -842,10 +845,12 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 				handle->pbe = pagedir_nosave;
 				handle->last_pbe = NULL;
 				handle->buffer = get_buffer(handle);
+				handle->sync_read = 0;
 			}
 		} else {
 			handle->pbe = handle->pbe->next;
 			handle->buffer = get_buffer(handle);
+			handle->sync_read = 0;
 		}
 		handle->prev = handle->page;
 	}

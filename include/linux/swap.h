@@ -220,6 +220,7 @@ extern int swap_readpage(struct file *, struct page *);
 extern int swap_writepage(struct page *page, struct writeback_control *wbc);
 extern int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page,
 				struct bio **bio_chain);
+extern int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err);
 
 /* linux/mm/swap_state.c */
 extern struct address_space swapper_space;

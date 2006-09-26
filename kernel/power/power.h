@@ -58,6 +58,7 @@ struct snapshot_handle {
 	struct pbe	*pbe, *last_pbe;
 	void		*buffer;
 	unsigned int	buf_offset;
+	int		sync_read;
 };
 
 #define data_of(handle)	((handle).buffer + (handle).buf_offset)

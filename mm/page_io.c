@@ -74,7 +74,7 @@ static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
 	return 0;
 }
 
-static int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
+int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;

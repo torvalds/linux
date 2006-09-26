@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
+#include <linux/blkdev.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pm.h>
@@ -214,6 +215,8 @@ static int wait_on_bio_chain(struct bio **bio_chain)
 		return 0;
 
 	bio = *bio_chain;
+	if (bio == NULL)
+		return 0;
 	while (bio) {
 		struct page *page;
 
@@ -349,7 +352,8 @@ int swsusp_write(void)
 	int error;
 
 	if ((error = swsusp_swap_check())) {
-		printk(KERN_ERR "swsusp: Cannot find swap device, try swapon -a.\n");
+		printk(KERN_ERR "swsusp: Cannot find swap device, try "
+				"swapon -a.\n");
 		return error;
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
@@ -381,27 +385,6 @@ int swsusp_write(void)
 	return error;
 }
 
-/*
- *	Using bio to read from swap.
- *	This code requires a bit more work than just using buffer heads
- *	but, it is the recommended way for 2.5/2.6.
- *	The following are to signal the beginning and end of I/O. Bios
- *	finish asynchronously, while we want them to happen synchronously.
- *	A simple atomic_t, and a wait loop take care of this problem.
- */
-
-static atomic_t io_done = ATOMIC_INIT(0);
-
-static int end_io(struct bio *bio, unsigned int num, int err)
-{
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
-		printk(KERN_ERR "I/O error reading swsusp image.\n");
-		return -EIO;
-	}
-	atomic_set(&io_done, 0);
-	return 0;
-}
-
 static struct block_device *resume_bdev;
 
 /**
@@ -409,15 +392,15 @@ static struct block_device *resume_bdev;
  *	@rw:	READ or WRITE.
  *	@off	physical offset of page.
  *	@page:	page we're reading or writing.
+ *	@bio_chain: list of pending biod (for async reading)
  *
  *	Straight from the textbook - allocate and initialize the bio.
- *	If we're writing, make sure the page is marked as dirty.
- *	Then submit it and wait.
+ *	If we're reading, make sure the page is marked as dirty.
+ *	Then submit it and, if @bio_chain == NULL, wait.
  */
-
-static int submit(int rw, pgoff_t page_off, void *page)
+static int submit(int rw, pgoff_t page_off, struct page *page,
+			struct bio **bio_chain)
 {
-	int error = 0;
 	struct bio *bio;
 
 	bio = bio_alloc(GFP_ATOMIC, 1);
@@ -425,33 +408,40 @@ static int submit(int rw, pgoff_t page_off, void *page)
 		return -ENOMEM;
 	bio->bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio->bi_bdev = resume_bdev;
-	bio->bi_end_io = end_io;
+	bio->bi_end_io = end_swap_bio_read;
 
-	if (bio_add_page(bio, virt_to_page(page), PAGE_SIZE, 0) < PAGE_SIZE) {
-		printk("swsusp: ERROR: adding page to bio at %ld\n",page_off);
-		error = -EFAULT;
-		goto Done;
+	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
+		printk("swsusp: ERROR: adding page to bio at %ld\n", page_off);
+		bio_put(bio);
+		return -EFAULT;
 	}
 
-	atomic_set(&io_done, 1);
-	submit_bio(rw | (1 << BIO_RW_SYNC), bio);
-	while (atomic_read(&io_done))
-		yield();
-	if (rw == READ)
-		bio_set_pages_dirty(bio);
- Done:
-	bio_put(bio);
-	return error;
+	lock_page(page);
+	bio_get(bio);
+
+	if (bio_chain == NULL) {
+		submit_bio(rw | (1 << BIO_RW_SYNC), bio);
+		wait_on_page_locked(page);
+		if (rw == READ)
+			bio_set_pages_dirty(bio);
+		bio_put(bio);
+	} else {
+		get_page(page);
+		bio->bi_private = *bio_chain;
+		*bio_chain = bio;
+		submit_bio(rw | (1 << BIO_RW_SYNC), bio);
+	}
+	return 0;
 }
 
-static int bio_read_page(pgoff_t page_off, void *page)
+static int bio_read_page(pgoff_t page_off, void *addr, struct bio **bio_chain)
 {
-	return submit(READ, page_off, page);
+	return submit(READ, page_off, virt_to_page(addr), bio_chain);
 }
 
-static int bio_write_page(pgoff_t page_off, void *page)
+static int bio_write_page(pgoff_t page_off, void *addr)
 {
-	return submit(WRITE, page_off, page);
+	return submit(WRITE, page_off, virt_to_page(addr), NULL);
 }
 
 /**
@@ -476,7 +466,7 @@ static int get_swap_reader(struct swap_map_handle *handle,
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_ATOMIC);
 	if (!handle->cur)
 		return -ENOMEM;
-	error = bio_read_page(swp_offset(start), handle->cur);
+	error = bio_read_page(swp_offset(start), handle->cur, NULL);
 	if (error) {
 		release_swap_reader(handle);
 		return error;
@@ -485,7 +475,8 @@ static int get_swap_reader(struct swap_map_handle *handle,
 	return 0;
 }
 
-static int swap_read_page(struct swap_map_handle *handle, void *buf)
+static int swap_read_page(struct swap_map_handle *handle, void *buf,
+				struct bio **bio_chain)
 {
 	unsigned long offset;
 	int error;
@@ -495,16 +486,17 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf)
 	offset = handle->cur->entries[handle->k];
 	if (!offset)
 		return -EFAULT;
-	error = bio_read_page(offset, buf);
+	error = bio_read_page(offset, buf, bio_chain);
 	if (error)
 		return error;
 	if (++handle->k >= MAP_PAGE_ENTRIES) {
+		error = wait_on_bio_chain(bio_chain);
 		handle->k = 0;
 		offset = handle->cur->next_swap;
 		if (!offset)
 			release_swap_reader(handle);
-		else
-			error = bio_read_page(offset, handle->cur);
+		else if (!error)
+			error = bio_read_page(offset, handle->cur, NULL);
 	}
 	return error;
 }
@@ -517,38 +509,48 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf)
 
 static int load_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
-                      unsigned int nr_pages)
+                      unsigned int nr_to_read)
 {
 	unsigned int m;
-	int ret;
 	int error = 0;
 	struct timeval start;
 	struct timeval stop;
+	struct bio *bio;
+	int err2;
+	unsigned nr_pages;
 
-	printk("Loading image data pages (%u pages) ...     ", nr_pages);
-	m = nr_pages / 100;
+	printk("Loading image data pages (%u pages) ...     ", nr_to_read);
+	m = nr_to_read / 100;
 	if (!m)
 		m = 1;
 	nr_pages = 0;
+	bio = NULL;
 	do_gettimeofday(&start);
-	do {
-		ret = snapshot_write_next(snapshot, PAGE_SIZE);
-		if (ret > 0) {
-			error = swap_read_page(handle, data_of(*snapshot));
-			if (error)
-				break;
-			if (!(nr_pages % m))
-				printk("\b\b\b\b%3d%%", nr_pages / m);
-			nr_pages++;
-		}
-	} while (ret > 0);
+	for ( ; ; ) {
+		error = snapshot_write_next(snapshot, PAGE_SIZE);
+		if (error <= 0)
+			break;
+		error = swap_read_page(handle, data_of(*snapshot), &bio);
+		if (error)
+			break;
+		if (snapshot->sync_read)
+			error = wait_on_bio_chain(&bio);
+		if (error)
+			break;
+		if (!(nr_pages % m))
+			printk("\b\b\b\b%3d%%", nr_pages / m);
+		nr_pages++;
+	}
+	err2 = wait_on_bio_chain(&bio);
 	do_gettimeofday(&stop);
+	if (!error)
+		error = err2;
 	if (!error) {
 		printk("\b\b\b\bdone\n");
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
 	}
-	show_speed(&start, &stop, nr_pages, "Read");
+	show_speed(&start, &stop, nr_to_read, "Read");
 	return error;
 }
 
@@ -571,7 +573,7 @@ int swsusp_read(void)
 	header = (struct swsusp_info *)data_of(snapshot);
 	error = get_swap_reader(&handle, swsusp_header.image);
 	if (!error)
-		error = swap_read_page(&handle, header);
+		error = swap_read_page(&handle, header, NULL);
 	if (!error)
 		error = load_image(&handle, &snapshot, header->pages - 1);
 	release_swap_reader(&handle);
@@ -597,7 +599,7 @@ int swsusp_check(void)
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
 		memset(&swsusp_header, 0, sizeof(swsusp_header));
-		if ((error = bio_read_page(0, &swsusp_header)))
+		if ((error = bio_read_page(0, &swsusp_header, NULL)))
 			return error;
 		if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
 			memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
