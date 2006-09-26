@@ -83,8 +83,8 @@ static void exit_driverfs(void)
 #define exit_driverfs() do { } while (0)
 #endif /* CONFIG_PM */
 
-int profile_exceptions_notify(struct notifier_block *self,
-				unsigned long val, void *data)
+static int profile_exceptions_notify(struct notifier_block *self,
+				     unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;

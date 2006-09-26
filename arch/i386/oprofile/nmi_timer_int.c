@@ -19,8 +19,8 @@
 #include <asm/ptrace.h>
 #include <asm/kdebug.h>
  
-int profile_timer_exceptions_notify(struct notifier_block *self,
-				unsigned long val, void *data)
+static int profile_timer_exceptions_notify(struct notifier_block *self,
+					   unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
