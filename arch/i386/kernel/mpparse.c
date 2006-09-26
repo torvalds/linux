@@ -229,12 +229,14 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 
 	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
 
+#if MAX_MP_BUSSES < 256
 	if (m->mpc_busid >= MAX_MP_BUSSES) {
 		printk(KERN_WARNING "MP table busid value (%d) for bustype %s "
 			" is too large, max. supported is %d\n",
 			m->mpc_busid, str, MAX_MP_BUSSES - 1);
 		return;
 	}
+#endif
 
 	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA)-1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
