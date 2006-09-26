@@ -12,6 +12,8 @@
 
 struct notifier_block;
 
+struct bio;
+
 #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
 #define SWAP_FLAG_PRIO_MASK	0x7fff
 #define SWAP_FLAG_PRIO_SHIFT	0
@@ -216,7 +218,8 @@ extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
 /* linux/mm/page_io.c */
 extern int swap_readpage(struct file *, struct page *);
 extern int swap_writepage(struct page *page, struct writeback_control *wbc);
-extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
+extern int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page,
+				struct bio **bio_chain);
 
 /* linux/mm/swap_state.c */
 extern struct address_space swapper_space;
