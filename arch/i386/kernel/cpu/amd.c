@@ -246,7 +246,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		num_cache_leaves = 3;
 }
 
-static unsigned int amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)
+static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 {
 	/* AMD errata T13 (order #21922) */
 	if ((c->x86 == 6)) {

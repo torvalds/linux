@@ -198,7 +198,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 }
 
 
-static unsigned int intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)
+static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 {
 	/* Intel PIII Tualatin. This comes in two flavours.
 	 * One has 256kb of cache, the other 512. We have no way

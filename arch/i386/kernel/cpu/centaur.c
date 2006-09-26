@@ -442,7 +442,7 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 	}
 }
 
-static unsigned int centaur_size_cache(struct cpuinfo_x86 * c, unsigned int size)
+static unsigned int __cpuinit centaur_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 {
 	/* VIA C3 CPUs (670-68F) need further shifting. */
 	if ((c->x86 == 6) && ((c->x86_model == 7) || (c->x86_model == 8)))
