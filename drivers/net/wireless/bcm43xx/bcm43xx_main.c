@@ -3164,12 +3164,12 @@ static void bcm43xx_periodic_work_handler(void *d)
 	u32 savedirqs = 0;
 	int badness;
 
+	mutex_lock(&bcm->mutex);
 	badness = estimate_periodic_work_badness(bcm->periodic_state);
 	if (badness > BADNESS_LIMIT) {
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
 		 */
-		mutex_lock(&bcm->mutex);
 		netif_tx_disable(bcm->net_dev);
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		bcm43xx_mac_suspend(bcm);
@@ -3182,7 +3182,6 @@ static void bcm43xx_periodic_work_handler(void *d)
 		/* Periodic work should take short time, so we want low
 		 * locking overhead.
 		 */
-		mutex_lock(&bcm->mutex);
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 	}
 
