@@ -100,7 +100,6 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		disabled_cpus++;
 		return;
 	}
-
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		bootup_cpu = " (Bootup-CPU)";
 		boot_cpu_id = m->mpc_apicid;
@@ -118,13 +117,6 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 	cpus_complement(tmp_map, cpu_present_map);
 	cpu = first_cpu(tmp_map);
 
-#if MAX_APICS < 255	
-	if ((int)m->mpc_apicid > MAX_APICS) {
-		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
-			m->mpc_apicid, MAX_APICS);
-		return;
-	}
-#endif
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
  		/*
@@ -603,8 +595,6 @@ void __init mp_register_lapic_address(u64 address)
 	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
 	if (boot_cpu_id == -1U)
 		boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
-
-	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
 void __cpuinit mp_register_lapic (u8 id, u8 enabled)
@@ -612,13 +602,7 @@ void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 	struct mpc_config_processor processor;
 	int			boot_cpu = 0;
 	
-	if (id >= MAX_APICS) {
-		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
-			id, MAX_APICS);
-		return;
-	}
-
-	if (id == boot_cpu_physical_apicid)
+	if (id == boot_cpu_id)
 		boot_cpu = 1;
 
 	processor.mpc_type = MP_PROCESSOR;
