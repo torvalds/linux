@@ -86,7 +86,8 @@
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
 #define MAX_NUM_CHASSIS		8 /* max number of chassis */
-#define MAX_PHB_BUS_NUM		(MAX_NUM_OF_PHBS * MAX_NUM_CHASSIS * 2) /* max dev->bus->number */
+/* MAX_PHB_BUS_NUM is the maximal possible dev->bus->number */
+#define MAX_PHB_BUS_NUM		(MAX_NUM_OF_PHBS * MAX_NUM_CHASSIS * 2)
 #define PHBS_PER_CALGARY	4
 
 /* register offsets in Calgary's internal register space */
