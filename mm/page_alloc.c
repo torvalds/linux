@@ -2002,7 +2002,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->spanned_pages = size;
 		zone->present_pages = realsize;
 #ifdef CONFIG_NUMA
-		zone->min_unmapped_ratio = (realsize*sysctl_min_unmapped_ratio)
+		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
 						/ 100;
 #endif
 		zone->name = zone_names[j];
@@ -2313,7 +2313,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(ctl_table *table, int write,
 		return rc;
 
 	for_each_zone(zone)
-		zone->min_unmapped_ratio = (zone->present_pages *
+		zone->min_unmapped_pages = (zone->present_pages *
 				sysctl_min_unmapped_ratio) / 100;
 	return 0;
 }

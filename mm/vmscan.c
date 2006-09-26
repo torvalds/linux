@@ -1618,7 +1618,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	 * unmapped file backed pages.
 	 */
 	if (zone_page_state(zone, NR_FILE_PAGES) -
-	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_ratio)
+	    zone_page_state(zone, NR_FILE_MAPPED) <= zone->min_unmapped_pages)
 		return 0;
 
 	/*
