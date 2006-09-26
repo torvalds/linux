@@ -631,12 +631,14 @@ gp_in_kernel:
 
 static void mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
-	printk(KERN_EMERG "Uhhuh. NMI received. Dazed and confused, but trying "
-			"to continue\n");
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
+		"CPU %d.\n", reason, smp_processor_id());
 	printk(KERN_EMERG "You probably have a hardware problem with your RAM "
 			"chips\n");
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
+
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 
 	/* Clear and disable the memory parity error line. */
 	clear_mem_error(reason);
@@ -668,14 +670,13 @@ static void unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 		return;
 	}
 #endif
-	printk("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
-		reason, smp_processor_id());
-	printk("Dazed and confused, but trying to continue\n");
-	printk("Do you have a strange power saving mode enabled?\n");
-
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x on "
+		"CPU %d.\n", reason, smp_processor_id());
+	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
 	if (panic_on_unrecovered_nmi)
                 panic("NMI: Not continuing");
 
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 }
 
 static DEFINE_SPINLOCK(nmi_print_lock);

@@ -730,10 +730,15 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 static __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
-	printk("Uhhuh. NMI received. Dazed and confused, but trying to continue\n");
-	printk("You probably have a hardware problem with your RAM chips\n");
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
+		reason);
+	printk(KERN_EMERG "You probably have a hardware problem with your "
+		"RAM chips\n");
+
 	if (panic_on_unrecovered_nmi)
-               panic("NMI: Not continuing");
+		panic("NMI: Not continuing");
+
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 
 	/* Clear and disable the memory parity error line. */
 	reason = (reason & 0xf) | 4;
@@ -756,13 +761,15 @@ io_check_error(unsigned char reason, struct pt_regs * regs)
 
 static __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
-{	printk("Uhhuh. NMI received for unknown reason %02x.\n", reason);
-	printk("Dazed and confused, but trying to continue\n");
-	printk("Do you have a strange power saving mode enabled?\n");
+{
+	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
+		reason);
+	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
 
 	if (panic_on_unrecovered_nmi)
-                panic("NMI: Not continuing");
+		panic("NMI: Not continuing");
 
+	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 }
 
 /* Runs on IST stack. This code must keep interrupts off all the time.
