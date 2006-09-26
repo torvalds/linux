@@ -189,20 +189,15 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	/* Assume the lock function has either no stack frame or only a single 
-	   word.  This checks if the address on the stack looks like a kernel 
-	   text address.
-	   There is a small window for false hits, but in that case the tick
-	   is just accounted to the spinlock function.
-	   Better would be to write these functions in assembler again
-	   and check exactly. */
+	/* Assume the lock function has either no stack frame or a copy
+	   of eflags from PUSHF
+	   Eflags always has bits 22 and up cleared unlike kernel addresses. */
 	if (!user_mode(regs) && in_lock_functions(pc)) {
-		char *v = *(char **)regs->rsp;
-		if ((v >= _stext && v <= _etext) ||
-			(v >= _sinittext && v <= _einittext) ||
-			(v >= (char *)MODULES_VADDR  && v <= (char *)MODULES_END))
-			return (unsigned long)v;
-		return ((unsigned long *)regs->rsp)[1];
+		unsigned long *sp = (unsigned long *)regs->rsp;
+		if (sp[0] >> 22)
+			return sp[0];
+		if (sp[1] >> 22)
+			return sp[1];
 	}
 	return pc;
 }
