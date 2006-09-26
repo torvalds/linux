@@ -136,10 +136,8 @@ static void __kprobes update_kprobe_inst_flag(uint template, uint  slot,
 static int __kprobes unsupported_inst(uint template, uint  slot,
 				      uint major_opcode,
 				      unsigned long kprobe_inst,
-				      struct kprobe *p)
+				      unsigned long addr)
 {
-	unsigned long addr = (unsigned long)p->addr;
-
 	if (bundle_encoding[template][slot] == I) {
 		switch (major_opcode) {
 			case 0x0: //I_UNIT_MISC_OPCODE:
@@ -217,7 +215,7 @@ static void __kprobes prepare_break_inst(uint template, uint  slot,
 					 struct kprobe *p)
 {
 	unsigned long break_inst = BREAK_INST;
-	bundle_t *bundle = &p->ainsn.insn.bundle;
+	bundle_t *bundle = &p->opcode.bundle;
 
 	/*
 	 * Copy the original kprobe_inst qualifying predicate(qp)
@@ -423,11 +421,9 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	unsigned long *kprobe_addr = (unsigned long *)(addr & ~0xFULL);
 	unsigned long kprobe_inst=0;
 	unsigned int slot = addr & 0xf, template, major_opcode = 0;
-	bundle_t *bundle = &p->ainsn.insn.bundle;
+	bundle_t *bundle;
 
-	memcpy(&p->opcode.bundle, kprobe_addr, sizeof(bundle_t));
-	memcpy(&p->ainsn.insn.bundle, kprobe_addr, sizeof(bundle_t));
-
+	bundle = &((kprobe_opcode_t *)kprobe_addr)->bundle;
  	template = bundle->quad0.template;
 
 	if(valid_kprobe_addr(template, slot, addr))
@@ -440,20 +436,19 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	/* Get kprobe_inst and major_opcode from the bundle */
 	get_kprobe_inst(bundle, slot, &kprobe_inst, &major_opcode);
 
-	if (unsupported_inst(template, slot, major_opcode, kprobe_inst, p))
+	if (unsupported_inst(template, slot, major_opcode, kprobe_inst, addr))
 			return -EINVAL;
+
+
+	p->ainsn.insn = get_insn_slot();
+	if (!p->ainsn.insn)
+		return -ENOMEM;
+	memcpy(&p->opcode, kprobe_addr, sizeof(kprobe_opcode_t));
+	memcpy(p->ainsn.insn, kprobe_addr, sizeof(kprobe_opcode_t));
 
 	prepare_break_inst(template, slot, major_opcode, kprobe_inst, p);
 
 	return 0;
-}
-
-void __kprobes flush_insn_slot(struct kprobe *p)
-{
-	unsigned long arm_addr;
-
-	arm_addr = ((unsigned long)&p->opcode.bundle) & ~0xFULL;
-	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -461,9 +456,10 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	unsigned long addr = (unsigned long)p->addr;
 	unsigned long arm_addr = addr & ~0xFULL;
 
-	flush_insn_slot(p);
-	memcpy((char *)arm_addr, &p->ainsn.insn.bundle, sizeof(bundle_t));
-	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
+	flush_icache_range((unsigned long)p->ainsn.insn,
+			(unsigned long)p->ainsn.insn + sizeof(kprobe_opcode_t));
+	memcpy((char *)arm_addr, &p->opcode, sizeof(kprobe_opcode_t));
+	flush_icache_range(arm_addr, arm_addr + sizeof(kprobe_opcode_t));
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
@@ -471,11 +467,18 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	unsigned long addr = (unsigned long)p->addr;
 	unsigned long arm_addr = addr & ~0xFULL;
 
-	/* p->opcode contains the original unaltered bundle */
-	memcpy((char *) arm_addr, (char *) &p->opcode.bundle, sizeof(bundle_t));
-	flush_icache_range(arm_addr, arm_addr + sizeof(bundle_t));
+	/* p->ainsn.insn contains the original unaltered kprobe_opcode_t */
+	memcpy((char *) arm_addr, (char *) p->ainsn.insn,
+					 sizeof(kprobe_opcode_t));
+	flush_icache_range(arm_addr, arm_addr + sizeof(kprobe_opcode_t));
 }
 
+void __kprobes arch_remove_kprobe(struct kprobe *p)
+{
+	mutex_lock(&kprobe_mutex);
+	free_insn_slot(p->ainsn.insn);
+	mutex_unlock(&kprobe_mutex);
+}
 /*
  * We are resuming execution after a single step fault, so the pt_regs
  * structure reflects the register state after we executed the instruction
@@ -486,12 +489,12 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
  */
 static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
-  	unsigned long bundle_addr = ((unsigned long) (&p->opcode.bundle)) & ~0xFULL;
+  	unsigned long bundle_addr = (unsigned long) (&p->ainsn.insn->bundle);
   	unsigned long resume_addr = (unsigned long)p->addr & ~0xFULL;
  	unsigned long template;
  	int slot = ((unsigned long)p->addr & 0xf);
 
-	template = p->opcode.bundle.quad0.template;
+	template = p->ainsn.insn->bundle.quad0.template;
 
  	if (slot == 1 && bundle_encoding[template][1] == L)
  		slot = 2;
@@ -553,7 +556,7 @@ turn_ss_off:
 
 static void __kprobes prepare_ss(struct kprobe *p, struct pt_regs *regs)
 {
-	unsigned long bundle_addr = (unsigned long) &p->opcode.bundle;
+	unsigned long bundle_addr = (unsigned long) &p->ainsn.insn->bundle;
 	unsigned long slot = (unsigned long)p->addr & 0xf;
 
 	/* single step inline if break instruction */
