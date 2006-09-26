@@ -45,15 +45,12 @@ static void __init copy_bootdata(char *real_mode_data)
 	new_data = *(int *) (x86_boot_params + NEW_CL_POINTER);
 	if (!new_data) {
 		if (OLD_CL_MAGIC != * (u16 *) OLD_CL_MAGIC_ADDR) {
-			printk("so old bootloader that it does not support commandline?!\n");
 			return;
 		}
 		new_data = OLD_CL_BASE_ADDR + * (u16 *) OLD_CL_OFFSET;
-		printk("old bootloader convention, maybe loadlin?\n");
 	}
 	command_line = (char *) ((u64)(new_data));
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
-	printk("Bootdata ok (command line is %s)\n", saved_command_line);	
 }
 
 void __init x86_64_start_kernel(char * real_mode_data)
@@ -65,10 +62,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	asm volatile("lidt %0" :: "m" (idt_descr));
 	clear_bss();
 
-	/*
-	 * This must be called really, really early:
-	 */
-	lockdep_init();
+	early_printk("Kernel alive\n");
 
 	/*
 	 * switch to init_level4_pgt from boot_level4_pgt

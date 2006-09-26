@@ -353,6 +353,8 @@ static void discover_ebda(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	printk(KERN_INFO "Command line: %s\n", saved_command_line);
+
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
  	screen_info = SCREEN_INFO;
 	edid_info = EDID_INFO;
