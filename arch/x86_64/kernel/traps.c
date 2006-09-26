@@ -570,7 +570,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	do_exit(SIGSEGV); 
 }
 
-void __kprobes die_nmi(char *str, struct pt_regs *regs)
+void __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
 {
 	unsigned long flags = oops_begin();
 
@@ -582,9 +582,8 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs)
 	show_registers(regs);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
-	if (panic_on_timeout || panic_on_oops)
-		panic("nmi watchdog");
-	printk("console shuts up ...\n");
+	if (do_panic || panic_on_oops)
+		panic("Non maskable interrupt");
 	oops_end(flags);
 	nmi_exit();
 	local_irq_enable();

@@ -695,7 +695,8 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 		 */
 		local_inc(&__get_cpu_var(alert_counter));
 		if (local_read(&__get_cpu_var(alert_counter)) == 5*nmi_hz)
-			die_nmi("NMI Watchdog detected LOCKUP on CPU %d\n", regs);
+			die_nmi("NMI Watchdog detected LOCKUP on CPU %d\n", regs,
+				panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
 		local_set(&__get_cpu_var(alert_counter), 0);
@@ -765,7 +766,7 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 	char buf[64];
 
 	sprintf(buf, "NMI received for unknown reason %02x\n", reason);
-	die_nmi(buf,regs);
+	die_nmi(buf, regs, 1);	/* Always panic here */
 	return 0;
 }
 

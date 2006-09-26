@@ -37,7 +37,7 @@ static inline void unset_nmi_pm_callback(struct pm_dev * dev)
 #endif /* CONFIG_PM */
  
 extern void default_do_nmi(struct pt_regs *);
-extern void die_nmi(char *str, struct pt_regs *regs);
+extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
 
 #define get_nmi_reason() inb(0x61)
 
