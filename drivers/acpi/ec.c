@@ -112,12 +112,6 @@ static struct acpi_ec *ec_ecdt;
 static struct acpi_device *first_ec;
 static int acpi_ec_mode = EC_INTR;
 
-static int acpi_ec_poll_transaction(struct acpi_ec *ec, u8 command,
-                                    const u8 *wdata, unsigned wdata_len,
-                                    u8 *rdata, unsigned rdata_len);
-static int acpi_ec_intr_transaction(struct acpi_ec *ec, u8 command,
-                                    const u8 *wdata, unsigned wdata_len,
-                                    u8 *rdata, unsigned rdata_len);
 static void acpi_ec_gpe_poll_query(void *ec_cxt);
 static void acpi_ec_gpe_intr_query(void *ec_cxt);
 static u32 acpi_ec_gpe_poll_handler(void *data);
@@ -257,32 +251,9 @@ int acpi_ec_leave_burst_mode(struct acpi_ec *ec)
 }
 #endif /* ACPI_FUTURE_USAGE */
 
-static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
-                               const u8 *wdata, unsigned wdata_len,
-                               u8 *rdata, unsigned rdata_len)
-{
-	if (acpi_ec_mode == EC_POLL)
-		return acpi_ec_poll_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
-	else
-		return acpi_ec_intr_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
-}
-static int acpi_ec_read(struct acpi_ec *ec, u8 address, u32 * data)
-{
-        int result;
-        u8 d;
-        result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_READ, &address, 1, &d, 1);
-        *data = d;
-        return result;
-}
-static int acpi_ec_write(struct acpi_ec *ec, u8 address, u8 data)
-{
-        u8 wdata[2] = { address, data };
-        return acpi_ec_transaction(ec, ACPI_EC_COMMAND_WRITE, wdata, 2, NULL, 0);
-}
-
 static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
-                                        const u8 *wdata, unsigned wdata_len,
-                                        u8 *rdata, unsigned rdata_len)
+					const u8 *wdata, unsigned wdata_len,
+					u8 *rdata, unsigned rdata_len)
 {
 	int result;
 
@@ -292,9 +263,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 		if (result)
 			return result;
-
 		acpi_ec_write_data(ec, *(wdata++));
-        }
+	}
 
 	if (command == ACPI_EC_COMMAND_WRITE) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
@@ -316,46 +286,9 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	return 0;
 }
 
-static int acpi_ec_poll_transaction(struct acpi_ec *ec, u8 command,
-                                    const u8 *wdata, unsigned wdata_len,
-                                    u8 *rdata, unsigned rdata_len)
-{
-	acpi_status status = AE_OK;
-	int result;
-	u32 glk = 0;
-
-	if (!ec || (wdata_len && !wdata) || (rdata_len && !rdata))
-		return -EINVAL;
-
-        if (rdata)
-                memset(rdata, 0, rdata_len);
-
-	if (ec->global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			return -ENODEV;
-        }
-
-	if (down_interruptible(&ec->sem)) {
-		result = -ERESTARTSYS;
-		goto end_nosem;
-	}
-
-        result = acpi_ec_transaction_unlocked(ec, command,
-                                              wdata, wdata_len,
-                                              rdata, rdata_len);
-	up(&ec->sem);
-
-end_nosem:
-	if (ec->global_lock)
-		acpi_release_global_lock(glk);
-
-	return result;
-}
-
-static int acpi_ec_intr_transaction(struct acpi_ec *ec, u8 command,
-                                    const u8 *wdata, unsigned wdata_len,
-                                    u8 *rdata, unsigned rdata_len)
+static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
+				const u8 *wdata, unsigned wdata_len,
+				u8 *rdata, unsigned rdata_len)
 {
 	int status;
 	u32 glk;
@@ -371,13 +304,11 @@ static int acpi_ec_intr_transaction(struct acpi_ec *ec, u8 command,
 		if (ACPI_FAILURE(status))
 			return -ENODEV;
 	}
-
-	WARN_ON(in_interrupt());
 	down(&ec->sem);
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0);
 	if (status) {
-		ACPI_EXCEPTION((AE_INFO, status, "read EC, IB not empty"));
+		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
 		goto end;
 	}
 
@@ -392,6 +323,23 @@ end:
 		acpi_release_global_lock(glk);
 
 	return status;
+}
+
+static int acpi_ec_read(struct acpi_ec *ec, u8 address, u32 * data)
+{
+	int result;
+	u8 d;
+
+	result = acpi_ec_transaction(ec, ACPI_EC_COMMAND_READ,
+				     &address, 1, &d, 1);
+	*data = d;
+	return result;
+}
+static int acpi_ec_write(struct acpi_ec *ec, u8 address, u8 data)
+{
+        u8 wdata[2] = { address, data };
+        return acpi_ec_transaction(ec, ACPI_EC_COMMAND_WRITE,
+				   wdata, 2, NULL, 0);
 }
 
 /*
@@ -447,13 +395,13 @@ extern int ec_transaction(u8 command,
 
 	ec = acpi_driver_data(first_ec);
 
-	return acpi_ec_transaction(ec, command, wdata, wdata_len, rdata, rdata_len);
+	return acpi_ec_transaction(ec, command, wdata,
+				   wdata_len, rdata, rdata_len);
 }
 
-EXPORT_SYMBOL(ec_transaction);
-
-static int acpi_ec_query(struct acpi_ec *ec, u32 * data) {
-        int result;
+static int acpi_ec_query(struct acpi_ec *ec, u32 * data)
+{
+	int result;
         u8 d;
 
         if (!ec || !data)
