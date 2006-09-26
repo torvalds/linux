@@ -2339,6 +2339,7 @@ static int __init apm_init(void)
 	ret = kernel_thread(apm, NULL, CLONE_KERNEL | SIGCHLD);
 	if (ret < 0) {
 		printk(KERN_ERR "apm: disabled - Unable to start kernel thread.\n");
+		remove_proc_entry("apm", NULL);
 		return -ENOMEM;
 	}
 
@@ -2348,7 +2349,13 @@ static int __init apm_init(void)
 		return 0;
 	}
 
-	misc_register(&apm_device);
+	/*
+	 * Note we don't actually care if the misc_device cannot be registered.
+	 * this driver can do its job without it, even if userspace can't
+	 * control it.  just log the error
+	 */
+	if (misc_register(&apm_device))
+		printk(KERN_WARNING "apm: Could not register misc device.\n");
 
 	if (HZ != 100)
 		idle_period = (idle_period * HZ) / 100;
