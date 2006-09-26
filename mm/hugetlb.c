@@ -177,7 +177,7 @@ static void update_and_free_page(struct page *page)
 {
 	int i;
 	nr_huge_pages--;
-	nr_huge_pages_node[page_zone(page)->zone_pgdat->node_id]--;
+	nr_huge_pages_node[page_to_nid(page)]--;
 	for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++) {
 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
@@ -191,7 +191,8 @@ static void update_and_free_page(struct page *page)
 #ifdef CONFIG_HIGHMEM
 static void try_to_free_low(unsigned long count)
 {
-	int i, nid;
+	int i;
+
 	for (i = 0; i < MAX_NUMNODES; ++i) {
 		struct page *page, *next;
 		list_for_each_entry_safe(page, next, &hugepage_freelists[i], lru) {
@@ -199,9 +200,8 @@ static void try_to_free_low(unsigned long count)
 				continue;
 			list_del(&page->lru);
 			update_and_free_page(page);
-			nid = page_zone(page)->zone_pgdat->node_id;
 			free_huge_pages--;
-			free_huge_pages_node[nid]--;
+			free_huge_pages_node[page_to_nid(page)]--;
 			if (count >= nr_huge_pages)
 				return;
 		}
