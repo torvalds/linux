@@ -216,14 +216,12 @@ SECTIONS
   __initramfs_start = .;
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) { *(.init.ramfs) }
   __initramfs_end = .;
-  /* temporary here to work around NR_CPUS. If you see this comment in 2.6.17+
-   complain */
-  . = ALIGN(4096);	
-  __init_end = .;	
-  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+    . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
   __per_cpu_start = .;
   .data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) { *(.data.percpu) }
   __per_cpu_end = .;
+  . = ALIGN(4096);
+  __init_end = .;
 
   . = ALIGN(4096);
   __nosave_begin = .;
