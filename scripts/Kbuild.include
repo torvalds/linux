@@ -66,8 +66,8 @@ as-option = $(shell if $(CC) $(CFLAGS) $(1) -Wa,-Z -c -o /dev/null \
 # as-instr
 # Usage: cflags-y += $(call as-instr, instr, option1, option2)
 
-as-instr = $(shell if echo -e "$(1)" | $(AS) -Z -o astest$$$$.out \
-		   2>&1 >/dev/null ; then echo "$(2)"; else echo "$(3)"; fi; \
+as-instr = $(shell if echo -e "$(1)" | $(AS) >/dev/null 2>&1 -W -Z -o astest$$$$.out ; \
+		   then echo "$(2)"; else echo "$(3)"; fi; \
 	           rm -f astest$$$$.out)
 
 # cc-option

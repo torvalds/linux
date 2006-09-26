@@ -28,6 +28,12 @@
 #define CFI_RESTORE_STATE .cfi_restore_state
 #define CFI_UNDEFINED .cfi_undefined
 
+#ifdef CONFIG_AS_CFI_SIGNAL_FRAME
+#define CFI_SIGNAL_FRAME .cfi_signal_frame
+#else
+#define CFI_SIGNAL_FRAME
+#endif
+
 #else
 
 /* Due to the structure of pre-exisiting code, don't use assembler line
@@ -48,6 +54,7 @@
 #define CFI_REMEMBER_STATE ignore
 #define CFI_RESTORE_STATE ignore
 #define CFI_UNDEFINED ignore
+#define CFI_SIGNAL_FRAME ignore
 
 #endif
 

@@ -18,6 +18,7 @@ struct unwind_frame_info
 {
 	struct pt_regs regs;
 	struct task_struct *task;
+	unsigned call_frame:1;
 };
 
 #define UNW_PC(frame)        (frame)->regs.rip
@@ -56,6 +57,10 @@ struct unwind_frame_info
 	PTREGS_INFO(r14), \
 	PTREGS_INFO(r15), \
 	PTREGS_INFO(rip)
+
+#define UNW_DEFAULT_RA(raItem, dataAlign) \
+	((raItem).where == Memory && \
+	 !((raItem).value * (dataAlign) + 8))
 
 static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs)

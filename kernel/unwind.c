@@ -603,6 +603,7 @@ int unwind(struct unwind_frame_info *frame)
 #define FRAME_REG(r, t) (((t *)frame)[reg_info[r].offs])
 	const u32 *fde = NULL, *cie = NULL;
 	const u8 *ptr = NULL, *end = NULL;
+	unsigned long pc = UNW_PC(frame) - frame->call_frame;
 	unsigned long startLoc = 0, endLoc = 0, cfa;
 	unsigned i;
 	signed ptrType = -1;
@@ -612,7 +613,7 @@ int unwind(struct unwind_frame_info *frame)
 
 	if (UNW_PC(frame) == 0)
 		return -EINVAL;
-	if ((table = find_table(UNW_PC(frame))) != NULL
+	if ((table = find_table(pc)) != NULL
 	    && !(table->size & (sizeof(*fde) - 1))) {
 		unsigned long tableSize = table->size;
 
@@ -647,7 +648,7 @@ int unwind(struct unwind_frame_info *frame)
 			                        ptrType & DW_EH_PE_indirect
 			                        ? ptrType
 			                        : ptrType & (DW_EH_PE_FORM|DW_EH_PE_signed));
-			if (UNW_PC(frame) >= startLoc && UNW_PC(frame) < endLoc)
+			if (pc >= startLoc && pc < endLoc)
 				break;
 			cie = NULL;
 		}
@@ -657,16 +658,28 @@ int unwind(struct unwind_frame_info *frame)
 		state.cieEnd = ptr; /* keep here temporarily */
 		ptr = (const u8 *)(cie + 2);
 		end = (const u8 *)(cie + 1) + *cie;
+		frame->call_frame = 1;
 		if ((state.version = *ptr) != 1)
 			cie = NULL; /* unsupported version */
 		else if (*++ptr) {
 			/* check if augmentation size is first (and thus present) */
 			if (*ptr == 'z') {
-				/* check for ignorable (or already handled)
-				 * nul-terminated augmentation string */
-				while (++ptr < end && *ptr)
-					if (strchr("LPR", *ptr) == NULL)
+				while (++ptr < end && *ptr) {
+					switch(*ptr) {
+					/* check for ignorable (or already handled)
+					 * nul-terminated augmentation string */
+					case 'L':
+					case 'P':
+					case 'R':
+						continue;
+					case 'S':
+						frame->call_frame = 0;
+						continue;
+					default:
 						break;
+					}
+					break;
+				}
 			}
 			if (ptr >= end || *ptr)
 				cie = NULL;
@@ -755,7 +768,7 @@ int unwind(struct unwind_frame_info *frame)
 	state.org = startLoc;
 	memcpy(&state.cfa, &badCFA, sizeof(state.cfa));
 	/* process instructions */
-	if (!processCFI(ptr, end, UNW_PC(frame), ptrType, &state)
+	if (!processCFI(ptr, end, pc, ptrType, &state)
 	   || state.loc > endLoc
 	   || state.regs[retAddrReg].where == Nowhere
 	   || state.cfa.reg >= ARRAY_SIZE(reg_info)
@@ -763,6 +776,11 @@ int unwind(struct unwind_frame_info *frame)
 	   || state.cfa.offs % sizeof(unsigned long))
 		return -EIO;
 	/* update frame */
+#ifndef CONFIG_AS_CFI_SIGNAL_FRAME
+	if(frame->call_frame
+	   && !UNW_DEFAULT_RA(state.regs[retAddrReg], state.dataAlign))
+		frame->call_frame = 0;
+#endif
 	cfa = FRAME_REG(state.cfa.reg, unsigned long) + state.cfa.offs;
 	startLoc = min((unsigned long)UNW_SP(frame), cfa);
 	endLoc = max((unsigned long)UNW_SP(frame), cfa);
@@ -866,6 +884,7 @@ int unwind_init_frame_info(struct unwind_frame_info *info,
                            /*const*/ struct pt_regs *regs)
 {
 	info->task = tsk;
+	info->call_frame = 0;
 	arch_unw_init_frame_info(info, regs);
 
 	return 0;
@@ -879,6 +898,7 @@ int unwind_init_blocked(struct unwind_frame_info *info,
                         struct task_struct *tsk)
 {
 	info->task = tsk;
+	info->call_frame = 0;
 	arch_unw_init_blocked(info);
 
 	return 0;
@@ -894,6 +914,7 @@ int unwind_init_running(struct unwind_frame_info *info,
                         void *arg)
 {
 	info->task = current;
+	info->call_frame = 0;
 
 	return arch_unwind_init_running(info, callback, arg);
 }

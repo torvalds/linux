@@ -71,6 +71,7 @@
  */ 	
 ENTRY(ia32_sysenter_target)
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
 	swapgs
@@ -186,6 +187,7 @@ ENDPROC(ia32_sysenter_target)
  */ 	
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
@@ -293,6 +295,7 @@ ia32_badarg:
 
 ENTRY(ia32_syscall)
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-RIP
 	/*CFI_REL_OFFSET	ss,SS-RIP*/
 	CFI_REL_OFFSET	rsp,RSP-RIP
@@ -370,6 +373,7 @@ ENTRY(ia32_ptregs_common)
 	popq %r11
 	CFI_ENDPROC
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
 	CFI_REL_OFFSET	rax,RAX-ARGOFFSET
 	CFI_REL_OFFSET	rcx,RCX-ARGOFFSET

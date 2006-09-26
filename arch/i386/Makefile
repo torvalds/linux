@@ -50,6 +50,10 @@ CFLAGS				+= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo $(call cc-op
 cflags-y += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
 
+# is .cfi_signal_frame supported too?
+cflags-y += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_endproc,-DCONFIG_AS_CFI=1,)
+
 CFLAGS += $(cflags-y)
 
 # Default subarch .c files

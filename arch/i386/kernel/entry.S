@@ -183,18 +183,21 @@ VM_MASK		= 0x00020000
 
 #define RING0_INT_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, 3*4;\
 	/*CFI_OFFSET cs, -2*4;*/\
 	CFI_OFFSET eip, -3*4
 
 #define RING0_EC_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, 4*4;\
 	/*CFI_OFFSET cs, -2*4;*/\
 	CFI_OFFSET eip, -3*4
 
 #define RING0_PTREGS_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, OLDESP-EBX;\
 	/*CFI_OFFSET cs, CS-OLDESP;*/\
 	CFI_OFFSET eip, EIP-OLDESP;\
@@ -275,6 +278,7 @@ need_resched:
 	# sysenter call handler stub
 ENTRY(sysenter_entry)
 	CFI_STARTPROC simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA esp, 0
 	CFI_REGISTER esp, ebp
 	movl TSS_sysenter_esp0(%esp),%esp

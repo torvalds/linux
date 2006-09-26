@@ -123,6 +123,7 @@
 	.macro	CFI_DEFAULT_STACK start=1
 	.if \start
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8
 	.else
 	CFI_DEF_CFA_OFFSET SS+8
@@ -207,6 +208,7 @@ END(ret_from_fork)
 
 ENTRY(system_call)
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
@@ -324,6 +326,7 @@ END(system_call)
  */ 	
 ENTRY(int_ret_from_sys_call)
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
 	/*CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
 	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
@@ -484,6 +487,7 @@ END(stub_rt_sigreturn)
  */
 	.macro _frame ref
 	CFI_STARTPROC simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA rsp,SS+8-\ref
 	/*CFI_REL_OFFSET ss,SS-\ref*/
 	CFI_REL_OFFSET rsp,RSP-\ref
