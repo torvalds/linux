@@ -270,16 +270,19 @@ void notify_arch_cmos_timer(void)
 	mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
-static long clock_cmos_diff, sleep_start;
+static long clock_cmos_diff;
+static unsigned long sleep_start;
 
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
 	 * Estimate time zone so that set_time can update the clock
 	 */
-	clock_cmos_diff = -get_cmos_time();
+	unsigned long ctime =  get_cmos_time();
+
+	clock_cmos_diff = -ctime;
 	clock_cmos_diff += get_seconds();
-	sleep_start = get_cmos_time();
+	sleep_start = ctime;
 	return 0;
 }
 
@@ -287,16 +290,25 @@ static int timer_resume(struct sys_device *dev)
 {
 	unsigned long flags;
 	unsigned long sec;
-	unsigned long sleep_length;
+	unsigned long ctime = get_cmos_time();
+	long sleep_length = (ctime - sleep_start) * HZ;
 	struct timespec ts;
+
+	if (sleep_length < 0) {
+		printk(KERN_WARNING "CMOS clock skew detected in timer resume!\n");
+		/* The time after the resume must not be earlier than the time
+		 * before the suspend or some nasty things will happen
+		 */
+		sleep_length = 0;
+		ctime = sleep_start;
+	}
 #ifdef CONFIG_HPET_TIMER
 	if (is_hpet_enabled())
 		hpet_reenable();
 #endif
 	setup_pit_timer();
-	sec = get_cmos_time() + clock_cmos_diff;
-	sleep_length = (get_cmos_time() - sleep_start) * HZ;
 
+	sec = ctime + clock_cmos_diff;
 	ts.tv_sec = sec;
 	ts.tv_nsec = 0;
 	do_settimeofday(&ts);
