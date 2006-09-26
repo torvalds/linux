@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 
-int __initdata acpi_force = 0;
+static int __initdata acpi_force = 0;
 
 #ifdef	CONFIG_ACPI
 int acpi_disabled = 0;
