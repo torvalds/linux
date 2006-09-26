@@ -1444,14 +1444,14 @@ static int __meminit find_next_best_node(int node, nodemask_t *used_node_mask)
 
 static void __meminit build_zonelists(pg_data_t *pgdat)
 {
-	int i, j, node, local_node;
+	int j, node, local_node;
+	enum zone_type i;
 	int prev_node, load;
 	struct zonelist *zonelist;
 	nodemask_t used_mask;
-	enum zone_type k;
 
 	/* initialize zonelists */
-	for (i = 0; i < GFP_ZONETYPES; i++) {
+	for (i = 0; i < MAX_NR_ZONES; i++) {
 		zonelist = pgdat->node_zonelists + i;
 		zonelist->zones[0] = NULL;
 	}
@@ -1481,13 +1481,11 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 			node_load[node] += load;
 		prev_node = node;
 		load--;
-		for (i = 0; i < GFP_ZONETYPES; i++) {
+		for (i = 0; i < MAX_NR_ZONES; i++) {
 			zonelist = pgdat->node_zonelists + i;
 			for (j = 0; zonelist->zones[j] != NULL; j++);
 
-			k = highest_zone(i);
-
-	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+	 		j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
 			zonelist->zones[j] = NULL;
 		}
 	}
@@ -1497,19 +1495,16 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 
 static void __meminit build_zonelists(pg_data_t *pgdat)
 {
-	int i, node, local_node;
-	enum zone_type k;
-	enum zone_type j;
+	int node, local_node;
+	enum zone_type i,j;
 
 	local_node = pgdat->node_id;
-	for (i = 0; i < GFP_ZONETYPES; i++) {
+	for (i = 0; i < MAX_NR_ZONES; i++) {
 		struct zonelist *zonelist;
 
 		zonelist = pgdat->node_zonelists + i;
 
-		j = 0;
-		k = highest_zone(i);
- 		j = build_zonelists_node(pgdat, zonelist, j, k);
+ 		j = build_zonelists_node(pgdat, zonelist, 0, i);
  		/*
  		 * Now we build the zonelist so that it contains the zones
  		 * of all the other nodes.
@@ -1521,12 +1516,12 @@ static void __meminit build_zonelists(pg_data_t *pgdat)
 		for (node = local_node + 1; node < MAX_NUMNODES; node++) {
 			if (!node_online(node))
 				continue;
-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
 		}
 		for (node = 0; node < local_node; node++) {
 			if (!node_online(node))
 				continue;
-			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
+			j = build_zonelists_node(NODE_DATA(node), zonelist, j, i);
 		}
 
 		zonelist->zones[j] = NULL;

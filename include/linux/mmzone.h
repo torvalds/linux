@@ -137,60 +137,18 @@ enum zone_type {
 	MAX_NR_ZONES
 };
 
-
 /*
  * When a memory allocation must conform to specific limitations (such
  * as being suitable for DMA) the caller will pass in hints to the
  * allocator in the gfp_mask, in the zone modifier bits.  These bits
  * are used to select a priority ordered list of memory zones which
- * match the requested limits.  GFP_ZONEMASK defines which bits within
- * the gfp_mask should be considered as zone modifiers.  Each valid
- * combination of the zone modifier bits has a corresponding list
- * of zones (in node_zonelists).  Thus for two zone modifiers there
- * will be a maximum of 4 (2 ** 2) zonelists, for 3 modifiers there will
- * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
- * combinations of zone modifiers in "zone modifier space".
- *
- * As an optimisation any zone modifier bits which are only valid when
- * no other zone modifier bits are set (loners) should be placed in
- * the highest order bits of this field.  This allows us to reduce the
- * extent of the zonelists thus saving space.  For example in the case
- * of three zone modifier bits, we could require up to eight zonelists.
- * If the left most zone modifier is a "loner" then the highest valid
- * zonelist would be four allowing us to allocate only five zonelists.
- * Use the first form for GFP_ZONETYPES when the left most bit is not
- * a "loner", otherwise use the second.
- *
- * NOTE! Make sure this matches the zones in <linux/gfp.h>
+ * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-#ifdef CONFIG_ZONE_DMA32
-
-#ifdef CONFIG_HIGHMEM
-#define GFP_ZONETYPES		((GFP_ZONEMASK + 1) / 2 + 1)    /* Loner */
-#define GFP_ZONEMASK		0x07
-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
+#if !defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_HIGHMEM)
+#define ZONES_SHIFT 1
 #else
-#define GFP_ZONETYPES		((0x07 + 1) / 2 + 1)    /* Loner */
-/* Mask __GFP_HIGHMEM */
-#define GFP_ZONEMASK		0x05
-#define ZONES_SHIFT		2
-#endif
-
-#else
-#ifdef CONFIG_HIGHMEM
-
-#define GFP_ZONEMASK		0x03
-#define ZONES_SHIFT		2
-#define GFP_ZONETYPES		3
-
-#else
-
-#define GFP_ZONEMASK		0x01
-#define ZONES_SHIFT		1
-#define GFP_ZONETYPES		2
-
-#endif
+#define ZONES_SHIFT 2
 #endif
 
 struct zone {
@@ -360,7 +318,7 @@ struct zonelist {
 struct bootmem_data;
 typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
-	struct zonelist node_zonelists[GFP_ZONETYPES];
+	struct zonelist node_zonelists[MAX_NR_ZONES];
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
 	struct page *node_mem_map;

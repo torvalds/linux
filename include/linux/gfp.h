@@ -12,9 +12,6 @@ struct vm_area_struct;
  *
  * Zone modifiers (see linux/mmzone.h - low three bits)
  *
- * These may be masked by GFP_ZONEMASK to make allocations with this bit
- * set fall back to ZONE_NORMAL.
- *
  * Do not put any conditional on these. If necessary modify the definitions
  * without the underscores and use the consistently. The definitions here may
  * be used in bit comparisons.
@@ -78,14 +75,7 @@ struct vm_area_struct;
 #define GFP_DMA32	__GFP_DMA32
 
 
-static inline int gfp_zone(gfp_t gfp)
-{
-	int zone = GFP_ZONEMASK & (__force int) gfp;
-	BUG_ON(zone >= GFP_ZONETYPES);
-	return zone;
-}
-
-static inline enum zone_type highest_zone(gfp_t flags)
+static inline enum zone_type gfp_zone(gfp_t flags)
 {
 	if (flags & __GFP_DMA)
 		return ZONE_DMA;
