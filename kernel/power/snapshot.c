@@ -167,6 +167,11 @@ static inline int restore_highmem(void) {return 0;}
  *	and we count them using unsafe_pages
  */
 
+#define PG_ANY		0
+#define PG_SAFE		1
+#define PG_UNSAFE_CLEAR	1
+#define PG_UNSAFE_KEEP	0
+
 static unsigned int unsafe_pages;
 
 static void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
@@ -190,7 +195,7 @@ static void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
 
 unsigned long get_safe_page(gfp_t gfp_mask)
 {
-	return (unsigned long)alloc_image_page(gfp_mask, 1);
+	return (unsigned long)alloc_image_page(gfp_mask, PG_SAFE);
 }
 
 /**
@@ -381,7 +386,7 @@ static struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask,
 	pbe = pblist;
 	for (num = PBES_PER_PAGE; num < nr_pages; num += PBES_PER_PAGE) {
 		if (!pbe) {
-			free_pagedir(pblist, 1);
+			free_pagedir(pblist, PG_UNSAFE_CLEAR);
 			return NULL;
 		}
 		pbe += PB_PAGE_SKIP;
@@ -458,12 +463,13 @@ static struct pbe *swsusp_alloc(unsigned int nr_pages)
 {
 	struct pbe *pblist;
 
-	if (!(pblist = alloc_pagedir(nr_pages, GFP_ATOMIC | __GFP_COLD, 0))) {
+	pblist = alloc_pagedir(nr_pages, GFP_ATOMIC | __GFP_COLD, PG_ANY);
+	if (!pblist) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
 		return NULL;
 	}
 
-	if (alloc_data_pages(pblist, GFP_ATOMIC | __GFP_COLD, 0)) {
+	if (alloc_data_pages(pblist, GFP_ATOMIC | __GFP_COLD, PG_ANY)) {
 		printk(KERN_ERR "suspend: Allocating image pages failed.\n");
 		swsusp_free();
 		return NULL;
@@ -575,7 +581,7 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		return 0;
 	if (!buffer) {
 		/* This makes the buffer be freed by swsusp_free() */
-		buffer = alloc_image_page(GFP_ATOMIC, 0);
+		buffer = alloc_image_page(GFP_ATOMIC, PG_ANY);
 		if (!buffer)
 			return -ENOMEM;
 	}
@@ -688,7 +694,7 @@ static int load_header(struct snapshot_handle *handle,
 
 	error = check_header(info);
 	if (!error) {
-		pblist = alloc_pagedir(info->image_pages, GFP_ATOMIC, 0);
+		pblist = alloc_pagedir(info->image_pages, GFP_ATOMIC, PG_ANY);
 		if (!pblist)
 			return -ENOMEM;
 		restore_pblist = pblist;
@@ -746,10 +752,10 @@ static int prepare_image(struct snapshot_handle *handle)
 	p = restore_pblist;
 	error = mark_unsafe_pages(p);
 	if (!error) {
-		pblist = alloc_pagedir(nr_pages, GFP_ATOMIC, 1);
+		pblist = alloc_pagedir(nr_pages, GFP_ATOMIC, PG_SAFE);
 		if (pblist)
 			copy_page_backup_list(pblist, p);
-		free_pagedir(p, 0);
+		free_pagedir(p, PG_UNSAFE_KEEP);
 		if (!pblist)
 			error = -ENOMEM;
 	}
@@ -840,7 +846,7 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 		return 0;
 	if (!buffer) {
 		/* This makes the buffer be freed by swsusp_free() */
-		buffer = alloc_image_page(GFP_ATOMIC, 0);
+		buffer = alloc_image_page(GFP_ATOMIC, PG_ANY);
 		if (!buffer)
 			return -ENOMEM;
 	}
