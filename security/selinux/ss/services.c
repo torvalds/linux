@@ -2578,7 +2578,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 	sock = SOCKET_I(inode);
 	isec = inode->i_security;
 	sksec = sock->sk->sk_security;
-	down(&isec->sem);
+	mutex_lock(&isec->lock);
 	if (unlikely(sksec->nlbl_state == NLBL_REQUIRE &&
 		     (mask & (MAY_WRITE | MAY_APPEND)))) {
 		lock_sock(sock->sk);
@@ -2586,7 +2586,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
 		release_sock(sock->sk);
 	} else
 		rc = 0;
-	up(&isec->sem);
+	mutex_unlock(&isec->lock);
 
 	return rc;
 }
