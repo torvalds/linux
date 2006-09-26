@@ -819,7 +819,7 @@ paranoid_schedule\trace:
  * Exception entry point. This expects an error code/orig_rax on the stack
  * and the exception handler in %rax.	
  */ 		  				
-ENTRY(error_entry)
+KPROBE_ENTRY(error_entry)
 	_frame RDI
 	/* rdi slot contains rax, oldrax contains error code */
 	cld	
@@ -903,7 +903,7 @@ error_kernelspace:
 	cmpq $gs_change,RIP(%rsp)
         je   error_swapgs
 	jmp  error_sti
-END(error_entry)
+KPROBE_END(error_entry)
 	
        /* Reload gs selector with exception handling */
        /* edi:  new selector */ 
@@ -1025,8 +1025,7 @@ ENDPROC(execve)
 
 KPROBE_ENTRY(page_fault)
 	errorentry do_page_fault
-END(page_fault)
-	.previous .text
+KPROBE_END(page_fault)
 
 ENTRY(coprocessor_error)
 	zeroentry do_coprocessor_error
@@ -1047,8 +1046,7 @@ KPROBE_ENTRY(debug)
 	CFI_ADJUST_CFA_OFFSET 8		
 	paranoidentry do_debug, DEBUG_STACK
 	paranoidexit
-END(debug)
-	.previous .text
+KPROBE_END(debug)
 
 	/* runs on exception stack */	
 KPROBE_ENTRY(nmi)
@@ -1062,8 +1060,7 @@ KPROBE_ENTRY(nmi)
 	jmp paranoid_exit1
  	CFI_ENDPROC
 #endif
-END(nmi)
-	.previous .text
+KPROBE_END(nmi)
 
 KPROBE_ENTRY(int3)
  	INTR_FRAME
@@ -1072,8 +1069,7 @@ KPROBE_ENTRY(int3)
  	paranoidentry do_int3, DEBUG_STACK
  	jmp paranoid_exit1
  	CFI_ENDPROC
-END(int3)
-	.previous .text
+KPROBE_END(int3)
 
 ENTRY(overflow)
 	zeroentry do_overflow
@@ -1121,8 +1117,7 @@ END(stack_segment)
 
 KPROBE_ENTRY(general_protection)
 	errorentry do_general_protection
-END(general_protection)
-	.previous .text
+KPROBE_END(general_protection)
 
 ENTRY(alignment_check)
 	errorentry do_alignment_check

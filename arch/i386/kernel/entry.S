@@ -591,11 +591,9 @@ ENTRY(name)				\
 /* The include is where all of the SMP etc. interrupts come from */
 #include "entry_arch.h"
 
-ENTRY(divide_error)
-	RING0_INT_FRAME
-	pushl $0			# no error code
-	CFI_ADJUST_CFA_OFFSET 4
-	pushl $do_divide_error
+KPROBE_ENTRY(page_fault)
+	RING0_EC_FRAME
+	pushl $do_page_fault
 	CFI_ADJUST_CFA_OFFSET 4
 	ALIGN
 error_code:
@@ -645,6 +643,7 @@ error_code:
 	call *%edi
 	jmp ret_from_exception
 	CFI_ENDPROC
+KPROBE_END(page_fault)
 
 ENTRY(coprocessor_error)
 	RING0_INT_FRAME
@@ -720,7 +719,8 @@ debug_stack_correct:
 	call do_debug
 	jmp ret_from_exception
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(debug)
+
 /*
  * NMI is doubly nasty. It can happen _while_ we're handling
  * a debug fault, and the debug fault hasn't yet been able to
@@ -816,7 +816,7 @@ KPROBE_ENTRY(int3)
 	call do_int3
 	jmp ret_from_exception
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(int3)
 
 ENTRY(overflow)
 	RING0_INT_FRAME
@@ -881,7 +881,7 @@ KPROBE_ENTRY(general_protection)
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(general_protection)
 
 ENTRY(alignment_check)
 	RING0_EC_FRAME
@@ -890,13 +890,14 @@ ENTRY(alignment_check)
 	jmp error_code
 	CFI_ENDPROC
 
-KPROBE_ENTRY(page_fault)
-	RING0_EC_FRAME
-	pushl $do_page_fault
+ENTRY(divide_error)
+	RING0_INT_FRAME
+	pushl $0			# no error code
+	CFI_ADJUST_CFA_OFFSET 4
+	pushl $do_divide_error
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
-	.previous .text
 
 #ifdef CONFIG_X86_MCE
 ENTRY(machine_check)
