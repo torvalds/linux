@@ -146,6 +146,26 @@ static void release_swap_writer(struct swap_map_handle *handle)
 	handle->bitmap = NULL;
 }
 
+static void show_speed(struct timeval *start, struct timeval *stop,
+			unsigned nr_pages, char *msg)
+{
+	s64 elapsed_centisecs64;
+	int centisecs;
+	int k;
+	int kps;
+
+	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
+	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
+	centisecs = elapsed_centisecs64;
+	if (centisecs == 0)
+		centisecs = 1;	/* avoid div-by-zero */
+	k = nr_pages * (PAGE_SIZE / 1024);
+	kps = (k * 100) / centisecs;
+	printk("%s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n", msg, k,
+			centisecs / 100, centisecs % 100,
+			kps / 1000, (kps % 1000) / 10);
+}
+
 static int get_swap_writer(struct swap_map_handle *handle)
 {
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_KERNEL);
@@ -206,17 +226,21 @@ static int flush_swap_writer(struct swap_map_handle *handle)
 
 static int save_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
-                      unsigned int nr_pages)
+                      unsigned int nr_to_write)
 {
 	unsigned int m;
 	int ret;
 	int error = 0;
+	int nr_pages;
+	struct timeval start;
+	struct timeval stop;
 
-	printk("Saving image data pages (%u pages) ...     ", nr_pages);
-	m = nr_pages / 100;
+	printk("Saving image data pages (%u pages) ...     ", nr_to_write);
+	m = nr_to_write / 100;
 	if (!m)
 		m = 1;
 	nr_pages = 0;
+	do_gettimeofday(&start);
 	do {
 		ret = snapshot_read_next(snapshot, PAGE_SIZE);
 		if (ret > 0) {
@@ -228,8 +252,10 @@ static int save_image(struct swap_map_handle *handle,
 			nr_pages++;
 		}
 	} while (ret > 0);
+	do_gettimeofday(&stop);
 	if (!error)
 		printk("\b\b\b\bdone\n");
+	show_speed(&start, &stop, nr_to_write, "Wrote");
 	return error;
 }
 
