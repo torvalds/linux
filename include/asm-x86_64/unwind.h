@@ -99,8 +99,8 @@ static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 
 #else
 
-#define UNW_PC(frame) ((void)(frame), 0)
-#define UNW_SP(frame) ((void)(frame), 0)
+#define UNW_PC(frame) ((void)(frame), 0UL)
+#define UNW_SP(frame) ((void)(frame), 0UL)
 
 static inline int arch_unw_user_mode(const void *info)
 {
