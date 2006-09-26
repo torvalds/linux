@@ -182,7 +182,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		goto out2;
 
 	memset(&m, 0, sizeof(struct mce));
-	m.cpu = safe_smp_processor_id();
+	m.cpu = smp_processor_id();
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
 		kill_it = 1;

@@ -264,7 +264,7 @@ static int dump_trace_unwind(struct unwind_frame_info *info, void *context)
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long * stack,
 		struct stacktrace_ops *ops, void *data)
 {
-	const unsigned cpu = safe_smp_processor_id();
+	const unsigned cpu = smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
 	unsigned used = 0;
 
@@ -429,7 +429,7 @@ _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *rsp)
 {
 	unsigned long *stack;
 	int i;
-	const int cpu = safe_smp_processor_id();
+	const int cpu = smp_processor_id();
 	unsigned long *irqstack_end = (unsigned long *) (cpu_pda(cpu)->irqstackptr);
 	unsigned long *irqstack = (unsigned long *) (cpu_pda(cpu)->irqstackptr - IRQSTACKSIZE);
 
@@ -483,7 +483,7 @@ void show_registers(struct pt_regs *regs)
 	int i;
 	int in_kernel = !user_mode(regs);
 	unsigned long rsp;
-	const int cpu = safe_smp_processor_id(); 
+	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
 		rsp = regs->rsp;
@@ -558,7 +558,7 @@ static unsigned int die_nest_count;
 
 unsigned __kprobes long oops_begin(void)
 {
-	int cpu = safe_smp_processor_id();
+	int cpu = smp_processor_id();
 	unsigned long flags;
 
 	oops_enter();
@@ -636,7 +636,7 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
 	 * We are in trouble anyway, lets at least try
 	 * to get a message out.
 	 */
-	printk(str, safe_smp_processor_id());
+	printk(str, smp_processor_id());
 	show_registers(regs);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);

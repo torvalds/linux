@@ -66,7 +66,6 @@ static inline int hard_smp_processor_id(void)
 	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
 }
 
-extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
@@ -100,7 +99,6 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 
 #ifndef CONFIG_SMP
 #define stack_smp_processor_id() 0
-#define safe_smp_processor_id() 0
 #define cpu_logical_map(x) (x)
 #else
 #include <asm/thread_info.h>
