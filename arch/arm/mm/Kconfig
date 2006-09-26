@@ -184,6 +184,22 @@ config CPU_ARM926T
 	  Say Y if you want support for the ARM926T processor.
 	  Otherwise, say N.
 
+# ARM940T
+config CPU_ARM940T
+	bool "Support ARM940T processor" if ARCH_INTEGRATOR
+	select CPU_32v4T
+	select CPU_ABRT_EV4T
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MPU
+	help
+	  ARM940T is a member of the ARM9TDMI family of general-
+	  purpose microprocessors with MPU and seperate 4KB
+	  instruction and 4KB data cases, each with a 4-word line
+	  length.
+
+	  Say Y if you want support for the ARM940T processor.
+	  Otherwise, say N.
+
 # ARM1020 - needs validating
 config CPU_ARM1020
 	bool "Support ARM1020T (rev 0) processor"
@@ -464,7 +480,7 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -501,7 +517,7 @@ config CPU_DCACHE_DISABLE
 
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
-	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
+	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM1020 || CPU_V6) && !CPU_DCACHE_DISABLE
 	default y if CPU_ARM925T
 	help
 	  Say Y here to use the data cache in writethrough mode. Unless you
