@@ -786,6 +786,7 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 
 static int __init calgary_init_one_nontraslated(struct pci_dev *dev)
 {
+	pci_dev_get(dev);
 	dev->sysdata = NULL;
 	dev->bus->self = dev;
 
@@ -810,6 +811,7 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	if (ret)
 		goto iounmap;
 
+	pci_dev_get(dev);
 	dev->bus->self = dev;
 	calgary_enable_translation(dev);
 
@@ -836,10 +838,9 @@ static int __init calgary_init(void)
 			calgary_init_one_nontraslated(dev);
 			continue;
 		}
-		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots) {
-			pci_dev_put(dev);
+		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots)
 			continue;
-		}
+
 		ret = calgary_init_one(dev);
 		if (ret)
 			goto error;
@@ -860,9 +861,10 @@ error:
 		}
 		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots)
 			continue;
+
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
-		pci_dev_put(dev);
+		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
 	}
 
 	return ret;
