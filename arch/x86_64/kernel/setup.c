@@ -672,7 +672,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __init init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	unsigned level;
 
