@@ -288,7 +288,7 @@ static int timer_resume(struct sys_device *dev)
 	unsigned long flags;
 	unsigned long sec;
 	unsigned long sleep_length;
-
+	struct timespec ts;
 #ifdef CONFIG_HPET_TIMER
 	if (is_hpet_enabled())
 		hpet_reenable();
@@ -296,9 +296,11 @@ static int timer_resume(struct sys_device *dev)
 	setup_pit_timer();
 	sec = get_cmos_time() + clock_cmos_diff;
 	sleep_length = (get_cmos_time() - sleep_start) * HZ;
+
+	ts.tv_sec = sec;
+	ts.tv_nsec = 0;
+	do_settimeofday(&ts);
 	write_seqlock_irqsave(&xtime_lock, flags);
-	xtime.tv_sec = sec;
-	xtime.tv_nsec = 0;
 	jiffies_64 += sleep_length;
 	wall_jiffies += sleep_length;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
@@ -334,10 +336,11 @@ extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	struct timespec ts;
+	ts.tv_sec = get_cmos_time();
+	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+
+	do_settimeofday(&ts);
 
 	if ((hpet_enable() >= 0) && hpet_use_timer) {
 		printk("Using HPET for base-timer\n");
@@ -349,6 +352,7 @@ static void __init hpet_time_init(void)
 
 void __init time_init(void)
 {
+	struct timespec ts;
 #ifdef CONFIG_HPET_TIMER
 	if (is_hpet_capable()) {
 		/*
@@ -359,10 +363,10 @@ void __init time_init(void)
 		return;
 	}
 #endif
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	ts.tv_sec = get_cmos_time();
+	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+
+	do_settimeofday(&ts);
 
 	time_init_hook();
 }
