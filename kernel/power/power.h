@@ -109,9 +109,10 @@ struct snapshot_handle {
  */
 #define data_of(handle)	((handle).buffer + (handle).buf_offset)
 
+extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
-int snapshot_image_loaded(struct snapshot_handle *handle);
+extern int snapshot_image_loaded(struct snapshot_handle *handle);
 
 #define SNAPSHOT_IOC_MAGIC	'3'
 #define SNAPSHOT_FREEZE			_IO(SNAPSHOT_IOC_MAGIC, 1)
