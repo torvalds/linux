@@ -674,6 +674,8 @@ static struct kmem_cache cache_cache = {
 #endif
 };
 
+#define BAD_ALIEN_MAGIC 0x01020304ul
+
 #ifdef CONFIG_LOCKDEP
 
 /*
@@ -682,28 +684,52 @@ static struct kmem_cache cache_cache = {
  * The locking for this is tricky in that it nests within the locks
  * of all other slabs in a few places; to deal with this special
  * locking we put on-slab caches into a separate lock-class.
+ *
+ * We set lock class for alien array caches which are up during init.
+ * The lock annotation will be lost if all cpus of a node goes down and
+ * then comes back up during hotplug
  */
-static struct lock_class_key on_slab_key;
+static struct lock_class_key on_slab_l3_key;
+static struct lock_class_key on_slab_alc_key;
 
-static inline void init_lock_keys(struct cache_sizes *s)
+static inline void init_lock_keys(void)
+
 {
 	int q;
+	struct cache_sizes *s = malloc_sizes;
 
-	for (q = 0; q < MAX_NUMNODES; q++) {
-		if (!s->cs_cachep->nodelists[q] || OFF_SLAB(s->cs_cachep))
-			continue;
-		lockdep_set_class(&s->cs_cachep->nodelists[q]->list_lock,
-				  &on_slab_key);
+	while (s->cs_size != ULONG_MAX) {
+		for_each_node(q) {
+			struct array_cache **alc;
+			int r;
+			struct kmem_list3 *l3 = s->cs_cachep->nodelists[q];
+			if (!l3 || OFF_SLAB(s->cs_cachep))
+				continue;
+			lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
+			alc = l3->alien;
+			/*
+			 * FIXME: This check for BAD_ALIEN_MAGIC
+			 * should go away when common slab code is taught to
+			 * work even without alien caches.
+			 * Currently, non NUMA code returns BAD_ALIEN_MAGIC
+			 * for alloc_alien_cache,
+			 */
+			if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
+				continue;
+			for_each_node(r) {
+				if (alc[r])
+					lockdep_set_class(&alc[r]->lock,
+					     &on_slab_alc_key);
+			}
+		}
+		s++;
 	}
 }
-
 #else
-static inline void init_lock_keys(struct cache_sizes *s)
+static inline void init_lock_keys(void)
 {
 }
 #endif
-
-
 
 /* Guard access to the cache-chain. */
 static DEFINE_MUTEX(cache_chain_mutex);
@@ -1091,7 +1117,7 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 
 static inline struct array_cache **alloc_alien_cache(int node, int limit)
 {
-	return (struct array_cache **) 0x01020304ul;
+	return (struct array_cache **)BAD_ALIEN_MAGIC;
 }
 
 static inline void free_alien_cache(struct array_cache **ac_ptr)
@@ -1421,7 +1447,6 @@ void __init kmem_cache_init(void)
 					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
 					NULL, NULL);
 		}
-		init_lock_keys(sizes);
 
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
 					sizes->cs_size,
@@ -1494,6 +1519,10 @@ void __init kmem_cache_init(void)
 				BUG();
 		mutex_unlock(&cache_chain_mutex);
 	}
+
+	/* Annotate slab for lockdep -- annotate the malloc caches */
+	init_lock_keys();
+
 
 	/* Done! */
 	g_cpucache_up = FULL;
