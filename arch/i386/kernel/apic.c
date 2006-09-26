@@ -1372,3 +1372,18 @@ int __init APIC_init_uniprocessor (void)
 
 	return 0;
 }
+
+static int __init parse_lapic(char *arg)
+{
+	lapic_enable();
+	return 0;
+}
+early_param("lapic", parse_lapic);
+
+static int __init parse_nolapic(char *arg)
+{
+	lapic_disable();
+	return 0;
+}
+early_param("nolapic", parse_nolapic);
+

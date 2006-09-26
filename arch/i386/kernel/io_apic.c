@@ -66,7 +66,7 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
-int disable_timer_pin_1 __initdata;
+static int disable_timer_pin_1 __initdata;
 
 /*
  * Rough estimation of how many shared IRQs there are, can
@@ -2691,3 +2691,25 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 }
 
 #endif /* CONFIG_ACPI */
+
+static int __init parse_disable_timer_pin_1(char *arg)
+{
+	disable_timer_pin_1 = 1;
+	return 0;
+}
+early_param("disable_timer_pin_1", parse_disable_timer_pin_1);
+
+static int __init parse_enable_timer_pin_1(char *arg)
+{
+	disable_timer_pin_1 = -1;
+	return 0;
+}
+early_param("enable_timer_pin_1", parse_enable_timer_pin_1);
+
+static int __init parse_noapic(char *arg)
+{
+	/* disable IO-APIC */
+	disable_ioapic_setup();
+	return 0;
+}
+early_param("noapic", parse_noapic);

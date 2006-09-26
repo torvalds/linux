@@ -391,8 +391,6 @@ extern pte_t *lookup_address(unsigned long address);
  static inline int set_kernel_exec(unsigned long vaddr, int enable) { return 0;}
 #endif
 
-extern void noexec_setup(const char *str);
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
 	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))

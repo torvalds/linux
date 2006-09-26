@@ -42,6 +42,8 @@ static inline void lapic_enable(void)
 	} while (0)
 
 
+extern void generic_apic_probe(void);
+
 #ifdef CONFIG_X86_LOCAL_APIC
 
 /*
@@ -116,8 +118,6 @@ extern void disable_APIC_timer(void);
 extern void enable_APIC_timer(void);
 
 extern void enable_NMI_through_LVT0 (void * dummy);
-
-extern int disable_timer_pin_1;
 
 void smp_send_timer_broadcast_ipi(struct pt_regs *regs);
 void switch_APIC_timer_to_ipi(void *cpumask);

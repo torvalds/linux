@@ -36,6 +36,8 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 
+int __initdata acpi_force = 0;
+
 #ifdef	CONFIG_X86_64
 
 extern void __init clustered_apic_check(void);
@@ -860,8 +862,6 @@ static void __init acpi_process_madt(void)
 	return;
 }
 
-extern int acpi_force;
-
 #ifdef __i386__
 
 static int __init disable_acpi_irq(struct dmi_system_id *d)
@@ -1163,3 +1163,75 @@ int __init acpi_boot_init(void)
 
 	return 0;
 }
+
+static int __init parse_acpi(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	/* "acpi=off" disables both ACPI table parsing and interpreter */
+	if (strcmp(arg, "off") == 0) {
+		disable_acpi();
+	}
+	/* acpi=force to over-ride black-list */
+	else if (strcmp(arg, "force") == 0) {
+		acpi_force = 1;
+		acpi_ht = 1;
+		acpi_disabled = 0;
+	}
+	/* acpi=strict disables out-of-spec workarounds */
+	else if (strcmp(arg, "strict") == 0) {
+		acpi_strict = 1;
+	}
+	/* Limit ACPI just to boot-time to enable HT */
+	else if (strcmp(arg, "ht") == 0) {
+		if (!acpi_force)
+			disable_acpi();
+		acpi_ht = 1;
+	}
+	/* "acpi=noirq" disables ACPI interrupt routing */
+	else if (strcmp(arg, "noirq") == 0) {
+		acpi_noirq_set();
+	} else {
+		/* Core will printk when we return error. */
+		return -EINVAL;
+	}
+	return 0;
+}
+early_param("acpi", parse_acpi);
+
+/* FIXME: Using pci= for an ACPI parameter is a travesty. */
+static int __init parse_pci(char *arg)
+{
+	if (arg && strcmp(arg, "noacpi") == 0)
+		acpi_disable_pci();
+	return 0;
+}
+early_param("pci", parse_pci);
+
+#ifdef CONFIG_X86_IO_APIC
+static int __init parse_acpi_skip_timer_override(char *arg)
+{
+	acpi_skip_timer_override = 1;
+	return 0;
+}
+early_param("acpi_skip_timer_override", parse_acpi_skip_timer_override);
+#endif /* CONFIG_X86_IO_APIC */
+
+static int __init setup_acpi_sci(char *s)
+{
+	if (!s)
+		return -EINVAL;
+	if (!strcmp(s, "edge"))
+		acpi_sci_flags.trigger = 1;
+	else if (!strcmp(s, "level"))
+		acpi_sci_flags.trigger = 3;
+	else if (!strcmp(s, "high"))
+		acpi_sci_flags.polarity = 1;
+	else if (!strcmp(s, "low"))
+		acpi_sci_flags.polarity = 3;
+	else
+		return -EINVAL;
+	return 0;
+}
+early_param("acpi_sci", setup_acpi_sci);
