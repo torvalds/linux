@@ -40,7 +40,7 @@ unsigned long end_pfn_map;
 /* 
  * Last pfn which the user wants to use.
  */
-unsigned long end_user_pfn = MAXMEM>>PAGE_SHIFT;  
+static unsigned long __initdata end_user_pfn = MAXMEM>>PAGE_SHIFT;
 
 extern struct resource code_resource, data_resource;
 

@@ -597,12 +597,6 @@ void __init mem_init(void)
 
 	pci_iommu_alloc();
 
-	/* How many end-of-memory variables you have, grandma! */
-	max_low_pfn = end_pfn;
-	max_pfn = end_pfn;
-	num_physpages = end_pfn;
-	high_memory = (void *) __va(end_pfn * PAGE_SIZE);
-
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 

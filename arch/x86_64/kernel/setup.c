@@ -554,7 +554,7 @@ void __init setup_arch(char **cmdline_p)
 	 * we are rounding upwards:
 	 */
 	end_pfn = e820_end_of_ram();
-	num_physpages = end_pfn;		/* for pfn_valid */
+	num_physpages = end_pfn;
 
 	check_efer();
 
@@ -573,6 +573,11 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_boot_table_init();
 #endif
+
+	/* How many end-of-memory variables you have, grandma! */
+	max_low_pfn = end_pfn;
+	max_pfn = end_pfn;
+	high_memory = (void *)__va(end_pfn * PAGE_SIZE - 1) + 1;
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
