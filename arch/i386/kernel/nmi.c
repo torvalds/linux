@@ -34,6 +34,20 @@ static unsigned int nmi_perfctr_msr;	/* the MSR to reset in NMI handler */
 static unsigned int nmi_p4_cccr_val;
 extern void show_registers(struct pt_regs *regs);
 
+/* perfctr_nmi_owner tracks the ownership of the perfctr registers:
+ * evtsel_nmi_owner tracks the ownership of the event selection
+ * - different performance counters/ event selection may be reserved for
+ *   different subsystems this reservation system just tries to coordinate
+ *   things a little
+ */
+static DEFINE_PER_CPU(unsigned long, perfctr_nmi_owner);
+static DEFINE_PER_CPU(unsigned long, evntsel_nmi_owner[3]);
+
+/* this number is calculated from Intel's MSR_P4_CRU_ESCR5 register and it's
+ * offset from MSR_P4_BSU_ESCR0.  It will be the max for all platforms (for now)
+ */
+#define NMI_MAX_COUNTER_BITS 66
+
 /*
  * lapic_nmi_owner tracks the ownership of the lapic NMI hardware:
  * - it may be reserved by some other driver, or not
@@ -94,6 +108,105 @@ int nmi_active;
 #define P4_NMI_IQ_CCCR0	\
 	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
+
+/* converts an msr to an appropriate reservation bit */
+static inline unsigned int nmi_perfctr_msr_to_bit(unsigned int msr)
+{
+	/* returns the bit offset of the performance counter register */
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		return (msr - MSR_K7_PERFCTR0);
+	case X86_VENDOR_INTEL:
+		switch (boot_cpu_data.x86) {
+		case 6:
+			return (msr - MSR_P6_PERFCTR0);
+		case 15:
+			return (msr - MSR_P4_BPU_PERFCTR0);
+		}
+	}
+	return 0;
+}
+
+/* converts an msr to an appropriate reservation bit */
+static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
+{
+	/* returns the bit offset of the event selection register */
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		return (msr - MSR_K7_EVNTSEL0);
+	case X86_VENDOR_INTEL:
+		switch (boot_cpu_data.x86) {
+		case 6:
+			return (msr - MSR_P6_EVNTSEL0);
+		case 15:
+			return (msr - MSR_P4_BSU_ESCR0);
+		}
+	}
+	return 0;
+}
+
+/* checks for a bit availability (hack for oprofile) */
+int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
+{
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	return (!test_bit(counter, &__get_cpu_var(perfctr_nmi_owner)));
+}
+
+/* checks the an msr for availability */
+int avail_to_resrv_perfctr_nmi(unsigned int msr)
+{
+	unsigned int counter;
+
+	counter = nmi_perfctr_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	return (!test_bit(counter, &__get_cpu_var(perfctr_nmi_owner)));
+}
+
+int reserve_perfctr_nmi(unsigned int msr)
+{
+	unsigned int counter;
+
+	counter = nmi_perfctr_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	if (!test_and_set_bit(counter, &__get_cpu_var(perfctr_nmi_owner)))
+		return 1;
+	return 0;
+}
+
+void release_perfctr_nmi(unsigned int msr)
+{
+	unsigned int counter;
+
+	counter = nmi_perfctr_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	clear_bit(counter, &__get_cpu_var(perfctr_nmi_owner));
+}
+
+int reserve_evntsel_nmi(unsigned int msr)
+{
+	unsigned int counter;
+
+	counter = nmi_evntsel_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	if (!test_and_set_bit(counter, &__get_cpu_var(evntsel_nmi_owner)[0]))
+		return 1;
+	return 0;
+}
+
+void release_evntsel_nmi(unsigned int msr)
+{
+	unsigned int counter;
+
+	counter = nmi_evntsel_msr_to_bit(msr);
+	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+
+	clear_bit(counter, &__get_cpu_var(evntsel_nmi_owner)[0]);
+}
 
 #ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
@@ -344,14 +457,6 @@ late_initcall(init_lapic_nmi_sysfs);
  * Original code written by Keith Owens.
  */
 
-static void clear_msr_range(unsigned int base, unsigned int n)
-{
-	unsigned int i;
-
-	for(i = 0; i < n; ++i)
-		wrmsr(base+i, 0, 0);
-}
-
 static void write_watchdog_counter(const char *descr)
 {
 	u64 count = (u64)cpu_khz * 1000;
@@ -362,14 +467,19 @@ static void write_watchdog_counter(const char *descr)
 	wrmsrl(nmi_perfctr_msr, 0 - count);
 }
 
-static void setup_k7_watchdog(void)
+static int setup_k7_watchdog(void)
 {
 	unsigned int evntsel;
 
 	nmi_perfctr_msr = MSR_K7_PERFCTR0;
 
-	clear_msr_range(MSR_K7_EVNTSEL0, 4);
-	clear_msr_range(MSR_K7_PERFCTR0, 4);
+	if (!reserve_perfctr_nmi(nmi_perfctr_msr))
+		goto fail;
+
+	if (!reserve_evntsel_nmi(MSR_K7_EVNTSEL0))
+		goto fail1;
+
+	wrmsrl(MSR_K7_PERFCTR0, 0UL);
 
 	evntsel = K7_EVNTSEL_INT
 		| K7_EVNTSEL_OS
@@ -381,16 +491,24 @@ static void setup_k7_watchdog(void)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= K7_EVNTSEL_ENABLE;
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
+	return 1;
+fail1:
+	release_perfctr_nmi(nmi_perfctr_msr);
+fail:
+	return 0;
 }
 
-static void setup_p6_watchdog(void)
+static int setup_p6_watchdog(void)
 {
 	unsigned int evntsel;
 
 	nmi_perfctr_msr = MSR_P6_PERFCTR0;
 
-	clear_msr_range(MSR_P6_EVNTSEL0, 2);
-	clear_msr_range(MSR_P6_PERFCTR0, 2);
+	if (!reserve_perfctr_nmi(nmi_perfctr_msr))
+		goto fail;
+
+	if (!reserve_evntsel_nmi(MSR_P6_EVNTSEL0))
+		goto fail1;
 
 	evntsel = P6_EVNTSEL_INT
 		| P6_EVNTSEL_OS
@@ -402,6 +520,11 @@ static void setup_p6_watchdog(void)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= P6_EVNTSEL0_ENABLE;
 	wrmsr(MSR_P6_EVNTSEL0, evntsel, 0);
+	return 1;
+fail1:
+	release_perfctr_nmi(nmi_perfctr_msr);
+fail:
+	return 0;
 }
 
 static int setup_p4_watchdog(void)
@@ -419,22 +542,11 @@ static int setup_p4_watchdog(void)
 		nmi_p4_cccr_val |= P4_CCCR_OVF_PMI1;
 #endif
 
-	if (!(misc_enable & MSR_P4_MISC_ENABLE_PEBS_UNAVAIL))
-		clear_msr_range(0x3F1, 2);
-	/* MSR 0x3F0 seems to have a default value of 0xFC00, but current
-	   docs doesn't fully define it, so leave it alone for now. */
-	if (boot_cpu_data.x86_model >= 0x3) {
-		/* MSR_P4_IQ_ESCR0/1 (0x3ba/0x3bb) removed */
-		clear_msr_range(0x3A0, 26);
-		clear_msr_range(0x3BC, 3);
-	} else {
-		clear_msr_range(0x3A0, 31);
-	}
-	clear_msr_range(0x3C0, 6);
-	clear_msr_range(0x3C8, 6);
-	clear_msr_range(0x3E0, 2);
-	clear_msr_range(MSR_P4_CCCR0, 18);
-	clear_msr_range(MSR_P4_PERFCTR0, 18);
+	if (!reserve_perfctr_nmi(nmi_perfctr_msr))
+		goto fail;
+
+	if (!reserve_evntsel_nmi(MSR_P4_CRU_ESCR0))
+		goto fail1;
 
 	wrmsr(MSR_P4_CRU_ESCR0, P4_NMI_CRU_ESCR0, 0);
 	wrmsr(MSR_P4_IQ_CCCR0, P4_NMI_IQ_CCCR0 & ~P4_CCCR_ENABLE, 0);
@@ -442,6 +554,10 @@ static int setup_p4_watchdog(void)
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
 	return 1;
+fail1:
+	release_perfctr_nmi(nmi_perfctr_msr);
+fail:
+	return 0;
 }
 
 void setup_apic_nmi_watchdog (void)
@@ -450,7 +566,8 @@ void setup_apic_nmi_watchdog (void)
 	case X86_VENDOR_AMD:
 		if (boot_cpu_data.x86 != 6 && boot_cpu_data.x86 != 15)
 			return;
-		setup_k7_watchdog();
+		if (!setup_k7_watchdog())
+			return;
 		break;
 	case X86_VENDOR_INTEL:
 		switch (boot_cpu_data.x86) {
@@ -458,7 +575,8 @@ void setup_apic_nmi_watchdog (void)
 			if (boot_cpu_data.x86_model > 0xd)
 				return;
 
-			setup_p6_watchdog();
+			if(!setup_p6_watchdog())
+				return;
 			break;
 		case 15:
 			if (boot_cpu_data.x86_model > 0x4)
@@ -612,6 +730,12 @@ int proc_unknown_nmi_panic(ctl_table *table, int write, struct file *file,
 
 EXPORT_SYMBOL(nmi_active);
 EXPORT_SYMBOL(nmi_watchdog);
+EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi);
+EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi_bit);
+EXPORT_SYMBOL(reserve_perfctr_nmi);
+EXPORT_SYMBOL(release_perfctr_nmi);
+EXPORT_SYMBOL(reserve_evntsel_nmi);
+EXPORT_SYMBOL(release_evntsel_nmi);
 EXPORT_SYMBOL(reserve_lapic_nmi);
 EXPORT_SYMBOL(release_lapic_nmi);
 EXPORT_SYMBOL(disable_timer_nmi_watchdog);

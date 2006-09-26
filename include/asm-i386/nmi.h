@@ -25,6 +25,13 @@ void set_nmi_callback(nmi_callback_t callback);
  */
 void unset_nmi_callback(void);
 
+extern int avail_to_resrv_perfctr_nmi_bit(unsigned int);
+extern int avail_to_resrv_perfctr_nmi(unsigned int);
+extern int reserve_perfctr_nmi(unsigned int);
+extern void release_perfctr_nmi(unsigned int);
+extern int reserve_evntsel_nmi(unsigned int);
+extern void release_evntsel_nmi(unsigned int);
+
 extern void setup_apic_nmi_watchdog (void);
 extern int reserve_lapic_nmi(void);
 extern void release_lapic_nmi(void);
