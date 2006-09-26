@@ -49,7 +49,8 @@ extern struct x8664_pda _proxy_pda;
 
 #define pda_to_op(op,field,val) do { \
 	typedef typeof(_proxy_pda.field) T__; \
-       switch (sizeof(_proxy_pda.field)) { 		\
+	if (0) { T__ tmp__; tmp__ = (val); }  \
+	switch (sizeof(_proxy_pda.field)) { 		\
 case 2: \
 asm(op "w %1,%%gs:%c2" : "+m" (_proxy_pda.field) : \
 	"ri" ((T__)val),"i"(pda_offset(field))); break; \
