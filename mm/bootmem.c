@@ -54,7 +54,7 @@ unsigned long __init bootmem_bootmap_pages (unsigned long pages)
 /*
  * link bdata in order
  */
-static void link_bootmem(bootmem_data_t *bdata)
+static void __init link_bootmem(bootmem_data_t *bdata)
 {
 	bootmem_data_t *ent;
 	if (list_empty(&bdata_list)) {
