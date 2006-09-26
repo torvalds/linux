@@ -11,4 +11,6 @@ extern u8 read_pci_config_byte(u8 bus, u8 slot, u8 func, u8 offset);
 extern u16 read_pci_config_16(u8 bus, u8 slot, u8 func, u8 offset);
 extern void write_pci_config(u8 bus, u8 slot, u8 func, u8 offset, u32 val);
 
+extern int early_pci_allowed(void);
+
 #endif

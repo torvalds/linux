@@ -924,6 +924,9 @@ void __init detect_calgary(void)
 	if (swiotlb || no_iommu || iommu_detected)
 		return;
 
+	if (!early_pci_allowed())
+		return;
+
 	specified_table_size = determine_tce_table_size(end_pfn * PAGE_SIZE);
 
 	for (bus = 0; bus < MAX_PHB_BUS_NUM; bus++) {

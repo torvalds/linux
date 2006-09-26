@@ -1,6 +1,8 @@
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <asm/pci-direct.h>
 #include <asm/io.h>
+#include "pci.h"
 
 /* Direct PCI access. This is used for PCI accesses in early boot before
    the PCI subsystem works. */
@@ -41,4 +43,10 @@ void write_pci_config(u8 bus, u8 slot, u8 func, u8 offset,
 	PDprintk("%x writing to %x: %x\n", slot, offset, val);
 	outl(0x80000000 | (bus<<16) | (slot<<11) | (func<<8) | offset, 0xcf8);
 	outl(val, 0xcfc);
+}
+
+int early_pci_allowed(void)
+{
+	return (pci_probe & (PCI_PROBE_CONF1|PCI_PROBE_NOEARLY)) ==
+			PCI_PROBE_CONF1;
 }

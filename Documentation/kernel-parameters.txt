@@ -1240,7 +1240,11 @@ running once the system is up.
 				bootloader. This is currently used on
 				IXP2000 systems where the bus has to be
 				configured a certain way for adjunct CPUs.
-
+		noearly		[X86] Don't do any early type 1 scanning.
+				This might help on some broken boards which
+				machine check when some devices' config space
+				is read. But various workarounds are disabled
+				and some IOMMU drivers will not work.
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]

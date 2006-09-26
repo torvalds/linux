@@ -953,12 +953,11 @@ static int __devinit pci_setup(char *str)
 		}
 		str = k;
 	}
-	return 1;
+	return 0;
 }
+early_param("pci", pci_setup);
 
 device_initcall(pci_init);
-
-__setup("pci=", pci_setup);
 
 #if defined(CONFIG_ISA) || defined(CONFIG_EISA)
 /* FIXME: Some boxes have multiple ISA bridges! */

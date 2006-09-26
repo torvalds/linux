@@ -82,6 +82,10 @@ static struct chipset early_qrk[] = {
 void __init early_quirks(void)
 {
 	int num, slot, func;
+
+	if (!early_pci_allowed())
+		return;
+
 	/* Poor man's PCI discovery */
 	for (num = 0; num < 32; num++) {
 		for (slot = 0; slot < 32; slot++) {

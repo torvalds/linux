@@ -212,7 +212,7 @@ void __init iommu_hole_init(void)
 	u64 aper_base, last_aper_base = 0;
 	int valid_agp = 0;
 
-	if (iommu_aperture_disabled || !fix_aperture)
+	if (iommu_aperture_disabled || !fix_aperture || !early_pci_allowed())
 		return;
 
 	printk("Checking aperture...\n"); 

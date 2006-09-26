@@ -48,7 +48,11 @@ void __init check_acpi_pci(void)
 	int num, slot, func;
 
 	/* Assume the machine supports type 1. If not it will 
-	   always read ffffffff and should not have any side effect. */
+	   always read ffffffff and should not have any side effect.
+	   Actually a few buggy systems can machine check. Allow the user
+	   to disable it by command line option at least -AK */
+	if (!early_pci_allowed())
+		return;
 
 	/* Poor man's PCI discovery */
 	for (num = 0; num < 32; num++) {
