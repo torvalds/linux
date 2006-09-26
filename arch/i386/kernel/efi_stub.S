@@ -7,7 +7,6 @@
 
 #include <linux/linkage.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 /*
  * efi_call_phys(void *, ...) is a function with variable parameters.
