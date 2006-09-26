@@ -784,13 +784,11 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 	return address;
 }
 
-static int __init calgary_init_one_nontraslated(struct pci_dev *dev)
+static void __init calgary_init_one_nontraslated(struct pci_dev *dev)
 {
 	pci_dev_get(dev);
 	dev->sysdata = NULL;
 	dev->bus->self = dev;
-
-	return 0;
 }
 
 static int __init calgary_init_one(struct pci_dev *dev)
