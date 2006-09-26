@@ -1929,6 +1929,13 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 
 	mutex_lock(&state->mutex);
 
+#ifdef CONFIG_DISABLE_CONSOLE_SUSPEND
+	if (uart_console(port)) {
+		mutex_unlock(&state->mutex);
+		return 0;
+	}
+#endif
+
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
 
@@ -1966,6 +1973,13 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	struct uart_state *state = drv->state + port->line;
 
 	mutex_lock(&state->mutex);
+
+#ifdef CONFIG_DISABLE_CONSOLE_SUSPEND
+	if (uart_console(port)) {
+		mutex_unlock(&state->mutex);
+		return 0;
+	}
+#endif
 
 	uart_change_pm(state, 0);
 
