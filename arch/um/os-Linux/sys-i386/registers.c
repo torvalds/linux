@@ -130,11 +130,14 @@ void get_safe_registers(unsigned long *regs, unsigned long *fp_regs)
 		       HOST_FP_SIZE * sizeof(unsigned long));
 }
 
-void get_thread_regs(union uml_pt_regs *uml_regs, void *buffer)
+unsigned long get_thread_reg(int reg, jmp_buf *buf)
 {
-	struct __jmp_buf *jmpbuf = buffer;
-
-	UPT_SET(uml_regs, EIP, jmpbuf->__eip);
-	UPT_SET(uml_regs, UESP, jmpbuf->__esp);
-	UPT_SET(uml_regs, EBP, jmpbuf->__ebp);
+	switch(reg){
+	case EIP: return buf[0]->__eip;
+	case UESP: return buf[0]->__esp;
+	case EBP: return buf[0]->__ebp;
+	default:
+		printk("get_thread_regs - unknown register %d\n", reg);
+		return 0;
+	}
 }
