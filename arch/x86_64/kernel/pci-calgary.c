@@ -658,11 +658,12 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	return 0;
 }
 
-static void __init calgary_free_tar(struct pci_dev *dev)
+static void __init calgary_free_bus(struct pci_dev *dev)
 {
 	u64 val64;
 	struct iommu_table *tbl = dev->sysdata;
 	void __iomem *target;
+	unsigned int bitmapsz;
 
 	target = calgary_reg(tbl->bbar, tar_offset(dev->bus->number));
 	val64 = be64_to_cpu(readq(target));
@@ -670,8 +671,15 @@ static void __init calgary_free_tar(struct pci_dev *dev)
 	writeq(cpu_to_be64(val64), target);
 	readq(target); /* flush */
 
+	bitmapsz = tbl->it_size / BITS_PER_BYTE;
+	free_pages((unsigned long)tbl->it_map, get_order(bitmapsz));
+	tbl->it_map = NULL;
+
 	kfree(tbl);
 	dev->sysdata = NULL;
+
+	/* Can't free bootmem allocated memory after system is up :-( */
+	bus_info[dev->bus->number].tce_space = NULL;
 }
 
 static void calgary_watchdog(unsigned long data)
@@ -853,7 +861,7 @@ error:
 		if (!bus_info[dev->bus->number].tce_space && !translate_empty_slots)
 			continue;
 		calgary_disable_translation(dev);
-		calgary_free_tar(dev);
+		calgary_free_bus(dev);
 		pci_dev_put(dev);
 	}
 
