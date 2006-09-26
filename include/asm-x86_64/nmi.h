@@ -63,7 +63,7 @@ extern void release_perfctr_nmi(unsigned int);
 extern int reserve_evntsel_nmi(unsigned int);
 extern void release_evntsel_nmi(unsigned int);
 
-extern void setup_apic_nmi_watchdog (void);
+extern void setup_apic_nmi_watchdog (void *);
 extern int reserve_lapic_nmi(void);
 extern void release_lapic_nmi(void);
 extern void disable_timer_nmi_watchdog(void);
@@ -73,6 +73,7 @@ extern void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
 extern void nmi_watchdog_default(void);
 extern int setup_nmi_watchdog(char *);
 
+extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;
 #define NMI_DEFAULT	-1
 #define NMI_NONE	0
