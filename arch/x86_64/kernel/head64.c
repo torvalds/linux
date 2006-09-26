@@ -56,24 +56,6 @@ static void __init copy_bootdata(char *real_mode_data)
 	printk("Bootdata ok (command line is %s)\n", saved_command_line);	
 }
 
-static void __init setup_boot_cpu_data(void)
-{
-	unsigned int dummy, eax;
-
-	/* get vendor info */
-	cpuid(0, (unsigned int *)&boot_cpu_data.cpuid_level,
-	      (unsigned int *)&boot_cpu_data.x86_vendor_id[0],
-	      (unsigned int *)&boot_cpu_data.x86_vendor_id[8],
-	      (unsigned int *)&boot_cpu_data.x86_vendor_id[4]);
-
-	/* get cpu type */
-	cpuid(1, &eax, &dummy, &dummy,
-		(unsigned int *) &boot_cpu_data.x86_capability);
-	boot_cpu_data.x86 = (eax >> 8) & 0xf;
-	boot_cpu_data.x86_model = (eax >> 4) & 0xf;
-	boot_cpu_data.x86_mask = eax & 0xf;
-}
-
 void __init x86_64_start_kernel(char * real_mode_data)
 {
 	char *s;
@@ -117,6 +99,5 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (__pa_symbol(&_end) >= KERNEL_TEXT_SIZE)
 		panic("Kernel too big for kernel mapping\n");
 
-	setup_boot_cpu_data();
 	start_kernel();
 }

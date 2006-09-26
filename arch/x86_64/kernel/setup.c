@@ -545,9 +545,9 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(&_etext);
 	data_resource.end = virt_to_phys(&_edata)-1;
 
-	parse_cmdline_early(cmdline_p);
-
 	early_identify_cpu(&boot_cpu_data);
+
+	parse_cmdline_early(cmdline_p);
 
 	/*
 	 * partially used pages are not usable - thus
