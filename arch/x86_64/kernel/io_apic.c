@@ -1283,72 +1283,6 @@ void disable_IO_APIC(void)
 }
 
 /*
- * function to set the IO-APIC physical IDs based on the
- * values stored in the MPC table.
- *
- * by Matt Domsch <Matt_Domsch@dell.com>  Tue Dec 21 12:25:05 CST 1999
- */
-
-static void __init setup_ioapic_ids_from_mpc (void)
-{
-	union IO_APIC_reg_00 reg_00;
-	int apic;
-	int i;
-	unsigned char old_id;
-	unsigned long flags;
-
-	/*
-	 * Set the IOAPIC ID to the value stored in the MPC table.
-	 */
-	for (apic = 0; apic < nr_ioapics; apic++) {
-
-		/* Read the register 0 value */
-		spin_lock_irqsave(&ioapic_lock, flags);
-		reg_00.raw = io_apic_read(apic, 0);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
-		
-		old_id = mp_ioapics[apic].mpc_apicid;
-
-
-		printk(KERN_INFO "Using IO-APIC %d\n", mp_ioapics[apic].mpc_apicid);
-
-
-		/*
-		 * We need to adjust the IRQ routing table
-		 * if the ID changed.
-		 */
-		if (old_id != mp_ioapics[apic].mpc_apicid)
-			for (i = 0; i < mp_irq_entries; i++)
-				if (mp_irqs[i].mpc_dstapic == old_id)
-					mp_irqs[i].mpc_dstapic
-						= mp_ioapics[apic].mpc_apicid;
-
-		/*
-		 * Read the right value from the MPC table and
-		 * write it into the ID register.
-	 	 */
-		apic_printk(APIC_VERBOSE,KERN_INFO "...changing IO-APIC physical APIC ID to %d ...",
-				mp_ioapics[apic].mpc_apicid);
-
-		reg_00.bits.ID = mp_ioapics[apic].mpc_apicid;
-		spin_lock_irqsave(&ioapic_lock, flags);
-		io_apic_write(apic, 0, reg_00.raw);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
-
-		/*
-		 * Sanity check
-		 */
-		spin_lock_irqsave(&ioapic_lock, flags);
-		reg_00.raw = io_apic_read(apic, 0);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
-		if (reg_00.bits.ID != mp_ioapics[apic].mpc_apicid)
-			printk("could not set ID!\n");
-		else
-			apic_printk(APIC_VERBOSE," ok.\n");
-	}
-}
-
-/*
  * There is a nasty bug in some older SMP boards, their mptable lies
  * about the timer IRQ. We do the following to work around the situation:
  *
@@ -1863,11 +1797,6 @@ void __init setup_IO_APIC(void)
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 
-	/*
-	 * Set up the IO-APIC IRQ routing table.
-	 */
-	if (!acpi_ioapic)
-		setup_ioapic_ids_from_mpc();
 	sync_Arb_IDs();
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
