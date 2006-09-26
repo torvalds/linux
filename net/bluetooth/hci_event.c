@@ -750,6 +750,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (test_bit(HCI_ENCRYPT, &hdev->flags))
 			conn->link_mode |= HCI_LM_ENCRYPT;
 
+		hci_conn_hold(conn);
+
 		/* Get remote features */
 		if (conn->type == ACL_LINK) {
 			struct hci_cp_read_remote_features cp;
@@ -778,6 +780,8 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			hci_send_cmd(hdev, OGF_LINK_CTL,
 				OCF_CHANGE_CONN_PTYPE, sizeof(cp), &cp);
 		}
+
+		hci_conn_put(conn);
 	} else
 		conn->state = BT_CLOSED;
 

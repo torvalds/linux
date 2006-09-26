@@ -297,6 +297,7 @@ struct hci_cp_host_buffer_size {
 
 /* Link Control */
 #define OGF_LINK_CTL	0x01 
+
 #define OCF_CREATE_CONN		0x0005
 struct hci_cp_create_conn {
 	bdaddr_t bdaddr;
@@ -305,6 +306,11 @@ struct hci_cp_create_conn {
 	__u8     pscan_mode;
 	__le16   clock_offset;
 	__u8     role_switch;
+} __attribute__ ((packed));
+
+#define OCF_CREATE_CONN_CANCEL	0x0008
+struct hci_cp_create_conn_cancel {
+	bdaddr_t bdaddr;
 } __attribute__ ((packed));
 
 #define OCF_ACCEPT_CONN_REQ	0x0009

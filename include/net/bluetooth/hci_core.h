@@ -316,10 +316,13 @@ static inline void hci_conn_put(struct hci_conn *conn)
 	if (atomic_dec_and_test(&conn->refcnt)) {
 		unsigned long timeo;
 		if (conn->type == ACL_LINK) {
-			timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
-			if (!conn->out)
-				timeo *= 2;
 			del_timer(&conn->idle_timer);
+			if (conn->state == BT_CONNECTED) {
+				timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
+				if (!conn->out)
+					timeo *= 2;
+			} else
+				timeo = msecs_to_jiffies(10);
 		} else
 			timeo = msecs_to_jiffies(10);
 		mod_timer(&conn->disc_timer, jiffies + timeo);
