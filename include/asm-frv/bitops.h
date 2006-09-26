@@ -161,16 +161,29 @@ static inline int __test_bit(int nr, const volatile void * addr)
 #include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/find.h>
 
-/*
- * fls: find last bit set.
+/**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs:
+ * - return 32..1 to indicate bit 31..0 most significant bit set
+ * - return 0 to indicate no bits set
  */
 #define fls(x)						\
 ({							\
 	int bit;					\
 							\
-	asm("scan %1,gr0,%0" : "=r"(bit) : "r"(x));	\
+	asm("	subcc	%1,gr0,gr0,icc0		\n"	\
+	    "	ckne	icc0,cc4		\n"	\
+	    "	cscan.p	%1,gr0,%0	,cc4,#1	\n"	\
+	    "	csub	%0,%0,%0	,cc4,#0	\n"	\
+	    "   csub    %2,%0,%0	,cc4,#1	\n"	\
+	    : "=&r"(bit)				\
+	    : "r"(x), "r"(32)				\
+	    : "icc0", "cc4"				\
+	    );						\
 							\
-	bit ? 33 - bit : bit;				\
+	bit;						\
 })
 
 #include <asm-generic/bitops/fls64.h>
