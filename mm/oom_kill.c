@@ -60,6 +60,12 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	}
 
 	/*
+	 * swapoff can easily use up all memory, so kill those first.
+	 */
+	if (p->flags & PF_SWAPOFF)
+		return ULONG_MAX;
+
+	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
 	points = mm->total_vm;
@@ -230,8 +236,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		}
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
-		if (p->flags & PF_SWAPOFF)
-			return p;
 
 		points = badness(p, uptime.tv_sec);
 		if (points > *ppoints || !chosen) {
