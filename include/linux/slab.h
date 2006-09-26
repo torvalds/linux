@@ -284,8 +284,6 @@ extern kmem_cache_t	*fs_cachep;
 extern kmem_cache_t	*sighand_cachep;
 extern kmem_cache_t	*bio_cachep;
 
-extern atomic_t slab_reclaim_pages;
-
 #endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_SLAB_H */

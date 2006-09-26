@@ -170,6 +170,8 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"AnonPages:    %8lu kB\n"
 		"Mapped:       %8lu kB\n"
 		"Slab:         %8lu kB\n"
+		"SReclaimable: %8lu kB\n"
+		"SUnreclaim:   %8lu kB\n"
 		"PageTables:   %8lu kB\n"
 		"NFS_Unstable: %8lu kB\n"
 		"Bounce:       %8lu kB\n"
@@ -197,7 +199,10 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(global_page_state(NR_WRITEBACK)),
 		K(global_page_state(NR_ANON_PAGES)),
 		K(global_page_state(NR_FILE_MAPPED)),
-		K(global_page_state(NR_SLAB)),
+		K(global_page_state(NR_SLAB_RECLAIMABLE) +
+				global_page_state(NR_SLAB_UNRECLAIMABLE)),
+		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
 		K(global_page_state(NR_PAGETABLE)),
 		K(global_page_state(NR_UNSTABLE_NFS)),
 		K(global_page_state(NR_BOUNCE)),

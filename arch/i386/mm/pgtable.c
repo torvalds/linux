@@ -60,7 +60,9 @@ void show_mem(void)
 	printk(KERN_INFO "%lu pages writeback\n",
 					global_page_state(NR_WRITEBACK));
 	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
-	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
+	printk(KERN_INFO "%lu pages slab\n",
+		global_page_state(NR_SLAB_RECLAIMABLE) +
+		global_page_state(NR_SLAB_UNRECLAIMABLE));
 	printk(KERN_INFO "%lu pages pagetables\n",
 					global_page_state(NR_PAGETABLE));
 }

@@ -339,7 +339,3 @@ void kmem_cache_init(void)
 
 	mod_timer(&slob_timer, jiffies + HZ);
 }
-
-atomic_t slab_reclaim_pages = ATOMIC_INIT(0);
-EXPORT_SYMBOL(slab_reclaim_pages);
-

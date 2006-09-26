@@ -1133,7 +1133,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 		 * which are reclaimable, under pressure.  The dentry
 		 * cache and most inode caches should fall into this
 		 */
-		free += atomic_read(&slab_reclaim_pages);
+		free += global_page_state(NR_SLAB_RECLAIMABLE);
 
 		/*
 		 * Leave the last 3% for root
