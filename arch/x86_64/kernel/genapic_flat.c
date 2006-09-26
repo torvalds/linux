@@ -49,8 +49,7 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	unsigned long cfg;
 	unsigned long flags;
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 
 	/*
 	 * Wait for idle.

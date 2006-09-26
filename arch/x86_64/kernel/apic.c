@@ -468,8 +468,7 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 	apic_pm_state.apic_tmict = apic_read(APIC_TMICT);
 	apic_pm_state.apic_tdcr = apic_read(APIC_TDCR);
 	apic_pm_state.apic_thmr = apic_read(APIC_LVTTHMR);
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 	disable_local_APIC();
 	local_irq_restore(flags);
 	return 0;
