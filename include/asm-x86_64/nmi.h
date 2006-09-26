@@ -43,6 +43,7 @@ extern void die_nmi(char *str, struct pt_regs *regs);
 
 extern int panic_on_timeout;
 extern int unknown_nmi_panic;
+extern int nmi_watchdog_enabled;
 
 extern int check_nmi_watchdog(void);
 extern int avail_to_resrv_perfctr_nmi_bit(unsigned int);
