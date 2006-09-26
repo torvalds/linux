@@ -204,8 +204,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		/* skip the init task with pid == 1 */
 		if (p->pid == 1)
 			continue;
-		if (p->oomkilladj == OOM_DISABLE)
-			continue;
 
 		/*
 		 * This is in the process of releasing memory so wait for it
@@ -230,6 +228,8 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 			}
 			return ERR_PTR(-1UL);
 		}
+		if (p->oomkilladj == OOM_DISABLE)
+			continue;
 		if (p->flags & PF_SWAPOFF)
 			return p;
 
