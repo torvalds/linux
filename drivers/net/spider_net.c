@@ -317,7 +317,7 @@ spider_net_init_chain(struct spider_net_card *card,
 				     SPIDER_NET_DESCR_SIZE,
 				     direction);
 
-		if (buf == DMA_ERROR_CODE)
+		if (pci_dma_mapping_error(buf))
 			goto iommu_error;
 
 		descr->bus_addr = buf;
@@ -420,7 +420,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
 	buf = pci_map_single(card->pdev, descr->skb->data,
 			SPIDER_NET_MAX_FRAME, PCI_DMA_FROMDEVICE);
 	descr->buf_addr = buf;
-	if (buf == DMA_ERROR_CODE) {
+	if (pci_dma_mapping_error(buf)) {
 		dev_kfree_skb_any(descr->skb);
 		if (netif_msg_rx_err(card) && net_ratelimit())
 			pr_err("Could not iommu-map rx buffer\n");
@@ -649,7 +649,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	dma_addr_t buf;
 
 	buf = pci_map_single(card->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
-	if (buf == DMA_ERROR_CODE) {
+	if (pci_dma_mapping_error(buf)) {
 		if (netif_msg_tx_err(card) && net_ratelimit())
 			pr_err("could not iommu-map packet (%p, %i). "
 				  "Dropping packet\n", skb->data, skb->len);
