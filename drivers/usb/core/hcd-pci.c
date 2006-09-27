@@ -413,4 +413,20 @@ EXPORT_SYMBOL (usb_hcd_pci_resume);
 
 #endif	/* CONFIG_PM */
 
+/**
+ * usb_hcd_pci_shutdown - shutdown host controller
+ * @dev: USB Host Controller being shutdown
+ */
+void usb_hcd_pci_shutdown (struct pci_dev *dev)
+{
+	struct usb_hcd		*hcd;
+
+	hcd = pci_get_drvdata(dev);
+	if (!hcd)
+		return;
+
+	if (hcd->driver->shutdown)
+		hcd->driver->shutdown(hcd);
+}
+EXPORT_SYMBOL (usb_hcd_pci_shutdown);
 

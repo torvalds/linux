@@ -75,13 +75,13 @@ static void mon_text_ctor(void *, kmem_cache_t *, unsigned long);
  */
 
 static inline char mon_text_get_setup(struct mon_event_text *ep,
-    struct urb *urb, char ev_type)
+    struct urb *urb, char ev_type, struct mon_bus *mbus)
 {
 
 	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
 		return '-';
 
-	if (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)
+	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_SETUP_DMA_MAP))
 		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
@@ -91,7 +91,7 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 }
 
 static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
-    int len, char ev_type)
+    int len, char ev_type, struct mon_bus *mbus)
 {
 	int pipe = urb->pipe;
 
@@ -117,7 +117,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	 * contain non-NULL garbage in case the upper level promised to
 	 * set DMA for the HCD.
 	 */
-	if (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
+	if (mbus->uses_dma && (urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP))
 		return mon_dmapeek(ep->data, urb->transfer_dma, len);
 
 	if (urb->transfer_buffer == NULL)
@@ -161,8 +161,9 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	/* Collecting status makes debugging sense for submits, too */
 	ep->status = urb->status;
 
-	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type);
-	ep->data_flag = mon_text_get_data(ep, urb, ep->length, ev_type);
+	ep->setup_flag = mon_text_get_setup(ep, urb, ev_type, rp->r.m_bus);
+	ep->data_flag = mon_text_get_data(ep, urb, ep->length, ev_type,
+			rp->r.m_bus);
 
 	rp->nevents++;
 	list_add_tail(&ep->e_link, &rp->e_list);
@@ -435,7 +436,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations mon_fops_text = {
+const struct file_operations mon_fops_text = {
 	.owner =	THIS_MODULE,
 	.open =		mon_text_open,
 	.llseek =	no_llseek,

@@ -207,9 +207,9 @@ static void ep_device_release(struct device *dev)
 	kfree(ep_dev);
 }
 
-void usb_create_ep_files(struct device *parent,
-			 struct usb_host_endpoint *endpoint,
-			 struct usb_device *udev)
+int usb_create_ep_files(struct device *parent,
+			struct usb_host_endpoint *endpoint,
+			struct usb_device *udev)
 {
 	char name[8];
 	struct ep_device *ep_dev;
@@ -242,19 +242,33 @@ void usb_create_ep_files(struct device *parent,
 	retval = device_register(&ep_dev->dev);
 	if (retval)
 		goto error;
-	sysfs_create_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
+	retval = sysfs_create_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
+	if (retval)
+		goto error_group;
 
 	endpoint->ep_dev = ep_dev;
 
 	/* create the symlink to the old-style "ep_XX" directory */
 	sprintf(name, "ep_%02x", endpoint->desc.bEndpointAddress);
-	sysfs_create_link(&parent->kobj, &endpoint->ep_dev->dev.kobj, name);
-
+	retval = sysfs_create_link(&parent->kobj,
+				   &endpoint->ep_dev->dev.kobj, name);
+	if (retval)
+		goto error_link;
 exit:
-	return;
+	return retval;
+
+error_link:
+	sysfs_remove_group(&ep_dev->dev.kobj, &ep_dev_attr_grp);
+
+error_group:
+	device_unregister(&ep_dev->dev);
+	endpoint->ep_dev = NULL;
+	destroy_endpoint_class();
+	return retval;
 error:
 	kfree(ep_dev);
-	return;
+	destroy_endpoint_class();
+	return retval;
 }
 
 void usb_remove_ep_files(struct usb_host_endpoint *endpoint)

@@ -1,4 +1,4 @@
-// include/linux/usb_otg.h 
+// include/linux/usb/otg.h
 
 /*
  * These APIs may be used between USB controllers.  USB device drivers
@@ -52,7 +52,7 @@ struct otg_transceiver {
 	u16			port_change;
 
 	/* bind/unbind the host controller */
-	int 	(*set_host)(struct otg_transceiver *otg,
+	int	(*set_host)(struct otg_transceiver *otg,
 				struct usb_bus *host);
 
 	/* bind/unbind the peripheral controller */

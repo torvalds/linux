@@ -671,10 +671,8 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 			 * Jean II */
 			done = 1;
 			break;
-		case -ECONNABORTED:		/* -103 */
-		case -ECONNRESET:		/* -104 */
-		case -ETIMEDOUT:		/* -110 */
-		case -ENOENT:			/* -2 (urb unlinked by us)  */
+		case -ECONNRESET:
+		case -ENOENT:			/* urb unlinked by us */
 		default:			/* ??? - Play safe */
 			urb->status = 0;
 			netif_wake_queue(self->netdev);
@@ -712,10 +710,8 @@ static void irda_usb_net_timeout(struct net_device *netdev)
 			 * Jean II */
 			done = 1;
 			break;
-		case -ECONNABORTED:		/* -103 */
-		case -ECONNRESET:		/* -104 */
-		case -ETIMEDOUT:		/* -110 */
-		case -ENOENT:			/* -2 (urb unlinked by us)  */
+		case -ECONNRESET:
+		case -ENOENT:			/* urb unlinked by us */
 		default:			/* ??? - Play safe */
 			if(skb != NULL) {
 				dev_kfree_skb_any(skb);
@@ -845,14 +841,14 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 			self->stats.rx_crc_errors++;	
 			/* Also precursor to a hot-unplug on UHCI. */
 			/* Fallthrough... */
-		case -ECONNRESET:		/* -104 */
+		case -ECONNRESET:
 			/* Random error, if I remember correctly */
 			/* uhci_cleanup_unlink() is going to kill the Rx
 			 * URB just after we return. No problem, at this
 			 * point the URB will be idle ;-) - Jean II */
-		case -ESHUTDOWN:		/* -108 */
+		case -ESHUTDOWN:
 			/* That's usually a hot-unplug. Submit will fail... */
-		case -ETIMEDOUT:		/* -110 */
+		case -ETIME:
 			/* Usually precursor to a hot-unplug on OHCI. */
 		default:
 			self->stats.rx_errors++;

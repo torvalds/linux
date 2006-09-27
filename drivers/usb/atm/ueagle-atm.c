@@ -1621,26 +1621,32 @@ static int claim_interface(struct usb_device *usb_dev,
 	return ret;
 }
 
-static void create_fs_entries(struct uea_softc *sc, struct usb_interface *intf)
+static struct attribute *attrs[] = {
+	&dev_attr_stat_status.attr,
+	&dev_attr_stat_mflags.attr,
+	&dev_attr_stat_human_status.attr,
+	&dev_attr_stat_delin.attr,
+	&dev_attr_stat_vidcpe.attr,
+	&dev_attr_stat_usrate.attr,
+	&dev_attr_stat_dsrate.attr,
+	&dev_attr_stat_usattenuation.attr,
+	&dev_attr_stat_dsattenuation.attr,
+	&dev_attr_stat_usmargin.attr,
+	&dev_attr_stat_dsmargin.attr,
+	&dev_attr_stat_txflow.attr,
+	&dev_attr_stat_rxflow.attr,
+	&dev_attr_stat_uscorr.attr,
+	&dev_attr_stat_dscorr.attr,
+	&dev_attr_stat_usunc.attr,
+	&dev_attr_stat_dsunc.attr,
+};
+static struct attribute_group attr_grp = {
+	.attrs = attrs,
+};
+
+static int create_fs_entries(struct usb_interface *intf)
 {
-	/* sysfs interface */
-	device_create_file(&intf->dev, &dev_attr_stat_status);
-	device_create_file(&intf->dev, &dev_attr_stat_mflags);
-	device_create_file(&intf->dev, &dev_attr_stat_human_status);
-	device_create_file(&intf->dev, &dev_attr_stat_delin);
-	device_create_file(&intf->dev, &dev_attr_stat_vidcpe);
-	device_create_file(&intf->dev, &dev_attr_stat_usrate);
-	device_create_file(&intf->dev, &dev_attr_stat_dsrate);
-	device_create_file(&intf->dev, &dev_attr_stat_usattenuation);
-	device_create_file(&intf->dev, &dev_attr_stat_dsattenuation);
-	device_create_file(&intf->dev, &dev_attr_stat_usmargin);
-	device_create_file(&intf->dev, &dev_attr_stat_dsmargin);
-	device_create_file(&intf->dev, &dev_attr_stat_txflow);
-	device_create_file(&intf->dev, &dev_attr_stat_rxflow);
-	device_create_file(&intf->dev, &dev_attr_stat_uscorr);
-	device_create_file(&intf->dev, &dev_attr_stat_dscorr);
-	device_create_file(&intf->dev, &dev_attr_stat_usunc);
-	device_create_file(&intf->dev, &dev_attr_stat_dsunc);
+	return sysfs_create_group(&intf->dev.kobj, &attr_grp);
 }
 
 static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
@@ -1708,37 +1714,25 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 		return ret;
 	}
 
-	create_fs_entries(sc, intf);
+	ret = create_fs_entries(intf);
+	if (ret) {
+		uea_stop(sc);
+		kfree(sc);
+		return ret;
+	}
 	return 0;
 }
 
-static void destroy_fs_entries(struct uea_softc *sc, struct usb_interface *intf)
+static void destroy_fs_entries(struct usb_interface *intf)
 {
-	/* sysfs interface */
-	device_remove_file(&intf->dev, &dev_attr_stat_status);
-	device_remove_file(&intf->dev, &dev_attr_stat_mflags);
-	device_remove_file(&intf->dev, &dev_attr_stat_human_status);
-	device_remove_file(&intf->dev, &dev_attr_stat_delin);
-	device_remove_file(&intf->dev, &dev_attr_stat_vidcpe);
-	device_remove_file(&intf->dev, &dev_attr_stat_usrate);
-	device_remove_file(&intf->dev, &dev_attr_stat_dsrate);
-	device_remove_file(&intf->dev, &dev_attr_stat_usattenuation);
-	device_remove_file(&intf->dev, &dev_attr_stat_dsattenuation);
-	device_remove_file(&intf->dev, &dev_attr_stat_usmargin);
-	device_remove_file(&intf->dev, &dev_attr_stat_dsmargin);
-	device_remove_file(&intf->dev, &dev_attr_stat_txflow);
-	device_remove_file(&intf->dev, &dev_attr_stat_rxflow);
-	device_remove_file(&intf->dev, &dev_attr_stat_uscorr);
-	device_remove_file(&intf->dev, &dev_attr_stat_dscorr);
-	device_remove_file(&intf->dev, &dev_attr_stat_usunc);
-	device_remove_file(&intf->dev, &dev_attr_stat_dsunc);
+	sysfs_remove_group(&intf->dev.kobj, &attr_grp);
 }
 
 static void uea_unbind(struct usbatm_data *usbatm, struct usb_interface *intf)
 {
 	struct uea_softc *sc = usbatm->driver_data;
 
-	destroy_fs_entries(sc, intf);
+	destroy_fs_entries(intf);
 	uea_stop(sc);
 	kfree(sc);
 }

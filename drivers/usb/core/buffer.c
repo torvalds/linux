@@ -104,7 +104,7 @@ void *hcd_buffer_alloc (
 	dma_addr_t		*dma
 )
 {
-	struct usb_hcd		*hcd = bus->hcpriv;
+	struct usb_hcd		*hcd = bus_to_hcd(bus);
 	int 			i;
 
 	/* some USB hosts just use PIO */
@@ -127,7 +127,7 @@ void hcd_buffer_free (
 	dma_addr_t		dma
 )
 {
-	struct usb_hcd		*hcd = bus->hcpriv;
+	struct usb_hcd		*hcd = bus_to_hcd(bus);
 	int 			i;
 
 	if (!addr)

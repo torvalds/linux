@@ -420,8 +420,7 @@ static struct usb_endpoint_descriptor *keyspan_get_in_endpoint(struct usb_host_i
 	for (i = 0; i < iface->desc.bNumEndpoints; ++i) {
 		endpoint = &iface->endpoint[i].desc;
 
-		if ((endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_in(endpoint)) {
 			/* we found our interrupt in endpoint */
 			return endpoint;
 		}

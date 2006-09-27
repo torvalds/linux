@@ -259,7 +259,7 @@ static void tower_disconnect	(struct usb_interface *interface);
 static DEFINE_MUTEX (disconnect_mutex);
 
 /* file operations needed when we register this driver */
-static struct file_operations tower_fops = {
+static const struct file_operations tower_fops = {
 	.owner =	THIS_MODULE,
 	.read  =	tower_read,
 	.write =	tower_write,

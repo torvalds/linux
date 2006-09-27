@@ -32,6 +32,7 @@
 #include <linux/compiler.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
+#include <linux/poll.h>
 
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -222,7 +223,6 @@ static void put_ep (struct ep_data *data)
 	/* needs no more cleanup */
 	BUG_ON (!list_empty (&data->epfiles));
 	BUG_ON (waitqueue_active (&data->wait));
-	BUG_ON (down_trylock (&data->lock) != 0);
 	kfree (data);
 }
 
@@ -477,6 +477,10 @@ static int
 ep_release (struct inode *inode, struct file *fd)
 {
 	struct ep_data		*data = fd->private_data;
+	int value;
+
+	if ((value = down_interruptible(&data->lock)) < 0)
+		return value;
 
 	/* clean up if this can be reopened */
 	if (data->state != STATE_EP_UNBOUND) {
@@ -485,6 +489,7 @@ ep_release (struct inode *inode, struct file *fd)
 		data->hs_desc.bDescriptorType = 0;
 		usb_ep_disable(data->ep);
 	}
+	up (&data->lock);
 	put_ep (data);
 	return 0;
 }
@@ -709,7 +714,7 @@ ep_aio_write(struct kiocb *iocb, const char __user *ubuf, size_t len, loff_t o)
 /*----------------------------------------------------------------------*/
 
 /* used after endpoint configuration */
-static struct file_operations ep_io_operations = {
+static const struct file_operations ep_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -741,7 +746,7 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	struct ep_data		*data = fd->private_data;
 	struct usb_ep		*ep;
 	u32			tag;
-	int			value;
+	int			value, length = len;
 
 	if ((value = down_interruptible (&data->lock)) < 0)
 		return value;
@@ -792,7 +797,6 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			goto fail0;
 		}
 	}
-	value = len;
 
 	spin_lock_irq (&data->dev->lock);
 	if (data->dev->state == STATE_DEV_UNBOUND) {
@@ -822,8 +826,10 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 				data->name);
 		data->state = STATE_EP_DEFER_ENABLE;
 	}
-	if (value == 0)
+	if (value == 0) {
 		fd->f_op = &ep_io_operations;
+		value = length;
+	}
 gone:
 	spin_unlock_irq (&data->dev->lock);
 	if (value < 0) {
@@ -867,7 +873,7 @@ ep_open (struct inode *inode, struct file *fd)
 }
 
 /* used before endpoint configuration */
-static struct file_operations ep_config_operations = {
+static const struct file_operations ep_config_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
@@ -1009,7 +1015,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 			else {
 				len = min (len, (size_t)dev->req->actual);
 // FIXME don't call this with the spinlock held ...
-				if (copy_to_user (buf, &dev->req->buf, len))
+				if (copy_to_user (buf, dev->req->buf, len))
 					retval = -EFAULT;
 				clean_req (dev->gadget->ep0, dev->req);
 				/* NOTE userspace can't yet choose to stall */
@@ -1229,6 +1235,35 @@ dev_release (struct inode *inode, struct file *fd)
 	return 0;
 }
 
+static unsigned int
+ep0_poll (struct file *fd, poll_table *wait)
+{
+       struct dev_data         *dev = fd->private_data;
+       int                     mask = 0;
+
+       poll_wait(fd, &dev->wait, wait);
+
+       spin_lock_irq (&dev->lock);
+
+       /* report fd mode change before acting on it */
+       if (dev->setup_abort) {
+               dev->setup_abort = 0;
+               mask = POLLHUP;
+               goto out;
+       }
+
+       if (dev->state == STATE_SETUP) {
+               if (dev->setup_in || dev->setup_can_stall)
+                       mask = POLLOUT;
+       } else {
+               if (dev->ev_next != 0)
+                       mask = POLLIN;
+       }
+out:
+       spin_unlock_irq(&dev->lock);
+       return mask;
+}
+
 static int dev_ioctl (struct inode *inode, struct file *fd,
 		unsigned code, unsigned long value)
 {
@@ -1241,14 +1276,14 @@ static int dev_ioctl (struct inode *inode, struct file *fd,
 }
 
 /* used after device configuration */
-static struct file_operations ep0_io_operations = {
+static const struct file_operations ep0_io_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 
 	.read =		ep0_read,
 	.write =	ep0_write,
 	.fasync =	ep0_fasync,
-	// .poll =	ep0_poll,
+	.poll =		ep0_poll,
 	.ioctl =	dev_ioctl,
 	.release =	dev_release,
 };
@@ -1696,16 +1731,17 @@ gadgetfs_disconnect (struct usb_gadget *gadget)
 {
 	struct dev_data		*dev = get_gadget_data (gadget);
 
+	spin_lock (&dev->lock);
 	if (dev->state == STATE_UNCONNECTED) {
 		DBG (dev, "already unconnected\n");
-		return;
+		goto exit;
 	}
 	dev->state = STATE_UNCONNECTED;
 
 	INFO (dev, "disconnected\n");
-	spin_lock (&dev->lock);
 	next_event (dev, GADGETFS_DISCONNECT);
 	ep0_readable (dev);
+exit:
 	spin_unlock (&dev->lock);
 }
 
@@ -1922,7 +1958,7 @@ dev_open (struct inode *inode, struct file *fd)
 	return value;
 }
 
-static struct file_operations dev_init_operations = {
+static const struct file_operations dev_init_operations = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 

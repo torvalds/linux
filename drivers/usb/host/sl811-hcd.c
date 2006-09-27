@@ -597,7 +597,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank, struct pt_regs *regs)
 	/* error? retry, until "3 strikes" */
 	} else if (++ep->error_count >= 3) {
 		if (status & SL11H_STATMASK_TMOUT)
-			urbstat = -ETIMEDOUT;
+			urbstat = -ETIME;
 		else if (status & SL11H_STATMASK_OVF)
 			urbstat = -EOVERFLOW;
 		else
@@ -1517,7 +1517,7 @@ static int proc_sl811h_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_sl811h_show, PDE(inode)->data);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_sl811h_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

@@ -26,7 +26,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

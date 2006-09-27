@@ -1207,7 +1207,7 @@ static int isp116x_open_seq(struct inode *inode, struct file *file)
 	return single_open(file, isp116x_show_dbg, inode->i_private);
 }
 
-static struct file_operations isp116x_debug_fops = {
+static const struct file_operations isp116x_debug_fops = {
 	.open = isp116x_open_seq,
 	.read = seq_read,
 	.llseek = seq_lseek,

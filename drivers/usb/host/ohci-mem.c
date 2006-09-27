@@ -28,7 +28,6 @@ static void ohci_hcd_init (struct ohci_hcd *ohci)
 	ohci->next_statechange = jiffies;
 	spin_lock_init (&ohci->lock);
 	INIT_LIST_HEAD (&ohci->pending);
-	ohci->reboot_notifier.notifier_call = ohci_reboot;
 }
 
 /*-------------------------------------------------------------------------*/

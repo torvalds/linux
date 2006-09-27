@@ -44,7 +44,7 @@
 #include "hcd.h"
 
 static struct super_operations usbfs_ops;
-static struct file_operations default_file_operations;
+static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
 static int ignore_mount = 0;
@@ -407,7 +407,7 @@ static int default_open (struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations default_file_operations = {
+static const struct file_operations default_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
@@ -494,7 +494,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 
 static struct dentry *fs_create_file (const char *name, mode_t mode,
 				      struct dentry *parent, void *data,
-				      struct file_operations *fops,
+				      const struct file_operations *fops,
 				      uid_t uid, gid_t gid)
 {
 	struct dentry *dentry;
