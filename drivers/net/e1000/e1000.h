@@ -349,25 +349,4 @@ enum e1000_state_t {
 	__E1000_RESETTING,
 };
 
-/*  e1000_main.c  */
-extern char e1000_driver_name[];
-extern char e1000_driver_version[];
-int e1000_up(struct e1000_adapter *adapter);
-void e1000_down(struct e1000_adapter *adapter);
-void e1000_reset(struct e1000_adapter *adapter);
-void e1000_reinit_locked(struct e1000_adapter *adapter);
-int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
-void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
-int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
-void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
-void e1000_update_stats(struct e1000_adapter *adapter);
-int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
-
-/*  e1000_ethtool.c  */
-void e1000_set_ethtool_ops(struct net_device *netdev);
-
-/*  e1000_param.c  */
-void e1000_check_options(struct e1000_adapter *adapter);
-
-
 #endif /* _E1000_H_ */
