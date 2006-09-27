@@ -118,7 +118,7 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst)
  *
  */
 int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
-			  u32 saddr, u32 daddr, struct ip_options *opt)
+			  __be32 saddr, __be32 daddr, struct ip_options *opt)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = (struct rtable *)skb->dst;
