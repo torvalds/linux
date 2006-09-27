@@ -723,12 +723,6 @@ static const arg_desc_t error_actions[] = {
 	{NULL, 0, 0},
 };
 
-int reiserfs_default_io_size = 128 * 1024;	/* Default recommended I/O size is 128k.
-						   There might be broken applications that are
-						   confused by this. Use nolargeio mount option
-						   to get usual i/o size = PAGE_SIZE.
-						 */
-
 /* proceed only one option from a list *cur - string containing of mount options
    opts - array of options which are accepted
    opt_arg - if option is found and requires an argument and if it is specifed
@@ -957,19 +951,8 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		}
 
 		if (c == 'w') {
-			char *p = NULL;
-			int val = simple_strtoul(arg, &p, 0);
-
-			if (*p != '\0') {
-				reiserfs_warning(s,
-						 "reiserfs_parse_options: non-numeric value %s for nolargeio option",
-						 arg);
-				return 0;
-			}
-			if (val)
-				reiserfs_default_io_size = PAGE_SIZE;
-			else
-				reiserfs_default_io_size = 128 * 1024;
+			reiserfs_warning(s, "reiserfs: nolargeio option is no longer supported");
+			return 0;
 		}
 
 		if (c == 'j') {
