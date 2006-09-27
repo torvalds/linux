@@ -1829,6 +1829,9 @@ static int __cpuinit process_zones(int cpu)
 
 	for_each_zone(zone) {
 
+		if (!populated_zone(zone))
+			continue;
+
 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
 					 GFP_KERNEL, cpu_to_node(cpu));
 		if (!zone_pcp(zone, cpu))
