@@ -122,19 +122,35 @@ unsigned int kobjsize(const void *objp)
 }
 
 /*
- * The nommu dodgy version :-)
+ * get a list of pages in an address range belonging to the specified process
+ * and indicate the VMA that covers each page
+ * - this is potentially dodgy as we may end incrementing the page count of a
+ *   slab page or a secondary page from a compound page
+ * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int len, int write, int force,
 	struct page **pages, struct vm_area_struct **vmas)
 {
-	int i;
 	struct vm_area_struct *vma;
+	unsigned long vm_flags;
+	int i;
+
+	/* calculate required read or write permissions.
+	 * - if 'force' is set, we only require the "MAY" flags.
+	 */
+	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
 	for (i = 0; i < len; i++) {
 		vma = find_vma(mm, start);
-		if(!vma)
-			return i ? : -EFAULT;
+		if (!vma)
+			goto finish_or_fault;
+
+		/* protect what we can, including chardevs */
+		if (vma->vm_flags & (VM_IO | VM_PFNMAP) ||
+		    !(vm_flags & vma->vm_flags))
+			goto finish_or_fault;
 
 		if (pages) {
 			pages[i] = virt_to_page(start);
@@ -145,7 +161,11 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			vmas[i] = vma;
 		start += PAGE_SIZE;
 	}
-	return(i);
+
+	return i;
+
+finish_or_fault:
+	return i ? : -EFAULT;
 }
 
 EXPORT_SYMBOL(get_user_pages);
