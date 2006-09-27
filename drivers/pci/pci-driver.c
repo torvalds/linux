@@ -56,6 +56,7 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		subdevice=PCI_ANY_ID, class=0, class_mask=0;
 	unsigned long driver_data=0;
 	int fields=0;
+	int retval = 0;
 
 	fields = sscanf(buf, "%x %x %x %x %x %x %lux",
 			&vendor, &device, &subvendor, &subdevice,
@@ -82,10 +83,12 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	spin_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->driver)) {
-		driver_attach(&pdrv->driver);
+		retval = driver_attach(&pdrv->driver);
 		put_driver(&pdrv->driver);
 	}
 
+	if (retval)
+		return retval;
 	return count;
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
@@ -418,7 +421,11 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	drv->driver.bus = &pci_bus_type;
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
-	drv->driver.multithread_probe = pci_multithread_probe;
+
+	if (pci_multithread_probe)
+		drv->driver.multithread_probe = pci_multithread_probe;
+	else
+		drv->driver.multithread_probe = drv->multithread_probe;
 
 	spin_lock_init(&drv->dynids.lock);
 	INIT_LIST_HEAD(&drv->dynids.list);

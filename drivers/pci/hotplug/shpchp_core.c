@@ -449,10 +449,14 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ctrl->speed = PCI_SPEED_33MHz;
 	}
 
-	shpchp_create_ctrl_files(ctrl);
+	rc = shpchp_create_ctrl_files(ctrl);
+	if (rc)
+		goto err_cleanup_slots;
 
 	return 0;
 
+err_cleanup_slots:
+	cleanup_slots(ctrl);
 err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
