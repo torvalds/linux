@@ -41,7 +41,8 @@ extern void (*copy_page)(void *to, void *from);
 extern void clear_page_slow(void *to);
 extern void copy_page_slow(void *to, void *from);
 
-#if defined(CONFIG_SH7705_CACHE_32KB) && defined(CONFIG_MMU)
+#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
 struct page;
 extern void clear_user_page(void *to, unsigned long address, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
@@ -50,29 +51,20 @@ extern void __copy_user_page(void *to, void *from, void *orig_to);
 #elif defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH3) || !defined(CONFIG_MMU)
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
-#elif defined(CONFIG_CPU_SH4)
-struct page;
-extern void clear_user_page(void *to, unsigned long address, struct page *pg);
-extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
-extern void __clear_user_page(void *to, void *orig_to);
-extern void __copy_user_page(void *to, void *from, void *orig_to);
 #endif
 
 /*
  * These are used to make use of C type-checking..
  */
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
 #define __pte(x) ((pte_t) { (x) } )
-#define __pmd(x) ((pmd_t) { (x) } )
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 

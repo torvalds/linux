@@ -2,6 +2,7 @@
 #define __ASM_SH_CACHEFLUSH_H
 #ifdef __KERNEL__
 
+#include <linux/mm.h>
 #include <asm/cpu/cacheflush.h>
 
 /* Flush (write-back only) a region (smaller than a page) */

@@ -10,7 +10,7 @@
 #ifndef __ASM_CPU_SH3_CACHEFLUSH_H
 #define __ASM_CPU_SH3_CACHEFLUSH_H
 
-/* 
+/*
  * Cache flushing:
  *
  *  - flush_cache_all() flushes entire cache
@@ -34,10 +34,6 @@
  */
  /* 32KB cache, 4kb PAGE sizes need to check bit 12 */
 #define CACHE_ALIAS 0x00001000
-
-struct page;
-struct mm_struct;
-struct vm_area_struct;
 
 extern void flush_cache_all(void);
 extern void flush_cache_mm(struct mm_struct *mm);
@@ -78,8 +74,6 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 
 #define p3_cache_init()				do { } while (0)
-
-#define HAVE_ARCH_UNMAPPED_AREA
 
 #endif
 

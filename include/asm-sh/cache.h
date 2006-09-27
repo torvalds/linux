@@ -10,7 +10,6 @@
 #ifdef __KERNEL__
 
 #include <asm/cpu/cache.h>
-#include <asm/cpu/cacheflush.h>
 
 #define SH_CACHE_VALID		1
 #define SH_CACHE_UPDATED	2
@@ -48,13 +47,6 @@ struct cache_info {
 
 	unsigned long flags;
 };
-
-/* Flush (write-back only) a region (smaller than a page) */
-extern void __flush_wback_region(void *start, int size);
-/* Flush (write-back & invalidate) a region (smaller than a page) */
-extern void __flush_purge_region(void *start, int size);
-/* Flush (invalidate only) a region (smaller than a page) */
-extern void __flush_invalidate_region(void *start, int size);
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHE_H */

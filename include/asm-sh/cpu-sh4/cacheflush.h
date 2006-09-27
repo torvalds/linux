@@ -16,30 +16,26 @@
  *  caching; in which case they're only semi-broken),
  *  so we need them.
  */
-struct page;
-struct mm_struct;
-struct vm_area_struct;
-
-extern void flush_cache_all(void);
-extern void flush_cache_mm(struct mm_struct *mm);
-extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-			      unsigned long end);
-extern void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn);
-extern void flush_dcache_page(struct page *pg);
+void flush_cache_all(void);
+void flush_cache_mm(struct mm_struct *mm);
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+		       unsigned long end);
+void flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
+		      unsigned long pfn);
+void flush_dcache_page(struct page *pg);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void flush_cache_sigtramp(unsigned long addr);
-extern void flush_icache_user_range(struct vm_area_struct *vma,
-				    struct page *page, unsigned long addr,
-				    int len);
+void flush_icache_range(unsigned long start, unsigned long end);
+void flush_cache_sigtramp(unsigned long addr);
+void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
+			     unsigned long addr, int len);
 
 #define flush_icache_page(vma,pg)		do { } while (0)
 
 /* Initialization of P3 area for copy_user_page */
-extern void p3_cache_init(void);
+void p3_cache_init(void);
 
 #define PG_mapped	PG_arch_1
 
@@ -57,4 +53,3 @@ static inline int remap_area_pages(unsigned long addr, unsigned long phys_addr,
 }
 #endif /* CONFIG_MMU */
 #endif /* __ASM_CPU_SH4_CACHEFLUSH_H */
-

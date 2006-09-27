@@ -1,42 +1,42 @@
+/*
+ * This file contains the functions and defines necessary to modify and
+ * use the SuperH page table tree.
+ *
+ * Copyright (C) 1999 Niibe Yutaka
+ * Copyright (C) 2002 - 2005 Paul Mundt
+ *
+ * This file is subject to the terms and conditions of the GNU General
+ * Public License.  See the file "COPYING" in the main directory of this
+ * archive for more details.
+ */
 #ifndef __ASM_SH_PGTABLE_H
 #define __ASM_SH_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
+#include <asm-generic/pgtable-nopmd.h>
+#include <asm/page.h>
 
-/*
- * Copyright (C) 1999 Niibe Yutaka
- * Copyright (C) 2002, 2003, 2004 Paul Mundt
- */
+#define PTRS_PER_PGD		1024
 
-#include <asm/pgtable-2level.h>
-
-/*
- * This file contains the functions and defines necessary to modify and use
- * the SuperH page table tree.
- */
 #ifndef __ASSEMBLY__
-#include <asm/processor.h>
 #include <asm/addrspace.h>
 #include <asm/fixmap.h>
-#include <linux/threads.h>
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 
 /*
- * Basically we have the same two-level (which is the logical three level
- * Linux page table layout folded) page tables as the i386.
- */
-
-/*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-extern unsigned long empty_zero_page[1024];
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
 #endif /* !__ASSEMBLY__ */
 
+/* traditional two-level paging structure */
+#define PGDIR_SHIFT	22
+#define PTRS_PER_PMD	1
+#define PTRS_PER_PTE	1024
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
@@ -47,7 +47,6 @@ extern unsigned long empty_zero_page[1024];
 
 #define PTE_PHYS_MASK	0x1ffff000
 
-#ifndef __ASSEMBLY__
 /*
  * First 1MB map is used by fixed purpose.
  * Currently only 4-enty (16kB) is used (see arch/sh/mm/cache.c)
@@ -65,7 +64,7 @@ extern unsigned long empty_zero_page[1024];
 #define _PAGE_SZ1	0x080  /* SZ1-bit : Size of page (on SH-4) */
 #define _PAGE_PRESENT	0x100  /* V-bit   : page is valid */
 #define _PAGE_PROTNONE	0x200  /* software: if not present  */
-#define _PAGE_ACCESSED 	0x400  /* software: page referenced */
+#define _PAGE_ACCESSED	0x400  /* software: page referenced */
 #define _PAGE_U0_SHARED 0x800  /* software: page is shared in user space */
 
 #define	_PAGE_FILE	_PAGE_WT  /* software: pagecache or swap? */
@@ -82,7 +81,6 @@ extern unsigned long empty_zero_page[1024];
 #define _PAGE_PCC_COM16	0x40000001	/* Common Memory space, 16 bit bus */
 #define _PAGE_PCC_ATR8	0x60000000	/* Attribute Memory space, 8 bit bus */
 #define _PAGE_PCC_ATR16	0x60000001	/* Attribute Memory space, 6 bit bus */
-
 
 /* Mask which drop software flags
  * We also drop WT bit since it is used for _PAGE_FILE
@@ -115,6 +113,8 @@ extern unsigned long empty_zero_page[1024];
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | _PAGE_DIRTY | _PAGE_SHARED)
 
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_MMU
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE |_PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_CACHABLE |_PAGE_ACCESSED | _PAGE_SHARED | _PAGE_FLAGS_HARD)
@@ -137,12 +137,13 @@ extern unsigned long empty_zero_page[1024];
 #define PAGE_KERNEL_PCC		__pgprot(0)
 #endif
 
+#endif /* __ASSEMBLY__ */
+
 /*
  * As i386 and MIPS, SuperH can't do page protection for execute, and
  * considers that the same as a read.  Also, write permissions imply
- * read permissions. This is the closest we can get..  
+ * read permissions. This is the closest we can get..
  */
-
 #define __P000	PAGE_NONE
 #define __P001	PAGE_READONLY
 #define __P010	PAGE_COPY
@@ -161,6 +162,26 @@ extern unsigned long empty_zero_page[1024];
 #define __S110	PAGE_SHARED
 #define __S111	PAGE_SHARED
 
+#ifndef __ASSEMBLY__
+
+/*
+ * Certain architectures need to do special things when PTEs
+ * within a page table are directly modified.  Thus, the following
+ * hook is made available.
+ */
+#define set_pte(pteptr, pteval) (*(pteptr) = pteval)
+#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
+
+/*
+ * (pmds are folded into pgds so this doesn't get actually called,
+ * but the define is needed for a generic inline function.)
+ */
+#define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
+
+#define pte_pfn(x)		((unsigned long)(((x).pte >> PAGE_SHIFT)))
+#define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+
 #define pte_none(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
@@ -171,7 +192,7 @@ extern unsigned long empty_zero_page[1024];
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
 
 #define pages_to_mb(x)	((x) >> (20-PAGE_SHIFT))
-#define pte_page(x) 	phys_to_page(pte_val(x)&PTE_PHYS_MASK)
+#define pte_page(x)	phys_to_page(pte_val(x)&PTE_PHYS_MASK)
 
 /*
  * The following only work if pte_present() is true.
@@ -248,6 +269,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_unmap(pte)		do { } while (0)
 #define pte_unmap_nested(pte)	do { } while (0)
 
+#define pte_ERROR(e) \
+	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
+#define pgd_ERROR(e) \
+	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+
 struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct * vma,
 			     unsigned long address, pte_t pte);
@@ -271,8 +297,6 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 #define pgoff_to_pte(off)	((pte_t) { ((off) << 1) | _PAGE_FILE })
 
 typedef pte_t *pte_addr_t;
-
-#endif /* !__ASSEMBLY__ */
 
 #define kern_addr_valid(addr)	(1)
 
@@ -300,6 +324,8 @@ extern pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t 
 #endif
 
 #include <asm-generic/pgtable.h>
+
+#endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_SH_PAGE_H */
 

@@ -80,6 +80,7 @@ void show_mem(void)
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
@@ -89,7 +90,17 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 		return;
 	}
 
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud)) {
+		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
+		if (pmd != pmd_offset(pud, 0)) {
+			pud_ERROR(*pud);
+			return;
+		}
+	}
+
+	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd)) {
 		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
 		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
