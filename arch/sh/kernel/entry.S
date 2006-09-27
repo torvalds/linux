@@ -716,8 +716,8 @@ ENTRY(handle_exception)
 	bt/s	1f		! It's a kernel to kernel transition.
 	 mov	r15, k0		! save original stack to k0
 	/* User space to kernel */
-	mov	#0x20, k1
-	shll8	k1		! k1 := 8192 (== THREAD_SIZE)
+	mov	#(THREAD_SIZE >> 8), k1
+	shll8	k1		! k1 := THREAD_SIZE
 	add	current, k1
 	mov	k1, r15		! change to kernel stack
 	!

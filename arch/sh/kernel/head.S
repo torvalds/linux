@@ -12,7 +12,6 @@
  */
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
-#include <asm/page.h>
 
 #ifdef CONFIG_CPU_SH4A
 #define SYNCO()		synco
@@ -69,8 +68,8 @@ ENTRY(_stext)
 	!
 	mov.l	2f, r0
 	mov	r0, r15		! Set initial r15 (stack pointer)
-	mov	#0x20, r1	!
-	shll8	r1		! r1 = 8192
+	mov	#(THREAD_SIZE >> 8), r1
+	shll8	r1		! r1 = THREAD_SIZE
 	sub	r1, r0		!
 	ldc	r0, r7_bank	! ... and initial thread_info
 

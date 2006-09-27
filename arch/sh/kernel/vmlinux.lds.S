@@ -3,7 +3,6 @@
  * Written by Niibe Yutaka
  */
 #include <asm/thread_info.h>
-#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN

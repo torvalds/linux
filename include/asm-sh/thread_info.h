@@ -9,8 +9,8 @@
  *  Copyright (C) 2002  David Howells (dhowells@redhat.com)
  *  - Incorporating suggestions made by Linus Torvalds and Dave Miller
  */
-
 #ifdef __KERNEL__
+#include <asm/page.h>
 
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
@@ -23,13 +23,20 @@ struct thread_info {
 	int			preempt_count; /* 0 => preemptable, <0 => BUG */
 	mm_segment_t		addr_limit;	/* thread address space */
 	struct restart_block	restart_block;
+	unsigned long		previous_sp;	/* sp of previous stack in case
+						   of nested IRQ stacks */
 	__u8			supervisor_stack[0];
 };
 
 #endif
 
 #define PREEMPT_ACTIVE		0x10000000
+
+#ifdef CONFIG_4KSTACKS
+#define THREAD_SIZE		(PAGE_SIZE)
+#else
 #define THREAD_SIZE		(PAGE_SIZE * 2)
+#endif
 #define STACK_WARN		(THREAD_SIZE / 8)
 
 /*
@@ -51,6 +58,9 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
+
+/* how to get the current stack pointer from C */
+register unsigned long current_stack_pointer asm("r15") __attribute_used__;
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)

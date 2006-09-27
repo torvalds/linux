@@ -1,5 +1,4 @@
-/* $Id: irq.c,v 1.20 2004/01/13 05:52:11 kkojima Exp $
- *
+/*
  * linux/arch/sh/kernel/irq.c
  *
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
@@ -7,13 +6,15 @@
  *
  * SuperH version:  Copyright (C) 1999  Niibe Yutaka
  */
-
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
+#include <asm/uaccess.h>
+#include <asm/thread_info.h>
 #include <asm/cpu/mmu_context.h>
 
 /*
@@ -60,11 +61,27 @@ unlock:
 }
 #endif
 
+#ifdef CONFIG_4KSTACKS
+/*
+ * per-CPU IRQ handling contexts (thread information and stack)
+ */
+union irq_ctx {
+	struct thread_info	tinfo;
+	u32			stack[THREAD_SIZE/sizeof(u32)];
+};
+
+static union irq_ctx *hardirq_ctx[NR_CPUS];
+static union irq_ctx *softirq_ctx[NR_CPUS];
+#endif
+
 asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      unsigned long r6, unsigned long r7,
 		      struct pt_regs regs)
 {
 	int irq = r4;
+#ifdef CONFIG_4KSTACKS
+	union irq_ctx *curctx, *irqctx;
+#endif
 
 	irq_enter();
 
@@ -102,7 +119,135 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 #endif
 
 	irq = irq_demux(irq);
-	__do_IRQ(irq, &regs);
+
+#ifdef CONFIG_4KSTACKS
+	curctx = (union irq_ctx *)current_thread_info();
+	irqctx = hardirq_ctx[smp_processor_id()];
+
+	/*
+	 * this is where we switch to the IRQ stack. However, if we are
+	 * already using the IRQ stack (because we interrupted a hardirq
+	 * handler) we can't do that and just have to keep using the
+	 * current stack (which is the irq stack already after all)
+	 */
+	if (curctx != irqctx) {
+		u32 *isp;
+
+		isp = (u32 *)((char *)irqctx + sizeof(*irqctx));
+		irqctx->tinfo.task = curctx->tinfo.task;
+		irqctx->tinfo.previous_sp = current_stack_pointer;
+
+		__asm__ __volatile__ (
+			"mov	%0, r4		\n"
+			"mov	%1, r5		\n"
+			"mov	r15, r9		\n"
+			"jsr	@%2		\n"
+			/* swith to the irq stack */
+			" mov	%3, r15		\n"
+			/* restore the stack (ring zero) */
+			"mov	r9, r15		\n"
+			: /* no outputs */
+			: "r" (irq), "r" (&regs), "r" (__do_IRQ), "r" (isp)
+			/* XXX: A somewhat excessive clobber list? -PFM */
+			: "memory", "r0", "r1", "r2", "r3", "r4",
+			  "r5", "r6", "r7", "r8", "t", "pr"
+		);
+	} else
+#endif
+		__do_IRQ(irq, &regs);
+
 	irq_exit();
+
 	return 1;
 }
+
+#ifdef CONFIG_4KSTACKS
+/*
+ * These should really be __section__(".bss.page_aligned") as well, but
+ * gcc's 3.0 and earlier don't handle that correctly.
+ */
+static char softirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__aligned__(THREAD_SIZE)));
+
+static char hardirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__aligned__(THREAD_SIZE)));
+
+/*
+ * allocate per-cpu stacks for hardirq and for softirq processing
+ */
+void irq_ctx_init(int cpu)
+{
+	union irq_ctx *irqctx;
+
+	if (hardirq_ctx[cpu])
+		return;
+
+	irqctx = (union irq_ctx *)&hardirq_stack[cpu * THREAD_SIZE];
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= HARDIRQ_OFFSET;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
+
+	hardirq_ctx[cpu] = irqctx;
+
+	irqctx = (union irq_ctx *)&softirq_stack[cpu * THREAD_SIZE];
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= SOFTIRQ_OFFSET;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
+
+	softirq_ctx[cpu] = irqctx;
+
+	printk("CPU %u irqstacks, hard=%p soft=%p\n",
+		cpu, hardirq_ctx[cpu], softirq_ctx[cpu]);
+}
+
+void irq_ctx_exit(int cpu)
+{
+	hardirq_ctx[cpu] = NULL;
+}
+
+extern asmlinkage void __do_softirq(void);
+
+asmlinkage void do_softirq(void)
+{
+	unsigned long flags;
+	struct thread_info *curctx;
+	union irq_ctx *irqctx;
+	u32 *isp;
+
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+
+	if (local_softirq_pending()) {
+		curctx = current_thread_info();
+		irqctx = softirq_ctx[smp_processor_id()];
+		irqctx->tinfo.task = curctx->task;
+		irqctx->tinfo.previous_sp = current_stack_pointer;
+
+		/* build the stack frame on the softirq stack */
+		isp = (u32 *)((char *)irqctx + sizeof(*irqctx));
+
+		__asm__ __volatile__ (
+			"mov	r15, r9		\n"
+			"jsr	@%0		\n"
+			/* switch to the softirq stack */
+			" mov	%1, r15		\n"
+			/* restore the thread stack */
+			"mov	r9, r15		\n"
+			: /* no outputs */
+			: "r" (__do_softirq), "r" (isp)
+			/* XXX: A somewhat excessive clobber list? -PFM */
+			: "memory", "r0", "r1", "r2", "r3", "r4",
+			  "r5", "r6", "r7", "r8", "r9", "r15", "t", "pr"
+		);
+	}
+
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(do_softirq);
+#endif

@@ -190,6 +190,8 @@ void __init init_IRQ(void)
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq != NULL)
 		sh_mv.mv_init_irq();
+
+	irq_ctx_init(smp_processor_id());
 }
 
 #if !defined(CONFIG_CPU_HAS_PINT_IRQ)

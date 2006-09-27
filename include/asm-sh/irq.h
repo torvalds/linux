@@ -719,6 +719,15 @@ static inline int generic_irq_demux(int irq)
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		__irq_demux(sh_mv.mv_irq_demux(irq))
 
+#ifdef CONFIG_4KSTACKS
+extern void irq_ctx_init(int cpu);
+extern void irq_ctx_exit(int cpu);
+# define __ARCH_HAS_DO_SOFTIRQ
+#else
+# define irq_ctx_init(cpu) do { } while (0)
+# define irq_ctx_exit(cpu) do { } while (0)
+#endif
+
 #if defined(CONFIG_CPU_SUBTYPE_SH73180)
 #include <asm/irq-sh73180.h>
 #endif

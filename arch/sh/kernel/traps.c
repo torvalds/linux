@@ -741,20 +741,12 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	unsigned long module_end = VMALLOC_END;
 	int i = 1;
 
-	if (tsk && !sp) {
+	if (!tsk)
+		tsk = current;
+	if (tsk == current)
+		sp = (unsigned long *)current_stack_pointer;
+	else
 		sp = (unsigned long *)tsk->thread.sp;
-	}
-
-	if (!sp) {
-		__asm__ __volatile__ (
-			"mov r15, %0\n\t"
-			"stc r7_bank, %1\n\t"
-			: "=r" (module_start),
-			  "=r" (module_end)
-		);
-		
-		sp = (unsigned long *)module_start;
-	}
 
 	stack = sp;
 
