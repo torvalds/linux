@@ -3,6 +3,14 @@
 
 /*
  * Processor flags
+ *
+ * Note: When adding a new flag, keep cpu_flags[] in
+ * arch/sh/kernel/setup.c in sync so symbolic name
+ * mapping of the processor flags has a chance of being
+ * reasonably accurate.
+ *
+ * These flags are also available through the ELF
+ * auxiliary vector as AT_HWCAP.
  */
 #define CPU_HAS_FPU		0x0001	/* Hardware FPU support */
 #define CPU_HAS_P2_FLUSH_BUG	0x0002	/* Need to flush the cache in P2 area */

@@ -413,8 +413,10 @@ const char *get_cpu_subtype(void)
 }
 
 #ifdef CONFIG_PROC_FS
+/* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
-	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr", "ptea", NULL
+	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
+	"ptea", "llsc", NULL
 };
 
 static void show_cpuflags(struct seq_file *m)
