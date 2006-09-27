@@ -252,6 +252,15 @@ void fastcall detach_pid(struct task_struct *task, enum pid_type type)
 	free_pid(pid);
 }
 
+/* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
+void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
+			   enum pid_type type)
+{
+	new->pids[type].pid = old->pids[type].pid;
+	hlist_replace_rcu(&old->pids[type].node, &new->pids[type].node);
+	old->pids[type].pid = NULL;
+}
+
 struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result = NULL;

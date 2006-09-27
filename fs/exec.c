@@ -696,22 +696,19 @@ static int de_thread(struct task_struct *tsk)
 		 */
 
 		/* Become a process group leader with the old leader's pid.
-		 * Note: The old leader also uses thispid until release_task
+		 * The old leader becomes a thread of the this thread group.
+		 * Note: The old leader also uses this pid until release_task
 		 *       is called.  Odd but simple and correct.
 		 */
 		detach_pid(current, PIDTYPE_PID);
 		current->pid = leader->pid;
 		attach_pid(current, PIDTYPE_PID,  current->pid);
-		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
-		attach_pid(current, PIDTYPE_SID,  current->signal->session);
+		transfer_pid(leader, current, PIDTYPE_PGID);
+		transfer_pid(leader, current, PIDTYPE_SID);
 		list_replace_rcu(&leader->tasks, &current->tasks);
 
 		current->group_leader = current;
 		leader->group_leader = current;
-
-		/* Reduce leader to a thread */
-		detach_pid(leader, PIDTYPE_PGID);
-		detach_pid(leader, PIDTYPE_SID);
 
 		current->exit_signal = SIGCHLD;
 
