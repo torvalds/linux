@@ -54,9 +54,9 @@
 #define HD64461_LDVSPR		0x1101c
 #define HD64461_LDR3		0x1101e
 
-#define HD64461_CPTWAR		0x11030	
+#define HD64461_CPTWAR		0x11030
 #define HD64461_CPTWDR		0x11032
-#define HD64461_CPTRAR		0x11034	
+#define HD64461_CPTRAR		0x11034
 #define HD64461_CPTRDR		0x11036
 
 #define HD64461_GRDOR		0x11040
@@ -111,7 +111,7 @@
 #define HD64461_PCCISR_BVD1		0x01	/* battery 1 */
 
 #define HD64461_PCCISR_PCD_MASK		0x0c    /* card detect */
-#define HD64461_PCCISR_BVD_MASK	0x03    /* battery voltage */
+#define HD64461_PCCISR_BVD_MASK		0x03    /* battery voltage */
 #define HD64461_PCCISR_BVD_BATGOOD	0x03    /* battery good */
 #define HD64461_PCCISR_BVD_BATWARN	0x01    /* battery low warning */
 #define HD64461_PCCISR_BVD_BATDEAD1	0x02    /* battery dead */
@@ -139,11 +139,11 @@
 
 /* PCC Card Status Change Interrupt Enable Register */
 #define HD64461_PCCCSCIER_CRE		0x80    /* change reset enable */
-#define HD64461_PCCCSCIER_IREQE_MASK   	0x60   /* IREQ enable */
+#define HD64461_PCCCSCIER_IREQE_MASK	0x60   /* IREQ enable */
 #define HD64461_PCCCSCIER_IREQE_DISABLED	0x00   /* IREQ disabled */
-#define HD64461_PCCCSCIER_IREQE_LEVEL  	0x20   /* IREQ level-triggered */
+#define HD64461_PCCCSCIER_IREQE_LEVEL	0x20   /* IREQ level-triggered */
 #define HD64461_PCCCSCIER_IREQE_FALLING	0x40   /* IREQ falling-edge-trig */
-#define HD64461_PCCCSCIER_IREQE_RISING 	0x60   /* IREQ rising-edge-trig */
+#define HD64461_PCCCSCIER_IREQE_RISING	0x60   /* IREQ rising-edge-trig */
 
 #define HD64461_PCCCSCIER_SCE		0x10    /* status change enable */
 #define HD64461_PCCCSCIER_CDE		0x08    /* card detect change enable */
@@ -154,7 +154,6 @@
 /* PCC Software Control Register */
 #define HD64461_PCCSCR_VCC1		0x02	/* voltage control pin 1 */
 #define HD64461_PCCSCR_SWP		0x01    /* write protect */
-
 
 #define HD64461_P0OCR           0x1202a
 #define HD64461_P1OCR           0x1202c
@@ -180,23 +179,25 @@
 #define HD64461_NIRR		0x15000
 #define HD64461_NIMR		0x15002
 
-#ifndef CONFIG_HD64461_IOBASE
-#define CONFIG_HD64461_IOBASE	0xb0000000
-#endif
-#ifndef CONFIG_HD64461_IRQ
-#define CONFIG_HD64461_IRQ	36
-#endif
-
 #define HD64461_IRQBASE		OFFCHIP_IRQ_BASE
-#define HD64461_IRQ_NUM 	16
+#define HD64461_IRQ_NUM		16
 
-#define HD64461_IRQ_UART    	(HD64461_IRQBASE+5)
-#define HD64461_IRQ_IRDA    	(HD64461_IRQBASE+6)
-#define HD64461_IRQ_TMU1   	(HD64461_IRQBASE+9)
-#define HD64461_IRQ_TMU0  	(HD64461_IRQBASE+10)
-#define HD64461_IRQ_GPIO    	(HD64461_IRQBASE+11)
-#define HD64461_IRQ_AFE     	(HD64461_IRQBASE+12)
-#define HD64461_IRQ_PCC1 	(HD64461_IRQBASE+13)
-#define HD64461_IRQ_PCC0 	(HD64461_IRQBASE+14)
+#define HD64461_IRQ_UART	(HD64461_IRQBASE+5)
+#define HD64461_IRQ_IRDA	(HD64461_IRQBASE+6)
+#define HD64461_IRQ_TMU1	(HD64461_IRQBASE+9)
+#define HD64461_IRQ_TMU0	(HD64461_IRQBASE+10)
+#define HD64461_IRQ_GPIO	(HD64461_IRQBASE+11)
+#define HD64461_IRQ_AFE		(HD64461_IRQBASE+12)
+#define HD64461_IRQ_PCC1	(HD64461_IRQBASE+13)
+#define HD64461_IRQ_PCC0	(HD64461_IRQBASE+14)
+
+#define __IO_PREFIX	hd64461
+#include <asm/io_generic.h>
+
+/* arch/sh/cchips/hd6446x/hd64461/setup.c */
+int hd64461_irq_demux(int irq);
+void hd64461_register_irq_demux(int irq,
+				int (*demux) (int irq, void *dev), void *dev);
+void hd64461_unregister_irq_demux(int irq);
 
 #endif

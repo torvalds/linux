@@ -14,8 +14,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-
-#include <asm/hd64461/hd64461.h>
+#include <asm/hd64461.h>
 
 static void disable_hd64461_irq(unsigned int irq)
 {

@@ -1,11 +1,10 @@
 /*
- *	$Id: io.c,v 1.6 2004/03/16 00:07:50 lethal Exp $
  *	Copyright (C) 2000 YAEGASHI Takeshi
  *	Typical I/O routines for HD64461 system.
  */
 
 #include <asm/io.h>
-#include <asm/hd64461/hd64461.h>
+#include <asm/hd64461.h>
 
 #define MEM_BASE (CONFIG_HD64461_IOBASE - HD64461_STBCR)
 
@@ -144,13 +143,13 @@ void hd64461_outsl(unsigned long port, const void *buffer, unsigned long count)
 	while(count--) *addr=*buf++;
 }
 
-unsigned short hd64461_readw(unsigned long addr)
+unsigned short hd64461_readw(void __iomem *addr)
 {
-	return *(volatile unsigned short*)(MEM_BASE+addr);
+	return ctrl_inw(MEM_BASE+(unsigned long __force)addr);
 }
 
-void hd64461_writew(unsigned short b, unsigned long addr)
+void hd64461_writew(unsigned short b, void __iomem *addr)
 {
-	*(volatile unsigned short*)(MEM_BASE+addr) = b;
+	ctrl_outw(b, MEM_BASE+(unsigned long __force)addr);
 }
 
