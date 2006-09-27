@@ -105,7 +105,7 @@ extern int register_inetaddr_notifier(struct notifier_block *nb);
 extern int unregister_inetaddr_notifier(struct notifier_block *nb);
 
 extern struct net_device 	*ip_dev_find(u32 addr);
-extern int		inet_addr_onlink(struct in_device *in_dev, u32 a, u32 b);
+extern int		inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b);
 extern int		devinet_ioctl(unsigned int cmd, void __user *);
 extern void		devinet_init(void);
 extern struct in_device *inetdev_init(struct net_device *dev);
