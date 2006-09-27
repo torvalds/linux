@@ -16,8 +16,8 @@ struct flowi {
 
 	union {
 		struct {
-			__u32			daddr;
-			__u32			saddr;
+			__be32			daddr;
+			__be32			saddr;
 			__u32			fwmark;
 			__u8			tos;
 			__u8			scope;

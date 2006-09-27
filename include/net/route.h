@@ -62,18 +62,18 @@ struct rtable
 	__u16			rt_type;
 	__u16			rt_multipath_alg;
 
-	__u32			rt_dst;	/* Path destination	*/
-	__u32			rt_src;	/* Path source		*/
+	__be32			rt_dst;	/* Path destination	*/
+	__be32			rt_src;	/* Path source		*/
 	int			rt_iif;
 
 	/* Info on neighbour */
-	__u32			rt_gateway;
+	__be32			rt_gateway;
 
 	/* Cache lookup keys */
 	struct flowi		fl;
 
 	/* Miscellaneous cached information */
-	__u32			rt_spec_dst; /* RFC1122 specific destination */
+	__be32			rt_spec_dst; /* RFC1122 specific destination */
 	struct inet_peer	*peer; /* long-living peer info */
 };
 
