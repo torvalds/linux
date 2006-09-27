@@ -942,7 +942,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	 */
 	do {
 		zone = *z;
-		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
@@ -1256,14 +1256,12 @@ unsigned int nr_free_pagecache_pages(void)
 {
 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
 }
-#ifdef CONFIG_NUMA
-static void show_node(struct zone *zone)
+
+static inline void show_node(struct zone *zone)
 {
-	printk("Node %ld ", zone_to_nid(zone));
+	if (NUMA_BUILD)
+		printk("Node %ld ", zone_to_nid(zone));
 }
-#else
-#define show_node(zone)	do { } while (0)
-#endif
 
 void si_meminfo(struct sysinfo *val)
 {
