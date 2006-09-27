@@ -111,7 +111,7 @@ struct ixgb_adapter;
 #define IXGB_RXBUFFER_16384 16384
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
-#define IXGB_RX_BUFFER_WRITE	4	/* Must be power of 2 */
+#define IXGB_RX_BUFFER_WRITE	8	/* Must be power of 2 */
 
 /* only works for sizes that are powers of 2 */
 #define IXGB_ROUNDUP(i, size) ((i) = (((i) + (size) - 1) & ~((size) - 1)))
