@@ -199,7 +199,7 @@ static u32 ocores_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm ocores_algorithm = {
+static const struct i2c_algorithm ocores_algorithm = {
 	.master_xfer	= ocores_xfer,
 	.functionality	= ocores_func,
 };

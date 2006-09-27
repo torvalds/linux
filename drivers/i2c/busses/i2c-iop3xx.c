@@ -401,7 +401,7 @@ iop3xx_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm iop3xx_i2c_algo = {
+static const struct i2c_algorithm iop3xx_i2c_algo = {
 	.master_xfer	= iop3xx_i2c_master_xfer,
 	.algo_control	= iop3xx_i2c_algo_control,
 	.functionality	= iop3xx_i2c_func,

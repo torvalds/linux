@@ -200,6 +200,7 @@ static void sis5595_init_client(struct i2c_client *client);
 
 static struct i2c_driver sis5595_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "sis5595",
 	},
 	.attach_adapter	= sis5595_detect,

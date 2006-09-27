@@ -100,7 +100,6 @@ static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 	.getsda  = bttv_bit_getsda,
 	.getscl  = bttv_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 

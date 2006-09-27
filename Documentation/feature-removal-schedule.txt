@@ -313,3 +313,12 @@ Why:	The stacking of class devices makes these values misleading and
 Who:	Kay Sievers <kay.sievers@suse.de>
 
 ---------------------------
+
+What:	i2c-isa
+When:	December 2006
+Why:	i2c-isa is a non-sense and doesn't fit in the device driver
+	model. Drivers relying on it are better implemented as platform
+	drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------

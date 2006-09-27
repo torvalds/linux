@@ -434,7 +434,7 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	     | (isich4 ? I2C_FUNC_SMBUS_HWPEC_CALC : 0);
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= i801_access,
 	.functionality	= i801_func,
 };

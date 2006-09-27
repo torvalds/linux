@@ -148,11 +148,16 @@ static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = i2c_attach_client(new_client)))
 		goto exit_kfree;
 
-	/* Register sysfs hooks (don't care about failure) */
-	sysfs_create_group(&new_client->dev.kobj, &pca9539_defattr_group);
+	/* Register sysfs hooks */
+	err = sysfs_create_group(&new_client->dev.kobj,
+				 &pca9539_defattr_group);
+	if (err)
+		goto exit_detach;
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_kfree:
 	kfree(data);
 exit:
@@ -162,6 +167,8 @@ exit:
 static int pca9539_detach_client(struct i2c_client *client)
 {
 	int err;
+
+	sysfs_remove_group(&client->dev.kobj, &pca9539_defattr_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

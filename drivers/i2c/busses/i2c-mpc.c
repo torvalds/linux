@@ -272,7 +272,7 @@ static u32 mpc_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm mpc_algo = {
+static const struct i2c_algorithm mpc_algo = {
 	.master_xfer = mpc_xfer,
 	.functionality = mpc_functionality,
 };
