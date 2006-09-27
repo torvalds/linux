@@ -166,7 +166,9 @@ static struct sq_mapping *__sq_remap(struct sq_mapping *map)
 	ctrl_outl((pteh & MMU_VPN_MASK) | get_asid(), MMU_PTEH);
 
 	ptel = map->addr & PAGE_MASK;
+#ifndef CONFIG_CPU_SUBTYPE_SH7780
 	ctrl_outl(((ptel >> 28) & 0xe) | (ptel & 0x1), MMU_PTEA);
+#endif
 
 	pgprot = pgprot_noncached(PAGE_KERNEL);
 

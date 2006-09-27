@@ -78,6 +78,21 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->dcache.ways = 4;
 		cpu_data->flags &= ~CPU_HAS_FPU;
 		break;
+	case 0x2001:
+	case 0x2004:
+		cpu_data->type = CPU_SH7770;
+		cpu_data->icache.ways = 4;
+		cpu_data->dcache.ways = 4;
+		break;
+	case 0x2006:
+	case 0x200A:
+		if (prr == 0x61)
+			cpu_data->type = CPU_SH7781;
+		else
+			cpu_data->type = CPU_SH7780;
+		cpu_data->icache.ways = 4;
+		cpu_data->dcache.ways = 4;
+		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;
 		break;
