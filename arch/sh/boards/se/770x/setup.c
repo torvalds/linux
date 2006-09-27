@@ -15,7 +15,7 @@
 #include <linux/ide.h>
 #include <asm/io.h>
 #include <asm/se/se.h>
-#include <asm/se/smc37c93x.h>
+#include <asm/smc37c93x.h>
 
 /*
  * Configure the Super I/O chip
