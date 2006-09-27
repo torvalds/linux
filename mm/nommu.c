@@ -1206,3 +1206,50 @@ struct page *filemap_nopage(struct vm_area_struct *area,
 	BUG();
 	return NULL;
 }
+
+/*
+ * Access another process' address space.
+ * - source/target buffer must be kernel space
+ */
+int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write)
+{
+	struct vm_list_struct *vml;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+
+	if (addr + len < addr)
+		return 0;
+
+	mm = get_task_mm(tsk);
+	if (!mm)
+		return 0;
+
+	down_read(&mm->mmap_sem);
+
+	/* the access must start within one of the target process's mappings */
+	for (vml = mm->context.vmlist; vml; vml = vml->next)
+		if (addr >= vml->vma->vm_start && addr < vml->vma->vm_end)
+			break;
+
+	if (vml) {
+		vma = vml->vma;
+
+		/* don't overrun this mapping */
+		if (addr + len >= vma->vm_end)
+			len = vma->vm_end - addr;
+
+		/* only read or write mappings where it is permitted */
+		if (write && vma->vm_flags & VM_WRITE)
+			len -= copy_to_user((void *) addr, buf, len);
+		else if (!write && vma->vm_flags & VM_READ)
+			len -= copy_from_user(buf, (void *) addr, len);
+		else
+			len = 0;
+	} else {
+		len = 0;
+	}
+
+	up_read(&mm->mmap_sem);
+	mmput(mm);
+	return len;
+}
