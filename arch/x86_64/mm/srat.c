@@ -324,6 +324,8 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 	       nd->start, nd->end);
 	e820_register_active_regions(node, nd->start >> PAGE_SHIFT,
 						nd->end >> PAGE_SHIFT);
+	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
+						nd->end >> PAGE_SHIFT);
 
 #ifdef RESERVE_HOTADD
  	if (ma->flags.hot_pluggable && reserve_hotadd(node, start, end) < 0) {
