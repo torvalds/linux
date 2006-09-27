@@ -20,7 +20,6 @@ config CPU_SH4
 config CPU_SH4A
 	bool
 	select CPU_SH4
-	select CPU_HAS_INTC2_IRQ
 
 config CPU_SUBTYPE_ST40
 	bool
@@ -144,6 +143,7 @@ config CPU_SUBTYPE_SH7770
 config CPU_SUBTYPE_SH7780
 	bool "Support SH7780 processor"
 	select CPU_SH4A
+	select CPU_HAS_INTC2_IRQ
 
 endmenu
 

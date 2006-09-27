@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <asm/machvec.h>
 #include <asm/se73180.h>
+#include <asm/irq.h>
 
 void heartbeat_73180se(void);
 void init_73180se_IRQ(void);
@@ -50,6 +51,7 @@ struct sh_machine_vector mv_73180se __initmv = {
 	.mv_outsl = sh73180se_outsl,
 
 	.mv_init_irq = init_73180se_IRQ,
+	.mv_irq_demux = shmse_irq_demux,
 #ifdef CONFIG_HEARTBEAT
 	.mv_heartbeat = heartbeat_73180se,
 #endif
