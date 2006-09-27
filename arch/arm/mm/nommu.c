@@ -47,6 +47,13 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	bootmem_init(mi);
 }
 
+/*
+ * We don't need to do anything here for nommu machines.
+ */
+void setup_mm_for_reboot(char mode)
+{
+}
+
 void flush_dcache_page(struct page *page)
 {
 	__cpuc_flush_dcache_page(page_address(page));
