@@ -251,8 +251,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(adfs_inode_cachep))
-		printk(KERN_INFO "adfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(adfs_inode_cachep);
 }
 
 static struct super_operations adfs_sops = {

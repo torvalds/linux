@@ -528,8 +528,7 @@ static int __init fat_init_inodecache(void)
 
 static void __exit fat_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(fat_inode_cachep))
-		printk(KERN_INFO "fat_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(fat_inode_cachep);
 }
 
 static int fat_remount(struct super_block *sb, int *flags, char *data)

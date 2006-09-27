@@ -1565,7 +1565,6 @@ void nfs_destroy_writepagecache(void)
 {
 	mempool_destroy(nfs_commit_mempool);
 	mempool_destroy(nfs_wdata_mempool);
-	if (kmem_cache_destroy(nfs_wdata_cachep))
-		printk(KERN_INFO "nfs_write_data: not all structures were freed\n");
+	kmem_cache_destroy(nfs_wdata_cachep);
 }
 

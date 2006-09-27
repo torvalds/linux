@@ -49,8 +49,7 @@ int smb_init_request_cache(void)
 
 void smb_destroy_request_cache(void)
 {
-	if (kmem_cache_destroy(req_cachep))
-		printk(KERN_INFO "smb_destroy_request_cache: not all structures were freed\n");
+	kmem_cache_destroy(req_cachep);
 }
 
 /*

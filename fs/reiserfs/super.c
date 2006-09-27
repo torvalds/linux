@@ -530,9 +530,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(reiserfs_inode_cachep))
-		reiserfs_warning(NULL,
-				 "reiserfs_inode_cache: not all structures were freed");
+	kmem_cache_destroy(reiserfs_inode_cachep);
 }
 
 /* we don't mark inodes dirty, we just log them */

@@ -1005,13 +1005,10 @@ alloc_init_file(struct inode *ino)
 static void
 nfsd4_free_slab(kmem_cache_t **slab)
 {
-	int status;
-
 	if (*slab == NULL)
 		return;
-	status = kmem_cache_destroy(*slab);
+	kmem_cache_destroy(*slab);
 	*slab = NULL;
-	WARN_ON(status);
 }
 
 static void

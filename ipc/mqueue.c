@@ -1275,10 +1275,7 @@ out_filesystem:
 out_sysctl:
 	if (mq_sysctl_table)
 		unregister_sysctl_table(mq_sysctl_table);
-	if (kmem_cache_destroy(mqueue_inode_cachep)) {
-		printk(KERN_INFO
-			"mqueue_inode_cache: not all structures were freed\n");
-	}
+	kmem_cache_destroy(mqueue_inode_cachep);
 	return error;
 }
 

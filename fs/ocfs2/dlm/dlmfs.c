@@ -629,9 +629,7 @@ static void __exit exit_dlmfs_fs(void)
 	flush_workqueue(user_dlm_worker);
 	destroy_workqueue(user_dlm_worker);
 
-	if (kmem_cache_destroy(dlmfs_inode_cache))
-		printk(KERN_INFO "dlmfs_inode_cache: not all structures "
-		       "were freed\n");
+	kmem_cache_destroy(dlmfs_inode_cache);
 }
 
 MODULE_AUTHOR("Oracle");

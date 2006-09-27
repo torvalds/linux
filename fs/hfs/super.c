@@ -454,8 +454,7 @@ static int __init init_hfs_fs(void)
 static void __exit exit_hfs_fs(void)
 {
 	unregister_filesystem(&hfs_fs_type);
-	if (kmem_cache_destroy(hfs_inode_cachep))
-		printk(KERN_ERR "hfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(hfs_inode_cachep);
 }
 
 module_init(init_hfs_fs)

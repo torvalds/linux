@@ -268,8 +268,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(bfs_inode_cachep))
-		printk(KERN_INFO "bfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(bfs_inode_cachep);
 }
 
 static struct super_operations bfs_sops = {

@@ -446,9 +446,7 @@ befs_init_inodecache(void)
 static void
 befs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(befs_inode_cachep))
-		printk(KERN_ERR "befs_destroy_inodecache: "
-		       "not all structures were freed\n");
+	kmem_cache_destroy(befs_inode_cachep);
 }
 
 /*

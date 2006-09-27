@@ -913,8 +913,7 @@ static int __init uhci_hcd_init(void)
 	return 0;
 
 init_failed:
-	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_privs were freed!");
+	kmem_cache_destroy(uhci_up_cachep);
 
 up_failed:
 	debugfs_remove(uhci_debugfs_root);
@@ -930,10 +929,7 @@ errbuf_failed:
 static void __exit uhci_hcd_cleanup(void) 
 {
 	pci_unregister_driver(&uhci_pci_driver);
-	
-	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_privs were freed!");
-
+	kmem_cache_destroy(uhci_up_cachep);
 	debugfs_remove(uhci_debugfs_root);
 	kfree(errbuf);
 }

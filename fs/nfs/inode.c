@@ -1134,8 +1134,7 @@ static int __init nfs_init_inodecache(void)
 
 static void nfs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(nfs_inode_cachep))
-		printk(KERN_INFO "nfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(nfs_inode_cachep);
 }
 
 /*
