@@ -241,7 +241,6 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 
 /**
  *	get_vm_area  -  reserve a contingous kernel virtual area
- *
  *	@size:		size of the area
  *	@flags:		%VM_IOREMAP for I/O mappings or VM_ALLOC
  *
@@ -296,7 +295,6 @@ found:
 
 /**
  *	remove_vm_area  -  find and remove a contingous kernel virtual area
- *
  *	@addr:		base address
  *
  *	Search for the kernel VM area starting at @addr, and remove it.
@@ -355,7 +353,6 @@ void __vunmap(void *addr, int deallocate_pages)
 
 /**
  *	vfree  -  release memory allocated by vmalloc()
- *
  *	@addr:		memory base address
  *
  *	Free the virtually contiguous memory area starting at @addr, as
@@ -373,7 +370,6 @@ EXPORT_SYMBOL(vfree);
 
 /**
  *	vunmap  -  release virtual mapping obtained by vmap()
- *
  *	@addr:		memory base address
  *
  *	Free the virtually contiguous memory area starting at @addr,
@@ -390,7 +386,6 @@ EXPORT_SYMBOL(vunmap);
 
 /**
  *	vmap  -  map an array of pages into virtually contiguous space
- *
  *	@pages:		array of page pointers
  *	@count:		number of pages to map
  *	@flags:		vm_area->flags
@@ -471,7 +466,6 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
 
 /**
  *	__vmalloc_node  -  allocate virtually contiguous memory
- *
  *	@size:		allocation size
  *	@gfp_mask:	flags for the page level allocator
  *	@prot:		protection mask for the allocated pages
@@ -505,9 +499,7 @@ EXPORT_SYMBOL(__vmalloc);
 
 /**
  *	vmalloc  -  allocate virtually contiguous memory
- *
  *	@size:		allocation size
- *
  *	Allocate enough pages to cover @size from the page level
  *	allocator and map them into contiguous kernel virtual space.
  *
@@ -521,11 +513,11 @@ void *vmalloc(unsigned long size)
 EXPORT_SYMBOL(vmalloc);
 
 /**
- *	vmalloc_user  -  allocate virtually contiguous memory which has
- *			   been zeroed so it can be mapped to userspace without
- *			   leaking data.
+ * vmalloc_user - allocate zeroed virtually contiguous memory for userspace
+ * @size: allocation size
  *
- *	@size:		allocation size
+ * The resulting memory area is zeroed so it can be mapped to userspace
+ * without leaking data.
  */
 void *vmalloc_user(unsigned long size)
 {
@@ -544,7 +536,6 @@ EXPORT_SYMBOL(vmalloc_user);
 
 /**
  *	vmalloc_node  -  allocate memory on a specific node
- *
  *	@size:		allocation size
  *	@node:		numa node
  *
@@ -566,7 +557,6 @@ EXPORT_SYMBOL(vmalloc_node);
 
 /**
  *	vmalloc_exec  -  allocate virtually contiguous, executable memory
- *
  *	@size:		allocation size
  *
  *	Kernel-internal function to allocate enough pages to cover @size
@@ -584,7 +574,6 @@ void *vmalloc_exec(unsigned long size)
 
 /**
  *	vmalloc_32  -  allocate virtually contiguous memory (32bit addressable)
- *
  *	@size:		allocation size
  *
  *	Allocate enough 32bit PA addressable pages to cover @size from the
@@ -597,11 +586,11 @@ void *vmalloc_32(unsigned long size)
 EXPORT_SYMBOL(vmalloc_32);
 
 /**
- *	vmalloc_32_user  -  allocate virtually contiguous memory (32bit
- *			      addressable) which is zeroed so it can be
- *			      mapped to userspace without leaking data.
- *
+ * vmalloc_32_user - allocate zeroed virtually contiguous 32bit memory
  *	@size:		allocation size
+ *
+ * The resulting memory area is 32bit addressable and zeroed so it can be
+ * mapped to userspace without leaking data.
  */
 void *vmalloc_32_user(unsigned long size)
 {
@@ -695,7 +684,6 @@ finished:
 
 /**
  *	remap_vmalloc_range  -  map vmalloc pages to userspace
- *
  *	@vma:		vma to cover (map full range of vma)
  *	@addr:		vmalloc memory
  *	@pgoff:		number of pages into addr before first page to map
