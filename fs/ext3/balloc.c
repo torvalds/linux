@@ -74,7 +74,7 @@ struct ext3_group_desc * ext3_get_group_desc(struct super_block * sb,
 }
 
 /*
- * Read the bitmap for a given block_group, reading into the specified 
+ * Read the bitmap for a given block_group, reading into the specified
  * slot in the superblock's bitmap cache.
  *
  * Return buffer_head on success or NULL in case of failure.
@@ -419,8 +419,8 @@ do_more:
 		}
 		/* @@@ This prevents newly-allocated data from being
 		 * freed and then reallocated within the same
-		 * transaction. 
-		 * 
+		 * transaction.
+		 *
 		 * Ideally we would want to allow that to happen, but to
 		 * do so requires making journal_forget() capable of
 		 * revoking the queued write of a data block, which
@@ -433,7 +433,7 @@ do_more:
 		 * safe not to set the allocation bit in the committed
 		 * bitmap, because we know that there is no outstanding
 		 * activity on the buffer any more and so it is safe to
-		 * reallocate it.  
+		 * reallocate it.
 		 */
 		BUFFER_TRACE(bitmap_bh, "set in b_committed_data");
 		J_ASSERT_BH(bitmap_bh,
@@ -518,7 +518,7 @@ void ext3_free_blocks(handle_t *handle, struct inode *inode,
  * data would allow the old block to be overwritten before the
  * transaction committed (because we force data to disk before commit).
  * This would lead to corruption if we crashed between overwriting the
- * data and committing the delete. 
+ * data and committing the delete.
  *
  * @@@ We may want to make this allocation behaviour conditional on
  * data-writes at some point, and disable it for metadata allocations or
@@ -584,7 +584,7 @@ find_next_usable_block(ext3_grpblk_t start, struct buffer_head *bh,
 
 	if (start > 0) {
 		/*
-		 * The goal was occupied; search forward for a free 
+		 * The goal was occupied; search forward for a free
 		 * block within the next XX blocks.
 		 *
 		 * end_goal is more or less random, but it has to be
@@ -1194,7 +1194,7 @@ int ext3_should_retry_alloc(struct super_block *sb, int *retries)
 /*
  * ext3_new_block uses a goal block to assist allocation.  If the goal is
  * free, or there is a free block within 32 blocks of the goal, that block
- * is allocated.  Otherwise a forward search is made for a free block; within 
+ * is allocated.  Otherwise a forward search is made for a free block; within
  * each block group the search first looks for an entire free byte in the block
  * bitmap, and then for any free bit if that fails.
  * This function also updates quota and i_blocks field.
@@ -1303,7 +1303,7 @@ retry_alloc:
 	smp_rmb();
 
 	/*
-	 * Now search the rest of the groups.  We assume that 
+	 * Now search the rest of the groups.  We assume that
 	 * i and gdp correctly point to the last group visited.
 	 */
 	for (bgi = 0; bgi < ngroups; bgi++) {

@@ -76,7 +76,7 @@ static struct buffer_head *ext3_append(handle_t *handle,
 #ifdef DX_DEBUG
 #define dxtrace(command) command
 #else
-#define dxtrace(command) 
+#define dxtrace(command)
 #endif
 
 struct fake_dirent
@@ -169,7 +169,7 @@ static struct ext3_dir_entry_2* dx_pack_dirents (char *base, int size);
 static void dx_insert_block (struct dx_frame *frame, u32 hash, u32 block);
 static int ext3_htree_next_block(struct inode *dir, __u32 hash,
 				 struct dx_frame *frame,
-				 struct dx_frame *frames, 
+				 struct dx_frame *frames,
 				 __u32 *start_hash);
 static struct buffer_head * ext3_dx_find_entry(struct dentry *dentry,
 		       struct ext3_dir_entry_2 **res_dir, int *err);
@@ -250,7 +250,7 @@ static void dx_show_index (char * label, struct dx_entry *entries)
 }
 
 struct stats
-{ 
+{
 	unsigned names;
 	unsigned space;
 	unsigned bcount;
@@ -464,7 +464,7 @@ static void dx_release (struct dx_frame *frames)
  */
 static int ext3_htree_next_block(struct inode *dir, __u32 hash,
 				 struct dx_frame *frame,
-				 struct dx_frame *frames, 
+				 struct dx_frame *frames,
 				 __u32 *start_hash)
 {
 	struct dx_frame *p;
@@ -632,7 +632,7 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 		}
 		count += ret;
 		hashval = ~0;
-		ret = ext3_htree_next_block(dir, HASH_NB_ALWAYS, 
+		ret = ext3_htree_next_block(dir, HASH_NB_ALWAYS,
 					    frame, frames, &hashval);
 		*next_hash = hashval;
 		if (ret < 0) {
@@ -649,7 +649,7 @@ int ext3_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			break;
 	}
 	dx_release(frames);
-	dxtrace(printk("Fill tree: returned %d entries, next hash: %x\n", 
+	dxtrace(printk("Fill tree: returned %d entries, next hash: %x\n",
 		       count, *next_hash));
 	return count;
 errout:
@@ -1050,7 +1050,7 @@ struct dentry *ext3_get_parent(struct dentry *child)
 		parent = ERR_PTR(-ENOMEM);
 	}
 	return parent;
-} 
+}
 
 #define S_SHIFT 12
 static unsigned char ext3_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -1198,7 +1198,7 @@ errout:
  * add_dirent_to_buf will attempt search the directory block for
  * space.  It will return -ENOSPC if no space is available, and -EIO
  * and -EEXIST if directory entry already exists.
- * 
+ *
  * NOTE!  bh is NOT released in the case where ENOSPC is returned.  In
  * all other cases bh is released.
  */
@@ -1572,7 +1572,7 @@ cleanup:
  * ext3_delete_entry deletes a directory entry by merging it with the
  * previous entry
  */
-static int ext3_delete_entry (handle_t *handle, 
+static int ext3_delete_entry (handle_t *handle,
 			      struct inode * dir,
 			      struct ext3_dir_entry_2 * de_del,
 			      struct buffer_head * bh)
@@ -1643,12 +1643,12 @@ static int ext3_add_nondir(handle_t *handle,
  * is so far negative - it has no inode.
  *
  * If the create succeeds, we fill in the inode information
- * with d_instantiate(). 
+ * with d_instantiate().
  */
 static int ext3_create (struct inode * dir, struct dentry * dentry, int mode,
 		struct nameidata *nd)
 {
-	handle_t *handle; 
+	handle_t *handle;
 	struct inode * inode;
 	int err, retries = 0;
 
@@ -1813,7 +1813,7 @@ static int empty_dir (struct inode * inode)
 	de1 = (struct ext3_dir_entry_2 *)
 			((char *) de + le16_to_cpu(de->rec_len));
 	if (le32_to_cpu(de->inode) != inode->i_ino ||
-			!le32_to_cpu(de1->inode) || 
+			!le32_to_cpu(de1->inode) ||
 			strcmp (".", de->name) ||
 			strcmp ("..", de1->name)) {
 	    	ext3_warning (inode->i_sb, "empty_dir",
@@ -1883,7 +1883,7 @@ int ext3_orphan_add(handle_t *handle, struct inode *inode)
 	 * being truncated, or files being unlinked. */
 
 	/* @@@ FIXME: Observation from aviro:
-	 * I think I can trigger J_ASSERT in ext3_orphan_add().  We block 
+	 * I think I can trigger J_ASSERT in ext3_orphan_add().  We block
 	 * here (on lock_super()), so race with ext3_link() which might bump
 	 * ->i_nlink. For, say it, character device. Not a regular file,
 	 * not a directory, not a symlink and ->i_nlink > 0.
@@ -2393,4 +2393,4 @@ struct inode_operations ext3_special_inode_operations = {
 	.removexattr	= generic_removexattr,
 #endif
 	.permission	= ext3_permission,
-}; 
+};

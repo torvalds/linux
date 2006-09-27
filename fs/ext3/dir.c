@@ -59,7 +59,7 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 
 	return (ext3_filetype_table[filetype]);
 }
-			       
+
 
 int ext3_check_dir_entry (const char * function, struct inode * dir,
 			  struct ext3_dir_entry_2 * de,
@@ -162,7 +162,7 @@ revalidate:
 		 * to make sure. */
 		if (filp->f_version != inode->i_version) {
 			for (i = 0; i < sb->s_blocksize && i < offset; ) {
-				de = (struct ext3_dir_entry_2 *) 
+				de = (struct ext3_dir_entry_2 *)
 					(bh->b_data + i);
 				/* It's too expensive to do a full
 				 * dirent test each time round this
@@ -181,7 +181,7 @@ revalidate:
 			filp->f_version = inode->i_version;
 		}
 
-		while (!error && filp->f_pos < inode->i_size 
+		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext3_dir_entry_2 *) (bh->b_data + offset);
 			if (!ext3_check_dir_entry ("ext3_readdir", inode, de,
@@ -229,7 +229,7 @@ out:
 /*
  * These functions convert from the major/minor hash to an f_pos
  * value.
- * 
+ *
  * Currently we only use major hash numer.  This is unfortunate, but
  * on 32-bit machines, the same VFS interface is used for lseek and
  * llseek, so if we use the 64 bit offset, then the 32-bit versions of
@@ -250,7 +250,7 @@ out:
 struct fname {
 	__u32		hash;
 	__u32		minor_hash;
-	struct rb_node	rb_hash; 
+	struct rb_node	rb_hash;
 	struct fname	*next;
 	__u32		inode;
 	__u8		name_len;
@@ -410,7 +410,7 @@ static int call_filldir(struct file * filp, void * dirent,
 	curr_pos = hash2pos(fname->hash, fname->minor_hash);
 	while (fname) {
 		error = filldir(dirent, fname->name,
-				fname->name_len, curr_pos, 
+				fname->name_len, curr_pos,
 				fname->inode,
 				get_dtype(sb, fname->file_type));
 		if (error) {
@@ -465,7 +465,7 @@ static int ext3_dx_readdir(struct file * filp,
 		/*
 		 * Fill the rbtree if we have no more entries,
 		 * or the inode has changed since we last read in the
-		 * cached entries. 
+		 * cached entries.
 		 */
 		if ((!info->curr_node) ||
 		    (filp->f_version != inode->i_version)) {

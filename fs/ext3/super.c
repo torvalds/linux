@@ -62,13 +62,13 @@ static void ext3_unlockfs(struct super_block *sb);
 static void ext3_write_super (struct super_block * sb);
 static void ext3_write_super_lockfs(struct super_block *sb);
 
-/* 
+/*
  * Wrappers for journal_start/end.
  *
  * The only special thing we need to do here is to make sure that all
  * journal_end calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
- * appropriate. 
+ * appropriate.
  */
 handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 {
@@ -90,11 +90,11 @@ handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 	return journal_start(journal, nblocks);
 }
 
-/* 
+/*
  * The only special thing we need to do here is to make sure that all
  * journal_stop calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
- * appropriate. 
+ * appropriate.
  */
 int __ext3_journal_stop(const char *where, handle_t *handle)
 {
@@ -369,7 +369,7 @@ static void dump_orphan_list(struct super_block *sb, struct ext3_sb_info *sbi)
 {
 	struct list_head *l;
 
-	printk(KERN_ERR "sb orphan head is %d\n", 
+	printk(KERN_ERR "sb orphan head is %d\n",
 	       le32_to_cpu(sbi->s_es->s_last_orphan));
 
 	printk(KERN_ERR "sb_info orphan list:\n");
@@ -378,7 +378,7 @@ static void dump_orphan_list(struct super_block *sb, struct ext3_sb_info *sbi)
 		printk(KERN_ERR "  "
 		       "inode %s:%ld at %p: mode %o, nlink %d, next %d\n",
 		       inode->i_sb->s_id, inode->i_ino, inode,
-		       inode->i_mode, inode->i_nlink, 
+		       inode->i_mode, inode->i_nlink,
 		       NEXT_ORPHAN(inode));
 	}
 }
@@ -475,7 +475,7 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		inode_init_once(&ei->vfs_inode);
 	}
 }
- 
+
 static int init_inodecache(void)
 {
 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
@@ -1483,7 +1483,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	    (EXT3_HAS_COMPAT_FEATURE(sb, ~0U) ||
 	     EXT3_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
 	     EXT3_HAS_INCOMPAT_FEATURE(sb, ~0U)))
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 		       "EXT3-fs warning: feature flags set on rev 0 fs, "
 		       "running e2fsck is recommended\n");
 	/*
@@ -1509,7 +1509,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 
 	if (blocksize < EXT3_MIN_BLOCK_SIZE ||
 	    blocksize > EXT3_MAX_BLOCK_SIZE) {
-		printk(KERN_ERR 
+		printk(KERN_ERR
 		       "EXT3-fs: Unsupported filesystem blocksize %d on %s.\n",
 		       blocksize, sb->s_id);
 		goto failed_mount;
@@ -1533,14 +1533,14 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		offset = (sb_block * EXT3_MIN_BLOCK_SIZE) % blocksize;
 		bh = sb_bread(sb, logic_sb_block);
 		if (!bh) {
-			printk(KERN_ERR 
+			printk(KERN_ERR
 			       "EXT3-fs: Can't read superblock on 2nd try.\n");
 			goto failed_mount;
 		}
 		es = (struct ext3_super_block *)(((char *)bh->b_data) + offset);
 		sbi->s_es = es;
 		if (es->s_magic != cpu_to_le16(EXT3_SUPER_MAGIC)) {
-			printk (KERN_ERR 
+			printk (KERN_ERR
 				"EXT3-fs: Magic mismatch, very weird !\n");
 			goto failed_mount;
 		}
@@ -1820,7 +1820,7 @@ out_fail:
 /*
  * Setup any per-fs journal parameters now.  We'll do this both on
  * initial mount, once the journal has been initialised but before we've
- * done any recovery; and again on any subsequent remount. 
+ * done any recovery; and again on any subsequent remount.
  */
 static void ext3_init_journal_params(struct super_block *sb, journal_t *journal)
 {
