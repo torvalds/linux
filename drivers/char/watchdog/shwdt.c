@@ -27,7 +27,7 @@
 #include <linux/notifier.h>
 #include <linux/ioport.h>
 #include <linux/fs.h>
-
+#include <linux/mm.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/watchdog.h>
@@ -258,6 +258,55 @@ static ssize_t sh_wdt_write(struct file *file, const char *buf,
 }
 
 /**
+ * 	sh_wdt_mmap - map WDT/CPG registers into userspace
+ * 	@file: file structure for the device
+ * 	@vma: VMA to map the registers into
+ *
+ * 	A simple mmap() implementation for the corner cases where the counter
+ * 	needs to be mapped in userspace directly. Due to the relatively small
+ * 	size of the area, neighbouring registers not necessarily tied to the
+ * 	CPG will also be accessible through the register page, so this remains
+ * 	configurable for users that really know what they're doing.
+ *
+ *	Additionaly, the register page maps in the CPG register base relative
+ *	to the nearest page-aligned boundary, which requires that userspace do
+ *	the appropriate CPU subtype math for calculating the page offset for
+ *	the counter value.
+ */
+static int sh_wdt_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int ret = -ENOSYS;
+
+#ifdef CONFIG_SH_WDT_MMAP
+	unsigned long addr;
+
+	/* Only support the simple cases where we map in a register page. */
+	if (((vma->vm_end - vma->vm_start) != PAGE_SIZE) || vma->vm_pgoff)
+		return -EINVAL;
+
+	/*
+	 * Pick WTCNT as the start, it's usually the first register after the
+	 * FRQCR, and neither one are generally page-aligned out of the box.
+	 */
+	addr = WTCNT & ~(PAGE_SIZE - 1);
+
+	vma->vm_flags |= VM_IO;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
+			       PAGE_SIZE, vma->vm_page_prot)) {
+		printk(KERN_ERR PFX "%s: io_remap_pfn_range failed\n",
+		       __FUNCTION__);
+		return -EAGAIN;
+	}
+
+	ret = 0;
+#endif
+
+	return ret;
+}
+
+/**
  * 	sh_wdt_ioctl - Query Device
  * 	@inode: inode of device
  * 	@file: file handle of device
@@ -342,6 +391,7 @@ static const struct file_operations sh_wdt_fops = {
 	.ioctl		= sh_wdt_ioctl,
 	.open		= sh_wdt_open,
 	.release	= sh_wdt_close,
+	.mmap		= sh_wdt_mmap,
 };
 
 static struct watchdog_info sh_wdt_info = {
