@@ -171,6 +171,7 @@ config X86_GOOD_APIC
 
 config MICROCODE
 	tristate "/dev/cpu/microcode - Intel CPU microcode support"
+	select FW_LOADER
 	---help---
 	  If you say Y here the 'File systems' section, you will be
 	  able to update the microcode on Intel processors. You will
