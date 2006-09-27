@@ -1591,7 +1591,7 @@ static int __meminit __build_all_zonelists(void *dummy)
 void __meminit build_all_zonelists(void)
 {
 	if (system_state == SYSTEM_BOOTING) {
-		__build_all_zonelists(0);
+		__build_all_zonelists(NULL);
 		cpuset_init_current_mems_allowed();
 	} else {
 		/* we have to stop all cpus to guaranntee there is no user
