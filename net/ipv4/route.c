@@ -1532,7 +1532,7 @@ static int ip_rt_bug(struct sk_buff *skb)
 
 void ip_rt_get_source(u8 *addr, struct rtable *rt)
 {
-	u32 src;
+	__be32 src;
 	struct fib_result res;
 
 	if (rt->fl.iif == 0)
@@ -1603,7 +1603,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	unsigned hash;
 	struct rtable *rth;
-	u32 spec_dst;
+	__be32 spec_dst;
 	struct in_device *in_dev = in_dev_get(dev);
 	u32 itag = 0;
 

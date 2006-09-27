@@ -330,10 +330,10 @@ static void arp_error_report(struct neighbour *neigh, struct sk_buff *skb)
 
 static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
-	u32 saddr = 0;
+	__be32 saddr = 0;
 	u8  *dst_ha = NULL;
 	struct net_device *dev = neigh->dev;
-	u32 target = *(u32*)neigh->primary_key;
+	__be32 target = *(__be32*)neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 	struct in_device *in_dev = in_dev_get(dev);
 

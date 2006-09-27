@@ -437,7 +437,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 	struct icmp_bxm icmp_param;
 	struct rtable *rt = (struct rtable *)skb_in->dst;
 	struct ipcm_cookie ipc;
-	u32 saddr;
+	__be32 saddr;
 	u8  tos;
 
 	if (!rt)

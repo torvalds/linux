@@ -876,9 +876,9 @@ out:
 	return done;
 }
 
-u32 inet_select_addr(const struct net_device *dev, u32 dst, int scope)
+__be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 {
-	u32 addr = 0;
+	__be32 addr = 0;
 	struct in_device *in_dev;
 
 	rcu_read_lock();
