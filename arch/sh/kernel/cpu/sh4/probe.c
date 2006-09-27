@@ -76,6 +76,7 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->type = CPU_SH73180;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
+		cpu_data->flags |= CPU_HAS_LLSC;
 		break;
 	case 0x2001:
 	case 0x2004:
@@ -83,7 +84,7 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
 
-		cpu_data->flags |= CPU_HAS_FPU;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_LLSC;
 		break;
 	case 0x2006:
 	case 0x200A:
@@ -95,13 +96,15 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
 
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
+				   CPU_HAS_LLSC;
 		break;
 	case 0x3000:
 	case 0x3003:
 		cpu_data->type = CPU_SH7343;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
+		cpu_data->flags |= CPU_HAS_LLSC;
 		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;
@@ -180,4 +183,3 @@ int __init detect_cpu_and_cache_system(void)
 
 	return 0;
 }
-

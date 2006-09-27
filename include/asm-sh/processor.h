@@ -14,6 +14,7 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
+#include <asm/cpu-features.h>
 
 /*
  * Default implementation of macro that returns current
@@ -126,17 +127,6 @@ union sh_fpu_union {
 	struct sh_fpu_hard_struct hard;
 	struct sh_fpu_soft_struct soft;
 };
-
-/*
- * Processor flags
- */
-
-#define CPU_HAS_FPU		0x0001	/* Hardware FPU support */
-#define CPU_HAS_P2_FLUSH_BUG	0x0002	/* Need to flush the cache in P2 area */
-#define CPU_HAS_MMU_PAGE_ASSOC	0x0004	/* SH3: TLB way selection bit support */
-#define CPU_HAS_DSP		0x0008	/* SH-DSP: DSP support */
-#define CPU_HAS_PERF_COUNTER	0x0010	/* Hardware performance counters */
-#define CPU_HAS_PTEA		0x0020	/* PTEA register */
 
 struct thread_struct {
 	unsigned long sp;

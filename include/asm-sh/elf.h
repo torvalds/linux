@@ -1,6 +1,11 @@
 #ifndef __ASM_SH_ELF_H
 #define __ASM_SH_ELF_H
 
+#include <asm/processor.h>
+#include <asm/auxvec.h>
+#include <asm/ptrace.h>
+#include <asm/user.h>
+
 /* SH relocation types  */
 #define	R_SH_NONE		0
 #define	R_SH_DIR32		1
@@ -46,9 +51,6 @@
  * ELF register definitions..
  */
 
-#include <asm/ptrace.h>
-#include <asm/user.h>
-
 typedef unsigned long elf_greg_t;
 
 #define ELF_NGREG (sizeof (struct pt_regs) / sizeof(elf_greg_t))
@@ -91,7 +93,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
    instruction set this CPU supports.  This could be done in user space,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP	(0)
+#define ELF_HWCAP	(boot_cpu_data.flags)
 
 /* This yields a string that ld.so will use to load implementation
    specific libraries for optimization.  This is more specific in
