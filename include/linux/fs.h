@@ -528,9 +528,10 @@ struct inode {
 #ifdef CONFIG_QUOTA
 	struct dquot		*i_dquot[MAXQUOTAS];
 #endif
-	/* These three should probably be a union */
 	struct list_head	i_devices;
-	struct pipe_inode_info	*i_pipe;
+	union {
+		struct pipe_inode_info	*i_pipe;
+	};
 	struct block_device	*i_bdev;
 	struct cdev		*i_cdev;
 	int			i_cindex;
