@@ -226,6 +226,44 @@ static __init void reserve_node_zero(pg_data_t *pgdat)
 		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size);
 }
 
+static inline void prepare_page_table(struct meminfo *mi)
+{
+	unsigned long addr;
+
+	/*
+	 * Clear out all the mappings below the kernel image.
+	 */
+	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+
+#ifdef CONFIG_XIP_KERNEL
+	/* The XIP kernel is mapped in the module area -- skip over it */
+	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
+#endif
+	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+
+	/*
+	 * Clear out all the kernel space mappings, except for the first
+	 * memory bank, up to the end of the vmalloc region.
+	 */
+	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
+	     addr < VMALLOC_END; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+}
+
+static inline void map_memory_bank(struct membank *bank)
+{
+	struct map_desc map;
+
+	map.pfn = __phys_to_pfn(bank->start);
+	map.virtual = __phys_to_virt(bank->start);
+	map.length = bank->size;
+	map.type = MT_MEMORY;
+
+	create_mapping(&map);
+}
+
 static unsigned long __init
 bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 {
@@ -242,23 +280,18 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	 * Calculate the pfn range, and map the memory banks for this node.
 	 */
 	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
 		unsigned long start, end;
-		struct map_desc map;
 
-		start = mi->bank[i].start >> PAGE_SHIFT;
-		end = (mi->bank[i].start + mi->bank[i].size) >> PAGE_SHIFT;
+		start = bank->start >> PAGE_SHIFT;
+		end = (bank->start + bank->size) >> PAGE_SHIFT;
 
 		if (start_pfn > start)
 			start_pfn = start;
 		if (end_pfn < end)
 			end_pfn = end;
 
-		map.pfn = __phys_to_pfn(mi->bank[i].start);
-		map.virtual = __phys_to_virt(mi->bank[i].start);
-		map.length = mi->bank[i].size;
-		map.type = MT_MEMORY;
-
-		create_mapping(&map);
+		map_memory_bank(bank);
 	}
 
 	/*
@@ -342,7 +375,7 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 
 static void __init bootmem_init(struct meminfo *mi)
 {
-	unsigned long addr, memend_pfn = 0;
+	unsigned long memend_pfn = 0;
 	int node, initrd_node, i;
 
 	/*
@@ -354,25 +387,7 @@ static void __init bootmem_init(struct meminfo *mi)
 
 	memcpy(&meminfo, mi, sizeof(meminfo));
 
-	/*
-	 * Clear out all the mappings below the kernel image.
-	 */
-	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
-#ifdef CONFIG_XIP_KERNEL
-	/* The XIP kernel is mapped in the module area -- skip over it */
-	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
-#endif
-	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
-
-	/*
-	 * Clear out all the kernel space mappings, except for the first
-	 * memory bank, up to the end of the vmalloc region.
-	 */
-	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
-	     addr < VMALLOC_END; addr += PGDIR_SIZE)
-		pmd_clear(pmd_off_k(addr));
+	prepare_page_table(mi);
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.
