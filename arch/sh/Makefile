@@ -79,6 +79,7 @@ head-y := arch/sh/kernel/head.o arch/sh/kernel/init_task.o
 LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/
+core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x

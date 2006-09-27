@@ -339,6 +339,15 @@ config SH_FPU
 
 	  This option must be set in order to enable the FPU.
 
+config SH_FPU_EMU
+	bool "FPU emulation support"
+	depends on !SH_FPU && EXPERIMENTAL
+	default n
+	help
+	  Selecting this option will enable support for software FPU emulation.
+	  Most SH-3 users will want to say Y here, whereas most SH-4 users will
+	  want to say N.
+
 config SH_DSP
 	bool "DSP support"
 	depends on !CPU_SH4
