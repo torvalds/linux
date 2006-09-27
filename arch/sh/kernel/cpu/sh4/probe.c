@@ -38,7 +38,6 @@ int __init detect_cpu_and_cache_system(void)
 	 */
 	cpu_data->icache.way_incr	= (1 << 13);
 	cpu_data->icache.entry_shift	= 5;
-	cpu_data->icache.entry_mask	= 0x1fe0;
 	cpu_data->icache.sets		= 256;
 	cpu_data->icache.ways		= 1;
 	cpu_data->icache.linesz		= L1_CACHE_BYTES;
@@ -48,7 +47,6 @@ int __init detect_cpu_and_cache_system(void)
 	 */
 	cpu_data->dcache.way_incr	= (1 << 14);
 	cpu_data->dcache.entry_shift	= 5;
-	cpu_data->dcache.entry_mask	= 0x3fe0;
 	cpu_data->dcache.sets		= 512;
 	cpu_data->dcache.ways		= 1;
 	cpu_data->dcache.linesz		= L1_CACHE_BYTES;
@@ -183,20 +181,25 @@ int __init detect_cpu_and_cache_system(void)
 		size = sizes[(cvr >> 20) & 0xf];
 		cpu_data->icache.way_incr	= (size >> 1);
 		cpu_data->icache.sets		= (size >> 6);
-		cpu_data->icache.entry_mask	=
-			(cpu_data->icache.way_incr - (1 << 5));
+
 	}
+
+	/* Setup the rest of the I-cache info */
+	cpu_data->icache.entry_mask = cpu_data->icache.way_incr -
+				      cpu_data->icache.linesz;
 
 	cpu_data->icache.way_size = cpu_data->icache.sets *
 				    cpu_data->icache.linesz;
 
+	/* And the rest of the D-cache */
 	if (cpu_data->dcache.ways > 1) {
 		size = sizes[(cvr >> 16) & 0xf];
 		cpu_data->dcache.way_incr	= (size >> 1);
 		cpu_data->dcache.sets		= (size >> 6);
-		cpu_data->dcache.entry_mask	=
-			(cpu_data->dcache.way_incr - (1 << 5));
 	}
+
+	cpu_data->dcache.entry_mask = cpu_data->dcache.way_incr -
+				      cpu_data->dcache.linesz;
 
 	cpu_data->dcache.way_size = cpu_data->dcache.sets *
 				    cpu_data->dcache.linesz;
@@ -219,11 +222,14 @@ int __init detect_cpu_and_cache_system(void)
 
 		cpu_data->scache.way_incr	= (1 << 16);
 		cpu_data->scache.entry_shift	= 5;
-		cpu_data->scache.entry_mask	= 0xffe0;
 		cpu_data->scache.ways		= 4;
 		cpu_data->scache.linesz		= L1_CACHE_BYTES;
+		cpu_data->scache.entry_mask	=
+			(cpu_data->scache.way_incr - cpu_data->scache.linesz);
 		cpu_data->scache.sets		= size /
 			(cpu_data->scache.linesz * cpu_data->scache.ways);
+		cpu_data->scache.way_size	=
+			(cpu_data->scache.sets * cpu_data->scache.linesz);
 	}
 
 	return 0;
