@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach/voyagergx_reg.h>
+#include <asm/voyagergx.h>
 
 static void disable_voyagergx_irq(unsigned int irq)
 {

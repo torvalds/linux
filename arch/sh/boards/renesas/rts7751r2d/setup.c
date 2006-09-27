@@ -14,7 +14,7 @@
 #include <linux/pm.h>
 #include <asm/io.h>
 #include <asm/mach/rts7751r2d.h>
-#include <asm/mach/voyagergx_reg.h>
+#include <asm/voyagergx.h>
 
 static struct plat_serial8250_port uart_platform_data[] = {
 	{
