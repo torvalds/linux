@@ -111,7 +111,7 @@ error_out:
  * we could easily switch to that without changing too much
  * code.
  */
-#if 0
+#if 1
 static void __rsv_window_dump(struct rb_root *root, int verbose,
 			      const char *fn)
 {
@@ -129,7 +129,7 @@ restart:
 		rsv = list_entry(n, struct ext3_reserve_window_node, rsv_node);
 		if (verbose)
 			printk("reservation window 0x%p "
-			       "start:  %d, end:  %d\n",
+			       "start:  %lu, end:  %lu\n",
 			       rsv, rsv->rsv_start, rsv->rsv_end);
 		if (rsv->rsv_start && rsv->rsv_start >= rsv->rsv_end) {
 			printk("Bad reservation %p (start >= end)\n",
@@ -236,8 +236,10 @@ void ext3_rsv_window_add(struct super_block *sb,
 			p = &(*p)->rb_left;
 		else if (start > this->rsv_end)
 			p = &(*p)->rb_right;
-		else
+		else {
+			rsv_window_dump(root, 1);
 			BUG();
+		}
 	}
 
 	rb_link_node(node, parent, p);
@@ -1133,8 +1135,10 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 					*count-my_rsv->rsv_end + grp_goal - 1);
 
 		if ((my_rsv->rsv_start >= group_first_block + EXT3_BLOCKS_PER_GROUP(sb))
-		    || (my_rsv->rsv_end < group_first_block))
+		    || (my_rsv->rsv_end < group_first_block)) {
+			rsv_window_dump(&EXT3_SB(sb)->s_rsv_window_root, 1);
 			BUG();
+		}
 		ret = ext3_try_to_allocate(sb, handle, group, bitmap_bh, grp_goal,
 					   &num, &my_rsv->rsv_window);
 		if (ret >= 0) {
