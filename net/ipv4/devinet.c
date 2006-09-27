@@ -467,7 +467,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 	for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
 	     ifap = &ifa->ifa_next) {
 		if (tb[IFA_LOCAL] &&
-		    ifa->ifa_local != nla_get_u32(tb[IFA_LOCAL]))
+		    ifa->ifa_local != nla_get_be32(tb[IFA_LOCAL]))
 			continue;
 
 		if (tb[IFA_LABEL] && nla_strcmp(tb[IFA_LABEL], ifa->ifa_label))
@@ -475,7 +475,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 
 		if (tb[IFA_ADDRESS] &&
 		    (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
-		    !inet_ifa_match(nla_get_u32(tb[IFA_ADDRESS]), ifa)))
+		    !inet_ifa_match(nla_get_be32(tb[IFA_ADDRESS]), ifa)))
 			continue;
 
 		__inet_del_ifa(in_dev, ifap, 1, nlh, NETLINK_CB(skb).pid);
@@ -540,14 +540,14 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 	ifa->ifa_scope = ifm->ifa_scope;
 	ifa->ifa_dev = in_dev;
 
-	ifa->ifa_local = nla_get_u32(tb[IFA_LOCAL]);
-	ifa->ifa_address = nla_get_u32(tb[IFA_ADDRESS]);
+	ifa->ifa_local = nla_get_be32(tb[IFA_LOCAL]);
+	ifa->ifa_address = nla_get_be32(tb[IFA_ADDRESS]);
 
 	if (tb[IFA_BROADCAST])
-		ifa->ifa_broadcast = nla_get_u32(tb[IFA_BROADCAST]);
+		ifa->ifa_broadcast = nla_get_be32(tb[IFA_BROADCAST]);
 
 	if (tb[IFA_ANYCAST])
-		ifa->ifa_anycast = nla_get_u32(tb[IFA_ANYCAST]);
+		ifa->ifa_anycast = nla_get_be32(tb[IFA_ANYCAST]);
 
 	if (tb[IFA_LABEL])
 		nla_strlcpy(ifa->ifa_label, tb[IFA_LABEL], IFNAMSIZ);
@@ -1138,16 +1138,16 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
 	if (ifa->ifa_address)
-		NLA_PUT_U32(skb, IFA_ADDRESS, ifa->ifa_address);
+		NLA_PUT_BE32(skb, IFA_ADDRESS, ifa->ifa_address);
 
 	if (ifa->ifa_local)
-		NLA_PUT_U32(skb, IFA_LOCAL, ifa->ifa_local);
+		NLA_PUT_BE32(skb, IFA_LOCAL, ifa->ifa_local);
 
 	if (ifa->ifa_broadcast)
-		NLA_PUT_U32(skb, IFA_BROADCAST, ifa->ifa_broadcast);
+		NLA_PUT_BE32(skb, IFA_BROADCAST, ifa->ifa_broadcast);
 
 	if (ifa->ifa_anycast)
-		NLA_PUT_U32(skb, IFA_ANYCAST, ifa->ifa_anycast);
+		NLA_PUT_BE32(skb, IFA_ANYCAST, ifa->ifa_anycast);
 
 	if (ifa->ifa_label[0])
 		NLA_PUT_STRING(skb, IFA_LABEL, ifa->ifa_label);
