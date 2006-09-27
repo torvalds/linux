@@ -310,6 +310,48 @@ static void show_process_blocks(void)
 }
 #endif /* DEBUG */
 
+/*
+ * add a VMA into a process's mm_struct in the appropriate place in the list
+ * - should be called with mm->mmap_sem held writelocked
+ */
+static void add_vma_to_mm(struct mm_struct *mm, struct vm_list_struct *vml)
+{
+	struct vm_list_struct **ppv;
+
+	for (ppv = &current->mm->context.vmlist; *ppv; ppv = &(*ppv)->next)
+		if ((*ppv)->vma->vm_start > vml->vma->vm_start)
+			break;
+
+	vml->next = *ppv;
+	*ppv = vml;
+}
+
+/*
+ * look up the first VMA in which addr resides, NULL if none
+ * - should be called with mm->mmap_sem at least held readlocked
+ */
+struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+{
+	struct vm_list_struct *loop, *vml;
+
+	/* search the vm_start ordered list */
+	vml = NULL;
+	for (loop = mm->context.vmlist; loop; loop = loop->next) {
+		if (loop->vma->vm_start > addr)
+			break;
+		vml = loop;
+	}
+
+	if (vml && vml->vma->vm_end > addr)
+		return vml->vma;
+
+	return NULL;
+}
+EXPORT_SYMBOL(find_vma);
+
+/*
+ * find a VMA in the global tree
+ */
 static inline struct vm_area_struct *find_nommu_vma(unsigned long start)
 {
 	struct vm_area_struct *vma;
@@ -329,6 +371,9 @@ static inline struct vm_area_struct *find_nommu_vma(unsigned long start)
 	return NULL;
 }
 
+/*
+ * add a VMA in the global tree
+ */
 static void add_nommu_vma(struct vm_area_struct *vma)
 {
 	struct vm_area_struct *pvma;
@@ -375,6 +420,9 @@ static void add_nommu_vma(struct vm_area_struct *vma)
 	rb_insert_color(&vma->vm_rb, &nommu_vma_tree);
 }
 
+/*
+ * delete a VMA from the global list
+ */
 static void delete_nommu_vma(struct vm_area_struct *vma)
 {
 	struct address_space *mapping;
@@ -852,8 +900,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 	realalloc += kobjsize(vml);
 	askedalloc += sizeof(*vml);
 
-	vml->next = current->mm->context.vmlist;
-	current->mm->context.vmlist = vml;
+	add_vma_to_mm(current->mm, vml);
 
 	up_write(&nommu_vma_sem);
 
@@ -932,6 +979,11 @@ static void put_vma(struct vm_area_struct *vma)
 	}
 }
 
+/*
+ * release a mapping
+ * - under NOMMU conditions the parameters must match exactly to the mapping to
+ *   be removed
+ */
 int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 {
 	struct vm_list_struct *vml, **parent;
@@ -941,10 +993,13 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	printk("do_munmap:\n");
 #endif
 
-	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next)
+	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next) {
+		if ((*parent)->vma->vm_start > addr)
+			break;
 		if ((*parent)->vma->vm_start == addr &&
 		    ((len == 0) || ((*parent)->vma->vm_end == end)))
 			goto found;
+	}
 
 	printk("munmap of non-mmaped memory by process %d (%s): %p\n",
 	       current->pid, current->comm, (void *) addr);
@@ -970,7 +1025,20 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	return 0;
 }
 
-/* Release all mmaps. */
+asmlinkage long sys_munmap(unsigned long addr, size_t len)
+{
+	int ret;
+	struct mm_struct *mm = current->mm;
+
+	down_write(&mm->mmap_sem);
+	ret = do_munmap(mm, addr, len);
+	up_write(&mm->mmap_sem);
+	return ret;
+}
+
+/*
+ * Release all mappings
+ */
 void exit_mmap(struct mm_struct * mm)
 {
 	struct vm_list_struct *tmp;
@@ -995,17 +1063,6 @@ void exit_mmap(struct mm_struct * mm)
 		show_process_blocks();
 #endif
 	}
-}
-
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
-{
-	int ret;
-	struct mm_struct *mm = current->mm;
-
-	down_write(&mm->mmap_sem);
-	ret = do_munmap(mm, addr, len);
-	up_write(&mm->mmap_sem);
-	return ret;
 }
 
 unsigned long do_brk(unsigned long addr, unsigned long len)
@@ -1060,23 +1117,6 @@ unsigned long do_mremap(unsigned long addr,
 
 	return vml->vma->vm_start;
 }
-
-/*
- * Look up the first VMA which satisfies  addr < vm_end,  NULL if none
- * - should be called with mm->mmap_sem at least readlocked
- */
-struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
-{
-	struct vm_list_struct *vml;
-
-	for (vml = mm->context.vmlist; vml; vml = vml->next)
-		if (addr >= vml->vma->vm_start && addr < vml->vma->vm_end)
-			return vml->vma;
-
-	return NULL;
-}
-
-EXPORT_SYMBOL(find_vma);
 
 struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 			unsigned int foll_flags)
