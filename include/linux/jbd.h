@@ -64,7 +64,7 @@ extern int journal_enable_debug;
 		if ((n) <= journal_enable_debug) {			\
 			printk (KERN_DEBUG "(%s, %d): %s: ",		\
 				__FILE__, __LINE__, __FUNCTION__);	\
-		  	printk (f, ## a);				\
+			printk (f, ## a);				\
 		}							\
 	} while (0)
 #else
@@ -201,9 +201,9 @@ typedef struct journal_superblock_s
 
 /* 0x0024 */
 	/* Remaining fields are only valid in a version-2 superblock */
-	__be32	s_feature_compat; 	/* compatible feature set */
-	__be32	s_feature_incompat; 	/* incompatible feature set */
-	__be32	s_feature_ro_compat; 	/* readonly-compatible feature set */
+	__be32	s_feature_compat;	/* compatible feature set */
+	__be32	s_feature_incompat;	/* incompatible feature set */
+	__be32	s_feature_ro_compat;	/* readonly-compatible feature set */
 /* 0x0030 */
 	__u8	s_uuid[16];		/* 128-bit uuid for journal */
 
@@ -699,7 +699,7 @@ struct journal_s
 	wait_queue_head_t	j_wait_updates;
 
 	/* Semaphore for locking against concurrent checkpoints */
-	struct mutex	 	j_checkpoint_mutex;
+	struct mutex		j_checkpoint_mutex;
 
 	/*
 	 * Journal head: identifies the first unused block in the journal.

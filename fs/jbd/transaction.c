@@ -580,7 +580,7 @@ repeat:
 		 */
 		JBUFFER_TRACE(jh, "Unexpected dirty buffer");
 		jbd_unexpected_dirty_buffer(jh);
- 	}
+	}
 
 	unlock_buffer(bh);
 
@@ -1373,7 +1373,7 @@ int journal_stop(handle_t *handle)
 	if (handle->h_sync ||
 			transaction->t_outstanding_credits >
 				journal->j_max_transaction_buffers ||
-	    		time_after_eq(jiffies, transaction->t_expires)) {
+			time_after_eq(jiffies, transaction->t_expires)) {
 		/* Do this even for aborted journals: an abort still
 		 * completes the commit thread, it just doesn't write
 		 * anything to disk. */
@@ -1908,7 +1908,7 @@ void journal_invalidatepage(journal_t *journal,
 		next = bh->b_this_page;
 
 		if (offset <= curr_off) {
-		 	/* This block is wholly outside the truncation point */
+			/* This block is wholly outside the truncation point */
 			lock_buffer(bh);
 			may_free &= journal_unmap_buffer(journal, bh);
 			unlock_buffer(bh);

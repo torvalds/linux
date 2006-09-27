@@ -734,8 +734,8 @@ static match_table_t tokens = {
 
 static ext3_fsblk_t get_sb_block(void **data)
 {
-	ext3_fsblk_t 	sb_block;
-	char 		*options = (char *) *data;
+	ext3_fsblk_t	sb_block;
+	char		*options = (char *) *data;
 
 	if (!options || strncmp(options, "sb=", 3) != 0)
 		return 1;	/* Default location */
@@ -2740,7 +2740,7 @@ static int __init init_ext3_fs(void)
 out:
 	destroy_inodecache();
 out1:
- 	exit_ext3_xattr();
+	exit_ext3_xattr();
 	return err;
 }
 

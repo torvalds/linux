@@ -67,7 +67,7 @@ int ext3_check_dir_entry (const char * function, struct inode * dir,
 			  unsigned long offset)
 {
 	const char * error_msg = NULL;
- 	const int rlen = le16_to_cpu(de->rec_len);
+	const int rlen = le16_to_cpu(de->rec_len);
 
 	if (rlen < EXT3_DIR_REC_LEN(1))
 		error_msg = "rec_len is smaller than minimal";

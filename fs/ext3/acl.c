@@ -258,7 +258,7 @@ ext3_set_acl(handle_t *handle, struct inode *inode, int type,
 		default:
 			return -EINVAL;
 	}
- 	if (acl) {
+	if (acl) {
 		value = ext3_acl_to_disk(acl, &size);
 		if (IS_ERR(value))
 			return (int)PTR_ERR(value);

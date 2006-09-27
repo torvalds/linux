@@ -40,7 +40,7 @@
 
 /**
  * ext3_get_group_desc() -- load group descriptor from disk
- * @sb: 		super block
+ * @sb:			super block
  * @block_group:	given block group
  * @bh:			pointer to the buffer head to store the block
  *			group descriptor
@@ -355,7 +355,7 @@ void ext3_init_block_alloc_info(struct inode *inode)
 		rsv->rsv_start = EXT3_RESERVE_WINDOW_NOT_ALLOCATED;
 		rsv->rsv_end = EXT3_RESERVE_WINDOW_NOT_ALLOCATED;
 
-	 	/*
+		/*
 		 * if filesystem is mounted with NORESERVATION, the goal
 		 * reservation window size is set to zero to indicate
 		 * block reservation is off
@@ -681,7 +681,7 @@ bitmap_search_next_usable_block(ext3_grpblk_t start, struct buffer_head *bh,
 		jbd_lock_bh_state(bh);
 		if (jh->b_committed_data)
 			start = ext3_find_next_zero_bit(jh->b_committed_data,
-						 	maxblocks, next);
+							maxblocks, next);
 		jbd_unlock_bh_state(bh);
 	}
 	return -1;
@@ -790,10 +790,10 @@ claim_block(spinlock_t *lock, ext3_grpblk_t block, struct buffer_head *bh)
  * and at last, allocate the blocks by claiming the found free bit as allocated.
  *
  * To set the range of this allocation:
- * 	if there is a reservation window, only try to allocate block(s) from the
+ *	if there is a reservation window, only try to allocate block(s) from the
  *	file's own reservation window;
  *	Otherwise, the allocation range starts from the give goal block, ends at
- * 	the block group's last block.
+ *	the block group's last block.
  *
  * If we failed to allocate the desired block then we may end up crossing to a
  * new bitmap.  In that case we must release write access to the old one via
@@ -880,12 +880,12 @@ fail_access:
 }
 
 /**
- * 	find_next_reservable_window():
+ *	find_next_reservable_window():
  *		find a reservable space within the given range.
  *		It does not allocate the reservation window for now:
  *		alloc_new_reservation() will do the work later.
  *
- * 	@search_head: the head of the searching list;
+ *	@search_head: the head of the searching list;
  *		This is not necessarily the list head of the whole filesystem
  *
  *		We have both head and start_block to assist the search
@@ -893,12 +893,12 @@ fail_access:
  *		but we will shift to the place where start_block is,
  *		then start from there, when looking for a reservable space.
  *
- * 	@size: the target new reservation window size
+ *	@size: the target new reservation window size
  *
- * 	@group_first_block: the first block we consider to start
+ *	@group_first_block: the first block we consider to start
  *			the real search from
  *
- * 	@last_block:
+ *	@last_block:
  *		the maximum block number that our goal reservable space
  *		could start from. This is normally the last block in this
  *		group. The search will end when we found the start of next
@@ -906,10 +906,10 @@ fail_access:
  *		This could handle the cross boundary reservation window
  *		request.
  *
- * 	basically we search from the given range, rather than the whole
- * 	reservation double linked list, (start_block, last_block)
- * 	to find a free region that is of my size and has not
- * 	been reserved.
+ *	basically we search from the given range, rather than the whole
+ *	reservation double linked list, (start_block, last_block)
+ *	to find a free region that is of my size and has not
+ *	been reserved.
  *
  */
 static int find_next_reservable_window(
@@ -962,7 +962,7 @@ static int find_next_reservable_window(
 			/*
 			 * Found a reserveable space big enough.  We could
 			 * have a reservation across the group boundary here
-		 	 */
+			 */
 			break;
 		}
 	}
@@ -998,7 +998,7 @@ static int find_next_reservable_window(
 }
 
 /**
- * 	alloc_new_reservation()--allocate a new reservation window
+ *	alloc_new_reservation()--allocate a new reservation window
  *
  *		To make a new reservation, we search part of the filesystem
  *		reservation list (the list that inside the group). We try to

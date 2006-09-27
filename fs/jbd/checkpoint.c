@@ -480,7 +480,7 @@ static int journal_clean_one_cp_list(struct journal_head *jh, int *released)
 	if (!jh)
 		return 0;
 
- 	last_jh = jh->b_cpprev;
+	last_jh = jh->b_cpprev;
 	do {
 		jh = next_jh;
 		next_jh = jh->b_cpnext;

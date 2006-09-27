@@ -13,11 +13,11 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  Goal-directed block allocation by Stephen Tweedie
- * 	(sct@redhat.com), 1993, 1998
+ *	(sct@redhat.com), 1993, 1998
  *  Big-endian to little-endian byte-swapping/bitmaps by
  *        David S. Miller (davem@caip.rutgers.edu), 1995
  *  64-bit file support on 64-bit platforms by Jakub Jelinek
- * 	(jj@sunsite.ms.mff.cuni.cz)
+ *	(jj@sunsite.ms.mff.cuni.cz)
  *
  *  Assorted race fixes, rewrite of ext3_get_block() by Al Viro, 2000
  */
@@ -470,7 +470,7 @@ static ext3_fsblk_t ext3_find_goal(struct inode *inode, long block,
  *	ext3_blks_to_allocate: Look up the block map and count the number
  *	of direct blocks need to be allocated for the given branch.
  *
- * 	@branch: chain of indirect blocks
+ *	@branch: chain of indirect blocks
  *	@k: number of blocks need for indirect blocks
  *	@blks: number of data blocks to be mapped.
  *	@blocks_to_boundary:  the offset in the indirect block
@@ -1098,7 +1098,7 @@ static int walk_page_buffers(	handle_t *handle,
 
 	for (	bh = head, block_start = 0;
 		ret == 0 && (bh != head || !block_start);
-	    	block_start = block_end, bh = next)
+		block_start = block_end, bh = next)
 	{
 		next = bh->b_this_page;
 		block_end = block_start + blocksize;

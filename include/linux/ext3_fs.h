@@ -473,7 +473,7 @@ struct ext3_super_block {
 	__u8	s_reserved_char_pad;
 	__u16	s_reserved_word_pad;
 	__le32	s_default_mount_opts;
-	__le32	s_first_meta_bg; 	/* First metablock block group */
+	__le32	s_first_meta_bg;	/* First metablock block group */
 	__u32	s_reserved[190];	/* Padding to the end of the block */
 };
 

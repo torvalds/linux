@@ -95,7 +95,7 @@ int ext3fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 	__u32	minor_hash = 0;
 	const char	*p;
 	int		i;
-	__u32 		in[8], buf[4];
+	__u32		in[8], buf[4];
 
 	/* Initialize the default seed for the hash checksum functions */
 	buf[0] = 0x67452301;

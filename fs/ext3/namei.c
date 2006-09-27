@@ -15,13 +15,13 @@
  *  Big-endian to little-endian byte-swapping/bitmaps by
  *        David S. Miller (davem@caip.rutgers.edu), 1995
  *  Directory entry file type support and forward compatibility hooks
- *  	for B-tree directories by Theodore Ts'o (tytso@mit.edu), 1998
+ *	for B-tree directories by Theodore Ts'o (tytso@mit.edu), 1998
  *  Hash Tree Directory indexing (c)
- *  	Daniel Phillips, 2001
+ *	Daniel Phillips, 2001
  *  Hash Tree Directory indexing porting
- *  	Christopher Li, 2002
+ *	Christopher Li, 2002
  *  Hash Tree Directory indexing cleanup
- * 	Theodore Ts'o, 2002
+ *	Theodore Ts'o, 2002
  */
 
 #include <linux/fs.h>
@@ -278,7 +278,7 @@ static struct stats dx_show_leaf(struct dx_hash_info *hinfo, struct ext3_dir_ent
 				       ((char *) de - base));
 			}
 			space += EXT3_DIR_REC_LEN(de->name_len);
-	 		names++;
+			names++;
 		}
 		de = (struct ext3_dir_entry_2 *) ((char *) de + le16_to_cpu(de->rec_len));
 	}
@@ -1688,7 +1688,7 @@ static int ext3_mknod (struct inode * dir, struct dentry *dentry,
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
-			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
+					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
 					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -1816,7 +1816,7 @@ static int empty_dir (struct inode * inode)
 			!le32_to_cpu(de1->inode) ||
 			strcmp (".", de->name) ||
 			strcmp ("..", de1->name)) {
-	    	ext3_warning (inode->i_sb, "empty_dir",
+		ext3_warning (inode->i_sb, "empty_dir",
 			      "bad directory (dir #%lu) - no `.' or `..'",
 			      inode->i_ino);
 		brelse (bh);
@@ -2129,7 +2129,7 @@ static int ext3_symlink (struct inode * dir,
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
-			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 5 +
+					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 5 +
 					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2227,7 +2227,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 		DQUOT_INIT(new_dentry->d_inode);
 	handle = ext3_journal_start(old_dir, 2 *
 					EXT3_DATA_TRANS_BLOCKS(old_dir->i_sb) +
-			 		EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);
+					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 

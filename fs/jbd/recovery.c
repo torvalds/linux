@@ -314,7 +314,7 @@ static int do_one_pass(journal_t *journal,
 	unsigned long		next_log_block;
 	int			err, success = 0;
 	journal_superblock_t *	sb;
-	journal_header_t * 	tmp;
+	journal_header_t *	tmp;
 	struct buffer_head *	bh;
 	unsigned int		sequence;
 	int			blocktype;
