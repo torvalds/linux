@@ -234,7 +234,7 @@ static u32 arp_hash(const void *pkey, const struct net_device *dev)
 
 static int arp_constructor(struct neighbour *neigh)
 {
-	u32 addr = *(u32*)neigh->primary_key;
+	__be32 addr = *(__be32*)neigh->primary_key;
 	struct net_device *dev = neigh->dev;
 	struct in_device *in_dev;
 	struct neigh_parms *parms;
@@ -470,7 +470,7 @@ static int arp_set_predefined(int addr_hint, unsigned char * haddr, u32 paddr, s
 int arp_find(unsigned char *haddr, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	u32 paddr;
+	__be32 paddr;
 	struct neighbour *n;
 
 	if (!skb->dst) {

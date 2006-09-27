@@ -146,7 +146,7 @@ out:
 	return dev;
 }
 
-unsigned inet_addr_type(u32 addr)
+unsigned inet_addr_type(__be32 addr)
 {
 	struct flowi		fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
 	struct fib_result	res;

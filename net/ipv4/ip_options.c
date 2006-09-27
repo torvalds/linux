@@ -148,7 +148,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 					dopt->ts_needtime = 0;
 
 					if (soffset + 8 <= optlen) {
-						__u32 addr;
+						__be32 addr;
 
 						memcpy(&addr, sptr+soffset-1, 4);
 						if (inet_addr_type(addr) != RTN_LOCAL) {
@@ -396,7 +396,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 					}
 					opt->ts = optptr - iph;
 					{
-						u32 addr;
+						__be32 addr;
 						memcpy(&addr, &optptr[optptr[2]-1], 4);
 						if (inet_addr_type(addr) == RTN_UNICAST)
 							break;
