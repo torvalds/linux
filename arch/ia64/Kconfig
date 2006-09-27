@@ -423,6 +423,14 @@ config IA64_PALINFO
 config SGI_SN
 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
 
+config IA64_ESI
+	bool "ESI (Extensible SAL Interface) support"
+	help
+	  If you say Y here, support is built into the kernel to
+	  make ESI calls.  ESI calls are used to support vendor-specific
+	  firmware extensions, such as the ability to inject memory-errors
+	  for test-purposes.  If you're unsure, say N.
+
 source "drivers/sn/Kconfig"
 
 source "drivers/firmware/Kconfig"

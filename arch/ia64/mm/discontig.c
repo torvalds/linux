@@ -547,15 +547,16 @@ void show_mem(void)
 	unsigned long total_present = 0;
 	pg_data_t *pgdat;
 
-	printk("Mem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
+	       nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Node memory in pages:\n");
 	for_each_online_pgdat(pgdat) {
 		unsigned long present;
 		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
 
-		printk("Node ID: %d\n", pgdat->node_id);
 		pgdat_resize_lock(pgdat, &flags);
 		present = pgdat->node_present_pages;
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
@@ -579,18 +580,17 @@ void show_mem(void)
 		total_reserved += reserved;
 		total_cached += cached;
 		total_shared += shared;
-		printk("\t%ld pages of RAM\n", present);
-		printk("\t%d reserved pages\n", reserved);
-		printk("\t%d pages shared\n", shared);
-		printk("\t%d pages swap cached\n", cached);
+		printk(KERN_INFO "Node %4d:  RAM: %11ld, rsvd: %8d, "
+		       "shrd: %10d, swpd: %10d\n", pgdat->node_id,
+		       present, reserved, shared, cached);
 	}
-	printk("%ld pages of RAM\n", total_present);
-	printk("%d reserved pages\n", total_reserved);
-	printk("%d pages shared\n", total_shared);
-	printk("%d pages swap cached\n", total_cached);
-	printk("Total of %ld pages in page table cache\n",
-		pgtable_quicklist_total_size());
-	printk("%d free buffer pages\n", nr_free_buffer_pages());
+	printk(KERN_INFO "%ld pages of RAM\n", total_present);
+	printk(KERN_INFO "%d reserved pages\n", total_reserved);
+	printk(KERN_INFO "%d pages shared\n", total_shared);
+	printk(KERN_INFO "%d pages swap cached\n", total_cached);
+	printk(KERN_INFO "Total of %ld pages in page table cache\n",
+	       pgtable_quicklist_total_size());
+	printk(KERN_INFO "%d free buffer pages\n", nr_free_buffer_pages());
 }
 
 /**

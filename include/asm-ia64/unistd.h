@@ -286,7 +286,8 @@
 /* 1294, 1295 reserved for pselect/ppoll */
 #define __NR_unshare			1296
 #define __NR_splice			1297
-/* 1298, 1299 reserved for set_robust_list/get_robust_list */
+#define __NR_set_robust_list		1298
+#define __NR_get_robust_list		1299
 #define __NR_sync_file_range		1300
 #define __NR_tee			1301
 #define __NR_vmsplice			1302

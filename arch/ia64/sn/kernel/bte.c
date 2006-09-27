@@ -277,8 +277,7 @@ bte_result_t bte_unaligned_copy(u64 src, u64 dest, u64 len, u64 mode)
 	}
 
 	/* temporary buffer used during unaligned transfers */
-	bteBlock_unaligned = kmalloc(len + 3 * L1_CACHE_BYTES,
-				     GFP_KERNEL | GFP_DMA);
+	bteBlock_unaligned = kmalloc(len + 3 * L1_CACHE_BYTES, GFP_KERNEL);
 	if (bteBlock_unaligned == NULL) {
 		return BTEFAIL_NOTAVAIL;
 	}
