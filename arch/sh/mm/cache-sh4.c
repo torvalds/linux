@@ -269,6 +269,11 @@ static inline void flush_icache_all(void)
 	ccr |= CCR_CACHE_ICI;
 	ctrl_outl(ccr, CCR);
 
+	/*
+	 * back_to_P1() will take care of the barrier for us, don't add
+	 * another one!
+	 */
+
 	back_to_P1();
 	local_irq_restore(flags);
 }

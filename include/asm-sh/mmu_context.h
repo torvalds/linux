@@ -174,9 +174,7 @@ static inline void enable_mmu(void)
 {
 	/* Enable MMU */
 	ctrl_outl(MMU_CONTROL_INIT, MMUCR);
-
-	/* The manual suggests doing some nops after turning on the MMU */
-	__asm__ __volatile__ ("nop;nop;nop;nop;nop;nop;nop;nop\n\t");
+	ctrl_barrier();
 
 	if (mmu_context_cache == NO_CONTEXT)
 		mmu_context_cache = MMU_CONTEXT_FIRST_VERSION;
@@ -191,7 +189,8 @@ static inline void disable_mmu(void)
 	cr = ctrl_inl(MMUCR);
 	cr &= ~MMU_CONTROL_INIT;
 	ctrl_outl(cr, MMUCR);
-	__asm__ __volatile__ ("nop;nop;nop;nop;nop;nop;nop;nop\n\t");
+
+	ctrl_barrier();
 }
 #else
 /*
