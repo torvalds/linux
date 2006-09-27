@@ -129,6 +129,15 @@ FURTHER NOTES ON NO-MMU MMAP
      with character device files, pipes, fifos and sockets.
 
 
+==========================
+INTERPROCESS SHARED MEMORY
+==========================
+
+Both SYSV IPC SHM shared memory and POSIX shared memory is supported in NOMMU
+mode.  The former through the usual mechanism, the latter through files created
+on ramfs or tmpfs mounts.
+
+
 =============
 NO-MMU MREMAP
 =============
