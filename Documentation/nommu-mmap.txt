@@ -138,6 +138,16 @@ mode.  The former through the usual mechanism, the latter through files created
 on ramfs or tmpfs mounts.
 
 
+=======
+FUTEXES
+=======
+
+Futexes are supported in NOMMU mode if the arch supports them.  An error will
+be given if an address passed to the futex system call lies outside the
+mappings made by a process or if the mapping in which the address lies does not
+support futexes (such as an I/O chardev mapping).
+
+
 =============
 NO-MMU MREMAP
 =============
