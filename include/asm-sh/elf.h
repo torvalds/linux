@@ -121,4 +121,24 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 #endif
 
+#ifdef CONFIG_VSYSCALL
+/* vDSO has arch_setup_additional_pages */
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
+struct linux_binprm;
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int executable_stack);
+
+extern unsigned int vdso_enabled;
+extern void __kernel_vsyscall;
+
+#define VDSO_BASE		((unsigned long)current->mm->context.vdso)
+#define VDSO_SYM(x)		(VDSO_BASE + (unsigned long)(x))
+
+#define ARCH_DLINFO						\
+do {								\
+	if (vdso_enabled)					\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);	\
+} while (0)
+#endif /* CONFIG_VSYSCALL */
+
 #endif /* __ASM_SH_ELF_H */

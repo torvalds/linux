@@ -276,5 +276,11 @@ static inline void prefetch(void *x)
 #define prefetchw(x)	prefetch(x)
 #endif
 
+#ifdef CONFIG_VSYSCALL
+extern int vsyscall_init(void);
+#else
+#define vsyscall_init() do { } while (0)
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PROCESSOR_H */

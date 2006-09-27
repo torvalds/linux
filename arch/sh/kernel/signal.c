@@ -8,7 +8,6 @@
  *  SuperH version:  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
  *
  */
-
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -21,6 +20,7 @@
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/tty.h>
+#include <linux/elf.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 
@@ -28,8 +28,6 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
-
-#undef DEBUG
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -312,6 +310,11 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8ul);
 }
 
+/* These symbols are defined with the addresses in the vsyscall page.
+   See vsyscall-trapa.S.  */
+extern void __user __kernel_sigreturn;
+extern void __user __kernel_rt_sigreturn;
+
 static int setup_frame(int sig, struct k_sigaction *ka,
 			sigset_t *set, struct pt_regs *regs)
 {
@@ -340,6 +343,10 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		regs->pr = (unsigned long) ka->sa.sa_restorer;
+#ifdef CONFIG_VSYSCALL
+	} else if (likely(current->mm->context.vdso)) {
+		regs->pr = VDSO_SYM(&__kernel_sigreturn);
+#endif
 	} else {
 		/* Generate return code (system call to sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);
@@ -416,6 +423,10 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		regs->pr = (unsigned long) ka->sa.sa_restorer;
+#ifdef CONFIG_VSYSCALL
+	} else if (likely(current->mm->context.vdso)) {
+		regs->pr = VDSO_SYM(&__kernel_rt_sigreturn);
+#endif
 	} else {
 		/* Generate return code (system call to rt_sigreturn) */
 		err |= __put_user(MOVW(7), &frame->retcode[0]);

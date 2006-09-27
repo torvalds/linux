@@ -355,7 +355,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	else if (next->thread.ubc_pc && next->mm) {
 		int asid = 0;
 #ifdef CONFIG_MMU
-		asid |= next->mm->context & MMU_CONTEXT_ASID_MASK;
+		asid |= next->mm->context.id & MMU_CONTEXT_ASID_MASK;
 #endif
 		ubc_set_tracing(asid, next->thread.ubc_pc);
 	} else {

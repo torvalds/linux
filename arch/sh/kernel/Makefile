@@ -9,6 +9,7 @@ obj-y	:= process.o signal.o entry.o traps.o irq.o \
 	io.o io_generic.o sh_ksyms.o syscalls.o
 
 obj-y				+= cpu/ timers/
+obj-$(CONFIG_VSYSCALL)		+= vsyscall/
 
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_CF_ENABLER)	+= cf-enabler.o

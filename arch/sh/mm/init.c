@@ -286,6 +286,9 @@ void __init mem_init(void)
 		initsize >> 10);
 
 	p3_cache_init();
+
+	/* Initialize the vDSO */
+	vsyscall_init();
 }
 
 void free_initmem(void)

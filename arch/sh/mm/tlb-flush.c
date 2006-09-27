@@ -14,12 +14,12 @@
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
-	if (vma->vm_mm && vma->vm_mm->context != NO_CONTEXT) {
+	if (vma->vm_mm && vma->vm_mm->context.id != NO_CONTEXT) {
 		unsigned long flags;
 		unsigned long asid;
 		unsigned long saved_asid = MMU_NO_ASID;
 
-		asid = vma->vm_mm->context & MMU_CONTEXT_ASID_MASK;
+		asid = vma->vm_mm->context.id & MMU_CONTEXT_ASID_MASK;
 		page &= PAGE_MASK;
 
 		local_irq_save(flags);
@@ -39,20 +39,21 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context.id != NO_CONTEXT) {
 		unsigned long flags;
 		int size;
 
 		local_irq_save(flags);
 		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 		if (size > (MMU_NTLB_ENTRIES/4)) { /* Too many TLB to flush */
-			mm->context = NO_CONTEXT;
+			mm->context.id = NO_CONTEXT;
 			if (mm == current->mm)
 				activate_context(mm);
 		} else {
-			unsigned long asid = mm->context&MMU_CONTEXT_ASID_MASK;
+			unsigned long asid;
 			unsigned long saved_asid = MMU_NO_ASID;
 
+			asid = mm->context.id & MMU_CONTEXT_ASID_MASK;
 			start &= PAGE_MASK;
 			end += (PAGE_SIZE - 1);
 			end &= PAGE_MASK;
@@ -81,9 +82,10 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	if (size > (MMU_NTLB_ENTRIES/4)) { /* Too many TLB to flush */
 		flush_tlb_all();
 	} else {
-		unsigned long asid = init_mm.context&MMU_CONTEXT_ASID_MASK;
+		unsigned long asid;
 		unsigned long saved_asid = get_asid();
 
+		asid = init_mm.context.id & MMU_CONTEXT_ASID_MASK;
 		start &= PAGE_MASK;
 		end += (PAGE_SIZE - 1);
 		end &= PAGE_MASK;
@@ -101,11 +103,11 @@ void flush_tlb_mm(struct mm_struct *mm)
 {
 	/* Invalidate all TLB of this process. */
 	/* Instead of invalidating each TLB, we get new MMU context. */
-	if (mm->context != NO_CONTEXT) {
+	if (mm->context.id != NO_CONTEXT) {
 		unsigned long flags;
 
 		local_irq_save(flags);
-		mm->context = NO_CONTEXT;
+		mm->context.id = NO_CONTEXT;
 		if (mm == current->mm)
 			activate_context(mm);
 		local_irq_restore(flags);

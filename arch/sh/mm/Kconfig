@@ -223,6 +223,19 @@ config 32BIT
 	  32-bits through the SH-4A PMB. If this is not set, legacy
 	  29-bit physical addressing will be used.
 
+config VSYSCALL
+	bool "Support vsyscall page"
+	depends on MMU
+	default y
+	help
+	  This will enable support for the kernel mapping a vDSO page
+	  in process space, and subsequently handing down the entry point
+	  to the libc through the ELF auxiliary vector.
+
+	  From the kernel side this is used for the signal trampoline.
+	  For systems with an MMU that can afford to give up a page,
+	  (the default value) say Y.
+
 choice
 	prompt "HugeTLB page size"
 	depends on HUGETLB_PAGE && CPU_SH4 && MMU

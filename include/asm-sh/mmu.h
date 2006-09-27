@@ -11,7 +11,12 @@ typedef struct {
 #else
 
 /* Default "unsigned long" context */
-typedef unsigned long mm_context_t;
+typedef unsigned long mm_context_id_t;
+
+typedef struct {
+	mm_context_id_t id;
+	void *vdso;
+} mm_context_t;
 
 #endif /* CONFIG_MMU */
 

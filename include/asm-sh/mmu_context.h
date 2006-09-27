@@ -49,7 +49,7 @@ get_mmu_context(struct mm_struct *mm)
 	unsigned long mc = mmu_context_cache;
 
 	/* Check if we have old version of context. */
-	if (((mm->context ^ mc) & MMU_CONTEXT_VERSION_MASK) == 0)
+	if (((mm->context.id ^ mc) & MMU_CONTEXT_VERSION_MASK) == 0)
 		/* It's up to date, do nothing */
 		return;
 
@@ -68,7 +68,7 @@ get_mmu_context(struct mm_struct *mm)
 		if (!mc)
 			mmu_context_cache = mc = MMU_CONTEXT_FIRST_VERSION;
 	}
-	mm->context = mc;
+	mm->context.id = mc;
 }
 
 /*
@@ -78,7 +78,7 @@ get_mmu_context(struct mm_struct *mm)
 static __inline__ int init_new_context(struct task_struct *tsk,
 				       struct mm_struct *mm)
 {
-	mm->context = NO_CONTEXT;
+	mm->context.id = NO_CONTEXT;
 
 	return 0;
 }
@@ -123,7 +123,7 @@ static __inline__ unsigned long get_asid(void)
 static __inline__ void activate_context(struct mm_struct *mm)
 {
 	get_mmu_context(mm);
-	set_asid(mm->context & MMU_CONTEXT_ASID_MASK);
+	set_asid(mm->context.id & MMU_CONTEXT_ASID_MASK);
 }
 
 /* MMU_TTB can be used for optimizing the fault handling.

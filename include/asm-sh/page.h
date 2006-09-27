@@ -117,5 +117,10 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
+/* vDSO support */
+#ifdef CONFIG_VSYSCALL
+#define __HAVE_ARCH_GATE_AREA
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */
