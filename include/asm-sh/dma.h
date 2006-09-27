@@ -89,6 +89,7 @@ struct dma_channel {
 	wait_queue_head_t wait_queue;
 
 	struct sys_device dev;
+	char *name;
 };
 
 struct dma_info {

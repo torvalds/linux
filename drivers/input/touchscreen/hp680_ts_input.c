@@ -15,7 +15,6 @@
 #define HP680_TS_ABS_Y_MIN	80
 #define HP680_TS_ABS_Y_MAX	910
 
-#define	SCPCR	0xa4000116
 #define	PHDR	0xa400012e
 #define SCPDR	0xa4000136
 
@@ -77,19 +76,6 @@ static irqreturn_t hp680_ts_interrupt(int irq, void *dev, struct pt_regs *regs)
 
 static int __init hp680_ts_init(void)
 {
-	u8 scpdr;
-	u16 scpcr;
-
-	scpdr = ctrl_inb(SCPDR);
-	scpdr |= SCPDR_TS_SCAN_X | SCPDR_TS_SCAN_Y;
-	scpdr &= ~SCPDR_TS_SCAN_ENABLE;
-	ctrl_outb(scpdr, SCPDR);
-
-	scpcr = ctrl_inw(SCPCR);
-	scpcr &= ~SCPCR_TS_MASK;
-	scpcr |= SCPCR_TS_ENABLE;
-	ctrl_outw(scpcr, SCPCR);
-
 	hp680_ts_dev = input_allocate_device();
 	if (!hp680_ts_dev)
 		return -ENOMEM;

@@ -16,7 +16,13 @@
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12
+
+#ifdef __ASSEMBLY__
+#define PAGE_SIZE	(1 << PAGE_SHIFT)
+#else
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#endif
+
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 #define PTE_MASK	PAGE_MASK
 
@@ -30,7 +36,6 @@
 #define HPAGE_SIZE		(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE-1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT-PAGE_SHIFT)
-#define ARCH_HAS_SETCLEAR_HUGE_PTE
 #endif
 
 #ifdef __KERNEL__
@@ -39,10 +44,18 @@
 extern void (*clear_page)(void *to);
 extern void (*copy_page)(void *to, void *from);
 
+extern unsigned long shm_align_mask;
+
+#ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
 extern void copy_page_slow(void *to, void *from);
+#else
+extern void clear_page_nommu(void *to);
+extern void copy_page_nommu(void *to, void *from);
+#endif
 
-#if defined(CONFIG_SH7705_CACHE_32KB) && defined(CONFIG_MMU)
+#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
 struct page;
 extern void clear_user_page(void *to, unsigned long address, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
@@ -51,29 +64,20 @@ extern void __copy_user_page(void *to, void *from, void *orig_to);
 #elif defined(CONFIG_CPU_SH2) || defined(CONFIG_CPU_SH3) || !defined(CONFIG_MMU)
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
-#elif defined(CONFIG_CPU_SH4)
-struct page;
-extern void clear_user_page(void *to, unsigned long address, struct page *pg);
-extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
-extern void __clear_user_page(void *to, void *orig_to);
-extern void __copy_user_page(void *to, void *from, void *orig_to);
 #endif
 
 /*
  * These are used to make use of C type-checking..
  */
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
 #define __pte(x) ((pte_t) { (x) } )
-#define __pmd(x) ((pmd_t) { (x) } )
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
@@ -93,7 +97,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
 
-#define PAGE_OFFSET		(0x80000000UL)
+#define PAGE_OFFSET		CONFIG_PAGE_OFFSET
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 
@@ -114,6 +118,11 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+/* vDSO support */
+#ifdef CONFIG_VSYSCALL
+#define __HAVE_ARCH_GATE_AREA
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */

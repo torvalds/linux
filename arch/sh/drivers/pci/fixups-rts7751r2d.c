@@ -10,8 +10,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include "pci-sh7751.h"
-#include <asm/io.h>
+#include "pci-sh4.h"
 
 #define PCIMCR_MRSET_OFF	0xBFFFFFFF
 #define PCIMCR_RFSH_OFF		0xFFFFFFFB
@@ -22,22 +21,23 @@ int pci_fixup_pcic(void)
 
 	bcr1 = inl(SH7751_BCR1);
 	bcr1 |= 0x40080000;	/* Enable Bit 19 BREQEN, set PCIC to slave */
-	outl(bcr1, PCI_REG(SH7751_PCIBCR1));
+	pci_write_reg(bcr1, SH4_PCIBCR1);
 
 	/* Enable all interrupts, so we known what to fix */
-	outl(0x0000c3ff, PCI_REG(SH7751_PCIINTM));
-	outl(0x0000380f, PCI_REG(SH7751_PCIAINTM));
+	pci_write_reg(0x0000c3ff, SH4_PCIINTM);
+	pci_write_reg(0x0000380f, SH4_PCIAINTM);
 
-	outl(0xfb900047, PCI_REG(SH7751_PCICONF1));
-	outl(0xab000001, PCI_REG(SH7751_PCICONF4));
+	pci_write_reg(0xfb900047, SH7751_PCICONF1);
+	pci_write_reg(0xab000001, SH7751_PCICONF4);
 
 	mcr = inl(SH7751_MCR);
 	mcr = (mcr & PCIMCR_MRSET_OFF) & PCIMCR_RFSH_OFF;
-	outl(mcr, PCI_REG(SH7751_PCIMCR));
+	pci_write_reg(mcr, SH4_PCIMCR);
 
-	outl(0x0c000000, PCI_REG(SH7751_PCICONF5));
-	outl(0xd0000000, PCI_REG(SH7751_PCICONF6));
-	outl(0x0c000000, PCI_REG(SH7751_PCILAR0));
-	outl(0x00000000, PCI_REG(SH7751_PCILAR1));
+	pci_write_reg(0x0c000000, SH7751_PCICONF5);
+	pci_write_reg(0xd0000000, SH7751_PCICONF6);
+	pci_write_reg(0x0c000000, SH4_PCILAR0);
+	pci_write_reg(0x00000000, SH4_PCILAR1);
+
 	return 0;
 }

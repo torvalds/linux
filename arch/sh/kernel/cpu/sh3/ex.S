@@ -84,8 +84,12 @@ ENTRY(interrupt_table)
 	.long	do_IRQ	!      rovi
 	.long	do_IRQ			
 	.long	do_IRQ			/* 5E0 */
-#if  defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-     defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
+#if  defined(CONFIG_CPU_SUBTYPE_SH7707) || \
+     defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+     defined(CONFIG_CPU_SUBTYPE_SH7706) || \
+     defined(CONFIG_CPU_SUBTYPE_SH7300) || \
+     defined(CONFIG_CPU_SUBTYPE_SH7705) || \
+     defined(CONFIG_CPU_SUBTYPE_SH7710)
 	.long	do_IRQ	! 32 IRQ  irq0	/* 600 */
 	.long	do_IRQ	! 33      irq1
 	.long	do_IRQ	! 34      irq2
@@ -147,6 +151,51 @@ ENTRY(interrupt_table)
 	.long   do_IRQ	! 62 PCC  pcc0i
 	.long   do_IRQ	! 63      pcc1i	/* 9E0 */
 #endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
+	.long   exception_none	! 61 	/* 9A0 */
+	.long   exception_none	! 62
+	.long   exception_none	! 63
+	.long   exception_none	! 64	/* A00 */
+	.long   exception_none	! 65
+	.long   exception_none	! 66
+	.long   exception_none	! 67
+	.long   exception_none	! 68
+	.long   exception_none	! 69
+	.long   exception_none	! 70
+	.long   exception_none	! 71
+	.long   exception_none	! 72	/* B00 */
+	.long   exception_none	! 73
+	.long   exception_none	! 74
+	.long   exception_none	! 75
+	.long   do_IRQ	! 76 DMAC2 dei4	/* B80 */
+	.long   do_IRQ	! 77 DMAC2 dei5
+	.long   exception_none	! 78
+	.long   do_IRQ	! 79 IPSEC ipseci /* BE0 */
+	.long   do_IRQ	! 80 EDMAC eint0 /* C00 */
+	.long   do_IRQ	! 81 EDMAC eint1
+	.long   do_IRQ	! 82 EDMAC eint2
+	.long   exception_none	! 83	/* C60 */
+	.long   exception_none	! 84
+	.long   exception_none	! 85
+	.long   exception_none	! 86
+	.long   exception_none	! 87
+	.long   exception_none	! 88	/* D00 */
+	.long   exception_none	! 89
+	.long   exception_none	! 90
+	.long   exception_none	! 91
+	.long   exception_none	! 92
+	.long   exception_none	! 93
+	.long   exception_none	! 94
+	.long   exception_none	! 95
+	.long   do_IRQ	! 96 SIOF eri0	/* E00 */
+	.long   do_IRQ	! 97      txi0
+	.long   do_IRQ	! 98      rxi0
+	.long   do_IRQ	! 99      cci0
+	.long   do_IRQ	! 100     eri1	/* E80 */
+	.long   do_IRQ	! 101     txi1
+	.long   do_IRQ	! 102     rxi2
+	.long   do_IRQ	! 103     cci3
+#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7300)
 	.long   do_IRQ	! 64
 	.long   do_IRQ	! 65
@@ -195,4 +244,3 @@ ENTRY(interrupt_table)
 	.long   do_IRQ	! 108
 #endif
 #endif
-

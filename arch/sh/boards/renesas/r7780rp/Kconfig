@@ -1,0 +1,14 @@
+if SH_R7780RP
+
+menu "R7780RP options"
+
+config SH_R7780MP
+	bool "R7780MP board support"
+	default y
+	help
+	  Selecting this option will enable support for the mass-production
+	  version of the R7780RP. If in doubt, say Y.
+
+endmenu
+
+endif

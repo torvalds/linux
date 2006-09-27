@@ -192,7 +192,7 @@
 
 #if defined (CONFIG_CPU_SUBTYPE_SH7707) || defined (CONFIG_CPU_SUBTYPE_SH7708) || \
     defined (CONFIG_CPU_SUBTYPE_SH7709) || defined (CONFIG_CPU_SUBTYPE_SH7750) || \
-    defined (CONFIG_CPU_SUBTYPE_SH7751)
+    defined (CONFIG_CPU_SUBTYPE_SH7751) || defined (CONFIG_CPU_SUBTYPE_SH7706)
 #define SCI_ERI_IRQ	23
 #define SCI_RXI_IRQ	24
 #define SCI_TXI_IRQ	25
@@ -207,6 +207,7 @@
 #define SCIF0_IPR_POS	3
 #define SCIF0_PRIORITY	3
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7706) || \
       defined(CONFIG_CPU_SUBTYPE_SH7707) || \
       defined(CONFIG_CPU_SUBTYPE_SH7709)
 #define SCIF_ERI_IRQ	56
@@ -261,9 +262,12 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7708)
 # define ONCHIP_NR_IRQS 32
 #elif defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7706) || \
       defined(CONFIG_CPU_SUBTYPE_SH7705)
 # define ONCHIP_NR_IRQS 64	// Actually 61
 # define PINT_NR_IRQS   16
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710)
+# define ONCHIP_NR_IRQS 104
 #elif defined(CONFIG_CPU_SUBTYPE_SH7750)
 # define ONCHIP_NR_IRQS 48	// Actually 44
 #elif defined(CONFIG_CPU_SUBTYPE_SH7751)
@@ -275,7 +279,8 @@
 #elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
 # define ONCHIP_NR_IRQS 144
 #elif defined(CONFIG_CPU_SUBTYPE_SH7300) || \
-      defined(CONFIG_CPU_SUBTYPE_SH73180)
+      defined(CONFIG_CPU_SUBTYPE_SH73180) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7343)
 # define ONCHIP_NR_IRQS 109
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define ONCHIP_NR_IRQS 111
@@ -311,6 +316,8 @@
 # define OFFCHIP_NR_IRQS 4
 #elif defined(CONFIG_SH_R7780RP)
 # define OFFCHIP_NR_IRQS 16
+#elif defined(CONFIG_SH_7343_SOLUTION_ENGINE)
+# define OFFCHIP_NR_IRQS 12
 #elif defined(CONFIG_SH_UNKNOWN)
 # define OFFCHIP_NR_IRQS 16	/* Must also be last */
 #else
@@ -333,6 +340,11 @@ extern void enable_irq(unsigned int);
  */
 extern void make_maskreg_irq(unsigned int irq);
 extern unsigned short *irq_mask_register;
+
+/*
+ * PINT IRQs
+ */
+void init_IRQ_pint(void);
 
 /*
  * Function for "on chip support modules".
@@ -471,8 +483,10 @@ extern int ipr_irq_demux(int irq);
 
 #define INTC_ICR	0xfffffee0UL
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7706) || \
       defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7709)
+      defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7710)
 #define INTC_IRR0	0xa4000004UL
 #define INTC_IRR1	0xa4000006UL
 #define INTC_IRR2	0xa4000008UL
@@ -491,8 +505,105 @@ extern int ipr_irq_demux(int irq);
 #define INTC_IPRF	0xa4080000UL
 #define INTC_IPRG	0xa4080002UL
 #define INTC_IPRH	0xa4080004UL
-#endif
+#elif defined(CONFIG_CPU_SUBTYPE_SH7710)
+/* Interrupt Controller Registers */
+#undef INTC_IPRA
+#undef INTC_IPRB
+#define INTC_IPRA  	0xA414FEE2UL
+#define INTC_IPRB  	0xA414FEE4UL
+#define INTC_IPRF  	0xA4080000UL
+#define INTC_IPRG  	0xA4080002UL
+#define INTC_IPRH  	0xA4080004UL
+#define INTC_IPRI  	0xA4080006UL
 
+#undef INTC_ICR0
+#undef INTC_ICR1
+#define INTC_ICR0	0xA414FEE0UL
+#define INTC_ICR1	0xA4140010UL
+
+#define INTC_IRR0	0xa4000004UL
+#define INTC_IRR1	0xa4000006UL
+#define INTC_IRR2	0xa4000008UL
+#define INTC_IRR3	0xa400000AUL
+#define INTC_IRR4	0xa400000CUL
+#define INTC_IRR5	0xa4080020UL
+#define INTC_IRR7	0xa4080024UL
+#define INTC_IRR8	0xa4080026UL
+
+/* Interrupt numbers */
+#define TIMER2_IRQ      18
+#define TIMER2_IPR_ADDR INTC_IPRA
+#define TIMER2_IPR_POS   1
+#define TIMER2_PRIORITY  2
+
+/* WDT */
+#define WDT_IRQ		27
+#define WDT_IPR_ADDR	INTC_IPRB
+#define WDT_IPR_POS	 3
+#define WDT_PRIORITY	 2
+
+#define SCIF0_ERI_IRQ	52
+#define SCIF0_RXI_IRQ	53
+#define SCIF0_BRI_IRQ	54
+#define SCIF0_TXI_IRQ	55
+#define SCIF0_IPR_ADDR	INTC_IPRE
+#define SCIF0_IPR_POS	2
+#define SCIF0_PRIORITY	3
+
+#define DMTE4_IRQ	76
+#define DMTE5_IRQ	77
+#define DMA2_IPR_ADDR	INTC_IPRF
+#define DMA2_IPR_POS	2
+#define DMA2_PRIORITY	7
+
+#define IPSEC_IRQ	79
+#define IPSEC_IPR_ADDR	INTC_IPRF
+#define IPSEC_IPR_POS	3
+#define IPSEC_PRIORITY	3
+
+/* EDMAC */
+#define EDMAC0_IRQ	80
+#define EDMAC0_IPR_ADDR	INTC_IPRG
+#define EDMAC0_IPR_POS	3
+#define EDMAC0_PRIORITY	3
+
+#define EDMAC1_IRQ	81
+#define EDMAC1_IPR_ADDR	INTC_IPRG
+#define EDMAC1_IPR_POS	2
+#define EDMAC1_PRIORITY	3
+
+#define EDMAC2_IRQ	82
+#define EDMAC2_IPR_ADDR	INTC_IPRG
+#define EDMAC2_IPR_POS	1
+#define EDMAC2_PRIORITY	3
+
+/* SIOF */
+#define SIOF0_ERI_IRQ	96
+#define SIOF0_TXI_IRQ	97
+#define SIOF0_RXI_IRQ	98
+#define SIOF0_CCI_IRQ	99
+#define SIOF0_IPR_ADDR	INTC_IPRH
+#define SIOF0_IPR_POS	0
+#define SIOF0_PRIORITY	7
+
+#define SIOF1_ERI_IRQ	100
+#define SIOF1_TXI_IRQ	101
+#define SIOF1_RXI_IRQ	102
+#define SIOF1_CCI_IRQ	103
+#define SIOF1_IPR_ADDR	INTC_IPRI
+#define SIOF1_IPR_POS	1
+#define SIOF1_PRIORITY	7
+#endif /* CONFIG_CPU_SUBTYPE_SH7710 */
+
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
+#define PORT_PACR	0xa4050100UL
+#define PORT_PBCR	0xa4050102UL
+#define PORT_PCCR	0xa4050104UL
+#define PORT_PETCR	0xa4050106UL
+#define PORT_PADR  	0xa4050120UL
+#define PORT_PBDR  	0xa4050122UL
+#define PORT_PCDR  	0xa4050124UL
+#else
 #define PORT_PACR	0xa4000100UL
 #define PORT_PBCR	0xa4000102UL
 #define PORT_PCCR	0xa4000104UL
@@ -501,6 +612,7 @@ extern int ipr_irq_demux(int irq);
 #define PORT_PBDR  	0xa4000122UL
 #define PORT_PCDR  	0xa4000124UL
 #define PORT_PFDR  	0xa400012aUL
+#endif
 
 #define IRQ0_IRQ	32
 #define IRQ1_IRQ	33
@@ -577,7 +689,7 @@ extern int ipr_irq_demux(int irq);
 #define NR_INTC2_IRQS	64
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define INTC2_BASE	0xffd40000
-#define INTC2_FIRST_IRQ	22
+#define INTC2_FIRST_IRQ	21
 #define INTC2_INTMSK_OFFSET	(0x38)
 #define INTC2_INTMSKCLR_OFFSET	(0x3c)
 #define NR_INTC2_IRQS	60
@@ -594,6 +706,8 @@ void intc2_add_clear_irq(int irq, int (*fn)(int));
 
 #endif
 
+extern int shmse_irq_demux(int irq);
+
 static inline int generic_irq_demux(int irq)
 {
 	return irq;
@@ -605,8 +719,21 @@ static inline int generic_irq_demux(int irq)
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		__irq_demux(sh_mv.mv_irq_demux(irq))
 
+#ifdef CONFIG_4KSTACKS
+extern void irq_ctx_init(int cpu);
+extern void irq_ctx_exit(int cpu);
+# define __ARCH_HAS_DO_SOFTIRQ
+#else
+# define irq_ctx_init(cpu) do { } while (0)
+# define irq_ctx_exit(cpu) do { } while (0)
+#endif
+
 #if defined(CONFIG_CPU_SUBTYPE_SH73180)
 #include <asm/irq-sh73180.h>
+#endif
+
+#if defined(CONFIG_CPU_SUBTYPE_SH7343)
+#include <asm/irq-sh7343.h>
 #endif
 
 #endif /* __ASM_SH_IRQ_H */

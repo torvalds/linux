@@ -36,39 +36,14 @@
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
-#define CHK_REMOTE_DEBUG(regs)                                               \
-{                                                                            \
-  if ((kgdb_debug_hook != (kgdb_debug_hook_t *) NULL) && (!user_mode(regs))) \
-  {                                                                          \
-    (*kgdb_debug_hook)(regs);                                                \
-  }                                                                          \
+#define CHK_REMOTE_DEBUG(regs)                 	\
+{       					\
+	if (kgdb_debug_hook && !user_mode(regs))\
+		(*kgdb_debug_hook)(regs);       \
 }
 #else
 #define CHK_REMOTE_DEBUG(regs)
 #endif
-
-#define DO_ERROR(trapnr, signr, str, name, tsk)				\
-asmlinkage void do_##name(unsigned long r4, unsigned long r5,		\
-			  unsigned long r6, unsigned long r7,		\
-			  struct pt_regs regs)				\
-{									\
-	unsigned long error_code;					\
- 									\
-	/* Check if it's a DSP instruction */				\
- 	if (is_dsp_inst(&regs)) {					\
-		/* Enable DSP mode, and restart instruction. */		\
-		regs.sr |= SR_DSP;					\
-		return;							\
-	}								\
-									\
-	asm volatile("stc	r2_bank, %0": "=r" (error_code));	\
-	local_irq_enable();						\
-	tsk->thread.error_code = error_code;				\
-	tsk->thread.trap_no = trapnr;					\
-        CHK_REMOTE_DEBUG(&regs);					\
-	force_sig(signr, tsk);						\
-	die_if_no_fixup(str,&regs,error_code);				\
-}
 
 #ifdef CONFIG_CPU_SH2
 #define TRAP_RESERVED_INST	4
@@ -86,7 +61,7 @@ asmlinkage void do_##name(unsigned long r4, unsigned long r5,		\
 #define VMALLOC_OFFSET (8*1024*1024)
 #define MODULE_RANGE (8*1024*1024)
 
-spinlock_t die_lock;
+DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
@@ -575,8 +550,117 @@ int is_dsp_inst(struct pt_regs *regs)
 #define is_dsp_inst(regs)	(0)
 #endif /* CONFIG_SH_DSP */
 
-DO_ERROR(TRAP_RESERVED_INST, SIGILL, "reserved instruction", reserved_inst, current)
-DO_ERROR(TRAP_ILLEGAL_SLOT_INST, SIGILL, "illegal slot instruction", illegal_slot_inst, current)
+extern int do_fpu_inst(unsigned short, struct pt_regs*);
+
+asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs regs)
+{
+	unsigned long error_code;
+	struct task_struct *tsk = current;
+
+#ifdef CONFIG_SH_FPU_EMU
+	unsigned short inst;
+	int err;
+
+	get_user(inst, (unsigned short*)regs.pc);
+
+	err = do_fpu_inst(inst, &regs);
+	if (!err) {
+		regs.pc += 2;
+		return;
+	}
+	/* not a FPU inst. */
+#endif
+
+#ifdef CONFIG_SH_DSP
+	/* Check if it's a DSP instruction */
+ 	if (is_dsp_inst(&regs)) {
+		/* Enable DSP mode, and restart instruction. */
+		regs.sr |= SR_DSP;
+		return;
+	}
+#endif
+
+	asm volatile("stc	r2_bank, %0": "=r" (error_code));
+	local_irq_enable();
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = TRAP_RESERVED_INST;
+	CHK_REMOTE_DEBUG(&regs);
+	force_sig(SIGILL, tsk);
+	die_if_no_fixup("reserved instruction", &regs, error_code);
+}
+
+#ifdef CONFIG_SH_FPU_EMU
+static int emulate_branch(unsigned short inst, struct pt_regs* regs)
+{
+	/*
+	 * bfs: 8fxx: PC+=d*2+4;
+	 * bts: 8dxx: PC+=d*2+4;
+	 * bra: axxx: PC+=D*2+4;
+	 * bsr: bxxx: PC+=D*2+4  after PR=PC+4;
+	 * braf:0x23: PC+=Rn*2+4;
+	 * bsrf:0x03: PC+=Rn*2+4 after PR=PC+4;
+	 * jmp: 4x2b: PC=Rn;
+	 * jsr: 4x0b: PC=Rn      after PR=PC+4;
+	 * rts: 000b: PC=PR;
+	 */
+	if ((inst & 0xfd00) == 0x8d00) {
+		regs->pc += SH_PC_8BIT_OFFSET(inst);
+		return 0;
+	}
+
+	if ((inst & 0xe000) == 0xa000) {
+		regs->pc += SH_PC_12BIT_OFFSET(inst);
+		return 0;
+	}
+
+	if ((inst & 0xf0df) == 0x0003) {
+		regs->pc += regs->regs[(inst & 0x0f00) >> 8] + 4;
+		return 0;
+	}
+
+	if ((inst & 0xf0df) == 0x400b) {
+		regs->pc = regs->regs[(inst & 0x0f00) >> 8];
+		return 0;
+	}
+
+	if ((inst & 0xffff) == 0x000b) {
+		regs->pc = regs->pr;
+		return 0;
+	}
+
+	return 1;
+}
+#endif
+
+asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs regs)
+{
+	unsigned long error_code;
+	struct task_struct *tsk = current;
+#ifdef CONFIG_SH_FPU_EMU
+	unsigned short inst;
+
+	get_user(inst, (unsigned short *)regs.pc + 1);
+	if (!do_fpu_inst(inst, &regs)) {
+		get_user(inst, (unsigned short *)regs.pc);
+		if (!emulate_branch(inst, &regs))
+			return;
+		/* fault in branch.*/
+	}
+	/* not a FPU inst. */
+#endif
+
+	asm volatile("stc	r2_bank, %0": "=r" (error_code));
+	local_irq_enable();
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = TRAP_RESERVED_INST;
+	CHK_REMOTE_DEBUG(&regs);
+	force_sig(SIGILL, tsk);
+	die_if_no_fixup("illegal slot instruction", &regs, error_code);
+}
 
 asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 				   unsigned long r6, unsigned long r7,
@@ -634,14 +718,16 @@ void __init trap_init(void)
 	exception_handling_table[TRAP_ILLEGAL_SLOT_INST]
 		= (void *)do_illegal_slot_inst;
 
-#ifdef CONFIG_CPU_SH4
-	if (!(cpu_data->flags & CPU_HAS_FPU)) {
-		/* For SH-4 lacking an FPU, treat floating point instructions
-		   as reserved. */
-		/* entry 64 corresponds to EXPEVT=0x800 */
-		exception_handling_table[64] = (void *)do_reserved_inst;
-		exception_handling_table[65] = (void *)do_illegal_slot_inst;
-	}
+#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_FPU) || \
+    defined(CONFIG_SH_FPU_EMU)
+	/*
+	 * For SH-4 lacking an FPU, treat floating point instructions as
+	 * reserved. They'll be handled in the math-emu case, or faulted on
+	 * otherwise.
+	 */
+	/* entry 64 corresponds to EXPEVT=0x800 */
+	exception_handling_table[64] = (void *)do_reserved_inst;
+	exception_handling_table[65] = (void *)do_illegal_slot_inst;
 #endif
 		
 	/* Setup VBR for boot cpu */
@@ -655,20 +741,12 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	unsigned long module_end = VMALLOC_END;
 	int i = 1;
 
-	if (tsk && !sp) {
+	if (!tsk)
+		tsk = current;
+	if (tsk == current)
+		sp = (unsigned long *)current_stack_pointer;
+	else
 		sp = (unsigned long *)tsk->thread.sp;
-	}
-
-	if (!sp) {
-		__asm__ __volatile__ (
-			"mov r15, %0\n\t"
-			"stc r7_bank, %1\n\t"
-			: "=r" (module_start),
-			  "=r" (module_end)
-		);
-		
-		sp = (unsigned long *)module_start;
-	}
 
 	stack = sp;
 

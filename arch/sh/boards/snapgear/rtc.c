@@ -17,14 +17,9 @@
 #include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/mc146818rtc.h>
-
 #include <asm/io.h>
-#include <asm/rtc.h>
-#include <asm/mc146818rtc.h>
 
-/****************************************************************************/
-
-static int use_ds1302 = 0;
+static int use_ds1302;
 
 /****************************************************************************/
 /*
@@ -82,10 +77,6 @@ static unsigned int ds1302_readbyte(unsigned int addr)
 	unsigned int	val;
 	unsigned long	flags;
 
-#if 0
-	printk("SnapGear RTC: ds1302_readbyte(addr=%x)\n", addr);
-#endif
-
 	local_irq_save(flags);
 	set_dirp(get_dirp() | RTC_RESET | RTC_IODATA | RTC_SCLK);
 	set_dp(get_dp() & ~(RTC_RESET | RTC_IODATA | RTC_SCLK));
@@ -103,10 +94,6 @@ static unsigned int ds1302_readbyte(unsigned int addr)
 static void ds1302_writebyte(unsigned int addr, unsigned int val)
 {
 	unsigned long	flags;
-
-#if 0
-	printk("SnapGear RTC: ds1302_writebyte(addr=%x)\n", addr);
-#endif
 
 	local_irq_save(flags);
 	set_dirp(get_dirp() | RTC_RESET | RTC_IODATA | RTC_SCLK);
@@ -168,11 +155,8 @@ void __init secureedge5410_rtc_init(void)
 		}
 
 	if (use_ds1302) {
-		rtc_get_time = snapgear_rtc_gettimeofday;
-		rtc_set_time = snapgear_rtc_settimeofday;
-	} else {
-		rtc_get_time = sh_rtc_gettimeofday;
-		rtc_set_time = sh_rtc_settimeofday;
+		rtc_sh_get_time = snapgear_rtc_gettimeofday;
+		rtc_sh_set_time = snapgear_rtc_settimeofday;
 	}
 		
 	printk("SnapGear RTC: using %s rtc.\n", use_ds1302 ? "ds1302" : "internal");
@@ -187,10 +171,8 @@ void snapgear_rtc_gettimeofday(struct timespec *ts)
 {
 	unsigned int sec, min, hr, day, mon, yr;
 
-	if (!use_ds1302) {
-		sh_rtc_gettimeofday(ts);
+	if (!use_ds1302)
 		return;
-	}
 
  	sec = bcd2int(ds1302_readbyte(RTC_ADDR_SEC));
  	min = bcd2int(ds1302_readbyte(RTC_ADDR_MIN));
@@ -231,7 +213,7 @@ int snapgear_rtc_settimeofday(const time_t secs)
 	unsigned long nowtime;
 
 	if (!use_ds1302)
-		return sh_rtc_settimeofday(secs);
+		return 0;
 
 /*
  *	This is called direct from the kernel timer handling code.
@@ -239,10 +221,6 @@ int snapgear_rtc_settimeofday(const time_t secs)
  */
 
 	nowtime = secs;
-
-#if 1
-	printk("SnapGear RTC: snapgear_rtc_settimeofday(nowtime=%ld)\n", nowtime);
-#endif
 
 	/* STOP RTC */
 	ds1302_writebyte(RTC_ADDR_SEC, ds1302_readbyte(RTC_ADDR_SEC) | 0x80);
@@ -329,5 +307,3 @@ void secureedge5410_cmos_write(unsigned char val, int addr)
 	default:                                                      break;
 	}
 }
-
-/****************************************************************************/

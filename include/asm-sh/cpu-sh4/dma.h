@@ -1,11 +1,17 @@
 #ifndef __ASM_CPU_SH4_DMA_H
 #define __ASM_CPU_SH4_DMA_H
 
+#define DMAOR_INIT	( 0x8000 | DMAOR_DME )
+
 #ifdef CONFIG_CPU_SH4A
 #define SH_DMAC_BASE	0xfc808020
+
+#define CHCR_TS_MASK	0x18
+#define CHCR_TS_SHIFT	3
+
+#include <asm/cpu/dma-sh7780.h>
 #else
 #define SH_DMAC_BASE	0xffa00000
-#endif
 
 /* Definitions for the SuperH DMAC */
 #define TM_BURST	0x0000080
@@ -18,8 +24,6 @@
 #define CHCR_TS_SHIFT	4
 
 #define DMAOR_COD	0x00000008
-
-#define DMAOR_INIT	( 0x8000 | DMAOR_DME )
 
 /*
  * The SuperH DMAC supports a number of transmit sizes, we list them here,
@@ -45,5 +49,6 @@ static unsigned int ts_shift[] __attribute__ ((used)) = {
 	[XMIT_SZ_32BIT]		= 2,
 	[XMIT_SZ_256BIT]	= 5,
 };
+#endif
 
 #endif /* __ASM_CPU_SH4_DMA_H */

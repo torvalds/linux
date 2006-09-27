@@ -9,6 +9,8 @@
  */
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
+#include <asm/addrspace.h>
 #include <asm/io.h>
 
 void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle)

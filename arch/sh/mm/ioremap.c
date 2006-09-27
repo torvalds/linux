@@ -15,6 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -135,6 +136,20 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		return (void __iomem *)phys_to_virt(phys_addr);
 
 	/*
+	 * If we're on an SH7751 or SH7780 PCI controller, PCI memory is
+	 * mapped at the end of the address space (typically 0xfd000000)
+	 * in a non-translatable area, so mapping through page tables for
+	 * this area is not only pointless, but also fundamentally
+	 * broken. Just return the physical address instead.
+	 *
+	 * For boards that map a small PCI memory aperture somewhere in
+	 * P1/P2 space, ioremap() will already do the right thing,
+	 * and we'll never get this far.
+	 */
+	if (is_pci_memaddr(phys_addr) && is_pci_memaddr(last_addr))
+		return (void __iomem *)phys_addr;
+
+	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
 	if (phys_addr < virt_to_phys(high_memory))
@@ -192,7 +207,7 @@ void __iounmap(void __iomem *addr)
 	unsigned long vaddr = (unsigned long __force)addr;
 	struct vm_struct *p;
 
-	if (PXSEG(vaddr) < P3SEG)
+	if (PXSEG(vaddr) < P3SEG || is_pci_memaddr(vaddr))
 		return;
 
 #ifdef CONFIG_32BIT
