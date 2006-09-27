@@ -78,7 +78,7 @@ struct fib_info {
 	int			fib_dead;
 	unsigned		fib_flags;
 	int			fib_protocol;
-	u32			fib_prefsrc;
+	__be32			fib_prefsrc;
 	u32			fib_priority;
 	u32			fib_metrics[RTAX_MAX];
 #define fib_mtu fib_metrics[RTAX_MTU-1]
@@ -232,7 +232,7 @@ struct rtentry;
 extern int ip_fib_check_default(u32 gw, struct net_device *dev);
 extern int fib_sync_down(u32 local, struct net_device *dev, int force);
 extern int fib_sync_up(struct net_device *dev);
-extern u32  __fib_res_prefsrc(struct fib_result *res);
+extern __be32  __fib_res_prefsrc(struct fib_result *res);
 
 /* Exported by fib_hash.c */
 extern struct fib_table *fib_hash_init(u32 id);

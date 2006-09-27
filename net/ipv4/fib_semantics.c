@@ -923,7 +923,7 @@ out_fill_res:
 
 /* Find appropriate source address to this destination */
 
-u32 __fib_res_prefsrc(struct fib_result *res)
+__be32 __fib_res_prefsrc(struct fib_result *res)
 {
 	return inet_select_addr(FIB_RES_DEV(*res), FIB_RES_GW(*res), res->scope);
 }
