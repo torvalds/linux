@@ -113,6 +113,11 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	}
 
+#ifdef CONFIG_SH_DIRECT_MAPPED
+	cpu_data->icache.ways = 1;
+	cpu_data->dcache.ways = 1;
+#endif
+
 	/*
 	 * On anything that's not a direct-mapped cache, look to the CVR
 	 * for I/D-cache specifics.
@@ -125,6 +130,9 @@ int __init detect_cpu_and_cache_system(void)
 			(cpu_data->icache.way_incr - (1 << 5));
 	}
 
+	cpu_data->icache.way_size = cpu_data->icache.sets *
+				    cpu_data->icache.linesz;
+
 	if (cpu_data->dcache.ways > 1) {
 		size = sizes[(cvr >> 16) & 0xf];
 		cpu_data->dcache.way_incr	= (size >> 1);
@@ -132,6 +140,9 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->dcache.entry_mask	=
 			(cpu_data->dcache.way_incr - (1 << 5));
 	}
+
+	cpu_data->dcache.way_size = cpu_data->dcache.sets *
+				    cpu_data->dcache.linesz;
 
 	return 0;
 }
