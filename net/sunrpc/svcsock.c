@@ -1030,7 +1030,7 @@ svc_tcp_sendto(struct svc_rqst *rqstp)
 {
 	struct xdr_buf	*xbufp = &rqstp->rq_res;
 	int sent;
-	u32 reclen;
+	__be32 reclen;
 
 	/* Set up the first element of the reply kvec.
 	 * Any other kvecs that may be in use have been taken

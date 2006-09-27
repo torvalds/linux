@@ -256,11 +256,11 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	struct kvec *		argv = &rqstp->rq_arg.head[0];
 	struct kvec *		resv = &rqstp->rq_res.head[0];
 	kxdrproc_t		xdr;
-	u32			*statp;
-	u32			dir, prog, vers, proc,
-				auth_stat, rpc_stat;
+	__be32			*statp;
+	u32			dir, prog, vers, proc;
+	__be32			auth_stat, rpc_stat;
 	int			auth_res;
-	u32			*accept_statp;
+	__be32			*accept_statp;
 
 	rpc_stat = rpc_success;
 

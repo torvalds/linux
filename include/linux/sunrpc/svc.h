@@ -147,7 +147,7 @@ struct svc_rqst {
 	short			rq_arghi;	/* pages available in argument page list */
 	short			rq_resused;	/* pages used for result */
 
-	u32			rq_xid;		/* transmission id */
+	__be32			rq_xid;		/* transmission id */
 	u32			rq_prog;	/* program number */
 	u32			rq_vers;	/* program version */
 	u32			rq_proc;	/* procedure number */
@@ -156,7 +156,7 @@ struct svc_rqst {
 				rq_secure  : 1;	/* secure port */
 
 
-	__u32			rq_daddr;	/* dest addr of request - reply from here */
+	__be32			rq_daddr;	/* dest addr of request - reply from here */
 
 	void *			rq_argp;	/* decoded arguments */
 	void *			rq_resp;	/* xdr'd results */
@@ -186,7 +186,7 @@ struct svc_rqst {
  * Check buffer bounds after decoding arguments
  */
 static inline int
-xdr_argsize_check(struct svc_rqst *rqstp, u32 *p)
+xdr_argsize_check(struct svc_rqst *rqstp, __be32 *p)
 {
 	char *cp = (char *)p;
 	struct kvec *vec = &rqstp->rq_arg.head[0];
@@ -195,7 +195,7 @@ xdr_argsize_check(struct svc_rqst *rqstp, u32 *p)
 }
 
 static inline int
-xdr_ressize_check(struct svc_rqst *rqstp, u32 *p)
+xdr_ressize_check(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct kvec *vec = &rqstp->rq_res.head[0];
 	char *cp = (char*)p;
@@ -266,10 +266,10 @@ struct svc_deferred_req {
 	u32			prot;	/* protocol (UDP or TCP) */
 	struct sockaddr_in	addr;
 	struct svc_sock		*svsk;	/* where reply must go */
-	u32			daddr;	/* where reply must come from */
+	__be32			daddr;	/* where reply must come from */
 	struct cache_deferred_req handle;
 	int			argslen;
-	u32			args[0];
+	__be32			args[0];
 };
 
 /*
@@ -301,7 +301,7 @@ struct svc_version {
 	 * A return value of 0 means drop the request. 
 	 * vs_dispatch == NULL means use default dispatcher.
 	 */
-	int			(*vs_dispatch)(struct svc_rqst *, u32 *);
+	int			(*vs_dispatch)(struct svc_rqst *, __be32 *);
 };
 
 /*

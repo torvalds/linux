@@ -145,7 +145,7 @@ static void ip_map_request(struct cache_detail *cd,
 {
 	char text_addr[20];
 	struct ip_map *im = container_of(h, struct ip_map, h);
-	__u32 addr = im->m_addr.s_addr;
+	__be32 addr = im->m_addr.s_addr;
 	
 	snprintf(text_addr, 20, "%u.%u.%u.%u",
 		 ntohl(addr) >> 24 & 0xff,
@@ -410,7 +410,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 }
 
 static int
-svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -472,7 +472,7 @@ struct auth_ops svcauth_null = {
 
 
 static int
-svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -491,7 +491,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 	slen = XDR_QUADLEN(svc_getnl(argv));	/* machname length */
 	if (slen > 64 || (len -= (slen + 3)*4) < 0)
 		goto badcred;
-	argv->iov_base = (void*)((u32*)argv->iov_base + slen);	/* skip machname */
+	argv->iov_base = (void*)((__be32*)argv->iov_base + slen);	/* skip machname */
 	argv->iov_len -= slen*4;
 
 	cred->cr_uid = svc_getnl(argv);		/* uid */

@@ -640,7 +640,7 @@ svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
  */
 static int
 gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
-		  u32 *rpcstart, struct rpc_gss_wire_cred *gc, u32 *authp)
+		  __be32 *rpcstart, struct rpc_gss_wire_cred *gc, __be32 *authp)
 {
 	struct gss_ctx		*ctx_id = rsci->mechctx;
 	struct xdr_buf		rpchdr;
@@ -687,7 +687,7 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 static int
 gss_write_null_verf(struct svc_rqst *rqstp)
 {
-	u32     *p;
+	__be32     *p;
 
 	svc_putnl(rqstp->rq_res.head, RPC_AUTH_NULL);
 	p = rqstp->rq_res.head->iov_base + rqstp->rq_res.head->iov_len;
@@ -701,11 +701,11 @@ gss_write_null_verf(struct svc_rqst *rqstp)
 static int
 gss_write_verf(struct svc_rqst *rqstp, struct gss_ctx *ctx_id, u32 seq)
 {
-	u32			xdr_seq;
+	__be32			xdr_seq;
 	u32			maj_stat;
 	struct xdr_buf		verf_data;
 	struct xdr_netobj	mic;
-	u32			*p;
+	__be32			*p;
 	struct kvec		iov;
 
 	svc_putnl(rqstp->rq_res.head, RPC_AUTH_GSS);
@@ -782,7 +782,7 @@ EXPORT_SYMBOL(svcauth_gss_register_pseudoflavor);
 static inline int
 read_u32_from_xdr_buf(struct xdr_buf *buf, int base, u32 *obj)
 {
-	u32     raw;
+	__be32  raw;
 	int     status;
 
 	status = read_bytes_from_xdr_buf(buf, base, &raw, sizeof(*obj));
@@ -905,7 +905,7 @@ struct gss_svc_data {
 	struct rpc_gss_wire_cred	clcred;
 	/* pointer to the beginning of the procedure-specific results,
 	 * which may be encrypted/checksummed in svcauth_gss_release: */
-	u32				*body_start;
+	__be32				*body_start;
 	struct rsc			*rsci;
 };
 
@@ -946,7 +946,7 @@ gss_write_init_verf(struct svc_rqst *rqstp, struct rsi *rsip)
  * response here and return SVC_COMPLETE.
  */
 static int
-svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -956,8 +956,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 	struct rpc_gss_wire_cred *gc;
 	struct rsc	*rsci = NULL;
 	struct rsi	*rsip, rsikey;
-	u32		*rpcstart;
-	u32		*reject_stat = resv->iov_base + resv->iov_len;
+	__be32		*rpcstart;
+	__be32		*reject_stat = resv->iov_base + resv->iov_len;
 	int		ret;
 
 	dprintk("RPC:      svcauth_gss: argv->iov_len = %zd\n",argv->iov_len);
@@ -1156,7 +1156,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	struct xdr_buf integ_buf;
 	struct xdr_netobj mic;
 	struct kvec *resv;
-	u32 *p;
+	__be32 *p;
 	int integ_offset, integ_len;
 	int stat = -EINVAL;
 
@@ -1219,7 +1219,7 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
 	struct xdr_buf *resbuf = &rqstp->rq_res;
 	struct page **inpages = NULL;
-	u32 *p;
+	__be32 *p;
 	int offset, *len;
 	int pad;
 
@@ -1264,7 +1264,7 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 		return -ENOMEM;
 	*len = htonl(resbuf->len - offset);
 	pad = 3 - ((resbuf->len - offset - 1)&3);
-	p = (u32 *)(resbuf->tail[0].iov_base + resbuf->tail[0].iov_len);
+	p = (__be32 *)(resbuf->tail[0].iov_base + resbuf->tail[0].iov_len);
 	memset(p, 0, pad);
 	resbuf->tail[0].iov_len += pad;
 	resbuf->len += pad;

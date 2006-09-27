@@ -35,7 +35,7 @@ static struct auth_ops	*authtab[RPC_AUTH_MAXFLAVOR] = {
 };
 
 int
-svc_authenticate(struct svc_rqst *rqstp, u32 *authp)
+svc_authenticate(struct svc_rqst *rqstp, __be32 *authp)
 {
 	rpc_authflavor_t	flavor;
 	struct auth_ops		*aops;
