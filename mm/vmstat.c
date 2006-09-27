@@ -371,7 +371,7 @@ void zone_statistics(struct zonelist *zonelist, struct zone *z)
 		__inc_zone_state(z, NUMA_MISS);
 		__inc_zone_state(zonelist->zones[0], NUMA_FOREIGN);
 	}
-	if (z->zone_pgdat == NODE_DATA(numa_node_id()))
+	if (z->node == numa_node_id())
 		__inc_zone_state(z, NUMA_LOCAL);
 	else
 		__inc_zone_state(z, NUMA_OTHER);
