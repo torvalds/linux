@@ -128,6 +128,18 @@ static char *ramdisk_execute_command;
 static unsigned int max_cpus = NR_CPUS;
 
 /*
+ * If set, this is an indication to the drivers that reset the underlying
+ * device before going ahead with the initialization otherwise driver might
+ * rely on the BIOS and skip the reset operation.
+ *
+ * This is useful if kernel is booting in an unreliable environment.
+ * For ex. kdump situaiton where previous kernel has crashed, BIOS has been
+ * skipped and devices will be in unknown state.
+ */
+unsigned int reset_devices;
+EXPORT_SYMBOL(reset_devices);
+
+/*
  * Setup routine for controlling SMP activation
  *
  * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
@@ -152,6 +164,14 @@ static int __init maxcpus(char *str)
 }
 
 __setup("maxcpus=", maxcpus);
+
+static int __init set_reset_devices(char *str)
+{
+	reset_devices = 1;
+	return 1;
+}
+
+__setup("reset_devices", set_reset_devices);
 
 static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };

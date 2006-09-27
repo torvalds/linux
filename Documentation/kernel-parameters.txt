@@ -1370,6 +1370,9 @@ running once the system is up.
 			Reserves a hole at the top of the kernel virtual
 			address space.
 
+	reset_devices	[KNL] Force drivers to reset the underlying device
+			during initialization.
+
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
 
