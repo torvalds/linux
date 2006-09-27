@@ -75,7 +75,7 @@ int aica_rtc_settimeofday(const time_t secs)
 
 void aica_time_init(void)
 {
-	rtc_get_time = aica_rtc_gettimeofday;
-	rtc_set_time = aica_rtc_settimeofday;
+	rtc_sh_get_time = aica_rtc_gettimeofday;
+	rtc_sh_set_time = aica_rtc_settimeofday;
 }
 

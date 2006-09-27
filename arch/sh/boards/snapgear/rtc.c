@@ -165,11 +165,11 @@ void __init secureedge5410_rtc_init(void)
 		}
 
 	if (use_ds1302) {
-		rtc_get_time = snapgear_rtc_gettimeofday;
-		rtc_set_time = snapgear_rtc_settimeofday;
+		rtc_sh_get_time = snapgear_rtc_gettimeofday;
+		rtc_sh_set_time = snapgear_rtc_settimeofday;
 	} else {
-		rtc_get_time = sh_rtc_gettimeofday;
-		rtc_set_time = sh_rtc_settimeofday;
+		rtc_sh_get_time = sh_rtc_gettimeofday;
+		rtc_sh_set_time = sh_rtc_settimeofday;
 	}
 		
 	printk("SnapGear RTC: using %s rtc.\n", use_ds1302 ? "ds1302" : "internal");

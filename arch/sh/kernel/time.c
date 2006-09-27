@@ -29,11 +29,11 @@ EXPORT_SYMBOL(rtc_lock);
 /* XXX: Can we initialize this in a routine somewhere?  Dreamcast doesn't want
  * these routines anywhere... */
 #ifdef CONFIG_SH_RTC
-void (*rtc_get_time)(struct timespec *) = sh_rtc_gettimeofday;
-int (*rtc_set_time)(const time_t) = sh_rtc_settimeofday;
+void (*rtc_sh_get_time)(struct timespec *) = sh_rtc_gettimeofday;
+int (*rtc_sh_set_time)(const time_t) = sh_rtc_settimeofday;
 #else
-void (*rtc_get_time)(struct timespec *);
-int (*rtc_set_time)(const time_t);
+void (*rtc_sh_get_time)(struct timespec *);
+int (*rtc_sh_set_time)(const time_t);
 #endif
 
 /*
@@ -135,7 +135,7 @@ void handle_timer_tick(struct pt_regs *regs)
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_set_time(xtime.tv_sec) == 0)
+		if (rtc_sh_set_time(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
 			/* do it again in 60s */
@@ -193,8 +193,8 @@ void __init time_init(void)
 
 	clk_init();
 
-	if (rtc_get_time) {
-		rtc_get_time(&xtime);
+	if (rtc_sh_get_time) {
+		rtc_sh_get_time(&xtime);
 	} else {
 		xtime.tv_sec = mktime(2000, 1, 1, 0, 0, 0);
 		xtime.tv_nsec = 0;

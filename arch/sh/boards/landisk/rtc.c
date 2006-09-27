@@ -16,17 +16,9 @@
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
+#include <linux/bcd.h>
+#include <asm/rtc.h>
 
-#ifndef BCD_TO_BIN
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
-#endif
-
-#ifndef BIN_TO_BCD
-#define BIN_TO_BCD(val) ((val)=(((val)/10)<<4) + (val)%10)
-#endif
-
-extern void (*rtc_get_time) (struct timespec *);
-extern int (*rtc_set_time) (const time_t);
 extern spinlock_t rtc_lock;
 
 extern void
@@ -94,9 +86,8 @@ int landisk_rtc_settimeofday(const time_t secs)
 	return retval;
 }
 
-
 void landisk_time_init(void)
 {
-	rtc_get_time = landisk_rtc_gettimeofday;
-	rtc_set_time = landisk_rtc_settimeofday;
+	rtc_sh_get_time = landisk_rtc_gettimeofday;
+	rtc_sh_set_time = landisk_rtc_settimeofday;
 }

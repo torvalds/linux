@@ -132,17 +132,17 @@ static unsigned long tmu_timer_get_frequency(void)
 	ctrl_outl(0xffffffff, TMU0_TCOR);
 	ctrl_outl(0xffffffff, TMU0_TCNT);
 
-	rtc_get_time(&ts2);
+	rtc_sh_get_time(&ts2);
 
 	do {
-		rtc_get_time(&ts1);
+		rtc_sh_get_time(&ts1);
 	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
 
 	/* actually start the timer */
 	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
 
 	do {
-		rtc_get_time(&ts2);
+		rtc_sh_get_time(&ts2);
 	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
 
 	freq = 0xffffffff - ctrl_inl(TMU0_TCNT);
