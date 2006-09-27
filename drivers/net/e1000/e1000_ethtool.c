@@ -1,25 +1,24 @@
 /*******************************************************************************
 
-  
-  Copyright(c) 1999 - 2006 Intel Corporation. All rights reserved.
-  
-  This program is free software; you can redistribute it and/or modify it 
-  under the terms of the GNU General Public License as published by the Free 
-  Software Foundation; either version 2 of the License, or (at your option) 
-  any later version.
-  
-  This program is distributed in the hope that it will be useful, but WITHOUT 
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for 
+  Intel PRO/1000 Linux driver
+  Copyright(c) 1999 - 2006 Intel Corporation.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms and conditions of the GNU General Public License,
+  version 2, as published by the Free Software Foundation.
+
+  This program is distributed in the hope it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
-  
+
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59 
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-  
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-  
+  this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+
+  The full GNU General Public License is included in this distribution in
+  the file called "COPYING".
+
   Contact Information:
   Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
@@ -33,6 +32,21 @@
 
 #include <asm/uaccess.h>
 
+extern char e1000_driver_name[];
+extern char e1000_driver_version[];
+
+extern int e1000_up(struct e1000_adapter *adapter);
+extern void e1000_down(struct e1000_adapter *adapter);
+extern void e1000_reinit_locked(struct e1000_adapter *adapter);
+extern void e1000_reset(struct e1000_adapter *adapter);
+extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
+extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
+extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
+extern void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
+extern void e1000_update_stats(struct e1000_adapter *adapter);
+
+
 struct e1000_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -42,26 +56,30 @@ struct e1000_stats {
 #define E1000_STAT(m) sizeof(((struct e1000_adapter *)0)->m), \
 		      offsetof(struct e1000_adapter, m)
 static const struct e1000_stats e1000_gstrings_stats[] = {
-	{ "rx_packets", E1000_STAT(net_stats.rx_packets) },
-	{ "tx_packets", E1000_STAT(net_stats.tx_packets) },
-	{ "rx_bytes", E1000_STAT(net_stats.rx_bytes) },
-	{ "tx_bytes", E1000_STAT(net_stats.tx_bytes) },
-	{ "rx_errors", E1000_STAT(net_stats.rx_errors) },
-	{ "tx_errors", E1000_STAT(net_stats.tx_errors) },
+	{ "rx_packets", E1000_STAT(stats.gprc) },
+	{ "tx_packets", E1000_STAT(stats.gptc) },
+	{ "rx_bytes", E1000_STAT(stats.gorcl) },
+	{ "tx_bytes", E1000_STAT(stats.gotcl) },
+	{ "rx_broadcast", E1000_STAT(stats.bprc) },
+	{ "tx_broadcast", E1000_STAT(stats.bptc) },
+	{ "rx_multicast", E1000_STAT(stats.mprc) },
+	{ "tx_multicast", E1000_STAT(stats.mptc) },
+	{ "rx_errors", E1000_STAT(stats.rxerrc) },
+	{ "tx_errors", E1000_STAT(stats.txerrc) },
 	{ "tx_dropped", E1000_STAT(net_stats.tx_dropped) },
-	{ "multicast", E1000_STAT(net_stats.multicast) },
-	{ "collisions", E1000_STAT(net_stats.collisions) },
-	{ "rx_length_errors", E1000_STAT(net_stats.rx_length_errors) },
+	{ "multicast", E1000_STAT(stats.mprc) },
+	{ "collisions", E1000_STAT(stats.colc) },
+	{ "rx_length_errors", E1000_STAT(stats.rlerrc) },
 	{ "rx_over_errors", E1000_STAT(net_stats.rx_over_errors) },
-	{ "rx_crc_errors", E1000_STAT(net_stats.rx_crc_errors) },
+	{ "rx_crc_errors", E1000_STAT(stats.crcerrs) },
 	{ "rx_frame_errors", E1000_STAT(net_stats.rx_frame_errors) },
 	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
-	{ "rx_missed_errors", E1000_STAT(net_stats.rx_missed_errors) },
-	{ "tx_aborted_errors", E1000_STAT(net_stats.tx_aborted_errors) },
-	{ "tx_carrier_errors", E1000_STAT(net_stats.tx_carrier_errors) },
+	{ "rx_missed_errors", E1000_STAT(stats.mpc) },
+	{ "tx_aborted_errors", E1000_STAT(stats.ecol) },
+	{ "tx_carrier_errors", E1000_STAT(stats.tncrs) },
 	{ "tx_fifo_errors", E1000_STAT(net_stats.tx_fifo_errors) },
 	{ "tx_heartbeat_errors", E1000_STAT(net_stats.tx_heartbeat_errors) },
-	{ "tx_window_errors", E1000_STAT(net_stats.tx_window_errors) },
+	{ "tx_window_errors", E1000_STAT(stats.latecol) },
 	{ "tx_abort_late_coll", E1000_STAT(stats.latecol) },
 	{ "tx_deferred_ok", E1000_STAT(stats.dc) },
 	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
@@ -193,13 +211,9 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				     ADVERTISED_FIBRE |
 				     ADVERTISED_Autoneg;
 		else
-			hw->autoneg_advertised = ADVERTISED_10baseT_Half |
-						  ADVERTISED_10baseT_Full |
-						  ADVERTISED_100baseT_Half |
-						  ADVERTISED_100baseT_Full |
-						  ADVERTISED_1000baseT_Full|
-						  ADVERTISED_Autoneg |
-						  ADVERTISED_TP;
+			hw->autoneg_advertised = ecmd->advertising |
+			                         ADVERTISED_TP |
+			                         ADVERTISED_Autoneg;
 		ecmd->advertising = hw->autoneg_advertised;
 	} else
 		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
@@ -229,11 +243,11 @@ e1000_get_pauseparam(struct net_device *netdev,
 	pause->autoneg =
 		(adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	if (hw->fc == e1000_fc_rx_pause)
+	if (hw->fc == E1000_FC_RX_PAUSE)
 		pause->rx_pause = 1;
-	else if (hw->fc == e1000_fc_tx_pause)
+	else if (hw->fc == E1000_FC_TX_PAUSE)
 		pause->tx_pause = 1;
-	else if (hw->fc == e1000_fc_full) {
+	else if (hw->fc == E1000_FC_FULL) {
 		pause->rx_pause = 1;
 		pause->tx_pause = 1;
 	}
@@ -253,13 +267,13 @@ e1000_set_pauseparam(struct net_device *netdev,
 		msleep(1);
 
 	if (pause->rx_pause && pause->tx_pause)
-		hw->fc = e1000_fc_full;
+		hw->fc = E1000_FC_FULL;
 	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc = e1000_fc_rx_pause;
+		hw->fc = E1000_FC_RX_PAUSE;
 	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc = e1000_fc_tx_pause;
+		hw->fc = E1000_FC_TX_PAUSE;
 	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc = e1000_fc_none;
+		hw->fc = E1000_FC_NONE;
 
 	hw->original_fc = hw->fc;
 
@@ -632,8 +646,8 @@ e1000_set_ringparam(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
-	struct e1000_tx_ring *txdr, *tx_old, *tx_new;
-	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
+	struct e1000_tx_ring *txdr, *tx_old;
+	struct e1000_rx_ring *rxdr, *rx_old;
 	int i, err, tx_ring_size, rx_ring_size;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -651,23 +665,17 @@ e1000_set_ringparam(struct net_device *netdev,
 	tx_old = adapter->tx_ring;
 	rx_old = adapter->rx_ring;
 
-	adapter->tx_ring = kmalloc(tx_ring_size, GFP_KERNEL);
-	if (!adapter->tx_ring) {
-		err = -ENOMEM;
-		goto err_setup_rx;
-	}
-	memset(adapter->tx_ring, 0, tx_ring_size);
+	err = -ENOMEM;
+	txdr = kzalloc(tx_ring_size, GFP_KERNEL);
+	if (!txdr)
+		goto err_alloc_tx;
 
-	adapter->rx_ring = kmalloc(rx_ring_size, GFP_KERNEL);
-	if (!adapter->rx_ring) {
-		kfree(adapter->tx_ring);
-		err = -ENOMEM;
-		goto err_setup_rx;
-	}
-	memset(adapter->rx_ring, 0, rx_ring_size);
+	rxdr = kzalloc(rx_ring_size, GFP_KERNEL);
+	if (!rxdr)
+		goto err_alloc_rx;
 
-	txdr = adapter->tx_ring;
-	rxdr = adapter->rx_ring;
+	adapter->tx_ring = txdr;
+	adapter->rx_ring = rxdr;
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
@@ -694,16 +702,14 @@ e1000_set_ringparam(struct net_device *netdev,
 		/* save the new, restore the old in order to free it,
 		 * then restore the new back again */
 
-		rx_new = adapter->rx_ring;
-		tx_new = adapter->tx_ring;
 		adapter->rx_ring = rx_old;
 		adapter->tx_ring = tx_old;
 		e1000_free_all_rx_resources(adapter);
 		e1000_free_all_tx_resources(adapter);
 		kfree(tx_old);
 		kfree(rx_old);
-		adapter->rx_ring = rx_new;
-		adapter->tx_ring = tx_new;
+		adapter->rx_ring = rxdr;
+		adapter->tx_ring = txdr;
 		if ((err = e1000_up(adapter)))
 			goto err_setup;
 	}
@@ -715,6 +721,10 @@ err_setup_tx:
 err_setup_rx:
 	adapter->rx_ring = rx_old;
 	adapter->tx_ring = tx_old;
+	kfree(rxdr);
+err_alloc_rx:
+	kfree(txdr);
+err_alloc_tx:
 	e1000_up(adapter);
 err_setup:
 	clear_bit(__E1000_RESETTING, &adapter->flags);
@@ -1610,7 +1620,7 @@ e1000_diag_test(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	boolean_t if_running = netif_running(netdev);
 
-	set_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+	set_bit(__E1000_TESTING, &adapter->flags);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -1655,7 +1665,7 @@ e1000_diag_test(struct net_device *netdev,
 		adapter->hw.autoneg = autoneg;
 
 		e1000_reset(adapter);
-		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+		clear_bit(__E1000_TESTING, &adapter->flags);
 		if (if_running)
 			dev_open(netdev);
 	} else {
@@ -1670,7 +1680,7 @@ e1000_diag_test(struct net_device *netdev,
 		data[2] = 0;
 		data[3] = 0;
 
-		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+		clear_bit(__E1000_TESTING, &adapter->flags);
 	}
 	msleep_interruptible(4 * 1000);
 }
