@@ -300,9 +300,31 @@
 #define __NR_inotify_init	290
 #define __NR_inotify_add_watch	291
 #define __NR_inotify_rm_watch	292
+#define __NR_migrate_pages	293
+#define __NR_openat		294
+#define __NR_mkdirat		295
+#define __NR_mknodat		296
+#define __NR_fchownat		297
+#define __NR_futimesat		298
+#define __NR_fstatat64		299
+#define __NR_unlinkat		300
+#define __NR_renameat		301
+#define __NR_linkat		302
+#define __NR_symlinkat		303
+#define __NR_readlinkat		304
+#define __NR_fchmodat		305
+#define __NR_faccessat		305
+#define __NR_pselect6		307
+#define __NR_ppoll		308
+#define __NR_unshare		309
+#define __NR_set_robust_list	310
+#define __NR_get_robust_list	311
+#define __NR_splice		312
+#define __NR_sync_file_range	313
+#define __NR_tee		314
+#define __NR_vmsplice		315
 
-
-#define NR_syscalls 293
+#define NR_syscalls 316
 
 #ifdef __KERNEL__
 
