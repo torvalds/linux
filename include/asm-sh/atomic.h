@@ -22,49 +22,110 @@ typedef struct { volatile int counter; } atomic_t;
  * forward to code at the end of this object's .text section, then
  * branch back to restart the operation.
  */
-
-static __inline__ void atomic_add(int i, atomic_t * v)
+static inline void atomic_add(int i, atomic_t *v)
 {
+#ifdef CONFIG_CPU_SH4A
+	unsigned long tmp;
+
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_add	\n"
+"	add	%2, %0				\n"
+"	movco.l	%0, @%3				\n"
+"	bf	1b				\n"
+	: "=&z" (tmp), "=r" (&v->counter)
+	: "r" (i), "r" (&v->counter)
+	: "t");
+#else
 	unsigned long flags;
 
 	local_irq_save(flags);
 	*(long *)v += i;
 	local_irq_restore(flags);
+#endif
 }
 
-static __inline__ void atomic_sub(int i, atomic_t *v)
+static inline void atomic_sub(int i, atomic_t *v)
 {
+#ifdef CONFIG_CPU_SH4A
+	unsigned long tmp;
+
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_sub	\n"
+"	sub	%2, %0				\n"
+"	movco.l	%0, @%3				\n"
+"	bf	1b				\n"
+	: "=&z" (tmp), "=r" (&v->counter)
+	: "r" (i), "r" (&v->counter)
+	: "t");
+#else
 	unsigned long flags;
 
 	local_irq_save(flags);
 	*(long *)v -= i;
 	local_irq_restore(flags);
+#endif
 }
 
-static __inline__ int atomic_add_return(int i, atomic_t * v)
+/*
+ * SH-4A note:
+ *
+ * We basically get atomic_xxx_return() for free compared with
+ * atomic_xxx(). movli.l/movco.l require r0 due to the instruction
+ * encoding, so the retval is automatically set without having to
+ * do any special work.
+ */
+static inline int atomic_add_return(int i, atomic_t *v)
 {
-	unsigned long temp, flags;
+	unsigned long temp;
+
+#ifdef CONFIG_CPU_SH4A
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_add_return	\n"
+"	add	%2, %0					\n"
+"	movco.l	%0, @%3					\n"
+"	bf	1b					\n"
+"	synco						\n"
+	: "=&z" (temp), "=r" (&v->counter)
+	: "r" (i), "r" (&v->counter)
+	: "t");
+#else
+	unsigned long flags;
 
 	local_irq_save(flags);
 	temp = *(long *)v;
 	temp += i;
 	*(long *)v = temp;
 	local_irq_restore(flags);
+#endif
 
 	return temp;
 }
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
 
-static __inline__ int atomic_sub_return(int i, atomic_t * v)
+static inline int atomic_sub_return(int i, atomic_t *v)
 {
-	unsigned long temp, flags;
+	unsigned long temp;
+
+#ifdef CONFIG_CPU_SH4A
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_sub_return	\n"
+"	sub	%2, %0					\n"
+"	movco.l	%0, @%3					\n"
+"	bf	1b					\n"
+"	synco						\n"
+	: "=&z" (temp), "=r" (&v->counter)
+	: "r" (i), "r" (&v->counter)
+	: "t");
+#else
+	unsigned long flags;
 
 	local_irq_save(flags);
 	temp = *(long *)v;
 	temp -= i;
 	*(long *)v = temp;
 	local_irq_restore(flags);
+#endif
 
 	return temp;
 }
@@ -119,22 +180,48 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 }
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
-static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t *v)
+static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
+#ifdef CONFIG_CPU_SH4A
+	unsigned long tmp;
+
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_clear_mask	\n"
+"	and	%2, %0					\n"
+"	movco.l	%0, @%3					\n"
+"	bf	1b					\n"
+	: "=&z" (tmp), "=r" (&v->counter)
+	: "r" (~mask), "r" (&v->counter)
+	: "t");
+#else
 	unsigned long flags;
 
 	local_irq_save(flags);
 	*(long *)v &= ~mask;
 	local_irq_restore(flags);
+#endif
 }
 
-static __inline__ void atomic_set_mask(unsigned int mask, atomic_t *v)
+static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
+#ifdef CONFIG_CPU_SH4A
+	unsigned long tmp;
+
+	__asm__ __volatile__ (
+"1:	movli.l @%3, %0		! atomic_set_mask	\n"
+"	or	%2, %0					\n"
+"	movco.l	%0, @%3					\n"
+"	bf	1b					\n"
+	: "=&z" (tmp), "=r" (&v->counter)
+	: "r" (mask), "r" (&v->counter)
+	: "t");
+#else
 	unsigned long flags;
 
 	local_irq_save(flags);
 	*(long *)v |= mask;
 	local_irq_restore(flags);
+#endif
 }
 
 /* Atomic operations are already serializing on SH */
