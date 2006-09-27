@@ -107,6 +107,9 @@
 #define __raw_writew(v, a)	__writew(v, (void __iomem *)(a))
 #define __raw_writel(v, a)	__writel(v, (void __iomem *)(a))
 
+void __raw_writesl(unsigned long addr, const void *data, int longlen);
+void __raw_readsl(unsigned long addr, void *data, int longlen);
+
 /*
  * The platform header files may define some of these macros to use
  * the inlined versions where appropriate.  These macros may also be
@@ -131,6 +134,9 @@
 #ifdef __raw_writel
 # define writel(v,a)	({ __raw_writel((v),(a)); mb(); })
 #endif
+
+#define writesl __raw_writesl
+#define readsl  __raw_readsl
 
 #define readb_relaxed(a) readb(a)
 #define readw_relaxed(a) readw(a)
