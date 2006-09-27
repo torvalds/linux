@@ -8,7 +8,13 @@ obj-$(CONFIG_SH_FPU)                    += fpu.o
 obj-$(CONFIG_SH_STORE_QUEUES)		+= sq.o
 
 # CPU subtype setup
+obj-$(CONFIG_CPU_SUBTYPE_SH7750)	+= setup-sh7750.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7751)	+= setup-sh7750.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7760)	+= setup-sh7760.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7770)	+= setup-sh7770.o
 obj-$(CONFIG_CPU_SUBTYPE_SH7780)	+= setup-sh7780.o
+obj-$(CONFIG_CPU_SUBTYPE_SH73180)	+= setup-sh73180.o
+obj-$(CONFIG_CPU_SUBTYPE_SH4_202)	+= setup-sh4-202.o
 
 # Primary on-chip clocks (common)
 clock-$(CONFIG_CPU_SH4)			:= clock-sh4.o
