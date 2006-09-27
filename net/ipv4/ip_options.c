@@ -607,7 +607,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	int srrspace, srrptr;
-	u32 nexthop;
+	__be32 nexthop;
 	struct iphdr *iph = skb->nh.iph;
 	unsigned char * optptr = skb->nh.raw + opt->srr;
 	struct rtable *rt = (struct rtable*)skb->dst;

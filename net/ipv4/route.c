@@ -1596,7 +1596,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
         rt->rt_type = res->type;
 }
 
-static int ip_route_input_mc(struct sk_buff *skb, u32 daddr, u32 saddr,
+static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 				u8 tos, struct net_device *dev, int our)
 {
 	unsigned hash;
@@ -1681,8 +1681,8 @@ e_inval:
 static void ip_handle_martian_source(struct net_device *dev,
 				     struct in_device *in_dev,
 				     struct sk_buff *skb,
-				     u32 daddr,
-				     u32 saddr) 
+				     __be32 daddr,
+				     __be32 saddr)
 {
 	RT_CACHE_STAT_INC(in_martian_src);
 #ifdef CONFIG_IP_ROUTE_VERBOSE
@@ -1712,7 +1712,7 @@ static void ip_handle_martian_source(struct net_device *dev,
 static inline int __mkroute_input(struct sk_buff *skb, 
 				  struct fib_result* res, 
 				  struct in_device *in_dev, 
-				  u32 daddr, u32 saddr, u32 tos, 
+				  __be32 daddr, __be32 saddr, u32 tos,
 				  struct rtable **result) 
 {
 
@@ -1813,7 +1813,7 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 				       struct fib_result* res, 
 				       const struct flowi *fl,
 				       struct in_device *in_dev,
-				       u32 daddr, u32 saddr, u32 tos)
+				       __be32 daddr, __be32 saddr, u32 tos)
 {
 	struct rtable* rth = NULL;
 	int err;
@@ -1838,7 +1838,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 				   struct fib_result* res, 
 				   const struct flowi *fl,
 				   struct in_device *in_dev,
-				   u32 daddr, u32 saddr, u32 tos)
+				   __be32 daddr, __be32 saddr, u32 tos)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
 	struct rtable* rth = NULL, *rtres;
@@ -1901,7 +1901,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
  *	2. IP spoofing attempts are filtered with 100% of guarantee.
  */
 
-static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
+static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			       u8 tos, struct net_device *dev)
 {
 	struct fib_result res;
@@ -1920,7 +1920,7 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	u32		itag = 0;
 	struct rtable * rth;
 	unsigned	hash;
-	u32		spec_dst;
+	__be32		spec_dst;
 	int		err = -EINVAL;
 	int		free_res = 0;
 
@@ -2087,7 +2087,7 @@ martian_source:
 	goto e_inval;
 }
 
-int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
+int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		   u8 tos, struct net_device *dev)
 {
 	struct rtable * rth;
@@ -2740,7 +2740,9 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	struct rtmsg *rtm;
 	struct nlattr *tb[RTA_MAX+1];
 	struct rtable *rt = NULL;
-	u32 dst, src, iif;
+	__be32 dst = 0;
+	__be32 src = 0;
+	u32 iif;
 	int err;
 	struct sk_buff *skb;
 
