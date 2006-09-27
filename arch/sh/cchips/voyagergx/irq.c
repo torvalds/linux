@@ -32,8 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-#include <asm/rts7751r2d/voyagergx_reg.h>
+#include <asm/mach/voyagergx_reg.h>
 
 static void disable_voyagergx_irq(unsigned int irq)
 {
