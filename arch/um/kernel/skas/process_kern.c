@@ -33,7 +33,7 @@ void switch_to_skas(void *prev, void *next)
 		switch_timers(0);
 
 	switch_threads(&from->thread.mode.skas.switch_buf,
-		       to->thread.mode.skas.switch_buf);
+		       &to->thread.mode.skas.switch_buf);
 
 	arch_switch_to_skas(current->thread.prev_sched, current);
 
@@ -43,20 +43,20 @@ void switch_to_skas(void *prev, void *next)
 
 extern void schedule_tail(struct task_struct *prev);
 
-void new_thread_handler(int sig)
+/* This is called magically, by its address being stuffed in a jmp_buf
+ * and being longjmp-d to.
+ */
+void new_thread_handler(void)
 {
 	int (*fn)(void *), n;
 	void *arg;
 
-	fn = current->thread.request.u.thread.proc;
-	arg = current->thread.request.u.thread.arg;
-	os_usr1_signal(1);
-	thread_wait(&current->thread.mode.skas.switch_buf,
-		    current->thread.mode.skas.fork_buf);
-
 	if(current->thread.prev_sched != NULL)
 		schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
+
+	fn = current->thread.request.u.thread.proc;
+	arg = current->thread.request.u.thread.arg;
 
 	/* The return value is 1 if the kernel thread execs a process,
 	 * 0 if it just exits
@@ -70,22 +70,13 @@ void new_thread_handler(int sig)
 	else do_exit(0);
 }
 
-void new_thread_proc(void *stack, void (*handler)(int sig))
-{
-	init_new_thread_stack(stack, handler);
-	os_usr1_process(os_getpid());
-}
-
 void release_thread_skas(struct task_struct *task)
 {
 }
 
-void fork_handler(int sig)
+/* Called magically, see new_thread_handler above */
+void fork_handler(void)
 {
-	os_usr1_signal(1);
-	thread_wait(&current->thread.mode.skas.switch_buf,
-		    current->thread.mode.skas.fork_buf);
-  	
 	force_flush_all();
 	if(current->thread.prev_sched == NULL)
 		panic("blech");
@@ -109,7 +100,7 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		     unsigned long stack_top, struct task_struct * p,
 		     struct pt_regs *regs)
 {
-  	void (*handler)(int);
+  	void (*handler)(void);
 
 	if(current->thread.forking){
 	  	memcpy(&p->thread.regs.regs.skas, &regs->regs.skas,
@@ -128,7 +119,7 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 	}
 
 	new_thread(task_stack_page(p), &p->thread.mode.skas.switch_buf,
-		   &p->thread.mode.skas.fork_buf, handler);
+		   handler);
 	return(0);
 }
 
@@ -182,8 +173,7 @@ int start_uml_skas(void)
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;
 	return(start_idle_thread(task_stack_page(&init_task),
-				 &init_task.thread.mode.skas.switch_buf,
-				 &init_task.thread.mode.skas.fork_buf));
+				 &init_task.thread.mode.skas.switch_buf));
 }
 
 int external_pid_skas(struct task_struct *task)

@@ -14,6 +14,7 @@
 #include "skas/mm_id.h"
 #include "irq_user.h"
 #include "sysdep/tls.h"
+#include "sysdep/archsetjmp.h"
 
 #define OS_TYPE_FILE 1
 #define OS_TYPE_DIR 2
@@ -308,12 +309,9 @@ extern int copy_context_skas0(unsigned long stack, int pid);
 extern void userspace(union uml_pt_regs *regs);
 extern void map_stub_pages(int fd, unsigned long code,
 			   unsigned long data, unsigned long stack);
-extern void new_thread(void *stack, void **switch_buf_ptr,
-			 void **fork_buf_ptr, void (*handler)(int));
-extern void thread_wait(void *sw, void *fb);
-extern void switch_threads(void *me, void *next);
-extern int start_idle_thread(void *stack, void *switch_buf_ptr,
-			     void **fork_buf_ptr);
+extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
+extern void switch_threads(jmp_buf *me, jmp_buf *you);
+extern int start_idle_thread(void *stack, jmp_buf *switch_buf);
 extern void initial_thread_cb_skas(void (*proc)(void *),
 				 void *arg);
 extern void halt_skas(void);
