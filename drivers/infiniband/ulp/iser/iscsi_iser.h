@@ -192,7 +192,7 @@ struct iser_regd_buf {
 
 struct iser_dto {
 	struct iscsi_iser_cmd_task *ctask;
-	struct iscsi_iser_conn     *conn;
+	struct iser_conn *ib_conn;
 	int                        notify_enable;
 
 	/* vector of registered buffers */

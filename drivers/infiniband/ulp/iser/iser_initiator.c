@@ -249,7 +249,7 @@ static int iser_post_receive_control(struct iscsi_conn *conn)
 	}
 
 	recv_dto = &rx_desc->dto;
-	recv_dto->conn          = iser_conn;
+	recv_dto->ib_conn = iser_conn->ib_conn;
 	recv_dto->regd_vector_len = 0;
 
 	regd_hdr = &rx_desc->hdr_regd_buf;
@@ -296,7 +296,7 @@ static void iser_create_send_desc(struct iscsi_iser_conn *iser_conn,
 	regd_hdr->virt_addr  = tx_desc; /* == &tx_desc->iser_header */
 	regd_hdr->data_size  = ISER_TOTAL_HEADERS_LEN;
 
-	send_dto->conn          = iser_conn;
+	send_dto->ib_conn         = iser_conn->ib_conn;
 	send_dto->notify_enable   = 1;
 	send_dto->regd_vector_len = 0;
 
@@ -588,7 +588,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 			 unsigned long dto_xfer_len)
 {
 	struct iser_dto        *dto = &rx_desc->dto;
-	struct iscsi_iser_conn *conn = dto->conn;
+	struct iscsi_iser_conn *conn = dto->ib_conn->iser_conn;
 	struct iscsi_session *session = conn->iscsi_conn->session;
 	struct iscsi_cmd_task *ctask;
 	struct iscsi_iser_cmd_task *iser_ctask;
@@ -641,7 +641,8 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 void iser_snd_completion(struct iser_desc *tx_desc)
 {
 	struct iser_dto        *dto = &tx_desc->dto;
-	struct iscsi_iser_conn *iser_conn = dto->conn;
+	struct iser_conn       *ib_conn = dto->ib_conn;
+	struct iscsi_iser_conn *iser_conn = ib_conn->iser_conn;
 	struct iscsi_conn      *conn = iser_conn->iscsi_conn;
 	struct iscsi_mgmt_task *mtask;
 
@@ -652,7 +653,7 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 	if (tx_desc->type == ISCSI_TX_DATAOUT)
 		kmem_cache_free(ig.desc_cache, tx_desc);
 
-	atomic_dec(&iser_conn->ib_conn->post_send_buf_count);
+	atomic_dec(&ib_conn->post_send_buf_count);
 
 	write_lock(conn->recv_lock);
 	if (conn->suspend_tx) {
