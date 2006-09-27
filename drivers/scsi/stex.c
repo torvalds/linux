@@ -181,7 +181,7 @@ struct req_msg {
 	u8 task_attr;
 	u8 task_manage;
 	u8 prd_entry;
-	u8 payload_sz;		/* payload size in 4-byte */
+	u8 payload_sz;		/* payload size in 4-byte, not used */
 	u8 cdb[STEX_CDB_LENGTH];
 	u8 variable[REQ_VARIABLE_LEN];
 };
@@ -489,7 +489,6 @@ stex_send_cmd(struct st_hba *hba, struct req_msg *req, u16 tag)
 	req->tag = cpu_to_le16(tag);
 	req->task_attr = TASK_ATTRIBUTE_SIMPLE;
 	req->task_manage = 0; /* not supported yet */
-	req->payload_sz = (u8)(sizeof(struct req_msg)/sizeof(u32));
 
 	hba->ccb[tag].req = req;
 	hba->out_req_cnt++;
