@@ -195,7 +195,7 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 	unsigned long len = pci_resource_len(dev, bar);
 	unsigned long flags = pci_resource_flags(dev, bar);
 
-	if (!len || !start)
+	if (unlikely(!len || !start))
 		return NULL;
 	if (maxlen && len > maxlen)
 		len = maxlen;
@@ -204,18 +204,16 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 	 * Presently the IORESOURCE_MEM case is a bit special, most
 	 * SH7751 style PCI controllers have PCI memory at a fixed
 	 * location in the address space where no remapping is desired
-	 * (traditionally at 0xfd000000). Once this changes, the
-	 * IORESOURCE_MEM case will have to switch to using ioremap() and
-	 * more care will have to be taken to inhibit page table mapping
-	 * for legacy cores.
-	 *
-	 * For now everything wraps to ioport_map(), since boards that
-	 * have PCI will be able to check the address range properly on
-	 * their own.
-	 *			-- PFM.
+	 * (typically at 0xfd000000, but is_pci_memaddr() will know
+	 * best). With the IORESOURCE_MEM case more care has to be taken
+	 * to inhibit page table mapping for legacy cores, but this is
+	 * punted off to __ioremap().
+	 *					-- PFM.
 	 */
-	if (flags & (IORESOURCE_IO | IORESOURCE_MEM))
+	if (flags & IORESOURCE_IO)
 		return ioport_map(start, len);
+	if (flags & IORESOURCE_MEM)
+		return ioremap(start, len);
 
 	return NULL;
 }
