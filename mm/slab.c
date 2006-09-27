@@ -3028,14 +3028,6 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	void *objp;
 	struct array_cache *ac;
 
-#ifdef CONFIG_NUMA
-	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
-		objp = alternate_node_alloc(cachep, flags);
-		if (objp != NULL)
-			return objp;
-	}
-#endif
-
 	check_irq_off();
 	ac = cpu_cache_get(cachep);
 	if (likely(ac->avail)) {
@@ -3053,12 +3045,19 @@ static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 						gfp_t flags, void *caller)
 {
 	unsigned long save_flags;
-	void *objp;
+	void *objp = NULL;
 
 	cache_alloc_debugcheck_before(cachep, flags);
 
 	local_irq_save(save_flags);
-	objp = ____cache_alloc(cachep, flags);
+
+#ifdef CONFIG_NUMA
+	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
+		objp = alternate_node_alloc(cachep, flags);
+#endif
+
+	if (!objp)
+		objp = ____cache_alloc(cachep, flags);
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
 					    caller);
