@@ -23,6 +23,8 @@
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_SH
 
+#define MAX_NOTE_BYTES 1024
+
 #ifndef __ASSEMBLY__
 
 extern void machine_shutdown(void);

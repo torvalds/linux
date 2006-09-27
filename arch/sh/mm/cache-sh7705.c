@@ -9,7 +9,6 @@
  * for more details.
  *
  */
-
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
@@ -25,14 +24,10 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-/* The 32KB cache on the SH7705 suffers from the same synonym problem
- * as SH4 CPUs */
-
-#define __pte_offset(address) \
-		((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
-		__pte_offset(address))
-
+/*
+ * The 32KB cache on the SH7705 suffers from the same synonym problem
+ * as SH4 CPUs
+ */
 static inline void cache_wback_all(void)
 {
 	unsigned long ways, waysize, addrstart;
@@ -72,7 +67,6 @@ void flush_icache_range(unsigned long start, unsigned long end)
 {
 	__flush_wback_region((void *)start, end - start);
 }
-
 
 /*
  * Writeback&Invalidate the D-cache of the page
@@ -127,7 +121,6 @@ static void __flush_dcache_page(unsigned long phys)
 	back_to_P1();
 	local_irq_restore(flags);
 }
-
 
 /*
  * Write back & invalidate the D-cache of the page.
@@ -186,7 +179,8 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
  *
  * ADDRESS: Virtual Address (U0 address)
  */
-void flush_cache_page(struct vm_area_struct *vma, unsigned long address, unsigned long pfn)
+void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
+		      unsigned long pfn)
 {
 	__flush_dcache_page(pfn << PAGE_SHIFT);
 }
@@ -203,4 +197,3 @@ void flush_icache_page(struct vm_area_struct *vma, struct page *page)
 {
 	__flush_purge_region(page_address(page), PAGE_SIZE);
 }
-

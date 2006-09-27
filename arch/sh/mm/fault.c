@@ -13,6 +13,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/hardirq.h>
+#include <linux/kprobes.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/kgdb.h>
@@ -188,15 +190,16 @@ do_sigbus:
 /*
  * Called with interrupts disabled.
  */
-asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
-			       unsigned long address)
+asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
+					 unsigned long writeaccess,
+					 unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
-	struct mm_struct *mm;
+	struct mm_struct *mm = current->mm;
 	spinlock_t *ptl;
 	int ret = 1;
 
@@ -214,10 +217,10 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 		pgd = pgd_offset_k(address);
 		mm = NULL;
 	} else {
-		if (unlikely(address >= TASK_SIZE || !(mm = current->mm)))
+		if (unlikely(address >= TASK_SIZE || !mm))
 			return 1;
 
-		pgd = pgd_offset(current->mm, address);
+		pgd = pgd_offset(mm, address);
 	}
 
 	pud = pud_offset(pgd, address);

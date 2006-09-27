@@ -337,10 +337,8 @@ static int __init pmb_init(void)
 
 	return 0;
 }
-
 arch_initcall(pmb_init);
 
-#ifdef CONFIG_DEBUG_FS
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {
 	int i;
@@ -399,6 +397,4 @@ static int __init pmb_debugfs_init(void)
 
 	return 0;
 }
-
 postcore_initcall(pmb_debugfs_init);
-#endif

@@ -507,7 +507,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	 * unified cache on the SH-2 and SH-3, as well as the harvard
 	 * style cache on the SH-4.
 	 */
-	if (test_bit(SH_CACHE_COMBINED, &(boot_cpu_data.icache.flags))) {
+	if (boot_cpu_data.icache.flags & SH_CACHE_COMBINED) {
 		seq_printf(m, "unified\n");
 		show_cacheinfo(m, "cache", boot_cpu_data.icache);
 	} else {

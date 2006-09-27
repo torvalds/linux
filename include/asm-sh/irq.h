@@ -335,6 +335,11 @@ extern void make_maskreg_irq(unsigned int irq);
 extern unsigned short *irq_mask_register;
 
 /*
+ * PINT IRQs
+ */
+void init_IRQ_pint(void);
+
+/*
  * Function for "on chip support modules".
  */
 extern void make_ipr_irq(unsigned int irq, unsigned int addr,

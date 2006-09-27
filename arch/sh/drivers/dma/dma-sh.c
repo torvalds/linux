@@ -80,21 +80,23 @@ static irqreturn_t dma_tei(int irq, void *dev_id, struct pt_regs *regs)
 
 static int sh_dmac_request_dma(struct dma_channel *chan)
 {
-	char name[32];
-
 	if (unlikely(!chan->flags & DMA_TEI_CAPABLE))
 		return 0;
 
-	snprintf(name, sizeof(name), "DMAC Transfer End (Channel %d)",
+	chan->name = kzalloc(32, GFP_KERNEL);
+	if (unlikely(chan->name == NULL))
+		return -ENOMEM;
+	snprintf(chan->name, 32, "DMAC Transfer End (Channel %d)",
 		 chan->chan);
 
 	return request_irq(get_dmte_irq(chan->chan), dma_tei,
-			   IRQF_DISABLED, name, chan);
+			   IRQF_DISABLED, chan->name, chan);
 }
 
 static void sh_dmac_free_dma(struct dma_channel *chan)
 {
 	free_irq(get_dmte_irq(chan->chan), chan);
+	kfree(chan->name);
 }
 
 static void

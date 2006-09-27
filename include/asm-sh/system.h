@@ -79,7 +79,7 @@ static inline void sched_cacheflush(void)
 }
 #endif
 
-static __inline__ unsigned long tas(volatile int *m)
+static inline unsigned long tas(volatile int *m)
 {
 	unsigned long retval;
 
@@ -161,7 +161,7 @@ static inline void local_irq_enable(void)
 }
 #endif
 
-static __inline__ void local_irq_disable(void)
+static inline void local_irq_disable(void)
 {
 	unsigned long __dummy;
 	__asm__ __volatile__("stc	sr, %0\n\t"
@@ -172,7 +172,7 @@ static __inline__ void local_irq_disable(void)
 			     : "memory");
 }
 
-static __inline__ void set_bl_bit(void)
+static inline void set_bl_bit(void)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -185,7 +185,7 @@ static __inline__ void set_bl_bit(void)
 			     : "memory");
 }
 
-static __inline__ void clear_bl_bit(void)
+static inline void clear_bl_bit(void)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -207,7 +207,7 @@ static __inline__ void clear_bl_bit(void)
 	(flags != 0);			\
 })
 
-static __inline__ unsigned long local_irq_save(void)
+static inline unsigned long local_irq_save(void)
 {
 	unsigned long flags, __dummy;
 
@@ -223,35 +223,9 @@ static __inline__ unsigned long local_irq_save(void)
 	return flags;
 }
 
-#ifdef DEBUG_CLI_STI
-static __inline__ void  local_irq_restore(unsigned long x)
-{
-	if ((x & 0x000000f0) != 0x000000f0)
-		local_irq_enable();
-	else {
-		unsigned long flags;
-		local_save_flags(flags);
-
-		if (flags == 0) {
-			extern void dump_stack(void);
-			printk(KERN_ERR "BUG!\n");
-			dump_stack();
-			local_irq_disable();
-		}
-	}
-}
-#else
 #define local_irq_restore(x) do {			\
 	if ((x & 0x000000f0) != 0x000000f0)		\
 		local_irq_enable();			\
-} while (0)
-#endif
-
-#define really_restore_flags(x) do {			\
-	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();			\
-	else						\
-		local_irq_disable();			\
 } while (0)
 
 /*

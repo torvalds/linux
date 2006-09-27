@@ -27,20 +27,11 @@ EXPORT_SYMBOL(sh_mv);
 
 /* platform dependent support */
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
-EXPORT_SYMBOL(probe_irq_mask);
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(disable_irq_nosync);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(no_irq_type);
 
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
 
 /* PCI exports */
 #ifdef CONFIG_PCI
@@ -51,13 +42,8 @@ EXPORT_SYMBOL(pci_free_consistent);
 /* mem exports */
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memcpy_fromio);
-EXPORT_SYMBOL(memcpy_toio);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memset_io);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(boot_cpu_data);
 
@@ -124,5 +110,4 @@ EXPORT_SYMBOL(csum_partial);
 #ifdef CONFIG_IPV6
 EXPORT_SYMBOL(csum_ipv6_magic);
 #endif
-EXPORT_SYMBOL(consistent_sync);
 EXPORT_SYMBOL(clear_page);
