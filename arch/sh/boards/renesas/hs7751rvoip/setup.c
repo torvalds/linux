@@ -12,14 +12,13 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
-
-#include <linux/hdreg.h>
-#include <linux/ide.h>
-#include <asm/io.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
-
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/hdreg.h>
+#include <linux/ide.h>
+#include <linux/pm.h>
+#include <asm/io.h>
+#include <asm/hs7751rvoip/hs7751rvoip.h>
 
 /* defined in mm/ioremap.c */
 extern void * p3_ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags);
@@ -31,6 +30,11 @@ const char *get_system_type(void)
 	return "HS7751RVoIP";
 }
 
+static void hs7751rvoip_power_off(void)
+{
+	ctrl_outw(ctrl_inw(PA_OUTPORTR) & 0xffdf, PA_OUTPORTR);
+}
+
 /*
  * Initialize the board
  */
@@ -38,6 +42,7 @@ void __init platform_setup(void)
 {
 	printk(KERN_INFO "Renesas Technology Sales HS7751RVoIP-2 support.\n");
 	ctrl_outb(0xf0, PA_OUTPORTR);
+	pm_power_off = hs7751rvoip_power_off;
 	debug_counter = 0;
 }
 
