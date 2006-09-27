@@ -8,6 +8,9 @@
  * published by the Free Software Foundation.
  */
 
+ /* Processors */
+extern void __init at91rm9200_initialize(unsigned long main_clock);
+
  /* Interrupts */
 extern void __init at91rm9200_init_irq(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
@@ -16,9 +19,6 @@ extern void __init at91_gpio_irq_setup(unsigned banks);
  /* Timer */
 struct sys_timer;
 extern struct sys_timer at91rm9200_timer;
-
- /* Memory Map */
-extern void __init at91rm9200_map_io(void);
 
  /* Clocks */
 extern int __init at91_clock_init(unsigned long main_clock);

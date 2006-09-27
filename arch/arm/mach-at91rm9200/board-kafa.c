@@ -34,7 +34,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
@@ -62,10 +61,8 @@ static struct at91_uart_config __initdata kafa_uart_config = {
 
 static void __init kafa_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 18.432 MHz crystal */
-	at91_clock_init(18432000);
+	/* Initialize processor: 18.432 MHz crystal */
+	at91rm9200_initialize(18432000);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
