@@ -416,6 +416,11 @@ config MICROCODE
 	  To compile this driver as a module, choose M here: the
 	  module will be called microcode.
 
+config MICROCODE_OLD_INTERFACE
+	bool
+	depends on MICROCODE
+	default y
+
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
 	help
