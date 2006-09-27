@@ -28,6 +28,7 @@
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
 #include <linux/unwind.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_EISA
 #include <linux/ioport.h>
@@ -40,7 +41,6 @@
 
 #include <asm/processor.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 #include <asm/debugreg.h>
@@ -409,7 +409,7 @@ static void handle_BUG(struct pt_regs *regs)
 
 	if (eip < PAGE_OFFSET)
 		return;
-	if (__get_user(ud2, (unsigned short __user *)eip))
+	if (probe_kernel_address((unsigned short __user *)eip, ud2))
 		return;
 	if (ud2 != 0x0b0f)
 		return;
@@ -422,7 +422,8 @@ static void handle_BUG(struct pt_regs *regs)
 		char *file;
 		char c;
 
-		if (__get_user(line, (unsigned short __user *)(eip + 2)))
+		if (probe_kernel_address((unsigned short __user *)(eip + 2),
+					line))
 			break;
 		if (__get_user(file, (char * __user *)(eip + 4)) ||
 		    (unsigned long)file < PAGE_OFFSET || __get_user(c, file))
