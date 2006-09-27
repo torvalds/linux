@@ -914,8 +914,7 @@ out_fill_res:
 	res->fi = fa->fa_info;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
 	res->netmask = mask;
-	res->network = zone &
-		(0xFFFFFFFF >> (32 - prefixlen));
+	res->network = zone & inet_make_mask(prefixlen);
 #endif
 	atomic_inc(&res->fi->fib_clntref);
 	return 0;
