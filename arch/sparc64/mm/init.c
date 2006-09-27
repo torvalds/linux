@@ -920,8 +920,7 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	if (sparc_ramdisk_image || sparc_ramdisk_image64) {
 		unsigned long ramdisk_image = sparc_ramdisk_image ?
 			sparc_ramdisk_image : sparc_ramdisk_image64;
-		if (ramdisk_image >= (unsigned long)_end - 2 * PAGE_SIZE)
-			ramdisk_image -= KERNBASE;
+		ramdisk_image -= KERNBASE;
 		initrd_start = ramdisk_image + phys_base;
 		initrd_end = initrd_start + sparc_ramdisk_size;
 		if (initrd_end > end_of_phys_memory) {
