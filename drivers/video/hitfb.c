@@ -28,10 +28,8 @@
 #include <asm/io.h>
 #include <asm/hd64461/hd64461.h>
 
-#ifdef MACH_HP600
 #include <asm/cpu/dac.h>
 #include <asm/hp6xx/hp6xx.h>
-#endif
 
 #define	WIDTH 640
 
@@ -192,12 +190,6 @@ int hitfb_blank(int blank_mode, struct fb_info *info)
 	unsigned short v;
 
 	if (blank_mode) {
-#ifdef MACH_HP600
-		sh_dac_disable(DAC_LCD_BRIGHTNESS);
-		v = fb_readw(HD64461_GPBDR);
-		v |= HD64461_GPBDR_LCDOFF;
-		fb_writew(v, HD64461_GPBDR);
-#endif
 		v = fb_readw(HD64461_LDR1);
 		v &= ~HD64461_LDR1_DON;
 		fb_writew(v, HD64461_LDR1);
@@ -213,12 +205,7 @@ int hitfb_blank(int blank_mode, struct fb_info *info)
 		v = fb_readw(HD64461_STBCR);
 		v &= ~HD64461_STBCR_SLCDST;
 		fb_writew(v, HD64461_STBCR);
-#ifdef MACH_HP600
-		sh_dac_enable(DAC_LCD_BRIGHTNESS);
-		v = fb_readw(HD64461_GPBDR);
-		v &= ~HD64461_GPBDR_LCDOFF;
-		fb_writew(v, HD64461_GPBDR);
-#endif
+
 		v = fb_readw(HD64461_LDR1);
 		v |= HD64461_LDR1_DON;
 		fb_writew(v, HD64461_LDR1);

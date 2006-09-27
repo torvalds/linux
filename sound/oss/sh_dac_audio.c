@@ -6,18 +6,15 @@
 #include <linux/fs.h>
 #include <linux/sound.h>
 #include <linux/soundcard.h>
+#include <linux/interrupt.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <linux/interrupt.h>
-
 #include <asm/cpu/dac.h>
-
-#ifdef MACH_HP600
+#include <asm/machvec.h>
 #include <asm/hp6xx/hp6xx.h>
 #include <asm/hd64461/hd64461.h>
-#endif
 
 #define MODNAME "sh_dac_audio"
 
@@ -71,26 +68,25 @@ static void dac_audio_sync(void)
 
 static void dac_audio_start(void)
 {
-#ifdef MACH_HP600
-	u16 v;
-	v = inw(HD64461_GPADR);
-	v &= ~HD64461_GPADR_SPEAKER;
-	outw(v, HD64461_GPADR);
-#endif
+	if (mach_is_hp6xx()) {
+		u16 v = inw(HD64461_GPADR);
+		v &= ~HD64461_GPADR_SPEAKER;
+		outw(v, HD64461_GPADR);
+	}
+
 	sh_dac_enable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 	ctrl_outw(TMU1_TCR_INIT, TMU1_TCR);
 }
 static void dac_audio_stop(void)
 {
-#ifdef MACH_HP600
-	u16 v;
-#endif
 	dac_audio_stop_timer();
-#ifdef MACH_HP600
-	v = inw(HD64461_GPADR);
-	v |= HD64461_GPADR_SPEAKER;
-	outw(v, HD64461_GPADR);
-#endif
+
+	if (mach_is_hp6xx()) {
+		u16 v = inw(HD64461_GPADR);
+		v |= HD64461_GPADR_SPEAKER;
+		outw(v, HD64461_GPADR);
+	}
+
 	sh_dac_disable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 }
 
