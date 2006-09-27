@@ -54,20 +54,41 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define VMALLOC_START	(P3SEG+0x00100000)
 #define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 
-#define	_PAGE_WT	0x001  /* WT-bit on SH-4, 0 on SH-3 */
-#define _PAGE_HW_SHARED	0x002  /* SH-bit  : page is shared among processes */
-#define _PAGE_DIRTY	0x004  /* D-bit   : page changed */
-#define _PAGE_CACHABLE	0x008  /* C-bit   : cachable */
-#define _PAGE_SZ0	0x010  /* SZ0-bit : Size of page */
-#define _PAGE_RW	0x020  /* PR0-bit : write access allowed */
-#define _PAGE_USER	0x040  /* PR1-bit : user space access allowed */
-#define _PAGE_SZ1	0x080  /* SZ1-bit : Size of page (on SH-4) */
-#define _PAGE_PRESENT	0x100  /* V-bit   : page is valid */
-#define _PAGE_PROTNONE	0x200  /* software: if not present  */
-#define _PAGE_ACCESSED	0x400  /* software: page referenced */
-#define _PAGE_U0_SHARED 0x800  /* software: page is shared in user space */
-
-#define	_PAGE_FILE	_PAGE_WT  /* software: pagecache or swap? */
+/*
+ * Linux PTEL encoding.
+ *
+ * Hardware and software bit definitions for the PTEL value:
+ *
+ * - Bits 0 and 7 are reserved on SH-3 (_PAGE_WT and _PAGE_SZ1 on SH-4).
+ *
+ * - Bit 1 is the SH-bit, but is unused on SH-3 due to an MMU bug (the
+ *   hardware PTEL value can't have the SH-bit set when MMUCR.IX is set,
+ *   which is the default in cpu-sh3/mmu_context.h:MMU_CONTROL_INIT).
+ *
+ *   In order to keep this relatively clean, do not use these for defining
+ *   SH-3 specific flags until all of the other unused bits have been
+ *   exhausted.
+ *
+ * - Bit 9 is reserved by everyone and used by _PAGE_PROTNONE.
+ *
+ * - Bits 10 and 11 are low bits of the PPN that are reserved on >= 4K pages.
+ *   Bit 10 is used for _PAGE_ACCESSED, bit 11 remains unused.
+ *
+ * - Bits 31, 30, and 29 remain unused by everyone and can be used for future
+ *   software flags, although care must be taken to update _PAGE_CLEAR_FLAGS.
+ */
+#define	_PAGE_WT	0x001		/* WT-bit on SH-4, 0 on SH-3 */
+#define _PAGE_HW_SHARED	0x002		/* SH-bit  : shared among processes */
+#define _PAGE_DIRTY	0x004		/* D-bit   : page changed */
+#define _PAGE_CACHABLE	0x008		/* C-bit   : cachable */
+#define _PAGE_SZ0	0x010		/* SZ0-bit : Size of page */
+#define _PAGE_RW	0x020		/* PR0-bit : write access allowed */
+#define _PAGE_USER	0x040		/* PR1-bit : user space access allowed */
+#define _PAGE_SZ1	0x080		/* SZ1-bit : Size of page (on SH-4) */
+#define _PAGE_PRESENT	0x100		/* V-bit   : page is valid */
+#define _PAGE_PROTNONE	0x200		/* software: if not present  */
+#define _PAGE_ACCESSED	0x400		/* software: page referenced */
+#define _PAGE_FILE	_PAGE_WT	/* software: pagecache or swap? */
 
 /* software: moves to PTEA.TC (Timing Control) */
 #define _PAGE_PCC_AREA5	0x00000000	/* use BSC registers for area5 */
@@ -82,21 +103,16 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define _PAGE_PCC_ATR8	0x60000000	/* Attribute Memory space, 8 bit bus */
 #define _PAGE_PCC_ATR16	0x60000001	/* Attribute Memory space, 6 bit bus */
 
-/* Mask which drop software flags
- * We also drop WT bit since it is used for _PAGE_FILE
- * bit in this implementation.
- */
-#define _PAGE_CLEAR_FLAGS	(_PAGE_WT | _PAGE_PROTNONE | _PAGE_ACCESSED | _PAGE_U0_SHARED)
-
-#if defined(CONFIG_CPU_SH3)
-/*
- * MMU on SH-3 has bug on SH-bit: We can't use it if MMUCR.IX=1.
- * Work around: Just drop SH-bit.
- */
-#define _PAGE_FLAGS_HARDWARE_MASK	(0x1fffffff & ~(_PAGE_CLEAR_FLAGS | _PAGE_HW_SHARED))
+/* Mask which drops unused bits from the PTEL value */
+#ifdef CONFIG_CPU_SH3
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED| \
+				 _PAGE_FILE	| _PAGE_SZ1	| \
+				 _PAGE_HW_SHARED)
 #else
-#define _PAGE_FLAGS_HARDWARE_MASK	(0x1fffffff & ~(_PAGE_CLEAR_FLAGS))
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PROTNONE | _PAGE_ACCESSED | _PAGE_FILE)
 #endif
+
+#define _PAGE_FLAGS_HARDWARE_MASK	(0x1fffffff & ~(_PAGE_CLEAR_FLAGS))
 
 /* Hardware flags: SZ0=1 (4k-byte) */
 #define _PAGE_FLAGS_HARD	_PAGE_SZ0
@@ -107,17 +123,15 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define _PAGE_SZHUGE	(_PAGE_SZ0 | _PAGE_SZ1)
 #endif
 
-#define _PAGE_SHARED	_PAGE_U0_SHARED
-
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | _PAGE_DIRTY | _PAGE_SHARED)
+#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | _PAGE_DIRTY)
 
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_MMU
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE |_PAGE_ACCESSED | _PAGE_FLAGS_HARD)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_CACHABLE |_PAGE_ACCESSED | _PAGE_SHARED | _PAGE_FLAGS_HARD)
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_CACHABLE |_PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_CACHABLE | _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_CACHABLE | _PAGE_ACCESSED | _PAGE_FLAGS_HARD)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_CACHABLE | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_HW_SHARED | _PAGE_FLAGS_HARD)
