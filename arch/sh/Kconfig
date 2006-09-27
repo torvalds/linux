@@ -313,6 +313,9 @@ config CPU_HAS_INTEVT
 config CPU_HAS_PINT_IRQ
 	bool
 
+config CPU_HAS_MASKREG_IRQ
+	bool
+
 config CPU_HAS_INTC2_IRQ
 	bool
 
