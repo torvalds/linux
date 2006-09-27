@@ -211,13 +211,9 @@ e1000_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				     ADVERTISED_FIBRE |
 				     ADVERTISED_Autoneg;
 		else
-			hw->autoneg_advertised = ADVERTISED_10baseT_Half |
-						  ADVERTISED_10baseT_Full |
-						  ADVERTISED_100baseT_Half |
-						  ADVERTISED_100baseT_Full |
-						  ADVERTISED_1000baseT_Full|
-						  ADVERTISED_Autoneg |
-						  ADVERTISED_TP;
+			hw->autoneg_advertised = ecmd->advertising |
+			                         ADVERTISED_TP |
+			                         ADVERTISED_Autoneg;
 		ecmd->advertising = hw->autoneg_advertised;
 	} else
 		if (e1000_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
