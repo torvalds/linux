@@ -84,7 +84,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
 
-#define PAGE_OFFSET		(0x80000000UL)
+#define PAGE_OFFSET		CONFIG_PAGE_OFFSET
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 

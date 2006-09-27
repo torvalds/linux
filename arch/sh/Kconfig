@@ -238,32 +238,6 @@ endchoice
 
 source "arch/sh/mm/Kconfig"
 
-config MEMORY_START
-	hex "Physical memory start address"
-	default "0x08000000"
-	---help---
-	  Computers built with Hitachi SuperH processors always
-	  map the ROM starting at address zero.  But the processor
-	  does not specify the range that RAM takes.
-
-	  The physical memory (RAM) start address will be automatically
-	  set to 08000000. Other platforms, such as the Solution Engine
-	  boards typically map RAM at 0C000000.
-
-	  Tweak this only when porting to a new machine which does not
-	  already have a defconfig. Changing it from the known correct
-	  value on any of the known systems will only lead to disaster.
-
-config MEMORY_SIZE
-	hex "Physical memory size"
-	default "0x00400000"
-	help
-	  This sets the default memory size assumed by your SH kernel. It can
-	  be overridden as normal by the 'mem=' argument on the kernel command
-	  line. If unsure, consult your board specifications or just leave it
-	  as 0x00400000 which was the default value before this became
-	  configurable.
-
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
 	depends on SH_ADX || SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_CAT68701 || SH_SH03

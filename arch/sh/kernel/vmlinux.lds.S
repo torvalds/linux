@@ -13,7 +13,7 @@ OUTPUT_ARCH(sh)
 ENTRY(_start)
 SECTIONS
 {
-  . = 0x80000000 + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
+  . = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
   _text = .;			/* Text and read-only data */
   text = .;			/* Text and read-only data */
   .empty_zero_page : {
