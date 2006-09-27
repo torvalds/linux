@@ -446,7 +446,11 @@ static inline struct zone *page_zone(struct page *page)
 
 static inline unsigned long zone_to_nid(struct zone *zone)
 {
-	return zone->zone_pgdat->node_id;
+#ifdef CONFIG_NUMA
+	return zone->node;
+#else
+	return 0;
+#endif
 }
 
 static inline unsigned long page_to_nid(struct page *page)

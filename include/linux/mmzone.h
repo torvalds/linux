@@ -168,6 +168,7 @@ struct zone {
 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
 
 #ifdef CONFIG_NUMA
+	int node;
 	/*
 	 * zone reclaim becomes active if more unmapped pages exist.
 	 */
