@@ -301,6 +301,9 @@ typedef enum {
 #define E1000_BLK_PHY_RESET   12
 #define E1000_ERR_SWFW_SYNC 13
 
+#define E1000_BYTE_SWAP_WORD(_value) ((((_value) & 0x00ff) << 8) | \
+                                     (((_value) & 0xff00) >> 8))
+
 /* Function prototypes */
 /* Initialization */
 int32_t e1000_reset_hw(struct e1000_hw *hw);
@@ -3128,6 +3131,7 @@ struct e1000_host_command_info {
 /* I = Integrated
  * E = External
  */
+#define M88_VENDOR         0x0141
 #define M88E1000_E_PHY_ID  0x01410C50
 #define M88E1000_I_PHY_ID  0x01410C30
 #define M88E1011_I_PHY_ID  0x01410C20
@@ -3252,10 +3256,12 @@ struct e1000_host_command_info {
 #define IFE_PSCL_PROBE_LEDS_OFF              0x0006  /* Force LEDs 0 and 2 off */
 #define IFE_PSCL_PROBE_LEDS_ON               0x0007  /* Force LEDs 0 and 2 on */
 
-#define ICH8_FLASH_COMMAND_TIMEOUT           500   /* 500 ms , should be adjusted */
-#define ICH8_FLASH_CYCLE_REPEAT_COUNT        10    /* 10 cycles , should be adjusted */
+#define ICH8_FLASH_COMMAND_TIMEOUT           5000    /* 5000 uSecs - adjusted */
+#define ICH8_FLASH_ERASE_TIMEOUT             3000000 /* Up to 3 seconds - worst case */
+#define ICH8_FLASH_CYCLE_REPEAT_COUNT        10      /* 10 cycles */
 #define ICH8_FLASH_SEG_SIZE_256              256
 #define ICH8_FLASH_SEG_SIZE_4K               4096
+#define ICH9_FLASH_SEG_SIZE_8K               8192
 #define ICH8_FLASH_SEG_SIZE_64K              65536
 
 #define ICH8_CYCLE_READ                      0x0

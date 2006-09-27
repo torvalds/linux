@@ -662,18 +662,11 @@ e1000_reset_hw(struct e1000_hw *hw)
                 E1000_WRITE_FLUSH(hw);
             }
             /* fall through */
-        case e1000_82571:
-        case e1000_82572:
-        case e1000_ich8lan:
-        case e1000_80003es2lan:
+        default:
+            /* Auto read done will delay 5ms or poll based on mac type */
             ret_val = e1000_get_auto_rd_done(hw);
             if (ret_val)
-                /* We don't want to continue accessing MAC registers. */
                 return ret_val;
-            break;
-        default:
-            /* Wait for EEPROM reload (it happens automatically) */
-            msleep(5);
             break;
     }
 
@@ -3809,7 +3802,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
             swfw = E1000_SWFW_PHY0_SM;
         }
         if (e1000_swfw_sync_acquire(hw, swfw)) {
-            e1000_release_software_semaphore(hw);
+            DEBUGOUT("Unable to acquire swfw sync\n");
             return -E1000_ERR_SWFW_SYNC;
         }
         /* Read the device control register and assert the E1000_CTRL_PHY_RST
@@ -3891,11 +3884,11 @@ e1000_phy_reset(struct e1000_hw *hw)
     if (ret_val)
         return E1000_SUCCESS;
 
-    switch (hw->mac_type) {
-    case e1000_82541_rev_2:
-    case e1000_82571:
-    case e1000_82572:
-    case e1000_ich8lan:
+    switch (hw->phy_type) {
+    case e1000_phy_igp:
+    case e1000_phy_igp_2:
+    case e1000_phy_igp_3:
+    case e1000_phy_ife:
         ret_val = e1000_phy_hw_reset(hw);
         if (ret_val)
             return ret_val;
@@ -4042,6 +4035,9 @@ e1000_detect_gig_phy(struct e1000_hw *hw)
     boolean_t match = FALSE;
 
     DEBUGFUNC("e1000_detect_gig_phy");
+
+    if (hw->phy_id != 0)
+        return E1000_SUCCESS;
 
     /* The 82571 firmware may still be configuring the PHY.  In this
      * case, we cannot access the PHY until the configuration is done.  So
@@ -4964,44 +4960,43 @@ e1000_read_eeprom(struct e1000_hw *hw,
 {
     struct e1000_eeprom_info *eeprom = &hw->eeprom;
     uint32_t i = 0;
-    int32_t ret_val;
 
     DEBUGFUNC("e1000_read_eeprom");
+
+    /* If eeprom is not yet detected, do so now */
+    if (eeprom->word_size == 0)
+        e1000_init_eeprom_params(hw);
 
     /* A check for invalid values:  offset too large, too many words, and not
      * enough words.
      */
     if ((offset >= eeprom->word_size) || (words > eeprom->word_size - offset) ||
        (words == 0)) {
-        DEBUGOUT("\"words\" parameter out of bounds\n");
+        DEBUGOUT2("\"words\" parameter out of bounds. Words = %d, size = %d\n", offset, eeprom->word_size);
         return -E1000_ERR_EEPROM;
     }
 
-    /* FLASH reads without acquiring the semaphore are safe */
+    /* EEPROM's that don't use EERD to read require us to bit-bang the SPI
+     * directly. In this case, we need to acquire the EEPROM so that
+     * FW or other port software does not interrupt.
+     */
     if (e1000_is_onboard_nvm_eeprom(hw) == TRUE &&
         hw->eeprom.use_eerd == FALSE) {
-        switch (hw->mac_type) {
-        case e1000_80003es2lan:
-            break;
-        default:
-            /* Prepare the EEPROM for reading  */
-            if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
-                return -E1000_ERR_EEPROM;
-            break;
-        }
+        /* Prepare the EEPROM for bit-bang reading */
+        if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
+            return -E1000_ERR_EEPROM;
     }
 
-    if (eeprom->use_eerd == TRUE) {
-        ret_val = e1000_read_eeprom_eerd(hw, offset, words, data);
-        if ((e1000_is_onboard_nvm_eeprom(hw) == TRUE) ||
-            (hw->mac_type != e1000_82573))
-            e1000_release_eeprom(hw);
-        return ret_val;
-    }
+    /* Eerd register EEPROM access requires no eeprom aquire/release */
+    if (eeprom->use_eerd == TRUE)
+        return e1000_read_eeprom_eerd(hw, offset, words, data);
 
+    /* ICH EEPROM access is done via the ICH flash controller */
     if (eeprom->type == e1000_eeprom_ich8)
         return e1000_read_eeprom_ich8(hw, offset, words, data);
 
+    /* Set up the SPI or Microwire EEPROM for bit-bang reading.  We have
+     * acquired the EEPROM at this point, so any returns should relase it */
     if (eeprom->type == e1000_eeprom_spi) {
         uint16_t word_in;
         uint8_t read_opcode = EEPROM_READ_OPCODE_SPI;
@@ -5316,6 +5311,10 @@ e1000_write_eeprom(struct e1000_hw *hw,
 
     DEBUGFUNC("e1000_write_eeprom");
 
+    /* If eeprom is not yet detected, do so now */
+    if (eeprom->word_size == 0)
+        e1000_init_eeprom_params(hw);
+
     /* A check for invalid values:  offset too large, too many words, and not
      * enough words.
      */
@@ -5521,10 +5520,8 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
     int32_t error = E1000_SUCCESS;
     uint32_t old_bank_offset = 0;
     uint32_t new_bank_offset = 0;
-    uint32_t sector_retries = 0;
     uint8_t low_byte = 0;
     uint8_t high_byte = 0;
-    uint8_t temp_byte = 0;
     boolean_t sector_write_failed = FALSE;
 
     if (hw->mac_type == e1000_82573) {
@@ -5577,41 +5574,46 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
             e1000_erase_ich8_4k_segment(hw, 0);
         }
 
-        do {
-            sector_write_failed = FALSE;
-            /* Loop for every byte in the shadow RAM,
-             * which is in units of words. */
-            for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
-                /* Determine whether to write the value stored
-                 * in the other NVM bank or a modified value stored
-                 * in the shadow RAM */
-                if (hw->eeprom_shadow_ram[i].modified == TRUE) {
-                    low_byte = (uint8_t)hw->eeprom_shadow_ram[i].eeprom_word;
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
-                                         &temp_byte);
-                    udelay(100);
-                    error = e1000_verify_write_ich8_byte(hw,
-                                                 (i << 1) + new_bank_offset,
-                                                 low_byte);
-                    if (error != E1000_SUCCESS)
-                        sector_write_failed = TRUE;
+        sector_write_failed = FALSE;
+        /* Loop for every byte in the shadow RAM,
+         * which is in units of words. */
+        for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
+            /* Determine whether to write the value stored
+             * in the other NVM bank or a modified value stored
+             * in the shadow RAM */
+            if (hw->eeprom_shadow_ram[i].modified == TRUE) {
+                low_byte = (uint8_t)hw->eeprom_shadow_ram[i].eeprom_word;
+                udelay(100);
+                error = e1000_verify_write_ich8_byte(hw,
+                            (i << 1) + new_bank_offset, low_byte);
+
+                if (error != E1000_SUCCESS)
+                    sector_write_failed = TRUE;
+                else {
                     high_byte =
                         (uint8_t)(hw->eeprom_shadow_ram[i].eeprom_word >> 8);
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset + 1,
-                                         &temp_byte);
                     udelay(100);
-                } else {
-                    e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
-                                         &low_byte);
-                    udelay(100);
-                    error = e1000_verify_write_ich8_byte(hw,
-                                 (i << 1) + new_bank_offset, low_byte);
-                    if (error != E1000_SUCCESS)
-                        sector_write_failed = TRUE;
+                }
+            } else {
+                e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset,
+                                     &low_byte);
+                udelay(100);
+                error = e1000_verify_write_ich8_byte(hw,
+                            (i << 1) + new_bank_offset, low_byte);
+
+                if (error != E1000_SUCCESS)
+                    sector_write_failed = TRUE;
+                else {
                     e1000_read_ich8_byte(hw, (i << 1) + old_bank_offset + 1,
                                          &high_byte);
+                    udelay(100);
                 }
+            }
 
+            /* If the write of the low byte was successful, go ahread and
+             * write the high byte while checking to make sure that if it
+             * is the signature byte, then it is handled properly */
+            if (sector_write_failed == FALSE) {
                 /* If the word is 0x13, then make sure the signature bits
                  * (15:14) are 11b until the commit has completed.
                  * This will allow us to write 10b which indicates the
@@ -5622,45 +5624,45 @@ e1000_commit_shadow_ram(struct e1000_hw *hw)
                     high_byte = E1000_ICH8_NVM_SIG_MASK | high_byte;
 
                 error = e1000_verify_write_ich8_byte(hw,
-                             (i << 1) + new_bank_offset + 1, high_byte);
+                            (i << 1) + new_bank_offset + 1, high_byte);
                 if (error != E1000_SUCCESS)
                     sector_write_failed = TRUE;
 
-                if (sector_write_failed == FALSE) {
-                    /* Clear the now not used entry in the cache */
-                    hw->eeprom_shadow_ram[i].modified = FALSE;
-                    hw->eeprom_shadow_ram[i].eeprom_word = 0xFFFF;
-                }
+            } else {
+                /* If the write failed then break from the loop and
+                 * return an error */
+                break;
+            }
+        }
+
+        /* Don't bother writing the segment valid bits if sector
+         * programming failed. */
+        if (sector_write_failed == FALSE) {
+            /* Finally validate the new segment by setting bit 15:14
+             * to 10b in word 0x13 , this can be done without an
+             * erase as well since these bits are 11 to start with
+             * and we need to change bit 14 to 0b */
+            e1000_read_ich8_byte(hw,
+                                 E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
+                                 &high_byte);
+            high_byte &= 0xBF;
+            error = e1000_verify_write_ich8_byte(hw,
+                        E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset, high_byte);
+            /* And invalidate the previously valid segment by setting
+             * its signature word (0x13) high_byte to 0b. This can be
+             * done without an erase because flash erase sets all bits
+             * to 1's. We can write 1's to 0's without an erase */
+            if (error == E1000_SUCCESS) {
+                error = e1000_verify_write_ich8_byte(hw,
+                            E1000_ICH8_NVM_SIG_WORD * 2 + 1 + old_bank_offset, 0);
             }
 
-            /* Don't bother writing the segment valid bits if sector
-             * programming failed. */
-            if (sector_write_failed == FALSE) {
-                /* Finally validate the new segment by setting bit 15:14
-                 * to 10b in word 0x13 , this can be done without an
-                 * erase as well since these bits are 11 to start with
-                 * and we need to change bit 14 to 0b */
-                e1000_read_ich8_byte(hw,
-                    E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
-                    &high_byte);
-                high_byte &= 0xBF;
-                error = e1000_verify_write_ich8_byte(hw,
-                            E1000_ICH8_NVM_SIG_WORD * 2 + 1 + new_bank_offset,
-                            high_byte);
-                if (error != E1000_SUCCESS)
-                    sector_write_failed = TRUE;
-
-                /* And invalidate the previously valid segment by setting
-                 * its signature word (0x13) high_byte to 0b. This can be
-                 * done without an erase because flash erase sets all bits
-                 * to 1's. We can write 1's to 0's without an erase */
-                error = e1000_verify_write_ich8_byte(hw,
-                            E1000_ICH8_NVM_SIG_WORD * 2 + 1 + old_bank_offset,
-                            0);
-                if (error != E1000_SUCCESS)
-                    sector_write_failed = TRUE;
+            /* Clear the now not used entry in the cache */
+            for (i = 0; i < E1000_SHADOW_RAM_WORDS; i++) {
+                hw->eeprom_shadow_ram[i].modified = FALSE;
+                hw->eeprom_shadow_ram[i].eeprom_word = 0xFFFF;
             }
-        } while (++sector_retries < 10 && sector_write_failed == TRUE);
+        }
     }
 
     return error;
@@ -8758,20 +8760,22 @@ static int32_t
 e1000_verify_write_ich8_byte(struct e1000_hw *hw, uint32_t index, uint8_t byte)
 {
     int32_t error = E1000_SUCCESS;
-    int32_t program_retries;
-    uint8_t temp_byte;
+    int32_t program_retries = 0;
 
-    e1000_write_ich8_byte(hw, index, byte);
-    udelay(100);
+    DEBUGOUT2("Byte := %2.2X Offset := %d\n", byte, index);
 
-    for (program_retries = 0; program_retries < 100; program_retries++) {
-        e1000_read_ich8_byte(hw, index, &temp_byte);
-        if (temp_byte == byte)
-            break;
-        udelay(10);
-        e1000_write_ich8_byte(hw, index, byte);
-        udelay(100);
+    error = e1000_write_ich8_byte(hw, index, byte);
+
+    if (error != E1000_SUCCESS) {
+        for (program_retries = 0; program_retries < 100; program_retries++) {
+            DEBUGOUT2("Retrying \t Byte := %2.2X Offset := %d\n", byte, index);
+            error = e1000_write_ich8_byte(hw, index, byte);
+            udelay(100);
+            if (error == E1000_SUCCESS)
+                break;
+        }
     }
+
     if (program_retries == 100)
         error = E1000_ERR_EEPROM;
 
@@ -8812,39 +8816,27 @@ e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t *data)
 }
 
 /******************************************************************************
- * Writes a word to the NVM using the ICH8 flash access registers.
+ * Erases the bank specified. Each bank may be a 4, 8 or 64k block. Banks are 0
+ * based.
  *
  * hw - pointer to e1000_hw structure
- * index - The starting byte index of the word to read.
- * data - The word to write to the NVM.
+ * bank - 0 for first bank, 1 for second bank
+ *
+ * Note that this function may actually erase as much as 8 or 64 KBytes.  The
+ * amount of NVM used in each bank is a *minimum* of 4 KBytes, but in fact the
+ * bank size may be 4, 8 or 64 KBytes
  *****************************************************************************/
-#if 0
 int32_t
-e1000_write_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t data)
-{
-    int32_t status = E1000_SUCCESS;
-    status = e1000_write_ich8_data(hw, index, 2, data);
-    return status;
-}
-#endif  /*  0  */
-
-/******************************************************************************
- * Erases the bank specified. Each bank is a 4k block. Segments are 0 based.
- * segment N is 4096 * N + flash_reg_addr.
- *
- * hw - pointer to e1000_hw structure
- * segment - 0 for first segment, 1 for second segment, etc.
- *****************************************************************************/
-static int32_t
-e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
+e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t bank)
 {
     union ich8_hws_flash_status hsfsts;
     union ich8_hws_flash_ctrl hsflctl;
     uint32_t flash_linear_address;
     int32_t  count = 0;
     int32_t  error = E1000_ERR_EEPROM;
-    int32_t  iteration, seg_size;
-    int32_t  sector_size;
+    int32_t  iteration;
+    int32_t  sub_sector_size = 0;
+    int32_t  bank_size;
     int32_t  j = 0;
     int32_t  error_flag = 0;
 
@@ -8853,22 +8845,27 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
     /* Determine HW Sector size: Read BERASE bits of Hw flash Status register */
     /* 00: The Hw sector is 256 bytes, hence we need to erase 16
      *     consecutive sectors.  The start index for the nth Hw sector can be
-     *     calculated as = segment * 4096 + n * 256
+     *     calculated as bank * 4096 + n * 256
      * 01: The Hw sector is 4K bytes, hence we need to erase 1 sector.
      *     The start index for the nth Hw sector can be calculated
-     *     as = segment * 4096
-     * 10: Error condition
-     * 11: The Hw sector size is much bigger than the size asked to
-     *     erase...error condition */
+     *     as bank * 4096
+     * 10: The HW sector is 8K bytes
+     * 11: The Hw sector size is 64K bytes */
     if (hsfsts.hsf_status.berasesz == 0x0) {
         /* Hw sector size 256 */
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_256;
+        sub_sector_size = ICH8_FLASH_SEG_SIZE_256;
+        bank_size = ICH8_FLASH_SECTOR_SIZE;
         iteration = ICH8_FLASH_SECTOR_SIZE / ICH8_FLASH_SEG_SIZE_256;
     } else if (hsfsts.hsf_status.berasesz == 0x1) {
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_4K;
+        bank_size = ICH8_FLASH_SEG_SIZE_4K;
+        iteration = 1;
+    } else if (hw->mac_type != e1000_ich8lan &&
+               hsfsts.hsf_status.berasesz == 0x2) {
+        /* 8K erase size invalid for ICH8 - added in for ICH9 */
+        bank_size = ICH9_FLASH_SEG_SIZE_8K;
         iteration = 1;
     } else if (hsfsts.hsf_status.berasesz == 0x3) {
-        sector_size = seg_size = ICH8_FLASH_SEG_SIZE_64K;
+        bank_size = ICH8_FLASH_SEG_SIZE_64K;
         iteration = 1;
     } else {
         return error;
@@ -8892,16 +8889,15 @@ e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t segment)
 
             /* Write the last 24 bits of an index within the block into Flash
              * Linear address field in Flash Address.  This probably needs to
-             * be calculated here based off the on-chip segment size and the
-             * software segment size assumed (4K) */
-            /* TBD */
-            flash_linear_address = segment * sector_size + j * seg_size;
-            flash_linear_address &= ICH8_FLASH_LINEAR_ADDR_MASK;
+             * be calculated here based off the on-chip erase sector size and
+             * the software bank size (4, 8 or 64 KBytes) */
+            flash_linear_address = bank * bank_size + j * sub_sector_size;
             flash_linear_address += hw->flash_base_addr;
+            flash_linear_address &= ICH8_FLASH_LINEAR_ADDR_MASK;
 
             E1000_WRITE_ICH8_REG(hw, ICH8_FLASH_FADDR, flash_linear_address);
 
-            error = e1000_ich8_flash_cycle(hw, 1000000);
+            error = e1000_ich8_flash_cycle(hw, ICH8_FLASH_ERASE_TIMEOUT);
             /* Check if FCERR is set to 1.  If 1, clear it and try the whole
              * sequence a few more times else Done */
             if (error == E1000_SUCCESS) {
@@ -8959,6 +8955,14 @@ e1000_init_lcd_from_nvm_config_region(struct e1000_hw *hw,
 }
 
 
+/******************************************************************************
+ * This function initializes the PHY from the NVM on ICH8 platforms. This
+ * is needed due to an issue where the NVM configuration is not properly
+ * autoloaded after power transitions. Therefore, after each PHY reset, we
+ * will load the configuration data out of the NVM manually.
+ *
+ * hw: Struct containing variables accessed by shared code
+ *****************************************************************************/
 static int32_t
 e1000_init_lcd_from_nvm(struct e1000_hw *hw)
 {
