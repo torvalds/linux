@@ -439,8 +439,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	if ((err = ext3_reserve_inode_write(handle, inode, &iloc)))
 		goto exit_dindj;
 
-	n_group_desc = (struct buffer_head **)kmalloc((gdb_num + 1) *
-				sizeof(struct buffer_head *), GFP_KERNEL);
+	n_group_desc = kmalloc((gdb_num + 1) * sizeof(struct buffer_head *),
+			GFP_KERNEL);
 	if (!n_group_desc) {
 		err = -ENOMEM;
 		ext3_warning (sb, __FUNCTION__,

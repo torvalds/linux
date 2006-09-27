@@ -1149,8 +1149,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	 * Allocate a buffer to store the current name being processed
 	 * converted to format determined by current NLS.
 	 */
-	name = (u8*)kmalloc(NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1,
-			GFP_NOFS);
+	name = kmalloc(NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1, GFP_NOFS);
 	if (unlikely(!name)) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1191,7 +1190,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	 * map the mft record without deadlocking.
 	 */
 	rc = le32_to_cpu(ctx->attr->data.resident.value_length);
-	ir = (INDEX_ROOT*)kmalloc(rc, GFP_NOFS);
+	ir = kmalloc(rc, GFP_NOFS);
 	if (unlikely(!ir)) {
 		err = -ENOMEM;
 		goto err_out;

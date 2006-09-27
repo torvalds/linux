@@ -443,7 +443,7 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 {
 	struct nfs_open_context *ctx;
 
-	ctx = (struct nfs_open_context *)kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
 		atomic_set(&ctx->count, 1);
 		ctx->dentry = dget(dentry);

@@ -20,11 +20,6 @@
 #include "delegation.h"
 #include "internal.h"
 
-static struct nfs_delegation *nfs_alloc_delegation(void)
-{
-	return (struct nfs_delegation *)kmalloc(sizeof(struct nfs_delegation), GFP_KERNEL);
-}
-
 static void nfs_free_delegation(struct nfs_delegation *delegation)
 {
 	if (delegation->cred)
@@ -124,7 +119,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR)))
 		__nfs_revalidate_inode(NFS_SERVER(inode), inode);
 
-	delegation = nfs_alloc_delegation();
+	delegation = kmalloc(sizeof(*delegation), GFP_KERNEL);
 	if (delegation == NULL)
 		return -ENOMEM;
 	memcpy(delegation->stateid.data, res->delegation.data,

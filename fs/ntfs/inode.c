@@ -137,7 +137,7 @@ static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
 
 		BUG_ON(!na->name);
 		i = na->name_len * sizeof(ntfschar);
-		ni->name = (ntfschar*)kmalloc(i + sizeof(ntfschar), GFP_ATOMIC);
+		ni->name = kmalloc(i + sizeof(ntfschar), GFP_ATOMIC);
 		if (!ni->name)
 			return -ENOMEM;
 		memcpy(ni->name, na->name, i);

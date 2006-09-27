@@ -652,7 +652,7 @@ jffs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	lock_kernel();
 
 	D3({
-		char *s = (char *)kmalloc(len + 1, GFP_KERNEL);
+		char *s = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(s, name, len);
 		s[len] = '\0';
 		printk("jffs_lookup(): dir: 0x%p, name: \"%s\"\n", dir, s);
@@ -1173,8 +1173,8 @@ jffs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	lock_kernel();
 	D1({
 		int len = dentry->d_name.len; 
-		char *_name = (char *)kmalloc(len + 1, GFP_KERNEL);
-		char *_symname = (char *)kmalloc(symname_len + 1, GFP_KERNEL);
+		char *_name = kmalloc(len + 1, GFP_KERNEL);
+		char *_symname = kmalloc(symname_len + 1, GFP_KERNEL);
 		memcpy(_name, dentry->d_name.name, len);
 		_name[len] = '\0';
 		memcpy(_symname, symname, symname_len);
@@ -1282,7 +1282,7 @@ jffs_create(struct inode *dir, struct dentry *dentry, int mode,
 	lock_kernel();
 	D1({
 		int len = dentry->d_name.len;
-		char *s = (char *)kmalloc(len + 1, GFP_KERNEL);
+		char *s = kmalloc(len + 1, GFP_KERNEL);
 		memcpy(s, dentry->d_name.name, len);
 		s[len] = '\0';
 		printk("jffs_create(): dir: 0x%p, name: \"%s\"\n", dir, s);
