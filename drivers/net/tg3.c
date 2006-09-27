@@ -1035,6 +1035,24 @@ out:
 				 phy_reg | MII_TG3_EXT_CTRL_FIFO_ELASTIC);
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+		u32 phy_reg;
+
+		/* adjust output voltage */
+		tg3_writephy(tp, MII_TG3_EPHY_PTEST, 0x12);
+
+		if (!tg3_readphy(tp, MII_TG3_EPHY_TEST, &phy_reg)) {
+			u32 phy_reg2;
+
+			tg3_writephy(tp, MII_TG3_EPHY_TEST,
+				     phy_reg | MII_TG3_EPHY_SHADOW_EN);
+			/* Enable auto-MDIX */
+			if (!tg3_readphy(tp, 0x10, &phy_reg2))
+				tg3_writephy(tp, 0x10, phy_reg2 | 0x4000);
+			tg3_writephy(tp, MII_TG3_EPHY_TEST, phy_reg);
+		}
+	}
+
 	tg3_phy_set_wirespeed(tp);
 	return 0;
 }
@@ -1151,8 +1169,11 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 		return;
 
-	tg3_writephy(tp, MII_TG3_EXT_CTRL, MII_TG3_EXT_CTRL_FORCE_LED_OFF);
-	tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906) {
+		tg3_writephy(tp, MII_TG3_EXT_CTRL,
+			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
+		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
+	}
 
 	/* The PHY should not be powered down on some chips because
 	 * of bugs.
@@ -1505,6 +1526,13 @@ static void tg3_aux_stat_to_speed_duplex(struct tg3 *tp, u32 val, u16 *speed, u8
 		break;
 
 	default:
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
+			*speed = (val & MII_TG3_AUX_STAT_100) ? SPEED_100 :
+				 SPEED_10;
+			*duplex = (val & MII_TG3_AUX_STAT_FULL) ? DUPLEX_FULL :
+				  DUPLEX_HALF;
+			break;
+		}
 		*speed = SPEED_INVALID;
 		*duplex = DUPLEX_INVALID;
 		break;
@@ -1787,7 +1815,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 
 	if (tp->tg3_flags & TG3_FLAG_USE_MI_INTERRUPT)
 		tg3_writephy(tp, MII_TG3_IMASK, ~MII_TG3_INT_LINKCHG);
-	else
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906)
 		tg3_writephy(tp, MII_TG3_IMASK, ~0);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
@@ -6552,7 +6580,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	if (err)
 		return err;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)) {
+	if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5906) {
 		u32 tmp;
 
 		/* Clear CRC stats. */

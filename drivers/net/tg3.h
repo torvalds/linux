@@ -1624,6 +1624,7 @@
 #define MII_TG3_DSP_RW_PORT		0x15 /* DSP coefficient read/write port */
 
 #define MII_TG3_DSP_ADDRESS		0x17 /* DSP address register */
+#define MII_TG3_EPHY_PTEST		0x17 /* 5906 PHY register */
 
 #define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
 
@@ -1637,6 +1638,8 @@
 #define MII_TG3_AUX_STAT_100FULL	0x0500
 #define MII_TG3_AUX_STAT_1000HALF	0x0600
 #define MII_TG3_AUX_STAT_1000FULL	0x0700
+#define MII_TG3_AUX_STAT_100		0x0008
+#define MII_TG3_AUX_STAT_FULL		0x0001
 
 #define MII_TG3_ISTAT			0x1a /* IRQ status register */
 #define MII_TG3_IMASK			0x1b /* IRQ mask register */
@@ -1646,6 +1649,9 @@
 #define MII_TG3_INT_SPEEDCHG		0x0004
 #define MII_TG3_INT_DUPLEXCHG		0x0008
 #define MII_TG3_INT_ANEG_PAGE_RX	0x0400
+
+#define MII_TG3_EPHY_TEST		0x1f /* 5906 PHY register */
+#define MII_TG3_EPHY_SHADOW_EN		0x80
 
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
