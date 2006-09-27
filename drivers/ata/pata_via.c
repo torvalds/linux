@@ -60,7 +60,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_via"
-#define DRV_VERSION "0.1.13"
+#define DRV_VERSION "0.1.14"
 
 /*
  *	The following comes directly from Vojtech Pavlik's ide/pci/via82cxxx
@@ -155,11 +155,8 @@ static int via_pre_reset(struct ata_port *ap)
 
 		struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_no])) {
-			ata_port_disable(ap);
-			printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-			return 0;
-		}
+		if (!pci_test_config_bits(pdev, &via_enable_bits[ap->port_no]))
+			return -ENOENT;
 	}
 
 	if ((config->flags & VIA_UDMA) >= VIA_UDMA_66)
@@ -325,7 +322,7 @@ static struct ata_port_operations via_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -360,7 +357,7 @@ static struct ata_port_operations via_port_ops_noirq = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,

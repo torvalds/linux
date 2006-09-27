@@ -112,7 +112,7 @@ static struct ata_port_operations rz1000_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.freeze		= ata_bmdma_freeze,

@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_optidma"
-#define DRV_VERSION "0.2.1"
+#define DRV_VERSION "0.2.2"
 
 enum {
 	READ_REG	= 0,	/* index of Read cycle timing register */
@@ -59,11 +59,9 @@ static int optidma_pre_reset(struct ata_port *ap)
 		0x40, 1, 0x08, 0x00
 	};
 
-	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits)) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits))
+		return -ENOENT;
+
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -388,7 +386,7 @@ static struct ata_port_operations optidma_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -423,7 +421,7 @@ static struct ata_port_operations optiplus_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,

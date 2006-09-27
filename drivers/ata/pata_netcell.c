@@ -90,8 +90,7 @@ static const struct ata_port_operations netcell_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
 
-	/* Timeout handling. Special recovery hooks here */
-	.eng_timeout		= ata_eng_timeout,
+	/* IRQ-related hooks */
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 

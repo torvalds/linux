@@ -51,7 +51,7 @@ static int jmicron_pre_reset(struct ata_port *ap)
 	/* Check if our port is enabled */
 	pci_read_config_dword(pdev, 0x40, &control);
 	if ((control & port_mask) == 0)
-		return 0;
+		return -ENOENT;
 
 	/* There are two basic mappings. One has the two SATA ports merged
 	   as master/slave and the secondary as PATA, the other has only the
@@ -164,8 +164,7 @@ static const struct ata_port_operations jmicron_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
 
-	/* Timeout handling. Special recovery hooks here */
-	.eng_timeout		= ata_eng_timeout,
+	/* IRQ-related hooks */
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 
