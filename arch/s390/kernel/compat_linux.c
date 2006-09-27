@@ -708,7 +708,7 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;

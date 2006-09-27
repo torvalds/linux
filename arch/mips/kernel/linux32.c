@@ -991,7 +991,7 @@ struct sysctl_args32
 	unsigned int __unused[4];
 };
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 
 asmlinkage long sys32_sysctl(struct sysctl_args32 __user *args)
 {
@@ -1032,7 +1032,7 @@ asmlinkage long sys32_sysctl(struct sysctl_args32 __user *args)
 	return error;
 }
 
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_SYSCTL_SYSCALL */
 
 asmlinkage long sys32_newuname(struct new_utsname __user * name)
 {

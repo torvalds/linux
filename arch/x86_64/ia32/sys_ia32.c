@@ -648,7 +648,7 @@ sys32_pause(void)
 }
 
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct sysctl_ia32 {
 	unsigned int	name;
 	int		nlen;
