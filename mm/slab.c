@@ -2442,7 +2442,6 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  * @cachep: the cache to destroy
  *
  * Remove a struct kmem_cache object from the slab cache.
- * Returns 0 on success.
  *
  * It is expected this function will be called by a module when it is
  * unloaded.  This will remove the cache completely, and avoid a duplicate
@@ -2454,7 +2453,7 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  * The caller must guarantee that noone will allocate memory from the cache
  * during the kmem_cache_destroy().
  */
-int kmem_cache_destroy(struct kmem_cache *cachep)
+void kmem_cache_destroy(struct kmem_cache *cachep)
 {
 	BUG_ON(!cachep || in_interrupt());
 
@@ -2475,7 +2474,7 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 		list_add(&cachep->next, &cache_chain);
 		mutex_unlock(&cache_chain_mutex);
 		unlock_cpu_hotplug();
-		return 1;
+		return;
 	}
 
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
@@ -2483,7 +2482,6 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 
 	__kmem_cache_destroy(cachep);
 	unlock_cpu_hotplug();
-	return 0;
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
