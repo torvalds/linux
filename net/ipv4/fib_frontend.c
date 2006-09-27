@@ -499,22 +499,22 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct rtmsg), remaining) {
 		switch (attr->nla_type) {
 		case RTA_DST:
-			cfg->fc_dst = nla_get_u32(attr);
+			cfg->fc_dst = nla_get_be32(attr);
 			break;
 		case RTA_SRC:
-			cfg->fc_src = nla_get_u32(attr);
+			cfg->fc_src = nla_get_be32(attr);
 			break;
 		case RTA_OIF:
 			cfg->fc_oif = nla_get_u32(attr);
 			break;
 		case RTA_GATEWAY:
-			cfg->fc_gw = nla_get_u32(attr);
+			cfg->fc_gw = nla_get_be32(attr);
 			break;
 		case RTA_PRIORITY:
 			cfg->fc_priority = nla_get_u32(attr);
 			break;
 		case RTA_PREFSRC:
-			cfg->fc_prefsrc = nla_get_u32(attr);
+			cfg->fc_prefsrc = nla_get_be32(attr);
 			break;
 		case RTA_METRICS:
 			cfg->fc_mx = nla_data(attr);

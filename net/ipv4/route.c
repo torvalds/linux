@@ -2661,11 +2661,11 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	if (rt->rt_flags & RTCF_NOTIFY)
 		r->rtm_flags |= RTM_F_NOTIFY;
 
-	NLA_PUT_U32(skb, RTA_DST, rt->rt_dst);
+	NLA_PUT_BE32(skb, RTA_DST, rt->rt_dst);
 
 	if (rt->fl.fl4_src) {
 		r->rtm_src_len = 32;
-		NLA_PUT_U32(skb, RTA_SRC, rt->fl.fl4_src);
+		NLA_PUT_BE32(skb, RTA_SRC, rt->fl.fl4_src);
 	}
 	if (rt->u.dst.dev)
 		NLA_PUT_U32(skb, RTA_OIF, rt->u.dst.dev->ifindex);
@@ -2678,12 +2678,12 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		NLA_PUT_U32(skb, RTA_MP_ALGO, rt->rt_multipath_alg);
 #endif
 	if (rt->fl.iif)
-		NLA_PUT_U32(skb, RTA_PREFSRC, rt->rt_spec_dst);
+		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_spec_dst);
 	else if (rt->rt_src != rt->fl.fl4_src)
-		NLA_PUT_U32(skb, RTA_PREFSRC, rt->rt_src);
+		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_src);
 
 	if (rt->rt_dst != rt->rt_gateway)
-		NLA_PUT_U32(skb, RTA_GATEWAY, rt->rt_gateway);
+		NLA_PUT_BE32(skb, RTA_GATEWAY, rt->rt_gateway);
 
 	if (rtnetlink_put_metrics(skb, rt->u.dst.metrics) < 0)
 		goto nla_put_failure;
@@ -2768,8 +2768,8 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	skb->nh.iph->protocol = IPPROTO_ICMP;
 	skb_reserve(skb, MAX_HEADER + sizeof(struct iphdr));
 
-	src = tb[RTA_SRC] ? nla_get_u32(tb[RTA_SRC]) : 0;
-	dst = tb[RTA_DST] ? nla_get_u32(tb[RTA_DST]) : 0;
+	src = tb[RTA_SRC] ? nla_get_be32(tb[RTA_SRC]) : 0;
+	dst = tb[RTA_DST] ? nla_get_be32(tb[RTA_DST]) : 0;
 	iif = tb[RTA_IIF] ? nla_get_u32(tb[RTA_IIF]) : 0;
 
 	if (iif) {

@@ -374,7 +374,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			nh->nh_gw = nla ? nla_get_u32(nla) : 0;
+			nh->nh_gw = nla ? nla_get_be32(nla) : 0;
 #ifdef CONFIG_NET_CLS_ROUTE
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
@@ -427,7 +427,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
 
 			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			if (nla && nla_get_u32(nla) != nh->nh_gw)
+			if (nla && nla_get_be32(nla) != nh->nh_gw)
 				return 1;
 #ifdef CONFIG_NET_CLS_ROUTE
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
@@ -952,7 +952,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	rtm->rtm_protocol = fi->fib_protocol;
 
 	if (rtm->rtm_dst_len)
-		NLA_PUT_U32(skb, RTA_DST, dst);
+		NLA_PUT_BE32(skb, RTA_DST, dst);
 
 	if (fi->fib_priority)
 		NLA_PUT_U32(skb, RTA_PRIORITY, fi->fib_priority);
@@ -961,11 +961,11 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		goto nla_put_failure;
 
 	if (fi->fib_prefsrc)
-		NLA_PUT_U32(skb, RTA_PREFSRC, fi->fib_prefsrc);
+		NLA_PUT_BE32(skb, RTA_PREFSRC, fi->fib_prefsrc);
 
 	if (fi->fib_nhs == 1) {
 		if (fi->fib_nh->nh_gw)
-			NLA_PUT_U32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
+			NLA_PUT_BE32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
 
 		if (fi->fib_nh->nh_oif)
 			NLA_PUT_U32(skb, RTA_OIF, fi->fib_nh->nh_oif);
@@ -993,7 +993,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			rtnh->rtnh_ifindex = nh->nh_oif;
 
 			if (nh->nh_gw)
-				NLA_PUT_U32(skb, RTA_GATEWAY, nh->nh_gw);
+				NLA_PUT_BE32(skb, RTA_GATEWAY, nh->nh_gw);
 #ifdef CONFIG_NET_CLS_ROUTE
 			if (nh->nh_tclassid)
 				NLA_PUT_U32(skb, RTA_FLOW, nh->nh_tclassid);
