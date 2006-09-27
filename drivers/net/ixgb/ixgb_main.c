@@ -437,7 +437,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netdev->poll_controller = ixgb_netpoll;
 #endif
 
-	strcpy(netdev->name, pci_name(pdev));
+	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
 	netdev->base_addr = adapter->hw.io_base;
