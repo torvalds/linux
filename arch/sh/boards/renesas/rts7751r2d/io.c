@@ -13,13 +13,11 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <asm/io.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
-#include <asm/addrspace.h>
-
-#include <linux/module.h>
 #include <linux/pci.h>
 #include "../../../drivers/pci/pci-sh7751.h"
+#include <asm/rts7751r2d/rts7751r2d.h>
+#include <asm/io.h>
+#include <asm/addrspace.h>
 
 /*
  * The 7751R RTS7751R2D uses the built-in PCI controller (PCIC)
@@ -35,10 +33,6 @@
 
 #define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
 
-#define maybebadio(name,port) \
-  printk("bad PC-like io %s for port 0x%lx at 0x%08x\n", \
-	 #name, (port), (__u32) __builtin_return_address(0))
-
 static inline void delay(void)
 {
 	ctrl_inw(0xa0000000);
@@ -52,7 +46,7 @@ static inline unsigned long port2adr(unsigned int port)
 		else
 			return (PA_AREA5_IO + 0x1000 + ((port-0x1f0) << 1));
 	else
-		maybebadio(port2adr, (unsigned long)port);
+		maybebadio((unsigned long)port);
 
 	return port;
 }
@@ -138,13 +132,13 @@ unsigned char rts7751r2d_inb_p(unsigned long port)
 unsigned short rts7751r2d_inw(unsigned long port)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(inw, port);
+		maybebadio(port);
         else if (PXSEG(port))
 		return *(volatile unsigned short *)port;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
 		return *(volatile unsigned short *)PCI_IOMAP(port);
 	else
-		maybebadio(inw, port);
+		maybebadio(port);
 
 	return 0;
 }
@@ -152,13 +146,13 @@ unsigned short rts7751r2d_inw(unsigned long port)
 unsigned int rts7751r2d_inl(unsigned long port)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(inl, port);
+		maybebadio(port);
         else if (PXSEG(port))
 		return *(volatile unsigned long *)port;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
 		return *(volatile unsigned long *)PCI_IOMAP(port);
 	else
-		maybebadio(inl, port);
+		maybebadio(port);
 
 	return 0;
 }
@@ -191,51 +185,55 @@ void rts7751r2d_outb_p(unsigned char value, unsigned long port)
 void rts7751r2d_outw(unsigned short value, unsigned long port)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(outw, port);
+		maybebadio(port);
         else if (PXSEG(port))
 		*(volatile unsigned short *)port = value;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
 		*(volatile unsigned short *)PCI_IOMAP(port) = value;
 	else
-		maybebadio(outw, port);
+		maybebadio(port);
 }
 
 void rts7751r2d_outl(unsigned int value, unsigned long port)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(outl, port);
+		maybebadio(port);
         else if (PXSEG(port))
 		*(volatile unsigned long *)port = value;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
 		*(volatile unsigned long *)PCI_IOMAP(port) = value;
 	else
-		maybebadio(outl, port);
+		maybebadio(port);
 }
 
 void rts7751r2d_insb(unsigned long port, void *addr, unsigned long count)
 {
+	unsigned long a = (unsigned long)addr;
 	volatile __u8 *bp;
 	volatile __u16 *p;
-	unsigned char *s = addr;
 
 	if (CHECK_AX88796L_PORT(port)) {
 		p = (volatile unsigned short *)port88796l(port, 0);
-		while (count--) *s++ = *p & 0xff;
+		while (count--)
+			ctrl_outb(*p & 0xff, a++);
 	} else if (PXSEG(port))
-		while (count--) *s++ = *(volatile unsigned char *)port;
+		while (count--)
+			ctrl_outb(ctrl_inb(port), a++);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
 		bp = (__u8 *)PCI_IOMAP(port);
-		while (count--) *s++ = *bp;
+		while (count--)
+			ctrl_outb(*bp, a++);
 	} else {
 		p = (volatile unsigned short *)port2adr(port);
-		while (count--) *s++ = *p & 0xff;
+		while (count--)
+			ctrl_outb(*p & 0xff, a++);
 	}
 }
 
 void rts7751r2d_insw(unsigned long port, void *addr, unsigned long count)
 {
+	unsigned long a = (unsigned long)addr;
 	volatile __u16 *p;
-	__u16 *s = addr;
 
 	if (CHECK_AX88796L_PORT(port))
 		p = (volatile unsigned short *)port88796l(port, 1);
@@ -245,46 +243,53 @@ void rts7751r2d_insw(unsigned long port, void *addr, unsigned long count)
 		p = (volatile unsigned short *)PCI_IOMAP(port);
 	else
 		p = (volatile unsigned short *)port2adr(port);
-	while (count--) *s++ = *p;
+	while (count--)
+		ctrl_outw(*p, a++);
 }
 
 void rts7751r2d_insl(unsigned long port, void *addr, unsigned long count)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(insl, port);
+		maybebadio(port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u32 *p = (__u32 *)PCI_IOMAP(port);
-		__u32 *s = addr;
+		unsigned long a = (unsigned long)addr;
 
-		while (count--) *s++ = *p;
+		while (count--) {
+			ctrl_outl(ctrl_inl(PCI_IOMAP(port)), a);
+			a += 4;
+		}
 	} else
-		maybebadio(insl, port);
+		maybebadio(port);
 }
 
 void rts7751r2d_outsb(unsigned long port, const void *addr, unsigned long count)
 {
+	unsigned long a = (unsigned long)addr;
 	volatile __u8 *bp;
 	volatile __u16 *p;
-	const __u8 *s = addr;
 
 	if (CHECK_AX88796L_PORT(port)) {
 		p = (volatile unsigned short *)port88796l(port, 0);
-		while (count--) *p = *s++;
+		while (count--)
+			*p = ctrl_inb(a++);
 	} else if (PXSEG(port))
-		while (count--) *(volatile unsigned char *)port = *s++;
+		while (count--)
+			ctrl_outb(a++, port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
 		bp = (__u8 *)PCI_IOMAP(port);
-		while (count--) *bp = *s++;
+		while (count--)
+			*bp = ctrl_inb(a++);
 	} else {
 		p = (volatile unsigned short *)port2adr(port);
-		while (count--) *p = *s++;
+		while (count--)
+			*p = ctrl_inb(a++);
 	}
 }
 
 void rts7751r2d_outsw(unsigned long port, const void *addr, unsigned long count)
 {
+	unsigned long a = (unsigned long)addr;
 	volatile __u16 *p;
-	const __u16 *s = addr;
 
 	if (CHECK_AX88796L_PORT(port))
 		p = (volatile unsigned short *)port88796l(port, 1);
@@ -294,20 +299,26 @@ void rts7751r2d_outsw(unsigned long port, const void *addr, unsigned long count)
 		p = (volatile unsigned short *)PCI_IOMAP(port);
 	else
 		p = (volatile unsigned short *)port2adr(port);
-	while (count--) *p = *s++;
+
+	while (count--) {
+		ctrl_outw(*p, a);
+		a += 2;
+	}
 }
 
 void rts7751r2d_outsl(unsigned long port, const void *addr, unsigned long count)
 {
 	if (CHECK_AX88796L_PORT(port))
-		maybebadio(outsl, port);
+		maybebadio(port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u32 *p = (__u32 *)PCI_IOMAP(port);
-		const __u32 *s = addr;
+		unsigned long a = (unsigned long)addr;
 
-		while (count--) *p = *s++;
+		while (count--) {
+			ctrl_outl(ctrl_inl(a), PCI_IOMAP(port));
+			a += 4;
+		}
 	} else
-		maybebadio(outsl, port);
+		maybebadio(port);
 }
 
 void *rts7751r2d_ioremap(unsigned long offset, unsigned long size)

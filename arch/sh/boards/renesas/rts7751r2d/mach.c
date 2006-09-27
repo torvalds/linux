@@ -15,7 +15,7 @@
 #include <asm/machvec.h>
 #include <asm/rtc.h>
 #include <asm/irq.h>
-#include <asm/rts7751r2d/io.h>
+#include <asm/mach/rts7751r2d.h>
 
 extern void heartbeat_rts7751r2d(void);
 extern void init_rts7751r2d_IRQ(void);
@@ -54,7 +54,6 @@ struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_outsl		= rts7751r2d_outsl,
 
 	.mv_ioremap		= rts7751r2d_ioremap,
-	.mv_isa_port2addr	= rts7751r2d_isa_port2addr,
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 #ifdef CONFIG_HEARTBEAT
 	.mv_heartbeat		= heartbeat_rts7751r2d,
