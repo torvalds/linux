@@ -655,8 +655,10 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
-	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
+		set_dma_reserve(dma_reserve);
+	}
 }
 
 int kern_addr_valid(unsigned long addr) 

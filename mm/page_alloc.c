@@ -104,6 +104,7 @@ int min_free_kbytes = 1024;
 
 unsigned long __meminitdata nr_kernel_pages;
 unsigned long __meminitdata nr_all_pages;
+static unsigned long __initdata dma_reserve;
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
   /*
@@ -2213,6 +2214,20 @@ unsigned long __init zone_absent_pages_in_node(int nid,
 				arch_zone_lowest_possible_pfn[zone_type],
 				arch_zone_highest_possible_pfn[zone_type]);
 }
+
+/* Return the zone index a PFN is in */
+int memmap_zone_idx(struct page *lmem_map)
+{
+	int i;
+	unsigned long phys_addr = virt_to_phys(lmem_map);
+	unsigned long pfn = phys_addr >> PAGE_SHIFT;
+
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		if (pfn < arch_zone_highest_possible_pfn[i])
+			break;
+
+	return i;
+}
 #else
 static inline unsigned long zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
@@ -2229,6 +2244,11 @@ static inline unsigned long zone_absent_pages_in_node(int nid,
 		return 0;
 
 	return zholes_size[zone_type];
+}
+
+static inline int memmap_zone_idx(struct page *lmem_map)
+{
+	return MAX_NR_ZONES;
 }
 #endif
 
@@ -2274,11 +2294,34 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 	
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
-		unsigned long size, realsize;
+		unsigned long size, realsize, memmap_pages;
 
 		size = zone_spanned_pages_in_node(nid, j, zones_size);
 		realsize = size - zone_absent_pages_in_node(nid, j,
 								zholes_size);
+
+		/*
+		 * Adjust realsize so that it accounts for how much memory
+		 * is used by this zone for memmap. This affects the watermark
+		 * and per-cpu initialisations
+		 */
+		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
+		if (realsize >= memmap_pages) {
+			realsize -= memmap_pages;
+			printk(KERN_DEBUG
+				"  %s zone: %lu pages used for memmap\n",
+				zone_names[j], memmap_pages);
+		} else
+			printk(KERN_WARNING
+				"  %s zone: %lu pages exceeds realsize %lu\n",
+				zone_names[j], memmap_pages, realsize);
+
+		/* Account for reserved DMA pages */
+		if (j == ZONE_DMA && realsize > dma_reserve) {
+			realsize -= dma_reserve;
+			printk(KERN_DEBUG "  DMA zone: %lu pages reserved\n",
+								dma_reserve);
+		}
 
 		if (!is_highmem_idx(j))
 			nr_kernel_pages += realsize;
@@ -2595,6 +2638,21 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	}
 }
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+
+/**
+ * set_dma_reserve - Account the specified number of pages reserved in ZONE_DMA
+ * @new_dma_reserve - The number of pages to mark reserved
+ *
+ * The per-cpu batchsize and zone watermarks are determined by present_pages.
+ * In the DMA zone, a significant percentage may be consumed by kernel image
+ * and other unfreeable allocations which can skew the watermarks badly. This
+ * function may optionally be used to account for unfreeable pages in
+ * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize
+ */
+void __init set_dma_reserve(unsigned long new_dma_reserve)
+{
+	dma_reserve = new_dma_reserve;
+}
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 static bootmem_data_t contig_bootmem_data;
