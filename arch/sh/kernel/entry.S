@@ -644,7 +644,7 @@ skip_restore:
 	!
 #if defined(CONFIG_KGDB_NMI)
 	! Clear in_nmi
-	mov.l	4f, k0
+	mov.l	6f, k0
 	mov	#0, k1
 	mov.b	k1, @k0
 #endif
