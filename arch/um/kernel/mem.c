@@ -226,7 +226,8 @@ void paging_init(void)
 	for(i = 0; i < ARRAY_SIZE(zones_size); i++)
 		zones_size[i] = 0;
 
-	zones_size[ZONE_DMA] = (end_iomem >> PAGE_SHIFT) - (uml_physmem >> PAGE_SHIFT);
+	zones_size[ZONE_NORMAL] = (end_iomem >> PAGE_SHIFT) -
+		(uml_physmem >> PAGE_SHIFT);
 #ifdef CONFIG_HIGHMEM
 	zones_size[ZONE_HIGHMEM] = highmem >> PAGE_SHIFT;
 #endif
