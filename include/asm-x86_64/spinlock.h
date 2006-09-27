@@ -4,6 +4,7 @@
 #include <asm/atomic.h>
 #include <asm/rwlock.h>
 #include <asm/page.h>
+#include <asm/processor.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
