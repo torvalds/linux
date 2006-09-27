@@ -266,5 +266,18 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
 #define cpu_relax()	barrier()
 
+#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
+    defined(CONFIG_CPU_SH4)
+#define PREFETCH_STRIDE		L1_CACHE_BYTES
+#define ARCH_HAS_PREFETCH
+#define ARCH_HAS_PREFETCHW
+static inline void prefetch(void *x)
+{
+	__asm__ __volatile__ ("pref @%0\n\t" : : "r" (x) : "memory");
+}
+
+#define prefetchw(x)	prefetch(x)
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PROCESSOR_H */
