@@ -1,3 +1,14 @@
+/*
+ * sound/oss/sh_dac_audio.c
+ *
+ * SH DAC based sound :(
+ *
+ *  Copyright (C) 2004,2005  Andriy Skulysh
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -11,10 +22,12 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
+#include <asm/clock.h>
 #include <asm/cpu/dac.h>
+#include <asm/cpu/timer.h>
 #include <asm/machvec.h>
 #include <asm/hp6xx/hp6xx.h>
-#include <asm/hd64461/hd64461.h>
+#include <asm/hd64461.h>
 
 #define MODNAME "sh_dac_audio"
 
@@ -22,11 +35,6 @@
 
 #define TMU1_TCR_INIT	0x0020	/* Clock/4, rising edge; interrupt on */
 #define TMU1_TSTR_INIT  0x02	/* Bit to turn on TMU1 */
-
-#define TMU_TSTR	0xfffffe92
-#define TMU1_TCOR	0xfffffea0
-#define TMU1_TCNT	0xfffffea4
-#define TMU1_TCR	0xfffffea8
 
 #define BUFFER_SIZE 48000
 
@@ -87,14 +95,18 @@ static void dac_audio_stop(void)
 		outw(v, HD64461_GPADR);
 	}
 
+ 	sh_dac_output(0, CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 	sh_dac_disable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 }
 
 static void dac_audio_set_rate(void)
 {
 	unsigned long interval;
+ 	struct clk *clk;
 
-	interval = (current_cpu_data.module_clock / 4) / rate;
+ 	clk = clk_get("module_clk");
+ 	interval = (clk_get_rate(clk) / 4) / rate;
+ 	clk_put(clk);
 	ctrl_outl(interval, TMU1_TCOR);
 	ctrl_outl(interval, TMU1_TCNT);
 }
