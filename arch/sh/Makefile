@@ -103,6 +103,7 @@ machdir-$(CONFIG_SH_RTS7751R2D)			:= renesas/rts7751r2d
 machdir-$(CONFIG_SH_7751_SYSTEMH)		:= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			:= renesas/edosk7705
 machdir-$(CONFIG_SH_R7780RP)			:= renesas/r7780rp
+machdir-$(CONFIG_SH_7710VOIPGW)			:= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			:= landisk
 machdir-$(CONFIG_SH_TITAN)			:= titan
