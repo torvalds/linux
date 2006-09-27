@@ -82,6 +82,9 @@ static int sh_dmac_request_dma(struct dma_channel *chan)
 {
 	char name[32];
 
+	if (unlikely(!chan->flags & DMA_TEI_CAPABLE))
+		return 0;
+
 	snprintf(name, sizeof(name), "DMAC Transfer End (Channel %d)",
 		 chan->chan);
 
@@ -255,7 +258,7 @@ static int __init sh_dmac_init(void)
 #ifdef CONFIG_CPU_SH4
 	make_ipr_irq(DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
 	i = request_irq(DMAE_IRQ, dma_err, IRQF_DISABLED, "DMAC Address Error", 0);
-	if (i < 0)
+	if (unlikely(i < 0))
 		return i;
 #endif
 
@@ -270,7 +273,7 @@ static int __init sh_dmac_init(void)
 	 * been set.
 	 */
 	i = dmaor_reset();
-	if (i < 0)
+	if (unlikely(i != 0))
 		return i;
 
 	return register_dmac(info);
