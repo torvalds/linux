@@ -3,7 +3,7 @@
  *
  * Privileged Space Mapping Buffer (PMB) Support.
  *
- * Copyright (C) 2005 Paul Mundt
+ * Copyright (C) 2005, 2006 Paul Mundt
  *
  * P1/P2 Section mapping definitions from map32.h, which was:
  *
@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/io.h>
 
@@ -127,11 +128,15 @@ repeat:
 	return 0;
 }
 
-void set_pmb_entry(struct pmb_entry *pmbe)
+int set_pmb_entry(struct pmb_entry *pmbe)
 {
+	int ret;
+
 	jump_to_P2();
-	__set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, &pmbe->entry);
+	ret = __set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, &pmbe->entry);
 	back_to_P1();
+
+	return ret;
 }
 
 void clear_pmb_entry(struct pmb_entry *pmbe)
@@ -162,11 +167,141 @@ void clear_pmb_entry(struct pmb_entry *pmbe)
 	clear_bit(entry, &pmb_map);
 }
 
+static DEFINE_SPINLOCK(pmb_list_lock);
+static struct pmb_entry *pmb_list;
+
+static inline void pmb_list_add(struct pmb_entry *pmbe)
+{
+	struct pmb_entry **p, *tmp;
+
+	p = &pmb_list;
+	while ((tmp = *p) != NULL)
+		p = &tmp->next;
+
+	pmbe->next = tmp;
+	*p = pmbe;
+}
+
+static inline void pmb_list_del(struct pmb_entry *pmbe)
+{
+	struct pmb_entry **p, *tmp;
+
+	for (p = &pmb_list; (tmp = *p); p = &tmp->next)
+		if (tmp == pmbe) {
+			*p = tmp->next;
+			return;
+		}
+}
+
+static struct {
+	unsigned long size;
+	int flag;
+} pmb_sizes[] = {
+	{ .size	= 0x20000000, .flag = PMB_SZ_512M, },
+	{ .size = 0x08000000, .flag = PMB_SZ_128M, },
+	{ .size = 0x04000000, .flag = PMB_SZ_64M,  },
+	{ .size = 0x01000000, .flag = PMB_SZ_16M,  },
+};
+
+long pmb_remap(unsigned long vaddr, unsigned long phys,
+	       unsigned long size, unsigned long flags)
+{
+	struct pmb_entry *pmbp;
+	unsigned long wanted;
+	int pmb_flags, i;
+
+	/* Convert typical pgprot value to the PMB equivalent */
+	if (flags & _PAGE_CACHABLE) {
+		if (flags & _PAGE_WT)
+			pmb_flags = PMB_WT;
+		else
+			pmb_flags = PMB_C;
+	} else
+		pmb_flags = PMB_WT | PMB_UB;
+
+	pmbp = NULL;
+	wanted = size;
+
+again:
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
+		struct pmb_entry *pmbe;
+		int ret;
+
+		if (size < pmb_sizes[i].size)
+			continue;
+
+		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag);
+		if (IS_ERR(pmbe))
+			return PTR_ERR(pmbe);
+
+		ret = set_pmb_entry(pmbe);
+		if (ret != 0) {
+			pmb_free(pmbe);
+			return -EBUSY;
+		}
+
+		phys	+= pmb_sizes[i].size;
+		vaddr	+= pmb_sizes[i].size;
+		size	-= pmb_sizes[i].size;
+
+		/*
+		 * Link adjacent entries that span multiple PMB entries
+		 * for easier tear-down.
+		 */
+		if (likely(pmbp))
+			pmbp->link = pmbe;
+
+		pmbp = pmbe;
+	}
+
+	if (size >= 0x1000000)
+		goto again;
+
+	return wanted - size;
+}
+
+void pmb_unmap(unsigned long addr)
+{
+	struct pmb_entry **p, *pmbe;
+
+	for (p = &pmb_list; (pmbe = *p); p = &pmbe->next)
+		if (pmbe->vpn == addr)
+			break;
+
+	if (unlikely(!pmbe))
+		return;
+
+	WARN_ON(!test_bit(pmbe->entry, &pmb_map));
+
+	do {
+		struct pmb_entry *pmblink = pmbe;
+
+		clear_pmb_entry(pmbe);
+		pmbe = pmblink->link;
+
+		pmb_free(pmblink);
+	} while (pmbe);
+}
+
 static void pmb_cache_ctor(void *pmb, kmem_cache_t *cachep, unsigned long flags)
 {
+	struct pmb_entry *pmbe = pmb;
+
 	memset(pmb, 0, sizeof(struct pmb_entry));
 
-	((struct pmb_entry *)pmb)->entry = PMB_NO_ENTRY;
+	spin_lock_irq(&pmb_list_lock);
+
+	pmbe->entry = PMB_NO_ENTRY;
+	pmb_list_add(pmbe);
+
+	spin_unlock_irq(&pmb_list_lock);
+}
+
+static void pmb_cache_dtor(void *pmb, kmem_cache_t *cachep, unsigned long flags)
+{
+	spin_lock_irq(&pmb_list_lock);
+	pmb_list_del(pmb);
+	spin_unlock_irq(&pmb_list_lock);
 }
 
 static int __init pmb_init(void)
@@ -177,7 +312,7 @@ static int __init pmb_init(void)
 	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
 
 	pmb_cache = kmem_cache_create("pmb", sizeof(struct pmb_entry),
-				      0, 0, pmb_cache_ctor, NULL);
+				      0, 0, pmb_cache_ctor, pmb_cache_dtor);
 	BUG_ON(!pmb_cache);
 
 	jump_to_P2();

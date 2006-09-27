@@ -321,15 +321,6 @@ void rts7751r2d_outsl(unsigned long port, const void *addr, unsigned long count)
 		maybebadio(port);
 }
 
-void *rts7751r2d_ioremap(unsigned long offset, unsigned long size)
-{
-	if (offset >= 0xfd000000)
-		return (void *)offset;
-	else
-		return (void *)P2SEGADDR(offset);
-}
-EXPORT_SYMBOL(rts7751r2d_ioremap);
-
 unsigned long rts7751r2d_isa_port2addr(unsigned long offset)
 {
 	return port2adr(offset);

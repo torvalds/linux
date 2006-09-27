@@ -17,9 +17,9 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <asm/io.h>
 #include <asm/landisk/iodata_landisk.h>
 #include <asm/addrspace.h>
+#include <asm/io.h>
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -42,10 +42,6 @@ extern void *area6_io_base;	/* Area 6 I/O Base address */
 
 #define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
 
-#define maybebadio(name,port) \
-  printk("bad PC-like io %s for port 0x%lx at 0x%08x\n", \
-	 #name, (port), (__u32) __builtin_return_address(0))
-
 static inline void delay(void)
 {
 	ctrl_inw(0xa0000000);
@@ -66,7 +62,7 @@ static inline unsigned long port2adr(unsigned int port)
 			return ((unsigned long)area6_io_base + PA_SIDE_OFFSET +
 				((port - 0x170) << 1));
 	else
-		maybebadio(port2adr, (unsigned long)port);
+		maybebadio((unsigned long)port);
 
 	return port;
 }
@@ -89,234 +85,200 @@ static inline unsigned long port2adr(unsigned int port)
  * should be way beyond the window, and is used  w/o translation for
  * compatibility.
  */
-unsigned char landisk_inb(unsigned long port)
+u8 landisk_inb(unsigned long port)
 {
 	if (PXSEG(port))
-		return *(volatile unsigned char *)port;
+		return ctrl_inb(port);
 	else if (CHECK_SH7751_PCIIO(port))
-		return *(volatile unsigned char *)PCI_IOMAP(port);
-	else
-		return (*(volatile unsigned short *)port2adr(port) & 0xff);
+		return ctrl_inb(PCI_IOMAP(port));
+
+	return ctrl_inw(port2adr(port)) & 0xff;
 }
 
-unsigned char landisk_inb_p(unsigned long port)
+u8 landisk_inb_p(unsigned long port)
 {
-	unsigned char v;
+	u8 v;
 
 	if (PXSEG(port))
-		v = *(volatile unsigned char *)port;
+		v = ctrl_inb(port);
 	else if (CHECK_SH7751_PCIIO(port))
-		v = *(volatile unsigned char *)PCI_IOMAP(port);
+		v = ctrl_inb(PCI_IOMAP(port));
 	else
-		v = (*(volatile unsigned short *)port2adr(port) & 0xff);
+		v = ctrl_inw(port2adr(port)) & 0xff;
+
 	delay();
 
 	return v;
 }
 
-unsigned short landisk_inw(unsigned long port)
+u16 landisk_inw(unsigned long port)
 {
 	if (PXSEG(port))
-		return *(volatile unsigned short *)port;
+		return ctrl_inw(port);
 	else if (CHECK_SH7751_PCIIO(port))
-		return *(volatile unsigned short *)PCI_IOMAP(port);
+		return ctrl_inw(PCI_IOMAP(port));
 	else
-		maybebadio(inw, port);
+		maybebadio(port);
 
 	return 0;
 }
 
-unsigned int landisk_inl(unsigned long port)
+u32 landisk_inl(unsigned long port)
 {
 	if (PXSEG(port))
-		return *(volatile unsigned long *)port;
+		return ctrl_inl(port);
 	else if (CHECK_SH7751_PCIIO(port))
-		return *(volatile unsigned long *)PCI_IOMAP(port);
+		return ctrl_inl(PCI_IOMAP(port));
 	else
-		maybebadio(inl, port);
+		maybebadio(port);
 
 	return 0;
 }
 
-void landisk_outb(unsigned char value, unsigned long port)
+void landisk_outb(u8 value, unsigned long port)
 {
-
 	if (PXSEG(port))
-		*(volatile unsigned char *)port = value;
+		ctrl_outb(value, port);
 	else if (CHECK_SH7751_PCIIO(port))
-		*(volatile unsigned char *)PCI_IOMAP(port) = value;
+		ctrl_outb(value, PCI_IOMAP(port));
 	else
-		*(volatile unsigned short *)port2adr(port) = value;
+		ctrl_outw(value, port2adr(port));
 }
 
-void landisk_outb_p(unsigned char value, unsigned long port)
+void landisk_outb_p(u8 value, unsigned long port)
 {
 	if (PXSEG(port))
-		*(volatile unsigned char *)port = value;
+		ctrl_outb(value, port);
 	else if (CHECK_SH7751_PCIIO(port))
-		*(volatile unsigned char *)PCI_IOMAP(port) = value;
+		ctrl_outb(value, PCI_IOMAP(port));
 	else
-		*(volatile unsigned short *)port2adr(port) = value;
+		ctrl_outw(value, port2adr(port));
 	delay();
 }
 
-void landisk_outw(unsigned short value, unsigned long port)
+void landisk_outw(u16 value, unsigned long port)
 {
 	if (PXSEG(port))
-		*(volatile unsigned short *)port = value;
+		ctrl_outw(value, port);
 	else if (CHECK_SH7751_PCIIO(port))
-		*(volatile unsigned short *)PCI_IOMAP(port) = value;
+		ctrl_outw(value, PCI_IOMAP(port));
 	else
-		maybebadio(outw, port);
+		maybebadio(port);
 }
 
-void landisk_outl(unsigned int value, unsigned long port)
+void landisk_outl(u32 value, unsigned long port)
 {
 	if (PXSEG(port))
-		*(volatile unsigned long *)port = value;
+		ctrl_outl(value, port);
 	else if (CHECK_SH7751_PCIIO(port))
-		*(volatile unsigned long *)PCI_IOMAP(port) = value;
+		ctrl_outl(value, PCI_IOMAP(port));
 	else
-		maybebadio(outl, port);
+		maybebadio(port);
 }
 
-void landisk_insb(unsigned long port, void *addr, unsigned long count)
+void landisk_insb(unsigned long port, void *dst, unsigned long count)
 {
-	if (PXSEG(port))
-		while (count--)
-			*((unsigned char *)addr)++ =
-			    *(volatile unsigned char *)port;
-	else if (CHECK_SH7751_PCIIO(port)) {
-		volatile __u8 *bp = (__u8 *) PCI_IOMAP(port);
+        volatile u16 *p;
+        u8 *buf = dst;
 
-		while (count--)
-			*((volatile unsigned char *)addr)++ = *bp;
+        if (PXSEG(port)) {
+                while (count--)
+                        *buf++ = *(volatile u8 *)port;
+	} else if (CHECK_SH7751_PCIIO(port)) {
+                volatile u8 *bp = (volatile u8 *)PCI_IOMAP(port);
+
+                while (count--)
+                        *buf++ = *bp;
 	} else {
-		volatile __u16 *p = (volatile unsigned short *)port2adr(port);
-
-		while (count--)
-			*((unsigned char *)addr)++ = *p;
+                p = (volatile u16 *)port2adr(port);
+                while (count--)
+                        *buf++ = *p & 0xff;
 	}
 }
 
-void landisk_insw(unsigned long port, void *addr, unsigned long count)
+void landisk_insw(unsigned long port, void *dst, unsigned long count)
 {
-	volatile __u16 *p;
+        volatile u16 *p;
+        u16 *buf = dst;
 
 	if (PXSEG(port))
-		p = (volatile unsigned short *)port;
+		p = (volatile u16 *)port;
 	else if (CHECK_SH7751_PCIIO(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+		p = (volatile u16 *)PCI_IOMAP(port);
 	else
-		p = (volatile unsigned short *)port2adr(port);
+		p = (volatile u16 *)port2adr(port);
 	while (count--)
-		*((__u16 *) addr)++ = *p;
+		*buf++ = *p;
 }
 
-void landisk_insl(unsigned long port, void *addr, unsigned long count)
+void landisk_insl(unsigned long port, void *dst, unsigned long count)
 {
+        u32 *buf = dst;
+
 	if (CHECK_SH7751_PCIIO(port)) {
-		volatile __u32 *p = (__u32 *) PCI_IOMAP(port);
+                volatile u32 *p = (volatile u32 *)PCI_IOMAP(port);
 
-		while (count--)
-			*((__u32 *) addr)++ = *p;
+                while (count--)
+                        *buf++ = *p;
 	} else
-		maybebadio(insl, port);
+		maybebadio(port);
 }
 
-void landisk_outsb(unsigned long port, const void *addr, unsigned long count)
+void landisk_outsb(unsigned long port, const void *src, unsigned long count)
 {
+        volatile u16 *p;
+        const u8 *buf = src;
+
 	if (PXSEG(port))
-		while (count--)
-			*(volatile unsigned char *)port =
-			    *((unsigned char *)addr)++;
+                while (count--)
+                        ctrl_outb(*buf++, port);
 	else if (CHECK_SH7751_PCIIO(port)) {
-		volatile __u8 *bp = (__u8 *) PCI_IOMAP(port);
+                volatile u8 *bp = (volatile u8 *)PCI_IOMAP(port);
 
-		while (count--)
-			*bp = *((volatile unsigned char *)addr)++;
+                while (count--)
+                        *bp = *buf++;
 	} else {
-		volatile __u16 *p = (volatile unsigned short *)port2adr(port);
-
-		while (count--)
-			*p = *((unsigned char *)addr)++;
+                p = (volatile u16 *)port2adr(port);
+                while (count--)
+                        *p = *buf++;
 	}
 }
 
-void landisk_outsw(unsigned long port, const void *addr, unsigned long count)
+void landisk_outsw(unsigned long port, const void *src, unsigned long count)
 {
-	volatile __u16 *p;
+        volatile u16 *p;
+        const u16 *buf = src;
 
 	if (PXSEG(port))
-		p = (volatile unsigned short *)port;
+                p = (volatile u16 *)port;
 	else if (CHECK_SH7751_PCIIO(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+                p = (volatile u16 *)PCI_IOMAP(port);
 	else
-		p = (volatile unsigned short *)port2adr(port);
-	while (count--)
-		*p = *((__u16 *) addr)++;
+                p = (volatile u16 *)port2adr(port);
+
+        while (count--)
+                *p = *buf++;
 }
 
-void landisk_outsl(unsigned long port, const void *addr, unsigned long count)
+void landisk_outsl(unsigned long port, const void *src, unsigned long count)
 {
+        const u32 *buf = src;
+
 	if (CHECK_SH7751_PCIIO(port)) {
-		volatile __u32 *p = (__u32 *) PCI_IOMAP(port);
+                volatile u32 *p = (volatile u32 *)PCI_IOMAP(port);
 
-		while (count--)
-			*p = *((__u32 *) addr)++;
+                while (count--)
+                        *p = *buf++;
 	} else
-		maybebadio(outsl, port);
+		maybebadio(port);
 }
 
-/* For read/write calls, just copy generic (pass-thru); PCIMBR is  */
-/* already set up.  For a larger memory space, these would need to */
-/* reset PCIMBR as needed on a per-call basis...                   */
-
-unsigned char landisk_readb(unsigned long addr)
+void __iomem *landisk_ioport_map(unsigned long port, unsigned int size)
 {
-	return *(volatile unsigned char *)addr;
-}
+        if (PXSEG(port))
+                return (void __iomem *)port;
+        else if (CHECK_SH7751_PCIIO(port))
+                return (void __iomem *)PCI_IOMAP(port);
 
-unsigned short landisk_readw(unsigned long addr)
-{
-	return *(volatile unsigned short *)addr;
-}
-
-unsigned int landisk_readl(unsigned long addr)
-{
-	return *(volatile unsigned long *)addr;
-}
-
-void landisk_writeb(unsigned char b, unsigned long addr)
-{
-	*(volatile unsigned char *)addr = b;
-}
-
-void landisk_writew(unsigned short b, unsigned long addr)
-{
-	*(volatile unsigned short *)addr = b;
-}
-
-void landisk_writel(unsigned int b, unsigned long addr)
-{
-	*(volatile unsigned long *)addr = b;
-}
-
-void *landisk_ioremap(unsigned long offset, unsigned long size)
-{
-	if (offset >= 0xfd000000)
-		return (void *)offset;
-	else
-		return (void *)P2SEGADDR(offset);
-}
-
-void landisk_iounmap(void *addr)
-{
-}
-
-/* Map ISA bus address to the real address. Only for PCMCIA.  */
-
-unsigned long landisk_isa_port2addr(unsigned long offset)
-{
-	return port2adr(offset);
+        return (void __iomem *)port2adr(port);
 }

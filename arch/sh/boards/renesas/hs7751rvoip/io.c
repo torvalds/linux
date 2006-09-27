@@ -294,15 +294,6 @@ void hs7751rvoip_outsl(unsigned long port, const void *addr, unsigned long count
 		maybebadio(outsl, port);
 }
 
-void *hs7751rvoip_ioremap(unsigned long offset, unsigned long size)
-{
-	if (offset >= 0xfd000000)
-		return (void *)offset;
-	else
-		return (void *)P2SEGADDR(offset);
-}
-EXPORT_SYMBOL(hs7751rvoip_ioremap);
-
 unsigned long hs7751rvoip_isa_port2addr(unsigned long offset)
 {
 	return port2adr(offset);

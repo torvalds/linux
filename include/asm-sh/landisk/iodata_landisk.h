@@ -74,5 +74,8 @@ extern int landisk_ledparam;    /* from setup.c */
 extern int landisk_buzzerparam; /* from setup.c */
 extern int landisk_arch;        /* from setup.c */
 
+#define __IO_PREFIX landisk
+#include <asm/io_generic.h>
+
 #endif  /* __ASM_SH_IODATA_LANDISK_H */
 

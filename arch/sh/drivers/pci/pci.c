@@ -2,7 +2,7 @@
  * arch/sh/drivers/pci/pci.c
  *
  * Copyright (c) 2002 M. R. Brown  <mrbrown@linux-sh.org>
- * Copyright (c) 2004, 2005 Paul Mundt  <lethal@linux-sh.org>
+ * Copyright (c) 2004 - 2006 Paul Mundt  <lethal@linux-sh.org>
  *
  * These functions are collected here to reduce duplication of common
  * code amongst the many platform-specific PCI support code files.
@@ -172,10 +172,23 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 		return NULL;
 	if (maxlen && len > maxlen)
 		len = maxlen;
-	if (flags & IORESOURCE_IO)
+
+	/*
+	 * Presently the IORESOURCE_MEM case is a bit special, most
+	 * SH7751 style PCI controllers have PCI memory at a fixed
+	 * location in the address space where no remapping is desired
+	 * (traditionally at 0xfd000000). Once this changes, the
+	 * IORESOURCE_MEM case will have to switch to using ioremap() and
+	 * more care will have to be taken to inhibit page table mapping
+	 * for legacy cores.
+	 *
+	 * For now everything wraps to ioport_map(), since boards that
+	 * have PCI will be able to check the address range properly on
+	 * their own.
+	 *			-- PFM.
+	 */
+	if (flags & (IORESOURCE_IO | IORESOURCE_MEM))
 		return ioport_map(start, len);
-	if (flags & IORESOURCE_MEM)
-		return ioremap(start, len);
 
 	return NULL;
 }

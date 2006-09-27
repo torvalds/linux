@@ -138,19 +138,12 @@ void titan_outsl(unsigned long port, const void *src, unsigned long count)
         maybebadio(port);
 }
 
-void *titan_ioremap(unsigned long offset, unsigned long size) {
-	if (CHECK_SH7751_PCIIO(offset) || CHECK_SH7751_PCIMEMIO(offset))
-		return (void *)offset;
-}
-
 void __iomem *titan_ioport_map(unsigned long port, unsigned int size)
 {
-	if (PXSEG(port))
+	if (PXSEG(port) || CHECK_SH7751_PCIMEMIO(port))
 		return (void __iomem *)port;
 	else if (CHECK_SH7751_PCIIO(port))
 		return (void __iomem *)PCI_IOMAP(port);
 
 	return (void __iomem *)port2adr(port);
 }
-
-EXPORT_SYMBOL(titan_ioremap);

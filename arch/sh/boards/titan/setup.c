@@ -51,7 +51,6 @@ struct sh_machine_vector mv_titan __initmv = {
 	.mv_insl =	titan_insl,
 	.mv_outsl =	titan_outsl,
 
-	.mv_ioremap =	titan_ioremap,
 	.mv_ioport_map = titan_ioport_map,
 
 	.mv_init_irq =	init_titan_irq,

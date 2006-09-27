@@ -41,9 +41,6 @@
 #define slot_no 1
 #endif
 
-/* defined in mm/ioremap.c */
-extern void * p3_ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags);
-
 /* use this pointer to access to directly connected compact flash io area*/
 void *cf_io_base;
 
@@ -62,7 +59,7 @@ static int __init allocate_cf_area(void)
 		return -ENOMEM;
 	}
 /*	printk("p3_ioremap(paddr=0x%08lx, psize=0x%08lx, prot=0x%08lx)=0x%08lx\n",
-	    	paddrbase, psize, prot.pgprot, cf_io_base);*/
+		paddrbase, psize, prot.pgprot, cf_io_base);*/
 
 	/* XXX : do we need attribute and common-memory area also? */
 

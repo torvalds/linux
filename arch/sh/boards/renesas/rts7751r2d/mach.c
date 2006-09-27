@@ -19,7 +19,6 @@
 
 extern void heartbeat_rts7751r2d(void);
 extern void init_rts7751r2d_IRQ(void);
-extern void *rts7751r2d_ioremap(unsigned long, unsigned long);
 extern int rts7751r2d_irq_demux(int irq);
 
 extern void *voyagergx_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
@@ -53,7 +52,6 @@ struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_outsw		= rts7751r2d_outsw,
 	.mv_outsl		= rts7751r2d_outsl,
 
-	.mv_ioremap		= rts7751r2d_ioremap,
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 #ifdef CONFIG_HEARTBEAT
 	.mv_heartbeat		= heartbeat_rts7751r2d,

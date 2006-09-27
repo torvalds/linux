@@ -60,7 +60,6 @@ struct sh_machine_vector mv_hs7751rvoip __initmv = {
 	.mv_outsw		= hs7751rvoip_outsw,
 	.mv_outsl		= hs7751rvoip_outsl,
 
-	.mv_ioremap		= hs7751rvoip_ioremap,
 	.mv_isa_port2addr	= hs7751rvoip_isa_port2addr,
 	.mv_init_irq		= hs7751rvoip_init_irq,
 };

@@ -27,7 +27,6 @@ EXPORT_SYMBOL(sh_mv);
 
 /* platform dependent support */
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(enable_irq);
 EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(probe_irq_mask);
