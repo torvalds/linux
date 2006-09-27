@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/clock.c - SuperH clock framework
  *
- *  Copyright (C) 2005  Paul Mundt
+ *  Copyright (C) 2005, 2006  Paul Mundt
  *
  * This clock framework is derived from the OMAP version by:
  *
@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/seq_file.h>
@@ -24,7 +25,7 @@
 
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
-static DECLARE_MUTEX(clock_list_sem);
+static DEFINE_MUTEX(clock_list_sem);
 
 /*
  * Each subtype is expected to define the init routines for these clocks,
@@ -140,21 +141,21 @@ void clk_disable(struct clk *clk)
 
 int clk_register(struct clk *clk)
 {
-	down(&clock_list_sem);
+	mutex_lock(&clock_list_sem);
 
 	list_add(&clk->node, &clock_list);
 	kref_init(&clk->kref);
 
-	up(&clock_list_sem);
+	mutex_unlock(&clock_list_sem);
 
 	return 0;
 }
 
 void clk_unregister(struct clk *clk)
 {
-	down(&clock_list_sem);
+	mutex_lock(&clock_list_sem);
 	list_del(&clk->node);
-	up(&clock_list_sem);
+	mutex_unlock(&clock_list_sem);
 }
 
 inline unsigned long clk_get_rate(struct clk *clk)
@@ -198,14 +199,14 @@ struct clk *clk_get(const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
-	down(&clock_list_sem);
+	mutex_lock(&clock_list_sem);
 	list_for_each_entry(p, &clock_list, node) {
 		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
 			clk = p;
 			break;
 		}
 	}
-	up(&clock_list_sem);
+	mutex_unlock(&clock_list_sem);
 
 	return clk;
 }
