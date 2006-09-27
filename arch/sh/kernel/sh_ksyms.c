@@ -100,6 +100,7 @@ EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_cache_range);
 EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_purge_region);
+EXPORT_SYMBOL(clear_user_page);
 #endif
 
 #if defined(CONFIG_SH7705_CACHE_32KB)
