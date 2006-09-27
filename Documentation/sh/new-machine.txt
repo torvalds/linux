@@ -41,11 +41,6 @@ Board-specific code:
         |
 	.. more boards here ...
 
-It should also be noted that each board is required to have some certain
-headers. At the time of this writing, io.h is the only thing that needs
-to be provided for each board, and can generally just reference generic
-functions (with the exception of isa_port2addr).
-
 Next, for companion chips:
 .
 `-- arch
@@ -104,12 +99,13 @@ and then populate that with sub-directories for each member of the family.
 Both the Solution Engine and the hp6xx boards are an example of this.
 
 After you have setup your new arch/sh/boards/ directory, remember that you
-also must add a directory in include/asm-sh for headers localized to this
-board. In order to interoperate seamlessly with the build system, it's best
-to have this directory the same as the arch/sh/boards/ directory name,
-though if your board is again part of a family, the build system has ways
-of dealing with this, and you can feel free to name the directory after
-the family member itself.
+should also add a directory in include/asm-sh for headers localized to this
+board (if there are going to be more than one). In order to interoperate
+seamlessly with the build system, it's best to have this directory the same
+as the arch/sh/boards/ directory name, though if your board is again part of
+a family, the build system has ways of dealing with this (via incdir-y
+overloading), and you can feel free to name the directory after the family
+member itself.
 
 There are a few things that each board is required to have, both in the
 arch/sh/boards and the include/asm-sh/ heirarchy. In order to better
@@ -122,6 +118,7 @@ might look something like:
  * arch/sh/boards/vapor/setup.c - Setup code for imaginary board
  */
 #include <linux/init.h>
+#include <asm/rtc.h> /* for board_time_init() */
 
 const char *get_system_type(void)
 {
@@ -152,79 +149,57 @@ int __init platform_setup(void)
 }
 
 Our new imaginary board will also have to tie into the machvec in order for it
-to be of any use. Currently the machvec is slowly on its way out, but is still
-required for the time being. As such, let us take a look at what needs to be
-done for the machvec assignment.
+to be of any use.
 
 machvec functions fall into a number of categories:
 
  - I/O functions to IO memory (inb etc) and PCI/main memory (readb etc).
- - I/O remapping functions (ioremap etc)
- - some initialisation functions
- - a 'heartbeat' function
- - some miscellaneous flags
+ - I/O mapping functions (ioport_map, ioport_unmap, etc).
+ - a 'heartbeat' function.
+ - PCI and IRQ initialization routines.
+ - Consistent allocators (for boards that need special allocators,
+   particularly for allocating out of some board-specific SRAM for DMA
+   handles).
 
-The tree can be built in two ways:
- - as a fully generic build. All drivers are linked in, and all functions
-   go through the machvec
- - as a machine specific build. In this case only the required drivers
-   will be linked in, and some macros may be redefined to not go through
-   the machvec where performance is important (in particular IO functions).
+There are machvec functions added and removed over time, so always be sure to
+consult include/asm-sh/machvec.h for the current state of the machvec.
 
-There are three ways in which IO can be performed:
- - none at all. This is really only useful for the 'unknown' machine type,
-   which us designed to run on a machine about which we know nothing, and
-   so all all IO instructions do nothing.
- - fully custom. In this case all IO functions go to a machine specific
-   set of functions which can do what they like
- - a generic set of functions. These will cope with most situations,
-   and rely on a single function, mv_port2addr, which is called through the
-   machine vector, and converts an IO address into a memory address, which
-   can be read from/written to directly.
+The kernel will automatically wrap in generic routines for undefined function
+pointers in the machvec at boot time, as machvec functions are referenced
+unconditionally throughout most of the tree. Some boards have incredibly
+sparse machvecs (such as the dreamcast and sh03), whereas others must define
+virtually everything (rts7751r2d).
 
-Thus adding a new machine involves the following steps (I will assume I am
-adding a machine called vapor):
+Adding a new machine is relatively trivial (using vapor as an example):
 
- - add a new file include/asm-sh/vapor/io.h which contains prototypes for
+If the board-specific definitions are quite minimalistic, as is the case for
+the vast majority of boards, simply having a single board-specific header is
+sufficient.
+
+ - add a new file include/asm-sh/vapor.h which contains prototypes for
    any machine specific IO functions prefixed with the machine name, for
    example vapor_inb. These will be needed when filling out the machine
    vector.
 
-   This is the minimum that is required, however there are ample
-   opportunities to optimise this. In particular, by making the prototypes
-   inline function definitions, it is possible to inline the function when
-   building machine specific versions. Note that the machine vector
-   functions will still be needed, so that a module built for a generic
-   setup can be loaded.
+   Note that these prototypes are generated automatically by setting
+   __IO_PREFIX to something sensible. A typical example would be:
 
- - add a new file arch/sh/boards/vapor/mach.c. This contains the definition
-   of the machine vector. When building the machine specific version, this
-   will be the real machine vector (via an alias), while in the generic
-   version is used to initialise the machine vector, and then freed, by
-   making it initdata. This should be defined as:
+	#define __IO_PREFIX vapor
+   	#include <asm/io_generic.h>
 
-     struct sh_machine_vector mv_vapor __initmv = {
-       .mv_name = "vapor",
-     }
-     ALIAS_MV(vapor)
+   somewhere in the board-specific header. Any boards being ported that still
+   have a legacy io.h should remove it entirely and switch to the new model.
 
- - finally add a file arch/sh/boards/vapor/io.c, which contains
-   definitions of the machine specific io functions.
+ - Add machine vector definitions to the board's setup.c. At a bare minimum,
+   this must be defined as something like:
 
-A note about initialisation functions. Three initialisation functions are
-provided in the machine vector:
- - mv_arch_init - called very early on from setup_arch
- - mv_init_irq - called from init_IRQ, after the generic SH interrupt
-   initialisation
- - mv_init_pci - currently not used
+	struct sh_machine_vector mv_vapor __initmv = {
+		.mv_name = "vapor",
+	};
+	ALIAS_MV(vapor)
 
-Any other remaining functions which need to be called at start up can be
-added to the list using the __initcalls macro (or module_init if the code
-can be built as a module). Many generic drivers probe to see if the device
-they are targeting is present, however this may not always be appropriate,
-so a flag can be added to the machine vector which will be set on those
-machines which have the hardware in question, reducing the probe to a
-single conditional.
+ - finally add a file arch/sh/boards/vapor/io.c, which contains definitions of
+   the machine specific io functions (if there are enough to warrant it).
 
 3. Hooking into the Build System
 ================================
@@ -303,4 +278,3 @@ which will in turn copy the defconfig for this board, run it through
 oldconfig (prompting you for any new options since the time of creation),
 and start you on your way to having a functional kernel for your new
 board.
-
