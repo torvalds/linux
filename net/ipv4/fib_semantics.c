@@ -847,7 +847,7 @@ failure:
 
 /* Note! fib_semantic_match intentionally uses  RCU list functions. */
 int fib_semantic_match(struct list_head *head, const struct flowi *flp,
-		       struct fib_result *res, __u32 zone, __u32 mask, 
+		       struct fib_result *res, __be32 zone, __be32 mask,
 			int prefixlen)
 {
 	struct fib_alias *fa;

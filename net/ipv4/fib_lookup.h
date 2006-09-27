@@ -20,7 +20,7 @@ struct fib_alias {
 /* Exported by fib_semantics.c */
 extern int fib_semantic_match(struct list_head *head,
 			      const struct flowi *flp,
-			      struct fib_result *res, __u32 zone, __u32 mask,
+			      struct fib_result *res, __be32 zone, __be32 mask,
 				int prefixlen);
 extern void fib_release_info(struct fib_info *);
 extern struct fib_info *fib_create_info(struct fib_config *cfg);
