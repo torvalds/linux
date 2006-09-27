@@ -118,7 +118,6 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
 	i_size_write(inode, attr->size);
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks  = attr->blocks;
 	inode->i_atime.tv_sec   = attr->atime;
 	inode->i_atime.tv_nsec  = attr->atimensec;

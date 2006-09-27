@@ -10,7 +10,7 @@
 
 static int null_chan;
 
-static void *null_init(char *str, int device, struct chan_opts *opts)
+static void *null_init(char *str, int device, const struct chan_opts *opts)
 {
 	return(&null_chan);
 }
@@ -31,7 +31,7 @@ static void null_free(void *data)
 {
 }
 
-struct chan_ops null_ops = {
+const struct chan_ops null_ops = {
 	.type		= "null",
 	.init		= null_init,
 	.open		= null_open,

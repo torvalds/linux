@@ -46,10 +46,12 @@ extern u8 cpu_2_logical_apicid[];
 static inline void init_apic_ldr(void)
 {
 	unsigned long val, id;
-	int i, count;
-	u8 lid;
+	int count = 0;
 	u8 my_id = (u8)hard_smp_processor_id();
 	u8 my_cluster = (u8)apicid_cluster(my_id);
+#ifdef CONFIG_SMP
+	u8 lid;
+	int i;
 
 	/* Create logical APIC IDs by counting CPUs already in cluster. */
 	for (count = 0, i = NR_CPUS; --i >= 0; ) {
@@ -57,6 +59,7 @@ static inline void init_apic_ldr(void)
 		if (lid != BAD_APICID && apicid_cluster(lid) == my_cluster)
 			++count;
 	}
+#endif
 	/* We only have a 4 wide bitmap in cluster mode.  If a deranged
 	 * BIOS puts 5 CPUs in one APIC cluster, we're hosed. */
 	BUG_ON(count >= XAPIC_DEST_CPUS_SHIFT);
@@ -91,9 +94,13 @@ static inline int apicid_to_node(int logical_apicid)
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {
+#ifdef CONFIG_SMP
        if (cpu >= NR_CPUS)
 	       return BAD_APICID;
 	return (int)cpu_2_logical_apicid[cpu];
+#else
+	return logical_smp_processor_id();
+#endif
 }
 
 static inline int cpu_present_to_apicid(int mps_cpu)

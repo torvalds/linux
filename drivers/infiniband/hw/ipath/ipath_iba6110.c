@@ -742,7 +742,6 @@ static int ipath_setup_ht_reset(struct ipath_devdata *dd)
 	return 0;
 }
 
-#define HT_CAPABILITY_ID   0x08	/* HT capabilities not defined in kernel */
 #define HT_INTR_DISC_CONFIG  0x80	/* HT interrupt and discovery cap */
 #define HT_INTR_REG_INDEX    2	/* intconfig requires indirect accesses */
 
@@ -973,7 +972,7 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 	 * do this early, before we ever enable errors or hardware errors,
 	 * mostly to avoid causing the chip to enter freeze mode.
 	 */
-	pos = pci_find_capability(pdev, HT_CAPABILITY_ID);
+	pos = pci_find_capability(pdev, PCI_CAP_ID_HT);
 	if (!pos) {
 		ipath_dev_err(dd, "Couldn't find HyperTransport "
 			      "capability; no interrupts\n");
@@ -996,7 +995,7 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 		else if (cap_type == HT_INTR_DISC_CONFIG)
 			ihandler = set_int_handler(dd, pdev, pos);
 	} while ((pos = pci_find_next_capability(pdev, pos,
-						 HT_CAPABILITY_ID)));
+						 PCI_CAP_ID_HT)));
 
 	if (!ihandler) {
 		ipath_dev_err(dd, "Couldn't find interrupt handler in "

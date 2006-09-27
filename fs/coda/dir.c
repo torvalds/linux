@@ -513,7 +513,7 @@ static int coda_venus_readdir(struct file *filp, filldir_t filldir,
 	ino_t ino;
 	int ret, i;
 
-	vdir = (struct venus_dirent *)kmalloc(sizeof(*vdir), GFP_KERNEL);
+	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;
 
 	i = filp->f_pos;

@@ -6,6 +6,8 @@
 
 struct sys_timer_ops {
 	int (*init)(void);
+	int (*start)(void);
+	int (*stop)(void);
 	unsigned long (*get_offset)(void);
 	unsigned long (*get_frequency)(void);
 };

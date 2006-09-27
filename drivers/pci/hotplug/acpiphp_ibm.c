@@ -487,9 +487,7 @@ static void __exit ibm_acpiphp_exit(void)
 	if (ACPI_FAILURE(status))
 		err("%s: Notification handler removal failed\n", __FUNCTION__);
 	/* remove the /sys entries */
-	if (sysfs_remove_bin_file(sysdir, &ibm_apci_table_attr))
-		err("%s: removal of sysfs file apci_table failed\n",
-				__FUNCTION__);
+	sysfs_remove_bin_file(sysdir, &ibm_apci_table_attr);
 }
 
 module_init(ibm_acpiphp_init);

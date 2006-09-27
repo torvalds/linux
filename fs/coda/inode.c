@@ -80,8 +80,7 @@ int coda_init_inodecache(void)
 
 void coda_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(coda_inode_cachep))
-		printk(KERN_INFO "coda_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(coda_inode_cachep);
 }
 
 static int coda_remount(struct super_block *sb, int *flags, char *data)

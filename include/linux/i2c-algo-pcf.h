@@ -35,7 +35,6 @@ struct i2c_algo_pcf_data {
 
 	/* local settings */
 	int udelay;
-	int mdelay;
 	int timeout;
 };
 

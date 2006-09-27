@@ -216,7 +216,7 @@ static void etap_del_addr(unsigned char *addr, unsigned char *netmask,
 	etap_close_addr(addr, netmask, &pri->control_fd);
 }
 
-struct net_user_info ethertap_user_info = {
+const struct net_user_info ethertap_user_info = {
 	.init		= etap_user_init,
 	.open		= etap_open,
 	.close	 	= etap_close,

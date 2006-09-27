@@ -1369,15 +1369,16 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 }
 
 static int
-pmac_ide_macio_suspend(struct macio_dev *mdev, pm_message_t state)
+pmac_ide_macio_suspend(struct macio_dev *mdev, pm_message_t mesg)
 {
 	ide_hwif_t	*hwif = (ide_hwif_t *)dev_get_drvdata(&mdev->ofdev.dev);
 	int		rc = 0;
 
-	if (state.event != mdev->ofdev.dev.power.power_state.event && state.event >= PM_EVENT_SUSPEND) {
+	if (mesg.event != mdev->ofdev.dev.power.power_state.event
+			&& mesg.event == PM_EVENT_SUSPEND) {
 		rc = pmac_ide_do_suspend(hwif);
 		if (rc == 0)
-			mdev->ofdev.dev.power.power_state = state;
+			mdev->ofdev.dev.power.power_state = mesg;
 	}
 
 	return rc;
@@ -1473,15 +1474,16 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static int
-pmac_ide_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+pmac_ide_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
 	ide_hwif_t	*hwif = (ide_hwif_t *)pci_get_drvdata(pdev);
 	int		rc = 0;
 	
-	if (state.event != pdev->dev.power.power_state.event && state.event >= 2) {
+	if (mesg.event != pdev->dev.power.power_state.event
+			&& mesg.event == PM_EVENT_SUSPEND) {
 		rc = pmac_ide_do_suspend(hwif);
 		if (rc == 0)
-			pdev->dev.power.power_state = state;
+			pdev->dev.power.power_state = mesg;
 	}
 
 	return rc;

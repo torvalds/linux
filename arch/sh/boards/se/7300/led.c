@@ -12,24 +12,10 @@
  */
 
 #include <linux/sched.h>
-#include <asm/mach/se7300.h>
-
-static void
-mach_led(int position, int value)
-{
-	volatile unsigned short *p = (volatile unsigned short *) PA_LED;
-
-	if (value) {
-		*p |= (1 << 8);
-	} else {
-		*p &= ~(1 << 8);
-	}
-}
-
+#include <asm/se7300.h>
 
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */
-void
-heartbeat_7300se(void)
+void heartbeat_7300se(void)
 {
 	static unsigned int cnt = 0, period = 0;
 	volatile unsigned short *p = (volatile unsigned short *) PA_LED;

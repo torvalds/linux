@@ -1,6 +1,10 @@
 /* Copyright 2002 Andi Kleen */
 	
-	#include <asm/cpufeature.h>		
+#include <linux/config.h>
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
+#include <asm/cpufeature.h>
+
 /*
  * memcpy - Copy a memory block.
  *
@@ -13,12 +17,26 @@
  * rax original destination
  */	
 
- 	.globl __memcpy
-	.globl memcpy
-	.p2align 4
-__memcpy:
-memcpy:		
+	ALIGN
+memcpy_c:
+	CFI_STARTPROC
+	movq %rdi,%rax
+	movl %edx,%ecx
+	shrl $3,%ecx
+	andl $7,%edx
+	rep movsq
+	movl %edx,%ecx
+	rep movsb
+	ret
+	CFI_ENDPROC
+ENDPROC(memcpy_c)
+
+ENTRY(__memcpy)
+ENTRY(memcpy)
+	CFI_STARTPROC
 	pushq %rbx
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rbx, 0
 	movq %rdi,%rax
 
 	movl %edx,%ecx
@@ -86,36 +104,27 @@ memcpy:
 
 .Lende:
 	popq %rbx
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_RESTORE rbx
 	ret
 .Lfinal:
+	CFI_ENDPROC
+ENDPROC(memcpy)
+ENDPROC(__memcpy)
 
 	/* Some CPUs run faster using the string copy instructions.
 	   It is also a lot simpler. Use this when possible */
 
+	.section .altinstr_replacement,"ax"
+1:	.byte 0xeb				/* jmp <disp8> */
+	.byte (memcpy_c - memcpy) - (2f - 1b)	/* offset */
+2:
+	.previous
 	.section .altinstructions,"a"
 	.align 8
-	.quad  memcpy
-	.quad  memcpy_c
-	.byte  X86_FEATURE_REP_GOOD
-	.byte  .Lfinal-memcpy
-	.byte  memcpy_c_end-memcpy_c
-	.previous
-
-	.section .altinstr_replacement,"ax"
- /* rdi	destination
-  * rsi source
-  * rdx count
-  */
-memcpy_c:
-	movq %rdi,%rax
-	movl %edx,%ecx
-	shrl $3,%ecx
-	andl $7,%edx	
-	rep 
-	movsq 
-	movl %edx,%ecx
-	rep
-	movsb
-	ret
-memcpy_c_end:
+	.quad memcpy
+	.quad 1b
+	.byte X86_FEATURE_REP_GOOD
+	.byte .Lfinal - memcpy
+	.byte 2b - 1b
 	.previous

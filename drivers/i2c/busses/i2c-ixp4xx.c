@@ -122,7 +122,6 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	drv_data->algo_data.getsda = ixp4xx_bit_getsda;
 	drv_data->algo_data.getscl = ixp4xx_bit_getscl;
 	drv_data->algo_data.udelay = 10;
-	drv_data->algo_data.mdelay = 10;
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP4XX;

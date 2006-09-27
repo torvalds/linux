@@ -2543,6 +2543,9 @@ Your cooperation is appreciated.
 		 64 = /dev/usb/rio500	Diamond Rio 500
 		 65 = /dev/usb/usblcd	USBLCD Interface (info@usblcd.de)
 		 66 = /dev/usb/cpad0	Synaptics cPad (mouse/LCD)
+		 67 = /dev/usb/adutux0	1st Ontrak ADU device
+		    ...
+		 76 = /dev/usb/adutux10	10th Ontrak ADU device
 		 96 = /dev/usb/hiddev0	1st USB HID device
 		    ...
 		111 = /dev/usb/hiddev15	16th USB HID device

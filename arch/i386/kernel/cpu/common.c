@@ -36,7 +36,7 @@ struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
 extern int disable_pse;
 
-static void default_init(struct cpuinfo_x86 * c)
+static void __cpuinit default_init(struct cpuinfo_x86 * c)
 {
 	/* Not much we can do here... */
 	/* Check if at least it has cpuid */
@@ -49,7 +49,7 @@ static void default_init(struct cpuinfo_x86 * c)
 	}
 }
 
-static struct cpu_dev default_cpu = {
+static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_init	= default_init,
 	.c_vendor = "Unknown",
 };
@@ -265,7 +265,7 @@ static void __init early_cpu_detect(void)
 	}
 }
 
-void __cpuinit generic_identify(struct cpuinfo_x86 * c)
+static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 {
 	u32 tfms, xlvl;
 	int ebx;
@@ -675,7 +675,7 @@ old_gdt:
 #endif
 
 	/* Clear %fs and %gs. */
-	asm volatile ("xorl %eax, %eax; movl %eax, %fs; movl %eax, %gs");
+	asm volatile ("movl %0, %%fs; movl %0, %%gs" : : "r" (0));
 
 	/* Clear all 6 debug registers: */
 	set_debugreg(0, 0);

@@ -132,17 +132,17 @@ static unsigned long tmu_timer_get_frequency(void)
 	ctrl_outl(0xffffffff, TMU0_TCOR);
 	ctrl_outl(0xffffffff, TMU0_TCNT);
 
-	rtc_get_time(&ts2);
+	rtc_sh_get_time(&ts2);
 
 	do {
-		rtc_get_time(&ts1);
+		rtc_sh_get_time(&ts1);
 	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
 
 	/* actually start the timer */
 	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
 
 	do {
-		rtc_get_time(&ts2);
+		rtc_sh_get_time(&ts2);
 	} while (ts1.tv_nsec == ts2.tv_nsec && ts1.tv_sec == ts2.tv_sec);
 
 	freq = 0xffffffff - ctrl_inl(TMU0_TCNT);
@@ -188,6 +188,18 @@ static struct clk tmu0_clk = {
 	.ops		= &tmu_clk_ops,
 };
 
+static int tmu_timer_start(void)
+{
+	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
+	return 0;
+}
+
+static int tmu_timer_stop(void)
+{
+	ctrl_outb(0, TMU_TSTR);
+	return 0;
+}
+
 static int tmu_timer_init(void)
 {
 	unsigned long interval;
@@ -197,7 +209,7 @@ static int tmu_timer_init(void)
 	tmu0_clk.parent = clk_get("module_clk");
 
 	/* Start TMU0 */
-	ctrl_outb(0, TMU_TSTR);
+	tmu_timer_stop();
 #if !defined(CONFIG_CPU_SUBTYPE_SH7300) && !defined(CONFIG_CPU_SUBTYPE_SH7760)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 #endif
@@ -211,13 +223,15 @@ static int tmu_timer_init(void)
 	ctrl_outl(interval, TMU0_TCOR);
 	ctrl_outl(interval, TMU0_TCNT);
 
-	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
+	tmu_timer_start();
 
 	return 0;
 }
 
 struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
+	.start		= tmu_timer_start,
+	.stop		= tmu_timer_stop,
 	.get_frequency	= tmu_timer_get_frequency,
 	.get_offset	= tmu_timer_get_offset,
 };

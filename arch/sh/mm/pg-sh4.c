@@ -2,7 +2,7 @@
  * arch/sh/mm/pg-sh4.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2002  Paul Mundt
+ * Copyright (C) 2002 - 2005  Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
@@ -23,6 +23,8 @@
 
 extern struct semaphore p3map_sem[];
 
+#define CACHE_ALIAS (cpu_data->dcache.alias_mask)
+
 /*
  * clear_user_page
  * @to: P1 address
@@ -35,14 +37,15 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		clear_page(to);
 	else {
-		pgprot_t pgprot = __pgprot(_PAGE_PRESENT | 
+		pgprot_t pgprot = __pgprot(_PAGE_PRESENT |
 					   _PAGE_RW | _PAGE_CACHABLE |
-					   _PAGE_DIRTY | _PAGE_ACCESSED | 
+					   _PAGE_DIRTY | _PAGE_ACCESSED |
 					   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD);
 		unsigned long phys_addr = PHYSADDR(to);
 		unsigned long p3_addr = P3SEG + (address & CACHE_ALIAS);
-		pgd_t *dir = pgd_offset_k(p3_addr);
-		pmd_t *pmd = pmd_offset(dir, p3_addr);
+		pgd_t *pgd = pgd_offset_k(p3_addr);
+		pud_t *pud = pud_offset(pgd, p3_addr);
+		pmd_t *pmd = pmd_offset(pud, p3_addr);
 		pte_t *pte = pte_offset_kernel(pmd, p3_addr);
 		pte_t entry;
 		unsigned long flags;
@@ -67,21 +70,22 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
  * @address: U0 address to be mapped
  * @page: page (virt_to_page(to))
  */
-void copy_user_page(void *to, void *from, unsigned long address, 
+void copy_user_page(void *to, void *from, unsigned long address,
 		    struct page *page)
 {
 	__set_bit(PG_mapped, &page->flags);
 	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0)
 		copy_page(to, from);
 	else {
-		pgprot_t pgprot = __pgprot(_PAGE_PRESENT | 
+		pgprot_t pgprot = __pgprot(_PAGE_PRESENT |
 					   _PAGE_RW | _PAGE_CACHABLE |
-					   _PAGE_DIRTY | _PAGE_ACCESSED | 
+					   _PAGE_DIRTY | _PAGE_ACCESSED |
 					   _PAGE_HW_SHARED | _PAGE_FLAGS_HARD);
 		unsigned long phys_addr = PHYSADDR(to);
 		unsigned long p3_addr = P3SEG + (address & CACHE_ALIAS);
-		pgd_t *dir = pgd_offset_k(p3_addr);
-		pmd_t *pmd = pmd_offset(dir, p3_addr);
+		pgd_t *pgd = pgd_offset_k(p3_addr);
+		pud_t *pud = pud_offset(pgd, p3_addr);
+		pmd_t *pmd = pmd_offset(pud, p3_addr);
 		pte_t *pte = pte_offset_kernel(pmd, p3_addr);
 		pte_t entry;
 		unsigned long flags;

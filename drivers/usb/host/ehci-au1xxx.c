@@ -200,6 +200,7 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 	.reset = ehci_init,
 	.start = ehci_run,
 	.stop = ehci_stop,
+	.shutdown = ehci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -268,6 +269,7 @@ MODULE_ALIAS("au1xxx-ehci");
 static struct platform_driver ehci_hcd_au1xxx_driver = {
 	.probe = ehci_hcd_au1xxx_drv_probe,
 	.remove = ehci_hcd_au1xxx_drv_remove,
+	.shutdown = usb_hcd_platform_shutdown,
 	/*.suspend      = ehci_hcd_au1xxx_drv_suspend, */
 	/*.resume       = ehci_hcd_au1xxx_drv_resume, */
 	.driver = {

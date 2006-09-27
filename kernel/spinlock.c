@@ -7,6 +7,11 @@
  *
  * This file contains the spinlock/rwlock implementations for the
  * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
+ *
+ * Note that some architectures have special knowledge about the
+ * stack frames of these functions in their profile_pc. If you
+ * change anything significant here that could change the stack
+ * frame contact the architecture maintainers.
  */
 
 #include <linux/linkage.h>

@@ -75,11 +75,11 @@ config I2C_AMD8111
 	  will be called i2c-amd8111.
 
 config I2C_AU1550
-	tristate "Au1550 SMBus interface"
-	depends on I2C && SOC_AU1550
+	tristate "Au1550/Au1200 SMBus interface"
+	depends on I2C && (SOC_AU1550 || SOC_AU1200)
 	help
 	  If you say yes to this option, support will be included for the
-	  Au1550 SMBus interface.
+	  Au1550 and Au1200 SMBus interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
@@ -287,6 +287,16 @@ config I2C_OCORES
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ocores.
 
+config I2C_OMAP
+	tristate "OMAP I2C adapter"
+	depends on I2C && ARCH_OMAP
+	default y if MACH_OMAP_H3 || MACH_OMAP_OSK
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Texas Instruments OMAP1/2 family of processors.
+	  Like OMAP1510/1610/1710/5912 and OMAP242x.
+	  For details see http://www.ti.com/omap.
+
 config I2C_PARPORT
 	tristate "Parallel port adapter"
 	depends on I2C && PARPORT
@@ -482,19 +492,19 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA 82C596/82C686/823x"
+	tristate "VIA 82C596/82C686/82xx"
 	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
-	  82C596/82C686/823x I2C interfaces.  Specifically, the following 
+	  82C596/82C686/82xx I2C interfaces.  Specifically, the following
 	  chipsets are supported:
-	  82C596A/B
-	  82C686A/B
-	  8231
-	  8233
-	  8233A
-	  8235
-	  8237
+	    VT82C596A/B
+	    VT82C686A/B
+	    VT8231
+	    VT8233/A
+	    VT8235
+	    VT8237R/A
+	    VT8251
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.

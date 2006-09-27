@@ -8,6 +8,7 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/vmalloc.h>
+#include <linux/kthread.h>
 
 /*
  */
@@ -117,7 +118,7 @@ static int usu_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 	unsigned long type;
-	int rc;
+	struct task_struct* task;
 	unsigned long flags;
 
 	type = USB_US_TYPE(id->driver_info);
@@ -132,8 +133,9 @@ static int usu_probe(struct usb_interface *intf,
 	stat[type].fls |= USU_MOD_FL_THREAD;
 	spin_unlock_irqrestore(&usu_lock, flags);
 
-	rc = kernel_thread(usu_probe_thread, (void*)type, CLONE_VM);
-	if (rc < 0) {
+	task = kthread_run(usu_probe_thread, (void*)type, "libusual_%d", type);
+	if (IS_ERR(task)) {
+		int rc = PTR_ERR(task);
 		printk(KERN_WARNING "libusual: "
 		    "Unable to start the thread for %s: %d\n",
 		    bias_names[type], rc);
@@ -174,8 +176,6 @@ static int usu_probe_thread(void *arg)
 	struct mod_status *st = &stat[type];
 	int rc;
 	unsigned long flags;
-
-	daemonize("libusual_%d", type);	/* "usb-storage" is kinda too long */
 
 	/* A completion does not work here because it's counted. */
 	down(&usu_init_notify);

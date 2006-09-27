@@ -3248,32 +3248,14 @@ ictx_err_out:
 
 static void __exit exit_ntfs_fs(void)
 {
-	int err = 0;
-
 	ntfs_debug("Unregistering NTFS driver.");
 
 	unregister_filesystem(&ntfs_fs_type);
-
-	if (kmem_cache_destroy(ntfs_big_inode_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_big_inode_cache_name);
-	if (kmem_cache_destroy(ntfs_inode_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_inode_cache_name);
-	if (kmem_cache_destroy(ntfs_name_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_name_cache_name);
-	if (kmem_cache_destroy(ntfs_attr_ctx_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_attr_ctx_cache_name);
-	if (kmem_cache_destroy(ntfs_index_ctx_cache) && (err = 1))
-		printk(KERN_CRIT "NTFS: Failed to destory %s.\n",
-				ntfs_index_ctx_cache_name);
-	if (err)
-		printk(KERN_CRIT "NTFS: This causes memory to leak! There is "
-				"probably a BUG in the driver! Please report "
-				"you saw this message to "
-				"linux-ntfs-dev@lists.sourceforge.net\n");
+	kmem_cache_destroy(ntfs_big_inode_cache);
+	kmem_cache_destroy(ntfs_inode_cache);
+	kmem_cache_destroy(ntfs_name_cache);
+	kmem_cache_destroy(ntfs_attr_ctx_cache);
+	kmem_cache_destroy(ntfs_index_ctx_cache);
 	/* Unregister the ntfs sysctls. */
 	ntfs_sysctl(0);
 }

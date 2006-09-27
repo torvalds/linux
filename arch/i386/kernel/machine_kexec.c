@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
@@ -20,70 +21,13 @@
 #include <asm/system.h>
 
 #define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
-
-#define L0_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define L1_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define L2_ATTR (_PAGE_PRESENT)
-
-#define LEVEL0_SIZE (1UL << 12UL)
-
-#ifndef CONFIG_X86_PAE
-#define LEVEL1_SIZE (1UL << 22UL)
-static u32 pgtable_level1[1024] PAGE_ALIGNED;
-
-static void identity_map_page(unsigned long address)
-{
-	unsigned long level1_index, level2_index;
-	u32 *pgtable_level2;
-
-	/* Find the current page table */
-	pgtable_level2 = __va(read_cr3());
-
-	/* Find the indexes of the physical address to identity map */
-	level1_index = (address % LEVEL1_SIZE)/LEVEL0_SIZE;
-	level2_index = address / LEVEL1_SIZE;
-
-	/* Identity map the page table entry */
-	pgtable_level1[level1_index] = address | L0_ATTR;
-	pgtable_level2[level2_index] = __pa(pgtable_level1) | L1_ATTR;
-
-	/* Flush the tlb so the new mapping takes effect.
-	 * Global tlb entries are not flushed but that is not an issue.
-	 */
-	load_cr3(pgtable_level2);
-}
-
-#else
-#define LEVEL1_SIZE (1UL << 21UL)
-#define LEVEL2_SIZE (1UL << 30UL)
-static u64 pgtable_level1[512] PAGE_ALIGNED;
-static u64 pgtable_level2[512] PAGE_ALIGNED;
-
-static void identity_map_page(unsigned long address)
-{
-	unsigned long level1_index, level2_index, level3_index;
-	u64 *pgtable_level3;
-
-	/* Find the current page table */
-	pgtable_level3 = __va(read_cr3());
-
-	/* Find the indexes of the physical address to identity map */
-	level1_index = (address % LEVEL1_SIZE)/LEVEL0_SIZE;
-	level2_index = (address % LEVEL2_SIZE)/LEVEL1_SIZE;
-	level3_index = address / LEVEL2_SIZE;
-
-	/* Identity map the page table entry */
-	pgtable_level1[level1_index] = address | L0_ATTR;
-	pgtable_level2[level2_index] = __pa(pgtable_level1) | L1_ATTR;
-	set_64bit(&pgtable_level3[level3_index],
-					       __pa(pgtable_level2) | L2_ATTR);
-
-	/* Flush the tlb so the new mapping takes effect.
-	 * Global tlb entries are not flushed but that is not an issue.
-	 */
-	load_cr3(pgtable_level3);
-}
+static u32 kexec_pgd[1024] PAGE_ALIGNED;
+#ifdef CONFIG_X86_PAE
+static u32 kexec_pmd0[1024] PAGE_ALIGNED;
+static u32 kexec_pmd1[1024] PAGE_ALIGNED;
 #endif
+static u32 kexec_pte0[1024] PAGE_ALIGNED;
+static u32 kexec_pte1[1024] PAGE_ALIGNED;
 
 static void set_idt(void *newidt, __u16 limit)
 {
@@ -127,16 +71,6 @@ static void load_segments(void)
 #undef __STR
 }
 
-typedef asmlinkage NORET_TYPE void (*relocate_new_kernel_t)(
-					unsigned long indirection_page,
-					unsigned long reboot_code_buffer,
-					unsigned long start_address,
-					unsigned int has_pae) ATTRIB_NORET;
-
-extern const unsigned char relocate_new_kernel[];
-extern void relocate_new_kernel_end(void);
-extern const unsigned int relocate_new_kernel_size;
-
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
@@ -169,25 +103,29 @@ void machine_kexec_cleanup(struct kimage *image)
  */
 NORET_TYPE void machine_kexec(struct kimage *image)
 {
-	unsigned long page_list;
-	unsigned long reboot_code_buffer;
-
-	relocate_new_kernel_t rnk;
+	unsigned long page_list[PAGES_NR];
+	void *control_page;
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
-	/* Compute some offsets */
-	reboot_code_buffer = page_to_pfn(image->control_code_page)
-								<< PAGE_SHIFT;
-	page_list = image->head;
+	control_page = page_address(image->control_code_page);
+	memcpy(control_page, relocate_kernel, PAGE_SIZE);
 
-	/* Set up an identity mapping for the reboot_code_buffer */
-	identity_map_page(reboot_code_buffer);
-
-	/* copy it out */
-	memcpy((void *)reboot_code_buffer, relocate_new_kernel,
-						relocate_new_kernel_size);
+	page_list[PA_CONTROL_PAGE] = __pa(control_page);
+	page_list[VA_CONTROL_PAGE] = (unsigned long)relocate_kernel;
+	page_list[PA_PGD] = __pa(kexec_pgd);
+	page_list[VA_PGD] = (unsigned long)kexec_pgd;
+#ifdef CONFIG_X86_PAE
+	page_list[PA_PMD_0] = __pa(kexec_pmd0);
+	page_list[VA_PMD_0] = (unsigned long)kexec_pmd0;
+	page_list[PA_PMD_1] = __pa(kexec_pmd1);
+	page_list[VA_PMD_1] = (unsigned long)kexec_pmd1;
+#endif
+	page_list[PA_PTE_0] = __pa(kexec_pte0);
+	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
+	page_list[PA_PTE_1] = __pa(kexec_pte1);
+	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
 
 	/* The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
@@ -206,6 +144,28 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	set_idt(phys_to_virt(0),0);
 
 	/* now call it */
-	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, image->start, cpu_has_pae);
+	relocate_kernel((unsigned long)image->head, (unsigned long)page_list,
+			image->start, cpu_has_pae);
 }
+
+/* crashkernel=size@addr specifies the location to reserve for
+ * a crash kernel.  By reserving this memory we guarantee
+ * that linux never sets it up as a DMA target.
+ * Useful for holding code to do something appropriate
+ * after a kernel panic.
+ */
+static int __init parse_crashkernel(char *arg)
+{
+	unsigned long size, base;
+	size = memparse(arg, &arg);
+	if (*arg == '@') {
+		base = memparse(arg+1, &arg);
+		/* FIXME: Do I want a sanity check
+		 * to validate the memory range?
+		 */
+		crashk_res.start = base;
+		crashk_res.end   = base + size - 1;
+	}
+	return 0;
+}
+early_param("crashkernel", parse_crashkernel);

@@ -37,6 +37,8 @@
 #include <linux/vmalloc.h>
 #include <linux/mempolicy.h>
 #include <linux/stop_machine.h>
+#include <linux/sort.h>
+#include <linux/pfn.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -102,6 +104,38 @@ int min_free_kbytes = 1024;
 
 unsigned long __meminitdata nr_kernel_pages;
 unsigned long __meminitdata nr_all_pages;
+static unsigned long __initdata dma_reserve;
+
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+  /*
+   * MAX_ACTIVE_REGIONS determines the maxmimum number of distinct
+   * ranges of memory (RAM) that may be registered with add_active_range().
+   * Ranges passed to add_active_range() will be merged if possible
+   * so the number of times add_active_range() can be called is
+   * related to the number of nodes and the number of holes
+   */
+  #ifdef CONFIG_MAX_ACTIVE_REGIONS
+    /* Allow an architecture to set MAX_ACTIVE_REGIONS to save memory */
+    #define MAX_ACTIVE_REGIONS CONFIG_MAX_ACTIVE_REGIONS
+  #else
+    #if MAX_NUMNODES >= 32
+      /* If there can be many nodes, allow up to 50 holes per node */
+      #define MAX_ACTIVE_REGIONS (MAX_NUMNODES*50)
+    #else
+      /* By default, allow up to 256 distinct regions */
+      #define MAX_ACTIVE_REGIONS 256
+    #endif
+  #endif
+
+  struct node_active_region __initdata early_node_map[MAX_ACTIVE_REGIONS];
+  int __initdata nr_nodemap_entries;
+  unsigned long __initdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+  unsigned long __initdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
+  unsigned long __initdata node_boundary_start_pfn[MAX_NUMNODES];
+  unsigned long __initdata node_boundary_end_pfn[MAX_NUMNODES];
+#endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
 #ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
@@ -908,7 +942,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	 */
 	do {
 		zone = *z;
-		if (unlikely((gfp_mask & __GFP_THISNODE) &&
+		if (unlikely(NUMA_BUILD && (gfp_mask & __GFP_THISNODE) &&
 			zone->zone_pgdat != zonelist->zones[0]->zone_pgdat))
 				break;
 		if ((alloc_flags & ALLOC_CPUSET) &&
@@ -1222,14 +1256,12 @@ unsigned int nr_free_pagecache_pages(void)
 {
 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER));
 }
-#ifdef CONFIG_NUMA
-static void show_node(struct zone *zone)
+
+static inline void show_node(struct zone *zone)
 {
-	printk("Node %ld ", zone_to_nid(zone));
+	if (NUMA_BUILD)
+		printk("Node %ld ", zone_to_nid(zone));
 }
-#else
-#define show_node(zone)	do { } while (0)
-#endif
 
 void si_meminfo(struct sysinfo *val)
 {
@@ -1271,34 +1303,30 @@ void si_meminfo_node(struct sysinfo *val, int nid)
  */
 void show_free_areas(void)
 {
-	int cpu, temperature;
+	int cpu;
 	unsigned long active;
 	unsigned long inactive;
 	unsigned long free;
 	struct zone *zone;
 
 	for_each_zone(zone) {
-		show_node(zone);
-		printk("%s per-cpu:", zone->name);
-
-		if (!populated_zone(zone)) {
-			printk(" empty\n");
+		if (!populated_zone(zone))
 			continue;
-		} else
-			printk("\n");
+
+		show_node(zone);
+		printk("%s per-cpu:\n", zone->name);
 
 		for_each_online_cpu(cpu) {
 			struct per_cpu_pageset *pageset;
 
 			pageset = zone_pcp(zone, cpu);
 
-			for (temperature = 0; temperature < 2; temperature++)
-				printk("cpu %d %s: high %d, batch %d used:%d\n",
-					cpu,
-					temperature ? "cold" : "hot",
-					pageset->pcp[temperature].high,
-					pageset->pcp[temperature].batch,
-					pageset->pcp[temperature].count);
+			printk("CPU %4d: Hot: hi:%5d, btch:%4d usd:%4d   "
+			       "Cold: hi:%5d, btch:%4d usd:%4d\n",
+			       cpu, pageset->pcp[0].high,
+			       pageset->pcp[0].batch, pageset->pcp[0].count,
+			       pageset->pcp[1].high, pageset->pcp[1].batch,
+			       pageset->pcp[1].count);
 		}
 	}
 
@@ -1319,6 +1347,9 @@ void show_free_areas(void)
 
 	for_each_zone(zone) {
 		int i;
+
+		if (!populated_zone(zone))
+			continue;
 
 		show_node(zone);
 		printk("%s"
@@ -1352,12 +1383,11 @@ void show_free_areas(void)
 	for_each_zone(zone) {
  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
 
+		if (!populated_zone(zone))
+			continue;
+
 		show_node(zone);
 		printk("%s: ", zone->name);
-		if (!populated_zone(zone)) {
-			printk("empty\n");
-			continue;
-		}
 
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
@@ -1561,7 +1591,7 @@ static int __meminit __build_all_zonelists(void *dummy)
 void __meminit build_all_zonelists(void)
 {
 	if (system_state == SYSTEM_BOOTING) {
-		__build_all_zonelists(0);
+		__build_all_zonelists(NULL);
 		cpuset_init_current_mems_allowed();
 	} else {
 		/* we have to stop all cpus to guaranntee there is no user
@@ -1641,25 +1671,6 @@ static inline unsigned long wait_table_bits(unsigned long size)
 }
 
 #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
-
-static void __init calculate_zone_totalpages(struct pglist_data *pgdat,
-		unsigned long *zones_size, unsigned long *zholes_size)
-{
-	unsigned long realtotalpages, totalpages = 0;
-	enum zone_type i;
-
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		totalpages += zones_size[i];
-	pgdat->node_spanned_pages = totalpages;
-
-	realtotalpages = totalpages;
-	if (zholes_size)
-		for (i = 0; i < MAX_NR_ZONES; i++)
-			realtotalpages -= zholes_size[i];
-	pgdat->node_present_pages = realtotalpages;
-	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
-}
-
 
 /*
  * Initially all pages are reserved - free ones are freed
@@ -1817,6 +1828,9 @@ static int __cpuinit process_zones(int cpu)
 	struct zone *zone, *dzone;
 
 	for_each_zone(zone) {
+
+		if (!populated_zone(zone))
+			continue;
 
 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
 					 GFP_KERNEL, cpu_to_node(cpu));
@@ -1977,6 +1991,366 @@ __meminit int init_currently_empty_zone(struct zone *zone,
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+/*
+ * Basic iterator support. Return the first range of PFNs for a node
+ * Note: nid == MAX_NUMNODES returns first region regardless of node
+ */
+static int __init first_active_region_index_in_nid(int nid)
+{
+	int i;
+
+	for (i = 0; i < nr_nodemap_entries; i++)
+		if (nid == MAX_NUMNODES || early_node_map[i].nid == nid)
+			return i;
+
+	return -1;
+}
+
+/*
+ * Basic iterator support. Return the next active range of PFNs for a node
+ * Note: nid == MAX_NUMNODES returns next region regardles of node
+ */
+static int __init next_active_region_index_in_nid(int index, int nid)
+{
+	for (index = index + 1; index < nr_nodemap_entries; index++)
+		if (nid == MAX_NUMNODES || early_node_map[index].nid == nid)
+			return index;
+
+	return -1;
+}
+
+#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+/*
+ * Required by SPARSEMEM. Given a PFN, return what node the PFN is on.
+ * Architectures may implement their own version but if add_active_range()
+ * was used and there are no special requirements, this is a convenient
+ * alternative
+ */
+int __init early_pfn_to_nid(unsigned long pfn)
+{
+	int i;
+
+	for (i = 0; i < nr_nodemap_entries; i++) {
+		unsigned long start_pfn = early_node_map[i].start_pfn;
+		unsigned long end_pfn = early_node_map[i].end_pfn;
+
+		if (start_pfn <= pfn && pfn < end_pfn)
+			return early_node_map[i].nid;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+
+/* Basic iterator support to walk early_node_map[] */
+#define for_each_active_range_index_in_nid(i, nid) \
+	for (i = first_active_region_index_in_nid(nid); i != -1; \
+				i = next_active_region_index_in_nid(i, nid))
+
+/**
+ * free_bootmem_with_active_regions - Call free_bootmem_node for each active range
+ * @nid: The node to free memory on. If MAX_NUMNODES, all nodes are freed
+ * @max_low_pfn: The highest PFN that till be passed to free_bootmem_node
+ *
+ * If an architecture guarantees that all ranges registered with
+ * add_active_ranges() contain no holes and may be freed, this
+ * this function may be used instead of calling free_bootmem() manually.
+ */
+void __init free_bootmem_with_active_regions(int nid,
+						unsigned long max_low_pfn)
+{
+	int i;
+
+	for_each_active_range_index_in_nid(i, nid) {
+		unsigned long size_pages = 0;
+		unsigned long end_pfn = early_node_map[i].end_pfn;
+
+		if (early_node_map[i].start_pfn >= max_low_pfn)
+			continue;
+
+		if (end_pfn > max_low_pfn)
+			end_pfn = max_low_pfn;
+
+		size_pages = end_pfn - early_node_map[i].start_pfn;
+		free_bootmem_node(NODE_DATA(early_node_map[i].nid),
+				PFN_PHYS(early_node_map[i].start_pfn),
+				size_pages << PAGE_SHIFT);
+	}
+}
+
+/**
+ * sparse_memory_present_with_active_regions - Call memory_present for each active range
+ * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used
+ *
+ * If an architecture guarantees that all ranges registered with
+ * add_active_ranges() contain no holes and may be freed, this
+ * this function may be used instead of calling memory_present() manually.
+ */
+void __init sparse_memory_present_with_active_regions(int nid)
+{
+	int i;
+
+	for_each_active_range_index_in_nid(i, nid)
+		memory_present(early_node_map[i].nid,
+				early_node_map[i].start_pfn,
+				early_node_map[i].end_pfn);
+}
+
+/**
+ * push_node_boundaries - Push node boundaries to at least the requested boundary
+ * @nid: The nid of the node to push the boundary for
+ * @start_pfn: The start pfn of the node
+ * @end_pfn: The end pfn of the node
+ *
+ * In reserve-based hot-add, mem_map is allocated that is unused until hotadd
+ * time. Specifically, on x86_64, SRAT will report ranges that can potentially
+ * be hotplugged even though no physical memory exists. This function allows
+ * an arch to push out the node boundaries so mem_map is allocated that can
+ * be used later.
+ */
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
+void __init push_node_boundaries(unsigned int nid,
+		unsigned long start_pfn, unsigned long end_pfn)
+{
+	printk(KERN_DEBUG "Entering push_node_boundaries(%u, %lu, %lu)\n",
+			nid, start_pfn, end_pfn);
+
+	/* Initialise the boundary for this node if necessary */
+	if (node_boundary_end_pfn[nid] == 0)
+		node_boundary_start_pfn[nid] = -1UL;
+
+	/* Update the boundaries */
+	if (node_boundary_start_pfn[nid] > start_pfn)
+		node_boundary_start_pfn[nid] = start_pfn;
+	if (node_boundary_end_pfn[nid] < end_pfn)
+		node_boundary_end_pfn[nid] = end_pfn;
+}
+
+/* If necessary, push the node boundary out for reserve hotadd */
+static void __init account_node_boundary(unsigned int nid,
+		unsigned long *start_pfn, unsigned long *end_pfn)
+{
+	printk(KERN_DEBUG "Entering account_node_boundary(%u, %lu, %lu)\n",
+			nid, *start_pfn, *end_pfn);
+
+	/* Return if boundary information has not been provided */
+	if (node_boundary_end_pfn[nid] == 0)
+		return;
+
+	/* Check the boundaries and update if necessary */
+	if (node_boundary_start_pfn[nid] < *start_pfn)
+		*start_pfn = node_boundary_start_pfn[nid];
+	if (node_boundary_end_pfn[nid] > *end_pfn)
+		*end_pfn = node_boundary_end_pfn[nid];
+}
+#else
+void __init push_node_boundaries(unsigned int nid,
+		unsigned long start_pfn, unsigned long end_pfn) {}
+
+static void __init account_node_boundary(unsigned int nid,
+		unsigned long *start_pfn, unsigned long *end_pfn) {}
+#endif
+
+
+/**
+ * get_pfn_range_for_nid - Return the start and end page frames for a node
+ * @nid: The nid to return the range for. If MAX_NUMNODES, the min and max PFN are returned
+ * @start_pfn: Passed by reference. On return, it will have the node start_pfn
+ * @end_pfn: Passed by reference. On return, it will have the node end_pfn
+ *
+ * It returns the start and end page frame of a node based on information
+ * provided by an arch calling add_active_range(). If called for a node
+ * with no available memory, a warning is printed and the start and end
+ * PFNs will be 0
+ */
+void __init get_pfn_range_for_nid(unsigned int nid,
+			unsigned long *start_pfn, unsigned long *end_pfn)
+{
+	int i;
+	*start_pfn = -1UL;
+	*end_pfn = 0;
+
+	for_each_active_range_index_in_nid(i, nid) {
+		*start_pfn = min(*start_pfn, early_node_map[i].start_pfn);
+		*end_pfn = max(*end_pfn, early_node_map[i].end_pfn);
+	}
+
+	if (*start_pfn == -1UL) {
+		printk(KERN_WARNING "Node %u active with no memory\n", nid);
+		*start_pfn = 0;
+	}
+
+	/* Push the node boundaries out if requested */
+	account_node_boundary(nid, start_pfn, end_pfn);
+}
+
+/*
+ * Return the number of pages a zone spans in a node, including holes
+ * present_pages = zone_spanned_pages_in_node() - zone_absent_pages_in_node()
+ */
+unsigned long __init zone_spanned_pages_in_node(int nid,
+					unsigned long zone_type,
+					unsigned long *ignored)
+{
+	unsigned long node_start_pfn, node_end_pfn;
+	unsigned long zone_start_pfn, zone_end_pfn;
+
+	/* Get the start and end of the node and zone */
+	get_pfn_range_for_nid(nid, &node_start_pfn, &node_end_pfn);
+	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+
+	/* Check that this node has pages within the zone's required range */
+	if (zone_end_pfn < node_start_pfn || zone_start_pfn > node_end_pfn)
+		return 0;
+
+	/* Move the zone boundaries inside the node if necessary */
+	zone_end_pfn = min(zone_end_pfn, node_end_pfn);
+	zone_start_pfn = max(zone_start_pfn, node_start_pfn);
+
+	/* Return the spanned pages */
+	return zone_end_pfn - zone_start_pfn;
+}
+
+/*
+ * Return the number of holes in a range on a node. If nid is MAX_NUMNODES,
+ * then all holes in the requested range will be accounted for
+ */
+unsigned long __init __absent_pages_in_range(int nid,
+				unsigned long range_start_pfn,
+				unsigned long range_end_pfn)
+{
+	int i = 0;
+	unsigned long prev_end_pfn = 0, hole_pages = 0;
+	unsigned long start_pfn;
+
+	/* Find the end_pfn of the first active range of pfns in the node */
+	i = first_active_region_index_in_nid(nid);
+	if (i == -1)
+		return 0;
+
+	/* Account for ranges before physical memory on this node */
+	if (early_node_map[i].start_pfn > range_start_pfn)
+		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
+
+	prev_end_pfn = early_node_map[i].start_pfn;
+
+	/* Find all holes for the zone within the node */
+	for (; i != -1; i = next_active_region_index_in_nid(i, nid)) {
+
+		/* No need to continue if prev_end_pfn is outside the zone */
+		if (prev_end_pfn >= range_end_pfn)
+			break;
+
+		/* Make sure the end of the zone is not within the hole */
+		start_pfn = min(early_node_map[i].start_pfn, range_end_pfn);
+		prev_end_pfn = max(prev_end_pfn, range_start_pfn);
+
+		/* Update the hole size cound and move on */
+		if (start_pfn > range_start_pfn) {
+			BUG_ON(prev_end_pfn > start_pfn);
+			hole_pages += start_pfn - prev_end_pfn;
+		}
+		prev_end_pfn = early_node_map[i].end_pfn;
+	}
+
+	/* Account for ranges past physical memory on this node */
+	if (range_end_pfn > prev_end_pfn)
+		hole_pages = range_end_pfn -
+				max(range_start_pfn, prev_end_pfn);
+
+	return hole_pages;
+}
+
+/**
+ * absent_pages_in_range - Return number of page frames in holes within a range
+ * @start_pfn: The start PFN to start searching for holes
+ * @end_pfn: The end PFN to stop searching for holes
+ *
+ * It returns the number of pages frames in memory holes within a range
+ */
+unsigned long __init absent_pages_in_range(unsigned long start_pfn,
+							unsigned long end_pfn)
+{
+	return __absent_pages_in_range(MAX_NUMNODES, start_pfn, end_pfn);
+}
+
+/* Return the number of page frames in holes in a zone on a node */
+unsigned long __init zone_absent_pages_in_node(int nid,
+					unsigned long zone_type,
+					unsigned long *ignored)
+{
+	unsigned long node_start_pfn, node_end_pfn;
+	unsigned long zone_start_pfn, zone_end_pfn;
+
+	get_pfn_range_for_nid(nid, &node_start_pfn, &node_end_pfn);
+	zone_start_pfn = max(arch_zone_lowest_possible_pfn[zone_type],
+							node_start_pfn);
+	zone_end_pfn = min(arch_zone_highest_possible_pfn[zone_type],
+							node_end_pfn);
+
+	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+}
+
+/* Return the zone index a PFN is in */
+int memmap_zone_idx(struct page *lmem_map)
+{
+	int i;
+	unsigned long phys_addr = virt_to_phys(lmem_map);
+	unsigned long pfn = phys_addr >> PAGE_SHIFT;
+
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		if (pfn < arch_zone_highest_possible_pfn[i])
+			break;
+
+	return i;
+}
+#else
+static inline unsigned long zone_spanned_pages_in_node(int nid,
+					unsigned long zone_type,
+					unsigned long *zones_size)
+{
+	return zones_size[zone_type];
+}
+
+static inline unsigned long zone_absent_pages_in_node(int nid,
+						unsigned long zone_type,
+						unsigned long *zholes_size)
+{
+	if (!zholes_size)
+		return 0;
+
+	return zholes_size[zone_type];
+}
+
+static inline int memmap_zone_idx(struct page *lmem_map)
+{
+	return MAX_NR_ZONES;
+}
+#endif
+
+static void __init calculate_node_totalpages(struct pglist_data *pgdat,
+		unsigned long *zones_size, unsigned long *zholes_size)
+{
+	unsigned long realtotalpages, totalpages = 0;
+	enum zone_type i;
+
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		totalpages += zone_spanned_pages_in_node(pgdat->node_id, i,
+								zones_size);
+	pgdat->node_spanned_pages = totalpages;
+
+	realtotalpages = totalpages;
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		realtotalpages -=
+			zone_absent_pages_in_node(pgdat->node_id, i,
+								zholes_size);
+	pgdat->node_present_pages = realtotalpages;
+	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id,
+							realtotalpages);
+}
+
 /*
  * Set up the zone data structures:
  *   - mark all pages reserved
@@ -1998,11 +2372,34 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 	
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
-		unsigned long size, realsize;
+		unsigned long size, realsize, memmap_pages;
 
-		realsize = size = zones_size[j];
-		if (zholes_size)
-			realsize -= zholes_size[j];
+		size = zone_spanned_pages_in_node(nid, j, zones_size);
+		realsize = size - zone_absent_pages_in_node(nid, j,
+								zholes_size);
+
+		/*
+		 * Adjust realsize so that it accounts for how much memory
+		 * is used by this zone for memmap. This affects the watermark
+		 * and per-cpu initialisations
+		 */
+		memmap_pages = (size * sizeof(struct page)) >> PAGE_SHIFT;
+		if (realsize >= memmap_pages) {
+			realsize -= memmap_pages;
+			printk(KERN_DEBUG
+				"  %s zone: %lu pages used for memmap\n",
+				zone_names[j], memmap_pages);
+		} else
+			printk(KERN_WARNING
+				"  %s zone: %lu pages exceeds realsize %lu\n",
+				zone_names[j], memmap_pages, realsize);
+
+		/* Account for reserved DMA pages */
+		if (j == ZONE_DMA && realsize > dma_reserve) {
+			realsize -= dma_reserve;
+			printk(KERN_DEBUG "  DMA zone: %lu pages reserved\n",
+								dma_reserve);
+		}
 
 		if (!is_highmem_idx(j))
 			nr_kernel_pages += realsize;
@@ -2011,6 +2408,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->spanned_pages = size;
 		zone->present_pages = realsize;
 #ifdef CONFIG_NUMA
+		zone->node = nid;
 		zone->min_unmapped_pages = (realsize*sysctl_min_unmapped_ratio)
 						/ 100;
 		zone->min_slab_pages = (realsize * sysctl_min_slab_ratio) / 100;
@@ -2073,8 +2471,13 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 	/*
 	 * With no DISCONTIG, the global mem_map is just set as node 0's
 	 */
-	if (pgdat == NODE_DATA(0))
+	if (pgdat == NODE_DATA(0)) {
 		mem_map = NODE_DATA(0)->node_mem_map;
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+			mem_map -= pgdat->node_start_pfn;
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+	}
 #endif
 #endif /* CONFIG_FLAT_NODE_MEM_MAP */
 }
@@ -2085,11 +2488,253 @@ void __meminit free_area_init_node(int nid, struct pglist_data *pgdat,
 {
 	pgdat->node_id = nid;
 	pgdat->node_start_pfn = node_start_pfn;
-	calculate_zone_totalpages(pgdat, zones_size, zholes_size);
+	calculate_node_totalpages(pgdat, zones_size, zholes_size);
 
 	alloc_node_mem_map(pgdat);
 
 	free_area_init_core(pgdat, zones_size, zholes_size);
+}
+
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+/**
+ * add_active_range - Register a range of PFNs backed by physical memory
+ * @nid: The node ID the range resides on
+ * @start_pfn: The start PFN of the available physical memory
+ * @end_pfn: The end PFN of the available physical memory
+ *
+ * These ranges are stored in an early_node_map[] and later used by
+ * free_area_init_nodes() to calculate zone sizes and holes. If the
+ * range spans a memory hole, it is up to the architecture to ensure
+ * the memory is not freed by the bootmem allocator. If possible
+ * the range being registered will be merged with existing ranges.
+ */
+void __init add_active_range(unsigned int nid, unsigned long start_pfn,
+						unsigned long end_pfn)
+{
+	int i;
+
+	printk(KERN_DEBUG "Entering add_active_range(%d, %lu, %lu) "
+			  "%d entries of %d used\n",
+			  nid, start_pfn, end_pfn,
+			  nr_nodemap_entries, MAX_ACTIVE_REGIONS);
+
+	/* Merge with existing active regions if possible */
+	for (i = 0; i < nr_nodemap_entries; i++) {
+		if (early_node_map[i].nid != nid)
+			continue;
+
+		/* Skip if an existing region covers this new one */
+		if (start_pfn >= early_node_map[i].start_pfn &&
+				end_pfn <= early_node_map[i].end_pfn)
+			return;
+
+		/* Merge forward if suitable */
+		if (start_pfn <= early_node_map[i].end_pfn &&
+				end_pfn > early_node_map[i].end_pfn) {
+			early_node_map[i].end_pfn = end_pfn;
+			return;
+		}
+
+		/* Merge backward if suitable */
+		if (start_pfn < early_node_map[i].end_pfn &&
+				end_pfn >= early_node_map[i].start_pfn) {
+			early_node_map[i].start_pfn = start_pfn;
+			return;
+		}
+	}
+
+	/* Check that early_node_map is large enough */
+	if (i >= MAX_ACTIVE_REGIONS) {
+		printk(KERN_CRIT "More than %d memory regions, truncating\n",
+							MAX_ACTIVE_REGIONS);
+		return;
+	}
+
+	early_node_map[i].nid = nid;
+	early_node_map[i].start_pfn = start_pfn;
+	early_node_map[i].end_pfn = end_pfn;
+	nr_nodemap_entries = i + 1;
+}
+
+/**
+ * shrink_active_range - Shrink an existing registered range of PFNs
+ * @nid: The node id the range is on that should be shrunk
+ * @old_end_pfn: The old end PFN of the range
+ * @new_end_pfn: The new PFN of the range
+ *
+ * i386 with NUMA use alloc_remap() to store a node_mem_map on a local node.
+ * The map is kept at the end physical page range that has already been
+ * registered with add_active_range(). This function allows an arch to shrink
+ * an existing registered range.
+ */
+void __init shrink_active_range(unsigned int nid, unsigned long old_end_pfn,
+						unsigned long new_end_pfn)
+{
+	int i;
+
+	/* Find the old active region end and shrink */
+	for_each_active_range_index_in_nid(i, nid)
+		if (early_node_map[i].end_pfn == old_end_pfn) {
+			early_node_map[i].end_pfn = new_end_pfn;
+			break;
+		}
+}
+
+/**
+ * remove_all_active_ranges - Remove all currently registered regions
+ * During discovery, it may be found that a table like SRAT is invalid
+ * and an alternative discovery method must be used. This function removes
+ * all currently registered regions.
+ */
+void __init remove_all_active_ranges()
+{
+	memset(early_node_map, 0, sizeof(early_node_map));
+	nr_nodemap_entries = 0;
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
+	memset(node_boundary_start_pfn, 0, sizeof(node_boundary_start_pfn));
+	memset(node_boundary_end_pfn, 0, sizeof(node_boundary_end_pfn));
+#endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
+}
+
+/* Compare two active node_active_regions */
+static int __init cmp_node_active_region(const void *a, const void *b)
+{
+	struct node_active_region *arange = (struct node_active_region *)a;
+	struct node_active_region *brange = (struct node_active_region *)b;
+
+	/* Done this way to avoid overflows */
+	if (arange->start_pfn > brange->start_pfn)
+		return 1;
+	if (arange->start_pfn < brange->start_pfn)
+		return -1;
+
+	return 0;
+}
+
+/* sort the node_map by start_pfn */
+static void __init sort_node_map(void)
+{
+	sort(early_node_map, (size_t)nr_nodemap_entries,
+			sizeof(struct node_active_region),
+			cmp_node_active_region, NULL);
+}
+
+/* Find the lowest pfn for a node. This depends on a sorted early_node_map */
+unsigned long __init find_min_pfn_for_node(unsigned long nid)
+{
+	int i;
+
+	/* Assuming a sorted map, the first range found has the starting pfn */
+	for_each_active_range_index_in_nid(i, nid)
+		return early_node_map[i].start_pfn;
+
+	printk(KERN_WARNING "Could not find start_pfn for node %lu\n", nid);
+	return 0;
+}
+
+/**
+ * find_min_pfn_with_active_regions - Find the minimum PFN registered
+ *
+ * It returns the minimum PFN based on information provided via
+ * add_active_range()
+ */
+unsigned long __init find_min_pfn_with_active_regions(void)
+{
+	return find_min_pfn_for_node(MAX_NUMNODES);
+}
+
+/**
+ * find_max_pfn_with_active_regions - Find the maximum PFN registered
+ *
+ * It returns the maximum PFN based on information provided via
+ * add_active_range()
+ */
+unsigned long __init find_max_pfn_with_active_regions(void)
+{
+	int i;
+	unsigned long max_pfn = 0;
+
+	for (i = 0; i < nr_nodemap_entries; i++)
+		max_pfn = max(max_pfn, early_node_map[i].end_pfn);
+
+	return max_pfn;
+}
+
+/**
+ * free_area_init_nodes - Initialise all pg_data_t and zone data
+ * @arch_max_dma_pfn: The maximum PFN usable for ZONE_DMA
+ * @arch_max_dma32_pfn: The maximum PFN usable for ZONE_DMA32
+ * @arch_max_low_pfn: The maximum PFN usable for ZONE_NORMAL
+ * @arch_max_high_pfn: The maximum PFN usable for ZONE_HIGHMEM
+ *
+ * This will call free_area_init_node() for each active node in the system.
+ * Using the page ranges provided by add_active_range(), the size of each
+ * zone in each node and their holes is calculated. If the maximum PFN
+ * between two adjacent zones match, it is assumed that the zone is empty.
+ * For example, if arch_max_dma_pfn == arch_max_dma32_pfn, it is assumed
+ * that arch_max_dma32_pfn has no pages. It is also assumed that a zone
+ * starts where the previous one ended. For example, ZONE_DMA32 starts
+ * at arch_max_dma_pfn.
+ */
+void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+{
+	unsigned long nid;
+	enum zone_type i;
+
+	/* Record where the zone boundaries are */
+	memset(arch_zone_lowest_possible_pfn, 0,
+				sizeof(arch_zone_lowest_possible_pfn));
+	memset(arch_zone_highest_possible_pfn, 0,
+				sizeof(arch_zone_highest_possible_pfn));
+	arch_zone_lowest_possible_pfn[0] = find_min_pfn_with_active_regions();
+	arch_zone_highest_possible_pfn[0] = max_zone_pfn[0];
+	for (i = 1; i < MAX_NR_ZONES; i++) {
+		arch_zone_lowest_possible_pfn[i] =
+			arch_zone_highest_possible_pfn[i-1];
+		arch_zone_highest_possible_pfn[i] =
+			max(max_zone_pfn[i], arch_zone_lowest_possible_pfn[i]);
+	}
+
+	/* Regions in the early_node_map can be in any order */
+	sort_node_map();
+
+	/* Print out the zone ranges */
+	printk("Zone PFN ranges:\n");
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		printk("  %-8s %8lu -> %8lu\n",
+				zone_names[i],
+				arch_zone_lowest_possible_pfn[i],
+				arch_zone_highest_possible_pfn[i]);
+
+	/* Print out the early_node_map[] */
+	printk("early_node_map[%d] active PFN ranges\n", nr_nodemap_entries);
+	for (i = 0; i < nr_nodemap_entries; i++)
+		printk("  %3d: %8lu -> %8lu\n", early_node_map[i].nid,
+						early_node_map[i].start_pfn,
+						early_node_map[i].end_pfn);
+
+	/* Initialise every node */
+	for_each_online_node(nid) {
+		pg_data_t *pgdat = NODE_DATA(nid);
+		free_area_init_node(nid, pgdat, NULL,
+				find_min_pfn_for_node(nid), NULL);
+	}
+}
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+
+/**
+ * set_dma_reserve - Account the specified number of pages reserved in ZONE_DMA
+ * @new_dma_reserve - The number of pages to mark reserved
+ *
+ * The per-cpu batchsize and zone watermarks are determined by present_pages.
+ * In the DMA zone, a significant percentage may be consumed by kernel image
+ * and other unfreeable allocations which can skew the watermarks badly. This
+ * function may optionally be used to account for unfreeable pages in
+ * ZONE_DMA. The effect will be lower watermarks and smaller per-cpu batchsize
+ */
+void __init set_dma_reserve(unsigned long new_dma_reserve)
+{
+	dma_reserve = new_dma_reserve;
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES

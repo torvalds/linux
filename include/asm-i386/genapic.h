@@ -1,6 +1,8 @@
 #ifndef _ASM_GENAPIC_H
 #define _ASM_GENAPIC_H 1
 
+#include <asm/mpspec.h>
+
 /*
  * Generic APIC driver interface.
  *
@@ -63,14 +65,25 @@ struct genapic {
 	unsigned (*get_apic_id)(unsigned long x);
 	unsigned long apic_id_mask;
 	unsigned int (*cpu_mask_to_apicid)(cpumask_t cpumask);
-	
+
+#ifdef CONFIG_SMP
 	/* ipi */
 	void (*send_IPI_mask)(cpumask_t mask, int vector);
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
+#endif
 }; 
 
-#define APICFUNC(x) .x = x
+#define APICFUNC(x) .x = x,
+
+/* More functions could be probably marked IPIFUNC and save some space
+   in UP GENERICARCH kernels, but I don't have the nerve right now
+   to untangle this mess. -AK  */
+#ifdef CONFIG_SMP
+#define IPIFUNC(x) APICFUNC(x)
+#else
+#define IPIFUNC(x)
+#endif
 
 #define APIC_INIT(aname, aprobe) { \
 	.name = aname, \
@@ -80,33 +93,33 @@ struct genapic {
 	.no_balance_irq = NO_BALANCE_IRQ, \
 	.ESR_DISABLE = esr_disable, \
 	.apic_destination_logical = APIC_DEST_LOGICAL, \
-	APICFUNC(apic_id_registered), \
-	APICFUNC(target_cpus), \
-	APICFUNC(check_apicid_used), \
-	APICFUNC(check_apicid_present), \
-	APICFUNC(init_apic_ldr), \
-	APICFUNC(ioapic_phys_id_map), \
-	APICFUNC(clustered_apic_check), \
-	APICFUNC(multi_timer_check), \
-	APICFUNC(apicid_to_node), \
-	APICFUNC(cpu_to_logical_apicid), \
-	APICFUNC(cpu_present_to_apicid), \
-	APICFUNC(apicid_to_cpu_present), \
-	APICFUNC(mpc_apic_id), \
-	APICFUNC(setup_portio_remap), \
-	APICFUNC(check_phys_apicid_present), \
-	APICFUNC(mpc_oem_bus_info), \
-	APICFUNC(mpc_oem_pci_bus), \
-	APICFUNC(mps_oem_check), \
-	APICFUNC(get_apic_id), \
+	APICFUNC(apic_id_registered) \
+	APICFUNC(target_cpus) \
+	APICFUNC(check_apicid_used) \
+	APICFUNC(check_apicid_present) \
+	APICFUNC(init_apic_ldr) \
+	APICFUNC(ioapic_phys_id_map) \
+	APICFUNC(clustered_apic_check) \
+	APICFUNC(multi_timer_check) \
+	APICFUNC(apicid_to_node) \
+	APICFUNC(cpu_to_logical_apicid) \
+	APICFUNC(cpu_present_to_apicid) \
+	APICFUNC(apicid_to_cpu_present) \
+	APICFUNC(mpc_apic_id) \
+	APICFUNC(setup_portio_remap) \
+	APICFUNC(check_phys_apicid_present) \
+	APICFUNC(mpc_oem_bus_info) \
+	APICFUNC(mpc_oem_pci_bus) \
+	APICFUNC(mps_oem_check) \
+	APICFUNC(get_apic_id) \
 	.apic_id_mask = APIC_ID_MASK, \
-	APICFUNC(cpu_mask_to_apicid), \
-	APICFUNC(acpi_madt_oem_check), \
-	APICFUNC(send_IPI_mask), \
-	APICFUNC(send_IPI_allbutself), \
-	APICFUNC(send_IPI_all), \
-	APICFUNC(enable_apic_mode), \
-	APICFUNC(phys_pkg_id), \
+	APICFUNC(cpu_mask_to_apicid) \
+	APICFUNC(acpi_madt_oem_check) \
+	IPIFUNC(send_IPI_mask) \
+	IPIFUNC(send_IPI_allbutself) \
+	IPIFUNC(send_IPI_all) \
+	APICFUNC(enable_apic_mode) \
+	APICFUNC(phys_pkg_id) \
 	}
 
 extern struct genapic *genapic;

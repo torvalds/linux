@@ -15,42 +15,95 @@
 #include <asm/setup.h>
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
+
+# It is assumed that %ds == INITSEG here
+
 	movb	$0, (EDD_MBR_SIG_NR_BUF)
 	movb	$0, (EDDNR)
 
-# Check the command line for two options:
+# Check the command line for options:
 # edd=of  disables EDD completely  (edd=off)
 # edd=sk  skips the MBR test    (edd=skipmbr)
+# edd=on  re-enables EDD (edd=on)
+
 	pushl	%esi
-    	cmpl	$0, %cs:cmd_line_ptr
-	jz	done_cl
+	movw	$edd_mbr_sig_start, %di	# Default to edd=on
+
 	movl	%cs:(cmd_line_ptr), %esi
-# ds:esi has the pointer to the command line now
-	movl	$(COMMAND_LINE_SIZE-7), %ecx
-# loop through kernel command line one byte at a time
-cl_loop:
-	cmpl	$EDD_CL_EQUALS, (%si)
+	andl	%esi, %esi
+	jz	old_cl			# Old boot protocol?
+
+# Convert to a real-mode pointer in fs:si
+	movl	%esi, %eax
+	shrl	$4, %eax
+	movw	%ax, %fs
+	andw	$0xf, %si
+	jmp	have_cl_pointer
+
+# Old-style boot protocol?
+old_cl:
+	push	%ds			# aka INITSEG
+	pop	%fs
+
+	cmpw	$0xa33f, (0x20)
+	jne	done_cl			# No command line at all?
+	movw	(0x22), %si		# Pointer relative to INITSEG
+
+# fs:si has the pointer to the command line now
+have_cl_pointer:
+
+# Loop through kernel command line one byte at a time.  Just in
+# case the loader is buggy and failed to null-terminate the command line
+# terminate if we get close enough to the end of the segment that we
+# cannot fit "edd=XX"...
+cl_atspace:
+	cmpw	$-5, %si		# Watch for segment wraparound
+	jae	done_cl
+	movl	%fs:(%si), %eax
+	andb	%al, %al		# End of line?
+	jz	done_cl
+	cmpl	$EDD_CL_EQUALS, %eax
 	jz	found_edd_equals
-	incl	%esi
-	loop	cl_loop
-	jmp	done_cl
+	cmpb	$0x20, %al		# <= space consider whitespace
+	ja	cl_skipword
+	incw	%si
+	jmp	cl_atspace
+
+cl_skipword:
+	cmpw	$-5, %si		# Watch for segment wraparound
+	jae	done_cl
+	movb	%fs:(%si), %al		# End of string?
+	andb	%al, %al
+	jz	done_cl
+	cmpb	$0x20, %al
+	jbe	cl_atspace
+	incw	%si
+	jmp	cl_skipword
+
 found_edd_equals:
 # only looking at first two characters after equals
-    	addl	$4, %esi
-	cmpw	$EDD_CL_OFF, (%si)	# edd=of
-	jz	do_edd_off
-	cmpw	$EDD_CL_SKIP, (%si)	# edd=sk
-	jz	do_edd_skipmbr
-	jmp	done_cl
+# late overrides early on the command line, so keep going after finding something
+	movw	%fs:4(%si), %ax
+	cmpw	$EDD_CL_OFF, %ax	# edd=of
+	je	do_edd_off
+	cmpw	$EDD_CL_SKIP, %ax	# edd=sk
+	je	do_edd_skipmbr
+	cmpw	$EDD_CL_ON, %ax		# edd=on
+	je	do_edd_on
+	jmp	cl_skipword
 do_edd_skipmbr:
-    	popl	%esi
-	jmp	edd_start
+	movw	$edd_start, %di
+	jmp	cl_skipword
 do_edd_off:
-	popl	%esi
-	jmp	edd_done
+	movw	$edd_done, %di
+	jmp	cl_skipword
+do_edd_on:
+	movw	$edd_mbr_sig_start, %di
+	jmp	cl_skipword
+
 done_cl:
 	popl	%esi
-
+	jmpw	*%di
 
 # Read the first sector of each BIOS disk device and store the 4-byte signature
 edd_mbr_sig_start:

@@ -110,8 +110,6 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 	        inode->i_nlink = attr->va_nlink;
 	if (attr->va_size != -1)
 	        inode->i_size = attr->va_size;
-	if (attr->va_blocksize != -1)
-		inode->i_blksize = attr->va_blocksize;
 	if (attr->va_size != -1)
 		inode->i_blocks = (attr->va_size + 511) >> 9;
 	if (attr->va_atime.tv_sec != -1) 

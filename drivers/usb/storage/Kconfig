@@ -135,6 +135,18 @@ config USB_STORAGE_ONETOUCH
 	  this input in any keybinding software. (e.g. gnome's keyboard short-
 	  cuts)
 
+config USB_STORAGE_KARMA
+	bool "Support for Rio Karma music player"
+	depends on USB_STORAGE
+	help
+	  Say Y here to include additional code to support the Rio Karma
+	  USB interface.
+
+	  This code places the Rio Karma into mass storage mode, enabling
+	  it to be mounted as an ordinary filesystem. Performing an eject
+	  on the resulting scsi device node returns the Karma to normal
+	  operation.
+
 config USB_LIBUSUAL
 	bool "The shared table of common (or usual) storage devices"
 	depends on USB

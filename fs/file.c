@@ -281,10 +281,8 @@ static struct fdtable *alloc_fdtable(int nr)
 out2:
 	nfds = fdt->max_fdset;
 out:
-  	if (new_openset)
-  		free_fdset(new_openset, nfds);
-  	if (new_execset)
-  		free_fdset(new_execset, nfds);
+	free_fdset(new_openset, nfds);
+	free_fdset(new_execset, nfds);
 	kfree(fdt);
 	return NULL;
 }

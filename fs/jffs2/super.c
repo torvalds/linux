@@ -119,10 +119,9 @@ static int jffs2_get_sb_mtd(struct file_system_type *fs_type,
 	struct jffs2_sb_info *c;
 	int ret;
 
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
-	memset(c, 0, sizeof(*c));
 	c->mtd = mtd;
 
 	sb = sget(fs_type, jffs2_sb_compare, jffs2_sb_set, c);

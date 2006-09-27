@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/nodemask.h>
+#include <linux/mmzone.h>
 #include <asm/cpu.h>
 
 static struct i386_cpu cpu_devices[NR_CPUS];
@@ -55,34 +56,18 @@ EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
 #endif /*CONFIG_HOTPLUG_CPU*/
 
-
+static int __init topology_init(void)
+{
+	int i;
 
 #ifdef CONFIG_NUMA
-#include <linux/mmzone.h>
-
-static int __init topology_init(void)
-{
-	int i;
-
 	for_each_online_node(i)
 		register_one_node(i);
-
-	for_each_present_cpu(i)
-		arch_register_cpu(i);
-	return 0;
-}
-
-#else /* !CONFIG_NUMA */
-
-static int __init topology_init(void)
-{
-	int i;
-
-	for_each_present_cpu(i)
-		arch_register_cpu(i);
-	return 0;
-}
-
 #endif /* CONFIG_NUMA */
+
+	for_each_present_cpu(i)
+		arch_register_cpu(i);
+	return 0;
+}
 
 subsys_initcall(topology_init);

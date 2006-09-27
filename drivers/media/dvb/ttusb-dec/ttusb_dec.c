@@ -215,7 +215,7 @@ static void ttusb_dec_handle_irq( struct urb *urb, struct pt_regs *regs)
 		case -ECONNRESET:
 		case -ENOENT:
 		case -ESHUTDOWN:
-		case -ETIMEDOUT:
+		case -ETIME:
 			/* this urb is dead, cleanup */
 			dprintk("%s:urb shutting down with status: %d\n",
 					__FUNCTION__, urb->status);

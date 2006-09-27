@@ -21,6 +21,8 @@
 #include <asm/numa.h>
 #include <asm/e820.h>
 
+int acpi_numa __initdata;
+
 #if (defined(CONFIG_ACPI_HOTPLUG_MEMORY) || \
 	defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) \
 		&& !defined(CONFIG_MEMORY_HOTPLUG)
@@ -91,6 +93,7 @@ static __init void bad_srat(void)
 		apicid_to_node[i] = NUMA_NO_NODE;
 	for (i = 0; i < MAX_NUMNODES; i++)
 		nodes_add[i].start = nodes[i].end = 0;
+	remove_all_active_ranges();
 }
 
 static __init inline int srat_disabled(void)
@@ -173,7 +176,7 @@ static int hotadd_enough_memory(struct bootnode *nd)
 
 	if (mem < 0)
 		return 0;
-	allowed = (end_pfn - e820_hole_size(0, end_pfn)) * PAGE_SIZE;
+	allowed = (end_pfn - absent_pages_in_range(0, end_pfn)) * PAGE_SIZE;
 	allowed = (allowed / 100) * hotadd_percent;
 	if (allocated + mem > allowed) {
 		unsigned long range;
@@ -223,8 +226,10 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 	}
 
 	/* This check might be a bit too strict, but I'm keeping it for now. */
-	if (e820_hole_size(s_pfn, e_pfn) != e_pfn - s_pfn) {
-		printk(KERN_ERR "SRAT: Hotplug area has existing memory\n");
+	if (absent_pages_in_range(s_pfn, e_pfn) != e_pfn - s_pfn) {
+		printk(KERN_ERR
+			"SRAT: Hotplug area %lu -> %lu has existing memory\n",
+			s_pfn, e_pfn);
 		return -1;
 	}
 
@@ -317,6 +322,10 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 
 	printk(KERN_INFO "SRAT: Node %u PXM %u %Lx-%Lx\n", node, pxm,
 	       nd->start, nd->end);
+	e820_register_active_regions(node, nd->start >> PAGE_SHIFT,
+						nd->end >> PAGE_SHIFT);
+	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
+						nd->end >> PAGE_SHIFT);
 
 #ifdef RESERVE_HOTADD
  	if (ma->flags.hot_pluggable && reserve_hotadd(node, start, end) < 0) {
@@ -341,13 +350,13 @@ static int nodes_cover_memory(void)
 		unsigned long s = nodes[i].start >> PAGE_SHIFT;
 		unsigned long e = nodes[i].end >> PAGE_SHIFT;
 		pxmram += e - s;
-		pxmram -= e820_hole_size(s, e);
+		pxmram -= absent_pages_in_range(s, e);
 		pxmram -= nodes_add[i].end - nodes_add[i].start;
 		if ((long)pxmram < 0)
 			pxmram = 0;
 	}
 
-	e820ram = end_pfn - e820_hole_size(0, end_pfn);
+	e820ram = end_pfn - absent_pages_in_range(0, end_pfn);
 	/* We seem to lose 3 pages somewhere. Allow a bit of slack. */
 	if ((long)(e820ram - pxmram) >= 1*1024*1024) {
 		printk(KERN_ERR

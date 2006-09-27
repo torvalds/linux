@@ -6,6 +6,21 @@ be removed from this file.
 
 ---------------------------
 
+What:	/sys/devices/.../power/state
+	dev->power.power_state
+	dpm_runtime_{suspend,resume)()
+When:	July 2007
+Why:	Broken design for runtime control over driver power states, confusing
+	driver-internal runtime power management with:  mechanisms to support
+	system-wide sleep state transitions; event codes that distinguish
+	different phases of swsusp "sleep" transitions; and userspace policy
+	inputs.  This framework was never widely used, and most attempts to
+	use it were broken.  Drivers should instead be exposing domain-specific
+	interfaces either to kernel or to userspace.
+Who:	Pavel Machek <pavel@suse.cz>
+
+---------------------------
+
 What:	RAW driver (CONFIG_RAW_DRIVER)
 When:	December 2005
 Why:	declared obsolete since kernel 2.6.3
@@ -52,6 +67,18 @@ Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	communicate with video decoders. This should also be improved to allow
 	V4L2 calls being translated into compatible internal ioctls.
 Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+
+---------------------------
+
+What:	sys_sysctl
+When:	January 2007
+Why:	The same information is available through /proc/sys and that is the
+	interface user space prefers to use. And there do not appear to be
+	any existing user in user space of sys_sysctl.  The additional
+	maintenance overhead of keeping a set of binary names gets
+	in the way of doing a good job of maintaining this interface.
+
+Who:	Eric Biederman <ebiederm@xmission.com>
 
 ---------------------------
 
@@ -202,14 +229,6 @@ Who:	Nick Piggin <npiggin@suse.de>
 
 ---------------------------
 
-What:	Support for the MIPS EV96100 evaluation board
-When:	September 2006
-Why:	Does no longer build since at least November 15, 2003, apparently
-	no userbase left.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:	Support for the Momentum / PMC-Sierra Jaguar ATX evaluation board
 When:	September 2006
 Why:	Does no longer build since quite some time, and was never popular,
@@ -294,3 +313,24 @@ Why:	The frame diverter is included in most distribution kernels, but is
 	It is not clear if anyone is still using it.
 Who:	Stephen Hemminger <shemminger@osdl.org>
 
+---------------------------
+
+
+What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
+When:	Oktober 2008
+Why:	The stacking of class devices makes these values misleading and
+	inconsistent.
+	Class devices should not carry any of these properties, and bus
+	devices have SUBSYTEM and DRIVER as a replacement.
+Who:	Kay Sievers <kay.sievers@suse.de>
+
+---------------------------
+
+What:	i2c-isa
+When:	December 2006
+Why:	i2c-isa is a non-sense and doesn't fit in the device driver
+	model. Drivers relying on it are better implemented as platform
+	drivers.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------

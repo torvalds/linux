@@ -11,7 +11,7 @@
 #include <linux/irq.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/mach/se7300.h>
+#include <asm/se7300.h>
 
 /*
  * Initialize IRQ setting

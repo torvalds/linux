@@ -526,12 +526,12 @@ is_disk1:
 	movw	%cs, %ax			# aka SETUPSEG
 	subw	$DELTA_INITSEG, %ax		# aka INITSEG
 	movw	%ax, %ds
-	movw	$0, (0x1ff)			# default is no pointing device
+	movb	$0, (0x1ff)			# default is no pointing device
 	int	$0x11				# int 0x11: equipment list
 	testb	$0x04, %al			# check if mouse installed
 	jz	no_psmouse
 
-	movw	$0xAA, (0x1ff)			# device present
+	movb	$0xAA, (0x1ff)			# device present
 no_psmouse:
 
 #include "../../i386/boot/edd.S"

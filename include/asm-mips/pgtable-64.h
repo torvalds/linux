@@ -93,8 +93,12 @@
 #define PTRS_PER_PMD	((PAGE_SIZE << PMD_ORDER) / sizeof(pmd_t))
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
+#if PGDIR_SIZE >= TASK_SIZE
+#define USER_PTRS_PER_PGD       (1)
+#else
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0
+#endif
+#define FIRST_USER_ADDRESS	0UL
 
 #define VMALLOC_START		MAP_BASE
 #define VMALLOC_END	\

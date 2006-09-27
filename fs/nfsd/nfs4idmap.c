@@ -573,10 +573,9 @@ idmap_lookup(struct svc_rqst *rqstp,
 	struct idmap_defer_req *mdr;
 	int ret;
 
-	mdr = kmalloc(sizeof(*mdr), GFP_KERNEL);
+	mdr = kzalloc(sizeof(*mdr), GFP_KERNEL);
 	if (!mdr)
 		return -ENOMEM;
-	memset(mdr, 0, sizeof(*mdr));
 	atomic_set(&mdr->count, 1);
 	init_waitqueue_head(&mdr->waitq);
 	mdr->req.defer = idmap_defer;

@@ -116,17 +116,17 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 	return addr;
 }
 
-static int is_at_popf(struct task_struct *child, struct pt_regs *regs)
+static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 {
 	int i, copied;
-	unsigned char opcode[16];
+	unsigned char opcode[15];
 	unsigned long addr = convert_rip_to_linear(child, regs);
 
 	copied = access_process_vm(child, addr, opcode, sizeof(opcode), 0);
 	for (i = 0; i < copied; i++) {
 		switch (opcode[i]) {
-		/* popf */
-		case 0x9d:
+		/* popf and iret */
+		case 0x9d: case 0xcf:
 			return 1;
 
 			/* CHECKME: 64 65 */
@@ -138,14 +138,17 @@ static int is_at_popf(struct task_struct *child, struct pt_regs *regs)
 		case 0x26: case 0x2e:
 		case 0x36: case 0x3e:
 		case 0x64: case 0x65:
-		case 0xf0: case 0xf2: case 0xf3:
+		case 0xf2: case 0xf3:
 			continue;
 
-		/* REX prefixes */
 		case 0x40 ... 0x4f:
+			if (regs->cs != __USER_CS)
+				/* 32-bit mode: register increment */
+				return 0;
+			/* 64-bit mode: REX prefix */
 			continue;
 
-			/* CHECKME: f0, f2, f3 */
+			/* CHECKME: f2, f3 */
 
 		/*
 		 * pushf: NOTE! We should probably not let
@@ -186,10 +189,8 @@ static void set_singlestep(struct task_struct *child)
 	 * ..but if TF is changed by the instruction we will trace,
 	 * don't mark it as being "us" that set it, so that we
 	 * won't clear it by hand later.
-	 *
-	 * AK: this is not enough, LAHF and IRET can change TF in user space too.
 	 */
-	if (is_at_popf(child, regs))
+	if (is_setting_trap_flag(child, regs))
 		return;
 
 	child->ptrace |= PT_DTRACE;
@@ -420,9 +421,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				if ((0x5554 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
 					break;
 			if (i == 4) {
-				child->thread.debugreg7 = data;
+			  child->thread.debugreg7 = data;
+			  if (data)
+			  	set_tsk_thread_flag(child, TIF_DEBUG);
+			  else
+			  	clear_tsk_thread_flag(child, TIF_DEBUG);
 			  ret = 0;
-		  }
+		  	}
 		  break;
 		}
 		break;

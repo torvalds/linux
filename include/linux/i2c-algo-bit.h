@@ -40,7 +40,6 @@ struct i2c_algo_bit_data {
 	/* local settings */
 	int udelay;		/* half-clock-cycle time in microsecs */
 				/* i.e. clock is (500 / udelay) KHz */
-	int mdelay;		/* in millisecs, unused */
 	int timeout;		/* in jiffies */
 };
 

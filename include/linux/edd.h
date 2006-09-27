@@ -52,6 +52,7 @@
 #define EDD_CL_EQUALS   0x3d646465     /* "edd=" */
 #define EDD_CL_OFF      0x666f         /* "of" for off  */
 #define EDD_CL_SKIP     0x6b73         /* "sk" for skipmbr */
+#define EDD_CL_ON       0x6e6f	       /* "on" for on */
 
 #ifndef __ASSEMBLY__
 

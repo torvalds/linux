@@ -343,6 +343,7 @@ static struct eisa_device_id ne3210_ids[] = {
 	{ "NVL1801" },
 	{ "" },
 };
+MODULE_DEVICE_TABLE(eisa, ne3210_ids);
 
 static struct eisa_driver ne3210_eisa_driver = {
 	.id_table = ne3210_ids,

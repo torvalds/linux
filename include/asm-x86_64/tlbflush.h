@@ -4,44 +4,44 @@
 #include <linux/mm.h>
 #include <asm/processor.h>
 
-#define __flush_tlb()							\
-	do {								\
-		unsigned long tmpreg;					\
-									\
-		__asm__ __volatile__(					\
-			"movq %%cr3, %0;  # flush TLB \n"		\
-			"movq %0, %%cr3;              \n"		\
-			: "=r" (tmpreg)					\
-			:: "memory");					\
-	} while (0)
+static inline unsigned long get_cr3(void)
+{
+	unsigned long cr3;
+	asm volatile("mov %%cr3,%0" : "=r" (cr3));
+	return cr3;
+}
 
-/*
- * Global pages have to be flushed a bit differently. Not a real
- * performance problem because this does not happen often.
- */
-#define __flush_tlb_global()						\
-	do {								\
-		unsigned long tmpreg, cr4, cr4_orig;			\
-									\
-		__asm__ __volatile__(					\
-			"movq %%cr4, %2;  # turn off PGE     \n"	\
-			"movq %2, %1;                        \n"	\
-			"andq %3, %1;                        \n"	\
-			"movq %1, %%cr4;                     \n"	\
-			"movq %%cr3, %0;  # flush TLB        \n"	\
-			"movq %0, %%cr3;                     \n"	\
-			"movq %2, %%cr4;  # turn PGE back on \n"	\
-			: "=&r" (tmpreg), "=&r" (cr4), "=&r" (cr4_orig)	\
-			: "i" (~X86_CR4_PGE)				\
-			: "memory");					\
-	} while (0)
+static inline void set_cr3(unsigned long cr3)
+{
+	asm volatile("mov %0,%%cr3" :: "r" (cr3) : "memory");
+}
 
-extern unsigned long pgkern_mask;
+static inline void __flush_tlb(void)
+{
+	set_cr3(get_cr3());
+}
 
-#define __flush_tlb_all() __flush_tlb_global()
+static inline unsigned long get_cr4(void)
+{
+	unsigned long cr4;
+	asm volatile("mov %%cr4,%0" : "=r" (cr4));
+	return cr4;
+}
+
+static inline void set_cr4(unsigned long cr4)
+{
+	asm volatile("mov %0,%%cr4" :: "r" (cr4) : "memory");
+}
+
+static inline void __flush_tlb_all(void)
+{
+	unsigned long cr4 = get_cr4();
+	set_cr4(cr4 & ~X86_CR4_PGE);	/* clear PGE */
+	set_cr4(cr4);			/* write old PGE again and flush TLBs */
+}
 
 #define __flush_tlb_one(addr) \
-	__asm__ __volatile__("invlpg %0": :"m" (*(char *) addr))
+	__asm__ __volatile__("invlpg (%0)" :: "r" (addr) : "memory")
 
 
 /*

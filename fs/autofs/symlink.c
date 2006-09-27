@@ -15,7 +15,7 @@
 /* Nothing to release.. */
 static void *autofs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	char *s=((struct autofs_symlink *)dentry->d_inode->u.generic_ip)->data;
+	char *s=((struct autofs_symlink *)dentry->d_inode->i_private)->data;
 	nd_set_link(nd, s);
 	return NULL;
 }

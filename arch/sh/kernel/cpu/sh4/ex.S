@@ -72,6 +72,7 @@ ENTRY(interrupt_table)
 	.long	do_IRQ	! 1110
 	.long	exception_error		
 	! Internal hardware
+#ifndef CONFIG_CPU_SUBTYPE_SH7780
 	.long	do_IRQ	! TMU0 tuni0	/* 400 */
 	.long	do_IRQ	! TMU1 tuni1
 	.long	do_IRQ	! TMU2 tuni2
@@ -122,6 +123,13 @@ ENTRY(interrupt_table)
 	.long	do_IRQ	! 45      dmte5
 	.long	do_IRQ	! 46      dmte6
 	.long	do_IRQ	! 47      dmte7		/* 7E0 */
+#elif defined(CONFIG_CPU_SUBTYPE_SH7343)
+	.long	do_IRQ	! 44 IIC1 ali		/* 780 */
+	.long	do_IRQ	! 45      tacki
+	.long	do_IRQ	! 46      waiti
+	.long	do_IRQ	! 47      dtei		/* 7E0 */
+	.long	do_IRQ	! 48 DMAC dei0		/* 800 */
+	.long	do_IRQ	! 49      dei1		/* 820 */
 #else
 	.long	exception_error			! 44	/* 780 */
 	.long	exception_error			! 45
@@ -131,7 +139,8 @@ ENTRY(interrupt_table)
 #if defined(CONFIG_SH_FPU)
 	.long	do_fpu_state_restore	! 48	/* 800 */
 	.long	do_fpu_state_restore	! 49	/* 820 */
-#else
+#elif !defined(CONFIG_CPU_SUBTYPE_SH7343) && \
+      !defined(CONFIG_CPU_SUBTYPE_SH73180)
 	.long	exception_error
 	.long	exception_error
 #endif
@@ -224,7 +233,7 @@ ENTRY(interrupt_table)
 	.long	exception_error
 	.long	do_IRQ	! ADC	adi
 	.long	do_IRQ	! CMT	cmti	/* FA0 */
-#elif defined(CONFIG_CPU_SUBTYPE_SH73180)
+#elif defined(CONFIG_CPU_SUBTYPE_SH73180) || defined(CONFIG_CPU_SUBTYPE_SH7343)
 	.long	do_IRQ	!  50 0x840
 	.long	do_IRQ	!  51 0x860
 	.long	do_IRQ	!  52 0x880
@@ -379,5 +388,168 @@ ENTRY(interrupt_table)
 	.long	exception_error			! 141 0x13a0
 	.long	exception_error			! 142 0x13c0
 	.long	exception_error			! 143 0x13e0
+#elif defined(CONFIG_CPU_SUBTYPE_SH7770)
+	.long	do_IRQ	!  50 0x840
+	.long	do_IRQ	!  51 0x860
+	.long	do_IRQ	!  52 0x880
+	.long	do_IRQ	!  53 0x8a0
+	.long	do_IRQ	!  54 0x8c0
+	.long	do_IRQ	!  55 0x8e0
+	.long	do_IRQ	!  56 0x900
+	.long	do_IRQ	!  57 0x920
+	.long	do_IRQ	!  58 0x940
+	.long	do_IRQ	!  59 0x960
+	.long	do_IRQ	!  60 0x980
+	.long	do_IRQ	!  61 0x9a0
+	.long	do_IRQ	!  62 0x9c0
+	.long	do_IRQ	!  63 0x9e0
+	.long	do_IRQ	!  64 0xa00
+	.long	do_IRQ	!  65 0xa20
+	.long	do_IRQ	!  66 0xa4d
+	.long	do_IRQ	!  67 0xa60
+	.long	do_IRQ	!  68 0xa80
+	.long	do_IRQ	!  69 0xaa0
+	.long	do_IRQ	!  70 0xac0
+	.long	do_IRQ	!  71 0xae0
+	.long	do_IRQ	!  72 0xb00
+	.long	do_IRQ	!  73 0xb20
+	.long	do_IRQ	!  74 0xb40
+	.long	do_IRQ	!  75 0xb60
+	.long	do_IRQ	!  76 0xb80
+	.long	do_IRQ	!  77 0xba0
+	.long	do_IRQ	!  78 0xbc0
+	.long	do_IRQ	!  79 0xbe0
+	.long	do_IRQ	!  80 0xc00
+	.long	do_IRQ	!  81 0xc20
+	.long	do_IRQ	!  82 0xc40
+	.long	do_IRQ	!  83 0xc60
+	.long	do_IRQ	!  84 0xc80
+	.long	do_IRQ	!  85 0xca0
+	.long	do_IRQ	!  86 0xcc0
+	.long	do_IRQ	!  87 0xce0
+	.long	do_IRQ	!  88 0xd00
+	.long	do_IRQ	!  89 0xd20
+	.long	do_IRQ	!  90 0xd40
+	.long	do_IRQ	!  91 0xd60
+	.long	do_IRQ	!  92 0xd80
+	.long	do_IRQ	!  93 0xda0
+	.long	do_IRQ	!  94 0xdc0
+	.long	do_IRQ	!  95 0xde0
+	.long	do_IRQ	!  96 0xe00
+	.long	do_IRQ	!  97 0xe20
+	.long	do_IRQ	!  98 0xe40
+	.long	do_IRQ	!  99 0xe60
+	.long	do_IRQ	! 100 0xe80
+	.long	do_IRQ	! 101 0xea0
+	.long	do_IRQ	! 102 0xec0
+	.long	do_IRQ	! 103 0xee0
+	.long	do_IRQ	! 104 0xf00
+	.long	do_IRQ	! 105 0xf20
+	.long	do_IRQ	! 106 0xf40
+	.long	do_IRQ	! 107 0xf60
+	.long	do_IRQ	! 108 0xf80
+#endif
+#else
+	.long	exception_error		/* 400 */
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! RTC	ati
+	.long	do_IRQ	!	pri
+	.long	do_IRQ	!	cui
+	.long	exception_error
+	.long	exception_error		/* 500 */
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! WDT	iti	/* 560 */
+	.long	do_IRQ	! TMU-ch0
+	.long	do_IRQ	! TMU-ch1
+	.long	do_IRQ	! TMU-ch2
+	.long	do_IRQ	! ticpi2	/* 5E0 */
+	.long	do_IRQ	! 32 Hitachi UDI	/* 600 */
+	.long	exception_error
+	.long	do_IRQ	! 34 DMAC dmte0
+	.long	do_IRQ	! 35	  dmte1
+	.long	do_IRQ	! 36	  dmte2
+	.long	do_IRQ	! 37	  dmte3
+	.long	do_IRQ	! 38	  dmae
+	.long	exception_error			! 39	/* 6E0 */
+	.long	do_IRQ	! 40 SCIF-ch0 eri		/* 700 */
+	.long	do_IRQ	! 41	      rxi
+	.long	do_IRQ	! 42	      bri
+	.long	do_IRQ	! 43	      txi
+	.long	do_IRQ	! 44 DMAC dmte4		/* 780 */
+	.long	do_IRQ	! 45	  dmte5
+	.long	do_IRQ	! 46	  dmte6
+	.long	do_IRQ	! 47	  dmte7		/* 7E0 */
+#if defined(CONFIG_SH_FPU)
+	.long	do_fpu_state_restore	! 48	/* 800 */
+	.long	do_fpu_state_restore	! 49	/* 820 */
+#else
+	.long	exception_error
+	.long	exception_error
+#endif
+	.long	exception_error			/* 840 */
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! 56 CMT	/* 900 */
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! 60 HAC
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! PCI serr	/* A00 */
+	.long	do_IRQ	!     INTA
+	.long	do_IRQ	!     INTB
+	.long	do_IRQ	!     INTC
+	.long	do_IRQ	!     INTD
+	.long	do_IRQ	!     err
+	.long	do_IRQ	!     pwd3
+	.long	do_IRQ	!     pwd2
+	.long	do_IRQ	!     pwd1	/* B00 */
+	.long	do_IRQ	!     pwd0
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! SCIF-ch1 eri	/* B80 */
+	.long	do_IRQ	!	   rxi
+	.long	do_IRQ	!	   bri
+	.long	do_IRQ	!	   txi
+	.long	do_IRQ	! SIOF		/* C00 */
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! HSPI		/* C80 */
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! MMCIF	fatat	/* D00 */
+	.long	do_IRQ	!	tran
+	.long	do_IRQ	!	err
+	.long	do_IRQ	!	frdy
+	.long	do_IRQ	! DMAC dmint8	/* D80 */
+	.long	do_IRQ	!      dmint9
+	.long	do_IRQ	!      dmint10
+	.long	do_IRQ	!      dmint11
+	.long	do_IRQ	! TMU-ch3	/* E00 */
+	.long	do_IRQ	! TMU-ch4
+	.long	do_IRQ	! TMU-ch5
+	.long	exception_error
+	.long	do_IRQ	! SSI
+	.long	exception_error
+	.long	exception_error
+	.long	exception_error
+	.long	do_IRQ	! FLCTL	flste	/* F00 */
+	.long	do_IRQ	!	fltend
+	.long	do_IRQ	!	fltrq0
+	.long	do_IRQ	!	fltrq1
+	.long	do_IRQ	! GPIO gpioi0	/* F80 */
+	.long	do_IRQ	!      gpioi1
+	.long	do_IRQ	!      gpioi2
+	.long	do_IRQ	!      gpioi3
 #endif
 

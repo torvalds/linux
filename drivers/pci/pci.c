@@ -432,16 +432,63 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	case PM_EVENT_ON:
 		return PCI_D0;
 	case PM_EVENT_FREEZE:
+	case PM_EVENT_PRETHAW:
+		/* REVISIT both freeze and pre-thaw "should" use D0 */
 	case PM_EVENT_SUSPEND:
 		return PCI_D3hot;
 	default:
-		printk("They asked me for state %d\n", state.event);
+		printk("Unrecognized suspend event %d\n", state.event);
 		BUG();
 	}
 	return PCI_D0;
 }
 
 EXPORT_SYMBOL(pci_choose_state);
+
+static int pci_save_pcie_state(struct pci_dev *dev)
+{
+	int pos, i = 0;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (pos <= 0)
+		return 0;
+
+	save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
+	if (!save_state) {
+		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
+		return -ENOMEM;
+	}
+	cap = (u16 *)&save_state->data[0];
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
+	pci_add_saved_cap(dev, save_state);
+	return 0;
+}
+
+static void pci_restore_pcie_state(struct pci_dev *dev)
+{
+	int i = 0, pos;
+	struct pci_cap_saved_state *save_state;
+	u16 *cap;
+
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!save_state || pos <= 0)
+		return;
+	cap = (u16 *)&save_state->data[0];
+
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
+	pci_remove_saved_cap(save_state);
+	kfree(save_state);
+}
 
 /**
  * pci_save_state - save the PCI configuration space of a device before suspending
@@ -458,6 +505,8 @@ pci_save_state(struct pci_dev *dev)
 		return i;
 	if ((i = pci_save_msix_state(dev)) != 0)
 		return i;
+	if ((i = pci_save_pcie_state(dev)) != 0)
+		return i;
 	return 0;
 }
 
@@ -470,6 +519,9 @@ pci_restore_state(struct pci_dev *dev)
 {
 	int i;
 	int val;
+
+	/* PCI Express register must be restored first */
+	pci_restore_pcie_state(dev);
 
 	/*
 	 * The Base Address register should be programmed before the command
@@ -953,12 +1005,11 @@ static int __devinit pci_setup(char *str)
 		}
 		str = k;
 	}
-	return 1;
+	return 0;
 }
+early_param("pci", pci_setup);
 
 device_initcall(pci_init);
-
-__setup("pci=", pci_setup);
 
 #if defined(CONFIG_ISA) || defined(CONFIG_EISA)
 /* FIXME: Some boxes have multiple ISA bridges! */

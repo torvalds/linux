@@ -118,7 +118,6 @@ struct genapic apic_cluster = {
 	.name = "clustered",
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_FIXED,
 	.target_cpus = cluster_target_cpus,
 	.apic_id_registered = cluster_apic_id_registered,
 	.init_apic_ldr = cluster_init_apic_ldr,

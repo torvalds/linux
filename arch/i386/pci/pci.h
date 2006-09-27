@@ -17,6 +17,7 @@
 #define PCI_PROBE_CONF2		0x0004
 #define PCI_PROBE_MMCONF	0x0008
 #define PCI_PROBE_MASK		0x000f
+#define PCI_PROBE_NOEARLY	0x0010
 
 #define PCI_NO_SORT		0x0100
 #define PCI_BIOS_SORT		0x0200
@@ -81,7 +82,9 @@ extern int pci_conf1_write(unsigned int seg, unsigned int bus,
 extern int pci_conf1_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value);
 
-extern void pci_direct_init(void);
+extern int pci_direct_probe(void);
+extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
-extern void pci_mmcfg_init(void);
+extern void pci_mmcfg_init(int type);
 extern void pcibios_sort(void);
+

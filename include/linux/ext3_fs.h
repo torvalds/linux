@@ -460,7 +460,7 @@ struct ext3_super_block {
 	 */
 	__u8	s_prealloc_blocks;	/* Nr of blocks to try to preallocate*/
 	__u8	s_prealloc_dir_blocks;	/* Nr to preallocate for dirs */
-	__u16	s_reserved_gdt_blocks;	/* Per group desc for online growth */
+	__le16	s_reserved_gdt_blocks;	/* Per group desc for online growth */
 	/*
 	 * Journaling support valid if EXT3_FEATURE_COMPAT_HAS_JOURNAL set.
 	 */
@@ -473,7 +473,7 @@ struct ext3_super_block {
 	__u8	s_reserved_char_pad;
 	__u16	s_reserved_word_pad;
 	__le32	s_default_mount_opts;
-	__le32	s_first_meta_bg; 	/* First metablock block group */
+	__le32	s_first_meta_bg;	/* First metablock block group */
 	__u32	s_reserved[190];	/* Padding to the end of the block */
 };
 

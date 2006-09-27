@@ -934,7 +934,7 @@ enum {
 	PHY_XMAC_AUNE_ADV	= 0x04,/* 16 bit r/w	Auto-Neg. Advertisement */
 	PHY_XMAC_AUNE_LP	= 0x05,/* 16 bit r/o	Link Partner Abi Reg */
 	PHY_XMAC_AUNE_EXP	= 0x06,/* 16 bit r/o	Auto-Neg. Expansion Reg */
-	PHY_XMAC_NEPG	= 0x07,/* 16 bit r/w	Next Page Register */
+	PHY_XMAC_NEPG		= 0x07,/* 16 bit r/w	Next Page Register */
 	PHY_XMAC_NEPG_LP	= 0x08,/* 16 bit r/o	Next Page Link Partner */
 
 	PHY_XMAC_EXT_STAT	= 0x0f,/* 16 bit r/o	Ext Status Register */
@@ -1097,12 +1097,35 @@ enum {
 
 /* Pause Bits (PHY_X_AN_PAUSE and PHY_X_RS_PAUSE) encoding */
 enum {
-	PHY_X_P_NO_PAUSE	= 0<<7,/* Bit  8..7:	no Pause Mode */
+	PHY_X_P_NO_PAUSE= 0<<7,/* Bit  8..7:	no Pause Mode */
 	PHY_X_P_SYM_MD	= 1<<7, /* Bit  8..7:	symmetric Pause Mode */
 	PHY_X_P_ASYM_MD	= 2<<7,/* Bit  8..7:	asymmetric Pause Mode */
 	PHY_X_P_BOTH_MD	= 3<<7,/* Bit  8..7:	both Pause Mode */
 };
 
+
+/*****  PHY_XMAC_EXT_STAT	16 bit r/w	Extended Status Register *****/
+enum {
+	PHY_X_EX_FD	= 1<<15, /* Bit 15:	Device Supports Full Duplex */
+	PHY_X_EX_HD	= 1<<14, /* Bit 14:	Device Supports Half Duplex */
+};
+
+/*****  PHY_XMAC_RES_ABI	16 bit r/o	PHY Resolved Ability *****/
+enum {
+	PHY_X_RS_PAUSE	= 3<<7,	/* Bit  8..7:	selected Pause Mode */
+	PHY_X_RS_HD	= 1<<6,	/* Bit  6:	Half Duplex Mode selected */
+	PHY_X_RS_FD	= 1<<5,	/* Bit  5:	Full Duplex Mode selected */
+	PHY_X_RS_ABLMIS = 1<<4,	/* Bit  4:	duplex or pause cap mismatch */
+	PHY_X_RS_PAUMIS = 1<<3,	/* Bit  3:	pause capability mismatch */
+};
+
+/* Remote Fault Bits (PHY_X_AN_RFB) encoding */
+enum {
+	X_RFB_OK	= 0<<12,/* Bit 13..12	No errors, Link OK */
+	X_RFB_LF	= 1<<12,/* Bit 13..12	Link Failure */
+	X_RFB_OFF	= 2<<12,/* Bit 13..12	Offline */
+	X_RFB_AN_ERR	= 3<<12,/* Bit 13..12	Auto-Negotiation Error */
+};
 
 /* Broadcom-Specific */
 /*****  PHY_BCOM_1000T_CTRL	16 bit r/w	1000Base-T Control Reg *****/
@@ -2158,8 +2181,8 @@ enum {
 	XM_IS_LNK_AE	= 1<<14, /* Bit 14:	Link Asynchronous Event */
 	XM_IS_TX_ABORT	= 1<<13, /* Bit 13:	Transmit Abort, late Col. etc */
 	XM_IS_FRC_INT	= 1<<12, /* Bit 12:	Force INT bit set in GP */
-	XM_IS_INP_ASS	= 1<<11,	/* Bit 11:	Input Asserted, GP bit 0 set */
-	XM_IS_LIPA_RC	= 1<<10,	/* Bit 10:	Link Partner requests config */
+	XM_IS_INP_ASS	= 1<<11, /* Bit 11:	Input Asserted, GP bit 0 set */
+	XM_IS_LIPA_RC	= 1<<10, /* Bit 10:	Link Partner requests config */
 	XM_IS_RX_PAGE	= 1<<9,	/* Bit  9:	Page Received */
 	XM_IS_TX_PAGE	= 1<<8,	/* Bit  8:	Next Page Loaded for Transmit */
 	XM_IS_AND	= 1<<7,	/* Bit  7:	Auto-Negotiation Done */
@@ -2172,9 +2195,7 @@ enum {
 	XM_IS_RX_COMP	= 1<<0,	/* Bit  0:	Frame Rx Complete */
 };
 
-#define XM_DEF_MSK	(~(XM_IS_INP_ASS | XM_IS_LIPA_RC | XM_IS_RX_PAGE | \
-			   XM_IS_AND | XM_IS_RXC_OV | XM_IS_TXC_OV | \
-			   XM_IS_RXF_OV | XM_IS_TXF_UR))
+#define XM_DEF_MSK	(~(XM_IS_RXC_OV | XM_IS_TXC_OV | XM_IS_RXF_OV | XM_IS_TXF_UR))
 
 
 /*	XM_HW_CFG	16 bit r/w	Hardware Config Register */
@@ -2396,6 +2417,7 @@ struct skge_hw {
 	u8		     chip_rev;
 	u8		     copper;
 	u8		     ports;
+	u8		     phy_type;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
@@ -2422,6 +2444,7 @@ struct skge_port {
 
 	struct net_device_stats net_stats;
 
+	struct work_struct   link_thread;
 	u8		     rx_csum;
 	u8		     blink_on;
 	u8		     flow_control;

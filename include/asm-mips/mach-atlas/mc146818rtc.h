@@ -28,10 +28,12 @@
 #include <asm/mips-boards/atlas.h>
 #include <asm/mips-boards/atlasint.h>
 
+#define ARCH_RTC_LOCATION
+
 #define RTC_PORT(x)	(ATLAS_RTC_ADR_REG + (x) * 8)
 #define RTC_IO_EXTENT	0x100
 #define RTC_IOMAPPED	0
-#define RTC_IRQ		ATLASINT_RTC
+#define RTC_IRQ		ATLAS_INT_RTC
 
 static inline unsigned char CMOS_READ(unsigned long addr)
 {

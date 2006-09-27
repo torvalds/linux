@@ -10,7 +10,7 @@
 #ifndef __ASM_CPU_SH3_CACHEFLUSH_H
 #define __ASM_CPU_SH3_CACHEFLUSH_H
 
-/* 
+/*
  * Cache flushing:
  *
  *  - flush_cache_all() flushes entire cache
@@ -35,53 +35,33 @@
  /* 32KB cache, 4kb PAGE sizes need to check bit 12 */
 #define CACHE_ALIAS 0x00001000
 
-struct page;
-struct mm_struct;
-struct vm_area_struct;
+#define PG_mapped	PG_arch_1
 
-extern void flush_cache_all(void);
-extern void flush_cache_mm(struct mm_struct *mm);
-extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+void flush_cache_all(void);
+void flush_cache_mm(struct mm_struct *mm);
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
                               unsigned long end);
-extern void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn);
-extern void flush_dcache_page(struct page *pg);
-extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
+void flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn);
+void flush_dcache_page(struct page *pg);
+void flush_icache_range(unsigned long start, unsigned long end);
+void flush_icache_page(struct vm_area_struct *vma, struct page *page);
+#else
+#define flush_cache_all()			do { } while (0)
+#define flush_cache_mm(mm)			do { } while (0)
+#define flush_cache_range(vma, start, end)	do { } while (0)
+#define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
+#define flush_dcache_page(page)			do { } while (0)
+#define flush_icache_range(start, end)		do { } while (0)
+#define flush_icache_page(vma,pg)		do { } while (0)
+#endif
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 /* SH3 has unified cache so no special action needed here */
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
-#define flush_page_to_ram(page)			do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 
 #define p3_cache_init()				do { } while (0)
-
-#define PG_mapped	PG_arch_1
-
-/* We provide our own get_unmapped_area to avoid cache alias issue */
-#define HAVE_ARCH_UNMAPPED_AREA
-
-#else
-
-#define flush_cache_all()			do { } while (0)
-#define flush_cache_mm(mm)			do { } while (0)
-#define flush_cache_range(vma, start, end)	do { } while (0)
-#define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
-#define flush_dcache_page(page)			do { } while (0)
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
-#define flush_icache_range(start, end)		do { } while (0)
-#define flush_icache_page(vma,pg)		do { } while (0)
-#define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
-#define flush_cache_sigtramp(vaddr)		do { } while (0)
-
-#define p3_cache_init()				do { } while (0)
-
-#define HAVE_ARCH_UNMAPPED_AREA
-
-#endif
 
 #endif /* __ASM_CPU_SH3_CACHEFLUSH_H */
-

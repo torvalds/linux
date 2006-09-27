@@ -16,12 +16,15 @@
 
 #define HOST_AUDIT_ARCH AUDIT_ARCH_X86_64
 
+/* Also defined in sysdep/ptrace.h, so may already be defined. */
+#ifndef FS_BASE
 #define FS_BASE (21 * sizeof(unsigned long))
 #define GS_BASE (22 * sizeof(unsigned long))
 #define DS (23 * sizeof(unsigned long))
 #define ES (24 * sizeof(unsigned long))
 #define FS (25 * sizeof(unsigned long))
 #define GS (26 * sizeof(unsigned long))
+#endif
 
 #define PT_REGS_RBX(r) UPT_RBX(&(r)->regs)
 #define PT_REGS_RCX(r) UPT_RCX(&(r)->regs)

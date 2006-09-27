@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/vmstat.h>
 #include <linux/file.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
@@ -370,7 +371,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 			/* synchronous write or broken a_ops? */
 			ClearPageReclaim(page);
 		}
-
+		inc_zone_page_state(page, NR_VMSCAN_WRITE);
 		return PAGE_SUCCESS;
 	}
 
@@ -383,11 +384,30 @@ int remove_mapping(struct address_space *mapping, struct page *page)
 	BUG_ON(mapping != page_mapping(page));
 
 	write_lock_irq(&mapping->tree_lock);
-
 	/*
-	 * The non-racy check for busy page.  It is critical to check
-	 * PageDirty _after_ making sure that the page is freeable and
-	 * not in use by anybody. 	(pagecache + us == 2)
+	 * The non racy check for a busy page.
+	 *
+	 * Must be careful with the order of the tests. When someone has
+	 * a ref to the page, it may be possible that they dirty it then
+	 * drop the reference. So if PageDirty is tested before page_count
+	 * here, then the following race may occur:
+	 *
+	 * get_user_pages(&page);
+	 * [user mapping goes away]
+	 * write_to(page);
+	 *				!PageDirty(page)    [good]
+	 * SetPageDirty(page);
+	 * put_page(page);
+	 *				!page_count(page)   [good, discard it]
+	 *
+	 * [oops, our write_to data is lost]
+	 *
+	 * Reversing the order of the tests ensures such a situation cannot
+	 * escape unnoticed. The smp_rmb is needed to ensure the page->flags
+	 * load is not satisfied before that of page->_count.
+	 *
+	 * Note that if SetPageDirty is always performed via set_page_dirty,
+	 * and thus under tree_lock, then this ordering is not required.
 	 */
 	if (unlikely(page_count(page) != 2))
 		goto cannot_free;

@@ -98,6 +98,9 @@
 #ifdef CONFIG_USB_STORAGE_ALAUDA
 #include "alauda.h"
 #endif
+#ifdef CONFIG_USB_STORAGE_KARMA
+#include "karma.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -643,6 +646,14 @@ static int get_transport(struct us_data *us)
 		us->transport = alauda_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		us->max_lun = 1;
+		break;
+#endif
+
+#ifdef CONFIG_USB_STORAGE_KARMA
+	case US_PR_KARMA:
+		us->transport_name = "Rio Karma/Bulk";
+		us->transport = rio_karma_transport;
+		us->transport_reset = usb_stor_Bulk_reset;
 		break;
 #endif
 

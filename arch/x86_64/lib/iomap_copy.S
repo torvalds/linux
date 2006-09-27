@@ -15,12 +15,16 @@
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <linux/linkage.h>
+#include <asm/dwarf2.h>
+
 /*
  * override generic version in lib/iomap_copy.c
  */
- 	.globl __iowrite32_copy
-	.p2align 4
-__iowrite32_copy:
+ENTRY(__iowrite32_copy)
+	CFI_STARTPROC
 	movl %edx,%ecx
 	rep movsd
 	ret
+	CFI_ENDPROC
+ENDPROC(__iowrite32_copy)

@@ -331,7 +331,7 @@ map_err_out:
 		ntfs_inode **tmp;
 		int new_size = (base_ni->nr_extents + 4) * sizeof(ntfs_inode *);
 
-		tmp = (ntfs_inode **)kmalloc(new_size, GFP_NOFS);
+		tmp = kmalloc(new_size, GFP_NOFS);
 		if (unlikely(!tmp)) {
 			ntfs_error(base_ni->vol->sb, "Failed to allocate "
 					"internal buffer.");
@@ -2638,11 +2638,6 @@ mft_rec_already_initialized:
 		}
 		vi->i_ino = bit;
 		/*
-		 * This is the optimal IO size (for stat), not the fs block
-		 * size.
-		 */
-		vi->i_blksize = PAGE_CACHE_SIZE;
-		/*
 		 * This is for checking whether an inode has changed w.r.t. a
 		 * file so that the file can be updated if necessary (compare
 		 * with f_version).
@@ -2893,7 +2888,7 @@ rollback:
 	if (!(base_ni->nr_extents & 3)) {
 		int new_size = (base_ni->nr_extents + 4) * sizeof(ntfs_inode*);
 
-		extent_nis = (ntfs_inode**)kmalloc(new_size, GFP_NOFS);
+		extent_nis = kmalloc(new_size, GFP_NOFS);
 		if (unlikely(!extent_nis)) {
 			ntfs_error(vol->sb, "Failed to allocate internal "
 					"buffer during rollback.%s", es);

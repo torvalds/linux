@@ -76,6 +76,8 @@ extern int FASTCALL(attach_pid(struct task_struct *task,
 				enum pid_type type, int nr));
 
 extern void FASTCALL(detach_pid(struct task_struct *task, enum pid_type));
+extern void FASTCALL(transfer_pid(struct task_struct *old,
+				  struct task_struct *new, enum pid_type));
 
 /*
  * look up a PID in the hash table. Must be called with the tasklist_lock

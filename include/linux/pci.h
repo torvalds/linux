@@ -49,6 +49,7 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
+#include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/device.h>
 
@@ -346,6 +347,8 @@ struct pci_driver {
 	int  (*probe)  (struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove) (struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
+	int  (*suspend_late) (struct pci_dev *dev, pm_message_t state);
+	int  (*resume_early) (struct pci_dev *dev);
 	int  (*resume) (struct pci_dev *dev);	                /* Device woken up */
 	int  (*enable_wake) (struct pci_dev *dev, pci_power_t state, int enable);   /* Enable wake event */
 	void (*shutdown) (struct pci_dev *dev);
@@ -353,6 +356,8 @@ struct pci_driver {
 	struct pci_error_handlers *err_handler;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
+
+	int multithread_probe;
 };
 
 #define	to_pci_driver(drv) container_of(drv,struct pci_driver, driver)
@@ -401,7 +406,7 @@ extern struct list_head pci_root_buses;	/* list of all known PCI buses */
 extern struct list_head pci_devices;	/* list of all devices */
 
 void pcibios_fixup_bus(struct pci_bus *);
-int pcibios_enable_device(struct pci_dev *, int mask);
+int __must_check pcibios_enable_device(struct pci_dev *, int mask);
 char *pcibios_setup (char *str);
 
 /* Used only when drivers/pci/setup.c is used */
@@ -428,7 +433,7 @@ int pci_scan_slot(struct pci_bus *bus, int devfn);
 struct pci_dev * pci_scan_single_device(struct pci_bus *bus, int devfn);
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus);
 unsigned int pci_scan_child_bus(struct pci_bus *bus);
-void pci_bus_add_device(struct pci_dev *dev);
+int __must_check pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev, struct resource *res);
 int pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge);
@@ -436,6 +441,7 @@ extern struct pci_dev *pci_dev_get(struct pci_dev *dev);
 extern void pci_dev_put(struct pci_dev *dev);
 extern void pci_remove_bus(struct pci_bus *b);
 extern void pci_remove_bus_device(struct pci_dev *dev);
+extern void pci_stop_bus_device(struct pci_dev *dev);
 void pci_setup_cardbus(struct pci_bus *bus);
 
 /* Generic PCI functions exported to card drivers */
@@ -488,19 +494,19 @@ static inline int pci_write_config_dword(struct pci_dev *dev, int where, u32 val
 	return pci_bus_write_config_dword (dev->bus, dev->devfn, where, val);
 }
 
-int pci_enable_device(struct pci_dev *dev);
-int pci_enable_device_bars(struct pci_dev *dev, int mask);
+int __must_check pci_enable_device(struct pci_dev *dev);
+int __must_check pci_enable_device_bars(struct pci_dev *dev, int mask);
 void pci_disable_device(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev);
 #define HAVE_PCI_SET_MWI
-int pci_set_mwi(struct pci_dev *dev);
+int __must_check pci_set_mwi(struct pci_dev *dev);
 void pci_clear_mwi(struct pci_dev *dev);
 void pci_intx(struct pci_dev *dev, int enable);
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
-int pci_assign_resource(struct pci_dev *dev, int i);
-int pci_assign_resource_fixed(struct pci_dev *dev, int i);
+int __must_check pci_assign_resource(struct pci_dev *dev, int i);
+int __must_check pci_assign_resource_fixed(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
 
 /* ROM control related routines */
@@ -526,23 +532,24 @@ void pdev_sort_resources(struct pci_dev *, struct resource_list *);
 void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
 		    int (*)(struct pci_dev *, u8, u8));
 #define HAVE_PCI_REQ_REGIONS	2
-int pci_request_regions(struct pci_dev *, const char *);
+int __must_check pci_request_regions(struct pci_dev *, const char *);
 void pci_release_regions(struct pci_dev *);
-int pci_request_region(struct pci_dev *, int, const char *);
+int __must_check pci_request_region(struct pci_dev *, int, const char *);
 void pci_release_region(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
-int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
-			   resource_size_t size, resource_size_t align,
-			   resource_size_t min, unsigned int type_mask,
-			   void (*alignf)(void *, struct resource *,
-					  resource_size_t, resource_size_t),
-			   void *alignf_data);
+int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
+			struct resource *res, resource_size_t size,
+			resource_size_t align, resource_size_t min,
+			unsigned int type_mask,
+			void (*alignf)(void *, struct resource *,
+				resource_size_t, resource_size_t),
+			void *alignf_data);
 void pci_enable_bridges(struct pci_bus *bus);
 
 /* Proper probing supporting hot-pluggable devices */
-int __pci_register_driver(struct pci_driver *, struct module *);
-static inline int pci_register_driver(struct pci_driver *driver)
+int __must_check __pci_register_driver(struct pci_driver *, struct module *);
+static inline int __must_check pci_register_driver(struct pci_driver *driver)
 {
 	return __pci_register_driver(driver, THIS_MODULE);
 }

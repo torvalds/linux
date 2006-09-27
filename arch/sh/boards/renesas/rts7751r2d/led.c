@@ -12,8 +12,6 @@
 #include <asm/io.h>
 #include <asm/rts7751r2d/rts7751r2d.h>
 
-extern unsigned int debug_counter;
-
 #ifdef CONFIG_HEARTBEAT
 
 #include <linux/sched.h>
@@ -55,12 +53,3 @@ void rts7751r2d_led(unsigned short value)
 	ctrl_outw(value, PA_OUTPORT);
 }
 
-void debug_led_disp(void)
-{
-	unsigned short value;
-
-	value = (unsigned short)debug_counter++;
-	rts7751r2d_led(value);
-	if (value == 0xff)
-		debug_counter = 0;
-}

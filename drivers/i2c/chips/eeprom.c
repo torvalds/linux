@@ -209,10 +209,14 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* create the sysfs eeprom file */
-	sysfs_create_bin_file(&new_client->dev.kobj, &eeprom_attr);
+	err = sysfs_create_bin_file(&new_client->dev.kobj, &eeprom_attr);
+	if (err)
+		goto exit_detach;
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_kfree:
 	kfree(data);
 exit:
@@ -222,6 +226,8 @@ exit:
 static int eeprom_detach_client(struct i2c_client *client)
 {
 	int err;
+
+	sysfs_remove_bin_file(&client->dev.kobj, &eeprom_attr);
 
 	err = i2c_detach_client(client);
 	if (err)

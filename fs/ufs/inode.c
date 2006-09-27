@@ -741,7 +741,6 @@ void ufs_read_inode(struct inode * inode)
 		ufs1_read_inode(inode, ufs_inode + ufs_inotofsbo(inode->i_ino));
 	}
 
-	inode->i_blksize = PAGE_SIZE;/*This is the optimal IO size (for stat)*/
 	inode->i_version++;
 	ufsi->i_lastfrag =
 		(inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift;

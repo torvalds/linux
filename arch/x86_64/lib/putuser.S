@@ -25,25 +25,26 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/dwarf2.h>
 #include <asm/page.h>
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
 	.text
-	.p2align 4
-.globl __put_user_1
-__put_user_1:
+ENTRY(__put_user_1)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%r8)
 	cmpq threadinfo_addr_limit(%r8),%rcx
 	jae bad_put_user
 1:	movb %dl,(%rcx)
 	xorl %eax,%eax
 	ret
+	CFI_ENDPROC
+ENDPROC(__put_user_1)
 
-	.p2align 4
-.globl __put_user_2
-__put_user_2:
+ENTRY(__put_user_2)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%r8)
 	addq $1,%rcx
 	jc 20f
@@ -55,10 +56,11 @@ __put_user_2:
 	ret
 20:	decq %rcx
 	jmp bad_put_user
+	CFI_ENDPROC
+ENDPROC(__put_user_2)
 
-	.p2align 4
-.globl __put_user_4
-__put_user_4:
+ENTRY(__put_user_4)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%r8)
 	addq $3,%rcx
 	jc 30f
@@ -70,10 +72,11 @@ __put_user_4:
 	ret
 30:	subq $3,%rcx
 	jmp bad_put_user
+	CFI_ENDPROC
+ENDPROC(__put_user_4)
 
-	.p2align 4
-.globl __put_user_8
-__put_user_8:
+ENTRY(__put_user_8)
+	CFI_STARTPROC
 	GET_THREAD_INFO(%r8)
 	addq $7,%rcx
 	jc 40f
@@ -85,10 +88,15 @@ __put_user_8:
 	ret
 40:	subq $7,%rcx
 	jmp bad_put_user
+	CFI_ENDPROC
+ENDPROC(__put_user_8)
 
 bad_put_user:
+	CFI_STARTPROC
 	movq $(-EFAULT),%rax
 	ret
+	CFI_ENDPROC
+END(bad_put_user)
 
 .section __ex_table,"a"
 	.quad 1b,bad_put_user

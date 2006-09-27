@@ -1,4 +1,5 @@
-/* arch/sh/kernel/rtc-aica.c
+/*
+ * arch/sh/boards/dreamcast/rtc.c
  *
  * Dreamcast AICA RTC routines.
  *
@@ -10,15 +11,12 @@
  */
 
 #include <linux/time.h>
-
+#include <asm/rtc.h>
 #include <asm/io.h>
 
-extern void (*rtc_get_time)(struct timespec *);
-extern int (*rtc_set_time)(const time_t);
-
 /* The AICA RTC has an Epoch of 1/1/1950, so we must subtract 20 years (in
-   seconds to get the standard Unix Epoch when getting the time, and add 20
-   years when setting the time. */
+   seconds) to get the standard Unix Epoch when getting the time, and add
+   20 years when setting the time. */
 #define TWENTY_YEARS ((20 * 365LU + 5) * 86400)
 
 /* The AICA RTC is represented by a 32-bit seconds counter stored in 2 16-bit
@@ -32,7 +30,8 @@ extern int (*rtc_set_time)(const time_t);
  *
  * Grabs the current RTC seconds counter and adjusts it to the Unix Epoch.
  */
-void aica_rtc_gettimeofday(struct timespec *ts) {
+void aica_rtc_gettimeofday(struct timespec *ts)
+{
 	unsigned long val1, val2;
 
 	do {
@@ -55,7 +54,8 @@ void aica_rtc_gettimeofday(struct timespec *ts) {
  *
  * Adjusts the given @tv to the AICA Epoch and sets the RTC seconds counter.
  */
-int aica_rtc_settimeofday(const time_t secs) {
+int aica_rtc_settimeofday(const time_t secs)
+{
 	unsigned long val1, val2;
 	unsigned long adj = secs + TWENTY_YEARS;
 
@@ -75,7 +75,7 @@ int aica_rtc_settimeofday(const time_t secs) {
 
 void aica_time_init(void)
 {
-	rtc_get_time = aica_rtc_gettimeofday;
-	rtc_set_time = aica_rtc_settimeofday;
+	rtc_sh_get_time = aica_rtc_gettimeofday;
+	rtc_sh_set_time = aica_rtc_settimeofday;
 }
 

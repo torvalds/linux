@@ -114,8 +114,6 @@ static int uml_net_open(struct net_device *dev)
 	struct uml_net_private *lp = dev->priv;
 	int err;
 
-	spin_lock(&lp->lock);
-
 	if(lp->fd >= 0){
 		err = -ENXIO;
 		goto out;
@@ -149,8 +147,6 @@ static int uml_net_open(struct net_device *dev)
 	 */
 	while((err = uml_net_rx(dev)) > 0) ;
 
-	spin_unlock(&lp->lock);
-
 	spin_lock(&opened_lock);
 	list_add(&lp->list, &opened);
 	spin_unlock(&opened_lock);
@@ -160,7 +156,6 @@ out_close:
 	if(lp->close != NULL) (*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
 out:
-	spin_unlock(&lp->lock);
 	return err;
 }
 
@@ -169,14 +164,11 @@ static int uml_net_close(struct net_device *dev)
 	struct uml_net_private *lp = dev->priv;
 	
 	netif_stop_queue(dev);
-	spin_lock(&lp->lock);
 
 	free_irq(dev->irq, dev);
 	if(lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
-
-	spin_unlock(&lp->lock);
 
 	spin_lock(&opened_lock);
 	list_del(&lp->list);
@@ -246,9 +238,9 @@ static int uml_net_set_mac(struct net_device *dev, void *addr)
 	struct uml_net_private *lp = dev->priv;
 	struct sockaddr *hwaddr = addr;
 
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 	set_ether_mac(dev, hwaddr->sa_data);
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 
 	return(0);
 }
@@ -258,7 +250,7 @@ static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 	struct uml_net_private *lp = dev->priv;
 	int err = 0;
 
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 
 	new_mtu = (*lp->set_mtu)(new_mtu, &lp->user);
 	if(new_mtu < 0){
@@ -269,7 +261,7 @@ static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 
  out:
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 	return err;
 }
 
@@ -569,12 +561,13 @@ static int eth_setup(char *str)
 	int n, err;
 
 	err = eth_parse(str, &n, &str);
-	if(err) return(1);
+	if(err)
+		return 1;
 
-	new = alloc_bootmem(sizeof(new));
+	new = alloc_bootmem(sizeof(*new));
 	if (new == NULL){
 		printk("eth_init : alloc_bootmem failed\n");
-		return(1);
+		return 1;
 	}
 
 	INIT_LIST_HEAD(&new->list);
@@ -582,7 +575,7 @@ static int eth_setup(char *str)
 	new->init = str;
 
 	list_add_tail(&new->list, &eth_cmd_line);
-	return(1);
+	return 1;
 }
 
 __setup("eth", eth_setup);

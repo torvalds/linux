@@ -247,7 +247,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_capset
 	PTR	sys32_rt_sigpending		/* 6125 */
 	PTR	compat_sys_rt_sigtimedwait
-	PTR	sys_rt_sigqueueinfo
+	PTR	sys32_rt_sigqueueinfo
 	PTR	sysn32_rt_sigsuspend
 	PTR	sys32_sigaltstack
 	PTR	compat_sys_utime		/* 6130 */
@@ -390,5 +390,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_splice
 	PTR	sys_sync_file_range
 	PTR	sys_tee
-	PTR	sys_vmsplice			/* 6271 */
+	PTR	sys_vmsplice			/* 6270 */
 	PTR	sys_move_pages
+	PTR	compat_sys_set_robust_list
+	PTR	compat_sys_get_robust_list

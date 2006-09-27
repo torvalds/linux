@@ -23,7 +23,7 @@
 
 /* Define the number of blocks we need to account to a transaction to
  * modify one block of data.
- * 
+ *
  * We may have to touch one inode, one bitmap buffer, up to three
  * indirection blocks, the group and superblock summaries, and the data
  * block to complete the transaction.  */
@@ -88,16 +88,16 @@
 #endif
 
 int
-ext3_mark_iloc_dirty(handle_t *handle, 
+ext3_mark_iloc_dirty(handle_t *handle,
 		     struct inode *inode,
 		     struct ext3_iloc *iloc);
 
-/* 
+/*
  * On success, We end up with an outstanding reference count against
- * iloc->bh.  This _must_ be cleaned up later. 
+ * iloc->bh.  This _must_ be cleaned up later.
  */
 
-int ext3_reserve_inode_write(handle_t *handle, struct inode *inode, 
+int ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
 			struct ext3_iloc *iloc);
 
 int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode);

@@ -376,7 +376,7 @@ static u32 piix4_func(struct i2c_adapter *adapter)
 	    I2C_FUNC_SMBUS_BLOCK_DATA;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= piix4_access,
 	.functionality	= piix4_func,
 };

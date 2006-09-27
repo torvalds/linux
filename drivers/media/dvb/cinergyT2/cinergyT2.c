@@ -981,7 +981,7 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 	if (cinergyt2->disconnect_pending || mutex_lock_interruptible(&cinergyt2->sem))
 		return -ERESTARTSYS;
 
-	if (state.event > PM_EVENT_ON) {
+	if (1) {
 		struct cinergyt2 *cinergyt2 = usb_get_intfdata (intf);
 
 		cinergyt2_suspend_rc(cinergyt2);

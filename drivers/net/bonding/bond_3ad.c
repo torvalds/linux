@@ -85,6 +85,7 @@
 #define     AD_LINK_SPEED_BITMASK_10MBPS      0x2
 #define     AD_LINK_SPEED_BITMASK_100MBPS     0x4
 #define     AD_LINK_SPEED_BITMASK_1000MBPS    0x8
+#define     AD_LINK_SPEED_BITMASK_10000MBPS   0x10
 //endalloun
 
 // compare MAC addresses
@@ -99,7 +100,7 @@ static u16 __get_link_speed(struct port *port);
 static u8 __get_duplex(struct port *port);
 static inline void __initialize_port_locks(struct port *port);
 //conversions
-static void __ntohs_lacpdu(struct lacpdu *lacpdu);
+static void __htons_lacpdu(struct lacpdu *lacpdu);
 static u16 __ad_timer_to_ticks(u16 timer_type, u16 Par);
 
 
@@ -330,7 +331,8 @@ static inline void __release_rx_machine_lock(struct port *port)
  *     0,
  *     %AD_LINK_SPEED_BITMASK_10MBPS,
  *     %AD_LINK_SPEED_BITMASK_100MBPS,
- *     %AD_LINK_SPEED_BITMASK_1000MBPS
+ *     %AD_LINK_SPEED_BITMASK_1000MBPS,
+ *     %AD_LINK_SPEED_BITMASK_10000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -355,6 +357,10 @@ static u16 __get_link_speed(struct port *port)
 
 		case SPEED_1000:
 			speed = AD_LINK_SPEED_BITMASK_1000MBPS;
+			break;
+
+		case SPEED_10000:
+			speed = AD_LINK_SPEED_BITMASK_10000MBPS;
 			break;
 
 		default:
@@ -414,23 +420,23 @@ static inline void __initialize_port_locks(struct port *port)
 
 //conversions
 /**
- * __ntohs_lacpdu - convert the contents of a LACPDU to host byte order
+ * __htons_lacpdu - convert the contents of a LACPDU to network byte order
  * @lacpdu: the speicifed lacpdu
  *
  * For each multi-byte field in the lacpdu, convert its content
  */
-static void __ntohs_lacpdu(struct lacpdu *lacpdu)
+static void __htons_lacpdu(struct lacpdu *lacpdu)
 {
 	if (lacpdu) {
-		lacpdu->actor_system_priority =   ntohs(lacpdu->actor_system_priority);
-		lacpdu->actor_key =               ntohs(lacpdu->actor_key);
-		lacpdu->actor_port_priority =     ntohs(lacpdu->actor_port_priority);
-		lacpdu->actor_port =              ntohs(lacpdu->actor_port);
-		lacpdu->partner_system_priority = ntohs(lacpdu->partner_system_priority);
-		lacpdu->partner_key =             ntohs(lacpdu->partner_key);
-		lacpdu->partner_port_priority =   ntohs(lacpdu->partner_port_priority);
-		lacpdu->partner_port =            ntohs(lacpdu->partner_port);
-		lacpdu->collector_max_delay =     ntohs(lacpdu->collector_max_delay);
+		lacpdu->actor_system_priority =   htons(lacpdu->actor_system_priority);
+		lacpdu->actor_key =               htons(lacpdu->actor_key);
+		lacpdu->actor_port_priority =     htons(lacpdu->actor_port_priority);
+		lacpdu->actor_port =              htons(lacpdu->actor_port);
+		lacpdu->partner_system_priority = htons(lacpdu->partner_system_priority);
+		lacpdu->partner_key =             htons(lacpdu->partner_key);
+		lacpdu->partner_port_priority =   htons(lacpdu->partner_port_priority);
+		lacpdu->partner_port =            htons(lacpdu->partner_port);
+		lacpdu->collector_max_delay =     htons(lacpdu->collector_max_delay);
 	}
 }
 
@@ -490,11 +496,11 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 	// validate lacpdu and port
 	if (lacpdu && port) {
 		// record the new parameter values for the partner operational
-		port->partner_oper_port_number = lacpdu->actor_port;
-		port->partner_oper_port_priority = lacpdu->actor_port_priority;
+		port->partner_oper_port_number = ntohs(lacpdu->actor_port);
+		port->partner_oper_port_priority = ntohs(lacpdu->actor_port_priority);
 		port->partner_oper_system = lacpdu->actor_system;
-		port->partner_oper_system_priority = lacpdu->actor_system_priority;
-		port->partner_oper_key = lacpdu->actor_key;
+		port->partner_oper_system_priority = ntohs(lacpdu->actor_system_priority);
+		port->partner_oper_key = ntohs(lacpdu->actor_key);
 		// zero partener's lase states
 		port->partner_oper_port_state = 0;
 		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_LACP_ACTIVITY);
@@ -561,11 +567,11 @@ static void __update_selected(struct lacpdu *lacpdu, struct port *port)
 	// validate lacpdu and port
 	if (lacpdu && port) {
 		// check if any parameter is different
-		if ((lacpdu->actor_port != port->partner_oper_port_number) ||
-		    (lacpdu->actor_port_priority != port->partner_oper_port_priority) ||
+		if ((ntohs(lacpdu->actor_port) != port->partner_oper_port_number) ||
+		    (ntohs(lacpdu->actor_port_priority) != port->partner_oper_port_priority) ||
 		    MAC_ADDRESS_COMPARE(&(lacpdu->actor_system), &(port->partner_oper_system)) ||
-		    (lacpdu->actor_system_priority != port->partner_oper_system_priority) ||
-		    (lacpdu->actor_key != port->partner_oper_key) ||
+		    (ntohs(lacpdu->actor_system_priority) != port->partner_oper_system_priority) ||
+		    (ntohs(lacpdu->actor_key) != port->partner_oper_key) ||
 		    ((lacpdu->actor_state & AD_STATE_AGGREGATION) != (port->partner_oper_port_state & AD_STATE_AGGREGATION))
 		   ) {
 			// update the state machine Selected variable
@@ -628,11 +634,11 @@ static void __choose_matched(struct lacpdu *lacpdu, struct port *port)
 	// validate lacpdu and port
 	if (lacpdu && port) {
 		// check if all parameters are alike
-		if (((lacpdu->partner_port == port->actor_port_number) &&
-		     (lacpdu->partner_port_priority == port->actor_port_priority) &&
+		if (((ntohs(lacpdu->partner_port) == port->actor_port_number) &&
+		     (ntohs(lacpdu->partner_port_priority) == port->actor_port_priority) &&
 		     !MAC_ADDRESS_COMPARE(&(lacpdu->partner_system), &(port->actor_system)) &&
-		     (lacpdu->partner_system_priority == port->actor_system_priority) &&
-		     (lacpdu->partner_key == port->actor_oper_port_key) &&
+		     (ntohs(lacpdu->partner_system_priority) == port->actor_system_priority) &&
+		     (ntohs(lacpdu->partner_key) == port->actor_oper_port_key) &&
 		     ((lacpdu->partner_state & AD_STATE_AGGREGATION) == (port->actor_oper_port_state & AD_STATE_AGGREGATION))) ||
 		    // or this is individual link(aggregation == FALSE)
 		    ((lacpdu->actor_state & AD_STATE_AGGREGATION) == 0)
@@ -662,11 +668,11 @@ static void __update_ntt(struct lacpdu *lacpdu, struct port *port)
 	// validate lacpdu and port
 	if (lacpdu && port) {
 		// check if any parameter is different
-		if ((lacpdu->partner_port != port->actor_port_number) ||
-		    (lacpdu->partner_port_priority != port->actor_port_priority) ||
+		if ((ntohs(lacpdu->partner_port) != port->actor_port_number) ||
+		    (ntohs(lacpdu->partner_port_priority) != port->actor_port_priority) ||
 		    MAC_ADDRESS_COMPARE(&(lacpdu->partner_system), &(port->actor_system)) ||
-		    (lacpdu->partner_system_priority != port->actor_system_priority) ||
-		    (lacpdu->partner_key != port->actor_oper_port_key) ||
+		    (ntohs(lacpdu->partner_system_priority) != port->actor_system_priority) ||
+		    (ntohs(lacpdu->partner_key) != port->actor_oper_port_key) ||
 		    ((lacpdu->partner_state & AD_STATE_LACP_ACTIVITY) != (port->actor_oper_port_state & AD_STATE_LACP_ACTIVITY)) ||
 		    ((lacpdu->partner_state & AD_STATE_LACP_TIMEOUT) != (port->actor_oper_port_state & AD_STATE_LACP_TIMEOUT)) ||
 		    ((lacpdu->partner_state & AD_STATE_SYNCHRONIZATION) != (port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION)) ||
@@ -775,6 +781,9 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 		case AD_LINK_SPEED_BITMASK_1000MBPS:
 			bandwidth = aggregator->num_of_ports * 1000;
 			break;
+		case AD_LINK_SPEED_BITMASK_10000MBPS:
+			bandwidth = aggregator->num_of_ports * 10000;
+			break;
 		default:
 			bandwidth=0; // to silent the compilor ....
 		}
@@ -847,7 +856,7 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 */
 
 	/* Convert all non u8 parameters to Big Endian for transmit */
-	__ntohs_lacpdu(lacpdu);
+	__htons_lacpdu(lacpdu);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -2171,7 +2180,6 @@ static void bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u
 
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
-			__ntohs_lacpdu(lacpdu);
 			dprintk("Received LACPDU on port %d\n", port->actor_port_number);
 			ad_rx_machine(lacpdu, port);
 			break;

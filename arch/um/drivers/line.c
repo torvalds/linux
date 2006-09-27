@@ -251,7 +251,7 @@ void line_set_termios(struct tty_struct *tty, struct termios * old)
 	/* nothing */
 }
 
-static struct {
+static const struct {
 	int  cmd;
 	char *level;
 	char *name;
@@ -405,7 +405,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
-	struct line_driver *driver = line->driver;
+	const struct line_driver *driver = line->driver;
 	int err = 0, flags = IRQF_DISABLED | IRQF_SHARED | IRQF_SAMPLE_RANDOM;
 
 	if (input)
@@ -558,7 +558,7 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 }
 
 int line_config(struct line *lines, unsigned int num, char *str,
-		struct chan_opts *opts)
+		const struct chan_opts *opts)
 {
 	struct line *line;
 	char *new;

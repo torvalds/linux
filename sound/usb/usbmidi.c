@@ -181,9 +181,9 @@ static int snd_usbmidi_urb_error(int status)
 	case -ENODEV:
 		return -ENODEV;
 	/* errors that might occur during unplugging */
-	case -EPROTO:    /* EHCI */
-	case -ETIMEDOUT: /* OHCI */
-	case -EILSEQ:    /* UHCI */
+	case -EPROTO:
+	case -ETIME:
+	case -EILSEQ:
 		return -EIO;
 	default:
 		snd_printk(KERN_ERR "urb status %d\n", status);

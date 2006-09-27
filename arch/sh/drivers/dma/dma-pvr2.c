@@ -18,8 +18,8 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 
-static unsigned int xfer_complete = 0;
-static int count = 0;
+static unsigned int xfer_complete;
+static int count;
 
 static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -107,4 +107,3 @@ module_exit(pvr2_dma_exit);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("NEC PowerVR 2 DMA driver");
 MODULE_LICENSE("GPL");
-

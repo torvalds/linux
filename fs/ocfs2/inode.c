@@ -269,7 +269,6 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	inode->i_mode = le16_to_cpu(fe->i_mode);
 	inode->i_uid = le32_to_cpu(fe->i_uid);
 	inode->i_gid = le32_to_cpu(fe->i_gid);
-	inode->i_blksize = (u32)osb->s_clustersize;
 
 	/* Fast symlinks will have i_size but no allocated clusters. */
 	if (S_ISLNK(inode->i_mode) && !fe->i_clusters)
@@ -1258,8 +1257,6 @@ leave:
 void ocfs2_refresh_inode(struct inode *inode,
 			 struct ocfs2_dinode *fe)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
@@ -1270,7 +1267,6 @@ void ocfs2_refresh_inode(struct inode *inode,
 	inode->i_uid = le32_to_cpu(fe->i_uid);
 	inode->i_gid = le32_to_cpu(fe->i_gid);
 	inode->i_mode = le16_to_cpu(fe->i_mode);
-	inode->i_blksize = (u32) osb->s_clustersize;
 	if (S_ISLNK(inode->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
 		inode->i_blocks = 0;
 	else

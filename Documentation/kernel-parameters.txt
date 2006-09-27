@@ -573,8 +573,6 @@ running once the system is up.
 	gscd=		[HW,CD]
 			Format: <io>
 
-	gt96100eth=	[NET] MIPS GT96100 Advanced Communication Controller
-
 	gus=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma16>
 
@@ -1240,7 +1238,11 @@ running once the system is up.
 				bootloader. This is currently used on
 				IXP2000 systems where the bus has to be
 				configured a certain way for adjunct CPUs.
-
+		noearly		[X86] Don't do any early type 1 scanning.
+				This might help on some broken boards which
+				machine check when some devices' config space
+				is read. But various workarounds are disabled
+				and some IOMMU drivers will not work.
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
@@ -1367,6 +1369,9 @@ running once the system is up.
 			Format: nn[KMG]
 			Reserves a hole at the top of the kernel virtual
 			address space.
+
+	reset_devices	[KNL] Force drivers to reset the underlying device
+			during initialization.
 
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend

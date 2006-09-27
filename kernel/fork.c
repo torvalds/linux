@@ -45,6 +45,7 @@
 #include <linux/cn_proc.h>
 #include <linux/delayacct.h>
 #include <linux/taskstats_kern.h>
+#include <linux/random.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -174,6 +175,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	*tsk = *orig;
 	tsk->thread_info = ti;
 	setup_thread_stack(tsk, orig);
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+	tsk->stack_canary = get_random_int();
+#endif
 
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);

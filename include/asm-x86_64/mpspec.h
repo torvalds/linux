@@ -159,13 +159,7 @@ struct mpc_config_lintsrc
 #define MAX_MP_BUSSES 256
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
-enum mp_bustype {
-	MP_BUS_ISA = 1,
-	MP_BUS_EISA,
-	MP_BUS_PCI,
-	MP_BUS_MCA
-};
-extern unsigned char mp_bus_id_to_type [MAX_MP_BUSSES];
+extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
 
 extern unsigned int boot_cpu_physical_apicid;
@@ -178,18 +172,15 @@ extern int mp_irq_entries;
 extern struct mpc_config_intsrc mp_irqs [MAX_IRQ_SOURCES];
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
-extern int pic_mode;
 
 #ifdef CONFIG_ACPI
 extern void mp_register_lapic (u8 id, u8 enabled);
 extern void mp_register_lapic_address (u64 address);
 
-#ifdef CONFIG_X86_IO_APIC
 extern void mp_register_ioapic (u8 id, u32 address, u32 gsi_base);
 extern void mp_override_legacy_irq (u8 bus_irq, u8 polarity, u8 trigger, u32 gsi);
 extern void mp_config_acpi_legacy_irqs (void);
 extern int mp_register_gsi (u32 gsi, int triggering, int polarity);
-#endif /*CONFIG_X86_IO_APIC*/
 #endif
 
 extern int using_apic_timer;

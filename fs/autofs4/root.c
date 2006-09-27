@@ -137,7 +137,9 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 		nd.flags = LOOKUP_DIRECTORY;
 		ret = (dentry->d_op->d_revalidate)(dentry, &nd);
 
-		if (!ret) {
+		if (ret <= 0) {
+			if (ret < 0)
+				status = ret;
 			dcache_dir_close(inode, file);
 			goto out;
 		}
@@ -400,13 +402,23 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	int oz_mode = autofs4_oz_mode(sbi);
 	int flags = nd ? nd->flags : 0;
-	int status = 0;
+	int status = 1;
 
 	/* Pending dentry */
 	if (autofs4_ispending(dentry)) {
-		if (!oz_mode)
-			status = try_to_fill_dentry(dentry, flags);
-		return !status;
+		/* The daemon never causes a mount to trigger */
+		if (oz_mode)
+			return 1;
+
+		/*
+		 * A zero status is success otherwise we have a
+		 * negative error code.
+		 */
+		status = try_to_fill_dentry(dentry, flags);
+		if (status == 0)
+				return 1;
+
+		return status;
 	}
 
 	/* Negative dentry.. invalidate if "old" */
@@ -421,9 +433,19 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 		DPRINTK("dentry=%p %.*s, emptydir",
 			 dentry, dentry->d_name.len, dentry->d_name.name);
 		spin_unlock(&dcache_lock);
-		if (!oz_mode)
-			status = try_to_fill_dentry(dentry, flags);
-		return !status;
+		/* The daemon never causes a mount to trigger */
+		if (oz_mode)
+			return 1;
+
+		/*
+		 * A zero status is success otherwise we have a
+		 * negative error code.
+		 */
+		status = try_to_fill_dentry(dentry, flags);
+		if (status == 0)
+			return 1;
+
+		return status;
 	}
 	spin_unlock(&dcache_lock);
 

@@ -352,7 +352,7 @@ nfs_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir, struct qstr *
 {
 	struct nfs_diropargs	*arg;
 
-	arg = (struct nfs_diropargs *)kmalloc(sizeof(*arg), GFP_KERNEL);
+	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
 	if (!arg)
 		return -ENOMEM;
 	arg->fh = NFS_FH(dir->d_inode);

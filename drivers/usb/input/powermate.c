@@ -313,9 +313,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80))
-		return -EIO;
-	if ((endpoint->bmAttributes & 3) != 3)
+	if (!usb_endpoint_is_int_in(endpoint))
 		return -EIO;
 
 	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),

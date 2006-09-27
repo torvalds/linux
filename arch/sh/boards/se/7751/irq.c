@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/irq.h>
-#include <asm/se7751/se7751.h>
+#include <asm/se7751.h>
 
 /*
  * Initialize IRQ setting

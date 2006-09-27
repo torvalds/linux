@@ -163,7 +163,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 				bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
 			mapping->backing_dev_info = bdi;
 		}
-		memset(&inode->u, 0, sizeof(inode->u));
+		inode->i_private = 0;
 		inode->i_mapping = mapping;
 	}
 	return inode;
@@ -254,9 +254,9 @@ void clear_inode(struct inode *inode)
 	DQUOT_DROP(inode);
 	if (inode->i_sb && inode->i_sb->s_op->clear_inode)
 		inode->i_sb->s_op->clear_inode(inode);
-	if (inode->i_bdev)
+	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
 		bd_forget(inode);
-	if (inode->i_cdev)
+	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
 		cd_forget(inode);
 	inode->i_state = I_CLEAR;
 }

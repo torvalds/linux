@@ -50,14 +50,14 @@ static int fat_add_cluster(struct inode *inode)
 	return err;
 }
 
-static int __fat_get_blocks(struct inode *inode, sector_t iblock,
-			    unsigned long *max_blocks,
-			    struct buffer_head *bh_result, int create)
+static inline int __fat_get_block(struct inode *inode, sector_t iblock,
+				  unsigned long *max_blocks,
+				  struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	sector_t phys;
 	unsigned long mapped_blocks;
+	sector_t phys;
 	int err, offset;
 
 	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
@@ -73,7 +73,7 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 
 	if (iblock != MSDOS_I(inode)->mmu_private >> sb->s_blocksize_bits) {
 		fat_fs_panic(sb, "corrupted file size (i_pos %lld, %lld)",
-			     MSDOS_I(inode)->i_pos, MSDOS_I(inode)->mmu_private);
+			MSDOS_I(inode)->i_pos, MSDOS_I(inode)->mmu_private);
 		return -EIO;
 	}
 
@@ -93,32 +93,27 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
 	if (err)
 		return err;
+
 	BUG_ON(!phys);
 	BUG_ON(*max_blocks != mapped_blocks);
 	set_buffer_new(bh_result);
 	map_bh(bh_result, sb, phys);
-	return 0;
-}
 
-static int fat_get_blocks(struct inode *inode, sector_t iblock,
-			  struct buffer_head *bh_result, int create)
-{
-	struct super_block *sb = inode->i_sb;
-	int err;
-	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
-
-	err = __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
-	if (err)
-		return err;
-	bh_result->b_size = max_blocks << sb->s_blocksize_bits;
 	return 0;
 }
 
 static int fat_get_block(struct inode *inode, sector_t iblock,
 			 struct buffer_head *bh_result, int create)
 {
-	unsigned long max_blocks = 1;
-	return __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
+	struct super_block *sb = inode->i_sb;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
+	int err;
+
+	err = __fat_get_block(inode, iblock, &max_blocks, bh_result, create);
+	if (err)
+		return err;
+	bh_result->b_size = max_blocks << sb->s_blocksize_bits;
+	return 0;
 }
 
 static int fat_writepage(struct page *page, struct writeback_control *wbc)
@@ -188,7 +183,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	 * condition of fat_get_block() and ->truncate().
 	 */
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, fat_get_blocks, NULL);
+				  offset, nr_segs, fat_get_block, NULL);
 }
 
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
@@ -375,8 +370,6 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 			inode->i_flags |= S_IMMUTABLE;
 	}
 	MSDOS_I(inode)->i_attrs = de->attr & ATTR_UNUSED;
-	/* this is as close to the truth as we can get ... */
-	inode->i_blksize = sbi->cluster_size;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 	inode->i_mtime.tv_sec =
@@ -528,8 +521,7 @@ static int __init fat_init_inodecache(void)
 
 static void __exit fat_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(fat_inode_cachep))
-		printk(KERN_INFO "fat_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(fat_inode_cachep);
 }
 
 static int fat_remount(struct super_block *sb, int *flags, char *data)
@@ -1137,7 +1129,6 @@ static int fat_read_root(struct inode *inode)
 		MSDOS_I(inode)->i_start = 0;
 		inode->i_size = sbi->dir_entries * sizeof(struct msdos_dir_entry);
 	}
-	inode->i_blksize = sbi->cluster_size;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 	MSDOS_I(inode)->i_logstart = 0;
@@ -1168,11 +1159,10 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	long error;
 	char buf[50];
 
-	sbi = kmalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct msdos_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct msdos_sb_info));
 
 	sb->s_flags |= MS_NODIRATIME;
 	sb->s_magic = MSDOS_SUPER_MAGIC;

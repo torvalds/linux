@@ -123,9 +123,13 @@ extern u8 cpu_2_logical_apicid[];
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {
+#ifdef CONFIG_SMP
        if (cpu >= NR_CPUS)
 	       return BAD_APICID;
        return (int)cpu_2_logical_apicid[cpu];
+#else
+	return logical_smp_processor_id();
+#endif
 }
 
 static inline int mpc_apic_id(struct mpc_config_processor *m, struct mpc_config_translation *unused)

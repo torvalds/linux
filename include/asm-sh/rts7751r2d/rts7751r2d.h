@@ -41,8 +41,6 @@
 
 #define PA_AX88796L	0xaa000400	/* AX88796L Area */
 #define PA_VOYAGER	0xab000000	/* VOYAGER GX Area */
-#define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
-#define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
 #define PA_IDE_OFFSET	0x1f0		/* CF IDE Offset */
 #define AX88796L_IO_BASE	0x1000	/* AX88796L IO Base Address */
 

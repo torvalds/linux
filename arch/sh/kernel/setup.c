@@ -43,27 +43,14 @@ extern void * __rd_start, * __rd_end;
  * The bigger value means no problem.
  */
 struct sh_cpuinfo boot_cpu_data = { CPU_SH_NONE, 10000000, };
+#ifdef CONFIG_VT
 struct screen_info screen_info;
+#endif
 
 #if defined(CONFIG_SH_UNKNOWN)
 struct sh_machine_vector sh_mv;
 #endif
 
-/* We need this to satisfy some external references. */
-struct screen_info screen_info = {
-        0, 25,                  /* orig-x, orig-y */
-        0,                      /* unused */
-        0,                      /* orig-video-page */
-        0,                      /* orig-video-mode */
-        80,                     /* orig-video-cols */
-        0,0,0,                  /* ega_ax, ega_bx, ega_cx */
-        25,                     /* orig-video-lines */
-        0,                      /* orig-video-isVGA */
-        16                      /* orig-video-points */
-};
-
-extern void platform_setup(void);
-extern char *get_system_type(void);
 extern int root_mountflags;
 
 #define MV_NAME_SIZE 32
@@ -90,29 +77,8 @@ static struct sh_machine_vector* __init get_mv_byname(const char* name);
 
 static char command_line[COMMAND_LINE_SIZE] = { 0, };
 
-struct resource standard_io_resources[] = {
-	{ "dma1", 0x00, 0x1f },
-	{ "pic1", 0x20, 0x3f },
-	{ "timer", 0x40, 0x5f },
-	{ "keyboard", 0x60, 0x6f },
-	{ "dma page reg", 0x80, 0x8f },
-	{ "pic2", 0xa0, 0xbf },
-	{ "dma2", 0xc0, 0xdf },
-	{ "fpu", 0xf0, 0xff }
-};
-
-#define STANDARD_IO_RESOURCES (sizeof(standard_io_resources)/sizeof(struct resource))
-
-/* System RAM - interrupted by the 640kB-1M hole */
-#define code_resource (ram_resources[3])
-#define data_resource (ram_resources[4])
-static struct resource ram_resources[] = {
-	{ "System RAM", 0x000000, 0x09ffff, IORESOURCE_BUSY },
-	{ "System RAM", 0x100000, 0x100000, IORESOURCE_BUSY },
-	{ "Video RAM area", 0x0a0000, 0x0bffff },
-	{ "Kernel code", 0x100000, 0 },
-	{ "Kernel data", 0, 0 }
-};
+static struct resource code_resource = { .name = "Kernel code", };
+static struct resource data_resource = { .name = "Kernel data", };
 
 unsigned long memory_start, memory_end;
 
@@ -145,6 +111,24 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 				memory_end = memory_start + mem_size;
 			}
 		}
+
+#ifdef CONFIG_EARLY_PRINTK
+		if (c == ' ' && !memcmp(from, "earlyprintk=", 12)) {
+			char *ep_end;
+
+			if (to != command_line)
+				to--;
+
+			from += 12;
+			ep_end = strchr(from, ' ');
+
+			setup_early_printk(from);
+			printk("early console enabled\n");
+
+			from = ep_end;
+		}
+#endif
+
 		if (c == ' ' && !memcmp(from, "sh_mv=", 6)) {
 			char* mv_end;
 			char* mv_comma;
@@ -237,6 +221,9 @@ static int __init sh_mv_setup(char **cmdline_p)
 	__set_io_port_base(mv_io_base);
 #endif
 
+	if (!sh_mv.mv_nr_irqs)
+		sh_mv.mv_nr_irqs = NR_IRQS;
+
 	return 0;
 }
 
@@ -245,11 +232,6 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long bootmap_size;
 	unsigned long start_pfn, max_pfn, max_low_pfn;
 
-#ifdef CONFIG_EARLY_PRINTK
-	extern void enable_early_printk(void);
-
-	enable_early_printk();
-#endif
 #ifdef CONFIG_CMDLINE_BOOL
         strcpy(COMMAND_LINE, CONFIG_CMDLINE);
 #endif
@@ -368,14 +350,14 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* Perform the machine specific initialisation */
-	platform_setup();
+	if (likely(sh_mv.mv_setup))
+		sh_mv.mv_setup(cmdline_p);
 
 	paging_init();
 }
 
 struct sh_machine_vector* __init get_mv_byname(const char* name)
 {
-	extern int strcasecmp(const char *, const char *);
 	extern long __machvec_start, __machvec_end;
 	struct sh_machine_vector *all_vecs =
 		(struct sh_machine_vector *)&__machvec_start;
@@ -410,25 +392,18 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 static const char *cpu_name[] = {
-	[CPU_SH7604]	= "SH7604",
-	[CPU_SH7705]	= "SH7705",
-	[CPU_SH7708]	= "SH7708",
-	[CPU_SH7729]	= "SH7729",
-	[CPU_SH7300]	= "SH7300",
-	[CPU_SH7750]	= "SH7750",
-	[CPU_SH7750S]	= "SH7750S",
-	[CPU_SH7750R]	= "SH7750R",
-	[CPU_SH7751]	= "SH7751",
-	[CPU_SH7751R]	= "SH7751R",
-	[CPU_SH7760]	= "SH7760",
-	[CPU_SH73180]	= "SH73180",
-	[CPU_ST40RA]	= "ST40RA",
-	[CPU_ST40GX1]	= "ST40GX1",
-	[CPU_SH4_202]	= "SH4-202",
-	[CPU_SH4_501]	= "SH4-501",
-	[CPU_SH7770]	= "SH7770",
-	[CPU_SH7780]	= "SH7780",
-	[CPU_SH7781]	= "SH7781",
+	[CPU_SH7604]	= "SH7604",	[CPU_SH7300]	= "SH7300",
+	[CPU_SH7705]	= "SH7705",	[CPU_SH7706]	= "SH7706",
+	[CPU_SH7707]	= "SH7707",	[CPU_SH7708]	= "SH7708",
+	[CPU_SH7709]	= "SH7709",	[CPU_SH7710]	= "SH7710",
+	[CPU_SH7729]	= "SH7729",	[CPU_SH7750]	= "SH7750",
+	[CPU_SH7750S]	= "SH7750S",	[CPU_SH7750R]	= "SH7750R",
+	[CPU_SH7751]	= "SH7751",	[CPU_SH7751R]	= "SH7751R",
+	[CPU_SH7760]	= "SH7760",	[CPU_SH73180]	= "SH73180",
+	[CPU_ST40RA]	= "ST40RA",	[CPU_ST40GX1]	= "ST40GX1",
+	[CPU_SH4_202]	= "SH4-202",	[CPU_SH4_501]	= "SH4-501",
+	[CPU_SH7770]	= "SH7770",	[CPU_SH7780]	= "SH7780",
+	[CPU_SH7781]	= "SH7781",	[CPU_SH7343]	= "SH7343",
 	[CPU_SH_NONE]	= "Unknown"
 };
 
@@ -438,8 +413,10 @@ const char *get_cpu_subtype(void)
 }
 
 #ifdef CONFIG_PROC_FS
+/* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
-	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr", "ptea", NULL
+	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
+	"ptea", "llsc", "l2", NULL
 };
 
 static void show_cpuflags(struct seq_file *m)
@@ -460,7 +437,8 @@ static void show_cpuflags(struct seq_file *m)
 	seq_printf(m, "\n");
 }
 
-static void show_cacheinfo(struct seq_file *m, const char *type, struct cache_info info)
+static void show_cacheinfo(struct seq_file *m, const char *type,
+			   struct cache_info info)
 {
 	unsigned int cache_size;
 
@@ -493,7 +471,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	 * unified cache on the SH-2 and SH-3, as well as the harvard
 	 * style cache on the SH-4.
 	 */
-	if (test_bit(SH_CACHE_COMBINED, &(boot_cpu_data.icache.flags))) {
+	if (boot_cpu_data.icache.flags & SH_CACHE_COMBINED) {
 		seq_printf(m, "unified\n");
 		show_cacheinfo(m, "cache", boot_cpu_data.icache);
 	} else {
@@ -501,6 +479,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		show_cacheinfo(m, "icache", boot_cpu_data.icache);
 		show_cacheinfo(m, "dcache", boot_cpu_data.dcache);
 	}
+
+	/* Optional secondary cache */
+	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE)
+		show_cacheinfo(m, "scache", boot_cpu_data.scache);
 
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		     boot_cpu_data.loops_per_jiffy/(500000/HZ),
@@ -617,4 +599,3 @@ static int __init kgdb_parse_options(char *options)
 }
 __setup("kgdb=", kgdb_parse_options);
 #endif /* CONFIG_SH_KGDB */
-

@@ -813,7 +813,7 @@ static unsigned int usblp_quirks (__u16 vendor, __u16 product)
 	return 0;
 }
 
-static struct file_operations usblp_fops = {
+static const struct file_operations usblp_fops = {
 	.owner =	THIS_MODULE,
 	.read =		usblp_read,
 	.write =	usblp_write,
@@ -927,7 +927,9 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Retrieve and store the device ID string. */
 	usblp_cache_device_id_string(usblp);
-	device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	retval = device_create_file(&intf->dev, &dev_attr_ieee1284_id);
+	if (retval)
+		goto abort_intfdata;
 
 #ifdef DEBUG
 	usblp_check_status(usblp, 0);
@@ -1021,18 +1023,13 @@ static int usblp_select_alts(struct usblp *usblp)
 		for (e = 0; e < ifd->desc.bNumEndpoints; e++) {
 			epd = &ifd->endpoint[e].desc;
 
-			if ((epd->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK)!=
-			    USB_ENDPOINT_XFER_BULK)
-				continue;
-
-			if (!(epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK)) {
+			if (usb_endpoint_is_bulk_out(epd))
 				if (!epwrite)
 					epwrite = epd;
 
-			} else {
+			if (usb_endpoint_is_bulk_in(epd))
 				if (!epread)
 					epread = epd;
-			}
 		}
 
 		/* Ignore buggy hardware without the right endpoints. */

@@ -722,7 +722,7 @@ inval:
 	return -EINVAL;
 }
 
-static struct file_operations hiddev_fops = {
+static const struct file_operations hiddev_fops = {
 	.owner =	THIS_MODULE,
 	.read =		hiddev_read,
 	.write =	hiddev_write,

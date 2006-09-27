@@ -737,6 +737,5 @@ int __init nfs_init_readpagecache(void)
 void nfs_destroy_readpagecache(void)
 {
 	mempool_destroy(nfs_rdata_mempool);
-	if (kmem_cache_destroy(nfs_rdata_cachep))
-		printk(KERN_INFO "nfs_read_data: not all structures were freed\n");
+	kmem_cache_destroy(nfs_rdata_cachep);
 }

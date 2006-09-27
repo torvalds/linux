@@ -2679,7 +2679,6 @@ M:	josejx@gentoo.org
 P:	Daniel Drake
 M:	dsd@gentoo.org
 W:	http://softmac.sipsolutions.net/
-L:	softmac-dev@sipsolutions.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 

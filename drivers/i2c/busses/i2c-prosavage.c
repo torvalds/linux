@@ -180,7 +180,6 @@ static int i2c_register_bus(struct pci_dev *dev, struct s_i2c_bus *p, void __iom
 	p->algo.getsda	  = bit_s3via_getsda;
 	p->algo.getscl	  = bit_s3via_getscl;
 	p->algo.udelay	  = CYCLE_DELAY;
-	p->algo.mdelay	  = CYCLE_DELAY;
 	p->algo.timeout	  = TIMEOUT;
 	p->algo.data	  = p;
 	p->mmvga	  = mmvga;

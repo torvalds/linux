@@ -89,7 +89,7 @@ static inline void r4k_blast_dcache_page_dc32(unsigned long addr)
 	blast_dcache32_page(addr);
 }
 
-static inline void r4k_blast_dcache_page_setup(void)
+static void __init r4k_blast_dcache_page_setup(void)
 {
 	unsigned long  dc_lsize = cpu_dcache_line_size();
 
@@ -103,7 +103,7 @@ static inline void r4k_blast_dcache_page_setup(void)
 
 static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_dcache_page_indexed_setup(void)
+static void __init r4k_blast_dcache_page_indexed_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -117,7 +117,7 @@ static inline void r4k_blast_dcache_page_indexed_setup(void)
 
 static void (* r4k_blast_dcache)(void);
 
-static inline void r4k_blast_dcache_setup(void)
+static void __init r4k_blast_dcache_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -202,7 +202,7 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 
 static void (* r4k_blast_icache_page)(unsigned long addr);
 
-static inline void r4k_blast_icache_page_setup(void)
+static void __init r4k_blast_icache_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -219,7 +219,7 @@ static inline void r4k_blast_icache_page_setup(void)
 
 static void (* r4k_blast_icache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_icache_page_indexed_setup(void)
+static void __init r4k_blast_icache_page_indexed_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -243,7 +243,7 @@ static inline void r4k_blast_icache_page_indexed_setup(void)
 
 static void (* r4k_blast_icache)(void);
 
-static inline void r4k_blast_icache_setup(void)
+static void __init r4k_blast_icache_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -264,7 +264,7 @@ static inline void r4k_blast_icache_setup(void)
 
 static void (* r4k_blast_scache_page)(unsigned long addr);
 
-static inline void r4k_blast_scache_page_setup(void)
+static void __init r4k_blast_scache_page_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -282,7 +282,7 @@ static inline void r4k_blast_scache_page_setup(void)
 
 static void (* r4k_blast_scache_page_indexed)(unsigned long addr);
 
-static inline void r4k_blast_scache_page_indexed_setup(void)
+static void __init r4k_blast_scache_page_indexed_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -300,7 +300,7 @@ static inline void r4k_blast_scache_page_indexed_setup(void)
 
 static void (* r4k_blast_scache)(void);
 
-static inline void r4k_blast_scache_setup(void)
+static void __init r4k_blast_scache_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -475,7 +475,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 		}
 	}
 	if (exec) {
-		if (cpu_has_vtag_icache) {
+		if (cpu_has_vtag_icache && mm == current->active_mm) {
 			int cpu = smp_processor_id();
 
 			if (cpu_context(cpu, mm) != 0)
@@ -599,7 +599,7 @@ static inline void local_r4k_flush_icache_page(void *args)
 	 * We're not sure of the virtual address(es) involved here, so
 	 * we have to flush the entire I-cache.
 	 */
-	if (cpu_has_vtag_icache) {
+	if (cpu_has_vtag_icache && vma->vm_mm == current->active_mm) {
 		int cpu = smp_processor_id();
 
 		if (cpu_context(cpu, vma->vm_mm) != 0)
@@ -1221,7 +1221,7 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
-static inline void coherency_setup(void)
+static void __init coherency_setup(void)
 {
 	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
 
@@ -1242,7 +1242,7 @@ static inline void coherency_setup(void)
 		clear_c0_config(CONF_CU);
 		break;
 	/*
-	 * We need to catch the ealry Alchemy SOCs with
+	 * We need to catch the early Alchemy SOCs with
 	 * the write-only co_config.od bit and set it back to one...
 	 */
 	case CPU_AU1000: /* rev. DA, HA, HB */
@@ -1291,7 +1291,7 @@ void __init r4k_cache_init(void)
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
-	flush_icache_page	= r4k_flush_icache_page;
+	__flush_icache_page	= r4k_flush_icache_page;
 	flush_cache_range	= r4k_flush_cache_range;
 
 	flush_cache_sigtramp	= r4k_flush_cache_sigtramp;
