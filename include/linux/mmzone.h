@@ -314,6 +314,11 @@ struct node_active_region {
 };
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
 
+#ifndef CONFIG_DISCONTIGMEM
+/* The array of struct pages - for discontigmem use pgdat->lmem_map */
+extern struct page *mem_map;
+#endif
+
 /*
  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
  * (mostly NUMA machines?) to denote a higher-level memory zone than the
