@@ -54,8 +54,8 @@ struct transport {
 	struct list_head list;
 	char *name;
 	int (*setup)(char *, char **, void *);
-	struct net_user_info *user;
-	struct net_kern_info *kern;
+	const struct net_user_info *user;
+	const struct net_kern_info *kern;
 	int private_size;
 	int setup_size;
 };

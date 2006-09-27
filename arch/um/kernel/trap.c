@@ -140,7 +140,7 @@ void segv_handler(int sig, union uml_pt_regs *regs)
 	segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
 }
 
-struct kern_handlers handlinfo_kern = {
+const struct kern_handlers handlinfo_kern = {
 	.relay_signal = relay_signal,
 	.winch = winch,
 	.bus_handler = relay_signal,
