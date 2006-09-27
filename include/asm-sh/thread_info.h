@@ -48,16 +48,29 @@ struct thread_info {
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
 
+#define THREAD_SIZE (2*PAGE_SIZE)
+
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
+#ifdef CONFIG_CPU_HAS_SR_RB
 	__asm__("stc	r7_bank, %0" : "=r" (ti));
+#else
+	unsigned long __dummy;
+
+	__asm__ __volatile__ (
+		"mov	r15, %0\n\t"
+		"and	%1, %0\n\t"
+		: "=&r" (ti), "=r" (__dummy)
+		: "1" (~(THREAD_SIZE - 1))
+		: "memory");
+#endif
+
 	return ti;
 }
 
 /* thread information allocation */
-#define THREAD_SIZE (2*PAGE_SIZE)
 #define alloc_thread_info(ti) ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
 #define free_thread_info(ti) free_pages((unsigned long) (ti), 1)
 
@@ -65,7 +78,7 @@ static inline struct thread_info *current_thread_info(void)
 
 /* how to get the thread information struct from ASM */
 #define GET_THREAD_INFO(reg) \
-	stc	r7_bank, reg
+	stc     r7_bank, reg
 
 #endif
 

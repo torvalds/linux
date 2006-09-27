@@ -136,7 +136,8 @@ extern void __xchg_called_with_bad_pointer(void);
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
 
 /* Interrupt Control */
-static __inline__ void local_irq_enable(void)
+#ifdef CONFIG_CPU_HAS_SR_RB
+static inline void local_irq_enable(void)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -149,6 +150,20 @@ static __inline__ void local_irq_enable(void)
 			     : "1" (~0x000000f0)
 			     : "memory");
 }
+#else
+static inline void local_irq_enable(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"and	%1, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "1" (~0x000000f0)
+		: "memory");
+}
+#endif
 
 static __inline__ void local_irq_disable(void)
 {
