@@ -308,7 +308,7 @@ ENTRY(exception_error)
 	.align	2
 ret_from_exception:
 	preempt_stop()
-ret_from_irq:
+ENTRY(ret_from_irq)
 	!
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0	! get status register
@@ -704,7 +704,7 @@ interrupt:
 !
 !
 	.align	2
-handle_exception:
+ENTRY(handle_exception)
 	! Using k0, k1 for scratch registers (r0_bank1, r1_bank),
 	! save all registers onto stack.
 	!

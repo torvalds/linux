@@ -638,6 +638,16 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
+menu "Power management options (EXPERIMENTAL)"
+depends on EXPERIMENTAL
+
+source kernel/power/Kconfig
+
+config APM
+	bool "Advanced Power Management Emulation"
+	depends on PM
+endmenu
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"

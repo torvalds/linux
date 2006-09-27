@@ -15,6 +15,9 @@
 #include <asm/hp6xx/hp6xx.h>
 #include <asm/cpu/dac.h>
 
+#define	SCPCR	0xa4000116
+#define SCPDR	0xa4000136
+
 const char *get_system_type(void)
 {
 	return "HP6xx";
@@ -24,6 +27,7 @@ int __init platform_setup(void)
 {
 	u8 v8;
 	u16 v;
+
 	v = inw(HD64461_STBCR);
 	v |= HD64461_STBCR_SURTST | HD64461_STBCR_SIRST |
 	    HD64461_STBCR_STM1ST | HD64461_STBCR_STM0ST |
@@ -49,6 +53,16 @@ int __init platform_setup(void)
 	v8 = ctrl_inb(DACR);
 	v8 &= ~DACR_DAE;
 	ctrl_outb(v8,DACR);
+
+	v8 = ctrl_inb(SCPDR);
+	v8 |= SCPDR_TS_SCAN_X | SCPDR_TS_SCAN_Y;
+	v8 &= ~SCPDR_TS_SCAN_ENABLE;
+	ctrl_outb(v8, SCPDR);
+
+	v = ctrl_inw(SCPCR);
+	v &= ~SCPCR_TS_MASK;
+	v |= SCPCR_TS_ENABLE;
+	ctrl_outw(v, SCPCR);
 
 	return 0;
 }

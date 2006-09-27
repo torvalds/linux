@@ -143,8 +143,33 @@ void handle_timer_tick(struct pt_regs *regs)
 	}
 }
 
+#ifdef CONFIG_PM
+int timer_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct sys_timer *sys_timer = container_of(dev, struct sys_timer, dev);
+
+	sys_timer->ops->stop();
+
+	return 0;
+}
+
+int timer_resume(struct sys_device *dev)
+{
+	struct sys_timer *sys_timer = container_of(dev, struct sys_timer, dev);
+
+	sys_timer->ops->start();
+
+	return 0;
+}
+#else
+#define timer_suspend NULL
+#define timer_resume NULL
+#endif
+
 static struct sysdev_class timer_sysclass = {
 	set_kset_name("timer"),
+	.suspend = timer_suspend,
+	.resume	 = timer_resume,
 };
 
 static int __init timer_init_sysfs(void)

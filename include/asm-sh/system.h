@@ -172,6 +172,31 @@ static __inline__ void local_irq_disable(void)
 			     : "memory");
 }
 
+static __inline__ void set_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ ("stc	sr, %0\n\t"
+			     "or	%2, %0\n\t"
+			     "and	%3, %0\n\t"
+			     "ldc	%0, sr"
+			     : "=&r" (__dummy0), "=r" (__dummy1)
+			     : "r" (0x10000000), "r" (0xffffff0f)
+			     : "memory");
+}
+
+static __inline__ void clear_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ ("stc	sr, %0\n\t"
+			     "and	%2, %0\n\t"
+			     "ldc	%0, sr"
+			     : "=&r" (__dummy0), "=r" (__dummy1)
+			     : "1" (~0x10000000)
+			     : "memory");
+}
+
 #define local_save_flags(x) \
 	__asm__("stc sr, %0; and #0xf0, %0" : "=&z" (x) :/**/: "memory" )
 

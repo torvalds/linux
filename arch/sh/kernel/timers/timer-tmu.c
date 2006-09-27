@@ -188,6 +188,18 @@ static struct clk tmu0_clk = {
 	.ops		= &tmu_clk_ops,
 };
 
+static int tmu_timer_start(void)
+{
+	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
+	return 0;
+}
+
+static int tmu_timer_stop(void)
+{
+	ctrl_outb(0, TMU_TSTR);
+	return 0;
+}
+
 static int tmu_timer_init(void)
 {
 	unsigned long interval;
@@ -197,7 +209,7 @@ static int tmu_timer_init(void)
 	tmu0_clk.parent = clk_get("module_clk");
 
 	/* Start TMU0 */
-	ctrl_outb(0, TMU_TSTR);
+	tmu_timer_stop();
 #if !defined(CONFIG_CPU_SUBTYPE_SH7300) && !defined(CONFIG_CPU_SUBTYPE_SH7760)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);
 #endif
@@ -211,13 +223,15 @@ static int tmu_timer_init(void)
 	ctrl_outl(interval, TMU0_TCOR);
 	ctrl_outl(interval, TMU0_TCNT);
 
-	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
+	tmu_timer_start();
 
 	return 0;
 }
 
 struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
+	.start		= tmu_timer_start,
+	.stop		= tmu_timer_stop,
 	.get_frequency	= tmu_timer_get_frequency,
 	.get_offset	= tmu_timer_get_offset,
 };
