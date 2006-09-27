@@ -6690,13 +6690,29 @@ static void tg3_timer(unsigned long __opaque)
 		tp->timer_counter = tp->timer_multiplier;
 	}
 
-	/* Heartbeat is only sent once every 2 seconds.  */
+	/* Heartbeat is only sent once every 2 seconds.
+	 *
+	 * The heartbeat is to tell the ASF firmware that the host
+	 * driver is still alive.  In the event that the OS crashes,
+	 * ASF needs to reset the hardware to free up the FIFO space
+	 * that may be filled with rx packets destined for the host.
+	 * If the FIFO is full, ASF will no longer function properly.
+	 *
+	 * Unintended resets have been reported on real time kernels
+	 * where the timer doesn't run on time.  Netpoll will also have
+	 * same problem.
+	 *
+	 * The new FWCMD_NICDRV_ALIVE3 command tells the ASF firmware
+	 * to check the ring condition when the heartbeat is expiring
+	 * before doing the reset.  This will prevent most unintended
+	 * resets.
+	 */
 	if (!--tp->asf_counter) {
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
-				      FWCMD_NICDRV_ALIVE2);
+				      FWCMD_NICDRV_ALIVE3);
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
