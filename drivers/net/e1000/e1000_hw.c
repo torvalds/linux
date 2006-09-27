@@ -6556,6 +6556,8 @@ e1000_tbi_adjust_stats(struct e1000_hw *hw,
 void
 e1000_get_bus_info(struct e1000_hw *hw)
 {
+    int32_t ret_val;
+    uint16_t pci_ex_link_status;
     uint32_t status;
 
     switch (hw->mac_type) {
@@ -6565,18 +6567,25 @@ e1000_get_bus_info(struct e1000_hw *hw)
         hw->bus_speed = e1000_bus_speed_unknown;
         hw->bus_width = e1000_bus_width_unknown;
         break;
+    case e1000_82571:
     case e1000_82572:
     case e1000_82573:
-        hw->bus_type = e1000_bus_type_pci_express;
-        hw->bus_speed = e1000_bus_speed_2500;
-        hw->bus_width = e1000_bus_width_pciex_1;
-        break;
-    case e1000_82571:
-    case e1000_ich8lan:
     case e1000_80003es2lan:
         hw->bus_type = e1000_bus_type_pci_express;
         hw->bus_speed = e1000_bus_speed_2500;
-        hw->bus_width = e1000_bus_width_pciex_4;
+        ret_val = e1000_read_pcie_cap_reg(hw,
+                                      PCI_EX_LINK_STATUS,
+                                      &pci_ex_link_status);
+        if (ret_val)
+            hw->bus_width = e1000_bus_width_unknown;
+        else
+            hw->bus_width = (pci_ex_link_status & PCI_EX_LINK_WIDTH_MASK) >>
+                          PCI_EX_LINK_WIDTH_SHIFT;
+        break;
+    case e1000_ich8lan:
+        hw->bus_type = e1000_bus_type_pci_express;
+        hw->bus_speed = e1000_bus_speed_2500;
+        hw->bus_width = e1000_bus_width_pciex_1;
         break;
     default:
         status = E1000_READ_REG(hw, STATUS);

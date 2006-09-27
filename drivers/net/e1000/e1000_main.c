@@ -4473,6 +4473,22 @@ e1000_write_pci_cfg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
 	pci_write_config_word(adapter->pdev, reg, *value);
 }
 
+int32_t
+e1000_read_pcie_cap_reg(struct e1000_hw *hw, uint32_t reg, uint16_t *value)
+{
+    struct e1000_adapter *adapter = hw->back;
+    uint16_t cap_offset;
+
+    cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+    if (!cap_offset)
+        return -E1000_ERR_CONFIG;
+
+    pci_read_config_word(adapter->pdev, cap_offset + reg, value);
+
+    return E1000_SUCCESS;
+}
+
+
 void
 e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value)
 {
