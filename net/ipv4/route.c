@@ -261,6 +261,10 @@ static unsigned int rt_hash_code(u32 daddr, u32 saddr)
 		& rt_hash_mask);
 }
 
+#define rt_hash(daddr, saddr, idx) \
+	rt_hash_code((__force u32)(__be32)(daddr),\
+		     (__force u32)(__be32)(saddr) ^ ((idx) << 5))
+
 #ifdef CONFIG_PROC_FS
 struct rt_cache_iter_state {
 	int bucket;
@@ -1147,8 +1151,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 
 	for (i = 0; i < 2; i++) {
 		for (k = 0; k < 2; k++) {
-			unsigned hash = rt_hash_code(daddr,
-						     skeys[i] ^ (ikeys[k] << 5));
+			unsigned hash = rt_hash(daddr, skeys[i], ikeys[k]);
 
 			rthp=&rt_hash_table[hash].chain;
 
@@ -1260,9 +1263,8 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 			ret = NULL;
 		} else if ((rt->rt_flags & RTCF_REDIRECTED) ||
 			   rt->u.dst.expires) {
-			unsigned hash = rt_hash_code(rt->fl.fl4_dst,
-						     rt->fl.fl4_src ^
-							(rt->fl.oif << 5));
+			unsigned hash = rt_hash(rt->fl.fl4_dst, rt->fl.fl4_src,
+						rt->fl.oif);
 #if RT_CACHE_DEBUG >= 1
 			printk(KERN_DEBUG "ip_rt_advice: redirect to "
 					  "%u.%u.%u.%u/%02x dropped\n",
@@ -1405,7 +1407,7 @@ unsigned short ip_rt_frag_needed(struct iphdr *iph, unsigned short new_mtu)
 		return 0;
 
 	for (i = 0; i < 2; i++) {
-		unsigned hash = rt_hash_code(daddr, skeys[i]);
+		unsigned hash = rt_hash(daddr, skeys[i], 0);
 
 		rcu_read_lock();
 		for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
@@ -1665,7 +1667,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	RT_CACHE_STAT_INC(in_slow_mc);
 
 	in_dev_put(in_dev);
-	hash = rt_hash_code(daddr, saddr ^ (dev->ifindex << 5));
+	hash = rt_hash(daddr, saddr, dev->ifindex);
 	return rt_intern_hash(hash, rth, (struct rtable**) &skb->dst);
 
 e_nobufs:
@@ -1830,7 +1832,7 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 		return err;
 
 	/* put it into the cache */
-	hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5));
+	hash = rt_hash(daddr, saddr, fl->iif);
 	return rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);	
 }
 
@@ -1871,7 +1873,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 			return err;
 
 		/* put it into the cache */
-		hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5));
+		hash = rt_hash(daddr, saddr, fl->iif);
 		err = rt_intern_hash(hash, rth, &rtres);
 		if (err)
 			return err;
@@ -2048,7 +2050,7 @@ local_input:
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
 	rth->rt_type	= res.type;
-	hash = rt_hash_code(daddr, saddr ^ (fl.iif << 5));
+	hash = rt_hash(daddr, saddr, fl.iif);
 	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
 	goto done;
 
@@ -2095,7 +2097,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	int iif = dev->ifindex;
 
 	tos &= IPTOS_RT_MASK;
-	hash = rt_hash_code(daddr, saddr ^ (iif << 5));
+	hash = rt_hash(daddr, saddr, iif);
 
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
@@ -2293,8 +2295,7 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 	int err = __mkroute_output(&rth, res, fl, oldflp, dev_out, flags);
 	unsigned hash;
 	if (err == 0) {
-		hash = rt_hash_code(oldflp->fl4_dst, 
-				    oldflp->fl4_src ^ (oldflp->oif << 5));
+		hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src, oldflp->oif);
 		err = rt_intern_hash(hash, rth, rp);
 	}
 	
@@ -2336,9 +2337,8 @@ static inline int ip_mkroute_output(struct rtable** rp,
 			if (err != 0)
 				goto cleanup;
 
-			hash = rt_hash_code(oldflp->fl4_dst, 
-					    oldflp->fl4_src ^
-					    (oldflp->oif << 5));
+			hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src,
+					oldflp->oif);
 			err = rt_intern_hash(hash, rth, rp);
 
 			/* forward hop information to multipath impl. */
@@ -2567,7 +2567,7 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	unsigned hash;
 	struct rtable *rth;
 
-	hash = rt_hash_code(flp->fl4_dst, flp->fl4_src ^ (flp->oif << 5));
+	hash = rt_hash(flp->fl4_dst, flp->fl4_src, flp->oif);
 
 	rcu_read_lock_bh();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
