@@ -72,6 +72,12 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->dcache.sets		= 256;
 		cpu_data->type = CPU_SH7729;
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7706)
+		cpu_data->type = CPU_SH7706;
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7710)
+		cpu_data->type = CPU_SH7710;
+#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 		cpu_data->type = CPU_SH7705;
 

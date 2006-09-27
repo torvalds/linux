@@ -62,7 +62,6 @@
 
 /**
  * 	sh_wdt_read_cnt - Read from Counter
- *
  * 	Reads back the WTCNT value.
  */
 static inline __u8 sh_wdt_read_cnt(void)
@@ -72,7 +71,6 @@ static inline __u8 sh_wdt_read_cnt(void)
 
 /**
  *	sh_wdt_write_cnt - Write to Counter
- *
  *	@val: Value to write
  *
  *	Writes the given value @val to the lower byte of the timer counter.
@@ -95,7 +93,6 @@ static inline __u8 sh_wdt_read_csr(void)
 
 /**
  * 	sh_wdt_write_csr - Write to Control/Status Register
- *
  * 	@val: Value to write
  *
  * 	Writes the given value @val to the lower byte of the control/status

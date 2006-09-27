@@ -7,16 +7,138 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/page.h>
+#include <asm/kexec.h>
 
-	/*
-	 * Must be relocatable PIC code callable as a C function, that once
-	 * it starts can not use the previous processes stack.
-	 */
-	.globl relocate_new_kernel
+/*
+ * Must be relocatable PIC code callable as a C function
+ */
+
+#define PTR(x) (x << 2)
+#define PAGE_ALIGNED (1 << PAGE_SHIFT)
+#define PAGE_ATTR 0x63 /* _PAGE_PRESENT|_PAGE_RW|_PAGE_ACCESSED|_PAGE_DIRTY */
+#define PAE_PGD_ATTR 0x01 /* _PAGE_PRESENT */
+
+	.text
+	.align PAGE_ALIGNED
+	.globl relocate_kernel
+relocate_kernel:
+	movl	8(%esp), %ebp /* list of pages */
+
+#ifdef CONFIG_X86_PAE
+	/* map the control page at its virtual address */
+
+	movl	PTR(VA_PGD)(%ebp), %edi
+	movl	PTR(VA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0xc0000000, %eax
+	shrl	$27, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PMD_0)(%ebp), %edx
+	orl	$PAE_PGD_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PMD_0)(%ebp), %edi
+	movl	PTR(VA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x3fe00000, %eax
+	shrl	$18, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PTE_0)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PTE_0)(%ebp), %edi
+	movl	PTR(VA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x001ff000, %eax
+	shrl	$9, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	/* identity map the control page at its physical address */
+
+	movl	PTR(VA_PGD)(%ebp), %edi
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0xc0000000, %eax
+	shrl	$27, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PMD_1)(%ebp), %edx
+	orl	$PAE_PGD_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PMD_1)(%ebp), %edi
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x3fe00000, %eax
+	shrl	$18, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PTE_1)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PTE_1)(%ebp), %edi
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x001ff000, %eax
+	shrl	$9, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+#else
+	/* map the control page at its virtual address */
+
+	movl	PTR(VA_PGD)(%ebp), %edi
+	movl	PTR(VA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0xffc00000, %eax
+	shrl	$20, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PTE_0)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PTE_0)(%ebp), %edi
+	movl	PTR(VA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x003ff000, %eax
+	shrl	$10, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	/* identity map the control page at its physical address */
+
+	movl	PTR(VA_PGD)(%ebp), %edi
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0xffc00000, %eax
+	shrl	$20, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_PTE_1)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+
+	movl	PTR(VA_PTE_1)(%ebp), %edi
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %eax
+	andl	$0x003ff000, %eax
+	shrl	$10, %eax
+	addl	%edi, %eax
+
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edx
+	orl	$PAGE_ATTR, %edx
+	movl	%edx, (%eax)
+#endif
+
 relocate_new_kernel:
 	/* read the arguments and say goodbye to the stack */
 	movl  4(%esp), %ebx /* page_list */
-	movl  8(%esp), %ebp /* reboot_code_buffer */
+	movl  8(%esp), %ebp /* list of pages */
 	movl  12(%esp), %edx /* start address */
 	movl  16(%esp), %ecx /* cpu_has_pae */
 
@@ -24,11 +146,26 @@ relocate_new_kernel:
 	pushl $0
 	popfl
 
-	/* set a new stack at the bottom of our page... */
-	lea   4096(%ebp), %esp
+	/* get physical address of control page now */
+	/* this is impossible after page table switch */
+	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edi
 
-	/* store the parameters back on the stack */
-	pushl   %edx /* store the start address */
+	/* switch to new set of page tables */
+	movl	PTR(PA_PGD)(%ebp), %eax
+	movl	%eax, %cr3
+
+	/* setup a new stack at the end of the physical control page */
+	lea	4096(%edi), %esp
+
+	/* jump to identity mapped page */
+	movl    %edi, %eax
+	addl    $(identity_mapped - relocate_kernel), %eax
+	pushl   %eax
+	ret
+
+identity_mapped:
+	/* store the start address on the stack */
+	pushl   %edx
 
 	/* Set cr0 to a known state:
 	 * 31 0 == Paging disabled
@@ -113,8 +250,3 @@ relocate_new_kernel:
 	xorl    %edi, %edi
 	xorl    %ebp, %ebp
 	ret
-relocate_new_kernel_end:
-
-	.globl relocate_new_kernel_size
-relocate_new_kernel_size:
-	.long relocate_new_kernel_end - relocate_new_kernel

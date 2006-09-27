@@ -7,7 +7,8 @@
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o
-EXTRA_AFLAGS	:= -traditional -m32
+EXTRA_AFLAGS	:= -traditional
+AFLAGS		:= $(subst -m64,-m32,$(AFLAGS))
 
 # cannot use EXTRA_CFLAGS because base CFLAGS contains -mkernel which conflicts with
 # -m32

@@ -68,7 +68,7 @@ enum {
 
 
 static struct resource
-	excite_ctr_resource = {
+	excite_ctr_resource __attribute__((unused)) = {
 		.name		= "GPI counters",
 		.start		= 0,
 		.end		= 5,
@@ -77,7 +77,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_gpislice_resource = {
+	excite_gpislice_resource __attribute__((unused)) = {
 		.name		= "GPI slices",
 		.start		= 0,
 		.end		= 1,
@@ -86,7 +86,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_mdio_channel_resource = {
+	excite_mdio_channel_resource __attribute__((unused)) = {
 		.name		= "MDIO channels",
 		.start		= 0,
 		.end		= 1,
@@ -95,7 +95,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_fifomem_resource = {
+	excite_fifomem_resource __attribute__((unused)) = {
 		.name		= "FIFO memory",
 		.start		= 0,
 		.end		= 767,
@@ -104,7 +104,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_scram_resource = {
+	excite_scram_resource __attribute__((unused)) = {
 		.name		= "Scratch RAM",
 		.start		= EXCITE_PHYS_SCRAM,
 		.end		= EXCITE_PHYS_SCRAM + EXCITE_SIZE_SCRAM - 1,
@@ -113,7 +113,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_fpga_resource = {
+	excite_fpga_resource __attribute__((unused)) = {
 		.name		= "System FPGA",
 		.start		= EXCITE_PHYS_FPGA,
 		.end		= EXCITE_PHYS_FPGA + EXCITE_SIZE_FPGA - 1,
@@ -122,7 +122,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_nand_resource = {
+	excite_nand_resource __attribute__((unused)) = {
 		.name		= "NAND flash control",
 		.start		= EXCITE_PHYS_NAND,
 		.end		= EXCITE_PHYS_NAND + EXCITE_SIZE_NAND - 1,
@@ -131,7 +131,7 @@ static struct resource
 		.sibling	= NULL,
 		.child		= NULL
 	},
-	excite_titan_resource = {
+	excite_titan_resource __attribute__((unused)) = {
 		.name		= "TITAN registers",
 		.start		= EXCITE_PHYS_TITAN,
 		.end		= EXCITE_PHYS_TITAN + EXCITE_SIZE_TITAN - 1,

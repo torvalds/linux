@@ -468,7 +468,7 @@ int extRecord(struct inode *ip, xad_t * xp)
 int extFill(struct inode *ip, xad_t * xp)
 {
 	int rc, nbperpage = JFS_SBI(ip->i_sb)->nbperpage;
-	s64 blkno = offsetXAD(xp) >> ip->i_blksize;
+	s64 blkno = offsetXAD(xp) >> ip->i_blkbits;
 
 //      assert(ISSPARSE(ip));
 

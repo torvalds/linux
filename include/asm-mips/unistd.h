@@ -313,7 +313,7 @@
 #define __NR_mknodat			(__NR_Linux + 290)
 #define __NR_fchownat			(__NR_Linux + 291)
 #define __NR_futimesat			(__NR_Linux + 292)
-#define __NR_fstatat			(__NR_Linux + 293)
+#define __NR_fstatat64			(__NR_Linux + 293)
 #define __NR_unlinkat			(__NR_Linux + 294)
 #define __NR_renameat			(__NR_Linux + 295)
 #define __NR_linkat			(__NR_Linux + 296)
@@ -329,16 +329,18 @@
 #define __NR_tee			(__NR_Linux + 306)
 #define __NR_vmsplice			(__NR_Linux + 307)
 #define __NR_move_pages			(__NR_Linux + 308)
+#define __NR_set_robust_list		(__NR_Linux + 309)
+#define __NR_get_robust_list		(__NR_Linux + 310)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		308
+#define __NR_Linux_syscalls		310
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		308
+#define __NR_O32_Linux_syscalls		310
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -598,7 +600,7 @@
 #define __NR_mknodat			(__NR_Linux + 249)
 #define __NR_fchownat			(__NR_Linux + 250)
 #define __NR_futimesat			(__NR_Linux + 251)
-#define __NR_fstatat			(__NR_Linux + 252)
+#define __NR_newfstatat			(__NR_Linux + 252)
 #define __NR_unlinkat			(__NR_Linux + 253)
 #define __NR_renameat			(__NR_Linux + 254)
 #define __NR_linkat			(__NR_Linux + 255)
@@ -614,16 +616,18 @@
 #define __NR_tee			(__NR_Linux + 265)
 #define __NR_vmsplice			(__NR_Linux + 266)
 #define __NR_move_pages			(__NR_Linux + 267)
+#define __NR_set_robust_list		(__NR_Linux + 268)
+#define __NR_get_robust_list		(__NR_Linux + 269)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		267
+#define __NR_Linux_syscalls		269
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		267
+#define __NR_64_Linux_syscalls		269
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -887,7 +891,7 @@
 #define __NR_mknodat			(__NR_Linux + 253)
 #define __NR_fchownat			(__NR_Linux + 254)
 #define __NR_futimesat			(__NR_Linux + 255)
-#define __NR_fstatat			(__NR_Linux + 256)
+#define __NR_newfstatat			(__NR_Linux + 256)
 #define __NR_unlinkat			(__NR_Linux + 257)
 #define __NR_renameat			(__NR_Linux + 258)
 #define __NR_linkat			(__NR_Linux + 259)
@@ -903,16 +907,18 @@
 #define __NR_tee			(__NR_Linux + 269)
 #define __NR_vmsplice			(__NR_Linux + 270)
 #define __NR_move_pages			(__NR_Linux + 271)
+#define __NR_set_robust_list		(__NR_Linux + 272)
+#define __NR_get_robust_list		(__NR_Linux + 273)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		271
+#define __NR_Linux_syscalls		273
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		271
+#define __NR_N32_Linux_syscalls		273
 
 #ifdef __KERNEL__
 

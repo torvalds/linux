@@ -280,13 +280,6 @@ cflags-$(CONFIG_MIPS_EV64120)	+= -Iinclude/asm-mips/mach-ev64120
 load-$(CONFIG_MIPS_EV64120)	+= 0xffffffff80100000
 
 #
-# Galileo EV96100 Board
-#
-core-$(CONFIG_MIPS_EV96100)	+= arch/mips/galileo-boards/ev96100/
-cflags-$(CONFIG_MIPS_EV96100)	+= -Iinclude/asm-mips/mach-ev96100
-load-$(CONFIG_MIPS_EV96100)	+= 0xffffffff80100000
-
-#
 # Wind River PPMC Board (4KC + GT64120)
 #
 core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/
@@ -330,6 +323,7 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 # MIPS SEAD board
 #
 core-$(CONFIG_MIPS_SEAD)	+= arch/mips/mips-boards/sead/
+cflags-$(CONFIG_MIPS_SEAD)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_SEAD)	+= 0xffffffff80100000
 
 #

@@ -166,6 +166,7 @@ struct skb_data {	/* skb->cb is one of these */
 extern int usbnet_get_endpoints(struct usbnet *, struct usb_interface *);
 extern void usbnet_defer_kevent (struct usbnet *, int);
 extern void usbnet_skb_return (struct usbnet *, struct sk_buff *);
+extern void usbnet_unlink_rx_urbs(struct usbnet *);
 
 extern u32 usbnet_get_msglevel (struct net_device *);
 extern void usbnet_set_msglevel (struct net_device *, u32);

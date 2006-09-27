@@ -64,7 +64,7 @@ idt_48:
 	.word	0, 0			# idt base = 0L
 
 gdt_48:
-	.short	__KERNEL32_CS + 7	# gdt limit
+	.short	GDT_ENTRIES*8 - 1	# gdt limit
 	.long	cpu_gdt_table-__START_KERNEL_map
 
 .globl trampoline_end

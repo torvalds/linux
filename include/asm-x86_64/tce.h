@@ -24,7 +24,6 @@
 #ifndef _ASM_X86_64_TCE_H
 #define _ASM_X86_64_TCE_H
 
-extern void* tce_table_kva[];
 extern unsigned int specified_table_size;
 struct iommu_table;
 

@@ -58,6 +58,7 @@ enum zone_stat_item {
 	NR_WRITEBACK,
 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
 	NR_BOUNCE,
+	NR_VMSCAN_WRITE,
 #ifdef CONFIG_NUMA
 	NUMA_HIT,		/* allocated in intended node */
 	NUMA_MISS,		/* allocated in non intended node */
@@ -167,6 +168,7 @@ struct zone {
 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
 
 #ifdef CONFIG_NUMA
+	int node;
 	/*
 	 * zone reclaim becomes active if more unmapped pages exist.
 	 */
@@ -305,6 +307,18 @@ struct zonelist {
 	struct zone *zones[MAX_NUMNODES * MAX_NR_ZONES + 1]; // NULL delimited
 };
 
+#ifdef CONFIG_ARCH_POPULATES_NODE_MAP
+struct node_active_region {
+	unsigned long start_pfn;
+	unsigned long end_pfn;
+	int nid;
+};
+#endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+
+#ifndef CONFIG_DISCONTIGMEM
+/* The array of struct pages - for discontigmem use pgdat->lmem_map */
+extern struct page *mem_map;
+#endif
 
 /*
  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
@@ -518,7 +532,8 @@ extern struct zone *next_zone(struct zone *zone);
 
 #endif
 
-#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+#if !defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) && \
+	!defined(CONFIG_ARCH_POPULATES_NODE_MAP)
 #define early_pfn_to_nid(nid)  (0UL)
 #endif
 

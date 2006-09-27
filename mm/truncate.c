@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
@@ -52,36 +53,26 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 /*
  * This is for invalidate_inode_pages().  That function can be called at
  * any time, and is not supposed to throw away dirty pages.  But pages can
- * be marked dirty at any time too.  So we re-check the dirtiness inside
- * ->tree_lock.  That provides exclusion against the __set_page_dirty
- * functions.
+ * be marked dirty at any time too, so use remove_mapping which safely
+ * discards clean, unused pages.
  *
  * Returns non-zero if the page was successfully invalidated.
  */
 static int
 invalidate_complete_page(struct address_space *mapping, struct page *page)
 {
+	int ret;
+
 	if (page->mapping != mapping)
 		return 0;
 
 	if (PagePrivate(page) && !try_to_release_page(page, 0))
 		return 0;
 
-	write_lock_irq(&mapping->tree_lock);
-	if (PageDirty(page))
-		goto failed;
-	if (page_count(page) != 2)	/* caller's ref + pagecache ref */
-		goto failed;
-
-	BUG_ON(PagePrivate(page));
-	__remove_from_page_cache(page);
-	write_unlock_irq(&mapping->tree_lock);
+	ret = remove_mapping(mapping, page);
 	ClearPageUptodate(page);
-	page_cache_release(page);	/* pagecache ref */
-	return 1;
-failed:
-	write_unlock_irq(&mapping->tree_lock);
-	return 0;
+
+	return ret;
 }
 
 /**

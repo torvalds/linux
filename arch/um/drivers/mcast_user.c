@@ -152,7 +152,7 @@ static int mcast_set_mtu(int mtu, void *data)
 	return(mtu);
 }
 
-struct net_user_info mcast_user_info = {
+const struct net_user_info mcast_user_info = {
 	.init		= mcast_user_init,
 	.open		= mcast_open,
 	.close	 	= mcast_close,

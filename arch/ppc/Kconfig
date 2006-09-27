@@ -953,6 +953,9 @@ config NR_CPUS
 config HIGHMEM
 	bool "High memory support"
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
 source "mm/Kconfig"

@@ -115,7 +115,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_mtime = inode->i_ctime = inode->i_atime =
 				CURRENT_TIME;
@@ -1275,10 +1274,7 @@ out_filesystem:
 out_sysctl:
 	if (mq_sysctl_table)
 		unregister_sysctl_table(mq_sysctl_table);
-	if (kmem_cache_destroy(mqueue_inode_cachep)) {
-		printk(KERN_INFO
-			"mqueue_inode_cache: not all structures were freed\n");
-	}
+	kmem_cache_destroy(mqueue_inode_cachep);
 	return error;
 }
 

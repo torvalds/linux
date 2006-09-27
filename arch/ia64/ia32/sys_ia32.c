@@ -1942,7 +1942,7 @@ struct sysctl32 {
 	unsigned int	__unused[4];
 };
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 asmlinkage long
 sys32_sysctl (struct sysctl32 __user *args)
 {

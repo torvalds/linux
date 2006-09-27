@@ -16,7 +16,7 @@ struct tuntap_data {
 	void *dev;
 };
 
-extern struct net_user_info tuntap_user_info;
+extern const struct net_user_info tuntap_user_info;
 
 #endif
 

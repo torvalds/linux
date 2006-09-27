@@ -155,8 +155,6 @@ extern void acpi_reserve_bootmem(void);
 
 #endif /*CONFIG_ACPI_SLEEP*/
 
-#define boot_cpu_physical_apicid boot_cpu_id
-
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
 

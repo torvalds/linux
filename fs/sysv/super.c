@@ -369,10 +369,9 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	if (64 != sizeof (struct sysv_inode))
 		panic("sysv fs: bad inode size");
 
-	sbi = kmalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
-	memset(sbi, 0, sizeof(struct sysv_sb_info));
 
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
@@ -453,10 +452,9 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	if (64 != sizeof (struct sysv_inode))
 		panic("sysv fs: bad i-node size");
 
-	sbi = kmalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
-	memset(sbi, 0, sizeof(struct sysv_sb_info));
 
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;

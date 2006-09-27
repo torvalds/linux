@@ -488,7 +488,6 @@ rpc_get_inode(struct super_block *sb, int mode)
 		return NULL;
 	inode->i_mode = mode;
 	inode->i_uid = inode->i_gid = 0;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch(mode & S_IFMT) {
@@ -858,7 +857,6 @@ int register_rpc_pipefs(void)
 
 void unregister_rpc_pipefs(void)
 {
-	if (kmem_cache_destroy(rpc_inode_cachep))
-		printk(KERN_WARNING "RPC: unable to free inode cache\n");
+	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
 }

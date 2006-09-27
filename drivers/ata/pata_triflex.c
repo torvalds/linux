@@ -46,13 +46,13 @@
 #define DRV_VERSION "0.2.5"
 
 /**
- *	triflex_probe_init		-	probe begin
+ *	triflex_prereset		-	probe begin
  *	@ap: ATA port
  *
  *	Set up cable type and use generic probe init
  */
 
-static int triflex_probe_init(struct ata_port *ap)
+static int triflex_prereset(struct ata_port *ap)
 {
 	static const struct pci_bits triflex_enable_bits[] = {
 		{ 0x80, 1, 0x01, 0x01 },
@@ -61,11 +61,8 @@ static int triflex_probe_init(struct ata_port *ap)
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &triflex_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pci_test_config_bits(pdev, &triflex_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -74,7 +71,7 @@ static int triflex_probe_init(struct ata_port *ap)
 
 static void triflex_error_handler(struct ata_port *ap)
 {
-	ata_bmdma_drive_eh(ap, triflex_probe_init, ata_std_softreset, NULL, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, triflex_prereset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
 /**
@@ -221,7 +218,7 @@ static struct ata_port_operations triflex_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,

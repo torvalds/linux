@@ -711,7 +711,7 @@ static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
 			case -EOVERFLOW:	errmsg = "Babble (bad cable?)"; break;
 			case -EPROTO:		errmsg = "Bit-stuff error (bad cable?)"; break;
 			case -EILSEQ:		errmsg = "CRC/Timeout (could be anything)"; break;
-			case -ETIMEDOUT:	errmsg = "NAK (device does not respond)"; break;
+			case -ETIME:		errmsg = "Device does not respond"; break;
 		}
 		PWC_DEBUG_FLOW("pwc_isoc_handler() called with status %d [%s].\n", urb->status, errmsg);
 		/* Give up after a number of contiguous errors on the USB bus.

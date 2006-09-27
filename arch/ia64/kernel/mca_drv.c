@@ -79,12 +79,28 @@ static int
 fatal_mca(const char *fmt, ...)
 {
 	va_list args;
+	char buf[256];
 
 	va_start(args, fmt);
-	vprintk(fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
+	ia64_mca_printk(KERN_ALERT "MCA: %s\n", buf);
 
 	return MCA_NOT_RECOVERED;
+}
+
+static int
+mca_recovered(const char *fmt, ...)
+{
+	va_list args;
+	char buf[256];
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+	ia64_mca_printk(KERN_INFO "MCA: %s\n", buf);
+
+	return MCA_RECOVERED;
 }
 
 /**
@@ -140,6 +156,7 @@ mca_page_isolate(unsigned long paddr)
 void
 mca_handler_bh(unsigned long paddr, void *iip, unsigned long ipsr)
 {
+	ia64_mlogbuf_dump();
 	printk(KERN_ERR "OS_MCA: process [cpu %d, pid: %d, uid: %d, "
 		"iip: %p, psr: 0x%lx,paddr: 0x%lx](%s) encounters MCA.\n",
 		raw_smp_processor_id(), current->pid, current->uid,
@@ -440,7 +457,7 @@ recover_from_read_error(slidx_table_t *slidx,
 
 	/* Is target address valid? */
 	if (!pbci->tv)
-		return fatal_mca(KERN_ALERT "MCA: target address not valid\n");
+		return fatal_mca("target address not valid");
 
 	/*
 	 * cpu read or memory-mapped io read
@@ -458,7 +475,7 @@ recover_from_read_error(slidx_table_t *slidx,
 
 	/* Is minstate valid? */
 	if (!peidx_bottom(peidx) || !(peidx_bottom(peidx)->valid.minstate))
-		return fatal_mca(KERN_ALERT "MCA: minstate not valid\n");
+		return fatal_mca("minstate not valid");
 	psr1 =(struct ia64_psr *)&(peidx_minstate_area(peidx)->pmsa_ipsr);
 	psr2 =(struct ia64_psr *)&(peidx_minstate_area(peidx)->pmsa_xpsr);
 
@@ -492,13 +509,14 @@ recover_from_read_error(slidx_table_t *slidx,
 			psr2->bn  = 1;
 			psr2->i  = 0;
 
-			return MCA_RECOVERED;
+			return mca_recovered("user memory corruption. "
+				"kill affected process - recovered.");
 		}
 
 	}
 
-	return fatal_mca(KERN_ALERT "MCA: kernel context not recovered,"
-			  " iip 0x%lx\n", pmsa->pmsa_iip);
+	return fatal_mca("kernel context not recovered, iip 0x%lx\n",
+			 pmsa->pmsa_iip);
 }
 
 /**
@@ -584,13 +602,13 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	 * The machine check is corrected.
 	 */
 	if (psp->cm == 1)
-		return MCA_RECOVERED;
+		return mca_recovered("machine check is already corrected.");
 
 	/*
 	 * The error was not contained.  Software must be reset.
 	 */
 	if (psp->us || psp->ci == 0)
-		return fatal_mca(KERN_ALERT "MCA: error not contained\n");
+		return fatal_mca("error not contained");
 
 	/*
 	 * The cache check and bus check bits have four possible states
@@ -601,22 +619,22 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	 *    1  1	Memory error, attempt recovery
 	 */
 	if (psp->bc == 0 || pbci == NULL)
-		return fatal_mca(KERN_ALERT "MCA: No bus check\n");
+		return fatal_mca("No bus check");
 
 	/*
 	 * Sorry, we cannot handle so many.
 	 */
 	if (peidx_bus_check_num(peidx) > 1)
-		return fatal_mca(KERN_ALERT "MCA: Too many bus checks\n");
+		return fatal_mca("Too many bus checks");
 	/*
 	 * Well, here is only one bus error.
 	 */
 	if (pbci->ib)
-		return fatal_mca(KERN_ALERT "MCA: Internal Bus error\n");
+		return fatal_mca("Internal Bus error");
 	if (pbci->cc)
-		return fatal_mca(KERN_ALERT "MCA: Cache-cache error\n");
+		return fatal_mca("Cache-cache error");
 	if (pbci->eb && pbci->bsi > 0)
-		return fatal_mca(KERN_ALERT "MCA: External bus check fatal status\n");
+		return fatal_mca("External bus check fatal status");
 
 	/*
 	 * This is a local MCA and estimated as recoverble external bus error.
@@ -628,7 +646,7 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	/*
 	 * On account of strange SAL error record, we cannot recover.
 	 */
-	return fatal_mca(KERN_ALERT "MCA: Strange SAL record\n");
+	return fatal_mca("Strange SAL record");
 }
 
 /**
@@ -657,10 +675,10 @@ mca_try_to_recover(void *rec, struct ia64_sal_os_state *sos)
 
 	 /* Now, OS can recover when there is one processor error section */
 	if (n_proc_err > 1)
-		return fatal_mca(KERN_ALERT "MCA: Too Many Errors\n");
+		return fatal_mca("Too Many Errors");
 	else if (n_proc_err == 0)
-		/* Weird SAL record ... We need not to recover */
-		return fatal_mca(KERN_ALERT "MCA: Weird SAL record\n");
+		/* Weird SAL record ... We can't do anything */
+		return fatal_mca("Weird SAL record");
 
 	/* Make index of processor error section */
 	mca_make_peidx((sal_log_processor_info_t*)
@@ -671,7 +689,7 @@ mca_try_to_recover(void *rec, struct ia64_sal_os_state *sos)
 
 	/* Check whether MCA is global or not */
 	if (is_mca_global(&peidx, &pbci, sos))
-		return fatal_mca(KERN_ALERT "MCA: global MCA\n");
+		return fatal_mca("global MCA");
 	
 	/* Try to recover a processor error */
 	return recover_from_processor_error(platform_err, &slidx, &peidx,

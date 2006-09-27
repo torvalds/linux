@@ -58,8 +58,7 @@ int __init fat_cache_init(void)
 
 void fat_cache_destroy(void)
 {
-	if (kmem_cache_destroy(fat_cache_cachep))
-		printk(KERN_INFO "fat_cache: not all structures were freed\n");
+	kmem_cache_destroy(fat_cache_cachep);
 }
 
 static inline struct fat_cache *fat_cache_alloc(struct inode *inode)

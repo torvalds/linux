@@ -68,7 +68,7 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 	return ret;
 }
 
-static struct file_operations rng_chrdev_ops = {
+static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= rng_dev_open,
 	.read		= rng_dev_read,

@@ -356,6 +356,9 @@ config NODES_SHIFT
 	  MAX_NUMNODES will be 2^(This value).
 	  If in doubt, use the default.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 # VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
 # VIRTUAL_MEM_MAP has been retained for historical reasons.
 config VIRTUAL_MEM_MAP
@@ -419,6 +422,14 @@ config IA64_PALINFO
 
 config SGI_SN
 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
+
+config IA64_ESI
+	bool "ESI (Extensible SAL Interface) support"
+	help
+	  If you say Y here, support is built into the kernel to
+	  make ESI calls.  ESI calls are used to support vendor-specific
+	  firmware extensions, such as the ability to inject memory-errors
+	  for test-purposes.  If you're unsure, say N.
 
 source "drivers/sn/Kconfig"
 

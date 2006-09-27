@@ -450,7 +450,7 @@ exit:
 }
 
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer	= sis630_access,
 	.functionality	= sis630_func,
 };

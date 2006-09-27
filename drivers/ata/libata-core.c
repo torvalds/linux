@@ -5453,6 +5453,11 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	int rc;
 
 	DPRINTK("ENTER\n");
+	
+	if (ent->irq == 0) {
+		dev_printk(KERN_ERR, dev, "is not available: No interrupt assigned.\n");
+		return 0;
+	}
 	/* alloc a container for our list of ATA ports (buses) */
 	host = kzalloc(sizeof(struct ata_host) +
 		       (ent->n_ports * sizeof(void *)), GFP_KERNEL);

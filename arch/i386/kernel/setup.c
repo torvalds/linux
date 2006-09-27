@@ -90,18 +90,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-#ifdef	CONFIG_ACPI
-	int acpi_disabled = 0;
-#else
-	int acpi_disabled = 1;
-#endif
-EXPORT_SYMBOL(acpi_disabled);
-
-#ifdef	CONFIG_ACPI
-int __initdata acpi_force = 0;
-extern acpi_interrupt_flags	acpi_sci_flags;
-#endif
-
 /* for MCA, but anyone else can use it if they want */
 unsigned int machine_id;
 #ifdef CONFIG_MCA
@@ -149,7 +137,6 @@ EXPORT_SYMBOL(ist_info);
 struct e820map e820;
 
 extern void early_cpu_init(void);
-extern void generic_apic_probe(char *);
 extern int root_mountflags;
 
 unsigned long saved_videomode;
@@ -701,238 +688,132 @@ static inline void copy_edd(void)
 }
 #endif
 
-static void __init parse_cmdline_early (char ** cmdline_p)
+static int __initdata user_defined_memmap = 0;
+
+/*
+ * "mem=nopentium" disables the 4MB page tables.
+ * "mem=XXX[kKmM]" defines a memory region from HIGH_MEM
+ * to <mem>, overriding the bios size.
+ * "memmap=XXX[KkmM]@XXX[KkmM]" defines a memory region from
+ * <start> to <start>+<mem>, overriding the bios size.
+ *
+ * HPA tells me bootloaders need to parse mem=, so no new
+ * option should be mem=  [also see Documentation/i386/boot.txt]
+ */
+static int __init parse_mem(char *arg)
 {
-	char c = ' ', *to = command_line, *from = saved_command_line;
-	int len = 0;
-	int userdef = 0;
+	if (!arg)
+		return -EINVAL;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
-
-	for (;;) {
-		if (c != ' ')
-			goto next_char;
-		/*
-		 * "mem=nopentium" disables the 4MB page tables.
-		 * "mem=XXX[kKmM]" defines a memory region from HIGH_MEM
-		 * to <mem>, overriding the bios size.
-		 * "memmap=XXX[KkmM]@XXX[KkmM]" defines a memory region from
-		 * <start> to <start>+<mem>, overriding the bios size.
-		 *
-		 * HPA tells me bootloaders need to parse mem=, so no new
-		 * option should be mem=  [also see Documentation/i386/boot.txt]
+	if (strcmp(arg, "nopentium") == 0) {
+		clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
+		disable_pse = 1;
+	} else {
+		/* If the user specifies memory size, we
+		 * limit the BIOS-provided memory map to
+		 * that size. exactmap can be used to specify
+		 * the exact map. mem=number can be used to
+		 * trim the existing memory map.
 		 */
-		if (!memcmp(from, "mem=", 4)) {
-			if (to != command_line)
-				to--;
-			if (!memcmp(from+4, "nopentium", 9)) {
-				from += 9+4;
-				clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
-				disable_pse = 1;
-			} else {
-				/* If the user specifies memory size, we
-				 * limit the BIOS-provided memory map to
-				 * that size. exactmap can be used to specify
-				 * the exact map. mem=number can be used to
-				 * trim the existing memory map.
-				 */
-				unsigned long long mem_size;
+		unsigned long long mem_size;
  
-				mem_size = memparse(from+4, &from);
-				limit_regions(mem_size);
-				userdef=1;
-			}
-		}
-
-		else if (!memcmp(from, "memmap=", 7)) {
-			if (to != command_line)
-				to--;
-			if (!memcmp(from+7, "exactmap", 8)) {
-#ifdef CONFIG_CRASH_DUMP
-				/* If we are doing a crash dump, we
-				 * still need to know the real mem
-				 * size before original memory map is
-				 * reset.
-				 */
-				find_max_pfn();
-				saved_max_pfn = max_pfn;
-#endif
-				from += 8+7;
-				e820.nr_map = 0;
-				userdef = 1;
-			} else {
-				/* If the user specifies memory size, we
-				 * limit the BIOS-provided memory map to
-				 * that size. exactmap can be used to specify
-				 * the exact map. mem=number can be used to
-				 * trim the existing memory map.
-				 */
-				unsigned long long start_at, mem_size;
- 
-				mem_size = memparse(from+7, &from);
-				if (*from == '@') {
-					start_at = memparse(from+1, &from);
-					add_memory_region(start_at, mem_size, E820_RAM);
-				} else if (*from == '#') {
-					start_at = memparse(from+1, &from);
-					add_memory_region(start_at, mem_size, E820_ACPI);
-				} else if (*from == '$') {
-					start_at = memparse(from+1, &from);
-					add_memory_region(start_at, mem_size, E820_RESERVED);
-				} else {
-					limit_regions(mem_size);
-					userdef=1;
-				}
-			}
-		}
-
-		else if (!memcmp(from, "noexec=", 7))
-			noexec_setup(from + 7);
-
-
-#ifdef  CONFIG_X86_SMP
-		/*
-		 * If the BIOS enumerates physical processors before logical,
-		 * maxcpus=N at enumeration-time can be used to disable HT.
-		 */
-		else if (!memcmp(from, "maxcpus=", 8)) {
-			extern unsigned int maxcpus;
-
-			maxcpus = simple_strtoul(from + 8, NULL, 0);
-		}
-#endif
-
-#ifdef CONFIG_ACPI
-		/* "acpi=off" disables both ACPI table parsing and interpreter */
-		else if (!memcmp(from, "acpi=off", 8)) {
-			disable_acpi();
-		}
-
-		/* acpi=force to over-ride black-list */
-		else if (!memcmp(from, "acpi=force", 10)) {
-			acpi_force = 1;
-			acpi_ht = 1;
-			acpi_disabled = 0;
-		}
-
-		/* acpi=strict disables out-of-spec workarounds */
-		else if (!memcmp(from, "acpi=strict", 11)) {
-			acpi_strict = 1;
-		}
-
-		/* Limit ACPI just to boot-time to enable HT */
-		else if (!memcmp(from, "acpi=ht", 7)) {
-			if (!acpi_force)
-				disable_acpi();
-			acpi_ht = 1;
-		}
-		
-		/* "pci=noacpi" disable ACPI IRQ routing and PCI scan */
-		else if (!memcmp(from, "pci=noacpi", 10)) {
-			acpi_disable_pci();
-		}
-		/* "acpi=noirq" disables ACPI interrupt routing */
-		else if (!memcmp(from, "acpi=noirq", 10)) {
-			acpi_noirq_set();
-		}
-
-		else if (!memcmp(from, "acpi_sci=edge", 13))
-			acpi_sci_flags.trigger =  1;
-
-		else if (!memcmp(from, "acpi_sci=level", 14))
-			acpi_sci_flags.trigger = 3;
-
-		else if (!memcmp(from, "acpi_sci=high", 13))
-			acpi_sci_flags.polarity = 1;
-
-		else if (!memcmp(from, "acpi_sci=low", 12))
-			acpi_sci_flags.polarity = 3;
-
-#ifdef CONFIG_X86_IO_APIC
-		else if (!memcmp(from, "acpi_skip_timer_override", 24))
-			acpi_skip_timer_override = 1;
-
-		if (!memcmp(from, "disable_timer_pin_1", 19))
-			disable_timer_pin_1 = 1;
-		if (!memcmp(from, "enable_timer_pin_1", 18))
-			disable_timer_pin_1 = -1;
-
-		/* disable IO-APIC */
-		else if (!memcmp(from, "noapic", 6))
-			disable_ioapic_setup();
-#endif /* CONFIG_X86_IO_APIC */
-#endif /* CONFIG_ACPI */
-
-#ifdef CONFIG_X86_LOCAL_APIC
-		/* enable local APIC */
-		else if (!memcmp(from, "lapic", 5))
-			lapic_enable();
-
-		/* disable local APIC */
-		else if (!memcmp(from, "nolapic", 6))
-			lapic_disable();
-#endif /* CONFIG_X86_LOCAL_APIC */
-
-#ifdef CONFIG_KEXEC
-		/* crashkernel=size@addr specifies the location to reserve for
-		 * a crash kernel.  By reserving this memory we guarantee
-		 * that linux never set's it up as a DMA target.
-		 * Useful for holding code to do something appropriate
-		 * after a kernel panic.
-		 */
-		else if (!memcmp(from, "crashkernel=", 12)) {
-			unsigned long size, base;
-			size = memparse(from+12, &from);
-			if (*from == '@') {
-				base = memparse(from+1, &from);
-				/* FIXME: Do I want a sanity check
-				 * to validate the memory range?
-				 */
-				crashk_res.start = base;
-				crashk_res.end   = base + size - 1;
-			}
-		}
-#endif
-#ifdef CONFIG_PROC_VMCORE
-		/* elfcorehdr= specifies the location of elf core header
-		 * stored by the crashed kernel.
-		 */
-		else if (!memcmp(from, "elfcorehdr=", 11))
-			elfcorehdr_addr = memparse(from+11, &from);
-#endif
-
-		/*
-		 * highmem=size forces highmem to be exactly 'size' bytes.
-		 * This works even on boxes that have no highmem otherwise.
-		 * This also works to reduce highmem size on bigger boxes.
-		 */
-		else if (!memcmp(from, "highmem=", 8))
-			highmem_pages = memparse(from+8, &from) >> PAGE_SHIFT;
-	
-		/*
-		 * vmalloc=size forces the vmalloc area to be exactly 'size'
-		 * bytes. This can be used to increase (or decrease) the
-		 * vmalloc area - the default is 128m.
-		 */
-		else if (!memcmp(from, "vmalloc=", 8))
-			__VMALLOC_RESERVE = memparse(from+8, &from);
-
-	next_char:
-		c = *(from++);
-		if (!c)
-			break;
-		if (COMMAND_LINE_SIZE <= ++len)
-			break;
-		*(to++) = c;
+		mem_size = memparse(arg, &arg);
+		limit_regions(mem_size);
+		user_defined_memmap = 1;
 	}
-	*to = '\0';
-	*cmdline_p = command_line;
-	if (userdef) {
-		printk(KERN_INFO "user-defined physical RAM map:\n");
-		print_memory_map("user");
-	}
+	return 0;
 }
+early_param("mem", parse_mem);
+
+static int __init parse_memmap(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "exactmap") == 0) {
+#ifdef CONFIG_CRASH_DUMP
+		/* If we are doing a crash dump, we
+		 * still need to know the real mem
+		 * size before original memory map is
+		 * reset.
+		 */
+		find_max_pfn();
+		saved_max_pfn = max_pfn;
+#endif
+		e820.nr_map = 0;
+		user_defined_memmap = 1;
+	} else {
+		/* If the user specifies memory size, we
+		 * limit the BIOS-provided memory map to
+		 * that size. exactmap can be used to specify
+		 * the exact map. mem=number can be used to
+		 * trim the existing memory map.
+		 */
+		unsigned long long start_at, mem_size;
+
+		mem_size = memparse(arg, &arg);
+		if (*arg == '@') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_RAM);
+		} else if (*arg == '#') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_ACPI);
+		} else if (*arg == '$') {
+			start_at = memparse(arg+1, &arg);
+			add_memory_region(start_at, mem_size, E820_RESERVED);
+		} else {
+			limit_regions(mem_size);
+			user_defined_memmap = 1;
+		}
+	}
+	return 0;
+}
+early_param("memmap", parse_memmap);
+
+#ifdef CONFIG_PROC_VMCORE
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel.
+ */
+static int __init parse_elfcorehdr(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	elfcorehdr_addr = memparse(arg, &arg);
+	return 0;
+}
+early_param("elfcorehdr", parse_elfcorehdr);
+#endif /* CONFIG_PROC_VMCORE */
+
+/*
+ * highmem=size forces highmem to be exactly 'size' bytes.
+ * This works even on boxes that have no highmem otherwise.
+ * This also works to reduce highmem size on bigger boxes.
+ */
+static int __init parse_highmem(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	highmem_pages = memparse(arg, &arg) >> PAGE_SHIFT;
+	return 0;
+}
+early_param("highmem", parse_highmem);
+
+/*
+ * vmalloc=size forces the vmalloc area to be exactly 'size'
+ * bytes. This can be used to increase (or decrease) the
+ * vmalloc area - the default is 128m.
+ */
+static int __init parse_vmalloc(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	__VMALLOC_RESERVE = memparse(arg, &arg);
+	return 0;
+}
+early_param("vmalloc", parse_vmalloc);
 
 /*
  * reservetop=size reserves a hole at the top of the kernel address space which
@@ -1189,6 +1070,14 @@ static unsigned long __init setup_memory(void)
 	}
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 		pages_to_mb(highend_pfn - highstart_pfn));
+	num_physpages = highend_pfn;
+	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
+#else
+	num_physpages = max_low_pfn;
+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
+#endif
+#ifdef CONFIG_FLATMEM
+	max_mapnr = num_physpages;
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(max_low_pfn));
@@ -1200,22 +1089,20 @@ static unsigned long __init setup_memory(void)
 
 void __init zone_sizes_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-	unsigned int max_dma, low;
-
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	low = max_low_pfn;
-
-	if (low < max_dma)
-		zones_size[ZONE_DMA] = low;
-	else {
-		zones_size[ZONE_DMA] = max_dma;
-		zones_size[ZONE_NORMAL] = low - max_dma;
 #ifdef CONFIG_HIGHMEM
-		zones_size[ZONE_HIGHMEM] = highend_pfn - low;
+	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
+			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
+			max_low_pfn,
+			highend_pfn};
+	add_active_range(0, 0, highend_pfn);
+#else
+	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
+			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
+			max_low_pfn};
+	add_active_range(0, 0, max_low_pfn);
 #endif
-	}
-	free_area_init(zones_size);
+
+	free_area_init_nodes(max_zone_pfns);
 }
 #else
 extern unsigned long __init setup_memory(void);
@@ -1518,17 +1405,15 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(_etext);
 	data_resource.end = virt_to_phys(_edata)-1;
 
-	parse_cmdline_early(cmdline_p);
+	parse_early_param();
 
-#ifdef CONFIG_EARLY_PRINTK
-	{
-		char *s = strstr(*cmdline_p, "earlyprintk=");
-		if (s) {
-			setup_early_printk(strchr(s, '=') + 1);
-			printk("early console enabled\n");
-		}
+	if (user_defined_memmap) {
+		printk(KERN_INFO "user-defined physical RAM map:\n");
+		print_memory_map("user");
 	}
-#endif
+
+	strlcpy(command_line, saved_command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = command_line;
 
 	max_low_pfn = setup_memory();
 
@@ -1557,7 +1442,7 @@ void __init setup_arch(char **cmdline_p)
 	dmi_scan_machine();
 
 #ifdef CONFIG_X86_GENERICARCH
-	generic_apic_probe(*cmdline_p);
+	generic_apic_probe();
 #endif	
 	if (efi_enabled)
 		efi_map_memmap();
@@ -1569,8 +1454,10 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_table_init();
 #endif
 
+#ifdef CONFIG_PCI
 #ifdef CONFIG_X86_IO_APIC
 	check_acpi_pci();	/* Checks more than just ACPI actually */
+#endif
 #endif
 
 #ifdef CONFIG_ACPI

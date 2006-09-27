@@ -42,6 +42,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mca.h>
+#include <linux/kprobes.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <linux/proc_fs.h>
@@ -414,7 +415,8 @@ subsys_initcall(mca_init);
 
 /*--------------------------------------------------------------------*/
 
-static void mca_handle_nmi_device(struct mca_device *mca_dev, int check_flag)
+static __kprobes void
+mca_handle_nmi_device(struct mca_device *mca_dev, int check_flag)
 {
 	int slot = mca_dev->slot;
 
@@ -444,7 +446,7 @@ static void mca_handle_nmi_device(struct mca_device *mca_dev, int check_flag)
 
 /*--------------------------------------------------------------------*/
 
-static int mca_handle_nmi_callback(struct device *dev, void *data)
+static int __kprobes mca_handle_nmi_callback(struct device *dev, void *data)
 {
 	struct mca_device *mca_dev = to_mca_device(dev);
 	unsigned char pos5;
@@ -462,7 +464,7 @@ static int mca_handle_nmi_callback(struct device *dev, void *data)
 	return 0;
 }
 
-void mca_handle_nmi(void)
+void __kprobes mca_handle_nmi(void)
 {
 	/* First try - scan the various adapters and see if a specific
 	 * adapter was responsible for the error.

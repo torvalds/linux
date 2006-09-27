@@ -703,7 +703,7 @@ static struct ata_port_operations it821x_smart_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_smart_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -739,7 +739,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_passthru_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_clear	= ata_bmdma_irq_clear,

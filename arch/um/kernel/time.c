@@ -95,7 +95,7 @@ irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
 
 	do_timer(regs);
 
-	nsecs = get_time() + local_offset;
+	nsecs = get_time();
 	xtime.tv_sec = nsecs / NSEC_PER_SEC;
 	xtime.tv_nsec = nsecs - xtime.tv_sec * NSEC_PER_SEC;
 

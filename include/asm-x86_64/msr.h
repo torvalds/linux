@@ -66,13 +66,24 @@
 #define rdtscl(low) \
      __asm__ __volatile__ ("rdtsc" : "=a" (low) : : "edx")
 
+#define rdtscp(low,high,aux) \
+     asm volatile (".byte 0x0f,0x01,0xf9" : "=a" (low), "=d" (high), "=c" (aux))
+
 #define rdtscll(val) do { \
      unsigned int __a,__d; \
      asm volatile("rdtsc" : "=a" (__a), "=d" (__d)); \
      (val) = ((unsigned long)__a) | (((unsigned long)__d)<<32); \
 } while(0)
 
+#define rdtscpll(val, aux) do { \
+     unsigned long __a, __d; \
+     asm volatile (".byte 0x0f,0x01,0xf9" : "=a" (__a), "=d" (__d), "=c" (aux)); \
+     (val) = (__d << 32) | __a; \
+} while (0)
+
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
+
+#define write_rdtscp_aux(val) wrmsr(0xc0000103, val, 0)
 
 #define rdpmc(counter,low,high) \
      __asm__ __volatile__("rdpmc" \

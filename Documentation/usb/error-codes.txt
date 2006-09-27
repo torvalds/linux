@@ -98,13 +98,13 @@ one or more packets could finish before an error stops further endpoint I/O.
 			error, a failure to respond (often caused by
 			device disconnect), or some other fault.
 
--ETIMEDOUT (**)		No response packet received within the prescribed
+-ETIME (**)		No response packet received within the prescribed
 			bus turn-around time.  This error may instead be
 			reported as -EPROTO or -EILSEQ.
 
-			Note that the synchronous USB message functions
-			also use this code to indicate timeout expired
-			before the transfer completed.
+-ETIMEDOUT		Synchronous USB message functions use this code
+			to indicate timeout expired before the transfer
+			completed, and no other error was reported by HC.
 
 -EPIPE (**)		Endpoint stalled.  For non-control endpoints,
 			reset this status with usb_clear_halt().
@@ -163,6 +163,3 @@ usb_get_*/usb_set_*():
 usb_control_msg():
 usb_bulk_msg():
 -ETIMEDOUT		Timeout expired before the transfer completed.
-			In the future this code may change to -ETIME,
-			whose definition is a closer match to this sort
-			of error.

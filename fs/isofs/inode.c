@@ -96,9 +96,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(isofs_inode_cachep))
-		printk(KERN_INFO "iso_inode_cache: not all structures were "
-					"freed\n");
+	kmem_cache_destroy(isofs_inode_cachep);
 }
 
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
@@ -557,11 +555,10 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	struct iso9660_options		opt;
 	struct isofs_sb_info	      * sbi;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 
 	if (!parse_options((char *)data, &opt))
 		goto out_freesbi;
@@ -1238,7 +1235,7 @@ static void isofs_read_inode(struct inode *inode)
 	}
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 
 	ei->i_format_parm[0] = 0;
 	ei->i_format_parm[1] = 0;
@@ -1294,7 +1291,6 @@ static void isofs_read_inode(struct inode *inode)
 			      isonum_711 (de->ext_attr_length));
 
 	/* Set the number of blocks for stat() - should be done before RR */
-	inode->i_blksize = PAGE_CACHE_SIZE; /* For stat() only */
 	inode->i_blocks  = (inode->i_size + 511) >> 9;
 
 	/*

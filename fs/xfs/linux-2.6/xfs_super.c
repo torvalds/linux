@@ -171,7 +171,6 @@ xfs_revalidate_inode(
 		break;
 	}
 
-	inode->i_blksize = xfs_preferred_iosize(mp);
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
 	inode->i_blocks =

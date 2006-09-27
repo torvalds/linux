@@ -424,7 +424,7 @@ static void mdc800_usb_download_notify (struct urb *urb, struct pt_regs *res)
  ***************************************************************************/
 
 static struct usb_driver mdc800_usb_driver;
-static struct file_operations mdc800_device_ops;
+static const struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
 	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
@@ -941,7 +941,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 ****************************************************************************/
 
 /* File Operations of this drivers */
-static struct file_operations mdc800_device_ops =
+static const struct file_operations mdc800_device_ops =
 {
 	.owner =	THIS_MODULE,
 	.read =		mdc800_device_read,

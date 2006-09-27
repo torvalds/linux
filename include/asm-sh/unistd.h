@@ -292,25 +292,51 @@
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
 #define __NR_kexec_load		283
 #define __NR_waitid		284
-#define __NR_add_key		285
-#define __NR_request_key	286
-#define __NR_keyctl		287
-#define __NR_ioprio_set		288
-#define __NR_ioprio_get		289
-#define __NR_inotify_init	290
-#define __NR_inotify_add_watch	291
-#define __NR_inotify_rm_watch	292
+/* #define __NR_sys_setaltroot	285 */
+#define __NR_add_key		286
+#define __NR_request_key	287
+#define __NR_keyctl		288
+#define __NR_ioprio_set		289
+#define __NR_ioprio_get		290
+#define __NR_inotify_init	291
+#define __NR_inotify_add_watch	292
+#define __NR_inotify_rm_watch	293
+#define __NR_migrate_pages	294
+#define __NR_openat		295
+#define __NR_mkdirat		296
+#define __NR_mknodat		297
+#define __NR_fchownat		298
+#define __NR_futimesat		299
+#define __NR_newfstatat		300
+#define __NR_unlinkat		301
+#define __NR_renameat		302
+#define __NR_linkat		303
+#define __NR_symlinkat		304
+#define __NR_readlinkat		305
+#define __NR_fchmodat		306
+#define __NR_faccessat		307
+#define __NR_pselect6		308
+#define __NR_ppoll		309
+#define __NR_unshare		310
+#define __NR_set_robust_list	311
+#define __NR_get_robust_list	312
+#define __NR_splice		313
+#define __NR_sync_file_range	314
+#define __NR_tee		315
+#define __NR_vmsplice		316
 
-
-#define NR_syscalls 293
+#define NR_syscalls 317
 
 #ifdef __KERNEL__
 
-/* user-visible error numbers are in the range -1 - -124: see <asm-sh/errno.h> */
+#include <linux/err.h>
+
+/* user-visible error numbers are in the range -1 - -MAX_ERRNO:
+ * see <asm-sh/errno.h> */
 
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-124)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
 	/* Avoid using "res" which is declared to be in register r0; \
 	   errno might expand to a function call and clobber it.  */ \
 		int __err = -(res); \
@@ -444,6 +470,7 @@ __syscall_return(type,__sc0); \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 
 #ifdef __KERNEL_SYSCALLS__
 

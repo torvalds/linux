@@ -192,7 +192,7 @@ static char *get_usb_statmsg(int status)
 		return "bit stuffing error, timeout, or unknown USB error";
 	case -EILSEQ:
 		return "CRC mismatch, timeout, or unknown USB error";
-	case -ETIMEDOUT:
+	case -ETIME:
 		return "timed out";
 	case -EPIPE:
 		return "endpoint stalled";

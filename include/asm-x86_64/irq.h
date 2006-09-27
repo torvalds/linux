@@ -44,9 +44,7 @@ static __inline__ int irq_canonicalize(int irq)
 	return ((irq == 2) ? 9 : irq);
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC
 #define ARCH_HAS_NMI_WATCHDOG		/* See include/linux/nmi.h */
-#endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 #include <linux/cpumask.h>

@@ -1101,25 +1101,29 @@ static ssize_t store_event_char(struct device *dev, struct device_attribute *att
 static DEVICE_ATTR(latency_timer, S_IWUSR | S_IRUGO, show_latency_timer, store_latency_timer);
 static DEVICE_ATTR(event_char, S_IWUSR, NULL, store_event_char);
 
-static void create_sysfs_attrs(struct usb_serial *serial)
-{	
+static int create_sysfs_attrs(struct usb_serial *serial)
+{
 	struct ftdi_private *priv;
 	struct usb_device *udev;
+	int retval = 0;
 
 	dbg("%s",__FUNCTION__);
-	
+
 	priv = usb_get_serial_port_data(serial->port[0]);
 	udev = serial->dev;
-	
+
 	/* XXX I've no idea if the original SIO supports the event_char
 	 * sysfs parameter, so I'm playing it safe.  */
 	if (priv->chip_type != SIO) {
 		dbg("sysfs attributes for %s", ftdi_chip_name[priv->chip_type]);
-		device_create_file(&udev->dev, &dev_attr_event_char);
-		if (priv->chip_type == FT232BM || priv->chip_type == FT2232C) {
-			device_create_file(&udev->dev, &dev_attr_latency_timer);
+		retval = device_create_file(&udev->dev, &dev_attr_event_char);
+		if ((!retval) &&
+		    (priv->chip_type == FT232BM || priv->chip_type == FT2232C)) {
+			retval = device_create_file(&udev->dev,
+						    &dev_attr_latency_timer);
 		}
 	}
+	return retval;
 }
 
 static void remove_sysfs_attrs(struct usb_serial *serial)
@@ -1162,7 +1166,8 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 	struct usb_serial_port *port = serial->port[0];
 	struct ftdi_private *priv;
 	struct ftdi_sio_quirk *quirk;
-	
+	int retval;
+
 	dbg("%s",__FUNCTION__);
 
 	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
@@ -1203,15 +1208,18 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 	usb_set_serial_port_data(serial->port[0], priv);
 
 	ftdi_determine_type (serial->port[0]);
-	create_sysfs_attrs(serial);
+	retval = create_sysfs_attrs(serial);
+	if (retval)
+		dev_err(&serial->dev->dev, "Error creating sysfs files, "
+			"continuing\n");
 
 	/* Check for device requiring special set up. */
 	quirk = (struct ftdi_sio_quirk *)usb_get_serial_data(serial);
 	if (quirk && quirk->setup) {
 		quirk->setup(serial);
 	}
-	
-	return (0);
+
+	return 0;
 } /* ftdi_sio_attach */
 
 

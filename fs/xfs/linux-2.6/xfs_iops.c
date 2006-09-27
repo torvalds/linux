@@ -553,13 +553,13 @@ xfs_vn_follow_link(
 	ASSERT(dentry);
 	ASSERT(nd);
 
-	link = (char *)kmalloc(MAXPATHLEN+1, GFP_KERNEL);
+	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
 	if (!link) {
 		nd_set_link(nd, ERR_PTR(-ENOMEM));
 		return NULL;
 	}
 
-	uio = (uio_t *)kmalloc(sizeof(uio_t), GFP_KERNEL);
+	uio = kmalloc(sizeof(uio_t), GFP_KERNEL);
 	if (!uio) {
 		kfree(link);
 		nd_set_link(nd, ERR_PTR(-ENOMEM));

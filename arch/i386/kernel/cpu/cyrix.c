@@ -12,7 +12,7 @@
 /*
  * Read NSC/Cyrix DEVID registers (DIR) to get more detailed info. about the CPU
  */
-static void __init do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
+static void __cpuinit do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 {
 	unsigned char ccr2, ccr3;
 	unsigned long flags;
@@ -52,25 +52,25 @@ static void __init do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
  * Actually since bugs.h doesn't even reference this perhaps someone should
  * fix the documentation ???
  */
-static unsigned char Cx86_dir0_msb __initdata = 0;
+static unsigned char Cx86_dir0_msb __cpuinitdata = 0;
 
-static char Cx86_model[][9] __initdata = {
+static char Cx86_model[][9] __cpuinitdata = {
 	"Cx486", "Cx486", "5x86 ", "6x86", "MediaGX ", "6x86MX ",
 	"M II ", "Unknown"
 };
-static char Cx486_name[][5] __initdata = {
+static char Cx486_name[][5] __cpuinitdata = {
 	"SLC", "DLC", "SLC2", "DLC2", "SRx", "DRx",
 	"SRx2", "DRx2"
 };
-static char Cx486S_name[][4] __initdata = {
+static char Cx486S_name[][4] __cpuinitdata = {
 	"S", "S2", "Se", "S2e"
 };
-static char Cx486D_name[][4] __initdata = {
+static char Cx486D_name[][4] __cpuinitdata = {
 	"DX", "DX2", "?", "?", "?", "DX4"
 };
-static char Cx86_cb[] __initdata = "?.5x Core/Bus Clock";
-static char cyrix_model_mult1[] __initdata = "12??43";
-static char cyrix_model_mult2[] __initdata = "12233445";
+static char Cx86_cb[] __cpuinitdata = "?.5x Core/Bus Clock";
+static char cyrix_model_mult1[] __cpuinitdata = "12??43";
+static char cyrix_model_mult2[] __cpuinitdata = "12233445";
 
 /*
  * Reset the slow-loop (SLOP) bit on the 686(L) which is set by some old
@@ -82,7 +82,7 @@ static char cyrix_model_mult2[] __initdata = "12233445";
 
 extern void calibrate_delay(void) __init;
 
-static void __init check_cx686_slop(struct cpuinfo_x86 *c)
+static void __cpuinit check_cx686_slop(struct cpuinfo_x86 *c)
 {
 	unsigned long flags;
 	
@@ -107,7 +107,7 @@ static void __init check_cx686_slop(struct cpuinfo_x86 *c)
 }
 
 
-static void __init set_cx86_reorder(void)
+static void __cpuinit set_cx86_reorder(void)
 {
 	u8 ccr3;
 
@@ -122,7 +122,7 @@ static void __init set_cx86_reorder(void)
 	setCx86(CX86_CCR3, ccr3);
 }
 
-static void __init set_cx86_memwb(void)
+static void __cpuinit set_cx86_memwb(void)
 {
 	u32 cr0;
 
@@ -137,7 +137,7 @@ static void __init set_cx86_memwb(void)
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) | 0x14 );
 }
 
-static void __init set_cx86_inc(void)
+static void __cpuinit set_cx86_inc(void)
 {
 	unsigned char ccr3;
 
@@ -158,7 +158,7 @@ static void __init set_cx86_inc(void)
  *	Configure later MediaGX and/or Geode processor.
  */
 
-static void __init geode_configure(void)
+static void __cpuinit geode_configure(void)
 {
 	unsigned long flags;
 	u8 ccr3, ccr4;
@@ -184,14 +184,14 @@ static void __init geode_configure(void)
 
 
 #ifdef CONFIG_PCI
-static struct pci_device_id __initdata cyrix_55x0[] = {
+static struct pci_device_id __cpuinitdata cyrix_55x0[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520) },
 	{ },
 };
 #endif
 
-static void __init init_cyrix(struct cpuinfo_x86 *c)
+static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 {
 	unsigned char dir0, dir0_msn, dir0_lsn, dir1 = 0;
 	char *buf = c->x86_model_id;
@@ -346,7 +346,7 @@ static void __init init_cyrix(struct cpuinfo_x86 *c)
 /*
  * Handle National Semiconductor branded processors
  */
-static void __init init_nsc(struct cpuinfo_x86 *c)
+static void __cpuinit init_nsc(struct cpuinfo_x86 *c)
 {
 	/* There may be GX1 processors in the wild that are branded
 	 * NSC and not Cyrix.
@@ -394,7 +394,7 @@ static inline int test_cyrix_52div(void)
 	return (unsigned char) (test >> 8) == 0x02;
 }
 
-static void cyrix_identify(struct cpuinfo_x86 * c)
+static void __cpuinit cyrix_identify(struct cpuinfo_x86 * c)
 {
 	/* Detect Cyrix with disabled CPUID */
 	if ( c->x86 == 4 && test_cyrix_52div() ) {
@@ -427,10 +427,9 @@ static void cyrix_identify(struct cpuinfo_x86 * c)
 			local_irq_restore(flags);
 		}
 	}
-	generic_identify(c);
 }
 
-static struct cpu_dev cyrix_cpu_dev __initdata = {
+static struct cpu_dev cyrix_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Cyrix",
 	.c_ident 	= { "CyrixInstead" },
 	.c_init		= init_cyrix,
@@ -453,11 +452,10 @@ static int __init cyrix_exit_cpu(void)
 
 late_initcall(cyrix_exit_cpu);
 
-static struct cpu_dev nsc_cpu_dev __initdata = {
+static struct cpu_dev nsc_cpu_dev __cpuinitdata = {
 	.c_vendor	= "NSC",
 	.c_ident 	= { "Geode by NSC" },
 	.c_init		= init_nsc,
-	.c_identify	= generic_identify,
 };
 
 int __init nsc_init_cpu(void)

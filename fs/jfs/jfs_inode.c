@@ -115,7 +115,6 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	}
 	jfs_inode->mode2 |= mode;
 
-	inode->i_blksize = sb->s_blocksize;
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	jfs_inode->otime = inode->i_ctime.tv_sec;

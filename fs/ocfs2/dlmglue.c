@@ -2052,7 +2052,7 @@ static int ocfs2_dlm_debug_open(struct inode *inode, struct file *file)
 		mlog_errno(ret);
 		goto out;
 	}
-	osb = (struct ocfs2_super *) inode->u.generic_ip;
+	osb = inode->i_private;
 	ocfs2_get_dlm_debug(osb->osb_dlm_debug);
 	priv->p_dlm_debug = osb->osb_dlm_debug;
 	INIT_LIST_HEAD(&priv->p_iter_res.l_debug_list);

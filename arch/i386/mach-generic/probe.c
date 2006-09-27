@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/errno.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
@@ -29,7 +30,24 @@ struct genapic *apic_probe[] __initdata = {
 	NULL,
 };
 
-static int cmdline_apic;
+static int cmdline_apic __initdata;
+static int __init parse_apic(char *arg)
+{
+	int i;
+
+	if (!arg)
+		return -EINVAL;
+
+	for (i = 0; apic_probe[i]; i++) {
+		if (!strcmp(apic_probe[i]->name, arg)) {
+			genapic = apic_probe[i];
+			cmdline_apic = 1;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+early_param("apic", parse_apic);
 
 void __init generic_bigsmp_probe(void)
 {
@@ -48,40 +66,20 @@ void __init generic_bigsmp_probe(void)
 		}
 }
 
-void __init generic_apic_probe(char *command_line) 
+void __init generic_apic_probe(void)
 { 
-	char *s;
-	int i;
-	int changed = 0;
-
-	s = strstr(command_line, "apic=");
-	if (s && (s == command_line || isspace(s[-1]))) { 
-		char *p = strchr(s, ' '), old; 
-		if (!p)
-			p = strchr(s, '\0'); 
-		old = *p; 
-		*p = 0; 
-		for (i = 0; !changed && apic_probe[i]; i++) {
-			if (!strcmp(apic_probe[i]->name, s+5)) { 
-				changed = 1;
+	if (!cmdline_apic) {
+		int i;
+		for (i = 0; apic_probe[i]; i++) {
+			if (apic_probe[i]->probe()) {
 				genapic = apic_probe[i];
+				break;
 			}
 		}
-		if (!changed)
-			printk(KERN_ERR "Unknown genapic `%s' specified.\n", s);
-		*p = old;
-		cmdline_apic = changed;
-	} 
-	for (i = 0; !changed && apic_probe[i]; i++) { 
-		if (apic_probe[i]->probe()) {
-			changed = 1;
-			genapic = apic_probe[i]; 
-		} 
+		/* Not visible without early console */
+		if (!apic_probe[i])
+			panic("Didn't find an APIC driver");
 	}
-	/* Not visible without early console */ 
-	if (!changed) 
-		panic("Didn't find an APIC driver"); 
-
 	printk(KERN_INFO "Using APIC driver %s\n", genapic->name);
 } 
 
@@ -119,7 +117,9 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;	
 }
 
+#ifdef CONFIG_SMP
 int hard_smp_processor_id(void)
 {
 	return genapic->get_apic_id(*(unsigned long *)(APIC_BASE+APIC_ID));
 }
+#endif

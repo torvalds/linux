@@ -140,7 +140,6 @@ static struct i2c_algo_bit_data sav_i2c_bit_data = {
 	.getsda		= bit_savi2c_getsda,
 	.getscl		= bit_savi2c_getscl,
 	.udelay		= CYCLE_DELAY,
-	.mdelay		= CYCLE_DELAY,
 	.timeout	= TIMEOUT
 };
 

@@ -22,7 +22,7 @@ struct pty_chan {
 	char dev_name[sizeof("/dev/pts/0123456\0")];
 };
 
-static void *pty_chan_init(char *str, int device, struct chan_opts *opts)
+static void *pty_chan_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct pty_chan *data;
 
@@ -118,7 +118,7 @@ static int pty_open(int input, int output, int primary, void *d,
 	return(fd);
 }
 
-struct chan_ops pty_ops = {
+const struct chan_ops pty_ops = {
 	.type		= "pty",
 	.init		= pty_chan_init,
 	.open		= pty_open,
@@ -131,7 +131,7 @@ struct chan_ops pty_ops = {
 	.winch		= 0,
 };
 
-struct chan_ops pts_ops = {
+const struct chan_ops pts_ops = {
 	.type		= "pts",
 	.init		= pty_chan_init,
 	.open		= pts_open,

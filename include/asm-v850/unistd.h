@@ -238,12 +238,13 @@
 #ifdef __KERNEL__
 
 #include <asm/clinkage.h>
+#include <linux/err.h>
 
 #define __syscall_return(type, res)					      \
   do {									      \
-	  /* user-visible error numbers are in the range -1 - -124:	      \
+	  /* user-visible error numbers are in the range -1 - -MAX_ERRNO:      \
 	     see <asm-v850/errno.h> */					      \
-	  if (__builtin_expect ((unsigned long)(res) >= (unsigned long)(-125), 0)) { \
+	  if (__builtin_expect ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO), 0)) { \
 		  errno = -(res);					      \
 		  res = -1;						      \
 	  }								      \

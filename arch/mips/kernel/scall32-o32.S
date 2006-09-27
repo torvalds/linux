@@ -662,6 +662,8 @@ einval:	li	v0, -EINVAL
 	sys	sys_tee			4
 	sys	sys_vmsplice		4
 	sys	sys_move_pages		6
+	sys	sys_set_robust_list	2
+	sys	sys_get_robust_list	3
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

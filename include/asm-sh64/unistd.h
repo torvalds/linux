@@ -347,8 +347,10 @@
 #ifdef __KERNEL__ 
 
 #define NR_syscalls 321
+#include <linux/err.h>
 
-/* user-visible error numbers are in the range -1 - -125: see <asm-sh64/errno.h> */
+/* user-visible error numbers are in the range -1 - -MAX_ERRNO:
+ * see <asm-sh64/errno.h> */
 
 #define __syscall_return(type, res) \
 do { \
@@ -358,7 +360,7 @@ do { \
 	**       life easier in the system call epilogue (see entry.S)      \
 	*/								    \
         register unsigned long __sr2 __asm__ ("r2") = res;		    \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) {	    \
 		errno = -(res);						    \
 		__sr2 = -1; 						    \
 	} \

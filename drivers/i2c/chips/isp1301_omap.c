@@ -30,7 +30,7 @@
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 

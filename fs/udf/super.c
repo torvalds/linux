@@ -156,8 +156,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(udf_inode_cachep))
-		printk(KERN_INFO "udf_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(udf_inode_cachep);
 }
 
 /* Superblock operations */

@@ -27,6 +27,7 @@ struct pt_regs {
 #ifdef __KERNEL__
 
 #include <asm/vm86.h>
+#include <asm/segment.h>
 
 struct task_struct;
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
@@ -40,18 +41,14 @@ extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int erro
  */
 static inline int user_mode(struct pt_regs *regs)
 {
-	return (regs->xcs & 3) != 0;
+	return (regs->xcs & SEGMENT_RPL_MASK) == USER_RPL;
 }
 static inline int user_mode_vm(struct pt_regs *regs)
 {
-	return ((regs->xcs & 3) | (regs->eflags & VM_MASK)) != 0;
+	return ((regs->xcs & SEGMENT_RPL_MASK) | (regs->eflags & VM_MASK)) >= USER_RPL;
 }
 #define instruction_pointer(regs) ((regs)->eip)
-#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 extern unsigned long profile_pc(struct pt_regs *regs);
-#else
-#define profile_pc(regs) instruction_pointer(regs)
-#endif
 #endif /* __KERNEL__ */
 
 #endif

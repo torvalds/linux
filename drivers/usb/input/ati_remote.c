@@ -732,12 +732,8 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	endpoint_in = &iface_host->endpoint[0].desc;
 	endpoint_out = &iface_host->endpoint[1].desc;
 
-	if (!(endpoint_in->bEndpointAddress & USB_DIR_IN)) {
-		err("%s: Unexpected endpoint_in->bEndpointAddress\n", __FUNCTION__);
-		return -ENODEV;
-	}
-	if ((endpoint_in->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT) {
-		err("%s: Unexpected endpoint_in->bmAttributes\n", __FUNCTION__);
+	if (!usb_endpoint_is_int_in(endpoint_in)) {
+		err("%s: Unexpected endpoint_in\n", __FUNCTION__);
 		return -ENODEV;
 	}
 	if (le16_to_cpu(endpoint_in->wMaxPacketSize) == 0) {

@@ -619,7 +619,7 @@ static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 	case 0:
 		break;
-	case -ETIMEDOUT:
+	case -ETIME:
 		if (netif_msg_rx_err(pegasus))
 			pr_debug("%s: reset MAC\n", net->name);
 		pegasus->flags &= ~PEGASUS_RX_BUSY;

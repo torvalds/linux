@@ -112,8 +112,7 @@
  * Valid machtype for group GALILEO
  */
 #define MACH_GROUP_GALILEO     11	/* Galileo Eval Boards		*/
-#define  MACH_EV96100		0	/* EV96100 */
-#define  MACH_EV64120A		1	/* EV64120A */
+#define  MACH_EV64120A		0	/* EV64120A */
 
 /*
  * Valid machtype for group MOMENCO

@@ -280,7 +280,7 @@ static int hostmixer_release(struct inode *inode, struct file *file)
 
 /* kernel module operations */
 
-static struct file_operations hostaudio_fops = {
+static const struct file_operations hostaudio_fops = {
         .owner          = THIS_MODULE,
         .llseek         = no_llseek,
         .read           = hostaudio_read,
@@ -292,7 +292,7 @@ static struct file_operations hostaudio_fops = {
         .release        = hostaudio_release,
 };
 
-static struct file_operations hostmixer_fops = {
+static const struct file_operations hostmixer_fops = {
         .owner          = THIS_MODULE,
         .llseek         = no_llseek,
         .ioctl          = hostmixer_ioctl_mixdev,

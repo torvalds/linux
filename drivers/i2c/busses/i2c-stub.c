@@ -27,6 +27,10 @@
 #include <linux/errno.h>
 #include <linux/i2c.h>
 
+static unsigned short chip_addr;
+module_param(chip_addr, ushort, S_IRUGO);
+MODULE_PARM_DESC(chip_addr, "Chip address (between 0x03 and 0x77)\n");
+
 static u8  stub_pointer;
 static u8  stub_bytes[256];
 static u16 stub_words[256];
@@ -36,6 +40,9 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 	char read_write, u8 command, int size, union i2c_smbus_data * data)
 {
 	s32 ret;
+
+	if (addr != chip_addr)
+		return -ENODEV;
 
 	switch (size) {
 
@@ -108,7 +115,7 @@ static u32 stub_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= stub_func,
 	.smbus_xfer	= stub_xfer,
 };
@@ -122,7 +129,17 @@ static struct i2c_adapter stub_adapter = {
 
 static int __init i2c_stub_init(void)
 {
-	printk(KERN_INFO "i2c-stub loaded\n");
+	if (!chip_addr) {
+		printk(KERN_ERR "i2c-stub: Please specify a chip address\n");
+		return -ENODEV;
+	}
+	if (chip_addr < 0x03 || chip_addr > 0x77) {
+		printk(KERN_ERR "i2c-stub: Invalid chip address 0x%02x\n",
+		       chip_addr);
+		return -EINVAL;
+	}
+
+	printk(KERN_INFO "i2c-stub: Virtual chip at 0x%02x\n", chip_addr);
 	return i2c_add_adapter(&stub_adapter);
 }
 

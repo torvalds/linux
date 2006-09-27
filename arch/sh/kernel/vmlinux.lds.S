@@ -2,6 +2,7 @@
  * ld script to make SuperH Linux kernel
  * Written by Niibe Yutaka
  */
+#include <asm/thread_info.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -13,7 +14,7 @@ OUTPUT_ARCH(sh)
 ENTRY(_start)
 SECTIONS
 {
-  . = 0x80000000 + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
+  . = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
   _text = .;			/* Text and read-only data */
   text = .;			/* Text and read-only data */
   .empty_zero_page : {
@@ -40,16 +41,16 @@ SECTIONS
 	*(.data)
 
  	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
- 	 . = ALIGN(4096);
+ 	 . = ALIGN(PAGE_SIZE);
  	 __rd_start = .;
  	 *(.initrd)
- 	 . = ALIGN(4096);
+ 	 . = ALIGN(PAGE_SIZE);
  	 __rd_end = .;
 
 	CONSTRUCTORS
 	}
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : { *(.data.idt) }
 
   . = ALIGN(32);
@@ -60,12 +61,10 @@ SECTIONS
 
   _edata = .;			/* End of data section */
 
-  . = ALIGN(8192);		/* init_task */
+  . = ALIGN(THREAD_SIZE);		/* init_task */
   .data.init_task : { *(.data.init_task) }
-  /* stack */
-  .stack : { stack = .;  _stack = .; }
 
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
   _sinittext = .;
   .init.text : { *(.init.text) }
@@ -96,7 +95,7 @@ SECTIONS
   __machvec_start = .;
   .init.machvec : { *(.init.machvec) }
   __machvec_end = .;
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
   . = ALIGN(4);

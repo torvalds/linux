@@ -218,7 +218,7 @@ static void usb_mouse_disconnect(struct usb_interface *intf)
 
 static struct usb_device_id usb_mouse_id_table [] = {
 	{ USB_INTERFACE_INFO(3, 1, 2) },
-    { }						/* Terminating entry */
+	{ }	/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE (usb, usb_mouse_id_table);

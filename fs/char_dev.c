@@ -19,10 +19,29 @@
 #include <linux/kobj_map.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/backing-dev.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
+
+/*
+ * capabilities for /dev/mem, /dev/kmem and similar directly mappable character
+ * devices
+ * - permits shared-mmap for read, write and/or exec
+ * - does not permit private mmap in NOMMU mode (can't do COW)
+ * - no readahead or I/O queue unplugging required
+ */
+struct backing_dev_info directly_mappable_cdev_bdi = {
+	.capabilities	= (
+#ifdef CONFIG_MMU
+		/* permit private copies of the data to be taken */
+		BDI_CAP_MAP_COPY |
+#endif
+		/* permit direct mmap, for read, write or exec */
+		BDI_CAP_MAP_DIRECT |
+		BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP | BDI_CAP_EXEC_MAP),
+};
 
 static struct kobj_map *cdev_map;
 
@@ -461,3 +480,4 @@ EXPORT_SYMBOL(cdev_del);
 EXPORT_SYMBOL(cdev_add);
 EXPORT_SYMBOL(register_chrdev);
 EXPORT_SYMBOL(unregister_chrdev);
+EXPORT_SYMBOL(directly_mappable_cdev_bdi);

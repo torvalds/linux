@@ -188,6 +188,16 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 /* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
+static inline void disable_ioapic_setup(void)
+{
+	skip_ioapic_setup = 1;
+}
+
+static inline int ioapic_setup_disabled(void)
+{
+	return skip_ioapic_setup;
+}
+
 /*
  * If we use the IO-APIC for IRQ routing, disable automatic
  * assignment of PCI IRQ's.
@@ -206,6 +216,7 @@ extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
+static inline void disable_ioapic_setup(void) { }
 #endif
 
 extern int assign_irq_vector(int irq);

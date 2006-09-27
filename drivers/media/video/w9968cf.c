@@ -586,14 +586,13 @@ static struct w9968cf_symbolic_list urb_errlist[] = {
 	{ -EFBIG,     "Too much ISO frames requested" },
 	{ -ENOSR,     "Buffer error (overrun)" },
 	{ -EPIPE,     "Specified endpoint is stalled (device not responding)"},
-	{ -EOVERFLOW, "Babble (bad cable?)" },
+	{ -EOVERFLOW, "Babble (too much data)" },
 	{ -EPROTO,    "Bit-stuff error (bad cable?)" },
 	{ -EILSEQ,    "CRC/Timeout" },
-	{ -ETIMEDOUT, "NAK (device does not respond)" },
+	{ -ETIME,     "Device does not respond to token" },
+	{ -ETIMEDOUT, "Device does not respond to command" },
 	{ -1, NULL }
 };
-
-
 
 /****************************************************************************
  * Memory management functions                                              *

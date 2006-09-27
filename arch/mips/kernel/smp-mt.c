@@ -203,7 +203,7 @@ void plat_smp_setup(void)
 				write_vpe_c0_config( read_c0_config());
 
 				/* make sure there are no software interrupts pending */
-				write_vpe_c0_cause(read_vpe_c0_cause() & ~(C_SW1|C_SW0));
+				write_vpe_c0_cause(0);
 
 				/* Propagate Config7 */
 				write_vpe_c0_config7(read_c0_config7());

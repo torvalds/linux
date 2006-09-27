@@ -224,7 +224,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SETDSPREGS: {
 		unsigned long dp;
-		int i;
 
 		ret = -EIO;
 		dp = ((unsigned long) child) + THREAD_SIZE -

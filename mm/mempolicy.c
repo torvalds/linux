@@ -1136,7 +1136,9 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	switch (policy->policy) {
+	int pol = policy ? policy->policy : MPOL_DEFAULT;
+
+	switch (pol) {
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
 

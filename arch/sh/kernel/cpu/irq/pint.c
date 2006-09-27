@@ -48,26 +48,22 @@ static struct hw_interrupt_type pint_irq_type = {
 
 static void disable_pint_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 
-	local_irq_save(flags);
 	val = ctrl_inw(INTC_INTER);
 	val &= ~(1 << (irq - PINT_IRQ_BASE));
 	ctrl_outw(val, INTC_INTER);	/* disable PINTn */
 	portcr_mask &= ~(3 << (irq - PINT_IRQ_BASE)*2);
-	local_irq_restore(flags);
 }
 
 static void enable_pint_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 
-	local_irq_save(flags);
 	val = ctrl_inw(INTC_INTER);
 	val |= 1 << (irq - PINT_IRQ_BASE);
 	ctrl_outw(val, INTC_INTER);	/* enable PINTn */
 	portcr_mask |= 3 << (irq - PINT_IRQ_BASE)*2;
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_pint(unsigned int irq)

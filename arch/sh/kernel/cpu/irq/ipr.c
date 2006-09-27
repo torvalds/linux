@@ -57,31 +57,27 @@ static struct hw_interrupt_type ipr_irq_type = {
 
 static void disable_ipr_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 	unsigned int addr = ipr_data[irq].addr;
 	unsigned short mask = 0xffff ^ (0x0f << ipr_data[irq].shift);
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inw(addr);
 	val &= mask;
 	ctrl_outw(val, addr);
-	local_irq_restore(flags);
 }
 
 static void enable_ipr_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 	unsigned int addr = ipr_data[irq].addr;
 	int priority = ipr_data[irq].priority;
 	unsigned short value = (priority << ipr_data[irq].shift);
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inw(addr);
 	val |= value;
 	ctrl_outw(val, addr);
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_ipr(unsigned int irq)
@@ -89,6 +85,7 @@ static void mask_and_ack_ipr(unsigned int irq)
 	disable_ipr_irq(irq);
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/* This is needed when we use edge triggered setting */
 	/* XXX: Is it really needed? */
@@ -123,7 +120,7 @@ void __init init_IRQ(void)
 #ifndef CONFIG_CPU_SUBTYPE_SH7780
 	make_ipr_irq(TIMER_IRQ, TIMER_IPR_ADDR, TIMER_IPR_POS, TIMER_PRIORITY);
 	make_ipr_irq(TIMER1_IRQ, TIMER1_IPR_ADDR, TIMER1_IPR_POS, TIMER1_PRIORITY);
-#if defined(CONFIG_SH_RTC)
+#ifdef RTC_IRQ
 	make_ipr_irq(RTC_IRQ, RTC_IPR_ADDR, RTC_IPR_POS, RTC_PRIORITY);
 #endif
 
@@ -162,6 +159,7 @@ void __init init_IRQ(void)
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/*
 	 * Initialize the Interrupt Controller (INTC)
@@ -192,6 +190,8 @@ void __init init_IRQ(void)
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq != NULL)
 		sh_mv.mv_init_irq();
+
+	irq_ctx_init(smp_processor_id());
 }
 
 #if !defined(CONFIG_CPU_HAS_PINT_IRQ)

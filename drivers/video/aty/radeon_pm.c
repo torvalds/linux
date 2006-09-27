@@ -2621,25 +2621,28 @@ static int radeon_restore_pci_cfg(struct radeonfb_info *rinfo)
 }
 
 
-int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
         struct fb_info *info = pci_get_drvdata(pdev);
         struct radeonfb_info *rinfo = info->par;
 	int i;
 
-	if (state.event == pdev->dev.power.power_state.event)
+	if (mesg.event == pdev->dev.power.power_state.event)
 		return 0;
 
-	printk(KERN_DEBUG "radeonfb (%s): suspending to state: %d...\n",
-	       pci_name(pdev), state.event);
+	printk(KERN_DEBUG "radeonfb (%s): suspending for event: %d...\n",
+	       pci_name(pdev), mesg.event);
 
 	/* For suspend-to-disk, we cheat here. We don't suspend anything and
 	 * let fbcon continue drawing until we are all set. That shouldn't
 	 * really cause any problem at this point, provided that the wakeup
 	 * code knows that any state in memory may not match the HW
 	 */
-	if (state.event == PM_EVENT_FREEZE)
+	switch (mesg.event) {
+	case PM_EVENT_FREEZE:		/* about to take snapshot */
+	case PM_EVENT_PRETHAW:		/* before restoring snapshot */
 		goto done;
+	}
 
 	acquire_console_sem();
 
@@ -2706,7 +2709,7 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	release_console_sem();
 
  done:
-	pdev->dev.power.power_state = state;
+	pdev->dev.power.power_state = mesg;
 
 	return 0;
 }

@@ -223,9 +223,6 @@ int fastcall attach_pid(struct task_struct *task, enum pid_type type, int nr)
 	struct pid_link *link;
 	struct pid *pid;
 
-	WARN_ON(!task->pid); /* to be removed soon */
-	WARN_ON(!nr); /* to be removed soon */
-
 	link = &task->pids[type];
 	link->pid = pid = find_pid(nr);
 	hlist_add_head_rcu(&link->node, &pid->tasks[type]);
@@ -250,6 +247,15 @@ void fastcall detach_pid(struct task_struct *task, enum pid_type type)
 			return;
 
 	free_pid(pid);
+}
+
+/* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
+void fastcall transfer_pid(struct task_struct *old, struct task_struct *new,
+			   enum pid_type type)
+{
+	new->pids[type].pid = old->pids[type].pid;
+	hlist_replace_rcu(&old->pids[type].node, &new->pids[type].node);
+	old->pids[type].pid = NULL;
 }
 
 struct task_struct * fastcall pid_task(struct pid *pid, enum pid_type type)

@@ -14,6 +14,7 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
+#include <asm/cpu-features.h>
 
 /*
  * Default implementation of macro that returns current
@@ -38,27 +39,30 @@ enum cpu_type {
 	CPU_SH7604,
 
 	/* SH-3 types */
-	CPU_SH7705, CPU_SH7707,  CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
-	CPU_SH7709, CPU_SH7709A, CPU_SH7729, CPU_SH7300,
+	CPU_SH7705, CPU_SH7706, CPU_SH7707,
+	CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
+	CPU_SH7709, CPU_SH7709A, CPU_SH7710,
+	CPU_SH7729, CPU_SH7300,
 
 	/* SH-4 types */
 	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
 	CPU_SH7760, CPU_ST40RA, CPU_ST40GX1, CPU_SH4_202, CPU_SH4_501,
-	CPU_SH73180, CPU_SH7770, CPU_SH7780, CPU_SH7781,
+	CPU_SH73180, CPU_SH7343, CPU_SH7770, CPU_SH7780, CPU_SH7781,
 
 	/* Unknown subtype */
 	CPU_SH_NONE
 };
 
 struct sh_cpuinfo {
-	enum cpu_type type;
+	unsigned int type;
 	unsigned long loops_per_jiffy;
 
-	struct cache_info icache;
-	struct cache_info dcache;
+	struct cache_info icache;	/* Primary I-cache */
+	struct cache_info dcache;	/* Primary D-cache */
+	struct cache_info scache;	/* Secondary cache */
 
 	unsigned long flags;
-};
+} __attribute__ ((aligned(SMP_CACHE_BYTES)));
 
 extern struct sh_cpuinfo boot_cpu_data;
 
@@ -125,17 +129,6 @@ union sh_fpu_union {
 	struct sh_fpu_soft_struct soft;
 };
 
-/*
- * Processor flags
- */
-
-#define CPU_HAS_FPU		0x0001	/* Hardware FPU support */
-#define CPU_HAS_P2_FLUSH_BUG	0x0002	/* Need to flush the cache in P2 area */
-#define CPU_HAS_MMU_PAGE_ASSOC	0x0004	/* SH3: TLB way selection bit support */
-#define CPU_HAS_DSP		0x0008	/* SH-DSP: DSP support */
-#define CPU_HAS_PERF_COUNTER	0x0010	/* Hardware performance counters */
-#define CPU_HAS_PTEA		0x0020	/* PTEA register */
-
 struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
@@ -148,6 +141,10 @@ struct thread_struct {
 	/* floating point info */
 	union sh_fpu_union fpu;
 };
+
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
 
 /* Count of active tasks with UBC settings */
 extern int ubc_usercnt;
@@ -265,6 +262,25 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
 #define cpu_relax()	barrier()
+
+#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
+    defined(CONFIG_CPU_SH4)
+#define PREFETCH_STRIDE		L1_CACHE_BYTES
+#define ARCH_HAS_PREFETCH
+#define ARCH_HAS_PREFETCHW
+static inline void prefetch(void *x)
+{
+	__asm__ __volatile__ ("pref @%0\n\t" : : "r" (x) : "memory");
+}
+
+#define prefetchw(x)	prefetch(x)
+#endif
+
+#ifdef CONFIG_VSYSCALL
+extern int vsyscall_init(void);
+#else
+#define vsyscall_init() do { } while (0)
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PROCESSOR_H */

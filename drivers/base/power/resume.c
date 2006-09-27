@@ -38,13 +38,35 @@ int resume_device(struct device * dev)
 		dev_dbg(dev,"resuming\n");
 		error = dev->bus->resume(dev);
 	}
+	if (dev->class && dev->class->resume) {
+		dev_dbg(dev,"class resume\n");
+		error = dev->class->resume(dev);
+	}
 	up(&dev->sem);
 	TRACE_RESUME(error);
 	return error;
 }
 
 
+static int resume_device_early(struct device * dev)
+{
+	int error = 0;
 
+	TRACE_DEVICE(dev);
+	TRACE_RESUME(0);
+	if (dev->bus && dev->bus->resume_early) {
+		dev_dbg(dev,"EARLY resume\n");
+		error = dev->bus->resume_early(dev);
+	}
+	TRACE_RESUME(error);
+	return error;
+}
+
+/*
+ * Resume the devices that have either not gone through
+ * the late suspend, or that did go through it but also
+ * went through the early resume
+ */
 void dpm_resume(void)
 {
 	down(&dpm_list_sem);
@@ -74,6 +96,7 @@ void dpm_resume(void)
 
 void device_resume(void)
 {
+	might_sleep();
 	down(&dpm_sem);
 	dpm_resume();
 	up(&dpm_sem);
@@ -83,12 +106,12 @@ EXPORT_SYMBOL_GPL(device_resume);
 
 
 /**
- *	device_power_up_irq - Power on some devices.
+ *	dpm_power_up - Power on some devices.
  *
  *	Walk the dpm_off_irq list and power each device up. This
  *	is used for devices that required they be powered down with
- *	interrupts disabled. As devices are powered on, they are moved to
- *	the dpm_suspended list.
+ *	interrupts disabled. As devices are powered on, they are moved
+ *	to the dpm_active list.
  *
  *	Interrupts must be disabled when calling this.
  */
@@ -99,16 +122,14 @@ void dpm_power_up(void)
 		struct list_head * entry = dpm_off_irq.next;
 		struct device * dev = to_device(entry);
 
-		get_device(dev);
-		list_move_tail(entry, &dpm_active);
-		resume_device(dev);
-		put_device(dev);
+		list_move_tail(entry, &dpm_off);
+		resume_device_early(dev);
 	}
 }
 
 
 /**
- *	device_pm_power_up - Turn on all devices that need special attention.
+ *	device_power_up - Turn on all devices that need special attention.
  *
  *	Power on system devices then devices that required we shut them down
  *	with interrupts disabled.

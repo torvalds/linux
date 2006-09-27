@@ -160,7 +160,7 @@ static void nlmclnt_prepare_reclaim(struct nlm_host *host)
 	 */
 	list_splice_init(&host->h_granted, &host->h_reclaim);
 
-	dprintk("NLM: reclaiming locks for host %s", host->h_name);
+	dprintk("NLM: reclaiming locks for host %s\n", host->h_name);
 }
 
 static void nlmclnt_finish_reclaim(struct nlm_host *host)

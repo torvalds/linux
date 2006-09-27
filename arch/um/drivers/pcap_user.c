@@ -120,7 +120,7 @@ int pcap_user_read(int fd, void *buffer, int len, struct pcap_data *pri)
 	return(hdata.len);
 }
 
-struct net_user_info pcap_user_info = {
+const struct net_user_info pcap_user_info = {
 	.init		= pcap_user_init,
 	.open		= pcap_open,
 	.close	 	= NULL,

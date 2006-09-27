@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include "base.h"
 
+extern struct subsystem devices_subsys;
+
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
 #define to_class(obj) container_of(obj, struct class, subsys.kset.kobj)
 
@@ -197,7 +199,7 @@ static int class_device_create_uevent(struct class_device *class_dev,
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *class_create(struct module *owner, char *name)
+struct class *class_create(struct module *owner, const char *name)
 {
 	struct class *cls;
 	int retval;
@@ -361,7 +363,7 @@ static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 	pr_debug("%s - name = %s\n", __FUNCTION__, class_dev->class_id);
 
 	if (class_dev->dev) {
-		/* add physical device, backing this device  */
+		/* add device, backing this class device (deprecated) */
 		struct device *dev = class_dev->dev;
 		char *path = kobject_get_path(&dev->kobj, GFP_KERNEL);
 
@@ -679,7 +681,8 @@ int class_device_register(struct class_device *class_dev)
 struct class_device *class_device_create(struct class *cls,
 					 struct class_device *parent,
 					 dev_t devt,
-					 struct device *device, char *fmt, ...)
+					 struct device *device,
+					 const char *fmt, ...)
 {
 	va_list args;
 	struct class_device *class_dev = NULL;
@@ -839,6 +842,7 @@ int class_interface_register(struct class_interface *class_intf)
 {
 	struct class *parent;
 	struct class_device *class_dev;
+	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
 		return -ENODEV;
@@ -853,6 +857,10 @@ int class_interface_register(struct class_interface *class_intf)
 		list_for_each_entry(class_dev, &parent->children, node)
 			class_intf->add(class_dev, class_intf);
 	}
+	if (class_intf->add_dev) {
+		list_for_each_entry(dev, &parent->devices, node)
+			class_intf->add_dev(dev, class_intf);
+	}
 	up(&parent->sem);
 
 	return 0;
@@ -862,6 +870,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct class * parent = class_intf->class;
 	struct class_device *class_dev;
+	struct device *dev;
 
 	if (!parent)
 		return;
@@ -872,12 +881,31 @@ void class_interface_unregister(struct class_interface *class_intf)
 		list_for_each_entry(class_dev, &parent->children, node)
 			class_intf->remove(class_dev, class_intf);
 	}
+	if (class_intf->remove_dev) {
+		list_for_each_entry(dev, &parent->devices, node)
+			class_intf->remove_dev(dev, class_intf);
+	}
 	up(&parent->sem);
 
 	class_put(parent);
 }
 
+int virtual_device_parent(struct device *dev)
+{
+	if (!dev->class)
+		return -ENODEV;
 
+	if (!dev->class->virtual_dir) {
+		static struct kobject *virtual_dir = NULL;
+
+		if (!virtual_dir)
+			virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
+		dev->class->virtual_dir = kobject_add_dir(virtual_dir, dev->class->name);
+	}
+
+	dev->kobj.parent = dev->class->virtual_dir;
+	return 0;
+}
 
 int __init classes_init(void)
 {

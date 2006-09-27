@@ -19,8 +19,6 @@
 #define PA_OUTPORTR	0xa400000e	/* Output Port Reguster */
 #define PA_VERREG	0xa4000014	/* FPGA Version Register */
 
-#define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
-#define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
 #define PA_IDE_OFFSET	0x1f0		/* CF IDE Offset */
 
 #define IRLCNTR1	(PA_BCR + 0)	/* Interrupt Control Register1 */
@@ -43,5 +41,14 @@
 #define IRQ_OFFHOOK2	3		/* OFF HOOK2 IRQ */
 #define	IRQ_RINGING	4		/* Ringing IRQ */
 #define	IRQ_CODEC	5		/* CODEC IRQ */
+
+#define __IO_PREFIX	hs7751rvoip
+#include <asm/io_generic.h>
+
+/* arch/sh/boards/renesas/hs7751rvoip/irq.c */
+void init_hs7751rvoip_IRQ(void);
+
+/* arch/sh/boards/renesas/hs7751rvoip/io.c */
+void *hs7751rvoip_ioremap(unsigned long, unsigned long);
 
 #endif  /* __ASM_SH_RENESAS_HS7751RVOIP */

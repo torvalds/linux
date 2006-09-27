@@ -482,31 +482,95 @@ static int has_test_file (struct hotplug_slot *slot)
 
 static int fs_add_slot (struct hotplug_slot *slot)
 {
-	if (has_power_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_power.attr);
+	int retval = 0;
 
-	if (has_attention_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_attention.attr);
+	if (has_power_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj, &hotplug_slot_attr_power.attr);
+		if (retval)
+			goto exit_power;
+	}
 
-	if (has_latch_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_latch.attr);
+	if (has_attention_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_attention.attr);
+		if (retval)
+			goto exit_attention;
+	}
 
-	if (has_adapter_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_presence.attr);
+	if (has_latch_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_latch.attr);
+		if (retval)
+			goto exit_latch;
+	}
 
-	if (has_address_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_address.attr);
+	if (has_adapter_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_presence.attr);
+		if (retval)
+			goto exit_adapter;
+	}
 
-	if (has_max_bus_speed_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_max_bus_speed.attr);
+	if (has_address_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_address.attr);
+		if (retval)
+			goto exit_address;
+	}
 
+	if (has_max_bus_speed_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_max_bus_speed.attr);
+		if (retval)
+			goto exit_max_speed;
+	}
+
+	if (has_cur_bus_speed_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_cur_bus_speed.attr);
+		if (retval)
+			goto exit_cur_speed;
+	}
+
+	if (has_test_file(slot) == 0) {
+		retval = sysfs_create_file(&slot->kobj,
+					   &hotplug_slot_attr_test.attr);
+		if (retval)
+			goto exit_test;
+	}
+
+	goto exit;
+
+exit_test:
 	if (has_cur_bus_speed_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_cur_bus_speed.attr);
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_cur_bus_speed.attr);
 
-	if (has_test_file(slot) == 0)
-		sysfs_create_file(&slot->kobj, &hotplug_slot_attr_test.attr);
+exit_cur_speed:
+	if (has_max_bus_speed_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_max_bus_speed.attr);
 
-	return 0;
+exit_max_speed:
+	if (has_address_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_address.attr);
+
+exit_address:
+	if (has_adapter_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_presence.attr);
+
+exit_adapter:
+	if (has_latch_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_latch.attr);
+
+exit_latch:
+	if (has_attention_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_attention.attr);
+
+exit_attention:
+	if (has_power_file(slot) == 0)
+		sysfs_remove_file(&slot->kobj, &hotplug_slot_attr_power.attr);
+exit_power:
+exit:
+	return retval;
 }
 
 static void fs_remove_slot (struct hotplug_slot *slot)
@@ -626,8 +690,11 @@ int pci_hp_deregister (struct hotplug_slot *slot)
  *
  * Returns 0 if successful, anything else for an error.
  */
-int pci_hp_change_slot_info (struct hotplug_slot *slot, struct hotplug_slot_info *info)
+int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
+					 struct hotplug_slot_info *info)
 {
+	int retval;
+
 	if ((slot == NULL) || (info == NULL))
 		return -ENODEV;
 
@@ -636,32 +703,60 @@ int pci_hp_change_slot_info (struct hotplug_slot *slot, struct hotplug_slot_info
 	* for the files referring to the fields that have now changed.
 	*/
 	if ((has_power_file(slot) == 0) &&
-	    (slot->info->power_status != info->power_status))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_power.attr);
+	    (slot->info->power_status != info->power_status)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_power.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_attention_file(slot) == 0) &&
-	    (slot->info->attention_status != info->attention_status))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_attention.attr);
+	    (slot->info->attention_status != info->attention_status)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_attention.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_latch_file(slot) == 0) &&
-	    (slot->info->latch_status != info->latch_status))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_latch.attr);
+	    (slot->info->latch_status != info->latch_status)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_latch.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_adapter_file(slot) == 0) &&
-	    (slot->info->adapter_status != info->adapter_status))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_presence.attr);
+	    (slot->info->adapter_status != info->adapter_status)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_presence.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_address_file(slot) == 0) &&
-	    (slot->info->address != info->address))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_address.attr);
+	    (slot->info->address != info->address)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_address.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_max_bus_speed_file(slot) == 0) &&
-	    (slot->info->max_bus_speed != info->max_bus_speed))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_max_bus_speed.attr);
+	    (slot->info->max_bus_speed != info->max_bus_speed)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_max_bus_speed.attr);
+		if (retval)
+			return retval;
+	}
 
 	if ((has_cur_bus_speed_file(slot) == 0) &&
-	    (slot->info->cur_bus_speed != info->cur_bus_speed))
-		sysfs_update_file(&slot->kobj, &hotplug_slot_attr_cur_bus_speed.attr);
+	    (slot->info->cur_bus_speed != info->cur_bus_speed)) {
+		retval = sysfs_update_file(&slot->kobj,
+					   &hotplug_slot_attr_cur_bus_speed.attr);
+		if (retval)
+			return retval;
+	}
 
 	memcpy (slot->info, info, sizeof (struct hotplug_slot_info));
 

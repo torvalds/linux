@@ -73,7 +73,6 @@ static int cramfs_iget5_set(struct inode *inode, void *opaque)
 	inode->i_uid = cramfs_inode->uid;
 	inode->i_size = cramfs_inode->size;
 	inode->i_blocks = (cramfs_inode->size - 1) / 512 + 1;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_gid = cramfs_inode->gid;
 	/* Struct copy intentional */
 	inode->i_mtime = inode->i_atime = inode->i_ctime = zerotime;
@@ -242,11 +241,10 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_flags |= MS_RDONLY;
 
-	sbi = kmalloc(sizeof(struct cramfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct cramfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct cramfs_sb_info));
 
 	/* Invalidate the read buffers on mount: think disk change.. */
 	mutex_lock(&read_mutex);

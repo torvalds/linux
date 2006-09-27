@@ -99,9 +99,9 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	/* Ooops, no host found, create it */
 	dprintk("lockd: creating host entry\n");
 
-	if (!(host = (struct nlm_host *) kmalloc(sizeof(*host), GFP_KERNEL)))
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
 		goto nohost;
-	memset(host, 0, sizeof(*host));
 
 	addr = sin->sin_addr.s_addr;
 	sprintf(host->h_name, "%u.%u.%u.%u", NIPQUAD(addr));

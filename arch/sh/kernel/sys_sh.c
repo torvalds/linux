@@ -21,7 +21,8 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
-
+#include <linux/module.h>
+#include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/ipc.h>
 
@@ -44,11 +45,16 @@ asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	return error;
 }
 
-#if defined(HAVE_ARCH_UNMAPPED_AREA)
+unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
+
+EXPORT_SYMBOL(shm_align_mask);
+
 /*
- * To avoid cache alias, we map the shard page with same color.
+ * To avoid cache aliases, we map the shared page with same color.
  */
-#define COLOUR_ALIGN(addr)	(((addr)+SHMLBA-1)&~(SHMLBA-1))
+#define COLOUR_ALIGN(addr, pgoff)				\
+	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
+	 (((pgoff) << PAGE_SHIFT) & shm_align_mask))
 
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	unsigned long len, unsigned long pgoff, unsigned long flags)
@@ -56,43 +62,52 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long start_addr;
+	int do_colour_align;
 
 	if (flags & MAP_FIXED) {
 		/* We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
-		if ((flags & MAP_SHARED) && (addr & (SHMLBA - 1)))
+		if ((flags & MAP_SHARED) && (addr & shm_align_mask))
 			return -EINVAL;
 		return addr;
 	}
 
-	if (len > TASK_SIZE)
+	if (unlikely(len > TASK_SIZE))
 		return -ENOMEM;
 
+	do_colour_align = 0;
+	if (filp || (flags & MAP_SHARED))
+		do_colour_align = 1;
+
 	if (addr) {
-		if (flags & MAP_PRIVATE)
-			addr = PAGE_ALIGN(addr);
+		if (do_colour_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
 		else
-			addr = COLOUR_ALIGN(addr);
+			addr = PAGE_ALIGN(addr);
+
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr &&
 		    (!vma || addr + len <= vma->vm_start))
 			return addr;
 	}
-	if (len <= mm->cached_hole_size) {
+
+	if (len > mm->cached_hole_size) {
+		start_addr = addr = mm->free_area_cache;
+	} else {
 	        mm->cached_hole_size = 0;
-		mm->free_area_cache = TASK_UNMAPPED_BASE;
+		start_addr = addr = TASK_UNMAPPED_BASE;
 	}
-	if (flags & MAP_PRIVATE)
-		addr = PAGE_ALIGN(mm->free_area_cache);
-	else
-		addr = COLOUR_ALIGN(mm->free_area_cache);
-	start_addr = addr;
 
 full_search:
+	if (do_colour_align)
+		addr = COLOUR_ALIGN(addr, pgoff);
+	else
+		addr = PAGE_ALIGN(mm->free_area_cache);
+
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
-		if (TASK_SIZE - len < addr) {
+		if (unlikely(TASK_SIZE - len < addr)) {
 			/*
 			 * Start a new search - just in case we missed
 			 * some holes.
@@ -104,7 +119,7 @@ full_search:
 			}
 			return -ENOMEM;
 		}
-		if (!vma || addr + len <= vma->vm_start) {
+		if (likely(!vma || addr + len <= vma->vm_start)) {
 			/*
 			 * Remember the place where we stopped the search:
 			 */
@@ -115,11 +130,10 @@ full_search:
 		        mm->cached_hole_size = vma->vm_start - addr;
 
 		addr = vma->vm_end;
-		if (!(flags & MAP_PRIVATE))
-			addr = COLOUR_ALIGN(addr);
+		if (do_colour_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
 	}
 }
-#endif
 
 static inline long
 do_mmap2(unsigned long addr, unsigned long len, unsigned long prot, 

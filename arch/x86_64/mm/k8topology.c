@@ -54,6 +54,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 	nodes_clear(nodes_parsed);
 
+	if (!early_pci_allowed())
+		return -1;
+
 	nb = find_northbridge(); 
 	if (nb < 0) 
 		return nb;
@@ -146,6 +149,9 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		
 		nodes[nodeid].start = base; 
 		nodes[nodeid].end = limit;
+		e820_register_active_regions(nodeid,
+				nodes[nodeid].start >> PAGE_SHIFT,
+				nodes[nodeid].end >> PAGE_SHIFT);
 
 		prevbase = base;
 

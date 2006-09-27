@@ -119,7 +119,7 @@ static void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:
@@ -201,7 +201,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:

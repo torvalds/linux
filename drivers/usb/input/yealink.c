@@ -971,7 +971,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			DRIVER_VERSION, sizeof(DRIVER_VERSION));
 
 	/* Register sysfs hooks (don't care about failure) */
-	sysfs_create_group(&intf->dev.kobj, &yld_attr_group);
+	ret = sysfs_create_group(&intf->dev.kobj, &yld_attr_group);
 	return 0;
 }
 

@@ -32,6 +32,11 @@ obj-$(CONFIG_IA64_UNCACHED_ALLOCATOR)	+= uncached.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 mca_recovery-y			+= mca_drv.o mca_drv_asm.o
 
+obj-$(CONFIG_IA64_ESI)		+= esi.o
+ifneq ($(CONFIG_IA64_ESI),)
+obj-y				+= esi_stub.o	# must be in kernel proper
+endif
+
 # The gate DSO image is built using a special linker script.
 targets += gate.so gate-syms.o
 

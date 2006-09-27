@@ -3179,7 +3179,7 @@ sisusb_compat_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 }
 #endif
 
-static struct file_operations usb_sisusb_fops = {
+static const struct file_operations usb_sisusb_fops = {
 	.owner =	THIS_MODULE,
 	.open =		sisusb_open,
 	.release =	sisusb_release,

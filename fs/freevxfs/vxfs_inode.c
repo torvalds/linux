@@ -239,11 +239,10 @@ vxfs_iinit(struct inode *ip, struct vxfs_inode_info *vip)
 	ip->i_ctime.tv_nsec = 0;
 	ip->i_mtime.tv_nsec = 0;
 
-	ip->i_blksize = PAGE_SIZE;
 	ip->i_blocks = vip->vii_blocks;
 	ip->i_generation = vip->vii_gen;
 
-	ip->u.generic_ip = (void *)vip;
+	ip->i_private = vip;
 	
 }
 
@@ -338,5 +337,5 @@ vxfs_read_inode(struct inode *ip)
 void
 vxfs_clear_inode(struct inode *ip)
 {
-	kmem_cache_free(vxfs_inode_cachep, ip->u.generic_ip);
+	kmem_cache_free(vxfs_inode_cachep, ip->i_private);
 }

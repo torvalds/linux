@@ -241,7 +241,7 @@ static void slip_del_addr(unsigned char *addr, unsigned char *netmask,
 	close_addr(addr, netmask, pri->name);
 }
 
-struct net_user_info slip_user_info = {
+const struct net_user_info slip_user_info = {
 	.init		= slip_user_init,
 	.open		= slip_open,
 	.close	 	= slip_close,

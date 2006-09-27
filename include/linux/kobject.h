@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/sysfs.h>
+#include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/kref.h>
@@ -71,12 +72,12 @@ static inline const char * kobject_name(const struct kobject * kobj)
 extern void kobject_init(struct kobject *);
 extern void kobject_cleanup(struct kobject *);
 
-extern int kobject_add(struct kobject *);
+extern int __must_check kobject_add(struct kobject *);
 extern void kobject_del(struct kobject *);
 
-extern int kobject_rename(struct kobject *, const char *new_name);
+extern int __must_check kobject_rename(struct kobject *, const char *new_name);
 
-extern int kobject_register(struct kobject *);
+extern int __must_check kobject_register(struct kobject *);
 extern void kobject_unregister(struct kobject *);
 
 extern struct kobject * kobject_get(struct kobject *);
@@ -128,8 +129,8 @@ struct kset {
 
 
 extern void kset_init(struct kset * k);
-extern int kset_add(struct kset * k);
-extern int kset_register(struct kset * k);
+extern int __must_check kset_add(struct kset * k);
+extern int __must_check kset_register(struct kset * k);
 extern void kset_unregister(struct kset * k);
 
 static inline struct kset * to_kset(struct kobject * kobj)
@@ -239,7 +240,7 @@ extern struct subsystem hypervisor_subsys;
 	(obj)->subsys.kset.kobj.kset = &(_subsys).kset
 
 extern void subsystem_init(struct subsystem *);
-extern int subsystem_register(struct subsystem *);
+extern int __must_check subsystem_register(struct subsystem *);
 extern void subsystem_unregister(struct subsystem *);
 
 static inline struct subsystem * subsys_get(struct subsystem * s)
@@ -258,7 +259,8 @@ struct subsys_attribute {
 	ssize_t (*store)(struct subsystem *, const char *, size_t); 
 };
 
-extern int subsys_create_file(struct subsystem * , struct subsys_attribute *);
+extern int __must_check subsys_create_file(struct subsystem * ,
+					struct subsys_attribute *);
 
 #if defined(CONFIG_HOTPLUG)
 void kobject_uevent(struct kobject *kobj, enum kobject_action action);

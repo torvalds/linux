@@ -26,9 +26,12 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
+#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/irq.h>
+#include <linux/bootmem.h>
+#include <linux/ioport.h>
 
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
@@ -36,11 +39,17 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 
+static int __initdata acpi_force = 0;
+
+#ifdef	CONFIG_ACPI
+int acpi_disabled = 0;
+#else
+int acpi_disabled = 1;
+#endif
+EXPORT_SYMBOL(acpi_disabled);
+
 #ifdef	CONFIG_X86_64
 
-extern void __init clustered_apic_check(void);
-
-extern int gsi_irq_sharing(int gsi);
 #include <asm/proto.h>
 
 static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
@@ -506,16 +515,76 @@ EXPORT_SYMBOL(acpi_register_gsi);
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
-	/* TBD */
-	return -EINVAL;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	struct acpi_table_lapic *lapic;
+	cpumask_t tmp_map, new_map;
+	u8 physid;
+	int cpu;
+
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
+		return -EINVAL;
+
+	if (!buffer.length || !buffer.pointer)
+		return -EINVAL;
+
+	obj = buffer.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER ||
+	    obj->buffer.length < sizeof(*lapic)) {
+		kfree(buffer.pointer);
+		return -EINVAL;
+	}
+
+	lapic = (struct acpi_table_lapic *)obj->buffer.pointer;
+
+	if ((lapic->header.type != ACPI_MADT_LAPIC) ||
+	    (!lapic->flags.enabled)) {
+		kfree(buffer.pointer);
+		return -EINVAL;
+	}
+
+	physid = lapic->id;
+
+	kfree(buffer.pointer);
+	buffer.length = ACPI_ALLOCATE_BUFFER;
+	buffer.pointer = NULL;
+
+	tmp_map = cpu_present_map;
+	mp_register_lapic(physid, lapic->flags.enabled);
+
+	/*
+	 * If mp_register_lapic successfully generates a new logical cpu
+	 * number, then the following will get us exactly what was mapped
+	 */
+	cpus_andnot(new_map, cpu_present_map, tmp_map);
+	if (cpus_empty(new_map)) {
+		printk ("Unable to map lapic to logical cpu number\n");
+		return -EINVAL;
+	}
+
+	cpu = first_cpu(new_map);
+
+	*pcpu = cpu;
+	return 0;
 }
 
 EXPORT_SYMBOL(acpi_map_lsapic);
 
 int acpi_unmap_lsapic(int cpu)
 {
-	/* TBD */
-	return -EINVAL;
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (x86_acpiid_to_apicid[i] == x86_cpu_to_apicid[cpu]) {
+			x86_acpiid_to_apicid[i] = -1;
+			break;
+		}
+	}
+	x86_cpu_to_apicid[cpu] = -1;
+	cpu_clear(cpu, cpu_present_map);
+	num_processors--;
+
+	return (0);
 }
 
 EXPORT_SYMBOL(acpi_unmap_lsapic);
@@ -579,6 +648,8 @@ static int __init acpi_parse_sbf(unsigned long phys_addr, unsigned long size)
 static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 {
 	struct acpi_table_hpet *hpet_tbl;
+	struct resource *hpet_res;
+	resource_size_t res_start;
 
 	if (!phys || !size)
 		return -EINVAL;
@@ -594,12 +665,26 @@ static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 		       "memory.\n");
 		return -1;
 	}
+
+#define HPET_RESOURCE_NAME_SIZE 9
+	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
+	if (hpet_res) {
+		memset(hpet_res, 0, sizeof(*hpet_res));
+		hpet_res->name = (void *)&hpet_res[1];
+		hpet_res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+		snprintf((char *)hpet_res->name, HPET_RESOURCE_NAME_SIZE,
+			 "HPET %u", hpet_tbl->number);
+		hpet_res->end = (1 * 1024) - 1;
+	}
+
 #ifdef	CONFIG_X86_64
 	vxtime.hpet_address = hpet_tbl->addr.addrl |
 	    ((long)hpet_tbl->addr.addrh << 32);
 
 	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
 	       hpet_tbl->id, vxtime.hpet_address);
+
+	res_start = vxtime.hpet_address;
 #else				/* X86 */
 	{
 		extern unsigned long hpet_address;
@@ -607,8 +692,16 @@ static int __init acpi_parse_hpet(unsigned long phys, unsigned long size)
 		hpet_address = hpet_tbl->addr.addrl;
 		printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
 		       hpet_tbl->id, hpet_address);
+
+		res_start = hpet_address;
 	}
 #endif				/* X86 */
+
+	if (hpet_res) {
+		hpet_res->start = res_start;
+		hpet_res->end += res_start;
+		insert_resource(&iomem_resource, hpet_res);
+	}
 
 	return 0;
 }
@@ -859,8 +952,6 @@ static void __init acpi_process_madt(void)
 #endif
 	return;
 }
-
-extern int acpi_force;
 
 #ifdef __i386__
 
@@ -1163,3 +1254,75 @@ int __init acpi_boot_init(void)
 
 	return 0;
 }
+
+static int __init parse_acpi(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	/* "acpi=off" disables both ACPI table parsing and interpreter */
+	if (strcmp(arg, "off") == 0) {
+		disable_acpi();
+	}
+	/* acpi=force to over-ride black-list */
+	else if (strcmp(arg, "force") == 0) {
+		acpi_force = 1;
+		acpi_ht = 1;
+		acpi_disabled = 0;
+	}
+	/* acpi=strict disables out-of-spec workarounds */
+	else if (strcmp(arg, "strict") == 0) {
+		acpi_strict = 1;
+	}
+	/* Limit ACPI just to boot-time to enable HT */
+	else if (strcmp(arg, "ht") == 0) {
+		if (!acpi_force)
+			disable_acpi();
+		acpi_ht = 1;
+	}
+	/* "acpi=noirq" disables ACPI interrupt routing */
+	else if (strcmp(arg, "noirq") == 0) {
+		acpi_noirq_set();
+	} else {
+		/* Core will printk when we return error. */
+		return -EINVAL;
+	}
+	return 0;
+}
+early_param("acpi", parse_acpi);
+
+/* FIXME: Using pci= for an ACPI parameter is a travesty. */
+static int __init parse_pci(char *arg)
+{
+	if (arg && strcmp(arg, "noacpi") == 0)
+		acpi_disable_pci();
+	return 0;
+}
+early_param("pci", parse_pci);
+
+#ifdef CONFIG_X86_IO_APIC
+static int __init parse_acpi_skip_timer_override(char *arg)
+{
+	acpi_skip_timer_override = 1;
+	return 0;
+}
+early_param("acpi_skip_timer_override", parse_acpi_skip_timer_override);
+#endif /* CONFIG_X86_IO_APIC */
+
+static int __init setup_acpi_sci(char *s)
+{
+	if (!s)
+		return -EINVAL;
+	if (!strcmp(s, "edge"))
+		acpi_sci_flags.trigger = 1;
+	else if (!strcmp(s, "level"))
+		acpi_sci_flags.trigger = 3;
+	else if (!strcmp(s, "high"))
+		acpi_sci_flags.polarity = 1;
+	else if (!strcmp(s, "low"))
+		acpi_sci_flags.polarity = 3;
+	else
+		return -EINVAL;
+	return 0;
+}
+early_param("acpi_sci", setup_acpi_sci);

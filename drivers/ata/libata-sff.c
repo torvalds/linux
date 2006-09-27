@@ -881,7 +881,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 	probe_ent->private_data = port[0]->private_data;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
-		probe_ent->irq = 14;
+		probe_ent->irq = ATA_PRIMARY_IRQ;
 		probe_ent->port[0].cmd_addr = ATA_PRIMARY_CMD;
 		probe_ent->port[0].altstatus_addr =
 		probe_ent->port[0].ctl_addr = ATA_PRIMARY_CTL;
@@ -896,9 +896,9 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 
 	if (port_mask & ATA_PORT_SECONDARY) {
 		if (probe_ent->irq)
-			probe_ent->irq2 = 15;
+			probe_ent->irq2 = ATA_SECONDARY_IRQ;
 		else
-			probe_ent->irq = 15;
+			probe_ent->irq = ATA_SECONDARY_IRQ;
 		probe_ent->port[1].cmd_addr = ATA_SECONDARY_CMD;
 		probe_ent->port[1].altstatus_addr =
 		probe_ent->port[1].ctl_addr = ATA_SECONDARY_CTL;

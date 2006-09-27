@@ -469,21 +469,6 @@ void bcm1480_kgdb_interrupt(struct pt_regs *regs)
 
 #endif 	/* CONFIG_KGDB */
 
-static inline int dclz(unsigned long long x)
-{
-	int lz;
-
-	__asm__ (
-	"	.set	push						\n"
-	"	.set	mips64						\n"
-	"	dclz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
-
-	return lz;
-}
-
 extern void bcm1480_timer_interrupt(struct pt_regs *regs);
 extern void bcm1480_mailbox_interrupt(struct pt_regs *regs);
 extern void bcm1480_kgdb_interrupt(struct pt_regs *regs);
@@ -536,9 +521,9 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 
 		if (mask_h) {
 			if (mask_h ^ 1)
-				do_IRQ(63 - dclz(mask_h), regs);
+				do_IRQ(fls64(mask_h) - 1, regs);
 			else
-				do_IRQ(127 - dclz(mask_l), regs);
+				do_IRQ(63 + fls64(mask_l), regs);
 		}
 	}
 }

@@ -358,7 +358,8 @@ Here is a list of some of the different kernel trees available:
   quilt trees:
     - USB, PCI, Driver Core, and I2C, Greg Kroah-Hartman <gregkh@suse.de>
 	kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
-
+    - x86-64, partly i386, Andi Kleen <ak@suse.de>
+        ftp.firstfloor.org:/pub/ak/x86_64/quilt/
 
 Bug Reporting
 -------------

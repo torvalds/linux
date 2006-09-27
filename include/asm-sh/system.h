@@ -6,6 +6,7 @@
  * Copyright (C) 2002 Paul Mundt
  */
 
+#include <asm/types.h>
 
 /*
  *	switch_to() should switch tasks to task nr n, first
@@ -66,13 +67,20 @@ static inline void sched_cacheflush(void)
 {
 }
 
-#define nop() __asm__ __volatile__ ("nop")
+#ifdef CONFIG_CPU_SH4A
+#define __icbi()			\
+{					\
+	unsigned long __addr;		\
+	__addr = 0xa8000000;		\
+	__asm__ __volatile__(		\
+		"icbi   %0\n\t"		\
+		: /* no output */	\
+		: "m" (__m(__addr)));	\
+}
+#endif
 
-
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-
-static __inline__ unsigned long tas(volatile int *m)
-{ /* #define tas(ptr) (xchg((ptr),1)) */
+static inline unsigned long tas(volatile int *m)
+{
 	unsigned long retval;
 
 	__asm__ __volatile__ ("tas.b	@%1\n\t"
@@ -81,12 +89,33 @@ static __inline__ unsigned long tas(volatile int *m)
 	return retval;
 }
 
-extern void __xchg_called_with_bad_pointer(void);
-
-#define mb()	__asm__ __volatile__ ("": : :"memory")
-#define rmb()	mb()
-#define wmb()	__asm__ __volatile__ ("": : :"memory")
+/*
+ * A brief note on ctrl_barrier(), the control register write barrier.
+ *
+ * Legacy SH cores typically require a sequence of 8 nops after
+ * modification of a control register in order for the changes to take
+ * effect. On newer cores (like the sh4a and sh5) this is accomplished
+ * with icbi.
+ *
+ * Also note that on sh4a in the icbi case we can forego a synco for the
+ * write barrier, as it's not necessary for control registers.
+ *
+ * Historically we have only done this type of barrier for the MMUCR, but
+ * it's also necessary for the CCR, so we make it generic here instead.
+ */
+#ifdef CONFIG_CPU_SH4A
+#define mb()		__asm__ __volatile__ ("synco": : :"memory")
+#define rmb()		mb()
+#define wmb()		__asm__ __volatile__ ("synco": : :"memory")
+#define ctrl_barrier()	__icbi()
 #define read_barrier_depends()	do { } while(0)
+#else
+#define mb()		__asm__ __volatile__ ("": : :"memory")
+#define rmb()		mb()
+#define wmb()		__asm__ __volatile__ ("": : :"memory")
+#define ctrl_barrier()	__asm__ __volatile__ ("nop;nop;nop;nop;nop;nop;nop;nop")
+#define read_barrier_depends()	do { } while(0)
+#endif
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
@@ -103,7 +132,8 @@ extern void __xchg_called_with_bad_pointer(void);
 #define set_mb(var, value) do { xchg(&var, value); } while (0)
 
 /* Interrupt Control */
-static __inline__ void local_irq_enable(void)
+#ifdef CONFIG_CPU_HAS_SR_RB
+static inline void local_irq_enable(void)
 {
 	unsigned long __dummy0, __dummy1;
 
@@ -116,8 +146,22 @@ static __inline__ void local_irq_enable(void)
 			     : "1" (~0x000000f0)
 			     : "memory");
 }
+#else
+static inline void local_irq_enable(void)
+{
+	unsigned long __dummy0, __dummy1;
 
-static __inline__ void local_irq_disable(void)
+	__asm__ __volatile__ (
+		"stc	sr, %0\n\t"
+		"and	%1, %0\n\t"
+		"ldc	%0, sr\n\t"
+		: "=&r" (__dummy0), "=r" (__dummy1)
+		: "1" (~0x000000f0)
+		: "memory");
+}
+#endif
+
+static inline void local_irq_disable(void)
 {
 	unsigned long __dummy;
 	__asm__ __volatile__("stc	sr, %0\n\t"
@@ -125,6 +169,31 @@ static __inline__ void local_irq_disable(void)
 			     "ldc	%0, sr"
 			     : "=&z" (__dummy)
 			     : /* no inputs */
+			     : "memory");
+}
+
+static inline void set_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ ("stc	sr, %0\n\t"
+			     "or	%2, %0\n\t"
+			     "and	%3, %0\n\t"
+			     "ldc	%0, sr"
+			     : "=&r" (__dummy0), "=r" (__dummy1)
+			     : "r" (0x10000000), "r" (0xffffff0f)
+			     : "memory");
+}
+
+static inline void clear_bl_bit(void)
+{
+	unsigned long __dummy0, __dummy1;
+
+	__asm__ __volatile__ ("stc	sr, %0\n\t"
+			     "and	%2, %0\n\t"
+			     "ldc	%0, sr"
+			     : "=&r" (__dummy0), "=r" (__dummy1)
+			     : "1" (~0x10000000)
 			     : "memory");
 }
 
@@ -138,7 +207,7 @@ static __inline__ void local_irq_disable(void)
 	(flags != 0);			\
 })
 
-static __inline__ unsigned long local_irq_save(void)
+static inline unsigned long local_irq_save(void)
 {
 	unsigned long flags, __dummy;
 
@@ -154,35 +223,9 @@ static __inline__ unsigned long local_irq_save(void)
 	return flags;
 }
 
-#ifdef DEBUG_CLI_STI
-static __inline__ void  local_irq_restore(unsigned long x)
-{
-	if ((x & 0x000000f0) != 0x000000f0)
-		local_irq_enable();
-	else {
-		unsigned long flags;
-		local_save_flags(flags);
-
-		if (flags == 0) {
-			extern void dump_stack(void);
-			printk(KERN_ERR "BUG!\n");
-			dump_stack();
-			local_irq_disable();
-		}
-	}
-}
-#else
-#define local_irq_restore(x) do { 			\
+#define local_irq_restore(x) do {			\
 	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();				\
-} while (0)
-#endif
-
-#define really_restore_flags(x) do { 			\
-	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();				\
-	else						\
-		local_irq_disable();				\
+		local_irq_enable();			\
 } while (0)
 
 /*
@@ -210,8 +253,8 @@ do {					\
 #define back_to_P1()					\
 do {							\
 	unsigned long __dummy;				\
+	ctrl_barrier();					\
 	__asm__ __volatile__(				\
-		"nop;nop;nop;nop;nop;nop;nop\n\t"	\
 		"mov.l	1f, %0\n\t"			\
 		"jmp	@%0\n\t"			\
 		" nop\n\t"				\
@@ -224,7 +267,7 @@ do {							\
 /* For spinlocks etc */
 #define local_irq_save(x)	x = local_irq_save()
 
-static __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
+static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 {
 	unsigned long flags, retval;
 
@@ -235,7 +278,7 @@ static __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
 	return retval;
 }
 
-static __inline__ unsigned long xchg_u8(volatile unsigned char * m, unsigned long val)
+static inline unsigned long xchg_u8(volatile u8 *m, unsigned long val)
 {
 	unsigned long flags, retval;
 
@@ -246,19 +289,69 @@ static __inline__ unsigned long xchg_u8(volatile unsigned char * m, unsigned lon
 	return retval;
 }
 
-static __inline__ unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
+extern void __xchg_called_with_bad_pointer(void);
+
+#define __xchg(ptr, x, size)				\
+({							\
+	unsigned long __xchg__res;			\
+	volatile void *__xchg_ptr = (ptr);		\
+	switch (size) {					\
+	case 4:						\
+		__xchg__res = xchg_u32(__xchg_ptr, x);	\
+		break;					\
+	case 1:						\
+		__xchg__res = xchg_u8(__xchg_ptr, x);	\
+		break;					\
+	default:					\
+		__xchg_called_with_bad_pointer();	\
+		__xchg__res = x;			\
+		break;					\
+	}						\
+							\
+	__xchg__res;					\
+})
+
+#define xchg(ptr,x)	\
+	((__typeof__(*(ptr)))__xchg((ptr),(unsigned long)(x), sizeof(*(ptr))))
+
+static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
+	unsigned long new)
+{
+	__u32 retval;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	retval = *m;
+	if (retval == old)
+		*m = new;
+	local_irq_restore(flags);       /* implies memory barrier  */
+	return retval;
+}
+
+/* This function doesn't exist, so you'll get a linker error
+ * if something tries to do an invalid cmpxchg(). */
+extern void __cmpxchg_called_with_bad_pointer(void);
+
+#define __HAVE_ARCH_CMPXCHG 1
+
+static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
+		unsigned long new, int size)
 {
 	switch (size) {
 	case 4:
-		return xchg_u32(ptr, x);
-		break;
-	case 1:
-		return xchg_u8(ptr, x);
-		break;
+		return __cmpxchg_u32(ptr, old, new);
 	}
-	__xchg_called_with_bad_pointer();
-	return x;
+	__cmpxchg_called_with_bad_pointer();
+	return old;
 }
+
+#define cmpxchg(ptr,o,n)						 \
+  ({									 \
+     __typeof__(*(ptr)) _o_ = (o);					 \
+     __typeof__(*(ptr)) _n_ = (n);					 \
+     (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
+				    (unsigned long)_n_, sizeof(*(ptr))); \
+  })
 
 /* XXX
  * disable hlt during certain critical i/o operations

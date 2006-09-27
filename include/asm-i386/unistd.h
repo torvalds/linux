@@ -323,18 +323,20 @@
 #define __NR_tee		315
 #define __NR_vmsplice		316
 #define __NR_move_pages		317
+#define __NR_getcpu		318
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 318
+#define NR_syscalls 319
+#include <linux/err.h>
 
 /*
- * user-visible error numbers are in the range -1 - -128: see
+ * user-visible error numbers are in the range -1 - -MAX_ERRNO: see
  * <asm-i386/errno.h>
  */
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-(128 + 1))) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
 		errno = -(res); \
 		res = -1; \
 	} \

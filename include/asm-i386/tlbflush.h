@@ -36,8 +36,6 @@
 			: "memory");					\
 	} while (0)
 
-extern unsigned long pgkern_mask;
-
 # define __flush_tlb_all()						\
 	do {								\
 		if (cpu_has_pge)					\
@@ -49,7 +47,7 @@ extern unsigned long pgkern_mask;
 #define cpu_has_invlpg	(boot_cpu_data.x86 > 3)
 
 #define __flush_tlb_single(addr) \
-	__asm__ __volatile__("invlpg %0": :"m" (*(char *) addr))
+	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory")
 
 #ifdef CONFIG_X86_INVLPG
 # define __flush_tlb_one(addr) __flush_tlb_single(addr)

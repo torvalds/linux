@@ -972,7 +972,39 @@ static int transfer_objects(struct array_cache *to,
 	return nr;
 }
 
-#ifdef CONFIG_NUMA
+#ifndef CONFIG_NUMA
+
+#define drain_alien_cache(cachep, alien) do { } while (0)
+#define reap_alien(cachep, l3) do { } while (0)
+
+static inline struct array_cache **alloc_alien_cache(int node, int limit)
+{
+	return (struct array_cache **)BAD_ALIEN_MAGIC;
+}
+
+static inline void free_alien_cache(struct array_cache **ac_ptr)
+{
+}
+
+static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
+{
+	return 0;
+}
+
+static inline void *alternate_node_alloc(struct kmem_cache *cachep,
+		gfp_t flags)
+{
+	return NULL;
+}
+
+static inline void *__cache_alloc_node(struct kmem_cache *cachep,
+		 gfp_t flags, int nodeid)
+{
+	return NULL;
+}
+
+#else	/* CONFIG_NUMA */
+
 static void *__cache_alloc_node(struct kmem_cache *, gfp_t, int);
 static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 
@@ -1101,26 +1133,6 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	}
 	return 1;
 }
-
-#else
-
-#define drain_alien_cache(cachep, alien) do { } while (0)
-#define reap_alien(cachep, l3) do { } while (0)
-
-static inline struct array_cache **alloc_alien_cache(int node, int limit)
-{
-	return (struct array_cache **)BAD_ALIEN_MAGIC;
-}
-
-static inline void free_alien_cache(struct array_cache **ac_ptr)
-{
-}
-
-static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
-{
-	return 0;
-}
-
 #endif
 
 static int __cpuinit cpuup_callback(struct notifier_block *nfb,
@@ -1564,7 +1576,13 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	 */
 	flags |= __GFP_COMP;
 #endif
-	flags |= cachep->gfpflags;
+
+	/*
+	 * Under NUMA we want memory on the indicated node. We will handle
+	 * the needed fallback ourselves since we want to serve from our
+	 * per node object lists first for other nodes.
+	 */
+	flags |= cachep->gfpflags | GFP_THISNODE;
 
 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
 	if (!page)
@@ -2442,7 +2460,6 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  * @cachep: the cache to destroy
  *
  * Remove a struct kmem_cache object from the slab cache.
- * Returns 0 on success.
  *
  * It is expected this function will be called by a module when it is
  * unloaded.  This will remove the cache completely, and avoid a duplicate
@@ -2454,7 +2471,7 @@ EXPORT_SYMBOL(kmem_cache_shrink);
  * The caller must guarantee that noone will allocate memory from the cache
  * during the kmem_cache_destroy().
  */
-int kmem_cache_destroy(struct kmem_cache *cachep)
+void kmem_cache_destroy(struct kmem_cache *cachep)
 {
 	BUG_ON(!cachep || in_interrupt());
 
@@ -2475,7 +2492,7 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 		list_add(&cachep->next, &cache_chain);
 		mutex_unlock(&cache_chain_mutex);
 		unlock_cpu_hotplug();
-		return 1;
+		return;
 	}
 
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
@@ -2483,7 +2500,6 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 
 	__kmem_cache_destroy(cachep);
 	unlock_cpu_hotplug();
-	return 0;
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
@@ -3030,14 +3046,6 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	void *objp;
 	struct array_cache *ac;
 
-#ifdef CONFIG_NUMA
-	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
-		objp = alternate_node_alloc(cachep, flags);
-		if (objp != NULL)
-			return objp;
-	}
-#endif
-
 	check_irq_off();
 	ac = cpu_cache_get(cachep);
 	if (likely(ac->avail)) {
@@ -3055,12 +3063,24 @@ static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 						gfp_t flags, void *caller)
 {
 	unsigned long save_flags;
-	void *objp;
+	void *objp = NULL;
 
 	cache_alloc_debugcheck_before(cachep, flags);
 
 	local_irq_save(save_flags);
-	objp = ____cache_alloc(cachep, flags);
+
+	if (unlikely(NUMA_BUILD &&
+			current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
+		objp = alternate_node_alloc(cachep, flags);
+
+	if (!objp)
+		objp = ____cache_alloc(cachep, flags);
+	/*
+	 * We may just have run out of memory on the local node.
+	 * __cache_alloc_node() knows how to locate memory on other nodes
+	 */
+ 	if (NUMA_BUILD && !objp)
+ 		objp = __cache_alloc_node(cachep, flags, numa_node_id());
 	local_irq_restore(save_flags);
 	objp = cache_alloc_debugcheck_after(cachep, flags, objp,
 					    caller);
@@ -3079,7 +3099,7 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
 	int nid_alloc, nid_here;
 
-	if (in_interrupt())
+	if (in_interrupt() || (flags & __GFP_THISNODE))
 		return NULL;
 	nid_alloc = nid_here = numa_node_id();
 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
@@ -3089,6 +3109,28 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 	if (nid_alloc != nid_here)
 		return __cache_alloc_node(cachep, flags, nid_alloc);
 	return NULL;
+}
+
+/*
+ * Fallback function if there was no memory available and no objects on a
+ * certain node and we are allowed to fall back. We mimick the behavior of
+ * the page allocator. We fall back according to a zonelist determined by
+ * the policy layer while obeying cpuset constraints.
+ */
+void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
+{
+	struct zonelist *zonelist = &NODE_DATA(slab_node(current->mempolicy))
+					->node_zonelists[gfp_zone(flags)];
+	struct zone **z;
+	void *obj = NULL;
+
+	for (z = zonelist->zones; *z && !obj; z++)
+		if (zone_idx(*z) <= ZONE_NORMAL &&
+				cpuset_zone_allowed(*z, flags))
+			obj = __cache_alloc_node(cache,
+					flags | __GFP_THISNODE,
+					zone_to_nid(*z));
+	return obj;
 }
 
 /*
@@ -3144,11 +3186,15 @@ retry:
 must_grow:
 	spin_unlock(&l3->list_lock);
 	x = cache_grow(cachep, flags, nodeid);
+	if (x)
+		goto retry;
 
-	if (!x)
-		return NULL;
+	if (!(flags & __GFP_THISNODE))
+		/* Unable to grow the cache. Fall back to other nodes. */
+		return fallback_alloc(cachep, flags);
 
-	goto retry;
+	return NULL;
+
 done:
 	return obj;
 }
