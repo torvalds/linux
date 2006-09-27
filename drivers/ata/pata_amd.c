@@ -359,7 +359,7 @@ static struct ata_port_operations amd33_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -393,7 +393,7 @@ static struct ata_port_operations amd66_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -427,7 +427,7 @@ static struct ata_port_operations amd100_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -461,7 +461,7 @@ static struct ata_port_operations amd133_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -495,7 +495,7 @@ static struct ata_port_operations nv100_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -529,7 +529,7 @@ static struct ata_port_operations nv133_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
