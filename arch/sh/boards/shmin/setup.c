@@ -14,19 +14,10 @@
 
 #define PFC_PHCR	0xa400010e
 
-const char *get_system_type(void)
-{
-	return "SHMIN";
-}
-
 static void __init init_shmin_irq(void)
 {
 	ctrl_outw(0x2a00, PFC_PHCR);	// IRQ0-3=IRQ
 	ctrl_outw(0x0aaa, INTC_ICR1);	// IRQ0-3=IRQ-mode,Low-active.
-}
-
-void __init platform_setup(void)
-{
 }
 
 static void __iomem *shmin_ioport_map(unsigned long port, unsigned int size)
@@ -43,6 +34,7 @@ static void __iomem *shmin_ioport_map(unsigned long port, unsigned int size)
 }
 
 struct sh_machine_vector mv_shmin __initmv = {
+	.mv_name	= "SHMIN",
 	.mv_init_irq	= init_shmin_irq,
 	.mv_ioport_map	= shmin_ioport_map,
 };

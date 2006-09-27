@@ -81,16 +81,20 @@ static void __init init_snapgear_IRQ(void)
 	make_ipr_irq(IRL3_IRQ, IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY);
 }
 
-const char *get_system_type(void)
+/*
+ * Initialize the board
+ */
+static void __init snapgear_setup(char **cmdline_p)
 {
-	return "SnapGear SecureEdge5410";
+	board_time_init = secureedge5410_rtc_init;
 }
 
 /*
  * The Machine Vector
  */
-
 struct sh_machine_vector mv_snapgear __initmv = {
+	.mv_name		= "SnapGear SecureEdge5410",
+	.mv_setup		= snapgear_setup,
 	.mv_nr_irqs		= 72,
 
 	.mv_inb			= snapgear_inb,
@@ -110,15 +114,3 @@ struct sh_machine_vector mv_snapgear __initmv = {
 	.mv_init_irq		= init_snapgear_IRQ,
 };
 ALIAS_MV(snapgear)
-
-/*
- * Initialize the board
- */
-
-int __init platform_setup(void)
-{
-	board_time_init = secureedge5410_rtc_init;
-
-	return 0;
-}
-

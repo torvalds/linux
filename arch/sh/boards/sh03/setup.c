@@ -13,12 +13,7 @@
 #include <asm/sh03/sh03.h>
 #include <asm/addrspace.h>
 
-const char *get_system_type(void)
-{
-	return "Interface (CTP/PCI-SH03)";
-}
-
-static void init_sh03_IRQ(void)
+static void __init init_sh03_IRQ(void)
 {
 	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
 
@@ -41,7 +36,17 @@ static void __iomem *sh03_ioport_map(unsigned long port, unsigned int size)
         return (void __iomem *)(port + PCI_IO_BASE);
 }
 
+/* arch/sh/boards/sh03/rtc.c */
+void sh03_time_init(void);
+
+static void __init sh03_setup(char **cmdline_p)
+{
+	board_time_init = sh03_time_init;
+}
+
 struct sh_machine_vector mv_sh03 __initmv = {
+	.mv_name		= "Interface (CTP/PCI-SH03)",
+	.mv_setup		= sh03_setup,
 	.mv_nr_irqs		= 48,
 	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
@@ -51,12 +56,3 @@ struct sh_machine_vector mv_sh03 __initmv = {
 #endif
 };
 ALIAS_MV(sh03)
-
-/* arch/sh/boards/sh03/rtc.c */
-void sh03_time_init(void);
-
-int __init platform_setup(void)
-{
-	board_time_init = sh03_time_init;
-	return 0;
-}

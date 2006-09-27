@@ -20,41 +20,6 @@
 extern void heartbeat_r7780rp(void);
 extern void init_r7780rp_IRQ(void);
 
-/*
- * The Machine Vector
- */
-struct sh_machine_vector mv_r7780rp __initmv = {
-	.mv_nr_irqs		= 109,
-
-	.mv_inb			= r7780rp_inb,
-	.mv_inw			= r7780rp_inw,
-	.mv_inl			= r7780rp_inl,
-	.mv_outb		= r7780rp_outb,
-	.mv_outw		= r7780rp_outw,
-	.mv_outl		= r7780rp_outl,
-
-	.mv_inb_p		= r7780rp_inb_p,
-	.mv_inw_p		= r7780rp_inw,
-	.mv_inl_p		= r7780rp_inl,
-	.mv_outb_p		= r7780rp_outb_p,
-	.mv_outw_p		= r7780rp_outw,
-	.mv_outl_p		= r7780rp_outl,
-
-	.mv_insb		= r7780rp_insb,
-	.mv_insw		= r7780rp_insw,
-	.mv_insl		= r7780rp_insl,
-	.mv_outsb		= r7780rp_outsb,
-	.mv_outsw		= r7780rp_outsw,
-	.mv_outsl		= r7780rp_outsl,
-
-	.mv_ioport_map		= r7780rp_ioport_map,
-	.mv_init_irq		= init_r7780rp_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_r7780rp,
-#endif
-};
-ALIAS_MV(r7780rp)
-
 static struct resource m66596_usb_host_resources[] = {
 	[0] = {
 		.start	= 0xa4800000,
@@ -88,7 +53,6 @@ static int __init r7780rp_devices_setup(void)
 	return platform_add_devices(r7780rp_devices,
 				    ARRAY_SIZE(r7780rp_devices));
 }
-__initcall(r7780rp_devices_setup);
 
 /*
  * Platform specific clocks
@@ -117,11 +81,6 @@ static struct clk *r7780rp_clocks[] = {
 	&ivdr_clk,
 };
 
-const char *get_system_type(void)
-{
-	return "Highlander R7780RP-1";
-}
-
 static void r7780rp_power_off(void)
 {
 #ifdef CONFIG_SH_R7780MP
@@ -132,10 +91,12 @@ static void r7780rp_power_off(void)
 /*
  * Initialize the board
  */
-void __init platform_setup(void)
+static void __init r7780rp_setup(char **cmdline_p)
 {
 	u16 ver = ctrl_inw(PA_VERREG);
 	int i;
+
+	device_initcall(r7780rp_devices_setup);
 
 	printk(KERN_INFO "Renesas Solutions Highlander R7780RP-1 support.\n");
 
@@ -162,3 +123,41 @@ void __init platform_setup(void)
 
 	pm_power_off = r7780rp_power_off;
 }
+
+/*
+ * The Machine Vector
+ */
+struct sh_machine_vector mv_r7780rp __initmv = {
+	.mv_name		= "Highlander R7780RP-1",
+	.mv_setup		= r7780rp_setup,
+
+	.mv_nr_irqs		= 109,
+
+	.mv_inb			= r7780rp_inb,
+	.mv_inw			= r7780rp_inw,
+	.mv_inl			= r7780rp_inl,
+	.mv_outb		= r7780rp_outb,
+	.mv_outw		= r7780rp_outw,
+	.mv_outl		= r7780rp_outl,
+
+	.mv_inb_p		= r7780rp_inb_p,
+	.mv_inw_p		= r7780rp_inw,
+	.mv_inl_p		= r7780rp_inl,
+	.mv_outb_p		= r7780rp_outb_p,
+	.mv_outw_p		= r7780rp_outw,
+	.mv_outl_p		= r7780rp_outl,
+
+	.mv_insb		= r7780rp_insb,
+	.mv_insw		= r7780rp_insw,
+	.mv_insl		= r7780rp_insl,
+	.mv_outsb		= r7780rp_outsb,
+	.mv_outsw		= r7780rp_outsw,
+	.mv_outsl		= r7780rp_outsl,
+
+	.mv_ioport_map		= r7780rp_ioport_map,
+	.mv_init_irq		= init_r7780rp_IRQ,
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= heartbeat_r7780rp,
+#endif
+};
+ALIAS_MV(r7780rp)

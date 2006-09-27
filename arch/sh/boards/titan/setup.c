@@ -20,19 +20,8 @@ static void __init init_titan_irq(void)
 	make_ipr_irq( TITAN_IRQ_USB,   IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY); /* PCIRQ3 */
 }
 
-const char *get_system_type(void)
-{
-	return "Titan";
-}
-
-int __init platform_setup(void)
-{
-	printk("%s Platform Setup\n", get_system_type());
-	return 0;
-}
-
 struct sh_machine_vector mv_titan __initmv = {
-	.mv_nr_irqs =	NR_IRQS,
+	.mv_name =	"Titan",
 
 	.mv_inb =	titan_inb,
 	.mv_inw =	titan_inw,

@@ -69,42 +69,6 @@ static void heartbeat_landisk(void)
 	landisk_buzzerparam >>= 1;
 }
 
-/*
- * The Machine Vector
- */
-struct sh_machine_vector mv_landisk __initmv = {
-	.mv_nr_irqs = 72,
-	.mv_inb = landisk_inb,
-	.mv_inw = landisk_inw,
-	.mv_inl = landisk_inl,
-	.mv_outb = landisk_outb,
-	.mv_outw = landisk_outw,
-	.mv_outl = landisk_outl,
-	.mv_inb_p = landisk_inb_p,
-	.mv_inw_p = landisk_inw,
-	.mv_inl_p = landisk_inl,
-	.mv_outb_p = landisk_outb_p,
-	.mv_outw_p = landisk_outw,
-	.mv_outl_p = landisk_outl,
-	.mv_insb = landisk_insb,
-	.mv_insw = landisk_insw,
-	.mv_insl = landisk_insl,
-	.mv_outsb = landisk_outsb,
-	.mv_outsw = landisk_outsw,
-	.mv_outsl = landisk_outsl,
-        .mv_ioport_map = landisk_ioport_map,
-	.mv_init_irq = init_landisk_IRQ,
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat = heartbeat_landisk,
-#endif
-};
-ALIAS_MV(landisk)
-
-const char *get_system_type(void)
-{
-        return "LANDISK";
-}
-
 static void landisk_power_off(void)
 {
         ctrl_outb(0x01, PA_SHUTDOWN);
@@ -130,16 +94,6 @@ static void check_usl5p(void)
                 landisk_ledparam = 0x02000180;
                 landisk_ledparam |= 0x04;
         }
-}
-
-void __init platform_setup(void)
-{
-        landisk_buzzerparam = 0;
-        check_usl5p();
-
-        printk(KERN_INFO "I-O DATA DEVICE, INC. \"LANDISK Series\" support.\n");
-        board_time_init = landisk_time_init;
-        pm_power_off = landisk_power_off;
 }
 
 void *area5_io_base;
@@ -176,4 +130,48 @@ static int __init landisk_cf_init(void)
 	return 0;
 }
 
-__initcall(landisk_cf_init);
+static void __init landisk_setup(char **cmdline_p)
+{
+	device_initcall(landisk_cf_init);
+
+	landisk_buzzerparam = 0;
+	check_usl5p();
+
+	printk(KERN_INFO "I-O DATA DEVICE, INC. \"LANDISK Series\" support.\n");
+
+	board_time_init = landisk_time_init;
+	pm_power_off = landisk_power_off;
+}
+
+/*
+ * The Machine Vector
+ */
+struct sh_machine_vector mv_landisk __initmv = {
+	.mv_name = "LANDISK",
+	.mv_setup = landisk_setup,
+	.mv_nr_irqs = 72,
+	.mv_inb = landisk_inb,
+	.mv_inw = landisk_inw,
+	.mv_inl = landisk_inl,
+	.mv_outb = landisk_outb,
+	.mv_outw = landisk_outw,
+	.mv_outl = landisk_outl,
+	.mv_inb_p = landisk_inb_p,
+	.mv_inw_p = landisk_inw,
+	.mv_inl_p = landisk_inl,
+	.mv_outb_p = landisk_outb_p,
+	.mv_outw_p = landisk_outw,
+	.mv_outl_p = landisk_outl,
+	.mv_insb = landisk_insb,
+	.mv_insw = landisk_insw,
+	.mv_insl = landisk_insl,
+	.mv_outsb = landisk_outsb,
+	.mv_outsw = landisk_outsw,
+	.mv_outsl = landisk_outsl,
+	.mv_ioport_map = landisk_ioport_map,
+	.mv_init_irq = init_landisk_IRQ,
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat = heartbeat_landisk,
+#endif
+};
+ALIAS_MV(landisk)

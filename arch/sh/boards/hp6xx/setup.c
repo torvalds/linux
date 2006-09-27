@@ -19,12 +19,7 @@
 #define	SCPCR	0xa4000116
 #define SCPDR	0xa4000136
 
-const char *get_system_type(void)
-{
-	return "HP6xx";
-}
-
-int __init platform_setup(void)
+static void __init hp6xx_setup(char **cmdline_p)
 {
 	u8 v8;
 	u16 v;
@@ -64,6 +59,42 @@ int __init platform_setup(void)
 	v &= ~SCPCR_TS_MASK;
 	v |= SCPCR_TS_ENABLE;
 	ctrl_outw(v, SCPCR);
-
-	return 0;
 }
+
+/*
+ * XXX: This is stupid, we should have a generic machine vector for the cchips
+ * and just wrap the platform setup code in to this, as it's the only thing
+ * that ends up being different.
+ */
+struct sh_machine_vector mv_hp6xx __initmv = {
+	.mv_name = "hp6xx",
+	.mv_setup = hp6xx_setup,
+	.mv_nr_irqs = HD64461_IRQBASE + HD64461_IRQ_NUM,
+
+	.mv_inb = hd64461_inb,
+	.mv_inw = hd64461_inw,
+	.mv_inl = hd64461_inl,
+	.mv_outb = hd64461_outb,
+	.mv_outw = hd64461_outw,
+	.mv_outl = hd64461_outl,
+
+	.mv_inb_p = hd64461_inb_p,
+	.mv_inw_p = hd64461_inw,
+	.mv_inl_p = hd64461_inl,
+	.mv_outb_p = hd64461_outb_p,
+	.mv_outw_p = hd64461_outw,
+	.mv_outl_p = hd64461_outl,
+
+	.mv_insb = hd64461_insb,
+	.mv_insw = hd64461_insw,
+	.mv_insl = hd64461_insl,
+	.mv_outsb = hd64461_outsb,
+	.mv_outsw = hd64461_outsw,
+	.mv_outsl = hd64461_outsl,
+
+	.mv_readw = hd64461_readw,
+	.mv_writew = hd64461_writew,
+
+	.mv_irq_demux = hd64461_irq_demux,
+};
+ALIAS_MV(hp6xx)

@@ -20,20 +20,16 @@
 
 extern void make_systemh_irq(unsigned int irq);
 
-const char *get_system_type(void)
-{
-	return "7751 SystemH";
-}
-
 /*
  * Initialize IRQ setting
  */
-void __init init_7751systemh_IRQ(void)
+static void __init sh7751systemh_init_irq(void)
 {
 	make_systemh_irq(0xb);	/* Ethernet interrupt */
 }
 
 struct sh_machine_vector mv_7751systemh __initmv = {
+	.mv_name		= "7751 SystemH",
 	.mv_nr_irqs		= 72,
 
 	.mv_inb			= sh7751systemh_inb,
@@ -57,12 +53,6 @@ struct sh_machine_vector mv_7751systemh __initmv = {
 	.mv_outsw		= sh7751systemh_outsw,
 	.mv_outsl		= sh7751systemh_outsl,
 
-	.mv_init_irq		= init_7751systemh_IRQ,
+	.mv_init_irq		= sh7751system_init_irq,
 };
 ALIAS_MV(7751systemh)
-
-int __init platform_setup(void)
-{
-	return 0;
-}
-

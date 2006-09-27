@@ -10,13 +10,11 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/interrupt.h>
-
 #include <asm/io.h>
 #include <asm/machvec.h>
 #include <asm/mpc1211/mpc1211.h>
 #include <asm/mpc1211/pci.h>
 #include <asm/mpc1211/m1543c.h>
-
 
 /* ALI15X3 SMBus address offsets */
 #define SMBHSTSTS   (0 + 0x3100)
@@ -49,11 +47,6 @@
 #define ALI15X3_STS_COLL	0x40	/* collision or no response */
 #define ALI15X3_STS_TERM	0x80	/* terminated by abort */
 #define ALI15X3_STS_ERR		0xE0	/* all the bad error bits */
-
-const char *get_system_type(void)
-{
-	return "Interface MPC-1211(CTP/PCI/MPC-SH02)";
-}
 
 static void __init pci_write_config(unsigned long busNo,
 				    unsigned long devNo,
@@ -205,7 +198,7 @@ int mpc1211_irq_demux(int irq)
 	return irq;
 }
 
-void __init init_mpc1211_IRQ(void)
+static void __init init_mpc1211_IRQ(void)
 {
 	int i;
 	/*
@@ -289,26 +282,10 @@ static int put_smb_blk(unsigned char *p, int address, int command, int no)
 	return 0;
 }
 
-/*
- * The Machine Vector
- */
-
-struct sh_machine_vector mv_mpc1211 __initmv = {
-	.mv_nr_irqs		= 48,
-	.mv_irq_demux		= mpc1211_irq_demux,
-	.mv_init_irq		= init_mpc1211_IRQ,
-
-#ifdef CONFIG_HEARTBEAT
-	.mv_heartbeat		= heartbeat_mpc1211,
-#endif
-};
-
-ALIAS_MV(mpc1211)
-
 /* arch/sh/boards/mpc1211/rtc.c */
 void mpc1211_time_init(void);
 
-int __init platform_setup(void)
+static void __init mpc1211_setup(char **cmdline_p)
 {
 	unsigned char spd_buf[128];
 
@@ -332,3 +309,18 @@ int __init platform_setup(void)
 	return 0;
 }
 
+/*
+ * The Machine Vector
+ */
+struct sh_machine_vector mv_mpc1211 __initmv = {
+	.mv_name		= "Interface MPC-1211(CTP/PCI/MPC-SH02)",
+	.mv_setup		= mpc1211_setup,
+	.mv_nr_irqs		= 48,
+	.mv_irq_demux		= mpc1211_irq_demux,
+	.mv_init_irq		= init_mpc1211_IRQ,
+
+#ifdef CONFIG_HEARTBEAT
+	.mv_heartbeat		= heartbeat_mpc1211,
+#endif
+};
+ALIAS_MV(mpc1211)
