@@ -3,7 +3,7 @@
  *
  * CPU Subtype Probing for SH-4.
  *
- * Copyright (C) 2001 - 2005  Paul Mundt
+ * Copyright (C) 2001 - 2006  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -76,12 +76,6 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->type = CPU_SH73180;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
-
-		/*
-		 * XXX: Double check this, none of the SH-4A/SH-4AL processors
-		 * should have this, as it's essentially a legacy thing.
-		 */
-		cpu_data->flags |= CPU_HAS_PTEA;
 		break;
 	case 0x2001:
 	case 0x2004:
@@ -89,8 +83,7 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
 
-		/* Same note as above applies here for PTEA */
-		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
+		cpu_data->flags |= CPU_HAS_FPU;
 		break;
 	case 0x2006:
 	case 0x200A:
@@ -103,6 +96,12 @@ int __init detect_cpu_and_cache_system(void)
 		cpu_data->dcache.ways = 4;
 
 		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER;
+		break;
+	case 0x3000:
+	case 0x3003:
+		cpu_data->type = CPU_SH7343;
+		cpu_data->icache.ways = 4;
+		cpu_data->dcache.ways = 4;
 		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;

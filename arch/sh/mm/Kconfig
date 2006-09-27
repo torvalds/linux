@@ -21,6 +21,10 @@ config CPU_SH4A
 	bool
 	select CPU_SH4
 
+config CPU_SH4AL_DSP
+	bool
+	select CPU_SH4A
+
 config CPU_SUBTYPE_ST40
 	bool
 	select CPU_SH4
@@ -47,6 +51,12 @@ config CPU_SUBTYPE_SH7705
 	select CPU_SH3
 	select CPU_HAS_PINT_IRQ
 
+config CPU_SUBTYPE_SH7706
+	bool "Support SH7706 processor"
+	select CPU_SH3
+	help
+	  Select SH7706 if you have a 133 Mhz SH-3 HD6417706 CPU.
+
 config CPU_SUBTYPE_SH7707
 	bool "Support SH7707 processor"
 	select CPU_SH3
@@ -67,6 +77,12 @@ config CPU_SUBTYPE_SH7709
 	select CPU_HAS_PINT_IRQ
 	help
 	  Select SH7709 if you have a  80 Mhz SH-3 HD6417709 CPU.
+
+config CPU_SUBTYPE_SH7710
+	bool "Support SH7710 processor"
+	select CPU_SH3
+	help
+	  Select SH7710 if you have a SH3-DSP SH7710 CPU.
 
 comment "SH-4 Processor Support"
 
@@ -132,10 +148,6 @@ config CPU_SUBTYPE_ST40GX1
 
 comment "SH-4A Processor Support"
 
-config CPU_SUBTYPE_SH73180
-	bool "Support SH73180 processor"
-	select CPU_SH4A
-
 config CPU_SUBTYPE_SH7770
 	bool "Support SH7770 processor"
 	select CPU_SH4A
@@ -144,6 +156,16 @@ config CPU_SUBTYPE_SH7780
 	bool "Support SH7780 processor"
 	select CPU_SH4A
 	select CPU_HAS_INTC2_IRQ
+
+comment "SH4AL-DSP Processor Support"
+
+config CPU_SUBTYPE_SH73180
+	bool "Support SH73180 processor"
+	select CPU_SH4AL_DSP
+
+config CPU_SUBTYPE_SH7343
+	bool "Support SH7343 processor"
+	select CPU_SH4AL_DSP
 
 endmenu
 

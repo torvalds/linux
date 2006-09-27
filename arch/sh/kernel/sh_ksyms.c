@@ -89,7 +89,8 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_purge_region);
 #endif
 
-#ifdef CONFIG_MMU
+#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
 EXPORT_SYMBOL(clear_user_page);
 #endif
 

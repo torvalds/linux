@@ -1,10 +1,12 @@
-#ifndef __ASM_SH_IRQ_SH73180_H
-#define __ASM_SH_IRQ_SH73180_H
+#ifndef __ASM_SH_IRQ_SH7343_H
+#define __ASM_SH_IRQ_SH7343_H
 
 /*
- * linux/include/asm-sh/irq-sh73180.h
+ * linux/include/asm-sh/irq-sh7343.h
  *
- * Copyright (C) 2004 Takashi SHUDO <shudo@hitachi-ul.co.jp>
+ * Copyright (C) 2006 Kenati Technologies Inc.
+ * Andre Mccurdy <andre@kenati.com>
+ * Ranjit Deshpande <ranjit@kenati.com>
  */
 
 #undef INTC_IPRA
@@ -49,6 +51,7 @@
 #define INTC_IPRI  	0xA4080020UL
 #define INTC_IPRJ  	0xA4080024UL
 #define INTC_IPRK  	0xA4080028UL
+#define INTC_IPRL  	0xA408002CUL
 
 #define INTC_IMR0	0xA4080080UL
 #define INTC_IMR1	0xA4080084UL
@@ -199,7 +202,7 @@
 #define IIC1_TACKI_IRQ	45
 #define IIC1_WAITI_IRQ	46
 #define IIC1_DTEI_IRQ	47
-#define IIC1_IPR_ADDR	INTC_IPRG
+#define IIC1_IPR_ADDR	INTC_IPRI
 #define IIC1_IPR_POS	0
 #define IIC1_PRIORITY	3
 
@@ -311,4 +314,4 @@
 #define IRQ6_PRIORITY	1
 #define IRQ7_PRIORITY	1
 
-#endif /* __ASM_SH_IRQ_SH73180_H */
+#endif /* __ASM_SH_IRQ_SH7343_H */

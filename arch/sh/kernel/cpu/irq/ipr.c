@@ -89,6 +89,7 @@ static void mask_and_ack_ipr(unsigned int irq)
 	disable_ipr_irq(irq);
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/* This is needed when we use edge triggered setting */
 	/* XXX: Is it really needed? */
@@ -162,6 +163,7 @@ void __init init_IRQ(void)
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
 	/*
 	 * Initialize the Interrupt Controller (INTC)

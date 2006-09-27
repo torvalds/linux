@@ -324,12 +324,11 @@ config SH_FPU_EMU
 
 config SH_DSP
 	bool "DSP support"
-	depends on !CPU_SH4
-	default y
+	default y if SH4AL_DSP || !CPU_SH4
+	default n
 	help
 	  Selecting this option will enable support for SH processors that
-	  have DSP units (ie, SH2-DSP and SH3-DSP). It is safe to say Y here
-	  by default, as the existance of the DSP will be probed at runtime.
+	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
 
 	  This option must be set in order to enable the DSP.
 
@@ -393,8 +392,9 @@ config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
 	default "50000000" if CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7780
 	default "60000000" if CPU_SUBTYPE_SH7751
-	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7760
-	default "27000000" if CPU_SUBTYPE_SH73180
+	default "33333333" if CPU_SUBTYPE_SH7300 || CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760
+	default "27000000" if CPU_SUBTYPE_SH73180 || CPU_SUBTYPE_SH7343
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	help
 	  This option is used to specify the peripheral clock frequency.

@@ -123,6 +123,13 @@ ENTRY(interrupt_table)
 	.long	do_IRQ	! 45      dmte5
 	.long	do_IRQ	! 46      dmte6
 	.long	do_IRQ	! 47      dmte7		/* 7E0 */
+#elif defined(CONFIG_CPU_SUBTYPE_SH7343)
+	.long	do_IRQ	! 44 IIC1 ali		/* 780 */
+	.long	do_IRQ	! 45      tacki
+	.long	do_IRQ	! 46      waiti
+	.long	do_IRQ	! 47      dtei		/* 7E0 */
+	.long	do_IRQ	! 48 DMAC dei0		/* 800 */
+	.long	do_IRQ	! 49      dei1		/* 820 */
 #else
 	.long	exception_error			! 44	/* 780 */
 	.long	exception_error			! 45
@@ -132,7 +139,8 @@ ENTRY(interrupt_table)
 #if defined(CONFIG_SH_FPU)
 	.long	do_fpu_state_restore	! 48	/* 800 */
 	.long	do_fpu_state_restore	! 49	/* 820 */
-#else
+#elif !defined(CONFIG_CPU_SUBTYPE_SH7343) && \
+      !defined(CONFIG_CPU_SUBTYPE_SH73180)
 	.long	exception_error
 	.long	exception_error
 #endif
@@ -225,7 +233,7 @@ ENTRY(interrupt_table)
 	.long	exception_error
 	.long	do_IRQ	! ADC	adi
 	.long	do_IRQ	! CMT	cmti	/* FA0 */
-#elif defined(CONFIG_CPU_SUBTYPE_SH73180)
+#elif defined(CONFIG_CPU_SUBTYPE_SH73180) || defined(CONFIG_CPU_SUBTYPE_SH7343)
 	.long	do_IRQ	!  50 0x840
 	.long	do_IRQ	!  51 0x860
 	.long	do_IRQ	!  52 0x880

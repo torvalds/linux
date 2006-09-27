@@ -10,10 +10,10 @@
  * placeholder code from io_hs7751rvoip.c left in with the
  * expectation of later SuperIO and PCMCIA access.
  */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/hs7751rvoip/hs7751rvoip.h>
 #include <asm/addrspace.h>

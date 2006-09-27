@@ -18,11 +18,13 @@ cflags-y				:= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	:= -ml
 
 isa-y					:= any
+isa-$(CONFIG_SH_DSP)			:= sh
 isa-$(CONFIG_CPU_SH2)			:= sh2
+isa-$(CONFIG_CPU_SH2A)			:= sh2a
 isa-$(CONFIG_CPU_SH3)			:= sh3
 isa-$(CONFIG_CPU_SH4)			:= sh4
 isa-$(CONFIG_CPU_SH4A)			:= sh4a
-isa-$(CONFIG_CPU_SH2A)			:= sh2a
+isa-$(CONFIG_CPU_SH4AL_DSP)		:= sh4al
 
 isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
 
@@ -30,8 +32,10 @@ ifndef CONFIG_MMU
 isa-y			:= $(isa-y)-nommu
 endif
 
+ifndef CONFIG_SH_DSP
 ifndef CONFIG_SH_FPU
 isa-y			:= $(isa-y)-nofpu
+endif
 endif
 
 cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
@@ -188,4 +192,3 @@ CLEAN_FILES += include/asm-sh/machtypes.h
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image (arch/sh/boot/zImage)'
 endef
-
