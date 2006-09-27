@@ -19,11 +19,6 @@
 #include <asm/atomic.h>
 #include <asm/current.h>
 
-extern cpumask_t cpu_online_map;
-extern cpumask_t cpu_possible_map;
-
-#define cpu_online(cpu)		cpu_isset(cpu, cpu_online_map)
-
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 /* I've no idea what the real meaning of this is */
