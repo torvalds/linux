@@ -47,6 +47,7 @@ EXPORT_SYMBOL(copy_to_user_tt);
 #endif
 
 #ifdef CONFIG_MODE_SKAS
+EXPORT_SYMBOL(strnlen_user_skas);
 EXPORT_SYMBOL(strncpy_from_user_skas);
 EXPORT_SYMBOL(copy_to_user_skas);
 EXPORT_SYMBOL(copy_from_user_skas);
