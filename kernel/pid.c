@@ -223,9 +223,6 @@ int fastcall attach_pid(struct task_struct *task, enum pid_type type, int nr)
 	struct pid_link *link;
 	struct pid *pid;
 
-	WARN_ON(!task->pid); /* to be removed soon */
-	WARN_ON(!nr); /* to be removed soon */
-
 	link = &task->pids[type];
 	link->pid = pid = find_pid(nr);
 	hlist_add_head_rcu(&link->node, &pid->tasks[type]);
