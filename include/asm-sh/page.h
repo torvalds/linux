@@ -38,8 +38,13 @@
 extern void (*clear_page)(void *to);
 extern void (*copy_page)(void *to, void *from);
 
+#ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
 extern void copy_page_slow(void *to, void *from);
+#else
+extern void clear_page_nommu(void *to);
+extern void copy_page_nommu(void *to, void *from);
+#endif
 
 #if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
 	defined(CONFIG_SH7705_CACHE_32KB))

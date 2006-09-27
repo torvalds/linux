@@ -248,8 +248,13 @@ void __init mem_init(void)
 	 * Setup wrappers for copy/clear_page(), these will get overridden
 	 * later in the boot process if a better method is available.
 	 */
+#ifdef CONFIG_MMU
 	copy_page = copy_page_slow;
 	clear_page = clear_page_slow;
+#else
+	copy_page = copy_page_nommu;
+	clear_page = clear_page_nommu;
+#endif
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem_node(NODE_DATA(0));

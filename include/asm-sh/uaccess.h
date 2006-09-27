@@ -168,6 +168,7 @@ do {								\
 	__gu_err;						\
 })
 
+#ifdef CONFIG_MMU
 #define __get_user_check(x,ptr,size)				\
 ({								\
 	long __gu_err, __gu_val;				\
@@ -257,6 +258,18 @@ __asm__("stc	r7_bank, %1\n\t"		\
 	: "r" (addr)				\
 	: "t");					\
 })
+#else /* CONFIG_MMU */
+#define __get_user_check(x,ptr,size)					\
+({									\
+	long __gu_err, __gu_val;					\
+	if (__access_ok((unsigned long)(ptr), (size))) {		\
+		__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
+		(x) = (__typeof__(*(ptr)))__gu_val;			\
+	} else								\
+		__gu_err = -EFAULT;					\
+	__gu_err;							\
+})
+#endif
 
 #define __get_user_asm(x, addr, err, insn) \
 ({ \
