@@ -573,10 +573,10 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
  * E1000_RAR_ENTRIES - 1 multicast addresses.
  */
 #define E1000_RAR_ENTRIES 15
-#define E1000_RAR_ENTRIES_ICH8LAN  7
+#define E1000_RAR_ENTRIES_ICH8LAN  6
 
-#define MIN_NUMBER_OF_DESCRIPTORS 8
-#define MAX_NUMBER_OF_DESCRIPTORS 0xFFF8
+#define MIN_NUMBER_OF_DESCRIPTORS  8
+#define MAX_NUMBER_OF_DESCRIPTORS  0xFFF8
 
 /* Receive Descriptor */
 struct e1000_rx_desc {
