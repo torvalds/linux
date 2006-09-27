@@ -66,42 +66,6 @@ static void iser_dto_add_regd_buff(struct iser_dto *dto,
 	dto->regd_vector_len++;
 }
 
-static int iser_dma_map_task_data(struct iscsi_iser_cmd_task *iser_ctask,
-				  struct iser_data_buf       *data,
-				  enum   iser_data_dir       iser_dir,
-				  enum   dma_data_direction  dma_dir)
-{
-	struct device *dma_device;
-
-	iser_ctask->dir[iser_dir] = 1;
-	dma_device = iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
-
-	data->dma_nents = dma_map_sg(dma_device, data->buf, data->size, dma_dir);
-	if (data->dma_nents == 0) {
-		iser_err("dma_map_sg failed!!!\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask)
-{
-	struct device  *dma_device;
-	struct iser_data_buf *data;
-
-	dma_device = iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
-
-	if (iser_ctask->dir[ISER_DIR_IN]) {
-		data = &iser_ctask->data[ISER_DIR_IN];
-		dma_unmap_sg(dma_device, data->buf, data->size, DMA_FROM_DEVICE);
-	}
-
-	if (iser_ctask->dir[ISER_DIR_OUT]) {
-		data = &iser_ctask->data[ISER_DIR_OUT];
-		dma_unmap_sg(dma_device, data->buf, data->size, DMA_TO_DEVICE);
-	}
-}
-
 /* Register user buffer memory and initialize passive rdma
  *  dto descriptor. Total data size is stored in
  *  iser_ctask->data[ISER_DIR_IN].data_len
@@ -699,14 +663,19 @@ void iser_ctask_rdma_init(struct iscsi_iser_cmd_task *iser_ctask)
 void iser_ctask_rdma_finalize(struct iscsi_iser_cmd_task *iser_ctask)
 {
 	int deferred;
+	int is_rdma_aligned = 1;
 
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
 	 */
-	if (iser_ctask->data_copy[ISER_DIR_IN].copy_buf != NULL)
+	if (iser_ctask->data_copy[ISER_DIR_IN].copy_buf != NULL) {
+		is_rdma_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_ctask, ISER_DIR_IN);
-	if (iser_ctask->data_copy[ISER_DIR_OUT].copy_buf != NULL)
+	}
+	if (iser_ctask->data_copy[ISER_DIR_OUT].copy_buf != NULL) {
+		is_rdma_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_ctask, ISER_DIR_OUT);
+	}
 
 	if (iser_ctask->dir[ISER_DIR_IN]) {
 		deferred = iser_regd_buff_release
@@ -726,7 +695,9 @@ void iser_ctask_rdma_finalize(struct iscsi_iser_cmd_task *iser_ctask)
 		}
 	}
 
-	iser_dma_unmap_task_data(iser_ctask);
+       /* if the data was unaligned, it was already unmapped and then copied */
+       if (is_rdma_aligned)
+		iser_dma_unmap_task_data(iser_ctask);
 }
 
 void iser_dto_buffs_release(struct iser_dto *dto)
