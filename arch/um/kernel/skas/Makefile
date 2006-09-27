@@ -3,8 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-y := clone.o exec_kern.o mem.o mmu.o process_kern.o \
-	syscall.o tlb.o uaccess.o
+obj-y := clone.o exec.o mem.o mmu.o process.o syscall.o tlb.o uaccess.o
 
 # clone.o is in the stub, so it can't be built with profiling
 # GCC hardened also auto-enables -fpic, but we need %ebx so it can't work ->

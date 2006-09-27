@@ -1,10 +1,9 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Copyright 2003 PathScale, Inc.
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/sched.h"
 #include "linux/interrupt.h"
@@ -113,11 +112,11 @@ void set_current(void *t)
 
 void *_switch_to(void *prev, void *next, void *last)
 {
-        struct task_struct *from = prev;
-        struct task_struct *to= next;
+	struct task_struct *from = prev;
+	struct task_struct *to= next;
 
-        to->thread.prev_sched = from;
-        set_current(to);
+	to->thread.prev_sched = from;
+	set_current(to);
 
 	do {
 		current->thread.saved_task = NULL ;
@@ -128,7 +127,7 @@ void *_switch_to(void *prev, void *next, void *last)
 		prev= current;
 	} while(current->thread.saved_task);
 
-        return(current->thread.prev_sched);
+	return(current->thread.prev_sched);
 
 }
 
@@ -142,19 +141,19 @@ void release_thread(struct task_struct *task)
 {
 	CHOOSE_MODE(release_thread_tt(task), release_thread_skas(task));
 }
- 
+
 void exit_thread(void)
 {
 	unprotect_stack((unsigned long) current_thread);
 }
- 
+
 void *get_current(void)
 {
 	return(current);
 }
 
 int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
-		unsigned long stack_top, struct task_struct * p, 
+		unsigned long stack_top, struct task_struct * p,
 		struct pt_regs *regs)
 {
 	int ret;
@@ -183,11 +182,11 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	int save_kmalloc_ok = kmalloc_ok;
 
 	kmalloc_ok = 0;
-	CHOOSE_MODE_PROC(initial_thread_cb_tt, initial_thread_cb_skas, proc, 
+	CHOOSE_MODE_PROC(initial_thread_cb_tt, initial_thread_cb_skas, proc,
 			 arg);
 	kmalloc_ok = save_kmalloc_ok;
 }
- 
+
 unsigned long stack_sp(unsigned long page)
 {
 	return(page + PAGE_SIZE - sizeof(void *));
@@ -211,7 +210,7 @@ void default_idle(void)
 		 */
 		if(need_resched())
 			schedule();
-		
+
 		idle_sleep(10);
 	}
 }
@@ -226,7 +225,7 @@ int page_size(void)
 	return(PAGE_SIZE);
 }
 
-void *um_virt_to_phys(struct task_struct *task, unsigned long addr, 
+void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		      pte_t *pte_out)
 {
 	pgd_t *pgd;
@@ -235,7 +234,7 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 	pte_t *pte;
 	pte_t ptent;
 
-	if(task->mm == NULL) 
+	if(task->mm == NULL)
 		return(ERR_PTR(-EINVAL));
 	pgd = pgd_offset(task->mm, addr);
 	if(!pgd_present(*pgd))
@@ -246,7 +245,7 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		return(ERR_PTR(-EINVAL));
 
 	pmd = pmd_offset(pud, addr);
-	if(!pmd_present(*pmd)) 
+	if(!pmd_present(*pmd))
 		return(ERR_PTR(-EINVAL));
 
 	pte = pte_offset_kernel(pmd, addr);
@@ -271,7 +270,7 @@ char *current_cmd(void)
 
 void force_sigbus(void)
 {
-	printk(KERN_ERR "Killing pid %d because of a lack of memory\n", 
+	printk(KERN_ERR "Killing pid %d because of a lack of memory\n",
 	       current->pid);
 	lock_kernel();
 	sigaddset(&current->pending.signal, SIGBUS);
