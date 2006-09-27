@@ -1,21 +1,25 @@
-/* arch/sh/kernel/pci.c
- * $Id: pci.c,v 1.1 2003/08/24 19:15:45 lethal Exp $
+/*
+ * arch/sh/drivers/pci/pci.c
  *
  * Copyright (c) 2002 M. R. Brown  <mrbrown@linux-sh.org>
- * 
- * 
+ * Copyright (c) 2004, 2005 Paul Mundt  <lethal@linux-sh.org>
+ *
  * These functions are collected here to reduce duplication of common
  * code amongst the many platform-specific PCI support code files.
- * 
+ *
  * These routines require the following board-specific routines:
  * void pcibios_fixup_irqs();
  *
  * See include/asm-sh/pci.h for more information.
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <asm/io.h>
 
 static int __init pcibios_init(void)
 {
@@ -26,9 +30,8 @@ static int __init pcibios_init(void)
 #ifdef CONFIG_PCI_AUTO
 	/* assign resources */
 	busno = 0;
-	for (p = board_pci_channels; p->pci_ops != NULL; p++) {
+	for (p = board_pci_channels; p->pci_ops != NULL; p++)
 		busno = pciauto_assign_resources(busno, p) + 1;
-	}
 #endif
 
 	/* scan the buses */
@@ -61,13 +64,17 @@ pcibios_update_resource(struct pci_dev *dev, struct resource *root,
 		new |= PCI_ROM_ADDRESS_ENABLE;
 		reg = dev->rom_base_reg;
 	} else {
-		/* Somebody might have asked allocation of a non-standard resource */
+		/*
+		 * Somebody might have asked allocation of a non-standard
+		 * resource
+		 */
 		return;
 	}
-	
+
 	pci_write_config_dword(dev, reg, new);
 	pci_read_config_dword(dev, reg, &check);
-	if ((new ^ check) & ((new & PCI_BASE_ADDRESS_SPACE_IO) ? PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK)) {
+	if ((new ^ check) & ((new & PCI_BASE_ADDRESS_SPACE_IO) ?
+		PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK)) {
 		printk(KERN_ERR "PCI: Error while updating region "
 		       "%s/%d (%08x != %08x)\n", pci_name(dev), resource,
 		       new, check);
@@ -145,7 +152,8 @@ void pcibios_set_master(struct pci_dev *dev)
 		lat = pcibios_max_latency;
 	else
 		return;
-	printk(KERN_INFO "PCI: Setting latency timer of device %s to %d\n", pci_name(dev), lat);
+	printk(KERN_INFO "PCI: Setting latency timer of device %s to %d\n",
+	       pci_name(dev), lat);
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 
@@ -153,3 +161,29 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
+
+void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
+{
+	unsigned long start = pci_resource_start(dev, bar);
+	unsigned long len = pci_resource_len(dev, bar);
+	unsigned long flags = pci_resource_flags(dev, bar);
+
+	if (!len || !start)
+		return NULL;
+	if (maxlen && len > maxlen)
+		len = maxlen;
+	if (flags & IORESOURCE_IO)
+		return ioport_map(start, len);
+	if (flags & IORESOURCE_MEM)
+		return ioremap(start, len);
+
+	return NULL;
+}
+
+void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
+{
+	iounmap(addr);
+}
+
+EXPORT_SYMBOL(pci_iomap);
+EXPORT_SYMBOL(pci_iounmap);

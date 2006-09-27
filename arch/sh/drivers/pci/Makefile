@@ -14,3 +14,4 @@ obj-$(CONFIG_SH_SECUREEDGE5410)		+= ops-snapgear.o
 obj-$(CONFIG_SH_BIGSUR)			+= ops-bigsur.o
 obj-$(CONFIG_SH_RTS7751R2D)		+= ops-rts7751r2d.o fixups-rts7751r2d.o
 obj-$(CONFIG_SH_SH03)			+= ops-sh03.o fixups-sh03.o
+obj-$(CONFIG_SH_TITAN)			+= ops-titan.o
