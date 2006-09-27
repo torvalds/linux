@@ -197,7 +197,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 			"resource=%x, qp_state=%s\n",
 			__FUNCTION__,
 			to_event_str(event_id),
-			be64_to_cpu(wr->ae.ae_generic.user_context),
+			(unsigned long long) be64_to_cpu(wr->ae.ae_generic.user_context),
 			be32_to_cpu(wr->ae.ae_generic.resource_type),
 			be32_to_cpu(wr->ae.ae_generic.resource),
 			to_qp_state_str(be32_to_cpu(wr->ae.ae_generic.qp_state)));

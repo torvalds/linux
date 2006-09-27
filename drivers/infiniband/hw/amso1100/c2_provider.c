@@ -397,7 +397,9 @@ static struct ib_mr *c2_reg_phys_mr(struct ib_pd *ib_pd,
 	pr_debug("%s - page shift %d, pbl_depth %d, total_len %u, "
 		"*iova_start %llx, first pa %llx, last pa %llx\n",
 		__FUNCTION__, page_shift, pbl_depth, total_len,
-		*iova_start, page_list[0], page_list[pbl_depth-1]);
+		(unsigned long long) *iova_start,
+	       	(unsigned long long) page_list[0],
+	       	(unsigned long long) page_list[pbl_depth-1]);
   	err = c2_nsmr_register_phys_kern(to_c2dev(ib_pd->device), page_list,
  					 (1 << page_shift), pbl_depth,
 					 total_len, 0, iova_start,
