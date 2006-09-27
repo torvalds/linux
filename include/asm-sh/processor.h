@@ -149,6 +149,10 @@ struct thread_struct {
 	union sh_fpu_union fpu;
 };
 
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
+
 /* Count of active tasks with UBC settings */
 extern int ubc_usercnt;
 

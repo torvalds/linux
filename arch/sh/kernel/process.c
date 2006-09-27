@@ -263,6 +263,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
+	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
 #if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
@@ -277,8 +278,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 	if (user_mode(regs)) {
 		childregs->regs[15] = usp;
+		ti->addr_limit = USER_DS;
 	} else {
 		childregs->regs[15] = (unsigned long)task_stack_page(p) + THREAD_SIZE;
+		ti->addr_limit = KERNEL_DS;
 	}
         if (clone_flags & CLONE_SETTLS) {
 		childregs->gbr = childregs->regs[0];
