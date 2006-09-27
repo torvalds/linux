@@ -178,7 +178,7 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		probe_task = kthread_run(really_probe, data,
 					 "probe-%s", dev->bus_id);
 		if (IS_ERR(probe_task))
-			ret = PTR_ERR(probe_task);
+			ret = really_probe(data);
 	} else
 		ret = really_probe(data);
 
