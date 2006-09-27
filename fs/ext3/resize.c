@@ -731,6 +731,18 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 		return -EPERM;
 	}
 
+	if (le32_to_cpu(es->s_blocks_count) + input->blocks_count <
+	    le32_to_cpu(es->s_blocks_count)) {
+		ext3_warning(sb, __FUNCTION__, "blocks_count overflow\n");
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(es->s_inodes_count) + EXT3_INODES_PER_GROUP(sb) <
+	    le32_to_cpu(es->s_inodes_count)) {
+		ext3_warning(sb, __FUNCTION__, "inodes_count overflow\n");
+		return -EINVAL;
+	}
+
 	if (reserved_gdb || gdb_off == 0) {
 		if (!EXT3_HAS_COMPAT_FEATURE(sb,
 					     EXT3_FEATURE_COMPAT_RESIZE_INODE)){
@@ -958,6 +970,11 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	}
 
 	add = EXT3_BLOCKS_PER_GROUP(sb) - last;
+
+	if (o_blocks_count + add < o_blocks_count) {
+		ext3_warning(sb, __FUNCTION__, "blocks_count overflow");
+		return -EINVAL;
+	}
 
 	if (o_blocks_count + add > n_blocks_count)
 		add = n_blocks_count - o_blocks_count;

@@ -202,7 +202,7 @@ goal_in_my_reservation(struct ext3_reserve_window *rsv, ext3_grpblk_t grp_goal,
 	ext3_fsblk_t group_first_block, group_last_block;
 
 	group_first_block = ext3_group_first_block_no(sb, group);
-	group_last_block = group_first_block + EXT3_BLOCKS_PER_GROUP(sb) - 1;
+	group_last_block = group_first_block + (EXT3_BLOCKS_PER_GROUP(sb) - 1);
 
 	if ((rsv->_rsv_start > group_last_block) ||
 	    (rsv->_rsv_end < group_first_block))
@@ -1047,7 +1047,7 @@ static int alloc_new_reservation(struct ext3_reserve_window_node *my_rsv,
 	spinlock_t *rsv_lock = &EXT3_SB(sb)->s_rsv_window_lock;
 
 	group_first_block = ext3_group_first_block_no(sb, group);
-	group_end_block = group_first_block + EXT3_BLOCKS_PER_GROUP(sb) - 1;
+	group_end_block = group_first_block + (EXT3_BLOCKS_PER_GROUP(sb) - 1);
 
 	if (grp_goal < 0)
 		start_block = group_first_block;
@@ -1239,7 +1239,7 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 			struct ext3_reserve_window_node * my_rsv,
 			unsigned long *count, int *errp)
 {
-	ext3_fsblk_t group_first_block;
+	ext3_fsblk_t group_first_block, group_last_block;
 	ext3_grpblk_t ret = 0;
 	int fatal;
 	unsigned long num = *count;
@@ -1276,6 +1276,7 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 	 * first block is the block number of the first block in this group
 	 */
 	group_first_block = ext3_group_first_block_no(sb, group);
+	group_last_block = group_first_block + (EXT3_BLOCKS_PER_GROUP(sb) - 1);
 
 	/*
 	 * Basically we will allocate a new block from inode's reservation
@@ -1311,9 +1312,8 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 			try_to_extend_reservation(my_rsv, sb,
 					*count-my_rsv->rsv_end + grp_goal - 1);
 
-		if ((my_rsv->rsv_start >= group_first_block +
-					EXT3_BLOCKS_PER_GROUP(sb))
-		    || (my_rsv->rsv_end < group_first_block)) {
+		if ((my_rsv->rsv_start > group_last_block) ||
+				(my_rsv->rsv_end < group_first_block)) {
 			rsv_window_dump(&EXT3_SB(sb)->s_rsv_window_root, 1);
 			BUG();
 		}
