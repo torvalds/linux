@@ -44,4 +44,10 @@
 #define	IRQ_RINGING	4		/* Ringing IRQ */
 #define	IRQ_CODEC	5		/* CODEC IRQ */
 
+/* arch/sh/boards/renesas/hs7751rvoip/irq.c */
+void init_hs7751rvoip_IRQ(void);
+
+/* arch/sh/boards/renesas/hs7751rvoip/io.c */
+void *hs7751rvoip_ioremap(unsigned long, unsigned long);
+
 #endif  /* __ASM_SH_RENESAS_HS7751RVOIP */
