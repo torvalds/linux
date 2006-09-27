@@ -44,7 +44,7 @@ asmlinkage int sys_pipe(unsigned long r4, unsigned long r5,
 	return error;
 }
 
-#if defined(HAVE_ARCH_UNMAPPED_AREA)
+#if defined(HAVE_ARCH_UNMAPPED_AREA) && defined(CONFIG_MMU)
 /*
  * To avoid cache alias, we map the shard page with same color.
  */

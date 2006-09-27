@@ -79,20 +79,18 @@ EXPORT_SYMBOL(strcpy);
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
 DECLARE_EXPORT(__movstrSI12_i4);
+#endif
 
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 /* needed by some modules */
 EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_cache_range);
 EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_purge_region);
-EXPORT_SYMBOL(clear_user_page);
 #endif
 
-#if defined(CONFIG_SH7705_CACHE_32KB)
-EXPORT_SYMBOL(flush_cache_all);
-EXPORT_SYMBOL(flush_cache_range);
-EXPORT_SYMBOL(flush_dcache_page);
-EXPORT_SYMBOL(__flush_purge_region);
+#ifdef CONFIG_MMU
+EXPORT_SYMBOL(clear_user_page);
 #endif
 
 EXPORT_SYMBOL(flush_tlb_page);

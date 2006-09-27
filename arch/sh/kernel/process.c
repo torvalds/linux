@@ -302,9 +302,11 @@ ubc_set_tracing(int asid, unsigned long pc)
 {
 	ctrl_outl(pc, UBC_BARA);
 
+#ifdef CONFIG_MMU
 	/* We don't have any ASID settings for the SH-2! */
 	if (cpu_data->type != CPU_SH7604)
 		ctrl_outb(asid, UBC_BASRA);
+#endif
 
 	ctrl_outl(0, UBC_BAMRA);
 
@@ -347,6 +349,7 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	}
 #endif
 
+#ifdef CONFIG_MMU
 	/*
 	 * Restore the kernel mode register
 	 *   	k7 (r7_bank1)
@@ -354,19 +357,21 @@ struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *ne
 	asm volatile("ldc	%0, r7_bank"
 		     : /* no output */
 		     : "r" (task_thread_info(next)));
+#endif
 
-#ifdef CONFIG_MMU
 	/* If no tasks are using the UBC, we're done */
 	if (ubc_usercnt == 0)
 		/* If no tasks are using the UBC, we're done */;
 	else if (next->thread.ubc_pc && next->mm) {
-		ubc_set_tracing(next->mm->context & MMU_CONTEXT_ASID_MASK,
-				next->thread.ubc_pc);
+		int asid = 0;
+#ifdef CONFIG_MMU
+		asid |= next->mm->context & MMU_CONTEXT_ASID_MASK;
+#endif
+		ubc_set_tracing(asid, next->thread.ubc_pc);
 	} else {
 		ctrl_outw(0, UBC_BBRA);
 		ctrl_outw(0, UBC_BBRB);
 	}
-#endif
 
 	return prev;
 }

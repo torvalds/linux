@@ -22,9 +22,9 @@ CONFIG_PAGE_OFFSET	?= 0x80000000
 CONFIG_MEMORY_START     ?= 0x0c000000
 CONFIG_BOOT_LINK_OFFSET ?= 0x00800000
 
-IMAGE_OFFSET	:= $(shell printf "0x%8x" $$[$(CONFIG_PAGE_OFFSET)  + \
-					     $(CONFIG_MEMORY_START) + \
-					     $(CONFIG_BOOT_LINK_OFFSET)])
+IMAGE_OFFSET	:= $(shell printf "0x%08x" $$[$(CONFIG_PAGE_OFFSET)  + \
+					      $(CONFIG_MEMORY_START) + \
+					      $(CONFIG_BOOT_LINK_OFFSET)])
 
 LIBGCC	:= $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 

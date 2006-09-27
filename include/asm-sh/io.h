@@ -216,6 +216,7 @@ static inline void ctrl_delay(void)
 
 #define IO_SPACE_LIMIT 0xffffffff
 
+#ifdef CONFIG_MMU
 /*
  * Change virtual addresses to physical addresses and vv.
  * These are trivial on the 1:1 Linux/SuperH mapping
@@ -229,6 +230,10 @@ static inline void *phys_to_virt(unsigned long address)
 {
 	return (void *)P1SEGADDR(address);
 }
+#else
+#define phys_to_virt(address)	((void *)(address))
+#define virt_to_phys(address)	((unsigned long)(address))
+#endif
 
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt

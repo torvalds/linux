@@ -34,12 +34,12 @@
 
 #define segment_eq(a,b)	((a).seg == (b).seg)
 
-#define __addr_ok(addr) \
-	((unsigned long)(addr) < (current_thread_info()->addr_limit.seg))
-
 #define get_ds()	(KERNEL_DS)
 
 #if !defined(CONFIG_MMU)
+/* NOMMU is always true */
+#define __addr_ok(addr) (1)
+
 static inline mm_segment_t get_fs(void)
 {
 	return USER_DS;
@@ -66,6 +66,9 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 	return ((addr >= memory_start) && ((addr + size) < memory_end));
 }
 #else /* CONFIG_MMU */
+#define __addr_ok(addr) \
+	((unsigned long)(addr) < (current_thread_info()->addr_limit.seg))
+
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
 

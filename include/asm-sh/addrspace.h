@@ -14,7 +14,7 @@
 #include <asm/cpu/addrspace.h>
 
 /* Memory segments (32bit Privileged mode addresses)  */
-#ifdef CONFIG_MMU
+#ifndef CONFIG_CPU_SH2A
 #define P0SEG		0x00000000
 #define P1SEG		0x80000000
 #define P2SEG		0xa0000000
@@ -24,7 +24,7 @@
 #define P0SEG		0x00000000
 #define P1SEG		0x00000000
 #define P2SEG		0x20000000
-#define P3SEG		0x40000000
+#define P3SEG		0x00000000
 #define P4SEG 		0x80000000
 #endif
 

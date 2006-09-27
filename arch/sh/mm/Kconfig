@@ -194,7 +194,7 @@ config MEMORY_SIZE
 
 config 32BIT
 	bool "Support 32-bit physical addressing through PMB"
-	depends on CPU_SH4A
+	depends on CPU_SH4A && MMU
 	default y
 	help
 	  If you say Y here, physical addressing will be extended to
