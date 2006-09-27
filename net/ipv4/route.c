@@ -1078,7 +1078,7 @@ static void ip_select_fb_ident(struct iphdr *iph)
 	u32 salt;
 
 	spin_lock_bh(&ip_fb_id_lock);
-	salt = secure_ip_id(ip_fallback_id ^ iph->daddr);
+	salt = secure_ip_id((__force __be32)ip_fallback_id ^ iph->daddr);
 	iph->id = htons(salt & 0xFFFF);
 	ip_fallback_id = salt;
 	spin_unlock_bh(&ip_fb_id_lock);
@@ -1399,8 +1399,8 @@ unsigned short ip_rt_frag_needed(struct iphdr *iph, unsigned short new_mtu)
 	int i;
 	unsigned short old_mtu = ntohs(iph->tot_len);
 	struct rtable *rth;
-	u32  skeys[2] = { iph->saddr, 0, };
-	u32  daddr = iph->daddr;
+	__be32  skeys[2] = { iph->saddr, 0, };
+	__be32  daddr = iph->daddr;
 	unsigned short est_mtu = 0;
 
 	if (ipv4_config.no_pmtu_disc)
@@ -1939,7 +1939,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (MULTICAST(saddr) || BADCLASS(saddr) || LOOPBACK(saddr))
 		goto martian_source;
 
-	if (daddr == 0xFFFFFFFF || (saddr == 0 && daddr == 0))
+	if (daddr == htonl(0xFFFFFFFF) || (saddr == 0 && daddr == 0))
 		goto brd_input;
 
 	/* Accept zero addresses only to limited broadcast;
@@ -2172,7 +2172,7 @@ static inline int __mkroute_output(struct rtable **result,
 	if (LOOPBACK(fl->fl4_src) && !(dev_out->flags&IFF_LOOPBACK))
 		return -EINVAL;
 
-	if (fl->fl4_dst == 0xFFFFFFFF)
+	if (fl->fl4_dst == htonl(0xFFFFFFFF))
 		res->type = RTN_BROADCAST;
 	else if (MULTICAST(fl->fl4_dst))
 		res->type = RTN_MULTICAST;
@@ -2418,7 +2418,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 		 */
 
 		if (oldflp->oif == 0
-		    && (MULTICAST(oldflp->fl4_dst) || oldflp->fl4_dst == 0xFFFFFFFF)) {
+		    && (MULTICAST(oldflp->fl4_dst) || oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
 			/* Special hack: user can direct multicasts
 			   and limited broadcast via necessary interface
 			   without fiddling with IP_MULTICAST_IF or IP_PKTINFO.
@@ -2455,7 +2455,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 			goto out;	/* Wrong error code */
 		}
 
-		if (LOCAL_MCAST(oldflp->fl4_dst) || oldflp->fl4_dst == 0xFFFFFFFF) {
+		if (LOCAL_MCAST(oldflp->fl4_dst) || oldflp->fl4_dst == htonl(0xFFFFFFFF)) {
 			if (!fl.fl4_src)
 				fl.fl4_src = inet_select_addr(dev_out, 0,
 							      RT_SCOPE_LINK);
@@ -2707,7 +2707,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 
 	if (rt->fl.iif) {
 #ifdef CONFIG_IP_MROUTE
-		u32 dst = rt->rt_dst;
+		__be32 dst = rt->rt_dst;
 
 		if (MULTICAST(dst) && !LOCAL_MCAST(dst) &&
 		    ipv4_devconf.mc_forwarding) {
