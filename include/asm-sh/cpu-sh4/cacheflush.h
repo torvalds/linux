@@ -16,10 +16,6 @@
  *  caching; in which case they're only semi-broken),
  *  so we need them.
  */
-
-/* Page is 4K, OC size is 16K, there are four lines. */
-#define CACHE_ALIAS 0x00003000
-
 struct page;
 struct mm_struct;
 struct vm_area_struct;
