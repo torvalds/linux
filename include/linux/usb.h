@@ -467,6 +467,20 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
 
 /*-------------------------------------------------------------------------*/
 
+extern int usb_endpoint_dir_in(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_dir_out(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_xfer_bulk(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_xfer_int(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_xfer_isoc(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_int_out(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_isoc_in(const struct usb_endpoint_descriptor *epd);
+extern int usb_endpoint_is_isoc_out(const struct usb_endpoint_descriptor *epd);
+
+/*-------------------------------------------------------------------------*/
+
 #define USB_DEVICE_ID_MATCH_DEVICE \
 		(USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT)
 #define USB_DEVICE_ID_MATCH_DEV_RANGE \
