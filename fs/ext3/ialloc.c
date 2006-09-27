@@ -202,7 +202,7 @@ error_return:
 static int find_group_dir(struct super_block *sb, struct inode *parent)
 {
 	int ngroups = EXT3_SB(sb)->s_groups_count;
-	int freei, avefreei;
+	unsigned int freei, avefreei;
 	struct ext3_group_desc *desc, *best_desc = NULL;
 	struct buffer_head *bh;
 	int group, best_group = -1;
@@ -261,10 +261,10 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	struct ext3_super_block *es = sbi->s_es;
 	int ngroups = sbi->s_groups_count;
 	int inodes_per_group = EXT3_INODES_PER_GROUP(sb);
-	int freei, avefreei;
+	unsigned int freei, avefreei;
 	ext3_fsblk_t freeb, avefreeb;
 	ext3_fsblk_t blocks_per_dir;
-	int ndirs;
+	unsigned int ndirs;
 	int max_debt, max_dirs, min_inodes;
 	ext3_grpblk_t min_blocks;
 	int group = -1, i;

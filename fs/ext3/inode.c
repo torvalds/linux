@@ -2115,7 +2115,7 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (!bh) {
 				ext3_error(inode->i_sb, "ext3_free_branches",
-					   "Read failure, inode=%ld, block="E3FSBLK,
+					   "Read failure, inode=%lu, block="E3FSBLK,
 					   inode->i_ino, nr);
 				continue;
 			}

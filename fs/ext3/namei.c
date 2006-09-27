@@ -1919,8 +1919,8 @@ int ext3_orphan_add(handle_t *handle, struct inode *inode)
 	if (!err)
 		list_add(&EXT3_I(inode)->i_orphan, &EXT3_SB(sb)->s_orphan);
 
-	jbd_debug(4, "superblock will point to %ld\n", inode->i_ino);
-	jbd_debug(4, "orphan inode %ld will point to %d\n",
+	jbd_debug(4, "superblock will point to %lu\n", inode->i_ino);
+	jbd_debug(4, "orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
 out_unlock:
 	unlock_super(sb);

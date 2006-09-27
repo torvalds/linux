@@ -45,7 +45,7 @@
 static int ext3_load_journal(struct super_block *, struct ext3_super_block *,
 			     unsigned long journal_devnum);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
-			       int);
+			       unsigned int);
 static void ext3_commit_super (struct super_block * sb,
 			       struct ext3_super_block * es,
 			       int sync);
@@ -376,7 +376,7 @@ static void dump_orphan_list(struct super_block *sb, struct ext3_sb_info *sbi)
 	list_for_each(l, &sbi->s_orphan) {
 		struct inode *inode = orphan_list_entry(l);
 		printk(KERN_ERR "  "
-		       "inode %s:%ld at %p: mode %o, nlink %d, next %d\n",
+		       "inode %s:%lu at %p: mode %o, nlink %d, next %d\n",
 		       inode->i_sb->s_id, inode->i_ino, inode,
 		       inode->i_mode, inode->i_nlink,
 		       NEXT_ORPHAN(inode));
@@ -753,7 +753,7 @@ static ext3_fsblk_t get_sb_block(void **data)
 }
 
 static int parse_options (char *options, struct super_block *sb,
-			  unsigned long *inum, unsigned long *journal_devnum,
+			  unsigned int *inum, unsigned long *journal_devnum,
 			  ext3_fsblk_t *n_blocks_count, int is_remount)
 {
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
@@ -1306,17 +1306,17 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		DQUOT_INIT(inode);
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
-				"%s: truncating inode %ld to %Ld bytes\n",
+				"%s: truncating inode %lu to %Ld bytes\n",
 				__FUNCTION__, inode->i_ino, inode->i_size);
-			jbd_debug(2, "truncating inode %ld to %Ld bytes\n",
+			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext3_truncate(inode);
 			nr_truncates++;
 		} else {
 			printk(KERN_DEBUG
-				"%s: deleting unreferenced inode %ld\n",
+				"%s: deleting unreferenced inode %lu\n",
 				__FUNCTION__, inode->i_ino);
-			jbd_debug(2, "deleting unreferenced inode %ld\n",
+			jbd_debug(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
 		}
@@ -1395,7 +1395,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	ext3_fsblk_t sb_block = get_sb_block(&data);
 	ext3_fsblk_t logic_sb_block;
 	unsigned long offset = 0;
-	unsigned long journal_inum = 0;
+	unsigned int journal_inum = 0;
 	unsigned long journal_devnum = 0;
 	unsigned long def_mount_opts;
 	struct inode *root;
@@ -1844,7 +1844,8 @@ static void ext3_init_journal_params(struct super_block *sb, journal_t *journal)
 	spin_unlock(&journal->j_state_lock);
 }
 
-static journal_t *ext3_get_journal(struct super_block *sb, int journal_inum)
+static journal_t *ext3_get_journal(struct super_block *sb,
+				   unsigned int journal_inum)
 {
 	struct inode *journal_inode;
 	journal_t *journal;
@@ -1979,7 +1980,7 @@ static int ext3_load_journal(struct super_block *sb,
 			     unsigned long journal_devnum)
 {
 	journal_t *journal;
-	int journal_inum = le32_to_cpu(es->s_journal_inum);
+	unsigned int journal_inum = le32_to_cpu(es->s_journal_inum);
 	dev_t journal_dev;
 	int err = 0;
 	int really_read_only;
@@ -2065,7 +2066,7 @@ static int ext3_load_journal(struct super_block *sb,
 
 static int ext3_create_journal(struct super_block * sb,
 			       struct ext3_super_block * es,
-			       int journal_inum)
+			       unsigned int journal_inum)
 {
 	journal_t *journal;
 
@@ -2078,7 +2079,7 @@ static int ext3_create_journal(struct super_block * sb,
 	if (!(journal = ext3_get_journal(sb, journal_inum)))
 		return -EINVAL;
 
-	printk(KERN_INFO "EXT3-fs: creating new journal on inode %d\n",
+	printk(KERN_INFO "EXT3-fs: creating new journal on inode %u\n",
 	       journal_inum);
 
 	if (journal_create(journal)) {
