@@ -577,7 +577,7 @@ extern int ipr_irq_demux(int irq);
 #define NR_INTC2_IRQS	64
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define INTC2_BASE	0xffd40000
-#define INTC2_FIRST_IRQ	22
+#define INTC2_FIRST_IRQ	21
 #define INTC2_INTMSK_OFFSET	(0x38)
 #define INTC2_INTMSKCLR_OFFSET	(0x3c)
 #define NR_INTC2_IRQS	60

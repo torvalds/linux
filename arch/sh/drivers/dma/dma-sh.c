@@ -11,14 +11,10 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/dreamcast/dma.h>
-#include <asm/signal.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include "dma-sh.h"

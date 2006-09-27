@@ -223,7 +223,7 @@ static int __init __area_sdram_check(unsigned int area)
 
 	word = inl(SH7751_BCR1);
 	/* check BCR for SDRAM in area */
-	if(((word >> area) & 1) == 0) {
+	if (((word >> area) & 1) == 0) {
 		printk("PCI: Area %d is not configured for SDRAM. BCR1=0x%x\n",
 		       area, word);
 		return 0;
@@ -232,7 +232,7 @@ static int __init __area_sdram_check(unsigned int area)
 
 	word = (u16)inw(SH7751_BCR2);
 	/* check BCR2 for 32bit SDRAM interface*/
-	if(((word >> (area << 1)) & 0x3) != 0x3) {
+	if (((word >> (area << 1)) & 0x3) != 0x3) {
 		printk("PCI: Area %d is not 32 bit SDRAM. BCR2=0x%x\n",
 		       area, word);
 		return 0;

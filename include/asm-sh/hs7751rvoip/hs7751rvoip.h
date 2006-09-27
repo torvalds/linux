@@ -19,8 +19,6 @@
 #define PA_OUTPORTR	0xa400000e	/* Output Port Reguster */
 #define PA_VERREG	0xa4000014	/* FPGA Version Register */
 
-#define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
-#define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
 #define PA_IDE_OFFSET	0x1f0		/* CF IDE Offset */
 
 #define IRLCNTR1	(PA_BCR + 0)	/* Interrupt Control Register1 */

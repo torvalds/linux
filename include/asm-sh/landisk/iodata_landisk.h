@@ -22,8 +22,6 @@
 /* 2003.10.31 I-O DATA NSD NWG	add.	for shutdown port clear */
 #define PA_PWRINT_CLR	0xb0000006	/* Shutdown Interrupt clear Register */
 
-#define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
-#define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
 #define PA_LCD_CLRDSP	0x00		/* LCD Clear Display Offset */
 #define PA_LCD_RTNHOME	0x00		/* LCD Return Home Offset */
 #define PA_LCD_ENTMODE	0x00		/* LCD Entry Mode Offset */
