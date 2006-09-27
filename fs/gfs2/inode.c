@@ -72,7 +72,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_blocks = di->di_blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
 
