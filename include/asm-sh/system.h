@@ -84,10 +84,17 @@ static __inline__ unsigned long tas(volatile int *m)
 
 extern void __xchg_called_with_bad_pointer(void);
 
+#ifdef CONFIG_CPU_SH4A
+#define mb()	__asm__ __volatile__ ("synco": : :"memory")
+#define rmb()	mb()
+#define wmb()	__asm__ __volatile__ ("synco": : :"memory")
+#define read_barrier_depends()	do { } while(0)
+#else
 #define mb()	__asm__ __volatile__ ("": : :"memory")
 #define rmb()	mb()
 #define wmb()	__asm__ __volatile__ ("": : :"memory")
 #define read_barrier_depends()	do { } while(0)
+#endif
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()

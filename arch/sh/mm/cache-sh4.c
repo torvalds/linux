@@ -184,6 +184,7 @@ void flush_cache_sigtramp(unsigned long addr)
 	     i++, index += cpu_data->icache.way_incr)
 		ctrl_outl(0, index);	/* Clear out Valid-bit */
 	back_to_P1();
+	wmb();
 	local_irq_restore(flags);
 }
 
@@ -223,6 +224,8 @@ void flush_dcache_page(struct page *page)
 		flush_cache_4096(CACHE_OC_ADDRESS_ARRAY | 0x2000, phys);
 		flush_cache_4096(CACHE_OC_ADDRESS_ARRAY | 0x3000, phys);
 	}
+
+	wmb();
 }
 
 static inline void flush_icache_all(void)
@@ -247,6 +250,7 @@ void flush_dcache_all(void)
 		__flush_dcache_all();
 	else
 		__flush_dcache_all_ex();
+	wmb();
 }
 
 void flush_cache_all(void)
@@ -377,5 +381,6 @@ void flush_icache_user_range(struct vm_area_struct *vma,
 			     struct page *page, unsigned long addr, int len)
 {
 	flush_cache_page(vma, addr, page_to_pfn(page));
+	mb();
 }
 
