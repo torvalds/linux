@@ -2168,6 +2168,10 @@ unsigned long __init __absent_pages_in_range(int nid,
 	if (i == -1)
 		return 0;
 
+	/* Account for ranges before physical memory on this node */
+	if (early_node_map[i].start_pfn > range_start_pfn)
+		hole_pages = early_node_map[i].start_pfn - range_start_pfn;
+
 	prev_end_pfn = early_node_map[i].start_pfn;
 
 	/* Find all holes for the zone within the node */
@@ -2188,6 +2192,11 @@ unsigned long __init __absent_pages_in_range(int nid,
 		}
 		prev_end_pfn = early_node_map[i].end_pfn;
 	}
+
+	/* Account for ranges past physical memory on this node */
+	if (range_end_pfn > prev_end_pfn)
+		hole_pages = range_end_pfn -
+				max(range_start_pfn, prev_end_pfn);
 
 	return hole_pages;
 }
@@ -2210,9 +2219,16 @@ unsigned long __init zone_absent_pages_in_node(int nid,
 					unsigned long zone_type,
 					unsigned long *ignored)
 {
-	return __absent_pages_in_range(nid,
-				arch_zone_lowest_possible_pfn[zone_type],
-				arch_zone_highest_possible_pfn[zone_type]);
+	unsigned long node_start_pfn, node_end_pfn;
+	unsigned long zone_start_pfn, zone_end_pfn;
+
+	get_pfn_range_for_nid(nid, &node_start_pfn, &node_end_pfn);
+	zone_start_pfn = max(arch_zone_lowest_possible_pfn[zone_type],
+							node_start_pfn);
+	zone_end_pfn = min(arch_zone_highest_possible_pfn[zone_type],
+							node_end_pfn);
+
+	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
 }
 
 /* Return the zone index a PFN is in */

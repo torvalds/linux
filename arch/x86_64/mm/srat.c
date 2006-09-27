@@ -227,7 +227,9 @@ static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 
 	/* This check might be a bit too strict, but I'm keeping it for now. */
 	if (absent_pages_in_range(s_pfn, e_pfn) != e_pfn - s_pfn) {
-		printk(KERN_ERR "SRAT: Hotplug area has existing memory\n");
+		printk(KERN_ERR
+			"SRAT: Hotplug area %lu -> %lu has existing memory\n",
+			s_pfn, e_pfn);
 		return -1;
 	}
 
