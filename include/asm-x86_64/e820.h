@@ -47,10 +47,9 @@ extern void e820_print_map(char *who);
 extern int e820_any_mapped(unsigned long start, unsigned long end, unsigned type);
 extern int e820_all_mapped(unsigned long start, unsigned long end, unsigned type);
 
-extern void e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned long end);
 extern void e820_setup_gap(void);
-extern unsigned long e820_hole_size(unsigned long start_pfn,
-				    unsigned long end_pfn);
+extern void e820_register_active_regions(int nid,
+				unsigned long start_pfn, unsigned long end_pfn);
 
 extern void finish_e820_parsing(void);
 

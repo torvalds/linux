@@ -403,69 +403,15 @@ void __cpuinit zap_low_mappings(int cpu)
 	__flush_tlb_all();
 }
 
-/* Compute zone sizes for the DMA and DMA32 zones in a node. */
-__init void
-size_zones(unsigned long *z, unsigned long *h,
-	   unsigned long start_pfn, unsigned long end_pfn)
-{
- 	int i;
- 	unsigned long w;
-
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		z[i] = 0;
-
- 	if (start_pfn < MAX_DMA_PFN)
- 		z[ZONE_DMA] = MAX_DMA_PFN - start_pfn;
- 	if (start_pfn < MAX_DMA32_PFN) {
- 		unsigned long dma32_pfn = MAX_DMA32_PFN;
- 		if (dma32_pfn > end_pfn)
- 			dma32_pfn = end_pfn;
- 		z[ZONE_DMA32] = dma32_pfn - start_pfn;
- 	}
- 	z[ZONE_NORMAL] = end_pfn - start_pfn;
-
- 	/* Remove lower zones from higher ones. */
- 	w = 0;
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (z[i])
- 			z[i] -= w;
- 	        w += z[i];
-	}
-
-	/* Compute holes */
-	w = start_pfn;
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		unsigned long s = w;
-		w += z[i];
-		h[i] = e820_hole_size(s, w);
-	}
-
-	/* Add the space pace needed for mem_map to the holes too. */
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		h[i] += (z[i] * sizeof(struct page)) / PAGE_SIZE;
-
-	/* The 16MB DMA zone has the kernel and other misc mappings.
- 	   Account them too */
-	if (h[ZONE_DMA]) {
-		h[ZONE_DMA] += dma_reserve;
-		if (h[ZONE_DMA] >= z[ZONE_DMA]) {
-			printk(KERN_WARNING
-				"Kernel too large and filling up ZONE_DMA?\n");
-			h[ZONE_DMA] = z[ZONE_DMA];
-		}
-	}
-}
-
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
-	unsigned long zones[MAX_NR_ZONES], holes[MAX_NR_ZONES];
-
+	unsigned long max_zone_pfns[MAX_NR_ZONES] = {MAX_DMA_PFN,
+							MAX_DMA32_PFN,
+							end_pfn};
 	memory_present(0, 0, end_pfn);
 	sparse_init();
-	size_zones(zones, holes, 0, end_pfn);
-	free_area_init_node(0, NODE_DATA(0), zones,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
+	free_area_init_nodes(max_zone_pfns);
 }
 #endif
 
@@ -608,7 +554,8 @@ void __init mem_init(void)
 #else
 	totalram_pages = free_all_bootmem();
 #endif
-	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);
+	reservedpages = end_pfn - totalram_pages -
+					absent_pages_in_range(0, end_pfn);
 
 	after_bootmem = 1;
 

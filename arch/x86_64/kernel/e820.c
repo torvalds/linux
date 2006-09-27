@@ -162,59 +162,14 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end, unsi
 	return -1UL;		
 } 
 
-/* 
- * Free bootmem based on the e820 table for a node.
- */
-void __init e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned long end)
-{
-	int i;
-	for (i = 0; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i]; 
-		unsigned long last, addr;
-
-		if (ei->type != E820_RAM || 
-		    ei->addr+ei->size <= start || 
-		    ei->addr >= end)
-			continue;
-
-		addr = round_up(ei->addr, PAGE_SIZE);
-		if (addr < start) 
-			addr = start;
-
-		last = round_down(ei->addr + ei->size, PAGE_SIZE); 
-		if (last >= end)
-			last = end; 
-
-		if (last > addr && last-addr >= PAGE_SIZE)
-			free_bootmem_node(pgdat, addr, last-addr);
-	}
-}
-
 /*
  * Find the highest page frame number we have available
  */
 unsigned long __init e820_end_of_ram(void)
 {
-	int i;
 	unsigned long end_pfn = 0;
+	end_pfn = find_max_pfn_with_active_regions();
 	
-	for (i = 0; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i]; 
-		unsigned long start, end;
-
-		start = round_up(ei->addr, PAGE_SIZE); 
-		end = round_down(ei->addr + ei->size, PAGE_SIZE); 
-		if (start >= end)
-			continue;
-		if (ei->type == E820_RAM) { 
-		if (end > end_pfn<<PAGE_SHIFT)
-			end_pfn = end>>PAGE_SHIFT;
-		} else { 
-			if (end > end_pfn_map<<PAGE_SHIFT) 
-				end_pfn_map = end>>PAGE_SHIFT;
-		} 
-	}
-
 	if (end_pfn > end_pfn_map) 
 		end_pfn_map = end_pfn;
 	if (end_pfn_map > MAXMEM>>PAGE_SHIFT)
@@ -224,41 +179,8 @@ unsigned long __init e820_end_of_ram(void)
 	if (end_pfn > end_pfn_map) 
 		end_pfn = end_pfn_map; 
 
+	printk("end_pfn_map = %lu\n", end_pfn_map);
 	return end_pfn;	
-}
-
-/* 
- * Compute how much memory is missing in a range.
- * Unlike the other functions in this file the arguments are in page numbers.
- */
-unsigned long __init
-e820_hole_size(unsigned long start_pfn, unsigned long end_pfn)
-{
-	unsigned long ram = 0;
-	unsigned long start = start_pfn << PAGE_SHIFT;
-	unsigned long end = end_pfn << PAGE_SHIFT;
-	int i;
-	for (i = 0; i < e820.nr_map; i++) {
-		struct e820entry *ei = &e820.map[i];
-		unsigned long last, addr;
-
-		if (ei->type != E820_RAM ||
-		    ei->addr+ei->size <= start ||
-		    ei->addr >= end)
-			continue;
-
-		addr = round_up(ei->addr, PAGE_SIZE);
-		if (addr < start)
-			addr = start;
-
-		last = round_down(ei->addr + ei->size, PAGE_SIZE);
-		if (last >= end)
-			last = end;
-
-		if (last > addr)
-			ram += last - addr;
-	}
-	return ((end - start) - ram) >> PAGE_SHIFT;
 }
 
 /*
@@ -339,6 +261,49 @@ void __init e820_mark_nosave_regions(void)
 
 		if (paddr >= (end_pfn << PAGE_SHIFT))
 			break;
+	}
+}
+
+/* Walk the e820 map and register active regions within a node */
+void __init
+e820_register_active_regions(int nid, unsigned long start_pfn,
+							unsigned long end_pfn)
+{
+	int i;
+	unsigned long ei_startpfn, ei_endpfn;
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		ei_startpfn = round_up(ei->addr, PAGE_SIZE) >> PAGE_SHIFT;
+		ei_endpfn = round_down(ei->addr + ei->size, PAGE_SIZE)
+								>> PAGE_SHIFT;
+
+		/* Skip map entries smaller than a page */
+		if (ei_startpfn > ei_endpfn)
+			continue;
+
+		/* Check if end_pfn_map should be updated */
+		if (ei->type != E820_RAM && ei_endpfn > end_pfn_map)
+			end_pfn_map = ei_endpfn;
+
+		/* Skip if map is outside the node */
+		if (ei->type != E820_RAM ||
+				ei_endpfn <= start_pfn ||
+				ei_startpfn >= end_pfn)
+			continue;
+
+		/* Check for overlaps */
+		if (ei_startpfn < start_pfn)
+			ei_startpfn = start_pfn;
+		if (ei_endpfn > end_pfn)
+			ei_endpfn = end_pfn;
+
+		/* Obey end_user_pfn to save on memmap */
+		if (ei_startpfn >= end_user_pfn)
+			continue;
+		if (ei_endpfn > end_user_pfn)
+			ei_endpfn = end_user_pfn;
+
+		add_active_range(nid, ei_startpfn, ei_endpfn);
 	}
 }
 

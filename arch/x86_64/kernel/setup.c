@@ -292,7 +292,8 @@ contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-	e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+	e820_register_active_regions(0, start_pfn, end_pfn);
+	free_bootmem_with_active_regions(0, end_pfn);
 	reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
@@ -384,6 +385,7 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
+	e820_register_active_regions(0, 0, -1UL);
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
@@ -413,6 +415,9 @@ void __init setup_arch(char **cmdline_p)
 	max_low_pfn = end_pfn;
 	max_pfn = end_pfn;
 	high_memory = (void *)__va(end_pfn * PAGE_SIZE - 1) + 1;
+
+	/* Remove active ranges so rediscovery with NUMA-awareness happens */
+	remove_all_active_ranges();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
