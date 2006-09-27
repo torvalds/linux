@@ -2899,6 +2899,35 @@ e1000_transfer_dhcp_info(struct e1000_adapter *adapter, struct sk_buff *skb)
 	return 0;
 }
 
+static int __e1000_maybe_stop_tx(struct net_device *netdev, int size)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_tx_ring *tx_ring = adapter->tx_ring;
+
+	netif_stop_queue(netdev);
+	/* Herbert's original patch had:
+	 *  smp_mb__after_netif_stop_queue();
+	 * but since that doesn't exist yet, just open code it. */
+	smp_mb();
+
+	/* We need to check again in a case another CPU has just
+	 * made room available. */
+	if (likely(E1000_DESC_UNUSED(tx_ring) < size))
+		return -EBUSY;
+
+	/* A reprieve! */
+	netif_start_queue(netdev);
+	return 0;
+}
+
+static int e1000_maybe_stop_tx(struct net_device *netdev,
+                               struct e1000_tx_ring *tx_ring, int size)
+{
+	if (likely(E1000_DESC_UNUSED(tx_ring) >= size))
+		return 0;
+	return __e1000_maybe_stop_tx(netdev, size);
+}
+
 #define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1 )
 static int
 e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
@@ -2917,6 +2946,10 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int f;
 	len -= skb->data_len;
 
+	/* This goes back to the question of how to logically map a tx queue
+	 * to a flow.  Right now, performance is impacted slightly negatively
+	 * if using multiple tx queues.  If the stack breaks away from a
+	 * single qdisc implementation, we can look at this again. */
 	tx_ring = adapter->tx_ring;
 
 	if (unlikely(skb->len <= 0)) {
@@ -3012,8 +3045,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	/* need: count + 2 desc gap to keep tail from touching
 	 * head, otherwise try next time */
-	if (unlikely(E1000_DESC_UNUSED(tx_ring) < count + 2)) {
-		netif_stop_queue(netdev);
+	if (unlikely(e1000_maybe_stop_tx(netdev, tx_ring, count + 2))) {
 		spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -3060,8 +3092,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	netdev->trans_start = jiffies;
 
 	/* Make sure there is space in the ring for the next send. */
-	if (unlikely(E1000_DESC_UNUSED(tx_ring) < MAX_SKB_FRAGS + 2))
-		netif_stop_queue(netdev);
+	e1000_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 2);
 
 	spin_unlock_irqrestore(&tx_ring->tx_lock, flags);
 	return NETDEV_TX_OK;
@@ -3556,13 +3587,14 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	tx_ring->next_to_clean = i;
 
 #define TX_WAKE_THRESHOLD 32
-	if (unlikely(cleaned && netif_queue_stopped(netdev) &&
-	             netif_carrier_ok(netdev))) {
-		spin_lock(&tx_ring->tx_lock);
-		if (netif_queue_stopped(netdev) &&
-		    (E1000_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD))
+	if (unlikely(cleaned && netif_carrier_ok(netdev) &&
+		     E1000_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD)) {
+		/* Make sure that anybody stopping the queue after this
+		 * sees the new next_to_clean.
+		 */
+		smp_mb();
+		if (netif_queue_stopped(netdev))
 			netif_wake_queue(netdev);
-		spin_unlock(&tx_ring->tx_lock);
 	}
 
 	if (adapter->detect_tx_hung) {
