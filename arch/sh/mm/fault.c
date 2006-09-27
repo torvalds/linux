@@ -210,10 +210,11 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	 * are always mapped, whether it be due to legacy behaviour in
 	 * 29-bit mode, or due to PMB configuration in 32-bit mode.
 	 */
-	if (address >= P3SEG && address < P3_ADDR_MAX)
+	if (address >= P3SEG && address < P3_ADDR_MAX) {
 		pgd = pgd_offset_k(address);
-	else {
-		if (unlikely(address >= TASK_SIZE || !current->mm))
+		mm = NULL;
+	} else {
+		if (unlikely(address >= TASK_SIZE || !(mm = current->mm)))
 			return 1;
 
 		pgd = pgd_offset(current->mm, address);
