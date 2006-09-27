@@ -40,6 +40,6 @@ static inline void cpm_set_smc_fcr(volatile smc_uart_t * up)
 	up->smc_tfcr = CPMFCR_GBL | CPMFCR_EB;
 }
 
-#define DPRAM_BASE	((unsigned char *)&cpm2_immr->im_dprambase[0])
+#define DPRAM_BASE	((unsigned char *)cpm_dpram_addr(0))
 
 #endif

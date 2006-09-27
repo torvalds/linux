@@ -20,3 +20,8 @@ ifeq ($(CONFIG_PPC64),y)
 obj-$(CONFIG_SMP)	+= locks.o
 obj-$(CONFIG_DEBUG_KERNEL) += sstep.o
 endif
+
+# Temporary hack until we have migrated to asm-powerpc
+ifeq ($(CONFIG_PPC_MERGE),y)
+obj-$(CONFIG_CPM2)	+= rheap.o
+endif

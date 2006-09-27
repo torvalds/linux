@@ -17,3 +17,8 @@ ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
 obj-$(CONFIG_PPC_83xx)		+= ipic.o
 endif
+
+# Temporary hack until we have migrated to asm-powerpc
+ifeq ($(ARCH),powerpc)
+obj-$(CONFIG_CPM2)		+= cpm2_common.o cpm2_pic.o
+endif

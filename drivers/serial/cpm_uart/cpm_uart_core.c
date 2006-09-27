@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
+#include <asm/fs_pd.h>
 
 #if defined(CONFIG_SERIAL_CPM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -1022,15 +1023,17 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 {
 	struct resource *r;
 	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
-	int idx = pdata->fs_no;	/* It is UART_SMCx or UART_SCCx index */
+	int idx;	/* It is UART_SMCx or UART_SCCx index */
 	struct uart_cpm_port *pinfo;
 	int line;
 	u32 mem, pram;
 
+        idx = pdata->fs_no = fs_uart_get_id(pdata);
+
 	line = cpm_uart_id2nr(idx);
 	if(line < 0) {
 		printk(KERN_ERR"%s(): port %d is not registered", __FUNCTION__, idx);
-		return -1;
+		return -EINVAL;
 	}
 
 	pinfo = (struct uart_cpm_port *) &cpm_uart_ports[idx];
@@ -1044,11 +1047,11 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs")))
 		return -EINVAL;
-	mem = r->start;
+	mem = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if (!(r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pram")))
 		return -EINVAL;
-	pram = r->start;
+	pram = (u32)ioremap(r->start, r->end - r->start + 1);
 
 	if(idx > fsid_smc2_uart) {
 		pinfo->sccp = (scc_t *)mem;
@@ -1179,7 +1182,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 		pdata = pdev->dev.platform_data;
 		if (pdata)
 			if (pdata->init_ioports)
-    	                	pdata->init_ioports();
+    	                	pdata->init_ioports(pdata);
 
 		cpm_uart_drv_get_platform_data(pdev, 1);
 	}
@@ -1189,11 +1192,7 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	} else {
-		bd_t *bd = (bd_t *) __res;
-
-		if (bd->bi_baudrate)
-			baud = bd->bi_baudrate;
-		else
+		if ((baud = uart_baudrate()) == -1)
 			baud = 9600;
 	}
 
@@ -1266,13 +1265,14 @@ static int cpm_uart_drv_probe(struct device *dev)
 	}
 
 	pdata = pdev->dev.platform_data;
-	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
 
 	if ((ret = cpm_uart_drv_get_platform_data(pdev, 0)))
 		return ret;
 
+	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
+
 	if (pdata->init_ioports)
-                pdata->init_ioports();
+                pdata->init_ioports(pdata);
 
 	ret = uart_add_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
 
