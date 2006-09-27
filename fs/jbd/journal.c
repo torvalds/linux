@@ -1094,7 +1094,7 @@ int journal_load(journal_t *journal)
 	/*
 	 * Create a slab for this blocksize
 	 */
-	err = journal_create_jbd_slab(cpu_to_be32(sb->s_blocksize));
+	err = journal_create_jbd_slab(be32_to_cpu(sb->s_blocksize));
 	if (err)
 		return err;
 

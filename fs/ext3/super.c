@@ -2348,10 +2348,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			 */
 			ext3_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
-			if ((ret = ext3_group_extend(sb, es, n_blocks_count))) {
-				err = ret;
+			if ((err = ext3_group_extend(sb, es, n_blocks_count)))
 				goto restore_opts;
-			}
 			if (!ext3_setup_super (sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
 		}

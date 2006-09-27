@@ -336,7 +336,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 	unsigned five = 5;
 	unsigned seven = 7;
 	unsigned grp;
-	__u32 *p = (__u32 *)primary->b_data;
+	__le32 *p = (__le32 *)primary->b_data;
 	int gdbackups = 0;
 
 	while ((grp = ext3_list_backups(sb, &three, &five, &seven)) < end) {
@@ -380,7 +380,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	struct buffer_head *dind;
 	int gdbackups;
 	struct ext3_iloc iloc;
-	__u32 *data;
+	__le32 *data;
 	int err;
 
 	if (test_opt(sb, DEBUG))
@@ -417,7 +417,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		goto exit_bh;
 	}
 
-	data = (__u32 *)dind->b_data;
+	data = (__le32 *)dind->b_data;
 	if (le32_to_cpu(data[gdb_num % EXT3_ADDR_PER_BLOCK(sb)]) != gdblock) {
 		ext3_warning(sb, __FUNCTION__,
 			     "new group %u GDT block "E3FSBLK" not reserved",
@@ -519,7 +519,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	struct buffer_head *dind;
 	struct ext3_iloc iloc;
 	ext3_fsblk_t blk;
-	__u32 *data, *end;
+	__le32 *data, *end;
 	int gdbackups = 0;
 	int res, i;
 	int err;
@@ -536,8 +536,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	}
 
 	blk = EXT3_SB(sb)->s_sbh->b_blocknr + 1 + EXT3_SB(sb)->s_gdb_count;
-	data = (__u32 *)dind->b_data + EXT3_SB(sb)->s_gdb_count;
-	end = (__u32 *)dind->b_data + EXT3_ADDR_PER_BLOCK(sb);
+	data = (__le32 *)dind->b_data + EXT3_SB(sb)->s_gdb_count;
+	end = (__le32 *)dind->b_data + EXT3_ADDR_PER_BLOCK(sb);
 
 	/* Get each reserved primary GDT block and verify it holds backups */
 	for (res = 0; res < reserved_gdb; res++, blk++) {
@@ -545,7 +545,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			ext3_warning(sb, __FUNCTION__,
 				     "reserved block "E3FSBLK
 				     " not at offset %ld",
-				     blk, (long)(data - (__u32 *)dind->b_data));
+				     blk,
+				     (long)(data - (__le32 *)dind->b_data));
 			err = -EINVAL;
 			goto exit_bh;
 		}
@@ -560,7 +561,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			goto exit_bh;
 		}
 		if (++data >= end)
-			data = (__u32 *)dind->b_data;
+			data = (__le32 *)dind->b_data;
 	}
 
 	for (i = 0; i < reserved_gdb; i++) {
@@ -584,7 +585,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	blk = input->group * EXT3_BLOCKS_PER_GROUP(sb);
 	for (i = 0; i < reserved_gdb; i++) {
 		int err2;
-		data = (__u32 *)primary[i]->b_data;
+		data = (__le32 *)primary[i]->b_data;
 		/* printk("reserving backup %lu[%u] = %lu\n",
 		       primary[i]->b_blocknr, gdbackups,
 		       blk + primary[i]->b_blocknr); */
@@ -689,7 +690,7 @@ exit_err:
 			     "can't update backup for group %d (err %d), "
 			     "forcing fsck on next reboot", group, err);
 		sbi->s_mount_state &= ~EXT3_VALID_FS;
-		sbi->s_es->s_state &= ~cpu_to_le16(EXT3_VALID_FS);
+		sbi->s_es->s_state &= cpu_to_le16(~EXT3_VALID_FS);
 		mark_buffer_dirty(sbi->s_sbh);
 	}
 }
