@@ -63,13 +63,11 @@ struct ieee80211softmac_wpa {
 
 /*
  * Information about association
- *
- * Do we need a lock for this?
- * We only ever use this structure inlined
- * into our global struct. I've used its lock,
- * but maybe we need a local one here?
  */
 struct ieee80211softmac_assoc_info {
+
+	struct mutex mutex;
+
 	/*
 	 * This is the requested ESSID. It is written
 	 * only by the WX handlers.
@@ -99,12 +97,13 @@ struct ieee80211softmac_assoc_info {
 	 *
 	 * bssfixed is used for SIOCSIWAP.
 	 */
-	u8 static_essid:1,
-	   short_preamble_available:1,
-	   associating:1,
-	   assoc_wait:1,
-	   bssvalid:1,
-	   bssfixed:1;
+	u8 static_essid;
+	u8 short_preamble_available;
+	u8 associating;
+	u8 associated;
+	u8 assoc_wait;
+	u8 bssvalid;
+	u8 bssfixed;
 
 	/* Scan retries remaining */
 	int scan_retry;
@@ -229,12 +228,10 @@ struct ieee80211softmac_device {
 	/* private stuff follows */
 	/* this lock protects this structure */
 	spinlock_t lock;
-	
-	/* couple of flags */
-	u8 scanning:1, /* protects scanning from being done multiple times at once */
-	   associated:1,
-	   running:1;
-	
+
+	u8 running; /* SoftMAC started? */
+	u8 scanning;
+
 	struct ieee80211softmac_scaninfo *scaninfo;
 	struct ieee80211softmac_assoc_info associnfo;
 	struct ieee80211softmac_bss_info bssinfo;
@@ -250,7 +247,7 @@ struct ieee80211softmac_device {
 
 	/* we need to keep a list of network structs we copied */
 	struct list_head network_list;
-	
+
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211 */
 	u8 priv[0];
@@ -295,7 +292,7 @@ static inline u8 ieee80211softmac_suggest_txrate(struct ieee80211softmac_device 
 {
 	struct ieee80211softmac_txrates *txrates = &mac->txrates;
 
-	if (!mac->associated)
+	if (!mac->associnfo.associated)
 		return txrates->mgt_mcast_rate;
 
 	/* We are associated, sending unicast frame */

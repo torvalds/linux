@@ -475,8 +475,13 @@ int ieee80211softmac_handle_beacon(struct net_device *dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 
-	if (mac->associated && memcmp(network->bssid, mac->associnfo.bssid, ETH_ALEN) == 0)
-		ieee80211softmac_process_erp(mac, network->erp_value);
+	/* This might race, but we don't really care and it's not worth
+	 * adding heavyweight locking in this fastpath.
+	 */
+	if (mac->associnfo.associated) {
+		if (memcmp(network->bssid, mac->associnfo.bssid, ETH_ALEN) == 0)
+			ieee80211softmac_process_erp(mac, network->erp_value);
+	}
 
 	return 0;
 }

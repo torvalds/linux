@@ -847,7 +847,7 @@ static struct iw_statistics *bcm43xx_get_wireless_stats(struct net_device *net_d
 	unsigned long flags;
 
 	wstats = &bcm->stats.wstats;
-	if (!mac->associated) {
+	if (!mac->associnfo.associated) {
 		wstats->miss.beacon = 0;
 //		bcm->ieee->ieee_stats.tx_retry_limit_exceeded = 0; // FIXME: should this be cleared here?
 		wstats->discard.retries = 0;
