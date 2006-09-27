@@ -144,8 +144,8 @@ static inline char rt_tos2priority(u8 tos)
 	return ip_tos2prio[IPTOS_TOS(tos)>>1];
 }
 
-static inline int ip_route_connect(struct rtable **rp, u32 dst,
-				   u32 src, u32 tos, int oif, u8 protocol,
+static inline int ip_route_connect(struct rtable **rp, __be32 dst,
+				   __be32 src, u32 tos, int oif, u8 protocol,
 				   u16 sport, u16 dport, struct sock *sk)
 {
 	struct flowi fl = { .oif = oif,

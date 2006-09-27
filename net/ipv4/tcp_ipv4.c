@@ -159,7 +159,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct rtable *rt;
-	u32 daddr, nexthop;
+	__be32 daddr, nexthop;
 	int tmp;
 	int err;
 

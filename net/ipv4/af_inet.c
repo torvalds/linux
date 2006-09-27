@@ -996,7 +996,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct rtable *rt;
 	__u32 old_saddr = inet->saddr;
 	__u32 new_saddr;
-	__u32 daddr = inet->daddr;
+	__be32 daddr = inet->daddr;
 
 	if (inet->opt && inet->opt->srr)
 		daddr = inet->opt->faddr;
