@@ -164,7 +164,7 @@ static int tr_rebuild_header(struct sk_buff *skb)
 	 */
 	 
 	if(trllc->ethertype != htons(ETH_P_IP)) {
-		printk("tr_rebuild_header: Don't know how to resolve type %04X addresses ?\n",(unsigned int)htons(trllc->ethertype));
+		printk("tr_rebuild_header: Don't know how to resolve type %04X addresses ?\n", ntohs(trllc->ethertype));
 		return 0;
 	}
 
@@ -186,7 +186,7 @@ static int tr_rebuild_header(struct sk_buff *skb)
  *	it via SNAP.
  */
  
-unsigned short tr_type_trans(struct sk_buff *skb, struct net_device *dev) 
+__be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 
 	struct trh_hdr *trh=(struct trh_hdr *)skb->data;
@@ -229,15 +229,15 @@ unsigned short tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	if (trllc->dsap == EXTENDED_SAP &&
-	    (trllc->ethertype == ntohs(ETH_P_IP) ||
-	     trllc->ethertype == ntohs(ETH_P_IPV6) ||
-	     trllc->ethertype == ntohs(ETH_P_ARP)))
+	    (trllc->ethertype == htons(ETH_P_IP) ||
+	     trllc->ethertype == htons(ETH_P_IPV6) ||
+	     trllc->ethertype == htons(ETH_P_ARP)))
 	{
 		skb_pull(skb, sizeof(struct trllc));
 		return trllc->ethertype;
 	}
 
-	return ntohs(ETH_P_TR_802_2);
+	return htons(ETH_P_TR_802_2);
 }
 
 /*
