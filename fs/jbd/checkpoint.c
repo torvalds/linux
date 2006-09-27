@@ -145,6 +145,7 @@ void __log_wait_for_space(journal_t *journal)
  * jbd_unlock_bh_state().
  */
 static void jbd_sync_bh(journal_t *journal, struct buffer_head *bh)
+	__releases(journal->j_list_lock)
 {
 	get_bh(bh);
 	spin_unlock(&journal->j_list_lock);
