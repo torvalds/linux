@@ -111,8 +111,6 @@ machdir-$(CONFIG_SH_TITAN)			:= titan
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
-
-incdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se7751
 incdir-$(CONFIG_SH_HP6XX)			:= hp6xx
 
 ifneq ($(machdir-y),)
