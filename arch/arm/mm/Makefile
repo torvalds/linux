@@ -6,7 +6,7 @@ obj-y				:= consistent.o extable.o fault.o init.o \
 				   iomap.o
 
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o ioremap.o mmap.o \
-				   mm-armv.o mmu.o
+				   pgd.o mmu.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
