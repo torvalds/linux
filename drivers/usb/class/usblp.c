@@ -1021,18 +1021,13 @@ static int usblp_select_alts(struct usblp *usblp)
 		for (e = 0; e < ifd->desc.bNumEndpoints; e++) {
 			epd = &ifd->endpoint[e].desc;
 
-			if ((epd->bmAttributes&USB_ENDPOINT_XFERTYPE_MASK)!=
-			    USB_ENDPOINT_XFER_BULK)
-				continue;
-
-			if (!(epd->bEndpointAddress & USB_ENDPOINT_DIR_MASK)) {
+			if (usb_endpoint_is_bulk_out(epd))
 				if (!epwrite)
 					epwrite = epd;
 
-			} else {
+			if (usb_endpoint_is_bulk_in(epd))
 				if (!epread)
 					epread = epd;
-			}
 		}
 
 		/* Ignore buggy hardware without the right endpoints. */
