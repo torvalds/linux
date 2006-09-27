@@ -1722,7 +1722,8 @@ static inline int __mkroute_input(struct sk_buff *skb,
 	int err;
 	struct in_device *out_dev;
 	unsigned flags = 0;
-	u32 spec_dst, itag;
+	__be32 spec_dst;
+	u32 itag;
 
 	/* get a working reference to the output device */
 	out_dev = in_dev_get(FIB_RES_DEV(*res));

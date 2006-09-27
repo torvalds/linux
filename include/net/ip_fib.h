@@ -222,8 +222,8 @@ extern int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 extern int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet_rtm_getroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg);
 extern int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb);
-extern int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
-			       struct net_device *dev, u32 *spec_dst, u32 *itag);
+extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
+			       struct net_device *dev, __be32 *spec_dst, u32 *itag);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
 struct rtentry;

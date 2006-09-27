@@ -180,8 +180,8 @@ unsigned inet_addr_type(u32 addr)
    - check, that packet arrived from expected physical interface.
  */
 
-int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
-			struct net_device *dev, u32 *spec_dst, u32 *itag)
+int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
+			struct net_device *dev, __be32 *spec_dst, u32 *itag)
 {
 	struct in_device *in_dev;
 	struct flowi fl = { .nl_u = { .ip4_u =
