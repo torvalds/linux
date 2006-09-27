@@ -34,8 +34,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include "generic.h"
-
 
 static void at91_aic_mask_irq(unsigned int irq)
 {

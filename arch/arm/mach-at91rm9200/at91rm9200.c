@@ -243,11 +243,34 @@ static void __init at91rm9200_register_clocks(void)
 	clk_register(&pck3);
 }
 
+/* --------------------------------------------------------------------
+ *  GPIO
+ * -------------------------------------------------------------------- */
+
+static struct at91_gpio_bank at91rm9200_gpio[] = {
+	{
+		.id		= AT91RM9200_ID_PIOA,
+		.offset		= AT91_PIOA,
+		.clock		= &pioA_clk,
+	}, {
+		.id		= AT91RM9200_ID_PIOB,
+		.offset		= AT91_PIOB,
+		.clock		= &pioB_clk,
+	}, {
+		.id		= AT91RM9200_ID_PIOC,
+		.offset		= AT91_PIOC,
+		.clock		= &pioC_clk,
+	}, {
+		.id		= AT91RM9200_ID_PIOD,
+		.offset		= AT91_PIOD,
+		.clock		= &pioD_clk,
+	}
+};
 
 /* --------------------------------------------------------------------
  *  AT91RM9200 processor initialization
  * -------------------------------------------------------------------- */
-void __init at91rm9200_initialize(unsigned long main_clock)
+void __init at91rm9200_initialize(unsigned long main_clock, unsigned short banks)
 {
 	/* Map peripherals */
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
@@ -257,7 +280,15 @@ void __init at91rm9200_initialize(unsigned long main_clock)
 
 	/* Register the processor-specific clocks */
 	at91rm9200_register_clocks();
+
+	/* Initialize GPIO subsystem */
+	at91_gpio_init(at91rm9200_gpio, banks);
 }
+
+
+/* --------------------------------------------------------------------
+ *  Interrupt initialization
+ * -------------------------------------------------------------------- */
 
 /*
  * The default interrupt priority levels (0 = lowest, 7 = highest).
@@ -297,10 +328,14 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0	/* Advanced Interrupt Controller (IRQ6) */
 };
 
-void __init at91rm9200_init_irq(unsigned int priority[NR_AIC_IRQS])
+void __init at91rm9200_init_interrupts(unsigned int priority[NR_AIC_IRQS])
 {
 	if (!priority)
 		priority = at91rm9200_default_irq_priority;
 
+	/* Initialize the AIC interrupt controller */
 	at91_aic_init(priority);
+
+	/* Enable GPIO interrupts */
+	at91_gpio_irq_setup();
 }

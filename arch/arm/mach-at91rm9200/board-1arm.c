@@ -39,14 +39,6 @@
 
 #include "generic.h"
 
-static void __init onearm_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(PQFP_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -62,10 +54,15 @@ static struct at91_uart_config __initdata onearm_uart_config = {
 static void __init onearm_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
+	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&onearm_uart_config);
+}
+
+static void __init onearm_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata onearm_eth_data = {

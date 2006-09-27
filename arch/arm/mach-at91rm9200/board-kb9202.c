@@ -40,14 +40,6 @@
 
 #include "generic.h"
 
-static void __init kb9202_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(PQFP_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -63,13 +55,18 @@ static struct at91_uart_config __initdata kb9202_uart_config = {
 static void __init kb9202_map_io(void)
 {
 	/* Initialize processor: 10 MHz crystal */
-	at91rm9200_initialize(10000000);
+	at91rm9200_initialize(10000000, AT91RM9200_PQFP);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&kb9202_uart_config);
+}
+
+static void __init kb9202_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata kb9202_eth_data = {

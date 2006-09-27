@@ -40,14 +40,6 @@
 
 #include "generic.h"
 
-static void __init eb9200_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(BGA_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -63,10 +55,15 @@ static struct at91_uart_config __initdata eb9200_uart_config = {
 static void __init eb9200_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
+	at91rm9200_initialize(18432000, AT91RM9200_BGA);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&eb9200_uart_config);
+}
+
+static void __init eb9200_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata eb9200_eth_data = {
