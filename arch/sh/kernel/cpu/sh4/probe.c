@@ -99,9 +99,15 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	case 0x500 ... 0x501:
 		switch (prr) {
-		    case 0x10: cpu_data->type = CPU_SH7750R; break;
-		    case 0x11: cpu_data->type = CPU_SH7751R; break;
-		    case 0x50: cpu_data->type = CPU_SH7760;  break;
+		case 0x10:
+			cpu_data->type = CPU_SH7750R;
+			break;
+		case 0x11:
+			cpu_data->type = CPU_SH7751R;
+			break;
+		case 0x50 ... 0x5f:
+			cpu_data->type = CPU_SH7760;
+			break;
 		}
 
 		cpu_data->icache.ways = 2;
