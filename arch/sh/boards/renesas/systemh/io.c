@@ -15,7 +15,7 @@
 #include <asm/io.h>
 
 #include <linux/pci.h>
-#include "../../drivers/pci/pci-sh7751.h"
+#include "../../../drivers/pci/pci-sh7751.h"
 
 /*
  * The 7751 SystemH Engine uses the built-in PCI controller (PCIC)

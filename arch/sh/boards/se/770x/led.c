@@ -9,22 +9,8 @@
  * This file contains Solution Engine specific LED code.
  */
 
-#include <asm/se/se.h>
-
-static void mach_led(int position, int value)
-{
-	volatile unsigned short* p = (volatile unsigned short*)PA_LED;
-
-	if (value) {
-		*p |= (1<<8);
-	} else {
-		*p &= ~(1<<8);
-	}
-}
-
-#ifdef CONFIG_HEARTBEAT
-
 #include <linux/sched.h>
+#include <asm/se/se.h>
 
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */
 void heartbeat_se(void)
@@ -64,4 +50,3 @@ void heartbeat_se(void)
 	*p = 1<<(bit+8);
 
 }
-#endif /* CONFIG_HEARTBEAT */
