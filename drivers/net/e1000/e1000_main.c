@@ -662,9 +662,7 @@ e1000_reset(struct e1000_adapter *adapter)
 		                    phy_data);
 	}
 
-	if (adapter->hw.mac_type < e1000_ich8lan)
-	/* FIXME: this code is duplicate and wrong for PCI Express */
-	if (adapter->en_mng_pt) {
+	if ((adapter->en_mng_pt) && (adapter->hw.mac_type < e1000_82571)) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc |= (E1000_MANC_ARP_EN | E1000_MANC_EN_MNG2HOST);
 		E1000_WRITE_REG(&adapter->hw, MANC, manc);
@@ -1042,8 +1040,7 @@ e1000_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
-	if (adapter->hw.mac_type >= e1000_82540 &&
-	   adapter->hw.mac_type != e1000_ich8lan &&
+	if (adapter->hw.mac_type < e1000_82571 &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
@@ -4694,9 +4691,7 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	/* FIXME: this code is incorrect for PCI Express */
-	if (adapter->hw.mac_type >= e1000_82540 &&
-	   adapter->hw.mac_type != e1000_ich8lan &&
+	if (adapter->hw.mac_type < e1000_82571 &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		if (manc & E1000_MANC_SMBUS_EN) {
@@ -4748,9 +4743,7 @@ e1000_resume(struct pci_dev *pdev)
 
 	netif_device_attach(netdev);
 
-	/* FIXME: this code is incorrect for PCI Express */
-	if (adapter->hw.mac_type >= e1000_82540 &&
-	   adapter->hw.mac_type != e1000_ich8lan &&
+	if (adapter->hw.mac_type < e1000_82571 &&
 	   adapter->hw.media_type == e1000_media_type_copper) {
 		manc = E1000_READ_REG(&adapter->hw, MANC);
 		manc &= ~(E1000_MANC_ARP_EN);
