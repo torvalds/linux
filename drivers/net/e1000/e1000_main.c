@@ -1344,8 +1344,12 @@ e1000_close(struct net_device *netdev)
 	e1000_free_all_tx_resources(adapter);
 	e1000_free_all_rx_resources(adapter);
 
+	/* kill manageability vlan ID if supported, but not if a vlan with
+	 * the same ID is registered on the host OS (let 8021q kill it) */
 	if ((adapter->hw.mng_cookie.status &
-			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT)) {
+			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT) &&
+	     !(adapter->vlgrp &&
+			  adapter->vlgrp->vlan_devices[adapter->mng_vlan_id])) {
 		e1000_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 	}
 
