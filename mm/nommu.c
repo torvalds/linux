@@ -1039,6 +1039,7 @@ unsigned long do_mremap(unsigned long addr,
 
 /*
  * Look up the first VMA which satisfies  addr < vm_end,  NULL if none
+ * - should be called with mm->mmap_sem at least readlocked
  */
 struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 {
@@ -1213,7 +1214,6 @@ struct page *filemap_nopage(struct vm_area_struct *area,
  */
 int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write)
 {
-	struct vm_list_struct *vml;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 
@@ -1227,13 +1227,8 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 	down_read(&mm->mmap_sem);
 
 	/* the access must start within one of the target process's mappings */
-	for (vml = mm->context.vmlist; vml; vml = vml->next)
-		if (addr >= vml->vma->vm_start && addr < vml->vma->vm_end)
-			break;
-
-	if (vml) {
-		vma = vml->vma;
-
+	vma = find_vma(mm, addr);
+	if (vma) {
 		/* don't overrun this mapping */
 		if (addr + len >= vma->vm_end)
 			len = vma->vm_end - addr;
