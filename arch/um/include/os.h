@@ -198,7 +198,9 @@ extern long os_ptrace_ldt(long pid, long addr, long data);
 extern int os_getpid(void);
 extern int os_getpgrp(void);
 
+#ifdef UML_CONFIG_MODE_TT
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
+#endif
 extern void init_new_thread_signals(void);
 extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
 
@@ -216,7 +218,6 @@ extern void os_flush_stdout(void);
  */
 extern void forward_ipi(int fd, int pid);
 extern void kill_child_dead(int pid);
-extern void stop(void);
 extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern int protect_memory(unsigned long addr, unsigned long len,
 			  int r, int w, int x, int must_succeed);
