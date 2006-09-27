@@ -128,8 +128,8 @@ static unsigned char __multipath_lookup_weight(const struct flowi *fl,
 
 	/* find state entry for destination */
 	list_for_each_entry_rcu(d, &target_route->dests, list) {
-		__u32 targetnetwork = fl->fl4_dst & 
-			(0xFFFFFFFF >> (32 - d->prefixlen));
+		__be32 targetnetwork = fl->fl4_dst &
+			inet_make_mask(d->prefixlen);
 
 		if ((targetnetwork & d->netmask) == d->network) {
 			weight = d->nh_info->nh_weight;
