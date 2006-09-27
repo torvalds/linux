@@ -22,4 +22,5 @@ obj-$(CONFIG_CPU_SH4)	+= tlb-sh4.o ioremap.o
 obj-$(CONFIG_SH7705_CACHE_32KB) += pg-sh7705.o
 endif
 
-obj-$(CONFIG_SH7705_CACHE_32KB) += cache-sh7705.o
+obj-$(CONFIG_SH7705_CACHE_32KB)	+= cache-sh7705.o
+obj-$(CONFIG_32BIT)		+= pmb.o
