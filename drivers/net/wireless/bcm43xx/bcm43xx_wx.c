@@ -690,6 +690,7 @@ static int bcm43xx_wx_set_swencryption(struct net_device *net_dev,
 	bcm->ieee->host_encrypt = !!on;
 	bcm->ieee->host_decrypt = !!on;
 	bcm->ieee->host_build_iv = !on;
+	bcm->ieee->host_strip_iv_icv = !on;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	mutex_unlock(&bcm->mutex);
 

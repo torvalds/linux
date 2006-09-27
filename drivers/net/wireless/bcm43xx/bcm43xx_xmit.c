@@ -543,25 +543,6 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 		break;
 	}
 
-	frame_ctl = le16_to_cpu(wlhdr->frame_ctl);
-	if ((frame_ctl & IEEE80211_FCTL_PROTECTED) && !bcm->ieee->host_decrypt) {
-		frame_ctl &= ~IEEE80211_FCTL_PROTECTED;
-		wlhdr->frame_ctl = cpu_to_le16(frame_ctl);		
-		/* trim IV and ICV */
-		/* FIXME: this must be done only for WEP encrypted packets */
-		if (skb->len < 32) {
-			dprintkl(KERN_ERR PFX "RX packet dropped (PROTECTED flag "
-					      "set and length < 32)\n");
-			return -EINVAL;
-		} else {		
-			memmove(skb->data + 4, skb->data, 24);
-			skb_pull(skb, 4);
-			skb_trim(skb, skb->len - 4);
-			stats.len -= 8;
-		}
-		wlhdr = (struct ieee80211_hdr_4addr *)(skb->data);
-	}
-	
 	switch (WLAN_FC_GET_TYPE(frame_ctl)) {
 	case IEEE80211_FTYPE_MGMT:
 		ieee80211_rx_mgt(bcm->ieee, wlhdr, &stats);
