@@ -3138,11 +3138,13 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		}
 		break;
 	case e1000_82573:
-		/* only enable jumbo frames if ASPM is disabled completely
-		 * this means both bits must be zero in 0x1A bits 3:2 */
+		/* Jumbo Frames not supported if:
+		 * - this is not an 82573L device
+		 * - ASPM is enabled in any way (0x1A bits 3:2) */
 		e1000_read_eeprom(&adapter->hw, EEPROM_INIT_3GIO_3, 1,
 		                  &eeprom_data);
-		if (eeprom_data & EEPROM_WORD1A_ASPM_MASK) {
+		if ((adapter->hw.device_id != E1000_DEV_ID_82573L) ||
+		    (eeprom_data & EEPROM_WORD1A_ASPM_MASK)) {
 			if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
 				DPRINTK(PROBE, ERR,
 			            	"Jumbo Frames not supported.\n");
@@ -3150,6 +3152,8 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 			}
 			break;
 		}
+		/* ERT will be enabled later to enable wire speed receives */
+
 		/* fall through to get support */
 	case e1000_82571:
 	case e1000_82572:
