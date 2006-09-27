@@ -54,14 +54,15 @@ enum cpu_type {
 };
 
 struct sh_cpuinfo {
-	enum cpu_type type;
+	unsigned int type;
 	unsigned long loops_per_jiffy;
 
-	struct cache_info icache;
-	struct cache_info dcache;
+	struct cache_info icache;	/* Primary I-cache */
+	struct cache_info dcache;	/* Primary D-cache */
+	struct cache_info scache;	/* Secondary cache */
 
 	unsigned long flags;
-};
+} __attribute__ ((aligned(SMP_CACHE_BYTES)));
 
 extern struct sh_cpuinfo boot_cpu_data;
 

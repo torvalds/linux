@@ -416,7 +416,7 @@ const char *get_cpu_subtype(void)
 /* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
 	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
-	"ptea", "llsc", NULL
+	"ptea", "llsc", "l2", NULL
 };
 
 static void show_cpuflags(struct seq_file *m)
@@ -479,6 +479,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		show_cacheinfo(m, "icache", boot_cpu_data.icache);
 		show_cacheinfo(m, "dcache", boot_cpu_data.dcache);
 	}
+
+	/* Optional secondary cache */
+	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE)
+		show_cacheinfo(m, "scache", boot_cpu_data.scache);
 
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		     boot_cpu_data.loops_per_jiffy/(500000/HZ),

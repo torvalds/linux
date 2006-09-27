@@ -29,7 +29,7 @@ int __init detect_cpu_and_cache_system(void)
 		[9] = (1 << 16)
 	};
 
-	pvr = (ctrl_inl(CCN_PVR) >> 8) & 0xffff;
+	pvr = (ctrl_inl(CCN_PVR) >> 8) & 0xffffff;
 	prr = (ctrl_inl(CCN_PRR) >> 4) & 0xff;
 	cvr = (ctrl_inl(CCN_CVR));
 
@@ -52,6 +52,26 @@ int __init detect_cpu_and_cache_system(void)
 	cpu_data->dcache.sets		= 512;
 	cpu_data->dcache.ways		= 1;
 	cpu_data->dcache.linesz		= L1_CACHE_BYTES;
+
+	/*
+	 * Setup some generic flags we can probe
+	 * (L2 and DSP detection only work on SH-4A)
+	 */
+	if (((pvr >> 16) & 0xff) == 0x10) {
+		if ((cvr & 0x02000000) == 0)
+			cpu_data->flags |= CPU_HAS_L2_CACHE;
+		if ((cvr & 0x10000000) == 0)
+			cpu_data->flags |= CPU_HAS_DSP;
+
+		cpu_data->flags |= CPU_HAS_LLSC;
+	}
+
+	/* FPU detection works for everyone */
+	if ((cvr & 0x20000000) == 1)
+		cpu_data->flags |= CPU_HAS_FPU;
+
+	/* Mask off the upper chip ID */
+	pvr &= 0xffff;
 
 	/*
 	 * Probe the underlying processor version/revision and
@@ -180,6 +200,31 @@ int __init detect_cpu_and_cache_system(void)
 
 	cpu_data->dcache.way_size = cpu_data->dcache.sets *
 				    cpu_data->dcache.linesz;
+
+	/*
+	 * Setup the L2 cache desc
+	 *
+	 * SH-4A's have an optional PIPT L2.
+	 */
+	if (cpu_data->flags & CPU_HAS_L2_CACHE) {
+		/*
+		 * Size calculation is much more sensible
+		 * than it is for the L1.
+		 *
+		 * Sizes are 128KB, 258KB, 512KB, and 1MB.
+		 */
+		size = (cvr & 0xf) << 17;
+
+		BUG_ON(!size);
+
+		cpu_data->scache.way_incr	= (1 << 16);
+		cpu_data->scache.entry_shift	= 5;
+		cpu_data->scache.entry_mask	= 0xffe0;
+		cpu_data->scache.ways		= 4;
+		cpu_data->scache.linesz		= L1_CACHE_BYTES;
+		cpu_data->scache.sets		= size /
+			(cpu_data->scache.linesz * cpu_data->scache.ways);
+	}
 
 	return 0;
 }

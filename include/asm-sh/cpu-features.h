@@ -19,5 +19,6 @@
 #define CPU_HAS_PERF_COUNTER	0x0010	/* Hardware performance counters */
 #define CPU_HAS_PTEA		0x0020	/* PTEA register */
 #define CPU_HAS_LLSC		0x0040	/* movli.l/movco.l */
+#define CPU_HAS_L2_CACHE	0x0080	/* Secondary cache / URAM */
 
 #endif /* __ASM_SH_CPU_FEATURES_H */
