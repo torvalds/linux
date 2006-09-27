@@ -7,6 +7,9 @@ obj-y	:= ex.o probe.o
 obj-$(CONFIG_SH_FPU)                    += fpu.o
 obj-$(CONFIG_SH_STORE_QUEUES)		+= sq.o
 
+# CPU subtype setup
+obj-$(CONFIG_CPU_SUBTYPE_SH7780)	+= setup-sh7780.o
+
 # Primary on-chip clocks (common)
 clock-$(CONFIG_CPU_SH4)			:= clock-sh4.o
 clock-$(CONFIG_CPU_SUBTYPE_SH73180)	:= clock-sh73180.o

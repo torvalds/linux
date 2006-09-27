@@ -15,13 +15,11 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/module.h>
-
-#include <asm/io.h>
-#include "pci-sh7780.h"
 #include <asm/r7780rp/r7780rp.h>
+#include <asm/io.h>
+#include "pci-sh4.h"
 
-int __init pcibios_map_platform_irq(u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
         switch (slot) {
 	case 0: return IRQ_PCISLOT1;		/* PCI Interrupt #1 */
@@ -29,7 +27,8 @@ int __init pcibios_map_platform_irq(u8 slot, u8 pin)
 	case 2: return IRQ_PCISLOT3;		/* PCI Interrupt #3 */
 	case 3: return IRQ_PCISLOT4;		/* PCI Interrupt E4 */
 	default:
-		printk("PCI: Bad IRQ mapping request for slot %d, func %d\n", slot, pin-1);
+		printk(KERN_ERR "PCI: Bad IRQ mapping "
+		       "request for slot %d, func %d\n", slot, pin-1);
 		return -1;
 	}
 }
@@ -51,12 +50,12 @@ static struct resource sh7780_mem_resource = {
 extern struct pci_ops sh7780_pci_ops;
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh7780_pci_ops, &sh7780_io_resource, &sh7780_mem_resource, 0, 0xff },
+	{ &sh4_pci_ops, &sh7780_io_resource, &sh7780_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 EXPORT_SYMBOL(board_pci_channels);
 
-static struct sh7780_pci_address_map sh7780_pci_map = {
+static struct sh4_pci_address_map sh7780_pci_map = {
 	.window0	= {
 		.base	= SH7780_CS2_BASE_ADDR,
 		.size	= 0x04000000,
@@ -67,11 +66,10 @@ static struct sh7780_pci_address_map sh7780_pci_map = {
 		.size	= 0x04000000,
 	},
 
-	.flags	= SH7780_PCIC_NO_RESET,
+	.flags	= SH4_PCIC_NO_RESET,
 };
 
 int __init pcibios_init_platform(void)
 {
 	return sh7780_pcic_init(&sh7780_pci_map);
 }
-

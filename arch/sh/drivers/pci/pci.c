@@ -21,6 +21,26 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
+static inline u8 bridge_swizzle(u8 pin, u8 slot)
+{
+	return (((pin - 1) + slot) % 4) + 1;
+}
+
+static u8 __init simple_swizzle(struct pci_dev *dev, u8 *pinp)
+{
+	u8 pin = *pinp;
+
+	while (dev->bus->parent) {
+		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
+		/* Move up the chain of bridges. */
+		dev = dev->bus->self;
+	}
+	*pinp = pin;
+
+	/* The slot is the slot of the last bridge. */
+	return PCI_SLOT(dev->devfn);
+}
+
 static int __init pcibios_init(void)
 {
 	struct pci_channel *p;
@@ -36,18 +56,25 @@ static int __init pcibios_init(void)
 
 	/* scan the buses */
 	busno = 0;
-	for (p= board_pci_channels; p->pci_ops != NULL; p++) {
+	for (p = board_pci_channels; p->pci_ops != NULL; p++) {
 		bus = pci_scan_bus(busno, p->pci_ops, p);
-		busno = bus->subordinate+1;
+		busno = bus->subordinate + 1;
 	}
 
-	/* board-specific fixups */
-	pcibios_fixup_irqs();
+	pci_fixup_irqs(simple_swizzle, pcibios_map_platform_irq);
 
 	return 0;
 }
-
 subsys_initcall(pcibios_init);
+
+/*
+ *  Called after each bus is probed, but before its children
+ *  are examined.
+ */
+void __init pcibios_fixup_bus(struct pci_bus *bus)
+{
+	pci_read_bridge_bases(bus);
+}
 
 void
 pcibios_update_resource(struct pci_dev *dev, struct resource *root,
@@ -192,11 +219,10 @@ void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 
 	return NULL;
 }
+EXPORT_SYMBOL(pci_iomap);
 
 void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 {
 	iounmap(addr);
 }
-
-EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);

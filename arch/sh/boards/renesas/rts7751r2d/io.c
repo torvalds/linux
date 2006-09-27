@@ -1,6 +1,4 @@
 /*
- * linux/arch/sh/kernel/io_rts7751r2d.c
- *
  * Copyright (C) 2001  Ian da Silva, Jeremy Siegel
  * Based largely on io_se.c.
  *
@@ -10,11 +8,9 @@
  * placeholder code from io_rts7751r2d.c left in with the
  * expectation of later SuperIO and PCMCIA access.
  */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include "../../../drivers/pci/pci-sh7751.h"
 #include <asm/rts7751r2d/rts7751r2d.h>
 #include <asm/io.h>
 #include <asm/addrspace.h>
@@ -25,18 +21,6 @@
  * The board also includes a PCMCIA controller on its memory bus,
  * like the other Solution Engine boards.
  */
-
-#define PCIIOBR		(volatile long *)PCI_REG(SH7751_PCIIOBR)
-#define PCIMBR          (volatile long *)PCI_REG(SH7751_PCIMBR)
-#define PCI_IO_AREA	SH7751_PCI_IO_BASE
-#define PCI_MEM_AREA	SH7751_PCI_CONFIG_BASE
-
-#define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
-
-static inline void delay(void)
-{
-	ctrl_inw(0xa0000000);
-}
 
 static inline unsigned long port2adr(unsigned int port)
 {
@@ -75,17 +59,6 @@ static inline int shifted_port(unsigned long port)
 		return 1;
 }
 
-/* In case someone configures the kernel w/o PCI support: in that */
-/* scenario, don't ever bother to check for PCI-window addresses */
-
-/* NOTE: WINDOW CHECK MAY BE A BIT OFF, HIGH PCIBIOS_MIN_IO WRAPS? */
-#if defined(CONFIG_PCI)
-#define CHECK_SH7751_PCIIO(port) \
-  ((port >= PCIBIOS_MIN_IO) && (port < (PCIBIOS_MIN_IO + SH7751_PCI_IO_SIZE)))
-#else
-#define CHECK_SH7751_PCIIO(port) (0)
-#endif
-
 #if defined(CONFIG_NE2000) || defined(CONFIG_NE2000_MODULE)
 #define CHECK_AX88796L_PORT(port) \
   ((port >= AX88796L_IO_BASE) && (port < (AX88796L_IO_BASE+0x20)))
@@ -106,8 +79,8 @@ unsigned char rts7751r2d_inb(unsigned long port)
 		return (*(volatile unsigned short *)port88796l(port, 0)) & 0xff;
 	else if (PXSEG(port))
 		return *(volatile unsigned char *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		return *(volatile unsigned char *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		return *(volatile unsigned char *)pci_ioaddr(port);
 	else
 		return (*(volatile unsigned short *)port2adr(port) & 0xff);
 }
@@ -120,11 +93,12 @@ unsigned char rts7751r2d_inb_p(unsigned long port)
 		v = (*(volatile unsigned short *)port88796l(port, 0)) & 0xff;
         else if (PXSEG(port))
 		v = *(volatile unsigned char *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		v = *(volatile unsigned char *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		v = *(volatile unsigned char *)pci_ioaddr(port);
 	else
 		v = (*(volatile unsigned short *)port2adr(port) & 0xff);
-	delay();
+
+	ctrl_delay();
 
 	return v;
 }
@@ -135,8 +109,8 @@ unsigned short rts7751r2d_inw(unsigned long port)
 		maybebadio(port);
         else if (PXSEG(port))
 		return *(volatile unsigned short *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		return *(volatile unsigned short *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		return *(volatile unsigned short *)pci_ioaddr(port);
 	else
 		maybebadio(port);
 
@@ -149,8 +123,8 @@ unsigned int rts7751r2d_inl(unsigned long port)
 		maybebadio(port);
         else if (PXSEG(port))
 		return *(volatile unsigned long *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		return *(volatile unsigned long *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		return *(volatile unsigned long *)pci_ioaddr(port);
 	else
 		maybebadio(port);
 
@@ -163,8 +137,8 @@ void rts7751r2d_outb(unsigned char value, unsigned long port)
 		*((volatile unsigned short *)port88796l(port, 0)) = value;
         else if (PXSEG(port))
 		*(volatile unsigned char *)port = value;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		*(volatile unsigned char *)PCI_IOMAP(port) = value;
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		*(volatile unsigned char *)pci_ioaddr(port) = value;
 	else
 		*(volatile unsigned short *)port2adr(port) = value;
 }
@@ -175,11 +149,12 @@ void rts7751r2d_outb_p(unsigned char value, unsigned long port)
 		*((volatile unsigned short *)port88796l(port, 0)) = value;
         else if (PXSEG(port))
 		*(volatile unsigned char *)port = value;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		*(volatile unsigned char *)PCI_IOMAP(port) = value;
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		*(volatile unsigned char *)pci_ioaddr(port) = value;
 	else
 		*(volatile unsigned short *)port2adr(port) = value;
-	delay();
+
+	ctrl_delay();
 }
 
 void rts7751r2d_outw(unsigned short value, unsigned long port)
@@ -188,8 +163,8 @@ void rts7751r2d_outw(unsigned short value, unsigned long port)
 		maybebadio(port);
         else if (PXSEG(port))
 		*(volatile unsigned short *)port = value;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		*(volatile unsigned short *)PCI_IOMAP(port) = value;
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		*(volatile unsigned short *)pci_ioaddr(port) = value;
 	else
 		maybebadio(port);
 }
@@ -200,8 +175,8 @@ void rts7751r2d_outl(unsigned int value, unsigned long port)
 		maybebadio(port);
         else if (PXSEG(port))
 		*(volatile unsigned long *)port = value;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		*(volatile unsigned long *)PCI_IOMAP(port) = value;
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		*(volatile unsigned long *)pci_ioaddr(port) = value;
 	else
 		maybebadio(port);
 }
@@ -219,8 +194,8 @@ void rts7751r2d_insb(unsigned long port, void *addr, unsigned long count)
 	} else if (PXSEG(port))
 		while (count--)
 			ctrl_outb(ctrl_inb(port), a++);
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		bp = (__u8 *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port)) {
+		bp = (__u8 *)pci_ioaddr(port);
 		while (count--)
 			ctrl_outb(*bp, a++);
 	} else {
@@ -239,8 +214,8 @@ void rts7751r2d_insw(unsigned long port, void *addr, unsigned long count)
 		p = (volatile unsigned short *)port88796l(port, 1);
 	else if (PXSEG(port))
 		p = (volatile unsigned short *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		p = (volatile unsigned short *)pci_ioaddr(port);
 	else
 		p = (volatile unsigned short *)port2adr(port);
 	while (count--)
@@ -251,11 +226,11 @@ void rts7751r2d_insl(unsigned long port, void *addr, unsigned long count)
 {
 	if (CHECK_AX88796L_PORT(port))
 		maybebadio(port);
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
+	else if (is_pci_ioaddr(port) || shifted_port(port)) {
 		unsigned long a = (unsigned long)addr;
 
 		while (count--) {
-			ctrl_outl(ctrl_inl(PCI_IOMAP(port)), a);
+			ctrl_outl(ctrl_inl(pci_ioaddr(port)), a);
 			a += 4;
 		}
 	} else
@@ -275,8 +250,8 @@ void rts7751r2d_outsb(unsigned long port, const void *addr, unsigned long count)
 	} else if (PXSEG(port))
 		while (count--)
 			ctrl_outb(a++, port);
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		bp = (__u8 *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port)) {
+		bp = (__u8 *)pci_ioaddr(port);
 		while (count--)
 			*bp = ctrl_inb(a++);
 	} else {
@@ -295,8 +270,8 @@ void rts7751r2d_outsw(unsigned long port, const void *addr, unsigned long count)
 		p = (volatile unsigned short *)port88796l(port, 1);
 	else if (PXSEG(port))
 		p = (volatile unsigned short *)port;
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port) || shifted_port(port))
+		p = (volatile unsigned short *)pci_ioaddr(port);
 	else
 		p = (volatile unsigned short *)port2adr(port);
 
@@ -310,11 +285,11 @@ void rts7751r2d_outsl(unsigned long port, const void *addr, unsigned long count)
 {
 	if (CHECK_AX88796L_PORT(port))
 		maybebadio(port);
-	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
+	else if (is_pci_ioaddr(port) || shifted_port(port)) {
 		unsigned long a = (unsigned long)addr;
 
 		while (count--) {
-			ctrl_outl(ctrl_inl(a), PCI_IOMAP(port));
+			ctrl_outl(ctrl_inl(a), pci_ioaddr(port));
 			a += 4;
 		}
 	} else

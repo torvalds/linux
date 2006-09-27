@@ -255,23 +255,12 @@ void __init init_mpc1211_IRQ(void)
 	}
 }
 
-/*
-  Initialize the board
-*/
-
-
-static void delay (void)
-{
-	volatile unsigned short tmp;
-	tmp = *(volatile unsigned short *) 0xa0000000;
-}
-
-static void delay1000 (void)
+static void delay1000(void)
 {
 	int i;
 
 	for (i=0; i<1000; i++)
-		delay ();
+		ctrl_delay();
 }
 
 static int put_smb_blk(unsigned char *p, int address, int command, int no)

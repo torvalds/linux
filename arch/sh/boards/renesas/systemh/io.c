@@ -5,36 +5,16 @@
  * Based largely on io_se.c.
  *
  * I/O routine for Hitachi 7751 Systemh.
- *
  */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <asm/systemh7751.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
-#include "../../../drivers/pci/pci-sh7751.h"
 
-/*
- * The 7751 SystemH Engine uses the built-in PCI controller (PCIC)
- * of the 7751 processor, and has a SuperIO accessible on its memory
- * bus.
- */
-
-#define PCIIOBR		(volatile long *)PCI_REG(SH7751_PCIIOBR)
-#define PCIMBR          (volatile long *)PCI_REG(SH7751_PCIMBR)
-#define PCI_IO_AREA	SH7751_PCI_IO_BASE
-#define PCI_MEM_AREA	SH7751_PCI_CONFIG_BASE
-
-#define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
 #define ETHER_IOMAP(adr) (0xB3000000 + (adr)) /*map to 16bits access area
                                                 of smc lan chip*/
-static inline void delay(void)
-{
-	ctrl_inw(0xa0000000);
-}
-
 static inline volatile __u16 *
 port2adr(unsigned int port)
 {
@@ -43,17 +23,6 @@ port2adr(unsigned int port)
 	maybebadio((unsigned long)port);
 	return (volatile __u16*)port;
 }
-
-/* In case someone configures the kernel w/o PCI support: in that */
-/* scenario, don't ever bother to check for PCI-window addresses */
-
-/* NOTE: WINDOW CHECK MAY BE A BIT OFF, HIGH PCIBIOS_MIN_IO WRAPS? */
-#if defined(CONFIG_PCI)
-#define CHECK_SH7751_PCIIO(port) \
-  ((port >= PCIBIOS_MIN_IO) && (port < (PCIBIOS_MIN_IO + SH7751_PCI_IO_SIZE)))
-#else
-#define CHECK_SH7751_PCIIO(port) (0)
-#endif
 
 /*
  * General outline: remap really low stuff [eventually] to SuperIO,
@@ -66,8 +35,8 @@ unsigned char sh7751systemh_inb(unsigned long port)
 {
 	if (PXSEG(port))
 		return *(volatile unsigned char *)port;
-	else if (CHECK_SH7751_PCIIO(port))
-		return *(volatile unsigned char *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port))
+		return *(volatile unsigned char *)pci_ioaddr(port);
 	else if (port <= 0x3F1)
 		return *(volatile unsigned char *)ETHER_IOMAP(port);
 	else
@@ -80,13 +49,13 @@ unsigned char sh7751systemh_inb_p(unsigned long port)
 
         if (PXSEG(port))
                 v = *(volatile unsigned char *)port;
-	else if (CHECK_SH7751_PCIIO(port))
-                v = *(volatile unsigned char *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port))
+                v = *(volatile unsigned char *)pci_ioaddr(port);
 	else if (port <= 0x3F1)
 		v = *(volatile unsigned char *)ETHER_IOMAP(port);
 	else
 		v = (*port2adr(port))&0xff;
-	delay();
+	ctrl_delay();
 	return v;
 }
 
@@ -94,8 +63,8 @@ unsigned short sh7751systemh_inw(unsigned long port)
 {
         if (PXSEG(port))
                 return *(volatile unsigned short *)port;
-	else if (CHECK_SH7751_PCIIO(port))
-                return *(volatile unsigned short *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port))
+                return *(volatile unsigned short *)pci_ioaddr(port);
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else if (port <= 0x3F1)
@@ -109,8 +78,8 @@ unsigned int sh7751systemh_inl(unsigned long port)
 {
         if (PXSEG(port))
                 return *(volatile unsigned long *)port;
-	else if (CHECK_SH7751_PCIIO(port))
-                return *(volatile unsigned int *)PCI_IOMAP(port);
+	else if (is_pci_ioaddr(port))
+                return *(volatile unsigned int *)pci_ioaddr(port);
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else if (port <= 0x3F1)
@@ -125,8 +94,8 @@ void sh7751systemh_outb(unsigned char value, unsigned long port)
 
         if (PXSEG(port))
                 *(volatile unsigned char *)port = value;
-	else if (CHECK_SH7751_PCIIO(port))
-        	*((unsigned char*)PCI_IOMAP(port)) = value;
+	else if (is_pci_ioaddr(port))
+		*((unsigned char*)pci_ioaddr(port)) = value;
 	else if (port <= 0x3F1)
 		*(volatile unsigned char *)ETHER_IOMAP(port) = value;
 	else
@@ -137,21 +106,21 @@ void sh7751systemh_outb_p(unsigned char value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned char *)port = value;
-	else if (CHECK_SH7751_PCIIO(port))
-        	*((unsigned char*)PCI_IOMAP(port)) = value;
+	else if (is_pci_ioaddr(port))
+		*((unsigned char*)pci_ioaddr(port)) = value;
 	else if (port <= 0x3F1)
 		*(volatile unsigned char *)ETHER_IOMAP(port) = value;
 	else
 		*(port2adr(port)) = value;
-	delay();
+	ctrl_delay();
 }
 
 void sh7751systemh_outw(unsigned short value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned short *)port = value;
-	else if (CHECK_SH7751_PCIIO(port))
-        	*((unsigned short *)PCI_IOMAP(port)) = value;
+	else if (is_pci_ioaddr(port))
+		*((unsigned short *)pci_ioaddr(port)) = value;
 	else if (port >= 0x2000)
 		*port2adr(port) = value;
 	else if (port <= 0x3F1)
@@ -164,8 +133,8 @@ void sh7751systemh_outl(unsigned int value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned long *)port = value;
-	else if (CHECK_SH7751_PCIIO(port))
-        	*((unsigned long*)PCI_IOMAP(port)) = value;
+	else if (is_pci_ioaddr(port))
+		*((unsigned long*)pci_ioaddr(port)) = value;
 	else
 		maybebadio(port);
 }

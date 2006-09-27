@@ -1,4 +1,4 @@
-/* $Id: io.c,v 1.6 2006/01/04 17:53:54 lethal Exp $
+/* $Id: io.c,v 1.7 2006/02/05 21:55:29 lethal Exp $
  *
  * linux/arch/sh/kernel/io_se.c
  *
@@ -19,11 +19,6 @@ int sh_pcic_io_start;
 int sh_pcic_io_stop;
 int sh_pcic_io_type;
 int sh_pcic_io_dummy;
-
-static inline void delay(void)
-{
-	ctrl_inw(0xa0000000);
-}
 
 /* MS7750 requires special versions of in*, out* routines, since
    PC-like io ports are located at upper half byte of 16-bit word which
@@ -72,7 +67,7 @@ unsigned char se_inb_p(unsigned long port)
 		v = (*port2adr(port) >> 8); 
 	else
 		v = (*port2adr(port))&0xff; 
-	delay();
+	ctrl_delay();
 	return v;
 }
 
@@ -110,7 +105,7 @@ void se_outb_p(unsigned char value, unsigned long port)
 		*(port2adr(port)) = value << 8;
 	else
 		*(port2adr(port)) = value;
-	delay();
+	ctrl_delay();
 }
 
 void se_outw(unsigned short value, unsigned long port)

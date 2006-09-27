@@ -358,7 +358,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 {
 	u32 temp;
 
-#if !defined(CONFIG_SH_HS7751RVOIP) && !defined(CONFIG_SH_RTS7751R2D) && !defined(CONFIG_SH_R7780RP)
 	/*
 	 * [jsun] we always bump up baselines a little, so that if there
 	 * nothing behind P2P bridge, we don't wind up overlapping IO/MEM
@@ -366,7 +365,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 	 */
 	pciauto_lower_memspc += 1;
 	pciauto_lower_iospc += 1;
-#endif
 
 	/*
 	 * Configure subordinate bus number.  The PCI subsystem
@@ -392,11 +390,6 @@ pciauto_postscan_setup_cardbus_bridge(struct pci_channel *hose,
 	 * configured by this routine to happily live behind a
 	 * P2P bridge in a system.
 	 */
-#if defined(CONFIG_SH_HS7751RVOIP) || defined(CONFIG_SH_RTS7751R2D) || defined(CONFIG_SH_R7780RP)
-	pciauto_lower_memspc += 0x00400000;
-	pciauto_lower_iospc += 0x00004000;
-#endif
-
 	/* Align memory and I/O to 4KB and 4 byte boundaries. */
 	pciauto_lower_memspc = (pciauto_lower_memspc + (0x1000 - 1))
 		& ~(0x1000 - 1);
@@ -467,9 +460,6 @@ pciauto_bus_scan(struct pci_channel *hose, int top_bus, int current_bus)
 		if ((pci_class >> 16) == PCI_CLASS_BRIDGE_PCI) {
 			DBG("        Bridge: primary=%.2x, secondary=%.2x\n",
 				current_bus, sub_bus + 1);
-#if defined(CONFIG_SH_HS7751RVOIP) || defined(CONFIG_SH_RTS7751R2D) || defined(CONFIG_SH_R7780RP)
-			pciauto_setup_bars(hose, top_bus, current_bus, pci_devfn, PCI_BASE_ADDRESS_1);
-#endif
 			pciauto_prescan_setup_bridge(hose, top_bus, current_bus,
 						     pci_devfn, sub_bus);
 			DBG("Scanning sub bus %.2x, I/O 0x%.8x, Mem 0x%.8x\n",

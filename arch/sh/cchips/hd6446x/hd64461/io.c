@@ -53,11 +53,6 @@ static __inline__ unsigned long PORT2ADDR(unsigned long port)
 	return 0xa0000000 + (port & 0x1fffffff);
 }
 
-static inline void delay(void)
-{
-	ctrl_inw(0xa0000000);
-}
-
 unsigned char hd64461_inb(unsigned long port)
 {
 	return *(volatile unsigned char*)PORT2ADDR(port);
@@ -66,7 +61,7 @@ unsigned char hd64461_inb(unsigned long port)
 unsigned char hd64461_inb_p(unsigned long port)
 {
 	unsigned long v = *(volatile unsigned char*)PORT2ADDR(port);
-	delay();
+	ctrl_delay();
 	return v;
 }
 
@@ -88,7 +83,7 @@ void hd64461_outb(unsigned char b, unsigned long port)
 void hd64461_outb_p(unsigned char b, unsigned long port)
 {
 	*(volatile unsigned char*)PORT2ADDR(port) = b;
-	delay();
+	ctrl_delay();
 }
 
 void hd64461_outw(unsigned short b, unsigned long port)

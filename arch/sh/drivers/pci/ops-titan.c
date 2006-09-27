@@ -16,12 +16,11 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/titan.h>
-#include "pci-sh7751.h"
+#include "pci-sh4.h"
 
-int __init pcibios_map_platform_irq(u8 slot, u8 pin)
+int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	int irq = -1;
 
@@ -32,7 +31,8 @@ int __init pcibios_map_platform_irq(u8 slot, u8 pin)
 	case 3: irq = TITAN_IRQ_MPCIB; break;	/* mPCI B */
 	case 4: irq = TITAN_IRQ_USB;   break;	/* USB */
 	default:
-		printk(KERN_INFO "PCI: Bad IRQ mapping request for slot %d\n", slot);
+		printk(KERN_INFO "PCI: Bad IRQ mapping "
+				 "request for slot %d\n", slot);
 		return -1;
 	}
 
@@ -56,15 +56,13 @@ static struct resource sh7751_mem_resource = {
 	.flags	= IORESOURCE_MEM
 };
 
-extern struct pci_ops sh7751_pci_ops;
-
 struct pci_channel board_pci_channels[] = {
-	{ &sh7751_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
+	{ &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 EXPORT_SYMBOL(board_pci_channels);
 
-static struct sh7751_pci_address_map sh7751_pci_map = {
+static struct sh4_pci_address_map sh7751_pci_map = {
 	.window0	= {
 		.base	= SH7751_CS2_BASE_ADDR,
 		.size	= SH7751_MEM_REGION_SIZE*2,	/* cs2 and cs3 */
@@ -75,7 +73,7 @@ static struct sh7751_pci_address_map sh7751_pci_map = {
 		.size	= SH7751_MEM_REGION_SIZE*2,
 	},
 
-	.flags	= SH7751_PCIC_NO_RESET,
+	.flags	= SH4_PCIC_NO_RESET,
 };
 
 int __init pcibios_init_platform(void)

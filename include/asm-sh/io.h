@@ -209,6 +209,11 @@ static inline void ctrl_outl(unsigned int b, unsigned long addr)
         *(volatile unsigned long*)addr = b;
 }
 
+static inline void ctrl_delay(void)
+{
+	ctrl_inw(P2SEG);
+}
+
 #define IO_SPACE_LIMIT 0xffffffff
 
 /*

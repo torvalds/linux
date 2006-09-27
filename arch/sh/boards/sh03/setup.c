@@ -12,11 +12,10 @@
 #include <asm/sh03/io.h>
 #include <asm/sh03/sh03.h>
 #include <asm/addrspace.h>
-#include "../../drivers/pci/pci-sh7751.h"
 
 const char *get_system_type(void)
 {
-	return "Interface CTP/PCI-SH03)";
+	return "Interface (CTP/PCI-SH03)";
 }
 
 static void init_sh03_IRQ(void)
@@ -39,7 +38,7 @@ static void __iomem *sh03_ioport_map(unsigned long port, unsigned int size)
 	if (((port >= 0x1f0) && (port <= 0x1f7)) || (port == 0x3f6))
 		return (void __iomem *)((unsigned long)cf_io_base + port);
 
-        return (void __iomem *)(port + SH7751_PCI_IO_BASE);
+        return (void __iomem *)(port + PCI_IO_BASE);
 }
 
 struct sh_machine_vector mv_sh03 __initmv = {
@@ -51,7 +50,6 @@ struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_heartbeat		= heartbeat_sh03,
 #endif
 };
-
 ALIAS_MV(sh03)
 
 /* arch/sh/boards/sh03/rtc.c */
