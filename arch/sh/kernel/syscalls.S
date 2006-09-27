@@ -34,7 +34,7 @@
 
 	.data
 ENTRY(sys_call_table)
-	.long sys_ni_syscall	/* 0  -  old "setup()" system call*/
+	.long sys_restart_syscall	/* 0  -  old "setup()" system call*/
 	.long sys_exit
 	.long sys_fork
 	.long sys_read

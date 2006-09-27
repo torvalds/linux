@@ -376,6 +376,7 @@ work_notifysig:
 	bt/s	restore_all
 	 mov	r15, r4
 	mov	#0, r5
+	mov	r12, r6		! set arg2(save_r0)
 	mov.l	2f, r1
 	mova	restore_all, r0
 	jmp	@r1
@@ -534,6 +535,7 @@ syscall_call:
 	mov.l	@r9, r8
 	jsr	@r8	    	! jump to specific syscall handler
 	 nop
+	mov.l	@(OFF_R0,r15), r12		! save r0
 	mov.l	r0, @(OFF_R0,r15)		! save the return value
 	!
 syscall_exit:

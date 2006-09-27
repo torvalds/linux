@@ -33,7 +33,8 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
+asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset,
+			 unsigned int save_r0);
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
@@ -56,7 +57,7 @@ sys_sigsuspend(old_sigset_t mask,
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&regs, &saveset))
+		if (do_signal(&regs, &saveset, regs.regs[0]))
 			return -EINTR;
 	}
 }
@@ -85,7 +86,7 @@ sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize,
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&regs, &saveset))
+		if (do_signal(&regs, &saveset, regs.regs[0]))
 			return -EINTR;
 	}
 }
@@ -563,7 +564,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset)
+int do_signal(struct pt_regs *regs, sigset_t *oldset, unsigned int save_r0)
 {
 	siginfo_t info;
 	int signr;
@@ -597,9 +598,12 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		/* Restart the system call - no handlers present */
 		if (regs->regs[0] == -ERESTARTNOHAND ||
 		    regs->regs[0] == -ERESTARTSYS ||
-		    regs->regs[0] == -ERESTARTNOINTR ||
-		    regs->regs[0] == -ERESTART_RESTARTBLOCK) {
+		    regs->regs[0] == -ERESTARTNOINTR) {
+		    	regs->regs[0] = save_r0;
 			regs->pc -= 2;
+		} else if (regs->regs[0] == -ERESTART_RESTARTBLOCK) {
+			regs->pc -= 2;
+			regs->regs[3] = __NR_restart_syscall;
 		}
 	}
 	return 0;
