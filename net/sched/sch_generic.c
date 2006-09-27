@@ -45,11 +45,10 @@
    The idea is the following:
    - enqueue, dequeue are serialized via top level device
      spinlock dev->queue_lock.
-   - tree walking is protected by read_lock_bh(qdisc_tree_lock)
+   - tree walking is protected by read_lock(qdisc_tree_lock)
      and this lock is used only in process context.
-   - updates to tree are made under rtnl semaphore or
-     from softirq context (__qdisc_destroy rcu-callback)
-     hence this lock needs local bh disabling.
+   - updates to tree are made only under rtnl semaphore,
+     hence this lock may be made without local bh disabling.
 
    qdisc_tree_lock must be grabbed BEFORE dev->queue_lock!
  */
@@ -57,14 +56,14 @@ DEFINE_RWLOCK(qdisc_tree_lock);
 
 void qdisc_lock_tree(struct net_device *dev)
 {
-	write_lock_bh(&qdisc_tree_lock);
+	write_lock(&qdisc_tree_lock);
 	spin_lock_bh(&dev->queue_lock);
 }
 
 void qdisc_unlock_tree(struct net_device *dev)
 {
 	spin_unlock_bh(&dev->queue_lock);
-	write_unlock_bh(&qdisc_tree_lock);
+	write_unlock(&qdisc_tree_lock);
 }
 
 /* 
@@ -483,20 +482,6 @@ void qdisc_reset(struct Qdisc *qdisc)
 static void __qdisc_destroy(struct rcu_head *head)
 {
 	struct Qdisc *qdisc = container_of(head, struct Qdisc, q_rcu);
-	struct Qdisc_ops  *ops = qdisc->ops;
-
-#ifdef CONFIG_NET_ESTIMATOR
-	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
-#endif
-	write_lock(&qdisc_tree_lock);
-	if (ops->reset)
-		ops->reset(qdisc);
-	if (ops->destroy)
-		ops->destroy(qdisc);
-	write_unlock(&qdisc_tree_lock);
-	module_put(ops->owner);
-
-	dev_put(qdisc->dev);
 	kfree((char *) qdisc - qdisc->padded);
 }
 
@@ -504,32 +489,23 @@ static void __qdisc_destroy(struct rcu_head *head)
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
-	struct list_head cql = LIST_HEAD_INIT(cql);
-	struct Qdisc *cq, *q, *n;
+	struct Qdisc_ops  *ops = qdisc->ops;
 
 	if (qdisc->flags & TCQ_F_BUILTIN ||
-		!atomic_dec_and_test(&qdisc->refcnt))
+	    !atomic_dec_and_test(&qdisc->refcnt))
 		return;
 
-	if (!list_empty(&qdisc->list)) {
-		if (qdisc->ops->cl_ops == NULL)
-			list_del(&qdisc->list);
-		else
-			list_move(&qdisc->list, &cql);
-	}
+	list_del(&qdisc->list);
+#ifdef CONFIG_NET_ESTIMATOR
+	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
+#endif
+	if (ops->reset)
+		ops->reset(qdisc);
+	if (ops->destroy)
+		ops->destroy(qdisc);
 
-	/* unlink inner qdiscs from dev->qdisc_list immediately */
-	list_for_each_entry(cq, &cql, list)
-		list_for_each_entry_safe(q, n, &qdisc->dev->qdisc_list, list)
-			if (TC_H_MAJ(q->parent) == TC_H_MAJ(cq->handle)) {
-				if (q->ops->cl_ops == NULL)
-					list_del_init(&q->list);
-				else
-					list_move_tail(&q->list, &cql);
-			}
-	list_for_each_entry_safe(cq, n, &cql, list)
-		list_del_init(&cq->list);
-
+	module_put(ops->owner);
+	dev_put(qdisc->dev);
 	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
 
@@ -549,15 +525,15 @@ void dev_activate(struct net_device *dev)
 				printk(KERN_INFO "%s: activation failed\n", dev->name);
 				return;
 			}
-			write_lock_bh(&qdisc_tree_lock);
+			write_lock(&qdisc_tree_lock);
 			list_add_tail(&qdisc->list, &dev->qdisc_list);
-			write_unlock_bh(&qdisc_tree_lock);
+			write_unlock(&qdisc_tree_lock);
 		} else {
 			qdisc =  &noqueue_qdisc;
 		}
-		write_lock_bh(&qdisc_tree_lock);
+		write_lock(&qdisc_tree_lock);
 		dev->qdisc_sleeping = qdisc;
-		write_unlock_bh(&qdisc_tree_lock);
+		write_unlock(&qdisc_tree_lock);
 	}
 
 	if (!netif_carrier_ok(dev))
