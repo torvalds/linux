@@ -2,6 +2,8 @@
  * ld script to make SuperH Linux kernel
  * Written by Niibe Yutaka
  */
+#include <asm/thread_info.h>
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -40,16 +42,16 @@ SECTIONS
 	*(.data)
 
  	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
- 	 . = ALIGN(4096);
+ 	 . = ALIGN(PAGE_SIZE);
  	 __rd_start = .;
  	 *(.initrd)
- 	 . = ALIGN(4096);
+ 	 . = ALIGN(PAGE_SIZE);
  	 __rd_end = .;
 
 	CONSTRUCTORS
 	}
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : { *(.data.idt) }
 
   . = ALIGN(32);
@@ -60,10 +62,10 @@ SECTIONS
 
   _edata = .;			/* End of data section */
 
-  . = ALIGN(8192);		/* init_task */
+  . = ALIGN(THREAD_SIZE);		/* init_task */
   .data.init_task : { *(.data.init_task) }
 
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
   _sinittext = .;
   .init.text : { *(.init.text) }
@@ -94,7 +96,7 @@ SECTIONS
   __machvec_start = .;
   .init.machvec : { *(.init.machvec) }
   __machvec_end = .;
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
   . = ALIGN(4);

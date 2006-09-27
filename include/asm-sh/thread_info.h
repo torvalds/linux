@@ -29,6 +29,8 @@ struct thread_info {
 #endif
 
 #define PREEMPT_ACTIVE		0x10000000
+#define THREAD_SIZE		(PAGE_SIZE * 2)
+#define STACK_WARN		(THREAD_SIZE / 8)
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -49,8 +51,6 @@ struct thread_info {
 
 #define init_thread_info	(init_thread_union.thread_info)
 #define init_stack		(init_thread_union.stack)
-
-#define THREAD_SIZE (2*PAGE_SIZE)
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
@@ -73,8 +73,12 @@ static inline struct thread_info *current_thread_info(void)
 }
 
 /* thread information allocation */
-#define alloc_thread_info(ti) ((struct thread_info *) __get_free_pages(GFP_KERNEL,1))
-#define free_thread_info(ti) free_pages((unsigned long) (ti), 1)
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define alloc_thread_info(ti)	kzalloc(THREAD_SIZE, GFP_KERNEL)
+#else
+#define alloc_thread_info(ti)	kmalloc(THREAD_SIZE, GFP_KERNEL)
+#endif
+#define free_thread_info(ti)	kfree(ti)
 
 #else /* !__ASSEMBLY__ */
 

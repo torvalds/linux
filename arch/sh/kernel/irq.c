@@ -60,7 +60,6 @@ unlock:
 }
 #endif
 
-
 asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      unsigned long r6, unsigned long r7,
 		      struct pt_regs regs)
@@ -68,6 +67,22 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 	int irq = r4;
 
 	irq_enter();
+
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	/* Debugging check for stack overflow: is there less than 1KB free? */
+	{
+		long sp;
+
+		__asm__ __volatile__ ("and r15, %0" :
+					"=r" (sp) : "0" (THREAD_SIZE - 1));
+
+		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
+			printk("do_IRQ: stack overflow: %ld\n",
+			       sp - sizeof(struct thread_info));
+			dump_stack();
+		}
+	}
+#endif
 
 #ifdef CONFIG_CPU_HAS_INTEVT
 	__asm__ __volatile__ (
