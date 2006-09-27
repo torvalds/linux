@@ -1258,9 +1258,9 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 			len = vma->vm_end - addr;
 
 		/* only read or write mappings where it is permitted */
-		if (write && vma->vm_flags & VM_WRITE)
+		if (write && vma->vm_flags & VM_MAYWRITE)
 			len -= copy_to_user((void *) addr, buf, len);
-		else if (!write && vma->vm_flags & VM_READ)
+		else if (!write && vma->vm_flags & VM_MAYREAD)
 			len -= copy_from_user(buf, (void *) addr, len);
 		else
 			len = 0;
