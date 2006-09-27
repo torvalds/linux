@@ -221,22 +221,20 @@ void flush_cache_sigtramp(unsigned long addr)
 static inline void flush_cache_4096(unsigned long start,
 				    unsigned long phys)
 {
+	unsigned long flags, exec_offset = 0;
+
 	/*
 	 * All types of SH-4 require PC to be in P2 to operate on the I-cache.
 	 * Some types of SH-4 require PC to be in P2 to operate on the D-cache.
 	 */
 	if ((cpu_data->flags & CPU_HAS_P2_FLUSH_BUG) ||
-	    (start < CACHE_OC_ADDRESS_ARRAY)) {
-		unsigned long flags;
+	    (start < CACHE_OC_ADDRESS_ARRAY))
+	    	exec_offset = 0x20000000;
 
-		local_irq_save(flags);
-		__flush_cache_4096(start | SH_CACHE_ASSOC,
-				   P1SEGADDR(phys), 0x20000000);
-		local_irq_restore(flags);
-	} else {
-		__flush_cache_4096(start | SH_CACHE_ASSOC,
-				   P1SEGADDR(phys), 0);
-	}
+	local_irq_save(flags);
+	__flush_cache_4096(start | SH_CACHE_ASSOC,
+			   P1SEGADDR(phys), exec_offset);
+	local_irq_restore(flags);
 }
 
 /*
