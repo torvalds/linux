@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999, 2000  Niibe Yutaka
  *  Copyright (C) 2002  M. R. Brown
- *  Copyright (C) 2004  Paul Mundt
+ *  Copyright (C) 2004 - 2006  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -49,7 +49,7 @@ static int __init sh_console_setup(struct console *co, char *options)
 	return 0;
 }
 
-static struct console early_console = {
+static struct console bios_console = {
 	.name		= "bios",
 	.write		= sh_console_write,
 	.setup		= sh_console_setup,
@@ -59,34 +59,43 @@ static struct console early_console = {
 #endif
 
 #ifdef CONFIG_EARLY_SCIF_CONSOLE
+#include <linux/serial_core.h>
+#include "../../../drivers/serial/sh-sci.h"
+
+#ifdef CONFIG_CPU_SH4
 #define SCIF_REG	0xffe80000
+#elif defined(CONFIG_CPU_SUBTYPE_SH72060)
+#define SCIF_REG	0xfffe9800
+#else
+#error "Undefined SCIF for this subtype"
+#endif
+
+static struct uart_port scif_port = {
+	.mapbase	= SCIF_REG,
+	.membase	= (char __iomem *)SCIF_REG,
+};
 
 static void scif_sercon_putc(int c)
 {
-	while (!(ctrl_inw(SCIF_REG + 0x10) & 0x20)) ;
+	while (((sci_in(&scif_port, SCFDR) & 0x1f00 >> 8) == 16))
+		;
 
-	ctrl_outb(c, SCIF_REG + 12);
-	ctrl_outw((ctrl_inw(SCIF_REG + 0x10) & 0x9f), SCIF_REG + 0x10);
+	sci_out(&scif_port, SCxTDR, c);
+	sci_in(&scif_port, SCxSR);
+	sci_out(&scif_port, SCxSR, 0xf3 & ~(0x20 | 0x40));
+
+	while ((sci_in(&scif_port, SCxSR) & 0x40) == 0);
+		;
 
 	if (c == '\n')
 		scif_sercon_putc('\r');
 }
 
-static void scif_sercon_flush(void)
-{
-	ctrl_outw((ctrl_inw(SCIF_REG + 0x10) & 0xbf), SCIF_REG + 0x10);
-
-	while (!(ctrl_inw(SCIF_REG + 0x10) & 0x40)) ;
-
-	ctrl_outw((ctrl_inw(SCIF_REG + 0x10) & 0xbf), SCIF_REG + 0x10);
-}
-
-static void scif_sercon_write(struct console *con, const char *s, unsigned count)
+static void scif_sercon_write(struct console *con, const char *s,
+			      unsigned count)
 {
 	while (count-- > 0)
 		scif_sercon_putc(*s++);
-
-	scif_sercon_flush();
 }
 
 static int __init scif_sercon_setup(struct console *con, char *options)
@@ -96,7 +105,7 @@ static int __init scif_sercon_setup(struct console *con, char *options)
 	return 0;
 }
 
-static struct console early_console = {
+static struct console scif_console = {
 	.name		= "sercon",
 	.write		= scif_sercon_write,
 	.setup		= scif_sercon_setup,
@@ -104,7 +113,7 @@ static struct console early_console = {
 	.index		= -1,
 };
 
-void scif_sercon_init(int baud)
+static void scif_sercon_init(int baud)
 {
 	ctrl_outw(0, SCIF_REG + 8);
 	ctrl_outw(0, SCIF_REG);
@@ -122,16 +131,61 @@ void scif_sercon_init(int baud)
 }
 #endif
 
-void __init enable_early_printk(void)
-{
-#ifdef CONFIG_EARLY_SCIF_CONSOLE
-	scif_sercon_init(115200);
+/*
+ * Setup a default console, if more than one is compiled in, rely on the
+ * earlyprintk= parsing to give priority.
+ */
+static struct console *early_console =
+#ifdef CONFIG_SH_STANDARD_BIOS
+	&bios_console
+#elif defined(CONFIG_EARLY_SCIF_CONSOLE)
+	&scif_console
+#else
+	NULL
 #endif
-	register_console(&early_console);
-}
+	;
 
-void disable_early_printk(void)
+static int __initdata keep_early;
+
+int __init setup_early_printk(char *opt)
 {
-	unregister_console(&early_console);
-}
+	char *space;
+	char buf[256];
 
+	strlcpy(buf, opt, sizeof(buf));
+	space = strchr(buf, ' ');
+	if (space)
+		*space = 0;
+
+	if (strstr(buf, "keep"))
+		keep_early = 1;
+
+#ifdef CONFIG_SH_STANDARD_BIOS
+	if (!strncmp(buf, "bios", 4))
+		early_console = &bios_console;
+#endif
+#if defined(CONFIG_EARLY_SCIF_CONSOLE)
+	if (!strncmp(buf, "serial", 6)) {
+		early_console = &scif_console;
+
+#ifdef CONFIG_CPU_SH4
+		scif_sercon_init(115200);
+#endif
+	}
+#endif
+
+	if (likely(early_console))
+		register_console(early_console);
+
+	return 1;
+}
+__setup("earlyprintk=", setup_early_printk);
+
+void __init disable_early_printk(void)
+{
+	if (!keep_early) {
+		printk("disabling early console\n");
+		unregister_console(early_console);
+	} else
+		printk("keeping early console\n");
+}

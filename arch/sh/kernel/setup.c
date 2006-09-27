@@ -145,6 +145,24 @@ static inline void parse_cmdline (char ** cmdline_p, char mv_name[MV_NAME_SIZE],
 				memory_end = memory_start + mem_size;
 			}
 		}
+
+#ifdef CONFIG_EARLY_PRINTK
+		if (c == ' ' && !memcmp(from, "earlyprintk=", 12)) {
+			char *ep_end;
+
+			if (to != command_line)
+				to--;
+
+			from += 12;
+			ep_end = strchr(from, ' ');
+
+			setup_early_printk(from);
+			printk("early console enabled\n");
+
+			from = ep_end;
+		}
+#endif
+
 		if (c == ' ' && !memcmp(from, "sh_mv=", 6)) {
 			char* mv_end;
 			char* mv_comma;
@@ -245,11 +263,7 @@ void __init setup_arch(char **cmdline_p)
 	unsigned long bootmap_size;
 	unsigned long start_pfn, max_pfn, max_low_pfn;
 
-#ifdef CONFIG_EARLY_PRINTK
-	extern void enable_early_printk(void);
 
-	enable_early_printk();
-#endif
 #ifdef CONFIG_CMDLINE_BOOL
         strcpy(COMMAND_LINE, CONFIG_CMDLINE);
 #endif
