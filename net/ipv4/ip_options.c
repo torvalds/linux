@@ -38,7 +38,7 @@
  */
 
 void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
-			    u32 daddr, struct rtable *rt, int is_frag) 
+			    __be32 daddr, struct rtable *rt, int is_frag)
 {
 	unsigned char * iph = skb->nh.raw;
 
