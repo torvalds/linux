@@ -21,10 +21,8 @@
 #include <linux/pci.h>
 #include "../../../drivers/pci/pci-sh7751.h"
 
-extern void *area5_io8_base;	/* Area 5 8bit I/O Base address */
 extern void *area6_io8_base;	/* Area 6 8bit I/O Base address */
 extern void *area5_io16_base;	/* Area 5 16bit I/O Base address */
-extern void *area6_io16_base;	/* Area 6 16bit I/O Base address */
 
 /*
  * The 7751R HS7751RVoIP uses the built-in PCI controller (PCIC)
@@ -37,16 +35,10 @@ extern void *area6_io16_base;	/* Area 6 16bit I/O Base address */
 #define PCIMBR          (volatile long *)PCI_REG(SH7751_PCIMBR)
 #define PCI_IO_AREA	SH7751_PCI_IO_BASE
 #define PCI_MEM_AREA	SH7751_PCI_CONFIG_BASE
-
 #define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
 
-#if defined(CONFIG_HS7751RVOIP_CODEC)
 #define CODEC_IO_BASE	0x1000
-#endif
-
-#define maybebadio(name,port) \
-  printk("bad PC-like io %s for port 0x%lx at 0x%08x\n", \
-	 #name, (port), (__u32) __builtin_return_address(0))
+#define CODEC_IOMAP(a)	((unsigned long)area6_io8_base + ((a) - CODEC_IO_BASE))
 
 static inline void delay(void)
 {
@@ -61,7 +53,7 @@ static inline unsigned long port2adr(unsigned int port)
 		else
 			return ((unsigned long)area5_io16_base + 0x800 + ((port-0x1f0) << 1));
 	else
-		maybebadio(port2adr, (unsigned long)port);
+		maybebadio((unsigned long)port);
 	return port;
 }
 
@@ -109,15 +101,15 @@ codec_port(unsigned long port)
 unsigned char hs7751rvoip_inb(unsigned long port)
 {
 	if (PXSEG(port))
-		return *(volatile unsigned char *)port;
+		return ctrl_inb(port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		return *(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE));
+		return ctrl_inb(CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		return *(volatile unsigned char *)PCI_IOMAP(port);
+		return ctrl_inb(PCI_IOMAP(port));
 	else
-		return (*(volatile unsigned short *)port2adr(port) & 0xff);
+		return ctrl_inw(port2adr(port)) & 0xff;
 }
 
 unsigned char hs7751rvoip_inb_p(unsigned long port)
@@ -125,15 +117,15 @@ unsigned char hs7751rvoip_inb_p(unsigned long port)
 	unsigned char v;
 
         if (PXSEG(port))
-                v = *(volatile unsigned char *)port;
+		v = ctrl_inb(port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		v = *(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE));
+		v = ctrl_inb(CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-                v = *(volatile unsigned char *)PCI_IOMAP(port);
+		v = ctrl_inb(PCI_IOMAP(port));
 	else
-		v = (*(volatile unsigned short *)port2adr(port) & 0xff);
+		v = ctrl_inw(port2adr(port)) & 0xff;
 	delay();
 	return v;
 }
@@ -141,22 +133,22 @@ unsigned char hs7751rvoip_inb_p(unsigned long port)
 unsigned short hs7751rvoip_inw(unsigned long port)
 {
         if (PXSEG(port))
-                return *(volatile unsigned short *)port;
+		return ctrl_inw(port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-                return *(volatile unsigned short *)PCI_IOMAP(port);
+		return ctrl_inw(PCI_IOMAP(port));
 	else
-		maybebadio(inw, port);
+		maybebadio(port);
 	return 0;
 }
 
 unsigned int hs7751rvoip_inl(unsigned long port)
 {
         if (PXSEG(port))
-                return *(volatile unsigned long *)port;
+		return ctrl_inl(port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-                return *(volatile unsigned long *)PCI_IOMAP(port);
+		return ctrl_inl(PCI_IOMAP(port));
 	else
-		maybebadio(inl, port);
+		maybebadio(port);
 	return 0;
 }
 
@@ -164,137 +156,168 @@ void hs7751rvoip_outb(unsigned char value, unsigned long port)
 {
 
         if (PXSEG(port))
-                *(volatile unsigned char *)port = value;
+		ctrl_outb(value, port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		*(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
+		ctrl_outb(value, CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-        	*(unsigned char *)PCI_IOMAP(port) = value;
+		ctrl_outb(value, PCI_IOMAP(port));
 	else
-		*(volatile unsigned short *)port2adr(port) = value;
+		ctrl_outb(value, port2adr(port));
 }
 
 void hs7751rvoip_outb_p(unsigned char value, unsigned long port)
 {
         if (PXSEG(port))
-                *(volatile unsigned char *)port = value;
+		ctrl_outb(value, port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		*(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
+		ctrl_outb(value, CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-        	*(unsigned char *)PCI_IOMAP(port) = value;
+		ctrl_outb(value, PCI_IOMAP(port));
 	else
-		*(volatile unsigned short *)port2adr(port) = value;
+		ctrl_outw(value, port2adr(port));
+
 	delay();
 }
 
 void hs7751rvoip_outw(unsigned short value, unsigned long port)
 {
         if (PXSEG(port))
-                *(volatile unsigned short *)port = value;
+		ctrl_outw(value, port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-        	*(unsigned short *)PCI_IOMAP(port) = value;
+		ctrl_outw(value, PCI_IOMAP(port));
 	else
-		maybebadio(outw, port);
+		maybebadio(port);
 }
 
 void hs7751rvoip_outl(unsigned int value, unsigned long port)
 {
         if (PXSEG(port))
-                *(volatile unsigned long *)port = value;
+		ctrl_outl(value, port);
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-        	*((unsigned long *)PCI_IOMAP(port)) = value;
+		ctrl_outl(value, PCI_IOMAP(port));
 	else
-		maybebadio(outl, port);
+		maybebadio(port);
 }
 
 void hs7751rvoip_insb(unsigned long port, void *addr, unsigned long count)
 {
+	u8 *buf = addr;
+
 	if (PXSEG(port))
-		while (count--) *((unsigned char *) addr)++ = *(volatile unsigned char *)port;
+		while (count--)
+			*buf++ = ctrl_inb(port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		while (count--) *((unsigned char *) addr)++ = *(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE));
+		while (count--)
+			*buf++ = ctrl_inb(CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u8 *bp = (__u8 *)PCI_IOMAP(port);
+		volatile u8 *bp = (volatile u8 *)PCI_IOMAP(port);
 
-		while (count--) *((volatile unsigned char *) addr)++ = *bp;
+		while (count--)
+			*buf++ = *bp;
 	} else {
-		volatile __u16 *p = (volatile unsigned short *)port2adr(port);
+		volatile u16 *p = (volatile u16 *)port2adr(port);
 
-		while (count--) *((unsigned char *) addr)++ = *p & 0xff;
+		while (count--)
+			*buf++ = *p & 0xff;
 	}
 }
 
 void hs7751rvoip_insw(unsigned long port, void *addr, unsigned long count)
 {
-	volatile __u16 *p;
+	volatile u16 *p;
+	u16 *buf = addr;
 
 	if (PXSEG(port))
-		p = (volatile unsigned short *)port;
+		p = (volatile u16 *)port;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+		p = (volatile u16 *)PCI_IOMAP(port);
 	else
-		p = (volatile unsigned short *)port2adr(port);
-	while (count--) *((__u16 *) addr)++ = *p;
+		p = (volatile u16 *)port2adr(port);
+	while (count--)
+		*buf++ = *p;
 }
 
 void hs7751rvoip_insl(unsigned long port, void *addr, unsigned long count)
 {
-	if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u32 *p = (__u32 *)PCI_IOMAP(port);
 
-		while (count--) *((__u32 *) addr)++ = *p;
+	if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
+		volatile u32 *p = (volatile u32 *)PCI_IOMAP(port);
+		u32 *buf = addr;
+
+		while (count--)
+			*buf++ = *p;
 	} else
-		maybebadio(insl, port);
+		maybebadio(port);
 }
 
 void hs7751rvoip_outsb(unsigned long port, const void *addr, unsigned long count)
 {
+	const u8 *buf = addr;
+
 	if (PXSEG(port))
-		while (count--) *(volatile unsigned char *)port = *((unsigned char *) addr)++;
+		while (count--)
+			ctrl_outb(*buf++, port);
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		while (count--) *(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = *((unsigned char *) addr)++;
+		while (count--)
+			ctrl_outb(*buf++, CODEC_IOMAP(port));
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u8 *bp = (__u8 *)PCI_IOMAP(port);
+		volatile u8 *bp = (volatile u8 *)PCI_IOMAP(port);
 
-		while (count--) *bp = *((volatile unsigned char *) addr)++;
+		while (count--)
+			*bp = *buf++;
 	} else {
-		volatile __u16 *p = (volatile unsigned short *)port2adr(port);
+		volatile u16 *p = (volatile u16 *)port2adr(port);
 
-		while (count--) *p = *((unsigned char *) addr)++;
+		while (count--)
+			*p = *buf++;
 	}
 }
 
 void hs7751rvoip_outsw(unsigned long port, const void *addr, unsigned long count)
 {
-	volatile __u16 *p;
+	volatile u16 *p;
+	const u16 *buf = addr;
 
 	if (PXSEG(port))
-		p = (volatile unsigned short *)port;
+		p = (volatile u16 *)port;
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
-		p = (volatile unsigned short *)PCI_IOMAP(port);
+		p = (volatile u16 *)PCI_IOMAP(port);
 	else
-		p = (volatile unsigned short *)port2adr(port);
-	while (count--) *p = *((__u16 *) addr)++;
+		p = (volatile u16 *)port2adr(port);
+
+	while (count--)
+		*p = *buf++;
 }
 
 void hs7751rvoip_outsl(unsigned long port, const void *addr, unsigned long count)
 {
-	if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
-		volatile __u32 *p = (__u32 *)PCI_IOMAP(port);
+	const u32 *buf = addr;
 
-		while (count--) *p = *((__u32 *) addr)++;
+	if (CHECK_SH7751_PCIIO(port) || shifted_port(port)) {
+		volatile u32 *p = (volatile u32 *)PCI_IOMAP(port);
+
+		while (count--)
+			*p = *buf++;
 	} else
-		maybebadio(outsl, port);
+		maybebadio(port);
 }
 
-unsigned long hs7751rvoip_isa_port2addr(unsigned long offset)
+void __iomem *hs7751rvoip_ioport_map(unsigned long port, unsigned int size)
 {
-	return port2adr(offset);
+        if (PXSEG(port))
+                return (void __iomem *)port;
+	else if (unlikely(codec_port(port) && (size == 1)))
+		return (void __iomem *)CODEC_IOMAP(port);
+        else if (CHECK_SH7751_PCIIO(port))
+                return (void __iomem *)PCI_IOMAP(port);
+
+        return (void __iomem *)port2adr(port);
 }

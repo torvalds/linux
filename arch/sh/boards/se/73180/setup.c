@@ -11,8 +11,7 @@
 
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
-#include <asm/mach/io.h>
+#include <asm/se73180.h>
 
 void heartbeat_73180se(void);
 void init_73180se_IRQ(void);

@@ -10,7 +10,7 @@
  */
 
 #include <linux/sched.h>
-#include <asm/se/se.h>
+#include <asm/se.h>
 
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */
 void heartbeat_se(void)

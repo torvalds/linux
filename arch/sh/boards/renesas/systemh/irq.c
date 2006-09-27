@@ -15,7 +15,7 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <asm/io.h>
-#include <asm/mach/7751systemh.h>
+#include <asm/systemh7751.h>
 #include <asm/smc37c93x.h>
 
 /* address of external interrupt mask register

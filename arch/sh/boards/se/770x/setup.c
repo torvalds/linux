@@ -14,7 +14,7 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <asm/io.h>
-#include <asm/se/se.h>
+#include <asm/se.h>
 #include <asm/smc37c93x.h>
 
 /*

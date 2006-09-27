@@ -10,7 +10,8 @@
  */
 
 #include <linux/init.h>
-
+#include <linux/mm.h>
+#include <linux/vmalloc.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -32,8 +33,6 @@
 /* SH4 can't access PCMCIA interface through P2 area.
  * we must remap it with appropreate attribute bit of the page set.
  * this part is based on Greg Banks' hd64465_ss.c implementation - Masahiro Abe */
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
 
 #if defined(CONFIG_CF_AREA6)
 #define slot_no 0
@@ -84,7 +83,7 @@ static int __init cf_init_default(void)
 }
 
 #if defined(CONFIG_SH_SOLUTION_ENGINE)
-#include <asm/se/se.h>
+#include <asm/se.h>
 
 /*
  * SolutionEngine

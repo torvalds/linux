@@ -1,15 +1,12 @@
-#ifndef __ASM_SH_HITACHI_7751SE_H
-#define __ASM_SH_HITACHI_7751SE_H
+#ifndef __ASM_SH_HITACHI_SE_H
+#define __ASM_SH_HITACHI_SE_H
 
 /*
- * linux/include/asm-sh/hitachi_7751se.h
+ * linux/include/asm-sh/hitachi_se.h
  *
  * Copyright (C) 2000  Kazumoto Kojima
  *
  * Hitachi SolutionEngine support
-
- * Modified for 7751 Solution Engine by
- * Ian da Silva and Jeremy Siegel, 2001.
  */
 
 /* Box specific addresses.  */
@@ -31,16 +28,24 @@
 #define PA_EXT5_SIZE	0x04000000
 #define PA_PCIC		0x18000000	/* MR-SHPC-01 PCMCIA */
 
-#define PA_DIPSW0	0xb9000000	/* Dip switch 5,6 */
-#define PA_DIPSW1	0xb9000002	/* Dip switch 7,8 */
-#define PA_LED		0xba000000	/* LED */
-#define	PA_BCR		0xbb000000	/* FPGA on the MS7751SE01 */
+#define PA_83902	0xb0000000	/* DP83902A */
+#define PA_83902_IF	0xb0040000	/* DP83902A remote io port */
+#define PA_83902_RST	0xb0080000	/* DP83902A reset port */
 
-#define PA_MRSHPC	0xb83fffe0	/* MR-SHPC-01 PCMCIA controler */
+#define PA_SUPERIO	0xb0400000	/* SMC37C935A super io chip */
+#define PA_DIPSW0	0xb0800000	/* Dip switch 5,6 */
+#define PA_DIPSW1	0xb0800002	/* Dip switch 7,8 */
+#define PA_LED		0xb0c00000	/* LED */
+#if defined(CONFIG_CPU_SUBTYPE_SH7705)
+#define PA_BCR		0xb0e00000
+#else
+#define PA_BCR		0xb1400000	/* FPGA */
+#endif
+
+#define PA_MRSHPC	0xb83fffe0	/* MR-SHPC-01 PCMCIA controller */
 #define PA_MRSHPC_MW1	0xb8400000	/* MR-SHPC-01 memory window base */
 #define PA_MRSHPC_MW2	0xb8500000	/* MR-SHPC-01 attribute window base */
 #define PA_MRSHPC_IO	0xb8600000	/* MR-SHPC-01 I/O window base */
-#define MRSHPC_MODE     (PA_MRSHPC + 4)
 #define MRSHPC_OPTION   (PA_MRSHPC + 6)
 #define MRSHPC_CSR      (PA_MRSHPC + 8)
 #define MRSHPC_ISR      (PA_MRSHPC + 10)
@@ -63,6 +68,13 @@
 #define BCR_ILCRF	(PA_BCR + 10)
 #define BCR_ILCRG	(PA_BCR + 12)
 
-#define IRQ_79C973	13
+#if defined(CONFIG_CPU_SUBTYPE_SH7705)
+#define IRQ_STNIC   12
+#else
+#define IRQ_STNIC	10
+#endif
 
-#endif  /* __ASM_SH_HITACHI_7751SE_H */
+#define __IO_PREFIX	se
+#include <asm/io_generic.h>
+
+#endif  /* __ASM_SH_HITACHI_SE_H */

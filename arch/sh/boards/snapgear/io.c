@@ -28,38 +28,25 @@ unsigned short secureedge5410_ioport;
 /*
  * The SnapGear uses the built-in PCI controller (PCIC)
  * of the 7751 processor
- */ 
+ */
 
 #define PCIIOBR		(volatile long *)PCI_REG(SH7751_PCIIOBR)
 #define PCIMBR          (volatile long *)PCI_REG(SH7751_PCIMBR)
 #define PCI_IO_AREA	SH7751_PCI_IO_BASE
 #define PCI_MEM_AREA	SH7751_PCI_CONFIG_BASE
 
-
 #define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
-
-
-#define maybebadio(name,port) \
-  printk("bad PC-like io %s for port 0x%lx at 0x%08x\n", \
-	 #name, (port), (__u32) __builtin_return_address(0))
-
 
 static inline void delay(void)
 {
 	ctrl_inw(0xa0000000);
 }
 
-
 static inline volatile __u16 *port2adr(unsigned int port)
 {
-#if 0
-	if (port >= 0x2000)
-		return (volatile __u16 *) (PA_MRSHPC + (port - 0x2000));
-#endif
-	maybebadio(name,(unsigned long)port);
+	maybebadio((unsigned long)port);
 	return (volatile __u16*)port;
 }
-
 
 /* In case someone configures the kernel w/o PCI support: in that */
 /* scenario, don't ever bother to check for PCI-window addresses */
@@ -115,7 +102,7 @@ unsigned short snapgear_inw(unsigned long port)
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
-		maybebadio(inw, port);
+		maybebadio(port);
 	return 0;
 }
 
@@ -129,7 +116,7 @@ unsigned int snapgear_inl(unsigned long port)
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
-		maybebadio(inl, port);
+		maybebadio(port);
 	return 0;
 }
 
@@ -167,7 +154,7 @@ void snapgear_outw(unsigned short value, unsigned long port)
 	else if (port >= 0x2000)
 		*port2adr(port) = value;
 	else
-		maybebadio(outw, port);
+		maybebadio(port);
 }
 
 
@@ -178,49 +165,15 @@ void snapgear_outl(unsigned int value, unsigned long port)
 	else if (CHECK_SH7751_PCIIO(port))
 		*((unsigned long*)PCI_IOMAP(port)) = value;
 	else
-		maybebadio(outl, port);
+		maybebadio(port);
 }
 
 void snapgear_insl(unsigned long port, void *addr, unsigned long count)
 {
-	maybebadio(insl, port);
+	maybebadio(port);
 }
 
 void snapgear_outsl(unsigned long port, const void *addr, unsigned long count)
 {
-	maybebadio(outsw, port);
-}
-
-/* Map ISA bus address to the real address. Only for PCMCIA.  */
-
-
-/* ISA page descriptor.  */
-static __u32 sh_isa_memmap[256];
-
-
-#if 0
-static int sh_isa_mmap(__u32 start, __u32 length, __u32 offset)
-{
-	int idx;
-
-	if (start >= 0x100000 || (start & 0xfff) || (length != 0x1000))
-		return -1;
-
-	idx = start >> 12;
-	sh_isa_memmap[idx] = 0xb8000000 + (offset &~ 0xfff);
-#if 0
-	printk("sh_isa_mmap: start %x len %x offset %x (idx %x paddr %x)\n",
-	       start, length, offset, idx, sh_isa_memmap[idx]);
-#endif
-	return 0;
-}
-#endif
-
-unsigned long snapgear_isa_port2addr(unsigned long offset)
-{
-	int idx;
-
-	idx = (offset >> 12) & 0xff;
-	offset &= 0xfff;
-	return sh_isa_memmap[idx] + offset;
+	maybebadio(port);
 }

@@ -7,22 +7,19 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <linux/hdreg.h>
-#include <linux/ide.h>
 #include <asm/io.h>
+#include <asm/rtc.h>
 #include <asm/sh03/io.h>
 #include <asm/sh03/sh03.h>
 #include <asm/addrspace.h>
 #include "../../drivers/pci/pci-sh7751.h"
-
-extern void (*board_time_init)(void);
 
 const char *get_system_type(void)
 {
 	return "Interface CTP/PCI-SH03)";
 }
 
-void init_sh03_IRQ(void)
+static void init_sh03_IRQ(void)
 {
 	ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
 
@@ -34,24 +31,20 @@ void init_sh03_IRQ(void)
 
 extern void *cf_io_base;
 
-unsigned long sh03_isa_port2addr(unsigned long port)
+static void __iomem *sh03_ioport_map(unsigned long port, unsigned int size)
 {
 	if (PXSEG(port))
-		return port;
+		return (void __iomem *)port;
 	/* CompactFlash (IDE) */
-	if (((port >= 0x1f0) && (port <= 0x1f7)) || (port == 0x3f6)) {
-		return (unsigned long)cf_io_base + port;
-	}
-        return port + SH7751_PCI_IO_BASE;
-}
+	if (((port >= 0x1f0) && (port <= 0x1f7)) || (port == 0x3f6))
+		return (void __iomem *)((unsigned long)cf_io_base + port);
 
-/*
- * The Machine Vector
- */
+        return (void __iomem *)(port + SH7751_PCI_IO_BASE);
+}
 
 struct sh_machine_vector mv_sh03 __initmv = {
 	.mv_nr_irqs		= 48,
-	.mv_isa_port2addr	= sh03_isa_port2addr,
+	.mv_ioport_map		= sh03_ioport_map,
 	.mv_init_irq		= init_sh03_IRQ,
 
 #ifdef CONFIG_HEARTBEAT

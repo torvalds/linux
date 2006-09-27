@@ -13,12 +13,9 @@
 
 #include <asm/machvec.h>
 #include <asm/rtc.h>
-#include <asm/machvec_init.h>
-
-#include <asm/se/io.h>
+#include <asm/se.h>
 
 void heartbeat_se(void);
-void setup_se(void);
 void init_se_IRQ(void);
 
 /*
@@ -56,8 +53,6 @@ struct sh_machine_vector mv_se __initmv = {
 	.mv_outsb		= se_outsb,
 	.mv_outsw		= se_outsw,
 	.mv_outsl		= se_outsl,
-
-	.mv_isa_port2addr	= se_isa_port2addr,
 
 	.mv_init_irq		= init_se_IRQ,
 #ifdef CONFIG_HEARTBEAT

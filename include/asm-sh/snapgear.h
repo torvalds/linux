@@ -40,21 +40,8 @@
 #define IRL3_PRIORITY	4
 #endif
 
-extern unsigned char snapgear_inb(unsigned long port);
-extern unsigned short snapgear_inw(unsigned long port);
-extern unsigned int snapgear_inl(unsigned long port);
-
-extern void snapgear_outb(unsigned char value, unsigned long port);
-extern void snapgear_outw(unsigned short value, unsigned long port);
-extern void snapgear_outl(unsigned int value, unsigned long port);
-
-extern unsigned char snapgear_inb_p(unsigned long port);
-extern void snapgear_outb_p(unsigned char value, unsigned long port);
-
-extern void snapgear_insl(unsigned long port, void *addr, unsigned long count);
-extern void snapgear_outsl(unsigned long port, const void *addr, unsigned long count);
-
-extern unsigned long snapgear_isa_port2addr(unsigned long offset);
+#define __IO_PREFIX	snapgear
+#include <asm/io_generic.h>
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 /*
@@ -79,14 +66,14 @@ extern unsigned long snapgear_isa_port2addr(unsigned long offset);
  * D12        -                      RTS RESET
  */
 
- #define SECUREEDGE_IOPORT_ADDR ((volatile short *) 0xb0000000)
- extern unsigned short secureedge5410_ioport;
+#define SECUREEDGE_IOPORT_ADDR ((volatile short *) 0xb0000000)
+extern unsigned short secureedge5410_ioport;
 
- #define SECUREEDGE_WRITE_IOPORT(val, mask) (*SECUREEDGE_IOPORT_ADDR = \
-		 (secureedge5410_ioport = \
-		 		((secureedge5410_ioport & ~(mask)) | ((val) & (mask)))))
- #define SECUREEDGE_READ_IOPORT() \
- 		 ((*SECUREEDGE_IOPORT_ADDR&0x0817) | (secureedge5410_ioport&~0x0817))
+#define SECUREEDGE_WRITE_IOPORT(val, mask) (*SECUREEDGE_IOPORT_ADDR = \
+	 (secureedge5410_ioport = \
+			((secureedge5410_ioport & ~(mask)) | ((val) & (mask)))))
+#define SECUREEDGE_READ_IOPORT() \
+	 ((*SECUREEDGE_IOPORT_ADDR&0x0817) | (secureedge5410_ioport&~0x0817))
 #endif
 
 #endif /* _ASM_SH_IO_SNAPGEAR_H */

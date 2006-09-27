@@ -111,10 +111,7 @@ machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
 
-incdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se
 incdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se7751
-incdir-$(CONFIG_SH_7300_SOLUTION_ENGINE)        := se7300
-incdir-$(CONFIG_SH_73180_SOLUTION_ENGINE)	:= se73180
 incdir-$(CONFIG_SH_HP6XX)			:= hp6xx
 
 ifneq ($(machdir-y),)

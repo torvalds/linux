@@ -1,15 +1,15 @@
-#ifndef __ASM_SH_SYSTEMH_7751SYSTEMH_H
-#define __ASM_SH_SYSTEMH_7751SYSTEMH_H
+#ifndef __ASM_SH_HITACHI_7751SE_H
+#define __ASM_SH_HITACHI_7751SE_H
 
 /*
- * linux/include/asm-sh/systemh/7751systemh.h
+ * linux/include/asm-sh/hitachi_7751se.h
  *
  * Copyright (C) 2000  Kazumoto Kojima
  *
- * Hitachi SystemH support
+ * Hitachi SolutionEngine support
 
- * Modified for 7751 SystemH by
- * Jonathan Short, 2002.
+ * Modified for 7751 Solution Engine by
+ * Ian da Silva and Jeremy Siegel, 2001.
  */
 
 /* Box specific addresses.  */
@@ -65,4 +65,7 @@
 
 #define IRQ_79C973	13
 
-#endif  /* __ASM_SH_SYSTEMH_7751SYSTEMH_H */
+#define __IO_PREFIX	sh7751se
+#include <asm/io_generic.h>
+
+#endif  /* __ASM_SH_HITACHI_7751SE_H */

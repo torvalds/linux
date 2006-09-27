@@ -30,10 +30,10 @@ static inline void delay(void)
         ctrl_inw(0xa0000000);
 }
 
-static inline volatile u16 *port2adr(unsigned int port)
+static inline unsigned int port2adr(unsigned int port)
 {
         maybebadio((unsigned long)port);
-        return (volatile u16*)port;
+        return port;
 }
 
 u8 titan_inb(unsigned long port)

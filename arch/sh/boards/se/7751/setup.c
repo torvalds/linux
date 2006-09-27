@@ -1,4 +1,4 @@
-/* 
+/*
  * linux/arch/sh/kernel/setup_7751se.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
@@ -11,11 +11,9 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
-
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <asm/io.h>
-#include <asm/se7751/se7751.h>
+#include <asm/se7751.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>

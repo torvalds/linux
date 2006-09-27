@@ -8,9 +8,8 @@
  *
  * This file contains Solution Engine specific LED code.
  */
-
-#include <asm/se7751/se7751.h>
 #include <linux/sched.h>
+#include <asm/se7751.h>
 
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */
 void heartbeat_7751se(void)

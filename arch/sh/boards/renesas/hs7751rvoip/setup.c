@@ -17,9 +17,8 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/pm.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
-#include <asm/hs7751rvoip/io.h>
 #include <asm/io.h>
+#include <asm/hs7751rvoip/hs7751rvoip.h>
 #include <asm/machvec.h>
 #include <asm/rtc.h>
 #include <asm/irq.h>
@@ -60,8 +59,8 @@ struct sh_machine_vector mv_hs7751rvoip __initmv = {
 	.mv_outsw		= hs7751rvoip_outsw,
 	.mv_outsl		= hs7751rvoip_outsl,
 
-	.mv_isa_port2addr	= hs7751rvoip_isa_port2addr,
 	.mv_init_irq		= hs7751rvoip_init_irq,
+	.mv_ioport_map		= hs7751rvoip_ioport_map,
 };
 ALIAS_MV(hs7751rvoip)
 

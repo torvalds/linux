@@ -9,8 +9,7 @@
 
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
-#include <asm/mach/io.h>
+#include <asm/se7300.h>
 
 void heartbeat_7300se(void);
 void init_7300se_IRQ(void);

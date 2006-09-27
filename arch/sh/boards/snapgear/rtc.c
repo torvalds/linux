@@ -17,10 +17,7 @@
 #include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/mc146818rtc.h>
-
 #include <asm/io.h>
-#include <asm/rtc.h>
-#include <asm/mc146818rtc.h>
 
 /****************************************************************************/
 

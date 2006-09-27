@@ -1,12 +1,12 @@
-#ifndef __ASM_SH_HITACHI_SE73180_H
-#define __ASM_SH_HITACHI_SE73180_H
+#ifndef __ASM_SH_HITACHI_SE7300_H
+#define __ASM_SH_HITACHI_SE7300_H
 
 /*
- * include/asm-sh/se/se73180.h
+ * linux/include/asm-sh/se/se7300.h
  *
  * Copyright (C) 2003 Takashi Kusuda <kusuda-takashi@hitachi-ul.co.jp>
  *
- * SH-Mobile SolutionEngine 73180 support
+ * SH-Mobile SolutionEngine 7300 support
  */
 
 /* Box specific addresses.  */
@@ -46,8 +46,7 @@
 #define MRSHPC_IOWCR2   (PA_MRSHPC + 26)
 #define MRSHPC_CDCR     (PA_MRSHPC + 28)
 #define MRSHPC_PCIC_INFO (PA_MRSHPC + 30)
-#define PA_LED		0xb0C00000	/* LED */
-#define LED_SHIFT       0
+#define PA_LED		0xb0800000	/* LED */
 #define PA_DIPSW	0xb0900000	/* Dip switch 31 */
 #define PA_EPLD_MODESET	0xb0a00000	/* FPGA Mode set register */
 #define PA_EPLD_ST1	0xb0a80000	/* FPGA Interrupt status register1 */
@@ -59,4 +58,7 @@
 #define PA_LCD1		0xb8000000
 #define PA_LCD2		0xb8800000
 
-#endif  /* __ASM_SH_HITACHI_SE73180_H */
+#define __IO_PREFIX	sh7300se
+#include <asm/io_generic.h>
+
+#endif  /* __ASM_SH_HITACHI_SE7300_H */

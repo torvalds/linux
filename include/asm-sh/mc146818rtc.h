@@ -24,7 +24,7 @@
 #define CMOS_WRITE(val,addr)	__CMOS_WRITE(val,addr,b)
 
 #elif defined(CONFIG_SH_SECUREEDGE5410)
-#include <asm/snapgear/io.h>
+#include <asm/snapgear.h>
 
 #define RTC_PORT(n)             SECUREEDGE_IOPORT_ADDR
 #define CMOS_READ(addr)         secureedge5410_cmos_read(addr)

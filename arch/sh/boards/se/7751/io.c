@@ -1,4 +1,4 @@
-/* 
+/*
  * linux/arch/sh/kernel/io_7751se.c
  *
  * Copyright (C) 2001  Ian da Silva, Jeremy Siegel
@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/io.h>
-#include <asm/se7751/se7751.h>
+#include <asm/se7751.h>
 #include <asm/addrspace.h>
 
 #include <linux/pci.h>
@@ -52,10 +52,6 @@ int sh_pcic_io_dummy;
 
 #define PCI_IOMAP(adr)	(PCI_IO_AREA + (adr & ~SH7751_PCIIOBR_MASK))
 
-#define maybebadio(name,port) \
-  printk("bad PC-like io %s for port 0x%lx at 0x%08x\n", \
-	 #name, (port), (__u32) __builtin_return_address(0))
-
 static inline void delay(void)
 {
 	ctrl_inw(0xa0000000);
@@ -66,11 +62,7 @@ port2adr(unsigned int port)
 {
 	if (port >= 0x2000)
 		return (volatile __u16 *) (PA_MRSHPC + (port - 0x2000));
-#if 0
-	else
-		return (volatile __u16 *) (PA_SUPERIO + (port << 1));
-#endif
-	maybebadio(name,(unsigned long)port);
+	maybebadio((unsigned long)port);
 	return (volatile __u16*)port;
 }
 
@@ -140,7 +132,7 @@ unsigned short sh7751se_inw(unsigned long port)
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
-		maybebadio(inw, port);
+		maybebadio(port);
 	return 0;
 }
 
@@ -153,7 +145,7 @@ unsigned int sh7751se_inl(unsigned long port)
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
-		maybebadio(inl, port);
+		maybebadio(port);
 	return 0;
 }
 
@@ -188,7 +180,7 @@ void sh7751se_outw(unsigned short value, unsigned long port)
 	else if (port >= 0x2000)
 		*port2adr(port) = value;
 	else
-		maybebadio(outw, port);
+		maybebadio(port);
 }
 
 void sh7751se_outl(unsigned int value, unsigned long port)
@@ -198,17 +190,17 @@ void sh7751se_outl(unsigned int value, unsigned long port)
 	else if (CHECK_SH7751_PCIIO(port))
         	*((unsigned long*)PCI_IOMAP(port)) = value;
 	else
-		maybebadio(outl, port);
+		maybebadio(port);
 }
 
 void sh7751se_insl(unsigned long port, void *addr, unsigned long count)
 {
-	maybebadio(insl, port);
+	maybebadio(port);
 }
 
 void sh7751se_outsl(unsigned long port, const void *addr, unsigned long count)
 {
-	maybebadio(outsw, port);
+	maybebadio(port);
 }
 
 /* Map ISA bus address to the real address. Only for PCMCIA.  */

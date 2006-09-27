@@ -10,12 +10,8 @@
  */
 
 #include <linux/init.h>
-
 #include <asm/machvec.h>
-#include <asm/rtc.h>
-#include <asm/machvec_init.h>
-
-#include <asm/se7751/io.h>
+#include <asm/se7751.h>
 
 void heartbeat_7751se(void);
 void init_7751se_IRQ(void);
@@ -43,8 +39,6 @@ struct sh_machine_vector mv_7751se __initmv = {
 
 	.mv_insl		= sh7751se_insl,
 	.mv_outsl		= sh7751se_outsl,
-
-	.mv_isa_port2addr	= sh7751se_isa_port2addr,
 
 	.mv_init_irq		= init_7751se_IRQ,
 #ifdef CONFIG_HEARTBEAT
