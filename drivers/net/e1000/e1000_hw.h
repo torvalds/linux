@@ -92,11 +92,11 @@ typedef enum {
 
 /* Flow Control Settings */
 typedef enum {
-    e1000_fc_none = 0,
-    e1000_fc_rx_pause = 1,
-    e1000_fc_tx_pause = 2,
-    e1000_fc_full = 3,
-    e1000_fc_default = 0xFF
+    E1000_FC_NONE = 0,
+    E1000_FC_RX_PAUSE = 1,
+    E1000_FC_TX_PAUSE = 2,
+    E1000_FC_FULL = 3,
+    E1000_FC_DEFAULT = 0xFF
 } e1000_fc_type;
 
 struct e1000_shadow_ram {

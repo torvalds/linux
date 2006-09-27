@@ -396,17 +396,17 @@ e1000_check_options(struct e1000_adapter *adapter)
 	{ /* Flow Control */
 
 		struct e1000_opt_list fc_list[] =
-			{{ e1000_fc_none,    "Flow Control Disabled" },
-			 { e1000_fc_rx_pause,"Flow Control Receive Only" },
-			 { e1000_fc_tx_pause,"Flow Control Transmit Only" },
-			 { e1000_fc_full,    "Flow Control Enabled" },
-			 { e1000_fc_default, "Flow Control Hardware Default" }};
+			{{ E1000_FC_NONE,    "Flow Control Disabled" },
+			 { E1000_FC_RX_PAUSE,"Flow Control Receive Only" },
+			 { E1000_FC_TX_PAUSE,"Flow Control Transmit Only" },
+			 { E1000_FC_FULL,    "Flow Control Enabled" },
+			 { E1000_FC_DEFAULT, "Flow Control Hardware Default" }};
 
 		struct e1000_option opt = {
 			.type = list_option,
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",
-			.def  = e1000_fc_default,
+			.def  = E1000_FC_DEFAULT,
 			.arg  = { .l = { .nr = ARRAY_SIZE(fc_list),
 					 .p = fc_list }}
 		};

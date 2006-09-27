@@ -228,11 +228,11 @@ e1000_get_pauseparam(struct net_device *netdev,
 	pause->autoneg =
 		(adapter->fc_autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	if (hw->fc == e1000_fc_rx_pause)
+	if (hw->fc == E1000_FC_RX_PAUSE)
 		pause->rx_pause = 1;
-	else if (hw->fc == e1000_fc_tx_pause)
+	else if (hw->fc == E1000_FC_TX_PAUSE)
 		pause->tx_pause = 1;
-	else if (hw->fc == e1000_fc_full) {
+	else if (hw->fc == E1000_FC_FULL) {
 		pause->rx_pause = 1;
 		pause->tx_pause = 1;
 	}
@@ -252,13 +252,13 @@ e1000_set_pauseparam(struct net_device *netdev,
 		msleep(1);
 
 	if (pause->rx_pause && pause->tx_pause)
-		hw->fc = e1000_fc_full;
+		hw->fc = E1000_FC_FULL;
 	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc = e1000_fc_rx_pause;
+		hw->fc = E1000_FC_RX_PAUSE;
 	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc = e1000_fc_tx_pause;
+		hw->fc = E1000_FC_TX_PAUSE;
 	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc = e1000_fc_none;
+		hw->fc = E1000_FC_NONE;
 
 	hw->original_fc = hw->fc;
 
