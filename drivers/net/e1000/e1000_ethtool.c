@@ -646,8 +646,8 @@ e1000_set_ringparam(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	e1000_mac_type mac_type = adapter->hw.mac_type;
-	struct e1000_tx_ring *txdr, *tx_old, *tx_new;
-	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
+	struct e1000_tx_ring *txdr, *tx_old;
+	struct e1000_rx_ring *rxdr, *rx_old;
 	int i, err, tx_ring_size, rx_ring_size;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -665,23 +665,17 @@ e1000_set_ringparam(struct net_device *netdev,
 	tx_old = adapter->tx_ring;
 	rx_old = adapter->rx_ring;
 
-	adapter->tx_ring = kmalloc(tx_ring_size, GFP_KERNEL);
-	if (!adapter->tx_ring) {
-		err = -ENOMEM;
-		goto err_setup_rx;
-	}
-	memset(adapter->tx_ring, 0, tx_ring_size);
+	err = -ENOMEM;
+	txdr = kzalloc(tx_ring_size, GFP_KERNEL);
+	if (!txdr)
+		goto err_alloc_tx;
 
-	adapter->rx_ring = kmalloc(rx_ring_size, GFP_KERNEL);
-	if (!adapter->rx_ring) {
-		kfree(adapter->tx_ring);
-		err = -ENOMEM;
-		goto err_setup_rx;
-	}
-	memset(adapter->rx_ring, 0, rx_ring_size);
+	rxdr = kzalloc(rx_ring_size, GFP_KERNEL);
+	if (!rxdr)
+		goto err_alloc_rx;
 
-	txdr = adapter->tx_ring;
-	rxdr = adapter->rx_ring;
+	adapter->tx_ring = txdr;
+	adapter->rx_ring = rxdr;
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
@@ -708,16 +702,14 @@ e1000_set_ringparam(struct net_device *netdev,
 		/* save the new, restore the old in order to free it,
 		 * then restore the new back again */
 
-		rx_new = adapter->rx_ring;
-		tx_new = adapter->tx_ring;
 		adapter->rx_ring = rx_old;
 		adapter->tx_ring = tx_old;
 		e1000_free_all_rx_resources(adapter);
 		e1000_free_all_tx_resources(adapter);
 		kfree(tx_old);
 		kfree(rx_old);
-		adapter->rx_ring = rx_new;
-		adapter->tx_ring = tx_new;
+		adapter->rx_ring = rxdr;
+		adapter->tx_ring = txdr;
 		if ((err = e1000_up(adapter)))
 			goto err_setup;
 	}
@@ -729,6 +721,10 @@ err_setup_tx:
 err_setup_rx:
 	adapter->rx_ring = rx_old;
 	adapter->tx_ring = tx_old;
+	kfree(rxdr);
+err_alloc_rx:
+	kfree(txdr);
+err_alloc_tx:
 	e1000_up(adapter);
 err_setup:
 	clear_bit(__E1000_RESETTING, &adapter->flags);
