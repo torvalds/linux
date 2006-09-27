@@ -30,13 +30,13 @@ struct fib_config {
 	u8			fc_type;
 	/* 1 byte unused */
 	u32			fc_table;
-	u32			fc_dst;
-	u32			fc_src;
-	u32			fc_gw;
+	__be32			fc_dst;
+	__be32			fc_src;
+	__be32			fc_gw;
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
-	u32			fc_prefsrc;
+	__be32			fc_prefsrc;
 	struct nlattr		*fc_mx;
 	struct rtnexthop	*fc_mp;
 	int			fc_mx_len;

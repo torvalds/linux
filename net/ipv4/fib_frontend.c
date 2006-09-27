@@ -273,7 +273,7 @@ static int put_rtax(struct nlattr *mx, int len, int type, u32 value)
 static int rtentry_to_fib_config(int cmd, struct rtentry *rt,
 				 struct fib_config *cfg)
 {
-	u32 addr;
+	__be32 addr;
 	int plen;
 
 	memset(cfg, 0, sizeof(*cfg));
