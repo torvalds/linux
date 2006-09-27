@@ -63,7 +63,7 @@ struct fib_nh {
 	__u32			nh_tclassid;
 #endif
 	int			nh_oif;
-	u32			nh_gw;
+	__be32			nh_gw;
 };
 
 /*
