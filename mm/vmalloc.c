@@ -272,7 +272,7 @@ static struct vm_struct *__find_vm_area(void *addr)
 }
 
 /* Caller must hold vmlist_lock */
-struct vm_struct *__remove_vm_area(void *addr)
+static struct vm_struct *__remove_vm_area(void *addr)
 {
 	struct vm_struct **p, *tmp;
 
