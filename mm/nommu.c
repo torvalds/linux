@@ -129,16 +129,20 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	struct page **pages, struct vm_area_struct **vmas)
 {
 	int i;
-	static struct vm_area_struct dummy_vma;
+	struct vm_area_struct *vma;
 
 	for (i = 0; i < len; i++) {
+		vma = find_vma(mm, start);
+		if(!vma)
+			return i ? : -EFAULT;
+
 		if (pages) {
 			pages[i] = virt_to_page(start);
 			if (pages[i])
 				page_cache_get(pages[i]);
 		}
 		if (vmas)
-			vmas[i] = &dummy_vma;
+			vmas[i] = vma;
 		start += PAGE_SIZE;
 	}
 	return(i);
