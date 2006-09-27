@@ -598,12 +598,10 @@ config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 	depends on ARCH_SPARSEMEM_ENABLE
 
-source "mm/Kconfig"
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
 
-config HAVE_ARCH_EARLY_PFN_TO_NID
-	bool
-	default y
-	depends on NUMA
+source "mm/Kconfig"
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
