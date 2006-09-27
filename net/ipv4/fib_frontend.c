@@ -122,7 +122,7 @@ static void fib_flush(void)
  *	Find the first device with a given source address.
  */
 
-struct net_device * ip_dev_find(u32 addr)
+struct net_device * ip_dev_find(__be32 addr)
 {
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
 	struct fib_result res;
