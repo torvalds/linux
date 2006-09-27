@@ -2282,6 +2282,7 @@ struct tg3 {
 #define PHY_ID_BCM5780			0x60008350
 #define PHY_ID_BCM5755			0xbc050cc0
 #define PHY_ID_BCM5787			0xbc050ce0
+#define PHY_ID_BCM5756			0xbc050ed0
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
 #define PHY_ID_REV_MASK			0x0000000f
@@ -2308,7 +2309,8 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
 	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
 	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM5787 || \
-	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM8002)
+	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM5756 || \
+	 (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
