@@ -248,7 +248,7 @@ static inline unsigned int fib_devindex_hashfn(unsigned int val)
    Used only by redirect accept routine.
  */
 
-int ip_fib_check_default(u32 gw, struct net_device *dev)
+int ip_fib_check_default(__be32 gw, struct net_device *dev)
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
