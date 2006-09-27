@@ -24,9 +24,10 @@
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
-
+#include <linux/mm.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/cpu/sq.h>
 

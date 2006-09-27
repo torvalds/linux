@@ -117,6 +117,8 @@ EXPORT_SYMBOL(synchronize_irq);
 #endif
 
 EXPORT_SYMBOL(csum_partial);
+#ifdef CONFIG_IPV6
 EXPORT_SYMBOL(csum_ipv6_magic);
+#endif
 EXPORT_SYMBOL(consistent_sync);
 EXPORT_SYMBOL(clear_page);

@@ -159,6 +159,7 @@ static __inline__ unsigned short ip_compute_csum(unsigned char * buff, int len)
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
+#ifdef CONFIG_IPV6
 static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 						     struct in6_addr *daddr,
 						     __u32 len,
@@ -194,6 +195,7 @@ static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 
 	return csum_fold(sum);
 }
+#endif
 
 /* 
  *	Copy and checksum to user

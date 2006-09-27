@@ -25,18 +25,16 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/rtc.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
 #include <asm/mach/sysasic.h>
 
 extern struct hw_interrupt_type systemasic_int;
-/* XXX: Move this into it's proper header. */
-extern void (*board_time_init)(void);
 extern void aica_time_init(void);
 extern int gapspci_init(void);
 extern int systemasic_irq_demux(int);
 
-void *dreamcast_consistent_alloc(struct device *, size_t, dma_addr_t *, int);
+void *dreamcast_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
 int dreamcast_consistent_free(struct device *, size_t, void *, dma_addr_t);
 
 const char *get_system_type(void)

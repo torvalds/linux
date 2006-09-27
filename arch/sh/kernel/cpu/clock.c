@@ -225,7 +225,7 @@ int __init clk_init(void)
 {
 	int i, ret = 0;
 
-	BUG_ON(unlikely(!master_clk.rate));
+	BUG_ON(!master_clk.rate);
 
 	for (i = 0; i < ARRAY_SIZE(onchip_clocks); i++) {
 		struct clk *clk = onchip_clocks[i];

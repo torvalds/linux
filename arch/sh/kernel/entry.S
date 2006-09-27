@@ -18,24 +18,6 @@
 #include <asm/cpu/mmu_context.h>
 #include <asm/unistd.h>
 
-#if !defined(CONFIG_NFSD) && !defined(CONFIG_NFSD_MODULE)
-#define sys_nfsservctl		sys_ni_syscall
-#endif
-
-#if !defined(CONFIG_MMU)
-#define sys_madvise		sys_ni_syscall
-#define sys_readahead		sys_ni_syscall
-#define sys_mprotect		sys_ni_syscall
-#define sys_msync		sys_ni_syscall
-#define sys_mlock		sys_ni_syscall
-#define sys_munlock		sys_ni_syscall
-#define sys_mlockall		sys_ni_syscall
-#define sys_munlockall		sys_ni_syscall
-#define sys_mremap		sys_ni_syscall
-#define sys_mincore		sys_ni_syscall
-#define sys_remap_file_pages	sys_ni_syscall
-#endif
-
 ! NOTE:
 ! GNU as (as of 2.9.1) changes bf/s into bt/s and bra, when the address
 ! to be jumped is too far, but it causes illegal slot exception.

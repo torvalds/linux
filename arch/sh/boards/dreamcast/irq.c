@@ -26,10 +26,10 @@
    event.
 
    There are three 32-bit ESRs located at 0xa05f8900 - 0xa05f6908.  Event
-   types can be found in include/asm-sh/dc_sysasic.h.  There are three groups
-   of EMRs that parallel the ESRs.  Each EMR group corresponds to an IRQ, so
-   0xa05f6910 - 0xa05f6918 triggers IRQ 13, 0xa05f6920 - 0xa05f6928 triggers
-   IRQ 11, and 0xa05f6930 - 0xa05f6938 triggers IRQ 9.
+   types can be found in include/asm-sh/dreamcast/sysasic.h. There are three
+   groups of EMRs that parallel the ESRs.  Each EMR group corresponds to an
+   IRQ, so 0xa05f6910 - 0xa05f6918 triggers IRQ 13, 0xa05f6920 - 0xa05f6928
+   triggers IRQ 11, and 0xa05f6930 - 0xa05f6938 triggers IRQ 9.
 
    In the kernel, these events are mapped to virtual IRQs so that drivers can
    respond to them as they would a normal interrupt.  In order to keep this

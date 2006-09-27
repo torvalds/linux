@@ -125,7 +125,6 @@ static void sh_wdt_start(void)
 
 /**
  * 	sh_wdt_stop - Stop the Watchdog
- *
  * 	Stops the watchdog.
  */
 static void sh_wdt_stop(void)
@@ -141,22 +140,20 @@ static void sh_wdt_stop(void)
 
 /**
  * 	sh_wdt_keepalive - Keep the Userspace Watchdog Alive
- *
  * 	The Userspace watchdog got a KeepAlive: schedule the next heartbeat.
  */
-static void sh_wdt_keepalive(void)
+static inline void sh_wdt_keepalive(void)
 {
 	next_heartbeat = jiffies + (heartbeat * HZ);
 }
 
 /**
  * 	sh_wdt_set_heartbeat - Set the Userspace Watchdog heartbeat
- *
  * 	Set the Userspace Watchdog heartbeat
  */
 static int sh_wdt_set_heartbeat(int t)
 {
-	if ((t < 1) || (t > 3600)) /* arbitrary upper limit */
+	if (unlikely((t < 1) || (t > 3600))) /* arbitrary upper limit */
 		return -EINVAL;
 
 	heartbeat = t;
@@ -165,7 +162,6 @@ static int sh_wdt_set_heartbeat(int t)
 
 /**
  * 	sh_wdt_ping - Ping the Watchdog
- *
  *	@data: Unused
  *
  * 	Clears overflow bit, resets timer counter.
@@ -182,14 +178,13 @@ static void sh_wdt_ping(unsigned long data)
 		sh_wdt_write_cnt(0);
 
 		mod_timer(&timer, next_ping_period(clock_division_ratio));
-	} else {
-		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping the watchdog\n");
-	}
+	} else
+		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping "
+		       "the watchdog\n");
 }
 
 /**
  * 	sh_wdt_open - Open the Device
- *
  * 	@inode: inode of device
  * 	@file: file handle of device
  *
@@ -209,7 +204,6 @@ static int sh_wdt_open(struct inode *inode, struct file *file)
 
 /**
  * 	sh_wdt_close - Close the Device
- *
  * 	@inode: inode of device
  * 	@file: file handle of device
  *
@@ -220,7 +214,8 @@ static int sh_wdt_close(struct inode *inode, struct file *file)
 	if (shwdt_expect_close == 42) {
 		sh_wdt_stop();
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+		printk(KERN_CRIT PFX "Unexpected close, not "
+		       "stopping watchdog!\n");
 		sh_wdt_keepalive();
 	}
 
@@ -232,7 +227,6 @@ static int sh_wdt_close(struct inode *inode, struct file *file)
 
 /**
  * 	sh_wdt_write - Write to Device
- *
  * 	@file: file handle of device
  * 	@buf: buffer to write
  * 	@count: length of buffer
@@ -265,7 +259,6 @@ static ssize_t sh_wdt_write(struct file *file, const char *buf,
 
 /**
  * 	sh_wdt_ioctl - Query Device
- *
  * 	@inode: inode of device
  * 	@file: file handle of device
  * 	@cmd: watchdog command
@@ -326,7 +319,6 @@ static int sh_wdt_ioctl(struct inode *inode, struct file *file,
 
 /**
  * 	sh_wdt_notify_sys - Notifier Handler
- *
  * 	@this: notifier block
  * 	@code: notifier event
  * 	@unused: unused
@@ -337,9 +329,8 @@ static int sh_wdt_ioctl(struct inode *inode, struct file *file,
 static int sh_wdt_notify_sys(struct notifier_block *this,
 			     unsigned long code, void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
+	if (code == SYS_DOWN || code == SYS_HALT)
 		sh_wdt_stop();
-	}
 
 	return NOTIFY_DONE;
 }
@@ -354,7 +345,8 @@ static const struct file_operations sh_wdt_fops = {
 };
 
 static struct watchdog_info sh_wdt_info = {
-	.options		= WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
+	.options		= WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
+				  WDIOF_MAGICCLOSE,
 	.firmware_version	= 1,
 	.identity		= "SH WDT",
 };
@@ -371,7 +363,6 @@ static struct miscdevice sh_wdt_miscdev = {
 
 /**
  * 	sh_wdt_init - Initialize module
- *
  * 	Registers the device and notifier handler. Actual device
  * 	initialization is handled by sh_wdt_open().
  */
@@ -381,15 +372,15 @@ static int __init sh_wdt_init(void)
 
 	if ((clock_division_ratio < 0x5) || (clock_division_ratio > 0x7)) {
 		clock_division_ratio = WTCSR_CKS_4096;
-		printk(KERN_INFO PFX "clock_division_ratio value must be 0x5<=x<=0x7, using %d\n",
-			clock_division_ratio);
+		printk(KERN_INFO PFX "clock_division_ratio value must "
+		       "be 0x5<=x<=0x7, using %d\n", clock_division_ratio);
 	}
 
-	if (sh_wdt_set_heartbeat(heartbeat))
-	{
+	rc = sh_wdt_set_heartbeat(heartbeat);
+	if (unlikely(rc)) {
 		heartbeat = WATCHDOG_HEARTBEAT;
-		printk(KERN_INFO PFX "heartbeat value must be 1<=x<=3600, using %d\n",
-			heartbeat);
+		printk(KERN_INFO PFX "heartbeat value must "
+		       "be 1<=x<=3600, using %d\n", heartbeat);
 	}
 
 	init_timer(&timer);
@@ -397,15 +388,16 @@ static int __init sh_wdt_init(void)
 	timer.data = 0;
 
 	rc = register_reboot_notifier(&sh_wdt_notifier);
-	if (rc) {
-		printk(KERN_ERR PFX "Can't register reboot notifier (err=%d)\n", rc);
+	if (unlikely(rc)) {
+		printk(KERN_ERR PFX "Can't register reboot notifier (err=%d)\n",
+		       rc);
 		return rc;
 	}
 
 	rc = misc_register(&sh_wdt_miscdev);
-	if (rc) {
-		printk(KERN_ERR PFX "Can't register miscdev on minor=%d (err=%d)\n",
-			sh_wdt_miscdev.minor, rc);
+	if (unlikely(rc)) {
+		printk(KERN_ERR PFX "Can't register miscdev on "
+		       "minor=%d (err=%d)\n", sh_wdt_miscdev.minor, rc);
 		unregister_reboot_notifier(&sh_wdt_notifier);
 		return rc;
 	}
@@ -418,7 +410,6 @@ static int __init sh_wdt_init(void)
 
 /**
  * 	sh_wdt_exit - Deinitialize module
- *
  * 	Unregisters the device and notifier handler. Actual device
  * 	deinitialization is handled by sh_wdt_close().
  */
@@ -434,14 +425,13 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(clock_division_ratio, int, 0);
-MODULE_PARM_DESC(clock_division_ratio, "Clock division ratio. Valid ranges are from 0x5 (1.31ms) to 0x7 (5.25ms). Defaults to 0x7.");
+MODULE_PARM_DESC(clock_division_ratio, "Clock division ratio. Valid ranges are from 0x5 (1.31ms) to 0x7 (5.25ms). (default=" __MODULE_STRING(clock_division_ratio) ")");
 
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (1<=heartbeat<=3600, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 module_init(sh_wdt_init);
 module_exit(sh_wdt_exit);
-

@@ -167,7 +167,7 @@ void hs7751rvoip_outb(unsigned char value, unsigned long port)
                 *(volatile unsigned char *)port = value;
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		*(volatile unsigned cjar *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
+		*(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
         	*(unsigned char *)PCI_IOMAP(port) = value;
@@ -181,7 +181,7 @@ void hs7751rvoip_outb_p(unsigned char value, unsigned long port)
                 *(volatile unsigned char *)port = value;
 #if defined(CONFIG_HS7751RVOIP_CODEC)
 	else if (codec_port(port))
-		*(volatile unsigned cjar *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
+		*(volatile unsigned char *)((unsigned long)area6_io8_base+(port-CODEC_IO_BASE)) = value;
 #endif
 	else if (CHECK_SH7751_PCIIO(port) || shifted_port(port))
         	*(unsigned char *)PCI_IOMAP(port) = value;

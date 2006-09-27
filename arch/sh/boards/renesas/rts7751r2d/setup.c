@@ -14,8 +14,6 @@
 #include <asm/io.h>
 #include <asm/rts7751r2d/rts7751r2d.h>
 
-unsigned int debug_counter;
-
 const char *get_system_type(void)
 {
 	return "RTS7751R2D";
@@ -34,5 +32,4 @@ void __init platform_setup(void)
 	printk(KERN_INFO "Renesas Technology Sales RTS7751R2D support.\n");
 	ctrl_outw(0x0000, PA_OUTPORT);
 	pm_power_off = rts7751r2d_power_off;
-	debug_counter = 0;
 }

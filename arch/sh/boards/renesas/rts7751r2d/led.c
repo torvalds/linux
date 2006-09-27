@@ -12,8 +12,6 @@
 #include <asm/io.h>
 #include <asm/rts7751r2d/rts7751r2d.h>
 
-extern unsigned int debug_counter;
-
 #ifdef CONFIG_HEARTBEAT
 
 #include <linux/sched.h>
