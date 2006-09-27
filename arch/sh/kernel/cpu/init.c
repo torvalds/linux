@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/page.h>
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
@@ -197,6 +198,10 @@ asmlinkage void __init sh_cpu_init(void)
 
 	/* Init the cache */
 	cache_init();
+
+	shm_align_mask = max_t(unsigned long,
+			       cpu_data->dcache.way_size - 1,
+			       PAGE_SIZE - 1);
 
 	/* Disable the FPU */
 	if (fpu_disabled) {

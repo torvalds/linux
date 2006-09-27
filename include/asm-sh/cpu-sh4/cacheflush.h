@@ -39,9 +39,6 @@ void p3_cache_init(void);
 
 #define PG_mapped	PG_arch_1
 
-/* We provide our own get_unmapped_area to avoid cache alias issue */
-#define HAVE_ARCH_UNMAPPED_AREA
-
 #ifdef CONFIG_MMU
 extern int remap_area_pages(unsigned long addr, unsigned long phys_addr,
 			    unsigned long size, unsigned long flags);

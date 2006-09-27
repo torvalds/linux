@@ -28,5 +28,7 @@ extern void __flush_invalidate_region(void *start, int size);
 		memcpy(dst, src, len);				\
 	} while (0)
 
+#define HAVE_ARCH_UNMAPPED_AREA
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */

@@ -44,6 +44,8 @@
 extern void (*clear_page)(void *to);
 extern void (*copy_page)(void *to, void *from);
 
+extern unsigned long shm_align_mask;
+
 #ifdef CONFIG_MMU
 extern void clear_page_slow(void *to);
 extern void copy_page_slow(void *to, void *from);

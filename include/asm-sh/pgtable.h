@@ -340,6 +340,4 @@ extern pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t 
 #include <asm-generic/pgtable.h>
 
 #endif /* !__ASSEMBLY__ */
-
 #endif /* __ASM_SH_PAGE_H */
-

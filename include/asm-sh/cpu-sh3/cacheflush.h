@@ -64,12 +64,4 @@ void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 
 #define p3_cache_init()				do { } while (0)
 
-/*
- * We provide our own get_unmapped_area to avoid cache aliasing issues
- * on SH7705 with a 32KB cache, and to page align addresses in the
- * non-aliasing case.
- */
-#define HAVE_ARCH_UNMAPPED_AREA
-
 #endif /* __ASM_CPU_SH3_CACHEFLUSH_H */
-
