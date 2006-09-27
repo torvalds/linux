@@ -1657,13 +1657,14 @@ static int e100_tx_clean(struct nic *nic)
 
 	spin_lock(&nic->cb_lock);
 
-	DPRINTK(TX_DONE, DEBUG, "cb->status = 0x%04X\n",
-		nic->cb_to_clean->status);
-
 	/* Clean CBs marked complete */
 	for(cb = nic->cb_to_clean;
 	    cb->status & cpu_to_le16(cb_complete);
 	    cb = nic->cb_to_clean = cb->next) {
+		DPRINTK(TX_DONE, DEBUG, "cb[%d]->status = 0x%04X\n",
+		        (int)(((void*)cb - (void*)nic->cbs)/sizeof(struct cb)),
+		        cb->status);
+
 		if(likely(cb->skb != NULL)) {
 			nic->net_stats.tx_packets++;
 			nic->net_stats.tx_bytes += cb->skb->len;
