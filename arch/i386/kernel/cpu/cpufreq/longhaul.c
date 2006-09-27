@@ -581,8 +581,8 @@ static int enable_arbiter_disable(void)
 	dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0, NULL);
 	/* Find CLE266 host bridge */
 	if (dev == NULL) {
-		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
 		reg = 0x76;
+		dev = pci_find_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_862X_0, NULL);
 	}
 	if (dev != NULL) {
 		/* Enable access to port 0x22 */
@@ -693,25 +693,20 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (longhaul_version == TYPE_POWERSAVER) {
 		/* Check ACPI support for C3 state */
 		cx = &pr->power.states[ACPI_STATE_C3];
-		if (cx->address == 0 ||
-		   (cx->latency > 1000 && ignore_latency == 0) ) {
-			if (enable_arbiter_disable()) {
-				port22_en = 1;
-			} else {
-				goto err_acpi;
-			}
-		}
-
-	} else {
-		/* Check ACPI support for bus master arbiter disable */
-		if (!pr->flags.bm_control) {
-			if (enable_arbiter_disable()) {
-				port22_en = 1;
-			} else {
-				goto err_acpi;
-			}
+		if (cx->address > 0 &&
+		   (cx->latency <= 1000 || ignore_latency != 0) ) {
+			goto print_support_type;
 		}
 	}
+	/* Check ACPI support for bus master arbiter disable */
+	if (!pr->flags.bm_control) {
+		if (enable_arbiter_disable()) {
+			port22_en = 1;
+		} else {
+			goto err_acpi;
+		}
+	}
+print_support_type:
 	if (!port22_en) {
 		printk (KERN_INFO PFX "Using ACPI support.\n");
 	} else {
