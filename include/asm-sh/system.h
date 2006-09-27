@@ -79,10 +79,8 @@ static inline void sched_cacheflush(void)
 }
 #endif
 
-#define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-
 static __inline__ unsigned long tas(volatile int *m)
-{ /* #define tas(ptr) (xchg((ptr),1)) */
+{
 	unsigned long retval;
 
 	__asm__ __volatile__ ("tas.b	@%1\n\t"
@@ -90,8 +88,6 @@ static __inline__ unsigned long tas(volatile int *m)
 			      : "=r" (retval): "r" (m): "t", "memory");
 	return retval;
 }
-
-extern void __xchg_called_with_bad_pointer(void);
 
 /*
  * A brief note on ctrl_barrier(), the control register write barrier.
@@ -220,17 +216,17 @@ static __inline__ void  local_irq_restore(unsigned long x)
 	}
 }
 #else
-#define local_irq_restore(x) do { 			\
+#define local_irq_restore(x) do {			\
 	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();				\
+		local_irq_enable();			\
 } while (0)
 #endif
 
-#define really_restore_flags(x) do { 			\
+#define really_restore_flags(x) do {			\
 	if ((x & 0x000000f0) != 0x000000f0)		\
-		local_irq_enable();				\
+		local_irq_enable();			\
 	else						\
-		local_irq_disable();				\
+		local_irq_disable();			\
 } while (0)
 
 /*
@@ -272,7 +268,7 @@ do {							\
 /* For spinlocks etc */
 #define local_irq_save(x)	x = local_irq_save()
 
-static __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
+static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 {
 	unsigned long flags, retval;
 
@@ -283,7 +279,7 @@ static __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
 	return retval;
 }
 
-static __inline__ unsigned long xchg_u8(volatile unsigned char * m, unsigned long val)
+static inline unsigned long xchg_u8(volatile u8 *m, unsigned long val)
 {
 	unsigned long flags, retval;
 
@@ -294,19 +290,30 @@ static __inline__ unsigned long xchg_u8(volatile unsigned char * m, unsigned lon
 	return retval;
 }
 
-static __inline__ unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
-{
-	switch (size) {
-	case 4:
-		return xchg_u32(ptr, x);
-		break;
-	case 1:
-		return xchg_u8(ptr, x);
-		break;
-	}
-	__xchg_called_with_bad_pointer();
-	return x;
-}
+extern void __xchg_called_with_bad_pointer(void);
+
+#define __xchg(ptr, x, size)				\
+({							\
+	unsigned long __xchg__res;			\
+	volatile void *__xchg_ptr = (ptr);		\
+	switch (size) {					\
+	case 4:						\
+		__xchg__res = xchg_u32(__xchg_ptr, x);	\
+		break;					\
+	case 1:						\
+		__xchg__res = xchg_u8(__xchg_ptr, x);	\
+		break;					\
+	default:					\
+		__xchg_called_with_bad_pointer();	\
+		__xchg__res = x;			\
+		break;					\
+	}						\
+							\
+	__xchg__res;					\
+})
+
+#define xchg(ptr,x)	\
+	((__typeof__(*(ptr)))__xchg((ptr),(unsigned long)(x), sizeof(*(ptr))))
 
 static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 	unsigned long new)
