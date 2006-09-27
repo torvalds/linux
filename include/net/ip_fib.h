@@ -107,8 +107,8 @@ struct fib_result {
 	unsigned char	type;
 	unsigned char	scope;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	__u32           network;
-	__u32           netmask;
+	__be32          network;
+	__be32          netmask;
 #endif
 	struct fib_info *fi;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -117,7 +117,7 @@ struct fib_result {
 };
 
 struct fib_result_nl {
-	u32		fl_addr;   /* To be looked up*/ 
+	__be32		fl_addr;   /* To be looked up*/
 	u32		fl_fwmark; 
 	unsigned char	fl_tos;
 	unsigned char   fl_scope;
