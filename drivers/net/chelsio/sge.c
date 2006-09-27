@@ -1470,9 +1470,9 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (!(adapter->flags & UDP_CSUM_CAPABLE) &&
-		    skb->ip_summed == CHECKSUM_HW &&
+		    skb->ip_summed == CHECKSUM_PARTIAL &&
 		    skb->nh.iph->protocol == IPPROTO_UDP)
-			if (unlikely(skb_checksum_help(skb, 0))) {
+			if (unlikely(skb_checksum_help(skb))) {
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;
 			}
@@ -1495,11 +1495,11 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		cpl = (struct cpl_tx_pkt *)__skb_push(skb, sizeof(*cpl));
 		cpl->opcode = CPL_TX_PKT;
 		cpl->ip_csum_dis = 1;    /* SW calculates IP csum */
-		cpl->l4_csum_dis = skb->ip_summed == CHECKSUM_HW ? 0 : 1;
+		cpl->l4_csum_dis = skb->ip_summed == CHECKSUM_PARTIAL ? 0 : 1;
 		/* the length field isn't used so don't bother setting it */
 
-		st->tx_cso += (skb->ip_summed == CHECKSUM_HW);
-		sge->stats.tx_do_cksum += (skb->ip_summed == CHECKSUM_HW);
+		st->tx_cso += (skb->ip_summed == CHECKSUM_PARTIAL);
+		sge->stats.tx_do_cksum += (skb->ip_summed == CHECKSUM_PARTIAL);
 		sge->stats.tx_reg_pkts++;
 	}
 	cpl->iff = dev->if_port;

@@ -5,7 +5,7 @@
 /*
  *	Registers
  */
-  
+
 #define HOST_CMD		0
 #define         HOST_CMD_START_RX   (1<<3)
 #define         HOST_CMD_SUSPND_RX  (3<<3)
@@ -63,7 +63,7 @@ struct mc32_stats
 	u32 tx_underrun_errors;
 	u32 tx_cts_errors;
 	u32 tx_timeout_errors;
-	
+
 	/* various cruft */
 	u32 dataA[6];
 	u16 dataB[5];

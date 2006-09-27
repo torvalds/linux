@@ -729,7 +729,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
 static void vortex_tx_timeout(struct net_device *dev);
 static void acpi_set_WOL(struct net_device *dev);
-static struct ethtool_ops vortex_ethtool_ops;
+static const struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
 
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
@@ -796,7 +796,7 @@ static void poll_vortex(struct net_device *dev)
 	local_irq_disable();
 	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev,NULL);
 	local_irq_restore(flags);
-} 
+}
 #endif
 
 #ifdef CONFIG_PM
@@ -904,7 +904,7 @@ static int vortex_eisa_remove(struct device *device)
 
 	vp = netdev_priv(dev);
 	ioaddr = vp->ioaddr;
-	
+
 	unregister_netdev(dev);
 	iowrite16(TotalReset|0x14, ioaddr + EL3_CMD);
 	release_region(dev->base_addr, VORTEX_TOTAL_SIZE);
@@ -935,7 +935,7 @@ static int __init vortex_eisa_init(void)
 		eisa_found = 1;
 	}
 #endif
-	
+
 	/* Special code to work-around the Compaq PCI BIOS32 problem. */
 	if (compaq_ioaddr) {
 		vortex_probe1(NULL, ioport_map(compaq_ioaddr, VORTEX_TOTAL_SIZE),
@@ -953,7 +953,7 @@ static int __devinit vortex_init_one(struct pci_dev *pdev,
 	struct vortex_chip_info *vci;
 	void __iomem *ioaddr;
 
-	/* wake up and enable device */		
+	/* wake up and enable device */
 	rc = pci_enable_device(pdev);
 	if (rc < 0)
 		goto out;
@@ -1089,7 +1089,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 		if (request_region(dev->base_addr, vci->io_size, print_name) != NULL)
 			vp->must_free_region = 1;
 
-		/* enable bus-mastering if necessary */		
+		/* enable bus-mastering if necessary */
 		if (vci->flags & PCI_USES_MASTER)
 			pci_set_master(pdev);
 
@@ -1131,7 +1131,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	vp->tx_ring_dma = vp->rx_ring_dma + sizeof(struct boom_rx_desc) * RX_RING_SIZE;
 
 	/* if we are a PCI driver, we store info in pdev->driver_data
-	 * instead of a module list */	
+	 * instead of a module list */
 	if (pdev)
 		pci_set_drvdata(pdev, dev);
 	if (edev)
@@ -1393,7 +1393,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	dev->tx_timeout = vortex_tx_timeout;
 	dev->watchdog_timeo = (watchdog * HZ) / 1000;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = poll_vortex; 
+	dev->poll_controller = poll_vortex;
 #endif
 	if (pdev) {
 		vp->pm_state_valid = 1;
@@ -1875,11 +1875,11 @@ static void vortex_tx_timeout(struct net_device *dev)
 		vp->stats.tx_dropped++;
 		netif_wake_queue(dev);
 	}
-	
+
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
 	dev->trans_start = jiffies;
-	
+
 	/* Switch to register set 7 for normal use. */
 	EL3WINDOW(7);
 }
@@ -2077,7 +2077,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	vp->tx_ring[entry].next = 0;
 #if DO_ZEROCOPY
-	if (skb->ip_summed != CHECKSUM_HW)
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 	else
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded | AddTCPChksum | AddUDPChksum);
@@ -2316,10 +2316,10 @@ boomerang_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				if ((vp->tx_ring[entry].status & DN_COMPLETE) == 0)
 					break;			/* It still hasn't been processed. */
 #endif
-					
+
 				if (vp->tx_skbuff[entry]) {
 					struct sk_buff *skb = vp->tx_skbuff[entry];
-#if DO_ZEROCOPY					
+#if DO_ZEROCOPY
 					int i;
 					for (i=0; i<=skb_shinfo(skb)->nr_frags; i++)
 							pci_unmap_single(VORTEX_PCI(vp),
@@ -2633,7 +2633,7 @@ vortex_close(struct net_device *dev)
 						"not using them!\n", dev->name);
 	}
 #endif
-		
+
 	free_irq(dev->irq, dev);
 
 	if (vp->full_bus_master_rx) { /* Free Boomerang bus master Rx buffers. */
@@ -2675,7 +2675,7 @@ dump_tx_ring(struct net_device *dev)
 	if (vortex_debug > 0) {
 	struct vortex_private *vp = netdev_priv(dev);
 		void __iomem *ioaddr = vp->ioaddr;
-		
+
 		if (vp->full_bus_master_tx) {
 			int i;
 			int stalled = ioread32(ioaddr + PktStatus) & 0x04;	/* Possible racy. But it's only debug stuff */
@@ -2873,7 +2873,7 @@ static void vortex_get_drvinfo(struct net_device *dev,
 	}
 }
 
-static struct ethtool_ops vortex_ethtool_ops = {
+static const struct ethtool_ops vortex_ethtool_ops = {
 	.get_drvinfo		= vortex_get_drvinfo,
 	.get_strings            = vortex_get_strings,
 	.get_msglevel           = vortex_get_msglevel,
@@ -2928,7 +2928,7 @@ static void set_rx_mode(struct net_device *dev)
 	int new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
-		if (vortex_debug > 0)
+		if (vortex_debug > 3)
 			printk(KERN_NOTICE "%s: Setting promiscuous mode.\n", dev->name);
 		new_mode = SetRxFilter|RxStation|RxMulticast|RxBroadcast|RxProm;
 	} else	if ((dev->mc_list)  ||  (dev->flags & IFF_ALLMULTI)) {
@@ -3169,7 +3169,7 @@ static int __init vortex_init(void)
 {
 	int pci_rc, eisa_rc;
 
-	pci_rc = pci_module_init(&vortex_driver);
+	pci_rc = pci_register_driver(&vortex_driver);
 	eisa_rc = vortex_eisa_init();
 
 	if (pci_rc == 0)
@@ -3190,7 +3190,7 @@ static void __exit vortex_eisa_cleanup(void)
 	/* Take care of the EISA devices */
 	eisa_driver_unregister(&vortex_eisa_driver);
 #endif
-	
+
 	if (compaq_net_device) {
 		vp = compaq_net_device->priv;
 		ioaddr = ioport_map(compaq_net_device->base_addr,

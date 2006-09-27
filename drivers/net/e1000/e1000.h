@@ -242,12 +242,10 @@ struct e1000_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
 	struct vlan_group *vlgrp;
-    	uint16_t mng_vlan_id;
+	uint16_t mng_vlan_id;
 	uint32_t bd_number;
 	uint32_t rx_buffer_len;
-	uint32_t part_num;
 	uint32_t wol;
-	uint32_t ksp3_port_a;
 	uint32_t smartspeed;
 	uint32_t en_mng_pt;
 	uint16_t link_speed;
@@ -342,7 +340,9 @@ struct e1000_adapter {
 	boolean_t tso_force;
 #endif
 	boolean_t smart_power_down;	/* phy smart power down */
+	boolean_t quad_port_a;
 	unsigned long flags;
+	uint32_t eeprom_wol;
 };
 
 enum e1000_state_t {

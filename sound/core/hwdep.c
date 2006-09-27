@@ -42,7 +42,7 @@ static DEFINE_MUTEX(register_mutex);
 static int snd_hwdep_free(struct snd_hwdep *hwdep);
 static int snd_hwdep_dev_free(struct snd_device *device);
 static int snd_hwdep_dev_register(struct snd_device *device);
-static int snd_hwdep_dev_unregister(struct snd_device *device);
+static int snd_hwdep_dev_disconnect(struct snd_device *device);
 
 
 static struct snd_hwdep *snd_hwdep_search(struct snd_card *card, int device)
@@ -353,7 +353,7 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 	static struct snd_device_ops ops = {
 		.dev_free = snd_hwdep_dev_free,
 		.dev_register = snd_hwdep_dev_register,
-		.dev_unregister = snd_hwdep_dev_unregister
+		.dev_disconnect = snd_hwdep_dev_disconnect,
 	};
 
 	snd_assert(rhwdep != NULL, return -EINVAL);
@@ -439,7 +439,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 	return 0;
 }
 
-static int snd_hwdep_dev_unregister(struct snd_device *device)
+static int snd_hwdep_dev_disconnect(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
 
@@ -454,9 +454,9 @@ static int snd_hwdep_dev_unregister(struct snd_device *device)
 		snd_unregister_oss_device(hwdep->oss_type, hwdep->card, hwdep->device);
 #endif
 	snd_unregister_device(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card, hwdep->device);
-	list_del(&hwdep->list);
+	list_del_init(&hwdep->list);
 	mutex_unlock(&register_mutex);
-	return snd_hwdep_free(hwdep);
+	return 0;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -497,7 +497,7 @@ static void __init snd_hwdep_proc_init(void)
 
 static void __exit snd_hwdep_proc_done(void)
 {
-	snd_info_unregister(snd_hwdep_proc_entry);
+	snd_info_free_entry(snd_hwdep_proc_entry);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_hwdep_proc_init()

@@ -26,6 +26,7 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/elf.h>
+#include <asm/ubc.h>
 
 static int hlt_counter=0;
 

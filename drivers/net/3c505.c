@@ -315,11 +315,11 @@ static inline void check_3c505_dma(struct net_device *dev)
 		spin_lock_irqsave(&adapter->lock, flags);
 		adapter->dmaing = 0;
 		adapter->busy = 0;
-		
+
 		f=claim_dma_lock();
 		disable_dma(dev->dma);
 		release_dma_lock(f);
-		
+
 		if (adapter->rx_active)
 			adapter->rx_active--;
 		outb_control(adapter->hcr_val & ~(DMAE | TCEN | DIR), dev);
@@ -660,7 +660,7 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
 
 	dev = dev_id;
 	adapter = (elp_device *) dev->priv;
-	
+
 	spin_lock(&adapter->lock);
 
 	do {
@@ -712,7 +712,7 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
 		timeout = jiffies + 3*HZ/100;
 		while ((inb_status(dev->base_addr) & ACRF) != 0 && time_before(jiffies, timeout)) {
 			if (receive_pcb(dev, &adapter->irx_pcb)) {
-				switch (adapter->irx_pcb.command) 
+				switch (adapter->irx_pcb.command)
 				{
 				case 0:
 					break;
@@ -889,7 +889,7 @@ static int elp_open(struct net_device *dev)
 	adapter->send_pcb_semaphore = 0;
 	adapter->rx_backlog.in = 0;
 	adapter->rx_backlog.out = 0;
-	
+
 	spin_lock_init(&adapter->lock);
 
 	/*
@@ -1003,7 +1003,7 @@ static int send_packet(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	adapter->stats.tx_bytes += nlen;
-	
+
 	/*
 	 * send the adapter a transmit packet command. Ignore segment and offset
 	 * and make sure the length is even
@@ -1044,7 +1044,7 @@ static int send_packet(struct net_device *dev, struct sk_buff *skb)
 	outb_control(adapter->hcr_val | DMAE | TCEN, dev);
 	enable_dma(dev->dma);
 	release_dma_lock(flags);
-	
+
 	if (elp_debug >= 3)
 		printk(KERN_DEBUG "%s: DMA transfer started\n", dev->name);
 
@@ -1054,7 +1054,7 @@ static int send_packet(struct net_device *dev, struct sk_buff *skb)
 /*
  *	The upper layer thinks we timed out
  */
- 
+
 static void elp_timeout(struct net_device *dev)
 {
 	elp_device *adapter = dev->priv;
@@ -1080,7 +1080,7 @@ static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long flags;
 	elp_device *adapter = dev->priv;
-	
+
 	spin_lock_irqsave(&adapter->lock, flags);
 	check_3c505_dma(dev);
 
@@ -1088,7 +1088,7 @@ static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: request to send packet of length %d\n", dev->name, (int) skb->len);
 
 	netif_stop_queue(dev);
-	
+
 	/*
 	 * send the packet at skb->data for skb->len
 	 */
@@ -1169,7 +1169,7 @@ static void netdev_set_msglevel(struct net_device *dev, u32 level)
 	debug = level;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
@@ -1235,7 +1235,7 @@ static void elp_set_mc_list(struct net_device *dev)
 		printk(KERN_DEBUG "%s: request to set multicast list\n", dev->name);
 
 	spin_lock_irqsave(&adapter->lock, flags);
-	
+
 	if (!(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
 		/* send a "load multicast list" command to the board, max 10 addrs/cmd */
 		/* if num_addrs==0 the list will be cleared */

@@ -62,12 +62,13 @@ struct ib_update_work {
 
 static inline int start_port(struct ib_device *device)
 {
-	return device->node_type == IB_NODE_SWITCH ? 0 : 1;
+	return (device->node_type == RDMA_NODE_IB_SWITCH) ? 0 : 1;
 }
 
 static inline int end_port(struct ib_device *device)
 {
-	return device->node_type == IB_NODE_SWITCH ? 0 : device->phys_port_cnt;
+	return (device->node_type == RDMA_NODE_IB_SWITCH) ?
+		0 : device->phys_port_cnt;
 }
 
 int ib_get_cached_gid(struct ib_device *device,

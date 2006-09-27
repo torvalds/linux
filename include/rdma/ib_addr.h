@@ -40,7 +40,7 @@ struct rdma_dev_addr {
 	unsigned char src_dev_addr[MAX_ADDR_LEN];
 	unsigned char dst_dev_addr[MAX_ADDR_LEN];
 	unsigned char broadcast[MAX_ADDR_LEN];
-	enum ib_node_type dev_type;
+	enum rdma_node_type dev_type;
 };
 
 /**
@@ -71,6 +71,9 @@ int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
 		    void *context);
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
+
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
+	      const unsigned char *dst_dev_addr);
 
 static inline int ip_addr_size(struct sockaddr *addr)
 {
@@ -111,6 +114,18 @@ static inline void ib_addr_set_dgid(struct rdma_dev_addr *dev_addr,
 				    union ib_gid *gid)
 {
 	memcpy(dev_addr->dst_dev_addr + 4, gid, sizeof *gid);
+}
+
+static inline void iw_addr_get_sgid(struct rdma_dev_addr *dev_addr,
+				    union ib_gid *gid)
+{
+	memcpy(gid, dev_addr->src_dev_addr, sizeof *gid);
+}
+
+static inline void iw_addr_get_dgid(struct rdma_dev_addr *dev_addr,
+				    union ib_gid *gid)
+{
+	memcpy(gid, dev_addr->dst_dev_addr, sizeof *gid);
 }
 
 #endif /* IB_ADDR_H */

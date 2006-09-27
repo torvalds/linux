@@ -12,6 +12,8 @@
 #define _LINUX_REISER_FS_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
+
 #ifdef __KERNEL__
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -226,14 +228,6 @@ struct reiserfs_super_block {
          && block < SB_JOURNAL_1st_RESERVED_BLOCK(s) +  \
          ((!is_reiserfs_jr(SB_DISK_SUPER_BLOCK(s)) ? \
          SB_ONDISK_JOURNAL_SIZE(s) + 1 : SB_ONDISK_RESERVED_FOR_JOURNAL(s)))
-
-				/* used by gcc */
-#define REISERFS_SUPER_MAGIC 0x52654973
-				/* used by file system utilities that
-				   look at the superblock, etc. */
-#define REISERFS_SUPER_MAGIC_STRING "ReIsErFs"
-#define REISER2FS_SUPER_MAGIC_STRING "ReIsEr2Fs"
-#define REISER2FS_JR_SUPER_MAGIC_STRING "ReIsEr3Fs"
 
 int is_reiserfs_3_5(struct reiserfs_super_block *rs);
 int is_reiserfs_3_6(struct reiserfs_super_block *rs);

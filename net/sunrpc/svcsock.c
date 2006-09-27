@@ -388,7 +388,7 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	/* send head */
 	if (slen == xdr->head[0].iov_len)
 		flags = 0;
-	len = sock->ops->sendpage(sock, rqstp->rq_respages[0], 0, xdr->head[0].iov_len, flags);
+	len = kernel_sendpage(sock, rqstp->rq_respages[0], 0, xdr->head[0].iov_len, flags);
 	if (len != xdr->head[0].iov_len)
 		goto out;
 	slen -= xdr->head[0].iov_len;
@@ -400,7 +400,7 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	while (pglen > 0) {
 		if (slen == size)
 			flags = 0;
-		result = sock->ops->sendpage(sock, *ppage, base, size, flags);
+		result = kernel_sendpage(sock, *ppage, base, size, flags);
 		if (result > 0)
 			len += result;
 		if (result != size)
@@ -413,7 +413,7 @@ svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	}
 	/* send tail */
 	if (xdr->tail[0].iov_len) {
-		result = sock->ops->sendpage(sock, rqstp->rq_respages[rqstp->rq_restailpage], 
+		result = kernel_sendpage(sock, rqstp->rq_respages[rqstp->rq_restailpage],
 					     ((unsigned long)xdr->tail[0].iov_base)& (PAGE_SIZE-1),
 					     xdr->tail[0].iov_len, 0);
 
@@ -434,13 +434,10 @@ out:
 static int
 svc_recv_available(struct svc_sock *svsk)
 {
-	mm_segment_t	oldfs;
 	struct socket	*sock = svsk->sk_sock;
 	int		avail, err;
 
-	oldfs = get_fs(); set_fs(KERNEL_DS);
-	err = sock->ops->ioctl(sock, TIOCINQ, (unsigned long) &avail);
-	set_fs(oldfs);
+	err = kernel_sock_ioctl(sock, TIOCINQ, (unsigned long) &avail);
 
 	return (err >= 0)? avail : err;
 }
@@ -472,7 +469,7 @@ svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr, int buflen)
 	 * at accept time. FIXME
 	 */
 	alen = sizeof(rqstp->rq_addr);
-	sock->ops->getname(sock, (struct sockaddr *)&rqstp->rq_addr, &alen, 1);
+	kernel_getpeername(sock, (struct sockaddr *)&rqstp->rq_addr, &alen);
 
 	dprintk("svc: socket %p recvfrom(%p, %Zu) = %d\n",
 		rqstp->rq_sock, iov[0].iov_base, iov[0].iov_len, len);
@@ -758,7 +755,6 @@ svc_tcp_accept(struct svc_sock *svsk)
 	struct svc_serv	*serv = svsk->sk_server;
 	struct socket	*sock = svsk->sk_sock;
 	struct socket	*newsock;
-	const struct proto_ops *ops;
 	struct svc_sock	*newsvsk;
 	int		err, slen;
 
@@ -766,29 +762,23 @@ svc_tcp_accept(struct svc_sock *svsk)
 	if (!sock)
 		return;
 
-	err = sock_create_lite(PF_INET, SOCK_STREAM, IPPROTO_TCP, &newsock);
-	if (err) {
+	clear_bit(SK_CONN, &svsk->sk_flags);
+	err = kernel_accept(sock, &newsock, O_NONBLOCK);
+	if (err < 0) {
 		if (err == -ENOMEM)
 			printk(KERN_WARNING "%s: no more sockets!\n",
 			       serv->sv_name);
+		else if (err != -EAGAIN && net_ratelimit())
+			printk(KERN_WARNING "%s: accept failed (err %d)!\n",
+				   serv->sv_name, -err);
 		return;
 	}
 
-	dprintk("svc: tcp_accept %p allocated\n", newsock);
-	newsock->ops = ops = sock->ops;
-
-	clear_bit(SK_CONN, &svsk->sk_flags);
-	if ((err = ops->accept(sock, newsock, O_NONBLOCK)) < 0) {
-		if (err != -EAGAIN && net_ratelimit())
-			printk(KERN_WARNING "%s: accept failed (err %d)!\n",
-				   serv->sv_name, -err);
-		goto failed;		/* aborted connection or whatever */
-	}
 	set_bit(SK_CONN, &svsk->sk_flags);
 	svc_sock_enqueue(svsk);
 
 	slen = sizeof(sin);
-	err = ops->getname(newsock, (struct sockaddr *) &sin, &slen, 1);
+	err = kernel_getpeername(newsock, (struct sockaddr *) &sin, &slen);
 	if (err < 0) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "%s: peername failed (err %d)!\n",
@@ -1406,14 +1396,14 @@ svc_create_socket(struct svc_serv *serv, int protocol, struct sockaddr_in *sin)
 	if (sin != NULL) {
 		if (type == SOCK_STREAM)
 			sock->sk->sk_reuse = 1; /* allow address reuse */
-		error = sock->ops->bind(sock, (struct sockaddr *) sin,
+		error = kernel_bind(sock, (struct sockaddr *) sin,
 						sizeof(*sin));
 		if (error < 0)
 			goto bummer;
 	}
 
 	if (protocol == IPPROTO_TCP) {
-		if ((error = sock->ops->listen(sock, 64)) < 0)
+		if ((error = kernel_listen(sock, 64)) < 0)
 			goto bummer;
 	}
 

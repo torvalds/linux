@@ -1,5 +1,5 @@
 /*
- *  fs/hypfs/hypfs.h
+ *  arch/s390/hypfs/hypfs.h
  *    Hypervisor filesystem for Linux on s390.
  *
  *    Copyright (C) IBM Corp. 2006

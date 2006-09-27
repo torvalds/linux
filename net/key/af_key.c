@@ -1731,7 +1731,8 @@ static u32 gen_reqid(void)
 		++reqid;
 		if (reqid == 0)
 			reqid = IPSEC_MANUAL_REQID_MAX+1;
-		if (xfrm_policy_walk(check_reqid, (void*)&reqid) != -EEXIST)
+		if (xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, check_reqid,
+				     (void*)&reqid) != -EEXIST)
 			return reqid;
 	} while (reqid != start);
 	return 0;
@@ -1765,7 +1766,7 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 	}
 
 	/* addresses present only in tunnel mode */
-	if (t->mode) {
+	if (t->mode == XFRM_MODE_TUNNEL) {
 		switch (xp->family) {
 		case AF_INET:
 			sin = (void*)(rq+1);
@@ -1997,7 +1998,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		int req_size;
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
-		if (t->mode)
+		if (t->mode == XFRM_MODE_TUNNEL)
 			req_size += 2*socklen;
 		else
 			size -= 2*socklen;
@@ -2013,7 +2014,7 @@ static void pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, i
 		if (t->optional)
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_USE;
 		rq->sadb_x_ipsecrequest_reqid = t->reqid;
-		if (t->mode) {
+		if (t->mode == XFRM_MODE_TUNNEL) {
 			switch (xp->family) {
 			case AF_INET:
 				sin = (void*)(rq+1);
@@ -2268,7 +2269,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 			return err;
 	}
 
-	xp = xfrm_policy_bysel_ctx(pol->sadb_x_policy_dir-1, &sel, tmp.security, 1);
+	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
+				   &sel, tmp.security, 1);
 	security_xfrm_policy_free(&tmp);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2330,7 +2332,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (dir >= XFRM_POLICY_MAX)
 		return -EINVAL;
 
-	xp = xfrm_policy_byid(dir, pol->sadb_x_policy_id,
+	xp = xfrm_policy_byid(XFRM_POLICY_TYPE_MAIN, dir, pol->sadb_x_policy_id,
 			      hdr->sadb_msg_type == SADB_X_SPDDELETE2);
 	if (xp == NULL)
 		return -ENOENT;
@@ -2378,7 +2380,7 @@ static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *
 {
 	struct pfkey_dump_data data = { .skb = skb, .hdr = hdr, .sk = sk };
 
-	return xfrm_policy_walk(dump_sp, &data);
+	return xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, dump_sp, &data);
 }
 
 static int key_notify_policy_flush(struct km_event *c)
@@ -2405,7 +2407,8 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 {
 	struct km_event c;
 
-	xfrm_policy_flush();
+	xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN);
+	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
 	c.seq = hdr->sadb_msg_seq;
@@ -2667,6 +2670,9 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 
 static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
 {
+	if (xp && xp->type != XFRM_POLICY_TYPE_MAIN)
+		return 0;
+
 	switch (c->event) {
 	case XFRM_MSG_POLEXPIRE:
 		return key_notify_policy_expire(xp, c);
@@ -2675,6 +2681,8 @@ static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_e
 	case XFRM_MSG_UPDPOLICY:
 		return key_notify_policy(xp, dir, c);
 	case XFRM_MSG_FLUSHPOLICY:
+		if (c->data.type != XFRM_POLICY_TYPE_MAIN)
+			break;
 		return key_notify_policy_flush(c);
 	default:
 		printk("pfkey: Unknown policy event %d\n", c->event);
@@ -2708,6 +2716,9 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 #endif
 	int sockaddr_size;
 	int size;
+	struct sadb_x_sec_ctx *sec_ctx;
+	struct xfrm_sec_ctx *xfrm_ctx;
+	int ctx_size = 0;
 	
 	sockaddr_size = pfkey_sockaddr_size(x->props.family);
 	if (!sockaddr_size)
@@ -2722,6 +2733,11 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 		size += count_ah_combs(t);
 	else if (x->id.proto == IPPROTO_ESP)
 		size += count_esp_combs(t);
+
+	if ((xfrm_ctx = x->security)) {
+		ctx_size = PFKEY_ALIGN8(xfrm_ctx->ctx_len);
+		size +=  sizeof(struct sadb_x_sec_ctx) + ctx_size;
+	}
 
 	skb =  alloc_skb(size + 16, GFP_ATOMIC);
 	if (skb == NULL)
@@ -2818,17 +2834,31 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	else if (x->id.proto == IPPROTO_ESP)
 		dump_esp_combs(skb, t);
 
+	/* security context */
+	if (xfrm_ctx) {
+		sec_ctx = (struct sadb_x_sec_ctx *) skb_put(skb,
+				sizeof(struct sadb_x_sec_ctx) + ctx_size);
+		sec_ctx->sadb_x_sec_len =
+		  (sizeof(struct sadb_x_sec_ctx) + ctx_size) / sizeof(uint64_t);
+		sec_ctx->sadb_x_sec_exttype = SADB_X_EXT_SEC_CTX;
+		sec_ctx->sadb_x_ctx_doi = xfrm_ctx->ctx_doi;
+		sec_ctx->sadb_x_ctx_alg = xfrm_ctx->ctx_alg;
+		sec_ctx->sadb_x_ctx_len = xfrm_ctx->ctx_len;
+		memcpy(sec_ctx + 1, xfrm_ctx->ctx_str,
+		       xfrm_ctx->ctx_len);
+	}
+
 	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_REGISTERED, NULL);
 }
 
-static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
+static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
                                                 u8 *data, int len, int *dir)
 {
 	struct xfrm_policy *xp;
 	struct sadb_x_policy *pol = (struct sadb_x_policy*)data;
 	struct sadb_x_sec_ctx *sec_ctx;
 
-	switch (family) {
+	switch (sk->sk_family) {
 	case AF_INET:
 		if (opt != IP_IPSEC_POLICY) {
 			*dir = -EOPNOTSUPP;
@@ -2869,7 +2899,7 @@ static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
 	xp->lft.hard_byte_limit = XFRM_INF;
 	xp->lft.soft_packet_limit = XFRM_INF;
 	xp->lft.hard_packet_limit = XFRM_INF;
-	xp->family = family;
+	xp->family = sk->sk_family;
 
 	xp->xfrm_nr = 0;
 	if (pol->sadb_x_policy_type == IPSEC_POLICY_IPSEC &&
@@ -2885,14 +2915,21 @@ static struct xfrm_policy *pfkey_compile_policy(u16 family, int opt,
 		p += pol->sadb_x_policy_len*8;
 		sec_ctx = (struct sadb_x_sec_ctx *)p;
 		if (len < pol->sadb_x_policy_len*8 +
-		    sec_ctx->sadb_x_sec_len)
+		    sec_ctx->sadb_x_sec_len) {
+			*dir = -EINVAL;
 			goto out;
+		}
 		if ((*dir = verify_sec_ctx_len(p)))
 			goto out;
 		uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 		*dir = security_xfrm_policy_alloc(xp, uctx);
 		kfree(uctx);
 
+		if (*dir)
+			goto out;
+	}
+	else {
+		*dir = security_xfrm_sock_policy_alloc(xp, sk);
 		if (*dir)
 			goto out;
 	}

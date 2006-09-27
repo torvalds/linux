@@ -87,7 +87,7 @@ static ssize_t gfar_set_bd_stash(struct class_device *cdev,
 	priv->bd_stash_en = new_setting;
 
 	temp = gfar_read(&priv->regs->attr);
-	
+
 	if (new_setting)
 		temp |= ATTR_BDSTASH;
 	else

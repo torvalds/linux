@@ -49,6 +49,7 @@ struct ip_ct_tcp
 	u_int32_t	last_seq;	/* Last sequence number seen in dir */
 	u_int32_t	last_ack;	/* Last sequence number seen in opposite dir */
 	u_int32_t	last_end;	/* Last seq + len */
+	u_int16_t	last_win;	/* Last window advertisement seen in dir */
 };
 
 #endif /* __KERNEL__ */

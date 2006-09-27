@@ -36,10 +36,15 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 #$(addprefix $(obj)/,main.o): $(addprefix $(obj)/,zlib.h)
 
-src-boot := crt0.S string.S prom.c stdio.c main.c div64.S
+src-boot-$(CONFIG_PPC_MULTIPLATFORM) := of.c
+src-boot := crt0.S string.S stdio.c main.c div64.S $(src-boot-y)
 src-boot += $(zlib)
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))
+
+ifeq ($(call cc-option-yn, -fstack-protector),y)
+BOOTCFLAGS	+= -fno-stack-protector
+endif
 
 BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
 

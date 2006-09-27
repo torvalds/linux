@@ -14,7 +14,6 @@ EXPORT_SYMBOL(ndisc_mc_map);
 EXPORT_SYMBOL(register_inet6addr_notifier);
 EXPORT_SYMBOL(unregister_inet6addr_notifier);
 EXPORT_SYMBOL(ip6_route_output);
-EXPORT_SYMBOL(addrconf_lock);
 EXPORT_SYMBOL(ipv6_setsockopt);
 EXPORT_SYMBOL(ipv6_getsockopt);
 EXPORT_SYMBOL(inet6_register_protosw);
@@ -31,6 +30,8 @@ EXPORT_SYMBOL(ipv6_chk_addr);
 EXPORT_SYMBOL(in6_dev_finish_destroy);
 #ifdef CONFIG_XFRM
 EXPORT_SYMBOL(xfrm6_rcv);
+EXPORT_SYMBOL(xfrm6_input_addr);
+EXPORT_SYMBOL(xfrm6_find_1stfragopt);
 #endif
 EXPORT_SYMBOL(rt6_lookup);
 EXPORT_SYMBOL(ipv6_push_nfrag_opts);

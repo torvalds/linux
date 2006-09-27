@@ -31,8 +31,8 @@ struct ip_ct_pptp_master {
 	/* everything below is going to be per-expectation in newnat,
 	 * since there could be more than one call within one session */
 	enum pptp_ctrlcall_state cstate;	/* call state */
-	u_int16_t pac_call_id;			/* call id of PAC, host byte order */
-	u_int16_t pns_call_id;			/* call id of PNS, host byte order */
+	__be16 pac_call_id;			/* call id of PAC, host byte order */
+	__be16 pns_call_id;			/* call id of PNS, host byte order */
 
 	/* in pre-2.6.11 this used to be per-expect. Now it is per-conntrack
 	 * and therefore imposes a fixed limit on the number of maps */
@@ -42,8 +42,8 @@ struct ip_ct_pptp_master {
 /* conntrack_expect private member */
 struct ip_ct_pptp_expect {
 	enum pptp_ctrlcall_state cstate; 	/* call state */
-	u_int16_t pac_call_id;			/* call id of PAC */
-	u_int16_t pns_call_id;			/* call id of PNS */
+	__be16 pac_call_id;			/* call id of PAC */
+	__be16 pns_call_id;			/* call id of PNS */
 };
 
 
@@ -107,8 +107,7 @@ struct PptpControlHeader {
 
 struct PptpStartSessionRequest {
 	__be16	protocolVersion;
-	__u8	reserved1;
-	__u8	reserved2;
+	__u16	reserved1;
 	__be32	framingCapability;
 	__be32	bearerCapability;
 	__be16	maxChannels;
@@ -143,6 +142,8 @@ struct PptpStartSessionReply {
 
 struct PptpStopSessionRequest {
 	__u8	reason;
+	__u8	reserved1;
+	__u16	reserved2;
 };
 
 /* PptpStopSessionResultCode */
@@ -152,6 +153,7 @@ struct PptpStopSessionRequest {
 struct PptpStopSessionReply {
 	__u8	resultCode;
 	__u8	generalErrorCode;
+	__u16	reserved1;
 };
 
 struct PptpEchoRequest {
@@ -188,9 +190,8 @@ struct PptpOutCallRequest {
 	__be32	framingType;
 	__be16	packetWindow;
 	__be16	packetProcDelay;
-	__u16	reserved1;
 	__be16	phoneNumberLength;
-	__u16	reserved2;
+	__u16	reserved1;
 	__u8	phoneNumber[64];
 	__u8	subAddress[64];
 };
@@ -285,19 +286,19 @@ struct PptpSetLinkInfo {
 };
 
 union pptp_ctrl_union {
-		struct PptpStartSessionRequest	sreq;
-		struct PptpStartSessionReply	srep;
-		struct PptpStopSessionRequest	streq;
-		struct PptpStopSessionReply	strep;
-                struct PptpOutCallRequest       ocreq;
-                struct PptpOutCallReply         ocack;
-                struct PptpInCallRequest        icreq;
-                struct PptpInCallReply          icack;
-                struct PptpInCallConnected      iccon;
-		struct PptpClearCallRequest	clrreq;
-                struct PptpCallDisconnectNotify disc;
-                struct PptpWanErrorNotify       wanerr;
-                struct PptpSetLinkInfo          setlink;
+	struct PptpStartSessionRequest	sreq;
+	struct PptpStartSessionReply	srep;
+	struct PptpStopSessionRequest	streq;
+	struct PptpStopSessionReply	strep;
+	struct PptpOutCallRequest	ocreq;
+	struct PptpOutCallReply		ocack;
+	struct PptpInCallRequest	icreq;
+	struct PptpInCallReply		icack;
+	struct PptpInCallConnected	iccon;
+	struct PptpClearCallRequest	clrreq;
+	struct PptpCallDisconnectNotify disc;
+	struct PptpWanErrorNotify	wanerr;
+	struct PptpSetLinkInfo		setlink;
 };
 
 extern int
@@ -314,7 +315,7 @@ extern int
 			  struct PptpControlHeader *ctlh,
 			  union pptp_ctrl_union *pptpReq);
 
-extern int
+extern void
 (*ip_nat_pptp_hook_exp_gre)(struct ip_conntrack_expect *exp_orig,
 			    struct ip_conntrack_expect *exp_reply);
 

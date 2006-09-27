@@ -868,35 +868,23 @@ int cs46xx_dsp_proc_done (struct snd_cs46xx *chip)
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
-	if (ins->proc_sym_info_entry) {
-		snd_info_unregister(ins->proc_sym_info_entry);
-		ins->proc_sym_info_entry = NULL;
-	}
-  
-	if (ins->proc_modules_info_entry) {
-		snd_info_unregister(ins->proc_modules_info_entry);
-		ins->proc_modules_info_entry = NULL;
-	}
- 
-	if (ins->proc_parameter_dump_info_entry) {
-		snd_info_unregister(ins->proc_parameter_dump_info_entry);
-		ins->proc_parameter_dump_info_entry = NULL;
-	}
-  
-	if (ins->proc_sample_dump_info_entry) {
-		snd_info_unregister(ins->proc_sample_dump_info_entry);
-		ins->proc_sample_dump_info_entry = NULL;
-	}
-  
-	if (ins->proc_scb_info_entry) {
-		snd_info_unregister(ins->proc_scb_info_entry);
-		ins->proc_scb_info_entry = NULL;
-	}
-  
-	if (ins->proc_task_info_entry) {
-		snd_info_unregister(ins->proc_task_info_entry);
-		ins->proc_task_info_entry = NULL;
-	}
+	snd_info_free_entry(ins->proc_sym_info_entry);
+	ins->proc_sym_info_entry = NULL;
+
+	snd_info_free_entry(ins->proc_modules_info_entry);
+	ins->proc_modules_info_entry = NULL;
+
+	snd_info_free_entry(ins->proc_parameter_dump_info_entry);
+	ins->proc_parameter_dump_info_entry = NULL;
+
+	snd_info_free_entry(ins->proc_sample_dump_info_entry);
+	ins->proc_sample_dump_info_entry = NULL;
+
+	snd_info_free_entry(ins->proc_scb_info_entry);
+	ins->proc_scb_info_entry = NULL;
+
+	snd_info_free_entry(ins->proc_task_info_entry);
+	ins->proc_task_info_entry = NULL;
 
 	mutex_lock(&chip->spos_mutex);
 	for (i = 0; i < ins->nscb; ++i) {
@@ -905,10 +893,8 @@ int cs46xx_dsp_proc_done (struct snd_cs46xx *chip)
 	}
 	mutex_unlock(&chip->spos_mutex);
 
-	if (ins->proc_dsp_dir) {
-		snd_info_unregister (ins->proc_dsp_dir);
-		ins->proc_dsp_dir = NULL;
-	}
+	snd_info_free_entry(ins->proc_dsp_dir);
+	ins->proc_dsp_dir = NULL;
 
 	return 0;
 }

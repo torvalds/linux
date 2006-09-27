@@ -82,7 +82,7 @@ struct zd_ctrlset {
 struct rx_length_info {
 	__le16 length[3];
 	__le16 tag;
-} __attribute__((packed));
+};
 
 #define RX_LENGTH_INFO_TAG		0x697e
 
@@ -93,7 +93,7 @@ struct rx_status {
 	u8 signal_quality_ofdm;
 	u8 decryption_type;
 	u8 frame_status;
-} __attribute__((packed));
+};
 
 /* rx_status field decryption_type */
 #define ZD_RX_NO_WEP	0
@@ -123,9 +123,9 @@ enum mac_flags {
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
 struct zd_mac {
-	struct net_device *netdev;
 	struct zd_chip chip;
 	spinlock_t lock;
+	struct net_device *netdev;
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
 	unsigned int stats_count;

@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
@@ -31,36 +32,9 @@
 /* needed for logical [in,out]-dev filtering */
 #include "../br_private.h"
 
-/* list_named_find */
-#define ASSERT_READ_LOCK(x)
-#define ASSERT_WRITE_LOCK(x)
-#include <linux/netfilter_ipv4/listhelp.h>
-#include <linux/mutex.h>
-
-#if 0
-/* use this for remote debugging
- * Copyright (C) 1998 by Ori Pomerantz
- * Print the string to the appropriate tty, the one
- * the current task uses
- */
-static void print_string(char *str)
-{
-	struct tty_struct *my_tty;
-
-	/* The tty for the current task */
-	my_tty = current->signal->tty;
-	if (my_tty != NULL) {
-		my_tty->driver->write(my_tty, 0, str, strlen(str));
-		my_tty->driver->write(my_tty, 0, "\015\012", 2);
-	}
-}
-
-#define BUGPRINT(args) print_string(args);
-#else
 #define BUGPRINT(format, args...) printk("kernel msg: ebtables bug: please "\
                                          "report to author: "format, ## args)
 /* #define BUGPRINT(format, args...) */
-#endif
 #define MEMPRINT(format, args...) printk("kernel msg: ebtables "\
                                          ": out of memory: "format, ## args)
 /* #define MEMPRINT(format, args...) */
@@ -299,18 +273,22 @@ static inline void *
 find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
    struct mutex *mutex)
 {
-	void *ret;
+	struct {
+		struct list_head list;
+		char name[EBT_FUNCTION_MAXNAMELEN];
+	} *e;
 
 	*error = mutex_lock_interruptible(mutex);
 	if (*error != 0)
 		return NULL;
 
-	ret = list_named_find(head, name);
-	if (!ret) {
-		*error = -ENOENT;
-		mutex_unlock(mutex);
+	list_for_each_entry(e, head, list) {
+		if (strcmp(e->name, name) == 0)
+			return e;
 	}
-	return ret;
+	*error = -ENOENT;
+	mutex_unlock(mutex);
+	return NULL;
 }
 
 #ifndef CONFIG_KMOD
@@ -1064,15 +1042,19 @@ free_newinfo:
 
 int ebt_register_target(struct ebt_target *target)
 {
+	struct ebt_target *t;
 	int ret;
 
 	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
-	if (!list_named_insert(&ebt_targets, target)) {
-		mutex_unlock(&ebt_mutex);
-		return -EEXIST;
+	list_for_each_entry(t, &ebt_targets, list) {
+		if (strcmp(t->name, target->name) == 0) {
+			mutex_unlock(&ebt_mutex);
+			return -EEXIST;
+		}
 	}
+	list_add(&target->list, &ebt_targets);
 	mutex_unlock(&ebt_mutex);
 
 	return 0;
@@ -1081,21 +1063,25 @@ int ebt_register_target(struct ebt_target *target)
 void ebt_unregister_target(struct ebt_target *target)
 {
 	mutex_lock(&ebt_mutex);
-	LIST_DELETE(&ebt_targets, target);
+	list_del(&target->list);
 	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_match(struct ebt_match *match)
 {
+	struct ebt_match *m;
 	int ret;
 
 	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
-	if (!list_named_insert(&ebt_matches, match)) {
-		mutex_unlock(&ebt_mutex);
-		return -EEXIST;
+	list_for_each_entry(m, &ebt_matches, list) {
+		if (strcmp(m->name, match->name) == 0) {
+			mutex_unlock(&ebt_mutex);
+			return -EEXIST;
+		}
 	}
+	list_add(&match->list, &ebt_matches);
 	mutex_unlock(&ebt_mutex);
 
 	return 0;
@@ -1104,21 +1090,25 @@ int ebt_register_match(struct ebt_match *match)
 void ebt_unregister_match(struct ebt_match *match)
 {
 	mutex_lock(&ebt_mutex);
-	LIST_DELETE(&ebt_matches, match);
+	list_del(&match->list);
 	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_watcher(struct ebt_watcher *watcher)
 {
+	struct ebt_watcher *w;
 	int ret;
 
 	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
-	if (!list_named_insert(&ebt_watchers, watcher)) {
-		mutex_unlock(&ebt_mutex);
-		return -EEXIST;
+	list_for_each_entry(w, &ebt_watchers, list) {
+		if (strcmp(w->name, watcher->name) == 0) {
+			mutex_unlock(&ebt_mutex);
+			return -EEXIST;
+		}
 	}
+	list_add(&watcher->list, &ebt_watchers);
 	mutex_unlock(&ebt_mutex);
 
 	return 0;
@@ -1127,13 +1117,14 @@ int ebt_register_watcher(struct ebt_watcher *watcher)
 void ebt_unregister_watcher(struct ebt_watcher *watcher)
 {
 	mutex_lock(&ebt_mutex);
-	LIST_DELETE(&ebt_watchers, watcher);
+	list_del(&watcher->list);
 	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_table(struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
+	struct ebt_table *t;
 	int ret, i, countersize;
 
 	if (!table || !table->table ||!table->table->entries ||
@@ -1179,10 +1170,12 @@ int ebt_register_table(struct ebt_table *table)
 	if (ret != 0)
 		goto free_chainstack;
 
-	if (list_named_find(&ebt_tables, table->name)) {
-		ret = -EEXIST;
-		BUGPRINT("Table name already exists\n");
-		goto free_unlock;
+	list_for_each_entry(t, &ebt_tables, list) {
+		if (strcmp(t->name, table->name) == 0) {
+			ret = -EEXIST;
+			BUGPRINT("Table name already exists\n");
+			goto free_unlock;
+		}
 	}
 
 	/* Hold a reference count if the chains aren't empty */
@@ -1190,7 +1183,7 @@ int ebt_register_table(struct ebt_table *table)
 		ret = -ENOENT;
 		goto free_unlock;
 	}
-	list_prepend(&ebt_tables, table);
+	list_add(&table->list, &ebt_tables);
 	mutex_unlock(&ebt_mutex);
 	return 0;
 free_unlock:
@@ -1216,7 +1209,7 @@ void ebt_unregister_table(struct ebt_table *table)
 		return;
 	}
 	mutex_lock(&ebt_mutex);
-	LIST_DELETE(&ebt_tables, table);
+	list_del(&table->list);
 	mutex_unlock(&ebt_mutex);
 	vfree(table->private->entries);
 	if (table->private->chainstack) {
@@ -1486,7 +1479,7 @@ static int __init ebtables_init(void)
 	int ret;
 
 	mutex_lock(&ebt_mutex);
-	list_named_insert(&ebt_targets, &ebt_standard_target);
+	list_add(&ebt_standard_target.list, &ebt_targets);
 	mutex_unlock(&ebt_mutex);
 	if ((ret = nf_register_sockopt(&ebt_sockopts)) < 0)
 		return ret;

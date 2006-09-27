@@ -89,6 +89,7 @@ struct smb_vol {
 	unsigned int wsize;
 	unsigned int sockopt;
 	unsigned short int port;
+	char * prepath;
 };
 
 static int ipv4_connect(struct sockaddr_in *psin_server, 
@@ -993,6 +994,28 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				printk(KERN_WARNING "CIFS: domain name too long\n");
 				return 1;
 			}
+                } else if (strnicmp(data, "prefixpath", 10) == 0) {
+                        if (!value || !*value) {
+                                printk(KERN_WARNING
+                                       "CIFS: invalid path prefix\n");
+                                return 1;       /* needs_arg; */
+                        }
+                        if ((temp_len = strnlen(value, 1024)) < 1024) {
+				if(value[0] != '/')
+					temp_len++;  /* missing leading slash */
+                                vol->prepath = kmalloc(temp_len+1,GFP_KERNEL);
+                                if(vol->prepath == NULL)
+                                        return 1;
+				if(value[0] != '/') {
+					vol->prepath[0] = '/';
+	                                strcpy(vol->prepath+1,value);
+				} else
+					strcpy(vol->prepath,value);
+				cFYI(1,("prefix path %s",vol->prepath));
+                        } else {
+                                printk(KERN_WARNING "CIFS: prefix too long\n");
+                                return 1;
+                        }
 		} else if (strnicmp(data, "iocharset", 9) == 0) {
 			if (!value || !*value) {
 				printk(KERN_WARNING "CIFS: invalid iocharset specified\n");
@@ -1605,6 +1628,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	if (cifs_parse_mount_options(mount_data, devname, &volume_info)) {
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
+		kfree(volume_info.prepath);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1619,6 +1643,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
            locations such as env variables and files on disk */
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
+		kfree(volume_info.prepath);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1639,6 +1664,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			/* we failed translating address */
 			kfree(volume_info.UNC);
 			kfree(volume_info.password);
+			kfree(volume_info.prepath);
 			FreeXid(xid);
 			return -EINVAL;
 		}
@@ -1651,6 +1677,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cERROR(1,("Connecting to DFS root not implemented yet"));
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
+		kfree(volume_info.prepath);
 		FreeXid(xid);
 		return -EINVAL;
 	} else /* which servers DFS root would we conect to */ {
@@ -1658,6 +1685,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified"));
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
+		kfree(volume_info.prepath);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1672,6 +1700,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			cERROR(1,("CIFS mount error: iocharset %s not found",volume_info.iocharset));
 			kfree(volume_info.UNC);
 			kfree(volume_info.password);
+			kfree(volume_info.prepath);
 			FreeXid(xid);
 			return -ELIBACC;
 		}
@@ -1688,6 +1717,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	else {
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
+		kfree(volume_info.prepath);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1710,6 +1740,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				sock_release(csocket);
 			kfree(volume_info.UNC);
 			kfree(volume_info.password);
+			kfree(volume_info.prepath);
 			FreeXid(xid);
 			return rc;
 		}
@@ -1720,6 +1751,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			sock_release(csocket);
 			kfree(volume_info.UNC);
 			kfree(volume_info.password);
+			kfree(volume_info.prepath);
 			FreeXid(xid);
 			return rc;
 		} else {
@@ -1744,6 +1776,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				sock_release(csocket);
 				kfree(volume_info.UNC);
 				kfree(volume_info.password);
+				kfree(volume_info.prepath);
 				FreeXid(xid);
 				return rc;
 			}
@@ -1831,6 +1864,14 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			/* Windows ME may prefer this */
 			cFYI(1,("readsize set to minimum 2048"));
 		}
+		/* calculate prepath */
+		cifs_sb->prepath = volume_info.prepath;
+		if(cifs_sb->prepath) {
+			cifs_sb->prepathlen = strlen(cifs_sb->prepath);
+			cifs_sb->prepath[0] = CIFS_DIR_SEP(cifs_sb);
+			volume_info.prepath = NULL;
+		} else 
+			cifs_sb->prepathlen = 0;
 		cifs_sb->mnt_uid = volume_info.linux_uid;
 		cifs_sb->mnt_gid = volume_info.linux_gid;
 		cifs_sb->mnt_file_mode = volume_info.file_mode;
@@ -2008,6 +2049,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	the password ptr is put in the new session structure (in which case the
 	password will be freed at unmount time) */
 	kfree(volume_info.UNC);
+	kfree(volume_info.prepath);
 	FreeXid(xid);
 	return rc;
 }
@@ -3195,6 +3237,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	int xid;
 	struct cifsSesInfo *ses = NULL;
 	struct task_struct *cifsd_task;
+	char * tmp;
 
 	xid = GetXid();
 
@@ -3228,6 +3271,10 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	}
 	
 	cifs_sb->tcon = NULL;
+	tmp = cifs_sb->prepath;
+	cifs_sb->prepathlen = 0;
+	cifs_sb->prepath = NULL;
+	kfree(tmp);
 	if (ses)
 		schedule_timeout_interruptible(msecs_to_jiffies(500));
 	if (ses)

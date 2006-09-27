@@ -166,8 +166,8 @@ static struct omap_uart_config apollon_uart_config __initdata = {
 
 static struct omap_mmc_config apollon_mmc_config __initdata = {
 	.mmc [0] = {
-		.enabled 	= 0,
-		.wire4		= 0,
+		.enabled 	= 1,
+		.wire4		= 1,
 		.wp_pin		= -1,
 		.power_pin	= -1,
 		.switch_pin	= -1,
@@ -256,6 +256,9 @@ static void __init omap_apollon_init(void)
 
 	/* REVISIT: where's the correct place */
 	omap_cfg_reg(W19_24XX_SYS_NIRQ);
+
+	/* Use Interal loop-back in MMC/SDIO Module Input Clock selection */
+	CONTROL_DEVCONF |= (1 << 24);
 
 	/*
  	 * Make sure the serial ports are muxed on at this point.

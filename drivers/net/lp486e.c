@@ -277,7 +277,7 @@ struct i596_rbd {
 	phys_addr pa_next;	/* va_to_pa(struct i596_tbd *next) */
 	phys_addr pa_data;	/* va_to_pa(char *data) */
 	phys_addr pa_prev;	/* va_to_pa(struct i596_tbd *prev) */
-	
+
 	/* Driver private part */
 	struct sk_buff *skb;
 };
@@ -442,16 +442,16 @@ init_rx_bufs(struct net_device *dev, int num) {
 		if (rbd) {
 			rbd->pad = 0;
 			rbd->count = 0;
-			rbd->skb = dev_alloc_skb(RX_SKB_SIZE);
+			rbd->skb = dev_alloc_skb(RX_SKBSIZE);
 			if (!rbd->skb) {
 				printk("dev_alloc_skb failed");
 			}
 			rbd->next = rfd->rbd;
 			if (i) {
 				rfd->rbd->prev = rbd;
-				rbd->size = RX_SKB_SIZE;
+				rbd->size = RX_SKBSIZE;
 			} else {
-				rbd->size = (RX_SKB_SIZE | RBD_EL);
+				rbd->size = (RX_SKBSIZE | RBD_EL);
 				lp->rbd_tail = rbd;
 			}
 
@@ -647,7 +647,7 @@ init_i596(struct net_device *dev) {
 	CA();
 
 	barrier();
-	
+
 	if (lp->scb.command && i596_timeout(dev, "Receive Unit start", 100))
 		return 1;
 
@@ -676,7 +676,7 @@ i596_rx_one(struct net_device *dev, struct i596_private *lp,
 			return 1;
 		}
 
-		skb->dev = dev;		
+		skb->dev = dev;
 		memcpy(skb_put(skb,pkt_len), rfd->data, pkt_len);
 
 		skb->protocol = eth_type_trans(skb,dev);
@@ -797,7 +797,7 @@ static void i596_reset(struct net_device *dev, struct i596_private *lp, int ioad
 	lp->scb.command = CUC_ABORT | RX_ABORT;
 	CA();
 	barrier();
-	
+
 	/* wait for shutdown */
 	if (lp->scb.command && i596_timeout(dev, "i596_reset(2)", 400))
 		;
@@ -820,7 +820,7 @@ static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd) {
 	cmd->pa_next = I596_NULL;
 
 	spin_lock_irqsave(&lp->cmd_lock, flags);
-	
+
 	if (lp->cmd_head) {
 		lp->cmd_tail->pa_next = va_to_pa(cmd);
 	} else {
@@ -847,7 +847,7 @@ static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd) {
 	}
 }
 
-static int i596_open(struct net_device *dev) 
+static int i596_open(struct net_device *dev)
 {
 	int i;
 
@@ -875,13 +875,13 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 	short length;
 
 	length = skb->len;
-	
+
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
 			return 0;
 		length = ETH_ZLEN;
 	}
-	
+
 	dev->trans_start = jiffies;
 
 	tx_cmd = (struct tx_cmd *) kmalloc ((sizeof (struct tx_cmd) + sizeof (struct i596_tbd)), GFP_ATOMIC);
@@ -941,7 +941,7 @@ i596_tx_timeout (struct net_device *dev) {
 	netif_wake_queue(dev);
 }
 
-static void print_eth(char *add) 
+static void print_eth(char *add)
 {
 	int i;
 
@@ -978,7 +978,7 @@ static int __init lp486e_probe(struct net_device *dev) {
 
 	lp = (struct i596_private *) dev->priv;
 	spin_lock_init(&lp->cmd_lock);
-	
+
 	/*
 	 * Do we really have this thing?
 	 */
@@ -1132,7 +1132,7 @@ i596_handle_CU_completion(struct net_device *dev,
 		default:
 			cmd->pa_next = I596_NULL;
 			lp->last_cmd = jiffies;
-			
+
 		}
 		barrier();
 	}

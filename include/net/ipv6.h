@@ -40,6 +40,7 @@
 #define NEXTHDR_ICMP		58	/* ICMP for IPv6. */
 #define NEXTHDR_NONE		59	/* No next header */
 #define NEXTHDR_DEST		60	/* Destination options header. */
+#define NEXTHDR_MOBILITY	135	/* Mobility header. */
 
 #define NEXTHDR_MAX		255
 
@@ -229,7 +230,7 @@ extern int 			ip6_ra_control(struct sock *sk, int sel,
 					       void (*destructor)(struct sock *));
 
 
-extern int			ipv6_parse_hopopts(struct sk_buff *skb);
+extern int			ipv6_parse_hopopts(struct sk_buff **skbp);
 
 extern struct ipv6_txoptions *  ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt);
 extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
@@ -505,6 +506,8 @@ extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 					         u8 *nexthdrp);
 
 extern int 			ipv6_ext_hdr(u8 nexthdr);
+
+extern int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
 
 extern struct ipv6_txoptions *	ipv6_invert_rthdr(struct sock *sk,
 						  struct ipv6_rt_hdr *hdr);

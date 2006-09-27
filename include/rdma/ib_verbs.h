@@ -56,11 +56,21 @@ union ib_gid {
 	} global;
 };
 
-enum ib_node_type {
-	IB_NODE_CA 	= 1,
-	IB_NODE_SWITCH,
-	IB_NODE_ROUTER
+enum rdma_node_type {
+	/* IB values map to NodeInfo:NodeType. */
+	RDMA_NODE_IB_CA 	= 1,
+	RDMA_NODE_IB_SWITCH,
+	RDMA_NODE_IB_ROUTER,
+	RDMA_NODE_RNIC
 };
+
+enum rdma_transport_type {
+	RDMA_TRANSPORT_IB,
+	RDMA_TRANSPORT_IWARP
+};
+
+enum rdma_transport_type
+rdma_node_get_transport(enum rdma_node_type node_type) __attribute_const__;
 
 enum ib_device_cap_flags {
 	IB_DEVICE_RESIZE_MAX_WR		= 1,
@@ -78,6 +88,9 @@ enum ib_device_cap_flags {
 	IB_DEVICE_RC_RNR_NAK_GEN	= (1<<12),
 	IB_DEVICE_SRQ_RESIZE		= (1<<13),
 	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
+	IB_DEVICE_ZERO_STAG		= (1<<15),
+	IB_DEVICE_SEND_W_INV		= (1<<16),
+	IB_DEVICE_MEM_WINDOW		= (1<<17)
 };
 
 enum ib_atomic_cap {
@@ -835,6 +848,8 @@ struct ib_cache {
 	u8                     *lmc_cache;
 };
 
+struct iw_cm_verbs;
+
 struct ib_device {
 	struct device                *dma_device;
 
@@ -850,6 +865,8 @@ struct ib_device {
 	struct ib_cache               cache;
 
 	u32                           flags;
+
+	struct iw_cm_verbs	     *iwcm;
 
 	int		           (*query_device)(struct ib_device *device,
 						   struct ib_device_attr *device_attr);
@@ -888,7 +905,8 @@ struct ib_device {
 						 struct ib_udata *udata);
 	int                        (*modify_srq)(struct ib_srq *srq,
 						 struct ib_srq_attr *srq_attr,
-						 enum ib_srq_attr_mask srq_attr_mask);
+						 enum ib_srq_attr_mask srq_attr_mask,
+						 struct ib_udata *udata);
 	int                        (*query_srq)(struct ib_srq *srq,
 						struct ib_srq_attr *srq_attr);
 	int                        (*destroy_srq)(struct ib_srq *srq);
@@ -900,7 +918,8 @@ struct ib_device {
 						struct ib_udata *udata);
 	int                        (*modify_qp)(struct ib_qp *qp,
 						struct ib_qp_attr *qp_attr,
-						int qp_attr_mask);
+						int qp_attr_mask,
+						struct ib_udata *udata);
 	int                        (*query_qp)(struct ib_qp *qp,
 					       struct ib_qp_attr *qp_attr,
 					       int qp_attr_mask,

@@ -9,6 +9,7 @@
  * more details.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -48,7 +49,7 @@ struct ieee80211_ccmp_data {
 
 	int key_idx;
 
-	struct crypto_tfm *tfm;
+	struct crypto_cipher *tfm;
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 tx_b0[AES_BLOCK_LEN], tx_b[AES_BLOCK_LEN],
@@ -56,20 +57,10 @@ struct ieee80211_ccmp_data {
 	u8 rx_b0[AES_BLOCK_LEN], rx_b[AES_BLOCK_LEN], rx_a[AES_BLOCK_LEN];
 };
 
-static void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
-				       const u8 pt[16], u8 ct[16])
+static inline void ieee80211_ccmp_aes_encrypt(struct crypto_cipher *tfm,
+					      const u8 pt[16], u8 ct[16])
 {
-	struct scatterlist src, dst;
-
-	src.page = virt_to_page(pt);
-	src.offset = offset_in_page(pt);
-	src.length = AES_BLOCK_LEN;
-
-	dst.page = virt_to_page(ct);
-	dst.offset = offset_in_page(ct);
-	dst.length = AES_BLOCK_LEN;
-
-	crypto_cipher_encrypt(tfm, &dst, &src, AES_BLOCK_LEN);
+	crypto_cipher_encrypt_one(tfm, ct, pt);
 }
 
 static void *ieee80211_ccmp_init(int key_idx)
@@ -81,10 +72,11 @@ static void *ieee80211_ccmp_init(int key_idx)
 		goto fail;
 	priv->key_idx = key_idx;
 
-	priv->tfm = crypto_alloc_tfm("aes", 0);
-	if (priv->tfm == NULL) {
+	priv->tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(priv->tfm)) {
 		printk(KERN_DEBUG "ieee80211_crypt_ccmp: could not allocate "
 		       "crypto API aes\n");
+		priv->tfm = NULL;
 		goto fail;
 	}
 
@@ -93,7 +85,7 @@ static void *ieee80211_ccmp_init(int key_idx)
       fail:
 	if (priv) {
 		if (priv->tfm)
-			crypto_free_tfm(priv->tfm);
+			crypto_free_cipher(priv->tfm);
 		kfree(priv);
 	}
 
@@ -104,7 +96,7 @@ static void ieee80211_ccmp_deinit(void *priv)
 {
 	struct ieee80211_ccmp_data *_priv = priv;
 	if (_priv && _priv->tfm)
-		crypto_free_tfm(_priv->tfm);
+		crypto_free_cipher(_priv->tfm);
 	kfree(priv);
 }
 
@@ -115,7 +107,7 @@ static inline void xor_block(u8 * b, u8 * a, size_t len)
 		b[i] ^= a[i];
 }
 
-static void ccmp_init_blocks(struct crypto_tfm *tfm,
+static void ccmp_init_blocks(struct crypto_cipher *tfm,
 			     struct ieee80211_hdr_4addr *hdr,
 			     u8 * pn, size_t dlen, u8 * b0, u8 * auth, u8 * s0)
 {
@@ -271,6 +263,27 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
+/*
+ * deal with seq counter wrapping correctly.
+ * refer to timer_after() for jiffies wrapping handling
+ */
+static inline int ccmp_replay_check(u8 *pn_n, u8 *pn_o)
+{
+	u32 iv32_n, iv16_n;
+	u32 iv32_o, iv16_o;
+
+	iv32_n = (pn_n[0] << 24) | (pn_n[1] << 16) | (pn_n[2] << 8) | pn_n[3];
+	iv16_n = (pn_n[4] << 8) | pn_n[5];
+
+	iv32_o = (pn_o[0] << 24) | (pn_o[1] << 16) | (pn_o[2] << 8) | pn_o[3];
+	iv16_o = (pn_o[4] << 8) | pn_o[5];
+
+	if ((s32)iv32_n - (s32)iv32_o < 0 ||
+	    (iv32_n == iv32_o && iv16_n <= iv16_o))
+		return 1;
+	return 0;
+}
+
 static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
@@ -323,7 +336,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pn[5] = pos[0];
 	pos += 8;
 
-	if (memcmp(pn, key->rx_pn, CCMP_PN_LEN) <= 0) {
+	if (ccmp_replay_check(pn, key->rx_pn)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: replay detected: STA=" MAC_FMT
 			       " previous PN %02x%02x%02x%02x%02x%02x "
@@ -377,7 +390,7 @@ static int ieee80211_ccmp_set_key(void *key, int len, u8 * seq, void *priv)
 {
 	struct ieee80211_ccmp_data *data = priv;
 	int keyidx;
-	struct crypto_tfm *tfm = data->tfm;
+	struct crypto_cipher *tfm = data->tfm;
 
 	keyidx = data->key_idx;
 	memset(data, 0, sizeof(*data));

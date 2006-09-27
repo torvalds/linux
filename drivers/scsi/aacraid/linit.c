@@ -82,6 +82,8 @@ static LIST_HEAD(aac_devices);
 static int aac_cfg_major = -1;
 char aac_driver_version[] = AAC_DRIVER_FULL_VERSION;
 
+extern int expose_physicals;
+
 /*
  * Because of the way Linux names scsi devices, the order in this table has
  * become important.  Check for on-board Raid first, add-in cards second.
@@ -394,6 +396,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_3f = 1;
 	}
 	if ((sdev->type == TYPE_DISK) &&
+			!expose_physicals &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
 		struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 		if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
@@ -454,17 +457,17 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n", 
 					AAC_DRIVERNAME);
 	aac = (struct aac_dev *)host->hostdata;
-	if (aac_adapter_check_health(aac)) {
-		printk(KERN_ERR "%s: Host adapter appears dead\n", 
-				AAC_DRIVERNAME);
-		return -ENODEV;
-	}
+
+	if ((count = aac_check_health(aac)))
+		return count;
 	/*
 	 * Wait for all commands to complete to this specific
 	 * target (block maximum 60 seconds).
 	 */
 	for (count = 60; count; --count) {
-		int active = 0;
+		int active = aac->in_reset;
+
+		if (active == 0)
 		__shost_for_each_device(dev, host) {
 			spin_lock_irqsave(&dev->list_lock, flags);
 			list_for_each_entry(command, &dev->cmd_list, list) {
@@ -864,13 +867,6 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 *	Map in the registers from the adapter.
 	 */
 	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
-	if ((aac->regs.sa = ioremap(
-	  (unsigned long)aac->scsi_host_ptr->base, AAC_MIN_FOOTPRINT_SIZE))
-	  == NULL) {	
-		printk(KERN_WARNING "%s: unable to map adapter.\n",
-		  AAC_DRIVERNAME);
-		goto out_free_fibs;
-	}
 	if ((*aac_drivers[index].init)(aac))
 		goto out_unmap;
 
@@ -928,12 +924,12 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
-	if (aac->nondasd_support == 1)
+	if ((aac->nondasd_support == 1) || expose_physicals)
 		shost->max_channel = aac->maximum_num_channels;
 	else
 		shost->max_channel = 0;
 
-	aac_get_config_status(aac);
+	aac_get_config_status(aac, 0);
 	aac_get_containers(aac);
 	list_add(&aac->entry, insert);
 
@@ -969,8 +965,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
-	iounmap(aac->regs.sa);
- out_free_fibs:
+	aac_adapter_ioremap(aac, 0);
 	kfree(aac->fibs);
 	kfree(aac->fsa_dev);
  out_free_host:
@@ -1005,7 +1000,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	kfree(aac->queues);
 
 	free_irq(pdev->irq, aac);
-	iounmap(aac->regs.sa);
+	aac_adapter_ioremap(aac, 0);
 	
 	kfree(aac->fibs);
 	kfree(aac->fsa_dev);
@@ -1013,6 +1008,10 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	list_del(&aac->entry);
 	scsi_host_put(shost);
 	pci_disable_device(pdev);
+	if (list_empty(&aac_devices)) {
+		unregister_chrdev(aac_cfg_major, "aac");
+		aac_cfg_major = -1;
+	}
 }
 
 static struct pci_driver aac_pci_driver = {

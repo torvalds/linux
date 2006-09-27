@@ -1,6 +1,6 @@
 /*
- * Advanced  Micro Devices Inc. AMD8111E Linux Network Driver 
- * Copyright (C) 2003 Advanced Micro Devices 
+ * Advanced  Micro Devices Inc. AMD8111E Linux Network Driver
+ * Copyright (C) 2003 Advanced Micro Devices
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  * USA
 
 Module Name:
@@ -22,11 +22,11 @@ Module Name:
     amd8111e.h
 
 Abstract:
-	
- 	 AMD8111 based 10/100 Ethernet Controller driver definitions. 
+
+ 	 AMD8111 based 10/100 Ethernet Controller driver definitions.
 
 Environment:
-    
+
 	Kernel Mode
 
 Revision History:
@@ -40,7 +40,7 @@ Revision History:
 
 /* Command style register access
 
-Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are not selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register. 
+Registers CMD0, CMD2, CMD3,CMD7 and INTEN0 uses a write access technique called command style access. It allows the write to selected bits of this register without altering the bits that are not selected. Command style registers are divided into 4 bytes that can be written independently. Higher order bit of each byte is the  value bit that specifies the value that will be written into the selected bits of register.
 
 eg., if the value 10011010b is written into the least significant byte of a command style register, bits 1,3 and 4 of the register will be set to 1, and the other bits will not be altered. If the value 00011010b is written into the same byte, bits 1,3 and 4 will be cleared to 0 and the other bits will not be altered.
 
@@ -122,8 +122,8 @@ typedef enum {
 	ASF_INIT_DONE		= (1 << 1),
 	ASF_INIT_PRESENT	= (1 << 0),
 
-}STAT_ASF_BITS; 
-   
+}STAT_ASF_BITS;
+
 typedef enum {
 
 	MIB_CMD_ACTIVE		= (1 << 15 ),
@@ -135,7 +135,7 @@ typedef enum {
 
 
 typedef enum {
-	
+
 	PMAT_DET		= (1 << 12),
 	MP_DET		        = (1 << 11),
 	LC_DET			= (1 << 10),
@@ -157,7 +157,7 @@ typedef enum {
 typedef enum {
 
 	INTR			= (1 << 31),
-	PCSINT			= (1 << 28), 
+	PCSINT			= (1 << 28),
 	LCINT			= (1 << 27),
 	APINT5			= (1 << 26),
 	APINT4			= (1 << 25),
@@ -221,7 +221,7 @@ typedef enum {
 
 	INTEN0_CLEAR 		= 0x1F7F7F1F, /* Command style register */
 
-}INTEN0_BITS;		
+}INTEN0_BITS;
 
 typedef enum {
 	/* VAL2 */
@@ -240,7 +240,7 @@ typedef enum {
 	INTREN			= (1 << 1),
 	RUN			= (1 << 0),
 
-	CMD0_CLEAR 		= 0x000F0F7F,   /* Command style register */	
+	CMD0_CLEAR 		= 0x000F0F7F,   /* Command style register */
 
 }CMD0_BITS;
 
@@ -279,20 +279,20 @@ typedef enum {
 	ASF_INIT_DONE_ALIAS	= (1 << 29),
 	/* VAL2 */
 	JUMBO			= (1 << 21),
-	VSIZE			= (1 << 20),	
+	VSIZE			= (1 << 20),
 	VLONLY			= (1 << 19),
-	VL_TAG_DEL		= (1 << 18),	
+	VL_TAG_DEL		= (1 << 18),
 	/* VAL1 */
-	EN_PMGR			= (1 << 14),			
+	EN_PMGR			= (1 << 14),
 	INTLEVEL		= (1 << 13),
-	FORCE_FULL_DUPLEX	= (1 << 12),	
-	FORCE_LINK_STATUS	= (1 << 11),	
-	APEP			= (1 << 10),	
-	MPPLBA			= (1 << 9),	
+	FORCE_FULL_DUPLEX	= (1 << 12),
+	FORCE_LINK_STATUS	= (1 << 11),
+	APEP			= (1 << 10),
+	MPPLBA			= (1 << 9),
 	/* VAL0 */
-	RESET_PHY_PULSE		= (1 << 2),	
-	RESET_PHY		= (1 << 1),	
-	PHY_RST_POL		= (1 << 0),	
+	RESET_PHY_PULSE		= (1 << 2),
+	RESET_PHY		= (1 << 1),
+	PHY_RST_POL		= (1 << 0),
 
 }CMD3_BITS;
 
@@ -314,7 +314,7 @@ typedef enum {
 
 	RESET_PHY_WIDTH		= (0xF << 16) | (0xF<< 20), /* 0x00FF0000 */
 	XMTSP_MASK		= (1 << 9) | (1 << 8),	/* 9:8 */
-	XMTSP_128		= (1 << 9),	/* 9 */	
+	XMTSP_128		= (1 << 9),	/* 9 */
 	XMTSP_64		= (1 << 8),
 	CACHE_ALIGN		= (1 << 4),
 	BURST_LIMIT_MASK	= (0xF << 0 ),
@@ -445,7 +445,7 @@ typedef enum {
 	DLY_INT_B_T1		= (1 << 25),
 	DLY_INT_B_T0		= ( 1 << 24),
 	EVENT_COUNT_B		= (0xF << 16) | (0x1 << 20),/* 20:16 */
-	MAX_DELAY_TIME_B	= (0xF << 0) | (0xF << 4) | (1 << 8)| 
+	MAX_DELAY_TIME_B	= (0xF << 0) | (0xF << 4) | (1 << 8)|
 				  (1 << 9) | (1 << 10),	/* 10:0 */
 }DLY_INT_B_BITS;
 
@@ -569,20 +569,20 @@ typedef enum {
 #define MAX_UNITS			8 /* Maximum number of devices possible */
 
 #define NUM_TX_BUFFERS			32 /* Number of transmit buffers */
-#define NUM_RX_BUFFERS			32 /* Number of receive buffers */	
+#define NUM_RX_BUFFERS			32 /* Number of receive buffers */
 
 #define TX_BUFF_MOD_MASK         	31 /* (NUM_TX_BUFFERS -1) */
 #define RX_BUFF_MOD_MASK         	31 /* (NUM_RX_BUFFERS -1) */
 
-#define NUM_TX_RING_DR			32  
-#define NUM_RX_RING_DR			32 
+#define NUM_TX_RING_DR			32
+#define NUM_RX_RING_DR			32
 
 #define TX_RING_DR_MOD_MASK         	31 /* (NUM_TX_RING_DR -1) */
 #define RX_RING_DR_MOD_MASK         	31 /* (NUM_RX_RING_DR -1) */
 
-#define MAX_FILTER_SIZE			64 /* Maximum multicast address */ 
-#define AMD8111E_MIN_MTU	 	60 	
-#define AMD8111E_MAX_MTU		9000			
+#define MAX_FILTER_SIZE			64 /* Maximum multicast address */
+#define AMD8111E_MIN_MTU	 	60
+#define AMD8111E_MAX_MTU		9000
 
 #define PKT_BUFF_SZ			1536
 #define MIN_PKT_LEN			60
@@ -591,7 +591,7 @@ typedef enum {
 #define  AMD8111E_TX_TIMEOUT		(3 * HZ)/* 3 sec */
 #define SOFT_TIMER_FREQ 		0xBEBC  /* 0.5 sec */
 #define DELAY_TIMER_CONV		50    /* msec to 10 usec conversion.
-						 Only 500 usec resolution */ 						 
+						 Only 500 usec resolution */
 #define OPTION_VLAN_ENABLE		0x0001
 #define OPTION_JUMBO_ENABLE		0x0002
 #define OPTION_MULTICAST_ENABLE		0x0004
@@ -611,12 +611,12 @@ typedef enum {
 #define	MIN_IPG	96
 #define	MAX_IPG	255
 #define IPG_STEP	16
-#define CSTATE  1 
-#define SSTATE  2 
+#define CSTATE  1
+#define SSTATE  2
 
 /* Assume contoller gets data 10 times the maximum processing time */
-#define  REPEAT_CNT			10; 
-     
+#define  REPEAT_CNT			10;
+
 /* amd8111e decriptor flag definitions */
 typedef enum {
 
@@ -649,7 +649,7 @@ typedef enum {
 #define TCC_MASK		0x0003
 
 /* driver ioctl parameters */
-#define AMD8111E_REG_DUMP_LEN	 13*sizeof(u32) 
+#define AMD8111E_REG_DUMP_LEN	 13*sizeof(u32)
 
 /* crc generator constants */
 #define CRC32 0xedb88320
@@ -670,15 +670,15 @@ struct amd8111e_tx_dr{
 	u32 buff_phy_addr;
 
 	u32 reserved;
-}; 
+};
 
 struct amd8111e_rx_dr{
-	
+
 	u32 reserved;
 
 	u16 msg_count; /* Received message len */
 
-	u16 tag_ctrl_info; 
+	u16 tag_ctrl_info;
 
 	u16 buff_count;  /* Len of the buffer pointed by descriptor. */
 
@@ -692,7 +692,7 @@ struct amd8111e_link_config{
 #define SPEED_INVALID		0xffff
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff
-	
+
 	unsigned long			orig_phy_option;
 	u16				speed;
 	u8				duplex;
@@ -709,7 +709,7 @@ enum coal_type{
 
 };
 
-enum coal_mode{ 
+enum coal_mode{
        	RX_INTR_COAL,
 	TX_INTR_COAL,
 	DISABLE_COAL,
@@ -727,7 +727,7 @@ struct amd8111e_coalesce_conf{
 	unsigned long rx_bytes;
 	unsigned long rx_prev_bytes;
 	unsigned int rx_coal_type;
-	
+
 	unsigned int tx_timeout;
 	unsigned int tx_event_count;
 	unsigned long tx_packets;
@@ -738,7 +738,7 @@ struct amd8111e_coalesce_conf{
 
 };
 struct ipg_info{
-	
+
 	unsigned int ipg_state;
 	unsigned int ipg;
 	unsigned int current_ipg;
@@ -750,7 +750,7 @@ struct ipg_info{
 };
 
 struct amd8111e_priv{
-	
+
 	struct amd8111e_tx_dr*  tx_ring;
 	struct amd8111e_rx_dr* rx_ring;
 	dma_addr_t tx_ring_dma_addr;	/* tx descriptor ring base address */
@@ -766,7 +766,7 @@ struct amd8111e_priv{
 	dma_addr_t rx_dma_addr[NUM_RX_BUFFERS];
 	/* Reg memory mapped address */
 	void __iomem *mmio;
-	
+
 	spinlock_t lock;	/* Guard lock */
 	unsigned long rx_idx, tx_idx;	/* The next free ring entry */
 	unsigned long tx_complete_idx;
@@ -778,7 +778,7 @@ struct amd8111e_priv{
 	unsigned long ext_phy_option;
 	int ext_phy_addr;
 	u32 ext_phy_id;
-	
+
 	struct amd8111e_link_config link_config;
 	int pm_cap;
 
@@ -787,22 +787,22 @@ struct amd8111e_priv{
 	struct mii_if_info mii_if;
 #if AMD8111E_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
-#endif	
+#endif
 	char opened;
 	struct net_device_stats stats;
 	unsigned int drv_rx_errors;
 	struct dev_mc_list* mc_list;
 	struct amd8111e_coalesce_conf coal_conf;
 
-	struct ipg_info  ipg_data;	
-	
+	struct ipg_info  ipg_data;
+
 };
 
 /* kernel provided writeq does not write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
 BUG? */
 #define  amd8111e_writeq(_UlData,_memMap)   \
 		writel(*(u32*)(&_UlData), _memMap);	\
-		writel(*(u32*)((u8*)(&_UlData)+4), _memMap+4)	
+		writel(*(u32*)((u8*)(&_UlData)+4), _memMap+4)
 
 /* maps the external speed options to internal value */
 typedef enum {

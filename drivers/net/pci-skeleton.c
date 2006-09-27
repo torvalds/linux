@@ -98,7 +98,7 @@ IVc. Errata
 #include <linux/crc32.h>
 #include <asm/io.h>
 
-#define NETDRV_VERSION		"1.0.0"
+#define NETDRV_VERSION		"1.0.1"
 #define MODNAME			"netdrv"
 #define NETDRV_DRIVER_LOAD_MSG	"MyVendor Fast Ethernet driver " NETDRV_VERSION " loaded"
 #define PFX			MODNAME ": "
@@ -1318,7 +1318,7 @@ static void netdrv_tx_timeout (struct net_device *dev)
 
 	/* Stop a shared interrupt from scavenging while we are. */
 	spin_lock_irqsave (&tp->lock, flags);
-	
+
 	netdrv_tx_clear (tp);
 
 	spin_unlock_irqrestore (&tp->lock, flags);
@@ -1853,9 +1853,6 @@ static void netdrv_set_rx_mode (struct net_device *dev)
 
 	/* Note: do not reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		printk (KERN_NOTICE "%s: Promiscuous mode enabled.\n",
-			dev->name);
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;
@@ -1963,7 +1960,7 @@ static int __init netdrv_init_module (void)
 #ifdef MODULE
 	printk(version);
 #endif
-	return pci_module_init (&netdrv_pci_driver);
+	return pci_register_driver(&netdrv_pci_driver);
 }
 
 

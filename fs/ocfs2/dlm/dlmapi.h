@@ -182,6 +182,7 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm,
 			struct dlm_lockstatus *lksb,
 			int flags,
 			const char *name,
+			int namelen,
 			dlm_astlockfunc_t *ast,
 			void *data,
 			dlm_bastlockfunc_t *bast);

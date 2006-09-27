@@ -179,6 +179,8 @@ typedef struct {
 	struct list_head bss_wpa_list;
 	int num_bss_wpa;
 	struct semaphore wpa_sem;
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	size_t wpa_ie_len;
 
 	struct work_struct reset_task;
 	int reset_task_pending;

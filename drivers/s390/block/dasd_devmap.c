@@ -258,8 +258,12 @@ dasd_parse_keyword( char *parsestring ) {
                 return residual_str;
         }
 	if (strncmp("nopav", parsestring, length) == 0) {
-		dasd_nopav = 1;
-		MESSAGE(KERN_INFO, "%s", "disable PAV mode");
+		if (MACHINE_IS_VM)
+			MESSAGE(KERN_INFO, "%s", "'nopav' not supported on VM");
+		else {
+			dasd_nopav = 1;
+			MESSAGE(KERN_INFO, "%s", "disable PAV mode");
+		}
 		return residual_str;
 	}
 	if (strncmp("fixedbuffers", parsestring, length) == 0) {
@@ -523,17 +527,17 @@ dasd_create_device(struct ccw_device *cdev)
 {
 	struct dasd_devmap *devmap;
 	struct dasd_device *device;
+	unsigned long flags;
 	int rc;
 
 	devmap = dasd_devmap_from_cdev(cdev);
 	if (IS_ERR(devmap))
 		return (void *) devmap;
-	cdev->dev.driver_data = devmap;
 
 	device = dasd_alloc_device();
 	if (IS_ERR(device))
 		return device;
-	atomic_set(&device->ref_count, 2);
+	atomic_set(&device->ref_count, 3);
 
 	spin_lock(&dasd_devmap_lock);
 	if (!devmap->device) {
@@ -552,6 +556,11 @@ dasd_create_device(struct ccw_device *cdev)
 		dasd_free_device(device);
 		return ERR_PTR(rc);
 	}
+
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	cdev->dev.driver_data = device;
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+
 	return device;
 }
 
@@ -569,6 +578,7 @@ dasd_delete_device(struct dasd_device *device)
 {
 	struct ccw_device *cdev;
 	struct dasd_devmap *devmap;
+	unsigned long flags;
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(device->cdev->dev.bus_id);
@@ -582,9 +592,16 @@ dasd_delete_device(struct dasd_device *device)
 	devmap->device = NULL;
 	spin_unlock(&dasd_devmap_lock);
 
-	/* Drop ref_count by 2, one for the devmap reference and
-	 * one for the passed reference. */
-	atomic_sub(2, &device->ref_count);
+	/* Disconnect dasd_device structure from ccw_device structure. */
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+	device->cdev->dev.driver_data = NULL;
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+
+	/*
+	 * Drop ref_count by 3, one for the devmap reference, one for
+	 * the cdev reference and one for the passed reference.
+	 */
+	atomic_sub(3, &device->ref_count);
 
 	/* Wait for reference counter to drop to zero. */
 	wait_event(dasd_delete_wq, atomic_read(&device->ref_count) == 0);
@@ -592,9 +609,6 @@ dasd_delete_device(struct dasd_device *device)
 	/* Disconnect dasd_device structure from ccw_device structure. */
 	cdev = device->cdev;
 	device->cdev = NULL;
-
-	/* Disconnect dasd_devmap structure from ccw_device structure. */
-	cdev->dev.driver_data = NULL;
 
 	/* Put ccw_device structure. */
 	put_device(&cdev->dev);
@@ -615,21 +629,32 @@ dasd_put_device_wake(struct dasd_device *device)
 
 /*
  * Return dasd_device structure associated with cdev.
+ * This function needs to be called with the ccw device
+ * lock held. It can be used from interrupt context.
+ */
+struct dasd_device *
+dasd_device_from_cdev_locked(struct ccw_device *cdev)
+{
+	struct dasd_device *device = cdev->dev.driver_data;
+
+	if (!device)
+		return ERR_PTR(-ENODEV);
+	dasd_get_device(device);
+	return device;
+}
+
+/*
+ * Return dasd_device structure associated with cdev.
  */
 struct dasd_device *
 dasd_device_from_cdev(struct ccw_device *cdev)
 {
-	struct dasd_devmap *devmap;
 	struct dasd_device *device;
+	unsigned long flags;
 
-	device = ERR_PTR(-ENODEV);
-	spin_lock(&dasd_devmap_lock);
-	devmap = cdev->dev.driver_data;
-	if (devmap && devmap->device) {
-		device = devmap->device;
-		dasd_get_device(device);
-	}
-	spin_unlock(&dasd_devmap_lock);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	device = dasd_device_from_cdev_locked(cdev);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return device;
 }
 
@@ -730,16 +755,17 @@ static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct dasd_devmap *devmap;
-	char *dname;
+	struct dasd_device *device;
+	ssize_t len;
 
-	spin_lock(&dasd_devmap_lock);
-	dname = "none";
-	devmap = dev->driver_data;
-	if (devmap && devmap->device && devmap->device->discipline)
-		dname = devmap->device->discipline->name;
-	spin_unlock(&dasd_devmap_lock);
-	return snprintf(buf, PAGE_SIZE, "%s\n", dname);
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (!IS_ERR(device) && device->discipline) {
+		len = snprintf(buf, PAGE_SIZE, "%s\n",
+			       device->discipline->name);
+		dasd_put_device(device);
+	} else
+		len = snprintf(buf, PAGE_SIZE, "none\n");
+	return len;
 }
 
 static DEVICE_ATTR(discipline, 0444, dasd_discipline_show, NULL);

@@ -102,6 +102,8 @@ struct iscsi_cmd_task {
 	uint32_t		unsol_datasn;
 	int			imm_count;	/* imm-data (bytes)   */
 	int			unsol_count;	/* unsolicited (bytes)*/
+	/* offset in unsolicited stream (bytes); */
+	int			unsol_offset;
 	int			data_count;	/* remaining Data-Out */
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	int			total_length;
@@ -110,6 +112,7 @@ struct iscsi_cmd_task {
 
 	/* state set/tested under session->lock */
 	int			state;
+	atomic_t		refcount;
 	struct list_head	running;	/* running cmd list */
 	void			*dd_data;	/* driver/transport data */
 };
@@ -290,8 +293,7 @@ extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 extern int iscsi_check_assign_cmdsn(struct iscsi_session *,
 				    struct iscsi_nopin *);
 extern void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *,
-					struct iscsi_data *hdr,
-					int transport_data_cnt);
+					struct iscsi_data *hdr);
 extern int iscsi_conn_send_pdu(struct iscsi_cls_conn *, struct iscsi_hdr *,
 				char *, uint32_t);
 extern int iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,

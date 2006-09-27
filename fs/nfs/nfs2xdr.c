@@ -51,7 +51,7 @@
 #define NFS_createargs_sz	(NFS_diropargs_sz+NFS_sattr_sz)
 #define NFS_renameargs_sz	(NFS_diropargs_sz+NFS_diropargs_sz)
 #define NFS_linkargs_sz		(NFS_fhandle_sz+NFS_diropargs_sz)
-#define NFS_symlinkargs_sz	(NFS_diropargs_sz+NFS_path_sz+NFS_sattr_sz)
+#define NFS_symlinkargs_sz	(NFS_diropargs_sz+1+NFS_sattr_sz)
 #define NFS_readdirargs_sz	(NFS_fhandle_sz+2)
 
 #define NFS_attrstat_sz		(1+NFS_fattr_sz)
@@ -351,11 +351,26 @@ nfs_xdr_linkargs(struct rpc_rqst *req, u32 *p, struct nfs_linkargs *args)
 static int
 nfs_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_symlinkargs *args)
 {
+	struct xdr_buf *sndbuf = &req->rq_snd_buf;
+	size_t pad;
+
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_array(p, args->fromname, args->fromlen);
-	p = xdr_encode_array(p, args->topath, args->tolen);
+	*p++ = htonl(args->pathlen);
+	sndbuf->len = xdr_adjust_iovec(sndbuf->head, p);
+
+	xdr_encode_pages(sndbuf, args->pages, 0, args->pathlen);
+
+	/*
+	 * xdr_encode_pages may have added a few bytes to ensure the
+	 * pathname ends on a 4-byte boundary.  Start encoding the
+	 * attributes after the pad bytes.
+	 */
+	pad = sndbuf->tail->iov_len;
+	if (pad > 0)
+		p++;
 	p = xdr_encode_sattr(p, args->sattr);
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+	sndbuf->len += xdr_adjust_iovec(sndbuf->tail, p) - pad;
 	return 0;
 }
 

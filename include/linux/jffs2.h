@@ -15,11 +15,11 @@
 #ifndef __LINUX_JFFS2_H__
 #define __LINUX_JFFS2_H__
 
+#include <linux/magic.h>
+
 /* You must include something which defines the C99 uintXX_t types. 
    We don't do it from here because this file is used in too many
    different environments. */
-
-#define JFFS2_SUPER_MAGIC 0x72b6
 
 /* Values we may expect to find in the 'magic' field */
 #define JFFS2_OLD_MAGIC_BITMASK 0x1984

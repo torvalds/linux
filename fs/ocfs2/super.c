@@ -202,7 +202,7 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	new = ocfs2_iget(osb, osb->root_blkno);
+	new = ocfs2_iget(osb, osb->root_blkno, OCFS2_FI_FLAG_SYSFILE);
 	if (IS_ERR(new)) {
 		status = PTR_ERR(new);
 		mlog_errno(status);
@@ -210,7 +210,7 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 	}
 	osb->root_inode = new;
 
-	new = ocfs2_iget(osb, osb->system_dir_blkno);
+	new = ocfs2_iget(osb, osb->system_dir_blkno, OCFS2_FI_FLAG_SYSFILE);
 	if (IS_ERR(new)) {
 		status = PTR_ERR(new);
 		mlog_errno(status);
@@ -682,7 +682,7 @@ static struct file_system_type ocfs2_fs_type = {
 	.kill_sb        = kill_block_super, /* set to the generic one
 					     * right now, but do we
 					     * need to change that? */
-	.fs_flags       = FS_REQUIRES_DEV,
+	.fs_flags       = FS_REQUIRES_DEV|FS_RENAME_DOES_D_MOVE,
 	.next           = NULL
 };
 

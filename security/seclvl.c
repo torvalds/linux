@@ -16,6 +16,7 @@
  *	(at your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -197,26 +198,27 @@ static unsigned char hashedPassword[SHA1_DIGEST_SIZE];
 static int
 plaintext_to_sha1(unsigned char *hash, const char *plaintext, unsigned int len)
 {
-	struct crypto_tfm *tfm;
+	struct hash_desc desc;
 	struct scatterlist sg;
+	int err;
+
 	if (len > PAGE_SIZE) {
 		seclvl_printk(0, KERN_ERR, "Plaintext password too large (%d "
 			      "characters).  Largest possible is %lu "
 			      "bytes.\n", len, PAGE_SIZE);
 		return -EINVAL;
 	}
-	tfm = crypto_alloc_tfm("sha1", CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (tfm == NULL) {
+	desc.tfm = crypto_alloc_hash("sha1", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(desc.tfm)) {
 		seclvl_printk(0, KERN_ERR,
 			      "Failed to load transform for SHA1\n");
 		return -EINVAL;
 	}
 	sg_init_one(&sg, (u8 *)plaintext, len);
-	crypto_digest_init(tfm);
-	crypto_digest_update(tfm, &sg, 1);
-	crypto_digest_final(tfm, hash);
-	crypto_free_tfm(tfm);
-	return 0;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	err = crypto_hash_digest(&desc, &sg, len, hash);
+	crypto_free_hash(desc.tfm);
+	return err;
 }
 
 /**

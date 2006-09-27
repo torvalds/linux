@@ -55,8 +55,6 @@ static const char version[] =
 			 )
 #endif
 
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1823,7 +1821,7 @@ static int smc911x_ethtool_geteeprom_len(struct net_device *dev)
 	 return SMC911X_EEPROM_LEN;
 }
 
-static struct ethtool_ops smc911x_ethtool_ops = {
+static const struct ethtool_ops smc911x_ethtool_ops = {
 	.get_settings	 = smc911x_ethtool_getsettings,
 	.set_settings	 = smc911x_ethtool_setsettings,
 	.get_drvinfo	 = smc911x_ethtool_getdrvinfo,

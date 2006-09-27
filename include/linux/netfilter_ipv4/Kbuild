@@ -1,21 +1,63 @@
+header-y += ip_conntrack_helper.h
+header-y += ip_conntrack_helper_h323_asn1.h
+header-y += ip_conntrack_helper_h323_types.h
+header-y += ip_conntrack_protocol.h
+header-y += ip_conntrack_sctp.h
+header-y += ip_conntrack_tcp.h
+header-y += ip_conntrack_tftp.h
+header-y += ip_nat_pptp.h
+header-y += ipt_addrtype.h
+header-y += ipt_ah.h
+header-y += ipt_CLASSIFY.h
+header-y += ipt_CLUSTERIP.h
+header-y += ipt_comment.h
+header-y += ipt_connbytes.h
+header-y += ipt_connmark.h
+header-y += ipt_CONNMARK.h
+header-y += ipt_conntrack.h
+header-y += ipt_dccp.h
+header-y += ipt_dscp.h
+header-y += ipt_DSCP.h
+header-y += ipt_ecn.h
+header-y += ipt_ECN.h
+header-y += ipt_esp.h
+header-y += ipt_hashlimit.h
+header-y += ipt_helper.h
+header-y += ipt_iprange.h
+header-y += ipt_length.h
+header-y += ipt_limit.h
+header-y += ipt_LOG.h
+header-y += ipt_mac.h
+header-y += ipt_mark.h
+header-y += ipt_MARK.h
+header-y += ipt_multiport.h
+header-y += ipt_NFQUEUE.h
+header-y += ipt_owner.h
+header-y += ipt_physdev.h
+header-y += ipt_pkttype.h
+header-y += ipt_policy.h
+header-y += ipt_realm.h
+header-y += ipt_recent.h
+header-y += ipt_REJECT.h
+header-y += ipt_SAME.h
+header-y += ipt_sctp.h
+header-y += ipt_state.h
+header-y += ipt_string.h
+header-y += ipt_tcpmss.h
+header-y += ipt_TCPMSS.h
+header-y += ipt_tos.h
+header-y += ipt_TOS.h
+header-y += ipt_ttl.h
+header-y += ipt_TTL.h
+header-y += ipt_ULOG.h
 
-header-y := ip_conntrack_helper.h ip_conntrack_helper_h323_asn1.h	\
-	    ip_conntrack_helper_h323_types.h ip_conntrack_protocol.h	\
-	    ip_conntrack_sctp.h ip_conntrack_tcp.h ip_conntrack_tftp.h	\
-	    ip_nat_pptp.h ipt_addrtype.h ipt_ah.h	\
-	    ipt_CLASSIFY.h ipt_CLUSTERIP.h ipt_comment.h		\
-	    ipt_connbytes.h ipt_connmark.h ipt_CONNMARK.h		\
-	    ipt_conntrack.h ipt_dccp.h ipt_dscp.h ipt_DSCP.h ipt_ecn.h	\
-	    ipt_ECN.h ipt_esp.h ipt_hashlimit.h ipt_helper.h		\
-	    ipt_iprange.h ipt_length.h ipt_limit.h ipt_LOG.h ipt_mac.h	\
-	    ipt_mark.h ipt_MARK.h ipt_multiport.h ipt_NFQUEUE.h		\
-	    ipt_owner.h ipt_physdev.h ipt_pkttype.h ipt_policy.h	\
-	    ipt_realm.h ipt_recent.h ipt_REJECT.h ipt_SAME.h		\
-	    ipt_sctp.h ipt_state.h ipt_string.h ipt_tcpmss.h		\
-	    ipt_TCPMSS.h ipt_tos.h ipt_TOS.h ipt_ttl.h ipt_TTL.h	\
-	    ipt_ULOG.h
-
-unifdef-y := ip_conntrack.h ip_conntrack_h323.h ip_conntrack_irc.h	\
-	ip_conntrack_pptp.h ip_conntrack_proto_gre.h			\
-	ip_conntrack_tuple.h ip_nat.h ip_nat_rule.h ip_queue.h		\
-	ip_tables.h
+unifdef-y += ip_conntrack.h
+unifdef-y += ip_conntrack_h323.h
+unifdef-y += ip_conntrack_irc.h
+unifdef-y += ip_conntrack_pptp.h
+unifdef-y += ip_conntrack_proto_gre.h
+unifdef-y += ip_conntrack_tuple.h
+unifdef-y += ip_nat.h
+unifdef-y += ip_nat_rule.h
+unifdef-y += ip_queue.h
+unifdef-y += ip_tables.h

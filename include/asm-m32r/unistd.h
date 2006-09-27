@@ -3,8 +3,6 @@
 
 /* $Id$ */
 
-#include <asm/syscall.h>	/* SYSCALL_* */
-
 /*
  * This file contains the system call numbers.
  */
@@ -302,6 +300,8 @@
 /* user-visible error numbers are in the range -1 - -124: see
  * <asm-m32r/errno.h>
  */
+
+#include <asm/syscall.h>	/* SYSCALL_* */
 
 #define __syscall_return(type, res) \
 do { \

@@ -159,12 +159,12 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 {
 	unsigned int hw_cpuid = get_hard_smp_processor_id(cpu);
 	struct device_node *cpu_node = NULL;
-	unsigned int *interrupt_server, *reg;
+	const unsigned int *interrupt_server, *reg;
 	int len;
 
 	while ((cpu_node = of_find_node_by_type(cpu_node, "cpu")) != NULL) {
 		/* Try interrupt server first */
-		interrupt_server = (unsigned int *)get_property(cpu_node,
+		interrupt_server = get_property(cpu_node,
 					"ibm,ppc-interrupt-server#s", &len);
 
 		len = len / sizeof(u32);
@@ -175,8 +175,7 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 					return cpu_node;
 			}
 		} else {
-			reg = (unsigned int *)get_property(cpu_node,
-							   "reg", &len);
+			reg = get_property(cpu_node, "reg", &len);
 			if (reg && (len > 0) && (reg[0] == hw_cpuid))
 				return cpu_node;
 		}
@@ -186,9 +185,9 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 }
 
 /* must hold reference to node during call */
-static int *of_get_associativity(struct device_node *dev)
+static const int *of_get_associativity(struct device_node *dev)
 {
-	return (unsigned int *)get_property(dev, "ibm,associativity", NULL);
+	return get_property(dev, "ibm,associativity", NULL);
 }
 
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
@@ -197,7 +196,7 @@ static int *of_get_associativity(struct device_node *dev)
 static int of_node_to_nid_single(struct device_node *device)
 {
 	int nid = -1;
-	unsigned int *tmp;
+	const unsigned int *tmp;
 
 	if (min_common_depth == -1)
 		goto out;
@@ -255,7 +254,7 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	unsigned int *ref_points;
+	const unsigned int *ref_points;
 	struct device_node *rtas_root;
 	unsigned int len;
 
@@ -270,7 +269,7 @@ static int __init find_min_common_depth(void)
 	 * configuration (should be all 0's) and the second is for a normal
 	 * NUMA configuration.
 	 */
-	ref_points = (unsigned int *)get_property(rtas_root,
+	ref_points = get_property(rtas_root,
 			"ibm,associativity-reference-points", &len);
 
 	if ((len >= 1) && ref_points) {
@@ -297,7 +296,7 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	of_node_put(memory);
 }
 
-static unsigned long __devinit read_n_cells(int n, unsigned int **buf)
+static unsigned long __devinit read_n_cells(int n, const unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -435,15 +434,13 @@ static int __init parse_numa_properties(void)
 		unsigned long size;
 		int nid;
 		int ranges;
-		unsigned int *memcell_buf;
+		const unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = (unsigned int *)get_property(memory,
+		memcell_buf = get_property(memory,
 			"linux,usable-memory", &len);
 		if (!memcell_buf || len <= 0)
-			memcell_buf =
-				(unsigned int *)get_property(memory, "reg",
-					&len);
+			memcell_buf = get_property(memory, "reg", &len);
 		if (!memcell_buf || len <= 0)
 			continue;
 
@@ -787,10 +784,10 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start, size;
 		int ranges;
-		unsigned int *memcell_buf;
+		const unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+		memcell_buf = get_property(memory, "reg", &len);
 		if (!memcell_buf || len <= 0)
 			continue;
 

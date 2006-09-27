@@ -43,7 +43,7 @@ extern int rpc_queue_upcall(struct inode *, struct rpc_pipe_msg *);
 
 extern struct dentry *rpc_mkdir(char *, struct rpc_clnt *);
 extern int rpc_rmdir(struct dentry *);
-extern struct dentry *rpc_mkpipe(char *, void *, struct rpc_pipe_ops *, int flags);
+extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *, struct rpc_pipe_ops *, int flags);
 extern int rpc_unlink(struct dentry *);
 extern struct vfsmount *rpc_get_mount(void);
 extern void rpc_put_mount(void);

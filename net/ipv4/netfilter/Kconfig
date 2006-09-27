@@ -278,17 +278,6 @@ config IP_NF_MATCH_ECN
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_DSCP
-	tristate "DSCP match support"
-	depends on IP_NF_IPTABLES
-	help
-	  This option adds a `DSCP' match, which allows you to match against
-	  the IPv4 header DSCP field (DSCP codepoint).
-
-	  The DSCP codepoint can have any value between 0x0 and 0x4f.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_AH
 	tristate "AH match support"
 	depends on IP_NF_IPTABLES
@@ -565,17 +554,6 @@ config IP_NF_TARGET_ECN
 	  an IP packet.  This is particularly useful, if you need to work around
 	  existing ECN blackholes on the internet, but don't want to disable
 	  ECN support in general.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP_NF_TARGET_DSCP
-	tristate "DSCP target support"
-	depends on IP_NF_MANGLE
-	help
-	  This option adds a `DSCP' match, which allows you to match against
-	  the IPv4 header DSCP field (DSCP codepoint).
-
-	  The DSCP codepoint can have any value between 0x0 and 0x4f.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

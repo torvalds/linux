@@ -75,9 +75,13 @@ struct omap_dm_timer {
 #endif
 	void __iomem *io_base;
 	unsigned reserved:1;
+	unsigned enabled:1;
 };
 
 #ifdef CONFIG_ARCH_OMAP1
+
+#define omap_dm_clk_enable(x)
+#define omap_dm_clk_disable(x)
 
 static struct omap_dm_timer dm_timers[] = {
 	{ .phys_base = 0xfffb1400, .irq = INT_1610_GPTIMER1 },
@@ -91,6 +95,9 @@ static struct omap_dm_timer dm_timers[] = {
 };
 
 #elif defined(CONFIG_ARCH_OMAP2)
+
+#define omap_dm_clk_enable(x) clk_enable(x)
+#define omap_dm_clk_disable(x) clk_disable(x)
 
 static struct omap_dm_timer dm_timers[] = {
 	{ .phys_base = 0x48028000, .irq = INT_24XX_GPTIMER1 },
@@ -154,24 +161,28 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 {
 	u32 l;
 
-	if (timer != &dm_timers[0]) {
+	if (!cpu_class_is_omap2() || timer != &dm_timers[0]) {
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
 		omap_dm_timer_wait_for_reset(timer);
 	}
-	omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_SYS_CLK);
+	omap_dm_timer_set_source(timer, OMAP_TIMER_SRC_32_KHZ);
 
 	/* Set to smart-idle mode */
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_OCP_CFG_REG);
 	l |= 0x02 << 3;
+
+	if (cpu_class_is_omap2() && timer == &dm_timers[0]) {
+		/* Enable wake-up only for GPT1 on OMAP2 CPUs*/
+		l |= 1 << 2;
+		/* Non-posted mode */
+		omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0);
+	}
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_REG, l);
 }
 
 static void omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
-#ifdef CONFIG_ARCH_OMAP2
-	clk_enable(timer->iclk);
-	clk_enable(timer->fclk);
-#endif
+	omap_dm_timer_enable(timer);
 	omap_dm_timer_reset(timer);
 }
 
@@ -223,13 +234,34 @@ struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 
 void omap_dm_timer_free(struct omap_dm_timer *timer)
 {
+	omap_dm_timer_enable(timer);
 	omap_dm_timer_reset(timer);
-#ifdef CONFIG_ARCH_OMAP2
-	clk_disable(timer->iclk);
-	clk_disable(timer->fclk);
-#endif
+	omap_dm_timer_disable(timer);
+
 	WARN_ON(!timer->reserved);
 	timer->reserved = 0;
+}
+
+void omap_dm_timer_enable(struct omap_dm_timer *timer)
+{
+	if (timer->enabled)
+		return;
+
+	omap_dm_clk_enable(timer->fclk);
+	omap_dm_clk_enable(timer->iclk);
+
+	timer->enabled = 1;
+}
+
+void omap_dm_timer_disable(struct omap_dm_timer *timer)
+{
+	if (!timer->enabled)
+		return;
+
+	omap_dm_clk_disable(timer->iclk);
+	omap_dm_clk_disable(timer->fclk);
+
+	timer->enabled = 0;
 }
 
 int omap_dm_timer_get_irq(struct omap_dm_timer *timer)
@@ -276,7 +308,7 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 
 struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 {
-        return timer->fclk;
+	return timer->fclk;
 }
 
 __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
@@ -406,11 +438,16 @@ void omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
 				  unsigned int value)
 {
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_INT_EN_REG, value);
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG, value);
 }
 
 unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
 {
-	return omap_dm_timer_read_reg(timer, OMAP_TIMER_STAT_REG);
+	unsigned int l;
+
+	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_STAT_REG);
+
+	return l;
 }
 
 void omap_dm_timer_write_status(struct omap_dm_timer *timer, unsigned int value)
@@ -420,12 +457,16 @@ void omap_dm_timer_write_status(struct omap_dm_timer *timer, unsigned int value)
 
 unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 {
-	return omap_dm_timer_read_reg(timer, OMAP_TIMER_COUNTER_REG);
+	unsigned int l;
+
+	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_COUNTER_REG);
+
+	return l;
 }
 
 void omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int value)
 {
-	return omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG, value);
+	omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG, value);
 }
 
 int omap_dm_timers_active(void)
@@ -436,9 +477,14 @@ int omap_dm_timers_active(void)
 		struct omap_dm_timer *timer;
 
 		timer = &dm_timers[i];
+
+		if (!timer->enabled)
+			continue;
+
 		if (omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG) &
-		    OMAP_TIMER_CTRL_ST)
+		    OMAP_TIMER_CTRL_ST) {
 			return 1;
+		}
 	}
 	return 0;
 }

@@ -27,8 +27,6 @@ struct genl_family
 	struct list_head	family_list;	/* private */
 };
 
-#define GENL_ADMIN_PERM		0x01
-
 /**
  * struct genl_info - receiving information
  * @snd_seq: sending sequence number
@@ -133,11 +131,12 @@ static inline int genlmsg_cancel(struct sk_buff *skb, void *hdr)
  * @skb: netlink message as socket buffer
  * @pid: own netlink pid to avoid sending to yourself
  * @group: multicast group id
+ * @flags: allocation flags
  */
 static inline int genlmsg_multicast(struct sk_buff *skb, u32 pid,
-				    unsigned int group)
+				    unsigned int group, gfp_t flags)
 {
-	return nlmsg_multicast(genl_sock, skb, pid, group);
+	return nlmsg_multicast(genl_sock, skb, pid, group, flags);
 }
 
 /**

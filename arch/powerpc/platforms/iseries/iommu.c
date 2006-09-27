@@ -88,6 +88,23 @@ static void tce_free_iSeries(struct iommu_table *tbl, long index, long npages)
 }
 
 /*
+ * Structure passed to HvCallXm_getTceTableParms
+ */
+struct iommu_table_cb {
+	unsigned long	itc_busno;	/* Bus number for this tce table */
+	unsigned long	itc_start;	/* Will be NULL for secondary */
+	unsigned long	itc_totalsize;	/* Size (in pages) of whole table */
+	unsigned long	itc_offset;	/* Index into real tce table of the
+					   start of our section */
+	unsigned long	itc_size;	/* Size (in pages) of our section */
+	unsigned long	itc_index;	/* Index of this tce table */
+	unsigned short	itc_maxtables;	/* Max num of tables for partition */
+	unsigned char	itc_virtbus;	/* Flag to indicate virtual bus */
+	unsigned char	itc_slotno;	/* IOA Tce Slot Index */
+	unsigned char	itc_rsvd[4];
+};
+
+/*
  * Call Hv with the architected data structure to get TCE table info.
  * info. Put the returned data into the Linux representation of the
  * TCE table data.
@@ -162,7 +179,7 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 {
 	struct iommu_table *tbl;
 	struct pci_dn *pdn = PCI_DN(dn);
-	u32 *lsn = (u32 *)get_property(dn, "linux,logical-slot-number", NULL);
+	const u32 *lsn = get_property(dn, "linux,logical-slot-number", NULL);
 
 	BUG_ON(lsn == NULL);
 

@@ -167,7 +167,7 @@ struct rr_regs {
 /*
  * Host control register bits.
  */
-	
+
 #define RR_INT		0x01
 #define RR_CLEAR_INT	0x02
 #define NO_SWAP		0x04000004
@@ -238,9 +238,9 @@ struct rr_regs {
 /*
  * Receive state
  *
- * RoadRunner HIPPI Receive State Register controls and monitors the 
+ * RoadRunner HIPPI Receive State Register controls and monitors the
  * HIPPI receive interface in the NIC. Look at err bits when a HIPPI
- * receive Error Event occurs. 
+ * receive Error Event occurs.
  */
 
 #define ENABLE_NEW_CON		0x01
@@ -700,7 +700,7 @@ struct rr_stats {
 	u32	StatUpdtT;
 	u32	StatUpdtC;
 	u32	WatchDog;
-	u32	Trace;	
+	u32	Trace;
 
 	/* Serial HIPPI */
 	u32	LnkRdyEst;

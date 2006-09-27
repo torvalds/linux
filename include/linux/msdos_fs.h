@@ -1,6 +1,8 @@
 #ifndef _LINUX_MSDOS_FS_H
 #define _LINUX_MSDOS_FS_H
 
+#include <linux/magic.h>
+
 /*
  * The MS-DOS filesystem constants/structures
  */
@@ -17,8 +19,6 @@
 #define CT_LE_W(v)	cpu_to_le16(v)
 #define CT_LE_L(v)	cpu_to_le32(v)
 
-
-#define MSDOS_SUPER_MAGIC 0x4d44 /* MD */
 
 #define MSDOS_ROOT_INO	1	/* == MINIX_ROOT_INO */
 #define MSDOS_DIR_BITS	5	/* log2(sizeof(struct msdos_dir_entry)) */

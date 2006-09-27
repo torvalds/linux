@@ -757,24 +757,9 @@ static int __init early_init_dt_scan_root(unsigned long node,
 static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 {
 	cell_t *p = *cellp;
-	unsigned long r;
 
-	/* Ignore more than 2 cells */
-	while (s > sizeof(unsigned long) / 4) {
-		p++;
-		s--;
-	}
-	r = *p++;
-#ifdef CONFIG_PPC64
-	if (s > 1) {
-		r <<= 32;
-		r |= *(p++);
-		s--;
-	}
-#endif
-
-	*cellp = p;
-	return r;
+	*cellp = p + s;
+	return of_read_ulong(p, s);
 }
 
 
@@ -942,11 +927,11 @@ void __init early_init_devtree(void *params)
 int
 prom_n_addr_cells(struct device_node* np)
 {
-	int* ip;
+	const int *ip;
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = (int *) get_property(np, "#address-cells", NULL);
+		ip = get_property(np, "#address-cells", NULL);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -958,11 +943,11 @@ EXPORT_SYMBOL(prom_n_addr_cells);
 int
 prom_n_size_cells(struct device_node* np)
 {
-	int* ip;
+	const int* ip;
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = (int *) get_property(np, "#size-cells", NULL);
+		ip = get_property(np, "#size-cells", NULL);
 		if (ip != NULL)
 			return *ip;
 	} while (np->parent);
@@ -1034,7 +1019,7 @@ int device_is_compatible(struct device_node *device, const char *compat)
 	const char* cp;
 	int cplen, l;
 
-	cp = (char *) get_property(device, "compatible", &cplen);
+	cp = get_property(device, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
@@ -1449,7 +1434,7 @@ static int of_finish_dynamic_node(struct device_node *node)
 {
 	struct device_node *parent = of_get_parent(node);
 	int err = 0;
-	phandle *ibm_phandle;
+	const phandle *ibm_phandle;
 
 	node->name = get_property(node, "name", NULL);
 	node->type = get_property(node, "device_type", NULL);
@@ -1466,8 +1451,7 @@ static int of_finish_dynamic_node(struct device_node *node)
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */
-	if ((ibm_phandle = (unsigned int *)get_property(node,
-							"ibm,phandle", NULL)))
+	if ((ibm_phandle = get_property(node, "ibm,phandle", NULL)))
 		node->linux_phandle = *ibm_phandle;
 
 out:
@@ -1528,7 +1512,7 @@ struct property *of_find_property(struct device_node *np, const char *name,
  * Find a property with a given name for a given node
  * and return the value.
  */
-void *get_property(struct device_node *np, const char *name, int *lenp)
+const void *get_property(struct device_node *np, const char *name, int *lenp)
 {
 	struct property *pp = of_find_property(np,name,lenp);
 	return pp ? pp->value : NULL;
@@ -1658,16 +1642,16 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 	hardid = get_hard_smp_processor_id(cpu);
 
 	for_each_node_by_type(np, "cpu") {
-		u32 *intserv;
+		const u32 *intserv;
 		unsigned int plen, t;
 
 		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
 		 * fallback to "reg" property and assume no threads
 		 */
-		intserv = (u32 *)get_property(np, "ibm,ppc-interrupt-server#s",
-					      &plen);
+		intserv = get_property(np, "ibm,ppc-interrupt-server#s",
+				&plen);
 		if (intserv == NULL) {
-			u32 *reg = (u32 *)get_property(np, "reg", NULL);
+			const u32 *reg = get_property(np, "reg", NULL);
 			if (reg == NULL)
 				continue;
 			if (*reg == hardid) {

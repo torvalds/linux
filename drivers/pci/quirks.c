@@ -1210,7 +1210,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_962,		quirk_sis_96x_
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_963,		quirk_sis_96x_smbus );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_sis_96x_smbus );
 
-#if defined(CONFIG_SCSI_SATA) || defined(CONFIG_SCSI_SATA_MODULE)
+#if defined(CONFIG_ATA) || defined(CONFIG_ATA_MODULE)
 
 /*
  *	If we are using libata we can drive this chip properly but must
@@ -1300,7 +1300,7 @@ static int __init combined_setup(char *str)
 }
 __setup("combined_mode=", combined_setup);
 
-#ifdef CONFIG_SCSI_SATA_INTEL_COMBINED
+#ifdef CONFIG_SATA_INTEL_COMBINED
 static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 {
 	u8 prog, comb, tmp;
@@ -1393,7 +1393,7 @@ static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 		request_region(0x170, 8, "libata");	/* port 1 */
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,    PCI_ANY_ID,	  quirk_intel_ide_combined );
-#endif /* CONFIG_SCSI_SATA_INTEL_COMBINED */
+#endif /* CONFIG_SATA_INTEL_COMBINED */
 
 
 int pcie_mch_quirk;

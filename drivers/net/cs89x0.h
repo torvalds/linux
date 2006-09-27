@@ -427,8 +427,8 @@
 #define DMA_SIZE (16*1024) /*  Size of dma buffer - 16k */
 
 #define CS8900 0x0000
-#define CS8920 0x4000   
-#define CS8920M 0x6000   
+#define CS8920 0x4000
+#define CS8920M 0x6000
 #define REVISON_BITS 0x1F00
 #define EEVER_NUMBER 0x12
 #define CHKSUM_LEN 0x14

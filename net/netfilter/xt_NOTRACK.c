@@ -16,8 +16,7 @@ target(struct sk_buff **pskb,
        const struct net_device *out,
        unsigned int hooknum,
        const struct xt_target *target,
-       const void *targinfo,
-       void *userinfo)
+       const void *targinfo)
 {
 	/* Previously seen (loopback)? Ignore. */
 	if ((*pskb)->nfct != NULL)
@@ -34,43 +33,32 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static struct xt_target notrack_reg = {
-	.name		= "NOTRACK",
-	.target		= target,
-	.targetsize	= 0,
-	.table		= "raw",
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_target notrack6_reg = {
-	.name		= "NOTRACK",
-	.target		= target,
-	.targetsize	= 0,
-	.table		= "raw",
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_target xt_notrack_target[] = {
+	{
+		.name		= "NOTRACK",
+		.family		= AF_INET,
+		.target		= target,
+		.table		= "raw",
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "NOTRACK",
+		.family		= AF_INET6,
+		.target		= target,
+		.table		= "raw",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_notrack_init(void)
 {
-	int ret;
-
-	ret = xt_register_target(&notrack_reg);
-	if (ret)
-		return ret;
-
-	ret = xt_register_target(&notrack6_reg);
-	if (ret)
-		xt_unregister_target(&notrack_reg);
-
-	return ret;
+	return xt_register_targets(xt_notrack_target,
+				   ARRAY_SIZE(xt_notrack_target));
 }
 
 static void __exit xt_notrack_fini(void)
 {
-	xt_unregister_target(&notrack6_reg);
-	xt_unregister_target(&notrack_reg);
+	xt_unregister_targets(xt_notrack_target, ARRAY_SIZE(xt_notrack_target));
 }
 
 module_init(xt_notrack_init);

@@ -304,19 +304,21 @@ struct seq_operations cpuinfo_op = {
 void __init check_for_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	unsigned long *prop;
+	const unsigned int *prop;
+	int len;
 
 	DBG(" -> check_for_initrd()\n");
 
 	if (of_chosen) {
-		prop = (unsigned long *)get_property(of_chosen,
-				"linux,initrd-start", NULL);
+		prop = get_property(of_chosen, "linux,initrd-start", &len);
 		if (prop != NULL) {
-			initrd_start = (unsigned long)__va(*prop);
-			prop = (unsigned long *)get_property(of_chosen,
-					"linux,initrd-end", NULL);
+			initrd_start = (unsigned long)
+				__va(of_read_ulong(prop, len / 4));
+			prop = get_property(of_chosen,
+					"linux,initrd-end", &len);
 			if (prop != NULL) {
-				initrd_end = (unsigned long)__va(*prop);
+				initrd_end = (unsigned long)
+					__va(of_read_ulong(prop, len / 4));
 				initrd_below_start_ok = 1;
 			} else
 				initrd_start = 0;
@@ -366,15 +368,14 @@ void __init smp_setup_cpu_maps(void)
 	int cpu = 0;
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
-		int *intserv;
+		const int *intserv;
 		int j, len = sizeof(u32), nthreads = 1;
 
-		intserv = (int *)get_property(dn, "ibm,ppc-interrupt-server#s",
-					      &len);
+		intserv = get_property(dn, "ibm,ppc-interrupt-server#s", &len);
 		if (intserv)
 			nthreads = len / sizeof(int);
 		else {
-			intserv = (int *) get_property(dn, "reg", NULL);
+			intserv = get_property(dn, "reg", NULL);
 			if (!intserv)
 				intserv = &cpu;	/* assume logical == phys */
 		}
@@ -395,13 +396,12 @@ void __init smp_setup_cpu_maps(void)
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
-		unsigned int *ireg;
+		const unsigned int *ireg;
 
 		num_addr_cell = prom_n_addr_cells(dn);
 		num_size_cell = prom_n_size_cells(dn);
 
-		ireg = (unsigned int *)
-			get_property(dn, "ibm,lrdr-capacity", NULL);
+		ireg = get_property(dn, "ibm,lrdr-capacity", NULL);
 
 		if (!ireg)
 			goto out;
@@ -444,6 +444,8 @@ void __init smp_setup_cpu_maps(void)
 
 int __initdata do_early_xmon;
 #ifdef CONFIG_XMON
+extern int xmon_no_auto_backtrace;
+
 static int __init early_xmon(char *p)
 {
 	/* ensure xmon is enabled */
@@ -452,6 +454,8 @@ static int __init early_xmon(char *p)
 			xmon_init(1);
 		if (strncmp(p, "off", 3) == 0)
 			xmon_init(0);
+		if (strncmp(p, "nobt", 4) == 0)
+			xmon_no_auto_backtrace = 1;
 		if (strncmp(p, "early", 5) != 0)
 			return 0;
 	}

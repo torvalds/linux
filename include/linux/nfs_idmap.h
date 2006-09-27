@@ -62,15 +62,15 @@ struct idmap_msg {
 #ifdef __KERNEL__
 
 /* Forward declaration to make this header independent of others */
-struct nfs4_client;
+struct nfs_client;
 
-void nfs_idmap_new(struct nfs4_client *);
-void nfs_idmap_delete(struct nfs4_client *);
+int nfs_idmap_new(struct nfs_client *);
+void nfs_idmap_delete(struct nfs_client *);
 
-int nfs_map_name_to_uid(struct nfs4_client *, const char *, size_t, __u32 *);
-int nfs_map_group_to_gid(struct nfs4_client *, const char *, size_t, __u32 *);
-int nfs_map_uid_to_name(struct nfs4_client *, __u32, char *);
-int nfs_map_gid_to_group(struct nfs4_client *, __u32, char *);
+int nfs_map_name_to_uid(struct nfs_client *, const char *, size_t, __u32 *);
+int nfs_map_group_to_gid(struct nfs_client *, const char *, size_t, __u32 *);
+int nfs_map_uid_to_name(struct nfs_client *, __u32, char *);
+int nfs_map_gid_to_group(struct nfs_client *, __u32, char *);
 
 extern unsigned int nfs_idmap_cache_timeout;
 #endif /* __KERNEL__ */

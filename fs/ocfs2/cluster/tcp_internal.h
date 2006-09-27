@@ -44,11 +44,17 @@
  * locking semantics of the file system using the protocol.  It should 
  * be somewhere else, I'm sure, but right now it isn't.
  *
+ * New in version 4:
+ * 	- Remove i_generation from lock names for better stat performance.
+ *
+ * New in version 3:
+ * 	- Replace dentry votes with a cluster lock
+ *
  * New in version 2:
  * 	- full 64 bit i_size in the metadata lock lvbs
  * 	- introduction of "rw" lock and pushing meta/data locking down
  */
-#define O2NET_PROTOCOL_VERSION 2ULL
+#define O2NET_PROTOCOL_VERSION 4ULL
 struct o2net_handshake {
 	__be64	protocol_version;
 	__be64	connector_id;

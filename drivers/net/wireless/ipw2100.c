@@ -5911,7 +5911,7 @@ static u32 ipw2100_ethtool_get_link(struct net_device *dev)
 	return (priv->status & STATUS_ASSOCIATED) ? 1 : 0;
 }
 
-static struct ethtool_ops ipw2100_ethtool_ops = {
+static const struct ethtool_ops ipw2100_ethtool_ops = {
 	.get_link = ipw2100_ethtool_get_link,
 	.get_drvinfo = ipw_ethtool_get_drvinfo,
 };
@@ -6254,13 +6254,14 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	 * member to call a function that then just turns and calls ipw2100_up.
 	 * net_dev->init is called after name allocation but before the
 	 * notifier chain is called */
-	mutex_lock(&priv->action_mutex);
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling register_netdev.\n");
-		goto fail_unlock;
+		goto fail;
 	}
+
+	mutex_lock(&priv->action_mutex);
 	registered = 1;
 
 	IPW_DEBUG_INFO("%s: Bound to %s\n", dev->name, pci_name(pci_dev));
@@ -6531,7 +6532,7 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
-	ret = pci_module_init(&ipw2100_pci_driver);
+	ret = pci_register_driver(&ipw2100_pci_driver);
 
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;

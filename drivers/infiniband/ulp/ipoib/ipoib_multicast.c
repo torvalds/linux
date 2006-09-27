@@ -361,7 +361,7 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 
 	init_completion(&mcast->done);
 
-	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec,
+	ret = ib_sa_mcmember_rec_set(&ipoib_sa_client, priv->ca, priv->port, &rec,
 				     IB_SA_MCMEMBER_REC_MGID		|
 				     IB_SA_MCMEMBER_REC_PORT_GID	|
 				     IB_SA_MCMEMBER_REC_PKEY		|
@@ -472,22 +472,32 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 
 	if (create) {
 		comp_mask |=
-			IB_SA_MCMEMBER_REC_QKEY		|
-			IB_SA_MCMEMBER_REC_SL		|
-			IB_SA_MCMEMBER_REC_FLOW_LABEL	|
-			IB_SA_MCMEMBER_REC_TRAFFIC_CLASS;
+			IB_SA_MCMEMBER_REC_QKEY			|
+			IB_SA_MCMEMBER_REC_MTU_SELECTOR		|
+			IB_SA_MCMEMBER_REC_MTU			|
+			IB_SA_MCMEMBER_REC_TRAFFIC_CLASS	|
+			IB_SA_MCMEMBER_REC_RATE_SELECTOR	|
+			IB_SA_MCMEMBER_REC_RATE			|
+			IB_SA_MCMEMBER_REC_SL			|
+			IB_SA_MCMEMBER_REC_FLOW_LABEL		|
+			IB_SA_MCMEMBER_REC_HOP_LIMIT;
 
 		rec.qkey	  = priv->broadcast->mcmember.qkey;
+		rec.mtu_selector  = IB_SA_EQ;
+		rec.mtu		  = priv->broadcast->mcmember.mtu;
+		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
+		rec.rate_selector = IB_SA_EQ;
+		rec.rate	  = priv->broadcast->mcmember.rate;
 		rec.sl		  = priv->broadcast->mcmember.sl;
 		rec.flow_label	  = priv->broadcast->mcmember.flow_label;
-		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
+		rec.hop_limit	  = priv->broadcast->mcmember.hop_limit;
 	}
 
 	init_completion(&mcast->done);
 
-	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec, comp_mask,
-				     mcast->backoff * 1000, GFP_ATOMIC,
-				     ipoib_mcast_join_complete,
+	ret = ib_sa_mcmember_rec_set(&ipoib_sa_client, priv->ca, priv->port,
+				     &rec, comp_mask, mcast->backoff * 1000,
+				     GFP_ATOMIC, ipoib_mcast_join_complete,
 				     mcast, &mcast->query);
 
 	if (ret < 0) {
@@ -528,7 +538,7 @@ void ipoib_mcast_join_task(void *dev_ptr)
 			priv->local_rate = attr.active_speed *
 				ib_width_enum_to_int(attr.active_width);
 		} else
-			ipoib_warn(priv, "ib_query_port failed\n");
+		ipoib_warn(priv, "ib_query_port failed\n");
 	}
 
 	if (!priv->broadcast) {
@@ -681,7 +691,7 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 	 * Just make one shot at leaving and don't wait for a reply;
 	 * if we fail, too bad.
 	 */
-	ret = ib_sa_mcmember_rec_delete(priv->ca, priv->port, &rec,
+	ret = ib_sa_mcmember_rec_delete(&ipoib_sa_client, priv->ca, priv->port, &rec,
 					IB_SA_MCMEMBER_REC_MGID		|
 					IB_SA_MCMEMBER_REC_PORT_GID	|
 					IB_SA_MCMEMBER_REC_PKEY		|
@@ -795,7 +805,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 
 	if (priv->broadcast) {
- 		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
+		rb_erase(&priv->broadcast->rb_node, &priv->multicast_tree);
 		list_add_tail(&priv->broadcast->list, &remove_list);
 		priv->broadcast = NULL;
 	}

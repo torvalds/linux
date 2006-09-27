@@ -37,8 +37,6 @@
 #define DPRINTK(D) ((void)0)
 #endif
 
-#define AUTOFS_SUPER_MAGIC 0x0187
-
 /*
  * If the daemon returns a negative response (AUTOFS_IOC_FAIL) then the
  * kernel will keep the negative response cached for up to the time given

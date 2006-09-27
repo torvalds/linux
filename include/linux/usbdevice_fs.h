@@ -32,10 +32,9 @@
 #define _LINUX_USBDEVICE_FS_H
 
 #include <linux/types.h>
+#include <linux/magic.h>
 
 /* --------------------------------------------------------------------- */
-
-#define USBDEVICE_SUPER_MAGIC 0x9fa2
 
 /* usbdevfs ioctl codes */
 

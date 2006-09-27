@@ -96,6 +96,7 @@ static void send_reset(struct sk_buff *oldskb)
 	ipv6_addr_copy(&fl.fl6_dst, &oip6h->saddr);
 	fl.fl_ip_sport = otcph.dest;
 	fl.fl_ip_dport = otcph.source;
+	security_skb_classify_flow(oldskb, &fl);
 	dst = ip6_route_output(NULL, &fl);
 	if (dst == NULL)
 		return;
@@ -179,8 +180,7 @@ static unsigned int reject6_target(struct sk_buff **pskb,
 			   const struct net_device *out,
 			   unsigned int hooknum,
 			   const struct xt_target *target,
-			   const void *targinfo,
-			   void *userinfo)
+			   const void *targinfo)
 {
 	const struct ip6t_reject_info *reject = targinfo;
 
@@ -223,7 +223,6 @@ static int check(const char *tablename,
 		 const void *entry,
 		 const struct xt_target *target,
 		 void *targinfo,
-		 unsigned int targinfosize,
 		 unsigned int hook_mask)
 {
  	const struct ip6t_reject_info *rejinfo = targinfo;
@@ -256,9 +255,7 @@ static struct ip6t_target ip6t_reject_reg = {
 
 static int __init ip6t_reject_init(void)
 {
-	if (ip6t_register_target(&ip6t_reject_reg))
-		return -EINVAL;
-	return 0;
+	return ip6t_register_target(&ip6t_reject_reg);
 }
 
 static void __exit ip6t_reject_fini(void)

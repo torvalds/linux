@@ -1,5 +1,5 @@
 /*
- *  fs/hypfs/hypfs_diag.c
+ *  arch/s390/hypfs/hypfs_diag.c
  *    Hypervisor filesystem for Linux on s390. Diag 204 and 224
  *    implementation.
  *
@@ -432,12 +432,14 @@ static int diag204_probe(void)
 
 	buf = diag204_get_buffer(INFO_EXT, &pages);
 	if (!IS_ERR(buf)) {
-		if (diag204(SUBC_STIB7 | INFO_EXT, pages, buf) >= 0) {
+		if (diag204((unsigned long)SUBC_STIB7 |
+			    (unsigned long)INFO_EXT, pages, buf) >= 0) {
 			diag204_store_sc = SUBC_STIB7;
 			diag204_info_type = INFO_EXT;
 			goto out;
 		}
-		if (diag204(SUBC_STIB6 | INFO_EXT, pages, buf) >= 0) {
+		if (diag204((unsigned long)SUBC_STIB6 |
+			    (unsigned long)INFO_EXT, pages, buf) >= 0) {
 			diag204_store_sc = SUBC_STIB7;
 			diag204_info_type = INFO_EXT;
 			goto out;
@@ -452,7 +454,8 @@ static int diag204_probe(void)
 		rc = PTR_ERR(buf);
 		goto fail_alloc;
 	}
-	if (diag204(SUBC_STIB4 | INFO_SIMPLE, pages, buf) >= 0) {
+	if (diag204((unsigned long)SUBC_STIB4 |
+		    (unsigned long)INFO_SIMPLE, pages, buf) >= 0) {
 		diag204_store_sc = SUBC_STIB4;
 		diag204_info_type = INFO_SIMPLE;
 		goto out;
@@ -476,7 +479,8 @@ static void *diag204_store(void)
 	buf = diag204_get_buffer(diag204_info_type, &pages);
 	if (IS_ERR(buf))
 		goto out;
-	if (diag204(diag204_store_sc | diag204_info_type, pages, buf) < 0)
+	if (diag204((unsigned long)diag204_store_sc |
+		    (unsigned long)diag204_info_type, pages, buf) < 0)
 		return ERR_PTR(-ENOSYS);
 out:
 	return buf;
@@ -531,7 +535,7 @@ __init int hypfs_diag_init(void)
 	return rc;
 }
 
-__exit void hypfs_diag_exit(void)
+void hypfs_diag_exit(void)
 {
 	diag224_delete_name_table();
 	diag204_free_buffer();

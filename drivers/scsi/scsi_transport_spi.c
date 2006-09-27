@@ -47,6 +47,7 @@
 
 /* Private data accessors (keep these out of the header file) */
 #define spi_dv_pending(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_pending)
+#define spi_dv_in_progress(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_in_progress)
 #define spi_dv_mutex(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_mutex)
 
 struct spi_internal {
@@ -240,6 +241,7 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_pcomp_en(starget) = 0;
 	spi_hold_mcs(starget) = 0;
 	spi_dv_pending(starget) = 0;
+	spi_dv_in_progress(starget) = 0;
 	spi_initial_dv(starget) = 0;
 	mutex_init(&spi_dv_mutex(starget));
 
@@ -830,28 +832,37 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	DV_SET(period, spi_min_period(starget));
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
-	if (scsi_device_qas(sdev))
+	if (scsi_device_qas(sdev)) {
 		DV_SET(qas, 1);
-	/* Also try IU transfers */
-	if (scsi_device_ius(sdev))
+	} else {
+		DV_SET(qas, 0);
+	}
+
+	if (scsi_device_ius(sdev) && spi_min_period(starget) < 9) {
+		/* This u320 (or u640). Set IU transfers */
 		DV_SET(iu, 1);
-	if (spi_min_period(starget) < 9) {
-		/* This u320 (or u640). Ignore the coupled parameters
-		 * like DT and IU, but set the optional ones */
+		/* Then set the optional parameters */
 		DV_SET(rd_strm, 1);
 		DV_SET(wr_flow, 1);
 		DV_SET(rti, 1);
 		if (spi_min_period(starget) == 8)
 			DV_SET(pcomp_en, 1);
+	} else {
+		DV_SET(iu, 0);
 	}
+
 	/* now that we've done all this, actually check the bus
 	 * signal type (if known).  Some devices are stupid on
 	 * a SE bus and still claim they can try LVD only settings */
 	if (i->f->get_signalling)
 		i->f->get_signalling(shost);
 	if (spi_signalling(shost) == SPI_SIGNAL_SE ||
-	    spi_signalling(shost) == SPI_SIGNAL_HVD)
+	    spi_signalling(shost) == SPI_SIGNAL_HVD ||
+	    !scsi_device_dt(sdev)) {
 		DV_SET(dt, 0);
+	} else {
+		DV_SET(dt, 1);
+	}
 	/* Do the read only INQUIRY tests */
 	spi_dv_retrain(sdev, buffer, buffer + sdev->inquiry_len,
 		       spi_dv_device_compare_inquiry);
@@ -907,6 +918,10 @@ spi_dv_device(struct scsi_device *sdev)
 	if (unlikely(scsi_device_get(sdev)))
 		return;
 
+	if (unlikely(spi_dv_in_progress(starget)))
+		return;
+	spi_dv_in_progress(starget) = 1;
+
 	buffer = kzalloc(len, GFP_KERNEL);
 
 	if (unlikely(!buffer))
@@ -938,6 +953,7 @@ spi_dv_device(struct scsi_device *sdev)
  out_free:
 	kfree(buffer);
  out_put:
+	spi_dv_in_progress(starget) = 0;
 	scsi_device_put(sdev);
 }
 EXPORT_SYMBOL(spi_dv_device);

@@ -150,10 +150,6 @@ static int __init cell_probe(void)
 	    !of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
 		return 0;
 
-#ifdef CONFIG_UDBG_RTAS_CONSOLE
-	udbg_init_rtas_console();
-#endif
-
 	hpte_init_native();
 
 	return 1;

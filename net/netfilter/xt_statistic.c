@@ -55,7 +55,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename, const void *entry,
 	   const struct xt_match *match, void *matchinfo,
-	   unsigned int matchsize, unsigned int hook_mask)
+	   unsigned int hook_mask)
 {
 	struct xt_statistic_info *info = (struct xt_statistic_info *)matchinfo;
 
@@ -66,46 +66,35 @@ checkentry(const char *tablename, const void *entry,
 	return 1;
 }
 
-static struct xt_match statistic_match = {
-	.name		= "statistic",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_statistic_info),
-	.checkentry	= checkentry,
-	.family		= AF_INET,
-	.me		= THIS_MODULE,
-};
-
-static struct xt_match statistic_match6 = {
-	.name		= "statistic",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_statistic_info),
-	.checkentry	= checkentry,
-	.family		= AF_INET6,
-	.me		= THIS_MODULE,
+static struct xt_match xt_statistic_match[] = {
+	{
+		.name		= "statistic",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_statistic_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "statistic",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_statistic_info),
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init xt_statistic_init(void)
 {
-	int ret;
-
-	ret = xt_register_match(&statistic_match);
-	if (ret)
-		goto err1;
-
-	ret = xt_register_match(&statistic_match6);
-	if (ret)
-		goto err2;
-	return ret;
-err2:
-	xt_unregister_match(&statistic_match);
-err1:
-	return ret;
+	return xt_register_matches(xt_statistic_match,
+				   ARRAY_SIZE(xt_statistic_match));
 }
 
 static void __exit xt_statistic_fini(void)
 {
-	xt_unregister_match(&statistic_match6);
-	xt_unregister_match(&statistic_match);
+	xt_unregister_matches(xt_statistic_match,
+			      ARRAY_SIZE(xt_statistic_match));
 }
 
 module_init(xt_statistic_init);

@@ -82,6 +82,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -164,7 +165,7 @@ static const u8 encaps_hdr[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 #define MAX_RID_LEN 1024
 
 static const struct iw_handler_def orinoco_handler_def;
-static struct ethtool_ops orinoco_ethtool_ops;
+static const struct ethtool_ops orinoco_ethtool_ops;
 
 /********************************************************************/
 /* Data tables                                                      */
@@ -4292,7 +4293,7 @@ static void orinoco_get_drvinfo(struct net_device *dev,
 			 "PCMCIA %p", priv->hw.iobase);
 }
 
-static struct ethtool_ops orinoco_ethtool_ops = {
+static const struct ethtool_ops orinoco_ethtool_ops = {
 	.get_drvinfo = orinoco_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };

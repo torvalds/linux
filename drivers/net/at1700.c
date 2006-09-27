@@ -18,7 +18,7 @@
 	straight-forward Fujitsu MB86965 implementations.
 
 	Modification for Fujitsu FMV-18X cards is done by Yutaka Tamiya
-	(tamy@flab.fujitsu.co.jp). 
+	(tamy@flab.fujitsu.co.jp).
 
   Sources:
     The Fujitsu MB86965 datasheet.
@@ -58,7 +58,7 @@
 #include <asm/dma.h>
 
 static char version[] __initdata =
-	"at1700.c:v1.15 4/7/98  Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
+	"at1700.c:v1.16 9/11/06  Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
 
 #define DRV_NAME "at1700"
 
@@ -168,7 +168,7 @@ static struct net_device_stats *net_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void net_tx_timeout (struct net_device *dev);
 
-
+
 #ifdef CONFIG_MCA_LEGACY
 struct at1720_mca_adapters_struct {
 	char* name;
@@ -201,7 +201,7 @@ static void cleanup_card(struct net_device *dev)
 	struct net_local *lp = netdev_priv(dev);
 	if (lp->mca_slot >= 0)
 		mca_mark_as_unused(lp->mca_slot);
-#endif	
+#endif
 	free_irq(dev->irq, NULL);
 	release_region(dev->base_addr, AT1700_IO_EXTENT);
 }
@@ -301,7 +301,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 		for (j = 0; at1720_mca_adapters[j].name != NULL; j ++) {
 			slot = 0;
 			while (slot != MCA_NOTFOUND) {
-				
+
 				slot = mca_find_unused_adapter( at1720_mca_adapters[j].id, slot );
 				if (slot == MCA_NOTFOUND) break;
 
@@ -315,7 +315,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 					if (( pos3 & 0x07) == at1700_ioaddr_pattern[l_i])
 						break;
 				ioaddr = at1700_mca_probe_list[l_i];
-				
+
 				for (irq = 0; irq < 0x10; irq++)
 					if (((((pos4>>4) & 0x0f) | (pos3 & 0xf0)) & 0xff) == at1700_irq_pattern[irq])
 						break;
@@ -328,7 +328,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 				}
 
 				dev->irq = irq;
-				
+
 				/* claim the slot */
 				mca_set_adapter_name( slot, at1720_mca_adapters[j].name );
 				mca_mark_as_used(slot);
@@ -353,7 +353,7 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	else {
 		goto err_out;
 	}
-			
+
 #ifdef CONFIG_MCA_LEGACY
 found:
 #endif
@@ -487,7 +487,7 @@ err_out:
 	return ret;
 }
 
-
+
 /*  EEPROM_Ctrl bits. */
 #define EE_SHIFT_CLK	0x40	/* EEPROM shift clock, in reg. 16. */
 #define EE_CS			0x20	/* EEPROM chip select, in reg. 16. */
@@ -528,7 +528,7 @@ static int __init read_eeprom(long ioaddr, int location)
 	return retval;
 }
 
-
+
 
 static int net_open(struct net_device *dev)
 {
@@ -645,7 +645,7 @@ static int net_send_packet (struct sk_buff *skb, struct net_device *dev)
 
 	return 0;
 }
-
+
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
 static irqreturn_t
@@ -663,9 +663,9 @@ net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
-	
+
 	spin_lock (&lp->lock);
-	
+
 	status = inw(ioaddr + TX_STATUS);
 	outw(status, ioaddr + TX_STATUS);
 
@@ -851,8 +851,6 @@ set_rx_mode(struct net_device *dev)
 	int i;
 
 	if (dev->flags & IFF_PROMISC) {
-		/* Unconditionally log net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
 	} else if (dev->mc_count > MC_FILTERBREAK
@@ -921,7 +919,7 @@ cleanup_module(void)
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
 
-
+
 /*
  * Local variables:
  *  compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c at1700.c"

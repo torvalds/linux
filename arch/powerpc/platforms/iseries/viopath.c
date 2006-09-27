@@ -41,8 +41,8 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/prom.h>
 #include <asm/iseries/hv_types.h>
-#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/mf.h>
@@ -116,6 +116,8 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	dma_addr_t handle;
 	HvLpEvent_Rc hvrc;
 	DECLARE_MUTEX_LOCKED(Semaphore);
+	struct device_node *node;
+	const char *sysid;
 
 	buf = kmalloc(HW_PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -143,19 +145,25 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 
 	buf[HW_PAGE_SIZE-1] = '\0';
 	seq_printf(m, "%s", buf);
-	seq_printf(m, "AVAILABLE_VETH=%x\n", vlanMap);
-	seq_printf(m, "SRLNBR=%c%c%c%c%c%c%c\n",
-		   e2a(xItExtVpdPanel.mfgID[2]),
-		   e2a(xItExtVpdPanel.mfgID[3]),
-		   e2a(xItExtVpdPanel.systemSerial[1]),
-		   e2a(xItExtVpdPanel.systemSerial[2]),
-		   e2a(xItExtVpdPanel.systemSerial[3]),
-		   e2a(xItExtVpdPanel.systemSerial[4]),
-		   e2a(xItExtVpdPanel.systemSerial[5]));
 
 	dma_unmap_single(iSeries_vio_dev, handle, HW_PAGE_SIZE,
 			 DMA_FROM_DEVICE);
 	kfree(buf);
+
+	seq_printf(m, "AVAILABLE_VETH=%x\n", vlanMap);
+
+	node = of_find_node_by_path("/");
+	sysid = NULL;
+	if (node != NULL)
+		sysid = get_property(node, "system-id", NULL);
+
+	if (sysid == NULL)
+		seq_printf(m, "SRLNBR=<UNKNOWN>\n");
+	else
+		/* Skip "IBM," on front of serial number, see dt.c */
+		seq_printf(m, "SRLNBR=%s\n", sysid + 4);
+
+	of_node_put(node);
 
 	return 0;
 }

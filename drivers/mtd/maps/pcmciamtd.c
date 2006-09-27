@@ -602,6 +602,10 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if(ret != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, ret);
+		if (dev->win_base) {
+			iounmap(dev->win_base);
+			dev->win_base = NULL;
+		}
 		return -ENODEV;
 	}
 

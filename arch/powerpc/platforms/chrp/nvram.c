@@ -67,13 +67,14 @@ static void chrp_nvram_write(int addr, unsigned char val)
 void __init chrp_nvram_init(void)
 {
 	struct device_node *nvram;
-	unsigned int *nbytes_p, proplen;
+	const unsigned int *nbytes_p;
+	unsigned int proplen;
 
 	nvram = of_find_node_by_type(NULL, "nvram");
 	if (nvram == NULL)
 		return;
 
-	nbytes_p = (unsigned int *)get_property(nvram, "#bytes", &proplen);
+	nbytes_p = get_property(nvram, "#bytes", &proplen);
 	if (nbytes_p == NULL || proplen != sizeof(unsigned int))
 		return;
 

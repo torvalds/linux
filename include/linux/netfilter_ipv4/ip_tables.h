@@ -312,8 +312,7 @@ extern unsigned int ipt_do_table(struct sk_buff **pskb,
 				 unsigned int hook,
 				 const struct net_device *in,
 				 const struct net_device *out,
-				 struct ipt_table *table,
-				 void *userdata);
+				 struct ipt_table *table);
 
 #define IPT_ALIGN(s) XT_ALIGN(s)
 

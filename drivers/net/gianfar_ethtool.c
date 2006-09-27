@@ -10,8 +10,8 @@
  *
  *  Copyright (c) 2003,2004 Freescale Semiconductor, Inc.
  *
- *  This software may be used and distributed according to 
- *  the terms of the GNU Public License, Version 2, incorporated herein 
+ *  This software may be used and distributed according to
+ *  the terms of the GNU Public License, Version 2, incorporated herein
  *  by reference.
  */
 
@@ -202,7 +202,7 @@ static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (NULL == phydev)
 		return -ENODEV;
-	
+
 	cmd->maxtxpkt = priv->txcount;
 	cmd->maxrxpkt = priv->rxcount;
 
@@ -281,7 +281,7 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	
+
 	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
@@ -555,19 +555,19 @@ static uint32_t gfar_get_tx_csum(struct net_device *dev)
 }
 
 static uint32_t gfar_get_msglevel(struct net_device *dev)
-{       
+{
 	struct gfar_private *priv = netdev_priv(dev);
 	return priv->msg_enable;
-}       
-        
+}
+
 static void gfar_set_msglevel(struct net_device *dev, uint32_t data)
-{       
+{
 	struct gfar_private *priv = netdev_priv(dev);
 	priv->msg_enable = data;
 }
 
 
-struct ethtool_ops gfar_ethtool_ops = {
+const struct ethtool_ops gfar_ethtool_ops = {
 	.get_settings = gfar_gsettings,
 	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,

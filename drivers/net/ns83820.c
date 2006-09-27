@@ -65,7 +65,7 @@
  *			0.20 -	fix stupid RFEN thinko.  i am such a smurf.
  *	20040828	0.21 -	add hardware vlan accleration
  *				by Neil Horman <nhorman@redhat.com>
- *	20050406	0.22 -	improved DAC ifdefs from Andi Kleen	
+ *	20050406	0.22 -	improved DAC ifdefs from Andi Kleen
  *			     -	removal of dead code from Adrian Bunk
  *			     -	fix half duplex collision behaviour
  * Driver Overview
@@ -377,7 +377,7 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #define LINK_DOWN		0x02
 #define LINK_UP			0x04
 
-#define HW_ADDR_LEN	sizeof(dma_addr_t) 
+#define HW_ADDR_LEN	sizeof(dma_addr_t)
 #define desc_addr_set(desc, addr)				\
 	do {							\
 		((desc)[0] = cpu_to_le32(addr));		\
@@ -493,7 +493,7 @@ static inline void kick_rx(struct net_device *ndev)
 	(((NR_TX_DESC-2 + dev->tx_done_idx - dev->tx_free_idx) % NR_TX_DESC) > MIN_TX_DESC_FREE)
 
 
-#ifdef NS83820_VLAN_ACCEL_SUPPORT 
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
 static void ns83820_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
 {
 	struct ns83820 *dev = PRIV(ndev);
@@ -865,7 +865,7 @@ static void fastcall ns83820_rx_kick(struct net_device *ndev)
 }
 
 /* rx_irq
- *	
+ *
  */
 static void FASTCALL(rx_irq(struct net_device *ndev));
 static void fastcall rx_irq(struct net_device *ndev)
@@ -921,14 +921,14 @@ static void fastcall rx_irq(struct net_device *ndev)
 		 * that are 64 bytes with a vlan header appended
 		 * like arp frames, or pings, are flagged as Runts
 		 * when the tag is stripped and hardware.  This
-		 * also means that the OK bit in the descriptor 
+		 * also means that the OK bit in the descriptor
 		 * is cleared when the frame comes in so we have
 		 * to do a specific length check here to make sure
 		 * the frame would have been ok, had we not stripped
 		 * the tag.
-		 */ 
+		 */
 		if (likely((CMDSTS_OK & cmdsts) ||
-			((cmdsts & CMDSTS_RUNT) && len >= 56))) {   
+			((cmdsts & CMDSTS_RUNT) && len >= 56))) {
 #else
 		if (likely(CMDSTS_OK & cmdsts)) {
 #endif
@@ -945,7 +945,7 @@ static void fastcall rx_irq(struct net_device *ndev)
 				skb->ip_summed = CHECKSUM_NONE;
 			}
 			skb->protocol = eth_type_trans(skb, ndev);
-#ifdef NS83820_VLAN_ACCEL_SUPPORT 
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
 			if(extsts & EXTSTS_VPKT) {
 				unsigned short tag;
 				tag = ntohs(extsts & EXTSTS_VTG_MASK);
@@ -1047,7 +1047,7 @@ static void do_tx_done(struct net_device *ndev)
 			dev_kfree_skb_irq(skb);
 			atomic_dec(&dev->nr_tx_skbs);
 		} else
-			pci_unmap_page(dev->pci_dev, 
+			pci_unmap_page(dev->pci_dev,
 					addr,
 					len,
 					PCI_DMA_TODEVICE);
@@ -1153,7 +1153,7 @@ again:
 	if (!nr_frags)
 		frag = NULL;
 	extsts = 0;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		extsts |= EXTSTS_IPPKT;
 		if (IPPROTO_TCP == skb->nh.iph->protocol)
 			extsts |= EXTSTS_TCPPKT;
@@ -1273,7 +1273,7 @@ static u32 ns83820_get_link(struct net_device *ndev)
 	return cfg & CFG_LNKSTS ? 1 : 0;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = ns83820_get_drvinfo,
 	.get_link = ns83820_get_link
 };
@@ -1359,8 +1359,8 @@ static void ns83820_do_isr(struct net_device *ndev, u32 isr)
 			dev->tx_idx = 0;
 		}
 		/* The may have been a race between a pci originated read
-		 * and the descriptor update from the cpu.  Just in case, 
-		 * kick the transmitter if the hardware thinks it is on a 
+		 * and the descriptor update from the cpu.  Just in case,
+		 * kick the transmitter if the hardware thinks it is on a
 		 * different descriptor than we are.
 		 */
 		if (dev->tx_idx != dev->tx_free_idx)
@@ -1388,8 +1388,8 @@ static void ns83820_do_isr(struct net_device *ndev, u32 isr)
 
 	/* The TxIdle interrupt can come in before the transmit has
 	 * completed.  Normally we reap packets off of the combination
-	 * of TxDesc and TxIdle and leave TxOk disabled (since it 
-	 * occurs on every packet), but when no further irqs of this 
+	 * of TxDesc and TxIdle and leave TxOk disabled (since it
+	 * occurs on every packet), but when no further irqs of this
 	 * nature are expected, we must enable TxOk.
 	 */
 	if ((ISR_TXIDLE & isr) && (dev->tx_done_idx != dev->tx_free_idx)) {
@@ -1956,7 +1956,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	/* When compiled with 64 bit addressing, we must always enable
 	 * the 64 bit descriptor format.
 	 */
-	if (sizeof(dma_addr_t) == 8) 
+	if (sizeof(dma_addr_t) == 8)
 		dev->CFG_cache |= CFG_M64ADDR;
 	if (using_dac)
 		dev->CFG_cache |= CFG_T64ADDR;
@@ -1994,7 +1994,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 		writel(dev->CFG_cache, dev->base + CFG);
 	}
 
-#if 0	/* Huh?  This sets the PCI latency register.  Should be done via 
+#if 0	/* Huh?  This sets the PCI latency register.  Should be done via
 	 * the PCI layer.  FIXME.
 	 */
 	if (readl(dev->base + SRR))
@@ -2006,7 +2006,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	 * can be transmitted is 8192 - FLTH - burst size.
 	 * If only the transmit fifo was larger...
 	 */
-	/* Ramit : 1024 DMA is not a good idea, it ends up banging 
+	/* Ramit : 1024 DMA is not a good idea, it ends up banging
 	 * some DELL and COMPAQ SMP systems */
 	writel(TXCFG_CSI | TXCFG_HBI | TXCFG_ATP | TXCFG_MXDMA512
 		| ((1600 / 32) * 0x100),
@@ -2020,8 +2020,8 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	/* Set Rx to full duplex, don't accept runt, errored, long or length
 	 * range errored packets.  Use 512 byte DMA.
 	 */
-	/* Ramit : 1024 DMA is not a good idea, it ends up banging 
-	 * some DELL and COMPAQ SMP systems 
+	/* Ramit : 1024 DMA is not a good idea, it ends up banging
+	 * some DELL and COMPAQ SMP systems
 	 * Turn on ALP, only we are accpeting Jumbo Packets */
 	writel(RXCFG_AEP | RXCFG_ARP | RXCFG_AIRL | RXCFG_RX_FD
 		| RXCFG_STRIPCRC
@@ -2045,7 +2045,7 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	 * also turn on tag stripping if hardware acceleration is enabled
 	 */
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
-#define VRCR_INIT_VALUE (VRCR_IPEN|VRCR_VTDEN|VRCR_VTREN) 
+#define VRCR_INIT_VALUE (VRCR_IPEN|VRCR_VTDEN|VRCR_VTREN)
 #else
 #define VRCR_INIT_VALUE (VRCR_IPEN|VRCR_VTDEN)
 #endif
@@ -2178,7 +2178,7 @@ static struct pci_driver driver = {
 static int __init ns83820_init(void)
 {
 	printk(KERN_INFO "ns83820.c: National Semiconductor DP83820 10/100/1000 driver.\n");
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit ns83820_exit(void)

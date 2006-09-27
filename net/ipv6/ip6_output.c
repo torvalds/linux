@@ -308,6 +308,56 @@ static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 	return 0;
 }
 
+static int ip6_forward_proxy_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *hdr = skb->nh.ipv6h;
+	u8 nexthdr = hdr->nexthdr;
+	int offset;
+
+	if (ipv6_ext_hdr(nexthdr)) {
+		offset = ipv6_skip_exthdr(skb, sizeof(*hdr), &nexthdr);
+		if (offset < 0)
+			return 0;
+	} else
+		offset = sizeof(struct ipv6hdr);
+
+	if (nexthdr == IPPROTO_ICMPV6) {
+		struct icmp6hdr *icmp6;
+
+		if (!pskb_may_pull(skb, skb->nh.raw + offset + 1 - skb->data))
+			return 0;
+
+		icmp6 = (struct icmp6hdr *)(skb->nh.raw + offset);
+
+		switch (icmp6->icmp6_type) {
+		case NDISC_ROUTER_SOLICITATION:
+		case NDISC_ROUTER_ADVERTISEMENT:
+		case NDISC_NEIGHBOUR_SOLICITATION:
+		case NDISC_NEIGHBOUR_ADVERTISEMENT:
+		case NDISC_REDIRECT:
+			/* For reaction involving unicast neighbor discovery
+			 * message destined to the proxied address, pass it to
+			 * input function.
+			 */
+			return 1;
+		default:
+			break;
+		}
+	}
+
+	/*
+	 * The proxying router can't forward traffic sent to a link-local
+	 * address, so signal the sender and discard the packet. This
+	 * behavior is clarified by the MIPv6 specification.
+	 */
+	if (ipv6_addr_type(&hdr->daddr) & IPV6_ADDR_LINKLOCAL) {
+		dst_link_failure(skb);
+		return -1;
+	}
+
+	return 0;
+}
+
 static inline int ip6_forward_finish(struct sk_buff *skb)
 {
 	return dst_output(skb);
@@ -360,6 +410,18 @@ int ip6_forward(struct sk_buff *skb)
 
 		kfree_skb(skb);
 		return -ETIMEDOUT;
+	}
+
+	/* XXX: idev->cnf.proxy_ndp? */
+	if (ipv6_devconf.proxy_ndp &&
+	    pneigh_lookup(&nd_tbl, &hdr->daddr, skb->dev, 0)) {
+		int proxied = ip6_forward_proxy_check(skb);
+		if (proxied > 0)
+			return ip6_input(skb);
+		else if (proxied < 0) {
+			IP6_INC_STATS(IPSTATS_MIB_INDISCARDS);
+			goto drop;
+		}
 	}
 
 	if (!xfrm6_route_forward(skb)) {
@@ -475,17 +537,25 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 		switch (**nexthdr) {
 
 		case NEXTHDR_HOP:
+			break;
 		case NEXTHDR_ROUTING:
+			found_rhdr = 1;
+			break;
 		case NEXTHDR_DEST:
-			if (**nexthdr == NEXTHDR_ROUTING) found_rhdr = 1;
-			if (**nexthdr == NEXTHDR_DEST && found_rhdr) return offset;
-			offset += ipv6_optlen(exthdr);
-			*nexthdr = &exthdr->nexthdr;
-			exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+#ifdef CONFIG_IPV6_MIP6
+			if (ipv6_find_tlv(skb, offset, IPV6_TLV_HAO) >= 0)
+				break;
+#endif
+			if (found_rhdr)
+				return offset;
 			break;
 		default :
 			return offset;
 		}
+
+		offset += ipv6_optlen(exthdr);
+		*nexthdr = &exthdr->nexthdr;
+		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
 	}
 
 	return offset;
@@ -726,6 +796,14 @@ fail:
 	return err;
 }
 
+static inline int ip6_rt_check(struct rt6key *rt_key,
+			       struct in6_addr *fl_addr,
+			       struct in6_addr *addr_cache)
+{
+	return ((rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
+		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache)));
+}
+
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 					  struct dst_entry *dst,
 					  struct flowi *fl)
@@ -741,8 +819,8 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 * that we do not support routing by source, TOS,
 	 * and MSG_DONTROUTE 		--ANK (980726)
 	 *
-	 * 1. If route was host route, check that
-	 *    cached destination is current.
+	 * 1. ip6_rt_check(): If route was host route,
+	 *    check that cached destination is current.
 	 *    If it is network route, we still may
 	 *    check its validity using saved pointer
 	 *    to the last used address: daddr_cache.
@@ -753,11 +831,11 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 *    sockets.
 	 * 2. oif also should be the same.
 	 */
-	if (((rt->rt6i_dst.plen != 128 ||
-	      !ipv6_addr_equal(&fl->fl6_dst, &rt->rt6i_dst.addr))
-	     && (np->daddr_cache == NULL ||
-		 !ipv6_addr_equal(&fl->fl6_dst, np->daddr_cache)))
-	    || (fl->oif && fl->oif != dst->dev->ifindex)) {
+	if (ip6_rt_check(&rt->rt6i_dst, &fl->fl6_dst, np->daddr_cache) ||
+#ifdef CONFIG_IPV6_SUBTREES
+	    ip6_rt_check(&rt->rt6i_src, &fl->fl6_src, np->saddr_cache) ||
+#endif
+	    (fl->oif && fl->oif != dst->dev->ifindex)) {
 		dst_release(dst);
 		dst = NULL;
 	}
@@ -866,7 +944,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 		/* initialize protocol header pointer */
 		skb->h.raw = skb->data + fragheaderlen;
 
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->csum = 0;
 		sk->sk_sndmsg_off = 0;
 	}
@@ -963,7 +1041,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 
 	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
 
-	fragheaderlen = sizeof(struct ipv6hdr) + (opt ? opt->opt_nflen : 0);
+	fragheaderlen = sizeof(struct ipv6hdr) + rt->u.dst.nfheader_len + (opt ? opt->opt_nflen : 0);
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen - sizeof(struct frag_hdr);
 
 	if (mtu <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN) {

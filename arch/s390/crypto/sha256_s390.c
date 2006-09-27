@@ -127,6 +127,8 @@ static void sha256_final(struct crypto_tfm *tfm, u8 *out)
 
 static struct crypto_alg alg = {
 	.cra_name	=	"sha256",
+	.cra_driver_name =	"sha256-s390",
+	.cra_priority	=	CRYPT_S390_PRIORITY,
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA256_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct s390_sha256_ctx),
