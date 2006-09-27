@@ -12,6 +12,17 @@
  */
 #include <linux/linkage.h>
 
+#ifdef CONFIG_CPU_SH4A
+#define SYNCO()		synco
+
+#define PREFI(label, reg)	\
+	mov.l	label, reg;	\
+	prefi	@reg
+#else
+#define SYNCO()
+#define PREFI(label, reg)
+#endif
+
 	.section	.empty_zero_page, "aw"
 ENTRY(empty_zero_page)
 	.long	1		/* MOUNT_ROOT_RDONLY */
@@ -42,6 +53,17 @@ ENTRY(_stext)
 	!			Initialize global interrupt mask
 	mov	#0, r0
 	ldc	r0, r6_bank
+
+	/*
+	 * Prefetch if possible to reduce cache miss penalty.
+	 *
+	 * We do this early on for SH-4A as a micro-optimization,
+	 * as later on we will have speculative execution enabled
+	 * and this will become less of an issue.
+	 */
+	PREFI(5f, r0)
+	PREFI(6f, r0)
+
 	!
 	mov.l	2f, r0
 	mov	r0, r15		! Set initial r15 (stack pointer)
@@ -49,11 +71,7 @@ ENTRY(_stext)
 	shll8	r1		! r1 = 8192
 	sub	r1, r0		!
 	ldc	r0, r7_bank	! ... and initial thread_info
-	!
-	!			Additional CPU initialization
-	mov.l	6f, r0
-	jsr	@r0
-	 nop
+
 	!			Clear BSS area
 	mov.l	3f, r1
 	add	#4, r1
@@ -62,6 +80,14 @@ ENTRY(_stext)
 9:	cmp/hs	r2, r1
 	bf/s	9b		! while (r1 < r2)
 	 mov.l	r0,@-r2
+
+	!			Additional CPU initialization
+	mov.l	6f, r0
+	jsr	@r0
+	 nop
+
+	SYNCO()			! Wait for pending instructions..
+
 	!			Start kernel
 	mov.l	5f, r0
 	jmp	@r0
