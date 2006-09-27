@@ -2203,7 +2203,6 @@ struct tg3 {
 #define TG3_FLG2_PCI_EXPRESS		0x00000200
 #define TG3_FLG2_ASF_NEW_HANDSHAKE	0x00000400
 #define TG3_FLG2_HW_AUTONEG		0x00000800
-#define TG3_FLG2_PHY_JUST_INITTED	0x00001000
 #define TG3_FLG2_PHY_SERDES		0x00002000
 #define TG3_FLG2_CAPACITIVE_COUPLING	0x00004000
 #define TG3_FLG2_FLASH			0x00008000
@@ -2235,6 +2234,12 @@ struct tg3 {
 	u32				timer_offset;
 	u16				asf_counter;
 	u16				asf_multiplier;
+
+	/* 1 second counter for transient serdes link events */
+	u32				serdes_counter;
+#define SERDES_AN_TIMEOUT_5704S		2
+#define SERDES_PARALLEL_DET_TIMEOUT	1
+#define SERDES_AN_TIMEOUT_5714S		1
 
 	struct tg3_link_config		link_config;
 	struct tg3_bufmgr_config	bufmgr_config;

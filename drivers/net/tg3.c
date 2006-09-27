@@ -2406,24 +2406,27 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 	expected_sg_dig_ctrl |= (1 << 12);
 
 	if (sg_dig_ctrl != expected_sg_dig_ctrl) {
+		if ((tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT) &&
+		    tp->serdes_counter &&
+		    ((mac_status & (MAC_STATUS_PCS_SYNCED |
+				    MAC_STATUS_RCVD_CFG)) ==
+		     MAC_STATUS_PCS_SYNCED)) {
+			tp->serdes_counter--;
+			current_link_up = 1;
+			goto out;
+		}
+restart_autoneg:
 		if (workaround)
 			tw32_f(MAC_SERDES_CFG, serdes_cfg | 0xc011000);
 		tw32_f(SG_DIG_CTRL, expected_sg_dig_ctrl | (1 << 30));
 		udelay(5);
 		tw32_f(SG_DIG_CTRL, expected_sg_dig_ctrl);
 
-		tp->tg3_flags2 |= TG3_FLG2_PHY_JUST_INITTED;
+		tp->serdes_counter = SERDES_AN_TIMEOUT_5704S;
+		tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
 	} else if (mac_status & (MAC_STATUS_PCS_SYNCED |
 				 MAC_STATUS_SIGNAL_DET)) {
-		int i;
-
-		/* Giver time to negotiate (~200ms) */
-		for (i = 0; i < 40000; i++) {
-			sg_dig_status = tr32(SG_DIG_STATUS);
-			if (sg_dig_status & (0x3))
-				break;
-			udelay(5);
-		}
+		sg_dig_status = tr32(SG_DIG_STATUS);
 		mac_status = tr32(MAC_STATUS);
 
 		if ((sg_dig_status & (1 << 1)) &&
@@ -2439,10 +2442,11 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 			current_link_up = 1;
-			tp->tg3_flags2 &= ~TG3_FLG2_PHY_JUST_INITTED;
+			tp->serdes_counter = 0;
+			tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
 		} else if (!(sg_dig_status & (1 << 1))) {
-			if (tp->tg3_flags2 & TG3_FLG2_PHY_JUST_INITTED)
-				tp->tg3_flags2 &= ~TG3_FLG2_PHY_JUST_INITTED;
+			if (tp->serdes_counter)
+				tp->serdes_counter--;
 			else {
 				if (workaround) {
 					u32 val = serdes_cfg;
@@ -2466,9 +2470,17 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 				    !(mac_status & MAC_STATUS_RCVD_CFG)) {
 					tg3_setup_flow_control(tp, 0, 0);
 					current_link_up = 1;
-				}
+					tp->tg3_flags2 |=
+						TG3_FLG2_PARALLEL_DETECT;
+					tp->serdes_counter =
+						SERDES_PARALLEL_DET_TIMEOUT;
+				} else
+					goto restart_autoneg;
 			}
 		}
+	} else {
+		tp->serdes_counter = SERDES_AN_TIMEOUT_5704S;
+		tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
 	}
 
 out:
@@ -2599,14 +2611,16 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, int force_reset)
 				    MAC_STATUS_CFG_CHANGED));
 		udelay(5);
 		if ((tr32(MAC_STATUS) & (MAC_STATUS_SYNC_CHANGED |
-					 MAC_STATUS_CFG_CHANGED)) == 0)
+					 MAC_STATUS_CFG_CHANGED |
+					 MAC_STATUS_LNKSTATE_CHANGED)) == 0)
 			break;
 	}
 
 	mac_status = tr32(MAC_STATUS);
 	if ((mac_status & MAC_STATUS_PCS_SYNCED) == 0) {
 		current_link_up = 0;
-		if (tp->link_config.autoneg == AUTONEG_ENABLE) {
+		if (tp->link_config.autoneg == AUTONEG_ENABLE &&
+		    tp->serdes_counter == 0) {
 			tw32_f(MAC_MODE, (tp->mac_mode |
 					  MAC_MODE_SEND_CONFIGS));
 			udelay(1);
@@ -2711,7 +2725,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 			tg3_writephy(tp, MII_BMCR, bmcr);
 
 			tw32_f(MAC_EVENT, MAC_EVENT_LNKSTATE_CHANGED);
-			tp->tg3_flags2 |= TG3_FLG2_PHY_JUST_INITTED;
+			tp->serdes_counter = SERDES_AN_TIMEOUT_5714S;
 			tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
 
 			return err;
@@ -2816,9 +2830,9 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 
 static void tg3_serdes_parallel_detect(struct tg3 *tp)
 {
-	if (tp->tg3_flags2 & TG3_FLG2_PHY_JUST_INITTED) {
+	if (tp->serdes_counter) {
 		/* Give autoneg time to complete. */
-		tp->tg3_flags2 &= ~TG3_FLG2_PHY_JUST_INITTED;
+		tp->serdes_counter--;
 		return;
 	}
 	if (!netif_carrier_ok(tp->dev) &&
@@ -6660,12 +6674,14 @@ static void tg3_timer(unsigned long __opaque)
 				need_setup = 1;
 			}
 			if (need_setup) {
-				tw32_f(MAC_MODE,
-				     (tp->mac_mode &
-				      ~MAC_MODE_PORT_MODE_MASK));
-				udelay(40);
-				tw32_f(MAC_MODE, tp->mac_mode);
-				udelay(40);
+				if (!tp->serdes_counter) {
+					tw32_f(MAC_MODE,
+					     (tp->mac_mode &
+					      ~MAC_MODE_PORT_MODE_MASK));
+					udelay(40);
+					tw32_f(MAC_MODE, tp->mac_mode);
+					udelay(40);
+				}
 				tg3_setup_phy(tp, 0);
 			}
 		} else if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)
