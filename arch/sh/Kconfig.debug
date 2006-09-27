@@ -32,6 +32,7 @@ config EARLY_PRINTK
 
 config KGDB
 	bool "Include KGDB kernel debugger"
+	select FRAME_POINTER
 	help
 	  Include in-kernel hooks for kgdb, the Linux kernel source level
 	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
@@ -111,14 +112,5 @@ config KGDB_DEFBITS_7
 endchoice
 
 endmenu
-
-config FRAME_POINTER
-	bool "Compile the kernel with frame pointers"
-	default y if KGDB
-	help
-	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
-	  to solve problems without frame pointers.
 
 endmenu
