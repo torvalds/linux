@@ -222,6 +222,12 @@ config SH_TITAN
 	  Select Titan if you are configuring for a Nimble Microsystems
 	  NetEngine NP51R.
 
+config SH_SHMIN
+	bool "SHMIN"
+	select CPU_SUBTYPE_SH7706
+	help
+	  Select SHMIN if configureing for the SHMIN board
+
 config SH_UNKNOWN
 	bool "BareCPU"
 	help
@@ -295,7 +301,7 @@ config SH_RTC
 	bool
 	depends on !SH_DREAMCAST && !SH_SATURN && !SH_7300_SOLUTION_ENGINE && \
 		   !SH_73180_SOLUTION_ENGINE && !SH_LANDISK && \
-		   !SH_R7780RP
+		   !SH_R7780RP && !SH_SHMIN
 	default y
 	help
 	  Selecting this option will allow the Linux kernel to emulate

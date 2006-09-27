@@ -113,6 +113,7 @@ machdir-$(CONFIG_SH_R7780RP)			:= renesas/r7780rp
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		:= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			:= landisk
 machdir-$(CONFIG_SH_TITAN)			:= titan
+machdir-$(CONFIG_SH_SHMIN)			:= shmin
 machdir-$(CONFIG_SH_UNKNOWN)			:= unknown
 
 incdir-y			:= $(notdir $(machdir-y))
