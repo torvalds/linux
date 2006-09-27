@@ -57,12 +57,9 @@ static void shutdown_systemh_irq(unsigned int irq)
 static void disable_systemh_irq(unsigned int irq)
 {
 	if (systemh_irq_mask_register) {
-		unsigned long flags;
 		unsigned long val, mask = 0x01 << 1;
 
 		/* Clear the "irq"th bit in the mask and set it in the request */
-		local_irq_save(flags);
-
 		val = ctrl_inl((unsigned long)systemh_irq_mask_register);
 		val &= ~mask;
 		ctrl_outl(val, (unsigned long)systemh_irq_mask_register);
@@ -70,23 +67,18 @@ static void disable_systemh_irq(unsigned int irq)
 		val = ctrl_inl((unsigned long)systemh_irq_request_register);
 		val |= mask;
 		ctrl_outl(val, (unsigned long)systemh_irq_request_register);
-
-		local_irq_restore(flags);
 	}
 }
 
 static void enable_systemh_irq(unsigned int irq)
 {
 	if (systemh_irq_mask_register) {
-		unsigned long flags;
 		unsigned long val, mask = 0x01 << 1;
 
 		/* Set "irq"th bit in the mask register */
-		local_irq_save(flags);
 		val = ctrl_inl((unsigned long)systemh_irq_mask_register);
 		val |= mask;
 		ctrl_outl(val, (unsigned long)systemh_irq_mask_register);
-		local_irq_restore(flags);
 	}
 }
 

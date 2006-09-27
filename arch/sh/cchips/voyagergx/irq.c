@@ -36,31 +36,25 @@
 
 static void disable_voyagergx_irq(unsigned int irq)
 {
-	unsigned long flags, val;
-	unsigned long  mask = 1 << (irq - VOYAGER_IRQ_BASE);
+	unsigned long val;
+	unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
     	pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
-	local_irq_save(flags);
         val = inl(VOYAGER_INT_MASK);
         val &= ~mask;
         outl(val, VOYAGER_INT_MASK);
-	local_irq_restore(flags);
 }
-
 
 static void enable_voyagergx_irq(unsigned int irq)
 {
-        unsigned long flags, val;
-        unsigned long  mask = 1 << (irq - VOYAGER_IRQ_BASE);
+        unsigned long val;
+        unsigned long mask = 1 << (irq - VOYAGER_IRQ_BASE);
 
         pr_debug("disable_voyagergx_irq(%d): mask=%x\n", irq, mask);
-        local_irq_save(flags);
         val = inl(VOYAGER_INT_MASK);
         val |= mask;
         outl(val, VOYAGER_INT_MASK);
-        local_irq_restore(flags);
 }
-
 
 static void mask_and_ack_voyagergx(unsigned int irq)
 {
@@ -94,16 +88,14 @@ static struct hw_interrupt_type voyagergx_irq_type = {
 	.end = end_voyagergx_irq,
 };
 
-static irqreturn_t voyagergx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t voyagergx_interrupt(int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
 	printk(KERN_INFO
 	       "VoyagerGX: spurious interrupt, status: 0x%x\n",
 	       		inl(INT_STATUS));
 	return IRQ_HANDLED;
 }
-
-
-/*====================================================*/
 
 static struct {
 	int (*func)(int, void *);

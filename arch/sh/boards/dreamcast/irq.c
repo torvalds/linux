@@ -10,7 +10,6 @@
  */
 
 #include <linux/irq.h>
-
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dreamcast/sysasic.h>
@@ -57,29 +56,23 @@
 /* Disable the hardware event by masking its bit in its EMR */
 static inline void disable_systemasic_irq(unsigned int irq)
 {
-        unsigned long flags;
         __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
         __u32 mask;
 
-        local_irq_save(flags);
         mask = inl(emr);
         mask &= ~(1 << EVENT_BIT(irq));
         outl(mask, emr);
-        local_irq_restore(flags);
 }
 
 /* Enable the hardware event by setting its bit in its EMR */
 static inline void enable_systemasic_irq(unsigned int irq)
 {
-        unsigned long flags;
         __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
         __u32 mask;
 
-        local_irq_save(flags);
         mask = inl(emr);
         mask |= (1 << EVENT_BIT(irq));
         outl(mask, emr);
-        local_irq_restore(flags);
 }
 
 /* Acknowledge a hardware event by writing its bit back to its ESR */

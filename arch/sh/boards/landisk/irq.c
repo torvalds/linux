@@ -39,30 +39,24 @@ static unsigned int startup_landisk_irq(unsigned int irq)
 
 static void disable_landisk_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned char val;
 	unsigned char mask = 0xff ^ (0x01 << (irq - 5));
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inb(PA_IMASK);
 	val &= mask;
 	ctrl_outb(val, PA_IMASK);
-	local_irq_restore(flags);
 }
 
 static void enable_landisk_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned char val;
 	unsigned char value = (0x01 << (irq - 5));
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inb(PA_IMASK);
 	val |= value;
 	ctrl_outb(val, PA_IMASK);
-	local_irq_restore(flags);
 }
 
 static void ack_landisk_irq(unsigned int irq)

@@ -41,30 +41,24 @@ static unsigned int startup_rts7751r2d_irq(unsigned int irq)
 
 static void disable_rts7751r2d_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short mask = 0xffff ^ (0x0001 << mask_pos[irq]);
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR1);
 	val &= mask;
 	ctrl_outw(val, IRLCNTR1);
-	local_irq_restore(flags);
 }
 
 static void enable_rts7751r2d_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val;
 	unsigned short value = (0x0001 << mask_pos[irq]);
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inw(IRLCNTR1);
 	val |= value;
 	ctrl_outw(val, IRLCNTR1);
-	local_irq_restore(flags);
 }
 
 int rts7751r2d_irq_demux(int irq)

@@ -52,32 +52,26 @@ static void shutdown_maskreg_irq(unsigned int irq)
 
 static void disable_maskreg_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val, mask = 0x01 << irq;
 
 	BUG_ON(!irq_mask_register);
 
 	/* Set "irq"th bit */
-	local_irq_save(flags);
 	val = ctrl_inw(irq_mask_register);
 	val |= mask;
 	ctrl_outw(val, irq_mask_register);
-	local_irq_restore(flags);
 }
 
 static void enable_maskreg_irq(unsigned int irq)
 {
-	unsigned long flags;
 	unsigned short val, mask = ~(0x01 << irq);
 
 	BUG_ON(!irq_mask_register);
 
 	/* Clear "irq"th bit */
-	local_irq_save(flags);
 	val = ctrl_inw(irq_mask_register);
 	val &= mask;
 	ctrl_outw(val, irq_mask_register);
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_maskreg(unsigned int irq)

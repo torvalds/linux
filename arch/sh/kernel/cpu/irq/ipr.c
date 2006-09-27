@@ -57,31 +57,27 @@ static struct hw_interrupt_type ipr_irq_type = {
 
 static void disable_ipr_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 	unsigned int addr = ipr_data[irq].addr;
 	unsigned short mask = 0xffff ^ (0x0f << ipr_data[irq].shift);
 
 	/* Set the priority in IPR to 0 */
-	local_irq_save(flags);
 	val = ctrl_inw(addr);
 	val &= mask;
 	ctrl_outw(val, addr);
-	local_irq_restore(flags);
 }
 
 static void enable_ipr_irq(unsigned int irq)
 {
-	unsigned long val, flags;
+	unsigned long val;
 	unsigned int addr = ipr_data[irq].addr;
 	int priority = ipr_data[irq].priority;
 	unsigned short value = (priority << ipr_data[irq].shift);
 
 	/* Set priority in IPR back to original value */
-	local_irq_save(flags);
 	val = ctrl_inw(addr);
 	val |= value;
 	ctrl_outw(val, addr);
-	local_irq_restore(flags);
 }
 
 static void mask_and_ack_ipr(unsigned int irq)

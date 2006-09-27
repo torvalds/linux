@@ -80,9 +80,6 @@ volatile unsigned long irq_err_count;
 
 static void disable_mpc1211_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	save_and_cli(flags);
 	if( irq < 8) {
 		m_irq_mask |= (1 << irq);
 		outb(m_irq_mask,I8259_M_MR);
@@ -90,16 +87,11 @@ static void disable_mpc1211_irq(unsigned int irq)
 		s_irq_mask |= (1 << (irq - 8));
 		outb(s_irq_mask,I8259_S_MR);
 	}
-	restore_flags(flags);
 
 }
 
 static void enable_mpc1211_irq(unsigned int irq)
 {
-	unsigned long flags;
-
-	save_and_cli(flags);
-
 	if( irq < 8) {
 		m_irq_mask &= ~(1 << irq);
 		outb(m_irq_mask,I8259_M_MR);
@@ -107,7 +99,6 @@ static void enable_mpc1211_irq(unsigned int irq)
 		s_irq_mask &= ~(1 << (irq - 8));
 		outb(s_irq_mask,I8259_S_MR);
 	}
-	restore_flags(flags);
 }
 
 static inline int mpc1211_irq_real(unsigned int irq)
@@ -131,10 +122,6 @@ static inline int mpc1211_irq_real(unsigned int irq)
 
 static void mask_and_ack_mpc1211(unsigned int irq)
 {
-	unsigned long flags;
-
-	save_and_cli(flags);
-
 	if(irq < 8) {
 		if(m_irq_mask & (1<<irq)){
 		  if(!mpc1211_irq_real(irq)){
@@ -162,7 +149,6 @@ static void mask_and_ack_mpc1211(unsigned int irq)
 		outb(0x60+(irq-8),I8259_S_CR); 	/* EOI */
 		outb(0x60+2,I8259_M_CR);
 	}
-	restore_flags(flags);
 }
 
 static void end_mpc1211_irq(unsigned int irq)
