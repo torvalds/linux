@@ -868,13 +868,8 @@ descriptor_error:
 
 	endpoint = &desc->endpoint[0].desc;
 
-	/* Output endpoint? Curiouser and curiouser.. */
-	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
-		goto descriptor_error;
-
-	/* If it's not an interrupt endpoint, we'd better punt! */
-	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-			!= USB_ENDPOINT_XFER_INT)
+	/* If it's not an interrupt in endpoint, we'd better punt! */
+	if (!usb_endpoint_is_int_in(endpoint))
 		goto descriptor_error;
 
 	/* We found a hub */
