@@ -116,6 +116,9 @@ FURTHER NOTES ON NO-MMU MMAP
  (*) A list of all the mappings on the system is visible through /proc/maps in
      no-MMU mode.
 
+ (*) A list of all the mappings in use by a process is visible through
+     /proc/<pid>/maps in no-MMU mode.
+
  (*) Supplying MAP_FIXED or a requesting a particular mapping address will
      result in an error.
 

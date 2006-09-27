@@ -268,7 +268,9 @@ static inline struct proc_dir_entry *PDE(const struct inode *inode)
 struct proc_maps_private {
 	struct pid *pid;
 	struct task_struct *task;
+#ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
+#endif
 };
 
 #endif /* _LINUX_PROC_FS_H */
