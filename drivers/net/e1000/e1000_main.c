@@ -211,9 +211,9 @@ static struct pci_driver e1000_driver = {
 	.id_table = e1000_pci_tbl,
 	.probe    = e1000_probe,
 	.remove   = __devexit_p(e1000_remove),
+#ifdef CONFIG_PM
 	/* Power Managment Hooks */
 	.suspend  = e1000_suspend,
-#ifdef CONFIG_PM
 	.resume   = e1000_resume,
 #endif
 	.shutdown = e1000_shutdown,
