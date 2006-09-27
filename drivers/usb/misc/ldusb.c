@@ -657,15 +657,11 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_in(endpoint))
 			dev->interrupt_in_endpoint = endpoint;
-		}
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+		if (usb_endpoint_is_int_out(endpoint))
 			dev->interrupt_out_endpoint = endpoint;
-		}
 	}
 	if (dev->interrupt_in_endpoint == NULL) {
 		dev_err(&intf->dev, "Interrupt in endpoint not found\n");
