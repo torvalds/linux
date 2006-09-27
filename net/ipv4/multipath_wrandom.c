@@ -217,8 +217,8 @@ static void wrandom_select_route(const struct flowi *flp,
 	*rp = decision;
 }
 
-static void wrandom_set_nhinfo(__u32 network,
-			       __u32 netmask,
+static void wrandom_set_nhinfo(__be32 network,
+			       __be32 netmask,
 			       unsigned char prefixlen,
 			       const struct fib_nh *nh)
 {
