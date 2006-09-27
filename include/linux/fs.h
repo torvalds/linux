@@ -531,8 +531,8 @@ struct inode {
 	struct list_head	i_devices;
 	union {
 		struct pipe_inode_info	*i_pipe;
+		struct block_device	*i_bdev;
 	};
-	struct block_device	*i_bdev;
 	struct cdev		*i_cdev;
 	int			i_cindex;
 
