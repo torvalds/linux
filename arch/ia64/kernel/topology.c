@@ -36,9 +36,7 @@ int arch_register_cpu(int num)
 	 */
 	if (!can_cpei_retarget() && is_cpu_cpei_target(num))
 		sysfs_cpus[num].cpu.no_control = 1;
-#ifdef CONFIG_NUMA
 	map_cpu_to_node(num, node_cpuid[num].nid);
-#endif
 #endif
 
 	return register_cpu(&sysfs_cpus[num].cpu, num);
