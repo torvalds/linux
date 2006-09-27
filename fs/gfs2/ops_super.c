@@ -53,7 +53,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 	struct gfs2_inode *ip = GFS2_I(inode);
 
 	/* Check this is a "normal" inode */
-	if (inode->u.generic_ip) {
+	if (inode->i_private) {
 		if (current->flags & PF_MEMALLOC)
 			return 0;
 		if (sync)
@@ -280,7 +280,7 @@ static void gfs2_clear_inode(struct inode *inode)
 	 * serves to contain an address space (see rgrp.c, meta_io.c)
 	 * which therefore doesn't have its own glocks.
 	 */
-	if (inode->u.generic_ip) {
+	if (inode->i_private) {
 		struct gfs2_inode *ip = GFS2_I(inode);
 		gfs2_glock_inode_squish(inode);
 		gfs2_assert(inode->i_sb->s_fs_info, ip->i_gl->gl_state == LM_ST_UNLOCKED);
@@ -381,7 +381,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	struct gfs2_holder gh;
 	int error;
 
-	if (!inode->u.generic_ip)
+	if (!inode->i_private)
 		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, &gh);

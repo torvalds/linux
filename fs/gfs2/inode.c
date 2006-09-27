@@ -160,7 +160,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum *inum, 
 	if (inode->i_state & I_NEW) {
 		struct gfs2_sbd *sdp = GFS2_SB(inode);
 		umode_t mode = DT2IF(type);
-		inode->u.generic_ip = ip;
+		inode->i_private = ip;
 		inode->i_mode = mode;
 
 		if (S_ISREG(mode)) {
