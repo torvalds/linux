@@ -320,6 +320,7 @@
 #ifdef __KERNEL__
 
 #define NR_syscalls 310
+#include <linux/err.h>
 
 /*
  * process the return value of a syscall, consigning it to one of two possible fates
@@ -329,7 +330,7 @@
 #define __syscall_return(type, res)					\
 do {									\
         unsigned long __sr2 = (res);					\
-	if (__builtin_expect(__sr2 >= (unsigned long)(-4095), 0)) {	\
+	if (__builtin_expect(__sr2 >= (unsigned long)(-MAX_ERRNO), 0)) { \
 		errno = (-__sr2);					\
 		__sr2 = ~0UL;						\
 	}								\

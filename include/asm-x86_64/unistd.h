@@ -623,16 +623,17 @@ __SYSCALL(__NR_move_pages, sys_move_pages)
 #ifdef __KERNEL__
 
 #define __NR_syscall_max __NR_move_pages
+#include <linux/err.h>
 
 #ifndef __NO_STUBS
 
-/* user-visible error numbers are in the range -1 - -4095 */
+/* user-visible error numbers are in the range -1 - -MAX_ERRNO */
 
 #define __syscall_clobber "r11","rcx","memory" 
 
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-127)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
 		errno = -(res); \
 		res = -1; \
 	} \

@@ -289,13 +289,14 @@
 #ifdef __KERNEL__
 
 #define NR_syscalls		282
+#include <linux/err.h>
 
-/* user-visible error numbers are in the range -1 - -122: see
+/* user-visible error numbers are in the range -1 - -MAX_ERRNO: see
    <asm-m68k/errno.h> */
 
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
 	/* avoid using res which is declared to be in register d0; \
 	   errno might expand to a function call and clobber it.  */ \
 		int __err = -(res); \

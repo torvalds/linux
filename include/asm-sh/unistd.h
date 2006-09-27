@@ -306,11 +306,14 @@
 
 #ifdef __KERNEL__
 
-/* user-visible error numbers are in the range -1 - -124: see <asm-sh/errno.h> */
+#include <linux/err.h>
+
+/* user-visible error numbers are in the range -1 - -MAX_ERRNO:
+ * see <asm-sh/errno.h> */
 
 #define __syscall_return(type, res) \
 do { \
-	if ((unsigned long)(res) >= (unsigned long)(-124)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-MAX_ERRNO)) { \
 	/* Avoid using "res" which is declared to be in register r0; \
 	   errno might expand to a function call and clobber it.  */ \
 		int __err = -(res); \
