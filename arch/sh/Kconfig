@@ -296,19 +296,6 @@ config CPU_LITTLE_ENDIAN
 	  endian byte order. These modes require different kernels. Say Y if
 	  your machine is little endian, N if it's a big endian machine.
 
-# The SH7750 RTC module is disabled in the Dreamcast
-config SH_RTC
-	bool
-	depends on !SH_DREAMCAST && !SH_SATURN && !SH_7300_SOLUTION_ENGINE && \
-		   !SH_73180_SOLUTION_ENGINE && !SH_LANDISK && \
-		   !SH_R7780RP && !SH_SHMIN
-	default y
-	help
-	  Selecting this option will allow the Linux kernel to emulate
-	  PC's RTC.
-
-	  If unsure, say N.
-
 config SH_FPU
 	bool "FPU support"
 	depends on !CPU_SH3
