@@ -60,8 +60,8 @@ struct multipath_dest {
 	struct list_head	list;
 
 	const struct fib_nh	*nh_info;
-	__u32			netmask;
-	__u32			network;
+	__be32			netmask;
+	__be32			network;
 	unsigned char		prefixlen;
 
 	struct rcu_head		rcu;
@@ -76,7 +76,7 @@ struct multipath_route {
 	struct list_head	list;
 
 	int			oif;
-	__u32			gw;
+	__be32			gw;
 	struct list_head	dests;
 
 	struct rcu_head		rcu;
