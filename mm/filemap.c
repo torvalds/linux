@@ -1181,7 +1181,7 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 				*ppos = pos + retval;
 		}
 		if (likely(retval != 0)) {
-			file_accessed(flip);
+			file_accessed(filp);
 			goto out;
 		}
 	}
