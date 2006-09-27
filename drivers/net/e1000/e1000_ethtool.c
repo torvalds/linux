@@ -1624,7 +1624,7 @@ e1000_diag_test(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	boolean_t if_running = netif_running(netdev);
 
-	set_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+	set_bit(__E1000_TESTING, &adapter->flags);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -1669,7 +1669,7 @@ e1000_diag_test(struct net_device *netdev,
 		adapter->hw.autoneg = autoneg;
 
 		e1000_reset(adapter);
-		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+		clear_bit(__E1000_TESTING, &adapter->flags);
 		if (if_running)
 			dev_open(netdev);
 	} else {
@@ -1684,7 +1684,7 @@ e1000_diag_test(struct net_device *netdev,
 		data[2] = 0;
 		data[3] = 0;
 
-		clear_bit(__E1000_DRIVER_TESTING, &adapter->flags);
+		clear_bit(__E1000_TESTING, &adapter->flags);
 	}
 	msleep_interruptible(4 * 1000);
 }

@@ -345,8 +345,9 @@ struct e1000_adapter {
 };
 
 enum e1000_state_t {
-	__E1000_DRIVER_TESTING,
+	__E1000_TESTING,
 	__E1000_RESETTING,
+	__E1000_DOWN
 };
 
 #endif /* _E1000_H_ */
