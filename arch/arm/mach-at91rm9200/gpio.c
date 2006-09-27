@@ -261,10 +261,10 @@ void at91_gpio_suspend(void)
 		at91_sys_write(pio_controller_offset[i] + PIO_IER, wakeups[i]);
 
 		if (!wakeups[i]) {
-			disable_irq_wake(AT91_ID_PIOA + i);
-			at91_sys_write(AT91_PMC_PCDR, 1 << (AT91_ID_PIOA + i));
+			disable_irq_wake(AT91RM9200_ID_PIOA + i);
+			at91_sys_write(AT91_PMC_PCDR, 1 << (AT91RM9200_ID_PIOA + i));
 		} else {
-			enable_irq_wake(AT91_ID_PIOA + i);
+			enable_irq_wake(AT91RM9200_ID_PIOA + i);
 #ifdef CONFIG_PM_DEBUG
 			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", "ABCD"[i], wakeups[i]);
 #endif
@@ -282,10 +282,10 @@ void at91_gpio_resume(void)
 	}
 
 	at91_sys_write(AT91_PMC_PCER,
-			  (1 << AT91_ID_PIOA)
-			| (1 << AT91_ID_PIOB)
-			| (1 << AT91_ID_PIOC)
-			| (1 << AT91_ID_PIOD));
+			  (1 << AT91RM9200_ID_PIOA)
+			| (1 << AT91RM9200_ID_PIOB)
+			| (1 << AT91RM9200_ID_PIOC)
+			| (1 << AT91RM9200_ID_PIOD));
 }
 
 #else
@@ -384,7 +384,7 @@ void __init at91_gpio_irq_setup(unsigned banks)
 
 	if (banks > 4)
 		banks = 4;
-	for (pioc = 0, pin = PIN_BASE, id = AT91_ID_PIOA;
+	for (pioc = 0, pin = PIN_BASE, id = AT91RM9200_ID_PIOA;
 			pioc < banks;
 			pioc++, id++) {
 		void __iomem	*controller;

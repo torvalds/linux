@@ -190,85 +190,85 @@ static void pmc_periph_mode(struct clk *clk, int is_on)
 static struct clk udc_clk = {
 	.name		= "udc_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_UDP,
+	.pmc_mask	= 1 << AT91RM9200_ID_UDP,
 	.mode		= pmc_periph_mode,
 };
 static struct clk ohci_clk = {
 	.name		= "ohci_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_UHP,
+	.pmc_mask	= 1 << AT91RM9200_ID_UHP,
 	.mode		= pmc_periph_mode,
 };
 static struct clk ether_clk = {
 	.name		= "ether_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_EMAC,
+	.pmc_mask	= 1 << AT91RM9200_ID_EMAC,
 	.mode		= pmc_periph_mode,
 };
 static struct clk mmc_clk = {
 	.name		= "mci_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_MCI,
+	.pmc_mask	= 1 << AT91RM9200_ID_MCI,
 	.mode		= pmc_periph_mode,
 };
 static struct clk twi_clk = {
 	.name		= "twi_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_TWI,
+	.pmc_mask	= 1 << AT91RM9200_ID_TWI,
 	.mode		= pmc_periph_mode,
 };
 static struct clk usart0_clk = {
 	.name		= "usart0_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US0,
+	.pmc_mask	= 1 << AT91RM9200_ID_US0,
 	.mode		= pmc_periph_mode,
 };
 static struct clk usart1_clk = {
 	.name		= "usart1_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US1,
+	.pmc_mask	= 1 << AT91RM9200_ID_US1,
 	.mode		= pmc_periph_mode,
 };
 static struct clk usart2_clk = {
 	.name		= "usart2_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US2,
+	.pmc_mask	= 1 << AT91RM9200_ID_US2,
 	.mode		= pmc_periph_mode,
 };
 static struct clk usart3_clk = {
 	.name		= "usart3_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_US3,
+	.pmc_mask	= 1 << AT91RM9200_ID_US3,
 	.mode		= pmc_periph_mode,
 };
 static struct clk spi_clk = {
 	.name		= "spi0_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_SPI,
+	.pmc_mask	= 1 << AT91RM9200_ID_SPI,
 	.mode		= pmc_periph_mode,
 };
 static struct clk pioA_clk = {
 	.name		= "pioA_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOA,
+	.pmc_mask	= 1 << AT91RM9200_ID_PIOA,
 	.mode		= pmc_periph_mode,
 };
 static struct clk pioB_clk = {
 	.name		= "pioB_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOB,
+	.pmc_mask	= 1 << AT91RM9200_ID_PIOB,
 	.mode		= pmc_periph_mode,
 };
 static struct clk pioC_clk = {
 	.name		= "pioC_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOC,
+	.pmc_mask	= 1 << AT91RM9200_ID_PIOC,
 	.mode		= pmc_periph_mode,
 };
 static struct clk pioD_clk = {
 	.name		= "pioD_clk",
 	.parent		= &mck,
-	.pmc_mask	= 1 << AT91_ID_PIOD,
+	.pmc_mask	= 1 << AT91RM9200_ID_PIOD,
 	.mode		= pmc_periph_mode,
 };
 

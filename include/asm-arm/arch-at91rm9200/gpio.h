@@ -20,7 +20,7 @@
 #define PQFP_GPIO_BANKS		3	/* PQFP package has 3 banks */
 #define BGA_GPIO_BANKS		4	/* BGA package has 4 banks */
 
-/* these pin numbers double as IRQ numbers, like AT91_ID_* values */
+/* these pin numbers double as IRQ numbers, like AT91xxx_ID_* values */
 
 #define	AT91_PIN_PA0	(PIN_BASE + 0x00 + 0)
 #define	AT91_PIN_PA1	(PIN_BASE + 0x00 + 1)

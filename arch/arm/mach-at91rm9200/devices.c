@@ -35,13 +35,13 @@ static struct at91_usbh_data usbh_data;
 
 static struct resource at91_usbh_resources[] = {
 	[0] = {
-		.start	= AT91_UHP_BASE,
-		.end	= AT91_UHP_BASE + SZ_1M - 1,
+		.start	= AT91RM9200_UHP_BASE,
+		.end	= AT91RM9200_UHP_BASE + SZ_1M - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_UHP,
-		.end	= AT91_ID_UHP,
+		.start	= AT91RM9200_ID_UHP,
+		.end	= AT91RM9200_ID_UHP,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -80,13 +80,13 @@ static struct at91_udc_data udc_data;
 
 static struct resource at91_udc_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_UDP,
-		.end	= AT91_BASE_UDP + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_UDP,
+		.end	= AT91RM9200_BASE_UDP + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_UDP,
-		.end	= AT91_ID_UDP,
+		.start	= AT91RM9200_ID_UDP,
+		.end	= AT91RM9200_ID_UDP,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -131,13 +131,13 @@ static struct at91_eth_data eth_data;
 
 static struct resource at91_eth_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_EMAC,
-		.end	= AT91_BASE_EMAC + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_EMAC,
+		.end	= AT91RM9200_BASE_EMAC + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_EMAC,
-		.end	= AT91_ID_EMAC,
+		.start	= AT91RM9200_ID_EMAC,
+		.end	= AT91RM9200_ID_EMAC,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -263,13 +263,13 @@ static struct at91_mmc_data mmc_data;
 
 static struct resource at91_mmc_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_MCI,
-		.end	= AT91_BASE_MCI + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_MCI,
+		.end	= AT91RM9200_BASE_MCI + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_MCI,
-		.end	= AT91_ID_MCI,
+		.start	= AT91RM9200_ID_MCI,
+		.end	= AT91RM9200_ID_MCI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -423,13 +423,13 @@ static u64 spi_dmamask = 0xffffffffUL;
 
 static struct resource at91_spi_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_SPI,
-		.end	= AT91_BASE_SPI + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_SPI,
+		.end	= AT91RM9200_BASE_SPI + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_SPI,
-		.end	= AT91_ID_SPI,
+		.start	= AT91RM9200_ID_SPI,
+		.end	= AT91RM9200_ID_SPI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -582,13 +582,13 @@ static inline void configure_dbgu_pins(void)
 
 static struct resource uart0_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_US0,
-		.end	= AT91_BASE_US0 + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_US0,
+		.end	= AT91RM9200_BASE_US0 + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_US0,
-		.end	= AT91_ID_US0,
+		.start	= AT91RM9200_ID_US0,
+		.end	= AT91RM9200_ID_US0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -624,13 +624,13 @@ static inline void configure_usart0_pins(void)
 
 static struct resource uart1_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_US1,
-		.end	= AT91_BASE_US1 + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_US1,
+		.end	= AT91RM9200_BASE_US1 + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_US1,
-		.end	= AT91_ID_US1,
+		.start	= AT91RM9200_ID_US1,
+		.end	= AT91RM9200_ID_US1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -665,13 +665,13 @@ static inline void configure_usart1_pins(void)
 
 static struct resource uart2_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_US2,
-		.end	= AT91_BASE_US2 + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_US2,
+		.end	= AT91RM9200_BASE_US2 + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_US2,
-		.end	= AT91_ID_US2,
+		.start	= AT91RM9200_ID_US2,
+		.end	= AT91RM9200_ID_US2,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -700,13 +700,13 @@ static inline void configure_usart2_pins(void)
 
 static struct resource uart3_resources[] = {
 	[0] = {
-		.start	= AT91_BASE_US3,
-		.end	= AT91_BASE_US3 + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_US3,
+		.end	= AT91RM9200_BASE_US3 + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= AT91_ID_US3,
-		.end	= AT91_ID_US3,
+		.start	= AT91RM9200_ID_US3,
+		.end	= AT91RM9200_ID_US3,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
