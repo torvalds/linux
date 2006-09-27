@@ -42,7 +42,7 @@ svc_authenticate(struct svc_rqst *rqstp, u32 *authp)
 
 	*authp = rpc_auth_ok;
 
-	flavor = ntohl(svc_getu32(&rqstp->rq_arg.head[0]));
+	flavor = svc_getnl(&rqstp->rq_arg.head[0]);
 
 	dprintk("svc: svc_authenticate (%d)\n", flavor);
 

@@ -607,7 +607,7 @@ svc_safe_getnetobj(struct kvec *argv, struct xdr_netobj *o)
 
 	if (argv->iov_len < 4)
 		return -1;
-	o->len = ntohl(svc_getu32(argv));
+	o->len = svc_getnl(argv);
 	l = round_up_to_quad(o->len);
 	if (argv->iov_len < l)
 		return -1;
@@ -624,7 +624,7 @@ svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 
 	if (resv->iov_len + 4 > PAGE_SIZE)
 		return -1;
-	svc_putu32(resv, htonl(o->len));
+	svc_putnl(resv, o->len);
 	p = resv->iov_base + resv->iov_len;
 	resv->iov_len += round_up_to_quad(o->len);
 	if (resv->iov_len > PAGE_SIZE)
@@ -657,7 +657,7 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 	*authp = rpc_autherr_badverf;
 	if (argv->iov_len < 4)
 		return SVC_DENIED;
-	flavor = ntohl(svc_getu32(argv));
+	flavor = svc_getnl(argv);
 	if (flavor != RPC_AUTH_GSS)
 		return SVC_DENIED;
 	if (svc_safe_getnetobj(argv, &checksum))
@@ -689,7 +689,7 @@ gss_write_null_verf(struct svc_rqst *rqstp)
 {
 	u32     *p;
 
-	svc_putu32(rqstp->rq_res.head, htonl(RPC_AUTH_NULL));
+	svc_putnl(rqstp->rq_res.head, RPC_AUTH_NULL);
 	p = rqstp->rq_res.head->iov_base + rqstp->rq_res.head->iov_len;
 	/* don't really need to check if head->iov_len > PAGE_SIZE ... */
 	*p++ = 0;
@@ -708,7 +708,7 @@ gss_write_verf(struct svc_rqst *rqstp, struct gss_ctx *ctx_id, u32 seq)
 	u32			*p;
 	struct kvec		iov;
 
-	svc_putu32(rqstp->rq_res.head, htonl(RPC_AUTH_GSS));
+	svc_putnl(rqstp->rq_res.head, RPC_AUTH_GSS);
 	xdr_seq = htonl(seq);
 
 	iov.iov_base = &xdr_seq;
@@ -805,7 +805,7 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
 
-	integ_len = ntohl(svc_getu32(&buf->head[0]));
+	integ_len = svc_getnl(&buf->head[0]);
 	if (integ_len & 3)
 		goto out;
 	if (integ_len > buf->len)
@@ -825,7 +825,7 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto out;
-	if (ntohl(svc_getu32(&buf->head[0])) != seq)
+	if (svc_getnl(&buf->head[0]) != seq)
 		goto out;
 	stat = 0;
 out:
@@ -857,7 +857,7 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 
 	rqstp->rq_sendfile_ok = 0;
 
-	priv_len = ntohl(svc_getu32(&buf->head[0]));
+	priv_len = svc_getnl(&buf->head[0]);
 	if (rqstp->rq_deferred) {
 		/* Already decrypted last time through! The sequence number
 		 * check at out_seq is unnecessary but harmless: */
@@ -895,7 +895,7 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 	if (maj_stat != GSS_S_COMPLETE)
 		return -EINVAL;
 out_seq:
-	if (ntohl(svc_getu32(&buf->head[0])) != seq)
+	if (svc_getnl(&buf->head[0]) != seq)
 		return -EINVAL;
 	return 0;
 }
@@ -985,12 +985,12 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 
 	if (argv->iov_len < 5 * 4)
 		goto auth_err;
-	crlen = ntohl(svc_getu32(argv));
-	if (ntohl(svc_getu32(argv)) != RPC_GSS_VERSION)
+	crlen = svc_getnl(argv);
+	if (svc_getnl(argv) != RPC_GSS_VERSION)
 		goto auth_err;
-	gc->gc_proc = ntohl(svc_getu32(argv));
-	gc->gc_seq = ntohl(svc_getu32(argv));
-	gc->gc_svc = ntohl(svc_getu32(argv));
+	gc->gc_proc = svc_getnl(argv);
+	gc->gc_seq = svc_getnl(argv);
+	gc->gc_svc = svc_getnl(argv);
 	if (svc_safe_getnetobj(argv, &gc->gc_ctx))
 		goto auth_err;
 	if (crlen != round_up_to_quad(gc->gc_ctx.len) + 5 * 4)
@@ -1016,9 +1016,9 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 	case RPC_GSS_PROC_CONTINUE_INIT:
 		if (argv->iov_len < 2 * 4)
 			goto auth_err;
-		if (ntohl(svc_getu32(argv)) != RPC_AUTH_NULL)
+		if (svc_getnl(argv) != RPC_AUTH_NULL)
 			goto auth_err;
-		if (ntohl(svc_getu32(argv)) != 0)
+		if (svc_getnl(argv) != 0)
 			goto auth_err;
 		break;
 	case RPC_GSS_PROC_DATA:
@@ -1076,14 +1076,14 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 				goto drop;
 			if (resv->iov_len + 4 > PAGE_SIZE)
 				goto drop;
-			svc_putu32(resv, rpc_success);
+			svc_putnl(resv, RPC_SUCCESS);
 			if (svc_safe_putnetobj(resv, &rsip->out_handle))
 				goto drop;
 			if (resv->iov_len + 3 * 4 > PAGE_SIZE)
 				goto drop;
-			svc_putu32(resv, htonl(rsip->major_status));
-			svc_putu32(resv, htonl(rsip->minor_status));
-			svc_putu32(resv, htonl(GSS_SEQ_WIN));
+			svc_putnl(resv, rsip->major_status);
+			svc_putnl(resv, rsip->minor_status);
+			svc_putnl(resv, GSS_SEQ_WIN);
 			if (svc_safe_putnetobj(resv, &rsip->out_token))
 				goto drop;
 			rqstp->rq_client = NULL;
@@ -1093,7 +1093,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 		set_bit(CACHE_NEGATIVE, &rsci->h.flags);
 		if (resv->iov_len + 4 > PAGE_SIZE)
 			goto drop;
-		svc_putu32(resv, rpc_success);
+		svc_putnl(resv, RPC_SUCCESS);
 		goto complete;
 	case RPC_GSS_PROC_DATA:
 		*authp = rpcsec_gsserr_ctxproblem;
@@ -1111,8 +1111,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 				goto auth_err;
 			/* placeholders for length and seq. number: */
 			svcdata->body_start = resv->iov_base + resv->iov_len;
-			svc_putu32(resv, 0);
-			svc_putu32(resv, 0);
+			svc_putnl(resv, 0);
+			svc_putnl(resv, 0);
 			break;
 		case RPC_GSS_SVC_PRIVACY:
 			if (unwrap_priv_data(rqstp, &rqstp->rq_arg,
@@ -1120,8 +1120,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, u32 *authp)
 				goto auth_err;
 			/* placeholders for length and seq. number: */
 			svcdata->body_start = resv->iov_base + resv->iov_len;
-			svc_putu32(resv, 0);
-			svc_putu32(resv, 0);
+			svc_putnl(resv, 0);
+			svc_putnl(resv, 0);
 			break;
 		default:
 			goto auth_err;
@@ -1199,7 +1199,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
 	if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
 		goto out_err;
-	svc_putu32(resv, htonl(mic.len));
+	svc_putnl(resv, mic.len);
 	memset(mic.data + mic.len, 0,
 			round_up_to_quad(mic.len) - mic.len);
 	resv->iov_len += XDR_QUADLEN(mic.len) << 2;

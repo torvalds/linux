@@ -78,28 +78,45 @@ struct svc_serv {
  */
 #define RPCSVC_MAXPAGES		((RPCSVC_MAXPAYLOAD+PAGE_SIZE-1)/PAGE_SIZE + 2)
 
-static inline u32 svc_getu32(struct kvec *iov)
+static inline u32 svc_getnl(struct kvec *iov)
 {
-	u32 val, *vp;
+	__be32 val, *vp;
 	vp = iov->iov_base;
 	val = *vp++;
 	iov->iov_base = (void*)vp;
-	iov->iov_len -= sizeof(u32);
+	iov->iov_len -= sizeof(__be32);
+	return ntohl(val);
+}
+
+static inline void svc_putnl(struct kvec *iov, u32 val)
+{
+	__be32 *vp = iov->iov_base + iov->iov_len;
+	*vp = htonl(val);
+	iov->iov_len += sizeof(__be32);
+}
+
+static inline __be32 svc_getu32(struct kvec *iov)
+{
+	__be32 val, *vp;
+	vp = iov->iov_base;
+	val = *vp++;
+	iov->iov_base = (void*)vp;
+	iov->iov_len -= sizeof(__be32);
 	return val;
 }
 
 static inline void svc_ungetu32(struct kvec *iov)
 {
-	u32 *vp = (u32 *)iov->iov_base;
+	__be32 *vp = (__be32 *)iov->iov_base;
 	iov->iov_base = (void *)(vp - 1);
 	iov->iov_len += sizeof(*vp);
 }
 
-static inline void svc_putu32(struct kvec *iov, u32 val)
+static inline void svc_putu32(struct kvec *iov, __be32 val)
 {
-	u32 *vp = iov->iov_base + iov->iov_len;
+	__be32 *vp = iov->iov_base + iov->iov_len;
 	*vp = val;
-	iov->iov_len += sizeof(u32);
+	iov->iov_len += sizeof(__be32);
 }
 
 	
