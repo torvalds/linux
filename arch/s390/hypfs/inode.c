@@ -104,13 +104,13 @@ static struct inode *hypfs_make_inode(struct super_block *sb, int mode)
 
 static void hypfs_drop_inode(struct inode *inode)
 {
-	kfree(inode->u.generic_ip);
+	kfree(inode->i_private);
 	generic_delete_inode(inode);
 }
 
 static int hypfs_open(struct inode *inode, struct file *filp)
 {
-	char *data = filp->f_dentry->d_inode->u.generic_ip;
+	char *data = filp->f_dentry->d_inode->i_private;
 	struct hypfs_sb_info *fs_info;
 
 	if (filp->f_mode & FMODE_WRITE) {
@@ -352,7 +352,7 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 		parent->d_inode->i_nlink++;
 	} else
 		BUG();
-	inode->u.generic_ip = data;
+	inode->i_private = data;
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	return dentry;

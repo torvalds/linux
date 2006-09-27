@@ -163,7 +163,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 				bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
 			mapping->backing_dev_info = bdi;
 		}
-		memset(&inode->u, 0, sizeof(inode->u));
+		inode->i_private = 0;
 		inode->i_mapping = mapping;
 	}
 	return inode;

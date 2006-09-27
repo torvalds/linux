@@ -1204,7 +1204,7 @@ static int isp116x_show_dbg(struct seq_file *s, void *unused)
 
 static int isp116x_open_seq(struct inode *inode, struct file *file)
 {
-	return single_open(file, isp116x_show_dbg, inode->u.generic_ip);
+	return single_open(file, isp116x_show_dbg, inode->i_private);
 }
 
 static struct file_operations isp116x_debug_fops = {

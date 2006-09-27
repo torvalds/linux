@@ -110,8 +110,8 @@ static ssize_t ulong_write_file(struct file * file, char const __user * buf, siz
 
 static int default_open(struct inode * inode, struct file * filp)
 {
-	if (inode->u.generic_ip)
-		filp->private_data = inode->u.generic_ip;
+	if (inode->i_private)
+		filp->private_data = inode->i_private;
 	return 0;
 }
 
@@ -158,7 +158,7 @@ int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,
 	if (!d)
 		return -EFAULT;
 
-	d->d_inode->u.generic_ip = val;
+	d->d_inode->i_private = val;
 	return 0;
 }
 
@@ -171,7 +171,7 @@ int oprofilefs_create_ro_ulong(struct super_block * sb, struct dentry * root,
 	if (!d)
 		return -EFAULT;
 
-	d->d_inode->u.generic_ip = val;
+	d->d_inode->i_private = val;
 	return 0;
 }
 
@@ -197,7 +197,7 @@ int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
 	if (!d)
 		return -EFAULT;
 
-	d->d_inode->u.generic_ip = val;
+	d->d_inode->i_private = val;
 	return 0;
 }
 

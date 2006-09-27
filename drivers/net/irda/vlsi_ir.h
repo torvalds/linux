@@ -58,7 +58,7 @@ typedef void irqreturn_t;
 
 /* PDE() introduced in 2.5.4 */
 #ifdef CONFIG_PROC_FS
-#define PDE(inode) ((inode)->u.generic_ip)
+#define PDE(inode) ((inode)->i_private)
 #endif
 
 /* irda crc16 calculation exported in 2.5.42 */

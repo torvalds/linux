@@ -252,7 +252,7 @@ enum {
  * Get filesystem private data from VFS inode.
  */
 #define VXFS_INO(ip) \
-	((struct vxfs_inode_info *)(ip)->u.generic_ip)
+	((struct vxfs_inode_info *)(ip)->i_private)
 
 /*
  * Get filesystem private data from VFS superblock.

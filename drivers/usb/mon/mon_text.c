@@ -238,7 +238,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&mon_lock);
-	mbus = inode->u.generic_ip;
+	mbus = inode->i_private;
 	ubus = mbus->u_bus;
 
 	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
@@ -401,7 +401,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	struct mon_event_text *ep;
 
 	mutex_lock(&mon_lock);
-	mbus = inode->u.generic_ip;
+	mbus = inode->i_private;
 
 	if (mbus->nreaders <= 0) {
 		printk(KERN_ERR TAG ": consistency error on close\n");

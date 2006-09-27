@@ -32,8 +32,8 @@ static ssize_t default_write_file(struct file *file, const char __user *buf,
 
 static int default_open(struct inode *inode, struct file *file)
 {
-	if (inode->u.generic_ip)
-		file->private_data = inode->u.generic_ip;
+	if (inode->i_private)
+		file->private_data = inode->i_private;
 
 	return 0;
 }

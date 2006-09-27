@@ -241,7 +241,7 @@ static void autofs_read_inode(struct inode *inode)
 		
 		inode->i_op = &autofs_symlink_inode_operations;
 		sl = &sbi->symlink[n];
-		inode->u.generic_ip = sl;
+		inode->i_private = sl;
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		inode->i_mtime.tv_sec = inode->i_ctime.tv_sec = sl->mtime;
 		inode->i_mtime.tv_nsec = inode->i_ctime.tv_nsec = 0;

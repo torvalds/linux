@@ -844,7 +844,7 @@ fail1:
 static int
 ep_open (struct inode *inode, struct file *fd)
 {
-	struct ep_data		*data = inode->u.generic_ip;
+	struct ep_data		*data = inode->i_private;
 	int			value = -EBUSY;
 
 	if (down_interruptible (&data->lock) != 0)
@@ -1909,7 +1909,7 @@ fail:
 static int
 dev_open (struct inode *inode, struct file *fd)
 {
-	struct dev_data		*dev = inode->u.generic_ip;
+	struct dev_data		*dev = inode->i_private;
 	int			value = -EBUSY;
 
 	if (dev->state == STATE_DEV_DISABLED) {
@@ -1970,7 +1970,7 @@ gadgetfs_make_inode (struct super_block *sb,
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime
 				= CURRENT_TIME;
-		inode->u.generic_ip = data;
+		inode->i_private = data;
 		inode->i_fop = fops;
 	}
 	return inode;

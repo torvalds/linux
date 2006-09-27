@@ -555,7 +555,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_minor(iminor(inode));
 	if (!dev)
-		dev = inode->u.generic_ip;
+		dev = inode->i_private;
 	if (!dev) {
 		kfree(ps);
 		goto out;

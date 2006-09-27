@@ -428,7 +428,7 @@ struct uhci_debug {
 
 static int uhci_debug_open(struct inode *inode, struct file *file)
 {
-	struct uhci_hcd *uhci = inode->u.generic_ip;
+	struct uhci_hcd *uhci = inode->i_private;
 	struct uhci_debug *up;
 	int ret = -ENOMEM;
 	unsigned long flags;

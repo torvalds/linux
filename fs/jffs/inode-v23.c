@@ -369,7 +369,7 @@ jffs_new_inode(const struct inode * dir, struct jffs_raw_inode *raw_inode,
 
 	f = jffs_find_file(c, raw_inode->ino);
 
-	inode->u.generic_ip = (void *)f;
+	inode->i_private = (void *)f;
 	insert_inode_hash(inode);
 
 	return inode;
@@ -442,7 +442,7 @@ jffs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	});
 
 	result = -ENOTDIR;
-	if (!(old_dir_f = (struct jffs_file *)old_dir->u.generic_ip)) {
+	if (!(old_dir_f = old_dir->i_private)) {
 		D(printk("jffs_rename(): Old dir invalid.\n"));
 		goto jffs_rename_end;
 	}
@@ -456,7 +456,7 @@ jffs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	/* Find the new directory.  */
 	result = -ENOTDIR;
-	if (!(new_dir_f = (struct jffs_file *)new_dir->u.generic_ip)) {
+	if (!(new_dir_f = new_dir->i_private)) {
 		D(printk("jffs_rename(): New dir invalid.\n"));
 		goto jffs_rename_end;
 	}
@@ -593,7 +593,7 @@ jffs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 		else {
 			ddino = ((struct jffs_file *)
-				 inode->u.generic_ip)->pino;
+				 inode->i_private)->pino;
 		}
 		D3(printk("jffs_readdir(): \"..\" %u\n", ddino));
 		if (filldir(dirent, "..", 2, filp->f_pos, ddino, DT_DIR) < 0) {
@@ -604,7 +604,7 @@ jffs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		}
 		filp->f_pos++;
 	}
-	f = ((struct jffs_file *)inode->u.generic_ip)->children;
+	f = ((struct jffs_file *)inode->i_private)->children;
 
 	j = 2;
 	while(f && (f->deleted || j++ < filp->f_pos )) {
@@ -668,7 +668,7 @@ jffs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	}
 
 	r = -EACCES;
-	if (!(d = (struct jffs_file *)dir->u.generic_ip)) {
+	if (!(d = (struct jffs_file *)dir->i_private)) {
 		D(printk("jffs_lookup(): No such inode! (%lu)\n",
 			 dir->i_ino));
 		goto jffs_lookup_end;
@@ -739,7 +739,7 @@ jffs_do_readpage_nolock(struct file *file, struct page *page)
 	unsigned long read_len;
 	int result;
 	struct inode *inode = (struct inode*)page->mapping->host;
-	struct jffs_file *f = (struct jffs_file *)inode->u.generic_ip;
+	struct jffs_file *f = (struct jffs_file *)inode->i_private;
 	struct jffs_control *c = (struct jffs_control *)inode->i_sb->s_fs_info;
 	int r;
 	loff_t offset;
@@ -828,7 +828,7 @@ jffs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	});
 
 	lock_kernel();
-	dir_f = (struct jffs_file *)dir->u.generic_ip;
+	dir_f = dir->i_private;
 
 	ASSERT(if (!dir_f) {
 		printk(KERN_ERR "jffs_mkdir(): No reference to a "
@@ -972,7 +972,7 @@ jffs_remove(struct inode *dir, struct dentry *dentry, int type)
 		kfree(_name);
 	});
 
-	dir_f = (struct jffs_file *) dir->u.generic_ip;
+	dir_f = dir->i_private;
 	c = dir_f->c;
 
 	result = -ENOENT;
@@ -1082,7 +1082,7 @@ jffs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 	lock_kernel();
-	dir_f = (struct jffs_file *)dir->u.generic_ip;
+	dir_f = dir->i_private;
 	c = dir_f->c;
 
 	D3(printk (KERN_NOTICE "mknod(): down biglock\n"));
@@ -1186,7 +1186,7 @@ jffs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		kfree(_symname);
 	});
 
-	dir_f = (struct jffs_file *)dir->u.generic_ip;
+	dir_f = dir->i_private;
 	ASSERT(if (!dir_f) {
 		printk(KERN_ERR "jffs_symlink(): No reference to a "
 		       "jffs_file struct in inode.\n");
@@ -1289,7 +1289,7 @@ jffs_create(struct inode *dir, struct dentry *dentry, int mode,
 		kfree(s);
 	});
 
-	dir_f = (struct jffs_file *)dir->u.generic_ip;
+	dir_f = dir->i_private;
 	ASSERT(if (!dir_f) {
 		printk(KERN_ERR "jffs_create(): No reference to a "
 		       "jffs_file struct in inode.\n");
@@ -1403,9 +1403,9 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 		goto out_isem;
 	}
 
-	if (!(f = (struct jffs_file *)inode->u.generic_ip)) {
-		D(printk("jffs_file_write(): inode->u.generic_ip = 0x%p\n",
-				inode->u.generic_ip));
+	if (!(f = inode->i_private)) {
+		D(printk("jffs_file_write(): inode->i_private = 0x%p\n",
+				inode->i_private));
 		goto out_isem;
 	}
 
@@ -1693,7 +1693,7 @@ jffs_read_inode(struct inode *inode)
 		mutex_unlock(&c->fmc->biglock);
 		return;
 	}
-	inode->u.generic_ip = (void *)f;
+	inode->i_private = f;
 	inode->i_mode = f->mode;
 	inode->i_nlink = f->nlink;
 	inode->i_uid = f->uid;
@@ -1748,7 +1748,7 @@ jffs_delete_inode(struct inode *inode)
 	lock_kernel();
 	inode->i_size = 0;
 	inode->i_blocks = 0;
-	inode->u.generic_ip = NULL;
+	inode->i_private = NULL;
 	clear_inode(inode);
 	if (inode->i_nlink == 0) {
 		c = (struct jffs_control *) inode->i_sb->s_fs_info;

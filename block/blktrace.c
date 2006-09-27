@@ -217,7 +217,7 @@ static int blk_trace_remove(request_queue_t *q)
 
 static int blk_dropped_open(struct inode *inode, struct file *filp)
 {
-	filp->private_data = inode->u.generic_ip;
+	filp->private_data = inode->i_private;
 
 	return 0;
 }

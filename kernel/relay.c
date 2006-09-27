@@ -669,7 +669,7 @@ EXPORT_SYMBOL_GPL(relay_flush);
  */
 static int relay_file_open(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = inode->u.generic_ip;
+	struct rchan_buf *buf = inode->i_private;
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
