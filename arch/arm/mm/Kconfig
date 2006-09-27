@@ -28,6 +28,7 @@ config CPU_ARM610
 # ARM7TDMI
 config CPU_ARM7TDMI
 	bool "Support ARM7TDMI processor"
+	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V4
@@ -78,6 +79,7 @@ config CPU_ARM720T
 # ARM740T
 config CPU_ARM740T
 	bool "Support ARM740T processor" if ARCH_INTEGRATOR
+	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
 	select CPU_CACHE_V3	# although the core is v4t
@@ -93,6 +95,7 @@ config CPU_ARM740T
 # ARM9TDMI
 config CPU_ARM9TDMI
 	bool "Support ARM9TDMI processor"
+	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4
@@ -187,6 +190,7 @@ config CPU_ARM926T
 # ARM940T
 config CPU_ARM940T
 	bool "Support ARM940T processor" if ARCH_INTEGRATOR
+	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_VIVT
@@ -203,6 +207,7 @@ config CPU_ARM940T
 # ARM946E-S
 config CPU_ARM946E
 	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
+	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_EV5T
 	select CPU_CACHE_VIVT
