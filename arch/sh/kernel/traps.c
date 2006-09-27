@@ -86,7 +86,7 @@ asmlinkage void do_##name(unsigned long r4, unsigned long r5,		\
 #define VMALLOC_OFFSET (8*1024*1024)
 #define MODULE_RANGE (8*1024*1024)
 
-spinlock_t die_lock;
+DEFINE_SPINLOCK(die_lock);
 
 void die(const char * str, struct pt_regs * regs, long err)
 {
