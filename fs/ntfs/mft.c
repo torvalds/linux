@@ -2638,11 +2638,6 @@ mft_rec_already_initialized:
 		}
 		vi->i_ino = bit;
 		/*
-		 * This is the optimal IO size (for stat), not the fs block
-		 * size.
-		 */
-		vi->i_blksize = PAGE_CACHE_SIZE;
-		/*
 		 * This is for checking whether an inode has changed w.r.t. a
 		 * file so that the file can be updated if necessary (compare
 		 * with f_version).

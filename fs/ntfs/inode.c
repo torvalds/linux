@@ -556,8 +556,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
 
 	/* Setup the generic vfs inode parts now. */
 
-	/* This is the optimal IO size (for stat), not the fs block size. */
-	vi->i_blksize = PAGE_CACHE_SIZE;
 	/*
 	 * This is for checking whether an inode has changed w.r.t. a file so
 	 * that the file can be updated if necessary (compare with f_version).
@@ -1234,7 +1232,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	base_ni = NTFS_I(base_vi);
 
 	/* Just mirror the values from the base inode. */
-	vi->i_blksize	= base_vi->i_blksize;
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;
@@ -1504,7 +1501,6 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	ni	= NTFS_I(vi);
 	base_ni = NTFS_I(base_vi);
 	/* Just mirror the values from the base inode. */
-	vi->i_blksize	= base_vi->i_blksize;
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;

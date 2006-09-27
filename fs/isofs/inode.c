@@ -1235,7 +1235,7 @@ static void isofs_read_inode(struct inode *inode)
 	}
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 
 	ei->i_format_parm[0] = 0;
 	ei->i_format_parm[1] = 0;
@@ -1291,7 +1291,6 @@ static void isofs_read_inode(struct inode *inode)
 			      isonum_711 (de->ext_attr_length));
 
 	/* Set the number of blocks for stat() - should be done before RR */
-	inode->i_blksize = PAGE_CACHE_SIZE; /* For stat() only */
 	inode->i_blocks  = (inode->i_size + 511) >> 9;
 
 	/*

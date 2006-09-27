@@ -496,7 +496,6 @@ static void qnx4_read_inode(struct inode *inode)
 	inode->i_ctime.tv_sec   = le32_to_cpu(raw_inode->di_ctime);
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_blocks  = le32_to_cpu(raw_inode->di_first_xtnt.xtnt_size);
-	inode->i_blksize = QNX4_DIR_ENTRY_SIZE;
 
 	memcpy(qnx4_inode, raw_inode, QNX4_DIR_ENTRY_SIZE);
 	if (S_ISREG(inode->i_mode)) {

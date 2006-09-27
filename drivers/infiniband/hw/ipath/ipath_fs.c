@@ -61,7 +61,6 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_mode = mode;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_private = data;

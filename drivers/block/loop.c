@@ -662,7 +662,8 @@ static void do_loop_switch(struct loop_device *lo, struct switch_request *p)
 
 	mapping_set_gfp_mask(old_file->f_mapping, lo->old_gfp_mask);
 	lo->lo_backing_file = file;
-	lo->lo_blocksize = mapping->host->i_blksize;
+	lo->lo_blocksize = S_ISBLK(mapping->host->i_mode) ?
+		mapping->host->i_bdev->bd_block_size : PAGE_SIZE;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 	complete(&p->wait);
@@ -794,7 +795,9 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 		if (!(lo_flags & LO_FLAGS_USE_AOPS) && !file->f_op->write)
 			lo_flags |= LO_FLAGS_READ_ONLY;
 
-		lo_blocksize = inode->i_blksize;
+		lo_blocksize = S_ISBLK(inode->i_mode) ?
+			inode->i_bdev->bd_block_size : PAGE_SIZE;
+
 		error = 0;
 	} else {
 		goto out_putf;

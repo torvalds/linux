@@ -216,7 +216,6 @@ static void autofs_read_inode(struct inode *inode)
 	inode->i_nlink = 2;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_blocks = 0;
-	inode->i_blksize = 1024;
 
 	if ( ino == AUTOFS_ROOT_INO ) {
 		inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;

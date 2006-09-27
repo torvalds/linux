@@ -364,7 +364,6 @@ jffs_new_inode(const struct inode * dir, struct jffs_raw_inode *raw_inode,
 	inode->i_ctime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 
 	f = jffs_find_file(c, raw_inode->ino);
@@ -1706,7 +1705,6 @@ jffs_read_inode(struct inode *inode)
 	inode->i_mtime.tv_nsec = 
 	inode->i_ctime.tv_nsec = 0;
 
-	inode->i_blksize = PAGE_SIZE;
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &jffs_file_inode_operations;
