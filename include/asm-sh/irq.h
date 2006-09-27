@@ -316,6 +316,8 @@
 # define OFFCHIP_NR_IRQS 4
 #elif defined(CONFIG_SH_R7780RP)
 # define OFFCHIP_NR_IRQS 16
+#elif defined(CONFIG_SH_7343_SOLUTION_ENGINE)
+# define OFFCHIP_NR_IRQS 12
 #elif defined(CONFIG_SH_UNKNOWN)
 # define OFFCHIP_NR_IRQS 16	/* Must also be last */
 #else

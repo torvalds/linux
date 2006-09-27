@@ -51,18 +51,23 @@ source "init/Kconfig"
 
 menu "System type"
 
+config SOLUTION_ENGINE
+	bool
+
 choice
 	prompt "SuperH system type"
 	default SH_UNKNOWN
 
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
+	select SOLUTION_ENGINE
 	help
 	  Select SolutionEngine if configuring for a Hitachi SH7709
 	  or SH7750 evaluation board.
 
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
+	select SOLUTION_ENGINE
 	select CPU_SUBTYPE_SH7751
 	help
 	  Select 7751 SolutionEngine if configuring for a Hitachi SH7751
@@ -70,17 +75,27 @@ config SH_7751_SOLUTION_ENGINE
 
 config SH_7300_SOLUTION_ENGINE
 	bool "SolutionEngine7300"
+	select SOLUTION_ENGINE
 	select CPU_SUBTYPE_SH7300
 	help
-	  Select 7300 SolutionEngine if configuring for a Hitachi SH7300(SH-Mobile V)
-	  evaluation board.
+	  Select 7300 SolutionEngine if configuring for a Hitachi
+	  SH7300(SH-Mobile V) evaluation board.
+
+config SH_7343_SOLUTION_ENGINE
+	bool "SolutionEngine7343"
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH7343
+	help
+	  Select 7343 SolutionEngine if configuring for a Hitachi
+	  SH7343 (SH-Mobile 3AS) evaluation board.
 
 config SH_73180_SOLUTION_ENGINE
        bool "SolutionEngine73180"
-       select CPU_SUBTYPE_SH73180
-       help
-         Select 73180 SolutionEngine if configuring for a Hitachi SH73180(SH-Mobile 3)
-         evaluation board.
+	select SOLUTION_ENGINE
+	select CPU_SUBTYPE_SH73180
+	help
+	  Select 73180 SolutionEngine if configuring for a Hitachi
+	  SH73180(SH-Mobile 3) evaluation board.
 
 config SH_7751_SYSTEMH
 	bool "SystemH7751R"
@@ -394,9 +409,7 @@ source "arch/sh/cchips/Kconfig"
 config HEARTBEAT
 	bool "Heartbeat LED"
 	depends on SH_MPC1211 || SH_SH03 || \
-		   SH_BIGSUR || \
-		   SH_7751_SOLUTION_ENGINE || SH_7300_SOLUTION_ENGINE || \
-		   SH_73180_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || \
+		   SH_BIGSUR || SOLUTION_ENGINE || \
 		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
@@ -430,10 +443,6 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
-
-config PREEMPT
-	bool "Preemptible Kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 
 config SMP
 	bool "Symmetric multi-processing support"
