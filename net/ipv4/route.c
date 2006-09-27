@@ -1118,13 +1118,13 @@ static void rt_del(unsigned hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
-void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
-		    u32 saddr, struct net_device *dev)
+void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
+		    __be32 saddr, struct net_device *dev)
 {
 	int i, k;
 	struct in_device *in_dev = in_dev_get(dev);
 	struct rtable *rth, **rthp;
-	u32  skeys[2] = { saddr, 0 };
+	__be32  skeys[2] = { saddr, 0 };
 	int  ikeys[2] = { dev->ifindex, 0 };
 	struct netevent_redirect netevent;
 

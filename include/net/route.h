@@ -109,8 +109,8 @@ extern struct ip_rt_acct *ip_rt_acct;
 
 struct in_device;
 extern int		ip_rt_init(void);
-extern void		ip_rt_redirect(u32 old_gw, u32 dst, u32 new_gw,
-				       u32 src, struct net_device *dev);
+extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
+				       __be32 src, struct net_device *dev);
 extern void		ip_rt_advice(struct rtable **rp, int advice);
 extern void		rt_cache_flush(int how);
 extern int		__ip_route_output_key(struct rtable **, const struct flowi *flp);
