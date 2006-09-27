@@ -73,13 +73,14 @@ ohci_pci_start (struct usb_hcd *hcd)
 		else if (pdev->vendor == PCI_VENDOR_ID_NS) {
 			struct pci_dev	*b;
 
-			b  = pci_find_slot (pdev->bus->number,
+			b  = pci_get_slot (pdev->bus,
 					PCI_DEVFN (PCI_SLOT (pdev->devfn), 1));
 			if (b && b->device == PCI_DEVICE_ID_NS_87560_LIO
 					&& b->vendor == PCI_VENDOR_ID_NS) {
 				ohci->flags |= OHCI_QUIRK_SUPERIO;
 				ohci_dbg (ohci, "Using NSC SuperIO setup\n");
 			}
+			pci_dev_put(b);
 		}
 
 		/* Check for Compaq's ZFMicro chipset, which needs short 
