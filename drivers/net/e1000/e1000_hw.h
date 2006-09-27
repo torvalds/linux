@@ -1440,6 +1440,7 @@ struct e1000_hw {
     boolean_t tbi_compatibility_on;
     boolean_t laa_is_present;
     boolean_t phy_reset_disable;
+    boolean_t initialize_hw_bits_disable;
     boolean_t fc_send_xon;
     boolean_t fc_strict_ieee;
     boolean_t report_tx_early;

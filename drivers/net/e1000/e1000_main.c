@@ -573,6 +573,9 @@ void
 e1000_reset(struct e1000_adapter *adapter)
 {
 	uint32_t pba, manc;
+#ifdef DISABLE_MULR
+	uint32_t tctl;
+#endif
 	uint16_t fc_high_water_mark = E1000_FC_HIGH_DIFF;
 
 	/* Repartition Pba for greater than 9k mtu
@@ -639,6 +642,12 @@ e1000_reset(struct e1000_adapter *adapter)
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac_type >= e1000_82544)
 		E1000_WRITE_REG(&adapter->hw, WUC, 0);
+#ifdef DISABLE_MULR
+	/* disable Multiple Reads in Transmit Control Register for debugging */
+	tctl = E1000_READ_REG(hw, TCTL);
+	E1000_WRITE_REG(hw, TCTL, tctl & ~E1000_TCTL_MULR);
+
+#endif
 	if (e1000_init_hw(&adapter->hw))
 		DPRINTK(PROBE, ERR, "Hardware Error\n");
 	e1000_update_mng_vlan(adapter);
@@ -1517,27 +1526,14 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	/* Program the Transmit Control Register */
 
 	tctl = E1000_READ_REG(hw, TCTL);
-
 	tctl &= ~E1000_TCTL_CT;
 	tctl |= E1000_TCTL_PSP | E1000_TCTL_RTLC |
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
-#ifdef DISABLE_MULR
-	/* disable Multiple Reads for debugging */
-	tctl &= ~E1000_TCTL_MULR;
-#endif
-
 	if (hw->mac_type == e1000_82571 || hw->mac_type == e1000_82572) {
 		tarc = E1000_READ_REG(hw, TARC0);
-		tarc |= ((1 << 25) | (1 << 21));
+		tarc |= (1 << 21);
 		E1000_WRITE_REG(hw, TARC0, tarc);
-		tarc = E1000_READ_REG(hw, TARC1);
-		tarc |= (1 << 25);
-		if (tctl & E1000_TCTL_MULR)
-			tarc &= ~(1 << 28);
-		else
-			tarc |= (1 << 28);
-		E1000_WRITE_REG(hw, TARC1, tarc);
 	} else if (hw->mac_type == e1000_80003es2lan) {
 		tarc = E1000_READ_REG(hw, TARC0);
 		tarc |= 1;
