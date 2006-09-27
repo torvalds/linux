@@ -358,11 +358,10 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	const char *errmsg;
 	struct qnx4_sb_info *qs;
 
-	qs = kmalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
+	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
 	if (!qs)
 		return -ENOMEM;
 	s->s_fs_info = qs;
-	memset(qs, 0, sizeof(struct qnx4_sb_info));
 
 	sb_set_blocksize(s, QNX4_BLOCK_SIZE);
 

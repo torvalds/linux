@@ -279,12 +279,11 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 		tsz = elf_buflen - *fpos;
 		if (buflen < tsz)
 			tsz = buflen;
-		elf_buf = kmalloc(elf_buflen, GFP_ATOMIC);
+		elf_buf = kzalloc(elf_buflen, GFP_ATOMIC);
 		if (!elf_buf) {
 			read_unlock(&kclist_lock);
 			return -ENOMEM;
 		}
-		memset(elf_buf, 0, elf_buflen);
 		elf_kcore_store_hdr(elf_buf, nphdr, elf_buflen);
 		read_unlock(&kclist_lock);
 		if (copy_to_user(buffer, elf_buf + *fpos, tsz)) {
@@ -330,10 +329,9 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 			unsigned long curstart = start;
 			unsigned long cursize = tsz;
 
-			elf_buf = kmalloc(tsz, GFP_KERNEL);
+			elf_buf = kzalloc(tsz, GFP_KERNEL);
 			if (!elf_buf)
 				return -ENOMEM;
-			memset(elf_buf, 0, tsz);
 
 			read_lock(&vmlist_lock);
 			for (m=vmlist; m && cursize; m=m->next) {

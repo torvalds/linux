@@ -311,11 +311,10 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	unsigned i, imap_len;
 	struct bfs_sb_info * info;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	s->s_fs_info = info;
-	memset(info, 0, sizeof(*info));
 
 	sb_set_blocksize(s, BFS_BSIZE);
 
@@ -338,10 +337,9 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			+ BFS_ROOT_INO - 1;
 
 	imap_len = info->si_lasti/8 + 1;
-	info->si_imap = kmalloc(imap_len, GFP_KERNEL);
+	info->si_imap = kzalloc(imap_len, GFP_KERNEL);
 	if (!info->si_imap)
 		goto out;
-	memset(info->si_imap, 0, imap_len);
 	for (i=0; i<BFS_ROOT_INO; i++) 
 		set_bit(i, info->si_imap);
 

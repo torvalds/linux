@@ -339,11 +339,10 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_flags |= MS_NODIRATIME;
 
-	asb = kmalloc(sizeof(*asb), GFP_KERNEL);
+	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
 		return -ENOMEM;
 	sb->s_fs_info = asb;
-	memset(asb, 0, sizeof(*asb));
 
 	/* set default options */
 	asb->s_uid = 0;

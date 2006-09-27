@@ -557,11 +557,10 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	struct iso9660_options		opt;
 	struct isofs_sb_info	      * sbi;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 
 	if (!parse_options((char *)data, &opt))
 		goto out_freesbi;

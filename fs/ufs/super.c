@@ -611,11 +611,10 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	
 	UFSD("ENTER\n");
 		
-	sbi = kmalloc(sizeof(struct ufs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct ufs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		goto failed_nomem;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct ufs_sb_info));
 
 	UFSD("flag %u\n", (int)(sb->s_flags & MS_RDONLY));
 	
