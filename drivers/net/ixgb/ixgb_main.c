@@ -2230,7 +2230,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 			             enum pci_channel_state state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(netif_running(netdev))
 		ixgb_down(adapter, TRUE);
@@ -2253,7 +2253,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(pci_enable_device(pdev)) {
 		DPRINTK(PROBE, ERR, "Cannot re-enable PCI device after reset.\n");
@@ -2297,7 +2297,7 @@ static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev)
 static void ixgb_io_resume (struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	pci_set_master(pdev);
 
