@@ -496,15 +496,14 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 	stats.signal = bcm43xx_rssi_postprocess(bcm, rxhdr->rssi, is_ofdm,
 					      !!(rxflags1 & BCM43xx_RXHDR_FLAGS1_2053RSSIADJ),
 					      !!(rxflags3 & BCM43xx_RXHDR_FLAGS3_2050RSSIADJ));
-//TODO	stats.noise = 
+	stats.noise = bcm->stats.noise;
 	if (is_ofdm)
 		stats.rate = bcm43xx_plcp_get_bitrate_ofdm(plcp);
 	else
 		stats.rate = bcm43xx_plcp_get_bitrate_cck(plcp);
 	stats.received_channel = radio->channel;
-//TODO	stats.control = 
 	stats.mask = IEEE80211_STATMASK_SIGNAL |
-//TODO		     IEEE80211_STATMASK_NOISE |
+		     IEEE80211_STATMASK_NOISE |
 		     IEEE80211_STATMASK_RATE |
 		     IEEE80211_STATMASK_RSSI;
 	if (phy->type == BCM43xx_PHYTYPE_A)

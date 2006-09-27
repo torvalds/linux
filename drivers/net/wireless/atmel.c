@@ -1656,13 +1656,13 @@ static int atmel_set_essid(struct net_device *dev,
 		priv->connect_to_any_BSS = 0;
 
 		/* Check the size of the string */
-		if (dwrq->length > MAX_SSID_LENGTH + 1)
+		if (dwrq->length > MAX_SSID_LENGTH)
 			 return -E2BIG;
 		if (index != 0)
 			return -EINVAL;
 
-		memcpy(priv->new_SSID, extra, dwrq->length - 1);
-		priv->new_SSID_size = dwrq->length - 1;
+		memcpy(priv->new_SSID, extra, dwrq->length);
+		priv->new_SSID_size = dwrq->length;
 	}
 
 	return -EINPROGRESS;
@@ -2120,9 +2120,9 @@ static int atmel_set_retry(struct net_device *dev,
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (!vwrq->disabled && (vwrq->flags & IW_RETRY_LIMIT)) {
-		if (vwrq->flags & IW_RETRY_MAX)
+		if (vwrq->flags & IW_RETRY_LONG)
 			priv->long_retry = vwrq->value;
-		else if (vwrq->flags & IW_RETRY_MIN)
+		else if (vwrq->flags & IW_RETRY_SHORT)
 			priv->short_retry = vwrq->value;
 		else {
 			/* No modifier : set both */
@@ -2144,15 +2144,15 @@ static int atmel_get_retry(struct net_device *dev,
 
 	vwrq->disabled = 0;      /* Can't be disabled */
 
-	/* Note : by default, display the min retry number */
-	if (vwrq->flags & IW_RETRY_MAX) {
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	/* Note : by default, display the short retry number */
+	if (vwrq->flags & IW_RETRY_LONG) {
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		vwrq->value = priv->long_retry;
 	} else {
 		vwrq->flags = IW_RETRY_LIMIT;
 		vwrq->value = priv->short_retry;
 		if (priv->long_retry != priv->short_retry)
-			vwrq->flags |= IW_RETRY_MIN;
+			vwrq->flags |= IW_RETRY_SHORT;
 	}
 
 	return 0;

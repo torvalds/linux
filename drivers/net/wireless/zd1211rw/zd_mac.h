@@ -120,6 +120,10 @@ enum mac_flags {
 	MAC_FIXED_CHANNEL = 0x01,
 };
 
+struct housekeeping {
+	struct work_struct link_led_work;
+};
+
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
 struct zd_mac {
@@ -128,6 +132,7 @@ struct zd_mac {
 	struct net_device *netdev;
 	/* Unlocked reading possible */
 	struct iw_statistics iw_stats;
+	struct housekeeping housekeeping;
 	unsigned int stats_count;
 	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 rssi_buffer[ZD_MAC_STATS_BUFFER_SIZE];

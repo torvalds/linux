@@ -428,6 +428,7 @@
 /* masks for controlling LEDs */
 #define LED1				0x0100
 #define LED2				0x0200
+#define LED_SW				0x0400
 
 /* Seems to indicate that the configuration is over.
  */
@@ -629,6 +630,10 @@
 #define FW_SOFT_RESET           FW_REG(4)
 #define FW_FLASH_CHK            FW_REG(5)
 
+#define FW_LINK_OFF		0x0
+#define FW_LINK_TX		0x1
+/* 0x2 - link led on? */
+
 enum {
 	CR_BASE_OFFSET			= 0x9000,
 	FW_START_OFFSET			= 0xee00,
@@ -663,8 +668,11 @@ struct zd_chip {
 	u8 pwr_int_values[E2P_CHANNEL_COUNT];
 	/* SetPointOFDM in the vendor driver */
 	u8 ofdm_cal_values[3][E2P_CHANNEL_COUNT];
-	u8 pa_type:4, patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
-	   new_phy_layout:1, is_zd1211b:1;
+	u16 link_led;
+	unsigned int pa_type:4,
+		patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
+		new_phy_layout:1,
+		is_zd1211b:1, supports_tx_led:1;
 };
 
 static inline struct zd_chip *zd_usb_to_chip(struct zd_usb *usb)
@@ -812,15 +820,12 @@ int zd_chip_lock_phy_regs(struct zd_chip *chip);
 int zd_chip_unlock_phy_regs(struct zd_chip *chip);
 
 enum led_status {
-	LED_OFF	   = 0,
-	LED_ON     = 1,
-	LED_FLIP   = 2,
-	LED_STATUS = 3,
+	LED_OFF = 0,
+	LED_SCANNING = 1,
+	LED_ASSOCIATED = 2,
 };
 
-int zd_chip_led_status(struct zd_chip *chip, int led, enum led_status status);
-int zd_chip_led_flip(struct zd_chip *chip, int led,
-	             const unsigned int *phases_msecs, unsigned int count);
+int zd_chip_control_leds(struct zd_chip *chip, enum led_status status);
 
 int zd_set_beacon_interval(struct zd_chip *chip, u32 interval);
 

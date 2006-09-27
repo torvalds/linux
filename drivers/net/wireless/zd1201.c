@@ -1218,7 +1218,7 @@ static int zd1201_set_essid(struct net_device *dev,
 		return -EINVAL;
 	if (data->length < 1)
 		data->length = 1;
-	zd->essidlen = data->length-1;
+	zd->essidlen = data->length;
 	memset(zd->essid, 0, IW_ESSID_MAX_SIZE+1);
 	memcpy(zd->essid, essid, data->length);
 	return zd1201_join(zd, zd->essid, zd->essidlen);

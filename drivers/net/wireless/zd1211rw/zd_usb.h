@@ -238,4 +238,6 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 
 int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits);
 
+extern struct workqueue_struct *zd_workqueue;
+
 #endif /* _ZD_USB_H */

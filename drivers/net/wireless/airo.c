@@ -5868,7 +5868,7 @@ static int airo_set_essid(struct net_device *dev,
 		int	index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
 		/* Check the size of the string */
-		if(dwrq->length > IW_ESSID_MAX_SIZE+1) {
+		if(dwrq->length > IW_ESSID_MAX_SIZE) {
 			return -E2BIG ;
 		}
 		/* Check if index is valid */
@@ -5880,7 +5880,7 @@ static int airo_set_essid(struct net_device *dev,
 		memset(SSID_rid.ssids[index].ssid, 0,
 		       sizeof(SSID_rid.ssids[index].ssid));
 		memcpy(SSID_rid.ssids[index].ssid, extra, dwrq->length);
-		SSID_rid.ssids[index].len = dwrq->length - 1;
+		SSID_rid.ssids[index].len = dwrq->length;
 	}
 	SSID_rid.len = sizeof(SSID_rid);
 	/* Write it to the card */
@@ -5990,7 +5990,7 @@ static int airo_set_nick(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	/* Check the size of the string */
-	if(dwrq->length > 16 + 1) {
+	if(dwrq->length > 16) {
 		return -E2BIG;
 	}
 	readConfigRid(local, 1);
@@ -6015,7 +6015,7 @@ static int airo_get_nick(struct net_device *dev,
 	readConfigRid(local, 1);
 	strncpy(extra, local->config.nodeName, 16);
 	extra[16] = '\0';
-	dwrq->length = strlen(extra) + 1;
+	dwrq->length = strlen(extra);
 
 	return 0;
 }
@@ -6767,9 +6767,9 @@ static int airo_set_retry(struct net_device *dev,
 	}
 	readConfigRid(local, 1);
 	if(vwrq->flags & IW_RETRY_LIMIT) {
-		if(vwrq->flags & IW_RETRY_MAX)
+		if(vwrq->flags & IW_RETRY_LONG)
 			local->config.longRetryLimit = vwrq->value;
-		else if (vwrq->flags & IW_RETRY_MIN)
+		else if (vwrq->flags & IW_RETRY_SHORT)
 			local->config.shortRetryLimit = vwrq->value;
 		else {
 			/* No modifier : set both */
@@ -6805,14 +6805,14 @@ static int airo_get_retry(struct net_device *dev,
 	if((vwrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
 		vwrq->flags = IW_RETRY_LIFETIME;
 		vwrq->value = (int)local->config.txLifetime * 1024;
-	} else if((vwrq->flags & IW_RETRY_MAX)) {
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	} else if((vwrq->flags & IW_RETRY_LONG)) {
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		vwrq->value = (int)local->config.longRetryLimit;
 	} else {
 		vwrq->flags = IW_RETRY_LIMIT;
 		vwrq->value = (int)local->config.shortRetryLimit;
 		if((int)local->config.shortRetryLimit != (int)local->config.longRetryLimit)
-			vwrq->flags |= IW_RETRY_MIN;
+			vwrq->flags |= IW_RETRY_SHORT;
 	}
 
 	return 0;
@@ -6990,6 +6990,7 @@ static int airo_set_power(struct net_device *dev,
 			local->config.rmode |= RXMODE_BC_MC_ADDR;
 			set_bit (FLAG_COMMIT, &local->flags);
 		case IW_POWER_ON:
+			/* This is broken, fixme ;-) */
 			break;
 		default:
 			return -EINVAL;
