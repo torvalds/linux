@@ -45,16 +45,10 @@ msi_register(struct msi_ops *ops)
 	return 0;
 }
 
-static void msi_cache_ctor(void *p, kmem_cache_t *cache, unsigned long flags)
-{
-	memset(p, 0, sizeof(struct msi_desc));
-}
-
 static int msi_cache_init(void)
 {
-	msi_cachep = kmem_cache_create("msi_cache",
-			sizeof(struct msi_desc),
-		       	0, SLAB_HWCACHE_ALIGN, msi_cache_ctor, NULL);
+	msi_cachep = kmem_cache_create("msi_cache", sizeof(struct msi_desc),
+					0, SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!msi_cachep)
 		return -ENOMEM;
 
@@ -402,11 +396,10 @@ static struct msi_desc* alloc_msi_entry(void)
 {
 	struct msi_desc *entry;
 
-	entry = kmem_cache_alloc(msi_cachep, SLAB_KERNEL);
+	entry = kmem_cache_zalloc(msi_cachep, GFP_KERNEL);
 	if (!entry)
 		return NULL;
 
-	memset(entry, 0, sizeof(struct msi_desc));
 	entry->link.tail = entry->link.head = 0;	/* single message */
 	entry->dev = NULL;
 
