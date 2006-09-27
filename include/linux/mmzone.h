@@ -58,6 +58,7 @@ enum zone_stat_item {
 	NR_WRITEBACK,
 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
 	NR_BOUNCE,
+	NR_VMSCAN_WRITE,
 #ifdef CONFIG_NUMA
 	NUMA_HIT,		/* allocated in intended node */
 	NUMA_MISS,		/* allocated in non intended node */

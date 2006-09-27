@@ -465,6 +465,7 @@ static char *vmstat_text[] = {
 	"nr_writeback",
 	"nr_unstable",
 	"nr_bounce",
+	"nr_vmscan_write",
 
 #ifdef CONFIG_NUMA
 	"numa_hit",

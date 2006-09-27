@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/vmstat.h>
 #include <linux/file.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
@@ -370,7 +371,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 			/* synchronous write or broken a_ops? */
 			ClearPageReclaim(page);
 		}
-
+		inc_zone_page_state(page, NR_VMSCAN_WRITE);
 		return PAGE_SUCCESS;
 	}
 
