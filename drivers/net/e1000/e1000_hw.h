@@ -1298,6 +1298,7 @@ struct e1000_hw_stats {
     uint64_t algnerrc;
     uint64_t symerrs;
     uint64_t rxerrc;
+    uint64_t txerrc;
     uint64_t mpc;
     uint64_t scc;
     uint64_t ecol;
@@ -1330,8 +1331,9 @@ struct e1000_hw_stats {
     uint64_t gotch;
     uint64_t rnbc;
     uint64_t ruc;
-    uint64_t rfc;
     uint64_t roc;
+    uint64_t rlerrc;
+    uint64_t rfc;
     uint64_t rjc;
     uint64_t mgprc;
     uint64_t mgpdc;

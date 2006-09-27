@@ -3338,16 +3338,15 @@ e1000_update_stats(struct e1000_adapter *adapter)
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
 		adapter->stats.ruc + adapter->stats.roc +
 		adapter->stats.cexterr;
-	adapter->net_stats.rx_length_errors = adapter->stats.ruc +
-	                                      adapter->stats.roc;
+	adapter->stats.rlerrc = adapter->stats.ruc + adapter->stats.roc;
+	adapter->net_stats.rx_length_errors = adapter->stats.rlerrc;
 	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
 	adapter->net_stats.rx_frame_errors = adapter->stats.algnerrc;
 	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
 
 	/* Tx Errors */
-
-	adapter->net_stats.tx_errors = adapter->stats.ecol +
-	                               adapter->stats.latecol;
+	adapter->stats.txerrc = adapter->stats.ecol + adapter->stats.latecol;
+	adapter->net_stats.tx_errors = adapter->stats.txerrc;
 	adapter->net_stats.tx_aborted_errors = adapter->stats.ecol;
 	adapter->net_stats.tx_window_errors = adapter->stats.latecol;
 	adapter->net_stats.tx_carrier_errors = adapter->stats.tncrs;
