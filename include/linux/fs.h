@@ -532,8 +532,8 @@ struct inode {
 	union {
 		struct pipe_inode_info	*i_pipe;
 		struct block_device	*i_bdev;
+		struct cdev		*i_cdev;
 	};
-	struct cdev		*i_cdev;
 	int			i_cindex;
 
 	__u32			i_generation;
