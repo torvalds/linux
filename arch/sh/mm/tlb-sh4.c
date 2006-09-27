@@ -36,9 +36,6 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	unsigned long vpn;
 	struct page *page;
 	unsigned long pfn;
-#ifndef CONFIG_CPU_SUBTYPE_SH7780
-	unsigned long ptea;
-#endif
 
 	/* Ptrace may call this routine. */
 	if (vma && current->active_mm != vma->vm_mm)
@@ -61,12 +58,11 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	ctrl_outl(vpn, MMU_PTEH);
 
 	pteval = pte_val(pte);
-#ifndef CONFIG_CPU_SUBTYPE_SH7780
+
 	/* Set PTEA register */
-	/* TODO: make this look less hacky */
-	ptea = ((pteval >> 28) & 0xe) | (pteval & 0x1);
-	ctrl_outl(ptea, MMU_PTEA);
-#endif
+	if (cpu_data->flags & CPU_HAS_PTEA)
+		/* TODO: make this look less hacky */
+		ctrl_outl(((pteval >> 28) & 0xe) | (pteval & 0x1), MMU_PTEA);
 
 	/* Set PTEL register */
 	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */

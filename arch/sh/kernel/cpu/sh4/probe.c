@@ -3,7 +3,7 @@
  *
  * CPU Subtype Probing for SH-4.
  *
- * Copyright (C) 2001, 2002, 2003, 2004  Paul Mundt
+ * Copyright (C) 2001 - 2005  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -53,9 +53,6 @@ int __init detect_cpu_and_cache_system(void)
 	cpu_data->dcache.ways		= 1;
 	cpu_data->dcache.linesz		= L1_CACHE_BYTES;
 
-	/* Set the FPU flag, virtually all SH-4's have one */
-	cpu_data->flags |= CPU_HAS_FPU;
-
 	/*
 	 * Probe the underlying processor version/revision and
 	 * adjust cpu_data setup accordingly.
@@ -63,26 +60,37 @@ int __init detect_cpu_and_cache_system(void)
 	switch (pvr) {
 	case 0x205:
 		cpu_data->type = CPU_SH7750;
-		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_PERF_COUNTER;
+		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_FPU |
+				   CPU_HAS_PERF_COUNTER | CPU_HAS_PTEA;
 		break;
 	case 0x206:
 		cpu_data->type = CPU_SH7750S;
-		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_PERF_COUNTER;
+		cpu_data->flags |= CPU_HAS_P2_FLUSH_BUG | CPU_HAS_FPU |
+				   CPU_HAS_PERF_COUNTER | CPU_HAS_PTEA;
 		break;
 	case 0x1100:
 		cpu_data->type = CPU_SH7751;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 		break;
 	case 0x2000:
 		cpu_data->type = CPU_SH73180;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
-		cpu_data->flags &= ~CPU_HAS_FPU;
+
+		/*
+		 * XXX: Double check this, none of the SH-4A/SH-4AL processors
+		 * should have this, as it's essentially a legacy thing.
+		 */
+		cpu_data->flags |= CPU_HAS_PTEA;
 		break;
 	case 0x2001:
 	case 0x2004:
 		cpu_data->type = CPU_SH7770;
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
+
+		/* Same note as above applies here for PTEA */
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 		break;
 	case 0x2006:
 	case 0x200A:
@@ -90,27 +98,31 @@ int __init detect_cpu_and_cache_system(void)
 			cpu_data->type = CPU_SH7781;
 		else
 			cpu_data->type = CPU_SH7780;
+
 		cpu_data->icache.ways = 4;
 		cpu_data->dcache.ways = 4;
+
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER;
 		break;
 	case 0x8000:
 		cpu_data->type = CPU_ST40RA;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 		break;
 	case 0x8100:
 		cpu_data->type = CPU_ST40GX1;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 		break;
 	case 0x700:
 		cpu_data->type = CPU_SH4_501;
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
-
-		/* No FPU on the SH4-500 series.. */
-		cpu_data->flags &= ~CPU_HAS_FPU;
+		cpu_data->flags |= CPU_HAS_PTEA;
 		break;
 	case 0x600:
 		cpu_data->type = CPU_SH4_202;
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 		break;
 	case 0x500 ... 0x501:
 		switch (prr) {
@@ -127,6 +139,8 @@ int __init detect_cpu_and_cache_system(void)
 
 		cpu_data->icache.ways = 2;
 		cpu_data->dcache.ways = 2;
+
+		cpu_data->flags |= CPU_HAS_FPU | CPU_HAS_PTEA;
 
 		break;
 	default:
