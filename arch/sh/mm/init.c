@@ -24,7 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
-
+#include <linux/proc_fs.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -223,6 +223,8 @@ void __init paging_init(void)
 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
 }
 
+static struct kcore_list kcore_mem, kcore_vmalloc;
+
 void __init mem_init(void)
 {
 	extern unsigned long empty_zero_page[1024];
@@ -270,7 +272,12 @@ void __init mem_init(void)
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
-	printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init)\n",
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
+		   VMALLOC_END - VMALLOC_START);
+
+	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
+	       "%dk reserved, %dk data, %dk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		max_mapnr << (PAGE_SHIFT-10),
 		codesize >> 10,
