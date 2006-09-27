@@ -89,31 +89,12 @@ config SH_7751_SYSTEMH
 	  Select SystemH if you are configuring for a Renesas SystemH
 	  7751R evaluation board.
 
-config SH_STB1_HARP
-	bool "STB1_Harp"
-
-config SH_STB1_OVERDRIVE
-	bool "STB1_Overdrive"
-
 config SH_HP6XX
 	bool "HP6XX"
 	help
 	  Select HP6XX if configuring for a HP jornada HP6xx.
 	  More information (hardware only) at
 	  <http://www.hp.com/jornada/>.
-
-config SH_CQREEK
-	bool "CqREEK"
-	help
-	  Select CqREEK if configuring for a CqREEK SH7708 or SH7750.
-	  More information at
-	  <http://sources.redhat.com/ecos/hardware.html#SuperH>.
-
-config SH_DMIDA
-	bool "DMIDA"
-	help
-	  Select DMIDA if configuring for a DataMyte 4000 Industrial
-	  Digital Assistant. More information at <http://www.dmida.com/>.
 
 config SH_EC3104
 	bool "EC3104"
@@ -136,24 +117,8 @@ config SH_DREAMCAST
 	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
 	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
 
-config SH_CAT68701
-	bool "CAT68701"
-
 config SH_BIGSUR
 	bool "BigSur"
-
-config SH_SH2000
-	bool "SH2000"
-	select CPU_SUBTYPE_SH7709
-	help
-	  SH-2000 is a single-board computer based around SH7709A chip
-	  intended for embedded applications.
-	  It has an Ethernet interface (CS8900A), direct connected
-	  Compact Flash socket, three serial ports and PC-104 bus.
-	  More information at <http://sh2000.sh-linux.org>.
-
-config SH_ADX
-	bool "ADX"
 
 config SH_MPC1211
 	bool "Interface MPC1211"
@@ -246,7 +211,7 @@ source "arch/sh/mm/Kconfig"
 
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
-	depends on SH_ADX || SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_CAT68701 || SH_SH03
+	depends on SH_SOLUTION_ENGINE || SH_UNKNOWN || SH_SH03
 	---help---
 	  Compact Flash is a small, removable mass storage device introduced
 	  in 1994 originally as a PCMCIA device.  If you say `Y' here, you
@@ -274,7 +239,7 @@ config CF_AREA5
 	  - "Area5" if CompactFlash is connected to Area 5 (0x14000000)
 	  - "Area6" if it is connected to Area 6 (0x18000000)
 
-	  "Area6" will work for most boards. For ADX, select "Area5".
+	  "Area6" will work for most boards.
 
 config CF_AREA6
 	bool "Area6"
@@ -418,8 +383,8 @@ source "arch/sh/cchips/Kconfig"
 
 config HEARTBEAT
 	bool "Heartbeat LED"
-	depends on SH_MPC1211 || SH_SH03 || SH_CAT68701 || \
-		   SH_STB1_HARP || SH_STB1_OVERDRIVE || SH_BIGSUR || \
+	depends on SH_MPC1211 || SH_SH03 || \
+		   SH_BIGSUR || \
 		   SH_7751_SOLUTION_ENGINE || SH_7300_SOLUTION_ENGINE || \
 		   SH_73180_SOLUTION_ENGINE || SH_SOLUTION_ENGINE || \
 		   SH_RTS7751R2D || SH_SH4202_MICRODEV || SH_LANDISK
