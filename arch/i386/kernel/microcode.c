@@ -187,8 +187,7 @@ static int microcode_sanity_check(void *mc)
 
 	total_size = get_totalsize(mc_header);
 	data_size = get_datasize(mc_header);
-	if ((data_size + MC_HEADER_SIZE > total_size)
-		|| (data_size < DEFAULT_UCODE_DATASIZE)) {
+	if (data_size + MC_HEADER_SIZE > total_size) {
 		printk(KERN_ERR "microcode: error! "
 			"Bad data size in microcode data file\n");
 		return -EINVAL;
@@ -365,8 +364,7 @@ static long get_next_ucode(void **mc, long offset)
 		return -EFAULT;
 	}
 	total_size = get_totalsize(&mc_header);
-	if ((offset + total_size > user_buffer_size)
-		|| (total_size < DEFAULT_UCODE_TOTALSIZE)) {
+	if (offset + total_size > user_buffer_size) {
 		printk(KERN_ERR "microcode: error! Bad total size in microcode "
 				"data file\n");
 		return -EINVAL;
@@ -431,11 +429,6 @@ static int microcode_open (struct inode *unused1, struct file *unused2)
 static ssize_t microcode_write (struct file *file, const char __user *buf, size_t len, loff_t *ppos)
 {
 	ssize_t ret;
-
-	if (len < DEFAULT_UCODE_TOTALSIZE) {
-		printk(KERN_ERR "microcode: not enough data\n"); 
-		return -EINVAL;
-	}
 
 	if ((len >> PAGE_SHIFT) > num_physpages) {
 		printk(KERN_ERR "microcode: too much data (max %ld pages)\n", num_physpages);
@@ -508,8 +501,7 @@ static long get_next_ucode_from_buffer(void **mc, void *buf,
 	mc_header = (microcode_header_t *)(buf + offset);
 	total_size = get_totalsize(mc_header);
 
-	if ((offset + total_size > size)
-		|| (total_size < DEFAULT_UCODE_TOTALSIZE)) {
+	if (offset + total_size > size) {
 		printk(KERN_ERR "microcode: error! Bad data in microcode data file\n");
 		return -EINVAL;
 	}
