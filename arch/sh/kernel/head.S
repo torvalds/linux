@@ -69,7 +69,7 @@ ENTRY(_stext)
 
 	.balign 4
 1:	.long	0x400080F0		! MD=1, RB=0, BL=0, FD=1, IMASK=0xF
-2:	.long	stack
+2:	.long	init_thread_union+8192
 3:	.long	__bss_start
 4:	.long	_end
 5:	.long	start_kernel

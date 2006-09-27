@@ -62,8 +62,6 @@ SECTIONS
 
   . = ALIGN(8192);		/* init_task */
   .data.init_task : { *(.data.init_task) }
-  /* stack */
-  .stack : { stack = .;  _stack = .; }
 
   . = ALIGN(4096);		/* Init code and data */
   __init_begin = .;
