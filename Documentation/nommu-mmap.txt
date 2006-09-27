@@ -128,6 +128,30 @@ FURTHER NOTES ON NO-MMU MMAP
      error will result if they don't. This is most likely to be encountered
      with character device files, pipes, fifos and sockets.
 
+
+=============
+NO-MMU MREMAP
+=============
+
+The mremap() function is partially supported.  It may change the size of a
+mapping, and may move it[*] if MREMAP_MAYMOVE is specified and if the new size
+of the mapping exceeds the size of the slab object currently occupied by the
+memory to which the mapping refers, or if a smaller slab object could be used.
+
+MREMAP_FIXED is not supported, though it is ignored if there's no change of
+address and the object does not need to be moved.
+
+Shared mappings may not be moved.  Shareable mappings may not be moved either,
+even if they are not currently shared.
+
+The mremap() function must be given an exact match for base address and size of
+a previously mapped object.  It may not be used to create holes in existing
+mappings, move parts of existing mappings or resize parts of mappings.  It must
+act on a complete mapping.
+
+[*] Not currently supported.
+
+
 ============================================
 PROVIDING SHAREABLE CHARACTER DEVICE SUPPORT
 ============================================

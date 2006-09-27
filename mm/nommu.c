@@ -350,6 +350,26 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 EXPORT_SYMBOL(find_vma);
 
 /*
+ * look up the first VMA exactly that exactly matches addr
+ * - should be called with mm->mmap_sem at least held readlocked
+ */
+static inline struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
+						    unsigned long addr)
+{
+	struct vm_list_struct *vml;
+
+	/* search the vm_start ordered list */
+	for (vml = mm->context.vmlist; vml; vml = vml->next) {
+		if (vml->vma->vm_start == addr)
+			return vml->vma;
+		if (vml->vma->vm_start > addr)
+			break;
+	}
+
+	return NULL;
+}
+
+/*
  * find a VMA in the global tree
  */
 static inline struct vm_area_struct *find_nommu_vma(unsigned long start)
@@ -1071,20 +1091,20 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 }
 
 /*
- * Expand (or shrink) an existing mapping, potentially moving it at the
- * same time (controlled by the MREMAP_MAYMOVE flag and available VM space)
+ * expand (or shrink) an existing mapping, potentially moving it at the same
+ * time (controlled by the MREMAP_MAYMOVE flag and available VM space)
  *
- * MREMAP_FIXED option added 5-Dec-1999 by Benjamin LaHaise
- * This option implies MREMAP_MAYMOVE.
+ * under NOMMU conditions, we only permit changing a mapping's size, and only
+ * as long as it stays within the hole allocated by the kmalloc() call in
+ * do_mmap_pgoff() and the block is not shareable
  *
- * on uClinux, we only permit changing a mapping's size, and only as long as it stays within the
- * hole allocated by the kmalloc() call in do_mmap_pgoff() and the block is not shareable
+ * MREMAP_FIXED is not supported under NOMMU conditions
  */
 unsigned long do_mremap(unsigned long addr,
 			unsigned long old_len, unsigned long new_len,
 			unsigned long flags, unsigned long new_addr)
 {
-	struct vm_list_struct *vml = NULL;
+	struct vm_area_struct *vma;
 
 	/* insanity checks first */
 	if (new_len == 0)
@@ -1093,29 +1113,38 @@ unsigned long do_mremap(unsigned long addr,
 	if (flags & MREMAP_FIXED && new_addr != addr)
 		return (unsigned long) -EINVAL;
 
-	for (vml = current->mm->context.vmlist; vml; vml = vml->next)
-		if (vml->vma->vm_start == addr)
-			goto found;
+	vma = find_vma_exact(current->mm, addr);
+	if (!vma)
+		return (unsigned long) -EINVAL;
 
-	return (unsigned long) -EINVAL;
-
- found:
-	if (vml->vma->vm_end != vml->vma->vm_start + old_len)
+	if (vma->vm_end != vma->vm_start + old_len)
 		return (unsigned long) -EFAULT;
 
-	if (vml->vma->vm_flags & VM_MAYSHARE)
+	if (vma->vm_flags & VM_MAYSHARE)
 		return (unsigned long) -EPERM;
 
 	if (new_len > kobjsize((void *) addr))
 		return (unsigned long) -ENOMEM;
 
 	/* all checks complete - do it */
-	vml->vma->vm_end = vml->vma->vm_start + new_len;
+	vma->vm_end = vma->vm_start + new_len;
 
 	askedalloc -= old_len;
 	askedalloc += new_len;
 
-	return vml->vma->vm_start;
+	return vma->vm_start;
+}
+
+asmlinkage unsigned long sys_mremap(unsigned long addr,
+	unsigned long old_len, unsigned long new_len,
+	unsigned long flags, unsigned long new_addr)
+{
+	unsigned long ret;
+
+	down_write(&current->mm->mmap_sem);
+	ret = do_mremap(addr, old_len, new_len, flags, new_addr);
+	up_write(&current->mm->mmap_sem);
+	return ret;
 }
 
 struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
