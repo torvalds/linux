@@ -83,6 +83,9 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/cpu.h>
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include <asm/msr.h>
 #include <asm/uaccess.h>
@@ -493,6 +496,112 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #define microcode_dev_exit() do { } while(0)
 #endif
 
+static long get_next_ucode_from_buffer(void **mc, void *buf,
+	unsigned long size, long offset)
+{
+	microcode_header_t *mc_header;
+	unsigned long total_size;
+
+	/* No more data */
+	if (offset >= size)
+		return 0;
+	mc_header = (microcode_header_t *)(buf + offset);
+	total_size = get_totalsize(mc_header);
+
+	if ((offset + total_size > size)
+		|| (total_size < DEFAULT_UCODE_TOTALSIZE)) {
+		printk(KERN_ERR "microcode: error! Bad data in microcode data file\n");
+		return -EINVAL;
+	}
+
+	*mc = vmalloc(total_size);
+	if (!*mc) {
+		printk(KERN_ERR "microcode: error! Can not allocate memory\n");
+		return -ENOMEM;
+	}
+	memcpy(*mc, buf + offset, total_size);
+	return offset + total_size;
+}
+
+/* fake device for request_firmware */
+static struct platform_device *microcode_pdev;
+
+static int cpu_request_microcode(int cpu)
+{
+	char name[30];
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+	const struct firmware *firmware;
+	void * buf;
+	unsigned long size;
+	long offset = 0;
+	int error;
+	void *mc;
+
+	/* We should bind the task to the CPU */
+	BUG_ON(cpu != raw_smp_processor_id());
+	sprintf(name,"intel-ucode/%02x-%02x-%02x",
+		c->x86, c->x86_model, c->x86_mask);
+	error = request_firmware(&firmware, name, &microcode_pdev->dev);
+	if (error) {
+		pr_debug("ucode data file %s load failed\n", name);
+		return error;
+	}
+	buf = (void *)firmware->data;
+	size = firmware->size;
+	while ((offset = get_next_ucode_from_buffer(&mc, buf, size, offset))
+			> 0) {
+		error = microcode_sanity_check(mc);
+		if (error)
+			break;
+		error = get_maching_microcode(mc, cpu);
+		if (error < 0)
+			break;
+		/*
+		 * It's possible the data file has multiple matching ucode,
+		 * lets keep searching till the latest version
+		 */
+		if (error == 1) {
+			apply_microcode(cpu);
+			error = 0;
+		}
+		vfree(mc);
+	}
+	if (offset > 0)
+		vfree(mc);
+	if (offset < 0)
+		error = offset;
+	release_firmware(firmware);
+
+	return error;
+}
+
+static void microcode_init_cpu(int cpu)
+{
+	cpumask_t old;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	old = current->cpus_allowed;
+
+	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	mutex_lock(&microcode_mutex);
+	collect_cpu_info(cpu);
+	if (uci->valid)
+		cpu_request_microcode(cpu);
+	mutex_unlock(&microcode_mutex);
+	set_cpus_allowed(current, old);
+}
+
+static void microcode_fini_cpu(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	mutex_lock(&microcode_mutex);
+	uci->valid = 0;
+	vfree(uci->mc);
+	uci->mc = NULL;
+	mutex_unlock(&microcode_mutex);
+}
+
 static int __init microcode_init (void)
 {
 	int error;
@@ -500,6 +609,12 @@ static int __init microcode_init (void)
 	error = microcode_dev_init();
 	if (error)
 		return error;
+	microcode_pdev = platform_device_register_simple("microcode", -1,
+							 NULL, 0);
+	if (IS_ERR(microcode_pdev)) {
+		microcode_dev_exit();
+		return PTR_ERR(microcode_pdev);
+	}
 
 	printk(KERN_INFO 
 		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@veritas.com>\n");
@@ -509,6 +624,7 @@ static int __init microcode_init (void)
 static void __exit microcode_exit (void)
 {
 	microcode_dev_exit();
+	platform_device_unregister(microcode_pdev);
 }
 
 module_init(microcode_init)
