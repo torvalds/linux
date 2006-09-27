@@ -5478,10 +5478,9 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		int irq_line = ent->irq;
 
 		ap = ata_port_add(ent, host, i);
+		host->ports[i] = ap;
 		if (!ap)
 			goto err_out;
-
-		host->ports[i] = ap;
 
 		/* dummy? */
 		if (ent->dummy_port_mask & (1 << i)) {
