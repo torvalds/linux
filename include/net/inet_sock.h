@@ -110,11 +110,11 @@ struct inet_sock {
 	struct ipv6_pinfo	*pinet6;
 #endif
 	/* Socket demultiplex comparisons on incoming packets. */
-	__u32			daddr;
-	__u32			rcv_saddr;
+	__be32			daddr;
+	__be32			rcv_saddr;
 	__u16			dport;
 	__u16			num;
-	__u32			saddr;
+	__be32			saddr;
 	__s16			uc_ttl;
 	__u16			cmsg_flags;
 	struct ip_options	*opt;
@@ -129,7 +129,7 @@ struct inet_sock {
 				hdrincl:1,
 				mc_loop:1;
 	int			mc_index;
-	__u32			mc_addr;
+	__be32			mc_addr;
 	struct ip_mc_socklist	*mc_list;
 	struct {
 		unsigned int		flags;
@@ -137,7 +137,7 @@ struct inet_sock {
 		struct ip_options	*opt;
 		struct rtable		*rt;
 		int			length; /* Total length of all frames */
-		u32			addr;
+		__be32			addr;
 		struct flowi		fl;
 	} cork;
 };
