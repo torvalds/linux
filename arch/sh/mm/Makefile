@@ -17,6 +17,10 @@ mmu-$(CONFIG_MMU)	:= fault.o clear_page.o copy_page.o tlb-flush.o	\
 
 obj-y			+= $(mmu-y)
 
+ifdef CONFIG_DEBUG_FS
+obj-$(CONFIG_CPU_SH4)		+= cache-debugfs.o
+endif
+
 ifdef CONFIG_MMU
 obj-$(CONFIG_CPU_SH3)		+= tlb-sh3.o
 obj-$(CONFIG_CPU_SH4)		+= tlb-sh4.o pg-sh4.o
