@@ -1305,34 +1305,30 @@ void si_meminfo_node(struct sysinfo *val, int nid)
  */
 void show_free_areas(void)
 {
-	int cpu, temperature;
+	int cpu;
 	unsigned long active;
 	unsigned long inactive;
 	unsigned long free;
 	struct zone *zone;
 
 	for_each_zone(zone) {
-		show_node(zone);
-		printk("%s per-cpu:", zone->name);
-
-		if (!populated_zone(zone)) {
-			printk(" empty\n");
+		if (!populated_zone(zone))
 			continue;
-		} else
-			printk("\n");
+
+		show_node(zone);
+		printk("%s per-cpu:\n", zone->name);
 
 		for_each_online_cpu(cpu) {
 			struct per_cpu_pageset *pageset;
 
 			pageset = zone_pcp(zone, cpu);
 
-			for (temperature = 0; temperature < 2; temperature++)
-				printk("cpu %d %s: high %d, batch %d used:%d\n",
-					cpu,
-					temperature ? "cold" : "hot",
-					pageset->pcp[temperature].high,
-					pageset->pcp[temperature].batch,
-					pageset->pcp[temperature].count);
+			printk("CPU %4d: Hot: hi:%5d, btch:%4d usd:%4d   "
+			       "Cold: hi:%5d, btch:%4d usd:%4d\n",
+			       cpu, pageset->pcp[0].high,
+			       pageset->pcp[0].batch, pageset->pcp[0].count,
+			       pageset->pcp[1].high, pageset->pcp[1].batch,
+			       pageset->pcp[1].count);
 		}
 	}
 
@@ -1353,6 +1349,9 @@ void show_free_areas(void)
 
 	for_each_zone(zone) {
 		int i;
+
+		if (!populated_zone(zone))
+			continue;
 
 		show_node(zone);
 		printk("%s"
@@ -1386,12 +1385,11 @@ void show_free_areas(void)
 	for_each_zone(zone) {
  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
 
+		if (!populated_zone(zone))
+			continue;
+
 		show_node(zone);
 		printk("%s: ", zone->name);
-		if (!populated_zone(zone)) {
-			printk("empty\n");
-			continue;
-		}
 
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
