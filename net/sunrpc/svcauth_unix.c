@@ -249,10 +249,10 @@ static int ip_map_show(struct seq_file *m,
 
 	seq_printf(m, "%s %d.%d.%d.%d %s\n",
 		   im->m_class,
-		   htonl(addr.s_addr) >> 24 & 0xff,
-		   htonl(addr.s_addr) >> 16 & 0xff,
-		   htonl(addr.s_addr) >>  8 & 0xff,
-		   htonl(addr.s_addr) >>  0 & 0xff,
+		   ntohl(addr.s_addr) >> 24 & 0xff,
+		   ntohl(addr.s_addr) >> 16 & 0xff,
+		   ntohl(addr.s_addr) >>  8 & 0xff,
+		   ntohl(addr.s_addr) >>  0 & 0xff,
 		   dom
 		   );
 	return 0;

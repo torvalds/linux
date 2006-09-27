@@ -620,7 +620,7 @@ svc_safe_getnetobj(struct kvec *argv, struct xdr_netobj *o)
 static inline int
 svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 {
-	u32 *p;
+	u8 *p;
 
 	if (resv->iov_len + 4 > PAGE_SIZE)
 		return -1;
@@ -630,7 +630,7 @@ svc_safe_putnetobj(struct kvec *resv, struct xdr_netobj *o)
 	if (resv->iov_len > PAGE_SIZE)
 		return -1;
 	memcpy(p, o->data, o->len);
-	memset((u8 *)p + o->len, 0, round_up_to_quad(o->len) - o->len);
+	memset(p + o->len, 0, round_up_to_quad(o->len) - o->len);
 	return 0;
 }
 
@@ -1219,8 +1219,8 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
 	struct xdr_buf *resbuf = &rqstp->rq_res;
 	struct page **inpages = NULL;
-	__be32 *p;
-	int offset, *len;
+	__be32 *p, *len;
+	int offset;
 	int pad;
 
 	p = gsd->body_start;
