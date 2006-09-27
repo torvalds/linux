@@ -2577,6 +2577,11 @@ asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize)
 }
 #endif /* __ARCH_WANT_SYS_RT_SIGSUSPEND */
 
+__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+
 void __init signals_init(void)
 {
 	sigqueue_cachep =
