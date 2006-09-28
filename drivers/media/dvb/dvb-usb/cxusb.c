@@ -505,14 +505,16 @@ static struct usb_device_id cxusb_table [] = {
 		{ USB_DEVICE(USB_VID_MEDION, USB_PID_MEDION_MD95700) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_COLD) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_WARM) },
-		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DEE1601_COLD) },
-		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DEE1601_WARM) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_1_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_1_WARM) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LGZ201_COLD) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LGZ201_WARM) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_TH7579_COLD) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_TH7579_WARM) },
-		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DEE1601_COLD) },
-		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DEE1601_WARM) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DUAL_1_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DUAL_1_WARM) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_WARM) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -653,7 +655,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-	.num_device_descs = 2,
+	.num_device_descs = 3,
 	.devices = {
 		{   "DViCO FusionHDTV DVB-T Dual USB",
 			{ &cxusb_table[3], NULL },
@@ -662,6 +664,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 		{   "DigitalNow DVB-T Dual USB",
 			{ &cxusb_table[9],  NULL },
 			{ &cxusb_table[10], NULL },
+		},
+		{   "DViCO FusionHDTV DVB-T Dual Digital 2",
+			{ &cxusb_table[11], NULL },
+			{ &cxusb_table[12], NULL },
 		},
 	}
 };
