@@ -806,13 +806,6 @@ int dev_ethtool(struct ifreq *ifr)
 	int rc;
 	unsigned long old_features;
 
-	/*
-	 * XXX: This can be pushed down into the ethtool_* handlers that
-	 * need it.  Keep existing behaviour for the moment.
-	 */
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	if (!dev || !netif_device_present(dev))
 		return -ENODEV;
 
@@ -821,6 +814,31 @@ int dev_ethtool(struct ifreq *ifr)
 
 	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
 		return -EFAULT;
+
+	/* Allow some commands to be done by anyone */
+	switch(ethcmd) {
+	case ETHTOOL_GSET:
+	case ETHTOOL_GDRVINFO:
+	case ETHTOOL_GWOL:
+	case ETHTOOL_GMSGLVL:
+	case ETHTOOL_GLINK:
+	case ETHTOOL_GCOALESCE:
+	case ETHTOOL_GRINGPARAM:
+	case ETHTOOL_GPAUSEPARAM:
+	case ETHTOOL_GRXCSUM:
+	case ETHTOOL_GTXCSUM:
+	case ETHTOOL_GSG:
+	case ETHTOOL_GSTRINGS:
+	case ETHTOOL_GSTATS:
+	case ETHTOOL_GTSO:
+	case ETHTOOL_GPERMADDR:
+	case ETHTOOL_GUFO:
+	case ETHTOOL_GGSO:
+		break;
+	default:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+	}
 
 	if(dev->ethtool_ops->begin)
 		if ((rc = dev->ethtool_ops->begin(dev)) < 0)
@@ -947,6 +965,10 @@ int dev_ethtool(struct ifreq *ifr)
 	return rc;
 
  ioctl:
+	/* Keep existing behaviour for the moment.	 */
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (dev->do_ioctl)
 		return dev->do_ioctl(dev, ifr, SIOCETHTOOL);
 	return -EOPNOTSUPP;
