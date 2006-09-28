@@ -91,8 +91,13 @@ extern struct ata_probe_ent *ata_probe_ent_alloc(struct device *dev,
 /* libata-acpi.c */
 #ifdef CONFIG_SATA_ACPI
 extern int ata_acpi_exec_tfs(struct ata_port *ap);
+extern int ata_acpi_push_id(struct ata_port *ap, unsigned int ix);
 #else
 static inline int ata_acpi_exec_tfs(struct ata_port *ap)
+{
+	return 0;
+}
+static inline int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
 {
 	return 0;
 }

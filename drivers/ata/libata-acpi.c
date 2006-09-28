@@ -600,3 +600,99 @@ int ata_acpi_exec_tfs(struct ata_port *ap)
 	return ret;
 }
 
+/**
+ * ata_acpi_push_id - send Identify data to drive
+ * @ap: the ata_port for the drive
+ * @ix: drive index
+ *
+ * _SDD ACPI object: for SATA mode only
+ * Must be after Identify (Packet) Device -- uses its data
+ * ATM this function never returns a failure.  It is an optional
+ * method and if it fails for whatever reason, we should still
+ * just keep going.
+ */
+int ata_acpi_push_id(struct ata_port *ap, unsigned int ix)
+{
+	acpi_handle                     handle;
+	acpi_integer                    pcidevfn;
+	int                             err;
+	struct device                   *dev = ap->host->dev;
+	struct ata_device               *atadev = &ap->device[ix];
+	u32                             dev_adr;
+	acpi_status                     status;
+	struct acpi_object_list         input;
+	union acpi_object               in_params[1];
+
+	if (noacpi)
+		return 0;
+
+	if (ata_msg_probe(ap))
+		ata_dev_printk(atadev, KERN_DEBUG,
+			"%s: ap->id: %d, ix = %d, port#: %d\n",
+			__FUNCTION__, ap->id, ix, ap->port_no);
+
+	/* Don't continue if not a SATA device. */
+	if (!(ap->cbl == ATA_CBL_SATA)) {
+		if (ata_msg_probe(ap))
+			ata_dev_printk(atadev, KERN_DEBUG,
+				"%s: Not a SATA device\n", __FUNCTION__);
+		goto out;
+	}
+
+	/* Don't continue if device has no _ADR method.
+	 * _SDD is intended for known motherboard devices. */
+	err = sata_get_dev_handle(dev, &handle, &pcidevfn);
+	if (err < 0) {
+		if (ata_msg_probe(ap))
+			ata_dev_printk(atadev, KERN_DEBUG,
+				"%s: sata_get_dev_handle failed (%d\n",
+				__FUNCTION__, err);
+		goto out;
+	}
+
+	/* Get this drive's _ADR info, if not already known */
+	if (!atadev->obj_handle) {
+		dev_adr = SATA_ADR_RSVD;
+		err = get_sata_adr(dev, handle, pcidevfn, ix, ap, atadev,
+					&dev_adr);
+		if (err < 0 || dev_adr == SATA_ADR_RSVD ||
+			!atadev->obj_handle) {
+			if (ata_msg_probe(ap))
+				ata_dev_printk(atadev, KERN_DEBUG,
+					"%s: get_sata_adr failed: "
+					"err=%d, dev_adr=%u, obj_handle=0x%p\n",
+					__FUNCTION__, err, dev_adr,
+					atadev->obj_handle);
+			goto out;
+		}
+	}
+
+	/* Give the drive Identify data to the drive via the _SDD method */
+	/* _SDD: set up input parameters */
+	input.count = 1;
+	input.pointer = in_params;
+	in_params[0].type = ACPI_TYPE_BUFFER;
+	in_params[0].buffer.length = sizeof(atadev->id[0] * ATA_ID_WORDS);
+	in_params[0].buffer.pointer = (u8 *)atadev->id;
+	/* Output buffer: _SDD has no output */
+
+	/* It's OK for _SDD to be missing too. */
+	swap_buf_le16(atadev->id, ATA_ID_WORDS);
+	status = acpi_evaluate_object(atadev->obj_handle, "_SDD", &input, NULL);
+	swap_buf_le16(atadev->id, ATA_ID_WORDS);
+
+	err = ACPI_FAILURE(status) ? -EIO : 0;
+	if (err < 0) {
+		if (ata_msg_probe(ap))
+			ata_dev_printk(atadev, KERN_DEBUG,
+				"ata%u(%u): %s _SDD error: status = 0x%x\n",
+				ap->id, ap->device->devno,
+				__FUNCTION__, status);
+	}
+
+	/* always return success */
+out:
+	return 0;
+}
+
+
