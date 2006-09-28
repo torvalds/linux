@@ -17,7 +17,6 @@
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
-#include <asm/cpcmd.h>
 #include <asm/ebcdic.h>
 #include <asm/idals.h>
 
