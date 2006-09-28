@@ -138,12 +138,6 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 	int i;
 	int ret = 0;
 
-	/* Need to access d->adapter[0] */
-	if (d->num_adapters_initialized != 1) {
-		deb_rc("Impossible happened!\n");
-		return -EINVAL;
-	}
-
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -247,9 +241,8 @@ static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_rc("megasky_frontend_attach!\n");
 
-	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) != NULL) {
+	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) != NULL)
 		return 0;
-	}
 	return -EIO;
 }
 
@@ -473,8 +466,6 @@ static struct dvb_usb_device_properties megasky_properties = {
 		},
 	}},
 	.i2c_algo         = &m9206_i2c_algo,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {
