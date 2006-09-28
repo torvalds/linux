@@ -72,15 +72,20 @@ void *
 kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize,
 		   unsigned int __nocast flags)
 {
-	void	*ptr;
+	void		*ptr;
+	size_t		kmsize = maxsize;
+	unsigned int	kmflags = (flags & ~KM_SLEEP) | KM_NOSLEEP;
 
-	while (!(ptr = kmem_zalloc(maxsize, flags))) {
-		if ((maxsize >>= 1) <= minsize) {
-			maxsize = minsize;
-		 	flags = KM_SLEEP;
+	while (!(ptr = kmem_zalloc(kmsize, kmflags))) {
+		if ((kmsize <= minsize) && (flags & KM_NOSLEEP))
+			break;
+		if ((kmsize >>= 1) <= minsize) {
+			kmsize = minsize;
+			kmflags = flags;
 		}
 	}
-	*size = maxsize;
+	if (ptr)
+		*size = kmsize;
 	return ptr;
 }
 
