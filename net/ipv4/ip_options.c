@@ -57,7 +57,7 @@ void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
 			ip_rt_get_source(iph+opt->ts+iph[opt->ts+2]-9, rt);
 		if (opt->ts_needtime) {
 			struct timeval tv;
-			__u32 midtime;
+			__be32 midtime;
 			do_gettimeofday(&tv);
 			midtime = htonl((tv.tv_sec % 86400) * 1000 + tv.tv_usec / 1000);
 			memcpy(iph+opt->ts+iph[opt->ts+2]-5, &midtime, 4);
@@ -91,7 +91,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 	unsigned char *sptr, *dptr;
 	int soffset, doffset;
 	int	optlen;
-	u32	daddr;
+	__be32	daddr;
 
 	memset(dopt, 0, sizeof(struct ip_options));
 
@@ -362,7 +362,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				goto error;
 			}
 			if (optptr[2] <= optlen) {
-				__u32 * timeptr = NULL;
+				__be32 *timeptr = NULL;
 				if (optptr[2]+3 > optptr[1]) {
 					pp_ptr = optptr + 2;
 					goto error;
@@ -371,7 +371,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				      case IPOPT_TS_TSONLY:
 					opt->ts = optptr - iph;
 					if (skb) 
-						timeptr = (__u32*)&optptr[optptr[2]-1];
+						timeptr = (__be32*)&optptr[optptr[2]-1];
 					opt->ts_needtime = 1;
 					optptr[2] += 4;
 					break;
@@ -383,7 +383,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 					opt->ts = optptr - iph;
 					if (skb) {
 						memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
-						timeptr = (__u32*)&optptr[optptr[2]+3];
+						timeptr = (__be32*)&optptr[optptr[2]+3];
 					}
 					opt->ts_needaddr = 1;
 					opt->ts_needtime = 1;
@@ -401,7 +401,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 						if (inet_addr_type(addr) == RTN_UNICAST)
 							break;
 						if (skb)
-							timeptr = (__u32*)&optptr[optptr[2]+3];
+							timeptr = (__be32*)&optptr[optptr[2]+3];
 					}
 					opt->ts_needtime = 1;
 					optptr[2] += 8;
@@ -415,10 +415,10 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 				}
 				if (timeptr) {
 					struct timeval tv;
-					__u32  midtime;
+					__be32  midtime;
 					do_gettimeofday(&tv);
 					midtime = htonl((tv.tv_sec % 86400) * 1000 + tv.tv_usec / 1000);
-					memcpy(timeptr, &midtime, sizeof(__u32));
+					memcpy(timeptr, &midtime, sizeof(__be32));
 					opt->is_changed = 1;
 				}
 			} else {
