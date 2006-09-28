@@ -1827,9 +1827,9 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 			dma_free_coherent(&dd->pcidev->dev, size,
 				base, pd->port_rcvegrbuf_phys[e]);
 		}
-		vfree(pd->port_rcvegrbuf);
+		kfree(pd->port_rcvegrbuf);
 		pd->port_rcvegrbuf = NULL;
-		vfree(pd->port_rcvegrbuf_phys);
+		kfree(pd->port_rcvegrbuf_phys);
 		pd->port_rcvegrbuf_phys = NULL;
 		pd->port_rcvegrbuf_chunks = 0;
 	} else if (pd->port_port == 0 && dd->ipath_port0_skbs) {
@@ -1845,6 +1845,9 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 		vfree(skbs);
 	}
 	kfree(pd->port_tid_pg_list);
+	vfree(pd->subport_uregbase);
+	vfree(pd->subport_rcvegrbuf);
+	vfree(pd->subport_rcvhdr_base);
 	kfree(pd);
 }
 

@@ -79,8 +79,8 @@ struct ipath_portdata {
 	dma_addr_t port_rcvhdrq_phys;
 	dma_addr_t port_rcvhdrqtailaddr_phys;
 	/*
-	 * number of opens on this instance (0 or 1; ignoring forks, dup,
-	 * etc. for now)
+	 * number of opens (including slave subports) on this instance
+	 * (ignoring forks, dup, etc. for now)
 	 */
 	int port_cnt;
 	/*
@@ -89,6 +89,10 @@ struct ipath_portdata {
 	 */
 	/* instead of calculating it */
 	unsigned port_port;
+	/* non-zero if port is being shared. */
+	u16 port_subport_cnt;
+	/* non-zero if port is being shared. */
+	u16 port_subport_id;
 	/* chip offset of PIO buffers for this port */
 	u32 port_piobufs;
 	/* how many alloc_pages() chunks in port_rcvegrbuf_pages */
@@ -121,6 +125,16 @@ struct ipath_portdata {
 	u16 port_pkeys[4];
 	/* so file ops can get at unit */
 	struct ipath_devdata *port_dd;
+	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
+	void *subport_uregbase;
+	/* An array of pages for the eager receive buffers * N */
+	void *subport_rcvegrbuf;
+	/* An array of pages for the eager header queue entries * N */
+	void *subport_rcvhdr_base;
+	/* The version of the library which opened this port */
+	u32 userversion;
+	/* Bitmask of active slaves */
+	u32 active_slaves;
 };
 
 struct sk_buff;
@@ -512,6 +526,12 @@ struct ipath_devdata {
 	u32 ipath_lli_errors;
 };
 
+/* Private data for file operations */
+struct ipath_filedata {
+	struct ipath_portdata *pd;
+	unsigned subport;
+	unsigned tidcursor;
+};
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
@@ -572,7 +592,11 @@ int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* for use in system calls, where we want to know device type, etc. */
-#define port_fp(fp) ((struct ipath_portdata *) (fp)->private_data)
+#define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd
+#define subport_fp(fp) \
+	((struct ipath_filedata *)(fp)->private_data)->subport
+#define tidcursor_fp(fp) \
+	((struct ipath_filedata *)(fp)->private_data)->tidcursor
 
 /*
  * values for ipath_flags

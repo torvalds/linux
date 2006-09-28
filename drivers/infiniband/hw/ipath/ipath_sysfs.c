@@ -297,6 +297,16 @@ static ssize_t show_nguid(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->ipath_nguid);
 }
 
+static ssize_t show_nports(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+
+	/* Return the number of user ports available. */
+	return scnprintf(buf, PAGE_SIZE, "%u\n", dd->ipath_cfgports - 1);
+}
+
 static ssize_t show_serial(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -608,6 +618,7 @@ static DEVICE_ATTR(mlid, S_IWUSR | S_IRUGO, show_mlid, store_mlid);
 static DEVICE_ATTR(mtu, S_IWUSR | S_IRUGO, show_mtu, store_mtu);
 static DEVICE_ATTR(enabled, S_IWUSR | S_IRUGO, show_enabled, store_enabled);
 static DEVICE_ATTR(nguid, S_IRUGO, show_nguid, NULL);
+static DEVICE_ATTR(nports, S_IRUGO, show_nports, NULL);
 static DEVICE_ATTR(reset, S_IWUSR, NULL, store_reset);
 static DEVICE_ATTR(serial, S_IRUGO, show_serial, NULL);
 static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
@@ -623,6 +634,7 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_mlid.attr,
 	&dev_attr_mtu.attr,
 	&dev_attr_nguid.attr,
+	&dev_attr_nports.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_status.attr,
 	&dev_attr_status_str.attr,
