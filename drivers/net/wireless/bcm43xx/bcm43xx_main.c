@@ -4207,7 +4207,11 @@ static int bcm43xx_resume(struct pci_dev *pdev)
 	dprintk(KERN_INFO PFX "Resuming...\n");
 
 	pci_set_power_state(pdev, 0);
-	pci_enable_device(pdev);
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR PFX "Failure with pci_enable_device!\n");
+		return err;
+	}
 	pci_restore_state(pdev);
 
 	bcm43xx_chipset_attach(bcm);
