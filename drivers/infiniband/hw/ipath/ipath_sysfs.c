@@ -257,7 +257,7 @@ static ssize_t store_guid(struct device *dev,
 	struct ipath_devdata *dd = dev_get_drvdata(dev);
 	ssize_t ret;
 	unsigned short guid[8];
-	__be64 nguid;
+	__be64 new_guid;
 	u8 *ng;
 	int i;
 
@@ -266,7 +266,7 @@ static ssize_t store_guid(struct device *dev,
 		   &guid[4], &guid[5], &guid[6], &guid[7]) != 8)
 		goto invalid;
 
-	ng = (u8 *) &nguid;
+	ng = (u8 *) &new_guid;
 
 	for (i = 0; i < 8; i++) {
 		if (guid[i] > 0xff)
@@ -274,7 +274,10 @@ static ssize_t store_guid(struct device *dev,
 		ng[i] = guid[i];
 	}
 
-	dd->ipath_guid = nguid;
+	if (new_guid == 0)
+		goto invalid;
+
+	dd->ipath_guid = new_guid;
 	dd->ipath_nguid = 1;
 
 	ret = strlen(buf);
