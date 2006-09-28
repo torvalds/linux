@@ -536,7 +536,12 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 		return;
 
 	dd = pci_get_drvdata(pdev);
-	ipath_unregister_ib_device(dd->verbs_dev);
+
+	if (dd->verbs_dev) {
+		ipath_unregister_ib_device(dd->verbs_dev);
+		dd->verbs_dev = NULL;
+	}
+
 	ipath_diag_remove(dd);
 	ipath_user_remove(dd);
 	ipathfs_remove_device(dd);
@@ -2026,6 +2031,11 @@ static void __exit infinipath_cleanup(void)
 	 */
 	list_for_each_entry_safe(dd, tmp, &ipath_dev_list, ipath_list) {
 		spin_unlock_irqrestore(&ipath_devs_lock, flags);
+
+		if (dd->verbs_dev) {
+			ipath_unregister_ib_device(dd->verbs_dev);
+			dd->verbs_dev = NULL;
+		}
 
 		if (dd->ipath_kregbase)
 			cleanup_device(dd);
