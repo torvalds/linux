@@ -403,7 +403,8 @@ static void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 		*pages = 1;
 		return diag204_alloc_rbuf();
 	} else {/* INFO_EXT */
-		*pages = diag204(SUBC_RSI | INFO_EXT, 0, NULL);
+		*pages = diag204((unsigned long)SUBC_RSI |
+				 (unsigned long)INFO_EXT, 0, NULL);
 		if (*pages <= 0)
 			return ERR_PTR(-ENOSYS);
 		else
