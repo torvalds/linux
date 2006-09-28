@@ -763,6 +763,8 @@ xfs_ioctl(
 		return xfs_ioc_fsgeometry(mp, arg);
 
 	case XFS_IOC_GETVERSION:
+		return put_user(inode->i_generation, (int __user *)arg);
+
 	case XFS_IOC_GETXFLAGS:
 	case XFS_IOC_SETXFLAGS:
 	case XFS_IOC_FSGETXATTR:
@@ -1261,13 +1263,6 @@ xfs_ioc_xattr(
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 		error = -error;
-		break;
-	}
-
-	case XFS_IOC_GETVERSION: {
-		flags = vn_to_inode(vp)->i_generation;
-		if (copy_to_user(arg, &flags, sizeof(flags)))
-			error = -EFAULT;
 		break;
 	}
 
