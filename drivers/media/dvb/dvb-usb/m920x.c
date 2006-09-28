@@ -62,23 +62,36 @@ static inline int m9206_write(struct usb_device *udev, u8 request, u16 value, u1
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      request, USB_TYPE_VENDOR | USB_DIR_OUT,
 			      value, index, NULL, 0, 2000);
-	msleep(3);
+	return ret;
+}
+
+static int m9206_rc_init(struct usb_device *udev)
+{
+	int ret = 0;
+
+	/* Remote controller init. */
+	if ((ret = m9206_write(udev, M9206_CORE, 0xa8, M9206_RC_INIT2)) != 0)
+		return ret;
+
+	if ((ret = m9206_write(udev, M9206_CORE, 0x51, M9206_RC_INIT1)) != 0)
+		return ret;
 
 	return ret;
 }
 
 static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
+	struct m9206_state *m = d->priv;
 	int i, ret = 0;
 	u8 rc_state[2];
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
-	if ((ret = m9206_read(d->udev, 0x22, 0x0, 0xff51, rc_state, 1)) != 0)
+	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
 		goto unlock;
 
-	if ((ret = m9206_read(d->udev, 0x22, 0x0, 0xff52, rc_state + 1, 1)) != 0)
+	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
 		goto unlock;
 
 	for (i = 0; i < ARRAY_SIZE(megasky_rc_keys); i++)
@@ -92,11 +105,14 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 			case 0x93:
 			case 0x92:
+				m->rep_count = 0;
 				*state = REMOTE_KEY_PRESSED;
 				goto unlock;
 
 			case 0x91:
-				*state = REMOTE_KEY_REPEAT;
+				/* For comfort. */
+				if (++m->rep_count > 2)
+					*state = REMOTE_KEY_REPEAT;
 				goto unlock;
 
 			default:
@@ -125,6 +141,12 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 	int i;
 	int ret = 0;
 
+	/* Need to access d->adapter[0] */
+	if (d->num_adapters_initialized != 1) {
+		deb_rc("Impossible happened!\n");
+		return -EINVAL;
+	}
+
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
@@ -134,22 +156,23 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 	for (i = 0; i < num; i++) {
 		u8 w_len;
 
-		if ((ret = m9206_write(d->udev, 0x23, msg[i].addr, 0x80)) != 0)
+		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].addr, 0x80)) != 0)
 			goto unlock;
 
-		if ((ret = m9206_write(d->udev, 0x23, msg[i].buf[0], 0x0)) != 0)
+		if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[0], 0x0)) != 0)
 			goto unlock;
 
 		if (i + 1 < num && msg[i + 1].flags & I2C_M_RD) {
-			if (msg[i].addr == 0x1e)
-				w_len = 0x1f;
-			else
+			/* Possibly device dependant */
+			if (msg[i].addr == d->adapter[0].pll_addr)
 				w_len = 0xc5;
+			else
+				w_len = 0x1f;
 
-			if ((ret = m9206_write(d->udev, 0x23, w_len, 0x80)) != 0)
+			if ((ret = m9206_write(d->udev, M9206_I2C, w_len, 0x80)) != 0)
 				goto unlock;
 
-			if ((ret = m9206_read(d->udev, 0x23, 0x0, 0x60, msg[i + 1].buf, msg[i + 1].len)) != 0)
+			if ((ret = m9206_read(d->udev, M9206_I2C, 0x0, 0x60, msg[i + 1].buf, msg[i + 1].len)) != 0)
 				goto unlock;
 
 			i++;
@@ -157,7 +180,7 @@ static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int nu
 			if (msg[i].len != 2)
 				return -EINVAL;
 
-			if ((ret = m9206_write(d->udev, 0x23, msg[i].buf[1], 0x40)) != 0)
+			if ((ret = m9206_write(d->udev, M9206_I2C, msg[i].buf[1], 0x40)) != 0)
 				goto unlock;
 		}
 	}
@@ -194,31 +217,23 @@ static int megasky_identify_state(struct usb_device *udev,
 
 static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 {
-	int i;
-	static u8 buf1[] = {
-		CONFIG, 0x3d,
-		CLOCK_CTL, 0x30,
-		RESET, 0x80,
-		ADC_CTL_1, 0x40,
-		AGC_TARGET, 0x1c,
-		AGC_CTL, 0x20,
-		0x69, 0x00,
-		0x6a, 0xff,
-		0x6b, 0xff,
-		0x6c, 0x40,
-		0x6d, 0xff,
-		0x6e, 0x00,
-		0x6f, 0x40,
-		0x70, 0x40,
-		0x93, 0x1a,
-		0xb5, 0x7a,
-		ACQ_CTL, 0x50,
-		INPUT_FREQ_1, 0x31,
-		INPUT_FREQ_0, 0x05,
-	};
+	u8 config[] = { CONFIG, 0x3d };
+	u8 clock[] = { CLOCK_CTL, 0x30 };
+	u8 reset[] = { RESET, 0x80 };
+	u8 adc_ctl[] = { ADC_CTL_1, 0x40 };
+	u8 agc[] = { AGC_TARGET, 0x1c, 0x20 };
+	u8 sec_agc[] = { 0x69, 0x00, 0xff, 0xff, 0x40, 0xff, 0x00, 0x40, 0x40 };
+	u8 unk1[] = { 0x93, 0x1a };
+	u8 unk2[] = { 0xb5, 0x7a };
 
-	for (i = 0; i < ARRAY_SIZE(buf1); i += 2)
-		mt352_write(fe, &buf1[i], 2);
+	mt352_write(fe, config, ARRAY_SIZE(config));
+	mt352_write(fe, clock, ARRAY_SIZE(clock));
+	mt352_write(fe, reset, ARRAY_SIZE(reset));
+	mt352_write(fe, adc_ctl, ARRAY_SIZE(adc_ctl));
+	mt352_write(fe, agc, ARRAY_SIZE(agc));
+	mt352_write(fe, sec_agc, ARRAY_SIZE(sec_agc));
+	mt352_write(fe, unk1, ARRAY_SIZE(unk1));
+	mt352_write(fe, unk2, ARRAY_SIZE(unk2));
 
 	deb_rc("Demod init!\n");
 
@@ -229,6 +244,7 @@ struct mt352_state;
 
 static struct mt352_config megasky_mt352_config = {
 	.demod_address = 0x1e,
+	.no_tuner = 1,
 	.demod_init = megasky_mt352_demod_init,
 };
 
@@ -237,10 +253,18 @@ static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 	deb_rc("megasky_frontend_attach!\n");
 
 	if ((adap->fe = dvb_attach(mt352_attach, &megasky_mt352_config, &adap->dev->i2c_adap)) != NULL) {
-		adap->fe->ops.tuner_ops.calc_regs = qt1010_set_params;
 		return 0;
 	}
 	return -EIO;
+}
+
+static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	adap->pll_addr = 0xc4;
+	adap->pll_desc = NULL;
+	adap->fe->ops.tuner_ops.set_params = qt1010_set_params;
+
+	return 0;
 }
 
 /* DVB USB Driver stuff */
@@ -248,11 +272,20 @@ static struct dvb_usb_device_properties megasky_properties;
 
 static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
+	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
+	struct dvb_usb_device_properties props;
 	int ret;
 
-	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) {
+	memcpy(&props, &megasky_properties, sizeof(struct dvb_usb_device_properties));
+
+	/* Hardware pid filtering isn't quite perfect so dont use unless have to. */
+	if (udev->speed == USB_SPEED_FULL)
+		props.caps |= DVB_USB_ADAP_HAS_PID_FILTER |
+			      DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF;
+
+	if ((ret = dvb_usb_device_init(intf, &props, THIS_MODULE, &d)) == 0) {
 		deb_rc("probed!\n");
 
 		alt = usb_altnum_to_altsetting(intf, 1);
@@ -267,11 +300,7 @@ static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 		deb_rc("Changed to alternate setting!\n");
 
-		/* Remote controller init. */
-		if ((ret = m9206_write(d->udev, 0x22, 0xa8, 0xff55)) != 0)
-			return ret;
-
-		if ((ret = m9206_write(d->udev, 0x22, 0x51, 0xff54)) != 0)
+		if ((ret = m9206_rc_init(d->udev)) != 0)
 			return ret;
 	}
 	return ret;
@@ -292,10 +321,50 @@ static int set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
 
 	pid |= 0x8000;
 
-	if ((ret = m9206_write(adap->dev->udev, 0x25, pid, (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m9206_write(adap->dev->udev, M9206_FILTER, pid, (type << 8) | (idx * 4) )) != 0)
 		return ret;
 
-	if ((ret = m9206_write(adap->dev->udev, 0x25, 0, (type << 8) | (idx * 4) )) != 0)
+	if ((ret = m9206_write(adap->dev->udev, M9206_FILTER, 0, (type << 8) | (idx * 4) )) != 0)
+		return ret;
+
+	return ret;
+}
+
+static int m9206_update_filters(struct dvb_usb_adapter *adap)
+{
+	struct m9206_state *m = adap->dev->priv;
+	int enabled = m->filtering_enabled;
+	int i, ret = 0, filter = 0;
+
+	for (i = 0; i < M9206_MAX_FILTERS; i++)
+		if (m->filters[i] == 8192)
+			enabled = 0;
+
+	/* Disable all filters */
+	if ((ret = set_filter(adap, 0x81, 1, enabled)) != 0)
+		return ret;
+
+	for (i = 0; i < M9206_MAX_FILTERS; i++)
+		if ((ret = set_filter(adap, 0x81, i + 2, 0)) != 0)
+			return ret;
+
+	if ((ret = set_filter(adap, 0x82, 0, 0x0)) != 0)
+		return ret;
+
+	/* Set */
+	if (enabled) {
+		for (i = 0; i < M9206_MAX_FILTERS; i++) {
+			if (m->filters[i] == 0)
+				continue;
+
+			if ((ret = set_filter(adap, 0x81, filter + 2, m->filters[i])) != 0)
+				return ret;
+
+			filter++;
+		}
+	}
+
+	if ((ret = set_filter(adap, 0x82, 0, 0x02f5)) != 0)
 		return ret;
 
 	return ret;
@@ -303,52 +372,20 @@ static int set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
 
 static int m9206_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	int ret = 0;
+	struct m9206_state *m = adap->dev->priv;
 
-	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
-		return -EAGAIN;
+	m->filtering_enabled = onoff ? 1 : 0;
 
-	deb_rc("filtering %s\n", onoff ? "on" : "off");
-	if (onoff == 0) {
-		if ((ret = set_filter(adap, 0x81, 1, 0x00)) != 0)
-			goto unlock;
-
-		if ((ret = set_filter(adap, 0x82, 0, 0x02f5)) != 0)
-			goto unlock;
-	}
-	unlock:
-	mutex_unlock(&adap->dev->i2c_mutex);
-
-	return ret;
+	return m9206_update_filters(adap);
 }
 
 static int m9206_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
-	int ret = 0;
+	struct m9206_state *m = adap->dev->priv;
 
-	if (pid == 8192)
-		return m9206_pid_filter_ctrl(adap, !onoff);
+	m->filters[index] = onoff ? pid : 0;
 
-	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
-		return -EAGAIN;
-
-	deb_rc("filter %d, pid %x, %s\n", index, pid, onoff ? "on" : "off");
-	if (onoff == 0)
-		pid = 0;
-
-	if ((ret = set_filter(adap, 0x81, 1, 0x01)) != 0)
-		goto unlock;
-
-	if ((ret = set_filter(adap, 0x81, index + 2, pid)) != 0)
-		goto unlock;
-
-	if ((ret = set_filter(adap, 0x82, 0, 0x02f5)) != 0)
-		goto unlock;
-
-	unlock:
-	mutex_unlock(&adap->dev->i2c_mutex);
-
-	return ret;
+	return m9206_update_filters(adap);
 }
 
 static int m9206_firmware_download(struct usb_device *udev, const struct firmware *fw)
@@ -359,11 +396,11 @@ static int m9206_firmware_download(struct usb_device *udev, const struct firmwar
 
 	buff = kmalloc(65536, GFP_KERNEL);
 
-	if ((ret = m9206_read(udev, 0x25, 0x0, 0x8000, read, 4)) != 0)
+	if ((ret = m9206_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
 	deb_rc("%x %x %x %x\n", read[0], read[1], read[2], read[3]);
 
-	if ((ret = m9206_read(udev, 0x30, 0x0, 0x0, read, 1)) != 0)
+	if ((ret = m9206_read(udev, M9206_FW, 0x0, 0x0, read, 1)) != 0)
 		goto done;
 	deb_rc("%x\n", read[0]);
 
@@ -383,7 +420,8 @@ static int m9206_firmware_download(struct usb_device *udev, const struct firmwar
 				memcpy(buff, fw->data + i, size);
 
 				ret = usb_control_msg(udev, usb_sndctrlpipe(udev,0),
-					    0x30, USB_TYPE_VENDOR | USB_DIR_OUT,
+					    M9206_FW,
+					    USB_TYPE_VENDOR | USB_DIR_OUT,
 					    value, index, buff, size, 20);
 				if (ret != size) {
 					deb_rc("error while uploading fw!\n");
@@ -403,7 +441,7 @@ static int m9206_firmware_download(struct usb_device *udev, const struct firmwar
 	msleep(36);
 
 	/* m9206 will disconnect itself from the bus after this. */
-	(void) m9206_write(udev, 0x22, 0x01, 0xff69);
+	(void) m9206_write(udev, M9206_CORE, 0x01, M9206_FW_GO);
 	deb_rc("firmware uploaded!\n");
 
 	done:
@@ -417,24 +455,23 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.firmware = "dvb-usb-megasky-02.fw",
 	.download_firmware = m9206_firmware_download,
 
-	.rc_interval      = 200,
+	.rc_interval      = 100,
 	.rc_key_map       = megasky_rc_keys,
 	.rc_key_map_size  = ARRAY_SIZE(megasky_rc_keys),
 	.rc_query         = m9206_rc_query,
 
-	.size_of_priv     = 0,
+	.size_of_priv     = sizeof(struct m9206_state),
 
 	.identify_state   = megasky_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
-		.caps = DVB_USB_IS_AN_I2C_ADAPTER | DVB_USB_ADAP_HAS_PID_FILTER |
-			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF |
-			DVB_USB_ADAP_NEED_PID_FILTERING,
+		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 		.pid_filter_count = 8,
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
 		.frontend_attach  = megasky_frontend_attach,
+		.tuner_attach     = megasky_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,

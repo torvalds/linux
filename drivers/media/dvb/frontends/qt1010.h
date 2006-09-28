@@ -25,7 +25,7 @@
 #define QT1010_MIN_STEP 2000000
 #define QT1010_MIN_FREQ 48000000
 
-static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
+static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	int i;
 	int div, mod;
@@ -84,9 +84,6 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 
 	if (freq % QT1010_MIN_STEP)
 		printk("frequency not supported.\n");
-
-	(void) buf;
-	(void) buf_len;
 
 	div = (freq - QT1010_MIN_FREQ) / QT1010_MIN_STEP;
 	mod = (div + 16 - 9) % 16;
@@ -206,7 +203,7 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 
 		msg.flags = 0;
 		msg.len = 2;
-		msg.addr = 0xc4;
+		msg.addr = d->adapter[0].pll_addr;
 		msg.buf = &rd[i].reg;
 
 		if (i2c_transfer(&d->i2c_adap, &msg, 1) != 1) {
