@@ -139,7 +139,7 @@ static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
 		 * AT91RM9200 Errata #39: RTS0 is not internally connected to PA21.
 		 *  We need to drive the pin manually.
 		 */
-		if (port->mapbase == AT91_BASE_US0) {
+		if (port->mapbase == AT91RM9200_BASE_US0) {
 			if (mctrl & TIOCM_RTS)
 				at91_set_gpio_value(AT91_PIN_PA21, 0);
 			else

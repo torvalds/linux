@@ -15,6 +15,12 @@ config MACH_EDB9302
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9302 Evaluation Board.
 
+config MACH_EDB9312
+	bool "Support Cirrus Logic EDB9312"
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9312 Evaluation Board.
+
 config MACH_EDB9315
 	bool "Support Cirrus Logic EDB9315"
 	help

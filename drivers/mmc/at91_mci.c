@@ -851,7 +851,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Allocate the MCI interrupt
 	 */
-	ret = request_irq(AT91_ID_MCI, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
+	ret = request_irq(AT91RM9200_ID_MCI, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret) {
 		printk(KERN_ERR "Failed to request MCI interrupt\n");
 		clk_disable(mci_clk);
@@ -907,7 +907,7 @@ static int at91_mci_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 	at91_mci_disable();
-	free_irq(AT91_ID_MCI, host);
+	free_irq(AT91RM9200_ID_MCI, host);
 	mmc_free_host(mmc);
 
 	clk_disable(mci_clk);				/* Disable the peripheral clock */

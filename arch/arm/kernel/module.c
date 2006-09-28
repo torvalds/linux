@@ -2,6 +2,7 @@
  *  linux/arch/arm/kernel/module.c
  *
  *  Copyright (C) 2002 Russell King.
+ *  Modified for nommu by Hyok S. Choi
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +33,7 @@ extern void _etext;
 #define MODULE_START	(((unsigned long)&_etext + ~PGDIR_MASK) & PGDIR_MASK)
 #endif
 
+#ifdef CONFIG_MMU
 void *module_alloc(unsigned long size)
 {
 	struct vm_struct *area;
@@ -46,6 +48,12 @@ void *module_alloc(unsigned long size)
 
 	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
 }
+#else /* CONFIG_MMU */
+void *module_alloc(unsigned long size)
+{
+	return size == 0 ? NULL : vmalloc(size);
+}
+#endif /* !CONFIG_MMU */
 
 void module_free(struct module *module, void *region)
 {

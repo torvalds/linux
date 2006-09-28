@@ -34,8 +34,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include "generic.h"
-
 
 static void at91_aic_mask_irq(unsigned int irq)
 {
@@ -61,12 +59,12 @@ static int at91_aic_set_type(unsigned irq, unsigned type)
 		srctype = AT91_AIC_SRCTYPE_RISING;
 		break;
 	case IRQT_LOW:
-		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+		if ((irq > AT91_ID_FIQ) && (irq < AT91RM9200_ID_IRQ0))	/* only supported on external interrupts */
 			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_LOW;
 		break;
 	case IRQT_FALLING:
-		if ((irq > AT91_ID_FIQ) && (irq < AT91_ID_IRQ0))	/* only supported on external interrupts */
+		if ((irq > AT91_ID_FIQ) && (irq < AT91RM9200_ID_IRQ0))	/* only supported on external interrupts */
 			return -EINVAL;
 		srctype = AT91_AIC_SRCTYPE_FALLING;
 		break;

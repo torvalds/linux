@@ -41,18 +41,6 @@ static struct omap_irq_bank {
 		.nr_irqs	= 96,
 	}, {
 		/* XXX: DSP INTC */
-
-#if 0
-	/*
-	 * Commented out for now until we fix the IVA clocking
-	 */
-#ifdef CONFIG_ARCH_OMAP2420
-	}, {
-		/* IVA INTC (2420 only) */
-		.base_reg	= OMAP24XX_IVA_INTC_BASE,
-		.nr_irqs	= 16,	/* Actually 32, but only 16 are used */
-#endif
-#endif
 	}
 };
 

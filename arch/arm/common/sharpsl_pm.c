@@ -40,6 +40,7 @@
 #define SHARPSL_CHARGE_FINISH_TIME             (msecs_to_jiffies(10*60*1000)) /* 10 min */
 #define SHARPSL_BATCHK_TIME                    (msecs_to_jiffies(15*1000))    /* 15 sec */
 #define SHARPSL_BATCHK_TIME_SUSPEND            (60*10)                        /* 10 min */
+
 #define SHARPSL_WAIT_CO_TIME                   15  /* 15 sec */
 #define SHARPSL_WAIT_DISCHARGE_ON              100 /* 100 msec */
 #define SHARPSL_CHECK_BATTERY_WAIT_TIME_TEMP   10  /* 10 msec */
@@ -574,6 +575,9 @@ static int corgi_pxa_pm_enter(suspend_state_t state)
 
 	while (corgi_enter_suspend(alarm_time,alarm_status,state))
 		{}
+
+	if (sharpsl_pm.machinfo->earlyresume)
+		sharpsl_pm.machinfo->earlyresume();
 
 	dev_dbg(sharpsl_pm.dev, "SharpSL resuming...\n");
 

@@ -735,7 +735,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/*
 	 * We got a fault - fix it up, or die.
 	 */
-	do_bad_area(current, current->mm, addr, fsr, regs);
+	do_bad_area(addr, fsr, regs);
 	return 0;
 
  swp:

@@ -947,7 +947,7 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 		return -ENOMEM;
 
 	dev->base_addr = AT91_VA_BASE_EMAC;
-	dev->irq = AT91_ID_EMAC;
+	dev->irq = AT91RM9200_ID_EMAC;
 	SET_MODULE_OWNER(dev);
 
 	/* Install the interrupt handler */
