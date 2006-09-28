@@ -99,22 +99,22 @@ struct ipv6_destopt_hao {
 struct ipv6_auth_hdr {
 	__u8  nexthdr;
 	__u8  hdrlen;           /* This one is measured in 32 bit units! */
-	__u16 reserved;
-	__u32 spi;
-	__u32 seq_no;           /* Sequence number */
+	__be16 reserved;
+	__be32 spi;
+	__be32 seq_no;           /* Sequence number */
 	__u8  auth_data[0];     /* Length variable but >=4. Mind the 64 bit alignment! */
 };
 
 struct ipv6_esp_hdr {
-	__u32 spi;
-	__u32 seq_no;           /* Sequence number */
+	__be32 spi;
+	__be32 seq_no;           /* Sequence number */
 	__u8  enc_data[0];      /* Length variable but >=8. Mind the 64 bit alignment! */
 };
 
 struct ipv6_comp_hdr {
 	__u8 nexthdr;
 	__u8 flags;
-	__u16 cpi;
+	__be16 cpi;
 };
 
 /*
@@ -136,7 +136,7 @@ struct ipv6hdr {
 #endif
 	__u8			flow_lbl[3];
 
-	__u16			payload_len;
+	__be16			payload_len;
 	__u8			nexthdr;
 	__u8			hop_limit;
 
