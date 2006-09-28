@@ -1356,7 +1356,6 @@ xfs_end_io_direct(
 		ioend->io_size = size;
 		xfs_finish_ioend(ioend);
 	} else {
-		ASSERT(size >= 0);
 		xfs_destroy_ioend(ioend);
 	}
 
