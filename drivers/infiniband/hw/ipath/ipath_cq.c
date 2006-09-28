@@ -46,7 +46,7 @@
  */
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 {
-	struct ipath_cq_wc *wc = cq->queue;
+	struct ipath_cq_wc *wc;
 	unsigned long flags;
 	u32 head;
 	u32 next;
@@ -57,6 +57,7 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 	 * Note that the head pointer might be writable by user processes.
 	 * Take care to verify it is a sane value.
 	 */
+	wc = cq->queue;
 	head = wc->head;
 	if (head >= (unsigned) cq->ibcq.cqe) {
 		head = cq->ibcq.cqe;
@@ -109,21 +110,27 @@ void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int solicited)
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
 	struct ipath_cq *cq = to_icq(ibcq);
-	struct ipath_cq_wc *wc = cq->queue;
+	struct ipath_cq_wc *wc;
 	unsigned long flags;
 	int npolled;
+	u32 tail;
 
 	spin_lock_irqsave(&cq->lock, flags);
 
+	wc = cq->queue;
+	tail = wc->tail;
+	if (tail > (u32) cq->ibcq.cqe)
+		tail = (u32) cq->ibcq.cqe;
 	for (npolled = 0; npolled < num_entries; ++npolled, ++entry) {
-		if (wc->tail == wc->head)
+		if (tail == wc->head)
 			break;
-		*entry = wc->queue[wc->tail];
-		if (wc->tail >= cq->ibcq.cqe)
-			wc->tail = 0;
+		*entry = wc->queue[tail];
+		if (tail >= cq->ibcq.cqe)
+			tail = 0;
 		else
-			wc->tail++;
+			tail++;
 	}
+	wc->tail = tail;
 
 	spin_unlock_irqrestore(&cq->lock, flags);
 
@@ -322,10 +329,16 @@ int ipath_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify notify)
 	return 0;
 }
 
+/**
+ * ipath_resize_cq - change the size of the CQ
+ * @ibcq: the completion queue
+ *
+ * Returns 0 for success.
+ */
 int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 {
 	struct ipath_cq *cq = to_icq(ibcq);
-	struct ipath_cq_wc *old_wc = cq->queue;
+	struct ipath_cq_wc *old_wc;
 	struct ipath_cq_wc *wc;
 	u32 head, tail, n;
 	int ret;
@@ -361,6 +374,7 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	 * Make sure head and tail are sane since they
 	 * might be user writable.
 	 */
+	old_wc = cq->queue;
 	head = old_wc->head;
 	if (head > (u32) cq->ibcq.cqe)
 		head = (u32) cq->ibcq.cqe;
