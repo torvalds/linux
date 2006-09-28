@@ -437,6 +437,14 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 	return;
 }
 
+#ifdef CONFIG_CIFS_STATS2
+static int cifs_show_stats(struct seq_file *s, struct vfsmount *mnt)
+{
+	/* BB FIXME */
+	return 0;
+}
+#endif
+
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
 	*flags |= MS_NODIRATIME;
@@ -456,6 +464,9 @@ static struct super_operations cifs_super_ops = {
 	.show_options = cifs_show_options,
 	.umount_begin   = cifs_umount_begin,
 	.remount_fs = cifs_remount,
+#ifdef CONFIG_CIFS_STATS2
+	cifs_show_stats,
+#endif
 };
 
 static int
