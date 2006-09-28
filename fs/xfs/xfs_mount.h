@@ -331,7 +331,7 @@ typedef struct xfs_mount {
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
 	lock_t			m_agirotor_lock;/* .. and lock protecting it */
 	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
-	uint			m_ihsize;	/* size of next field */
+	size_t			m_ihsize;	/* size of next field */
 	struct xfs_ihash	*m_ihash;	/* fs private inode hash table*/
 	struct xfs_inode	*m_inodes;	/* active inode list */
 	struct list_head	m_del_inodes;	/* inodes to reclaim */

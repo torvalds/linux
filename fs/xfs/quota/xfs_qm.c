@@ -112,7 +112,8 @@ xfs_Gqm_init(void)
 {
 	xfs_dqhash_t	*udqhash, *gdqhash;
 	xfs_qm_t	*xqm;
-	uint		i, hsize;
+	size_t		hsize;
+	uint		i;
 
 	/*
 	 * Initialize the dquot hash tables.

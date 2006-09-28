@@ -325,7 +325,7 @@ xfs_bulkstat(
 	xfs_agino_t		gino;	/* current btree rec's start inode */
 	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
-	int			irbsize; /* size of irec buffer in bytes */
+	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
 	xfs_inobt_rec_incore_t	*irbp;	/* current irec buffer pointer */
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
