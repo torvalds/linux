@@ -146,7 +146,7 @@ static inline char rt_tos2priority(u8 tos)
 
 static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 				   __be32 src, u32 tos, int oif, u8 protocol,
-				   u16 sport, u16 dport, struct sock *sk)
+				   __be16 sport, __be16 dport, struct sock *sk)
 {
 	struct flowi fl = { .oif = oif,
 			    .nl_u = { .ip4_u = { .daddr = dst,
@@ -172,7 +172,7 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 }
 
 static inline int ip_route_newports(struct rtable **rp, u8 protocol,
-				    u16 sport, u16 dport, struct sock *sk)
+				    __be16 sport, __be16 dport, struct sock *sk)
 {
 	if (sport != (*rp)->fl.fl_ip_sport ||
 	    dport != (*rp)->fl.fl_ip_dport) {
