@@ -276,6 +276,8 @@ struct v4l2_fmtdesc
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
 
+#if 1
+	/* Experimental Frame Size and frame rate enumeration */
 /*
  *	F R A M E   S I Z E   E N U M E R A T I O N
  */
@@ -348,6 +350,7 @@ struct v4l2_frmivalenum
 
 	__u32	reserved[2];			/* Reserved space for future use */
 };
+#endif
 
 /*
  *	T I M E C O D E
@@ -1322,8 +1325,10 @@ struct v4l2_streamparm
 #define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)
 #define VIDIOC_S_EXT_CTRLS	_IOWR ('V', 72, struct v4l2_ext_controls)
 #define VIDIOC_TRY_EXT_CTRLS	_IOWR ('V', 73, struct v4l2_ext_controls)
+#if 1
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR ('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS	_IOWR ('V', 75, struct v4l2_frmivalenum)
+#endif
 
 #ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */
