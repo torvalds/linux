@@ -56,8 +56,8 @@ struct flowi {
 #define FLOWI_FLAG_MULTIPATHOLDROUTE 0x01
 	union {
 		struct {
-			__u16	sport;
-			__u16	dport;
+			__be16	sport;
+			__be16	dport;
 		} ports;
 
 		struct {
