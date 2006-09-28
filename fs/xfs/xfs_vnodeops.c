@@ -2366,10 +2366,15 @@ xfs_remove(
 
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &ip)) {
+	        dm_di_mode = ip->i_d.di_mode;
+		IRELE(ip);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return error;
 	}
@@ -2995,7 +3000,7 @@ xfs_rmdir(
 	int			cancel_flags;
 	int			committed;
 	bhv_vnode_t		*dir_vp;
-	int			dm_di_mode = 0;
+	int			dm_di_mode = S_IFDIR;
 	int			last_cdp_link;
 	int			namelen;
 	uint			resblks;
@@ -3010,11 +3015,16 @@ xfs_rmdir(
 		return XFS_ERROR(EIO);
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &cdp)) {
+	        dm_di_mode = cdp->i_d.di_mode;
+		IRELE(cdp);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return XFS_ERROR(error);
 	}
