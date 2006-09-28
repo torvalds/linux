@@ -12,8 +12,8 @@
  */
 typedef union
 {
-	__u32		a4;
-	__u32		a6[4];
+	__be32		a4;
+	__be32		a6[4];
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup
