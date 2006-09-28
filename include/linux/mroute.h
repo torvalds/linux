@@ -213,8 +213,8 @@ struct pimreghdr
 {
 	__u8	type;
 	__u8	reserved;
-	__u16	csum;
-	__u32	flags;
+	__be16	csum;
+	__be32	flags;
 };
 
 extern int pim_rcv_v1(struct sk_buff *);
