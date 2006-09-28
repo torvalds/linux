@@ -215,4 +215,12 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	return 0;
 }
 
+static int qt1010_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	adap->pll_addr = 0xc4;
+	adap->pll_desc = NULL;
+	adap->fe->ops.tuner_ops.set_params = qt1010_set_params;
+
+	return 0;
+}
 #endif

@@ -246,15 +246,6 @@ static int megasky_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
-static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	adap->pll_addr = 0xc4;
-	adap->pll_desc = NULL;
-	adap->fe->ops.tuner_ops.set_params = qt1010_set_params;
-
-	return 0;
-}
-
 static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
 {
 	int ret = 0;
@@ -452,7 +443,7 @@ static struct dvb_usb_device_properties megasky_properties = {
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
 
 		.frontend_attach  = megasky_frontend_attach,
-		.tuner_attach     = megasky_tuner_attach,
+		.tuner_attach     = qt1010_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
