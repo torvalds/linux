@@ -118,6 +118,14 @@ static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 			      &ieee->network_free_list);
 }
 
+static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if ((new_mtu < 68) || (new_mtu > IEEE80211_DATA_LEN))
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
 	struct ieee80211_device *ieee;
@@ -133,6 +141,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	}
 	ieee = netdev_priv(dev);
 	dev->hard_start_xmit = ieee80211_xmit;
+	dev->change_mtu = ieee80211_change_mtu;
 
 	ieee->dev = dev;
 
