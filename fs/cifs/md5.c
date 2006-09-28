@@ -252,6 +252,7 @@ MD5Transform(__u32 buf[4], __u32 const in[16])
 	buf[3] += d;
 }
 
+#if 0   /* currently unused */
 /***********************************************************************
  the rfc 2104 version of hmac_md5 initialisation.
 ***********************************************************************/
@@ -289,6 +290,7 @@ hmac_md5_init_rfc2104(unsigned char *key, int key_len,
 	MD5Init(&ctx->ctx);
 	MD5Update(&ctx->ctx, ctx->k_ipad, 64);
 }
+#endif
 
 /***********************************************************************
  the microsoft version of hmac_md5 initialisation.
@@ -333,6 +335,7 @@ hmac_md5_update(const unsigned char *text, int text_len,
 /***********************************************************************
  finish off hmac_md5 "inner" buffer and generate outer one.
 ***********************************************************************/
+#if 0   /* currently unused */
 void
 hmac_md5_final(unsigned char *digest, struct HMACMD5Context *ctx)
 {
@@ -361,3 +364,4 @@ hmac_md5(unsigned char key[16], unsigned char *data, int data_len,
 	}
 	hmac_md5_final(digest, &ctx);
 }
+#endif

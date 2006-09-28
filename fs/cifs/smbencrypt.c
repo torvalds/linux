@@ -141,6 +141,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	memset(wpwd,0,129 * 2);
 }
 
+#if 0 /* currently unused */
 /* Does both the NT and LM owfs of a user's password */
 static void
 nt_lm_owf_gen(char *pwd, unsigned char nt_p16[16], unsigned char p16[16])
@@ -168,6 +169,7 @@ nt_lm_owf_gen(char *pwd, unsigned char nt_p16[16], unsigned char p16[16])
 	/* clear out local copy of user's password (just being paranoid). */
 	memset(passwd, '\0', sizeof (passwd));
 }
+#endif
 
 /* Does the NTLMv2 owfs of a user's password */
 #if 0  /* function not needed yet - but will be soon */
@@ -220,6 +222,7 @@ SMBOWFencrypt(unsigned char passwd[16], unsigned char *c8,
 }
 
 /* Does the des encryption from the FIRST 8 BYTES of the NT or LM MD4 hash. */
+#if 0 /* currently unused */
 static void
 NTLMSSPOWFencrypt(unsigned char passwd[8],
 		  unsigned char *ntlmchalresp, unsigned char p24[24])
@@ -232,6 +235,7 @@ NTLMSSPOWFencrypt(unsigned char passwd[8],
 
 	E_P24(p21, ntlmchalresp, p24);
 }
+#endif
 
 /* Does the NT MD4 hash then des encryption. */
 
