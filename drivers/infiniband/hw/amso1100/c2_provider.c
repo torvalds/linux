@@ -390,8 +390,10 @@ static struct ib_mr *c2_reg_phys_mr(struct ib_pd *ib_pd,
 	}
 
 	mr = kmalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr)
+	if (!mr) {
+		vfree(page_list);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	mr->pd = to_c2pd(ib_pd);
 	pr_debug("%s - page shift %d, pbl_depth %d, total_len %u, "
