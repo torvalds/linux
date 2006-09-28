@@ -1205,11 +1205,10 @@ int xfrm_replay_check(struct xfrm_state *x, __be32 net_seq)
 }
 EXPORT_SYMBOL(xfrm_replay_check);
 
-void xfrm_replay_advance(struct xfrm_state *x, u32 seq)
+void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 {
 	u32 diff;
-
-	seq = ntohl(seq);
+	u32 seq = ntohl(net_seq);
 
 	if (seq > x->replay.seq) {
 		diff = seq - x->replay.seq;
