@@ -290,11 +290,11 @@ again:
 
 finish_inode:
 			if (ip->i_d.di_mode == 0) {
-				if (!(flags & IGET_CREATE))
+				if (!(flags & XFS_IGET_CREATE))
 					return ENOENT;
 				xfs_iocore_inode_reinit(ip);
 			}
-	
+
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
 
@@ -320,21 +320,20 @@ finish_inode:
 	 * Read the disk inode attributes into a new inode structure and get
 	 * a new vnode for it. This should also initialize i_ino and i_mount.
 	 */
-	error = xfs_iread(mp, tp, ino, &ip, bno);
-	if (error) {
+	error = xfs_iread(mp, tp, ino, &ip, bno,
+			  (flags & XFS_IGET_BULKSTAT) ? XFS_IMAP_BULKSTAT : 0);
+	if (error)
 		return error;
-	}
 
 	vn_trace_exit(vp, "xfs_iget.alloc", (inst_t *)__return_address);
 
 	xfs_inode_lock_init(ip, vp);
 	xfs_iocore_inode_init(ip);
 
-	if (lock_flags != 0) {
+	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
-	}
-		
-	if ((ip->i_d.di_mode == 0) && !(flags & IGET_CREATE)) {
+
+	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		xfs_idestroy(ip);
 		return ENOENT;
 	}

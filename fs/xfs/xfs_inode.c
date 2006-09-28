@@ -854,7 +854,8 @@ xfs_iread(
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
 	xfs_inode_t	**ipp,
-	xfs_daddr_t	bno)
+	xfs_daddr_t	bno,
+	uint		imap_flags)
 {
 	xfs_buf_t	*bp;
 	xfs_dinode_t	*dip;
@@ -874,7 +875,7 @@ xfs_iread(
 	 * return NULL as well.  Set i_blkno to 0 so that xfs_itobp() will
 	 * know that this is a new incore inode.
 	 */
-	error = xfs_itobp(mp, tp, ip, &dip, &bp, bno, 0);
+	error = xfs_itobp(mp, tp, ip, &dip, &bp, bno, imap_flags);
 	if (error) {
 		kmem_zone_free(xfs_inode_zone, ip);
 		return error;
@@ -1113,7 +1114,7 @@ xfs_ialloc(
 	 * to prevent others from looking at until we're done.
 	 */
 	error = xfs_trans_iget(tp->t_mountp, tp, ino,
-			IGET_CREATE, XFS_ILOCK_EXCL, &ip);
+				XFS_IGET_CREATE, XFS_ILOCK_EXCL, &ip);
 	if (error != 0) {
 		return error;
 	}

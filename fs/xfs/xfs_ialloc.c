@@ -1195,6 +1195,7 @@ xfs_dilocate(
 					"(0x%llx)",
 					ino, XFS_AGINO_TO_INO(mp, agno, agino));
 		}
+		xfs_stack_trace();
 #endif /* DEBUG */
 		return XFS_ERROR(EINVAL);
 	}

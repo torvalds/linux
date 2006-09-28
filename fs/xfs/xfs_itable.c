@@ -52,7 +52,8 @@ xfs_bulkstat_one_iget(
 	bhv_vnode_t	*vp;
 	int		error;
 
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, bno);
+	error = xfs_iget(mp, NULL, ino,
+			 XFS_IGET_BULKSTAT, XFS_ILOCK_SHARED, &ip, bno);
 	if (error) {
 		*stat = BULKSTAT_RV_NOTHING;
 		return error;
