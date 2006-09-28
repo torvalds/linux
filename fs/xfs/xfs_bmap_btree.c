@@ -870,14 +870,13 @@ xfs_bmbt_insrec(
 		memmove(&pp[ptr], &pp[ptr - 1], /* INT_: direct copy */
 			(numrecs - ptr + 1) * sizeof(*pp));
 #ifdef DEBUG
-		if ((error = xfs_btree_check_lptr(cur, (xfs_bmbt_ptr_t)*bnop,
-				level))) {
+		if ((error = xfs_btree_check_lptr(cur, *bnop, level))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}
 #endif
 		kp[ptr - 1] = key;
-		INT_SET(pp[ptr - 1], ARCH_CONVERT, *bnop);
+		pp[ptr - 1] = cpu_to_be64(*bnop);
 		numrecs++;
 		block->bb_numrecs = cpu_to_be16(numrecs);
 		xfs_bmbt_log_keys(cur, bp, ptr, numrecs);
@@ -1189,13 +1188,13 @@ xfs_bmbt_lookup(
 			if (diff > 0 && --keyno < 1)
 				keyno = 1;
 			pp = XFS_BMAP_PTR_IADDR(block, keyno, cur);
+			fsbno = be64_to_cpu(*pp);
 #ifdef DEBUG
-			if ((error = xfs_btree_check_lptr_disk(cur, *pp, level))) {
+			if ((error = xfs_btree_check_lptr(cur, fsbno, level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
 #endif
-			fsbno = INT_GET(*pp, ARCH_CONVERT);
 			cur->bc_ptrs[level] = keyno;
 		}
 	}
@@ -1445,7 +1444,7 @@ xfs_bmbt_rshift(
 		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
 #ifdef DEBUG
 		for (i = be16_to_cpu(right->bb_numrecs) - 1; i >= 0; i--) {
-			if ((error = xfs_btree_check_lptr_disk(cur, rpp[i] level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, rpp[i], level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
@@ -1728,9 +1727,9 @@ xfs_bmdr_to_bmbt(
 {
 	int			dmxr;
 	xfs_bmbt_key_t		*fkp;
-	xfs_bmbt_ptr_t		*fpp;
+	__be64			*fpp;
 	xfs_bmbt_key_t		*tkp;
-	xfs_bmbt_ptr_t		*tpp;
+	__be64			*tpp;
 
 	rblock->bb_magic = cpu_to_be32(XFS_BMAP_MAGIC);
 	rblock->bb_level = dblock->bb_level;
@@ -1745,7 +1744,7 @@ xfs_bmdr_to_bmbt(
 	tpp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, rblocklen);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
-	memcpy(tpp, fpp, sizeof(*fpp) * dmxr); /* INT_: direct copy */
+	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
 }
 
 /*
@@ -1805,7 +1804,7 @@ xfs_bmbt_decrement(
 	tp = cur->bc_tp;
 	mp = cur->bc_mp;
 	for (block = xfs_bmbt_get_block(cur, lev, &bp); lev > level; ) {
-		fsbno = INT_GET(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur), ARCH_CONVERT);
+		fsbno = be64_to_cpu(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur));
 		if ((error = xfs_btree_read_bufl(mp, tp, fsbno, 0, &bp,
 				XFS_BMAP_BTREE_REF))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
@@ -2135,7 +2134,7 @@ xfs_bmbt_increment(
 	tp = cur->bc_tp;
 	mp = cur->bc_mp;
 	for (block = xfs_bmbt_get_block(cur, lev, &bp); lev > level; ) {
-		fsbno = INT_GET(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur), ARCH_CONVERT);
+		fsbno = be64_to_cpu(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur));
 		if ((error = xfs_btree_read_bufl(mp, tp, fsbno, 0, &bp,
 				XFS_BMAP_BTREE_REF))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
@@ -2361,7 +2360,7 @@ xfs_bmbt_newroot(
 			return error;
 		}
 #endif
-		args.fsbno = INT_GET(*pp, ARCH_CONVERT);
+		args.fsbno = be64_to_cpu(*pp);
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
@@ -2401,13 +2400,12 @@ xfs_bmbt_newroot(
 #endif
 	memcpy(cpp, pp, be16_to_cpu(cblock->bb_numrecs) * sizeof(*pp));
 #ifdef DEBUG
-	if ((error = xfs_btree_check_lptr(cur, (xfs_bmbt_ptr_t)args.fsbno,
-			level))) {
+	if ((error = xfs_btree_check_lptr(cur, args.fsbno, level))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
 	}
 #endif
-	INT_SET(*pp, ARCH_CONVERT, args.fsbno);
+	*pp = cpu_to_be64(args.fsbno);
 	xfs_iroot_realloc(cur->bc_private.b.ip, 1 - be16_to_cpu(cblock->bb_numrecs),
 		cur->bc_private.b.whichfork);
 	xfs_btree_setbuf(cur, level, bp);
@@ -2681,9 +2679,9 @@ xfs_bmbt_to_bmdr(
 {
 	int			dmxr;
 	xfs_bmbt_key_t		*fkp;
-	xfs_bmbt_ptr_t		*fpp;
+	__be64			*fpp;
 	xfs_bmbt_key_t		*tkp;
-	xfs_bmbt_ptr_t		*tpp;
+	__be64			*tpp;
 
 	ASSERT(be32_to_cpu(rblock->bb_magic) == XFS_BMAP_MAGIC);
 	ASSERT(be64_to_cpu(rblock->bb_leftsib) == NULLDFSBNO);
@@ -2698,7 +2696,7 @@ xfs_bmbt_to_bmdr(
 	tpp = XFS_BTREE_PTR_ADDR(dblocklen, xfs_bmdr, dblock, 1, dmxr);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
-	memcpy(tpp, fpp, sizeof(*fpp) * dmxr); /* INT_: direct copy */
+	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
 }
 
 /*
