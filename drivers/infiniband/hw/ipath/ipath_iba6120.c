@@ -538,6 +538,9 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 	case 5:
 		n = "InfiniPath_QMH7140";
 		break;
+	case 6:
+		n = "InfiniPath_QLE7142";
+		break;
 	default:
 		ipath_dev_err(dd,
 			      "Don't yet know about board with ID %u\n",
