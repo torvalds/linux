@@ -216,7 +216,7 @@ struct tcp_sock {
  *	Header prediction flags
  *	0x5?10 << 16 + snd_wnd in net byte order
  */
-	__u32	pred_flags;
+	__be32	pred_flags;
 
 /*
  *	RFC793 variables by their proper names. This means you can
