@@ -109,6 +109,10 @@ static inline u32 ata_msg_init(int dval, int default_msg_enable_bits)
 #define ATA_TAG_POISON		0xfafbfcfdU
 
 /* move to PCI layer? */
+#define PCI_VDEVICE(vendor, device)		\
+	PCI_VENDOR_ID_##vendor, (device),	\
+	PCI_ANY_ID, PCI_ANY_ID, 0, 0
+
 static inline struct device *pci_dev_to_dev(struct pci_dev *pdev)
 {
 	return &pdev->dev;
