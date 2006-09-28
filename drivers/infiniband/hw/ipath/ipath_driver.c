@@ -1350,7 +1350,7 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
-	memset((void *)pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
+	memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
 
 	/*
 	 * tell chip each time we init it, even if we are re-using previous
@@ -1803,7 +1803,7 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 		pd->port_rcvhdrq = NULL;
 		if (pd->port_rcvhdrtail_kvaddr) {
 			dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-					 (void *)pd->port_rcvhdrtail_kvaddr,
+					 pd->port_rcvhdrtail_kvaddr,
 					 pd->port_rcvhdrqtailaddr_phys);
 			pd->port_rcvhdrtail_kvaddr = NULL;
 		}
@@ -1934,7 +1934,7 @@ static void cleanup_device(struct ipath_devdata *dd)
 
 	if (dd->ipath_pioavailregs_dma) {
 		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-				  (void *) dd->ipath_pioavailregs_dma,
+				  dd->ipath_pioavailregs_dma,
 				  dd->ipath_pioavailregs_phys);
 		dd->ipath_pioavailregs_dma = NULL;
 	}
