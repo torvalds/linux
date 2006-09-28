@@ -338,7 +338,7 @@ static void hwerr_crcbits(struct ipath_devdata *dd, ipath_err_t hwerrs,
 	if (crcbits) {
 		u16 ctrl0, ctrl1;
 		snprintf(bitsmsg, sizeof bitsmsg,
-			 "[HT%s lane %s CRC (%llx); ignore till reload]",
+			 "[HT%s lane %s CRC (%llx); powercycle to completely clear]",
 			 !(crcbits & _IPATH_HTLINK1_CRCBITS) ?
 			 "0 (A)" : (!(crcbits & _IPATH_HTLINK0_CRCBITS)
 				    ? "1 (B)" : "0+1 (A+B)"),
