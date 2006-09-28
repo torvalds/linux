@@ -37,7 +37,6 @@ static int pcie_portdrv_save_config(struct pci_dev *dev)
 	return pci_save_state(dev);
 }
 
-#ifdef CONFIG_PM
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
@@ -50,6 +49,7 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int pcie_portdrv_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	int ret = pcie_port_device_suspend(dev, state);
