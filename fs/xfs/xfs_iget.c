@@ -546,7 +546,7 @@ xfs_inode_lock_init(
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", vp->v_number);
 	init_waitqueue_head(&ip->i_ipin_wait);
 	atomic_set(&ip->i_pincount, 0);
-	init_sema(&ip->i_flock, 1, "xfsfino", vp->v_number);
+	initnsema(&ip->i_flock, 1, "xfsfino");
 }
 
 /*
