@@ -17,6 +17,7 @@ obj-$(CONFIG_MODULES)		+= proc-syms.o
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_DISCONTIGMEM)	+= discontig.o
 
+obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o
 obj-$(CONFIG_CPU_ABRT_EV4)	+= abort-ev4.o
 obj-$(CONFIG_CPU_ABRT_EV4T)	+= abort-ev4t.o
 obj-$(CONFIG_CPU_ABRT_LV4T)	+= abort-lv4t.o

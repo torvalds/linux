@@ -375,7 +375,7 @@ __arm946_setup:
  */
 	.type	arm946_processor_functions, #object
 ENTRY(arm946_processor_functions)
-	.word	v5t_early_abort
+	.word	nommu_early_abort
 	.word	cpu_arm946_proc_init
 	.word	cpu_arm946_proc_fin
 	.word	cpu_arm946_reset

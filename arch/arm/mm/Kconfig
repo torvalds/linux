@@ -97,7 +97,7 @@ config CPU_ARM9TDMI
 	bool "Support ARM9TDMI processor"
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_EV4T
+	select CPU_ABRT_NOMMU
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
@@ -192,7 +192,7 @@ config CPU_ARM940T
 	bool "Support ARM940T processor" if ARCH_INTEGRATOR
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_EV4T
+	select CPU_ABRT_NOMMU
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -209,7 +209,7 @@ config CPU_ARM946E
 	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
 	depends on !MMU
 	select CPU_32v5
-	select CPU_ABRT_EV5T
+	select CPU_ABRT_NOMMU
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -392,6 +392,9 @@ config CPU_32v6
 	bool
 
 # The abort model
+config CPU_ABRT_NOMMU
+	bool
+
 config CPU_ABRT_EV4
 	bool
 
