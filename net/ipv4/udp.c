@@ -243,8 +243,8 @@ static void udp_v4_unhash(struct sock *sk)
 /* UDP is nearly always wildcards out the wazoo, it makes no sense to try
  * harder than this. -DaveM
  */
-static struct sock *udp_v4_lookup_longway(u32 saddr, u16 sport,
-					  u32 daddr, u16 dport, int dif)
+static struct sock *udp_v4_lookup_longway(__be32 saddr, __be16 sport,
+					  __be32 daddr, __be16 dport, int dif)
 {
 	struct sock *sk, *result = NULL;
 	struct hlist_node *node;
@@ -288,8 +288,8 @@ static struct sock *udp_v4_lookup_longway(u32 saddr, u16 sport,
 	return result;
 }
 
-static __inline__ struct sock *udp_v4_lookup(u32 saddr, u16 sport,
-					     u32 daddr, u16 dport, int dif)
+static __inline__ struct sock *udp_v4_lookup(__be32 saddr, __be16 sport,
+					     __be32 daddr, __be16 dport, int dif)
 {
 	struct sock *sk;
 
@@ -302,8 +302,8 @@ static __inline__ struct sock *udp_v4_lookup(u32 saddr, u16 sport,
 }
 
 static inline struct sock *udp_v4_mcast_next(struct sock *sk,
-					     u16 loc_port, u32 loc_addr,
-					     u16 rmt_port, u32 rmt_addr,
+					     __be16 loc_port, __be32 loc_addr,
+					     __be16 rmt_port, __be32 rmt_addr,
 					     int dif)
 {
 	struct hlist_node *node;
@@ -498,7 +498,7 @@ out:
 }
 
 
-static unsigned short udp_check(struct udphdr *uh, int len, unsigned long saddr, unsigned long daddr, unsigned long base)
+static unsigned short udp_check(struct udphdr *uh, int len, __be32 saddr, __be32 daddr, unsigned long base)
 {
 	return(csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base));
 }
@@ -514,7 +514,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int free = 0;
 	int connected = 0;
 	__be32 daddr, faddr, saddr;
-	u16 dport;
+	__be16 dport;
 	u8  tos;
 	int err;
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
@@ -931,7 +931,7 @@ static int udp_encap_rcv(struct sock * sk, struct sk_buff *skb)
 	int iphlen, len;
   
 	__u8 *udpdata = (__u8 *)uh + sizeof(struct udphdr);
-	__u32 *udpdata32 = (__u32 *)udpdata;
+	__be32 *udpdata32 = (__be32 *)udpdata;
 	__u16 encap_type = up->encap_type;
 
 	/* if we're overly short, let UDP handle it */
@@ -1080,7 +1080,7 @@ static int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
  *	so we don't need to lock the hashes.
  */
 static int udp_v4_mcast_deliver(struct sk_buff *skb, struct udphdr *uh,
-				 u32 saddr, u32 daddr)
+				 __be32 saddr, __be32 daddr)
 {
 	struct sock *sk;
 	int dif;
@@ -1121,7 +1121,7 @@ static int udp_v4_mcast_deliver(struct sk_buff *skb, struct udphdr *uh,
  * including udp header and folding it to skb->csum.
  */
 static void udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
-			     unsigned short ulen, u32 saddr, u32 daddr)
+			     unsigned short ulen, __be32 saddr, __be32 daddr)
 {
 	if (uh->check == 0) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1146,8 +1146,8 @@ int udp_rcv(struct sk_buff *skb)
   	struct udphdr *uh;
 	unsigned short ulen;
 	struct rtable *rt = (struct rtable*)skb->dst;
-	u32 saddr = skb->nh.iph->saddr;
-	u32 daddr = skb->nh.iph->daddr;
+	__be32 saddr = skb->nh.iph->saddr;
+	__be32 daddr = skb->nh.iph->daddr;
 	int len = skb->len;
 
 	/*
@@ -1563,8 +1563,8 @@ void udp_proc_unregister(struct udp_seq_afinfo *afinfo)
 static void udp4_format_sock(struct sock *sp, char *tmpbuf, int bucket)
 {
 	struct inet_sock *inet = inet_sk(sp);
-	unsigned int dest = inet->daddr;
-	unsigned int src  = inet->rcv_saddr;
+	__be32 dest = inet->daddr;
+	__be32 src  = inet->rcv_saddr;
 	__u16 destp	  = ntohs(inet->dport);
 	__u16 srcp	  = ntohs(inet->sport);
 
