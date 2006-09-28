@@ -627,25 +627,6 @@ xfs_buf_item_committed(
 }
 
 /*
- * This is called when the transaction holding the buffer is aborted.
- * Just behave as if the transaction had been cancelled. If we're shutting down
- * and have aborted this transaction, we'll trap this buffer when it tries to
- * get written out.
- */
-STATIC void
-xfs_buf_item_abort(
-	xfs_buf_log_item_t	*bip)
-{
-	xfs_buf_t	*bp;
-
-	bp = bip->bli_buf;
-	xfs_buftrace("XFS_ABORT", bp);
-	XFS_BUF_SUPER_STALE(bp);
-	xfs_buf_item_unlock(bip);
-	return;
-}
-
-/*
  * This is called to asynchronously write the buffer associated with this
  * buf log item out to disk. The buffer will already have been locked by
  * a successful call to xfs_buf_item_trylock().  If the buffer still has
@@ -692,7 +673,6 @@ STATIC struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_buf_item_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_buf_item_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_buf_item_abort,
 	.iop_pushbuf	= NULL,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_buf_item_committing
