@@ -734,8 +734,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct inet_request_sock *ireq;
 	struct tcp_options_received tmp_opt;
 	struct request_sock *req;
-	__u32 saddr = skb->nh.iph->saddr;
-	__u32 daddr = skb->nh.iph->daddr;
+	__be32 saddr = skb->nh.iph->saddr;
+	__be32 daddr = skb->nh.iph->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
 	struct dst_entry *dst = NULL;
 #ifdef CONFIG_SYN_COOKIES

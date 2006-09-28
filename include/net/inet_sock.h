@@ -62,8 +62,8 @@ struct inet_request_sock {
 	u16			inet6_rsk_offset;
 	/* 2 bytes hole, try to pack */
 #endif
-	u32			loc_addr;
-	u32			rmt_addr;
+	__be32			loc_addr;
+	__be32			rmt_addr;
 	u16			rmt_port;
 	u16			snd_wscale : 4, 
 				rcv_wscale : 4, 
