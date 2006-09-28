@@ -131,7 +131,7 @@ ipt_local_hook(unsigned int hook,
 {
 	unsigned int ret;
 	u_int8_t tos;
-	u_int32_t saddr, daddr;
+	__be32 saddr, daddr;
 	unsigned long nfmark;
 
 	/* root is playing with raw sockets. */

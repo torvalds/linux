@@ -58,7 +58,7 @@ target(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t new_ip, netmask;
+	__be32 new_ip, netmask;
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 	struct ip_nat_range newrange;
 
