@@ -31,41 +31,6 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= AT91_VA_BASE_SSC2,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_SSC2),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_SSC1,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_SSC1),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_SSC0,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_SSC0),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_US3,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_US3),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_US2,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_US2),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_US1,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_US1),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_US0,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_US0),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= AT91_VA_BASE_EMAC,
 		.pfn		= __phys_to_pfn(AT91RM9200_BASE_EMAC),
 		.length		= SZ_16K,
@@ -83,16 +48,6 @@ static struct map_desc at91rm9200_io_desc[] __initdata = {
 	}, {
 		.virtual	= AT91_VA_BASE_UDP,
 		.pfn		= __phys_to_pfn(AT91RM9200_BASE_UDP),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_TCB1,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_TCB1),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_VA_BASE_TCB0,
-		.pfn		= __phys_to_pfn(AT91RM9200_BASE_TCB0),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
