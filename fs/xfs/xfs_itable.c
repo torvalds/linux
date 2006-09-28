@@ -577,6 +577,7 @@ xfs_bulkstat(
 								      KM_SLEEP);
 						ip->i_ino = ino;
 						ip->i_mount = mp;
+						spin_lock_init(&ip->i_flags_lock);
 						if (bp)
 							xfs_buf_relse(bp);
 						error = xfs_itobp(mp, NULL, ip,

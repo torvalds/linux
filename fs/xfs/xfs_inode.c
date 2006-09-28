@@ -867,6 +867,7 @@ xfs_iread(
 	ip = kmem_zone_zalloc(xfs_inode_zone, KM_SLEEP);
 	ip->i_ino = ino;
 	ip->i_mount = mp;
+	spin_lock_init(&ip->i_flags_lock);
 
 	/*
 	 * Get pointer's to the on-disk inode and the buffer containing it.
@@ -2214,7 +2215,9 @@ xfs_ifree_cluster(
 
 			if (ip == free_ip) {
 				if (xfs_iflock_nowait(ip)) {
+					spin_lock(&ip->i_flags_lock);
 					ip->i_flags |= XFS_ISTALE;
+					spin_unlock(&ip->i_flags_lock);
 
 					if (xfs_inode_clean(ip)) {
 						xfs_ifunlock(ip);
@@ -2228,7 +2231,9 @@ xfs_ifree_cluster(
 
 			if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
 				if (xfs_iflock_nowait(ip)) {
+					spin_lock(&ip->i_flags_lock);
 					ip->i_flags |= XFS_ISTALE;
+					spin_unlock(&ip->i_flags_lock);
 
 					if (xfs_inode_clean(ip)) {
 						xfs_ifunlock(ip);
@@ -2258,7 +2263,9 @@ xfs_ifree_cluster(
 				AIL_LOCK(mp,s);
 				iip->ili_flush_lsn = iip->ili_item.li_lsn;
 				AIL_UNLOCK(mp, s);
+				spin_lock(&iip->ili_inode->i_flags_lock);
 				iip->ili_inode->i_flags |= XFS_ISTALE;
+				spin_unlock(&iip->ili_inode->i_flags_lock);
 				pre_flushed++;
 			}
 			lip = lip->li_bio_list;
@@ -2754,19 +2761,29 @@ xfs_iunpin(
 		 * call as the inode reclaim may be blocked waiting for
 		 * the inode to become unpinned.
 		 */
+		struct inode *inode = NULL;
+
+		spin_lock(&ip->i_flags_lock);
 		if (!(ip->i_flags & (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
 			bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
 
 			/* make sync come back and flush this inode */
 			if (vp) {
-				struct inode	*inode = vn_to_inode(vp);
+				inode = vn_to_inode(vp);
 
 				if (!(inode->i_state &
-						(I_NEW|I_FREEING|I_CLEAR)))
-					mark_inode_dirty_sync(inode);
+						(I_NEW|I_FREEING|I_CLEAR))) {
+					inode = igrab(inode);
+					if (inode)
+						mark_inode_dirty_sync(inode);
+				} else
+					inode = NULL;
 			}
 		}
+		spin_unlock(&ip->i_flags_lock);
 		wake_up(&ip->i_ipin_wait);
+		if (inode)
+			iput(inode);
 	}
 }
 
