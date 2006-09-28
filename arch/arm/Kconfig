@@ -99,7 +99,7 @@ config ARCH_MTD_XIP
 
 config VECTORS_BASE
 	hex
-	default 0xffff0000 if MMU
+	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
 	default DRAM_BASE if REMAP_VECTORS_TO_RAM
 	default 0x00000000
 	help
@@ -626,6 +626,7 @@ config LEDS_CPU
 
 config ALIGNMENT_TRAP
 	bool
+	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
 	help
 	  ARM processors can not fetch/store information which is not
@@ -857,7 +858,7 @@ source "drivers/base/Kconfig"
 
 source "drivers/connector/Kconfig"
 
-if ALIGNMENT_TRAP
+if ALIGNMENT_TRAP || !CPU_CP15_MMU
 source "drivers/mtd/Kconfig"
 endif
 

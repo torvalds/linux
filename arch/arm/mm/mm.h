@@ -14,6 +14,9 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 }
 
 struct map_desc;
+struct meminfo;
+struct pglist_data;
 
-void __init build_mem_type_table(void);
 void __init create_mapping(struct map_desc *md);
+void __init bootmem_init(struct meminfo *mi);
+void reserve_node_zero(struct pglist_data *pgdat);

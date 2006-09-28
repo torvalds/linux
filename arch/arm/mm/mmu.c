@@ -1,29 +1,45 @@
 /*
- *  linux/arch/arm/mm/mm-armv.c
+ *  linux/arch/arm/mm/mmu.c
  *
- *  Copyright (C) 1998-2005 Russell King
+ *  Copyright (C) 1995-2005 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- *  Page table sludge for ARM v3 and v4 processor architectures.
  */
 #include <linux/module.h>
-#include <linux/mm.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
-#include <linux/highmem.h>
+#include <linux/mman.h>
 #include <linux/nodemask.h>
 
-#include <asm/pgalloc.h>
-#include <asm/page.h>
+#include <asm/mach-types.h>
 #include <asm/setup.h>
-#include <asm/tlbflush.h>
+#include <asm/sizes.h>
+#include <asm/tlb.h>
 
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "mm.h"
+
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+
+extern void _stext, __data_start, _end;
+extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+
+/*
+ * empty_zero_page is a special page that is used for
+ * zero-initialized data and COW.
+ */
+struct page *empty_zero_page;
+
+/*
+ * The pmd table for the upper-most set of pages.
+ */
+pmd_t *top_pmd;
 
 #define CPOLICY_UNCACHED	0
 #define CPOLICY_BUFFERED	1
@@ -99,6 +115,7 @@ static void __init early_cachepolicy(char **p)
 	flush_cache_all();
 	set_cr(cr_alignment);
 }
+__early_param("cachepolicy=", early_cachepolicy);
 
 static void __init early_nocache(char **__unused)
 {
@@ -106,6 +123,7 @@ static void __init early_nocache(char **__unused)
 	printk(KERN_WARNING "nocache is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(&p);
 }
+__early_param("nocache", early_nocache);
 
 static void __init early_nowrite(char **__unused)
 {
@@ -113,6 +131,7 @@ static void __init early_nowrite(char **__unused)
 	printk(KERN_WARNING "nowb is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(&p);
 }
+__early_param("nowb", early_nowrite);
 
 static void __init early_ecc(char **p)
 {
@@ -124,10 +143,6 @@ static void __init early_ecc(char **p)
 		*p += 3;
 	}
 }
-
-__early_param("nocache", early_nocache);
-__early_param("nowb", early_nowrite);
-__early_param("cachepolicy=", early_cachepolicy);
 __early_param("ecc=", early_ecc);
 
 static int __init noalign_setup(char *__unused)
@@ -137,148 +152,7 @@ static int __init noalign_setup(char *__unused)
 	set_cr(cr_alignment);
 	return 1;
 }
-
 __setup("noalign", noalign_setup);
-
-#define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
-
-/*
- * need to get a 16k page for level 1
- */
-pgd_t *get_pgd_slow(struct mm_struct *mm)
-{
-	pgd_t *new_pgd, *init_pgd;
-	pmd_t *new_pmd, *init_pmd;
-	pte_t *new_pte, *init_pte;
-
-	new_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL, 2);
-	if (!new_pgd)
-		goto no_pgd;
-
-	memzero(new_pgd, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
-
-	/*
-	 * Copy over the kernel and IO PGD entries
-	 */
-	init_pgd = pgd_offset_k(0);
-	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
-		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
-
-	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
-
-	if (!vectors_high()) {
-		/*
-		 * On ARM, first page must always be allocated since it
-		 * contains the machine vectors.
-		 */
-		new_pmd = pmd_alloc(mm, new_pgd, 0);
-		if (!new_pmd)
-			goto no_pmd;
-
-		new_pte = pte_alloc_map(mm, new_pmd, 0);
-		if (!new_pte)
-			goto no_pte;
-
-		init_pmd = pmd_offset(init_pgd, 0);
-		init_pte = pte_offset_map_nested(init_pmd, 0);
-		set_pte(new_pte, *init_pte);
-		pte_unmap_nested(init_pte);
-		pte_unmap(new_pte);
-	}
-
-	return new_pgd;
-
-no_pte:
-	pmd_free(new_pmd);
-no_pmd:
-	free_pages((unsigned long)new_pgd, 2);
-no_pgd:
-	return NULL;
-}
-
-void free_pgd_slow(pgd_t *pgd)
-{
-	pmd_t *pmd;
-	struct page *pte;
-
-	if (!pgd)
-		return;
-
-	/* pgd is always present and good */
-	pmd = pmd_off(pgd, 0);
-	if (pmd_none(*pmd))
-		goto free;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		goto free;
-	}
-
-	pte = pmd_page(*pmd);
-	pmd_clear(pmd);
-	dec_zone_page_state(virt_to_page((unsigned long *)pgd), NR_PAGETABLE);
-	pte_lock_deinit(pte);
-	pte_free(pte);
-	pmd_free(pmd);
-free:
-	free_pages((unsigned long) pgd, 2);
-}
-
-/*
- * Create a SECTION PGD between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  This operates on half-
- * pgdir entry increments.
- */
-static inline void
-alloc_init_section(unsigned long virt, unsigned long phys, int prot)
-{
-	pmd_t *pmdp = pmd_off_k(virt);
-
-	if (virt & (1 << 20))
-		pmdp++;
-
-	*pmdp = __pmd(phys | prot);
-	flush_pmd_entry(pmdp);
-}
-
-/*
- * Create a SUPER SECTION PGD between VIRT and PHYS with protection PROT
- */
-static inline void
-alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
-{
-	int i;
-
-	for (i = 0; i < 16; i += 1) {
-		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
-
-		virt += (PGDIR_SIZE / 2);
-	}
-}
-
-/*
- * Add a PAGE mapping between VIRT and PHYS in domain
- * DOMAIN with protection PROT.  Note that due to the
- * way we map the PTEs, we must allocate two PTE_SIZE'd
- * blocks - one for the Linux pte table, and one for
- * the hardware pte table.
- */
-static inline void
-alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
-{
-	pmd_t *pmdp = pmd_off_k(virt);
-	pte_t *ptep;
-
-	if (pmd_none(*pmdp)) {
-		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
-					       sizeof(pte_t));
-
-		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
-	}
-	ptep = pte_offset_kernel(pmdp, virt);
-
-	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
-}
 
 struct mem_types {
 	unsigned int	prot_pte;
@@ -344,7 +218,7 @@ static struct mem_types mem_types[] __initdata = {
 /*
  * Adjust the PMD section entries according to the CPU in use.
  */
-void __init build_mem_type_table(void)
+static void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
@@ -482,6 +356,62 @@ void __init build_mem_type_table(void)
 #define vectors_base()	(vectors_high() ? 0xffff0000 : 0)
 
 /*
+ * Create a SECTION PGD between VIRT and PHYS in domain
+ * DOMAIN with protection PROT.  This operates on half-
+ * pgdir entry increments.
+ */
+static inline void
+alloc_init_section(unsigned long virt, unsigned long phys, int prot)
+{
+	pmd_t *pmdp = pmd_off_k(virt);
+
+	if (virt & (1 << 20))
+		pmdp++;
+
+	*pmdp = __pmd(phys | prot);
+	flush_pmd_entry(pmdp);
+}
+
+/*
+ * Create a SUPER SECTION PGD between VIRT and PHYS with protection PROT
+ */
+static inline void
+alloc_init_supersection(unsigned long virt, unsigned long phys, int prot)
+{
+	int i;
+
+	for (i = 0; i < 16; i += 1) {
+		alloc_init_section(virt, phys, prot | PMD_SECT_SUPER);
+
+		virt += (PGDIR_SIZE / 2);
+	}
+}
+
+/*
+ * Add a PAGE mapping between VIRT and PHYS in domain
+ * DOMAIN with protection PROT.  Note that due to the
+ * way we map the PTEs, we must allocate two PTE_SIZE'd
+ * blocks - one for the Linux pte table, and one for
+ * the hardware pte table.
+ */
+static inline void
+alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pgprot_t prot)
+{
+	pmd_t *pmdp = pmd_off_k(virt);
+	pte_t *ptep;
+
+	if (pmd_none(*pmdp)) {
+		ptep = alloc_bootmem_low_pages(2 * PTRS_PER_PTE *
+					       sizeof(pte_t));
+
+		__pmd_populate(pmdp, __pa(ptep) | prot_l1);
+	}
+	ptep = pte_offset_kernel(pmdp, virt);
+
+	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
+}
+
+/*
  * Create the page directory entries and any necessary
  * page tables for the mapping specified by `md'.  We
  * are able to cope here with varying sizes and address
@@ -611,6 +541,205 @@ void __init create_mapping(struct map_desc *md)
 }
 
 /*
+ * Create the architecture specific mappings
+ */
+void __init iotable_init(struct map_desc *io_desc, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		create_mapping(io_desc + i);
+}
+
+static inline void prepare_page_table(struct meminfo *mi)
+{
+	unsigned long addr;
+
+	/*
+	 * Clear out all the mappings below the kernel image.
+	 */
+	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+
+#ifdef CONFIG_XIP_KERNEL
+	/* The XIP kernel is mapped in the module area -- skip over it */
+	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
+#endif
+	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+
+	/*
+	 * Clear out all the kernel space mappings, except for the first
+	 * memory bank, up to the end of the vmalloc region.
+	 */
+	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
+	     addr < VMALLOC_END; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+}
+
+/*
+ * Reserve the various regions of node 0
+ */
+void __init reserve_node_zero(pg_data_t *pgdat)
+{
+	unsigned long res_size = 0;
+
+	/*
+	 * Register the kernel text and data with bootmem.
+	 * Note that this can only be in node 0.
+	 */
+#ifdef CONFIG_XIP_KERNEL
+	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start);
+#else
+	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext);
+#endif
+
+	/*
+	 * Reserve the page tables.  These are already in use,
+	 * and can only be in node 0.
+	 */
+	reserve_bootmem_node(pgdat, __pa(swapper_pg_dir),
+			     PTRS_PER_PGD * sizeof(pgd_t));
+
+	/*
+	 * Hmm... This should go elsewhere, but we really really need to
+	 * stop things allocating the low memory; ideally we need a better
+	 * implementation of GFP_DMA which does not assume that DMA-able
+	 * memory starts at zero.
+	 */
+	if (machine_is_integrator() || machine_is_cintegrator())
+		res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
+
+	/*
+	 * These should likewise go elsewhere.  They pre-reserve the
+	 * screen memory region at the start of main system memory.
+	 */
+	if (machine_is_edb7211())
+		res_size = 0x00020000;
+	if (machine_is_p720t())
+		res_size = 0x00014000;
+
+#ifdef CONFIG_SA1111
+	/*
+	 * Because of the SA1111 DMA bug, we want to preserve our
+	 * precious DMA-able memory...
+	 */
+	res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
+#endif
+	if (res_size)
+		reserve_bootmem_node(pgdat, PHYS_OFFSET, res_size);
+}
+
+/*
+ * Set up device the mappings.  Since we clear out the page tables for all
+ * mappings above VMALLOC_END, we will remove any debug device mappings.
+ * This means you have to be careful how you debug this function, or any
+ * called function.  This means you can't use any function or debugging
+ * method which may touch any device, otherwise the kernel _will_ crash.
+ */
+static void __init devicemaps_init(struct machine_desc *mdesc)
+{
+	struct map_desc map;
+	unsigned long addr;
+	void *vectors;
+
+	/*
+	 * Allocate the vector page early.
+	 */
+	vectors = alloc_bootmem_low_pages(PAGE_SIZE);
+	BUG_ON(!vectors);
+
+	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+
+	/*
+	 * Map the kernel if it is XIP.
+	 * It is always first in the modulearea.
+	 */
+#ifdef CONFIG_XIP_KERNEL
+	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & SECTION_MASK);
+	map.virtual = MODULE_START;
+	map.length = ((unsigned long)&_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
+	map.type = MT_ROM;
+	create_mapping(&map);
+#endif
+
+	/*
+	 * Map the cache flushing regions.
+	 */
+#ifdef FLUSH_BASE
+	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS);
+	map.virtual = FLUSH_BASE;
+	map.length = SZ_1M;
+	map.type = MT_CACHECLEAN;
+	create_mapping(&map);
+#endif
+#ifdef FLUSH_BASE_MINICACHE
+	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS + SZ_1M);
+	map.virtual = FLUSH_BASE_MINICACHE;
+	map.length = SZ_1M;
+	map.type = MT_MINICLEAN;
+	create_mapping(&map);
+#endif
+
+	/*
+	 * Create a mapping for the machine vectors at the high-vectors
+	 * location (0xffff0000).  If we aren't using high-vectors, also
+	 * create a mapping at the low-vectors virtual address.
+	 */
+	map.pfn = __phys_to_pfn(virt_to_phys(vectors));
+	map.virtual = 0xffff0000;
+	map.length = PAGE_SIZE;
+	map.type = MT_HIGH_VECTORS;
+	create_mapping(&map);
+
+	if (!vectors_high()) {
+		map.virtual = 0;
+		map.type = MT_LOW_VECTORS;
+		create_mapping(&map);
+	}
+
+	/*
+	 * Ask the machine support to map in the statically mapped devices.
+	 */
+	if (mdesc->map_io)
+		mdesc->map_io();
+
+	/*
+	 * Finally flush the caches and tlb to ensure that we're in a
+	 * consistent state wrt the writebuffer.  This also ensures that
+	 * any write-allocated cache lines in the vector page are written
+	 * back.  After this point, we can start to touch devices again.
+	 */
+	local_flush_tlb_all();
+	flush_cache_all();
+}
+
+/*
+ * paging_init() sets up the page tables, initialises the zone memory
+ * maps, and sets up the zero page, bad page and bad page tables.
+ */
+void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
+{
+	void *zero_page;
+
+	build_mem_type_table();
+	prepare_page_table(mi);
+	bootmem_init(mi);
+	devicemaps_init(mdesc);
+
+	top_pmd = pmd_off_k(0xffff0000);
+
+	/*
+	 * allocate the zero page.  Note that we count on this going ok.
+	 */
+	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
+	memzero(zero_page, PAGE_SIZE);
+	empty_zero_page = virt_to_page(zero_page);
+	flush_dcache_page(empty_zero_page);
+}
+
+/*
  * In order to soft-boot, we need to insert a 1:1 mapping in place of
  * the user-mode pages.  This will then ensure that we have predictable
  * results when turning the mmu off
@@ -639,15 +768,4 @@ void setup_mm_for_reboot(char mode)
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
 	}
-}
-
-/*
- * Create the architecture specific mappings
- */
-void __init iotable_init(struct map_desc *io_desc, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		create_mapping(io_desc + i);
 }
