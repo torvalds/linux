@@ -167,6 +167,7 @@ extern int xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud);
 #define		XFS_PTAG_SHUTDOWN_CORRUPT	0x00000010
 #define		XFS_PTAG_SHUTDOWN_IOERROR	0x00000020
 #define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
+#define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
 
 struct xfs_mount;
 /* PRINTFLIKE4 */

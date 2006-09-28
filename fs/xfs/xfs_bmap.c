@@ -3705,7 +3705,7 @@ STATIC xfs_bmbt_rec_t *                 /* pointer to found extent entry */
 xfs_bmap_search_extents(
 	xfs_inode_t     *ip,            /* incore inode pointer */
 	xfs_fileoff_t   bno,            /* block number searched for */
-	int             whichfork,      /* data or attr fork */
+	int             fork,      	/* data or attr fork */
 	int             *eofp,          /* out: end of file found */
 	xfs_extnum_t    *lastxp,        /* out: last extent index */
 	xfs_bmbt_irec_t *gotp,          /* out: extent entry found */
@@ -3713,25 +3713,28 @@ xfs_bmap_search_extents(
 {
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
 	xfs_bmbt_rec_t  *ep;            /* extent record pointer */
-	int		rt;		/* realtime flag    */
 
 	XFS_STATS_INC(xs_look_exlist);
-	ifp = XFS_IFORK_PTR(ip, whichfork);
+	ifp = XFS_IFORK_PTR(ip, fork);
 
 	ep = xfs_bmap_search_multi_extents(ifp, bno, eofp, lastxp, gotp, prevp);
 
-	rt = (whichfork == XFS_DATA_FORK) && XFS_IS_REALTIME_INODE(ip);
-	if (unlikely(!rt && !gotp->br_startblock && (*lastxp != NULLEXTNUM))) {
-                cmn_err(CE_PANIC,"Access to block zero: fs: <%s> inode: %lld "
-			"start_block : %llx start_off : %llx blkcnt : %llx "
-			"extent-state : %x \n",
-			(ip->i_mount)->m_fsname, (long long)ip->i_ino,
+	if (unlikely(!(gotp->br_startblock) && (*lastxp != NULLEXTNUM) &&
+		     !(XFS_IS_REALTIME_INODE(ip) && fork == XFS_DATA_FORK))) {
+		xfs_cmn_err(XFS_PTAG_FSBLOCK_ZERO, CE_ALERT, ip->i_mount,
+				"Access to block zero in inode %llu "
+				"start_block: %llx start_off: %llx "
+				"blkcnt: %llx extent-state: %x lastx: %x\n",
+			(unsigned long long)ip->i_ino,
 			(unsigned long long)gotp->br_startblock,
 			(unsigned long long)gotp->br_startoff,
 			(unsigned long long)gotp->br_blockcount,
-			gotp->br_state);
-        }
-        return ep;
+			gotp->br_state, *lastxp);
+		*lastxp = NULLEXTNUM;
+		*eofp = 1;
+		return NULL;
+	}
+	return ep;
 }
 
 
