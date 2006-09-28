@@ -45,7 +45,7 @@ struct inet_skb_parm
 
 struct ipcm_cookie
 {
-	u32			addr;
+	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
 };

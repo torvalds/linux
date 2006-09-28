@@ -382,7 +382,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct rtable *rt = NULL;
 	int free = 0;
 	__be32 daddr;
-	u32 saddr;
+	__be32 saddr;
 	u8  tos;
 	int err;
 
