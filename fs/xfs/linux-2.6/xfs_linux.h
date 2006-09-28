@@ -332,4 +332,11 @@ static inline __uint64_t roundup_64(__uint64_t x, __uint32_t y)
 	return(x * y);
 }
 
+static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
+{
+	x += y - 1;
+	do_div(x, y);
+	return x;
+}
+
 #endif /* __XFS_LINUX__ */
