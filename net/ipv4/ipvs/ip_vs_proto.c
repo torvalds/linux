@@ -176,7 +176,7 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 			pp->name, NIPQUAD(ih->saddr),
 			NIPQUAD(ih->daddr));
 	else {
-		__u16 _ports[2], *pptr
+		__be16 _ports[2], *pptr
 ;
 		pptr = skb_header_pointer(skb, offset + ih->ihl*4,
 					  sizeof(_ports), _ports);

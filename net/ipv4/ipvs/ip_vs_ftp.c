@@ -74,7 +74,7 @@ ip_vs_ftp_done_conn(struct ip_vs_app *app, struct ip_vs_conn *cp)
  */
 static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 				  const char *pattern, size_t plen, char term,
-				  __u32 *addr, __u16 *port,
+				  __be32 *addr, __be16 *port,
 				  char **start, char **end)
 {
 	unsigned char p[6];
@@ -140,8 +140,8 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	struct tcphdr *th;
 	char *data, *data_limit;
 	char *start, *end;
-	__u32 from;
-	__u16 port;
+	__be32 from;
+	__be16 port;
 	struct ip_vs_conn *n_cp;
 	char buf[24];		/* xxx.xxx.xxx.xxx,ppp,ppp\000 */
 	unsigned buf_len;
@@ -199,7 +199,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		from = n_cp->vaddr;
 		port = n_cp->vport;
 		sprintf(buf,"%d,%d,%d,%d,%d,%d", NIPQUAD(from),
-			port&255, (port>>8)&255);
+			ntohs(port)&255, (ntohs(port)>>8)&255);
 		buf_len = strlen(buf);
 
 		/*
@@ -243,8 +243,8 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	struct tcphdr *th;
 	char *data, *data_start, *data_limit;
 	char *start, *end;
-	__u32 to;
-	__u16 port;
+	__be32 to;
+	__be16 port;
 	struct ip_vs_conn *n_cp;
 
 	/* no diff required for incoming packets */

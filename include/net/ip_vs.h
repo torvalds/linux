@@ -100,22 +100,22 @@
 struct ip_vs_service_user {
 	/* virtual service addresses */
 	u_int16_t		protocol;
-	u_int32_t		addr;		/* virtual ip address */
-	u_int16_t		port;
+	__be32			addr;		/* virtual ip address */
+	__be16			port;
 	u_int32_t		fwmark;		/* firwall mark of service */
 
 	/* virtual service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
 	unsigned		flags;		/* virtual service flags */
 	unsigned		timeout;	/* persistent timeout in sec */
-	u_int32_t		netmask;	/* persistent netmask */
+	__be32			netmask;	/* persistent netmask */
 };
 
 
 struct ip_vs_dest_user {
 	/* destination server address */
-	u_int32_t		addr;
-	u_int16_t		port;
+	__be32			addr;
+	__be16			port;
 
 	/* real server options */
 	unsigned		conn_flags;	/* connection flags */
@@ -163,15 +163,15 @@ struct ip_vs_getinfo {
 struct ip_vs_service_entry {
 	/* which service: user fills in these */
 	u_int16_t		protocol;
-	u_int32_t		addr;		/* virtual address */
-	u_int16_t		port;
+	__be32			addr;		/* virtual address */
+	__be16			port;
 	u_int32_t		fwmark;		/* firwall mark of service */
 
 	/* service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
 	unsigned		flags;          /* virtual service flags */
 	unsigned		timeout;	/* persistent timeout */
-	u_int32_t		netmask;	/* persistent netmask */
+	__be32			netmask;	/* persistent netmask */
 
 	/* number of real servers */
 	unsigned int		num_dests;
@@ -182,8 +182,8 @@ struct ip_vs_service_entry {
 
 
 struct ip_vs_dest_entry {
-	u_int32_t		addr;		/* destination address */
-	u_int16_t		port;
+	__be32			addr;		/* destination address */
+	__be16			port;
 	unsigned		conn_flags;	/* connection flags */
 	int			weight;		/* destination weight */
 
@@ -203,8 +203,8 @@ struct ip_vs_dest_entry {
 struct ip_vs_get_dests {
 	/* which service: user fills in these */
 	u_int16_t		protocol;
-	u_int32_t		addr;		/* virtual address */
-	u_int16_t		port;
+	__be32			addr;		/* virtual address */
+	__be16			port;
 	u_int32_t		fwmark;		/* firwall mark of service */
 
 	/* number of real servers */
@@ -502,12 +502,12 @@ struct ip_vs_conn {
 	struct list_head        c_list;         /* hashed list heads */
 
 	/* Protocol, addresses and port numbers */
-	__u32                   caddr;          /* client address */
-	__u32                   vaddr;          /* virtual address */
-	__u32                   daddr;          /* destination address */
-	__u16                   cport;
-	__u16                   vport;
-	__u16                   dport;
+	__be32                   caddr;          /* client address */
+	__be32                   vaddr;          /* virtual address */
+	__be32                   daddr;          /* destination address */
+	__be16                   cport;
+	__be16                   vport;
+	__be16                   dport;
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
 
 	/* counter and timer */
@@ -554,12 +554,12 @@ struct ip_vs_service {
 	atomic_t		usecnt;   /* use counter */
 
 	__u16			protocol; /* which protocol (TCP/UDP) */
-	__u32			addr;	  /* IP address for virtual service */
-	__u16			port;	  /* port number for the service */
+	__be32			addr;	  /* IP address for virtual service */
+	__be16			port;	  /* port number for the service */
 	__u32                   fwmark;   /* firewall mark of the service */
 	unsigned		flags;	  /* service status flags */
 	unsigned		timeout;  /* persistent timeout in ticks */
-	__u32			netmask;  /* grouping granularity */
+	__be32			netmask;  /* grouping granularity */
 
 	struct list_head	destinations;  /* real server d-linked list */
 	__u32			num_dests;     /* number of servers */
@@ -581,8 +581,8 @@ struct ip_vs_dest {
 	struct list_head	n_list;   /* for the dests in the service */
 	struct list_head	d_list;   /* for table with all the dests */
 
-	__u32			addr;		/* IP address of the server */
-	__u16			port;		/* port number of the server */
+	__be32			addr;		/* IP address of the server */
+	__be16			port;		/* port number of the server */
 	volatile unsigned	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
 	atomic_t		weight;		/* server weight */
@@ -605,8 +605,8 @@ struct ip_vs_dest {
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
 	__u16			protocol;	/* which protocol (TCP/UDP) */
-	__u32			vaddr;		/* virtual IP address */
-	__u16			vport;		/* virtual port number */
+	__be32			vaddr;		/* virtual IP address */
+	__be16			vport;		/* virtual port number */
 	__u32			vfwmark;	/* firewall mark of service */
 };
 
@@ -648,7 +648,7 @@ struct ip_vs_app
 	/* members for application incarnations */
 	struct list_head	p_list;		/* member in proto app list */
 	struct ip_vs_app	*app;		/* its real application */
-	__u16			port;		/* port number in net order */
+	__be16			port;		/* port number in net order */
 	atomic_t		usecnt;		/* usage counter */
 
 	/* output hook: return false if can't linearize. diff set for TCP.  */
@@ -740,11 +740,11 @@ enum {
 };
 
 extern struct ip_vs_conn *ip_vs_conn_in_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
 extern struct ip_vs_conn *ip_vs_ct_in_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
 extern struct ip_vs_conn *ip_vs_conn_out_get
-(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
+(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
 
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
@@ -752,11 +752,11 @@ static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 	atomic_dec(&cp->refcnt);
 }
 extern void ip_vs_conn_put(struct ip_vs_conn *cp);
-extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __u16 cport);
+extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 
 extern struct ip_vs_conn *
-ip_vs_conn_new(int proto, __u32 caddr, __u16 cport, __u32 vaddr, __u16 vport,
-	       __u32 daddr, __u16 dport, unsigned flags,
+ip_vs_conn_new(int proto, __be32 caddr, __be16 cport, __be32 vaddr, __be16 vport,
+	       __be32 daddr, __be16 dport, unsigned flags,
 	       struct ip_vs_dest *dest);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
@@ -887,7 +887,7 @@ extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
 
 extern struct ip_vs_service *
-ip_vs_service_get(__u32 fwmark, __u16 protocol, __u32 vaddr, __u16 vport);
+ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport);
 
 static inline void ip_vs_service_put(struct ip_vs_service *svc)
 {
@@ -895,7 +895,7 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 }
 
 extern struct ip_vs_dest *
-ip_vs_lookup_real_service(__u16 protocol, __u32 daddr, __u16 dport);
+ip_vs_lookup_real_service(__u16 protocol, __be32 daddr, __be16 dport);
 extern int ip_vs_use_count_inc(void);
 extern void ip_vs_use_count_dec(void);
 extern int ip_vs_control_init(void);
