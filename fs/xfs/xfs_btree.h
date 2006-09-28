@@ -145,7 +145,7 @@ typedef struct xfs_btree_cur
 	union {
 		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
-		xfs_inobt_rec_t		i;
+		xfs_inobt_rec_incore_t	i;
 	}		bc_rec;		/* current insert/search record value */
 	struct xfs_buf	*bc_bufs[XFS_BTREE_MAXLEVELS];	/* buf ptr per level */
 	int		bc_ptrs[XFS_BTREE_MAXLEVELS];	/* key/record # */

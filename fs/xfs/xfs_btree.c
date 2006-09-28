@@ -170,7 +170,7 @@ xfs_btree_check_key(
 
 		k1 = ak1;
 		k2 = ak2;
-		ASSERT(INT_GET(k1->ir_startino, ARCH_CONVERT) < INT_GET(k2->ir_startino, ARCH_CONVERT));
+		ASSERT(be32_to_cpu(k1->ir_startino) < be32_to_cpu(k2->ir_startino));
 		break;
 	    }
 	default:
@@ -285,8 +285,8 @@ xfs_btree_check_rec(
 
 		r1 = ar1;
 		r2 = ar2;
-		ASSERT(INT_GET(r1->ir_startino, ARCH_CONVERT) + XFS_INODES_PER_CHUNK <=
-		       INT_GET(r2->ir_startino, ARCH_CONVERT));
+		ASSERT(be32_to_cpu(r1->ir_startino) + XFS_INODES_PER_CHUNK <=
+		       be32_to_cpu(r2->ir_startino));
 		break;
 	    }
 	default:
