@@ -768,7 +768,7 @@ xfs_buf_get_noaddr(
 	_xfs_buf_initialize(bp, target, 0, len, 0);
 
  try_again:
-	data = kmem_alloc(malloc_len, KM_SLEEP | KM_MAYFAIL);
+	data = kmem_alloc(malloc_len, KM_SLEEP | KM_MAYFAIL | KM_LARGE);
 	if (unlikely(data == NULL))
 		goto fail_free_buf;
 

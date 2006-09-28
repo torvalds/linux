@@ -34,6 +34,14 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 	gfp_t	lflags = kmem_flags_convert(flags);
 	void	*ptr;
 
+#ifdef DEBUG
+	if (unlikely(!(flags & KM_LARGE) && (size > PAGE_SIZE))) {
+		printk(KERN_WARNING "Large %s attempt, size=%ld\n",
+			__FUNCTION__, (long)size);
+		dump_stack();
+	}
+#endif
+
 	do {
 		if (size < MAX_SLAB_SIZE || retries > MAX_VMALLOCS)
 			ptr = kmalloc(size, lflags);
