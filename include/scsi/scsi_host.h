@@ -552,6 +552,9 @@ struct Scsi_Host {
 	/* task mgmt function in progress */
 	unsigned tmf_in_progress:1;
 
+	/* Asynchronous scan in progress */
+	unsigned async_scan:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */

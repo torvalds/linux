@@ -141,6 +141,8 @@ obj-$(CONFIG_CHR_DEV_SCH)	+= ch.o
 # This goes last, so that "real" scsi devices probe earlier
 obj-$(CONFIG_SCSI_DEBUG)	+= scsi_debug.o
 
+obj-$(CONFIG_SCSI)		+= scsi_wait_scan.o
+
 scsi_mod-y			+= scsi.o hosts.o scsi_ioctl.o constants.o \
 				   scsicam.o scsi_error.o scsi_lib.o \
 				   scsi_scan.o scsi_sysfs.o \
