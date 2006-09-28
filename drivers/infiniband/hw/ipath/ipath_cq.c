@@ -177,11 +177,6 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 		goto done;
 	}
 
-	if (dev->n_cqs_allocated == ib_ipath_max_cqs) {
-		ret = ERR_PTR(-ENOMEM);
-		goto done;
-	}
-
 	/* Allocate the completion queue structure. */
 	cq = kmalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
@@ -237,6 +232,16 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 	} else
 		cq->ip = NULL;
 
+	spin_lock(&dev->n_cqs_lock);
+	if (dev->n_cqs_allocated == ib_ipath_max_cqs) {
+		spin_unlock(&dev->n_cqs_lock);
+		ret = ERR_PTR(-ENOMEM);
+		goto bail_wc;
+	}
+
+	dev->n_cqs_allocated++;
+	spin_unlock(&dev->n_cqs_lock);
+
 	/*
 	 * ib_create_cq() will initialize cq->ibcq except for cq->ibcq.cqe.
 	 * The number of entries should be >= the number requested or return
@@ -253,7 +258,6 @@ struct ib_cq *ipath_create_cq(struct ib_device *ibdev, int entries,
 
 	ret = &cq->ibcq;
 
-	dev->n_cqs_allocated++;
 	goto done;
 
 bail_wc:
@@ -280,7 +284,9 @@ int ipath_destroy_cq(struct ib_cq *ibcq)
 	struct ipath_cq *cq = to_icq(ibcq);
 
 	tasklet_kill(&cq->comptask);
+	spin_lock(&dev->n_cqs_lock);
 	dev->n_cqs_allocated--;
+	spin_unlock(&dev->n_cqs_lock);
 	if (cq->ip)
 		kref_put(&cq->ip->ref, ipath_release_mmap_info);
 	else
