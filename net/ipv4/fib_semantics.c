@@ -203,7 +203,7 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 	unsigned int val = fi->fib_nhs;
 
 	val ^= fi->fib_protocol;
-	val ^= fi->fib_prefsrc;
+	val ^= (__force u32)fi->fib_prefsrc;
 	val ^= fi->fib_priority;
 
 	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
@@ -273,7 +273,7 @@ int ip_fib_check_default(__be32 gw, struct net_device *dev)
 	return -1;
 }
 
-void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
+void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	       int dst_len, u32 tb_id, struct nl_info *info)
 {
 	struct sk_buff *skb;
@@ -568,11 +568,11 @@ out:
 	return 0;
 }
 
-static inline unsigned int fib_laddr_hashfn(u32 val)
+static inline unsigned int fib_laddr_hashfn(__be32 val)
 {
 	unsigned int mask = (fib_hash_size - 1);
 
-	return (val ^ (val >> 7) ^ (val >> 14)) & mask;
+	return ((__force u32)val ^ ((__force u32)val >> 7) ^ ((__force u32)val >> 14)) & mask;
 }
 
 static struct hlist_head *fib_hash_alloc(int bytes)
@@ -928,7 +928,7 @@ __be32 __fib_res_prefsrc(struct fib_result *res)
 }
 
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-		  u32 tb_id, u8 type, u8 scope, u32 dst, int dst_len, u8 tos,
+		  u32 tb_id, u8 type, u8 scope, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
@@ -1017,7 +1017,7 @@ nla_put_failure:
    - device went down -> we must shutdown all nexthops going via it.
  */
 
-int fib_sync_down(u32 local, struct net_device *dev, int force)
+int fib_sync_down(__be32 local, struct net_device *dev, int force)
 {
 	int ret = 0;
 	int scope = RT_SCOPE_NOWHERE;

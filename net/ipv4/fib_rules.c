@@ -40,10 +40,10 @@ struct fib4_rule
 	u8			dst_len;
 	u8			src_len;
 	u8			tos;
-	u32			src;
-	u32			srcmask;
-	u32			dst;
-	u32			dstmask;
+	__be32			src;
+	__be32			srcmask;
+	__be32			dst;
+	__be32			dstmask;
 #ifdef CONFIG_IP_ROUTE_FWMARK
 	u32			fwmark;
 	u32			fwmask;
@@ -150,8 +150,8 @@ void fib_select_default(const struct flowi *flp, struct fib_result *res)
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib4_rule *r = (struct fib4_rule *) rule;
-	u32 daddr = fl->fl4_dst;
-	u32 saddr = fl->fl4_src;
+	__be32 daddr = fl->fl4_dst;
+	__be32 saddr = fl->fl4_src;
 
 	if (((saddr ^ r->src) & r->srcmask) ||
 	    ((daddr ^ r->dst) & r->dstmask))

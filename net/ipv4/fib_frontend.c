@@ -253,7 +253,7 @@ e_inval:
 
 #ifndef CONFIG_IP_NOSIOCRT
 
-static inline u32 sk_extract_addr(struct sockaddr *addr)
+static inline __be32 sk_extract_addr(struct sockaddr *addr)
 {
 	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 }
@@ -292,7 +292,7 @@ static int rtentry_to_fib_config(int cmd, struct rtentry *rt,
 	plen = 32;
 	addr = sk_extract_addr(&rt->rt_dst);
 	if (!(rt->rt_flags & RTF_HOST)) {
-		u32 mask = sk_extract_addr(&rt->rt_genmask);
+		__be32 mask = sk_extract_addr(&rt->rt_genmask);
 
 		if (rt->rt_genmask.sa_family != AF_INET) {
 			if (mask || rt->rt_genmask.sa_family)
@@ -627,8 +627,7 @@ out:
    only when netlink is already locked.
  */
 
-static void fib_magic(int cmd, int type, u32 dst, int dst_len,
-		      struct in_ifaddr *ifa)
+static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct fib_table *tb;
 	struct fib_config cfg = {
