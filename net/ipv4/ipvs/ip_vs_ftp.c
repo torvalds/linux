@@ -365,12 +365,6 @@ static int __init ip_vs_ftp_init(void)
 	for (i=0; i<IP_VS_APP_MAX_PORTS; i++) {
 		if (!ports[i])
 			continue;
-		if (ports[i] < 0 || ports[i] > 0xffff) {
-			IP_VS_WARNING("ip_vs_ftp: Ignoring invalid "
-				      "configuration port[%d] = %d\n",
-				      i, ports[i]);
-			continue;
-		}
 		ret = register_ip_vs_app_inc(app, app->protocol, ports[i]);
 		if (ret)
 			break;
