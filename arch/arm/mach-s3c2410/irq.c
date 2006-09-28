@@ -181,6 +181,7 @@ s3c_irq_unmask(unsigned int irqno)
 }
 
 struct irqchip s3c_irq_level_chip = {
+	.name		= "s3c-level",
 	.ack		= s3c_irq_maskack,
 	.mask		= s3c_irq_mask,
 	.unmask		= s3c_irq_unmask,
@@ -188,6 +189,7 @@ struct irqchip s3c_irq_level_chip = {
 };
 
 static struct irqchip s3c_irq_chip = {
+	.name		= "s3c",
 	.ack		= s3c_irq_ack,
 	.mask		= s3c_irq_mask,
 	.unmask		= s3c_irq_unmask,
@@ -343,6 +345,7 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 }
 
 static struct irqchip s3c_irqext_chip = {
+	.name		= "s3c-ext",
 	.mask		= s3c_irqext_mask,
 	.unmask		= s3c_irqext_unmask,
 	.ack		= s3c_irqext_ack,
@@ -351,6 +354,7 @@ static struct irqchip s3c_irqext_chip = {
 };
 
 static struct irqchip s3c_irq_eint0t4 = {
+	.name		= "s3c-ext0",
 	.ack		= s3c_irq_ack,
 	.mask		= s3c_irq_mask,
 	.unmask		= s3c_irq_unmask,
@@ -387,6 +391,7 @@ s3c_irq_uart0_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart0 = {
+	.name		= "s3c-uart0",
 	.mask		= s3c_irq_uart0_mask,
 	.unmask		= s3c_irq_uart0_unmask,
 	.ack		= s3c_irq_uart0_ack,
@@ -413,6 +418,7 @@ s3c_irq_uart1_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart1 = {
+	.name		= "s3c-uart1",
 	.mask		= s3c_irq_uart1_mask,
 	.unmask		= s3c_irq_uart1_unmask,
 	.ack		= s3c_irq_uart1_ack,
@@ -439,6 +445,7 @@ s3c_irq_uart2_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart2 = {
+	.name		= "s3c-uart2",
 	.mask		= s3c_irq_uart2_mask,
 	.unmask		= s3c_irq_uart2_unmask,
 	.ack		= s3c_irq_uart2_ack,
@@ -465,6 +472,7 @@ s3c_irq_adc_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_adc = {
+	.name		= "s3c-adc",
 	.mask		= s3c_irq_adc_mask,
 	.unmask		= s3c_irq_adc_unmask,
 	.ack		= s3c_irq_adc_ack,
