@@ -166,6 +166,11 @@ struct tcp_info
 #include <net/inet_timewait_sock.h>
 
 /* This defines a selective acknowledgement block. */
+struct tcp_sack_block_wire {
+	__be32	start_seq;
+	__be32	end_seq;
+};
+
 struct tcp_sack_block {
 	__u32	start_seq;
 	__u32	end_seq;

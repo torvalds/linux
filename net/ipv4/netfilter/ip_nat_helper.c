@@ -283,7 +283,7 @@ sack_adjust(struct sk_buff *skb,
 	    struct ip_nat_seq *natseq)
 {
 	while (sackoff < sackend) {
-		struct tcp_sack_block *sack;
+		struct tcp_sack_block_wire *sack;
 		u_int32_t new_start_seq, new_end_seq;
 
 		sack = (void *)skb->data + sackoff;
