@@ -136,7 +136,7 @@ struct ip_sf_socklist
 {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
-	__u32			sl_addr[0];
+	__be32			sl_addr[0];
 };
 
 #define IP_SFLSIZE(count)	(sizeof(struct ip_sf_socklist) + \
@@ -159,7 +159,7 @@ struct ip_mc_socklist
 struct ip_sf_list
 {
 	struct ip_sf_list	*sf_next;
-	__u32			sf_inaddr;
+	__be32			sf_inaddr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
 	unsigned char		sf_gsresp;	/* include in g & s response? */
 	unsigned char		sf_oldin;	/* change state */

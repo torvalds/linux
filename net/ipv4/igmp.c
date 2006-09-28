@@ -426,7 +426,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 	first = 1;
 	psf_prev = NULL;
 	for (psf=*psf_list; psf; psf=psf_next) {
-		u32 *psrc;
+		__be32 *psrc;
 
 		psf_next = psf->sf_next;
 
@@ -455,7 +455,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ip_mc_list *pmc,
 			skb = add_grhead(skb, pmc, type, &pgr);
 			first = 0;
 		}
-		psrc = (u32 *)skb_put(skb, sizeof(u32));
+		psrc = (__be32 *)skb_put(skb, sizeof(u32));
 		*psrc = psf->sf_inaddr;
 		scount++; stotal++;
 		if ((type == IGMPV3_ALLOW_NEW_SOURCES ||
@@ -748,7 +748,7 @@ static void igmp_timer_expire(unsigned long data)
 }
 
 /* mark EXCLUDE-mode sources */
-static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 {
 	struct ip_sf_list *psf;
 	int i, scount;
@@ -775,7 +775,7 @@ static int igmp_xmarksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
 	return 1;
 }
 
-static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __u32 *srcs)
+static int igmp_marksources(struct ip_mc_list *pmc, int nsrcs, __be32 *srcs)
 {
 	struct ip_sf_list *psf;
 	int i, scount;
