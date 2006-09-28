@@ -152,6 +152,13 @@ UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
+/* Reported by Jon Hart <Jon.Hart@web.de> */
+UNUSUAL_DEV(  0x0421, 0x0434, 0x0100, 0x0100,
+		"Nokia",
+		"E60",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
  * Einar Th. Einarsson <einarthered@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
