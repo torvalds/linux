@@ -93,6 +93,10 @@ static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
 module_param(ata_probe_timeout, int, 0444);
 MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
 
+int noacpi;
+module_param(noacpi, int, 0444);
+MODULE_PARM_DESC(noacpi, "Disables the use of ACPI in suspend/resume when set");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -1777,6 +1781,9 @@ int ata_bus_probe(struct ata_port *ap)
 
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
+
+	/* retrieve and execute the ATA task file of _GTF */
+	ata_acpi_exec_tfs(ap);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
