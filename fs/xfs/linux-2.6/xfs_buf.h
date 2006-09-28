@@ -388,8 +388,6 @@ static inline int XFS_bwrite(xfs_buf_t *bp)
 	return error;
 }
 
-#define XFS_bdwrite(bp)		xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC)
-
 static inline int xfs_bdwrite(void *mp, xfs_buf_t *bp)
 {
 	bp->b_strat = xfs_bdstrat_cb;

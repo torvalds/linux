@@ -60,10 +60,6 @@ struct xfs_mount;
 	 XFS_SB_VERSION_LOGV2BIT | \
 	 XFS_SB_VERSION_SECTORBIT | \
 	 XFS_SB_VERSION_MOREBITSBIT)
-#define	XFS_SB_VERSION_OKSASHBITS	\
-	(XFS_SB_VERSION_NUMBITS | \
-	 XFS_SB_VERSION_REALFBITS | \
-	 XFS_SB_VERSION_OKSASHFBITS)
 #define	XFS_SB_VERSION_OKREALBITS	\
 	(XFS_SB_VERSION_NUMBITS | \
 	 XFS_SB_VERSION_OKREALFBITS | \
@@ -81,9 +77,6 @@ struct xfs_mount;
 #define XFS_SB_VERSION2_RESERVED2BIT	0x00000002
 #define XFS_SB_VERSION2_RESERVED4BIT	0x00000004
 #define XFS_SB_VERSION2_ATTR2BIT	0x00000008	/* Inline attr rework */
-#define XFS_SB_VERSION2_SASHFBITS	0xff000000	/* Mask: features that
-							   require changing
-							   PROM and SASH */
 
 #define	XFS_SB_VERSION2_OKREALFBITS	\
 	(XFS_SB_VERSION2_ATTR2BIT)
@@ -237,12 +230,6 @@ static inline int xfs_sb_good_version(xfs_sb_t *sbp)
 		   (sbp->sb_shared_vn <= XFS_SB_MAX_SHARED_VN))));
 }
 #endif /* __KERNEL__ */
-
-#define	XFS_SB_GOOD_SASH_VERSION(sbp)	\
-	((((sbp)->sb_versionnum >= XFS_SB_VERSION_1) && \
-	  ((sbp)->sb_versionnum <= XFS_SB_VERSION_3)) || \
-	 ((XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
-	  !((sbp)->sb_versionnum & ~XFS_SB_VERSION_OKSASHBITS)))
 
 #define	XFS_SB_VERSION_TONEW(v)	xfs_sb_version_tonew(v)
 static inline unsigned xfs_sb_version_tonew(unsigned v)
@@ -461,15 +448,6 @@ static inline void xfs_sb_version_addattr2(xfs_sb_t *sbp)
  * File system sector to basic block conversions.
  */
 #define XFS_FSS_TO_BB(mp,sec)	((sec) << (mp)->m_sectbb_log)
-#define XFS_BB_TO_FSS(mp,bb)	\
-	(((bb) + (XFS_FSS_TO_BB(mp,1) - 1)) >> (mp)->m_sectbb_log)
-#define XFS_BB_TO_FSST(mp,bb)	((bb) >> (mp)->m_sectbb_log)
-
-/*
- * File system sector to byte conversions.
- */
-#define XFS_FSS_TO_B(mp,sectno)	((xfs_fsize_t)(sectno) << (mp)->m_sb.sb_sectlog)
-#define XFS_B_TO_FSST(mp,b)	(((__uint64_t)(b)) >> (mp)->m_sb.sb_sectlog)
 
 /*
  * File system block to basic block conversions.

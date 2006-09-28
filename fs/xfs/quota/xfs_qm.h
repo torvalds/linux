@@ -56,12 +56,6 @@ extern kmem_zone_t	*qm_dqtrxzone;
 #define XFS_QM_HASHSIZE_HIGH		((NBPP * 4) / sizeof(xfs_dqhash_t))
 
 /*
- * We output a cmn_err when quotachecking a quota file with more than
- * this many fsbs.
- */
-#define XFS_QM_BIG_QCHECK_NBLKS		500
-
-/*
  * This defines the unit of allocation of dquots.
  * Currently, it is just one file system block, and a 4K blk contains 30
  * (136 * 30 = 4080) dquots. It's probably not worth trying to make
