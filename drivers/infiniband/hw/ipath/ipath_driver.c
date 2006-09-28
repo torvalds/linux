@@ -95,16 +95,6 @@ const char *ipath_ibcstatus_str[] = {
 	"RecovIdle",
 };
 
-/*
- * These variables are initialized in the chip-specific files
- * but are defined here.
- */
-u16 ipath_gpio_sda_num, ipath_gpio_scl_num;
-u64 ipath_gpio_sda, ipath_gpio_scl;
-u64 infinipath_i_bitsextant;
-ipath_err_t infinipath_e_bitsextant, infinipath_hwe_bitsextant;
-u32 infinipath_i_rcvavail_mask, infinipath_i_rcvurg_mask;
-
 static void __devexit ipath_remove_one(struct pci_dev *);
 static int __devinit ipath_init_one(struct pci_dev *,
 				    const struct pci_device_id *);

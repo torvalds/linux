@@ -252,8 +252,8 @@ static const struct ipath_cregs ipath_ht_cregs = {
 };
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
-#define INFINIPATH_I_RCVURG_MASK 0x1FF
-#define INFINIPATH_I_RCVAVAIL_MASK 0x1FF
+#define INFINIPATH_I_RCVURG_MASK ((1U<<9)-1)
+#define INFINIPATH_I_RCVAVAIL_MASK ((1U<<9)-1)
 
 /* kr_hwerrclear, kr_hwerrmask, kr_hwerrstatus, bits */
 #define INFINIPATH_HWE_HTCMEMPARITYERR_SHIFT 0
@@ -457,10 +457,10 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 "(cleared)\n", (unsigned long long) hwerrs);
 	dd->ipath_lasthwerror |= hwerrs;
 
-	if (hwerrs & ~infinipath_hwe_bitsextant)
+	if (hwerrs & ~dd->ipath_hwe_bitsextant)
 		ipath_dev_err(dd, "hwerror interrupt with unknown errors "
 			      "%llx set\n", (unsigned long long)
-			      (hwerrs & ~infinipath_hwe_bitsextant));
+			      (hwerrs & ~dd->ipath_hwe_bitsextant));
 
 	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
 	if (ctrl & INFINIPATH_C_FREEZEMODE) {
@@ -1058,21 +1058,21 @@ static void ipath_setup_ht_setextled(struct ipath_devdata *dd,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_extctrl, extctl);
 }
 
-static void ipath_init_ht_variables(void)
+static void ipath_init_ht_variables(struct ipath_devdata *dd)
 {
-	ipath_gpio_sda_num = _IPATH_GPIO_SDA_NUM;
-	ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
-	ipath_gpio_sda = IPATH_GPIO_SDA;
-	ipath_gpio_scl = IPATH_GPIO_SCL;
+	dd->ipath_gpio_sda_num = _IPATH_GPIO_SDA_NUM;
+	dd->ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
+	dd->ipath_gpio_sda = IPATH_GPIO_SDA;
+	dd->ipath_gpio_scl = IPATH_GPIO_SCL;
 
-	infinipath_i_bitsextant =
+	dd->ipath_i_bitsextant =
 		(INFINIPATH_I_RCVURG_MASK << INFINIPATH_I_RCVURG_SHIFT) |
 		(INFINIPATH_I_RCVAVAIL_MASK <<
 		 INFINIPATH_I_RCVAVAIL_SHIFT) |
 		INFINIPATH_I_ERROR | INFINIPATH_I_SPIOSENT |
 		INFINIPATH_I_SPIOBUFAVAIL | INFINIPATH_I_GPIO;
 
-	infinipath_e_bitsextant =
+	dd->ipath_e_bitsextant =
 		INFINIPATH_E_RFORMATERR | INFINIPATH_E_RVCRC |
 		INFINIPATH_E_RICRC | INFINIPATH_E_RMINPKTLEN |
 		INFINIPATH_E_RMAXPKTLEN | INFINIPATH_E_RLONGPKTLEN |
@@ -1090,7 +1090,7 @@ static void ipath_init_ht_variables(void)
 		INFINIPATH_E_INVALIDADDR | INFINIPATH_E_RESET |
 		INFINIPATH_E_HARDWARE;
 
-	infinipath_hwe_bitsextant =
+	dd->ipath_hwe_bitsextant =
 		(INFINIPATH_HWE_HTCMEMPARITYERR_MASK <<
 		 INFINIPATH_HWE_HTCMEMPARITYERR_SHIFT) |
 		(INFINIPATH_HWE_TXEMEMPARITYERR_MASK <<
@@ -1119,8 +1119,8 @@ static void ipath_init_ht_variables(void)
 		INFINIPATH_HWE_IBCBUSTOSPCPARITYERR |
 		INFINIPATH_HWE_IBCBUSFRSPCPARITYERR;
 
-	infinipath_i_rcvavail_mask = INFINIPATH_I_RCVAVAIL_MASK;
-	infinipath_i_rcvurg_mask = INFINIPATH_I_RCVURG_MASK;
+	dd->ipath_i_rcvavail_mask = INFINIPATH_I_RCVAVAIL_MASK;
+	dd->ipath_i_rcvurg_mask = INFINIPATH_I_RCVURG_MASK;
 }
 
 /**
@@ -1585,5 +1585,5 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	 * do very early init that is needed before ipath_f_bus is
 	 * called
 	 */
-	ipath_init_ht_variables();
+	ipath_init_ht_variables(dd);
 }

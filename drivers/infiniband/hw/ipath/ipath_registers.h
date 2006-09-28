@@ -316,19 +316,23 @@
 
 typedef u64 ipath_err_t;
 
+/* The following change with the type of device, so
+ * need to be part of the ipath_devdata struct, or
+ * we could have problems plugging in devices of
+ * different types (e.g. one HT, one PCIE)
+ * in one system, to be managed by one driver.
+ * On the other hand, this file is may also be included
+ * by other code, so leave the declarations here
+ * temporarily. Minor footprint issue if common-model
+ * linker used, none if C89+ linker used.
+ */
+
 /* mask of defined bits for various registers */
 extern u64 infinipath_i_bitsextant;
 extern ipath_err_t infinipath_e_bitsextant, infinipath_hwe_bitsextant;
 
 /* masks that are different in various chips, or only exist in some chips */
 extern u32 infinipath_i_rcvavail_mask, infinipath_i_rcvurg_mask;
-
-/*
- * register bits for selecting i2c direction and values, used for I2C serial
- * flash
- */
-extern u16 ipath_gpio_sda_num, ipath_gpio_scl_num;
-extern u64 ipath_gpio_sda, ipath_gpio_scl;
 
 /*
  * These are the infinipath general register numbers (not offsets).

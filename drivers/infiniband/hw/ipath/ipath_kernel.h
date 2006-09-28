@@ -533,6 +533,30 @@ struct ipath_devdata {
 	u32 ipath_rxfc_unsupvl_errs;
 	u32 ipath_overrun_thresh_errs;
 	u32 ipath_lli_errs;
+
+	/*
+	 * Not all devices managed by a driver instance are the same
+	 * type, so these fields must be per-device.
+	 */
+	u64 ipath_i_bitsextant;
+	ipath_err_t ipath_e_bitsextant;
+	ipath_err_t ipath_hwe_bitsextant;
+
+	/*
+	 * Below should be computable from number of ports,
+	 * since they are never modified.
+	 */
+	u32 ipath_i_rcvavail_mask;
+	u32 ipath_i_rcvurg_mask;
+
+	/*
+	 * Register bits for selecting i2c direction and values, used for
+	 * I2C serial flash.
+	 */
+	u16 ipath_gpio_sda_num;
+	u16 ipath_gpio_scl_num;
+	u64 ipath_gpio_sda;
+	u64 ipath_gpio_scl;
 };
 
 /* Private data for file operations */

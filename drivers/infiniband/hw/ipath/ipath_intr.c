@@ -480,10 +480,10 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		dd->ipath_f_handle_hwerrors(dd, msg, sizeof msg);
 	}
 
-	if (!noprint && (errs & ~infinipath_e_bitsextant))
+	if (!noprint && (errs & ~dd->ipath_e_bitsextant))
 		ipath_dev_err(dd, "error interrupt with unknown errors "
 			      "%llx set\n", (unsigned long long)
-			      (errs & ~infinipath_e_bitsextant));
+			      (errs & ~dd->ipath_e_bitsextant));
 
 	if (errs & E_SUM_ERRS)
 		ignore_this_time = handle_e_sum_errs(dd, errs);
@@ -805,9 +805,9 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	int rcvdint = 0;
 
 	portr = ((istat >> INFINIPATH_I_RCVAVAIL_SHIFT) &
-		 infinipath_i_rcvavail_mask)
+		 dd->ipath_i_rcvavail_mask)
 		| ((istat >> INFINIPATH_I_RCVURG_SHIFT) &
-		   infinipath_i_rcvurg_mask);
+		   dd->ipath_i_rcvurg_mask);
 	for (i = 1; i < dd->ipath_cfgports; i++) {
 		struct ipath_portdata *pd = dd->ipath_pd[i];
 		if (portr & (1 << i) && pd && pd->port_cnt &&
@@ -914,10 +914,10 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	if (unexpected)
 		unexpected = 0;
 
-	if (unlikely(istat & ~infinipath_i_bitsextant))
+	if (unlikely(istat & ~dd->ipath_i_bitsextant))
 		ipath_dev_err(dd,
 			      "interrupt with unknown interrupts %x set\n",
-			      istat & (u32) ~ infinipath_i_bitsextant);
+			      istat & (u32) ~ dd->ipath_i_bitsextant);
 	else
 		ipath_cdbg(VERBOSE, "intr stat=0x%x\n", istat);
 
@@ -1041,9 +1041,9 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 		istat &= ~port0rbits;
 	}
 
-	if (istat & ((infinipath_i_rcvavail_mask <<
+	if (istat & ((dd->ipath_i_rcvavail_mask <<
 		      INFINIPATH_I_RCVAVAIL_SHIFT)
-		     | (infinipath_i_rcvurg_mask <<
+		     | (dd->ipath_i_rcvurg_mask <<
 			INFINIPATH_I_RCVURG_SHIFT)))
 		handle_urcv(dd, istat);
 
