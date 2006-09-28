@@ -161,14 +161,12 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	return(0);
 }
 
+static struct net_device_stats loopback_stats;
+
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
-	struct net_device_stats *stats = dev->priv;
+	struct net_device_stats *stats = &loopback_stats;
 	int i;
-
-	if (!stats) {
-		return NULL;
-	}
 
 	memset(stats, 0, sizeof(struct net_device_stats));
 
@@ -185,19 +183,28 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	return stats;
 }
 
-static u32 loopback_get_link(struct net_device *dev)
+static u32 always_on(struct net_device *dev)
 {
 	return 1;
 }
 
 static const struct ethtool_ops loopback_ethtool_ops = {
-	.get_link		= loopback_get_link,
+	.get_link		= always_on,
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
+	.get_tx_csum		= always_on,
+	.get_sg			= always_on,
+	.get_rx_csum		= always_on,
 };
 
+/*
+ * The loopback device is special. There is only one instance and
+ * it is statically allocated. Don't do this for other devices.
+ */
 struct net_device loopback_dev = {
 	.name	 		= "lo",
+	.get_stats		= &get_stats,
+	.priv			= &loopback_stats,
 	.mtu			= (16 * 1024) + 20 + 20 + 12,
 	.hard_start_xmit	= loopback_xmit,
 	.hard_header		= eth_header,
@@ -221,16 +228,6 @@ struct net_device loopback_dev = {
 /* Setup and register the loopback device. */
 int __init loopback_init(void)
 {
-	struct net_device_stats *stats;
-
-	/* Can survive without statistics */
-	stats = kmalloc(sizeof(struct net_device_stats), GFP_KERNEL);
-	if (stats) {
-		memset(stats, 0, sizeof(struct net_device_stats));
-		loopback_dev.priv = stats;
-		loopback_dev.get_stats = &get_stats;
-	}
-
 	return register_netdev(&loopback_dev);
 };
 
