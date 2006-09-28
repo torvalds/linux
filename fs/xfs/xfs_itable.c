@@ -635,13 +635,13 @@ xfs_bulkstat(
 						ubleft, private_data,
 						bno, &ubused, dip, &fmterror);
 				if (fmterror == BULKSTAT_RV_NOTHING) {
-					if (error == ENOMEM)
-						ubleft = 0;
-                                        else if (error) {
+                                        if (error == EFAULT) {
                                                 ubleft = 0;
                                                 rval = error;
                                                 break;
                                         }
+					else if (error == ENOMEM)
+						ubleft = 0;
 					continue;
 				}
 				if (fmterror == BULKSTAT_RV_GIVEUP) {
