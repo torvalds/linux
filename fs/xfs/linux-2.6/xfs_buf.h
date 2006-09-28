@@ -298,11 +298,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_UNWRITE(bp)	((bp)->b_flags &= ~XBF_WRITE)
 #define XFS_BUF_ISWRITE(bp)	((bp)->b_flags & XBF_WRITE)
 
-#define XFS_BUF_ISUNINITIAL(bp)	(0)
-#define XFS_BUF_UNUNINITIAL(bp)	(0)
-
-#define XFS_BUF_BP_ISMAPPED(bp)	(1)
-
 #define XFS_BUF_IODONE_FUNC(bp)			((bp)->b_iodone)
 #define XFS_BUF_SET_IODONE_FUNC(bp, func)	((bp)->b_iodone = (func))
 #define XFS_BUF_CLR_IODONE_FUNC(bp)		((bp)->b_iodone = NULL)
