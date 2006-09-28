@@ -1701,18 +1701,17 @@ done:
 
 static int ipath_open(struct inode *in, struct file *fp)
 {
-	/* The real work is performed later in ipath_do_user_init() */
+	/* The real work is performed later in ipath_assign_port() */
 	fp->private_data = kzalloc(sizeof(struct ipath_filedata), GFP_KERNEL);
 	return fp->private_data ? 0 : -ENOMEM;
 }
 
-static int ipath_do_user_init(struct file *fp,
+
+/* Get port early, so can set affinity prior to memory allocation */
+static int ipath_assign_port(struct file *fp,
 			      const struct ipath_user_info *uinfo)
 {
 	int ret;
-	struct ipath_portdata *pd;
-	struct ipath_devdata *dd;
-	u32 head32;
 	int i_minor;
 	unsigned swminor;
 
@@ -1757,8 +1756,18 @@ static int ipath_do_user_init(struct file *fp,
 
 	mutex_unlock(&ipath_mutex);
 
-	if (ret)
-		goto done;
+done:
+	return ret;
+}
+
+
+static int ipath_do_user_init(struct file *fp,
+			      const struct ipath_user_info *uinfo)
+{
+	int ret;
+	struct ipath_portdata *pd;
+	struct ipath_devdata *dd;
+	u32 head32;
 
 	pd = port_fp(fp);
 	dd = pd->port_dd;
@@ -2035,6 +2044,8 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 	consumed = sizeof(cmd.type);
 
 	switch (cmd.type) {
+	case IPATH_CMD_ASSIGN_PORT:
+	case __IPATH_CMD_USER_INIT:
 	case IPATH_CMD_USER_INIT:
 		copy = sizeof(cmd.cmd.user_info);
 		dest = &cmd.cmd.user_info;
@@ -2083,12 +2094,24 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 
 	consumed += copy;
 	pd = port_fp(fp);
-	if (!pd && cmd.type != IPATH_CMD_USER_INIT) {
+	if (!pd && cmd.type != __IPATH_CMD_USER_INIT &&
+		cmd.type != IPATH_CMD_ASSIGN_PORT) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
 	switch (cmd.type) {
+	case IPATH_CMD_ASSIGN_PORT:
+		ret = ipath_assign_port(fp, &cmd.cmd.user_info);
+		if (ret)
+			goto bail;
+		break;
+	case __IPATH_CMD_USER_INIT:
+		/* backwards compatibility, get port first */
+		ret = ipath_assign_port(fp, &cmd.cmd.user_info);
+		if (ret)
+			goto bail;
+		/* and fall through to current version. */
 	case IPATH_CMD_USER_INIT:
 		ret = ipath_do_user_init(fp, &cmd.cmd.user_info);
 		if (ret)

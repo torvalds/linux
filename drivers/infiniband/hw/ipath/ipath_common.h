@@ -412,15 +412,17 @@ struct ipath_user_info {
 
 #define IPATH_CMD_MIN		16
 
-#define IPATH_CMD_USER_INIT	16	/* set up userspace */
+#define __IPATH_CMD_USER_INIT	16	/* old set up userspace (for old user code) */
 #define IPATH_CMD_PORT_INFO	17	/* find out what resources we got */
 #define IPATH_CMD_RECV_CTRL	18	/* control receipt of packets */
 #define IPATH_CMD_TID_UPDATE	19	/* update expected TID entries */
 #define IPATH_CMD_TID_FREE	20	/* free expected TID entries */
 #define IPATH_CMD_SET_PART_KEY	21	/* add partition key */
 #define IPATH_CMD_SLAVE_INFO	22	/* return info on slave processes */
+#define IPATH_CMD_ASSIGN_PORT	23	/* allocate HCA and port */
+#define IPATH_CMD_USER_INIT 	24	/* set up userspace */
 
-#define IPATH_CMD_MAX		22
+#define IPATH_CMD_MAX		24
 
 struct ipath_port_info {
 	__u32 num_active;	/* number of active units */
