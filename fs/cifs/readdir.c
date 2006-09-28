@@ -135,12 +135,19 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_ctime =
 		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
 	} else { /* legacy, OS2 and DOS style */
+/*		struct timespec ts;*/
 		FIND_FILE_STANDARD_INFO * pfindData = 
 			(FIND_FILE_STANDARD_INFO *)buf;
 
+/*		ts = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastWriteDate),
+				le16_to_cpu(pfindData->LastWriteTime));*/
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
 		end_of_file = le32_to_cpu(pfindData->DataSize);
+		/* do not need to use current_fs_time helper function since
+		 time not stored for this case so atime can not "go backwards"
+		 by pulling newer older from disk when inode refrenshed */
 		tmp_inode->i_atime = CURRENT_TIME;
 		/* tmp_inode->i_mtime =  BB FIXME - add dos time handling
 		tmp_inode->i_ctime = 0;   BB FIXME */

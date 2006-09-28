@@ -909,3 +909,54 @@ cifs_UnixTimeToNT(struct timespec t)
 	/* Convert to 100ns intervals and then add the NTFS time offset. */
 	return (u64) t.tv_sec * 10000000 + t.tv_nsec/100 + NTFS_TIME_OFFSET;
 }
+
+static int total_days_of_prev_months[] =
+{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+
+
+__le64 cnvrtDosCifsTm(__u16 date, __u16 time)
+{
+	return cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(date, time)));
+}
+struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
+{
+	__u8  dt[2];
+	__u8  tm[2];
+	struct timespec ts;
+	int sec,min, days, month, year;
+	struct timespec removeme; /* BB removeme BB */
+/*	SMB_TIME * st = (SMB_TIME *)&time;*/
+
+	cFYI(1,("date %d time %d",date, time));
+
+	dt[0] = date & 0xFF;
+	dt[1] = (date & 0xFF00) >> 8;
+	tm[0] = time & 0xFF;
+	tm[1] = (time & 0xFF00) >> 8;
+
+	sec = tm[0] & 0x1F;
+	sec = 2 * sec;
+	min = ((tm[0] >>5)&0xFF) + ((tm[1] & 0x7)<<3);
+
+	sec += (min * 60);
+	sec += 60 * 60 * ((tm[1] >> 3) &0xFF) /* hours */;
+	days = (dt[0] & 0x1F) - 1;
+	month = ((dt[0] >> 5) & 0xFF) + ((dt[1] & 0x1) <<3);
+	if(month > 12)
+		cERROR(1,("illegal month %d in date", month));
+	month -= 1;
+	days += total_days_of_prev_months[month];
+	days += 3653; /* account for difference in days between 1980 and 1970 */
+	year = (dt[1]>>1) & 0xFF;
+	days += year * 365;
+	days += (year/4); /* leap year */
+	/* adjust for leap year where we are still before leap day */
+	days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
+	sec += 24 * 60 * 60 * days; 
+
+	removeme = CURRENT_TIME; /* BB removeme BB */
+	ts.tv_sec = sec;
+
+	ts.tv_nsec = 0;
+	return ts;
+} 

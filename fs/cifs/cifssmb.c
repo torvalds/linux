@@ -2856,7 +2856,6 @@ qsec_out:
 	return rc;
 }
 
-
 /* Legacy Query Path Information call for lookup to old servers such
    as Win9x/WinME */
 int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
@@ -2898,7 +2897,16 @@ QInfRetry:
 	if (rc) {
 		cFYI(1, ("Send error in QueryInfo = %d", rc));
 	} else if (pFinfo) {            /* decode response */
+		struct timespec ts;
+		__u32 time = le32_to_cpu(pSMBr->last_write_time);
+		/* BB FIXME - add time zone adjustment BB */
 		memset(pFinfo, 0, sizeof(FILE_ALL_INFO));
+		ts.tv_nsec = 0;
+		ts.tv_sec = time;
+		/* decode time fields */
+		pFinfo->ChangeTime = cifs_UnixTimeToNT(ts);
+		pFinfo->LastWriteTime = pFinfo->ChangeTime;
+		pFinfo->LastAccessTime = 0;
 		pFinfo->AllocationSize =
 			cpu_to_le64(le32_to_cpu(pSMBr->size));
 		pFinfo->EndOfFile = pFinfo->AllocationSize;

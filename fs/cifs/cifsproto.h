@@ -80,6 +80,9 @@ extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16,
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
 extern struct timespec cifs_NTtimeToUnix(u64 /* utc nanoseconds since 1601 */ );
 extern u64 cifs_UnixTimeToNT(struct timespec);
+extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
+extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
+
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path, 
 			FILE_ALL_INFO * pfile_info,

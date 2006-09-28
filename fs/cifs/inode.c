@@ -432,8 +432,11 @@ int cifs_get_inode_info(struct inode **pinode,
 		(pTcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE) & 0xFFFFFE00;*/
 
 		/* Linux can not store file creation time so ignore it */
-		inode->i_atime =
-		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+		if(pfindData->LastAccessTime)
+			inode->i_atime = cifs_NTtimeToUnix
+				(le64_to_cpu(pfindData->LastAccessTime));
+		else /* do not need to use current_fs_time - time not stored */
+			inode->i_atime = CURRENT_TIME;
 		inode->i_mtime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
 		inode->i_ctime =
