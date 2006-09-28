@@ -51,7 +51,7 @@
 
 #define IP_NAT_PPTP_VERSION "3.0"
 
-#define REQ_CID(req, off)		(*(u_int16_t *)((char *)(req) + (off)))
+#define REQ_CID(req, off)		(*(__be16 *)((char *)(req) + (off)))
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");

@@ -1211,7 +1211,7 @@ static int snmp_translate(struct ip_conntrack *ct,
                           struct sk_buff **pskb)
 {
 	struct iphdr *iph = (*pskb)->nh.iph;
-	struct udphdr *udph = (struct udphdr *)((u_int32_t *)iph + iph->ihl);
+	struct udphdr *udph = (struct udphdr *)((__be32 *)iph + iph->ihl);
 	u_int16_t udplen = ntohs(udph->len);
 	u_int16_t paylen = udplen - sizeof(struct udphdr);
 	int dir = CTINFO2DIR(ctinfo);
