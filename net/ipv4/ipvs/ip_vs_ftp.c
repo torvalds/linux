@@ -44,8 +44,8 @@
  * List of ports (up to IP_VS_APP_MAX_PORTS) to be handled by helper
  * First port is set to the default port.
  */
-static int ports[IP_VS_APP_MAX_PORTS] = {21, 0};
-module_param_array(ports, int, NULL, 0);
+static unsigned short ports[IP_VS_APP_MAX_PORTS] = {21, 0};
+module_param_array(ports, ushort, NULL, 0);
 MODULE_PARM_DESC(ports, "Ports to monitor for FTP control commands");
 
 
