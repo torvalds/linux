@@ -281,7 +281,7 @@ struct xfrm_usersa_info {
 
 struct xfrm_usersa_id {
 	xfrm_address_t			daddr;
-	__u32				spi;
+	__be32				spi;
 	__u16				family;
 	__u8				proto;
 };
