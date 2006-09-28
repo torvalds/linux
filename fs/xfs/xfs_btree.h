@@ -243,6 +243,9 @@ xfs_btree_check_lptr(
 	xfs_dfsbno_t		ptr,	/* btree block disk address */
 	int			level);	/* btree block level */
 
+#define xfs_btree_check_lptr_disk(cur, ptr, level) \
+	xfs_btree_check_lptr(cur, INT_GET(ptr, ARCH_CONVERT), level)
+
 /*
  * Checking routine: check that short form block header is ok.
  */

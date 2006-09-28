@@ -382,7 +382,7 @@ xfs_bmbt_delrec(
 		pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
 #ifdef DEBUG
 		for (i = ptr; i < numrecs; i++) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(pp[i], ARCH_CONVERT), level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, pp[i], level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				goto error0;
 			}
@@ -621,7 +621,7 @@ xfs_bmbt_delrec(
 		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
 #ifdef DEBUG
 		for (i = 0; i < numrrecs; i++) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(rpp[i], ARCH_CONVERT), level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, rpp[i], level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				goto error0;
 			}
@@ -858,7 +858,7 @@ xfs_bmbt_insrec(
 		pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
 #ifdef DEBUG
 		for (i = numrecs; i >= ptr; i--) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(pp[i - 1], ARCH_CONVERT),
+			if ((error = xfs_btree_check_lptr_disk(cur, pp[i - 1],
 					level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
@@ -988,7 +988,7 @@ xfs_bmbt_killroot(
 	cpp = XFS_BMAP_PTR_IADDR(cblock, 1, cur);
 #ifdef DEBUG
 	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
-		if ((error = xfs_btree_check_lptr(cur, INT_GET(cpp[i], ARCH_CONVERT), level - 1))) {
+		if ((error = xfs_btree_check_lptr_disk(cur, cpp[i], level - 1))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}
@@ -1190,7 +1190,7 @@ xfs_bmbt_lookup(
 				keyno = 1;
 			pp = XFS_BMAP_PTR_IADDR(block, keyno, cur);
 #ifdef DEBUG
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(*pp, ARCH_CONVERT), level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, *pp, level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
@@ -1313,7 +1313,7 @@ xfs_bmbt_lshift(
 		lpp = XFS_BMAP_PTR_IADDR(left, lrecs, cur);
 		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
 #ifdef DEBUG
-		if ((error = xfs_btree_check_lptr(cur, INT_GET(*rpp, ARCH_CONVERT), level))) {
+		if ((error = xfs_btree_check_lptr_disk(cur, *rpp, level))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}
@@ -1340,7 +1340,7 @@ xfs_bmbt_lshift(
 	if (level > 0) {
 #ifdef DEBUG
 		for (i = 0; i < rrecs; i++) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(rpp[i + 1], ARCH_CONVERT),
+			if ((error = xfs_btree_check_lptr_disk(cur, rpp[i + 1],
 					level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
@@ -1445,7 +1445,7 @@ xfs_bmbt_rshift(
 		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
 #ifdef DEBUG
 		for (i = be16_to_cpu(right->bb_numrecs) - 1; i >= 0; i--) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(rpp[i], ARCH_CONVERT), level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, rpp[i] level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
@@ -1454,7 +1454,7 @@ xfs_bmbt_rshift(
 		memmove(rkp + 1, rkp, be16_to_cpu(right->bb_numrecs) * sizeof(*rkp));
 		memmove(rpp + 1, rpp, be16_to_cpu(right->bb_numrecs) * sizeof(*rpp));
 #ifdef DEBUG
-		if ((error = xfs_btree_check_lptr(cur, INT_GET(*lpp, ARCH_CONVERT), level))) {
+		if ((error = xfs_btree_check_lptr_disk(cur, *lpp, level))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}
@@ -1619,7 +1619,7 @@ xfs_bmbt_split(
 		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
 #ifdef DEBUG
 		for (i = 0; i < be16_to_cpu(right->bb_numrecs); i++) {
-			if ((error = xfs_btree_check_lptr(cur, INT_GET(lpp[i], ARCH_CONVERT), level))) {
+			if ((error = xfs_btree_check_lptr_disk(cur, lpp[i], level))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
@@ -2356,7 +2356,7 @@ xfs_bmbt_newroot(
 	args.firstblock = args.fsbno;
 	if (args.fsbno == NULLFSBLOCK) {
 #ifdef DEBUG
-		if ((error = xfs_btree_check_lptr(cur, INT_GET(*pp, ARCH_CONVERT), level))) {
+		if ((error = xfs_btree_check_lptr_disk(cur, *pp, level))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}
@@ -2393,7 +2393,7 @@ xfs_bmbt_newroot(
 	cpp = XFS_BMAP_PTR_IADDR(cblock, 1, cur);
 #ifdef DEBUG
 	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
-		if ((error = xfs_btree_check_lptr(cur, INT_GET(pp[i], ARCH_CONVERT), level))) {
+		if ((error = xfs_btree_check_lptr_disk(cur, pp[i], level))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			return error;
 		}

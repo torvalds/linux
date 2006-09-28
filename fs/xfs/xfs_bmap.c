@@ -3013,7 +3013,7 @@ xfs_bmap_btree_to_extents(
 	pp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, ifp->if_broot_bytes);
 	*logflagsp = 0;
 #ifdef DEBUG
-	if ((error = xfs_btree_check_lptr(cur, INT_GET(*pp, ARCH_CONVERT), 1)))
+	if ((error = xfs_btree_check_lptr_disk(cur, *pp, 1)))
 		return error;
 #endif
 	cbno = INT_GET(*pp, ARCH_CONVERT);
