@@ -311,6 +311,4 @@
 #define IRQ6_PRIORITY	1
 #define IRQ7_PRIORITY	1
 
-int shmse_irq_demux(int irq);
-
 #endif /* __ASM_SH_IRQ_SH73180_H */

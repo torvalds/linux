@@ -1059,10 +1059,10 @@ rpc_destroy_mempool(void)
 		mempool_destroy(rpc_buffer_mempool);
 	if (rpc_task_mempool)
 		mempool_destroy(rpc_task_mempool);
-	if (rpc_task_slabp && kmem_cache_destroy(rpc_task_slabp))
-		printk(KERN_INFO "rpc_task: not all structures were freed\n");
-	if (rpc_buffer_slabp && kmem_cache_destroy(rpc_buffer_slabp))
-		printk(KERN_INFO "rpc_buffers: not all structures were freed\n");
+	if (rpc_task_slabp)
+		kmem_cache_destroy(rpc_task_slabp);
+	if (rpc_buffer_slabp)
+		kmem_cache_destroy(rpc_buffer_slabp);
 }
 
 int

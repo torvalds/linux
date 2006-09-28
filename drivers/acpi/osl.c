@@ -1079,7 +1079,7 @@ acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
 
 acpi_status acpi_os_delete_cache(acpi_cache_t * cache)
 {
-	(void)kmem_cache_destroy(cache);
+	kmem_cache_destroy(cache);
 	return (AE_OK);
 }
 

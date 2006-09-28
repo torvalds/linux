@@ -14,7 +14,6 @@
 #include <sched.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <setjmp.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <sys/mman.h>

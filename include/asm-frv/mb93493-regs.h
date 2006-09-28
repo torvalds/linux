@@ -15,6 +15,7 @@
 #include <asm/mb-regs.h>
 #include <asm/mb93493-irqs.h>
 
+#define __addr_MB93493(X)	((volatile unsigned long *)(__region_CS3 + (X)))
 #define __get_MB93493(X)	({ *(volatile unsigned long *)(__region_CS3 + (X)); })
 
 #define __set_MB93493(X,V)						\
@@ -26,6 +27,7 @@ do {									\
 #define __set_MB93493_STSR(X,V)	__set_MB93493(0x3c0 + (X) * 4, (V))
 #define MB93493_STSR_EN
 
+#define __addr_MB93493_IQSR(X)	__addr_MB93493(0x3d0 + (X) * 4)
 #define __get_MB93493_IQSR(X)	__get_MB93493(0x3d0 + (X) * 4)
 #define __set_MB93493_IQSR(X,V)	__set_MB93493(0x3d0 + (X) * 4, (V))
 

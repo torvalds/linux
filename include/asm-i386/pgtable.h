@@ -246,6 +246,23 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 # include <asm/pgtable-2level.h>
 #endif
 
+/*
+ * We only update the dirty/accessed state if we set
+ * the dirty bit by hand in the kernel, since the hardware
+ * will do the accessed bit for us, and we don't want to
+ * race with other CPU's that might be updating the dirty
+ * bit at the same time.
+ */
+#define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+#define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
+do {									\
+	if (dirty) {							\
+		(ptep)->pte_low = (entry).pte_low;			\
+		flush_tlb_page(vma, address);				\
+	}								\
+} while (0)
+
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	if (!pte_dirty(*ptep))
@@ -253,6 +270,7 @@ static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned
 	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low);
 }
 
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	if (!pte_young(*ptep))
@@ -260,6 +278,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned
 	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low);
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
 {
 	pte_t pte;
@@ -272,6 +291,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 	return pte;
 }
 
+#define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	clear_bit(_PAGE_BIT_RW, &ptep->pte_low);
@@ -364,11 +384,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_index(address) \
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
 
 #define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
-#define pmd_page_kernel(pmd) \
+#define pmd_page_vaddr(pmd) \
 		((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /*
@@ -391,8 +411,6 @@ extern pte_t *lookup_address(unsigned long address);
  static inline int set_kernel_exec(unsigned long vaddr, int enable) { return 0;}
 #endif
 
-extern void noexec_setup(const char *str);
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
 	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
@@ -411,23 +429,8 @@ extern void noexec_setup(const char *str);
 /*
  * The i386 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
- *
- * Also, we only update the dirty/accessed state if we set
- * the dirty bit by hand in the kernel, since the hardware
- * will do the accessed bit for us, and we don't want to
- * race with other CPU's that might be updating the dirty
- * bit at the same time.
  */
 #define update_mmu_cache(vma,address,pte) do { } while (0)
-#define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-	do {								  \
-		if (__dirty) {						  \
-			(__ptep)->pte_low = (__entry).pte_low;	  	  \
-			flush_tlb_page(__vma, __address);		  \
-		}							  \
-	} while (0)
-
 #endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_FLATMEM
@@ -441,12 +444,6 @@ extern void noexec_setup(const char *str);
 #define GET_IOSPACE(pfn)		0
 #define GET_PFN(pfn)			(pfn)
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>
 
 #endif /* _I386_PGTABLE_H */

@@ -9,23 +9,16 @@
 
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
-#include <asm/mach/io.h>
+#include <asm/se7300.h>
 
 void heartbeat_7300se(void);
 void init_7300se_IRQ(void);
 
-const char *
-get_system_type(void)
-{
-	return "SolutionEngine 7300";
-}
-
 /*
  * The Machine Vector
  */
-
 struct sh_machine_vector mv_7300se __initmv = {
+	.mv_name = "SolutionEngine 7300",
 	.mv_nr_irqs = 109,
 	.mv_inb = sh7300se_inb,
 	.mv_inw = sh7300se_inw,
@@ -53,13 +46,4 @@ struct sh_machine_vector mv_7300se __initmv = {
 	.mv_heartbeat = heartbeat_7300se,
 #endif
 };
-
 ALIAS_MV(7300se)
-/*
- * Initialize the board
- */
-void __init
-platform_setup(void)
-{
-
-}

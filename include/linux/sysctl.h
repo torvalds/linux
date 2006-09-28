@@ -150,6 +150,8 @@ enum
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
 	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
 	KERN_MAX_LOCK_DEPTH=74,
+	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
+	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
 };
 
 
@@ -191,6 +193,7 @@ enum
 	VM_MIN_UNMAPPED=32,	/* Set min percent of unmapped pages */
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
+	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
 };
 
 

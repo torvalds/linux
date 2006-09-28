@@ -7,7 +7,6 @@
  * Modified for SH-Mobile SolutionEngine 73180 Support
  *              by YOSHII Takashi <yoshii-takashi@hitachi-ul.co.jp>
  *
- *
  */
 
 #include <linux/init.h>
@@ -15,14 +14,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/mach/se73180.h>
-
-static int
-intreq2irq(int i)
-{
-	if (i == 5)
-		return 10;
-	return 32 + 7 - i;
-}
 
 static int
 irq2intreq(int irq)

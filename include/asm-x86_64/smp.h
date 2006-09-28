@@ -4,27 +4,18 @@
 /*
  * We need the APIC definitions automatically as part of 'smp.h'
  */
-#ifndef __ASSEMBLY__
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/bitops.h>
 extern int disable_apic;
-#endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
-#ifndef __ASSEMBLY__
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
-#ifdef CONFIG_X86_IO_APIC
 #include <asm/io_apic.h>
-#endif
 #include <asm/apic.h>
 #include <asm/thread_info.h>
-#endif
-#endif
 
 #ifdef CONFIG_SMP
-#ifndef ASSEMBLY
 
 #include <asm/pda.h>
 
@@ -42,14 +33,11 @@ extern cpumask_t cpu_initialized;
  
 extern void smp_alloc_memory(void);
 extern volatile unsigned long smp_invalidate_needed;
-extern int pic_mode;
 extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_send_reschedule(int cpu);
 void smp_stop_cpu(void);
-extern int smp_call_function_single(int cpuid, void (*func) (void *info),
-				void *info, int retry, int wait);
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
@@ -76,20 +64,16 @@ static inline int hard_smp_processor_id(void)
 	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
 }
 
-extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
 extern unsigned num_processors;
 extern unsigned disabled_cpus;
 
-#endif /* !ASSEMBLY */
-
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
 #endif
 
-#ifndef ASSEMBLY
 /*
  * Some lowlevel functions might want to know about
  * the real APIC ID <-> CPU # mapping.
@@ -111,11 +95,8 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-#endif /* !ASSEMBLY */
-
 #ifndef CONFIG_SMP
 #define stack_smp_processor_id() 0
-#define safe_smp_processor_id() 0
 #define cpu_logical_map(x) (x)
 #else
 #include <asm/thread_info.h>
@@ -127,19 +108,23 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 })
 #endif
 
-#ifndef __ASSEMBLY__
 static __inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(unsigned long *)(APIC_BASE+APIC_LDR));
 }
-#endif
 
 #ifdef CONFIG_SMP
 #define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
 #else
 #define cpu_physical_id(cpu)		boot_cpu_id
-#endif
-
+static inline int smp_call_function_single(int cpuid, void (*func) (void *info),
+				void *info, int retry, int wait)
+{
+	/* Disable interrupts here? */
+	func(info);
+	return 0;
+}
+#endif /* !CONFIG_SMP */
 #endif
 

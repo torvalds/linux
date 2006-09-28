@@ -11,23 +11,17 @@
 
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/machvec_init.h>
-#include <asm/mach/io.h>
+#include <asm/se73180.h>
+#include <asm/irq.h>
 
 void heartbeat_73180se(void);
 void init_73180se_IRQ(void);
 
-const char *
-get_system_type(void)
-{
-	return "SolutionEngine 73180";
-}
-
 /*
  * The Machine Vector
  */
-
 struct sh_machine_vector mv_73180se __initmv = {
+	.mv_name = "SolutionEngine 73180",
 	.mv_nr_irqs = 108,
 	.mv_inb = sh73180se_inb,
 	.mv_inw = sh73180se_inw,
@@ -51,17 +45,9 @@ struct sh_machine_vector mv_73180se __initmv = {
 	.mv_outsl = sh73180se_outsl,
 
 	.mv_init_irq = init_73180se_IRQ,
+	.mv_irq_demux = shmse_irq_demux,
 #ifdef CONFIG_HEARTBEAT
 	.mv_heartbeat = heartbeat_73180se,
 #endif
 };
-
 ALIAS_MV(73180se)
-/*
- * Initialize the board
- */
-void __init
-platform_setup(void)
-{
-
-}

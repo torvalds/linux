@@ -2,7 +2,7 @@
  * Generic HDLC support routines for Linux
  * HDLC Ethernet emulation support
  *
- * Copyright (C) 2002-2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 2002-2006 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -25,6 +25,7 @@
 #include <linux/etherdevice.h>
 #include <linux/hdlc.h>
 
+static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr);
 
 static int eth_tx(struct sk_buff *skb, struct net_device *dev)
 {
@@ -44,7 +45,14 @@ static int eth_tx(struct sk_buff *skb, struct net_device *dev)
 }
 
 
-int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
+static struct hdlc_proto proto = {
+	.type_trans	= eth_type_trans,
+	.ioctl		= raw_eth_ioctl,
+	.module		= THIS_MODULE,
+};
+
+
+static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
 	raw_hdlc_proto __user *raw_s = ifr->ifr_settings.ifs_ifsu.raw_hdlc;
 	const size_t size = sizeof(raw_hdlc_proto);
@@ -56,12 +64,14 @@ int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 	switch (ifr->ifr_settings.type) {
 	case IF_GET_PROTO:
+		if (dev_to_hdlc(dev)->proto != &proto)
+			return -EINVAL;
 		ifr->ifr_settings.type = IF_PROTO_HDLC_ETH;
 		if (ifr->ifr_settings.size < size) {
 			ifr->ifr_settings.size = size; /* data size wanted */
 			return -ENOBUFS;
 		}
-		if (copy_to_user(raw_s, &hdlc->state.raw_hdlc.settings, size))
+		if (copy_to_user(raw_s, hdlc->state, size))
 			return -EFAULT;
 		return 0;
 
@@ -86,12 +96,11 @@ int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (result)
 			return result;
 
-		hdlc_proto_detach(hdlc);
-		memcpy(&hdlc->state.raw_hdlc.settings, &new_settings, size);
-		memset(&hdlc->proto, 0, sizeof(hdlc->proto));
-
-		hdlc->proto.type_trans = eth_type_trans;
-		hdlc->proto.id = IF_PROTO_HDLC_ETH;
+		result = attach_hdlc_protocol(dev, &proto, NULL,
+					      sizeof(raw_hdlc_proto));
+		if (result)
+			return result;
+		memcpy(hdlc->state, &new_settings, size);
 		dev->hard_start_xmit = eth_tx;
 		old_ch_mtu = dev->change_mtu;
 		old_qlen = dev->tx_queue_len;
@@ -106,3 +115,25 @@ int hdlc_raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 	return -EINVAL;
 }
+
+
+static int __init mod_init(void)
+{
+	register_hdlc_protocol(&proto);
+	return 0;
+}
+
+
+
+static void __exit mod_exit(void)
+{
+	unregister_hdlc_protocol(&proto);
+}
+
+
+module_init(mod_init);
+module_exit(mod_exit);
+
+MODULE_AUTHOR("Krzysztof Halasa <khc@pm.waw.pl>");
+MODULE_DESCRIPTION("Ethernet encapsulation support for generic HDLC");
+MODULE_LICENSE("GPL v2");

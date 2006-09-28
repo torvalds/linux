@@ -238,12 +238,41 @@ static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 }
 #endif
 
+#ifndef CONFIG_MMU
+static unsigned long get_unmapped_area_mem(struct file *file,
+					   unsigned long addr,
+					   unsigned long len,
+					   unsigned long pgoff,
+					   unsigned long flags)
+{
+	if (!valid_mmap_phys_addr_range(pgoff, len))
+		return (unsigned long) -EINVAL;
+	return pgoff;
+}
+
+/* can't do an in-place private mapping if there's no MMU */
+static inline int private_mapping_ok(struct vm_area_struct *vma)
+{
+	return vma->vm_flags & VM_MAYSHARE;
+}
+#else
+#define get_unmapped_area_mem	NULL
+
+static inline int private_mapping_ok(struct vm_area_struct *vma)
+{
+	return 1;
+}
+#endif
+
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
 
 	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))
 		return -EINVAL;
+
+	if (!private_mapping_ok(vma))
+		return -ENOSYS;
 
 	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
 						 size,
@@ -782,6 +811,7 @@ static const struct file_operations mem_fops = {
 	.write		= write_mem,
 	.mmap		= mmap_mem,
 	.open		= open_mem,
+	.get_unmapped_area = get_unmapped_area_mem,
 };
 
 static const struct file_operations kmem_fops = {
@@ -790,6 +820,7 @@ static const struct file_operations kmem_fops = {
 	.write		= write_kmem,
 	.mmap		= mmap_kmem,
 	.open		= open_kmem,
+	.get_unmapped_area = get_unmapped_area_mem,
 };
 
 static const struct file_operations null_fops = {
@@ -815,6 +846,10 @@ static const struct file_operations zero_fops = {
 	.mmap		= mmap_zero,
 };
 
+/*
+ * capabilities for /dev/zero
+ * - permits private mappings, "copies" are taken of the source of zeros
+ */
 static struct backing_dev_info zero_bdi = {
 	.capabilities	= BDI_CAP_MAP_COPY,
 };
@@ -862,9 +897,13 @@ static int memory_open(struct inode * inode, struct file * filp)
 	switch (iminor(inode)) {
 		case 1:
 			filp->f_op = &mem_fops;
+			filp->f_mapping->backing_dev_info =
+				&directly_mappable_cdev_bdi;
 			break;
 		case 2:
 			filp->f_op = &kmem_fops;
+			filp->f_mapping->backing_dev_info =
+				&directly_mappable_cdev_bdi;
 			break;
 		case 3:
 			filp->f_op = &null_fops;

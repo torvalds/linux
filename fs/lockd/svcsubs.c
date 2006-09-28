@@ -100,11 +100,10 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	nlm_debug_print_fh("creating file for", f);
 
 	nfserr = nlm_lck_denied_nolocks;
-	file = (struct nlm_file *) kmalloc(sizeof(*file), GFP_KERNEL);
+	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file)
 		goto out_unlock;
 
-	memset(file, 0, sizeof(*file));
 	memcpy(&file->f_handle, f, sizeof(struct nfs_fh));
 	file->f_hash = hash;
 	init_MUTEX(&file->f_sema);

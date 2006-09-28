@@ -80,7 +80,6 @@ static void dvb_usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
 
 	switch (urb->status) {
 		case 0:         /* success */
-		case -ETIMEDOUT:    /* NAK */
 			break;
 		case -ECONNRESET:   /* kill */
 		case -ENOENT:

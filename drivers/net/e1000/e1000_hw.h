@@ -1367,8 +1367,8 @@ struct e1000_hw_stats {
 
 /* Structure containing variables used by the shared code (e1000_hw.c) */
 struct e1000_hw {
-    uint8_t *hw_addr;
-    uint8_t *flash_address;
+    uint8_t __iomem *hw_addr;
+    uint8_t __iomem *flash_address;
     e1000_mac_type mac_type;
     e1000_phy_type phy_type;
     uint32_t phy_init_script;

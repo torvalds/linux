@@ -122,11 +122,6 @@ struct mem_size_stats
 	unsigned long private_dirty;
 };
 
-__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	return NULL;
-}
-
 static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats *mss)
 {
 	struct proc_maps_private *priv = m->private;

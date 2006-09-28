@@ -40,6 +40,7 @@ struct op_x86_model_spec {
 		struct op_msrs const * const msrs);
 	void (*start)(struct op_msrs const * const msrs);
 	void (*stop)(struct op_msrs const * const msrs);
+	void (*shutdown)(struct op_msrs const * const msrs);
 };
 
 extern struct op_x86_model_spec const op_ppro_spec;

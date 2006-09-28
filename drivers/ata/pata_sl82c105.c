@@ -19,7 +19,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_sl82c105"
-#define DRV_VERSION "0.2.2"
+#define DRV_VERSION "0.2.3"
 
 enum {
 	/*
@@ -49,11 +49,8 @@ static int sl82c105_pre_reset(struct ata_port *ap)
 	};
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no])) {
-		ata_port_disable(ap);
-		dev_printk(KERN_INFO, &pdev->dev, "port disabled. ignoring.\n");
-		return 0;
-	}
+	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no]))
+		return -ENOENT;
 	ap->cbl = ATA_CBL_PATA40;
 	return ata_std_prereset(ap);
 }
@@ -264,7 +261,7 @@ static struct ata_port_operations sl82c105_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,

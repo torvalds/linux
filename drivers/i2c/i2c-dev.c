@@ -32,43 +32,35 @@
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
+#include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 
-static struct i2c_client i2cdev_client_template;
+static struct i2c_driver i2cdev_driver;
 
 struct i2c_dev {
-	int minor;
+	struct list_head list;
 	struct i2c_adapter *adap;
 	struct class_device *class_dev;
 };
-#define to_i2c_dev(d) container_of(d, struct i2c_dev, class_dev)
 
 #define I2C_MINORS	256
-static struct i2c_dev *i2c_dev_array[I2C_MINORS];
-static DEFINE_SPINLOCK(i2c_dev_array_lock);
+static LIST_HEAD(i2c_dev_list);
+static DEFINE_SPINLOCK(i2c_dev_list_lock);
 
 static struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
 {
 	struct i2c_dev *i2c_dev;
 
-	spin_lock(&i2c_dev_array_lock);
-	i2c_dev = i2c_dev_array[index];
-	spin_unlock(&i2c_dev_array_lock);
-	return i2c_dev;
-}
-
-static struct i2c_dev *i2c_dev_get_by_adapter(struct i2c_adapter *adap)
-{
-	struct i2c_dev *i2c_dev = NULL;
-
-	spin_lock(&i2c_dev_array_lock);
-	if ((i2c_dev_array[adap->nr]) &&
-	    (i2c_dev_array[adap->nr]->adap == adap))
-		i2c_dev = i2c_dev_array[adap->nr];
-	spin_unlock(&i2c_dev_array_lock);
+	spin_lock(&i2c_dev_list_lock);
+	list_for_each_entry(i2c_dev, &i2c_dev_list, list) {
+		if (i2c_dev->adap->nr == index)
+			goto found;
+	}
+	i2c_dev = NULL;
+found:
+	spin_unlock(&i2c_dev_list_lock);
 	return i2c_dev;
 }
 
@@ -76,30 +68,28 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
+	if (adap->nr >= I2C_MINORS) {
+		printk(KERN_ERR "i2c-dev: Out of device minors (%d)\n",
+		       adap->nr);
+		return ERR_PTR(-ENODEV);
+	}
+
 	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
 		return ERR_PTR(-ENOMEM);
+	i2c_dev->adap = adap;
 
-	spin_lock(&i2c_dev_array_lock);
-	if (i2c_dev_array[adap->nr]) {
-		spin_unlock(&i2c_dev_array_lock);
-		dev_err(&adap->dev, "i2c-dev already has a device assigned to this adapter\n");
-		goto error;
-	}
-	i2c_dev->minor = adap->nr;
-	i2c_dev_array[adap->nr] = i2c_dev;
-	spin_unlock(&i2c_dev_array_lock);
+	spin_lock(&i2c_dev_list_lock);
+	list_add_tail(&i2c_dev->list, &i2c_dev_list);
+	spin_unlock(&i2c_dev_list_lock);
 	return i2c_dev;
-error:
-	kfree(i2c_dev);
-	return ERR_PTR(-ENODEV);
 }
 
 static void return_i2c_dev(struct i2c_dev *i2c_dev)
 {
-	spin_lock(&i2c_dev_array_lock);
-	i2c_dev_array[i2c_dev->minor] = NULL;
-	spin_unlock(&i2c_dev_array_lock);
+	spin_lock(&i2c_dev_list_lock);
+	list_del(&i2c_dev->list);
+	spin_unlock(&i2c_dev_list_lock);
 }
 
 static ssize_t show_adapter_name(struct class_device *class_dev, char *buf)
@@ -375,12 +365,13 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	if (!adap)
 		return -ENODEV;
 
-	client = kmalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
 		return -ENOMEM;
 	}
-	memcpy(client, &i2cdev_client_template, sizeof(*client));
+	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
+	client->driver = &i2cdev_driver;
 
 	/* registered with adapter, passed as client to user */
 	client->adapter = adap;
@@ -415,41 +406,47 @@ static struct class *i2c_dev_class;
 static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
-	struct device *dev;
+	int res;
 
 	i2c_dev = get_free_i2c_dev(adap);
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
-	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
-		 adap->name, i2c_dev->minor);
-
 	/* register this i2c device with the driver core */
-	i2c_dev->adap = adap;
-	dev = &adap->dev;
 	i2c_dev->class_dev = class_device_create(i2c_dev_class, NULL,
-						 MKDEV(I2C_MAJOR, i2c_dev->minor),
-						 dev, "i2c-%d", i2c_dev->minor);
-	if (!i2c_dev->class_dev)
+						 MKDEV(I2C_MAJOR, adap->nr),
+						 &adap->dev, "i2c-%d",
+						 adap->nr);
+	if (!i2c_dev->class_dev) {
+		res = -ENODEV;
 		goto error;
-	class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
+	}
+	res = class_device_create_file(i2c_dev->class_dev, &class_device_attr_name);
+	if (res)
+		goto error_destroy;
+
+	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
+		 adap->name, adap->nr);
 	return 0;
+error_destroy:
+	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 error:
 	return_i2c_dev(i2c_dev);
 	kfree(i2c_dev);
-	return -ENODEV;
+	return res;
 }
 
 static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
-	i2c_dev = i2c_dev_get_by_adapter(adap);
-	if (!i2c_dev)
-		return -ENODEV;
+	i2c_dev = i2c_dev_get_by_minor(adap->nr);
+	if (!i2c_dev) /* attach_adapter must have failed */
+		return 0;
 
+	class_device_remove_file(i2c_dev->class_dev, &class_device_attr_name);
 	return_i2c_dev(i2c_dev);
-	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, i2c_dev->minor));
+	class_device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 	kfree(i2c_dev);
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
@@ -469,12 +466,6 @@ static struct i2c_driver i2cdev_driver = {
 	.attach_adapter	= i2cdev_attach_adapter,
 	.detach_adapter	= i2cdev_detach_adapter,
 	.detach_client	= i2cdev_detach_client,
-};
-
-static struct i2c_client i2cdev_client_template = {
-	.name		= "I2C /dev entry",
-	.addr		= -1,
-	.driver		= &i2cdev_driver,
 };
 
 static int __init i2c_dev_init(void)

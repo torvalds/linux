@@ -161,7 +161,7 @@ static struct ata_port_operations simple_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
@@ -186,7 +186,7 @@ static struct ata_port_operations legacy_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
@@ -296,7 +296,7 @@ static struct ata_port_operations pdc20230_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= pdc_data_xfer_vlb,
 
 	.irq_handler	= ata_interrupt,
@@ -348,7 +348,7 @@ static struct ata_port_operations ht6560a_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,	/* Check vlb/noirq */
 
 	.irq_handler	= ata_interrupt,
@@ -411,7 +411,7 @@ static struct ata_port_operations ht6560b_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,	/* FIXME: Check 32bit and noirq */
 
 	.irq_handler	= ata_interrupt,
@@ -529,7 +529,7 @@ static struct ata_port_operations opti82c611a_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -659,7 +659,7 @@ static struct ata_port_operations opti82c46x_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= opti82c46x_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= ata_pio_data_xfer,
 
 	.irq_handler	= ata_interrupt,

@@ -55,7 +55,7 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	 * destroy_context_skas.
 	 */
 
-        mm->context.skas.last_page_table = pmd_page_kernel(*pmd);
+        mm->context.skas.last_page_table = pmd_page_vaddr(*pmd);
 #ifdef CONFIG_3_LEVEL_PGTABLES
         mm->context.skas.last_pmd = (unsigned long) __va(pud_val(*pud));
 #endif

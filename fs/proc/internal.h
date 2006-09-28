@@ -28,6 +28,7 @@ do {						\
 	(vmi)->largest_chunk = 0;		\
 } while(0)
 
+extern int nommu_vma_show(struct seq_file *, struct vm_area_struct *);
 #endif
 
 extern void create_seq_entry(char *name, mode_t mode, const struct file_operations *f);

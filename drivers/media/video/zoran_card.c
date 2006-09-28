@@ -820,7 +820,6 @@ static struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.getsda = zoran_i2c_getsda,
 	.getscl = zoran_i2c_getscl,
 	.udelay = 10,
-	.mdelay = 0,
 	.timeout = 100,
 };
 

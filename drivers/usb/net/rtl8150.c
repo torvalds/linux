@@ -438,7 +438,7 @@ static void read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 		break;
 	case -ENOENT:
 		return;	/* the urb is in unlink state */
-	case -ETIMEDOUT:
+	case -ETIME:
 		warn("may be reset is needed?..");
 		goto goon;
 	default:

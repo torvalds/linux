@@ -18,7 +18,7 @@ struct tty_chan {
 	struct termios tt;
 };
 
-static void *tty_chan_init(char *str, int device, struct chan_opts *opts)
+static void *tty_chan_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct tty_chan *data;
 
@@ -62,7 +62,7 @@ static int tty_open(int input, int output, int primary, void *d,
 	return fd;
 }
 
-struct chan_ops tty_ops = {
+const struct chan_ops tty_ops = {
 	.type		= "tty",
 	.init		= tty_chan_init,
 	.open		= tty_open,

@@ -72,7 +72,6 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	inode->i_ctime.tv_sec	= vnode->status.mtime_server;
 	inode->i_ctime.tv_nsec	= 0;
 	inode->i_atime		= inode->i_mtime = inode->i_ctime;
-	inode->i_blksize	= PAGE_CACHE_SIZE;
 	inode->i_blocks		= 0;
 	inode->i_version	= vnode->fid.unique;
 	inode->i_mapping->a_ops	= &afs_fs_aops;

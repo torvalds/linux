@@ -22,10 +22,12 @@
 #define NUM_COUNTERS 2
 #define NUM_CONTROLS 2
 
+#define CTR_IS_RESERVED(msrs,c) (msrs->counters[(c)].addr ? 1 : 0)
 #define CTR_READ(l,h,msrs,c) do {rdmsr(msrs->counters[(c)].addr, (l), (h));} while (0)
 #define CTR_WRITE(l,msrs,c) do {wrmsr(msrs->counters[(c)].addr, -(u32)(l), -1);} while (0)
 #define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
 
+#define CTRL_IS_RESERVED(msrs,c) (msrs->controls[(c)].addr ? 1 : 0)
 #define CTRL_READ(l,h,msrs,c) do {rdmsr((msrs->controls[(c)].addr), (l), (h));} while (0)
 #define CTRL_WRITE(l,h,msrs,c) do {wrmsr((msrs->controls[(c)].addr), (l), (h));} while (0)
 #define CTRL_SET_ACTIVE(n) (n |= (1<<22))
@@ -41,11 +43,21 @@ static unsigned long reset_value[NUM_COUNTERS];
  
 static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 {
-	msrs->counters[0].addr = MSR_P6_PERFCTR0;
-	msrs->counters[1].addr = MSR_P6_PERFCTR1;
+	int i;
+
+	for (i=0; i < NUM_COUNTERS; i++) {
+		if (reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
+			msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
+		else
+			msrs->counters[i].addr = 0;
+	}
 	
-	msrs->controls[0].addr = MSR_P6_EVNTSEL0;
-	msrs->controls[1].addr = MSR_P6_EVNTSEL1;
+	for (i=0; i < NUM_CONTROLS; i++) {
+		if (reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i))
+			msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
+		else
+			msrs->controls[i].addr = 0;
+	}
 }
 
 
@@ -56,6 +68,8 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 
 	/* clear all counters */
 	for (i = 0 ; i < NUM_CONTROLS; ++i) {
+		if (unlikely(!CTRL_IS_RESERVED(msrs,i)))
+			continue;
 		CTRL_READ(low, high, msrs, i);
 		CTRL_CLEAR(low);
 		CTRL_WRITE(low, high, msrs, i);
@@ -63,12 +77,14 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	
 	/* avoid a false detection of ctr overflows in NMI handler */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
+		if (unlikely(!CTR_IS_RESERVED(msrs,i)))
+			continue;
 		CTR_WRITE(1, msrs, i);
 	}
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (counter_config[i].enabled) {
+		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs,i))) {
 			reset_value[i] = counter_config[i].count;
 
 			CTR_WRITE(counter_config[i].count, msrs, i);
@@ -81,6 +97,8 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 			CTRL_SET_UM(low, counter_config[i].unit_mask);
 			CTRL_SET_EVENT(low, counter_config[i].event);
 			CTRL_WRITE(low, high, msrs, i);
+		} else {
+			reset_value[i] = 0;
 		}
 	}
 }
@@ -93,6 +111,8 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	int i;
  
 	for (i = 0 ; i < NUM_COUNTERS; ++i) {
+		if (!reset_value[i])
+			continue;
 		CTR_READ(low, high, msrs, i);
 		if (CTR_OVERFLOWED(low)) {
 			oprofile_add_sample(regs, i);
@@ -118,18 +138,38 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 static void ppro_start(struct op_msrs const * const msrs)
 {
 	unsigned int low,high;
-	CTRL_READ(low, high, msrs, 0);
-	CTRL_SET_ACTIVE(low);
-	CTRL_WRITE(low, high, msrs, 0);
+
+	if (reset_value[0]) {
+		CTRL_READ(low, high, msrs, 0);
+		CTRL_SET_ACTIVE(low);
+		CTRL_WRITE(low, high, msrs, 0);
+	}
 }
 
 
 static void ppro_stop(struct op_msrs const * const msrs)
 {
 	unsigned int low,high;
-	CTRL_READ(low, high, msrs, 0);
-	CTRL_SET_INACTIVE(low);
-	CTRL_WRITE(low, high, msrs, 0);
+
+	if (reset_value[0]) {
+		CTRL_READ(low, high, msrs, 0);
+		CTRL_SET_INACTIVE(low);
+		CTRL_WRITE(low, high, msrs, 0);
+	}
+}
+
+static void ppro_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
+
+	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+		if (CTR_IS_RESERVED(msrs,i))
+			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
+	}
+	for (i = 0 ; i < NUM_CONTROLS ; ++i) {
+		if (CTRL_IS_RESERVED(msrs,i))
+			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
+	}
 }
 
 
@@ -140,5 +180,6 @@ struct op_x86_model_spec const op_ppro_spec = {
 	.setup_ctrs = &ppro_setup_ctrs,
 	.check_ctrs = &ppro_check_ctrs,
 	.start = &ppro_start,
-	.stop = &ppro_stop
+	.stop = &ppro_stop,
+	.shutdown = &ppro_shutdown
 };

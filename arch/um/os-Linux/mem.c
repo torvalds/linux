@@ -114,14 +114,14 @@ static void which_tmpdir(void)
 	}
 
 	while(1){
-		found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), ' ');
+		found = next(fd, buf, ARRAY_SIZE(buf), ' ');
 		if(found != 1)
 			break;
 
 		if(!strncmp(buf, "/dev/shm", strlen("/dev/shm")))
 			goto found;
 
-		found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), '\n');
+		found = next(fd, buf, ARRAY_SIZE(buf), '\n');
 		if(found != 1)
 			break;
 	}
@@ -135,7 +135,7 @@ err:
 	return;
 
 found:
-	found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), ' ');
+	found = next(fd, buf, ARRAY_SIZE(buf), ' ');
 	if(found != 1)
 		goto err;
 

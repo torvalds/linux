@@ -1124,11 +1124,15 @@ debugging information is displayed on console.
 NMI switch that most IA32 servers have fires unknown NMI up, for example.
 If a system hangs up, try pressing the NMI switch.
 
-[NOTE]
-   This function and oprofile share a NMI callback. Therefore this function
-   cannot be enabled when oprofile is activated.
-   And NMI watchdog will be disabled when the value in this file is set to
-   non-zero.
+nmi_watchdog
+------------
+
+Enables/Disables the NMI watchdog on x86 systems.  When the value is non-zero
+the NMI watchdog is enabled and will continuously test all online cpus to
+determine whether or not they are still functioning properly.
+
+Because the NMI watchdog shares registers with oprofile, by disabling the NMI
+watchdog, oprofile may have more registers to utilize.
 
 
 2.4 /proc/sys/vm - The virtual memory subsystem

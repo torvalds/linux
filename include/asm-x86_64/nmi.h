@@ -7,24 +7,13 @@
 #include <linux/pm.h>
 #include <asm/io.h>
  
-struct pt_regs;
-
-typedef int (*nmi_callback_t)(struct pt_regs * regs, int cpu);
-
 /**
- * set_nmi_callback
+ * do_nmi_callback
  *
- * Set a handler for an NMI. Only one handler may be
- * set. Return 1 if the NMI was handled.
+ * Check to see if a callback exists and execute it.  Return 1
+ * if the handler exists and was handled successfully.
  */
-void set_nmi_callback(nmi_callback_t callback);
-
-/**
- * unset_nmi_callback
- *
- * Remove the handler previously set.
- */
-void unset_nmi_callback(void);
+int do_nmi_callback(struct pt_regs *regs, int cpu);
 
 #ifdef CONFIG_PM
  
@@ -48,25 +37,32 @@ static inline void unset_nmi_pm_callback(struct pm_dev * dev)
 #endif /* CONFIG_PM */
  
 extern void default_do_nmi(struct pt_regs *);
-extern void die_nmi(char *str, struct pt_regs *regs);
+extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
 
 #define get_nmi_reason() inb(0x61)
 
 extern int panic_on_timeout;
 extern int unknown_nmi_panic;
+extern int nmi_watchdog_enabled;
 
 extern int check_nmi_watchdog(void);
- 
-extern void setup_apic_nmi_watchdog (void);
-extern int reserve_lapic_nmi(void);
-extern void release_lapic_nmi(void);
+extern int avail_to_resrv_perfctr_nmi_bit(unsigned int);
+extern int avail_to_resrv_perfctr_nmi(unsigned int);
+extern int reserve_perfctr_nmi(unsigned int);
+extern void release_perfctr_nmi(unsigned int);
+extern int reserve_evntsel_nmi(unsigned int);
+extern void release_evntsel_nmi(unsigned int);
+
+extern void setup_apic_nmi_watchdog (void *);
+extern void stop_apic_nmi_watchdog (void *);
 extern void disable_timer_nmi_watchdog(void);
 extern void enable_timer_nmi_watchdog(void);
-extern void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
+extern int nmi_watchdog_tick (struct pt_regs * regs, unsigned reason);
 
 extern void nmi_watchdog_default(void);
 extern int setup_nmi_watchdog(char *);
 
+extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;
 #define NMI_DEFAULT	-1
 #define NMI_NONE	0

@@ -742,9 +742,9 @@ prism54_set_essid(struct net_device *ndev, struct iw_request_info *info,
 
 	/* Check if we were asked for `any' */
 	if (dwrq->flags && dwrq->length) {
-		if (dwrq->length > min(33, IW_ESSID_MAX_SIZE + 1))
+		if (dwrq->length > 32)
 			return -E2BIG;
-		essid.length = dwrq->length - 1;
+		essid.length = dwrq->length;
 		memcpy(essid.octets, extra, dwrq->length);
 	} else
 		essid.length = 0;
@@ -814,7 +814,7 @@ prism54_get_nick(struct net_device *ndev, struct iw_request_info *info,
 	dwrq->length = 0;
 
 	down_read(&priv->mib_sem);
-	dwrq->length = strlen(priv->nickname) + 1;
+	dwrq->length = strlen(priv->nickname);
 	memcpy(extra, priv->nickname, dwrq->length);
 	up_read(&priv->mib_sem);
 
@@ -992,9 +992,9 @@ prism54_set_retry(struct net_device *ndev, struct iw_request_info *info,
 		return -EINVAL;
 
 	if (vwrq->flags & IW_RETRY_LIMIT) {
-		if (vwrq->flags & IW_RETRY_MIN)
+		if (vwrq->flags & IW_RETRY_SHORT)
 			slimit = vwrq->value;
-		else if (vwrq->flags & IW_RETRY_MAX)
+		else if (vwrq->flags & IW_RETRY_LONG)
 			llimit = vwrq->value;
 		else {
 			/* we are asked to set both */
@@ -1035,18 +1035,18 @@ prism54_get_retry(struct net_device *ndev, struct iw_request_info *info,
 		    mgt_get_request(priv, DOT11_OID_MAXTXLIFETIME, 0, NULL, &r);
 		vwrq->value = r.u * 1024;
 		vwrq->flags = IW_RETRY_LIFETIME;
-	} else if ((vwrq->flags & IW_RETRY_MAX)) {
+	} else if ((vwrq->flags & IW_RETRY_LONG)) {
 		/* we are asked for the long retry limit */
 		rvalue |=
 		    mgt_get_request(priv, DOT11_OID_LONGRETRIES, 0, NULL, &r);
 		vwrq->value = r.u;
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 	} else {
 		/* default. get the  short retry limit */
 		rvalue |=
 		    mgt_get_request(priv, DOT11_OID_SHORTRETRIES, 0, NULL, &r);
 		vwrq->value = r.u;
-		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_MIN;
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_SHORT;
 	}
 
 	return rvalue;

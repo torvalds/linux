@@ -59,7 +59,6 @@ int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 {
 	int i;
 
-	BUG_ON(direction == DMA_NONE);
  	for (i = 0; i < nents; i++ ) {
 		struct scatterlist *s = &sg[i];
 		BUG_ON(!s->page);

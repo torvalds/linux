@@ -138,7 +138,7 @@ void paging_init(void)
 #endif
 
 	{
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+		unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 		zones_size[ZONE_DMA]     = 0 >> PAGE_SHIFT;
 		zones_size[ZONE_NORMAL]  = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;

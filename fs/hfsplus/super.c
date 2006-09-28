@@ -493,8 +493,7 @@ static int __init init_hfsplus_fs(void)
 static void __exit exit_hfsplus_fs(void)
 {
 	unregister_filesystem(&hfsplus_fs_type);
-	if (kmem_cache_destroy(hfsplus_inode_cachep))
-		printk(KERN_ERR "hfsplus_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(hfsplus_inode_cachep);
 }
 
 module_init(init_hfsplus_fs)

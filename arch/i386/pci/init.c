@@ -6,8 +6,13 @@
    in the right sequence from here. */
 static __init int pci_access_init(void)
 {
+	int type = 0;
+
+#ifdef CONFIG_PCI_DIRECT
+	type = pci_direct_probe();
+#endif
 #ifdef CONFIG_PCI_MMCONFIG
-	pci_mmcfg_init();
+	pci_mmcfg_init(type);
 #endif
 	if (raw_pci_ops)
 		return 0;
@@ -21,7 +26,7 @@ static __init int pci_access_init(void)
 	 * fails.
 	 */
 #ifdef CONFIG_PCI_DIRECT
-	pci_direct_init();
+	pci_direct_init(type);
 #endif
 	return 0;
 }

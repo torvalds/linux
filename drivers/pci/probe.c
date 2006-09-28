@@ -339,6 +339,7 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 {
 	struct pci_bus *child;
 	int i;
+	int retval;
 
 	/*
 	 * Allocate a new bus, and inherit stuff from the parent..
@@ -356,8 +357,13 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 
 	child->class_dev.class = &pcibus_class;
 	sprintf(child->class_dev.class_id, "%04x:%02x", pci_domain_nr(child), busnr);
-	class_device_register(&child->class_dev);
-	class_device_create_file(&child->class_dev, &class_device_attr_cpuaffinity);
+	retval = class_device_register(&child->class_dev);
+	if (retval)
+		goto error_register;
+	retval = class_device_create_file(&child->class_dev,
+					  &class_device_attr_cpuaffinity);
+	if (retval)
+		goto error_file_create;
 
 	/*
 	 * Set up the primary, secondary and subordinate
@@ -375,6 +381,12 @@ pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
 	bridge->subordinate = child;
 
 	return child;
+
+error_file_create:
+	class_device_unregister(&child->class_dev);
+error_register:
+	kfree(child);
+	return NULL;
 }
 
 struct pci_bus * __devinit pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int busnr)

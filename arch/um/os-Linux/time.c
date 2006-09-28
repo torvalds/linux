@@ -17,20 +17,25 @@
 #include "kern_constants.h"
 #include "os.h"
 
-static void set_interval(int timer_type)
+int set_interval(int is_virtual)
 {
 	int usec = 1000000/hz();
+	int timer_type = is_virtual ? ITIMER_VIRTUAL : ITIMER_REAL;
 	struct itimerval interval = ((struct itimerval) { { 0, usec },
 							  { 0, usec } });
 
 	if(setitimer(timer_type, &interval, NULL) == -1)
-		panic("setitimer failed - errno = %d\n", errno);
+		return -errno;
+
+	return 0;
 }
 
+#ifdef CONFIG_MODE_TT
 void enable_timer(void)
 {
-	set_interval(ITIMER_VIRTUAL);
+	set_interval(1);
 }
+#endif
 
 void disable_timer(void)
 {
@@ -40,8 +45,8 @@ void disable_timer(void)
 		printk("disnable_timer - setitimer failed, errno = %d\n",
 		       errno);
 	/* If there are signals already queued, after unblocking ignore them */
-	set_handler(SIGALRM, SIG_IGN, 0, -1);
-	set_handler(SIGVTALRM, SIG_IGN, 0, -1);
+	signal(SIGALRM, SIG_IGN);
+	signal(SIGVTALRM, SIG_IGN);
 }
 
 void switch_timers(int to_real)
@@ -74,7 +79,7 @@ void uml_idle_timer(void)
 
 	set_handler(SIGALRM, (__sighandler_t) alarm_handler,
 		    SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_interval(ITIMER_REAL);
+	set_interval(0);
 }
 #endif
 
@@ -93,9 +98,4 @@ void idle_sleep(int secs)
 	ts.tv_sec = secs;
 	ts.tv_nsec = 0;
 	nanosleep(&ts, NULL);
-}
-
-void user_time_init(void)
-{
-	set_interval(ITIMER_VIRTUAL);
 }

@@ -22,5 +22,8 @@
 #define P4SEG_TLB_DATA	0xf7000000
 #define P4SEG_REG_BASE	0xff000000
 
+#define PA_AREA5_IO	0xb4000000	/* Area 5 IO Memory */
+#define PA_AREA6_IO	0xb8000000	/* Area 6 IO Memory */
+
 #endif /* __ASM_CPU_SH4_ADDRSPACE_H */
 

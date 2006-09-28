@@ -512,7 +512,6 @@ struct inode {
 	struct timespec		i_mtime;
 	struct timespec		i_ctime;
 	unsigned int		i_blkbits;
-	unsigned long		i_blksize;
 	unsigned long		i_version;
 	blkcnt_t		i_blocks;
 	unsigned short          i_bytes;
@@ -528,11 +527,12 @@ struct inode {
 #ifdef CONFIG_QUOTA
 	struct dquot		*i_dquot[MAXQUOTAS];
 #endif
-	/* These three should probably be a union */
 	struct list_head	i_devices;
-	struct pipe_inode_info	*i_pipe;
-	struct block_device	*i_bdev;
-	struct cdev		*i_cdev;
+	union {
+		struct pipe_inode_info	*i_pipe;
+		struct block_device	*i_bdev;
+		struct cdev		*i_cdev;
+	};
 	int			i_cindex;
 
 	__u32			i_generation;
@@ -554,9 +554,7 @@ struct inode {
 
 	atomic_t		i_writecount;
 	void			*i_security;
-	union {
-		void		*generic_ip;
-	} u;
+	void			*i_private; /* fs or device private pointer */
 #ifdef __NEED_I_SIZE_ORDERED
 	seqcount_t		i_size_seqcount;
 #endif

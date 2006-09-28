@@ -217,7 +217,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	icsk->icsk_sync_mss	= dccp_sync_mss;
 	dp->dccps_mss_cache	= 536;
 	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
-	dp->dccps_service	= DCCP_SERVICE_INVALID_VALUE;
+	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
 	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
 
 	return 0;
@@ -267,12 +267,6 @@ static inline int dccp_listen_start(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	dp->dccps_role = DCCP_ROLE_LISTEN;
-	/*
-	 * Apps need to use setsockopt(DCCP_SOCKOPT_SERVICE)
-	 * before calling listen()
-	 */
-	if (dccp_service_not_initialized(sk))
-		return -EPROTO;
 	return inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
 }
 
@@ -540,9 +534,6 @@ static int dccp_getsockopt_service(struct sock *sk, int len,
 	int err = -ENOENT, slen = 0, total_len = sizeof(u32);
 
 	lock_sock(sk);
-	if (dccp_service_not_initialized(sk))
-		goto out;
-
 	if ((sl = dp->dccps_service_list) != NULL) {
 		slen = sl->dccpsl_nr * sizeof(u32);
 		total_len += slen;

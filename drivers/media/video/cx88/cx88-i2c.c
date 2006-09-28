@@ -155,7 +155,6 @@ static struct i2c_algo_bit_data cx8800_i2c_algo_template = {
 	.getsda  = cx8800_bit_getsda,
 	.getscl  = cx8800_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 

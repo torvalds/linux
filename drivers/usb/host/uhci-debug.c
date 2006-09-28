@@ -16,7 +16,7 @@
 
 #include "uhci-hcd.h"
 
-#define uhci_debug_operations (* (struct file_operations *) NULL)
+#define uhci_debug_operations (* (const struct file_operations *) NULL)
 static struct dentry *uhci_debugfs_root;
 
 #ifdef DEBUG
@@ -428,7 +428,7 @@ struct uhci_debug {
 
 static int uhci_debug_open(struct inode *inode, struct file *file)
 {
-	struct uhci_hcd *uhci = inode->u.generic_ip;
+	struct uhci_hcd *uhci = inode->i_private;
 	struct uhci_debug *up;
 	int ret = -ENOMEM;
 	unsigned long flags;
@@ -500,7 +500,7 @@ static int uhci_debug_release(struct inode *inode, struct file *file)
 }
 
 #undef uhci_debug_operations
-static struct file_operations uhci_debug_operations = {
+static const struct file_operations uhci_debug_operations = {
 	.owner =	THIS_MODULE,
 	.open =		uhci_debug_open,
 	.llseek =	uhci_debug_lseek,

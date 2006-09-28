@@ -225,6 +225,7 @@ static struct eisa_device_id el3_eisa_ids[] = {
 		{ "TCM5095" },
 		{ "" }
 };
+MODULE_DEVICE_TABLE(eisa, el3_eisa_ids);
 
 static int el3_eisa_probe (struct device *device);
 

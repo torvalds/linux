@@ -48,7 +48,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 		printk(KERN_NOTICE "TCP %s already registered\n", ca->name);
 		ret = -EEXIST;
 	} else {
-		list_add_rcu(&ca->list, &tcp_cong_list);
+		list_add_tail_rcu(&ca->list, &tcp_cong_list);
 		printk(KERN_INFO "TCP %s registered\n", ca->name);
 	}
 	spin_unlock(&tcp_cong_list_lock);

@@ -341,7 +341,7 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 extern struct video_device* video_devdata(struct file*);
 
 #define to_video_device(cd) container_of(cd, struct video_device, class_dev)
-static inline int
+static inline int __must_check
 video_device_create_file(struct video_device *vfd,
 			 struct class_device_attribute *attr)
 {

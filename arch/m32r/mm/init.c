@@ -100,7 +100,7 @@ void free_initrd_mem(unsigned long, unsigned long);
 #ifndef CONFIG_DISCONTIGMEM
 unsigned long __init zone_sizes_init(void)
 {
-	unsigned long  zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long  zones_size[MAX_NR_ZONES] = {0, };
 	unsigned long  max_dma;
 	unsigned long  low;
 	unsigned long  start_pfn;

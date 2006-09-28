@@ -77,9 +77,12 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
  * This adds a single pci device to the global
  * device list and adds sysfs and procfs entries
  */
-void __devinit pci_bus_add_device(struct pci_dev *dev)
+int __devinit pci_bus_add_device(struct pci_dev *dev)
 {
-	device_add(&dev->dev);
+	int retval;
+	retval = device_add(&dev->dev);
+	if (retval)
+		return retval;
 
 	down_write(&pci_bus_sem);
 	list_add_tail(&dev->global_list, &pci_devices);
@@ -87,6 +90,7 @@ void __devinit pci_bus_add_device(struct pci_dev *dev)
 
 	pci_proc_attach_device(dev);
 	pci_create_sysfs_dev_files(dev);
+	return 0;
 }
 
 /**
@@ -104,6 +108,7 @@ void __devinit pci_bus_add_device(struct pci_dev *dev)
 void __devinit pci_bus_add_devices(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
+	int retval;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/*
@@ -112,7 +117,9 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 		 */
 		if (!list_empty(&dev->global_list))
 			continue;
-		pci_bus_add_device(dev);
+		retval = pci_bus_add_device(dev);
+		if (retval)
+			dev_err(&dev->dev, "Error adding device, continuing\n");
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -129,10 +136,13 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 			       list_add_tail(&dev->subordinate->node,
 					       &dev->bus->children);
 			       up_write(&pci_bus_sem);
-		       }
+			}
 			pci_bus_add_devices(dev->subordinate);
-
-			sysfs_create_link(&dev->subordinate->class_dev.kobj, &dev->dev.kobj, "bridge");
+			retval = sysfs_create_link(&dev->subordinate->class_dev.kobj,
+						   &dev->dev.kobj, "bridge");
+			if (retval)
+				dev_err(&dev->dev, "Error creating sysfs "
+					"bridge symlink, continuing...\n");
 		}
 	}
 }

@@ -27,21 +27,24 @@
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/kdebug.h>
+#include <asm/segment.h>
 
 extern void die(const char *,struct pt_regs *,long);
 
-#ifdef CONFIG_KPROBES
-ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+static ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+
 int register_page_fault_notifier(struct notifier_block *nb)
 {
 	vmalloc_sync_all();
 	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
 }
+EXPORT_SYMBOL_GPL(register_page_fault_notifier);
 
 int unregister_page_fault_notifier(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
 }
+EXPORT_SYMBOL_GPL(unregister_page_fault_notifier);
 
 static inline int notify_page_fault(enum die_val val, const char *str,
 			struct pt_regs *regs, long err, int trap, int sig)
@@ -55,14 +58,6 @@ static inline int notify_page_fault(enum die_val val, const char *str,
 	};
 	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
 }
-#else
-static inline int notify_page_fault(enum die_val val, const char *str,
-			struct pt_regs *regs, long err, int trap, int sig)
-{
-	return NOTIFY_DONE;
-}
-#endif
-
 
 /*
  * Unlock any spinlocks which will prevent us from getting the
@@ -119,10 +114,10 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	}
 
 	/* The standard kernel/user address space limit. */
-	*eip_limit = (seg & 3) ? USER_DS.seg : KERNEL_DS.seg;
+	*eip_limit = user_mode(regs) ? USER_DS.seg : KERNEL_DS.seg;
 	
 	/* By far the most common cases. */
-	if (likely(seg == __USER_CS || seg == __KERNEL_CS))
+	if (likely(SEGMENT_IS_FLAT_CODE(seg)))
 		return eip;
 
 	/* Check the segment exists, is within the current LDT/GDT size,
@@ -436,11 +431,7 @@ good_area:
 	write = 0;
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
-#ifdef TEST_VERIFY_AREA
-			if (regs->cs == KERNEL_CS)
-				printk("WP fault at %08lx\n", regs->eip);
-#endif
-			/* fall through */
+				/* fall through */
 		case 2:		/* write, not present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto bad_area;

@@ -119,7 +119,7 @@ static void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:
@@ -201,7 +201,7 @@ static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
 	switch(urb->status) {
 		case -EILSEQ:
 		case -ENODEV:
-		case -ETIMEDOUT:
+		case -ETIME:
 		case -ENOENT:
 		case -EPIPE:
 		case -EOVERFLOW:
@@ -1218,7 +1218,7 @@ static int zd1201_set_essid(struct net_device *dev,
 		return -EINVAL;
 	if (data->length < 1)
 		data->length = 1;
-	zd->essidlen = data->length-1;
+	zd->essidlen = data->length;
 	memset(zd->essid, 0, IW_ESSID_MAX_SIZE+1);
 	memcpy(zd->essid, essid, data->length);
 	return zd1201_join(zd, zd->essid, zd->essidlen);

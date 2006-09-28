@@ -156,7 +156,6 @@ static int read_name(struct inode *ino, char *name)
 	ino->i_mode = i_mode;
 	ino->i_nlink = i_nlink;
 	ino->i_size = i_size;
-	ino->i_blksize = i_blksize;
 	ino->i_blocks = i_blocks;
 	return(0);
 }

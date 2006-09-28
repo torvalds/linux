@@ -721,6 +721,7 @@ int __init add_preferred_console(char *name, int idx, char *options)
 	return 0;
 }
 
+#ifndef CONFIG_DISABLE_CONSOLE_SUSPEND
 /**
  * suspend_console - suspend the console subsystem
  *
@@ -728,6 +729,7 @@ int __init add_preferred_console(char *name, int idx, char *options)
  */
 void suspend_console(void)
 {
+	printk("Suspending console(s)\n");
 	acquire_console_sem();
 	console_suspended = 1;
 }
@@ -737,6 +739,7 @@ void resume_console(void)
 	console_suspended = 0;
 	release_console_sem();
 }
+#endif /* CONFIG_DISABLE_CONSOLE_SUSPEND */
 
 /**
  * acquire_console_sem - lock the console system for exclusive use.

@@ -349,7 +349,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return pte; 
 }
 
-#define pmd_page_kernel(pmd) ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /*
  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
@@ -389,7 +389,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  */
 #define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
 #define pte_offset_map(dir, address) \
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
 #define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)

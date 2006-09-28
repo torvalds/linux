@@ -681,6 +681,7 @@ static struct eisa_device_id aha1740_ids[] = {
 	{ "ADP0400" },		/* 1744  */
 	{ "" }
 };
+MODULE_DEVICE_TABLE(eisa, aha1740_ids);
 
 static struct eisa_driver aha1740_driver = {
 	.id_table = aha1740_ids,

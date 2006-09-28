@@ -2323,24 +2323,24 @@ static void __devexit savagefb_remove(struct pci_dev *dev)
 	}
 }
 
-static int savagefb_suspend(struct pci_dev* dev, pm_message_t state)
+static int savagefb_suspend(struct pci_dev *dev, pm_message_t mesg)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct savagefb_par *par = info->par;
 
 	DBG("savagefb_suspend");
 
-
-	par->pm_state = state.event;
+	if (mesg.event == PM_EVENT_PRETHAW)
+		mesg.event = PM_EVENT_FREEZE;
+	par->pm_state = mesg.event;
+	dev->dev.power.power_state = mesg;
 
 	/*
 	 * For PM_EVENT_FREEZE, do not power down so the console
 	 * can remain active.
 	 */
-	if (state.event == PM_EVENT_FREEZE) {
-		dev->dev.power.power_state = state;
+	if (mesg.event == PM_EVENT_FREEZE)
 		return 0;
-	}
 
 	acquire_console_sem();
 	fb_set_suspend(info, 1);
@@ -2353,7 +2353,7 @@ static int savagefb_suspend(struct pci_dev* dev, pm_message_t state)
 	savage_disable_mmio(par);
 	pci_save_state(dev);
 	pci_disable_device(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, state));
+	pci_set_power_state(dev, pci_choose_state(dev, mesg));
 	release_console_sem();
 
 	return 0;

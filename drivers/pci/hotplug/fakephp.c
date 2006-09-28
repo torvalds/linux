@@ -176,7 +176,9 @@ static void pci_rescan_slot(struct pci_dev *temp)
 	struct pci_bus *bus = temp->bus;
 	struct pci_dev *dev;
 	int func;
+	int retval;
 	u8 hdr_type;
+
 	if (!pci_read_config_byte(temp, PCI_HEADER_TYPE, &hdr_type)) {
 		temp->hdr_type = hdr_type & 0x7f;
 		if (!pci_find_slot(bus->number, temp->devfn)) {
@@ -185,8 +187,12 @@ static void pci_rescan_slot(struct pci_dev *temp)
 				dbg("New device on %s function %x:%x\n",
 					bus->name, temp->devfn >> 3,
 					temp->devfn & 7);
-				pci_bus_add_device(dev);
-				add_slot(dev);
+				retval = pci_bus_add_device(dev);
+				if (retval)
+					dev_err(&dev->dev, "error adding "
+						"device, continuing.\n");
+				else
+					add_slot(dev);
 			}
 		}
 		/* multifunction device? */
@@ -205,8 +211,12 @@ static void pci_rescan_slot(struct pci_dev *temp)
 					dbg("New device on %s function %x:%x\n",
 						bus->name, temp->devfn >> 3,
 						temp->devfn & 7);
-					pci_bus_add_device(dev);
-					add_slot(dev);
+					retval = pci_bus_add_device(dev);
+					if (retval)
+						dev_err(&dev->dev, "error adding "
+							"device, continuing.\n");
+					else
+						add_slot(dev);
 				}
 			}
 		}

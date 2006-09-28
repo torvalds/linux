@@ -32,6 +32,10 @@ static void __init check_bugs(void)
 	case CPU_SH7750 ... CPU_SH4_501:
 		*p++ = '4';
 		break;
+	case CPU_SH7770 ... CPU_SH7781:
+		*p++ = '4';
+		*p++ = 'a';
+		break;
 	default:
 		*p++ = '?';
 		*p++ = '!';

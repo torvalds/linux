@@ -76,8 +76,4 @@ extern int setup_irq_smtc(unsigned int irq, struct irqaction * new,
                           unsigned long hwmask);
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-#ifdef CONFIG_SMP
-#define ARCH_HAS_IRQ_PER_CPU
-#endif
-
 #endif /* _ASM_IRQ_H */

@@ -84,7 +84,7 @@ struct exception_table_entry
  */
 
 #define __get_user_x(size,ret,x,ptr) \
-	__asm__ __volatile__("call __get_user_" #size \
+	asm volatile("call __get_user_" #size \
 		:"=a" (ret),"=d" (x) \
 		:"c" (ptr) \
 		:"r8")
@@ -101,7 +101,7 @@ struct exception_table_entry
 	case 8:  __get_user_x(8,__ret_gu,__val_gu,ptr); break;		\
 	default: __get_user_bad(); break;				\
 	}								\
-	(x) = (__typeof__(*(ptr)))__val_gu;				\
+	(x) = (typeof(*(ptr)))__val_gu;				\
 	__ret_gu;							\
 })
 
@@ -112,7 +112,7 @@ extern void __put_user_8(void);
 extern void __put_user_bad(void);
 
 #define __put_user_x(size,ret,x,ptr)					\
-	__asm__ __volatile__("call __put_user_" #size			\
+	asm volatile("call __put_user_" #size			\
 		:"=a" (ret)						\
 		:"c" (ptr),"d" (x)					\
 		:"r8")
@@ -139,7 +139,7 @@ extern void __put_user_bad(void);
 #define __put_user_check(x,ptr,size)			\
 ({							\
 	int __pu_err;					\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);	\
+	typeof(*(ptr)) __user *__pu_addr = (ptr);	\
 	switch (size) { 				\
 	case 1: __put_user_x(1,__pu_err,x,__pu_addr); break;	\
 	case 2: __put_user_x(2,__pu_err,x,__pu_addr); break;	\
@@ -173,7 +173,7 @@ struct __large_struct { unsigned long buf[100]; };
  * aliasing issues.
  */
 #define __put_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	__asm__ __volatile__(					\
+	asm volatile(					\
 		"1:	mov"itype" %"rtype"1,%2\n"		\
 		"2:\n"						\
 		".section .fixup,\"ax\"\n"			\
@@ -193,7 +193,7 @@ struct __large_struct { unsigned long buf[100]; };
 	int __gu_err;						\
 	unsigned long __gu_val;					\
 	__get_user_size(__gu_val,(ptr),(size),__gu_err);	\
-	(x) = (__typeof__(*(ptr)))__gu_val;			\
+	(x) = (typeof(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
@@ -217,7 +217,7 @@ do {									\
 } while (0)
 
 #define __get_user_asm(x, addr, err, itype, rtype, ltype, errno)	\
-	__asm__ __volatile__(					\
+	asm volatile(					\
 		"1:	mov"itype" %2,%"rtype"1\n"		\
 		"2:\n"						\
 		".section .fixup,\"ax\"\n"			\
@@ -237,15 +237,20 @@ do {									\
  */
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
-extern unsigned long copy_user_generic(void *to, const void *from, unsigned len); 
+__must_check unsigned long
+copy_user_generic(void *to, const void *from, unsigned len);
 
-extern unsigned long copy_to_user(void __user *to, const void *from, unsigned len); 
-extern unsigned long copy_from_user(void *to, const void __user *from, unsigned len); 
-extern unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len); 
+__must_check unsigned long
+copy_to_user(void __user *to, const void *from, unsigned len);
+__must_check unsigned long
+copy_from_user(void *to, const void __user *from, unsigned len);
+__must_check unsigned long
+copy_in_user(void __user *to, const void __user *from, unsigned len);
 
-static __always_inline int __copy_from_user(void *dst, const void __user *src, unsigned size)
+static __always_inline __must_check
+int __copy_from_user(void *dst, const void __user *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic(dst,(__force void *)src,size);
 	switch (size) { 
@@ -272,9 +277,10 @@ static __always_inline int __copy_from_user(void *dst, const void __user *src, u
 	}
 }	
 
-static __always_inline int __copy_to_user(void __user *dst, const void *src, unsigned size)
+static __always_inline __must_check
+int __copy_to_user(void __user *dst, const void *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst,src,size);
 	switch (size) { 
@@ -303,10 +309,10 @@ static __always_inline int __copy_to_user(void __user *dst, const void *src, uns
 	}
 }	
 
-
-static __always_inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
+static __always_inline __must_check
+int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
-       int ret = 0;
+	int ret = 0;
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst,(__force void *)src,size);
 	switch (size) { 
@@ -344,15 +350,17 @@ static __always_inline int __copy_in_user(void __user *dst, const void __user *s
 	}
 }	
 
-long strncpy_from_user(char *dst, const char __user *src, long count);
-long __strncpy_from_user(char *dst, const char __user *src, long count);
-long strnlen_user(const char __user *str, long n);
-long __strnlen_user(const char __user *str, long n);
-long strlen_user(const char __user *str);
-unsigned long clear_user(void __user *mem, unsigned long len);
-unsigned long __clear_user(void __user *mem, unsigned long len);
+__must_check long 
+strncpy_from_user(char *dst, const char __user *src, long count);
+__must_check long 
+__strncpy_from_user(char *dst, const char __user *src, long count);
+__must_check long strnlen_user(const char __user *str, long n);
+__must_check long __strnlen_user(const char __user *str, long n);
+__must_check long strlen_user(const char __user *str);
+__must_check unsigned long clear_user(void __user *mem, unsigned long len);
+__must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+__must_check long __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size);
+#define __copy_to_user_inatomic copy_user_generic
 
 #endif /* __X86_64_UACCESS_H */

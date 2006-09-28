@@ -44,7 +44,7 @@
 #include "hcd.h"
 
 static struct super_operations usbfs_ops;
-static struct file_operations default_file_operations;
+static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
 static int ignore_mount = 0;
@@ -249,7 +249,6 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -402,13 +401,13 @@ static loff_t default_file_lseek (struct file *file, loff_t offset, int orig)
 
 static int default_open (struct inode *inode, struct file *file)
 {
-	if (inode->u.generic_ip)
-		file->private_data = inode->u.generic_ip;
+	if (inode->i_private)
+		file->private_data = inode->i_private;
 
 	return 0;
 }
 
-static struct file_operations default_file_operations = {
+static const struct file_operations default_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
@@ -495,7 +494,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 
 static struct dentry *fs_create_file (const char *name, mode_t mode,
 				      struct dentry *parent, void *data,
-				      struct file_operations *fops,
+				      const struct file_operations *fops,
 				      uid_t uid, gid_t gid)
 {
 	struct dentry *dentry;
@@ -509,7 +508,7 @@ static struct dentry *fs_create_file (const char *name, mode_t mode,
 	} else {
 		if (dentry->d_inode) {
 			if (data)
-				dentry->d_inode->u.generic_ip = data;
+				dentry->d_inode->i_private = data;
 			if (fops)
 				dentry->d_inode->i_fop = fops;
 			dentry->d_inode->i_uid = uid;

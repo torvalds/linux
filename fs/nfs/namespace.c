@@ -26,6 +26,11 @@ LIST_HEAD(nfs_automount_list);
 static DECLARE_WORK(nfs_automount_task, nfs_expire_automounts, &nfs_automount_list);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
+static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
+					const struct dentry *dentry,
+					struct nfs_fh *fh,
+					struct nfs_fattr *fattr);
+
 /*
  * nfs_path - reconstruct the path given an arbitrary dentry
  * @base - arbitrary string to prepend to the path
@@ -209,9 +214,10 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
  * @fattr - attributes for new root inode
  *
  */
-struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-		const struct dentry *dentry, struct nfs_fh *fh,
-		struct nfs_fattr *fattr)
+static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
+					const struct dentry *dentry,
+					struct nfs_fh *fh,
+					struct nfs_fattr *fattr)
 {
 	struct nfs_clone_mount mountdata = {
 		.sb = mnt_parent->mnt_sb,

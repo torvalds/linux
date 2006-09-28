@@ -85,6 +85,29 @@ socket_setattr_return:
 }
 
 /**
+ * netlbl_sock_getattr - Determine the security attributes of a sock
+ * @sk: the sock
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Examines the given sock to see any NetLabel style labeling has been
+ * applied to the sock, if so it parses the socket label and returns the
+ * security attributes in @secattr.  Returns zero on success, negative values
+ * on failure.
+ *
+ */
+int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+
+	ret_val = cipso_v4_sock_getattr(sk, secattr);
+	if (ret_val == 0)
+		return 0;
+
+	return netlbl_unlabel_getattr(secattr);
+}
+
+/**
  * netlbl_socket_getattr - Determine the security attributes of a socket
  * @sock: the socket
  * @secattr: the security attributes

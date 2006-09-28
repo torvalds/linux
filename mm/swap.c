@@ -34,6 +34,25 @@
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
+/*
+ * This path almost never happens for VM activity - pages are normally
+ * freed via pagevecs.  But it gets used by networking.
+ */
+static void fastcall __page_cache_release(struct page *page)
+{
+	if (PageLRU(page)) {
+		unsigned long flags;
+		struct zone *zone = page_zone(page);
+
+		spin_lock_irqsave(&zone->lru_lock, flags);
+		VM_BUG_ON(!PageLRU(page));
+		__ClearPageLRU(page);
+		del_page_from_lru(zone, page);
+		spin_unlock_irqrestore(&zone->lru_lock, flags);
+	}
+	free_hot_page(page);
+}
+
 static void put_compound_page(struct page *page)
 {
 	page = (struct page *)page_private(page);
@@ -223,26 +242,6 @@ int lru_add_drain_all(void)
 #endif
 
 /*
- * This path almost never happens for VM activity - pages are normally
- * freed via pagevecs.  But it gets used by networking.
- */
-void fastcall __page_cache_release(struct page *page)
-{
-	if (PageLRU(page)) {
-		unsigned long flags;
-		struct zone *zone = page_zone(page);
-
-		spin_lock_irqsave(&zone->lru_lock, flags);
-		BUG_ON(!PageLRU(page));
-		__ClearPageLRU(page);
-		del_page_from_lru(zone, page);
-		spin_unlock_irqrestore(&zone->lru_lock, flags);
-	}
-	free_hot_page(page);
-}
-EXPORT_SYMBOL(__page_cache_release);
-
-/*
  * Batched page_cache_release().  Decrement the reference count on all the
  * passed pages.  If it fell to zero then remove the page from the LRU and
  * free it.
@@ -284,7 +283,7 @@ void release_pages(struct page **pages, int nr, int cold)
 				zone = pagezone;
 				spin_lock_irq(&zone->lru_lock);
 			}
-			BUG_ON(!PageLRU(page));
+			VM_BUG_ON(!PageLRU(page));
 			__ClearPageLRU(page);
 			del_page_from_lru(zone, page);
 		}
@@ -337,7 +336,7 @@ void __pagevec_release_nonlru(struct pagevec *pvec)
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		if (put_page_testzero(page))
 			pagevec_add(&pages_to_free, page);
 	}
@@ -364,7 +363,7 @@ void __pagevec_lru_add(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
 		add_page_to_inactive_list(zone, page);
 	}
@@ -391,9 +390,9 @@ void __pagevec_lru_add_active(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
-		BUG_ON(PageActive(page));
+		VM_BUG_ON(PageActive(page));
 		SetPageActive(page);
 		add_page_to_active_list(zone, page);
 	}

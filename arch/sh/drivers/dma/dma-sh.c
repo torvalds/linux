@@ -11,14 +11,10 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/dreamcast/dma.h>
-#include <asm/signal.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include "dma-sh.h"
@@ -84,18 +80,23 @@ static irqreturn_t dma_tei(int irq, void *dev_id, struct pt_regs *regs)
 
 static int sh_dmac_request_dma(struct dma_channel *chan)
 {
-	char name[32];
+	if (unlikely(!chan->flags & DMA_TEI_CAPABLE))
+		return 0;
 
-	snprintf(name, sizeof(name), "DMAC Transfer End (Channel %d)",
+	chan->name = kzalloc(32, GFP_KERNEL);
+	if (unlikely(chan->name == NULL))
+		return -ENOMEM;
+	snprintf(chan->name, 32, "DMAC Transfer End (Channel %d)",
 		 chan->chan);
 
 	return request_irq(get_dmte_irq(chan->chan), dma_tei,
-			   IRQF_DISABLED, name, chan);
+			   IRQF_DISABLED, chan->name, chan);
 }
 
 static void sh_dmac_free_dma(struct dma_channel *chan)
 {
 	free_irq(get_dmte_irq(chan->chan), chan);
+	kfree(chan->name);
 }
 
 static void
@@ -259,7 +260,7 @@ static int __init sh_dmac_init(void)
 #ifdef CONFIG_CPU_SH4
 	make_ipr_irq(DMAE_IRQ, DMA_IPR_ADDR, DMA_IPR_POS, DMA_PRIORITY);
 	i = request_irq(DMAE_IRQ, dma_err, IRQF_DISABLED, "DMAC Address Error", 0);
-	if (i < 0)
+	if (unlikely(i < 0))
 		return i;
 #endif
 
@@ -274,7 +275,7 @@ static int __init sh_dmac_init(void)
 	 * been set.
 	 */
 	i = dmaor_reset();
-	if (i < 0)
+	if (unlikely(i != 0))
 		return i;
 
 	return register_dmac(info);

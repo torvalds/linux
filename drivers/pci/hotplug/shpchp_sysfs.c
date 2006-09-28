@@ -91,9 +91,9 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR (ctrl, S_IRUGO, show_ctrl, NULL);
 
-void shpchp_create_ctrl_files (struct controller *ctrl)
+int __must_check shpchp_create_ctrl_files (struct controller *ctrl)
 {
-	device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
+	return device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
 }
 
 void shpchp_remove_ctrl_files(struct controller *ctrl)

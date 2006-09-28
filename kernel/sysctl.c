@@ -76,8 +76,9 @@ extern int compat_log;
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
-extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
-				  void __user *, size_t *, loff_t *);
+int nmi_watchdog_enabled;
+extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
+			void __user *, size_t *, loff_t *);
 #endif
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
@@ -136,8 +137,11 @@ extern int no_unaligned_warning;
 extern int max_lock_depth;
 #endif
 
-static int parse_table(int __user *, int, void __user *, size_t __user *, void __user *, size_t,
-		       ctl_table *, void **);
+#ifdef CONFIG_SYSCTL_SYSCALL
+static int parse_table(int __user *, int, void __user *, size_t __user *,
+		void __user *, size_t, ctl_table *, void **);
+#endif
+
 static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
@@ -164,7 +168,7 @@ int sysctl_legacy_va_layout;
 
 /* /proc declarations: */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_SYSCTL
 
 static ssize_t proc_readsys(struct file *, char __user *, size_t, loff_t *);
 static ssize_t proc_writesys(struct file *, const char __user *, size_t, loff_t *);
@@ -628,10 +632,26 @@ static ctl_table kern_table[] = {
 		.data           = &unknown_nmi_panic,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
-		.proc_handler   = &proc_unknown_nmi_panic,
+		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name       = KERN_NMI_WATCHDOG,
+		.procname       = "nmi_watchdog",
+		.data           = &nmi_watchdog_enabled,
+		.maxlen         = sizeof (int),
+		.mode           = 0644,
+		.proc_handler   = &proc_nmi_enabled,
 	},
 #endif
 #if defined(CONFIG_X86)
+	{
+		.ctl_name	= KERN_PANIC_ON_NMI,
+		.procname	= "panic_on_unrecovered_nmi",
+		.data		= &panic_on_unrecovered_nmi,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 	{
 		.ctl_name	= KERN_BOOTLOADER_TYPE,
 		.procname	= "bootloader_type",
@@ -943,6 +963,17 @@ static ctl_table vm_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
 	},
+	{
+		.ctl_name	= VM_MIN_SLAB,
+		.procname	= "min_slab_ratio",
+		.data		= &sysctl_min_slab_ratio,
+		.maxlen		= sizeof(sysctl_min_slab_ratio),
+		.mode		= 0644,
+		.proc_handler	= &sysctl_min_slab_ratio_sysctl_handler,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero,
+		.extra2		= &one_hundred,
+	},
 #endif
 #ifdef CONFIG_X86_32
 	{
@@ -1138,12 +1169,13 @@ static void start_unregistering(struct ctl_table_header *p)
 
 void __init sysctl_init(void)
 {
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_SYSCTL
 	register_proc_table(root_table, proc_sys_root, &root_table_header);
 	init_irq_proc();
 #endif
 }
 
+#ifdef CONFIG_SYSCTL_SYSCALL
 int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *oldlenp,
 	       void __user *newval, size_t newlen)
 {
@@ -1197,6 +1229,7 @@ asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 	unlock_kernel();
 	return error;
 }
+#endif /* CONFIG_SYSCTL_SYSCALL */
 
 /*
  * ctl_perm does NOT grant the superuser all rights automatically, because
@@ -1223,6 +1256,7 @@ static inline int ctl_perm(ctl_table *table, int op)
 	return test_perm(table->mode, op);
 }
 
+#ifdef CONFIG_SYSCTL_SYSCALL
 static int parse_table(int __user *name, int nlen,
 		       void __user *oldval, size_t __user *oldlenp,
 		       void __user *newval, size_t newlen,
@@ -1312,6 +1346,7 @@ int do_sysctl_strategy (ctl_table *table,
 	}
 	return 0;
 }
+#endif /* CONFIG_SYSCTL_SYSCALL */
 
 /**
  * register_sysctl_table - register a sysctl hierarchy
@@ -1399,7 +1434,7 @@ struct ctl_table_header *register_sysctl_table(ctl_table * table,
 	else
 		list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
 	spin_unlock(&sysctl_lock);
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_SYSCTL
 	register_proc_table(table, proc_sys_root, tmp);
 #endif
 	return tmp;
@@ -1417,18 +1452,31 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 	might_sleep();
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_SYSCTL
 	unregister_proc_table(header->ctl_table, proc_sys_root);
 #endif
 	spin_unlock(&sysctl_lock);
 	kfree(header);
 }
 
+#else /* !CONFIG_SYSCTL */
+struct ctl_table_header * register_sysctl_table(ctl_table * table,
+						int insert_at_head)
+{
+	return NULL;
+}
+
+void unregister_sysctl_table(struct ctl_table_header * table)
+{
+}
+
+#endif /* CONFIG_SYSCTL */
+
 /*
  * /proc/sys support
  */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_SYSCTL
 
 /* Scan the sysctl entries in table and add them all into /proc */
 static void register_proc_table(ctl_table * table, struct proc_dir_entry *root, void *set)
@@ -2290,6 +2338,7 @@ int proc_doulongvec_ms_jiffies_minmax(ctl_table *table, int write,
 #endif /* CONFIG_PROC_FS */
 
 
+#ifdef CONFIG_SYSCTL_SYSCALL
 /*
  * General sysctl support routines 
  */
@@ -2432,11 +2481,19 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 	return 1;
 }
 
-#else /* CONFIG_SYSCTL */
+#else /* CONFIG_SYSCTL_SYSCALL */
 
 
 asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
 {
+	static int msg_count;
+
+	if (msg_count < 5) {
+		msg_count++;
+		printk(KERN_INFO
+			"warning: process `%s' used the removed sysctl "
+			"system call\n", current->comm);
+	}
 	return -ENOSYS;
 }
 
@@ -2468,73 +2525,7 @@ int sysctl_ms_jiffies(ctl_table *table, int __user *name, int nlen,
 	return -ENOSYS;
 }
 
-int proc_dostring(ctl_table *table, int write, struct file *filp,
-		  void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec(ctl_table *table, int write, struct file *filp,
-		  void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_bset(ctl_table *table, int write, struct file *filp,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_minmax(ctl_table *table, int write, struct file *filp,
-		    void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_jiffies(ctl_table *table, int write, struct file *filp,
-			  void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_userhz_jiffies(ctl_table *table, int write, struct file *filp,
-			  void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_ms_jiffies(ctl_table *table, int write, struct file *filp,
-			     void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_doulongvec_minmax(ctl_table *table, int write, struct file *filp,
-		    void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_doulongvec_ms_jiffies_minmax(ctl_table *table, int write,
-				      struct file *filp,
-				      void __user *buffer,
-				      size_t *lenp, loff_t *ppos)
-{
-    return -ENOSYS;
-}
-
-struct ctl_table_header * register_sysctl_table(ctl_table * table, 
-						int insert_at_head)
-{
-	return NULL;
-}
-
-void unregister_sysctl_table(struct ctl_table_header * table)
-{
-}
-
-#endif /* CONFIG_SYSCTL */
+#endif /* CONFIG_SYSCTL_SYSCALL */
 
 /*
  * No sense putting this after each symbol definition, twice,

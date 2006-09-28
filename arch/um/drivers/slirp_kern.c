@@ -64,7 +64,7 @@ static int slirp_write(int fd, struct sk_buff **skb,
 			       (struct slirp_data *) &lp->user));
 }
 
-struct net_kern_info slirp_kern_info = {
+const struct net_kern_info slirp_kern_info = {
 	.init			= slirp_init,
 	.protocol		= slirp_protocol,
 	.read			= slirp_read,

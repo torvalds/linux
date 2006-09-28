@@ -18,7 +18,19 @@
  * generated will simply be the increment of a global address.
  */
 
-#define FOR_ALL_ZONES(x) x##_DMA, x##_DMA32, x##_NORMAL, x##_HIGH
+#ifdef CONFIG_ZONE_DMA32
+#define DMA32_ZONE(xx) xx##_DMA32,
+#else
+#define DMA32_ZONE(xx)
+#endif
+
+#ifdef CONFIG_HIGHMEM
+#define HIGHMEM_ZONE(xx) , xx##_HIGH
+#else
+#define HIGHMEM_ZONE(xx)
+#endif
+
+#define FOR_ALL_ZONES(xx) xx##_DMA, DMA32_ZONE(xx) xx##_NORMAL HIGHMEM_ZONE(xx)
 
 enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		FOR_ALL_ZONES(PGALLOC),
@@ -124,12 +136,10 @@ static inline unsigned long node_page_state(int node,
 	struct zone *zones = NODE_DATA(node)->node_zones;
 
 	return
-#ifndef CONFIG_DMA_IS_NORMAL
-#if !defined(CONFIG_DMA_IS_DMA32) && BITS_PER_LONG >= 64
+#ifdef CONFIG_ZONE_DMA32
 		zone_page_state(&zones[ZONE_DMA32], item) +
 #endif
 		zone_page_state(&zones[ZONE_NORMAL], item) +
-#endif
 #ifdef CONFIG_HIGHMEM
 		zone_page_state(&zones[ZONE_HIGHMEM], item) +
 #endif

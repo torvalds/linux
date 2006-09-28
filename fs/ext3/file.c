@@ -100,7 +100,7 @@ ext3_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t
 
 force_commit:
 	err = ext3_force_commit(inode->i_sb);
-	if (err) 
+	if (err)
 		return err;
 	return ret;
 }

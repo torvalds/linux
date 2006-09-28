@@ -311,6 +311,7 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 
 #ifdef __KERNEL__
+#include <linux/err.h>
 #include <linux/linkage.h>
 
 #define __sys2(x) #x
@@ -322,7 +323,7 @@
 
 #define __syscall_return(type, res)					\
 do {									\
-	if ((unsigned long)(res) >= (unsigned long)(-125)) {		\
+	if ((unsigned long)(res) >= (unsigned long)-MAX_ERRNO) {	\
 		errno = -(res);						\
 		res = -1;						\
 	}								\

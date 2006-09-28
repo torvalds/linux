@@ -740,7 +740,7 @@ asmlinkage long compat_sys_umask(u32 mask)
 	return sys_umask((int)mask);
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;

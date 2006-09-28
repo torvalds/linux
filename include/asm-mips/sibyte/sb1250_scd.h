@@ -149,7 +149,7 @@
  * (For the assembler version, sysrev and dest may be the same register.
  * Also, it clobbers AT.)
  */
-#ifdef __ASSEMBLER__
+#ifdef __ASSEMBLY__
 #define SYS_SOC_TYPE(dest, sysrev)					\
 	.set push ;							\
 	.set reorder ;							\

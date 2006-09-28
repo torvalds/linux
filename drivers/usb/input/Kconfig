@@ -205,10 +205,12 @@ config USB_TOUCHSCREEN
 	depends on USB && INPUT
 	---help---
 	  USB Touchscreen driver for:
-	  - eGalax Touchkit USB
+	  - eGalax Touchkit USB (also includes eTurboTouch CT-410/510/700)
 	  - PanJit TouchSet USB
-	  - 3M MicroTouch USB
+	  - 3M MicroTouch USB (EX II series)
 	  - ITM
+	  - some other eTurboTouch
+	  - Gunze AHL61
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
@@ -218,7 +220,7 @@ config USB_TOUCHSCREEN
 
 config USB_TOUCHSCREEN_EGALAX
 	default y
-	bool "eGalax device support" if EMBEDDED
+	bool "eGalax, eTurboTouch CT-410/510/700 device support" if EMBEDDED
 	depends on USB_TOUCHSCREEN
 
 config USB_TOUCHSCREEN_PANJIT
@@ -228,12 +230,22 @@ config USB_TOUCHSCREEN_PANJIT
 
 config USB_TOUCHSCREEN_3M
 	default y
-	bool "3M/Microtouch device support" if EMBEDDED
+	bool "3M/Microtouch EX II series device support" if EMBEDDED
 	depends on USB_TOUCHSCREEN
 
 config USB_TOUCHSCREEN_ITM
 	default y
 	bool "ITM device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
+
+config USB_TOUCHSCREEN_ETURBO
+	default y
+	bool "eTurboTouch (non-eGalax compatible) device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
+
+config USB_TOUCHSCREEN_GUNZE
+	default y
+	bool "Gunze AHL61 device support" if EMBEDDED
 	depends on USB_TOUCHSCREEN
 
 config USB_YEALINK
@@ -326,3 +338,13 @@ config USB_APPLETOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
+
+config USB_TRANCEVIBRATOR
+	tristate "PlayStation 2 Trance Vibrator driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a PlayStation 2 Trance Vibrator
+	  device to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called trancevibrator.

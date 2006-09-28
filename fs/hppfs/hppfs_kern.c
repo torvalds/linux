@@ -152,7 +152,6 @@ static void hppfs_read_inode(struct inode *ino)
 	ino->i_mode = proc_ino->i_mode;
 	ino->i_nlink = proc_ino->i_nlink;
 	ino->i_size = proc_ino->i_size;
-	ino->i_blksize = proc_ino->i_blksize;
 	ino->i_blocks = proc_ino->i_blocks;
 }
 

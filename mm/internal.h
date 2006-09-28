@@ -24,8 +24,8 @@ static inline void set_page_count(struct page *page, int v)
  */
 static inline void set_page_refcounted(struct page *page)
 {
-	BUG_ON(PageCompound(page) && page_private(page) != (unsigned long)page);
-	BUG_ON(atomic_read(&page->_count));
+	VM_BUG_ON(PageCompound(page) && page_private(page) != (unsigned long)page);
+	VM_BUG_ON(atomic_read(&page->_count));
 	set_page_count(page, 1);
 }
 

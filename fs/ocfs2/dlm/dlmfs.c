@@ -335,7 +335,6 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -362,7 +361,6 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;
 	inode->i_gid = current->fsgid;
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -629,9 +627,7 @@ static void __exit exit_dlmfs_fs(void)
 	flush_workqueue(user_dlm_worker);
 	destroy_workqueue(user_dlm_worker);
 
-	if (kmem_cache_destroy(dlmfs_inode_cache))
-		printk(KERN_INFO "dlmfs_inode_cache: not all structures "
-		       "were freed\n");
+	kmem_cache_destroy(dlmfs_inode_cache);
 }
 
 MODULE_AUTHOR("Oracle");

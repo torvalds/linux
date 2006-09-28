@@ -20,7 +20,7 @@
 
 #include <asm/cpu/dac.h>
 #include <asm/hp6xx/hp6xx.h>
-#include <asm/hd64461/hd64461.h>
+#include <asm/hd64461.h>
 
 #define HP680_MAX_INTENSITY 255
 #define HP680_DEFAULT_INTENSITY 10
@@ -163,6 +163,6 @@ static void __exit hp680bl_exit(void)
 module_init(hp680bl_init);
 module_exit(hp680bl_exit);
 
-MODULE_AUTHOR("Andriy Skulysh <askulysh@image.kiev.ua>");
+MODULE_AUTHOR("Andriy Skulysh <askulysh@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 680 Backlight Driver");
 MODULE_LICENSE("GPL");

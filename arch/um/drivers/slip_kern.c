@@ -61,7 +61,7 @@ static int slip_write(int fd, struct sk_buff **skb,
 			       (struct slip_data *) &lp->user));
 }
 
-struct net_kern_info slip_kern_info = {
+const struct net_kern_info slip_kern_info = {
 	.init			= slip_init,
 	.protocol		= slip_protocol,
 	.read			= slip_read,

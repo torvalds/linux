@@ -625,7 +625,7 @@ static u32 iic_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
 }
 
-static struct i2c_algorithm iic_algo = {
+static const struct i2c_algorithm iic_algo = {
 	.master_xfer 	= iic_xfer,
 	.functionality	= iic_func
 };

@@ -10,7 +10,7 @@
  *	to have CPUID. (Thanks to Herbert Oppmann)
  */
  
-static int __init deep_magic_nexgen_probe(void)
+static int __cpuinit deep_magic_nexgen_probe(void)
 {
 	int ret;
 	
@@ -27,21 +27,20 @@ static int __init deep_magic_nexgen_probe(void)
 	return  ret;
 }
 
-static void __init init_nexgen(struct cpuinfo_x86 * c)
+static void __cpuinit init_nexgen(struct cpuinfo_x86 * c)
 {
 	c->x86_cache_size = 256; /* A few had 1 MB... */
 }
 
-static void __init nexgen_identify(struct cpuinfo_x86 * c)
+static void __cpuinit nexgen_identify(struct cpuinfo_x86 * c)
 {
 	/* Detect NexGen with old hypercode */
 	if ( deep_magic_nexgen_probe() ) {
 		strcpy(c->x86_vendor_id, "NexGenDriven");
 	}
-	generic_identify(c);
 }
 
-static struct cpu_dev nexgen_cpu_dev __initdata = {
+static struct cpu_dev nexgen_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Nexgen",
 	.c_ident	= { "NexGenDriven" },
 	.c_models = {

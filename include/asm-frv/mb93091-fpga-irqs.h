@@ -12,11 +12,9 @@
 #ifndef _ASM_MB93091_FPGA_IRQS_H
 #define _ASM_MB93091_FPGA_IRQS_H
 
+#include <asm/irq.h>
+
 #ifndef __ASSEMBLY__
-
-#include <asm/irq-routing.h>
-
-#define IRQ_BASE_FPGA		(NR_IRQ_ACTIONS_PER_GROUP * 1)
 
 /* IRQ IDs presented to drivers */
 enum {

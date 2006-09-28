@@ -23,59 +23,44 @@ static void usb_api_blocking_completion(struct urb *urb, struct pt_regs *regs)
 }
 
 
-static void timeout_kill(unsigned long data)
-{
-	struct urb	*urb = (struct urb *) data;
-
-	usb_unlink_urb(urb);
-}
-
-// Starts urb and waits for completion or timeout
-// note that this call is NOT interruptible, while
-// many device driver i/o requests should be interruptible
-static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
+/*
+ * Starts urb and waits for completion or timeout. Note that this call
+ * is NOT interruptible. Many device driver i/o requests should be
+ * interruptible and therefore these drivers should implement their
+ * own interruptible routines.
+ */
+static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
 { 
-	struct completion	done;
-	struct timer_list	timer;
-	int			status;
+	struct completion done;
+	unsigned long expire;
+	int status;
 
 	init_completion(&done); 	
 	urb->context = &done;
 	urb->actual_length = 0;
 	status = usb_submit_urb(urb, GFP_NOIO);
+	if (unlikely(status))
+		goto out;
 
-	if (status == 0) {
-		if (timeout > 0) {
-			init_timer(&timer);
-			timer.expires = jiffies + msecs_to_jiffies(timeout);
-			timer.data = (unsigned long)urb;
-			timer.function = timeout_kill;
-			/* grr.  timeout _should_ include submit delays. */
-			add_timer(&timer);
-		}
-		wait_for_completion(&done);
+	expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
+	if (!wait_for_completion_timeout(&done, expire)) {
+
+		dev_dbg(&urb->dev->dev,
+			"%s timed out on ep%d%s len=%d/%d\n",
+			current->comm,
+			usb_pipeendpoint(urb->pipe),
+			usb_pipein(urb->pipe) ? "in" : "out",
+			urb->actual_length,
+			urb->transfer_buffer_length);
+
+		usb_kill_urb(urb);
+		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
+	} else
 		status = urb->status;
-		/* note:  HCDs return ETIMEDOUT for other reasons too */
-		if (status == -ECONNRESET) {
-			dev_dbg(&urb->dev->dev,
-				"%s timed out on ep%d%s len=%d/%d\n",
-				current->comm,
-				usb_pipeendpoint(urb->pipe),
-				usb_pipein(urb->pipe) ? "in" : "out",
-				urb->actual_length,
-				urb->transfer_buffer_length
-				);
-			if (urb->actual_length > 0)
-				status = 0;
-			else
-				status = -ETIMEDOUT;
-		}
-		if (timeout > 0)
-			del_timer_sync(&timer);
-	}
-
+out:
 	if (actual_length)
 		*actual_length = urb->actual_length;
+
 	usb_free_urb(urb);
 	return status;
 }
@@ -263,7 +248,7 @@ static void sg_clean (struct usb_sg_request *io)
 
 static void sg_complete (struct urb *urb, struct pt_regs *regs)
 {
-	struct usb_sg_request	*io = (struct usb_sg_request *) urb->context;
+	struct usb_sg_request	*io = urb->context;
 
 	spin_lock (&io->lock);
 
@@ -999,8 +984,8 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
 		ep = dev->ep_in[epnum];
 		dev->ep_in[epnum] = NULL;
 	}
-	if (ep && dev->bus && dev->bus->op && dev->bus->op->disable)
-		dev->bus->op->disable(dev, ep);
+	if (ep && dev->bus)
+		usb_hcd_endpoint_disable(dev, ep);
 }
 
 /**
@@ -1381,9 +1366,6 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	if (cp && configuration == 0)
 		dev_warn(&dev->dev, "config 0 descriptor??\n");
 
-	if (dev->state == USB_STATE_SUSPENDED)
-		return -EHOSTUNREACH;
-
 	/* Allocate memory for new interfaces before doing anything else,
 	 * so that if we run out then nothing will have changed. */
 	n = nintf = 0;
@@ -1418,6 +1400,11 @@ free_interfaces:
 					configuration, -i);
 	}
 
+	/* Wake up the device so we can send it the Set-Config request */
+	ret = usb_autoresume_device(dev, 1);
+	if (ret)
+		goto free_interfaces;
+
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
@@ -1437,6 +1424,7 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
+		usb_autosuspend_device(dev, 1);
 		goto free_interfaces;
 	}
 	usb_set_device_state(dev, USB_STATE_CONFIGURED);
@@ -1505,8 +1493,68 @@ free_interfaces:
 		usb_create_sysfs_intf_files (intf);
 	}
 
+	usb_autosuspend_device(dev, 1);
 	return 0;
 }
+
+struct set_config_request {
+	struct usb_device	*udev;
+	int			config;
+	struct work_struct	work;
+};
+
+/* Worker routine for usb_driver_set_configuration() */
+static void driver_set_config_work(void *_req)
+{
+	struct set_config_request *req = _req;
+
+	usb_lock_device(req->udev);
+	usb_set_configuration(req->udev, req->config);
+	usb_unlock_device(req->udev);
+	usb_put_dev(req->udev);
+	kfree(req);
+}
+
+/**
+ * usb_driver_set_configuration - Provide a way for drivers to change device configurations
+ * @udev: the device whose configuration is being updated
+ * @config: the configuration being chosen.
+ * Context: In process context, must be able to sleep
+ *
+ * Device interface drivers are not allowed to change device configurations.
+ * This is because changing configurations will destroy the interface the
+ * driver is bound to and create new ones; it would be like a floppy-disk
+ * driver telling the computer to replace the floppy-disk drive with a
+ * tape drive!
+ *
+ * Still, in certain specialized circumstances the need may arise.  This
+ * routine gets around the normal restrictions by using a work thread to
+ * submit the change-config request.
+ *
+ * Returns 0 if the request was succesfully queued, error code otherwise.
+ * The caller has no way to know whether the queued request will eventually
+ * succeed.
+ */
+int usb_driver_set_configuration(struct usb_device *udev, int config)
+{
+	struct set_config_request *req;
+
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+	req->udev = udev;
+	req->config = config;
+	INIT_WORK(&req->work, driver_set_config_work, req);
+
+	usb_get_dev(udev);
+	if (!schedule_work(&req->work)) {
+		usb_put_dev(udev);
+		kfree(req);
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_driver_set_configuration);
 
 // synchronous request completion model
 EXPORT_SYMBOL(usb_control_msg);

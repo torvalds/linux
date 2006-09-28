@@ -17,6 +17,8 @@
 
 extern int apic_verbosity;
 extern int apic_runs_main_timer;
+extern int ioapic_force;
+extern int apic_mapped;
 
 /*
  * Define the default level of output to be very little
@@ -28,8 +30,6 @@ extern int apic_runs_main_timer;
 		if ((v) <= apic_verbosity) \
 			printk(s, ##a);    \
 	} while (0)
-
-#ifdef CONFIG_X86_LOCAL_APIC
 
 struct pt_regs;
 
@@ -95,16 +95,11 @@ extern void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
 #define K8_APIC_EXT_INT_MSG_EXT 0x7
 #define K8_APIC_EXT_LVT_ENTRY_THRESHOLD    0
 
-extern int disable_timer_pin_1;
-
-
 void smp_send_timer_broadcast_ipi(void);
 void switch_APIC_timer_to_ipi(void *cpumask);
 void switch_ipi_to_APIC_timer(void *cpumask);
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
-
-#endif /* CONFIG_X86_LOCAL_APIC */
 
 extern unsigned boot_cpu_id;
 

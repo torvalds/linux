@@ -209,7 +209,7 @@ static int cypress_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&interface->dev, "Out of memory!\n");
-		goto error;
+		goto error_mem;
 	}
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
@@ -218,15 +218,26 @@ static int cypress_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	/* create device attribute files */
-	device_create_file(&interface->dev, &dev_attr_port0);
-	device_create_file(&interface->dev, &dev_attr_port1);
+	retval = device_create_file(&interface->dev, &dev_attr_port0);
+	if (retval)
+		goto error;
+	retval = device_create_file(&interface->dev, &dev_attr_port1);
+	if (retval)
+		goto error;
 
 	/* let the user know that the device is now attached */
 	dev_info(&interface->dev,
 		 "Cypress CY7C63xxx device now attached\n");
+	return 0;
 
-	retval = 0;
 error:
+	device_remove_file(&interface->dev, &dev_attr_port0);
+	device_remove_file(&interface->dev, &dev_attr_port1);
+	usb_set_intfdata(interface, NULL);
+	usb_put_dev(dev->udev);
+	kfree(dev);
+
+error_mem:
 	return retval;
 }
 

@@ -36,7 +36,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"pata_pdc2027x"
-#define DRV_VERSION	"0.74-ac3"
+#define DRV_VERSION	"0.74-ac5"
 #undef PDC_DEBUG
 
 #ifdef PDC_DEBUG
@@ -311,10 +311,8 @@ static inline int pdc2027x_port_enabled(struct ata_port *ap)
 static int pdc2027x_prereset(struct ata_port *ap)
 {
 	/* Check whether port enabled */
-	if (!pdc2027x_port_enabled(ap)) {
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
-		return 0;
-	}
+	if (!pdc2027x_port_enabled(ap))
+		return -ENOENT;
 	pdc2027x_cbl_detect(ap);
 	return ata_std_prereset(ap);
 }

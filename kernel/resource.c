@@ -344,12 +344,11 @@ EXPORT_SYMBOL(allocate_resource);
  *
  * Returns 0 on success, -EBUSY if the resource can't be inserted.
  *
- * This function is equivalent of request_resource when no conflict
+ * This function is equivalent to request_resource when no conflict
  * happens. If a conflict happens, and the conflicting resources
  * entirely fit within the range of the new resource, then the new
- * resource is inserted and the conflicting resources become childs of
- * the new resource.  Otherwise the new resource becomes the child of
- * the conflicting resource
+ * resource is inserted and the conflicting resources become children of
+ * the new resource.
  */
 int insert_resource(struct resource *parent, struct resource *new)
 {
@@ -357,20 +356,21 @@ int insert_resource(struct resource *parent, struct resource *new)
 	struct resource *first, *next;
 
 	write_lock(&resource_lock);
- begin:
- 	result = 0;
-	first = __request_resource(parent, new);
-	if (!first)
-		goto out;
 
-	result = -EBUSY;
-	if (first == parent)
-		goto out;
+	for (;; parent = first) {
+	 	result = 0;
+		first = __request_resource(parent, new);
+		if (!first)
+			goto out;
 
-	/* Resource fully contained by the clashing resource? Recurse into it */
-	if (first->start <= new->start && first->end >= new->end) {
-		parent = first;
-		goto begin;
+		result = -EBUSY;
+		if (first == parent)
+			goto out;
+
+		if ((first->start > new->start) || (first->end < new->end))
+			break;
+		if ((first->start == new->start) && (first->end == new->end))
+			break;
 	}
 
 	for (next = first; ; next = next->sibling) {

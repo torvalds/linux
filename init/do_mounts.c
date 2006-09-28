@@ -8,6 +8,7 @@
 #include <linux/security.h>
 #include <linux/delay.h>
 #include <linux/mount.h>
+#include <linux/device.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -402,6 +403,10 @@ void __init prepare_namespace(void)
 		       root_delay);
 		ssleep(root_delay);
 	}
+
+	/* wait for the known devices to complete their probing */
+	while (driver_probe_done() != 0)
+		msleep(100);
 
 	md_run_setup();
 

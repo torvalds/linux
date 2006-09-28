@@ -43,7 +43,6 @@
 #include <asm/mb-regs.h>
 #include <asm/mb93493-regs.h>
 #include <asm/gdb-stub.h>
-#include <asm/irq-routing.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_BLK_DEV_INITRD

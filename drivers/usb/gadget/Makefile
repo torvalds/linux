@@ -15,6 +15,7 @@ obj-$(CONFIG_USB_AT91)		+= at91_udc.o
 g_zero-objs			:= zero.o usbstring.o config.o epautoconf.o
 g_ether-objs			:= ether.o usbstring.o config.o epautoconf.o
 g_serial-objs			:= serial.o usbstring.o config.o epautoconf.o
+g_midi-objs			:= gmidi.o usbstring.o config.o epautoconf.o
 gadgetfs-objs			:= inode.o
 g_file_storage-objs		:= file_storage.o usbstring.o config.o \
 					epautoconf.o
@@ -28,4 +29,5 @@ obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
 obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
+obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
 

@@ -15,6 +15,15 @@
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 
+#define PAGE_ALIGNED __attribute__ ((__aligned__(PAGE_SIZE)))
+static u64 kexec_pgd[512] PAGE_ALIGNED;
+static u64 kexec_pud0[512] PAGE_ALIGNED;
+static u64 kexec_pmd0[512] PAGE_ALIGNED;
+static u64 kexec_pte0[512] PAGE_ALIGNED;
+static u64 kexec_pud1[512] PAGE_ALIGNED;
+static u64 kexec_pmd1[512] PAGE_ALIGNED;
+static u64 kexec_pte1[512] PAGE_ALIGNED;
+
 static void init_level2_page(pmd_t *level2p, unsigned long addr)
 {
 	unsigned long end_addr;
@@ -144,31 +153,18 @@ static void load_segments(void)
 		);
 }
 
-typedef NORET_TYPE void (*relocate_new_kernel_t)(unsigned long indirection_page,
-					unsigned long control_code_buffer,
-					unsigned long start_address,
-					unsigned long pgtable) ATTRIB_NORET;
-
-extern const unsigned char relocate_new_kernel[];
-extern const unsigned long relocate_new_kernel_size;
-
 int machine_kexec_prepare(struct kimage *image)
 {
-	unsigned long start_pgtable, control_code_buffer;
+	unsigned long start_pgtable;
 	int result;
 
 	/* Calculate the offsets */
 	start_pgtable = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
-	control_code_buffer = start_pgtable + PAGE_SIZE;
 
 	/* Setup the identity mapped 64bit page table */
 	result = init_pgtable(image, start_pgtable);
 	if (result)
 		return result;
-
-	/* Place the code in the reboot code buffer */
-	memcpy(__va(control_code_buffer), relocate_new_kernel,
-						relocate_new_kernel_size);
 
 	return 0;
 }
@@ -184,28 +180,34 @@ void machine_kexec_cleanup(struct kimage *image)
  */
 NORET_TYPE void machine_kexec(struct kimage *image)
 {
-	unsigned long page_list;
-	unsigned long control_code_buffer;
-	unsigned long start_pgtable;
-	relocate_new_kernel_t rnk;
+	unsigned long page_list[PAGES_NR];
+	void *control_page;
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
-	/* Calculate the offsets */
-	page_list = image->head;
-	start_pgtable = page_to_pfn(image->control_code_page) << PAGE_SHIFT;
-	control_code_buffer = start_pgtable + PAGE_SIZE;
+	control_page = page_address(image->control_code_page) + PAGE_SIZE;
+	memcpy(control_page, relocate_kernel, PAGE_SIZE);
 
-	/* Set the low half of the page table to my identity mapped
-	 * page table for kexec.  Leave the high half pointing at the
-	 * kernel pages.   Don't bother to flush the global pages
-	 * as that will happen when I fully switch to my identity mapped
-	 * page table anyway.
-	 */
-	memcpy(__va(read_cr3()), __va(start_pgtable), PAGE_SIZE/2);
-	__flush_tlb();
+	page_list[PA_CONTROL_PAGE] = __pa(control_page);
+	page_list[VA_CONTROL_PAGE] = (unsigned long)relocate_kernel;
+	page_list[PA_PGD] = __pa(kexec_pgd);
+	page_list[VA_PGD] = (unsigned long)kexec_pgd;
+	page_list[PA_PUD_0] = __pa(kexec_pud0);
+	page_list[VA_PUD_0] = (unsigned long)kexec_pud0;
+	page_list[PA_PMD_0] = __pa(kexec_pmd0);
+	page_list[VA_PMD_0] = (unsigned long)kexec_pmd0;
+	page_list[PA_PTE_0] = __pa(kexec_pte0);
+	page_list[VA_PTE_0] = (unsigned long)kexec_pte0;
+	page_list[PA_PUD_1] = __pa(kexec_pud1);
+	page_list[VA_PUD_1] = (unsigned long)kexec_pud1;
+	page_list[PA_PMD_1] = __pa(kexec_pmd1);
+	page_list[VA_PMD_1] = (unsigned long)kexec_pmd1;
+	page_list[PA_PTE_1] = __pa(kexec_pte1);
+	page_list[VA_PTE_1] = (unsigned long)kexec_pte1;
 
+	page_list[PA_TABLE_PAGE] =
+	  (unsigned long)__pa(page_address(image->control_code_page));
 
 	/* The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
@@ -222,7 +224,36 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	 */
 	set_gdt(phys_to_virt(0),0);
 	set_idt(phys_to_virt(0),0);
+
 	/* now call it */
-	rnk = (relocate_new_kernel_t) control_code_buffer;
-	(*rnk)(page_list, control_code_buffer, image->start, start_pgtable);
+	relocate_kernel((unsigned long)image->head, (unsigned long)page_list,
+			image->start);
 }
+
+/* crashkernel=size@addr specifies the location to reserve for
+ * a crash kernel.  By reserving this memory we guarantee
+ * that linux never set's it up as a DMA target.
+ * Useful for holding code to do something appropriate
+ * after a kernel panic.
+ */
+static int __init setup_crashkernel(char *arg)
+{
+	unsigned long size, base;
+	char *p;
+	if (!arg)
+		return -EINVAL;
+	size = memparse(arg, &p);
+	if (arg == p)
+		return -EINVAL;
+	if (*p == '@') {
+		base = memparse(p+1, &p);
+		/* FIXME: Do I want a sanity check to validate the
+		 * memory range?  Yes you do, but it's too early for
+		 * e820 -AK */
+		crashk_res.start = base;
+		crashk_res.end   = base + size - 1;
+	}
+	return 0;
+}
+early_param("crashkernel", setup_crashkernel);
+

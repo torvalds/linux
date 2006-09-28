@@ -184,7 +184,7 @@ static struct ata_port_operations qdi6500_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= qdi_data_xfer,
 
 	.irq_handler	= ata_interrupt,
@@ -212,7 +212,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= qdi_qc_issue_prot,
-	.eng_timeout	= ata_eng_timeout,
+
 	.data_xfer	= qdi_data_xfer,
 
 	.irq_handler	= ata_interrupt,

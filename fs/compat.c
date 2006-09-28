@@ -1855,7 +1855,7 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 
 	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
 
-	if (tsp && !(current->personality & STICKY_TIMEOUTS)) {
+	if (ret == 0 && tsp && !(current->personality & STICKY_TIMEOUTS)) {
 		struct compat_timespec rts;
 
 		rts.tv_sec = timeout / HZ;
@@ -1866,7 +1866,8 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 		}
 		if (compat_timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
-		copy_to_user(tsp, &rts, sizeof(rts));
+		if (copy_to_user(tsp, &rts, sizeof(rts)))
+			ret = -EFAULT;
 	}
 
 	if (ret == -ERESTARTNOHAND) {

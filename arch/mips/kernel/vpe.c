@@ -768,9 +768,15 @@ int vpe_run(struct vpe * v)
 	 */
  	write_tc_c0_tcbind((read_tc_c0_tcbind() & ~TCBIND_CURVPE) | v->minor);
 
+	write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() & ~(VPECONF0_VPA));
+
+	back_to_back_c0_hazard();
+
         /* Set up the XTC bit in vpeconf0 to point at our tc */
         write_vpe_c0_vpeconf0( (read_vpe_c0_vpeconf0() & ~(VPECONF0_XTC))
                                | (t->index << VPECONF0_XTC_SHIFT));
+
+	back_to_back_c0_hazard();
 
         /* enable this VPE */
         write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | VPECONF0_VPA);

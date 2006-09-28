@@ -105,7 +105,7 @@ static struct kmem_cache *sn_cache;
 
 /* Highest zone. An specific allocation for a zone below that is not
    policied. */
-int policy_zone = ZONE_DMA;
+enum zone_type policy_zone = ZONE_DMA;
 
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
@@ -137,7 +137,8 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 static struct zonelist *bind_zonelist(nodemask_t *nodes)
 {
 	struct zonelist *zl;
-	int num, max, nd, k;
+	int num, max, nd;
+	enum zone_type k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
 	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
@@ -148,12 +149,16 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	   lower zones etc. Avoid empty zones because the memory allocator
 	   doesn't like them. If you implement node hot removal you
 	   have to fix that. */
-	for (k = policy_zone; k >= 0; k--) { 
+	k = policy_zone;
+	while (1) {
 		for_each_node_mask(nd, *nodes) { 
 			struct zone *z = &NODE_DATA(nd)->node_zones[k];
 			if (z->present_pages > 0) 
 				zl->zones[num++] = z;
 		}
+		if (k == 0)
+			break;
+		k--;
 	}
 	zl->zones[num] = NULL;
 	return zl;
@@ -482,7 +487,7 @@ static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 	switch (p->policy) {
 	case MPOL_BIND:
 		for (i = 0; p->v.zonelist->zones[i]; i++)
-			node_set(p->v.zonelist->zones[i]->zone_pgdat->node_id,
+			node_set(zone_to_nid(p->v.zonelist->zones[i]),
 				*nodes);
 		break;
 	case MPOL_DEFAULT:
@@ -1131,7 +1136,9 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	switch (policy->policy) {
+	int pol = policy ? policy->policy : MPOL_DEFAULT;
+
+	switch (pol) {
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
 
@@ -1140,7 +1147,7 @@ unsigned slab_node(struct mempolicy *policy)
 		 * Follow bind policy behavior and start allocation at the
 		 * first node.
 		 */
-		return policy->v.zonelist->zones[0]->zone_pgdat->node_id;
+		return zone_to_nid(policy->v.zonelist->zones[0]);
 
 	case MPOL_PREFERRED:
 		if (policy->v.preferred_node >= 0)
@@ -1285,7 +1292,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 
 	if ((gfp & __GFP_WAIT) && !in_interrupt())
 		cpuset_update_task_memory_state();
-	if (!pol || in_interrupt())
+	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
 	if (pol->policy == MPOL_INTERLEAVE)
 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
@@ -1644,7 +1651,7 @@ void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
 
 		nodes_clear(nodes);
 		for (z = pol->v.zonelist->zones; *z; z++)
-			node_set((*z)->zone_pgdat->node_id, nodes);
+			node_set(zone_to_nid(*z), nodes);
 		nodes_remap(tmp, nodes, *mpolmask, *newmask);
 		nodes = tmp;
 

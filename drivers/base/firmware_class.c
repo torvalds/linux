@@ -602,7 +602,7 @@ firmware_class_exit(void)
 	class_unregister(&firmware_class);
 }
 
-module_init(firmware_class_init);
+fs_initcall(firmware_class_init);
 module_exit(firmware_class_exit);
 
 EXPORT_SYMBOL(release_firmware);

@@ -510,6 +510,14 @@ config SH_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called shwdt.
 
+config SH_WDT_MMAP
+	bool "Allow mmap of SH WDT"
+	default n
+	depends on SH_WDT
+	help
+	  If you say Y here, user applications will be able to mmap the
+	  WDT/CPG registers.
+#
 # SPARC64 Architecture
 
 config WATCHDOG_CP1XXX

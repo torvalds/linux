@@ -8875,8 +8875,6 @@ static int ipw_wx_set_essid(struct net_device *dev,
         }
 
 	length = min((int)wrqu->essid.length, IW_ESSID_MAX_SIZE);
-	if (!extra[length - 1])
-		length--;
 
 	priv->config |= CFG_STATIC_ESSID;
 
@@ -8953,7 +8951,7 @@ static int ipw_wx_get_nick(struct net_device *dev,
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	IPW_DEBUG_WX("Getting nick\n");
 	mutex_lock(&priv->mutex);
-	wrqu->data.length = strlen(priv->nick) + 1;
+	wrqu->data.length = strlen(priv->nick);
 	memcpy(extra, priv->nick, wrqu->data.length);
 	wrqu->data.flags = 1;	/* active */
 	mutex_unlock(&priv->mutex);
@@ -9276,9 +9274,9 @@ static int ipw_wx_set_retry(struct net_device *dev,
 		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
-	if (wrqu->retry.flags & IW_RETRY_MIN)
+	if (wrqu->retry.flags & IW_RETRY_SHORT)
 		priv->short_retry_limit = (u8) wrqu->retry.value;
-	else if (wrqu->retry.flags & IW_RETRY_MAX)
+	else if (wrqu->retry.flags & IW_RETRY_LONG)
 		priv->long_retry_limit = (u8) wrqu->retry.value;
 	else {
 		priv->short_retry_limit = (u8) wrqu->retry.value;
@@ -9307,11 +9305,11 @@ static int ipw_wx_get_retry(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (wrqu->retry.flags & IW_RETRY_MAX) {
-		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	if (wrqu->retry.flags & IW_RETRY_LONG) {
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		wrqu->retry.value = priv->long_retry_limit;
-	} else if (wrqu->retry.flags & IW_RETRY_MIN) {
-		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MIN;
+	} else if (wrqu->retry.flags & IW_RETRY_SHORT) {
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_SHORT;
 		wrqu->retry.value = priv->short_retry_limit;
 	} else {
 		wrqu->retry.flags = IW_RETRY_LIMIT;

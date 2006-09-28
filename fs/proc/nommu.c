@@ -33,18 +33,14 @@
 #include "internal.h"
 
 /*
- * display a list of all the VMAs the kernel knows about
- * - nommu kernals have a single flat list
+ * display a single VMA to a sequenced file
  */
-static int nommu_vma_list_show(struct seq_file *m, void *v)
+int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 {
-	struct vm_area_struct *vma;
 	unsigned long ino = 0;
 	struct file *file;
 	dev_t dev = 0;
 	int flags, len;
-
-	vma = rb_entry((struct rb_node *) v, struct vm_area_struct, vm_rb);
 
 	flags = vma->vm_flags;
 	file = vma->vm_file;
@@ -76,6 +72,18 @@ static int nommu_vma_list_show(struct seq_file *m, void *v)
 
 	seq_putc(m, '\n');
 	return 0;
+}
+
+/*
+ * display a list of all the VMAs the kernel knows about
+ * - nommu kernals have a single flat list
+ */
+static int nommu_vma_list_show(struct seq_file *m, void *v)
+{
+	struct vm_area_struct *vma;
+
+	vma = rb_entry((struct rb_node *) v, struct vm_area_struct, vm_rb);
+	return nommu_vma_show(m, vma);
 }
 
 static void *nommu_vma_list_start(struct seq_file *m, loff_t *_pos)

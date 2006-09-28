@@ -255,8 +255,6 @@ static const struct ata_port_operations radisys_pata_ops = {
 	.qc_issue		= radisys_qc_issue_prot,
 	.data_xfer		= ata_pio_data_xfer,
 
-	.eng_timeout		= ata_eng_timeout,
-
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 

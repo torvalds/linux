@@ -289,7 +289,6 @@ static struct inode *cpuset_new_inode(mode_t mode)
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->backing_dev_info = &cpuset_backing_dev_info;
@@ -2245,7 +2244,7 @@ int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
 	int i;
 
 	for (i = 0; zl->zones[i]; i++) {
-		int nid = zl->zones[i]->zone_pgdat->node_id;
+		int nid = zone_to_nid(zl->zones[i]);
 
 		if (node_isset(nid, current->mems_allowed))
 			return 1;
@@ -2316,9 +2315,9 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	const struct cpuset *cs;	/* current cpuset ancestors */
 	int allowed;			/* is allocation in zone z allowed? */
 
-	if (in_interrupt())
+	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
 		return 1;
-	node = z->zone_pgdat->node_id;
+	node = zone_to_nid(z);
 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
 		return 1;

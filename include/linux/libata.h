@@ -36,7 +36,15 @@
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
 
+/*
+ * Define if arch has non-standard setup.  This is a _PCI_ standard
+ * not a legacy or ISA standard.
+ */
+#ifdef CONFIG_ATA_NONSTANDARD
 #include <asm/libata-portmap.h>
+#else
+#include <asm-generic/libata-portmap.h>
+#endif
 
 /*
  * compile-time options: to be removed as soon as all the drivers are

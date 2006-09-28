@@ -488,6 +488,12 @@ struct page *page_cache_alloc_cold(struct address_space *x)
 EXPORT_SYMBOL(page_cache_alloc_cold);
 #endif
 
+static int __sleep_on_page_lock(void *word)
+{
+	io_schedule();
+	return 0;
+}
+
 /*
  * In order to wait for pages to become available there must be
  * waitqueues associated with pages. By using a hash table of
@@ -577,13 +583,24 @@ void fastcall __lock_page(struct page *page)
 }
 EXPORT_SYMBOL(__lock_page);
 
+/*
+ * Variant of lock_page that does not require the caller to hold a reference
+ * on the page's mapping.
+ */
+void fastcall __lock_page_nosync(struct page *page)
+{
+	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
+							TASK_UNINTERRUPTIBLE);
+}
+
 /**
  * find_get_page - find and get a page reference
  * @mapping: the address_space to search
  * @offset: the page index
  *
- * A rather lightweight function, finding and getting a reference to a
- * hashed page atomically.
+ * Is there a pagecache struct page at the given (mapping, offset) tuple?
+ * If yes, increment its refcount and return it; if no, return NULL.
  */
 struct page * find_get_page(struct address_space *mapping, unsigned long offset)
 {
@@ -970,7 +987,7 @@ page_not_up_to_date:
 		/* Get exclusive access to the page ... */
 		lock_page(page);
 
-		/* Did it get unhashed before we got the lock? */
+		/* Did it get truncated before we got the lock? */
 		if (!page->mapping) {
 			unlock_page(page);
 			page_cache_release(page);
@@ -1612,7 +1629,7 @@ no_cached_page:
 page_not_uptodate:
 	lock_page(page);
 
-	/* Did it get unhashed while we waited for it? */
+	/* Did it get truncated while we waited for it? */
 	if (!page->mapping) {
 		unlock_page(page);
 		goto err;

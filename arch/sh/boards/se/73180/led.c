@@ -14,21 +14,8 @@
 #include <linux/sched.h>
 #include <asm/mach/se73180.h>
 
-static void
-mach_led(int position, int value)
-{
-	volatile unsigned short *p = (volatile unsigned short *) PA_LED;
-
-	if (value) {
-		*p |= (1 << LED_SHIFT);
-	} else {
-		*p &= ~(1 << LED_SHIFT);
-	}
-}
-
 /* Cycle the LED's in the clasic Knightrider/Sun pattern */
-void
-heartbeat_73180se(void)
+void heartbeat_73180se(void)
 {
 	static unsigned int cnt = 0, period = 0;
 	volatile unsigned short *p = (volatile unsigned short *) PA_LED;

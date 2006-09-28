@@ -365,7 +365,6 @@ befs_read_inode(struct inode *inode)
 	inode->i_mtime.tv_nsec = 0;   /* lower 16 bits are not a time */	
 	inode->i_ctime = inode->i_mtime;
 	inode->i_atime = inode->i_mtime;
-	inode->i_blksize = befs_sb->block_size;
 
 	befs_ino->i_inode_num = fsrun_to_cpu(sb, raw_inode->inode_num);
 	befs_ino->i_parent = fsrun_to_cpu(sb, raw_inode->parent);
@@ -446,9 +445,7 @@ befs_init_inodecache(void)
 static void
 befs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(befs_inode_cachep))
-		printk(KERN_ERR "befs_destroy_inodecache: "
-		       "not all structures were freed\n");
+	kmem_cache_destroy(befs_inode_cachep);
 }
 
 /*

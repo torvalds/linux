@@ -1,0 +1,196 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+mainmenu "Linux Kernel Configuration"
+
+config AVR32
+	bool
+	default y
+	# With EMBEDDED=n, we get lots of stuff automatically selected
+	# that we usually don't need on AVR32.
+	select EMBEDDED
+	help
+	  AVR32 is a high-performance 32-bit RISC microprocessor core,
+	  designed for cost-sensitive embedded applications, with particular
+	  emphasis on low power consumption and high code density.
+
+	  There is an AVR32 Linux project with a web page at
+	  http://avr32linux.org/.
+
+config UID16
+	bool
+
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config HARDIRQS_SW_RESEND
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config GENERIC_TIME
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config GENERIC_BUST_SPINLOCK
+	bool
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+source "init/Kconfig"
+
+menu "System Type and features"
+
+config SUBARCH_AVR32B
+	bool
+config MMU
+	bool
+config PERFORMANCE_COUNTERS
+	bool
+
+config PLATFORM_AT32AP
+	bool
+	select SUBARCH_AVR32B
+	select MMU
+	select PERFORMANCE_COUNTERS
+
+choice
+	prompt "AVR32 CPU type"
+	default CPU_AT32AP7000
+
+config CPU_AT32AP7000
+	bool "AT32AP7000"
+	select PLATFORM_AT32AP
+endchoice
+
+#
+# CPU Daughterboards for ATSTK1000
+config BOARD_ATSTK1002
+	bool
+
+choice
+	prompt "AVR32 board type"
+	default BOARD_ATSTK1000
+
+config BOARD_ATSTK1000
+	bool "ATSTK1000 evaluation board"
+	select BOARD_ATSTK1002 if CPU_AT32AP7000
+endchoice
+
+choice
+	prompt "Boot loader type"
+	default LOADER_U_BOOT
+
+config	LOADER_U_BOOT
+	bool "U-Boot (or similar) bootloader"
+endchoice
+
+config LOAD_ADDRESS
+	hex
+	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+
+config ENTRY_ADDRESS
+	hex
+	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+
+config PHYS_OFFSET
+	hex
+	default 0x10000000 if CPU_AT32AP7000=y
+
+source "kernel/Kconfig.preempt"
+
+config HAVE_ARCH_BOOTMEM_NODE
+	bool
+	default n
+
+config ARCH_HAVE_MEMORY_PRESENT
+	bool
+	default n
+
+config NEED_NODE_MEMMAP_SIZE
+	bool
+	default n
+
+config ARCH_FLATMEM_ENABLE
+	bool
+	default y
+
+config ARCH_DISCONTIGMEM_ENABLE
+	bool
+	default n
+
+config ARCH_SPARSEMEM_ENABLE
+	bool
+	default n
+
+source "mm/Kconfig"
+
+config OWNERSHIP_TRACE
+	bool "Ownership trace support"
+	default y
+	help
+	  Say Y to generate an Ownership Trace message on every context switch,
+	  enabling Nexus-compliant debuggers to keep track of the PID of the
+	  currently executing task.
+
+# FPU emulation goes here
+
+source "kernel/Kconfig.hz"
+
+config CMDLINE
+	string "Default kernel command line"
+	default ""
+	help
+	  If you don't have a boot loader capable of passing a command line string
+	  to the kernel, you may specify one here. As a minimum, you should specify
+	  the memory size and the root device (e.g., mem=8M, root=/dev/nfs).
+
+endmenu
+
+menu "Bus options"
+
+config PCI
+	bool
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+endmenu
+
+menu "Executable file formats"
+source "fs/Kconfig.binfmt"
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/avr32/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

@@ -36,55 +36,46 @@
 /*
  * The following NetLabel payloads are supported by the Unlabeled subsystem.
  *
- * o ACK:
- *   Sent by the kernel in response to an applications message, applications
- *   should never send this message.
- *
- *   +----------------------+-----------------------+
- *   | seq number (32 bits) | return code (32 bits) |
- *   +----------------------+-----------------------+
- *
- *     seq number:  the sequence number of the original message, taken from the
- *                  nlmsghdr structure
- *     return code: return value, based on errno values
- *
  * o ACCEPT
  *   This message is sent from an application to specify if the kernel should
  *   allow unlabled packets to pass if they do not match any of the static
  *   mappings defined in the unlabeled module.
  *
- *   +-----------------+
- *   | allow (32 bits) |
- *   +-----------------+
+ *   Required attributes:
  *
- *     allow: if true (1) then allow the packets to pass, if false (0) then
- *            reject the packets
+ *     NLBL_UNLABEL_A_ACPTFLG
  *
  * o LIST
  *   This message can be sent either from an application or by the kernel in
  *   response to an application generated LIST message.  When sent by an
  *   application there is no payload.  The kernel should respond to a LIST
- *   message either with a LIST message on success or an ACK message on
- *   failure.
+ *   message with a LIST message on success.
  *
- *   +-----------------------+
- *   | accept flag (32 bits) |
- *   +-----------------------+
+ *   Required attributes:
  *
- *     accept flag: if true (1) then unlabeled packets are allowed to pass,
- *                  if false (0) then unlabeled packets are rejected
+ *     NLBL_UNLABEL_A_ACPTFLG
  *
  */
 
 /* NetLabel Unlabeled commands */
 enum {
 	NLBL_UNLABEL_C_UNSPEC,
-	NLBL_UNLABEL_C_ACK,
 	NLBL_UNLABEL_C_ACCEPT,
 	NLBL_UNLABEL_C_LIST,
 	__NLBL_UNLABEL_C_MAX,
 };
 #define NLBL_UNLABEL_C_MAX (__NLBL_UNLABEL_C_MAX - 1)
+
+/* NetLabel Unlabeled attributes */
+enum {
+	NLBL_UNLABEL_A_UNSPEC,
+	NLBL_UNLABEL_A_ACPTFLG,
+	/* (NLA_U8)
+	 * if true then unlabeled packets are allowed to pass, else unlabeled
+	 * packets are rejected */
+	__NLBL_UNLABEL_A_MAX,
+};
+#define NLBL_UNLABEL_A_MAX (__NLBL_UNLABEL_A_MAX - 1)
 
 /* NetLabel protocol functions */
 int netlbl_unlabel_genl_init(void);

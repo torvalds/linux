@@ -1120,12 +1120,15 @@ static int gs_send(struct gs_dev *dev)
 gs_debug_level(3, "gs_send: len=%d, 0x%2.2x 0x%2.2x 0x%2.2x ...\n", len, *((unsigned char *)req->buf), *((unsigned char *)req->buf+1), *((unsigned char *)req->buf+2));
 			list_del(&req_entry->re_entry);
 			req->length = len;
+			spin_unlock_irqrestore(&dev->dev_lock, flags);
 			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
 				printk(KERN_ERR
 				"gs_send: cannot queue read request, ret=%d\n",
 					ret);
+				spin_lock_irqsave(&dev->dev_lock, flags);
 				break;
 			}
+			spin_lock_irqsave(&dev->dev_lock, flags);
 		} else {
 			break;
 		}

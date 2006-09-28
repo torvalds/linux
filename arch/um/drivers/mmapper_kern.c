@@ -85,7 +85,7 @@ mmapper_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations mmapper_fops = {
+static const struct file_operations mmapper_fops = {
 	.owner		= THIS_MODULE,
 	.read		= mmapper_read,
 	.write		= mmapper_write,
@@ -95,7 +95,7 @@ static struct file_operations mmapper_fops = {
 	.release	= mmapper_release,
 };
 
-static struct miscdevice mmapper_dev = {
+static const struct miscdevice mmapper_dev = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "mmapper",
 	.fops		= &mmapper_fops

@@ -10,6 +10,10 @@
 #include <asm/atomic.h>
 #include <asm/page.h>
 
+struct notifier_block;
+
+struct bio;
+
 #define SWAP_FLAG_PREFER	0x8000	/* set if swap priority specified */
 #define SWAP_FLAG_PRIO_MASK	0x7fff
 #define SWAP_FLAG_PRIO_SHIFT	0
@@ -156,13 +160,14 @@ struct swap_list_t {
 
 /* linux/mm/oom_kill.c */
 extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
+extern int register_oom_notifier(struct notifier_block *nb);
+extern int unregister_oom_notifier(struct notifier_block *nb);
 
 /* linux/mm/memory.c */
 extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
 
 /* linux/mm/page_alloc.c */
 extern unsigned long totalram_pages;
-extern unsigned long totalhigh_pages;
 extern unsigned long totalreserve_pages;
 extern long nr_swap_pages;
 extern unsigned int nr_free_pages(void);
@@ -190,6 +195,7 @@ extern long vm_total_pages;
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
 extern int sysctl_min_unmapped_ratio;
+extern int sysctl_min_slab_ratio;
 extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 #else
 #define zone_reclaim_mode 0
@@ -212,7 +218,9 @@ extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
 /* linux/mm/page_io.c */
 extern int swap_readpage(struct file *, struct page *);
 extern int swap_writepage(struct page *page, struct writeback_control *wbc);
-extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
+extern int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page,
+				struct bio **bio_chain);
+extern int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err);
 
 /* linux/mm/swap_state.c */
 extern struct address_space swapper_space;

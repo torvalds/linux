@@ -2405,9 +2405,10 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 				   BCM43xx_UCODE_TIME) & 0x1f);
 
 	if ( value16 > 0x128 ) {
-		dprintk(KERN_ERR PFX
-			"Firmware: no support for microcode rev > 0x128\n");
-		err = -1;
+		printk(KERN_ERR PFX
+			"Firmware: no support for microcode extracted "
+			"from version 4.x binary drivers.\n");
+		err = -EOPNOTSUPP;
 		goto err_release_fw;
 	}
 
@@ -3169,8 +3170,7 @@ static void bcm43xx_periodic_work_handler(void *d)
 		 * be preemtible.
 		 */
 		mutex_lock(&bcm->mutex);
-		netif_stop_queue(bcm->net_dev);
-		synchronize_net();
+		netif_tx_disable(bcm->net_dev);
 		spin_lock_irqsave(&bcm->irq_lock, flags);
 		bcm43xx_mac_suspend(bcm);
 		if (bcm43xx_using_pio(bcm))

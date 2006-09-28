@@ -142,19 +142,6 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 				     .events 		= events,
 				     .current_events 	= 0 } );
 
-	/* Critical section - locked by a spinlock because this stuff can
-	 * be changed from interrupt handlers.  The stuff above is done
-	 * outside the lock because it allocates memory.
-	 */
-
-	/* Actually, it only looks like it can be called from interrupt
-	 * context.  The culprit is reactivate_fd, which calls
-	 * maybe_sigio_broken, which calls write_sigio_workaround,
-	 * which calls activate_fd.  However, write_sigio_workaround should
-	 * only be called once, at boot time.  That would make it clear that
-	 * this is called only from process context, and can be locked with
-	 * a semaphore.
-	 */
 	spin_lock_irqsave(&irq_lock, flags);
 	for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
 		if ((irq_fd->fd == fd) && (irq_fd->type == type)) {
@@ -165,7 +152,6 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		}
 	}
 
-	/*-------------*/
 	if (type == IRQ_WRITE)
 		fd = -1;
 
@@ -198,7 +184,6 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
 		spin_lock_irqsave(&irq_lock, flags);
 	}
-	/*-------------*/
 
 	*last_irq_ptr = new_fd;
 	last_irq_ptr = &new_fd->next;
@@ -210,14 +195,14 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	 */
 	maybe_sigio_broken(fd, (type == IRQ_READ));
 
-	return(0);
+	return 0;
 
  out_unlock:
 	spin_unlock_irqrestore(&irq_lock, flags);
  out_kfree:
 	kfree(new_fd);
  out:
-	return(err);
+	return err;
 }
 
 static void free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg)
@@ -302,10 +287,7 @@ void reactivate_fd(int fd, int irqnum)
 	os_set_pollfd(i, irq->fd);
 	spin_unlock_irqrestore(&irq_lock, flags);
 
-	/* This calls activate_fd, so it has to be outside the critical
-	 * section.
-	 */
-	maybe_sigio_broken(fd, (irq->type == IRQ_READ));
+	add_sigio_fd(fd);
 }
 
 void deactivate_fd(int fd, int irqnum)
@@ -316,11 +298,15 @@ void deactivate_fd(int fd, int irqnum)
 
 	spin_lock_irqsave(&irq_lock, flags);
 	irq = find_irq_by_fd(fd, irqnum, &i);
-	if (irq == NULL)
-		goto out;
+	if(irq == NULL){
+		spin_unlock_irqrestore(&irq_lock, flags);
+		return;
+	}
+
 	os_set_pollfd(i, -1);
- out:
 	spin_unlock_irqrestore(&irq_lock, flags);
+
+	ignore_sigio_fd(fd);
 }
 
 int deactivate_all_fds(void)

@@ -762,14 +762,14 @@ int pciehp_enable_slot(struct slot *p_slot)
 	if (rc || !getstatus) {
 		info("%s: no adapter on slot(%x)\n", __FUNCTION__, p_slot->number);
 		mutex_unlock(&p_slot->ctrl->crit_sect);
-		return 1;
+		return -ENODEV;
 	}
 	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {	
 		rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (rc || getstatus) {
 			info("%s: latch open on slot(%x)\n", __FUNCTION__, p_slot->number);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
-			return 1;
+			return -ENODEV;
 		}
 	}
 	
@@ -778,7 +778,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		if (rc || getstatus) {
 			info("%s: already enabled on slot(%x)\n", __FUNCTION__, p_slot->number);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
-			return 1;
+			return -EINVAL;
 		}
 	}
 	mutex_unlock(&p_slot->ctrl->crit_sect);
@@ -813,7 +813,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		if (ret || !getstatus) {
 			info("%s: no adapter on slot(%x)\n", __FUNCTION__, p_slot->number);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
-			return 1;
+			return -ENODEV;
 		}
 	}
 
@@ -822,7 +822,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		if (ret || getstatus) {
 			info("%s: latch open on slot(%x)\n", __FUNCTION__, p_slot->number);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
-			return 1;
+			return -ENODEV;
 		}
 	}
 
@@ -831,7 +831,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		if (ret || !getstatus) {
 			info("%s: already disabled slot(%x)\n", __FUNCTION__, p_slot->number);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
-			return 1;
+			return -EINVAL;
 		}
 	}
 

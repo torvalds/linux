@@ -182,7 +182,7 @@ static int daemon_set_mtu(int mtu, void *data)
 	return(mtu);
 }
 
-struct net_user_info daemon_user_info = {
+const struct net_user_info daemon_user_info = {
 	.init		= daemon_user_init,
 	.open		= daemon_open,
 	.close	 	= NULL,

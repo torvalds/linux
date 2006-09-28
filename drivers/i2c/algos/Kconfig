@@ -53,12 +53,6 @@ config I2C_ALGO8XX
 	tristate "MPC8xx CPM I2C interface"
 	depends on 8xx && I2C
 
-config I2C_ALGO_SIBYTE
-	tristate "SiByte SMBus interface"
-	depends on SIBYTE_SB1xxx_SOC && I2C
-	help
-	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
-
 config I2C_ALGO_SGI
 	tristate "I2C SGI interfaces"
 	depends on I2C && (SGI_IP22 || SGI_IP32 || X86_VISWS)

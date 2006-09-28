@@ -24,6 +24,7 @@ extern unsigned int mxcsr_feature_mask;
 extern void mxcsr_feature_mask_init(void);
 extern void init_fpu(struct task_struct *child);
 extern int save_i387(struct _fpstate __user *buf);
+extern asmlinkage void math_state_restore(void);
 
 /*
  * FPU lazy state save handling...
@@ -31,7 +32,9 @@ extern int save_i387(struct _fpstate __user *buf);
 
 #define unlazy_fpu(tsk) do { \
 	if (task_thread_info(tsk)->status & TS_USEDFPU) \
-		save_init_fpu(tsk); \
+		save_init_fpu(tsk); 			\
+	else						\
+		tsk->fpu_counter = 0;			\
 } while (0)
 
 /* Ignore delayed exceptions from user space */
@@ -134,8 +137,8 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 #else
 		     : [fx] "cdaSDb" (fx), "0" (0));
 #endif
-	if (unlikely(err))
-		__clear_user(fx, sizeof(struct i387_fxsave_struct));
+	if (unlikely(err) && __clear_user(fx, sizeof(struct i387_fxsave_struct)))
+		err = -EFAULT;
 	/* No need to clear here because the caller clears USED_MATH */
 	return err;
 } 

@@ -18,7 +18,7 @@ struct daemon_data {
 	void *dev;
 };
 
-extern struct net_user_info daemon_user_info;
+extern const struct net_user_info daemon_user_info;
 
 extern int daemon_user_write(int fd, void *buf, int len, 
 			     struct daemon_data *pri);

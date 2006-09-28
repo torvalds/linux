@@ -337,6 +337,8 @@ struct notifier_block;
 int register_idle_notifier(struct notifier_block *nb);
 int unregister_idle_notifier(struct notifier_block *nb);
 
+#define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
+
 #endif
 
 /*

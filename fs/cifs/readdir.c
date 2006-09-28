@@ -216,10 +216,9 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 
 	if (allocation_size < end_of_file)
 		cFYI(1, ("May be sparse file, allocation less than file size"));
-	cFYI(1, ("File Size %ld and blocks %llu and blocksize %ld",
+	cFYI(1, ("File Size %ld and blocks %llu",
 		(unsigned long)tmp_inode->i_size,
-		(unsigned long long)tmp_inode->i_blocks,
-		tmp_inode->i_blksize));
+		(unsigned long long)tmp_inode->i_blocks));
 	if (S_ISREG(tmp_inode->i_mode)) {
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;

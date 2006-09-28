@@ -316,7 +316,7 @@ static u32 amd8111_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_I2C_BLOCK | I2C_FUNC_SMBUS_HWPEC_CALC;
 }
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer = amd8111_access,
 	.functionality = amd8111_func,
 };

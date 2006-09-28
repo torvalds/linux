@@ -2987,10 +2987,7 @@ error1:
 static void __exit ib_mad_cleanup_module(void)
 {
 	ib_unregister_client(&mad_client);
-
-	if (kmem_cache_destroy(ib_mad_cache)) {
-		printk(KERN_DEBUG PFX "Failed to destroy ib_mad cache\n");
-	}
+	kmem_cache_destroy(ib_mad_cache);
 }
 
 module_init(ib_mad_init_module);

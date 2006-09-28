@@ -162,9 +162,9 @@ extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr);
 extern unsigned slab_node(struct mempolicy *policy);
 
-extern int policy_zone;
+extern enum zone_type policy_zone;
 
-static inline void check_highest_zone(int k)
+static inline void check_highest_zone(enum zone_type k)
 {
 	if (k > policy_zone)
 		policy_zone = k;
