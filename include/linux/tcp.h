@@ -21,10 +21,10 @@
 #include <asm/byteorder.h>
 
 struct tcphdr {
-	__u16	source;
-	__u16	dest;
-	__u32	seq;
-	__u32	ack_seq;
+	__be16	source;
+	__be16	dest;
+	__be32	seq;
+	__be32	ack_seq;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u16	res1:4,
 		doff:4,
@@ -50,9 +50,9 @@ struct tcphdr {
 #else
 #error	"Adjust your <asm/byteorder.h> defines"
 #endif	
-	__u16	window;
-	__u16	check;
-	__u16	urg_ptr;
+	__be16	window;
+	__be16	check;
+	__be16	urg_ptr;
 };
 
 /*
@@ -62,7 +62,7 @@ struct tcphdr {
  */
 union tcp_word_hdr { 
 	struct tcphdr hdr;
-	__u32 		  words[5];
+	__be32 		  words[5];
 }; 
 
 #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) 
