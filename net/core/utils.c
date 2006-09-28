@@ -3,7 +3,7 @@
  *
  *	Authors:
  *	net_random Alan Cox
- *	net_ratelimit Andy Kleen
+ *	net_ratelimit Andi Kleen
  *	in{4,6}_pton YOSHIFUJI Hideaki, Copyright (C)2006 USAGI/WIDE Project
  *
  *	Created by Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
