@@ -637,6 +637,11 @@ xfs_bulkstat(
 				if (fmterror == BULKSTAT_RV_NOTHING) {
 					if (error == ENOMEM)
 						ubleft = 0;
+                                        else if (error) {
+                                                ubleft = 0;
+                                                rval = error;
+                                                break;
+                                        }
 					continue;
 				}
 				if (fmterror == BULKSTAT_RV_GIVEUP) {
