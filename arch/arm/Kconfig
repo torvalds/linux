@@ -95,7 +95,7 @@ config ARCH_MTD_XIP
 
 config VECTORS_BASE
 	hex
-	default 0xffff0000 if MMU
+	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
 	default DRAM_BASE if REMAP_VECTORS_TO_RAM
 	default 0x00000000
 	help

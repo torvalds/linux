@@ -524,6 +524,18 @@ config CPU_BIG_ENDIAN
 	  port must properly enable any big-endian related features
 	  of your chipset/board/processor.
 
+config CPU_HIGH_VECTOR
+	depends !MMU && CPU_CP15 && !CPU_ARM740T
+	bool "Select the High exception vector"
+	default n
+	help
+	  Say Y here to select high exception vector(0xFFFF0000~).
+	  The exception vector can be vary depending on the platform
+	  design in nommu mode. If your platform needs to select
+	  high exception vector, say Y.
+	  Otherwise or if you are unsure, say N, and the low exception
+	  vector (0x00000000~) will be used.
+
 config CPU_ICACHE_DISABLE
 	bool "Disable I-Cache (I-bit)"
 	depends on CPU_CP15 && !(CPU_ARM610 || CPU_ARM710 || CPU_ARM720T || CPU_ARM740T || CPU_XSCALE || CPU_XSC3)
