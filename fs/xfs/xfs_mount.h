@@ -541,7 +541,8 @@ static inline xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp)
 #define XFS_VFSTOM(vfs) xfs_vfstom(vfs)
 static inline xfs_mount_t *xfs_vfstom(bhv_vfs_t *vfs)
 {
-	return XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfs), &xfs_vfsops));
+	return XFS_BHVTOM(bhv_lookup_range(VFS_BHVHEAD(vfs),
+				VFS_POSITION_XFS, VFS_POSITION_XFS));
 }
 
 #define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)
