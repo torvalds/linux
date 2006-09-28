@@ -2212,9 +2212,13 @@ xlog_state_do_callback(
 
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
-		if (repeats && (repeats % 10) == 0) {
+
+		if (repeats > 5000) {
+			flushcnt += repeats;
+			repeats = 0;
 			xfs_fs_cmn_err(CE_WARN, log->l_mp,
-				"xlog_state_do_callback: looping %d", repeats);
+				"%s: possible infinite loop (%d iterations)",
+				__FUNCTION__, flushcnt);
 		}
 	} while (!ioerrors && loopdidcallbacks);
 
@@ -2246,6 +2250,7 @@ xlog_state_do_callback(
 	}
 #endif
 
+	flushcnt = 0;
 	if (log->l_iclog->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_IOERROR)) {
 		flushcnt = log->l_flushcnt;
 		log->l_flushcnt = 0;
