@@ -335,7 +335,6 @@ hmac_md5_update(const unsigned char *text, int text_len,
 /***********************************************************************
  finish off hmac_md5 "inner" buffer and generate outer one.
 ***********************************************************************/
-#if 0   /* currently unused */
 void
 hmac_md5_final(unsigned char *digest, struct HMACMD5Context *ctx)
 {
@@ -353,6 +352,7 @@ hmac_md5_final(unsigned char *digest, struct HMACMD5Context *ctx)
  single function to calculate an HMAC MD5 digest from data.
  use the microsoft hmacmd5 init method because the key is 16 bytes.
 ************************************************************/
+#if 0 /* currently unused */
 static void
 hmac_md5(unsigned char key[16], unsigned char *data, int data_len,
 	 unsigned char *digest)
