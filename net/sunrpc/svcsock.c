@@ -1393,14 +1393,12 @@ svc_create_socket(struct svc_serv *serv, int protocol, struct sockaddr_in *sin)
 	if ((error = sock_create_kern(PF_INET, type, protocol, &sock)) < 0)
 		return error;
 
-	if (sin != NULL) {
-		if (type == SOCK_STREAM)
-			sock->sk->sk_reuse = 1; /* allow address reuse */
-		error = kernel_bind(sock, (struct sockaddr *) sin,
-						sizeof(*sin));
-		if (error < 0)
-			goto bummer;
-	}
+	if (type == SOCK_STREAM)
+		sock->sk->sk_reuse = 1; /* allow address reuse */
+	error = kernel_bind(sock, (struct sockaddr *) sin,
+					sizeof(*sin));
+	if (error < 0)
+		goto bummer;
 
 	if (protocol == IPPROTO_TCP) {
 		if ((error = kernel_listen(sock, 64)) < 0)
