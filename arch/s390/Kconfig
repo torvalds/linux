@@ -51,6 +51,10 @@ config 64BIT
 	  Select this option if you have a 64 bit IBM zSeries machine
 	  and want to use the 64 bit addressing mode.
 
+config 32BIT
+	bool
+	default y if !64BIT
+
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
