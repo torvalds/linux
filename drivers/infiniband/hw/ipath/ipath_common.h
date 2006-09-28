@@ -141,8 +141,9 @@ struct infinipath_stats {
 	 * packets if ipath not configured, etc.)
 	 */
 	__u64 sps_krdrops;
+	__u64 sps_txeparity; /* PIO buffer parity error, recovered */
 	/* pad for future growth */
-	__u64 __sps_pad[46];
+	__u64 __sps_pad[45];
 };
 
 /*

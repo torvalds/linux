@@ -427,6 +427,9 @@ struct ipath_devdata {
 	unsigned long ipath_rcvctrl;
 	/* shadow kr_sendctrl */
 	unsigned long ipath_sendctrl;
+	/* ports waiting for PIOavail intr */
+	unsigned long ipath_portpiowait;
+	unsigned long ipath_lastcancel; /* to not count armlaunch after cancel */
 
 	/* value we put in kr_rcvhdrcnt */
 	u32 ipath_rcvhdrcnt;
@@ -490,8 +493,6 @@ struct ipath_devdata {
 	u32 ipath_htwidth;
 	/* HT speed (200,400,800,1000) from HT config */
 	u32 ipath_htspeed;
-	/* ports waiting for PIOavail intr */
-	unsigned long ipath_portpiowait;
 	/*
 	 * number of sequential ibcstatus change for polling active/quiet
 	 * (i.e., link not coming up).
@@ -585,6 +586,7 @@ int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
 int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
+void ipath_disarm_senderrbufs(struct ipath_devdata *);
 
 struct file_operations;
 int ipath_cdev_init(int minor, char *name, struct file_operations *fops,

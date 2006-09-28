@@ -37,6 +37,50 @@
 #include "ipath_verbs.h"
 #include "ipath_common.h"
 
+/*
+ * Called when we might have an error that is specific to a particular
+ * PIO buffer, and may need to cancel that buffer, so it can be re-used.
+ */
+void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
+{
+	u32 piobcnt;
+	unsigned long sbuf[4];
+	/*
+	 * it's possible that sendbuffererror could have bits set; might
+	 * have already done this as a result of hardware error handling
+	 */
+	piobcnt = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
+	/* read these before writing errorclear */
+	sbuf[0] = ipath_read_kreg64(
+		dd, dd->ipath_kregs->kr_sendbuffererror);
+	sbuf[1] = ipath_read_kreg64(
+		dd, dd->ipath_kregs->kr_sendbuffererror + 1);
+	if (piobcnt > 128) {
+		sbuf[2] = ipath_read_kreg64(
+			dd, dd->ipath_kregs->kr_sendbuffererror + 2);
+		sbuf[3] = ipath_read_kreg64(
+			dd, dd->ipath_kregs->kr_sendbuffererror + 3);
+	}
+
+	if (sbuf[0] || sbuf[1] || (piobcnt > 128 && (sbuf[2] || sbuf[3]))) {
+		int i;
+		if (ipath_debug & (__IPATH_PKTDBG|__IPATH_DBG)) {
+			__IPATH_DBG_WHICH(__IPATH_PKTDBG|__IPATH_DBG,
+					  "SendbufErrs %lx %lx", sbuf[0],
+					  sbuf[1]);
+			if (ipath_debug & __IPATH_PKTDBG && piobcnt > 128)
+				printk(" %lx %lx ", sbuf[2], sbuf[3]);
+			printk("\n");
+		}
+
+		for (i = 0; i < piobcnt; i++)
+			if (test_bit(i, sbuf))
+				ipath_disarm_piobufs(dd, i, 1);
+		dd->ipath_lastcancel = jiffies+3; /* no armlaunch for a bit */
+	}
+}
+
+
 /* These are all rcv-related errors which we want to count for stats */
 #define E_SUM_PKTERRS \
 	(INFINIPATH_E_RHDRLEN | INFINIPATH_E_RBADTID | \
@@ -68,53 +112,9 @@
 
 static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 {
-	unsigned long sbuf[4];
 	u64 ignore_this_time = 0;
-	u32 piobcnt;
 
-	/* if possible that sendbuffererror could be valid */
-	piobcnt = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
-	/* read these before writing errorclear */
-	sbuf[0] = ipath_read_kreg64(
-		dd, dd->ipath_kregs->kr_sendbuffererror);
-	sbuf[1] = ipath_read_kreg64(
-		dd, dd->ipath_kregs->kr_sendbuffererror + 1);
-	if (piobcnt > 128) {
-		sbuf[2] = ipath_read_kreg64(
-			dd, dd->ipath_kregs->kr_sendbuffererror + 2);
-		sbuf[3] = ipath_read_kreg64(
-			dd, dd->ipath_kregs->kr_sendbuffererror + 3);
-	}
-
-	if (sbuf[0] || sbuf[1] || (piobcnt > 128 && (sbuf[2] || sbuf[3]))) {
-		int i;
-
-		ipath_cdbg(PKT, "SendbufErrs %lx %lx ", sbuf[0], sbuf[1]);
-		if (ipath_debug & __IPATH_PKTDBG && piobcnt > 128)
-			printk("%lx %lx ", sbuf[2], sbuf[3]);
-		for (i = 0; i < piobcnt; i++) {
-			if (test_bit(i, sbuf)) {
-				u32 __iomem *piobuf;
-				if (i < dd->ipath_piobcnt2k)
-					piobuf = (u32 __iomem *)
-						(dd->ipath_pio2kbase +
-						 i * dd->ipath_palign);
-				else
-					piobuf = (u32 __iomem *)
-						(dd->ipath_pio4kbase +
-						 (i - dd->ipath_piobcnt2k) *
-						 dd->ipath_4kalign);
-
-				ipath_cdbg(PKT,
-					   "PIObuf[%u] @%p pbc is %x; ",
-					   i, piobuf, readl(piobuf));
-
-				ipath_disarm_piobufs(dd, i, 1);
-			}
-		}
-		if (ipath_debug & __IPATH_PKTDBG)
-			printk("\n");
-	}
+	ipath_disarm_senderrbufs(dd);
 	if ((errs & E_SUM_LINK_PKTERRS) &&
 	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
 		/*
@@ -554,6 +554,14 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			~(INFINIPATH_E_HARDWARE |
 			  INFINIPATH_E_IBSTATUSCHANGED);
 	}
+
+	/* likely due to cancel, so suppress */
+	if ((errs & (INFINIPATH_E_SPKTLEN | INFINIPATH_E_SPIOARMLAUNCH)) &&
+		dd->ipath_lastcancel > jiffies) {
+		ipath_dbg("Suppressed armlaunch/spktlen after error send cancel\n");
+		errs &= ~(INFINIPATH_E_SPIOARMLAUNCH | INFINIPATH_E_SPKTLEN);
+	}
+
 	if (!errs)
 		return 0;
 

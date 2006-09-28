@@ -451,7 +451,10 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	 * make sure we get this much out, unless told to be quiet,
 	 * or it's occurred within the last 5 seconds
 	 */
-	if ((hwerrs & ~dd->ipath_lasthwerror) ||
+	if ((hwerrs & ~(dd->ipath_lasthwerror |
+			((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+			  INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+			<< INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT))) ||
 	    (ipath_debug & __IPATH_VERBDBG))
 		dev_info(&dd->pcidev->dev, "Hardware error: hwerr=0x%llx "
 			 "(cleared)\n", (unsigned long long) hwerrs);
@@ -464,6 +467,33 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	ctrl = ipath_read_kreg32(dd, dd->ipath_kregs->kr_control);
 	if (ctrl & INFINIPATH_C_FREEZEMODE) {
+		/*
+		 * parity errors in send memory are recoverable,
+		 * just cancel the send (if indicated in * sendbuffererror),
+		 * count the occurrence, unfreeze (if no other handled
+		 * hardware error bits are set), and continue. They can
+		 * occur if a processor speculative read is done to the PIO
+		 * buffer while we are sending a packet, for example.
+		 */
+		if (hwerrs & ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+			       INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+			      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
+			ipath_stats.sps_txeparity++;
+			ipath_dbg("Recovering from TXE parity error (%llu), "
+			    	  "hwerrstatus=%llx\n",
+				  (unsigned long long) ipath_stats.sps_txeparity,
+				  (unsigned long long) hwerrs);
+			ipath_disarm_senderrbufs(dd);
+			hwerrs &= ~((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
+				     INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
+				    << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT);
+			if (!hwerrs) { /* else leave in freeze mode */
+				ipath_write_kreg(dd,
+						 dd->ipath_kregs->kr_control,
+						 dd->ipath_control);
+				return;
+			}
+		}
 		if (hwerrs) {
 			/*
 			 * if any set that we aren't ignoring; only
