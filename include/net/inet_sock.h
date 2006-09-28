@@ -112,13 +112,13 @@ struct inet_sock {
 	/* Socket demultiplex comparisons on incoming packets. */
 	__be32			daddr;
 	__be32			rcv_saddr;
-	__u16			dport;
+	__be16			dport;
 	__u16			num;
 	__be32			saddr;
 	__s16			uc_ttl;
 	__u16			cmsg_flags;
 	struct ip_options	*opt;
-	__u16			sport;
+	__be16			sport;
 	__u16			id;
 	__u8			tos;
 	__u8			mc_ttl;
