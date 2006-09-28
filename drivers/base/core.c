@@ -809,8 +809,10 @@ int device_rename(struct device *dev, char *new_name)
 
 	if (dev->class) {
 		old_symlink_name = kmalloc(BUS_ID_SIZE, GFP_KERNEL);
-		if (!old_symlink_name)
-			return -ENOMEM;
+		if (!old_symlink_name) {
+			error = -ENOMEM;
+			goto out_free_old_class;
+		}
 		strlcpy(old_symlink_name, dev->bus_id, BUS_ID_SIZE);
 	}
 
@@ -834,9 +836,10 @@ int device_rename(struct device *dev, char *new_name)
 	}
 	put_device(dev);
 
-	kfree(old_class_name);
 	kfree(new_class_name);
 	kfree(old_symlink_name);
+ out_free_old_class:
+	kfree(old_class_name);
 
 	return error;
 }
