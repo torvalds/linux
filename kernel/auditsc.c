@@ -1357,7 +1357,13 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 		}
 
 update_context:
-	idx = context->name_count++;
+	idx = context->name_count;
+	if (context->name_count == AUDIT_NAMES) {
+		printk(KERN_DEBUG "name_count maxed and losing %s\n",
+			found_name ?: "(null)");
+		return;
+	}
+	context->name_count++;
 #if AUDIT_DEBUG
 	context->ino_count++;
 #endif
@@ -1375,7 +1381,16 @@ update_context:
 	/* A parent was not found in audit_names, so copy the inode data for the
 	 * provided parent. */
 	if (!found_name) {
-		idx = context->name_count++;
+		idx = context->name_count;
+		if (context->name_count == AUDIT_NAMES) {
+			printk(KERN_DEBUG
+				"name_count maxed and losing parent inode data: dev=%02x:%02x, inode=%lu",
+				MAJOR(parent->i_sb->s_dev),
+				MINOR(parent->i_sb->s_dev),
+				parent->i_ino);
+			return;
+		}
+		context->name_count++;
 #if AUDIT_DEBUG
 		context->ino_count++;
 #endif
