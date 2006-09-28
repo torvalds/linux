@@ -333,22 +333,14 @@ static int diag204(unsigned long subcode, unsigned long size, void *addr)
 	register unsigned long _subcode asm("0") = subcode;
 	register unsigned long _size asm("1") = size;
 
-	asm volatile ("   diag    %2,%0,0x204\n"
-		      "0: \n" ".section __ex_table,\"a\"\n"
-#ifndef __s390x__
-		      "    .align 4\n"
-		      "    .long  0b,0b\n"
-#else
-		      "    .align 8\n"
-		      "    .quad  0b,0b\n"
-#endif
-		      ".previous":"+d" (_subcode), "+d"(_size)
-		      :"d"(addr)
-		      :"memory");
+	asm volatile(
+		"	diag	%2,%0,0x204\n"
+		"0:\n"
+		EX_TABLE(0b,0b)
+		: "+d" (_subcode), "+d" (_size) : "d" (addr) : "memory");
 	if (_subcode)
 		return -1;
-	else
-		return _size;
+	return _size;
 }
 
 /*
@@ -491,8 +483,7 @@ out:
 
 static void diag224(void *ptr)
 {
-	asm volatile("   diag    %0,%1,0x224\n"
-		     : :"d" (0), "d"(ptr) : "memory");
+	asm volatile("diag %0,%1,0x224" : :"d" (0), "d"(ptr) : "memory");
 }
 
 static int diag224_get_name_table(void)

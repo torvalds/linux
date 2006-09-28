@@ -11,16 +11,35 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
 static inline int
 _raw_compare_and_swap(volatile unsigned int *lock,
 		      unsigned int old, unsigned int new)
 {
-	asm volatile ("cs %0,%3,0(%4)"
-		      : "=d" (old), "=m" (*lock)
-		      : "0" (old), "d" (new), "a" (lock), "m" (*lock)
-		      : "cc", "memory" );
+	asm volatile(
+		"	cs	%0,%3,%1"
+		: "=d" (old), "=Q" (*lock)
+		: "0" (old), "d" (new), "Q" (*lock)
+		: "cc", "memory" );
 	return old;
 }
+
+#else /* __GNUC__ */
+
+static inline int
+_raw_compare_and_swap(volatile unsigned int *lock,
+		      unsigned int old, unsigned int new)
+{
+	asm volatile(
+		"	cs	%0,%3,0(%4)"
+		: "=d" (old), "=m" (*lock)
+		: "0" (old), "d" (new), "a" (lock), "m" (*lock)
+		: "cc", "memory" );
+	return old;
+}
+
+#endif /* __GNUC__ */
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's

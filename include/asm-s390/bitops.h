@@ -67,16 +67,35 @@ extern const char _sb_findmap[];
 #define __BITOPS_AND		"nr"
 #define __BITOPS_XOR		"xr"
 
-#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)		\
-	__asm__ __volatile__("   l   %0,0(%4)\n"			\
-			     "0: lr  %1,%0\n"				\
-			     __op_string "  %1,%3\n"			\
-			     "   cs  %0,%1,0(%4)\n"			\
-			     "   jl  0b"				\
-			     : "=&d" (__old), "=&d" (__new),	       	\
-			       "=m" (*(unsigned long *) __addr)		\
-			     : "d" (__val), "a" (__addr),		\
-			       "m" (*(unsigned long *) __addr) : "cc" );
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
+#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+	asm volatile(						\
+		"	l	%0,%2\n"			\
+		"0:	lr	%1,%0\n"			\
+		__op_string "	%1,%3\n"			\
+		"	cs	%0,%1,%2\n"			\
+		"	jl	0b"				\
+		: "=&d" (__old), "=&d" (__new),			\
+		  "=Q" (*(unsigned long *) __addr)		\
+		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
+		: "cc");
+
+#else /* __GNUC__ */
+
+#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+	asm volatile(						\
+		"	l	%0,0(%4)\n"			\
+		"0:	lr	%1,%0\n"			\
+		__op_string "	%1,%3\n"			\
+		"	cs	%0,%1,0(%4)\n"			\
+		"	jl	0b"				\
+		: "=&d" (__old), "=&d" (__new),			\
+		  "=m" (*(unsigned long *) __addr)		\
+		: "d" (__val), "a" (__addr),			\
+		  "m" (*(unsigned long *) __addr) : "cc");
+
+#endif /* __GNUC__ */
 
 #else /* __s390x__ */
 
@@ -86,21 +105,41 @@ extern const char _sb_findmap[];
 #define __BITOPS_AND		"ngr"
 #define __BITOPS_XOR		"xgr"
 
-#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)		\
-	__asm__ __volatile__("   lg  %0,0(%4)\n"			\
-			     "0: lgr %1,%0\n"				\
-			     __op_string "  %1,%3\n"			\
-			     "   csg %0,%1,0(%4)\n"			\
-			     "   jl  0b"				\
-			     : "=&d" (__old), "=&d" (__new),	       	\
-			       "=m" (*(unsigned long *) __addr)		\
-			     : "d" (__val), "a" (__addr),		\
-			       "m" (*(unsigned long *) __addr) : "cc" );
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+
+#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+	asm volatile(						\
+		"	lg	%0,%2\n"			\
+		"0:	lgr	%1,%0\n"			\
+		__op_string "	%1,%3\n"			\
+		"	csg	%0,%1,%2\n"			\
+		"	jl	0b"				\
+		: "=&d" (__old), "=&d" (__new),			\
+		  "=Q" (*(unsigned long *) __addr)		\
+		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
+		: "cc");
+
+#else /* __GNUC__ */
+
+#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+	asm volatile(						\
+		"	lg	%0,0(%4)\n"			\
+		"0:	lgr	%1,%0\n"			\
+		__op_string "	%1,%3\n"			\
+		"	csg	%0,%1,0(%4)\n"			\
+		"	jl	0b"				\
+		: "=&d" (__old), "=&d" (__new),			\
+		  "=m" (*(unsigned long *) __addr)		\
+		: "d" (__val), "a" (__addr),			\
+		  "m" (*(unsigned long *) __addr) : "cc");
+
+
+#endif /* __GNUC__ */
 
 #endif /* __s390x__ */
 
 #define __BITOPS_WORDS(bits) (((bits)+__BITOPS_WORDSIZE-1)/__BITOPS_WORDSIZE)
-#define __BITOPS_BARRIER() __asm__ __volatile__ ( "" : : : "memory" )
+#define __BITOPS_BARRIER() asm volatile("" : : : "memory")
 
 #ifdef CONFIG_SMP
 /*
@@ -217,10 +256,10 @@ static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-        asm volatile("oc 0(1,%1),0(%2)"
-		     : "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_oi_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc" );
+	asm volatile(
+		"	oc	0(1,%1),0(%2)"
+		: "=m" (*(char *) addr) : "a" (addr),
+		  "a" (_oi_bitmap + (nr & 7)), "m" (*(char *) addr) : "cc" );
 }
 
 static inline void 
@@ -229,40 +268,7 @@ __constant_set_bit(const unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-	switch (nr&7) {
-	case 0:
-		asm volatile ("oi 0(%1),0x01" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 1:
-		asm volatile ("oi 0(%1),0x02" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 2:
-		asm volatile ("oi 0(%1),0x04" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 3:
-		asm volatile ("oi 0(%1),0x08" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 4:
-		asm volatile ("oi 0(%1),0x10" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 5:
-		asm volatile ("oi 0(%1),0x20" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 6:
-		asm volatile ("oi 0(%1),0x40" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 7:
-		asm volatile ("oi 0(%1),0x80" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	}
+	*(unsigned char *) addr |= 1 << (nr & 7);
 }
 
 #define set_bit_simple(nr,addr) \
@@ -279,10 +285,10 @@ __clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-        asm volatile("nc 0(1,%1),0(%2)"
-		     : "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_ni_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc" );
+	asm volatile(
+		"	nc	0(1,%1),0(%2)"
+		: "=m" (*(char *) addr)	: "a" (addr),
+		  "a" (_ni_bitmap + (nr & 7)), "m" (*(char *) addr) : "cc");
 }
 
 static inline void 
@@ -291,40 +297,7 @@ __constant_clear_bit(const unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-	switch (nr&7) {
-	case 0:
-		asm volatile ("ni 0(%1),0xFE" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 1:
-		asm volatile ("ni 0(%1),0xFD": "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 2:
-		asm volatile ("ni 0(%1),0xFB" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 3:
-		asm volatile ("ni 0(%1),0xF7" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 4:
-		asm volatile ("ni 0(%1),0xEF" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 5:
-		asm volatile ("ni 0(%1),0xDF" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 6:
-		asm volatile ("ni 0(%1),0xBF" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 7:
-		asm volatile ("ni 0(%1),0x7F" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	}
+	*(unsigned char *) addr &= ~(1 << (nr & 7));
 }
 
 #define clear_bit_simple(nr,addr) \
@@ -340,10 +313,10 @@ static inline void __change_bit(unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-        asm volatile("xc 0(1,%1),0(%2)"
-		     :  "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_oi_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc" );
+	asm volatile(
+		"	xc	0(1,%1),0(%2)"
+		:  "=m" (*(char *) addr) : "a" (addr),
+		   "a" (_oi_bitmap + (nr & 7)), "m" (*(char *) addr) : "cc" );
 }
 
 static inline void 
@@ -352,40 +325,7 @@ __constant_change_bit(const unsigned long nr, volatile unsigned long *ptr)
 	unsigned long addr;
 
 	addr = ((unsigned long) ptr) + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
-	switch (nr&7) {
-	case 0:
-		asm volatile ("xi 0(%1),0x01" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 1:
-		asm volatile ("xi 0(%1),0x02" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 2:
-		asm volatile ("xi 0(%1),0x04" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 3:
-		asm volatile ("xi 0(%1),0x08" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 4:
-		asm volatile ("xi 0(%1),0x10" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 5:
-		asm volatile ("xi 0(%1),0x20" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 6:
-		asm volatile ("xi 0(%1),0x40" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	case 7:
-		asm volatile ("xi 0(%1),0x80" : "=m" (*(char *) addr)
-			      : "a" (addr), "m" (*(char *) addr) : "cc" );
-		break;
-	}
+	*(unsigned char *) addr ^= 1 << (nr & 7);
 }
 
 #define change_bit_simple(nr,addr) \
@@ -404,10 +344,11 @@ test_and_set_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
 	ch = *(unsigned char *) addr;
-        asm volatile("oc 0(1,%1),0(%2)"
-		     : "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_oi_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc", "memory" );
+	asm volatile(
+		"	oc	0(1,%1),0(%2)"
+		: "=m" (*(char *) addr)
+		: "a" (addr), "a" (_oi_bitmap + (nr & 7)),
+		  "m" (*(char *) addr) : "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }
 #define __test_and_set_bit(X,Y)		test_and_set_bit_simple(X,Y)
@@ -423,10 +364,11 @@ test_and_clear_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
 	ch = *(unsigned char *) addr;
-        asm volatile("nc 0(1,%1),0(%2)"
-		     : "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_ni_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc", "memory" );
+	asm volatile(
+		"	nc	0(1,%1),0(%2)"
+		: "=m" (*(char *) addr)
+		: "a" (addr), "a" (_ni_bitmap + (nr & 7)),
+		  "m" (*(char *) addr) : "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }
 #define __test_and_clear_bit(X,Y)	test_and_clear_bit_simple(X,Y)
@@ -442,10 +384,11 @@ test_and_change_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 
 	addr = (unsigned long) ptr + ((nr ^ (__BITOPS_WORDSIZE - 8)) >> 3);
 	ch = *(unsigned char *) addr;
-        asm volatile("xc 0(1,%1),0(%2)"
-		     : "=m" (*(char *) addr)
-		     : "a" (addr), "a" (_oi_bitmap + (nr & 7)),
-		       "m" (*(char *) addr) : "cc", "memory" );
+	asm volatile(
+		"	xc	0(1,%1),0(%2)"
+		: "=m" (*(char *) addr)
+		: "a" (addr), "a" (_oi_bitmap + (nr & 7)),
+		  "m" (*(char *) addr) : "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }
 #define __test_and_change_bit(X,Y)	test_and_change_bit_simple(X,Y)
@@ -557,35 +500,36 @@ find_first_zero_bit(const unsigned long * addr, unsigned long size)
 
         if (!size)
                 return 0;
-        __asm__("   lhi  %1,-1\n"
-                "   lr   %2,%3\n"
-                "   slr  %0,%0\n"
-                "   ahi  %2,31\n"
-                "   srl  %2,5\n"
-                "0: c    %1,0(%0,%4)\n"
-                "   jne  1f\n"
-                "   la   %0,4(%0)\n"
-                "   brct %2,0b\n"
-                "   lr   %0,%3\n"
-                "   j    4f\n"
-                "1: l    %2,0(%0,%4)\n"
-                "   sll  %0,3\n"
-                "   lhi  %1,0xff\n"
-                "   tml  %2,0xffff\n"
-                "   jno  2f\n"
-                "   ahi  %0,16\n"
-                "   srl  %2,16\n"
-                "2: tml  %2,0x00ff\n"
-                "   jno  3f\n"
-                "   ahi  %0,8\n"
-                "   srl  %2,8\n"
-                "3: nr   %2,%1\n"
-                "   ic   %2,0(%2,%5)\n"
-                "   alr  %0,%2\n"
-                "4:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (addr), "a" (&_zb_findmap),
-		  "m" (*(addrtype *) addr) : "cc" );
+	asm volatile(
+		"	lhi	%1,-1\n"
+		"	lr	%2,%3\n"
+		"	slr	%0,%0\n"
+		"	ahi	%2,31\n"
+		"	srl	%2,5\n"
+		"0:	c	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	la	%0,4(%0)\n"
+		"	brct	%2,0b\n"
+		"	lr	%0,%3\n"
+		"	j	4f\n"
+		"1:	l	%2,0(%0,%4)\n"
+		"	sll	%0,3\n"
+		"	lhi	%1,0xff\n"
+		"	tml	%2,0xffff\n"
+		"	jno	2f\n"
+		"	ahi	%0,16\n"
+		"	srl	%2,16\n"
+		"2:	tml	%2,0x00ff\n"
+		"	jno	3f\n"
+		"	ahi	%0,8\n"
+		"	srl	%2,8\n"
+		"3:	nr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	alr	%0,%2\n"
+		"4:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
+		: "a" (size), "a" (addr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) addr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -598,35 +542,36 @@ find_first_bit(const unsigned long * addr, unsigned long size)
 
         if (!size)
                 return 0;
-        __asm__("   slr  %1,%1\n"
-                "   lr   %2,%3\n"
-                "   slr  %0,%0\n"
-                "   ahi  %2,31\n"
-                "   srl  %2,5\n"
-                "0: c    %1,0(%0,%4)\n"
-                "   jne  1f\n"
-                "   la   %0,4(%0)\n"
-                "   brct %2,0b\n"
-                "   lr   %0,%3\n"
-                "   j    4f\n"
-                "1: l    %2,0(%0,%4)\n"
-                "   sll  %0,3\n"
-                "   lhi  %1,0xff\n"
-                "   tml  %2,0xffff\n"
-                "   jnz  2f\n"
-                "   ahi  %0,16\n"
-                "   srl  %2,16\n"
-                "2: tml  %2,0x00ff\n"
-                "   jnz  3f\n"
-                "   ahi  %0,8\n"
-                "   srl  %2,8\n"
-                "3: nr   %2,%1\n"
-                "   ic   %2,0(%2,%5)\n"
-                "   alr  %0,%2\n"
-                "4:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (addr), "a" (&_sb_findmap),
-		  "m" (*(addrtype *) addr) : "cc" );
+	asm volatile(
+		"	slr	%1,%1\n"
+		"	lr	%2,%3\n"
+		"	slr	%0,%0\n"
+		"	ahi	%2,31\n"
+		"	srl	%2,5\n"
+		"0:	c	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	la	%0,4(%0)\n"
+		"	brct	%2,0b\n"
+		"	lr	%0,%3\n"
+		"	j	4f\n"
+		"1:	l	%2,0(%0,%4)\n"
+		"	sll	%0,3\n"
+		"	lhi	%1,0xff\n"
+		"	tml	%2,0xffff\n"
+		"	jnz	2f\n"
+		"	ahi	%0,16\n"
+		"	srl	%2,16\n"
+		"2:	tml	%2,0x00ff\n"
+		"	jnz	3f\n"
+		"	ahi	%0,8\n"
+		"	srl	%2,8\n"
+		"3:	nr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	alr	%0,%2\n"
+		"4:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
+		: "a" (size), "a" (addr), "a" (&_sb_findmap),
+		  "m" (*(addrtype *) addr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -640,39 +585,40 @@ find_first_zero_bit(const unsigned long * addr, unsigned long size)
 
         if (!size)
                 return 0;
-        __asm__("   lghi  %1,-1\n"
-                "   lgr   %2,%3\n"
-                "   slgr  %0,%0\n"
-                "   aghi  %2,63\n"
-                "   srlg  %2,%2,6\n"
-                "0: cg    %1,0(%0,%4)\n"
-                "   jne   1f\n"
-                "   la    %0,8(%0)\n"
-                "   brct  %2,0b\n"
-                "   lgr   %0,%3\n"
-                "   j     5f\n"
-                "1: lg    %2,0(%0,%4)\n"
-                "   sllg  %0,%0,3\n"
-                "   clr   %2,%1\n"
-		"   jne   2f\n"
-		"   aghi  %0,32\n"
-                "   srlg  %2,%2,32\n"
-		"2: lghi  %1,0xff\n"
-                "   tmll  %2,0xffff\n"
-                "   jno   3f\n"
-                "   aghi  %0,16\n"
-                "   srl   %2,16\n"
-                "3: tmll  %2,0x00ff\n"
-                "   jno   4f\n"
-                "   aghi  %0,8\n"
-                "   srl   %2,8\n"
-                "4: ngr   %2,%1\n"
-                "   ic    %2,0(%2,%5)\n"
-                "   algr  %0,%2\n"
-                "5:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
+	asm volatile(
+		"	lghi	%1,-1\n"
+		"	lgr	%2,%3\n"
+		"	slgr	%0,%0\n"
+		"	aghi	%2,63\n"
+		"	srlg	%2,%2,6\n"
+		"0:	cg	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	la	%0,8(%0)\n"
+		"	brct	%2,0b\n"
+		"	lgr	%0,%3\n"
+		"	j	5f\n"
+		"1:	lg	%2,0(%0,%4)\n"
+		"	sllg	%0,%0,3\n"
+		"	clr	%2,%1\n"
+		"	jne	2f\n"
+		"	aghi	%0,32\n"
+		"	srlg	%2,%2,32\n"
+		"2:	lghi	%1,0xff\n"
+		"	tmll	%2,0xffff\n"
+		"	jno	3f\n"
+		"	aghi	%0,16\n"
+		"	srl	%2,16\n"
+		"3:	tmll	%2,0x00ff\n"
+		"	jno	4f\n"
+		"	aghi	%0,8\n"
+		"	srl	%2,8\n"
+		"4:	ngr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	algr	%0,%2\n"
+		"5:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
 		: "a" (size), "a" (addr), "a" (&_zb_findmap),
-		  "m" (*(addrtype *) addr) : "cc" );
+		  "m" (*(addrtype *) addr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -684,39 +630,40 @@ find_first_bit(const unsigned long * addr, unsigned long size)
 
         if (!size)
                 return 0;
-        __asm__("   slgr  %1,%1\n"
-                "   lgr   %2,%3\n"
-                "   slgr  %0,%0\n"
-                "   aghi  %2,63\n"
-                "   srlg  %2,%2,6\n"
-                "0: cg    %1,0(%0,%4)\n"
-                "   jne   1f\n"
-                "   aghi  %0,8\n"
-                "   brct  %2,0b\n"
-                "   lgr   %0,%3\n"
-                "   j     5f\n"
-                "1: lg    %2,0(%0,%4)\n"
-                "   sllg  %0,%0,3\n"
-                "   clr   %2,%1\n"
-		"   jne   2f\n"
-		"   aghi  %0,32\n"
-                "   srlg  %2,%2,32\n"
-		"2: lghi  %1,0xff\n"
-                "   tmll  %2,0xffff\n"
-                "   jnz   3f\n"
-                "   aghi  %0,16\n"
-                "   srl   %2,16\n"
-                "3: tmll  %2,0x00ff\n"
-                "   jnz   4f\n"
-                "   aghi  %0,8\n"
-                "   srl   %2,8\n"
-                "4: ngr   %2,%1\n"
-                "   ic    %2,0(%2,%5)\n"
-                "   algr  %0,%2\n"
-                "5:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
+	asm volatile(
+		"	slgr	%1,%1\n"
+		"	lgr	%2,%3\n"
+		"	slgr	%0,%0\n"
+		"	aghi	%2,63\n"
+		"	srlg	%2,%2,6\n"
+		"0:	cg	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	aghi	%0,8\n"
+		"	brct	%2,0b\n"
+		"	lgr	%0,%3\n"
+		"	j	5f\n"
+		"1:	lg	%2,0(%0,%4)\n"
+		"	sllg	%0,%0,3\n"
+		"	clr	%2,%1\n"
+		"	jne	2f\n"
+		"	aghi	%0,32\n"
+		"	srlg	%2,%2,32\n"
+		"2:	lghi	%1,0xff\n"
+		"	tmll	%2,0xffff\n"
+		"	jnz	3f\n"
+		"	aghi	%0,16\n"
+		"	srl	%2,16\n"
+		"3:	tmll	%2,0x00ff\n"
+		"	jnz	4f\n"
+		"	aghi	%0,8\n"
+		"	srl	%2,8\n"
+		"4:	ngr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	algr	%0,%2\n"
+		"5:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
 		: "a" (size), "a" (addr), "a" (&_sb_findmap),
-		  "m" (*(addrtype *) addr) : "cc" );
+		  "m" (*(addrtype *) addr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -832,36 +779,37 @@ ext2_find_first_zero_bit(void *vaddr, unsigned int size)
 
         if (!size)
                 return 0;
-        __asm__("   lhi  %1,-1\n"
-                "   lr   %2,%3\n"
-                "   ahi  %2,31\n"
-                "   srl  %2,5\n"
-                "   slr  %0,%0\n"
-                "0: cl   %1,0(%0,%4)\n"
-                "   jne  1f\n"
-                "   ahi  %0,4\n"
-                "   brct %2,0b\n"
-                "   lr   %0,%3\n"
-                "   j    4f\n"
-                "1: l    %2,0(%0,%4)\n"
-                "   sll  %0,3\n"
-                "   ahi  %0,24\n"
-                "   lhi  %1,0xff\n"
-                "   tmh  %2,0xffff\n"
-                "   jo   2f\n"
-                "   ahi  %0,-16\n"
-                "   srl  %2,16\n"
-                "2: tml  %2,0xff00\n"
-                "   jo   3f\n"
-                "   ahi  %0,-8\n"
-                "   srl  %2,8\n"
-                "3: nr   %2,%1\n"
-                "   ic   %2,0(%2,%5)\n"
-                "   alr  %0,%2\n"
-                "4:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
-                : "a" (size), "a" (vaddr), "a" (&_zb_findmap),
-		  "m" (*(addrtype *) vaddr) : "cc" );
+	asm volatile(
+		"	lhi	%1,-1\n"
+		"	lr	%2,%3\n"
+		"	ahi	%2,31\n"
+		"	srl	%2,5\n"
+		"	slr	%0,%0\n"
+		"0:	cl	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	ahi	%0,4\n"
+		"	brct	%2,0b\n"
+		"	lr	%0,%3\n"
+		"	j	4f\n"
+		"1:	l	%2,0(%0,%4)\n"
+		"	sll	%0,3\n"
+		"	ahi	%0,24\n"
+		"	lhi	%1,0xff\n"
+		"	tmh	%2,0xffff\n"
+		"	jo	2f\n"
+		"	ahi	%0,-16\n"
+		"	srl	%2,16\n"
+		"2:	tml	%2,0xff00\n"
+		"	jo	3f\n"
+		"	ahi	%0,-8\n"
+		"	srl	%2,8\n"
+		"3:	nr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	alr	%0,%2\n"
+		"4:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
+		: "a" (size), "a" (vaddr), "a" (&_zb_findmap),
+		  "m" (*(addrtype *) vaddr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -875,39 +823,40 @@ ext2_find_first_zero_bit(void *vaddr, unsigned long size)
 
         if (!size)
                 return 0;
-        __asm__("   lghi  %1,-1\n"
-                "   lgr   %2,%3\n"
-                "   aghi  %2,63\n"
-                "   srlg  %2,%2,6\n"
-                "   slgr  %0,%0\n"
-                "0: clg   %1,0(%0,%4)\n"
-                "   jne   1f\n"
-                "   aghi  %0,8\n"
-                "   brct  %2,0b\n"
-                "   lgr   %0,%3\n"
-                "   j     5f\n"
-                "1: cl    %1,0(%0,%4)\n"
-		"   jne   2f\n"
-		"   aghi  %0,4\n"
-		"2: l     %2,0(%0,%4)\n"
-                "   sllg  %0,%0,3\n"
-                "   aghi  %0,24\n"
-                "   lghi  %1,0xff\n"
-                "   tmlh  %2,0xffff\n"
-                "   jo    3f\n"
-                "   aghi  %0,-16\n"
-                "   srl   %2,16\n"
-                "3: tmll  %2,0xff00\n"
-                "   jo    4f\n"
-                "   aghi  %0,-8\n"
-                "   srl   %2,8\n"
-                "4: ngr   %2,%1\n"
-                "   ic    %2,0(%2,%5)\n"
-                "   algr  %0,%2\n"
-                "5:"
-                : "=&a" (res), "=&d" (cmp), "=&a" (count)
+	asm volatile(
+		"	lghi	%1,-1\n"
+		"	lgr	%2,%3\n"
+		"	aghi	%2,63\n"
+		"	srlg	%2,%2,6\n"
+		"	slgr	%0,%0\n"
+		"0:	clg	%1,0(%0,%4)\n"
+		"	jne	1f\n"
+		"	aghi	%0,8\n"
+		"	brct	%2,0b\n"
+		"	lgr	%0,%3\n"
+		"	j	5f\n"
+		"1:	cl	%1,0(%0,%4)\n"
+		"	jne	2f\n"
+		"	aghi	%0,4\n"
+		"2:	l	%2,0(%0,%4)\n"
+		"	sllg	%0,%0,3\n"
+		"	aghi	%0,24\n"
+		"	lghi	%1,0xff\n"
+		"	tmlh	%2,0xffff\n"
+		"	jo	3f\n"
+		"	aghi	%0,-16\n"
+		"	srl	%2,16\n"
+		"3:	tmll	%2,0xff00\n"
+		"	jo	4f\n"
+		"	aghi	%0,-8\n"
+		"	srl	%2,8\n"
+		"4:	ngr	%2,%1\n"
+		"	ic	%2,0(%2,%5)\n"
+		"	algr	%0,%2\n"
+		"5:"
+		: "=&a" (res), "=&d" (cmp), "=&a" (count)
 		: "a" (size), "a" (vaddr), "a" (&_zb_findmap),
-		  "m" (*(addrtype *) vaddr) : "cc" );
+		  "m" (*(addrtype *) vaddr) : "cc");
         return (res < size) ? res : size;
 }
 
@@ -927,13 +876,16 @@ ext2_find_next_zero_bit(void *vaddr, unsigned long size, unsigned long offset)
 	p = addr + offset / __BITOPS_WORDSIZE;
         if (bit) {
 #ifndef __s390x__
-                asm("   ic   %0,0(%1)\n"
-		    "   icm  %0,2,1(%1)\n"
-		    "   icm  %0,4,2(%1)\n"
-		    "   icm  %0,8,3(%1)"
-		    : "=&a" (word) : "a" (p), "m" (*p) : "cc" );
+		asm volatile(
+			"	ic	%0,0(%1)\n"
+			"	icm	%0,2,1(%1)\n"
+			"	icm	%0,4,2(%1)\n"
+			"	icm	%0,8,3(%1)"
+			: "=&a" (word) : "a" (p), "m" (*p) : "cc");
 #else
-                asm("   lrvg %0,%1" : "=a" (word) : "m" (*p) );
+		asm volatile(
+			"	lrvg	%0,%1"
+			: "=a" (word) : "m" (*p) );
 #endif
 		/*
 		 * s390 version of ffz returns __BITOPS_WORDSIZE

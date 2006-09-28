@@ -359,7 +359,7 @@ extern struct _lowcore *lowcore_ptr[];
 
 static inline void set_prefix(__u32 address)
 {
-        __asm__ __volatile__ ("spx %0" : : "m" (address) : "memory" );
+	asm volatile("spx %0" : : "m" (address) : "memory");
 }
 
 #define __PANIC_MAGIC           0xDEADC0DE

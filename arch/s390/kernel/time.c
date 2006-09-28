@@ -351,10 +351,12 @@ void __init time_init(void)
 	int cc;
 
         /* kick the TOD clock */
-        asm volatile ("STCK 0(%1)\n\t"
-                      "IPM  %0\n\t"
-                      "SRL  %0,28" : "=r" (cc) : "a" (&init_timer_cc) 
-				   : "memory", "cc");
+	asm volatile(
+		"	stck	0(%2)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "=m" (init_timer_cc)
+		: "a" (&init_timer_cc) : "cc");
         switch (cc) {
         case 0: /* clock in set state: all is fine */
                 break;
