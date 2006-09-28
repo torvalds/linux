@@ -1156,16 +1156,16 @@ _xfs_buf_ioapply(
 	total_nr_pages = bp->b_page_count;
 	map_i = 0;
 
-	if (bp->b_flags & _XBF_RUN_QUEUES) {
-		bp->b_flags &= ~_XBF_RUN_QUEUES;
-		rw = (bp->b_flags & XBF_READ) ? READ_SYNC : WRITE_SYNC;
-	} else {
-		rw = (bp->b_flags & XBF_READ) ? READ : WRITE;
-	}
-
 	if (bp->b_flags & XBF_ORDERED) {
 		ASSERT(!(bp->b_flags & XBF_READ));
 		rw = WRITE_BARRIER;
+	} else if (bp->b_flags & _XBF_RUN_QUEUES) {
+		ASSERT(!(bp->b_flags & XBF_READ_AHEAD));
+		bp->b_flags &= ~_XBF_RUN_QUEUES;
+		rw = (bp->b_flags & XBF_WRITE) ? WRITE_SYNC : READ_SYNC;
+	} else {
+		rw = (bp->b_flags & XBF_WRITE) ? WRITE :
+		     (bp->b_flags & XBF_READ_AHEAD) ? READA : READ;
 	}
 
 	/* Special code path for reading a sub page size buffer in --
