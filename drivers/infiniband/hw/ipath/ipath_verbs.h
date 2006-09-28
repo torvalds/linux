@@ -220,6 +220,7 @@ struct ipath_segarray {
 };
 
 struct ipath_mregion {
+	struct ib_pd *pd;	/* shares refcnt of ibmr.pd */
 	u64 user_base;		/* User's address for this region */
 	u64 iova;		/* IB start address of this region */
 	size_t length;
@@ -657,12 +658,6 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
-int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
-		  u32 len, u64 vaddr, u32 rkey, int acc);
-
-int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
-		  struct ib_sge *sge, int acc);
-
 void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 
 void ipath_skip_sge(struct ipath_sge_state *ss, u32 length);
@@ -687,10 +682,10 @@ int ipath_alloc_lkey(struct ipath_lkey_table *rkt,
 
 void ipath_free_lkey(struct ipath_lkey_table *rkt, u32 lkey);
 
-int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
+int ipath_lkey_ok(struct ipath_qp *qp, struct ipath_sge *isge,
 		  struct ib_sge *sge, int acc);
 
-int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
+int ipath_rkey_ok(struct ipath_qp *qp, struct ipath_sge_state *ss,
 		  u32 len, u64 vaddr, u32 rkey, int acc);
 
 int ipath_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,

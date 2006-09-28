@@ -444,7 +444,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey */
-			ok = ipath_rkey_ok(dev, &qp->r_sge, qp->r_len,
+			ok = ipath_rkey_ok(qp, &qp->r_sge, qp->r_len,
 					   vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok)) {

@@ -1234,7 +1234,7 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			 * Address range must be a subset of the original
 			 * request and start on pmtu boundaries.
 			 */
-			ok = ipath_rkey_ok(dev, &qp->s_rdma_sge,
+			ok = ipath_rkey_ok(qp, &qp->s_rdma_sge,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
 			if (unlikely(!ok)) {
@@ -1532,7 +1532,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey & NAK */
-			ok = ipath_rkey_ok(dev, &qp->r_sge,
+			ok = ipath_rkey_ok(qp, &qp->r_sge,
 					   qp->r_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok))
@@ -1574,7 +1574,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey & NAK */
-			ok = ipath_rkey_ok(dev, &qp->s_rdma_sge,
+			ok = ipath_rkey_ok(qp, &qp->s_rdma_sge,
 					   qp->s_rdma_len, vaddr, rkey,
 					   IB_ACCESS_REMOTE_READ);
 			if (unlikely(!ok)) {
@@ -1633,7 +1633,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			goto nack_inv;
 		rkey = be32_to_cpu(ateth->rkey);
 		/* Check rkey & NAK */
-		if (unlikely(!ipath_rkey_ok(dev, &qp->r_sge,
+		if (unlikely(!ipath_rkey_ok(qp, &qp->r_sge,
 					    sizeof(u64), vaddr, rkey,
 					    IB_ACCESS_REMOTE_ATOMIC)))
 			goto nack_acc;
