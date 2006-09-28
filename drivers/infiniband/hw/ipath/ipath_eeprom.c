@@ -187,6 +187,7 @@ bail:
 static void i2c_wait_for_writes(struct ipath_devdata *dd)
 {
 	(void)ipath_read_kreg32(dd, dd->ipath_kregs->kr_scratch);
+	rmb();
 }
 
 static void scl_out(struct ipath_devdata *dd, u8 bit)
