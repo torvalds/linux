@@ -309,7 +309,8 @@ static void irda_connect_response(struct irda_sock *self)
 
 	IRDA_ASSERT(self != NULL, return;);
 
-	skb = alloc_skb(64, GFP_ATOMIC);
+	skb = alloc_skb(TTP_MAX_HEADER + TTP_SAR_HEADER,
+			GFP_ATOMIC);
 	if (skb == NULL) {
 		IRDA_DEBUG(0, "%s() Unable to allocate sk_buff!\n",
 			   __FUNCTION__);

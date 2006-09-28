@@ -48,7 +48,7 @@
 #define DEV_ADDR_ANY  0xffffffff
 
 #define LMP_HEADER          2    /* Dest LSAP + Source LSAP */
-#define LMP_CONTROL_HEADER  4
+#define LMP_CONTROL_HEADER  4    /* LMP_HEADER + opcode + parameter */
 #define LMP_PID_HEADER      1    /* Used by Ultra */
 #define LMP_MAX_HEADER      (LMP_CONTROL_HEADER+LAP_MAX_HEADER)
 
