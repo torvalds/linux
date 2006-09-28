@@ -168,8 +168,10 @@ typedef struct xfs_bmbt_key
 	xfs_dfiloff_t	br_startoff;	/* starting file offset */
 } xfs_bmbt_key_t, xfs_bmdr_key_t;
 
-typedef xfs_dfsbno_t xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;	/* btree pointer type */
-					/* btree block header type */
+/* btree pointer type */
+typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
+
+/* btree block header type */
 typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 
 #define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
