@@ -1326,6 +1326,9 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 				      "for port %u rcvhdrqtailaddr failed\n",
 				      pd->port_port);
 			ret = -ENOMEM;
+			dma_free_coherent(&dd->pcidev->dev, amt,
+					  pd->port_rcvhdrq, pd->port_rcvhdrq_phys);
+			pd->port_rcvhdrq = NULL;
 			goto bail;
 		}
 		pd->port_rcvhdrqtailaddr_phys = phys_hdrqtail;
