@@ -178,7 +178,7 @@ out_ok:
 static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		                int type, int code, int offset, __u32 info)
 {
-	u32 spi;
+	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ipv6_comp_hdr *ipcomph = (struct ipv6_comp_hdr*)(skb->data+offset);
 	struct xfrm_state *x;
@@ -234,7 +234,7 @@ static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 {
 	int err = 0;
 	struct xfrm_state *t = NULL;
-	u32 spi;
+	__be32 spi;
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&x->props.saddr);
 	if (spi)

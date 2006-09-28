@@ -421,7 +421,7 @@ xfrm_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	return 0;
 }
 
-static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
 {
 	unsigned int h = xfrm_spi_hash(daddr, spi, proto, family);
 	struct xfrm_state *x;
@@ -916,7 +916,7 @@ err:
 EXPORT_SYMBOL(xfrm_state_check);
 
 struct xfrm_state *
-xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto,
+xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto,
 		  unsigned short family)
 {
 	struct xfrm_state *x;
