@@ -2629,7 +2629,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	  			switch(opcode) {
 				case TCPOPT_MSS:
 					if(opsize==TCPOLEN_MSS && th->syn && !estab) {
-						u16 in_mss = ntohs(get_unaligned((__u16 *)ptr));
+						u16 in_mss = ntohs(get_unaligned((__be16 *)ptr));
 						if (in_mss) {
 							if (opt_rx->user_mss && opt_rx->user_mss < in_mss)
 								in_mss = opt_rx->user_mss;
@@ -2657,8 +2657,8 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 						if ((estab && opt_rx->tstamp_ok) ||
 						    (!estab && sysctl_tcp_timestamps)) {
 							opt_rx->saw_tstamp = 1;
-							opt_rx->rcv_tsval = ntohl(get_unaligned((__u32 *)ptr));
-							opt_rx->rcv_tsecr = ntohl(get_unaligned((__u32 *)(ptr+4)));
+							opt_rx->rcv_tsval = ntohl(get_unaligned((__be32 *)ptr));
+							opt_rx->rcv_tsecr = ntohl(get_unaligned((__be32 *)(ptr+4)));
 						}
 					}
 					break;
@@ -2695,8 +2695,8 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 		return 0;
 	} else if (tp->rx_opt.tstamp_ok &&
 		   th->doff == (sizeof(struct tcphdr)>>2)+(TCPOLEN_TSTAMP_ALIGNED>>2)) {
-		__u32 *ptr = (__u32 *)(th + 1);
-		if (*ptr == ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+		__be32 *ptr = (__be32 *)(th + 1);
+		if (*ptr == htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 				  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)) {
 			tp->rx_opt.saw_tstamp = 1;
 			++ptr;
@@ -3911,10 +3911,10 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 		/* Check timestamp */
 		if (tcp_header_len == sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) {
-			__u32 *ptr = (__u32 *)(th + 1);
+			__be32 *ptr = (__be32 *)(th + 1);
 
 			/* No? Slow path! */
-			if (*ptr != ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+			if (*ptr != htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 					  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
 				goto slow_path;
 
