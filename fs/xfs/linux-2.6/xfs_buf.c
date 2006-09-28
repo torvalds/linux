@@ -318,8 +318,12 @@ xfs_buf_free(
 		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
 			free_address(bp->b_addr - bp->b_offset);
 
-		for (i = 0; i < bp->b_page_count; i++)
-			page_cache_release(bp->b_pages[i]);
+		for (i = 0; i < bp->b_page_count; i++) {
+			struct page	*page = bp->b_pages[i];
+
+			ASSERT(!PagePrivate(page));
+			page_cache_release(page);
+		}
 		_xfs_buf_free_pages(bp);
 	} else if (bp->b_flags & _XBF_KMEM_ALLOC) {
 		 /*
@@ -400,6 +404,7 @@ _xfs_buf_lookup_pages(
 		nbytes = min_t(size_t, size, PAGE_CACHE_SIZE - offset);
 		size -= nbytes;
 
+		ASSERT(!PagePrivate(page));
 		if (!PageUptodate(page)) {
 			page_count--;
 			if (blocksize >= PAGE_CACHE_SIZE) {
@@ -1117,10 +1122,10 @@ xfs_buf_bio_end_io(
 	do {
 		struct page	*page = bvec->bv_page;
 
+		ASSERT(!PagePrivate(page));
 		if (unlikely(bp->b_error)) {
 			if (bp->b_flags & XBF_READ)
 				ClearPageUptodate(page);
-			SetPageError(page);
 		} else if (blocksize >= PAGE_CACHE_SIZE) {
 			SetPageUptodate(page);
 		} else if (!PagePrivate(page) &&
