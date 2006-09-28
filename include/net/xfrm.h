@@ -437,8 +437,8 @@ static inline void xfrm_state_hold(struct xfrm_state *x)
 
 static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 {
-	__u32 *a1 = token1;
-	__u32 *a2 = token2;
+	__be32 *a1 = token1;
+	__be32 *a2 = token2;
 	int pdw;
 	int pbi;
 
@@ -450,7 +450,7 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 			return 0;
 
 	if (pbi) {
-		__u32 mask;
+		__be32 mask;
 
 		mask = htonl((0xffffffff) << (32 - pbi));
 
