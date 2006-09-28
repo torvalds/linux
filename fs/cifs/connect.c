@@ -109,7 +109,7 @@ static int ipv6_connect(struct sockaddr_in6 *psin_server,
 	 * wake up waiters on reconnection? - (not needed currently)
 	 */
 
-int
+static int
 cifs_reconnect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
@@ -771,13 +771,17 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 	separator[0] = ',';
 	separator[1] = 0; 
 
-	memset(vol->source_rfc1001_name,0x20,15);
-	for(i=0;i < strnlen(system_utsname.nodename,15);i++) {
-		/* does not have to be a perfect mapping since the field is
-		informational, only used for servers that do not support
-		port 445 and it can be overridden at mount time */
-		vol->source_rfc1001_name[i] = 
-			toupper(system_utsname.nodename[i]);
+	if(Local_System_Name[0] != 0)
+		memcpy(vol->source_rfc1001_name, Local_System_Name,15);
+	else {
+		memset(vol->source_rfc1001_name,0x20,15);
+		for(i=0;i < strnlen(system_utsname.nodename,15);i++) {
+			/* does not have to be perfect mapping since field is
+			informational, only used for servers that do not support
+			port 445 and it can be overridden at mount time */
+			vol->source_rfc1001_name[i] = 
+				toupper(system_utsname.nodename[i]);
+		}
 	}
 	vol->source_rfc1001_name[15] = 0;
 	/* null target name indicates to use *SMBSERVR default called name

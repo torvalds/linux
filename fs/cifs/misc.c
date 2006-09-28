@@ -389,7 +389,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	return;
 }
 
-int
+static int
 checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 {
 	/* Make sure that this really is an SMB, that it is a response, 

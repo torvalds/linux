@@ -512,7 +512,8 @@ require use of the stronger protocol */
  * This list helps improve performance and eliminate the messages indicating
  * that we had a communications error talking to the server in this list. 
  */
-GLOBAL_EXTERN struct servers_not_supported *NotSuppList;	/*@z4a */
+/* Feature not supported */
+/* GLOBAL_EXTERN struct servers_not_supported *NotSuppList; */
 
 /*
  * The following is a hash table of all the users we know about.
@@ -568,7 +569,6 @@ GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent 
 				with more secure ntlmssp2 challenge/resp */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
-GLOBAL_EXTERN unsigned int secFlags;
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */

@@ -50,11 +50,11 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */, 
 			int * /* type of buf returned */ , const int long_op);
-extern int SendReceiveBlockingLock(const unsigned int /* xid */ , struct cifsTconInfo *,
+extern int SendReceiveBlockingLock(const unsigned int /* xid */ , 
+					struct cifsTconInfo *,
 				struct smb_hdr * /* input */ ,
 				struct smb_hdr * /* out */ ,
 				int * /* bytes returned */);
-extern int checkSMBhdr(struct smb_hdr *smb, __u16 mid);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb, struct TCP_Server_Info *);
 extern int is_size_safe_to_change(struct cifsInodeInfo *);
@@ -281,8 +281,6 @@ extern struct cifsSesInfo *sesInfoAlloc(void);
 extern void sesInfoFree(struct cifsSesInfo *);
 extern struct cifsTconInfo *tconInfoAlloc(void);
 extern void tconInfoFree(struct cifsTconInfo *);
-
-extern int cifs_reconnect(struct TCP_Server_Info *server);
 
 extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *,__u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,

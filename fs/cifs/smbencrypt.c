@@ -145,7 +145,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 }
 
 /* Does both the NT and LM owfs of a user's password */
-void
+static void
 nt_lm_owf_gen(char *pwd, unsigned char nt_p16[16], unsigned char p16[16])
 {
 	char passwd[514];
@@ -223,7 +223,7 @@ SMBOWFencrypt(unsigned char passwd[16], unsigned char *c8,
 }
 
 /* Does the des encryption from the FIRST 8 BYTES of the NT or LM MD4 hash. */
-void
+static void
 NTLMSSPOWFencrypt(unsigned char passwd[8],
 		  unsigned char *ntlmchalresp, unsigned char p24[24])
 {

@@ -442,7 +442,7 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-struct super_operations cifs_super_ops = {
+static struct super_operations cifs_super_ops = {
 	.read_inode = cifs_read_inode,
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
@@ -930,7 +930,7 @@ init_cifs(void)
 #ifdef CONFIG_PROC_FS
 	cifs_proc_init();
 #endif
-	INIT_LIST_HEAD(&GlobalServerList);	/* BB not implemented yet */
+/*	INIT_LIST_HEAD(&GlobalServerList);*/	/* BB not implemented yet */
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
@@ -958,6 +958,7 @@ init_cifs(void)
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
+	memset(Local_System_Name, 0, 15);
 	rwlock_init(&GlobalSMBSeslock);
 	spin_lock_init(&GlobalMid_Lock);
 
