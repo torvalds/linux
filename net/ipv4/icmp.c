@@ -104,7 +104,7 @@ struct icmp_bxm {
 
 	struct {
 		struct icmphdr icmph;
-		__u32	       times[3];
+		__be32	       times[3];
 	} data;
 	int head_len;
 	struct ip_options replyopts;
