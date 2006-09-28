@@ -1043,7 +1043,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
-	u32 daddr;
+	__be32 daddr;
 	int err;
 
 	/* Route is OK, nothing to do. */

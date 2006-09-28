@@ -381,7 +381,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = (struct rtable *)skb->dst;
-	u32 daddr;
+	__be32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
 		return;

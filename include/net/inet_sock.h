@@ -36,7 +36,7 @@
  * @ts_needaddr - Need to record addr of outgoing dev
  */
 struct ip_options {
-	__u32		faddr;
+	__be32		faddr;
 	unsigned char	optlen;
 	unsigned char	srr;
 	unsigned char	rr;

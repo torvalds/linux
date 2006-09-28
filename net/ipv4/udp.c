@@ -513,7 +513,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct rtable *rt = NULL;
 	int free = 0;
 	int connected = 0;
-	u32 daddr, faddr, saddr;
+	__be32 daddr, faddr, saddr;
 	u16 dport;
 	u8  tos;
 	int err;

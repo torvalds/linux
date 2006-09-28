@@ -381,7 +381,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct ipcm_cookie ipc;
 	struct rtable *rt = NULL;
 	int free = 0;
-	u32 daddr;
+	__be32 daddr;
 	u32 saddr;
 	u8  tos;
 	int err;

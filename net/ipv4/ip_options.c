@@ -165,7 +165,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 	}
 	if (sopt->srr) {
 		unsigned char * start = sptr+sopt->srr;
-		u32 faddr;
+		__be32 faddr;
 
 		optlen  = start[1];
 		soffset = start[2];

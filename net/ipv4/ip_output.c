@@ -306,7 +306,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 	/* Make sure we can route this packet. */
 	rt = (struct rtable *)__sk_dst_check(sk, 0);
 	if (rt == NULL) {
-		u32 daddr;
+		__be32 daddr;
 
 		/* Use correct destination address if we have options. */
 		daddr = inet->daddr;
@@ -1340,7 +1340,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 		char			data[40];
 	} replyopts;
 	struct ipcm_cookie ipc;
-	u32 daddr;
+	__be32 daddr;
 	struct rtable *rt = (struct rtable*)skb->dst;
 
 	if (ip_options_echo(&replyopts.opt, skb))
