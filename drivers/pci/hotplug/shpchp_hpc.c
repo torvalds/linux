@@ -339,7 +339,7 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 		rc = shpc_poll_ctrl_busy(ctrl);
 	else
 		rc = wait_event_interruptible_timeout(ctrl->queue,
-						!ctrl->cmd_busy, timeout);
+						!is_ctrl_busy(ctrl), timeout);
 	if (!rc && is_ctrl_busy(ctrl)) {
 		retval = -EIO;
 		err("Command not completed in 1000 msec\n");
@@ -347,7 +347,6 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 		retval = -EINTR;
 		info("Command was interrupted by a signal\n");
 	}
-	ctrl->cmd_busy = 0;
 
 	return retval;
 }
@@ -378,7 +377,6 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	/* To make sure the Controller Busy bit is 0 before we send out the
 	 * command. 
 	 */
-	slot->ctrl->cmd_busy = 1;
 	shpc_writew(ctrl, CMD, temp_word);
 
 	/*
@@ -928,7 +926,6 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 		serr_int &= ~SERR_INTR_RSVDZ_MASK;
 		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
-		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
