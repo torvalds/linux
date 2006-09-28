@@ -89,6 +89,29 @@ static struct at91_mmc_data __initdata kb9202_mmc_data = {
 	.wire4		= 1,
 };
 
+static struct mtd_partition __initdata kb9202_nand_partition[] = {
+	{
+		.name	= "nand_fs",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition *nand_partitions(int size, int *num_partitions)
+{
+	*num_partitions = ARRAY_SIZE(kb9202_nand_partition);
+	return kb9202_nand_partition;
+}
+
+static struct at91_nand_data __initdata kb9202_nand_data = {
+	.ale		= 22,
+	.cle		= 21,
+	// .det_pin	= ... not there
+	.rdy_pin	= AT91_PIN_PC29,
+	.enable_pin	= AT91_PIN_PC28,
+	.partition_info	= nand_partitions,
+};
+
 static void __init kb9202_board_init(void)
 {
 	/* Serial */
@@ -105,6 +128,8 @@ static void __init kb9202_board_init(void)
 	at91_add_device_i2c();
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
+	/* NAND */
+	at91_add_device_nand(&kb9202_nand_data);
 }
 
 MACHINE_START(KB9200, "KB920x")

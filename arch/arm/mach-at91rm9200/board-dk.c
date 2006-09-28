@@ -122,6 +122,29 @@ static struct spi_board_info dk_spi_devices[] = {
 #endif
 };
 
+static struct mtd_partition __initdata dk_nand_partition[] = {
+	{
+		.name	= "NAND Partition 1",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition *nand_partitions(int size, int *num_partitions)
+{
+	*num_partitions = ARRAY_SIZE(dk_nand_partition);
+	return dk_nand_partition;
+}
+
+static struct at91_nand_data __initdata dk_nand_data = {
+	.ale		= 22,
+	.cle		= 21,
+	.det_pin	= AT91_PIN_PB1,
+	.rdy_pin	= AT91_PIN_PC2,
+	// .enable_pin	= ... not there
+	.partition_info	= nand_partitions,
+};
+
 static void __init dk_board_init(void)
 {
 	/* Serial */
@@ -147,6 +170,8 @@ static void __init dk_board_init(void)
 	at91_set_gpio_output(AT91_PIN_PB7, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
 	at91_add_device_mmc(&dk_mmc_data);
 #endif
+	/* NAND */
+	at91_add_device_nand(&dk_nand_data);
 	/* VGA */
 //	dk_add_device_video();
 }
