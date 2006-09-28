@@ -70,7 +70,7 @@ static inline unsigned int xfrm_src_hash(xfrm_address_t *addr,
 }
 
 static inline unsigned int
-xfrm_spi_hash(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
+xfrm_spi_hash(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
 {
 	return __xfrm_spi_hash(daddr, spi, proto, family, xfrm_state_hmask);
 }
