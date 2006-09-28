@@ -144,8 +144,8 @@ static int sf_setstate(struct ip_mc_list *pmc);
 static void sf_markstate(struct ip_mc_list *pmc);
 #endif
 static void ip_mc_clear_src(struct ip_mc_list *pmc);
-static int ip_mc_add_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta);
+static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta);
 
 static void ip_ma_put(struct ip_mc_list *im)
 {
@@ -1193,7 +1193,7 @@ static void igmp_group_added(struct ip_mc_list *im)
  *	A socket has joined a multicast group on device dev.
  */
 
-void ip_mc_inc_group(struct in_device *in_dev, u32 addr)
+void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 {
 	struct ip_mc_list *im;
 
@@ -1252,7 +1252,7 @@ out:
  *	A socket has left a multicast group on device dev
  */
 
-void ip_mc_dec_group(struct in_device *in_dev, u32 addr)
+void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 {
 	struct ip_mc_list *i, **ip;
 	
@@ -1402,7 +1402,7 @@ int sysctl_igmp_max_msf __read_mostly = IP_MAX_MSF;
 
 
 static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
-	__u32 *psfsrc)
+	__be32 *psfsrc)
 {
 	struct ip_sf_list *psf, *psf_prev;
 	int rv = 0;
@@ -1450,8 +1450,8 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 #define igmp_ifc_event(x)	do { } while (0)
 #endif
 
-static int ip_mc_del_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta)
+static int ip_mc_del_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta)
 {
 	struct ip_mc_list *pmc;
 	int	changerec = 0;
@@ -1517,7 +1517,7 @@ out_unlock:
  * Add multicast single-source filter to the interface list
  */
 static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
-	__u32 *psfsrc, int delta)
+	__be32 *psfsrc, int delta)
 {
 	struct ip_sf_list *psf, *psf_prev;
 
@@ -1623,8 +1623,8 @@ static int sf_setstate(struct ip_mc_list *pmc)
 /*
  * Add multicast source filter list to the interface list
  */
-static int ip_mc_add_src(struct in_device *in_dev, __u32 *pmca, int sfmode,
-			 int sfcount, __u32 *psfsrc, int delta)
+static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
+			 int sfcount, __be32 *psfsrc, int delta)
 {
 	struct ip_mc_list *pmc;
 	int	isexclude;
@@ -1717,7 +1717,7 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 {
 	int err;
-	u32 addr = imr->imr_multiaddr.s_addr;
+	__be32 addr = imr->imr_multiaddr.s_addr;
 	struct ip_mc_socklist *iml=NULL, *i;
 	struct in_device *in_dev;
 	struct inet_sock *inet = inet_sk(sk);
@@ -1791,7 +1791,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_mc_socklist *iml, **imlp;
 	struct in_device *in_dev;
-	u32 group = imr->imr_multiaddr.s_addr;
+	__be32 group = imr->imr_multiaddr.s_addr;
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
