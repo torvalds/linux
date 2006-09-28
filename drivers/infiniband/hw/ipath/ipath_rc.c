@@ -201,6 +201,18 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 	    qp->s_rnr_timeout)
 		goto done;
 
+	/* Limit the number of packets sent without an ACK. */
+	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT) > 0) {
+		qp->s_wait_credit = 1;
+		dev->n_rc_stalls++;
+		spin_lock(&dev->pending_lock);
+		if (list_empty(&qp->timerwait))
+			list_add_tail(&qp->timerwait,
+				      &dev->pending[dev->pending_index]);
+		spin_unlock(&dev->pending_lock);
+		goto done;
+	}
+
 	/* header size in 32-bit words LRH+BTH = (8+12)/4. */
 	hwords = 5;
 	bth0 = 0;
@@ -221,7 +233,7 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 			/* Check if send work queue is empty. */
 			if (qp->s_tail == qp->s_head)
 				goto done;
-			qp->s_psn = wqe->psn = qp->s_next_psn;
+			wqe->psn = qp->s_next_psn;
 			newreq = 1;
 		}
 		/*
@@ -393,12 +405,6 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
-			/*
-			 * Request an ACK every 1/2 MB to avoid retransmit
-			 * timeouts.
-			 */
-			if (((wqe->length - len) % (512 * 1024)) == 0)
-				bth2 |= 1 << 31;
 			len = pmtu;
 			break;
 		}
@@ -435,12 +441,6 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		ss = &qp->s_sge;
 		len = qp->s_len;
 		if (len > pmtu) {
-			/*
-			 * Request an ACK every 1/2 MB to avoid retransmit
-			 * timeouts.
-			 */
-			if (((wqe->length - len) % (512 * 1024)) == 0)
-				bth2 |= 1 << 31;
 			len = pmtu;
 			break;
 		}
@@ -498,6 +498,8 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 		 */
 		goto done;
 	}
+	if (ipath_cmp24(qp->s_psn, qp->s_last_psn + IPATH_PSN_CREDIT - 1) >= 0)
+		bth2 |= 1 << 31;	/* Request ACK. */
 	qp->s_len -= len;
 	qp->s_hdrwords = hwords;
 	qp->s_cur_sge = ss;
@@ -737,6 +739,15 @@ bail:
 	return;
 }
 
+static inline void update_last_psn(struct ipath_qp *qp, u32 psn)
+{
+	if (qp->s_wait_credit) {
+		qp->s_wait_credit = 0;
+		tasklet_hi_schedule(&qp->s_task);
+	}
+	qp->s_last_psn = psn;
+}
+
 /**
  * do_rc_ack - process an incoming RC ACK
  * @qp: the QP the ACK came in on
@@ -805,7 +816,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			 * The last valid PSN seen is the previous
 			 * request's.
 			 */
-			qp->s_last_psn = wqe->psn - 1;
+			update_last_psn(qp, wqe->psn - 1);
 			/* Retry this request. */
 			ipath_restart_rc(qp, wqe->psn, &wc);
 			/*
@@ -864,7 +875,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 		ipath_get_credit(qp, aeth);
 		qp->s_rnr_retry = qp->s_rnr_retry_cnt;
 		qp->s_retry = qp->s_retry_cnt;
-		qp->s_last_psn = psn;
+		update_last_psn(qp, psn);
 		ret = 1;
 		goto bail;
 
@@ -883,7 +894,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 			goto bail;
 
 		/* The last valid PSN is the previous PSN. */
-		qp->s_last_psn = psn - 1;
+		update_last_psn(qp, psn - 1);
 
 		dev->n_rc_resends += (int)qp->s_psn - (int)psn;
 
@@ -898,7 +909,7 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 	case 3:		/* NAK */
 		/* The last valid PSN seen is the previous request's. */
 		if (qp->s_last != qp->s_tail)
-			qp->s_last_psn = wqe->psn - 1;
+			update_last_psn(qp, wqe->psn - 1);
 		switch ((aeth >> IPATH_AETH_CREDIT_SHIFT) &
 			IPATH_AETH_CREDIT_MASK) {
 		case 0:	/* PSN sequence error */
@@ -1071,7 +1082,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		 * since we don't want s_sge modified.
 		 */
 		qp->s_len -= pmtu;
-		qp->s_last_psn = psn;
+		update_last_psn(qp, psn);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		ipath_copy_sge(&qp->s_sge, data, pmtu);
 		goto bail;

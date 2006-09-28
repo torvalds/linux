@@ -1683,6 +1683,7 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 		      "RC OTH NAKs %d\n"
 		      "RC timeouts %d\n"
 		      "RC RDMA dup %d\n"
+		      "RC stalls   %d\n"
 		      "piobuf wait %d\n"
 		      "no piobuf   %d\n"
 		      "PKT drops   %d\n"
@@ -1690,7 +1691,7 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 		      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
 		      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
 		      dev->n_other_naks, dev->n_timeouts,
-		      dev->n_rdma_dup_busy, dev->n_piowait,
+		      dev->n_rdma_dup_busy, dev->n_rc_stalls, dev->n_piowait,
 		      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
 	for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
 		const struct ipath_opcode_stats *si = &dev->opstats[i];

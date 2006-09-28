@@ -370,6 +370,7 @@ struct ipath_qp {
 	u8 s_rnr_retry_cnt;
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
+	u8 s_wait_credit;	/* limit number of unacked packets sent */
 	u8 s_pkey_index;	/* PKEY index to use */
 	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
@@ -392,6 +393,8 @@ struct ipath_qp {
  */
 #define IPATH_S_BUSY		0
 #define IPATH_S_SIGNAL_REQ_WR	1
+
+#define IPATH_PSN_CREDIT	2048
 
 /*
  * Since struct ipath_swqe is not a fixed size, we can't simply index into
@@ -521,6 +524,7 @@ struct ipath_ibdev {
 	u32 n_rnr_naks;
 	u32 n_other_naks;
 	u32 n_timeouts;
+	u32 n_rc_stalls;
 	u32 n_pkt_drops;
 	u32 n_vl15_dropped;
 	u32 n_wqe_errs;

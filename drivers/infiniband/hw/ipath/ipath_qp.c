@@ -342,6 +342,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_last = 0;
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
+	qp->s_wait_credit = 0;
 	if (qp->r_rq.wq) {
 		qp->r_rq.wq->head = 0;
 		qp->r_rq.wq->tail = 0;
@@ -516,7 +517,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->remote_qpn = attr->dest_qp_num;
 
 	if (attr_mask & IB_QP_SQ_PSN) {
-		qp->s_next_psn = attr->sq_psn;
+		qp->s_psn = qp->s_next_psn = attr->sq_psn;
 		qp->s_last_psn = qp->s_next_psn - 1;
 	}
 
