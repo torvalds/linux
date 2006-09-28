@@ -23,7 +23,7 @@ typedef union
 struct xfrm_id
 {
 	xfrm_address_t	daddr;
-	__u32		spi;
+	__be32		spi;
 	__u8		proto;
 };
 
