@@ -898,7 +898,8 @@ int ipath_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_erricrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errvcrccnt) +
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errlpcrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt);
+		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt) +
+		dd->ipath_rxfc_unsupvl_errs;
 	cntrs->port_rcv_remphys_errors =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvebpcnt);
 	cntrs->port_xmit_discards =
@@ -911,8 +912,10 @@ int ipath_get_counters(struct ipath_devdata *dd,
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktsendcnt);
 	cntrs->port_rcv_packets =
 		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktrcvcnt);
-	cntrs->local_link_integrity_errors = dd->ipath_lli_errors;
-	cntrs->excessive_buffer_overrun_errors = 0; /* XXX */
+	cntrs->local_link_integrity_errors =
+		(dd->ipath_flags & IPATH_GPIO_ERRINTRS) ?
+		dd->ipath_lli_errs : dd->ipath_lli_errors;
+	cntrs->excessive_buffer_overrun_errors = dd->ipath_overrun_thresh_errs;
 
 	ret = 0;
 
@@ -1380,11 +1383,13 @@ static int enable_timer(struct ipath_devdata *dd)
 	 * processing.
 	 */
 	if (dd->ipath_flags & IPATH_GPIO_INTR) {
+		u64 val;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_debugportselect,
 				 0x2074076542310ULL);
 		/* Enable GPIO bit 2 interrupt */
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
-				 (u64) (1 << 2));
+		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
+		val |= (u64) (1 << IPATH_GPIO_PORT0_BIT);
+		ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
 	}
 
 	init_timer(&dd->verbs_timer);
@@ -1399,8 +1404,17 @@ static int enable_timer(struct ipath_devdata *dd)
 static int disable_timer(struct ipath_devdata *dd)
 {
 	/* Disable GPIO bit 2 interrupt */
-	if (dd->ipath_flags & IPATH_GPIO_INTR)
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask, 0);
+	if (dd->ipath_flags & IPATH_GPIO_INTR) {
+                u64 val;
+                /* Disable GPIO bit 2 interrupt */
+                val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
+                val &= ~((u64) (1 << IPATH_GPIO_PORT0_BIT));
+                ipath_write_kreg( dd, dd->ipath_kregs->kr_gpio_mask, val);
+		/*
+		 * We might want to undo changes to debugportselect,
+		 * but how?
+		 */
+	}
 
 	del_timer_sync(&dd->verbs_timer);
 

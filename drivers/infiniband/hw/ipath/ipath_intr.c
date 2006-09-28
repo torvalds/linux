@@ -808,7 +808,7 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 	if (oldhead != curtail) {
 		if (dd->ipath_flags & IPATH_GPIO_INTR) {
 			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					 (u64) (1 << 2));
+					 (u64) (1 << IPATH_GPIO_PORT0_BIT));
 			istat = port0rbits | INFINIPATH_I_GPIO;
 		}
 		else
@@ -867,25 +867,79 @@ irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 
 	if (istat & INFINIPATH_I_GPIO) {
 		/*
-		 * Packets are available in the port 0 rcv queue.
-		 * Eventually this needs to be generalized to check
-		 * IPATH_GPIO_INTR, and the specific GPIO bit, if
-		 * GPIO interrupts are used for anything else.
+		 * GPIO interrupts fall in two broad classes:
+		 * GPIO_2 indicates (on some HT4xx boards) that a packet
+		 *        has arrived for Port 0. Checking for this
+		 *        is controlled by flag IPATH_GPIO_INTR.
+		 * GPIO_3..5 on IBA6120 Rev2 chips indicate errors
+		 *        that we need to count. Checking for this
+		 *        is controlled by flag IPATH_GPIO_ERRINTRS.
 		 */
-		if (unlikely(!(dd->ipath_flags & IPATH_GPIO_INTR))) {
-			u32 gpiostatus;
-			gpiostatus = ipath_read_kreg32(
-				dd, dd->ipath_kregs->kr_gpio_status);
-			ipath_dbg("Unexpected GPIO interrupt bits %x\n",
-				  gpiostatus);
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					 gpiostatus);
+		u32 gpiostatus;
+		u32 to_clear = 0;
+
+		gpiostatus = ipath_read_kreg32(
+			dd, dd->ipath_kregs->kr_gpio_status);
+		/* First the error-counter case.
+		 */
+		if ((gpiostatus & IPATH_GPIO_ERRINTR_MASK) &&
+		    (dd->ipath_flags & IPATH_GPIO_ERRINTRS)) {
+			/* want to clear the bits we see asserted. */
+			to_clear |= (gpiostatus & IPATH_GPIO_ERRINTR_MASK);
+
+			/*
+			 * Count appropriately, clear bits out of our copy,
+			 * as they have been "handled".
+			 */
+			if (gpiostatus & (1 << IPATH_GPIO_RXUVL_BIT)) {
+				ipath_dbg("FlowCtl on UnsupVL\n");
+				dd->ipath_rxfc_unsupvl_errs++;
+			}
+			if (gpiostatus & (1 << IPATH_GPIO_OVRUN_BIT)) {
+				ipath_dbg("Overrun Threshold exceeded\n");
+				dd->ipath_overrun_thresh_errs++;
+			}
+			if (gpiostatus & (1 << IPATH_GPIO_LLI_BIT)) {
+				ipath_dbg("Local Link Integrity error\n");
+				dd->ipath_lli_errs++;
+			}
+			gpiostatus &= ~IPATH_GPIO_ERRINTR_MASK;
 		}
-		else {
-			/* Clear GPIO status bit 2 */
-			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
-					(u64) (1 << 2));
+		/* Now the Port0 Receive case */
+		if ((gpiostatus & (1 << IPATH_GPIO_PORT0_BIT)) &&
+		    (dd->ipath_flags & IPATH_GPIO_INTR)) {
+			/*
+			 * GPIO status bit 2 is set, and we expected it.
+			 * clear it and indicate in p0bits.
+			 * This probably only happens if a Port0 pkt
+			 * arrives at _just_ the wrong time, and we
+			 * handle that by seting chk0rcv;
+			 */
+			to_clear |= (1 << IPATH_GPIO_PORT0_BIT);
+			gpiostatus &= ~(1 << IPATH_GPIO_PORT0_BIT);
 			chk0rcv = 1;
+		}
+		if (unlikely(gpiostatus)) {
+			/*
+			 * Some unexpected bits remain. If they could have
+			 * caused the interrupt, complain and clear.
+			 * MEA: this is almost certainly non-ideal.
+			 * we should look into auto-disable of unexpected
+			 * GPIO interrupts, possibly on a "three strikes"
+			 * basis.
+			 */
+			u32 mask;
+			mask = ipath_read_kreg32(
+				dd, dd->ipath_kregs->kr_gpio_mask);
+			if (mask & gpiostatus) {
+				ipath_dbg("Unexpected GPIO IRQ bits %x\n",
+				  gpiostatus & mask);
+				to_clear |= (gpiostatus & mask);
+			}
+		}
+		if (to_clear) {
+			ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_clear,
+					(u64) to_clear);
 		}
 	}
 	chk0rcv |= istat & port0rbits;

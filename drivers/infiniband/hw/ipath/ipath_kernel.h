@@ -524,6 +524,15 @@ struct ipath_devdata {
 	u32 ipath_lli_counter;
 	/* local link integrity errors */
 	u32 ipath_lli_errors;
+	/*
+	 * Above counts only cases where _successive_ LocalLinkIntegrity
+	 * errors were seen in the receive headers of kern-packets.
+	 * Below are the three (monotonically increasing) counters
+	 * maintained via GPIO interrupts on iba6120-rev2.
+	 */
+	u32 ipath_rxfc_unsupvl_errs;
+	u32 ipath_overrun_thresh_errs;
+	u32 ipath_lli_errs;
 };
 
 /* Private data for file operations */
@@ -636,6 +645,15 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		/* can miss port0 rx interrupts */
 #define IPATH_POLL_RX_INTR  0x40000
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
+		/* Use GPIO interrupts for new counters */
+#define IPATH_GPIO_ERRINTRS 0x100000
+
+/* Bits in GPIO for the added interrupts */
+#define IPATH_GPIO_PORT0_BIT 2
+#define IPATH_GPIO_RXUVL_BIT 3
+#define IPATH_GPIO_OVRUN_BIT 4
+#define IPATH_GPIO_LLI_BIT 5
+#define IPATH_GPIO_ERRINTR_MASK 0x38
 
 /* portdata flag bit offsets */
 		/* waiting for a packet to arrive */
