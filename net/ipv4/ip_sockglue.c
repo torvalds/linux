@@ -254,7 +254,7 @@ int ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(struct s
 }
 
 void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
-		   u16 port, u32 info, u8 *payload)
+		   __be16 port, u32 info, u8 *payload)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
