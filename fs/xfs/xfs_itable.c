@@ -647,6 +647,8 @@ xfs_bulkstat(
                                         }
 					else if (error == ENOMEM)
 						ubleft = 0;
+					else
+						lastino = ino;
 					continue;
 				}
 				if (fmterror == BULKSTAT_RV_GIVEUP) {
