@@ -253,6 +253,46 @@ xfs_bulkstat_one(
 }
 
 /*
+ * Test to see whether we can use the ondisk inode directly, based
+ * on the given bulkstat flags, filling in dipp accordingly.
+ * Returns zero if the inode is dodgey.
+ */
+STATIC int
+xfs_bulkstat_use_dinode(
+	xfs_mount_t	*mp,
+	int		flags,
+	xfs_buf_t	*bp,
+	int		clustidx,
+	xfs_dinode_t	**dipp)
+{
+	xfs_dinode_t	*dip;
+	unsigned int	aformat;
+
+	*dipp = NULL;
+	if (!bp || (flags & BULKSTAT_FG_IGET))
+		return 1;
+	dip = (xfs_dinode_t *)
+			xfs_buf_offset(bp, clustidx << mp->m_sb.sb_inodelog);
+	if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC ||
+	    !XFS_DINODE_GOOD_VERSION(
+			INT_GET(dip->di_core.di_version, ARCH_CONVERT)))
+		return 0;
+	if (flags & BULKSTAT_FG_QUICK) {
+		*dipp = dip;
+		return 1;
+	}
+	/* BULKSTAT_FG_INLINE: if attr fork is local, or not there, use it */
+	aformat = INT_GET(dip->di_core.di_aformat, ARCH_CONVERT);
+	if ((XFS_CFORK_Q(&dip->di_core) == 0) ||
+	    (aformat == XFS_DINODE_FMT_LOCAL) ||
+	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_core.di_anextents)) {
+		*dipp = dip;
+		return 1;
+	}
+	return 1;
+}
+
+/*
  * Return stat information in bulk (by-inode) for the filesystem.
  */
 int					/* error status */
@@ -529,7 +569,8 @@ xfs_bulkstat(
 						((chunkidx & nimask) >>
 						 mp->m_sb.sb_inopblog);
 
-					if (flags & BULKSTAT_FG_QUICK) {
+					if (flags & (BULKSTAT_FG_QUICK |
+						     BULKSTAT_FG_INLINE)) {
 						ino = XFS_AGINO_TO_INO(mp, agno,
 								       agino);
 						bno = XFS_AGB_TO_DADDR(mp, agno,
@@ -573,21 +614,25 @@ xfs_bulkstat(
 				be32_add(&irbp->ir_freecount, 1);
 				ino = XFS_AGINO_TO_INO(mp, agno, agino);
 				bno = XFS_AGB_TO_DADDR(mp, agno, agbno);
-				if (flags & BULKSTAT_FG_QUICK) {
-					dip = (xfs_dinode_t *)xfs_buf_offset(bp,
-					      (clustidx << mp->m_sb.sb_inodelog));
-
-					if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT)
-						    != XFS_DINODE_MAGIC
-					    || !XFS_DINODE_GOOD_VERSION(
-						    INT_GET(dip->di_core.di_version, ARCH_CONVERT)))
-						continue;
+				if (!xfs_bulkstat_use_dinode(mp, flags, bp,
+							     clustidx, &dip))
+					continue;
+				/*
+				 * If we need to do an iget, cannot hold bp.
+				 * Drop it, until starting the next cluster.
+				 */
+				if ((flags & BULKSTAT_FG_INLINE) && !dip) {
+					if (bp)
+						xfs_buf_relse(bp);
+					bp = NULL;
 				}
 
 				/*
 				 * Get the inode and fill in a single buffer.
 				 * BULKSTAT_FG_QUICK uses dip to fill it in.
 				 * BULKSTAT_FG_IGET uses igets.
+				 * BULKSTAT_FG_INLINE uses dip if we have an
+				 * inline attr fork, else igets.
 				 * See: xfs_bulkstat_one & xfs_dm_bulkstat_one.
 				 * This is also used to count inodes/blks, etc
 				 * in xfs_qm_quotacheck.
