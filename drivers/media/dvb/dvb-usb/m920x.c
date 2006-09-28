@@ -16,7 +16,7 @@
 #include "qt1010.h"
 
 /* debug */
-int dvb_usb_m920x_debug;
+static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
@@ -85,8 +85,6 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	int i, ret = 0;
 	u8 rc_state[2];
 
-	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
-		return -EAGAIN;
 
 	if ((ret = m9206_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
 		goto unlock;
@@ -128,7 +126,6 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	unlock:
-	mutex_unlock(&d->i2c_mutex);
 
 	return ret;
 }
@@ -240,8 +237,6 @@ static int megasky_mt352_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-struct mt352_state;
-
 static struct mt352_config megasky_mt352_config = {
 	.demod_address = 0x1e,
 	.no_tuner = 1,
@@ -267,52 +262,7 @@ static int megasky_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-/* DVB USB Driver stuff */
-static struct dvb_usb_device_properties megasky_properties;
-
-static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *id)
-{
-	struct usb_device *udev = interface_to_usbdev(intf);
-	struct dvb_usb_device *d;
-	struct usb_host_interface *alt;
-	struct dvb_usb_device_properties props;
-	int ret;
-
-	memcpy(&props, &megasky_properties, sizeof(struct dvb_usb_device_properties));
-
-	/* Hardware pid filtering isn't quite perfect so dont use unless have to. */
-	if (udev->speed == USB_SPEED_FULL)
-		props.caps |= DVB_USB_ADAP_HAS_PID_FILTER |
-			      DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF;
-
-	if ((ret = dvb_usb_device_init(intf, &props, THIS_MODULE, &d)) == 0) {
-		deb_rc("probed!\n");
-
-		alt = usb_altnum_to_altsetting(intf, 1);
-		if (alt == NULL) {
-			deb_rc("not alt found!\n");
-			return -ENODEV;
-		}
-
-		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber, alt->desc.bAlternateSetting);
-		if (ret < 0)
-			return ret;
-
-		deb_rc("Changed to alternate setting!\n");
-
-		if ((ret = m9206_rc_init(d->udev)) != 0)
-			return ret;
-	}
-	return ret;
-}
-
-static struct usb_device_id m920x_table [] = {
-		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580) },
-		{ }		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE (usb, m920x_table);
-
-static int set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
+static int m9206_set_filter(struct dvb_usb_adapter *adap, int type, int idx, int pid)
 {
 	int ret = 0;
 
@@ -341,14 +291,14 @@ static int m9206_update_filters(struct dvb_usb_adapter *adap)
 			enabled = 0;
 
 	/* Disable all filters */
-	if ((ret = set_filter(adap, 0x81, 1, enabled)) != 0)
+	if ((ret = m9206_set_filter(adap, 0x81, 1, enabled)) != 0)
 		return ret;
 
 	for (i = 0; i < M9206_MAX_FILTERS; i++)
-		if ((ret = set_filter(adap, 0x81, i + 2, 0)) != 0)
+		if ((ret = m9206_set_filter(adap, 0x81, i + 2, 0)) != 0)
 			return ret;
 
-	if ((ret = set_filter(adap, 0x82, 0, 0x0)) != 0)
+	if ((ret = m9206_set_filter(adap, 0x82, 0, 0x0)) != 0)
 		return ret;
 
 	/* Set */
@@ -357,14 +307,14 @@ static int m9206_update_filters(struct dvb_usb_adapter *adap)
 			if (m->filters[i] == 0)
 				continue;
 
-			if ((ret = set_filter(adap, 0x81, filter + 2, m->filters[i])) != 0)
+			if ((ret = m9206_set_filter(adap, 0x81, filter + 2, m->filters[i])) != 0)
 				return ret;
 
 			filter++;
 		}
 	}
 
-	if ((ret = set_filter(adap, 0x82, 0, 0x02f5)) != 0)
+	if ((ret = m9206_set_filter(adap, 0x82, 0, 0x02f5)) != 0)
 		return ret;
 
 	return ret;
@@ -450,6 +400,42 @@ static int m9206_firmware_download(struct usb_device *udev, const struct firmwar
 	return ret;
 }
 
+/* DVB USB Driver stuff */
+static struct dvb_usb_device_properties megasky_properties;
+
+static int m920x_probe(struct usb_interface *intf, const struct usb_device_id *id)
+{
+	struct dvb_usb_device *d;
+	struct usb_host_interface *alt;
+	int ret;
+
+	if ((ret = dvb_usb_device_init(intf, &megasky_properties, THIS_MODULE, &d)) == 0) {
+		deb_rc("probed!\n");
+
+		alt = usb_altnum_to_altsetting(intf, 1);
+		if (alt == NULL) {
+			deb_rc("not alt found!\n");
+			return -ENODEV;
+		}
+
+		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber, alt->desc.bAlternateSetting);
+		if (ret < 0)
+			return ret;
+
+		deb_rc("Changed to alternate setting!\n");
+
+		if ((ret = m9206_rc_init(d->udev)) != 0)
+			return ret;
+	}
+	return ret;
+}
+
+static struct usb_device_id m920x_table [] = {
+		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580) },
+		{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE (usb, m920x_table);
+
 static struct dvb_usb_device_properties megasky_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-megasky-02.fw",
@@ -465,7 +451,9 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.identify_state   = megasky_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
-		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+		.caps = DVB_USB_IS_AN_I2C_ADAPTER | DVB_USB_ADAP_HAS_PID_FILTER |
+			DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+
 		.pid_filter_count = 8,
 		.pid_filter       = m9206_pid_filter,
 		.pid_filter_ctrl  = m9206_pid_filter_ctrl,
