@@ -461,7 +461,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 
 #define INET6_MATCH(__sk, __hash, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash))				&& \
-	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))  	&& \
+	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))  	&& \
 	 ((__sk)->sk_family		== AF_INET6)		&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&& \
