@@ -64,7 +64,7 @@ struct inet_request_sock {
 #endif
 	__be32			loc_addr;
 	__be32			rmt_addr;
-	u16			rmt_port;
+	__be16			rmt_port;
 	u16			snd_wscale : 4, 
 				rcv_wscale : 4, 
 				tstamp_ok  : 1,
