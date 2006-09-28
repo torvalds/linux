@@ -342,10 +342,10 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
 
-static inline u32 inet_synq_hash(const u32 raddr, const u16 rport,
+static inline u32 inet_synq_hash(const __be32 raddr, const u16 rport,
 				 const u32 rnd, const u16 synq_hsize)
 {
-	return jhash_2words(raddr, (u32)rport, rnd) & (synq_hsize - 1);
+	return jhash_2words((__force u32)raddr, (u32)rport, rnd) & (synq_hsize - 1);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
@@ -356,8 +356,8 @@ static inline u32 inet_synq_hash(const u32 raddr, const u16 rport,
 
 struct request_sock *inet_csk_search_req(const struct sock *sk,
 					 struct request_sock ***prevp,
-					 const __u16 rport, const __u32 raddr,
-					 const __u32 laddr)
+					 const __u16 rport, const __be32 raddr,
+					 const __be32 laddr)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
