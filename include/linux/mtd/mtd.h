@@ -200,6 +200,8 @@ struct mtd_info {
 
 	/* ECC status information */
 	struct mtd_ecc_stats ecc_stats;
+	/* Subpage shift (NAND) */
+	int subpage_sft;
 
 	void *priv;
 

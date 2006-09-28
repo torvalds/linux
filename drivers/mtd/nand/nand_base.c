@@ -1590,7 +1590,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 	return NULL;
 }
 
-#define NOTALIGNED(x) (x & (mtd->writesize-1)) != 0
+#define NOTALIGNED(x)	(x & (chip->subpagesize - 1)) != 0
 
 /**
  * nand_do_write_ops - [Internal] NAND write with ECC
@@ -1603,15 +1603,16 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
-	int chipnr, realpage, page, blockmask;
+	int chipnr, realpage, page, blockmask, column;
 	struct nand_chip *chip = mtd->priv;
 	uint32_t writelen = ops->len;
 	uint8_t *oob = ops->oobbuf;
 	uint8_t *buf = ops->datbuf;
-	int bytes = mtd->writesize;
-	int ret;
+	int ret, subpage;
 
 	ops->retlen = 0;
+	if (!writelen)
+		return 0;
 
 	/* reject writes, which are not page aligned */
 	if (NOTALIGNED(to) || NOTALIGNED(ops->len)) {
@@ -1620,8 +1621,11 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	if (!writelen)
-		return 0;
+	column = to & (mtd->writesize - 1);
+	subpage = column || (writelen & (mtd->writesize - 1));
+
+	if (subpage && oob)
+		return -EINVAL;
 
 	chipnr = (int)(to >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
@@ -1644,12 +1648,24 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	while(1) {
+		int bytes = mtd->writesize;
 		int cached = writelen > bytes && page != blockmask;
+		uint8_t *wbuf = buf;
+
+		/* Partial page write ? */
+		if (unlikely(column || writelen < (mtd->writesize - 1))) {
+			cached = 0;
+			bytes = min_t(int, bytes - column, (int) writelen);
+			chip->pagebuf = -1;
+			memset(chip->buffers->databuf, 0xff, mtd->writesize);
+			memcpy(&chip->buffers->databuf[column], buf, bytes);
+			wbuf = chip->buffers->databuf;
+		}
 
 		if (unlikely(oob))
 			oob = nand_fill_oob(chip, oob, ops);
 
-		ret = chip->write_page(mtd, chip, buf, page, cached,
+		ret = chip->write_page(mtd, chip, wbuf, page, cached,
 				       (ops->mode == MTD_OOB_RAW));
 		if (ret)
 			break;
@@ -1658,6 +1674,7 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 		if (!writelen)
 			break;
 
+		column = 0;
 		buf += bytes;
 		realpage++;
 
@@ -2201,8 +2218,8 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	/* Newer devices have all the information in additional id bytes */
 	if (!type->pagesize) {
 		int extid;
-		/* The 3rd id byte contains non relevant data ATM */
-		extid = chip->read_byte(mtd);
+		/* The 3rd id byte holds MLC / multichip data */
+		chip->cellinfo = chip->read_byte(mtd);
 		/* The 4th id byte is the important one */
 		extid = chip->read_byte(mtd);
 		/* Calc pagesize */
@@ -2481,6 +2498,24 @@ int nand_scan_tail(struct mtd_info *mtd)
 		BUG();
 	}
 	chip->ecc.total = chip->ecc.steps * chip->ecc.bytes;
+
+	/*
+	 * Allow subpage writes up to ecc.steps. Not possible for MLC
+	 * FLASH.
+	 */
+	if (!(chip->options & NAND_NO_SUBPAGE_WRITE) &&
+	    !(chip->cellinfo & NAND_CI_CELLTYPE_MSK)) {
+		switch(chip->ecc.steps) {
+		case 2:
+			mtd->subpage_sft = 1;
+			break;
+		case 4:
+		case 8:
+			mtd->subpage_sft = 2;
+			break;
+		}
+	}
+	chip->subpagesize = mtd->writesize >> mtd->subpage_sft;
 
 	/* Initialize state */
 	chip->state = FL_READY;
