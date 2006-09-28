@@ -229,6 +229,7 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		}
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
+	qp->r_wrid_valid = 1;
 
 bail:
 	return ret;

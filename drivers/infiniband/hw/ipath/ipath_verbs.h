@@ -365,6 +365,7 @@ struct ipath_qp {
 	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
 	u8 r_sge_inx;		/* current index into sg_list */
+	u8 r_wrid_valid;	/* r_wrid set but CQ entry not yet made */
 	u8 qp_access_flags;
 	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 s_retry_cnt;		/* number of times to retry */
@@ -638,6 +639,8 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			      struct ib_udata *udata);
 
 int ipath_destroy_qp(struct ib_qp *ibqp);
+
+void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
 
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);

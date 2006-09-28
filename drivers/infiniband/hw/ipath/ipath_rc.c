@@ -1293,6 +1293,14 @@ done:
 	return 1;
 }
 
+static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
+{
+	spin_lock_irq(&qp->s_lock);
+	qp->state = IB_QPS_ERR;
+	ipath_error_qp(qp, err);
+	spin_unlock_irq(&qp->s_lock);
+}
+
 /**
  * ipath_rc_rcv - process an incoming RC packet
  * @dev: the device this packet came in on
@@ -1385,8 +1393,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		 */
 		if (qp->r_ack_state >= OP(COMPARE_SWAP))
 			goto send_ack;
-		/* XXX Flush WQEs */
-		qp->state = IB_QPS_ERR;
+		ipath_rc_error(qp, IB_WC_REM_INV_REQ_ERR);
 		qp->r_ack_state = OP(SEND_ONLY);
 		qp->r_nak_state = IB_NAK_INVALID_REQUEST;
 		qp->r_ack_psn = qp->r_psn;
@@ -1492,9 +1499,9 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			goto nack_inv;
 		ipath_copy_sge(&qp->r_sge, data, tlen);
 		qp->r_msn++;
-		if (opcode == OP(RDMA_WRITE_LAST) ||
-		    opcode == OP(RDMA_WRITE_ONLY))
+		if (!qp->r_wrid_valid)
 			break;
+		qp->r_wrid_valid = 0;
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
 		wc.opcode = IB_WC_RECV;
@@ -1685,8 +1692,7 @@ nack_acc:
 	 * is pending though.
 	 */
 	if (qp->r_ack_state < OP(COMPARE_SWAP)) {
-		/* XXX Flush WQEs */
-		qp->state = IB_QPS_ERR;
+		ipath_rc_error(qp, IB_WC_REM_ACCESS_ERR);
 		qp->r_ack_state = OP(RDMA_WRITE_ONLY);
 		qp->r_nak_state = IB_NAK_REMOTE_ACCESS_ERROR;
 		qp->r_ack_psn = qp->r_psn;
