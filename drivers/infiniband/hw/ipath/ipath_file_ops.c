@@ -364,11 +364,14 @@ static int ipath_tid_update(struct ipath_portdata *pd, struct file *fp,
 			   "vaddr %lx\n", i, tid + tidoff, vaddr);
 		/* we "know" system pages and TID pages are same size */
 		dd->ipath_pageshadow[porttid + tid] = pagep[i];
+		dd->ipath_physshadow[porttid + tid] = ipath_map_page(
+			dd->pcidev, pagep[i], 0, PAGE_SIZE,
+			PCI_DMA_FROMDEVICE);
 		/*
 		 * don't need atomic or it's overhead
 		 */
 		__set_bit(tid, tidmap);
-		physaddr = page_to_phys(pagep[i]);
+		physaddr = dd->ipath_physshadow[porttid + tid];
 		ipath_stats.sps_pagelocks++;
 		ipath_cdbg(VERBOSE,
 			   "TID %u, vaddr %lx, physaddr %llx pgp %p\n",
@@ -402,6 +405,9 @@ static int ipath_tid_update(struct ipath_portdata *pd, struct file *fp,
 					   tid);
 				dd->ipath_f_put_tid(dd, &tidbase[tid], 1,
 						    dd->ipath_tidinvalid);
+				pci_unmap_page(dd->pcidev,
+					dd->ipath_physshadow[porttid + tid],
+					PAGE_SIZE, PCI_DMA_FROMDEVICE);
 				dd->ipath_pageshadow[porttid + tid] = NULL;
 				ipath_stats.sps_pageunlocks++;
 			}
@@ -515,6 +521,9 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 				   pd->port_pid, tid);
 			dd->ipath_f_put_tid(dd, &tidbase[tid], 1,
 					    dd->ipath_tidinvalid);
+			pci_unmap_page(dd->pcidev,
+				dd->ipath_physshadow[porttid + tid],
+				PAGE_SIZE, PCI_DMA_FROMDEVICE);
 			ipath_release_user_pages(
 				&dd->ipath_pageshadow[porttid + tid], 1);
 			dd->ipath_pageshadow[porttid + tid] = NULL;
@@ -711,7 +720,7 @@ static int ipath_manage_rcvq(struct ipath_portdata *pd, unsigned subport,
 		 * updated and correct itself, even in the face of software
 		 * bugs.
 		 */
-		*pd->port_rcvhdrtail_kvaddr = 0;
+		*(volatile u64 *)pd->port_rcvhdrtail_kvaddr = 0;
 		set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
 			&dd->ipath_rcvctrl);
 	} else
@@ -923,11 +932,11 @@ bail:
 
 /* common code for the mappings on dma_alloc_coherent mem */
 static int ipath_mmap_mem(struct vm_area_struct *vma,
-			     struct ipath_portdata *pd, unsigned len,
-			     int write_ok, dma_addr_t addr, char *what)
+	struct ipath_portdata *pd, unsigned len, int write_ok,
+	void *kvaddr, char *what)
 {
 	struct ipath_devdata *dd = pd->port_dd;
-	unsigned pfn = (unsigned long)addr >> PAGE_SHIFT;
+	unsigned long pfn;
 	int ret;
 
 	if ((vma->vm_end - vma->vm_start) > len) {
@@ -950,17 +959,17 @@ static int ipath_mmap_mem(struct vm_area_struct *vma,
 		vma->vm_flags &= ~VM_MAYWRITE;
 	}
 
+	pfn = virt_to_phys(kvaddr) >> PAGE_SHIFT;
 	ret = remap_pfn_range(vma, vma->vm_start, pfn,
 			      len, vma->vm_page_prot);
 	if (ret)
-		dev_info(&dd->pcidev->dev,
-			 "%s port%u mmap of %lx, %x bytes r%c failed: %d\n",
-			 what, pd->port_port, (unsigned long)addr, len,
-			 write_ok?'w':'o', ret);
+		dev_info(&dd->pcidev->dev, "%s port%u mmap of %lx, %x "
+			 "bytes r%c failed: %d\n", what, pd->port_port,
+			 pfn, len, write_ok?'w':'o', ret);
 	else
-		ipath_cdbg(VERBOSE, "%s port%u mmaped %lx, %x bytes r%c\n",
-			what, pd->port_port, (unsigned long)addr, len,
-			 write_ok?'w':'o');
+		ipath_cdbg(VERBOSE, "%s port%u mmaped %lx, %x bytes "
+			   "r%c\n", what, pd->port_port, pfn, len,
+			   write_ok?'w':'o');
 bail:
 	return ret;
 }
@@ -1049,7 +1058,7 @@ static int mmap_rcvegrbufs(struct vm_area_struct *vma,
 	struct ipath_devdata *dd = pd->port_dd;
 	unsigned long start, size;
 	size_t total_size, i;
-	dma_addr_t *phys;
+	unsigned long pfn;
 	int ret;
 
 	size = pd->port_rcvegrbuf_size;
@@ -1073,11 +1082,11 @@ static int mmap_rcvegrbufs(struct vm_area_struct *vma,
 	vma->vm_flags &= ~VM_MAYWRITE;
 
 	start = vma->vm_start;
-	phys = pd->port_rcvegrbuf_phys;
 
 	for (i = 0; i < pd->port_rcvegrbuf_chunks; i++, start += size) {
-		ret = remap_pfn_range(vma, start, phys[i] >> PAGE_SHIFT,
-				      size, vma->vm_page_prot);
+		pfn = virt_to_phys(pd->port_rcvegrbuf[i]) >> PAGE_SHIFT;
+		ret = remap_pfn_range(vma, start, pfn, size,
+				      vma->vm_page_prot);
 		if (ret < 0)
 			goto bail;
 	}
@@ -1290,7 +1299,7 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 	else if (pgaddr == dd->ipath_pioavailregs_phys)
 		/* in-memory copy of pioavail registers */
 		ret = ipath_mmap_mem(vma, pd, PAGE_SIZE, 0,
-			      	     dd->ipath_pioavailregs_phys,
+			      	     (void *) dd->ipath_pioavailregs_dma,
 				     "pioavail registers");
 	else if (subport_fp(fp))
 		/* Subports don't mmap the physical receive buffers */
@@ -1304,12 +1313,12 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 		 * from an i/o perspective.
 		 */
 		ret = ipath_mmap_mem(vma, pd, pd->port_rcvhdrq_size, 1,
-				     pd->port_rcvhdrq_phys,
+				     pd->port_rcvhdrq,
 				     "rcvhdrq");
 	else if (pgaddr == (u64) pd->port_rcvhdrqtailaddr_phys)
 		/* in-memory copy of rcvhdrq tail register */
 		ret = ipath_mmap_mem(vma, pd, PAGE_SIZE, 0,
-				     pd->port_rcvhdrqtailaddr_phys,
+				     pd->port_rcvhdrtail_kvaddr,
 				     "rcvhdrq tail");
 	else
 		ret = -EINVAL;
@@ -1802,7 +1811,7 @@ static int ipath_do_user_init(struct file *fp,
 	 * We explictly set the in-memory copy to 0 beforehand, so we don't
 	 * have to wait to be sure the DMA update has happened.
 	 */
-	*pd->port_rcvhdrtail_kvaddr = 0ULL;
+	*(volatile u64 *)pd->port_rcvhdrtail_kvaddr = 0ULL;
 	set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
 		&dd->ipath_rcvctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
@@ -1832,6 +1841,8 @@ static void unlock_expected_tids(struct ipath_portdata *pd)
 		if (!dd->ipath_pageshadow[i])
 			continue;
 
+		pci_unmap_page(dd->pcidev, dd->ipath_physshadow[i],
+			PAGE_SIZE, PCI_DMA_FROMDEVICE);
 		ipath_release_user_pages_on_close(&dd->ipath_pageshadow[i],
 						  1);
 		dd->ipath_pageshadow[i] = NULL;
@@ -1936,14 +1947,14 @@ static int ipath_close(struct inode *in, struct file *fp)
 		i = dd->ipath_pbufsport * (port - 1);
 		ipath_disarm_piobufs(dd, i, dd->ipath_pbufsport);
 
+		dd->ipath_f_clear_tids(dd, pd->port_port);
+
 		if (dd->ipath_pageshadow)
 			unlock_expected_tids(pd);
 		ipath_stats.sps_ports--;
 		ipath_cdbg(PROC, "%s[%u] closed port %u:%u\n",
 			   pd->port_comm, pd->port_pid,
 			   dd->ipath_unit, port);
-
-		dd->ipath_f_clear_tids(dd, pd->port_port);
 	}
 
 	pd->port_pid = 0;

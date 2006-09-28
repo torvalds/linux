@@ -605,7 +605,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 				 * don't report same point multiple times,
 				 * except kernel
 				 */
-				tl = (u32) * pd->port_rcvhdrtail_kvaddr;
+				tl = *(u64 *) pd->port_rcvhdrtail_kvaddr;
 				if (tl == dd->ipath_lastrcvhdrqtails[i])
 					continue;
 				hd = ipath_read_ureg32(dd, ur_rcvhdrhead,

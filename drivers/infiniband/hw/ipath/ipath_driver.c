@@ -755,8 +755,8 @@ static void get_rhf_errstring(u32 err, char *msg, size_t len)
 static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum,
 				     int err)
 {
-	return dd->ipath_port0_skbs ?
-		(void *)dd->ipath_port0_skbs[bufnum]->data : NULL;
+	return dd->ipath_port0_skbinfo ?
+		(void *) dd->ipath_port0_skbinfo[bufnum].skb->data : NULL;
 }
 
 /**
@@ -778,31 +778,34 @@ struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd,
 	 */
 
 	/*
-	 * We need 4 extra bytes for unaligned transfer copying
+	 * We need 2 extra bytes for ipath_ether data sent in the
+	 * key header.  In order to keep everything dword aligned,
+	 * we'll reserve 4 bytes.
 	 */
+	len = dd->ipath_ibmaxlen + 4;
+
 	if (dd->ipath_flags & IPATH_4BYTE_TID) {
-		/* we need a 4KB multiple alignment, and there is no way
+		/* We need a 2KB multiple alignment, and there is no way
 		 * to do it except to allocate extra and then skb_reserve
 		 * enough to bring it up to the right alignment.
 		 */
-		len = dd->ipath_ibmaxlen + 4 + (1 << 11) - 1;
+		len += 2047;
 	}
-	else
-		len = dd->ipath_ibmaxlen + 4;
+
 	skb = __dev_alloc_skb(len, gfp_mask);
 	if (!skb) {
 		ipath_dev_err(dd, "Failed to allocate skbuff, length %u\n",
 			      len);
 		goto bail;
 	}
+
+	skb_reserve(skb, 4);
+
 	if (dd->ipath_flags & IPATH_4BYTE_TID) {
-		u32 una = ((1 << 11) - 1) & (unsigned long)(skb->data + 4);
+		u32 una = (unsigned long)skb->data & 2047;
 		if (una)
-			skb_reserve(skb, 4 + (1 << 11) - una);
-		else
-			skb_reserve(skb, 4);
-	} else
-		skb_reserve(skb, 4);
+			skb_reserve(skb, 2048 - una);
+	}
 
 bail:
 	return skb;
@@ -1345,8 +1348,9 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 		ipath_cdbg(VERBOSE, "reuse port %d rcvhdrq @%p %llx phys; "
 			   "hdrtailaddr@%p %llx physical\n",
 			   pd->port_port, pd->port_rcvhdrq,
-			   pd->port_rcvhdrq_phys, pd->port_rcvhdrtail_kvaddr,
-			   (unsigned long long)pd->port_rcvhdrqtailaddr_phys);
+			   (unsigned long long) pd->port_rcvhdrq_phys,
+			   pd->port_rcvhdrtail_kvaddr, (unsigned long long)
+			   pd->port_rcvhdrqtailaddr_phys);
 
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
@@ -1827,17 +1831,22 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 		kfree(pd->port_rcvegrbuf_phys);
 		pd->port_rcvegrbuf_phys = NULL;
 		pd->port_rcvegrbuf_chunks = 0;
-	} else if (pd->port_port == 0 && dd->ipath_port0_skbs) {
+	} else if (pd->port_port == 0 && dd->ipath_port0_skbinfo) {
 		unsigned e;
-		struct sk_buff **skbs = dd->ipath_port0_skbs;
+		struct ipath_skbinfo *skbinfo = dd->ipath_port0_skbinfo;
 
-		dd->ipath_port0_skbs = NULL;
-		ipath_cdbg(VERBOSE, "free closed port %d ipath_port0_skbs "
-			   "@ %p\n", pd->port_port, skbs);
+		dd->ipath_port0_skbinfo = NULL;
+		ipath_cdbg(VERBOSE, "free closed port %d "
+			   "ipath_port0_skbinfo @ %p\n", pd->port_port,
+			   skbinfo);
 		for (e = 0; e < dd->ipath_rcvegrcnt; e++)
-			if (skbs[e])
-				dev_kfree_skb(skbs[e]);
-		vfree(skbs);
+		if (skbinfo[e].skb) {
+			pci_unmap_single(dd->pcidev, skbinfo[e].phys,
+					 dd->ipath_ibmaxlen,
+					 PCI_DMA_FROMDEVICE);
+			dev_kfree_skb(skbinfo[e].skb);
+		}
+		vfree(skbinfo);
 	}
 	kfree(pd->port_tid_pg_list);
 	vfree(pd->subport_uregbase);
@@ -1934,7 +1943,7 @@ static void cleanup_device(struct ipath_devdata *dd)
 
 	if (dd->ipath_pioavailregs_dma) {
 		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
-				  dd->ipath_pioavailregs_dma,
+				  (void *) dd->ipath_pioavailregs_dma,
 				  dd->ipath_pioavailregs_phys);
 		dd->ipath_pioavailregs_dma = NULL;
 	}
@@ -1947,6 +1956,7 @@ static void cleanup_device(struct ipath_devdata *dd)
 
 	if (dd->ipath_pageshadow) {
 		struct page **tmpp = dd->ipath_pageshadow;
+		dma_addr_t *tmpd = dd->ipath_physshadow;
 		int i, cnt = 0;
 
 		ipath_cdbg(VERBOSE, "Unlocking any expTID pages still "
@@ -1957,6 +1967,8 @@ static void cleanup_device(struct ipath_devdata *dd)
 			for (i = port_tidbase; i < maxtid; i++) {
 				if (!tmpp[i])
 					continue;
+				pci_unmap_page(dd->pcidev, tmpd[i],
+					       PAGE_SIZE, PCI_DMA_FROMDEVICE);
 				ipath_release_user_pages(&tmpp[i], 1);
 				tmpp[i] = NULL;
 				cnt++;

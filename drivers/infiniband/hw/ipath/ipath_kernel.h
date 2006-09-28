@@ -39,6 +39,8 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 
 #include "ipath_common.h"
@@ -62,7 +64,7 @@ struct ipath_portdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *port_rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
-	volatile __le64 *port_rcvhdrtail_kvaddr;
+	void *port_rcvhdrtail_kvaddr;
 	/*
 	 * temp buffer for expected send setup, allocated at open, instead
 	 * of each setup call
@@ -146,6 +148,11 @@ struct _ipath_layer {
 	void *l_arg;
 };
 
+struct ipath_skbinfo {
+	struct sk_buff *skb;
+	dma_addr_t phys;
+};
+
 struct ipath_devdata {
 	struct list_head ipath_list;
 
@@ -168,7 +175,7 @@ struct ipath_devdata {
 	/* ipath_cfgports pointers */
 	struct ipath_portdata **ipath_pd;
 	/* sk_buffs used by port 0 eager receive queue */
-	struct sk_buff **ipath_port0_skbs;
+	struct ipath_skbinfo *ipath_port0_skbinfo;
 	/* kvirt address of 1st 2k pio buffer */
 	void __iomem *ipath_pio2kbase;
 	/* kvirt address of 1st 4k pio buffer */
@@ -335,6 +342,8 @@ struct ipath_devdata {
 	u64 *ipath_tidsimshadow;
 	/* shadow copy of struct page *'s for exp tid pages */
 	struct page **ipath_pageshadow;
+	/* shadow copy of dma handles for exp tid pages */
+	dma_addr_t *ipath_physshadow;
 	/* lock to workaround chip bug 9437 */
 	spinlock_t ipath_tid_lock;
 
@@ -863,6 +872,13 @@ int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);
 int ipathfs_add_device(struct ipath_devdata *);
 int ipathfs_remove_device(struct ipath_devdata *);
+
+/*
+ * dma_addr wrappers - all 0's invalid for hw
+ */
+dma_addr_t ipath_map_page(struct pci_dev *, struct page *, unsigned long,
+			  size_t, int);
+dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 
 /*
  * Flush write combining store buffers (if present) and perform a write
