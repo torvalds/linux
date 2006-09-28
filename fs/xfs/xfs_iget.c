@@ -50,7 +50,7 @@ void
 xfs_ihash_init(xfs_mount_t *mp)
 {
 	__uint64_t	icount;
-	uint		i, flags = KM_SLEEP | KM_MAYFAIL | KM_LARGE;
+	uint		i;
 
 	if (!mp->m_ihsize) {
 		icount = mp->m_maxicount ? mp->m_maxicount :
@@ -61,14 +61,13 @@ xfs_ihash_init(xfs_mount_t *mp)
 					(64 * NBPP) / sizeof(xfs_ihash_t));
 	}
 
-	while (!(mp->m_ihash = (xfs_ihash_t *)kmem_zalloc(mp->m_ihsize *
-						sizeof(xfs_ihash_t), flags))) {
-		if ((mp->m_ihsize >>= 1) <= NBPP)
-			flags = KM_SLEEP;
-	}
-	for (i = 0; i < mp->m_ihsize; i++) {
+	mp->m_ihash = kmem_zalloc_greedy(&mp->m_ihsize,
+					 NBPC * sizeof(xfs_ihash_t),
+					 mp->m_ihsize * sizeof(xfs_ihash_t),
+					 KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	mp->m_ihsize /= sizeof(xfs_ihash_t);
+	for (i = 0; i < mp->m_ihsize; i++)
 		rwlock_init(&(mp->m_ihash[i].ih_lock));
-	}
 }
 
 /*
@@ -77,7 +76,7 @@ xfs_ihash_init(xfs_mount_t *mp)
 void
 xfs_ihash_free(xfs_mount_t *mp)
 {
-	kmem_free(mp->m_ihash, mp->m_ihsize*sizeof(xfs_ihash_t));
+	kmem_free(mp->m_ihash, mp->m_ihsize * sizeof(xfs_ihash_t));
 	mp->m_ihash = NULL;
 }
 

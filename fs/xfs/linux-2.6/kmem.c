@@ -68,6 +68,22 @@ kmem_zalloc(size_t size, unsigned int __nocast flags)
 	return ptr;
 }
 
+void *
+kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize,
+		   unsigned int __nocast flags)
+{
+	void	*ptr;
+
+	while (!(ptr = kmem_zalloc(maxsize, flags))) {
+		if ((maxsize >>= 1) <= minsize) {
+			maxsize = minsize;
+		 	flags = KM_SLEEP;
+		}
+	}
+	*size = maxsize;
+	return ptr;
+}
+
 void
 kmem_free(void *ptr, size_t size)
 {

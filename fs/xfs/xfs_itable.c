@@ -326,7 +326,6 @@ xfs_bulkstat(
 	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
 	int			irbsize; /* size of irec buffer in bytes */
-	unsigned int		kmflags; /* flags for allocating irec buffer */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
 	xfs_inobt_rec_incore_t	*irbp;	/* current irec buffer pointer */
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
@@ -371,19 +370,8 @@ xfs_bulkstat(
 		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
-	/*
-	 * Allocate a local buffer for inode cluster btree records.
-	 * This caps our maximum readahead window (so don't be stingy)
-	 * but we must handle the case where we can't get a contiguous
-	 * multi-page buffer, so we drop back toward pagesize; the end
-	 * case we ensure succeeds, via appropriate allocation flags.
-	 */
-	irbsize = NBPP * 4;
-	kmflags = KM_SLEEP | KM_MAYFAIL;
-	while (!(irbuf = kmem_alloc(irbsize, kmflags))) {
-		if ((irbsize >>= 1) <= NBPP)
-			kmflags = KM_SLEEP;
-	}
+	irbuf = kmem_zalloc_greedy(&irbsize, NBPC, NBPC * 4,
+				   KM_SLEEP | KM_MAYFAIL | KM_LARGE);
 	nirbuf = irbsize / sizeof(*irbuf);
 
 	/*
