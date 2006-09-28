@@ -81,6 +81,11 @@ xfs_bulkstat_one(
 	void			*dibuff,
 	int			*stat);
 
+int
+xfs_internal_inum(
+	xfs_mount_t		*mp,
+	xfs_ino_t		ino);
+
 int					/* error status */
 xfs_inumbers(
 	xfs_mount_t		*mp,	/* mount point for filesystem */

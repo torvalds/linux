@@ -39,6 +39,16 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 
+int
+xfs_internal_inum(
+	xfs_mount_t	*mp,
+	xfs_ino_t	ino)
+{
+	return (ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
+		(XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
+		 (ino == mp->m_sb.sb_uquotino || ino == mp->m_sb.sb_gquotino)));
+}
+
 STATIC int
 xfs_bulkstat_one_iget(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
@@ -213,17 +223,12 @@ xfs_bulkstat_one(
 	xfs_dinode_t	*dip;		/* dinode inode pointer */
 
 	dip = (xfs_dinode_t *)dibuff;
+	*stat = BULKSTAT_RV_NOTHING;
 
-	if (!buffer || ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-	    (XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
-	     (ino == mp->m_sb.sb_uquotino || ino == mp->m_sb.sb_gquotino))) {
-		*stat = BULKSTAT_RV_NOTHING;
+	if (!buffer || xfs_internal_inum(mp, ino))
 		return XFS_ERROR(EINVAL);
-	}
-	if (ubsize < sizeof(*buf)) {
-		*stat = BULKSTAT_RV_NOTHING;
+	if (ubsize < sizeof(*buf))
 		return XFS_ERROR(ENOMEM);
-	}
 
 	buf = kmem_alloc(sizeof(*buf), KM_SLEEP);
 
@@ -239,8 +244,7 @@ xfs_bulkstat_one(
 	}
 
 	if (copy_to_user(buffer, buf, sizeof(*buf)))  {
-		*stat = BULKSTAT_RV_NOTHING;
-		error =  EFAULT;
+		error = EFAULT;
 		goto out_free;
 	}
 
