@@ -462,9 +462,9 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 }
 
 static __inline__
-u16 xfrm_flowi_sport(struct flowi *fl)
+__be16 xfrm_flowi_sport(struct flowi *fl)
 {
-	u16 port;
+	__be16 port;
 	switch(fl->proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -487,9 +487,9 @@ u16 xfrm_flowi_sport(struct flowi *fl)
 }
 
 static __inline__
-u16 xfrm_flowi_dport(struct flowi *fl)
+__be16 xfrm_flowi_dport(struct flowi *fl)
 {
-	u16 port;
+	__be16 port;
 	switch(fl->proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
