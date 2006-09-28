@@ -302,6 +302,12 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
 	add_timer(&php_ctlr->int_poll_timer);
 }
 
+static inline int is_ctrl_busy(struct controller *ctrl)
+{
+	u16 cmd_status = shpc_readw(ctrl, CMD_STATUS);
+	return cmd_status & 0x1;
+}
+
 /*
  * Returns 1 if SHPC finishes executing a command within 1 sec,
  * otherwise returns 0.
@@ -309,16 +315,14 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
 static inline int shpc_poll_ctrl_busy(struct controller *ctrl)
 {
 	int i;
-	u16 cmd_status = shpc_readw(ctrl, CMD_STATUS);
 
-	if (!(cmd_status & 0x1))
+	if (!is_ctrl_busy(ctrl))
 		return 1;
 
 	/* Check every 0.1 sec for a total of 1 sec */
 	for (i = 0; i < 10; i++) {
 		msleep(100);
-		cmd_status = shpc_readw(ctrl, CMD_STATUS);
-		if (!(cmd_status & 0x1))
+		if (!is_ctrl_busy(ctrl))
 			return 1;
 	}
 
@@ -336,7 +340,7 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 	else
 		rc = wait_event_interruptible_timeout(ctrl->queue,
 						!ctrl->cmd_busy, timeout);
-	if (!rc) {
+	if (!rc && is_ctrl_busy(ctrl)) {
 		retval = -EIO;
 		err("Command not completed in 1000 msec\n");
 	} else if (rc < 0) {
