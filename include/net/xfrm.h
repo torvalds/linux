@@ -935,7 +935,7 @@ static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **s
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto);
-extern int xfrm_replay_check(struct xfrm_state *x, u32 seq);
+extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, u32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb);
@@ -945,7 +945,7 @@ extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
-extern int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi);
+extern int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);

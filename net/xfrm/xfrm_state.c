@@ -1180,11 +1180,10 @@ static void xfrm_replay_timer_handler(unsigned long data)
 	spin_unlock(&x->lock);
 }
 
-int xfrm_replay_check(struct xfrm_state *x, u32 seq)
+int xfrm_replay_check(struct xfrm_state *x, __be32 net_seq)
 {
 	u32 diff;
-
-	seq = ntohl(seq);
+	u32 seq = ntohl(net_seq);
 
 	if (unlikely(seq == 0))
 		return -EINVAL;

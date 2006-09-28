@@ -16,7 +16,7 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
+int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 {
 	int err;
 	__be32 seq;
