@@ -956,7 +956,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	mmc->f_min = 150000;
 	mmc->f_max = CLK_RATE/2;
 	mmc->ocr_avail = MMC_VDD_32_33;
-	mmc->caps |= MMC_CAP_4_BIT_DATA;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_BYTEBLOCK;
 
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_hw_segs = 64;
