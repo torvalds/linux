@@ -1763,7 +1763,7 @@ static void get_tcp4_sock(struct sock *sp, char *tmpbuf, int i)
 
 static void get_timewait4_sock(struct inet_timewait_sock *tw, char *tmpbuf, int i)
 {
-	unsigned int dest, src;
+	__be32 dest, src;
 	__u16 destp, srcp;
 	int ttd = tw->tw_ttd - jiffies;
 

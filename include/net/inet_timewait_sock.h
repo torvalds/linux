@@ -120,10 +120,10 @@ struct inet_timewait_sock {
 	unsigned char		tw_rcv_wscale;
 	/* Socket demultiplex comparisons on incoming packets. */
 	/* these five are in inet_sock */
-	__u16			tw_sport;
-	__u32			tw_daddr __attribute__((aligned(INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES)));
-	__u32			tw_rcv_saddr;
-	__u16			tw_dport;
+	__be16			tw_sport;
+	__be32			tw_daddr __attribute__((aligned(INET_TIMEWAIT_ADDRCMP_ALIGN_BYTES)));
+	__be32			tw_rcv_saddr;
+	__be16			tw_dport;
 	__u16			tw_num;
 	/* And these are ours. */
 	__u8			tw_ipv6only:1;
