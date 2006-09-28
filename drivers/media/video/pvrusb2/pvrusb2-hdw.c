@@ -3140,7 +3140,8 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	struct list_head *item;
 	struct pvr2_i2c_client *cp;
 	struct v4l2_register req;
-	int stat;
+	int stat = 0;
+	int okFl = 0;
 
 	req.i2c_id = chip_id;
 	req.reg = reg_id;
@@ -3153,9 +3154,13 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 				cp,(setFl ? VIDIOC_INT_S_REGISTER :
 				    VIDIOC_INT_G_REGISTER),&req);
 			if (!setFl) *val_ptr = req.val;
-			return stat;
+			okFl = !0;
+			break;
 		}
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
+	if (okFl) {
+		return stat;
+	}
 	return -EINVAL;
 #else
 	return -ENOSYS;
