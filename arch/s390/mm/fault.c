@@ -355,6 +355,7 @@ out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (tsk->pid == 1) {
 		yield();
+		down_read(&mm->mmap_sem);
 		goto survive;
 	}
 	printk("VM: killing process %s\n", tsk->comm);
