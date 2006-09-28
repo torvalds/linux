@@ -140,7 +140,7 @@ struct ip_sf_socklist
 };
 
 #define IP_SFLSIZE(count)	(sizeof(struct ip_sf_socklist) + \
-	(count) * sizeof(__u32))
+	(count) * sizeof(__be32))
 
 #define IP_SFBLOCK	10	/* allocate this many at once */
 
