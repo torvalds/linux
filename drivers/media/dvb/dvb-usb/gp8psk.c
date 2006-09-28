@@ -219,7 +219,7 @@ static struct dvb_usb_device_properties gp8psk_properties = {
 		  .cold_ids = { &gp8psk_usb_table[0], NULL },
 		  .warm_ids = { &gp8psk_usb_table[1], NULL },
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 

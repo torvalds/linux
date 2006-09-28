@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include "pvrusb2-i2c-core.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
@@ -89,7 +90,8 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 
 const struct pvr2_i2c_op *pvr2_i2c_get_op(unsigned int idx)
 {
-	if (idx >= sizeof(ops)/sizeof(ops[0])) return 0;
+	if (idx >= ARRAY_SIZE(ops))
+		return NULL;
 	return ops[idx];
 }
 
