@@ -96,9 +96,12 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 				    nhashmask);
 		hlist_add_head(&x->bysrc, nsrctable+h);
 
-		h = __xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
-				    x->props.family, nhashmask);
-		hlist_add_head(&x->byspi, nspitable+h);
+		if (x->id.spi) {
+			h = __xfrm_spi_hash(&x->id.daddr, x->id.spi,
+					    x->id.proto, x->props.family,
+					    nhashmask);
+			hlist_add_head(&x->byspi, nspitable+h);
+		}
 	}
 }
 
@@ -622,7 +625,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	h = xfrm_src_hash(&x->props.saddr, x->props.family);
 	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 
-	if (xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY)) {
+	if (x->id.spi) {
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
 				  x->props.family);
 
