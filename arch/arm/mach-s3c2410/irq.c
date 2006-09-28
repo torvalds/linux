@@ -181,17 +181,17 @@ s3c_irq_unmask(unsigned int irqno)
 }
 
 struct irqchip s3c_irq_level_chip = {
-	.ack	   = s3c_irq_maskack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake	   = s3c_irq_wake
+	.ack		= s3c_irq_maskack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake
 };
 
 static struct irqchip s3c_irq_chip = {
-	.ack	   = s3c_irq_ack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake  = s3c_irq_wake
+	.ack		= s3c_irq_ack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake
 };
 
 static void
@@ -343,19 +343,19 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 }
 
 static struct irqchip s3c_irqext_chip = {
-	.mask	    = s3c_irqext_mask,
-	.unmask	    = s3c_irqext_unmask,
-	.ack	    = s3c_irqext_ack,
-	.set_type    = s3c_irqext_type,
-	.set_wake    = s3c_irqext_wake
+	.mask		= s3c_irqext_mask,
+	.unmask		= s3c_irqext_unmask,
+	.ack		= s3c_irqext_ack,
+	.set_type	= s3c_irqext_type,
+	.set_wake	= s3c_irqext_wake
 };
 
 static struct irqchip s3c_irq_eint0t4 = {
-	.ack	   = s3c_irq_ack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake  = s3c_irq_wake,
-	.set_type  = s3c_irqext_type,
+	.ack		= s3c_irq_ack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake,
+	.set_type	= s3c_irqext_type,
 };
 
 /* mask values for the parent registers for each of the interrupt types */
@@ -387,9 +387,9 @@ s3c_irq_uart0_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart0 = {
-	.mask	    = s3c_irq_uart0_mask,
-	.unmask	    = s3c_irq_uart0_unmask,
-	.ack	    = s3c_irq_uart0_ack,
+	.mask		= s3c_irq_uart0_mask,
+	.unmask		= s3c_irq_uart0_unmask,
+	.ack		= s3c_irq_uart0_ack,
 };
 
 /* UART1 */
@@ -413,9 +413,9 @@ s3c_irq_uart1_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart1 = {
-	.mask	    = s3c_irq_uart1_mask,
-	.unmask	    = s3c_irq_uart1_unmask,
-	.ack	    = s3c_irq_uart1_ack,
+	.mask		= s3c_irq_uart1_mask,
+	.unmask		= s3c_irq_uart1_unmask,
+	.ack		= s3c_irq_uart1_ack,
 };
 
 /* UART2 */
@@ -439,9 +439,9 @@ s3c_irq_uart2_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart2 = {
-	.mask	    = s3c_irq_uart2_mask,
-	.unmask	    = s3c_irq_uart2_unmask,
-	.ack	    = s3c_irq_uart2_ack,
+	.mask		= s3c_irq_uart2_mask,
+	.unmask		= s3c_irq_uart2_unmask,
+	.ack		= s3c_irq_uart2_ack,
 };
 
 /* ADC and Touchscreen */
@@ -465,9 +465,9 @@ s3c_irq_adc_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_adc = {
-	.mask	    = s3c_irq_adc_mask,
-	.unmask	    = s3c_irq_adc_unmask,
-	.ack	    = s3c_irq_adc_ack,
+	.mask		= s3c_irq_adc_mask,
+	.unmask		= s3c_irq_adc_unmask,
+	.ack		= s3c_irq_adc_ack,
 };
 
 /* irq demux for adc */
