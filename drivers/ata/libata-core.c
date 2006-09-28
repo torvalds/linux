@@ -2340,7 +2340,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 
 	if (status & ATA_BUSY)
 		ata_port_printk(ap, KERN_WARNING,
-				"port is slow to respond, please be patient\n");
+				"port is slow to respond, please be patient "
+				"(Status 0x%x)\n", status);
 
 	timeout = timer_start + tmout;
 	while ((status & ATA_BUSY) && (time_before(jiffies, timeout))) {
@@ -2350,7 +2351,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 
 	if (status & ATA_BUSY) {
 		ata_port_printk(ap, KERN_ERR, "port failed to respond "
-				"(%lu secs)\n", tmout / HZ);
+				"(%lu secs, Status 0x%x)\n",
+				tmout / HZ, status);
 		return 1;
 	}
 
