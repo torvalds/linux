@@ -51,11 +51,8 @@
 
 void SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
 void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-void nt_lm_owf_gen(char *pwd, unsigned char nt_p16[16], unsigned char p16[16]);
 static void SMBOWFencrypt(unsigned char passwd[16], unsigned char *c8,
 		   unsigned char p24[24]);
-void NTLMSSPOWFencrypt(unsigned char passwd[8],
-		       unsigned char *ntlmchalresp, unsigned char p24[24]);
 void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
 
 /*
