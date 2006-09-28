@@ -670,7 +670,7 @@ xfs_alloc_insrec(
 	}
 #endif
 	nbno = NULLAGBLOCK;
-	ncur = (xfs_btree_cur_t *)0;
+	ncur = NULL;
 	/*
 	 * If the block is full, we can't insert the new entry until we
 	 * make the block un-full.
@@ -981,7 +981,7 @@ xfs_alloc_lookup(
 		 */
 		bp = cur->bc_bufs[level];
 		if (bp && XFS_BUF_ADDR(bp) != d)
-			bp = (xfs_buf_t *)0;
+			bp = NULL;
 		if (!bp) {
 			/*
 			 * Need to get a new buffer.  Read it, then
@@ -2044,7 +2044,7 @@ xfs_alloc_insert(
 	nbno = NULLAGBLOCK;
 	nrec.ar_startblock = cpu_to_be32(cur->bc_rec.a.ar_startblock);
 	nrec.ar_blockcount = cpu_to_be32(cur->bc_rec.a.ar_blockcount);
-	ncur = (xfs_btree_cur_t *)0;
+	ncur = NULL;
 	pcur = cur;
 	/*
 	 * Loop going up the tree, starting at the leaf level.
@@ -2076,7 +2076,7 @@ xfs_alloc_insert(
 		 */
 		if (ncur) {
 			pcur = ncur;
-			ncur = (xfs_btree_cur_t *)0;
+			ncur = NULL;
 		}
 	} while (nbno != NULLAGBLOCK);
 	*stat = i;

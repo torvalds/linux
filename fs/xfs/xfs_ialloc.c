@@ -458,7 +458,7 @@ nextag:
 		 */
 		if (XFS_FORCED_SHUTDOWN(mp)) {
 			up_read(&mp->m_peraglock);
-			return (xfs_buf_t *)0;
+			return NULL;
 		}
 		agno++;
 		if (agno >= agcount)
@@ -466,7 +466,7 @@ nextag:
 		if (agno == pagno) {
 			if (flags == 0) {
 				up_read(&mp->m_peraglock);
-				return (xfs_buf_t *)0;
+				return NULL;
 			}
 			flags = 0;
 		}
