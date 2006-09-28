@@ -71,7 +71,7 @@ xfs_page_trace(
 	int		tag,
 	struct inode	*inode,
 	struct page	*page,
-	int		mask)
+	unsigned long	pgoff)
 {
 	xfs_inode_t	*ip;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
@@ -91,7 +91,7 @@ xfs_page_trace(
 		(void *)ip,
 		(void *)inode,
 		(void *)page,
-		(void *)((unsigned long)mask),
+		(void *)pgoff,
 		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
 		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
 		(void *)((unsigned long)((isize >> 32) & 0xffffffff)),
@@ -105,7 +105,7 @@ xfs_page_trace(
 		(void *)NULL);
 }
 #else
-#define xfs_page_trace(tag, inode, page, mask)
+#define xfs_page_trace(tag, inode, page, pgoff)
 #endif
 
 /*
@@ -1197,7 +1197,7 @@ xfs_vm_releasepage(
 		.nr_to_write = 1,
 	};
 
-	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
+	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, 0);
 
 	if (!page_has_buffers(page))
 		return 0;
