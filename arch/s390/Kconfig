@@ -153,6 +153,14 @@ config MARCH_Z990
 	  This will be slightly faster but does not work on
 	  older machines such as the z900.
 
+config MARCH_Z9_109
+	bool "IBM System z9"
+	help
+	  Select this to enable optimizations for IBM System z9-109, IBM
+	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
+	  Class (z9 BC). The kernel will be slightly faster but will not
+	  work on older machines such as the z990, z890, z900, and z800.
+
 endchoice
 
 config PACK_STACK
