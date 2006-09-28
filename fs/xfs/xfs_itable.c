@@ -324,6 +324,8 @@ xfs_bulkstat(
 	xfs_agino_t		gino;	/* current btree rec's start inode */
 	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
+	int			irbsize; /* size of irec buffer in bytes */
+	unsigned int		kmflags; /* flags for allocating irec buffer */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
 	xfs_inobt_rec_incore_t	*irbp;	/* current irec buffer pointer */
 	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
@@ -369,12 +371,20 @@ xfs_bulkstat(
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
 	/*
-	 * Allocate a page-sized buffer for inode btree records.
-	 * We could try allocating something smaller, but for normal
-	 * calls we'll always (potentially) need the whole page.
+	 * Allocate a local buffer for inode cluster btree records.
+	 * This caps our maximum readahead window (so don't be stingy)
+	 * but we must handle the case where we can't get a contiguous
+	 * multi-page buffer, so we drop back toward pagesize; the end
+	 * case we ensure succeeds, via appropriate allocation flags.
 	 */
-	irbuf = kmem_alloc(NBPC, KM_SLEEP);
-	nirbuf = NBPC / sizeof(*irbuf);
+	irbsize = NBPP * 4;
+	kmflags = KM_SLEEP | KM_MAYFAIL;
+	while (!(irbuf = kmem_alloc(irbsize, kmflags))) {
+		if ((irbsize >>= 1) <= NBPP)
+			kmflags = KM_SLEEP;
+	}
+	nirbuf = irbsize / sizeof(*irbuf);
+
 	/*
 	 * Loop over the allocation groups, starting from the last
 	 * inode returned; 0 means start of the allocation group.
@@ -672,7 +682,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free(irbuf, NBPC);
+	kmem_free(irbuf, irbsize);
 	*ubcountp = ubelem;
 	if (agno >= mp->m_sb.sb_agcount) {
 		/*
