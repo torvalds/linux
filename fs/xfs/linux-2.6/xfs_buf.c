@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -1681,6 +1681,7 @@ xfsbufd(
 	xfs_buf_t		*bp, *n;
 	struct list_head	*dwq = &target->bt_delwrite_queue;
 	spinlock_t		*dwlk = &target->bt_delwrite_lock;
+	int			count;
 
 	current->flags |= PF_MEMALLOC;
 
@@ -1696,6 +1697,7 @@ xfsbufd(
 		schedule_timeout_interruptible(
 			xfs_buf_timer_centisecs * msecs_to_jiffies(10));
 
+		count = 0;
 		age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
 		spin_lock(dwlk);
 		list_for_each_entry_safe(bp, n, dwq, b_list) {
@@ -1711,9 +1713,11 @@ xfsbufd(
 					break;
 				}
 
-				bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
+				bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|
+						 _XBF_RUN_QUEUES);
 				bp->b_flags |= XBF_WRITE;
-				list_move(&bp->b_list, &tmp);
+				list_move_tail(&bp->b_list, &tmp);
+				count++;
 			}
 		}
 		spin_unlock(dwlk);
@@ -1724,12 +1728,12 @@ xfsbufd(
 
 			list_del_init(&bp->b_list);
 			xfs_buf_iostrategy(bp);
-
-			blk_run_address_space(target->bt_mapping);
 		}
 
 		if (as_list_len > 0)
 			purge_addresses();
+		if (count)
+			blk_run_address_space(target->bt_mapping);
 
 		clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
 	} while (!kthread_should_stop());
@@ -1767,7 +1771,7 @@ xfs_flush_buftarg(
 			continue;
 		}
 
-		list_move(&bp->b_list, &tmp);
+		list_move_tail(&bp->b_list, &tmp);
 	}
 	spin_unlock(dwlk);
 
@@ -1776,7 +1780,7 @@ xfs_flush_buftarg(
 	 */
 	list_for_each_entry_safe(bp, n, &tmp, b_list) {
 		xfs_buf_lock(bp);
-		bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
+		bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|_XBF_RUN_QUEUES);
 		bp->b_flags |= XBF_WRITE;
 		if (wait)
 			bp->b_flags &= ~XBF_ASYNC;
@@ -1785,6 +1789,9 @@ xfs_flush_buftarg(
 
 		xfs_buf_iostrategy(bp);
 	}
+
+	if (wait)
+		blk_run_address_space(target->bt_mapping);
 
 	/*
 	 * Remaining list items must be flushed before returning
@@ -1796,9 +1803,6 @@ xfs_flush_buftarg(
 		xfs_iowait(bp);
 		xfs_buf_relse(bp);
 	}
-
-	if (wait)
-		blk_run_address_space(target->bt_mapping);
 
 	return pincount;
 }
