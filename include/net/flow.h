@@ -73,7 +73,7 @@ struct flowi {
 			__u8	objname[16]; /* Not zero terminated */
 		} dnports;
 
-		__u32		spi;
+		__be32		spi;
 
 #ifdef CONFIG_IPV6_MIP6
 		struct {
