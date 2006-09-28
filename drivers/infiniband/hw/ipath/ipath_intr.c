@@ -132,6 +132,82 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 	return ignore_this_time;
 }
 
+/* generic hw error messages... */
+#define INFINIPATH_HWE_TXEMEMPARITYERR_MSG(a) \
+	{ \
+		.mask = ( INFINIPATH_HWE_TXEMEMPARITYERR_##a <<    \
+			  INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT ),   \
+		.msg = "TXE " #a " Memory Parity"	     \
+	}
+#define INFINIPATH_HWE_RXEMEMPARITYERR_MSG(a) \
+	{ \
+		.mask = ( INFINIPATH_HWE_RXEMEMPARITYERR_##a <<    \
+			  INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT ),   \
+		.msg = "RXE " #a " Memory Parity"	     \
+	}
+
+static const struct ipath_hwerror_msgs ipath_generic_hwerror_msgs[] = {
+	INFINIPATH_HWE_MSG(IBCBUSFRSPCPARITYERR, "IPATH2IB Parity"),
+	INFINIPATH_HWE_MSG(IBCBUSTOSPCPARITYERR, "IB2IPATH Parity"),
+
+	INFINIPATH_HWE_TXEMEMPARITYERR_MSG(PIOBUF),
+	INFINIPATH_HWE_TXEMEMPARITYERR_MSG(PIOPBC),
+	INFINIPATH_HWE_TXEMEMPARITYERR_MSG(PIOLAUNCHFIFO),
+
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(RCVBUF),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(LOOKUPQ),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(EAGERTID),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(EXPTID),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(FLAGBUF),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(DATAINFO),
+	INFINIPATH_HWE_RXEMEMPARITYERR_MSG(HDRINFO),
+};
+
+/**
+ * ipath_format_hwmsg - format a single hwerror message
+ * @msg message buffer
+ * @msgl length of message buffer
+ * @hwmsg message to add to message buffer
+ */
+static void ipath_format_hwmsg(char *msg, size_t msgl, const char *hwmsg)
+{
+	strlcat(msg, "[", msgl);
+	strlcat(msg, hwmsg, msgl);
+	strlcat(msg, "]", msgl);
+}
+
+/**
+ * ipath_format_hwerrors - format hardware error messages for display
+ * @hwerrs hardware errors bit vector
+ * @hwerrmsgs hardware error descriptions
+ * @nhwerrmsgs number of hwerrmsgs
+ * @msg message buffer
+ * @msgl message buffer length
+ */
+void ipath_format_hwerrors(u64 hwerrs,
+			   const struct ipath_hwerror_msgs *hwerrmsgs,
+			   size_t nhwerrmsgs,
+			   char *msg, size_t msgl)
+{
+	int i;
+	const int glen =
+	    sizeof(ipath_generic_hwerror_msgs) /
+	    sizeof(ipath_generic_hwerror_msgs[0]);
+
+	for (i=0; i<glen; i++) {
+		if (hwerrs & ipath_generic_hwerror_msgs[i].mask) {
+			ipath_format_hwmsg(msg, msgl,
+					   ipath_generic_hwerror_msgs[i].msg);
+		}
+	}
+
+	for (i=0; i<nhwerrmsgs; i++) {
+		if (hwerrs & hwerrmsgs[i].mask) {
+			ipath_format_hwmsg(msg, msgl, hwerrmsgs[i].msg);
+		}
+	}
+}
+
 /* return the strings for the most common link states */
 static char *ib_linkstate(u32 linkstate)
 {

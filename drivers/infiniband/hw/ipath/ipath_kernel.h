@@ -897,4 +897,20 @@ extern struct mutex ipath_mutex;
 
 #endif /* _IPATH_DEBUGGING */
 
+/*
+ * this is used for formatting hw error messages...
+ */
+struct ipath_hwerror_msgs {
+	u64 mask;
+	const char *msg;
+};
+
+#define INFINIPATH_HWE_MSG(a, b) { .mask = INFINIPATH_HWE_##a, .msg = b }
+
+/* in ipath_intr.c... */
+void ipath_format_hwerrors(u64 hwerrs,
+			   const struct ipath_hwerror_msgs *hwerrmsgs,
+			   size_t nhwerrmsgs,
+			   char *msg, size_t lmsg);
+
 #endif				/* _IPATH_KERNEL_H */

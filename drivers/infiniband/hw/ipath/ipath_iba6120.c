@@ -301,6 +301,26 @@ static const struct ipath_cregs ipath_pe_cregs = {
  */
 #define INFINIPATH_XGXS_SUPPRESS_ARMLAUNCH_ERR (1ULL<<63)
 
+/* 6120 specific hardware errors... */
+static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
+	INFINIPATH_HWE_MSG(PCIEPOISONEDTLP, "PCIe Poisoned TLP"),
+	INFINIPATH_HWE_MSG(PCIECPLTIMEOUT, "PCIe completion timeout"),
+	/*
+	 * In practice, it's unlikely wthat we'll see PCIe PLL, or bus
+	 * parity or memory parity error failures, because most likely we
+	 * won't be able to talk to the core of the chip.  Nonetheless, we
+	 * might see them, if they are in parts of the PCIe core that aren't
+	 * essential.
+	 */
+	INFINIPATH_HWE_MSG(PCIE1PLLFAILED, "PCIePLL1"),
+	INFINIPATH_HWE_MSG(PCIE0PLLFAILED, "PCIePLL0"),
+	INFINIPATH_HWE_MSG(PCIEBUSPARITYXTLH, "PCIe XTLH core parity"),
+	INFINIPATH_HWE_MSG(PCIEBUSPARITYXADM, "PCIe ADM TX core parity"),
+	INFINIPATH_HWE_MSG(PCIEBUSPARITYRADM, "PCIe ADM RX core parity"),
+	INFINIPATH_HWE_MSG(RXDSYNCMEMPARITYERR, "Rx Dsync"),
+	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
+};
+
 /**
  * ipath_pe_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
@@ -403,24 +423,13 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrmask,
 				 dd->ipath_hwerrmask);
 	}
-	if (hwerrs & (INFINIPATH_HWE_RXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_RXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[RXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
-	if (hwerrs & (INFINIPATH_HWE_TXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_TXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[TXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
+
+	ipath_format_hwerrors(hwerrs,
+			      ipath_6120_hwerror_msgs,
+			      sizeof(ipath_6120_hwerror_msgs)/
+			      sizeof(ipath_6120_hwerror_msgs[0]),
+			      msg, msgl);
+
 	if (hwerrs & (INFINIPATH_HWE_PCIEMEMPARITYERR_MASK
 		      << INFINIPATH_HWE_PCIEMEMPARITYERR_SHIFT)) {
 		bits = (u32) ((hwerrs >>
@@ -430,10 +439,6 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 "[PCIe Mem Parity Errs %x] ", bits);
 		strlcat(msg, bitsmsg, msgl);
 	}
-	if (hwerrs & INFINIPATH_HWE_IBCBUSTOSPCPARITYERR)
-		strlcat(msg, "[IB2IPATH Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_IBCBUSFRSPCPARITYERR)
-		strlcat(msg, "[IPATH2IB Parity]", msgl);
 
 #define _IPATH_PLL_FAIL (INFINIPATH_HWE_COREPLL_FBSLIP |	\
 			 INFINIPATH_HWE_COREPLL_RFSLIP )
@@ -458,34 +463,6 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrmask,
 				 dd->ipath_hwerrmask);
 	}
-
-	if (hwerrs & INFINIPATH_HWE_PCIEPOISONEDTLP)
-		strlcat(msg, "[PCIe Poisoned TLP]", msgl);
-	if (hwerrs & INFINIPATH_HWE_PCIECPLTIMEOUT)
-		strlcat(msg, "[PCIe completion timeout]", msgl);
-
-	/*
-	 * In practice, it's unlikely wthat we'll see PCIe PLL, or bus
-	 * parity or memory parity error failures, because most likely we
-	 * won't be able to talk to the core of the chip.  Nonetheless, we
-	 * might see them, if they are in parts of the PCIe core that aren't
-	 * essential.
-	 */
-	if (hwerrs & INFINIPATH_HWE_PCIE1PLLFAILED)
-		strlcat(msg, "[PCIePLL1]", msgl);
-	if (hwerrs & INFINIPATH_HWE_PCIE0PLLFAILED)
-		strlcat(msg, "[PCIePLL0]", msgl);
-	if (hwerrs & INFINIPATH_HWE_PCIEBUSPARITYXTLH)
-		strlcat(msg, "[PCIe XTLH core parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_PCIEBUSPARITYXADM)
-		strlcat(msg, "[PCIe ADM TX core parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_PCIEBUSPARITYRADM)
-		strlcat(msg, "[PCIe ADM RX core parity]", msgl);
-
-	if (hwerrs & INFINIPATH_HWE_RXDSYNCMEMPARITYERR)
-		strlcat(msg, "[Rx Dsync]", msgl);
-	if (hwerrs & INFINIPATH_HWE_SERDESPLLFAILED)
-		strlcat(msg, "[SerDes PLL]", msgl);
 
 	ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg) {

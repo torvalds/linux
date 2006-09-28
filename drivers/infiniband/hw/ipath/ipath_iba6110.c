@@ -389,17 +389,28 @@ static void hwerr_crcbits(struct ipath_devdata *dd, ipath_err_t hwerrs,
 				     _IPATH_HTLINK1_CRCBITS)));
 }
 
+/* 6110 specific hardware errors... */
+static const struct ipath_hwerror_msgs ipath_6110_hwerror_msgs[] = {
+	INFINIPATH_HWE_MSG(HTCBUSIREQPARITYERR, "HTC Ireq Parity"),
+	INFINIPATH_HWE_MSG(HTCBUSTREQPARITYERR, "HTC Treq Parity"),
+	INFINIPATH_HWE_MSG(HTCBUSTRESPPARITYERR, "HTC Tresp Parity"),
+	INFINIPATH_HWE_MSG(HTCMISCERR5, "HT core Misc5"),
+	INFINIPATH_HWE_MSG(HTCMISCERR6, "HT core Misc6"),
+	INFINIPATH_HWE_MSG(HTCMISCERR7, "HT core Misc7"),
+	INFINIPATH_HWE_MSG(RXDSYNCMEMPARITYERR, "Rx Dsync"),
+	INFINIPATH_HWE_MSG(SERDESPLLFAILED, "SerDes PLL"),
+};
+
 /**
- * ipath_ht_handle_hwerrors - display hardware errors
+ * ipath_ht_handle_hwerrors - display hardware errors.
  * @dd: the infinipath device
  * @msg: the output buffer
  * @msgl: the size of the output buffer
  *
- * Use same msg buffer as regular errors to avoid
- * excessive stack use.  Most hardware errors are catastrophic, but for
- * right now, we'll print them and continue.
- * We reuse the same message buffer as ipath_handle_errors() to avoid
- * excessive stack usage.
+ * Use same msg buffer as regular errors to avoid excessive stack
+ * use.  Most hardware errors are catastrophic, but for right now,
+ * we'll print them and continue.  We reuse the same message buffer as
+ * ipath_handle_errors() to avoid excessive stack usage.
  */
 static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				     size_t msgl)
@@ -499,44 +510,16 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 			 bits);
 		strlcat(msg, bitsmsg, msgl);
 	}
-	if (hwerrs & (INFINIPATH_HWE_RXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_RXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[RXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
-	if (hwerrs & (INFINIPATH_HWE_TXEMEMPARITYERR_MASK
-		      << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)) {
-		bits = (u32) ((hwerrs >>
-			       INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT) &
-			      INFINIPATH_HWE_TXEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof bitsmsg, "[TXE Parity Errs %x] ",
-			 bits);
-		strlcat(msg, bitsmsg, msgl);
-	}
-	if (hwerrs & INFINIPATH_HWE_IBCBUSTOSPCPARITYERR)
-		strlcat(msg, "[IB2IPATH Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_IBCBUSFRSPCPARITYERR)
-		strlcat(msg, "[IPATH2IB Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSIREQPARITYERR)
-		strlcat(msg, "[HTC Ireq Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSTREQPARITYERR)
-		strlcat(msg, "[HTC Treq Parity]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCBUSTRESPPARITYERR)
-		strlcat(msg, "[HTC Tresp Parity]", msgl);
+
+	ipath_format_hwerrors(hwerrs,
+			      ipath_6110_hwerror_msgs,
+			      sizeof(ipath_6110_hwerror_msgs) /
+			      sizeof(ipath_6110_hwerror_msgs[0]),
+			      msg, msgl);
 
 	if (hwerrs & (_IPATH_HTLINK0_CRCBITS | _IPATH_HTLINK1_CRCBITS))
 		hwerr_crcbits(dd, hwerrs, msg, msgl);
 
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR5)
-		strlcat(msg, "[HT core Misc5]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR6)
-		strlcat(msg, "[HT core Misc6]", msgl);
-	if (hwerrs & INFINIPATH_HWE_HTCMISCERR7)
-		strlcat(msg, "[HT core Misc7]", msgl);
 	if (hwerrs & INFINIPATH_HWE_MEMBISTFAILED) {
 		strlcat(msg, "[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
@@ -572,11 +555,6 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrmask,
 				 dd->ipath_hwerrmask);
 	}
-
-	if (hwerrs & INFINIPATH_HWE_RXDSYNCMEMPARITYERR)
-		strlcat(msg, "[Rx Dsync]", msgl);
-	if (hwerrs & INFINIPATH_HWE_SERDESPLLFAILED)
-		strlcat(msg, "[SerDes PLL]", msgl);
 
 	ipath_dev_err(dd, "%s hardware error\n", msg);
 	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg)
