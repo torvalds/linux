@@ -4272,7 +4272,7 @@ xfs_free_file_space(
 	xfs_mount_t		*mp;
 	int			nimap;
 	uint			resblks;
-	int			rounding;
+	uint			rounding;
 	int			rt;
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_trans_t		*tp;
@@ -4313,8 +4313,7 @@ xfs_free_file_space(
 		vn_iowait(vp);	/* wait for the completion of any pending DIOs */
 	}
 
-	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
-			(__uint8_t)NBPP);
+	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
 	ilen = len + (offset & (rounding - 1));
 	ioffset = offset & ~(rounding - 1);
 	if (ilen & (rounding - 1))
