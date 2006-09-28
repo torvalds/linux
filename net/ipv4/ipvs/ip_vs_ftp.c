@@ -32,6 +32,7 @@
 #include <linux/ip.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
+#include <asm/unaligned.h>
 
 #include <net/ip_vs.h>
 
@@ -114,8 +115,8 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 	if (i != 5)
 		return -1;
 
-	*addr = (p[3]<<24) | (p[2]<<16) | (p[1]<<8) | p[0];
-	*port = (p[5]<<8) | p[4];
+	*addr = get_unaligned((__be32 *)p);
+	*port = get_unaligned((__be16 *)(p + 4));
 	return 1;
 }
 
