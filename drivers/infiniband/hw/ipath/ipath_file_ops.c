@@ -206,11 +206,10 @@ static int ipath_get_base_info(struct file *fp,
 		kinfo->spi_subport_rcvhdr_base =
 			(u64) pd->subport_rcvhdr_base & MMAP64_MASK;
 		ipath_cdbg(PROC, "port %u flags %x %llx %llx %llx\n",
-			kinfo->spi_port,
-			kinfo->spi_runtime_flags,
-			kinfo->spi_subport_uregbase,
-			kinfo->spi_subport_rcvegrbuf,
-			kinfo->spi_subport_rcvhdr_base);
+			kinfo->spi_port, kinfo->spi_runtime_flags,
+			(unsigned long long) kinfo->spi_subport_uregbase,
+			(unsigned long long) kinfo->spi_subport_rcvegrbuf,
+			(unsigned long long) kinfo->spi_subport_rcvhdr_base);
 	}
 
 	if (copy_to_user(ubase, kinfo, sizeof(*kinfo)))
