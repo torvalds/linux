@@ -1004,7 +1004,7 @@ extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pi
 extern int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
 
 extern void xfrm_input_init(void);
-extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq);
+extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq);
 
 extern void xfrm_probe_algs(void);
 extern int xfrm_count_auth_supported(void);
