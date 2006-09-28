@@ -31,8 +31,6 @@
  *   Hung Hing Lun, Mike <hlhung3i@gmail.com>
  * SourceForge project page:
  *   http://tcp-lp-mod.sourceforge.net/
- *
- * Version: $Id: tcp_lp.c,v 1.24 2006/09/05 20:22:53 hswong3i Exp $
  */
 
 #include <linux/module.h>
@@ -164,7 +162,7 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
 
  out:
 	/* record time for successful remote HZ calc */
-	if (rhz > 0)
+	if ((rhz >> 6) > 0)
 		lp->flag |= LP_VALID_RHZ;
 	else
 		lp->flag &= ~LP_VALID_RHZ;
