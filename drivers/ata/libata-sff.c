@@ -828,7 +828,6 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->private_data = port[0]->private_data;
 
 	if (ports & ATA_PORT_PRIMARY) {
 		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 0);
@@ -878,7 +877,6 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		return NULL;
 
 	probe_ent->n_ports = 2;
-	probe_ent->private_data = port[0]->private_data;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
 		probe_ent->irq = ATA_PRIMARY_IRQ;
@@ -908,6 +906,8 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
+
+		/* FIXME: could be pointing to stack area; must copy */
 		probe_ent->pinfo2 = port[1];
 	} else
 		probe_ent->dummy_port_mask |= ATA_PORT_SECONDARY;

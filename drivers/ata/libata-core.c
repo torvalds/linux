@@ -5785,6 +5785,7 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 	probe_ent->mwdma_mask = port->mwdma_mask;
 	probe_ent->udma_mask = port->udma_mask;
 	probe_ent->port_ops = port->port_ops;
+	probe_ent->private_data = port->private_data;
 
 	return probe_ent;
 }
