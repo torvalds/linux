@@ -774,7 +774,7 @@ xfs_alloc_insrec(
 		 * Now stuff the new record in, bump numrecs
 		 * and log the new data.
 		 */
-		rp[ptr - 1] = *recp; /* INT_: struct copy */
+		rp[ptr - 1] = *recp;
 		be16_add(&block->bb_numrecs, 1);
 		xfs_alloc_log_recs(cur, bp, ptr, be16_to_cpu(block->bb_numrecs));
 #ifdef DEBUG
@@ -819,8 +819,8 @@ xfs_alloc_insrec(
 	 */
 	*bnop = nbno;
 	if (nbno != NULLAGBLOCK) {
-		*recp = nrec; /* INT_: struct copy */
-		*curp = ncur; /* INT_: struct copy */
+		*recp = nrec;
+		*curp = ncur;
 	}
 	*stat = 1;
 	return 0;
@@ -1229,7 +1229,7 @@ xfs_alloc_lshift(
 		if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(*rpp), level)))
 			return error;
 #endif
-		*lpp = *rpp; /* INT_: copy */
+		*lpp = *rpp;
 		xfs_alloc_log_ptrs(cur, lbp, nrec, nrec);
 		xfs_btree_check_key(cur->bc_btnum, lkp - 1, lkp);
 	}
@@ -1406,8 +1406,8 @@ xfs_alloc_newroot(
 
 		kp = XFS_ALLOC_KEY_ADDR(new, 1, cur);
 		if (be16_to_cpu(left->bb_level) > 0) {
-			kp[0] = *XFS_ALLOC_KEY_ADDR(left, 1, cur); /* INT_: structure copy */
-			kp[1] = *XFS_ALLOC_KEY_ADDR(right, 1, cur);/* INT_: structure copy */
+			kp[0] = *XFS_ALLOC_KEY_ADDR(left, 1, cur);
+			kp[1] = *XFS_ALLOC_KEY_ADDR(right, 1, cur);
 		} else {
 			xfs_alloc_rec_t	*rp;	/* btree record pointer */
 
@@ -1527,8 +1527,8 @@ xfs_alloc_rshift(
 		if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(*lpp), level)))
 			return error;
 #endif
-		*rkp = *lkp; /* INT_: copy */
-		*rpp = *lpp; /* INT_: copy */
+		*rkp = *lkp;
+		*rpp = *lpp;
 		xfs_alloc_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 		xfs_alloc_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 		xfs_btree_check_key(cur->bc_btnum, rkp, rkp + 1);

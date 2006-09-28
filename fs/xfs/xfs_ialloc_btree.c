@@ -681,7 +681,7 @@ xfs_inobt_insrec(
 		if ((error = xfs_btree_check_sptr(cur, *bnop, level)))
 			return error;
 #endif
-		kp[ptr - 1] = key; /* INT_: struct copy */
+		kp[ptr - 1] = key;
 		pp[ptr - 1] = cpu_to_be32(*bnop);
 		numrecs++;
 		block->bb_numrecs = cpu_to_be16(numrecs);
@@ -698,7 +698,7 @@ xfs_inobt_insrec(
 		 * Now stuff the new record in, bump numrecs
 		 * and log the new data.
 		 */
-		rp[ptr - 1] = *recp; /* INT_: struct copy */
+		rp[ptr - 1] = *recp;
 		numrecs++;
 		block->bb_numrecs = cpu_to_be16(numrecs);
 		xfs_inobt_log_recs(cur, bp, ptr, numrecs);
@@ -731,7 +731,7 @@ xfs_inobt_insrec(
 	 */
 	*bnop = nbno;
 	if (nbno != NULLAGBLOCK) {
-		*recp = nrec; /* INT_: struct copy */
+		*recp = nrec;
 		*curp = ncur;
 	}
 	*stat = 1;
@@ -1117,7 +1117,7 @@ xfs_inobt_lshift(
 		if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(*rpp), level)))
 			return error;
 #endif
-		*lpp = *rpp; /* INT_: no-change copy */
+		*lpp = *rpp;
 		xfs_inobt_log_ptrs(cur, lbp, nrec, nrec);
 	}
 	/*
@@ -1297,8 +1297,8 @@ xfs_inobt_newroot(
 	 */
 	kp = XFS_INOBT_KEY_ADDR(new, 1, cur);
 	if (be16_to_cpu(left->bb_level) > 0) {
-		kp[0] = *XFS_INOBT_KEY_ADDR(left, 1, cur); /* INT_: struct copy */
-		kp[1] = *XFS_INOBT_KEY_ADDR(right, 1, cur); /* INT_: struct copy */
+		kp[0] = *XFS_INOBT_KEY_ADDR(left, 1, cur);
+		kp[1] = *XFS_INOBT_KEY_ADDR(right, 1, cur);
 	} else {
 		rp = XFS_INOBT_REC_ADDR(left, 1, cur);
 		kp[0].ir_startino = rp->ir_startino;
@@ -1410,8 +1410,8 @@ xfs_inobt_rshift(
 		if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(*lpp), level)))
 			return error;
 #endif
-		*rkp = *lkp; /* INT_: no change copy */
-		*rpp = *lpp; /* INT_: no change copy */
+		*rkp = *lkp;
+		*rpp = *lpp;
 		xfs_inobt_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 		xfs_inobt_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 	} else {
