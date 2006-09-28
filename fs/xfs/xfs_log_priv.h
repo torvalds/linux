@@ -502,6 +502,12 @@ extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 #define XLOG_TRACE_SLEEP_FLUSH 3
 #define XLOG_TRACE_WAKE_FLUSH  4
 
+/*
+ * Unmount record type is used as a pseudo transaction type for the ticket.
+ * It's value must be outside the range of XFS_TRANS_* values.
+ */
+#define XLOG_UNMOUNT_REC_TYPE	(-1U)
+
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_LOG_PRIV_H__ */
