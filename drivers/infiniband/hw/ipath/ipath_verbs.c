@@ -1202,6 +1202,7 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 	struct ipath_ah *ah;
 	struct ib_ah *ret;
 	struct ipath_ibdev *dev = to_idev(pd->device);
+	unsigned long flags;
 
 	/* A multicast address requires a GRH (see ch. 8.4.1). */
 	if (ah_attr->dlid >= IPATH_MULTICAST_LID_BASE &&
@@ -1228,16 +1229,16 @@ static struct ib_ah *ipath_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
-	spin_lock(&dev->n_ahs_lock);
+	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	if (dev->n_ahs_allocated == ib_ipath_max_ahs) {
-		spin_unlock(&dev->n_ahs_lock);
+		spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 		kfree(ah);
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
 
 	dev->n_ahs_allocated++;
-	spin_unlock(&dev->n_ahs_lock);
+	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
 	/* ib_create_ah() will initialize ah->ibah. */
 	ah->attr = *ah_attr;
@@ -1258,10 +1259,11 @@ static int ipath_destroy_ah(struct ib_ah *ibah)
 {
 	struct ipath_ibdev *dev = to_idev(ibah->device);
 	struct ipath_ah *ah = to_iah(ibah);
+	unsigned long flags;
 
-	spin_lock(&dev->n_ahs_lock);
+	spin_lock_irqsave(&dev->n_ahs_lock, flags);
 	dev->n_ahs_allocated--;
-	spin_unlock(&dev->n_ahs_lock);
+	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
 	kfree(ah);
 
