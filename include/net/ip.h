@@ -364,7 +364,7 @@ extern int	ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(s
 extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len);
 extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
 			      u16 port, u32 info, u8 *payload);
-extern void	ip_local_error(struct sock *sk, int err, u32 daddr, u16 dport,
+extern void	ip_local_error(struct sock *sk, int err, __be32 daddr, u16 dport,
 			       u32 info);
 
 /* sysctl helpers - any sysctl which holds a value that ends up being

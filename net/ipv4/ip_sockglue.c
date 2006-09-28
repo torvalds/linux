@@ -283,7 +283,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		kfree_skb(skb);
 }
 
-void ip_local_error(struct sock *sk, int err, u32 daddr, u16 port, u32 info)
+void ip_local_error(struct sock *sk, int err, __be32 daddr, u16 port, u32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
