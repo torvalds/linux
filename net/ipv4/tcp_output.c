@@ -269,7 +269,7 @@ static u16 tcp_select_window(struct sock *sk)
 	return new_win;
 }
 
-static void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock *tp,
+static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp)
 {
 	if (tp->rx_opt.tstamp_ok) {
@@ -305,7 +305,7 @@ static void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock *tp,
  * MAX_SYN_SIZE to match the new maximum number of options that you
  * can generate.
  */
-static void tcp_syn_build_options(__u32 *ptr, int mss, int ts, int sack,
+static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 				  int offer_wscale, int wscale, __u32 tstamp,
 				  __u32 ts_recent)
 {
@@ -424,7 +424,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	th->dest		= inet->dport;
 	th->seq			= htonl(tcb->seq);
 	th->ack_seq		= htonl(tp->rcv_nxt);
-	*(((__u16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
+	*(((__be16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
 					tcb->flags);
 
 	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
@@ -445,7 +445,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	}
 
 	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
-		tcp_syn_build_options((__u32 *)(th + 1),
+		tcp_syn_build_options((__be32 *)(th + 1),
 				      tcp_advertise_mss(sk),
 				      (sysctl_flags & SYSCTL_FLAG_TSTAMPS),
 				      (sysctl_flags & SYSCTL_FLAG_SACK),
@@ -454,7 +454,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 				      tcb->when,
 				      tp->rx_opt.ts_recent);
 	} else {
-		tcp_build_and_update_options((__u32 *)(th + 1),
+		tcp_build_and_update_options((__be32 *)(th + 1),
 					     tp, tcb->when);
 		TCP_ECN_send(sk, tp, skb, tcp_header_size);
 	}
@@ -2070,7 +2070,7 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	th->window = htons(req->rcv_wnd);
 
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	tcp_syn_build_options((__u32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
+	tcp_syn_build_options((__be32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
 			      ireq->sack_ok, ireq->wscale_ok, ireq->rcv_wscale,
 			      TCP_SKB_CB(skb)->when,
 			      req->ts_recent);
