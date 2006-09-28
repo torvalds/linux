@@ -161,7 +161,7 @@ xfs_btree_check_key(
 
 		k1 = ak1;
 		k2 = ak2;
-		ASSERT(INT_GET(k1->br_startoff, ARCH_CONVERT) < INT_GET(k2->br_startoff, ARCH_CONVERT));
+		ASSERT(be64_to_cpu(k1->br_startoff) < be64_to_cpu(k2->br_startoff));
 		break;
 	    }
 	case XFS_BTNUM_INO: {

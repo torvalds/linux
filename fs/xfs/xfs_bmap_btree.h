@@ -163,9 +163,8 @@ typedef struct xfs_bmbt_irec
 /*
  * Key structure for non-leaf levels of the tree.
  */
-typedef struct xfs_bmbt_key
-{
-	xfs_dfiloff_t	br_startoff;	/* starting file offset */
+typedef struct xfs_bmbt_key {
+	__be64		br_startoff;	/* starting file offset */
 } xfs_bmbt_key_t, xfs_bmdr_key_t;
 
 /* btree pointer type */

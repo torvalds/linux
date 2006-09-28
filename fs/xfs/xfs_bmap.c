@@ -3512,7 +3512,7 @@ xfs_bmap_extents_to_btree(
 	 */
 	kp = XFS_BMAP_KEY_IADDR(block, 1, cur);
 	arp = XFS_BMAP_REC_IADDR(ablock, 1, cur);
-	INT_SET(kp->br_startoff, ARCH_CONVERT, xfs_bmbt_disk_get_startoff(arp));
+	kp->br_startoff = cpu_to_be64(xfs_bmbt_disk_get_startoff(arp));
 	pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
 	*pp = cpu_to_be64(args.fsbno);
 	/*
