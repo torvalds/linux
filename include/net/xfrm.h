@@ -989,7 +989,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 struct xfrm_policy *xfrm_policy_byid(u8, int dir, u32 id, int delete);
 void xfrm_policy_flush(u8 type);
 u32 xfrm_get_acqseq(void);
-void xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
+void xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi);
 struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 
 				  xfrm_address_t *daddr, xfrm_address_t *saddr, 
 				  int create, unsigned short family);

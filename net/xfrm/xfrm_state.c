@@ -1040,7 +1040,7 @@ u32 xfrm_get_acqseq(void)
 EXPORT_SYMBOL(xfrm_get_acqseq);
 
 void
-xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
+xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi)
 {
 	unsigned int h;
 	struct xfrm_state *x0;
@@ -1057,10 +1057,10 @@ xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 		x->id.spi = minspi;
 	} else {
 		u32 spi = 0;
-		minspi = ntohl(minspi);
-		maxspi = ntohl(maxspi);
-		for (h=0; h<maxspi-minspi+1; h++) {
-			spi = minspi + net_random()%(maxspi-minspi+1);
+		u32 low = ntohl(minspi);
+		u32 high = ntohl(maxspi);
+		for (h=0; h<high-low+1; h++) {
+			spi = low + net_random()%(high-low+1);
 			x0 = xfrm_state_lookup(&x->id.daddr, htonl(spi), x->id.proto, x->props.family);
 			if (x0 == NULL) {
 				x->id.spi = htonl(spi);
