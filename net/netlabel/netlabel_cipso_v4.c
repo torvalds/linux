@@ -32,6 +32,7 @@
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/audit.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
@@ -162,8 +163,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 	int nla_a_rem;
 	int nla_b_rem;
 
-	if (!info->attrs[NLBL_CIPSOV4_A_DOI] ||
-	    !info->attrs[NLBL_CIPSOV4_A_TAGLST] ||
+	if (!info->attrs[NLBL_CIPSOV4_A_TAGLST] ||
 	    !info->attrs[NLBL_CIPSOV4_A_MLSLVLLST])
 		return -EINVAL;
 
@@ -344,8 +344,7 @@ static int netlbl_cipsov4_add_pass(struct genl_info *info)
 	int ret_val;
 	struct cipso_v4_doi *doi_def = NULL;
 
-	if (!info->attrs[NLBL_CIPSOV4_A_DOI] ||
-	    !info->attrs[NLBL_CIPSOV4_A_TAGLST])
+	if (!info->attrs[NLBL_CIPSOV4_A_TAGLST])
 		return -EINVAL;
 
 	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
@@ -381,19 +380,33 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 
 {
 	int ret_val = -EINVAL;
-	u32 map_type;
+	u32 type;
+	u32 doi;
+	const char *type_str = "(unknown)";
+	struct audit_buffer *audit_buf;
 
-	if (!info->attrs[NLBL_CIPSOV4_A_MTYPE])
+	if (!info->attrs[NLBL_CIPSOV4_A_DOI] ||
+	    !info->attrs[NLBL_CIPSOV4_A_MTYPE])
 		return -EINVAL;
 
-	map_type = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_MTYPE]);
-	switch (map_type) {
+	type = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_MTYPE]);
+	switch (type) {
 	case CIPSO_V4_MAP_STD:
+		type_str = "std";
 		ret_val = netlbl_cipsov4_add_std(info);
 		break;
 	case CIPSO_V4_MAP_PASS:
+		type_str = "pass";
 		ret_val = netlbl_cipsov4_add_pass(info);
 		break;
+	}
+
+	if (ret_val == 0) {
+		doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
+		audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
+						      NETLINK_CB(skb).sid);
+		audit_log_format(audit_buf, " doi=%u type=%s", doi, type_str);
+		audit_log_end(audit_buf);
 	}
 
 	return ret_val;
@@ -653,11 +666,21 @@ static int netlbl_cipsov4_listall(struct sk_buff *skb,
 static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 {
 	int ret_val = -EINVAL;
-	u32 doi;
+	u32 doi = 0;
+	struct audit_buffer *audit_buf;
 
 	if (info->attrs[NLBL_CIPSOV4_A_DOI]) {
 		doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
-		ret_val = cipso_v4_doi_remove(doi, netlbl_cipsov4_doi_free);
+		ret_val = cipso_v4_doi_remove(doi,
+					      NETLINK_CB(skb).sid,
+					      netlbl_cipsov4_doi_free);
+	}
+
+	if (ret_val == 0) {
+		audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
+						      NETLINK_CB(skb).sid);
+		audit_log_format(audit_buf, " doi=%u", doi);
+		audit_log_end(audit_buf);
 	}
 
 	return ret_val;

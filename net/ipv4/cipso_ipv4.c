@@ -474,6 +474,7 @@ doi_add_failure_rlock:
 /**
  * cipso_v4_doi_remove - Remove an existing DOI from the CIPSO protocol engine
  * @doi: the DOI value
+ * @audit_secid: the LSM secid to use in the audit message
  * @callback: the DOI cleanup/free callback
  *
  * Description:
@@ -483,7 +484,9 @@ doi_add_failure_rlock:
  * success and negative values on failure.
  *
  */
-int cipso_v4_doi_remove(u32 doi, void (*callback) (struct rcu_head * head))
+int cipso_v4_doi_remove(u32 doi,
+			u32 audit_secid,
+			void (*callback) (struct rcu_head * head))
 {
 	struct cipso_v4_doi *doi_def;
 	struct cipso_v4_domhsh_entry *dom_iter;
@@ -502,7 +505,8 @@ int cipso_v4_doi_remove(u32 doi, void (*callback) (struct rcu_head * head))
 		spin_unlock(&cipso_v4_doi_list_lock);
 		list_for_each_entry_rcu(dom_iter, &doi_def->dom_list, list)
 			if (dom_iter->valid)
-				netlbl_domhsh_remove(dom_iter->domain);
+				netlbl_domhsh_remove(dom_iter->domain,
+						     audit_secid);
 		cipso_v4_cache_invalidate();
 		rcu_read_unlock();
 

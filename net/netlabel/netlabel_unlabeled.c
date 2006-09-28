@@ -64,6 +64,27 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
 };
 
 /*
+ * Helper Functions
+ */
+
+/**
+ * netlbl_unlabel_acceptflg_set - Set the unlabeled accept flag
+ * @value: desired value
+ * @audit_secid: the LSM secid to use in the audit message
+ *
+ * Description:
+ * Set the value of the unlabeled accept flag to @value.
+ *
+ */
+static void netlbl_unlabel_acceptflg_set(u8 value, u32 audit_secid)
+{
+	atomic_set(&netlabel_unlabel_accept_flg, value);
+	netlbl_audit_nomsg((value ?
+			    AUDIT_MAC_UNLBL_ACCEPT : AUDIT_MAC_UNLBL_DENY),
+			   audit_secid);
+}
+
+/*
  * NetLabel Command Handlers
  */
 
@@ -79,18 +100,18 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
  */
 static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -EINVAL;
 	u8 value;
 
 	if (info->attrs[NLBL_UNLABEL_A_ACPTFLG]) {
 		value = nla_get_u8(info->attrs[NLBL_UNLABEL_A_ACPTFLG]);
 		if (value == 1 || value == 0) {
-			atomic_set(&netlabel_unlabel_accept_flg, value);
-			ret_val = 0;
+			netlbl_unlabel_acceptflg_set(value,
+						     NETLINK_CB(skb).sid);
+			return 0;
 		}
 	}
 
-	return ret_val;
+	return -EINVAL;
 }
 
 /**
@@ -229,16 +250,19 @@ int netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;
+	u32 secid;
+
+	security_task_getsecid(current, &secid);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->type = NETLBL_NLTYPE_UNLABELED;
-	ret_val = netlbl_domhsh_add_default(entry);
+	ret_val = netlbl_domhsh_add_default(entry, secid);
 	if (ret_val != 0)
 		return ret_val;
 
-	atomic_set(&netlabel_unlabel_accept_flg, 1);
+	netlbl_unlabel_acceptflg_set(1, secid);
 
 	return 0;
 }

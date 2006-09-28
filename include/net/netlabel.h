@@ -96,7 +96,7 @@
 struct netlbl_dom_map;
 
 /* Domain mapping operations */
-int netlbl_domhsh_remove(const char *domain);
+int netlbl_domhsh_remove(const char *domain, u32 audit_secid);
 
 /* LSM security attributes */
 struct netlbl_lsm_cache {

@@ -95,6 +95,12 @@
 #define AUDIT_MAC_POLICY_LOAD	1403	/* Policy file load */
 #define AUDIT_MAC_STATUS	1404	/* Changed enforcing,permissive,off */
 #define AUDIT_MAC_CONFIG_CHANGE	1405	/* Changes to booleans */
+#define AUDIT_MAC_UNLBL_ACCEPT	1406	/* NetLabel: allow unlabeled traffic */
+#define AUDIT_MAC_UNLBL_DENY	1407	/* NetLabel: deny unlabeled traffic */
+#define AUDIT_MAC_CIPSOV4_ADD	1408	/* NetLabel: add CIPSOv4 DOI entry */
+#define AUDIT_MAC_CIPSOV4_DEL	1409	/* NetLabel: del CIPSOv4 DOI entry */
+#define AUDIT_MAC_MAP_ADD	1410	/* NetLabel: add LSM domain mapping */
+#define AUDIT_MAC_MAP_DEL	1411	/* NetLabel: del LSM domain mapping */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799
