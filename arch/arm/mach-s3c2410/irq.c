@@ -569,18 +569,46 @@ s3c_irq_demux_uart2(unsigned int irq,
 }
 
 static void
-s3c_irq_demux_extint(unsigned int irq,
-		     struct irqdesc *desc,
-		     struct pt_regs *regs)
+s3c_irq_demux_extint8(unsigned int irq,
+		      struct irqdesc *desc,
+		      struct pt_regs *regs)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
 
 	eintpnd &= ~eintmsk;
+	eintpnd &= ~0xff;	/* ignore lower irqs */
 
-	if (eintpnd) {
-		irq = fls(eintpnd);
-		irq += (IRQ_EINT4 - (4 + 1));
+	/* we may as well handle all the pending IRQs here */
+
+	while (eintpnd) {
+		irq = __ffs(eintpnd);
+		eintpnd &= ~(1<<irq);
+
+		irq += (IRQ_EINT4 - 4);
+		desc_handle_irq(irq, irq_desc + irq, regs);
+	}
+
+}
+
+static void
+s3c_irq_demux_extint4t7(unsigned int irq,
+			struct irqdesc *desc,
+			struct pt_regs *regs)
+{
+	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
+	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
+
+	eintpnd &= ~eintmsk;
+	eintpnd &= 0xff;	/* only lower irqs */
+
+	/* we may as well handle all the pending IRQs here */
+
+	while (eintpnd) {
+		irq = __ffs(eintpnd);
+		eintpnd &= ~(1<<irq);
+
+		irq += (IRQ_EINT4 - 4);
 
 		desc_handle_irq(irq, irq_desc + irq, regs);
 	}
@@ -727,8 +755,8 @@ void __init s3c24xx_init_irq(void)
 
 	/* setup the cascade irq handlers */
 
-	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint);
-	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint);
+	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint4t7);
+	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint8);
 
 	set_irq_chained_handler(IRQ_UART0, s3c_irq_demux_uart0);
 	set_irq_chained_handler(IRQ_UART1, s3c_irq_demux_uart1);
