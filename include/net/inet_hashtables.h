@@ -272,12 +272,12 @@ static inline int inet_iif(const struct sk_buff *skb)
 }
 
 extern struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
-					   const u32 daddr,
+					   const __be32 daddr,
 					   const unsigned short hnum,
 					   const int dif);
 
 static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
-						u32 daddr, u16 dport, int dif)
+						__be32 daddr, __be16 dport, int dif)
 {
 	return __inet_lookup_listener(hashinfo, daddr, ntohs(dport), dif);
 }
@@ -347,8 +347,8 @@ typedef __u64 __bitwise __addrpair;
  */
 static inline struct sock *
 	__inet_lookup_established(struct inet_hashinfo *hashinfo,
-				  const u32 saddr, const u16 sport,
-				  const u32 daddr, const u16 hnum,
+				  const __be32 saddr, const __be16 sport,
+				  const __be32 daddr, const u16 hnum,
 				  const int dif)
 {
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
@@ -384,8 +384,8 @@ hit:
 
 static inline struct sock *
 	inet_lookup_established(struct inet_hashinfo *hashinfo,
-				const u32 saddr, const u16 sport,
-				const u32 daddr, const u16 dport,
+				const __be32 saddr, const __be16 sport,
+				const __be32 daddr, const __be16 dport,
 				const int dif)
 {
 	return __inet_lookup_established(hashinfo, saddr, sport, daddr,
@@ -393,8 +393,8 @@ static inline struct sock *
 }
 
 static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
-					 const u32 saddr, const u16 sport,
-					 const u32 daddr, const u16 dport,
+					 const __be32 saddr, const __be16 sport,
+					 const __be32 daddr, const __be16 dport,
 					 const int dif)
 {
 	u16 hnum = ntohs(dport);
@@ -404,8 +404,8 @@ static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
 }
 
 static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
-				       const u32 saddr, const u16 sport,
-				       const u32 daddr, const u16 dport,
+				       const __be32 saddr, const __be16 sport,
+				       const __be32 daddr, const __be16 dport,
 				       const int dif)
 {
 	struct sock *sk;
