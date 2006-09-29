@@ -1225,7 +1225,12 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 
 	task_lock(tsk);
 	oldcs = tsk->cpuset;
-	if (!oldcs) {
+	/*
+	 * After getting 'oldcs' cpuset ptr, be sure still not exiting.
+	 * If 'oldcs' might be the top_cpuset due to the_top_cpuset_hack
+	 * then fail this attach_task(), to avoid breaking top_cpuset.count.
+	 */
+	if (tsk->flags & PF_EXITING) {
 		task_unlock(tsk);
 		mutex_unlock(&callback_mutex);
 		put_task_struct(tsk);
