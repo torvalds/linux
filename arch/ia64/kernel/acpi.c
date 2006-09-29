@@ -64,9 +64,6 @@ EXPORT_SYMBOL(pm_idle);
 void (*pm_power_off) (void);
 EXPORT_SYMBOL(pm_power_off);
 
-unsigned char acpi_kbd_controller_present = 1;
-unsigned char acpi_legacy_devices;
-
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
 
@@ -627,12 +624,6 @@ static int __init acpi_parse_fadt(unsigned long phys_addr, unsigned long size)
 		return -ENODEV;	/* Only deal with ACPI 2.0 FADT */
 
 	fadt = (struct fadt_descriptor *)fadt_header;
-
-	if (!(fadt->iapc_boot_arch & BAF_8042_KEYBOARD_CONTROLLER))
-		acpi_kbd_controller_present = 0;
-
-	if (fadt->iapc_boot_arch & BAF_LEGACY_DEVICES)
-		acpi_legacy_devices = 1;
 
 	acpi_register_gsi(fadt->sci_int, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_LOW);
 	return 0;
