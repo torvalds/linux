@@ -1847,8 +1847,7 @@ static void blk_release_queue(struct kobject *kobj)
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
 
-	if (q->blk_trace)
-		blk_trace_shutdown(q);
+	blk_trace_shutdown(q);
 
 	kmem_cache_free(requestq_cachep, q);
 }

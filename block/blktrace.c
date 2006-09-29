@@ -450,8 +450,10 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
  **/
 void blk_trace_shutdown(request_queue_t *q)
 {
-	blk_trace_startstop(q, 0);
-	blk_trace_remove(q);
+	if (q->blk_trace) {
+		blk_trace_startstop(q, 0);
+		blk_trace_remove(q);
+	}
 }
 
 /*

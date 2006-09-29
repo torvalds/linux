@@ -784,8 +784,9 @@ struct task_struct {
 	struct prio_array *array;
 
 	unsigned short ioprio;
+#ifdef CONFIG_BLK_DEV_IO_TRACE
 	unsigned int btrace_seq;
-
+#endif
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;
 	unsigned long long sched_time; /* sched_clock time spent running */
