@@ -243,7 +243,6 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	const u32 *imap, *tmp;
 	int imaplen, intsize, unit;
 	struct device_node *iic;
-	struct irq_host *iic_host;
 
 #if 0 /* Enable that when we have a way to retreive the node as well */
 	/* First, we check wether we have a real "interrupts" in the device
@@ -289,11 +288,11 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	 * the iic host from the iic OF node, but that way I'm still compatible
 	 * with really really old old firmwares for which we don't have a node
 	 */
-	iic_host = iic_get_irq_host(pic->node_id);
-	if (iic_host == NULL)
-		return NO_IRQ;
 	/* Manufacture an IIC interrupt number of class 2 */
-	virq = irq_create_mapping(iic_host, 0x20 | unit);
+	virq = irq_create_mapping(NULL,
+				  (pic->node_id << IIC_IRQ_NODE_SHIFT) |
+				  (2 << IIC_IRQ_CLASS_SHIFT) |
+				  unit);
 	if (virq == NO_IRQ)
 		printk(KERN_ERR "spider_pic: failed to map cascade !");
 	return virq;
