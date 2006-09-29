@@ -132,6 +132,8 @@ static inline struct ed *find_head (struct ed *ed)
 	return ed;
 }
 
+static int ohci_restart (struct ohci_hcd *ohci);
+
 /* caller has locked the root hub */
 static int ohci_rh_resume (struct ohci_hcd *ohci)
 __releases(ohci->lock)
@@ -181,8 +183,6 @@ __acquires(ohci->lock)
 #ifdef	CONFIG_PM
 	if (status == -EBUSY) {
 		if (!autostopped) {
-			static int ohci_restart (struct ohci_hcd *ohci);
-
 			spin_unlock_irq (&ohci->lock);
 			(void) ohci_init (ohci);
 			status = ohci_restart (ohci);
