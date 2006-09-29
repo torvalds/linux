@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
-#include <linux/page-flags.h>
+#include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/sysctl.h>
