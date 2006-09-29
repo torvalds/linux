@@ -210,8 +210,8 @@ static int __init i2c_sibyte_init(void)
 
 static void __exit i2c_sibyte_exit(void)
 {
-	i2c_del_bus(&sibyte_board_adapter[0]);
-	i2c_del_bus(&sibyte_board_adapter[1]);
+	i2c_del_adapter(&sibyte_board_adapter[0]);
+	i2c_del_adapter(&sibyte_board_adapter[1]);
 }
 
 module_init(i2c_sibyte_init);
