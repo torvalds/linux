@@ -389,7 +389,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 {
 	struct task_struct *p;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	p = find_task_by_pid(pid);
 	if (!p)
 		goto out_unlock;
@@ -403,7 +403,7 @@ static struct task_struct * futex_find_get_task(pid_t pid)
 	}
 	get_task_struct(p);
 out_unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return p;
 }
