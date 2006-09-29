@@ -715,18 +715,8 @@ journal_t * journal_init_dev(struct block_device *bdev,
 	if (!journal)
 		return NULL;
 
-	journal->j_dev = bdev;
-	journal->j_fs_dev = fs_dev;
-	journal->j_blk_offset = start;
-	journal->j_maxlen = len;
-	journal->j_blocksize = blocksize;
-
-	bh = __getblk(journal->j_dev, start, journal->j_blocksize);
-	J_ASSERT(bh != NULL);
-	journal->j_sb_buffer = bh;
-	journal->j_superblock = (journal_superblock_t *)bh->b_data;
-
 	/* journal descriptor can store up to n blocks -bzzz */
+	journal->j_blocksize = blocksize;
 	n = journal->j_blocksize / sizeof(journal_block_tag_t);
 	journal->j_wbufsize = n;
 	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
@@ -736,6 +726,15 @@ journal_t * journal_init_dev(struct block_device *bdev,
 		kfree(journal);
 		journal = NULL;
 	}
+	journal->j_dev = bdev;
+	journal->j_fs_dev = fs_dev;
+	journal->j_blk_offset = start;
+	journal->j_maxlen = len;
+
+	bh = __getblk(journal->j_dev, start, journal->j_blocksize);
+	J_ASSERT(bh != NULL);
+	journal->j_sb_buffer = bh;
+	journal->j_superblock = (journal_superblock_t *)bh->b_data;
 
 	return journal;
 }
