@@ -953,10 +953,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
 
-	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();
-	BUG_ON(tsk->flags & PF_DEAD);
-	tsk->flags |= PF_DEAD;
+	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = EXIT_DEAD;
 
 	schedule();
@@ -972,7 +970,7 @@ NORET_TYPE void complete_and_exit(struct completion *comp, long code)
 {
 	if (comp)
 		complete(comp);
-	
+
 	do_exit(code);
 }
 
