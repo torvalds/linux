@@ -30,6 +30,13 @@
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
 
+enum pci_bf_sort_state {
+	pci_bf_sort_default,
+	pci_force_nobf,
+	pci_force_bf,
+	pci_dmi_bf,
+};
+
 /* pci-i386.c */
 
 extern unsigned int pcibios_max_latency;

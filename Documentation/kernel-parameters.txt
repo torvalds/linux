@@ -1231,6 +1231,11 @@ and is between 256 and 4096 characters. It is defined in the file
 				machine check when some devices' config space
 				is read. But various workarounds are disabled
 				and some IOMMU drivers will not work.
+		bfsort		Sort PCI devices into breadth-first order.
+				This sorting is done to get a device
+				order compatible with older (<= 2.4) kernels.
+		nobfsort	Don't sort PCI devices into breadth-first order.
+
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
