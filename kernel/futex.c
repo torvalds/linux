@@ -1624,7 +1624,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 		struct task_struct *p;
 
 		ret = -ESRCH;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		p = find_task_by_pid(pid);
 		if (!p)
 			goto err_unlock;
@@ -1633,7 +1633,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 				!capable(CAP_SYS_PTRACE))
 			goto err_unlock;
 		head = p->robust_list;
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 	}
 
 	if (put_user(sizeof(*head), len_ptr))
@@ -1641,7 +1641,7 @@ sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
 	return put_user(head, head_ptr);
 
 err_unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
