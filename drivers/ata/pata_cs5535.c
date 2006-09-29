@@ -257,9 +257,10 @@ static int cs5535_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, ports, 1);
 }
 
-static struct pci_device_id cs5535[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, 0x002D), },
-	{ 0, },
+static const struct pci_device_id cs5535[] = {
+	{ PCI_VDEVICE(NS, 0x002D), },
+
+	{ },
 };
 
 static struct pci_driver cs5535_pci_driver = {
@@ -274,12 +275,10 @@ static int __init cs5535_init(void)
 	return pci_register_driver(&cs5535_pci_driver);
 }
 
-
 static void __exit cs5535_exit(void)
 {
 	pci_unregister_driver(&cs5535_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox, Jens Altmann, Wolfgan Zuleger, Alexander Kiausch");
 MODULE_DESCRIPTION("low-level driver for the NS/AMD 5530");

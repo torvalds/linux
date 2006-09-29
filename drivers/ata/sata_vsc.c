@@ -442,15 +442,14 @@ err_out:
 	return rc;
 }
 
-
 static const struct pci_device_id vsc_sata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_VITESSE, 0x7174,
 	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
 	{ PCI_VENDOR_ID_INTEL, 0x3200,
 	  PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
+
 	{ }	/* terminate list */
 };
-
 
 static struct pci_driver vsc_sata_pci_driver = {
 	.name			= DRV_NAME,
@@ -459,18 +458,15 @@ static struct pci_driver vsc_sata_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-
 static int __init vsc_sata_init(void)
 {
 	return pci_register_driver(&vsc_sata_pci_driver);
 }
 
-
 static void __exit vsc_sata_exit(void)
 {
 	pci_unregister_driver(&vsc_sata_pci_driver);
 }
-
 
 MODULE_AUTHOR("Jeremy Higdon");
 MODULE_DESCRIPTION("low-level driver for Vitesse VSC7174 SATA controller");

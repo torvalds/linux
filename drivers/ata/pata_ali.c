@@ -644,10 +644,11 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
-static struct pci_device_id ali[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5228), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5229), },
-	{ 0, },
+static const struct pci_device_id ali[] = {
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5228), },
+	{ PCI_VDEVICE(AL, PCI_DEVICE_ID_AL_M5229), },
+
+	{ },
 };
 
 static struct pci_driver ali_pci_driver = {

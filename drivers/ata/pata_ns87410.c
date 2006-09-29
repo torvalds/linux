@@ -200,12 +200,13 @@ static int ns87410_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id ns87410[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87410), },
-	{ 0, },
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_87410), },
+
+	{ },
 };
 
 static struct pci_driver ns87410_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= ns87410,
 	.probe 		= ns87410_init_one,
 	.remove		= ata_pci_remove_one
@@ -216,12 +217,10 @@ static int __init ns87410_init(void)
 	return pci_register_driver(&ns87410_pci_driver);
 }
 
-
 static void __exit ns87410_exit(void)
 {
 	pci_unregister_driver(&ns87410_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Nat Semi 87410");

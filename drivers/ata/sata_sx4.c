@@ -235,7 +235,6 @@ static const struct pci_device_id pdc_sata_pci_tbl[] = {
 	{ }	/* terminate list */
 };
 
-
 static struct pci_driver pdc_sata_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= pdc_sata_pci_tbl,

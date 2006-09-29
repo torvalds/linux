@@ -68,7 +68,6 @@ static const struct pci_device_id uli_pci_tbl[] = {
 	{ }	/* terminate list */
 };
 
-
 static struct pci_driver uli_pci_driver = {
 	.name			= DRV_NAME,
 	.id_table		= uli_pci_tbl,

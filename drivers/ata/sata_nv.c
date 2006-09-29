@@ -130,7 +130,8 @@ static const struct pci_device_id nv_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 		PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID<<8, 0xffff00, GENERIC },
-	{ 0, } /* terminate list */
+
+	{ } /* terminate list */
 };
 
 static struct pci_driver nv_pci_driver = {

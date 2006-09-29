@@ -560,16 +560,17 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id hpt3x2n[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT366), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT372), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT302), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT372N), },
-	{ 0, },
+static const struct pci_device_id hpt3x2n[] = {
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT302), },
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372N), },
+
+	{ },
 };
 
 static struct pci_driver hpt3x2n_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= hpt3x2n,
 	.probe 		= hpt3x2n_init_one,
 	.remove		= ata_pci_remove_one
@@ -580,12 +581,10 @@ static int __init hpt3x2n_init(void)
 	return pci_register_driver(&hpt3x2n_pci_driver);
 }
 
-
 static void __exit hpt3x2n_exit(void)
 {
 	pci_unregister_driver(&hpt3x2n_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the Highpoint HPT3x2n/30x");

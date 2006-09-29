@@ -70,9 +70,9 @@ static const struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VDEVICE(SI, 0x180), sis_180 },
 	{ PCI_VDEVICE(SI, 0x181), sis_180 },
 	{ PCI_VDEVICE(SI, 0x182), sis_180 },
+
 	{ }	/* terminate list */
 };
-
 
 static struct pci_driver sis_pci_driver = {
 	.name			= DRV_NAME,

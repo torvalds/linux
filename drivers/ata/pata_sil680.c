@@ -348,12 +348,13 @@ static int sil680_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id sil680[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CMD, PCI_DEVICE_ID_SII_680), },
-	{ 0, },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_SII_680), },
+
+	{ },
 };
 
 static struct pci_driver sil680_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= sil680,
 	.probe 		= sil680_init_one,
 	.remove		= ata_pci_remove_one
@@ -364,12 +365,10 @@ static int __init sil680_init(void)
 	return pci_register_driver(&sil680_pci_driver);
 }
 
-
 static void __exit sil680_exit(void)
 {
 	pci_unregister_driver(&sil680_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for SI680 PATA");
