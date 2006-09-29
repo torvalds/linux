@@ -483,6 +483,13 @@ config PATA_WINBOND
 
 	  If unsure, say N.
 
+config PATA_WINBOND_VLB
+	tristate "Winbond W83759A VLB PATA support (Experimental)"
+	depends on ISA && EXPERIMENTAL
+	help
+	  Support for the Winbond W83759A controller on Vesa Local Bus
+	  systems.
+
 endif
 endmenu
 
