@@ -469,7 +469,7 @@ static void sppp_lcp_input (struct sppp *sp, struct sk_buff *skb)
 	struct net_device *dev = sp->pp_if;
 	int len = skb->len;
 	u8 *p, opt[6];
-	u32 rmagic;
+	u32 rmagic = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct lcp_header))) {
 		if (sp->pp_flags & PP_DEBUG)
