@@ -317,9 +317,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 		free_fdtable(cur_fdt);
 	} else {
 		/* Somebody else expanded, so undo our attempt */
-		spin_unlock(&files->file_lock);
 		__free_fdtable(new_fdt);
-		spin_lock(&files->file_lock);
 	}
 	return 1;
 }
