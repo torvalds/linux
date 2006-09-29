@@ -2770,12 +2770,11 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
  *	actually has driver level meaning and triggers a VC resize.
  *
  *	Locking:
- *		The console_sem is used to ensure we do not try and resize
- *	the console twice at once.
- *	FIXME: Two racing size sets may leave the console and kernel
- *		parameters disagreeing. Is this exploitable ?
- *	FIXME: Random values racing a window size get is wrong
- *	should lock here against that
+ *		Called function use the console_sem is used to ensure we do
+ *	not try and resize the console twice at once.
+ *		The tty->termios_sem is used to ensure we don't double
+ *	resize and get confused. Lock order - tty->termios.sem before
+ *	console sem
  */
 
 static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
@@ -2785,17 +2784,17 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 
 	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
 		return -EFAULT;
+
+	down(&tty->termios_sem);
 	if (!memcmp(&tmp_ws, &tty->winsize, sizeof(*arg)))
-		return 0;
+		goto done;
+
 #ifdef CONFIG_VT
 	if (tty->driver->type == TTY_DRIVER_TYPE_CONSOLE) {
-		int rc;
-
-		acquire_console_sem();
-		rc = vc_resize(tty->driver_data, tmp_ws.ws_col, tmp_ws.ws_row);
-		release_console_sem();
-		if (rc)
-			return -ENXIO;
+		if (vc_lock_resize(tty->driver_data, tmp_ws.ws_col, tmp_ws.ws_row)) {
+			up(&tty->termios_sem);
+ 			return -ENXIO;
+		}
 	}
 #endif
 	if (tty->pgrp > 0)
@@ -2804,6 +2803,8 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 		kill_pg(real_tty->pgrp, SIGWINCH, 1);
 	tty->winsize = tmp_ws;
 	real_tty->winsize = tmp_ws;
+done:
+	up(&tty->termios_sem);
 	return 0;
 }
 

@@ -885,8 +885,17 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	return err;
 }
 
+int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+{
+	int rc;
 
-void vc_disallocate(unsigned int currcons)
+	acquire_console_sem();
+	rc = vc_resize(vc, cols, lines);
+	release_console_sem();
+	return rc;
+}
+
+void vc_deallocate(unsigned int currcons)
 {
 	WARN_CONSOLE_UNLOCKED();
 
@@ -3790,6 +3799,7 @@ EXPORT_SYMBOL(default_blu);
 EXPORT_SYMBOL(update_region);
 EXPORT_SYMBOL(redraw_screen);
 EXPORT_SYMBOL(vc_resize);
+EXPORT_SYMBOL(vc_lock_resize);
 EXPORT_SYMBOL(fg_console);
 EXPORT_SYMBOL(console_blank_hook);
 EXPORT_SYMBOL(console_blanked);
