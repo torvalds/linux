@@ -488,10 +488,6 @@ static void ali_set_spdif_out_rate(struct trident_card *card, unsigned int rate)
 static void ali_enable_special_channel(struct trident_state *stat);
 static struct trident_channel *ali_alloc_rec_pcm_channel(struct trident_card *card);
 static struct trident_channel *ali_alloc_pcm_channel(struct trident_card *card);
-static void ali_restore_regs(struct trident_card *card);
-static void ali_save_regs(struct trident_card *card);
-static int trident_suspend(struct pci_dev *dev, pm_message_t unused);
-static int trident_resume(struct pci_dev *dev);
 static void ali_free_pcm_channel(struct trident_card *card, unsigned int channel);
 static int ali_setup_multi_channels(struct trident_card *card, int chan_nums);
 static unsigned int ali_get_spdif_in_rate(struct trident_card *card);
@@ -506,13 +502,6 @@ static int ali_write_5_1(struct trident_state *state,
 static int ali_allocate_other_states_resources(struct trident_state *state, 
 					       int chan_nums);
 static void ali_free_other_states_resources(struct trident_state *state);
-
-/* save registers for ALi Power Management */
-static struct ali_saved_registers {
-	unsigned long global_regs[ALI_GLOBAL_REGS];
-	unsigned long channel_regs[ALI_CHANNELS][ALI_CHANNEL_REGS];
-	unsigned mixer_regs[ALI_MIXER_REGS];
-} ali_registers;
 
 #define seek_offset(dma_ptr, buffer, cnt, offset, copy_count)	do { \
         (dma_ptr) += (offset);	  \
@@ -3653,6 +3642,14 @@ ali_allocate_other_states_resources(struct trident_state *state, int chan_nums)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/* save registers for ALi Power Management */
+static struct ali_saved_registers {
+	unsigned long global_regs[ALI_GLOBAL_REGS];
+	unsigned long channel_regs[ALI_CHANNELS][ALI_CHANNEL_REGS];
+	unsigned mixer_regs[ALI_MIXER_REGS];
+} ali_registers;
+
 static void
 ali_save_regs(struct trident_card *card)
 {
@@ -3746,6 +3743,7 @@ trident_resume(struct pci_dev *dev)
 	}
 	return 0;
 }
+#endif
 
 static struct trident_channel *
 ali_alloc_pcm_channel(struct trident_card *card)
@@ -4616,8 +4614,10 @@ static struct pci_driver trident_pci_driver = {
 	.id_table = trident_pci_tbl,
 	.probe = trident_probe,
 	.remove = __devexit_p(trident_remove),
+#ifdef CONFIG_PM
 	.suspend = trident_suspend,
 	.resume = trident_resume
+#endif
 };
 
 static int __init
