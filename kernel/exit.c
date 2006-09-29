@@ -281,9 +281,7 @@ static void reparent_to_init(void)
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
 	current->exit_signal = SIGCHLD;
 
-	if ((current->policy == SCHED_NORMAL ||
-			current->policy == SCHED_BATCH)
-				&& (task_nice(current) < 0))
+	if (!has_rt_policy(current) && (task_nice(current) < 0))
 		set_user_nice(current, 0);
 	/* cpus_allowed? */
 	/* rt_priority? */
