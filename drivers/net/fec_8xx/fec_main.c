@@ -30,6 +30,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
@@ -37,7 +38,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/commproc.h>
-#include <asm/dma-mapping.h>
 
 #include "fec_8xx.h"
 
