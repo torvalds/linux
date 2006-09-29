@@ -21,9 +21,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Send feedback to <greg@kroah.com>
- *
- * Filesystem portion based on work done by Pat Mochel on ddfs/driverfs
+ * Send feedback to <kristen.c.accardi@intel.com>
  *
  */
 
