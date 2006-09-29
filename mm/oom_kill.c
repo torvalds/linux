@@ -206,11 +206,14 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		unsigned long points;
 		int releasing;
 
-		/* skip kernel threads */
+		/*
+		 * skip kernel threads and tasks which have already released
+		 * their mm.
+		 */
 		if (!p->mm)
 			continue;
-		/* skip the init task with pid == 1 */
-		if (p->pid == 1)
+		/* skip the init task */
+		if (is_init(p))
 			continue;
 
 		/*
@@ -226,9 +229,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
 						p->flags & PF_EXITING;
 		if (releasing) {
-			/* TASK_DEAD tasks have already released their mm */
-			if (p->state == TASK_DEAD)
-				continue;
 			if (p->flags & PF_EXITING && p == current) {
 				chosen = p;
 				*ppoints = ULONG_MAX;
