@@ -912,6 +912,10 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	int fudge;
 	int retval;
 
+	/* top_cpuset.mems_allowed tracks node_online_map; it's read-only */
+	if (cs == &top_cpuset)
+		return -EACCES;
+
 	trialcs = *cs;
 	retval = nodelist_parse(buf, trialcs.mems_allowed);
 	if (retval < 0)
@@ -2042,9 +2046,8 @@ out:
  * (of no affect) on systems that are actively using CPU hotplug
  * but making no active use of cpusets.
  *
- * This handles CPU hotplug (cpuhp) events.  If someday Memory
- * Nodes can be hotplugged (dynamically changing node_online_map)
- * then we should handle that too, perhaps in a similar way.
+ * This routine ensures that top_cpuset.cpus_allowed tracks
+ * cpu_online_map on each CPU hotplug (cpuhp) event.
  */
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -2060,6 +2063,25 @@ static int cpuset_handle_cpuhp(struct notifier_block *nb,
 	mutex_unlock(&manage_mutex);
 
 	return 0;
+}
+#endif
+
+/*
+ * Keep top_cpuset.mems_allowed tracking node_online_map.
+ * Call this routine anytime after you change node_online_map.
+ * See also the previous routine cpuset_handle_cpuhp().
+ */
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+void cpuset_track_online_nodes()
+{
+	mutex_lock(&manage_mutex);
+	mutex_lock(&callback_mutex);
+
+	top_cpuset.mems_allowed = node_online_map;
+
+	mutex_unlock(&callback_mutex);
+	mutex_unlock(&manage_mutex);
 }
 #endif
 
