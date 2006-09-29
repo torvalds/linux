@@ -4109,8 +4109,7 @@ recheck:
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if ((policy == SCHED_NORMAL || policy == SCHED_BATCH)
-					!= (param->sched_priority == 0))
+	if (is_rt_policy(policy) != (param->sched_priority != 0))
 		return -EINVAL;
 
 	/*
@@ -4134,7 +4133,7 @@ recheck:
 				!rlim_rtprio)
 			return -EPERM;
 		/* can't increase priority */
-		if ((policy != SCHED_NORMAL && policy != SCHED_BATCH) &&
+		if (is_rt_policy(policy) &&
 		    param->sched_priority > p->rt_priority &&
 		    param->sched_priority > rlim_rtprio)
 			return -EPERM;
