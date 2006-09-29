@@ -204,7 +204,6 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 	do_posix_clock_monotonic_gettime(&uptime);
 	do_each_thread(g, p) {
 		unsigned long points;
-		int releasing;
 
 		/*
 		 * skip kernel threads and tasks which have already released
@@ -226,16 +225,15 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		 * the process of exiting and releasing its resources.
 		 * Otherwise we could get an OOM deadlock.
 		 */
-		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
-						p->flags & PF_EXITING;
-		if (releasing) {
-			if (p->flags & PF_EXITING && p == current) {
-				chosen = p;
-				*ppoints = ULONG_MAX;
-				break;
-			}
-			return ERR_PTR(-1UL);
+		if ((p->flags & PF_EXITING) && p == current) {
+			chosen = p;
+			*ppoints = ULONG_MAX;
+			break;
 		}
+		if ((p->flags & PF_EXITING) ||
+				test_tsk_thread_flag(p, TIF_MEMDIE))
+			return ERR_PTR(-1UL);
+
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
 
@@ -245,6 +243,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 			*ppoints = points;
 		}
 	} while_each_thread(g, p);
+
 	return chosen;
 }
 
