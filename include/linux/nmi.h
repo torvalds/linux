@@ -4,6 +4,7 @@
 #ifndef LINUX_NMI_H
 #define LINUX_NMI_H
 
+#include <linux/sched.h>
 #include <asm/irq.h>
 
 /**
@@ -16,7 +17,7 @@
 #ifdef ARCH_HAS_NMI_WATCHDOG
 extern void touch_nmi_watchdog(void);
 #else
-# define touch_nmi_watchdog() do { } while(0)
+# define touch_nmi_watchdog() touch_softlockup_watchdog()
 #endif
 
 #endif
