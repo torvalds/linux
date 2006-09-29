@@ -187,7 +187,7 @@ struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
-	unsigned short  hh_type;	/* protocol identifier, f.e ETH_P_IP
+	__be16		hh_type;	/* protocol identifier, f.e ETH_P_IP
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */

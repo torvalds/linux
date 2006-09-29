@@ -562,7 +562,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
-		goto errout;
+		return err;
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index >= 0) {

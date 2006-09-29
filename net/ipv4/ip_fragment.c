@@ -77,9 +77,9 @@ struct ipq {
 	struct hlist_node list;
 	struct list_head lru_list;	/* lru list member 			*/
 	u32		user;
-	u32		saddr;
-	u32		daddr;
-	u16		id;
+	__be32		saddr;
+	__be32		daddr;
+	__be16		id;
 	u8		protocol;
 	u8		last_in;
 #define COMPLETE		4
@@ -123,9 +123,10 @@ static __inline__ void ipq_unlink(struct ipq *ipq)
 	write_unlock(&ipfrag_lock);
 }
 
-static unsigned int ipqhashfn(u16 id, u32 saddr, u32 daddr, u8 prot)
+static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 {
-	return jhash_3words((u32)id << 16 | prot, saddr, daddr,
+	return jhash_3words((__force u32)id << 16 | prot,
+			    (__force u32)saddr, (__force u32)daddr,
 			    ipfrag_hash_rnd) & (IPQ_HASHSZ - 1);
 }
 
@@ -387,8 +388,8 @@ out_nomem:
 static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 {
 	__be16 id = iph->id;
-	__u32 saddr = iph->saddr;
-	__u32 daddr = iph->daddr;
+	__be32 saddr = iph->saddr;
+	__be32 daddr = iph->daddr;
 	__u8 protocol = iph->protocol;
 	unsigned int hash;
 	struct ipq *qp;

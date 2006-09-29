@@ -826,14 +826,14 @@ out:
 * Marshal credentials.
 * Maybe we should keep a cached credential for performance reasons.
 */
-static u32 *
-gss_marshal(struct rpc_task *task, u32 *p)
+static __be32 *
+gss_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
 						 gc_base);
 	struct gss_cl_ctx	*ctx = gss_cred_get_ctx(cred);
-	u32		*cred_len;
+	__be32		*cred_len;
 	struct rpc_rqst *req = task->tk_rqstp;
 	u32             maj_stat = 0;
 	struct xdr_netobj mic;
@@ -894,12 +894,12 @@ gss_refresh(struct rpc_task *task)
 	return 0;
 }
 
-static u32 *
-gss_validate(struct rpc_task *task, u32 *p)
+static __be32 *
+gss_validate(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	u32		seq;
+	__be32		seq;
 	struct kvec	iov;
 	struct xdr_buf	verf_buf;
 	struct xdr_netobj mic;
@@ -940,13 +940,14 @@ out_bad:
 
 static inline int
 gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		kxdrproc_t encode, struct rpc_rqst *rqstp, u32 *p, void *obj)
+		kxdrproc_t encode, struct rpc_rqst *rqstp, __be32 *p, void *obj)
 {
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
 	struct xdr_buf	integ_buf;
-	u32             *integ_len = NULL;
+	__be32          *integ_len = NULL;
 	struct xdr_netobj mic;
-	u32		offset, *q;
+	u32		offset;
+	__be32		*q;
 	struct kvec	*iov;
 	u32             maj_stat = 0;
 	int		status = -EIO;
@@ -1032,13 +1033,13 @@ out:
 
 static inline int
 gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		kxdrproc_t encode, struct rpc_rqst *rqstp, u32 *p, void *obj)
+		kxdrproc_t encode, struct rpc_rqst *rqstp, __be32 *p, void *obj)
 {
 	struct xdr_buf	*snd_buf = &rqstp->rq_snd_buf;
 	u32		offset;
 	u32             maj_stat;
 	int		status;
-	u32		*opaque_len;
+	__be32		*opaque_len;
 	struct page	**inpages;
 	int		first;
 	int		pad;
@@ -1095,7 +1096,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 static int
 gss_wrap_req(struct rpc_task *task,
-	     kxdrproc_t encode, void *rqstp, u32 *p, void *obj)
+	     kxdrproc_t encode, void *rqstp, __be32 *p, void *obj)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 	struct gss_cred	*gss_cred = container_of(cred, struct gss_cred,
@@ -1132,7 +1133,7 @@ out:
 
 static inline int
 gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		struct rpc_rqst *rqstp, u32 **p)
+		struct rpc_rqst *rqstp, __be32 **p)
 {
 	struct xdr_buf	*rcv_buf = &rqstp->rq_rcv_buf;
 	struct xdr_buf integ_buf;
@@ -1169,7 +1170,7 @@ gss_unwrap_resp_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 static inline int
 gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
-		struct rpc_rqst *rqstp, u32 **p)
+		struct rpc_rqst *rqstp, __be32 **p)
 {
 	struct xdr_buf  *rcv_buf = &rqstp->rq_rcv_buf;
 	u32 offset;
@@ -1198,13 +1199,13 @@ gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 
 static int
 gss_unwrap_resp(struct rpc_task *task,
-		kxdrproc_t decode, void *rqstp, u32 *p, void *obj)
+		kxdrproc_t decode, void *rqstp, __be32 *p, void *obj)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred,
 			gc_base);
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
-	u32		*savedp = p;
+	__be32		*savedp = p;
 	struct kvec	*head = ((struct rpc_rqst *)rqstp)->rq_rcv_buf.head;
 	int		savedlen = head->iov_len;
 	int             status = -EIO;

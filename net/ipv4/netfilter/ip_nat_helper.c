@@ -189,7 +189,7 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 					   		datalen, 0));
 	} else
 		tcph->check = nf_proto_csum_update(*pskb,
-						   htons(oldlen) ^ 0xFFFF,
+						   htons(oldlen) ^ htons(0xFFFF),
 						   htons(datalen),
 						   tcph->check, 1);
 
@@ -267,7 +267,7 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 			udph->check = -1;
 	} else
 		udph->check = nf_proto_csum_update(*pskb,
-						   htons(oldlen) ^ 0xFFFF,
+						   htons(oldlen) ^ htons(0xFFFF),
 						   htons(datalen),
 						   udph->check, 1);
 	return 1;
@@ -283,27 +283,25 @@ sack_adjust(struct sk_buff *skb,
 	    struct ip_nat_seq *natseq)
 {
 	while (sackoff < sackend) {
-		struct tcp_sack_block *sack;
-		u_int32_t new_start_seq, new_end_seq;
+		struct tcp_sack_block_wire *sack;
+		__be32 new_start_seq, new_end_seq;
 
 		sack = (void *)skb->data + sackoff;
 		if (after(ntohl(sack->start_seq) - natseq->offset_before,
 			  natseq->correction_pos))
-			new_start_seq = ntohl(sack->start_seq) 
-					- natseq->offset_after;
+			new_start_seq = htonl(ntohl(sack->start_seq)
+					- natseq->offset_after);
 		else
-			new_start_seq = ntohl(sack->start_seq) 
-					- natseq->offset_before;
-		new_start_seq = htonl(new_start_seq);
+			new_start_seq = htonl(ntohl(sack->start_seq)
+					- natseq->offset_before);
 
 		if (after(ntohl(sack->end_seq) - natseq->offset_before,
 			  natseq->correction_pos))
-			new_end_seq = ntohl(sack->end_seq)
-				      - natseq->offset_after;
+			new_end_seq = htonl(ntohl(sack->end_seq)
+				      - natseq->offset_after);
 		else
-			new_end_seq = ntohl(sack->end_seq)
-				      - natseq->offset_before;
-		new_end_seq = htonl(new_end_seq);
+			new_end_seq = htonl(ntohl(sack->end_seq)
+				      - natseq->offset_before);
 
 		DEBUGP("sack_adjust: start_seq: %d->%d, end_seq: %d->%d\n",
 			ntohl(sack->start_seq), new_start_seq,
@@ -375,7 +373,8 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 		  enum ip_conntrack_info ctinfo)
 {
 	struct tcphdr *tcph;
-	int dir, newseq, newack;
+	int dir;
+	__be32 newseq, newack;
 	struct ip_nat_seq *this_way, *other_way;	
 
 	dir = CTINFO2DIR(ctinfo);
@@ -388,17 +387,15 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 
 	tcph = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
-		newseq = ntohl(tcph->seq) + this_way->offset_after;
+		newseq = htonl(ntohl(tcph->seq) + this_way->offset_after);
 	else
-		newseq = ntohl(tcph->seq) + this_way->offset_before;
-	newseq = htonl(newseq);
+		newseq = htonl(ntohl(tcph->seq) + this_way->offset_before);
 
 	if (after(ntohl(tcph->ack_seq) - other_way->offset_before,
 		  other_way->correction_pos))
-		newack = ntohl(tcph->ack_seq) - other_way->offset_after;
+		newack = htonl(ntohl(tcph->ack_seq) - other_way->offset_after);
 	else
-		newack = ntohl(tcph->ack_seq) - other_way->offset_before;
-	newack = htonl(newack);
+		newack = htonl(ntohl(tcph->ack_seq) - other_way->offset_before);
 
 	tcph->check = nf_proto_csum_update(*pskb, ~tcph->seq, newseq,
 					   tcph->check, 0);

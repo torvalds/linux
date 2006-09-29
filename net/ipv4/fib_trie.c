@@ -1834,7 +1834,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 	int i, s_i;
 	struct fib_alias *fa;
 
-	u32 xkey = htonl(key);
+	__be32 xkey = htonl(key);
 
 	s_i = cb->args[4];
 	i = 0;
@@ -2281,7 +2281,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 
 	if (IS_TNODE(n)) {
 		struct tnode *tn = (struct tnode *) n;
-		t_key prf = ntohl(MASK_PFX(tn->key, tn->pos));
+		__be32 prf = htonl(MASK_PFX(tn->key, tn->pos));
 
 		if (!NODE_PARENT(n)) {
 			if (iter->trie == trie_local)
@@ -2297,7 +2297,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		int i;
-		u32 val = ntohl(l->key);
+		__be32 val = htonl(l->key);
 
 		seq_indent(seq, iter->depth);
 		seq_printf(seq, "  |-- %d.%d.%d.%d\n", NIPQUAD(val));
@@ -2360,7 +2360,7 @@ static struct file_operations fib_trie_fops = {
 	.release = seq_release_private,
 };
 
-static unsigned fib_flag_trans(int type, u32 mask, const struct fib_info *fi)
+static unsigned fib_flag_trans(int type, __be32 mask, const struct fib_info *fi)
 {
 	static unsigned type2flags[RTN_MAX + 1] = {
 		[7] = RTF_REJECT, [8] = RTF_REJECT,
@@ -2369,7 +2369,7 @@ static unsigned fib_flag_trans(int type, u32 mask, const struct fib_info *fi)
 
 	if (fi && fi->fib_nh->nh_gw)
 		flags |= RTF_GATEWAY;
-	if (mask == 0xFFFFFFFF)
+	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
 	flags |= RTF_UP;
 	return flags;
@@ -2403,7 +2403,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 	for (i=32; i>=0; i--) {
 		struct leaf_info *li = find_leaf_info(l, i);
 		struct fib_alias *fa;
-		u32 mask, prefix;
+		__be32 mask, prefix;
 
 		if (!li)
 			continue;

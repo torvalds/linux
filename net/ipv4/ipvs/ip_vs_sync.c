@@ -48,16 +48,16 @@ struct ip_vs_sync_conn {
 
 	/* Protocol, addresses and port numbers */
 	__u8			protocol;       /* Which protocol (TCP/UDP) */
-	__u16			cport;
-	__u16                   vport;
-	__u16                   dport;
-	__u32                   caddr;          /* client address */
-	__u32                   vaddr;          /* virtual address */
-	__u32                   daddr;          /* destination address */
+	__be16			cport;
+	__be16                  vport;
+	__be16                  dport;
+	__be32                  caddr;          /* client address */
+	__be32                  vaddr;          /* virtual address */
+	__be32                  daddr;          /* destination address */
 
 	/* Flags and state transition */
-	__u16                   flags;          /* status flags */
-	__u16                   state;          /* state info */
+	__be16                  flags;          /* status flags */
+	__be16                  state;          /* state info */
 
 	/* The sequence options start here */
 };
@@ -464,7 +464,7 @@ join_mcast_group(struct sock *sk, struct in_addr *addr, char *ifname)
 static int bind_mcastif_addr(struct socket *sock, char *ifname)
 {
 	struct net_device *dev;
-	u32 addr;
+	__be32 addr;
 	struct sockaddr_in sin;
 
 	if ((dev = __dev_get_by_name(ifname)) == NULL)

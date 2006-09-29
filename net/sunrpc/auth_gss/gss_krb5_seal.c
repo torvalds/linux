@@ -115,7 +115,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	krb5_hdr = ptr - 2;
 	msg_start = krb5_hdr + 24;
 
-	*(u16 *)(krb5_hdr + 2) = htons(ctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(ctx->signalg);
 	memset(krb5_hdr + 4, 0xff, 4);
 
 	if (make_checksum(checksum_type, krb5_hdr, 8, text, 0, &md5cksum))

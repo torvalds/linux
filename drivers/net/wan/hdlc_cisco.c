@@ -161,7 +161,7 @@ static int cisco_rx(struct sk_buff *skb)
 	struct hdlc_header *data = (struct hdlc_header*)skb->data;
 	struct cisco_packet *cisco_data;
 	struct in_device *in_dev;
-	u32 addr, mask;
+	__be32 addr, mask;
 
 	if (skb->len < sizeof(struct hdlc_header))
 		goto rx_error;

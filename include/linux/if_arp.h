@@ -130,11 +130,11 @@ struct arpreq_old {
 
 struct arphdr
 {
-	unsigned short	ar_hrd;		/* format of hardware address	*/
-	unsigned short	ar_pro;		/* format of protocol address	*/
+	__be16		ar_hrd;		/* format of hardware address	*/
+	__be16		ar_pro;		/* format of protocol address	*/
 	unsigned char	ar_hln;		/* length of hardware address	*/
 	unsigned char	ar_pln;		/* length of protocol address	*/
-	unsigned short	ar_op;		/* ARP opcode (command)		*/
+	__be16		ar_op;		/* ARP opcode (command)		*/
 
 #if 0
 	 /*

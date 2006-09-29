@@ -66,7 +66,7 @@ struct ip_vs_dh_bucket {
 /*
  *	Returns hash value for IPVS DH entry
  */
-static inline unsigned ip_vs_dh_hashkey(__u32 addr)
+static inline unsigned ip_vs_dh_hashkey(__be32 addr)
 {
 	return (ntohl(addr)*2654435761UL) & IP_VS_DH_TAB_MASK;
 }
@@ -76,7 +76,7 @@ static inline unsigned ip_vs_dh_hashkey(__u32 addr)
  *      Get ip_vs_dest associated with supplied parameters.
  */
 static inline struct ip_vs_dest *
-ip_vs_dh_get(struct ip_vs_dh_bucket *tbl, __u32 addr)
+ip_vs_dh_get(struct ip_vs_dh_bucket *tbl, __be32 addr)
 {
 	return (tbl[ip_vs_dh_hashkey(addr)]).dest;
 }

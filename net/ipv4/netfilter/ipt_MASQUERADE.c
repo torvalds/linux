@@ -70,7 +70,7 @@ masquerade_target(struct sk_buff **pskb,
 	const struct ip_nat_multi_range_compat *mr;
 	struct ip_nat_range newrange;
 	struct rtable *rt;
-	u_int32_t newsrc;
+	__be32 newsrc;
 
 	IP_NF_ASSERT(hooknum == NF_IP_POST_ROUTING);
 

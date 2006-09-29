@@ -246,7 +246,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sock *sk = sock->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	__u32 v4addr = 0;
+	__be32 v4addr = 0;
 	unsigned short snum;
 	int addr_type = 0;
 	int err = 0;

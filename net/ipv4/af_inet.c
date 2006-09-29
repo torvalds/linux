@@ -996,7 +996,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct rtable *rt;
 	__u32 old_saddr = inet->saddr;
 	__u32 new_saddr;
-	__u32 daddr = inet->daddr;
+	__be32 daddr = inet->daddr;
 
 	if (inet->opt && inet->opt->srr)
 		daddr = inet->opt->faddr;
@@ -1043,7 +1043,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
-	u32 daddr;
+	__be32 daddr;
 	int err;
 
 	/* Route is OK, nothing to do. */
@@ -1342,10 +1342,10 @@ static int __init inet_init(void)
 	rc = 0;
 out:
 	return rc;
-out_unregister_tcp_proto:
-	proto_unregister(&tcp_prot);
 out_unregister_udp_proto:
 	proto_unregister(&udp_prot);
+out_unregister_tcp_proto:
+	proto_unregister(&tcp_prot);
 	goto out;
 }
 

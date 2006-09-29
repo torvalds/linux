@@ -108,7 +108,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, NETLINK_CB(skb).sid);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -125,7 +125,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto add_failure;
 		}
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, NETLINK_CB(skb).sid);
 		rcu_read_unlock();
 		break;
 	default:
@@ -161,7 +161,7 @@ static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	domain = nla_data(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	return netlbl_domhsh_remove(domain);
+	return netlbl_domhsh_remove(domain, NETLINK_CB(skb).sid);
 }
 
 /**
@@ -277,7 +277,8 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry,
+						    NETLINK_CB(skb).sid);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -294,7 +295,8 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto adddef_failure;
 		}
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry,
+						    NETLINK_CB(skb).sid);
 		rcu_read_unlock();
 		break;
 	default:
@@ -322,7 +324,7 @@ adddef_failure:
  */
 static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
 {
-	return netlbl_domhsh_remove_default();
+	return netlbl_domhsh_remove_default(NETLINK_CB(skb).sid);
 }
 
 /**

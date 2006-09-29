@@ -100,6 +100,7 @@ Examples:
                          are: IPSRC_RND #IP Source is random (between min/max),
                               IPDST_RND, UDPSRC_RND,
                               UDPDST_RND, MACSRC_RND, MACDST_RND 
+                              MPLS_RND, VID_RND, SVID_RND
 
  pgset "udp_src_min 9"   set UDP source port min, If < udp_src_max, then
                          cycle through the port range.
@@ -124,6 +125,21 @@ Examples:
 					 labels in the label stack.
 
  pgset "mpls 0"		  turn off mpls (or any invalid argument works too!)
+
+ pgset "vlan_id 77"       set VLAN ID 0-4095
+ pgset "vlan_p 3"         set priority bit 0-7 (default 0)
+ pgset "vlan_cfi 0"       set canonical format identifier 0-1 (default 0)
+
+ pgset "svlan_id 22"      set SVLAN ID 0-4095
+ pgset "svlan_p 3"        set priority bit 0-7 (default 0)
+ pgset "svlan_cfi 0"      set canonical format identifier 0-1 (default 0)
+
+ pgset "vlan_id 9999"     > 4095 remove vlan and svlan tags
+ pgset "svlan 9999"       > 4095 remove svlan tag
+
+
+ pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 no ECN, default 00)
+ pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF no ECN, default 00)
 
  pgset stop    	          aborts injection. Also, ^C aborts generator.
 

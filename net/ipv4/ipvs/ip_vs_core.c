@@ -209,14 +209,14 @@ int ip_vs_make_skb_writable(struct sk_buff **pskb, int writable_len)
 static struct ip_vs_conn *
 ip_vs_sched_persist(struct ip_vs_service *svc,
 		    const struct sk_buff *skb,
-		    __u16 ports[2])
+		    __be16 ports[2])
 {
 	struct ip_vs_conn *cp = NULL;
 	struct iphdr *iph = skb->nh.iph;
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
-	__u16  dport;	 /* destination port to forward */
-	__u32  snet;	 /* source network of the client, after masking */
+	__be16  dport;	 /* destination port to forward */
+	__be32  snet;	 /* source network of the client, after masking */
 
 	/* Mask saddr with the netmask to adjust template granularity */
 	snet = iph->saddr & svc->netmask;
@@ -383,7 +383,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_conn *cp = NULL;
 	struct iphdr *iph = skb->nh.iph;
 	struct ip_vs_dest *dest;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -446,7 +446,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_protocol *pp)
 {
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 	struct iphdr *iph = skb->nh.iph;
 
 	pptr = skb_header_pointer(skb, iph->ihl*4,
@@ -576,7 +576,7 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 	/* the TCP/UDP port */
 	if (IPPROTO_TCP == ciph->protocol || IPPROTO_UDP == ciph->protocol) {
-		__u16 *ports = (void *)ciph + ciph->ihl*4;
+		__be16 *ports = (void *)ciph + ciph->ihl*4;
 
 		if (inout)
 			ports[1] = cp->vport;
@@ -775,7 +775,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff **pskb,
 		if (sysctl_ip_vs_nat_icmp_send &&
 		    (pp->protocol == IPPROTO_TCP ||
 		     pp->protocol == IPPROTO_UDP)) {
-			__u16 _ports[2], *pptr;
+			__be16 _ports[2], *pptr;
 
 			pptr = skb_header_pointer(skb, ihl,
 						  sizeof(_ports), _ports);

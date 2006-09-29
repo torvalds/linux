@@ -34,6 +34,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/capability.h>
+#include <linux/audit.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/netlabel.h>
@@ -74,5 +75,10 @@ static inline void *netlbl_netlink_hdr_put(struct sk_buff *skb,
 /* NetLabel NETLINK I/O functions */
 
 int netlbl_netlink_init(void);
+
+/* NetLabel Audit Functions */
+
+struct audit_buffer *netlbl_audit_start_common(int type, u32 secid);
+void netlbl_audit_nomsg(int type, u32 secid);
 
 #endif

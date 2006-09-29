@@ -276,7 +276,7 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (!timeo) {
-			err = -EAGAIN;
+			err = -EINPROGRESS;
 			break;
 		}
 

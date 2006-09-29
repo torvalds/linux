@@ -12,8 +12,8 @@
  */
 typedef union
 {
-	__u32		a4;
-	__u32		a6[4];
+	__be32		a4;
+	__be32		a6[4];
 } xfrm_address_t;
 
 /* Ident of a specific xfrm_state. It is used on input to lookup
@@ -23,7 +23,7 @@ typedef union
 struct xfrm_id
 {
 	xfrm_address_t	daddr;
-	__u32		spi;
+	__be32		spi;
 	__u8		proto;
 };
 
@@ -49,10 +49,10 @@ struct xfrm_selector
 {
 	xfrm_address_t	daddr;
 	xfrm_address_t	saddr;
-	__u16	dport;
-	__u16	dport_mask;
-	__u16	sport;
-	__u16	sport_mask;
+	__be16	dport;
+	__be16	dport_mask;
+	__be16	sport;
+	__be16	sport_mask;
 	__u16	family;
 	__u8	prefixlen_d;
 	__u8	prefixlen_s;
@@ -281,7 +281,7 @@ struct xfrm_usersa_info {
 
 struct xfrm_usersa_id {
 	xfrm_address_t			daddr;
-	__u32				spi;
+	__be32				spi;
 	__u16				family;
 	__u8				proto;
 };

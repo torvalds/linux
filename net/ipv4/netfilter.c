@@ -128,8 +128,8 @@ EXPORT_SYMBOL(ip_nat_decode_session);
  */
 
 struct ip_rt_info {
-	u_int32_t daddr;
-	u_int32_t saddr;
+	__be32 daddr;
+	__be32 saddr;
 	u_int8_t tos;
 };
 
