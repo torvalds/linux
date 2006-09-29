@@ -955,7 +955,7 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
-	tsk->state = EXIT_DEAD;
+	tsk->state = TASK_DEAD;
 
 	schedule();
 	BUG();

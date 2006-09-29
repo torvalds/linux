@@ -1761,10 +1761,10 @@ static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
 
 	/*
 	 * A task struct has one reference for the use as "current".
-	 * If a task dies, then it sets EXIT_DEAD in tsk->state and calls
+	 * If a task dies, then it sets TASK_DEAD in tsk->state and calls
 	 * schedule one last time. The schedule call will never return, and
 	 * the scheduled task must drop that reference.
-	 * The test for EXIT_DEAD must occur while the runqueue locks are
+	 * The test for TASK_DEAD must occur while the runqueue locks are
 	 * still held, otherwise prev could be scheduled on another cpu, die
 	 * there before we look at prev->state, and then the reference would
 	 * be dropped twice.
@@ -1775,7 +1775,7 @@ static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	finish_lock_switch(rq, prev);
 	if (mm)
 		mmdrop(mm);
-	if (unlikely(prev_state == EXIT_DEAD)) {
+	if (unlikely(prev_state == TASK_DEAD)) {
 		/*
 		 * Remove function-return probe instances associated with this
 		 * task and put them back on the free list.
@@ -5153,7 +5153,7 @@ static void migrate_dead(unsigned int dead_cpu, struct task_struct *p)
 	BUG_ON(p->exit_state != EXIT_ZOMBIE && p->exit_state != EXIT_DEAD);
 
 	/* Cannot have done final schedule yet: would have vanished. */
-	BUG_ON(p->state == EXIT_DEAD);
+	BUG_ON(p->state == TASK_DEAD);
 
 	get_task_struct(p);
 

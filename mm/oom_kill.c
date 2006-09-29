@@ -227,7 +227,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 						p->flags & PF_EXITING;
 		if (releasing) {
 			/* TASK_DEAD tasks have already released their mm */
-			if (p->state == EXIT_DEAD)
+			if (p->state == TASK_DEAD)
 				continue;
 			if (p->flags & PF_EXITING && p == current) {
 				chosen = p;
