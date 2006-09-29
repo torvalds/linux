@@ -14,7 +14,10 @@ struct omap_kp_platform_data {
 	int rows;
 	int cols;
 	int *keymap;
+	unsigned int keymapsize;
 	unsigned int rep:1;
+	unsigned long delay;
+	unsigned int dbounce:1;
 	/* specific to OMAP242x*/
 	unsigned int *row_gpios;
 	unsigned int *col_gpios;

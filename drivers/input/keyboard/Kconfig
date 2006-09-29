@@ -183,4 +183,13 @@ config KEYBOARD_HIL
 	  This driver implements support for HIL-keyboards attached
 	  to your machine, so normally you should say Y here.
 
+config KEYBOARD_OMAP
+	tristate "TI OMAP keypad support"
+	depends on (ARCH_OMAP1 || ARCH_OMAP2)
+	help
+	  Say Y here if you want to use the OMAP keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap-keypad.
+
 endif
