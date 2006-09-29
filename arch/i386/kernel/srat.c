@@ -30,6 +30,7 @@
 #include <linux/nodemask.h>
 #include <asm/srat.h>
 #include <asm/topology.h>
+#include <asm/smp.h>
 
 /*
  * proximity macros and definitions
@@ -54,6 +55,7 @@ struct node_memory_chunk_s {
 static struct node_memory_chunk_s node_memory_chunk[MAXCHUNKS];
 
 static int num_memory_chunks;		/* total number of memory chunks */
+static u8 __initdata apicid_to_pxm[MAX_APICID];
 
 extern void * boot_ioremap(unsigned long, unsigned long);
 
@@ -68,6 +70,8 @@ static void __init parse_cpu_affinity_structure(char *p)
 
 	/* mark this node as "seen" in node bitmap */
 	BMAP_SET(pxm_bitmap, cpu_affinity->proximity_domain);
+
+	apicid_to_pxm[cpu_affinity->apic_id] = cpu_affinity->proximity_domain;
 
 	printk("CPU 0x%02X in proximity domain 0x%02X\n",
 		cpu_affinity->apic_id, cpu_affinity->proximity_domain);
@@ -234,6 +238,9 @@ static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
 	printk("\n");
 	printk("Number of logical nodes in system = %d\n", num_online_nodes());
 	printk("Number of memory chunks in system = %d\n", num_memory_chunks);
+
+	for (i = 0; i < MAX_APICID; i++)
+		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
 
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
