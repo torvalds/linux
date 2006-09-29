@@ -1940,6 +1940,10 @@ config 9P_FS
 
 	  If unsure, say N.
 
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
 endmenu
 
 menu "Partition Types"
