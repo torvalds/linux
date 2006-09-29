@@ -175,6 +175,7 @@ static inline void detach_timer(struct timer_list *timer,
  */
 static tvec_base_t *lock_timer_base(struct timer_list *timer,
 					unsigned long *flags)
+	__acquires(timer->base->lock)
 {
 	tvec_base_t *base;
 
