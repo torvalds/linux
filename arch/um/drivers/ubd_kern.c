@@ -668,18 +668,15 @@ static int ubd_add(int n)
 	if(dev->file == NULL)
 		goto out;
 
-	if (ubd_open_dev(dev))
-		goto out;
-
 	err = ubd_file_size(dev, &dev->size);
 	if(err < 0)
-		goto out_close;
+		goto out;
 
 	dev->size = ROUND_BLOCK(dev->size);
 
 	err = ubd_new_disk(MAJOR_NR, dev->size, n, &ubd_gendisk[n]);
 	if(err)
-		goto out_close;
+		goto out;
 
 	if(fake_major != MAJOR_NR)
 		ubd_new_disk(fake_major, dev->size, n,
@@ -691,8 +688,6 @@ static int ubd_add(int n)
 		make_ide_entries(ubd_gendisk[n]->disk_name);
 
 	err = 0;
-out_close:
-	ubd_close(dev);
 out:
 	return err;
 }
