@@ -820,13 +820,22 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 						lo->lo_number);
 	if (IS_ERR(lo->lo_thread)) {
 		error = PTR_ERR(lo->lo_thread);
-		lo->lo_thread = NULL;
-		goto out_putf;
+		goto out_clr;
 	}
 	lo->lo_state = Lo_bound;
 	wake_up_process(lo->lo_thread);
 	return 0;
 
+out_clr:
+	lo->lo_thread = NULL;
+	lo->lo_device = NULL;
+	lo->lo_backing_file = NULL;
+	lo->lo_flags = 0;
+	set_capacity(disks[lo->lo_number], 0);
+	invalidate_bdev(bdev, 0);
+	bd_set_size(bdev, 0);
+	mapping_set_gfp_mask(mapping, lo->old_gfp_mask);
+	lo->lo_state = Lo_unbound;
  out_putf:
 	fput(file);
  out:
