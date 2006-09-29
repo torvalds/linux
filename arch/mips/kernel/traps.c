@@ -115,8 +115,7 @@ static void show_backtrace(struct task_struct *task, struct pt_regs *regs)
 	printk("Call Trace:\n");
 	do {
 		print_ip_sym(pc);
-		pc = unwind_stack(task, &sp, pc, ra);
-		ra = 0;
+		pc = unwind_stack(task, &sp, pc, &ra);
 	} while (pc);
 	printk("\n");
 }

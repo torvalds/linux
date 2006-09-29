@@ -31,23 +31,21 @@ static void save_raw_context_stack(struct stack_trace *trace,
 	}
 }
 
-static struct pt_regs * save_context_stack(struct stack_trace *trace,
+static void save_context_stack(struct stack_trace *trace,
 	struct task_struct *task, struct pt_regs *regs)
 {
 	unsigned long sp = regs->regs[29];
 #ifdef CONFIG_KALLSYMS
 	unsigned long ra = regs->regs[31];
 	unsigned long pc = regs->cp0_epc;
-	unsigned long stack_page =
-		(unsigned long)task_stack_page(task);
-	extern void ret_from_irq(void);
-	extern void ret_from_exception(void);
 
 	if (raw_show_trace || !__kernel_text_address(pc)) {
+		unsigned long stack_page =
+			(unsigned long)task_stack_page(task);
 		if (stack_page && sp >= stack_page &&
 		    sp <= stack_page + THREAD_SIZE - 32)
 			save_raw_context_stack(trace, sp);
-		return NULL;
+		return;
 	}
 	do {
 		if (trace->skip > 0)
@@ -56,25 +54,11 @@ static struct pt_regs * save_context_stack(struct stack_trace *trace,
 			trace->entries[trace->nr_entries++] = pc;
 		if (trace->nr_entries >= trace->max_entries)
 			break;
-		/*
-		 * If we reached the bottom of interrupt context,
-		 * return saved pt_regs.
-		 */
-		if (pc == (unsigned long)ret_from_irq ||
-		    pc == (unsigned long)ret_from_exception) {
-			if (stack_page && sp >= stack_page &&
-			    sp <= stack_page + THREAD_SIZE - 32)
-				return (struct pt_regs *)sp;
-			break;
-		}
-		pc = unwind_stack(task, &sp, pc, ra);
-		ra = 0;
+		pc = unwind_stack(task, &sp, pc, &ra);
 	} while (pc);
 #else
 	save_raw_context_stack(sp);
 #endif
-
-	return NULL;
 }
 
 /*
@@ -97,9 +81,5 @@ void save_stack_trace(struct stack_trace *trace, struct task_struct *task)
 		prepare_frametrace(regs);
 	}
 
-	while (1) {
-		regs = save_context_stack(trace, task, regs);
-		if (!regs || trace->nr_entries >= trace->max_entries)
-			break;
-	}
+	save_context_stack(trace, task, regs);
 }

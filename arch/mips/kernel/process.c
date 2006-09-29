@@ -399,7 +399,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 #ifdef CONFIG_KALLSYMS
 /* used by show_backtrace() */
 unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
-			   unsigned long pc, unsigned long ra)
+			   unsigned long pc, unsigned long *ra)
 {
 	unsigned long stack_page;
 	struct mips_frame_info info;
@@ -407,18 +407,42 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 	char namebuf[KSYM_NAME_LEN + 1];
 	unsigned long size, ofs;
 	int leaf;
+	extern void ret_from_irq(void);
+	extern void ret_from_exception(void);
 
 	stack_page = (unsigned long)task_stack_page(task);
 	if (!stack_page)
 		return 0;
 
+	/*
+	 * If we reached the bottom of interrupt context,
+	 * return saved pc in pt_regs.
+	 */
+	if (pc == (unsigned long)ret_from_irq ||
+	    pc == (unsigned long)ret_from_exception) {
+		struct pt_regs *regs;
+		if (*sp >= stack_page &&
+		    *sp + sizeof(*regs) <= stack_page + THREAD_SIZE - 32) {
+			regs = (struct pt_regs *)*sp;
+			pc = regs->cp0_epc;
+			if (__kernel_text_address(pc)) {
+				*sp = regs->regs[29];
+				*ra = regs->regs[31];
+				return pc;
+			}
+		}
+		return 0;
+	}
 	if (!kallsyms_lookup(pc, &size, &ofs, &modname, namebuf))
 		return 0;
 	/*
 	 * Return ra if an exception occured at the first instruction
 	 */
-	if (unlikely(ofs == 0))
-		return ra;
+	if (unlikely(ofs == 0)) {
+		pc = *ra;
+		*ra = 0;
+		return pc;
+	}
 
 	info.func = (void *)(pc - ofs);
 	info.func_size = ofs;	/* analyze from start to ofs */
@@ -437,11 +461,12 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 		 * one. In that cases avoid to return always the
 		 * same value.
 		 */
-		pc = pc != ra ? ra : 0;
+		pc = pc != *ra ? *ra : 0;
 	else
 		pc = ((unsigned long *)(*sp))[info.pc_offset];
 
 	*sp += info.frame_size;
+	*ra = 0;
 	return __kernel_text_address(pc) ? pc : 0;
 }
 #endif
@@ -454,6 +479,7 @@ unsigned long get_wchan(struct task_struct *task)
 	unsigned long pc = 0;
 #ifdef CONFIG_KALLSYMS
 	unsigned long sp;
+	unsigned long ra = 0;
 #endif
 
 	if (!task || task == current || task->state == TASK_RUNNING)
@@ -467,7 +493,7 @@ unsigned long get_wchan(struct task_struct *task)
 	sp = task->thread.reg29 + schedule_mfi.frame_size;
 
 	while (in_sched_functions(pc))
-		pc = unwind_stack(task, &sp, pc, 0);
+		pc = unwind_stack(task, &sp, pc, &ra);
 #endif
 
 out:

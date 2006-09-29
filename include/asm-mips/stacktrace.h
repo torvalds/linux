@@ -6,7 +6,7 @@
 #ifdef CONFIG_KALLSYMS
 extern int raw_show_trace;
 extern unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
-				  unsigned long pc, unsigned long ra);
+				  unsigned long pc, unsigned long *ra);
 #else
 #define raw_show_trace 1
 #define unwind_stack(task, sp, pc, ra)	0
