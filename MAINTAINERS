@@ -2810,6 +2810,12 @@ M:	R.E.Wolff@BitWizard.nl
 L:	linux-kernel@vger.kernel.org ?
 S:	Supported
 
+SPIDERNET NETWORK DRIVER for CELL
+P:	Jim Lewis
+M:	jim@jklewis.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SRM (Alpha) environment access
 P:	Jan-Benedict Glaw
 M:	jbglaw@lug-owl.de
