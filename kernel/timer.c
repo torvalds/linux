@@ -136,7 +136,7 @@ static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 	list_add_tail(&timer->entry, vec);
 }
 
-/***
+/**
  * init_timer - initialize a timer.
  * @timer: the timer to be initialized
  *
@@ -236,7 +236,7 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(__mod_timer);
 
-/***
+/**
  * add_timer_on - start a timer on a particular CPU
  * @timer: the timer to be added
  * @cpu: the CPU to start it on
@@ -256,9 +256,10 @@ void add_timer_on(struct timer_list *timer, int cpu)
 }
 
 
-/***
+/**
  * mod_timer - modify a timer's timeout
  * @timer: the timer to be modified
+ * @expires: new timeout in jiffies
  *
  * mod_timer is a more efficient way to update the expire field of an
  * active timer (if the timer is inactive it will be activated)
@@ -292,7 +293,7 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(mod_timer);
 
-/***
+/**
  * del_timer - deactive a timer.
  * @timer: the timer to be deactivated
  *
@@ -324,7 +325,10 @@ int del_timer(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer);
 
 #ifdef CONFIG_SMP
-/*
+/**
+ * try_to_del_timer_sync - Try to deactivate a timer
+ * @timer: timer do del
+ *
  * This function tries to deactivate a timer. Upon successful (ret >= 0)
  * exit the timer is not queued and the handler is not running on any CPU.
  *
@@ -352,7 +356,7 @@ out:
 	return ret;
 }
 
-/***
+/**
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
  * @timer: the timer to be deactivated
  *
@@ -402,15 +406,15 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 	return index;
 }
 
-/***
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
+
+/**
  * __run_timers - run all expired timers (if any) on this CPU.
  * @base: the timer vector to be processed.
  *
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
-
 static inline void __run_timers(tvec_base_t *base)
 {
 	struct timer_list *timer;
@@ -971,7 +975,7 @@ void __init timekeeping_init(void)
 
 
 static int timekeeping_suspended;
-/*
+/**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
  * @dev:	unused
  *
@@ -1107,7 +1111,7 @@ static void clocksource_adjust(struct clocksource *clock, s64 offset)
 	clock->error -= (interval - offset) << (TICK_LENGTH_SHIFT - clock->shift);
 }
 
-/*
+/**
  * update_wall_time - Uses the current clocksource to increment the wall time
  *
  * Called from the timer interrupt, must hold a write on xtime_lock.
@@ -1471,8 +1475,9 @@ asmlinkage long sys_gettid(void)
 	return current->pid;
 }
 
-/*
+/**
  * sys_sysinfo - fill in sysinfo struct
+ * @info: pointer to buffer to fill
  */ 
 asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 {
