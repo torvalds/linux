@@ -440,6 +440,7 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 	child = find_task_by_pid(pid);
 	if (child)
 		get_task_struct(child);
+
 	read_unlock(&tasklist_lock);
 	if (!child)
 		return ERR_PTR(-ESRCH);

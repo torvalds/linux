@@ -244,7 +244,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 
 int unhandled_signal(struct task_struct *tsk, int sig)
 {
-	if (tsk->pid == 1)
+	if (is_init(tsk))
 		return 1;
 	if (tsk->ptrace & PT_PTRACED)
 		return 0;
@@ -580,7 +580,7 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (current->pid == 1) { 
+	if (is_init(current)) {
 		yield();
 		goto again;
 	}

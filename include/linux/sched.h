@@ -1033,6 +1033,16 @@ static inline int pid_alive(struct task_struct *p)
 	return p->pids[PIDTYPE_PID].pid != NULL;
 }
 
+/**
+ * is_init - check if a task structure is the first user space
+ *	     task the kernel created.
+ * @p: Task structure to be checked.
+ */
+static inline int is_init(struct task_struct *tsk)
+{
+	return tsk->pid == 1;
+}
+
 extern void free_task(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 

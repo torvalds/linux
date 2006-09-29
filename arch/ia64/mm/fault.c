@@ -280,7 +280,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 
   out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;
