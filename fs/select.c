@@ -658,8 +658,6 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
  	unsigned int i;
 	struct poll_list *head;
  	struct poll_list *walk;
-	struct fdtable *fdt;
-	int max_fdset;
 	/* Allocate small arguments on the stack to save memory and be
 	   faster - use long to make sure the buffer is aligned properly
 	   on 64 bit archs to avoid unaligned access */
@@ -667,11 +665,7 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 	struct poll_list *stack_pp = NULL;
 
 	/* Do a sanity check on nfds ... */
-	rcu_read_lock();
-	fdt = files_fdtable(current->files);
-	max_fdset = fdt->max_fdset;
-	rcu_read_unlock();
-	if (nfds > max_fdset && nfds > OPEN_MAX)
+	if (nfds > current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
 		return -EINVAL;
 
 	poll_initwait(&table);
