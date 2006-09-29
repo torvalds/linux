@@ -69,7 +69,7 @@ static const struct file_operations scx200_gpio_fileops = {
 	.release = scx200_gpio_release,
 };
 
-struct cdev scx200_gpio_cdev;  /* use 1 cdev for all pins */
+static struct cdev scx200_gpio_cdev;  /* use 1 cdev for all pins */
 
 static int __init scx200_gpio_init(void)
 {
