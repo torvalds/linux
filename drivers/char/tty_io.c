@@ -618,9 +618,9 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
  
 static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
 {
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 	tty->termios->c_line = num;
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 }
 
 /*
@@ -1338,9 +1338,9 @@ static void do_tty_hangup(void *data)
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
 	{
-		down(&tty->termios_sem);
+		mutex_lock(&tty->termios_mutex);
 		*tty->termios = tty->driver->init_termios;
-		up(&tty->termios_sem);
+		mutex_unlock(&tty->termios_mutex);
 	}
 	
 	/* Defer ldisc switch */
@@ -2750,9 +2750,9 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
 {
 	int err;
 
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 	err = copy_to_user(arg, &tty->winsize, sizeof(*arg));
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 
 	return err ? -EFAULT: 0;
 }
@@ -2782,14 +2782,15 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
 		return -EFAULT;
 
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 	if (!memcmp(&tmp_ws, &tty->winsize, sizeof(*arg)))
 		goto done;
 
 #ifdef CONFIG_VT
 	if (tty->driver->type == TTY_DRIVER_TYPE_CONSOLE) {
-		if (vc_lock_resize(tty->driver_data, tmp_ws.ws_col, tmp_ws.ws_row)) {
-			up(&tty->termios_sem);
+		if (vc_lock_resize(tty->driver_data, tmp_ws.ws_col,
+					tmp_ws.ws_row)) {
+			mutex_unlock(&tty->termios_mutex);
  			return -ENXIO;
 		}
 	}
@@ -2801,7 +2802,7 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 	tty->winsize = tmp_ws;
 	real_tty->winsize = tmp_ws;
 done:
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 	return 0;
 }
 
@@ -3576,7 +3577,7 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	tty_buffer_init(tty);
 	INIT_WORK(&tty->buf.work, flush_to_ldisc, tty);
 	init_MUTEX(&tty->buf.pty_sem);
-	init_MUTEX(&tty->termios_sem);
+	mutex_init(&tty->termios_mutex);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
 	INIT_WORK(&tty->hangup_work, do_tty_hangup, tty);

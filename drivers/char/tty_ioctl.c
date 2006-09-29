@@ -20,6 +20,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -131,7 +132,7 @@ static void change_termios(struct tty_struct * tty, struct termios * new_termios
 
 	/* FIXME: we need to decide on some locking/ordering semantics
 	   for the set_termios notification eventually */
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 
 	*tty->termios = *new_termios;
 	unset_locked_termios(tty->termios, &old_termios, tty->termios_locked);
@@ -176,7 +177,7 @@ static void change_termios(struct tty_struct * tty, struct termios * new_termios
 			(ld->set_termios)(tty, &old_termios);
 		tty_ldisc_deref(ld);
 	}
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 }
 
 /**
@@ -284,13 +285,13 @@ static int get_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 {
 	struct sgttyb tmp;
 
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 	tmp.sg_ispeed = 0;
 	tmp.sg_ospeed = 0;
 	tmp.sg_erase = tty->termios->c_cc[VERASE];
 	tmp.sg_kill = tty->termios->c_cc[VKILL];
 	tmp.sg_flags = get_sgflags(tty);
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 	
 	return copy_to_user(sgttyb, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
@@ -345,12 +346,12 @@ static int set_sgttyb(struct tty_struct * tty, struct sgttyb __user * sgttyb)
 	if (copy_from_user(&tmp, sgttyb, sizeof(tmp)))
 		return -EFAULT;
 
-	down(&tty->termios_sem);		
+	mutex_lock(&tty->termios_mutex);
 	termios =  *tty->termios;
 	termios.c_cc[VERASE] = tmp.sg_erase;
 	termios.c_cc[VKILL] = tmp.sg_kill;
 	set_sgflags(&termios, tmp.sg_flags);
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 	change_termios(tty, &termios);
 	return 0;
 }
@@ -592,11 +593,11 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 		case TIOCSSOFTCAR:
 			if (get_user(arg, (unsigned int __user *) arg))
 				return -EFAULT;
-			down(&tty->termios_sem);
+			mutex_lock(&tty->termios_mutex);
 			tty->termios->c_cflag =
 				((tty->termios->c_cflag & ~CLOCAL) |
 				 (arg ? CLOCAL : 0));
-			up(&tty->termios_sem);
+			mutex_unlock(&tty->termios_mutex);
 			return 0;
 		default:
 			return -ENOIOCTLCMD;
