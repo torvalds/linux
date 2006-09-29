@@ -245,6 +245,7 @@ EXPORT_SYMBOL(dma_set_mask);
    noaperture Don't touch the aperture for AGP.
    allowdac Allow DMA >4GB
    nodac    Forbid DMA >4GB
+   panic    Force panic when IOMMU overflows
 */
 __init int iommu_setup(char *p)
 {

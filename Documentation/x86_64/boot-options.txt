@@ -203,6 +203,7 @@ IOMMU
 	    When off all DMA over >4GB is forced through an IOMMU or bounce
 	    buffering.
    nodac    Forbid DMA >4GB
+   panic    Always panic when IOMMU overflows
 
   swiotlb=pages[,force]
 
