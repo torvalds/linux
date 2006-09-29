@@ -59,14 +59,17 @@ EXPORT_SYMBOL(list_add);
  */
 void list_del(struct list_head *entry)
 {
+	BUG_ON(entry->prev->next != entry);
+	BUG_ON(entry->next->prev != entry);
+
 	if (unlikely(entry->prev->next != entry)) {
-		printk(KERN_ERR "list_del corruption. prev->next should be %p, but was %p\n",
-			entry, entry->prev->next);
+		printk(KERN_ERR "list_del corruption. prev->next should be %p, "
+				"but was %p\n", entry, entry->prev->next);
 		BUG();
 	}
 	if (unlikely(entry->next->prev != entry)) {
-		printk(KERN_ERR "list_del corruption. next->prev should be %p, but was %p\n",
-			entry, entry->next->prev);
+		printk(KERN_ERR "list_del corruption. next->prev should be %p, "
+				"but was %p\n", entry, entry->next->prev);
 		BUG();
 	}
 	__list_del(entry->prev, entry->next);
@@ -74,4 +77,3 @@ void list_del(struct list_head *entry)
 	entry->prev = LIST_POISON2;
 }
 EXPORT_SYMBOL(list_del);
-
