@@ -216,6 +216,18 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 			continue;
 
 		/*
+		 * This task already has access to memory reserves and is
+		 * being killed. Don't allow any other task access to the
+		 * memory reserve.
+		 *
+		 * Note: this may have a chance of deadlock if it gets
+		 * blocked waiting for another task which itself is waiting
+		 * for memory. Is there a better alternative?
+		 */
+		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+			return ERR_PTR(-1UL);
+
+		/*
 		 * This is in the process of releasing memory so wait for it
 		 * to finish before killing some other task by mistake.
 		 *
@@ -223,16 +235,15 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
 		 * which will allow it to gain access to memory reserves in
 		 * the process of exiting and releasing its resources.
-		 * Otherwise we could get an OOM deadlock.
+		 * Otherwise we could get an easy OOM deadlock.
 		 */
-		if ((p->flags & PF_EXITING) && p == current) {
+		if (p->flags & PF_EXITING) {
+			if (p != current)
+				return ERR_PTR(-1UL);
+
 			chosen = p;
 			*ppoints = ULONG_MAX;
-			break;
 		}
-		if ((p->flags & PF_EXITING) ||
-				test_tsk_thread_flag(p, TIF_MEMDIE))
-			return ERR_PTR(-1UL);
 
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
