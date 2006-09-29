@@ -1683,10 +1683,32 @@ static void poison_obj(struct kmem_cache *cachep, void *addr, unsigned char val)
 static void dump_line(char *data, int offset, int limit)
 {
 	int i;
+	unsigned char error = 0;
+	int bad_count = 0;
+
 	printk(KERN_ERR "%03x:", offset);
-	for (i = 0; i < limit; i++)
+	for (i = 0; i < limit; i++) {
+		if (data[offset + i] != POISON_FREE) {
+			error = data[offset + i];
+			bad_count++;
+		}
 		printk(" %02x", (unsigned char)data[offset + i]);
+	}
 	printk("\n");
+
+	if (bad_count == 1) {
+		error ^= POISON_FREE;
+		if (!(error & (error - 1))) {
+			printk(KERN_ERR "Single bit error detected. Probably "
+					"bad RAM.\n");
+#ifdef CONFIG_X86
+			printk(KERN_ERR "Run memtest86+ or a similar memory "
+					"test tool.\n");
+#else
+			printk(KERN_ERR "Run a memory test tool.\n");
+#endif
+		}
+	}
 }
 #endif
 
