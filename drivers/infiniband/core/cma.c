@@ -874,23 +874,25 @@ static struct rdma_id_private *cma_new_id(struct rdma_cm_id *listen_id,
 	__u16 port;
 	u8 ip_ver;
 
-	id = rdma_create_id(listen_id->event_handler, listen_id->context,
-			    listen_id->ps);
-	if (IS_ERR(id))
-		return NULL;
-
-	rt = &id->route;
-	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths, GFP_KERNEL);
-	if (!rt->path_rec)
-		goto err;
-
 	if (cma_get_net_info(ib_event->private_data, listen_id->ps,
 			     &ip_ver, &port, &src, &dst))
 		goto err;
 
+	id = rdma_create_id(listen_id->event_handler, listen_id->context,
+			    listen_id->ps);
+	if (IS_ERR(id))
+		goto err;
+
 	cma_save_net_info(&id->route.addr, &listen_id->route.addr,
 			  ip_ver, port, src, dst);
+
+	rt = &id->route;
+	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
+	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths,
+			       GFP_KERNEL);
+	if (!rt->path_rec)
+		goto destroy_id;
+
 	rt->path_rec[0] = *ib_event->param.req_rcvd.primary_path;
 	if (rt->num_paths == 2)
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
@@ -903,8 +905,10 @@ static struct rdma_id_private *cma_new_id(struct rdma_cm_id *listen_id,
 	id_priv = container_of(id, struct rdma_id_private, id);
 	id_priv->state = CMA_CONNECT;
 	return id_priv;
-err:
+
+destroy_id:
 	rdma_destroy_id(id);
+err:
 	return NULL;
 }
 
