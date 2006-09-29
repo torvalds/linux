@@ -2719,6 +2719,8 @@ static int tty_fasync(int fd, struct file * filp, int on)
  *	Locking:
  *		Called functions take tty_ldisc_lock
  *		current->signal->tty check is safe without locks
+ *
+ *	FIXME: may race normal receive processing
  */
 
 static int tiocsti(struct tty_struct *tty, char __user *p)
@@ -2878,9 +2880,7 @@ static int fionbio(struct file *file, int __user *p)
  *	Locking:
  *		Takes tasklist lock internally to walk sessions
  *		Takes task_lock() when updating signal->tty
- *
- *	FIXME: tty_mutex is needed to protect signal->tty references.
- *	FIXME: why task_lock on the signal->tty reference ??
+ *		Takes tty_mutex() to protect tty instance
  *
  */
 
@@ -2915,9 +2915,11 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 		} else
 			return -EPERM;
 	}
+	mutex_lock(&tty_mutex);
 	task_lock(current);
 	current->signal->tty = tty;
 	task_unlock(current);
+	mutex_unlock(&tty_mutex);
 	current->signal->tty_old_pgrp = 0;
 	tty->session = current->signal->session;
 	tty->pgrp = process_group(current);
@@ -2957,8 +2959,6 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
  *	permitted where the tty session is our session.
  *
  *	Locking: None
- *
- *	FIXME: current->signal->tty referencing is unsafe.
  */
 
 static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
@@ -3037,19 +3037,20 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
  *	timed break functionality.
  *
  *	Locking:
- *		None
+ *		atomic_write_lock serializes
  *
- *	FIXME:
- *		What if two overlap
  */
 
 static int send_break(struct tty_struct *tty, unsigned int duration)
 {
+	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+		return -EINTR;
 	tty->driver->break_ctl(tty, -1);
 	if (!signal_pending(current)) {
 		msleep_interruptible(duration);
 	}
 	tty->driver->break_ctl(tty, 0);
+	mutex_unlock(&tty->atomic_write_lock);
 	if (signal_pending(current))
 		return -EINTR;
 	return 0;
@@ -3141,6 +3142,8 @@ int tty_ioctl(struct inode * inode, struct file * file,
 	tty = (struct tty_struct *)file->private_data;
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
+
+	/* CHECKME: is this safe as one end closes ? */
 
 	real_tty = tty;
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
