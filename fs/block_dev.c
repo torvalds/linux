@@ -1031,7 +1031,7 @@ do_open(struct block_device *bdev, struct file *file, unsigned int subclass)
 				rescan_partitions(bdev->bd_disk, bdev);
 		} else {
 			mutex_lock_nested(&bdev->bd_contains->bd_mutex,
-					  BD_MUTEX_PARTITION);
+					  BD_MUTEX_WHOLE);
 			bdev->bd_contains->bd_part_count++;
 			mutex_unlock(&bdev->bd_contains->bd_mutex);
 		}
