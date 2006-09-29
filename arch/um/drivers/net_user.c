@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include "user.h"
 #include "user_util.h"
 #include "kern_util.h"
@@ -257,4 +258,33 @@ char *split_if_spec(char *str, ...)
 	}
 	va_end(ap);
 	return str;
+}
+
+void random_mac(unsigned char *addr)
+{
+	struct timeval tv;
+	long n;
+	unsigned int seed;
+
+	gettimeofday(&tv, NULL);
+
+	/* Assume that 20 bits of microseconds and 12 bits of the pid are
+	 * reasonably unpredictable.
+	 */
+	seed = tv.tv_usec | (os_getpid() << 20);
+	srandom(seed);
+
+	/* Don't care about endianness here - switching endianness
+	 * just rearranges what are hopefully random numbers.
+	 *
+	 * Assume that RAND_MAX > 65536, so random is called twice and
+	 * we use 16 bits of the result.
+	 */
+	n = random();
+	addr[2] = (n >> 8) & 255;
+	addr[3] = n % 255;
+
+	n = random();
+	addr[4] = (n >> 8) & 255;
+	addr[5] = n % 255;
 }

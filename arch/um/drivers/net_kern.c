@@ -753,7 +753,8 @@ int setup_etheraddr(char *str, unsigned char *addr)
 	int i;
 
 	if(str == NULL)
-		return(0);
+		goto random;
+
 	for(i=0;i<6;i++){
 		addr[i] = simple_strtoul(str, &end, 16);
 		if((end == str) ||
@@ -761,7 +762,7 @@ int setup_etheraddr(char *str, unsigned char *addr)
 			printk(KERN_ERR 
 			       "setup_etheraddr: failed to parse '%s' "
 			       "as an ethernet address\n", str);
-			return(0);
+			goto random;
 		}
 		str = end + 1;
 	}
@@ -769,9 +770,15 @@ int setup_etheraddr(char *str, unsigned char *addr)
 		printk(KERN_ERR 
 		       "Attempt to assign a broadcast ethernet address to a "
 		       "device disallowed\n");
-		return(0);
+		goto random;
 	}
-	return(1);
+	return 1;
+
+random:
+	addr[0] = 0xfe;
+	addr[1] = 0xfd;
+	random_mac(addr);
+	return 1;
 }
 
 void dev_ip_addr(void *d, unsigned char *bin_buf)
