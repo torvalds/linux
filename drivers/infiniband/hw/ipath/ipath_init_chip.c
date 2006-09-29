@@ -88,13 +88,13 @@ MODULE_PARM_DESC(kpiobufs, "Set number of PIO buffers for driver");
 static int create_port0_egr(struct ipath_devdata *dd)
 {
 	unsigned e, egrcnt;
-	struct sk_buff **skbs;
+	struct ipath_skbinfo *skbinfo;
 	int ret;
 
 	egrcnt = dd->ipath_rcvegrcnt;
 
-	skbs = vmalloc(sizeof(*dd->ipath_port0_skbs) * egrcnt);
-	if (skbs == NULL) {
+	skbinfo = vmalloc(sizeof(*dd->ipath_port0_skbinfo) * egrcnt);
+	if (skbinfo == NULL) {
 		ipath_dev_err(dd, "allocation error for eager TID "
 			      "skb array\n");
 		ret = -ENOMEM;
@@ -109,13 +109,13 @@ static int create_port0_egr(struct ipath_devdata *dd)
 		 * 4 bytes so that the data buffer stays word aligned.
 		 * See ipath_kreceive() for more details.
 		 */
-		skbs[e] = ipath_alloc_skb(dd, GFP_KERNEL);
-		if (!skbs[e]) {
+		skbinfo[e].skb = ipath_alloc_skb(dd, GFP_KERNEL);
+		if (!skbinfo[e].skb) {
 			ipath_dev_err(dd, "SKB allocation error for "
 				      "eager TID %u\n", e);
 			while (e != 0)
-				dev_kfree_skb(skbs[--e]);
-			vfree(skbs);
+				dev_kfree_skb(skbinfo[--e].skb);
+			vfree(skbinfo);
 			ret = -ENOMEM;
 			goto bail;
 		}
@@ -124,14 +124,17 @@ static int create_port0_egr(struct ipath_devdata *dd)
 	 * After loop above, so we can test non-NULL to see if ready
 	 * to use at receive, etc.
 	 */
-	dd->ipath_port0_skbs = skbs;
+	dd->ipath_port0_skbinfo = skbinfo;
 
 	for (e = 0; e < egrcnt; e++) {
-		unsigned long phys =
-			virt_to_phys(dd->ipath_port0_skbs[e]->data);
+		dd->ipath_port0_skbinfo[e].phys =
+		  ipath_map_single(dd->pcidev,
+				   dd->ipath_port0_skbinfo[e].skb->data,
+				   dd->ipath_ibmaxlen, PCI_DMA_FROMDEVICE);
 		dd->ipath_f_put_tid(dd, e + (u64 __iomem *)
 				    ((char __iomem *) dd->ipath_kregbase +
-				     dd->ipath_rcvegrbase), 0, phys);
+				     dd->ipath_rcvegrbase), 0,
+				    dd->ipath_port0_skbinfo[e].phys);
 	}
 
 	ret = 0;
@@ -432,16 +435,33 @@ done:
  */
 static void init_shadow_tids(struct ipath_devdata *dd)
 {
-	dd->ipath_pageshadow = (struct page **)
-		vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+	struct page **pages;
+	dma_addr_t *addrs;
+
+	pages = vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
 			sizeof(struct page *));
-	if (!dd->ipath_pageshadow)
+	if (!pages) {
 		ipath_dev_err(dd, "failed to allocate shadow page * "
 			      "array, no expected sends!\n");
-	else
-		memset(dd->ipath_pageshadow, 0,
-		       dd->ipath_cfgports * dd->ipath_rcvtidcnt *
-		       sizeof(struct page *));
+		dd->ipath_pageshadow = NULL;
+		return;
+	}
+
+	addrs = vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+			sizeof(dma_addr_t));
+	if (!addrs) {
+		ipath_dev_err(dd, "failed to allocate shadow dma handle "
+			      "array, no expected sends!\n");
+		vfree(dd->ipath_pageshadow);
+		dd->ipath_pageshadow = NULL;
+		return;
+	}
+
+	memset(pages, 0, dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+	       sizeof(struct page *));
+
+	dd->ipath_pageshadow = pages;
+	dd->ipath_physshadow = addrs;
 }
 
 static void enable_chip(struct ipath_devdata *dd,
