@@ -44,9 +44,8 @@ struct pt_regs {
 	unsigned long cp0_epc;
 #ifdef CONFIG_MIPS_MT_SMTC
 	unsigned long cp0_tcstatus;
-	unsigned long smtc_pad;
 #endif /* CONFIG_MIPS_MT_SMTC */
-};
+} __attribute__ ((aligned (8)));
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */
 #define PTRACE_GETREGS		12
