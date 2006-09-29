@@ -192,13 +192,13 @@ static struct rcu_torture_ops *cur_ops = NULL;
  * Definitions for rcu torture testing.
  */
 
-static int rcu_torture_read_lock(void)
+static int rcu_torture_read_lock(void) __acquires(RCU)
 {
 	rcu_read_lock();
 	return 0;
 }
 
-static void rcu_torture_read_unlock(int idx)
+static void rcu_torture_read_unlock(int idx) __releases(RCU)
 {
 	rcu_read_unlock();
 }
@@ -250,13 +250,13 @@ static struct rcu_torture_ops rcu_ops = {
  * Definitions for rcu_bh torture testing.
  */
 
-static int rcu_bh_torture_read_lock(void)
+static int rcu_bh_torture_read_lock(void) __acquires(RCU_BH)
 {
 	rcu_read_lock_bh();
 	return 0;
 }
 
-static void rcu_bh_torture_read_unlock(int idx)
+static void rcu_bh_torture_read_unlock(int idx) __releases(RCU_BH)
 {
 	rcu_read_unlock_bh();
 }
