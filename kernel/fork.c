@@ -1150,7 +1150,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */
-	   
 	p->parent_exec_id = p->self_exec_id;
 
 	/* ok, now we should be set up.. */
@@ -1172,6 +1171,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
+
+	/* for sys_ioprio_set(IOPRIO_WHO_PGRP) */
+	p->ioprio = current->ioprio;
 
 	/*
 	 * The task hasn't been attached yet, so its cpus_allowed mask will
@@ -1231,11 +1233,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			p->it_prof_expires = jiffies_to_cputime(1);
 		}
 	}
-
-	/*
-	 * inherit ioprio
-	 */
-	p->ioprio = current->ioprio;
 
 	if (likely(p->pid)) {
 		add_parent(p);
