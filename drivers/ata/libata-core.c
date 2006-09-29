@@ -5741,7 +5741,7 @@ void ata_host_remove(struct ata_host *host)
 
 /**
  *	ata_scsi_release - SCSI layer callback hook for host unload
- *	@host: libata host to be unloaded
+ *	@shost: libata host to be unloaded
  *
  *	Performs all duties necessary to shut down a libata port...
  *	Kill port kthread, disable port, and release resources.

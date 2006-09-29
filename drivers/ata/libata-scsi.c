@@ -3174,7 +3174,7 @@ void ata_scsi_dev_rescan(void *data)
 
 /**
  *	ata_sas_port_alloc - Allocate port for a SAS attached SATA device
- *	@pdev: PCI device that the scsi device is attached to
+ *	@host: ATA host container for all SAS ports
  *	@port_info: Information from low-level host driver
  *	@shost: SCSI host that the scsi device is attached to
  *
