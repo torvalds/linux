@@ -2840,12 +2840,9 @@ S:	Maintained
 SUPERH (sh)
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-P:	Kazumoto Kojima
-M:	kkojima@rr.iij4u.or.jp
 L:	linuxsh-dev@lists.sourceforge.net
 W:	http://www.linux-sh.org
 W:	http://www.m17n.org/linux-sh/
-W:	http://www.rr.iij4u.or.jp/~kkojima/linux-sh4.html
 S:	Maintained
 
 SUPERH64 (sh64)
