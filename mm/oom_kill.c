@@ -260,14 +260,11 @@ static void __oom_kill_task(struct task_struct *p, const char *message)
 		return;
 	}
 
-	task_lock(p);
-	if (!p->mm || p->mm == &init_mm) {
+	if (!p->mm) {
 		WARN_ON(1);
 		printk(KERN_WARNING "tried to kill an mm-less task!\n");
-		task_unlock(p);
 		return;
 	}
-	task_unlock(p);
 
 	if (message) {
 		printk(KERN_ERR "%s: Killed process %d (%s).\n",
@@ -301,7 +298,7 @@ static int oom_kill_task(struct task_struct *p, const char *message)
 	 * However, this is of no concern to us.
 	 */
 
-	if (mm == NULL || mm == &init_mm)
+	if (mm == NULL)
 		return 1;
 
 	__oom_kill_task(p, message);
