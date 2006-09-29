@@ -1862,6 +1862,11 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 
 	ret = ib_send_cm_req(id_priv->cm_id.ib, &req);
 out:
+	if (ret && !IS_ERR(id_priv->cm_id.ib)) {
+		ib_destroy_cm_id(id_priv->cm_id.ib);
+		id_priv->cm_id.ib = NULL;
+	}
+
 	kfree(private_data);
 	return ret;
 }
@@ -1889,10 +1894,8 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	cm_id->remote_addr = *sin;
 
 	ret = cma_modify_qp_rtr(&id_priv->id);
-	if (ret) {
-		iw_destroy_cm_id(cm_id);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
 	iw_param.ord = conn_param->initiator_depth;
 	iw_param.ird = conn_param->responder_resources;
@@ -1904,6 +1907,10 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 		iw_param.qpn = conn_param->qp_num;
 	ret = iw_cm_connect(cm_id, &iw_param);
 out:
+	if (ret && !IS_ERR(cm_id)) {
+		iw_destroy_cm_id(cm_id);
+		id_priv->cm_id.iw = NULL;
+	}
 	return ret;
 }
 
