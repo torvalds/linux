@@ -4,6 +4,7 @@ u32 scx200_gpio_configure(unsigned index, u32 set, u32 clear);
 
 extern unsigned scx200_gpio_base;
 extern long scx200_gpio_shadow[2];
+extern struct nsc_gpio_ops scx200_gpio_ops;
 
 #define scx200_gpio_present() (scx200_gpio_base!=0)
 

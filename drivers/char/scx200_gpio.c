@@ -44,7 +44,7 @@ struct nsc_gpio_ops scx200_gpio_ops = {
 	.gpio_change	= scx200_gpio_change,
 	.gpio_current	= scx200_gpio_current
 };
-EXPORT_SYMBOL(scx200_gpio_ops);
+EXPORT_SYMBOL_GPL(scx200_gpio_ops);
 
 static int scx200_gpio_open(struct inode *inode, struct file *file)
 {
