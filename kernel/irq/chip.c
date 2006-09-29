@@ -146,7 +146,7 @@ static void default_disable(unsigned int irq)
 	struct irq_desc *desc = irq_desc + irq;
 
 	if (!(desc->status & IRQ_DELAYED_DISABLE))
-		irq_desc[irq].chip->mask(irq);
+		desc->chip->mask(irq);
 }
 
 /*
