@@ -2065,8 +2065,9 @@ fail_no_mem:
 
 	/* call the tty release_mem routine to clean out this slot */
 release_mem_out:
-	printk(KERN_INFO "init_dev: ldisc open failed, "
-			 "clearing slot %d\n", idx);
+	if (printk_ratelimit())
+		printk(KERN_INFO "init_dev: ldisc open failed, "
+				 "clearing slot %d\n", idx);
 	release_mem(tty, idx);
 	goto end_init;
 }
