@@ -2740,18 +2740,21 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
  *	@tty; tty
  *	@arg: user buffer for result
  *
- *	Copies the kernel idea of the window size into the user buffer. No
- *	locking is done.
+ *	Copies the kernel idea of the window size into the user buffer.
  *
- *	FIXME: Returning random values racing a window size set is wrong
- *	should lock here against that
+ *	Locking: tty->termios_sem is taken to ensure the winsize data
+ *		is consistent.
  */
 
 static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
 {
-	if (copy_to_user(arg, &tty->winsize, sizeof(*arg)))
-		return -EFAULT;
-	return 0;
+	int err;
+
+	down(&tty->termios_sem);
+	err = copy_to_user(arg, &tty->winsize, sizeof(*arg));
+	up(&tty->termios_sem);
+
+	return err ? -EFAULT: 0;
 }
 
 /**
