@@ -163,10 +163,10 @@ static int __init page_is_ram(unsigned long pagenr)
 
 void __init paging_init(void)
 {
-	unsigned long zones_size[] = { 0, };
+	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 	unsigned long max_dma, high, low;
 #ifndef CONFIG_FLATMEM
-	unsigned long zholes_size[] = { 0, };
+	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
 	unsigned long i, j, pfn;
 #endif
 
