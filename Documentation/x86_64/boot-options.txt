@@ -199,6 +199,10 @@ IOMMU
    allowed  overwrite iommu off workarounds for specific chipsets.
    soft	 Use software bounce buffering (default for Intel machines)
    noaperture Don't touch the aperture for AGP.
+   allowdac Allow DMA >4GB
+	    When off all DMA over >4GB is forced through an IOMMU or bounce
+	    buffering.
+   nodac    Forbid DMA >4GB
 
   swiotlb=pages[,force]
 

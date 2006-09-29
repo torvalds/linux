@@ -170,8 +170,20 @@ void dma_free_coherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
+static int forbid_dac __read_mostly;
+
 int dma_supported(struct device *dev, u64 mask)
 {
+#ifdef CONFIG_PCI
+	if (mask > 0xffffffff && forbid_dac > 0) {
+
+
+
+		printk(KERN_INFO "PCI: Disallowing DAC for device %s\n", dev->bus_id);
+		return 0;
+	}
+#endif
+
 	if (dma_ops->dma_supported)
 		return dma_ops->dma_supported(dev, mask);
 
@@ -231,6 +243,8 @@ EXPORT_SYMBOL(dma_set_mask);
    allowed  overwrite iommu off workarounds for specific chipsets.
    soft	 Use software bounce buffering (default for Intel machines)
    noaperture Don't touch the aperture for AGP.
+   allowdac Allow DMA >4GB
+   nodac    Forbid DMA >4GB
 */
 __init int iommu_setup(char *p)
 {
@@ -267,6 +281,10 @@ __init int iommu_setup(char *p)
 		    iommu_merge = 0;
 	    if (!strncmp(p, "forcesac",8))
 		    iommu_sac_force = 1;
+	    if (!strncmp(p, "allowdac", 8))
+		    forbid_dac = 0;
+	    if (!strncmp(p, "nodac", 5))
+		    forbid_dac = -1;
 
 #ifdef CONFIG_SWIOTLB
 	    if (!strncmp(p, "soft",4))
