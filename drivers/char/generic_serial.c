@@ -746,11 +746,9 @@ void gs_set_termios (struct tty_struct * tty,
 		gs_dprintk (GS_DEBUG_TERMIOS, "termios structure (%p):\n", tiosp);
 	}
 
-#if 0
 	/* This is an optimization that is only allowed for dumb cards */
 	/* Smart cards require knowledge of iflags and oflags too: that 
 	   might change hardware cooking mode.... */
-#endif
 	if (old_termios) {
 		if(   (tiosp->c_iflag == old_termios->c_iflag)
 		   && (tiosp->c_oflag == old_termios->c_oflag)
@@ -774,14 +772,7 @@ void gs_set_termios (struct tty_struct * tty,
 		if(!memcmp(tiosp->c_cc, old_termios->c_cc, NCC)) printk("c_cc changed\n");
 	}
 
-	baudrate = tiosp->c_cflag & CBAUD;
-	if (baudrate & CBAUDEX) {
-		baudrate &= ~CBAUDEX;
-		if ((baudrate < 1) || (baudrate > 4))
-			tiosp->c_cflag &= ~CBAUDEX;
-		else
-			baudrate += 15;
-	}
+	baudrate = tty_get_baud_rate(tty);
 
 	baudrate = gs_baudrates[baudrate];
 	if ((tiosp->c_cflag & CBAUD) == B38400) {
