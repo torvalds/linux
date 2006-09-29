@@ -119,11 +119,6 @@ static int uml_net_open(struct net_device *dev)
 		goto out;
 	}
 
-	if(!lp->have_mac){
- 		dev_ip_addr(dev, &lp->mac[2]);
- 		set_ether_mac(dev, lp->mac);
-	}
-
 	lp->fd = (*lp->open)(&lp->user);
 	if(lp->fd < 0){
 		err = lp->fd;
@@ -287,6 +282,39 @@ void uml_net_user_timer_expire(unsigned long _conn)
 #endif
 }
 
+static void setup_etheraddr(char *str, unsigned char *addr)
+{
+	char *end;
+	int i;
+
+	if(str == NULL)
+		goto random;
+
+	for(i=0;i<6;i++){
+		addr[i] = simple_strtoul(str, &end, 16);
+		if((end == str) ||
+		   ((*end != ':') && (*end != ',') && (*end != '\0'))){
+			printk(KERN_ERR
+			       "setup_etheraddr: failed to parse '%s' "
+			       "as an ethernet address\n", str);
+			goto random;
+		}
+		str = end + 1;
+	}
+	if(addr[0] & 1){
+		printk(KERN_ERR
+		       "Attempt to assign a broadcast ethernet address to a "
+		       "device disallowed\n");
+		goto random;
+	}
+	return;
+
+random:
+	addr[0] = 0xfe;
+	addr[1] = 0xfd;
+	random_mac(addr);
+}
+
 static DEFINE_SPINLOCK(devices_lock);
 static LIST_HEAD(devices);
 
@@ -322,15 +350,13 @@ static int eth_configure(int n, void *init, char *mac,
 	list_add(&device->list, &devices);
 	spin_unlock(&devices_lock);
 
-	if (setup_etheraddr(mac, device->mac))
-		device->have_mac = 1;
+	setup_etheraddr(mac, device->mac);
 
 	printk(KERN_INFO "Netdevice %d ", n);
-	if (device->have_mac)
-		printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
-		       device->mac[0], device->mac[1],
-		       device->mac[2], device->mac[3],
-		       device->mac[4], device->mac[5]);
+	printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
+	       device->mac[0], device->mac[1],
+	       device->mac[2], device->mac[3],
+	       device->mac[4], device->mac[5]);
 	printk(": ");
 	dev = alloc_etherdev(size);
 	if (dev == NULL) {
@@ -396,7 +422,6 @@ static int eth_configure(int n, void *init, char *mac,
 		  .dev 			= dev,
 		  .fd 			= -1,
 		  .mac 			= { 0xfe, 0xfd, 0x0, 0x0, 0x0, 0x0},
-		  .have_mac 		= device->have_mac,
 		  .protocol 		= transport->kern->protocol,
 		  .open 		= transport->user->open,
 		  .close 		= transport->user->close,
@@ -411,14 +436,12 @@ static int eth_configure(int n, void *init, char *mac,
 	init_timer(&lp->tl);
 	spin_lock_init(&lp->lock);
 	lp->tl.function = uml_net_user_timer_expire;
-	if (lp->have_mac)
-		memcpy(lp->mac, device->mac, sizeof(lp->mac));
+	memcpy(lp->mac, device->mac, sizeof(lp->mac));
 
 	if (transport->user->init) 
 		(*transport->user->init)(&lp->user, dev);
 
-	if (device->have_mac)
-		set_ether_mac(dev, device->mac);
+	set_ether_mac(dev, device->mac);
 
 	return 0;
 }
@@ -746,54 +769,6 @@ static void close_devices(void)
 }
 
 __uml_exitcall(close_devices);
-
-int setup_etheraddr(char *str, unsigned char *addr)
-{
-	char *end;
-	int i;
-
-	if(str == NULL)
-		goto random;
-
-	for(i=0;i<6;i++){
-		addr[i] = simple_strtoul(str, &end, 16);
-		if((end == str) ||
-		   ((*end != ':') && (*end != ',') && (*end != '\0'))){
-			printk(KERN_ERR 
-			       "setup_etheraddr: failed to parse '%s' "
-			       "as an ethernet address\n", str);
-			goto random;
-		}
-		str = end + 1;
-	}
-	if(addr[0] & 1){
-		printk(KERN_ERR 
-		       "Attempt to assign a broadcast ethernet address to a "
-		       "device disallowed\n");
-		goto random;
-	}
-	return 1;
-
-random:
-	addr[0] = 0xfe;
-	addr[1] = 0xfd;
-	random_mac(addr);
-	return 1;
-}
-
-void dev_ip_addr(void *d, unsigned char *bin_buf)
-{
-	struct net_device *dev = d;
-	struct in_device *ip = dev->ip_ptr;
-	struct in_ifaddr *in;
-
-	if((ip == NULL) || ((in = ip->ifa_list) == NULL)){
-		printk(KERN_WARNING "dev_ip_addr - device not assigned an "
-		       "IP address\n");
-		return;
-	}
-	memcpy(bin_buf, &in->ifa_address, sizeof(in->ifa_address));
-}
 
 struct sk_buff *ether_adjust_skb(struct sk_buff *skb, int extra)
 {

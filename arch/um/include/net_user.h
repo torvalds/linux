@@ -25,7 +25,6 @@ struct net_user_info {
 };
 
 extern void ether_user_init(void *data, void *dev);
-extern void dev_ip_addr(void *d, unsigned char *bin_buf);
 extern void iter_addresses(void *d, void (*cb)(unsigned char *,
 					       unsigned char *, void *),
 			   void *arg);
