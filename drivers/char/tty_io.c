@@ -160,17 +160,11 @@ static void release_mem(struct tty_struct *tty, int idx);
  *	been initialized in any way but has been zeroed
  *
  *	Locking: none
- *	FIXME: use kzalloc
  */
 
 static struct tty_struct *alloc_tty_struct(void)
 {
-	struct tty_struct *tty;
-
-	tty = kmalloc(sizeof(struct tty_struct), GFP_KERNEL);
-	if (tty)
-		memset(tty, 0, sizeof(struct tty_struct));
-	return tty;
+	return kzalloc(sizeof(struct tty_struct), GFP_KERNEL);
 }
 
 static void tty_buffer_free_all(struct tty_struct *);
