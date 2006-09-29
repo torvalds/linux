@@ -1620,7 +1620,8 @@ D: fbdev hacking
 
 N: Jesper Juhl
 E: jesper.juhl@gmail.com
-D: Various fixes, cleanups and minor features.
+D: Various fixes, cleanups and minor features all over the tree.
+D: Wrote initial version of the hdaps driver (since passed on to others).
 S: Lemnosvej 1, 3.tv
 S: 2300 Copenhagen S.
 S: Denmark
