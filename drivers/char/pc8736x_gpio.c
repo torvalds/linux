@@ -188,16 +188,6 @@ static void pc8736x_gpio_set(unsigned minor, int val)
 	pc8736x_gpio_shadow[port] = val;
 }
 
-static void pc8736x_gpio_set_high(unsigned index)
-{
-	pc8736x_gpio_set(index, 1);
-}
-
-static void pc8736x_gpio_set_low(unsigned index)
-{
-	pc8736x_gpio_set(index, 0);
-}
-
 static int pc8736x_gpio_current(unsigned minor)
 {
 	int port, bit;
