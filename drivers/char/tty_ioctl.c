@@ -423,24 +423,28 @@ static int set_ltchars(struct tty_struct * tty, struct ltchars __user * ltchars)
  *
  *	Send a high priority character to the tty even if stopped
  *
- *	Locking: none
- *
- *	FIXME: overlapping calls with start/stop tty lose state of tty
+ *	Locking: none for xchar method, write ordering for write method.
  */
 
-static void send_prio_char(struct tty_struct *tty, char ch)
+static int send_prio_char(struct tty_struct *tty, char ch)
 {
 	int	was_stopped = tty->stopped;
 
 	if (tty->driver->send_xchar) {
 		tty->driver->send_xchar(tty, ch);
-		return;
+		return 0;
 	}
+
+	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+		return -ERESTARTSYS;
+
 	if (was_stopped)
 		start_tty(tty);
 	tty->driver->write(tty, &ch, 1);
 	if (was_stopped)
 		stop_tty(tty);
+	mutex_unlock(&tty->atomic_write_lock);
+	return 0;
 }
 
 int n_tty_ioctl(struct tty_struct * tty, struct file * file,
@@ -514,11 +518,11 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 				break;
 			case TCIOFF:
 				if (STOP_CHAR(tty) != __DISABLED_CHAR)
-					send_prio_char(tty, STOP_CHAR(tty));
+					return send_prio_char(tty, STOP_CHAR(tty));
 				break;
 			case TCION:
 				if (START_CHAR(tty) != __DISABLED_CHAR)
-					send_prio_char(tty, START_CHAR(tty));
+					return send_prio_char(tty, START_CHAR(tty));
 				break;
 			default:
 				return -EINVAL;
