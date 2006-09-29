@@ -3348,9 +3348,6 @@ need_resched_nonpreemptible:
 
 	spin_lock_irq(&rq->lock);
 
-	if (unlikely(prev->flags & PF_DEAD))
-		prev->state = EXIT_DEAD;
-
 	switch_count = &prev->nivcsw;
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		switch_count = &prev->nvcsw;

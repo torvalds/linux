@@ -957,6 +957,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	preempt_disable();
 	BUG_ON(tsk->flags & PF_DEAD);
 	tsk->flags |= PF_DEAD;
+	tsk->state = EXIT_DEAD;
 
 	schedule();
 	BUG();
