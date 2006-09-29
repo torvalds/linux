@@ -898,8 +898,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	return 0;
 
 mmap_failed:
-	put_files_struct(current->files);
-	current->files = files;
+	reset_files_struct(current, files);
 out:
 	return retval;
 }

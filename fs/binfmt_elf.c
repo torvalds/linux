@@ -1038,10 +1038,8 @@ out_free_interp:
 out_free_file:
 	sys_close(elf_exec_fileno);
 out_free_fh:
-	if (files) {
-		put_files_struct(current->files);
-		current->files = files;
-	}
+	if (files)
+		reset_files_struct(current, files);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;
