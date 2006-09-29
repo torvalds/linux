@@ -199,7 +199,7 @@ EXPORT_SYMBOL(deactivate_super);
  *	success, 0 if we had failed (superblock contents was already dead or
  *	dying when grab_super() had been called).
  */
-static int grab_super(struct super_block *s)
+static int grab_super(struct super_block *s) __releases(sb_lock)
 {
 	s->s_count++;
 	spin_unlock(&sb_lock);
