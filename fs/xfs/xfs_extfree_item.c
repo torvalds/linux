@@ -33,9 +33,6 @@ kmem_zone_t	*xfs_efi_zone;
 kmem_zone_t	*xfs_efd_zone;
 
 STATIC void	xfs_efi_item_unlock(xfs_efi_log_item_t *);
-STATIC void	xfs_efi_item_abort(xfs_efi_log_item_t *);
-STATIC void	xfs_efd_item_abort(xfs_efd_log_item_t *);
-
 
 void
 xfs_efi_item_free(xfs_efi_log_item_t *efip)
@@ -184,7 +181,7 @@ STATIC void
 xfs_efi_item_unlock(xfs_efi_log_item_t *efip)
 {
 	if (efip->efi_item.li_flags & XFS_LI_ABORTED)
-		xfs_efi_item_abort(efip);
+		xfs_efi_item_free(efip);
 	return;
 }
 
@@ -199,18 +196,6 @@ STATIC xfs_lsn_t
 xfs_efi_item_committed(xfs_efi_log_item_t *efip, xfs_lsn_t lsn)
 {
 	return lsn;
-}
-
-/*
- * This is called when the transaction logging the EFI is aborted.
- * Free up the EFI and return.  No need to clean up the slot for
- * the item in the transaction.  That was done by the unpin code
- * which is called prior to this routine in the abort/fs-shutdown path.
- */
-STATIC void
-xfs_efi_item_abort(xfs_efi_log_item_t *efip)
-{
-	xfs_efi_item_free(efip);
 }
 
 /*
@@ -255,7 +240,6 @@ STATIC struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_efi_item_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_efi_item_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_efi_item_abort,
 	.iop_pushbuf	= NULL,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_efi_item_committing
@@ -386,33 +370,6 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 	}
 }
 
-/*
- * This is called when the transaction that should be committing the
- * EFD corresponding to the given EFI is aborted.  The committed and
- * canceled flags are used to coordinate the freeing of the EFI and
- * the references by the transaction that committed it.
- */
-STATIC void
-xfs_efi_cancel(
-	xfs_efi_log_item_t	*efip)
-{
-	xfs_mount_t	*mp;
-	SPLDECL(s);
-
-	mp = efip->efi_item.li_mountp;
-	AIL_LOCK(mp, s);
-	if (efip->efi_flags & XFS_EFI_COMMITTED) {
-		/*
-		 * xfs_trans_delete_ail() drops the AIL lock.
-		 */
-		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip, s);
-		xfs_efi_item_free(efip);
-	} else {
-		efip->efi_flags |= XFS_EFI_CANCELED;
-		AIL_UNLOCK(mp, s);
-	}
-}
-
 STATIC void
 xfs_efd_item_free(xfs_efd_log_item_t *efdp)
 {
@@ -514,7 +471,7 @@ STATIC void
 xfs_efd_item_unlock(xfs_efd_log_item_t *efdp)
 {
 	if (efdp->efd_item.li_flags & XFS_LI_ABORTED)
-		xfs_efd_item_abort(efdp);
+		xfs_efd_item_free(efdp);
 	return;
 }
 
@@ -538,27 +495,6 @@ xfs_efd_item_committed(xfs_efd_log_item_t *efdp, xfs_lsn_t lsn)
 
 	xfs_efd_item_free(efdp);
 	return (xfs_lsn_t)-1;
-}
-
-/*
- * The transaction of which this EFD is a part has been aborted.
- * Inform its companion EFI of this fact and then clean up after
- * ourselves.  No need to clean up the slot for the item in the
- * transaction.  That was done by the unpin code which is called
- * prior to this routine in the abort/fs-shutdown path.
- */
-STATIC void
-xfs_efd_item_abort(xfs_efd_log_item_t *efdp)
-{
-	/*
-	 * If we got a log I/O error, it's always the case that the LR with the
-	 * EFI got unpinned and freed before the EFD got aborted. So don't
-	 * reference the EFI at all in that case.
-	 */
-	if ((efdp->efd_item.li_flags & XFS_LI_ABORTED) == 0)
-		xfs_efi_cancel(efdp->efd_efip);
-
-	xfs_efd_item_free(efdp);
 }
 
 /*
@@ -602,7 +538,6 @@ STATIC struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_efd_item_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_efd_item_push,
-	.iop_abort	= (void(*)(xfs_log_item_t*))xfs_efd_item_abort,
 	.iop_pushbuf	= NULL,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_efd_item_committing

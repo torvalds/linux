@@ -32,7 +32,6 @@ struct xfs_mount;
 #define XLOG_MIN_ICLOGS		2
 #define XLOG_MED_ICLOGS		4
 #define XLOG_MAX_ICLOGS		8
-#define XLOG_CALLBACK_SIZE	10
 #define XLOG_HEADER_MAGIC_NUM	0xFEEDbabe	/* Invalid cycle number */
 #define XLOG_VERSION_1		1
 #define XLOG_VERSION_2		2		/* Large IClogs, Log sunit */
@@ -149,9 +148,6 @@ struct xfs_mount;
 #define XLOG_WAS_CONT_TRANS	0x08	/* Cont this trans into new region */
 #define XLOG_END_TRANS		0x10	/* End a continued transaction */
 #define XLOG_UNMOUNT_TRANS	0x20	/* Unmount a filesystem transaction */
-#define XLOG_SKIP_TRANS		(XLOG_COMMIT_TRANS | XLOG_CONTINUE_TRANS | \
-				 XLOG_WAS_CONT_TRANS | XLOG_END_TRANS | \
-				 XLOG_UNMOUNT_TRANS)
 
 #ifdef __KERNEL__
 /*
@@ -505,6 +501,12 @@ extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
 #define XLOG_TRACE_REL_FLUSH   2
 #define XLOG_TRACE_SLEEP_FLUSH 3
 #define XLOG_TRACE_WAKE_FLUSH  4
+
+/*
+ * Unmount record type is used as a pseudo transaction type for the ticket.
+ * It's value must be outside the range of XFS_TRANS_* values.
+ */
+#define XLOG_UNMOUNT_REC_TYPE	(-1U)
 
 #endif	/* __KERNEL__ */
 

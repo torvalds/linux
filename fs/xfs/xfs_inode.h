@@ -267,6 +267,7 @@ typedef struct xfs_inode {
 	sema_t			i_flock;	/* inode flush lock */
 	atomic_t		i_pincount;	/* inode pin count */
 	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
+	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 #ifdef HAVE_REFCACHE
 	struct xfs_inode	**i_refcache;	/* ptr to entry in ref cache */
 	struct xfs_inode	*i_release;	/* inode to unref */
@@ -389,11 +390,14 @@ typedef struct xfs_inode {
 	(((vfsp)->vfs_flag & VFS_GRPID) || ((pip)->i_d.di_mode & S_ISGID))
 
 /*
+ * Flags for xfs_iget()
+ */
+#define XFS_IGET_CREATE		0x1
+#define XFS_IGET_BULKSTAT	0x2
+
+/*
  * xfs_iget.c prototypes.
  */
-
-#define IGET_CREATE	1
-
 void		xfs_ihash_init(struct xfs_mount *);
 void		xfs_ihash_free(struct xfs_mount *);
 void		xfs_chash_init(struct xfs_mount *);
@@ -425,7 +429,7 @@ int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  xfs_inode_t *, xfs_dinode_t **, struct xfs_buf **,
 			  xfs_daddr_t, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
-			  xfs_inode_t **, xfs_daddr_t);
+			  xfs_inode_t **, xfs_daddr_t, uint);
 int		xfs_iread_extents(struct xfs_trans *, xfs_inode_t *, int);
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
 			   xfs_nlink_t, xfs_dev_t, struct cred *, xfs_prid_t,

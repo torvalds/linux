@@ -276,7 +276,7 @@ xfs_trans_update_ail(
 	xfs_mount_t	*mp,
 	xfs_log_item_t	*lip,
 	xfs_lsn_t	lsn,
-	unsigned long	s)
+	unsigned long	s) __releases(mp->m_ail_lock)
 {
 	xfs_ail_entry_t		*ailp;
 	xfs_log_item_t		*dlip=NULL;
@@ -328,7 +328,7 @@ void
 xfs_trans_delete_ail(
 	xfs_mount_t	*mp,
 	xfs_log_item_t	*lip,
-	unsigned long	s)
+	unsigned long	s) __releases(mp->m_ail_lock)
 {
 	xfs_ail_entry_t		*ailp;
 	xfs_log_item_t		*dlip;

@@ -39,6 +39,16 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 
+int
+xfs_internal_inum(
+	xfs_mount_t	*mp,
+	xfs_ino_t	ino)
+{
+	return (ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
+		(XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
+		 (ino == mp->m_sb.sb_uquotino || ino == mp->m_sb.sb_gquotino)));
+}
+
 STATIC int
 xfs_bulkstat_one_iget(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
@@ -52,7 +62,8 @@ xfs_bulkstat_one_iget(
 	bhv_vnode_t	*vp;
 	int		error;
 
-	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, bno);
+	error = xfs_iget(mp, NULL, ino,
+			 XFS_IGET_BULKSTAT, XFS_ILOCK_SHARED, &ip, bno);
 	if (error) {
 		*stat = BULKSTAT_RV_NOTHING;
 		return error;
@@ -212,17 +223,12 @@ xfs_bulkstat_one(
 	xfs_dinode_t	*dip;		/* dinode inode pointer */
 
 	dip = (xfs_dinode_t *)dibuff;
+	*stat = BULKSTAT_RV_NOTHING;
 
-	if (!buffer || ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-	    (XFS_SB_VERSION_HASQUOTA(&mp->m_sb) &&
-	     (ino == mp->m_sb.sb_uquotino || ino == mp->m_sb.sb_gquotino))) {
-		*stat = BULKSTAT_RV_NOTHING;
+	if (!buffer || xfs_internal_inum(mp, ino))
 		return XFS_ERROR(EINVAL);
-	}
-	if (ubsize < sizeof(*buf)) {
-		*stat = BULKSTAT_RV_NOTHING;
+	if (ubsize < sizeof(*buf))
 		return XFS_ERROR(ENOMEM);
-	}
 
 	buf = kmem_alloc(sizeof(*buf), KM_SLEEP);
 
@@ -238,8 +244,7 @@ xfs_bulkstat_one(
 	}
 
 	if (copy_to_user(buffer, buf, sizeof(*buf)))  {
-		*stat = BULKSTAT_RV_NOTHING;
-		error =  EFAULT;
+		error = EFAULT;
 		goto out_free;
 	}
 
@@ -250,6 +255,46 @@ xfs_bulkstat_one(
  out_free:
 	kmem_free(buf, sizeof(*buf));
 	return error;
+}
+
+/*
+ * Test to see whether we can use the ondisk inode directly, based
+ * on the given bulkstat flags, filling in dipp accordingly.
+ * Returns zero if the inode is dodgey.
+ */
+STATIC int
+xfs_bulkstat_use_dinode(
+	xfs_mount_t	*mp,
+	int		flags,
+	xfs_buf_t	*bp,
+	int		clustidx,
+	xfs_dinode_t	**dipp)
+{
+	xfs_dinode_t	*dip;
+	unsigned int	aformat;
+
+	*dipp = NULL;
+	if (!bp || (flags & BULKSTAT_FG_IGET))
+		return 1;
+	dip = (xfs_dinode_t *)
+			xfs_buf_offset(bp, clustidx << mp->m_sb.sb_inodelog);
+	if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC ||
+	    !XFS_DINODE_GOOD_VERSION(
+			INT_GET(dip->di_core.di_version, ARCH_CONVERT)))
+		return 0;
+	if (flags & BULKSTAT_FG_QUICK) {
+		*dipp = dip;
+		return 1;
+	}
+	/* BULKSTAT_FG_INLINE: if attr fork is local, or not there, use it */
+	aformat = INT_GET(dip->di_core.di_aformat, ARCH_CONVERT);
+	if ((XFS_CFORK_Q(&dip->di_core) == 0) ||
+	    (aformat == XFS_DINODE_FMT_LOCAL) ||
+	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_core.di_anextents)) {
+		*dipp = dip;
+		return 1;
+	}
+	return 1;
 }
 
 /*
@@ -284,10 +329,11 @@ xfs_bulkstat(
 	xfs_agino_t		gino;	/* current btree rec's start inode */
 	int			i;	/* loop index */
 	int			icount;	/* count of inodes good in irbuf */
+	size_t			irbsize; /* size of irec buffer in bytes */
 	xfs_ino_t		ino;	/* inode number (filesystem) */
-	xfs_inobt_rec_t		*irbp;	/* current irec buffer pointer */
-	xfs_inobt_rec_t		*irbuf;	/* start of irec buffer */
-	xfs_inobt_rec_t		*irbufend; /* end of good irec buffer entries */
+	xfs_inobt_rec_incore_t	*irbp;	/* current irec buffer pointer */
+	xfs_inobt_rec_incore_t	*irbuf;	/* start of irec buffer */
+	xfs_inobt_rec_incore_t	*irbufend; /* end of good irec buffer entries */
 	xfs_ino_t		lastino=0; /* last inode number returned */
 	int			nbcluster; /* # of blocks in a cluster */
 	int			nicluster; /* # of inodes in a cluster */
@@ -328,13 +374,10 @@ xfs_bulkstat(
 		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
-	/*
-	 * Allocate a page-sized buffer for inode btree records.
-	 * We could try allocating something smaller, but for normal
-	 * calls we'll always (potentially) need the whole page.
-	 */
-	irbuf = kmem_alloc(NBPC, KM_SLEEP);
-	nirbuf = NBPC / sizeof(*irbuf);
+	irbuf = kmem_zalloc_greedy(&irbsize, NBPC, NBPC * 4,
+				   KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	nirbuf = irbsize / sizeof(*irbuf);
+
 	/*
 	 * Loop over the allocation groups, starting from the last
 	 * inode returned; 0 means start of the allocation group.
@@ -358,7 +401,7 @@ xfs_bulkstat(
 		 * Allocate and initialize a btree cursor for ialloc btree.
 		 */
 		cur = xfs_btree_init_cursor(mp, NULL, agbp, agno, XFS_BTNUM_INO,
-			(xfs_inode_t *)0, 0);
+						(xfs_inode_t *)0, 0);
 		irbp = irbuf;
 		irbufend = irbuf + nirbuf;
 		end_of_ag = 0;
@@ -395,9 +438,9 @@ xfs_bulkstat(
 						gcnt++;
 				}
 				gfree |= XFS_INOBT_MASKN(0, chunkidx);
-				INT_SET(irbp->ir_startino, ARCH_CONVERT, gino);
-				INT_SET(irbp->ir_freecount, ARCH_CONVERT, gcnt);
-				INT_SET(irbp->ir_free, ARCH_CONVERT, gfree);
+				irbp->ir_startino = gino;
+				irbp->ir_freecount = gcnt;
+				irbp->ir_free = gfree;
 				irbp++;
 				agino = gino + XFS_INODES_PER_CHUNK;
 				icount = XFS_INODES_PER_CHUNK - gcnt;
@@ -451,11 +494,27 @@ xfs_bulkstat(
 			}
 			/*
 			 * If this chunk has any allocated inodes, save it.
+			 * Also start read-ahead now for this chunk.
 			 */
 			if (gcnt < XFS_INODES_PER_CHUNK) {
-				INT_SET(irbp->ir_startino, ARCH_CONVERT, gino);
-				INT_SET(irbp->ir_freecount, ARCH_CONVERT, gcnt);
-				INT_SET(irbp->ir_free, ARCH_CONVERT, gfree);
+				/*
+				 * Loop over all clusters in the next chunk.
+				 * Do a readahead if there are any allocated
+				 * inodes in that cluster.
+				 */
+				for (agbno = XFS_AGINO_TO_AGBNO(mp, gino),
+				     chunkidx = 0;
+				     chunkidx < XFS_INODES_PER_CHUNK;
+				     chunkidx += nicluster,
+				     agbno += nbcluster) {
+					if (XFS_INOBT_MASKN(chunkidx,
+							    nicluster) & ~gfree)
+						xfs_btree_reada_bufs(mp, agno,
+							agbno, nbcluster);
+				}
+				irbp->ir_startino = gino;
+				irbp->ir_freecount = gcnt;
+				irbp->ir_free = gfree;
 				irbp++;
 				icount += XFS_INODES_PER_CHUNK - gcnt;
 			}
@@ -479,33 +538,11 @@ xfs_bulkstat(
 		for (irbp = irbuf;
 		     irbp < irbufend && ubleft >= statstruct_size; irbp++) {
 			/*
-			 * Read-ahead the next chunk's worth of inodes.
-			 */
-			if (&irbp[1] < irbufend) {
-				/*
-				 * Loop over all clusters in the next chunk.
-				 * Do a readahead if there are any allocated
-				 * inodes in that cluster.
-				 */
-				for (agbno = XFS_AGINO_TO_AGBNO(mp,
-							INT_GET(irbp[1].ir_startino, ARCH_CONVERT)),
-				     chunkidx = 0;
-				     chunkidx < XFS_INODES_PER_CHUNK;
-				     chunkidx += nicluster,
-				     agbno += nbcluster) {
-					if (XFS_INOBT_MASKN(chunkidx,
-							    nicluster) &
-					    ~(INT_GET(irbp[1].ir_free, ARCH_CONVERT)))
-						xfs_btree_reada_bufs(mp, agno,
-							agbno, nbcluster);
-				}
-			}
-			/*
 			 * Now process this chunk of inodes.
 			 */
-			for (agino = INT_GET(irbp->ir_startino, ARCH_CONVERT), chunkidx = 0, clustidx = 0;
+			for (agino = irbp->ir_startino, chunkidx = clustidx = 0;
 			     ubleft > 0 &&
-				INT_GET(irbp->ir_freecount, ARCH_CONVERT) < XFS_INODES_PER_CHUNK;
+				irbp->ir_freecount < XFS_INODES_PER_CHUNK;
 			     chunkidx++, clustidx++, agino++) {
 				ASSERT(chunkidx < XFS_INODES_PER_CHUNK);
 				/*
@@ -525,11 +562,12 @@ xfs_bulkstat(
 				 */
 				if ((chunkidx & (nicluster - 1)) == 0) {
 					agbno = XFS_AGINO_TO_AGBNO(mp,
-							INT_GET(irbp->ir_startino, ARCH_CONVERT)) +
+							irbp->ir_startino) +
 						((chunkidx & nimask) >>
 						 mp->m_sb.sb_inopblog);
 
-					if (flags & BULKSTAT_FG_QUICK) {
+					if (flags & (BULKSTAT_FG_QUICK |
+						     BULKSTAT_FG_INLINE)) {
 						ino = XFS_AGINO_TO_INO(mp, agno,
 								       agino);
 						bno = XFS_AGB_TO_DADDR(mp, agno,
@@ -543,6 +581,7 @@ xfs_bulkstat(
 								      KM_SLEEP);
 						ip->i_ino = ino;
 						ip->i_mount = mp;
+						spin_lock_init(&ip->i_flags_lock);
 						if (bp)
 							xfs_buf_relse(bp);
 						error = xfs_itobp(mp, NULL, ip,
@@ -564,30 +603,34 @@ xfs_bulkstat(
 				/*
 				 * Skip if this inode is free.
 				 */
-				if (XFS_INOBT_MASK(chunkidx) & INT_GET(irbp->ir_free, ARCH_CONVERT))
+				if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free)
 					continue;
 				/*
 				 * Count used inodes as free so we can tell
 				 * when the chunk is used up.
 				 */
-				INT_MOD(irbp->ir_freecount, ARCH_CONVERT, +1);
+				irbp->ir_freecount++;
 				ino = XFS_AGINO_TO_INO(mp, agno, agino);
 				bno = XFS_AGB_TO_DADDR(mp, agno, agbno);
-				if (flags & BULKSTAT_FG_QUICK) {
-					dip = (xfs_dinode_t *)xfs_buf_offset(bp,
-					      (clustidx << mp->m_sb.sb_inodelog));
-
-					if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT)
-						    != XFS_DINODE_MAGIC
-					    || !XFS_DINODE_GOOD_VERSION(
-						    INT_GET(dip->di_core.di_version, ARCH_CONVERT)))
-						continue;
+				if (!xfs_bulkstat_use_dinode(mp, flags, bp,
+							     clustidx, &dip))
+					continue;
+				/*
+				 * If we need to do an iget, cannot hold bp.
+				 * Drop it, until starting the next cluster.
+				 */
+				if ((flags & BULKSTAT_FG_INLINE) && !dip) {
+					if (bp)
+						xfs_buf_relse(bp);
+					bp = NULL;
 				}
 
 				/*
 				 * Get the inode and fill in a single buffer.
 				 * BULKSTAT_FG_QUICK uses dip to fill it in.
 				 * BULKSTAT_FG_IGET uses igets.
+				 * BULKSTAT_FG_INLINE uses dip if we have an
+				 * inline attr fork, else igets.
 				 * See: xfs_bulkstat_one & xfs_dm_bulkstat_one.
 				 * This is also used to count inodes/blks, etc
 				 * in xfs_qm_quotacheck.
@@ -597,8 +640,15 @@ xfs_bulkstat(
 						ubleft, private_data,
 						bno, &ubused, dip, &fmterror);
 				if (fmterror == BULKSTAT_RV_NOTHING) {
-					if (error == ENOMEM)
+                                        if (error == EFAULT) {
+                                                ubleft = 0;
+                                                rval = error;
+                                                break;
+                                        }
+					else if (error == ENOMEM)
 						ubleft = 0;
+					else
+						lastino = ino;
 					continue;
 				}
 				if (fmterror == BULKSTAT_RV_GIVEUP) {
@@ -633,7 +683,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free(irbuf, NBPC);
+	kmem_free(irbuf, irbsize);
 	*ubcountp = ubelem;
 	if (agno >= mp->m_sb.sb_agcount) {
 		/*

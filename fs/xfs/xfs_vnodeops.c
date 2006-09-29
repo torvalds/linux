@@ -2366,10 +2366,15 @@ xfs_remove(
 
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &ip)) {
+	        dm_di_mode = ip->i_d.di_mode;
+		IRELE(ip);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return error;
 	}
@@ -2995,7 +3000,7 @@ xfs_rmdir(
 	int			cancel_flags;
 	int			committed;
 	bhv_vnode_t		*dir_vp;
-	int			dm_di_mode = 0;
+	int			dm_di_mode = S_IFDIR;
 	int			last_cdp_link;
 	int			namelen;
 	uint			resblks;
@@ -3010,11 +3015,16 @@ xfs_rmdir(
 		return XFS_ERROR(EIO);
 	namelen = VNAMELEN(dentry);
 
+	if (!xfs_get_dir_entry(dentry, &cdp)) {
+	        dm_di_mode = cdp->i_d.di_mode;
+		IRELE(cdp);
+	}
+
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
-					name, NULL, 0, 0, 0);
+					name, NULL, dm_di_mode, 0, 0);
 		if (error)
 			return XFS_ERROR(error);
 	}
@@ -3834,7 +3844,9 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		vn_bhv_remove(VN_BHV_HEAD(vp), XFS_ITOBHV(ip));
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
+		spin_lock(&ip->i_flags_lock);
 		ip->i_flags |= XFS_IRECLAIMABLE;
+		spin_unlock(&ip->i_flags_lock);
 		XFS_MOUNT_IUNLOCK(mp);
 	}
 	return 0;
@@ -3859,8 +3871,10 @@ xfs_finish_reclaim(
 	 * us.
 	 */
 	write_lock(&ih->ih_lock);
+	spin_lock(&ip->i_flags_lock);
 	if ((ip->i_flags & XFS_IRECLAIM) ||
 	    (!(ip->i_flags & XFS_IRECLAIMABLE) && vp == NULL)) {
+		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&ih->ih_lock);
 		if (locked) {
 			xfs_ifunlock(ip);
@@ -3869,6 +3883,7 @@ xfs_finish_reclaim(
 		return 1;
 	}
 	ip->i_flags |= XFS_IRECLAIM;
+	spin_unlock(&ip->i_flags_lock);
 	write_unlock(&ih->ih_lock);
 
 	/*
@@ -4272,7 +4287,7 @@ xfs_free_file_space(
 	xfs_mount_t		*mp;
 	int			nimap;
 	uint			resblks;
-	int			rounding;
+	uint			rounding;
 	int			rt;
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_trans_t		*tp;
@@ -4313,8 +4328,7 @@ xfs_free_file_space(
 		vn_iowait(vp);	/* wait for the completion of any pending DIOs */
 	}
 
-	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
-			(__uint8_t)NBPP);
+	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
 	ilen = len + (offset & (rounding - 1));
 	ioffset = offset & ~(rounding - 1);
 	if (ilen & (rounding - 1))
