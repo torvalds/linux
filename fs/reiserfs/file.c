@@ -130,7 +130,7 @@ static int reiserfs_sync_file(struct file *p_s_filp,
 	reiserfs_write_lock(p_s_inode->i_sb);
 	barrier_done = reiserfs_commit_for_inode(p_s_inode);
 	reiserfs_write_unlock(p_s_inode->i_sb);
-	if (barrier_done != 1)
+	if (barrier_done != 1 && reiserfs_barrier_flush(p_s_inode->i_sb))
 		blkdev_issue_flush(p_s_inode->i_sb->s_bdev, NULL);
 	if (barrier_done < 0)
 		return barrier_done;
