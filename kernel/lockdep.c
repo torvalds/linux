@@ -122,8 +122,8 @@ static struct list_head chainhash_table[CHAINHASH_SIZE];
  * unique.
  */
 #define iterate_chain_key(key1, key2) \
-	(((key1) << MAX_LOCKDEP_KEYS_BITS/2) ^ \
-	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS/2)) ^ \
+	(((key1) << MAX_LOCKDEP_KEYS_BITS) ^ \
+	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
 	(key2))
 
 void lockdep_off(void)
