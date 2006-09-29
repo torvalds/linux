@@ -146,9 +146,11 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 #		error File is out of sync with <linux/mm.h>.  Please update.
 #	endif
 
+	if (((isr >> IA64_ISR_R_BIT) & 1UL) && (!(vma->vm_flags & (VM_READ | VM_WRITE))))
+		goto bad_area;
+
 	mask = (  (((isr >> IA64_ISR_X_BIT) & 1UL) << VM_EXEC_BIT)
-		| (((isr >> IA64_ISR_W_BIT) & 1UL) << VM_WRITE_BIT)
-		| (((isr >> IA64_ISR_R_BIT) & 1UL) << VM_READ_BIT));
+		| (((isr >> IA64_ISR_W_BIT) & 1UL) << VM_WRITE_BIT));
 
 	if ((vma->vm_flags & mask) != mask)
 		goto bad_area;
