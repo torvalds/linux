@@ -89,28 +89,15 @@ MODULE_LICENSE("GPL");
  */
 static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
 {
-	int cc;
+	int cc = 2;	/* return unused cc 2 if pgin traps */
 
-	__asm__ __volatile__ (
-		"   lhi   %0,2\n"  /* return unused cc 2 if pgin traps */
-		"   .insn rre,0xb22e0000,%1,%2\n"  /* pgin %1,%2 */
-                "0: ipm   %0\n"
-		"   srl   %0,28\n"
+	asm volatile(
+		"	.insn	rre,0xb22e0000,%1,%2\n"  /* pgin %1,%2 */
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
 		"1:\n"
-#ifndef CONFIG_64BIT
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-		"   .long  0b,1b\n"
-		".previous"
-#else
-                ".section __ex_table,\"a\"\n"
-                "   .align 8\n"
-                "   .quad 0b,1b\n"
-                ".previous"
-#endif
-		: "=&d" (cc) 
-		: "a" (__pa(page_addr)), "a" (xpage_index) 
-		: "cc" );
+		EX_TABLE(0b,1b)
+		: "+d" (cc) : "a" (__pa(page_addr)), "d" (xpage_index) : "cc");
 	if (cc == 3)
 		return -ENXIO;
 	if (cc == 2) {
@@ -137,28 +124,15 @@ static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
  */
 static long xpram_page_out (unsigned long page_addr, unsigned int xpage_index)
 {
-	int cc;
+	int cc = 2;	/* return unused cc 2 if pgin traps */
 
-	__asm__ __volatile__ (
-		"   lhi   %0,2\n"  /* return unused cc 2 if pgout traps */
-		"   .insn rre,0xb22f0000,%1,%2\n"  /* pgout %1,%2 */
-                "0: ipm   %0\n"
-		"   srl   %0,28\n"
+	asm volatile(
+		"	.insn	rre,0xb22f0000,%1,%2\n"  /* pgout %1,%2 */
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
 		"1:\n"
-#ifndef CONFIG_64BIT
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-		"   .long  0b,1b\n"
-		".previous"
-#else
-                ".section __ex_table,\"a\"\n"
-                "   .align 8\n"
-                "   .quad 0b,1b\n"
-                ".previous"
-#endif
-		: "=&d" (cc) 
-		: "a" (__pa(page_addr)), "a" (xpage_index) 
-		: "cc" );
+		EX_TABLE(0b,1b)
+		: "+d" (cc) : "a" (__pa(page_addr)), "d" (xpage_index) : "cc");
 	if (cc == 3)
 		return -ENXIO;
 	if (cc == 2) {

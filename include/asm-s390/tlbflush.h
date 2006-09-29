@@ -25,7 +25,7 @@
  */
 
 #define local_flush_tlb() \
-do {  __asm__ __volatile__("ptlb": : :"memory"); } while (0)
+do {  asm volatile("ptlb": : :"memory"); } while (0)
 
 #ifndef CONFIG_SMP
 
@@ -68,24 +68,24 @@ extern void smp_ptlb_all(void);
 
 static inline void global_flush_tlb(void)
 {
+	register unsigned long reg2 asm("2");
+	register unsigned long reg3 asm("3");
+	register unsigned long reg4 asm("4");
+	long dummy;
+
 #ifndef __s390x__
 	if (!MACHINE_HAS_CSP) {
 		smp_ptlb_all();
 		return;
 	}
 #endif /* __s390x__ */
-	{
-		register unsigned long addr asm("4");
-		long dummy;
 
-		dummy = 0;
-		addr = ((unsigned long) &dummy) + 1;
-		__asm__ __volatile__ (
-			"    slr  2,2\n"
-			"    slr  3,3\n"
-			"    csp  2,%0"
-			: : "a" (addr), "m" (dummy) : "cc", "2", "3" );
-	}
+	dummy = 0;
+	reg2 = reg3 = 0;
+	reg4 = ((unsigned long) &dummy) + 1;
+	asm volatile(
+		"	csp	%0,%2"
+		: : "d" (reg2), "d" (reg3), "d" (reg4), "m" (dummy) : "cc" );
 }
 
 /*
@@ -102,9 +102,9 @@ static inline void __flush_tlb_mm(struct mm_struct * mm)
 	if (unlikely(cpus_empty(mm->cpu_vm_mask)))
 		return;
 	if (MACHINE_HAS_IDTE) {
-		asm volatile (".insn rrf,0xb98e0000,0,%0,%1,0"
-			      : : "a" (2048),
-			      "a" (__pa(mm->pgd)&PAGE_MASK) : "cc" );
+		asm volatile(
+			"	.insn	rrf,0xb98e0000,0,%0,%1,0"
+			: : "a" (2048), "a" (__pa(mm->pgd)&PAGE_MASK) : "cc");
 		return;
 	}
 	preempt_disable();

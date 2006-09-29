@@ -730,6 +730,61 @@ static int adm1031_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, adm1031_detect);
 }
 
+static struct attribute *adm1031_attributes[] = {
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_auto_fan1_channel.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_min.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_crit.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp2_min.attr,
+	&dev_attr_temp2_max.attr,
+	&dev_attr_temp2_crit.attr,
+
+	&dev_attr_auto_temp1_off.attr,
+	&dev_attr_auto_temp1_min.attr,
+	&dev_attr_auto_temp1_max.attr,
+
+	&dev_attr_auto_temp2_off.attr,
+	&dev_attr_auto_temp2_min.attr,
+	&dev_attr_auto_temp2_max.attr,
+
+	&dev_attr_auto_fan1_min_pwm.attr,
+
+	&dev_attr_alarms.attr,
+
+	NULL
+};
+
+static const struct attribute_group adm1031_group = {
+	.attrs = adm1031_attributes,
+};
+
+static struct attribute *adm1031_attributes_opt[] = {
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan2_div.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_pwm2.attr,
+	&dev_attr_auto_fan2_channel.attr,
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp3_min.attr,
+	&dev_attr_temp3_max.attr,
+	&dev_attr_temp3_crit.attr,
+	&dev_attr_auto_temp3_off.attr,
+	&dev_attr_auto_temp3_min.attr,
+	&dev_attr_auto_temp3_max.attr,
+	&dev_attr_auto_fan2_min_pwm.attr,
+	NULL
+};
+
+static const struct attribute_group adm1031_group_opt = {
+	.attrs = adm1031_attributes_opt,
+};
+
 /* This function is called by i2c_probe */
 static int adm1031_detect(struct i2c_adapter *adapter, int address, int kind)
 {
@@ -789,57 +844,26 @@ static int adm1031_detect(struct i2c_adapter *adapter, int address, int kind)
 	adm1031_init_client(new_client);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &adm1031_group)))
+		goto exit_detach;
+
+	if (kind == adm1031) {
+		if ((err = sysfs_create_group(&new_client->dev.kobj,
+						&adm1031_group_opt)))
+			goto exit_remove;
+	}
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
-	}
-
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_div);
-	device_create_file(&new_client->dev, &dev_attr_fan1_min);
-	device_create_file(&new_client->dev, &dev_attr_pwm1);
-	device_create_file(&new_client->dev, &dev_attr_auto_fan1_channel);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_min);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_temp2_max);
-	device_create_file(&new_client->dev, &dev_attr_temp2_crit);
-
-	device_create_file(&new_client->dev, &dev_attr_auto_temp1_off);
-	device_create_file(&new_client->dev, &dev_attr_auto_temp1_min);
-	device_create_file(&new_client->dev, &dev_attr_auto_temp1_max);
-
-	device_create_file(&new_client->dev, &dev_attr_auto_temp2_off);
-	device_create_file(&new_client->dev, &dev_attr_auto_temp2_min);
-	device_create_file(&new_client->dev, &dev_attr_auto_temp2_max);
-
-	device_create_file(&new_client->dev, &dev_attr_auto_fan1_min_pwm);
-
-	device_create_file(&new_client->dev, &dev_attr_alarms);
-
-	if (kind == adm1031) {
-		device_create_file(&new_client->dev, &dev_attr_fan2_input);
-		device_create_file(&new_client->dev, &dev_attr_fan2_div);
-		device_create_file(&new_client->dev, &dev_attr_fan2_min);
-		device_create_file(&new_client->dev, &dev_attr_pwm2);
-		device_create_file(&new_client->dev,
-				   &dev_attr_auto_fan2_channel);
-		device_create_file(&new_client->dev, &dev_attr_temp3_input);
-		device_create_file(&new_client->dev, &dev_attr_temp3_min);
-		device_create_file(&new_client->dev, &dev_attr_temp3_max);
-		device_create_file(&new_client->dev, &dev_attr_temp3_crit);
-		device_create_file(&new_client->dev, &dev_attr_auto_temp3_off);
-		device_create_file(&new_client->dev, &dev_attr_auto_temp3_min);
-		device_create_file(&new_client->dev, &dev_attr_auto_temp3_max);
-		device_create_file(&new_client->dev, &dev_attr_auto_fan2_min_pwm);
+		goto exit_remove;
 	}
 
 	return 0;
 
+exit_remove:
+	sysfs_remove_group(&new_client->dev.kobj, &adm1031_group);
+	sysfs_remove_group(&new_client->dev.kobj, &adm1031_group_opt);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -854,6 +878,8 @@ static int adm1031_detach_client(struct i2c_client *client)
 	int ret;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &adm1031_group);
+	sysfs_remove_group(&client->dev.kobj, &adm1031_group_opt);
 	if ((ret = i2c_detach_client(client)) != 0) {
 		return ret;
 	}

@@ -42,18 +42,15 @@ diag210(struct diag210 * addr)
 	spin_lock_irqsave(&diag210_lock, flags);
 	diag210_tmp = *addr;
 
-	asm volatile (
-		"   lhi	  %0,-1\n"
-		"   sam31\n"
-		"   diag  %1,0,0x210\n"
-		"0: ipm	  %0\n"
-		"   srl	  %0,28\n"
-		"1: sam64\n"
-		".section __ex_table,\"a\"\n"
-		"    .align 8\n"
-		"    .quad 0b,1b\n"
-		".previous"
-		: "=&d" (ccode) : "a" (__pa(&diag210_tmp)) : "cc", "memory" );
+	asm volatile(
+		"	lhi	%0,-1\n"
+		"	sam31\n"
+		"	diag	%1,0,0x210\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"1:	sam64\n"
+		EX_TABLE(0b,1b)
+		: "=&d" (ccode) : "a" (__pa(&diag210_tmp)) : "cc", "memory");
 
 	*addr = diag210_tmp;
 	spin_unlock_irqrestore(&diag210_lock, flags);
@@ -66,17 +63,14 @@ diag210(struct diag210 * addr)
 {
 	int ccode;
 
-	asm volatile (
-		"   lhi	  %0,-1\n"
-		"   diag  %1,0,0x210\n"
-		"0: ipm	  %0\n"
-		"   srl	  %0,28\n"
+	asm volatile(
+		"	lhi	%0,-1\n"
+		"	diag	%1,0,0x210\n"
+		"0:	ipm	%0\n"
+		"	srl	%0,28\n"
 		"1:\n"
-		".section __ex_table,\"a\"\n"
-		"    .align 4\n"
-		"    .long 0b,1b\n"
-		".previous"
-		: "=&d" (ccode) : "a" (__pa(addr)) : "cc", "memory" );
+		EX_TABLE(0b,1b)
+		: "=&d" (ccode) : "a" (__pa(addr)) : "cc", "memory");
 
 	return ccode;
 }

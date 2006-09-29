@@ -534,19 +534,15 @@ iucv_add_handler (handler *new)
  *
  * Returns: return code from CP's IUCV call
  */
-static __inline__ ulong
-b2f0(__u32 code, void *parm)
+static inline ulong b2f0(__u32 code, void *parm)
 {
+	register unsigned long reg0 asm ("0");
+	register unsigned long reg1 asm ("1");
 	iucv_dumpit("iparml before b2f0 call:", parm, sizeof(iucv_param));
 
-	asm volatile (
-		"LRA   1,0(%1)\n\t"
-		"LR    0,%0\n\t"
-		".long 0xb2f01000"
-		:
-		: "d" (code), "a" (parm)
-		: "0", "1"
-		);
+	reg0 = code;
+	reg1 = virt_to_phys(parm);
+	asm volatile(".long 0xb2f01000" : : "d" (reg0), "a" (reg1));
 
 	iucv_dumpit("iparml after b2f0 call:", parm, sizeof(iucv_param));
 
@@ -1248,6 +1244,8 @@ iucv_purge (__u16 pathid, __u32 msgid, __u32 srccls, __u32 *audit)
 static int
 iucv_query_generic(int want_maxconn)
 {
+	register unsigned long reg0 asm ("0");
+	register unsigned long reg1 asm ("1");
 	iparml_purge *parm = (iparml_purge *)grab_param();
 	int bufsize, maxconn;
 	int ccode;
@@ -1256,18 +1254,15 @@ iucv_query_generic(int want_maxconn)
 	 * Call b2f0 and store R0 (max buffer size),
 	 * R1 (max connections) and CC.
 	 */
-	asm volatile (
-		"LRA   1,0(%4)\n\t"
-		"LR    0,%3\n\t"
-		".long 0xb2f01000\n\t"
-		"IPM   %0\n\t"
-		"SRL   %0,28\n\t"
-		"ST    0,%1\n\t"
-		"ST    1,%2\n\t"
-		: "=d" (ccode), "=m" (bufsize), "=m" (maxconn)
-		: "d" (QUERY), "a" (parm)
-		: "0", "1", "cc"
-		);
+	reg0 = QUERY;
+	reg1 = virt_to_phys(parm);
+	asm volatile(
+		"	.long	0xb2f01000\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (ccode), "+d" (reg0), "+d" (reg1) : : "cc");
+	bufsize = reg0;
+	maxconn = reg1;
 	release_param(parm);
 
 	if (ccode)

@@ -554,9 +554,10 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 		/* ipte in zarch mode can do the math */
 		pte_t *pto = ptep;
 #endif
-		asm volatile ("ipte %2,%3"
-			      : "=m" (*ptep) : "m" (*ptep),
-				"a" (pto), "a" (address) );
+		asm volatile(
+			"	ipte	%2,%3"
+			: "=m" (*ptep) : "m" (*ptep),
+			  "a" (pto), "a" (address));
 	}
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
@@ -609,16 +610,17 @@ ptep_establish(struct vm_area_struct *vma,
 /*
  * Test and clear referenced bit in storage key.
  */
-#define page_test_and_clear_young(page)					  \
-({									  \
-	struct page *__page = (page);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __ccode;							  \
-	asm volatile ("rrbe 0,%1\n\t"					  \
-		      "ipm  %0\n\t"					  \
-		      "srl  %0,28\n\t" 					  \
-                      : "=d" (__ccode) : "a" (__physpage) : "cc" );	  \
-	(__ccode & 2);							  \
+#define page_test_and_clear_young(page)					\
+({									\
+	struct page *__page = (page);					\
+	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);\
+	int __ccode;							\
+	asm volatile(							\
+		"	rrbe	0,%1\n"					\
+		"	ipm	%0\n"					\
+		"	srl	%0,28\n"				\
+		: "=d" (__ccode) : "a" (__physpage) : "cc");		\
+	(__ccode & 2);							\
 })
 
 /*

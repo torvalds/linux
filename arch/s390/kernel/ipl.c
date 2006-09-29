@@ -120,24 +120,15 @@ static enum shutdown_action on_panic_action = SHUTDOWN_STOP;
 
 static int diag308(unsigned long subcode, void *addr)
 {
-	register unsigned long _addr asm("0") = (unsigned long)addr;
+	register unsigned long _addr asm("0") = (unsigned long) addr;
 	register unsigned long _rc asm("1") = 0;
 
-	asm volatile (
-		"   diag %0,%2,0x308\n"
-		"0: \n"
-		".section __ex_table,\"a\"\n"
-#ifdef CONFIG_64BIT
-		"   .align 8\n"
-		"   .quad 0b, 0b\n"
-#else
-		"   .align 4\n"
-		"   .long 0b, 0b\n"
-#endif
-		".previous\n"
+	asm volatile(
+		"	diag	%0,%2,0x308\n"
+		"0:\n"
+		EX_TABLE(0b,0b)
 		: "+d" (_addr), "+d" (_rc)
-		: "d" (subcode) : "cc", "memory" );
-
+		: "d" (subcode) : "cc", "memory");
 	return _rc;
 }
 

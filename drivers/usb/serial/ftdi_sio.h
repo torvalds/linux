@@ -111,6 +111,7 @@
 #define SEALEVEL_2102_PID	0x2102	/* SeaLINK+485 (2102) */
 #define SEALEVEL_2103_PID	0x2103	/* SeaLINK+232I (2103) */
 #define SEALEVEL_2104_PID	0x2104	/* SeaLINK+485I (2104) */
+#define SEALEVEL_2106_PID	0x9020	/* SeaLINK+422 (2106) */
 #define SEALEVEL_2201_1_PID	0x2211	/* SeaPORT+2/232 (2201) Port 1 */
 #define SEALEVEL_2201_2_PID	0x2221	/* SeaPORT+2/232 (2201) Port 2 */
 #define SEALEVEL_2202_1_PID	0x2212	/* SeaPORT+2/485 (2202) Port 1 */
@@ -471,6 +472,15 @@
  * Gamma Scout (http://gamma-scout.com/). Submitted by rsc@runtux.com.
  */
 #define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
+
+/*
+ * Tactrix OpenPort (ECU) devices.
+ * OpenPort 1.3M submitted by Donour Sizemore.
+ * OpenPort 1.3S and 1.3U submitted by Ian Abbott.
+ */
+#define FTDI_TACTRIX_OPENPORT_13M_PID	0xCC48	/* OpenPort 1.3 Mitsubishi */
+#define FTDI_TACTRIX_OPENPORT_13S_PID	0xCC49	/* OpenPort 1.3 Subaru */
+#define FTDI_TACTRIX_OPENPORT_13U_PID	0xCC4A	/* OpenPort 1.3 Universal */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

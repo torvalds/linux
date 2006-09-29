@@ -331,6 +331,12 @@ enum omap_dma_color_mode {
 	OMAP_DMA_TRANSPARENT_COPY
 };
 
+enum omap_dma_write_mode {
+	OMAP_DMA_WRITE_NON_POSTED = 0,
+	OMAP_DMA_WRITE_POSTED,
+	OMAP_DMA_WRITE_LAST_NON_POSTED
+};
+
 struct omap_dma_channel_params {
 	int data_type;		/* data type 8,16,32 */
 	int elem_count;		/* number of elements in a frame */
@@ -338,13 +344,13 @@ struct omap_dma_channel_params {
 
 	int src_port;		/* Only on OMAP1 REVISIT: Is this needed? */
 	int src_amode;		/* constant , post increment, indexed , double indexed */
-	int src_start;		/* source address : physical */
+	unsigned long src_start;	/* source address : physical */
 	int src_ei;		/* source element index */
 	int src_fi;		/* source frame index */
 
 	int dst_port;		/* Only on OMAP1 REVISIT: Is this needed? */
 	int dst_amode;		/* constant , post increment, indexed , double indexed */
-	int dst_start;		/* source address : physical */
+	unsigned long dst_start;	/* source address : physical */
 	int dst_ei;		/* source element index */
 	int dst_fi;		/* source frame index */
 
@@ -356,7 +362,7 @@ struct omap_dma_channel_params {
 };
 
 
-extern void omap_set_dma_priority(int dst_port, int priority);
+extern void omap_set_dma_priority(int lch, int dst_port, int priority);
 extern int omap_request_dma(int dev_id, const char *dev_name,
 			    void (* callback)(int lch, u16 ch_status, void *data),
 			    void *data, int *dma_ch);
@@ -371,6 +377,7 @@ extern void omap_set_dma_transfer_params(int lch, int data_type,
 					 int dma_trigger, int src_or_dst_synch);
 extern void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode,
 				    u32 color);
+extern void omap_set_dma_write_mode(int lch, enum omap_dma_write_mode mode);
 
 extern void omap_set_dma_src_params(int lch, int src_port, int src_amode,
 				    unsigned long src_start,
@@ -394,6 +401,9 @@ extern void omap_set_dma_params(int lch,
 extern void omap_dma_link_lch (int lch_head, int lch_queue);
 extern void omap_dma_unlink_lch (int lch_head, int lch_queue);
 
+extern int omap_set_dma_callback(int lch,
+			void (* callback)(int lch, u16 ch_status, void *data),
+			void *data);
 extern dma_addr_t omap_get_dma_src_pos(int lch);
 extern dma_addr_t omap_get_dma_dst_pos(int lch);
 extern int omap_get_dma_src_addr_counter(int lch);

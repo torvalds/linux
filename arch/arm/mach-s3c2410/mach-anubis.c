@@ -4,15 +4,9 @@
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- *
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *	02-May-2005 BJD  Copied from mach-bast.c
- *	20-Sep-2005 BJD  Added static to non-exported items
 */
 
 #include <linux/kernel.h>

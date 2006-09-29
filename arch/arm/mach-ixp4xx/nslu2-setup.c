@@ -159,6 +159,8 @@ static void nslu2_power_off(void)
 
 static void __init nslu2_init(void)
 {
+	ixp4xx_timer_freq = NSLU2_FREQ;
+
 	ixp4xx_sys_init();
 
 	nslu2_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);

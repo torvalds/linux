@@ -32,10 +32,14 @@
 #include "memory.h"
 #include "clock.h"
 
+#undef DEBUG
+
 //#define DOWN_VARIABLE_DPLL 1			/* Experimental */
 
 static struct prcm_config *curr_prcm_set;
 static u32 curr_perf_level = PRCM_FULL_SPEED;
+static struct clk *vclk;
+static struct clk *sclk;
 
 /*-------------------------------------------------------------------------
  * Omap2 specific clock functions
@@ -79,6 +83,14 @@ static void omap2_propagate_rate(struct clk * clk)
 	propagate_rate(clk);
 }
 
+static void omap2_set_osc_ck(int enable)
+{
+	if (enable)
+		PRCM_CLKSRC_CTRL &= ~(0x3 << 3);
+	else
+		PRCM_CLKSRC_CTRL |= 0x3 << 3;
+}
+
 /* Enable an APLL if off */
 static void omap2_clk_fixed_enable(struct clk *clk)
 {
@@ -101,12 +113,54 @@ static void omap2_clk_fixed_enable(struct clk *clk)
 	else if (clk == &apll54_ck)
 		cval = (1 << 6);
 
-	while (!CM_IDLEST_CKGEN & cval) {		/* Wait for lock */
+	while (!(CM_IDLEST_CKGEN & cval)) {		/* Wait for lock */
 		++i;
 		udelay(1);
-		if (i == 100000)
+		if (i == 100000) {
+			printk(KERN_ERR "Clock %s didn't lock\n", clk->name);
 			break;
+		}
 	}
+}
+
+static void omap2_clk_wait_ready(struct clk *clk)
+{
+	unsigned long reg, other_reg, st_reg;
+	u32 bit;
+	int i;
+
+	reg = (unsigned long) clk->enable_reg;
+	if (reg == (unsigned long) &CM_FCLKEN1_CORE ||
+	    reg == (unsigned long) &CM_FCLKEN2_CORE)
+		other_reg = (reg & ~0xf0) | 0x10;
+	else if (reg == (unsigned long) &CM_ICLKEN1_CORE ||
+		 reg == (unsigned long) &CM_ICLKEN2_CORE)
+		other_reg = (reg & ~0xf0) | 0x00;
+	else
+		return;
+
+	/* No check for DSS or cam clocks */
+	if ((reg & 0x0f) == 0) {
+		if (clk->enable_bit <= 1 || clk->enable_bit == 31)
+			return;
+	}
+
+	/* Check if both functional and interface clocks
+	 * are running. */
+	bit = 1 << clk->enable_bit;
+	if (!(__raw_readl(other_reg) & bit))
+		return;
+	st_reg = (other_reg & ~0xf0) | 0x20;
+	i = 0;
+	while (!(__raw_readl(st_reg) & bit)) {
+		i++;
+		if (i == 100000) {
+			printk(KERN_ERR "Timeout enabling clock %s\n", clk->name);
+			break;
+		}
+	}
+	if (i)
+		pr_debug("Clock %s stable after %d loops\n", clk->name, i);
 }
 
 /* Enables clock without considering parent dependencies or use count
@@ -118,6 +172,11 @@ static int _omap2_clk_enable(struct clk * clk)
 
 	if (clk->flags & ALWAYS_ENABLED)
 		return 0;
+
+	if (unlikely(clk == &osc_ck)) {
+		omap2_set_osc_ck(1);
+		return 0;
+	}
 
 	if (unlikely(clk->enable_reg == 0)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
@@ -133,6 +192,9 @@ static int _omap2_clk_enable(struct clk * clk)
 	regval32 = __raw_readl(clk->enable_reg);
 	regval32 |= (1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
+	wmb();
+
+	omap2_clk_wait_ready(clk);
 
 	return 0;
 }
@@ -155,6 +217,11 @@ static void _omap2_clk_disable(struct clk *clk)
 {
 	u32 regval32;
 
+	if (unlikely(clk == &osc_ck)) {
+		omap2_set_osc_ck(0);
+		return;
+	}
+
 	if (clk->enable_reg == 0)
 		return;
 
@@ -166,6 +233,7 @@ static void _omap2_clk_disable(struct clk *clk)
 	regval32 = __raw_readl(clk->enable_reg);
 	regval32 &= ~(1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
+	wmb();
 }
 
 static int omap2_clk_enable(struct clk *clk)
@@ -695,12 +763,14 @@ static int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 		reg_val = __raw_readl(reg);
 		reg_val &= ~(field_mask << div_off);
 		reg_val |= (field_val << div_off);
-
 		__raw_writel(reg_val, reg);
+		wmb();
 		clk->rate = clk->parent->rate / field_val;
 
-		if (clk->flags & DELAYED_APP)
+		if (clk->flags & DELAYED_APP) {
 			__raw_writel(0x1, (void __iomem *)&PRCM_CLKCFG_CTRL);
+			wmb();
+		}
 		ret = 0;
 	} else if (clk->set_rate != 0)
 		ret = clk->set_rate(clk, rate);
@@ -836,10 +906,12 @@ static int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		reg_val = __raw_readl(reg) & ~(field_mask << src_off);
 		reg_val |= (field_val << src_off);
 		__raw_writel(reg_val, reg);
+		wmb();
 
-		if (clk->flags & DELAYED_APP)
+		if (clk->flags & DELAYED_APP) {
 			__raw_writel(0x1, (void __iomem *)&PRCM_CLKCFG_CTRL);
-
+			wmb();
+		}
 		if (clk->usecount > 0)
 			_omap2_clk_enable(clk);
 
@@ -953,12 +1025,29 @@ static int omap2_select_table_rate(struct clk * clk, unsigned long rate)
  * Omap2 clock reset and init functions
  *-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_OMAP_RESET_CLOCKS
+static void __init omap2_clk_disable_unused(struct clk *clk)
+{
+	u32 regval32;
+
+	regval32 = __raw_readl(clk->enable_reg);
+	if ((regval32 & (1 << clk->enable_bit)) == 0)
+		return;
+
+	printk(KERN_INFO "Disabling unused clock \"%s\"\n", clk->name);
+	_omap2_clk_disable(clk);
+}
+#else
+#define omap2_clk_disable_unused	NULL
+#endif
+
 static struct clk_functions omap2_clk_functions = {
 	.clk_enable		= omap2_clk_enable,
 	.clk_disable		= omap2_clk_disable,
 	.clk_round_rate		= omap2_clk_round_rate,
 	.clk_set_rate		= omap2_clk_set_rate,
 	.clk_set_parent		= omap2_clk_set_parent,
+	.clk_disable_unused	= omap2_clk_disable_unused,
 };
 
 static void __init omap2_get_crystal_rate(struct clk *osc, struct clk *sys)
@@ -984,27 +1073,19 @@ static void __init omap2_get_crystal_rate(struct clk *osc, struct clk *sys)
 	sys->rate = sclk;
 }
 
-#ifdef CONFIG_OMAP_RESET_CLOCKS
-static void __init omap2_disable_unused_clocks(void)
+/*
+ * Set clocks for bypass mode for reboot to work.
+ */
+void omap2_clk_prepare_for_reboot(void)
 {
-	struct clk *ck;
-	u32 regval32;
+	u32 rate;
 
-	list_for_each_entry(ck, &clocks, node) {
-		if (ck->usecount > 0 || (ck->flags & ALWAYS_ENABLED) ||
-			ck->enable_reg == 0)
-			continue;
+	if (vclk == NULL || sclk == NULL)
+		return;
 
-		regval32 = __raw_readl(ck->enable_reg);
-		if ((regval32 & (1 << ck->enable_bit)) == 0)
-			continue;
-
-		printk(KERN_INFO "Disabling unused clock \"%s\"\n", ck->name);
-		_omap2_clk_disable(ck);
-	}
+	rate = clk_get_rate(sclk);
+	clk_set_rate(vclk, rate);
 }
-late_initcall(omap2_disable_unused_clocks);
-#endif
 
 /*
  * Switch the MPU rate if specified on cmdline.
@@ -1077,8 +1158,27 @@ int __init omap2_clk_init(void)
 	 */
 	clk_enable(&sync_32k_ick);
 	clk_enable(&omapctrl_ick);
+
+	/* Force the APLLs active during bootup to avoid disabling and
+	 * enabling them unnecessarily. */
+	clk_enable(&apll96_ck);
+	clk_enable(&apll54_ck);
+
 	if (cpu_is_omap2430())
 		clk_enable(&sdrc_ick);
 
+	/* Avoid sleeping sleeping during omap2_clk_prepare_for_reboot() */
+	vclk = clk_get(NULL, "virt_prcm_set");
+	sclk = clk_get(NULL, "sys_ck");
+
 	return 0;
 }
+
+static int __init omap2_disable_aplls(void)
+{
+	clk_disable(&apll96_ck);
+	clk_disable(&apll54_ck);
+
+	return 0;
+}
+late_initcall(omap2_disable_aplls);

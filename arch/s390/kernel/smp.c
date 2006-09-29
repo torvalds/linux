@@ -63,7 +63,7 @@ static void smp_ext_bitcall(int, ec_bit_sig);
 static void smp_ext_bitcall_others(ec_bit_sig);
 
 /*
- * Structure and data for smp_call_function(). This is designed to minimise
+5B * Structure and data for smp_call_function(). This is designed to minimise
  * static memory requirements. It also looks cleaner.
  */
 static DEFINE_SPINLOCK(call_lock);
@@ -418,59 +418,49 @@ void smp_send_reschedule(int cpu)
 /*
  * parameter area for the set/clear control bit callbacks
  */
-typedef struct
-{
-	__u16 start_ctl;
-	__u16 end_ctl;
+struct ec_creg_mask_parms {
 	unsigned long orvals[16];
 	unsigned long andvals[16];
-} ec_creg_mask_parms;
+};
 
 /*
  * callback for setting/clearing control bits
  */
 void smp_ctl_bit_callback(void *info) {
-	ec_creg_mask_parms *pp;
+	struct ec_creg_mask_parms *pp = info;
 	unsigned long cregs[16];
 	int i;
 	
-	pp = (ec_creg_mask_parms *) info;
-	__ctl_store(cregs[pp->start_ctl], pp->start_ctl, pp->end_ctl);
-	for (i = pp->start_ctl; i <= pp->end_ctl; i++)
+	__ctl_store(cregs, 0, 15);
+	for (i = 0; i <= 15; i++)
 		cregs[i] = (cregs[i] & pp->andvals[i]) | pp->orvals[i];
-	__ctl_load(cregs[pp->start_ctl], pp->start_ctl, pp->end_ctl);
+	__ctl_load(cregs, 0, 15);
 }
 
 /*
  * Set a bit in a control register of all cpus
  */
-void smp_ctl_set_bit(int cr, int bit) {
-        ec_creg_mask_parms parms;
+void smp_ctl_set_bit(int cr, int bit)
+{
+	struct ec_creg_mask_parms parms;
 
-	parms.start_ctl = cr;
-	parms.end_ctl = cr;
+	memset(&parms.orvals, 0, sizeof(parms.orvals));
+	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.orvals[cr] = 1 << bit;
-	parms.andvals[cr] = -1L;
-	preempt_disable();
-	smp_call_function(smp_ctl_bit_callback, &parms, 0, 1);
-        __ctl_set_bit(cr, bit);
-	preempt_enable();
+	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
 }
 
 /*
  * Clear a bit in a control register of all cpus
  */
-void smp_ctl_clear_bit(int cr, int bit) {
-        ec_creg_mask_parms parms;
+void smp_ctl_clear_bit(int cr, int bit)
+{
+	struct ec_creg_mask_parms parms;
 
-	parms.start_ctl = cr;
-	parms.end_ctl = cr;
-	parms.orvals[cr] = 0;
+	memset(&parms.orvals, 0, sizeof(parms.orvals));
+	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
 	parms.andvals[cr] = ~(1L << bit);
-	preempt_disable();
-	smp_call_function(smp_ctl_bit_callback, &parms, 0, 1);
-        __ctl_clear_bit(cr, bit);
-	preempt_enable();
+	on_each_cpu(smp_ctl_bit_callback, &parms, 0, 1);
 }
 
 /*
@@ -650,9 +640,9 @@ __cpu_up(unsigned int cpu)
 	sf->gprs[9] = (unsigned long) sf;
 	cpu_lowcore->save_area[15] = (unsigned long) sf;
 	__ctl_store(cpu_lowcore->cregs_save_area[0], 0, 15);
-	__asm__ __volatile__("stam  0,15,0(%0)"
-			     : : "a" (&cpu_lowcore->access_regs_save_area)
-			     : "memory");
+	asm volatile(
+		"	stam	0,15,0(%0)"
+		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
 	cpu_lowcore->percpu_offset = __per_cpu_offset[cpu];
         cpu_lowcore->current_task = (unsigned long) idle;
         cpu_lowcore->cpu_data.cpu_nr = cpu;
@@ -708,7 +698,7 @@ int
 __cpu_disable(void)
 {
 	unsigned long flags;
-	ec_creg_mask_parms cr_parms;
+	struct ec_creg_mask_parms cr_parms;
 	int cpu = smp_processor_id();
 
 	spin_lock_irqsave(&smp_reserve_lock, flags);
@@ -724,30 +714,21 @@ __cpu_disable(void)
 		pfault_fini();
 #endif
 
-	/* disable all external interrupts */
+	memset(&cr_parms.orvals, 0, sizeof(cr_parms.orvals));
+	memset(&cr_parms.andvals, 0xff, sizeof(cr_parms.andvals));
 
-	cr_parms.start_ctl = 0;
-	cr_parms.end_ctl = 0;
+	/* disable all external interrupts */
 	cr_parms.orvals[0] = 0;
 	cr_parms.andvals[0] = ~(1<<15 | 1<<14 | 1<<13 | 1<<12 |
 				1<<11 | 1<<10 | 1<< 6 | 1<< 4);
-	smp_ctl_bit_callback(&cr_parms);
-
 	/* disable all I/O interrupts */
-
-	cr_parms.start_ctl = 6;
-	cr_parms.end_ctl = 6;
 	cr_parms.orvals[6] = 0;
 	cr_parms.andvals[6] = ~(1<<31 | 1<<30 | 1<<29 | 1<<28 |
 				1<<27 | 1<<26 | 1<<25 | 1<<24);
-	smp_ctl_bit_callback(&cr_parms);
-
 	/* disable most machine checks */
-
-	cr_parms.start_ctl = 14;
-	cr_parms.end_ctl = 14;
 	cr_parms.orvals[14] = 0;
 	cr_parms.andvals[14] = ~(1<<28 | 1<<27 | 1<<26 | 1<<25 | 1<<24);
+
 	smp_ctl_bit_callback(&cr_parms);
 
 	spin_unlock_irqrestore(&smp_reserve_lock, flags);

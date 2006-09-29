@@ -25,6 +25,7 @@ struct sharpsl_charger_machinfo {
 	void (*measure_temp)(int);
 	void (*presuspend)(void);
 	void (*postsuspend)(void);
+	void (*earlyresume)(void);
 	unsigned long (*read_devdata)(int);
 #define SHARPSL_BATT_VOLT       1
 #define SHARPSL_BATT_TEMP       2

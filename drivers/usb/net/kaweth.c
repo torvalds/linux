@@ -165,6 +165,7 @@ static struct usb_device_id usb_klsi_table[] = {
 	{ USB_DEVICE(0x1645, 0x0005) }, /* Entrega E45 */
 	{ USB_DEVICE(0x1645, 0x0008) }, /* Entrega USB Ethernet Adapter */
 	{ USB_DEVICE(0x1645, 0x8005) }, /* PortGear Ethernet Adapter */
+	{ USB_DEVICE(0x1668, 0x0323) }, /* Actiontec USB Ethernet */
 	{ USB_DEVICE(0x2001, 0x4000) }, /* D-link DSB-650C */
 	{} /* Null terminator */
 };

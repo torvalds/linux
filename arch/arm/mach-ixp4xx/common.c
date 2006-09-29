@@ -26,6 +26,7 @@
 #include <linux/bitops.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <linux/clocksource.h>
 
 #include <asm/hardware.h>
 #include <asm/uaccess.h>
@@ -255,16 +256,6 @@ static unsigned volatile last_jiffy_time;
 
 #define CLOCK_TICKS_PER_USEC	((CLOCK_TICK_RATE + USEC_PER_SEC/2) / USEC_PER_SEC)
 
-/* IRQs are disabled before entering here from do_gettimeofday() */
-static unsigned long ixp4xx_gettimeoffset(void)
-{
-	u32 elapsed;
-
-	elapsed = *IXP4XX_OSTS - last_jiffy_time;
-
-	return elapsed / CLOCK_TICKS_PER_USEC;
-}
-
 static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);
@@ -309,7 +300,6 @@ static void __init ixp4xx_timer_init(void)
 
 struct sys_timer ixp4xx_timer = {
 	.init		= ixp4xx_timer_init,
-	.offset		= ixp4xx_gettimeoffset,
 };
 
 static struct resource ixp46x_i2c_resources[] = {
@@ -365,3 +355,29 @@ void __init ixp4xx_sys_init(void)
 			ixp4xx_exp_bus_size >> 20);
 }
 
+cycle_t ixp4xx_get_cycles(void)
+{
+	return *IXP4XX_OSTS;
+}
+
+static struct clocksource clocksource_ixp4xx = {
+	.name 		= "OSTS",
+	.rating		= 200,
+	.read		= ixp4xx_get_cycles,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.shift 		= 20,
+	.is_continuous 	= 1,
+};
+
+unsigned long ixp4xx_timer_freq = FREQ;
+static int __init ixp4xx_clocksource_init(void)
+{
+	clocksource_ixp4xx.mult =
+		clocksource_hz2mult(ixp4xx_timer_freq,
+				    clocksource_ixp4xx.shift);
+	clocksource_register(&clocksource_ixp4xx);
+
+	return 0;
+}
+
+device_initcall(ixp4xx_clocksource_init);
