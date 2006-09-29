@@ -310,9 +310,7 @@ static void setup_etheraddr(char *str, unsigned char *addr)
 	return;
 
 random:
-	addr[0] = 0xfe;
-	addr[1] = 0xfd;
-	random_mac(addr);
+	random_ether_addr(addr)
 }
 
 static DEFINE_SPINLOCK(devices_lock);

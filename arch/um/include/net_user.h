@@ -50,6 +50,4 @@ extern char *split_if_spec(char *str, ...);
 
 extern int dev_netmask(void *d, void *m);
 
-extern void random_mac(unsigned char *addr);
-
 #endif
