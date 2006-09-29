@@ -699,7 +699,7 @@ static int __init param_sysfs_init(void)
 
 	return 0;
 }
-__initcall(param_sysfs_init);
+subsys_initcall(param_sysfs_init);
 
 EXPORT_SYMBOL(param_set_byte);
 EXPORT_SYMBOL(param_get_byte);
