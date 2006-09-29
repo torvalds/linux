@@ -886,8 +886,10 @@ struct task_struct {
 				     - initialized normally by flush_old_exec */
 /* file system info */
 	int link_count, total_link_count;
+#ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
+#endif
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /* filesystem information */
