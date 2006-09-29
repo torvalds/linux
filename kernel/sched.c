@@ -4116,27 +4116,25 @@ recheck:
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
-		unsigned long rlim_rtprio;
-		unsigned long flags;
+		if (is_rt_policy(policy)) {
+			unsigned long rlim_rtprio;
+			unsigned long flags;
 
-		if (!lock_task_sighand(p, &flags))
-			return -ESRCH;
-		rlim_rtprio = p->signal->rlim[RLIMIT_RTPRIO].rlim_cur;
-		unlock_task_sighand(p, &flags);
+			if (!lock_task_sighand(p, &flags))
+				return -ESRCH;
+			rlim_rtprio = p->signal->rlim[RLIMIT_RTPRIO].rlim_cur;
+			unlock_task_sighand(p, &flags);
 
-		/*
-		 * can't change policy, except between SCHED_NORMAL
-		 * and SCHED_BATCH:
-		 */
-		if (((policy != SCHED_NORMAL && p->policy != SCHED_BATCH) &&
-			(policy != SCHED_BATCH && p->policy != SCHED_NORMAL)) &&
-				!rlim_rtprio)
-			return -EPERM;
-		/* can't increase priority */
-		if (is_rt_policy(policy) &&
-		    param->sched_priority > p->rt_priority &&
-		    param->sched_priority > rlim_rtprio)
-			return -EPERM;
+			/* can't set/change the rt policy */
+			if (policy != p->policy && !rlim_rtprio)
+				return -EPERM;
+
+			/* can't increase priority */
+			if (param->sched_priority > p->rt_priority &&
+			    param->sched_priority > rlim_rtprio)
+				return -EPERM;
+		}
+
 		/* can't change other user's priorities */
 		if ((current->euid != p->euid) &&
 		    (current->euid != p->uid))
