@@ -932,6 +932,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	mutex_unlock(&lock);
 	if (ret) {
 		ret = -ENODEV;
+		cma_exch(conn_id, CMA_DESTROYING);
 		cma_release_remove(conn_id);
 		rdma_destroy_id(&conn_id->id);
 		goto out;
