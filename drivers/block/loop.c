@@ -72,6 +72,7 @@
 #include <linux/completion.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
+#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 
@@ -522,15 +523,12 @@ static int loop_make_request(request_queue_t *q, struct bio *old_bio)
 		goto out;
 	if (unlikely(rw == WRITE && (lo->lo_flags & LO_FLAGS_READ_ONLY)))
 		goto out;
-	lo->lo_pending++;
 	loop_add_bio(lo, old_bio);
+	wake_up(&lo->lo_event);
 	spin_unlock_irq(&lo->lo_lock);
-	complete(&lo->lo_bh_done);
 	return 0;
 
 out:
-	if (lo->lo_pending == 0)
-		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 	bio_io_error(old_bio, old_bio->bi_size);
 	return 0;
@@ -570,13 +568,17 @@ static inline void loop_handle_bio(struct loop_device *lo, struct bio *bio)
  * to avoid blocking in our make_request_fn. it also does loop decrypting
  * on reads for block backed loop, as that is too heavy to do from
  * b_end_io context where irqs may be disabled.
+ *
+ * Loop explanation:  loop_clr_fd() sets lo_state to Lo_rundown before
+ * calling kthread_stop().  Therefore once kthread_should_stop() is
+ * true, make_request will not place any more requests.  Therefore
+ * once kthread_should_stop() is true and lo_bio is NULL, we are
+ * done with the loop.
  */
 static int loop_thread(void *data)
 {
 	struct loop_device *lo = data;
 	struct bio *bio;
-
-	daemonize("loop%d", lo->lo_number);
 
 	/*
 	 * loop can be used in an encrypted device,
@@ -587,47 +589,21 @@ static int loop_thread(void *data)
 
 	set_user_nice(current, -20);
 
-	lo->lo_state = Lo_bound;
-	lo->lo_pending = 1;
+	while (!kthread_should_stop() || lo->lo_bio) {
 
-	/*
-	 * complete it, we are running
-	 */
-	complete(&lo->lo_done);
+		wait_event_interruptible(lo->lo_event,
+				lo->lo_bio || kthread_should_stop());
 
-	for (;;) {
-		int pending;
-
-		if (wait_for_completion_interruptible(&lo->lo_bh_done))
+		if (!lo->lo_bio)
 			continue;
-
 		spin_lock_irq(&lo->lo_lock);
-
-		/*
-		 * could be completed because of tear-down, not pending work
-		 */
-		if (unlikely(!lo->lo_pending)) {
-			spin_unlock_irq(&lo->lo_lock);
-			break;
-		}
-
 		bio = loop_get_bio(lo);
-		lo->lo_pending--;
-		pending = lo->lo_pending;
 		spin_unlock_irq(&lo->lo_lock);
 
 		BUG_ON(!bio);
 		loop_handle_bio(lo, bio);
-
-		/*
-		 * upped both for pending work and tear-down, lo_pending
-		 * will hit zero then
-		 */
-		if (unlikely(!pending))
-			break;
 	}
 
-	complete(&lo->lo_done);
 	return 0;
 }
 
@@ -840,10 +816,15 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	set_blocksize(bdev, lo_blocksize);
 
-	error = kernel_thread(loop_thread, lo, CLONE_KERNEL);
-	if (error < 0)
+	lo->lo_thread = kthread_create(loop_thread, lo, "loop%d",
+						lo->lo_number);
+	if (IS_ERR(lo->lo_thread)) {
+		error = PTR_ERR(lo->lo_thread);
+		lo->lo_thread = NULL;
 		goto out_putf;
-	wait_for_completion(&lo->lo_done);
+	}
+	lo->lo_state = Lo_bound;
+	wake_up_process(lo->lo_thread);
 	return 0;
 
  out_putf:
@@ -907,12 +888,9 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 
 	spin_lock_irq(&lo->lo_lock);
 	lo->lo_state = Lo_rundown;
-	lo->lo_pending--;
-	if (!lo->lo_pending)
-		complete(&lo->lo_bh_done);
 	spin_unlock_irq(&lo->lo_lock);
 
-	wait_for_completion(&lo->lo_done);
+	kthread_stop(lo->lo_thread);
 
 	lo->lo_backing_file = NULL;
 
@@ -925,6 +903,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_sizelimit = 0;
 	lo->lo_encrypt_key_size = 0;
 	lo->lo_flags = 0;
+	lo->lo_thread = NULL;
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
@@ -1287,9 +1266,9 @@ static int __init loop_init(void)
 		if (!lo->lo_queue)
 			goto out_mem4;
 		mutex_init(&lo->lo_ctl_mutex);
-		init_completion(&lo->lo_done);
-		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;
+		lo->lo_thread = NULL;
+		init_waitqueue_head(&lo->lo_event);
 		spin_lock_init(&lo->lo_lock);
 		disk->major = LOOP_MAJOR;
 		disk->first_minor = i;
