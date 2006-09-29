@@ -165,6 +165,13 @@ config EP93XX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called ep93xx_wdt.
 
+config OMAP_WATCHDOG
+	tristate "OMAP Watchdog"
+	depends on WATCHDOG && (ARCH_OMAP16XX || ARCH_OMAP24XX)
+	help
+	  Support for TI OMAP1610/OMAP1710/OMAP2420 watchdog.  Say 'Y' here to
+	  enable the OMAP1610/OMAP1710 watchdog timer.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
