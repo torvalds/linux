@@ -4080,6 +4080,8 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
  * @p: the task in question.
  * @policy: new policy.
  * @param: structure containing the new RT priority.
+ *
+ * NOTE: the task may be already dead
  */
 int sched_setscheduler(struct task_struct *p, int policy,
 		       struct sched_param *param)
@@ -4115,19 +4117,26 @@ recheck:
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
+		unsigned long rlim_rtprio;
+		unsigned long flags;
+
+		if (!lock_task_sighand(p, &flags))
+			return -ESRCH;
+		rlim_rtprio = p->signal->rlim[RLIMIT_RTPRIO].rlim_cur;
+		unlock_task_sighand(p, &flags);
+
 		/*
 		 * can't change policy, except between SCHED_NORMAL
 		 * and SCHED_BATCH:
 		 */
 		if (((policy != SCHED_NORMAL && p->policy != SCHED_BATCH) &&
 			(policy != SCHED_BATCH && p->policy != SCHED_NORMAL)) &&
-				!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
+				!rlim_rtprio)
 			return -EPERM;
 		/* can't increase priority */
 		if ((policy != SCHED_NORMAL && policy != SCHED_BATCH) &&
 		    param->sched_priority > p->rt_priority &&
-		    param->sched_priority >
-				p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
+		    param->sched_priority > rlim_rtprio)
 			return -EPERM;
 		/* can't change other user's priorities */
 		if ((current->euid != p->euid) &&
@@ -4193,14 +4202,13 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
 		return -EINVAL;
 	if (copy_from_user(&lparam, param, sizeof(struct sched_param)))
 		return -EFAULT;
-	read_lock_irq(&tasklist_lock);
+
+	rcu_read_lock();
+	retval = -ESRCH;
 	p = find_process_by_pid(pid);
-	if (!p) {
-		read_unlock_irq(&tasklist_lock);
-		return -ESRCH;
-	}
-	retval = sched_setscheduler(p, policy, &lparam);
-	read_unlock_irq(&tasklist_lock);
+	if (p != NULL)
+		retval = sched_setscheduler(p, policy, &lparam);
+	rcu_read_unlock();
 
 	return retval;
 }
