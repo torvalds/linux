@@ -128,8 +128,8 @@ const struct consw *conswitchp;
 #define DEFAULT_BELL_PITCH	750
 #define DEFAULT_BELL_DURATION	(HZ/8)
 
-extern void vcs_make_devfs(struct tty_struct *tty);
-extern void vcs_remove_devfs(struct tty_struct *tty);
+extern void vcs_make_sysfs(struct tty_struct *tty);
+extern void vcs_remove_sysfs(struct tty_struct *tty);
 
 extern void console_map_init(void);
 #ifdef CONFIG_PROM_CONSOLE
@@ -2498,7 +2498,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->winsize.ws_col = vc_cons[currcons].d->vc_cols;
 			}
 			release_console_sem();
-			vcs_make_devfs(tty);
+			vcs_make_sysfs(tty);
 			return ret;
 		}
 	}
@@ -2511,7 +2511,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
  * and taking a ref against the tty while we're in the process of forgetting
  * about it and cleaning things up.
  *
- * This is because vcs_remove_devfs() can sleep and will drop the BKL.
+ * This is because vcs_remove_sysfs() can sleep and will drop the BKL.
  */
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
@@ -2524,7 +2524,7 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 			vc->vc_tty = NULL;
 		tty->driver_data = NULL;
 		release_console_sem();
-		vcs_remove_devfs(tty);
+		vcs_remove_sysfs(tty);
 		mutex_unlock(&tty_mutex);
 		/*
 		 * tty_mutex is released, but we still hold BKL, so there is
