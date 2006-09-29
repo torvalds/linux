@@ -1597,20 +1597,19 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 
 	if (signr) {
 		struct elf_thread_status *tmp;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
 				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
-					read_unlock(&tasklist_lock);
+					rcu_read_unlock();
 					goto cleanup;
 				}
-				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);
 			}
 		while_each_thread(g,p);
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;
