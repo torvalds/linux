@@ -237,7 +237,8 @@ not_relocated:	mov	r0, #0
  */
 		cmp	r4, r2
 		bhs	wont_overwrite
-		add	r0, r4, #4096*1024	@ 4MB largest kernel size
+		sub	r3, sp, r5		@ > compressed kernel size
+		add	r0, r4, r3, lsl #2	@ allow for 4x expansion
 		cmp	r0, r5
 		bls	wont_overwrite
 
