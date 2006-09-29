@@ -612,7 +612,6 @@ void kernel_restart(char *cmd)
 	} else {
 		printk(KERN_EMERG "Restarting system with command '%s'.\n", cmd);
 	}
-	printk(".\n");
 	machine_restart(cmd);
 }
 EXPORT_SYMBOL_GPL(kernel_restart);
