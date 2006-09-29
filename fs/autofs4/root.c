@@ -281,9 +281,6 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 
 		DPRINTK("mount done status=%d", status);
 
-		if (status && dentry->d_inode)
-			return status; /* Try to get the kernel to invalidate this dentry */
-
 		/* Turn this into a real negative dentry? */
 		if (status == -ENOENT) {
 			spin_lock(&dentry->d_lock);
@@ -540,6 +537,9 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			    return ERR_PTR(-ERESTARTNOINTR);
 			}
 		}
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
+		spin_unlock(&dentry->d_lock);
 	}
 
 	/*
