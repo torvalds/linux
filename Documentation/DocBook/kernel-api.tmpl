@@ -181,43 +181,6 @@ X!Ilib/string.c
      </sect1>
   </chapter>
 
-  <chapter id="proc">
-     <title>The proc filesystem</title>
- 
-     <sect1><title>sysctl interface</title>
-!Ekernel/sysctl.c
-     </sect1>
-
-     <sect1><title>proc filesystem interface</title>
-!Ifs/proc/base.c
-     </sect1>
-  </chapter>
-
-  <chapter id="debugfs">
-     <title>The debugfs filesystem</title>
- 
-     <sect1><title>debugfs interface</title>
-!Efs/debugfs/inode.c
-!Efs/debugfs/file.c
-     </sect1>
-  </chapter>
-
-  <chapter id="relayfs">
-     <title>relay interface support</title>
-
-     <para>
-	Relay interface support
-	is designed to provide an efficient mechanism for tools and
-	facilities to relay large amounts of data from kernel space to
-	user space.
-     </para>
-
-     <sect1><title>relay interface</title>
-!Ekernel/relay.c
-!Ikernel/relay.c
-     </sect1>
-  </chapter>
-
   <chapter id="vfs">
      <title>The Linux VFS</title>
      <sect1><title>The Filesystem types</title>
@@ -247,6 +210,50 @@ X!Ilib/string.c
 !Efs/filesystems.c
 !Efs/fs-writeback.c
 !Efs/block_dev.c
+     </sect1>
+  </chapter>
+
+  <chapter id="proc">
+     <title>The proc filesystem</title>
+ 
+     <sect1><title>sysctl interface</title>
+!Ekernel/sysctl.c
+     </sect1>
+
+     <sect1><title>proc filesystem interface</title>
+!Ifs/proc/base.c
+     </sect1>
+  </chapter>
+
+  <chapter id="sysfs">
+     <title>The Filesystem for Exporting Kernel Objects</title>
+!Efs/sysfs/file.c
+!Efs/sysfs/symlink.c
+!Efs/sysfs/bin.c
+  </chapter>
+
+  <chapter id="debugfs">
+     <title>The debugfs filesystem</title>
+ 
+     <sect1><title>debugfs interface</title>
+!Efs/debugfs/inode.c
+!Efs/debugfs/file.c
+     </sect1>
+  </chapter>
+
+  <chapter id="relayfs">
+     <title>relay interface support</title>
+
+     <para>
+	Relay interface support
+	is designed to provide an efficient mechanism for tools and
+	facilities to relay large amounts of data from kernel space to
+	user space.
+     </para>
+
+     <sect1><title>relay interface</title>
+!Ekernel/relay.c
+!Ikernel/relay.c
      </sect1>
   </chapter>
 
@@ -363,13 +370,6 @@ X!Earch/i386/kernel/mca.c
      <sect1><title>DMI Interfaces</title>
 !Edrivers/firmware/dmi_scan.c
      </sect1>
-  </chapter>
-
-  <chapter id="sysfs">
-     <title>The Filesystem for Exporting Kernel Objects</title>
-!Efs/sysfs/file.c
-!Efs/sysfs/symlink.c
-!Efs/sysfs/bin.c
   </chapter>
 
   <chapter id="security">
