@@ -245,6 +245,7 @@ static struct omap_kp_platform_data h4_kp_data = {
 	.rows		= 6,
 	.cols		= 7,
 	.keymap 	= h4_keymap,
+	.keymapsize 	= ARRAY_SIZE(h4_keymap),
 	.rep		= 1,
 	.row_gpios 	= row_gpios,
 	.col_gpios 	= col_gpios,
