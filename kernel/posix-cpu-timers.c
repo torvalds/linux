@@ -1393,8 +1393,6 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	}
 }
 
-static long posix_cpu_clock_nanosleep_restart(struct restart_block *);
-
 int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		     struct timespec *rqtp, struct timespec __user *rmtp)
 {
@@ -1471,7 +1469,7 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		    copy_to_user(rmtp, &it.it_value, sizeof *rmtp))
 			return -EFAULT;
 
-		restart_block->fn = posix_cpu_clock_nanosleep_restart;
+		restart_block->fn = posix_cpu_nsleep_restart;
 		/* Caller already set restart_block->arg1 */
 		restart_block->arg0 = which_clock;
 		restart_block->arg1 = (unsigned long) rmtp;
@@ -1484,8 +1482,7 @@ int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	return error;
 }
 
-static long
-posix_cpu_clock_nanosleep_restart(struct restart_block *restart_block)
+long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
 	clockid_t which_clock = restart_block->arg0;
 	struct timespec __user *rmtp;
@@ -1524,6 +1521,10 @@ static int process_cpu_nsleep(const clockid_t which_clock, int flags,
 {
 	return posix_cpu_nsleep(PROCESS_CLOCK, flags, rqtp, rmtp);
 }
+static long process_cpu_nsleep_restart(struct restart_block *restart_block)
+{
+	return -EINVAL;
+}
 static int thread_cpu_clock_getres(const clockid_t which_clock,
 				   struct timespec *tp)
 {
@@ -1544,6 +1545,10 @@ static int thread_cpu_nsleep(const clockid_t which_clock, int flags,
 {
 	return -EINVAL;
 }
+static long thread_cpu_nsleep_restart(struct restart_block *restart_block)
+{
+	return -EINVAL;
+}
 
 static __init int init_posix_cpu_timers(void)
 {
@@ -1553,6 +1558,7 @@ static __init int init_posix_cpu_timers(void)
 		.clock_set = do_posix_clock_nosettime,
 		.timer_create = process_cpu_timer_create,
 		.nsleep = process_cpu_nsleep,
+		.nsleep_restart = process_cpu_nsleep_restart,
 	};
 	struct k_clock thread = {
 		.clock_getres = thread_cpu_clock_getres,
@@ -1560,6 +1566,7 @@ static __init int init_posix_cpu_timers(void)
 		.clock_set = do_posix_clock_nosettime,
 		.timer_create = thread_cpu_timer_create,
 		.nsleep = thread_cpu_nsleep,
+		.nsleep_restart = thread_cpu_nsleep_restart,
 	};
 
 	register_posix_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
