@@ -40,12 +40,6 @@
 #include <linux/mutex.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
 
-#ifndef TRUE
-# define TRUE (1==1)
-#endif
-#ifndef FALSE
-# define FALSE (1==0)
-#endif
 #define UNSET (-1U)
 
 #define CX88_MAXBOARDS 8
