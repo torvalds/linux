@@ -658,11 +658,6 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 	return (norm->id & V4L2_STD_625_50) ? pal : ntsc;
 }
 
-static unsigned int inline norm_notchfilter(struct cx88_tvnorm *norm)
-{
-	return HLNotchFilter4xFsc;
-}
-
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 {
 	/* Should always be Line Draw Time / (4*FSC) */
@@ -935,7 +930,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	// htotal
 	tmp64 = norm_htotal(norm) * (u64)vdec_clock;
 	do_div(tmp64, fsc8);
-	htotal = (u32)tmp64 | (norm_notchfilter(norm) << 11);
+	htotal = (u32)tmp64 | (HLNotchFilter4xFsc << 11);
 	dprintk(1,"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
