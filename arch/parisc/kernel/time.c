@@ -79,7 +79,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 		if (cpu == 0) {
 			write_seqlock(&xtime_lock);
-			do_timer(regs);
+			do_timer(1);
 			write_sequnlock(&xtime_lock);
 		}
 	}

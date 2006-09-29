@@ -1206,7 +1206,7 @@ extern void switch_uid(struct user_struct *);
 
 #include <asm/current.h>
 
-extern void do_timer(struct pt_regs *);
+extern void do_timer(unsigned long ticks);
 
 extern int FASTCALL(wake_up_state(struct task_struct * tsk, unsigned int state));
 extern int FASTCALL(wake_up_process(struct task_struct * tsk));

@@ -712,7 +712,7 @@ static irqreturn_t pcic_timer_handler (int irq, void *h, struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);	/* Dummy, to show that we remember */
 	pcic_clear_clock_irq();
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

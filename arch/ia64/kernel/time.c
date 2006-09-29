@@ -78,7 +78,7 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 			 * xtime_lock.
 			 */
 			write_seqlock(&xtime_lock);
-			do_timer(regs);
+			do_timer(1);
 			local_cpu_data->itm_next = new_itm;
 			write_sequnlock(&xtime_lock);
 		} else

@@ -219,7 +219,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		return IRQ_HANDLED;
 
 	/* call the real timer interrupt handler */
-	do_timer(regs);
+	do_timer(1);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

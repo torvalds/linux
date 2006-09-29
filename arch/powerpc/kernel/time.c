@@ -693,7 +693,7 @@ void timer_interrupt(struct pt_regs * regs)
 		tb_next_jiffy = tb_last_jiffy + tb_ticks_per_jiffy;
 		if (per_cpu(last_jiffy, cpu) >= tb_next_jiffy) {
 			tb_last_jiffy = tb_next_jiffy;
-			do_timer(regs);
+			do_timer(1);
 			timer_recalc_offset(tb_last_jiffy);
 			timer_check_rtc();
 		}

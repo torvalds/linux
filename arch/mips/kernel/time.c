@@ -434,7 +434,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/*
 	 * call the generic timer interrupt handling
 	 */
-	do_timer(regs);
+	do_timer(1);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

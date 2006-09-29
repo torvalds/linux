@@ -117,7 +117,7 @@ static long last_rtc_update;
  */
 void handle_timer_tick(struct pt_regs *regs)
 {
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

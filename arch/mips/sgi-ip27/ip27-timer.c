@@ -111,7 +111,7 @@ again:
 	kstat_this_cpu.irqs[irq]++;		/* kstat only for bootcpu? */
 
 	if (cpu == 0)
-		do_timer(regs);
+		do_timer(1);
 
 	update_process_times(user_mode(regs));
 

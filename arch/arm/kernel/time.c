@@ -337,7 +337,7 @@ void timer_tick(struct pt_regs *regs)
 	profile_tick(CPU_PROFILING, regs);
 	do_leds();
 	do_set_rtc();
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

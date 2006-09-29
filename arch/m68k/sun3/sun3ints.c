@@ -65,7 +65,7 @@ static irqreturn_t sun3_int5(int irq, void *dev_id, struct pt_regs *fp)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
-        do_timer(fp);
+        do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(fp));
 #endif
