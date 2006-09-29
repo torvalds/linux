@@ -483,10 +483,9 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
 		tb->used += space;
 		copied += space;
 		chars += space;
-	}
-	/* There is a small chance that we need to split the data over
-	   several buffers. If this is the case we must loop */
-	while (unlikely(size > copied));
+		/* There is a small chance that we need to split the data over
+		   several buffers. If this is the case we must loop */
+	} while (unlikely(size > copied));
 	return copied;
 }
 EXPORT_SYMBOL(tty_insert_flip_string);
@@ -521,10 +520,9 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 		copied += space;
 		chars += space;
 		flags += space;
-	}
-	/* There is a small chance that we need to split the data over
-	   several buffers. If this is the case we must loop */
-	while (unlikely(size > copied));
+		/* There is a small chance that we need to split the data over
+		   several buffers. If this is the case we must loop */
+	} while (unlikely(size > copied));
 	return copied;
 }
 EXPORT_SYMBOL(tty_insert_flip_string_flags);
