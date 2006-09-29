@@ -13,6 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/pagevec.h>
+#include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
@@ -192,6 +193,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (need_zonelists_rebuild)
 		build_all_zonelists();
 	vm_total_pages = nr_free_pagecache_pages();
+	writeback_set_ratelimit();
 	return 0;
 }
 

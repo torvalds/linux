@@ -501,7 +501,7 @@ void laptop_sync_completion(void)
  * will write six megabyte chunks, max.
  */
 
-static void set_ratelimit(void)
+void writeback_set_ratelimit(void)
 {
 	ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
 	if (ratelimit_pages < 16)
@@ -513,7 +513,7 @@ static void set_ratelimit(void)
 static int __cpuinit
 ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
 {
-	set_ratelimit();
+	writeback_set_ratelimit();
 	return 0;
 }
 
@@ -546,7 +546,7 @@ void __init page_writeback_init(void)
 			vm_dirty_ratio = 1;
 	}
 	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
-	set_ratelimit();
+	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
 }
 
