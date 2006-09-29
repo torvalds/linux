@@ -543,11 +543,11 @@ static struct kobject *bdev_get_holder(struct block_device *bdev)
 		return kobject_get(bdev->bd_disk->holder_dir);
 }
 
-static void add_symlink(struct kobject *from, struct kobject *to)
+static int add_symlink(struct kobject *from, struct kobject *to)
 {
 	if (!from || !to)
-		return;
-	sysfs_create_link(from, to, kobject_name(to));
+		return 0;
+	return sysfs_create_link(from, to, kobject_name(to));
 }
 
 static void del_symlink(struct kobject *from, struct kobject *to)
@@ -648,30 +648,38 @@ static void free_bd_holder(struct bd_holder *bo)
  * If there is no matching entry with @bo in @bdev->bd_holder_list,
  * add @bo to the list, create symlinks.
  *
- * Returns 1 if @bo was added to the list.
- * Returns 0 if @bo wasn't used by any reason and should be freed.
+ * Returns 0 if symlinks are created or already there.
+ * Returns -ve if something fails and @bo can be freed.
  */
 static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 {
 	struct bd_holder *tmp;
+	int ret;
 
 	if (!bo)
-		return 0;
+		return -EINVAL;
 
 	list_for_each_entry(tmp, &bdev->bd_holder_list, list) {
 		if (tmp->sdir == bo->sdir) {
 			tmp->count++;
+			/* We've already done what we need to do here. */
+			free_bd_holder(bo);
 			return 0;
 		}
 	}
 
 	if (!bd_holder_grab_dirs(bdev, bo))
-		return 0;
+		return -EBUSY;
 
-	add_symlink(bo->sdir, bo->sdev);
-	add_symlink(bo->hdir, bo->hdev);
-	list_add_tail(&bo->list, &bdev->bd_holder_list);
-	return 1;
+	ret = add_symlink(bo->sdir, bo->sdev);
+	if (ret == 0) {
+		ret = add_symlink(bo->hdir, bo->hdev);
+		if (ret)
+			del_symlink(bo->sdir, bo->sdev);
+	}
+	if (ret == 0)
+		list_add_tail(&bo->list, &bdev->bd_holder_list);
+	return ret;
 }
 
 /**
@@ -741,7 +749,9 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 
 	mutex_lock_nested(&bdev->bd_mutex, BD_MUTEX_PARTITION);
 	res = bd_claim(bdev, holder);
-	if (res || !add_bd_holder(bdev, bo))
+	if (res == 0)
+		res = add_bd_holder(bdev, bo);
+	if (res)
 		free_bd_holder(bo);
 	mutex_unlock(&bdev->bd_mutex);
 
