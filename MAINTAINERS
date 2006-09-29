@@ -2840,7 +2840,7 @@ S:	Maintained
 SUPERH (sh)
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-L:	linuxsh-dev@lists.sourceforge.net
+L:	linuxsh-dev@lists.sourceforge.net (subscribers-only)
 W:	http://www.linux-sh.org
 W:	http://www.m17n.org/linux-sh/
 S:	Maintained
