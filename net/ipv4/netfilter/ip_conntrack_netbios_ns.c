@@ -48,7 +48,7 @@ static int help(struct sk_buff **pskb,
 	struct iphdr *iph = (*pskb)->nh.iph;
 	struct rtable *rt = (struct rtable *)(*pskb)->dst;
 	struct in_device *in_dev;
-	u_int32_t mask = 0;
+	__be32 mask = 0;
 
 	/* we're only interested in locally generated packets */
 	if ((*pskb)->sk == NULL)

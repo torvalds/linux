@@ -895,7 +895,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
-		u32 _mask, *mp;
+		__be32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
 		BUG_ON(mp == NULL);

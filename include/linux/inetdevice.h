@@ -90,11 +90,11 @@ struct in_ifaddr
 	struct in_ifaddr	*ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
-	u32			ifa_local;
-	u32			ifa_address;
-	u32			ifa_mask;
-	u32			ifa_broadcast;
-	u32			ifa_anycast;
+	__be32			ifa_local;
+	__be32			ifa_address;
+	__be32			ifa_mask;
+	__be32			ifa_broadcast;
+	__be32			ifa_anycast;
 	unsigned char		ifa_scope;
 	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;

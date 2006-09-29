@@ -667,9 +667,9 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
 	struct in_ifaddr *prim = ifa;
-	u32 mask = ifa->ifa_mask;
-	u32 addr = ifa->ifa_local;
-	u32 prefix = ifa->ifa_address&mask;
+	__be32 mask = ifa->ifa_mask;
+	__be32 addr = ifa->ifa_local;
+	__be32 prefix = ifa->ifa_address&mask;
 
 	if (ifa->ifa_flags&IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
@@ -685,7 +685,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 		return;
 
 	/* Add broadcast address, if it is explicitly assigned. */
-	if (ifa->ifa_broadcast && ifa->ifa_broadcast != 0xFFFFFFFF)
+	if (ifa->ifa_broadcast && ifa->ifa_broadcast != htonl(0xFFFFFFFF))
 		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 
 	if (!ZERONET(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
@@ -707,8 +707,8 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	struct net_device *dev = in_dev->dev;
 	struct in_ifaddr *ifa1;
 	struct in_ifaddr *prim = ifa;
-	u32 brd = ifa->ifa_address|~ifa->ifa_mask;
-	u32 any = ifa->ifa_address&ifa->ifa_mask;
+	__be32 brd = ifa->ifa_address|~ifa->ifa_mask;
+	__be32 any = ifa->ifa_address&ifa->ifa_mask;
 #define LOCAL_OK	1
 #define BRD_OK		2
 #define BRD0_OK		4

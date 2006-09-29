@@ -763,7 +763,7 @@ static void sppp_cisco_input (struct sppp *sp, struct sk_buff *skb)
 		{
 		struct in_device *in_dev;
 		struct in_ifaddr *ifa;
-		u32 addr = 0, mask = ~0; /* FIXME: is the mask correct? */
+		__be32 addr = 0, mask = ~0; /* FIXME: is the mask correct? */
 #ifdef CONFIG_INET
 		rcu_read_lock();
 		if ((in_dev = __in_dev_get_rcu(dev)) != NULL)

@@ -825,7 +825,7 @@ int dev_netmask(void *d, void *m)
 	struct net_device *dev = d;
 	struct in_device *ip = dev->ip_ptr;
 	struct in_ifaddr *in;
-	__u32 *mask_out = m;
+	__be32 *mask_out = m;
 
 	if(ip == NULL) 
 		return(1);
