@@ -963,7 +963,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
-	for (;;) ;
+	for (;;)
+		cpu_relax();	/* For when BUG is null */
 }
 
 EXPORT_SYMBOL_GPL(do_exit);
