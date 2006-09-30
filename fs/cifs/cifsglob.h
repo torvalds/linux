@@ -153,7 +153,7 @@ struct TCP_Server_Info {
 	char sessid[4];		/* unique token id for this session */
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
-	__u16 timeAdj;  /* Adjust for difference in server time zone in sec */
+	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	/* 16th byte of RFC1001 workstation name is always null */
