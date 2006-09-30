@@ -393,7 +393,7 @@ static void __exit acpi_ec_hc_exit(void)
 
 struct acpi_ec_hc *acpi_get_ec_hc(struct acpi_device *device)
 {
-	return ((struct acpi_ec_hc *)acpi_driver_data(device->parent));
+	return acpi_driver_data(device->parent);
 }
 
 EXPORT_SYMBOL(acpi_get_ec_hc);

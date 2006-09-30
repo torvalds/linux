@@ -265,8 +265,7 @@ static char *format_result(union acpi_object *object)
 
 static int hotkey_polling_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_polling_hotkey *poll_hotkey =
-	    (struct acpi_polling_hotkey *)seq->private;
+	struct acpi_polling_hotkey *poll_hotkey = seq->private;
 	char *buf;
 
 
@@ -577,7 +576,7 @@ init_poll_hotkey_device(union acpi_hotkey *key, char **config_entry,
 	if (ACPI_FAILURE(status))
 		goto do_fail_zero;
 	key->poll_hotkey.poll_result =
-	    (union acpi_object *)kmalloc(sizeof(union acpi_object), GFP_KERNEL);
+	    kmalloc(sizeof(union acpi_object), GFP_KERNEL);
 	if (!key->poll_hotkey.poll_result)
 		goto do_fail_zero;
 	return AE_OK;

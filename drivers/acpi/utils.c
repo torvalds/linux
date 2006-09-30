@@ -83,7 +83,7 @@ acpi_extract_package(union acpi_object *package,
 		return AE_BAD_DATA;
 	}
 
-	format_string = (char *)format->pointer;
+	format_string = format->pointer;
 
 	/*
 	 * Calculate size_required.
@@ -361,7 +361,7 @@ acpi_evaluate_reference(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		goto end;
 
-	package = (union acpi_object *)buffer.pointer;
+	package = buffer.pointer;
 
 	if ((buffer.length == 0) || !package) {
 		printk(KERN_ERR PREFIX "No return object (len %X ptr %p)\n",

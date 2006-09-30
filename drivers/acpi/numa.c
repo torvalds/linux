@@ -248,7 +248,7 @@ int acpi_get_pxm(acpi_handle h)
 		handle = phandle;
 		status = acpi_evaluate_integer(handle, "_PXM", NULL, &pxm);
 		if (ACPI_SUCCESS(status))
-			return (int)pxm;
+			return pxm;
 		status = acpi_get_parent(handle, &phandle);
 	} while (ACPI_SUCCESS(status));
 	return -1;

@@ -161,7 +161,7 @@ int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus)
 	static int first_time = 1;
 
 
-	pathname = (char *)kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
+	pathname = kmalloc(ACPI_PATHNAME_MAX, GFP_KERNEL);
 	if (!pathname)
 		return -ENOMEM;
 	memset(pathname, 0, ACPI_PATHNAME_MAX);

@@ -663,7 +663,7 @@ static void acpi_thermal_run(unsigned long data)
 static void acpi_thermal_check(void *data)
 {
 	int result = 0;
-	struct acpi_thermal *tz = (struct acpi_thermal *)data;
+	struct acpi_thermal *tz = data;
 	unsigned long sleep_time = 0;
 	int i = 0;
 	struct acpi_thermal_state state;
@@ -778,7 +778,7 @@ static struct proc_dir_entry *acpi_thermal_dir;
 
 static int acpi_thermal_state_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_thermal *tz = (struct acpi_thermal *)seq->private;
+	struct acpi_thermal *tz = seq->private;
 
 
 	if (!tz)
@@ -813,7 +813,7 @@ static int acpi_thermal_state_open_fs(struct inode *inode, struct file *file)
 static int acpi_thermal_temp_seq_show(struct seq_file *seq, void *offset)
 {
 	int result = 0;
-	struct acpi_thermal *tz = (struct acpi_thermal *)seq->private;
+	struct acpi_thermal *tz = seq->private;
 
 
 	if (!tz)
@@ -837,7 +837,7 @@ static int acpi_thermal_temp_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_thermal *tz = (struct acpi_thermal *)seq->private;
+	struct acpi_thermal *tz = seq->private;
 	int i = 0;
 	int j = 0;
 
@@ -893,8 +893,8 @@ acpi_thermal_write_trip_points(struct file *file,
 			       const char __user * buffer,
 			       size_t count, loff_t * ppos)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_thermal *tz = (struct acpi_thermal *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_thermal *tz = m->private;
 
 	char *limit_string;
 	int num, critical, hot, passive;
@@ -953,7 +953,7 @@ acpi_thermal_write_trip_points(struct file *file,
 
 static int acpi_thermal_cooling_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_thermal *tz = (struct acpi_thermal *)seq->private;
+	struct acpi_thermal *tz = seq->private;
 
 
 	if (!tz)
@@ -984,8 +984,8 @@ acpi_thermal_write_cooling_mode(struct file *file,
 				const char __user * buffer,
 				size_t count, loff_t * ppos)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_thermal *tz = (struct acpi_thermal *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_thermal *tz = m->private;
 	int result = 0;
 	char mode_string[12] = { '\0' };
 
@@ -1014,7 +1014,7 @@ acpi_thermal_write_cooling_mode(struct file *file,
 
 static int acpi_thermal_polling_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_thermal *tz = (struct acpi_thermal *)seq->private;
+	struct acpi_thermal *tz = seq->private;
 
 
 	if (!tz)
@@ -1043,8 +1043,8 @@ acpi_thermal_write_polling(struct file *file,
 			   const char __user * buffer,
 			   size_t count, loff_t * ppos)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_thermal *tz = (struct acpi_thermal *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_thermal *tz = m->private;
 	int result = 0;
 	char polling_string[12] = { '\0' };
 	int seconds = 0;
@@ -1170,7 +1170,7 @@ static int acpi_thermal_remove_fs(struct acpi_device *device)
 
 static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_thermal *tz = (struct acpi_thermal *)data;
+	struct acpi_thermal *tz = data;
 	struct acpi_device *device = NULL;
 
 
@@ -1324,7 +1324,7 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	tz = (struct acpi_thermal *)acpi_driver_data(device);
+	tz = acpi_driver_data(device);
 
 	/* avoid timer adding new defer task */
 	tz->zombie = 1;
@@ -1364,7 +1364,7 @@ static int acpi_thermal_resume(struct acpi_device *device, int state)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	tz = (struct acpi_thermal *)acpi_driver_data(device);
+	tz = acpi_driver_data(device);
 
 	acpi_thermal_get_temperature(tz);
 

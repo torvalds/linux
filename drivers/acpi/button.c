@@ -109,7 +109,7 @@ static struct proc_dir_entry *acpi_button_dir;
 
 static int acpi_button_info_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_button *button = (struct acpi_button *)seq->private;
+	struct acpi_button *button = seq->private;
 
 
 	if (!button || !button->device)
@@ -128,7 +128,7 @@ static int acpi_button_info_open_fs(struct inode *inode, struct file *file)
 
 static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_button *button = (struct acpi_button *)seq->private;
+	struct acpi_button *button = seq->private;
 	acpi_status status;
 	unsigned long state;
 
@@ -253,7 +253,7 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 
 static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_button *button = (struct acpi_button *)data;
+	struct acpi_button *button = data;
 
 
 	if (!button || !button->device)
@@ -275,7 +275,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 
 static acpi_status acpi_button_notify_fixed(void *data)
 {
-	struct acpi_button *button = (struct acpi_button *)data;
+	struct acpi_button *button = data;
 
 
 	if (!button)

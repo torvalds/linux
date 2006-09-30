@@ -671,7 +671,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		return -ENODEV;
 	}
 
-	cst = (union acpi_object *)buffer.pointer;
+	cst = buffer.pointer;
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
@@ -700,14 +700,14 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 		memset(&cx, 0, sizeof(cx));
 
-		element = (union acpi_object *)&(cst->package.elements[i]);
+		element = &(cst->package.elements[i]);
 		if (element->type != ACPI_TYPE_PACKAGE)
 			continue;
 
 		if (element->package.count != 4)
 			continue;
 
-		obj = (union acpi_object *)&(element->package.elements[0]);
+		obj = &(element->package.elements[0]);
 
 		if (obj->type != ACPI_TYPE_BUFFER)
 			continue;
@@ -722,7 +722,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		    0 : reg->address;
 
 		/* There should be an easy way to extract an integer... */
-		obj = (union acpi_object *)&(element->package.elements[1]);
+		obj = &(element->package.elements[1]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
@@ -735,13 +735,13 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		if ((cx.type < ACPI_STATE_C2) || (cx.type > ACPI_STATE_C3))
 			continue;
 
-		obj = (union acpi_object *)&(element->package.elements[2]);
+		obj = &(element->package.elements[2]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
 		cx.latency = obj->integer.value;
 
-		obj = (union acpi_object *)&(element->package.elements[3]);
+		obj = &(element->package.elements[3]);
 		if (obj->type != ACPI_TYPE_INTEGER)
 			continue;
 
@@ -1004,7 +1004,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	struct acpi_processor *pr = seq->private;
 	unsigned int i;
 
 

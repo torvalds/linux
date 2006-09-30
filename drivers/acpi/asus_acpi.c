@@ -1128,7 +1128,7 @@ static int asus_hotk_get_info(void)
 	if (ACPI_FAILURE(status))
 		printk(KERN_WARNING "  Couldn't get the DSDT table header\n");
 	else
-		asus_info = (struct acpi_table_header *)dsdt.pointer;
+		asus_info = dsdt.pointer;
 
 	/* We have to write 0 on init this far for all ASUS models */
 	if (!write_acpi_int(hotk->handle, "INIT", 0, &buffer)) {
@@ -1150,7 +1150,7 @@ static int asus_hotk_get_info(void)
 	 * asus_model_match() and try something completely different.
 	 */
 	if (buffer.pointer) {
-		model = (union acpi_object *)buffer.pointer;
+		model = buffer.pointer;
 		switch (model->type) {
 		case ACPI_TYPE_STRING:
 			string = model->string.pointer;
@@ -1245,8 +1245,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	printk(KERN_NOTICE "Asus Laptop ACPI Extras version %s\n",
 	       ASUS_ACPI_VERSION);
 
-	hotk =
-	    (struct asus_hotk *)kmalloc(sizeof(struct asus_hotk), GFP_KERNEL);
+	hotk = kmalloc(sizeof(struct asus_hotk), GFP_KERNEL);
 	if (!hotk)
 		return -ENOMEM;
 	memset(hotk, 0, sizeof(struct asus_hotk));

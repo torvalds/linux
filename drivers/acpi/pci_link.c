@@ -103,7 +103,7 @@ DEFINE_MUTEX(acpi_link_lock);
 static acpi_status
 acpi_pci_link_check_possible(struct acpi_resource *resource, void *context)
 {
-	struct acpi_pci_link *link = (struct acpi_pci_link *)context;
+	struct acpi_pci_link *link = context;
 	u32 i = 0;
 
 
@@ -613,7 +613,7 @@ acpi_pci_link_allocate_irq(acpi_handle handle,
 		return -1;
 	}
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 	if (!link) {
 		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return -1;
@@ -668,7 +668,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 		return -1;
 	}
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 	if (!link) {
 		printk(KERN_ERR PREFIX "Invalid link context\n");
 		return -1;
@@ -808,7 +808,7 @@ static int acpi_pci_link_remove(struct acpi_device *device, int type)
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
-	link = (struct acpi_pci_link *)acpi_driver_data(device);
+	link = acpi_driver_data(device);
 
 	mutex_lock(&acpi_link_lock);
 	list_del(&link->node);

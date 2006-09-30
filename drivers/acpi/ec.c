@@ -716,7 +716,7 @@ static void acpi_ec_gpe_poll_query(void *ec_cxt)
 }
 static void acpi_ec_gpe_intr_query(void *ec_cxt)
 {
-	union acpi_ec *ec = (union acpi_ec *)ec_cxt;
+	union acpi_ec *ec = ec_cxt;
 	u32 value;
 	int result = -ENODATA;
 	static char object_name[5] = { '_', 'Q', '0', '0', '\0' };
@@ -752,7 +752,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 static u32 acpi_ec_gpe_poll_handler(void *data)
 {
 	acpi_status status = AE_OK;
-	union acpi_ec *ec = (union acpi_ec *)data;
+	union acpi_ec *ec = data;
 
 	if (!ec)
 		return ACPI_INTERRUPT_NOT_HANDLED;
@@ -770,7 +770,7 @@ static u32 acpi_ec_gpe_intr_handler(void *data)
 {
 	acpi_status status = AE_OK;
 	u32 value;
-	union acpi_ec *ec = (union acpi_ec *)data;
+	union acpi_ec *ec = data;
 
 	if (!ec)
 		return ACPI_INTERRUPT_NOT_HANDLED;
@@ -848,7 +848,7 @@ acpi_ec_space_handler(u32 function,
 		return AE_BAD_PARAMETER;
 	}
 
-	ec = (union acpi_ec *)handler_context;
+	ec = handler_context;
 
       next_byte:
 	switch (function) {
@@ -905,7 +905,7 @@ static struct proc_dir_entry *acpi_ec_dir;
 
 static int acpi_ec_read_info(struct seq_file *seq, void *offset)
 {
-	union acpi_ec *ec = (union acpi_ec *)seq->private;
+	union acpi_ec *ec = seq->private;
 
 
 	if (!ec)
@@ -1136,7 +1136,7 @@ static int acpi_ec_remove(struct acpi_device *device, int type)
 static acpi_status
 acpi_ec_io_ports(struct acpi_resource *resource, void *context)
 {
-	union acpi_ec *ec = (union acpi_ec *)context;
+	union acpi_ec *ec = context;
 	struct acpi_generic_address *addr;
 
 	if (resource->type != ACPI_RESOURCE_TYPE_IO) {

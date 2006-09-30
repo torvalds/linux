@@ -569,7 +569,7 @@ static void acpi_os_execute_deferred(void *context)
 	struct acpi_os_dpc *dpc = NULL;
 
 
-	dpc = (struct acpi_os_dpc *)context;
+	dpc = context;
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return;
@@ -1060,7 +1060,7 @@ acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
 
 acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
 {
-	(void)kmem_cache_shrink(cache);
+	kmem_cache_shrink(cache);
 	return (AE_OK);
 }
 

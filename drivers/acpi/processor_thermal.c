@@ -208,7 +208,7 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 	if (result)
 		return result;
 
-	pr = (struct acpi_processor *)acpi_driver_data(device);
+	pr = acpi_driver_data(device);
 	if (!pr)
 		return -ENODEV;
 
@@ -348,8 +348,8 @@ static ssize_t acpi_processor_write_limit(struct file * file,
 					  size_t count, loff_t * data)
 {
 	int result = 0;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_processor *pr = (struct acpi_processor *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_processor *pr = m->private;
 	char limit_string[25] = { '\0' };
 	int px = 0;
 	int tx = 0;

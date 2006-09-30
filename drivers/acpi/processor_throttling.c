@@ -259,7 +259,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 					      void *offset)
 {
-	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
+	struct acpi_processor *pr = seq->private;
 	int i = 0;
 	int result = 0;
 
@@ -307,8 +307,8 @@ static ssize_t acpi_processor_write_throttling(struct file * file,
 					       size_t count, loff_t * data)
 {
 	int result = 0;
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct acpi_processor *pr = (struct acpi_processor *)m->private;
+	struct seq_file *m = file->private_data;
+	struct acpi_processor *pr = m->private;
 	char state_string[12] = { '\0' };
 
 
