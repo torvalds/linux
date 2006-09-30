@@ -108,9 +108,9 @@ static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 	return ret;
 }
 
-static int vp702x_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int onoff)
+static int vp702x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
-	struct vp702x_state *st = d->priv;
+	struct vp702x_state *st = adap->priv;
 	u8 buf[9];
 
 	if (onoff) {
@@ -122,7 +122,7 @@ static int vp702x_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int o
 		st->pid_table[index*2] = st->pid_table[index*2+1] = 0;
 	}
 
-	return vp702x_usb_inout_cmd(d,SET_PID_FILTER,st->pid_table,17,buf,9,10);
+	return vp702x_usb_inout_cmd(adap->dev,SET_PID_FILTER,st->pid_table,17,buf,9,10);
 }
 
 static int vp702x_power_ctrl(struct dvb_usb_device *d, int onoff)
@@ -175,21 +175,21 @@ static int vp702x_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 	return 0;
 }
 
-static int vp702x_frontend_attach(struct dvb_usb_device *d)
+static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	u8 buf[9] = { 0 };
 
-	if (vp702x_usb_inout_cmd(d, GET_SYSTEM_STRING, NULL, 0, buf, 9, 10))
+	if (vp702x_usb_inout_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0, buf, 9, 10))
 		return -EIO;
 
 	buf[8] = '\0';
 	info("system string: %s",&buf[1]);
 
-	d->fe = vp702x_fe_attach(d);
+	adap->fe = vp702x_fe_attach(adap->dev);
 	return 0;
 }
 
-static struct dvb_usb_properties vp702x_properties;
+static struct dvb_usb_device_properties vp702x_properties;
 
 static int vp702x_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -211,28 +211,21 @@ static struct usb_device_id vp702x_usb_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, vp702x_usb_table);
 
-static struct dvb_usb_properties vp702x_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 8, /* !!! */
-
+static struct dvb_usb_device_properties vp702x_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-vp702x-01.fw",
 
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
+			.pid_filter_count = 8, /* !!! */
+
 	.pid_filter       = vp702x_pid_filter,
-	.power_ctrl       = vp702x_power_ctrl,
 	.frontend_attach  = vp702x_frontend_attach,
-	.read_mac_address = vp702x_read_mac_addr,
-
-	.rc_key_map       = vp702x_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(vp702x_rc_keys),
-	.rc_interval      = 400,
-	.rc_query         = vp702x_rc_query,
-
-	.size_of_priv     = sizeof(struct vp702x_state),
-
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -241,6 +234,16 @@ static struct dvb_usb_properties vp702x_properties = {
 			}
 		}
 	},
+			.size_of_priv     = sizeof(struct vp702x_state),
+		},
+	},
+	.power_ctrl       = vp702x_power_ctrl,
+	.read_mac_address = vp702x_read_mac_addr,
+
+	.rc_key_map       = vp702x_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(vp702x_rc_keys),
+	.rc_interval      = 400,
+	.rc_query         = vp702x_rc_query,
 
 	.num_device_descs = 2,
 	.devices = {

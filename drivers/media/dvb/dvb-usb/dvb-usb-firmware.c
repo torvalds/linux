@@ -1,6 +1,6 @@
 /* dvb-usb-firmware.c is part of the DVB USB library.
  *
- * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
  *
  * This file contains functions for downloading the firmware to Cypress FX 1 and 2 based devices.
@@ -78,7 +78,7 @@ int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw
 }
 EXPORT_SYMBOL(usb_cypress_load_firmware);
 
-int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_properties *props)
+int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_device_properties *props)
 {
 	int ret;
 	const struct firmware *fw = NULL;

@@ -28,19 +28,19 @@ static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
-static int dtt200u_streaming_ctrl(struct dvb_usb_device *d, int onoff)
+static int dtt200u_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	u8 b_streaming[2] = { SET_STREAMING, onoff };
 	u8 b_rst_pid = RESET_PID_FILTER;
 
-	dvb_usb_generic_write(d,b_streaming,2);
+	dvb_usb_generic_write(adap->dev, b_streaming, 2);
 
 	if (onoff == 0)
-		dvb_usb_generic_write(d,&b_rst_pid,1);
+		dvb_usb_generic_write(adap->dev, &b_rst_pid, 1);
 	return 0;
 }
 
-static int dtt200u_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int onoff)
+static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
 	u8 b_pid[4];
 	pid = onoff ? pid : 0;
@@ -50,7 +50,7 @@ static int dtt200u_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int 
 	b_pid[2] = pid & 0xff;
 	b_pid[3] = (pid >> 8) & 0x1f;
 
-	return dvb_usb_generic_write(d,b_pid,4);
+	return dvb_usb_generic_write(adap->dev, b_pid, 4);
 }
 
 /* remote control */
@@ -86,16 +86,16 @@ static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static int dtt200u_frontend_attach(struct dvb_usb_device *d)
+static int dtt200u_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	d->fe = dtt200u_fe_attach(d);
+	adap->fe = dtt200u_fe_attach(adap);
 	return 0;
 }
 
-static struct dvb_usb_properties dtt200u_properties;
-static struct dvb_usb_properties wt220u_fc_properties;
-static struct dvb_usb_properties wt220u_properties;
-static struct dvb_usb_properties wt220u_zl0353_properties;
+static struct dvb_usb_device_properties dtt200u_properties;
+static struct dvb_usb_device_properties wt220u_fc_properties;
+static struct dvb_usb_device_properties wt220u_properties;
+static struct dvb_usb_device_properties wt220u_zl0353_properties;
 
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -123,28 +123,22 @@ static struct usb_device_id dtt200u_usb_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, dtt200u_usb_table);
 
-static struct dvb_usb_properties dtt200u_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 15,
-
+static struct dvb_usb_device_properties dtt200u_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-dtt200u-01.fw",
 
-	.power_ctrl      = dtt200u_power_ctrl,
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
+			.pid_filter_count = 15,
+
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
 	.pid_filter      = dtt200u_pid_filter,
 	.frontend_attach = dtt200u_frontend_attach,
-
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
-
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -153,6 +147,16 @@ static struct dvb_usb_properties dtt200u_properties = {
 			}
 		}
 	},
+		}
+	},
+	.power_ctrl      = dtt200u_power_ctrl,
+
+	.rc_interval     = 300,
+	.rc_key_map      = dtt200u_rc_keys,
+	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_query        = dtt200u_rc_query,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -164,28 +168,22 @@ static struct dvb_usb_properties dtt200u_properties = {
 	}
 };
 
-static struct dvb_usb_properties wt220u_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 15,
-
+static struct dvb_usb_device_properties wt220u_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-02.fw",
 
-	.power_ctrl      = dtt200u_power_ctrl,
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
+			.pid_filter_count = 15,
+
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
 	.pid_filter      = dtt200u_pid_filter,
 	.frontend_attach = dtt200u_frontend_attach,
-
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
-
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -194,6 +192,16 @@ static struct dvb_usb_properties wt220u_properties = {
 			}
 		}
 	},
+		}
+	},
+	.power_ctrl      = dtt200u_power_ctrl,
+
+	.rc_interval     = 300,
+	.rc_key_map      = dtt200u_rc_keys,
+	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_query        = dtt200u_rc_query,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {
@@ -205,17 +213,33 @@ static struct dvb_usb_properties wt220u_properties = {
 	}
 };
 
-static struct dvb_usb_properties wt220u_fc_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 15,
-
+static struct dvb_usb_device_properties wt220u_fc_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-fc03.fw",
 
-	.power_ctrl      = dtt200u_power_ctrl,
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
+			.pid_filter_count = 15,
+
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
 	.pid_filter      = dtt200u_pid_filter,
 	.frontend_attach = dtt200u_frontend_attach,
+	/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+		.count = 7,
+				.endpoint = 0x06,
+		.u = {
+			.bulk = {
+				.buffersize = 4096,
+			}
+		}
+	},
+		}
+	},
+	.power_ctrl      = dtt200u_power_ctrl,
 
 	.rc_interval     = 300,
 	.rc_key_map      = dtt200u_rc_keys,
@@ -223,18 +247,6 @@ static struct dvb_usb_properties wt220u_fc_properties = {
 	.rc_query        = dtt200u_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
-
-	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
-		.count = 7,
-		.endpoint = 0x86,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
 
 	.num_device_descs = 1,
 	.devices = {
@@ -246,28 +258,22 @@ static struct dvb_usb_properties wt220u_fc_properties = {
 	}
 };
 
-static struct dvb_usb_properties wt220u_zl0353_properties = {
-	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_NEED_PID_FILTERING,
-	.pid_filter_count = 15,
-
+static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-wt220u-zl0353-01.fw",
 
-	.power_ctrl      = dtt200u_power_ctrl,
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
+			.pid_filter_count = 15,
+
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
 	.pid_filter      = dtt200u_pid_filter,
 	.frontend_attach = dtt200u_frontend_attach,
-
-	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
-	.rc_query        = dtt200u_rc_query,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
-
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -276,6 +282,16 @@ static struct dvb_usb_properties wt220u_zl0353_properties = {
 			}
 		}
 	},
+		}
+	},
+	.power_ctrl      = dtt200u_power_ctrl,
+
+	.rc_interval     = 300,
+	.rc_key_map      = dtt200u_rc_keys,
+	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_query        = dtt200u_rc_query,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {

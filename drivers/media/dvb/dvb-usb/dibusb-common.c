@@ -18,12 +18,12 @@ MODULE_LICENSE("GPL");
 #define deb_info(args...) dprintk(debug,0x01,args)
 
 /* common stuff used by the different dibusb modules */
-int dibusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
+int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	if (d->priv != NULL) {
-		struct dibusb_state *st = d->priv;
+	if (adap->priv != NULL) {
+		struct dibusb_state *st = adap->priv;
 		if (st->ops.fifo_ctrl != NULL)
-			if (st->ops.fifo_ctrl(d->fe,onoff)) {
+			if (st->ops.fifo_ctrl(adap->fe,onoff)) {
 				err("error while controlling the fifo of the demod.");
 				return -ENODEV;
 			}
@@ -32,23 +32,23 @@ int dibusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 }
 EXPORT_SYMBOL(dibusb_streaming_ctrl);
 
-int dibusb_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int onoff)
+int dibusb_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, int onoff)
 {
-	if (d->priv != NULL) {
-		struct dibusb_state *st = d->priv;
+	if (adap->priv != NULL) {
+		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_ctrl != NULL)
-			st->ops.pid_ctrl(d->fe,index,pid,onoff);
+			st->ops.pid_ctrl(adap->fe,index,pid,onoff);
 	}
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_pid_filter);
 
-int dibusb_pid_filter_ctrl(struct dvb_usb_device *d, int onoff)
+int dibusb_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	if (d->priv != NULL) {
-		struct dibusb_state *st = d->priv;
+	if (adap->priv != NULL) {
+		struct dibusb_state *st = adap->priv;
 		if (st->ops.pid_parse != NULL)
-			if (st->ops.pid_parse(d->fe,onoff) < 0)
+			if (st->ops.pid_parse(adap->fe,onoff) < 0)
 				err("could not handle pid_parser");
 	}
 	return 0;
@@ -68,24 +68,24 @@ int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 EXPORT_SYMBOL(dibusb_power_ctrl);
 
-int dibusb2_0_streaming_ctrl(struct dvb_usb_device *d, int onoff)
+int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	u8 b[3] = { 0 };
 	int ret;
 
-	if ((ret = dibusb_streaming_ctrl(d,onoff)) < 0)
+	if ((ret = dibusb_streaming_ctrl(adap,onoff)) < 0)
 		return ret;
 
 	if (onoff) {
 		b[0] = DIBUSB_REQ_SET_STREAMING_MODE;
 		b[1] = 0x00;
-		if ((ret = dvb_usb_generic_write(d,b,2)) < 0)
+		if ((ret = dvb_usb_generic_write(adap->dev,b,2)) < 0)
 			return ret;
 	}
 
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = onoff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
-	return dvb_usb_generic_write(d,b,3);
+	return dvb_usb_generic_write(adap->dev,b,3);
 }
 EXPORT_SYMBOL(dibusb2_0_streaming_ctrl);
 
@@ -228,12 +228,12 @@ static struct dib3000mc_config mod3000p_dib3000p_config = {
 	.output_mpeg2_in_188_bytes = 1,
 };
 
-int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *d)
+int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	if (dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe) == 0 ||
-		dib3000mc_attach(&d->i2c_adap, 1, DEFAULT_DIB3000MC_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &d->fe) == 0) {
-		if (d->priv != NULL) {
-			struct dibusb_state *st = d->priv;
+	if (dib3000mc_attach(&adap->dev->i2c_adap, 1, DEFAULT_DIB3000P_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &adap->fe) == 0 ||
+		dib3000mc_attach(&adap->dev->i2c_adap, 1, DEFAULT_DIB3000MC_I2C_ADDRESS, 0, &mod3000p_dib3000p_config, &adap->fe) == 0) {
+		if (adap->priv != NULL) {
+			struct dibusb_state *st = adap->priv;
 			st->ops.pid_parse = dib3000mc_pid_parse;
 			st->ops.pid_ctrl  = dib3000mc_pid_control;
 		}
@@ -247,20 +247,20 @@ static struct mt2060_config stk3000p_mt2060_config = {
 	0x60
 };
 
-int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
+int dibusb_dib3000mc_tuner_attach (struct dvb_usb_adapter *adap)
 {
-	struct dibusb_state *st = d->priv;
+	struct dibusb_state *st = adap->priv;
 	int ret;
 	u8 a,b;
 	u16 if1 = 1220;
 	struct i2c_adapter *tun_i2c;
 
 	// First IF calibration for Liteon Sticks
-	if (d->udev->descriptor.idVendor == USB_VID_LITEON &&
-		d->udev->descriptor.idProduct == USB_PID_LITEON_DVB_T_WARM) {
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_LITEON &&
+		adap->dev->udev->descriptor.idProduct == USB_PID_LITEON_DVB_T_WARM) {
 
-		dibusb_read_eeprom_byte(d,0x7E,&a);
-		dibusb_read_eeprom_byte(d,0x7F,&b);
+		dibusb_read_eeprom_byte(adap->dev,0x7E,&a);
+		dibusb_read_eeprom_byte(adap->dev,0x7F,&b);
 
 		if (a == 0x00)
 			if1 += b;
@@ -269,14 +269,14 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 		else
 			warn("LITE-ON DVB-T: Strange IF1 calibration :%2X %2X\n", a, b);
 
-	} else if (d->udev->descriptor.idVendor  == USB_VID_DIBCOM &&
-		   d->udev->descriptor.idProduct == USB_PID_DIBCOM_MOD3001_WARM) {
+	} else if (adap->dev->udev->descriptor.idVendor  == USB_VID_DIBCOM &&
+		   adap->dev->udev->descriptor.idProduct == USB_PID_DIBCOM_MOD3001_WARM) {
 		u8 desc;
-		dibusb_read_eeprom_byte(d, 7, &desc);
+		dibusb_read_eeprom_byte(adap->dev, 7, &desc);
 		if (desc == 2) {
 			a = 127;
 			do {
-				dibusb_read_eeprom_byte(d, a, &desc);
+				dibusb_read_eeprom_byte(adap->dev, a, &desc);
 				a--;
 			} while (a > 7 && (desc == 0xff || desc == 0x00));
 			if (desc & 0x80)
@@ -286,15 +286,15 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 		}
 	}
 
-	tun_i2c = dib3000mc_get_tuner_i2c_master(d->fe, 1);
-	if ((ret = mt2060_attach(d->fe, tun_i2c, &stk3000p_mt2060_config, if1)) != 0) {
+	tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
+	if ((ret = mt2060_attach(adap->fe, tun_i2c, &stk3000p_mt2060_config, if1)) != 0) {
 		/* not found - use panasonic pll parameters */
-		if (dvb_pll_attach(d->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
+		if (dvb_pll_attach(adap->fe, 0x60, tun_i2c, &dvb_pll_env57h1xd5) == NULL)
 			return -ENOMEM;
 	} else {
 		st->mt2060_present = 1;
 		/* set the correct parameters for the dib3000p */
-		dib3000mc_set_config(d->fe, &stk3000p_dib3000p_config);
+		dib3000mc_set_config(adap->fe, &stk3000p_dib3000p_config);
 	}
 	return 0;
 }

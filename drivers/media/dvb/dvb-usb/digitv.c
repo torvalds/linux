@@ -83,7 +83,7 @@ static struct i2c_algorithm digitv_i2c_algo = {
 
 /* Callbacks for DVB USB */
 static int digitv_identify_state (struct usb_device *udev, struct
-		dvb_usb_properties *props, struct dvb_usb_device_description **desc,
+		dvb_usb_device_properties *props, struct dvb_usb_device_description **desc,
 		int *cold)
 {
 	*cold = udev->descriptor.iManufacturer == 0 && udev->descriptor.iProduct == 0;
@@ -116,33 +116,33 @@ static struct mt352_config digitv_mt352_config = {
 
 static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
-	struct dvb_usb_device *d = fe->dvb->priv;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	u8 b[5];
 	dvb_usb_tuner_calc_regs(fe,fep,b, 5);
-	return digitv_ctrl_msg(d,USB_WRITE_TUNER,0,&b[1],4,NULL,0);
+	return digitv_ctrl_msg(adap->dev, USB_WRITE_TUNER, 0, &b[1], 4, NULL, 0);
 }
 
 static struct nxt6000_config digitv_nxt6000_config = {
 	.clock_inversion = 1,
 };
 
-static int digitv_frontend_attach(struct dvb_usb_device *d)
+static int digitv_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	if ((d->fe = dvb_attach(mt352_attach, &digitv_mt352_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	if ((adap->fe = dvb_attach(mt352_attach, &digitv_mt352_config, &adap->dev->i2c_adap)) != NULL) {
+		adap->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 		return 0;
 	}
-	if ((d->fe = dvb_attach(nxt6000_attach, &digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
+	if ((adap->fe = dvb_attach(nxt6000_attach, &digitv_nxt6000_config, &adap->dev->i2c_adap)) != NULL) {
+		adap->fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
 		return 0;
 	}
 	return -EIO;
 }
 
-static int digitv_tuner_attach(struct dvb_usb_device *d)
+static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	d->pll_addr = 0x60;
-	d->pll_desc = &dvb_pll_tded4;
+	adap->pll_addr = 0x60;
+	adap->pll_desc = &dvb_pll_tded4;
 	return 0;
 }
 
@@ -238,7 +238,7 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* DVB USB Driver stuff */
-static struct dvb_usb_properties digitv_properties;
+static struct dvb_usb_device_properties digitv_properties;
 
 static int digitv_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -265,30 +265,21 @@ static struct usb_device_id digitv_table [] = {
 };
 MODULE_DEVICE_TABLE (usb, digitv_table);
 
-static struct dvb_usb_properties digitv_properties = {
+static struct dvb_usb_device_properties digitv_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-digitv-02.fw",
 
-	.size_of_priv     = 0,
-
+	.num_adapters = 1,
+	.adapter = {
+		{
 	.frontend_attach  = digitv_frontend_attach,
 	.tuner_attach     = digitv_tuner_attach,
 
-	.rc_interval      = 1000,
-	.rc_key_map       = digitv_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(digitv_rc_keys),
-	.rc_query         = digitv_rc_query,
-
-	.identify_state   = digitv_identify_state,
-
-	.i2c_algo         = &digitv_i2c_algo,
-
-	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -297,6 +288,18 @@ static struct dvb_usb_properties digitv_properties = {
 			}
 		}
 	},
+		}
+	},
+	.identify_state   = digitv_identify_state,
+
+	.rc_interval      = 1000,
+	.rc_key_map       = digitv_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(digitv_rc_keys),
+	.rc_query         = digitv_rc_query,
+
+	.i2c_algo         = &digitv_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.num_device_descs = 1,
 	.devices = {

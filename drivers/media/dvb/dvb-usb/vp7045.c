@@ -169,31 +169,31 @@ static int vp7045_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 	return vp7045_read_eeprom(d,mac, 6, MAC_0_ADDR);
 }
 
-static int vp7045_frontend_attach(struct dvb_usb_device *d)
+static int vp7045_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	u8 buf[255] = { 0 };
 
-	vp7045_usb_op(d,VENDOR_STRING_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,VENDOR_STRING_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("firmware says: %s ",buf);
 
-	vp7045_usb_op(d,PRODUCT_STRING_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,PRODUCT_STRING_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("%s ",buf);
 
-	vp7045_usb_op(d,FW_VERSION_READ,NULL,0,buf,20,0);
+	vp7045_usb_op(adap->dev,FW_VERSION_READ,NULL,0,buf,20,0);
 	buf[10] = '\0';
 	deb_info("v%s\n",buf);
 
 /*	Dump the EEPROM */
 /*	vp7045_read_eeprom(d,buf, 255, FX2_ID_ADDR); */
 
-	d->fe = vp7045_fe_attach(d);
+	adap->fe = vp7045_fe_attach(adap->dev);
 
 	return 0;
 }
 
-static struct dvb_usb_properties vp7045_properties;
+static struct dvb_usb_device_properties vp7045_properties;
 
 static int vp7045_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -210,24 +210,17 @@ static struct usb_device_id vp7045_usb_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, vp7045_usb_table);
 
-static struct dvb_usb_properties vp7045_properties = {
-	.caps = 0,
-
+static struct dvb_usb_device_properties vp7045_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-vp7045-01.fw",
 
-	.power_ctrl       = vp7045_power_ctrl,
+	.num_adapters = 1,
+	.adapter = {
+		{
 	.frontend_attach  = vp7045_frontend_attach,
-	.read_mac_address = vp7045_read_mac_addr,
-
-	.rc_interval      = 400,
-	.rc_key_map       = vp7045_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(vp7045_rc_keys),
-	.rc_query         = vp7045_rc_query,
-
 	/* parameter for the MPEG2-data transfer */
-	.urb = {
-		.type = DVB_USB_BULK,
+			.stream = {
+				.type = USB_BULK,
 		.count = 7,
 		.endpoint = 0x02,
 		.u = {
@@ -236,6 +229,15 @@ static struct dvb_usb_properties vp7045_properties = {
 			}
 		}
 	},
+		}
+	},
+	.power_ctrl       = vp7045_power_ctrl,
+	.read_mac_address = vp7045_read_mac_addr,
+
+	.rc_interval      = 400,
+	.rc_key_map       = vp7045_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(vp7045_rc_keys),
+	.rc_query         = vp7045_rc_query,
 
 	.num_device_descs = 2,
 	.devices = {

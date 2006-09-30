@@ -39,20 +39,8 @@ config DVB_USB_DIBUSB_MB
 	  Support for USB 1.1 and 2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-B demodulator.
 
-	  Devices supported by this driver:
-	    Artec T1 USB1.1 boxes
-	    Avermedia AverTV DVBT USB1.1
-	    Compro Videomate DVB-U2000 - DVB-T USB
-	    DiBcom USB1.1 reference devices (non-public)
-	    Grandtec DVB-T USB
-	    Hama DVB-T USB1.1-Box
-	    KWorld/JetWay/ADSTech V-Stream XPERT DTV - DVB-T USB1.1 and USB2.0
-	    TwinhanDTV Magic Box (VP7041e)
-	    TwinhanDTV USB-Ter (VP7041)
-	    Ultima Electronic/Artec T1 USB TVBOX
-
-	  The VP7041 seems to be identical to "CTS Portable" (Chinese
-	  Television System).
+	  For an up-to-date list of devices supported by this driver, have a look
+	  on the Linux-DVB Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
@@ -69,12 +57,28 @@ config DVB_USB_DIBUSB_MC
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060
 	help
-	  Support for 2.0 DVB-T receivers based on reference designs made by
+	  Support for USB2.0 DVB-T receivers based on reference designs made by
 	  DiBcom (<http://www.dibcom.fr>) equipped with a DiB3000M-C/P demodulator.
 
-	  Devices supported by this driver:
-	    Artec T1 USB2.0 boxes
-	    DiBcom USB2.0 reference devices (non-public)
+	  For an up-to-date list of devices supported by this driver, have a look
+	  on the Linux-DVB Wiki at www.linuxtv.org.
+
+	  Say Y if you own such a device and want to use it. You should build it as
+	  a module.
+
+config DVB_USB_DIB0700
+	tristate "DiBcom DiB0700 USB DVB devices (see help for supported devices)"
+	depends on DVB_USB
+	select DVB_DIB7000M
+	select DVB_TUNER_MT2060
+	help
+	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
+	  USB bridge is also present in devices having the DiB7700 DVB-T-USB
+	  silicon. This chip can be found in devices offered by Hauppauge,
+	  Avermedia and other big and small companies.
+
+	  For an up-to-date list of devices supported by this driver, have a look
+	  on the Linux-DVB Wiki at www.linuxtv.org.
 
 	  Say Y if you own such a device and want to use it. You should build it as
 	  a module.
