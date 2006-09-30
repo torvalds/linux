@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2006 Jens Axboe <axboe@kernel.dk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -69,7 +69,7 @@ static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK
 /*
  * Bio action bits of interest
  */
-static u32 bio_act[5] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD) };
+static u32 bio_act[9] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD), 0, 0, 0, BLK_TC_ACT(BLK_TC_META) };
 
 /*
  * More could be added as needed, taking care to increment the decrementer
@@ -81,6 +81,8 @@ static u32 bio_act[5] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_AC
 	(((rw) & (1 << BIO_RW_SYNC)) >> (BIO_RW_SYNC - 1))
 #define trace_ahead_bit(rw)	\
 	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
+#define trace_meta_bit(rw)	\
+	(((rw) & (1 << BIO_RW_META)) >> (BIO_RW_META - 3))
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
@@ -103,6 +105,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	what |= bio_act[trace_barrier_bit(rw)];
 	what |= bio_act[trace_sync_bit(rw)];
 	what |= bio_act[trace_ahead_bit(rw)];
+	what |= bio_act[trace_meta_bit(rw)];
 
 	pid = tsk->pid;
 	if (unlikely(act_log_check(bt, what, sector, pid)))
@@ -473,6 +476,9 @@ static void blk_check_time(unsigned long long *t)
 	*t -= (a + b) / 2;
 }
 
+/*
+ * calibrate our inter-CPU timings
+ */
 static void blk_trace_check_cpu_time(void *data)
 {
 	unsigned long long *t;
@@ -488,20 +494,6 @@ static void blk_trace_check_cpu_time(void *data)
 	blk_check_time(t);
 
 	put_cpu();
-}
-
-/*
- * Call blk_trace_check_cpu_time() on each CPU to calibrate our inter-CPU
- * timings
- */
-static void blk_trace_calibrate_offsets(void)
-{
-	unsigned long flags;
-
-	smp_call_function(blk_trace_check_cpu_time, NULL, 1, 1);
-	local_irq_save(flags);
-	blk_trace_check_cpu_time(NULL);
-	local_irq_restore(flags);
 }
 
 static void blk_trace_set_ht_offsets(void)
@@ -532,7 +524,7 @@ static void blk_trace_set_ht_offsets(void)
 static __init int blk_trace_init(void)
 {
 	mutex_init(&blk_tree_mutex);
-	blk_trace_calibrate_offsets();
+	on_each_cpu(blk_trace_check_cpu_time, NULL, 1, 1);
 	blk_trace_set_ht_offsets();
 
 	return 0;

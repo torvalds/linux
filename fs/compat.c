@@ -52,10 +52,11 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/ioctls.h>
-
-extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
+#include "internal.h"
 
 int compat_log = 1;
+
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
 
 int compat_printk(const char *fmt, ...)
 {
@@ -312,9 +313,6 @@ out:
 
 #define IOCTL_HASHSIZE 256
 static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-
-extern struct ioctl_trans ioctl_start[];
-extern int ioctl_table_size;
 
 static inline unsigned long ioctl32_hash(unsigned long cmd)
 {
@@ -837,8 +835,6 @@ static int do_nfs4_super_data_conv(void *raw_data)
 
 	return 0;
 }
-
-extern int copy_mount_options (const void __user *, unsigned long *);
 
 #define SMBFS_NAME      "smbfs"
 #define NCPFS_NAME      "ncpfs"

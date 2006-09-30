@@ -501,7 +501,7 @@ S:	Maintained
 
 BLOCK LAYER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/axboe/linux-2.6-block.git
 S:	Maintained
@@ -1380,7 +1380,7 @@ S:	Maintained
 
 IDE/ATAPI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -2531,7 +2531,7 @@ S:	Maintained
 
 SCSI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-scsi@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -2976,7 +2976,7 @@ S:	Maintained
 
 UNIFORM CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained

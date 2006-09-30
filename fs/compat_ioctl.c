@@ -40,15 +40,11 @@
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
 #include <linux/cdrom.h>
-#include <linux/loop.h>
 #include <linux/auto_fs.h>
 #include <linux/auto_fs4.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
-#include <linux/ext2_fs.h>
-#include <linux/ext3_jbd.h>
-#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -60,7 +56,6 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/serial.h>
-#include <linux/reiserfs_fs.h>
 #include <linux/if_tun.h>
 #include <linux/ctype.h>
 #include <linux/ioctl32.h>
@@ -113,7 +108,6 @@
 #include <linux/nbd.h>
 #include <linux/random.h>
 #include <linux/filter.h>
-#include <linux/msdos_fs.h>
 #include <linux/pktcdvd.h>
 
 #include <linux/hiddev.h>
@@ -123,21 +117,6 @@
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
 #include <linux/lp.h>
-
-/* Aiee. Someone does not find a difference between int and long */
-#define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
-#define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
-#define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
-#define EXT3_IOC32_SETVERSION             _IOW('f', 4, int)
-#define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
-#define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
-#define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
-#ifdef CONFIG_JBD_DEBUG
-#define EXT3_IOC32_WAIT_FOR_READONLY      _IOR('f', 99, int)
-#endif
-
-#define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
-#define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
 
 static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
 			      unsigned long arg, struct file *f)
@@ -174,34 +153,6 @@ static int rw_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (!err && put_user(val, argptr))
 		return -EFAULT;
 	return err;
-}
-
-static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT2_IOC32_GETFLAGS: cmd = EXT2_IOC_GETFLAGS; break;
-	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
-	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
-	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
-}
-
-static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	/* These are just misnamed, they actually get/put from/to user an int */
-	switch (cmd) {
-	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
-	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
-	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
-	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
-	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
-#ifdef CONFIG_JBD_DEBUG
-	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
-#endif
-	}
-	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
 
 struct compat_video_event {
@@ -694,6 +645,7 @@ out:
 }
 #endif
 
+#ifdef CONFIG_BLOCK
 struct hd_geometry32 {
 	unsigned char heads;
 	unsigned char sectors;
@@ -918,6 +870,7 @@ static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 	return err;
 }
+#endif /* CONFIG_BLOCK */
 
 struct sock_fprog32 {
 	unsigned short	len;
@@ -1041,6 +994,7 @@ static int ppp_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 }
 
 
+#ifdef CONFIG_BLOCK
 struct mtget32 {
 	compat_long_t	mt_type;
 	compat_long_t	mt_resid;
@@ -1213,73 +1167,7 @@ static int cdrom_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return err;
 }
-
-struct loop_info32 {
-	compat_int_t	lo_number;      /* ioctl r/o */
-	compat_dev_t	lo_device;      /* ioctl r/o */
-	compat_ulong_t	lo_inode;       /* ioctl r/o */
-	compat_dev_t	lo_rdevice;     /* ioctl r/o */
-	compat_int_t	lo_offset;
-	compat_int_t	lo_encrypt_type;
-	compat_int_t	lo_encrypt_key_size;    /* ioctl w/o */
-	compat_int_t	lo_flags;       /* ioctl r/o */
-	char		lo_name[LO_NAME_SIZE];
-	unsigned char	lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
-	compat_ulong_t	lo_init[2];
-	char		reserved[4];
-};
-
-static int loop_status(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs = get_fs();
-	struct loop_info l;
-	struct loop_info32 __user *ul;
-	int err = -EINVAL;
-
-	ul = compat_ptr(arg);
-	switch(cmd) {
-	case LOOP_SET_STATUS:
-		err = get_user(l.lo_number, &ul->lo_number);
-		err |= __get_user(l.lo_device, &ul->lo_device);
-		err |= __get_user(l.lo_inode, &ul->lo_inode);
-		err |= __get_user(l.lo_rdevice, &ul->lo_rdevice);
-		err |= __copy_from_user(&l.lo_offset, &ul->lo_offset,
-		        8 + (unsigned long)l.lo_init - (unsigned long)&l.lo_offset);
-		if (err) {
-			err = -EFAULT;
-		} else {
-			set_fs (KERNEL_DS);
-			err = sys_ioctl (fd, cmd, (unsigned long)&l);
-			set_fs (old_fs);
-		}
-		break;
-	case LOOP_GET_STATUS:
-		set_fs (KERNEL_DS);
-		err = sys_ioctl (fd, cmd, (unsigned long)&l);
-		set_fs (old_fs);
-		if (!err) {
-			err = put_user(l.lo_number, &ul->lo_number);
-			err |= __put_user(l.lo_device, &ul->lo_device);
-			err |= __put_user(l.lo_inode, &ul->lo_inode);
-			err |= __put_user(l.lo_rdevice, &ul->lo_rdevice);
-			err |= __copy_to_user(&ul->lo_offset, &l.lo_offset,
-				(unsigned long)l.lo_init - (unsigned long)&l.lo_offset);
-			if (err)
-				err = -EFAULT;
-		}
-		break;
-	default: {
-		static int count;
-		if (++count <= 20)
-			printk("%s: Unknown loop ioctl cmd, fd(%d) "
-			       "cmd(%08x) arg(%08lx)\n",
-			       __FUNCTION__, fd, cmd, arg);
-	}
-	}
-	return err;
-}
-
-extern int tty_ioctl(struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg);
+#endif /* CONFIG_BLOCK */
 
 #ifdef CONFIG_VT
 
@@ -1607,6 +1495,7 @@ ret_einval(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_BLOCK
 static int broken_blkgetsize(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	/* The mkswap binary hard codes it to Intel value :-((( */
@@ -1641,12 +1530,14 @@ static int blkpg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return sys_ioctl(fd, cmd, (unsigned long)a);
 }
+#endif
 
 static int ioc_settimeout(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	return rw_long(fd, AUTOFS_IOC_SETTIMEOUT, arg);
 }
 
+#ifdef CONFIG_BLOCK
 /* Fix sizeof(sizeof()) breakage */
 #define BLKBSZGET_32   _IOR(0x12,112,int)
 #define BLKBSZSET_32   _IOW(0x12,113,int)
@@ -1667,6 +1558,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 {
        return sys_ioctl(fd, BLKGETSIZE64, (unsigned long)compat_ptr(arg));
 }
+#endif
 
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO	_IOW('U', 200, int)
@@ -1687,6 +1579,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 #define HIDPGETCONNLIST	_IOR('H', 210, int)
 #define HIDPGETCONNINFO	_IOR('H', 211, int)
 
+#ifdef CONFIG_BLOCK
 struct floppy_struct32 {
 	compat_uint_t	size;
 	compat_uint_t	sect;
@@ -2011,6 +1904,7 @@ out:
 	kfree(karg);
 	return err;
 }
+#endif
 
 struct mtd_oob_buf32 {
 	u_int32_t start;
@@ -2052,61 +1946,7 @@ static int mtd_rw_oob(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }	
 
-#define	VFAT_IOCTL_READDIR_BOTH32	_IOR('r', 1, struct compat_dirent[2])
-#define	VFAT_IOCTL_READDIR_SHORT32	_IOR('r', 2, struct compat_dirent[2])
-
-static long
-put_dirent32 (struct dirent *d, struct compat_dirent __user *d32)
-{
-        if (!access_ok(VERIFY_WRITE, d32, sizeof(struct compat_dirent)))
-                return -EFAULT;
-
-        __put_user(d->d_ino, &d32->d_ino);
-        __put_user(d->d_off, &d32->d_off);
-        __put_user(d->d_reclen, &d32->d_reclen);
-        if (__copy_to_user(d32->d_name, d->d_name, d->d_reclen))
-		return -EFAULT;
-
-        return 0;
-}
-
-static int vfat_ioctl32(unsigned fd, unsigned cmd, unsigned long arg)
-{
-	struct compat_dirent __user *p = compat_ptr(arg);
-	int ret;
-	mm_segment_t oldfs = get_fs();
-	struct dirent d[2];
-
-	switch(cmd)
-	{
-        	case VFAT_IOCTL_READDIR_BOTH32:
-                	cmd = VFAT_IOCTL_READDIR_BOTH;
-                	break;
-        	case VFAT_IOCTL_READDIR_SHORT32:
-                	cmd = VFAT_IOCTL_READDIR_SHORT;
-                	break;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = sys_ioctl(fd,cmd,(unsigned long)&d);
-	set_fs(oldfs);
-	if (ret >= 0) {
-		ret |= put_dirent32(&d[0], p);
-		ret |= put_dirent32(&d[1], p + 1);
-	}
-	return ret;
-}
-
-#define REISERFS_IOC_UNPACK32               _IOW(0xCD,1,int)
-
-static int reiserfs_ioctl32(unsigned fd, unsigned cmd, unsigned long ptr)
-{
-        if (cmd == REISERFS_IOC_UNPACK32)
-                cmd = REISERFS_IOC_UNPACK;
-
-        return sys_ioctl(fd,cmd,ptr);
-}
-
+#ifdef CONFIG_BLOCK
 struct raw32_config_request
 {
         compat_int_t    raw_minor;
@@ -2171,6 +2011,7 @@ static int raw_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
         }
         return ret;
 }
+#endif /* CONFIG_BLOCK */
 
 struct serial_struct32 {
         compat_int_t    type;
@@ -2777,6 +2618,7 @@ HANDLE_IOCTL(SIOCBRDELIF, dev_ifsioc)
 HANDLE_IOCTL(SIOCRTMSG, ret_einval)
 HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
 #endif
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(HDIO_GETGEO, hdio_getgeo)
 HANDLE_IOCTL(BLKRAGET, w_long)
 HANDLE_IOCTL(BLKGETSIZE, w_long)
@@ -2802,16 +2644,17 @@ HANDLE_IOCTL(FDGETFDCSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDWERRORGET32, fd_ioctl_trans)
 HANDLE_IOCTL(SG_IO,sg_ioctl_trans)
 HANDLE_IOCTL(SG_GET_REQUEST_TABLE, sg_grt_trans)
+#endif
 HANDLE_IOCTL(PPPIOCGIDLE32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSCOMPRESS32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSPASS32, ppp_sock_fprog_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSACTIVE32, ppp_sock_fprog_ioctl_trans)
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(MTIOCGET32, mt_ioctl_trans)
 HANDLE_IOCTL(MTIOCPOS32, mt_ioctl_trans)
 HANDLE_IOCTL(CDROMREADAUDIO, cdrom_ioctl_trans)
 HANDLE_IOCTL(CDROM_SEND_PACKET, cdrom_ioctl_trans)
-HANDLE_IOCTL(LOOP_SET_STATUS, loop_status)
-HANDLE_IOCTL(LOOP_GET_STATUS, loop_status)
+#endif
 #define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93,0x64,unsigned int)
 HANDLE_IOCTL(AUTOFS_IOC_SETTIMEOUT32, ioc_settimeout)
 #ifdef CONFIG_VT
@@ -2820,19 +2663,6 @@ HANDLE_IOCTL(GIO_FONTX, do_fontx_ioctl)
 HANDLE_IOCTL(PIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(GIO_UNIMAP, do_unimap_ioctl)
 HANDLE_IOCTL(KDFONTOP, do_kdfontop_ioctl)
-#endif
-HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
-HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
-HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
-COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
-#ifdef CONFIG_JBD_DEBUG
-HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
 #endif
 /* One SMB ioctl needs translations. */
 #define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
@@ -2863,16 +2693,14 @@ HANDLE_IOCTL(SONET_SETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRSENSE, do_atm_ioctl)
 /* block stuff */
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(BLKBSZGET_32, do_blkbszget)
 HANDLE_IOCTL(BLKBSZSET_32, do_blkbszset)
 HANDLE_IOCTL(BLKGETSIZE64_32, do_blkgetsize64)
-/* vfat */
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_BOTH32, vfat_ioctl32)
-HANDLE_IOCTL(VFAT_IOCTL_READDIR_SHORT32, vfat_ioctl32)
-HANDLE_IOCTL(REISERFS_IOC_UNPACK32, reiserfs_ioctl32)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
+#endif
 /* Serial */
 HANDLE_IOCTL(TIOCGSERIAL, serial_struct_ioctl)
 HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)

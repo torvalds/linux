@@ -111,6 +111,8 @@ balance_dirty_pages_ratelimited(struct address_space *mapping)
 }
 
 int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
+extern int generic_writepages(struct address_space *mapping,
+			      struct writeback_control *wbc);
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc);
 int sync_page_range(struct inode *inode, struct address_space *mapping,
 			loff_t pos, loff_t count);

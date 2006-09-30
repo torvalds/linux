@@ -17,11 +17,13 @@
 #include <linux/module.h>
 #include <linux/blkpg.h>
 #include <linux/buffer_head.h>
+#include <linux/writeback.h>
 #include <linux/mpage.h>
 #include <linux/mount.h>
 #include <linux/uio.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
+#include "internal.h"
 
 struct bdev_inode {
 	struct block_device bdev;
@@ -1313,3 +1315,24 @@ void close_bdev_excl(struct block_device *bdev)
 }
 
 EXPORT_SYMBOL(close_bdev_excl);
+
+int __invalidate_device(struct block_device *bdev)
+{
+	struct super_block *sb = get_super(bdev);
+	int res = 0;
+
+	if (sb) {
+		/*
+		 * no need to lock the super, get_super holds the
+		 * read mutex so the filesystem cannot go away
+		 * under us (->put_super runs with the write lock
+		 * hold).
+		 */
+		shrink_dcache_sb(sb);
+		res = invalidate_inodes(sb);
+		drop_super(sb);
+	}
+	invalidate_bdev(bdev, 0);
+	return res;
+}
+EXPORT_SYMBOL(__invalidate_device);

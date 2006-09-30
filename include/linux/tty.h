@@ -307,6 +307,9 @@ extern void tty_ldisc_put(int);
 extern void tty_wakeup(struct tty_struct *tty);
 extern void tty_ldisc_flush(struct tty_struct *tty);
 
+extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+		     unsigned long arg);
+
 extern struct mutex tty_mutex;
 
 /* n_tty.c */

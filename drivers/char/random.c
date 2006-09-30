@@ -655,6 +655,7 @@ void add_interrupt_randomness(int irq)
 	add_timer_randomness(irq_timer_state[irq], 0x100 + irq);
 }
 
+#ifdef CONFIG_BLOCK
 void add_disk_randomness(struct gendisk *disk)
 {
 	if (!disk || !disk->random)
@@ -667,6 +668,7 @@ void add_disk_randomness(struct gendisk *disk)
 }
 
 EXPORT_SYMBOL(add_disk_randomness);
+#endif
 
 #define EXTRACT_SIZE 10
 
@@ -918,6 +920,7 @@ void rand_initialize_irq(int irq)
 	}
 }
 
+#ifdef CONFIG_BLOCK
 void rand_initialize_disk(struct gendisk *disk)
 {
 	struct timer_rand_state *state;
@@ -932,6 +935,7 @@ void rand_initialize_disk(struct gendisk *disk)
 		disk->random = state;
 	}
 }
+#endif
 
 static ssize_t
 random_read(struct file * file, char __user * buf, size_t nbytes, loff_t *ppos)

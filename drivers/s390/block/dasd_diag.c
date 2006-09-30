@@ -529,7 +529,7 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	}
 	cqr->retries = DIAG_MAX_RETRIES;
 	cqr->buildclk = get_clock();
-	if (req->flags & REQ_FAILFAST)
+	if (req->cmd_flags & REQ_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = DIAG_TIMEOUT;

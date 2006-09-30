@@ -277,12 +277,15 @@ static int devinfo_show(struct seq_file *f, void *v)
 		if (i == 0)
 			seq_printf(f, "Character devices:\n");
 		chrdev_show(f, i);
-	} else {
+	}
+#ifdef CONFIG_BLOCK
+	else {
 		i -= CHRDEV_MAJOR_HASH_SIZE;
 		if (i == 0)
 			seq_printf(f, "\nBlock devices:\n");
 		blkdev_show(f, i);
 	}
+#endif
 	return 0;
 }
 
@@ -355,6 +358,7 @@ static int stram_read_proc(char *page, char **start, off_t off,
 }
 #endif
 
+#ifdef CONFIG_BLOCK
 extern struct seq_operations partitions_op;
 static int partitions_open(struct inode *inode, struct file *file)
 {
@@ -378,6 +382,7 @@ static struct file_operations proc_diskstats_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+#endif
 
 #ifdef CONFIG_MODULES
 extern struct seq_operations modules_op;
@@ -695,7 +700,9 @@ void __init proc_misc_init(void)
 		entry->proc_fops = &proc_kmsg_operations;
 	create_seq_entry("devices", 0, &proc_devinfo_operations);
 	create_seq_entry("cpuinfo", 0, &proc_cpuinfo_operations);
+#ifdef CONFIG_BLOCK
 	create_seq_entry("partitions", 0, &proc_partitions_operations);
+#endif
 	create_seq_entry("stat", 0, &proc_stat_operations);
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
 #ifdef CONFIG_SLAB
@@ -707,7 +714,9 @@ void __init proc_misc_init(void)
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);
 	create_seq_entry("zoneinfo",S_IRUGO, &proc_zoneinfo_file_operations);
+#ifdef CONFIG_BLOCK
 	create_seq_entry("diskstats", 0, &proc_diskstats_operations);
+#endif
 #ifdef CONFIG_MODULES
 	create_seq_entry("modules", 0, &proc_modules_operations);
 #endif

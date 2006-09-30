@@ -1,6 +1,24 @@
 #
 # Block layer core configuration
 #
+config BLOCK
+       bool "Enable the block layer"
+       default y
+       help
+	 This permits the block layer to be removed from the kernel if it's not
+	 needed (on some embedded devices for example).  If this option is
+	 disabled, then blockdev files will become unusable and some
+	 filesystems (such as ext3) will become unavailable.
+
+	 This option will also disable SCSI character devices and USB storage
+	 since they make use of various block layer definitions and
+	 facilities.
+
+	 Say Y here unless you know you really don't want to mount disks and
+	 suchlike.
+
+if BLOCK
+
 #XXX - it makes sense to enable this only for 32-bit subarch's, not for x86_64
 #for instance.
 config LBD
@@ -32,5 +50,7 @@ config LSF
 	  than 2TB), otherwise say N.
 
 	  If unsure, say Y.
+
+endif
 
 source block/Kconfig.iosched

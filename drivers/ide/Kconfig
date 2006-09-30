@@ -4,6 +4,8 @@
 # Andre Hedrick <andre@linux-ide.org>
 #
 
+if BLOCK
+
 menu "ATA/ATAPI/MFM/RLL support"
 
 config IDE
@@ -1082,3 +1084,5 @@ config BLK_DEV_HD
 endif
 
 endmenu
+
+endif

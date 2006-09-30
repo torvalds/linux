@@ -710,7 +710,6 @@ extern unsigned int max_cache_size;
 
 
 struct io_context;			/* See blkdev.h */
-void exit_io_context(void);
 struct cpuset;
 
 #define NGROUPS_SMALL		32

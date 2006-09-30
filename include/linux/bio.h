@@ -148,6 +148,7 @@ struct bio {
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
 #define BIO_RW_SYNC	4
+#define BIO_RW_META	5
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -178,6 +179,7 @@ struct bio {
 #define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
 #define bio_failfast(bio)	((bio)->bi_rw & (1 << BIO_RW_FAILFAST))
 #define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
+#define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
 
 /*
  * will die

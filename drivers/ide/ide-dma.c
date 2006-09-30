@@ -205,7 +205,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scatterlist *sg = hwif->sg_table;
 
-	BUG_ON((rq->flags & REQ_DRIVE_TASKFILE) && rq->nr_sectors > 256);
+	BUG_ON((rq->cmd_type == REQ_TYPE_ATA_TASKFILE) && rq->nr_sectors > 256);
 
 	ide_map_sg(drive, rq);
 

@@ -32,6 +32,7 @@
 #include <linux/seqlock.h>
 #include <linux/swap.h>
 #include <linux/bootmem.h>
+#include "internal.h"
 
 
 int sysctl_vfs_cache_pressure __read_mostly = 100;
@@ -1876,9 +1877,6 @@ kmem_cache_t *names_cachep __read_mostly;
 kmem_cache_t *filp_cachep __read_mostly;
 
 EXPORT_SYMBOL(d_genocide);
-
-extern void bdev_cache_init(void);
-extern void chrdev_init(void);
 
 void __init vfs_caches_init_early(void)
 {
