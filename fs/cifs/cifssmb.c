@@ -447,6 +447,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 #ifdef CONFIG_CIFS_WEAK_PW_HASH 
 	} else if((pSMBr->hdr.WordCount == 13)
 			&& (pSMBr->DialectIndex == LANMAN_PROT)) {
+		int tmp, adjust;
 		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 
 		if((secFlags & CIFSSEC_MAY_LANMAN) || 
@@ -473,11 +474,36 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->capabilities = CAP_MPX_MODE;
 		}
 		server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
+		tmp = le16_to_cpu(rsp->ServerTimeZone);
+		if (tmp == (int)0xffff) {
+			/* OS/2 often does not set timezone therefore
+			 * we must use server time to calc time zone.
+			 * Could deviate slightly from the right zone. Not easy
+			 * to adjust, since timezones are not always a multiple
+			 * of 60 (sometimes 30 minutes - are there smaller?)
+			 */
+			struct timespec ts, utc;
+			utc = CURRENT_TIME;
+			ts = cnvrtDosUnixTm(le16_to_cpu(rsp->SrvTime.Date),
+						le16_to_cpu(rsp->SrvTime.Time));
+			cFYI(1,("SrvTime: %d sec since 1970 (utc: %d) diff: %d",
+				(int)ts.tv_sec, (int)utc.tv_sec, 
+				(int)(utc.tv_sec - ts.tv_sec)));
+			tmp = (int)(utc.tv_sec - ts.tv_sec);
+			adjust = tmp < 0 ? -29 : 29;
+			tmp = ((tmp + adjust) / 60) * 60;
+			server->timeZone = tmp;
+		} else {
+			server->timeZone = tmp * 60; /* also in seconds */
+		}
+		cFYI(1,("server->timeZone: %d seconds", server->timeZone));
+
 
 		/* BB get server time for time conversions and add
 		code to use it and timezone since this is not UTC */	
 
-		if (rsp->EncryptionKeyLength == cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
+		if (rsp->EncryptionKeyLength == 
+				cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
 			memcpy(server->cryptKey, rsp->EncryptionKey,
 				CIFS_CRYPTO_KEY_SIZE);
 		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
