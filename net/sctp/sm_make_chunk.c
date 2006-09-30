@@ -1447,8 +1447,16 @@ no_hmac:
 	/* Check to see if the cookie is stale.  If there is already
 	 * an association, there is no need to check cookie's expiration
 	 * for init collision case of lost COOKIE ACK.
+	 * If skb has been timestamped, then use the stamp, otherwise
+	 * use current time.  This introduces a small possibility that
+	 * that a cookie may be considered expired, but his would only slow
+	 * down the new association establishment instead of every packet.
 	 */
-	skb_get_timestamp(skb, &tv);
+	if (sock_flag(ep->base.sk, SOCK_TIMESTAMP))
+		skb_get_timestamp(skb, &tv);
+	else
+		do_gettimeofday(&tv);
+
 	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
 		__u16 len;
 		/*

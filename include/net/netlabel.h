@@ -92,11 +92,17 @@
  *
  */
 
+/* NetLabel audit information */
+struct netlbl_audit {
+	u32 secid;
+	uid_t loginuid;
+};
+
 /* Domain mapping definition struct */
 struct netlbl_dom_map;
 
 /* Domain mapping operations */
-int netlbl_domhsh_remove(const char *domain, u32 audit_secid);
+int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info);
 
 /* LSM security attributes */
 struct netlbl_lsm_cache {
