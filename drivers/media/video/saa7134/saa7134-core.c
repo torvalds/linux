@@ -843,7 +843,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			latency = 0x0A;
 		}
 #endif
-		if (pci_pci_problems & PCIPCI_FAIL) {
+		if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL)) {
 			printk(KERN_INFO "%s: quirk: this driver and your "
 					"chipset may not work together"
 					" in overlay mode.\n",dev->name);

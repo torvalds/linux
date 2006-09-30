@@ -38,9 +38,7 @@
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
-#endif
 	{ }
 };
 
@@ -48,9 +46,7 @@ MODULE_DEVICE_TABLE(usb, pvr2_device_table);
 
 static const char *pvr2_device_names[] = {
 	[PVR2_HDW_TYPE_29XXX] = "WinTV PVR USB2 Model Category 29xxxx",
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = "WinTV PVR USB2 Model Category 24xxxx",
-#endif
 };
 
 struct pvr2_string_table {
@@ -58,14 +54,12 @@ struct pvr2_string_table {
 	unsigned int cnt;
 };
 
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 // Names of other client modules to request for 24xxx model hardware
 static const char *pvr2_client_24xxx[] = {
 	"cx25840",
 	"tuner",
 	"wm8775",
 };
-#endif
 
 // Names of other client modules to request for 29xxx model hardware
 static const char *pvr2_client_29xxx[] = {
@@ -79,12 +73,10 @@ static struct pvr2_string_table pvr2_client_lists[] = {
 		pvr2_client_29xxx,
 		sizeof(pvr2_client_29xxx)/sizeof(pvr2_client_29xxx[0]),
 	},
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	[PVR2_HDW_TYPE_24XXX] = {
 		pvr2_client_24xxx,
 		sizeof(pvr2_client_24xxx)/sizeof(pvr2_client_24xxx[0]),
 	},
-#endif
 };
 
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
@@ -221,11 +213,12 @@ static const struct pvr2_mpeg_ids mpeg_ids[] = {
 };
 #define MPEGDEF_COUNT (sizeof(mpeg_ids)/sizeof(mpeg_ids[0]))
 
-static const char *control_values_srate[] = {
-	[PVR2_CVAL_SRATE_48]   = "48KHz",
-	[PVR2_CVAL_SRATE_44_1] = "44.1KHz",
-};
 
+static const char *control_values_srate[] = {
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_44100]   = "44.1 kHz",
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000]   = "48 kHz",
+	[V4L2_MPEG_AUDIO_SAMPLING_FREQ_32000]   = "32 kHz",
+};
 
 
 
@@ -359,6 +352,50 @@ static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 	hdw->freqVal = v;
 	hdw->freqDirty = !0;
 	hdw->freqSlot = 0;
+	return 0;
+}
+
+static int ctrl_hres_max_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* If we're dealing with a 24xxx device, force the horizontal
+	   maximum to be 720 no matter what, since we can't get the device
+	   to work properly with any other value.  Otherwise just return
+	   the normal value. */
+	*vp = cptr->info->def.type_int.max_value;
+	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) *vp = 720;
+	return 0;
+}
+
+static int ctrl_hres_min_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* If we're dealing with a 24xxx device, force the horizontal
+	   minimum to be 720 no matter what, since we can't get the device
+	   to work properly with any other value.  Otherwise just return
+	   the normal value. */
+	*vp = cptr->info->def.type_int.min_value;
+	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) *vp = 720;
+	return 0;
+}
+
+static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* Actual maximum depends on the video standard in effect. */
+	if (cptr->hdw->std_mask_cur & V4L2_STD_525_60) {
+		*vp = 480;
+	} else {
+		*vp = 576;
+	}
+	return 0;
+}
+
+static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
+{
+	/* Actual minimum depends on device type. */
+	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+		*vp = 75;
+	} else {
+		*vp = 17;
+	}
 	return 0;
 }
 
@@ -719,19 +756,27 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.internal_id = PVR2_CID_HRES,
 		.default_value = 720,
 		DEFREF(res_hor),
-		DEFINT(320,720),
+		DEFINT(19,720),
+		/* Hook in check for clamp on horizontal resolution in
+		   order to avoid unsolved problem involving cx25840. */
+		.get_max_value = ctrl_hres_max_get,
+		.get_min_value = ctrl_hres_min_get,
 	},{
 		.desc = "Vertical capture resolution",
 		.name = "resolution_ver",
 		.internal_id = PVR2_CID_VRES,
 		.default_value = 480,
 		DEFREF(res_ver),
-		DEFINT(200,625),
+		DEFINT(17,576),
+		/* Hook in check for video standard and adjust maximum
+		   depending on the standard. */
+		.get_max_value = ctrl_vres_max_get,
+		.get_min_value = ctrl_vres_min_get,
 	},{
 		.v4l_id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ,
-		.desc = "Sample rate",
+		.default_value = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000,
+		.desc = "Audio Sampling Frequency",
 		.name = "srate",
-		.default_value = PVR2_CVAL_SRATE_48,
 		DEFREF(srate),
 		DEFENUM(control_values_srate),
 	},{
@@ -935,22 +980,18 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	static const char *fw_files_29xxx[] = {
 		"v4l-pvrusb2-29xxx-01.fw",
 	};
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	static const char *fw_files_24xxx[] = {
 		"v4l-pvrusb2-24xxx-01.fw",
 	};
-#endif
 	static const struct pvr2_string_table fw_file_defs[] = {
 		[PVR2_HDW_TYPE_29XXX] = {
 			fw_files_29xxx,
 			sizeof(fw_files_29xxx)/sizeof(fw_files_29xxx[0]),
 		},
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 		[PVR2_HDW_TYPE_24XXX] = {
 			fw_files_24xxx,
 			sizeof(fw_files_24xxx)/sizeof(fw_files_24xxx[0]),
 		},
-#endif
 	};
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
 
@@ -2237,11 +2278,14 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 	}
 
 	if (hdw->std_dirty ||
+	    hdw->enc_stale ||
+	    hdw->srate_dirty ||
+	    hdw->res_ver_dirty ||
+	    hdw->res_hor_dirty ||
 	    0) {
 		/* If any of this changes, then the encoder needs to be
 		   reconfigured, and we need to reset the stream. */
 		stale_subsys_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
-		stale_subsys_mask |= hdw->subsys_stream_mask;
 	}
 
 	if (hdw->srate_dirty) {

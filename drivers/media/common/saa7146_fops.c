@@ -455,7 +455,6 @@ static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 
 static struct video_device device_template =
 {
-	.hardware	= VID_HARDWARE_SAA7146,
 	.fops		= &video_fops,
 	.minor		= -1,
 };

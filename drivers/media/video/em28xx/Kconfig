@@ -5,7 +5,8 @@ config VIDEO_EM28XX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
-	select VIDEO_SAA711X
+	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_TVP5150 if VIDEO_HELPER_CHIPS_AUTO
 	---help---
 	  This is a video4linux driver for Empia 28xx based TV cards.
 

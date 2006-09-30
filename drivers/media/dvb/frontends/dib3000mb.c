@@ -29,9 +29,10 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dib3000-common.h"
-#include "dib3000mb_priv.h"
+#include "dvb_frontend.h"
+
 #include "dib3000.h"
+#include "dib3000mb_priv.h"
 
 /* Version information */
 #define DRIVER_VERSION "0.1"
@@ -44,9 +45,80 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe (|-able)).");
 #endif
 #define deb_info(args...) dprintk(0x01,args)
+#define deb_i2c(args...)  dprintk(0x02,args)
+#define deb_srch(args...) dprintk(0x04,args)
+#define deb_info(args...) dprintk(0x01,args)
 #define deb_xfer(args...) dprintk(0x02,args)
 #define deb_setf(args...) dprintk(0x04,args)
 #define deb_getf(args...) dprintk(0x08,args)
+
+#ifdef CONFIG_DVB_DIBCOM_DEBUG
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "set debugging level (1=info,2=i2c,4=srch (|-able)).");
+#endif
+
+static int dib3000_read_reg(struct dib3000_state *state, u16 reg)
+{
+	u8 wb[] = { ((reg >> 8) | 0x80) & 0xff, reg & 0xff };
+	u8 rb[2];
+	struct i2c_msg msg[] = {
+		{ .addr = state->config.demod_address, .flags = 0,        .buf = wb, .len = 2 },
+		{ .addr = state->config.demod_address, .flags = I2C_M_RD, .buf = rb, .len = 2 },
+	};
+
+	if (i2c_transfer(state->i2c, msg, 2) != 2)
+		deb_i2c("i2c read error\n");
+
+	deb_i2c("reading i2c bus (reg: %5d 0x%04x, val: %5d 0x%04x)\n",reg,reg,
+			(rb[0] << 8) | rb[1],(rb[0] << 8) | rb[1]);
+
+	return (rb[0] << 8) | rb[1];
+}
+
+static int dib3000_write_reg(struct dib3000_state *state, u16 reg, u16 val)
+{
+	u8 b[] = {
+		(reg >> 8) & 0xff, reg & 0xff,
+		(val >> 8) & 0xff, val & 0xff,
+	};
+	struct i2c_msg msg[] = {
+		{ .addr = state->config.demod_address, .flags = 0, .buf = b, .len = 4 }
+	};
+	deb_i2c("writing i2c bus (reg: %5d 0x%04x, val: %5d 0x%04x)\n",reg,reg,val,val);
+
+	return i2c_transfer(state->i2c,msg, 1) != 1 ? -EREMOTEIO : 0;
+}
+
+static int dib3000_search_status(u16 irq,u16 lock)
+{
+	if (irq & 0x02) {
+		if (lock & 0x01) {
+			deb_srch("auto search succeeded\n");
+			return 1; // auto search succeeded
+		} else {
+			deb_srch("auto search not successful\n");
+			return 0; // auto search failed
+		}
+	} else if (irq & 0x01)  {
+		deb_srch("auto search failed\n");
+		return 0; // auto search failed
+	}
+	return -1; // try again
+}
+
+/* for auto search */
+static u16 dib3000_seq[2][2][2] =     /* fft,gua,   inv   */
+	{ /* fft */
+		{ /* gua */
+			{ 0, 1 },                   /*  0   0   { 0,1 } */
+			{ 3, 9 },                   /*  0   1   { 0,1 } */
+		},
+		{
+			{ 2, 5 },                   /*  1   0   { 0,1 } */
+			{ 6, 11 },                  /*  1   1   { 0,1 } */
+		}
+	};
 
 static int dib3000mb_get_frontend(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *fep);

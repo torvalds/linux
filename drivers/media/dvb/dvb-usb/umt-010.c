@@ -58,7 +58,7 @@ static int umt_mt352_frontend_attach(struct dvb_usb_device *d)
 	umt_config.demod_init = umt_mt352_demod_init;
 	umt_config.demod_address = 0xf;
 
-	d->fe = mt352_attach(&umt_config, &d->i2c_adap);
+	d->fe = dvb_attach(mt352_attach, &umt_config, &d->i2c_adap);
 
 	return 0;
 }

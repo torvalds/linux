@@ -72,6 +72,9 @@ struct tuner_params {
 	unsigned int port2_invert_for_secam_lc:1;
 	/* Some cards require PORT1 to be 1 for mono Radio FM and 0 for stereo. */
 	unsigned int port1_set_for_fm_mono:1;
+	/* Select 18% (or according to datasheet 0%) L standard PLL gating,
+	   vs the driver default of 36%. */
+	unsigned int default_pll_gating_18:1;
 	/* Default tda9887 TOP value in dB for the low band. Default is 0.
 	   Range: -16:+15 */
 	signed int default_top_low:5;

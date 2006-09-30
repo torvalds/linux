@@ -14,6 +14,8 @@
  *  version 0.04
  * + code improvements
  * + VIDEO_TUNER_LOW is permanent
+ *
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
 #include <linux/module.h>
@@ -25,10 +27,23 @@
 #include <asm/uaccess.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 
-#define DRIVER_VERSION	"0.05"
+#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
+#define RADIO_VERSION KERNEL_VERSION(0,0,6)
+#define DRIVER_VERSION	"0.06"
+
+static struct v4l2_queryctrl radio_qctrl[] = {
+	{
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.name          = "Mute",
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 1,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+	}
+};
 
 #define GPIO_DATA	0x60   /* port offset from ESS_IO_BASE */
 
@@ -96,7 +111,7 @@ static struct file_operations maestro_fops = {
 static struct video_device maestro_radio = {
 	.name		= "Maestro radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_SF16MI,
+	.hardware	= 0,
 	.fops		= &maestro_fops,
 };
 
@@ -130,7 +145,7 @@ static u32 radio_bits_get(struct radio_device *dev)
 		rdata = inw(io);
 		if(!l)
 			dev->stereo =  rdata & STR_MOST ?
-			0 : VIDEO_TUNER_STEREO_ON;
+			0 : 1;
 		else
 			if(rdata & STR_DATA)
 				data++;
@@ -183,72 +198,120 @@ static inline int radio_function(struct inode *inode, struct file *file,
 	struct radio_device *card = video_get_drvdata(dev);
 
 	switch (cmd) {
-	case VIDIOCGCAP: {
-		struct video_capability *v = arg;
-		memset(v, 0, sizeof(*v));
-		strcpy(v->name, "Maestro radio");
-		v->type = VID_TYPE_TUNER;
-		v->channels = v->audios = 1;
-		return 0;
-	} case VIDIOCGTUNER: {
-		struct video_tuner *v = arg;
-		if (v->tuner)
-			return -EINVAL;
-		(void)radio_bits_get(card);
-		v->flags = VIDEO_TUNER_LOW | card->stereo;
-		v->signal = card->tuned;
-		strcpy(v->name, "FM");
-		v->rangelow = FREQ_LO;
-		v->rangehigh = FREQ_HI;
-		v->mode = VIDEO_MODE_AUTO;
-		return 0;
-	} case VIDIOCSTUNER: {
-		struct video_tuner *v = arg;
-		if (v->tuner != 0)
-			return -EINVAL;
-		return 0;
-	} case VIDIOCGFREQ: {
-		unsigned long *freq = arg;
-		*freq = BITS2FREQ(radio_bits_get(card));
-		return 0;
-	} case VIDIOCSFREQ: {
-		unsigned long *freq = arg;
-		if (*freq < FREQ_LO || *freq > FREQ_HI)
-			return -EINVAL;
-		radio_bits_set(card, FREQ2BITS(*freq));
-		return 0;
-	} case VIDIOCGAUDIO: {
-		struct video_audio *v = arg;
-		memset(v, 0, sizeof(*v));
-		strcpy(v->name, "Radio");
-		v->flags = VIDEO_AUDIO_MUTABLE | card->muted;
-		v->mode = VIDEO_SOUND_STEREO;
-		return 0;
-	} case VIDIOCSAUDIO: {
-		struct video_audio *v = arg;
-		if (v->audio)
-			return -EINVAL;
+		case VIDIOC_QUERYCAP:
 		{
-			register u16 io = card->io;
-			register u16 omask = inw(io + IO_MASK);
-			outw(~STR_WREN, io + IO_MASK);
-			outw((card->muted = v->flags & VIDEO_AUDIO_MUTE) ?
-				STR_WREN : 0, io);
-			udelay(4);
-			outw(omask, io + IO_MASK);
-			msleep(125);
+			struct v4l2_capability *v = arg;
+			memset(v,0,sizeof(*v));
+			strlcpy(v->driver, "radio-maestro", sizeof (v->driver));
+			strlcpy(v->card, "Maestro Radio", sizeof (v->card));
+			sprintf(v->bus_info,"PCI");
+			v->version = RADIO_VERSION;
+			v->capabilities = V4L2_CAP_TUNER;
+
 			return 0;
 		}
-	} case VIDIOCGUNIT: {
-		struct video_unit *v = arg;
-		v->video = VIDEO_NO_UNIT;
-		v->vbi = VIDEO_NO_UNIT;
-		v->radio = dev->minor;
-		v->audio = 0;
-		v->teletext = VIDEO_NO_UNIT;
-		return 0;
-	} default:
-		return -ENOIOCTLCMD;
+		case VIDIOC_G_TUNER:
+		{
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
+				return -EINVAL;
+
+			(void)radio_bits_get(card);
+
+			memset(v,0,sizeof(*v));
+			strcpy(v->name, "FM");
+			v->type = V4L2_TUNER_RADIO;
+
+			v->rangelow = FREQ_LO;
+			v->rangehigh = FREQ_HI;
+			v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+			v->capability=V4L2_TUNER_CAP_LOW;
+			if(card->stereo)
+				v->audmode = V4L2_TUNER_MODE_STEREO;
+			else
+				v->audmode = V4L2_TUNER_MODE_MONO;
+			v->signal=card->tuned;
+
+			return 0;
+		}
+		case VIDIOC_S_TUNER:
+		{
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
+				return -EINVAL;
+
+			return 0;
+		}
+		case VIDIOC_S_FREQUENCY:
+		{
+			struct v4l2_frequency *f = arg;
+
+			if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
+				return -EINVAL;
+			radio_bits_set(card, FREQ2BITS(f->frequency));
+
+			return 0;
+		}
+		case VIDIOC_G_FREQUENCY:
+		{
+			struct v4l2_frequency *f = arg;
+
+			f->type = V4L2_TUNER_RADIO;
+			f->frequency = BITS2FREQ(radio_bits_get(card));
+
+			return 0;
+		}
+		case VIDIOC_QUERYCTRL:
+		{
+			struct v4l2_queryctrl *qc = arg;
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+				if (qc->id && qc->id == radio_qctrl[i].id) {
+					memcpy(qc, &(radio_qctrl[i]),
+								sizeof(*qc));
+					return (0);
+				}
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_G_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
+
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+					ctrl->value=card->muted;
+					return (0);
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_S_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
+
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+				{
+					register u16 io = card->io;
+					register u16 omask = inw(io + IO_MASK);
+					outw(~STR_WREN, io + IO_MASK);
+					outw((card->muted = ctrl->value ) ?
+						STR_WREN : 0, io);
+					udelay(4);
+					outw(omask, io + IO_MASK);
+					msleep(125);
+
+					return (0);
+				}
+			}
+			return -EINVAL;
+		}
+		default:
+			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+							  radio_function);
 	}
 }
 
@@ -275,7 +338,7 @@ static u16 __devinit radio_power_on(struct radio_device *dev)
 	omask = inw(io + IO_MASK);
 	odir = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
 	outw(odir & ~STR_WREN, io + IO_DIR);
-	dev->muted = inw(io) & STR_WREN ? 0 : VIDEO_AUDIO_MUTE;
+	dev->muted = inw(io) & STR_WREN ? 0 : 1;
 	outw(odir, io + IO_DIR);
 	outw(~(STR_WREN | STR_CLK), io + IO_MASK);
 	outw(dev->muted ? 0 : STR_WREN, io);

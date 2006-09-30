@@ -1512,6 +1512,13 @@ setup_fbuffer (struct file               *file,
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
+	/* Don't allow frame buffer overlay if PCI or AGP is buggy, or on
+	   ALi Magik (that needs very low latency while the card needs a
+	   higher value always) */
+
+	if (pci_pci_problems & (PCIPCI_FAIL | PCIAGP_FAIL | PCIPCI_ALIMAGIK))
+		return -ENXIO;
+
 	/* we need a bytesperline value, even if not given */
 	if (!bytesperline)
 		bytesperline = width * ((fmt->depth + 7) & ~7) / 8;

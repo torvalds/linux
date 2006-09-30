@@ -590,6 +590,11 @@ static int snd_card_saa7134_hw_free(struct snd_pcm_substream * substream)
 
 static int snd_card_saa7134_capture_close(struct snd_pcm_substream * substream)
 {
+	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
+	struct saa7134_dev *dev = saa7134->dev;
+
+	dev->ctl_mute = 1;
+	saa7134_tvaudio_setmute(dev);
 	return 0;
 }
 
@@ -630,6 +635,9 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	runtime->private_data = pcm;
 	runtime->private_free = snd_card_saa7134_runtime_free;
 	runtime->hw = snd_card_saa7134_capture;
+
+	dev->ctl_mute = 0;
+	saa7134_tvaudio_setmute(dev);
 
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;

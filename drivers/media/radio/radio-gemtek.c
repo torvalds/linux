@@ -13,6 +13,7 @@
  *
  * TODO: Allow for more than one of these foolish entities :-)
  *
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
 #include <linux/module.h>	/* Modules 			*/
@@ -21,10 +22,31 @@
 #include <linux/delay.h>	/* udelay			*/
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/
-#include <linux/videodev.h>	/* kernel radio structs		*/
+#include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <media/v4l2-common.h>
-#include <linux/config.h>	/* CONFIG_RADIO_GEMTEK_PORT 	*/
 #include <linux/spinlock.h>
+
+#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
+#define RADIO_VERSION KERNEL_VERSION(0,0,2)
+
+static struct v4l2_queryctrl radio_qctrl[] = {
+	{
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.name          = "Mute",
+		.minimum       = 0,
+		.maximum       = 1,
+		.default_value = 1,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+	},{
+		.id            = V4L2_CID_AUDIO_VOLUME,
+		.name          = "Volume",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535,
+		.default_value = 0xff,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+	}
+};
 
 #ifndef CONFIG_RADIO_GEMTEK_PORT
 #define CONFIG_RADIO_GEMTEK_PORT -1
@@ -147,77 +169,122 @@ static int gemtek_do_ioctl(struct inode *inode, struct file *file,
 
 	switch(cmd)
 	{
-		case VIDIOCGCAP:
+		case VIDIOC_QUERYCAP:
 		{
-			struct video_capability *v = arg;
+			struct v4l2_capability *v = arg;
 			memset(v,0,sizeof(*v));
-			v->type=VID_TYPE_TUNER;
-			v->channels=1;
-			v->audios=1;
-			strcpy(v->name, "GemTek");
+			strlcpy(v->driver, "radio-gemtek", sizeof (v->driver));
+			strlcpy(v->card, "GemTek", sizeof (v->card));
+			sprintf(v->bus_info,"ISA");
+			v->version = RADIO_VERSION;
+			v->capabilities = V4L2_CAP_TUNER;
+
 			return 0;
 		}
-		case VIDIOCGTUNER:
+		case VIDIOC_G_TUNER:
 		{
-			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
 				return -EINVAL;
-			v->rangelow=87*16000;
-			v->rangehigh=108*16000;
-			v->flags=VIDEO_TUNER_LOW;
-			v->mode=VIDEO_MODE_AUTO;
-			v->signal=0xFFFF*gemtek_getsigstr(rt);
+
+			memset(v,0,sizeof(*v));
 			strcpy(v->name, "FM");
+			v->type = V4L2_TUNER_RADIO;
+
+			v->rangelow=(87*16000);
+			v->rangehigh=(108*16000);
+			v->rxsubchans =V4L2_TUNER_SUB_MONO;
+			v->capability=V4L2_TUNER_CAP_LOW;
+			v->audmode = V4L2_TUNER_MODE_MONO;
+			v->signal=0xFFFF*gemtek_getsigstr(rt);
+
 			return 0;
 		}
-		case VIDIOCSTUNER:
+		case VIDIOC_S_TUNER:
 		{
-			struct video_tuner *v = arg;
-			if(v->tuner!=0)
+			struct v4l2_tuner *v = arg;
+
+			if (v->index > 0)
 				return -EINVAL;
-			/* Only 1 tuner so no setting needed ! */
+
 			return 0;
 		}
-		case VIDIOCGFREQ:
+		case VIDIOC_S_FREQUENCY:
 		{
-			unsigned long *freq = arg;
-			*freq = rt->curfreq;
-			return 0;
-		}
-		case VIDIOCSFREQ:
-		{
-			unsigned long *freq = arg;
-			rt->curfreq = *freq;
+			struct v4l2_frequency *f = arg;
+
+			rt->curfreq = f->frequency;
 			/* needs to be called twice in order for getsigstr to work */
 			gemtek_setfreq(rt, rt->curfreq);
 			gemtek_setfreq(rt, rt->curfreq);
 			return 0;
 		}
-		case VIDIOCGAUDIO:
+		case VIDIOC_G_FREQUENCY:
 		{
-			struct video_audio *v = arg;
-			memset(v,0, sizeof(*v));
-			v->flags|=VIDEO_AUDIO_MUTABLE;
-			v->volume=1;
-			v->step=65535;
-			strcpy(v->name, "Radio");
+			struct v4l2_frequency *f = arg;
+
+			f->type = V4L2_TUNER_RADIO;
+			f->frequency = rt->curfreq;
+
 			return 0;
 		}
-		case VIDIOCSAUDIO:
+		case VIDIOC_QUERYCTRL:
 		{
-			struct video_audio *v = arg;
-			if(v->audio)
-				return -EINVAL;
+			struct v4l2_queryctrl *qc = arg;
+			int i;
 
-			if(v->flags&VIDEO_AUDIO_MUTE)
-				gemtek_mute(rt);
-			else
-				gemtek_unmute(rt);
+			for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
+				if (qc->id && qc->id == radio_qctrl[i].id) {
+					memcpy(qc, &(radio_qctrl[i]),
+								sizeof(*qc));
+					return (0);
+				}
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_G_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
 
-			return 0;
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+					ctrl->value=rt->muted;
+					return (0);
+				case V4L2_CID_AUDIO_VOLUME:
+					if (rt->muted)
+						ctrl->value=0;
+					else
+						ctrl->value=65535;
+					return (0);
+			}
+			return -EINVAL;
+		}
+		case VIDIOC_S_CTRL:
+		{
+			struct v4l2_control *ctrl= arg;
+
+			switch (ctrl->id) {
+				case V4L2_CID_AUDIO_MUTE:
+					if (ctrl->value) {
+						gemtek_mute(rt);
+					} else {
+						gemtek_unmute(rt);
+					}
+					return (0);
+				case V4L2_CID_AUDIO_VOLUME:
+					if (ctrl->value) {
+						gemtek_unmute(rt);
+					} else {
+						gemtek_mute(rt);
+					}
+					return (0);
+			}
+			return -EINVAL;
 		}
 		default:
-			return -ENOIOCTLCMD;
+			return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+							  gemtek_do_ioctl);
 	}
 }
 
@@ -243,7 +310,7 @@ static struct video_device gemtek_radio=
 	.owner		= THIS_MODULE,
 	.name		= "GemTek radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_GEMTEK,
+	.hardware	= 0,
 	.fops           = &gemtek_fops,
 };
 

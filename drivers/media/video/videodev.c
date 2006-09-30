@@ -739,13 +739,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DQBUF:
 	{
 		struct v4l2_buffer *p=arg;
-		if (!vfd->vidioc_qbuf)
+		if (!vfd->vidioc_dqbuf)
 			break;
 		ret = check_fmt (vfd, p->type);
 		if (ret)
 			break;
 
-		ret=vfd->vidioc_qbuf(file, fh, p);
+		ret=vfd->vidioc_dqbuf(file, fh, p);
 		if (!ret)
 			dbgbuf(cmd,vfd,p);
 		break;
@@ -836,7 +836,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (index < 0 || index >= vfd->tvnormsize) {
+		if (index<0 || index >= vfd->tvnormsize) {
 			ret=-EINVAL;
 			break;
 		}
@@ -1283,9 +1283,29 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_G_PARM:
 	{
 		struct v4l2_streamparm *p=arg;
-		if (!vfd->vidioc_g_parm)
-			break;
-		ret=vfd->vidioc_g_parm(file, fh, p);
+		if (vfd->vidioc_g_parm) {
+			ret=vfd->vidioc_g_parm(file, fh, p);
+		} else {
+			struct v4l2_standard s;
+
+			if (!vfd->tvnormsize) {
+				printk (KERN_WARNING "%s: no TV norms defined!\n",
+							vfd->name);
+				break;
+			}
+
+			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+				return -EINVAL;
+
+			v4l2_video_std_construct(&s, vfd->tvnorms[vfd->current_norm].id,
+						 vfd->tvnorms[vfd->current_norm].name);
+
+			memset(p,0,sizeof(*p));
+
+			p->parm.capture.timeperframe = s.frameperiod;
+			ret=0;
+		}
+
 		dbgarg (cmd, "type=%d\n", p->type);
 		break;
 	}

@@ -92,9 +92,12 @@ struct dvb_frontend_ops {
 	struct dvb_frontend_info info;
 
 	void (*release)(struct dvb_frontend* fe);
+	void (*release_sec)(struct dvb_frontend* fe);
 
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
+
+	int (*write)(struct dvb_frontend* fe, u8* buf, int len);
 
 	/* if this is set, it overrides the default swzigzag */
 	int (*tune)(struct dvb_frontend* fe,
@@ -147,13 +150,15 @@ struct dvb_frontend {
 	void* demodulator_priv;
 	void* tuner_priv;
 	void* frontend_priv;
-	void* misc_priv;
+	void* sec_priv;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter* dvb,
 				 struct dvb_frontend* fe);
 
 extern int dvb_unregister_frontend(struct dvb_frontend* fe);
+
+extern void dvb_frontend_detach(struct dvb_frontend* fe);
 
 extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 

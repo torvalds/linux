@@ -6,6 +6,7 @@
  * This file contains functions for initializing the the input-device and for handling remote-control-queries.
  */
 #include "dvb-usb-common.h"
+#include <linux/usb/input.h>
 
 /* Remote-control poll function - called every dib->rc_query_interval ms to see
  * whether the remote control has received anything.
@@ -96,7 +97,7 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 		return 0;
 
 	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
-	strlcpy(d->rc_phys, "/ir0", sizeof(d->rc_phys));
+	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 
 	d->rc_input_dev = input_allocate_device();
 	if (!d->rc_input_dev)
@@ -107,6 +108,8 @@ int dvb_usb_remote_init(struct dvb_usb_device *d)
 	d->rc_input_dev->keycodemax = KEY_MAX;
 	d->rc_input_dev->name = "IR-receiver inside an USB DVB receiver";
 	d->rc_input_dev->phys = d->rc_phys;
+	usb_to_input_id(d->udev, &d->rc_input_dev->id);
+	d->rc_input_dev->cdev.dev = &d->udev->dev;
 
 	/* set the bits for the keys */
 	deb_rc("key map size: %d\n", d->props.rc_key_map_size);
