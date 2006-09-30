@@ -396,7 +396,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			priv->stats.tx_dropped++;
 			dev_kfree_skb(skb);
 		}
-		return 0;
+		goto out;
 	}
 #if DUMP_PACKETS > 0
 	printk("%s:sending to vpi:%d vci:%d\n", dev->name, vcc->vpi, vcc->vci);
@@ -428,6 +428,9 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_wake_queue(dev);
 	}
 
+out:
+	if (entry)
+		lec_arp_put(entry);
 	dev->trans_start = jiffies;
 	return 0;
 }
@@ -1888,6 +1891,7 @@ static void lec_arp_check_expire(void *data)
 
 	DPRINTK("lec_arp_check_expire %p\n", priv);
 	now = jiffies;
+restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		hlist_for_each_entry_safe(entry, node, next, &priv->lec_arp_tables[i], next) {
@@ -1927,14 +1931,16 @@ static void lec_arp_check_expire(void *data)
 				    time_after_eq(now, entry->timestamp +
 						  priv->path_switching_delay)) {
 					struct sk_buff *skb;
+					struct atm_vcc *vcc = entry->vcc;
 
-					while ((skb =
-						skb_dequeue(&entry->tx_wait)) !=
-					       NULL)
-						lec_send(entry->vcc, skb,
-							 entry->priv);
+					lec_arp_hold(entry);
+					spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
+					while ((skb = skb_dequeue(&entry->tx_wait)) != NULL)
+						lec_send(vcc, skb, entry->priv);
 					entry->last_used = jiffies;
 					entry->status = ESI_FORWARD_DIRECT;
+					lec_arp_put(entry);
+					goto restart;
 				}
 			}
 		}
@@ -1977,6 +1983,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		if (entry->status == ESI_FORWARD_DIRECT) {
 			/* Connection Ok */
 			entry->last_used = jiffies;
+			lec_arp_hold(entry);
 			*ret_entry = entry;
 			found = entry->vcc;
 			goto out;
@@ -2007,6 +2014,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		 * or BUS flood limit was reached for an entry which is
 		 * in ESI_ARP_PENDING or ESI_VC_PENDING state.
 		 */
+		lec_arp_hold(entry);
 		*ret_entry = entry;
 		DPRINTK("lec: entry->status %d entry->vcc %p\n", entry->status,
 			entry->vcc);
@@ -2335,18 +2343,24 @@ static void lec_flush_complete(struct lec_priv *priv, unsigned long tran_id)
 	int i;
 
 	DPRINTK("LEC:lec_flush_complete %lx\n", tran_id);
+restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		hlist_for_each_entry(entry, node, &priv->lec_arp_tables[i], next) {
 			if (entry->flush_tran_id == tran_id
 			    && entry->status == ESI_FLUSH_PENDING) {
 				struct sk_buff *skb;
+				struct atm_vcc *vcc = entry->vcc;
 
-				while ((skb =
-					skb_dequeue(&entry->tx_wait)) != NULL)
-					lec_send(entry->vcc, skb, entry->priv);
+				lec_arp_hold(entry);
+				spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
+				while ((skb = skb_dequeue(&entry->tx_wait)) != NULL)
+					lec_send(vcc, skb, entry->priv);
+				entry->last_used = jiffies;
 				entry->status = ESI_FORWARD_DIRECT;
+				lec_arp_put(entry);
 				DPRINTK("LEC_ARP: Flushed\n");
+				goto restart;
 			}
 		}
 	}
