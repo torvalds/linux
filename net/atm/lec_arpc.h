@@ -24,9 +24,6 @@ struct lec_arp_table {
 	void (*old_recv_push) (struct atm_vcc *vcc, struct sk_buff *skb);
 					/* Push that leads to daemon */
 
-	void (*old_close) (struct atm_vcc *vcc);
-					/* We want to see when this vcc gets closed */
-
 	unsigned long last_used;	/* For expiry */
 	unsigned long timestamp;	/* Used for various timestamping things:
 					 * 1. FLUSH started
