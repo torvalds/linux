@@ -1279,8 +1279,6 @@ static int loop_status(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-extern int tty_ioctl(struct inode * inode, struct file * file, unsigned int cmd, unsigned long arg);
-
 #ifdef CONFIG_VT
 
 static int vt_check(struct file *file)

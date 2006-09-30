@@ -22,6 +22,7 @@
 #include <linux/uio.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
+#include "internal.h"
 
 struct bdev_inode {
 	struct block_device bdev;

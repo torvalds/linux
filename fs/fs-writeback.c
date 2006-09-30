@@ -22,8 +22,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
-
-extern struct super_block *blockdev_superblock;
+#include "internal.h"
 
 /**
  *	__mark_inode_dirty -	internal function

@@ -24,6 +24,7 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
+#include "internal.h"
 
 /*
  * capabilities for /dev/mem, /dev/kmem and similar directly mappable character
