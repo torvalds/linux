@@ -142,8 +142,8 @@ enum {
 	ATA_DFLAG_NCQ		= (1 << 3), /* device supports NCQ */
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
-	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
-	ATA_DFLAG_SUSPENDED	= (1 << 9), /* device suspended */
+	ATA_DFLAG_PIO		= (1 << 8), /* device limited to PIO mode */
+	ATA_DFLAG_SUSPENDED	= (1 << 10), /* device suspended */
 	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 16),
