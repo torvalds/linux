@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.44"
-#define DRV_MODULE_RELDATE	"August 10, 2006"
+#define DRV_MODULE_VERSION	"1.4.45"
+#define DRV_MODULE_RELDATE	"September 29, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -5803,6 +5803,34 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->comp_prod_trip_int = bp->comp_prod_trip;
 		bp->com_ticks_int = bp->com_ticks;
 		bp->cmd_ticks_int = bp->cmd_ticks;
+	}
+
+	/* Disable MSI on 5706 if AMD 8132 bridge is found.
+	 *
+	 * MSI is defined to be 32-bit write.  The 5706 does 64-bit MSI writes
+	 * with byte enables disabled on the unused 32-bit word.  This is legal
+	 * but causes problems on the AMD 8132 which will eventually stop
+	 * responding after a while.
+	 *
+	 * AMD believes this incompatibility is unique to the 5706, and
+	 * prefers to locally disable MSI rather than globally disabling it
+	 * using pci_msi_quirk.
+	 */
+	if (CHIP_NUM(bp) == CHIP_NUM_5706 && disable_msi == 0) {
+		struct pci_dev *amd_8132 = NULL;
+
+		while ((amd_8132 = pci_get_device(PCI_VENDOR_ID_AMD,
+						  PCI_DEVICE_ID_AMD_8132_BRIDGE,
+						  amd_8132))) {
+			u8 rev;
+
+			pci_read_config_byte(amd_8132, PCI_REVISION_ID, &rev);
+			if (rev >= 0x10 && rev <= 0x13) {
+				disable_msi = 1;
+				pci_dev_put(amd_8132);
+				break;
+			}
+		}
 	}
 
 	bp->autoneg = AUTONEG_SPEED | AUTONEG_FLOW_CTRL;
