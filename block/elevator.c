@@ -67,8 +67,7 @@ inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 	/*
 	 * same device and no special stuff set, merge is ok
 	 */
-	if (rq->rq_disk == bio->bi_bdev->bd_disk &&
-	    !rq->waiting && !rq->special)
+	if (rq->rq_disk == bio->bi_bdev->bd_disk && !rq->special)
 		return 1;
 
 	return 0;

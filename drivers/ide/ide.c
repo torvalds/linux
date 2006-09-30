@@ -1219,7 +1219,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	memset(&args, 0, sizeof(args));
 	rq.cmd_type = REQ_TYPE_PM_SUSPEND;
 	rq.special = &args;
-	rq.end_io_data = &rqpm;
+	rq.data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
@@ -1240,7 +1240,7 @@ static int generic_ide_resume(struct device *dev)
 	memset(&args, 0, sizeof(args));
 	rq.cmd_type = REQ_TYPE_PM_RESUME;
 	rq.special = &args;
-	rq.end_io_data = &rqpm;
+	rq.data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 

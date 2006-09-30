@@ -291,7 +291,6 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 	rq->buffer = NULL;
 	rq->ref_count = 1;
 	rq->q = q;
-	rq->waiting = NULL;
 	rq->special = NULL;
 	rq->data_len = 0;
 	rq->data = NULL;
@@ -451,6 +450,7 @@ static void queue_flush(request_queue_t *q, unsigned which)
 	rq->cmd_flags = REQ_HARDBARRIER;
 	rq_init(q, rq);
 	rq->elevator_private = NULL;
+	rq->elevator_private2 = NULL;
 	rq->rq_disk = q->bar_rq.rq_disk;
 	rq->rl = NULL;
 	rq->end_io = end_io;
@@ -479,6 +479,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 		rq->cmd_flags |= REQ_RW;
 	rq->cmd_flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
 	rq->elevator_private = NULL;
+	rq->elevator_private2 = NULL;
 	rq->rl = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
 	rq->end_io = bar_end_io;
@@ -2569,10 +2570,9 @@ int blk_execute_rq(request_queue_t *q, struct gendisk *bd_disk,
 		rq->sense_len = 0;
 	}
 
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	blk_execute_rq_nowait(q, bd_disk, rq, at_head, blk_end_sync_rq);
 	wait_for_completion(&wait);
-	rq->waiting = NULL;
 
 	if (rq->errors)
 		err = -EIO;
@@ -2736,9 +2736,9 @@ EXPORT_SYMBOL(blk_put_request);
  */
 void blk_end_sync_rq(struct request *rq, int error)
 {
-	struct completion *waiting = rq->waiting;
+	struct completion *waiting = rq->end_io_data;
 
-	rq->waiting = NULL;
+	rq->end_io_data = NULL;
 	__blk_put_request(rq->q, rq);
 
 	/*
@@ -2801,7 +2801,7 @@ static int attempt_merge(request_queue_t *q, struct request *req,
 
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
-	    || next->waiting || next->special)
+	    || next->special)
 		return 0;
 
 	/*
@@ -2886,7 +2886,6 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 	req->nr_phys_segments = bio_phys_segments(req->q, bio);
 	req->nr_hw_segments = bio_hw_segments(req->q, bio);
 	req->buffer = bio_data(bio);	/* see ->buffer comment above */
-	req->waiting = NULL;
 	req->bio = req->biotail = bio;
 	req->ioprio = bio_prio(bio);
 	req->rq_disk = bio->bi_bdev->bd_disk;

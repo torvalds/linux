@@ -375,7 +375,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	rq->ref_count++;
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	rq->end_io = blk_end_sync_rq;
 	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
 	generic_unplug_device(q);

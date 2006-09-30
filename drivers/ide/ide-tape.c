@@ -2773,7 +2773,7 @@ static void idetape_wait_for_request (ide_drive_t *drive, struct request *rq)
 		return;
 	}
 #endif /* IDETAPE_DEBUG_BUGS */
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	rq->end_io = blk_end_sync_rq;
 	spin_unlock_irq(&tape->spinlock);
 	wait_for_completion(&wait);

@@ -266,7 +266,6 @@ struct request {
 	request_queue_t *q;
 	struct request_list *rl;
 
-	struct completion *waiting;
 	void *special;
 	char *buffer;
 
@@ -285,7 +284,7 @@ struct request {
 	int retries;
 
 	/*
-	 * completion callback. end_io_data should be folded in with waiting
+	 * completion callback.
 	 */
 	rq_end_io_fn *end_io;
 	void *end_io_data;

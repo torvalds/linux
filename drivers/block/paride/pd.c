@@ -722,11 +722,10 @@ static int pd_special_command(struct pd_unit *disk,
 	rq.rq_status = RQ_ACTIVE;
 	rq.rq_disk = disk->gd;
 	rq.ref_count = 1;
-	rq.waiting = &wait;
+	rq.end_io_data = &wait;
 	rq.end_io = blk_end_sync_rq;
 	blk_insert_request(disk->gd->queue, &rq, 0, func);
 	wait_for_completion(&wait);
-	rq.waiting = NULL;
 	if (rq.errors)
 		err = -EIO;
 	blk_put_request(&rq);

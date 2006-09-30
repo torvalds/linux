@@ -141,7 +141,7 @@ enum {
 
 static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 stat, u8 error)
 {
-	struct request_pm_state *pm = rq->end_io_data;
+	struct request_pm_state *pm = rq->data;
 
 	if (drive->media != ide_disk)
 		return;
@@ -164,7 +164,7 @@ static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 s
 
 static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *rq)
 {
-	struct request_pm_state *pm = rq->end_io_data;
+	struct request_pm_state *pm = rq->data;
 	ide_task_t *args = rq->special;
 
 	memset(args, 0, sizeof(*args));
@@ -421,7 +421,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			}
 		}
 	} else if (blk_pm_request(rq)) {
-		struct request_pm_state *pm = rq->end_io_data;
+		struct request_pm_state *pm = rq->data;
 #ifdef DEBUG_PM
 		printk("%s: complete_power_step(step: %d, stat: %x, err: %x)\n",
 			drive->name, rq->pm->pm_step, stat, err);
@@ -933,7 +933,7 @@ done:
 
 static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 {
-	struct request_pm_state *pm = rq->end_io_data;
+	struct request_pm_state *pm = rq->data;
 
 	if (blk_pm_suspend_request(rq) &&
 	    pm->pm_step == ide_pm_state_start_suspend)
@@ -1018,7 +1018,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		    rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 			return execute_drive_cmd(drive, rq);
 		else if (blk_pm_request(rq)) {
-			struct request_pm_state *pm = rq->end_io_data;
+			struct request_pm_state *pm = rq->data;
 #ifdef DEBUG_PM
 			printk("%s: start_power_step(step: %d)\n",
 				drive->name, rq->pm->pm_step);
@@ -1718,7 +1718,7 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 	 */
 	if (must_wait) {
 		rq->ref_count++;
-		rq->waiting = &wait;
+		rq->end_io_data = &wait;
 		rq->end_io = blk_end_sync_rq;
 	}
 
@@ -1736,7 +1736,6 @@ int ide_do_drive_cmd (ide_drive_t *drive, struct request *rq, ide_action_t actio
 	err = 0;
 	if (must_wait) {
 		wait_for_completion(&wait);
-		rq->waiting = NULL;
 		if (rq->errors)
 			err = -EIO;
 
