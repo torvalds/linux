@@ -2,7 +2,7 @@
 # Block layer core configuration
 #
 config BLOCK
-       bool "Enable the block layer"
+       bool "Enable the block layer" if EMBEDDED
        default y
        help
 	 This permits the block layer to be removed from the kernel if it's not
