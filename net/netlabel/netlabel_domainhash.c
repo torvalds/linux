@@ -188,7 +188,7 @@ int netlbl_domhsh_init(u32 size)
 /**
  * netlbl_domhsh_add - Adds a entry to the domain hash table
  * @entry: the entry to add
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Adds a new entry to the domain hash table and handles any updates to the
@@ -196,7 +196,8 @@ int netlbl_domhsh_init(u32 size)
  * negative on failure.
  *
  */
-int netlbl_domhsh_add(struct netlbl_dom_map *entry, u32 audit_secid)
+int netlbl_domhsh_add(struct netlbl_dom_map *entry,
+		      struct netlbl_audit *audit_info)
 {
 	int ret_val;
 	u32 bkt;
@@ -241,26 +242,26 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry, u32 audit_secid)
 		spin_unlock(&netlbl_domhsh_def_lock);
 	} else
 		ret_val = -EINVAL;
-	if (ret_val == 0) {
-		if (entry->domain != NULL)
-			audit_domain = entry->domain;
-		else
-			audit_domain = "(default)";
-		audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD,
-						      audit_secid);
-		audit_log_format(audit_buf, " domain=%s", audit_domain);
-		switch (entry->type) {
-		case NETLBL_NLTYPE_UNLABELED:
-			audit_log_format(audit_buf, " protocol=unlbl");
-			break;
-		case NETLBL_NLTYPE_CIPSOV4:
-			audit_log_format(audit_buf,
-					 " protocol=cipsov4 doi=%u",
-					 entry->type_def.cipsov4->doi);
-			break;
-		}
-		audit_log_end(audit_buf);
+
+	if (entry->domain != NULL)
+		audit_domain = entry->domain;
+	else
+		audit_domain = "(default)";
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
+	audit_log_format(audit_buf, " nlbl_domain=%s", audit_domain);
+	switch (entry->type) {
+	case NETLBL_NLTYPE_UNLABELED:
+		audit_log_format(audit_buf, " nlbl_protocol=unlbl");
+		break;
+	case NETLBL_NLTYPE_CIPSOV4:
+		audit_log_format(audit_buf,
+				 " nlbl_protocol=cipsov4 cipso_doi=%u",
+				 entry->type_def.cipsov4->doi);
+		break;
 	}
+	audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
+	audit_log_end(audit_buf);
+
 	rcu_read_unlock();
 
 	if (ret_val != 0) {
@@ -279,7 +280,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry, u32 audit_secid)
 /**
  * netlbl_domhsh_add_default - Adds the default entry to the domain hash table
  * @entry: the entry to add
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Adds a new default entry to the domain hash table and handles any updates
@@ -287,15 +288,16 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry, u32 audit_secid)
  * negative on failure.
  *
  */
-int netlbl_domhsh_add_default(struct netlbl_dom_map *entry, u32 audit_secid)
+int netlbl_domhsh_add_default(struct netlbl_dom_map *entry,
+			      struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_add(entry, audit_secid);
+	return netlbl_domhsh_add(entry, audit_info);
 }
 
 /**
  * netlbl_domhsh_remove - Removes an entry from the domain hash table
  * @domain: the domain to remove
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes an entry from the domain hash table and handles any updates to the
@@ -303,7 +305,7 @@ int netlbl_domhsh_add_default(struct netlbl_dom_map *entry, u32 audit_secid)
  * negative on failure.
  *
  */
-int netlbl_domhsh_remove(const char *domain, u32 audit_secid)
+int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOENT;
 	struct netlbl_dom_map *entry;
@@ -345,18 +347,20 @@ int netlbl_domhsh_remove(const char *domain, u32 audit_secid)
 			ret_val = -ENOENT;
 		spin_unlock(&netlbl_domhsh_def_lock);
 	}
-	if (ret_val == 0) {
-		if (entry->domain != NULL)
-			audit_domain = entry->domain;
-		else
-			audit_domain = "(default)";
-		audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL,
-						      audit_secid);
-		audit_log_format(audit_buf, " domain=%s", audit_domain);
-		audit_log_end(audit_buf);
 
+	if (entry->domain != NULL)
+		audit_domain = entry->domain;
+	else
+		audit_domain = "(default)";
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
+	audit_log_format(audit_buf,
+			 " nlbl_domain=%s res=%u",
+			 audit_domain,
+			 ret_val == 0 ? 1 : 0);
+	audit_log_end(audit_buf);
+
+	if (ret_val == 0)
 		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
-	}
 
 remove_return:
 	rcu_read_unlock();
@@ -365,7 +369,7 @@ remove_return:
 
 /**
  * netlbl_domhsh_remove_default - Removes the default entry from the table
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Removes/resets the default entry for the domain hash table and handles any
@@ -373,9 +377,9 @@ remove_return:
  * success, non-zero on failure.
  *
  */
-int netlbl_domhsh_remove_default(u32 audit_secid)
+int netlbl_domhsh_remove_default(struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_remove(NULL, audit_secid);
+	return netlbl_domhsh_remove(NULL, audit_info);
 }
 
 /**

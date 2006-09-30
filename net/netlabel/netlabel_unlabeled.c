@@ -70,18 +70,25 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
 /**
  * netlbl_unlabel_acceptflg_set - Set the unlabeled accept flag
  * @value: desired value
- * @audit_secid: the LSM secid to use in the audit message
+ * @audit_info: NetLabel audit information
  *
  * Description:
  * Set the value of the unlabeled accept flag to @value.
  *
  */
-static void netlbl_unlabel_acceptflg_set(u8 value, u32 audit_secid)
+static void netlbl_unlabel_acceptflg_set(u8 value,
+					 struct netlbl_audit *audit_info)
 {
+	struct audit_buffer *audit_buf;
+	u8 old_val;
+
+	old_val = atomic_read(&netlabel_unlabel_accept_flg);
 	atomic_set(&netlabel_unlabel_accept_flg, value);
-	netlbl_audit_nomsg((value ?
-			    AUDIT_MAC_UNLBL_ACCEPT : AUDIT_MAC_UNLBL_DENY),
-			   audit_secid);
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
+					      audit_info);
+	audit_log_format(audit_buf, " unlbl_accept=%u old=%u", value, old_val);
+	audit_log_end(audit_buf);
 }
 
 /*
@@ -101,12 +108,13 @@ static void netlbl_unlabel_acceptflg_set(u8 value, u32 audit_secid)
 static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
 {
 	u8 value;
+	struct netlbl_audit audit_info;
 
 	if (info->attrs[NLBL_UNLABEL_A_ACPTFLG]) {
 		value = nla_get_u8(info->attrs[NLBL_UNLABEL_A_ACPTFLG]);
 		if (value == 1 || value == 0) {
-			netlbl_unlabel_acceptflg_set(value,
-						     NETLINK_CB(skb).sid);
+			netlbl_netlink_auditinfo(skb, &audit_info);
+			netlbl_unlabel_acceptflg_set(value, &audit_info);
 			return 0;
 		}
 	}
@@ -250,19 +258,23 @@ int netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;
-	u32 secid;
+	struct netlbl_audit audit_info;
 
-	security_task_getsecid(current, &secid);
+	/* Only the kernel is allowed to call this function and the only time
+	 * it is called is at bootup before the audit subsystem is reporting
+	 * messages so don't worry to much about these values. */
+	security_task_getsecid(current, &audit_info.secid);
+	audit_info.loginuid = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->type = NETLBL_NLTYPE_UNLABELED;
-	ret_val = netlbl_domhsh_add_default(entry, secid);
+	ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 	if (ret_val != 0)
 		return ret_val;
 
-	netlbl_unlabel_acceptflg_set(1, secid);
+	netlbl_unlabel_acceptflg_set(1, &audit_info);
 
 	return 0;
 }

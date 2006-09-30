@@ -384,10 +384,14 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 	u32 doi;
 	const char *type_str = "(unknown)";
 	struct audit_buffer *audit_buf;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_CIPSOV4_A_DOI] ||
 	    !info->attrs[NLBL_CIPSOV4_A_MTYPE])
 		return -EINVAL;
+
+	doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
+	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	type = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_MTYPE]);
 	switch (type) {
@@ -401,13 +405,14 @@ static int netlbl_cipsov4_add(struct sk_buff *skb, struct genl_info *info)
 		break;
 	}
 
-	if (ret_val == 0) {
-		doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
-		audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
-						      NETLINK_CB(skb).sid);
-		audit_log_format(audit_buf, " doi=%u type=%s", doi, type_str);
-		audit_log_end(audit_buf);
-	}
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
+					      &audit_info);
+	audit_log_format(audit_buf,
+			 " cipso_doi=%u cipso_type=%s res=%u",
+			 doi,
+			 type_str,
+			 ret_val == 0 ? 1 : 0);
+	audit_log_end(audit_buf);
 
 	return ret_val;
 }
@@ -668,20 +673,25 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
 	int ret_val = -EINVAL;
 	u32 doi = 0;
 	struct audit_buffer *audit_buf;
+	struct netlbl_audit audit_info;
 
-	if (info->attrs[NLBL_CIPSOV4_A_DOI]) {
-		doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
-		ret_val = cipso_v4_doi_remove(doi,
-					      NETLINK_CB(skb).sid,
-					      netlbl_cipsov4_doi_free);
-	}
+	if (!info->attrs[NLBL_CIPSOV4_A_DOI])
+		return -EINVAL;
 
-	if (ret_val == 0) {
-		audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
-						      NETLINK_CB(skb).sid);
-		audit_log_format(audit_buf, " doi=%u", doi);
-		audit_log_end(audit_buf);
-	}
+	doi = nla_get_u32(info->attrs[NLBL_CIPSOV4_A_DOI]);
+	netlbl_netlink_auditinfo(skb, &audit_info);
+
+	ret_val = cipso_v4_doi_remove(doi,
+				      &audit_info,
+				      netlbl_cipsov4_doi_free);
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_DEL,
+					      &audit_info);
+	audit_log_format(audit_buf,
+			 " cipso_doi=%u res=%u",
+			 doi,
+			 ret_val == 0 ? 1 : 0);
+	audit_log_end(audit_buf);
 
 	return ret_val;
 }

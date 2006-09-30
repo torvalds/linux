@@ -485,7 +485,7 @@ doi_add_failure_rlock:
  *
  */
 int cipso_v4_doi_remove(u32 doi,
-			u32 audit_secid,
+			struct netlbl_audit *audit_info,
 			void (*callback) (struct rcu_head * head))
 {
 	struct cipso_v4_doi *doi_def;
@@ -506,7 +506,7 @@ int cipso_v4_doi_remove(u32 doi,
 		list_for_each_entry_rcu(dom_iter, &doi_def->dom_list, list)
 			if (dom_iter->valid)
 				netlbl_domhsh_remove(dom_iter->domain,
-						     audit_secid);
+						     audit_info);
 		cipso_v4_cache_invalidate();
 		rcu_read_unlock();
 
