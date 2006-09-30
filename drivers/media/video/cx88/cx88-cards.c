@@ -1230,6 +1230,7 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x84bf,
 		}},
+		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_NORWOOD_MICRO] = {
 		.name           = "Norwood Micro TV Tuner",
@@ -1590,6 +1591,18 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x9000,
 		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x1400,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x1401,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x1402,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1633,7 +1646,15 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
+	case 14009: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in) */
+	case 14019: /* WinTV-HVR3000 (Retail, IR Blaster, b/panel video, 3.5mm audio in) */
+	case 14029: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - 880 bridge) */
+	case 14109: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - low profile) */
+	case 14129: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - 880 bridge - LP) */
+	case 14559: /* WinTV-HVR3000 (OEM, no IR, b/panel video, 3.5mm audio in) */
 	case 14569: /* WinTV-HVR3000 (OEM, no IR, no back panel video) */
+	case 14659: /* WinTV-HVR3000 (OEM, no IR, b/panel video, RCA audio in - Low profile) */
+	case 14669: /* WinTV-HVR3000 (OEM, no IR, no b/panel video - Low profile) */
 	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
 	case 34519: /* WinTV-PCI-FM */
 	case 90002: /* Nova-T-PCI (9002) */
