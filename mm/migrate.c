@@ -409,6 +409,7 @@ int migrate_page(struct address_space *mapping,
 }
 EXPORT_SYMBOL(migrate_page);
 
+#ifdef CONFIG_BLOCK
 /*
  * Migration function for pages with buffers. This function can only be used
  * if the underlying filesystem guarantees that no other references to "page"
@@ -466,6 +467,7 @@ int buffer_migrate_page(struct address_space *mapping,
 	return 0;
 }
 EXPORT_SYMBOL(buffer_migrate_page);
+#endif
 
 /*
  * Writeback a page to clean the dirty state

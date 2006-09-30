@@ -645,6 +645,7 @@ out:
 }
 #endif
 
+#ifdef CONFIG_BLOCK
 struct hd_geometry32 {
 	unsigned char heads;
 	unsigned char sectors;
@@ -869,6 +870,7 @@ static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 	return err;
 }
+#endif /* CONFIG_BLOCK */
 
 struct sock_fprog32 {
 	unsigned short	len;
@@ -992,6 +994,7 @@ static int ppp_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 }
 
 
+#ifdef CONFIG_BLOCK
 struct mtget32 {
 	compat_long_t	mt_type;
 	compat_long_t	mt_resid;
@@ -1164,6 +1167,7 @@ static int cdrom_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return err;
 }
+#endif /* CONFIG_BLOCK */
 
 #ifdef CONFIG_VT
 
@@ -1491,6 +1495,7 @@ ret_einval(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_BLOCK
 static int broken_blkgetsize(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	/* The mkswap binary hard codes it to Intel value :-((( */
@@ -1525,12 +1530,14 @@ static int blkpg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long ar
 
 	return sys_ioctl(fd, cmd, (unsigned long)a);
 }
+#endif
 
 static int ioc_settimeout(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	return rw_long(fd, AUTOFS_IOC_SETTIMEOUT, arg);
 }
 
+#ifdef CONFIG_BLOCK
 /* Fix sizeof(sizeof()) breakage */
 #define BLKBSZGET_32   _IOR(0x12,112,int)
 #define BLKBSZSET_32   _IOW(0x12,113,int)
@@ -1551,6 +1558,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 {
        return sys_ioctl(fd, BLKGETSIZE64, (unsigned long)compat_ptr(arg));
 }
+#endif
 
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO	_IOW('U', 200, int)
@@ -1571,6 +1579,7 @@ static int do_blkgetsize64(unsigned int fd, unsigned int cmd,
 #define HIDPGETCONNLIST	_IOR('H', 210, int)
 #define HIDPGETCONNINFO	_IOR('H', 211, int)
 
+#ifdef CONFIG_BLOCK
 struct floppy_struct32 {
 	compat_uint_t	size;
 	compat_uint_t	sect;
@@ -1895,6 +1904,7 @@ out:
 	kfree(karg);
 	return err;
 }
+#endif
 
 struct mtd_oob_buf32 {
 	u_int32_t start;
@@ -1936,6 +1946,7 @@ static int mtd_rw_oob(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err;
 }	
 
+#ifdef CONFIG_BLOCK
 struct raw32_config_request
 {
         compat_int_t    raw_minor;
@@ -2000,6 +2011,7 @@ static int raw_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
         }
         return ret;
 }
+#endif /* CONFIG_BLOCK */
 
 struct serial_struct32 {
         compat_int_t    type;
@@ -2606,6 +2618,7 @@ HANDLE_IOCTL(SIOCBRDELIF, dev_ifsioc)
 HANDLE_IOCTL(SIOCRTMSG, ret_einval)
 HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
 #endif
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(HDIO_GETGEO, hdio_getgeo)
 HANDLE_IOCTL(BLKRAGET, w_long)
 HANDLE_IOCTL(BLKGETSIZE, w_long)
@@ -2631,14 +2644,17 @@ HANDLE_IOCTL(FDGETFDCSTAT32, fd_ioctl_trans)
 HANDLE_IOCTL(FDWERRORGET32, fd_ioctl_trans)
 HANDLE_IOCTL(SG_IO,sg_ioctl_trans)
 HANDLE_IOCTL(SG_GET_REQUEST_TABLE, sg_grt_trans)
+#endif
 HANDLE_IOCTL(PPPIOCGIDLE32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSCOMPRESS32, ppp_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSPASS32, ppp_sock_fprog_ioctl_trans)
 HANDLE_IOCTL(PPPIOCSACTIVE32, ppp_sock_fprog_ioctl_trans)
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(MTIOCGET32, mt_ioctl_trans)
 HANDLE_IOCTL(MTIOCPOS32, mt_ioctl_trans)
 HANDLE_IOCTL(CDROMREADAUDIO, cdrom_ioctl_trans)
 HANDLE_IOCTL(CDROM_SEND_PACKET, cdrom_ioctl_trans)
+#endif
 #define AUTOFS_IOC_SETTIMEOUT32 _IOWR(0x93,0x64,unsigned int)
 HANDLE_IOCTL(AUTOFS_IOC_SETTIMEOUT32, ioc_settimeout)
 #ifdef CONFIG_VT
@@ -2677,12 +2693,14 @@ HANDLE_IOCTL(SONET_SETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRSENSE, do_atm_ioctl)
 /* block stuff */
+#ifdef CONFIG_BLOCK
 HANDLE_IOCTL(BLKBSZGET_32, do_blkbszget)
 HANDLE_IOCTL(BLKBSZSET_32, do_blkbszset)
 HANDLE_IOCTL(BLKGETSIZE64_32, do_blkgetsize64)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
+#endif
 /* Serial */
 HANDLE_IOCTL(TIOCGSERIAL, serial_struct_ioctl)
 HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)

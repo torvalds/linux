@@ -2020,6 +2020,7 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 		if (unlikely(*pos + *count > inode->i_sb->s_maxbytes))
 			*count = inode->i_sb->s_maxbytes - *pos;
 	} else {
+#ifdef CONFIG_BLOCK
 		loff_t isize;
 		if (bdev_read_only(I_BDEV(inode)))
 			return -EPERM;
@@ -2031,6 +2032,9 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 
 		if (*pos + *count > isize)
 			*count = isize - *pos;
+#else
+		return -EPERM;
+#endif
 	}
 	return 0;
 }

@@ -14,10 +14,16 @@
 /*
  * block_dev.c
  */
+#ifdef CONFIG_BLOCK
 extern struct super_block *blockdev_superblock;
 extern void __init bdev_cache_init(void);
 
 #define sb_is_blkdev_sb(sb) ((sb) == blockdev_superblock)
+#else
+static inline void bdev_cache_init(void) {}
+
+#define sb_is_blkdev_sb(sb) 0
+#endif
 
 /*
  * char_dev.c

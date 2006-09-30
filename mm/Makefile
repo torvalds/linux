@@ -12,7 +12,7 @@ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
 			   readahead.o swap.o truncate.o vmscan.o \
 			   prio_tree.o util.o mmzone.o vmstat.o $(mmu-y)
 
-ifeq ($(CONFIG_MMU),y)
+ifeq ($(CONFIG_MMU)$(CONFIG_BLOCK),yy)
 obj-y			+= bounce.o
 endif
 obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o

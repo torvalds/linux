@@ -11,6 +11,8 @@
 
 #include <linux/types.h>
 
+#ifdef CONFIG_BLOCK
+
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
    confused about extended/logical partitions starting past cylinder 1023. */
@@ -416,6 +418,8 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 {
 	return bdget(MKDEV(disk->major, disk->first_minor) + index);
 }
+
+#endif
 
 #endif
 

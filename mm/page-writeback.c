@@ -807,9 +807,11 @@ int fastcall set_page_dirty(struct page *page)
 
 	if (likely(mapping)) {
 		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
-		if (spd)
-			return (*spd)(page);
-		return __set_page_dirty_buffers(page);
+#ifdef CONFIG_BLOCK
+		if (!spd)
+			spd = __set_page_dirty_buffers;
+#endif
+		return (*spd)(page);
 	}
 	if (!PageDirty(page)) {
 		if (!TestSetPageDirty(page))

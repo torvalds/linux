@@ -1482,6 +1482,7 @@ extern void __init vfs_caches_init(unsigned long);
 extern void putname(const char *name);
 #endif
 
+#ifdef CONFIG_BLOCK
 extern int register_blkdev(unsigned int, const char *);
 extern int unregister_blkdev(unsigned int, const char *);
 extern struct block_device *bdget(dev_t);
@@ -1490,11 +1491,15 @@ extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
 extern struct block_device *open_partition_by_devnum(dev_t, unsigned);
-extern const struct file_operations def_blk_fops;
 extern const struct address_space_operations def_blk_aops;
+#else
+static inline void bd_forget(struct inode *inode) {}
+#endif
+extern const struct file_operations def_blk_fops;
 extern const struct file_operations def_chr_fops;
 extern const struct file_operations bad_sock_fops;
 extern const struct file_operations def_fifo_fops;
+#ifdef CONFIG_BLOCK
 extern int ioctl_by_bdev(struct block_device *, unsigned, unsigned long);
 extern int blkdev_ioctl(struct inode *, struct file *, unsigned, unsigned long);
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
@@ -1510,6 +1515,7 @@ extern void bd_release_from_disk(struct block_device *, struct gendisk *);
 #define bd_claim_by_disk(bdev, holder, disk)	bd_claim(bdev, holder)
 #define bd_release_from_disk(bdev, disk)	bd_release(bdev)
 #endif
+#endif
 
 /* fs/char_dev.c */
 #define CHRDEV_MAJOR_HASH_SIZE	255
@@ -1523,14 +1529,19 @@ extern int chrdev_open(struct inode *, struct file *);
 extern void chrdev_show(struct seq_file *,off_t);
 
 /* fs/block_dev.c */
-#define BLKDEV_MAJOR_HASH_SIZE	255
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
+
+#ifdef CONFIG_BLOCK
+#define BLKDEV_MAJOR_HASH_SIZE	255
 extern const char *__bdevname(dev_t, char *buffer);
 extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
 extern struct block_device *open_bdev_excl(const char *, int, void *);
 extern void close_bdev_excl(struct block_device *);
 extern void blkdev_show(struct seq_file *,off_t);
+#else
+#define BLKDEV_MAJOR_HASH_SIZE	0
+#endif
 
 extern void init_special_inode(struct inode *, umode_t, dev_t);
 
@@ -1544,6 +1555,7 @@ extern const struct file_operations rdwr_fifo_fops;
 
 extern int fs_may_remount_ro(struct super_block *);
 
+#ifdef CONFIG_BLOCK
 /*
  * return READ, READA, or WRITE
  */
@@ -1555,9 +1567,10 @@ extern int fs_may_remount_ro(struct super_block *);
 #define bio_data_dir(bio)	((bio)->bi_rw & 1)
 
 extern int check_disk_change(struct block_device *);
-extern int invalidate_inodes(struct super_block *);
 extern int __invalidate_device(struct block_device *);
 extern int invalidate_partition(struct gendisk *, int);
+#endif
+extern int invalidate_inodes(struct super_block *);
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
 					pgoff_t start, pgoff_t end);
 unsigned long invalidate_inode_pages(struct address_space *mapping);
@@ -1590,7 +1603,9 @@ extern void emergency_sync(void);
 extern void emergency_remount(void);
 extern int do_remount_sb(struct super_block *sb, int flags,
 			 void *data, int force);
+#ifdef CONFIG_BLOCK
 extern sector_t bmap(struct inode *, sector_t);
+#endif
 extern int notify_change(struct dentry *, struct iattr *);
 extern int permission(struct inode *, int, struct nameidata *);
 extern int generic_permission(struct inode *, int,
@@ -1673,9 +1688,11 @@ static inline void insert_inode_hash(struct inode *inode) {
 extern struct file * get_empty_filp(void);
 extern void file_move(struct file *f, struct list_head *list);
 extern void file_kill(struct file *f);
+#ifdef CONFIG_BLOCK
 struct bio;
 extern void submit_bio(int, struct bio *);
 extern int bdev_read_only(struct block_device *);
+#endif
 extern int set_blocksize(struct block_device *, int);
 extern int sb_set_blocksize(struct super_block *, int);
 extern int sb_min_blocksize(struct super_block *, int);
@@ -1756,6 +1773,7 @@ static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
 				actor);
 }
 
+#ifdef CONFIG_BLOCK
 ssize_t __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset,
 	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
@@ -1793,6 +1811,7 @@ static inline ssize_t blockdev_direct_IO_own_locking(int rw, struct kiocb *iocb,
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
 				nr_segs, get_block, end_io, DIO_OWN_LOCKING);
 }
+#endif
 
 extern const struct file_operations generic_ro_fops;
 

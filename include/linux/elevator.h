@@ -3,6 +3,8 @@
 
 #include <linux/percpu.h>
 
+#ifdef CONFIG_BLOCK
+
 typedef int (elevator_merge_fn) (request_queue_t *, struct request **,
 				 struct bio *);
 
@@ -203,4 +205,5 @@ enum {
 	__val;							\
 })
 
+#endif /* CONFIG_BLOCK */
 #endif

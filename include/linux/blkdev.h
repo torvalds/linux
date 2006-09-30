@@ -16,6 +16,22 @@
 
 #include <asm/scatterlist.h>
 
+#ifdef CONFIG_LBD
+# include <asm/div64.h>
+# define sector_div(a, b) do_div(a, b)
+#else
+# define sector_div(n, b)( \
+{ \
+	int _res; \
+	_res = (n) % (b); \
+	(n) /= (b); \
+	_res; \
+} \
+)
+#endif
+
+#ifdef CONFIG_BLOCK
+
 struct scsi_ioctl_command;
 
 struct request_queue;
@@ -818,24 +834,30 @@ struct work_struct;
 int kblockd_schedule_work(struct work_struct *work);
 void kblockd_flush(void);
 
-#ifdef CONFIG_LBD
-# include <asm/div64.h>
-# define sector_div(a, b) do_div(a, b)
-#else
-# define sector_div(n, b)( \
-{ \
-	int _res; \
-	_res = (n) % (b); \
-	(n) /= (b); \
-	_res; \
-} \
-)
-#endif 
-
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-*")
 
+
+#else /* CONFIG_BLOCK */
+/*
+ * stubs for when the block layer is configured out
+ */
+#define buffer_heads_over_limit 0
+
+static inline long blk_congestion_wait(int rw, long timeout)
+{
+	return timeout;
+}
+
+static inline long nr_blockdev_pages(void)
+{
+	return 0;
+}
+
+static inline void exit_io_context(void) {}
+
+#endif /* CONFIG_BLOCK */
 
 #endif

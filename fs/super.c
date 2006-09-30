@@ -571,8 +571,10 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	
+#ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
+#endif
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);
@@ -692,6 +694,7 @@ void kill_litter_super(struct super_block *sb)
 
 EXPORT_SYMBOL(kill_litter_super);
 
+#ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
@@ -787,6 +790,7 @@ void kill_block_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL(kill_block_super);
+#endif
 
 int get_sb_nodev(struct file_system_type *fs_type,
 	int flags, void *data,

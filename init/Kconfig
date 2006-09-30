@@ -92,7 +92,7 @@ config LOCALVERSION_AUTO
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU
+	depends on MMU && BLOCK
 	default y
 	help
 	  This option allows you to choose whether you want to have support
