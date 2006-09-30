@@ -473,7 +473,6 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->maxRw = 0;/* we do not need to use raw anyway */
 			server->capabilities = CAP_MPX_MODE;
 		}
-		server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
 		tmp = le16_to_cpu(rsp->ServerTimeZone);
 		if (tmp == (int)0xffff) {
 			/* OS/2 often does not set timezone therefore
@@ -492,11 +491,11 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			tmp = (int)(utc.tv_sec - ts.tv_sec);
 			adjust = tmp < 0 ? -29 : 29;
 			tmp = ((tmp + adjust) / 60) * 60;
-			server->timeZone = tmp;
+			server->timeAdj = tmp;
 		} else {
-			server->timeZone = tmp * 60; /* also in seconds */
+			server->timeAdj = tmp * 60; /* also in seconds */
 		}
-		cFYI(1,("server->timeZone: %d seconds", server->timeZone));
+		cFYI(1,("server->timeAdj: %d seconds", server->timeAdj));
 
 
 		/* BB get server time for time conversions and add
@@ -557,7 +556,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	cFYI(0, ("Max buf = %d", ses->server->maxBuf));
 	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
-	server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
+	server->timeAdj = le16_to_cpu(pSMBr->ServerTimeZone) * 60;	
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
 		memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);

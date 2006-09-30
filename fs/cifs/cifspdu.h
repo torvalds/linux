@@ -417,7 +417,10 @@ typedef struct lanman_neg_rsp {
 	__le16 MaxNumberVcs;
 	__le16 RawMode;
 	__le32 SessionKey;
-	__le32 ServerTime;
+	struct {
+		__le16 Time;
+		__le16 Date;
+	} __attribute__((packed)) SrvTime;
 	__le16 ServerTimeZone;
 	__le16 EncryptionKeyLength;
 	__le16 Reserved;

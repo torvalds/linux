@@ -3320,15 +3320,16 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		if(linuxExtEnabled == 0)
 			pSesInfo->capabilities &= (~CAP_UNIX);
 	/*	pSesInfo->sequence_number = 0;*/
-		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x Time Zone: %d",
+		cFYI(1,("Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 			pSesInfo->server->secMode,
 			pSesInfo->server->capabilities,
-			pSesInfo->server->timeZone));
+			pSesInfo->server->timeAdj));
 		if(experimEnabled < 2)
 			rc = CIFS_SessSetup(xid, pSesInfo,
 					    first_time, nls_info);
 		else if (extended_security
-				&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
+				&& (pSesInfo->capabilities 
+					& CAP_EXTENDED_SECURITY)
 				&& (pSesInfo->server->secType == NTLMSSP)) {
 			rc = -EOPNOTSUPP;
 		} else if (extended_security
@@ -3342,7 +3343,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			if (!rc) {
 				if(ntlmv2_flag) {
 					char * v2_response;
-					cFYI(1,("Can use more secure NTLM version 2 password hash"));
+					cFYI(1,("more secure NTLM ver2 hash"));
 					if(CalcNTLMv2_partial_mac_key(pSesInfo, 
 						nls_info)) {
 						rc = -ENOMEM;

@@ -465,7 +465,7 @@ static struct super_operations cifs_super_ops = {
 	.umount_begin   = cifs_umount_begin,
 	.remount_fs = cifs_remount,
 #ifdef CONFIG_CIFS_STATS2
-	cifs_show_stats,
+	.cifs_show_stats,
 #endif
 };
 
