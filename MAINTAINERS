@@ -1398,36 +1398,29 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-IEEE 1394 ETHERNET (eth1394)
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Orphan
-
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/scjody/ieee1394.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 
-IEEE 1394 OHCI DRIVER
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+IEEE 1394 IPV4 DRIVER (eth1394)
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 PCILYNX DRIVER
 P:	Jody McIntyre
 M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 RAW I/O DRIVER
 P:	Ben Collins
@@ -1435,16 +1428,6 @@ M:	bcollins@debian.org
 P:	Dan Dennedy
 M:	dan@dennedy.org
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
-
-IEEE 1394 SBP2
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Stefan Richter
-M:	stefanr@s5r6.in-berlin.de
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
 S:	Maintained
 
 IMS TWINTURBO FRAMEBUFFER DRIVER

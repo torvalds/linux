@@ -9,19 +9,17 @@
  * directory of the kernel sources for details.
  */
 
-#include <linux/sched.h>
 #include <linux/bitops.h>
-#include <linux/smp_lock.h>
-#include <linux/interrupt.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
+#include <asm/bug.h>
 #include <asm/errno.h>
 
 #include "ieee1394.h"
 #include "ieee1394_types.h"
 #include "hosts.h"
 #include "ieee1394_core.h"
-#include "highlevel.h"
-#include "nodemgr.h"
 #include "ieee1394_transactions.h"
 
 #define PREP_ASYNC_HEAD_ADDRESS(tc) \
@@ -30,6 +28,13 @@
                 | (1 << 8) | (tc << 4); \
         packet->header[1] = (packet->host->node_id << 16) | (addr >> 32); \
         packet->header[2] = addr & 0xffffffff
+
+#ifndef HPSB_DEBUG_TLABELS
+static
+#endif
+spinlock_t hpsb_tlabel_lock = SPIN_LOCK_UNLOCKED;
+
+static DECLARE_WAIT_QUEUE_HEAD(tlabel_wq);
 
 static void fill_async_readquad(struct hpsb_packet *packet, u64 addr)
 {
@@ -114,9 +119,41 @@ static void fill_async_stream_packet(struct hpsb_packet *packet, int length,
 	packet->tcode = TCODE_ISO_DATA;
 }
 
+/* same as hpsb_get_tlabel, except that it returns immediately */
+static int hpsb_get_tlabel_atomic(struct hpsb_packet *packet)
+{
+	unsigned long flags, *tp;
+	u8 *next;
+	int tlabel, n = NODEID_TO_NODE(packet->node_id);
+
+	/* Broadcast transactions are complete once the request has been sent.
+	 * Use the same transaction label for all broadcast transactions. */
+	if (unlikely(n == ALL_NODES)) {
+		packet->tlabel = 0;
+		return 0;
+	}
+	tp = packet->host->tl_pool[n].map;
+	next = &packet->host->next_tl[n];
+
+	spin_lock_irqsave(&hpsb_tlabel_lock, flags);
+	tlabel = find_next_zero_bit(tp, 64, *next);
+	if (tlabel > 63)
+		tlabel = find_first_zero_bit(tp, 64);
+	if (tlabel > 63) {
+		spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
+		return -EAGAIN;
+	}
+	__set_bit(tlabel, tp);
+	*next = (tlabel + 1) & 63;
+	spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
+
+	packet->tlabel = tlabel;
+	return 0;
+}
+
 /**
  * hpsb_get_tlabel - allocate a transaction label
- * @packet: the packet who's tlabel/tpool we set
+ * @packet: the packet whose tlabel and tl_pool we set
  *
  * Every asynchronous transaction on the 1394 bus needs a transaction
  * label to match the response to the request.  This label has to be
@@ -130,42 +167,25 @@ static void fill_async_stream_packet(struct hpsb_packet *packet, int length,
  * Return value: Zero on success, otherwise non-zero. A non-zero return
  * generally means there are no available tlabels. If this is called out
  * of interrupt or atomic context, then it will sleep until can return a
- * tlabel.
+ * tlabel or a signal is received.
  */
 int hpsb_get_tlabel(struct hpsb_packet *packet)
 {
-	unsigned long flags;
-	struct hpsb_tlabel_pool *tp;
-	int n = NODEID_TO_NODE(packet->node_id);
+	if (irqs_disabled() || in_atomic())
+		return hpsb_get_tlabel_atomic(packet);
 
-	if (unlikely(n == ALL_NODES))
-		return 0;
-	tp = &packet->host->tpool[n];
-
-	if (irqs_disabled() || in_atomic()) {
-		if (down_trylock(&tp->count))
-			return 1;
-	} else {
-		down(&tp->count);
-	}
-
-	spin_lock_irqsave(&tp->lock, flags);
-
-	packet->tlabel = find_next_zero_bit(tp->pool, 64, tp->next);
-	if (packet->tlabel > 63)
-		packet->tlabel = find_first_zero_bit(tp->pool, 64);
-	tp->next = (packet->tlabel + 1) % 64;
-	/* Should _never_ happen */
-	BUG_ON(test_and_set_bit(packet->tlabel, tp->pool));
-	tp->allocations++;
-	spin_unlock_irqrestore(&tp->lock, flags);
-
-	return 0;
+	/* NB: The macro wait_event_interruptible() is called with a condition
+	 * argument with side effect.  This is only possible because the side
+	 * effect does not occur until the condition became true, and
+	 * wait_event_interruptible() won't evaluate the condition again after
+	 * that. */
+	return wait_event_interruptible(tlabel_wq,
+					!hpsb_get_tlabel_atomic(packet));
 }
 
 /**
  * hpsb_free_tlabel - free an allocated transaction label
- * @packet: packet whos tlabel/tpool needs to be cleared
+ * @packet: packet whose tlabel and tl_pool needs to be cleared
  *
  * Frees the transaction label allocated with hpsb_get_tlabel().  The
  * tlabel has to be freed after the transaction is complete (i.e. response
@@ -176,21 +196,20 @@ int hpsb_get_tlabel(struct hpsb_packet *packet)
  */
 void hpsb_free_tlabel(struct hpsb_packet *packet)
 {
-	unsigned long flags;
-	struct hpsb_tlabel_pool *tp;
-	int n = NODEID_TO_NODE(packet->node_id);
+	unsigned long flags, *tp;
+	int tlabel, n = NODEID_TO_NODE(packet->node_id);
 
 	if (unlikely(n == ALL_NODES))
 		return;
-	tp = &packet->host->tpool[n];
+	tp = packet->host->tl_pool[n].map;
+	tlabel = packet->tlabel;
+	BUG_ON(tlabel > 63 || tlabel < 0);
 
-	BUG_ON(packet->tlabel > 63 || packet->tlabel < 0);
+	spin_lock_irqsave(&hpsb_tlabel_lock, flags);
+	BUG_ON(!__test_and_clear_bit(tlabel, tp));
+	spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
 
-	spin_lock_irqsave(&tp->lock, flags);
-	BUG_ON(!test_and_clear_bit(packet->tlabel, tp->pool));
-	spin_unlock_irqrestore(&tp->lock, flags);
-
-	up(&tp->count);
+	wake_up_interruptible(&tlabel_wq);
 }
 
 int hpsb_packet_success(struct hpsb_packet *packet)
@@ -214,7 +233,7 @@ int hpsb_packet_success(struct hpsb_packet *packet)
 				 packet->node_id);
 			return -EAGAIN;
 		}
-		HPSB_PANIC("reached unreachable code 1 in %s", __FUNCTION__);
+		BUG();
 
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
@@ -261,8 +280,7 @@ int hpsb_packet_success(struct hpsb_packet *packet)
 			 packet->ack_code, packet->node_id, packet->tcode);
 		return -EAGAIN;
 	}
-
-	HPSB_PANIC("reached unreachable code 2 in %s", __FUNCTION__);
+	BUG();
 }
 
 struct hpsb_packet *hpsb_make_readpacket(struct hpsb_host *host, nodeid_t node,
