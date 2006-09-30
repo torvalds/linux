@@ -218,12 +218,6 @@ int sctp_rcv(struct sk_buff *skb)
 		}
 	}
 
-	/* SCTP seems to always need a timestamp right now (FIXME) */
-	if (skb->tstamp.off_sec == 0) {
-		__net_timestamp(skb);
-		sock_enable_timestamp(sk); 
-	}
-
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
 		goto discard_release;
 	nf_reset(skb);
