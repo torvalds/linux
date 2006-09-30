@@ -72,18 +72,18 @@ struct lane2_ops {
 struct lec_priv {
 	struct net_device_stats stats;
 	unsigned short lecid;			/* Lecid of this client */
-	struct lec_arp_table *lec_arp_empty_ones;
+	struct hlist_head lec_arp_empty_ones;
 						/* Used for storing VCC's that don't have a MAC address attached yet */
-	struct lec_arp_table *lec_arp_tables[LEC_ARP_TABLE_SIZE];
+	struct hlist_head lec_arp_tables[LEC_ARP_TABLE_SIZE];
 						/* Actual LE ARP table */
-	struct lec_arp_table *lec_no_forward;
+	struct hlist_head lec_no_forward;
 						/*
 						 * Used for storing VCC's (and forward packets from) which are to
 						 * age out by not using them to forward packets.
 						 * This is because to some LE clients there will be 2 VCCs. Only
 						 * one of them gets used.
 						 */
-	struct lec_arp_table *mcast_fwds;
+	struct hlist_head mcast_fwds;
 						/*
 						 * With LANEv2 it is possible that BUS (or a special multicast server)
 						 * establishes multiple Multicast Forward VCCs to us. This list

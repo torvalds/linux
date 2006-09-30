@@ -11,7 +11,7 @@
 #include <linux/atmlec.h>
 
 struct lec_arp_table {
-	struct lec_arp_table *next;	/* Linked entry list */
+	struct hlist_node next;		/* Linked entry list */
 	unsigned char atm_addr[ATM_ESA_LEN];	/* Atm address */
 	unsigned char mac_addr[ETH_ALEN];	/* Mac address */
 	int is_rdesc;			/* Mac address is a route descriptor */
