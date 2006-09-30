@@ -93,7 +93,7 @@ struct lec_priv {
 	spinlock_t lec_arp_lock;
 	struct atm_vcc *mcast_vcc;		/* Default Multicast Send VCC */
 	struct atm_vcc *lecd;
-	struct timer_list lec_arp_timer;	/* C10 */
+	struct work_struct lec_arp_work;	/* C10 */
 	unsigned int maximum_unknown_frame_count;
 						/*
 						 * Within the period of time defined by this variable, the client will send

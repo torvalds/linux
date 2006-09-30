@@ -1442,7 +1442,7 @@ static void lane2_associate_ind(struct net_device *dev, u8 *mac_addr,
 
 #define LEC_ARP_REFRESH_INTERVAL (3*HZ)
 
-static void lec_arp_check_expire(unsigned long data);
+static void lec_arp_check_expire(void *data);
 static void lec_arp_expire_arp(unsigned long data);
 
 /* 
@@ -1465,11 +1465,8 @@ static void lec_arp_init(struct lec_priv *priv)
         INIT_HLIST_HEAD(&priv->lec_no_forward);
         INIT_HLIST_HEAD(&priv->mcast_fwds);
 	spin_lock_init(&priv->lec_arp_lock);
-	init_timer(&priv->lec_arp_timer);
-	priv->lec_arp_timer.expires = jiffies + LEC_ARP_REFRESH_INTERVAL;
-	priv->lec_arp_timer.data = (unsigned long)priv;
-	priv->lec_arp_timer.function = lec_arp_check_expire;
-	add_timer(&priv->lec_arp_timer);
+	INIT_WORK(&priv->lec_arp_work, lec_arp_check_expire, priv);
+	schedule_delayed_work(&priv->lec_arp_work, LEC_ARP_REFRESH_INTERVAL);
 }
 
 static void lec_arp_clear_vccs(struct lec_arp_table *entry)
@@ -1719,7 +1716,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	struct lec_arp_table *entry;
 	int i;
 
-	del_timer_sync(&priv->lec_arp_timer);
+	cancel_rearming_delayed_work(&priv->lec_arp_work);
 
 	/*
 	 * Remove all entries
@@ -1865,10 +1862,10 @@ static void lec_arp_expire_vcc(unsigned long data)
  *       to ESI_FORWARD_DIRECT. This causes the flush period to end
  *       regardless of the progress of the flush protocol.
  */
-static void lec_arp_check_expire(unsigned long data)
+static void lec_arp_check_expire(void *data)
 {
 	unsigned long flags;
-	struct lec_priv *priv = (struct lec_priv *)data;
+	struct lec_priv *priv = data;
 	struct hlist_node *node, *next;
 	struct lec_arp_table *entry;
 	unsigned long now;
@@ -1930,7 +1927,7 @@ static void lec_arp_check_expire(unsigned long data)
 	}
 	spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 
-	mod_timer(&priv->lec_arp_timer, jiffies + LEC_ARP_REFRESH_INTERVAL);
+	schedule_delayed_work(&priv->lec_arp_work, LEC_ARP_REFRESH_INTERVAL);
 }
 
 /*
