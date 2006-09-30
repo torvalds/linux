@@ -105,10 +105,10 @@ wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff)
 # Bits for building various flavours of zImage
 
 ifneq ($(CROSS32_COMPILE),)
-CROSSWRAP := -C $(CROSS32_COMPILE)
+CROSSWRAP := -C "$(CROSS32_COMPILE)"
 else
 ifneq ($(CROSS_COMPILE),)
-CROSSWRAP := -C $(CROSS_COMPILE)
+CROSSWRAP := -C "$(CROSS_COMPILE)"
 endif
 endif
 
