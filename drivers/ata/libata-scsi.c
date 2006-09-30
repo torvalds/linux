@@ -3182,10 +3182,12 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 			rc = -EINVAL;
 	}
 
-	if (rc == 0)
+	if (rc == 0) {
 		ata_port_schedule_eh(ap);
-
-	spin_unlock_irqrestore(ap->lock, flags);
+		spin_unlock_irqrestore(ap->lock, flags);
+		ata_port_wait_eh(ap);
+	} else
+		spin_unlock_irqrestore(ap->lock, flags);
 
 	return rc;
 }
