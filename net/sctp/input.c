@@ -388,7 +388,7 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			 * pmtu discovery on this transport.
 			 */
 			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-			t->param_flags = (t->param_flags & ~SPP_HB) |
+			t->param_flags = (t->param_flags & ~SPP_PMTUD) |
 				SPP_PMTUD_DISABLE;
 		} else {
 			t->pathmtu = pmtu;
