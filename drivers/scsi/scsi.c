@@ -592,12 +592,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	return rtn;
 }
 
-
-/*
- * Per-CPU I/O completion queue.
- */
-static DEFINE_PER_CPU(struct list_head, scsi_done_q);
-
 /**
  * scsi_req_abort_cmd -- Request command recovery for the specified command
  * cmd: pointer to the SCSI command of interest
@@ -1102,7 +1096,7 @@ MODULE_PARM_DESC(scsi_logging_level, "a bit mask of logging levels");
 
 static int __init init_scsi(void)
 {
-	int error, i;
+	int error;
 
 	error = scsi_init_queue();
 	if (error)
@@ -1122,9 +1116,6 @@ static int __init init_scsi(void)
 	error = scsi_sysfs_register();
 	if (error)
 		goto cleanup_sysctl;
-
-	for_each_possible_cpu(i)
-		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	scsi_netlink_init();
 
