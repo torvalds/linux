@@ -2083,12 +2083,12 @@ asmlinkage long sys_getcpu(unsigned __user *cpup, unsigned __user *nodep,
 		 * padding
 		 */
 		unsigned long t0, t1;
-		get_user(t0, &cache->t0);
-		get_user(t1, &cache->t1);
+		get_user(t0, &cache->blob[0]);
+		get_user(t1, &cache->blob[1]);
 		t0++;
 		t1++;
-		put_user(t0, &cache->t0);
-		put_user(t1, &cache->t1);
+		put_user(t0, &cache->blob[0]);
+		put_user(t1, &cache->blob[1]);
 	}
 	return err ? -EFAULT : 0;
 }
