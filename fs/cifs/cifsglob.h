@@ -203,9 +203,14 @@ struct cifsSesInfo {
 	char * domainName;
 	char * password;
 };
-/* session flags */
+/* no more than one of the following three session flags may be set */
 #define CIFS_SES_NT4 1
-
+#define CIFS_SES_OS2 2
+#define CIFS_SES_W9X 4
+/* following flag is set for old servers such as OS2 (and Win95?)
+   which do not negotiate NTLM or POSIX dialects, but instead
+   negotiate one of the older LANMAN dialects */
+#define CIFS_SES_LANMAN 8
 /*
  * there is one of these for each connection to a resource on a particular
  * session 

@@ -3316,6 +3316,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		first_time = 1;
 	}
 	if (!rc) {
+		pSesInfo->flags = 0;
 		pSesInfo->capabilities = pSesInfo->server->capabilities;
 		if(linuxExtEnabled == 0)
 			pSesInfo->capabilities &= (~CAP_UNIX);

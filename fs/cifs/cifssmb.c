@@ -46,6 +46,7 @@ static struct {
 } protocols[] = {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 	{LANMAN_PROT, "\2LM1.2X002"},
+	{LANMAN2_PROT, "\2LANMAN2.1"},
 #endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
 	{POSIX_PROT, "\2POSIX 2"},
@@ -67,13 +68,13 @@ static struct {
 /* define the number of elements in the cifs dialect array */
 #ifdef CONFIG_CIFS_POSIX
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 3
+#define CIFS_NUM_PROT 4
 #else
 #define CIFS_NUM_PROT 2
 #endif /* CIFS_WEAK_PW_HASH */
 #else /* not posix */
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-#define CIFS_NUM_PROT 2
+#define CIFS_NUM_PROT 3
 #else
 #define CIFS_NUM_PROT 1
 #endif /* CONFIG_CIFS_WEAK_PW_HASH */
@@ -446,7 +447,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		goto neg_err_exit;
 #ifdef CONFIG_CIFS_WEAK_PW_HASH 
 	} else if((pSMBr->hdr.WordCount == 13)
-			&& (pSMBr->DialectIndex == LANMAN_PROT)) {
+			&& ((pSMBr->DialectIndex == LANMAN_PROT)
+				|| (pSMBr->DialectIndex == LANMAN2_PROT))) {
 		int tmp, adjust;
 		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 

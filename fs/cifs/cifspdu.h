@@ -26,7 +26,8 @@
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define LANMAN_PROT 0
-#define CIFS_PROT   1
+#define LANMAN2_PROT 1
+#define CIFS_PROT   2
 #else
 #define CIFS_PROT   0
 #endif

@@ -199,10 +199,12 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
     /* Only need to call the old QFSInfo if failed
     on newer one */
     if(rc)
-	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
+	if((pTcon->ses->flags & CIFS_SES_LANMAN) == 0)
+		rc = CIFSSMBQFSInfo(xid, pTcon, buf); /* not supported by OS2 */
 
-	/* Old Windows servers do not support level 103, retry with level 
-	   one if old server failed the previous call */ 
+	/* Some old Windows servers also do not support level 103, retry with
+	   older level one if old server failed the previous call or we
+	   bypassed it because we detected that this was an older LANMAN sess */
 	if(rc)
 		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
