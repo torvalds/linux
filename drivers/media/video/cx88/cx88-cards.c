@@ -1586,6 +1586,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x12ab,
 		.subdevice = 0x2300, /* Club3D Zap TV2100 */
 		.card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9000,
+		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
