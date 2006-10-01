@@ -441,6 +441,13 @@ extern pte_t *lookup_address(unsigned long address);
 #define pte_unmap_nested(pte) do { } while (0)
 #endif
 
+/* Clear a kernel PTE and flush it from the TLB */
+#define kpte_clear_flush(ptep, vaddr)					\
+do {									\
+	pte_clear(&init_mm, vaddr, ptep);				\
+	__flush_tlb_one(vaddr);						\
+} while (0)
+
 /*
  * The i386 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
