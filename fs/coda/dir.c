@@ -304,7 +304,7 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 	coda_dir_changed(dir_inode, 0);
 	atomic_inc(&inode->i_count);
 	d_instantiate(de, inode);
-	inode->i_nlink++;
+	inc_nlink(inode);
         
 out:
 	unlock_kernel();

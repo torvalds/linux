@@ -837,7 +837,7 @@ static int vfat_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (err)
 		goto out_free;
 	dir->i_version++;
-	dir->i_nlink++;
+	inc_nlink(dir);
 
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
@@ -932,7 +932,7 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 		drop_nlink(old_dir);
 		if (!new_inode)
- 			new_dir->i_nlink++;
+ 			inc_nlink(new_dir);
 	}
 
 	err = fat_remove_entries(old_dir, &old_sinfo);	/* and releases bh */

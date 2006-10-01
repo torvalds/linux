@@ -735,7 +735,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		cFYI(1, ("cifs_mkdir returned 0x%x", rc));
 		d_drop(direntry);
 	} else {
-		inode->i_nlink++;
+		inc_nlink(inode);
 		if (pTcon->ses->capabilities & CAP_UNIX)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb,xid);

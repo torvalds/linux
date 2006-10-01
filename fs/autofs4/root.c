@@ -713,7 +713,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (p_ino && dentry->d_parent != dentry)
 		atomic_inc(&p_ino->count);
 	ino->inode = inode;
-	dir->i_nlink++;
+	inc_nlink(dir);
 	dir->i_mtime = CURRENT_TIME;
 
 	return 0;

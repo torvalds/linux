@@ -389,7 +389,7 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	err = msdos_add_entry(dir, msdos_name, 1, is_hid, cluster, &ts, &sinfo);
 	if (err)
 		goto out_free;
-	dir->i_nlink++;
+	inc_nlink(dir);
 
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
@@ -551,7 +551,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 		}
 		drop_nlink(old_dir);
 		if (!new_inode)
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 	}
 
 	err = fat_remove_entries(old_dir, &old_sinfo);	/* and releases bh */

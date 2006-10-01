@@ -66,8 +66,8 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_private = data;
 	if ((mode & S_IFMT) == S_IFDIR) {
 		inode->i_op = &simple_dir_inode_operations;
-		inode->i_nlink++;
-		dir->i_nlink++;
+		inc_nlink(inode);
+		inc_nlink(dir);
 	}
 
 	inode->i_fop = fops;

@@ -277,13 +277,13 @@ void jffs2_read_inode (struct inode *inode)
 
 		for (fd=f->dents; fd; fd = fd->next) {
 			if (fd->type == DT_DIR && fd->ino)
-				inode->i_nlink++;
+				inc_nlink(inode);
 		}
 		/* and '..' */
-		inode->i_nlink++;
+		inc_nlink(inode);
 		/* Root dir gets i_nlink 3 for some reason */
 		if (inode->i_ino == 1)
-			inode->i_nlink++;
+			inc_nlink(inode);
 
 		inode->i_op = &jffs2_dir_inode_operations;
 		inode->i_fop = &jffs2_dir_operations;

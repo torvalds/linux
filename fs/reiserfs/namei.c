@@ -19,7 +19,7 @@
 #include <linux/smp_lock.h>
 #include <linux/quotaops.h>
 
-#define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { i->i_nlink++; if (i->i_nlink >= REISERFS_LINK_MAX) i->i_nlink=1; }
+#define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { inc_nlink(i); if (i->i_nlink >= REISERFS_LINK_MAX) i->i_nlink=1; }
 #define DEC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) drop_nlink(i);
 
 // directory item contains array of entry headers. This performs
@@ -1006,7 +1006,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	    reiserfs_cut_from_item(&th, &path, &(de.de_entry_key), dir, NULL,
 				   0);
 	if (retval < 0) {
-		inode->i_nlink++;
+		inc_nlink(inode);
 		goto end_unlink;
 	}
 	inode->i_ctime = CURRENT_TIME_SEC;
@@ -1143,7 +1143,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	/* inc before scheduling so reiserfs_unlink knows we are here */
-	inode->i_nlink++;
+	inc_nlink(inode);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {

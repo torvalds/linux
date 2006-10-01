@@ -762,7 +762,7 @@ static int udf_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 		cpu_to_le32(UDF_I_UNIQUE(inode) & 0x00000000FFFFFFFFUL);
 	cfi.fileCharacteristics |= FID_FILE_CHAR_DIRECTORY;
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
-	dir->i_nlink++;
+	inc_nlink(dir);
 	mark_inode_dirty(dir);
 	d_instantiate(dentry, inode);
 	if (fibh.sbh != fibh.ebh)
@@ -1147,7 +1147,7 @@ static int udf_link(struct dentry * old_dentry, struct inode * dir,
 	if (fibh.sbh != fibh.ebh)
 		udf_release_data(fibh.ebh);
 	udf_release_data(fibh.sbh);
-	inode->i_nlink ++;
+	inc_nlink(inode);
 	inode->i_ctime = current_fs_time(inode->i_sb);
 	mark_inode_dirty(inode);
 	atomic_inc(&inode->i_count);
@@ -1282,7 +1282,7 @@ static int udf_rename (struct inode * old_dir, struct dentry * old_dentry,
 		}
 		else
 		{
-			new_dir->i_nlink ++;
+			inc_nlink(new_dir);
 			mark_inode_dirty(new_dir);
 		}
 	}

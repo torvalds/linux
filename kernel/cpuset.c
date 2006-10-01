@@ -377,7 +377,7 @@ static int cpuset_fill_super(struct super_block *sb, void *unused_data,
 		inode->i_op = &simple_dir_inode_operations;
 		inode->i_fop = &simple_dir_operations;
 		/* directories start off with i_nlink == 2 (for "." entry) */
-		inode->i_nlink++;
+		inc_nlink(inode);
 	} else {
 		return -ENOMEM;
 	}
@@ -1565,7 +1565,7 @@ static int cpuset_create_file(struct dentry *dentry, int mode)
 		inode->i_fop = &simple_dir_operations;
 
 		/* start off with i_nlink == 2 (for "." entry) */
-		inode->i_nlink++;
+		inc_nlink(inode);
 	} else if (S_ISREG(mode)) {
 		inode->i_size = 0;
 		inode->i_fop = &cpuset_file_operations;
@@ -1598,7 +1598,7 @@ static int cpuset_create_dir(struct cpuset *cs, const char *name, int mode)
 	error = cpuset_create_file(dentry, S_IFDIR | mode);
 	if (!error) {
 		dentry->d_fsdata = cs;
-		parent->d_inode->i_nlink++;
+		inc_nlink(parent->d_inode);
 		cs->dentry = dentry;
 	}
 	dput(dentry);
@@ -2033,7 +2033,7 @@ int __init cpuset_init(void)
 	}
 	root = cpuset_mount->mnt_sb->s_root;
 	root->d_fsdata = &top_cpuset;
-	root->d_inode->i_nlink++;
+	inc_nlink(root->d_inode);
 	top_cpuset.dentry = root;
 	root->d_inode->i_op = &cpuset_dir_inode_operations;
 	number_of_cpusets = 1;

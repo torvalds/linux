@@ -163,7 +163,7 @@ static int bfs_link(struct dentry * old, struct inode * dir, struct dentry * new
 		unlock_kernel();
 		return err;
 	}
-	inode->i_nlink++;
+	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 	atomic_inc(&inode->i_count);

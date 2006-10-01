@@ -1165,7 +1165,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 			inode->i_op = &udf_dir_inode_operations;
 			inode->i_fop = &udf_dir_operations;
 			inode->i_mode |= S_IFDIR;
-			inode->i_nlink ++;
+			inc_nlink(inode);
 			break;
 		}
 		case ICBTAG_FILE_TYPE_REALTIME:

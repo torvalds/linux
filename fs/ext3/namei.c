@@ -1616,7 +1616,7 @@ static int ext3_delete_entry (handle_t *handle,
  */
 static inline void ext3_inc_count(handle_t *handle, struct inode *inode)
 {
-	inode->i_nlink++;
+	inc_nlink(inode);
 }
 
 static inline void ext3_dec_count(handle_t *handle, struct inode *inode)
@@ -1775,7 +1775,7 @@ retry:
 		iput (inode);
 		goto out_stop;
 	}
-	dir->i_nlink++;
+	inc_nlink(dir);
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 	d_instantiate(dentry, inode);
@@ -2341,7 +2341,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 		if (new_inode) {
 			drop_nlink(new_inode);
 		} else {
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 			ext3_update_dx_flag(new_dir);
 			ext3_mark_inode_dirty(handle, new_dir);
 		}

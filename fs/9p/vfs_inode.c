@@ -233,7 +233,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 			inode->i_op = &v9fs_symlink_inode_operations;
 			break;
 		case S_IFDIR:
-			inode->i_nlink++;
+			inc_nlink(inode);
 			if(v9ses->extended)
 				inode->i_op = &v9fs_dir_inode_operations_ext;
 			else

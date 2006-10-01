@@ -338,7 +338,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		inode->i_nlink++;
+		inc_nlink(inode);
 
 		inode->i_fop = &simple_dir_operations;
 		inode->i_op = &dlmfs_root_inode_operations;
@@ -395,7 +395,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 
 		/* directory inodes start off with i_nlink ==
 		 * 2 (for "." entry) */
-		inode->i_nlink++;
+		inc_nlink(inode);
 		break;
 	}
 
@@ -449,7 +449,7 @@ static int dlmfs_mkdir(struct inode * dir,
 	}
 	ip->ip_dlm = dlm;
 
-	dir->i_nlink++;
+	inc_nlink(dir);
 	d_instantiate(dentry, inode);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 

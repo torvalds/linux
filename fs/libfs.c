@@ -243,7 +243,7 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 	struct inode *inode = old_dentry->d_inode;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	inode->i_nlink++;
+	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 	dget(dentry);
 	d_instantiate(dentry, inode);
@@ -306,7 +306,7 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 			drop_nlink(old_dir);
 	} else if (they_are_dirs) {
 		drop_nlink(old_dir);
-		new_dir->i_nlink++;
+		inc_nlink(new_dir);
 	}
 
 	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =

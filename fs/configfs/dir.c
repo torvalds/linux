@@ -139,7 +139,7 @@ static int init_dir(struct inode * inode)
 	inode->i_fop = &configfs_dir_operations;
 
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inode->i_nlink++;
+	inc_nlink(inode);
 	return 0;
 }
 
@@ -169,7 +169,7 @@ static int create_dir(struct config_item * k, struct dentry * p,
 	if (!error) {
 		error = configfs_create(d, mode, init_dir);
 		if (!error) {
-			p->d_inode->i_nlink++;
+			inc_nlink(p->d_inode);
 			(d)->d_op = &configfs_dentry_ops;
 		} else {
 			struct configfs_dirent *sd = d->d_fsdata;

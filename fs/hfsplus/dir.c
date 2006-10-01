@@ -298,7 +298,7 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 	if (res)
 		return res;
 
-	inode->i_nlink++;
+	inc_nlink(inode);
 	hfsplus_instantiate(dst_dentry, inode, cnid);
 	atomic_inc(&inode->i_count);
 	inode->i_ctime = CURRENT_TIME_SEC;

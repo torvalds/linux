@@ -89,7 +89,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	brelse(bh);
 	hpfs_mark_4buffers_dirty(&qbh0);
 	hpfs_brelse4(&qbh0);
-	dir->i_nlink++;
+	inc_nlink(dir);
 	insert_inode_hash(result);
 
 	if (result->i_uid != current->fsuid ||
@@ -635,7 +635,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	end:
 	hpfs_i(i)->i_parent_dir = new_dir->i_ino;
 	if (S_ISDIR(i->i_mode)) {
-		new_dir->i_nlink++;
+		inc_nlink(new_dir);
 		drop_nlink(old_dir);
 	}
 	if ((fnode = hpfs_map_fnode(i->i_sb, i->i_ino, &bh))) {

@@ -466,7 +466,7 @@ static int autofs_root_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ent->dentry = dentry;
 	autofs_hash_insert(dh,ent);
 
-	dir->i_nlink++;
+	inc_nlink(dir);
 	d_instantiate(dentry, iget(dir->i_sb,ino));
 	unlock_kernel();
 

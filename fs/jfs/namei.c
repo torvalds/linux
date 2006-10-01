@@ -292,7 +292,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	mark_inode_dirty(ip);
 
 	/* update parent directory inode */
-	dip->i_nlink++;		/* for '..' from child directory */
+	inc_nlink(dip);		/* for '..' from child directory */
 	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dip);
 
@@ -822,7 +822,7 @@ static int jfs_link(struct dentry *old_dentry,
 		goto free_dname;
 
 	/* update object inode */
-	ip->i_nlink++;		/* for new link */
+	inc_nlink(ip);		/* for new link */
 	ip->i_ctime = CURRENT_TIME;
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dir);
@@ -1206,7 +1206,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out4;
 		}
 		if (S_ISDIR(old_ip->i_mode))
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 	}
 	/*
 	 * Remove old directory entry

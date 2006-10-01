@@ -429,7 +429,7 @@ static int ocfs2_mknod(struct inode *dir,
 			mlog_errno(status);
 			goto leave;
 		}
-		dir->i_nlink++;
+		inc_nlink(dir);
 	}
 
 	status = ocfs2_add_entry(handle, dentry, inode,
@@ -730,7 +730,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	inode->i_nlink++;
+	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
 	fe->i_links_count = cpu_to_le16(inode->i_nlink);
 	fe->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
@@ -952,7 +952,7 @@ static int ocfs2_unlink(struct inode *dir,
 						parent_node_bh);
 		if (status < 0) {
 			mlog_errno(status);
-			dir->i_nlink++;
+			inc_nlink(dir);
 		}
 	}
 
@@ -1382,7 +1382,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (new_inode) {
 			new_inode->i_nlink--;
 		} else {
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 			mark_inode_dirty(new_dir);
 		}
 	}
