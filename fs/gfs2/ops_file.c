@@ -613,10 +613,8 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 const struct file_operations gfs2_file_fops = {
 	.llseek		= gfs2_llseek,
 	.read		= generic_file_read,
-	.readv		= generic_file_readv,
 	.aio_read	= generic_file_aio_read,
 	.write		= generic_file_write,
-	.writev		= generic_file_writev,
 	.aio_write	= generic_file_aio_write,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
