@@ -34,7 +34,6 @@ int time_state = TIME_OK;		/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
 long time_offset;			/* time adjustment (ns)		*/
 long time_constant = 2;			/* pll time constant		*/
-long time_tolerance = MAXFREQ;		/* frequency tolerance (ppm)	*/
 long time_precision = 1;		/* clock precision (us)		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
@@ -87,7 +86,7 @@ void second_overflow(void)
 	long time_adj;
 
 	/* Bump the maxerror field */
-	time_maxerror += time_tolerance >> SHIFT_USEC;
+	time_maxerror += MAXFREQ >> SHIFT_USEC;
 	if (time_maxerror > NTP_PHASE_LIMIT) {
 		time_maxerror = NTP_PHASE_LIMIT;
 		time_status |= STA_UNSYNC;
@@ -313,8 +312,8 @@ int do_adjtimex(struct timex *txc)
 			} else /* calibration interval too long (p. 12) */
 				result = TIME_ERROR;
 		    }
-		    time_freq = min(time_freq, time_tolerance);
-		    time_freq = max(time_freq, -time_tolerance);
+		    time_freq = min(time_freq, MAXFREQ);
+		    time_freq = max(time_freq, -MAXFREQ);
 		    time_offset = (time_offset * NSEC_PER_USEC / HZ) << SHIFT_UPDATE;
 		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
@@ -337,7 +336,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	txc->status	   = time_status;
 	txc->constant	   = time_constant;
 	txc->precision	   = time_precision;
-	txc->tolerance	   = time_tolerance;
+	txc->tolerance	   = MAXFREQ;
 	txc->tick	   = tick_usec;
 
 	/* PPS is not implemented, so these are zero */

@@ -208,7 +208,6 @@ extern int time_state;		/* clock status */
 extern int time_status;		/* clock synchronization status bits */
 extern long time_offset;	/* time adjustment (us) */
 extern long time_constant;	/* pll time constant */
-extern long time_tolerance;	/* frequency tolerance (ppm) */
 extern long time_precision;	/* clock precision (us) */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
