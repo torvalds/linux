@@ -35,6 +35,7 @@
 #include <linux/mount.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/resource.h>
 #include <asm/uaccess.h>
 
 extern int max_threads;
@@ -158,6 +159,9 @@ static int ____call_usermodehelper(void *data)
 		FD_SET(0, fdt->open_fds);
 		FD_CLR(0, fdt->close_on_exec);
 		spin_unlock(&f->file_lock);
+
+		/* and disallow core files too */
+		current->signal->rlim[RLIMIT_CORE] = (struct rlimit){0, 0};
 	}
 
 	/* We can run anywhere, unlike our parent keventd(). */
