@@ -1154,14 +1154,6 @@ static int blkdev_close(struct inode * inode, struct file * filp)
 	return blkdev_put(bdev);
 }
 
-static ssize_t blkdev_file_write(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	struct iovec local_iov = { .iov_base = (void __user *)buf, .iov_len = count };
-
-	return generic_file_write_nolock(file, &local_iov, 1, ppos);
-}
-
 static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	return blkdev_ioctl(file->f_mapping->host, file, cmd, arg);
@@ -1181,8 +1173,8 @@ const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
-	.read		= generic_file_read,
-	.write		= blkdev_file_write,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
   	.aio_read	= generic_file_aio_read,
   	.aio_write	= generic_file_aio_write_nolock,
 	.mmap		= generic_file_mmap,
