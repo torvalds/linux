@@ -287,8 +287,38 @@ unsigned long invalidate_inode_pages(struct address_space *mapping)
 {
 	return invalidate_mapping_pages(mapping, 0, ~0UL);
 }
-
 EXPORT_SYMBOL(invalidate_inode_pages);
+
+/*
+ * This is like invalidate_complete_page(), except it ignores the page's
+ * refcount.  We do this because invalidate_inode_pages2() needs stronger
+ * invalidation guarantees, and cannot afford to leave pages behind because
+ * shrink_list() has a temp ref on them, or because they're transiently sitting
+ * in the lru_cache_add() pagevecs.
+ */
+static int
+invalidate_complete_page2(struct address_space *mapping, struct page *page)
+{
+	if (page->mapping != mapping)
+		return 0;
+
+	if (PagePrivate(page) && !try_to_release_page(page, 0))
+		return 0;
+
+	write_lock_irq(&mapping->tree_lock);
+	if (PageDirty(page))
+		goto failed;
+
+	BUG_ON(PagePrivate(page));
+	__remove_from_page_cache(page);
+	write_unlock_irq(&mapping->tree_lock);
+	ClearPageUptodate(page);
+	page_cache_release(page);	/* pagecache ref */
+	return 1;
+failed:
+	write_unlock_irq(&mapping->tree_lock);
+	return 0;
+}
 
 /**
  * invalidate_inode_pages2_range - remove range of pages from an address_space
@@ -356,7 +386,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				}
 			}
 			was_dirty = test_clear_page_dirty(page);
-			if (!invalidate_complete_page(mapping, page)) {
+			if (!invalidate_complete_page2(mapping, page)) {
 				if (was_dirty)
 					set_page_dirty(page);
 				ret = -EIO;
