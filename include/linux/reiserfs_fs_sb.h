@@ -267,7 +267,6 @@ struct reiserfs_bitmap_info {
 	// FIXME: Won't work with block sizes > 8K
 	__u16 first_zero_hint;
 	__u16 free_count;
-	struct buffer_head *bh;	/* the actual bitmap */
 };
 
 struct proc_dir_entry;

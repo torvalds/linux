@@ -432,7 +432,6 @@ int remove_save_link(struct inode *inode, int truncate)
 
 static void reiserfs_put_super(struct super_block *s)
 {
-	int i;
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
 
@@ -462,10 +461,7 @@ static void reiserfs_put_super(struct super_block *s)
 	 */
 	journal_release(&th, s);
 
-	for (i = 0; i < SB_BMAP_NR(s); i++)
-		brelse(SB_AP_BITMAP(s)[i].bh);
-
-	vfree(SB_AP_BITMAP(s));
+	reiserfs_free_bitmap_cache(s);
 
 	brelse(SB_BUFFER_WITH_SB(s));
 
@@ -1344,7 +1340,6 @@ static int read_super_block(struct super_block *s, int offset)
 /* after journal replay, reread all bitmap and super blocks */
 static int reread_meta_blocks(struct super_block *s)
 {
-	int i;
 	ll_rw_block(READ, 1, &(SB_BUFFER_WITH_SB(s)));
 	wait_on_buffer(SB_BUFFER_WITH_SB(s));
 	if (!buffer_uptodate(SB_BUFFER_WITH_SB(s))) {
@@ -1353,20 +1348,7 @@ static int reread_meta_blocks(struct super_block *s)
 		return 1;
 	}
 
-	for (i = 0; i < SB_BMAP_NR(s); i++) {
-		ll_rw_block(READ, 1, &(SB_AP_BITMAP(s)[i].bh));
-		wait_on_buffer(SB_AP_BITMAP(s)[i].bh);
-		if (!buffer_uptodate(SB_AP_BITMAP(s)[i].bh)) {
-			reiserfs_warning(s,
-					 "reread_meta_blocks, error reading bitmap block number %d at %llu",
-					 i,
-					 (unsigned long long)SB_AP_BITMAP(s)[i].
-					 bh->b_blocknr);
-			return 1;
-		}
-	}
 	return 0;
-
 }
 
 /////////////////////////////////////////////////////
@@ -1547,7 +1529,6 @@ static int function2code(hashf_t func)
 static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *root_inode;
-	int j;
 	struct reiserfs_transaction_handle th;
 	int old_format = 0;
 	unsigned long blocks;
@@ -1793,19 +1774,17 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	if (jinit_done) {	/* kill the commit thread, free journal ram */
 		journal_release_error(NULL, s);
 	}
-	if (SB_DISK_SUPER_BLOCK(s)) {
-		for (j = 0; j < SB_BMAP_NR(s); j++) {
-			if (SB_AP_BITMAP(s))
-				brelse(SB_AP_BITMAP(s)[j].bh);
-		}
-		vfree(SB_AP_BITMAP(s));
-	}
+
+	reiserfs_free_bitmap_cache(s);
 	if (SB_BUFFER_WITH_SB(s))
 		brelse(SB_BUFFER_WITH_SB(s));
 #ifdef CONFIG_QUOTA
-	for (j = 0; j < MAXQUOTAS; j++) {
-		kfree(sbi->s_qf_names[j]);
-		sbi->s_qf_names[j] = NULL;
+	{
+		int j;
+		for (j = 0; j < MAXQUOTAS; j++) {
+			kfree(sbi->s_qf_names[j]);
+			sbi->s_qf_names[j] = NULL;
+		}
 	}
 #endif
 	kfree(sbi);

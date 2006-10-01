@@ -128,8 +128,9 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		 * transaction begins, and the new bitmaps don't matter if the
 		 * transaction fails. */
 		for (i = bmap_nr; i < bmap_nr_new; i++) {
-			bh = sb_getblk(s, i * s->s_blocksize * 8);
-			get_bh(bh);
+			/* don't use read_bitmap_block since it will cache
+			 * the uninitialized bitmap */
+			bh = sb_bread(s, i * s->s_blocksize * 8);
 			memset(bh->b_data, 0, sb_blocksize(sb));
 			reiserfs_test_and_set_le_bit(0, bh->b_data);
 			reiserfs_cache_bitmap_metadata(s, bh, bitmap + i);
@@ -140,7 +141,6 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			// update bitmap_info stuff
 			bitmap[i].first_zero_hint = 1;
 			bitmap[i].free_count = sb_blocksize(sb) * 8 - 1;
-			bitmap[i].bh = bh;
 			brelse(bh);
 		}
 		/* free old bitmap blocks array */
@@ -157,8 +157,13 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 
 	/* Extend old last bitmap block - new blocks have been made available */
 	info = SB_AP_BITMAP(s) + bmap_nr - 1;
-	bh = info->bh;
-	get_bh(bh);
+	bh = reiserfs_read_bitmap_block(s, bmap_nr - 1);
+	if (!bh) {
+		int jerr = journal_end(&th, s, 10);
+		if (jerr)
+			return jerr;
+		return -EIO;
+	}
 
 	reiserfs_prepare_for_journal(s, bh, 1);
 	for (i = block_r; i < s->s_blocksize * 8; i++)
@@ -172,8 +177,13 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 
 	/* Correct new last bitmap block - It may not be full */
 	info = SB_AP_BITMAP(s) + bmap_nr_new - 1;
-	bh = info->bh;
-	get_bh(bh);
+	bh = reiserfs_read_bitmap_block(s, bmap_nr_new - 1);
+	if (!bh) {
+		int jerr = journal_end(&th, s, 10);
+		if (jerr)
+			return jerr;
+		return -EIO;
+	}
 
 	reiserfs_prepare_for_journal(s, bh, 1);
 	for (i = block_r_new; i < s->s_blocksize * 8; i++)

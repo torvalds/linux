@@ -60,7 +60,6 @@ static inline void get_bit_address(struct super_block *s,
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
 	int bmap, offset;
-	struct buffer_head *bh;
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
 		reiserfs_warning(s,
@@ -97,22 +96,6 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 				 "block=%lu, bitmap_nr=%d", block, bmap);
 		return 0;
 	}
-
-	bh = SB_AP_BITMAP(s)[bmap].bh;
-	get_bh(bh);
-
-	if ((bit_value == 0 && reiserfs_test_le_bit(offset, bh->b_data)) ||
-	    (bit_value == 1 && reiserfs_test_le_bit(offset, bh->b_data) == 0)) {
-		reiserfs_warning(s,
-				 "vs-4040: is_reusable: corresponding bit of block %lu does not "
-				 "match required value (bmap==%d, offset==%d) test_bit==%d",
-				 block, bmap, offset,
-				 reiserfs_test_le_bit(offset, bh->b_data));
-
-		brelse(bh);
-		return 0;
-	}
-	brelse(bh);
 
 	if (bit_value == 0 && block == SB_ROOT_BLOCK(s)) {
 		reiserfs_warning(s,
@@ -173,13 +156,10 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 				 bmap_n);
 		return 0;
 	}
-	bh = bi->bh;
-	get_bh(bh);
 
-	if (buffer_locked(bh)) {
-		PROC_INFO_INC(s, scan_bitmap.wait);
-		__wait_on_buffer(bh);
-	}
+	bh = reiserfs_read_bitmap_block(s, bmap_n);
+	if (bh == NULL)
+		return 0;
 
 	while (1) {
 	      cont:
@@ -285,9 +265,20 @@ static int bmap_hash_id(struct super_block *s, u32 id)
  */
 static inline int block_group_used(struct super_block *s, u32 id)
 {
-	int bm;
-	bm = bmap_hash_id(s, id);
-	if (SB_AP_BITMAP(s)[bm].free_count > ((s->s_blocksize << 3) * 60 / 100)) {
+	int bm = bmap_hash_id(s, id);
+	struct reiserfs_bitmap_info *info = &SB_AP_BITMAP(s)[bm];
+
+	/* If we don't have cached information on this bitmap block, we're
+	 * going to have to load it later anyway. Loading it here allows us
+	 * to make a better decision. This favors long-term performace gain
+	 * with a better on-disk layout vs. a short term gain of skipping the
+	 * read and potentially having a bad placement. */
+	if (info->first_zero_hint == 0) {
+		struct buffer_head *bh = reiserfs_read_bitmap_block(s, bm);
+		brelse(bh);
+	}
+
+	if (info->free_count > ((s->s_blocksize << 3) * 60 / 100)) {
 		return 0;
 	}
 	return 1;
@@ -413,8 +404,9 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 		return;
 	}
 
-	bmbh = apbi[nr].bh;
-	get_bh(bmbh);
+	bmbh = reiserfs_read_bitmap_block(s, nr);
+	if (!bmbh)
+		return;
 
 	reiserfs_prepare_for_journal(s, bmbh, 1);
 
@@ -1320,6 +1312,7 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
                                                unsigned int bitmap)
 {
 	b_blocknr_t block = (sb->s_blocksize << 3) * bitmap;
+	struct reiserfs_bitmap_info *info = SB_AP_BITMAP(sb) + bitmap;
 	struct buffer_head *bh;
 
 	/* Way old format filesystems had the bitmaps packed up front.
@@ -1330,9 +1323,21 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	else if (bitmap == 0)
 		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
 
-	bh = sb_getblk(sb, block);
-	if (!buffer_uptodate(bh))
-		ll_rw_block(READ, 1, &bh);
+	bh = sb_bread(sb, block);
+	if (bh == NULL)
+		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%lu) "
+		                 "reading failed", __FUNCTION__, bh->b_blocknr);
+	else {
+		if (buffer_locked(bh)) {
+			PROC_INFO_INC(sb, scan_bitmap.wait);
+			__wait_on_buffer(bh);
+		}
+		BUG_ON(!buffer_uptodate(bh));
+		BUG_ON(atomic_read(&bh->b_count) == 0);
+
+		if (info->first_zero_hint == 0)
+			reiserfs_cache_bitmap_metadata(sb, bh, info);
+	}
 
 	return bh;
 }
@@ -1340,7 +1345,6 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 int reiserfs_init_bitmap_cache(struct super_block *sb)
 {
 	struct reiserfs_bitmap_info *bitmap;
-	int i;
 
 	bitmap = vmalloc(sizeof (*bitmap) * SB_BMAP_NR(sb));
 	if (bitmap == NULL)
@@ -1348,28 +1352,15 @@ int reiserfs_init_bitmap_cache(struct super_block *sb)
 
 	memset(bitmap, 0, sizeof (*bitmap) * SB_BMAP_NR(sb));
 
-	for (i = 0; i < SB_BMAP_NR(sb); i++)
-		bitmap[i].bh = reiserfs_read_bitmap_block(sb, i);
-
-	/* make sure we have them all */
-	for (i = 0; i < SB_BMAP_NR(sb); i++) {
-		wait_on_buffer(bitmap[i].bh);
-		if (!buffer_uptodate(bitmap[i].bh)) {
-			reiserfs_warning(sb, "sh-2029: %s: "
-					 "bitmap block (#%lu) reading failed",
-			                 __FUNCTION__, bitmap[i].bh->b_blocknr);
-			for (i = 0; i < SB_BMAP_NR(sb); i++)
-				brelse(bitmap[i].bh);
-			vfree(bitmap);
-			return -EIO;
-		}
-	}
-
-	/* Cache the info on the bitmaps before we get rolling */
-	for (i = 0; i < SB_BMAP_NR(sb); i++)
-		reiserfs_cache_bitmap_metadata(sb, bitmap[i].bh, &bitmap[i]);
-
 	SB_AP_BITMAP(sb) = bitmap;
 
 	return 0;
+}
+
+void reiserfs_free_bitmap_cache(struct super_block *sb)
+{
+	if (SB_AP_BITMAP(sb)) {
+		vfree(SB_AP_BITMAP(sb));
+		SB_AP_BITMAP(sb) = NULL;
+	}
 }
