@@ -267,7 +267,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id,
 	return IRQ_NONE;		/* not handled */
 }
 
-static struct rtc_class_ops at91_rtc_ops = {
+static const struct rtc_class_ops at91_rtc_ops = {
 	.ioctl		= at91_rtc_ioctl,
 	.read_time	= at91_rtc_readtime,
 	.set_time	= at91_rtc_settime,

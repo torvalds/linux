@@ -227,7 +227,7 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return pcf8563_set_datetime(to_i2c_client(dev), tm);
 }
 
-static struct rtc_class_ops pcf8563_rtc_ops = {
+static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.read_time	= pcf8563_rtc_read_time,
 	.set_time	= pcf8563_rtc_set_time,
 };

@@ -178,7 +178,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	return 0;
 }
 
-static struct rtc_class_ops ds13xx_rtc_ops = {
+static const struct rtc_class_ops ds13xx_rtc_ops = {
 	.read_time	= ds1307_get_time,
 	.set_time	= ds1307_set_time,
 };

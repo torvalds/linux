@@ -39,7 +39,7 @@ static void rtc_device_release(struct class_device *class_dev)
  * Returns the pointer to the new struct class device.
  */
 struct rtc_device *rtc_device_register(const char *name, struct device *dev,
-					struct rtc_class_ops *ops,
+					const struct rtc_class_ops *ops,
 					struct module *owner)
 {
 	struct rtc_device *rtc;

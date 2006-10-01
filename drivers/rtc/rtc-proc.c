@@ -23,7 +23,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 {
 	int err;
 	struct class_device *class_dev = seq->private;
-	struct rtc_class_ops *ops = to_rtc_device(class_dev)->ops;
+	const struct rtc_class_ops *ops = to_rtc_device(class_dev)->ops;
 	struct rtc_wkalrm alrm;
 	struct rtc_time tm;
 

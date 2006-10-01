@@ -116,7 +116,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops ds1742_rtc_ops = {
+static const struct rtc_class_ops ds1742_rtc_ops = {
 	.read_time	= ds1742_rtc_read_time,
 	.set_time	= ds1742_rtc_set_time,
 };

@@ -149,7 +149,7 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	return 0;
 }
 
-static struct rtc_class_ops v3020_rtc_ops = {
+static const struct rtc_class_ops v3020_rtc_ops = {
 	.read_time	= v3020_read_time,
 	.set_time	= v3020_set_time,
 };

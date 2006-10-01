@@ -250,7 +250,7 @@ static int ds1553_rtc_ioctl(struct device *dev, unsigned int cmd,
 	return 0;
 }
 
-static struct rtc_class_ops ds1553_rtc_ops = {
+static const struct rtc_class_ops ds1553_rtc_ops = {
 	.read_time	= ds1553_rtc_read_time,
 	.set_time	= ds1553_rtc_set_time,
 	.read_alarm	= ds1553_rtc_read_alarm,

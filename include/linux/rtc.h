@@ -141,7 +141,7 @@ struct rtc_device
 	int id;
 	char name[RTC_DEVICE_NAME_SIZE];
 
-	struct rtc_class_ops *ops;
+	const struct rtc_class_ops *ops;
 	struct mutex ops_lock;
 
 	struct class_device *rtc_dev;
@@ -172,7 +172,7 @@ struct rtc_device
 
 extern struct rtc_device *rtc_device_register(const char *name,
 					struct device *dev,
-					struct rtc_class_ops *ops,
+					const struct rtc_class_ops *ops,
 					struct module *owner);
 extern void rtc_device_unregister(struct rtc_device *rdev);
 extern int rtc_interface_register(struct class_interface *intf);

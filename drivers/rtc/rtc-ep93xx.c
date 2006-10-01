@@ -73,7 +73,7 @@ static int ep93xx_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static struct rtc_class_ops ep93xx_rtc_ops = {
+static const struct rtc_class_ops ep93xx_rtc_ops = {
 	.read_time	= ep93xx_rtc_read_time,
 	.set_time	= ep93xx_rtc_set_time,
 	.set_mmss	= ep93xx_rtc_set_mmss,

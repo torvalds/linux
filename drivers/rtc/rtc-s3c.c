@@ -386,7 +386,7 @@ static void s3c_rtc_release(struct device *dev)
 	free_irq(s3c_rtc_tickno, rtc_dev);
 }
 
-static struct rtc_class_ops s3c_rtcops = {
+static const struct rtc_class_ops s3c_rtcops = {
 	.open		= s3c_rtc_open,
 	.release	= s3c_rtc_release,
 	.ioctl		= s3c_rtc_ioctl,

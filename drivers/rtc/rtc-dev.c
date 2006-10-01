@@ -24,7 +24,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	int err;
 	struct rtc_device *rtc = container_of(inode->i_cdev,
 					struct rtc_device, char_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 
 	/* We keep the lock as long as the device is in use
 	 * and return immediately if busy
@@ -209,7 +209,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	int err = 0;
 	struct class_device *class_dev = file->private_data;
 	struct rtc_device *rtc = to_rtc_device(class_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
 	void __user *uarg = (void __user *) arg;
