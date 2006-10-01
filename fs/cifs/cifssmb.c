@@ -59,6 +59,7 @@ static struct {
 } protocols[] = {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 	{LANMAN_PROT, "\2LM1.2X002"},
+	{LANMAN2_PROT, "\2LANMAN2.1"},
 #endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
 	{BAD_PROT, "\2"}
