@@ -367,6 +367,10 @@ config ARCH_FLATMEM_ENABLE
 
 source "mm/Kconfig"
 
+config MEMORY_HOTPLUG_RESERVE
+	def_bool y
+	depends on (MEMORY_HOTPLUG && DISCONTIGMEM)
+
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NUMA
