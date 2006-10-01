@@ -876,7 +876,7 @@ static int udf_rmdir(struct inode * dir, struct dentry * dentry)
 		udf_warning(inode->i_sb, "udf_rmdir",
 			"empty directory has nlink != 2 (%d)",
 			inode->i_nlink);
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_size = 0;
 	inode_dec_link_count(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);

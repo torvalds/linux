@@ -414,7 +414,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	JFS_IP(ip)->acl.flag = 0;
 
 	/* mark the target directory as deleted */
-	ip->i_nlink = 0;
+	clear_nlink(ip);
 	mark_inode_dirty(ip);
 
 	rc = txCommit(tid, 2, &iplist[0], 0);

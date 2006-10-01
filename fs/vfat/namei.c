@@ -784,7 +784,7 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out;
 	drop_nlink(dir);
 
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
 	fat_detach(inode);
 out:
@@ -808,7 +808,7 @@ static int vfat_unlink(struct inode *dir, struct dentry *dentry)
 	err = fat_remove_entries(dir, &sinfo);	/* and releases bh */
 	if (err)
 		goto out;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
 	fat_detach(inode);
 out:

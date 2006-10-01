@@ -2045,7 +2045,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 			      "empty directory has nlink!=2 (%d)",
 			      inode->i_nlink);
 	inode->i_version++;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	/* There's no need to set i_disksize: the fact that i_nlink is
 	 * zero will ensure that the right thing happens during any
 	 * recovery. */

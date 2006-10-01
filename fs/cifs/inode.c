@@ -818,7 +818,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	if (!rc) {
 		drop_nlink(inode);
 		i_size_write(direntry->d_inode,0);
-		direntry->d_inode->i_nlink = 0;
+		clear_nlink(direntry->d_inode);
 	}
 
 	cifsInode = CIFS_I(direntry->d_inode);

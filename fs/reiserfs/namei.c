@@ -913,7 +913,7 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 		reiserfs_warning(inode->i_sb, "%s: empty directory has nlink "
 				 "!= 2 (%d)", __FUNCTION__, inode->i_nlink);
 
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	reiserfs_update_sd(&th, inode);
 
@@ -1473,7 +1473,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dentry_inode) {
 		// adjust link number of the victim
 		if (S_ISDIR(new_dentry_inode->i_mode)) {
-			new_dentry_inode->i_nlink = 0;
+			clear_nlink(new_dentry_inode);
 		} else {
 			drop_nlink(new_dentry_inode);
 		}

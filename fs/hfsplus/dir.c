@@ -348,7 +348,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		} else
 			inode->i_flags |= S_DEAD;
 	} else
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 
@@ -387,7 +387,7 @@ static int hfsplus_rmdir(struct inode *dir, struct dentry *dentry)
 	res = hfsplus_delete_cat(inode->i_ino, dir, &dentry->d_name);
 	if (res)
 		return res;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	hfsplus_delete_inode(inode);
 	mark_inode_dirty(inode);

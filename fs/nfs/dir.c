@@ -1286,7 +1286,7 @@ static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 	error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
-		dentry->d_inode->i_nlink = 0;
+		clear_nlink(dentry->d_inode);
 	nfs_end_data_update(dir);
 	unlock_kernel();
 

@@ -186,7 +186,7 @@ int qnx4_rmdir(struct inode *dir, struct dentry *dentry)
 	memset(de->di_fname, 0, sizeof de->di_fname);
 	de->di_mode = 0;
 	mark_buffer_dirty(bh);
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	mark_inode_dirty(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	inode_dec_link_count(dir);

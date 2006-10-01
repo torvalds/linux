@@ -1235,6 +1235,11 @@ static inline void drop_nlink(struct inode *inode)
 	inode->i_nlink--;
 }
 
+static inline void clear_nlink(struct inode *inode)
+{
+	inode->i_nlink = 0;
+}
+
 static inline void inode_dec_link_count(struct inode *inode)
 {
 	drop_nlink(inode);

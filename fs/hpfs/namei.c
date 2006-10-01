@@ -495,7 +495,7 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 		break;
 	default:
 		drop_nlink(dir);
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		err = 0;
 	}
 	goto out;
@@ -590,7 +590,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		int r;
 		if ((r = hpfs_remove_dirent(old_dir, dno, dep, &qbh, 1)) != 2) {
 			if ((nde = map_dirent(new_dir, hpfs_i(new_dir)->i_dno, (char *)new_name, new_len, NULL, &qbh1))) {
-				new_inode->i_nlink = 0;
+				clear_nlink(new_inode);
 				copy_de(nde, &de);
 				memcpy(nde->name, new_name, new_len);
 				hpfs_mark_4buffers_dirty(&qbh1);
