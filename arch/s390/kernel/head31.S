@@ -254,6 +254,16 @@ startup_continue:
 	oi	3(%r12),0x80		# set IDTE flag
 .Lchkidte:
 
+#
+# find out if the diag 0x9c is available
+#
+	mvc	__LC_PGM_NEW_PSW(8),.Lpcdiag9c-.LPG1(%r13)
+	stap   __LC_CPUID+4		# store cpu address
+	lh     %r1,__LC_CPUID+4
+	diag   %r1,0,0x9c		# test diag 0x9c
+	oi     2(%r12),1		# set diag9c flag
+.Lchkdiag9c:
+
 	lpsw  .Lentry-.LPG1(13)		# jump to _stext in primary-space,
 					# virtual and never return ...
 	.align	8
@@ -281,6 +291,7 @@ startup_continue:
 .Lpccsp:.long	0x00080000,0x80000000 + .Lchkcsp
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
 .Lpcidte:.long	0x00080000,0x80000000 + .Lchkidte
+.Lpcdiag9c:.long 0x00080000,0x80000000 + .Lchkdiag9c
 .Lmemsize:.long memory_size
 .Lmchunk:.long	memory_chunk
 .Lmflags:.long	machine_flags

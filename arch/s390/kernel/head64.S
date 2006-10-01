@@ -251,6 +251,17 @@ startup_continue:
 0:
 
 #
+# find out if the diag 0x9c is available
+#
+	la     %r1,0f-.LPG1(%r13)	# set program check address
+	stg    %r1,__LC_PGM_NEW_PSW+8
+	stap   __LC_CPUID+4		# store cpu address
+	lh     %r1,__LC_CPUID+4
+	diag   %r1,0,0x9c		# test diag 0x9c
+	oi     6(%r12),1		# set diag9c flag
+0:
+
+#
 # find out if we have the MVCOS instruction
 #
 	la	%r1,0f-.LPG1(%r13)	# set program check address
