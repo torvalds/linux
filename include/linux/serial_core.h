@@ -319,6 +319,7 @@ struct uart_info {
 #define UIF_CTS_FLOW		((__force uif_t) (1 << 26))
 #define UIF_NORMAL_ACTIVE	((__force uif_t) (1 << 29))
 #define UIF_INITIALIZED		((__force uif_t) (1 << 31))
+#define UIF_SUSPENDED		((__force uif_t) (1 << 30))
 
 	int			blocked_open;
 
