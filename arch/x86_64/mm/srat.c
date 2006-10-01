@@ -477,3 +477,5 @@ int memory_add_physaddr_to_nid(u64 start)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+

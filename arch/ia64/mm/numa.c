@@ -16,6 +16,7 @@
 #include <linux/node.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/module.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>
 
@@ -69,4 +70,21 @@ int early_pfn_to_nid(unsigned long pfn)
 
 	return 0;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ *  SRAT information is stored in node_memblk[], then we can use SRAT
+ *  information at memory-hot-add if necessary.
+ */
+
+int memory_add_physaddr_to_nid(u64 addr)
+{
+	int nid = paddr_to_nid(addr);
+	if (nid < 0)
+		return 0;
+	return nid;
+}
+
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
 #endif
