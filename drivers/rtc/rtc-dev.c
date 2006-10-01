@@ -24,7 +24,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	int err;
 	struct rtc_device *rtc = container_of(inode->i_cdev,
 					struct rtc_device, char_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 
 	/* We keep the lock as long as the device is in use
 	 * and return immediately if busy
@@ -209,7 +209,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	int err = 0;
 	struct class_device *class_dev = file->private_data;
 	struct rtc_device *rtc = to_rtc_device(class_dev);
-	struct rtc_class_ops *ops = rtc->ops;
+	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
 	void __user *uarg = (void __user *) arg;
@@ -406,7 +406,6 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	rtc->char_dev.owner = rtc->owner;
 
 	if (cdev_add(&rtc->char_dev, MKDEV(MAJOR(rtc_devt), rtc->id), 1)) {
-		cdev_del(&rtc->char_dev);
 		dev_err(class_dev->dev,
 			"failed to add char device %d:%d\n",
 			MAJOR(rtc_devt), rtc->id);
@@ -496,7 +495,7 @@ static void __exit rtc_dev_exit(void)
 	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }
 
-module_init(rtc_dev_init);
+subsys_initcall(rtc_dev_init);
 module_exit(rtc_dev_exit);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");

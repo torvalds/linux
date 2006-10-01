@@ -35,20 +35,25 @@ static unsigned int ip_list_tot = 100;
 static unsigned int ip_pkt_list_tot = 20;
 static unsigned int ip_list_hash_size = 0;
 static unsigned int ip_list_perms = 0644;
+static unsigned int ip_list_uid = 0;
+static unsigned int ip_list_gid = 0;
 module_param(ip_list_tot, uint, 0400);
 module_param(ip_pkt_list_tot, uint, 0400);
 module_param(ip_list_hash_size, uint, 0400);
 module_param(ip_list_perms, uint, 0400);
+module_param(ip_list_uid, uint, 0400);
+module_param(ip_list_gid, uint, 0400);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
 MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP to remember (max. 255)");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/ipt_recent/* files");
-
+MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/ipt_recent/* files");
+MODULE_PARM_DESC(ip_list_gid,"owning group of /proc/net/ipt_recent/* files");
 
 struct recent_entry {
 	struct list_head	list;
 	struct list_head	lru_list;
-	u_int32_t		addr;
+	__be32			addr;
 	u_int8_t		ttl;
 	u_int8_t		index;
 	u_int16_t		nstamps;
@@ -79,17 +84,17 @@ static struct file_operations	recent_fops;
 static u_int32_t hash_rnd;
 static int hash_rnd_initted;
 
-static unsigned int recent_entry_hash(u_int32_t addr)
+static unsigned int recent_entry_hash(__be32 addr)
 {
 	if (!hash_rnd_initted) {
 		get_random_bytes(&hash_rnd, 4);
 		hash_rnd_initted = 1;
 	}
-	return jhash_1word(addr, hash_rnd) & (ip_list_hash_size - 1);
+	return jhash_1word((__force u32)addr, hash_rnd) & (ip_list_hash_size - 1);
 }
 
 static struct recent_entry *
-recent_entry_lookup(const struct recent_table *table, u_int32_t addr, u_int8_t ttl)
+recent_entry_lookup(const struct recent_table *table, __be32 addr, u_int8_t ttl)
 {
 	struct recent_entry *e;
 	unsigned int h;
@@ -110,7 +115,7 @@ static void recent_entry_remove(struct recent_table *t, struct recent_entry *e)
 }
 
 static struct recent_entry *
-recent_entry_init(struct recent_table *t, u_int32_t addr, u_int8_t ttl)
+recent_entry_init(struct recent_table *t, __be32 addr, u_int8_t ttl)
 {
 	struct recent_entry *e;
 
@@ -172,7 +177,7 @@ ipt_recent_match(const struct sk_buff *skb,
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
-	u_int32_t addr;
+	__be32 addr;
 	u_int8_t ttl;
 	int ret = info->invert;
 
@@ -232,7 +237,7 @@ out:
 static int
 ipt_recent_checkentry(const char *tablename, const void *ip,
 		      const struct xt_match *match, void *matchinfo,
-		      unsigned int matchsize, unsigned int hook_mask)
+		      unsigned int hook_mask)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
@@ -274,6 +279,8 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 		goto out;
 	}
 	t->proc->proc_fops = &recent_fops;
+	t->proc->uid       = ip_list_uid;
+	t->proc->gid       = ip_list_gid;
 	t->proc->data      = t;
 #endif
 	spin_lock_bh(&recent_lock);
@@ -286,8 +293,7 @@ out:
 }
 
 static void
-ipt_recent_destroy(const struct xt_match *match, void *matchinfo,
-		   unsigned int matchsize)
+ipt_recent_destroy(const struct xt_match *match, void *matchinfo)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
@@ -399,7 +405,7 @@ static ssize_t recent_proc_write(struct file *file, const char __user *input,
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+255.255.255.255")], *c = buf;
-	u_int32_t addr;
+	__be32 addr;
 	int add;
 
 	if (size > sizeof(buf))

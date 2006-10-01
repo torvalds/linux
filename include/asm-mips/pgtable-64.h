@@ -93,8 +93,12 @@
 #define PTRS_PER_PMD	((PAGE_SIZE << PMD_ORDER) / sizeof(pmd_t))
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
+#if PGDIR_SIZE >= TASK_SIZE
+#define USER_PTRS_PER_PGD       (1)
+#else
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
-#define FIRST_USER_ADDRESS	0
+#endif
+#define FIRST_USER_ADDRESS	0UL
 
 #define VMALLOC_START		MAP_BASE
 #define VMALLOC_END	\
@@ -178,24 +182,26 @@ static inline void pud_clear(pud_t *pudp)
 /* to find an entry in a page-table-directory */
 #define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
 
-static inline unsigned long pud_page(pud_t pud)
+static inline unsigned long pud_page_vaddr(pud_t pud)
 {
 	return pud_val(pud);
 }
+#define pud_phys(pud)		(pud_val(pud) - PAGE_OFFSET)
+#define pud_page(pud)		(pfn_to_page(pud_phys(pud) >> PAGE_SHIFT))
 
 /* Find an entry in the second-level page table.. */
 static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
 {
-	return (pmd_t *) pud_page(*pud) + pmd_index(address);
+	return (pmd_t *) pud_page_vaddr(*pud) + pmd_index(address);
 }
 
 /* Find an entry in the third-level page table.. */
 #define __pte_offset(address)						\
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset(dir, address)					\
-	((pte_t *) (pmd_page_kernel(*dir)) + __pte_offset(address))
+	((pte_t *) (pmd_page_vaddr(*dir)) + __pte_offset(address))
 #define pte_offset_kernel(dir, address)					\
-	((pte_t *) pmd_page_kernel(*(dir)) +  __pte_offset(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) +  __pte_offset(address))
 #define pte_offset_map(dir, address)					\
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
 #define pte_offset_map_nested(dir, address)				\

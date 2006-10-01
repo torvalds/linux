@@ -747,6 +747,7 @@ void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
 			      u8 owner);
 struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 						 const char *lockid,
+						 int namelen,
 						 int flags);
 struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 					  const char *name,

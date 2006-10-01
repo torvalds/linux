@@ -612,16 +612,6 @@ MODULE_DEVICE_TABLE(pci, istallion_pci_tbl);
 #define	MINOR2BRD(min)		(((min) & 0xc0) >> 6)
 #define	MINOR2PORT(min)		((min) & 0x3f)
 
-/*
- *	Define a baud rate table that converts termios baud rate selector
- *	into the actual baud rate value. All baud rate calculations are based
- *	on the actual baud rate required.
- */
-static unsigned int	stli_baudrates[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600
-};
-
 /*****************************************************************************/
 
 /*
@@ -2747,15 +2737,7 @@ static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tio
 /*
  *	Start of by setting the baud, char size, parity and stop bit info.
  */
-	pp->baudout = tiosp->c_cflag & CBAUD;
-	if (pp->baudout & CBAUDEX) {
-		pp->baudout &= ~CBAUDEX;
-		if ((pp->baudout < 1) || (pp->baudout > 4))
-			tiosp->c_cflag &= ~CBAUDEX;
-		else
-			pp->baudout += 15;
-	}
-	pp->baudout = stli_baudrates[pp->baudout];
+	pp->baudout = tty_get_baud_rate(portp->tty);
 	if ((tiosp->c_cflag & CBAUD) == B38400) {
 		if ((portp->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 			pp->baudout = 57600;
@@ -3488,7 +3470,7 @@ static int stli_initecp(stlibrd_t *brdp)
  */
 	EBRDENABLE(brdp);
 	sigsp = (cdkecpsig_t __iomem *) EBRDGETMEMPTR(brdp, CDK_SIGADDR);
-	memcpy(&sig, sigsp, sizeof(cdkecpsig_t));
+	memcpy_fromio(&sig, sigsp, sizeof(cdkecpsig_t));
 	EBRDDISABLE(brdp);
 
 	if (sig.magic != cpu_to_le32(ECP_MAGIC))

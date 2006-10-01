@@ -26,8 +26,8 @@
 */
 
 #define DRV_NAME        "epic100"
-#define DRV_VERSION     "2.0"
-#define DRV_RELDATE     "June 27, 2006"
+#define DRV_VERSION     "2.1"
+#define DRV_RELDATE     "Sept 11, 2006"
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
@@ -299,7 +299,7 @@ static int epic_rx(struct net_device *dev, int budget);
 static int epic_poll(struct net_device *dev, int *budget);
 static irqreturn_t epic_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static int epic_close(struct net_device *dev);
 static struct net_device_stats *epic_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
@@ -1386,7 +1386,6 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		outl(0x002C, ioaddr + RxCtrl);
 		/* Unconditionally log net taps. */
-		printk(KERN_INFO "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 	} else if ((dev->mc_count > 0)  ||  (dev->flags & IFF_ALLMULTI)) {
 		/* There is apparently a chip bug, so the multicast filter
@@ -1493,7 +1492,7 @@ static void ethtool_complete(struct net_device *dev)
 	}
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
@@ -1604,7 +1603,7 @@ static int __init epic_init (void)
 		version, version2, version3);
 #endif
 
-	return pci_module_init (&epic_driver);
+	return pci_register_driver(&epic_driver);
 }
 
 

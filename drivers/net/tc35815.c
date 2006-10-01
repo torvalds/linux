@@ -1,7 +1,7 @@
 /* tc35815.c: A TOSHIBA TC35815CF PCI 10/100Mbps ethernet driver for linux.
  *
  * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc. 
+ * Author: MontaVista Software, Inc.
  *                ahennessy@mvista.com
  *
  * Based on skelton.c by Donald Becker.
@@ -663,7 +663,7 @@ tc35815_init_queues(struct net_device *dev)
 #endif
 	}
 #ifdef __mips__
-	fd_addr = (unsigned long)vtonocache(lp->fd_buf);  
+	fd_addr = (unsigned long)vtonocache(lp->fd_buf);
 #else
 	fd_addr = (unsigned long)lp->fd_buf;
 #endif
@@ -1136,7 +1136,7 @@ tc35815_rx(struct net_device *dev)
 			int cur_bd, offset;
 
 			lp->stats.rx_bytes += pkt_len;
-			
+
 			skb = dev_alloc_skb(pkt_len + 2); /* +2: for reserve */
 			if (skb == NULL) {
 				printk(KERN_NOTICE "%s: Memory squeeze, dropping packet.\n",
@@ -1523,7 +1523,7 @@ static unsigned long tc_phy_read(struct net_device *dev, struct tc35815_regs *tr
 	struct tc35815_local *lp = dev->priv;
 	unsigned long data;
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&lp->lock, flags);
 
 	tc_writel(MD_CA_Busy | (phy << 5) | phy_reg, &tr->MD_CA);
@@ -1725,7 +1725,7 @@ static struct pci_driver tc35815_driver = {
 
 static int __init tc35815_init_module(void)
 {
-	return pci_module_init(&tc35815_driver);
+	return pci_register_driver(&tc35815_driver);
 }
 
 static void __exit tc35815_cleanup_module(void)

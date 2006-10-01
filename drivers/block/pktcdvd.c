@@ -348,7 +348,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	request_queue_t *q;
 	struct request *rq;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	int err = 0;
 
 	q = bdev_get_queue(pd->bdev);
@@ -365,17 +365,17 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	rq->sense = sense;
 	memset(sense, 0, sizeof(sense));
 	rq->sense_len = 0;
-	rq->flags |= REQ_BLOCK_PC | REQ_HARDBARRIER;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	rq->cmd_flags |= REQ_HARDBARRIER;
 	if (cgc->quiet)
-		rq->flags |= REQ_QUIET;
+		rq->cmd_flags |= REQ_QUIET;
 	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
 		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
 	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	rq->ref_count++;
-	rq->flags |= REQ_NOMERGE;
-	rq->waiting = &wait;
+	rq->end_io_data = &wait;
 	rq->end_io = blk_end_sync_rq;
 	elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 1);
 	generic_unplug_device(q);

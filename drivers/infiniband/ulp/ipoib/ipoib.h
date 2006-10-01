@@ -336,6 +336,8 @@ static inline void ipoib_unregister_debugfs(void) { }
 extern int ipoib_sendq_size;
 extern int ipoib_recvq_size;
 
+extern struct ib_sa_client ipoib_sa_client;
+
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 extern int ipoib_debug_level;
 

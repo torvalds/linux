@@ -24,6 +24,10 @@ config X86
 	bool
 	default y
 
+config ZONE_DMA32
+	bool
+	default y
+
 config LOCKDEP_SUPPORT
 	bool
 	default y
@@ -81,6 +85,9 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config DMI
 	bool
 	default y
@@ -105,6 +112,7 @@ config X86_PC
 
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
+	depends on PCI
 	 help
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
@@ -163,6 +171,7 @@ config X86_GOOD_APIC
 
 config MICROCODE
 	tristate "/dev/cpu/microcode - Intel CPU microcode support"
+	select FW_LOADER
 	---help---
 	  If you say Y here the 'File systems' section, you will be
 	  able to update the microcode on Intel processors. You will
@@ -177,6 +186,11 @@ config MICROCODE
 	  module will be called microcode.
 	  If you use modprobe or kmod you may also want to add the line
 	  'alias char-major-10-184 microcode' to your /etc/modules.conf file.
+
+config MICROCODE_OLD_INTERFACE
+	bool
+	depends on MICROCODE
+	default y
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -291,7 +305,7 @@ config NUMA
 
 config K8_NUMA
        bool "Old style AMD Opteron NUMA detection"
-       depends on NUMA
+       depends on NUMA && PCI
        default y
        help
 	 Enable K8 NUMA node topology detection.  You should say Y here if
@@ -352,6 +366,10 @@ config ARCH_FLATMEM_ENABLE
 	depends on !NUMA
 
 source "mm/Kconfig"
+
+config MEMORY_HOTPLUG_RESERVE
+	def_bool y
+	depends on (MEMORY_HOTPLUG && DISCONTIGMEM)
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
@@ -421,7 +439,6 @@ config IOMMU
 
 config CALGARY_IOMMU
 	bool "IBM Calgary IOMMU support"
-	default y
 	select SWIOTLB
 	depends on PCI && EXPERIMENTAL
 	help
@@ -468,8 +485,7 @@ config X86_MCE_AMD
 	   the DRAM Error Threshold.
 
 config KEXEC
-	bool "kexec system call (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "kexec system call"
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -488,7 +504,14 @@ config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	help
-		Generate crash dump after being started by kexec.
+          Generate crash dump after being started by kexec.
+          This should be normally only set in special crash dump kernels
+          which are loaded in the main kernel with kexec-tools into
+          a specially reserved region and then later executed after
+          a crash by kdump/kexec. The crash dump kernel must be compiled
+	  to a memory address not used by the main kernel or BIOS using
+	  PHYSICAL_START.
+          For more details see Documentation/kdump/kdump.txt
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
@@ -525,6 +548,30 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPRIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+         This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of critical functions, a canary
+	  value on the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+
+	  This feature requires gcc version 4.2 or above, or a distribution
+	  gcc with the feature backported. Older versions are automatically
+	  detected and for those versions, this configuration option is ignored.
+
+config CC_STACKPROTECTOR_ALL
+	bool "Use stack-protector for all functions"
+	depends on CC_STACKPROTECTOR
+	help
+	  Normally, GCC only inserts the canary value protection for
+	  functions that use large-ish on-stack buffers. By enabling
+	  this option, GCC will be asked to do this for ALL functions.
 
 source kernel/Kconfig.hz
 

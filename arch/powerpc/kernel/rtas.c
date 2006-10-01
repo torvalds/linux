@@ -177,10 +177,12 @@ void __init udbg_init_rtas_console(void)
 void rtas_progress(char *s, unsigned short hex)
 {
 	struct device_node *root;
-	int width, *p;
+	int width;
+	const int *p;
 	char *os;
 	static int display_character, set_indicator;
-	static int display_width, display_lines, *row_width, form_feed;
+	static int display_width, display_lines, form_feed;
+	const static int *row_width;
 	static DEFINE_SPINLOCK(progress_lock);
 	static int current_line;
 	static int pending_newline = 0;  /* did last write end with unprinted newline? */
@@ -191,16 +193,16 @@ void rtas_progress(char *s, unsigned short hex)
 	if (display_width == 0) {
 		display_width = 0x10;
 		if ((root = find_path_device("/rtas"))) {
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = *p;
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,form-feed", NULL)))
 				form_feed = *p;
-			if ((p = (unsigned int *)get_property(root,
+			if ((p = get_property(root,
 					"ibm,display-number-of-lines", NULL)))
 				display_lines = *p;
-			row_width = (unsigned int *)get_property(root,
+			row_width = get_property(root,
 					"ibm,display-truncation-length", NULL);
 		}
 		display_character = rtas_token("display-character");
@@ -293,10 +295,10 @@ EXPORT_SYMBOL(rtas_progress);		/* needed by rtas_flash module */
 
 int rtas_token(const char *service)
 {
-	int *tokp;
+	const int *tokp;
 	if (rtas.dev == NULL)
 		return RTAS_UNKNOWN_SERVICE;
-	tokp = (int *) get_property(rtas.dev, service, NULL);
+	tokp = get_property(rtas.dev, service, NULL);
 	return tokp ? *tokp : RTAS_UNKNOWN_SERVICE;
 }
 EXPORT_SYMBOL(rtas_token);
@@ -626,6 +628,9 @@ void rtas_os_term(char *str)
 {
 	int status;
 
+	if (panic_timeout)
+		return;
+
 	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term"))
 		return;
 
@@ -687,15 +692,14 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	int i;
 	long state;
 	long rc;
-	unsigned long dummy;
-
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	struct rtas_suspend_me_data data;
 
 	/* Make sure the state is valid */
-	rc = plpar_hcall(H_VASI_STATE,
-			 ((u64)args->args[0] << 32) | args->args[1],
-			 0, 0, 0,
-			 &state, &dummy, &dummy);
+	rc = plpar_hcall(H_VASI_STATE, retbuf,
+			 ((u64)args->args[0] << 32) | args->args[1]);
+
+	state = retbuf[0];
 
 	if (rc) {
 		printk(KERN_ERR "rtas_ibm_suspend_me: vasi_state returned %ld\n",rc);
@@ -845,15 +849,15 @@ void __init rtas_initialize(void)
 	 */
 	rtas.dev = of_find_node_by_name(NULL, "rtas");
 	if (rtas.dev) {
-		u32 *basep, *entryp;
-		u32 *sizep;
+		const u32 *basep, *entryp, *sizep;
 
-		basep = (u32 *)get_property(rtas.dev, "linux,rtas-base", NULL);
-		sizep = (u32 *)get_property(rtas.dev, "rtas-size", NULL);
+		basep = get_property(rtas.dev, "linux,rtas-base", NULL);
+		sizep = get_property(rtas.dev, "rtas-size", NULL);
 		if (basep != NULL && sizep != NULL) {
 			rtas.base = *basep;
 			rtas.size = *sizep;
-			entryp = (u32 *)get_property(rtas.dev, "linux,rtas-entry", NULL);
+			entryp = get_property(rtas.dev,
+					"linux,rtas-entry", NULL);
 			if (entryp == NULL) /* Ugh */
 				rtas.entry = rtas.base;
 			else
@@ -909,6 +913,11 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
 	if (basep)
 		rtas_getchar_token = *basep;
+
+	if (rtas_putchar_token != RTAS_UNKNOWN_SERVICE &&
+	    rtas_getchar_token != RTAS_UNKNOWN_SERVICE)
+		udbg_init_rtas_console();
+
 #endif
 
 	/* break now */

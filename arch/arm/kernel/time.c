@@ -37,8 +37,6 @@
  */
 struct sys_timer *system_timer;
 
-extern unsigned long wall_jiffies;
-
 /* this needs a better home */
 DEFINE_SPINLOCK(rtc_lock);
 
@@ -69,10 +67,12 @@ EXPORT_SYMBOL(profile_pc);
  */
 int (*set_rtc)(void);
 
+#ifndef CONFIG_GENERIC_TIME
 static unsigned long dummy_gettimeoffset(void)
 {
 	return 0;
 }
+#endif
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -230,20 +230,16 @@ static inline void do_leds(void)
 #define	do_leds()
 #endif
 
+#ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long seq;
-	unsigned long usec, sec, lost;
+	unsigned long usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = system_timer->offset();
-
-		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * USECS_PER_JIFFY;
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
@@ -276,7 +272,6 @@ int do_settimeofday(struct timespec *tv)
 	 * done, and then undo it!
 	 */
 	nsec -= system_timer->offset() * NSEC_PER_USEC;
-	nsec -= (jiffies - wall_jiffies) * TICK_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -291,6 +286,7 @@ int do_settimeofday(struct timespec *tv)
 }
 
 EXPORT_SYMBOL(do_settimeofday);
+#endif /* !CONFIG_GENERIC_TIME */
 
 /**
  * save_time_delta - Save the offset between system time and RTC time
@@ -333,7 +329,7 @@ void timer_tick(struct pt_regs *regs)
 	profile_tick(CPU_PROFILING, regs);
 	do_leds();
 	do_set_rtc();
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
@@ -500,8 +496,10 @@ device_initcall(timer_init_sysfs);
 
 void __init time_init(void)
 {
+#ifndef CONFIG_GENERIC_TIME
 	if (system_timer->offset == NULL)
 		system_timer->offset = dummy_gettimeoffset;
+#endif
 	system_timer->init();
 
 #ifdef CONFIG_NO_IDLE_HZ

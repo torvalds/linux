@@ -126,7 +126,8 @@ static struct request *get_failover_req(struct emc_handler *h,
 	memset(&rq->cmd, 0, BLK_MAX_CDB);
 
 	rq->timeout = EMC_FAILOVER_TIMEOUT;
-	rq->flags |= (REQ_BLOCK_PC | REQ_FAILFAST | REQ_NOMERGE);
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	rq->cmd_flags |= REQ_FAILFAST | REQ_NOMERGE;
 
 	return rq;
 }

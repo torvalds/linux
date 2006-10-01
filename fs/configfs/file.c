@@ -274,9 +274,8 @@ static int check_perm(struct inode * inode, struct file * file)
 	/* No error? Great, allocate a buffer for the file, and store it
 	 * it in file->private_data for easy access.
 	 */
-	buffer = kmalloc(sizeof(struct configfs_buffer),GFP_KERNEL);
+	buffer = kzalloc(sizeof(struct configfs_buffer),GFP_KERNEL);
 	if (buffer) {
-		memset(buffer,0,sizeof(struct configfs_buffer));
 		init_MUTEX(&buffer->sem);
 		buffer->needs_read_fill = 1;
 		buffer->ops = ops;

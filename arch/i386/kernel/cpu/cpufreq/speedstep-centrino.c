@@ -23,6 +23,7 @@
 
 #ifdef CONFIG_X86_SPEEDSTEP_CENTRINO_ACPI
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <acpi/processor.h>
 #endif
 
@@ -377,6 +378,35 @@ static int centrino_cpu_early_init_acpi(void)
 	return 0;
 }
 
+
+/*
+ * Some BIOSes do SW_ANY coordination internally, either set it up in hw
+ * or do it in BIOS firmware and won't inform about it to OS. If not
+ * detected, this has a side effect of making CPU run at a different speed
+ * than OS intended it to run at. Detect it and handle it cleanly.
+ */
+static int bios_with_sw_any_bug;
+static int sw_any_bug_found(struct dmi_system_id *d)
+{
+	bios_with_sw_any_bug = 1;
+	return 0;
+}
+
+
+static struct dmi_system_id sw_any_bug_dmi_table[] = {
+	{
+		.callback = sw_any_bug_found,
+		.ident = "Supermicro Server X6DLP",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
+			DMI_MATCH(DMI_BIOS_VERSION, "080010"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X6DLP"),
+		},
+	},
+	{ }
+};
+
+
 /*
  * centrino_cpu_init_acpi - register with ACPI P-States library
  *
@@ -398,14 +428,24 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		dprintk(PFX "obtaining ACPI data failed\n");
 		return -EIO;
 	}
+
 	policy->shared_type = p->shared_type;
 	/*
 	 * Will let policy->cpus know about dependency only when software 
 	 * coordination is required.
 	 */
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL ||
-	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
+	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
 		policy->cpus = p->shared_cpu_map;
+	}
+
+#ifdef CONFIG_SMP
+	dmi_check_system(sw_any_bug_dmi_table);
+	if (bios_with_sw_any_bug && cpus_weight(policy->cpus) == 1) {
+		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
+		policy->cpus = cpu_core_map[cpu];
+	}
+#endif
 
 	/* verify the acpi_data */
 	if (p->state_count <= 1) {

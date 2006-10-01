@@ -45,6 +45,7 @@ struct clk_functions {
 	struct clk *	(*clk_get_parent)(struct clk *clk);
 	void		(*clk_allow_idle)(struct clk *clk);
 	void		(*clk_deny_idle)(struct clk *clk);
+	void		(*clk_disable_unused)(struct clk *clk);
 };
 
 extern unsigned int mpurate;

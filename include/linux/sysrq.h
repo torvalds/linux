@@ -11,6 +11,8 @@
  *	based upon discusions in irc://irc.openprojects.net/#kernelnewbies
  */
 
+#ifndef _LINUX_SYSRQ_H
+#define _LINUX_SYSRQ_H
 
 struct pt_regs;
 struct tty_struct;
@@ -57,3 +59,5 @@ static inline int __reterr(void)
 #define unregister_sysrq_key(ig,nore) __reterr()
 
 #endif
+
+#endif /* _LINUX_SYSRQ_H */

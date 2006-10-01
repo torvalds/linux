@@ -53,8 +53,6 @@ void __iomem *mstk48t02_regs = NULL;
 unsigned long ds1287_regs = 0UL;
 #endif
 
-extern unsigned long wall_jiffies;
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 
@@ -465,7 +463,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		profile_tick(CPU_PROFILING, regs);
 		update_process_times(user_mode(regs));
 #endif
-		do_timer(regs);
+		do_timer(1);
 
 		/* Guarantee that the following sequences execute
 		 * uninterrupted.
@@ -496,7 +494,7 @@ void timer_tick_interrupt(struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);
 
-	do_timer(regs);
+	do_timer(1);
 
 	timer_check_rtc();
 
@@ -983,7 +981,7 @@ static struct time_interpolator sparc64_cpu_interpolator = {
 };
 
 /* The quotient formula is taken from the IA64 port. */
-#define SPARC64_NSEC_PER_CYC_SHIFT	30UL
+#define SPARC64_NSEC_PER_CYC_SHIFT	10UL
 void __init time_init(void)
 {
 	unsigned long clock = sparc64_init_timers();

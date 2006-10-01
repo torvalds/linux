@@ -98,11 +98,6 @@ static struct notifier_block mpoa_notifier = {
 	0
 };
 
-#ifdef CONFIG_PROC_FS
-extern int mpc_proc_init(void);
-extern void mpc_proc_clean(void);
-#endif
-
 struct mpoa_client *mpcs = NULL; /* FIXME */
 static struct atm_mpoa_qos *qos_head = NULL;
 static DEFINE_TIMER(mpc_timer, NULL, 0, 0);
@@ -565,7 +560,6 @@ static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 	struct atmmpc_ioc ioc_data;
 	in_cache_entry *in_entry;
 	uint32_t  ipaddr;
-	unsigned char *ip;
 
 	bytes_left = copy_from_user(&ioc_data, arg, sizeof(struct atmmpc_ioc));
 	if (bytes_left != 0) {
@@ -588,9 +582,8 @@ static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 			if (in_entry != NULL) mpc->in_ops->put(in_entry);
 			return -EINVAL;
 		}
-		ip = (unsigned char*)&in_entry->ctrl_info.in_dst_ip;
 		printk("mpoa: (%s) mpc_vcc_attach: attaching ingress SVC, entry = %u.%u.%u.%u\n",
-		       mpc->dev->name, ip[0], ip[1], ip[2], ip[3]);
+		       mpc->dev->name, NIPQUAD(in_entry->ctrl_info.in_dst_ip));
 		in_entry->shortcut = vcc;
 		mpc->in_ops->put(in_entry);
 	} else {
@@ -621,10 +614,8 @@ static void mpc_vcc_close(struct atm_vcc *vcc, struct net_device *dev)
 	dprintk("mpoa: (%s) mpc_vcc_close:\n", dev->name);
 	in_entry = mpc->in_ops->get_by_vcc(vcc, mpc);
 	if (in_entry) {
-		unsigned char *ip __attribute__ ((unused)) =
-		    (unsigned char *)&in_entry->ctrl_info.in_dst_ip;
 		dprintk("mpoa: (%s) mpc_vcc_close: ingress SVC closed ip = %u.%u.%u.%u\n",
-		       mpc->dev->name, ip[0], ip[1], ip[2], ip[3]);
+		       mpc->dev->name, NIPQUAD(in_entry->ctrl_info.in_dst_ip));
 		in_entry->shortcut = NULL;
 		mpc->in_ops->put(in_entry);
 	}
@@ -1159,18 +1150,17 @@ static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 {
 	uint32_t dst_ip = msg->content.in_info.in_dst_ip;
 	uint32_t mask = msg->ip_mask;
-	unsigned char *ip = (unsigned char *)&dst_ip;
 	in_cache_entry *entry = mpc->in_ops->get_with_mask(dst_ip, mpc, mask);
 
 	if(entry == NULL){
 		printk("mpoa: (%s) ingress_purge_rcvd: purge for a non-existing entry, ", mpc->dev->name);
-		printk("ip = %u.%u.%u.%u\n", ip[0], ip[1], ip[2], ip[3]);
+		printk("ip = %u.%u.%u.%u\n", NIPQUAD(dst_ip));
 		return;
 	}
 
 	do {
 		dprintk("mpoa: (%s) ingress_purge_rcvd: removing an ingress entry, ip = %u.%u.%u.%u\n" ,
-			mpc->dev->name, ip[0], ip[1], ip[2], ip[3]);
+			mpc->dev->name, NIPQUAD(dst_ip));
 		write_lock_bh(&mpc->ingress_lock);
 		mpc->in_ops->remove_entry(entry, mpc);
 		write_unlock_bh(&mpc->ingress_lock);
@@ -1439,12 +1429,8 @@ static __init int atm_mpoa_init(void)
 {
 	register_atm_ioctl(&atm_ioctl_ops);
 
-#ifdef CONFIG_PROC_FS
 	if (mpc_proc_init() != 0)
 		printk(KERN_INFO "mpoa: failed to initialize /proc/mpoa\n");
-	else
-		printk(KERN_INFO "mpoa: /proc/mpoa initialized\n");
-#endif
 
 	printk("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
 
@@ -1457,9 +1443,7 @@ static void __exit atm_mpoa_cleanup(void)
 	struct atm_mpoa_qos *qos, *nextqos;
 	struct lec_priv *priv;
 
-#ifdef CONFIG_PROC_FS
 	mpc_proc_clean();
-#endif
 
 	del_timer(&mpc_timer);
 	unregister_netdevice_notifier(&mpoa_notifier);

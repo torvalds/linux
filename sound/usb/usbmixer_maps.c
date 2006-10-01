@@ -234,6 +234,26 @@ static struct usbmix_name_map justlink_map[] = {
 	{ 0 } /* terminator */
 };
 
+/* TerraTec Aureon 5.1 MkII USB */
+static struct usbmix_name_map aureon_51_2_map[] = {
+	/* 1: IT USB */
+	/* 2: IT Mic */
+	/* 3: IT Line */
+	/* 4: IT SPDIF */
+	/* 5: OT SPDIF */
+	/* 6: OT Speaker */
+	/* 7: OT USB */
+	{ 8, "Capture Source" }, /* SU */
+	{ 9, "Master Playback" }, /* FU */
+	{ 10, "Mic Capture" }, /* FU */
+	{ 11, "Line Capture" }, /* FU */
+	{ 12, "IEC958 In Capture" }, /* FU */
+	{ 13, "Mic Playback" }, /* FU */
+	{ 14, "Line Playback" }, /* FU */
+	/* 15: MU */
+	{} /* terminator */
+};
+
 /*
  * Control map entries
  */
@@ -275,6 +295,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{
 		.id = USB_ID(0x0c45, 0x1158),
 		.map = justlink_map,
+	},
+	{
+		.id = USB_ID(0x0ccd, 0x0028),
+		.map = aureon_51_2_map,
 	},
 	{ 0 } /* terminator */
 };

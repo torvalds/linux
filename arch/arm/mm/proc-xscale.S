@@ -311,12 +311,6 @@ ENTRY(xscale_flush_kern_dcache_page)
  *	- end	 - virtual end address
  */
 ENTRY(xscale_dma_inv_range)
-	mrc	p15, 0, r2, c0, c0, 0		@ read ID
-	eor	r2, r2, #0x69000000
-	eor	r2, r2, #0x00052000
-	bics	r2, r2, #1
-	beq	xscale_dma_flush_range
-
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -372,6 +366,30 @@ ENTRY(xscale_cache_fns)
 	.long	xscale_coherent_user_range
 	.long	xscale_flush_kern_dcache_page
 	.long	xscale_dma_inv_range
+	.long	xscale_dma_clean_range
+	.long	xscale_dma_flush_range
+
+/*
+ * On stepping A0/A1 of the 80200, invalidating D-cache by line doesn't
+ * clear the dirty bits, which means that if we invalidate a dirty line,
+ * the dirty data can still be written back to external memory later on.
+ *
+ * The recommended workaround is to always do a clean D-cache line before
+ * doing an invalidate D-cache line, so on the affected processors,
+ * dma_inv_range() is implemented as dma_flush_range().
+ *
+ * See erratum #25 of "Intel 80200 Processor Specification Update",
+ * revision January 22, 2003, available at:
+ *     http://www.intel.com/design/iio/specupdt/273415.htm
+ */
+ENTRY(xscale_80200_A0_A1_cache_fns)
+	.long	xscale_flush_kern_cache_all
+	.long	xscale_flush_user_cache_all
+	.long	xscale_flush_user_cache_range
+	.long	xscale_coherent_kern_range
+	.long	xscale_coherent_user_range
+	.long	xscale_flush_kern_dcache_page
+	.long	xscale_dma_flush_range
 	.long	xscale_dma_clean_range
 	.long	xscale_dma_flush_range
 
@@ -531,6 +549,11 @@ cpu_elf_name:
 	.asciz	"v5"
 	.size	cpu_elf_name, . - cpu_elf_name
 
+	.type	cpu_80200_A0_A1_name, #object
+cpu_80200_A0_A1_name:
+	.asciz	"XScale-80200 A0/A1"
+	.size	cpu_80200_A0_A1_name, . - cpu_80200_A0_A1_name
+
 	.type	cpu_80200_name, #object
 cpu_80200_name:
 	.asciz	"XScale-80200"
@@ -594,6 +617,29 @@ cpu_pxa270_name:
 	.align
 
 	.section ".proc.info.init", #alloc, #execinstr
+
+	.type	__80200_A0_A1_proc_info,#object
+__80200_A0_A1_proc_info:
+	.long	0x69052000
+	.long	0xfffffffe
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	b	__xscale_setup
+	.long	cpu_arch_name
+	.long	cpu_elf_name
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long	cpu_80200_name
+	.long	xscale_processor_functions
+	.long	v4wbi_tlb_fns
+	.long	xscale_mc_user_fns
+	.long	xscale_80200_A0_A1_cache_fns
+	.size	__80200_A0_A1_proc_info, . - __80200_A0_A1_proc_info
 
 	.type	__80200_proc_info,#object
 __80200_proc_info:

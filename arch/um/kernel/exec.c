@@ -41,9 +41,11 @@ static long execve1(char *file, char __user * __user *argv,
         long error;
 
 #ifdef CONFIG_TTY_LOG
-	task_lock(current);
+	mutex_lock(&tty_mutex);
+	task_lock(current);	/* FIXME:  is this needed ? */
 	log_exec(argv, current->signal->tty);
 	task_unlock(current);
+	mutex_unlock(&tty_mutex);
 #endif
         error = do_execve(file, argv, env, &current->thread.regs);
         if (error == 0){

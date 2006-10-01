@@ -10,14 +10,12 @@
 #ifndef _IPT_DSCP_H
 #define _IPT_DSCP_H
 
-#define IPT_DSCP_MASK	0xfc	/* 11111100 */
-#define IPT_DSCP_SHIFT	2
-#define IPT_DSCP_MAX	0x3f	/* 00111111 */
+#include <linux/netfilter/xt_dscp.h>
 
-/* match info */
-struct ipt_dscp_info {
-	u_int8_t dscp;
-	u_int8_t invert;
-};
+#define IPT_DSCP_MASK	XT_DSCP_MASK
+#define IPT_DSCP_SHIFT	XT_DSCP_SHIFT
+#define IPT_DSCP_MAX	XT_DSCP_MAX
+
+#define ipt_dscp_info	xt_dscp_info
 
 #endif /* _IPT_DSCP_H */

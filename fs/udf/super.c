@@ -156,8 +156,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(udf_inode_cachep))
-		printk(KERN_INFO "udf_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(udf_inode_cachep);
 }
 
 /* Superblock operations */
@@ -1621,6 +1620,10 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		printk("UDF-fs: No partition found (2)\n");
 		goto error_out;
 	}
+
+	if (UDF_SB_PARTFLAGS(sb, UDF_SB_PARTITION(sb)) & UDF_PART_FLAG_READ_ONLY)
+		printk("UDF-fs: Partition marked readonly; forcing readonly mount\n");
+		sb->s_flags |= MS_RDONLY;
 
 	if ( udf_find_fileset(sb, &fileset, &rootdir) )
 	{

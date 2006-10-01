@@ -214,13 +214,15 @@ smb_updatepage(struct file *file, struct page *page, unsigned long offset,
 }
 
 static ssize_t
-smb_file_read(struct file * file, char __user * buf, size_t count, loff_t *ppos)
+smb_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+			unsigned long nr_segs, loff_t pos)
 {
+	struct file * file = iocb->ki_filp;
 	struct dentry * dentry = file->f_dentry;
 	ssize_t	status;
 
 	VERBOSE("file %s/%s, count=%lu@%lu\n", DENTRY_PATH(dentry),
-		(unsigned long) count, (unsigned long) *ppos);
+		(unsigned long) iocb->ki_left, (unsigned long) pos);
 
 	status = smb_revalidate_inode(dentry);
 	if (status) {
@@ -233,7 +235,7 @@ smb_file_read(struct file * file, char __user * buf, size_t count, loff_t *ppos)
 		(long)dentry->d_inode->i_size,
 		dentry->d_inode->i_flags, dentry->d_inode->i_atime);
 
-	status = generic_file_read(file, buf, count, ppos);
+	status = generic_file_aio_read(iocb, iov, nr_segs, pos);
 out:
 	return status;
 }
@@ -317,14 +319,16 @@ const struct address_space_operations smb_file_aops = {
  * Write to a file (through the page cache).
  */
 static ssize_t
-smb_file_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+smb_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
 {
+	struct file * file = iocb->ki_filp;
 	struct dentry * dentry = file->f_dentry;
 	ssize_t	result;
 
 	VERBOSE("file %s/%s, count=%lu@%lu\n",
 		DENTRY_PATH(dentry),
-		(unsigned long) count, (unsigned long) *ppos);
+		(unsigned long) iocb->ki_left, (unsigned long) pos);
 
 	result = smb_revalidate_inode(dentry);
 	if (result) {
@@ -337,8 +341,8 @@ smb_file_write(struct file *file, const char __user *buf, size_t count, loff_t *
 	if (result)
 		goto out;
 
-	if (count > 0) {
-		result = generic_file_write(file, buf, count, ppos);
+	if (iocb->ki_left > 0) {
+		result = generic_file_aio_write(iocb, iov, nr_segs, pos);
 		VERBOSE("pos=%ld, size=%ld, mtime=%ld, atime=%ld\n",
 			(long) file->f_pos, (long) dentry->d_inode->i_size,
 			dentry->d_inode->i_mtime, dentry->d_inode->i_atime);
@@ -402,8 +406,10 @@ smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
 const struct file_operations smb_file_operations =
 {
 	.llseek		= remote_llseek,
-	.read		= smb_file_read,
-	.write		= smb_file_write,
+	.read		= do_sync_read,
+	.aio_read	= smb_file_aio_read,
+	.write		= do_sync_write,
+	.aio_write	= smb_file_aio_write,
 	.ioctl		= smb_ioctl,
 	.mmap		= smb_file_mmap,
 	.open		= smb_file_open,

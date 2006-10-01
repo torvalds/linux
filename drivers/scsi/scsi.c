@@ -96,7 +96,11 @@ unsigned int scsi_logging_level;
 EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
-const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
+/* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
+ * You may not alter any existing entry (although adding new ones is
+ * encouraged once assigned by ANSI/INCITS T10
+ */
+static const char *const scsi_device_types[] = {
 	"Direct-Access    ",
 	"Sequential-Access",
 	"Printer          ",
@@ -107,13 +111,29 @@ const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
 	"Optical Device   ",
 	"Medium Changer   ",
 	"Communications   ",
-	"Unknown          ",
-	"Unknown          ",
+	"ASC IT8          ",
+	"ASC IT8          ",
 	"RAID             ",
 	"Enclosure        ",
 	"Direct-Access-RBC",
+	"Optical card     ",
+	"Bridge controller",
+	"Object storage   ",
+	"Automation/Drive ",
 };
-EXPORT_SYMBOL(scsi_device_types);
+
+const char * scsi_device_type(unsigned type)
+{
+	if (type == 0x1e)
+		return "Well-known LUN   ";
+	if (type == 0x1f)
+		return "No Device        ";
+	if (type > ARRAY_SIZE(scsi_device_types))
+		return "Unknown          ";
+	return scsi_device_types[type];
+}
+
+EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
 	kmem_cache_t	*slab;
@@ -572,12 +592,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	return rtn;
 }
 
-
-/*
- * Per-CPU I/O completion queue.
- */
-static DEFINE_PER_CPU(struct list_head, scsi_done_q);
-
 /**
  * scsi_req_abort_cmd -- Request command recovery for the specified command
  * cmd: pointer to the SCSI command of interest
@@ -835,14 +849,14 @@ EXPORT_SYMBOL(scsi_track_queue_full);
  */
 int scsi_device_get(struct scsi_device *sdev)
 {
-	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
+	if (sdev->sdev_state == SDEV_DEL)
 		return -ENXIO;
 	if (!get_device(&sdev->sdev_gendev))
 		return -ENXIO;
-	if (!try_module_get(sdev->host->hostt->module)) {
-		put_device(&sdev->sdev_gendev);
-		return -ENXIO;
-	}
+	/* We can fail this if we're doing SCSI operations
+	 * from module exit (like cache flush) */
+	try_module_get(sdev->host->hostt->module);
+
 	return 0;
 }
 EXPORT_SYMBOL(scsi_device_get);
@@ -857,7 +871,14 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
-	module_put(sdev->host->hostt->module);
+	struct module *module = sdev->host->hostt->module;
+
+#ifdef CONFIG_MODULE_UNLOAD
+	/* The module refcount will be zero if scsi_device_get()
+	 * was called from a module removal routine */
+	if (module && module_refcount(module) != 0)
+		module_put(module);
+#endif
 	put_device(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_device_put);
@@ -1038,7 +1059,7 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(scmd, &sdev->cmd_list, list) {
-		if (scmd->request && scmd->request->rq_status != RQ_INACTIVE) {
+		if (scmd->request) {
 			/*
 			 * If we are unable to remove the timer, it means
 			 * that the command has already timed out or
@@ -1075,7 +1096,7 @@ MODULE_PARM_DESC(scsi_logging_level, "a bit mask of logging levels");
 
 static int __init init_scsi(void)
 {
-	int error, i;
+	int error;
 
 	error = scsi_init_queue();
 	if (error)
@@ -1096,8 +1117,7 @@ static int __init init_scsi(void)
 	if (error)
 		goto cleanup_sysctl;
 
-	for_each_possible_cpu(i)
-		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
+	scsi_netlink_init();
 
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
@@ -1119,6 +1139,7 @@ cleanup_queue:
 
 static void __exit exit_scsi(void)
 {
+	scsi_netlink_exit();
 	scsi_sysfs_unregister();
 	scsi_exit_sysctl();
 	scsi_exit_hosts();

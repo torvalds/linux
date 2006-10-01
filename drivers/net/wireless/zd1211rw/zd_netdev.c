@@ -72,10 +72,18 @@ static int iw_get_name(struct net_device *netdev,
 	               struct iw_request_info *info,
 		       union iwreq_data *req, char *extra)
 {
-	/* FIXME: check whether 802.11a will also supported, add also
-	 *        zd1211B, if we support it.
-	 */
-	strlcpy(req->name, "802.11g zd1211", IFNAMSIZ);
+	/* FIXME: check whether 802.11a will also supported */
+	strlcpy(req->name, "IEEE 802.11b/g", IFNAMSIZ);
+	return 0;
+}
+
+static int iw_get_nick(struct net_device *netdev,
+	               struct iw_request_info *info,
+		       union iwreq_data *req, char *extra)
+{
+	strcpy(extra, "zd1211");
+	req->data.length = strlen(extra);
+	req->data.flags = 1;
 	return 0;
 }
 
@@ -181,6 +189,7 @@ static int iw_get_encodeext(struct net_device *netdev,
 
 static const iw_handler zd_standard_iw_handlers[] = {
 	WX(SIOCGIWNAME)		= iw_get_name,
+	WX(SIOCGIWNICKN)	= iw_get_nick,
 	WX(SIOCSIWFREQ)		= iw_set_freq,
 	WX(SIOCGIWFREQ)		= iw_get_freq,
 	WX(SIOCSIWMODE)		= iw_set_mode,

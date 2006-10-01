@@ -1,24 +1,24 @@
 /* sun3lance.c: Ethernet driver for SUN3 Lance chip */
 /*
 
-  Sun3 Lance ethernet driver, by Sam Creasey (sammy@users.qual.net).  
+  Sun3 Lance ethernet driver, by Sam Creasey (sammy@users.qual.net).
   This driver is a part of the linux kernel, and is thus distributed
   under the GNU General Public License.
-  
+
   The values used in LANCE_OBIO and LANCE_IRQ seem to be empirically
   true for the correct IRQ and address of the lance registers.  They
   have not been widely tested, however.  What we probably need is a
   "proper" way to search for a device in the sun3's prom, but, alas,
-  linux has no such thing.  
+  linux has no such thing.
 
   This driver is largely based on atarilance.c, by Roman Hodek.  Other
   sources of inspiration were the NetBSD sun3 am7990 driver, and the
-  linux sparc lance driver (sunlance.c).  
+  linux sparc lance driver (sunlance.c).
 
   There are more assumptions made throughout this driver, it almost
   certainly still needs work, but it does work at least for RARP/BOOTP and
   mounting the root NFS filesystem.
-  
+
 */
 
 static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.net)\n";
@@ -294,9 +294,9 @@ out:
 }
 
 static int __init lance_probe( struct net_device *dev)
-{	
+{
 	unsigned long ioaddr;
-	
+
 	struct lance_private	*lp;
 	int 			i;
 	static int 		did_version;
@@ -313,7 +313,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	/* test to see if there's really a lance here */
 	/* (CSRO_INIT shouldn't be readable) */
-	
+
 	ioaddr_probe = (volatile unsigned short *)ioaddr;
 	tmp1 = ioaddr_probe[0];
 	tmp2 = ioaddr_probe[1];
@@ -339,7 +339,7 @@ static int __init lance_probe( struct net_device *dev)
 	lp->iobase = (volatile unsigned short *)ioaddr;
 	dev->base_addr = (unsigned long)ioaddr; /* informational only */
 
-	REGA(CSR0) = CSR0_STOP; 
+	REGA(CSR0) = CSR0_STOP;
 
 	request_irq(LANCE_IRQ, lance_interrupt, IRQF_DISABLED, "SUN3 Lance", dev);
 	dev->irq = (unsigned short)LANCE_IRQ;
@@ -378,7 +378,7 @@ static int __init lance_probe( struct net_device *dev)
 
 	DPRINTK(2, ("initaddr: %08lx rx_ring: %08lx tx_ring: %08lx\n",
 	       dvma_vtob(&(MEM->init)), dvma_vtob(MEM->rx_head),
-	       (dvma_vtob(MEM->tx_head))));  
+	       (dvma_vtob(MEM->tx_head))));
 
 	if (did_version++ == 0)
 		printk( version );
@@ -427,7 +427,7 @@ static int lance_open( struct net_device *dev )
 	DREG = CSR0_IDON | CSR0_STRT | CSR0_INEA;
 
 	netif_start_queue(dev);
-	
+
 	DPRINTK( 2, ( "%s: LANCE is open, csr0 %04x\n", dev->name, DREG ));
 
 	return( 0 );
@@ -449,7 +449,7 @@ static void lance_init_ring( struct net_device *dev )
 	for( i = 0; i < TX_RING_SIZE; i++ ) {
 		MEM->tx_head[i].base = dvma_vtob(MEM->tx_data[i]);
 		MEM->tx_head[i].flag = 0;
- 		MEM->tx_head[i].base_hi = 
+ 		MEM->tx_head[i].base_hi =
 			(dvma_vtob(MEM->tx_data[i])) >>16;
 		MEM->tx_head[i].length = 0;
 		MEM->tx_head[i].misc = 0;
@@ -458,7 +458,7 @@ static void lance_init_ring( struct net_device *dev )
 	for( i = 0; i < RX_RING_SIZE; i++ ) {
 		MEM->rx_head[i].base = dvma_vtob(MEM->rx_data[i]);
 		MEM->rx_head[i].flag = RMD1_OWN_CHIP;
-		MEM->rx_head[i].base_hi = 
+		MEM->rx_head[i].base_hi =
 			(dvma_vtob(MEM->rx_data[i])) >> 16;
 		MEM->rx_head[i].buf_length = -PKT_BUF_SZ | 0xf000;
 		MEM->rx_head[i].msg_length = 0;
@@ -542,22 +542,22 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 		lance_init_ring(dev);
 		REGA( CSR0 ) = CSR0_INEA | CSR0_INIT | CSR0_STRT;
-		
+
 		netif_start_queue(dev);
 		dev->trans_start = jiffies;
-		
+
 		return 0;
 	}
 
-	
+
 	/* Block a timer-based transmit from overlapping.  This could better be
 	   done with atomic_swap(1, dev->tbusy), but set_bit() works as well. */
 
 	/* Block a timer-based transmit from overlapping with us by
 	   stopping the queue for a bit... */
-     
+
 	netif_stop_queue(dev);
-	
+
 	if (test_and_set_bit( 0, (void*)&lp->lock ) != 0) {
 		printk( "%s: tx queue lock!.\n", dev->name);
 		/* don't clear dev->tbusy flag. */
@@ -593,7 +593,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 		printk(" data at 0x%08x len %d\n", (int)skb->data,
 		       (int)skb->len );
 	}
-#endif	
+#endif
 	/* We're not prepared for the int until the last flags are set/reset.
 	 * And the int may happen already after setting the OWN_CHIP... */
 	local_irq_save(flags);
@@ -632,7 +632,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	lp->lock = 0;
 	if ((MEM->tx_head[(entry+1) & TX_RING_MOD_MASK].flag & TMD1_OWN) ==
-	    TMD1_OWN_HOST) 
+	    TMD1_OWN_HOST)
 		netif_start_queue(dev);
 
 	local_irq_restore(flags);
@@ -657,10 +657,10 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
 	if (in_interrupt)
 		DPRINTK( 2, ( "%s: Re-entering the interrupt handler.\n", dev->name ));
 	in_interrupt = 1;
-	
+
  still_more:
 	flush_cache_all();
-	
+
 	AREG = CSR0;
 	csr0 = DREG;
 
@@ -680,22 +680,22 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
 
 //		if(lance_debug >= 3) {
 //			int i;
-//			
+//
 //			printk("%s: tx int\n", dev->name);
-//			
+//
 //			for(i = 0; i < TX_RING_SIZE; i++)
 //				printk("ring %d flag=%04x\n", i,
 //				       MEM->tx_head[i].flag);
 //		}
-		
+
 		while( old_tx != lp->new_tx) {
-			struct lance_tx_head *head = &(MEM->tx_head[old_tx]); 
-			
+			struct lance_tx_head *head = &(MEM->tx_head[old_tx]);
+
 			DPRINTK(3, ("on tx_ring %d\n", old_tx));
 
 			if (head->flag & TMD1_OWN_CHIP)
 				break; /* It still hasn't been Txed */
-				
+
 			if (head->flag & TMD1_ERR) {
 				int status = head->misc;
 				lp->stats.tx_errors++;
@@ -705,7 +705,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
 				if (status & (TMD3_UFLO | TMD3_BUFF)) {
 					lp->stats.tx_fifo_errors++;
 					printk("%s: Tx FIFO error\n",
-					       dev->name); 
+					       dev->name);
 					REGA(CSR0) = CSR0_STOP;
 					REGA(CSR3) = CSR3_BSWP;
 					lance_init_ring(dev);
@@ -713,11 +713,11 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
 					return IRQ_HANDLED;
 				}
 			} else if(head->flag & (TMD1_ENP | TMD1_STP)) {
-				
+
 				head->flag &= ~(TMD1_ENP | TMD1_STP);
 				if(head->flag & (TMD1_ONE | TMD1_MORE))
 					lp->stats.collisions++;
-				
+
 				lp->stats.tx_packets++;
 				DPRINTK(3, ("cleared tx ring %d\n", old_tx));
 			}
@@ -736,7 +736,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
 
 	if (csr0 & CSR0_RINT)			/* Rx interrupt */
 		lance_rx( dev );
-	
+
 	/* Log misc errors. */
 	if (csr0 & CSR0_BABL) lp->stats.tx_errors++; /* Tx babble. */
 	if (csr0 & CSR0_MISS) lp->stats.rx_errors++; /* Missed a Rx frame. */
@@ -778,10 +778,10 @@ static int lance_rx( struct net_device *dev )
 	while( (MEM->rx_head[entry].flag & RMD1_OWN) == RMD1_OWN_HOST ) {
 		struct lance_rx_head *head = &(MEM->rx_head[entry]);
 		int status = head->flag;
-		
+
 		if (status != (RMD1_ENP|RMD1_STP)) {  /* There was an error. */
 			/* There is a tricky error noted by John Murphy,
-			   <murf@perftech.com> to Russ Nelson: Even with 
+			   <murf@perftech.com> to Russ Nelson: Even with
 			   full-sized buffers it's possible for a jabber packet to use two
 			   buffers, with only the last correctly noting the error. */
 			if (status & RMD1_ENP)	/* Only count a general error at the */
@@ -806,7 +806,7 @@ static int lance_rx( struct net_device *dev )
 				if (skb == NULL) {
 					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
 						      dev->name ));
-					
+
 					lp->stats.rx_dropped++;
 					head->msg_length = 0;
 					head->flag |= RMD1_OWN_CHIP;
@@ -833,7 +833,7 @@ static int lance_rx( struct net_device *dev )
 				if (lance_debug >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
 					printk( "%s: RX pkt %d type 0x%04x len %d\n ", dev->name, entry, ((u_short *)data)[6], pkt_len);
-				}				
+				}
 
 
 				skb->dev = dev;
@@ -914,7 +914,7 @@ static void set_multicast_list( struct net_device *dev )
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Log any net taps. */
-		DPRINTK( 1, ( "%s: Promiscuous mode enabled.\n", dev->name ));
+		DPRINTK( 3, ( "%s: Promiscuous mode enabled.\n", dev->name ));
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];

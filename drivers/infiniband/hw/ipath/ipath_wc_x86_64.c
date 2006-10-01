@@ -123,6 +123,8 @@ int ipath_enable_wc(struct ipath_devdata *dd)
 			ipath_cdbg(VERBOSE, "Set mtrr for chip to WC, "
 				   "cookie is %d\n", cookie);
 			dd->ipath_wc_cookie = cookie;
+			dd->ipath_wc_base = (unsigned long) pioaddr;
+			dd->ipath_wc_len = (unsigned long) piolen;
 		}
 	}
 
@@ -136,9 +138,16 @@ int ipath_enable_wc(struct ipath_devdata *dd)
 void ipath_disable_wc(struct ipath_devdata *dd)
 {
 	if (dd->ipath_wc_cookie) {
+		int r;
 		ipath_cdbg(VERBOSE, "undoing WCCOMB on pio buffers\n");
-		mtrr_del(dd->ipath_wc_cookie, 0, 0);
-		dd->ipath_wc_cookie = 0;
+		r = mtrr_del(dd->ipath_wc_cookie, dd->ipath_wc_base,
+			     dd->ipath_wc_len);
+		if (r < 0)
+			dev_info(&dd->pcidev->dev,
+				 "mtrr_del(%lx, %lx, %lx) failed: %d\n",
+				 dd->ipath_wc_cookie, dd->ipath_wc_base,
+				 dd->ipath_wc_len, r);
+		dd->ipath_wc_cookie = 0; /* even on failure */
 	}
 }
 

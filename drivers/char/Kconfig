@@ -439,6 +439,14 @@ config SGI_MBCS
          If you have an SGI Altix with an attached SABrick
          say Y or M here, otherwise say N.
 
+config MSPEC
+	tristate "Memory special operations driver"
+	depends on IA64
+	help
+	  If you have an ia64 and you want to enable memory special
+	  operations support (formerly known as fetchop), say Y here,
+	  otherwise say N.
+
 source "drivers/serial/Kconfig"
 
 config UNIX98_PTYS
@@ -494,6 +502,21 @@ config LEGACY_PTY_COUNT
 
 	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
+
+config BRIQ_PANEL
+	tristate 'Total Impact briQ front panel driver'
+	depends on PPC_CHRP
+	---help---
+	  The briQ is a small footprint CHRP computer with a frontpanel VFD, a
+	  tristate led and two switches. It is the size of a CDROM drive.
+
+	  If you have such one and want anything showing on the VFD then you
+	  must answer Y here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called briq_panel.
+
+	  It's safe to say N here.
 
 config PRINTER
 	tristate "Parallel printer support"
@@ -595,6 +618,13 @@ config HVC_CONSOLE
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
+
+config HVC_ISERIES
+	bool "iSeries Hypervisor Virtual Console support"
+	depends on PPC_ISERIES && !VIOCONS
+	select HVC_DRIVER
+	help
+	  iSeries machines support a hypervisor virtual console.
 
 config HVC_RTAS
 	bool "IBM RTAS Console support"
@@ -717,7 +747,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV && !ARM
+	depends on !PPC && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV && !ARM && !SUPERH
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -800,14 +830,6 @@ config DS1302
 	  major number 121 and minor number 0 using mknod ("man mknod"), you
 	  will get access to the real time clock (or hardware clock) built
 	  into your computer.
-
-config S3C2410_RTC
-	bool "S3C2410 RTC Driver"
-	depends on ARCH_S3C2410
-	help
-	  RTC (Realtime Clock) driver for the clock inbuilt into the
-	  Samsung S3C2410. This can provide periodic interrupt rates
-	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
 
 config COBALT_LCD
 	bool "Support for Cobalt LCD"
@@ -984,6 +1006,7 @@ config GPIO_VR41XX
 
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+	depends on BLOCK
 	help
 	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 

@@ -49,8 +49,7 @@ static void flat_send_IPI_mask(cpumask_t cpumask, int vector)
 	unsigned long cfg;
 	unsigned long flags;
 
-	local_save_flags(flags);
-	local_irq_disable();
+	local_irq_save(flags);
 
 	/*
 	 * Wait for idle.
@@ -121,7 +120,6 @@ struct genapic apic_flat =  {
 	.name = "flat",
 	.int_delivery_mode = dest_LowestPrio,
 	.int_dest_mode = (APIC_DEST_LOGICAL != 0),
-	.int_delivery_dest = APIC_DEST_LOGICAL | APIC_DM_LOWEST,
 	.target_cpus = flat_target_cpus,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,
@@ -180,7 +178,6 @@ struct genapic apic_physflat =  {
 	.name = "physical flat",
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.int_delivery_dest = APIC_DEST_PHYSICAL | APIC_DM_FIXED,
 	.target_cpus = physflat_target_cpus,
 	.apic_id_registered = flat_apic_id_registered,
 	.init_apic_ldr = flat_init_apic_ldr,/*not needed, but shouldn't hurt*/

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2001 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2001 Jens Axboe <axboe@kernel.dk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1142,7 +1142,7 @@ static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 		struct biovec_slab *bp = bvec_slabs + i;
 		mempool_t **bvp = bs->bvec_pools + i;
 
-		if (i >= scale)
+		if (pool_entries > 1 && i >= scale)
 			pool_entries >>= 1;
 
 		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);

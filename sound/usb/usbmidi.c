@@ -181,9 +181,9 @@ static int snd_usbmidi_urb_error(int status)
 	case -ENODEV:
 		return -ENODEV;
 	/* errors that might occur during unplugging */
-	case -EPROTO:    /* EHCI */
-	case -ETIMEDOUT: /* OHCI */
-	case -EILSEQ:    /* UHCI */
+	case -EPROTO:
+	case -ETIME:
+	case -EILSEQ:
 		return -EIO;
 	default:
 		snd_printk(KERN_ERR "urb status %d\n", status);
@@ -323,10 +323,9 @@ static int send_bulk_static_data(struct snd_usb_midi_out_endpoint* ep,
 				 const void *data, int len)
 {
 	int err;
-	void *buf = kmalloc(len, GFP_KERNEL);
+	void *buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, data, len);
 	dump_urb("sending", buf, len);
 	err = usb_bulk_msg(ep->umidi->chip->dev, ep->urb->pipe, buf, len,
 			   NULL, 250);

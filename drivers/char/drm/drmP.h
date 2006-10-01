@@ -79,6 +79,7 @@
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
 
 #include "drm_os_linux.h"
+#include "drm_hashtab.h"
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
@@ -104,7 +105,7 @@
 #define DRM_DEBUG_CODE 2	  /**< Include debugging code if > 1, then
 				     also include looping detection. */
 
-#define DRM_HASH_SIZE	      16 /**< Size of key hash table. Must be power of 2. */
+#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
 #define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
 #define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
 #define DRM_LOOPING_LIMIT     5000000
@@ -134,19 +135,12 @@
 #define DRM_MEM_CTXBITMAP 18
 #define DRM_MEM_STUB      19
 #define DRM_MEM_SGLISTS   20
-#define DRM_MEM_CTXLIST  21
+#define DRM_MEM_CTXLIST   21
+#define DRM_MEM_MM        22
+#define DRM_MEM_HASHTAB   23
 
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
-
-/*@}*/
-
-/***********************************************************************/
-/** \name Backward compatibility section */
-/*@{*/
-
-#define DRM_RPR_ARG(vma) vma,
-
-#define VM_OFFSET(vma) ((vma)->vm_pgoff << PAGE_SHIFT)
+#define DRM_MAP_HASH_OFFSET 0x10000000
 
 /*@}*/
 
@@ -211,8 +205,6 @@
 /*@{*/
 
 #define DRM_ARRAY_SIZE(x) ARRAY_SIZE(x)
-#define DRM_MIN(a,b) min(a,b)
-#define DRM_MAX(a,b) max(a,b)
 
 #define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
 #define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
@@ -286,7 +278,8 @@ typedef struct drm_devstate {
 } drm_devstate_t;
 
 typedef struct drm_magic_entry {
-	drm_magic_t magic;
+	drm_hash_item_t hash_item;
+	struct list_head head;
 	struct drm_file *priv;
 	struct drm_magic_entry *next;
 } drm_magic_entry_t;
@@ -493,6 +486,7 @@ typedef struct drm_sigdata {
  */
 typedef struct drm_map_list {
 	struct list_head head;		/**< list head */
+	drm_hash_item_t hash;
 	drm_map_t *map;			/**< mapping */
 	unsigned int user_token;
 } drm_map_list_t;
@@ -526,6 +520,22 @@ typedef struct ati_pcigart_info {
 	dma_addr_t bus_addr;
 	drm_local_map_t mapping;
 } drm_ati_pcigart_info;
+
+/*
+ * Generic memory manager structs
+ */
+typedef struct drm_mm_node {
+	struct list_head fl_entry;
+	struct list_head ml_entry;
+	int free;
+	unsigned long start;
+	unsigned long size;
+	void *private;
+} drm_mm_node_t;
+
+typedef struct drm_mm {
+	drm_mm_node_t root_node;
+} drm_mm_t;
 
 /**
  * DRM driver structure. This structure represent the common code for
@@ -646,13 +656,15 @@ typedef struct drm_device {
 	/*@{ */
 	drm_file_t *file_first;		/**< file list head */
 	drm_file_t *file_last;		/**< file list tail */
-	drm_magic_head_t magiclist[DRM_HASH_SIZE];	/**< magic hash table */
+	drm_open_hash_t magiclist;	/**< magic hash table */
+	struct list_head magicfree;
 	/*@} */
 
 	/** \name Memory management */
 	/*@{ */
 	drm_map_list_t *maplist;	/**< Linked list of regions */
 	int map_count;			/**< Number of mappable regions */
+	drm_open_hash_t map_hash;	/**< User token hash table for maps */
 
 	/** \name Context handle management */
 	/*@{ */
@@ -711,10 +723,8 @@ typedef struct drm_device {
 	drm_agp_head_t *agp;	/**< AGP data */
 
 	struct pci_dev *pdev;		/**< PCI device structure */
-	int pci_domain;			/**< PCI bus domain number */
-	int pci_bus;			/**< PCI bus number */
-	int pci_slot;			/**< PCI slot number */
-	int pci_func;			/**< PCI function number */
+	int pci_vendor;			/**< PCI vendor id */
+	int pci_device;			/**< PCI device id */
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
@@ -735,6 +745,12 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 {
 	return ((dev->driver->driver_features & feature) ? 1 : 0);
 }
+
+#ifdef __alpha__
+#define drm_get_pci_domain(dev) dev->hose->bus->number
+#else
+#define drm_get_pci_domain(dev) 0
+#endif
 
 #if __OS_HAS_AGP
 static inline int drm_core_has_AGP(struct drm_device *dev)
@@ -1010,6 +1026,18 @@ extern void drm_sysfs_destroy(struct class *cs);
 extern struct class_device *drm_sysfs_device_add(struct class *cs,
 						 drm_head_t *head);
 extern void drm_sysfs_device_remove(struct class_device *class_dev);
+
+/*
+ * Basic memory manager support (drm_mm.c)
+ */
+extern drm_mm_node_t *drm_mm_get_block(drm_mm_node_t * parent,
+				       unsigned long size,
+				       unsigned alignment);
+extern void drm_mm_put_block(drm_mm_t *mm, drm_mm_node_t *cur);
+extern drm_mm_node_t *drm_mm_search_free(const drm_mm_t *mm, unsigned long size,
+					 unsigned alignment, int best_match);
+extern int drm_mm_init(drm_mm_t *mm, unsigned long start, unsigned long size);
+extern void drm_mm_takedown(drm_mm_t *mm);
 
 /* Inline replacements for DRM_IOREMAP macros */
 static __inline__ void drm_core_ioremap(struct drm_map *map,

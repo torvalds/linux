@@ -1207,7 +1207,7 @@ int system_bus_clock (void)
 
 EXPORT_SYMBOL(system_bus_clock);
 
-static int generic_ide_suspend(struct device *dev, pm_message_t state)
+static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data;
 	struct request rq;
@@ -1217,11 +1217,13 @@ static int generic_ide_suspend(struct device *dev, pm_message_t state)
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.flags = REQ_PM_SUSPEND;
+	rq.cmd_type = REQ_TYPE_PM_SUSPEND;
 	rq.special = &args;
-	rq.end_io_data = &rqpm;
+	rq.data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_suspend;
-	rqpm.pm_state = state.event;
+	if (mesg.event == PM_EVENT_PRETHAW)
+		mesg.event = PM_EVENT_FREEZE;
+	rqpm.pm_state = mesg.event;
 
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }
@@ -1236,9 +1238,9 @@ static int generic_ide_resume(struct device *dev)
 	memset(&rq, 0, sizeof(rq));
 	memset(&rqpm, 0, sizeof(rqpm));
 	memset(&args, 0, sizeof(args));
-	rq.flags = REQ_PM_RESUME;
+	rq.cmd_type = REQ_TYPE_PM_RESUME;
 	rq.special = &args;
-	rq.end_io_data = &rqpm;
+	rq.data = &rqpm;
 	rqpm.pm_step = ide_pm_state_start_resume;
 	rqpm.pm_state = PM_EVENT_ON;
 

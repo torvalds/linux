@@ -43,7 +43,7 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 
 	memset(sd, 0, sizeof(*sd));
 	atomic_set(&sd->s_count, 1);
-	atomic_set(&sd->s_event, 0);
+	atomic_set(&sd->s_event, 1);
 	INIT_LIST_HEAD(&sd->s_children);
 	list_add(&sd->s_sibling, &parent_sd->s_children);
 	sd->s_element = element;
@@ -103,7 +103,7 @@ static int init_dir(struct inode * inode)
 	inode->i_fop = &sysfs_dir_operations;
 
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inode->i_nlink++;
+	inc_nlink(inode);
 	return 0;
 }
 
@@ -137,7 +137,7 @@ static int create_dir(struct kobject * k, struct dentry * p,
 		if (!error) {
 			error = sysfs_create(*d, mode, init_dir);
 			if (!error) {
-				p->d_inode->i_nlink++;
+				inc_nlink(p->d_inode);
 				(*d)->d_op = &sysfs_dentry_ops;
 				d_rehash(*d);
 			}

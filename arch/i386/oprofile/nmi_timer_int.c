@@ -17,34 +17,49 @@
 #include <asm/nmi.h>
 #include <asm/apic.h>
 #include <asm/ptrace.h>
+#include <asm/kdebug.h>
  
-static int nmi_timer_callback(struct pt_regs * regs, int cpu)
+static int profile_timer_exceptions_notify(struct notifier_block *self,
+					   unsigned long val, void *data)
 {
-	oprofile_add_sample(regs, 0);
-	return 1;
+	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
+	switch(val) {
+	case DIE_NMI:
+		oprofile_add_sample(args->regs, 0);
+		ret = NOTIFY_STOP;
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
+
+static struct notifier_block profile_timer_exceptions_nb = {
+	.notifier_call = profile_timer_exceptions_notify,
+	.next = NULL,
+	.priority = 0
+};
 
 static int timer_start(void)
 {
-	disable_timer_nmi_watchdog();
-	set_nmi_callback(nmi_timer_callback);
+	if (register_die_notifier(&profile_timer_exceptions_nb))
+		return 1;
 	return 0;
 }
 
 
 static void timer_stop(void)
 {
-	enable_timer_nmi_watchdog();
-	unset_nmi_callback();
+	unregister_die_notifier(&profile_timer_exceptions_nb);
 	synchronize_sched();  /* Allow already-started NMIs to complete. */
 }
 
 
 int __init op_nmi_timer_init(struct oprofile_operations * ops)
 {
-	extern int nmi_active;
-
-	if (nmi_active <= 0)
+	if ((nmi_watchdog != NMI_IO_APIC) || (atomic_read(&nmi_active) <= 0))
 		return -ENODEV;
 
 	ops->start = timer_start;

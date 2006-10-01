@@ -8,6 +8,7 @@ struct scsi_cmnd;
 struct scsi_device;
 struct scsi_host_template;
 struct Scsi_Host;
+struct scsi_nl_hdr;
 
 
 /*
@@ -109,6 +110,16 @@ extern struct scsi_transport_template blank_transport_template;
 extern void __scsi_remove_device(struct scsi_device *);
 
 extern struct bus_type scsi_bus_type;
+
+/* scsi_netlink.c */
+#ifdef CONFIG_SCSI_NETLINK
+extern void scsi_netlink_init(void);
+extern void scsi_netlink_exit(void);
+extern struct sock *scsi_nl_sock;
+#else
+static inline void scsi_netlink_init(void) {}
+static inline void scsi_netlink_exit(void) {}
+#endif
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport

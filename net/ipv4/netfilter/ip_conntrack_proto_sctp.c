@@ -58,13 +58,13 @@ static const char *sctp_conntrack_names[] = {
 #define HOURS * 60 MINS
 #define DAYS  * 24 HOURS
 
-static unsigned int ip_ct_sctp_timeout_closed            =  10 SECS;
-static unsigned int ip_ct_sctp_timeout_cookie_wait       =   3 SECS;
-static unsigned int ip_ct_sctp_timeout_cookie_echoed     =   3 SECS;
-static unsigned int ip_ct_sctp_timeout_established       =   5 DAYS;
-static unsigned int ip_ct_sctp_timeout_shutdown_sent     = 300 SECS / 1000;
-static unsigned int ip_ct_sctp_timeout_shutdown_recd     = 300 SECS / 1000;
-static unsigned int ip_ct_sctp_timeout_shutdown_ack_sent =   3 SECS;
+static unsigned int ip_ct_sctp_timeout_closed __read_mostly           = 10 SECS;
+static unsigned int ip_ct_sctp_timeout_cookie_wait __read_mostly      =  3 SECS;
+static unsigned int ip_ct_sctp_timeout_cookie_echoed __read_mostly    =  3 SECS;
+static unsigned int ip_ct_sctp_timeout_established __read_mostly      =  5 DAYS;
+static unsigned int ip_ct_sctp_timeout_shutdown_sent __read_mostly    = 300 SECS / 1000;
+static unsigned int ip_ct_sctp_timeout_shutdown_recd __read_mostly    = 300 SECS / 1000;
+static unsigned int ip_ct_sctp_timeout_shutdown_ack_sent __read_mostly = 3 SECS;
 
 static const unsigned int * sctp_timeouts[]
 = { NULL,                                  /* SCTP_CONNTRACK_NONE  */
@@ -210,7 +210,7 @@ static int sctp_print_conntrack(struct seq_file *s,
 for (offset = skb->nh.iph->ihl * 4 + sizeof(sctp_sctphdr_t), count = 0;	\
 	offset < skb->len &&						\
 	(sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch));	\
-	offset += (htons(sch->length) + 3) & ~3, count++)
+	offset += (ntohs(sch->length) + 3) & ~3, count++)
 
 /* Some validity checks to make sure the chunks are fine */
 static int do_basic_checks(struct ip_conntrack *conntrack,

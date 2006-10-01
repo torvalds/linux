@@ -126,6 +126,8 @@ static void sha1_final(struct crypto_tfm *tfm, u8 *out)
 
 static struct crypto_alg alg = {
 	.cra_name	=	"sha1",
+	.cra_driver_name =	"sha1-s390",
+	.cra_priority	=	CRYPT_S390_PRIORITY,
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA1_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct crypt_s390_sha1_ctx),

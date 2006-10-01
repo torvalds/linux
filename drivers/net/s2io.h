@@ -883,10 +883,10 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-/* 
- * Some registers have to be written in a particular order to 
- * expect correct hardware operation. The macro SPECIAL_REG_WRITE 
- * is used to perform such ordered writes. Defines UF (Upper First) 
+/*
+ * Some registers have to be written in a particular order to
+ * expect correct hardware operation. The macro SPECIAL_REG_WRITE
+ * is used to perform such ordered writes. Defines UF (Upper First)
  * and LF (Lower First) will be used to specify the required write order.
  */
 #define UF	1
@@ -999,7 +999,7 @@ static irqreturn_t
 s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs);
 static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
 static int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);

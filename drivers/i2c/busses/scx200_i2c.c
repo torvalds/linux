@@ -71,12 +71,12 @@ static int scx200_i2c_getsda(void *data)
  */
 
 static struct i2c_algo_bit_data scx200_i2c_data = {
-	NULL,
-	scx200_i2c_setsda,
-	scx200_i2c_setscl,
-	scx200_i2c_getsda,
-	scx200_i2c_getscl,
-	10, 10, 100,		/* waits, timeout */
+	.setsda		= scx200_i2c_setsda,
+	.setscl		= scx200_i2c_setscl,
+	.getsda		= scx200_i2c_getsda,
+	.getscl		= scx200_i2c_getscl,
+	.udelay		= 10,
+	.timeout	= 100,
 };
 
 static struct i2c_adapter scx200_i2c_ops = {

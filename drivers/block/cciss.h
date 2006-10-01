@@ -76,6 +76,9 @@ struct ctlr_info
 	unsigned int intr[4];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
+	BYTE	cciss_read;
+	BYTE	cciss_write;
+	BYTE	cciss_read_capacity;
 
 	// information about each logical volume
 	drive_info_struct drv[CISS_MAX_LUN];

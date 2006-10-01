@@ -27,21 +27,11 @@ EXPORT_SYMBOL(sh_mv);
 
 /* platform dependent support */
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
-EXPORT_SYMBOL(probe_irq_mask);
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(disable_irq_nosync);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(no_irq_type);
 
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
 
 /* PCI exports */
 #ifdef CONFIG_PCI
@@ -52,13 +42,8 @@ EXPORT_SYMBOL(pci_free_consistent);
 /* mem exports */
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memcpy_fromio);
-EXPORT_SYMBOL(memcpy_toio);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memset_io);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(boot_cpu_data);
 
@@ -94,7 +79,9 @@ EXPORT_SYMBOL(strcpy);
 DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
 DECLARE_EXPORT(__movstrSI12_i4);
+#endif
 
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 /* needed by some modules */
 EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_cache_range);
@@ -102,11 +89,9 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(__flush_purge_region);
 #endif
 
-#if defined(CONFIG_SH7705_CACHE_32KB)
-EXPORT_SYMBOL(flush_cache_all);
-EXPORT_SYMBOL(flush_cache_range);
-EXPORT_SYMBOL(flush_dcache_page);
-EXPORT_SYMBOL(__flush_purge_region);
+#if defined(CONFIG_MMU) && (defined(CONFIG_CPU_SH4) || \
+	defined(CONFIG_SH7705_CACHE_32KB))
+EXPORT_SYMBOL(clear_user_page);
 #endif
 
 EXPORT_SYMBOL(flush_tlb_page);
@@ -116,7 +101,12 @@ EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(synchronize_irq);
 #endif
 
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(pm_suspend);
+#endif
+
 EXPORT_SYMBOL(csum_partial);
+#ifdef CONFIG_IPV6
 EXPORT_SYMBOL(csum_ipv6_magic);
-EXPORT_SYMBOL(consistent_sync);
+#endif
 EXPORT_SYMBOL(clear_page);

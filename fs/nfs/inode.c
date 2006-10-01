@@ -76,19 +76,14 @@ int nfs_write_inode(struct inode *inode, int sync)
 
 void nfs_clear_inode(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct rpc_cred *cred;
-
 	/*
 	 * The following should never happen...
 	 */
 	BUG_ON(nfs_have_writebacks(inode));
-	BUG_ON (!list_empty(&nfsi->open_files));
+	BUG_ON(!list_empty(&NFS_I(inode)->open_files));
+	BUG_ON(atomic_read(&NFS_I(inode)->data_updates) != 0);
 	nfs_zap_acl_cache(inode);
-	cred = nfsi->cache_access.cred;
-	if (cred)
-		put_rpccred(cred);
-	BUG_ON(atomic_read(&nfsi->data_updates) != 0);
+	nfs_access_zap_cache(inode);
 }
 
 /**
@@ -242,13 +237,13 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		/* Why so? Because we want revalidate for devices/FIFOs, and
 		 * that's precisely what we have in nfs_file_inode_operations.
 		 */
-		inode->i_op = NFS_SB(sb)->rpc_ops->file_inode_ops;
+		inode->i_op = NFS_SB(sb)->nfs_client->rpc_ops->file_inode_ops;
 		if (S_ISREG(inode->i_mode)) {
 			inode->i_fop = &nfs_file_operations;
 			inode->i_data.a_ops = &nfs_file_aops;
 			inode->i_data.backing_dev_info = &NFS_SB(sb)->backing_dev_info;
 		} else if (S_ISDIR(inode->i_mode)) {
-			inode->i_op = NFS_SB(sb)->rpc_ops->dir_inode_ops;
+			inode->i_op = NFS_SB(sb)->nfs_client->rpc_ops->dir_inode_ops;
 			inode->i_fop = &nfs_dir_operations;
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
 			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
@@ -282,15 +277,13 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			 * report the blocks in 512byte units
 			 */
 			inode->i_blocks = nfs_calc_block_size(fattr->du.nfs3.used);
-			inode->i_blksize = inode->i_sb->s_blocksize;
 		} else {
 			inode->i_blocks = fattr->du.nfs2.blocks;
-			inode->i_blksize = fattr->du.nfs2.blocksize;
 		}
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = jiffies;
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-		nfsi->cache_access.cred = NULL;
+		nfsi->access_cache = RB_ROOT;
 
 		unlock_new_inode(inode);
 	} else
@@ -448,7 +441,7 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 {
 	struct nfs_open_context *ctx;
 
-	ctx = (struct nfs_open_context *)kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
 		atomic_set(&ctx->count, 1);
 		ctx->dentry = dget(dentry);
@@ -722,13 +715,11 @@ void nfs_end_data_update(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (!nfs_have_delegation(inode, FMODE_READ)) {
-		/* Directories and symlinks: invalidate page cache */
-		if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) {
-			spin_lock(&inode->i_lock);
-			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-			spin_unlock(&inode->i_lock);
-		}
+	/* Directories: invalidate page cache */
+	if (S_ISDIR(inode->i_mode)) {
+		spin_lock(&inode->i_lock);
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+		spin_unlock(&inode->i_lock);
 	}
 	nfsi->cache_change_attribute = jiffies;
 	atomic_dec(&nfsi->data_updates);
@@ -847,6 +838,12 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
  *
  * After an operation that has changed the inode metadata, mark the
  * attribute cache as being invalid, then try to update it.
+ *
+ * NB: if the server didn't return any post op attributes, this
+ * function will force the retrieval of attributes before the next
+ * NFS request.  Thus it should be used only for operations that
+ * are expected to change one or more attributes, to avoid
+ * unnecessary NFS requests and trips through nfs_update_inode().
  */
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
@@ -970,10 +967,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		 * report the blocks in 512byte units
 		 */
 		inode->i_blocks = nfs_calc_block_size(fattr->du.nfs3.used);
-		inode->i_blksize = inode->i_sb->s_blocksize;
  	} else {
  		inode->i_blocks = fattr->du.nfs2.blocks;
- 		inode->i_blksize = fattr->du.nfs2.blocksize;
  	}
 
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
@@ -1025,7 +1020,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  out_fileid:
 	printk(KERN_ERR "NFS: server %s error: fileid changed\n"
 		"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
-		NFS_SERVER(inode)->hostname, inode->i_sb->s_id,
+		NFS_SERVER(inode)->nfs_client->cl_hostname, inode->i_sb->s_id,
 		(long long)nfsi->fileid, (long long)fattr->fileid);
 	goto out_err;
 }
@@ -1109,6 +1104,8 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		INIT_LIST_HEAD(&nfsi->dirty);
 		INIT_LIST_HEAD(&nfsi->commit);
 		INIT_LIST_HEAD(&nfsi->open_files);
+		INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
+		INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 		INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
 		atomic_set(&nfsi->data_updates, 0);
 		nfsi->ndirty = 0;
@@ -1133,8 +1130,7 @@ static int __init nfs_init_inodecache(void)
 
 static void nfs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(nfs_inode_cachep))
-		printk(KERN_INFO "nfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(nfs_inode_cachep);
 }
 
 /*
@@ -1143,6 +1139,10 @@ static void nfs_destroy_inodecache(void)
 static int __init init_nfs_fs(void)
 {
 	int err;
+
+	err = nfs_fs_proc_init();
+	if (err)
+		goto out5;
 
 	err = nfs_init_nfspagecache();
 	if (err)
@@ -1184,6 +1184,8 @@ out2:
 out3:
 	nfs_destroy_nfspagecache();
 out4:
+	nfs_fs_proc_exit();
+out5:
 	return err;
 }
 
@@ -1198,6 +1200,7 @@ static void __exit exit_nfs_fs(void)
 	rpc_proc_unregister("nfs");
 #endif
 	unregister_nfs_fs();
+	nfs_fs_proc_exit();
 }
 
 /* Not quite true; I just maintain it */

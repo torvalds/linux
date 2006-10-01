@@ -15,6 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/klist.h>
 #include <linux/list.h>
+#include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -51,14 +52,17 @@ struct bus_type {
 	int		(*probe)(struct device * dev);
 	int		(*remove)(struct device * dev);
 	void		(*shutdown)(struct device * dev);
-	int		(*suspend)(struct device * dev, pm_message_t state);
-	int		(*resume)(struct device * dev);
+
+	int (*suspend)(struct device * dev, pm_message_t state);
+	int (*suspend_late)(struct device * dev, pm_message_t state);
+	int (*resume_early)(struct device * dev);
+	int (*resume)(struct device * dev);
 };
 
-extern int bus_register(struct bus_type * bus);
+extern int __must_check bus_register(struct bus_type * bus);
 extern void bus_unregister(struct bus_type * bus);
 
-extern void bus_rescan_devices(struct bus_type * bus);
+extern int __must_check bus_rescan_devices(struct bus_type * bus);
 
 /* iterator helpers for buses */
 
@@ -67,9 +71,9 @@ int bus_for_each_dev(struct bus_type * bus, struct device * start, void * data,
 struct device * bus_find_device(struct bus_type *bus, struct device *start,
 				void *data, int (*match)(struct device *, void *));
 
-int bus_for_each_drv(struct bus_type * bus, struct device_driver * start, 
-		     void * data, int (*fn)(struct device_driver *, void *));
-
+int __must_check bus_for_each_drv(struct bus_type *bus,
+		struct device_driver *start, void *data,
+		int (*fn)(struct device_driver *, void *));
 
 /* driverfs interface for exporting bus attributes */
 
@@ -82,7 +86,8 @@ struct bus_attribute {
 #define BUS_ATTR(_name,_mode,_show,_store)	\
 struct bus_attribute bus_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
-extern int bus_create_file(struct bus_type *, struct bus_attribute *);
+extern int __must_check bus_create_file(struct bus_type *,
+					struct bus_attribute *);
 extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct device_driver {
@@ -101,16 +106,18 @@ struct device_driver {
 	void	(*shutdown)	(struct device * dev);
 	int	(*suspend)	(struct device * dev, pm_message_t state);
 	int	(*resume)	(struct device * dev);
+
+	unsigned int multithread_probe:1;
 };
 
 
-extern int driver_register(struct device_driver * drv);
+extern int __must_check driver_register(struct device_driver * drv);
 extern void driver_unregister(struct device_driver * drv);
 
 extern struct device_driver * get_driver(struct device_driver * drv);
 extern void put_driver(struct device_driver * drv);
 extern struct device_driver *driver_find(const char *name, struct bus_type *bus);
-
+extern int driver_probe_done(void);
 
 /* driverfs interface for exporting driver attributes */
 
@@ -123,15 +130,16 @@ struct driver_attribute {
 #define DRIVER_ATTR(_name,_mode,_show,_store)	\
 struct driver_attribute driver_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
-extern int driver_create_file(struct device_driver *, struct driver_attribute *);
+extern int __must_check driver_create_file(struct device_driver *,
+					struct driver_attribute *);
 extern void driver_remove_file(struct device_driver *, struct driver_attribute *);
 
-extern int driver_for_each_device(struct device_driver * drv, struct device * start,
-				  void * data, int (*fn)(struct device *, void *));
+extern int __must_check driver_for_each_device(struct device_driver * drv,
+		struct device *start, void *data,
+		int (*fn)(struct device *, void *));
 struct device * driver_find_device(struct device_driver *drv,
 				   struct device *start, void *data,
 				   int (*match)(struct device *, void *));
-
 
 /*
  * device classes
@@ -146,17 +154,26 @@ struct class {
 	struct list_head	interfaces;
 	struct semaphore	sem;	/* locks both the children and interfaces lists */
 
+	struct kobject		*virtual_dir;
+
 	struct class_attribute		* class_attrs;
 	struct class_device_attribute	* class_dev_attrs;
+	struct device_attribute		* dev_attrs;
 
 	int	(*uevent)(struct class_device *dev, char **envp,
 			   int num_envp, char *buffer, int buffer_size);
+	int	(*dev_uevent)(struct device *dev, char **envp, int num_envp,
+				char *buffer, int buffer_size);
 
 	void	(*release)(struct class_device *dev);
 	void	(*class_release)(struct class *class);
+	void	(*dev_release)(struct device *dev);
+
+	int	(*suspend)(struct device *, pm_message_t state);
+	int	(*resume)(struct device *);
 };
 
-extern int class_register(struct class *);
+extern int __must_check class_register(struct class *);
 extern void class_unregister(struct class *);
 
 
@@ -169,7 +186,8 @@ struct class_attribute {
 #define CLASS_ATTR(_name,_mode,_show,_store)			\
 struct class_attribute class_attr_##_name = __ATTR(_name,_mode,_show,_store) 
 
-extern int class_create_file(struct class *, const struct class_attribute *);
+extern int __must_check class_create_file(struct class *,
+					const struct class_attribute *);
 extern void class_remove_file(struct class *, const struct class_attribute *);
 
 struct class_device_attribute {
@@ -182,7 +200,7 @@ struct class_device_attribute {
 struct class_device_attribute class_device_attr_##_name = 	\
 	__ATTR(_name,_mode,_show,_store)
 
-extern int class_device_create_file(struct class_device *,
+extern int __must_check class_device_create_file(struct class_device *,
 				    const struct class_device_attribute *);
 
 /**
@@ -242,10 +260,10 @@ class_set_devdata (struct class_device *dev, void *data)
 }
 
 
-extern int class_device_register(struct class_device *);
+extern int __must_check class_device_register(struct class_device *);
 extern void class_device_unregister(struct class_device *);
 extern void class_device_initialize(struct class_device *);
-extern int class_device_add(struct class_device *);
+extern int __must_check class_device_add(struct class_device *);
 extern void class_device_del(struct class_device *);
 
 extern int class_device_rename(struct class_device *, char *);
@@ -255,7 +273,7 @@ extern void class_device_put(struct class_device *);
 
 extern void class_device_remove_file(struct class_device *, 
 				     const struct class_device_attribute *);
-extern int class_device_create_bin_file(struct class_device *,
+extern int __must_check class_device_create_bin_file(struct class_device *,
 					struct bin_attribute *);
 extern void class_device_remove_bin_file(struct class_device *,
 					 struct bin_attribute *);
@@ -266,21 +284,22 @@ struct class_interface {
 
 	int (*add)	(struct class_device *, struct class_interface *);
 	void (*remove)	(struct class_device *, struct class_interface *);
+	int (*add_dev)		(struct device *, struct class_interface *);
+	void (*remove_dev)	(struct device *, struct class_interface *);
 };
 
-extern int class_interface_register(struct class_interface *);
+extern int __must_check class_interface_register(struct class_interface *);
 extern void class_interface_unregister(struct class_interface *);
 
-extern struct class *class_create(struct module *owner, char *name);
+extern struct class *class_create(struct module *owner, const char *name);
 extern void class_destroy(struct class *cls);
 extern struct class_device *class_device_create(struct class *cls,
 						struct class_device *parent,
 						dev_t devt,
 						struct device *device,
-						char *fmt, ...)
+						const char *fmt, ...)
 					__attribute__((format(printf,5,6)));
 extern void class_device_destroy(struct class *cls, dev_t devt);
-
 
 /* interface for exporting device attributes */
 struct device_attribute {
@@ -294,8 +313,13 @@ struct device_attribute {
 #define DEVICE_ATTR(_name,_mode,_show,_store) \
 struct device_attribute dev_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
-extern int device_create_file(struct device *device, struct device_attribute * entry);
+extern int __must_check device_create_file(struct device *device,
+					struct device_attribute * entry);
 extern void device_remove_file(struct device * dev, struct device_attribute * attr);
+extern int __must_check device_create_bin_file(struct device *dev,
+					       struct bin_attribute *attr);
+extern void device_remove_bin_file(struct device *dev,
+				   struct bin_attribute *attr);
 struct device {
 	struct klist		klist_children;
 	struct klist_node	knode_parent;		/* node in sibling list */
@@ -305,6 +329,7 @@ struct device {
 
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
+	unsigned		is_registered:1;
 	struct device_attribute uevent_attr;
 	struct device_attribute *devt_attr;
 
@@ -338,6 +363,7 @@ struct device {
 	struct list_head	node;
 	struct class		*class;		/* optional*/
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
+	struct attribute_group	**groups;	/* optional groups */
 
 	void	(*release)(struct device * dev);
 };
@@ -356,37 +382,40 @@ dev_set_drvdata (struct device *dev, void *data)
 
 static inline int device_is_registered(struct device *dev)
 {
-	return klist_node_attached(&dev->knode_bus);
+	return dev->is_registered;
 }
 
 /*
  * High level routines for use by the bus drivers
  */
-extern int device_register(struct device * dev);
+extern int __must_check device_register(struct device * dev);
 extern void device_unregister(struct device * dev);
 extern void device_initialize(struct device * dev);
-extern int device_add(struct device * dev);
+extern int __must_check device_add(struct device * dev);
 extern void device_del(struct device * dev);
-extern int device_for_each_child(struct device *, void *,
+extern int __must_check device_for_each_child(struct device *, void *,
 		     int (*fn)(struct device *, void *));
+extern int device_rename(struct device *dev, char *new_name);
 
 /*
  * Manual binding of a device to driver. See drivers/base/bus.c
  * for information on use.
  */
-extern void device_bind_driver(struct device * dev);
+extern int __must_check device_bind_driver(struct device *dev);
 extern void device_release_driver(struct device * dev);
-extern int  device_attach(struct device * dev);
-extern void driver_attach(struct device_driver * drv);
-extern void device_reprobe(struct device *dev);
+extern int  __must_check device_attach(struct device * dev);
+extern int __must_check driver_attach(struct device_driver *drv);
+extern int __must_check device_reprobe(struct device *dev);
 
 /*
  * Easy functions for dynamically creating devices on the fly
  */
 extern struct device *device_create(struct class *cls, struct device *parent,
-				    dev_t devt, char *fmt, ...)
+				    dev_t devt, const char *fmt, ...)
 				    __attribute__((format(printf,4,5)));
 extern void device_destroy(struct class *cls, dev_t devt);
+
+extern int virtual_device_parent(struct device *dev);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say
@@ -412,7 +441,7 @@ extern void device_shutdown(void);
 
 
 /* drivers/base/firmware.c */
-extern int firmware_register(struct subsystem *);
+extern int __must_check firmware_register(struct subsystem *);
 extern void firmware_unregister(struct subsystem *);
 
 /* debugging and troubleshooting/diagnostic helpers. */

@@ -26,27 +26,20 @@ target(struct sk_buff **pskb,
        const struct net_device *out,
        unsigned int hooknum,
        const struct xt_target *target,
-       const void *targinfo,
-       void *userinfo)
+       const void *targinfo)
 {
 	const struct ipt_tos_target_info *tosinfo = targinfo;
+	struct iphdr *iph = (*pskb)->nh.iph;
+	__be16 oldtos;
 
-	if (((*pskb)->nh.iph->tos & IPTOS_TOS_MASK) != tosinfo->tos) {
-		u_int16_t diffs[2];
-
+	if ((iph->tos & IPTOS_TOS_MASK) != tosinfo->tos) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return NF_DROP;
-
-		diffs[0] = htons((*pskb)->nh.iph->tos) ^ 0xFFFF;
-		(*pskb)->nh.iph->tos
-			= ((*pskb)->nh.iph->tos & IPTOS_PREC_MASK)
-			| tosinfo->tos;
-		diffs[1] = htons((*pskb)->nh.iph->tos);
-		(*pskb)->nh.iph->check
-			= csum_fold(csum_partial((char *)diffs,
-						 sizeof(diffs),
-						 (*pskb)->nh.iph->check
-						 ^0xFFFF));
+		iph = (*pskb)->nh.iph;
+		oldtos = iph->tos;
+		iph->tos = (iph->tos & IPTOS_PREC_MASK) | tosinfo->tos;
+		iph->check = nf_csum_update(oldtos ^ htons(0xFFFF), iph->tos,
+					    iph->check);
 	}
 	return IPT_CONTINUE;
 }
@@ -56,7 +49,6 @@ checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
            void *targinfo,
-           unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	const u_int8_t tos = ((struct ipt_tos_target_info *)targinfo)->tos;

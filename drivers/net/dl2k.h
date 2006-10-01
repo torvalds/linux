@@ -1,5 +1,5 @@
 /*  D-Link DL2000-based Gigabit Ethernet Adapter Linux driver */
-/*  
+/*
     Copyright (c) 2001, 2002 by D-Link Corporation
     Written by Edward Peng.<edward_peng@dlink.com.tw>
     Created 03-May-2001, base on Linux' sundance.c.
@@ -216,7 +216,7 @@ enum MACCtrl_bits {
 enum ASICCtrl_LoWord_bits {
 	PhyMedia = 0x0080,
 };
-	
+
 enum ASICCtrl_HiWord_bits {
 	GlobalReset = 0x0001,
 	RxReset = 0x0002,
@@ -596,7 +596,7 @@ typedef union t_PCS_ANLPAR {
 } ANLPAR_PCS_t, *PANLPAR_PCS_t;
 
 enum _pcs_anlpar {
-	PCS_ANLPAR_NEXT_PAGE = PCS_ANAR_NEXT_PAGE, 
+	PCS_ANLPAR_NEXT_PAGE = PCS_ANAR_NEXT_PAGE,
 	PCS_ANLPAR_REMOTE_FAULT = PCS_ANAR_REMOTE_FAULT,
 	PCS_ANLPAR_ASYMMETRIC = PCS_ANAR_ASYMMETRIC,
 	PCS_ANLPAR_PAUSE = PCS_ANAR_PAUSE,

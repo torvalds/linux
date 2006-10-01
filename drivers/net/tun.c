@@ -69,7 +69,7 @@ static int debug;
 /* Network device part of the driver */
 
 static LIST_HEAD(tun_dev_list);
-static struct ethtool_ops tun_ethtool_ops;
+static const struct ethtool_ops tun_ethtool_ops;
 
 /* Net device open. */
 static int tun_net_open(struct net_device *dev)
@@ -177,7 +177,7 @@ static struct net_device_stats *tun_net_stats(struct net_device *dev)
 static void tun_net_init(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
-   
+
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case TUN_TUN_DEV:
 		/* Point-to-Point TUN Device */
@@ -186,7 +186,7 @@ static void tun_net_init(struct net_device *dev)
 		dev->mtu = 1500;
 
 		/* Zero header length */
-		dev->type = ARPHRD_NONE; 
+		dev->type = ARPHRD_NONE;
 		dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 		dev->tx_queue_len = TUN_READQ_SIZE;  /* We prefer our own queue length */
 		break;
@@ -206,7 +206,7 @@ static void tun_net_init(struct net_device *dev)
 
 /* Poll */
 static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
-{  
+{
 	struct tun_struct *tun = file->private_data;
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
@@ -216,7 +216,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
 	poll_wait(file, &tun->read_wait, wait);
- 
+
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
 
@@ -240,7 +240,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
 		align = NET_IP_ALIGN;
- 
+
 	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
 		tun->stats.rx_dropped++;
 		return -ENOMEM;
@@ -267,32 +267,31 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	if (tun->flags & TUN_NOCHECKSUM)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
- 
+
 	netif_rx_ni(skb);
 	tun->dev->last_rx = jiffies;
-   
+
 	tun->stats.rx_packets++;
 	tun->stats.rx_bytes += len;
 
 	return count;
-} 
+}
 
 static inline size_t iov_total(const struct iovec *iv, unsigned long count)
 {
 	unsigned long i;
 	size_t len;
 
-	for (i = 0, len = 0; i < count; i++) 
+	for (i = 0, len = 0; i < count; i++)
 		len += iv[i].iov_len;
 
 	return len;
 }
 
-/* Writev */
-static ssize_t tun_chr_writev(struct file * file, const struct iovec *iv, 
-			      unsigned long count, loff_t *pos)
+static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
+			      unsigned long count, loff_t pos)
 {
-	struct tun_struct *tun = file->private_data;
+	struct tun_struct *tun = iocb->ki_filp->private_data;
 
 	if (!tun)
 		return -EBADFD;
@@ -300,14 +299,6 @@ static ssize_t tun_chr_writev(struct file * file, const struct iovec *iv,
 	DBG(KERN_INFO "%s: tun_chr_write %ld\n", tun->dev->name, count);
 
 	return tun_get_user(tun, (struct iovec *) iv, iov_total(iv, count));
-}
-
-/* Write */
-static ssize_t tun_chr_write(struct file * file, const char __user * buf, 
-			     size_t count, loff_t *pos)
-{
-	struct iovec iv = { (void __user *) buf, count };
-	return tun_chr_writev(file, &iv, 1, pos);
 }
 
 /* Put packet to the user space buffer */
@@ -326,11 +317,11 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 			/* Packet will be striped */
 			pi.flags |= TUN_PKT_STRIP;
 		}
- 
+
 		if (memcpy_toiovec(iv, (void *) &pi, sizeof(pi)))
 			return -EFAULT;
 		total += sizeof(pi);
-	}       
+	}
 
 	len = min_t(int, skb->len, len);
 
@@ -343,10 +334,10 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 	return total;
 }
 
-/* Readv */
-static ssize_t tun_chr_readv(struct file *file, const struct iovec *iv,
-			    unsigned long count, loff_t *pos)
+static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
+			    unsigned long count, loff_t pos)
 {
+	struct file *file = iocb->ki_filp;
 	struct tun_struct *tun = file->private_data;
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
@@ -426,14 +417,6 @@ static ssize_t tun_chr_readv(struct file *file, const struct iovec *iv,
 	return ret;
 }
 
-/* Read */
-static ssize_t tun_chr_read(struct file * file, char __user * buf, 
-			    size_t count, loff_t *pos)
-{
-	struct iovec iv = { buf, count };
-	return tun_chr_readv(file, &iv, 1, pos);
-}
-
 static void tun_setup(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
@@ -480,8 +463,8 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		if (tun->owner != -1 &&
 		    current->euid != tun->owner && !capable(CAP_NET_ADMIN))
 			return -EPERM;
-	} 
-	else if (__dev_get_by_name(ifr->ifr_name)) 
+	}
+	else if (__dev_get_by_name(ifr->ifr_name))
 		return -EINVAL;
 	else {
 		char *name;
@@ -501,9 +484,9 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 			/* TAP device */
 			flags |= TUN_TAP_DEV;
 			name = "tap%d";
-		} else 
+		} else
 			goto failed;
-   
+
 		if (*ifr->ifr_name)
 			name = ifr->ifr_name;
 
@@ -533,7 +516,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_dev;
-	
+
 		list_add(&tun->list, &tun_dev_list);
 	}
 
@@ -557,7 +540,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 	return err;
 }
 
-static int tun_chr_ioctl(struct inode *inode, struct file *file, 
+static int tun_chr_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct tun_struct *tun = file->private_data;
@@ -711,14 +694,14 @@ static int tun_chr_fasync(int fd, struct file *file, int on)
 	DBG(KERN_INFO "%s: tun_chr_fasync %d\n", tun->dev->name, on);
 
 	if ((ret = fasync_helper(fd, file, on, &tun->fasync)) < 0)
-		return ret; 
- 
+		return ret;
+
 	if (on) {
 		ret = f_setown(file, current->pid, 0);
 		if (ret)
 			return ret;
 		tun->flags |= TUN_FASYNC;
-	} else 
+	} else
 		tun->flags &= ~TUN_FASYNC;
 
 	return 0;
@@ -762,17 +745,17 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 }
 
 static struct file_operations tun_fops = {
-	.owner	= THIS_MODULE,	
+	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
-	.read	= tun_chr_read,
-	.readv	= tun_chr_readv,
-	.write	= tun_chr_write,
-	.writev = tun_chr_writev,
+	.read  = do_sync_read,
+	.aio_read  = tun_chr_aio_read,
+	.write = do_sync_write,
+	.aio_write = tun_chr_aio_write,
 	.poll	= tun_chr_poll,
 	.ioctl	= tun_chr_ioctl,
 	.open	= tun_chr_open,
 	.release = tun_chr_close,
-	.fasync = tun_chr_fasync		
+	.fasync = tun_chr_fasync
 };
 
 static struct miscdevice tun_miscdev = {
@@ -856,7 +839,7 @@ static int tun_set_rx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops tun_ethtool_ops = {
+static const struct ethtool_ops tun_ethtool_ops = {
 	.get_settings	= tun_get_settings,
 	.get_drvinfo	= tun_get_drvinfo,
 	.get_msglevel	= tun_get_msglevel,
@@ -883,7 +866,7 @@ static void tun_cleanup(void)
 {
 	struct tun_struct *tun, *nxt;
 
-	misc_deregister(&tun_miscdev);  
+	misc_deregister(&tun_miscdev);
 
 	rtnl_lock();
 	list_for_each_entry_safe(tun, nxt, &tun_dev_list, list) {
@@ -891,7 +874,7 @@ static void tun_cleanup(void)
 		unregister_netdevice(tun->dev);
 	}
 	rtnl_unlock();
-	
+
 }
 
 module_init(tun_init);

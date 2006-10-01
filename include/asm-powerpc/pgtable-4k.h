@@ -88,10 +88,11 @@
 #define pgd_bad(pgd)		(pgd_val(pgd) == 0)
 #define pgd_present(pgd)	(pgd_val(pgd) != 0)
 #define pgd_clear(pgdp)		(pgd_val(*(pgdp)) = 0)
-#define pgd_page(pgd)		(pgd_val(pgd) & ~PGD_MASKED_BITS)
+#define pgd_page_vaddr(pgd)	(pgd_val(pgd) & ~PGD_MASKED_BITS)
+#define pgd_page(pgd)		virt_to_page(pgd_page_vaddr(pgd))
 
 #define pud_offset(pgdp, addr)	\
-  (((pud_t *) pgd_page(*(pgdp))) + \
+  (((pud_t *) pgd_page_vaddr(*(pgdp))) + \
     (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
 
 #define pud_ERROR(e) \

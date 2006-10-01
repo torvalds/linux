@@ -191,9 +191,10 @@ define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
 	$(cmd_modversions)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' > $(@D)/.$(@F).tmp;  \
+	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
+	                                              $(dot-target).tmp;  \
 	rm -f $(depfile);						  \
-	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd
+	mv -f $(dot-target).tmp $(dot-target).cmd
 endef
 
 # Built-in and composite module parts

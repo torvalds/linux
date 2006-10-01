@@ -41,8 +41,13 @@
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
+
+#ifdef CONFIG_MIPS_ATLAS
+#include <asm/mips-boards/atlasint.h>
+#endif
+#ifdef CONFIG_MIPS_MALTA
 #include <asm/mips-boards/maltaint.h>
-#include <asm/mc146818-time.h>
+#endif
 
 unsigned long cpu_khz;
 
@@ -92,10 +97,9 @@ extern int (*perf_irq)(struct pt_regs *regs);
 irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
-	int r2 = cpu_has_mips_r2;
 
 #ifdef CONFIG_MIPS_MT_SMTC
-        /*
+	/*
 	 *  In an SMTC system, one Count/Compare set exists per VPE.
 	 *  Which TC within a VPE gets the interrupt is essentially
 	 *  random - we only know that it shouldn't be one with
@@ -108,29 +112,46 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 *  the general MIPS timer_interrupt routine.
 	 */
 
+	int vpflags;
+
 	/*
-	 * DVPE is necessary so long as cross-VPE interrupts
-	 * are done via read-modify-write of Cause register.
+	 * We could be here due to timer interrupt,
+	 * perf counter overflow, or both.
 	 */
-	int vpflags = dvpe();
-	write_c0_compare (read_c0_count() - 1);
-	clear_c0_cause(CPUCTR_IMASKBIT);
-	evpe(vpflags);
+	if (read_c0_cause() & (1 << 26))
+		perf_irq(regs);
 
-	if (cpu_data[cpu].vpe_id == 0) {
-		timer_interrupt(irq, dev_id, regs);
-		scroll_display_message();
-	} else
-		write_c0_compare (read_c0_count() + ( mips_hpt_frequency/HZ));
-	smtc_timer_broadcast(cpu_data[cpu].vpe_id);
-
-	if (cpu != 0)
+	if (read_c0_cause() & (1 << 30)) {
+		/* If timer interrupt, make it de-assert */
+		write_c0_compare (read_c0_count() - 1);
 		/*
-		 * Other CPUs should do profiling and process accounting
+		 * DVPE is necessary so long as cross-VPE interrupts
+		 * are done via read-modify-write of Cause register.
 		 */
-		local_timer_interrupt(irq, dev_id, regs);
-
+		vpflags = dvpe();
+		clear_c0_cause(CPUCTR_IMASKBIT);
+		evpe(vpflags);
+		/*
+		 * There are things we only want to do once per tick
+		 * in an "MP" system.   One TC of each VPE will take
+		 * the actual timer interrupt.  The others will get
+		 * timer broadcast IPIs. We use whoever it is that takes
+		 * the tick on VPE 0 to run the full timer_interrupt().
+		 */
+		if (cpu_data[cpu].vpe_id == 0) {
+				timer_interrupt(irq, NULL, regs);
+				smtc_timer_broadcast(cpu_data[cpu].vpe_id);
+				scroll_display_message();
+		} else {
+			write_c0_compare(read_c0_count() +
+			                 (mips_hpt_frequency/HZ));
+			local_timer_interrupt(irq, dev_id, regs);
+			smtc_timer_broadcast(cpu_data[cpu].vpe_id);
+		}
+	}
 #else /* CONFIG_MIPS_MT_SMTC */
+	int r2 = cpu_has_mips_r2;
+
 	if (cpu == 0) {
 		/*
 		 * CPU 0 handles the global timer interrupt job and process
@@ -161,9 +182,8 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 */
 		local_timer_interrupt(irq, dev_id, regs);
 	}
-#endif /* CONFIG_MIPS_MT_SMTC */
-
 out:
+#endif /* CONFIG_MIPS_MT_SMTC */
 	return IRQ_HANDLED;
 }
 

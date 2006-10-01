@@ -15,11 +15,11 @@
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 
+#include "mm.h"
+
 #ifdef CONFIG_CPU_CACHE_VIPT
 
 #define ALIAS_FLUSH_START	0xffff4000
-
-#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {
@@ -107,7 +107,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 	/* VIPT non-aliasing cache */
 	if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask) &&
-	    vma->vm_flags | VM_EXEC) {
+	    vma->vm_flags & VM_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 		/* only flushing the kernel mapping on non-aliasing VIPT */
 		__cpuc_coherent_kern_range(addr, addr + len);

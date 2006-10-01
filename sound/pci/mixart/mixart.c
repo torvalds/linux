@@ -1109,13 +1109,13 @@ static long long snd_mixart_BA0_llseek(struct snd_info_entry *entry,
 	offset = offset & ~3; /* 4 bytes aligned */
 
 	switch(orig) {
-	case 0:  /* SEEK_SET */
+	case SEEK_SET:
 		file->f_pos = offset;
 		break;
-	case 1:  /* SEEK_CUR */
+	case SEEK_CUR:
 		file->f_pos += offset;
 		break;
-	case 2:  /* SEEK_END, offset is negative */
+	case SEEK_END: /* offset is negative */
 		file->f_pos = MIXART_BA0_SIZE + offset;
 		break;
 	default:
@@ -1135,13 +1135,13 @@ static long long snd_mixart_BA1_llseek(struct snd_info_entry *entry,
 	offset = offset & ~3; /* 4 bytes aligned */
 
 	switch(orig) {
-	case 0:  /* SEEK_SET */
+	case SEEK_SET:
 		file->f_pos = offset;
 		break;
-	case 1:  /* SEEK_CUR */
+	case SEEK_CUR:
 		file->f_pos += offset;
 		break;
-	case 2: /* SEEK_END, offset is negative */
+	case SEEK_END: /* offset is negative */
 		file->f_pos = MIXART_BA1_SIZE + offset;
 		break;
 	default:

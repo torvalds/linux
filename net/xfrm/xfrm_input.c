@@ -46,7 +46,7 @@ EXPORT_SYMBOL(secpath_dup);
 
 /* Fetch spi and seq from ipsec header */
 
-int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
+int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 {
 	int offset, offset_seq;
 
@@ -62,7 +62,7 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
 			return -EINVAL;
-		*spi = htonl(ntohs(*(u16*)(skb->h.raw + 2)));
+		*spi = htonl(ntohs(*(__be16*)(skb->h.raw + 2)));
 		*seq = 0;
 		return 0;
 	default:
@@ -72,8 +72,8 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 	if (!pskb_may_pull(skb, 16))
 		return -EINVAL;
 
-	*spi = *(u32*)(skb->h.raw + offset);
-	*seq = *(u32*)(skb->h.raw + offset_seq);
+	*spi = *(__be32*)(skb->h.raw + offset);
+	*seq = *(__be32*)(skb->h.raw + offset_seq);
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_parse_spi);
@@ -82,8 +82,6 @@ void __init xfrm_input_init(void)
 {
 	secpath_cachep = kmem_cache_create("secpath_cache",
 					   sizeof(struct sec_path),
-					   0, SLAB_HWCACHE_ALIGN,
+					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 					   NULL, NULL);
-	if (!secpath_cachep)
-		panic("XFRM: failed to allocate secpath_cache\n");
 }

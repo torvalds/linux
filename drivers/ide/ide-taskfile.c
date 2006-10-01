@@ -363,7 +363,7 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 
 static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
-	if (rq->flags & REQ_DRIVE_TASKFILE) {
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = rq->special;
 
 		if (task->tf_out_flags.all) {
@@ -474,7 +474,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	struct request rq;
 
 	memset(&rq, 0, sizeof(rq));
-	rq.flags = REQ_DRIVE_TASKFILE;
+	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq.buffer = buf;
 
 	/*
@@ -499,7 +499,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 		rq.hard_cur_sectors = rq.current_nr_sectors = rq.nr_sectors;
 
 		if (args->command_type == IDE_DRIVE_TASK_RAW_WRITE)
-			rq.flags |= REQ_RW;
+			rq.cmd_flags |= REQ_RW;
 	}
 
 	rq.special = args;
@@ -737,7 +737,7 @@ static int ide_wait_cmd_task(ide_drive_t *drive, u8 *buf)
 	struct request rq;
 
 	ide_init_drive_cmd(&rq);
-	rq.flags = REQ_DRIVE_TASK;
+	rq.cmd_type = REQ_TYPE_ATA_TASK;
 	rq.buffer = buf;
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
 }

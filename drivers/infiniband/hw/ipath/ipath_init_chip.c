@@ -53,8 +53,8 @@ module_param_named(cfgports, ipath_cfgports, ushort, S_IRUGO);
 MODULE_PARM_DESC(cfgports, "Set max number of ports to use");
 
 /*
- * Number of buffers reserved for driver (layered drivers and SMA
- * send).  Reserved at end of buffer list.   Initialized based on
+ * Number of buffers reserved for driver (verbs and layered drivers.)
+ * Reserved at end of buffer list.   Initialized based on
  * number of PIO buffers if not set via module interface.
  * The problem with this is that it's global, but we'll use different
  * numbers for different chip types.  So the default value is not
@@ -80,7 +80,7 @@ MODULE_PARM_DESC(kpiobufs, "Set number of PIO buffers for driver");
  *
  * Allocate the eager TID buffers and program them into infinipath.
  * We use the network layer alloc_skb() allocator to allocate the
- * memory, and either use the buffers as is for things like SMA
+ * memory, and either use the buffers as is for things like verbs
  * packets, or pass the buffers up to the ipath layered driver and
  * thence the network layer, replacing them as we do so (see
  * ipath_rcv_layer()).
@@ -88,13 +88,13 @@ MODULE_PARM_DESC(kpiobufs, "Set number of PIO buffers for driver");
 static int create_port0_egr(struct ipath_devdata *dd)
 {
 	unsigned e, egrcnt;
-	struct sk_buff **skbs;
+	struct ipath_skbinfo *skbinfo;
 	int ret;
 
 	egrcnt = dd->ipath_rcvegrcnt;
 
-	skbs = vmalloc(sizeof(*dd->ipath_port0_skbs) * egrcnt);
-	if (skbs == NULL) {
+	skbinfo = vmalloc(sizeof(*dd->ipath_port0_skbinfo) * egrcnt);
+	if (skbinfo == NULL) {
 		ipath_dev_err(dd, "allocation error for eager TID "
 			      "skb array\n");
 		ret = -ENOMEM;
@@ -109,13 +109,13 @@ static int create_port0_egr(struct ipath_devdata *dd)
 		 * 4 bytes so that the data buffer stays word aligned.
 		 * See ipath_kreceive() for more details.
 		 */
-		skbs[e] = ipath_alloc_skb(dd, GFP_KERNEL);
-		if (!skbs[e]) {
+		skbinfo[e].skb = ipath_alloc_skb(dd, GFP_KERNEL);
+		if (!skbinfo[e].skb) {
 			ipath_dev_err(dd, "SKB allocation error for "
 				      "eager TID %u\n", e);
 			while (e != 0)
-				dev_kfree_skb(skbs[--e]);
-			vfree(skbs);
+				dev_kfree_skb(skbinfo[--e].skb);
+			vfree(skbinfo);
 			ret = -ENOMEM;
 			goto bail;
 		}
@@ -124,14 +124,17 @@ static int create_port0_egr(struct ipath_devdata *dd)
 	 * After loop above, so we can test non-NULL to see if ready
 	 * to use at receive, etc.
 	 */
-	dd->ipath_port0_skbs = skbs;
+	dd->ipath_port0_skbinfo = skbinfo;
 
 	for (e = 0; e < egrcnt; e++) {
-		unsigned long phys =
-			virt_to_phys(dd->ipath_port0_skbs[e]->data);
+		dd->ipath_port0_skbinfo[e].phys =
+		  ipath_map_single(dd->pcidev,
+				   dd->ipath_port0_skbinfo[e].skb->data,
+				   dd->ipath_ibmaxlen, PCI_DMA_FROMDEVICE);
 		dd->ipath_f_put_tid(dd, e + (u64 __iomem *)
 				    ((char __iomem *) dd->ipath_kregbase +
-				     dd->ipath_rcvegrbase), 0, phys);
+				     dd->ipath_rcvegrbase), 0,
+				    dd->ipath_port0_skbinfo[e].phys);
 	}
 
 	ret = 0;
@@ -240,7 +243,11 @@ static int init_chip_first(struct ipath_devdata *dd,
 			  "only supports %u\n", ipath_cfgports,
 			  dd->ipath_portcnt);
 	}
-	dd->ipath_pd = kzalloc(sizeof(*dd->ipath_pd) * dd->ipath_cfgports,
+	/*
+	 * Allocate full portcnt array, rather than just cfgports, because
+	 * cleanup iterates across all possible ports.
+	 */
+	dd->ipath_pd = kzalloc(sizeof(*dd->ipath_pd) * dd->ipath_portcnt,
 			       GFP_KERNEL);
 
 	if (!dd->ipath_pd) {
@@ -428,16 +435,33 @@ done:
  */
 static void init_shadow_tids(struct ipath_devdata *dd)
 {
-	dd->ipath_pageshadow = (struct page **)
-		vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+	struct page **pages;
+	dma_addr_t *addrs;
+
+	pages = vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
 			sizeof(struct page *));
-	if (!dd->ipath_pageshadow)
+	if (!pages) {
 		ipath_dev_err(dd, "failed to allocate shadow page * "
 			      "array, no expected sends!\n");
-	else
-		memset(dd->ipath_pageshadow, 0,
-		       dd->ipath_cfgports * dd->ipath_rcvtidcnt *
-		       sizeof(struct page *));
+		dd->ipath_pageshadow = NULL;
+		return;
+	}
+
+	addrs = vmalloc(dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+			sizeof(dma_addr_t));
+	if (!addrs) {
+		ipath_dev_err(dd, "failed to allocate shadow dma handle "
+			      "array, no expected sends!\n");
+		vfree(dd->ipath_pageshadow);
+		dd->ipath_pageshadow = NULL;
+		return;
+	}
+
+	memset(pages, 0, dd->ipath_cfgports * dd->ipath_rcvtidcnt *
+	       sizeof(struct page *));
+
+	dd->ipath_pageshadow = pages;
+	dd->ipath_physshadow = addrs;
 }
 
 static void enable_chip(struct ipath_devdata *dd,
@@ -446,9 +470,9 @@ static void enable_chip(struct ipath_devdata *dd,
 	u32 val;
 	int i;
 
-	if (!reinit) {
-		init_waitqueue_head(&ipath_sma_state_wait);
-	}
+	if (!reinit)
+		init_waitqueue_head(&ipath_state_wait);
+
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
@@ -687,7 +711,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	dd->ipath_pioavregs = ALIGN(val, sizeof(u64) * BITS_PER_BYTE / 2)
 		/ (sizeof(u64) * BITS_PER_BYTE / 2);
 	if (ipath_kpiobufs == 0) {
-		/* not set by user, or set explictly to default  */
+		/* not set by user (this is default) */
 		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) > 128)
 			kpiobufs = 32;
 		else
@@ -946,6 +970,7 @@ static int ipath_set_kpiobufs(const char *str, struct kernel_param *kp)
 			dd->ipath_piobcnt2k + dd->ipath_piobcnt4k - val;
 	}
 
+	ipath_kpiobufs = val;
 	ret = 0;
 bail:
 	spin_unlock_irqrestore(&ipath_devs_lock, flags);

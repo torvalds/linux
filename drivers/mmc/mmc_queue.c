@@ -28,7 +28,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	struct mmc_queue *mq = q->queuedata;
 	int ret = BLKPREP_KILL;
 
-	if (req->flags & REQ_SPECIAL) {
+	if (blk_special_request(req)) {
 		/*
 		 * Special commands already have the command
 		 * blocks already setup in req->special.
@@ -36,7 +36,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 		BUG_ON(!req->special);
 
 		ret = BLKPREP_OK;
-	} else if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
+	} else if (blk_fs_request(req) || blk_pc_request(req)) {
 		/*
 		 * Block I/O requests need translating according
 		 * to the protocol.
@@ -50,7 +50,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	}
 
 	if (ret == BLKPREP_OK)
-		req->flags |= REQ_DONTPREP;
+		req->cmd_flags |= REQ_DONTPREP;
 
 	return ret;
 }

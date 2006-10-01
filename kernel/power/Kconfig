@@ -36,6 +36,17 @@ config PM_DEBUG
 	code. This is helpful when debugging and reporting various PM bugs, 
 	like suspend support.
 
+config DISABLE_CONSOLE_SUSPEND
+	bool "Keep console(s) enabled during suspend/resume (DANGEROUS)"
+	depends on PM && PM_DEBUG
+	default n
+	---help---
+	This option turns off the console suspend mechanism that prevents
+	debug messages from reaching the console during the suspend/resume
+	operations.  This may be helpful when debugging device drivers'
+	suspend/resume routines, but may itself lead to problems, for example
+	if netconsole is used.
+
 config PM_TRACE
 	bool "Suspend/resume event tracing"
 	depends on PM && PM_DEBUG && X86_32 && EXPERIMENTAL
@@ -53,6 +64,17 @@ config PM_TRACE
 	CAUTION: this option will cause your machine's real-time clock to be
 	set to an invalid time after a resume.
 
+config PM_SYSFS_DEPRECATED
+	bool "Driver model /sys/devices/.../power/state files (DEPRECATED)"
+	depends on PM && SYSFS
+	default n
+	help
+	  The driver model started out with a sysfs file intended to provide
+	  a userspace hook for device power management.  This feature has never
+	  worked very well, except for limited testing purposes, and so it will
+	  be removed.   It's not clear that a generic mechanism could really
+	  handle the wide variability of device power states; any replacements
+	  are likely to be bus or driver specific.
 
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"

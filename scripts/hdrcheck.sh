@@ -6,3 +6,5 @@ for FILE in `grep '^[ \t]*#[ \t]*include[ \t]*<' $2 | cut -f2 -d\< | cut -f1 -d\
 	exit 1
     fi
 done
+# FIXME: List dependencies into $3
+touch $3

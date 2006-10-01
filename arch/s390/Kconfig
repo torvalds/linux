@@ -51,6 +51,10 @@ config 64BIT
 	  Select this option if you have a 64 bit IBM zSeries machine
 	  and want to use the 64 bit addressing mode.
 
+config 32BIT
+	bool
+	default y if !64BIT
+
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
@@ -148,6 +152,14 @@ config MARCH_Z990
 	  Select this enable optimizations for model z890/z990.
 	  This will be slightly faster but does not work on
 	  older machines such as the z900.
+
+config MARCH_Z9_109
+	bool "IBM System z9"
+	help
+	  Select this to enable optimizations for IBM System z9-109, IBM
+	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
+	  Class (z9 BC). The kernel will be slightly faster but will not
+	  work on older machines such as the z990, z890, z900, and z800.
 
 endchoice
 
@@ -460,8 +472,7 @@ config S390_HYPFS_FS
 	  information in an s390 hypervisor environment.
 
 config KEXEC
-	bool "kexec system call (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "kexec system call"
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -487,7 +498,21 @@ source "drivers/net/Kconfig"
 
 source "fs/Kconfig"
 
+menu "Instrumentation Support"
+
 source "arch/s390/oprofile/Kconfig"
+
+config KPROBES
+	bool "Kprobes (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && MODULES
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.	register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+
+endmenu
 
 source "arch/s390/Kconfig.debug"
 

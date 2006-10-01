@@ -13,6 +13,99 @@
 #ifndef __DIB3000MB_PRIV_H_INCLUDED__
 #define __DIB3000MB_PRIV_H_INCLUDED__
 
+/* info and err, taken from usb.h, if there is anything available like by default. */
+#define err(format, arg...)  printk(KERN_ERR     "dib3000: " format "\n" , ## arg)
+#define info(format, arg...) printk(KERN_INFO    "dib3000: " format "\n" , ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "dib3000: " format "\n" , ## arg)
+
+/* handy shortcuts */
+#define rd(reg) dib3000_read_reg(state,reg)
+
+#define wr(reg,val) if (dib3000_write_reg(state,reg,val)) \
+	{ err("while sending 0x%04x to 0x%04x.",val,reg); return -EREMOTEIO; }
+
+#define wr_foreach(a,v) { int i; \
+	if (sizeof(a) != sizeof(v)) \
+		err("sizeof: %zu %zu is different",sizeof(a),sizeof(v));\
+	for (i=0; i < sizeof(a)/sizeof(u16); i++) \
+		wr(a[i],v[i]); \
+	}
+
+#define set_or(reg,val) wr(reg,rd(reg) | val)
+
+#define set_and(reg,val) wr(reg,rd(reg) & val)
+
+/* debug */
+
+#ifdef CONFIG_DVB_DIBCOM_DEBUG
+#define dprintk(level,args...) \
+    do { if ((debug & level)) { printk(args); } } while (0)
+#else
+#define dprintk(args...) do { } while (0)
+#endif
+
+/* mask for enabling a specific pid for the pid_filter */
+#define DIB3000_ACTIVATE_PID_FILTERING	(0x2000)
+
+/* common values for tuning */
+#define DIB3000_ALPHA_0					(     0)
+#define DIB3000_ALPHA_1					(     1)
+#define DIB3000_ALPHA_2					(     2)
+#define DIB3000_ALPHA_4					(     4)
+
+#define DIB3000_CONSTELLATION_QPSK		(     0)
+#define DIB3000_CONSTELLATION_16QAM		(     1)
+#define DIB3000_CONSTELLATION_64QAM		(     2)
+
+#define DIB3000_GUARD_TIME_1_32			(     0)
+#define DIB3000_GUARD_TIME_1_16			(     1)
+#define DIB3000_GUARD_TIME_1_8			(     2)
+#define DIB3000_GUARD_TIME_1_4			(     3)
+
+#define DIB3000_TRANSMISSION_MODE_2K	(     0)
+#define DIB3000_TRANSMISSION_MODE_8K	(     1)
+
+#define DIB3000_SELECT_LP				(     0)
+#define DIB3000_SELECT_HP				(     1)
+
+#define DIB3000_FEC_1_2					(     1)
+#define DIB3000_FEC_2_3					(     2)
+#define DIB3000_FEC_3_4					(     3)
+#define DIB3000_FEC_5_6					(     5)
+#define DIB3000_FEC_7_8					(     7)
+
+#define DIB3000_HRCH_OFF				(     0)
+#define DIB3000_HRCH_ON					(     1)
+
+#define DIB3000_DDS_INVERSION_OFF		(     0)
+#define DIB3000_DDS_INVERSION_ON		(     1)
+
+#define DIB3000_TUNER_WRITE_ENABLE(a)	(0xffff & (a << 8))
+#define DIB3000_TUNER_WRITE_DISABLE(a)	(0xffff & ((a << 8) | (1 << 7)))
+
+#define DIB3000_REG_MANUFACTOR_ID		(  1025)
+#define DIB3000_I2C_ID_DIBCOM			(0x01b3)
+
+#define DIB3000_REG_DEVICE_ID			(  1026)
+#define DIB3000MB_DEVICE_ID				(0x3000)
+#define DIB3000MC_DEVICE_ID				(0x3001)
+#define DIB3000P_DEVICE_ID				(0x3002)
+
+/* frontend state */
+struct dib3000_state {
+	struct i2c_adapter* i2c;
+
+/* configuration settings */
+	struct dib3000_config config;
+
+	struct dvb_frontend frontend;
+	int timing_offset;
+	int timing_offset_comp_done;
+
+	fe_bandwidth_t last_tuned_bw;
+	u32 last_tuned_freq;
+};
+
 /* register addresses and some of their default values */
 
 /* restart subsystems */

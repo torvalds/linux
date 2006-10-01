@@ -1620,7 +1620,8 @@ D: fbdev hacking
 
 N: Jesper Juhl
 E: jesper.juhl@gmail.com
-D: Various fixes, cleanups and minor features.
+D: Various fixes, cleanups and minor features all over the tree.
+D: Wrote initial version of the hdaps driver (since passed on to others).
 S: Lemnosvej 1, 3.tv
 S: 2300 Copenhagen S.
 S: Denmark
@@ -2384,6 +2385,13 @@ N: Thomas Molina
 E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
+N: Paul Moore
+E: paul.moore@hp.com
+D: NetLabel author
+S: Hewlett-Packard
+S: 110 Spit Brook Road
+S: Nashua, NH 03062
+
 N: James Morris
 E: jmorris@namei.org
 W: http://namei.org/
@@ -2470,7 +2478,8 @@ S: Derbyshire DE4 3RL
 S: United Kingdom
 
 N: Ian S. Nelson
-E: ian.nelson@echostar.com
+E: nelsonis@earthlink.net
+P: 1024D/00D3D983 3EFD 7B86 B888 D7E2 29B6  9E97 576F 1B97 00D3 D983
 D: Minor mmap and ide hacks
 S: 1370 Atlantis Ave.
 S: Lafayette CO, 80026

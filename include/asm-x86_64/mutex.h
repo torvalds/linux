@@ -25,13 +25,9 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 		LOCK_PREFIX "   decl (%%rdi)	\n"			\
-			"   js 2f		\n"			\
-			"1:			\n"			\
-									\
-		LOCK_SECTION_START("")					\
-			"2: call "#fail_fn"	\n"			\
-			"   jmp 1b		\n"			\
-		LOCK_SECTION_END					\
+			"   jns 1f		\n"			\
+			"   call "#fail_fn"	\n"			\
+			"1:"						\
 									\
 		:"=D" (dummy)						\
 		: "D" (v)						\
@@ -75,13 +71,9 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 		LOCK_PREFIX "   incl (%%rdi)	\n"			\
-			"   jle 2f		\n"			\
-			"1:			\n"			\
-									\
-		LOCK_SECTION_START("")					\
-			"2: call "#fail_fn"	\n"			\
-			"   jmp 1b		\n"			\
-		LOCK_SECTION_END					\
+			"   jg 1f		\n"			\
+			"   call "#fail_fn"	\n"			\
+			"1:			  "			\
 									\
 		:"=D" (dummy)						\
 		: "D" (v)						\

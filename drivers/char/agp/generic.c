@@ -568,25 +568,37 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		*bridge_agpstat &= ~(AGPSTAT3_4X | AGPSTAT3_RSVD);
 		goto done;
 
+	} else if (*requested_mode & AGPSTAT3_4X) {
+		*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
+		*bridge_agpstat |= AGPSTAT3_4X;
+		goto done;
+
 	} else {
 
 		/*
-		 * If we didn't specify AGPx8, we can only do x4.
-		 * If the hardware can't do x4, we're up shit creek, and never
-		 *  should have got this far.
+		 * If we didn't specify an AGP mode, we see if both
+		 * the graphics card, and the bridge can do x8, and use if so.
+		 * If not, we fall back to x4 mode.
 		 */
-		*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
-		if ((*bridge_agpstat & AGPSTAT3_4X) && (*vga_agpstat & AGPSTAT3_4X))
-			*bridge_agpstat |= AGPSTAT3_4X;
-		else {
-			printk(KERN_INFO PFX "Badness. Don't know which AGP mode to set. "
-							"[bridge_agpstat:%x vga_agpstat:%x fell back to:- bridge_agpstat:%x vga_agpstat:%x]\n",
-							origbridge, origvga, *bridge_agpstat, *vga_agpstat);
-			if (!(*bridge_agpstat & AGPSTAT3_4X))
-				printk(KERN_INFO PFX "Bridge couldn't do AGP x4.\n");
-			if (!(*vga_agpstat & AGPSTAT3_4X))
-				printk(KERN_INFO PFX "Graphic card couldn't do AGP x4.\n");
-			return;
+		if ((*bridge_agpstat & AGPSTAT3_8X) && (*vga_agpstat & AGPSTAT3_8X)) {
+			printk(KERN_INFO PFX "No AGP mode specified. Setting to highest mode "
+				"supported by bridge & card (x8).\n");
+			*bridge_agpstat &= ~(AGPSTAT3_4X | AGPSTAT3_RSVD);
+			*vga_agpstat &= ~(AGPSTAT3_4X | AGPSTAT3_RSVD);
+		} else {
+			printk(KERN_INFO PFX "Fell back to AGPx4 mode because");
+			if (!(*bridge_agpstat & AGPSTAT3_8X)) {
+				printk(KERN_INFO PFX "bridge couldn't do x8. bridge_agpstat:%x (orig=%x)\n",
+					*bridge_agpstat, origbridge);
+				*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
+				*bridge_agpstat |= AGPSTAT3_4X;
+			}
+			if (!(*vga_agpstat & AGPSTAT3_8X)) {
+				printk(KERN_INFO PFX "graphics card couldn't do x8. vga_agpstat:%x (orig=%x)\n",
+					*vga_agpstat, origvga);
+				*vga_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
+				*vga_agpstat |= AGPSTAT3_4X;
+			}
 		}
 	}
 

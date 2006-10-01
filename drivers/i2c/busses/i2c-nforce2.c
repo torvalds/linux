@@ -109,7 +109,7 @@ static s32 nforce2_access(struct i2c_adapter *adap, u16 addr,
 static u32 nforce2_func(struct i2c_adapter *adapter);
 
 
-static struct i2c_algorithm smbus_algorithm = {
+static const struct i2c_algorithm smbus_algorithm = {
 	.smbus_xfer = nforce2_access,
 	.functionality = nforce2_func,
 };

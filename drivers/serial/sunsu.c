@@ -1499,6 +1499,9 @@ static int __devexit su_remove(struct of_device *dev)
 		uart_remove_one_port(&sunsu_reg, &up->port);
 	}
 
+	if (up->port.membase)
+		of_iounmap(up->port.membase, up->reg_size);
+
 	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;

@@ -3374,6 +3374,10 @@ __setup("parport_init_mode=",parport_init_mode_setup);
 
 static int __init parport_pc_init(void)
 {
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(PARALLEL_BASE))
+		return -ENODEV;
+#endif
 	if (parse_parport_params())
 		return -EINVAL;
 

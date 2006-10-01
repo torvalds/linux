@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <asm/io.h>
 
 /* Address is autodetected, there is no default value */
@@ -128,6 +129,7 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 
 static struct i2c_driver smsc47m1_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "smsc47m1",
 	},
 	.attach_adapter	= smsc47m1_detect,
@@ -346,6 +348,30 @@ fan_present(2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
 
+/* Almost all sysfs files may or may not be created depending on the chip
+   setup so we create them individually. It is still convenient to define a
+   group to remove them all at once. */
+static struct attribute *smsc47m1_attributes[] = {
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_fan2_div.attr,
+
+	&dev_attr_pwm1.attr,
+	&dev_attr_pwm1_enable.attr,
+	&dev_attr_pwm2.attr,
+	&dev_attr_pwm2_enable.attr,
+
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group smsc47m1_group = {
+	.attrs = smsc47m1_attributes,
+};
+
 static int __init smsc47m1_find(unsigned short *addr)
 {
 	u8 val;
@@ -428,7 +454,8 @@ static int smsc47m1_detect(struct i2c_adapter *adapter)
 	pwm2 = (smsc47m1_read_value(new_client, SMSC47M1_REG_PPIN(1)) & 0x05)
 	       == 0x04;
 	if (!(fan1 || fan2 || pwm1 || pwm2)) {
-		dev_warn(&new_client->dev, "Device is not configured, will not use\n");
+		dev_warn(&adapter->dev, "Device at 0x%x is not configured, "
+			 "will not use\n", new_client->addr);
 		err = -ENODEV;
 		goto error_free;
 	}
@@ -445,46 +472,62 @@ static int smsc47m1_detect(struct i2c_adapter *adapter)
 	smsc47m1_update_device(&new_client->dev, 1);
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
-		goto error_detach;
-	}
-
 	if (fan1) {
-		device_create_file(&new_client->dev, &dev_attr_fan1_input);
-		device_create_file(&new_client->dev, &dev_attr_fan1_min);
-		device_create_file(&new_client->dev, &dev_attr_fan1_div);
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_fan1_input))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_fan1_min))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_fan1_div)))
+			goto error_remove_files;
 	} else
 		dev_dbg(&new_client->dev, "Fan 1 not enabled by hardware, "
 			"skipping\n");
 
 	if (fan2) {
-		device_create_file(&new_client->dev, &dev_attr_fan2_input);
-		device_create_file(&new_client->dev, &dev_attr_fan2_min);
-		device_create_file(&new_client->dev, &dev_attr_fan2_div);
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_fan2_input))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_fan2_min))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_fan2_div)))
+			goto error_remove_files;
 	} else
 		dev_dbg(&new_client->dev, "Fan 2 not enabled by hardware, "
 			"skipping\n");
 
 	if (pwm1) {
-		device_create_file(&new_client->dev, &dev_attr_pwm1);
-		device_create_file(&new_client->dev, &dev_attr_pwm1_enable);
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_pwm1))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_pwm1_enable)))
+			goto error_remove_files;
 	} else
 		dev_dbg(&new_client->dev, "PWM 1 not enabled by hardware, "
 			"skipping\n");
 	if (pwm2) {
-		device_create_file(&new_client->dev, &dev_attr_pwm2);
-		device_create_file(&new_client->dev, &dev_attr_pwm2_enable);
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_pwm2))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_pwm2_enable)))
+			goto error_remove_files;
 	} else
 		dev_dbg(&new_client->dev, "PWM 2 not enabled by hardware, "
 			"skipping\n");
 
-	device_create_file(&new_client->dev, &dev_attr_alarms);
+	if ((err = device_create_file(&new_client->dev, &dev_attr_alarms)))
+		goto error_remove_files;
+
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto error_remove_files;
+	}
 
 	return 0;
 
-error_detach:
+error_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &smsc47m1_group);
 	i2c_detach_client(new_client);
 error_free:
 	kfree(data);
@@ -499,6 +542,7 @@ static int smsc47m1_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &smsc47m1_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

@@ -218,7 +218,7 @@ extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
 /*
  * The pmd contains the kernel virtual address of the pte page.
  */
-#define pmd_page_kernel(pmd) ((unsigned long)(pmd_val(pmd) & PAGE_MASK))
+#define pmd_page_vaddr(pmd) ((unsigned long)(pmd_val(pmd) & PAGE_MASK))
 #define pmd_page(pmd) virt_to_page(pmd_val(pmd))
 
 /*
@@ -349,7 +349,7 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 /* Find an entry in the third-level page table.. */
 #define pte_index(address)	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir,addr) 					\
-	((pte_t*) pmd_page_kernel(*(dir)) + pte_index(addr))
+	((pte_t*) pmd_page_vaddr(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir),(addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir),(addr))
 

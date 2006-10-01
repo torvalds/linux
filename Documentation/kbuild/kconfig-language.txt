@@ -67,19 +67,19 @@ applicable everywhere (see syntax).
 - default value: "default" <expr> ["if" <expr>]
   A config option can have any number of default values. If multiple
   default values are visible, only the first defined one is active.
-  Default values are not limited to the menu entry, where they are
-  defined, this means the default can be defined somewhere else or be
+  Default values are not limited to the menu entry where they are
+  defined. This means the default can be defined somewhere else or be
   overridden by an earlier definition.
   The default value is only assigned to the config symbol if no other
   value was set by the user (via the input prompt above). If an input
   prompt is visible the default value is presented to the user and can
   be overridden by him.
-  Optionally dependencies only for this default value can be added with
+  Optionally, dependencies only for this default value can be added with
   "if".
 
 - dependencies: "depends on"/"requires" <expr>
   This defines a dependency for this menu entry. If multiple
-  dependencies are defined they are connected with '&&'. Dependencies
+  dependencies are defined, they are connected with '&&'. Dependencies
   are applied to all other options within this menu entry (which also
   accept an "if" expression), so these two examples are equivalent:
 
@@ -153,7 +153,7 @@ Nonconstant symbols are the most common ones and are defined with the
 'config' statement. Nonconstant symbols consist entirely of alphanumeric
 characters or underscores.
 Constant symbols are only part of expressions. Constant symbols are
-always surrounded by single or double quotes. Within the quote any
+always surrounded by single or double quotes. Within the quote, any
 other character is allowed and the quotes can be escaped using '\'.
 
 Menu structure
@@ -237,7 +237,7 @@ choices:
 	<choice block>
 	"endchoice"
 
-This defines a choice group and accepts any of above attributes as
+This defines a choice group and accepts any of the above attributes as
 options. A choice can only be of type bool or tristate, while a boolean
 choice only allows a single config entry to be selected, a tristate
 choice also allows any number of config entries to be set to 'm'. This

@@ -64,14 +64,6 @@ extern int i2c_master_recv(struct i2c_client *,char* ,int);
  */
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
 
-/*
- * Some adapter types (i.e. PCF 8584 based ones) may support slave behaviuor. 
- * This is not tested/implemented yet and will change in the future.
- */
-extern int i2c_slave_send(struct i2c_client *,char*,int);
-extern int i2c_slave_recv(struct i2c_client *,char*,int);
-
-
 
 /* This is the very generalized SMBus access routine. You probably do not
    want to use this, though; one of the functions below may be much easier,
@@ -201,10 +193,6 @@ struct i2c_algorithm {
 	                   unsigned short flags, char read_write,
 	                   u8 command, int size, union i2c_smbus_data * data);
 
-	/* --- these optional/future use for some adapter types.*/
-	int (*slave_send)(struct i2c_adapter *,char*,int);
-	int (*slave_recv)(struct i2c_adapter *,char*,int);
-
 	/* --- ioctl like call to set div. parameters. */
 	int (*algo_control)(struct i2c_adapter *, unsigned int, unsigned long);
 
@@ -220,7 +208,7 @@ struct i2c_adapter {
 	struct module *owner;
 	unsigned int id;
 	unsigned int class;
-	struct i2c_algorithm *algo;/* the algorithm to access the bus	*/
+	const struct i2c_algorithm *algo; /* the algorithm to access the bus */
 	void *algo_data;
 
 	/* --- administration stuff. */

@@ -321,7 +321,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(AIC79XX_DRIVER_VERSION);
 module_param(aic79xx, charp, 0444);
 MODULE_PARM_DESC(aic79xx,
-"period delimited, options string.\n"
+"period-delimited options string:\n"
 "	verbose			Enable verbose/diagnostic logging\n"
 "	allow_memio		Allow device registers to be memory mapped\n"
 "	debug			Bitmask of debug values to enable\n"
@@ -346,7 +346,7 @@ MODULE_PARM_DESC(aic79xx,
 "		Shorten the selection timeout to 128ms\n"
 "\n"
 "	options aic79xx 'aic79xx=verbose.tag_info:{{}.{}.{..10}}.seltime:1'\n"
-"\n");
+);
 
 static void ahd_linux_handle_scsi_status(struct ahd_softc *,
 					 struct scsi_device *,
@@ -646,7 +646,7 @@ ahd_linux_dev_reset(struct scsi_cmnd *cmd)
 	struct	ahd_initiator_tinfo *tinfo;
 	struct	ahd_tmode_tstate *tstate;
 	unsigned long flags;
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	reset_scb = NULL;
 	paused = FALSE;
@@ -2251,7 +2251,7 @@ done:
 	if (paused)
 		ahd_unpause(ahd);
 	if (wait) {
-		DECLARE_COMPLETION(done);
+		DECLARE_COMPLETION_ONSTACK(done);
 
 		ahd->platform_data->eh_done = &done;
 		ahd_unlock(ahd, &flags);

@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.2"
 
 #define RTC_REG_SIZE		0x800
 #define RTC_OFFSET		0x7f8
@@ -116,7 +116,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops ds1742_rtc_ops = {
+static const struct rtc_class_ops ds1742_rtc_ops = {
 	.read_time	= ds1742_rtc_read_time,
 	.set_time	= ds1742_rtc_set_time,
 };
@@ -196,7 +196,7 @@ static int __init ds1742_rtc_probe(struct platform_device *pdev)
 		writeb(sec, ioaddr + RTC_SECONDS);
 		writeb(cen & RTC_CENTURY_MASK, ioaddr + RTC_CONTROL);
 	}
-	if (readb(ioaddr + RTC_DAY) & RTC_BATT_FLAG)
+	if (!(readb(ioaddr + RTC_DAY) & RTC_BATT_FLAG))
 		dev_warn(&pdev->dev, "voltage-low detected.\n");
 
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
@@ -208,9 +208,13 @@ static int __init ds1742_rtc_probe(struct platform_device *pdev)
 	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	sysfs_create_bin_file(&pdev->dev.kobj, &ds1742_nvram_attr);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1742_nvram_attr);
+	if (ret)
+		goto out;
 	return 0;
  out:
+	if (pdata->rtc)
+		rtc_device_unregister(pdata->rtc);
 	if (ioaddr)
 		iounmap(ioaddr);
 	if (pdata->baseaddr)

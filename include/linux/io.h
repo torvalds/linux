@@ -19,8 +19,12 @@
 #define _LINUX_IO_H
 
 #include <asm/io.h>
+#include <asm/page.h>
 
 void __iowrite32_copy(void __iomem *to, const void *from, size_t count);
 void __iowrite64_copy(void __iomem *to, const void *from, size_t count);
+
+int ioremap_page_range(unsigned long addr, unsigned long end,
+		       unsigned long phys_addr, pgprot_t prot);
 
 #endif /* _LINUX_IO_H */

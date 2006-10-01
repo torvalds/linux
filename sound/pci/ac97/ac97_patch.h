@@ -58,5 +58,6 @@ int patch_cm9780(struct snd_ac97 * ac97);
 int patch_vt1616(struct snd_ac97 * ac97);
 int patch_vt1617a(struct snd_ac97 * ac97);
 int patch_it2646(struct snd_ac97 * ac97);
+int patch_ucb1400(struct snd_ac97 * ac97);
 int mpatch_si3036(struct snd_ac97 * ac97);
 int patch_lm4550(struct snd_ac97 * ac97);

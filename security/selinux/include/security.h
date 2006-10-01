@@ -24,10 +24,15 @@
 #define POLICYDB_VERSION_VALIDATETRANS	19
 #define POLICYDB_VERSION_MLS		19
 #define POLICYDB_VERSION_AVTAB		20
+#define POLICYDB_VERSION_RANGETRANS	21
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
-#define POLICYDB_VERSION_MAX   POLICYDB_VERSION_AVTAB
+#ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
+#define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
+#else
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_RANGETRANS
+#endif
 
 extern int selinux_enabled;
 extern int selinux_mls_enabled;
@@ -77,6 +82,8 @@ int security_node_sid(u16 domain, void *addr, u32 addrlen,
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
                                  u16 tclass);
+
+int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
 
 #define SECURITY_FS_USE_XATTR		1 /* use xattr */
 #define SECURITY_FS_USE_TRANS		2 /* use transition SIDs, e.g. devpts/tmpfs */

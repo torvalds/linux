@@ -298,6 +298,14 @@ L:	info-linux@geode.amd.com
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
 
+AMSO1100 RNIC DRIVER
+P:	Tom Tucker
+M:	tom@opengridcomputing.com
+P:	Steve Wise
+M:	swise@opengridcomputing.com
+L:	openib-general@openib.org
+S:	Maintained
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
@@ -435,6 +443,23 @@ W:	http://people.redhat.com/sgrubb/audit/
 T:	git kernel.org:/pub/scm/linux/kernel/git/dwmw2/audit-2.6.git
 S:	Maintained
 
+AVR32 ARCHITECTURE
+P:	Atmel AVR32 Support Team
+M:	avr32@atmel.com
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+W:	http://www.atmel.com/products/AVR32/
+W:	http://avr32linux.org/
+W:	http://avrfreaks.net/
+S:	Supported
+
+AVR32/AT32AP MACHINE SUPPORT
+P:	Atmel AVR32 Support Team
+M:	avr32@atmel.com
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+S:	Supported
+
 AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -449,9 +474,9 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.baycom.org/~tom/ham/ham.html
 S:	Maintained
 
-BCM43XX WIRELESS DRIVER
-P:	Michael Buesch
-M:	mb@bu3sch.de
+BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
+P:	Larry Finger
+M:	Larry.Finger@lwfinger.net
 P:	Stefano Brivio
 M:	st3@riseup.net
 W:	http://bcm43xx.berlios.de/
@@ -476,7 +501,7 @@ S:	Maintained
 
 BLOCK LAYER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/axboe/linux-2.6-block.git
 S:	Maintained
@@ -826,7 +851,7 @@ P:	Doug Warzecha
 M:	Douglas_Warzecha@dell.com
 S:	Maintained
 
-DEVICE-MAPPER
+DEVICE-MAPPER  (LVM)
 P:	Alasdair Kergon
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
@@ -990,6 +1015,14 @@ S:	Maintained
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
+
+EHCA (IBM GX bus InfiniBand adapter) DRIVER:
+P:	Hoang-Nam Nguyen
+M:	hnguyen@de.ibm.com
+P:	Christoph Raisch
+M:	raisch@de.ibm.com
+L:	openib-general@openib.org
+S:	Supported
 
 EMU10K1 SOUND DRIVER
 P:	James Courtier-Dutton
@@ -1347,7 +1380,7 @@ S:	Maintained
 
 IDE/ATAPI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -1365,36 +1398,29 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-IEEE 1394 ETHERNET (eth1394)
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Orphan
-
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/scjody/ieee1394.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 
-IEEE 1394 OHCI DRIVER
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+IEEE 1394 IPV4 DRIVER (eth1394)
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 PCILYNX DRIVER
 P:	Jody McIntyre
 M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 RAW I/O DRIVER
 P:	Ben Collins
@@ -1402,16 +1428,6 @@ M:	bcollins@debian.org
 P:	Dan Dennedy
 M:	dan@dennedy.org
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
-
-IEEE 1394 SBP2
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Stefan Richter
-M:	stefanr@s5r6.in-berlin.de
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
 S:	Maintained
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
@@ -1783,6 +1799,13 @@ W:     http://www.penguinppc.org/
 L:     linuxppc-embedded@ozlabs.org
 S:     Maintained
 
+LINUX FOR POWERPC PA SEMI PWRFICIENT
+P:	Olof Johansson
+M:	olof@lixom.net
+W:	http://www.pasemi.com/
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
 LLC (802.2)
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -2008,6 +2031,13 @@ L:	netfilter@lists.netfilter.org
 L:	netfilter-devel@lists.netfilter.org
 S:	Supported
 
+NETLABEL
+P:	Paul Moore
+M:	paul.moore@hp.com
+W:	http://netlabel.sf.net
+L:	netdev@vger.kernel.org
+S:	Supported
+
 NETROM NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -2015,7 +2045,7 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.linux-ax25.org/
 S:	Maintained
 
-NETWORK BLOCK DEVICE
+NETWORK BLOCK DEVICE (NBD)
 P:	Paul Clements
 M:	Paul.Clements@steeleye.com
 S:	Maintained
@@ -2366,6 +2396,12 @@ M:	linux-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 
+QLOGIC QLA3XXX NETWORK DRIVER
+P:	Ron Mercer
+M:	linux-driver@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 QNX4 FILESYSTEM
 P:	Anders Larsen
 M:	al@alarsen.net
@@ -2445,6 +2481,8 @@ S:      Maintained
 S390
 P:	Martin Schwidefsky
 M:	schwidefsky@de.ibm.com
+P:	Heiko Carstens
+M:	heiko.carstens@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -2459,8 +2497,8 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 S390 ZFCP DRIVER
-P:	Andreas Herrmann
-M:	aherrman@de.ibm.com
+P:	Swen Schillig
+M:	swen@vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -2493,7 +2531,7 @@ S:	Maintained
 
 SCSI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-scsi@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -2614,6 +2652,17 @@ S:	Maintained
 SMC91x ETHERNET DRIVER
 P:	Nicolas Pitre
 M:	nico@cam.org
+S:	Maintained
+
+SOFTMAC LAYER (IEEE 802.11)
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+P:	Joe Jezak
+M:	josejx@gentoo.org
+P:	Daniel Drake
+M:	dsd@gentoo.org
+W:	http://softmac.sipsolutions.net/
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
@@ -2744,6 +2793,12 @@ M:	R.E.Wolff@BitWizard.nl
 L:	linux-kernel@vger.kernel.org ?
 S:	Supported
 
+SPIDERNET NETWORK DRIVER for CELL
+P:	Jim Lewis
+M:	jim@jklewis.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SRM (Alpha) environment access
 P:	Jan-Benedict Glaw
 M:	jbglaw@lug-owl.de
@@ -2768,12 +2823,9 @@ S:	Maintained
 SUPERH (sh)
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-P:	Kazumoto Kojima
-M:	kkojima@rr.iij4u.or.jp
-L:	linuxsh-dev@lists.sourceforge.net
+L:	linuxsh-dev@lists.sourceforge.net (subscribers-only)
 W:	http://www.linux-sh.org
 W:	http://www.m17n.org/linux-sh/
-W:	http://www.rr.iij4u.or.jp/~kkojima/linux-sh4.html
 S:	Maintained
 
 SUPERH64 (sh64)
@@ -2897,8 +2949,8 @@ W:	http://www.auk.cx/tms380tr/
 S:	Maintained
 
 TULIP NETWORK DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
+P:	Valerie Henson
+M:	val_henson@linux.intel.com
 L:	tulip-users@lists.sourceforge.net
 W:	http://sourceforge.net/projects/tulip/
 S:	Maintained
@@ -2924,7 +2976,7 @@ S:	Maintained
 
 UNIFORM CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -3243,6 +3295,12 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+VT1211 HARDWARE MONITOR DRIVER
+P:	Juerg Haefliger
+M:	juergh@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 VT8231 HARDWARE MONITOR DRIVER
 P:	Roger Lucas
 M:	roger@planbit.co.uk
@@ -3347,6 +3405,15 @@ M:	jreuter@yaina.de
 W:	http://yaina.de/jreuter/
 W:	http://www.qsl.net/dl1bke/
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+ZD1211RW WIRELESS DRIVER
+P:	Daniel Drake
+M:	dsd@gentoo.org
+P:	Ulrich Kunitz
+M:	kune@deine-taler.de
+W:	http://zd1211.ath.cx/wiki/DriverRewrite
+L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZF MACHZ WATCHDOG

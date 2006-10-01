@@ -100,7 +100,7 @@ static struct nlm_lockowner *nlm_find_lockowner(struct nlm_host *host, fl_owner_
 	res = __nlm_find_lockowner(host, owner);
 	if (res == NULL) {
 		spin_unlock(&host->h_lock);
-		new = (struct nlm_lockowner *)kmalloc(sizeof(*new), GFP_KERNEL);
+		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		spin_lock(&host->h_lock);
 		res = __nlm_find_lockowner(host, owner);
 		if (res == NULL && new != NULL) {
@@ -151,11 +151,13 @@ static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 int
 nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 {
+	struct rpc_clnt		*client = NFS_CLIENT(inode);
+	struct sockaddr_in	addr;
 	struct nlm_host		*host;
 	struct nlm_rqst		*call;
 	sigset_t		oldset;
 	unsigned long		flags;
-	int			status, proto, vers;
+	int			status, vers;
 
 	vers = (NFS_PROTO(inode)->version == 3) ? 4 : 1;
 	if (NFS_PROTO(inode)->version > 3) {
@@ -163,10 +165,8 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 		return -ENOLCK;
 	}
 
-	/* Retrieve transport protocol from NFS client */
-	proto = NFS_CLIENT(inode)->cl_xprt->prot;
-
-	host = nlmclnt_lookup_host(NFS_ADDR(inode), proto, vers);
+	rpc_peeraddr(client, (struct sockaddr *) &addr, sizeof(addr));
+	host = nlmclnt_lookup_host(&addr, client->cl_xprt->prot, vers);
 	if (host == NULL)
 		return -ENOLCK;
 

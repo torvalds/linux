@@ -339,6 +339,7 @@ static void w83627hf_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83627hf_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "w83627hf",
 	},
 	.attach_adapter	= w83627hf_detect,
@@ -511,13 +512,6 @@ static DEVICE_ATTR(in0_min, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(in0_max, S_IRUGO | S_IWUSR,
 	show_regs_in_max0, store_regs_in_max0);
 
-#define device_create_file_in(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_in##offset##_input); \
-device_create_file(&client->dev, &dev_attr_in##offset##_min); \
-device_create_file(&client->dev, &dev_attr_in##offset##_max); \
-} while (0)
-
 #define show_fan_reg(reg) \
 static ssize_t show_##reg (struct device *dev, char *buf, int nr) \
 { \
@@ -574,12 +568,6 @@ sysfs_fan_offset(2);
 sysfs_fan_min_offset(2);
 sysfs_fan_offset(3);
 sysfs_fan_min_offset(3);
-
-#define device_create_file_fan(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_fan##offset##_input); \
-device_create_file(&client->dev, &dev_attr_fan##offset##_min); \
-} while (0)
 
 #define show_temp_reg(reg) \
 static ssize_t show_##reg (struct device *dev, char *buf, int nr) \
@@ -655,13 +643,6 @@ sysfs_temp_offsets(1);
 sysfs_temp_offsets(2);
 sysfs_temp_offsets(3);
 
-#define device_create_file_temp(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_temp##offset##_input); \
-device_create_file(&client->dev, &dev_attr_temp##offset##_max); \
-device_create_file(&client->dev, &dev_attr_temp##offset##_max_hyst); \
-} while (0)
-
 static ssize_t
 show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -669,8 +650,6 @@ show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
-#define device_create_file_vid(client) \
-device_create_file(&client->dev, &dev_attr_cpu0_vid)
 
 static ssize_t
 show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
@@ -691,8 +670,6 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf
 	return count;
 }
 static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
-#define device_create_file_vrm(client) \
-device_create_file(&client->dev, &dev_attr_vrm)
 
 static ssize_t
 show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
@@ -701,8 +678,6 @@ show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%ld\n", (long) data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
-#define device_create_file_alarms(client) \
-device_create_file(&client->dev, &dev_attr_alarms)
 
 #define show_beep_reg(REG, reg) \
 static ssize_t show_beep_##reg (struct device *dev, struct device_attribute *attr, char *buf) \
@@ -764,12 +739,6 @@ static DEVICE_ATTR(beep_##reg, S_IRUGO | S_IWUSR, \
 
 sysfs_beep(ENABLE, enable);
 sysfs_beep(MASK, mask);
-
-#define device_create_file_beep(client) \
-do { \
-device_create_file(&client->dev, &dev_attr_beep_enable); \
-device_create_file(&client->dev, &dev_attr_beep_mask); \
-} while (0)
 
 static ssize_t
 show_fan_div_reg(struct device *dev, char *buf, int nr)
@@ -836,11 +805,6 @@ sysfs_fan_div(1);
 sysfs_fan_div(2);
 sysfs_fan_div(3);
 
-#define device_create_file_fan_div(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_fan##offset##_div); \
-} while (0)
-
 static ssize_t
 show_pwm_reg(struct device *dev, char *buf, int nr)
 {
@@ -894,11 +858,6 @@ static DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR, \
 sysfs_pwm(1);
 sysfs_pwm(2);
 sysfs_pwm(3);
-
-#define device_create_file_pwm(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_pwm##offset); \
-} while (0)
 
 static ssize_t
 show_sensor_reg(struct device *dev, char *buf, int nr)
@@ -971,12 +930,6 @@ sysfs_sensor(1);
 sysfs_sensor(2);
 sysfs_sensor(3);
 
-#define device_create_file_sensor(client, offset) \
-do { \
-device_create_file(&client->dev, &dev_attr_temp##offset##_type); \
-} while (0)
-
-
 static int __init w83627hf_find(int sioaddr, unsigned short *addr)
 {
 	u16 val;
@@ -1007,6 +960,85 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr)
 	superio_exit();
 	return 0;
 }
+
+static struct attribute *w83627hf_attributes[] = {
+	&dev_attr_in0_input.attr,
+	&dev_attr_in0_min.attr,
+	&dev_attr_in0_max.attr,
+	&dev_attr_in2_input.attr,
+	&dev_attr_in2_min.attr,
+	&dev_attr_in2_max.attr,
+	&dev_attr_in3_input.attr,
+	&dev_attr_in3_min.attr,
+	&dev_attr_in3_max.attr,
+	&dev_attr_in4_input.attr,
+	&dev_attr_in4_min.attr,
+	&dev_attr_in4_max.attr,
+	&dev_attr_in7_input.attr,
+	&dev_attr_in7_min.attr,
+	&dev_attr_in7_max.attr,
+	&dev_attr_in8_input.attr,
+	&dev_attr_in8_min.attr,
+	&dev_attr_in8_max.attr,
+
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_fan2_div.attr,
+
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_max_hyst.attr,
+	&dev_attr_temp1_type.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp2_max.attr,
+	&dev_attr_temp2_max_hyst.attr,
+	&dev_attr_temp2_type.attr,
+
+	&dev_attr_alarms.attr,
+	&dev_attr_beep_enable.attr,
+	&dev_attr_beep_mask.attr,
+
+	&dev_attr_pwm1.attr,
+	&dev_attr_pwm2.attr,
+
+	NULL
+};
+
+static const struct attribute_group w83627hf_group = {
+	.attrs = w83627hf_attributes,
+};
+
+static struct attribute *w83627hf_attributes_opt[] = {
+	&dev_attr_in1_input.attr,
+	&dev_attr_in1_min.attr,
+	&dev_attr_in1_max.attr,
+	&dev_attr_in5_input.attr,
+	&dev_attr_in5_min.attr,
+	&dev_attr_in5_max.attr,
+	&dev_attr_in6_input.attr,
+	&dev_attr_in6_min.attr,
+	&dev_attr_in6_max.attr,
+
+	&dev_attr_fan3_input.attr,
+	&dev_attr_fan3_min.attr,
+	&dev_attr_fan3_div.attr,
+
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp3_max.attr,
+	&dev_attr_temp3_max_hyst.attr,
+	&dev_attr_temp3_type.attr,
+
+	&dev_attr_pwm3.attr,
+
+	NULL
+};
+
+static const struct attribute_group w83627hf_group_opt = {
+	.attrs = w83627hf_attributes_opt,
+};
 
 static int w83627hf_detect(struct i2c_adapter *adapter)
 {
@@ -1107,62 +1139,72 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	data->fan_min[1] = w83627hf_read_value(new_client, W83781D_REG_FAN_MIN(2));
 	data->fan_min[2] = w83627hf_read_value(new_client, W83781D_REG_FAN_MIN(3));
 
-	/* Register sysfs hooks */
+	/* Register common device attributes */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &w83627hf_group)))
+		goto ERROR3;
+
+	/* Register chip-specific device attributes */
+	if (kind == w83627hf || kind == w83697hf)
+		if ((err = device_create_file(&new_client->dev,
+					&dev_attr_in5_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in5_min))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in5_max))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in6_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in6_min))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in6_max)))
+			goto ERROR4;
+
+	if (kind != w83697hf)
+		if ((err = device_create_file(&new_client->dev,
+					&dev_attr_in1_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in1_min))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_in1_max))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_fan3_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_fan3_min))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_fan3_div))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_temp3_input))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_temp3_max))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_temp3_max_hyst))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_temp3_type)))
+			goto ERROR4;
+
+	if (kind != w83697hf && data->vid != 0xff)
+		if ((err = device_create_file(&new_client->dev,
+					&dev_attr_cpu0_vid))
+		 || (err = device_create_file(&new_client->dev,
+					&dev_attr_vrm)))
+			goto ERROR4;
+
+	if (kind == w83627thf || kind == w83637hf || kind == w83687thf)
+		if ((err = device_create_file(&new_client->dev,
+					&dev_attr_pwm3)))
+			goto ERROR4;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto ERROR3;
+		goto ERROR4;
 	}
-
-	device_create_file_in(new_client, 0);
-	if (kind != w83697hf)
-		device_create_file_in(new_client, 1);
-	device_create_file_in(new_client, 2);
-	device_create_file_in(new_client, 3);
-	device_create_file_in(new_client, 4);
-	if (kind == w83627hf || kind == w83697hf) {
-		device_create_file_in(new_client, 5);
-		device_create_file_in(new_client, 6);
-	}
-	device_create_file_in(new_client, 7);
-	device_create_file_in(new_client, 8);
-
-	device_create_file_fan(new_client, 1);
-	device_create_file_fan(new_client, 2);
-	if (kind != w83697hf)
-		device_create_file_fan(new_client, 3);
-
-	device_create_file_temp(new_client, 1);
-	device_create_file_temp(new_client, 2);
-	if (kind != w83697hf)
-		device_create_file_temp(new_client, 3);
-
-	if (kind != w83697hf && data->vid != 0xff) {
-		device_create_file_vid(new_client);
-		device_create_file_vrm(new_client);
-	}
-
-	device_create_file_fan_div(new_client, 1);
-	device_create_file_fan_div(new_client, 2);
-	if (kind != w83697hf)
-		device_create_file_fan_div(new_client, 3);
-
-	device_create_file_alarms(new_client);
-
-	device_create_file_beep(new_client);
-
-	device_create_file_pwm(new_client, 1);
-	device_create_file_pwm(new_client, 2);
-	if (kind == w83627thf || kind == w83637hf || kind == w83687thf)
-		device_create_file_pwm(new_client, 3);
-
-	device_create_file_sensor(new_client, 1);
-	device_create_file_sensor(new_client, 2);
-	if (kind != w83697hf)
-		device_create_file_sensor(new_client, 3);
 
 	return 0;
 
+      ERROR4:
+	sysfs_remove_group(&new_client->dev.kobj, &w83627hf_group);
+	sysfs_remove_group(&new_client->dev.kobj, &w83627hf_group_opt);
       ERROR3:
 	i2c_detach_client(new_client);
       ERROR2:
@@ -1179,6 +1221,9 @@ static int w83627hf_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+
+	sysfs_remove_group(&client->dev.kobj, &w83627hf_group);
+	sysfs_remove_group(&client->dev.kobj, &w83627hf_group_opt);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

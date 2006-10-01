@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/in.h>
 #include <linux/types.h>
+#include <linux/magic.h>
 
 #include <linux/ipx.h>
 #include <linux/ncp_no.h>
@@ -185,10 +186,6 @@ struct ncp_entry_info {
 	__u8			file_handle[6];
 };
 
-/* Guess, what 0x564c is :-) */
-#define NCP_SUPER_MAGIC  0x564c
-
-
 static inline struct ncp_server *NCP_SBP(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -215,6 +212,7 @@ void ncp_date_unix2dos(int unix_date, __le16 * time, __le16 * date);
 
 /* linux/fs/ncpfs/ioctl.c */
 int ncp_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+long ncp_compat_ioctl(struct file *, unsigned int, unsigned long);
 
 /* linux/fs/ncpfs/sock.c */
 int ncp_request2(struct ncp_server *server, int function,

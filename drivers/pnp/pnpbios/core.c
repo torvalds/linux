@@ -526,6 +526,10 @@ static int __init pnpbios_init(void)
 {
 	int ret;
 
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(PNPBIOS_BASE))
+		return -ENODEV;
+#endif
 	if (pnpbios_disabled || dmi_check_system(pnpbios_dmi_table)) {
 		printk(KERN_INFO "PnPBIOS: Disabled\n");
 		return -ENODEV;
@@ -575,6 +579,10 @@ subsys_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(PNPBIOS_BASE))
+		return 0;
+#endif
 	if (pnpbios_disabled)
 		return 0;
 #ifdef CONFIG_HOTPLUG

@@ -197,6 +197,10 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
 #define CX88_BOARD_WINFAST_DTV2000H        51
 #define CX88_BOARD_GENIATECH_DVBS          52
+#define CX88_BOARD_HAUPPAUGE_HVR3000       53
+#define CX88_BOARD_NORWOOD_MICRO           54
+#define CX88_BOARD_TE_DTV_250_OEM_SWANN    55
+#define CX88_BOARD_HAUPPAUGE_HVR1300       56
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -545,6 +549,7 @@ extern const unsigned int cx88_idcount;
 
 extern void cx88_card_list(struct cx88_core *core, struct pci_dev *pci);
 extern void cx88_card_setup(struct cx88_core *core);
+extern void cx88_card_setup_pre_i2c(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */

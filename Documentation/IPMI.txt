@@ -326,9 +326,12 @@ for events, they will all receive all events that come in.
 
 For receiving commands, you have to individually register commands you
 want to receive.  Call ipmi_register_for_cmd() and supply the netfn
-and command name for each command you want to receive.  Only one user
-may be registered for each netfn/cmd, but different users may register
-for different commands.
+and command name for each command you want to receive.  You also
+specify a bitmask of the channels you want to receive the command from
+(or use IPMI_CHAN_ALL for all channels if you don't care).  Only one
+user may be registered for each netfn/cmd/channel, but different users
+may register for different commands, or the same command if the
+channel bitmasks do not overlap.
 
 From userland, equivalent IOCTLs are provided to do these functions.
 

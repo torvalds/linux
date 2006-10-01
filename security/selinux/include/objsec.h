@@ -44,7 +44,7 @@ struct inode_security_struct {
 	u32 sid;             /* SID of this object */
 	u16 sclass;       /* security class of this object */
 	unsigned char initialized;     /* initialization flag */
-	struct semaphore sem;
+	struct mutex lock;
 	unsigned char inherit;         /* inherit SID from parent entry */
 };
 
@@ -63,7 +63,7 @@ struct superblock_security_struct {
 	unsigned int behavior;          /* labeling behavior */
 	unsigned char initialized;      /* initialization flag */
 	unsigned char proc;             /* proc fs */
-	struct semaphore sem;
+	struct mutex lock;
 	struct list_head isec_head;
 	spinlock_t isec_lock;
 };
@@ -99,7 +99,16 @@ struct netif_security_struct {
 
 struct sk_security_struct {
 	struct sock *sk;		/* back pointer to sk object */
+	u32 sid;			/* SID of this object */
 	u32 peer_sid;			/* SID of peer */
+#ifdef CONFIG_NETLABEL
+	u16 sclass;			/* sock security class */
+	enum {				/* NetLabel state */
+		NLBL_UNSET = 0,
+		NLBL_REQUIRE,
+		NLBL_LABELED,
+	} nlbl_state;
+#endif
 };
 
 struct key_security_struct {

@@ -263,7 +263,7 @@ asmlinkage int sys_olduname(struct oldold_utsname __user * name)
 	return error;
 }
 
-void sys_set_thread_area(unsigned long addr)
+asmlinkage int sys_set_thread_area(unsigned long addr)
 {
 	struct thread_info *ti = task_thread_info(current);
 
@@ -271,6 +271,8 @@ void sys_set_thread_area(unsigned long addr)
 
 	/* If some future MIPS implementation has this register in hardware,
 	 * we will need to update it here (and in context switches).  */
+
+	return 0;
 }
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)

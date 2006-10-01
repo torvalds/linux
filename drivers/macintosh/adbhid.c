@@ -45,8 +45,8 @@
 #include <linux/pmu.h>
 
 #include <asm/machdep.h>
-#include <asm/backlight.h>
 #ifdef CONFIG_PPC_PMAC
+#include <asm/backlight.h>
 #include <asm/pmac_feature.h>
 #endif
 

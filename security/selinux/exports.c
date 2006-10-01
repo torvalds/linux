@@ -21,19 +21,10 @@
 #include "security.h"
 #include "objsec.h"
 
-void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid)
-{
-	struct task_security_struct *tsec = tsk->security;
-	if (selinux_enabled)
-		*ctxid = tsec->sid;
-	else
-		*ctxid = 0;
-}
-
-int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
+int selinux_sid_to_string(u32 sid, char **ctx, u32 *ctxlen)
 {
 	if (selinux_enabled)
-		return security_sid_to_context(ctxid, ctx, ctxlen);
+		return security_sid_to_context(sid, ctx, ctxlen);
 	else {
 		*ctx = NULL;
 		*ctxlen = 0;

@@ -146,7 +146,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
 /*
  * wait for a lock to be granted
  */
-static inline struct rw_semaphore *
+static struct rw_semaphore *
 rwsem_down_failed_common(struct rw_semaphore *sem,
 			struct rwsem_waiter *waiter, signed long adjustment)
 {

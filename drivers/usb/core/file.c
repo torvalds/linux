@@ -55,7 +55,7 @@ static int usb_open(struct inode * inode, struct file * file)
 	return err;
 }
 
-static struct file_operations usb_fops = {
+static const struct file_operations usb_fops = {
 	.owner =	THIS_MODULE,
 	.open =		usb_open,
 };

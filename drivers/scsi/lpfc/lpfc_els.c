@@ -2506,6 +2506,7 @@ lpfc_els_rcv_rscn(struct lpfc_hba * phba,
 	uint32_t *lp;
 	IOCB_t *icmd;
 	uint32_t payload_len, cmd;
+	int i;
 
 	icmd = &cmdiocb->iocb;
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
@@ -2523,6 +2524,10 @@ lpfc_els_rcv_rscn(struct lpfc_hba * phba,
 			"%d:0214 RSCN received Data: x%x x%x x%x x%x\n",
 			phba->brd_no,
 			phba->fc_flag, payload_len, *lp, phba->fc_rscn_id_cnt);
+
+	for (i = 0; i < payload_len/sizeof(uint32_t); i++)
+		fc_host_post_event(phba->host, fc_get_event_number(),
+			FCH_EVT_RSCN, lp[i]);
 
 	/* If we are about to begin discovery, just ACC the RSCN.
 	 * Discovery processing will satisfy it.

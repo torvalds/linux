@@ -1,5 +1,7 @@
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
+#include <asm/pgtable.h>
 
 /* Prototypes of functions used across modules here in this directory.  */
 
@@ -181,9 +183,16 @@ extern void titan_dispatch_irqs(u64, struct pt_regs *);
 extern void switch_to_system_map(void);
 extern void srm_paging_stop(void);
 
-/* ../mm/remap.c */
-extern int __alpha_remap_area_pages(unsigned long, unsigned long, 
-				    unsigned long, unsigned long);
+static inline int
+__alpha_remap_area_pages(unsigned long address, unsigned long phys_addr,
+			 unsigned long size, unsigned long flags)
+{
+	pgprot_t prot;
+
+	prot = __pgprot(_PAGE_VALID | _PAGE_ASM | _PAGE_KRE
+			| _PAGE_KWE | flags);
+	return ioremap_page_range(address, address + size, phys_addr, prot);
+}
 
 /* irq.c */
 

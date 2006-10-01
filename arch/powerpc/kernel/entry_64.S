@@ -375,6 +375,14 @@ BEGIN_FTR_SECTION
 	ld	r7,KSP_VSID(r4)	/* Get new stack's VSID */
 	oris	r0,r6,(SLB_ESID_V)@h
 	ori	r0,r0,(SLB_NUM_BOLTED-1)@l
+
+	/* Update the last bolted SLB */
+	ld	r9,PACA_SLBSHADOWPTR(r13)
+	li	r12,0
+	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
+	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
+	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
+
 	slbie	r6
 	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
 	slbmte	r7,r0

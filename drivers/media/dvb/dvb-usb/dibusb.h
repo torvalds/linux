@@ -17,6 +17,8 @@
 #include "dvb-usb.h"
 
 #include "dib3000.h"
+#include "dib3000mc.h"
+#include "mt2060.h"
 
 /*
  * protocol of all dibusb related devices
@@ -96,6 +98,7 @@
 
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
+	int mt2060_present;
 
 	/* for RC5 remote control */
 	int old_toggle;

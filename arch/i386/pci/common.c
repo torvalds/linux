@@ -242,6 +242,10 @@ char * __devinit  pcibios_setup(char *str)
 		acpi_noirq_set();
 		return NULL;
 	}
+	else if (!strcmp(str, "noearly")) {
+		pci_probe |= PCI_PROBE_NOEARLY;
+		return NULL;
+	}
 #ifndef CONFIG_X86_VISWS
 	else if (!strcmp(str, "usepirqmask")) {
 		pci_probe |= PCI_USE_PIRQ_MASK;

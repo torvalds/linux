@@ -68,11 +68,18 @@
  *
  * v8 - 17.02.06 - Jean II
  *	o RtNetlink requests support (SET/GET)
+ *
+ * v8b - 03.08.06 - Herbert Xu
+ *	o Fix Wireless Event locking issues.
+ *
+ * v9 - 14.3.06 - Jean II
+ *	o Change length in ESSID and NICK to strlen() instead of strlen()+1
+ *	o Make standard_ioctl_num and standard_event_num unsigned
+ *	o Remove (struct net_device *)->get_wireless_stats()
  */
 
 /***************************** INCLUDES *****************************/
 
-#include <linux/config.h>		/* Not needed ??? */
 #include <linux/module.h>
 #include <linux/types.h>		/* off_t */
 #include <linux/netdevice.h>		/* struct ifreq, dev_get_by_name() */
@@ -86,6 +93,7 @@
 
 #include <linux/wireless.h>		/* Pretty obvious */
 #include <net/iw_handler.h>		/* New driver API */
+#include <net/netlink.h>
 
 #include <asm/uaccess.h>		/* copy_to_user() */
 
@@ -234,24 +242,24 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 	[SIOCSIWESSID	- SIOCIWFIRST] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
-		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE,
 		.flags		= IW_DESCR_FLAG_EVENT,
 	},
 	[SIOCGIWESSID	- SIOCIWFIRST] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
-		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE,
 		.flags		= IW_DESCR_FLAG_DUMP,
 	},
 	[SIOCSIWNICKN	- SIOCIWFIRST] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
-		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE,
 	},
 	[SIOCGIWNICKN	- SIOCIWFIRST] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
-		.max_tokens	= IW_ESSID_MAX_SIZE + 1,
+		.max_tokens	= IW_ESSID_MAX_SIZE,
 	},
 	[SIOCSIWRATE	- SIOCIWFIRST] = {
 		.header_type	= IW_HEADER_TYPE_PARAM,
@@ -338,8 +346,8 @@ static const struct iw_ioctl_description standard_ioctl[] = {
 		.max_tokens	= sizeof(struct iw_pmksa),
 	},
 };
-static const int standard_ioctl_num = (sizeof(standard_ioctl) /
-				       sizeof(struct iw_ioctl_description));
+static const unsigned standard_ioctl_num = (sizeof(standard_ioctl) /
+					    sizeof(struct iw_ioctl_description));
 
 /*
  * Meta-data about all the additional standard Wireless Extension events
@@ -389,8 +397,8 @@ static const struct iw_ioctl_description standard_event[] = {
 		.max_tokens	= sizeof(struct iw_pmkid_cand),
 	},
 };
-static const int standard_event_num = (sizeof(standard_event) /
-				       sizeof(struct iw_ioctl_description));
+static const unsigned standard_event_num = (sizeof(standard_event) /
+					    sizeof(struct iw_ioctl_description));
 
 /* Size (in bytes) of the various private data types */
 static const char iw_priv_type_size[] = {
@@ -464,17 +472,6 @@ static inline struct iw_statistics *get_wireless_stats(struct net_device *dev)
 	if((dev->wireless_handlers != NULL) &&
 	   (dev->wireless_handlers->get_wireless_stats != NULL))
 		return dev->wireless_handlers->get_wireless_stats(dev);
-
-	/* Old location, field to be removed in next WE */
-	if(dev->get_wireless_stats) {
-		static int printed_message;
-
-		if (!printed_message++)
-			printk(KERN_DEBUG "%s (WE) : Driver using old /proc/net/wireless support, please fix driver !\n",
-				dev->name);
-
-		return dev->get_wireless_stats(dev);
-	}
 
 	/* Not found */
 	return (struct iw_statistics *) NULL;
@@ -1843,14 +1840,39 @@ int wireless_rtnetlink_set(struct net_device *	dev,
  */
 
 #ifdef WE_EVENT_RTNETLINK
+/* ---------------------------------------------------------------- */
+/*
+ * Locking...
+ * ----------
+ *
+ * Thanks to Herbert Xu <herbert@gondor.apana.org.au> for fixing
+ * the locking issue in here and implementing this code !
+ *
+ * The issue : wireless_send_event() is often called in interrupt context,
+ * while the Netlink layer can never be called in interrupt context.
+ * The fully formed RtNetlink events are queued, and then a tasklet is run
+ * to feed those to Netlink.
+ * The skb_queue is interrupt safe, and its lock is not held while calling
+ * Netlink, so there is no possibility of dealock.
+ * Jean II
+ */
+
 static struct sk_buff_head wireless_nlevent_queue;
+
+static int __init wireless_nlevent_init(void)
+{
+	skb_queue_head_init(&wireless_nlevent_queue);
+	return 0;
+}
+
+subsys_initcall(wireless_nlevent_init);
 
 static void wireless_nlevent_process(unsigned long data)
 {
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&wireless_nlevent_queue)))
-		netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_ATOMIC);
+		rtnl_notify(skb, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 }
 
 static DECLARE_TASKLET(wireless_nlevent_tasklet, wireless_nlevent_process, 0);
@@ -1921,13 +1943,6 @@ static inline void rtmsg_iwinfo(struct net_device *	dev,
 	tasklet_schedule(&wireless_nlevent_tasklet);
 }
 
-static int __init wireless_nlevent_init(void)
-{
-	skb_queue_head_init(&wireless_nlevent_queue);
-	return 0;
-}
-
-subsys_initcall(wireless_nlevent_init);
 #endif	/* WE_EVENT_RTNETLINK */
 
 /* ---------------------------------------------------------------- */

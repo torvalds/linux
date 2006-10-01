@@ -296,13 +296,13 @@ typedef struct {
 /* sizeof() = 160 (0xa0) bytes */
 } __attribute__ ((__packed__)) LOG_CLIENT_RECORD;
 
-extern BOOL ntfs_check_logfile(struct inode *log_vi,
+extern bool ntfs_check_logfile(struct inode *log_vi,
 		RESTART_PAGE_HEADER **rp);
 
-extern BOOL ntfs_is_logfile_clean(struct inode *log_vi,
+extern bool ntfs_is_logfile_clean(struct inode *log_vi,
 		const RESTART_PAGE_HEADER *rp);
 
-extern BOOL ntfs_empty_logfile(struct inode *log_vi);
+extern bool ntfs_empty_logfile(struct inode *log_vi);
 
 #endif /* NTFS_RW */
 

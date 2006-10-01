@@ -38,25 +38,14 @@
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current->thread.mm_segment)
 
-#ifdef __s390x__
 #define set_fs(x) \
 ({									\
 	unsigned long __pto;						\
 	current->thread.mm_segment = (x);				\
 	__pto = current->thread.mm_segment.ar4 ?			\
 		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
-	asm volatile ("lctlg 7,7,%0" : : "m" (__pto) );			\
+	__ctl_load(__pto, 7, 7);					\
 })
-#else
-#define set_fs(x) \
-({									\
-	unsigned long __pto;						\
-	current->thread.mm_segment = (x);				\
-	__pto = current->thread.mm_segment.ar4 ?			\
-		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
-	asm volatile ("lctl  7,7,%0" : : "m" (__pto) );			\
-})
-#endif
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
@@ -85,76 +74,51 @@ struct exception_table_entry
         unsigned long insn, fixup;
 };
 
-#ifndef __s390x__
-#define __uaccess_fixup \
-	".section .fixup,\"ax\"\n"	\
-	"2: lhi    %0,%4\n"		\
-	"   bras   1,3f\n"		\
-	"   .long  1b\n"		\
-	"3: l      1,0(1)\n"		\
-	"   br     1\n"			\
-	".previous\n"			\
-	".section __ex_table,\"a\"\n"	\
-	"   .align 4\n"			\
-	"   .long  0b,2b\n"		\
-	".previous"
-#define __uaccess_clobber "cc", "1"
-#else /* __s390x__ */
-#define __uaccess_fixup \
-	".section .fixup,\"ax\"\n"	\
-	"2: lghi   %0,%4\n"		\
-	"   jg     1b\n"		\
-	".previous\n"			\
-	".section __ex_table,\"a\"\n"	\
-	"   .align 8\n"			\
-	"   .quad  0b,2b\n"		\
-	".previous"
-#define __uaccess_clobber "cc"
-#endif /* __s390x__ */
+struct uaccess_ops {
+	size_t (*copy_from_user)(size_t, const void __user *, void *);
+	size_t (*copy_from_user_small)(size_t, const void __user *, void *);
+	size_t (*copy_to_user)(size_t, void __user *, const void *);
+	size_t (*copy_to_user_small)(size_t, void __user *, const void *);
+	size_t (*copy_in_user)(size_t, void __user *, const void __user *);
+	size_t (*clear_user)(size_t, void __user *);
+	size_t (*strnlen_user)(size_t, const char __user *);
+	size_t (*strncpy_from_user)(size_t, const char __user *, char *);
+	int (*futex_atomic_op)(int op, int __user *, int oparg, int *old);
+	int (*futex_atomic_cmpxchg)(int __user *, int old, int new);
+};
+
+extern struct uaccess_ops uaccess;
+extern struct uaccess_ops uaccess_std;
+extern struct uaccess_ops uaccess_mvcos;
+
+static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
+{
+	size = uaccess.copy_to_user_small(size, ptr, x);
+	return size ? -EFAULT : size;
+}
+
+static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
+{
+	size = uaccess.copy_from_user_small(size, ptr, x);
+	return size ? -EFAULT : size;
+}
 
 /*
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
  */
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-#define __put_user_asm(x, ptr, err) \
-({								\
-	err = 0;						\
-	asm volatile(						\
-		"0: mvcs  0(%1,%2),%3,%0\n"			\
-		"1:\n"						\
-		__uaccess_fixup					\
-		: "+&d" (err)					\
-		: "d" (sizeof(*(ptr))), "a" (ptr), "Q" (x),	\
-		  "K" (-EFAULT)					\
-		: __uaccess_clobber );				\
-})
-#else
-#define __put_user_asm(x, ptr, err) \
-({								\
-	err = 0;						\
-	asm volatile(						\
-		"0: mvcs  0(%1,%2),0(%3),%0\n"			\
-		"1:\n"						\
-		__uaccess_fixup					\
-		: "+&d" (err)					\
-		: "d" (sizeof(*(ptr))), "a" (ptr), "a" (&(x)),	\
-		  "K" (-EFAULT), "m" (x)			\
-		: __uaccess_clobber );				\
-})
-#endif
-
 #define __put_user(x, ptr) \
 ({								\
 	__typeof__(*(ptr)) __x = (x);				\
-	int __pu_err;						\
+	int __pu_err = -EFAULT;					\
         __chk_user_ptr(ptr);                                    \
 	switch (sizeof (*(ptr))) {				\
 	case 1:							\
 	case 2:							\
 	case 4:							\
 	case 8:							\
-		__put_user_asm(__x, ptr, __pu_err);		\
+		__pu_err = __put_user_fn(sizeof (*(ptr)),	\
+					 ptr, &__x);		\
 		break;						\
 	default:						\
 		__put_user_bad();				\
@@ -172,60 +136,36 @@ struct exception_table_entry
 
 extern int __put_user_bad(void) __attribute__((noreturn));
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-#define __get_user_asm(x, ptr, err) \
-({								\
-	err = 0;						\
-	asm volatile (						\
-		"0: mvcp  %O1(%2,%R1),0(%3),%0\n"		\
-		"1:\n"						\
-		__uaccess_fixup					\
-		: "+&d" (err), "=Q" (x)				\
-		: "d" (sizeof(*(ptr))), "a" (ptr),		\
-		  "K" (-EFAULT)					\
-		: __uaccess_clobber );				\
-})
-#else
-#define __get_user_asm(x, ptr, err) \
-({								\
-	err = 0;						\
-	asm volatile (						\
-		"0: mvcp  0(%2,%5),0(%3),%0\n"			\
-		"1:\n"						\
-		__uaccess_fixup					\
-		: "+&d" (err), "=m" (x)				\
-		: "d" (sizeof(*(ptr))), "a" (ptr),		\
-		  "K" (-EFAULT), "a" (&(x))			\
-		: __uaccess_clobber );				\
-})
-#endif
-
 #define __get_user(x, ptr)					\
 ({								\
-	int __gu_err;						\
-        __chk_user_ptr(ptr);                                    \
+	int __gu_err = -EFAULT;					\
+	__chk_user_ptr(ptr);					\
 	switch (sizeof(*(ptr))) {				\
 	case 1: {						\
 		unsigned char __x;				\
-		__get_user_asm(__x, ptr, __gu_err);		\
+		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
+					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 2: {						\
 		unsigned short __x;				\
-		__get_user_asm(__x, ptr, __gu_err);		\
+		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
+					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 4: {						\
 		unsigned int __x;				\
-		__get_user_asm(__x, ptr, __gu_err);		\
+		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
+					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 8: {						\
 		unsigned long long __x;				\
-		__get_user_asm(__x, ptr, __gu_err);		\
+		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
+					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
@@ -247,8 +187,6 @@ extern int __get_user_bad(void) __attribute__((noreturn));
 #define __put_user_unaligned __put_user
 #define __get_user_unaligned __get_user
 
-extern long __copy_to_user_asm(const void *from, long n, void __user *to);
-
 /**
  * __copy_to_user: - Copy a block of data into user space, with less checking.
  * @to:   Destination address, in user space.
@@ -266,7 +204,10 @@ extern long __copy_to_user_asm(const void *from, long n, void __user *to);
 static inline unsigned long
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	return __copy_to_user_asm(from, n, to);
+	if (__builtin_constant_p(n) && (n <= 256))
+		return uaccess.copy_to_user_small(n, to, from);
+	else
+		return uaccess.copy_to_user(n, to, from);
 }
 
 #define __copy_to_user_inatomic __copy_to_user
@@ -294,8 +235,6 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 
-extern long __copy_from_user_asm(void *to, long n, const void __user *from);
-
 /**
  * __copy_from_user: - Copy a block of data from user space, with less checking.
  * @to:   Destination address, in kernel space.
@@ -316,7 +255,10 @@ extern long __copy_from_user_asm(void *to, long n, const void __user *from);
 static inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	return __copy_from_user_asm(to, n, from);
+	if (__builtin_constant_p(n) && (n <= 256))
+		return uaccess.copy_from_user_small(n, from, to);
+	else
+		return uaccess.copy_from_user(n, from, to);
 }
 
 /**
@@ -346,13 +288,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-extern unsigned long __copy_in_user_asm(const void __user *from, long n,
-							void __user *to);
-
 static inline unsigned long
 __copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
-	return __copy_in_user_asm(from, n, to);
+	return uaccess.copy_in_user(n, to, from);
 }
 
 static inline unsigned long
@@ -360,34 +299,28 @@ copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
 	might_sleep();
 	if (__access_ok(from,n) && __access_ok(to,n))
-		n = __copy_in_user_asm(from, n, to);
+		n = __copy_in_user(to, from, n);
 	return n;
 }
 
 /*
  * Copy a null terminated string from userspace.
  */
-extern long __strncpy_from_user_asm(long count, char *dst,
-					const char __user *src);
-
 static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
         long res = -EFAULT;
         might_sleep();
         if (access_ok(VERIFY_READ, src, 1))
-                res = __strncpy_from_user_asm(count, dst, src);
+		res = uaccess.strncpy_from_user(count, src, dst);
         return res;
 }
-
-
-extern long __strnlen_user_asm(long count, const char __user *src);
 
 static inline unsigned long
 strnlen_user(const char __user * src, unsigned long n)
 {
 	might_sleep();
-	return __strnlen_user_asm(n, src);
+	return uaccess.strnlen_user(n, src);
 }
 
 /**
@@ -410,12 +343,10 @@ strnlen_user(const char __user * src, unsigned long n)
  * Zero Userspace
  */
 
-extern long __clear_user_asm(void __user *to, long n);
-
 static inline unsigned long
 __clear_user(void __user *to, unsigned long n)
 {
-	return __clear_user_asm(to, n);
+	return uaccess.clear_user(n, to);
 }
 
 static inline unsigned long
@@ -423,7 +354,7 @@ clear_user(void __user *to, unsigned long n)
 {
 	might_sleep();
 	if (access_ok(VERIFY_WRITE, to, n))
-		n = __clear_user_asm(to, n);
+		n = uaccess.clear_user(n, to);
 	return n;
 }
 

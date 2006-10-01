@@ -204,7 +204,6 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = sb->s_blocksize;
 		inode->i_blocks = 0;
 		inode->i_rdev = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -234,7 +233,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 			inode->i_op = &v9fs_symlink_inode_operations;
 			break;
 		case S_IFDIR:
-			inode->i_nlink++;
+			inc_nlink(inode);
 			if(v9ses->extended)
 				inode->i_op = &v9fs_dir_inode_operations_ext;
 			else
@@ -950,9 +949,8 @@ v9fs_stat2inode(struct v9fs_stat *stat, struct inode *inode,
 
 	inode->i_size = stat->length;
 
-	inode->i_blksize = sb->s_blocksize;
 	inode->i_blocks =
-	    (inode->i_size + inode->i_blksize - 1) >> sb->s_blocksize_bits;
+	    (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 }
 
 /**

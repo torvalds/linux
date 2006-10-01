@@ -115,7 +115,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 		inode->i_mode = mode;
 		inode->i_uid = current->fsuid;
 		inode->i_gid = current->fsgid;
-		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
 		inode->i_mtime = inode->i_ctime = inode->i_atime =
 				CURRENT_TIME;
@@ -169,7 +168,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 			/* all is ok */
 			info->user = get_uid(u);
 		} else if (S_ISDIR(mode)) {
-			inode->i_nlink++;
+			inc_nlink(inode);
 			/* Some things misbehave if size == 0 on a directory */
 			inode->i_size = 2 * DIRENT_SIZE;
 			inode->i_op = &mqueue_dir_inode_operations;
@@ -308,7 +307,7 @@ static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_ctime = dir->i_mtime = dir->i_atime = CURRENT_TIME;
 	dir->i_size -= DIRENT_SIZE;
-  	inode->i_nlink--;
+  	drop_nlink(inode);
   	dput(dentry);
   	return 0;
 }
@@ -1275,10 +1274,7 @@ out_filesystem:
 out_sysctl:
 	if (mq_sysctl_table)
 		unregister_sysctl_table(mq_sysctl_table);
-	if (kmem_cache_destroy(mqueue_inode_cachep)) {
-		printk(KERN_INFO
-			"mqueue_inode_cache: not all structures were freed\n");
-	}
+	kmem_cache_destroy(mqueue_inode_cachep);
 	return error;
 }
 

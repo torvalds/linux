@@ -110,6 +110,13 @@ be entered as an environment variable, whereas its absence indicates that
 it will appear as a kernel argument readable via /proc/cmdline by programs
 running once the system is up.
 
+The number of kernel parameters is not limited, but the length of the
+complete command line (parameters including spaces etc.) is limited to
+a fixed number of characters. This limit depends on the architecture
+and is between 256 and 4096 characters. It is defined in the file
+./include/asm/setup.h as COMMAND_LINE_SIZE.
+
+
 	53c7xx=		[HW,SCSI] Amiga SCSI controllers
 			See header of drivers/scsi/53c7xx.c.
 			See also Documentation/scsi/ncr53c7xx.txt.
@@ -572,8 +579,6 @@ running once the system is up.
 
 	gscd=		[HW,CD]
 			Format: <io>
-
-	gt96100eth=	[NET] MIPS GT96100 Advanced Communication Controller
 
 	gus=		[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma16>
@@ -1240,7 +1245,11 @@ running once the system is up.
 				bootloader. This is currently used on
 				IXP2000 systems where the bus has to be
 				configured a certain way for adjunct CPUs.
-
+		noearly		[X86] Don't do any early type 1 scanning.
+				This might help on some broken boards which
+				machine check when some devices' config space
+				is read. But various workarounds are disabled
+				and some IOMMU drivers will not work.
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
@@ -1322,7 +1331,7 @@ running once the system is up.
 	pt.		[PARIDE]
 			See Documentation/paride.txt.
 
-	quiet=		[KNL] Disable log messages
+	quiet		[KNL] Disable most log messages
 
 	r128=		[HW,DRM]
 
@@ -1362,6 +1371,14 @@ running once the system is up.
 			See arch/*/kernel/reboot.c.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
+
+	reservetop=	[IA-32]
+			Format: nn[KMG]
+			Reserves a hole at the top of the kernel virtual
+			address space.
+
+	reset_devices	[KNL] Force drivers to reset the underlying device
+			during initialization.
 
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend

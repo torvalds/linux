@@ -114,14 +114,14 @@ static void which_tmpdir(void)
 	}
 
 	while(1){
-		found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), ' ');
+		found = next(fd, buf, ARRAY_SIZE(buf), ' ');
 		if(found != 1)
 			break;
 
 		if(!strncmp(buf, "/dev/shm", strlen("/dev/shm")))
 			goto found;
 
-		found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), '\n');
+		found = next(fd, buf, ARRAY_SIZE(buf), '\n');
 		if(found != 1)
 			break;
 	}
@@ -132,20 +132,24 @@ err:
 	else if(found < 0)
 		printf("read returned errno %d\n", -found);
 
+out:
+	close(fd);
+
 	return;
 
 found:
-	found = next(fd, buf, sizeof(buf) / sizeof(buf[0]), ' ');
+	found = next(fd, buf, ARRAY_SIZE(buf), ' ');
 	if(found != 1)
 		goto err;
 
 	if(strncmp(buf, "tmpfs", strlen("tmpfs"))){
 		printf("not tmpfs\n");
-		return;
+		goto out;
 	}
 
 	printf("OK\n");
 	default_tmpdir = "/dev/shm";
+	goto out;
 }
 
 /*

@@ -409,6 +409,7 @@ int migrate_page(struct address_space *mapping,
 }
 EXPORT_SYMBOL(migrate_page);
 
+#ifdef CONFIG_BLOCK
 /*
  * Migration function for pages with buffers. This function can only be used
  * if the underlying filesystem guarantees that no other references to "page"
@@ -466,6 +467,7 @@ int buffer_migrate_page(struct address_space *mapping,
 	return 0;
 }
 EXPORT_SYMBOL(buffer_migrate_page);
+#endif
 
 /*
  * Writeback a page to clean the dirty state
@@ -525,7 +527,7 @@ static int fallback_migrate_page(struct address_space *mapping,
 	 * Buffers may be managed in a filesystem specific way.
 	 * We must have no buffers or drop them.
 	 */
-	if (page_has_buffers(page) &&
+	if (PagePrivate(page) &&
 	    !try_to_release_page(page, GFP_KERNEL))
 		return -EAGAIN;
 
@@ -741,7 +743,7 @@ static struct page *new_page_node(struct page *p, unsigned long private,
 
 	*result = &pm->status;
 
-	return alloc_pages_node(pm->node, GFP_HIGHUSER, 0);
+	return alloc_pages_node(pm->node, GFP_HIGHUSER | GFP_THISNODE, 0);
 }
 
 /*

@@ -1,8 +1,6 @@
 #ifndef _DWARF2_H
 #define _DWARF2_H
 
-#include <linux/config.h>
-
 #ifndef __ASSEMBLY__
 #warning "asm/dwarf2.h should be only included in pure assembly files"
 #endif
@@ -28,6 +26,13 @@
 #define CFI_RESTORE .cfi_restore
 #define CFI_REMEMBER_STATE .cfi_remember_state
 #define CFI_RESTORE_STATE .cfi_restore_state
+#define CFI_UNDEFINED .cfi_undefined
+
+#ifdef CONFIG_AS_CFI_SIGNAL_FRAME
+#define CFI_SIGNAL_FRAME .cfi_signal_frame
+#else
+#define CFI_SIGNAL_FRAME
+#endif
 
 #else
 
@@ -48,6 +53,8 @@
 #define CFI_RESTORE	ignore
 #define CFI_REMEMBER_STATE ignore
 #define CFI_RESTORE_STATE ignore
+#define CFI_UNDEFINED ignore
+#define CFI_SIGNAL_FRAME ignore
 
 #endif
 

@@ -32,7 +32,7 @@
  */
 
 #include "ipath_verbs.h"
-#include "ipath_common.h"
+#include "ipath_kernel.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_UC_##x
@@ -246,6 +246,10 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	struct ib_reth *reth;
 	int header_in_data;
 
+	/* Validate the SLID. See Ch. 9.6.1.5 */
+	if (unlikely(be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid))
+		goto done;
+
 	/* Check for GRH */
 	if (!has_grh) {
 		ohdr = &hdr->u.oth;
@@ -261,8 +265,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		 * size to 56 bytes so the last 4 bytes of
 		 * the BTH header (PSN) is in the data buffer.
 		 */
-		header_in_data =
-			ipath_layer_get_rcvhdrentsize(dev->dd) == 16;
+		header_in_data = dev->dd->ipath_rcvhdrentsize == 16;
 		if (header_in_data) {
 			psn = be32_to_cpu(((__be32 *) data)[0]);
 			data += sizeof(__be32);
@@ -441,7 +444,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			int ok;
 
 			/* Check rkey */
-			ok = ipath_rkey_ok(dev, &qp->r_sge, qp->r_len,
+			ok = ipath_rkey_ok(qp, &qp->r_sge, qp->r_len,
 					   vaddr, rkey,
 					   IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok)) {

@@ -187,7 +187,7 @@ struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
-	unsigned short  hh_type;	/* protocol identifier, f.e ETH_P_IP
+	__be16		hh_type;	/* protocol identifier, f.e ETH_P_IP
                                          *  NOTE:  For VLANs, this will be the
                                          *  encapuslated type. --BLG
                                          */
@@ -334,7 +334,6 @@ struct net_device
 
 
 	struct net_device_stats* (*get_stats)(struct net_device *dev);
-	struct iw_statistics*	(*get_wireless_stats)(struct net_device *dev);
 
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
 	 * See <net/iw_handler.h> for details. Jean II */
@@ -342,7 +341,7 @@ struct net_device
 	/* Instance data managed by the core of Wireless Extensions. */
 	struct iw_public_data *	wireless_data;
 
-	struct ethtool_ops *ethtool_ops;
+	const struct ethtool_ops *ethtool_ops;
 
 	/*
 	 * This marks the end of the "visible" part of the structure. All
@@ -976,7 +975,7 @@ extern void		dev_mcast_init(void);
 extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
-extern int skb_checksum_help(struct sk_buff *skb, int inward);
+extern int skb_checksum_help(struct sk_buff *skb);
 extern struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features);
 #ifdef CONFIG_BUG
 extern void netdev_rx_csum_fault(struct net_device *dev);
@@ -1012,11 +1011,12 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
-		unlikely(skb->ip_summed != CHECKSUM_HW));
+		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
 }
 
 /* On bonding slaves other than the currently active slave, suppress
- * duplicates except for 802.3ad ETH_P_SLOW and alb non-mcast/bcast.
+ * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
+ * ARP on active-backup slaves with arp_validate enabled.
  */
 static inline int skb_bond_should_drop(struct sk_buff *skb)
 {
@@ -1025,6 +1025,10 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 
 	if (master &&
 	    (dev->priv_flags & IFF_SLAVE_INACTIVE)) {
+		if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
+		    skb->protocol == __constant_htons(ETH_P_ARP))
+			return 0;
+
 		if (master->priv_flags & IFF_MASTER_ALB) {
 			if (skb->pkt_type != PACKET_BROADCAST &&
 			    skb->pkt_type != PACKET_MULTICAST)

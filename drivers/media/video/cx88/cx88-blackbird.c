@@ -1160,8 +1160,10 @@ static struct pci_driver blackbird_pci_driver = {
 	.id_table = cx8802_pci_tbl,
 	.probe    = blackbird_probe,
 	.remove   = __devexit_p(blackbird_remove),
+#ifdef CONFIG_PM
 	.suspend  = cx8802_suspend_common,
 	.resume   = cx8802_resume_common,
+#endif
 };
 
 static int blackbird_init(void)

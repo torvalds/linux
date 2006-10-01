@@ -31,9 +31,9 @@
  * the S390 page table tree.
  */
 #ifndef __ASSEMBLY__
+#include <linux/mm_types.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
-#include <linux/threads.h>
 
 struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
 struct mm_struct;
@@ -87,19 +87,6 @@ extern char empty_zero_page[PAGE_SIZE];
 # define PTRS_PER_PTE    512
 # define PTRS_PER_PMD    1024
 # define PTRS_PER_PGD    2048
-#endif /* __s390x__ */
-
-/*
- * pgd entries used up by user/kernel:
- */
-#ifndef __s390x__
-# define USER_PTRS_PER_PGD  512
-# define USER_PGD_PTRS      512
-# define KERNEL_PGD_PTRS    512
-#else /* __s390x__ */
-# define USER_PTRS_PER_PGD  2048
-# define USER_PGD_PTRS      2048
-# define KERNEL_PGD_PTRS    2048
 #endif /* __s390x__ */
 
 #define FIRST_USER_ADDRESS  0
@@ -216,12 +203,14 @@ extern char empty_zero_page[PAGE_SIZE];
 #define _PAGE_RO        0x200          /* HW read-only                     */
 #define _PAGE_INVALID   0x400          /* HW invalid                       */
 
-/* Mask and four different kinds of invalid pages. */
-#define _PAGE_INVALID_MASK	0x601
-#define _PAGE_INVALID_EMPTY	0x400
-#define _PAGE_INVALID_NONE	0x401
-#define _PAGE_INVALID_SWAP	0x600
-#define _PAGE_INVALID_FILE	0x601
+/* Mask and six different types of pages. */
+#define _PAGE_TYPE_MASK		0x601
+#define _PAGE_TYPE_EMPTY	0x400
+#define _PAGE_TYPE_NONE		0x401
+#define _PAGE_TYPE_SWAP		0x600
+#define _PAGE_TYPE_FILE		0x601
+#define _PAGE_TYPE_RO		0x200
+#define _PAGE_TYPE_RW		0x000
 
 #ifndef __s390x__
 
@@ -280,15 +269,14 @@ extern char empty_zero_page[PAGE_SIZE];
 #endif /* __s390x__ */
 
 /*
- * No mapping available
+ * Page protection definitions.
  */
-#define PAGE_NONE_SHARED  __pgprot(_PAGE_INVALID_NONE)
-#define PAGE_NONE_PRIVATE __pgprot(_PAGE_INVALID_NONE)
-#define PAGE_RO_SHARED	  __pgprot(_PAGE_RO)
-#define PAGE_RO_PRIVATE	  __pgprot(_PAGE_RO)
-#define PAGE_COPY	  __pgprot(_PAGE_RO)
-#define PAGE_SHARED	  __pgprot(0)
-#define PAGE_KERNEL	  __pgprot(0)
+#define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
+#define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
+#define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
+
+#define PAGE_KERNEL	PAGE_RW
+#define PAGE_COPY	PAGE_RO
 
 /*
  * The S390 can't do page protection for execute, and considers that the
@@ -296,23 +284,23 @@ extern char empty_zero_page[PAGE_SIZE];
  * the closest we can get..
  */
          /*xwr*/
-#define __P000  PAGE_NONE_PRIVATE
-#define __P001  PAGE_RO_PRIVATE
-#define __P010  PAGE_COPY
-#define __P011  PAGE_COPY
-#define __P100  PAGE_RO_PRIVATE
-#define __P101  PAGE_RO_PRIVATE
-#define __P110  PAGE_COPY
-#define __P111  PAGE_COPY
+#define __P000	PAGE_NONE
+#define __P001	PAGE_RO
+#define __P010	PAGE_RO
+#define __P011	PAGE_RO
+#define __P100	PAGE_RO
+#define __P101	PAGE_RO
+#define __P110	PAGE_RO
+#define __P111	PAGE_RO
 
-#define __S000  PAGE_NONE_SHARED
-#define __S001  PAGE_RO_SHARED
-#define __S010  PAGE_SHARED
-#define __S011  PAGE_SHARED
-#define __S100  PAGE_RO_SHARED
-#define __S101  PAGE_RO_SHARED
-#define __S110  PAGE_SHARED
-#define __S111  PAGE_SHARED
+#define __S000	PAGE_NONE
+#define __S001	PAGE_RO
+#define __S010	PAGE_RW
+#define __S011	PAGE_RW
+#define __S100	PAGE_RO
+#define __S101	PAGE_RO
+#define __S110	PAGE_RW
+#define __S111	PAGE_RW
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -377,18 +365,18 @@ static inline int pmd_bad(pmd_t pmd)
 
 static inline int pte_none(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_EMPTY;
+	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_EMPTY;
 }
 
 static inline int pte_present(pte_t pte)
 {
 	return !(pte_val(pte) & _PAGE_INVALID) ||
-		(pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_NONE;
+		(pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_NONE;
 }
 
 static inline int pte_file(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_FILE;
+	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_FILE;
 }
 
 #define pte_same(a,b)	(pte_val(a) == pte_val(b))
@@ -461,7 +449,7 @@ static inline void pmd_clear(pmd_t * pmdp)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -477,7 +465,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	/* Do not clobber _PAGE_INVALID_NONE pages!  */
+	/* Do not clobber _PAGE_TYPE_NONE pages!  */
 	if (!(pte_val(pte) & _PAGE_INVALID))
 		pte_val(pte) |= _PAGE_RO;
 	return pte;
@@ -556,26 +544,31 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return pte;
 }
 
+static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
+{
+	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+#ifndef __s390x__
+		/* S390 has 1mb segments, we are emulating 4MB segments */
+		pte_t *pto = (pte_t *) (((unsigned long) ptep) & 0x7ffffc00);
+#else
+		/* ipte in zarch mode can do the math */
+		pte_t *pto = ptep;
+#endif
+		asm volatile(
+			"	ipte	%2,%3"
+			: "=m" (*ptep) : "m" (*ptep),
+			  "a" (pto), "a" (address));
+	}
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+}
+
 static inline pte_t
 ptep_clear_flush(struct vm_area_struct *vma,
 		 unsigned long address, pte_t *ptep)
 {
 	pte_t pte = *ptep;
-#ifndef __s390x__
-	if (!(pte_val(pte) & _PAGE_INVALID)) {
-		/* S390 has 1mb segments, we are emulating 4MB segments */
-		pte_t *pto = (pte_t *) (((unsigned long) ptep) & 0x7ffffc00);
-		__asm__ __volatile__ ("ipte %2,%3"
-				      : "=m" (*ptep) : "m" (*ptep),
-				        "a" (pto), "a" (address) );
-	}
-#else /* __s390x__ */
-	if (!(pte_val(pte) & _PAGE_INVALID)) 
-		__asm__ __volatile__ ("ipte %2,%3"
-				      : "=m" (*ptep) : "m" (*ptep),
-				        "a" (ptep), "a" (address) );
-#endif /* __s390x__ */
-	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
+
+	__ptep_ipte(address, ptep);
 	return pte;
 }
 
@@ -604,30 +597,31 @@ ptep_establish(struct vm_area_struct *vma,
  * should therefore only be called if it is not mapped in any
  * address space.
  */
-#define page_test_and_clear_dirty(_page)				  \
-({									  \
-	struct page *__page = (_page);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __skey = page_get_storage_key(__physpage);			  \
-	if (__skey & _PAGE_CHANGED)					  \
-		page_set_storage_key(__physpage, __skey & ~_PAGE_CHANGED);\
-	(__skey & _PAGE_CHANGED);					  \
-})
+static inline int page_test_and_clear_dirty(struct page *page)
+{
+	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+	int skey = page_get_storage_key(physpage);
+
+	if (skey & _PAGE_CHANGED)
+		page_set_storage_key(physpage, skey & ~_PAGE_CHANGED);
+	return skey & _PAGE_CHANGED;
+}
 
 /*
  * Test and clear referenced bit in storage key.
  */
-#define page_test_and_clear_young(page)					  \
-({									  \
-	struct page *__page = (page);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	int __ccode;							  \
-	asm volatile ("rrbe 0,%1\n\t"					  \
-		      "ipm  %0\n\t"					  \
-		      "srl  %0,28\n\t" 					  \
-                      : "=d" (__ccode) : "a" (__physpage) : "cc" );	  \
-	(__ccode & 2);							  \
-})
+static inline int page_test_and_clear_young(struct page *page)
+{
+	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+	int ccode;
+
+	asm volatile (
+		"rrbe 0,%1\n"
+		"ipm  %0\n"
+		"srl  %0,28\n"
+		: "=d" (ccode) : "a" (physpage) : "cc" );
+	return ccode & 2;
+}
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -640,43 +634,41 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 	return __pte;
 }
 
-#define mk_pte(pg, pgprot)                                                \
-({                                                                        \
-	struct page *__page = (pg);                                       \
-	pgprot_t __pgprot = (pgprot);					  \
-	unsigned long __physpage = __pa((__page-mem_map) << PAGE_SHIFT);  \
-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
-	__pte;                                                            \
-})
+static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
+{
+	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
 
-#define pfn_pte(pfn, pgprot)                                              \
-({                                                                        \
-	pgprot_t __pgprot = (pgprot);					  \
-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
-	pte_t __pte = mk_pte_phys(__physpage, __pgprot);                  \
-	__pte;                                                            \
-})
+	return mk_pte_phys(physpage, pgprot);
+}
+
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
+{
+	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
+
+	return mk_pte_phys(physpage, pgprot);
+}
 
 #ifdef __s390x__
 
-#define pfn_pmd(pfn, pgprot)                                              \
-({                                                                        \
-	pgprot_t __pgprot = (pgprot);                                     \
-	unsigned long __physpage = __pa((pfn) << PAGE_SHIFT);             \
-	pmd_t __pmd = __pmd(__physpage + pgprot_val(__pgprot));           \
-	__pmd;                                                            \
-})
+static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
+{
+	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
+
+	return __pmd(physpage + pgprot_val(pgprot));
+}
 
 #endif /* __s390x__ */
 
 #define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
-#define pmd_page_kernel(pmd) (pmd_val(pmd) & PAGE_MASK)
+#define pmd_page_vaddr(pmd) (pmd_val(pmd) & PAGE_MASK)
 
 #define pmd_page(pmd) (mem_map+(pmd_val(pmd) >> PAGE_SHIFT))
 
-#define pgd_page_kernel(pgd) (pgd_val(pgd) & PAGE_MASK)
+#define pgd_page_vaddr(pgd) (pgd_val(pgd) & PAGE_MASK)
+
+#define pgd_page(pgd) (mem_map+(pgd_val(pgd) >> PAGE_SHIFT))
 
 /* to find an entry in a page-table-directory */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
@@ -698,14 +690,14 @@ static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 /* Find an entry in the second-level page table.. */
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 #define pmd_offset(dir,addr) \
-	((pmd_t *) pgd_page_kernel(*(dir)) + pmd_index(addr))
+	((pmd_t *) pgd_page_vaddr(*(dir)) + pmd_index(addr))
 
 #endif /* __s390x__ */
 
 /* Find an entry in the third-level page table.. */
 #define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
 #define pte_offset_kernel(pmd, address) \
-	((pte_t *) pmd_page_kernel(*(pmd)) + pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(pmd)) + pte_index(address))
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_offset_map_nested(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_unmap(pte) do { } while (0)
@@ -755,7 +747,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 {
 	pte_t pte;
 	offset &= __SWP_OFFSET_MASK;
-	pte_val(pte) = _PAGE_INVALID_SWAP | ((type & 0x1f) << 2) |
+	pte_val(pte) = _PAGE_TYPE_SWAP | ((type & 0x1f) << 2) |
 		((offset & 1UL) << 7) | ((offset & ~1UL) << 11);
 	return pte;
 }
@@ -778,7 +770,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define pgoff_to_pte(__off) \
 	((pte_t) { ((((__off) & 0x7f) << 1) + (((__off) >> 7) << 12)) \
-		   | _PAGE_INVALID_FILE })
+		   | _PAGE_TYPE_FILE })
 
 #endif /* !__ASSEMBLY__ */
 

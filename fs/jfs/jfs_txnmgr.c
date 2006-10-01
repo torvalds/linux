@@ -282,7 +282,7 @@ int txInit(void)
 	TxLockVHWM = (nTxLock * 8) / 10;
 
 	size = sizeof(struct tblock) * nTxBlock;
-	TxBlock = (struct tblock *) vmalloc(size);
+	TxBlock = vmalloc(size);
 	if (TxBlock == NULL)
 		return -ENOMEM;
 
@@ -307,7 +307,7 @@ int txInit(void)
 	 * tlock id = 0 is reserved.
 	 */
 	size = sizeof(struct tlock) * nTxLock;
-	TxLock = (struct tlock *) vmalloc(size);
+	TxLock = vmalloc(size);
 	if (TxLock == NULL) {
 		vfree(TxBlock);
 		return -ENOMEM;
@@ -2393,7 +2393,7 @@ static void txUpdateMap(struct tblock * tblk)
 	 * unlock mapper/write lock
 	 */
 	if (tblk->xflag & COMMIT_CREATE) {
-		diUpdatePMap(ipimap, tblk->ino, FALSE, tblk);
+		diUpdatePMap(ipimap, tblk->ino, false, tblk);
 		/* update persistent block allocation map
 		 * for the allocation of inode extent;
 		 */
@@ -2403,7 +2403,7 @@ static void txUpdateMap(struct tblock * tblk)
 		txAllocPMap(ipimap, (struct maplock *) & pxdlock, tblk);
 	} else if (tblk->xflag & COMMIT_DELETE) {
 		ip = tblk->u.ip;
-		diUpdatePMap(ipimap, ip->i_ino, TRUE, tblk);
+		diUpdatePMap(ipimap, ip->i_ino, true, tblk);
 		iput(ip);
 	}
 }
@@ -2451,7 +2451,7 @@ static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 			if (xad->flag & (XAD_NEW | XAD_EXTENDED)) {
 				xaddr = addressXAD(xad);
 				xlen = lengthXAD(xad);
-				dbUpdatePMap(ipbmap, FALSE, xaddr,
+				dbUpdatePMap(ipbmap, false, xaddr,
 					     (s64) xlen, tblk);
 				xad->flag &= ~(XAD_NEW | XAD_EXTENDED);
 				jfs_info("allocPMap: xaddr:0x%lx xlen:%d",
@@ -2462,7 +2462,7 @@ static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 		pxdlock = (struct pxd_lock *) maplock;
 		xaddr = addressPXD(&pxdlock->pxd);
 		xlen = lengthPXD(&pxdlock->pxd);
-		dbUpdatePMap(ipbmap, FALSE, xaddr, (s64) xlen, tblk);
+		dbUpdatePMap(ipbmap, false, xaddr, (s64) xlen, tblk);
 		jfs_info("allocPMap: xaddr:0x%lx xlen:%d", (ulong) xaddr, xlen);
 	} else {		/* (maplock->flag & mlckALLOCPXDLIST) */
 
@@ -2471,7 +2471,7 @@ static void txAllocPMap(struct inode *ip, struct maplock * maplock,
 		for (n = 0; n < pxdlistlock->count; n++, pxd++) {
 			xaddr = addressPXD(pxd);
 			xlen = lengthPXD(pxd);
-			dbUpdatePMap(ipbmap, FALSE, xaddr, (s64) xlen,
+			dbUpdatePMap(ipbmap, false, xaddr, (s64) xlen,
 				     tblk);
 			jfs_info("allocPMap: xaddr:0x%lx xlen:%d",
 				 (ulong) xaddr, xlen);
@@ -2513,7 +2513,7 @@ void txFreeMap(struct inode *ip,
 				if (!(xad->flag & XAD_NEW)) {
 					xaddr = addressXAD(xad);
 					xlen = lengthXAD(xad);
-					dbUpdatePMap(ipbmap, TRUE, xaddr,
+					dbUpdatePMap(ipbmap, true, xaddr,
 						     (s64) xlen, tblk);
 					jfs_info("freePMap: xaddr:0x%lx "
 						 "xlen:%d",
@@ -2524,7 +2524,7 @@ void txFreeMap(struct inode *ip,
 			pxdlock = (struct pxd_lock *) maplock;
 			xaddr = addressPXD(&pxdlock->pxd);
 			xlen = lengthPXD(&pxdlock->pxd);
-			dbUpdatePMap(ipbmap, TRUE, xaddr, (s64) xlen,
+			dbUpdatePMap(ipbmap, true, xaddr, (s64) xlen,
 				     tblk);
 			jfs_info("freePMap: xaddr:0x%lx xlen:%d",
 				 (ulong) xaddr, xlen);
@@ -2535,7 +2535,7 @@ void txFreeMap(struct inode *ip,
 			for (n = 0; n < pxdlistlock->count; n++, pxd++) {
 				xaddr = addressPXD(pxd);
 				xlen = lengthPXD(pxd);
-				dbUpdatePMap(ipbmap, TRUE, xaddr,
+				dbUpdatePMap(ipbmap, true, xaddr,
 					     (s64) xlen, tblk);
 				jfs_info("freePMap: xaddr:0x%lx xlen:%d",
 					 (ulong) xaddr, xlen);

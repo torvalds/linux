@@ -42,7 +42,11 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 						    drm_file_t * filp_priv,
 						    u32 *offset)
 {
-	u32 off = *offset;
+	u64 off = *offset;
+	u32 fb_start = dev_priv->fb_location;
+	u32 fb_end = fb_start + dev_priv->fb_size - 1;
+	u32 gart_start = dev_priv->gart_vm_start;
+	u32 gart_end = gart_start + dev_priv->gart_size - 1;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
 	/* Hrm ... the story of the offset ... So this function converts
@@ -62,10 +66,8 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	/* First, the best case, the offset already lands in either the
 	 * framebuffer or the GART mapped space
 	 */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size)))
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end))
 		return 0;
 
 	/* Ok, that didn't happen... now check if we have a zero based
@@ -78,16 +80,13 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	}
 
 	/* Finally, assume we aimed at a GART offset if beyond the fb */
-	if (off > (dev_priv->fb_location + dev_priv->fb_size))
-		off = off - (dev_priv->fb_location + dev_priv->fb_size) +
-			dev_priv->gart_vm_start;
+	if (off > fb_end)
+		off = off - fb_end - 1 + gart_start;
 
 	/* Now recheck and fail if out of bounds */
-	if ((off >= dev_priv->fb_location &&
-	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
-	    (off >= dev_priv->gart_vm_start &&
-	     off < (dev_priv->gart_vm_start + dev_priv->gart_size))) {
-		DRM_DEBUG("offset fixed up to 0x%x\n", off);
+	if ((off >= fb_start && off <= fb_end) ||
+	    (off >= gart_start && off <= gart_end)) {
+		DRM_DEBUG("offset fixed up to 0x%x\n", (unsigned int)off);
 		*offset = off;
 		return 0;
 	}
@@ -869,7 +868,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		 */
 		dev_priv->sarea_priv->ctx_owner = 0;
 
-		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		if ((dev_priv->flags & RADEON_HAS_HIERZ)
 		    && (flags & RADEON_USE_HIERZ)) {
 			/* FIXME : reverse engineer that for Rx00 cards */
 			/* FIXME : the mask supposedly contains low-res z values. So can't set
@@ -914,7 +913,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		for (i = 0; i < nbox; i++) {
 			int tileoffset, nrtilesx, nrtilesy, j;
 			/* it looks like r200 needs rv-style clears, at least if hierz is not enabled? */
-			if ((dev_priv->flags & CHIP_HAS_HIERZ)
+			if ((dev_priv->flags & RADEON_HAS_HIERZ)
 			    && !(dev_priv->microcode_version == UCODE_R200)) {
 				/* FIXME : figure this out for r200 (when hierz is enabled). Or
 				   maybe r200 actually doesn't need to put the low-res z value into
@@ -998,7 +997,7 @@ static void radeon_cp_dispatch_clear(drm_device_t * dev,
 		}
 
 		/* TODO don't always clear all hi-level z tiles */
-		if ((dev_priv->flags & CHIP_HAS_HIERZ)
+		if ((dev_priv->flags & RADEON_HAS_HIERZ)
 		    && (dev_priv->microcode_version == UCODE_R200)
 		    && (flags & RADEON_USE_HIERZ))
 			/* r100 and cards without hierarchical z-buffer have no high-level z-buffer */
@@ -1270,9 +1269,9 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		DRM_DEBUG("dispatch swap %d,%d-%d,%d\n", x, y, w, h);
 
-		BEGIN_RING(7);
+		BEGIN_RING(9);
 
-		OUT_RING(CP_PACKET3(RADEON_CNTL_BITBLT_MULTI, 5));
+		OUT_RING(CP_PACKET0(RADEON_DP_GUI_MASTER_CNTL, 0));
 		OUT_RING(RADEON_GMC_SRC_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_DST_PITCH_OFFSET_CNTL |
 			 RADEON_GMC_BRUSH_NONE |
@@ -1284,6 +1283,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 
 		/* Make this work even if front & back are flipped:
 		 */
+		OUT_RING(CP_PACKET0(RADEON_SRC_PITCH_OFFSET, 1));
 		if (dev_priv->current_page == 0) {
 			OUT_RING(dev_priv->back_pitch_offset);
 			OUT_RING(dev_priv->front_pitch_offset);
@@ -1292,6 +1292,7 @@ static void radeon_cp_dispatch_swap(drm_device_t * dev)
 			OUT_RING(dev_priv->back_pitch_offset);
 		}
 
+		OUT_RING(CP_PACKET0(RADEON_SRC_X_Y, 2));
 		OUT_RING((x << 16) | y);
 		OUT_RING((x << 16) | y);
 		OUT_RING((w << 16) | h);
@@ -2987,16 +2988,21 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	case RADEON_PARAM_GART_TEX_HANDLE:
 		value = dev_priv->gart_textures_offset;
 		break;
-	
+	case RADEON_PARAM_SCRATCH_OFFSET:
+		if (!dev_priv->writeback_works)
+			return DRM_ERR(EINVAL);
+		value = RADEON_SCRATCH_REG_OFFSET;
+		break;
 	case RADEON_PARAM_CARD_TYPE:
-		if (dev_priv->flags & CHIP_IS_PCIE)
+		if (dev_priv->flags & RADEON_IS_PCIE)
 			value = RADEON_CARD_PCIE;
-		else if (dev_priv->flags & CHIP_IS_AGP)
+		else if (dev_priv->flags & RADEON_IS_AGP)
 			value = RADEON_CARD_AGP;
 		else
 			value = RADEON_CARD_PCI;
 		break;
 	default:
+		DRM_DEBUG("Invalid parameter %d\n", param.param);
 		return DRM_ERR(EINVAL);
 	}
 

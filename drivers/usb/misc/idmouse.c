@@ -98,7 +98,7 @@ static int idmouse_probe(struct usb_interface *interface,
 static void idmouse_disconnect(struct usb_interface *interface);
 
 /* file operation pointers */
-static struct file_operations idmouse_fops = {
+static const struct file_operations idmouse_fops = {
 	.owner = THIS_MODULE,
 	.read = idmouse_read,
 	.open = idmouse_open,

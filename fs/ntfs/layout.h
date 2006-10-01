@@ -142,13 +142,13 @@ typedef le32 NTFS_RECORD_TYPE;
  * operator! (-8
  */
 
-static inline BOOL __ntfs_is_magic(le32 x, NTFS_RECORD_TYPE r)
+static inline bool __ntfs_is_magic(le32 x, NTFS_RECORD_TYPE r)
 {
 	return (x == r);
 }
 #define ntfs_is_magic(x, m)	__ntfs_is_magic(x, magic_##m)
 
-static inline BOOL __ntfs_is_magicp(le32 *p, NTFS_RECORD_TYPE r)
+static inline bool __ntfs_is_magicp(le32 *p, NTFS_RECORD_TYPE r)
 {
 	return (*p == r);
 }
@@ -323,7 +323,7 @@ typedef le64 leMFT_REF;
 #define MREF_LE(x)	((unsigned long)(le64_to_cpu(x) & MFT_REF_MASK_CPU))
 #define MSEQNO_LE(x)	((u16)((le64_to_cpu(x) >> 48) & 0xffff))
 
-#define IS_ERR_MREF(x)	(((x) & 0x0000800000000000ULL) ? 1 : 0)
+#define IS_ERR_MREF(x)	(((x) & 0x0000800000000000ULL) ? true : false)
 #define ERR_MREF(x)	((u64)((s64)(x)))
 #define MREF_ERR(x)	((int)((s64)(x)))
 

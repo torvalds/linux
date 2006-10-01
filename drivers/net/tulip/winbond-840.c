@@ -45,8 +45,8 @@
 */
 
 #define DRV_NAME	"winbond-840"
-#define DRV_VERSION	"1.01-d"
-#define DRV_RELDATE	"Nov-17-2001"
+#define DRV_VERSION	"1.01-e"
+#define DRV_RELDATE	"Sep-11-2006"
 
 
 /* Automatically extracted configuration info:
@@ -90,10 +90,8 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
    Making the Tx ring too large decreases the effectiveness of channel
    bonding and packet priority.
    There are no ill effects from too-large receive rings. */
-#define TX_RING_SIZE	16
 #define TX_QUEUE_LEN	10		/* Limit ring entries actually used.  */
 #define TX_QUEUE_LEN_RESTART	5
-#define RX_RING_SIZE	32
 
 #define TX_BUFLIMIT	(1024-128)
 
@@ -136,6 +134,8 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <asm/processor.h>		/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
+
+#include "tulip.h"
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =
@@ -242,8 +242,8 @@ static const struct pci_id_info pci_id_tbl[] __devinitdata = {
 };
 
 /* This driver was written to use PCI memory space, however some x86 systems
-   work only with I/O space accesses.  Pass -DUSE_IO_OPS to use PCI I/O space
-   accesses instead of memory space. */
+   work only with I/O space accesses. See CONFIG_TULIP_MMIO in .config
+*/
 
 /* Offsets to the Command and Status Registers, "CSRs".
    While similar to the Tulip, these registers are longword aligned.
@@ -261,21 +261,11 @@ enum w840_offsets {
 	CurTxDescAddr=0x4C, CurTxBufAddr=0x50,
 };
 
-/* Bits in the interrupt status/enable registers. */
-/* The bits in the Intr Status/Enable registers, mostly interrupt sources. */
-enum intr_status_bits {
-	NormalIntr=0x10000, AbnormalIntr=0x8000,
-	IntrPCIErr=0x2000, TimerInt=0x800,
-	IntrRxDied=0x100, RxNoBuf=0x80, IntrRxDone=0x40,
-	TxFIFOUnderflow=0x20, RxErrIntr=0x10,
-	TxIdle=0x04, IntrTxStopped=0x02, IntrTxDone=0x01,
-};
-
 /* Bits in the NetworkConfig register. */
 enum rx_mode_bits {
-	AcceptErr=0x80, AcceptRunt=0x40,
-	AcceptBroadcast=0x20, AcceptMulticast=0x10,
-	AcceptAllPhys=0x08, AcceptMyPhys=0x02,
+	AcceptErr=0x80,
+	RxAcceptBroadcast=0x20, AcceptMulticast=0x10,
+	RxAcceptAllPhys=0x08, AcceptMyPhys=0x02,
 };
 
 enum mii_reg_bits {
@@ -295,13 +285,6 @@ struct w840_tx_desc {
 	s32 status;
 	s32 length;
 	u32 buffer1, buffer2;
-};
-
-/* Bits in network_desc.status */
-enum desc_status_bits {
-	DescOwn=0x80000000, DescEndRing=0x02000000, DescUseLink=0x01000000,
-	DescWholePkt=0x60000000, DescStartPkt=0x20000000, DescEndPkt=0x40000000,
-	DescIntr=0x80000000,
 };
 
 #define MII_CNT		1 /* winbond only supports one MII */
@@ -356,7 +339,7 @@ static u32 __set_rx_mode(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static int  netdev_close(struct net_device *dev);
 
 
@@ -371,7 +354,6 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 	int irq;
 	int i, option = find_cnt < MAX_UNITS ? options[find_cnt] : 0;
 	void __iomem *ioaddr;
-	int bar = 1;
 
 	i = pci_enable_device(pdev);
 	if (i) return i;
@@ -393,10 +375,8 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 
 	if (pci_request_regions(pdev, DRV_NAME))
 		goto err_out_netdev;
-#ifdef USE_IO_OPS
-	bar = 0;
-#endif
-	ioaddr = pci_iomap(pdev, bar, netdev_res_size);
+
+	ioaddr = pci_iomap(pdev, TULIP_BAR, netdev_res_size);
 	if (!ioaddr)
 		goto err_out_free_res;
 
@@ -838,7 +818,7 @@ static void init_rxtx_rings(struct net_device *dev)
 					np->rx_buf_sz,PCI_DMA_FROMDEVICE);
 
 		np->rx_ring[i].buffer1 = np->rx_addr[i];
-		np->rx_ring[i].status = DescOwn;
+		np->rx_ring[i].status = DescOwned;
 	}
 
 	np->cur_rx = 0;
@@ -923,7 +903,7 @@ static void init_registers(struct net_device *dev)
 	}
 #elif defined(__powerpc__) || defined(__i386__) || defined(__alpha__) || defined(__ia64__) || defined(__x86_64__)
 	i |= 0xE000;
-#elif defined(__sparc__)
+#elif defined(__sparc__) || defined (CONFIG_PARISC)
 	i |= 0x4800;
 #else
 #warning Processor architecture undefined
@@ -1043,11 +1023,11 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* Now acquire the irq spinlock.
 	 * The difficult race is the the ordering between
-	 * increasing np->cur_tx and setting DescOwn:
+	 * increasing np->cur_tx and setting DescOwned:
 	 * - if np->cur_tx is increased first the interrupt
 	 *   handler could consider the packet as transmitted
-	 *   since DescOwn is cleared.
-	 * - If DescOwn is set first the NIC could report the
+	 *   since DescOwned is cleared.
+	 * - If DescOwned is set first the NIC could report the
 	 *   packet as sent, but the interrupt handler would ignore it
 	 *   since the np->cur_tx was not yet increased.
 	 */
@@ -1055,7 +1035,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	np->cur_tx++;
 
 	wmb(); /* flush length, buffer1, buffer2 */
-	np->tx_ring[entry].status = DescOwn;
+	np->tx_ring[entry].status = DescOwned;
 	wmb(); /* flush status and kick the hardware */
 	iowrite32(0, np->base_addr + TxStartDemand);
 	np->tx_q_bytes += skb->len;
@@ -1155,12 +1135,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 
 		handled = 1;
 
-		if (intr_status & (IntrRxDone | RxNoBuf))
+		if (intr_status & (RxIntr | RxNoBuf))
 			netdev_rx(dev);
 		if (intr_status & RxNoBuf)
 			iowrite32(0, ioaddr + RxStartDemand);
 
-		if (intr_status & (TxIdle | IntrTxDone) &&
+		if (intr_status & (TxNoBuf | TxIntr) &&
 			np->cur_tx != np->dirty_tx) {
 			spin_lock(&np->lock);
 			netdev_tx_done(dev);
@@ -1168,8 +1148,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 		}
 
 		/* Abnormal error summary/uncommon events handlers. */
-		if (intr_status & (AbnormalIntr | TxFIFOUnderflow | IntrPCIErr |
-						   TimerInt | IntrTxStopped))
+		if (intr_status & (AbnormalIntr | TxFIFOUnderflow | SytemError |
+						   TimerInt | TxDied))
 			netdev_error(dev, intr_status);
 
 		if (--work_limit < 0) {
@@ -1305,7 +1285,7 @@ static int netdev_rx(struct net_device *dev)
 			np->rx_ring[entry].buffer1 = np->rx_addr[entry];
 		}
 		wmb();
-		np->rx_ring[entry].status = DescOwn;
+		np->rx_ring[entry].status = DescOwned;
 	}
 
 	return 0;
@@ -1342,7 +1322,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 			   dev->name, new);
 		update_csr6(dev, new);
 	}
-	if (intr_status & IntrRxDied) {		/* Missed a Rx frame. */
+	if (intr_status & RxDied) {		/* Missed a Rx frame. */
 		np->stats.rx_errors++;
 	}
 	if (intr_status & TimerInt) {
@@ -1378,16 +1358,14 @@ static u32 __set_rx_mode(struct net_device *dev)
 	u32 rx_mode;
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
-		/* Unconditionally log net taps. */
-		printk(KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
 		memset(mc_filter, 0xff, sizeof(mc_filter));
-		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptAllPhys
+		rx_mode = RxAcceptBroadcast | AcceptMulticast | RxAcceptAllPhys
 			| AcceptMyPhys;
 	} else if ((dev->mc_count > multicast_filter_limit)
 			   ||  (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
-		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
+		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	} else {
 		struct dev_mc_list *mclist;
 		int i;
@@ -1398,7 +1376,7 @@ static u32 __set_rx_mode(struct net_device *dev)
 			filterbit &= 0x3f;
 			mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
 		}
-		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
+		rx_mode = RxAcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 	}
 	iowrite32(mc_filter[0], ioaddr + MulticastFilter0);
 	iowrite32(mc_filter[1], ioaddr + MulticastFilter1);
@@ -1469,7 +1447,7 @@ static void netdev_set_msglevel(struct net_device *dev, u32 value)
 	debug = value;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
@@ -1624,7 +1602,7 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		synchronize_irq(dev->irq);
 		netif_tx_disable(dev);
-	
+
 		np->stats.rx_missed_errors += ioread32(ioaddr + RxMissed) & 0xffff;
 
 		/* no more hardware accesses behind this line. */
@@ -1646,14 +1624,18 @@ static int w840_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
 	struct netdev_private *np = netdev_priv(dev);
+	int retval = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
 		goto out; /* device not suspended */
 	if (netif_running(dev)) {
-		pci_enable_device(pdev);
-	/*	pci_power_on(pdev); */
-
+		if ((retval = pci_enable_device(pdev))) {
+			printk (KERN_ERR
+				"%s: pci_enable_device failed in resume\n",
+				dev->name);
+			goto out;
+		}
 		spin_lock_irq(&np->lock);
 		iowrite32(1, np->base_addr+PCIBusCfg);
 		ioread32(np->base_addr+PCIBusCfg);
@@ -1671,7 +1653,7 @@ static int w840_resume (struct pci_dev *pdev)
 	}
 out:
 	rtnl_unlock();
-	return 0;
+	return retval;
 }
 #endif
 
@@ -1689,7 +1671,7 @@ static struct pci_driver w840_driver = {
 static int __init w840_init(void)
 {
 	printk(version);
-	return pci_module_init(&w840_driver);
+	return pci_register_driver(&w840_driver);
 }
 
 static void __exit w840_exit(void)

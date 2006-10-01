@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/statfs.h>
 #include <linux/parser.h>
+#include <linux/magic.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;
@@ -108,8 +109,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(affs_inode_cachep))
-		printk(KERN_INFO "affs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(affs_inode_cachep);
 }
 
 static struct super_operations affs_sops = {
@@ -279,11 +279,10 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op                = &affs_sops;
 	sb->s_flags |= MS_NODIRATIME;
 
-	sbi = kmalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 	init_MUTEX(&sbi->s_bmlock);
 
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,

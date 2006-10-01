@@ -24,8 +24,6 @@ extern void mtrr_bp_init(void);
 #define mtrr_bp_init() do {} while (0)
 #endif
 extern void init_memory_mapping(unsigned long start, unsigned long end);
-extern void size_zones(unsigned long *z, unsigned long *h,
-			unsigned long start_pfn, unsigned long end_pfn);
 
 extern void system_call(void); 
 extern int kernel_syscall(void);
@@ -51,10 +49,8 @@ extern unsigned long long monotonic_base;
 extern int sysctl_vsyscall;
 extern int nohpet;
 extern unsigned long vxtime_hz;
+extern void time_init_gtod(void);
 
-extern int numa_setup(char *opt);
-
-extern int setup_early_printk(char *); 
 extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
 extern void early_identify_cpu(struct cpuinfo_x86 *c);
@@ -91,7 +87,7 @@ extern void syscall32_cpu_init(void);
 
 extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);
 
-extern void check_ioapic(void);
+extern void early_quirks(void);
 extern void check_efer(void);
 
 extern int unhandled_signal(struct task_struct *tsk, int sig);
@@ -103,13 +99,7 @@ extern void select_idle_routine(const struct cpuinfo_x86 *c);
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;
-extern int using_apic_timer;
-extern int disable_apic;
 extern unsigned cpu_khz;
-extern int ioapic_force;
-extern int skip_ioapic_setup;
-extern int acpi_ht;
-extern int acpi_disabled;
 
 extern void no_iommu_init(void);
 extern int force_iommu, no_iommu;
@@ -131,7 +121,8 @@ extern int fix_aperture;
 
 extern int reboot_force;
 extern int notsc_setup(char *);
-extern int setup_additional_cpus(char *);
+
+extern int gsi_irq_sharing(int gsi);
 
 extern void smp_local_timer_interrupt(struct pt_regs * regs);
 

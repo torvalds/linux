@@ -45,6 +45,7 @@
 
 #define IXGB_DEVICE_ID_82597EX_CX4   0x109E
 #define IXGB_SUBDEVICE_ID_A00C  0xA00C
+#define IXGB_SUBDEVICE_ID_A01C  0xA01C
 
 #endif /* #ifndef _IXGB_IDS_H_ */
 /* End of File */

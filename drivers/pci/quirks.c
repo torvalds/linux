@@ -93,8 +93,21 @@ static void __devinit quirk_nopcipci(struct pci_dev *dev)
 		pci_pci_problems |= PCIPCI_FAIL;
 	}
 }
+
+static void __devinit quirk_nopciamd(struct pci_dev *dev)
+{
+	u8 rev;
+	pci_read_config_byte(dev, 0x08, &rev);
+	if (rev == 0x13) {
+		/* Erratum 24 */
+		printk(KERN_INFO "Chipset erratum: Disabling direct PCI/AGP transfers.\n");
+		pci_pci_problems |= PCIAGP_FAIL;
+	}
+}
+
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5597,		quirk_nopcipci );
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_496,		quirk_nopcipci );
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8151_0,	quirk_nopciamd );
 
 /*
  *	Triton requires workarounds to be used by the drivers
@@ -555,7 +568,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_vt
  * is currently marked NoFix
  *
  * We have multiple reports of hangs with this chipset that went away with
- * noapic specified. For the moment we assume its the errata. We may be wrong
+ * noapic specified. For the moment we assume it's the erratum. We may be wrong
  * of course. However the advice is demonstrably good even if so..
  */
 static void __devinit quirk_amd_ioapic(struct pci_dev *dev)
@@ -564,7 +577,7 @@ static void __devinit quirk_amd_ioapic(struct pci_dev *dev)
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 	if (rev >= 0x02) {
-		printk(KERN_WARNING "I/O APIC: AMD Errata #22 may be present. In the event of instability try\n");
+		printk(KERN_WARNING "I/O APIC: AMD Erratum #22 may be present. In the event of instability try\n");
 		printk(KERN_WARNING "        : booting with the \"noapic\" option.\n");
 	}
 }
@@ -577,8 +590,6 @@ static void __init quirk_ioapic_rmw(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_ANY_ID,			quirk_ioapic_rmw );
 
-int pci_msi_quirk;
-
 #define AMD8131_revA0        0x01
 #define AMD8131_revB0        0x11
 #define AMD8131_MISC         0x40
@@ -587,12 +598,6 @@ static void __init quirk_amd_8131_ioapic(struct pci_dev *dev)
 { 
         unsigned char revid, tmp;
         
-	if (dev->subordinate) {
-		printk(KERN_WARNING "PCI: MSI quirk detected. "
-		       "PCI_BUS_FLAGS_NO_MSI set for subordinate bus.\n");
-		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
-	}
-
         if (nr_ioapics == 0) 
                 return;
 
@@ -605,13 +610,6 @@ static void __init quirk_amd_8131_ioapic(struct pci_dev *dev)
         }
 } 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_amd_8131_ioapic);
-
-static void __init quirk_svw_msi(struct pci_dev *dev)
-{
-	pci_msi_quirk = 1;
-	printk(KERN_WARNING "PCI: MSI quirk detected. pci_msi_quirk set.\n");
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_GCNB_LE, quirk_svw_msi );
 #endif /* CONFIG_X86_IO_APIC */
 
 
@@ -1210,7 +1208,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_962,		quirk_sis_96x_
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_963,		quirk_sis_96x_smbus );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_LPC,		quirk_sis_96x_smbus );
 
-#if defined(CONFIG_SCSI_SATA) || defined(CONFIG_SCSI_SATA_MODULE)
+#if defined(CONFIG_ATA) || defined(CONFIG_ATA_MODULE)
 
 /*
  *	If we are using libata we can drive this chip properly but must
@@ -1300,7 +1298,7 @@ static int __init combined_setup(char *str)
 }
 __setup("combined_mode=", combined_setup);
 
-#ifdef CONFIG_SCSI_SATA_INTEL_COMBINED
+#ifdef CONFIG_SATA_INTEL_COMBINED
 static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 {
 	u8 prog, comb, tmp;
@@ -1393,7 +1391,7 @@ static void __devinit quirk_intel_ide_combined(struct pci_dev *pdev)
 		request_region(0x170, 8, "libata");	/* port 1 */
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,    PCI_ANY_ID,	  quirk_intel_ide_combined );
-#endif /* CONFIG_SCSI_SATA_INTEL_COMBINED */
+#endif /* CONFIG_SATA_INTEL_COMBINED */
 
 
 int pcie_mch_quirk;
@@ -1689,6 +1687,95 @@ static void __devinit quirk_nvidia_ck804_pcie_aer_ext_cap(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA,  PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_pcie_aer_ext_cap);
+
+#ifdef CONFIG_PCI_MSI
+/* To disable MSI globally */
+int pci_msi_quirk;
+
+/* The Serverworks PCI-X chipset does not support MSI. We cannot easily rely
+ * on setting PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually
+ * some other busses controlled by the chipset even if Linux is not aware of it.
+ * Instead of setting the flag on all busses in the machine, simply disable MSI
+ * globally.
+ */
+static void __init quirk_svw_msi(struct pci_dev *dev)
+{
+	pci_msi_quirk = 1;
+	printk(KERN_WARNING "PCI: MSI quirk detected. pci_msi_quirk set.\n");
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_GCNB_LE, quirk_svw_msi);
+
+/* Disable MSI on chipsets that are known to not support it */
+static void __devinit quirk_disable_msi(struct pci_dev *dev)
+{
+	if (dev->subordinate) {
+		printk(KERN_WARNING "PCI: MSI quirk detected. "
+		       "PCI_BUS_FLAGS_NO_MSI set for %s subordinate bus.\n",
+		       pci_name(dev));
+		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_disable_msi);
+
+/* Go through the list of Hypertransport capabilities and
+ * return 1 if a HT MSI capability is found and enabled */
+static int __devinit msi_ht_cap_enabled(struct pci_dev *dev)
+{
+	u8 pos;
+	int ttl;
+	for (pos = pci_find_capability(dev, PCI_CAP_ID_HT), ttl = 48;
+	     pos && ttl;
+	     pos = pci_find_next_capability(dev, pos, PCI_CAP_ID_HT), ttl--) {
+		u32 cap_hdr;
+		/* MSI mapping section according to Hypertransport spec */
+		if (pci_read_config_dword(dev, pos, &cap_hdr) == 0
+		    && (cap_hdr & 0xf8000000) == 0xa8000000 /* MSI mapping */) {
+			printk(KERN_INFO "PCI: Found HT MSI mapping on %s with capability %s\n",
+			       pci_name(dev), cap_hdr & 0x10000 ? "enabled" : "disabled");
+			return (cap_hdr & 0x10000) != 0; /* MSI mapping cap enabled */
+		}
+	}
+	return 0;
+}
+
+/* Check the hypertransport MSI mapping to know whether MSI is enabled or not */
+static void __devinit quirk_msi_ht_cap(struct pci_dev *dev)
+{
+	if (dev->subordinate && !msi_ht_cap_enabled(dev)) {
+		printk(KERN_WARNING "PCI: MSI quirk detected. "
+		       "MSI disabled on chipset %s.\n",
+		       pci_name(dev));
+		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT2000_PCIE,
+			quirk_msi_ht_cap);
+
+/* The nVidia CK804 chipset may have 2 HT MSI mappings.
+ * MSI are supported if the MSI capability set in any of these mappings.
+ */
+static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
+{
+	struct pci_dev *pdev;
+
+	if (!dev->subordinate)
+		return;
+
+	/* check HT MSI cap on this chipset and the root one.
+	 * a single one having MSI is enough to be sure that MSI are supported.
+	 */
+	pdev = pci_find_slot(dev->bus->number, 0);
+	if (dev->subordinate && !msi_ht_cap_enabled(dev)
+	    && !msi_ht_cap_enabled(pdev)) {
+		printk(KERN_WARNING "PCI: MSI quirk detected. "
+		       "MSI disabled on chipset %s.\n",
+		       pci_name(dev));
+		dev->subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
+			quirk_nvidia_ck804_msi_ht_cap);
+#endif /* CONFIG_PCI_MSI */
 
 EXPORT_SYMBOL(pcie_mch_quirk);
 #ifdef CONFIG_HOTPLUG

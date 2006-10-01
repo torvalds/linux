@@ -51,18 +51,25 @@ _modpost: $(modules)
 
 # Step 2), invoke modpost
 #  Includes step 3,4
-quiet_cmd_modpost = MODPOST
+quiet_cmd_modpost = MODPOST $(words $(filter-out vmlinux FORCE, $^)) modules
       cmd_modpost = scripts/mod/modpost            \
         $(if $(CONFIG_MODVERSIONS),-m)             \
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a,)  \
 	$(if $(KBUILD_EXTMOD),-i,-o) $(kernelsymfile) \
 	$(if $(KBUILD_EXTMOD),-I $(modulesymfile)) \
 	$(if $(KBUILD_EXTMOD),-o $(modulesymfile)) \
-	$(filter-out FORCE,$^)
+	$(if $(KBUILD_EXTMOD),-w) \
+	$(wildcard vmlinux) $(filter-out FORCE,$^)
 
 PHONY += __modpost
-__modpost: $(wildcard vmlinux) $(modules:.ko=.o) FORCE
+__modpost: $(modules:.ko=.o) FORCE
 	$(call cmd,modpost)
+
+quiet_cmd_kernel-mod = MODPOST $@
+      cmd_kernel-mod = $(cmd_modpost)
+
+vmlinux: FORCE
+	$(call cmd,kernel-mod)
 
 # Declare generated files as targets for modpost
 $(symverfile):         __modpost ;

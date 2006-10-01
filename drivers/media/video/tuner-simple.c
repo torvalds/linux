@@ -10,7 +10,7 @@
 #include <media/v4l2-common.h>
 
 static int offset = 0;
-module_param(offset, int, 0666);
+module_param(offset, int, 0664);
 MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 
 /* ---------------------------------------------------------------------- */
@@ -331,6 +331,8 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			else if (params->default_top_high)
 				config |= TDA9887_TOP(params->default_top_high);
 		}
+		if (params->default_pll_gating_18)
+			config |= TDA9887_GATING_18;
 		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
 	}
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
@@ -439,8 +441,6 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		buffer[3] = 0xa4;
 		break;
 	}
-	buffer[0] = (div>>8) & 0x7f;
-	buffer[1] = div      & 0xff;
 	if (params->cb_first_if_lower_freq && div < t->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];

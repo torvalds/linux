@@ -530,9 +530,9 @@ static int init_shared_mem(struct s2io_nic *nic)
 			 */
 			if (!tmp_p) {
 				mac_control->zerodma_virt_addr = tmp_v;
-				DBG_PRINT(INIT_DBG, 
+				DBG_PRINT(INIT_DBG,
 				"%s: Zero DMA address for TxDL. ", dev->name);
-				DBG_PRINT(INIT_DBG, 
+				DBG_PRINT(INIT_DBG,
 				"Virtual address %p\n", tmp_v);
 				tmp_v = pci_alloc_consistent(nic->pdev,
 						     PAGE_SIZE, &tmp_p);
@@ -756,7 +756,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 		for (j = 0; j < page_num; j++) {
 			int mem_blks = (j * lst_per_page);
 			if (!mac_control->fifos[i].list_info)
-				return;	
+				return;
 			if (!mac_control->fifos[i].list_info[mem_blks].
 				 list_virt_addr)
 				break;
@@ -775,7 +775,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 			pci_free_consistent(nic->pdev, PAGE_SIZE,
 					    mac_control->zerodma_virt_addr,
 					    (dma_addr_t)0);
-			DBG_PRINT(INIT_DBG, 
+			DBG_PRINT(INIT_DBG,
 			  	"%s: Freeing TxDL with zero DMA addr. ",
 				dev->name);
 			DBG_PRINT(INIT_DBG, "Virtual address %p\n",
@@ -855,9 +855,10 @@ static int s2io_verify_pci_mode(nic_t *nic)
 static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 {
 	struct pci_dev *tdev = NULL;
-	while ((tdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
-		if ((tdev->vendor == NEC_VENID) && (tdev->device == NEC_DEVID)){
+	while ((tdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, tdev)) != NULL) {
+		if (tdev->vendor == NEC_VENID && tdev->device == NEC_DEVID) {
 			if (tdev->bus == s2io_pdev->bus->parent)
+				pci_dev_put(tdev);
 				return 1;
 		}
 	}
@@ -1276,7 +1277,7 @@ static int init_nic(struct s2io_nic *nic)
 		writeq(val64, &bar0->rx_w_round_robin_1);
 		val64 = 0x0200010000010203ULL;
 		writeq(val64, &bar0->rx_w_round_robin_2);
-		val64 = 0x0001020001000001ULL;	
+		val64 = 0x0001020001000001ULL;
 		writeq(val64, &bar0->rx_w_round_robin_3);
 		val64 = 0x0203000100000000ULL;
 		writeq(val64, &bar0->rx_w_round_robin_4);
@@ -2127,7 +2128,7 @@ static struct sk_buff *s2io_txdl_getskb(fifo_info_t *fifo_data, TxD_t *txdlp, in
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
 			if (!txds->Buffer_Pointer)
 				break;
-			pci_unmap_page(nic->pdev, (dma_addr_t) 
+			pci_unmap_page(nic->pdev, (dma_addr_t)
 					txds->Buffer_Pointer,
 				       frag->size, PCI_DMA_TODEVICE);
 		}
@@ -2397,7 +2398,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				/* Two buffer mode */
 
 				/*
-				 * Buffer2 will have L3/L4 header plus 
+				 * Buffer2 will have L3/L4 header plus
 				 * L4 payload
 				 */
 				((RxD3_t*)rxdp)->Buffer2_ptr = pci_map_single
@@ -2407,7 +2408,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				/* Buffer-1 will be dummy buffer. Not used */
 				if (!(((RxD3_t*)rxdp)->Buffer1_ptr)) {
 					((RxD3_t*)rxdp)->Buffer1_ptr =
-						pci_map_single(nic->pdev, 
+						pci_map_single(nic->pdev,
 						ba->ba_1, BUF1_LEN,
 						PCI_DMA_FROMDEVICE);
 				}
@@ -2509,7 +2510,7 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 				((RxD3_t*)rxdp)->Buffer0_ptr, BUF0_LEN,
 				PCI_DMA_FROMDEVICE);
 			pci_unmap_single(sp->pdev, (dma_addr_t)
-				((RxD3_t*)rxdp)->Buffer1_ptr, 
+				((RxD3_t*)rxdp)->Buffer1_ptr,
 				l3l4hdr_size + 4,
 				PCI_DMA_FROMDEVICE);
 			pci_unmap_single(sp->pdev, (dma_addr_t)
@@ -2663,7 +2664,7 @@ static void s2io_netpoll(struct net_device *dev)
 	writeq(val64, &bar0->rx_traffic_int);
 	writeq(val64, &bar0->tx_traffic_int);
 
-	/* we need to free up the transmitted skbufs or else netpoll will 
+	/* we need to free up the transmitted skbufs or else netpoll will
 	 * run out of skbs and will fail and eventually netpoll application such
 	 * as netdump will fail.
 	 */
@@ -2903,7 +2904,7 @@ static void s2io_mdio_write(u32 mmd_type, u64 addr, u16 value, struct net_device
 {
 	u64 val64 = 0x0;
 	nic_t *sp = dev->priv;
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *)sp->bar0;
+	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
 	//address transaction
 	val64 = val64 | MDIO_MMD_INDX_ADDR(addr)
@@ -2952,7 +2953,7 @@ static u64 s2io_mdio_read(u32 mmd_type, u64 addr, struct net_device *dev)
 	u64 val64 = 0x0;
 	u64 rval64 = 0x0;
 	nic_t *sp = dev->priv;
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *)sp->bar0;
+	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 
 	/* address transaction */
 	val64 = val64 | MDIO_MMD_INDX_ADDR(addr)
@@ -3209,7 +3210,7 @@ static void alarm_intr_handler(struct s2io_nic *nic)
 	if (val64 & SERR_SOURCE_ANY) {
 		nic->mac_control.stats_info->sw_stat.serious_err_cnt++;
 		DBG_PRINT(ERR_DBG, "%s: Device indicates ", dev->name);
-		DBG_PRINT(ERR_DBG, "serious error %llx!!\n", 
+		DBG_PRINT(ERR_DBG, "serious error %llx!!\n",
 			  (unsigned long long)val64);
 		netif_stop_queue(dev);
 		schedule_work(&nic->rst_timer_task);
@@ -3275,7 +3276,7 @@ static void alarm_intr_handler(struct s2io_nic *nic)
  *   SUCCESS on success and FAILURE on failure.
  */
 
-static int wait_for_cmd_complete(void *addr, u64 busy_bit)
+static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit)
 {
 	int ret = FAILURE, cnt = 0;
 	u64 val64;
@@ -3893,7 +3894,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_1 |= TXD_TCP_LSO_MSS(s2io_tcp_mss(skb));
 	}
 #endif
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		txdp->Control_2 |=
 		    (TXD_TX_CKO_IPV4_EN | TXD_TX_CKO_TCP_EN |
 		     TXD_TX_CKO_UDP_EN);
@@ -4302,11 +4303,11 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	sp->stats.tx_errors =
 		le32_to_cpu(mac_control->stats_info->tmac_any_err_frms);
 	sp->stats.rx_errors =
-		le32_to_cpu(mac_control->stats_info->rmac_drop_frms);
+		le64_to_cpu(mac_control->stats_info->rmac_drop_frms);
 	sp->stats.multicast =
 		le32_to_cpu(mac_control->stats_info->rmac_vld_mcst_frms);
 	sp->stats.rx_length_errors =
-		le32_to_cpu(mac_control->stats_info->rmac_long_frms);
+		le64_to_cpu(mac_control->stats_info->rmac_long_frms);
 
 	return (&sp->stats);
 }
@@ -4816,7 +4817,7 @@ static int read_eeprom(nic_t * sp, int off, u64 * data)
 
 	if (sp->device_type == XFRAME_II_DEVICE) {
 		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
-			SPI_CONTROL_BYTECNT(0x3) | 
+			SPI_CONTROL_BYTECNT(0x3) |
 			SPI_CONTROL_CMD(0x3) | SPI_CONTROL_ADDR(off);
 		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
 		val64 |= SPI_CONTROL_REQ;
@@ -4883,7 +4884,7 @@ static int write_eeprom(nic_t * sp, int off, u64 data, int cnt)
 		writeq(SPI_DATA_WRITE(data,(cnt<<3)), &bar0->spi_data);
 
 		val64 = SPI_CONTROL_KEY(0x9) | SPI_CONTROL_SEL1 |
-			SPI_CONTROL_BYTECNT(write_cnt) | 
+			SPI_CONTROL_BYTECNT(write_cnt) |
 			SPI_CONTROL_CMD(0x2) | SPI_CONTROL_ADDR(off);
 		SPECIAL_REG_WRITE(val64, &bar0->spi_control, LF);
 		val64 |= SPI_CONTROL_REQ;
@@ -5646,7 +5647,7 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	if (stat_info->sw_stat.num_aggregations) {
 		u64 tmp = stat_info->sw_stat.sum_avg_pkts_aggregated;
 		int count = 0;
-		/* 
+		/*
 		 * Since 64-bit divide does not work on all platforms,
 		 * do repeated subtraction.
 		 */
@@ -5736,7 +5737,7 @@ static int s2io_ethtool_op_set_tso(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_settings = s2io_ethtool_gset,
 	.set_settings = s2io_ethtool_sset,
 	.get_drvinfo = s2io_ethtool_gdrvinfo,
@@ -6597,7 +6598,7 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
 	} else {
 send_up:
 		queue_rx_frame(skb);
-	}		
+	}
 	dev->last_rx = jiffies;
 aggregate:
 	atomic_dec(&sp->rx_bufs_left[ring_no]);
@@ -6717,7 +6718,7 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
 	if ((*dev_intr_type == MSI_X) &&
 			((pdev->device != PCI_DEVICE_ID_HERC_WIN) &&
 			(pdev->device != PCI_DEVICE_ID_HERC_UNI))) {
-		DBG_PRINT(ERR_DBG, "s2io: Xframe I does not support MSI_X. " 
+		DBG_PRINT(ERR_DBG, "s2io: Xframe I does not support MSI_X. "
 					"Defaulting to INTA\n");
 		*dev_intr_type = INTA;
 	}
@@ -6845,7 +6846,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		sp->device_type = XFRAME_I_DEVICE;
 
 	sp->lro = lro;
-		
+
 	/* Initialize some PCI/PCI-X fields of the NIC. */
 	s2io_init_pci(sp);
 
@@ -7233,7 +7234,7 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 
 int __init s2io_starter(void)
 {
-	return pci_module_init(&s2io_driver);
+	return pci_register_driver(&s2io_driver);
 }
 
 /**
@@ -7250,7 +7251,7 @@ static void s2io_closer(void)
 module_init(s2io_starter);
 module_exit(s2io_closer);
 
-static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip, 
+static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		struct tcphdr **tcp, RxD_t *rxdp)
 {
 	int ip_off;
@@ -7312,7 +7313,7 @@ static void initiate_new_session(lro_t *lro, u8 *l2h,
 	lro->sg_num = 1;
 	lro->total_len = ntohs(ip->tot_len);
 	lro->frags_len = 0;
-	/* 
+	/*
 	 * check if we saw TCP timestamp. Other consistency checks have
 	 * already been done.
  	 */
@@ -7369,12 +7370,12 @@ static void aggregate_new_rx(lro_t *lro, struct iphdr *ip,
 	/* Update ack seq no. and window ad(from this pkt) in LRO object */
 	lro->tcp_ack = tcp->ack_seq;
 	lro->window = tcp->window;
-	
+
 	if (lro->saw_ts) {
 		u32 *ptr;
 		/* Update tsecr and tsval from this packet */
 		ptr = (u32 *) (tcp + 1);
-		lro->cur_tsval = *(ptr + 1); 
+		lro->cur_tsval = *(ptr + 1);
 		lro->cur_tsecr = *(ptr + 2);
 	}
 }
@@ -7409,7 +7410,7 @@ static int verify_l3_l4_lro_capable(lro_t *l_lro, struct iphdr *ip,
 		return -1;
 	}
 
-	/* 
+	/*
 	 * Allow only one TCP timestamp option. Don't aggregate if
 	 * any other options are detected.
 	 */
@@ -7417,7 +7418,7 @@ static int verify_l3_l4_lro_capable(lro_t *l_lro, struct iphdr *ip,
 		return -1;
 
 	if (tcp->doff == 8) {
-		ptr = (u8 *)(tcp + 1);	
+		ptr = (u8 *)(tcp + 1);
 		while (*ptr == TCPOPT_NOP)
 			ptr++;
 		if (*ptr != TCPOPT_TIMESTAMP || *(ptr+1) != TCPOLEN_TIMESTAMP)
@@ -7429,7 +7430,7 @@ static int verify_l3_l4_lro_capable(lro_t *l_lro, struct iphdr *ip,
 				return -1;
 
 		/* timestamp echo reply should be non-zero */
-		if (*((u32 *)(ptr+6)) == 0) 
+		if (*((u32 *)(ptr+6)) == 0)
 			return -1;
 	}
 

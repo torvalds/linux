@@ -154,7 +154,6 @@ struct inode *hfs_new_inode(struct inode *dir, struct qstr *name, int mode)
 	inode->i_gid = current->fsgid;
 	inode->i_nlink = 1;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
-	inode->i_blksize = HFS_SB(sb)->alloc_blksz;
 	HFS_I(inode)->flags = 0;
 	HFS_I(inode)->rsrc_inode = NULL;
 	HFS_I(inode)->fs_blocks = 0;
@@ -284,7 +283,6 @@ static int hfs_read_inode(struct inode *inode, void *data)
 	inode->i_uid = hsb->s_uid;
 	inode->i_gid = hsb->s_gid;
 	inode->i_nlink = 1;
-	inode->i_blksize = HFS_SB(inode->i_sb)->alloc_blksz;
 
 	if (idata->key)
 		HFS_I(inode)->cat_key = *idata->key;
@@ -603,8 +601,10 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 
 static const struct file_operations hfs_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= generic_file_read,
-	.write		= generic_file_write,
+	.read		= do_sync_read,
+	.aio_read	= generic_file_aio_read,
+	.write		= do_sync_write,
+	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.sendfile	= generic_file_sendfile,
 	.fsync		= file_fsync,

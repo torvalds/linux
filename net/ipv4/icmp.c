@@ -104,7 +104,7 @@ struct icmp_bxm {
 
 	struct {
 		struct icmphdr icmph;
-		__u32	       times[3];
+		__be32	       times[3];
 	} data;
 	int head_len;
 	struct ip_options replyopts;
@@ -187,11 +187,11 @@ struct icmp_err icmp_err_convert[] = {
 };
 
 /* Control parameters for ECHO replies. */
-int sysctl_icmp_echo_ignore_all;
-int sysctl_icmp_echo_ignore_broadcasts = 1;
+int sysctl_icmp_echo_ignore_all __read_mostly;
+int sysctl_icmp_echo_ignore_broadcasts __read_mostly = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses = 1;
+int sysctl_icmp_ignore_bogus_error_responses __read_mostly = 1;
 
 /*
  * 	Configurable global rate limit.
@@ -205,9 +205,9 @@ int sysctl_icmp_ignore_bogus_error_responses = 1;
  *	time exceeded (11), parameter problem (12)
  */
 
-int sysctl_icmp_ratelimit = 1 * HZ;
-int sysctl_icmp_ratemask = 0x1818;
-int sysctl_icmp_errors_use_inbound_ifaddr;
+int sysctl_icmp_ratelimit __read_mostly = 1 * HZ;
+int sysctl_icmp_ratemask __read_mostly = 0x1818;
+int sysctl_icmp_errors_use_inbound_ifaddr __read_mostly;
 
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
@@ -381,7 +381,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = (struct rtable *)skb->dst;
-	u32 daddr;
+	__be32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
 		return;
@@ -406,6 +406,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 						.saddr = rt->rt_spec_dst,
 						.tos = RT_TOS(skb->nh.iph->tos) } },
 				    .proto = IPPROTO_ICMP };
+		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			goto out_unlock;
 	}
@@ -429,14 +430,14 @@ out_unlock:
  *			MUST reply to only the first fragment.
  */
 
-void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
+void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 {
 	struct iphdr *iph;
 	int room;
 	struct icmp_bxm icmp_param;
 	struct rtable *rt = (struct rtable *)skb_in->dst;
 	struct ipcm_cookie ipc;
-	u32 saddr;
+	__be32 saddr;
 	u8  tos;
 
 	if (!rt)
@@ -560,6 +561,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 				}
 			}
 		};
+		security_skb_classify_flow(skb_in, &fl);
 		if (ip_route_output_key(&rt, &fl))
 			goto out_unlock;
 	}
@@ -893,7 +895,7 @@ static void icmp_address_reply(struct sk_buff *skb)
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
-		u32 _mask, *mp;
+		__be32 _mask, *mp;
 
 		mp = skb_header_pointer(skb, 0, sizeof(_mask), &_mask);
 		BUG_ON(mp == NULL);
@@ -928,7 +930,7 @@ int icmp_rcv(struct sk_buff *skb)
 	ICMP_INC_STATS_BH(ICMP_MIB_INMSGS);
 
 	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (!(u16)csum_fold(skb->csum))
 			break;
 		/* fall through */

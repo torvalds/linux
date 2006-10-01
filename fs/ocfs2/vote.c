@@ -74,9 +74,6 @@ struct ocfs2_vote_msg
 		__be32 v_orphaned_slot;	/* Used during delete votes */
 		__be32 v_nlink;		/* Used during unlink votes */
 	} md1;				/* Message type dependant 1 */
-	__be32 v_unlink_namelen;
-	__be64 v_unlink_parent;
-	u8  v_unlink_dirent[OCFS2_VOTE_FILENAME_LEN];
 };
 
 /* Responses are given these values to maintain backwards
@@ -100,8 +97,6 @@ struct ocfs2_vote_work {
 enum ocfs2_vote_request {
 	OCFS2_VOTE_REQ_INVALID = 0,
 	OCFS2_VOTE_REQ_DELETE,
-	OCFS2_VOTE_REQ_UNLINK,
-	OCFS2_VOTE_REQ_RENAME,
 	OCFS2_VOTE_REQ_MOUNT,
 	OCFS2_VOTE_REQ_UMOUNT,
 	OCFS2_VOTE_REQ_LAST
@@ -261,103 +256,13 @@ done:
 	return response;
 }
 
-static int ocfs2_match_dentry(struct dentry *dentry,
-			      u64 parent_blkno,
-			      unsigned int namelen,
-			      const char *name)
-{
-	struct inode *parent;
-
-	if (!dentry->d_parent) {
-		mlog(0, "Detached from parent.\n");
-		return 0;
-	}
-
-	parent = dentry->d_parent->d_inode;
-	/* Negative parent dentry? */
-	if (!parent)
-		return 0;
-
-	/* Name is in a different directory. */
-	if (OCFS2_I(parent)->ip_blkno != parent_blkno)
-		return 0;
-
-	if (dentry->d_name.len != namelen)
-		return 0;
-
-	/* comparison above guarantees this is safe. */
-	if (memcmp(dentry->d_name.name, name, namelen))
-		return 0;
-
-	return 1;
-}
-
-static void ocfs2_process_dentry_request(struct inode *inode,
-					 int rename,
-					 unsigned int new_nlink,
-					 u64 parent_blkno,
-					 unsigned int namelen,
-					 const char *name)
-{
-	struct dentry *dentry = NULL;
-	struct list_head *p;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-
-	mlog(0, "parent %llu, namelen = %u, name = %.*s\n",
-	     (unsigned long long)parent_blkno, namelen, namelen, name);
-
-	spin_lock(&dcache_lock);
-
-	/* Another node is removing this name from the system. It is
-	 * up to us to find the corresponding dentry and if it exists,
-	 * unhash it from the dcache. */
-	list_for_each(p, &inode->i_dentry) {
-		dentry = list_entry(p, struct dentry, d_alias);
-
-		if (ocfs2_match_dentry(dentry, parent_blkno, namelen, name)) {
-			mlog(0, "dentry found: %.*s\n",
-			     dentry->d_name.len, dentry->d_name.name);
-
-			dget_locked(dentry);
-			break;
-		}
-
-		dentry = NULL;
-	}
-
-	spin_unlock(&dcache_lock);
-
-	if (dentry) {
-		d_delete(dentry);
-		dput(dentry);
-	}
-
-	/* rename votes don't send link counts */
-	if (!rename) {
-		mlog(0, "new_nlink = %u\n", new_nlink);
-
-		/* We don't have the proper locks here to directly
-		 * change i_nlink and besides, the vote is sent
-		 * *before* the operation so it may have failed on the
-		 * other node. This passes a hint to ocfs2_drop_inode
-		 * to force ocfs2_delete_inode, who will take the
-		 * proper cluster locks to sort things out. */
-		if (new_nlink == 0) {
-			spin_lock(&oi->ip_lock);
-			oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
-			spin_unlock(&OCFS2_I(inode)->ip_lock);
-		}
-	}
-}
-
 static void ocfs2_process_vote(struct ocfs2_super *osb,
 			       struct ocfs2_vote_msg *msg)
 {
 	int net_status, vote_response;
 	int orphaned_slot = 0;
-	int rename = 0;
-	unsigned int node_num, generation, new_nlink, namelen;
-	u64 blkno, parent_blkno;
+	unsigned int node_num, generation;
+	u64 blkno;
 	enum ocfs2_vote_request request;
 	struct inode *inode = NULL;
 	struct ocfs2_msg_hdr *hdr = &msg->v_hdr;
@@ -436,18 +341,6 @@ static void ocfs2_process_vote(struct ocfs2_super *osb,
 	case OCFS2_VOTE_REQ_DELETE:
 		vote_response = ocfs2_process_delete_request(inode,
 							     &orphaned_slot);
-		break;
-	case OCFS2_VOTE_REQ_RENAME:
-		rename = 1;
-		/* fall through */
-	case OCFS2_VOTE_REQ_UNLINK:
-		parent_blkno = be64_to_cpu(msg->v_unlink_parent);
-		namelen = be32_to_cpu(msg->v_unlink_namelen);
-		/* new_nlink will be ignored in case of a rename vote */
-		new_nlink = be32_to_cpu(msg->md1.v_nlink);
-		ocfs2_process_dentry_request(inode, rename, new_nlink,
-					     parent_blkno, namelen,
-					     msg->v_unlink_dirent);
 		break;
 	default:
 		mlog(ML_ERROR, "node %u, invalid request: %u\n",
@@ -886,75 +779,6 @@ int ocfs2_request_delete_vote(struct inode *inode)
 		kfree(request);
 	}
 
-	return status;
-}
-
-static void ocfs2_setup_unlink_vote(struct ocfs2_vote_msg *request,
-				    struct dentry *dentry)
-{
-	struct inode *parent = dentry->d_parent->d_inode;
-
-	/* We need some values which will uniquely identify a dentry
-	 * on the other nodes so that they can find it and run
-	 * d_delete against it. Parent directory block and full name
-	 * should suffice. */
-
-	mlog(0, "unlink/rename request: parent: %llu name: %.*s\n",
-	     (unsigned long long)OCFS2_I(parent)->ip_blkno, dentry->d_name.len,
-	     dentry->d_name.name);
-
-	request->v_unlink_parent = cpu_to_be64(OCFS2_I(parent)->ip_blkno);
-	request->v_unlink_namelen = cpu_to_be32(dentry->d_name.len);
-	memcpy(request->v_unlink_dirent, dentry->d_name.name,
-	       dentry->d_name.len);
-}
-
-int ocfs2_request_unlink_vote(struct inode *inode,
-			      struct dentry *dentry,
-			      unsigned int nlink)
-{
-	int status;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_vote_msg *request;
-
-	if (dentry->d_name.len > OCFS2_VOTE_FILENAME_LEN)
-		return -ENAMETOOLONG;
-
-	status = -ENOMEM;
-	request = ocfs2_new_vote_request(osb, OCFS2_I(inode)->ip_blkno,
-					 inode->i_generation,
-					 OCFS2_VOTE_REQ_UNLINK, nlink);
-	if (request) {
-		ocfs2_setup_unlink_vote(request, dentry);
-
-		status = ocfs2_request_vote(inode, request, NULL);
-
-		kfree(request);
-	}
-	return status;
-}
-
-int ocfs2_request_rename_vote(struct inode *inode,
-			      struct dentry *dentry)
-{
-	int status;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_vote_msg *request;
-
-	if (dentry->d_name.len > OCFS2_VOTE_FILENAME_LEN)
-		return -ENAMETOOLONG;
-
-	status = -ENOMEM;
-	request = ocfs2_new_vote_request(osb, OCFS2_I(inode)->ip_blkno,
-					 inode->i_generation,
-					 OCFS2_VOTE_REQ_RENAME, 0);
-	if (request) {
-		ocfs2_setup_unlink_vote(request, dentry);
-
-		status = ocfs2_request_vote(inode, request, NULL);
-
-		kfree(request);
-	}
 	return status;
 }
 

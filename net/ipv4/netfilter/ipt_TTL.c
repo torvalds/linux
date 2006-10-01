@@ -23,11 +23,10 @@ static unsigned int
 ipt_ttl_target(struct sk_buff **pskb,
 	       const struct net_device *in, const struct net_device *out,
 	       unsigned int hooknum, const struct xt_target *target,
-	       const void *targinfo, void *userinfo)
+	       const void *targinfo)
 {
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = targinfo;
-	u_int16_t diffs[2];
 	int new_ttl;
 
 	if (!skb_make_writable(pskb, (*pskb)->len))
@@ -55,12 +54,10 @@ ipt_ttl_target(struct sk_buff **pskb,
 	}
 
 	if (new_ttl != iph->ttl) {
-		diffs[0] = htons(((unsigned)iph->ttl) << 8) ^ 0xFFFF;
+		iph->check = nf_csum_update(htons((iph->ttl << 8)) ^ htons(0xFFFF),
+					    htons(new_ttl << 8),
+					    iph->check);
 		iph->ttl = new_ttl;
-		diffs[1] = htons(((unsigned)iph->ttl) << 8);
-		iph->check = csum_fold(csum_partial((char *)diffs,
-						    sizeof(diffs),
-						    iph->check^0xFFFF));
 	}
 
 	return IPT_CONTINUE;
@@ -70,7 +67,6 @@ static int ipt_ttl_checkentry(const char *tablename,
 		const void *e,
 		const struct xt_target *target,
 		void *targinfo,
-		unsigned int targinfosize,
 		unsigned int hook_mask)
 {
 	struct ipt_TTL_info *info = targinfo;

@@ -12,8 +12,6 @@
  *   Copyright (C) 2001-2002, 2004  Hirokazu Takata <takata at linux-m32r.org>
  */
 
-#include <asm/m32r.h>		/* M32R_PSW_BSM, M32R_PSW_BPM */
-
 /* 0 - 13 are integer registers (general purpose registers).  */
 #define PT_R4		0
 #define PT_R5		1
@@ -139,6 +137,8 @@ struct pt_regs {
 #define PTRACE_O_TRACESYSGOOD	0x00000001
 
 #ifdef __KERNEL__
+
+#include <asm/m32r.h>		/* M32R_PSW_BSM, M32R_PSW_BPM */
 
 #define __ARCH_SYS_PTRACE	1
 

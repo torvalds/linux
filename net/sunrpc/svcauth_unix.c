@@ -145,7 +145,7 @@ static void ip_map_request(struct cache_detail *cd,
 {
 	char text_addr[20];
 	struct ip_map *im = container_of(h, struct ip_map, h);
-	__u32 addr = im->m_addr.s_addr;
+	__be32 addr = im->m_addr.s_addr;
 	
 	snprintf(text_addr, 20, "%u.%u.%u.%u",
 		 ntohl(addr) >> 24 & 0xff,
@@ -249,10 +249,10 @@ static int ip_map_show(struct seq_file *m,
 
 	seq_printf(m, "%s %d.%d.%d.%d %s\n",
 		   im->m_class,
-		   htonl(addr.s_addr) >> 24 & 0xff,
-		   htonl(addr.s_addr) >> 16 & 0xff,
-		   htonl(addr.s_addr) >>  8 & 0xff,
-		   htonl(addr.s_addr) >>  0 & 0xff,
+		   ntohl(addr.s_addr) >> 24 & 0xff,
+		   ntohl(addr.s_addr) >> 16 & 0xff,
+		   ntohl(addr.s_addr) >>  8 & 0xff,
+		   ntohl(addr.s_addr) >>  0 & 0xff,
 		   dom
 		   );
 	return 0;
@@ -410,7 +410,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 }
 
 static int
-svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -427,7 +427,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 		*authp = rpc_autherr_badcred;
 		return SVC_DENIED;
 	}
-	if (svc_getu32(argv) != RPC_AUTH_NULL || svc_getu32(argv) != 0) {
+	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		dprintk("svc: bad null verf\n");
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
@@ -441,8 +441,8 @@ svcauth_null_accept(struct svc_rqst *rqstp, u32 *authp)
 		return SVC_DROP; /* kmalloc failure - client must retry */
 
 	/* Put NULL verifier */
-	svc_putu32(resv, RPC_AUTH_NULL);
-	svc_putu32(resv, 0);
+	svc_putnl(resv, RPC_AUTH_NULL);
+	svc_putnl(resv, 0);
 
 	return SVC_OK;
 }
@@ -472,7 +472,7 @@ struct auth_ops svcauth_null = {
 
 
 static int
-svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
+svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
@@ -488,31 +488,31 @@ svcauth_unix_accept(struct svc_rqst *rqstp, u32 *authp)
 
 	svc_getu32(argv);			/* length */
 	svc_getu32(argv);			/* time stamp */
-	slen = XDR_QUADLEN(ntohl(svc_getu32(argv)));	/* machname length */
+	slen = XDR_QUADLEN(svc_getnl(argv));	/* machname length */
 	if (slen > 64 || (len -= (slen + 3)*4) < 0)
 		goto badcred;
-	argv->iov_base = (void*)((u32*)argv->iov_base + slen);	/* skip machname */
+	argv->iov_base = (void*)((__be32*)argv->iov_base + slen);	/* skip machname */
 	argv->iov_len -= slen*4;
 
-	cred->cr_uid = ntohl(svc_getu32(argv));		/* uid */
-	cred->cr_gid = ntohl(svc_getu32(argv));		/* gid */
-	slen = ntohl(svc_getu32(argv));			/* gids length */
+	cred->cr_uid = svc_getnl(argv);		/* uid */
+	cred->cr_gid = svc_getnl(argv);		/* gid */
+	slen = svc_getnl(argv);			/* gids length */
 	if (slen > 16 || (len -= (slen + 2)*4) < 0)
 		goto badcred;
 	cred->cr_group_info = groups_alloc(slen);
 	if (cred->cr_group_info == NULL)
 		return SVC_DROP;
 	for (i = 0; i < slen; i++)
-		GROUP_AT(cred->cr_group_info, i) = ntohl(svc_getu32(argv));
+		GROUP_AT(cred->cr_group_info, i) = svc_getnl(argv);
 
-	if (svc_getu32(argv) != RPC_AUTH_NULL || svc_getu32(argv) != 0) {
+	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
 	}
 
 	/* Put NULL verifier */
-	svc_putu32(resv, RPC_AUTH_NULL);
-	svc_putu32(resv, 0);
+	svc_putnl(resv, RPC_AUTH_NULL);
+	svc_putnl(resv, 0);
 
 	return SVC_OK;
 

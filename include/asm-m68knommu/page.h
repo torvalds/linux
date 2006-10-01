@@ -1,14 +1,13 @@
 #ifndef _M68KNOMMU_PAGE_H
 #define _M68KNOMMU_PAGE_H
 
+#ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
 
 #define PAGE_SHIFT	(12)
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
-
-#ifdef __KERNEL__
 
 #include <asm/setup.h>
 
@@ -76,8 +75,8 @@ extern unsigned long memory_end;
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _M68KNOMMU_PAGE_H */

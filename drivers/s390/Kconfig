@@ -213,17 +213,35 @@ config MONREADER
 	help
 	  Character device driver for reading z/VM monitor service records
 
+config MONWRITER
+	tristate "API for writing z/VM monitor service records"
+	default "m"
+	help
+	  Character device driver for writing z/VM monitor service records
+
 endmenu
 
 menu "Cryptographic devices"
 
-config Z90CRYPT
+config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
-        default "m"
-        help
+	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
+	default "m"
+	help
 	  Select this option if you want to use a PCI-attached cryptographic
-	  adapter like the PCI Cryptographic Accelerator (PCICA) or the PCI
-	  Cryptographic Coprocessor (PCICC).  This option is also available
-	  as a module called z90crypt.ko.
+	  adapter like:
+	  + PCI Cryptographic Accelerator (PCICA)
+	  + PCI Cryptographic Coprocessor (PCICC)
+	  + PCI-X Cryptographic Coprocessor (PCIXCC)
+	  + Crypto Express2 Coprocessor (CEX2C)
+	  + Crypto Express2 Accelerator (CEX2A)
+
+config ZCRYPT_MONOLITHIC
+	bool "Monolithic zcrypt module"
+	depends on ZCRYPT="m"
+	help
+	  Select this option if you want to have a single module z90crypt.ko
+	  that contains all parts of the crypto device driver (ap bus,
+	  request router and all the card drivers).
 
 endmenu

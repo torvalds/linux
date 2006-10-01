@@ -8,69 +8,109 @@
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 
-#define tca_gen(name) \
-struct tcf_##name *next; \
-	u32 index; \
-	int refcnt; \
-	int bindcnt; \
-	u32 capab; \
-	int action; \
-	struct tcf_t tm; \
-	struct gnet_stats_basic bstats; \
-	struct gnet_stats_queue qstats; \
-	struct gnet_stats_rate_est rate_est; \
-	spinlock_t *stats_lock; \
-	spinlock_t lock
-
-struct tcf_police
-{
-	tca_gen(police);
-	int		result;
-	u32		ewma_rate;
-	u32		burst;
-	u32		mtu;
-	u32		toks;
-	u32		ptoks;
-	psched_time_t	t_c;
-	struct qdisc_rate_table *R_tab;
-	struct qdisc_rate_table *P_tab;
+struct tcf_common {
+	struct tcf_common		*tcfc_next;
+	u32				tcfc_index;
+	int				tcfc_refcnt;
+	int				tcfc_bindcnt;
+	u32				tcfc_capab;
+	int				tcfc_action;
+	struct tcf_t			tcfc_tm;
+	struct gnet_stats_basic		tcfc_bstats;
+	struct gnet_stats_queue		tcfc_qstats;
+	struct gnet_stats_rate_est	tcfc_rate_est;
+	spinlock_t			*tcfc_stats_lock;
+	spinlock_t			tcfc_lock;
 };
+#define tcf_next	common.tcfc_next
+#define tcf_index	common.tcfc_index
+#define tcf_refcnt	common.tcfc_refcnt
+#define tcf_bindcnt	common.tcfc_bindcnt
+#define tcf_capab	common.tcfc_capab
+#define tcf_action	common.tcfc_action
+#define tcf_tm		common.tcfc_tm
+#define tcf_bstats	common.tcfc_bstats
+#define tcf_qstats	common.tcfc_qstats
+#define tcf_rate_est	common.tcfc_rate_est
+#define tcf_stats_lock	common.tcfc_stats_lock
+#define tcf_lock	common.tcfc_lock
+
+struct tcf_police {
+	struct tcf_common	common;
+	int			tcfp_result;
+	u32			tcfp_ewma_rate;
+	u32			tcfp_burst;
+	u32			tcfp_mtu;
+	u32			tcfp_toks;
+	u32			tcfp_ptoks;
+	psched_time_t		tcfp_t_c;
+	struct qdisc_rate_table	*tcfp_R_tab;
+	struct qdisc_rate_table	*tcfp_P_tab;
+};
+#define to_police(pc)	\
+	container_of(pc, struct tcf_police, common)
+
+struct tcf_hashinfo {
+	struct tcf_common	**htab;
+	unsigned int		hmask;
+	rwlock_t		*lock;
+};
+
+static inline unsigned int tcf_hash(u32 index, unsigned int hmask)
+{
+	return index & hmask;
+}
 
 #ifdef CONFIG_NET_CLS_ACT
 
 #define ACT_P_CREATED 1
 #define ACT_P_DELETED 1
 
-struct tcf_act_hdr
-{
-	tca_gen(act_hdr);
+struct tcf_act_hdr {
+	struct tcf_common	common;
 };
 
-struct tc_action
-{
-	void *priv;
-	struct tc_action_ops *ops;
-	__u32   type;   /* for backward compat(TCA_OLD_COMPAT) */
-	__u32   order; 
-	struct tc_action *next;
+struct tc_action {
+	void			*priv;
+	struct tc_action_ops	*ops;
+	__u32			type; /* for backward compat(TCA_OLD_COMPAT) */
+	__u32			order;
+	struct tc_action	*next;
 };
 
 #define TCA_CAP_NONE 0
-struct tc_action_ops
-{
+struct tc_action_ops {
 	struct tc_action_ops *next;
+	struct tcf_hashinfo *hinfo;
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
 	__u32 	capab;  /* capabilities includes 4 bit version */
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, struct tc_action *, struct tcf_result *);
 	int     (*get_stats)(struct sk_buff *, struct tc_action *);
-	int     (*dump)(struct sk_buff *, struct tc_action *,int , int);
+	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	int     (*cleanup)(struct tc_action *, int bind);
-	int     (*lookup)(struct tc_action *, u32 );
-	int     (*init)(struct rtattr *,struct rtattr *,struct tc_action *, int , int );
-	int     (*walk)(struct sk_buff *, struct netlink_callback *, int , struct tc_action *);
+	int     (*lookup)(struct tc_action *, u32);
+	int     (*init)(struct rtattr *, struct rtattr *, struct tc_action *, int , int);
+	int     (*walk)(struct sk_buff *, struct netlink_callback *, int, struct tc_action *);
 };
+
+extern struct tcf_common *tcf_hash_lookup(u32 index,
+					  struct tcf_hashinfo *hinfo);
+extern void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo);
+extern int tcf_hash_release(struct tcf_common *p, int bind,
+			    struct tcf_hashinfo *hinfo);
+extern int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
+			      int type, struct tc_action *a);
+extern u32 tcf_hash_new_index(u32 *idx_gen, struct tcf_hashinfo *hinfo);
+extern int tcf_hash_search(struct tc_action *a, u32 index);
+extern struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a,
+					 int bind, struct tcf_hashinfo *hinfo);
+extern struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est,
+					  struct tc_action *a, int size,
+					  int bind, u32 *idx_gen,
+					  struct tcf_hashinfo *hinfo);
+extern void tcf_hash_insert(struct tcf_common *p, struct tcf_hashinfo *hinfo);
 
 extern int tcf_register_action(struct tc_action_ops *a);
 extern int tcf_unregister_action(struct tc_action_ops *a);
@@ -96,17 +136,17 @@ tcf_police_release(struct tcf_police *p, int bind)
 	int ret = 0;
 #ifdef CONFIG_NET_CLS_ACT
 	if (p) {
-		if (bind) {
-			 p->bindcnt--;
-		}
-		p->refcnt--;
-		if (p->refcnt <= 0 && !p->bindcnt) {
+		if (bind)
+			p->tcf_bindcnt--;
+
+		p->tcf_refcnt--;
+		if (p->tcf_refcnt <= 0 && !p->tcf_bindcnt) {
 			tcf_police_destroy(p);
 			ret = 1;
 		}
 	}
 #else
-	if (p && --p->refcnt == 0)
+	if (p && --p->tcf_refcnt == 0)
 		tcf_police_destroy(p);
 
 #endif /* CONFIG_NET_CLS_ACT */

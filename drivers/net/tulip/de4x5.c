@@ -2114,6 +2114,7 @@ static struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };
+MODULE_DEVICE_TABLE(eisa, de4x5_eisa_ids);
 
 static struct eisa_driver de4x5_eisa_driver = {
         .id_table = de4x5_eisa_ids,
@@ -5754,7 +5755,7 @@ static int __init de4x5_module_init (void)
 	int err = 0;
 
 #ifdef CONFIG_PCI
-	err = pci_module_init (&de4x5_pci_driver);
+	err = pci_register_driver(&de4x5_pci_driver);
 #endif
 #ifdef CONFIG_EISA
 	err |= eisa_driver_register (&de4x5_eisa_driver);

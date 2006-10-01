@@ -277,7 +277,7 @@ void __init ebus_init(void)
 	struct pci_dev *pdev;
 	struct pcidev_cookie *cookie;
 	struct device_node *dp;
-	unsigned long addr, *base;
+	struct resource *p;
 	unsigned short pci_command;
 	int len, reg, nreg;
 	int num_ebus = 0;
@@ -321,13 +321,12 @@ void __init ebus_init(void)
 		}
 		nreg = len / sizeof(struct linux_prom_pci_registers);
 
-		base = &ebus->self->resource[0].start;
+		p = &ebus->self->resource[0];
 		for (reg = 0; reg < nreg; reg++) {
 			if (!(regs[reg].which_io & 0x03000000))
 				continue;
 
-			addr = regs[reg].phys_lo;
-			*base++ = addr;
+			(p++)->start = regs[reg].phys_lo;
 		}
 
 		ebus->ofdev.node = dp;

@@ -13,24 +13,25 @@
  * PG_reserved is set for special pages, which can never be swapped out. Some
  * of them might not even exist (eg empty_bad_page)...
  *
- * The PG_private bitflag is set if page->private contains a valid value.
+ * The PG_private bitflag is set on pagecache pages if they contain filesystem
+ * specific data (which is normally at page->private). It can be used by
+ * private allocations for its own usage.
  *
- * During disk I/O, PG_locked is used. This bit is set before I/O and
- * reset when I/O completes. page_waitqueue(page) is a wait queue of all tasks
- * waiting for the I/O on this page to complete.
+ * During initiation of disk I/O, PG_locked is set. This bit is set before I/O
+ * and cleared when writeback _starts_ or when read _completes_. PG_writeback
+ * is set before writeback starts and cleared when it finishes.
+ *
+ * PG_locked also pins a page in pagecache, and blocks truncation of the file
+ * while it is held.
+ *
+ * page_waitqueue(page) is a wait queue of all tasks waiting for the page
+ * to become unlocked.
  *
  * PG_uptodate tells whether the page's contents is valid.  When a read
  * completes, the page becomes uptodate, unless a disk I/O error happened.
  *
- * For choosing which pages to swap out, inode pages carry a PG_referenced bit,
- * which is set any time the system accesses that page through the (mapping,
- * index) hash table.  This referenced bit, together with the referenced bit
- * in the page tables, is used to manipulate page->age and move the page across
- * the active, inactive_dirty and inactive_clean lists.
- *
- * Note that the referenced bit, the page->lru list_head and the active,
- * inactive_dirty and inactive_clean lists are protected by the
- * zone->lru_lock, and *NOT* by the usual PG_locked bit!
+ * PG_referenced, PG_reclaim are used for page reclaim for anonymous and
+ * file-backed pagecache (see mm/vmscan.c).
  *
  * PG_error is set to indicate that an I/O error occurred on this page.
  *
@@ -42,6 +43,10 @@
  * space, they need to be kmapped separately for doing IO on the pages.  The
  * struct page (these bits with information) are always mapped into kernel
  * address space...
+ *
+ * PG_buddy is set to indicate that the page is free and in the buddy system
+ * (see mm/page_alloc.c).
+ *
  */
 
 /*
@@ -74,7 +79,7 @@
 #define PG_checked		 8	/* kill me in 2.5.<early>. */
 #define PG_arch_1		 9
 #define PG_reserved		10
-#define PG_private		11	/* Has something at ->private */
+#define PG_private		11	/* If pagecache, has fs-private data */
 
 #define PG_writeback		12	/* Page is under writeback */
 #define PG_nosave		13	/* Used for system suspend/resume */
@@ -83,7 +88,7 @@
 
 #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
 #define PG_reclaim		17	/* To be reclaimed asap */
-#define PG_nosave_free		18	/* Free, should not be written */
+#define PG_nosave_free		18	/* Used for system suspend/resume */
 #define PG_buddy		19	/* Page is free, on buddy lists */
 
 
@@ -123,12 +128,11 @@
 
 #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
 #ifdef CONFIG_S390
-#define SetPageUptodate(_page) \
-	do {								      \
-		struct page *__page = (_page);				      \
-		if (!test_and_set_bit(PG_uptodate, &__page->flags))	      \
-			page_test_and_clear_dirty(_page);		      \
-	} while (0)
+static inline void SetPageUptodate(struct page *page)
+{
+	if (!test_and_set_bit(PG_uptodate, &page->flags))
+		page_test_and_clear_dirty(page);
+}
 #else
 #define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
 #endif

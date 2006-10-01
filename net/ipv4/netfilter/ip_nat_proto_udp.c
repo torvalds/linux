@@ -24,7 +24,7 @@ udp_in_range(const struct ip_conntrack_tuple *tuple,
 	     const union ip_conntrack_manip_proto *min,
 	     const union ip_conntrack_manip_proto *max)
 {
-	u_int16_t port;
+	__be16 port;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
 		port = tuple->src.u.udp.port;
@@ -42,7 +42,7 @@ udp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 const struct ip_conntrack *conntrack)
 {
 	static u_int16_t port;
-	u_int16_t *portptr;
+	__be16 *portptr;
 	unsigned int range_size, min, i;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
@@ -91,8 +91,8 @@ udp_manip_pkt(struct sk_buff **pskb,
 	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
 	struct udphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
-	u32 oldip, newip;
-	u16 *portptr, newport;
+	__be32 oldip, newip;
+	__be16 *portptr, newport;
 
 	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
@@ -113,11 +113,16 @@ udp_manip_pkt(struct sk_buff **pskb,
 		newport = tuple->dst.u.udp.port;
 		portptr = &hdr->dest;
 	}
-	if (hdr->check) /* 0 is a special case meaning no checksum */
-		hdr->check = ip_nat_cheat_check(~oldip, newip,
-					ip_nat_cheat_check(*portptr ^ 0xFFFF,
-							   newport,
-							   hdr->check));
+
+	if (hdr->check || (*pskb)->ip_summed == CHECKSUM_PARTIAL) {
+		hdr->check = nf_proto_csum_update(*pskb, ~oldip, newip,
+						  hdr->check, 1);
+		hdr->check = nf_proto_csum_update(*pskb,
+						  *portptr ^ htons(0xFFFF), newport,
+						  hdr->check, 0);
+		if (!hdr->check)
+			hdr->check = -1;
+	}
 	*portptr = newport;
 	return 1;
 }

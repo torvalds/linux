@@ -505,7 +505,7 @@ static void happy_meal_tcvr_write(struct happy_meal *hp,
 				  unsigned short value)
 {
 	int tries = TCVR_WRITE_TRIES;
-	
+
 	ASD(("happy_meal_tcvr_write: reg=0x%02x value=%04x\n", reg, value));
 
 	/* Welcome to Sun Microsystems, can I take your order please? */
@@ -1207,7 +1207,7 @@ static void happy_meal_transceiver_check(struct happy_meal *hp, void __iomem *tr
  * flags, thus:
  *
  * 	skb->csum = rxd->rx_flags & 0xffff;
- * 	skb->ip_summed = CHECKSUM_HW;
+ * 	skb->ip_summed = CHECKSUM_COMPLETE;
  *
  * before sending off the skb to the protocols, and we are good as gold.
  */
@@ -1778,7 +1778,7 @@ static void happy_meal_set_initial_advertisement(struct happy_meal *hp)
 static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 {
 	int reset = 0;
-	
+
 	/* Only print messages for non-counter related interrupts. */
 	if (status & (GREG_STAT_STSTERR | GREG_STAT_TFIFO_UND |
 		      GREG_STAT_MAXPKTERR | GREG_STAT_RXERR |
@@ -2074,7 +2074,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 
 		/* This card is _fucking_ hot... */
 		skb->csum = ntohs(csum ^ 0xffff);
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_COMPLETE;
 
 		RXD(("len=%d csum=%4x]", len, csum));
 		skb->protocol = eth_type_trans(skb, dev);
@@ -2268,7 +2268,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
  	u32 tx_flags;
 
 	tx_flags = TXFLAG_OWN;
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u32 csum_start_off, csum_stuff_off;
 
 		csum_start_off = (u32) (skb->h.raw - skb->data);
@@ -2512,7 +2512,7 @@ static u32 hme_get_link(struct net_device *dev)
 	return (hp->sw_bmsr & BMSR_LSTATUS);
 }
 
-static struct ethtool_ops hme_ethtool_ops = {
+static const struct ethtool_ops hme_ethtool_ops = {
 	.get_settings		= hme_get_settings,
 	.set_settings		= hme_set_settings,
 	.get_drvinfo		= hme_get_drvinfo,
@@ -3002,7 +3002,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		printk(KERN_ERR "happymeal(PCI): Some PCI device info missing\n");
 		return -ENODEV;
 	}
-	
+
 	strcpy(prom_name, pcp->prom_node->name);
 #else
 	if (is_quattro_p(pdev))
@@ -3046,7 +3046,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		hp->qfe_parent = qp;
 		hp->qfe_ent = qfe_slot;
 		qp->happy_meals[qfe_slot] = dev;
-	}		
+	}
 
 	hpreg_res = pci_resource_start(pdev, 0);
 	err = -ENODEV;
@@ -3090,7 +3090,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		get_hme_mac_nonsparc(pdev, &dev->dev_addr[0]);
 #endif
 	}
-	
+
 	/* Layout registers. */
 	hp->gregs      = (hpreg_base + 0x0000UL);
 	hp->etxregs    = (hpreg_base + 0x2000UL);
@@ -3201,7 +3201,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		    qpdev->device == PCI_DEVICE_ID_DEC_21153)
 			printk("DEC 21153 PCI Bridge\n");
 		else
-			printk("unknown bridge %04x.%04x\n", 
+			printk("unknown bridge %04x.%04x\n",
 				qpdev->vendor, qpdev->device);
 	}
 

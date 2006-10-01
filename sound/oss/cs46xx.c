@@ -96,7 +96,7 @@
 #include <asm/dma.h>
 #include <asm/uaccess.h>
 
-#include "cs46xxpm-24.h"
+#include "cs46xxpm.h"
 #include "cs46xx_wrapper-24.h"
 #include "cs461x.h"
 
@@ -389,8 +389,10 @@ static int cs_hardware_init(struct cs_card *card);
 static int cs46xx_powerup(struct cs_card *card, unsigned int type);
 static int cs461x_powerdown(struct cs_card *card, unsigned int type, int suspendflag);
 static void cs461x_clear_serial_FIFOs(struct cs_card *card, int type);
+#ifdef CONFIG_PM
 static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state);
 static int cs46xx_resume_tbl(struct pci_dev *pcidev);
+#endif
 
 #if CSDEBUG
 
@@ -2980,7 +2982,7 @@ static void clkrun_hack(struct cs_card *card, int change)
 	
 	card->active+=change;
 	
-	acpi_dev = pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+	acpi_dev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
 	if (acpi_dev == NULL)
 		return;		/* Not a thinkpad thats for sure */
 
@@ -3006,6 +3008,7 @@ static void clkrun_hack(struct cs_card *card, int change)
 				change,card->active));
 		outw(control&~0x2000, port+0x10);
 	}
+	pci_dev_put(acpi_dev);
 }
 
 	
@@ -5389,8 +5392,10 @@ static struct pci_driver cs46xx_pci_driver = {
 	.id_table = cs46xx_pci_tbl,
 	.probe	  = cs46xx_probe,
 	.remove	  = __devexit_p(cs46xx_remove),
-	.suspend  = CS46XX_SUSPEND_TBL,
-	.resume	  = CS46XX_RESUME_TBL,
+#ifdef CONFIG_PM
+	.suspend  = cs46xx_suspend_tbl,
+	.resume	  = cs46xx_resume_tbl,
+#endif
 };
 
 static int __init cs46xx_init_module(void)
@@ -5420,7 +5425,7 @@ static void __exit cs46xx_cleanup_module(void)
 module_init(cs46xx_init_module);
 module_exit(cs46xx_cleanup_module);
 
-#if CS46XX_ACPI_SUPPORT
+#ifdef CONFIG_PM
 static int cs46xx_suspend_tbl(struct pci_dev *pcidev, pm_message_t state)
 {
 	struct cs_card *s = PCI_GET_DRIVER_DATA(pcidev);

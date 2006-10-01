@@ -115,7 +115,7 @@ qdio_min(int a,int b)
 static inline __u64 
 qdio_get_micros(void)
 {
-        return (get_clock() >> 10); /* time>>12 is microseconds */
+	return (get_clock() >> 12); /* time>>12 is microseconds */
 }
 
 /* 
@@ -1129,7 +1129,7 @@ out:
 
 #ifdef QDIO_USE_PROCESSING_STATE
 	if (last_position>=0)
-		set_slsb(q, &last_position, SLSB_P_INPUT_NOT_INIT, &count);
+		set_slsb(q, &last_position, SLSB_P_INPUT_PROCESSING, &count);
 #endif /* QDIO_USE_PROCESSING_STATE */
 
 	QDIO_DBF_HEX4(0,trace,&q->first_to_check,sizeof(int));

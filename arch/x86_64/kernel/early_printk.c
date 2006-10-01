@@ -215,20 +215,16 @@ void early_printk(const char *fmt, ...)
 
 static int __initdata keep_early;
 
-int __init setup_early_printk(char *opt)
+static int __init setup_early_printk(char *buf)
 {
-	char *space;
-	char buf[256];
+	if (!buf)
+		return 0;
 
 	if (early_console_initialized)
-		return 1;
+		return 0;
+	early_console_initialized = 1;
 
-	strlcpy(buf,opt,sizeof(buf));
-	space = strchr(buf, ' ');
-	if (space)
-		*space = 0;
-
-	if (strstr(buf,"keep"))
+	if (!strcmp(buf,"keep"))
 		keep_early = 1;
 
 	if (!strncmp(buf, "serial", 6)) {
@@ -248,10 +244,11 @@ int __init setup_early_printk(char *opt)
  		early_console = &simnow_console;
  		keep_early = 1;
 	}
-	early_console_initialized = 1;
 	register_console(early_console);
 	return 0;
 }
+
+early_param("earlyprintk", setup_early_printk);
 
 void __init disable_early_printk(void)
 {
@@ -266,4 +263,3 @@ void __init disable_early_printk(void)
 	}
 }
 
-__setup("earlyprintk=", setup_early_printk);

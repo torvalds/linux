@@ -347,6 +347,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	sigemptyset(&sigign);
 	sigemptyset(&sigcatch);
 	cutime = cstime = utime = stime = cputime_zero;
+
+	mutex_lock(&tty_mutex);
 	read_lock(&tasklist_lock);
 	if (task->sighand) {
 		spin_lock_irq(&task->sighand->siglock);
@@ -388,6 +390,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	}
 	ppid = pid_alive(task) ? task->group_leader->real_parent->tgid : 0;
 	read_unlock(&tasklist_lock);
+	mutex_unlock(&tty_mutex);
 
 	if (!whole || num_threads<2)
 		wchan = get_wchan(task);

@@ -8,6 +8,8 @@
 #ifndef _ASM_TIMEX_H
 #define _ASM_TIMEX_H
 
+#ifdef __KERNEL__
+
 #include <asm/mipsregs.h>
 
 /*
@@ -50,5 +52,7 @@ static inline cycles_t get_cycles (void)
 {
 	return read_c0_count();
 }
+
+#endif /* __KERNEL__ */
 
 #endif /*  _ASM_TIMEX_H */

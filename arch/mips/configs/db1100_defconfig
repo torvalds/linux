@@ -25,7 +25,6 @@ CONFIG_MIPS_DB1100=y
 # CONFIG_MIPS_COBALT is not set
 # CONFIG_MACH_DECSTATION is not set
 # CONFIG_MIPS_EV64120 is not set
-# CONFIG_MIPS_EV96100 is not set
 # CONFIG_MIPS_IVR is not set
 # CONFIG_MIPS_ITE8172 is not set
 # CONFIG_MACH_JAZZ is not set

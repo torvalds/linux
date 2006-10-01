@@ -3,13 +3,12 @@
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002, 2003, 2004, 2005  Paul Mundt
+ *  Copyright (C) 2002 - 2006  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -19,22 +18,26 @@
 #include <asm/timer.h>
 #include <asm/kgdb.h>
 
-extern unsigned long wall_jiffies;
 struct sys_timer *sys_timer;
 
 /* Move this somewhere more sensible.. */
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
-/* XXX: Can we initialize this in a routine somewhere?  Dreamcast doesn't want
- * these routines anywhere... */
-#ifdef CONFIG_SH_RTC
-void (*rtc_get_time)(struct timespec *) = sh_rtc_gettimeofday;
-int (*rtc_set_time)(const time_t) = sh_rtc_settimeofday;
-#else
-void (*rtc_get_time)(struct timespec *);
-int (*rtc_set_time)(const time_t);
-#endif
+/* Dummy RTC ops */
+static void null_rtc_get_time(struct timespec *tv)
+{
+	tv->tv_sec = mktime(2000, 1, 1, 0, 0, 0);
+	tv->tv_nsec = 0;
+}
+
+static int null_rtc_set_time(const time_t secs)
+{
+	return 0;
+}
+
+void (*rtc_sh_get_time)(struct timespec *) = null_rtc_get_time;
+int (*rtc_sh_set_time)(const time_t) = null_rtc_set_time;
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -48,16 +51,10 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long seq;
 	unsigned long usec, sec;
-	unsigned long lost;
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
 		usec = get_timer_offset();
-
-		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * (1000000 / HZ);
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry(&xtime_lock, seq));
@@ -70,7 +67,6 @@ void do_gettimeofday(struct timeval *tv)
 	tv->tv_sec = sec;
 	tv->tv_usec = usec;
 }
-
 EXPORT_SYMBOL(do_gettimeofday);
 
 int do_settimeofday(struct timespec *tv)
@@ -88,8 +84,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	nsec -= 1000 * (get_timer_offset() +
-				(jiffies - wall_jiffies) * (1000000 / HZ));
+	nsec -= 1000 * get_timer_offset();
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -103,7 +98,6 @@ int do_settimeofday(struct timespec *tv)
 
 	return 0;
 }
-
 EXPORT_SYMBOL(do_settimeofday);
 
 /* last time the RTC clock got updated */
@@ -115,7 +109,7 @@ static long last_rtc_update;
  */
 void handle_timer_tick(struct pt_regs *regs)
 {
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
@@ -135,7 +129,7 @@ void handle_timer_tick(struct pt_regs *regs)
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_set_time(xtime.tv_sec) == 0)
+		if (rtc_sh_set_time(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
 			/* do it again in 60s */
@@ -143,8 +137,33 @@ void handle_timer_tick(struct pt_regs *regs)
 	}
 }
 
+#ifdef CONFIG_PM
+int timer_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct sys_timer *sys_timer = container_of(dev, struct sys_timer, dev);
+
+	sys_timer->ops->stop();
+
+	return 0;
+}
+
+int timer_resume(struct sys_device *dev)
+{
+	struct sys_timer *sys_timer = container_of(dev, struct sys_timer, dev);
+
+	sys_timer->ops->start();
+
+	return 0;
+}
+#else
+#define timer_suspend NULL
+#define timer_resume NULL
+#endif
+
 static struct sysdev_class timer_sysclass = {
 	set_kset_name("timer"),
+	.suspend = timer_suspend,
+	.resume	 = timer_resume,
 };
 
 static int __init timer_init_sysfs(void)
@@ -156,7 +175,6 @@ static int __init timer_init_sysfs(void)
 	sys_timer->dev.cls = &timer_sysclass;
 	return sysdev_register(&sys_timer->dev);
 }
-
 device_initcall(timer_init_sysfs);
 
 void (*board_time_init)(void);
@@ -168,15 +186,9 @@ void __init time_init(void)
 
 	clk_init();
 
-	if (rtc_get_time) {
-		rtc_get_time(&xtime);
-	} else {
-		xtime.tv_sec = mktime(2000, 1, 1, 0, 0, 0);
-		xtime.tv_nsec = 0;
-	}
-
-        set_normalized_timespec(&wall_to_monotonic,
-                                -xtime.tv_sec, -xtime.tv_nsec);
+	rtc_sh_get_time(&xtime);
+	set_normalized_timespec(&wall_to_monotonic,
+				-xtime.tv_sec, -xtime.tv_nsec);
 
 	/*
 	 * Find the timer to use as the system timer, it will be

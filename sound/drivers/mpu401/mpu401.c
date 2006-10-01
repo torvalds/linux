@@ -211,7 +211,7 @@ static void __devexit snd_mpu401_pnp_remove(struct pnp_dev *dev)
 	struct snd_card *card = (struct snd_card *) pnp_get_drvdata(dev);
 
 	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free_when_closed(card);
 }
 
 static struct pnp_driver snd_mpu401_pnp_driver = {

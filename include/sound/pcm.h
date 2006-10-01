@@ -190,7 +190,7 @@ struct snd_pcm_ops {
 
 struct snd_pcm_file {
 	struct snd_pcm_substream *substream;
-	struct snd_pcm_file *next;
+	int no_compat_mmap;
 };
 
 struct snd_pcm_hw_rule;
@@ -347,6 +347,7 @@ struct snd_pcm_substream {
 	int number;
 	char name[32];			/* substream name */
 	int stream;			/* stream (direction) */
+	char latency_id[20];		/* latency identifier */
 	size_t buffer_bytes_max;	/* limit ring buffer size */
 	struct snd_dma_buffer dma_buffer;
 	unsigned int dma_buf_id;
@@ -384,7 +385,6 @@ struct snd_pcm_substream {
 	struct snd_info_entry *proc_prealloc_entry;
 #endif
 	/* misc flags */
-	unsigned int no_mmap_ctrl: 1;
 	unsigned int hw_opened: 1;
 };
 
@@ -402,7 +402,6 @@ struct snd_pcm_str {
 	/* -- OSS things -- */
 	struct snd_pcm_oss_stream oss;
 #endif
-	struct snd_pcm_file *files;
 #ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
 	struct snd_info_entry *proc_info_entry;

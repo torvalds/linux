@@ -9,6 +9,8 @@
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
+#include <linux/magic.h>
+
 /*
  * Enable debugging support for nfs client.
  * Requires RPC_DEBUG.
@@ -20,11 +22,6 @@
 /* Default timeout values */
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
-
-/*
- * superblock magic number for NFS
- */
-#define NFS_SUPER_MAGIC			0x6969
 
 /*
  * When flushing a cluster of dirty pages, there can be different
@@ -42,6 +39,7 @@
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/rbtree.h>
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
@@ -69,6 +67,8 @@
  * NFSv3/v4 Access mode cache entry
  */
 struct nfs_access_entry {
+	struct rb_node		rb_node;
+	struct list_head	lru;
 	unsigned long		jiffies;
 	struct rpc_cred *	cred;
 	int			mask;
@@ -145,7 +145,9 @@ struct nfs_inode {
 	 */
 	atomic_t		data_updates;
 
-	struct nfs_access_entry	cache_access;
+	struct rb_root		access_cache;
+	struct list_head	access_cache_entry_lru;
+	struct list_head	access_cache_inode_lru;
 #ifdef CONFIG_NFS_V3_ACL
 	struct posix_acl	*acl_access;
 	struct posix_acl	*acl_default;
@@ -199,6 +201,7 @@ struct nfs_inode {
 #define NFS_INO_REVALIDATING	(0)		/* revalidating attrs */
 #define NFS_INO_ADVISE_RDPLUS	(1)		/* advise readdirplus */
 #define NFS_INO_STALE		(2)		/* possible stale inode */
+#define NFS_INO_ACL_LRU_SET	(3)		/* Inode is on the LRU list */
 
 static inline struct nfs_inode *NFS_I(struct inode *inode)
 {
@@ -209,8 +212,7 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 #define NFS_FH(inode)			(&NFS_I(inode)->fh)
 #define NFS_SERVER(inode)		(NFS_SB(inode->i_sb))
 #define NFS_CLIENT(inode)		(NFS_SERVER(inode)->client)
-#define NFS_PROTO(inode)		(NFS_SERVER(inode)->rpc_ops)
-#define NFS_ADDR(inode)			(RPC_PEERADDR(NFS_CLIENT(inode)))
+#define NFS_PROTO(inode)		(NFS_SERVER(inode)->nfs_client->rpc_ops)
 #define NFS_COOKIEVERF(inode)		(NFS_I(inode)->cookieverf)
 #define NFS_READTIME(inode)		(NFS_I(inode)->read_cache_jiffies)
 #define NFS_CHANGE_ATTR(inode)		(NFS_I(inode)->change_attr)
@@ -297,6 +299,7 @@ extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
 extern int nfs_access_get_cached(struct inode *, struct rpc_cred *, struct nfs_access_entry *);
 extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
+extern void nfs_access_zap_cache(struct inode *inode);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);
@@ -312,10 +315,6 @@ extern void nfs_end_data_update(struct inode *);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
-extern struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-					const struct dentry *dentry,
-					struct nfs_fh *fh,
-					struct nfs_fattr *fattr);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern u32 root_nfs_parse_addr(char *name); /*__init*/
@@ -368,10 +367,12 @@ extern int nfs3_removexattr (struct dentry *, const char *name);
  */
 extern ssize_t nfs_direct_IO(int, struct kiocb *, const struct iovec *, loff_t,
 			unsigned long);
-extern ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf,
-			size_t count, loff_t pos);
-extern ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf,
-			size_t count, loff_t pos);
+extern ssize_t nfs_file_direct_read(struct kiocb *iocb,
+			const struct iovec *iov, unsigned long nr_segs,
+			loff_t pos);
+extern ssize_t nfs_file_direct_write(struct kiocb *iocb,
+			const struct iovec *iov, unsigned long nr_segs,
+			loff_t pos);
 
 /*
  * linux/fs/nfs/dir.c
@@ -579,6 +580,7 @@ extern void * nfs_root_data(void);
 #define NFSDBG_FILE		0x0040
 #define NFSDBG_ROOT		0x0080
 #define NFSDBG_CALLBACK		0x0100
+#define NFSDBG_CLIENT		0x0200
 #define NFSDBG_ALL		0xFFFF
 
 #ifdef __KERNEL__

@@ -92,7 +92,7 @@ config LOCALVERSION_AUTO
 
 config SWAP
 	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU
+	depends on MMU && BLOCK
 	default y
 	help
 	  This option allows you to choose whether you want to have support
@@ -202,7 +202,7 @@ config AUDITSYSCALL
 	  ensure that INOTIFY is configured.
 
 config IKCONFIG
-	bool "Kernel .config support"
+	tristate "Kernel .config support"
 	---help---
 	  This option enables the complete Linux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
@@ -257,6 +257,18 @@ config CC_OPTIMIZE_FOR_SIZE
 
 	  If unsure, say N.
 
+config TASK_XACCT
+	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect extended task accounting data and send the data
+	  to userland for processing over the taskstats interface.
+
+	  Say N if unsure.
+
+config SYSCTL
+	bool
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
@@ -272,22 +284,22 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
-config SYSCTL
-	bool "Sysctl support" if EMBEDDED
-	default y
+config SYSCTL_SYSCALL
+	bool "Sysctl syscall support" if EMBEDDED
+	default n
+	select SYSCTL
 	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface consists of a system call, but if you say Y to "/proc
-	  file system support", a tree of modifiable sysctl entries will be
-	  generated beneath the /proc/sys directory. They are explained in the
-	  files in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
+	  Enable the deprecated sysctl system call.  sys_sysctl uses
+	  binary paths that have been found to be a major pain to maintain
+	  and use.  The interface in /proc/sys is now the primary and what
+	  everyone uses.
 
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+	  Nothing has been using the binary sysctl interface for some
+	  time now so nothing should break if you disable sysctl syscall
+	  support, and your kernel will get marginally smaller.
+
+	  Unless you have an application that uses the sys_sysctl interface
+ 	  you should probably say N here.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED

@@ -143,7 +143,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 
 	if (!ops->get_drvinfo)
 		return -EOPNOTSUPP;
@@ -169,7 +169,7 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_regs regs;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	void *regbuf;
 	int reglen, ret;
 
@@ -282,7 +282,7 @@ static int ethtool_get_link(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_eeprom eeprom;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -327,7 +327,7 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_eeprom eeprom;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -640,7 +640,7 @@ static int ethtool_set_gso(struct net_device *dev, char __user *useraddr)
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_test test;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
 	int ret;
 
@@ -673,7 +673,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_gstrings gstrings;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u8 *data;
 	int ret;
 
@@ -733,7 +733,7 @@ static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_stats stats;
-	struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
 	int ret;
 
@@ -806,13 +806,6 @@ int dev_ethtool(struct ifreq *ifr)
 	int rc;
 	unsigned long old_features;
 
-	/*
-	 * XXX: This can be pushed down into the ethtool_* handlers that
-	 * need it.  Keep existing behaviour for the moment.
-	 */
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	if (!dev || !netif_device_present(dev))
 		return -ENODEV;
 
@@ -821,6 +814,27 @@ int dev_ethtool(struct ifreq *ifr)
 
 	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
 		return -EFAULT;
+
+	/* Allow some commands to be done by anyone */
+	switch(ethcmd) {
+	case ETHTOOL_GDRVINFO:
+	case ETHTOOL_GMSGLVL:
+	case ETHTOOL_GCOALESCE:
+	case ETHTOOL_GRINGPARAM:
+	case ETHTOOL_GPAUSEPARAM:
+	case ETHTOOL_GRXCSUM:
+	case ETHTOOL_GTXCSUM:
+	case ETHTOOL_GSG:
+	case ETHTOOL_GSTRINGS:
+	case ETHTOOL_GTSO:
+	case ETHTOOL_GPERMADDR:
+	case ETHTOOL_GUFO:
+	case ETHTOOL_GGSO:
+		break;
+	default:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+	}
 
 	if(dev->ethtool_ops->begin)
 		if ((rc = dev->ethtool_ops->begin(dev)) < 0)
@@ -947,6 +961,10 @@ int dev_ethtool(struct ifreq *ifr)
 	return rc;
 
  ioctl:
+	/* Keep existing behaviour for the moment.	 */
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (dev->do_ioctl)
 		return dev->do_ioctl(dev, ifr, SIOCETHTOOL);
 	return -EOPNOTSUPP;

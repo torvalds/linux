@@ -163,6 +163,7 @@ that only one external action is invoked at a time.
 #include <linux/firmware.h>
 #include <linux/acpi.h>
 #include <linux/ctype.h>
+#include <linux/latency.h>
 
 #include "ipw2100.h"
 
@@ -1697,6 +1698,11 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 		return 0;
 	}
 
+	/* the ipw2100 hardware really doesn't want power management delays
+	 * longer than 175usec
+	 */
+	modify_acceptable_latency("ipw2100", 175);
+
 	/* If the interrupt is enabled, turn it off... */
 	spin_lock_irqsave(&priv->low_lock, flags);
 	ipw2100_disable_interrupts(priv);
@@ -1848,6 +1854,8 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	spin_lock_irqsave(&priv->low_lock, flags);
 	ipw2100_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
+
+	modify_acceptable_latency("ipw2100", INFINITE_LATENCY);
 
 #ifdef ACPI_CSTATE_LIMIT_DEFINED
 	if (priv->config & CFG_C3_DISABLED) {
@@ -5911,7 +5919,7 @@ static u32 ipw2100_ethtool_get_link(struct net_device *dev)
 	return (priv->status & STATUS_ASSOCIATED) ? 1 : 0;
 }
 
-static struct ethtool_ops ipw2100_ethtool_ops = {
+static const struct ethtool_ops ipw2100_ethtool_ops = {
 	.get_link = ipw2100_ethtool_get_link,
 	.get_drvinfo = ipw_ethtool_get_drvinfo,
 };
@@ -6254,13 +6262,14 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	 * member to call a function that then just turns and calls ipw2100_up.
 	 * net_dev->init is called after name allocation but before the
 	 * notifier chain is called */
-	mutex_lock(&priv->action_mutex);
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_WARNING DRV_NAME
 		       "Error calling register_netdev.\n");
-		goto fail_unlock;
+		goto fail;
 	}
+
+	mutex_lock(&priv->action_mutex);
 	registered = 1;
 
 	IPW_DEBUG_INFO("%s: Bound to %s\n", dev->name, pci_name(pci_dev));
@@ -6531,8 +6540,9 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
-	ret = pci_module_init(&ipw2100_pci_driver);
+	ret = pci_register_driver(&ipw2100_pci_driver);
 
+	set_acceptable_latency("ipw2100", INFINITE_LATENCY);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
 	driver_create_file(&ipw2100_pci_driver.driver,
@@ -6553,6 +6563,7 @@ static void __exit ipw2100_exit(void)
 			   &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&ipw2100_pci_driver);
+	remove_acceptable_latency("ipw2100");
 }
 
 module_init(ipw2100_init);
@@ -6957,7 +6968,7 @@ static int ipw2100_wx_set_essid(struct net_device *dev,
 	}
 
 	if (wrqu->essid.flags && wrqu->essid.length) {
-		length = wrqu->essid.length - 1;
+		length = wrqu->essid.length;
 		essid = extra;
 	}
 
@@ -7050,7 +7061,7 @@ static int ipw2100_wx_get_nick(struct net_device *dev,
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 
-	wrqu->data.length = strlen(priv->nick) + 1;
+	wrqu->data.length = strlen(priv->nick);
 	memcpy(extra, priv->nick, wrqu->data.length);
 	wrqu->data.flags = 1;	/* active */
 
@@ -7342,14 +7353,14 @@ static int ipw2100_wx_set_retry(struct net_device *dev,
 		goto done;
 	}
 
-	if (wrqu->retry.flags & IW_RETRY_MIN) {
+	if (wrqu->retry.flags & IW_RETRY_SHORT) {
 		err = ipw2100_set_short_retry(priv, wrqu->retry.value);
 		IPW_DEBUG_WX("SET Short Retry Limit -> %d \n",
 			     wrqu->retry.value);
 		goto done;
 	}
 
-	if (wrqu->retry.flags & IW_RETRY_MAX) {
+	if (wrqu->retry.flags & IW_RETRY_LONG) {
 		err = ipw2100_set_long_retry(priv, wrqu->retry.value);
 		IPW_DEBUG_WX("SET Long Retry Limit -> %d \n",
 			     wrqu->retry.value);
@@ -7382,14 +7393,14 @@ static int ipw2100_wx_get_retry(struct net_device *dev,
 	if ((wrqu->retry.flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME)
 		return -EINVAL;
 
-	if (wrqu->retry.flags & IW_RETRY_MAX) {
-		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	if (wrqu->retry.flags & IW_RETRY_LONG) {
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		wrqu->retry.value = priv->long_retry_limit;
 	} else {
 		wrqu->retry.flags =
 		    (priv->short_retry_limit !=
 		     priv->long_retry_limit) ?
-		    IW_RETRY_LIMIT | IW_RETRY_MIN : IW_RETRY_LIMIT;
+		    IW_RETRY_LIMIT | IW_RETRY_SHORT : IW_RETRY_LIMIT;
 
 		wrqu->retry.value = priv->short_retry_limit;
 	}

@@ -56,8 +56,6 @@ do {								\
 #define ARP_NF_ASSERT(x)
 #endif
 
-#include <linux/netfilter_ipv4/listhelp.h>
-
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 				      char *hdr_addr, int len)
 {
@@ -82,7 +80,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 {
 	char *arpptr = (char *)(arphdr + 1);
 	char *src_devaddr, *tgt_devaddr;
-	u32 src_ipaddr, tgt_ipaddr;
+	__be32 src_ipaddr, tgt_ipaddr;
 	int i, ret;
 
 #define FWINV(bool,invflg) ((bool) ^ !!(arpinfo->invflags & invflg))
@@ -208,8 +206,7 @@ static unsigned int arpt_error(struct sk_buff **pskb,
 			       const struct net_device *out,
 			       unsigned int hooknum,
 			       const struct xt_target *target,
-			       const void *targinfo,
-			       void *userinfo)
+			       const void *targinfo)
 {
 	if (net_ratelimit())
 		printk("arp_tables: error: '%s'\n", (char *)targinfo);
@@ -226,8 +223,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 			   unsigned int hook,
 			   const struct net_device *in,
 			   const struct net_device *out,
-			   struct arpt_table *table,
-			   void *userdata)
+			   struct arpt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ];
 	unsigned int verdict = NF_DROP;
@@ -302,8 +298,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 								     in, out,
 								     hook,
 								     t->u.kernel.target,
-								     t->data,
-								     userdata);
+								     t->data);
 
 				/* Target might have changed stuff. */
 				arp = (*pskb)->nh.arph;
@@ -490,12 +485,10 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	if (t->u.kernel.target == &arpt_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
-			goto out;
+			goto err;
 		}
 	} else if (t->u.kernel.target->checkentry
 		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
-						      t->u.target_size
-						      - sizeof(*t),
 						      e->comefrom)) {
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
@@ -562,8 +555,7 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 
 	t = arpt_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
-					    t->u.target_size - sizeof(*t));
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data);
 	module_put(t->u.kernel.target->me);
 	return 0;
 }

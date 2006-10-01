@@ -11,36 +11,21 @@
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
 #include <asm/idle.h>
-
-static DEFINE_PER_CPU(unsigned long, next_check);
+#include <asm/therm_throt.h>
 
 asmlinkage void smp_thermal_interrupt(void)
 {
-	struct mce m;
+	__u64 msr_val;
 
 	ack_APIC_irq();
 
 	exit_idle();
 	irq_enter();
-	if (time_before(jiffies, __get_cpu_var(next_check)))
-		goto done;
 
-	__get_cpu_var(next_check) = jiffies + HZ*300;
-	memset(&m, 0, sizeof(m));
-	m.cpu = smp_processor_id();
-	m.bank = MCE_THERMAL_BANK;
-	rdtscll(m.tsc);
-	rdmsrl(MSR_IA32_THERM_STATUS, m.status);
-	if (m.status & 0x1) {
-		printk(KERN_EMERG
-			"CPU%d: Temperature above threshold, cpu clock throttled\n", m.cpu);
-		add_taint(TAINT_MACHINE_CHECK);
-	} else {
-		printk(KERN_EMERG "CPU%d: Temperature/speed normal\n", m.cpu);
-	}
+	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
+	if (therm_throt_process(msr_val & 1))
+		mce_log_therm_throt_event(smp_processor_id(), msr_val);
 
-	mce_log(&m);
-done:
 	irq_exit();
 }
 
@@ -92,6 +77,9 @@ static void __cpuinit intel_init_thermal(struct cpuinfo_x86 *c)
 	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
 	printk(KERN_INFO "CPU%d: Thermal monitoring enabled (%s)\n",
 		cpu, tm2 ? "TM2" : "TM1");
+
+	/* enable thermal throttle processing */
+	atomic_set(&therm_throt_en, 1);
 	return;
 }
 

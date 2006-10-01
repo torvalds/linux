@@ -81,7 +81,7 @@ do_proc_get_root(struct rpc_clnt *client, struct nfs_fh *fhandle,
 }
 
 /*
- * Bare-bones access to getattr: this is for nfs_read_super.
+ * Bare-bones access to getattr: this is for nfs_get_root/nfs_get_sb
  */
 static int
 nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
@@ -90,8 +90,8 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	status = do_proc_get_root(server->client, fhandle, info);
-	if (status && server->client_sys != server->client)
-		status = do_proc_get_root(server->client_sys, fhandle, info);
+	if (status && server->nfs_client->cl_rpcclient != server->client)
+		status = do_proc_get_root(server->nfs_client->cl_rpcclient, fhandle, info);
 	return status;
 }
 
@@ -449,7 +449,7 @@ nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir, struct qstr 
 		struct nfs_fattr res;
 	} *ptr;
 
-	ptr = (struct unlinkxdr *)kmalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
 	ptr->arg.fh = NFS_FH(dir->d_inode);
@@ -544,23 +544,23 @@ nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 }
 
 static int
-nfs3_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
-		  struct iattr *sattr, struct nfs_fh *fhandle,
-		  struct nfs_fattr *fattr)
+nfs3_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
+		  unsigned int len, struct iattr *sattr)
 {
-	struct nfs_fattr	dir_attr;
+	struct nfs_fh fhandle;
+	struct nfs_fattr fattr, dir_attr;
 	struct nfs3_symlinkargs	arg = {
 		.fromfh		= NFS_FH(dir),
-		.fromname	= name->name,
-		.fromlen	= name->len,
-		.topath		= path->name,
-		.tolen		= path->len,
+		.fromname	= dentry->d_name.name,
+		.fromlen	= dentry->d_name.len,
+		.pages		= &page,
+		.pathlen	= len,
 		.sattr		= sattr
 	};
 	struct nfs3_diropres	res = {
 		.dir_attr	= &dir_attr,
-		.fh		= fhandle,
-		.fattr		= fattr
+		.fh		= &fhandle,
+		.fattr		= &fattr
 	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_SYMLINK],
@@ -569,13 +569,19 @@ nfs3_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 	};
 	int			status;
 
-	if (path->len > NFS3_MAXPATHLEN)
+	if (len > NFS3_MAXPATHLEN)
 		return -ENAMETOOLONG;
-	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
+
+	dprintk("NFS call  symlink %s\n", dentry->d_name.name);
+
 	nfs_fattr_init(&dir_attr);
-	nfs_fattr_init(fattr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_post_op_update_inode(dir, &dir_attr);
+	if (status != 0)
+		goto out;
+	status = nfs_instantiate(dentry, &fhandle, &fattr);
+out:
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }
@@ -785,7 +791,7 @@ nfs3_proc_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	dprintk("NFS call  fsinfo\n");
 	nfs_fattr_init(info->fattr);
-	status = rpc_call_sync(server->client_sys, &msg, 0);
+	status = rpc_call_sync(server->nfs_client->cl_rpcclient, &msg, 0);
 	dprintk("NFS reply fsinfo: %d\n", status);
 	return status;
 }
@@ -886,7 +892,7 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return nlmclnt_proc(filp->f_dentry->d_inode, cmd, fl);
 }
 
-struct nfs_rpc_ops	nfs_v3_clientops = {
+const struct nfs_rpc_ops nfs_v3_clientops = {
 	.version	= 3,			/* protocol version */
 	.dentry_ops	= &nfs_dentry_operations,
 	.dir_inode_ops	= &nfs3_dir_inode_operations,

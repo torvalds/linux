@@ -56,7 +56,7 @@ static inline __u16 hard_smp_processor_id(void)
 {
         __u16 cpu_address;
  
-        __asm__ ("stap %0\n" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=m" (cpu_address));
         return cpu_address;
 }
 
@@ -104,7 +104,7 @@ smp_call_function_on(void (*func) (void *info), void *info,
 #define smp_cpu_not_running(cpu)	1
 #define smp_get_cpu(cpu) ({ 0; })
 #define smp_put_cpu(cpu) ({ 0; })
-#define smp_setup_cpu_possible_map()
+#define smp_setup_cpu_possible_map()	do { } while (0)
 #endif
 
 #endif

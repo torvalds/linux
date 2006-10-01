@@ -4,7 +4,7 @@
 #include <linux/blkdev.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
-
+#include <scsi/scsi_host.h>
 
 #define MSG_SIMPLE_TAG	0x20
 #define MSG_HEAD_TAG	0x21
@@ -13,6 +13,7 @@
 #define SCSI_NO_TAG	(-1)    /* identify no tag in use */
 
 
+#ifdef CONFIG_BLOCK
 
 /**
  * scsi_get_tag_type - get the type of tag the device supports
@@ -66,7 +67,8 @@ static inline void scsi_activate_tcq(struct scsi_device *sdev, int depth)
 		return;
 
 	if (!blk_queue_tagged(sdev->request_queue))
-		blk_queue_init_tags(sdev->request_queue, depth, NULL);
+		blk_queue_init_tags(sdev->request_queue, depth,
+				    sdev->host->bqt);
 
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
 }
@@ -98,7 +100,7 @@ static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 	struct scsi_device *sdev = cmd->device;
 
         if (blk_rq_tagged(req)) {
-		if (sdev->ordered_tags && req->flags & REQ_HARDBARRIER)
+		if (sdev->ordered_tags && req->cmd_flags & REQ_HARDBARRIER)
         	        *msg++ = MSG_ORDERED_TAG;
         	else
         	        *msg++ = MSG_SIMPLE_TAG;
@@ -131,4 +133,16 @@ static inline struct scsi_cmnd *scsi_find_tag(struct scsi_device *sdev, int tag)
 	return sdev->current_cmnd;
 }
 
+/**
+ * scsi_init_shared_tag_map - create a shared tag map
+ * @shost:	the host to share the tag map among all devices
+ * @depth:	the total depth of the map
+ */
+static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
+{
+	shost->bqt = blk_init_tags(depth);
+	return shost->bqt ? 0 : -ENOMEM;
+}
+
+#endif /* CONFIG_BLOCK */
 #endif /* _SCSI_SCSI_TCQ_H */

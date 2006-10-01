@@ -82,6 +82,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -164,7 +165,7 @@ static const u8 encaps_hdr[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 #define MAX_RID_LEN 1024
 
 static const struct iw_handler_def orinoco_handler_def;
-static struct ethtool_ops orinoco_ethtool_ops;
+static const struct ethtool_ops orinoco_ethtool_ops;
 
 /********************************************************************/
 /* Data tables                                                      */
@@ -3036,7 +3037,7 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	}
 
 	erq->flags = 1;
-	erq->length = strlen(essidbuf) + 1;
+	erq->length = strlen(essidbuf);
 
 	return 0;
 }
@@ -3077,7 +3078,7 @@ static int orinoco_ioctl_getnick(struct net_device *dev,
 	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE+1);
 	orinoco_unlock(priv, &flags);
 
-	nrq->length = strlen(nickbuf)+1;
+	nrq->length = strlen(nickbuf);
 
 	return 0;
 }
@@ -3574,14 +3575,14 @@ static int orinoco_ioctl_getretry(struct net_device *dev,
 		rrq->value = lifetime * 1000;	/* ??? */
 	} else {
 		/* By default, display the min number */
-		if ((rrq->flags & IW_RETRY_MAX)) {
-			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+		if ((rrq->flags & IW_RETRY_LONG)) {
+			rrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 			rrq->value = long_limit;
 		} else {
 			rrq->flags = IW_RETRY_LIMIT;
 			rrq->value = short_limit;
 			if(short_limit != long_limit)
-				rrq->flags |= IW_RETRY_MIN;
+				rrq->flags |= IW_RETRY_SHORT;
 		}
 	}
 
@@ -4292,7 +4293,7 @@ static void orinoco_get_drvinfo(struct net_device *dev,
 			 "PCMCIA %p", priv->hw.iobase);
 }
 
-static struct ethtool_ops orinoco_ethtool_ops = {
+static const struct ethtool_ops orinoco_ethtool_ops = {
 	.get_drvinfo = orinoco_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };

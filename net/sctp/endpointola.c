@@ -173,7 +173,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
 
 	/* Free up the HMAC transform. */
-	sctp_crypto_free_tfm(sctp_sk(ep->base.sk)->hmac);
+	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
 
 	/* Cleanup. */
 	sctp_inq_free(&ep->base.inqueue);

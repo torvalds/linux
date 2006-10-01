@@ -156,6 +156,11 @@ extern struct module __this_module;
 */
 #define MODULE_VERSION(_version) MODULE_INFO(version, _version)
 
+/* Optional firmware file (or files) needed by the module
+ * format is simply firmware file name.  Multiple firmware
+ * files require multiple MODULE_FIRMWARE() specifiers */
+#define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)
+
 /* Given an address, look for it in the exception tables */
 const struct exception_table_entry *search_exception_tables(unsigned long add);
 
@@ -227,17 +232,17 @@ enum module_state
 };
 
 /* Similar stuff for section attributes. */
-#define MODULE_SECT_NAME_LEN 32
 struct module_sect_attr
 {
 	struct module_attribute mattr;
-	char name[MODULE_SECT_NAME_LEN];
+	char *name;
 	unsigned long address;
 };
 
 struct module_sect_attrs
 {
 	struct attribute_group grp;
+	int nsections;
 	struct module_sect_attr attrs[0];
 };
 

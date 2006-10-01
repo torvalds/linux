@@ -20,6 +20,7 @@ struct mon_bus {
 	struct dentry *dent_s;		/* Debugging file */
 	struct dentry *dent_t;		/* Text interface file */
 	struct usb_bus *u_bus;
+	int uses_dma;
 
 	/* Ref */
 	int nreaders;			/* Under mon_lock AND mbus->lock */
@@ -53,7 +54,7 @@ extern char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len);
 
 extern struct mutex mon_lock;
 
-extern struct file_operations mon_fops_text;
-extern struct file_operations mon_fops_stat;
+extern const struct file_operations mon_fops_text;
+extern const struct file_operations mon_fops_stat;
 
 #endif /* __USB_MON_H */

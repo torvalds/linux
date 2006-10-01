@@ -17,7 +17,7 @@ struct ip_mp_alg_ops {
 	void	(*mp_alg_select_route)(const struct flowi *flp,
 				       struct rtable *rth, struct rtable **rp);
 	void	(*mp_alg_flush)(void);
-	void	(*mp_alg_set_nhinfo)(__u32 network, __u32 netmask,
+	void	(*mp_alg_set_nhinfo)(__be32 network, __be32 netmask,
 				     unsigned char prefixlen,
 				     const struct fib_nh *nh);
 	void	(*mp_alg_remove)(struct rtable *rth);
@@ -59,7 +59,7 @@ static inline void multipath_flush(void)
 }
 
 static inline void multipath_set_nhinfo(struct rtable *rth,
-					__u32 network, __u32 netmask,
+					__be32 network, __be32 netmask,
 					unsigned char prefixlen,
 					const struct fib_nh *nh)
 {

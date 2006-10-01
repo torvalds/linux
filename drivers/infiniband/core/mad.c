@@ -1246,8 +1246,8 @@ static int find_vendor_oui(struct ib_mad_mgmt_vendor_class *vendor_class,
 	int i;
 
 	for (i = 0; i < MAX_MGMT_OUI; i++)
-                /* Is there matching OUI for this vendor class ? */
-                if (!memcmp(vendor_class->oui[i], oui, 3))
+		/* Is there matching OUI for this vendor class ? */
+		if (!memcmp(vendor_class->oui[i], oui, 3))
 			return i;
 
 	return -1;
@@ -2237,7 +2237,7 @@ static void cancel_mads(struct ib_mad_agent_private *mad_agent_priv)
 	list_for_each_entry_safe(mad_send_wr, temp_mad_send_wr,
 				 &mad_agent_priv->send_list, agent_list) {
 		if (mad_send_wr->status == IB_WC_SUCCESS) {
- 			mad_send_wr->status = IB_WC_WR_FLUSH_ERR;
+			mad_send_wr->status = IB_WC_WR_FLUSH_ERR;
 			mad_send_wr->refcount -= (mad_send_wr->timeout > 0);
 		}
 	}
@@ -2528,10 +2528,10 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			}
 		}
 		sg_list.addr = dma_map_single(qp_info->port_priv->
-					      	device->dma_device,
+					        device->dma_device,
 					      &mad_priv->grh,
 					      sizeof *mad_priv -
-					      	sizeof mad_priv->header,
+					        sizeof mad_priv->header,
 					      DMA_FROM_DEVICE);
 		pci_unmap_addr_set(&mad_priv->header, mapping, sg_list.addr);
 		recv_wr.wr_id = (unsigned long)&mad_priv->header.mad_list;
@@ -2606,7 +2606,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	struct ib_qp *qp;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
- 	if (!attr) {
+	if (!attr) {
 		printk(KERN_ERR PFX "Couldn't kmalloc ib_qp_attr\n");
 		return -ENOMEM;
 	}
@@ -2876,7 +2876,10 @@ static void ib_mad_init_device(struct ib_device *device)
 {
 	int start, end, i;
 
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
+
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		start = 0;
 		end   = 0;
 	} else {
@@ -2923,7 +2926,7 @@ static void ib_mad_remove_device(struct ib_device *device)
 {
 	int i, num_ports, cur_port;
 
-	if (device->node_type == IB_NODE_SWITCH) {
+	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		num_ports = 1;
 		cur_port = 0;
 	} else {
@@ -2984,10 +2987,7 @@ error1:
 static void __exit ib_mad_cleanup_module(void)
 {
 	ib_unregister_client(&mad_client);
-
-	if (kmem_cache_destroy(ib_mad_cache)) {
-		printk(KERN_DEBUG PFX "Failed to destroy ib_mad cache\n");
-	}
+	kmem_cache_destroy(ib_mad_cache);
 }
 
 module_init(ib_mad_init_module);

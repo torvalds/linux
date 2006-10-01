@@ -304,7 +304,7 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 	coda_dir_changed(dir_inode, 0);
 	atomic_inc(&inode->i_count);
 	d_instantiate(de, inode);
-	inode->i_nlink++;
+	inc_nlink(inode);
         
 out:
 	unlock_kernel();
@@ -367,7 +367,7 @@ int coda_unlink(struct inode *dir, struct dentry *de)
         }
 
 	coda_dir_changed(dir, 0);
-	de->d_inode->i_nlink--;
+	drop_nlink(de->d_inode);
 	unlock_kernel();
 
         return 0;
@@ -394,7 +394,7 @@ int coda_rmdir(struct inode *dir, struct dentry *de)
         }
 
 	coda_dir_changed(dir, -1);
-	de->d_inode->i_nlink--;
+	drop_nlink(de->d_inode);
 	d_delete(de);
 	unlock_kernel();
 
@@ -513,7 +513,7 @@ static int coda_venus_readdir(struct file *filp, filldir_t filldir,
 	ino_t ino;
 	int ret, i;
 
-	vdir = (struct venus_dirent *)kmalloc(sizeof(*vdir), GFP_KERNEL);
+	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;
 
 	i = filp->f_pos;

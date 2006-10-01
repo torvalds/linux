@@ -207,7 +207,7 @@ static int max6902_set_time(struct device *dev, struct rtc_time *tm)
 	return max6902_set_datetime(dev, tm);
 }
 
-static struct rtc_class_ops max6902_rtc_ops = {
+static const struct rtc_class_ops max6902_rtc_ops = {
 	.read_time	= max6902_read_time,
 	.set_time	= max6902_set_time,
 };

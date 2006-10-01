@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/reboot.h>
+#include <linux/kprobes.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -39,6 +40,7 @@
 #include <asm/s390_ext.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
+#include <asm/kdebug.h>
 
 /* Called from entry.S only */
 extern void handle_per_exception(struct pt_regs *regs);
@@ -73,6 +75,20 @@ static int kstack_depth_to_print = 12;
 #define FOURLONG "%016lx %016lx %016lx %016lx\n"
 static int kstack_depth_to_print = 20;
 #endif /* CONFIG_64BIT */
+
+ATOMIC_NOTIFIER_HEAD(s390die_chain);
+
+int register_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&s390die_chain, nb);
+}
+EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&s390die_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
 
 /*
  * For show_trace we have tree different stack to consider:
@@ -305,8 +321,9 @@ report_user_fault(long interruption_code, struct pt_regs *regs)
 #endif
 }
 
-static void inline do_trap(long interruption_code, int signr, char *str,
-                           struct pt_regs *regs, siginfo_t *info)
+static void __kprobes inline do_trap(long interruption_code, int signr,
+					char *str, struct pt_regs *regs,
+					siginfo_t *info)
 {
 	/*
 	 * We got all needed information from the lowcore and can
@@ -314,6 +331,10 @@ static void inline do_trap(long interruption_code, int signr, char *str,
 	 */
         if (regs->psw.mask & PSW_MASK_PSTATE)
 		local_irq_enable();
+
+	if (notify_die(DIE_TRAP, str, regs, interruption_code,
+				interruption_code, signr) == NOTIFY_STOP)
+		return;
 
         if (regs->psw.mask & PSW_MASK_PSTATE) {
                 struct task_struct *tsk = current;
@@ -336,8 +357,12 @@ static inline void __user *get_check_address(struct pt_regs *regs)
 	return (void __user *)((regs->psw.addr-S390_lowcore.pgm_ilc) & PSW_ADDR_INSN);
 }
 
-void do_single_step(struct pt_regs *regs)
+void __kprobes do_single_step(struct pt_regs *regs)
 {
+	if (notify_die(DIE_SSTEP, "sstep", regs, 0, 0,
+					SIGTRAP) == NOTIFY_STOP){
+		return;
+	}
 	if ((current->ptrace & PT_PTRACED) != 0)
 		force_sig(SIGTRAP, current);
 }
@@ -572,8 +597,7 @@ asmlinkage void data_exception(struct pt_regs * regs, long interruption_code)
 		local_irq_enable();
 
 	if (MACHINE_HAS_IEEE)
-		__asm__ volatile ("stfpc %0\n\t" 
-				  : "=m" (current->thread.fp_regs.fpc));
+		asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
 
 #ifdef CONFIG_MATHEMU
         else if (regs->psw.mask & PSW_MASK_PSTATE) {

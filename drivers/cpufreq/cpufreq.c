@@ -32,7 +32,7 @@
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, "cpufreq-core", msg)
 
 /**
- * The "cpufreq driver" - the arch- or hardware-dependend low
+ * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
  * also protects the cpufreq_cpu_data array.
  */
@@ -994,7 +994,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 	unsigned int cur_freq = 0;
 	struct cpufreq_policy *cpu_policy;
 
-	dprintk("resuming cpu %u\n", cpu);
+	dprintk("suspending cpu %u\n", cpu);
 
 	if (!cpu_online(cpu))
 		return 0;

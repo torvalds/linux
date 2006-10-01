@@ -133,9 +133,9 @@ void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc,
 static void __init pseries_mpic_init_IRQ(void)
 {
 	struct device_node *np, *old, *cascade = NULL;
-        unsigned int *addrp;
+        const unsigned int *addrp;
 	unsigned long intack = 0;
-	unsigned int *opprop;
+	const unsigned int *opprop;
 	unsigned long openpic_addr = 0;
 	unsigned int cascade_irq;
 	int naddr, n, i, opplen;
@@ -143,7 +143,7 @@ static void __init pseries_mpic_init_IRQ(void)
 
 	np = of_find_node_by_path("/");
 	naddr = prom_n_addr_cells(np);
-	opprop = (unsigned int *) get_property(np, "platform-open-pic", &opplen);
+	opprop = get_property(np, "platform-open-pic", &opplen);
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
@@ -192,7 +192,7 @@ static void __init pseries_mpic_init_IRQ(void)
 			break;
 		if (strcmp(np->name, "pci") != 0)
 			continue;
-		addrp = (u32 *)get_property(np, "8259-interrupt-acknowledge",
+		addrp = get_property(np, "8259-interrupt-acknowledge",
 					    NULL);
 		if (addrp == NULL)
 			continue;
@@ -223,23 +223,37 @@ static void pseries_lpar_enable_pmcs(void)
 }
 
 #ifdef CONFIG_KEXEC
-static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
-{
-	mpic_teardown_this_cpu(secondary);
-}
-
-static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
+static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	/* Don't risk a hypervisor call if we're crashing */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR) && !crash_shutdown) {
-		unsigned long vpa = __pa(get_lppaca());
+		unsigned long addr;
 
-		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
+		addr = __pa(get_slb_shadow());
+		if (unregister_slb_shadow(hard_smp_processor_id(), addr))
+			printk("SLB shadow buffer deregistration of "
+			       "cpu %u (hw_cpu_id %d) failed\n",
+			       smp_processor_id(),
+			       hard_smp_processor_id());
+
+		addr = __pa(get_lppaca());
+		if (unregister_vpa(hard_smp_processor_id(), addr)) {
 			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
 					"failed\n", smp_processor_id(),
 					hard_smp_processor_id());
 		}
 	}
+}
+
+static void pseries_kexec_cpu_down_mpic(int crash_shutdown, int secondary)
+{
+	pseries_kexec_cpu_down(crash_shutdown, secondary);
+	mpic_teardown_this_cpu(secondary);
+}
+
+static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
+{
+	pseries_kexec_cpu_down(crash_shutdown, secondary);
 	xics_teardown_cpu(secondary);
 }
 #endif /* CONFIG_KEXEC */
@@ -247,11 +261,11 @@ static void pseries_kexec_cpu_down_xics(int crash_shutdown, int secondary)
 static void __init pseries_discover_pic(void)
 {
 	struct device_node *np;
-	char *typep;
+	const char *typep;
 
 	for (np = NULL; (np = of_find_node_by_name(np,
 						   "interrupt-controller"));) {
-		typep = (char *)get_property(np, "compatible", NULL);
+		typep = get_property(np, "compatible", NULL);
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
@@ -397,6 +411,12 @@ static int pSeries_check_legacy_ioport(unsigned int baseport)
 		break;
 	case FDC_BASE:
 		np = of_find_node_by_type(NULL, "fdc");
+		if (np == NULL)
+			return -ENODEV;
+		of_node_put(np);
+		break;
+	case PARALLEL_BASE:
+		np = of_find_node_by_type(NULL, "parallel");
 		if (np == NULL)
 			return -ENODEV;
 		of_node_put(np);

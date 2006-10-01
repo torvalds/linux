@@ -36,6 +36,18 @@
 
 #include "ipath_verbs.h"
 
+/* Fast memory region */
+struct ipath_fmr {
+	struct ib_fmr ibfmr;
+	u8 page_shift;
+	struct ipath_mregion mr;        /* must be last */
+};
+
+static inline struct ipath_fmr *to_ifmr(struct ib_fmr *ibfmr)
+{
+	return container_of(ibfmr, struct ipath_fmr, ibfmr);
+}
+
 /**
  * ipath_get_dma_mr - get a DMA memory region
  * @pd: protection domain for this memory region
@@ -126,6 +138,7 @@ struct ib_mr *ipath_reg_phys_mr(struct ib_pd *pd,
 		goto bail;
 	}
 
+	mr->mr.pd = pd;
 	mr->mr.user_base = *iova_start;
 	mr->mr.iova = *iova_start;
 	mr->mr.length = 0;
@@ -185,6 +198,7 @@ struct ib_mr *ipath_reg_user_mr(struct ib_pd *pd, struct ib_umem *region,
 		goto bail;
 	}
 
+	mr->mr.pd = pd;
 	mr->mr.user_base = region->user_base;
 	mr->mr.iova = region->virt_base;
 	mr->mr.length = region->length;
@@ -277,6 +291,7 @@ struct ib_fmr *ipath_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
 	 * Resources are allocated but no valid mapping (RKEY can't be
 	 * used).
 	 */
+	fmr->mr.pd = pd;
 	fmr->mr.user_base = 0;
 	fmr->mr.iova = 0;
 	fmr->mr.length = 0;

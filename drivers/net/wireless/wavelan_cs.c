@@ -1837,7 +1837,7 @@ static void wl_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strncpy(info->driver, "wavelan_cs", sizeof(info->driver)-1);
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = wl_get_drvinfo
 };
 

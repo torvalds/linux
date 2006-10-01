@@ -98,7 +98,7 @@ void show_mem(void)
  */
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 	/* allocate some pages for kernel housekeeping tasks */
 	empty_bad_page_table	= (unsigned long) alloc_bootmem_pages(PAGE_SIZE);

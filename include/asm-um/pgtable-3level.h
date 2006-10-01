@@ -74,11 +74,12 @@ extern inline void pud_clear (pud_t *pud)
         set_pud(pud, __pud(0));
 }
 
-#define pud_page(pud) \
+#define pud_page(pud) phys_to_page(pud_val(pud) & PAGE_MASK)
+#define pud_page_vaddr(pud) \
 	((struct page *) __va(pud_val(pud) & PAGE_MASK))
 
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *) pud_page(*(pud)) + \
+#define pmd_offset(pud, address) ((pmd_t *) pud_page_vaddr(*(pud)) + \
 			pmd_index(address))
 
 static inline unsigned long pte_pfn(pte_t pte)

@@ -217,7 +217,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	icsk->icsk_sync_mss	= dccp_sync_mss;
 	dp->dccps_mss_cache	= 536;
 	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
-	dp->dccps_service	= DCCP_SERVICE_INVALID_VALUE;
+	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
 	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
 
 	return 0;
@@ -267,12 +267,6 @@ static inline int dccp_listen_start(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	dp->dccps_role = DCCP_ROLE_LISTEN;
-	/*
-	 * Apps need to use setsockopt(DCCP_SOCKOPT_SERVICE)
-	 * before calling listen()
-	 */
-	if (dccp_service_not_initialized(sk))
-		return -EPROTO;
 	return inet_csk_listen_start(sk, TCP_SYNQ_HSIZE);
 }
 
@@ -540,9 +534,6 @@ static int dccp_getsockopt_service(struct sock *sk, int len,
 	int err = -ENOENT, slen = 0, total_len = sizeof(u32);
 
 	lock_sock(sk);
-	if (dccp_service_not_initialized(sk))
-		goto out;
-
 	if ((sl = dp->dccps_service_list) != NULL) {
 		slen = sl->dccpsl_nr * sizeof(u32);
 		total_len += slen;
@@ -662,17 +653,8 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rc != 0)
 		goto out_discard;
 
-	rc = dccp_write_xmit(sk, skb, &timeo);
-	/*
-	 * XXX we don't use sk_write_queue, so just discard the packet.
-	 *     Current plan however is to _use_ sk_write_queue with
-	 *     an algorith similar to tcp_sendmsg, where the main difference
-	 *     is that in DCCP we have to respect packet boundaries, so
-	 *     no coalescing of skbs.
-	 *
-	 *     This bug was _quickly_ found & fixed by just looking at an OSTRA
-	 *     generated callgraph 8) -acme
-	 */
+	skb_queue_tail(&sk->sk_write_queue, skb);
+	dccp_write_xmit(sk,0);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
@@ -846,6 +828,7 @@ static int dccp_close_state(struct sock *sk)
 
 void dccp_close(struct sock *sk, long timeout)
 {
+	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
 	int state;
 
@@ -861,6 +844,8 @@ void dccp_close(struct sock *sk, long timeout)
 
 		goto adjudge_to_death;
 	}
+
+	sk_stop_timer(sk, &dp->dccps_xmit_timer);
 
 	/*
 	 * We need to flush the recv. buffs.  We do this only on the

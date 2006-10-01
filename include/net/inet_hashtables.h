@@ -271,66 +271,57 @@ static inline int inet_iif(const struct sk_buff *skb)
 	return ((struct rtable *)skb->dst)->rt_iif;
 }
 
-extern struct sock *__inet_lookup_listener(const struct hlist_head *head,
-					   const u32 daddr,
+extern struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
+					   const __be32 daddr,
 					   const unsigned short hnum,
 					   const int dif);
 
-/* Optimize the common listener case. */
-static inline struct sock *
-		inet_lookup_listener(struct inet_hashinfo *hashinfo,
-				     const u32 daddr,
-				     const unsigned short hnum, const int dif)
+static inline struct sock *inet_lookup_listener(struct inet_hashinfo *hashinfo,
+						__be32 daddr, __be16 dport, int dif)
 {
-	struct sock *sk = NULL;
-	const struct hlist_head *head;
-
-	read_lock(&hashinfo->lhash_lock);
-	head = &hashinfo->listening_hash[inet_lhashfn(hnum)];
-	if (!hlist_empty(head)) {
-		const struct inet_sock *inet = inet_sk((sk = __sk_head(head)));
-
-		if (inet->num == hnum && !sk->sk_node.next &&
-		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
-		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if)
-			goto sherry_cache;
-		sk = __inet_lookup_listener(head, daddr, hnum, dif);
-	}
-	if (sk) {
-sherry_cache:
-		sock_hold(sk);
-	}
-	read_unlock(&hashinfo->lhash_lock);
-	return sk;
+	return __inet_lookup_listener(hashinfo, daddr, ntohs(dport), dif);
 }
 
 /* Socket demux engine toys. */
+/* What happens here is ugly; there's a pair of adjacent fields in
+   struct inet_sock; __be16 dport followed by __u16 num.  We want to
+   search by pair, so we combine the keys into a single 32bit value
+   and compare with 32bit value read from &...->dport.  Let's at least
+   make sure that it's not mixed with anything else...
+   On 64bit targets we combine comparisons with pair of adjacent __be32
+   fields in the same way.
+*/
+typedef __u32 __bitwise __portpair;
 #ifdef __BIG_ENDIAN
 #define INET_COMBINED_PORTS(__sport, __dport) \
-	(((__u32)(__sport) << 16) | (__u32)(__dport))
+	((__force __portpair)(((__force __u32)(__be16)(__sport) << 16) | (__u32)(__dport)))
 #else /* __LITTLE_ENDIAN */
 #define INET_COMBINED_PORTS(__sport, __dport) \
-	(((__u32)(__dport) << 16) | (__u32)(__sport))
+	((__force __portpair)(((__u32)(__dport) << 16) | (__force __u32)(__be16)(__sport)))
 #endif
 
 #if (BITS_PER_LONG == 64)
+typedef __u64 __bitwise __addrpair;
 #ifdef __BIG_ENDIAN
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
-	const __u64 __name = (((__u64)(__saddr)) << 32) | ((__u64)(__daddr));
+	const __addrpair __name = (__force __addrpair) ( \
+				   (((__force __u64)(__be32)(__saddr)) << 32) | \
+				   ((__force __u64)(__be32)(__daddr)));
 #else /* __LITTLE_ENDIAN */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr) \
-	const __u64 __name = (((__u64)(__daddr)) << 32) | ((__u64)(__saddr));
+	const __addrpair __name = (__force __addrpair) ( \
+				   (((__force __u64)(__be32)(__daddr)) << 32) | \
+				   ((__force __u64)(__be32)(__saddr)));
 #endif /* __BIG_ENDIAN */
 #define INET_MATCH(__sk, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash))				&&	\
-	 ((*((__u64 *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
-	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 ((*((__addrpair *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash))				&&	\
-	 ((*((__u64 *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
-	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
+	 ((*((__addrpair *)&(inet_twsk(__sk)->tw_daddr))) == (__cookie)) &&	\
+	 ((*((__portpair *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #else /* 32-bit arch */
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
@@ -338,13 +329,13 @@ sherry_cache:
 	(((__sk)->sk_hash == (__hash))				&&	\
 	 (inet_sk(__sk)->daddr		== (__saddr))		&&	\
 	 (inet_sk(__sk)->rcv_saddr	== (__daddr))		&&	\
-	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __hash,__cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_hash == (__hash))				&&	\
 	 (inet_twsk(__sk)->tw_daddr	== (__saddr))		&&	\
 	 (inet_twsk(__sk)->tw_rcv_saddr	== (__daddr))		&&	\
-	 ((*((__u32 *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
+	 ((*((__portpair *)&(inet_twsk(__sk)->tw_dport))) == (__ports)) &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #endif /* 64-bit arch */
 
@@ -356,12 +347,12 @@ sherry_cache:
  */
 static inline struct sock *
 	__inet_lookup_established(struct inet_hashinfo *hashinfo,
-				  const u32 saddr, const u16 sport,
-				  const u32 daddr, const u16 hnum,
+				  const __be32 saddr, const __be16 sport,
+				  const __be32 daddr, const u16 hnum,
 				  const int dif)
 {
 	INET_ADDR_COOKIE(acookie, saddr, daddr)
-	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
+	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	struct sock *sk;
 	const struct hlist_node *node;
 	/* Optimize here for direct hit, only listening connections can
@@ -391,25 +382,36 @@ hit:
 	goto out;
 }
 
+static inline struct sock *
+	inet_lookup_established(struct inet_hashinfo *hashinfo,
+				const __be32 saddr, const __be16 sport,
+				const __be32 daddr, const __be16 dport,
+				const int dif)
+{
+	return __inet_lookup_established(hashinfo, saddr, sport, daddr,
+					 ntohs(dport), dif);
+}
+
 static inline struct sock *__inet_lookup(struct inet_hashinfo *hashinfo,
-					 const u32 saddr, const u16 sport,
-					 const u32 daddr, const u16 hnum,
+					 const __be32 saddr, const __be16 sport,
+					 const __be32 daddr, const __be16 dport,
 					 const int dif)
 {
+	u16 hnum = ntohs(dport);
 	struct sock *sk = __inet_lookup_established(hashinfo, saddr, sport, daddr,
 						    hnum, dif);
-	return sk ? : inet_lookup_listener(hashinfo, daddr, hnum, dif);
+	return sk ? : __inet_lookup_listener(hashinfo, daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
-				       const u32 saddr, const u16 sport,
-				       const u32 daddr, const u16 dport,
+				       const __be32 saddr, const __be16 sport,
+				       const __be32 daddr, const __be16 dport,
 				       const int dif)
 {
 	struct sock *sk;
 
 	local_bh_disable();
-	sk = __inet_lookup(hashinfo, saddr, sport, daddr, ntohs(dport), dif);
+	sk = __inet_lookup(hashinfo, saddr, sport, daddr, dport, dif);
 	local_bh_enable();
 
 	return sk;

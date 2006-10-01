@@ -95,7 +95,7 @@ int relay_mmap_buf(struct rchan_buf *buf, struct vm_area_struct *vma)
  *	@buf: the buffer struct
  *	@size: total size of the buffer
  *
- *	Returns a pointer to the resulting buffer, NULL if unsuccessful. The
+ *	Returns a pointer to the resulting buffer, %NULL if unsuccessful. The
  *	passed in size will get page aligned, if it isn't already.
  */
 static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
@@ -132,10 +132,9 @@ depopulate:
 
 /**
  *	relay_create_buf - allocate and initialize a channel buffer
- *	@alloc_size: size of the buffer to allocate
- *	@n_subbufs: number of sub-buffers in the channel
+ *	@chan: the relay channel
  *
- *	Returns channel buffer if successful, NULL otherwise
+ *	Returns channel buffer if successful, %NULL otherwise.
  */
 struct rchan_buf *relay_create_buf(struct rchan *chan)
 {
@@ -163,6 +162,7 @@ free_buf:
 
 /**
  *	relay_destroy_channel - free the channel struct
+ *	@kref: target kernel reference that contains the relay channel
  *
  *	Should only be called from kref_put().
  */
@@ -194,6 +194,7 @@ void relay_destroy_buf(struct rchan_buf *buf)
 
 /**
  *	relay_remove_buf - remove a channel buffer
+ *	@kref: target kernel reference that contains the relay buffer
  *
  *	Removes the file from the fileystem, which also frees the
  *	rchan_buf_struct and the channel buffer.  Should only be called from
@@ -374,7 +375,7 @@ void relay_reset(struct rchan *chan)
 }
 EXPORT_SYMBOL_GPL(relay_reset);
 
-/**
+/*
  *	relay_open_buf - create a new relay channel buffer
  *
  *	Internal - used by relay_open().
@@ -448,12 +449,12 @@ static inline void setup_callbacks(struct rchan *chan,
 /**
  *	relay_open - create a new relay channel
  *	@base_filename: base name of files to create
- *	@parent: dentry of parent directory, NULL for root directory
+ *	@parent: dentry of parent directory, %NULL for root directory
  *	@subbuf_size: size of sub-buffers
  *	@n_subbufs: number of sub-buffers
  *	@cb: client callback functions
  *
- *	Returns channel pointer if successful, NULL otherwise.
+ *	Returns channel pointer if successful, %NULL otherwise.
  *
  *	Creates a channel buffer for each cpu using the sizes and
  *	attributes specified.  The created channel buffer files
@@ -585,7 +586,7 @@ EXPORT_SYMBOL_GPL(relay_switch_subbuf);
  *	subbufs_consumed should be the number of sub-buffers newly consumed,
  *	not the total consumed.
  *
- *	NOTE: kernel clients don't need to call this function if the channel
+ *	NOTE: Kernel clients don't need to call this function if the channel
  *	mode is 'overwrite'.
  */
 void relay_subbufs_consumed(struct rchan *chan,
@@ -641,7 +642,7 @@ EXPORT_SYMBOL_GPL(relay_close);
  *	relay_flush - close the channel
  *	@chan: the channel
  *
- *	Flushes all channel buffers i.e. forces buffer switch.
+ *	Flushes all channel buffers, i.e. forces buffer switch.
  */
 void relay_flush(struct rchan *chan)
 {
@@ -669,7 +670,7 @@ EXPORT_SYMBOL_GPL(relay_flush);
  */
 static int relay_file_open(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = inode->u.generic_ip;
+	struct rchan_buf *buf = inode->i_private;
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
@@ -729,7 +730,7 @@ static int relay_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-/**
+/*
  *	relay_file_read_consume - update the consumed count for the buffer
  */
 static void relay_file_read_consume(struct rchan_buf *buf,
@@ -756,7 +757,7 @@ static void relay_file_read_consume(struct rchan_buf *buf,
 	}
 }
 
-/**
+/*
  *	relay_file_read_avail - boolean, are there unconsumed bytes available?
  */
 static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
@@ -793,6 +794,8 @@ static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
 
 /**
  *	relay_file_read_subbuf_avail - return bytes available in sub-buffer
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
  */
 static size_t relay_file_read_subbuf_avail(size_t read_pos,
 					   struct rchan_buf *buf)
@@ -818,6 +821,8 @@ static size_t relay_file_read_subbuf_avail(size_t read_pos,
 
 /**
  *	relay_file_read_start_pos - find the first available byte to read
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
  *
  *	If the read_pos is in the middle of padding, return the
  *	position of the first actually available byte, otherwise
@@ -844,6 +849,9 @@ static size_t relay_file_read_start_pos(size_t read_pos,
 
 /**
  *	relay_file_read_end_pos - return the new read position
+ *	@read_pos: file read position
+ *	@buf: relay channel buffer
+ *	@count: number of bytes to be read
  */
 static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 				      size_t read_pos,
@@ -865,7 +873,7 @@ static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 	return end_pos;
 }
 
-/**
+/*
  *	subbuf_read_actor - read up to one subbuf's worth of data
  */
 static int subbuf_read_actor(size_t read_start,
@@ -890,7 +898,7 @@ static int subbuf_read_actor(size_t read_start,
 	return ret;
 }
 
-/**
+/*
  *	subbuf_send_actor - send up to one subbuf's worth of data
  */
 static int subbuf_send_actor(size_t read_start,
@@ -933,7 +941,7 @@ typedef int (*subbuf_actor_t) (size_t read_start,
 			       read_descriptor_t *desc,
 			       read_actor_t actor);
 
-/**
+/*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
 static inline ssize_t relay_file_read_subbufs(struct file *filp,

@@ -496,7 +496,7 @@ CONFIG_E1000=y
 # CONFIG_SKY2 is not set
 # CONFIG_SK98LIN is not set
 # CONFIG_VIA_VELOCITY is not set
-# CONFIG_TIGON3 is not set
+CONFIG_TIGON3=y
 # CONFIG_BNX2 is not set
 # CONFIG_MV643XX_ETH is not set
 

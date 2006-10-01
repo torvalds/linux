@@ -221,7 +221,7 @@ static struct net_device *root_atp_dev;
    If dev->base_addr == 1, always return failure.
    If dev->base_addr == 2, allocate space for the device and return success
    (detachable devices only).
-   
+
    FIXME: we should use the parport layer for this
    */
 static int __init atp_init(void)

@@ -11,8 +11,8 @@ extern unsigned int ip_nat_packet(struct ip_conntrack *ct,
 			       unsigned int hooknum,
 			       struct sk_buff **pskb);
 
-extern int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
-					 struct ip_conntrack *ct,
-					 enum ip_nat_manip_type manip,
-					 enum ip_conntrack_dir dir);
+extern int ip_nat_icmp_reply_translation(struct ip_conntrack *ct,
+					 enum ip_conntrack_info ctinfo,
+					 unsigned int hooknum,
+					 struct sk_buff **pskb);
 #endif /* _IP_NAT_CORE_H */

@@ -269,7 +269,7 @@ ssize_t cifs_getxattr(struct dentry * direntry, const char * ea_name,
 				rc = CIFSSMBGetCIFSACL(xid, pTcon, fid,
 					ea_value, buf_size,
 					ACL_TYPE_ACCESS);
-				CIFSSMBClose(xid, pTcon, fid)
+				CIFSSMBClose(xid, pTcon, fid);
 			}
 		} */  /* BB enable after fixing up return data */
                   		

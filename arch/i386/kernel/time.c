@@ -76,8 +76,6 @@ int pit_latch_buggy;              /* extern */
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
 
-extern unsigned long wall_jiffies;
-
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
@@ -130,18 +128,33 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 int timer_ack;
 
-#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	if (!user_mode_vm(regs) && in_lock_functions(pc))
+#ifdef CONFIG_SMP
+	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
+#ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->ebp + 4);
-
+#else
+		unsigned long *sp;
+		if ((regs->xcs & 3) == 0)
+			sp = (unsigned long *)&regs->esp;
+		else
+			sp = (unsigned long *)regs->esp;
+		/* Return address is either directly at stack pointer
+		   or above a saved eflags. Eflags has bits 22-31 zero,
+		   kernel addresses don't. */
+ 		if (sp[0] >> 22)
+			return sp[0];
+		if (sp[1] >> 22)
+			return sp[1];
+#endif
+	}
+#endif
 	return pc;
 }
 EXPORT_SYMBOL(profile_pc);
-#endif
 
 /*
  * This is the same as the above, except we _also_ save the current
@@ -270,16 +283,19 @@ void notify_arch_cmos_timer(void)
 	mod_timer(&sync_cmos_timer, jiffies + 1);
 }
 
-static long clock_cmos_diff, sleep_start;
+static long clock_cmos_diff;
+static unsigned long sleep_start;
 
 static int timer_suspend(struct sys_device *dev, pm_message_t state)
 {
 	/*
 	 * Estimate time zone so that set_time can update the clock
 	 */
-	clock_cmos_diff = -get_cmos_time();
+	unsigned long ctime =  get_cmos_time();
+
+	clock_cmos_diff = -ctime;
 	clock_cmos_diff += get_seconds();
-	sleep_start = get_cmos_time();
+	sleep_start = ctime;
 	return 0;
 }
 
@@ -287,20 +303,30 @@ static int timer_resume(struct sys_device *dev)
 {
 	unsigned long flags;
 	unsigned long sec;
-	unsigned long sleep_length;
+	unsigned long ctime = get_cmos_time();
+	long sleep_length = (ctime - sleep_start) * HZ;
+	struct timespec ts;
 
+	if (sleep_length < 0) {
+		printk(KERN_WARNING "CMOS clock skew detected in timer resume!\n");
+		/* The time after the resume must not be earlier than the time
+		 * before the suspend or some nasty things will happen
+		 */
+		sleep_length = 0;
+		ctime = sleep_start;
+	}
 #ifdef CONFIG_HPET_TIMER
 	if (is_hpet_enabled())
 		hpet_reenable();
 #endif
 	setup_pit_timer();
-	sec = get_cmos_time() + clock_cmos_diff;
-	sleep_length = (get_cmos_time() - sleep_start) * HZ;
+
+	sec = ctime + clock_cmos_diff;
+	ts.tv_sec = sec;
+	ts.tv_nsec = 0;
+	do_settimeofday(&ts);
 	write_seqlock_irqsave(&xtime_lock, flags);
-	xtime.tv_sec = sec;
-	xtime.tv_nsec = 0;
 	jiffies_64 += sleep_length;
-	wall_jiffies += sleep_length;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	touch_softlockup_watchdog();
 	return 0;
@@ -334,10 +360,11 @@ extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	struct timespec ts;
+	ts.tv_sec = get_cmos_time();
+	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+
+	do_settimeofday(&ts);
 
 	if ((hpet_enable() >= 0) && hpet_use_timer) {
 		printk("Using HPET for base-timer\n");
@@ -349,6 +376,7 @@ static void __init hpet_time_init(void)
 
 void __init time_init(void)
 {
+	struct timespec ts;
 #ifdef CONFIG_HPET_TIMER
 	if (is_hpet_capable()) {
 		/*
@@ -359,10 +387,10 @@ void __init time_init(void)
 		return;
 	}
 #endif
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	ts.tv_sec = get_cmos_time();
+	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+
+	do_settimeofday(&ts);
 
 	time_init_hook();
 }

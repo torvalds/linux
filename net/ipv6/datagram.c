@@ -156,6 +156,8 @@ ipv4_connected:
 	if (!fl.oif && (addr_type&IPV6_ADDR_MULTICAST))
 		fl.oif = np->mcast_oif;
 
+	security_sk_classify_flow(sk, &fl);
+
 	if (flowlabel) {
 		if (flowlabel->opt && flowlabel->opt->srcrt) {
 			struct rt0_hdr *rt0 = (struct rt0_hdr *) flowlabel->opt->srcrt;
@@ -191,7 +193,12 @@ ipv4_connected:
 
 	ip6_dst_store(sk, dst,
 		      ipv6_addr_equal(&fl.fl6_dst, &np->daddr) ?
-		      &np->daddr : NULL);
+		      &np->daddr : NULL,
+#ifdef CONFIG_IPV6_SUBTREES
+		      ipv6_addr_equal(&fl.fl6_src, &np->saddr) ?
+		      &np->saddr :
+#endif
+		      NULL);
 
 	sk->sk_state = TCP_ESTABLISHED;
 out:
@@ -641,10 +648,13 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 
 			rthdr = (struct ipv6_rt_hdr *)CMSG_DATA(cmsg);
 
-			/*
-			 *	TYPE 0
-			 */
-			if (rthdr->type) {
+			switch (rthdr->type) {
+			case IPV6_SRCRT_TYPE_0:
+#ifdef CONFIG_IPV6_MIP6
+			case IPV6_SRCRT_TYPE_2:
+#endif
+				break;
+			default:
 				err = -EINVAL;
 				goto exit_f;
 			}

@@ -157,7 +157,7 @@ static u32 sgi_func(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm sgi_algo = {
+static const struct i2c_algorithm sgi_algo = {
 	.master_xfer	= sgi_xfer,
 	.functionality	= sgi_func,
 };

@@ -237,7 +237,7 @@ void sn_dma_flush(u64 addr)
 	int is_tio;
 	int wid_num;
 	int i, j;
-	u64 flags;
+	unsigned long flags;
 	u64 itte;
 	struct hubdev_info *hubinfo;
 	struct sn_flush_device_kernel *p;

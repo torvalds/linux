@@ -154,6 +154,10 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
+#define _raw_spin_relax(lock)	cpu_relax()
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
+
 #define __raw_read_can_lock(rw) (!((rw)->lock & 0xff))
 #define __raw_write_can_lock(rw) (!(rw)->lock)
 

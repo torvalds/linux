@@ -1124,17 +1124,14 @@ err:
 	return fa_head;
 }
 
-static int
-fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
-	       struct nlmsghdr *nlhdr, struct netlink_skb_parms *req)
+static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct fib_alias *fa, *new_fa;
 	struct list_head *fa_head = NULL;
 	struct fib_info *fi;
-	int plen = r->rtm_dst_len;
-	int type = r->rtm_type;
-	u8 tos = r->rtm_tos;
+	int plen = cfg->fc_dst_len;
+	u8 tos = cfg->fc_tos;
 	u32 key, mask;
 	int err;
 	struct leaf *l;
@@ -1142,13 +1139,9 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 	if (plen > 32)
 		return -EINVAL;
 
-	key = 0;
-	if (rta->rta_dst)
-		memcpy(&key, rta->rta_dst, 4);
+	key = ntohl(cfg->fc_dst);
 
-	key = ntohl(key);
-
-	pr_debug("Insert table=%d %08x/%d\n", tb->tb_id, key, plen);
+	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
 
 	mask = ntohl(inet_make_mask(plen));
 
@@ -1157,10 +1150,11 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 
 	key = key & mask;
 
-	fi = fib_create_info(r, rta, nlhdr, &err);
-
-	if (!fi)
+	fi = fib_create_info(cfg);
+	if (IS_ERR(fi)) {
+		err = PTR_ERR(fi);
 		goto err;
+	}
 
 	l = fib_find_node(t, key);
 	fa = NULL;
@@ -1185,10 +1179,10 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		struct fib_alias *fa_orig;
 
 		err = -EEXIST;
-		if (nlhdr->nlmsg_flags & NLM_F_EXCL)
+		if (cfg->fc_nlflags & NLM_F_EXCL)
 			goto out;
 
-		if (nlhdr->nlmsg_flags & NLM_F_REPLACE) {
+		if (cfg->fc_nlflags & NLM_F_REPLACE) {
 			struct fib_info *fi_drop;
 			u8 state;
 
@@ -1200,8 +1194,8 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 			fi_drop = fa->fa_info;
 			new_fa->fa_tos = fa->fa_tos;
 			new_fa->fa_info = fi;
-			new_fa->fa_type = type;
-			new_fa->fa_scope = r->rtm_scope;
+			new_fa->fa_type = cfg->fc_type;
+			new_fa->fa_scope = cfg->fc_scope;
 			state = fa->fa_state;
 			new_fa->fa_state &= ~FA_S_ACCESSED;
 
@@ -1224,17 +1218,17 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 				break;
 			if (fa->fa_info->fib_priority != fi->fib_priority)
 				break;
-			if (fa->fa_type == type &&
-			    fa->fa_scope == r->rtm_scope &&
+			if (fa->fa_type == cfg->fc_type &&
+			    fa->fa_scope == cfg->fc_scope &&
 			    fa->fa_info == fi) {
 				goto out;
 			}
 		}
-		if (!(nlhdr->nlmsg_flags & NLM_F_APPEND))
+		if (!(cfg->fc_nlflags & NLM_F_APPEND))
 			fa = fa_orig;
 	}
 	err = -ENOENT;
-	if (!(nlhdr->nlmsg_flags & NLM_F_CREATE))
+	if (!(cfg->fc_nlflags & NLM_F_CREATE))
 		goto out;
 
 	err = -ENOBUFS;
@@ -1244,8 +1238,8 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
-	new_fa->fa_type = type;
-	new_fa->fa_scope = r->rtm_scope;
+	new_fa->fa_type = cfg->fc_type;
+	new_fa->fa_scope = cfg->fc_scope;
 	new_fa->fa_state = 0;
 	/*
 	 * Insert new entry to the list.
@@ -1262,7 +1256,8 @@ fn_trie_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 			  (fa ? &fa->fa_list : fa_head));
 
 	rt_cache_flush(-1);
-	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id, nlhdr, req);
+	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
+		  &cfg->fc_nlinfo);
 succeeded:
 	return 0;
 
@@ -1548,28 +1543,21 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	return 1;
 }
 
-static int
-fn_trie_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
-		struct nlmsghdr *nlhdr, struct netlink_skb_parms *req)
+static int fn_trie_delete(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	u32 key, mask;
-	int plen = r->rtm_dst_len;
-	u8 tos = r->rtm_tos;
+	int plen = cfg->fc_dst_len;
+	u8 tos = cfg->fc_tos;
 	struct fib_alias *fa, *fa_to_delete;
 	struct list_head *fa_head;
 	struct leaf *l;
 	struct leaf_info *li;
 
-
 	if (plen > 32)
 		return -EINVAL;
 
-	key = 0;
-	if (rta->rta_dst)
-		memcpy(&key, rta->rta_dst, 4);
-
-	key = ntohl(key);
+	key = ntohl(cfg->fc_dst);
 	mask = ntohl(inet_make_mask(plen));
 
 	if (key & ~mask)
@@ -1598,13 +1586,12 @@ fn_trie_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		if (fa->fa_tos != tos)
 			break;
 
-		if ((!r->rtm_type ||
-		     fa->fa_type == r->rtm_type) &&
-		    (r->rtm_scope == RT_SCOPE_NOWHERE ||
-		     fa->fa_scope == r->rtm_scope) &&
-		    (!r->rtm_protocol ||
-		     fi->fib_protocol == r->rtm_protocol) &&
-		    fib_nh_match(r, nlhdr, rta, fi) == 0) {
+		if ((!cfg->fc_type || fa->fa_type == cfg->fc_type) &&
+		    (cfg->fc_scope == RT_SCOPE_NOWHERE ||
+		     fa->fa_scope == cfg->fc_scope) &&
+		    (!cfg->fc_protocol ||
+		     fi->fib_protocol == cfg->fc_protocol) &&
+		    fib_nh_match(cfg, fi) == 0) {
 			fa_to_delete = fa;
 			break;
 		}
@@ -1614,7 +1601,8 @@ fn_trie_delete(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		return -ESRCH;
 
 	fa = fa_to_delete;
-	rtmsg_fib(RTM_DELROUTE, htonl(key), fa, plen, tb->tb_id, nlhdr, req);
+	rtmsg_fib(RTM_DELROUTE, htonl(key), fa, plen, tb->tb_id,
+		  &cfg->fc_nlinfo);
 
 	l = fib_find_node(t, key);
 	li = find_leaf_info(l, plen);
@@ -1846,9 +1834,9 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 	int i, s_i;
 	struct fib_alias *fa;
 
-	u32 xkey = htonl(key);
+	__be32 xkey = htonl(key);
 
-	s_i = cb->args[3];
+	s_i = cb->args[4];
 	i = 0;
 
 	/* rcu_read_lock is hold by caller */
@@ -1866,16 +1854,16 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah, struct fi
 				  tb->tb_id,
 				  fa->fa_type,
 				  fa->fa_scope,
-				  &xkey,
+				  xkey,
 				  plen,
 				  fa->fa_tos,
 				  fa->fa_info, 0) < 0) {
-			cb->args[3] = i;
+			cb->args[4] = i;
 			return -1;
 		}
 		i++;
 	}
-	cb->args[3] = i;
+	cb->args[4] = i;
 	return skb->len;
 }
 
@@ -1886,14 +1874,14 @@ static int fn_trie_dump_plen(struct trie *t, int plen, struct fib_table *tb, str
 	struct list_head *fa_head;
 	struct leaf *l = NULL;
 
-	s_h = cb->args[2];
+	s_h = cb->args[3];
 
 	for (h = 0; (l = nextleaf(t, l)) != NULL; h++) {
 		if (h < s_h)
 			continue;
 		if (h > s_h)
-			memset(&cb->args[3], 0,
-			       sizeof(cb->args) - 3*sizeof(cb->args[0]));
+			memset(&cb->args[4], 0,
+			       sizeof(cb->args) - 4*sizeof(cb->args[0]));
 
 		fa_head = get_fa_head(l, plen);
 
@@ -1904,11 +1892,11 @@ static int fn_trie_dump_plen(struct trie *t, int plen, struct fib_table *tb, str
 			continue;
 
 		if (fn_trie_dump_fa(l->key, plen, fa_head, tb, skb, cb)<0) {
-			cb->args[2] = h;
+			cb->args[3] = h;
 			return -1;
 		}
 	}
-	cb->args[2] = h;
+	cb->args[3] = h;
 	return skb->len;
 }
 
@@ -1917,23 +1905,23 @@ static int fn_trie_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	int m, s_m;
 	struct trie *t = (struct trie *) tb->tb_data;
 
-	s_m = cb->args[1];
+	s_m = cb->args[2];
 
 	rcu_read_lock();
 	for (m = 0; m <= 32; m++) {
 		if (m < s_m)
 			continue;
 		if (m > s_m)
-			memset(&cb->args[2], 0,
-				sizeof(cb->args) - 2*sizeof(cb->args[0]));
+			memset(&cb->args[3], 0,
+				sizeof(cb->args) - 3*sizeof(cb->args[0]));
 
 		if (fn_trie_dump_plen(t, 32-m, tb, skb, cb)<0) {
-			cb->args[1] = m;
+			cb->args[2] = m;
 			goto out;
 		}
 	}
 	rcu_read_unlock();
-	cb->args[1] = m;
+	cb->args[2] = m;
 	return skb->len;
 out:
 	rcu_read_unlock();
@@ -1943,9 +1931,9 @@ out:
 /* Fix more generic FIB names for init later */
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
-struct fib_table * fib_hash_init(int id)
+struct fib_table * fib_hash_init(u32 id)
 #else
-struct fib_table * __init fib_hash_init(int id)
+struct fib_table * __init fib_hash_init(u32 id)
 #endif
 {
 	struct fib_table *tb;
@@ -2293,7 +2281,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 
 	if (IS_TNODE(n)) {
 		struct tnode *tn = (struct tnode *) n;
-		t_key prf = ntohl(MASK_PFX(tn->key, tn->pos));
+		__be32 prf = htonl(MASK_PFX(tn->key, tn->pos));
 
 		if (!NODE_PARENT(n)) {
 			if (iter->trie == trie_local)
@@ -2309,7 +2297,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		int i;
-		u32 val = ntohl(l->key);
+		__be32 val = htonl(l->key);
 
 		seq_indent(seq, iter->depth);
 		seq_printf(seq, "  |-- %d.%d.%d.%d\n", NIPQUAD(val));
@@ -2372,7 +2360,7 @@ static struct file_operations fib_trie_fops = {
 	.release = seq_release_private,
 };
 
-static unsigned fib_flag_trans(int type, u32 mask, const struct fib_info *fi)
+static unsigned fib_flag_trans(int type, __be32 mask, const struct fib_info *fi)
 {
 	static unsigned type2flags[RTN_MAX + 1] = {
 		[7] = RTF_REJECT, [8] = RTF_REJECT,
@@ -2381,7 +2369,7 @@ static unsigned fib_flag_trans(int type, u32 mask, const struct fib_info *fi)
 
 	if (fi && fi->fib_nh->nh_gw)
 		flags |= RTF_GATEWAY;
-	if (mask == 0xFFFFFFFF)
+	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
 	flags |= RTF_UP;
 	return flags;
@@ -2415,7 +2403,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 	for (i=32; i>=0; i--) {
 		struct leaf_info *li = find_leaf_info(l, i);
 		struct fib_alias *fa;
-		u32 mask, prefix;
+		__be32 mask, prefix;
 
 		if (!li)
 			continue;

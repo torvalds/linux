@@ -126,7 +126,7 @@ config BASLER_EXCITE
 	select IRQ_CPU
 	select IRQ_CPU_RM7K
 	select IRQ_CPU_RM9K
-	select SERIAL_RM9000
+	select MIPS_RM9122
 	select SYS_HAS_CPU_RM9000
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
@@ -202,26 +202,6 @@ config MIPS_EV64120
 	  core running at 75/100MHz.  Their website is located at
 	  <http://www.marvell.com/>.  Say Y here if you wish to build a
 	  kernel for this platform.
-
-config MIPS_EV96100
-	bool "Galileo EV96100 Evaluation board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select IRQ_CPU
-	select MIPS_GT96100
-	select RM7000_CPU_SCACHE
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_R5000
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	help
-	  This is an evaluation board based on the Galileo GT-96100 LAN/WAN
-	  communications controllers containing a MIPS R5000 compatible core
-	  running at 83MHz. Their website is <http://www.marvell.com/>. Say Y
-	  here if you wish to build a kernel for this platform.
 
 config MIPS_IVR
 	bool "Globespan IVR board"
@@ -974,6 +954,12 @@ config MIPS_TX3927
 	bool
 	select HAS_TXX9_SERIAL
 
+config MIPS_RM9122
+	bool
+	select SERIAL_RM9000
+	select GPI_RM9000
+	select WDT_RM9000
+
 config PCI_MARVELL
 	bool
 
@@ -1024,6 +1010,15 @@ config EMMA2RH
 	depends on MARKEINS
 	default y
 
+config SERIAL_RM9000
+	bool
+
+config GPI_RM9000
+	bool
+
+config WDT_RM9000
+	bool
+
 #
 # Unfortunately not all GT64120 systems run the chip at the same clock.
 # As the user for the clock rate and try to minimize the available options.
@@ -1053,10 +1048,6 @@ config AU1X00_USB_DEVICE
 	bool
 	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
 	default n
-
-config MIPS_GT96100
-	bool
-	select MIPS_GT64120
 
 config IT8172_CIR
 	bool
@@ -1527,6 +1518,7 @@ config MIPS_MT_SMTC
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select SMP
+	select SYS_SUPPORTS_SMP
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
@@ -1538,6 +1530,7 @@ config MIPS_MT_SMP
 	select CPU_MIPSR2_SRS
 	select MIPS_MT
 	select SMP
+	select SYS_SUPPORTS_SMP
 	help
 	  This is a kernel model which is also known a VSMP or lately
 	  has been marketesed into SMVP.
@@ -1649,9 +1642,7 @@ config GENERIC_IRQ_PROBE
 	default y
 
 config IRQ_PER_CPU
-	depends on SMP
 	bool
-	default y
 
 #
 # - Highmem only makes sense for the 32-bit kernel.
@@ -1719,6 +1710,7 @@ source "mm/Kconfig"
 config SMP
 	bool "Multi-Processing support"
 	depends on SYS_SUPPORTS_SMP
+	select IRQ_PER_CPU
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

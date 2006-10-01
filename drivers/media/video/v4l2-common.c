@@ -938,6 +938,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
 	case VIDIOC_INT_I2S_CLOCK_FREQ:
 	case VIDIOC_INT_S_STANDBY:
+	case VIDIOC_INT_RESET:
 	{
 		u32 *p=arg;
 

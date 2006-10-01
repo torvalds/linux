@@ -12,6 +12,14 @@ struct pxa2xx_udc_mach_info {
         void (*udc_command)(int cmd);
 #define	PXA2XX_UDC_CMD_CONNECT		0	/* let host see us */
 #define	PXA2XX_UDC_CMD_DISCONNECT	1	/* so host won't see us */
+
+	/* Boards following the design guidelines in the developer's manual,
+	 * with on-chip GPIOs not Lubbock's wierd hardware, can have a sane
+	 * VBUS IRQ and omit the methods above.  Store the GPIO number
+	 * here; for GPIO 0, also mask in one of the pxa_gpio_mode() bits.
+	 */
+	u16	gpio_vbus;			/* high == vbus present */
+	u16	gpio_pullup;			/* high == pullup activated */
 };
 
 extern void pxa_set_udc_info(struct pxa2xx_udc_mach_info *info);

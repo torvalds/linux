@@ -67,7 +67,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -392,7 +391,7 @@ int inet_release(struct socket *sock)
 }
 
 /* It is off by default, see below. */
-int sysctl_ip_nonlocal_bind;
+int sysctl_ip_nonlocal_bind __read_mostly;
 
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
@@ -988,7 +987,7 @@ void inet_unregister_protosw(struct inet_protosw *p)
  *      Shall we try to damage output packets if routing dev changes?
  */
 
-int sysctl_ip_dynaddr;
+int sysctl_ip_dynaddr __read_mostly;
 
 static int inet_sk_reselect_saddr(struct sock *sk)
 {
@@ -997,7 +996,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct rtable *rt;
 	__u32 old_saddr = inet->saddr;
 	__u32 new_saddr;
-	__u32 daddr = inet->daddr;
+	__be32 daddr = inet->daddr;
 
 	if (inet->opt && inet->opt->srr)
 		daddr = inet->opt->faddr;
@@ -1044,7 +1043,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct rtable *rt = (struct rtable *)__sk_dst_check(sk, 0);
-	u32 daddr;
+	__be32 daddr;
 	int err;
 
 	/* Route is OK, nothing to do. */
@@ -1074,6 +1073,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 		},
 	};
 						
+	security_sk_classify_flow(sk, &fl);
 	err = ip_route_output_flow(&rt, &fl, sk, 0);
 }
 	if (!err)
@@ -1254,10 +1254,7 @@ static int __init inet_init(void)
 	struct list_head *r;
 	int rc = -EINVAL;
 
-	if (sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb)) {
-		printk(KERN_CRIT "%s: panic\n", __FUNCTION__);
-		goto out;
-	}
+	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb));
 
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)
@@ -1345,10 +1342,10 @@ static int __init inet_init(void)
 	rc = 0;
 out:
 	return rc;
-out_unregister_tcp_proto:
-	proto_unregister(&tcp_prot);
 out_unregister_udp_proto:
 	proto_unregister(&udp_prot);
+out_unregister_tcp_proto:
+	proto_unregister(&tcp_prot);
 	goto out;
 }
 

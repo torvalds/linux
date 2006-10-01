@@ -128,6 +128,18 @@ static char *ramdisk_execute_command;
 static unsigned int max_cpus = NR_CPUS;
 
 /*
+ * If set, this is an indication to the drivers that reset the underlying
+ * device before going ahead with the initialization otherwise driver might
+ * rely on the BIOS and skip the reset operation.
+ *
+ * This is useful if kernel is booting in an unreliable environment.
+ * For ex. kdump situaiton where previous kernel has crashed, BIOS has been
+ * skipped and devices will be in unknown state.
+ */
+unsigned int reset_devices;
+EXPORT_SYMBOL(reset_devices);
+
+/*
  * Setup routine for controlling SMP activation
  *
  * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
@@ -153,6 +165,14 @@ static int __init maxcpus(char *str)
 
 __setup("maxcpus=", maxcpus);
 
+static int __init set_reset_devices(char *str)
+{
+	reset_devices = 1;
+	return 1;
+}
+
+__setup("reset_devices", set_reset_devices);
+
 static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
@@ -162,16 +182,19 @@ extern struct obs_kernel_param __setup_start[], __setup_end[];
 static int __init obsolete_checksetup(char *line)
 {
 	struct obs_kernel_param *p;
+	int had_early_param = 0;
 
 	p = __setup_start;
 	do {
 		int n = strlen(p->str);
 		if (!strncmp(line, p->str, n)) {
 			if (p->early) {
-				/* Already done in parse_early_param?  (Needs
-				 * exact match on param part) */
+				/* Already done in parse_early_param?
+				 * (Needs exact match on param part).
+				 * Keep iterating, as we can have early
+				 * params and __setups of same names 8( */
 				if (line[n] == '\0' || line[n] == '=')
-					return 1;
+					had_early_param = 1;
 			} else if (!p->setup_func) {
 				printk(KERN_WARNING "Parameter %s is obsolete,"
 				       " ignored\n", p->str);
@@ -181,7 +204,8 @@ static int __init obsolete_checksetup(char *line)
 		}
 		p++;
 	} while (p < __setup_end);
-	return 0;
+
+	return had_early_param;
 }
 
 /*
@@ -464,6 +488,7 @@ asmlinkage void __init start_kernel(void)
 	 * Need to run as early as possible, to initialize the
 	 * lockdep hash:
 	 */
+	unwind_init();
 	lockdep_init();
 
 	local_irq_disable();
@@ -502,7 +527,6 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	sort_main_extable();
-	unwind_init();
 	trap_init();
 	rcu_init();
 	init_IRQ();

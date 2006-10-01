@@ -428,6 +428,7 @@
 /* masks for controlling LEDs */
 #define LED1				0x0100
 #define LED2				0x0200
+#define LED_SW				0x0400
 
 /* Seems to indicate that the configuration is over.
  */
@@ -473,7 +474,15 @@
 
 #define CR_ACK_TIMEOUT_EXT		CTL_REG(0x0690)
 #define CR_BCN_FIFO_SEMAPHORE		CTL_REG(0x0694)
+
 #define CR_IFS_VALUE			CTL_REG(0x0698)
+#define IFS_VALUE_DIFS_SH		0
+#define IFS_VALUE_EIFS_SH		12
+#define IFS_VALUE_SIFS_SH		24
+#define IFS_VALUE_DEFAULT		((  50 << IFS_VALUE_DIFS_SH) | \
+					 (1148 << IFS_VALUE_EIFS_SH) | \
+					 (  10 << IFS_VALUE_SIFS_SH))
+
 #define CR_RX_TIME_OUT			CTL_REG(0x069C)
 #define CR_TOTAL_RX_FRM			CTL_REG(0x06A0)
 #define CR_CRC32_CNT			CTL_REG(0x06A4)
@@ -621,6 +630,10 @@
 #define FW_SOFT_RESET           FW_REG(4)
 #define FW_FLASH_CHK            FW_REG(5)
 
+#define FW_LINK_OFF		0x0
+#define FW_LINK_TX		0x1
+/* 0x2 - link led on? */
+
 enum {
 	CR_BASE_OFFSET			= 0x9000,
 	FW_START_OFFSET			= 0xee00,
@@ -630,6 +643,7 @@ enum {
 	LOAD_CODE_SIZE			= 0xe, /* words */
 	LOAD_VECT_SIZE			= 0x10000 - 0xfff7, /* words */
 	EEPROM_REGS_OFFSET		= LOAD_CODE_SIZE + LOAD_VECT_SIZE,
+	EEPROM_REGS_SIZE		= 0x7e, /* words */
 	E2P_BASE_OFFSET			= EEPROM_START_OFFSET +
 		                          EEPROM_REGS_OFFSET,
 };
@@ -654,8 +668,11 @@ struct zd_chip {
 	u8 pwr_int_values[E2P_CHANNEL_COUNT];
 	/* SetPointOFDM in the vendor driver */
 	u8 ofdm_cal_values[3][E2P_CHANNEL_COUNT];
-	u8 pa_type:4, patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
-	   is_zd1211b:1;
+	u16 link_led;
+	unsigned int pa_type:4,
+		patch_cck_gain:1, patch_cr157:1, patch_6m_band_edge:1,
+		new_phy_layout:1,
+		is_zd1211b:1, supports_tx_led:1;
 };
 
 static inline struct zd_chip *zd_usb_to_chip(struct zd_usb *usb)
@@ -739,8 +756,12 @@ static inline int zd_rfwrite_locked(struct zd_chip *chip, u32 value, u8 bits)
 	return zd_usb_rfwrite(&chip->usb, value, bits);
 }
 
+int zd_rfwrite_cr_locked(struct zd_chip *chip, u32 value);
+
 int zd_rfwritev_locked(struct zd_chip *chip,
 	               const u32* values, unsigned int count, u8 bits);
+int zd_rfwritev_cr_locked(struct zd_chip *chip,
+	                  const u32* values, unsigned int count);
 
 /* Locking functions for reading and writing registers.
  * The different parameters are intentional.
@@ -799,15 +820,12 @@ int zd_chip_lock_phy_regs(struct zd_chip *chip);
 int zd_chip_unlock_phy_regs(struct zd_chip *chip);
 
 enum led_status {
-	LED_OFF	   = 0,
-	LED_ON     = 1,
-	LED_FLIP   = 2,
-	LED_STATUS = 3,
+	LED_OFF = 0,
+	LED_SCANNING = 1,
+	LED_ASSOCIATED = 2,
 };
 
-int zd_chip_led_status(struct zd_chip *chip, int led, enum led_status status);
-int zd_chip_led_flip(struct zd_chip *chip, int led,
-	             const unsigned int *phases_msecs, unsigned int count);
+int zd_chip_control_leds(struct zd_chip *chip, enum led_status status);
 
 int zd_set_beacon_interval(struct zd_chip *chip, u32 interval);
 

@@ -223,6 +223,7 @@ fail_dmxdev:
 fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
 fail_frontend:
+	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
 fail_adapter:
 	return result;
@@ -236,6 +237,7 @@ void videobuf_dvb_unregister(struct videobuf_dvb *dvb)
 	dvb_dmxdev_release(&dvb->dmxdev);
 	dvb_dmx_release(&dvb->demux);
 	dvb_unregister_frontend(dvb->frontend);
+	dvb_frontend_detach(dvb->frontend);
 	dvb_unregister_adapter(&dvb->adapter);
 }
 

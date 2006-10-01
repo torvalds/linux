@@ -18,6 +18,20 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config HCALL_STATS
+	bool "Hypervisor call instrumentation"
+	depends on PPC_PSERIES && DEBUG_FS
+	help
+	  Adds code to keep track of the number of hypervisor calls made and
+	  the amount of time spent in hypervisor callsr.  Wall time spent in
+	  each call is always calculated, and if available CPU cycles spent
+	  are also calculated.  A directory named hcall_inst is added at the
+	  root of the debugfs filesystem.  Within the hcall_inst directory
+	  are files that contain CPU specific call statistics.
+
+	  This option will add a small amount of overhead to all hypervisor
+	  calls.
+
 config DEBUGGER
 	bool "Enable debugger hooks"
 	depends on DEBUG_KERNEL
@@ -74,6 +88,8 @@ config XMON
 	  very early during boot. 'xmon=on' will just enable the xmon
 	  debugger hooks.  'xmon=off' will disable the debugger hooks
 	  if CONFIG_XMON_DEFAULT is set.
+	  xmon will print a backtrace on the very first invocation.
+	  'xmon=nobt' will disable this autobacktrace.
 
 config XMON_DEFAULT
 	bool "Enable xmon by default"

@@ -29,6 +29,7 @@ struct in6_ifreq {
 
 #define IPV6_SRCRT_STRICT	0x01	/* this hop must be a neighbor	*/
 #define IPV6_SRCRT_TYPE_0	0	/* IPv6 type 0 Routing Header	*/
+#define IPV6_SRCRT_TYPE_2	2	/* IPv6 type 2 Routing Header	*/
 
 /*
  *	routing header
@@ -73,25 +74,47 @@ struct rt0_hdr {
 #define rt0_type		rt_hdr.type
 };
 
+/*
+ *	routing header type 2
+ */
+
+struct rt2_hdr {
+	struct ipv6_rt_hdr	rt_hdr;
+	__u32			reserved;
+	struct in6_addr		addr;
+
+#define rt2_type		rt_hdr.type
+};
+
+/*
+ *	home address option in destination options header
+ */
+
+struct ipv6_destopt_hao {
+	__u8			type;
+	__u8			length;
+	struct in6_addr		addr;
+} __attribute__ ((__packed__));
+
 struct ipv6_auth_hdr {
 	__u8  nexthdr;
 	__u8  hdrlen;           /* This one is measured in 32 bit units! */
-	__u16 reserved;
-	__u32 spi;
-	__u32 seq_no;           /* Sequence number */
+	__be16 reserved;
+	__be32 spi;
+	__be32 seq_no;           /* Sequence number */
 	__u8  auth_data[0];     /* Length variable but >=4. Mind the 64 bit alignment! */
 };
 
 struct ipv6_esp_hdr {
-	__u32 spi;
-	__u32 seq_no;           /* Sequence number */
+	__be32 spi;
+	__be32 seq_no;           /* Sequence number */
 	__u8  enc_data[0];      /* Length variable but >=8. Mind the 64 bit alignment! */
 };
 
 struct ipv6_comp_hdr {
 	__u8 nexthdr;
 	__u8 flags;
-	__u16 cpi;
+	__be16 cpi;
 };
 
 /*
@@ -113,7 +136,7 @@ struct ipv6hdr {
 #endif
 	__u8			flow_lbl[3];
 
-	__u16			payload_len;
+	__be16			payload_len;
 	__u8			nexthdr;
 	__u8			hop_limit;
 
@@ -153,6 +176,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
+	__s32		proxy_ndp;
 	void		*sysctl;
 };
 
@@ -180,6 +204,7 @@ enum {
 	DEVCONF_ACCEPT_RA_RTR_PREF,
 	DEVCONF_RTR_PROBE_INTERVAL,
 	DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN,
+	DEVCONF_PROXY_NDP,
 	DEVCONF_MAX
 };
 
@@ -206,6 +231,9 @@ struct inet6_skb_parm {
 	__u16			lastopt;
 	__u32			nhoff;
 	__u16			flags;
+#ifdef CONFIG_IPV6_MIP6
+	__u16			dsthao;
+#endif
 
 #define IP6SKB_XFRM_TRANSFORMED	1
 };
@@ -242,6 +270,9 @@ struct ipv6_pinfo {
 	struct in6_addr 	rcv_saddr;
 	struct in6_addr		daddr;
 	struct in6_addr		*daddr_cache;
+#ifdef CONFIG_IPV6_SUBTREES
+	struct in6_addr		*saddr_cache;
+#endif
 
 	__u32			flow_label;
 	__u32			frag_size;
@@ -430,7 +461,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 
 #define INET6_MATCH(__sk, __hash, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash))				&& \
-	 ((*((__u32 *)&(inet_sk(__sk)->dport))) == (__ports))  	&& \
+	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))  	&& \
 	 ((__sk)->sk_family		== AF_INET6)		&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&& \

@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/skbuff.h>
@@ -194,7 +193,7 @@ static int skp_digits_len(const char *dptr, const char *limit, int *shift)
 
 /* Simple ipaddr parser.. */
 static int parse_ipaddr(const char *cp,	const char **endp,
-			u_int32_t *ipaddr, const char *limit)
+			__be32 *ipaddr, const char *limit)
 {
 	unsigned long int val;
 	int i, digit = 0;
@@ -228,7 +227,7 @@ static int parse_ipaddr(const char *cp,	const char **endp,
 static int epaddr_len(const char *dptr, const char *limit, int *shift)
 {
 	const char *aux = dptr;
-	u_int32_t ip;
+	__be32 ip;
 
 	if (parse_ipaddr(dptr, &dptr, &ip, limit) < 0) {
 		DEBUGP("ip: %s parse failed.!\n", dptr);
@@ -303,7 +302,7 @@ int ct_sip_get_info(const char *dptr, size_t dlen,
 static int set_expected_rtp(struct sk_buff **pskb,
 			    struct ip_conntrack *ct,
 			    enum ip_conntrack_info ctinfo,
-			    u_int32_t ipaddr, u_int16_t port,
+			    __be32 ipaddr, u_int16_t port,
 			    const char *dptr)
 {
 	struct ip_conntrack_expect *exp;
@@ -320,10 +319,10 @@ static int set_expected_rtp(struct sk_buff **pskb,
 	exp->tuple.dst.u.udp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_UDP;
 
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.udp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.udp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.udp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 
 	exp->expectfn = NULL;
@@ -350,7 +349,7 @@ static int sip_help(struct sk_buff **pskb,
 	const char *dptr;
 	int ret = NF_ACCEPT;
 	int matchoff, matchlen;
-	u_int32_t ipaddr;
+	__be32 ipaddr;
 	u_int16_t port;
 
 	/* No Data ? */
@@ -440,7 +439,7 @@ static int __init init(void)
 
 		sip[i].tuple.dst.protonum = IPPROTO_UDP;
 		sip[i].tuple.src.u.udp.port = htons(ports[i]);
-		sip[i].mask.src.u.udp.port = 0xFFFF;
+		sip[i].mask.src.u.udp.port = htons(0xFFFF);
 		sip[i].mask.dst.protonum = 0xFF;
 		sip[i].max_expected = 2;
 		sip[i].timeout = 3 * 60; /* 3 minutes */

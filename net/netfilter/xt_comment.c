@@ -29,41 +29,32 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static struct xt_match comment_match = {
-	.name		= "comment",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_comment_info),
-	.family		= AF_INET,
-	.me		= THIS_MODULE
-};
-
-static struct xt_match comment6_match = {
-	.name		= "comment",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_comment_info),
-	.family		= AF_INET6,
-	.me		= THIS_MODULE
+static struct xt_match xt_comment_match[] = {
+	{
+		.name		= "comment",
+		.family		= AF_INET,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_comment_info),
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "comment",
+		.family		= AF_INET6,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_comment_info),
+		.me		= THIS_MODULE
+	},
 };
 
 static int __init xt_comment_init(void)
 {
-	int ret;
-
-	ret = xt_register_match(&comment_match);
-	if (ret)
-		return ret;
-
-	ret = xt_register_match(&comment6_match);
-	if (ret)
-		xt_unregister_match(&comment_match);
-
-	return ret;
+	return xt_register_matches(xt_comment_match,
+				   ARRAY_SIZE(xt_comment_match));
 }
 
 static void __exit xt_comment_fini(void)
 {
-	xt_unregister_match(&comment_match);
-	xt_unregister_match(&comment6_match);
+	xt_unregister_matches(xt_comment_match, ARRAY_SIZE(xt_comment_match));
 }
 
 module_init(xt_comment_init);

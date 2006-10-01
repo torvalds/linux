@@ -24,7 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
-
+#include <linux/proc_fs.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -80,6 +80,7 @@ void show_mem(void)
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
@@ -89,7 +90,17 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 		return;
 	}
 
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud)) {
+		pmd = (pmd_t *)get_zeroed_page(GFP_ATOMIC);
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
+		if (pmd != pmd_offset(pud, 0)) {
+			pud_ERROR(*pud);
+			return;
+		}
+	}
+
+	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd)) {
 		pte = (pte_t *)get_zeroed_page(GFP_ATOMIC);
 		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
@@ -212,6 +223,8 @@ void __init paging_init(void)
 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
 }
 
+static struct kcore_list kcore_mem, kcore_vmalloc;
+
 void __init mem_init(void)
 {
 	extern unsigned long empty_zero_page[1024];
@@ -237,8 +250,13 @@ void __init mem_init(void)
 	 * Setup wrappers for copy/clear_page(), these will get overridden
 	 * later in the boot process if a better method is available.
 	 */
+#ifdef CONFIG_MMU
 	copy_page = copy_page_slow;
 	clear_page = clear_page_slow;
+#else
+	copy_page = copy_page_nommu;
+	clear_page = clear_page_nommu;
+#endif
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem_node(NODE_DATA(0));
@@ -254,7 +272,12 @@ void __init mem_init(void)
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
-	printk("Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init)\n",
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
+		   VMALLOC_END - VMALLOC_START);
+
+	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
+	       "%dk reserved, %dk data, %dk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		max_mapnr << (PAGE_SHIFT-10),
 		codesize >> 10,
@@ -263,6 +286,9 @@ void __init mem_init(void)
 		initsize >> 10);
 
 	p3_cache_init();
+
+	/* Initialize the vDSO */
+	vsyscall_init();
 }
 
 void free_initmem(void)

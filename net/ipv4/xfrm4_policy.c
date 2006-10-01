@@ -21,6 +21,25 @@ static int xfrm4_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
 	return __ip_route_output_key((struct rtable**)dst, fl);
 }
 
+static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+{
+	struct rtable *rt;
+	struct flowi fl_tunnel = {
+		.nl_u = {
+			.ip4_u = {
+				.daddr = daddr->a4,
+			},
+		},
+	};
+
+	if (!xfrm4_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
+		saddr->a4 = rt->rt_src;
+		dst_release(&rt->u.dst);
+		return 0;
+	}
+	return -EHOSTUNREACH;
+}
+
 static struct dst_entry *
 __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 {
@@ -33,7 +52,7 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
 	    	    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
 	    	    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
-		    xfrm_bundle_ok(xdst, fl, AF_INET)) {
+		    xfrm_bundle_ok(xdst, fl, AF_INET, 0)) {
 			dst_clone(dst);
 			break;
 		}
@@ -93,10 +112,11 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 		xdst = (struct xfrm_dst *)dst1;
 		xdst->route = &rt->u.dst;
+		xdst->genid = xfrm[i]->genid;
 
 		dst1->next = dst_prev;
 		dst_prev = dst1;
-		if (xfrm[i]->props.mode) {
+		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			remote = xfrm[i]->id.daddr.a4;
 			local  = xfrm[i]->props.saddr.a4;
 			tunnel = 1;
@@ -135,6 +155,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev->flags	       |= DST_HOST;
 		dst_prev->lastuse	= jiffies;
 		dst_prev->header_len	= header_len;
+		dst_prev->nfheader_len	= 0;
 		dst_prev->trailer_len	= trailer_len;
 		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
 
@@ -200,7 +221,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_ESP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u32 *ehdr = (u32 *)xprth;
+				__be32 *ehdr = (__be32 *)xprth;
 
 				fl->fl_ipsec_spi = ehdr[0];
 			}
@@ -208,7 +229,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_AH:
 			if (pskb_may_pull(skb, xprth + 8 - skb->data)) {
-				u32 *ah_hdr = (u32*)xprth;
+				__be32 *ah_hdr = (__be32*)xprth;
 
 				fl->fl_ipsec_spi = ah_hdr[1];
 			}
@@ -216,7 +237,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_COMP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u16 *ipcomp_hdr = (u16 *)xprth;
+				__be16 *ipcomp_hdr = (__be16 *)xprth;
 
 				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}
@@ -296,6 +317,7 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.family = 		AF_INET,
 	.dst_ops =		&xfrm4_dst_ops,
 	.dst_lookup =		xfrm4_dst_lookup,
+	.get_saddr =		xfrm4_get_saddr,
 	.find_bundle = 		__xfrm4_find_bundle,
 	.bundle_create =	__xfrm4_bundle_create,
 	.decode_session =	_decode_session4,

@@ -2,6 +2,8 @@
  * Driver for DBRI sound chip found on Sparcs.
  * Copyright (C) 2004, 2005 Martin Habets (mhabets@users.sourceforge.net)
  *
+ * Converted to ring buffered version by Krzysztof Helt (krzysztof.h1@wp.pl)
+ *
  * Based entirely upon drivers/sbus/audio/dbri.c which is:
  * Copyright (C) 1997 Rudolf Koenig (rfkoenig@immd4.informatik.uni-erlangen.de)
  * Copyright (C) 1998, 1999 Brent Baccala (baccala@freesoft.org)
@@ -34,7 +36,7 @@
  * (the second one is a monitor/tee pipe, valid only for serial input).
  *
  * The mmcodec is connected via the CHI bus and needs the data & some
- * parameters (volume, balance, output selection) timemultiplexed in 8 byte
+ * parameters (volume, output selection) timemultiplexed in 8 byte
  * chunks. It also has a control mode, which serves for audio format setting.
  *
  * Looking at the CS4215 data sheet it is easy to set up 2 or 4 codecs on
@@ -83,7 +85,7 @@ MODULE_PARM_DESC(id, "ID string for Sun DBRI soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Sun DBRI soundcard.");
 
-#define DBRI_DEBUG
+#undef DBRI_DEBUG
 
 #define D_INT	(1<<0)
 #define D_GEN	(1<<1)
@@ -104,16 +106,14 @@ static char *cmds[] = {
 
 #define dprintk(a, x...) if(dbri_debug & a) printk(KERN_DEBUG x)
 
-#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |			\
-				    (1 << 27) | \
-				    value)
 #else
-#define dprintk(a, x...)
+#define dprintk(a, x...) do { } while (0)
 
-#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |			\
-				    (intr << 27) | \
-				    value)
 #endif				/* DBRI_DEBUG */
+
+#define DBRI_CMD(cmd, intr, value) ((cmd << 28) |	\
+				    (intr << 27) |	\
+				    value)
 
 /***************************************************************************
 	CS4215 specific definitions and structures
@@ -160,7 +160,7 @@ static struct {
      /* {    NA, (1 << 4), (5 << 3) }, */
 	{ 48000, (1 << 4), (6 << 3) },
 	{  9600, (1 << 4), (7 << 3) },
-	{  5513, (2 << 4), (0 << 3) },	/* Actually 5512.5 */
+	{  5512, (2 << 4), (0 << 3) },	/* Actually 5512.5 */
 	{ 11025, (2 << 4), (1 << 3) },
 	{ 18900, (2 << 4), (2 << 3) },
 	{ 22050, (2 << 4), (3 << 3) },
@@ -240,28 +240,21 @@ static struct {
 #define REG9	0x24UL		/* Interrupt Queue Pointer */
 
 #define DBRI_NO_CMDS	64
-#define DBRI_NO_INTS	1	/* Note: the value of this define was
-				 * originally 2.  The ringbuffer to store
-				 * interrupts in dma is currently broken.
-				 * This is a temporary fix until the ringbuffer
-				 * is fixed.
-				 */
 #define DBRI_INT_BLK	64
 #define DBRI_NO_DESCS	64
 #define DBRI_NO_PIPES	32
-
-#define DBRI_MM_ONB	1
-#define DBRI_MM_SB	2
+#define DBRI_MAX_PIPE	(DBRI_NO_PIPES - 1)
 
 #define DBRI_REC	0
 #define DBRI_PLAY	1
 #define DBRI_NO_STREAMS	2
 
 /* One transmit/receive descriptor */
+/* When ba != 0 descriptor is used */
 struct dbri_mem {
 	volatile __u32 word1;
-	volatile __u32 ba;	/* Transmit/Receive Buffer Address */
-	volatile __u32 nda;	/* Next Descriptor Address */
+	__u32 ba;	/* Transmit/Receive Buffer Address */
+	__u32 nda;	/* Next Descriptor Address */
 	volatile __u32 word4;
 };
 
@@ -269,8 +262,8 @@ struct dbri_mem {
  * the CPU and the DBRI
  */
 struct dbri_dma {
-	volatile s32 cmd[DBRI_NO_CMDS];	/* Place for commands       */
-	volatile s32 intr[DBRI_NO_INTS * DBRI_INT_BLK];	/* Interrupt field  */
+	s32 cmd[DBRI_NO_CMDS];			/* Place for commands */
+	volatile s32 intr[DBRI_INT_BLK];	/* Interrupt field  */
 	struct dbri_mem desc[DBRI_NO_DESCS];	/* Xmit/receive descriptors */
 };
 
@@ -282,58 +275,43 @@ enum in_or_out { PIPEinput, PIPEoutput };
 
 struct dbri_pipe {
 	u32 sdp;		/* SDP command word */
-	enum in_or_out direction;
 	int nextpipe;		/* Next pipe in linked list */
-	int prevpipe;
-	int cycle;		/* Offset of timeslot (bits) */
 	int length;		/* Length of timeslot (bits) */
 	int first_desc;		/* Index of first descriptor */
 	int desc;		/* Index of active descriptor */
 	volatile __u32 *recv_fixed_ptr;	/* Ptr to receive fixed data */
 };
 
-struct dbri_desc {
-	int inuse;		/* Boolean flag */
-	int next;		/* Index of next desc, or -1 */
-	unsigned int len;
-};
-
 /* Per stream (playback or record) information */
 struct dbri_streaminfo {
 	struct snd_pcm_substream *substream;
 	u32 dvma_buffer;	/* Device view of Alsa DMA buffer */
-	int left;		/* # of bytes left in DMA buffer  */
 	int size;		/* Size of DMA buffer             */
 	size_t offset;		/* offset in user buffer          */
 	int pipe;		/* Data pipe used                 */
 	int left_gain;		/* mixer elements                 */
 	int right_gain;
-	int balance;
 };
 
 /* This structure holds the information for both chips (DBRI & CS4215) */
 struct snd_dbri {
 	struct snd_card *card;	/* ALSA card */
-	struct snd_pcm *pcm;
 
 	int regs_size, irq;	/* Needed for unload */
 	struct sbus_dev *sdev;	/* SBUS device info */
 	spinlock_t lock;
 
-	volatile struct dbri_dma *dma;	/* Pointer to our DMA block */
+	struct dbri_dma *dma;	/* Pointer to our DMA block */
 	u32 dma_dvma;		/* DBRI visible DMA address */
 
 	void __iomem *regs;	/* dbri HW regs */
-	int dbri_version;	/* 'e' and up is OK */
 	int dbri_irqp;		/* intr queue pointer */
-	int wait_send;		/* sequence of command buffers send */
-	int wait_ackd;		/* sequence of command buffers acknowledged */
 
 	struct dbri_pipe pipes[DBRI_NO_PIPES];	/* DBRI's 32 data pipes */
-	struct dbri_desc descs[DBRI_NO_DESCS];
+	int next_desc[DBRI_NO_DESCS];		/* Index of next desc, or -1 */
+	spinlock_t cmdlock;	/* Protects cmd queue accesses */
+	s32 *cmdptr;		/* Pointer to the last queued cmd */
 
-	int chi_in_pipe;
-	int chi_out_pipe;
 	int chi_bpf;
 
 	struct cs4215 mm;	/* mmcodec special info */
@@ -345,8 +323,6 @@ struct snd_dbri {
 
 #define DBRI_MAX_VOLUME		63	/* Output volume */
 #define DBRI_MAX_GAIN		15	/* Input gain */
-#define DBRI_RIGHT_BALANCE	255
-#define DBRI_MID_BALANCE	(DBRI_RIGHT_BALANCE >> 1)
 
 /* DBRI Reg0 - Status Control Register - defines. (Page 17) */
 #define D_P		(1<<15)	/* Program command & queue pointer valid */
@@ -569,7 +545,7 @@ struct snd_dbri {
 #define DBRI_TD_TBC	(1<<0)	/* Transmit buffer Complete */
 #define DBRI_TD_STATUS(v)       ((v)&0xff)	/* Transmit status */
 			/* Maximum buffer size per TD: almost 8Kb */
-#define DBRI_TD_MAXCNT	((1 << 13) - 1)
+#define DBRI_TD_MAXCNT	((1 << 13) - 4)
 
 /* Receive descriptor defines */
 #define DBRI_RD_F	(1<<31)	/* End of Frame */
@@ -633,93 +609,124 @@ The list is terminated with a WAIT command, which generates a
 CPU interrupt to signal completion.
 
 Since the DBRI can run in parallel with the CPU, several means of
-synchronization present themselves.  The method implemented here is close
-to the original scheme (Rudolf's), and uses 2 counters (wait_send and
-wait_ackd) to synchronize the command buffer between the CPU and the DBRI.
+synchronization present themselves. The method implemented here is only
+use of the dbri_cmdwait() to wait for execution of batch of sent commands.
 
-A more sophisticated scheme might involve a circular command buffer
-or an array of command buffers.  A routine could fill one with
-commands and link it onto a list.  When a interrupt signaled
-completion of the current command buffer, look on the list for
-the next one.
+A circular command buffer is used here. A new command is being added 
+while another can be executed. The scheme works by adding two WAIT commands
+after each sent batch of commands. When the next batch is prepared it is
+added after the WAIT commands then the WAITs are replaced with single JUMP
+command to the new batch. The the DBRI is forced to reread the last WAIT 
+command (replaced by the JUMP by then). If the DBRI is still executing 
+previous commands the request to reread the WAIT command is ignored.
 
 Every time a routine wants to write commands to the DBRI, it must
-first call dbri_cmdlock() and get an initial pointer into dbri->dma->cmd
-in return. dbri_cmdlock() will block if the previous commands have not
-been completed yet. After this the commands can be written to the buffer,
-and dbri_cmdsend() is called with the final pointer value to send them
-to the DBRI.
+first call dbri_cmdlock() and get pointer to a free space in 
+dbri->dma->cmd buffer. After this, the commands can be written to 
+the buffer, and dbri_cmdsend() is called with the final pointer value 
+to send them to the DBRI.
 
 */
 
-static void dbri_process_interrupt_buffer(struct snd_dbri * dbri);
-
-enum dbri_lock { NoGetLock, GetLock };
-#define MAXLOOPS 10
-
-static volatile s32 *dbri_cmdlock(struct snd_dbri * dbri, enum dbri_lock get)
+#define MAXLOOPS 20
+/*
+ * Wait for the current command string to execute
+ */
+static void dbri_cmdwait(struct snd_dbri *dbri)
 {
 	int maxloops = MAXLOOPS;
-
-#ifndef SMP
-	if ((get == GetLock) && spin_is_locked(&dbri->lock)) {
-		printk(KERN_ERR "DBRI: cmdlock called while in spinlock.");
-	}
-#endif
+	unsigned long flags;
 
 	/* Delay if previous commands are still being processed */
-	while ((--maxloops) > 0 && (dbri->wait_send != dbri->wait_ackd)) {
+	spin_lock_irqsave(&dbri->lock, flags);
+	while ((--maxloops) > 0 && (sbus_readl(dbri->regs + REG0) & D_P)) {
+		spin_unlock_irqrestore(&dbri->lock, flags);
 		msleep_interruptible(1);
-		/* If dbri_cmdlock() got called from inside the
-		 * interrupt handler, this will do the processing.
-		 */
-		dbri_process_interrupt_buffer(dbri);
+		spin_lock_irqsave(&dbri->lock, flags);
 	}
+	spin_unlock_irqrestore(&dbri->lock, flags);
+
 	if (maxloops == 0) {
-		printk(KERN_ERR "DBRI: Chip never completed command buffer %d\n",
-			dbri->wait_send);
+		printk(KERN_ERR "DBRI: Chip never completed command buffer\n");
 	} else {
 		dprintk(D_CMD, "Chip completed command buffer (%d)\n",
 			MAXLOOPS - maxloops - 1);
 	}
+}
+/*
+ * Lock the command queue and returns pointer to a space for len cmd words
+ * It locks the cmdlock spinlock.
+ */
+static s32 *dbri_cmdlock(struct snd_dbri * dbri, int len)
+{
+	/* Space for 2 WAIT cmds (replaced later by 1 JUMP cmd) */
+	len += 2;
+	spin_lock(&dbri->cmdlock);
+	if (dbri->cmdptr - dbri->dma->cmd + len < DBRI_NO_CMDS - 2)
+		return dbri->cmdptr + 2;
+	else if (len < sbus_readl(dbri->regs + REG8) - dbri->dma_dvma)
+		return dbri->dma->cmd;
+	else
+		printk(KERN_ERR "DBRI: no space for commands.");
 
-	/*if (get == GetLock) spin_lock(&dbri->lock); */
-	return &dbri->dma->cmd[0];
+	return NULL;
 }
 
-static void dbri_cmdsend(struct snd_dbri * dbri, volatile s32 * cmd)
+/*
+ * Send prepared cmd string. It works by writting a JUMP cmd into
+ * the last WAIT cmd and force DBRI to reread the cmd.
+ * The JUMP cmd points to the new cmd string.
+ * It also releases the cmdlock spinlock.
+ *
+ * Lock must not be held before calling this.
+ */
+static void dbri_cmdsend(struct snd_dbri * dbri, s32 * cmd,int len)
 {
-	volatile s32 *ptr;
-	u32	reg;
+	s32 tmp, addr;
+	static int wait_id = 0;
 
-	for (ptr = &dbri->dma->cmd[0]; ptr < cmd; ptr++) {
+	wait_id++;
+	wait_id &= 0xffff;	/* restrict it to a 16 bit counter. */
+	*(cmd) = DBRI_CMD(D_WAIT, 1, wait_id);
+	*(cmd+1) = DBRI_CMD(D_WAIT, 1, wait_id);
+
+	/* Replace the last command with JUMP */
+	addr = dbri->dma_dvma + (cmd - len - dbri->dma->cmd) * sizeof(s32);
+	*(dbri->cmdptr+1) = addr;
+	*(dbri->cmdptr) = DBRI_CMD(D_JUMP, 0, 0);
+
+#ifdef DBRI_DEBUG
+	if (cmd > dbri->cmdptr) {
+		s32 *ptr;
+
+		for (ptr = dbri->cmdptr; ptr < cmd+2; ptr++)
+			dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
+	} else {
+		s32 *ptr = dbri->cmdptr;
+
 		dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
+		ptr++;
+		dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
+		for (ptr = dbri->dma->cmd; ptr < cmd+2; ptr++) {
+			dprintk(D_CMD, "cmd: %lx:%08x\n", (unsigned long)ptr, *ptr);
+		}
 	}
+#endif
 
-	if ((cmd - &dbri->dma->cmd[0]) >= DBRI_NO_CMDS - 1) {
-		printk(KERN_ERR "DBRI: Command buffer overflow! (bug in driver)\n");
-		/* Ignore the last part. */
-		cmd = &dbri->dma->cmd[DBRI_NO_CMDS - 3];
-	}
+	/* Reread the last command */
+	tmp = sbus_readl(dbri->regs + REG0);
+	tmp |= D_P;
+	sbus_writel(tmp, dbri->regs + REG0);
 
-	dbri->wait_send++;
-	dbri->wait_send &= 0xffff;	/* restrict it to a 16 bit counter. */
-	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
-	*(cmd++) = DBRI_CMD(D_WAIT, 1, dbri->wait_send);
-
-	/* Set command pointer and signal it is valid. */
-	sbus_writel(dbri->dma_dvma, dbri->regs + REG8);
-	reg = sbus_readl(dbri->regs + REG0);
-	reg |= D_P;
-	sbus_writel(reg, dbri->regs + REG0);
-
-	/*spin_unlock(&dbri->lock); */
+	dbri->cmdptr = cmd;
+	spin_unlock(&dbri->cmdlock);
 }
 
 /* Lock must be held when calling this */
 static void dbri_reset(struct snd_dbri * dbri)
 {
 	int i;
+	u32 tmp;
 
 	dprintk(D_GEN, "reset 0:%x 2:%x 8:%x 9:%x\n",
 		sbus_readl(dbri->regs + REG0),
@@ -729,39 +736,6 @@ static void dbri_reset(struct snd_dbri * dbri)
 	sbus_writel(D_R, dbri->regs + REG0);	/* Soft Reset */
 	for (i = 0; (sbus_readl(dbri->regs + REG0) & D_R) && i < 64; i++)
 		udelay(10);
-}
-
-/* Lock must not be held before calling this */
-static void dbri_initialize(struct snd_dbri * dbri)
-{
-	volatile s32 *cmd;
-	u32 dma_addr, tmp;
-	unsigned long flags;
-	int n;
-
-	spin_lock_irqsave(&dbri->lock, flags);
-
-	dbri_reset(dbri);
-
-	cmd = dbri_cmdlock(dbri, NoGetLock);
-	dprintk(D_GEN, "init: cmd: %p, int: %p\n",
-		&dbri->dma->cmd[0], &dbri->dma->intr[0]);
-
-	/*
-	 * Initialize the interrupt ringbuffer.
-	 */
-	for (n = 0; n < DBRI_NO_INTS - 1; n++) {
-		dma_addr = dbri->dma_dvma;
-		dma_addr += dbri_dma_off(intr, ((n + 1) & DBRI_INT_BLK));
-		dbri->dma->intr[n * DBRI_INT_BLK] = dma_addr;
-	}
-	dma_addr = dbri->dma_dvma + dbri_dma_off(intr, 0);
-	dbri->dma->intr[n * DBRI_INT_BLK] = dma_addr;
-	dbri->dbri_irqp = 1;
-
-	/* Initialize pipes */
-	for (n = 0; n < DBRI_NO_PIPES; n++)
-		dbri->pipes[n].desc = dbri->pipes[n].first_desc = -1;
 
 	/* A brute approach - DBRI falls back to working burst size by itself
 	 * On SS20 D_S does not work, so do not try so high. */
@@ -769,16 +743,48 @@ static void dbri_initialize(struct snd_dbri * dbri)
 	tmp |= D_G | D_E;
 	tmp &= ~D_S;
 	sbus_writel(tmp, dbri->regs + REG0);
+}
 
+/* Lock must not be held before calling this */
+static void dbri_initialize(struct snd_dbri * dbri)
+{
+	s32 *cmd;
+	u32 dma_addr;
+	unsigned long flags;
+	int n;
+
+	spin_lock_irqsave(&dbri->lock, flags);
+
+	dbri_reset(dbri);
+
+	/* Initialize pipes */
+	for (n = 0; n < DBRI_NO_PIPES; n++)
+		dbri->pipes[n].desc = dbri->pipes[n].first_desc = -1;
+
+	spin_lock_init(&dbri->cmdlock);
+	/*
+	 * Initialize the interrupt ringbuffer.
+	 */
+	dma_addr = dbri->dma_dvma + dbri_dma_off(intr, 0);
+	dbri->dma->intr[0] = dma_addr;
+	dbri->dbri_irqp = 1;
 	/*
 	 * Set up the interrupt queue
 	 */
-	dma_addr = dbri->dma_dvma + dbri_dma_off(intr, 0);
+	spin_lock(&dbri->cmdlock);
+	cmd = dbri->cmdptr = dbri->dma->cmd;
 	*(cmd++) = DBRI_CMD(D_IIQ, 0, 0);
 	*(cmd++) = dma_addr;
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
+	dbri->cmdptr = cmd;
+	*(cmd++) = DBRI_CMD(D_WAIT, 1, 0);
+	*(cmd++) = DBRI_CMD(D_WAIT, 1, 0);
+	dma_addr = dbri->dma_dvma + dbri_dma_off(cmd, 0);
+	sbus_writel(dma_addr, dbri->regs + REG8);
+	spin_unlock(&dbri->cmdlock);
 
-	dbri_cmdsend(dbri, cmd);
 	spin_unlock_irqrestore(&dbri->lock, flags);
+	dbri_cmdwait(dbri);
 }
 
 /*
@@ -809,9 +815,9 @@ static void reset_pipe(struct snd_dbri * dbri, int pipe)
 {
 	int sdp;
 	int desc;
-	volatile int *cmd;
+	s32 *cmd;
 
-	if (pipe < 0 || pipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: reset_pipe called with illegal pipe number\n");
 		return;
 	}
@@ -822,25 +828,29 @@ static void reset_pipe(struct snd_dbri * dbri, int pipe)
 		return;
 	}
 
-	cmd = dbri_cmdlock(dbri, NoGetLock);
+	cmd = dbri_cmdlock(dbri, 3);
 	*(cmd++) = DBRI_CMD(D_SDP, 0, sdp | D_SDP_C | D_SDP_P);
 	*(cmd++) = 0;
-	dbri_cmdsend(dbri, cmd);
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
+	dbri_cmdsend(dbri, cmd, 3);
 
 	desc = dbri->pipes[pipe].first_desc;
-	while (desc != -1) {
-		dbri->descs[desc].inuse = 0;
-		desc = dbri->descs[desc].next;
-	}
+	if ( desc >= 0)
+		do {
+			dbri->dma->desc[desc].nda = dbri->dma->desc[desc].ba = 0;
+			desc = dbri->next_desc[desc];
+		} while (desc != -1 && desc != dbri->pipes[pipe].first_desc);
 
 	dbri->pipes[pipe].desc = -1;
 	dbri->pipes[pipe].first_desc = -1;
 }
 
-/* FIXME: direction as an argument? */
+/*
+ * Lock must be held before calling this.
+ */
 static void setup_pipe(struct snd_dbri * dbri, int pipe, int sdp)
 {
-	if (pipe < 0 || pipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: setup_pipe called with illegal pipe number\n");
 		return;
 	}
@@ -860,119 +870,87 @@ static void setup_pipe(struct snd_dbri * dbri, int pipe, int sdp)
 	dbri->pipes[pipe].sdp = sdp;
 	dbri->pipes[pipe].desc = -1;
 	dbri->pipes[pipe].first_desc = -1;
-	if (sdp & D_SDP_TO_SER)
-		dbri->pipes[pipe].direction = PIPEoutput;
-	else
-		dbri->pipes[pipe].direction = PIPEinput;
 
 	reset_pipe(dbri, pipe);
 }
 
-/* FIXME: direction not needed */
+/*
+ * Lock must be held before calling this.
+ */
 static void link_time_slot(struct snd_dbri * dbri, int pipe,
-			   enum in_or_out direction, int basepipe,
+			   int prevpipe, int nextpipe,
 			   int length, int cycle)
 {
-	volatile s32 *cmd;
+	s32 *cmd;
 	int val;
-	int prevpipe;
-	int nextpipe;
 
-	if (pipe < 0 || pipe > 31 || basepipe < 0 || basepipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE 
+			|| prevpipe < 0 || prevpipe > DBRI_MAX_PIPE
+			|| nextpipe < 0 || nextpipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR 
 		    "DBRI: link_time_slot called with illegal pipe number\n");
 		return;
 	}
 
-	if (dbri->pipes[pipe].sdp == 0 || dbri->pipes[basepipe].sdp == 0) {
+	if (dbri->pipes[pipe].sdp == 0 
+			|| dbri->pipes[prevpipe].sdp == 0
+			|| dbri->pipes[nextpipe].sdp == 0) {
 		printk(KERN_ERR "DBRI: link_time_slot called on uninitialized pipe\n");
 		return;
 	}
 
-	/* Deal with CHI special case:
-	 * "If transmission on edges 0 or 1 is desired, then cycle n
-	 *  (where n = # of bit times per frame...) must be used."
-	 *                  - DBRI data sheet, page 11
-	 */
-	if (basepipe == 16 && direction == PIPEoutput && cycle == 0)
-		cycle = dbri->chi_bpf;
-
-	if (basepipe == pipe) {
-		prevpipe = pipe;
-		nextpipe = pipe;
-	} else {
-		/* We're not initializing a new linked list (basepipe != pipe),
-		 * so run through the linked list and find where this pipe
-		 * should be sloted in, based on its cycle.  CHI confuses
-		 * things a bit, since it has a single anchor for both its
-		 * transmit and receive lists.
-		 */
-		if (basepipe == 16) {
-			if (direction == PIPEinput) {
-				prevpipe = dbri->chi_in_pipe;
-			} else {
-				prevpipe = dbri->chi_out_pipe;
-			}
-		} else {
-			prevpipe = basepipe;
-		}
-
-		nextpipe = dbri->pipes[prevpipe].nextpipe;
-
-		while (dbri->pipes[nextpipe].cycle < cycle
-		       && dbri->pipes[nextpipe].nextpipe != basepipe) {
-			prevpipe = nextpipe;
-			nextpipe = dbri->pipes[nextpipe].nextpipe;
-		}
-	}
-
-	if (prevpipe == 16) {
-		if (direction == PIPEinput) {
-			dbri->chi_in_pipe = pipe;
-		} else {
-			dbri->chi_out_pipe = pipe;
-		}
-	} else {
-		dbri->pipes[prevpipe].nextpipe = pipe;
-	}
-
+	dbri->pipes[prevpipe].nextpipe = pipe;
 	dbri->pipes[pipe].nextpipe = nextpipe;
-	dbri->pipes[pipe].cycle = cycle;
 	dbri->pipes[pipe].length = length;
 
-	cmd = dbri_cmdlock(dbri, NoGetLock);
+	cmd = dbri_cmdlock(dbri, 4);
 
-	if (direction == PIPEinput) {
-		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(prevpipe) | pipe;
-		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
-		*(cmd++) =
-		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
-		*(cmd++) = 0;
-	} else {
+	if (dbri->pipes[pipe].sdp & D_SDP_TO_SER) {
+		/* Deal with CHI special case:
+		 * "If transmission on edges 0 or 1 is desired, then cycle n
+		 *  (where n = # of bit times per frame...) must be used."
+		 *                  - DBRI data sheet, page 11
+		 */
+		if (prevpipe == 16 && cycle == 0)
+			cycle = dbri->chi_bpf;
+
 		val = D_DTS_VO | D_DTS_INS | D_DTS_PRVOUT(prevpipe) | pipe;
 		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
 		*(cmd++) = 0;
 		*(cmd++) =
 		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
+	} else {
+		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(prevpipe) | pipe;
+		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
+		*(cmd++) =
+		    D_TS_LEN(length) | D_TS_CYCLE(cycle) | D_TS_NEXT(nextpipe);
+		*(cmd++) = 0;
 	}
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
 
-	dbri_cmdsend(dbri, cmd);
+	dbri_cmdsend(dbri, cmd, 4);
 }
 
+#if 0
+/*
+ * Lock must be held before calling this.
+ */
 static void unlink_time_slot(struct snd_dbri * dbri, int pipe,
 			     enum in_or_out direction, int prevpipe,
 			     int nextpipe)
 {
-	volatile s32 *cmd;
+	s32 *cmd;
 	int val;
 
-	if (pipe < 0 || pipe > 31 || prevpipe < 0 || prevpipe > 31) {
+	if (pipe < 0 || pipe > DBRI_MAX_PIPE 
+			|| prevpipe < 0 || prevpipe > DBRI_MAX_PIPE
+			|| nextpipe < 0 || nextpipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR 
 		    "DBRI: unlink_time_slot called with illegal pipe number\n");
 		return;
 	}
 
-	cmd = dbri_cmdlock(dbri, NoGetLock);
+	cmd = dbri_cmdlock(dbri, 4);
 
 	if (direction == PIPEinput) {
 		val = D_DTS_VI | D_DTS_DEL | D_DTS_PRVIN(prevpipe) | pipe;
@@ -985,9 +963,11 @@ static void unlink_time_slot(struct snd_dbri * dbri, int pipe,
 		*(cmd++) = 0;
 		*(cmd++) = D_TS_NEXT(nextpipe);
 	}
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
 
-	dbri_cmdsend(dbri, cmd);
+	dbri_cmdsend(dbri, cmd, 4);
 }
+#endif
 
 /* xmit_fixed() / recv_fixed()
  *
@@ -1001,13 +981,16 @@ static void unlink_time_slot(struct snd_dbri * dbri, int pipe,
  * the actual time slot is.  The interrupt handler takes care of bit
  * ordering and alignment.  An 8-bit time slot will always end up
  * in the low-order 8 bits, filled either MSB-first or LSB-first,
- * depending on the settings passed to setup_pipe()
+ * depending on the settings passed to setup_pipe().
+ *
+ * Lock must not be held before calling it.
  */
 static void xmit_fixed(struct snd_dbri * dbri, int pipe, unsigned int data)
 {
-	volatile s32 *cmd;
+	s32 *cmd;
+	unsigned long flags;
 
-	if (pipe < 16 || pipe > 31) {
+	if (pipe < 16 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: xmit_fixed: Illegal pipe number\n");
 		return;
 	}
@@ -1032,17 +1015,22 @@ static void xmit_fixed(struct snd_dbri * dbri, int pipe, unsigned int data)
 	if (dbri->pipes[pipe].sdp & D_SDP_MSB)
 		data = reverse_bytes(data, dbri->pipes[pipe].length);
 
-	cmd = dbri_cmdlock(dbri, GetLock);
+	cmd = dbri_cmdlock(dbri, 3);
 
 	*(cmd++) = DBRI_CMD(D_SSP, 0, pipe);
 	*(cmd++) = data;
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
 
-	dbri_cmdsend(dbri, cmd);
+	spin_lock_irqsave(&dbri->lock, flags);
+	dbri_cmdsend(dbri, cmd, 3);
+	spin_unlock_irqrestore(&dbri->lock, flags);
+	dbri_cmdwait(dbri);
+
 }
 
 static void recv_fixed(struct snd_dbri * dbri, int pipe, volatile __u32 * ptr)
 {
-	if (pipe < 16 || pipe > 31) {
+	if (pipe < 16 || pipe > DBRI_MAX_PIPE) {
 		printk(KERN_ERR "DBRI: recv_fixed called with illegal pipe number\n");
 		return;
 	}
@@ -1071,12 +1059,16 @@ static void recv_fixed(struct snd_dbri * dbri, int pipe, volatile __u32 * ptr)
  * and work by building chains of descriptors which identify the
  * data buffers.  Buffers too large for a single descriptor will
  * be spread across multiple descriptors.
+ *
+ * All descriptors create a ring buffer.
+ *
+ * Lock must be held before calling this.
  */
 static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period)
 {
 	struct dbri_streaminfo *info = &dbri->stream_info[streamno];
 	__u32 dvma_buffer;
-	int desc = 0;
+	int desc;
 	int len;
 	int first_desc = -1;
 	int last_desc = -1;
@@ -1119,11 +1111,23 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 		len &= ~3;
 	}
 
+	/* Free descriptors if pipe has any */
+	desc = dbri->pipes[info->pipe].first_desc;
+	if ( desc >= 0)
+		do {
+			dbri->dma->desc[desc].nda = dbri->dma->desc[desc].ba = 0;
+			desc = dbri->next_desc[desc];
+		} while (desc != -1 && desc != dbri->pipes[info->pipe].first_desc);
+
+	dbri->pipes[info->pipe].desc = -1;
+	dbri->pipes[info->pipe].first_desc = -1;
+
+	desc = 0;
 	while (len > 0) {
 		int mylen;
 
 		for (; desc < DBRI_NO_DESCS; desc++) {
-			if (!dbri->descs[desc].inuse)
+			if (!dbri->dma->desc[desc].ba)
 				break;
 		}
 		if (desc == DBRI_NO_DESCS) {
@@ -1131,37 +1135,33 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 			return -1;
 		}
 
-		if (len > DBRI_TD_MAXCNT) {
-			mylen = DBRI_TD_MAXCNT;	/* 8KB - 1 */
-		} else {
+		if (len > DBRI_TD_MAXCNT)
+			mylen = DBRI_TD_MAXCNT;	/* 8KB - 4 */
+		else
 			mylen = len;
-		}
-		if (mylen > period) {
-			mylen = period;
-		}
 
-		dbri->descs[desc].inuse = 1;
-		dbri->descs[desc].next = -1;
+		if (mylen > period)
+			mylen = period;
+
+		dbri->next_desc[desc] = -1;
 		dbri->dma->desc[desc].ba = dvma_buffer;
 		dbri->dma->desc[desc].nda = 0;
 
 		if (streamno == DBRI_PLAY) {
-			dbri->descs[desc].len = mylen;
 			dbri->dma->desc[desc].word1 = DBRI_TD_CNT(mylen);
 			dbri->dma->desc[desc].word4 = 0;
-			if (first_desc != -1)
-				dbri->dma->desc[desc].word1 |= DBRI_TD_M;
+			dbri->dma->desc[desc].word1 |= 
+			    DBRI_TD_F | DBRI_TD_B;
 		} else {
-			dbri->descs[desc].len = 0;
 			dbri->dma->desc[desc].word1 = 0;
 			dbri->dma->desc[desc].word4 =
 			    DBRI_RD_B | DBRI_RD_BCNT(mylen);
 		}
 
-		if (first_desc == -1) {
+		if (first_desc == -1)
 			first_desc = desc;
-		} else {
-			dbri->descs[last_desc].next = desc;
+		else {
+			dbri->next_desc[last_desc] = desc;
 			dbri->dma->desc[last_desc].nda =
 			    dbri->dma_dvma + dbri_dma_off(desc, desc);
 		}
@@ -1176,21 +1176,24 @@ static int setup_descs(struct snd_dbri * dbri, int streamno, unsigned int period
 		return -1;
 	}
 
-	dbri->dma->desc[last_desc].word1 &= ~DBRI_TD_M;
-	if (streamno == DBRI_PLAY) {
-		dbri->dma->desc[last_desc].word1 |=
-		    DBRI_TD_I | DBRI_TD_F | DBRI_TD_B;
-	}
+	dbri->dma->desc[last_desc].nda =
+	    dbri->dma_dvma + dbri_dma_off(desc, first_desc);
+	dbri->next_desc[last_desc] = first_desc;
 	dbri->pipes[info->pipe].first_desc = first_desc;
 	dbri->pipes[info->pipe].desc = first_desc;
 
-	for (desc = first_desc; desc != -1; desc = dbri->descs[desc].next) {
+#ifdef DBRI_DEBUG
+	for (desc = first_desc; desc != -1; ) {
 		dprintk(D_DESC, "DESC %d: %08x %08x %08x %08x\n",
 			desc,
 			dbri->dma->desc[desc].word1,
 			dbri->dma->desc[desc].ba,
 			dbri->dma->desc[desc].nda, dbri->dma->desc[desc].word4);
+			desc = dbri->next_desc[desc];
+			if ( desc == first_desc )
+				break;
 	}
+#endif
 	return 0;
 }
 
@@ -1207,56 +1210,30 @@ multiplexed serial interface which the DBRI can operate in either master
 
 enum master_or_slave { CHImaster, CHIslave };
 
+/*
+ * Lock must not be held before calling it.
+ */
 static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_slave,
 		      int bits_per_frame)
 {
-	volatile s32 *cmd;
+	s32 *cmd;
 	int val;
-	static int chi_initialized = 0;	/* FIXME: mutex? */
 
-	if (!chi_initialized) {
+	/* Set CHI Anchor: Pipe 16 */
 
-		cmd = dbri_cmdlock(dbri, GetLock);
+	cmd = dbri_cmdlock(dbri, 4);
+	val = D_DTS_VO | D_DTS_VI | D_DTS_INS 
+		| D_DTS_PRVIN(16) | D_PIPE(16) | D_DTS_PRVOUT(16);
+	*(cmd++) = DBRI_CMD(D_DTS, 0, val);
+	*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
+	*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
+	dbri_cmdsend(dbri, cmd, 4);
 
-		/* Set CHI Anchor: Pipe 16 */
+	dbri->pipes[16].sdp = 1;
+	dbri->pipes[16].nextpipe = 16;
 
-		val = D_DTS_VI | D_DTS_INS | D_DTS_PRVIN(16) | D_PIPE(16);
-		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
-		*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
-		*(cmd++) = 0;
-
-		val = D_DTS_VO | D_DTS_INS | D_DTS_PRVOUT(16) | D_PIPE(16);
-		*(cmd++) = DBRI_CMD(D_DTS, 0, val);
-		*(cmd++) = 0;
-		*(cmd++) = D_TS_ANCHOR | D_TS_NEXT(16);
-
-		dbri->pipes[16].sdp = 1;
-		dbri->pipes[16].nextpipe = 16;
-		dbri->chi_in_pipe = 16;
-		dbri->chi_out_pipe = 16;
-
-#if 0
-		chi_initialized++;
-#endif
-	} else {
-		int pipe;
-
-		for (pipe = dbri->chi_in_pipe;
-		     pipe != 16; pipe = dbri->pipes[pipe].nextpipe) {
-			unlink_time_slot(dbri, pipe, PIPEinput,
-					 16, dbri->pipes[pipe].nextpipe);
-		}
-		for (pipe = dbri->chi_out_pipe;
-		     pipe != 16; pipe = dbri->pipes[pipe].nextpipe) {
-			unlink_time_slot(dbri, pipe, PIPEoutput,
-					 16, dbri->pipes[pipe].nextpipe);
-		}
-
-		dbri->chi_in_pipe = 16;
-		dbri->chi_out_pipe = 16;
-
-		cmd = dbri_cmdlock(dbri, GetLock);
-	}
+	cmd = dbri_cmdlock(dbri, 4);
 
 	if (master_or_slave == CHIslave) {
 		/* Setup DBRI for CHI Slave - receive clock, frame sync (FS)
@@ -1295,8 +1272,9 @@ static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_sla
 
 	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
 	*(cmd++) = DBRI_CMD(D_CDM, 0, D_CDM_XCE | D_CDM_XEN | D_CDM_REN);
+	*(cmd++) = DBRI_CMD(D_PAUSE, 0, 0);
 
-	dbri_cmdsend(dbri, cmd);
+	dbri_cmdsend(dbri, cmd, 4);
 }
 
 /*
@@ -1307,9 +1285,14 @@ static void reset_chi(struct snd_dbri * dbri, enum master_or_slave master_or_sla
 In the standard SPARC audio configuration, the CS4215 codec is attached
 to the DBRI via the CHI interface and few of the DBRI's PIO pins.
 
+ * Lock must not be held before calling it.
+
 */
 static void cs4215_setup_pipes(struct snd_dbri * dbri)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&dbri->lock, flags);
 	/*
 	 * Data mode:
 	 * Pipe  4: Send timeslots 1-4 (audio data)
@@ -1333,6 +1316,9 @@ static void cs4215_setup_pipes(struct snd_dbri * dbri)
 	setup_pipe(dbri, 17, D_SDP_FIXED | D_SDP_TO_SER | D_SDP_MSB);
 	setup_pipe(dbri, 18, D_SDP_FIXED | D_SDP_FROM_SER | D_SDP_MSB);
 	setup_pipe(dbri, 19, D_SDP_FIXED | D_SDP_FROM_SER | D_SDP_MSB);
+	spin_unlock_irqrestore(&dbri->lock, flags);
+
+	dbri_cmdwait(dbri);
 }
 
 static int cs4215_init_data(struct cs4215 *mm)
@@ -1364,7 +1350,7 @@ static int cs4215_init_data(struct cs4215 *mm)
 	mm->status = 0;
 	mm->version = 0xff;
 	mm->precision = 8;	/* For ULAW */
-	mm->channels = 2;
+	mm->channels = 1;
 
 	return 0;
 }
@@ -1379,16 +1365,8 @@ static void cs4215_setdata(struct snd_dbri * dbri, int muted)
 	} else {
 		/* Start by setting the playback attenuation. */
 		struct dbri_streaminfo *info = &dbri->stream_info[DBRI_PLAY];
-		int left_gain = info->left_gain % 64;
-		int right_gain = info->right_gain % 64;
-
-		if (info->balance < DBRI_MID_BALANCE) {
-			right_gain *= info->balance;
-			right_gain /= DBRI_MID_BALANCE;
-		} else {
-			left_gain *= DBRI_RIGHT_BALANCE - info->balance;
-			left_gain /= DBRI_MID_BALANCE;
-		}
+		int left_gain = info->left_gain & 0x3f;
+		int right_gain = info->right_gain & 0x3f;
 
 		dbri->mm.data[0] &= ~0x3f;	/* Reset the volume bits */
 		dbri->mm.data[1] &= ~0x3f;
@@ -1397,8 +1375,8 @@ static void cs4215_setdata(struct snd_dbri * dbri, int muted)
 
 		/* Now set the recording gain. */
 		info = &dbri->stream_info[DBRI_REC];
-		left_gain = info->left_gain % 16;
-		right_gain = info->right_gain % 16;
+		left_gain = info->left_gain & 0xf;
+		right_gain = info->right_gain & 0xf;
 		dbri->mm.data[2] |= CS4215_LG(left_gain);
 		dbri->mm.data[3] |= CS4215_RG(right_gain);
 	}
@@ -1413,6 +1391,7 @@ static void cs4215_open(struct snd_dbri * dbri)
 {
 	int data_width;
 	u32 tmp;
+	unsigned long flags;
 
 	dprintk(D_MM, "cs4215_open: %d channels, %d bits\n",
 		dbri->mm.channels, dbri->mm.precision);
@@ -1437,6 +1416,7 @@ static void cs4215_open(struct snd_dbri * dbri)
 	 * bits.  The CS4215, it seems, observes TSIN (the delayed signal)
 	 * even if it's the CHI master.  Don't ask me...
 	 */
+	spin_lock_irqsave(&dbri->lock, flags);
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp &= ~(D_C);		/* Disable CHI */
 	sbus_writel(tmp, dbri->regs + REG0);
@@ -1455,15 +1435,16 @@ static void cs4215_open(struct snd_dbri * dbri)
 	 */
 	data_width = dbri->mm.channels * dbri->mm.precision;
 
-	link_time_slot(dbri, 20, PIPEoutput, 16, 32, dbri->mm.offset + 32);
-	link_time_slot(dbri, 4, PIPEoutput, 16, data_width, dbri->mm.offset);
-	link_time_slot(dbri, 6, PIPEinput, 16, data_width, dbri->mm.offset);
-	link_time_slot(dbri, 21, PIPEinput, 16, 16, dbri->mm.offset + 40);
+	link_time_slot(dbri, 4, 16, 16, data_width, dbri->mm.offset);
+	link_time_slot(dbri, 20, 4, 16, 32, dbri->mm.offset + 32);
+	link_time_slot(dbri, 6, 16, 16, data_width, dbri->mm.offset);
+	link_time_slot(dbri, 21, 6, 16, 16, dbri->mm.offset + 40);
 
 	/* FIXME: enable CHI after _setdata? */
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp |= D_C;		/* Enable CHI */
 	sbus_writel(tmp, dbri->regs + REG0);
+	spin_unlock_irqrestore(&dbri->lock, flags);
 
 	cs4215_setdata(dbri, 0);
 }
@@ -1475,6 +1456,7 @@ static int cs4215_setctrl(struct snd_dbri * dbri)
 {
 	int i, val;
 	u32 tmp;
+	unsigned long flags;
 
 	/* FIXME - let the CPU do something useful during these delays */
 
@@ -1511,6 +1493,7 @@ static int cs4215_setctrl(struct snd_dbri * dbri)
 	 * done in hardware by a TI 248 that delays the DBRI->4215
 	 * frame sync signal by eight clock cycles.  Anybody know why?
 	 */
+	spin_lock_irqsave(&dbri->lock, flags);
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp &= ~D_C;		/* Disable CHI */
 	sbus_writel(tmp, dbri->regs + REG0);
@@ -1524,17 +1507,20 @@ static int cs4215_setctrl(struct snd_dbri * dbri)
 	 * Pipe 19: Receive timeslot 7 (version). 
 	 */
 
-	link_time_slot(dbri, 17, PIPEoutput, 16, 32, dbri->mm.offset);
-	link_time_slot(dbri, 18, PIPEinput, 16, 8, dbri->mm.offset);
-	link_time_slot(dbri, 19, PIPEinput, 16, 8, dbri->mm.offset + 48);
+	link_time_slot(dbri, 17, 16, 16, 32, dbri->mm.offset);
+	link_time_slot(dbri, 18, 16, 16, 8, dbri->mm.offset);
+	link_time_slot(dbri, 19, 18, 16, 8, dbri->mm.offset + 48);
+	spin_unlock_irqrestore(&dbri->lock, flags);
 
 	/* Wait for the chip to echo back CLB (Control Latch Bit) as zero */
 	dbri->mm.ctrl[0] &= ~CS4215_CLB;
 	xmit_fixed(dbri, 17, *(int *)dbri->mm.ctrl);
 
+	spin_lock_irqsave(&dbri->lock, flags);
 	tmp = sbus_readl(dbri->regs + REG0);
 	tmp |= D_C;		/* Enable CHI */
 	sbus_writel(tmp, dbri->regs + REG0);
+	spin_unlock_irqrestore(&dbri->lock, flags);
 
 	for (i = 10; ((dbri->mm.status & 0xe4) != 0x20); --i) {
 		msleep_interruptible(1);
@@ -1614,8 +1600,7 @@ static int cs4215_prepare(struct snd_dbri * dbri, unsigned int rate,
 	    CS4215_BSEL_128 | CS4215_FREQ[freq_idx].xtal;
 
 	dbri->mm.channels = channels;
-	/* Stereo bit: 8 bit stereo not working yet. */
-	if ((channels > 1) && (dbri->mm.precision == 16))
+	if (channels == 2)
 		dbri->mm.ctrl[1] |= CS4215_DFR_STEREO;
 
 	ret = cs4215_setctrl(dbri);
@@ -1655,7 +1640,6 @@ static int cs4215_init(struct snd_dbri * dbri)
 	}
 
 	cs4215_setup_pipes(dbri);
-
 	cs4215_init_data(&dbri->mm);
 
 	/* Enable capture of the status & version timeslots. */
@@ -1684,87 +1668,70 @@ buffer and calls dbri_process_one_interrupt() for each interrupt word.
 Complicated interrupts are handled by dedicated functions (which
 appear first in this file).  Any pending interrupts can be serviced by
 calling dbri_process_interrupt_buffer(), which works even if the CPU's
-interrupts are disabled.  This function is used by dbri_cmdlock()
-to make sure we're synced up with the chip before each command sequence,
-even if we're running cli'ed.
+interrupts are disabled.
 
 */
 
 /* xmit_descs()
  *
- * Transmit the current TD's for recording/playing, if needed.
+ * Starts transmiting the current TD's for recording/playing.
  * For playback, ALSA has filled the DMA memory with new data (we hope).
  */
-static void xmit_descs(unsigned long data)
+static void xmit_descs(struct snd_dbri *dbri)
 {
-	struct snd_dbri *dbri = (struct snd_dbri *) data;
 	struct dbri_streaminfo *info;
-	volatile s32 *cmd;
+	s32 *cmd;
 	unsigned long flags;
 	int first_td;
 
 	if (dbri == NULL)
 		return;		/* Disabled */
 
-	/* First check the recording stream for buffer overflow */
 	info = &dbri->stream_info[DBRI_REC];
 	spin_lock_irqsave(&dbri->lock, flags);
 
-	if ((info->left >= info->size) && (info->pipe >= 0)) {
+	if (info->pipe >= 0) {
 		first_td = dbri->pipes[info->pipe].first_desc;
 
 		dprintk(D_DESC, "xmit_descs rec @ TD %d\n", first_td);
 
 		/* Stream could be closed by the time we run. */
-		if (first_td < 0) {
-			goto play;
+		if (first_td >= 0) {
+			cmd = dbri_cmdlock(dbri, 2);
+			*(cmd++) = DBRI_CMD(D_SDP, 0,
+					    dbri->pipes[info->pipe].sdp
+					    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
+			*(cmd++) = dbri->dma_dvma + dbri_dma_off(desc, first_td);
+			dbri_cmdsend(dbri, cmd, 2);
+
+			/* Reset our admin of the pipe. */
+			dbri->pipes[info->pipe].desc = first_td;
 		}
-
-		cmd = dbri_cmdlock(dbri, NoGetLock);
-		*(cmd++) = DBRI_CMD(D_SDP, 0,
-				    dbri->pipes[info->pipe].sdp
-				    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
-		*(cmd++) = dbri->dma_dvma + dbri_dma_off(desc, first_td);
-		dbri_cmdsend(dbri, cmd);
-
-		/* Reset our admin of the pipe & bytes read. */
-		dbri->pipes[info->pipe].desc = first_td;
-		info->left = 0;
 	}
 
-play:
-	spin_unlock_irqrestore(&dbri->lock, flags);
-
-	/* Now check the playback stream for buffer underflow */
 	info = &dbri->stream_info[DBRI_PLAY];
-	spin_lock_irqsave(&dbri->lock, flags);
 
-	if ((info->left <= 0) && (info->pipe >= 0)) {
+	if (info->pipe >= 0) {
 		first_td = dbri->pipes[info->pipe].first_desc;
 
 		dprintk(D_DESC, "xmit_descs play @ TD %d\n", first_td);
 
 		/* Stream could be closed by the time we run. */
-		if (first_td < 0) {
-			spin_unlock_irqrestore(&dbri->lock, flags);
-			return;
+		if (first_td >= 0) {
+			cmd = dbri_cmdlock(dbri, 2);
+			*(cmd++) = DBRI_CMD(D_SDP, 0,
+					    dbri->pipes[info->pipe].sdp
+					    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
+			*(cmd++) = dbri->dma_dvma + dbri_dma_off(desc, first_td);
+			dbri_cmdsend(dbri, cmd, 2);
+
+			/* Reset our admin of the pipe. */
+			dbri->pipes[info->pipe].desc = first_td;
 		}
-
-		cmd = dbri_cmdlock(dbri, NoGetLock);
-		*(cmd++) = DBRI_CMD(D_SDP, 0,
-				    dbri->pipes[info->pipe].sdp
-				    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
-		*(cmd++) = dbri->dma_dvma + dbri_dma_off(desc, first_td);
-		dbri_cmdsend(dbri, cmd);
-
-		/* Reset our admin of the pipe & bytes written. */
-		dbri->pipes[info->pipe].desc = first_td;
-		info->left = info->size;
 	}
+
 	spin_unlock_irqrestore(&dbri->lock, flags);
 }
-
-static DECLARE_TASKLET(xmit_descs_task, xmit_descs, 0);
 
 /* transmission_complete_intr()
  *
@@ -1775,9 +1742,9 @@ static DECLARE_TASKLET(xmit_descs_task, xmit_descs, 0);
  * them as available. Stops when the first descriptor is found without
  * TBC (Transmit Buffer Complete) set, or we've run through them all.
  *
- * The DMA buffers are not released, but re-used. Since the transmit buffer
- * descriptors are not clobbered, they can be re-submitted as is. This is
- * done by the xmit_descs() tasklet above since that could take longer.
+ * The DMA buffers are not released. They form a ring buffer and
+ * they are filled by ALSA while others are transmitted by DMA.
+ *
  */
 
 static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
@@ -1803,21 +1770,9 @@ static void transmission_complete_intr(struct snd_dbri * dbri, int pipe)
 		dprintk(D_INT, "TD %d, status 0x%02x\n", td, status);
 
 		dbri->dma->desc[td].word4 = 0;	/* Reset it for next time. */
-		info->offset += dbri->descs[td].len;
-		info->left -= dbri->descs[td].len;
+		info->offset += DBRI_RD_CNT(dbri->dma->desc[td].word1);
 
-		/* On the last TD, transmit them all again. */
-		if (dbri->descs[td].next == -1) {
-			if (info->left > 0) {
-				printk(KERN_WARNING
-				       "%d bytes left after last transfer.\n",
-				       info->left);
-				info->left = 0;
-			}
-			tasklet_schedule(&xmit_descs_task);
-		}
-
-		td = dbri->descs[td].next;
+		td = dbri->next_desc[td];
 		dbri->pipes[pipe].desc = td;
 	}
 
@@ -1841,29 +1796,17 @@ static void reception_complete_intr(struct snd_dbri * dbri, int pipe)
 		return;
 	}
 
-	dbri->descs[rd].inuse = 0;
-	dbri->pipes[pipe].desc = dbri->descs[rd].next;
+	dbri->pipes[pipe].desc = dbri->next_desc[rd];
 	status = dbri->dma->desc[rd].word1;
 	dbri->dma->desc[rd].word1 = 0;	/* Reset it for next time. */
 
 	info = &dbri->stream_info[DBRI_REC];
 	info->offset += DBRI_RD_CNT(status);
-	info->left += DBRI_RD_CNT(status);
 
 	/* FIXME: Check status */
 
 	dprintk(D_INT, "Recv RD %d, status 0x%02x, len %d\n",
 		rd, DBRI_RD_STATUS(status), DBRI_RD_CNT(status));
-
-	/* On the last TD, transmit them all again. */
-	if (dbri->descs[rd].next == -1) {
-		if (info->left > info->size) {
-			printk(KERN_WARNING
-			       "%d bytes recorded in %d size buffer.\n",
-			       info->left, info->size);
-		}
-		tasklet_schedule(&xmit_descs_task);
-	}
 
 	/* Notify ALSA */
 	if (spin_is_locked(&dbri->lock)) {
@@ -1892,16 +1835,11 @@ static void dbri_process_one_interrupt(struct snd_dbri * dbri, int x)
 			channel, code, rval);
 	}
 
-	if (channel == D_INTR_CMD && command == D_WAIT) {
-		dbri->wait_ackd = val;
-		if (dbri->wait_send != val) {
-			printk(KERN_ERR "Processing wait command %d when %d was send.\n",
-			       val, dbri->wait_send);
-		}
-		return;
-	}
-
 	switch (code) {
+	case D_INTR_CMDI:
+		if (command != D_WAIT)
+			printk(KERN_ERR "DBRI: Command read interrupt\n");
+		break;
 	case D_INTR_BRDY:
 		reception_complete_intr(dbri, channel);
 		break;
@@ -1914,8 +1852,10 @@ static void dbri_process_one_interrupt(struct snd_dbri * dbri, int x)
 		 * resend SDP command with clear pipe bit (C) set
 		 */
 		{
-			volatile s32 *cmd;
-
+	/* FIXME: do something useful in case of underrun */
+			printk(KERN_ERR "DBRI: Underrun error\n");
+#if 0
+			s32 *cmd;
 			int pipe = channel;
 			int td = dbri->pipes[pipe].desc;
 
@@ -1926,6 +1866,7 @@ static void dbri_process_one_interrupt(struct snd_dbri * dbri, int x)
 					    | D_SDP_P | D_SDP_C | D_SDP_2SAME);
 			*(cmd++) = dbri->dma_dvma + dbri_dma_off(desc, td);
 			dbri_cmdsend(dbri, cmd);
+#endif
 		}
 		break;
 	case D_INTR_FXDT:
@@ -1946,9 +1887,7 @@ static void dbri_process_one_interrupt(struct snd_dbri * dbri, int x)
 /* dbri_process_interrupt_buffer advances through the DBRI's interrupt
  * buffer until it finds a zero word (indicating nothing more to do
  * right now).  Non-zero words require processing and are handed off
- * to dbri_process_one_interrupt AFTER advancing the pointer.  This
- * order is important since we might recurse back into this function
- * and need to make sure the pointer has been advanced first.
+ * to dbri_process_one_interrupt AFTER advancing the pointer.
  */
 static void dbri_process_interrupt_buffer(struct snd_dbri * dbri)
 {
@@ -1957,10 +1896,8 @@ static void dbri_process_interrupt_buffer(struct snd_dbri * dbri)
 	while ((x = dbri->dma->intr[dbri->dbri_irqp]) != 0) {
 		dbri->dma->intr[dbri->dbri_irqp] = 0;
 		dbri->dbri_irqp++;
-		if (dbri->dbri_irqp == (DBRI_NO_INTS * DBRI_INT_BLK))
+		if (dbri->dbri_irqp == DBRI_INT_BLK)
 			dbri->dbri_irqp = 1;
-		else if ((dbri->dbri_irqp & (DBRI_INT_BLK - 1)) == 0)
-			dbri->dbri_irqp++;
 
 		dbri_process_one_interrupt(dbri, x);
 	}
@@ -2020,8 +1957,6 @@ static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id,
 
 	dbri_process_interrupt_buffer(dbri);
 
-	/* FIXME: Write 0 into regs to ACK interrupt */
-
 	spin_unlock(&dbri->lock);
 
 	return IRQ_HANDLED;
@@ -2039,8 +1974,8 @@ static struct snd_pcm_hardware snd_dbri_pcm_hw = {
 				  SNDRV_PCM_FMTBIT_A_LAW |
 				  SNDRV_PCM_FMTBIT_U8 |
 				  SNDRV_PCM_FMTBIT_S16_BE,
-	.rates			= SNDRV_PCM_RATE_8000_48000,
-	.rate_min		= 8000,
+	.rates			= SNDRV_PCM_RATE_8000_48000 | SNDRV_PCM_RATE_5512,
+	.rate_min		= 5512,
 	.rate_max		= 48000,
 	.channels_min		= 1,
 	.channels_max		= 2,
@@ -2050,6 +1985,39 @@ static struct snd_pcm_hardware snd_dbri_pcm_hw = {
 	.periods_min		= 1,
 	.periods_max		= 1024,
 };
+
+static int snd_hw_rule_format(struct snd_pcm_hw_params *params,
+			      struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *c = hw_param_interval(params,
+				SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_mask fmt;
+
+	snd_mask_any(&fmt);
+	if (c->min > 1) {
+		fmt.bits[0] &= SNDRV_PCM_FMTBIT_S16_BE;
+		return snd_mask_refine(f, &fmt);
+	}
+	return 0;
+}
+
+static int snd_hw_rule_channels(struct snd_pcm_hw_params *params,
+				struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *c = hw_param_interval(params,
+				SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *f = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_interval ch;
+
+	snd_interval_any(&ch);
+	if (!(f->bits[0] & SNDRV_PCM_FMTBIT_S16_BE)) {
+		ch.min = ch.max = 1;
+		ch.integer = 1;
+		return snd_interval_refine(c, &ch);
+	}
+	return 0;
+}
 
 static int snd_dbri_open(struct snd_pcm_substream *substream)
 {
@@ -2063,12 +2031,19 @@ static int snd_dbri_open(struct snd_pcm_substream *substream)
 
 	spin_lock_irqsave(&dbri->lock, flags);
 	info->substream = substream;
-	info->left = 0;
 	info->offset = 0;
 	info->dvma_buffer = 0;
 	info->pipe = -1;
 	spin_unlock_irqrestore(&dbri->lock, flags);
 
+	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_CHANNELS,
+			    snd_hw_rule_format, NULL, SNDRV_PCM_HW_PARAM_FORMAT,
+			    -1);
+	snd_pcm_hw_rule_add(runtime,0,SNDRV_PCM_HW_PARAM_FORMAT,
+			    snd_hw_rule_channels, NULL, 
+			    SNDRV_PCM_HW_PARAM_CHANNELS,
+			    -1);
+				
 	cs4215_open(dbri);
 
 	return 0;
@@ -2081,7 +2056,6 @@ static int snd_dbri_close(struct snd_pcm_substream *substream)
 
 	dprintk(D_USR, "close audio output.\n");
 	info->substream = NULL;
-	info->left = 0;
 	info->offset = 0;
 
 	return 0;
@@ -2134,6 +2108,7 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 	struct snd_dbri *dbri = snd_pcm_substream_chip(substream);
 	struct dbri_streaminfo *info = DBRI_STREAM(dbri, substream);
 	int direction;
+
 	dprintk(D_USR, "hw_free.\n");
 
 	/* hw_free can get called multiple times. Only unmap the DMA once.
@@ -2148,7 +2123,10 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 				  substream->runtime->buffer_size, direction);
 		info->dvma_buffer = 0;
 	}
-	info->pipe = -1;
+	if (info->pipe != -1) {
+		reset_pipe(dbri, info->pipe);
+		info->pipe = -1;
+	}
 
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -2157,26 +2135,22 @@ static int snd_dbri_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_dbri *dbri = snd_pcm_substream_chip(substream);
 	struct dbri_streaminfo *info = DBRI_STREAM(dbri, substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int ret;
 
 	info->size = snd_pcm_lib_buffer_bytes(substream);
 	if (DBRI_STREAMNO(substream) == DBRI_PLAY)
 		info->pipe = 4;	/* Send pipe */
-	else {
+	else
 		info->pipe = 6;	/* Receive pipe */
-		info->left = info->size;	/* To trigger submittal */
-	}
 
 	spin_lock_irq(&dbri->lock);
+	info->offset = 0;
 
 	/* Setup the all the transmit/receive desciptors to cover the
 	 * whole DMA buffer.
 	 */
 	ret = setup_descs(dbri, DBRI_STREAMNO(substream),
 			  snd_pcm_lib_period_bytes(substream));
-
-	runtime->stop_threshold = DBRI_TD_MAXCNT / runtime->channels;
 
 	spin_unlock_irq(&dbri->lock);
 
@@ -2194,14 +2168,11 @@ static int snd_dbri_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		dprintk(D_USR, "start audio, period is %d bytes\n",
 			(int)snd_pcm_lib_period_bytes(substream));
-		/* Enable & schedule the tasklet that re-submits the TDs. */
-		xmit_descs_task.data = (unsigned long)dbri;
-		tasklet_schedule(&xmit_descs_task);
+		/* Re-submit the TDs. */
+		xmit_descs(dbri);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		dprintk(D_USR, "stop audio.\n");
-		/* Make the tasklet bail out immediately. */
-		xmit_descs_task.data = 0;
 		reset_pipe(dbri, info->pipe);
 		break;
 	default:
@@ -2219,8 +2190,8 @@ static snd_pcm_uframes_t snd_dbri_pointer(struct snd_pcm_substream *substream)
 
 	ret = bytes_to_frames(substream->runtime, info->offset)
 		% substream->runtime->buffer_size;
-	dprintk(D_USR, "I/O pointer: %ld frames, %d bytes left.\n",
-		ret, info->left);
+	dprintk(D_USR, "I/O pointer: %ld frames of %ld.\n",
+		ret, substream->runtime->buffer_size);
 	return ret;
 }
 
@@ -2254,7 +2225,6 @@ static int __devinit snd_dbri_pcm(struct snd_dbri * dbri)
 	pcm->private_data = dbri;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, dbri->card->shortname);
-	dbri->pcm = pcm;
 
 	if ((err = snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
@@ -2303,7 +2273,6 @@ static int snd_cs4215_put_volume(struct snd_kcontrol *kcontrol,
 {
 	struct snd_dbri *dbri = snd_kcontrol_chip(kcontrol);
 	struct dbri_streaminfo *info = &dbri->stream_info[kcontrol->private_value];
-	unsigned long flags;
 	int changed = 0;
 
 	if (info->left_gain != ucontrol->value.integer.value[0]) {
@@ -2318,13 +2287,9 @@ static int snd_cs4215_put_volume(struct snd_kcontrol *kcontrol,
 		/* First mute outputs, and wait 1/8000 sec (125 us)
 		 * to make sure this takes.  This avoids clicking noises.
 		 */
-		spin_lock_irqsave(&dbri->lock, flags);
-
 		cs4215_setdata(dbri, 1);
 		udelay(125);
 		cs4215_setdata(dbri, 0);
-
-		spin_unlock_irqrestore(&dbri->lock, flags);
 	}
 	return changed;
 }
@@ -2371,7 +2336,6 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_dbri *dbri = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int elem = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -2404,13 +2368,9 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
 		/* First mute outputs, and wait 1/8000 sec (125 us)
 		 * to make sure this takes.  This avoids clicking noises.
 		 */
-		spin_lock_irqsave(&dbri->lock, flags);
-
 		cs4215_setdata(dbri, 1);
 		udelay(125);
 		cs4215_setdata(dbri, 0);
-
-		spin_unlock_irqrestore(&dbri->lock, flags);
 	}
 	return changed;
 }
@@ -2452,8 +2412,6 @@ static struct snd_kcontrol_new dbri_controls[] __devinitdata = {
 	CS4215_SINGLE("Mic boost", 4, 4, 1, 1)
 };
 
-#define NUM_CS4215_CONTROLS (sizeof(dbri_controls)/sizeof(struct snd_kcontrol_new))
-
 static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 {
 	struct snd_card *card;
@@ -2464,7 +2422,7 @@ static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 	card = dbri->card;
 	strcpy(card->mixername, card->shortname);
 
-	for (idx = 0; idx < NUM_CS4215_CONTROLS; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(dbri_controls); idx++) {
 		if ((err = snd_ctl_add(card,
 				snd_ctl_new1(&dbri_controls[idx], dbri))) < 0)
 			return err;
@@ -2473,7 +2431,6 @@ static int __init snd_dbri_mixer(struct snd_dbri * dbri)
 	for (idx = DBRI_REC; idx < DBRI_NO_STREAMS; idx++) {
 		dbri->stream_info[idx].left_gain = 0;
 		dbri->stream_info[idx].right_gain = 0;
-		dbri->stream_info[idx].balance = DBRI_MID_BALANCE;
 	}
 
 	return 0;
@@ -2505,12 +2462,11 @@ static void dbri_debug_read(struct snd_info_entry * entry,
 			struct dbri_pipe *pptr = &dbri->pipes[pipe];
 			snd_iprintf(buffer,
 				    "Pipe %d: %s SDP=0x%x desc=%d, "
-				    "len=%d @ %d prev: %d next %d\n",
+				    "len=%d next %d\n",
 				    pipe,
-				    (pptr->direction ==
-				     PIPEinput ? "input" : "output"), pptr->sdp,
-				    pptr->desc, pptr->length, pptr->cycle,
-				    pptr->prevpipe, pptr->nextpipe);
+				   ((pptr->sdp & D_SDP_TO_SER) ? "output" : "input"),
+				    pptr->sdp, pptr->desc,
+				    pptr->length, pptr->nextpipe);
 		}
 	}
 }
@@ -2549,7 +2505,6 @@ static int __init snd_dbri_create(struct snd_card *card,
 	dbri->card = card;
 	dbri->sdev = sdev;
 	dbri->irq = irq->pri;
-	dbri->dbri_version = sdev->prom_name[9];
 
 	dbri->dma = sbus_alloc_consistent(sdev, sizeof(struct dbri_dma),
 					  &dbri->dma_dvma);
@@ -2669,7 +2624,7 @@ static int __init dbri_attach(int prom_node, struct sbus_dev *sdev)
 
 	printk(KERN_INFO "audio%d at %p (irq %d) is DBRI(%c)+CS4215(%d)\n",
 	       dev, dbri->regs,
-	       dbri->irq, dbri->dbri_version, dbri->mm.version);
+	       dbri->irq, sdev->prom_name[9], dbri->mm.version);
 	dev++;
 
 	return 0;

@@ -56,6 +56,7 @@
 #include "journal.h"
 #include "namei.h"
 #include "suballoc.h"
+#include "super.h"
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
@@ -178,7 +179,7 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	if (status < 0)
 		goto bail_add;
 
-	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno);
+	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
 	if (IS_ERR(inode)) {
 		mlog(ML_ERROR, "Unable to create inode %llu\n",
 		     (unsigned long long)blkno);
@@ -198,9 +199,31 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	spin_unlock(&oi->ip_lock);
 
 bail_add:
-
 	dentry->d_op = &ocfs2_dentry_ops;
 	ret = d_splice_alias(inode, dentry);
+
+	if (inode) {
+		/*
+		 * If d_splice_alias() finds a DCACHE_DISCONNECTED
+		 * dentry, it will d_move() it on top of ourse. The
+		 * return value will indicate this however, so in
+		 * those cases, we switch them around for the locking
+		 * code.
+		 *
+		 * NOTE: This dentry already has ->d_op set from
+		 * ocfs2_get_parent() and ocfs2_get_dentry()
+		 */
+		if (ret)
+			dentry = ret;
+
+		status = ocfs2_dentry_attach_lock(dentry, inode,
+						  OCFS2_I(dir)->ip_blkno);
+		if (status) {
+			mlog_errno(status);
+			ret = ERR_PTR(status);
+			goto bail_unlock;
+		}
+	}
 
 bail_unlock:
 	/* Don't drop the cluster lock until *after* the d_add --
@@ -310,13 +333,6 @@ static int ocfs2_mknod(struct inode *dir,
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
-	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
-		mlog(ML_ERROR, "inode %llu has i_nlink of %u\n",
-		     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir->i_nlink);
-		status = -EMLINK;
-		goto leave;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		status = -ENOMEM;
@@ -328,6 +344,11 @@ static int ocfs2_mknod(struct inode *dir,
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
+		goto leave;
+	}
+
+	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
+		status = -EMLINK;
 		goto leave;
 	}
 
@@ -408,13 +429,20 @@ static int ocfs2_mknod(struct inode *dir,
 			mlog_errno(status);
 			goto leave;
 		}
-		dir->i_nlink++;
+		inc_nlink(dir);
 	}
 
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 de_bh);
 	if (status < 0) {
+		mlog_errno(status);
+		goto leave;
+	}
+
+	status = ocfs2_dentry_attach_lock(dentry, inode,
+					  OCFS2_I(dir)->ip_blkno);
+	if (status) {
 		mlog_errno(status);
 		goto leave;
 	}
@@ -643,11 +671,6 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	if (inode->i_nlink >= OCFS2_LINK_MAX) {
-		err = -EMLINK;
-		goto bail;
-	}
-
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		err = -ENOMEM;
@@ -658,6 +681,11 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
+		goto bail;
+	}
+
+	if (!dir->i_nlink) {
+		err = -ENOENT;
 		goto bail;
 	}
 
@@ -702,7 +730,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto bail;
 	}
 
-	inode->i_nlink++;
+	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
 	fe->i_links_count = cpu_to_le16(inode->i_nlink);
 	fe->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
@@ -711,7 +739,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	err = ocfs2_journal_dirty(handle, fe_bh);
 	if (err < 0) {
 		le16_add_cpu(&fe->i_links_count, -1);
-		inode->i_nlink--;
+		drop_nlink(inode);
 		mlog_errno(err);
 		goto bail;
 	}
@@ -721,7 +749,13 @@ static int ocfs2_link(struct dentry *old_dentry,
 			      parent_fe_bh, de_bh);
 	if (err) {
 		le16_add_cpu(&fe->i_links_count, -1);
-		inode->i_nlink--;
+		drop_nlink(inode);
+		mlog_errno(err);
+		goto bail;
+	}
+
+	err = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (err) {
 		mlog_errno(err);
 		goto bail;
 	}
@@ -744,11 +778,40 @@ bail:
 	return err;
 }
 
+/*
+ * Takes and drops an exclusive lock on the given dentry. This will
+ * force other nodes to drop it.
+ */
+static int ocfs2_remote_dentry_delete(struct dentry *dentry)
+{
+	int ret;
+
+	ret = ocfs2_dentry_lock(dentry, 1);
+	if (ret)
+		mlog_errno(ret);
+	else
+		ocfs2_dentry_unlock(dentry, 1);
+
+	return ret;
+}
+
+static inline int inode_is_unlinkable(struct inode *inode)
+{
+	if (S_ISDIR(inode->i_mode)) {
+		if (inode->i_nlink == 2)
+			return 1;
+		return 0;
+	}
+
+	if (inode->i_nlink == 1)
+		return 1;
+	return 0;
+}
+
 static int ocfs2_unlink(struct inode *dir,
 			struct dentry *dentry)
 {
 	int status;
-	unsigned int saved_nlink = 0;
 	struct inode *inode = dentry->d_inode;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 	u64 blkno;
@@ -823,18 +886,7 @@ static int ocfs2_unlink(struct inode *dir,
 		}
 	}
 
-	/* There are still a few steps left until we can consider the
-	 * unlink to have succeeded. Save off nlink here before
-	 * modification so we can set it back in case we hit an issue
-	 * before commit. */
-	saved_nlink = inode->i_nlink;
-	if (S_ISDIR(inode->i_mode))
-		inode->i_nlink = 0;
-	else
-		inode->i_nlink--;
-
-	status = ocfs2_request_unlink_vote(inode, dentry,
-					   (unsigned int) inode->i_nlink);
+	status = ocfs2_remote_dentry_delete(dentry);
 	if (status < 0) {
 		/* This vote should succeed under all normal
 		 * circumstances. */
@@ -842,7 +894,7 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	if (!inode->i_nlink) {
+	if (inode_is_unlinkable(inode)) {
 		status = ocfs2_prepare_orphan_dir(osb, handle, inode,
 						  orphan_name,
 						  &orphan_entry_bh);
@@ -869,7 +921,7 @@ static int ocfs2_unlink(struct inode *dir,
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
-	if (!inode->i_nlink) {
+	if (inode_is_unlinkable(inode)) {
 		status = ocfs2_orphan_add(osb, handle, inode, fe, orphan_name,
 					  orphan_entry_bh);
 		if (status < 0) {
@@ -885,10 +937,10 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	/* We can set nlink on the dinode now. clear the saved version
-	 * so that it doesn't get set later. */
+	if (S_ISDIR(inode->i_mode))
+		drop_nlink(inode);
+	drop_nlink(inode);
 	fe->i_links_count = cpu_to_le16(inode->i_nlink);
-	saved_nlink = 0;
 
 	status = ocfs2_journal_dirty(handle, fe_bh);
 	if (status < 0) {
@@ -897,19 +949,16 @@ static int ocfs2_unlink(struct inode *dir,
 	}
 
 	if (S_ISDIR(inode->i_mode)) {
-		dir->i_nlink--;
+		drop_nlink(dir);
 		status = ocfs2_mark_inode_dirty(handle, dir,
 						parent_node_bh);
 		if (status < 0) {
 			mlog_errno(status);
-			dir->i_nlink++;
+			inc_nlink(dir);
 		}
 	}
 
 leave:
-	if (status < 0 && saved_nlink)
-		inode->i_nlink = saved_nlink;
-
 	if (handle)
 		ocfs2_commit_trans(handle);
 
@@ -1020,7 +1069,6 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
 	nlink_t old_dir_nlink = old_dir->i_nlink, new_dir_nlink = new_dir->i_nlink;
-	unsigned int links_count;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
@@ -1094,23 +1142,26 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	if (S_ISDIR(old_inode->i_mode)) {
-		/* Directories actually require metadata updates to
-		 * the directory info so we can't get away with not
-		 * doing node locking on it. */
-		status = ocfs2_meta_lock(old_inode, handle, NULL, 1);
-		if (status < 0) {
-			if (status != -ENOENT)
-				mlog_errno(status);
-			goto bail;
-		}
-
-		status = ocfs2_request_rename_vote(old_inode, old_dentry);
-		if (status < 0) {
+	/*
+	 * Though we don't require an inode meta data update if
+	 * old_inode is not a directory, we lock anyway here to ensure
+	 * the vote thread on other nodes won't have to concurrently
+	 * downconvert the inode and the dentry locks.
+	 */
+	status = ocfs2_meta_lock(old_inode, handle, NULL, 1);
+	if (status < 0) {
+		if (status != -ENOENT)
 			mlog_errno(status);
-			goto bail;
-		}
+		goto bail;
+	}
 
+	status = ocfs2_remote_dentry_delete(old_dentry);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	if (S_ISDIR(old_inode->i_mode)) {
 		status = -EIO;
 		old_inode_de_bh = ocfs2_bread(old_inode, 0, &status, 0);
 		if (!old_inode_de_bh)
@@ -1124,14 +1175,6 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (!new_inode && new_dir!=old_dir &&
 		    new_dir->i_nlink >= OCFS2_LINK_MAX)
 			goto bail;
-	} else {
-		/* Ah, the simple case - we're a file so just send a
-		 * message. */
-		status = ocfs2_request_rename_vote(old_inode, old_dentry);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
 	}
 
 	status = -ENOENT;
@@ -1203,13 +1246,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			goto bail;
 		}
 
-		if (S_ISDIR(new_inode->i_mode))
-			links_count = 0;
-		else
-			links_count = (unsigned int) (new_inode->i_nlink - 1);
-
-		status = ocfs2_request_unlink_vote(new_inode, new_dentry,
-						   links_count);
+		status = ocfs2_remote_dentry_delete(new_dentry);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -1344,7 +1381,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (new_inode) {
 			new_inode->i_nlink--;
 		} else {
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 			mark_inode_dirty(new_dir);
 		}
 	}
@@ -1388,6 +1425,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
+	ocfs2_dentry_move(old_dentry, new_dentry, old_dir, new_dir);
 	status = 0;
 bail:
 	if (rename_lock)
@@ -1672,6 +1710,12 @@ static int ocfs2_symlink(struct inode *dir,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 de_bh);
 	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (status) {
 		mlog_errno(status);
 		goto bail;
 	}
@@ -1964,13 +2008,8 @@ restart:
 				}
 				num++;
 
-				/* XXX: questionable readahead stuff here */
 				bh = ocfs2_bread(dir, b++, &err, 1);
 				bh_use[ra_max] = bh;
-#if 0		// ???
-				if (bh)
-					ll_rw_block(READ, 1, &bh);
-#endif
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1978,6 +2017,10 @@ restart:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
+			ocfs2_error(dir->i_sb, "reading directory %llu, "
+				    "offset %lu\n",
+				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
+				    block);
 			brelse(bh);
 			goto next;
 		}

@@ -149,7 +149,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		goto out_err;
 	}
 
-	blocksize = crypto_tfm_alg_blocksize(kctx->enc);
+	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
 	BUG_ON((buf->len - offset) % blocksize);
 	plainlen = blocksize + buf->len - offset;
@@ -177,9 +177,9 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	msg_start = krb5_hdr + 24;
 	/* XXXJBF: */ BUG_ON(buf->head[0].iov_base + offset + headlen != msg_start + blocksize);
 
-	*(u16 *)(krb5_hdr + 2) = htons(kctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(kctx->signalg);
 	memset(krb5_hdr + 4, 0xff, 4);
-	*(u16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
+	*(__be16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
 
 	make_confounder(msg_start, blocksize);
 
@@ -346,7 +346,7 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	/* Copy the data back to the right position.  XXX: Would probably be
 	 * better to copy and encrypt at the same time. */
 
-	blocksize = crypto_tfm_alg_blocksize(kctx->enc);
+	blocksize = crypto_blkcipher_blocksize(kctx->enc);
 	data_start = ptr + 22 + blocksize;
 	orig_start = buf->head[0].iov_base + offset;
 	data_len = (buf->head[0].iov_base + buf->head[0].iov_len) - data_start;

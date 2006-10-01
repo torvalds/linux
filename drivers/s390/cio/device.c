@@ -52,53 +52,81 @@ ccw_bus_match (struct device * dev, struct device_driver * drv)
 	return 1;
 }
 
-/*
- * Hotplugging interface for ccw devices.
- * Heavily modeled on pci and usb hotplug.
- */
-static int
-ccw_uevent (struct device *dev, char **envp, int num_envp,
-	     char *buffer, int buffer_size)
+/* Store modalias string delimited by prefix/suffix string into buffer with
+ * specified size. Return length of resulting string (excluding trailing '\0')
+ * even if string doesn't fit buffer (snprintf semantics). */
+static int snprint_alias(char *buf, size_t size, const char *prefix,
+			 struct ccw_device_id *id, const char *suffix)
+{
+	int len;
+
+	len = snprintf(buf, size, "%sccw:t%04Xm%02X", prefix, id->cu_type,
+		       id->cu_model);
+	if (len > size)
+		return len;
+	buf += len;
+	size -= len;
+
+	if (id->dev_type != 0)
+		len += snprintf(buf, size, "dt%04Xdm%02X%s", id->dev_type,
+				id->dev_model, suffix);
+	else
+		len += snprintf(buf, size, "dtdm%s", suffix);
+
+	return len;
+}
+
+/* Set up environment variables for ccw device uevent. Return 0 on success,
+ * non-zero otherwise. */
+static int ccw_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
+	struct ccw_device_id *id = &(cdev->id);
 	int i = 0;
-	int length = 0;
+	int len;
 
-	if (!cdev)
-		return -ENODEV;
-
-	/* what we want to pass to /sbin/hotplug */
-
-	envp[i++] = buffer;
-	length += scnprintf(buffer, buffer_size - length, "CU_TYPE=%04X",
-			   cdev->id.cu_type);
-	if ((buffer_size - length <= 0) || (i >= num_envp))
+	/* CU_TYPE= */
+	len = snprintf(buffer, buffer_size, "CU_TYPE=%04X", id->cu_type) + 1;
+	if (len > buffer_size || i >= num_envp)
 		return -ENOMEM;
-	++length;
-	buffer += length;
-
 	envp[i++] = buffer;
-	length += scnprintf(buffer, buffer_size - length, "CU_MODEL=%02X",
-			   cdev->id.cu_model);
-	if ((buffer_size - length <= 0) || (i >= num_envp))
+	buffer += len;
+	buffer_size -= len;
+
+	/* CU_MODEL= */
+	len = snprintf(buffer, buffer_size, "CU_MODEL=%02X", id->cu_model) + 1;
+	if (len > buffer_size || i >= num_envp)
 		return -ENOMEM;
-	++length;
-	buffer += length;
+	envp[i++] = buffer;
+	buffer += len;
+	buffer_size -= len;
 
 	/* The next two can be zero, that's ok for us */
-	envp[i++] = buffer;
-	length += scnprintf(buffer, buffer_size - length, "DEV_TYPE=%04X",
-			   cdev->id.dev_type);
-	if ((buffer_size - length <= 0) || (i >= num_envp))
+	/* DEV_TYPE= */
+	len = snprintf(buffer, buffer_size, "DEV_TYPE=%04X", id->dev_type) + 1;
+	if (len > buffer_size || i >= num_envp)
 		return -ENOMEM;
-	++length;
-	buffer += length;
+	envp[i++] = buffer;
+	buffer += len;
+	buffer_size -= len;
 
-	envp[i++] = buffer;
-	length += scnprintf(buffer, buffer_size - length, "DEV_MODEL=%02X",
-			   cdev->id.dev_model);
-	if ((buffer_size - length <= 0) || (i >= num_envp))
+	/* DEV_MODEL= */
+	len = snprintf(buffer, buffer_size, "DEV_MODEL=%02X",
+			(unsigned char) id->dev_model) + 1;
+	if (len > buffer_size || i >= num_envp)
 		return -ENOMEM;
+	envp[i++] = buffer;
+	buffer += len;
+	buffer_size -= len;
+
+	/* MODALIAS=  */
+	len = snprint_alias(buffer, buffer_size, "MODALIAS=", id, "") + 1;
+	if (len > buffer_size || i >= num_envp)
+		return -ENOMEM;
+	envp[i++] = buffer;
+	buffer += len;
+	buffer_size -= len;
 
 	envp[i] = NULL;
 
@@ -251,16 +279,11 @@ modalias_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
-	int ret;
+	int len;
 
-	ret = sprintf(buf, "ccw:t%04Xm%02X",
-			id->cu_type, id->cu_model);
-	if (id->dev_type != 0)
-		ret += sprintf(buf + ret, "dt%04Xdm%02X\n",
-				id->dev_type, id->dev_model);
-	else
-		ret += sprintf(buf + ret, "dtdm\n");
-	return ret;
+	len = snprint_alias(buf, PAGE_SIZE, "", id, "\n") + 1;
+
+	return len > PAGE_SIZE ? PAGE_SIZE : len;
 }
 
 static ssize_t

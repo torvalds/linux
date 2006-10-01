@@ -292,7 +292,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	mark_inode_dirty(ip);
 
 	/* update parent directory inode */
-	dip->i_nlink++;		/* for '..' from child directory */
+	inc_nlink(dip);		/* for '..' from child directory */
 	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dip);
 
@@ -393,9 +393,8 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	/* update parent directory's link count corresponding
 	 * to ".." entry of the target directory deleted
 	 */
-	dip->i_nlink--;
 	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
-	mark_inode_dirty(dip);
+	inode_dec_link_count(dip);
 
 	/*
 	 * OS/2 could have created EA and/or ACL
@@ -415,7 +414,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	JFS_IP(ip)->acl.flag = 0;
 
 	/* mark the target directory as deleted */
-	ip->i_nlink = 0;
+	clear_nlink(ip);
 	mark_inode_dirty(ip);
 
 	rc = txCommit(tid, 2, &iplist[0], 0);
@@ -515,8 +514,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	mark_inode_dirty(dip);
 
 	/* update target's inode */
-	ip->i_nlink--;
-	mark_inode_dirty(ip);
+	inode_dec_link_count(ip);
 
 	/*
 	 *      commit zero link count object
@@ -824,7 +822,7 @@ static int jfs_link(struct dentry *old_dentry,
 		goto free_dname;
 
 	/* update object inode */
-	ip->i_nlink++;		/* for new link */
+	inc_nlink(ip);		/* for new link */
 	ip->i_ctime = CURRENT_TIME;
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dir);
@@ -835,7 +833,7 @@ static int jfs_link(struct dentry *old_dentry,
 	rc = txCommit(tid, 2, &iplist[0], 0);
 
 	if (rc) {
-		ip->i_nlink--;
+		ip->i_nlink--; /* never instantiated */
 		iput(ip);
 	} else
 		d_instantiate(dentry, ip);
@@ -1155,9 +1153,9 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			      old_ip->i_ino, JFS_RENAME);
 		if (rc)
 			goto out4;
-		new_ip->i_nlink--;
+		drop_nlink(new_ip);
 		if (S_ISDIR(new_ip->i_mode)) {
-			new_ip->i_nlink--;
+			drop_nlink(new_ip);
 			if (new_ip->i_nlink) {
 				mutex_unlock(&JFS_IP(new_ip)->commit_mutex);
 				if (old_dir != new_dir)
@@ -1208,7 +1206,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out4;
 		}
 		if (S_ISDIR(old_ip->i_mode))
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 	}
 	/*
 	 * Remove old directory entry
@@ -1223,7 +1221,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out4;
 	}
 	if (S_ISDIR(old_ip->i_mode)) {
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 		if (old_dir != new_dir) {
 			/*
 			 * Change inode number of parent for moved directory

@@ -88,6 +88,7 @@ config IP_FIB_HASH
 config IP_MULTIPLE_TABLES
 	bool "IP: policy routing"
 	depends on IP_ADVANCED_ROUTER
+	select FIB_RULES
 	---help---
 	  Normally, a router decides what to do with a received packet based
 	  solely on the packet's final destination address. If you say Y here,
@@ -386,6 +387,7 @@ config INET_ESP
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
+	select CRYPTO_CBC
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	---help---
@@ -446,24 +448,22 @@ config INET_TCP_DIAG
 	depends on INET_DIAG
 	def_tristate INET_DIAG
 
-config TCP_CONG_ADVANCED
+menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
 	---help---
 	  Support for selection of various TCP congestion control
 	  modules.
 
 	  Nearly all users can safely say no here, and a safe default
-	  selection will be made (BIC-TCP with new Reno as a fallback).
+	  selection will be made (CUBIC with new Reno as a fallback).
 
 	  If unsure, say N.
 
-# TCP Reno is builtin (required as fallback)
-menu "TCP congestion control"
-	depends on TCP_CONG_ADVANCED
+if TCP_CONG_ADVANCED
 
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
-	default y
+	default m
 	---help---
 	BIC-TCP is a sender-side only change that ensures a linear RTT
 	fairness under large windows while offering both scalability and
@@ -477,7 +477,7 @@ config TCP_CONG_BIC
 
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
-	default m
+	default y
 	---help---
 	This is version 2.0 of BIC-TCP which uses a cubic growth function
 	among other techniques.
@@ -572,12 +572,49 @@ config TCP_CONG_VENO
 	loss packets.
 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
 
-endmenu
+choice
+	prompt "Default TCP congestion control"
+	default DEFAULT_CUBIC
+	help
+	  Select the TCP congestion control that will be used by default
+	  for all connections.
 
-config TCP_CONG_BIC
+	config DEFAULT_BIC
+		bool "Bic" if TCP_CONG_BIC=y
+
+	config DEFAULT_CUBIC
+		bool "Cubic" if TCP_CONG_CUBIC=y
+
+	config DEFAULT_HTCP
+		bool "Htcp" if TCP_CONG_HTCP=y
+
+	config DEFAULT_VEGAS
+		bool "Vegas" if TCP_CONG_VEGAS=y
+
+	config DEFAULT_WESTWOOD
+		bool "Westwood" if TCP_CONG_WESTWOOD=y
+
+	config DEFAULT_RENO
+		bool "Reno"
+
+endchoice
+
+endif
+
+config TCP_CONG_CUBIC
 	tristate
 	depends on !TCP_CONG_ADVANCED
 	default y
+
+config DEFAULT_TCP_CONG
+	string
+	default "bic" if DEFAULT_BIC
+	default "cubic" if DEFAULT_CUBIC
+	default "htcp" if DEFAULT_HTCP
+	default "vegas" if DEFAULT_VEGAS
+	default "westwood" if DEFAULT_WESTWOOD
+	default "reno" if DEFAULT_RENO
+	default "cubic"
 
 source "net/ipv4/ipvs/Kconfig"
 

@@ -251,6 +251,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		final_p = &final;
 	}
 
+	security_sk_classify_flow(sk, &fl);
+
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto failure;
@@ -270,7 +272,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	inet->rcv_saddr = LOOPBACK4_IPV6;
 
 	sk->sk_gso_type = SKB_GSO_TCPV6;
-	__ip6_dst_store(sk, dst, NULL);
+	__ip6_dst_store(sk, dst, NULL, NULL);
 
 	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt)
@@ -374,6 +376,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			fl.oif = sk->sk_bound_dev_if;
 			fl.fl_ip_dport = inet->dport;
 			fl.fl_ip_sport = inet->sport;
+			security_skb_classify_flow(skb, &fl);
 
 			if ((err = ip6_dst_lookup(sk, &dst, &fl))) {
 				sk->sk_err_soft = -err;
@@ -467,6 +470,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	fl.oif = treq->iif;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_sk(sk)->sport;
+	security_req_classify_flow(req, &fl);
 
 	if (dst == NULL) {
 		opt = np->opt;
@@ -541,7 +545,7 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcphdr *th = skb->h.th;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
 		skb->csum = offsetof(struct tcphdr, check);
 	} else {
@@ -566,7 +570,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
 				     IPPROTO_TCP, 0);
 	skb->csum = offsetof(struct tcphdr, check);
-	skb->ip_summed = CHECKSUM_HW;
+	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
 }
 
@@ -625,6 +629,7 @@ static void tcp_v6_send_reset(struct sk_buff *skb)
 	fl.oif = inet6_iif(skb);
 	fl.fl_ip_dport = t1->dest;
 	fl.fl_ip_sport = t1->source;
+	security_skb_classify_flow(skb, &fl);
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
@@ -691,6 +696,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 	fl.oif = inet6_iif(skb);
 	fl.fl_ip_dport = t1->dest;
 	fl.fl_ip_sport = t1->source;
+	security_skb_classify_flow(skb, &fl);
 
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
@@ -820,6 +826,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	tcp_rsk(req)->snt_isn = isn;
 
+	security_inet_conn_request(sk, skb, req);
+
 	if (tcp_v6_send_synack(sk, req, NULL))
 		goto drop;
 
@@ -923,6 +931,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		fl.oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->sport;
+		security_req_classify_flow(req, &fl);
 
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out;
@@ -945,7 +954,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	 */
 
 	newsk->sk_gso_type = SKB_GSO_TCPV6;
-	__ip6_dst_store(newsk, dst, NULL);
+	__ip6_dst_store(newsk, dst, NULL, NULL);
 
 	newtcp6sk = (struct tcp6_sock *)newsk;
 	inet_sk(newsk)->pinet6 = &newtcp6sk->inet6;
@@ -1024,7 +1033,7 @@ out:
 
 static int tcp_v6_checksum_init(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
 				  &skb->nh.ipv6h->daddr,skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1066,7 +1075,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (skb->protocol == htons(ETH_P_IP))
 		return tcp_v4_do_rcv(sk, skb);
 
-	if (sk_filter(sk, skb, 0))
+	if (sk_filter(sk, skb))
 		goto discard;
 
 	/*
@@ -1223,12 +1232,12 @@ process:
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
 
-	if (sk_filter(sk, skb, 0))
+	if (sk_filter(sk, skb))
 		goto discard_and_relse;
 
 	skb->dev = NULL;
 
-	bh_lock_sock(sk);
+	bh_lock_sock_nested(sk);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
 #ifdef CONFIG_NET_DMA

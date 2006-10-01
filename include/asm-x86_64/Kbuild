@@ -4,8 +4,19 @@ ALTARCH := i386
 ARCHDEF := defined __x86_64__
 ALTARCHDEF := defined __i386__
 
-header-y += boot.h bootsetup.h cpufeature.h debugreg.h ldt.h \
-	 msr.h prctl.h setup.h sigcontext32.h ucontext.h \
-	 vsyscall32.h
+header-y += boot.h
+header-y += bootsetup.h
+header-y += cpufeature.h
+header-y += debugreg.h
+header-y += ldt.h
+header-y += msr.h
+header-y += prctl.h
+header-y += ptrace-abi.h
+header-y += setup.h
+header-y += sigcontext32.h
+header-y += ucontext.h
+header-y += vsyscall32.h
 
-unifdef-y += mce.h mtrr.h vsyscall.h
+unifdef-y += mce.h
+unifdef-y += mtrr.h
+unifdef-y += vsyscall.h

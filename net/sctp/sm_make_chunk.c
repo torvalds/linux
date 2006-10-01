@@ -1282,10 +1282,8 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 
 	retval = kmalloc(*cookie_len, GFP_ATOMIC);
 
-	if (!retval) {
-		*cookie_len = 0;
+	if (!retval)
 		goto nodata;
-	}
 
 	/* Clear this memory since we are sending this data structure
 	 * out on the network.
@@ -1321,19 +1319,29 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	       ntohs(init_chunk->chunk_hdr->length), raw_addrs, addrs_len);
 
   	if (sctp_sk(ep->base.sk)->hmac) {
+		struct hash_desc desc;
+
 		/* Sign the message.  */
 		sg.page = virt_to_page(&cookie->c);
 		sg.offset = (unsigned long)(&cookie->c) % PAGE_SIZE;
 		sg.length = bodysize;
 		keylen = SCTP_SECRET_SIZE;
 		key = (char *)ep->secret_key[ep->current_key];
+  		desc.tfm = sctp_sk(ep->base.sk)->hmac;
+  		desc.flags = 0;
 
-		sctp_crypto_hmac(sctp_sk(ep->base.sk)->hmac, key, &keylen,
-				 &sg, 1, cookie->signature);
+		if (crypto_hash_setkey(desc.tfm, key, keylen) ||
+		    crypto_hash_digest(&desc, &sg, bodysize, cookie->signature))
+			goto free_cookie;
 	}
 
-nodata:
 	return retval;
+
+free_cookie:
+	kfree(retval);
+nodata:
+	*cookie_len = 0;
+	return NULL;
 }
 
 /* Unpack the cookie from COOKIE ECHO chunk, recreating the association.  */
@@ -1354,6 +1362,7 @@ struct sctp_association *sctp_unpack_cookie(
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
 	struct timeval tv;
+	struct hash_desc desc;
 
 	/* Header size is static data prior to the actual cookie, including
 	 * any padding.
@@ -1389,17 +1398,25 @@ struct sctp_association *sctp_unpack_cookie(
 	sg.offset = (unsigned long)(bear_cookie) % PAGE_SIZE;
 	sg.length = bodysize;
 	key = (char *)ep->secret_key[ep->current_key];
+	desc.tfm = sctp_sk(ep->base.sk)->hmac;
+	desc.flags = 0;
 
 	memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
-	sctp_crypto_hmac(sctp_sk(ep->base.sk)->hmac, key, &keylen, &sg,
-			 1, digest);
+	if (crypto_hash_setkey(desc.tfm, key, keylen) ||
+	    crypto_hash_digest(&desc, &sg, bodysize, digest)) {
+		*error = -SCTP_IERROR_NOMEM;
+		goto fail;
+	}
 
 	if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
 		/* Try the previous key. */
 		key = (char *)ep->secret_key[ep->last_key];
 		memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
-		sctp_crypto_hmac(sctp_sk(ep->base.sk)->hmac, key, &keylen,
-				 &sg, 1, digest);
+		if (crypto_hash_setkey(desc.tfm, key, keylen) ||
+		    crypto_hash_digest(&desc, &sg, bodysize, digest)) {
+			*error = -SCTP_IERROR_NOMEM;
+			goto fail;
+		}
 
 		if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
 			/* Yikes!  Still bad signature! */
@@ -1430,8 +1447,16 @@ no_hmac:
 	/* Check to see if the cookie is stale.  If there is already
 	 * an association, there is no need to check cookie's expiration
 	 * for init collision case of lost COOKIE ACK.
+	 * If skb has been timestamped, then use the stamp, otherwise
+	 * use current time.  This introduces a small possibility that
+	 * that a cookie may be considered expired, but his would only slow
+	 * down the new association establishment instead of every packet.
 	 */
-	skb_get_timestamp(skb, &tv);
+	if (sock_flag(ep->base.sk, SOCK_TIMESTAMP))
+		skb_get_timestamp(skb, &tv);
+	else
+		do_gettimeofday(&tv);
+
 	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
 		__u16 len;
 		/*

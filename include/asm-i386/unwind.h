@@ -18,6 +18,7 @@ struct unwind_frame_info
 {
 	struct pt_regs regs;
 	struct task_struct *task;
+	unsigned call_frame:1;
 };
 
 #define UNW_PC(frame)        (frame)->regs.eip
@@ -28,6 +29,8 @@ struct unwind_frame_info
 #define FRAME_LINK_OFFSET    0
 #define STACK_BOTTOM(tsk)    STACK_LIMIT((tsk)->thread.esp0)
 #define STACK_TOP(tsk)       ((tsk)->thread.esp0)
+#else
+#define UNW_FP(frame) ((void)(frame), 0)
 #endif
 #define STACK_LIMIT(ptr)     (((ptr) - 1) & ~(THREAD_SIZE - 1))
 
@@ -41,6 +44,10 @@ struct unwind_frame_info
 	PTREGS_INFO(esi), \
 	PTREGS_INFO(edi), \
 	PTREGS_INFO(eip)
+
+#define UNW_DEFAULT_RA(raItem, dataAlign) \
+	((raItem).where == Memory && \
+	 !((raItem).value * (dataAlign) + 4))
 
 static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs)
@@ -88,6 +95,7 @@ static inline int arch_unw_user_mode(const struct unwind_frame_info *info)
 
 #define UNW_PC(frame) ((void)(frame), 0)
 #define UNW_SP(frame) ((void)(frame), 0)
+#define UNW_FP(frame) ((void)(frame), 0)
 
 static inline int arch_unw_user_mode(const void *info)
 {

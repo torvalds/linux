@@ -522,7 +522,7 @@ EXPORT_SYMBOL(genphy_read_status);
 
 static int genphy_config_init(struct phy_device *phydev)
 {
-	u32 val;
+	int val;
 	u32 features;
 
 	/* For now, I'll claim that the generic driver supports

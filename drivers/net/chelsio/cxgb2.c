@@ -779,7 +779,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 	return 0;
 }
 
-static struct ethtool_ops t1_ethtool_ops = {
+static const struct ethtool_ops t1_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
 	.get_drvinfo       = get_drvinfo,
@@ -1243,7 +1243,7 @@ static struct pci_driver driver = {
 
 static int __init t1_init_module(void)
 {
-	return pci_module_init(&driver);
+	return pci_register_driver(&driver);
 }
 
 static void __exit t1_cleanup_module(void)

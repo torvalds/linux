@@ -771,7 +771,6 @@ static struct inode *sel_make_inode(struct super_block *sb, int mode)
 	if (ret) {
 		ret->i_mode = mode;
 		ret->i_uid = ret->i_gid = 0;
-		ret->i_blksize = PAGE_CACHE_SIZE;
 		ret->i_blocks = 0;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 	}
@@ -1254,10 +1253,10 @@ static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inode->i_nlink++;
+	inc_nlink(inode);
 	d_add(dentry, inode);
 	/* bump link count on parent directory, too */
-	dir->i_nlink++;
+	inc_nlink(dir);
 out:
 	return ret;
 }

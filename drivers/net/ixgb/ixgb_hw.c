@@ -83,7 +83,7 @@ static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
 #endif
 
 	/* Delay a few ms just to allow the reset to complete */
-	msec_delay(IXGB_DELAY_AFTER_RESET);
+	msleep(IXGB_DELAY_AFTER_RESET);
 	ctrl_reg = IXGB_READ_REG(hw, CTRL0);
 #ifdef DBG
 	/* Make sure the self-clearing global reset bit did self clear */
@@ -133,7 +133,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	 */
 	IXGB_WRITE_REG(hw, RCTL, IXGB_READ_REG(hw, RCTL) & ~IXGB_RCTL_RXEN);
 	IXGB_WRITE_REG(hw, TCTL, IXGB_READ_REG(hw, TCTL) & ~IXGB_TCTL_TXEN);
-	msec_delay(IXGB_DELAY_BEFORE_RESET);
+	msleep(IXGB_DELAY_BEFORE_RESET);
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
 	 * transmit, receive, DMA, and link units.  It will not effect
@@ -236,6 +236,17 @@ ixgb_identify_phy(struct ixgb_hw *hw)
 		DEBUGOUT("Identified G6104 optics\n");
 		phy_type = ixgb_phy_type_g6104;
 		break;
+	case IXGB_DEVICE_ID_82597EX_CX4:
+		DEBUGOUT("Identified CX4\n");
+		xpak_vendor = ixgb_identify_xpak_vendor(hw);
+		if (xpak_vendor == ixgb_xpak_vendor_intel) {
+			DEBUGOUT("Identified TXN17201 optics\n");
+			phy_type = ixgb_phy_type_txn17201;
+		} else {
+			DEBUGOUT("Identified G6005 optics\n");
+			phy_type = ixgb_phy_type_g6005;
+		}
+		break;
 	default:
 		DEBUGOUT("Unknown physical layer module\n");
 		phy_type = ixgb_phy_type_unknown;
@@ -289,7 +300,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 #endif
 
 	/* Delay a few ms just to allow the reset to complete */
-	msec_delay(IXGB_DELAY_AFTER_EE_RESET);
+	msleep(IXGB_DELAY_AFTER_EE_RESET);
 
 	if (ixgb_get_eeprom_data(hw) == FALSE) {
 		return(FALSE);

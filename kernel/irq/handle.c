@@ -154,6 +154,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 	return retval;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 /**
  * __do_IRQ - original all in one highlevel IRQ handler
  * @irq:	the interrupt number
@@ -253,6 +254,7 @@ out:
 
 	return 1;
 }
+#endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 

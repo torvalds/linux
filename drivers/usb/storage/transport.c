@@ -294,11 +294,6 @@ static int interpret_urb_result(struct us_data *us, unsigned int pipe,
 			return USB_STOR_XFER_ERROR;
 		return USB_STOR_XFER_STALLED;
 
-	/* timeout or excessively long NAK */
-	case -ETIMEDOUT:
-		US_DEBUGP("-- timeout or NAK\n");
-		return USB_STOR_XFER_ERROR;
-
 	/* babble - the device tried to send more than we wanted to read */
 	case -EOVERFLOW:
 		US_DEBUGP("-- babble\n");

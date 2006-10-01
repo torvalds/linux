@@ -27,8 +27,6 @@ struct genl_family
 	struct list_head	family_list;	/* private */
 };
 
-#define GENL_ADMIN_PERM		0x01
-
 /**
  * struct genl_info - receiving information
  * @snd_seq: sending sequence number
@@ -133,11 +131,12 @@ static inline int genlmsg_cancel(struct sk_buff *skb, void *hdr)
  * @skb: netlink message as socket buffer
  * @pid: own netlink pid to avoid sending to yourself
  * @group: multicast group id
+ * @flags: allocation flags
  */
 static inline int genlmsg_multicast(struct sk_buff *skb, u32 pid,
-				    unsigned int group)
+				    unsigned int group, gfp_t flags)
 {
-	return nlmsg_multicast(genl_sock, skb, pid, group);
+	return nlmsg_multicast(genl_sock, skb, pid, group, flags);
 }
 
 /**
@@ -168,6 +167,24 @@ static inline int genlmsg_len(const struct genlmsghdr *gnlh)
 	struct nlmsghdr *nlh = (struct nlmsghdr *)((unsigned char *)gnlh -
 							NLMSG_HDRLEN);
 	return (nlh->nlmsg_len - GENL_HDRLEN - NLMSG_HDRLEN);
+}
+
+/**
+ * genlmsg_msg_size - length of genetlink message not including padding
+ * @payload: length of message payload
+ */
+static inline int genlmsg_msg_size(int payload)
+{
+	return GENL_HDRLEN + payload;
+}
+
+/**
+ * genlmsg_total_size - length of genetlink message including padding
+ * @payload: length of message payload
+ */
+static inline int genlmsg_total_size(int payload)
+{
+	return NLMSG_ALIGN(genlmsg_msg_size(payload));
 }
 
 #endif	/* __NET_GENERIC_NETLINK_H */

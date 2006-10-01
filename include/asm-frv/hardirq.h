@@ -26,5 +26,10 @@ typedef struct {
 #error SMP not available on FR-V
 #endif /* CONFIG_SMP */
 
+extern atomic_t irq_err_count;
+static inline void ack_bad_irq(int irq)
+{
+	atomic_inc(&irq_err_count);
+}
 
 #endif

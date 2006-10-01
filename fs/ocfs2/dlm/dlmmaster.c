@@ -740,6 +740,7 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
  */
 struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 					  const char *lockid,
+					  int namelen,
 					  int flags)
 {
 	struct dlm_lock_resource *tmpres=NULL, *res=NULL;
@@ -748,13 +749,12 @@ struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 	int blocked = 0;
 	int ret, nodenum;
 	struct dlm_node_iter iter;
-	unsigned int namelen, hash;
+	unsigned int hash;
 	int tries = 0;
 	int bit, wait_on_recovery = 0;
 
 	BUG_ON(!lockid);
 
-	namelen = strlen(lockid);
 	hash = dlm_lockid_hash(lockid, namelen);
 
 	mlog(0, "get lockres %s (len %d)\n", lockid, namelen);

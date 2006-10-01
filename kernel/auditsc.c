@@ -385,7 +385,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 			   logged upon error */
 			if (f->se_rule) {
 				if (need_sid) {
-					selinux_task_ctxid(tsk, &sid);
+					selinux_get_task_sid(tsk, &sid);
 					need_sid = 0;
 				}
 				result = selinux_audit_rule_match(sid, f->type,
@@ -817,6 +817,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
+
+	mutex_lock(&tty_mutex);
 	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
 		tty = tsk->signal->tty->name;
 	else
@@ -838,6 +840,9 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid, tty);
+
+	mutex_unlock(&tty_mutex);
+
 	audit_log_task_info(ab, tsk);
 	if (context->filterkey) {
 		audit_log_format(ab, " key=");
@@ -898,7 +903,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			if (axi->osid != 0) {
 				char *ctx = NULL;
 				u32 len;
-				if (selinux_ctxid_to_string(
+				if (selinux_sid_to_string(
 						axi->osid, &ctx, &len)) {
 					audit_log_format(ab, " osid=%u",
 							axi->osid);
@@ -1005,7 +1010,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		if (n->osid != 0) {
 			char *ctx = NULL;
 			u32 len;
-			if (selinux_ctxid_to_string(
+			if (selinux_sid_to_string(
 				n->osid, &ctx, &len)) {
 				audit_log_format(ab, " osid=%u", n->osid);
 				call_panic = 2;

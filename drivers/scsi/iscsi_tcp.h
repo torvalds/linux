@@ -31,26 +31,25 @@
 #define IN_PROGRESS_DDIGEST_RECV	0x3
 
 /* xmit state machine */
-#define	XMSTATE_IDLE			0x0
-#define	XMSTATE_R_HDR			0x1
-#define	XMSTATE_W_HDR			0x2
-#define	XMSTATE_IMM_HDR			0x4
-#define	XMSTATE_IMM_DATA		0x8
-#define	XMSTATE_UNS_INIT		0x10
-#define	XMSTATE_UNS_HDR			0x20
-#define	XMSTATE_UNS_DATA		0x40
-#define	XMSTATE_SOL_HDR			0x80
-#define	XMSTATE_SOL_DATA		0x100
-#define	XMSTATE_W_PAD			0x200
-#define XMSTATE_DATA_DIGEST		0x400
+#define XMSTATE_IDLE			0x0
+#define XMSTATE_R_HDR			0x1
+#define XMSTATE_W_HDR			0x2
+#define XMSTATE_IMM_HDR			0x4
+#define XMSTATE_IMM_DATA		0x8
+#define XMSTATE_UNS_INIT		0x10
+#define XMSTATE_UNS_HDR			0x20
+#define XMSTATE_UNS_DATA		0x40
+#define XMSTATE_SOL_HDR			0x80
+#define XMSTATE_SOL_DATA		0x100
+#define XMSTATE_W_PAD			0x200
+#define XMSTATE_W_RESEND_PAD		0x400
+#define XMSTATE_W_RESEND_DATA_DIGEST	0x800
 
-#define ISCSI_CONN_RCVBUF_MIN		262144
-#define ISCSI_CONN_SNDBUF_MIN		262144
 #define ISCSI_PAD_LEN			4
-#define ISCSI_R2T_MAX			16
 #define ISCSI_SG_TABLESIZE		SG_ALL
 #define ISCSI_TCP_MAX_CMD_LEN		16
 
+struct crypto_hash;
 struct socket;
 
 /* Socket connection recieve helper */
@@ -84,9 +83,6 @@ struct iscsi_tcp_conn {
 	/* iSCSI connection-wide sequencing */
 	int			hdr_size;	/* PDU header size */
 
-	struct crypto_tfm	*rx_tfm;	/* CRC32C (Rx) */
-	struct crypto_tfm	*data_rx_tfm;	/* CRC32C (Rx) for data */
-
 	/* control data */
 	struct iscsi_tcp_recv	in;		/* TCP receive context */
 	int			in_progress;	/* connection state machine */
@@ -96,9 +92,9 @@ struct iscsi_tcp_conn {
 	void			(*old_state_change)(struct sock *);
 	void			(*old_write_space)(struct sock *);
 
-	/* xmit */
-	struct crypto_tfm	*tx_tfm;	/* CRC32C (Tx) */
-	struct crypto_tfm	*data_tx_tfm;	/* CRC32C (Tx) for data */
+	/* data and header digests */
+	struct hash_desc	tx_hash;	/* CRC32C (Tx) */
+	struct hash_desc	rx_hash;	/* CRC32C (Rx) */
 
 	/* MIB custom statistics */
 	uint32_t		sendpage_failures_cnt;
@@ -157,19 +153,15 @@ struct iscsi_tcp_cmd_task {
 	struct scatterlist	*bad_sg;		/* assert statement */
 	int			sg_count;		/* SG's to process  */
 	uint32_t		exp_r2tsn;
-	int			r2t_data_count;		/* R2T Data-Out bytes */
 	int			data_offset;
 	struct iscsi_r2t_info	*r2t;			/* in progress R2T    */
 	struct iscsi_queue	r2tpool;
 	struct kfifo		*r2tqueue;
 	struct iscsi_r2t_info	**r2ts;
-	uint32_t		datadigest;		/* for recover digest */
 	int			digest_count;
 	uint32_t		immdigest;		/* for imm data */
 	struct iscsi_buf	immbuf;			/* for imm data digest */
-	struct iscsi_data_task	*dtask;		/* data task in progress*/
 	struct iscsi_data_task	unsol_dtask;	/* unsol data task */
-	int			digest_offset;	/* for partial buff digest */
 };
 
 #endif /* ISCSI_H */

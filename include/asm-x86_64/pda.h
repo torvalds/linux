@@ -9,20 +9,24 @@
 
 /* Per processor datastructure. %gs points to it while the kernel runs */ 
 struct x8664_pda {
-	struct task_struct *pcurrent;	/* Current process */
-	unsigned long data_offset;	/* Per cpu data offset from linker address */
-	unsigned long kernelstack;  /* top of kernel stack for current */ 
-	unsigned long oldrsp; 	    /* user rsp for system call */
-#if DEBUG_STKSZ > EXCEPTION_STKSZ
-	unsigned long debugstack;   /* #DB/#BP stack. */
+	struct task_struct *pcurrent;	/* 0  Current process */
+	unsigned long data_offset;	/* 8 Per cpu data offset from linker
+					   address */
+	unsigned long kernelstack;  /* 16 top of kernel stack for current */
+	unsigned long oldrsp; 	    /* 24 user rsp for system call */
+        int irqcount;		    /* 32 Irq nesting counter. Starts with -1 */
+	int cpunumber;		    /* 36 Logical CPU number */
+#ifdef CONFIG_CC_STACKPROTECTOR
+	unsigned long stack_canary;	/* 40 stack canary value */
+					/* gcc-ABI: this canary MUST be at
+					   offset 40!!! */
 #endif
-        int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
-	int cpunumber;		    /* Logical CPU number */
-	char *irqstackptr;	/* top of irqstack */
+	char *irqstackptr;
 	int nodenumber;		    /* number of current node */
 	unsigned int __softirq_pending;
 	unsigned int __nmi_count;	/* number of NMI on this CPUs */
-	int mmu_state;     
+	short mmu_state;
+	short isidle;
 	struct mm_struct *active_mm;
 	unsigned apic_timer_irqs;
 } ____cacheline_aligned_in_smp;
@@ -36,43 +40,68 @@ extern struct x8664_pda boot_cpu_pda[];
  * There is no fast way to get the base address of the PDA, all the accesses
  * have to mention %fs/%gs.  So it needs to be done this Torvaldian way.
  */ 
-#define sizeof_field(type,field)  (sizeof(((type *)0)->field))
-#define typeof_field(type,field)  typeof(((type *)0)->field)
+extern void __bad_pda_field(void) __attribute__((noreturn));
 
-extern void __bad_pda_field(void);
+/*
+ * proxy_pda doesn't actually exist, but tell gcc it is accessed for
+ * all PDA accesses so it gets read/write dependencies right.
+ */
+extern struct x8664_pda _proxy_pda;
 
 #define pda_offset(field) offsetof(struct x8664_pda, field)
 
-#define pda_to_op(op,field,val) do { \
-	typedef typeof_field(struct x8664_pda, field) T__; \
-       switch (sizeof_field(struct x8664_pda, field)) { 		\
-case 2: \
-asm volatile(op "w %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
-case 4: \
-asm volatile(op "l %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
-case 8: \
-asm volatile(op "q %0,%%gs:%P1"::"ri" ((T__)val),"i"(pda_offset(field)):"memory"); break; \
-       default: __bad_pda_field(); 					\
-       } \
+#define pda_to_op(op,field,val) do {		\
+	typedef typeof(_proxy_pda.field) T__;	\
+	if (0) { T__ tmp__; tmp__ = (val); }	/* type checking */ \
+	switch (sizeof(_proxy_pda.field)) {	\
+	case 2:					\
+		asm(op "w %1,%%gs:%c2" : 	\
+		    "+m" (_proxy_pda.field) :	\
+		    "ri" ((T__)val),		\
+		    "i"(pda_offset(field))); 	\
+ 		break;				\
+	case 4:					\
+		asm(op "l %1,%%gs:%c2" : 	\
+		    "+m" (_proxy_pda.field) :	\
+		    "ri" ((T__)val),		\
+		    "i" (pda_offset(field))); 	\
+		break;				\
+	case 8:					\
+		asm(op "q %1,%%gs:%c2": 	\
+		    "+m" (_proxy_pda.field) :	\
+		    "ri" ((T__)val),		\
+		    "i"(pda_offset(field))); 	\
+		break;				\
+       default: 				\
+		__bad_pda_field();		\
+       }					\
        } while (0)
 
-/* 
- * AK: PDA read accesses should be neither volatile nor have an memory clobber.
- * Unfortunately removing them causes all hell to break lose currently.
- */
-#define pda_from_op(op,field) ({ \
-       typeof_field(struct x8664_pda, field) ret__; \
-       switch (sizeof_field(struct x8664_pda, field)) { 		\
-case 2: \
-asm volatile(op "w %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
-case 4: \
-asm volatile(op "l %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
-case 8: \
-asm volatile(op "q %%gs:%P1,%0":"=r" (ret__):"i"(pda_offset(field)):"memory"); break;\
-       default: __bad_pda_field(); 					\
-       } \
+#define pda_from_op(op,field) ({		\
+	typeof(_proxy_pda.field) ret__;		\
+	switch (sizeof(_proxy_pda.field)) {	\
+       	case 2:					\
+		asm(op "w %%gs:%c1,%0" : 	\
+		    "=r" (ret__) :		\
+		    "i" (pda_offset(field)), 	\
+		    "m" (_proxy_pda.field)); 	\
+		 break;				\
+	case 4:					\
+		asm(op "l %%gs:%c1,%0":		\
+		    "=r" (ret__):		\
+		    "i" (pda_offset(field)), 	\
+		    "m" (_proxy_pda.field)); 	\
+		 break;				\
+       case 8:					\
+		asm(op "q %%gs:%c1,%0":		\
+		    "=r" (ret__) :		\
+		    "i" (pda_offset(field)), 	\
+		    "m" (_proxy_pda.field)); 	\
+		 break;				\
+       default: 				\
+		__bad_pda_field();		\
+       }					\
        ret__; })
-
 
 #define read_pda(field) pda_from_op("mov",field)
 #define write_pda(field,val) pda_to_op("mov",field,val)

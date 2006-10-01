@@ -518,13 +518,13 @@ static int keyspan_pda_write(struct usb_serial_port *port,
 	   the TX urb is in-flight (wait until it completes)
 	   the device is full (wait until it says there is room)
 	*/
-	spin_lock(&port->lock);
+	spin_lock_bh(&port->lock);
 	if (port->write_urb_busy || priv->tx_throttled) {
-		spin_unlock(&port->lock);
+		spin_unlock_bh(&port->lock);
 		return 0;
 	}
 	port->write_urb_busy = 1;
-	spin_unlock(&port->lock);
+	spin_unlock_bh(&port->lock);
 
 	/* At this point the URB is in our control, nobody else can submit it
 	   again (the only sudden transition was the one from EINPROGRESS to

@@ -150,6 +150,8 @@ enum
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
 	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
 	KERN_MAX_LOCK_DEPTH=74,
+	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
+	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
 };
 
 
@@ -191,6 +193,7 @@ enum
 	VM_MIN_UNMAPPED=32,	/* Set min percent of unmapped pages */
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
+	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
 };
 
 
@@ -411,6 +414,10 @@ enum
 	NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS=115,
 	NET_TCP_DMA_COPYBREAK=116,
 	NET_TCP_SLOW_START_AFTER_IDLE=117,
+	NET_CIPSOV4_CACHE_ENABLE=118,
+	NET_CIPSOV4_CACHE_BUCKET_SIZE=119,
+	NET_CIPSOV4_RBM_OPTFMT=120,
+	NET_CIPSOV4_RBM_STRICTVALID=121,
 };
 
 enum {
@@ -552,6 +559,7 @@ enum {
 	NET_IPV6_ACCEPT_RA_RTR_PREF=20,
 	NET_IPV6_RTR_PROBE_INTERVAL=21,
 	NET_IPV6_ACCEPT_RA_RT_INFO_MAX_PLEN=22,
+	NET_IPV6_PROXY_NDP=23,
 	__NET_IPV6_MAX
 };
 

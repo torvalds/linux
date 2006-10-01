@@ -189,7 +189,6 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 /* BB we could add a second check for a QFS Unix capability bit */
 /* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
     if ((pTcon->ses->capabilities & CAP_UNIX) && (CIFS_POSIX_EXTENSIONS &
@@ -199,7 +198,6 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
     /* Only need to call the old QFSInfo if failed
     on newer one */
     if(rc)
-#endif /* CIFS_EXPERIMENTAL */
 	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
 	/* Old Windows servers do not support level 103, retry with level 
@@ -255,7 +253,6 @@ cifs_alloc_inode(struct super_block *sb)
 	file data or metadata */
 	cifs_inode->clientCanCacheRead = FALSE;
 	cifs_inode->clientCanCacheAll = FALSE;
-	cifs_inode->vfs_inode.i_blksize = CIFS_MAX_MSGSIZE;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
@@ -483,25 +480,13 @@ cifs_get_sb(struct file_system_type *fs_type,
 	return simple_set_mnt(mnt, sb);
 }
 
-static ssize_t cifs_file_writev(struct file *file, const struct iovec *iov,
-				unsigned long nr_segs, loff_t *ppos)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	ssize_t written;
-
-	written = generic_file_writev(file, iov, nr_segs, ppos);
-	if (!CIFS_I(inode)->clientCanCacheAll)
-		filemap_fdatawrite(inode->i_mapping);
-	return written;
-}
-
-static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
-				   size_t count, loff_t pos)
+static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+				   unsigned long nr_segs, loff_t pos)
 {
 	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
 	ssize_t written;
 
-	written = generic_file_aio_write(iocb, buf, count, pos);
+	written = generic_file_aio_write(iocb, iov, nr_segs, pos);
 	if (!CIFS_I(inode)->clientCanCacheAll)
 		filemap_fdatawrite(inode->i_mapping);
 	return written;
@@ -580,8 +565,6 @@ struct inode_operations cifs_symlink_inode_ops = {
 const struct file_operations cifs_file_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
-	.readv = generic_file_readv,
-	.writev = cifs_file_writev,
 	.aio_read = generic_file_aio_read,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
@@ -623,8 +606,6 @@ const struct file_operations cifs_file_direct_ops = {
 const struct file_operations cifs_file_nobrl_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
-	.readv = generic_file_readv,
-	.writev = cifs_file_writev,
 	.aio_read = generic_file_aio_read,
 	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
@@ -701,8 +682,7 @@ cifs_init_inodecache(void)
 static void
 cifs_destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(cifs_inode_cachep))
-		printk(KERN_WARNING "cifs_inode_cache: error freeing\n");
+	kmem_cache_destroy(cifs_inode_cachep);
 }
 
 static int
@@ -780,13 +760,9 @@ static void
 cifs_destroy_request_bufs(void)
 {
 	mempool_destroy(cifs_req_poolp);
-	if (kmem_cache_destroy(cifs_req_cachep))
-		printk(KERN_WARNING
-		       "cifs_destroy_request_cache: error not all structures were freed\n");
+	kmem_cache_destroy(cifs_req_cachep);
 	mempool_destroy(cifs_sm_req_poolp);
-	if (kmem_cache_destroy(cifs_sm_req_cachep))
-		printk(KERN_WARNING
-		      "cifs_destroy_request_cache: cifs_small_rq free error\n");
+	kmem_cache_destroy(cifs_sm_req_cachep);
 }
 
 static int
@@ -821,13 +797,8 @@ static void
 cifs_destroy_mids(void)
 {
 	mempool_destroy(cifs_mid_poolp);
-	if (kmem_cache_destroy(cifs_mid_cachep))
-		printk(KERN_WARNING
-		       "cifs_destroy_mids: error not all structures were freed\n");
-
-	if (kmem_cache_destroy(cifs_oplock_cachep))
-		printk(KERN_WARNING
-		       "error not all oplock structures were freed\n");
+	kmem_cache_destroy(cifs_mid_cachep);
+	kmem_cache_destroy(cifs_oplock_cachep);
 }
 
 static int cifs_oplock_thread(void * dummyarg)

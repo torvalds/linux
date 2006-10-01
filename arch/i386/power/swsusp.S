@@ -32,7 +32,7 @@ ENTRY(swsusp_arch_resume)
 	movl	$swsusp_pg_dir-__PAGE_OFFSET, %ecx
 	movl	%ecx, %cr3
 
-	movl	pagedir_nosave, %edx
+	movl	restore_pblist, %edx
 	.p2align 4,,7
 
 copy_loop:

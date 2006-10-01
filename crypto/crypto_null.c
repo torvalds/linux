@@ -48,7 +48,7 @@ static void null_final(struct crypto_tfm *tfm, u8 *out)
 { }
 
 static int null_setkey(struct crypto_tfm *tfm, const u8 *key,
-		       unsigned int keylen, u32 *flags)
+		       unsigned int keylen)
 { return 0; }
 
 static void null_crypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)

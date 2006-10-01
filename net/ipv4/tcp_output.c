@@ -43,24 +43,24 @@
 #include <linux/smp_lock.h>
 
 /* People can turn this off for buggy TCP's found in printers etc. */
-int sysctl_tcp_retrans_collapse = 1;
+int sysctl_tcp_retrans_collapse __read_mostly = 1;
 
 /* People can turn this on to  work with those rare, broken TCPs that
  * interpret the window field as a signed quantity.
  */
-int sysctl_tcp_workaround_signed_windows = 0;
+int sysctl_tcp_workaround_signed_windows __read_mostly = 0;
 
 /* This limits the percentage of the congestion window which we
  * will allow a single TSO frame to consume.  Building TSO frames
  * which are too large can cause TCP streams to be bursty.
  */
-int sysctl_tcp_tso_win_divisor = 3;
+int sysctl_tcp_tso_win_divisor __read_mostly = 3;
 
-int sysctl_tcp_mtu_probing = 0;
-int sysctl_tcp_base_mss = 512;
+int sysctl_tcp_mtu_probing __read_mostly = 0;
+int sysctl_tcp_base_mss __read_mostly = 512;
 
 /* By default, RFC2861 behavior.  */
-int sysctl_tcp_slow_start_after_idle = 1;
+int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)
@@ -269,7 +269,7 @@ static u16 tcp_select_window(struct sock *sk)
 	return new_win;
 }
 
-static void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock *tp,
+static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp)
 {
 	if (tp->rx_opt.tstamp_ok) {
@@ -305,7 +305,7 @@ static void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock *tp,
  * MAX_SYN_SIZE to match the new maximum number of options that you
  * can generate.
  */
-static void tcp_syn_build_options(__u32 *ptr, int mss, int ts, int sack,
+static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 				  int offer_wscale, int wscale, __u32 tstamp,
 				  __u32 ts_recent)
 {
@@ -424,7 +424,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	th->dest		= inet->dport;
 	th->seq			= htonl(tcb->seq);
 	th->ack_seq		= htonl(tp->rcv_nxt);
-	*(((__u16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
+	*(((__be16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
 					tcb->flags);
 
 	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
@@ -445,7 +445,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	}
 
 	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
-		tcp_syn_build_options((__u32 *)(th + 1),
+		tcp_syn_build_options((__be32 *)(th + 1),
 				      tcp_advertise_mss(sk),
 				      (sysctl_flags & SYSCTL_FLAG_TSTAMPS),
 				      (sysctl_flags & SYSCTL_FLAG_SACK),
@@ -454,7 +454,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 				      tcb->when,
 				      tp->rx_opt.ts_recent);
 	} else {
-		tcp_build_and_update_options((__u32 *)(th + 1),
+		tcp_build_and_update_options((__be32 *)(th + 1),
 					     tp, tcb->when);
 		TCP_ECN_send(sk, tp, skb, tcp_header_size);
 	}
@@ -577,7 +577,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked;
 	TCP_SKB_CB(skb)->sacked &= ~TCPCB_AT_TAIL;
 
-	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_HW) {
+	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_PARTIAL) {
 		/* Copy and checksum data tail into the new buffer. */
 		buff->csum = csum_partial_copy_nocheck(skb->data + len, skb_put(buff, nsize),
 						       nsize, 0);
@@ -586,7 +586,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 
 		skb->csum = csum_block_sub(skb->csum, buff->csum, len);
 	} else {
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb_split(skb, buff, len);
 	}
 
@@ -689,7 +689,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 		__pskb_trim_head(skb, len - skb_headlen(skb));
 
 	TCP_SKB_CB(skb)->seq += len;
-	skb->ip_summed = CHECKSUM_HW;
+	skb->ip_summed = CHECKSUM_PARTIAL;
 
 	skb->truesize	     -= len;
 	sk->sk_wmem_queued   -= len;
@@ -1062,7 +1062,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	/* This packet was never sent out yet, so no SACK bits. */
 	TCP_SKB_CB(buff)->sacked = 0;
 
-	buff->ip_summed = skb->ip_summed = CHECKSUM_HW;
+	buff->ip_summed = skb->ip_summed = CHECKSUM_PARTIAL;
 	skb_split(skb, buff, len);
 
 	/* Fix up tso_factor for both original and new SKB.  */
@@ -1206,8 +1206,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	TCP_SKB_CB(nskb)->flags = TCPCB_FLAG_ACK;
 	TCP_SKB_CB(nskb)->sacked = 0;
 	nskb->csum = 0;
-	if (skb->ip_summed == CHECKSUM_HW)
-		nskb->ip_summed = CHECKSUM_HW;
+	nskb->ip_summed = skb->ip_summed;
 
 	len = 0;
 	while (len < probe_size) {
@@ -1231,7 +1230,7 @@ static int tcp_mtu_probe(struct sock *sk)
 			                           ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
 			if (!skb_shinfo(skb)->nr_frags) {
 				skb_pull(skb, copy);
-				if (skb->ip_summed != CHECKSUM_HW)
+				if (skb->ip_summed != CHECKSUM_PARTIAL)
 					skb->csum = csum_partial(skb->data, skb->len, 0);
 			} else {
 				__pskb_trim_head(skb, copy);
@@ -1572,10 +1571,9 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 
 		memcpy(skb_put(skb, next_skb_size), next_skb->data, next_skb_size);
 
-		if (next_skb->ip_summed == CHECKSUM_HW)
-			skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = next_skb->ip_summed;
 
-		if (skb->ip_summed != CHECKSUM_HW)
+		if (skb->ip_summed != CHECKSUM_PARTIAL)
 			skb->csum = csum_block_add(skb->csum, next_skb->csum, skb_size);
 
 		/* Update sequence range on original skb. */
@@ -2072,7 +2070,7 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	th->window = htons(req->rcv_wnd);
 
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	tcp_syn_build_options((__u32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
+	tcp_syn_build_options((__be32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
 			      ireq->sack_ok, ireq->wscale_ok, ireq->rcv_wscale,
 			      TCP_SKB_CB(skb)->when,
 			      req->ts_recent);

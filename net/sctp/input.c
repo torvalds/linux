@@ -218,17 +218,11 @@ int sctp_rcv(struct sk_buff *skb)
 		}
 	}
 
-	/* SCTP seems to always need a timestamp right now (FIXME) */
-	if (skb->tstamp.off_sec == 0) {
-		__net_timestamp(skb);
-		sock_enable_timestamp(sk); 
-	}
-
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
 		goto discard_release;
 	nf_reset(skb);
 
-	if (sk_filter(sk, skb, 1))
+	if (sk_filter(sk, skb))
                 goto discard_release;
 
 	/* Create an SCTP packet structure. */
@@ -255,10 +249,13 @@ int sctp_rcv(struct sk_buff *skb)
 	 */
 	sctp_bh_lock_sock(sk);
 
-	if (sock_owned_by_user(sk))
+	if (sock_owned_by_user(sk)) {
+		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_BACKLOG);
 		sctp_add_backlog(sk, skb);
-	else
+	} else {
+		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_SOFTIRQ);
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
+	}
 
 	sctp_bh_unlock_sock(sk);
 
@@ -271,6 +268,7 @@ int sctp_rcv(struct sk_buff *skb)
 	return 0;
 
 discard_it:
+	SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_DISCARDS);
 	kfree_skb(skb);
 	return 0;
 
@@ -384,7 +382,7 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			 * pmtu discovery on this transport.
 			 */
 			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-			t->param_flags = (t->param_flags & ~SPP_HB) |
+			t->param_flags = (t->param_flags & ~SPP_PMTUD) |
 				SPP_PMTUD_DISABLE;
 		} else {
 			t->pathmtu = pmtu;

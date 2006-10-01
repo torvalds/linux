@@ -46,6 +46,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "dcache.h"
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "heartbeat.h"
@@ -66,78 +67,161 @@ struct ocfs2_mask_waiter {
 	unsigned long		mw_goal;
 };
 
-static void ocfs2_inode_ast_func(void *opaque);
-static void ocfs2_inode_bast_func(void *opaque,
-				  int level);
-static void ocfs2_super_ast_func(void *opaque);
-static void ocfs2_super_bast_func(void *opaque,
-				  int level);
-static void ocfs2_rename_ast_func(void *opaque);
-static void ocfs2_rename_bast_func(void *opaque,
-				   int level);
+static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres);
+static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres);
 
-/* so far, all locks have gotten along with the same unlock ast */
-static void ocfs2_unlock_ast_func(void *opaque,
-				  enum dlm_status status);
-static int ocfs2_do_unblock_meta(struct inode *inode,
-				 int *requeue);
-static int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
-			      int *requeue);
-static int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
-			      int *requeue);
-static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
-			      int *requeue);
-static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
-				  int *requeue);
-typedef void (ocfs2_convert_worker_t)(struct ocfs2_lock_res *, int);
-static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
-				      struct ocfs2_lock_res *lockres,
-				      int *requeue,
-				      ocfs2_convert_worker_t *worker);
-
-struct ocfs2_lock_res_ops {
-	void (*ast)(void *);
-	void (*bast)(void *, int);
-	void (*unlock_ast)(void *, enum dlm_status);
-	int  (*unblock)(struct ocfs2_lock_res *, int *);
+/*
+ * Return value from ->downconvert_worker functions.
+ *
+ * These control the precise actions of ocfs2_unblock_lock()
+ * and ocfs2_process_blocked_lock()
+ *
+ */
+enum ocfs2_unblock_action {
+	UNBLOCK_CONTINUE	= 0, /* Continue downconvert */
+	UNBLOCK_CONTINUE_POST	= 1, /* Continue downconvert, fire
+				      * ->post_unlock callback */
+	UNBLOCK_STOP_POST	= 2, /* Do not downconvert, fire
+				      * ->post_unlock() callback. */
 };
 
+struct ocfs2_unblock_ctl {
+	int requeue;
+	enum ocfs2_unblock_action unblock_action;
+};
+
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level);
+static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres);
+
+static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
+				     int blocking);
+
+static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
+				       int blocking);
+
+static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
+				     struct ocfs2_lock_res *lockres);
+
+/*
+ * OCFS2 Lock Resource Operations
+ *
+ * These fine tune the behavior of the generic dlmglue locking infrastructure.
+ *
+ * The most basic of lock types can point ->l_priv to their respective
+ * struct ocfs2_super and allow the default actions to manage things.
+ *
+ * Right now, each lock type also needs to implement an init function,
+ * and trivial lock/unlock wrappers. ocfs2_simple_drop_lockres()
+ * should be called when the lock is no longer needed (i.e., object
+ * destruction time).
+ */
+struct ocfs2_lock_res_ops {
+	/*
+	 * Translate an ocfs2_lock_res * into an ocfs2_super *. Define
+	 * this callback if ->l_priv is not an ocfs2_super pointer
+	 */
+	struct ocfs2_super * (*get_osb)(struct ocfs2_lock_res *);
+
+	/*
+	 * Optionally called in the downconvert (or "vote") thread
+	 * after a successful downconvert. The lockres will not be
+	 * referenced after this callback is called, so it is safe to
+	 * free memory, etc.
+	 *
+	 * The exact semantics of when this is called are controlled
+	 * by ->downconvert_worker()
+	 */
+	void (*post_unlock)(struct ocfs2_super *, struct ocfs2_lock_res *);
+
+	/*
+	 * Allow a lock type to add checks to determine whether it is
+	 * safe to downconvert a lock. Return 0 to re-queue the
+	 * downconvert at a later time, nonzero to continue.
+	 *
+	 * For most locks, the default checks that there are no
+	 * incompatible holders are sufficient.
+	 *
+	 * Called with the lockres spinlock held.
+	 */
+	int (*check_downconvert)(struct ocfs2_lock_res *, int);
+
+	/*
+	 * Allows a lock type to populate the lock value block. This
+	 * is called on downconvert, and when we drop a lock.
+	 *
+	 * Locks that want to use this should set LOCK_TYPE_USES_LVB
+	 * in the flags field.
+	 *
+	 * Called with the lockres spinlock held.
+	 */
+	void (*set_lvb)(struct ocfs2_lock_res *);
+
+	/*
+	 * Called from the downconvert thread when it is determined
+	 * that a lock will be downconverted. This is called without
+	 * any locks held so the function can do work that might
+	 * schedule (syncing out data, etc).
+	 *
+	 * This should return any one of the ocfs2_unblock_action
+	 * values, depending on what it wants the thread to do.
+	 */
+	int (*downconvert_worker)(struct ocfs2_lock_res *, int);
+
+	/*
+	 * LOCK_TYPE_* flags which describe the specific requirements
+	 * of a lock type. Descriptions of each individual flag follow.
+	 */
+	int flags;
+};
+
+/*
+ * Some locks want to "refresh" potentially stale data when a
+ * meaningful (PRMODE or EXMODE) lock level is first obtained. If this
+ * flag is set, the OCFS2_LOCK_NEEDS_REFRESH flag will be set on the
+ * individual lockres l_flags member from the ast function. It is
+ * expected that the locking wrapper will clear the
+ * OCFS2_LOCK_NEEDS_REFRESH flag when done.
+ */
+#define LOCK_TYPE_REQUIRES_REFRESH 0x1
+
+/*
+ * Indicate that a lock type makes use of the lock value block. The
+ * ->set_lvb lock type callback must be defined.
+ */
+#define LOCK_TYPE_USES_LVB		0x2
+
 static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
-	.ast		= ocfs2_inode_ast_func,
-	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
-	.unblock	= ocfs2_unblock_inode_lock,
+	.get_osb	= ocfs2_get_inode_osb,
+	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_inode_meta_lops = {
-	.ast		= ocfs2_inode_ast_func,
-	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
-	.unblock	= ocfs2_unblock_meta,
+	.get_osb	= ocfs2_get_inode_osb,
+	.check_downconvert = ocfs2_check_meta_downconvert,
+	.set_lvb	= ocfs2_set_meta_lvb,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
-static void ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
-				      int blocking);
-
 static struct ocfs2_lock_res_ops ocfs2_inode_data_lops = {
-	.ast		= ocfs2_inode_ast_func,
-	.bast		= ocfs2_inode_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
-	.unblock	= ocfs2_unblock_data,
+	.get_osb	= ocfs2_get_inode_osb,
+	.downconvert_worker = ocfs2_data_convert_worker,
+	.flags		= 0,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_super_lops = {
-	.ast		= ocfs2_super_ast_func,
-	.bast		= ocfs2_super_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
-	.unblock	= ocfs2_unblock_osb_lock,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
 static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
-	.ast		= ocfs2_rename_ast_func,
-	.bast		= ocfs2_rename_bast_func,
-	.unlock_ast	= ocfs2_unlock_ast_func,
-	.unblock	= ocfs2_unblock_osb_lock,
+	.flags		= 0,
+};
+
+static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
+	.get_osb	= ocfs2_get_dentry_osb,
+	.post_unlock	= ocfs2_dentry_post_unlock,
+	.downconvert_worker = ocfs2_dentry_convert_worker,
+	.flags		= 0,
 };
 
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
@@ -147,29 +231,26 @@ static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 		lockres->l_type == OCFS2_LOCK_TYPE_RW;
 }
 
-static inline int ocfs2_is_super_lock(struct ocfs2_lock_res *lockres)
-{
-	return lockres->l_type == OCFS2_LOCK_TYPE_SUPER;
-}
-
-static inline int ocfs2_is_rename_lock(struct ocfs2_lock_res *lockres)
-{
-	return lockres->l_type == OCFS2_LOCK_TYPE_RENAME;
-}
-
-static inline struct ocfs2_super *ocfs2_lock_res_super(struct ocfs2_lock_res *lockres)
-{
-	BUG_ON(!ocfs2_is_super_lock(lockres)
-	       && !ocfs2_is_rename_lock(lockres));
-
-	return (struct ocfs2_super *) lockres->l_priv;
-}
-
 static inline struct inode *ocfs2_lock_res_inode(struct ocfs2_lock_res *lockres)
 {
 	BUG_ON(!ocfs2_is_inode_lock(lockres));
 
 	return (struct inode *) lockres->l_priv;
+}
+
+static inline struct ocfs2_dentry_lock *ocfs2_lock_res_dl(struct ocfs2_lock_res *lockres)
+{
+	BUG_ON(lockres->l_type != OCFS2_LOCK_TYPE_DENTRY);
+
+	return (struct ocfs2_dentry_lock *)lockres->l_priv;
+}
+
+static inline struct ocfs2_super *ocfs2_get_lockres_osb(struct ocfs2_lock_res *lockres)
+{
+	if (lockres->l_ops->get_osb)
+		return lockres->l_ops->get_osb(lockres);
+
+	return (struct ocfs2_super *)lockres->l_priv;
 }
 
 static int ocfs2_lock_create(struct ocfs2_super *osb,
@@ -200,25 +281,6 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 				  struct buffer_head **bh);
 static void ocfs2_drop_osb_locks(struct ocfs2_super *osb);
 static inline int ocfs2_highest_compat_lock_level(int level);
-static inline int ocfs2_can_downconvert_meta_lock(struct inode *inode,
-						  struct ocfs2_lock_res *lockres,
-						  int new_level);
-
-static char *ocfs2_lock_type_strings[] = {
-	[OCFS2_LOCK_TYPE_META] = "Meta",
-	[OCFS2_LOCK_TYPE_DATA] = "Data",
-	[OCFS2_LOCK_TYPE_SUPER] = "Super",
-	[OCFS2_LOCK_TYPE_RENAME] = "Rename",
-	/* Need to differntiate from [R]ename.. serializing writes is the
-	 * important job it does, anyway. */
-	[OCFS2_LOCK_TYPE_RW] = "Write/Read",
-};
-
-static char *ocfs2_lock_type_string(enum ocfs2_lock_type type)
-{
-	mlog_bug_on_msg(type >= OCFS2_NUM_LOCK_TYPES, "%d\n", type);
-	return ocfs2_lock_type_strings[type];
-}
 
 static void ocfs2_build_lock_name(enum ocfs2_lock_type type,
 				  u64 blkno,
@@ -265,13 +327,9 @@ static void ocfs2_remove_lockres_tracking(struct ocfs2_lock_res *res)
 static void ocfs2_lock_res_init_common(struct ocfs2_super *osb,
 				       struct ocfs2_lock_res *res,
 				       enum ocfs2_lock_type type,
-				       u64 blkno,
-				       u32 generation,
 				       struct ocfs2_lock_res_ops *ops,
 				       void *priv)
 {
-	ocfs2_build_lock_name(type, blkno, generation, res->l_name);
-
 	res->l_type          = type;
 	res->l_ops           = ops;
 	res->l_priv          = priv;
@@ -299,6 +357,7 @@ void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res)
 
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
+			       unsigned int generation,
 			       struct inode *inode)
 {
 	struct ocfs2_lock_res_ops *ops;
@@ -319,9 +378,73 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			break;
 	};
 
-	ocfs2_lock_res_init_common(OCFS2_SB(inode->i_sb), res, type,
-				   OCFS2_I(inode)->ip_blkno,
-				   inode->i_generation, ops, inode);
+	ocfs2_build_lock_name(type, OCFS2_I(inode)->ip_blkno,
+			      generation, res->l_name);
+	ocfs2_lock_res_init_common(OCFS2_SB(inode->i_sb), res, type, ops, inode);
+}
+
+static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres)
+{
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+
+	return OCFS2_SB(inode->i_sb);
+}
+
+static __u64 ocfs2_get_dentry_lock_ino(struct ocfs2_lock_res *lockres)
+{
+	__be64 inode_blkno_be;
+
+	memcpy(&inode_blkno_be, &lockres->l_name[OCFS2_DENTRY_LOCK_INO_START],
+	       sizeof(__be64));
+
+	return be64_to_cpu(inode_blkno_be);
+}
+
+static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_dentry_lock *dl = lockres->l_priv;
+
+	return OCFS2_SB(dl->dl_inode->i_sb);
+}
+
+void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
+				u64 parent, struct inode *inode)
+{
+	int len;
+	u64 inode_blkno = OCFS2_I(inode)->ip_blkno;
+	__be64 inode_blkno_be = cpu_to_be64(inode_blkno);
+	struct ocfs2_lock_res *lockres = &dl->dl_lockres;
+
+	ocfs2_lock_res_init_once(lockres);
+
+	/*
+	 * Unfortunately, the standard lock naming scheme won't work
+	 * here because we have two 16 byte values to use. Instead,
+	 * we'll stuff the inode number as a binary value. We still
+	 * want error prints to show something without garbling the
+	 * display, so drop a null byte in there before the inode
+	 * number. A future version of OCFS2 will likely use all
+	 * binary lock names. The stringified names have been a
+	 * tremendous aid in debugging, but now that the debugfs
+	 * interface exists, we can mangle things there if need be.
+	 *
+	 * NOTE: We also drop the standard "pad" value (the total lock
+	 * name size stays the same though - the last part is all
+	 * zeros due to the memset in ocfs2_lock_res_init_once()
+	 */
+	len = snprintf(lockres->l_name, OCFS2_DENTRY_LOCK_INO_START,
+		       "%c%016llx",
+		       ocfs2_lock_type_char(OCFS2_LOCK_TYPE_DENTRY),
+		       (long long)parent);
+
+	BUG_ON(len != (OCFS2_DENTRY_LOCK_INO_START - 1));
+
+	memcpy(&lockres->l_name[OCFS2_DENTRY_LOCK_INO_START], &inode_blkno_be,
+	       sizeof(__be64));
+
+	ocfs2_lock_res_init_common(OCFS2_SB(inode->i_sb), lockres,
+				   OCFS2_LOCK_TYPE_DENTRY, &ocfs2_dentry_lops,
+				   dl);
 }
 
 static void ocfs2_super_lock_res_init(struct ocfs2_lock_res *res,
@@ -330,8 +453,9 @@ static void ocfs2_super_lock_res_init(struct ocfs2_lock_res *res,
 	/* Superblock lockres doesn't come from a slab so we call init
 	 * once on it manually.  */
 	ocfs2_lock_res_init_once(res);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_SUPER, OCFS2_SUPER_BLOCK_BLKNO,
+			      0, res->l_name);
 	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_SUPER,
-				   OCFS2_SUPER_BLOCK_BLKNO, 0,
 				   &ocfs2_super_lops, osb);
 }
 
@@ -341,7 +465,8 @@ static void ocfs2_rename_lock_res_init(struct ocfs2_lock_res *res,
 	/* Rename lockres doesn't come from a slab so we call init
 	 * once on it manually.  */
 	ocfs2_lock_res_init_once(res);
-	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_RENAME, 0, 0,
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_RENAME, 0, 0, res->l_name);
+	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_RENAME,
 				   &ocfs2_rename_lops, osb);
 }
 
@@ -495,7 +620,8 @@ static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lo
 	 * information is already up to data. Convert from NL to
 	 * *anything* however should mark ourselves as needing an
 	 * update */
-	if (lockres->l_level == LKM_NLMODE)
+	if (lockres->l_level == LKM_NLMODE &&
+	    lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
 		lockres_or_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	lockres->l_level = lockres->l_requested;
@@ -512,74 +638,13 @@ static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *loc
 	BUG_ON(lockres->l_flags & OCFS2_LOCK_ATTACHED);
 
 	if (lockres->l_requested > LKM_NLMODE &&
-	    !(lockres->l_flags & OCFS2_LOCK_LOCAL))
+	    !(lockres->l_flags & OCFS2_LOCK_LOCAL) &&
+	    lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
 		lockres_or_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	lockres->l_level = lockres->l_requested;
 	lockres_or_flags(lockres, OCFS2_LOCK_ATTACHED);
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_inode_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct inode *inode;
-	struct dlm_lockstatus *lksb;
-	unsigned long flags;
-
-	mlog_entry_void();
-
-	inode = ocfs2_lock_res_inode(lockres);
-
-	mlog(0, "AST fired for inode %llu, l_action = %u, type = %s\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, lockres->l_action,
-	     ocfs2_lock_type_string(lockres->l_type));
-
-	BUG_ON(!ocfs2_is_inode_lock(lockres));
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
-
-	lksb = &(lockres->l_lksb);
-	if (lksb->status != DLM_NORMAL) {
-		mlog(ML_ERROR, "ocfs2_inode_ast_func: lksb status value of %u "
-		     "on inode %llu\n", lksb->status,
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		mlog_exit_void();
-		return;
-	}
-
-	switch(lockres->l_action) {
-	case OCFS2_AST_ATTACH:
-		ocfs2_generic_handle_attach_action(lockres);
-		lockres_clear_flags(lockres, OCFS2_LOCK_LOCAL);
-		break;
-	case OCFS2_AST_CONVERT:
-		ocfs2_generic_handle_convert_action(lockres);
-		break;
-	case OCFS2_AST_DOWNCONVERT:
-		ocfs2_generic_handle_downconvert_action(lockres);
-		break;
-	default:
-		mlog(ML_ERROR, "lockres %s: ast fired with invalid action: %u "
-		     "lockres flags = 0x%lx, unlock action: %u\n",
-		     lockres->l_name, lockres->l_action, lockres->l_flags,
-		     lockres->l_unlock_action);
-
-		BUG();
-	}
-
-	/* data and rw locking ignores refresh flag for now. */
-	if (lockres->l_type != OCFS2_LOCK_TYPE_META)
-		lockres_clear_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
-
-	/* set it to something invalid so if we get called again we
-	 * can catch it. */
-	lockres->l_action = OCFS2_AST_INVALID;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	wake_up(&lockres->l_event);
 
 	mlog_exit_void();
 }
@@ -610,16 +675,18 @@ static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 	return needs_downconvert;
 }
 
-static void ocfs2_generic_bast_func(struct ocfs2_super *osb,
-				    struct ocfs2_lock_res *lockres,
-				    int level)
+static void ocfs2_blocking_ast(void *opaque, int level)
 {
+	struct ocfs2_lock_res *lockres = opaque;
+	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
 	int needs_downconvert;
 	unsigned long flags;
 
-	mlog_entry_void();
-
 	BUG_ON(level <= LKM_NLMODE);
+
+	mlog(0, "BAST fired for lockres %s, blocking %d, level %d type %s\n",
+	     lockres->l_name, level, lockres->l_level,
+	     ocfs2_lock_type_string(lockres->l_type));
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	needs_downconvert = ocfs2_generic_handle_bast(lockres, level);
@@ -627,37 +694,14 @@ static void ocfs2_generic_bast_func(struct ocfs2_super *osb,
 		ocfs2_schedule_blocked_lock(osb, lockres);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	ocfs2_kick_vote_thread(osb);
-
 	wake_up(&lockres->l_event);
-	mlog_exit_void();
+
+	ocfs2_kick_vote_thread(osb);
 }
 
-static void ocfs2_inode_bast_func(void *opaque, int level)
+static void ocfs2_locking_ast(void *opaque)
 {
 	struct ocfs2_lock_res *lockres = opaque;
-	struct inode *inode;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	BUG_ON(!ocfs2_is_inode_lock(lockres));
-
-	inode = ocfs2_lock_res_inode(lockres);
-	osb = OCFS2_SB(inode->i_sb);
-
-	mlog(0, "BAST fired for inode %llu, blocking %d, level %d type %s\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, level,
-	     lockres->l_level, ocfs2_lock_type_string(lockres->l_type));
-
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres,
-				   int ignore_refresh)
-{
 	struct dlm_lockstatus *lksb = &lockres->l_lksb;
 	unsigned long flags;
 
@@ -673,6 +717,7 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres,
 	switch(lockres->l_action) {
 	case OCFS2_AST_ATTACH:
 		ocfs2_generic_handle_attach_action(lockres);
+		lockres_clear_flags(lockres, OCFS2_LOCK_LOCAL);
 		break;
 	case OCFS2_AST_CONVERT:
 		ocfs2_generic_handle_convert_action(lockres);
@@ -681,80 +726,19 @@ static void ocfs2_generic_ast_func(struct ocfs2_lock_res *lockres,
 		ocfs2_generic_handle_downconvert_action(lockres);
 		break;
 	default:
+		mlog(ML_ERROR, "lockres %s: ast fired with invalid action: %u "
+		     "lockres flags = 0x%lx, unlock action: %u\n",
+		     lockres->l_name, lockres->l_action, lockres->l_flags,
+		     lockres->l_unlock_action);
 		BUG();
 	}
-
-	if (ignore_refresh)
-		lockres_clear_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	/* set it to something invalid so if we get called again we
 	 * can catch it. */
 	lockres->l_action = OCFS2_AST_INVALID;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	wake_up(&lockres->l_event);
-}
-
-static void ocfs2_super_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-
-	mlog_entry_void();
-	mlog(0, "Superblock AST fired\n");
-
-	BUG_ON(!ocfs2_is_super_lock(lockres));
-	ocfs2_generic_ast_func(lockres, 0);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_super_bast_func(void *opaque,
-				  int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-	mlog(0, "Superblock BAST fired\n");
-
-	BUG_ON(!ocfs2_is_super_lock(lockres));
-       	osb = ocfs2_lock_res_super(lockres);
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_rename_ast_func(void *opaque)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-
-	mlog_entry_void();
-
-	mlog(0, "Rename AST fired\n");
-
-	BUG_ON(!ocfs2_is_rename_lock(lockres));
-
-	ocfs2_generic_ast_func(lockres, 1);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_rename_bast_func(void *opaque,
-				   int level)
-{
-	struct ocfs2_lock_res *lockres = opaque;
-	struct ocfs2_super *osb;
-
-	mlog_entry_void();
-
-	mlog(0, "Rename BAST fired\n");
-
-	BUG_ON(!ocfs2_is_rename_lock(lockres));
-
-	osb = ocfs2_lock_res_super(lockres);
-	ocfs2_generic_bast_func(osb, lockres, level);
-
-	mlog_exit_void();
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
 }
 
 static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
@@ -810,9 +794,10 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			 &lockres->l_lksb,
 			 dlm_flags,
 			 lockres->l_name,
-			 lockres->l_ops->ast,
+			 OCFS2_LOCK_ID_MAX_LEN - 1,
+			 ocfs2_locking_ast,
 			 lockres,
-			 lockres->l_ops->bast);
+			 ocfs2_blocking_ast);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmlock", status, lockres);
 		ret = -EINVAL;
@@ -930,6 +915,9 @@ static int ocfs2_cluster_lock(struct ocfs2_super *osb,
 
 	ocfs2_init_mask_waiter(&mw);
 
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
+		lkm_flags |= LKM_VALBLK;
+
 again:
 	wait = 0;
 
@@ -997,11 +985,12 @@ again:
 		status = dlmlock(osb->dlm,
 				 level,
 				 &lockres->l_lksb,
-				 lkm_flags|LKM_CONVERT|LKM_VALBLK,
+				 lkm_flags|LKM_CONVERT,
 				 lockres->l_name,
-				 lockres->l_ops->ast,
+				 OCFS2_LOCK_ID_MAX_LEN - 1,
+				 ocfs2_locking_ast,
 				 lockres,
-				 lockres->l_ops->bast);
+				 ocfs2_blocking_ast);
 		if (status != DLM_NORMAL) {
 			if ((lkm_flags & LKM_NOQUEUE) &&
 			    (status == DLM_NOTQUEUED))
@@ -1074,18 +1063,21 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-static int ocfs2_create_new_inode_lock(struct inode *inode,
-				       struct ocfs2_lock_res *lockres)
+int ocfs2_create_new_lock(struct ocfs2_super *osb,
+			  struct ocfs2_lock_res *lockres,
+			  int ex,
+			  int local)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int level =  ex ? LKM_EXMODE : LKM_PRMODE;
 	unsigned long flags;
+	int lkm_flags = local ? LKM_LOCAL : 0;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	BUG_ON(lockres->l_flags & OCFS2_LOCK_ATTACHED);
 	lockres_or_flags(lockres, OCFS2_LOCK_LOCAL);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	return ocfs2_lock_create(osb, lockres, LKM_EXMODE, LKM_LOCAL);
+	return ocfs2_lock_create(osb, lockres, level, lkm_flags);
 }
 
 /* Grants us an EX lock on the data and metadata resources, skipping
@@ -1097,6 +1089,7 @@ static int ocfs2_create_new_inode_lock(struct inode *inode,
 int ocfs2_create_new_inode_locks(struct inode *inode)
 {
 	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	BUG_ON(!inode);
 	BUG_ON(!ocfs2_inode_is_new(inode));
@@ -1113,22 +1106,23 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 	 * on a resource which has an invalid one -- we'll set it
 	 * valid when we release the EX. */
 
-	ret = ocfs2_create_new_inode_lock(inode,
-					  &OCFS2_I(inode)->ip_rw_lockres);
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_rw_lockres, 1, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	ret = ocfs2_create_new_inode_lock(inode,
-					  &OCFS2_I(inode)->ip_meta_lockres);
+	/*
+	 * We don't want to use LKM_LOCAL on a meta data lock as they
+	 * don't use a generation in their lock names.
+	 */
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_meta_lockres, 1, 0);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
 	}
 
-	ret = ocfs2_create_new_inode_lock(inode,
-					  &OCFS2_I(inode)->ip_data_lockres);
+	ret = ocfs2_create_new_lock(osb, &OCFS2_I(inode)->ip_data_lockres, 1, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto bail;
@@ -1317,7 +1311,17 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 
 	lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
-	lvb->lvb_version   = cpu_to_be32(OCFS2_LVB_VERSION);
+	/*
+	 * Invalidate the LVB of a deleted inode - this way other
+	 * nodes are forced to go to disk and discover the new inode
+	 * status.
+	 */
+	if (oi->ip_flags & OCFS2_INODE_DELETED) {
+		lvb->lvb_version = 0;
+		goto out;
+	}
+
+	lvb->lvb_version   = OCFS2_LVB_VERSION;
 	lvb->lvb_isize	   = cpu_to_be64(i_size_read(inode));
 	lvb->lvb_iclusters = cpu_to_be32(oi->ip_clusters);
 	lvb->lvb_iuid      = cpu_to_be32(inode->i_uid);
@@ -1330,7 +1334,10 @@ static void __ocfs2_stuff_meta_lvb(struct inode *inode)
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_ctime));
 	lvb->lvb_imtime_packed =
 		cpu_to_be64(ocfs2_pack_timespec(&inode->i_mtime));
+	lvb->lvb_iattr    = cpu_to_be32(oi->ip_attr);
+	lvb->lvb_igeneration = cpu_to_be32(inode->i_generation);
 
+out:
 	mlog_meta_lvb(0, lockres);
 
 	mlog_exit_void();
@@ -1360,6 +1367,9 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	oi->ip_clusters = be32_to_cpu(lvb->lvb_iclusters);
 	i_size_write(inode, be64_to_cpu(lvb->lvb_isize));
 
+	oi->ip_attr = be32_to_cpu(lvb->lvb_iattr);
+	ocfs2_set_inode_flags(inode);
+
 	/* fast-symlinks are a special case */
 	if (S_ISLNK(inode->i_mode) && !oi->ip_clusters)
 		inode->i_blocks = 0;
@@ -1382,11 +1392,13 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	mlog_exit_void();
 }
 
-static inline int ocfs2_meta_lvb_is_trustable(struct ocfs2_lock_res *lockres)
+static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
+					      struct ocfs2_lock_res *lockres)
 {
 	struct ocfs2_meta_lvb *lvb = (struct ocfs2_meta_lvb *) lockres->l_lksb.lvb;
 
-	if (be32_to_cpu(lvb->lvb_version) == OCFS2_LVB_VERSION)
+	if (lvb->lvb_version == OCFS2_LVB_VERSION
+	    && be32_to_cpu(lvb->lvb_igeneration) == inode->i_generation)
 		return 1;
 	return 0;
 }
@@ -1483,7 +1495,7 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	 * map (directories, bitmap files, etc) */
 	ocfs2_extent_map_trunc(inode, 0);
 
-	if (ocfs2_meta_lvb_is_trustable(lockres)) {
+	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
@@ -1623,6 +1635,18 @@ int ocfs2_meta_lock_full(struct inode *inode,
 	if (!(arg_flags & OCFS2_META_LOCK_RECOVERY))
 		wait_event(osb->recovery_event,
 			   ocfs2_node_map_is_empty(osb, &osb->recovery_map));
+
+	/*
+	 * We only see this flag if we're being called from
+	 * ocfs2_read_locked_inode(). It means we're locking an inode
+	 * which hasn't been populated yet, so clear the refresh flag
+	 * and let the caller handle it.
+	 */
+	if (inode->i_state & I_NEW) {
+		status = 0;
+		ocfs2_complete_lock_res_refresh(lockres, 0);
+		goto bail;
+	}
 
 	/* This is fun. The caller may want a bh back, or it may
 	 * not. ocfs2_meta_lock_update definitely wants one in, but
@@ -1803,6 +1827,34 @@ void ocfs2_rename_unlock(struct ocfs2_super *osb)
 	ocfs2_cluster_unlock(osb, lockres, LKM_EXMODE);
 }
 
+int ocfs2_dentry_lock(struct dentry *dentry, int ex)
+{
+	int ret;
+	int level = ex ? LKM_EXMODE : LKM_PRMODE;
+	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
+	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
+
+	BUG_ON(!dl);
+
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	ret = ocfs2_cluster_lock(osb, &dl->dl_lockres, level, 0, 0);
+	if (ret < 0)
+		mlog_errno(ret);
+
+	return ret;
+}
+
+void ocfs2_dentry_unlock(struct dentry *dentry, int ex)
+{
+	int level = ex ? LKM_EXMODE : LKM_PRMODE;
+	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
+	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
+
+	ocfs2_cluster_unlock(osb, &dl->dl_lockres, level);
+}
+
 /* Reference counting of the dlm debug structure. We want this because
  * open references on the debug inodes can live on after a mount, so
  * we can't rely on the ocfs2_super to always exist. */
@@ -1933,9 +1985,16 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 	if (!lockres)
 		return -EINVAL;
 
-	seq_printf(m, "0x%x\t"
-		   "%.*s\t"
-		   "%d\t"
+	seq_printf(m, "0x%x\t", OCFS2_DLM_DEBUG_STR_VERSION);
+
+	if (lockres->l_type == OCFS2_LOCK_TYPE_DENTRY)
+		seq_printf(m, "%.*s%08x\t", OCFS2_DENTRY_LOCK_INO_START - 1,
+			   lockres->l_name,
+			   (unsigned int)ocfs2_get_dentry_lock_ino(lockres));
+	else
+		seq_printf(m, "%.*s\t", OCFS2_LOCK_ID_MAX_LEN, lockres->l_name);
+
+	seq_printf(m, "%d\t"
 		   "0x%lx\t"
 		   "0x%x\t"
 		   "0x%x\t"
@@ -1943,8 +2002,6 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   "%u\t"
 		   "%d\t"
 		   "%d\t",
-		   OCFS2_DLM_DEBUG_STR_VERSION,
-		   OCFS2_LOCK_ID_MAX_LEN, lockres->l_name,
 		   lockres->l_level,
 		   lockres->l_flags,
 		   lockres->l_action,
@@ -1995,7 +2052,7 @@ static int ocfs2_dlm_debug_open(struct inode *inode, struct file *file)
 		mlog_errno(ret);
 		goto out;
 	}
-	osb = (struct ocfs2_super *) inode->u.generic_ip;
+	osb = inode->i_private;
 	ocfs2_get_dlm_debug(osb->osb_dlm_debug);
 	priv->p_dlm_debug = osb->osb_dlm_debug;
 	INIT_LIST_HEAD(&priv->p_iter_res.l_debug_list);
@@ -2134,7 +2191,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb)
 	mlog_exit_void();
 }
 
-static void ocfs2_unlock_ast_func(void *opaque, enum dlm_status status)
+static void ocfs2_unlock_ast(void *opaque, enum dlm_status status)
 {
 	struct ocfs2_lock_res *lockres = opaque;
 	unsigned long flags;
@@ -2190,23 +2247,19 @@ complete_unlock:
 	mlog_exit_void();
 }
 
-typedef void (ocfs2_pre_drop_cb_t)(struct ocfs2_lock_res *, void *);
-
-struct drop_lock_cb {
-	ocfs2_pre_drop_cb_t	*drop_func;
-	void			*drop_data;
-};
-
 static int ocfs2_drop_lock(struct ocfs2_super *osb,
-			   struct ocfs2_lock_res *lockres,
-			   struct drop_lock_cb *dcb)
+			   struct ocfs2_lock_res *lockres)
 {
 	enum dlm_status status;
 	unsigned long flags;
+	int lkm_flags = 0;
 
 	/* We didn't get anywhere near actually using this lockres. */
 	if (!(lockres->l_flags & OCFS2_LOCK_INITIALIZED))
 		goto out;
+
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
+		lkm_flags |= LKM_VALBLK;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 
@@ -2230,8 +2283,12 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 		spin_lock_irqsave(&lockres->l_lock, flags);
 	}
 
-	if (dcb)
-		dcb->drop_func(lockres, dcb->drop_data);
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB) {
+		if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
+		    lockres->l_level == LKM_EXMODE &&
+		    !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
+			lockres->l_ops->set_lvb(lockres);
+	}
 
 	if (lockres->l_flags & OCFS2_LOCK_BUSY)
 		mlog(ML_ERROR, "destroying busy lock: \"%s\"\n",
@@ -2257,8 +2314,8 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 
 	mlog(0, "lock %s\n", lockres->l_name);
 
-	status = dlmunlock(osb->dlm, &lockres->l_lksb, LKM_VALBLK,
-			   lockres->l_ops->unlock_ast, lockres);
+	status = dlmunlock(osb->dlm, &lockres->l_lksb, lkm_flags,
+			   ocfs2_unlock_ast, lockres);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmunlock", status, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
@@ -2305,43 +2362,26 @@ void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres)
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 }
 
-static void ocfs2_drop_osb_locks(struct ocfs2_super *osb)
+void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
+			       struct ocfs2_lock_res *lockres)
 {
-	int status;
+	int ret;
 
-	mlog_entry_void();
-
-	ocfs2_mark_lockres_freeing(&osb->osb_super_lockres);
-
-	status = ocfs2_drop_lock(osb, &osb->osb_super_lockres, NULL);
-	if (status < 0)
-		mlog_errno(status);
-
-	ocfs2_mark_lockres_freeing(&osb->osb_rename_lockres);
-
-	status = ocfs2_drop_lock(osb, &osb->osb_rename_lockres, NULL);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog_exit(status);
+	ocfs2_mark_lockres_freeing(lockres);
+	ret = ocfs2_drop_lock(osb, lockres);
+	if (ret)
+		mlog_errno(ret);
 }
 
-static void ocfs2_meta_pre_drop(struct ocfs2_lock_res *lockres, void *data)
+static void ocfs2_drop_osb_locks(struct ocfs2_super *osb)
 {
-	struct inode *inode = data;
-
-	/* the metadata lock requires a bit more work as we have an
-	 * LVB to worry about. */
-	if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
-	    lockres->l_level == LKM_EXMODE &&
-	    !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
-		__ocfs2_stuff_meta_lvb(inode);
+	ocfs2_simple_drop_lockres(osb, &osb->osb_super_lockres);
+	ocfs2_simple_drop_lockres(osb, &osb->osb_rename_lockres);
 }
 
 int ocfs2_drop_inode_locks(struct inode *inode)
 {
 	int status, err;
-	struct drop_lock_cb meta_dcb = { ocfs2_meta_pre_drop, inode, };
 
 	mlog_entry_void();
 
@@ -2349,24 +2389,21 @@ int ocfs2_drop_inode_locks(struct inode *inode)
 	 * ocfs2_clear_inode has done it for us. */
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_data_lockres,
-			      NULL);
+			      &OCFS2_I(inode)->ip_data_lockres);
 	if (err < 0)
 		mlog_errno(err);
 
 	status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_meta_lockres,
-			      &meta_dcb);
+			      &OCFS2_I(inode)->ip_meta_lockres);
 	if (err < 0)
 		mlog_errno(err);
 	if (err < 0 && !status)
 		status = err;
 
 	err = ocfs2_drop_lock(OCFS2_SB(inode->i_sb),
-			      &OCFS2_I(inode)->ip_rw_lockres,
-			      NULL);
+			      &OCFS2_I(inode)->ip_rw_lockres);
 	if (err < 0)
 		mlog_errno(err);
 	if (err < 0 && !status)
@@ -2415,9 +2452,10 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 			 &lockres->l_lksb,
 			 dlm_flags,
 			 lockres->l_name,
-			 lockres->l_ops->ast,
+			 OCFS2_LOCK_ID_MAX_LEN - 1,
+			 ocfs2_locking_ast,
 			 lockres,
-			 lockres->l_ops->bast);
+			 ocfs2_blocking_ast);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmlock", status, lockres);
 		ret = -EINVAL;
@@ -2476,7 +2514,7 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	status = dlmunlock(osb->dlm,
 			   &lockres->l_lksb,
 			   LKM_CANCEL,
-			   lockres->l_ops->unlock_ast,
+			   ocfs2_unlock_ast,
 			   lockres);
 	if (status != DLM_NORMAL) {
 		ocfs2_log_dlm_error("dlmunlock", status, lockres);
@@ -2490,115 +2528,15 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	return ret;
 }
 
-static inline int ocfs2_can_downconvert_meta_lock(struct inode *inode,
-						  struct ocfs2_lock_res *lockres,
-						  int new_level)
-{
-	int ret;
-
-	mlog_entry_void();
-
-	BUG_ON(new_level != LKM_NLMODE && new_level != LKM_PRMODE);
-
-	if (lockres->l_flags & OCFS2_LOCK_REFRESHING) {
-		ret = 0;
-		mlog(0, "lockres %s currently being refreshed -- backing "
-		     "off!\n", lockres->l_name);
-	} else if (new_level == LKM_PRMODE)
-		ret = !lockres->l_ex_holders &&
-			ocfs2_inode_fully_checkpointed(inode);
-	else /* Must be NLMODE we're converting to. */
-		ret = !lockres->l_ro_holders && !lockres->l_ex_holders &&
-			ocfs2_inode_fully_checkpointed(inode);
-
-	mlog_exit(ret);
-	return ret;
-}
-
-static int ocfs2_do_unblock_meta(struct inode *inode,
-				 int *requeue)
-{
-	int new_level;
-	int set_lvb = 0;
-	int ret = 0;
-	struct ocfs2_lock_res *lockres = &OCFS2_I(inode)->ip_meta_lockres;
-	unsigned long flags;
-
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-
-	mlog_entry_void();
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
-
-	BUG_ON(!(lockres->l_flags & OCFS2_LOCK_BLOCKED));
-
-	mlog(0, "l_level=%d, l_blocking=%d\n", lockres->l_level,
-	     lockres->l_blocking);
-
-	BUG_ON(lockres->l_level != LKM_EXMODE &&
-	       lockres->l_level != LKM_PRMODE);
-
-	if (lockres->l_flags & OCFS2_LOCK_BUSY) {
-		*requeue = 1;
-		ret = ocfs2_prepare_cancel_convert(osb, lockres);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		if (ret) {
-			ret = ocfs2_cancel_convert(osb, lockres);
-			if (ret < 0)
-				mlog_errno(ret);
-		}
-		goto leave;
-	}
-
-	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
-
-	mlog(0, "l_level=%d, l_blocking=%d, new_level=%d\n",
-	     lockres->l_level, lockres->l_blocking, new_level);
-
-	if (ocfs2_can_downconvert_meta_lock(inode, lockres, new_level)) {
-		if (lockres->l_level == LKM_EXMODE)
-			set_lvb = 1;
-
-		/* If the lock hasn't been refreshed yet (rare), then
-		 * our memory inode values are old and we skip
-		 * stuffing the lvb. There's no need to actually clear
-		 * out the lvb here as it's value is still valid. */
-		if (!(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH)) {
-			if (set_lvb)
-				__ocfs2_stuff_meta_lvb(inode);
-		} else
-			mlog(0, "lockres %s: downconverting stale lock!\n",
-			     lockres->l_name);
-
-		mlog(0, "calling ocfs2_downconvert_lock with l_level=%d, "
-		     "l_blocking=%d, new_level=%d\n",
-		     lockres->l_level, lockres->l_blocking, new_level);
-
-		ocfs2_prepare_downconvert(lockres, new_level);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		ret = ocfs2_downconvert_lock(osb, lockres, new_level, set_lvb);
-		goto leave;
-	}
-	if (!ocfs2_inode_fully_checkpointed(inode))
-		ocfs2_start_checkpoint(osb);
-
-	*requeue = 1;
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	ret = 0;
-leave:
-	mlog_exit(ret);
-	return ret;
-}
-
-static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
-				      struct ocfs2_lock_res *lockres,
-				      int *requeue,
-				      ocfs2_convert_worker_t *worker)
+static int ocfs2_unblock_lock(struct ocfs2_super *osb,
+			      struct ocfs2_lock_res *lockres,
+			      struct ocfs2_unblock_ctl *ctl)
 {
 	unsigned long flags;
 	int blocking;
 	int new_level;
 	int ret = 0;
+	int set_lvb = 0;
 
 	mlog_entry_void();
 
@@ -2608,7 +2546,7 @@ static int ocfs2_generic_unblock_lock(struct ocfs2_super *osb,
 
 recheck:
 	if (lockres->l_flags & OCFS2_LOCK_BUSY) {
-		*requeue = 1;
+		ctl->requeue = 1;
 		ret = ocfs2_prepare_cancel_convert(osb, lockres);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
 		if (ret) {
@@ -2622,27 +2560,33 @@ recheck:
 	/* if we're blocking an exclusive and we have *any* holders,
 	 * then requeue. */
 	if ((lockres->l_blocking == LKM_EXMODE)
-	    && (lockres->l_ex_holders || lockres->l_ro_holders)) {
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		*requeue = 1;
-		ret = 0;
-		goto leave;
-	}
+	    && (lockres->l_ex_holders || lockres->l_ro_holders))
+		goto leave_requeue;
 
 	/* If it's a PR we're blocking, then only
 	 * requeue if we've got any EX holders */
 	if (lockres->l_blocking == LKM_PRMODE &&
-	    lockres->l_ex_holders) {
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		*requeue = 1;
-		ret = 0;
-		goto leave;
-	}
+	    lockres->l_ex_holders)
+		goto leave_requeue;
+
+	/*
+	 * Can we get a lock in this state if the holder counts are
+	 * zero? The meta data unblock code used to check this.
+	 */
+	if ((lockres->l_ops->flags & LOCK_TYPE_REQUIRES_REFRESH)
+	    && (lockres->l_flags & OCFS2_LOCK_REFRESHING))
+		goto leave_requeue;
+
+	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
+
+	if (lockres->l_ops->check_downconvert
+	    && !lockres->l_ops->check_downconvert(lockres, new_level))
+		goto leave_requeue;
 
 	/* If we get here, then we know that there are no more
 	 * incompatible holders (and anyone asking for an incompatible
 	 * lock is blocked). We can now downconvert the lock */
-	if (!worker)
+	if (!lockres->l_ops->downconvert_worker)
 		goto downconvert;
 
 	/* Some lockres types want to do a bit of work before
@@ -2652,7 +2596,10 @@ recheck:
 	blocking = lockres->l_blocking;
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	worker(lockres, blocking);
+	ctl->unblock_action = lockres->l_ops->downconvert_worker(lockres, blocking);
+
+	if (ctl->unblock_action == UNBLOCK_STOP_POST)
+		goto leave;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	if (blocking != lockres->l_blocking) {
@@ -2662,24 +2609,42 @@ recheck:
 	}
 
 downconvert:
-	*requeue = 0;
-	new_level = ocfs2_highest_compat_lock_level(lockres->l_blocking);
+	ctl->requeue = 0;
+
+	if (lockres->l_ops->flags & LOCK_TYPE_USES_LVB) {
+		if (lockres->l_level == LKM_EXMODE)
+			set_lvb = 1;
+
+		/*
+		 * We only set the lvb if the lock has been fully
+		 * refreshed - otherwise we risk setting stale
+		 * data. Otherwise, there's no need to actually clear
+		 * out the lvb here as it's value is still valid.
+		 */
+		if (set_lvb && !(lockres->l_flags & OCFS2_LOCK_NEEDS_REFRESH))
+			lockres->l_ops->set_lvb(lockres);
+	}
 
 	ocfs2_prepare_downconvert(lockres, new_level);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
-	ret = ocfs2_downconvert_lock(osb, lockres, new_level, 0);
+	ret = ocfs2_downconvert_lock(osb, lockres, new_level, set_lvb);
 leave:
 	mlog_exit(ret);
 	return ret;
+
+leave_requeue:
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
+	ctl->requeue = 1;
+
+	mlog_exit(0);
+	return 0;
 }
 
-static void ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
-				      int blocking)
+static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
+				     int blocking)
 {
 	struct inode *inode;
 	struct address_space *mapping;
-
-	mlog_entry_void();
 
        	inode = ocfs2_lock_res_inode(lockres);
 	mapping = inode->i_mapping;
@@ -2701,116 +2666,159 @@ static void ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 		filemap_fdatawait(mapping);
 	}
 
-	mlog_exit_void();
+	return UNBLOCK_CONTINUE;
 }
 
-int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
-		       int *requeue)
+static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
+					int new_level)
 {
-	int status;
-	struct inode *inode;
-	struct ocfs2_super *osb;
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
+	int checkpointed = ocfs2_inode_fully_checkpointed(inode);
 
-	mlog_entry_void();
+	BUG_ON(new_level != LKM_NLMODE && new_level != LKM_PRMODE);
+	BUG_ON(lockres->l_level != LKM_EXMODE && !checkpointed);
 
-	inode = ocfs2_lock_res_inode(lockres);
-	osb = OCFS2_SB(inode->i_sb);
+	if (checkpointed)
+		return 1;
 
-	mlog(0, "unblock inode %llu\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-
-	status = ocfs2_generic_unblock_lock(osb,
-					    lockres,
-					    requeue,
-					    ocfs2_data_convert_worker);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog(0, "inode %llu, requeue = %d\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, *requeue);
-
-	mlog_exit(status);
-	return status;
+	ocfs2_start_checkpoint(OCFS2_SB(inode->i_sb));
+	return 0;
 }
 
-static int ocfs2_unblock_inode_lock(struct ocfs2_lock_res *lockres,
-				    int *requeue)
+static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres)
 {
-	int status;
-	struct inode *inode;
+	struct inode *inode = ocfs2_lock_res_inode(lockres);
 
-	mlog_entry_void();
-
-	mlog(0, "Unblock lockres %s\n", lockres->l_name);
-
-	inode  = ocfs2_lock_res_inode(lockres);
-
-	status = ocfs2_generic_unblock_lock(OCFS2_SB(inode->i_sb),
-					    lockres,
-					    requeue,
-					    NULL);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog_exit(status);
-	return status;
+	__ocfs2_stuff_meta_lvb(inode);
 }
 
-
-int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
-		       int *requeue)
+/*
+ * Does the final reference drop on our dentry lock. Right now this
+ * happens in the vote thread, but we could choose to simplify the
+ * dlmglue API and push these off to the ocfs2_wq in the future.
+ */
+static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
+				     struct ocfs2_lock_res *lockres)
 {
-	int status;
-	struct inode *inode;
-
-	mlog_entry_void();
-
-       	inode = ocfs2_lock_res_inode(lockres);
-
-	mlog(0, "unblock inode %llu\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-
-	status = ocfs2_do_unblock_meta(inode, requeue);
-	if (status < 0)
-		mlog_errno(status);
-
-	mlog(0, "inode %llu, requeue = %d\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, *requeue);
-
-	mlog_exit(status);
-	return status;
+	struct ocfs2_dentry_lock *dl = ocfs2_lock_res_dl(lockres);
+	ocfs2_dentry_lock_put(osb, dl);
 }
 
-/* Generic unblock function for any lockres whose private data is an
- * ocfs2_super pointer. */
-static int ocfs2_unblock_osb_lock(struct ocfs2_lock_res *lockres,
-				  int *requeue)
+/*
+ * d_delete() matching dentries before the lock downconvert.
+ *
+ * At this point, any process waiting to destroy the
+ * dentry_lock due to last ref count is stopped by the
+ * OCFS2_LOCK_QUEUED flag.
+ *
+ * We have two potential problems
+ *
+ * 1) If we do the last reference drop on our dentry_lock (via dput)
+ *    we'll wind up in ocfs2_release_dentry_lock(), waiting on
+ *    the downconvert to finish. Instead we take an elevated
+ *    reference and push the drop until after we've completed our
+ *    unblock processing.
+ *
+ * 2) There might be another process with a final reference,
+ *    waiting on us to finish processing. If this is the case, we
+ *    detect it and exit out - there's no more dentries anyway.
+ */
+static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
+				       int blocking)
 {
-	int status;
-	struct ocfs2_super *osb;
+	struct ocfs2_dentry_lock *dl = ocfs2_lock_res_dl(lockres);
+	struct ocfs2_inode_info *oi = OCFS2_I(dl->dl_inode);
+	struct dentry *dentry;
+	unsigned long flags;
+	int extra_ref = 0;
 
-	mlog_entry_void();
+	/*
+	 * This node is blocking another node from getting a read
+	 * lock. This happens when we've renamed within a
+	 * directory. We've forced the other nodes to d_delete(), but
+	 * we never actually dropped our lock because it's still
+	 * valid. The downconvert code will retain a PR for this node,
+	 * so there's no further work to do.
+	 */
+	if (blocking == LKM_PRMODE)
+		return UNBLOCK_CONTINUE;
 
-	mlog(0, "Unblock lockres %s\n", lockres->l_name);
+	/*
+	 * Mark this inode as potentially orphaned. The code in
+	 * ocfs2_delete_inode() will figure out whether it actually
+	 * needs to be freed or not.
+	 */
+	spin_lock(&oi->ip_lock);
+	oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
+	spin_unlock(&oi->ip_lock);
 
-	osb = ocfs2_lock_res_super(lockres);
+	/*
+	 * Yuck. We need to make sure however that the check of
+	 * OCFS2_LOCK_FREEING and the extra reference are atomic with
+	 * respect to a reference decrement or the setting of that
+	 * flag.
+	 */
+	spin_lock_irqsave(&lockres->l_lock, flags);
+	spin_lock(&dentry_attach_lock);
+	if (!(lockres->l_flags & OCFS2_LOCK_FREEING)
+	    && dl->dl_count) {
+		dl->dl_count++;
+		extra_ref = 1;
+	}
+	spin_unlock(&dentry_attach_lock);
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	status = ocfs2_generic_unblock_lock(osb,
-					    lockres,
-					    requeue,
-					    NULL);
-	if (status < 0)
-		mlog_errno(status);
+	mlog(0, "extra_ref = %d\n", extra_ref);
 
-	mlog_exit(status);
-	return status;
+	/*
+	 * We have a process waiting on us in ocfs2_dentry_iput(),
+	 * which means we can't have any more outstanding
+	 * aliases. There's no need to do any more work.
+	 */
+	if (!extra_ref)
+		return UNBLOCK_CONTINUE;
+
+	spin_lock(&dentry_attach_lock);
+	while (1) {
+		dentry = ocfs2_find_local_alias(dl->dl_inode,
+						dl->dl_parent_blkno, 1);
+		if (!dentry)
+			break;
+		spin_unlock(&dentry_attach_lock);
+
+		mlog(0, "d_delete(%.*s);\n", dentry->d_name.len,
+		     dentry->d_name.name);
+
+		/*
+		 * The following dcache calls may do an
+		 * iput(). Normally we don't want that from the
+		 * downconverting thread, but in this case it's ok
+		 * because the requesting node already has an
+		 * exclusive lock on the inode, so it can't be queued
+		 * for a downconvert.
+		 */
+		d_delete(dentry);
+		dput(dentry);
+
+		spin_lock(&dentry_attach_lock);
+	}
+	spin_unlock(&dentry_attach_lock);
+
+	/*
+	 * If we are the last holder of this dentry lock, there is no
+	 * reason to downconvert so skip straight to the unlock.
+	 */
+	if (dl->dl_count == 1)
+		return UNBLOCK_STOP_POST;
+
+	return UNBLOCK_CONTINUE_POST;
 }
 
 void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 				struct ocfs2_lock_res *lockres)
 {
 	int status;
-	int requeue = 0;
+	struct ocfs2_unblock_ctl ctl = {0, 0,};
 	unsigned long flags;
 
 	/* Our reference to the lockres in this function can be
@@ -2821,7 +2829,6 @@ void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 
 	BUG_ON(!lockres);
 	BUG_ON(!lockres->l_ops);
-	BUG_ON(!lockres->l_ops->unblock);
 
 	mlog(0, "lockres %s blocked.\n", lockres->l_name);
 
@@ -2835,20 +2842,24 @@ void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 		goto unqueue;
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	status = lockres->l_ops->unblock(lockres, &requeue);
+	status = ocfs2_unblock_lock(osb, lockres, &ctl);
 	if (status < 0)
 		mlog_errno(status);
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 unqueue:
-	if (lockres->l_flags & OCFS2_LOCK_FREEING || !requeue) {
+	if (lockres->l_flags & OCFS2_LOCK_FREEING || !ctl.requeue) {
 		lockres_clear_flags(lockres, OCFS2_LOCK_QUEUED);
 	} else
 		ocfs2_schedule_blocked_lock(osb, lockres);
 
 	mlog(0, "lockres %s, requeue = %s.\n", lockres->l_name,
-	     requeue ? "yes" : "no");
+	     ctl.requeue ? "yes" : "no");
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
+
+	if (ctl.unblock_action != UNBLOCK_CONTINUE
+	    && lockres->l_ops->post_unlock)
+		lockres->l_ops->post_unlock(osb, lockres);
 
 	mlog_exit_void();
 }
@@ -2892,15 +2903,17 @@ void ocfs2_dump_meta_lvb_info(u64 level,
 
 	mlog(level, "LVB information for %s (called from %s:%u):\n",
 	     lockres->l_name, function, line);
-	mlog(level, "version: %u, clusters: %u\n",
-	     be32_to_cpu(lvb->lvb_version), be32_to_cpu(lvb->lvb_iclusters));
+	mlog(level, "version: %u, clusters: %u, generation: 0x%x\n",
+	     lvb->lvb_version, be32_to_cpu(lvb->lvb_iclusters),
+	     be32_to_cpu(lvb->lvb_igeneration));
 	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
 	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
 	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
 	     be16_to_cpu(lvb->lvb_imode));
 	mlog(level, "nlink %u, atime_packed 0x%llx, ctime_packed 0x%llx, "
-	     "mtime_packed 0x%llx\n", be16_to_cpu(lvb->lvb_inlink),
+	     "mtime_packed 0x%llx iattr 0x%x\n", be16_to_cpu(lvb->lvb_inlink),
 	     (long long)be64_to_cpu(lvb->lvb_iatime_packed),
 	     (long long)be64_to_cpu(lvb->lvb_ictime_packed),
-	     (long long)be64_to_cpu(lvb->lvb_imtime_packed));
+	     (long long)be64_to_cpu(lvb->lvb_imtime_packed),
+	     be32_to_cpu(lvb->lvb_iattr));
 }

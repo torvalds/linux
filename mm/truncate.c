@@ -9,12 +9,39 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
 				   do_invalidatepage */
 
+
+/**
+ * do_invalidatepage - invalidate part of all of a page
+ * @page: the page which is affected
+ * @offset: the index of the truncation point
+ *
+ * do_invalidatepage() is called when all or part of the page has become
+ * invalidated by a truncate operation.
+ *
+ * do_invalidatepage() does not have to release all buffers, but it must
+ * ensure that no dirty buffer is left outside @offset and that no I/O
+ * is underway against any of the blocks which are outside the truncation
+ * point.  Because the caller is about to free (and possibly reuse) those
+ * blocks on-disk.
+ */
+void do_invalidatepage(struct page *page, unsigned long offset)
+{
+	void (*invalidatepage)(struct page *, unsigned long);
+	invalidatepage = page->mapping->a_ops->invalidatepage;
+#ifdef CONFIG_BLOCK
+	if (!invalidatepage)
+		invalidatepage = block_invalidatepage;
+#endif
+	if (invalidatepage)
+		(*invalidatepage)(page, offset);
+}
 
 static inline void truncate_partial_page(struct page *page, unsigned partial)
 {
@@ -52,36 +79,26 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 /*
  * This is for invalidate_inode_pages().  That function can be called at
  * any time, and is not supposed to throw away dirty pages.  But pages can
- * be marked dirty at any time too.  So we re-check the dirtiness inside
- * ->tree_lock.  That provides exclusion against the __set_page_dirty
- * functions.
+ * be marked dirty at any time too, so use remove_mapping which safely
+ * discards clean, unused pages.
  *
  * Returns non-zero if the page was successfully invalidated.
  */
 static int
 invalidate_complete_page(struct address_space *mapping, struct page *page)
 {
+	int ret;
+
 	if (page->mapping != mapping)
 		return 0;
 
 	if (PagePrivate(page) && !try_to_release_page(page, 0))
 		return 0;
 
-	write_lock_irq(&mapping->tree_lock);
-	if (PageDirty(page))
-		goto failed;
-	if (page_count(page) != 2)	/* caller's ref + pagecache ref */
-		goto failed;
-
-	BUG_ON(PagePrivate(page));
-	__remove_from_page_cache(page);
-	write_unlock_irq(&mapping->tree_lock);
+	ret = remove_mapping(mapping, page);
 	ClearPageUptodate(page);
-	page_cache_release(page);	/* pagecache ref */
-	return 1;
-failed:
-	write_unlock_irq(&mapping->tree_lock);
-	return 0;
+
+	return ret;
 }
 
 /**
@@ -270,8 +287,38 @@ unsigned long invalidate_inode_pages(struct address_space *mapping)
 {
 	return invalidate_mapping_pages(mapping, 0, ~0UL);
 }
-
 EXPORT_SYMBOL(invalidate_inode_pages);
+
+/*
+ * This is like invalidate_complete_page(), except it ignores the page's
+ * refcount.  We do this because invalidate_inode_pages2() needs stronger
+ * invalidation guarantees, and cannot afford to leave pages behind because
+ * shrink_list() has a temp ref on them, or because they're transiently sitting
+ * in the lru_cache_add() pagevecs.
+ */
+static int
+invalidate_complete_page2(struct address_space *mapping, struct page *page)
+{
+	if (page->mapping != mapping)
+		return 0;
+
+	if (PagePrivate(page) && !try_to_release_page(page, 0))
+		return 0;
+
+	write_lock_irq(&mapping->tree_lock);
+	if (PageDirty(page))
+		goto failed;
+
+	BUG_ON(PagePrivate(page));
+	__remove_from_page_cache(page);
+	write_unlock_irq(&mapping->tree_lock);
+	ClearPageUptodate(page);
+	page_cache_release(page);	/* pagecache ref */
+	return 1;
+failed:
+	write_unlock_irq(&mapping->tree_lock);
+	return 0;
+}
 
 /**
  * invalidate_inode_pages2_range - remove range of pages from an address_space
@@ -339,7 +386,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 				}
 			}
 			was_dirty = test_clear_page_dirty(page);
-			if (!invalidate_complete_page(mapping, page)) {
+			if (!invalidate_complete_page2(mapping, page)) {
 				if (was_dirty)
 					set_page_dirty(page);
 				ret = -EIO;

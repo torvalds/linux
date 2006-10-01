@@ -194,7 +194,7 @@ static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (handle)
 		f->handle = handle;
 	else {
-		int i = 0x80000000;
+		unsigned int i = 0x80000000;
 		do {
 			if (++head->hgenerator == 0x7FFFFFFF)
 				head->hgenerator = 1;

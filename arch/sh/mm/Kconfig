@@ -20,7 +20,10 @@ config CPU_SH4
 config CPU_SH4A
 	bool
 	select CPU_SH4
-	select CPU_HAS_INTC2_IRQ
+
+config CPU_SH4AL_DSP
+	bool
+	select CPU_SH4A
 
 config CPU_SUBTYPE_ST40
 	bool
@@ -48,6 +51,12 @@ config CPU_SUBTYPE_SH7705
 	select CPU_SH3
 	select CPU_HAS_PINT_IRQ
 
+config CPU_SUBTYPE_SH7706
+	bool "Support SH7706 processor"
+	select CPU_SH3
+	help
+	  Select SH7706 if you have a 133 Mhz SH-3 HD6417706 CPU.
+
 config CPU_SUBTYPE_SH7707
 	bool "Support SH7707 processor"
 	select CPU_SH3
@@ -68,6 +77,12 @@ config CPU_SUBTYPE_SH7709
 	select CPU_HAS_PINT_IRQ
 	help
 	  Select SH7709 if you have a  80 Mhz SH-3 HD6417709 CPU.
+
+config CPU_SUBTYPE_SH7710
+	bool "Support SH7710 processor"
+	select CPU_SH3
+	help
+	  Select SH7710 if you have a SH3-DSP SH7710 CPU.
 
 comment "SH-4 Processor Support"
 
@@ -133,10 +148,6 @@ config CPU_SUBTYPE_ST40GX1
 
 comment "SH-4A Processor Support"
 
-config CPU_SUBTYPE_SH73180
-	bool "Support SH73180 processor"
-	select CPU_SH4A
-
 config CPU_SUBTYPE_SH7770
 	bool "Support SH7770 processor"
 	select CPU_SH4A
@@ -144,6 +155,17 @@ config CPU_SUBTYPE_SH7770
 config CPU_SUBTYPE_SH7780
 	bool "Support SH7780 processor"
 	select CPU_SH4A
+	select CPU_HAS_INTC2_IRQ
+
+comment "SH4AL-DSP Processor Support"
+
+config CPU_SUBTYPE_SH73180
+	bool "Support SH73180 processor"
+	select CPU_SH4AL_DSP
+
+config CPU_SUBTYPE_SH7343
+	bool "Support SH7343 processor"
+	select CPU_SH4AL_DSP
 
 endmenu
 
@@ -161,14 +183,58 @@ config MMU
 	  turning this off will boot the kernel on these machines with the
 	  MMU implicitly switched off.
 
+config PAGE_OFFSET
+	hex
+	default "0x80000000" if MMU
+	default "0x00000000"
+
+config MEMORY_START
+	hex "Physical memory start address"
+	default "0x08000000"
+	---help---
+	  Computers built with Hitachi SuperH processors always
+	  map the ROM starting at address zero.  But the processor
+	  does not specify the range that RAM takes.
+
+	  The physical memory (RAM) start address will be automatically
+	  set to 08000000. Other platforms, such as the Solution Engine
+	  boards typically map RAM at 0C000000.
+
+	  Tweak this only when porting to a new machine which does not
+	  already have a defconfig. Changing it from the known correct
+	  value on any of the known systems will only lead to disaster.
+
+config MEMORY_SIZE
+	hex "Physical memory size"
+	default "0x00400000"
+	help
+	  This sets the default memory size assumed by your SH kernel. It can
+	  be overridden as normal by the 'mem=' argument on the kernel command
+	  line. If unsure, consult your board specifications or just leave it
+	  as 0x00400000 which was the default value before this became
+	  configurable.
+
 config 32BIT
 	bool "Support 32-bit physical addressing through PMB"
-	depends on CPU_SH4A
+	depends on CPU_SH4A && MMU
 	default y
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
 	  29-bit physical addressing will be used.
+
+config VSYSCALL
+	bool "Support vsyscall page"
+	depends on MMU
+	default y
+	help
+	  This will enable support for the kernel mapping a vDSO page
+	  in process space, and subsequently handing down the entry point
+	  to the libc through the ELF auxiliary vector.
+
+	  From the kernel side this is used for the signal trampoline.
+	  For systems with an MMU that can afford to give up a page,
+	  (the default value) say Y.
 
 choice
 	prompt "HugeTLB page size"

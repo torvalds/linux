@@ -33,7 +33,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/ipv6/nf_conntrack_icmpv6.h>
 
-unsigned long nf_ct_icmpv6_timeout = 30*HZ;
+unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
 #if 0
 #define DEBUGP printk

@@ -417,6 +417,17 @@ config PPC_MAPLE
           This option enables support for the Maple 970FX Evaluation Board.
 	  For more informations, refer to <http://www.970eval.com>
 
+config PPC_PASEMI
+	depends on PPC_MULTIPLATFORM && PPC64
+	bool "PA Semi SoC-based platforms"
+	default n
+	select MPIC
+	select PPC_UDBG_16550
+	select GENERIC_TBSYNC
+	help
+	  This option enables support for PA Semi's PWRficient line
+	  of SoC processors, including PA6T-1682M
+
 config PPC_CELL
 	bool
 	default n
@@ -436,7 +447,8 @@ config PPC_IBM_CELL_BLADE
 	select UDBG_RTAS_CONSOLE
 
 config UDBG_RTAS_CONSOLE
-	bool
+	bool "RTAS based debug console"
+	depends on PPC_RTAS
 	default n
 
 config XICS
@@ -719,11 +731,10 @@ config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 	depends on SMP && PPC_PSERIES
 
-source "mm/Kconfig"
-
-config HAVE_ARCH_EARLY_PFN_TO_NID
+config ARCH_POPULATES_NODE_MAP
 	def_bool y
-	depends on NEED_MULTIPLE_NODES
+
+source "mm/Kconfig"
 
 config ARCH_MEMORY_PROBE
 	def_bool y

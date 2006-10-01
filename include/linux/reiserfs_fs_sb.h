@@ -267,7 +267,6 @@ struct reiserfs_bitmap_info {
 	// FIXME: Won't work with block sizes > 8K
 	__u16 first_zero_hint;
 	__u16 free_count;
-	struct buffer_head *bh;	/* the actual bitmap */
 };
 
 struct proc_dir_entry;
@@ -414,6 +413,7 @@ struct reiserfs_sb_info {
 /* Definitions of reiserfs on-disk properties: */
 #define REISERFS_3_5 0
 #define REISERFS_3_6 1
+#define REISERFS_OLD_FORMAT 2
 
 enum reiserfs_mount_options {
 /* Mount options */

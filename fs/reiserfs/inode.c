@@ -17,8 +17,6 @@
 #include <linux/writeback.h>
 #include <linux/quotaops.h>
 
-extern int reiserfs_default_io_size;	/* default io size devuned in super.c */
-
 static int reiserfs_commit_write(struct file *f, struct page *page,
 				 unsigned from, unsigned to);
 static int reiserfs_prepare_write(struct file *f, struct page *page,
@@ -1122,7 +1120,6 @@ static void init_inode(struct inode *inode, struct path *path)
 	ih = PATH_PITEM_HEAD(path);
 
 	copy_key(INODE_PKEY(inode), &(ih->ih_key));
-	inode->i_blksize = reiserfs_default_io_size;
 
 	INIT_LIST_HEAD(&(REISERFS_I(inode)->i_prealloc_list));
 	REISERFS_I(inode)->i_flags = 0;
@@ -1130,9 +1127,9 @@ static void init_inode(struct inode *inode, struct path *path)
 	REISERFS_I(inode)->i_prealloc_count = 0;
 	REISERFS_I(inode)->i_trans_id = 0;
 	REISERFS_I(inode)->i_jl = NULL;
-	REISERFS_I(inode)->i_acl_access = NULL;
-	REISERFS_I(inode)->i_acl_default = NULL;
-	init_rwsem(&REISERFS_I(inode)->xattr_sem);
+	reiserfs_init_acl_access(inode);
+	reiserfs_init_acl_default(inode);
+	reiserfs_init_xattr_rwsem(inode);
 
 	if (stat_data_v1(ih)) {
 		struct stat_data_v1 *sd =
@@ -1837,9 +1834,9 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	REISERFS_I(inode)->i_attrs =
 	    REISERFS_I(dir)->i_attrs & REISERFS_INHERIT_MASK;
 	sd_attrs_to_i_attrs(REISERFS_I(inode)->i_attrs, inode);
-	REISERFS_I(inode)->i_acl_access = NULL;
-	REISERFS_I(inode)->i_acl_default = NULL;
-	init_rwsem(&REISERFS_I(inode)->xattr_sem);
+	reiserfs_init_acl_access(inode);
+	reiserfs_init_acl_default(inode);
+	reiserfs_init_xattr_rwsem(inode);
 
 	if (old_format_only(sb))
 		make_le_item_head(&ih, NULL, KEY_FORMAT_3_5, SD_OFFSET,
@@ -1877,7 +1874,6 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	}
 	// these do not go to on-disk stat data
 	inode->i_ino = le32_to_cpu(ih.ih_key.k_objectid);
-	inode->i_blksize = reiserfs_default_io_size;
 
 	// store in in-core inode the key of stat data and version all
 	// object items will have (directory items will have old offset
@@ -1978,11 +1974,13 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	 * iput doesn't deadlock in reiserfs_delete_xattrs. The locking
 	 * code really needs to be reworked, but this will take care of it
 	 * for now. -jeffm */
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 	if (REISERFS_I(dir)->i_acl_default && !IS_ERR(REISERFS_I(dir)->i_acl_default)) {
 		reiserfs_write_unlock_xattrs(dir->i_sb);
 		iput(inode);
 		reiserfs_write_lock_xattrs(dir->i_sb);
 	} else
+#endif
 		iput(inode);
 	return err;
 }

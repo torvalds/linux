@@ -526,7 +526,7 @@ static inline int pgd_bad(pgd_t pgd)		{ return 0; }
 static inline int pgd_present(pgd_t pgd)	{ return 1; }
 #define pgd_clear(xp)				do { } while (0)
 
-#define pgd_page(pgd) \
+#define pgd_page_vaddr(pgd) \
 	((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
 
 /*
@@ -720,12 +720,12 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
  * of the pte page.  -- paulus
  */
 #ifndef CONFIG_BOOKE
-#define pmd_page_kernel(pmd)	\
+#define pmd_page_vaddr(pmd)	\
 	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 #define pmd_page(pmd)		\
 	(mem_map + (pmd_val(pmd) >> PAGE_SHIFT))
 #else
-#define pmd_page_kernel(pmd)	\
+#define pmd_page_vaddr(pmd)	\
 	((unsigned long) (pmd_val(pmd) & PAGE_MASK))
 #define pmd_page(pmd)		\
 	(mem_map + (__pa(pmd_val(pmd)) >> PAGE_SHIFT))
@@ -748,7 +748,7 @@ static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 #define pte_index(address)		\
 	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, addr)	\
-	((pte_t *) pmd_page_kernel(*(dir)) + pte_index(addr))
+	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
 	((pte_t *) kmap_atomic(pmd_page(*(dir)), KM_PTE0) + pte_index(addr))
 #define pte_offset_map_nested(dir, addr)	\

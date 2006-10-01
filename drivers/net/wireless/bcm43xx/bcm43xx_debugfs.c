@@ -54,7 +54,7 @@ static ssize_t write_file_dummy(struct file *file, const char __user *buf,
 
 static int open_file_generic(struct inode *inode, struct file *file)
 {
-	file->private_data = inode->u.generic_ip;
+	file->private_data = inode->i_private;
 	return 0;
 }
 
@@ -77,7 +77,8 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 
 	down(&big_buffer_sem);
 
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
@@ -121,7 +122,8 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 	fappend("\n");
 
 out:
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -159,7 +161,8 @@ static ssize_t spromdump_read_file(struct file *file, char __user *userbuf,
 	unsigned long flags;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
@@ -169,7 +172,8 @@ static ssize_t spromdump_read_file(struct file *file, char __user *userbuf,
 	fappend("boardflags: 0x%04x\n", bcm->sprom.boardflags);
 
 out:
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -188,7 +192,8 @@ static ssize_t tsf_read_file(struct file *file, char __user *userbuf,
 	u64 tsf;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		fappend("Board not initialized.\n");
 		goto out;
@@ -199,7 +204,8 @@ static ssize_t tsf_read_file(struct file *file, char __user *userbuf,
 		(unsigned int)(tsf & 0xFFFFFFFFULL));
 
 out:
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	up(&big_buffer_sem);
 	return res;
@@ -221,7 +227,8 @@ static ssize_t tsf_write_file(struct file *file, const char __user *user_buf,
 	        res = -EFAULT;
 		goto out_up;
 	}
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
 		printk(KERN_INFO PFX "debugfs: Board not initialized.\n");
 		res = -EFAULT;
@@ -237,7 +244,8 @@ static ssize_t tsf_write_file(struct file *file, const char __user *user_buf,
 	res = buf_size;
 	
 out_unlock:
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
 out_up:
 	up(&big_buffer_sem);
 	return res;
@@ -258,7 +266,8 @@ static ssize_t txstat_read_file(struct file *file, char __user *userbuf,
 	int i, cnt, j = 0;
 
 	down(&big_buffer_sem);
-	bcm43xx_lock_irqsafe(bcm, flags);
+	mutex_lock(&bcm->mutex);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 
 	fappend("Last %d logged xmitstatus blobs (Latest first):\n\n",
 		BCM43xx_NR_LOGGED_XMITSTATUS);
@@ -294,14 +303,51 @@ static ssize_t txstat_read_file(struct file *file, char __user *userbuf,
 			i = BCM43xx_NR_LOGGED_XMITSTATUS - 1;
 	}
 
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
-	bcm43xx_lock_irqsafe(bcm, flags);
+	spin_lock_irqsave(&bcm->irq_lock, flags);
 	if (*ppos == pos) {
 		/* Done. Drop the copied data. */
 		e->xmitstatus_printing = 0;
 	}
-	bcm43xx_unlock_irqsafe(bcm, flags);
+	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+	mutex_unlock(&bcm->mutex);
+	up(&big_buffer_sem);
+	return res;
+}
+
+static ssize_t restart_write_file(struct file *file, const char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct bcm43xx_private *bcm = file->private_data;
+	char *buf = really_big_buffer;
+	ssize_t buf_size;
+	ssize_t res;
+	unsigned long flags;
+
+	buf_size = min(count, sizeof (really_big_buffer) - 1);
+	down(&big_buffer_sem);
+	if (copy_from_user(buf, user_buf, buf_size)) {
+	        res = -EFAULT;
+		goto out_up;
+	}
+	mutex_lock(&(bcm)->mutex);
+	spin_lock_irqsave(&(bcm)->irq_lock, flags);
+	if (bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED) {
+		printk(KERN_INFO PFX "debugfs: Board not initialized.\n");
+		res = -EFAULT;
+		goto out_unlock;
+	}
+	if (count > 0 && buf[0] == '1') {
+		bcm43xx_controller_restart(bcm, "manually restarted");
+		res = count;
+	} else
+		res = -EINVAL;
+
+out_unlock:
+	spin_unlock_irqrestore(&(bcm)->irq_lock, flags);
+	mutex_unlock(&(bcm)->mutex);
+out_up:
 	up(&big_buffer_sem);
 	return res;
 }
@@ -336,6 +382,11 @@ static struct file_operations tsf_fops = {
 static struct file_operations txstat_fops = {
 	.read = txstat_read_file,
 	.write = write_file_dummy,
+	.open = open_file_generic,
+};
+
+static struct file_operations restart_fops = {
+	.write = restart_write_file,
 	.open = open_file_generic,
 };
 
@@ -390,6 +441,10 @@ void bcm43xx_debugfs_add_device(struct bcm43xx_private *bcm)
 						bcm, &txstat_fops);
 	if (!e->dentry_txstat)
 		printk(KERN_ERR PFX "debugfs: creating \"tx_status\" for \"%s\" failed!\n", devdir);
+	e->dentry_restart = debugfs_create_file("restart", 0222, e->subdir,
+						bcm, &restart_fops);
+	if (!e->dentry_restart)
+		printk(KERN_ERR PFX "debugfs: creating \"restart\" for \"%s\" failed!\n", devdir);
 }
 
 void bcm43xx_debugfs_remove_device(struct bcm43xx_private *bcm)
@@ -405,6 +460,7 @@ void bcm43xx_debugfs_remove_device(struct bcm43xx_private *bcm)
 	debugfs_remove(e->dentry_devinfo);
 	debugfs_remove(e->dentry_tsf);
 	debugfs_remove(e->dentry_txstat);
+	debugfs_remove(e->dentry_restart);
 	debugfs_remove(e->subdir);
 	kfree(e->xmitstatus_buffer);
 	kfree(e->xmitstatus_print_buffer);

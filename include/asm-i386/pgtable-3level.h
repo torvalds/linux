@@ -58,7 +58,21 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-#define __HAVE_ARCH_SET_PTE_ATOMIC
+/*
+ * Since this is only called on user PTEs, and the page fault handler
+ * must handle the already racy situation of simultaneous page faults,
+ * we are justified in merely clearing the PTE present bit, followed
+ * by a set.  The ordering here is important.
+ */
+static inline void set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	ptep->pte_low = 0;
+	smp_wmb();
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
 #define set_pte_atomic(pteptr,pteval) \
 		set_64bit((unsigned long long *)(pteptr),pte_val(pteval))
 #define set_pmd(pmdptr,pmdval) \
@@ -77,7 +91,7 @@ static inline void pud_clear (pud_t * pud) { }
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))
 
-#define pud_page_kernel(pud) \
+#define pud_page_vaddr(pud) \
 ((unsigned long) __va(pud_val(pud) & PAGE_MASK))
 
 
@@ -105,6 +119,7 @@ static inline void pmd_clear(pmd_t *pmd)
 	*(tmp + 1) = 0;
 }
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t res;
@@ -117,6 +132,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return res;
 }
 
+#define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t a, pte_t b)
 {
 	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;

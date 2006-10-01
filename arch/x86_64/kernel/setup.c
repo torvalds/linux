@@ -74,16 +74,6 @@ EXPORT_SYMBOL(boot_cpu_data);
 
 unsigned long mmu_cr4_features;
 
-int acpi_disabled;
-EXPORT_SYMBOL(acpi_disabled);
-#ifdef	CONFIG_ACPI
-extern int __initdata acpi_ht;
-extern acpi_interrupt_flags	acpi_sci_flags;
-int __initdata acpi_force = 0;
-#endif
-
-int acpi_numa __initdata;
-
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
 
@@ -107,7 +97,6 @@ struct sys_desc_table_struct {
 
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
-struct e820map e820;
 
 extern int root_mountflags;
 
@@ -133,9 +122,6 @@ struct resource standard_io_resources[] = {
 	{ .name = "fpu", .start = 0xf0, .end = 0xff,
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO }
 };
-
-#define STANDARD_IO_RESOURCES \
-	(sizeof standard_io_resources / sizeof standard_io_resources[0])
 
 #define IORESOURCE_RAM (IORESOURCE_BUSY | IORESOURCE_MEM)
 
@@ -182,9 +168,6 @@ static struct resource adapter_rom_resources[] = {
 	{ .name = "Adapter ROM", .start = 0, .end = 0,
 		.flags = IORESOURCE_ROM }
 };
-
-#define ADAPTER_ROM_RESOURCES \
-	(sizeof adapter_rom_resources / sizeof adapter_rom_resources[0])
 
 static struct resource video_rom_resource = {
 	.name = "Video ROM",
@@ -256,7 +239,8 @@ static void __init probe_roms(void)
 	}
 
 	/* check for adapter roms on 2k boundaries */
-	for (i = 0; i < ADAPTER_ROM_RESOURCES && start < upper; start += 2048) {
+	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources) && start < upper;
+	     start += 2048) {
 		rom = isa_bus_to_virt(start);
 		if (!romsignature(rom))
 			continue;
@@ -276,184 +260,21 @@ static void __init probe_roms(void)
 	}
 }
 
-/* Check for full argument with no trailing characters */
-static int fullarg(char *p, char *arg)
-{
-	int l = strlen(arg);
-	return !memcmp(p, arg, l) && (p[l] == 0 || isspace(p[l]));
-}
-
-static __init void parse_cmdline_early (char ** cmdline_p)
-{
-	char c = ' ', *to = command_line, *from = COMMAND_LINE;
-	int len = 0;
-	int userdef = 0;
-
-	for (;;) {
-		if (c != ' ') 
-			goto next_char; 
-
-#ifdef  CONFIG_SMP
-		/*
-		 * If the BIOS enumerates physical processors before logical,
-		 * maxcpus=N at enumeration-time can be used to disable HT.
-		 */
-		else if (!memcmp(from, "maxcpus=", 8)) {
-			extern unsigned int maxcpus;
-
-			maxcpus = simple_strtoul(from + 8, NULL, 0);
-		}
-#endif
-#ifdef CONFIG_ACPI
-		/* "acpi=off" disables both ACPI table parsing and interpreter init */
-		if (fullarg(from,"acpi=off"))
-			disable_acpi();
-
-		if (fullarg(from, "acpi=force")) { 
-			/* add later when we do DMI horrors: */
-			acpi_force = 1;
-			acpi_disabled = 0;
-		}
-
-		/* acpi=ht just means: do ACPI MADT parsing 
-		   at bootup, but don't enable the full ACPI interpreter */
-		if (fullarg(from, "acpi=ht")) { 
-			if (!acpi_force)
-				disable_acpi();
-			acpi_ht = 1; 
-		}
-                else if (fullarg(from, "pci=noacpi")) 
-			acpi_disable_pci();
-		else if (fullarg(from, "acpi=noirq"))
-			acpi_noirq_set();
-
-		else if (fullarg(from, "acpi_sci=edge"))
-			acpi_sci_flags.trigger =  1;
-		else if (fullarg(from, "acpi_sci=level"))
-			acpi_sci_flags.trigger = 3;
-		else if (fullarg(from, "acpi_sci=high"))
-			acpi_sci_flags.polarity = 1;
-		else if (fullarg(from, "acpi_sci=low"))
-			acpi_sci_flags.polarity = 3;
-
-		/* acpi=strict disables out-of-spec workarounds */
-		else if (fullarg(from, "acpi=strict")) {
-			acpi_strict = 1;
-		}
-#ifdef CONFIG_X86_IO_APIC
-		else if (fullarg(from, "acpi_skip_timer_override"))
-			acpi_skip_timer_override = 1;
-#endif
-#endif
-
-		if (fullarg(from, "disable_timer_pin_1"))
-			disable_timer_pin_1 = 1;
-		if (fullarg(from, "enable_timer_pin_1"))
-			disable_timer_pin_1 = -1;
-
-		if (fullarg(from, "nolapic") || fullarg(from, "disableapic")) {
-			clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-			disable_apic = 1;
-		}
-
-		if (fullarg(from, "noapic"))
-			skip_ioapic_setup = 1;
-
-		if (fullarg(from,"apic")) {
-			skip_ioapic_setup = 0;
-			ioapic_force = 1;
-		}
-			
-		if (!memcmp(from, "mem=", 4))
-			parse_memopt(from+4, &from); 
-
-		if (!memcmp(from, "memmap=", 7)) {
-			/* exactmap option is for used defined memory */
-			if (!memcmp(from+7, "exactmap", 8)) {
-#ifdef CONFIG_CRASH_DUMP
-				/* If we are doing a crash dump, we
-				 * still need to know the real mem
-				 * size before original memory map is
-				 * reset.
-				 */
-				saved_max_pfn = e820_end_of_ram();
-#endif
-				from += 8+7;
-				end_pfn_map = 0;
-				e820.nr_map = 0;
-				userdef = 1;
-			}
-			else {
-				parse_memmapopt(from+7, &from);
-				userdef = 1;
-			}
-		}
-
-#ifdef CONFIG_NUMA
-		if (!memcmp(from, "numa=", 5))
-			numa_setup(from+5); 
-#endif
-
-		if (!memcmp(from,"iommu=",6)) { 
-			iommu_setup(from+6); 
-		}
-
-		if (fullarg(from,"oops=panic"))
-			panic_on_oops = 1;
-
-		if (!memcmp(from, "noexec=", 7))
-			nonx_setup(from + 7);
-
-#ifdef CONFIG_KEXEC
-		/* crashkernel=size@addr specifies the location to reserve for
-		 * a crash kernel.  By reserving this memory we guarantee
-		 * that linux never set's it up as a DMA target.
-		 * Useful for holding code to do something appropriate
-		 * after a kernel panic.
-		 */
-		else if (!memcmp(from, "crashkernel=", 12)) {
-			unsigned long size, base;
-			size = memparse(from+12, &from);
-			if (*from == '@') {
-				base = memparse(from+1, &from);
-				/* FIXME: Do I want a sanity check
-				 * to validate the memory range?
-				 */
-				crashk_res.start = base;
-				crashk_res.end   = base + size - 1;
-			}
-		}
-#endif
-
 #ifdef CONFIG_PROC_VMCORE
-		/* elfcorehdr= specifies the location of elf core header
-		 * stored by the crashed kernel. This option will be passed
-		 * by kexec loader to the capture kernel.
-		 */
-		else if(!memcmp(from, "elfcorehdr=", 11))
-			elfcorehdr_addr = memparse(from+11, &from);
-#endif
-
-#ifdef CONFIG_HOTPLUG_CPU
-		else if (!memcmp(from, "additional_cpus=", 16))
-			setup_additional_cpus(from+16);
-#endif
-
-	next_char:
-		c = *(from++);
-		if (!c)
-			break;
-		if (COMMAND_LINE_SIZE <= ++len)
-			break;
-		*(to++) = c;
-	}
-	if (userdef) {
-		printk(KERN_INFO "user-defined physical RAM map:\n");
-		e820_print_map("user");
-	}
-	*to = '\0';
-	*cmdline_p = command_line;
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel. This option will be passed
+ * by kexec loader to the capture kernel.
+ */
+static int __init setup_elfcorehdr(char *arg)
+{
+	char *end;
+	if (!arg)
+		return -EINVAL;
+	elfcorehdr_addr = memparse(arg, &end);
+	return end > arg ? 0 : -EINVAL;
 }
+early_param("elfcorehdr", setup_elfcorehdr);
+#endif
 
 #ifndef CONFIG_NUMA
 static void __init
@@ -466,7 +287,8 @@ contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	if (bootmap == -1L)
 		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
-	e820_bootmem_free(NODE_DATA(0), 0, end_pfn << PAGE_SHIFT);
+	e820_register_active_regions(0, start_pfn, end_pfn);
+	free_bootmem_with_active_regions(0, end_pfn);
 	reserve_bootmem(bootmap, bootmap_size);
 } 
 #endif
@@ -521,6 +343,8 @@ static void discover_ebda(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	printk(KERN_INFO "Command line: %s\n", saved_command_line);
+
  	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
  	screen_info = SCREEN_INFO;
 	edid_info = EDID_INFO;
@@ -547,16 +371,22 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(&_etext);
 	data_resource.end = virt_to_phys(&_edata)-1;
 
-	parse_cmdline_early(cmdline_p);
-
 	early_identify_cpu(&boot_cpu_data);
 
+	strlcpy(command_line, saved_command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = command_line;
+
+	parse_early_param();
+
+	finish_e820_parsing();
+
+	e820_register_active_regions(0, 0, -1UL);
 	/*
 	 * partially used pages are not usable - thus
 	 * we are rounding upwards:
 	 */
 	end_pfn = e820_end_of_ram();
-	num_physpages = end_pfn;		/* for pfn_valid */
+	num_physpages = end_pfn;
 
 	check_efer();
 
@@ -575,6 +405,14 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_boot_table_init();
 #endif
+
+	/* How many end-of-memory variables you have, grandma! */
+	max_low_pfn = end_pfn;
+	max_pfn = end_pfn;
+	high_memory = (void *)__va(end_pfn * PAGE_SIZE - 1) + 1;
+
+	/* Remove active ranges so rediscovery with NUMA-awareness happens */
+	remove_all_active_ranges();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -625,12 +463,10 @@ void __init setup_arch(char **cmdline_p)
         */
        acpi_reserve_bootmem();
 #endif
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
-#endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (end_pfn << PAGE_SHIFT)) {
@@ -657,7 +493,9 @@ void __init setup_arch(char **cmdline_p)
 
 	paging_init();
 
-	check_ioapic();
+#ifdef CONFIG_PCI
+	early_quirks();
+#endif
 
 	/*
 	 * set this early, so we dont allocate cpu0
@@ -674,14 +512,12 @@ void __init setup_arch(char **cmdline_p)
 
 	init_cpu_to_node();
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * get boot-time SMP configuration:
 	 */
 	if (smp_found_config)
 		get_smp_config();
 	init_apic_mappings();
-#endif
 
 	/*
 	 * Request address space for all standard RAM and ROM resources
@@ -689,13 +525,14 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	probe_roms();
 	e820_reserve_resources(); 
+	e820_mark_nosave_regions();
 
 	request_resource(&iomem_resource, &video_ram_resource);
 
 	{
 	unsigned i;
 	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < STANDARD_IO_RESOURCES; i++)
+	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
 	}
 
@@ -838,7 +675,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __init init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	unsigned level;
 
@@ -894,6 +731,12 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 
 	/* Fix cpuid4 emulation for more */
 	num_cache_leaves = 3;
+
+	/* When there is only one core no need to synchronize RDTSC */
+	if (num_possible_cpus() == 1)
+	        set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	else
+	        clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -975,8 +818,7 @@ static void srat_detect_node(void)
 		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
-	if (acpi_numa > 0)
-		printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
+	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
 }
 
@@ -1010,6 +852,8 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+	if (c->x86 == 6)
+		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 	set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
  	c->x86_max_cores = intel_num_cpu_cores(c);
 
@@ -1228,8 +1072,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 		/* Intel-defined (#2) */
 		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", "smx", "est",
-		"tm2", NULL, "cid", NULL, NULL, "cx16", "xtpr", NULL,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"tm2", "ssse3", "cid", NULL, NULL, "cx16", "xtpr", NULL,
+		NULL, NULL, "dca", NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* VIA/Cyrix/Centaur-defined */

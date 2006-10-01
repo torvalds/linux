@@ -25,7 +25,6 @@
 #include <linux/backing-dev.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
-#include <linux/mpage.h>
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 #include <linux/smp_lock.h>
@@ -752,6 +751,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			int stored_rc = 0;
 			struct cifsLockInfo *li, *tmp;
 
+			rc = 0;
 			down(&fid->lock_sem);
 			list_for_each_entry_safe(li, tmp, &fid->llist, llist) {
 				if (pfLock->fl_start <= li->offset &&
@@ -766,7 +766,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 					kfree(li);
 				}
 			}
-		up(&fid->lock_sem);
+			up(&fid->lock_sem);
 		}
 	}
 

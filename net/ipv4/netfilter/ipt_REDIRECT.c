@@ -36,7 +36,6 @@ redirect_check(const char *tablename,
 	       const void *e,
 	       const struct xt_target *target,
 	       void *targinfo,
-	       unsigned int targinfosize,
 	       unsigned int hook_mask)
 {
 	const struct ip_nat_multi_range_compat *mr = targinfo;
@@ -58,12 +57,11 @@ redirect_target(struct sk_buff **pskb,
 		const struct net_device *out,
 		unsigned int hooknum,
 		const struct xt_target *target,
-		const void *targinfo,
-		void *userinfo)
+		const void *targinfo)
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t newdst;
+	__be32 newdst;
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 	struct ip_nat_range newrange;
 

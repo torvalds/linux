@@ -371,7 +371,64 @@ rp_sidt:
 	addl $8,%edi
 	dec %ecx
 	jne rp_sidt
+
+.macro	set_early_handler handler,trapno
+	lea \handler,%edx
+	movl $(__KERNEL_CS << 16),%eax
+	movw %dx,%ax
+	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
+	lea idt_table,%edi
+	movl %eax,8*\trapno(%edi)
+	movl %edx,8*\trapno+4(%edi)
+.endm
+
+	set_early_handler handler=early_divide_err,trapno=0
+	set_early_handler handler=early_illegal_opcode,trapno=6
+	set_early_handler handler=early_protection_fault,trapno=13
+	set_early_handler handler=early_page_fault,trapno=14
+
 	ret
+
+early_divide_err:
+	xor %edx,%edx
+	pushl $0	/* fake errcode */
+	jmp early_fault
+
+early_illegal_opcode:
+	movl $6,%edx
+	pushl $0	/* fake errcode */
+	jmp early_fault
+
+early_protection_fault:
+	movl $13,%edx
+	jmp early_fault
+
+early_page_fault:
+	movl $14,%edx
+	jmp early_fault
+
+early_fault:
+	cld
+#ifdef CONFIG_PRINTK
+	movl $(__KERNEL_DS),%eax
+	movl %eax,%ds
+	movl %eax,%es
+	cmpl $2,early_recursion_flag
+	je hlt_loop
+	incl early_recursion_flag
+	movl %cr2,%eax
+	pushl %eax
+	pushl %edx		/* trapno */
+	pushl $fault_msg
+#ifdef CONFIG_EARLY_PRINTK
+	call early_printk
+#else
+	call printk
+#endif
+#endif
+hlt_loop:
+	hlt
+	jmp hlt_loop
 
 /* This is the default interrupt "handler" :-) */
 	ALIGN
@@ -386,6 +443,9 @@ ignore_int:
 	movl $(__KERNEL_DS),%eax
 	movl %eax,%ds
 	movl %eax,%es
+	cmpl $2,early_recursion_flag
+	je hlt_loop
+	incl early_recursion_flag
 	pushl 16(%esp)
 	pushl 24(%esp)
 	pushl 32(%esp)
@@ -431,8 +491,15 @@ ENTRY(stack_start)
 
 ready:	.byte 0
 
+early_recursion_flag:
+	.long 0
+
 int_msg:
 	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
+
+fault_msg:
+	.ascii "Int %d: CR2 %p  err %p  EIP %p  CS %p  flags %p\n"
+	.asciz "Stack: %p %p %p %p %p %p %p %p\n"
 
 /*
  * The IDT and GDT 'descriptors' are a strange 48-bit object

@@ -7,6 +7,9 @@
     (c) 2002 Yurij Sysoev <yurij@naturesoft.net>
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
+    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+	- Multituner support and i2c address binding
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -39,6 +42,11 @@ MODULE_PARM_DESC(i2c_debug,"enable debug messages [i2c]");
 static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
+
+static unsigned int i2c_udelay = 5;
+module_param(i2c_udelay, int, 0644);
+MODULE_PARM_DESC(i2c_udelay,"i2c delay at insmod time, in usecs "
+		"(should be 5 or higher). Lower value means higher bus speed.");
 
 #define dprintk(level,fmt, arg...)	if (i2c_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt, core->name , ## arg)
@@ -155,7 +163,6 @@ static struct i2c_algo_bit_data cx8800_i2c_algo_template = {
 	.getsda  = cx8800_bit_getsda,
 	.getscl  = cx8800_bit_getscl,
 	.udelay  = 16,
-	.mdelay  = 10,
 	.timeout = 200,
 };
 
@@ -199,6 +206,11 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 /* init + register i2c algo-bit adapter */
 int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 {
+	/* Prevents usage of invalid delay values */
+	if (i2c_udelay<5)
+		i2c_udelay=5;
+	cx8800_i2c_algo_template.udelay=i2c_udelay;
+
 	memcpy(&core->i2c_adap, &cx8800_i2c_adap_template,
 	       sizeof(core->i2c_adap));
 	memcpy(&core->i2c_algo, &cx8800_i2c_algo_template,

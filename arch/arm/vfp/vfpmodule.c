@@ -40,10 +40,19 @@ unsigned int VFP_arch;
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
-	union vfp_state *vfp = &thread->vfpstate;
+	union vfp_state *vfp;
 
-	switch (cmd) {
-	case THREAD_NOTIFY_FLUSH:
+	if (likely(cmd == THREAD_NOTIFY_SWITCH)) {
+		/*
+		 * Always disable VFP so we can lazily save/restore the
+		 * old state.
+		 */
+		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
+		return NOTIFY_DONE;
+	}
+
+	vfp = &thread->vfpstate;
+	if (cmd == THREAD_NOTIFY_FLUSH) {
 		/*
 		 * Per-thread VFP initialisation.
 		 */
@@ -56,28 +65,11 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 * Disable VFP to ensure we initialise it first.
 		 */
 		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
-
-		/*
-		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
-		 * initialised state information on the first fault.
-		 */
-
-	case THREAD_NOTIFY_RELEASE:
-		/*
-		 * Per-thread VFP cleanup.
-		 */
-		if (last_VFP_context == vfp)
-			last_VFP_context = NULL;
-		break;
-
-	case THREAD_NOTIFY_SWITCH:
-		/*
-		 * Always disable VFP so we can lazily save/restore the
-		 * old state.
-		 */
-		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_ENABLE);
-		break;
 	}
+
+	/* flush and release case: Per-thread VFP cleanup. */
+	if (last_VFP_context == vfp)
+		last_VFP_context = NULL;
 
 	return NOTIFY_DONE;
 }

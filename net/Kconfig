@@ -231,7 +231,7 @@ config NET_TCPPROBE
 	TCP congestion avoidance modules. If you don't understand
 	what was just said, you don't need it: say N.
 
-	Documentation on how to use the packet generator can be found
+	Documentation on how to use TCP connection probing can be found
 	at http://linux-net.osdl.org/index.php/TcpProbe
 
 	To compile this code as a module, choose M here: the
@@ -247,6 +247,11 @@ source "net/bluetooth/Kconfig"
 source "net/ieee80211/Kconfig"
 
 config WIRELESS_EXT
+	bool
+
+source "net/netlabel/Kconfig"
+
+config FIB_RULES
 	bool
 
 endif   # if NET

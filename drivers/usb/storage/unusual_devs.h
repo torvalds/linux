@@ -152,6 +152,13 @@ UNUSUAL_DEV(  0x0421, 0x042e, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
+/* Reported by Jon Hart <Jon.Hart@web.de> */
+UNUSUAL_DEV(  0x0421, 0x0434, 0x0100, 0x0100,
+		"Nokia",
+		"E60",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
 /* Reported by Sumedha Swamy <sumedhaswamy@gmail.com> and
  * Einar Th. Einarsson <einarthered@gmail.com> */
 UNUSUAL_DEV(  0x0421, 0x0444, 0x0100, 0x0100,
@@ -218,10 +225,12 @@ UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_NOT_LOCKABLE ),
 
+#ifdef CONFIG_USB_STORAGE_KARMA
 UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		"Rio",
 		"Rio Karma",
-		US_SC_SCSI, US_PR_BULK, rio_karma_init, 0),
+		US_SC_SCSI, US_PR_KARMA, rio_karma_init, 0),
+#endif
 
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
@@ -630,6 +639,13 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
+
+/* Reported by <Hendryk.Pfeiffer@gmx.de> */
+UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
+		"LaCie",
+		"DVD+-RW",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_GO_SLOW ),
 
 /* Submitted by Joel Bourquard <numlock@freesurf.ch>
  * Some versions of this device need the SubClass and Protocol overrides
@@ -1254,10 +1270,24 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT ),
 
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 

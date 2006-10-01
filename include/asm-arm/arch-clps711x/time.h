@@ -29,7 +29,7 @@ static irqreturn_t
 p720t_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	do_leds();
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

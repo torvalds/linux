@@ -327,26 +327,12 @@ __do_out_asm(outl, "stwbrx")
 #define inl_p(port)		inl((port))
 #define outl_p(val, port)	outl((val), (port))
 
-extern void _insb(volatile u8 __iomem *port, void *buf, int ns);
-extern void _outsb(volatile u8 __iomem *port, const void *buf, int ns);
-extern void _insw(volatile u16 __iomem *port, void *buf, int ns);
-extern void _outsw(volatile u16 __iomem *port, const void *buf, int ns);
-extern void _insl(volatile u32 __iomem *port, void *buf, int nl);
-extern void _outsl(volatile u32 __iomem *port, const void *buf, int nl);
-extern void _insw_ns(volatile u16 __iomem *port, void *buf, int ns);
-extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, int ns);
-extern void _insl_ns(volatile u32 __iomem *port, void *buf, int nl);
-extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
-
-/*
- * The *_ns versions below don't do byte-swapping.
- * Neither do the standard versions now, these are just here
- * for older code.
- */
-#define insw_ns(port, buf, ns)	_insw_ns((port)+___IO_BASE, (buf), (ns))
-#define outsw_ns(port, buf, ns)	_outsw_ns((port)+___IO_BASE, (buf), (ns))
-#define insl_ns(port, buf, nl)	_insl_ns((port)+___IO_BASE, (buf), (nl))
-#define outsl_ns(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
+extern void _insb(volatile u8 __iomem *port, void *buf, long count);
+extern void _outsb(volatile u8 __iomem *port, const void *buf, long count);
+extern void _insw_ns(volatile u16 __iomem *port, void *buf, long count);
+extern void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count);
+extern void _insl_ns(volatile u32 __iomem *port, void *buf, long count);
+extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count);
 
 
 #define IO_SPACE_LIMIT ~0

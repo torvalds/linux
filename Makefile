@@ -41,9 +41,15 @@ ifndef KBUILD_VERBOSE
   KBUILD_VERBOSE = 0
 endif
 
-# Call checker as part of compilation of C files
-# Use 'make C=1' to enable checking (sparse, by default)
-# Override with 'make C=1 CHECK=checker_executable CHECKFLAGS=....'
+# Call a source code checker (by default, "sparse") as part of the
+# C compilation.
+#
+# Use 'make C=1' to enable checking of only re-compiled files.
+# Use 'make C=2' to enable checking of *all* source files, regardless
+# of whether they are re-compiled or not.
+#
+# See the file "Documentation/sparse.txt" for more details, including
+# where to get the "sparse" utility.
 
 ifdef C
   ifeq ("$(origin C)", "command line")
@@ -639,12 +645,12 @@ define rule_vmlinux__
 	$(call cmd,vmlinux__)
 	$(Q)echo 'cmd_$@ := $(cmd_vmlinux__)' > $(@D)/.$(@F).cmd
 
-	$(Q)$(if $($(quiet)cmd_sysmap),                 \
-	  echo '  $($(quiet)cmd_sysmap) System.map' &&) \
-	$(cmd_sysmap) $@ System.map;                    \
-	if [ $$? -ne 0 ]; then                          \
-		rm -f $@;                               \
-		/bin/false;                             \
+	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
+	  echo '  $($(quiet)cmd_sysmap)  System.map' &&)                     \
+	$(cmd_sysmap) $@ System.map;                                         \
+	if [ $$? -ne 0 ]; then                                               \
+		rm -f $@;                                                    \
+		/bin/false;                                                  \
 	fi;
 	$(verify_kallsyms)
 endef
@@ -677,12 +683,12 @@ endif
 kallsyms.o := .tmp_kallsyms$(last_kallsyms).o
 
 define verify_kallsyms
-	$(Q)$(if $($(quiet)cmd_sysmap),                       \
-	  echo '  $($(quiet)cmd_sysmap) .tmp_System.map' &&)  \
+	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
+	  echo '  $($(quiet)cmd_sysmap)  .tmp_System.map' &&)                \
 	  $(cmd_sysmap) .tmp_vmlinux$(last_kallsyms) .tmp_System.map
-	$(Q)cmp -s System.map .tmp_System.map ||              \
-		(echo Inconsistent kallsyms data;             \
-		 echo Try setting CONFIG_KALLSYMS_EXTRA_PASS; \
+	$(Q)cmp -s System.map .tmp_System.map ||                             \
+		(echo Inconsistent kallsyms data;                            \
+		 echo Try setting CONFIG_KALLSYMS_EXTRA_PASS;                \
 		 rm .tmp_kallsyms* ; /bin/false )
 endef
 
@@ -736,6 +742,7 @@ endif # ifdef CONFIG_KALLSYMS
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
 	$(call if_changed_rule,vmlinux__)
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost $@
 	$(Q)rm -f .old_version
 
 # The actual objects are generated when descending, 
@@ -753,12 +760,34 @@ $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
 # Build the kernel release string
-# The KERNELRELEASE is stored in a file named include/config/kernel.release
-# to be used when executing for example make install or make modules_install
 #
-# Take the contents of any files called localversion* and the config
-# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE.
-# LOCALVERSION from the command line override all of this
+# The KERNELRELEASE value built here is stored in the file
+# include/config/kernel.release, and is used when executing several
+# make targets, such as "make install" or "make modules_install."
+#
+# The eventual kernel release string consists of the following fields,
+# shown in a hierarchical format to show how smaller parts are concatenated
+# to form the larger and final value, with values coming from places like
+# the Makefile, kernel config options, make command line options and/or
+# SCM tag information.
+#
+#	$(KERNELVERSION)
+#	  $(VERSION)			eg, 2
+#	  $(PATCHLEVEL)			eg, 6
+#	  $(SUBLEVEL)			eg, 18
+#	  $(EXTRAVERSION)		eg, -rc6
+#	$(localver-full)
+#	  $(localver)
+#	    localversion*		(all localversion* files)
+#	    $(CONFIG_LOCALVERSION)	(from kernel config setting)
+#	  $(localver-auto)		(only if CONFIG_LOCALVERSION_AUTO is set)
+#	    ./scripts/setlocalversion	(SCM tag, if one exists)
+#	    $(LOCALVERSION)		(from make command line if provided)
+#
+#  Note how the final $(localver-auto) string is included *only* if the
+# kernel config option CONFIG_LOCALVERSION_AUTO is selected.  Also, at the
+# moment, only git is supported but other SCMs can edit the script
+# scripts/setlocalversion and add the appropriate checks as needed.
 
 nullstring :=
 space      := $(nullstring) # end of line
@@ -892,15 +921,26 @@ depend dep:
 INSTALL_HDR_PATH=$(objtree)/usr
 export INSTALL_HDR_PATH
 
+HDRARCHES=$(filter-out generic,$(patsubst $(srctree)/include/asm-%/Kbuild,%,$(wildcard $(srctree)/include/asm-*/Kbuild)))
+
+PHONY += headers_install_all
+headers_install_all: include/linux/version.h scripts_basic FORCE
+	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+	$(Q)for arch in $(HDRARCHES); do \
+	 $(MAKE) ARCH=$$arch -f $(srctree)/scripts/Makefile.headersinst obj=include BIASMDIR=-bi-$$arch ;\
+	 done
+
 PHONY += headers_install
-headers_install: include/linux/version.h
-	$(Q)unifdef -Ux /dev/null
-	$(Q)rm -rf $(INSTALL_HDR_PATH)/include
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include
+headers_install: include/linux/version.h scripts_basic FORCE
+	@if [ ! -r include/asm-$(ARCH)/Kbuild ]; then \
+	  echo '*** Error: Headers not exportable for this architecture ($(ARCH))'; \
+	  exit 1 ; fi
+	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include
 
 PHONY += headers_check
 headers_check: headers_install
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.headersinst obj=include HDRCHECK=1
 
 # ---------------------------------------------------------------------------
 # Modules
@@ -916,7 +956,7 @@ all: modules
 PHONY += modules
 modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux)
 	@echo '  Building modules, stage 2.';
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 
 # Target to prepare building external modules
@@ -942,7 +982,7 @@ _modinst_:
 		rm -f $(MODLIB)/build ; \
 		ln -s $(objtree) $(MODLIB)/build ; \
 	fi
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 # If System.map exists, run depmod.  This deliberately does not have a
 # dependency on System.map since that would run the dependency tree on
@@ -1057,8 +1097,10 @@ boards := $(notdir $(boards))
 
 help:
 	@echo  'Cleaning targets:'
-	@echo  '  clean		  - remove most generated files but keep the config'
+	@echo  '  clean		  - remove most generated files but keep the config and'
+	@echo  '                    enough build support to build external modules'
 	@echo  '  mrproper	  - remove all generated files + config + various backup files'
+	@echo  '  distclean	  - mrproper + remove editor backup and patch files'
 	@echo  ''
 	@echo  'Configuration targets:'
 	@$(MAKE) -f $(srctree)/scripts/kconfig/Makefile help
@@ -1076,13 +1118,17 @@ help:
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
-	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'
+	@if [ -r include/asm-$(ARCH)/Kbuild ]; then \
+	 echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'; \
+	 fi
 	@echo  '                    (default: $(INSTALL_HDR_PATH))'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
-	@echo  '  headers_check   - Sanity check on exported headers'
+	@if [ -r include/asm-$(ARCH)/Kbuild ]; then \
+	 echo  '  headers_check   - Sanity check on exported headers'; \
+	 fi
 	@echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help
@@ -1100,6 +1146,7 @@ help:
 		echo '')
 
 	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
+	@echo  '  make V=2   [targets] 2 => give reason for rebuild of target'
 	@echo  '  make O=dir [targets] Locate all output files in "dir", including .config'
 	@echo  '  make C=1   [targets] Check all c source with $$CHECK (sparse by default)'
 	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK'
@@ -1154,7 +1201,7 @@ $(module-dirs): crmodverdir $(objtree)/Module.symvers
 
 modules: $(module-dirs)
 	@echo '  Building modules, stage 2.';
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 PHONY += modules_install
 modules_install: _emodinst_ _emodinst_post
@@ -1163,7 +1210,7 @@ install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
 PHONY += _emodinst_
 _emodinst_:
 	$(Q)mkdir -p $(MODLIB)/$(install-dir)
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modinst
 
 # Run depmod only is we have System.map and depmod is executable
 quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
@@ -1264,6 +1311,31 @@ define all-defconfigs
 	$(call find-sources,'defconfig')
 endef
 
+define xtags
+	if $1 --version 2>&1 | grep -iq exuberant; then \
+	    $(all-sources) | xargs $1 -a \
+		-I __initdata,__exitdata,__acquires,__releases \
+		-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
+		--extra=+f --c-kinds=+px; \
+	    $(all-kconfigs) | xargs $1 -a \
+		--langdef=kconfig \
+		--language-force=kconfig \
+		--regex-kconfig='/^[[:blank:]]*config[[:blank:]]+([[:alnum:]_]+)/\1/'; \
+	    $(all-defconfigs) | xargs $1 -a \
+		--langdef=dotconfig \
+		--language-force=dotconfig \
+		--regex-dotconfig='/^#?[[:blank:]]*(CONFIG_[[:alnum:]_]+)/\1/'; \
+	elif $1 --version 2>&1 | grep -iq emacs; then \
+	    $(all-sources) | xargs $1 -a; \
+	    $(all-kconfigs) | xargs $1 -a \
+		--regex='/^[ \t]*config[ \t]+\([a-zA-Z0-9_]+\)/\1/'; \
+	    $(all-defconfigs) | xargs $1 -a \
+		--regex='/^#?[ \t]?\(CONFIG_[a-zA-Z0-9_]+\)/\1/'; \
+	else \
+	    $(all-sources) | xargs $1 -a; \
+	fi
+endef
+
 quiet_cmd_cscope-file = FILELST cscope.files
       cmd_cscope-file = (echo \-k; echo \-q; $(all-sources)) > cscope.files
 
@@ -1277,31 +1349,16 @@ cscope: FORCE
 quiet_cmd_TAGS = MAKE   $@
 define cmd_TAGS
 	rm -f $@; \
-	ETAGSF=`etags --version | grep -i exuberant >/dev/null &&     \
-                echo "-I __initdata,__exitdata,__acquires,__releases  \
-                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
-                      --extra=+f --c-kinds=+px"`;                     \
-                $(all-sources) | xargs etags $$ETAGSF -a;             \
-	if test "x$$ETAGSF" = x; then                                 \
-		$(all-kconfigs) | xargs etags -a                      \
-		--regex='/^config[ \t]+\([a-zA-Z0-9_]+\)/\1/';        \
-		$(all-defconfigs) | xargs etags -a                    \
-		--regex='/^#?[ \t]?\(CONFIG_[a-zA-Z0-9_]+\)/\1/';     \
-	fi
+	$(call xtags,etags)
 endef
 
 TAGS: FORCE
 	$(call cmd,TAGS)
 
-
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
 	rm -f $@; \
-	CTAGSF=`ctags --version | grep -i exuberant >/dev/null &&     \
-                echo "-I __initdata,__exitdata,__acquires,__releases  \
-                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
-                      --extra=+f --c-kinds=+px"`;                     \
-                $(all-sources) | xargs ctags $$CTAGSF -a
+	$(call xtags,ctags)
 endef
 
 tags: FORCE
@@ -1328,9 +1385,13 @@ endif #ifeq ($(config-targets),1)
 endif #ifeq ($(mixed-targets),1)
 
 PHONY += checkstack kernelrelease kernelversion
+
+# Use $(SUBARCH) here instead of $(ARCH) so that this works for UML.
+# In the UML case, $(SUBARCH) is the name of the underlying
+# architecture, while for all other arches, it is the same as $(ARCH).
 checkstack:
 	$(OBJDUMP) -d vmlinux $$(find . -name '*.ko') | \
-	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
+	$(PERL) $(src)/scripts/checkstack.pl $(SUBARCH)
 
 kernelrelease:
 	$(if $(wildcard include/config/kernel.release), $(Q)echo $(KERNELRELEASE), \
@@ -1379,7 +1440,7 @@ endif
 %.ko: prepare scripts FORCE
 	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1)   \
 	$(build)=$(build-dir) $(@:.ko=.o)
-	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
+	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================

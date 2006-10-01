@@ -157,23 +157,105 @@ static inline int __test_bit(int nr, const volatile void * addr)
  __constant_test_bit((nr),(addr)) : \
  __test_bit((nr),(addr)))
 
-#include <asm-generic/bitops/ffs.h>
-#include <asm-generic/bitops/__ffs.h>
 #include <asm-generic/bitops/find.h>
 
-/*
- * fls: find last bit set.
+/**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs:
+ * - return 32..1 to indicate bit 31..0 most significant bit set
+ * - return 0 to indicate no bits set
  */
 #define fls(x)						\
 ({							\
 	int bit;					\
 							\
-	asm("scan %1,gr0,%0" : "=r"(bit) : "r"(x));	\
+	asm("	subcc	%1,gr0,gr0,icc0		\n"	\
+	    "	ckne	icc0,cc4		\n"	\
+	    "	cscan.p	%1,gr0,%0	,cc4,#1	\n"	\
+	    "	csub	%0,%0,%0	,cc4,#0	\n"	\
+	    "   csub    %2,%0,%0	,cc4,#1	\n"	\
+	    : "=&r"(bit)				\
+	    : "r"(x), "r"(32)				\
+	    : "icc0", "cc4"				\
+	    );						\
 							\
-	bit ? 33 - bit : bit;				\
+	bit;						\
 })
 
-#include <asm-generic/bitops/fls64.h>
+/**
+ * fls64 - find last bit set in a 64-bit value
+ * @n: the value to search
+ *
+ * This is defined the same way as ffs:
+ * - return 64..1 to indicate bit 63..0 most significant bit set
+ * - return 0 to indicate no bits set
+ */
+static inline __attribute__((const))
+int fls64(u64 n)
+{
+	union {
+		u64 ll;
+		struct { u32 h, l; };
+	} _;
+	int bit, x, y;
+
+	_.ll = n;
+
+	asm("	subcc.p		%3,gr0,gr0,icc0		\n"
+	    "	subcc		%4,gr0,gr0,icc1		\n"
+	    "	ckne		icc0,cc4		\n"
+	    "	ckne		icc1,cc5		\n"
+	    "	norcr		cc4,cc5,cc6		\n"
+	    "	csub.p		%0,%0,%0	,cc6,1	\n"
+	    "	orcr		cc5,cc4,cc4		\n"
+	    "	andcr		cc4,cc5,cc4		\n"
+	    "	cscan.p		%3,gr0,%0	,cc4,0	\n"
+	    "   setlos		#64,%1			\n"
+	    "	cscan.p		%4,gr0,%0	,cc4,1	\n"
+	    "   setlos		#32,%2			\n"
+	    "	csub.p		%1,%0,%0	,cc4,0	\n"
+	    "	csub		%2,%0,%0	,cc4,1	\n"
+	    : "=&r"(bit), "=r"(x), "=r"(y)
+	    : "0r"(_.h), "r"(_.l)
+	    : "icc0", "icc1", "cc4", "cc5", "cc6"
+	    );
+	return bit;
+
+}
+
+/**
+ * ffs - find first bit set
+ * @x: the word to search
+ *
+ * - return 32..1 to indicate bit 31..0 most least significant bit set
+ * - return 0 to indicate no bits set
+ */
+static inline __attribute__((const))
+int ffs(int x)
+{
+	/* Note: (x & -x) gives us a mask that is the least significant
+	 * (rightmost) 1-bit of the value in x.
+	 */
+	return fls(x & -x);
+}
+
+/**
+ * __ffs - find first bit set
+ * @x: the word to search
+ *
+ * - return 31..0 to indicate bit 31..0 most least significant bit set
+ * - if no bits are set in x, the result is undefined
+ */
+static inline __attribute__((const))
+int __ffs(unsigned long x)
+{
+	int bit;
+	asm("scan %1,gr0,%0" : "=r"(bit) : "r"(x & -x));
+	return 31 - bit;
+}
+
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
 

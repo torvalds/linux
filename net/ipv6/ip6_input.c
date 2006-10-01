@@ -111,7 +111,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	}
 
 	if (hdr->nexthdr == NEXTHDR_HOP) {
-		if (ipv6_parse_hopopts(skb) < 0) {
+		if (ipv6_parse_hopopts(&skb) < 0) {
 			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 			return 0;
 		}

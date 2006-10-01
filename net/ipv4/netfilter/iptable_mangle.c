@@ -119,7 +119,7 @@ ipt_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(pskb, hook, in, out, &packet_mangler, NULL);
+	return ipt_do_table(pskb, hook, in, out, &packet_mangler);
 }
 
 static unsigned int
@@ -131,7 +131,7 @@ ipt_local_hook(unsigned int hook,
 {
 	unsigned int ret;
 	u_int8_t tos;
-	u_int32_t saddr, daddr;
+	__be32 saddr, daddr;
 	unsigned long nfmark;
 
 	/* root is playing with raw sockets. */
@@ -148,7 +148,7 @@ ipt_local_hook(unsigned int hook,
 	daddr = (*pskb)->nh.iph->daddr;
 	tos = (*pskb)->nh.iph->tos;
 
-	ret = ipt_do_table(pskb, hook, in, out, &packet_mangler, NULL);
+	ret = ipt_do_table(pskb, hook, in, out, &packet_mangler);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE
 	    && ((*pskb)->nh.iph->saddr != saddr

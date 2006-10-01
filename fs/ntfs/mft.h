@@ -111,7 +111,7 @@ static inline int write_mft_record(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	return err;
 }
 
-extern BOOL ntfs_may_write_mft_record(ntfs_volume *vol,
+extern bool ntfs_may_write_mft_record(ntfs_volume *vol,
 		const unsigned long mft_no, const MFT_RECORD *m,
 		ntfs_inode **locked_ni);
 

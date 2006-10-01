@@ -479,7 +479,7 @@ extern void show_regs(struct pt_regs * regs);
 static inline void
 psw_set_key(unsigned int key)
 {
-	asm volatile ( "spka 0(%0)" : : "d" (key) );
+	asm volatile("spka 0(%0)" : : "d" (key));
 }
 
 #endif /* __ASSEMBLY__ */

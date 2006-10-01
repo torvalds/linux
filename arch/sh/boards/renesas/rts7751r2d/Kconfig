@@ -1,0 +1,12 @@
+if SH_RTS7751R2D
+
+menu "RTS7751R2D options"
+
+config RTS7751R2D_REV11
+	bool "RTS7751R2D Rev. 1.1 board support"
+	help
+	  Selecting this option will support version rev. 1.1.
+endmenu
+
+endif
+

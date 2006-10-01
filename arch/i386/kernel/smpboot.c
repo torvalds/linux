@@ -102,6 +102,8 @@ u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
 			{ [0 ... NR_CPUS-1] = 0xff };
 EXPORT_SYMBOL(x86_cpu_to_apicid);
 
+u8 apicid_2_node[MAX_APICID];
+
 /*
  * Trampoline 80x86 program as an array.
  */
@@ -176,6 +178,9 @@ static void __devinit smp_store_cpu_info(int id)
 	 * but they are not certified as MP capable.
 	 */
 	if ((c->x86_vendor == X86_VENDOR_AMD) && (c->x86 == 6)) {
+
+		if (num_possible_cpus() == 1)
+			goto valid_k7;
 
 		/* Athlon 660/661 is valid. */	
 		if ((c->x86_model==6) && ((c->x86_mask==0) || (c->x86_mask==1)))
@@ -642,9 +647,13 @@ static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
 	int apicid = logical_smp_processor_id();
+	int node = apicid_to_node(hard_smp_processor_id());
+
+	if (!node_online(node))
+		node = first_online_node;
 
 	cpu_2_logical_apicid[cpu] = apicid;
-	map_cpu_to_node(cpu, apicid_to_node(apicid));
+	map_cpu_to_node(cpu, node);
 }
 
 static void unmap_cpu_to_logical_apicid(int cpu)
@@ -947,6 +956,7 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 
 	irq_ctx_init(cpu);
 
+	x86_cpu_to_apicid[cpu] = apicid;
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.
@@ -1051,7 +1061,7 @@ static void __cpuinit do_warm_boot_cpu(void *p)
 
 static int __cpuinit __smp_prepare_cpu(int cpu)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
@@ -1372,7 +1382,8 @@ int __cpu_disable(void)
 	 */
 	if (cpu == 0)
 		return -EBUSY;
-
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		stop_apic_nmi_watchdog(NULL);
 	clear_local_APIC();
 	/* Allow any queued timer interrupts to get serviced */
 	local_irq_enable();
@@ -1486,3 +1497,16 @@ void __init smp_intr_init(void)
 	/* IPI for generic function call */
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 }
+
+/*
+ * If the BIOS enumerates physical processors before logical,
+ * maxcpus=N at enumeration-time can be used to disable HT.
+ */
+static int __init parse_maxcpus(char *arg)
+{
+	extern unsigned int maxcpus;
+
+	maxcpus = simple_strtoul(arg, NULL, 0);
+	return 0;
+}
+early_param("maxcpus", parse_maxcpus);

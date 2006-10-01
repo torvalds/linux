@@ -155,11 +155,11 @@ static int help(struct sk_buff **pskb,
 		exp->tuple.dst.protonum = IPPROTO_TCP;
 		exp->tuple.dst.u.tcp.port = htons(port);
 
-		exp->mask.src.ip = 0xFFFFFFFF;
+		exp->mask.src.ip = htonl(0xFFFFFFFF);
 		exp->mask.src.u.tcp.port = 0;
-		exp->mask.dst.ip = 0xFFFFFFFF;
+		exp->mask.dst.ip = htonl(0xFFFFFFFF);
 		exp->mask.dst.protonum = 0xFF;
-		exp->mask.dst.u.tcp.port = 0xFFFF;
+		exp->mask.dst.u.tcp.port = htons(0xFFFF);
 
 		if (ip_nat_amanda_hook)
 			ret = ip_nat_amanda_hook(pskb, ctinfo, off - dataoff,

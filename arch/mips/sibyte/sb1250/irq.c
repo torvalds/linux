@@ -419,21 +419,6 @@ static void sb1250_kgdb_interrupt(struct pt_regs *regs)
 
 #endif 	/* CONFIG_KGDB */
 
-static inline int dclz(unsigned long long x)
-{
-	int lz;
-
-	__asm__ (
-	"	.set	push						\n"
-	"	.set	mips64						\n"
-	"	dclz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
-
-	return lz;
-}
-
 extern void sb1250_timer_interrupt(struct pt_regs *regs);
 extern void sb1250_mailbox_interrupt(struct pt_regs *regs);
 extern void sb1250_kgdb_interrupt(struct pt_regs *regs);
@@ -490,6 +475,6 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		mask = __raw_readq(IOADDR(A_IMR_REGISTER(smp_processor_id(),
 		                              R_IMR_INTERRUPT_STATUS_BASE)));
 		if (mask)
-			do_IRQ(63 - dclz(mask), regs);
+			do_IRQ(fls64(mask) - 1, regs);
 	}
 }

@@ -148,6 +148,17 @@ struct ccw_device_id {
 #define CCW_DEVICE_ID_MATCH_DEVICE_TYPE		0x04
 #define CCW_DEVICE_ID_MATCH_DEVICE_MODEL	0x08
 
+/* s390 AP bus devices */
+struct ap_device_id {
+	__u16 match_flags;	/* which fields to match against */
+	__u8 dev_type;		/* device type */
+	__u8 pad1;
+	__u32 pad2;
+	kernel_ulong_t driver_info;
+};
+
+#define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
+
 
 #define PNP_ID_LEN	8
 #define PNP_MAX_DEVICES	8
@@ -296,5 +307,17 @@ struct input_device_id {
 
 	kernel_ulong_t driver_info;
 };
+
+/* EISA */
+
+#define EISA_SIG_LEN   8
+
+/* The EISA signature, in ASCII form, null terminated */
+struct eisa_device_id {
+	char          sig[EISA_SIG_LEN];
+	kernel_ulong_t driver_data;
+};
+
+#define EISA_DEVICE_MODALIAS_FMT "eisa:s%s"
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

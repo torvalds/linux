@@ -128,4 +128,19 @@ extern int     setjmp(jmp_buf __jmpb);
 #define KGDB_ASSERT(condition, message)
 #endif
 
+/* Taken from sh-stub.c of GDB 4.18 */
+static const char hexchars[] = "0123456789abcdef";
+
+/* Get high hex bits */
+static inline char highhex(const int x)
+{
+	return hexchars[(x >> 4) & 0xf];
+}
+
+/* Get low hex bits */
+static inline char lowhex(const int x)
+{
+	return hexchars[x & 0xf];
+}
+
 #endif

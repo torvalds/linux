@@ -508,6 +508,7 @@ void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *s
 
 void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 {
+#ifndef CONFIG_SUN4
 	struct device_node *parent = dp->parent;
 
 	if (sparc_cpu_model != sun4d &&
@@ -524,6 +525,7 @@ void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 
 		iounit_init(dp->node, parent->node, sbus);
 	}
+#endif
 }
 
 void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)

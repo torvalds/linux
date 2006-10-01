@@ -186,11 +186,10 @@ int afs_volume_lookup(const char *name, struct afs_cell *cell, int rwpath,
 	_debug("creating new volume record");
 
 	ret = -ENOMEM;
-	volume = kmalloc(sizeof(struct afs_volume), GFP_KERNEL);
+	volume = kzalloc(sizeof(struct afs_volume), GFP_KERNEL);
 	if (!volume)
 		goto error_up;
 
-	memset(volume, 0, sizeof(struct afs_volume));
 	atomic_set(&volume->usage, 1);
 	volume->type		= type;
 	volume->type_force	= force;

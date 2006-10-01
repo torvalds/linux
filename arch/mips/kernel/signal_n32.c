@@ -42,6 +42,8 @@
 
 #include "signal-common.h"
 
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
+
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
@@ -80,8 +82,6 @@ struct rt_sigframe_n32 {
 	u32 rs_code[8] ____cacheline_aligned;		/* signal trampoline */
 #endif
 };
-
-extern void sigset_from_compat (sigset_t *set, compat_sigset_t *compat);
 
 save_static_function(sysn32_rt_sigsuspend);
 __attribute_used__ noinline static int

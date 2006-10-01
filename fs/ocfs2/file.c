@@ -44,6 +44,7 @@
 #include "file.h"
 #include "sysfile.h"
 #include "inode.h"
+#include "ioctl.h"
 #include "journal.h"
 #include "mmap.h"
 #include "suballoc.h"
@@ -960,25 +961,23 @@ static inline int ocfs2_write_should_remove_suid(struct inode *inode)
 }
 
 static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
-				    const char __user *buf,
-				    size_t count,
+				    const struct iovec *iov,
+				    unsigned long nr_segs,
 				    loff_t pos)
 {
-	struct iovec local_iov = { .iov_base = (void __user *)buf,
-				   .iov_len = count };
 	int ret, rw_level = -1, meta_level = -1, have_alloc_sem = 0;
 	u32 clusters;
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_dentry->d_inode;
 	loff_t newsize, saved_pos;
 
-	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", filp, buf,
-		   (unsigned int)count,
+	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
+		   (unsigned int)nr_segs,
 		   filp->f_dentry->d_name.len,
 		   filp->f_dentry->d_name.name);
 
 	/* happy write of zero bytes */
-	if (count == 0)
+	if (iocb->ki_left == 0)
 		return 0;
 
 	if (!inode) {
@@ -1047,7 +1046,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		} else {
 			saved_pos = iocb->ki_pos;
 		}
-		newsize = count + saved_pos;
+		newsize = iocb->ki_left + saved_pos;
 
 		mlog(0, "pos=%lld newsize=%lld cursize=%lld\n",
 		     (long long) saved_pos, (long long) newsize,
@@ -1080,7 +1079,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		if (!clusters)
 			break;
 
-		ret = ocfs2_extend_file(inode, NULL, newsize, count);
+		ret = ocfs2_extend_file(inode, NULL, newsize, iocb->ki_left);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
@@ -1097,7 +1096,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb);
 
-	ret = generic_file_aio_write_nolock(iocb, &local_iov, 1, &iocb->ki_pos);
+	ret = generic_file_aio_write_nolock(iocb, iov, nr_segs, iocb->ki_pos);
 
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(filp->f_flags & O_DIRECT));
@@ -1131,16 +1130,16 @@ out:
 }
 
 static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
-				   char __user *buf,
-				   size_t count,
+				   const struct iovec *iov,
+				   unsigned long nr_segs,
 				   loff_t pos)
 {
 	int ret = 0, rw_level = -1, have_alloc_sem = 0;
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_dentry->d_inode;
 
-	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", filp, buf,
-		   (unsigned int)count,
+	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
+		   (unsigned int)nr_segs,
 		   filp->f_dentry->d_name.len,
 		   filp->f_dentry->d_name.name);
 
@@ -1184,7 +1183,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	}
 	ocfs2_meta_unlock(inode, 0);
 
-	ret = generic_file_aio_read(iocb, buf, count, iocb->ki_pos);
+	ret = generic_file_aio_read(iocb, iov, nr_segs, iocb->ki_pos);
 	if (ret == -EINVAL)
 		mlog(ML_ERROR, "generic_file_aio_read returned -EINVAL\n");
 
@@ -1227,10 +1226,12 @@ const struct file_operations ocfs2_fops = {
 	.open		= ocfs2_file_open,
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
+	.ioctl		= ocfs2_ioctl,
 };
 
 const struct file_operations ocfs2_dops = {
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
+	.ioctl		= ocfs2_ioctl,
 };

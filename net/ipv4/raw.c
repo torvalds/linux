@@ -38,8 +38,7 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
- 
-#include <linux/config.h> 
+
 #include <linux/types.h>
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -382,8 +381,8 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct ipcm_cookie ipc;
 	struct rtable *rt = NULL;
 	int free = 0;
-	u32 daddr;
-	u32 saddr;
+	__be32 daddr;
+	__be32 saddr;
 	u8  tos;
 	int err;
 
@@ -484,6 +483,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		if (!inet->hdrincl)
 			raw_probe_proto_opt(&fl, msg);
 
+		security_sk_classify_flow(sk, &fl);
 		err = ip_route_output_flow(&rt, &fl, sk, !(msg->msg_flags&MSG_DONTWAIT));
 	}
 	if (err)

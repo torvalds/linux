@@ -56,7 +56,7 @@ static int smu_set_fan(int pwm, u8 id, u16 value)
 {
 	struct smu_cmd cmd;
 	u8 buffer[16];
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	int rc;
 
 	/* Fill SMU command structure */
@@ -159,14 +159,15 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 					      int pwm_fan)
 {
 	struct smu_fan_control *fct;
-	s32 *v; u32 *reg;
-	char *l;
+	const s32 *v;
+	const u32 *reg;
+	const char *l;
 
 	fct = kmalloc(sizeof(struct smu_fan_control), GFP_KERNEL);
 	if (fct == NULL)
 		return NULL;
 	fct->ctrl.ops = &smu_fan_ops;
-	l = (char *)get_property(node, "location", NULL);
+	l = get_property(node, "location", NULL);
 	if (l == NULL)
 		goto fail;
 
@@ -223,17 +224,17 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		goto fail;
 
 	/* Get min & max values*/
-	v = (s32 *)get_property(node, "min-value", NULL);
+	v = get_property(node, "min-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->min = *v;
-	v = (s32 *)get_property(node, "max-value", NULL);
+	v = get_property(node, "max-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->max = *v;
 
 	/* Get "reg" value */
-	reg = (u32 *)get_property(node, "reg", NULL);
+	reg = get_property(node, "reg", NULL);
 	if (reg == NULL)
 		goto fail;
 	fct->reg = *reg;

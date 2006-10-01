@@ -159,11 +159,11 @@ struct inomap {
 #define	im_maxag	im_imap.in_maxag
 
 extern int diFree(struct inode *);
-extern int diAlloc(struct inode *, boolean_t, struct inode *);
+extern int diAlloc(struct inode *, bool, struct inode *);
 extern int diSync(struct inode *);
 /* external references */
 extern int diUpdatePMap(struct inode *ipimap, unsigned long inum,
-			boolean_t is_free, struct tblock * tblk);
+			bool is_free, struct tblock * tblk);
 extern int diExtendFS(struct inode *ipimap, struct inode *ipbmap);
 extern int diMount(struct inode *);
 extern int diUnmount(struct inode *, int);

@@ -169,6 +169,12 @@ enum {
 	DCCPO_MAX_CCID_SPECIFIC = 255,
 };
 
+/* DCCP CCIDS */
+enum {
+	DCCPC_CCID2 = 2,
+	DCCPC_CCID3 = 3,
+};
+
 /* DCCP features */
 enum {
 	DCCPF_RESERVED = 0,
@@ -320,7 +326,7 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
 #define DCCPF_INITIAL_ACK_RATIO			2
-#define DCCPF_INITIAL_CCID			2
+#define DCCPF_INITIAL_CCID			DCCPC_CCID2
 #define DCCPF_INITIAL_SEND_ACK_VECTOR		1
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
@@ -404,6 +410,7 @@ struct dccp_service_list {
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
+#define DCCP_SERVICE_CODE_IS_ABSENT 		 0
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
 					const __be32 service)
@@ -438,6 +445,7 @@ struct dccp_ackvec;
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_hc_rx_ackvec - rx half connection ack vector
+ * @dccps_xmit_timer - timer for when CCID is not ready to send
  */
 struct dccp_sock {
 	/* inet_connection_sock has to be the first member of dccp_sock */
@@ -470,6 +478,7 @@ struct dccp_sock {
 	enum dccp_role			dccps_role:2;
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;
+	struct timer_list		dccps_xmit_timer;
 };
  
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
@@ -480,11 +489,6 @@ static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
 {
 	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
-}
-
-static inline int dccp_service_not_initialized(const struct sock *sk)
-{
-	return dccp_sk(sk)->dccps_service == DCCP_SERVICE_INVALID_VALUE;
 }
 
 static inline const char *dccp_role(const struct sock *sk)

@@ -1,6 +1,8 @@
 #ifndef _LINUX_MSDOS_FS_H
 #define _LINUX_MSDOS_FS_H
 
+#include <linux/magic.h>
+
 /*
  * The MS-DOS filesystem constants/structures
  */
@@ -17,8 +19,6 @@
 #define CT_LE_W(v)	cpu_to_le16(v)
 #define CT_LE_L(v)	cpu_to_le32(v)
 
-
-#define MSDOS_SUPER_MAGIC 0x4d44 /* MD */
 
 #define MSDOS_ROOT_INO	1	/* == MINIX_ROOT_INO */
 #define MSDOS_DIR_BITS	5	/* log2(sizeof(struct msdos_dir_entry)) */
@@ -204,6 +204,7 @@ struct fat_mount_options {
 		 unicode_xlate:1, /* create escape sequences for unhandled Unicode */
 		 numtail:1,       /* Does first alias have a numeric '~1' type tail? */
 		 atari:1,         /* Use Atari GEMDOS variation of MS-DOS fs */
+		 flush:1,	  /* write things quickly */
 		 nocase:1;	  /* Does this need case conversion? 0=need case conversion*/
 };
 
@@ -412,6 +413,8 @@ extern int fat_sync_inode(struct inode *inode);
 extern int fat_fill_super(struct super_block *sb, void *data, int silent,
 			struct inode_operations *fs_dir_inode_ops, int isvfat);
 
+extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
+		            struct inode *i2);
 /* fat/misc.c */
 extern void fat_fs_panic(struct super_block *s, const char *fmt, ...);
 extern void fat_clusters_flush(struct super_block *sb);

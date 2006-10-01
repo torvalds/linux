@@ -16,6 +16,7 @@
 #include "user.h"
 #include "mconsole.h"
 #include "umid.h"
+#include "user_util.h"
 
 static struct mconsole_command commands[] = {
 	/* With uts namespaces, uts information becomes process-specific, so
@@ -65,14 +66,14 @@ static struct mconsole_command *mconsole_parse(struct mc_request *req)
 	struct mconsole_command *cmd;
 	int i;
 
-	for(i=0;i<sizeof(commands)/sizeof(commands[0]);i++){
+	for(i = 0; i < ARRAY_SIZE(commands); i++){
 		cmd = &commands[i];
 		if(!strncmp(req->request.data, cmd->command, 
 			    strlen(cmd->command))){
-			return(cmd);
+			return cmd;
 		}
 	}
-	return(NULL);
+	return NULL;
 }
 
 #define MIN(a,b) ((a)<(b) ? (a):(b))
@@ -130,6 +131,10 @@ int mconsole_get_request(int fd, struct mc_request *req)
 int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 		       int err, int more)
 {
+	/* XXX This is a stack consumption problem.  It'd be nice to
+	 * make it global and serialize access to it, but there are a
+	 * ton of callers to this function.
+	 */
 	struct mconsole_reply reply;
 	int len, n;
 

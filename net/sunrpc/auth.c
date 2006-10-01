@@ -331,8 +331,8 @@ rpcauth_unbindcred(struct rpc_task *task)
 	task->tk_msg.rpc_cred = NULL;
 }
 
-u32 *
-rpcauth_marshcred(struct rpc_task *task, u32 *p)
+__be32 *
+rpcauth_marshcred(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
@@ -342,8 +342,8 @@ rpcauth_marshcred(struct rpc_task *task, u32 *p)
 	return cred->cr_ops->crmarshal(task, p);
 }
 
-u32 *
-rpcauth_checkverf(struct rpc_task *task, u32 *p)
+__be32 *
+rpcauth_checkverf(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
@@ -355,7 +355,7 @@ rpcauth_checkverf(struct rpc_task *task, u32 *p)
 
 int
 rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp,
-		u32 *data, void *obj)
+		__be32 *data, void *obj)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 
@@ -369,7 +369,7 @@ rpcauth_wrap_req(struct rpc_task *task, kxdrproc_t encode, void *rqstp,
 
 int
 rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
-		u32 *data, void *obj)
+		__be32 *data, void *obj)
 {
 	struct rpc_cred *cred = task->tk_msg.rpc_cred;
 

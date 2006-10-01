@@ -41,17 +41,18 @@ static int ext2_release_file (struct inode * inode, struct file * filp)
  */
 const struct file_operations ext2_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= generic_file_read,
-	.write		= generic_file_write,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= generic_file_aio_write,
 	.ioctl		= ext2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext2_compat_ioctl,
+#endif
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,
 	.fsync		= ext2_sync_file,
-	.readv		= generic_file_readv,
-	.writev		= generic_file_writev,
 	.sendfile	= generic_file_sendfile,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
@@ -63,6 +64,9 @@ const struct file_operations ext2_xip_file_operations = {
 	.read		= xip_file_read,
 	.write		= xip_file_write,
 	.ioctl		= ext2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext2_compat_ioctl,
+#endif
 	.mmap		= xip_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,

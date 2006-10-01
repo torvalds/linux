@@ -11,4 +11,4 @@ pci-y				+= legacy.o irq.o
 pci-$(CONFIG_X86_VISWS)		:= visws.o fixup.o
 pci-$(CONFIG_X86_NUMAQ)		:= numa.o irq.o
 
-obj-y				+= $(pci-y) common.o
+obj-y				+= $(pci-y) common.o early.o

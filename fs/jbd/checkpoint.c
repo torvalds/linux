@@ -1,6 +1,6 @@
 /*
  * linux/fs/checkpoint.c
- * 
+ *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
  * Copyright 1999 Red Hat Software --- All Rights Reserved
@@ -9,8 +9,8 @@
  * the terms of the GNU General Public License, version 2, or at your
  * option, any later version, incorporated herein by reference.
  *
- * Checkpoint routines for the generic filesystem journaling code.  
- * Part of the ext2fs journaling system.  
+ * Checkpoint routines for the generic filesystem journaling code.
+ * Part of the ext2fs journaling system.
  *
  * Checkpointing is the process of ensuring that a section of the log is
  * committed fully to disk, so that that portion of the log can be
@@ -145,6 +145,7 @@ void __log_wait_for_space(journal_t *journal)
  * jbd_unlock_bh_state().
  */
 static void jbd_sync_bh(journal_t *journal, struct buffer_head *bh)
+	__releases(journal->j_list_lock)
 {
 	get_bh(bh);
 	spin_unlock(&journal->j_list_lock);
@@ -225,7 +226,7 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
  * Try to flush one buffer from the checkpoint list to disk.
  *
  * Return 1 if something happened which requires us to abort the current
- * scan of the checkpoint list.  
+ * scan of the checkpoint list.
  *
  * Called with j_list_lock held and drops it if 1 is returned
  * Called under jbd_lock_bh_state(jh2bh(jh)), and drops it
@@ -269,7 +270,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		 * possibly block, while still holding the journal lock.
 		 * We cannot afford to let the transaction logic start
 		 * messing around with this buffer before we write it to
-		 * disk, as that would break recoverability.  
+		 * disk, as that would break recoverability.
 		 */
 		BUFFER_TRACE(bh, "queue");
 		get_bh(bh);
@@ -292,7 +293,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
  * Perform an actual checkpoint. We take the first transaction on the
  * list of transactions to be checkpointed and send all its buffers
  * to disk. We submit larger chunks of data at once.
- * 
+ *
  * The journal should be locked before calling this function.
  */
 int log_do_checkpoint(journal_t *journal)
@@ -303,10 +304,10 @@ int log_do_checkpoint(journal_t *journal)
 
 	jbd_debug(1, "Start checkpoint\n");
 
-	/* 
+	/*
 	 * First thing: if there are any transactions in the log which
 	 * don't need checkpointing, just eliminate them from the
-	 * journal straight away.  
+	 * journal straight away.
 	 */
 	result = cleanup_journal_tail(journal);
 	jbd_debug(1, "cleanup_journal_tail returned %d\n", result);
@@ -384,9 +385,9 @@ out:
  * we have already got rid of any since the last update of the log tail
  * in the journal superblock.  If so, we can instantly roll the
  * superblock forward to remove those transactions from the log.
- * 
+ *
  * Return <0 on error, 0 on success, 1 if there was nothing to clean up.
- * 
+ *
  * Called with the journal lock held.
  *
  * This is the only part of the journaling code which really needs to be
@@ -403,8 +404,8 @@ int cleanup_journal_tail(journal_t *journal)
 	unsigned long	blocknr, freed;
 
 	/* OK, work out the oldest transaction remaining in the log, and
-	 * the log block it starts at. 
-	 * 
+	 * the log block it starts at.
+	 *
 	 * If the log is now empty, we need to work out which is the
 	 * next transaction ID we will write, and where it will
 	 * start. */
@@ -479,7 +480,7 @@ static int journal_clean_one_cp_list(struct journal_head *jh, int *released)
 	if (!jh)
 		return 0;
 
- 	last_jh = jh->b_cpprev;
+	last_jh = jh->b_cpprev;
 	do {
 		jh = next_jh;
 		next_jh = jh->b_cpnext;
@@ -557,7 +558,7 @@ out:
 	return ret;
 }
 
-/* 
+/*
  * journal_remove_checkpoint: called after a buffer has been committed
  * to disk (either by being write-back flushed to disk, or being
  * committed to the log).
@@ -635,7 +636,7 @@ out:
  * Called with the journal locked.
  * Called with j_list_lock held.
  */
-void __journal_insert_checkpoint(struct journal_head *jh, 
+void __journal_insert_checkpoint(struct journal_head *jh,
 			       transaction_t *transaction)
 {
 	JBUFFER_TRACE(jh, "entry");
@@ -657,7 +658,7 @@ void __journal_insert_checkpoint(struct journal_head *jh,
 
 /*
  * We've finished with this transaction structure: adios...
- * 
+ *
  * The transaction must have no links except for the checkpoint by this
  * point.
  *

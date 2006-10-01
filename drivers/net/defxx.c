@@ -275,7 +275,7 @@ static void		dfx_xmt_flush(DFX_board_t *bp);
 
 static struct net_device *root_dfx_eisa_dev;
 
-
+
 /*
  * =======================
  * = dfx_port_write_byte =
@@ -283,13 +283,13 @@ static struct net_device *root_dfx_eisa_dev;
  * = dfx_port_write_long =
  * = dfx_port_read_long  =
  * =======================
- *   
+ *
  * Overview:
  *   Routines for reading and writing values from/to adapter
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp     - pointer to board information
  *   offset - register offset from base I/O address
@@ -301,7 +301,7 @@ static struct net_device *root_dfx_eisa_dev;
  * Functional Description:
  *   These routines perform the correct operation to read or write
  *   the adapter register.
- *   
+ *
  *   EISA port block base addresses are based on the slot number in which the
  *   controller is installed.  For example, if the EISA controller is installed
  *   in slot 4, the port block base address is 0x4000.  If the controller is
@@ -377,18 +377,18 @@ static inline void dfx_port_read_long(
 	*data = inl(port);
 	}
 
-
+
 /*
  * =============
  * = dfx_init_one_pci_or_eisa =
  * =============
- *   
+ *
  * Overview:
  *   Initializes a supported FDDI EISA or PCI controller
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   pdev - pointer to pci device information (NULL for EISA)
  *   ioaddr - pointer to port (NULL for PCI)
@@ -537,18 +537,18 @@ static int __init dfx_eisa_init(void)
 	}
 	return rc;
 }
-
+
 /*
  * ================
  * = dfx_bus_init =
  * ================
- *   
+ *
  * Overview:
  *   Initializes EISA and PCI controller bus-specific logic.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *
@@ -672,19 +672,19 @@ static void __devinit dfx_bus_init(struct net_device *dev)
 		}
 	}
 
-
+
 /*
  * ========================
  * = dfx_bus_config_check =
  * ========================
- *   
+ *
  * Overview:
  *   Checks the configuration (burst size, full-duplex, etc.)  If any parameters
  *   are illegal, then this routine will set new defaults.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -766,19 +766,19 @@ static void __devinit dfx_bus_config_check(DFX_board_t *bp)
 		}
 	}
 
-
+
 /*
  * ===================
  * = dfx_driver_init =
  * ===================
- *   
+ *
  * Overview:
  *   Initializes remaining adapter board structure information
  *   and makes sure adapter is in a safe state prior to dfx_open().
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *   print_name - printable device name
@@ -984,18 +984,18 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	return(DFX_K_SUCCESS);
 }
 
-
+
 /*
  * =================
  * = dfx_adap_init =
  * =================
- *   
+ *
  * Overview:
  *   Brings the adapter to the link avail/link unavailable state.
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *   get_buffers - non-zero if buffers to be allocated
@@ -1188,18 +1188,18 @@ static int dfx_adap_init(DFX_board_t *bp, int get_buffers)
 	return(DFX_K_SUCCESS);
 	}
 
-
+
 /*
  * ============
  * = dfx_open =
  * ============
- *   
+ *
  * Overview:
  *   Opens the adapter
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *
@@ -1225,7 +1225,7 @@ static int dfx_open(struct net_device *dev)
 	DFX_board_t	*bp = dev->priv;
 
 	DBG_printk("In dfx_open...\n");
-	
+
 	/* Register IRQ - support shared interrupts by passing device ptr */
 
 	ret = request_irq(dev->irq, dfx_interrupt, IRQF_SHARED, dev->name, dev);
@@ -1276,18 +1276,18 @@ static int dfx_open(struct net_device *dev)
 	return(0);
 }
 
-
+
 /*
  * =============
  * = dfx_close =
  * =============
- *   
+ *
  * Overview:
  *   Closes the device/module.
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *
@@ -1360,26 +1360,26 @@ static int dfx_close(struct net_device *dev)
 	/* Clear device structure flags */
 
 	netif_stop_queue(dev);
-	
+
 	/* Deregister (free) IRQ */
 
 	free_irq(dev->irq, dev);
-	
+
 	return(0);
 }
 
-
+
 /*
  * ======================
  * = dfx_int_pr_halt_id =
  * ======================
- *   
+ *
  * Overview:
  *   Displays halt id's in string form.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -1452,18 +1452,18 @@ static void dfx_int_pr_halt_id(DFX_board_t	*bp)
 		}
 	}
 
-
+
 /*
  * ==========================
  * = dfx_int_type_0_process =
  * ==========================
- *   
+ *
  * Overview:
  *   Processes Type 0 interrupts.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -1569,7 +1569,7 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 	/* Check for adapter state change */
 
 	if (type_0_status & PI_TYPE_0_STAT_M_STATE_CHANGE)
-		{                     
+		{
 		/* Get latest adapter state */
 
 		state = dfx_hw_adap_state_rd(bp);	/* get adapter state */
@@ -1604,18 +1604,18 @@ static void dfx_int_type_0_process(DFX_board_t	*bp)
 		}
 	}
 
-
+
 /*
  * ==================
  * = dfx_int_common =
  * ==================
- *   
+ *
  * Overview:
  *   Interrupt service routine (ISR)
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -1678,7 +1678,7 @@ static void dfx_int_common(struct net_device *dev)
 		dfx_int_type_0_process(bp);	/* process Type 0 interrupts */
 	}
 
-
+
 /*
  * =================
  * = dfx_interrupt =
@@ -1780,18 +1780,18 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-
+
 /*
  * =====================
  * = dfx_ctl_get_stats =
  * =====================
- *   
+ *
  * Overview:
  *   Get statistics for FDDI adapter
- *  
+ *
  * Returns:
  *   Pointer to FDDI statistics structure
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *
@@ -1967,19 +1967,19 @@ static struct net_device_stats *dfx_ctl_get_stats(struct net_device *dev)
 	return((struct net_device_stats *) &bp->stats);
 	}
 
-
+
 /*
  * ==============================
  * = dfx_ctl_set_multicast_list =
  * ==============================
- *   
+ *
  * Overview:
  *   Enable/Disable LLC frame promiscuous mode reception
  *   on the adapter and/or update multicast address table.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   dev - pointer to device information
  *
@@ -2088,19 +2088,19 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		}
 	}
 
-
+
 /*
  * ===========================
  * = dfx_ctl_set_mac_address =
  * ===========================
- *   
+ *
  * Overview:
  *   Add node address override (unicast address) to adapter
  *   CAM and update dev_addr field in device table.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   dev  - pointer to device information
  *   addr - pointer to sockaddr structure containing unicast address to add
@@ -2178,7 +2178,7 @@ static int dfx_ctl_set_mac_address(struct net_device *dev, void *addr)
 	return(0);			/* always return zero */
 	}
 
-
+
 /*
  * ======================
  * = dfx_ctl_update_cam =
@@ -2263,7 +2263,7 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
 	return(DFX_K_SUCCESS);
 	}
 
-
+
 /*
  * ==========================
  * = dfx_ctl_update_filters =
@@ -2272,10 +2272,10 @@ static int dfx_ctl_update_cam(DFX_board_t *bp)
  * Overview:
  *   Procedure to update adapter filters with desired
  *   filter settings.
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -2329,18 +2329,18 @@ static int dfx_ctl_update_filters(DFX_board_t *bp)
 	return(DFX_K_SUCCESS);
 	}
 
-
+
 /*
  * ======================
  * = dfx_hw_dma_cmd_req =
  * ======================
- *   
+ *
  * Overview:
  *   Sends PDQ DMA command to adapter firmware
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -2374,9 +2374,9 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 	{
 	int status;			/* adapter status */
 	int timeout_cnt;	/* used in for loops */
-	
+
 	/* Make sure the adapter is in a state that we can issue the DMA command in */
-	
+
 	status = dfx_hw_adap_state_rd(bp);
 	if ((status == PI_STATE_K_RESET)		||
 		(status == PI_STATE_K_HALTED)		||
@@ -2397,7 +2397,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 	dfx_port_write_long(bp, PI_PDQ_K_REG_CMD_RSP_PROD, bp->cmd_rsp_reg.lword);
 
 	/* Put request buffer on the command request queue */
-	
+
 	bp->descr_block_virt->cmd_req[bp->cmd_req_reg.index.prod].long_0 = (u32) (PI_XMT_DESCR_M_SOP |
 			PI_XMT_DESCR_M_EOP | (PI_CMD_REQ_K_SIZE_MAX << PI_XMT_DESCR_V_SEG_LEN));
 	bp->descr_block_virt->cmd_req[bp->cmd_req_reg.index.prod].long_1 = bp->cmd_req_phys;
@@ -2419,7 +2419,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 			break;
 		udelay(100);			/* wait for 100 microseconds */
 		}
-	if (timeout_cnt == 0) 
+	if (timeout_cnt == 0)
 		return(DFX_K_HW_TIMEOUT);
 
 	/* Bump (and wrap) the completion index and write out to register */
@@ -2439,7 +2439,7 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 			break;
 		udelay(100);			/* wait for 100 microseconds */
 		}
-	if (timeout_cnt == 0) 
+	if (timeout_cnt == 0)
 		return(DFX_K_HW_TIMEOUT);
 
 	/* Bump (and wrap) the completion index and write out to register */
@@ -2450,18 +2450,18 @@ static int dfx_hw_dma_cmd_req(DFX_board_t *bp)
 	return(DFX_K_SUCCESS);
 	}
 
-
+
 /*
  * ========================
  * = dfx_hw_port_ctrl_req =
  * ========================
- *   
+ *
  * Overview:
  *   Sends PDQ port control command to adapter firmware
- *  
+ *
  * Returns:
  *   Host data register value in host_data if ptr is not NULL
- *       
+ *
  * Arguments:
  *   bp			- pointer to board information
  *	 command	- port control command
@@ -2497,7 +2497,7 @@ static int dfx_hw_port_ctrl_req(
 	int			timeout_cnt;	/* used in for loops */
 
 	/* Set Command Error bit in command longword */
-	
+
 	port_cmd = (PI_UINT32) (command | PI_PCTRL_M_CMD_ERROR);
 
 	/* Issue port command to the adapter */
@@ -2520,12 +2520,12 @@ static int dfx_hw_port_ctrl_req(
 			break;
 		udelay(100);			/* wait for 100 microseconds */
 		}
-	if (timeout_cnt == 0) 
+	if (timeout_cnt == 0)
 		return(DFX_K_HW_TIMEOUT);
 
 	/*
-	 * If the address of host_data is non-zero, assume caller has supplied a  
-	 * non NULL pointer, and return the contents of the HOST_DATA register in 
+	 * If the address of host_data is non-zero, assume caller has supplied a
+	 * non NULL pointer, and return the contents of the HOST_DATA register in
 	 * it.
 	 */
 
@@ -2534,18 +2534,18 @@ static int dfx_hw_port_ctrl_req(
 	return(DFX_K_SUCCESS);
 	}
 
-
+
 /*
  * =====================
  * = dfx_hw_adap_reset =
  * =====================
- *   
+ *
  * Overview:
  *   Resets adapter
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp   - pointer to board information
  *   type - type of reset to perform
@@ -2588,18 +2588,18 @@ static void dfx_hw_adap_reset(
 	dfx_port_write_long(bp, PI_PDQ_K_REG_PORT_RESET, 0);
 	}
 
-
+
 /*
  * ========================
  * = dfx_hw_adap_state_rd =
  * ========================
- *   
+ *
  * Overview:
  *   Returns current adapter state
- *  
+ *
  * Returns:
  *   Adapter state per PDQ Port Specification
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -2624,18 +2624,18 @@ static int dfx_hw_adap_state_rd(DFX_board_t *bp)
 	return((port_status & PI_PSTATUS_M_STATE) >> PI_PSTATUS_V_STATE);
 	}
 
-
+
 /*
  * =====================
  * = dfx_hw_dma_uninit =
  * =====================
- *   
+ *
  * Overview:
  *   Brings adapter to DMA_UNAVAILABLE state
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   bp   - pointer to board information
  *   type - type of reset to perform
@@ -2672,38 +2672,38 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
 			break;
 		udelay(100);					/* wait for 100 microseconds */
 		}
-	if (timeout_cnt == 0) 
+	if (timeout_cnt == 0)
 		return(DFX_K_HW_TIMEOUT);
 	return(DFX_K_SUCCESS);
 	}
-
+
 /*
  *	Align an sk_buff to a boundary power of 2
  *
  */
- 
+
 static void my_skb_align(struct sk_buff *skb, int n)
 {
 	unsigned long x = (unsigned long)skb->data;
 	unsigned long v;
-	
+
 	v = ALIGN(x, n);	/* Where we want to be */
-	
+
 	skb_reserve(skb, v - x);
 }
 
-
+
 /*
  * ================
  * = dfx_rcv_init =
  * ================
- *   
+ *
  * Overview:
  *   Produces buffers to adapter LLC Host receive descriptor block
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *   get_buffers - non-zero if buffers to be allocated
@@ -2764,7 +2764,7 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 			 * align to 128 bytes for compatibility with
 			 * the old EISA boards.
 			 */
-			 
+
 			my_skb_align(newskb, 128);
 			bp->descr_block_virt->rcv_data[i + j].long_1 =
 				(u32)pci_map_single(bp->pci_dev, newskb->data,
@@ -2795,18 +2795,18 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 	return 0;
 	}
 
-
+
 /*
  * =========================
  * = dfx_rcv_queue_process =
  * =========================
- *   
+ *
  * Overview:
  *   Process received LLC frames.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -2880,7 +2880,7 @@ static void dfx_rcv_queue_process(
 					newskb = dev_alloc_skb(NEW_SKB_SIZE);
 					if (newskb){
 						rx_in_place = 1;
-						
+
 						my_skb_align(newskb, 128);
 						skb = (struct sk_buff *)bp->p_rcv_buff_va[entry];
 						pci_unmap_single(bp->pci_dev,
@@ -2914,7 +2914,7 @@ static void dfx_rcv_queue_process(
 
 						memcpy(skb->data, p_buff + RCV_BUFF_K_PADDING, pkt_len+3);
 					}
-					
+
 					skb_reserve(skb,3);		/* adjust data field so that it points to FC byte */
 					skb_put(skb, pkt_len);		/* pass up packet length, NOT including CRC */
 					skb->dev = bp->dev;		/* pass up device pointer */
@@ -2945,18 +2945,18 @@ static void dfx_rcv_queue_process(
 		}
 	}
 
-
+
 /*
  * =====================
  * = dfx_xmt_queue_pkt =
  * =====================
- *   
+ *
  * Overview:
  *   Queues packets for transmission
- *  
+ *
  * Returns:
  *   Condition code
- *       
+ *
  * Arguments:
  *   skb - pointer to sk_buff to queue for transmission
  *   dev - pointer to device information
@@ -3020,7 +3020,7 @@ static int dfx_xmt_queue_pkt(
 	unsigned long		flags;
 
 	netif_stop_queue(dev);
-	
+
 	/*
 	 * Verify that incoming transmit request is OK
 	 *
@@ -3032,7 +3032,7 @@ static int dfx_xmt_queue_pkt(
 
 	if (!IN_RANGE(skb->len, FDDI_K_LLC_ZLEN, FDDI_K_LLC_LEN))
 	{
-		printk("%s: Invalid packet length - %u bytes\n", 
+		printk("%s: Invalid packet length - %u bytes\n",
 			dev->name, skb->len);
 		bp->xmt_length_errors++;		/* bump error counter */
 		netif_wake_queue(dev);
@@ -3065,7 +3065,7 @@ static int dfx_xmt_queue_pkt(
 		}
 
 	spin_lock_irqsave(&bp->lock, flags);
-	
+
 	/* Get the current producer and the next free xmt data descriptor */
 
 	prod		= bp->rcv_xmt_reg.index.xmt_prod;
@@ -3167,18 +3167,18 @@ static int dfx_xmt_queue_pkt(
 	return(0);							/* packet queued to adapter */
 	}
 
-
+
 /*
  * ================
  * = dfx_xmt_done =
  * ================
- *   
+ *
  * Overview:
  *   Processes all frames that have been transmitted.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -3246,18 +3246,18 @@ static int dfx_xmt_done(DFX_board_t *bp)
 	return freed;
 	}
 
-
+
 /*
  * =================
  * = dfx_rcv_flush =
  * =================
- *   
+ *
  * Overview:
  *   Remove all skb's in the receive ring.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -3299,14 +3299,14 @@ static inline void dfx_rcv_flush( DFX_board_t *bp )
  * =================
  * = dfx_xmt_flush =
  * =================
- *   
+ *
  * Overview:
  *   Processes all frames whether they've been transmitted
  *   or not.
- *  
+ *
  * Returns:
  *   None
- *       
+ *
  * Arguments:
  *   bp - pointer to board information
  *
@@ -3444,13 +3444,13 @@ static int __init dfx_init(void)
 {
 	int rc_pci, rc_eisa;
 
-	rc_pci = pci_module_init(&dfx_driver);
+	rc_pci = pci_register_driver(&dfx_driver);
 	if (rc_pci >= 0) dfx_have_pci = 1;
-	
+
 	rc_eisa = dfx_eisa_init();
 	if (rc_eisa >= 0) dfx_have_eisa = 1;
 
-	return ((rc_eisa < 0) ? 0 : rc_eisa)  + ((rc_pci < 0) ? 0 : rc_pci); 
+	return ((rc_eisa < 0) ? 0 : rc_eisa)  + ((rc_pci < 0) ? 0 : rc_pci);
 }
 
 static void __exit dfx_cleanup(void)
@@ -3459,8 +3459,8 @@ static void __exit dfx_cleanup(void)
 		pci_unregister_driver(&dfx_driver);
 	if (dfx_have_eisa)
 		dfx_eisa_cleanup();
-		
-}	
+
+}
 
 module_init(dfx_init);
 module_exit(dfx_cleanup);
@@ -3469,7 +3469,7 @@ MODULE_DESCRIPTION("DEC FDDIcontroller EISA/PCI (DEFEA/DEFPA) driver "
 		   DRV_VERSION " " DRV_RELDATE);
 MODULE_LICENSE("GPL");
 
-
+
 /*
  * Local variables:
  * kernel-compile-command: "gcc -D__KERNEL__ -I/root/linux/include -Wall -Wstrict-prototypes -O2 -pipe -fomit-frame-pointer -fno-strength-reduce -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2 -c defxx.c"

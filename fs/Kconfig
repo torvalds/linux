@@ -4,6 +4,8 @@
 
 menu "File systems"
 
+if BLOCK
+
 config EXT2_FS
 	tristate "Second extended fs support"
 	help
@@ -325,8 +327,8 @@ config FS_POSIX_ACL
 source "fs/xfs/Kconfig"
 
 config OCFS2_FS
-	tristate "OCFS2 file system support (EXPERIMENTAL)"
-	depends on NET && SYSFS && EXPERIMENTAL
+	tristate "OCFS2 file system support"
+	depends on NET && SYSFS
 	select CONFIGFS_FS
 	select JBD
 	select CRC32
@@ -398,6 +400,8 @@ config ROMFS_FS
 
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
+
+endif
 
 config INOTIFY
 	bool "Inotify file change notification support"
@@ -530,6 +534,7 @@ config FUSE_FS
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
 
+if BLOCK
 menu "CD-ROM/DVD Filesystems"
 
 config ISO9660_FS
@@ -597,7 +602,9 @@ config UDF_NLS
 	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)
 
 endmenu
+endif
 
+if BLOCK
 menu "DOS/FAT/NT Filesystems"
 
 config FAT_FS
@@ -782,6 +789,7 @@ config NTFS_RW
 	  It is perfectly safe to say N here.
 
 endmenu
+endif
 
 menu "Pseudo filesystems"
 
@@ -826,6 +834,25 @@ config PROC_VMCORE
         help
         Exports the dump image of crashed kernel in ELF format.
 
+config PROC_SYSCTL
+	bool "Sysctl support (/proc/sys)" if EMBEDDED
+	depends on PROC_FS
+	select SYSCTL
+	default y
+	---help---
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface is through /proc/sys.  If you say Y here a tree of
+	  modifiable sysctl entries will be generated beneath the
+          /proc/sys directory. They are explained in the files
+	  in <file:Documentation/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
+
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
 	default y
@@ -861,6 +888,19 @@ config TMPFS
 	  lost.
 
 	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+
+config TMPFS_POSIX_ACL
+	bool "Tmpfs POSIX Access Control Lists"
+	depends on TMPFS
+	select GENERIC_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
@@ -907,7 +947,7 @@ menu "Miscellaneous filesystems"
 
 config ADFS_FS
 	tristate "ADFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  The Acorn Disc Filing System is the standard file system of the
 	  RiscOS operating system which runs on Acorn's ARM-based Risc PC
@@ -935,7 +975,7 @@ config ADFS_FS_RW
 
 config AFFS_FS
 	tristate "Amiga FFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  The Fast File System (FFS) is the common file system used on hard
 	  disks by Amiga(tm) systems since AmigaOS Version 1.3 (34.20).  Say Y
@@ -957,7 +997,7 @@ config AFFS_FS
 
 config HFS_FS
 	tristate "Apple Macintosh file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	select NLS
 	help
 	  If you say Y here, you will be able to mount Macintosh-formatted
@@ -970,6 +1010,7 @@ config HFS_FS
 
 config HFSPLUS_FS
 	tristate "Apple Extended HFS file system support"
+	depends on BLOCK
 	select NLS
 	select NLS_UTF8
 	help
@@ -983,7 +1024,7 @@ config HFSPLUS_FS
 
 config BEFS_FS
 	tristate "BeOS file system (BeFS) support (read only) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	select NLS
 	help
 	  The BeOS File System (BeFS) is the native file system of Be, Inc's
@@ -1010,7 +1051,7 @@ config BEFS_DEBUG
 
 config BFS_FS
 	tristate "BFS file system support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  Boot File System (BFS) is a file system used under SCO UnixWare to
 	  allow the bootloader access to the kernel image and other important
@@ -1032,7 +1073,7 @@ config BFS_FS
 
 config EFS_FS
 	tristate "EFS file system support (read only) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on BLOCK && EXPERIMENTAL
 	help
 	  EFS is an older file system used for non-ISO9660 CD-ROMs and hard
 	  disk partitions by SGI's IRIX operating system (IRIX 6.0 and newer
@@ -1047,7 +1088,7 @@ config EFS_FS
 
 config JFFS_FS
 	tristate "Journalling Flash File System (JFFS) support"
-	depends on MTD
+	depends on MTD && BLOCK
 	help
 	  JFFS is the Journaling Flash File System developed by Axis
 	  Communications in Sweden, aimed at providing a crash/powerdown-safe
@@ -1232,6 +1273,7 @@ endchoice
 
 config CRAMFS
 	tristate "Compressed ROM file system support (cramfs)"
+	depends on BLOCK
 	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for CramFs (Compressed ROM File
@@ -1251,6 +1293,7 @@ config CRAMFS
 
 config VXFS_FS
 	tristate "FreeVxFS file system support (VERITAS VxFS(TM) compatible)"
+	depends on BLOCK
 	help
 	  FreeVxFS is a file system driver that support the VERITAS VxFS(TM)
 	  file system format.  VERITAS VxFS(TM) is the standard file system
@@ -1268,6 +1311,7 @@ config VXFS_FS
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
+	depends on BLOCK
 	help
 	  OS/2 is IBM's operating system for PC's, the same as Warp, and HPFS
 	  is the file system used for organizing files on OS/2 hard disk
@@ -1284,6 +1328,7 @@ config HPFS_FS
 
 config QNX4FS_FS
 	tristate "QNX4 file system support (read only)"
+	depends on BLOCK
 	help
 	  This is the file system used by the real-time operating systems
 	  QNX 4 and QNX 6 (the latter is also called QNX RTP).
@@ -1311,6 +1356,7 @@ config QNX4FS_RW
 
 config SYSV_FS
 	tristate "System V/Xenix/V7/Coherent file system support"
+	depends on BLOCK
 	help
 	  SCO, Xenix and Coherent are commercial Unix systems for Intel
 	  machines, and Version 7 was used on the DEC PDP-11. Saying Y
@@ -1349,6 +1395,7 @@ config SYSV_FS
 
 config UFS_FS
 	tristate "UFS file system support (read only)"
+	depends on BLOCK
 	help
 	  BSD and derivate versions of Unix (such as SunOS, FreeBSD, NetBSD,
 	  OpenBSD and NeXTstep) use a file system called UFS. Some System V
@@ -1471,8 +1518,8 @@ config NFS_V4
 	  If unsure, say N.
 
 config NFS_DIRECTIO
-	bool "Allow direct I/O on NFS files (EXPERIMENTAL)"
-	depends on NFS_FS && EXPERIMENTAL
+	bool "Allow direct I/O on NFS files"
+	depends on NFS_FS
 	help
 	  This option enables applications to perform uncached I/O on files
 	  in NFS file systems using the O_DIRECT open() flag.  When O_DIRECT
@@ -1921,13 +1968,19 @@ config 9P_FS
 
 	  If unsure, say N.
 
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
 endmenu
 
+if BLOCK
 menu "Partition Types"
 
 source "fs/partitions/Kconfig"
 
 endmenu
+endif
 
 source "fs/nls/Kconfig"
 

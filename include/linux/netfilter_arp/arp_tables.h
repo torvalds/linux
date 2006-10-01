@@ -46,11 +46,11 @@ struct arpt_arp {
 	struct arpt_devaddr_info tgt_devaddr;
 
 	/* ARP operation code. */
-	u_int16_t arpop, arpop_mask;
+	__be16 arpop, arpop_mask;
 
 	/* ARP hardware address and protocol address format. */
-	u_int16_t arhrd, arhrd_mask;
-	u_int16_t arpro, arpro_mask;
+	__be16 arhrd, arhrd_mask;
+	__be16 arpro, arpro_mask;
 
 	/* The protocol address length is only accepted if it is 4
 	 * so there is no use in offering a way to do filtering on it.
@@ -248,8 +248,7 @@ extern unsigned int arpt_do_table(struct sk_buff **pskb,
 				  unsigned int hook,
 				  const struct net_device *in,
 				  const struct net_device *out,
-				  struct arpt_table *table,
-				  void *userdata);
+				  struct arpt_table *table);
 
 #define ARPT_ALIGN(s) (((s) + (__alignof__(struct arpt_entry)-1)) & ~(__alignof__(struct arpt_entry)-1))
 #endif /*__KERNEL__*/

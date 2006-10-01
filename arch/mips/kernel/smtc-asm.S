@@ -8,7 +8,7 @@
 #include <asm/regdef.h>
 #include <asm/asmmacro.h>
 #include <asm/stackframe.h>
-#include <asm/stackframe.h>
+#include <asm/irqflags.h>
 
 /*
  * "Software Interrupt" linkage.

@@ -237,10 +237,7 @@ enum BusLogic_BIOS_DiskGeometryTranslation {
   Define a Boolean data type.
 */
 
-typedef enum {
-	false,
-	true
-} PACKED boolean;
+typedef bool boolean;
 
 /*
   Define a 10^18 Statistics Byte Counter data type.

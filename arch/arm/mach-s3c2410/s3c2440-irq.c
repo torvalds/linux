@@ -119,7 +119,7 @@ static int s3c2440_irq_add(struct sys_device *sysdev)
 }
 
 static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c2440_irq_add,
+	.add		= s3c2440_irq_add,
 };
 
 static int s3c2440_irq_init(void)

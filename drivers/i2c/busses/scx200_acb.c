@@ -383,7 +383,7 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 }
 
 /* For now, we only handle combined mode (smbus) */
-static struct i2c_algorithm scx200_acb_algorithm = {
+static const struct i2c_algorithm scx200_acb_algorithm = {
 	.smbus_xfer	= scx200_acb_smbus_xfer,
 	.functionality	= scx200_acb_func,
 };

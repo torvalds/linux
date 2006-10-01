@@ -199,7 +199,7 @@ EXPORT_SYMBOL(deactivate_super);
  *	success, 0 if we had failed (superblock contents was already dead or
  *	dying when grab_super() had been called).
  */
-static int grab_super(struct super_block *s)
+static int grab_super(struct super_block *s) __releases(sb_lock)
 {
 	s->s_count++;
 	spin_unlock(&sb_lock);
@@ -218,6 +218,37 @@ static int grab_super(struct super_block *s)
 	put_super(s);
 	yield();
 	return 0;
+}
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.  Requires a second blkdev
+ * flush by the caller to complete the operation.
+ */
+void __fsync_super(struct super_block *sb)
+{
+	sync_inodes_sb(sb, 0);
+	DQUOT_SYNC(sb);
+	lock_super(sb);
+	if (sb->s_dirt && sb->s_op->write_super)
+		sb->s_op->write_super(sb);
+	unlock_super(sb);
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, 1);
+	sync_blockdev(sb->s_bdev);
+	sync_inodes_sb(sb, 1);
+}
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int fsync_super(struct super_block *sb)
+{
+	__fsync_super(sb);
+	return sync_blockdev(sb->s_bdev);
 }
 
 /**
@@ -540,8 +571,10 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	
+#ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
+#endif
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);
@@ -661,6 +694,7 @@ void kill_litter_super(struct super_block *sb)
 
 EXPORT_SYMBOL(kill_litter_super);
 
+#ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
@@ -756,6 +790,7 @@ void kill_block_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL(kill_block_super);
+#endif
 
 int get_sb_nodev(struct file_system_type *fs_type,
 	int flags, void *data,

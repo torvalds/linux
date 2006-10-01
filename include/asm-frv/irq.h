@@ -1,6 +1,6 @@
 /* irq.h: FRV IRQ definitions
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -12,32 +12,22 @@
 #ifndef _ASM_IRQ_H_
 #define _ASM_IRQ_H_
 
-
-/*
- * the system has an on-CPU PIC and another PIC on the FPGA and other PICs on other peripherals,
- * so we do some routing in irq-routing.[ch] to reduce the number of false-positives seen by
- * drivers
- */
-
 /* this number is used when no interrupt has been assigned */
 #define NO_IRQ				(-1)
 
-#define NR_IRQ_LOG2_ACTIONS_PER_GROUP	5
-#define NR_IRQ_ACTIONS_PER_GROUP	(1 << NR_IRQ_LOG2_ACTIONS_PER_GROUP)
-#define NR_IRQ_GROUPS			4
-#define NR_IRQS				(NR_IRQ_ACTIONS_PER_GROUP * NR_IRQ_GROUPS)
+#define NR_IRQS				48
+#define IRQ_BASE_CPU			(0 * 16)
+#define IRQ_BASE_FPGA			(1 * 16)
+#define IRQ_BASE_MB93493		(2 * 16)
 
 /* probe returns a 32-bit IRQ mask:-/ */
-#define MIN_PROBE_IRQ	(NR_IRQS - 32)
+#define MIN_PROBE_IRQ			(NR_IRQS - 32)
 
+#ifndef __ASSEMBLY__
 static inline int irq_canonicalize(int irq)
 {
 	return irq;
 }
-
-extern void disable_irq_nosync(unsigned int irq);
-extern void disable_irq(unsigned int irq);
-extern void enable_irq(unsigned int irq);
-
+#endif
 
 #endif /* _ASM_IRQ_H_ */

@@ -8,19 +8,7 @@
 
 #ifndef __ASSEMBLY__
 
-
-#define pt_regs pt_regs_subarch
-#define show_regs show_regs_subarch
-#define send_sigtrap send_sigtrap_subarch
-
-#include "asm/arch/ptrace.h"
-
-#undef pt_regs
-#undef show_regs
-#undef send_sigtrap
-#undef user_mode
-#undef instruction_pointer
-
+#include "asm/arch/ptrace-abi.h"
 #include "sysdep/ptrace.h"
 
 struct pt_regs {

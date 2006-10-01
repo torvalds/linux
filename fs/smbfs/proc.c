@@ -1826,7 +1826,6 @@ smb_init_dirent(struct smb_sb_info *server, struct smb_fattr *fattr)
 	fattr->f_nlink = 1;
 	fattr->f_uid = server->mnt->uid;
 	fattr->f_gid = server->mnt->gid;
-	fattr->f_blksize = SMB_ST_BLKSIZE;
 	fattr->f_unix = 0;
 }
 

@@ -89,4 +89,12 @@ int cpu_down(unsigned int cpu);
 static inline int cpu_is_offline(int cpu) { return 0; }
 #endif
 
+#ifdef CONFIG_SUSPEND_SMP
+extern int disable_nonboot_cpus(void);
+extern void enable_nonboot_cpus(void);
+#else
+static inline int disable_nonboot_cpus(void) { return 0; }
+static inline void enable_nonboot_cpus(void) {}
+#endif
+
 #endif /* _LINUX_CPU_H_ */

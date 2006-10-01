@@ -74,7 +74,7 @@ static s64 extRoundDown(s64 nb);
  *		  extent that is used as an allocation hint if the
  *		  xaddr of the xad is non-zero.  on successful exit,
  *		  the xad describes the newly allocated extent.
- *	abnr	- boolean_t indicating whether the newly allocated extent
+ *	abnr	- bool indicating whether the newly allocated extent
  *		  should be marked as allocated but not recorded.
  *
  * RETURN VALUES:
@@ -83,7 +83,7 @@ static s64 extRoundDown(s64 nb);
  *      -ENOSPC	- insufficient disk resources.
  */
 int
-extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
+extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 	s64 nxlen, nxaddr, xoff, hint, xaddr = 0;
@@ -117,7 +117,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 		 * following the hint extent.
 		 */
 		if (offsetXAD(xp) + nxlen == xoff &&
-		    abnr == ((xp->flag & XAD_NOTRECORDED) ? TRUE : FALSE))
+		    abnr == ((xp->flag & XAD_NOTRECORDED) ? true : false))
 			xaddr = hint + nxlen;
 
 		/* adjust the hint to the last block of the extent */
@@ -148,7 +148,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 	}
 
 	/* determine the value of the extent flag */
-	xflag = (abnr == TRUE) ? XAD_NOTRECORDED : 0;
+	xflag = abnr ? XAD_NOTRECORDED : 0;
 
 	/* if we can extend the hint extent to cover the current request, 
 	 * extend it.  otherwise, insert a new extent to
@@ -203,7 +203,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
  *	xlen	- request size of the resulting extent.
  *	xp	- pointer to an xad. on successful exit, the xad
  *		  describes the newly allocated extent.
- *	abnr	- boolean_t indicating whether the newly allocated extent
+ *	abnr	- bool indicating whether the newly allocated extent
  *		  should be marked as allocated but not recorded.
  *
  * RETURN VALUES:
@@ -211,7 +211,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
  *      -EIO	- i/o error.
  *      -ENOSPC	- insufficient disk resources.
  */
-int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, boolean_t abnr)
+int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 {
 	struct super_block *sb = ip->i_sb;
 	s64 xaddr, xlen, nxaddr, delta, xoff;
@@ -468,7 +468,7 @@ int extRecord(struct inode *ip, xad_t * xp)
 int extFill(struct inode *ip, xad_t * xp)
 {
 	int rc, nbperpage = JFS_SBI(ip->i_sb)->nbperpage;
-	s64 blkno = offsetXAD(xp) >> ip->i_blksize;
+	s64 blkno = offsetXAD(xp) >> ip->i_blkbits;
 
 //      assert(ISSPARSE(ip));
 
@@ -476,7 +476,7 @@ int extFill(struct inode *ip, xad_t * xp)
 	XADaddress(xp, 0);
 
 	/* allocate an extent to fill the hole */
-	if ((rc = extAlloc(ip, nbperpage, blkno, xp, FALSE)))
+	if ((rc = extAlloc(ip, nbperpage, blkno, xp, false)))
 		return (rc);
 
 	assert(lengthPXD(xp) == nbperpage);

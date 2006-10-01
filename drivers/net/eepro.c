@@ -154,7 +154,7 @@ static const char version[] =
 #include <asm/dma.h>
 
 #define DRV_NAME "eepro"
-#define DRV_VERSION "0.13b"
+#define DRV_VERSION "0.13c"
 
 #define compat_dev_kfree_skb( skb, mode ) dev_kfree_skb( (skb) )
 /* I had reports of looong delays with SLOW_DOWN defined as udelay(2) */
@@ -743,7 +743,7 @@ static void __init eepro_print_info (struct net_device *dev)
 		printEEPROMInfo(dev);
 }
 
-static struct ethtool_ops eepro_ethtool_ops;
+static const struct ethtool_ops eepro_ethtool_ops;
 
 /* This is the real probe routine.  Linux has a history of friendly device
    probes on the ISA bus.  A good device probe avoids doing writes, and
@@ -1333,7 +1333,6 @@ set_multicast_list(struct net_device *dev)
 		mode = inb(ioaddr + REG3);
 		outb(mode, ioaddr + REG3); /* writing reg. 3 to complete the update */
 		eepro_sw2bank0(ioaddr); /* Return to BANK 0 now */
-		printk(KERN_INFO "%s: promiscuous mode enabled.\n", dev->name);
 	}
 
 	else if (dev->mc_count==0 )
@@ -1772,7 +1771,7 @@ static void eepro_ethtool_get_drvinfo(struct net_device *dev,
 	sprintf(drvinfo->bus_info, "ISA 0x%lx", dev->base_addr);
 }
 
-static struct ethtool_ops eepro_ethtool_ops = {
+static const struct ethtool_ops eepro_ethtool_ops = {
 	.get_settings	= eepro_ethtool_get_settings,
 	.get_drvinfo 	= eepro_ethtool_get_drvinfo,
 };

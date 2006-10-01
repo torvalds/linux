@@ -86,10 +86,6 @@ int ppc_do_canonicalize_irqs;
 EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
 #endif
 
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned long SYSRQ_KEY = 0x54;
-#endif /* CONFIG_MAGIC_SYSRQ */
-
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
@@ -127,11 +123,8 @@ void machine_restart(char *cmd)
 	ppc_md.restart(cmd);
 }
 
-void machine_power_off(void)
+static void ppc_generic_power_off(void)
 {
-#ifdef CONFIG_NVRAM
-	nvram_sync();
-#endif
 	ppc_md.power_off();
 }
 
@@ -143,7 +136,17 @@ void machine_halt(void)
 	ppc_md.halt();
 }
 
-void (*pm_power_off)(void) = machine_power_off;
+void (*pm_power_off)(void) = ppc_generic_power_off;
+
+void machine_power_off(void)
+{
+#ifdef CONFIG_NVRAM
+	nvram_sync();
+#endif
+	if (pm_power_off)
+		pm_power_off();
+	ppc_generic_power_off();
+}
 
 #ifdef CONFIG_TAU
 extern u32 cpu_temp(unsigned long cpu);

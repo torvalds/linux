@@ -24,6 +24,8 @@
 #include <linux/device.h>
 #include <linux/sysdev.h>
 #include <linux/bcd.h>
+#include <linux/notifier.h>
+#include <linux/cpu.h>
 #include <linux/kallsyms.h>
 #include <linux/acpi.h>
 #ifdef CONFIG_ACPI
@@ -39,9 +41,7 @@
 #include <asm/sections.h>
 #include <linux/cpufreq.h>
 #include <linux/hpet.h>
-#ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/apic.h>
-#endif
 
 #ifdef CONFIG_CPU_FREQ
 static void cpufreq_delayed_get(void);
@@ -49,7 +49,7 @@ static void cpufreq_delayed_get(void);
 extern void i8254_timer_resume(void);
 extern int using_apic_timer;
 
-static char *time_init_gtod(void);
+static char *timename = NULL;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -77,7 +77,6 @@ unsigned long long monotonic_base;
 struct vxtime_data __vxtime __section_vxtime;	/* for vsyscalls */
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
-unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 
@@ -119,7 +118,7 @@ unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
 
 void do_gettimeofday(struct timeval *tv)
 {
-	unsigned long seq, t;
+	unsigned long seq;
  	unsigned int sec, usec;
 
 	do {
@@ -136,10 +135,7 @@ void do_gettimeofday(struct timeval *tv)
 		   be found. Note when you fix it here you need to do the same
 		   in arch/x86_64/kernel/vsyscall.c and export all needed
 		   variables in vmlinux.lds. -AK */ 
-
-		t = (jiffies - wall_jiffies) * USEC_PER_TICK +
-			do_gettimeoffset();
-		usec += t;
+		usec += do_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -165,8 +161,7 @@ int do_settimeofday(struct timespec *tv)
 
 	write_seqlock_irq(&xtime_lock);
 
-	nsec -= do_gettimeoffset() * NSEC_PER_USEC +
-		(jiffies - wall_jiffies) * NSEC_PER_TICK;
+	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -187,20 +182,15 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	/* Assume the lock function has either no stack frame or only a single 
-	   word.  This checks if the address on the stack looks like a kernel 
-	   text address.
-	   There is a small window for false hits, but in that case the tick
-	   is just accounted to the spinlock function.
-	   Better would be to write these functions in assembler again
-	   and check exactly. */
+	/* Assume the lock function has either no stack frame or a copy
+	   of eflags from PUSHF
+	   Eflags always has bits 22 and up cleared unlike kernel addresses. */
 	if (!user_mode(regs) && in_lock_functions(pc)) {
-		char *v = *(char **)regs->rsp;
-		if ((v >= _stext && v <= _etext) ||
-			(v >= _sinittext && v <= _einittext) ||
-			(v >= (char *)MODULES_VADDR  && v <= (char *)MODULES_END))
-			return (unsigned long)v;
-		return ((unsigned long *)regs->rsp)[1];
+		unsigned long *sp = (unsigned long *)regs->rsp;
+		if (sp[0] >> 22)
+			return sp[0];
+		if (sp[1] >> 22)
+			return sp[1];
 	}
 	return pc;
 }
@@ -281,6 +271,7 @@ static void set_rtc_mmss(unsigned long nowtime)
  *		Note: This function is required to return accurate
  *		time even in the absence of multiple timer ticks.
  */
+static inline unsigned long long cycles_2_ns(unsigned long long cyc);
 unsigned long long monotonic_clock(void)
 {
 	unsigned long seq;
@@ -305,8 +296,7 @@ unsigned long long monotonic_clock(void)
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
 		this_offset = get_cycles_sync();
-		/* FIXME: 1000 or 1000000? */
-		offset = (this_offset - last_offset)*1000 / cpu_khz;
+		offset = cycles_2_ns(this_offset - last_offset);
 	}
 	return base + offset;
 }
@@ -410,8 +400,7 @@ void main_timer_handler(struct pt_regs *regs)
 			offset %= USEC_PER_TICK;
 		}
 
-		/* FIXME: 1000 or 1000000? */
-		monotonic_base += (tsc - vxtime.last_tsc) * 1000000 / cpu_khz;
+		monotonic_base += cycles_2_ns(tsc - vxtime.last_tsc);
 
 		vxtime.last_tsc = tsc - vxtime.quot * delay / vxtime.tsc_quot;
 
@@ -421,16 +410,16 @@ void main_timer_handler(struct pt_regs *regs)
 				(((long) offset << US_SCALE) / vxtime.tsc_quot) - 1;
 	}
 
-	if (lost > 0) {
+	if (lost > 0)
 		handle_lost_ticks(lost, regs);
-		jiffies += lost;
-	}
+	else
+		lost = 0;
 
 /*
  * Do the timer stuff.
  */
 
-	do_timer(regs);
+	do_timer(lost + 1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
@@ -441,12 +430,8 @@ void main_timer_handler(struct pt_regs *regs)
  * have to call the local interrupt handler.
  */
 
-#ifndef CONFIG_X86_LOCAL_APIC
-	profile_tick(CPU_PROFILING, regs);
-#else
 	if (!using_apic_timer)
 		smp_local_timer_interrupt(regs);
-#endif
 
 /*
  * If we have an externally synchronized Linux clock, then update CMOS clock
@@ -470,10 +455,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (apic_runs_main_timer > 1)
 		return IRQ_HANDLED;
 	main_timer_handler(regs);
-#ifdef CONFIG_X86_LOCAL_APIC
 	if (using_apic_timer)
 		smp_send_timer_broadcast_ipi();
-#endif
 	return IRQ_HANDLED;
 }
 
@@ -893,11 +876,17 @@ static struct irqaction irq0 = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
 };
 
+static int __cpuinit
+time_cpu_notifier(struct notifier_block *nb, unsigned long action, void *hcpu)
+{
+	unsigned cpu = (unsigned long) hcpu;
+	if (action == CPU_ONLINE)
+		vsyscall_set_cpu(cpu);
+	return NOTIFY_DONE;
+}
+
 void __init time_init(void)
 {
-	char *timename;
-	char *gtod;
-
 	if (nohpet)
 		vxtime.hpet_address = 0;
 
@@ -931,18 +920,17 @@ void __init time_init(void)
 	}
 
 	vxtime.mode = VXTIME_TSC;
-	gtod = time_init_gtod();
-
-	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
-	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, gtod);
-	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
-		cpu_khz / 1000, cpu_khz % 1000);
 	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
 	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
 	vxtime.last_tsc = get_cycles_sync();
-	setup_irq(0, &irq0);
-
 	set_cyc2ns_scale(cpu_khz);
+	setup_irq(0, &irq0);
+	hotcpu_notifier(time_cpu_notifier, 0);
+	time_cpu_notifier(NULL, CPU_ONLINE, (void *)(long)smp_processor_id());
+
+#ifndef CONFIG_SMP
+	time_init_gtod();
+#endif
 }
 
 /*
@@ -973,12 +961,18 @@ __cpuinit int unsynchronized_tsc(void)
 /*
  * Decide what mode gettimeofday should use.
  */
-__init static char *time_init_gtod(void)
+void time_init_gtod(void)
 {
 	char *timetype;
 
 	if (unsynchronized_tsc())
 		notsc = 1;
+
+ 	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
+		vgetcpu_mode = VGETCPU_RDTSCP;
+	else
+		vgetcpu_mode = VGETCPU_LSL;
+
 	if (vxtime.hpet_address && notsc) {
 		timetype = hpet_use_timer ? "HPET" : "PIT/HPET";
 		if (hpet_use_timer)
@@ -1001,7 +995,16 @@ __init static char *time_init_gtod(void)
 		timetype = hpet_use_timer ? "HPET/TSC" : "PIT/TSC";
 		vxtime.mode = VXTIME_TSC;
 	}
-	return timetype;
+
+	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
+	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, timetype);
+	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
+		cpu_khz / 1000, cpu_khz % 1000);
+	vxtime.quot = (USEC_PER_SEC << US_SCALE) / vxtime_hz;
+	vxtime.tsc_quot = (USEC_PER_MSEC << US_SCALE) / cpu_khz;
+	vxtime.last_tsc = get_cycles_sync();
+
+	set_cyc2ns_scale(cpu_khz);
 }
 
 __setup("report_lost_ticks", time_setup);
@@ -1031,8 +1034,16 @@ static int timer_resume(struct sys_device *dev)
 	unsigned long flags;
 	unsigned long sec;
 	unsigned long ctime = get_cmos_time();
-	unsigned long sleep_length = (ctime - sleep_start) * HZ;
+	long sleep_length = (ctime - sleep_start) * HZ;
 
+	if (sleep_length < 0) {
+		printk(KERN_WARNING "Time skew detected in timer resume!\n");
+		/* The time after the resume must not be earlier than the time
+		 * before the suspend or some nasty things will happen
+		 */
+		sleep_length = 0;
+		ctime = sleep_start;
+	}
 	if (vxtime.hpet_address)
 		hpet_reenable();
 	else
@@ -1055,7 +1066,6 @@ static int timer_resume(struct sys_device *dev)
 		vxtime.last_tsc = get_cycles_sync();
 	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
-	wall_jiffies += sleep_length;
 	monotonic_base += sleep_length * (NSEC_PER_SEC/HZ);
 	touch_softlockup_watchdog();
 	return 0;
@@ -1148,23 +1158,25 @@ int hpet_rtc_timer_init(void)
 		hpet_rtc_int_freq = DEFAULT_RTC_INT_FREQ;
 
 	local_irq_save(flags);
+
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += ((hpet_tick*HZ)/hpet_rtc_int_freq);
 	hpet_writel(cnt, HPET_T1_CMP);
 	hpet_t1_cmp = cnt;
-	local_irq_restore(flags);
 
 	cfg = hpet_readl(HPET_T1_CFG);
 	cfg &= ~HPET_TN_PERIODIC;
 	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
 	hpet_writel(cfg, HPET_T1_CFG);
 
+	local_irq_restore(flags);
+
 	return 1;
 }
 
 static void hpet_rtc_timer_reinit(void)
 {
-	unsigned int cfg, cnt;
+	unsigned int cfg, cnt, ticks_per_int, lost_ints;
 
 	if (unlikely(!(PIE_on | AIE_on | UIE_on))) {
 		cfg = hpet_readl(HPET_T1_CFG);
@@ -1179,10 +1191,33 @@ static void hpet_rtc_timer_reinit(void)
 		hpet_rtc_int_freq = DEFAULT_RTC_INT_FREQ;
 
 	/* It is more accurate to use the comparator value than current count.*/
-	cnt = hpet_t1_cmp;
-	cnt += hpet_tick*HZ/hpet_rtc_int_freq;
-	hpet_writel(cnt, HPET_T1_CMP);
-	hpet_t1_cmp = cnt;
+	ticks_per_int = hpet_tick * HZ / hpet_rtc_int_freq;
+	hpet_t1_cmp += ticks_per_int;
+	hpet_writel(hpet_t1_cmp, HPET_T1_CMP);
+
+	/*
+	 * If the interrupt handler was delayed too long, the write above tries
+	 * to schedule the next interrupt in the past and the hardware would
+	 * not interrupt until the counter had wrapped around.
+	 * So we have to check that the comparator wasn't set to a past time.
+	 */
+	cnt = hpet_readl(HPET_COUNTER);
+	if (unlikely((int)(cnt - hpet_t1_cmp) > 0)) {
+		lost_ints = (cnt - hpet_t1_cmp) / ticks_per_int + 1;
+		/* Make sure that, even with the time needed to execute
+		 * this code, the next scheduled interrupt has been moved
+		 * back to the future: */
+		lost_ints++;
+
+		hpet_t1_cmp += lost_ints * ticks_per_int;
+		hpet_writel(hpet_t1_cmp, HPET_T1_CMP);
+
+		if (PIE_on)
+			PIE_count += lost_ints;
+
+		printk(KERN_WARNING "rtc: lost some interrupts at %ldHz.\n",
+		       hpet_rtc_int_freq);
+	}
 }
 
 /*

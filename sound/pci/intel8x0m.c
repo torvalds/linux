@@ -1045,6 +1045,8 @@ static int intel8x0m_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_ac97_suspend(chip->ac97);
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
 	pci_disable_device(pci);
 	pci_save_state(pci);
 	return 0;
@@ -1058,6 +1060,9 @@ static int intel8x0m_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 	pci_enable_device(pci);
 	pci_set_master(pci);
+	request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
+		    card->shortname, chip);
+	chip->irq = pci->irq;
 	snd_intel8x0_chip_init(chip, 0);
 	snd_ac97_resume(chip->ac97);
 

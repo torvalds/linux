@@ -456,13 +456,14 @@ static void ide_dump_opcode(ide_drive_t *drive)
 	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
-	if (rq->flags & (REQ_DRIVE_CMD | REQ_DRIVE_TASK)) {
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
+	    rq->cmd_type == REQ_TYPE_ATA_TASK) {
 		char *args = rq->buffer;
 		if (args) {
 			opcode = args[0];
 			found = 1;
 		}
-	} else if (rq->flags & REQ_DRIVE_TASKFILE) {
+	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *args = rq->special;
 		if (args) {
 			task_struct_t *tf = (task_struct_t *) args->tfRegister;

@@ -843,7 +843,7 @@ pbook_pci_save(void)
 	struct pci_save *ps;
 
 	npci = 0;
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL)
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL)
 		++npci;
 	n_pbook_pci_saves = npci;
 	if (npci == 0)
@@ -854,7 +854,7 @@ pbook_pci_save(void)
 		return;
 
 	pd = NULL;
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
 		pci_read_config_word(pd, PCI_COMMAND, &ps->command);
 		pci_read_config_word(pd, PCI_CACHE_LINE_SIZE, &ps->cache_lat);
 		pci_read_config_word(pd, PCI_INTERRUPT_LINE, &ps->intr);
@@ -871,7 +871,7 @@ pbook_pci_restore(void)
 	struct pci_dev *pd = NULL;
 	int j;
 
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
 		if (ps->command == 0)
 			continue;
 		pci_read_config_word(pd, PCI_COMMAND, &cmd);

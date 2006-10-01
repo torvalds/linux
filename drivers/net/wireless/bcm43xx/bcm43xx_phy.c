@@ -81,6 +81,16 @@ static const s8 bcm43xx_tssi2dbm_g_table[] = {
 static void bcm43xx_phy_initg(struct bcm43xx_private *bcm);
 
 
+static inline
+void bcm43xx_voluntary_preempt(void)
+{
+	assert(!in_atomic() && !in_irq() &&
+	       !in_interrupt() && !irqs_disabled());
+#ifndef CONFIG_PREEMPT
+	cond_resched();
+#endif /* CONFIG_PREEMPT */
+}
+
 void bcm43xx_raw_phy_lock(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
@@ -133,22 +143,14 @@ void bcm43xx_phy_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 void bcm43xx_phy_calibrate(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
-	unsigned long flags;
 
 	bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD); /* Dummy read. */
 	if (phy->calibrated)
 		return;
 	if (phy->type == BCM43xx_PHYTYPE_G && phy->rev == 1) {
-		/* We do not want to be preempted while calibrating
-		 * the hardware.
-		 */
-		local_irq_save(flags);
-
 		bcm43xx_wireless_core_reset(bcm, 0);
 		bcm43xx_phy_initg(bcm);
 		bcm43xx_wireless_core_reset(bcm, 1);
-
-		local_irq_restore(flags);
 	}
 	phy->calibrated = 1;
 }
@@ -359,7 +361,7 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 	if (phy->rev <= 2)
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg1[i]);
-	else if ((phy->rev == 7) && (bcm43xx_phy_read(bcm, 0x0449) & 0x0200))
+	else if ((phy->rev >= 7) && (bcm43xx_phy_read(bcm, 0x0449) & 0x0200))
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg3[i]);
 	else
@@ -369,7 +371,7 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 	if (phy->rev == 2)
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
-	else if ((phy->rev > 2) && (phy->rev <= 7))
+	else if ((phy->rev > 2) && (phy->rev <= 8))
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
 			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr2[i]);
 	
@@ -1195,7 +1197,7 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 
 	if (phy->rev == 1)
 		bcm43xx_phy_initb5(bcm);
-	else if (phy->rev >= 2 && phy->rev <= 7)
+	else
 		bcm43xx_phy_initb6(bcm);
 	if (phy->rev >= 2 || phy->connected)
 		bcm43xx_phy_inita(bcm);
@@ -1239,23 +1241,22 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 		bcm43xx_phy_lo_g_measure(bcm);
 	} else {
 		if (radio->version == 0x2050 && radio->revision == 8) {
-			//FIXME
+			bcm43xx_radio_write16(bcm, 0x0052,
+					      (radio->txctl1 << 4) | radio->txctl2);
 		} else {
 			bcm43xx_radio_write16(bcm, 0x0052,
 					      (bcm43xx_radio_read16(bcm, 0x0052)
 					       & 0xFFF0) | radio->txctl1);
 		}
 		if (phy->rev >= 6) {
-			/*
 			bcm43xx_phy_write(bcm, 0x0036,
 					  (bcm43xx_phy_read(bcm, 0x0036)
-					   & 0xF000) | (FIXME << 12));
-			*/
+					   & 0xF000) | (radio->txctl2 << 12));
 		}
 		if (bcm->sprom.boardflags & BCM43xx_BFL_PACTRL)
 			bcm43xx_phy_write(bcm, 0x002E, 0x8075);
 		else
-			bcm43xx_phy_write(bcm, 0x003E, 0x807F);
+			bcm43xx_phy_write(bcm, 0x002E, 0x807F);
 		if (phy->rev < 2)
 			bcm43xx_phy_write(bcm, 0x002F, 0x0101);
 		else
@@ -1299,7 +1300,9 @@ static u16 bcm43xx_phy_lo_b_r15_loop(struct bcm43xx_private *bcm)
 {
 	int i;
 	u16 ret = 0;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	for (i = 0; i < 10; i++){
 		bcm43xx_phy_write(bcm, 0x0015, 0xAFA0);
 		udelay(1);
@@ -1309,6 +1312,8 @@ static u16 bcm43xx_phy_lo_b_r15_loop(struct bcm43xx_private *bcm)
 		udelay(40);
 		ret += bcm43xx_phy_read(bcm, 0x002C);
 	}
+	local_irq_restore(flags);
+	bcm43xx_voluntary_preempt();
 
 	return ret;
 }
@@ -1435,6 +1440,7 @@ u16 bcm43xx_phy_lo_g_deviation_subval(struct bcm43xx_private *bcm, u16 control)
 	}
 	ret = bcm43xx_phy_read(bcm, 0x002D);
 	local_irq_restore(flags);
+	bcm43xx_voluntary_preempt();
 
 	return ret;
 }
@@ -1760,6 +1766,7 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 			bcm43xx_radio_write16(bcm, 0x43, i);
 			bcm43xx_radio_write16(bcm, 0x52, radio->txctl2);
 			udelay(10);
+			bcm43xx_voluntary_preempt();
 
 			bcm43xx_phy_set_baseband_attenuation(bcm, j * 2);
 
@@ -1803,6 +1810,7 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 					      radio->txctl2
 					      | (3/*txctl1*/ << 4));//FIXME: shouldn't txctl1 be zero here and 3 in the loop above?
 			udelay(10);
+			bcm43xx_voluntary_preempt();
 
 			bcm43xx_phy_set_baseband_attenuation(bcm, j * 2);
 
@@ -1824,6 +1832,7 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0812, (r27 << 8) | 0xA2);
 		udelay(2);
 		bcm43xx_phy_write(bcm, 0x0812, (r27 << 8) | 0xA3);
+		bcm43xx_voluntary_preempt();
 	} else
 		bcm43xx_phy_write(bcm, 0x0015, r27 | 0xEFA0);
 	bcm43xx_phy_lo_adjust(bcm, is_initializing);
@@ -2188,12 +2197,6 @@ int bcm43xx_phy_init(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	int err = -ENODEV;
-	unsigned long flags;
-
-	/* We do not want to be preempted while calibrating
-	 * the hardware.
-	 */
-	local_irq_save(flags);
 
 	switch (phy->type) {
 	case BCM43xx_PHYTYPE_A:
@@ -2227,7 +2230,6 @@ int bcm43xx_phy_init(struct bcm43xx_private *bcm)
 		err = 0;
 		break;
 	}
-	local_irq_restore(flags);
 	if (err)
 		printk(KERN_WARNING PFX "Unknown PHYTYPE found!\n");
 

@@ -13,6 +13,7 @@
 #include "sysdep/ptrace.h"
 #include "task.h"
 #include "os.h"
+#include "user_util.h"
 
 #define MAXTOKEN 64
 
@@ -104,17 +105,17 @@ int cpu_feature(char *what, char *buf, int len)
 static int check_cpu_flag(char *feature, int *have_it)
 {
 	char buf[MAXTOKEN], c;
-	int fd, len = sizeof(buf)/sizeof(buf[0]);
+	int fd, len = ARRAY_SIZE(buf);
 
 	printk("Checking for host processor %s support...", feature);
 	fd = os_open_file("/proc/cpuinfo", of_read(OPENFLAGS()), 0);
 	if(fd < 0){
 		printk("Couldn't open /proc/cpuinfo, err = %d\n", -fd);
-		return(0);
+		return 0;
 	}
 
 	*have_it = 0;
-	if(!find_cpuinfo_line(fd, "flags", buf, sizeof(buf) / sizeof(buf[0])))
+	if(!find_cpuinfo_line(fd, "flags", buf, ARRAY_SIZE(buf)))
 		goto out;
 
 	c = token(fd, buf, len - 1, ' ');
@@ -138,7 +139,7 @@ static int check_cpu_flag(char *feature, int *have_it)
 	if(*have_it == 0) printk("No\n");
 	else if(*have_it == 1) printk("Yes\n");
 	os_close_file(fd);
-	return(1);
+	return 1;
 }
 
 #if 0 /* This doesn't work in tt mode, plus it's causing compilation problems

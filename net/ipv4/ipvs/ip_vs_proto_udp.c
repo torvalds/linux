@@ -29,7 +29,7 @@ udp_conn_in_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
 	if (pptr == NULL)
@@ -54,7 +54,7 @@ udp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, skb->nh.iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -117,15 +117,15 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 
 static inline void
-udp_fast_csum_update(struct udphdr *uhdr, u32 oldip, u32 newip,
-		     u16 oldport, u16 newport)
+udp_fast_csum_update(struct udphdr *uhdr, __be32 oldip, __be32 newip,
+		     __be16 oldport, __be16 newport)
 {
 	uhdr->check =
 		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ 0xFFFF,
+				 ip_vs_check_diff(oldport ^ htonl(0xFFFF),
 						  newport, uhdr->check));
 	if (!uhdr->check)
-		uhdr->check = 0xFFFF;
+		uhdr->check = htonl(0xFFFF);
 }
 
 static int
@@ -161,7 +161,7 @@ udp_snat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(udph, cp->daddr, cp->vaddr,
 				     cp->dport, cp->vport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -173,7 +173,7 @@ udp_snat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = 0xFFFF;
+			udph->check = htonl(0xFFFF);
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);
@@ -216,7 +216,7 @@ udp_dnat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(udph, cp->vaddr, cp->daddr,
 				     cp->vport, cp->dport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -250,7 +250,7 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 		case CHECKSUM_NONE:
 			skb->csum = skb_checksum(skb, udphoff,
 						 skb->len - udphoff, 0);
-		case CHECKSUM_HW:
+		case CHECKSUM_COMPLETE:
 			if (csum_tcpudp_magic(skb->nh.iph->saddr,
 					      skb->nh.iph->daddr,
 					      skb->len - udphoff,
@@ -262,7 +262,7 @@ udp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 			}
 			break;
 		default:
-			/* CHECKSUM_UNNECESSARY */
+			/* No need to checksum. */
 			break;
 		}
 	}

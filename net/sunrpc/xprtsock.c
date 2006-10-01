@@ -125,6 +125,47 @@ static inline void xs_pktdump(char *msg, u32 *packet, unsigned int count)
 }
 #endif
 
+static void xs_format_peer_addresses(struct rpc_xprt *xprt)
+{
+	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
+	char *buf;
+
+	buf = kzalloc(20, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 20, "%u.%u.%u.%u",
+				NIPQUAD(addr->sin_addr.s_addr));
+	}
+	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
+
+	buf = kzalloc(8, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 8, "%u",
+				ntohs(addr->sin_port));
+	}
+	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+
+	if (xprt->prot == IPPROTO_UDP)
+		xprt->address_strings[RPC_DISPLAY_PROTO] = "udp";
+	else
+		xprt->address_strings[RPC_DISPLAY_PROTO] = "tcp";
+
+	buf = kzalloc(48, GFP_KERNEL);
+	if (buf) {
+		snprintf(buf, 48, "addr=%u.%u.%u.%u port=%u proto=%s",
+			NIPQUAD(addr->sin_addr.s_addr),
+			ntohs(addr->sin_port),
+			xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
+	}
+	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+}
+
+static void xs_free_peer_addresses(struct rpc_xprt *xprt)
+{
+	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
+	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
+	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
+}
+
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
 
 static inline int xs_send_head(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, unsigned int len)
@@ -174,7 +215,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 	struct page **ppage = xdr->pages;
 	unsigned int len, pglen = xdr->page_len;
 	int err, ret = 0;
-	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 
 	if (unlikely(!sock))
 		return -ENOTCONN;
@@ -207,7 +247,6 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		base &= ~PAGE_CACHE_MASK;
 	}
 
-	sendpage = sock->ops->sendpage ? : sock_no_sendpage;
 	do {
 		int flags = XS_SENDMSG_FLAGS;
 
@@ -220,10 +259,7 @@ static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int a
 		if (pglen != len || xdr->tail[0].iov_len != 0)
 			flags |= MSG_MORE;
 
-		/* Hmm... We might be dealing with highmem pages */
-		if (PageHighMem(*ppage))
-			sendpage = sock_no_sendpage;
-		err = sendpage(sock, *ppage, base, len, flags);
+		err = kernel_sendpage(sock, *ppage, base, len, flags);
 		if (ret == 0)
 			ret = err;
 		else if (err > 0)
@@ -300,7 +336,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 
 	req->rq_xtime = jiffies;
 	status = xs_sendpages(xprt->sock, (struct sockaddr *) &xprt->addr,
-				sizeof(xprt->addr), xdr, req->rq_bytes_sent);
+				xprt->addrlen, xdr, req->rq_bytes_sent);
 
 	dprintk("RPC:      xs_udp_send_request(%u) = %d\n",
 			xdr->len - req->rq_bytes_sent, status);
@@ -490,6 +526,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	xprt_disconnect(xprt);
 	xs_close(xprt);
+	xs_free_peer_addresses(xprt);
 	kfree(xprt->slot);
 }
 
@@ -511,7 +548,8 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	struct rpc_rqst *rovr;
 	struct sk_buff *skb;
 	int err, repsize, copied;
-	u32 _xid, *xp;
+	u32 _xid;
+	__be32 *xp;
 
 	read_lock(&sk->sk_callback_lock);
 	dprintk("RPC:      xs_udp_data_ready...\n");
@@ -965,6 +1003,19 @@ static unsigned short xs_get_random_port(void)
 }
 
 /**
+ * xs_print_peer_address - format an IPv4 address for printing
+ * @xprt: generic transport
+ * @format: flags field indicating which parts of the address to render
+ */
+static char *xs_print_peer_address(struct rpc_xprt *xprt, enum rpc_display_format_t format)
+{
+	if (xprt->address_strings[format] != NULL)
+		return xprt->address_strings[format];
+	else
+		return "unprintable";
+}
+
+/**
  * xs_set_port - reset the port number in the remote endpoint address
  * @xprt: generic transport
  * @port: new port number
@@ -972,8 +1023,11 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
+	struct sockaddr_in *sap = (struct sockaddr_in *) &xprt->addr;
+
 	dprintk("RPC:      setting port for xprt %p to %u\n", xprt, port);
-	xprt->addr.sin_port = htons(port);
+
+	sap->sin_port = htons(port);
 }
 
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
@@ -986,7 +1040,7 @@ static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 
 	do {
 		myaddr.sin_port = htons(port);
-		err = sock->ops->bind(sock, (struct sockaddr *) &myaddr,
+		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
 		if (err == 0) {
 			xprt->port = port;
@@ -1016,10 +1070,8 @@ static void xs_udp_connect_worker(void *args)
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || xprt->addr.sin_port == 0)
+	if (xprt->shutdown || !xprt_bound(xprt))
 		goto out;
-
-	dprintk("RPC:      xs_udp_connect_worker for xprt %p\n", xprt);
 
 	/* Start by resetting any existing state */
 	xs_close(xprt);
@@ -1033,6 +1085,9 @@ static void xs_udp_connect_worker(void *args)
 		sock_release(sock);
 		goto out;
 	}
+
+	dprintk("RPC:      worker connecting xprt %p to address: %s\n",
+			xprt, xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
 
 	if (!xprt->inet) {
 		struct sock *sk = sock->sk;
@@ -1081,7 +1136,7 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt)
 	 */
 	memset(&any, 0, sizeof(any));
 	any.sa_family = AF_UNSPEC;
-	result = sock->ops->connect(sock, &any, sizeof(any), 0);
+	result = kernel_connect(sock, &any, sizeof(any), 0);
 	if (result)
 		dprintk("RPC:      AF_UNSPEC connect return code %d\n",
 				result);
@@ -1099,10 +1154,8 @@ static void xs_tcp_connect_worker(void *args)
 	struct socket *sock = xprt->sock;
 	int err, status = -EIO;
 
-	if (xprt->shutdown || xprt->addr.sin_port == 0)
+	if (xprt->shutdown || !xprt_bound(xprt))
 		goto out;
-
-	dprintk("RPC:      xs_tcp_connect_worker for xprt %p\n", xprt);
 
 	if (!xprt->sock) {
 		/* start from scratch */
@@ -1118,6 +1171,9 @@ static void xs_tcp_connect_worker(void *args)
 	} else
 		/* "close" the socket, preserving the local port */
 		xs_tcp_reuse_connection(xprt);
+
+	dprintk("RPC:      worker connecting xprt %p to address: %s\n",
+			xprt, xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
 
 	if (!xprt->inet) {
 		struct sock *sk = sock->sk;
@@ -1151,8 +1207,8 @@ static void xs_tcp_connect_worker(void *args)
 	/* Tell the socket layer to start connecting... */
 	xprt->stat.connect_count++;
 	xprt->stat.connect_start = jiffies;
-	status = sock->ops->connect(sock, (struct sockaddr *) &xprt->addr,
-			sizeof(xprt->addr), O_NONBLOCK);
+	status = kernel_connect(sock, (struct sockaddr *) &xprt->addr,
+			xprt->addrlen, O_NONBLOCK);
 	dprintk("RPC: %p  connect status %d connected %d sock state %d\n",
 			xprt, -status, xprt_connected(xprt), sock->sk->sk_state);
 	if (status < 0) {
@@ -1260,8 +1316,10 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 
 static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
+	.print_addr		= xs_print_peer_address,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
+	.rpcbind		= rpc_getport,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
@@ -1276,8 +1334,10 @@ static struct rpc_xprt_ops xs_udp_ops = {
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
+	.print_addr		= xs_print_peer_address,
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xs_tcp_release_xprt,
+	.rpcbind		= rpc_getport,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
@@ -1298,8 +1358,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 {
 	size_t slot_table_size;
-
-	dprintk("RPC:      setting up udp-ipv4 transport...\n");
+	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
 
 	xprt->max_reqs = xprt_udp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
@@ -1307,10 +1366,12 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	xprt->prot = IPPROTO_UDP;
+	if (ntohs(addr->sin_port != 0))
+		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
+
+	xprt->prot = IPPROTO_UDP;
 	xprt->tsh_size = 0;
-	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
@@ -1327,6 +1388,10 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	else
 		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
 
+	xs_format_peer_addresses(xprt);
+	dprintk("RPC:      set up transport to address %s\n",
+			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
+
 	return 0;
 }
 
@@ -1339,8 +1404,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 {
 	size_t slot_table_size;
-
-	dprintk("RPC:      setting up tcp-ipv4 transport...\n");
+	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
 
 	xprt->max_reqs = xprt_tcp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
@@ -1348,10 +1412,12 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	xprt->prot = IPPROTO_TCP;
+	if (ntohs(addr->sin_port) != 0)
+		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
+
+	xprt->prot = IPPROTO_TCP;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
-	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
 	INIT_WORK(&xprt->connect_worker, xs_tcp_connect_worker, xprt);
@@ -1366,6 +1432,10 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 		xprt->timeout = *to;
 	else
 		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
+
+	xs_format_peer_addresses(xprt);
+	dprintk("RPC:      set up transport to address %s\n",
+			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
 
 	return 0;
 }

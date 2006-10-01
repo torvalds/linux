@@ -57,7 +57,7 @@ struct memory_block {
 struct notifier_block;
 struct mem_section;
 
-#ifndef CONFIG_MEMORY_HOTPLUG
+#ifndef CONFIG_MEMORY_HOTPLUG_SPARSE
 static inline int memory_dev_init(void)
 {
 	return 0;
@@ -78,7 +78,7 @@ extern int remove_memory_block(unsigned long, struct mem_section *, int);
 #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
 
 
-#endif /* CONFIG_MEMORY_HOTPLUG */
+#endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 
 #define hotplug_memory_notifier(fn, pri) {			\
 	static struct notifier_block fn##_mem_nb =		\

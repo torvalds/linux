@@ -390,9 +390,9 @@ static int i2o_block_prep_req_fn(struct request_queue *q, struct request *req)
 	}
 
 	/* request is already processed by us, so return */
-	if (req->flags & REQ_SPECIAL) {
+	if (blk_special_request(req)) {
 		osm_debug("REQ_SPECIAL already set!\n");
-		req->flags |= REQ_DONTPREP;
+		req->cmd_flags |= REQ_DONTPREP;
 		return BLKPREP_OK;
 	}
 
@@ -411,7 +411,8 @@ static int i2o_block_prep_req_fn(struct request_queue *q, struct request *req)
 		ireq = req->special;
 
 	/* do not come back here */
-	req->flags |= REQ_DONTPREP | REQ_SPECIAL;
+	req->cmd_type = REQ_TYPE_SPECIAL;
+	req->cmd_flags |= REQ_DONTPREP;
 
 	return BLKPREP_OK;
 };

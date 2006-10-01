@@ -209,11 +209,12 @@ static const unsigned char days_in_mo[] =
  */
 static inline unsigned char rtc_is_updating(void)
 {
+	unsigned long flags;
 	unsigned char uip;
 
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	return uip;
 }
 
@@ -1261,10 +1262,8 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
 
-	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100) {
-		barrier();
+	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100)
 		cpu_relax();
-	}
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave

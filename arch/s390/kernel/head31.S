@@ -26,8 +26,8 @@ startup:basr	%r13,0			# get base
 #
 	.org	PARMAREA
 	.long	0,0			# IPL_DEVICE
-	.long	0,RAMDISK_ORIGIN	# INITRD_START
-	.long	0,RAMDISK_SIZE		# INITRD_SIZE
+	.long	0,0			# INITRD_START
+	.long	0,0			# INITRD_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"
@@ -37,12 +37,23 @@ startup:basr	%r13,0			# get base
 
 startup_continue:
 	basr	%r13,0			# get base
-.LPG1:	GET_IPL_DEVICE
+.LPG1:	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
 	mvc	__LC_IPLDEV(4),IPL_DEVICE-PARMAREA(%r12)
+#
+# Setup stack
+#
+	l	%r15,.Linittu-.LPG1(%r13)
+	mvc	__LC_CURRENT(4),__TI_task(%r15)
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
+	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
+	ahi	%r15,-96
+	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
 
+	l	%r14,.Lipl_save_parameters-.LPG1(%r13)
+	basr	%r14,%r14
 #
 # clear bss memory
 #
@@ -114,6 +125,10 @@ startup_continue:
 	b	.Lfchunk-.LPG1(%r13)
 
 	.align 4
+.Lipl_save_parameters:
+	.long	ipl_save_parameters
+.Linittu:
+	.long	init_thread_union
 .Lpmask:
 	.byte	0
 .align 8
@@ -239,6 +254,16 @@ startup_continue:
 	oi	3(%r12),0x80		# set IDTE flag
 .Lchkidte:
 
+#
+# find out if the diag 0x9c is available
+#
+	mvc	__LC_PGM_NEW_PSW(8),.Lpcdiag9c-.LPG1(%r13)
+	stap   __LC_CPUID+4		# store cpu address
+	lh     %r1,__LC_CPUID+4
+	diag   %r1,0,0x9c		# test diag 0x9c
+	oi     2(%r12),1		# set diag9c flag
+.Lchkdiag9c:
+
 	lpsw  .Lentry-.LPG1(13)		# jump to _stext in primary-space,
 					# virtual and never return ...
 	.align	8
@@ -266,6 +291,7 @@ startup_continue:
 .Lpccsp:.long	0x00080000,0x80000000 + .Lchkcsp
 .Lpcmvpg:.long	0x00080000,0x80000000 + .Lchkmvpg
 .Lpcidte:.long	0x00080000,0x80000000 + .Lchkidte
+.Lpcdiag9c:.long 0x00080000,0x80000000 + .Lchkdiag9c
 .Lmemsize:.long memory_size
 .Lmchunk:.long	memory_chunk
 .Lmflags:.long	machine_flags
@@ -273,7 +299,23 @@ startup_continue:
 .Lbss_end:  .long _end
 .Lparmaddr: .long PARMAREA
 .Lsccbaddr: .long .Lsccb
+
+	.globl ipl_schib
+ipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_flags
+ipl_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 	.org	0x12000
+.globl s390_readinfo_sccb
+s390_readinfo_sccb:
 .Lsccb:
 	.hword	0x1000			# length, one page
 	.byte	0x00,0x00,0x00
@@ -302,16 +344,6 @@ startup_continue:
 	.globl	_stext
 _stext:	basr	%r13,0			# get base
 .LPG3:
-#
-# Setup stack
-#
-	l	%r15,.Linittu-.LPG3(%r13)
-	mvc	__LC_CURRENT(4),__TI_task(%r15)
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
-	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
-	ahi	%r15,-96
-	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
-
 # check control registers
 	stctl	%c0,%c15,0(%r15)
 	oi	2(%r15),0x40		# enable sigp emergency signal
@@ -330,6 +362,5 @@ _stext:	basr	%r13,0			# get base
 #
 	.align	8
 .Ldw:	.long	0x000a0000,0x00000000
-.Linittu:.long	init_thread_union
 .Lstart:.long	start_kernel
 .Laregs:.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

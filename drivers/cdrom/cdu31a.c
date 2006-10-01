@@ -1338,8 +1338,10 @@ static void do_cdu31a_request(request_queue_t * q)
 		}
 
 		/* WTF??? */
-		if (!(req->flags & REQ_CMD))
+		if (!blk_fs_request(req)) {
+			end_request(req, 0);
 			continue;
+		}
 		if (rq_data_dir(req) == WRITE) {
 			end_request(req, 0);
 			continue;

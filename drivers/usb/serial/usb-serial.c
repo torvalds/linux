@@ -676,33 +676,29 @@ int usb_serial_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		
-		if ((endpoint->bEndpointAddress & 0x80) &&
-		    ((endpoint->bmAttributes & 3) == 0x02)) {
+
+		if (usb_endpoint_is_bulk_in(endpoint)) {
 			/* we found a bulk in endpoint */
 			dbg("found bulk in on endpoint %d", i);
 			bulk_in_endpoint[num_bulk_in] = endpoint;
 			++num_bulk_in;
 		}
 
-		if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-		    ((endpoint->bmAttributes & 3) == 0x02)) {
+		if (usb_endpoint_is_bulk_out(endpoint)) {
 			/* we found a bulk out endpoint */
 			dbg("found bulk out on endpoint %d", i);
 			bulk_out_endpoint[num_bulk_out] = endpoint;
 			++num_bulk_out;
 		}
-		
-		if ((endpoint->bEndpointAddress & 0x80) &&
-		    ((endpoint->bmAttributes & 3) == 0x03)) {
+
+		if (usb_endpoint_is_int_in(endpoint)) {
 			/* we found a interrupt in endpoint */
 			dbg("found interrupt in on endpoint %d", i);
 			interrupt_in_endpoint[num_interrupt_in] = endpoint;
 			++num_interrupt_in;
 		}
 
-		if (((endpoint->bEndpointAddress & 0x80) == 0x00) &&
-		    ((endpoint->bmAttributes & 3) == 0x03)) {
+		if (usb_endpoint_is_int_out(endpoint)) {
 			/* we found an interrupt out endpoint */
 			dbg("found interrupt out on endpoint %d", i);
 			interrupt_out_endpoint[num_interrupt_out] = endpoint;
@@ -716,14 +712,15 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
 	     (le16_to_cpu(dev->descriptor.idProduct) == PL2303_PRODUCT_ID)) ||
 	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID))) {
+	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID))) {
 		if (interface != dev->actconfig->interface[0]) {
 			/* check out the endpoints of the other interface*/
 			iface_desc = dev->actconfig->interface[0]->cur_altsetting;
 			for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 				endpoint = &iface_desc->endpoint[i].desc;
-				if ((endpoint->bEndpointAddress & 0x80) &&
-				    ((endpoint->bmAttributes & 3) == 0x03)) {
+				if (usb_endpoint_is_int_in(endpoint)) {
 					/* we found a interrupt in endpoint */
 					dbg("found interrupt in for Prolific device on separate interface");
 					interrupt_in_endpoint[num_interrupt_in] = endpoint;
@@ -937,7 +934,10 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		snprintf (&port->dev.bus_id[0], sizeof(port->dev.bus_id), "ttyUSB%d", port->number);
 		dbg ("%s - registering %s", __FUNCTION__, port->dev.bus_id);
-		device_register (&port->dev);
+		retval = device_register(&port->dev);
+		if (retval)
+			dev_err(&port->dev, "Error registering port device, "
+				"continuing\n");
 	}
 
 	usb_serial_console_init (debug, minor);

@@ -193,14 +193,13 @@ int swsusp_shrink_memory(void)
 	printk("Shrinking memory...  ");
 	do {
 		size = 2 * count_highmem_pages();
-		size += size / 50 + count_data_pages();
-		size += (size + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
-			PAGES_FOR_IO;
+		size += size / 50 + count_data_pages() + PAGES_FOR_IO;
 		tmp = size;
 		for_each_zone (zone)
 			if (!is_highmem(zone) && populated_zone(zone)) {
 				tmp -= zone->free_pages;
 				tmp += zone->lowmem_reserve[ZONE_NORMAL];
+				tmp += snapshot_additional_pages(zone);
 			}
 		if (tmp > 0) {
 			tmp = __shrink_memory(tmp);
@@ -248,6 +247,9 @@ int swsusp_suspend(void)
 	restore_processor_state();
 Restore_highmem:
 	restore_highmem();
+	/* NOTE:  device_power_up() is just a resume() for devices
+	 * that suspended with irqs off ... no overall powerup.
+	 */
 	device_power_up();
 Enable_irqs:
 	local_irq_enable();
@@ -257,8 +259,12 @@ Enable_irqs:
 int swsusp_resume(void)
 {
 	int error;
+
 	local_irq_disable();
-	if (device_power_down(PMSG_FREEZE))
+	/* NOTE:  device_power_down() is just a suspend() with irqs off;
+	 * it has no special "power things down" semantics
+	 */
+	if (device_power_down(PMSG_PRETHAW))
 		printk(KERN_ERR "Some devices failed to power down, very bad\n");
 	/* We'll ignore saved state, but this gets preempt count (etc) right */
 	save_processor_state();

@@ -132,7 +132,7 @@ _GLOBAL(__secondary_hold)
 	bne	100b
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
-	LOAD_REG_IMMEDIATE(r4, .pSeries_secondary_smp_init)
+	LOAD_REG_IMMEDIATE(r4, .generic_secondary_smp_init)
 	mtctr	r4
 	mr	r3,r24
 	bctr
@@ -1484,18 +1484,16 @@ fwnmi_data_area:
         . = 0x8000
 
 /*
- * On pSeries, secondary processors spin in the following code.
+ * On pSeries and most other platforms, secondary processors spin
+ * in the following code.
  * At entry, r3 = this processor's number (physical cpu id)
  */
-_GLOBAL(pSeries_secondary_smp_init)
+_GLOBAL(generic_secondary_smp_init)
 	mr	r24,r3
 	
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
 	isync
-
-	/* Copy some CPU settings from CPU 0 */
-	bl	.__restore_cpu_setup
 
 	/* Set up a paca value for this processor. Since we have the
 	 * physical cpu id in r24, we need to search the pacas to find
@@ -1522,15 +1520,28 @@ _GLOBAL(pSeries_secondary_smp_init)
 					/* start.			 */
 	sync
 
-	/* Create a temp kernel stack for use before relocation is on.	*/
+#ifndef CONFIG_SMP
+	b	3b			/* Never go on non-SMP		 */
+#else
+	cmpwi	0,r23,0
+	beq	3b			/* Loop until told to go	 */
+
+	/* See if we need to call a cpu state restore handler */
+	LOAD_REG_IMMEDIATE(r23, cur_cpu_spec)
+	ld	r23,0(r23)
+	ld	r23,CPU_SPEC_RESTORE(r23)
+	cmpdi	0,r23,0
+	beq	4f
+	ld	r23,0(r23)
+	mtctr	r23
+	bctrl
+
+4:	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	cmpwi	0,r23,0
-#ifdef CONFIG_SMP
-	bne	.__secondary_start
+	b	.__secondary_start
 #endif
-	b 	3b			/* Loop until told to go	 */
 
 #ifdef CONFIG_PPC_ISERIES
 _STATIC(__start_initialization_iSeries)
@@ -1611,7 +1622,16 @@ _GLOBAL(__start_initialization_multiplatform)
 	bl	.enable_64b_mode
 
 	/* Setup some critical 970 SPRs before switching MMU off */
-	bl	.__970_cpu_preinit
+	mfspr	r0,SPRN_PVR
+	srwi	r0,r0,16
+	cmpwi	r0,0x39		/* 970 */
+	beq	1f
+	cmpwi	r0,0x3c		/* 970FX */
+	beq	1f
+	cmpwi	r0,0x44		/* 970MP */
+	bne	2f
+1:	bl	.__cpu_preinit_ppc970
+2:
 
 	/* Switch off MMU if not already */
 	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
@@ -1728,7 +1748,7 @@ _STATIC(__after_prom_start)
 _GLOBAL(copy_and_flush)
 	addi	r5,r5,-8
 	addi	r6,r6,-8
-4:	li	r0,16			/* Use the least common		*/
+4:	li	r0,8			/* Use the smallest common	*/
 					/* denominator cache line	*/
 					/* size.  This results in	*/
 					/* extra cache line flushes	*/
@@ -1782,7 +1802,7 @@ _GLOBAL(pmac_secondary_start)
 	isync
 
 	/* Copy some CPU settings from CPU 0 */
-	bl	.__restore_cpu_setup
+	bl	.__restore_cpu_ppc970
 
 	/* pSeries do that early though I don't think we really need it */
 	mfmsr	r3
@@ -1931,12 +1951,6 @@ _STATIC(start_here_multiplatform)
 	add	r4,r4,r26
 	mr	r5,r26
 	bl	.identify_cpu
-
-	/* Save some low level config HIDs of CPU0 to be copied to
-	 * other CPUs later on, or used for suspend/resume
-	 */
-	bl	.__save_cpu_setup
-	sync
 
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/

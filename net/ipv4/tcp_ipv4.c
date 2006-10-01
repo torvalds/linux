@@ -78,8 +78,8 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-int sysctl_tcp_tw_reuse;
-int sysctl_tcp_low_latency;
+int sysctl_tcp_tw_reuse __read_mostly;
+int sysctl_tcp_low_latency __read_mostly;
 
 /* Check TCP sequence numbers in ICMP packets. */
 #define ICMP_MIN_LENGTH 8
@@ -159,7 +159,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct rtable *rt;
-	u32 daddr, nexthop;
+	__be32 daddr, nexthop;
 	int tmp;
 	int err;
 
@@ -484,7 +484,7 @@ void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcphdr *th = skb->h.th;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		th->check = ~tcp_v4_check(th, len, inet->saddr, inet->daddr, 0);
 		skb->csum = offsetof(struct tcphdr, check);
 	} else {
@@ -509,7 +509,7 @@ int tcp_v4_gso_send_check(struct sk_buff *skb)
 	th->check = 0;
 	th->check = ~tcp_v4_check(th, skb->len, iph->saddr, iph->daddr, 0);
 	skb->csum = offsetof(struct tcphdr, check);
-	skb->ip_summed = CHECKSUM_HW;
+	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
 }
 
@@ -734,8 +734,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct inet_request_sock *ireq;
 	struct tcp_options_received tmp_opt;
 	struct request_sock *req;
-	__u32 saddr = skb->nh.iph->saddr;
-	__u32 daddr = skb->nh.iph->daddr;
+	__be32 saddr = skb->nh.iph->saddr;
+	__be32 daddr = skb->nh.iph->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
 	struct dst_entry *dst = NULL;
 #ifdef CONFIG_SYN_COOKIES
@@ -797,6 +797,9 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 
 	tcp_openreq_init(req, &tmp_opt, skb);
+
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_free;
 
 	ireq = inet_rsk(req);
 	ireq->loc_addr = daddr;
@@ -948,9 +951,9 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = __inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
-					th->source, skb->nh.iph->daddr,
-					ntohs(th->dest), inet_iif(skb));
+	nsk = inet_lookup_established(&tcp_hashinfo, skb->nh.iph->saddr,
+				      th->source, skb->nh.iph->daddr,
+				      th->dest, inet_iif(skb));
 
 	if (nsk) {
 		if (nsk->sk_state != TCP_TIME_WAIT) {
@@ -970,7 +973,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 
 static int tcp_v4_checksum_init(struct sk_buff *skb)
 {
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
 		if (!tcp_v4_check(skb->h.th, skb->len, skb->nh.iph->saddr,
 				  skb->nh.iph->daddr, skb->csum)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1087,7 +1090,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
 	sk = __inet_lookup(&tcp_hashinfo, skb->nh.iph->saddr, th->source,
-			   skb->nh.iph->daddr, ntohs(th->dest),
+			   skb->nh.iph->daddr, th->dest,
 			   inet_iif(skb));
 
 	if (!sk)
@@ -1101,7 +1104,7 @@ process:
 		goto discard_and_relse;
 	nf_reset(skb);
 
-	if (sk_filter(sk, skb, 0))
+	if (sk_filter(sk, skb))
 		goto discard_and_relse;
 
 	skb->dev = NULL;
@@ -1165,7 +1168,7 @@ do_time_wait:
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(&tcp_hashinfo,
 							skb->nh.iph->daddr,
-							ntohs(th->dest),
+							th->dest,
 							inet_iif(skb));
 		if (sk2) {
 			inet_twsk_deschedule((struct inet_timewait_sock *)sk,
@@ -1760,7 +1763,7 @@ static void get_tcp4_sock(struct sock *sp, char *tmpbuf, int i)
 
 static void get_timewait4_sock(struct inet_timewait_sock *tw, char *tmpbuf, int i)
 {
-	unsigned int dest, src;
+	__be32 dest, src;
 	__u16 destp, srcp;
 	int ttd = tw->tw_ttd - jiffies;
 

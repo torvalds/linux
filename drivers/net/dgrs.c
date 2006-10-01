@@ -110,7 +110,6 @@ static char version[] __initdata =
  *	DGRS include files
  */
 typedef unsigned char uchar;
-typedef unsigned int bool;
 #define vol volatile
 
 #include "dgrs.h"
@@ -874,7 +873,7 @@ static int dgrs_ioctl(struct net_device *devN, struct ifreq *ifr, int cmd)
 			privN->bcomm->bc_filter_port = ioc.port;
 			privN->bcomm->bc_filter_num = ioc.filter;
 			privN->bcomm->bc_filter_len = ioc.len;
-	
+
 			if (ioc.len)
 			{
 				if(copy_from_user(S2HN(privN->bcomm->bc_filter_area),
@@ -986,7 +985,7 @@ ack_intr:
 /*
  *	Download the board firmware
  */
-static int __init 
+static int __init
 dgrs_download(struct net_device *dev0)
 {
 	DGRS_PRIV	*priv0 = (DGRS_PRIV *) dev0->priv;
@@ -1150,7 +1149,7 @@ dgrs_download(struct net_device *dev0)
 /*
  *	Probe (init) a board
  */
-static int __init 
+static int __init
 dgrs_probe1(struct net_device *dev)
 {
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
@@ -1190,7 +1189,7 @@ dgrs_probe1(struct net_device *dev)
 	 */
 	if (priv->plxreg)
 		OUTL(dev->base_addr + PLX_LCL2PCI_DOORBELL, 1);
-	
+
 	rc = request_irq(dev->irq, &dgrs_intr, IRQF_SHARED, "RightSwitch", dev);
 	if (rc)
 		goto err_out;
@@ -1228,7 +1227,7 @@ err_out:
        	return rc;
 }
 
-static int __init 
+static int __init
 dgrs_initclone(struct net_device *dev)
 {
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
@@ -1243,7 +1242,7 @@ dgrs_initclone(struct net_device *dev)
 	return (0);
 }
 
-static struct net_device * __init 
+static struct net_device * __init
 dgrs_found_device(
 	int		io,
 	ulong		mem,
@@ -1276,9 +1275,9 @@ dgrs_found_device(
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, pdev);
-	
+
 	ret = dgrs_probe1(dev);
-	if (ret) 
+	if (ret)
 		goto err1;
 
 	ret = register_netdev(dev);
@@ -1301,7 +1300,7 @@ dgrs_found_device(
 			/* Allocate new dev and priv structures */
 		devN = alloc_etherdev(sizeof(DGRS_PRIV));
 		ret = -ENOMEM;
-		if (!devN) 
+		if (!devN)
 			goto fail;
 
 		/* Don't copy the network device structure! */
@@ -1335,7 +1334,7 @@ dgrs_found_device(
 	}
 	return dev;
 
- fail:	
+ fail:
 	while (i >= 0) {
 		struct net_device *d = priv->devtbl[i--];
 		unregister_netdev(d);
@@ -1480,7 +1479,7 @@ static int __init dgrs_eisa_probe (struct device *gendev)
 		return -EBUSY;
 	}
 
-	if ( ! (inb(io+ES4H_EC) & ES4H_EC_ENABLE) ) 
+	if ( ! (inb(io+ES4H_EC) & ES4H_EC_ENABLE) )
 		goto err_out;
 
 	mem = (inb(io+ES4H_AS_31_24) << 24)
@@ -1504,11 +1503,11 @@ static int __init dgrs_eisa_probe (struct device *gendev)
 static int __devexit dgrs_eisa_remove(struct device *gendev)
 {
 	struct net_device *dev = gendev->driver_data;
-	
+
 	dgrs_remove(dev);
 
 	release_region(dev->base_addr, 256);
-		
+
 	free_netdev(dev);
 	return 0;
 }

@@ -251,10 +251,6 @@ scsi_cmd_stack_free(int ctlr)
 	stk->pool = NULL;
 }
 
-/* scsi_device_types comes from scsi.h */
-#define DEVICETYPE(n) (n<0 || n>MAX_SCSI_DEVICE_CODE) ? \
-	"Unknown" : scsi_device_types[n]
-
 #if 0
 static int xmargin=8;
 static int amargin=60;
@@ -389,7 +385,7 @@ cciss_scsi_add_entry(int ctlr, int hostno,
 	   time anyway (the scsi layer's inquiries will show that info) */
 	if (hostno != -1)
 		printk("cciss%d: %s device c%db%dt%dl%d added.\n", 
-			ctlr, DEVICETYPE(sd->devtype), hostno, 
+			ctlr, scsi_device_type(sd->devtype), hostno,
 			sd->bus, sd->target, sd->lun);
 	return 0;
 }
@@ -407,7 +403,7 @@ cciss_scsi_remove_entry(int ctlr, int hostno, int entry)
 		ccissscsi[ctlr].dev[i] = ccissscsi[ctlr].dev[i+1];
 	ccissscsi[ctlr].ndevices--;
 	printk("cciss%d: %s device c%db%dt%dl%d removed.\n",
-		ctlr, DEVICETYPE(sd.devtype), hostno, 
+		ctlr, scsi_device_type(sd.devtype), hostno,
 			sd.bus, sd.target, sd.lun);
 }
 
@@ -458,7 +454,7 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 		if (found == 0) { /* device no longer present. */ 
 			changes++;
 			/* printk("cciss%d: %s device c%db%dt%dl%d removed.\n",
-				ctlr, DEVICETYPE(csd->devtype), hostno, 
+				ctlr, scsi_device_type(csd->devtype), hostno,
 					csd->bus, csd->target, csd->lun); */
 			cciss_scsi_remove_entry(ctlr, hostno, i);
 			/* note, i not incremented */
@@ -468,7 +464,7 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 			printk("cciss%d: device c%db%dt%dl%d type changed "
 				"(device type now %s).\n",
 				ctlr, hostno, csd->bus, csd->target, csd->lun,
-					DEVICETYPE(csd->devtype));
+					scsi_device_type(csd->devtype));
 			csd->devtype = sd[j].devtype;
 			i++;	/* so just move along. */
 		} else 		/* device is same as it ever was, */
@@ -770,7 +766,7 @@ cciss_scsi_do_simple_cmd(ctlr_info_t *c,
 			int direction)
 {
 	unsigned long flags;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	cp->cmd_type = CMD_IOCTL_PEND;		// treat this like an ioctl 
 	cp->scsi_cmd = NULL;
@@ -1098,7 +1094,7 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 			if (ncurrent >= CCISS_MAX_SCSI_DEVS_PER_HBA) {
 				printk(KERN_INFO "cciss%d: %s ignored, "
 					"too many devices.\n", cntl_num,
-					DEVICETYPE(devtype));
+					scsi_device_type(devtype));
 				break;
 			}
 			memcpy(&currentsd[ncurrent].scsi3addr[0], 

@@ -126,11 +126,8 @@ void __init inet_initpeers(void)
 
 	peer_cachep = kmem_cache_create("inet_peer_cache",
 			sizeof(struct inet_peer),
-			0, SLAB_HWCACHE_ALIGN,
+			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 			NULL, NULL);
-
-	if (!peer_cachep)
-		panic("cannot create inet_peer_cache");
 
 	/* All the timers, started at system startup tend
 	   to synchronize. Perturb it a bit.
@@ -166,7 +163,7 @@ static void unlink_from_unused(struct inet_peer *p)
 	for (u = peer_root; u != peer_avl_empty; ) {		\
 		if (daddr == u->v4daddr)			\
 			break;					\
-		if (daddr < u->v4daddr)				\
+		if ((__force __u32)daddr < (__force __u32)u->v4daddr)	\
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
@@ -371,7 +368,7 @@ static int cleanup_once(unsigned long ttl)
 }
 
 /* Called with or without local BH being disabled. */
-struct inet_peer *inet_getpeer(__u32 daddr, int create)
+struct inet_peer *inet_getpeer(__be32 daddr, int create)
 {
 	struct inet_peer *p, *n;
 	struct inet_peer **stack[PEER_MAXDEPTH], ***stackptr;

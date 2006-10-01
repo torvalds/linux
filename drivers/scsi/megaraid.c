@@ -2822,9 +2822,7 @@ mega_print_inquiry(char *page, char *scsi_inq)
 
 	i = scsi_inq[0] & 0x1f;
 
-	len += sprintf(page+len, "  Type:   %s ",
-		i < MAX_SCSI_DEVICE_CODE ? scsi_device_types[i] :
-		   "Unknown          ");
+	len += sprintf(page+len, "  Type:   %s ", scsi_device_type(i));
 
 	len += sprintf(page+len,
 	"                 ANSI SCSI revision: %02x", scsi_inq[2] & 0x07);
@@ -3658,8 +3656,9 @@ megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 			 * Send the request sense data also, irrespective of
 			 * whether the user has asked for it or not.
 			 */
-			copy_to_user(upthru->reqsensearea,
-					pthru->reqsensearea, 14);
+			if (copy_to_user(upthru->reqsensearea,
+					pthru->reqsensearea, 14))
+				rval = -EFAULT;
 
 freemem_and_return:
 			if( pthru->dataxferlen ) {

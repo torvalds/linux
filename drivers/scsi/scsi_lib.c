@@ -82,7 +82,7 @@ static void scsi_unprep_request(struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
-	req->flags &= ~REQ_DONTPREP;
+	req->cmd_flags &= ~REQ_DONTPREP;
 	req->special = NULL;
 
 	scsi_put_command(cmd);
@@ -196,7 +196,8 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	req->sense_len = 0;
 	req->retries = retries;
 	req->timeout = timeout;
-	req->flags |= flags | REQ_BLOCK_PC | REQ_SPECIAL | REQ_QUIET;
+	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	req->cmd_flags |= flags | REQ_QUIET | REQ_PREEMPT;
 
 	/*
 	 * head injection *required* here otherwise quiesce won't work
@@ -397,7 +398,8 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	req = blk_get_request(sdev->request_queue, write, gfp);
 	if (!req)
 		goto free_sense;
-	req->flags |= REQ_BLOCK_PC | REQ_QUIET;
+	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	req->cmd_flags |= REQ_QUIET;
 
 	if (use_sg)
 		err = scsi_req_map_sg(req, buffer, use_sg, bufflen, gfp);
@@ -551,7 +553,15 @@ static void scsi_run_queue(struct request_queue *q)
 		list_del_init(&sdev->starved_entry);
 		spin_unlock_irqrestore(shost->host_lock, flags);
 
-		blk_run_queue(sdev->request_queue);
+
+		if (test_bit(QUEUE_FLAG_REENTER, &q->queue_flags) &&
+		    !test_and_set_bit(QUEUE_FLAG_REENTER,
+				      &sdev->request_queue->queue_flags)) {
+			blk_run_queue(sdev->request_queue);
+			clear_bit(QUEUE_FLAG_REENTER,
+				  &sdev->request_queue->queue_flags);
+		} else
+			blk_run_queue(sdev->request_queue);
 
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (unlikely(!list_empty(&sdev->starved_entry)))
@@ -925,7 +935,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					break;
 				}
 			}
-			if (!(req->flags & REQ_QUIET)) {
+			if (!(req->cmd_flags & REQ_QUIET)) {
 				scmd_printk(KERN_INFO, cmd,
 					    "Device not ready: ");
 				scsi_print_sense_hdr("", &sshdr);
@@ -933,7 +943,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
-			if (!(req->flags & REQ_QUIET)) {
+			if (!(req->cmd_flags & REQ_QUIET)) {
 				scmd_printk(KERN_INFO, cmd,
 					    "Volume overflow, CDB: ");
 				__scsi_print_command(cmd->cmnd);
@@ -955,7 +965,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		return;
 	}
 	if (result) {
-		if (!(req->flags & REQ_QUIET)) {
+		if (!(req->cmd_flags & REQ_QUIET)) {
 			scmd_printk(KERN_INFO, cmd,
 				    "SCSI error: return code = 0x%08x\n",
 				    result);
@@ -987,7 +997,7 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	/*
 	 * if this is a rq->data based REQ_BLOCK_PC, setup for a non-sg xfer
 	 */
-	if ((req->flags & REQ_BLOCK_PC) && !req->bio) {
+	if (blk_pc_request(req) && !req->bio) {
 		cmd->request_bufflen = req->data_len;
 		cmd->request_buffer = req->data;
 		req->buffer = req->data;
@@ -1131,20 +1141,18 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * these two cases differently.  We differentiate by looking
 	 * at request->cmd, as this tells us the real story.
 	 */
-	if (req->flags & REQ_SPECIAL && req->special) {
+	if (blk_special_request(req) && req->special)
 		cmd = req->special;
-	} else if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
-
-		if(unlikely(specials_only) && !(req->flags & REQ_SPECIAL)) {
-			if(specials_only == SDEV_QUIESCE ||
-					specials_only == SDEV_BLOCK)
+	else if (blk_pc_request(req) || blk_fs_request(req)) {
+		if (unlikely(specials_only) && !(req->cmd_flags & REQ_PREEMPT)){
+			if (specials_only == SDEV_QUIESCE ||
+			    specials_only == SDEV_BLOCK)
 				goto defer;
 			
 			sdev_printk(KERN_ERR, sdev,
 				    "rejecting I/O to device being removed\n");
 			goto kill;
 		}
-			
 			
 		/*
 		 * Now try and find a command block that we can use.
@@ -1176,7 +1184,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * lock.  We hope REQ_STARTED prevents anything untoward from
 	 * happening now.
 	 */
-	if (req->flags & (REQ_CMD | REQ_BLOCK_PC)) {
+	if (blk_fs_request(req) || blk_pc_request(req)) {
 		int ret;
 
 		/*
@@ -1208,7 +1216,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		/*
 		 * Initialize the actual SCSI command for this request.
 		 */
-		if (req->flags & REQ_BLOCK_PC) {
+		if (blk_pc_request(req)) {
 			scsi_setup_blk_pc_cmnd(cmd);
 		} else if (req->rq_disk) {
 			struct scsi_driver *drv;
@@ -1225,7 +1233,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	/*
 	 * The request is now prepped, no need to come back here
 	 */
-	req->flags |= REQ_DONTPREP;
+	req->cmd_flags |= REQ_DONTPREP;
 	return BLKPREP_OK;
 
  defer:
@@ -1446,8 +1454,9 @@ static void scsi_request_fn(struct request_queue *q)
 		if (unlikely(cmd == NULL)) {
 			printk(KERN_CRIT "impossible request in %s.\n"
 					 "please mail a stack trace to "
-					 "linux-scsi@vger.kernel.org",
+					 "linux-scsi@vger.kernel.org\n",
 					 __FUNCTION__);
+			blk_dump_rq_flags(req, "foo");
 			BUG();
 		}
 		spin_lock(shost->host_lock);

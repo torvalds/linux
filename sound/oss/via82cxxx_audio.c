@@ -1547,7 +1547,7 @@ static int via_mixer_open (struct inode *inode, struct file *file)
 
 	DPRINTK ("ENTER\n");
 
-	while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
+	while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
 		drvr = pci_dev_driver (pdev);
 		if (drvr == &via_driver) {
 			assert (pci_get_drvdata (pdev) != NULL);
@@ -1562,6 +1562,7 @@ static int via_mixer_open (struct inode *inode, struct file *file)
 	return -ENODEV;
 
 match:
+	pci_dev_put(pdev);
 	file->private_data = card->ac97;
 
 	DPRINTK ("EXIT, returning 0\n");
@@ -3245,7 +3246,7 @@ static int via_dsp_open (struct inode *inode, struct file *file)
 	}
 
 	card = NULL;
-	while ((pdev = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
+	while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
 		drvr = pci_dev_driver (pdev);
 		if (drvr == &via_driver) {
 			assert (pci_get_drvdata (pdev) != NULL);
@@ -3264,6 +3265,7 @@ static int via_dsp_open (struct inode *inode, struct file *file)
 	return -ENODEV;
 
 match:
+	pci_dev_put(pdev);
 	if (nonblock) {
 		if (!mutex_trylock(&card->open_mutex)) {
 			DPRINTK ("EXIT, returning -EAGAIN\n");

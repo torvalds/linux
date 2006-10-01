@@ -45,6 +45,8 @@ static void end_8259A_irq (unsigned int irq)
 
 #define shutdown_8259A_irq	disable_8259A_irq
 
+static int i8259A_auto_eoi;
+
 static void mask_and_ack_8259A(unsigned int);
 
 unsigned int startup_8259A_irq(unsigned int irq)
@@ -253,7 +255,7 @@ static void save_ELCR(char *trigger)
 
 static int i8259A_resume(struct sys_device *dev)
 {
-	init_8259A(0);
+	init_8259A(i8259A_auto_eoi);
 	restore_ELCR(irq_trigger);
 	return 0;
 }
@@ -300,6 +302,8 @@ device_initcall(i8259A_init_sysfs);
 void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
+
+	i8259A_auto_eoi = auto_eoi;
 
 	spin_lock_irqsave(&i8259A_lock, flags);
 

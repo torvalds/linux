@@ -20,14 +20,15 @@
 #define __USER_CS     0x33   /* 6*8+3 */ 
 #define __USER32_DS	__USER_DS 
 
-#define GDT_ENTRY_TLS 1
 #define GDT_ENTRY_TSS 8	/* needs two entries */
 #define GDT_ENTRY_LDT 10 /* needs two entries */
 #define GDT_ENTRY_TLS_MIN 12
 #define GDT_ENTRY_TLS_MAX 14
-/* 15 free */
 
 #define GDT_ENTRY_TLS_ENTRIES 3
+
+#define GDT_ENTRY_PER_CPU 15	/* Abused to load per CPU data from limit */
+#define __PER_CPU_SEG	(GDT_ENTRY_PER_CPU * 8 + 3)
 
 /* TLS indexes for 64bit - hardcoded in arch_prctl */
 #define FS_TLS 0	

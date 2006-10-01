@@ -755,7 +755,7 @@ static struct snd_pcm_ops snd_amd7930_capture_ops = {
 	.pointer	=	snd_amd7930_capture_pointer,
 };
 
-static int __init snd_amd7930_pcm(struct snd_amd7930 *amd)
+static int __devinit snd_amd7930_pcm(struct snd_amd7930 *amd)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -870,7 +870,7 @@ static int snd_amd7930_put_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	return change;
 }
 
-static struct snd_kcontrol_new amd7930_controls[] __initdata = {
+static struct snd_kcontrol_new amd7930_controls[] __devinitdata = {
 	{
 		.iface		=	SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name		=	"Monitor Volume",
@@ -900,7 +900,7 @@ static struct snd_kcontrol_new amd7930_controls[] __initdata = {
 	},
 };
 
-static int __init snd_amd7930_mixer(struct snd_amd7930 *amd)
+static int __devinit snd_amd7930_mixer(struct snd_amd7930 *amd)
 {
 	struct snd_card *card;
 	int idx, err;
@@ -945,11 +945,11 @@ static struct snd_device_ops snd_amd7930_dev_ops = {
 	.dev_free	=	snd_amd7930_dev_free,
 };
 
-static int __init snd_amd7930_create(struct snd_card *card,
-				     struct resource *rp,
-				     unsigned int reg_size,
-				     int irq, int dev,
-				     struct snd_amd7930 **ramd)
+static int __devinit snd_amd7930_create(struct snd_card *card,
+					struct resource *rp,
+					unsigned int reg_size,
+					int irq, int dev,
+					struct snd_amd7930 **ramd)
 {
 	unsigned long flags;
 	struct snd_amd7930 *amd;
@@ -1013,7 +1013,7 @@ static int __init snd_amd7930_create(struct snd_card *card,
 	return 0;
 }
 
-static int __init amd7930_attach_common(struct resource *rp, int irq)
+static int __devinit amd7930_attach_common(struct resource *rp, int irq)
 {
 	static int dev_num;
 	struct snd_card *card;
@@ -1065,7 +1065,7 @@ out_err:
 	return err;
 }
 
-static int __init amd7930_obio_attach(struct device_node *dp)
+static int __devinit amd7930_obio_attach(struct device_node *dp)
 {
 	struct linux_prom_registers *regs;
 	struct linux_prom_irqs *irqp;

@@ -258,7 +258,7 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = skb->nh.ipv6h;
-	u32 spi;
+	__be32 spi;
 
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&iph->saddr);
 	return xfrm6_rcv_spi(skb, spi);
@@ -307,7 +307,7 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 static int xfrm6_tunnel_init_state(struct xfrm_state *x)
 {
-	if (!x->props.mode)
+	if (x->props.mode != XFRM_MODE_TUNNEL)
 		return -EINVAL;
 
 	if (x->encap)

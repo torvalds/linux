@@ -19,18 +19,18 @@ struct nfulnl_msg_packet_hdr {
 	u_int16_t	hw_protocol;	/* hw protocol (network order) */
 	u_int8_t	hook;		/* netfilter hook */
 	u_int8_t	_pad;
-} __attribute__ ((packed));
+};
 
 struct nfulnl_msg_packet_hw {
 	u_int16_t	hw_addrlen;
 	u_int16_t	_pad;
 	u_int8_t	hw_addr[8];
-} __attribute__ ((packed));
+};
 
 struct nfulnl_msg_packet_timestamp {
 	aligned_u64	sec;
 	aligned_u64	usec;
-} __attribute__ ((packed));
+};
 
 #define NFULNL_PREFIXLEN	30	/* just like old log target */
 

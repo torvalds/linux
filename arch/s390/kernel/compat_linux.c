@@ -544,10 +544,7 @@ sys32_execve(struct pt_regs regs)
 		current->ptrace &= ~PT_DTRACE;
 		task_unlock(current);
 		current->thread.fp_regs.fpc=0;
-		__asm__ __volatile__
-		        ("sr  0,0\n\t"
-		         "sfpc 0,0\n\t"
-			 : : :"0");
+		asm volatile("sfpc %0,0" : : "d" (0));
 	}
         putname(filename);
 out:
@@ -708,7 +705,7 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SYSCTL_SYSCALL
 struct __sysctl_args32 {
 	u32 name;
 	int nlen;

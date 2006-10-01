@@ -55,14 +55,16 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 	 * destroy_context_skas.
 	 */
 
-        mm->context.skas.last_page_table = pmd_page_kernel(*pmd);
+        mm->context.skas.last_page_table = pmd_page_vaddr(*pmd);
 #ifdef CONFIG_3_LEVEL_PGTABLES
         mm->context.skas.last_pmd = (unsigned long) __va(pud_val(*pud));
 #endif
 
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
-	*pte = pte_mkexec(*pte);
-	*pte = pte_wrprotect(*pte);
+	/* This is wrong for the code page, but it doesn't matter since the
+	 * stub is mapped by hand with the correct permissions.
+	 */
+	*pte = pte_mkwrite(*pte);
 	return(0);
 
  out_pmd:

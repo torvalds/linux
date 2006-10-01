@@ -117,7 +117,8 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
 void *node_remap_end_vaddr[MAX_NUMNODES];
 void *node_remap_alloc_vaddr[MAX_NUMNODES];
-
+static unsigned long kva_start_pfn;
+static unsigned long kva_pages;
 /*
  * FLAT - support for basic PC memory model with discontig enabled, essentially
  *        a single node with all available processors in it with a flat
@@ -154,21 +155,6 @@ static void __init find_max_pfn_node(int nid)
 		node_start_pfn[nid] = max_pfn;
 	if (node_start_pfn[nid] > node_end_pfn[nid])
 		BUG();
-}
-
-/* Find the owning node for a pfn. */
-int early_pfn_to_nid(unsigned long pfn)
-{
-	int nid;
-
-	for_each_node(nid) {
-		if (node_end_pfn[nid] == 0)
-			break;
-		if (node_start_pfn[nid] <= pfn && node_end_pfn[nid] >= pfn)
-			return nid;
-	}
-
-	return 0;
 }
 
 /* 
@@ -226,6 +212,8 @@ static unsigned long calculate_numa_remap_pages(void)
 	unsigned long pfn;
 
 	for_each_online_node(nid) {
+		unsigned old_end_pfn = node_end_pfn[nid];
+
 		/*
 		 * The acpi/srat node info can show hot-add memroy zones
 		 * where memory could be added but not currently present.
@@ -275,6 +263,7 @@ static unsigned long calculate_numa_remap_pages(void)
 
 		node_end_pfn[nid] -= size;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
+		shrink_active_range(nid, old_end_pfn, node_end_pfn[nid]);
 	}
 	printk("Reserving total of %ld pages for numa KVA remap\n",
 			reserve_pages);
@@ -286,7 +275,6 @@ unsigned long __init setup_memory(void)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
-	unsigned long reserve_pages;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -298,14 +286,23 @@ unsigned long __init setup_memory(void)
 	find_max_pfn();
 	get_memcfg_numa();
 
-	reserve_pages = calculate_numa_remap_pages();
+	kva_pages = calculate_numa_remap_pages();
 
 	/* partially used pages are not usable - thus round upwards */
 	system_start_pfn = min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	system_max_low_pfn = max_low_pfn = find_max_low_pfn() - reserve_pages;
-	printk("reserve_pages = %ld find_max_low_pfn() ~ %ld\n",
-			reserve_pages, max_low_pfn + reserve_pages);
+	kva_start_pfn = find_max_low_pfn() - kva_pages;
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/* Numa kva area is below the initrd */
+	if (LOADER_TYPE && INITRD_START)
+		kva_start_pfn = PFN_DOWN(INITRD_START)  - kva_pages;
+#endif
+	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);
+
+	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
+	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
+		kva_start_pfn, max_low_pfn);
 	printk("max_pfn = %ld\n", max_pfn);
 #ifdef CONFIG_HIGHMEM
 	highstart_pfn = highend_pfn = max_pfn;
@@ -313,6 +310,11 @@ unsigned long __init setup_memory(void)
 		highstart_pfn = system_max_low_pfn;
 	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highend_pfn - highstart_pfn));
+	num_physpages = highend_pfn;
+	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
+#else
+	num_physpages = system_max_low_pfn;
+	high_memory = (void *) __va(system_max_low_pfn * PAGE_SIZE - 1) + 1;
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(system_max_low_pfn));
@@ -323,7 +325,7 @@ unsigned long __init setup_memory(void)
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid) {
 		node_remap_start_vaddr[nid] = pfn_to_kaddr(
-				highstart_pfn + node_remap_offset[nid]);
+				kva_start_pfn + node_remap_offset[nid]);
 		/* Init the node remap allocator */
 		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
 			(node_remap_size[nid] * PAGE_SIZE);
@@ -338,7 +340,6 @@ unsigned long __init setup_memory(void)
 	}
 	printk("High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
-	vmalloc_earlyreserve = reserve_pages * PAGE_SIZE;
 	for_each_online_node(nid)
 		find_max_pfn_node(nid);
 
@@ -348,48 +349,30 @@ unsigned long __init setup_memory(void)
 	return max_low_pfn;
 }
 
+void __init numa_kva_reserve(void)
+{
+	reserve_bootmem(PFN_PHYS(kva_start_pfn),PFN_PHYS(kva_pages));
+}
+
 void __init zone_sizes_init(void)
 {
 	int nid;
+	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
+		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
+		max_low_pfn,
+		highend_pfn
+	};
 
-
-	for_each_online_node(nid) {
-		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
-		unsigned long *zholes_size;
-		unsigned int max_dma;
-
-		unsigned long low = max_low_pfn;
-		unsigned long start = node_start_pfn[nid];
-		unsigned long high = node_end_pfn[nid];
-
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-
-		if (node_has_online_mem(nid)){
-			if (start > low) {
-#ifdef CONFIG_HIGHMEM
-				BUG_ON(start > high);
-				zones_size[ZONE_HIGHMEM] = high - start;
-#endif
-			} else {
-				if (low < max_dma)
-					zones_size[ZONE_DMA] = low;
-				else {
-					BUG_ON(max_dma > low);
-					BUG_ON(low > high);
-					zones_size[ZONE_DMA] = max_dma;
-					zones_size[ZONE_NORMAL] = low - max_dma;
-#ifdef CONFIG_HIGHMEM
-					zones_size[ZONE_HIGHMEM] = high - low;
-#endif
-				}
-			}
+	/* If SRAT has not registered memory, register it now */
+	if (find_max_pfn_with_active_regions() == 0) {
+		for_each_online_node(nid) {
+			if (node_has_online_mem(nid))
+				add_active_range(nid, node_start_pfn[nid],
+							node_end_pfn[nid]);
 		}
-
-		zholes_size = get_zholes_size(nid);
-
-		free_area_init_node(nid, NODE_DATA(nid), zones_size, start,
-				zholes_size);
 	}
+
+	free_area_init_nodes(max_zone_pfns);
 	return;
 }
 
@@ -409,7 +392,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
 		printk("Initializing %s for node %d (%08lx:%08lx)\n",
-				zone->name, zone->zone_pgdat->node_id,
+				zone->name, zone_to_nid(zone),
 				zone_start_pfn, zone_end_pfn);
 
 		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++) {

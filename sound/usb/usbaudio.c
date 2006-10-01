@@ -68,7 +68,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Vendor ID for this card */
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Product ID for this card */
-static int nrpacks = 4;		/* max. number of packets per urb */
+static int nrpacks = 8;		/* max. number of packets per urb */
 static int async_unlink = 1;
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card*/
 
@@ -100,7 +100,7 @@ MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
  *
  */
 
-#define MAX_PACKS	10
+#define MAX_PACKS	20
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
@@ -123,6 +123,7 @@ struct audioformat {
 	unsigned int rate_min, rate_max;	/* min/max rates */
 	unsigned int nr_rates;		/* number of rate table entries */
 	unsigned int *rate_table;	/* rate table */
+	unsigned int needs_knot;	/* any unusual rates? */
 };
 
 struct snd_usb_substream;
@@ -1759,6 +1760,9 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 		}
 		channels[f->format] |= (1 << f->channels);
 		rates[f->format] |= f->rates;
+		/* needs knot? */
+		if (f->needs_knot)
+			goto __out;
 	}
 	/* check whether channels and rates match for all formats */
 	cmaster = rmaster = 0;
@@ -1797,6 +1801,38 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 	kfree(channels);
 	kfree(rates);
 	return err;
+}
+
+/*
+ *  If the device supports unusual bit rates, does the request meet these?
+ */
+static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
+				  struct snd_usb_substream *subs)
+{
+	struct list_head *p;
+	struct snd_pcm_hw_constraint_list constraints_rates;
+	int err;
+
+	list_for_each(p, &subs->fmt_list) {
+		struct audioformat *fp;
+		fp = list_entry(p, struct audioformat, list);
+
+		if (!fp->needs_knot)
+			continue;
+
+		constraints_rates.count = fp->nr_rates;
+		constraints_rates.list = fp->rate_table;
+		constraints_rates.mask = 0;
+
+		err = snd_pcm_hw_constraint_list(runtime, 0,
+			SNDRV_PCM_HW_PARAM_RATE,
+			&constraints_rates);
+
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 
@@ -1860,6 +1896,8 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 					       SNDRV_PCM_HW_PARAM_RATE,
 					       SNDRV_PCM_HW_PARAM_CHANNELS,
 					       -1)) < 0)
+			return err;
+		if ((err = snd_usb_pcm_check_knot(runtime, subs)) < 0)
 			return err;
 	}
 	return 0;
@@ -2008,10 +2046,9 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 	void *buf = NULL;
 
 	if (size > 0) {
-		buf = kmalloc(size, GFP_KERNEL);
+		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		memcpy(buf, data, size);
 	}
 	err = usb_control_msg(dev, pipe, request, requesttype,
 			      value, index, buf, size, timeout);
@@ -2049,7 +2086,7 @@ static struct usb_driver usb_audio_driver = {
 };
 
 
-#if defined(CONFIG_PROCFS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
 
 /*
  * proc interface for list the supported pcm formats
@@ -2406,6 +2443,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 				    unsigned char *fmt, int offset)
 {
 	int nr_rates = fmt[offset];
+	int found;
 	if (fmt[0] < offset + 1 + 3 * (nr_rates ? nr_rates : 2)) {
 		snd_printk(KERN_ERR "%d:%u:%d : invalid FORMAT_TYPE desc\n",
 				   chip->dev->devnum, fp->iface, fp->altsetting);
@@ -2428,6 +2466,7 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 			return -1;
 		}
 
+		fp->needs_knot = 0;
 		fp->nr_rates = nr_rates;
 		fp->rate_min = fp->rate_max = combine_triple(&fmt[8]);
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
@@ -2436,13 +2475,19 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
 				fp->rate_min = rate;
 			else if (rate > fp->rate_max)
 				fp->rate_max = rate;
+			found = 0;
 			for (c = 0; c < (int)ARRAY_SIZE(conv_rates); c++) {
 				if (rate == conv_rates[c]) {
+					found = 1;
 					fp->rates |= (1 << c);
 					break;
 				}
 			}
+			if (!found)
+				fp->needs_knot = 1;
 		}
+		if (fp->needs_knot)
+			fp->rates |= SNDRV_PCM_RATE_KNOT;
 	} else {
 		/* continuous rates */
 		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
@@ -2800,12 +2845,11 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	int stream, err;
 	int *rate_table = NULL;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmemdup(quirk->data, sizeof(*fp), GFP_KERNEL);
 	if (! fp) {
-		snd_printk(KERN_ERR "cannot malloc\n");
+		snd_printk(KERN_ERR "cannot memdup\n");
 		return -ENOMEM;
 	}
-	memcpy(fp, quirk->data, sizeof(*fp));
 	if (fp->nr_rates > 0) {
 		rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
 		if (!rate_table) {
@@ -2983,10 +3027,9 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 	    altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmemdup(&ua1000_format, sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
-	memcpy(fp, &ua1000_format, sizeof(*fp));
 
 	fp->channels = alts->extra[4];
 	fp->iface = altsd->bInterfaceNumber;
@@ -3499,7 +3542,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 		}
 		usb_chip[chip->index] = NULL;
 		mutex_unlock(&register_mutex);
-		snd_card_free(card);
+		snd_card_free_when_closed(card);
 	} else {
 		mutex_unlock(&register_mutex);
 	}

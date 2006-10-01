@@ -5,8 +5,6 @@
  *  Copyright (C) 2000 Pavel Machek <pavel@suse.cz>
  *  Copyright (C) 2000 Karsten Keil <kkeil@suse.de>
  *  Copyright (C) 2001,2002 Andi Kleen <ak@suse.de>
- *
- *  $Id: head.S,v 1.49 2002/03/19 17:39:25 ak Exp $
  */
 
 
@@ -187,12 +185,15 @@ startup_64:
 	
 	/* Finally jump to run C code and to be on real kernel address
 	 * Since we are running on identity-mapped space we have to jump
-	 * to the full 64bit address , this is only possible as indirect
-	 * jump
+	 * to the full 64bit address, this is only possible as indirect
+	 * jump.  In addition we need to ensure %cs is set so we make this
+	 * a far return.
 	 */
 	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address
-	jmp	*%rax
+	pushq	$0		# fake return address to stop unwinder
+	pushq	$__KERNEL_CS	# set correct cs
+	pushq	%rax		# target address in negative space
+	lretq
 
 	/* SMP bootup changes these two */
 	.align	8
@@ -371,7 +372,7 @@ ENTRY(cpu_gdt_table)
 	.quad	0,0			/* TSS */
 	.quad	0,0			/* LDT */
 	.quad   0,0,0			/* three TLS descriptors */ 
-	.quad	0			/* unused */
+	.quad	0x0000f40000000000	/* node/CPU stored in limit */
 gdt_end:	
 	/* asm/segment.h:GDT_ENTRIES must match this */	
 	/* This should be a multiple of the cache line size */

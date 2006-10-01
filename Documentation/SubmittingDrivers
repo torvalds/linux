@@ -59,11 +59,11 @@ Copyright:	The copyright owner must agree to use of GPL.
 		are the same person/entity. If not, the name of
 		the person/entity authorizing use of GPL should be
 		listed in case it's necessary to verify the will of
-		the copright owner.
+		the copyright owner.
 
 Interfaces:	If your driver uses existing interfaces and behaves like
 		other drivers in the same class it will be much more likely
-		to be accepted than if it invents gratuitous new ones. 
+		to be accepted than if it invents gratuitous new ones.
 		If you need to implement a common API over Linux and NT
 		drivers do it in userspace.
 
@@ -88,7 +88,7 @@ Clarity:	It helps if anyone can see how to fix the driver. It helps
 		it will go in the bitbucket.
 
 Control:	In general if there is active maintainance of a driver by
-		the author then patches will be redirected to them unless 
+		the author then patches will be redirected to them unless
 		they are totally obvious and without need of checking.
 		If you want to be the contact and update point for the
 		driver it is a good idea to state this in the comments,
@@ -100,7 +100,7 @@ What Criteria Do Not Determine Acceptance
 Vendor:		Being the hardware vendor and maintaining the driver is
 		often a good thing. If there is a stable working driver from
 		other people already in the tree don't expect 'we are the
-		vendor' to get your driver chosen. Ideally work with the 
+		vendor' to get your driver chosen. Ideally work with the
 		existing driver author to build a single perfect driver.
 
 Author:		It doesn't matter if a large Linux company wrote the driver,
@@ -116,16 +116,12 @@ Linux kernel master tree:
 	ftp.??.kernel.org:/pub/linux/kernel/...
 	?? == your country code, such as "us", "uk", "fr", etc.
 
-Linux kernel mailing list:		
+Linux kernel mailing list:
 	linux-kernel@vger.kernel.org
 	[mail majordomo@vger.kernel.org to subscribe]
 
 Linux Device Drivers, Third Edition (covers 2.6.10):
 	http://lwn.net/Kernel/LDD3/  (free version)
-
-Kernel traffic:
-	Weekly summary of kernel list activity (much easier to read)
-	http://www.kerneltraffic.org/kernel-traffic/
 
 LWN.net:
 	Weekly summary of kernel development activity - http://lwn.net/
@@ -145,11 +141,8 @@ KernelNewbies:
 Linux USB project:
 	http://www.linux-usb.org/
 
-How to NOT write kernel driver by arjanv@redhat.com
-	http://people.redhat.com/arjanv/olspaper.pdf
+How to NOT write kernel driver by Arjan van de Ven:
+	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
 
 Kernel Janitor:
 	http://janitor.kernelnewbies.org/
-
---
-Last updated on 17 Nov 2005.

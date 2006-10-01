@@ -17,10 +17,9 @@
 
 #define PIN_BASE		NR_AIC_IRQS
 
-#define PQFP_GPIO_BANKS		3	/* PQFP package has 3 banks */
-#define BGA_GPIO_BANKS		4	/* BGA package has 4 banks */
+#define MAX_GPIO_BANKS		4
 
-/* these pin numbers double as IRQ numbers, like AT91_ID_* values */
+/* these pin numbers double as IRQ numbers, like AT91xxx_ID_* values */
 
 #define	AT91_PIN_PA0	(PIN_BASE + 0x00 + 0)
 #define	AT91_PIN_PA1	(PIN_BASE + 0x00 + 1)
@@ -180,17 +179,18 @@
 
 #ifndef __ASSEMBLY__
 /* setup setup routines, called from board init or driver probe() */
-extern int at91_set_A_periph(unsigned pin, int use_pullup);
-extern int at91_set_B_periph(unsigned pin, int use_pullup);
-extern int at91_set_gpio_input(unsigned pin, int use_pullup);
-extern int at91_set_gpio_output(unsigned pin, int value);
-extern int at91_set_deglitch(unsigned pin, int is_on);
-extern int at91_set_multi_drive(unsigned pin, int is_on);
+extern int __init_or_module at91_set_A_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_B_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_gpio_input(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_gpio_output(unsigned pin, int value);
+extern int __init_or_module at91_set_deglitch(unsigned pin, int is_on);
+extern int __init_or_module at91_set_multi_drive(unsigned pin, int is_on);
 
 /* callable at any time */
 extern int at91_set_gpio_value(unsigned pin, int value);
 extern int at91_get_gpio_value(unsigned pin);
 
+/* callable only from core power-management code */
 extern void at91_gpio_suspend(void);
 extern void at91_gpio_resume(void);
 #endif

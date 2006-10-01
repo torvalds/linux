@@ -1756,16 +1756,23 @@ static void set_mesh_power(struct mesh_state *ms, int state)
 		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_node(ms->mdev), 0, 0);
 		msleep(10);
 	}
-}			
+}
 
 
 #ifdef CONFIG_PM
-static int mesh_suspend(struct macio_dev *mdev, pm_message_t state)
+static int mesh_suspend(struct macio_dev *mdev, pm_message_t mesg)
 {
 	struct mesh_state *ms = (struct mesh_state *)macio_get_drvdata(mdev);
 	unsigned long flags;
 
-	if (state.event == mdev->ofdev.dev.power.power_state.event || state.event < 2)
+	switch (mesg.event) {
+	case PM_EVENT_SUSPEND:
+	case PM_EVENT_FREEZE:
+		break;
+	default:
+		return 0;
+	}
+	if (mesg.event == mdev->ofdev.dev.power.power_state.event)
 		return 0;
 
 	scsi_block_requests(ms->host);
@@ -1780,7 +1787,7 @@ static int mesh_suspend(struct macio_dev *mdev, pm_message_t state)
 	disable_irq(ms->meshintr);
 	set_mesh_power(ms, 0);
 
-	mdev->ofdev.dev.power.power_state = state;
+	mdev->ofdev.dev.power.power_state = mesg;
 
 	return 0;
 }
@@ -1850,7 +1857,8 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct device_node *mesh = macio_get_of_node(mdev);
 	struct pci_dev* pdev = macio_get_pci_dev(mdev);
-	int tgt, *cfp, minper;
+	int tgt, minper;
+	const int *cfp;
 	struct mesh_state *ms;
 	struct Scsi_Host *mesh_host;
 	void *dma_cmd_space;
@@ -1939,7 +1947,7 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	       	ms->tgts[tgt].current_req = NULL;
        	}
 
-	if ((cfp = (int *) get_property(mesh, "clock-frequency", NULL)))
+	if ((cfp = get_property(mesh, "clock-frequency", NULL)))
        		ms->clk_freq = *cfp;
 	else {
        		printk(KERN_INFO "mesh: assuming 50MHz clock frequency\n");

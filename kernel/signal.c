@@ -417,9 +417,8 @@ static int collect_signal(int sig, struct sigpending *list, siginfo_t *info)
 static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 			siginfo_t *info)
 {
-	int sig = 0;
+	int sig = next_signal(pending, mask);
 
-	sig = next_signal(pending, mask);
 	if (sig) {
 		if (current->notifier) {
 			if (sigismember(current->notifier_mask, sig)) {
@@ -432,9 +431,7 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 
 		if (!collect_signal(sig, pending, info))
 			sig = 0;
-				
 	}
-	recalc_sigpending();
 
 	return sig;
 }
@@ -451,6 +448,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 	if (!signr)
 		signr = __dequeue_signal(&tsk->signal->shared_pending,
 					 mask, info);
+	recalc_sigpending_tsk(tsk);
  	if (signr && unlikely(sig_kernel_stop(signr))) {
  		/*
  		 * Set a marker that we have dequeued a stop signal.  Our
@@ -2576,6 +2574,11 @@ asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize)
 	return -ERESTARTNOHAND;
 }
 #endif /* __ARCH_WANT_SYS_RT_SIGSUSPEND */
+
+__attribute__((weak)) const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	return NULL;
+}
 
 void __init signals_init(void)
 {

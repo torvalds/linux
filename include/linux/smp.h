@@ -53,6 +53,9 @@ extern void smp_cpus_done(unsigned int max_cpus);
  */
 int smp_call_function(void(*func)(void *info), void *info, int retry, int wait);
 
+int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
+				int retry, int wait);
+
 /*
  * Call a function on all processors
  */

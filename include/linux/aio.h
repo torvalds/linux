@@ -4,8 +4,10 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/aio_abi.h>
+#include <linux/uio.h>
 
 #include <asm/atomic.h>
+#include <linux/uio.h>
 
 #define AIO_MAXSEGS		4
 #define AIO_KIOGRP_NR_ATOMIC	8
@@ -110,8 +112,10 @@ struct kiocb {
 	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
 	size_t			ki_left; 	/* remaining bytes */
 	long			ki_retried; 	/* just for testing */
-	long			ki_kicked; 	/* just for testing */
-	long			ki_queued; 	/* just for testing */
+	struct iovec		ki_inline_vec;	/* inline vector */
+ 	struct iovec		*ki_iovec;
+ 	unsigned long		ki_nr_segs;
+ 	unsigned long		ki_cur_seg;
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
@@ -213,11 +217,11 @@ int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 				  struct iocb *iocb));
 
 #define get_ioctx(kioctx) do {						\
-	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
 	atomic_inc(&(kioctx)->users);					\
 } while (0)
 #define put_ioctx(kioctx) do {						\
-	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
 	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
 		__put_ioctx(kioctx);					\
 } while (0)

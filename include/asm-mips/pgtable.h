@@ -87,7 +87,7 @@ extern void paging_init(void);
  */
 #define pmd_phys(pmd)		(pmd_val(pmd) - PAGE_OFFSET)
 #define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
-#define pmd_page_kernel(pmd)	pmd_val(pmd)
+#define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
 

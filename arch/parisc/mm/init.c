@@ -551,7 +551,7 @@ void show_mem(void)
 
 				printk("Zone list for zone %d on node %d: ", j, i);
 				for (k = 0; zl->zones[k] != NULL; k++) 
-					printk("[%d/%s] ", zl->zones[k]->zone_pgdat->node_id, zl->zones[k]->name);
+					printk("[%d/%s] ", zone_to_nid(zl->zones[k]), zl->zones[k]->name);
 				printk("\n");
 			}
 		}
@@ -809,7 +809,7 @@ void __init paging_init(void)
 	flush_tlb_all_local(NULL);
 
 	for (i = 0; i < npmem_ranges; i++) {
-		unsigned long zones_size[MAX_NR_ZONES] = { 0, 0, 0 };
+		unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 
 		/* We have an IOMMU, so all memory can go into a single
 		   ZONE_DMA zone. */

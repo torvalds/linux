@@ -479,6 +479,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x0BB4, 0x0A9D) }, /* SmartPhone USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A9E) }, /* SmartPhone USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A9F) }, /* SmartPhone USB Sync */
+	{ USB_DEVICE(0x0BB4, 0x0BCE) }, /* "High Tech Computer Corp" */
 	{ USB_DEVICE(0x0BF8, 0x1001) }, /* Fujitsu Siemens Computers USB Sync */
 	{ USB_DEVICE(0x0C44, 0x03A2) }, /* Motorola iDEN Smartphone */
 	{ USB_DEVICE(0x0C8E, 0x6000) }, /* Cesscom Luxian Series */
@@ -652,11 +653,6 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 	port->bulk_out_size = port->write_urb->transfer_buffer_length = URBDATA_SIZE;
 	
 	msleep(1000*initial_wait);
-	/* Start reading from the device */
-	usb_fill_bulk_urb(port->read_urb, serial->dev, 
-		      usb_rcvbulkpipe(serial->dev, port->bulk_in_endpointAddress),
-		      port->read_urb->transfer_buffer, port->read_urb->transfer_buffer_length,
-		      ipaq_read_bulk_callback, port);
 
 	/*
 	 * Send out control message observed in win98 sniffs. Not sure what
@@ -670,18 +666,31 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 		result = usb_control_msg(serial->dev,
 				usb_sndctrlpipe(serial->dev, 0), 0x22, 0x21,
 				0x1, 0, NULL, 0, 100);
-		if (result == 0) {
-			result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-			if (result) {
-				err("%s - failed submitting read urb, error %d", __FUNCTION__, result);
-				goto error;
-			}
-			return 0;
-		}
+		if (!result)
+			break;
+
 		msleep(1000);
 	}
-	err("%s - failed doing control urb, error %d", __FUNCTION__, result);
-	goto error;
+
+	if (!retries && result) {
+		err("%s - failed doing control urb, error %d", __FUNCTION__,
+		    result);
+		goto error;
+	}
+
+	/* Start reading from the device */
+	usb_fill_bulk_urb(port->read_urb, serial->dev,
+		      usb_rcvbulkpipe(serial->dev, port->bulk_in_endpointAddress),
+		      port->read_urb->transfer_buffer, port->read_urb->transfer_buffer_length,
+		      ipaq_read_bulk_callback, port);
+
+	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
+	if (result) {
+		err("%s - failed submitting read urb, error %d", __FUNCTION__, result);
+		goto error;
+	}
+
+	return 0;
 
 enomem:
 	result = -ENOMEM;

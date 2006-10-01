@@ -758,6 +758,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
+    disable_msi - Disable Message Signaled Interrupt (MSI)
 
     This module supports one card and autoprobe.
 
@@ -778,11 +779,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-digout	6-jack with a SPDIF out
 	  w810		3-jack
 	  z71v		3-jack (HP shared SPDIF)
-	  asus		3-jack
+	  asus		3-jack (ASUS Mobo)
+	  asus-w1v	ASUS W1V
+	  asus-dig	ASUS with SPDIF out
+	  asus-dig2	ASUS with SPDIF out (using GPIO2)
 	  uniwill	3-jack
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
-	  lg-lw		LG LW20 laptop
+	  lg-lw		LG LW20/LW25 laptop
+	  tcl		TCL S700
+	  clevo		Clevo laptops (m520G, m665n)
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
@@ -790,6 +796,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC260
 	  hp		HP machines
+	  hp-3013	HP machines (3013-variant)
 	  fujitsu	Fujitsu S7020
 	  acer		Acer TravelMate
 	  basic		fixed pin assignment (old default model)
@@ -797,24 +804,32 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC262
 	  fujitsu	Fujitsu Laptop
+	  hp-bpc	HP xw4400/6400/8400/9400 laptops
+	  benq		Benq ED8
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
 	ALC882/885
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stck-dig	6-jack digital with SPDIF I/O
+	  arima		Arima W820Di1
 	  auto		auto-config reading BIOS (default)
 
 	ALC883/888
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack digital with SPDIF I/O
-	  6stack-dig-demo  6-stack digital for Intel demo board
+	  3stack-6ch    3-jack 6-channel
+	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
+	  6stack-dig-demo  6-jack digital for Intel demo board
+	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
 	  3stack	3-jack
 	  3stack-dig	3-jack with SPDIF I/O
 	  6stack-dig	6-jack with SPDIF I/O
+	  3stack-660	3-jack (for ALC660)
+	  uniwill-m31	Uniwill M31 laptop
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
@@ -843,10 +858,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-dig	ditto with SPDIF
 	  laptop	3-jack with hp-jack automute
 	  laptop-dig	ditto with SPDIF
-	  auto		auto-confgi reading BIOS (default)
+	  auto		auto-config reading BIOS (default)
 
-	STAC7661(?)
+	STAC9200/9205/9220/9221/9254
+	  ref		Reference board
+	  3stack	D945 3stack
+	  5stack	D945 5stack + SPDIF
+
+	STAC9227/9228/9229/927x
+	  ref		Reference board
+	  3stack	D965 3stack
+	  5stack	D965 5stack + SPDIF
+
+	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
+	  vaio-ar Setup for VAIO AR
 
     If the default configuration doesn't work and one of the above
     matches with your device, report it together with the PCI
@@ -1212,6 +1238,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     hwports	- number of supported hardware ports, default=8.
     
     Module supports only 1 card.  This module has no enable option.
+
+  Module snd-mts64
+  ----------------
+
+    Module for Ego Systems (ESI) Miditerminal 4140
+
+    This module supports multiple devices.
+    Requires parport (CONFIG_PARPORT).
 
   Module snd-nm256
   ----------------

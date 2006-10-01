@@ -118,7 +118,6 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr)
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
 	i_size_write(inode, attr->size);
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks  = attr->blocks;
 	inode->i_atime.tv_sec   = attr->atime;
 	inode->i_atime.tv_nsec  = attr->atimensec;
@@ -252,6 +251,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	memset(&outarg, 0, sizeof(outarg));
 	req->in.numargs = 0;
 	req->in.h.opcode = FUSE_STATFS;
+	req->in.h.nodeid = get_node_id(dentry->d_inode);
 	req->out.numargs = 1;
 	req->out.args[0].size =
 		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);

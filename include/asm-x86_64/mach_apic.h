@@ -16,7 +16,6 @@
 
 #define INT_DELIVERY_MODE (genapic->int_delivery_mode)
 #define INT_DEST_MODE (genapic->int_dest_mode)
-#define INT_DELIVERY_DEST (genapic->int_delivery_dest)
 #define TARGET_CPUS	  (genapic->target_cpus())
 #define apic_id_registered (genapic->apic_id_registered)
 #define init_apic_ldr (genapic->init_apic_ldr)

@@ -79,7 +79,7 @@ static void request_ras_irqs(struct device_node *np,
 {
 	int i, index, count = 0;
 	struct of_irq oirq;
-	u32 *opicprop;
+	const u32 *opicprop;
 	unsigned int opicplen;
 	unsigned int virqs[16];
 
@@ -87,7 +87,7 @@ static void request_ras_irqs(struct device_node *np,
 	 * map those interrupts using the default interrupt host and default
 	 * trigger
 	 */
-	opicprop = (u32 *)get_property(np, "open-pic-interrupt", &opicplen);
+	opicprop = get_property(np, "open-pic-interrupt", &opicplen);
 	if (opicprop) {
 		opicplen /= sizeof(u32);
 		for (i = 0; i < opicplen; i++) {
@@ -337,7 +337,7 @@ static int recover_mce(struct pt_regs *regs, struct rtas_error_log * err)
 		   err->disposition == RTAS_DISP_NOT_RECOVERED &&
 		   err->target == RTAS_TARGET_MEMORY &&
 		   err->type == RTAS_TYPE_ECC_UNCORR &&
-		   !(current->pid == 0 || current->pid == 1)) {
+		   !(current->pid == 0 || is_init(current))) {
 		/* Kill off a user process with an ECC error */
 		printk(KERN_ERR "MCE: uncorrectable ecc error for pid %d\n",
 		       current->pid);

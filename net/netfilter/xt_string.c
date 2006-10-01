@@ -46,7 +46,6 @@ static int checkentry(const char *tablename,
 		      const void *ip,
 		      const struct xt_match *match,
 		      void *matchinfo,
-		      unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	struct xt_string_info *conf = matchinfo;
@@ -69,49 +68,40 @@ static int checkentry(const char *tablename,
 	return 1;
 }
 
-static void destroy(const struct xt_match *match, void *matchinfo,
-		    unsigned int matchsize)
+static void destroy(const struct xt_match *match, void *matchinfo)
 {
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
 
-static struct xt_match string_match = {
-	.name 		= "string",
-	.match 		= match,
-	.matchsize	= sizeof(struct xt_string_info),
-	.checkentry	= checkentry,
-	.destroy 	= destroy,
-	.family		= AF_INET,
-	.me 		= THIS_MODULE
-};
-static struct xt_match string6_match = {
-	.name 		= "string",
-	.match 		= match,
-	.matchsize	= sizeof(struct xt_string_info),
-	.checkentry	= checkentry,
-	.destroy 	= destroy,
-	.family		= AF_INET6,
-	.me 		= THIS_MODULE
+static struct xt_match xt_string_match[] = {
+	{
+		.name 		= "string",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match 		= match,
+		.destroy 	= destroy,
+		.matchsize	= sizeof(struct xt_string_info),
+		.me 		= THIS_MODULE
+	},
+	{
+		.name 		= "string",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match 		= match,
+		.destroy 	= destroy,
+		.matchsize	= sizeof(struct xt_string_info),
+		.me 		= THIS_MODULE
+	},
 };
 
 static int __init xt_string_init(void)
 {
-	int ret;
-
-	ret = xt_register_match(&string_match);
-	if (ret)
-		return ret;
-	ret = xt_register_match(&string6_match);
-	if (ret)
-		xt_unregister_match(&string_match);
-
-	return ret;
+	return xt_register_matches(xt_string_match, ARRAY_SIZE(xt_string_match));
 }
 
 static void __exit xt_string_fini(void)
 {
-	xt_unregister_match(&string_match);
-	xt_unregister_match(&string6_match);
+	xt_unregister_matches(xt_string_match, ARRAY_SIZE(xt_string_match));
 }
 
 module_init(xt_string_init);

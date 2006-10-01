@@ -40,7 +40,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
-#include <linux/usb_otg.h>
+#include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/byteorder.h>
@@ -2437,7 +2437,7 @@ static int proc_udc_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_udc_show, NULL);
 }
 
-static struct file_operations proc_ops = {
+static const struct file_operations proc_ops = {
 	.open		= proc_udc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -2869,7 +2869,7 @@ cleanup0:
 
 static int __exit omap_udc_remove(struct platform_device *pdev)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (!udc)
 		return -ENODEV;

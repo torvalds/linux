@@ -661,5 +661,8 @@ const struct file_operations ext2_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= ext2_readdir,
 	.ioctl		= ext2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext2_compat_ioctl,
+#endif
 	.fsync		= ext2_sync_file,
 };

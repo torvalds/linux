@@ -90,8 +90,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(minix_inode_cachep))
-		printk(KERN_INFO "minix_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(minix_inode_cachep);
 }
 
 static struct super_operations minix_sops = {
@@ -145,11 +144,10 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	struct inode *root_inode;
 	struct minix_sb_info *sbi;
 
-	sbi = kmalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct minix_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(struct minix_sb_info));
 
 	/* N.B. These should be compile-time tests.
 	   Unfortunately that is impossible. */
@@ -207,10 +205,9 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	if (sbi->s_imap_blocks == 0 || sbi->s_zmap_blocks == 0)
 		goto out_illegal_sb;
 	i = (sbi->s_imap_blocks + sbi->s_zmap_blocks) * sizeof(bh);
-	map = kmalloc(i, GFP_KERNEL);
+	map = kzalloc(i, GFP_KERNEL);
 	if (!map)
 		goto out_no_map;
-	memset(map, 0, i);
 	sbi->s_imap = &map[0];
 	sbi->s_zmap = &map[sbi->s_imap_blocks];
 
@@ -399,7 +396,7 @@ static void V1_minix_read_inode(struct inode * inode)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 	for (i = 0; i < 9; i++)
 		minix_inode->u.i1_data[i] = raw_inode->i_zone[i];
 	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));
@@ -432,7 +429,7 @@ static void V2_minix_read_inode(struct inode * inode)
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
-	inode->i_blocks = inode->i_blksize = 0;
+	inode->i_blocks = 0;
 	for (i = 0; i < 10; i++)
 		minix_inode->u.i2_data[i] = raw_inode->i_zone[i];
 	minix_set_inode(inode, old_decode_dev(raw_inode->i_zone[0]));

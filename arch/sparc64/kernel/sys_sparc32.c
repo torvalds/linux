@@ -1016,7 +1016,7 @@ struct __sysctl_args32 {
 
 asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 {
-#ifndef CONFIG_SYSCTL
+#ifndef CONFIG_SYSCTL_SYSCALL
 	return -ENOSYS;
 #else
 	struct __sysctl_args32 tmp;

@@ -147,7 +147,8 @@ extern struct sock *inet_csk_clone(struct sock *sk,
 enum inet_csk_ack_state_t {
 	ICSK_ACK_SCHED	= 1,
 	ICSK_ACK_TIMER  = 2,
-	ICSK_ACK_PUSHED = 4
+	ICSK_ACK_PUSHED = 4,
+	ICSK_ACK_PUSHED2 = 8
 };
 
 extern void inet_csk_init_xmit_timers(struct sock *sk,
@@ -237,9 +238,9 @@ extern struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
 extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						struct request_sock ***prevp,
-						const __u16 rport,
-						const __u32 raddr,
-						const __u32 laddr);
+						const __be16 rport,
+						const __be32 raddr,
+						const __be32 laddr);
 extern int inet_csk_bind_conflict(const struct sock *sk,
 				  const struct inet_bind_bucket *tb);
 extern int inet_csk_get_port(struct inet_hashinfo *hashinfo,

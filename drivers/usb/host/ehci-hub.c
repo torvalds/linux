@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001-2004 by David Brownell
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -48,7 +48,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	}
 	ehci->command = readl (&ehci->regs->command);
 	if (ehci->reclaim)
-		ehci->reclaim_ready = 1;
+		end_unlink_async (ehci, NULL);
 	ehci_work(ehci, NULL);
 
 	/* suspend any active/unsuspended ports, maybe allow wakeup */
@@ -103,10 +103,10 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 
 	/* re-init operational registers in case we lost power */
 	if (readl (&ehci->regs->intr_enable) == 0) {
- 		/* at least some APM implementations will try to deliver
+		/* at least some APM implementations will try to deliver
 		 * IRQs right away, so delay them until we're ready.
- 		 */
- 		intr_enable = 1;
+		 */
+		intr_enable = 1;
 		writel (0, &ehci->regs->segment);
 		writel (ehci->periodic_dma, &ehci->regs->frame_list);
 		writel ((u32)ehci->async->qh_dma, &ehci->regs->async_next);
@@ -232,7 +232,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		buf [1] = 0;
 		retval++;
 	}
-	
+
 	/* no hub change reports (bit 0) for now (power, ...) */
 
 	/* port N changes (bit N)? */
@@ -304,7 +304,7 @@ ehci_hub_descriptor (
 
 /*-------------------------------------------------------------------------*/
 
-#define	PORT_WAKE_BITS 	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
+#define	PORT_WAKE_BITS	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
 
 static int ehci_hub_control (
 	struct usb_hcd	*hcd,

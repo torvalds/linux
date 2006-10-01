@@ -1,8 +1,6 @@
 #ifndef __ASM_SH_PTRACE_H
 #define __ASM_SH_PTRACE_H
 
-#include <asm/ubc.h>
-
 /*
  * Copyright (C) 1999, 2000  Niibe Yutaka
  *

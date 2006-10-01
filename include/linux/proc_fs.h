@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>
+#include <linux/magic.h>
 #include <asm/atomic.h>
 
 /*
@@ -23,8 +24,6 @@
 enum {
 	PROC_ROOT_INO = 1,
 };
-
-#define PROC_SUPER_MAGIC 0x9fa0
 
 /*
  * This is not completely implemented yet. The idea is to
@@ -269,7 +268,9 @@ static inline struct proc_dir_entry *PDE(const struct inode *inode)
 struct proc_maps_private {
 	struct pid *pid;
 	struct task_struct *task;
+#ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
+#endif
 };
 
 #endif /* _LINUX_PROC_FS_H */

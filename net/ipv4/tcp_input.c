@@ -72,24 +72,24 @@
 #include <asm/unaligned.h>
 #include <net/netdma.h>
 
-int sysctl_tcp_timestamps = 1;
-int sysctl_tcp_window_scaling = 1;
-int sysctl_tcp_sack = 1;
-int sysctl_tcp_fack = 1;
-int sysctl_tcp_reordering = TCP_FASTRETRANS_THRESH;
-int sysctl_tcp_ecn;
-int sysctl_tcp_dsack = 1;
-int sysctl_tcp_app_win = 31;
-int sysctl_tcp_adv_win_scale = 2;
+int sysctl_tcp_timestamps __read_mostly = 1;
+int sysctl_tcp_window_scaling __read_mostly = 1;
+int sysctl_tcp_sack __read_mostly = 1;
+int sysctl_tcp_fack __read_mostly = 1;
+int sysctl_tcp_reordering __read_mostly = TCP_FASTRETRANS_THRESH;
+int sysctl_tcp_ecn __read_mostly;
+int sysctl_tcp_dsack __read_mostly = 1;
+int sysctl_tcp_app_win __read_mostly = 31;
+int sysctl_tcp_adv_win_scale __read_mostly = 2;
 
-int sysctl_tcp_stdurg;
-int sysctl_tcp_rfc1337;
-int sysctl_tcp_max_orphans = NR_FILE;
-int sysctl_tcp_frto;
-int sysctl_tcp_nometrics_save;
+int sysctl_tcp_stdurg __read_mostly;
+int sysctl_tcp_rfc1337 __read_mostly;
+int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
+int sysctl_tcp_frto __read_mostly;
+int sysctl_tcp_nometrics_save __read_mostly;
 
-int sysctl_tcp_moderate_rcvbuf = 1;
-int sysctl_tcp_abc;
+int sysctl_tcp_moderate_rcvbuf __read_mostly = 1;
+int sysctl_tcp_abc __read_mostly;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/
@@ -127,7 +127,7 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 	/* skb->len may jitter because of SACKs, even if peer
 	 * sends good full-sized frames.
 	 */
-	len = skb->len;
+	len = skb_shinfo(skb)->gso_size ?: skb->len;
 	if (len >= icsk->icsk_ack.rcv_mss) {
 		icsk->icsk_ack.rcv_mss = len;
 	} else {
@@ -156,6 +156,8 @@ static void tcp_measure_rcv_mss(struct sock *sk,
 				return;
 			}
 		}
+		if (icsk->icsk_ack.pending & ICSK_ACK_PUSHED)
+			icsk->icsk_ack.pending |= ICSK_ACK_PUSHED2;
 		icsk->icsk_ack.pending |= ICSK_ACK_PUSHED;
 	}
 }
@@ -933,7 +935,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned char *ptr = ack_skb->h.raw + TCP_SKB_CB(ack_skb)->sacked;
-	struct tcp_sack_block *sp = (struct tcp_sack_block *)(ptr+2);
+	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
@@ -2237,13 +2239,12 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 	return acked;
 }
 
-static u32 tcp_usrtt(const struct sk_buff *skb)
+static u32 tcp_usrtt(struct timeval *tv)
 {
-	struct timeval tv, now;
+	struct timeval now;
 
 	do_gettimeofday(&now);
-	skb_get_timestamp(skb, &tv);
-	return (now.tv_sec - tv.tv_sec) * 1000000 + (now.tv_usec - tv.tv_usec);
+	return (now.tv_sec - tv->tv_sec) * 1000000 + (now.tv_usec - tv->tv_usec);
 }
 
 /* Remove acknowledged frames from the retransmission queue. */
@@ -2258,6 +2259,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	u32 pkts_acked = 0;
 	void (*rtt_sample)(struct sock *sk, u32 usrtt)
 		= icsk->icsk_ca_ops->rtt_sample;
+	struct timeval tv;
 
 	while ((skb = skb_peek(&sk->sk_write_queue)) &&
 	       skb != sk->sk_send_head) {
@@ -2306,8 +2308,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 				seq_rtt = -1;
 			} else if (seq_rtt < 0) {
 				seq_rtt = now - scb->when;
-				if (rtt_sample)
-					(*rtt_sample)(sk, tcp_usrtt(skb));
+				skb_get_timestamp(skb, &tv);
 			}
 			if (sacked & TCPCB_SACKED_ACKED)
 				tp->sacked_out -= tcp_skb_pcount(skb);
@@ -2320,8 +2321,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			}
 		} else if (seq_rtt < 0) {
 			seq_rtt = now - scb->when;
-			if (rtt_sample)
-				(*rtt_sample)(sk, tcp_usrtt(skb));
+			skb_get_timestamp(skb, &tv);
 		}
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tcp_packets_out_dec(tp, skb);
@@ -2333,6 +2333,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	if (acked&FLAG_ACKED) {
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk, tp);
+		if (rtt_sample && !(acked & FLAG_RETRANS_DATA_ACKED))
+			(*rtt_sample)(sk, tcp_usrtt(&tv));
 
 		if (icsk->icsk_ca_ops->pkts_acked)
 			icsk->icsk_ca_ops->pkts_acked(sk, pkts_acked);
@@ -2627,7 +2629,7 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	  			switch(opcode) {
 				case TCPOPT_MSS:
 					if(opsize==TCPOLEN_MSS && th->syn && !estab) {
-						u16 in_mss = ntohs(get_unaligned((__u16 *)ptr));
+						u16 in_mss = ntohs(get_unaligned((__be16 *)ptr));
 						if (in_mss) {
 							if (opt_rx->user_mss && opt_rx->user_mss < in_mss)
 								in_mss = opt_rx->user_mss;
@@ -2655,8 +2657,8 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 						if ((estab && opt_rx->tstamp_ok) ||
 						    (!estab && sysctl_tcp_timestamps)) {
 							opt_rx->saw_tstamp = 1;
-							opt_rx->rcv_tsval = ntohl(get_unaligned((__u32 *)ptr));
-							opt_rx->rcv_tsecr = ntohl(get_unaligned((__u32 *)(ptr+4)));
+							opt_rx->rcv_tsval = ntohl(get_unaligned((__be32 *)ptr));
+							opt_rx->rcv_tsecr = ntohl(get_unaligned((__be32 *)(ptr+4)));
 						}
 					}
 					break;
@@ -2693,8 +2695,8 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 		return 0;
 	} else if (tp->rx_opt.tstamp_ok &&
 		   th->doff == (sizeof(struct tcphdr)>>2)+(TCPOLEN_TSTAMP_ALIGNED>>2)) {
-		__u32 *ptr = (__u32 *)(th + 1);
-		if (*ptr == ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+		__be32 *ptr = (__be32 *)(th + 1);
+		if (*ptr == htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 				  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)) {
 			tp->rx_opt.saw_tstamp = 1;
 			++ptr;
@@ -3909,10 +3911,10 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 		/* Check timestamp */
 		if (tcp_header_len == sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) {
-			__u32 *ptr = (__u32 *)(th + 1);
+			__be32 *ptr = (__be32 *)(th + 1);
 
 			/* No? Slow path! */
-			if (*ptr != ntohl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+			if (*ptr != htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
 					  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
 				goto slow_path;
 

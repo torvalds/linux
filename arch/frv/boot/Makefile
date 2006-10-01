@@ -8,6 +8,8 @@
 # Copyright (C) 1995-2000 Russell King
 #
 
+targets := Image zImage bootpImage
+
 SYSTEM	=$(TOPDIR)/$(LINUX)
 
 ZTEXTADDR	 = 0x02080000
@@ -66,7 +68,6 @@ zinstall: $(CONFIGURE) zImage
 # miscellany
 #
 mrproper clean:
-	$(RM) Image zImage bootpImage
 #	@$(MAKE) -C compressed clean
 #	@$(MAKE) -C bootp clean
 

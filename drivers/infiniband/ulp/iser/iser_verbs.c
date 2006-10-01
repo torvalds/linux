@@ -88,8 +88,9 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		     iser_cq_tasklet_fn,
 		     (unsigned long)device);
 
-	device->mr = ib_get_dma_mr(device->pd,
-				   IB_ACCESS_LOCAL_WRITE);
+	device->mr = ib_get_dma_mr(device->pd, IB_ACCESS_LOCAL_WRITE |
+				   IB_ACCESS_REMOTE_WRITE |
+				   IB_ACCESS_REMOTE_READ);
 	if (IS_ERR(device->mr))
 		goto dma_mr_err;
 
@@ -150,7 +151,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	}
 	ib_conn->page_vec->pages = (u64 *) (ib_conn->page_vec + 1);
 
-	params.page_shift        = PAGE_SHIFT;
+	params.page_shift        = SHIFT_4K;
 	/* when the first/last SG element are not start/end *
 	 * page aligned, the map whould be of N+1 pages     */
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
@@ -570,6 +571,8 @@ void iser_conn_release(struct iser_conn *ib_conn)
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
+	if (ib_conn->iser_conn)
+		ib_conn->iser_conn->ib_conn = NULL;
 	kfree(ib_conn);
 }
 
@@ -604,8 +607,9 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 
 	mem_reg->lkey  = mem->fmr->lkey;
 	mem_reg->rkey  = mem->fmr->rkey;
-	mem_reg->len   = page_vec->length * PAGE_SIZE;
+	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
+	mem_reg->is_fmr = 1;
 	mem_reg->mem_h = (void *)mem;
 
 	mem_reg->va   += page_vec->offset;
@@ -692,7 +696,7 @@ int iser_post_recv(struct iser_desc *rx_desc)
 	struct iser_dto   *recv_dto = &rx_desc->dto;
 
 	/* Retrieve conn */
-	ib_conn = recv_dto->conn->ib_conn;
+	ib_conn = recv_dto->ib_conn;
 
 	iser_dto_to_iov(recv_dto, iov, 2);
 
@@ -725,7 +729,7 @@ int iser_post_send(struct iser_desc *tx_desc)
 	struct iser_conn  *ib_conn;
 	struct iser_dto   *dto = &tx_desc->dto;
 
-	ib_conn = dto->conn->ib_conn;
+	ib_conn = dto->ib_conn;
 
 	iser_dto_to_iov(dto, iov, MAX_REGD_BUF_VECTOR_LEN);
 
@@ -772,7 +776,7 @@ static void iser_comp_error_worker(void *data)
 static void iser_handle_comp_error(struct iser_desc *desc)
 {
 	struct iser_dto  *dto     = &desc->dto;
-	struct iser_conn *ib_conn = dto->conn->ib_conn;
+	struct iser_conn *ib_conn = dto->ib_conn;
 
 	iser_dto_buffs_release(dto);
 

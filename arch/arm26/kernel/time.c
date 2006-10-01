@@ -33,8 +33,6 @@
 #include <asm/irq.h>
 #include <asm/ioc.h>
 
-extern unsigned long wall_jiffies;
-
 /* this needs a better home */
 DEFINE_SPINLOCK(rtc_lock);
 
@@ -136,16 +134,11 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long seq;
-	unsigned long usec, sec, lost;
+	unsigned long usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = gettimeoffset();
-
-		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * USECS_PER_JIFFY;
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
@@ -174,8 +167,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * done, and then undo it!
 	 */
-	tv->tv_nsec -= 1000 * (gettimeoffset() +
-			(jiffies - wall_jiffies) * USECS_PER_JIFFY);
+	tv->tv_nsec -= 1000 * gettimeoffset();
 
 	while (tv->tv_nsec < 0) {
 		tv->tv_nsec += NSEC_PER_SEC;
@@ -194,7 +186,7 @@ EXPORT_SYMBOL(do_settimeofday);
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-        do_timer(regs);
+        do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

@@ -567,6 +567,7 @@ struct lun {
 	unsigned int	ro : 1;
 	unsigned int	prevent_medium_removal : 1;
 	unsigned int	registered : 1;
+	unsigned int	info_valid : 1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -1656,6 +1657,7 @@ static int do_read(struct fsg_dev *fsg)
 			curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 			curlun->sense_data_info = file_offset >> 9;
+			curlun->info_valid = 1;
 			bh->inreq->length = 0;
 			bh->state = BUF_STATE_FULL;
 			break;
@@ -1691,6 +1693,7 @@ static int do_read(struct fsg_dev *fsg)
 		if (nread < amount) {
 			curlun->sense_data = SS_UNRECOVERED_READ_ERROR;
 			curlun->sense_data_info = file_offset >> 9;
+			curlun->info_valid = 1;
 			break;
 		}
 
@@ -1785,6 +1788,7 @@ static int do_write(struct fsg_dev *fsg)
 				curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 				curlun->sense_data_info = usb_offset >> 9;
+				curlun->info_valid = 1;
 				continue;
 			}
 			amount -= (amount & 511);
@@ -1827,6 +1831,7 @@ static int do_write(struct fsg_dev *fsg)
 			if (bh->outreq->status != 0) {
 				curlun->sense_data = SS_COMMUNICATION_FAILURE;
 				curlun->sense_data_info = file_offset >> 9;
+				curlun->info_valid = 1;
 				break;
 			}
 
@@ -1868,6 +1873,7 @@ static int do_write(struct fsg_dev *fsg)
 			if (nwritten < amount) {
 				curlun->sense_data = SS_WRITE_ERROR;
 				curlun->sense_data_info = file_offset >> 9;
+				curlun->info_valid = 1;
 				break;
 			}
 
@@ -2010,6 +2016,7 @@ static int do_verify(struct fsg_dev *fsg)
 			curlun->sense_data =
 					SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
 			curlun->sense_data_info = file_offset >> 9;
+			curlun->info_valid = 1;
 			break;
 		}
 
@@ -2036,6 +2043,7 @@ static int do_verify(struct fsg_dev *fsg)
 		if (nread == 0) {
 			curlun->sense_data = SS_UNRECOVERED_READ_ERROR;
 			curlun->sense_data_info = file_offset >> 9;
+			curlun->info_valid = 1;
 			break;
 		}
 		file_offset += nread;
@@ -2079,6 +2087,7 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	struct lun	*curlun = fsg->curlun;
 	u8		*buf = (u8 *) bh->buf;
 	u32		sd, sdinfo;
+	int		valid;
 
 	/*
 	 * From the SCSI-2 spec., section 7.9 (Unit attention condition):
@@ -2106,15 +2115,18 @@ static int do_request_sense(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		fsg->bad_lun_okay = 1;
 		sd = SS_LOGICAL_UNIT_NOT_SUPPORTED;
 		sdinfo = 0;
+		valid = 0;
 	} else {
 		sd = curlun->sense_data;
 		sdinfo = curlun->sense_data_info;
+		valid = curlun->info_valid << 7;
 		curlun->sense_data = SS_NO_SENSE;
 		curlun->sense_data_info = 0;
+		curlun->info_valid = 0;
 	}
 
 	memset(buf, 0, 18);
-	buf[0] = 0x80 | 0x70;			// Valid, current error
+	buf[0] = valid | 0x70;			// Valid, current error
 	buf[2] = SK(sd);
 	put_be32(&buf[3], sdinfo);		// Sense information
 	buf[7] = 18 - 8;			// Additional sense length
@@ -2703,6 +2715,7 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 		if (fsg->cmnd[0] != SC_REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
+			curlun->info_valid = 0;
 		}
 	} else {
 		fsg->curlun = curlun = NULL;
@@ -3332,6 +3345,7 @@ static void handle_exception(struct fsg_dev *fsg)
 			curlun->sense_data = curlun->unit_attention_data =
 					SS_NO_SENSE;
 			curlun->sense_data_info = 0;
+			curlun->info_valid = 0;
 		}
 		fsg->state = FSG_STATE_IDLE;
 	}
@@ -3873,21 +3887,26 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
 		curlun->ro = mod_data.ro[i];
+		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
 		dev_set_drvdata(&curlun->dev, fsg);
 		snprintf(curlun->dev.bus_id, BUS_ID_SIZE,
 				"%s-lun%d", gadget->dev.bus_id, i);
 
-		if ((rc = device_register(&curlun->dev)) != 0)
+		if ((rc = device_register(&curlun->dev)) != 0) {
 			INFO(fsg, "failed to register LUN%d: %d\n", i, rc);
-		else {
-			curlun->registered = 1;
-			curlun->dev.release = lun_release;
-			device_create_file(&curlun->dev, &dev_attr_ro);
-			device_create_file(&curlun->dev, &dev_attr_file);
-			kref_get(&fsg->ref);
+			goto out;
 		}
+		if ((rc = device_create_file(&curlun->dev,
+					&dev_attr_ro)) != 0 ||
+				(rc = device_create_file(&curlun->dev,
+					&dev_attr_file)) != 0) {
+			device_unregister(&curlun->dev);
+			goto out;
+		}
+		curlun->registered = 1;
+		kref_get(&fsg->ref);
 
 		if (mod_data.file[i] && *mod_data.file[i]) {
 			if ((rc = open_backing_file(curlun,

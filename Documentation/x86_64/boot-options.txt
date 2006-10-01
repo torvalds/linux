@@ -199,6 +199,11 @@ IOMMU
    allowed  overwrite iommu off workarounds for specific chipsets.
    soft	 Use software bounce buffering (default for Intel machines)
    noaperture Don't touch the aperture for AGP.
+   allowdac Allow DMA >4GB
+	    When off all DMA over >4GB is forced through an IOMMU or bounce
+	    buffering.
+   nodac    Forbid DMA >4GB
+   panic    Always panic when IOMMU overflows
 
   swiotlb=pages[,force]
 
@@ -237,6 +242,13 @@ Debugging
 
   pagefaulttrace Dump all page faults. Only useful for extreme debugging
 		and will create a lot of output.
+
+  call_trace=[old|both|newfallback|new]
+		old: use old inexact backtracer
+		new: use new exact dwarf2 unwinder
+ 		both: print entries from both
+		newfallback: use new unwinder but fall back to old if it gets
+			stuck (default)
 
   call_trace=[old|both|newfallback|new]
 		old: use old inexact backtracer

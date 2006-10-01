@@ -131,7 +131,6 @@ checkentry(const char *tablename,
 	   const void *inf,
 	   const struct xt_match *match,
 	   void *matchinfo,
-	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct xt_dccp_info *info = matchinfo;
@@ -141,27 +140,26 @@ checkentry(const char *tablename,
 		&& !(info->invflags & ~info->flags);
 }
 
-static struct xt_match dccp_match = 
-{ 
-	.name 		= "dccp",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_dccp_info),
-	.proto		= IPPROTO_DCCP,
-	.checkentry	= checkentry,
-	.family		= AF_INET,
-	.me 		= THIS_MODULE,
+static struct xt_match xt_dccp_match[] = {
+	{
+		.name 		= "dccp",
+		.family		= AF_INET,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_dccp_info),
+		.proto		= IPPROTO_DCCP,
+		.me 		= THIS_MODULE,
+	},
+	{
+		.name 		= "dccp",
+		.family		= AF_INET6,
+		.checkentry	= checkentry,
+		.match		= match,
+		.matchsize	= sizeof(struct xt_dccp_info),
+		.proto		= IPPROTO_DCCP,
+		.me 		= THIS_MODULE,
+	},
 };
-static struct xt_match dccp6_match = 
-{ 
-	.name 		= "dccp",
-	.match		= match,
-	.matchsize	= sizeof(struct xt_dccp_info),
-	.proto		= IPPROTO_DCCP,
-	.checkentry	= checkentry,
-	.family		= AF_INET6,
-	.me 		= THIS_MODULE,
-};
-
 
 static int __init xt_dccp_init(void)
 {
@@ -173,27 +171,19 @@ static int __init xt_dccp_init(void)
 	dccp_optbuf = kmalloc(256 * 4, GFP_KERNEL);
 	if (!dccp_optbuf)
 		return -ENOMEM;
-	ret = xt_register_match(&dccp_match);
+	ret = xt_register_matches(xt_dccp_match, ARRAY_SIZE(xt_dccp_match));
 	if (ret)
 		goto out_kfree;
-	ret = xt_register_match(&dccp6_match);
-	if (ret)
-		goto out_unreg;
-
 	return ret;
 
-out_unreg:
-	xt_unregister_match(&dccp_match);
 out_kfree:
 	kfree(dccp_optbuf);
-
 	return ret;
 }
 
 static void __exit xt_dccp_fini(void)
 {
-	xt_unregister_match(&dccp6_match);
-	xt_unregister_match(&dccp_match);
+	xt_unregister_matches(xt_dccp_match, ARRAY_SIZE(xt_dccp_match));
 	kfree(dccp_optbuf);
 }
 

@@ -146,9 +146,9 @@ extern void i915_mem_release(drm_device_t * dev,
 #define BEGIN_LP_RING(n) do {				\
 	if (I915_VERBOSE)				\
 		DRM_DEBUG("BEGIN_LP_RING(%d) in %s\n",	\
-			  n, __FUNCTION__);		\
-	if (dev_priv->ring.space < n*4)			\
-		i915_wait_ring(dev, n*4, __FUNCTION__);		\
+			  (n), __FUNCTION__);		\
+	if (dev_priv->ring.space < (n)*4)			\
+		i915_wait_ring(dev, (n)*4, __FUNCTION__);		\
 	outcount = 0;					\
 	outring = dev_priv->ring.tail;			\
 	ringmask = dev_priv->ring.tail_mask;		\
@@ -157,7 +157,7 @@ extern void i915_mem_release(drm_device_t * dev,
 
 #define OUT_RING(n) do {					\
 	if (I915_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*(volatile unsigned int *)(virt + outring) = n;		\
+	*(volatile unsigned int *)(virt + outring) = (n);	\
         outcount++;						\
 	outring += 4;						\
 	outring &= ringmask;					\
@@ -253,6 +253,8 @@ extern int i915_wait_ring(drm_device_t * dev, int n, const char *caller);
 #define GFX_OP_MAP_INFO          ((0x3<<29)|(0x1d<<24)|0x4)
 #define GFX_OP_DESTBUFFER_VARS   ((0x3<<29)|(0x1d<<24)|(0x85<<16)|0x0)
 #define GFX_OP_DRAWRECT_INFO     ((0x3<<29)|(0x1d<<24)|(0x80<<16)|(0x3))
+
+#define GFX_OP_DRAWRECT_INFO_I965 ((0x7900<<16)|0x2)
 
 #define MI_BATCH_BUFFER 	((0x30<<23)|1)
 #define MI_BATCH_BUFFER_START 	(0x31<<23)

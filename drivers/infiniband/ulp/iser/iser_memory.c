@@ -42,6 +42,7 @@
 #include "iscsi_iser.h"
 
 #define ISER_KMALLOC_THRESHOLD 0x20000 /* 128K - kmalloc limit */
+
 /**
  * Decrements the reference count for the
  * registered buffer & releases it
@@ -55,7 +56,7 @@ int iser_regd_buff_release(struct iser_regd_buf *regd_buf)
 	if ((atomic_read(&regd_buf->ref_count) == 0) ||
 	    atomic_dec_and_test(&regd_buf->ref_count)) {
 		/* if we used the dma mr, unreg is just NOP */
-		if (regd_buf->reg.rkey != 0)
+		if (regd_buf->reg.is_fmr)
 			iser_unreg_mem(&regd_buf->reg);
 
 		if (regd_buf->dma_addr) {
@@ -90,9 +91,9 @@ void iser_reg_single(struct iser_device *device,
 	BUG_ON(dma_mapping_error(dma_addr));
 
 	regd_buf->reg.lkey = device->mr->lkey;
-	regd_buf->reg.rkey = 0; /* indicate there's no need to unreg */
 	regd_buf->reg.len  = regd_buf->data_size;
 	regd_buf->reg.va   = dma_addr;
+	regd_buf->reg.is_fmr = 0;
 
 	regd_buf->dma_addr  = dma_addr;
 	regd_buf->direction = direction;
@@ -239,7 +240,7 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 	int i;
 
 	/* compute the offset of first element */
-	page_vec->offset = (u64) sg[0].offset;
+	page_vec->offset = (u64) sg[0].offset & ~MASK_4K;
 
 	for (i = 0; i < data->dma_nents; i++) {
 		total_sz += sg_dma_len(&sg[i]);
@@ -247,21 +248,30 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 		first_addr = sg_dma_address(&sg[i]);
 		last_addr  = first_addr + sg_dma_len(&sg[i]);
 
-		start_aligned = !(first_addr & ~PAGE_MASK);
-		end_aligned   = !(last_addr  & ~PAGE_MASK);
+		start_aligned = !(first_addr & ~MASK_4K);
+		end_aligned   = !(last_addr  & ~MASK_4K);
 
 		/* continue to collect page fragments till aligned or SG ends */
 		while (!end_aligned && (i + 1 < data->dma_nents)) {
 			i++;
 			total_sz += sg_dma_len(&sg[i]);
 			last_addr = sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]);
-			end_aligned = !(last_addr  & ~PAGE_MASK);
+			end_aligned = !(last_addr  & ~MASK_4K);
 		}
 
-		first_addr = first_addr & PAGE_MASK;
+		/* handle the 1st page in the 1st DMA element */
+		if (cur_page == 0) {
+			page = first_addr & MASK_4K;
+			page_vec->pages[cur_page] = page;
+			cur_page++;
+			page += SIZE_4K;
+		} else
+			page = first_addr;
 
-		for (page = first_addr; page < last_addr; page += PAGE_SIZE)
-			page_vec->pages[cur_page++] = page;
+		for (; page < last_addr; page += SIZE_4K) {
+			page_vec->pages[cur_page] = page;
+			cur_page++;
+		}
 
 	}
 	page_vec->data_size = total_sz;
@@ -269,8 +279,7 @@ static int iser_sg_to_page_vec(struct iser_data_buf *data,
 	return cur_page;
 }
 
-#define MASK_4K			((1UL << 12) - 1) /* 0xFFF */
-#define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & MASK_4K) == 0)
+#define IS_4K_ALIGNED(addr)	((((unsigned long)addr) & ~MASK_4K) == 0)
 
 /**
  * iser_data_buf_aligned_len - Tries to determine the maximal correctly aligned
@@ -320,9 +329,9 @@ static void iser_data_buf_dump(struct iser_data_buf *data)
 	struct scatterlist *sg = (struct scatterlist *)data->buf;
 	int i;
 
-	for (i = 0; i < data->size; i++)
+	for (i = 0; i < data->dma_nents; i++)
 		iser_err("sg[%d] dma_addr:0x%lX page:0x%p "
-			 "off:%d sz:%d dma_len:%d\n",
+			 "off:0x%x sz:0x%x dma_len:0x%x\n",
 			 i, (unsigned long)sg_dma_address(&sg[i]),
 			 sg[i].page, sg[i].offset,
 			 sg[i].length,sg_dma_len(&sg[i]));
@@ -352,11 +361,49 @@ static void iser_page_vec_build(struct iser_data_buf *data,
 
 	page_vec->length = page_vec_len;
 
-	if (page_vec_len * PAGE_SIZE < page_vec->data_size) {
+	if (page_vec_len * SIZE_4K < page_vec->data_size) {
 		iser_err("page_vec too short to hold this SG\n");
 		iser_data_buf_dump(data);
 		iser_dump_page_vec(page_vec);
 		BUG();
+	}
+}
+
+int iser_dma_map_task_data(struct iscsi_iser_cmd_task *iser_ctask,
+			    struct iser_data_buf       *data,
+			    enum   iser_data_dir       iser_dir,
+			    enum   dma_data_direction  dma_dir)
+{
+	struct device *dma_device;
+
+	iser_ctask->dir[iser_dir] = 1;
+	dma_device =
+		iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+
+	data->dma_nents = dma_map_sg(dma_device, data->buf, data->size, dma_dir);
+	if (data->dma_nents == 0) {
+		iser_err("dma_map_sg failed!!!\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask)
+{
+	struct device  *dma_device;
+	struct iser_data_buf *data;
+
+	dma_device =
+		iser_ctask->iser_conn->ib_conn->device->ib_device->dma_device;
+
+	if (iser_ctask->dir[ISER_DIR_IN]) {
+		data = &iser_ctask->data[ISER_DIR_IN];
+		dma_unmap_sg(dma_device, data->buf, data->size, DMA_FROM_DEVICE);
+	}
+
+	if (iser_ctask->dir[ISER_DIR_OUT]) {
+		data = &iser_ctask->data[ISER_DIR_OUT];
+		dma_unmap_sg(dma_device, data->buf, data->size, DMA_TO_DEVICE);
 	}
 }
 
@@ -370,18 +417,25 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		      enum   iser_data_dir        cmd_dir)
 {
 	struct iser_conn     *ib_conn = iser_ctask->iser_conn->ib_conn;
+	struct iser_device   *device = ib_conn->device;
 	struct iser_data_buf *mem = &iser_ctask->data[cmd_dir];
 	struct iser_regd_buf *regd_buf;
 	int aligned_len;
 	int err;
+	int i;
+	struct scatterlist *sg;
 
 	regd_buf = &iser_ctask->rdma_regd[cmd_dir];
 
 	aligned_len = iser_data_buf_aligned_len(mem);
-	if (aligned_len != mem->size) {
+	if (aligned_len != mem->dma_nents) {
 		iser_err("rdma alignment violation %d/%d aligned\n",
 			 aligned_len, mem->size);
 		iser_data_buf_dump(mem);
+
+		/* unmap the command data before accessing it */
+		iser_dma_unmap_task_data(iser_ctask);
+
 		/* allocate copy buf, if we are writing, copy the */
 		/* unaligned scatterlist, dma map the copy        */
 		if (iser_start_rdma_unaligned_sg(iser_ctask, cmd_dir) != 0)
@@ -389,10 +443,38 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		mem = &iser_ctask->data_copy[cmd_dir];
 	}
 
-	iser_page_vec_build(mem, ib_conn->page_vec);
-	err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
-	if (err)
-		return err;
+	/* if there a single dma entry, FMR is not needed */
+	if (mem->dma_nents == 1) {
+		sg = (struct scatterlist *)mem->buf;
+
+		regd_buf->reg.lkey = device->mr->lkey;
+		regd_buf->reg.rkey = device->mr->rkey;
+		regd_buf->reg.len  = sg_dma_len(&sg[0]);
+		regd_buf->reg.va   = sg_dma_address(&sg[0]);
+		regd_buf->reg.is_fmr = 0;
+
+		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
+			 "va: 0x%08lX sz: %ld]\n",
+			 (unsigned int)regd_buf->reg.lkey,
+			 (unsigned int)regd_buf->reg.rkey,
+			 (unsigned long)regd_buf->reg.va,
+			 (unsigned long)regd_buf->reg.len);
+	} else { /* use FMR for multiple dma entries */
+		iser_page_vec_build(mem, ib_conn->page_vec);
+		err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
+		if (err) {
+			iser_data_buf_dump(mem);
+			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n", mem->dma_nents,
+				 ntoh24(iser_ctask->desc.iscsi_header.dlength));
+			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
+				 ib_conn->page_vec->data_size, ib_conn->page_vec->length,
+				 ib_conn->page_vec->offset);
+			for (i=0 ; i<ib_conn->page_vec->length ; i++)
+				iser_err("page_vec[%d] = 0x%llx\n", i,
+					 (unsigned long long) ib_conn->page_vec->pages[i]);
+			return err;
+		}
+	}
 
 	/* take a reference on this regd buf such that it will not be released *
 	 * (eg in send dto completion) before we get the scsi response         */

@@ -23,7 +23,7 @@
 #include "irq_user.h"
 #include "mconsole_kern.h"
 
-static int ssl_version = 1;
+static const int ssl_version = 1;
 
 /* Referenced only by tty_driver below - presumably it's locked correctly
  * by the tty driver.
@@ -123,7 +123,7 @@ void ssl_hangup(struct tty_struct *tty)
 }
 #endif
 
-static struct tty_operations ssl_ops = {
+static const struct tty_operations ssl_ops = {
 	.open 	 		= ssl_open,
 	.close 	 		= line_close,
 	.write 	 		= line_write,

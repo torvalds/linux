@@ -29,7 +29,7 @@ static struct ip_vs_conn *
 tcp_conn_in_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
 	if (pptr == NULL)
@@ -50,7 +50,7 @@ static struct ip_vs_conn *
 tcp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
 	if (pptr == NULL)
@@ -112,12 +112,12 @@ tcp_conn_schedule(struct sk_buff *skb,
 
 
 static inline void
-tcp_fast_csum_update(struct tcphdr *tcph, u32 oldip, u32 newip,
-		     u16 oldport, u16 newport)
+tcp_fast_csum_update(struct tcphdr *tcph, __be32 oldip, __be32 newip,
+		     __be16 oldport, __be16 newport)
 {
 	tcph->check =
 		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ 0xFFFF,
+				 ip_vs_check_diff(oldport ^ htonl(0xFFFF),
 						  newport, tcph->check));
 }
 
@@ -151,7 +151,7 @@ tcp_snat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(tcph, cp->daddr, cp->vaddr,
 				     cp->dport, cp->vport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -204,7 +204,7 @@ tcp_dnat_handler(struct sk_buff **pskb,
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(tcph, cp->vaddr, cp->daddr,
 				     cp->vport, cp->dport);
-		if ((*pskb)->ip_summed == CHECKSUM_HW)
+		if ((*pskb)->ip_summed == CHECKSUM_COMPLETE)
 			(*pskb)->ip_summed = CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -229,7 +229,7 @@ tcp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
-	case CHECKSUM_HW:
+	case CHECKSUM_COMPLETE:
 		if (csum_tcpudp_magic(skb->nh.iph->saddr, skb->nh.iph->daddr,
 				      skb->len - tcphoff,
 				      skb->nh.iph->protocol, skb->csum)) {
@@ -239,7 +239,7 @@ tcp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 		}
 		break;
 	default:
-		/* CHECKSUM_UNNECESSARY */
+		/* No need to checksum. */
 		break;
 	}
 

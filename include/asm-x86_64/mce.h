@@ -99,6 +99,8 @@ static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)
 }
 #endif
 
+void mce_log_therm_throt_event(unsigned int cpu, __u64 status);
+
 extern atomic_t mce_entry;
 
 #endif

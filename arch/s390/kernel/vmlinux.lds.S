@@ -24,6 +24,7 @@ SECTIONS
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT
+	KPROBES_TEXT
 	*(.fixup)
 	*(.gnu.warning)
 	} = 0x0700
@@ -117,7 +118,7 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-	*(.exitcall.exit)
+	*(.exit.text) *(.exit.data) *(.exitcall.exit)
 	}
 
   /* Stabs debugging sections.  */

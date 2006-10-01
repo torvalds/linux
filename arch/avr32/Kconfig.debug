@@ -1,0 +1,19 @@
+menu "Kernel hacking"
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default y
+
+source "lib/Kconfig.debug"
+
+config KPROBES
+	bool "Kprobes"
+	depends on DEBUG_KERNEL
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+          execute a callback function.  register_kprobe() establishes
+          a probepoint and specifies the callback.  Kprobes is useful
+          for kernel debugging, non-intrusive instrumentation and testing.
+          If in doubt, say "N".
+
+endmenu

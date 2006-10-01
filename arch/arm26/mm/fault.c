@@ -155,7 +155,7 @@ __do_page_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	 */
 good_area:
 	if (READ_FAULT(fsr)) /* read? */
-		mask = VM_READ|VM_EXEC;
+		mask = VM_READ|VM_EXEC|VM_WRITE;
 	else
 		mask = VM_WRITE;
 
@@ -185,7 +185,7 @@ survive:
 	}
 
 	fault = -3; /* out of memory */
-	if (tsk->pid != 1)
+	if (!is_init(tsk))
 		goto out;
 
 	/*

@@ -11,6 +11,7 @@
 #include <linux/parser.h>
 #include <linux/init.h>
 #include <linux/statfs.h>
+#include <linux/magic.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -202,8 +203,7 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
-	if (kmem_cache_destroy(hpfs_inode_cachep))
-		printk(KERN_INFO "hpfs_inode_cache: not all structures were freed\n");
+	kmem_cache_destroy(hpfs_inode_cachep);
 }
 
 /*
@@ -461,11 +461,10 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	int o;
 
-	sbi = kmalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
-	memset(sbi, 0, sizeof(*sbi));
 
 	sbi->sb_bmp_dir = NULL;
 	sbi->sb_cp_table = NULL;

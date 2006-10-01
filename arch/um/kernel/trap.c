@@ -120,7 +120,7 @@ out_nosemaphore:
  * us unable to handle the page fault gracefully.
  */
 out_of_memory:
-	if (current->pid == 1) {
+	if (is_init(current)) {
 		up_read(&mm->mmap_sem);
 		yield();
 		down_read(&mm->mmap_sem);
@@ -140,14 +140,6 @@ void segv_handler(int sig, union uml_pt_regs *regs)
 	segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
 }
 
-struct kern_handlers handlinfo_kern = {
-	.relay_signal = relay_signal,
-	.winch = winch,
-	.bus_handler = relay_signal,
-	.page_fault = segv_handler,
-	.sigio_handler = sigio_handler,
-	.timer_handler = timer_handler
-};
 /*
  * We give a *copy* of the faultinfo in the regs to segv.
  * This must be done, since nesting SEGVs could overwrite
@@ -227,9 +219,16 @@ void bad_segv(struct faultinfo fi, unsigned long ip)
 
 void relay_signal(int sig, union uml_pt_regs *regs)
 {
-	if(arch_handle_signal(sig, regs)) return;
-	if(!UPT_IS_USER(regs))
+	if(arch_handle_signal(sig, regs))
+		return;
+
+	if(!UPT_IS_USER(regs)){
+		if(sig == SIGBUS)
+			printk("Bus error - the /dev/shm or /tmp mount likely "
+			       "just ran out of space\n");
 		panic("Kernel mode signal %d", sig);
+	}
+
         current->thread.arch.faultinfo = *UPT_FAULTINFO(regs);
 	force_sig(sig, current);
 }
@@ -245,6 +244,15 @@ void winch(int sig, union uml_pt_regs *regs)
 {
 	do_IRQ(WINCH_IRQ, regs);
 }
+
+const struct kern_handlers handlinfo_kern = {
+	.relay_signal = relay_signal,
+	.winch = winch,
+	.bus_handler = bus_handler,
+	.page_fault = segv_handler,
+	.sigio_handler = sigio_handler,
+	.timer_handler = timer_handler
+};
 
 void trap_init(void)
 {

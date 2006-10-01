@@ -31,7 +31,7 @@ struct xterm_chan {
 };
 
 /* Not static because it's called directly by the tt mode gdb code */
-void *xterm_init(char *str, int device, struct chan_opts *opts)
+void *xterm_init(char *str, int device, const struct chan_opts *opts)
 {
 	struct xterm_chan *data;
 
@@ -194,7 +194,7 @@ static void xterm_free(void *d)
 	free(d);
 }
 
-struct chan_ops xterm_ops = {
+const struct chan_ops xterm_ops = {
 	.type		= "xterm",
 	.init		= xterm_init,
 	.open		= xterm_open,

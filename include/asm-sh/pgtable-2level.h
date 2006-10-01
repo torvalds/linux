@@ -50,8 +50,11 @@ static inline void pgd_clear (pgd_t * pgdp) 	{ }
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
 #define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
 
-#define pgd_page(pgd) \
+#define pgd_page_vaddr(pgd) \
 ((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+
+#define pgd_page(pgd) \
+	(phys_to_page(pgd_val(pgd)))
 
 static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 {

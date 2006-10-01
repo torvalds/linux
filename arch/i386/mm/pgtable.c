@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -60,7 +61,9 @@ void show_mem(void)
 	printk(KERN_INFO "%lu pages writeback\n",
 					global_page_state(NR_WRITEBACK));
 	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
-	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
+	printk(KERN_INFO "%lu pages slab\n",
+		global_page_state(NR_SLAB_RECLAIMABLE) +
+		global_page_state(NR_SLAB_UNRECLAIMABLE));
 	printk(KERN_INFO "%lu pages pagetables\n",
 					global_page_state(NR_PAGETABLE));
 }
@@ -137,6 +140,12 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	__flush_tlb_one(vaddr);
 }
 
+static int fixmaps;
+#ifndef CONFIG_COMPAT_VDSO
+unsigned long __FIXADDR_TOP = 0xfffff000;
+EXPORT_SYMBOL(__FIXADDR_TOP);
+#endif
+
 void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 {
 	unsigned long address = __fix_to_virt(idx);
@@ -146,6 +155,25 @@ void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 		return;
 	}
 	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
+	fixmaps++;
+}
+
+/**
+ * reserve_top_address - reserves a hole in the top of kernel address space
+ * @reserve - size of hole to reserve
+ *
+ * Can be used to relocate the fixmap area and poke a hole in the top
+ * of kernel address space to make room for a hypervisor.
+ */
+void reserve_top_address(unsigned long reserve)
+{
+	BUG_ON(fixmaps > 0);
+#ifdef CONFIG_COMPAT_VDSO
+	BUG_ON(reserve != 0);
+#else
+	__FIXADDR_TOP = -reserve - PAGE_SIZE;
+	__VMALLOC_RESERVE += reserve;
+#endif
 }
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)

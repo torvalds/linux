@@ -724,7 +724,7 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
                    int timeout, u32 *info)
 {
     Scsi_Cmnd *scp;
-    DECLARE_COMPLETION(wait);
+    DECLARE_COMPLETION_ONSTACK(wait);
     int rval;
 
     scp = kmalloc(sizeof(*scp), GFP_KERNEL);
@@ -764,7 +764,7 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
 {
     Scsi_Cmnd *scp = scsi_allocate_device(sdev, 1, FALSE);
     unsigned bufflen = gdtcmd ? sizeof(gdth_cmd_str) : 0;
-    DECLARE_COMPLETION(wait);
+    DECLARE_COMPLETION_ONSTACK(wait);
     int rval;
 
     if (!scp)

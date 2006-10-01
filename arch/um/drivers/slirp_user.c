@@ -126,7 +126,7 @@ static int slirp_set_mtu(int mtu, void *data)
 	return(mtu);
 }
 
-struct net_user_info slirp_user_info = {
+const struct net_user_info slirp_user_info = {
 	.init		= slirp_user_init,
 	.open		= slirp_open,
 	.close	 	= slirp_close,

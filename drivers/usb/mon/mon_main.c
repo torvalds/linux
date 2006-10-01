@@ -265,7 +265,6 @@ static void mon_dissolve(struct mon_bus *mbus, struct usb_bus *ubus)
 	ubus->mon_bus = NULL;
 	mbus->u_bus = NULL;
 	mb();
-	// usb_bus_put(ubus);
 }
 
 /*
@@ -297,12 +296,12 @@ static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus)
 	INIT_LIST_HEAD(&mbus->r_list);
 
 	/*
-	 * This usb_bus_get here is superfluous, because we receive
-	 * a notification if usb_bus is about to be removed.
+	 * We don't need to take a reference to ubus, because we receive
+	 * a notification if the bus is about to be removed.
 	 */
-	// usb_bus_get(ubus);
 	mbus->u_bus = ubus;
 	ubus->mon_bus = mbus;
+	mbus->uses_dma = ubus->uses_dma;
 
 	rc = snprintf(name, NAMESZ, "%dt", ubus->busnum);
 	if (rc <= 0 || rc >= NAMESZ)

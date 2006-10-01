@@ -31,7 +31,7 @@ static void set_standard(struct pvr2_hdw *hdw)
 	v4l2_std_id vs;
 	vs = hdw->std_mask_cur;
 	pvr2_trace(PVR2_TRACE_CHIPS,
-		   "i2c v4l2 set_standard(0x%llx)",(__u64)vs);
+		   "i2c v4l2 set_standard(0x%llx)",(long long unsigned)vs);
 
 	pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
 }

@@ -1,6 +1,27 @@
 #ifndef _X86_64_KEXEC_H
 #define _X86_64_KEXEC_H
 
+#define PA_CONTROL_PAGE  0
+#define VA_CONTROL_PAGE  1
+#define PA_PGD           2
+#define VA_PGD           3
+#define PA_PUD_0         4
+#define VA_PUD_0         5
+#define PA_PMD_0         6
+#define VA_PMD_0         7
+#define PA_PTE_0         8
+#define VA_PTE_0         9
+#define PA_PUD_1         10
+#define VA_PUD_1         11
+#define PA_PMD_1         12
+#define VA_PMD_1         13
+#define PA_PTE_1         14
+#define VA_PTE_1         15
+#define PA_TABLE_PAGE    16
+#define PAGES_NR         17
+
+#ifndef __ASSEMBLY__
+
 #include <linux/string.h>
 
 #include <asm/page.h>
@@ -64,4 +85,12 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		newregs->rip = (unsigned long)current_text_addr();
 	}
 }
+
+NORET_TYPE void
+relocate_kernel(unsigned long indirection_page,
+		unsigned long page_list,
+		unsigned long start_address) ATTRIB_NORET;
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* _X86_64_KEXEC_H */

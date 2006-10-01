@@ -46,6 +46,7 @@
 #define CPUID_TCM	2
 #define CPUID_TLBTYPE	3
 
+#ifdef CONFIG_CPU_CP15
 #define read_cpuid(reg)							\
 	({								\
 		unsigned int __val;					\
@@ -55,6 +56,9 @@
 		    : "cc");						\
 		__val;							\
 	})
+#else
+#define read_cpuid(reg) (processor_id)
+#endif
 
 /*
  * This is used to ensure the compiler did actually allocate the register we
@@ -207,130 +211,7 @@ static inline void sched_cacheflush(void)
 {
 }
 
-/*
- * CPU interrupt mask handling.
- */
-#if __LINUX_ARM_ARCH__ >= 6
-
-#define local_irq_save(x)					\
-	({							\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ local_irq_save\n"	\
-	"cpsid	i"						\
-	: "=r" (x) : : "memory", "cc");				\
-	})
-
-#define local_irq_enable()  __asm__("cpsie i	@ __sti" : : : "memory", "cc")
-#define local_irq_disable() __asm__("cpsid i	@ __cli" : : : "memory", "cc")
-#define local_fiq_enable()  __asm__("cpsie f	@ __stf" : : : "memory", "cc")
-#define local_fiq_disable() __asm__("cpsid f	@ __clf" : : : "memory", "cc")
-
-#else
-
-/*
- * Save the current interrupt enable state & disable IRQs
- */
-#define local_irq_save(x)					\
-	({							\
-		unsigned long temp;				\
-		(void) (&temp == &x);				\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ local_irq_save\n"	\
-"	orr	%1, %0, #128\n"					\
-"	msr	cpsr_c, %1"					\
-	: "=r" (x), "=r" (temp)					\
-	:							\
-	: "memory", "cc");					\
-	})
-	
-/*
- * Enable IRQs
- */
-#define local_irq_enable()					\
-	({							\
-		unsigned long temp;				\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ local_irq_enable\n"	\
-"	bic	%0, %0, #128\n"					\
-"	msr	cpsr_c, %0"					\
-	: "=r" (temp)						\
-	:							\
-	: "memory", "cc");					\
-	})
-
-/*
- * Disable IRQs
- */
-#define local_irq_disable()					\
-	({							\
-		unsigned long temp;				\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ local_irq_disable\n"	\
-"	orr	%0, %0, #128\n"					\
-"	msr	cpsr_c, %0"					\
-	: "=r" (temp)						\
-	:							\
-	: "memory", "cc");					\
-	})
-
-/*
- * Enable FIQs
- */
-#define local_fiq_enable()					\
-	({							\
-		unsigned long temp;				\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ stf\n"		\
-"	bic	%0, %0, #64\n"					\
-"	msr	cpsr_c, %0"					\
-	: "=r" (temp)						\
-	:							\
-	: "memory", "cc");					\
-	})
-
-/*
- * Disable FIQs
- */
-#define local_fiq_disable()					\
-	({							\
-		unsigned long temp;				\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ clf\n"		\
-"	orr	%0, %0, #64\n"					\
-"	msr	cpsr_c, %0"					\
-	: "=r" (temp)						\
-	:							\
-	: "memory", "cc");					\
-	})
-
-#endif
-
-/*
- * Save the current interrupt enable state.
- */
-#define local_save_flags(x)					\
-	({							\
-	__asm__ __volatile__(					\
-	"mrs	%0, cpsr		@ local_save_flags"	\
-	: "=r" (x) : : "memory", "cc");				\
-	})
-
-/*
- * restore saved IRQ & FIQ state
- */
-#define local_irq_restore(x)					\
-	__asm__ __volatile__(					\
-	"msr	cpsr_c, %0		@ local_irq_restore\n"	\
-	:							\
-	: "r" (x)						\
-	: "memory", "cc")
-
-#define irqs_disabled()			\
-({					\
-	unsigned long flags;		\
-	local_save_flags(flags);	\
-	(int)(flags & PSR_I_BIT);	\
-})
+#include <linux/irqflags.h>
 
 #ifdef CONFIG_SMP
 
@@ -405,17 +286,17 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 #error SMP is not supported on this platform
 #endif
 	case 1:
-		local_irq_save(flags);
+		raw_local_irq_save(flags);
 		ret = *(volatile unsigned char *)ptr;
 		*(volatile unsigned char *)ptr = x;
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 		break;
 
 	case 4:
-		local_irq_save(flags);
+		raw_local_irq_save(flags);
 		ret = *(volatile unsigned long *)ptr;
 		*(volatile unsigned long *)ptr = x;
-		local_irq_restore(flags);
+		raw_local_irq_restore(flags);
 		break;
 #else
 	case 1:

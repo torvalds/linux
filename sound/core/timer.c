@@ -88,7 +88,7 @@ static DEFINE_MUTEX(register_mutex);
 static int snd_timer_free(struct snd_timer *timer);
 static int snd_timer_dev_free(struct snd_device *device);
 static int snd_timer_dev_register(struct snd_device *device);
-static int snd_timer_dev_unregister(struct snd_device *device);
+static int snd_timer_dev_disconnect(struct snd_device *device);
 
 static void snd_timer_reschedule(struct snd_timer * timer, unsigned long ticks_left);
 
@@ -718,7 +718,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 		}
 	}
 	if (timer->flags & SNDRV_TIMER_FLG_RESCHED)
-		snd_timer_reschedule(timer, ticks_left);
+		snd_timer_reschedule(timer, timer->sticks);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_STOP) {
 			timer->hw.stop(timer);
@@ -773,7 +773,7 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 	static struct snd_device_ops ops = {
 		.dev_free = snd_timer_dev_free,
 		.dev_register = snd_timer_dev_register,
-		.dev_unregister = snd_timer_dev_unregister
+		.dev_disconnect = snd_timer_dev_disconnect,
 	};
 
 	snd_assert(tid != NULL, return -EINVAL);
@@ -813,6 +813,21 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 static int snd_timer_free(struct snd_timer *timer)
 {
 	snd_assert(timer != NULL, return -ENXIO);
+
+	mutex_lock(&register_mutex);
+	if (! list_empty(&timer->open_list_head)) {
+		struct list_head *p, *n;
+		struct snd_timer_instance *ti;
+		snd_printk(KERN_WARNING "timer %p is busy?\n", timer);
+		list_for_each_safe(p, n, &timer->open_list_head) {
+			list_del_init(p);
+			ti = list_entry(p, struct snd_timer_instance, open_list);
+			ti->timer = NULL;
+		}
+	}
+	list_del(&timer->device_list);
+	mutex_unlock(&register_mutex);
+
 	if (timer->private_free)
 		timer->private_free(timer);
 	kfree(timer);
@@ -867,30 +882,13 @@ static int snd_timer_dev_register(struct snd_device *dev)
 	return 0;
 }
 
-static int snd_timer_unregister(struct snd_timer *timer)
-{
-	struct list_head *p, *n;
-	struct snd_timer_instance *ti;
-
-	snd_assert(timer != NULL, return -ENXIO);
-	mutex_lock(&register_mutex);
-	if (! list_empty(&timer->open_list_head)) {
-		snd_printk(KERN_WARNING "timer 0x%lx is busy?\n", (long)timer);
-		list_for_each_safe(p, n, &timer->open_list_head) {
-			list_del_init(p);
-			ti = list_entry(p, struct snd_timer_instance, open_list);
-			ti->timer = NULL;
-		}
-	}
-	list_del(&timer->device_list);
-	mutex_unlock(&register_mutex);
-	return snd_timer_free(timer);
-}
-
-static int snd_timer_dev_unregister(struct snd_device *device)
+static int snd_timer_dev_disconnect(struct snd_device *device)
 {
 	struct snd_timer *timer = device->device_data;
-	return snd_timer_unregister(timer);
+	mutex_lock(&register_mutex);
+	list_del_init(&timer->device_list);
+	mutex_unlock(&register_mutex);
+	return 0;
 }
 
 void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstamp)
@@ -955,18 +953,12 @@ int snd_timer_global_register(struct snd_timer *timer)
 	return snd_timer_dev_register(&dev);
 }
 
-int snd_timer_global_unregister(struct snd_timer *timer)
-{
-	return snd_timer_unregister(timer);
-}
-
 /*
  *  System timer
  */
 
 struct snd_timer_system_private {
 	struct timer_list tlist;
-	struct timer * timer;
 	unsigned long last_expires;
 	unsigned long last_jiffies;
 	unsigned long correction;
@@ -978,7 +970,7 @@ static void snd_timer_s_function(unsigned long data)
 	struct snd_timer_system_private *priv = timer->private_data;
 	unsigned long jiff = jiffies;
 	if (time_after(jiff, priv->last_expires))
-		priv->correction = (long)jiff - (long)priv->last_expires;
+		priv->correction += (long)jiff - (long)priv->last_expires;
 	snd_timer_interrupt(timer, (long)jiff - (long)priv->last_jiffies);
 }
 
@@ -994,7 +986,7 @@ static int snd_timer_s_start(struct snd_timer * timer)
 		njiff++;
 	} else {
 		njiff += timer->sticks - priv->correction;
-		priv->correction -= timer->sticks;
+		priv->correction = 0;
 	}
 	priv->last_expires = priv->tlist.expires = njiff;
 	add_timer(&priv->tlist);
@@ -1013,6 +1005,7 @@ static int snd_timer_s_stop(struct snd_timer * timer)
 		timer->sticks = priv->last_expires - jiff;
 	else
 		timer->sticks = 1;
+	priv->correction = 0;
 	return 0;
 }
 
@@ -1126,7 +1119,7 @@ static void __init snd_timer_proc_init(void)
 
 static void __exit snd_timer_proc_done(void)
 {
-	snd_info_unregister(snd_timer_proc_entry);
+	snd_info_free_entry(snd_timer_proc_entry);
 }
 #else /* !CONFIG_PROC_FS */
 #define snd_timer_proc_init()
@@ -1982,7 +1975,7 @@ static void __exit alsa_timer_exit(void)
 	/* unregister the system timer */
 	list_for_each_safe(p, n, &snd_timer_list) {
 		struct snd_timer *timer = list_entry(p, struct snd_timer, device_list);
-		snd_timer_unregister(timer);
+		snd_timer_free(timer);
 	}
 	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
@@ -2005,5 +1998,4 @@ EXPORT_SYMBOL(snd_timer_notify);
 EXPORT_SYMBOL(snd_timer_global_new);
 EXPORT_SYMBOL(snd_timer_global_free);
 EXPORT_SYMBOL(snd_timer_global_register);
-EXPORT_SYMBOL(snd_timer_global_unregister);
 EXPORT_SYMBOL(snd_timer_interrupt);

@@ -7,7 +7,7 @@
 
 #define EXCITE_CPU_EXT_CLOCK 100000000
 
-#if !defined(__ASSEMBLER__)
+#if !defined(__ASSEMBLY__)
 void __init excite_kgdb_init(void);
 void excite_procfs_init(void);
 extern unsigned long memsize;

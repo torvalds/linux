@@ -302,11 +302,11 @@ static int switch_asic(struct echoaudio *chip, const struct firmware *asic)
 
 	/*  Check to see if this is already loaded */
 	if (asic != chip->asic_code) {
-		monitors = kmalloc(MONITOR_ARRAY_SIZE, GFP_KERNEL);
+		monitors = kmemdup(chip->comm_page->monitors,
+					MONITOR_ARRAY_SIZE, GFP_KERNEL);
 		if (! monitors)
 			return -ENOMEM;
 
-		memcpy(monitors, chip->comm_page->monitors, MONITOR_ARRAY_SIZE);
 		memset(chip->comm_page->monitors, ECHOGAIN_MUTED,
 		       MONITOR_ARRAY_SIZE);
 

@@ -103,6 +103,14 @@ pte_t *page_check_address(struct page *, struct mm_struct *,
  */
 unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
 
+/*
+ * Cleans the PTEs of shared mappings.
+ * (and since clean PTEs should also be readonly, write protects them too)
+ *
+ * returns the number of cleaned PTEs.
+ */
+int page_mkclean(struct page *);
+
 #else	/* !CONFIG_MMU */
 
 #define anon_vma_init()		do {} while (0)
@@ -111,6 +119,12 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
 
 #define page_referenced(page,l) TestClearPageReferenced(page)
 #define try_to_unmap(page, refs) SWAP_FAIL
+
+static inline int page_mkclean(struct page *page)
+{
+	return 0;
+}
+
 
 #endif	/* CONFIG_MMU */
 

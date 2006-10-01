@@ -1,8 +1,6 @@
 #ifndef _ASM_CRIS_UNISTD_H_
 #define _ASM_CRIS_UNISTD_H_
 
-#include <asm/arch/unistd.h>
-
 /*
  * This file contains the system call numbers, and stub macros for libc.
  */
@@ -299,6 +297,7 @@
 
 #define NR_syscalls 289
 
+#include <asm/arch/unistd.h>
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -322,7 +321,6 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 

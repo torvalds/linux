@@ -192,7 +192,7 @@ int recalibrate_cpu_khz(void)
 
 EXPORT_SYMBOL(recalibrate_cpu_khz);
 
-void tsc_init(void)
+void __init tsc_init(void)
 {
 	if (!cpu_has_tsc || tsc_disable)
 		return;

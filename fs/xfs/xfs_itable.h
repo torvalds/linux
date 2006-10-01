@@ -36,15 +36,16 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 /*
  * Values for stat return value.
  */
-#define	BULKSTAT_RV_NOTHING	0
-#define	BULKSTAT_RV_DIDONE	1
-#define	BULKSTAT_RV_GIVEUP	2
+#define BULKSTAT_RV_NOTHING	0
+#define BULKSTAT_RV_DIDONE	1
+#define BULKSTAT_RV_GIVEUP	2
 
 /*
  * Values for bulkstat flag argument.
  */
-#define	BULKSTAT_FG_IGET	0x1	/* Go through the buffer cache */
-#define	BULKSTAT_FG_QUICK	0x2	/* No iget, walk the dinode cluster */
+#define BULKSTAT_FG_IGET	0x1	/* Go through the buffer cache */
+#define BULKSTAT_FG_QUICK	0x2	/* No iget, walk the dinode cluster */
+#define BULKSTAT_FG_INLINE	0x4	/* No iget if inline attrs */
 
 /*
  * Return stat information in bulk (by-inode) for the filesystem.
@@ -79,6 +80,11 @@ xfs_bulkstat_one(
 	int			*ubused,
 	void			*dibuff,
 	int			*stat);
+
+int
+xfs_internal_inum(
+	xfs_mount_t		*mp,
+	xfs_ino_t		ino);
 
 int					/* error status */
 xfs_inumbers(

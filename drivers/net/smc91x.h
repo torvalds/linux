@@ -195,6 +195,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define	SMC_IRQ_FLAGS (( \
 		   machine_is_omap_h2() \
 		|| machine_is_omap_h3() \
+		|| machine_is_omap_h4() \
 		|| (machine_is_omap_innovator() && !cpu_is_omap1510()) \
 	) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING)
 
@@ -340,6 +341,24 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 		while (_l-- > 0) \
 			au_writew(*_p++ , _a); \
 	} while(0)
+
+#define SMC_IRQ_FLAGS		(0)
+
+#elif	defined(CONFIG_ARCH_VERSATILE)
+
+#define SMC_CAN_USE_8BIT	1
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	1
+#define SMC_NOWAIT		1
+
+#define SMC_inb(a, r)		readb((a) + (r))
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_inl(a, r)		readl((a) + (r))
+#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_outl(v, a, r)	writel(v, (a) + (r))
+#define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
+#define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
 
 #define SMC_IRQ_FLAGS		(0)
 

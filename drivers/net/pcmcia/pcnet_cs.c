@@ -108,7 +108,7 @@ static void pcnet_release(struct pcmcia_device *link);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
@@ -654,11 +654,8 @@ static int pcnet_config(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
-	u_char id = inb(dev->base_addr + 0x1a);
 	dev->do_ioctl = &ei_ioctl;
 	mii_phy_probe(dev);
-	if ((id == 0x30) && !info->pna_phy && (info->eth_phy == 4))
-	    info->eth_phy = 0;
     }
 
     link->dev_node = &info->node;
@@ -821,15 +818,6 @@ static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
     }
 }
 
-static void mdio_reset(kio_addr_t addr, int phy_id)
-{
-    outb_p(0x08, addr);
-    outb_p(0x0c, addr);
-    outb_p(0x08, addr);
-    outb_p(0x0c, addr);
-    outb_p(0x00, addr);
-}
-
 /*======================================================================
 
     EEPROM access routines for DL10019 and DL10022 based cards
@@ -942,7 +930,8 @@ static void set_misc_reg(struct net_device *dev)
     }
     if (info->flags & IS_DL10022) {
 	if (info->flags & HAS_MII) {
-	    mdio_reset(nic_base + DLINK_GPIO, info->eth_phy);
+	    /* Advertise 100F, 100H, 10F, 10H */
+	    mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 4, 0x01e1);
 	    /* Restart MII autonegotiation */
 	    mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x0000);
 	    mdio_write(nic_base + DLINK_GPIO, info->eth_phy, 0, 0x1200);
@@ -1192,7 +1181,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	strcpy(info->driver, "pcnet_cs");
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 

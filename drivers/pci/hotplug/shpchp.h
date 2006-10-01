@@ -173,7 +173,7 @@ struct controller {
 #define msg_button_cancel	"PCI slot #%s - action canceled due to button press.\n"
 
 /* sysfs functions for the hotplug controller info */
-extern void shpchp_create_ctrl_files	(struct controller *ctrl);
+extern int __must_check shpchp_create_ctrl_files(struct controller *ctrl);
 
 extern int	shpchp_sysfs_enable_slot(struct slot *slot);
 extern int	shpchp_sysfs_disable_slot(struct slot *slot);

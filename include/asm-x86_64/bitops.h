@@ -399,6 +399,8 @@ static __inline__ int fls(int x)
 	return r+1;
 }
 
+#define ARCH_HAS_FAST_MULTIPLIER 1
+
 #include <asm-generic/bitops/hweight.h>
 
 #endif /* __KERNEL__ */

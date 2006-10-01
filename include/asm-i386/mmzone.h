@@ -38,10 +38,16 @@ static inline void get_memcfg_numa(void)
 }
 
 extern int early_pfn_to_nid(unsigned long pfn);
+extern void numa_kva_reserve(void);
 
 #else /* !CONFIG_NUMA */
+
 #define get_memcfg_numa get_memcfg_numa_flat
 #define get_zholes_size(n) (0)
+
+static inline void numa_kva_reserve(void)
+{
+}
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_DISCONTIGMEM

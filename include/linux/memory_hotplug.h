@@ -172,5 +172,7 @@ static inline int __remove_pages(struct zone *zone, unsigned long start_pfn,
 extern int add_memory(int nid, u64 start, u64 size);
 extern int arch_add_memory(int nid, u64 start, u64 size);
 extern int remove_memory(u64 start, u64 size);
+extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+								int nr_pages);
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

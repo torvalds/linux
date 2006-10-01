@@ -148,7 +148,6 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 		chan->adapter.algo_data		= &chan->algo;
 		chan->adapter.dev.parent	= &chan->par->pcidev->dev;
 		chan->algo.udelay		= 40;
-		chan->algo.mdelay               = 5;
 		chan->algo.timeout		= 20;
 		chan->algo.data 		= chan;
 

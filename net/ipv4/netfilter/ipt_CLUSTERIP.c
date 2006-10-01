@@ -52,7 +52,7 @@ struct clusterip_config {
 	atomic_t entries;			/* number of entries/rules
 						 * referencing us */
 
-	u_int32_t clusterip;			/* the IP address */
+	__be32 clusterip;			/* the IP address */
 	u_int8_t clustermac[ETH_ALEN];		/* the MAC address */
 	struct net_device *dev;			/* device */
 	u_int16_t num_total_nodes;		/* total number of nodes */
@@ -119,7 +119,7 @@ clusterip_config_entry_put(struct clusterip_config *c)
 }
 
 static struct clusterip_config *
-__clusterip_config_find(u_int32_t clusterip)
+__clusterip_config_find(__be32 clusterip)
 {
 	struct list_head *pos;
 
@@ -136,7 +136,7 @@ __clusterip_config_find(u_int32_t clusterip)
 }
 
 static inline struct clusterip_config *
-clusterip_config_find_get(u_int32_t clusterip, int entry)
+clusterip_config_find_get(__be32 clusterip, int entry)
 {
 	struct clusterip_config *c;
 
@@ -166,7 +166,7 @@ clusterip_config_init_nodelist(struct clusterip_config *c,
 }
 
 static struct clusterip_config *
-clusterip_config_init(struct ipt_clusterip_tgt_info *i, u_int32_t ip,
+clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 			struct net_device *dev)
 {
 	struct clusterip_config *c;
@@ -302,8 +302,7 @@ target(struct sk_buff **pskb,
        const struct net_device *out,
        unsigned int hooknum,
        const struct xt_target *target,
-       const void *targinfo,
-       void *userinfo)
+       const void *targinfo)
 {
 	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 	enum ip_conntrack_info ctinfo;
@@ -373,7 +372,6 @@ checkentry(const char *tablename,
 	   const void *e_void,
 	   const struct xt_target *target,
            void *targinfo,
-           unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
@@ -389,7 +387,7 @@ checkentry(const char *tablename,
 		return 0;
 
 	}
-	if (e->ip.dmsk.s_addr != 0xffffffff
+	if (e->ip.dmsk.s_addr != htonl(0xffffffff)
 	    || e->ip.dst.s_addr == 0) {
 		printk(KERN_ERR "CLUSTERIP: Please specify destination IP\n");
 		return 0;
@@ -450,8 +448,7 @@ checkentry(const char *tablename,
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void destroy(const struct xt_target *target, void *targinfo,
-		    unsigned int targinfosize)
+static void destroy(const struct xt_target *target, void *targinfo)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 
@@ -479,9 +476,9 @@ static struct ipt_target clusterip_tgt = {
 /* hardcoded for 48bit ethernet and 32bit ipv4 addresses */
 struct arp_payload {
 	u_int8_t src_hw[ETH_ALEN];
-	u_int32_t src_ip;
+	__be32 src_ip;
 	u_int8_t dst_hw[ETH_ALEN];
-	u_int32_t dst_ip;
+	__be32 dst_ip;
 } __attribute__ ((packed));
 
 #ifdef CLUSTERIP_DEBUG

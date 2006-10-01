@@ -312,7 +312,8 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 			e = NLMSG_DATA(nlh);
 			e->error = -ETIMEDOUT;
 			memset(&e->msg, 0, sizeof(e->msg));
-			netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
+
+			rtnl_unicast(skb, NETLINK_CB(skb).pid);
 		} else
 			kfree_skb(skb);
 	}
@@ -461,7 +462,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 	return 0;
 }
 
-static struct mfc_cache *ipmr_cache_find(__u32 origin, __u32 mcastgrp)
+static struct mfc_cache *ipmr_cache_find(__be32 origin, __be32 mcastgrp)
 {
 	int line=MFC_HASH(mcastgrp,origin);
 	struct mfc_cache *c;
@@ -512,7 +513,6 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 
 	while((skb=__skb_dequeue(&uc->mfc_un.unres.unresolved))) {
 		if (skb->nh.iph->version == 0) {
-			int err;
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct iphdr));
 
 			if (ipmr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
@@ -525,7 +525,8 @@ static void ipmr_cache_resolve(struct mfc_cache *uc, struct mfc_cache *c)
 				e->error = -EMSGSIZE;
 				memset(&e->msg, 0, sizeof(e->msg));
 			}
-			err = netlink_unicast(rtnl, skb, NETLINK_CB(skb).dst_pid, MSG_DONTWAIT);
+
+			rtnl_unicast(skb, NETLINK_CB(skb).pid);
 		} else
 			ip_mr_forward(skb, c, 0);
 	}
@@ -1096,7 +1097,7 @@ static struct notifier_block ip_mr_notifier={
  *	important for multicast video.
  */
  
-static void ip_encap(struct sk_buff *skb, u32 saddr, u32 daddr)
+static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph = (struct iphdr *)skb_push(skb,sizeof(struct iphdr));
 
@@ -1899,11 +1900,8 @@ void __init ip_mr_init(void)
 {
 	mrt_cachep = kmem_cache_create("ip_mrt_cache",
 				       sizeof(struct mfc_cache),
-				       0, SLAB_HWCACHE_ALIGN,
+				       0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 				       NULL, NULL);
-	if (!mrt_cachep)
-		panic("cannot allocate ip_mrt_cache");
-
 	init_timer(&ipmr_expire_timer);
 	ipmr_expire_timer.function=ipmr_expire_process;
 	register_netdevice_notifier(&ip_mr_notifier);

@@ -19,6 +19,7 @@
 #include <linux/parser.h>
 #include <linux/bitops.h>
 #include <linux/smp_lock.h>
+#include <linux/magic.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 
@@ -446,7 +447,6 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 		inode->i_uid = 0;
 		inode->i_gid = 0;
 	}
-	inode->i_blksize = PAGE_CACHE_SIZE;
 	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 

@@ -83,7 +83,7 @@
        Stuart Adamson <stuart.adamson@compsoc.net>
    Nov 2001
    added support for ethtool (jgarzik)
-	
+
    $Header: /fsys2/home/chrisb/linux-1.3.59-MCA/drivers/net/RCS/3c523.c,v 1.1 1996/02/05 01:53:46 chrisb Exp chrisb $
  */
 
@@ -189,7 +189,7 @@ static void elmc_timeout(struct net_device *dev);
 #ifdef ELMC_MULTICAST
 static void set_multicast_list(struct net_device *dev);
 #endif
-static struct ethtool_ops netdev_ethtool_ops;
+static const struct ethtool_ops netdev_ethtool_ops;
 
 /* helper-functions */
 static int init586(struct net_device *dev);
@@ -434,14 +434,14 @@ static int __init do_elmc_probe(struct net_device *dev)
 
 		dev->irq=irq_table[(status & ELMC_STATUS_IRQ_SELECT) >> 6];
 		dev->base_addr=csr_table[(status & ELMC_STATUS_CSR_SELECT) >> 1];
-		
+
 		/*
 		   If we're trying to match a specified irq or IO address,
 		   we'll reject a match unless it's what we're looking for.
 		   Also reject it if the card is already in use.
 		 */
 
-		if ((irq && irq != dev->irq) || 
+		if ((irq && irq != dev->irq) ||
 		    (base_addr && base_addr != dev->base_addr)) {
 			slot = mca_find_adapter(ELMC_MCA_ID, slot + 1);
 			continue;
@@ -540,7 +540,7 @@ static int __init do_elmc_probe(struct net_device *dev)
 
 	/* dump all the assorted information */
 	printk(KERN_INFO "%s: IRQ %d, %sternal xcvr, memory %#lx-%#lx.\n", dev->name,
-	       dev->irq, dev->if_port ? "ex" : "in", 
+	       dev->irq, dev->if_port ? "ex" : "in",
 	       dev->mem_start, dev->mem_end - 1);
 
 	/* The hardware address for the 3c523 is stored in the first six
@@ -564,7 +564,7 @@ static int __init do_elmc_probe(struct net_device *dev)
 	dev->set_multicast_list = NULL;
 #endif
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	
+
 	/* note that we haven't actually requested the IRQ from the kernel.
 	   That gets done in elmc_open().  I'm not sure that's such a good idea,
 	   but it works, so I'll go with it. */
@@ -583,7 +583,7 @@ err_out:
 	release_region(dev->base_addr, ELMC_IO_EXTENT);
 	return retval;
 }
- 
+
 static void cleanup_card(struct net_device *dev)
 {
 	mca_set_adapter_procfn(((struct priv *) (dev->priv))->slot, NULL, NULL);
@@ -926,7 +926,7 @@ elmc_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
 
 	p = (struct priv *) dev->priv;
 
-	while ((stat = p->scb->status & STAT_MASK)) 
+	while ((stat = p->scb->status & STAT_MASK))
 	{
 		p->scb->cmd = stat;
 		elmc_attn586();	/* ack inter. */
@@ -1102,7 +1102,7 @@ static void startrecv586(struct net_device *dev)
 /******************************************************
  * timeout
  */
- 
+
 static void elmc_timeout(struct net_device *dev)
 {
 	struct priv *p = (struct priv *) dev->priv;
@@ -1129,7 +1129,7 @@ static void elmc_timeout(struct net_device *dev)
 		elmc_open(dev);
 	}
 }
- 
+
 /******************************************************
  * send frame
  */
@@ -1146,7 +1146,7 @@ static int elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	len = (ETH_ZLEN < skb->len) ? skb->len : ETH_ZLEN;
-	
+
 	if (len != skb->len)
 		memset((char *) p->xmit_cbuffs[p->xmit_count], 0, ETH_ZLEN);
 	memcpy((char *) p->xmit_cbuffs[p->xmit_count], (char *) (skb->data), skb->len);
@@ -1177,7 +1177,7 @@ static int elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 #else
 	next_nop = (p->nop_point + 1) & 0x1;
 	p->xmit_buffs[0]->size = TBD_LAST | len;
-	
+
 	p->xmit_cmds[0]->cmd_link = p->nop_cmds[next_nop]->cmd_link
 	    = make16((p->nop_cmds[next_nop]));
 	p->xmit_cmds[0]->cmd_status = p->nop_cmds[next_nop]->cmd_status = 0;
@@ -1259,7 +1259,7 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	sprintf(info->bus_info, "MCA 0x%lx", dev->base_addr);
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 
@@ -1281,7 +1281,7 @@ int __init init_module(void)
 {
 	int this_dev,found = 0;
 
-	/* Loop until we either can't find any more cards, or we have MAX_3C523_CARDS */	
+	/* Loop until we either can't find any more cards, or we have MAX_3C523_CARDS */
 	for(this_dev=0; this_dev<MAX_3C523_CARDS; this_dev++) {
 		struct net_device *dev = alloc_etherdev(sizeof(struct priv));
 		if (!dev)

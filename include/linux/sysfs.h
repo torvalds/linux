@@ -10,6 +10,7 @@
 #ifndef _SYSFS_H_
 #define _SYSFS_H_
 
+#include <linux/compiler.h>
 #include <asm/atomic.h>
 
 struct kobject;
@@ -86,39 +87,43 @@ struct sysfs_dirent {
 
 #ifdef CONFIG_SYSFS
 
-extern int
+extern int __must_check
 sysfs_create_dir(struct kobject *);
 
 extern void
 sysfs_remove_dir(struct kobject *);
 
-extern int
+extern int __must_check
 sysfs_rename_dir(struct kobject *, const char *new_name);
 
-extern int
+extern int __must_check
 sysfs_create_file(struct kobject *, const struct attribute *);
 
-extern int
+extern int __must_check
 sysfs_update_file(struct kobject *, const struct attribute *);
 
-extern int
+extern int __must_check
 sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode);
 
 extern void
 sysfs_remove_file(struct kobject *, const struct attribute *);
 
-extern int
+extern int __must_check
 sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name);
 
 extern void
 sysfs_remove_link(struct kobject *, const char * name);
 
-int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr);
-int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr);
+int __must_check sysfs_create_bin_file(struct kobject *kobj,
+					struct bin_attribute *attr);
+void sysfs_remove_bin_file(struct kobject *kobj, struct bin_attribute *attr);
 
-int sysfs_create_group(struct kobject *, const struct attribute_group *);
+int __must_check sysfs_create_group(struct kobject *,
+					const struct attribute_group *);
 void sysfs_remove_group(struct kobject *, const struct attribute_group *);
 void sysfs_notify(struct kobject * k, char *dir, char *attr);
+
+extern int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
 
@@ -189,6 +194,11 @@ static inline void sysfs_remove_group(struct kobject * k, const struct attribute
 
 static inline void sysfs_notify(struct kobject * k, char *dir, char *attr)
 {
+}
+
+static inline int __must_check sysfs_init(void)
+{
+	return 0;
 }
 
 #endif /* CONFIG_SYSFS */

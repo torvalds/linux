@@ -54,15 +54,15 @@
  * even the most extreme cases without allowing an attacker to measurably
  * harm machine performance.
  */
-int sysctl_ipfrag_high_thresh = 256*1024;
-int sysctl_ipfrag_low_thresh = 192*1024;
+int sysctl_ipfrag_high_thresh __read_mostly = 256*1024;
+int sysctl_ipfrag_low_thresh __read_mostly = 192*1024;
 
-int sysctl_ipfrag_max_dist = 64;
+int sysctl_ipfrag_max_dist __read_mostly = 64;
 
 /* Important NOTE! Fragment queue must be destroyed before MSL expires.
  * RFC791 is wrong proposing to prolongate timer each fragment arrival by TTL.
  */
-int sysctl_ipfrag_time = IP_FRAG_TIME;
+int sysctl_ipfrag_time __read_mostly = IP_FRAG_TIME;
 
 struct ipfrag_skb_cb
 {
@@ -77,9 +77,9 @@ struct ipq {
 	struct hlist_node list;
 	struct list_head lru_list;	/* lru list member 			*/
 	u32		user;
-	u32		saddr;
-	u32		daddr;
-	u16		id;
+	__be32		saddr;
+	__be32		daddr;
+	__be16		id;
 	u8		protocol;
 	u8		last_in;
 #define COMPLETE		4
@@ -123,14 +123,15 @@ static __inline__ void ipq_unlink(struct ipq *ipq)
 	write_unlock(&ipfrag_lock);
 }
 
-static unsigned int ipqhashfn(u16 id, u32 saddr, u32 daddr, u8 prot)
+static unsigned int ipqhashfn(__be16 id, __be32 saddr, __be32 daddr, u8 prot)
 {
-	return jhash_3words((u32)id << 16 | prot, saddr, daddr,
+	return jhash_3words((__force u32)id << 16 | prot,
+			    (__force u32)saddr, (__force u32)daddr,
 			    ipfrag_hash_rnd) & (IPQ_HASHSZ - 1);
 }
 
 static struct timer_list ipfrag_secret_timer;
-int sysctl_ipfrag_secret_interval = 10 * 60 * HZ;
+int sysctl_ipfrag_secret_interval __read_mostly = 10 * 60 * HZ;
 
 static void ipfrag_secret_rebuild(unsigned long dummy)
 {
@@ -387,8 +388,8 @@ out_nomem:
 static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 {
 	__be16 id = iph->id;
-	__u32 saddr = iph->saddr;
-	__u32 daddr = iph->daddr;
+	__be32 saddr = iph->saddr;
+	__be32 daddr = iph->daddr;
 	__u8 protocol = iph->protocol;
 	unsigned int hash;
 	struct ipq *qp;
@@ -665,7 +666,7 @@ static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 		head->len += fp->len;
 		if (head->ip_summed != fp->ip_summed)
 			head->ip_summed = CHECKSUM_NONE;
-		else if (head->ip_summed == CHECKSUM_HW)
+		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
 		atomic_sub(fp->truesize, &ip_frag_mem);

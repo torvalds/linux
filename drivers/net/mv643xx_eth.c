@@ -74,7 +74,7 @@ static int ethernet_phy_detect(unsigned int eth_port_num);
 static int mv643xx_mdio_read(struct net_device *dev, int phy_id, int location);
 static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location, int val);
 static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static struct ethtool_ops mv643xx_ethtool_ops;
+static const struct ethtool_ops mv643xx_ethtool_ops;
 
 static char mv643xx_driver_name[] = "mv643xx_eth";
 static char mv643xx_driver_version[] = "1.0";
@@ -385,7 +385,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 	struct pkt_info pkt_info;
 
 	while (budget-- > 0 && eth_port_receive(mp, &pkt_info) == ETH_OK) {
-		dma_unmap_single(NULL, pkt_info.buf_ptr, RX_SKB_SIZE,
+		dma_unmap_single(NULL, pkt_info.buf_ptr, ETH_RX_SKB_SIZE,
 							DMA_FROM_DEVICE);
 		mp->rx_desc_count--;
 		received_packets++;
@@ -1147,7 +1147,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 	desc->byte_cnt = length;
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		BUG_ON(skb->protocol != ETH_P_IP);
 
 		cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |
@@ -2723,7 +2723,7 @@ static void mv643xx_get_ethtool_stats(struct net_device *netdev,
 	eth_update_mib_counters(mp);
 
 	for (i = 0; i < MV643XX_STATS_LEN; i++) {
-		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;	
+		char *p = (char *)mp+mv643xx_gstrings_stats[i].stat_offset;
 		data[i] = (mv643xx_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
@@ -2766,7 +2766,7 @@ static int mv643xx_eth_do_ioctl(struct net_device *dev, struct ifreq *ifr, int c
 	return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
 }
 
-static struct ethtool_ops mv643xx_ethtool_ops = {
+static const struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_settings           = mv643xx_get_settings,
 	.set_settings           = mv643xx_set_settings,
 	.get_drvinfo            = mv643xx_get_drvinfo,

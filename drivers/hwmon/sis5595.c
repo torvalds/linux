@@ -61,6 +61,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <asm/io.h>
 
 
@@ -200,6 +201,7 @@ static void sis5595_init_client(struct i2c_client *client);
 
 static struct i2c_driver sis5595_driver = {
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "sis5595",
 	},
 	.attach_adapter	= sis5595_detect,
@@ -472,6 +474,50 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, ch
 	return sprintf(buf, "%d\n", data->alarms);
 }
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+
+static struct attribute *sis5595_attributes[] = {
+	&dev_attr_in0_input.attr,
+	&dev_attr_in0_min.attr,
+	&dev_attr_in0_max.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in1_min.attr,
+	&dev_attr_in1_max.attr,
+	&dev_attr_in2_input.attr,
+	&dev_attr_in2_min.attr,
+	&dev_attr_in2_max.attr,
+	&dev_attr_in3_input.attr,
+	&dev_attr_in3_min.attr,
+	&dev_attr_in3_max.attr,
+
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_fan2_div.attr,
+
+	&dev_attr_alarms.attr,
+	NULL
+};
+
+static const struct attribute_group sis5595_group = {
+	.attrs = sis5595_attributes,
+};
+
+static struct attribute *sis5595_attributes_opt[] = {
+	&dev_attr_in4_input.attr,
+	&dev_attr_in4_min.attr,
+	&dev_attr_in4_max.attr,
+
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_max_hyst.attr,
+	NULL
+};
+
+static const struct attribute_group sis5595_group_opt = {
+	.attrs = sis5595_attributes_opt,
+};
  
 /* This is called when the module is loaded */
 static int sis5595_detect(struct i2c_adapter *adapter)
@@ -565,43 +611,37 @@ static int sis5595_detect(struct i2c_adapter *adapter)
 	}
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &sis5595_group)))
+		goto exit_detach;
+	if (data->maxins == 4) {
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_in4_input))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_in4_min))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_in4_max)))
+			goto exit_remove_files;
+	} else {
+		if ((err = device_create_file(&new_client->dev,
+					      &dev_attr_temp1_input))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_temp1_max))
+		 || (err = device_create_file(&new_client->dev,
+					      &dev_attr_temp1_max_hyst)))
+			goto exit_remove_files;
+	}
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
 
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in0_min);
-	device_create_file(&new_client->dev, &dev_attr_in0_max);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_min);
-	device_create_file(&new_client->dev, &dev_attr_in1_max);
-	device_create_file(&new_client->dev, &dev_attr_in2_input);
-	device_create_file(&new_client->dev, &dev_attr_in2_min);
-	device_create_file(&new_client->dev, &dev_attr_in2_max);
-	device_create_file(&new_client->dev, &dev_attr_in3_input);
-	device_create_file(&new_client->dev, &dev_attr_in3_min);
-	device_create_file(&new_client->dev, &dev_attr_in3_max);
-	if (data->maxins == 4) {
-		device_create_file(&new_client->dev, &dev_attr_in4_input);
-		device_create_file(&new_client->dev, &dev_attr_in4_min);
-		device_create_file(&new_client->dev, &dev_attr_in4_max);
-	}
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_min);
-	device_create_file(&new_client->dev, &dev_attr_fan1_div);
-	device_create_file(&new_client->dev, &dev_attr_fan2_input);
-	device_create_file(&new_client->dev, &dev_attr_fan2_min);
-	device_create_file(&new_client->dev, &dev_attr_fan2_div);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
-	if (data->maxins == 3) {
-		device_create_file(&new_client->dev, &dev_attr_temp1_input);
-		device_create_file(&new_client->dev, &dev_attr_temp1_max);
-		device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
-	}
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &sis5595_group);
+	sysfs_remove_group(&new_client->dev.kobj, &sis5595_group_opt);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -618,6 +658,8 @@ static int sis5595_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &sis5595_group);
+	sysfs_remove_group(&client->dev.kobj, &sis5595_group_opt);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

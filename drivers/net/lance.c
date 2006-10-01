@@ -19,7 +19,7 @@
 	- alignment problem with 1.3.* kernel and some minor changes.
 	Thomas Bogendoerfer (tsbogend@bigbug.franken.de):
 	- added support for Linux/Alpha, but removed most of it, because
-        it worked only for the PCI chip. 
+        it worked only for the PCI chip.
       - added hook for the 32bit lance driver
       - added PCnetPCI II (79C970A) to chip table
 	Paul Gortmaker (gpg109@rsphy1.anu.edu.au):
@@ -31,7 +31,7 @@
                   before unregister_netdev() which caused NULL pointer
                   reference later in the chain (in rtnetlink_fill_ifinfo())
                   -- Mika Kuoppala <miku@iki.fi>
-    
+
     Forward ported v1.14 to 2.1.129, merged the PCI and misc changes from
     the 2.1 version of the old driver - Alan Cox
 
@@ -42,7 +42,7 @@
 	Vesselin Kostadinov <vesok at yahoo dot com > - 22/4/2004
 */
 
-static const char version[] = "lance.c:v1.15ac 1999/11/13 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
+static const char version[] = "lance.c:v1.16 2006/11/09 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -307,7 +307,7 @@ static struct net_device_stats *lance_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void lance_tx_timeout (struct net_device *dev);
 
-
+
 
 #ifdef MODULE
 #define MAX_CARDS		8	/* Max number of interfaces (cards) per module */
@@ -374,7 +374,7 @@ void cleanup_module(void)
 	for (this_dev = 0; this_dev < MAX_CARDS; this_dev++) {
 		struct net_device *dev = dev_lance[this_dev];
 		if (dev) {
-			unregister_netdev(dev);	
+			unregister_netdev(dev);
 			cleanup_card(dev);
 			free_netdev(dev);
 		}
@@ -531,7 +531,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 
 	dev->base_addr = ioaddr;
 	/* Make certain the data structures used by the LANCE are aligned and DMAble. */
-		
+
 	lp = kmalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
 	if(lp==NULL)
 		return -ENODEV;
@@ -656,7 +656,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 			outw(0x7f04, ioaddr+LANCE_DATA); /* Clear the memory error bits. */
 			if (request_dma(dma, chipname))
 				continue;
-				
+
 			flags=claim_dma_lock();
 			set_dma_mode(dma, DMA_MODE_CASCADE);
 			enable_dma(dma);
@@ -737,7 +737,7 @@ out_lp:
 	return err;
 }
 
-
+
 static int
 lance_open(struct net_device *dev)
 {
@@ -801,7 +801,7 @@ lance_open(struct net_device *dev)
 	while (i++ < 100)
 		if (inw(ioaddr+LANCE_DATA) & 0x0100)
 			break;
-	/* 
+	/*
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
 	 * reports that doing so triggers a bug in the '974.
 	 */
@@ -826,7 +826,7 @@ lance_open(struct net_device *dev)
    restarting the chip, but I'm too lazy to do so right now.  dplatt@3do.com
 */
 
-static void 
+static void
 lance_purge_ring(struct net_device *dev)
 {
 	struct lance_private *lp = dev->priv;
@@ -972,7 +972,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto out;
 			lp->tx_ring[entry].length = -ETH_ZLEN;
 		}
-		else 
+		else
 			lp->tx_ring[entry].length = -skb->len;
 	} else
 		lp->tx_ring[entry].length = -skb->len;
@@ -1027,7 +1027,7 @@ lance_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	ioaddr = dev->base_addr;
 	lp = dev->priv;
-	
+
 	spin_lock (&lp->devlock);
 
 	outw(0x00, dev->base_addr + LANCE_ADDR);
@@ -1051,7 +1051,7 @@ lance_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 			while (dirty_tx < lp->cur_tx) {
 				int entry = dirty_tx & TX_RING_MOD_MASK;
 				int status = lp->tx_ring[entry].base;
-			
+
 				if (status < 0)
 					break;			/* It still hasn't been Txed */
 
@@ -1142,7 +1142,7 @@ lance_rx(struct net_device *dev)
 	struct lance_private *lp = dev->priv;
 	int entry = lp->cur_rx & RX_RING_MOD_MASK;
 	int i;
-		
+
 	/* If we own the next entry, it's a new packet. Send it up. */
 	while (lp->rx_ring[entry].base >= 0) {
 		int status = lp->rx_ring[entry].base >> 24;
@@ -1160,12 +1160,12 @@ lance_rx(struct net_device *dev)
 			if (status & 0x04) lp->stats.rx_fifo_errors++;
 			lp->rx_ring[entry].base &= 0x03ffffff;
 		}
-		else 
+		else
 		{
 			/* Malloc up new buffer, compatible with net3. */
 			short pkt_len = (lp->rx_ring[entry].msg_length & 0xfff)-4;
 			struct sk_buff *skb;
-			
+
 			if(pkt_len<60)
 			{
 				printk("%s: Runt packet!\n",dev->name);
@@ -1174,14 +1174,14 @@ lance_rx(struct net_device *dev)
 			else
 			{
 				skb = dev_alloc_skb(pkt_len+2);
-				if (skb == NULL) 
+				if (skb == NULL)
 				{
 					printk("%s: Memory squeeze, deferring packet.\n", dev->name);
 					for (i=0; i < RX_RING_SIZE; i++)
 						if (lp->rx_ring[(entry+i) & RX_RING_MOD_MASK].base < 0)
 							break;
 
-					if (i > RX_RING_SIZE -2) 
+					if (i > RX_RING_SIZE -2)
 					{
 						lp->stats.rx_dropped++;
 						lp->rx_ring[entry].base |= 0x80000000;
@@ -1281,8 +1281,6 @@ static void set_multicast_list(struct net_device *dev)
 	outw(0x0004, ioaddr+LANCE_DATA); /* Temporarily stop the lance.	 */
 
 	if (dev->flags&IFF_PROMISC) {
-		/* Log any net taps. */
-		printk("%s: Promiscuous mode enabled.\n", dev->name);
 		outw(15, ioaddr+LANCE_ADDR);
 		outw(0x8000, ioaddr+LANCE_DATA); /* Set promiscuous mode */
 	} else {

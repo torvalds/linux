@@ -40,7 +40,7 @@ struct resource crashk_res = {
 
 int kexec_should_crash(struct task_struct *p)
 {
-	if (in_interrupt() || !p->pid || p->pid == 1 || panic_on_oops)
+	if (in_interrupt() || !p->pid || is_init(p) || panic_on_oops)
 		return 1;
 	return 0;
 }
@@ -995,7 +995,8 @@ asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
 	image = xchg(dest_image, image);
 
 out:
-	xchg(&kexec_lock, 0); /* Release the mutex */
+	locked = xchg(&kexec_lock, 0); /* Release the mutex */
+	BUG_ON(!locked);
 	kimage_free(image);
 
 	return result;
@@ -1061,7 +1062,8 @@ void crash_kexec(struct pt_regs *regs)
 			machine_crash_shutdown(&fixed_regs);
 			machine_kexec(kexec_crash_image);
 		}
-		xchg(&kexec_lock, 0);
+		locked = xchg(&kexec_lock, 0);
+		BUG_ON(!locked);
 	}
 }
 

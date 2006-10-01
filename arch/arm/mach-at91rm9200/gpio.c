@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -20,12 +21,12 @@
 #include <asm/hardware.h>
 #include <asm/arch/gpio.h>
 
-static const u32 pio_controller_offset[4] = {
-	AT91_PIOA,
-	AT91_PIOB,
-	AT91_PIOC,
-	AT91_PIOD,
-};
+#include "generic.h"
+
+
+static struct at91_gpio_bank *gpio;
+static int gpio_banks;
+
 
 static inline void __iomem *pin_to_controller(unsigned pin)
 {
@@ -33,8 +34,8 @@ static inline void __iomem *pin_to_controller(unsigned pin)
 
 	pin -= PIN_BASE;
 	pin /= 32;
-	if (likely(pin < BGA_GPIO_BANKS))
-		return sys_base + pio_controller_offset[pin];
+	if (likely(pin < gpio_banks))
+		return sys_base + gpio[pin].offset;
 
 	return NULL;
 }
@@ -179,7 +180,6 @@ EXPORT_SYMBOL(at91_set_multi_drive);
 
 /*--------------------------------------------------------------------------*/
 
-
 /*
  * assuming the pin is muxed as a gpio output, set its value.
  */
@@ -216,8 +216,8 @@ EXPORT_SYMBOL(at91_get_gpio_value);
 
 #ifdef CONFIG_PM
 
-static u32 wakeups[BGA_GPIO_BANKS];
-static u32 backups[BGA_GPIO_BANKS];
+static u32 wakeups[MAX_GPIO_BANKS];
+static u32 backups[MAX_GPIO_BANKS];
 
 static int gpio_irq_set_wake(unsigned pin, unsigned state)
 {
@@ -226,7 +226,7 @@ static int gpio_irq_set_wake(unsigned pin, unsigned state)
 	pin -= PIN_BASE;
 	pin /= 32;
 
-	if (unlikely(pin >= BGA_GPIO_BANKS))
+	if (unlikely(pin >= MAX_GPIO_BANKS))
 		return -EINVAL;
 
 	if (state)
@@ -241,8 +241,8 @@ void at91_gpio_suspend(void)
 {
 	int i;
 
-	for (i = 0; i < BGA_GPIO_BANKS; i++) {
-		u32 pio = pio_controller_offset[i];
+	for (i = 0; i < gpio_banks; i++) {
+		u32 pio = gpio[i].offset;
 
 		/*
 		 * Note: drivers should have disabled GPIO interrupts that
@@ -257,14 +257,14 @@ void at91_gpio_suspend(void)
 		 * first place!
 		 */
 		backups[i] = at91_sys_read(pio + PIO_IMR);
-		at91_sys_write(pio_controller_offset[i] + PIO_IDR, backups[i]);
-		at91_sys_write(pio_controller_offset[i] + PIO_IER, wakeups[i]);
+		at91_sys_write(pio + PIO_IDR, backups[i]);
+		at91_sys_write(pio + PIO_IER, wakeups[i]);
 
 		if (!wakeups[i]) {
-			disable_irq_wake(AT91_ID_PIOA + i);
-			at91_sys_write(AT91_PMC_PCDR, 1 << (AT91_ID_PIOA + i));
+			disable_irq_wake(gpio[i].id);
+			at91_sys_write(AT91_PMC_PCDR, 1 << gpio[i].id);
 		} else {
-			enable_irq_wake(AT91_ID_PIOA + i);
+			enable_irq_wake(gpio[i].id);
 #ifdef CONFIG_PM_DEBUG
 			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n", "ABCD"[i], wakeups[i]);
 #endif
@@ -276,16 +276,13 @@ void at91_gpio_resume(void)
 {
 	int i;
 
-	for (i = 0; i < BGA_GPIO_BANKS; i++) {
-		at91_sys_write(pio_controller_offset[i] + PIO_IDR, wakeups[i]);
-		at91_sys_write(pio_controller_offset[i] + PIO_IER, backups[i]);
-	}
+	for (i = 0; i < gpio_banks; i++) {
+		u32 pio = gpio[i].offset;
 
-	at91_sys_write(AT91_PMC_PCER,
-			  (1 << AT91_ID_PIOA)
-			| (1 << AT91_ID_PIOB)
-			| (1 << AT91_ID_PIOC)
-			| (1 << AT91_ID_PIOD));
+		at91_sys_write(pio + PIO_IDR, wakeups[i]);
+		at91_sys_write(pio + PIO_IER, backups[i]);
+		at91_sys_write(AT91_PMC_PCER, 1 << gpio[i].id);
+	}
 }
 
 #else
@@ -377,20 +374,25 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 	/* now it may re-trigger */
 }
 
-/* call this from board-specific init_irq */
-void __init at91_gpio_irq_setup(unsigned banks)
-{
-	unsigned	pioc, pin, id;
+/*--------------------------------------------------------------------------*/
 
-	if (banks > 4)
-		banks = 4;
-	for (pioc = 0, pin = PIN_BASE, id = AT91_ID_PIOA;
-			pioc < banks;
-			pioc++, id++) {
+/*
+ * Called from the processor-specific init to enable GPIO interrupt support.
+ */
+void __init at91_gpio_irq_setup(void)
+{
+	unsigned	pioc, pin;
+
+	for (pioc = 0, pin = PIN_BASE;
+			pioc < gpio_banks;
+			pioc++) {
 		void __iomem	*controller;
+		unsigned	id = gpio[pioc].id;
 		unsigned	i;
 
-		controller = (void __iomem *) AT91_VA_BASE_SYS + pio_controller_offset[pioc];
+		clk_enable(gpio[pioc].clock);	/* enable PIO controller's clock */
+
+		controller = (void __iomem *) AT91_VA_BASE_SYS + gpio[pioc].offset;
 		__raw_writel(~0, controller + PIO_IDR);
 
 		set_irq_data(id, (void *) pin);
@@ -408,5 +410,16 @@ void __init at91_gpio_irq_setup(unsigned banks)
 
 		set_irq_chained_handler(id, gpio_irq_handler);
 	}
-	pr_info("AT91: %d gpio irqs in %d banks\n", pin - PIN_BASE, banks);
+	pr_info("AT91: %d gpio irqs in %d banks\n", pin - PIN_BASE, gpio_banks);
+}
+
+/*
+ * Called from the processor-specific init to enable GPIO pin support.
+ */
+void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
+{
+	BUG_ON(nr_banks > MAX_GPIO_BANKS);
+
+	gpio = data;
+	gpio_banks = nr_banks;
 }

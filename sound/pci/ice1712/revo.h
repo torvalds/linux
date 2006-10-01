@@ -42,7 +42,7 @@ extern struct snd_ice1712_card_info snd_vt1724_revo_cards[];
 #define VT1724_REVO_CCLK	0x02
 #define VT1724_REVO_CDIN	0x04	/* not used */
 #define VT1724_REVO_CDOUT	0x08
-#define VT1724_REVO_CS0		0x10	/* not used */
+#define VT1724_REVO_CS0		0x10	/* AK5365 chipselect for Rev. 5.1 */
 #define VT1724_REVO_CS1		0x20	/* front AKM4381 chipselect */
 #define VT1724_REVO_CS2		0x40	/* surround AKM4355 chipselect */
 #define VT1724_REVO_MUTE	(1<<22)	/* 0 = all mute, 1 = normal operation */

@@ -26,7 +26,7 @@ typedef struct ipq_packet_msg {
 	unsigned int hook;		/* Netfilter hook we rode in on */
 	char indev_name[IFNAMSIZ];	/* Name of incoming interface */
 	char outdev_name[IFNAMSIZ];	/* Name of outgoing interface */
-	unsigned short hw_protocol;	/* Hardware protocol (network order) */
+	__be16 hw_protocol;		/* Hardware protocol (network order) */
 	unsigned short hw_type;		/* Hardware type */
 	unsigned char hw_addrlen;	/* Hardware address length */
 	unsigned char hw_addr[8];	/* Hardware address */

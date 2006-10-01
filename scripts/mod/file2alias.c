@@ -265,6 +265,14 @@ static int do_ccw_entry(const char *filename,
 	return 1;
 }
 
+/* looks like: "ap:tN" */
+static int do_ap_entry(const char *filename,
+		       struct ap_device_id *id, char *alias)
+{
+	sprintf(alias, "ap:t%02X", id->dev_type);
+	return 1;
+}
+
 /* Looks like: "serio:tyNprNidNexN" */
 static int do_serio_entry(const char *filename,
 			  struct serio_device_id *id, char *alias)
@@ -436,6 +444,14 @@ static int do_input_entry(const char *filename, struct input_device_id *id,
 	return 1;
 }
 
+static int do_eisa_entry(const char *filename, struct eisa_device_id *eisa,
+		char *alias)
+{
+	if (eisa->sig[0])
+		sprintf(alias, EISA_DEVICE_MODALIAS_FMT "*", eisa->sig);
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -503,6 +519,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct ccw_device_id), "ccw",
 			 do_ccw_entry, mod);
+	else if (sym_is(symname, "__mod_ap_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct ap_device_id), "ap",
+			 do_ap_entry, mod);
 	else if (sym_is(symname, "__mod_serio_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct serio_device_id), "serio",
@@ -535,6 +555,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct input_device_id), "input",
 			 do_input_entry, mod);
+	else if (sym_is(symname, "__mod_eisa_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct eisa_device_id), "eisa",
+			 do_eisa_entry, mod);
 }
 
 /* Now add out buffered information to the generated C source */

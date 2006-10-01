@@ -285,6 +285,7 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	.resume = ehci_bus_resume,
 #endif
 	.stop = ehci_stop,
+	.shutdown = ehci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -329,6 +330,7 @@ MODULE_ALIAS("fsl-ehci");
 static struct platform_driver ehci_fsl_driver = {
 	.probe = ehci_fsl_drv_probe,
 	.remove = ehci_fsl_drv_remove,
+	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		   .name = "fsl-ehci",
 		   },

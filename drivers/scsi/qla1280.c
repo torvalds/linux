@@ -813,7 +813,7 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 	uint16_t data;
 	unsigned char *handle;
 	int result, i;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct timer_list timer;
 
 	ha = (struct scsi_qla_host *)(CMD_HOST(cmd)->hostdata);
@@ -2406,7 +2406,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	uint16_t *optr, *iptr;
 	uint16_t __iomem *mptr;
 	uint16_t data;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct timer_list timer;
 
 	ENTER("qla1280_mailbox_command");

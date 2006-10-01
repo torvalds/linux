@@ -26,8 +26,6 @@
 #include <asm/platform.h>
 
 
-extern volatile unsigned long wall_jiffies;
-
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
@@ -110,7 +108,6 @@ int do_settimeofday(struct timespec *tv)
 	 */
 	ccount = get_ccount();
 	nsec -= (ccount - last_ccount_stamp) * CCOUNT_NSEC;
-	nsec -= (jiffies - wall_jiffies) * CCOUNT_PER_JIFFY * CCOUNT_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -129,7 +126,7 @@ EXPORT_SYMBOL(do_settimeofday);
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
-	unsigned long sec, usec, delta, lost, seq;
+	unsigned long sec, usec, delta, seq;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
@@ -137,12 +134,9 @@ void do_gettimeofday(struct timeval *tv)
 		delta = get_ccount() - last_ccount_stamp;
 		sec = xtime.tv_sec;
 		usec = (xtime.tv_nsec / NSEC_PER_USEC);
-
-		lost = jiffies - wall_jiffies;
-
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	usec += lost * (1000000UL/HZ) + (delta * CCOUNT_NSEC) / NSEC_PER_USEC;
+	usec += (delta * CCOUNT_NSEC) / NSEC_PER_USEC;
 	for (; usec >= 1000000; sec++, usec -= 1000000)
 		;
 
@@ -175,12 +169,11 @@ again:
 
 		last_ccount_stamp = next;
 		next += CCOUNT_PER_JIFFY;
-		do_timer (regs); /* Linux handler in kernel/timer.c */
+		do_timer (1); /* Linux handler in kernel/timer.c */
 
 		if (ntp_synced() &&
 		    xtime.tv_sec - last_rtc_update >= 659 &&
-		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ &&
-		    jiffies - wall_jiffies == 1) {
+		    abs((xtime.tv_nsec/1000)-(1000000-1000000/HZ))<5000000/HZ) {
 
 			if (platform_set_rtc_time(xtime.tv_sec+1) == 0)
 				last_rtc_update = xtime.tv_sec+1;

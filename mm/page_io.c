@@ -52,14 +52,29 @@ static int end_swap_bio_write(struct bio *bio, unsigned int bytes_done, int err)
 	if (bio->bi_size)
 		return 1;
 
-	if (!uptodate)
+	if (!uptodate) {
 		SetPageError(page);
+		/*
+		 * We failed to write the page out to swap-space.
+		 * Re-dirty the page in order to avoid it being reclaimed.
+		 * Also print a dire warning that things will go BAD (tm)
+		 * very quickly.
+		 *
+		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
+		 */
+		set_page_dirty(page);
+		printk(KERN_ALERT "Write-error on swap-device (%u:%u:%Lu)\n",
+				imajor(bio->bi_bdev->bd_inode),
+				iminor(bio->bi_bdev->bd_inode),
+				(unsigned long long)bio->bi_sector);
+		ClearPageReclaim(page);
+	}
 	end_page_writeback(page);
 	bio_put(bio);
 	return 0;
 }
 
-static int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
+int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
 {
 	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct page *page = bio->bi_io_vec[0].bv_page;
@@ -70,6 +85,10 @@ static int end_swap_bio_read(struct bio *bio, unsigned int bytes_done, int err)
 	if (!uptodate) {
 		SetPageError(page);
 		ClearPageUptodate(page);
+		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
+				imajor(bio->bi_bdev->bd_inode),
+				iminor(bio->bi_bdev->bd_inode),
+				(unsigned long long)bio->bi_sector);
 	} else {
 		SetPageUptodate(page);
 	}
@@ -137,10 +156,12 @@ out:
  * We use end_swap_bio_read() even for writes, because it happens to do what
  * we want.
  */
-int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page)
+int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page,
+			struct bio **bio_chain)
 {
 	struct bio *bio;
 	int ret = 0;
+	int bio_rw;
 
 	lock_page(page);
 
@@ -151,11 +172,22 @@ int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page)
 		goto out;
 	}
 
-	submit_bio(rw | (1 << BIO_RW_SYNC), bio);
-	wait_on_page_locked(page);
+	bio_rw = rw;
+	if (!bio_chain)
+		bio_rw |= (1 << BIO_RW_SYNC);
+	if (bio_chain)
+		bio_get(bio);
+	submit_bio(bio_rw, bio);
+	if (bio_chain == NULL) {
+		wait_on_page_locked(page);
 
-	if (!PageUptodate(page) || PageError(page))
-		ret = -EIO;
+		if (!PageUptodate(page) || PageError(page))
+			ret = -EIO;
+	}
+	if (bio_chain) {
+		bio->bi_private = *bio_chain;
+		*bio_chain = bio;
+	}
 out:
 	return ret;
 }

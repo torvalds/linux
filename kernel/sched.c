@@ -49,7 +49,7 @@
 #include <linux/seq_file.h>
 #include <linux/syscalls.h>
 #include <linux/times.h>
-#include <linux/acct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/kprobes.h>
 #include <linux/delayacct.h>
 #include <asm/tlb.h>
@@ -238,6 +238,7 @@ struct rq {
 	/* For active balancing */
 	int active_balance;
 	int push_cpu;
+	int cpu;		/* cpu of this runqueue */
 
 	struct task_struct *migration_thread;
 	struct list_head migration_queue;
@@ -266,6 +267,15 @@ struct rq {
 };
 
 static DEFINE_PER_CPU(struct rq, runqueues);
+
+static inline int cpu_of(struct rq *rq)
+{
+#ifdef CONFIG_SMP
+	return rq->cpu;
+#else
+	return 0;
+#endif
+}
 
 /*
  * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
@@ -1745,27 +1755,27 @@ static inline void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	__releases(rq->lock)
 {
 	struct mm_struct *mm = rq->prev_mm;
-	unsigned long prev_task_flags;
+	long prev_state;
 
 	rq->prev_mm = NULL;
 
 	/*
 	 * A task struct has one reference for the use as "current".
-	 * If a task dies, then it sets EXIT_ZOMBIE in tsk->exit_state and
-	 * calls schedule one last time. The schedule call will never return,
-	 * and the scheduled task must drop that reference.
-	 * The test for EXIT_ZOMBIE must occur while the runqueue locks are
+	 * If a task dies, then it sets TASK_DEAD in tsk->state and calls
+	 * schedule one last time. The schedule call will never return, and
+	 * the scheduled task must drop that reference.
+	 * The test for TASK_DEAD must occur while the runqueue locks are
 	 * still held, otherwise prev could be scheduled on another cpu, die
 	 * there before we look at prev->state, and then the reference would
 	 * be dropped twice.
 	 *		Manfred Spraul <manfred@colorfullife.com>
 	 */
-	prev_task_flags = prev->flags;
+	prev_state = prev->state;
 	finish_arch_switch(prev);
 	finish_lock_switch(rq, prev);
 	if (mm)
 		mmdrop(mm);
-	if (unlikely(prev_task_flags & PF_DEAD)) {
+	if (unlikely(prev_state == TASK_DEAD)) {
 		/*
 		 * Remove function-return probe instances associated with this
 		 * task and put them back on the free list.
@@ -2211,7 +2221,8 @@ out:
  */
 static struct sched_group *
 find_busiest_group(struct sched_domain *sd, int this_cpu,
-		   unsigned long *imbalance, enum idle_type idle, int *sd_idle)
+		   unsigned long *imbalance, enum idle_type idle, int *sd_idle,
+		   cpumask_t *cpus)
 {
 	struct sched_group *busiest = NULL, *this = NULL, *group = sd->groups;
 	unsigned long max_load, avg_load, total_load, this_load, total_pwr;
@@ -2248,7 +2259,12 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 		sum_weighted_load = sum_nr_running = avg_load = 0;
 
 		for_each_cpu_mask(i, group->cpumask) {
-			struct rq *rq = cpu_rq(i);
+			struct rq *rq;
+
+			if (!cpu_isset(i, *cpus))
+				continue;
+
+			rq = cpu_rq(i);
 
 			if (*sd_idle && !idle_cpu(i))
 				*sd_idle = 0;
@@ -2466,13 +2482,17 @@ ret:
  */
 static struct rq *
 find_busiest_queue(struct sched_group *group, enum idle_type idle,
-		   unsigned long imbalance)
+		   unsigned long imbalance, cpumask_t *cpus)
 {
 	struct rq *busiest = NULL, *rq;
 	unsigned long max_load = 0;
 	int i;
 
 	for_each_cpu_mask(i, group->cpumask) {
+
+		if (!cpu_isset(i, *cpus))
+			continue;
+
 		rq = cpu_rq(i);
 
 		if (rq->nr_running == 1 && rq->raw_weighted_load > imbalance)
@@ -2511,6 +2531,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	struct sched_group *group;
 	unsigned long imbalance;
 	struct rq *busiest;
+	cpumask_t cpus = CPU_MASK_ALL;
 
 	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER &&
 	    !sched_smt_power_savings)
@@ -2518,13 +2539,15 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 
 	schedstat_inc(sd, lb_cnt[idle]);
 
-	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle);
+redo:
+	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle,
+							&cpus);
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[idle]);
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, idle, imbalance);
+	busiest = find_busiest_queue(group, idle, imbalance, &cpus);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[idle]);
 		goto out_balanced;
@@ -2549,8 +2572,12 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 		double_rq_unlock(this_rq, busiest);
 
 		/* All tasks on this runqueue were pinned by CPU affinity */
-		if (unlikely(all_pinned))
+		if (unlikely(all_pinned)) {
+			cpu_clear(cpu_of(busiest), cpus);
+			if (!cpus_empty(cpus))
+				goto redo;
 			goto out_balanced;
+		}
 	}
 
 	if (!nr_moved) {
@@ -2639,18 +2666,22 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	unsigned long imbalance;
 	int nr_moved = 0;
 	int sd_idle = 0;
+	cpumask_t cpus = CPU_MASK_ALL;
 
 	if (sd->flags & SD_SHARE_CPUPOWER && !sched_smt_power_savings)
 		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
-	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE, &sd_idle);
+redo:
+	group = find_busiest_group(sd, this_cpu, &imbalance, NEWLY_IDLE,
+				&sd_idle, &cpus);
 	if (!group) {
 		schedstat_inc(sd, lb_nobusyg[NEWLY_IDLE]);
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, NEWLY_IDLE, imbalance);
+	busiest = find_busiest_queue(group, NEWLY_IDLE, imbalance,
+				&cpus);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
 		goto out_balanced;
@@ -2668,6 +2699,12 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 					minus_1_or_zero(busiest->nr_running),
 					imbalance, sd, NEWLY_IDLE, NULL);
 		spin_unlock(&busiest->lock);
+
+		if (!nr_moved) {
+			cpu_clear(cpu_of(busiest), cpus);
+			if (!cpus_empty(cpus))
+				goto redo;
+		}
 	}
 
 	if (!nr_moved) {
@@ -3310,9 +3347,6 @@ need_resched_nonpreemptible:
 	run_time /= (CURRENT_BONUS(prev) ? : 1);
 
 	spin_lock_irq(&rq->lock);
-
-	if (unlikely(prev->flags & PF_DEAD))
-		prev->state = EXIT_DEAD;
 
 	switch_count = &prev->nivcsw;
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
@@ -4043,6 +4077,8 @@ static void __setscheduler(struct task_struct *p, int policy, int prio)
  * @p: the task in question.
  * @policy: new policy.
  * @param: structure containing the new RT priority.
+ *
+ * NOTE: the task may be already dead
  */
 int sched_setscheduler(struct task_struct *p, int policy,
 		       struct sched_param *param)
@@ -4070,28 +4106,32 @@ recheck:
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if ((policy == SCHED_NORMAL || policy == SCHED_BATCH)
-					!= (param->sched_priority == 0))
+	if (is_rt_policy(policy) != (param->sched_priority != 0))
 		return -EINVAL;
 
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
 	if (!capable(CAP_SYS_NICE)) {
-		/*
-		 * can't change policy, except between SCHED_NORMAL
-		 * and SCHED_BATCH:
-		 */
-		if (((policy != SCHED_NORMAL && p->policy != SCHED_BATCH) &&
-			(policy != SCHED_BATCH && p->policy != SCHED_NORMAL)) &&
-				!p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
-			return -EPERM;
-		/* can't increase priority */
-		if ((policy != SCHED_NORMAL && policy != SCHED_BATCH) &&
-		    param->sched_priority > p->rt_priority &&
-		    param->sched_priority >
-				p->signal->rlim[RLIMIT_RTPRIO].rlim_cur)
-			return -EPERM;
+		if (is_rt_policy(policy)) {
+			unsigned long rlim_rtprio;
+			unsigned long flags;
+
+			if (!lock_task_sighand(p, &flags))
+				return -ESRCH;
+			rlim_rtprio = p->signal->rlim[RLIMIT_RTPRIO].rlim_cur;
+			unlock_task_sighand(p, &flags);
+
+			/* can't set/change the rt policy */
+			if (policy != p->policy && !rlim_rtprio)
+				return -EPERM;
+
+			/* can't increase priority */
+			if (param->sched_priority > p->rt_priority &&
+			    param->sched_priority > rlim_rtprio)
+				return -EPERM;
+		}
+
 		/* can't change other user's priorities */
 		if ((current->euid != p->euid) &&
 		    (current->euid != p->uid))
@@ -4156,14 +4196,13 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
 		return -EINVAL;
 	if (copy_from_user(&lparam, param, sizeof(struct sched_param)))
 		return -EFAULT;
-	read_lock_irq(&tasklist_lock);
+
+	rcu_read_lock();
+	retval = -ESRCH;
 	p = find_process_by_pid(pid);
-	if (!p) {
-		read_unlock_irq(&tasklist_lock);
-		return -ESRCH;
-	}
-	retval = sched_setscheduler(p, policy, &lparam);
-	read_unlock_irq(&tasklist_lock);
+	if (p != NULL)
+		retval = sched_setscheduler(p, policy, &lparam);
+	rcu_read_unlock();
 
 	return retval;
 }
@@ -5114,7 +5153,7 @@ static void migrate_dead(unsigned int dead_cpu, struct task_struct *p)
 	BUG_ON(p->exit_state != EXIT_ZOMBIE && p->exit_state != EXIT_DEAD);
 
 	/* Cannot have done final schedule yet: would have vanished. */
-	BUG_ON(p->flags & PF_DEAD);
+	BUG_ON(p->state == TASK_DEAD);
 
 	get_task_struct(p);
 
@@ -5235,9 +5274,11 @@ static struct notifier_block __cpuinitdata migration_notifier = {
 int __init migration_init(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
+	int err;
 
 	/* Start one for the boot CPU: */
-	migration_call(&migration_notifier, CPU_UP_PREPARE, cpu);
+	err = migration_call(&migration_notifier, CPU_UP_PREPARE, cpu);
+	BUG_ON(err == NOTIFY_BAD);
 	migration_call(&migration_notifier, CPU_ONLINE, cpu);
 	register_cpu_notifier(&migration_notifier);
 
@@ -6747,6 +6788,7 @@ void __init sched_init(void)
 			rq->cpu_load[j] = 0;
 		rq->active_balance = 0;
 		rq->push_cpu = 0;
+		rq->cpu = i;
 		rq->migration_thread = NULL;
 		INIT_LIST_HEAD(&rq->migration_queue);
 #endif

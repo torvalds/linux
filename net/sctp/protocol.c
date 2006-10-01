@@ -61,7 +61,7 @@
 #include <net/inet_ecn.h>
 
 /* Global data structures. */
-struct sctp_globals sctp_globals;
+struct sctp_globals sctp_globals __read_mostly;
 struct proc_dir_entry	*proc_net_sctp;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
 
@@ -81,13 +81,6 @@ static struct sctp_af *sctp_af_v6_specific;
 
 kmem_cache_t *sctp_chunk_cachep __read_mostly;
 kmem_cache_t *sctp_bucket_cachep __read_mostly;
-
-extern int sctp_snmp_proc_init(void);
-extern int sctp_snmp_proc_exit(void);
-extern int sctp_eps_proc_init(void);
-extern int sctp_eps_proc_exit(void);
-extern int sctp_assocs_proc_init(void);
-extern int sctp_assocs_proc_exit(void);
 
 /* Return the address of the control sock. */
 struct sock *sctp_get_ctl_sock(void)
@@ -1049,7 +1042,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_rto_beta			= SCTP_RTO_BETA;
 
 	/* Valid.Cookie.Life        - 60  seconds */
-	sctp_valid_cookie_life		= 60 * HZ;
+	sctp_valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
 
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	sctp_cookie_preserve_enable 	= 1;

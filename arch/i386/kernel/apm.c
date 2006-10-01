@@ -225,6 +225,7 @@
 #include <linux/smp_lock.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
+#include <linux/kthread.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -402,8 +403,6 @@ static int			realmode_power_off = 1;
 #else
 static int			realmode_power_off;
 #endif
-static int			exit_kapmd __read_mostly;
-static int			kapmd_running __read_mostly;
 #ifdef CONFIG_APM_ALLOW_INTS
 static int			allow_ints = 1;
 #else
@@ -418,6 +417,8 @@ static DEFINE_SPINLOCK(user_list_lock);
 static const struct desc_struct	bad_bios_desc = { 0, 0x00409200 };
 
 static const char		driver_version[] = "1.16ac";	/* no spaces */
+
+static struct task_struct *kapmd_task;
 
 /*
  *	APM event names taken from the APM 1.2 specification. These are
@@ -1154,9 +1155,11 @@ out:
 
 static void set_time(void)
 {
+	struct timespec ts;
 	if (got_clock_diff) {	/* Must know time zone in order to set clock */
-		xtime.tv_sec = get_cmos_time() + clock_cmos_diff;
-		xtime.tv_nsec = 0; 
+		ts.tv_sec = get_cmos_time() + clock_cmos_diff;
+		ts.tv_nsec = 0;
+		do_settimeofday(&ts);
 	} 
 }
 
@@ -1232,13 +1235,8 @@ static int suspend(int vetoable)
 	restore_processor_state();
 
 	local_irq_disable();
-	write_seqlock(&xtime_lock);
-	spin_lock(&i8253_lock);
-	reinit_timer();
 	set_time();
-
-	spin_unlock(&i8253_lock);
-	write_sequnlock(&xtime_lock);
+	reinit_timer();
 
 	if (err == APM_NO_ERROR)
 		err = APM_SUCCESS;
@@ -1365,9 +1363,7 @@ static void check_events(void)
 			ignore_bounce = 1;
 			if ((event != APM_NORMAL_RESUME)
 			    || (ignore_normal_resume == 0)) {
-				write_seqlock_irq(&xtime_lock);
 				set_time();
-				write_sequnlock_irq(&xtime_lock);
 				device_resume();
 				pm_send_all(PM_RESUME, (void *)0);
 				queue_event(event, NULL);
@@ -1383,9 +1379,7 @@ static void check_events(void)
 			break;
 
 		case APM_UPDATE_TIME:
-			write_seqlock_irq(&xtime_lock);
 			set_time();
-			write_sequnlock_irq(&xtime_lock);
 			break;
 
 		case APM_CRITICAL_SUSPEND:
@@ -1430,7 +1424,7 @@ static void apm_mainloop(void)
 	set_current_state(TASK_INTERRUPTIBLE);
 	for (;;) {
 		schedule_timeout(APM_CHECK_TIMEOUT);
-		if (exit_kapmd)
+		if (kthread_should_stop())
 			break;
 		/*
 		 * Ok, check all events, check for idle (and mark us sleeping
@@ -1713,12 +1707,6 @@ static int apm(void *unused)
 	char *		power_stat;
 	char *		bat_stat;
 
-	kapmd_running = 1;
-
-	daemonize("kapmd");
-
-	current->flags |= PF_NOFREEZE;
-
 #ifdef CONFIG_SMP
 	/* 2002/08/01 - WT
 	 * This is to avoid random crashes at boot time during initialization
@@ -1828,7 +1816,6 @@ static int apm(void *unused)
 		console_blank_hook = NULL;
 #endif
 	}
-	kapmd_running = 0;
 
 	return 0;
 }
@@ -2227,7 +2214,7 @@ static int __init apm_init(void)
 {
 	struct proc_dir_entry *apm_proc;
 	struct desc_struct *gdt;
-	int ret;
+	int err;
 
 	dmi_check_system(apm_dmi_table);
 
@@ -2336,11 +2323,17 @@ static int __init apm_init(void)
 	if (apm_proc)
 		apm_proc->owner = THIS_MODULE;
 
-	ret = kernel_thread(apm, NULL, CLONE_KERNEL | SIGCHLD);
-	if (ret < 0) {
-		printk(KERN_ERR "apm: disabled - Unable to start kernel thread.\n");
-		return -ENOMEM;
+	kapmd_task = kthread_create(apm, NULL, "kapmd");
+	if (IS_ERR(kapmd_task)) {
+		printk(KERN_ERR "apm: disabled - Unable to start kernel "
+				"thread.\n");
+		err = PTR_ERR(kapmd_task);
+		kapmd_task = NULL;
+		remove_proc_entry("apm", NULL);
+		return err;
 	}
+	kapmd_task->flags |= PF_NOFREEZE;
+	wake_up_process(kapmd_task);
 
 	if (num_online_cpus() > 1 && !smp ) {
 		printk(KERN_NOTICE
@@ -2348,7 +2341,13 @@ static int __init apm_init(void)
 		return 0;
 	}
 
-	misc_register(&apm_device);
+	/*
+	 * Note we don't actually care if the misc_device cannot be registered.
+	 * this driver can do its job without it, even if userspace can't
+	 * control it.  just log the error
+	 */
+	if (misc_register(&apm_device))
+		printk(KERN_WARNING "apm: Could not register misc device.\n");
 
 	if (HZ != 100)
 		idle_period = (idle_period * HZ) / 100;
@@ -2384,9 +2383,10 @@ static void __exit apm_exit(void)
 	remove_proc_entry("apm", NULL);
 	if (power_off)
 		pm_power_off = NULL;
-	exit_kapmd = 1;
-	while (kapmd_running)
-		schedule();
+	if (kapmd_task) {
+		kthread_stop(kapmd_task);
+		kapmd_task = NULL;
+	}
 #ifdef CONFIG_PM_LEGACY
 	pm_active = 0;
 #endif

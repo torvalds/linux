@@ -198,7 +198,7 @@ typedef struct {
 /* sizeof() = 60 (0x3c) bytes */
 } __attribute__ ((__packed__)) USN_RECORD;
 
-extern BOOL ntfs_stamp_usnjrnl(ntfs_volume *vol);
+extern bool ntfs_stamp_usnjrnl(ntfs_volume *vol);
 
 #endif /* NTFS_RW */
 

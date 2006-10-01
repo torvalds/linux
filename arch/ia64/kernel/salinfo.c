@@ -266,6 +266,7 @@ salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe)
 /* Check for outstanding MCA/INIT records every minute (arbitrary) */
 #define SALINFO_TIMER_DELAY (60*HZ)
 static struct timer_list salinfo_timer;
+extern void ia64_mlogbuf_dump(void);
 
 static void
 salinfo_timeout_check(struct salinfo_data *data)
@@ -283,6 +284,7 @@ salinfo_timeout_check(struct salinfo_data *data)
 static void
 salinfo_timeout (unsigned long arg)
 {
+	ia64_mlogbuf_dump();
 	salinfo_timeout_check(salinfo_data + SAL_INFO_TYPE_MCA);
 	salinfo_timeout_check(salinfo_data + SAL_INFO_TYPE_INIT);
 	salinfo_timer.expires = jiffies + SALINFO_TIMER_DELAY;
@@ -331,6 +333,8 @@ retry:
 
 	if (cpu == -1)
 		goto retry;
+
+	ia64_mlogbuf_dump();
 
 	/* for next read, start checking at next CPU */
 	data->cpu_check = cpu;

@@ -175,7 +175,7 @@ static u32 i2c_powermac_func(struct i2c_adapter * adapter)
 }
 
 /* For now, we only handle smbus */
-static struct i2c_algorithm i2c_powermac_algorithm = {
+static const struct i2c_algorithm i2c_powermac_algorithm = {
 	.smbus_xfer	= i2c_powermac_smbus_xfer,
 	.master_xfer	= i2c_powermac_master_xfer,
 	.functionality	= i2c_powermac_func,
@@ -207,7 +207,8 @@ static int i2c_powermac_probe(struct device *dev)
 	struct pmac_i2c_bus *bus = dev->platform_data;
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
-	char name[32], *basename;
+	char name[32];
+	const char *basename;
 	int rc;
 
 	if (bus == NULL)

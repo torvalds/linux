@@ -16,10 +16,10 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
+int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi)
 {
 	int err;
-	u32 seq;
+	__be32 seq;
 	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
@@ -72,7 +72,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 		if (x->mode->input(x, skb))
 			goto drop;
 
-		if (x->props.mode) { /* XXX */
+		if (x->props.mode == XFRM_MODE_TUNNEL) { /* XXX */
 			decaps = 1;
 			break;
 		}
@@ -137,4 +137,112 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 int xfrm6_rcv(struct sk_buff **pskb)
 {
 	return xfrm6_rcv_spi(*pskb, 0);
+}
+
+int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
+		     xfrm_address_t *saddr, u8 proto)
+{
+ 	struct xfrm_state *x = NULL;
+ 	int wildcard = 0;
+	struct in6_addr any;
+	xfrm_address_t *xany;
+	struct xfrm_state *xfrm_vec_one = NULL;
+ 	int nh = 0;
+	int i = 0;
+
+	ipv6_addr_set(&any, 0, 0, 0, 0);
+	xany = (xfrm_address_t *)&any;
+
+	for (i = 0; i < 3; i++) {
+		xfrm_address_t *dst, *src;
+		switch (i) {
+		case 0:
+			dst = daddr;
+			src = saddr;
+			break;
+		case 1:
+			/* lookup state with wild-card source address */
+			wildcard = 1;
+			dst = daddr;
+			src = xany;
+			break;
+		case 2:
+		default:
+ 			/* lookup state with wild-card addresses */
+			wildcard = 1; /* XXX */
+			dst = xany;
+			src = xany;
+			break;
+ 		}
+
+		x = xfrm_state_lookup_byaddr(dst, src, proto, AF_INET6);
+		if (!x)
+			continue;
+
+		spin_lock(&x->lock);
+
+		if (wildcard) {
+			if ((x->props.flags & XFRM_STATE_WILDRECV) == 0) {
+				spin_unlock(&x->lock);
+				xfrm_state_put(x);
+				x = NULL;
+				continue;
+			}
+		}
+
+		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
+			spin_unlock(&x->lock);
+			xfrm_state_put(x);
+ 			x = NULL;
+ 			continue;
+		}
+		if (xfrm_state_check_expire(x)) {
+			spin_unlock(&x->lock);
+			xfrm_state_put(x);
+			x = NULL;
+			continue;
+		}
+
+		nh = x->type->input(x, skb);
+		if (nh <= 0) {
+			spin_unlock(&x->lock);
+			xfrm_state_put(x);
+			x = NULL;
+			continue;
+		}
+
+		x->curlft.bytes += skb->len;
+		x->curlft.packets++;
+
+		spin_unlock(&x->lock);
+
+		xfrm_vec_one = x;
+		break;
+	}
+
+	if (!xfrm_vec_one)
+		goto drop;
+
+	/* Allocate new secpath or COW existing one. */
+	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+		struct sec_path *sp;
+		sp = secpath_dup(skb->sp);
+		if (!sp)
+			goto drop;
+		if (skb->sp)
+			secpath_put(skb->sp);
+		skb->sp = sp;
+	}
+
+	if (1 + skb->sp->len > XFRM_MAX_DEPTH)
+		goto drop;
+
+	skb->sp->xvec[skb->sp->len] = xfrm_vec_one;
+	skb->sp->len ++;
+
+	return 1;
+drop:
+	if (xfrm_vec_one)
+		xfrm_state_put(xfrm_vec_one);
+	return -1;
 }

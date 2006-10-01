@@ -9,7 +9,7 @@
  *      on-board the IBM PowerPC "Oak" evaluation board. Adapted from the
  *      various other 8390 drivers written by Donald Becker and Paul Gortmaker.
  *
- *      Additional inspiration from the "tcd8390.c" driver from TiVo, Inc. 
+ *      Additional inspiration from the "tcd8390.c" driver from TiVo, Inc.
  *      and "enetLib.c" from IBM.
  *
  */
@@ -98,7 +98,7 @@ static int __init oaknet_init(void)
 	int ret = -ENOMEM;
 	struct net_device *dev;
 #if 0
-	unsigned long ioaddr = OAKNET_IO_BASE; 
+	unsigned long ioaddr = OAKNET_IO_BASE;
 #else
 	unsigned long ioaddr = ioremap(OAKNET_IO_BASE, OAKNET_IO_SIZE);
 #endif
@@ -201,7 +201,7 @@ static int __init oaknet_init(void)
 	ret = register_netdev(dev);
 	if (ret)
 		goto out_irq;
-	
+
 	oaknet_devs = dev;
 	return 0;
 
@@ -447,8 +447,8 @@ oaknet_block_input(struct net_device *dev, int count, struct sk_buff *skb,
  * Input(s):
  *  *dev        - Pointer to the device structure for this driver.
  *   count      - Number of bytes to be transferred.
- *  *buf        - 
- *   start_page - 
+ *  *buf        -
+ *   start_page -
  *
  * Output(s):
  *   N/A
@@ -584,7 +584,7 @@ retry:
 	 * This was for the ALPHA version only, but enough people have
 	 * been encountering problems so it is still here.
 	 */
-	
+
 	{
 		/* DMA termination address check... */
 		int addr, tries = 20;
@@ -614,7 +614,7 @@ retry:
 			break;
 		}
 	}
-	
+
 	ei_obp(ENISR_RDC, base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
 }

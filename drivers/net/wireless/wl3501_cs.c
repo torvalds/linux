@@ -1464,7 +1464,7 @@ static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = wl3501_get_drvinfo
 };
 
@@ -1802,15 +1802,15 @@ static int wl3501_get_retry(struct net_device *dev,
 				      &retry, sizeof(retry));
 	if (rc)
 		goto out;
-	if (wrqu->retry.flags & IW_RETRY_MAX) {
-		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
+	if (wrqu->retry.flags & IW_RETRY_LONG) {
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
 		goto set_value;
 	}
 	rc = wl3501_get_mib_value(this, WL3501_MIB_ATTR_SHORT_RETRY_LIMIT,
 				  &retry, sizeof(retry));
 	if (rc)
 		goto out;
-	wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MIN;
+	wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_SHORT;
 set_value:
 	wrqu->retry.value = retry;
 	wrqu->retry.disabled = 0;

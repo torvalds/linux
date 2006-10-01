@@ -33,7 +33,7 @@ struct ip_nat_range
 	unsigned int flags;
 
 	/* Inclusive: network order. */
-	u_int32_t min_ip, max_ip;
+	__be32 min_ip, max_ip;
 
 	/* Inclusive: network order */
 	union ip_conntrack_manip_proto min, max;
@@ -72,10 +72,6 @@ extern unsigned int ip_nat_setup_info(struct ip_conntrack *conntrack,
 extern int ip_nat_used_tuple(const struct ip_conntrack_tuple *tuple,
 			     const struct ip_conntrack *ignored_conntrack);
 
-/* Calculate relative checksum. */
-extern u_int16_t ip_nat_cheat_check(u_int32_t oldvalinv,
-				    u_int32_t newval,
-				    u_int16_t oldcheck);
 #else  /* !__KERNEL__: iptables wants this to compile. */
 #define ip_nat_multi_range ip_nat_multi_range_compat
 #endif /*__KERNEL__*/

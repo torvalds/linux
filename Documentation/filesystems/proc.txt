@@ -39,6 +39,8 @@ Table of Contents
   2.9	Appletalk
   2.10	IPX
   2.11	/proc/sys/fs/mqueue - POSIX message queues filesystem
+  2.12	/proc/<pid>/oom_adj - Adjust the oom-killer score
+  2.13	/proc/<pid>/oom_score - Display current oom-killer score
 
 ------------------------------------------------------------------------------
 Preface
@@ -1124,11 +1126,15 @@ debugging information is displayed on console.
 NMI switch that most IA32 servers have fires unknown NMI up, for example.
 If a system hangs up, try pressing the NMI switch.
 
-[NOTE]
-   This function and oprofile share a NMI callback. Therefore this function
-   cannot be enabled when oprofile is activated.
-   And NMI watchdog will be disabled when the value in this file is set to
-   non-zero.
+nmi_watchdog
+------------
+
+Enables/Disables the NMI watchdog on x86 systems.  When the value is non-zero
+the NMI watchdog is enabled and will continuously test all online cpus to
+determine whether or not they are still functioning properly.
+
+Because the NMI watchdog shares registers with oprofile, by disabling the NMI
+watchdog, oprofile may have more registers to utilize.
 
 
 2.4 /proc/sys/vm - The virtual memory subsystem
@@ -1958,6 +1964,22 @@ a queue must be less or equal then msg_max.
 maximum  message size value (it is every  message queue's attribute set during
 its creation).
 
+2.12 /proc/<pid>/oom_adj - Adjust the oom-killer score
+------------------------------------------------------
+
+This file can be used to adjust the score used to select which processes
+should be killed in an  out-of-memory  situation.  Giving it a high score will
+increase the likelihood of this process being killed by the oom-killer.  Valid
+values are in the range -16 to +15, plus the special value -17, which disables
+oom-killing altogether for this process.
+
+2.13 /proc/<pid>/oom_score - Display current oom-killer score
+-------------------------------------------------------------
+
+------------------------------------------------------------------------------
+This file can be used to check the current score used by the oom-killer is for
+any given <pid>. Use it together with /proc/<pid>/oom_adj to tune which
+process should be killed in an out-of-memory situation.
 
 ------------------------------------------------------------------------------
 Summary

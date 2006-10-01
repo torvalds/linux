@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/pm.h>
+#include <linux/cpu.h>
 
 #include "power.h"
 
@@ -72,7 +73,10 @@ static int prepare_processes(void)
 	int error;
 
 	pm_prepare_console();
-	disable_nonboot_cpus();
+
+	error = disable_nonboot_cpus();
+	if (error)
+		goto enable_cpus;
 
 	if (freeze_processes()) {
 		error = -EBUSY;
@@ -84,6 +88,7 @@ static int prepare_processes(void)
 		return 0;
 thaw:
 	thaw_processes();
+enable_cpus:
 	enable_nonboot_cpus();
 	pm_restore_console();
 	return error;
@@ -98,7 +103,7 @@ static void unprepare_processes(void)
 }
 
 /**
- *	pm_suspend_disk - The granpappy of power management.
+ *	pm_suspend_disk - The granpappy of hibernation power management.
  *
  *	If we're going through the firmware, then get it over with quickly.
  *
@@ -207,7 +212,7 @@ static int software_resume(void)
 
 	pr_debug("PM: Preparing devices for restore.\n");
 
-	if ((error = device_suspend(PMSG_FREEZE))) {
+	if ((error = device_suspend(PMSG_PRETHAW))) {
 		printk("Some devices failed to suspend\n");
 		swsusp_free();
 		goto Thaw;
