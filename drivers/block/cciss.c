@@ -144,13 +144,13 @@ static int rebuild_lun_table(ctlr_info_t *h, struct gendisk *del_disk);
 static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 			   int clear_all);
 
-static void cciss_read_capacity(int ctlr, int logvol, ReadCapdata_struct *buf,
-				int withirq, unsigned int *total_size,
-				unsigned int *block_size);
-static void cciss_geometry_inquiry(int ctlr, int logvol, int withirq,
-				   unsigned int total_size,
-				   unsigned int block_size,
-				   InquiryData_struct *inq_buff,
+static void cciss_read_capacity(int ctlr, int logvol, int withirq,
+			sector_t *total_size, unsigned int *block_size);
+static void cciss_read_capacity_16(int ctlr, int logvol, int withirq,
+			sector_t *total_size, unsigned int *block_size);
+static void cciss_geometry_inquiry(int ctlr, int logvol,
+			int withirq, sector_t total_size,
+			unsigned int block_size, InquiryData_struct *inq_buff,
 				   drive_info_struct *drv);
 static void cciss_getgeometry(int cntl_num);
 static void __devinit cciss_interrupt_mode(ctlr_info_t *, struct pci_dev *,
@@ -1325,10 +1325,9 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 {
 	ctlr_info_t *h = hba[ctlr];
 	struct gendisk *disk;
-	ReadCapdata_struct *size_buff = NULL;
 	InquiryData_struct *inq_buff = NULL;
 	unsigned int block_size;
-	unsigned int total_size;
+	sector_t total_size;
 	unsigned long flags = 0;
 	int ret = 0;
 
@@ -1347,15 +1346,25 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 		return;
 
 	/* Get information about the disk and modify the driver structure */
-	size_buff = kmalloc(sizeof(ReadCapdata_struct), GFP_KERNEL);
-	if (size_buff == NULL)
-		goto mem_msg;
 	inq_buff = kmalloc(sizeof(InquiryData_struct), GFP_KERNEL);
 	if (inq_buff == NULL)
 		goto mem_msg;
 
-	cciss_read_capacity(ctlr, drv_index, size_buff, 1,
+	cciss_read_capacity(ctlr, drv_index, 1,
 			    &total_size, &block_size);
+
+	/* total size = last LBA + 1 */
+	/* FFFFFFFF + 1 = 0, cannot have a logical volume of size 0 */
+	/* so we assume this volume this must be >2TB in size */
+	if (total_size == (__u32) 0) {
+		cciss_read_capacity_16(ctlr, drv_index, 1,
+		&total_size, &block_size);
+		h->cciss_read = CCISS_READ_16;
+		h->cciss_write = CCISS_WRITE_16;
+	} else {
+		h->cciss_read = CCISS_READ_10;
+		h->cciss_write = CCISS_WRITE_10;
+	}
 	cciss_geometry_inquiry(ctlr, drv_index, 1, total_size, block_size,
 			       inq_buff, &h->drv[drv_index]);
 
@@ -1391,7 +1400,6 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 	}
 
       freeret:
-	kfree(size_buff);
 	kfree(inq_buff);
 	return;
       mem_msg:
@@ -1716,6 +1724,22 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff, size_
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = cmd;
 			break;
+		case CCISS_READ_CAPACITY_16:
+			c->Header.LUN.LogDev.VolId = h->drv[log_unit].LunID;
+			c->Header.LUN.LogDev.Mode = 1;
+			c->Request.CDBLen = 16;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_READ;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = cmd;
+			c->Request.CDB[1] = 0x10;
+			c->Request.CDB[10] = (size >> 24) & 0xFF;
+			c->Request.CDB[11] = (size >> 16) & 0xFF;
+			c->Request.CDB[12] = (size >> 8) & 0xFF;
+			c->Request.CDB[13] = size & 0xFF;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = cmd;
+			break;
 		case CCISS_CACHE_FLUSH:
 			c->Request.CDBLen = 12;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
@@ -1749,6 +1773,7 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff, size_
 			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
 			c->Request.CDB[0] = cmd;	/* reset */
 			c->Request.CDB[1] = 0x04;	/* reset a LUN */
+			break;
 		case 3:	/* No-Op message */
 			c->Request.CDBLen = 1;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
@@ -1892,12 +1917,15 @@ static int sendcmd_withirq(__u8 cmd,
 }
 
 static void cciss_geometry_inquiry(int ctlr, int logvol,
-				   int withirq, unsigned int total_size,
+				   int withirq, sector_t total_size,
 				   unsigned int block_size,
 				   InquiryData_struct *inq_buff,
 				   drive_info_struct *drv)
 {
 	int return_code;
+	unsigned long t;
+	unsigned long rem;
+
 	memset(inq_buff, 0, sizeof(InquiryData_struct));
 	if (withirq)
 		return_code = sendcmd_withirq(CISS_INQUIRY, ctlr,
@@ -1916,10 +1944,10 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			drv->nr_blocks = total_size;
 			drv->heads = 255;
 			drv->sectors = 32;	// Sectors per track
-			drv->cylinders = total_size / 255 / 32;
+			t = drv->heads * drv->sectors;
+			drv->cylinders = total_size;
+			rem = do_div(drv->cylinders, t);
 		} else {
-			unsigned int t;
-
 			drv->block_size = block_size;
 			drv->nr_blocks = total_size;
 			drv->heads = inq_buff->data_byte[6];
@@ -1929,7 +1957,8 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			drv->raid_level = inq_buff->data_byte[8];
 			t = drv->heads * drv->sectors;
 			if (t > 1) {
-				drv->cylinders = total_size / t;
+				drv->cylinders = total_size;
+				rem = do_div(drv->cylinders, t);
 			}
 		}
 	} else {		/* Get geometry failed */
@@ -1940,31 +1969,72 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 }
 
 static void
-cciss_read_capacity(int ctlr, int logvol, ReadCapdata_struct *buf,
-		    int withirq, unsigned int *total_size,
+cciss_read_capacity(int ctlr, int logvol, int withirq, sector_t *total_size,
 		    unsigned int *block_size)
 {
+	ReadCapdata_struct *buf;
 	int return_code;
-	memset(buf, 0, sizeof(*buf));
+	buf = kmalloc(sizeof(ReadCapdata_struct), GFP_KERNEL);
+	if (buf == NULL) {
+		printk(KERN_WARNING "cciss: out of memory\n");
+		return;
+	}
+	memset(buf, 0, sizeof(ReadCapdata_struct));
 	if (withirq)
 		return_code = sendcmd_withirq(CCISS_READ_CAPACITY,
-					      ctlr, buf, sizeof(*buf), 1,
-					      logvol, 0, TYPE_CMD);
+				ctlr, buf, sizeof(ReadCapdata_struct),
+					1, logvol, 0, TYPE_CMD);
 	else
 		return_code = sendcmd(CCISS_READ_CAPACITY,
-				      ctlr, buf, sizeof(*buf), 1, logvol, 0,
-				      NULL, TYPE_CMD);
+				ctlr, buf, sizeof(ReadCapdata_struct),
+					1, logvol, 0, NULL, TYPE_CMD);
 	if (return_code == IO_OK) {
-		*total_size =
-		    be32_to_cpu(*((__be32 *) & buf->total_size[0])) + 1;
-		*block_size = be32_to_cpu(*((__be32 *) & buf->block_size[0]));
+		*total_size = be32_to_cpu(*(__u32 *) buf->total_size)+1;
+		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
 	} else {		/* read capacity command failed */
 		printk(KERN_WARNING "cciss: read capacity failed\n");
 		*total_size = 0;
 		*block_size = BLOCK_SIZE;
 	}
-	printk(KERN_INFO "      blocks= %u block_size= %d\n",
+	if (*total_size != (__u32) 0)
+		printk(KERN_INFO "      blocks= %lld block_size= %d\n",
+		*total_size, *block_size);
+	kfree(buf);
+	return;
+}
+
+static void
+cciss_read_capacity_16(int ctlr, int logvol, int withirq, sector_t *total_size, 				unsigned int *block_size)
+{
+	ReadCapdata_struct_16 *buf;
+	int return_code;
+	buf = kmalloc(sizeof(ReadCapdata_struct_16), GFP_KERNEL);
+	if (buf == NULL) {
+		printk(KERN_WARNING "cciss: out of memory\n");
+		return;
+	}
+	memset(buf, 0, sizeof(ReadCapdata_struct_16));
+	if (withirq) {
+		return_code = sendcmd_withirq(CCISS_READ_CAPACITY_16,
+			ctlr, buf, sizeof(ReadCapdata_struct_16),
+				1, logvol, 0, TYPE_CMD);
+	}
+	else {
+		return_code = sendcmd(CCISS_READ_CAPACITY_16,
+			ctlr, buf, sizeof(ReadCapdata_struct_16),
+				1, logvol, 0, NULL, TYPE_CMD);
+	}
+	if (return_code == IO_OK) {
+		*total_size = be64_to_cpu(*(__u64 *) buf->total_size)+1;
+		*block_size = be32_to_cpu(*(__u32 *) buf->block_size);
+	} else {		/* read capacity command failed */
+		printk(KERN_WARNING "cciss: read capacity failed\n");
+		*total_size = 0;
+		*block_size = BLOCK_SIZE;
+	}
+	printk(KERN_INFO "      blocks= %lld block_size= %d\n",
 	       *total_size, *block_size);
+	kfree(buf);
 	return;
 }
 
@@ -1975,8 +2045,7 @@ static int cciss_revalidate(struct gendisk *disk)
 	int logvol;
 	int FOUND = 0;
 	unsigned int block_size;
-	unsigned int total_size;
-	ReadCapdata_struct *size_buff = NULL;
+	sector_t total_size;
 	InquiryData_struct *inq_buff = NULL;
 
 	for (logvol = 0; logvol < CISS_MAX_LUN; logvol++) {
@@ -1989,27 +2058,24 @@ static int cciss_revalidate(struct gendisk *disk)
 	if (!FOUND)
 		return 1;
 
-	size_buff = kmalloc(sizeof(ReadCapdata_struct), GFP_KERNEL);
-	if (size_buff == NULL) {
-		printk(KERN_WARNING "cciss: out of memory\n");
-		return 1;
-	}
 	inq_buff = kmalloc(sizeof(InquiryData_struct), GFP_KERNEL);
 	if (inq_buff == NULL) {
 		printk(KERN_WARNING "cciss: out of memory\n");
-		kfree(size_buff);
 		return 1;
 	}
-
-	cciss_read_capacity(h->ctlr, logvol, size_buff, 1, &total_size,
-			    &block_size);
+	if (h->cciss_read == CCISS_READ_10) {
+		cciss_read_capacity(h->ctlr, logvol, 1,
+					&total_size, &block_size);
+	} else {
+		cciss_read_capacity_16(h->ctlr, logvol, 1,
+					&total_size, &block_size);
+	}
 	cciss_geometry_inquiry(h->ctlr, logvol, 1, total_size, block_size,
 			       inq_buff, drv);
 
 	blk_queue_hardsect_size(drv->queue, drv->block_size);
 	set_capacity(disk, drv->nr_blocks);
 
-	kfree(size_buff);
 	kfree(inq_buff);
 	return 0;
 }
@@ -2418,7 +2484,8 @@ static void do_cciss_request(request_queue_t *q)
 {
 	ctlr_info_t *h = q->queuedata;
 	CommandList_struct *c;
-	int start_blk, seg;
+	sector_t start_blk;
+	int seg;
 	struct request *creq;
 	u64bit temp64;
 	struct scatterlist tmp_sg[MAXSGENTRIES];
@@ -2462,10 +2529,10 @@ static void do_cciss_request(request_queue_t *q)
 	c->Request.Type.Type = TYPE_CMD;	// It is a command.
 	c->Request.Type.Attribute = ATTR_SIMPLE;
 	c->Request.Type.Direction =
-	    (rq_data_dir(creq) == READ) ? XFER_READ : XFER_WRITE;
+	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
 	c->Request.Timeout = 0;	// Don't time out
 	c->Request.CDB[0] =
-	    (rq_data_dir(creq) == READ) ? CCISS_READ : CCISS_WRITE;
+	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
 	start_blk = creq->sector;
 #ifdef CCISS_DEBUG
 	printk(KERN_DEBUG "ciss: sector =%d nr_sectors=%d\n", (int)creq->sector,
@@ -2499,15 +2566,33 @@ static void do_cciss_request(request_queue_t *q)
 #endif				/* CCISS_DEBUG */
 
 	c->Header.SGList = c->Header.SGTotal = seg;
-	c->Request.CDB[1] = 0;
-	c->Request.CDB[2] = (start_blk >> 24) & 0xff;	//MSB
-	c->Request.CDB[3] = (start_blk >> 16) & 0xff;
-	c->Request.CDB[4] = (start_blk >> 8) & 0xff;
-	c->Request.CDB[5] = start_blk & 0xff;
-	c->Request.CDB[6] = 0;	// (sect >> 24) & 0xff; MSB
-	c->Request.CDB[7] = (creq->nr_sectors >> 8) & 0xff;
-	c->Request.CDB[8] = creq->nr_sectors & 0xff;
-	c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
+	if(h->cciss_read == CCISS_READ_10) {
+		c->Request.CDB[1] = 0;
+		c->Request.CDB[2] = (start_blk >> 24) & 0xff;	//MSB
+		c->Request.CDB[3] = (start_blk >> 16) & 0xff;
+		c->Request.CDB[4] = (start_blk >> 8) & 0xff;
+		c->Request.CDB[5] = start_blk & 0xff;
+		c->Request.CDB[6] = 0;	// (sect >> 24) & 0xff; MSB
+		c->Request.CDB[7] = (creq->nr_sectors >> 8) & 0xff;
+		c->Request.CDB[8] = creq->nr_sectors & 0xff;
+		c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
+	} else {
+		c->Request.CDBLen = 16;
+		c->Request.CDB[1]= 0;
+		c->Request.CDB[2]= (start_blk >> 56) & 0xff;	//MSB
+		c->Request.CDB[3]= (start_blk >> 48) & 0xff;
+		c->Request.CDB[4]= (start_blk >> 40) & 0xff;
+		c->Request.CDB[5]= (start_blk >> 32) & 0xff;
+		c->Request.CDB[6]= (start_blk >> 24) & 0xff;
+		c->Request.CDB[7]= (start_blk >> 16) & 0xff;
+		c->Request.CDB[8]= (start_blk >>  8) & 0xff;
+		c->Request.CDB[9]= start_blk & 0xff;
+		c->Request.CDB[10]= (creq->nr_sectors >>  24) & 0xff;
+		c->Request.CDB[11]= (creq->nr_sectors >>  16) & 0xff;
+		c->Request.CDB[12]= (creq->nr_sectors >>  8) & 0xff;
+		c->Request.CDB[13]= creq->nr_sectors & 0xff;
+		c->Request.CDB[14] = c->Request.CDB[15] = 0;
+	}
 
 	spin_lock_irq(q->queue_lock);
 
@@ -2517,9 +2602,9 @@ static void do_cciss_request(request_queue_t *q)
 		h->maxQsinceinit = h->Qdepth;
 
 	goto queue;
-      full:
+full:
 	blk_stop_queue(q);
-      startio:
+startio:
 	/* We will already have the driver lock here so not need
 	 * to lock it.
 	 */
@@ -2947,31 +3032,23 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 static void cciss_getgeometry(int cntl_num)
 {
 	ReportLunData_struct *ld_buff;
-	ReadCapdata_struct *size_buff;
 	InquiryData_struct *inq_buff;
 	int return_code;
 	int i;
 	int listlength = 0;
 	__u32 lunid = 0;
 	int block_size;
-	int total_size;
+	sector_t total_size;
 
 	ld_buff = kzalloc(sizeof(ReportLunData_struct), GFP_KERNEL);
 	if (ld_buff == NULL) {
 		printk(KERN_ERR "cciss: out of memory\n");
 		return;
 	}
-	size_buff = kmalloc(sizeof(ReadCapdata_struct), GFP_KERNEL);
-	if (size_buff == NULL) {
-		printk(KERN_ERR "cciss: out of memory\n");
-		kfree(ld_buff);
-		return;
-	}
 	inq_buff = kmalloc(sizeof(InquiryData_struct), GFP_KERNEL);
 	if (inq_buff == NULL) {
 		printk(KERN_ERR "cciss: out of memory\n");
 		kfree(ld_buff);
-		kfree(size_buff);
 		return;
 	}
 	/* Get the firmware version */
@@ -3026,7 +3103,6 @@ static void cciss_getgeometry(int cntl_num)
 #endif				/* CCISS_DEBUG */
 
 	hba[cntl_num]->highest_lun = hba[cntl_num]->num_luns - 1;
-//      for(i=0; i<  hba[cntl_num]->num_luns; i++)
 	for (i = 0; i < CISS_MAX_LUN; i++) {
 		if (i < hba[cntl_num]->num_luns) {
 			lunid = (0xff & (unsigned int)(ld_buff->LUN[i][3]))
@@ -3045,8 +3121,26 @@ static void cciss_getgeometry(int cntl_num)
 			       ld_buff->LUN[i][2], ld_buff->LUN[i][3],
 			       hba[cntl_num]->drv[i].LunID);
 #endif				/* CCISS_DEBUG */
-			cciss_read_capacity(cntl_num, i, size_buff, 0,
+
+		/* testing to see if 16-byte CDBs are already being used */
+		if(hba[cntl_num]->cciss_read == CCISS_READ_16) {
+			cciss_read_capacity_16(cntl_num, i, 0,
 					    &total_size, &block_size);
+			goto geo_inq;
+		}
+		cciss_read_capacity(cntl_num, i, 0, &total_size, &block_size);
+
+		/* total_size = last LBA + 1 */
+		if(total_size == (__u32) 0) {
+			cciss_read_capacity_16(cntl_num, i, 0,
+			&total_size, &block_size);
+			hba[cntl_num]->cciss_read = CCISS_READ_16;
+			hba[cntl_num]->cciss_write = CCISS_WRITE_16;
+		} else {
+			hba[cntl_num]->cciss_read = CCISS_READ_10;
+			hba[cntl_num]->cciss_write = CCISS_WRITE_10;
+		}
+geo_inq:
 			cciss_geometry_inquiry(cntl_num, i, 0, total_size,
 					       block_size, inq_buff,
 					       &hba[cntl_num]->drv[i]);
@@ -3056,7 +3150,6 @@ static void cciss_getgeometry(int cntl_num)
 		}
 	}
 	kfree(ld_buff);
-	kfree(size_buff);
 	kfree(inq_buff);
 }
 
