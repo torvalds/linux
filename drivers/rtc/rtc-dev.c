@@ -406,7 +406,6 @@ static int rtc_dev_add_device(struct class_device *class_dev,
 	rtc->char_dev.owner = rtc->owner;
 
 	if (cdev_add(&rtc->char_dev, MKDEV(MAJOR(rtc_devt), rtc->id), 1)) {
-		cdev_del(&rtc->char_dev);
 		dev_err(class_dev->dev,
 			"failed to add char device %d:%d\n",
 			MAJOR(rtc_devt), rtc->id);
