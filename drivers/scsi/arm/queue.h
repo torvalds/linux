@@ -32,46 +32,48 @@ extern int queue_initialise (Queue_t *queue);
 extern void queue_free (Queue_t *queue);
 
 /*
- * Function: Scsi_Cmnd *queue_remove (queue)
+ * Function: struct scsi_cmnd *queue_remove (queue)
  * Purpose : removes first SCSI command from a queue
  * Params  : queue   - queue to remove command from
- * Returns : Scsi_Cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
  */
-extern Scsi_Cmnd *queue_remove (Queue_t *queue);
+extern struct scsi_cmnd *queue_remove (Queue_t *queue);
 
 /*
- * Function: Scsi_Cmnd *queue_remove_exclude_ref (queue, exclude)
+ * Function: struct scsi_cmnd *queue_remove_exclude_ref (queue, exclude)
  * Purpose : remove a SCSI command from a queue
  * Params  : queue   - queue to remove command from
  *	     exclude - array of busy LUNs
- * Returns : Scsi_Cmnd if successful (and a reference), or NULL if no command available
+ * Returns : struct scsi_cmnd if successful (and a reference), or NULL if no command available
  */
-extern Scsi_Cmnd *queue_remove_exclude (Queue_t *queue, unsigned long *exclude);
+extern struct scsi_cmnd *queue_remove_exclude(Queue_t *queue,
+					      unsigned long *exclude);
 
 #define queue_add_cmd_ordered(queue,SCpnt) \
 	__queue_add(queue,SCpnt,(SCpnt)->cmnd[0] == REQUEST_SENSE)
 #define queue_add_cmd_tail(queue,SCpnt) \
 	__queue_add(queue,SCpnt,0)
 /*
- * Function: int __queue_add(Queue_t *queue, Scsi_Cmnd *SCpnt, int head)
+ * Function: int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head)
  * Purpose : Add a new command onto a queue
  * Params  : queue - destination queue
  *	     SCpnt - command to add
  *	     head  - add command to head of queue
  * Returns : 0 on error, !0 on success
  */
-extern int __queue_add(Queue_t *queue, Scsi_Cmnd *SCpnt, int head);
+extern int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head);
 
 /*
- * Function: Scsi_Cmnd *queue_remove_tgtluntag (queue, target, lun, tag)
+ * Function: struct scsi_cmnd *queue_remove_tgtluntag (queue, target, lun, tag)
  * Purpose : remove a SCSI command from the queue for a specified target/lun/tag
  * Params  : queue  - queue to remove command from
  *	     target - target that we want
  *	     lun    - lun on device
  *	     tag    - tag on device
- * Returns : Scsi_Cmnd if successful, or NULL if no command satisfies requirements
+ * Returns : struct scsi_cmnd if successful, or NULL if no command satisfies requirements
  */
-extern Scsi_Cmnd *queue_remove_tgtluntag (Queue_t *queue, int target, int lun, int tag);
+extern struct scsi_cmnd *queue_remove_tgtluntag(Queue_t *queue, int target,
+						int lun, int tag);
 
 /*
  * Function: queue_remove_all_target(queue, target)
@@ -94,12 +96,12 @@ extern void queue_remove_all_target(Queue_t *queue, int target);
 extern int queue_probetgtlun (Queue_t *queue, int target, int lun);
 
 /*
- * Function: int queue_remove_cmd (Queue_t *queue, Scsi_Cmnd *SCpnt)
+ * Function: int queue_remove_cmd (Queue_t *queue, struct scsi_cmnd *SCpnt)
  * Purpose : remove a specific command from the queues
  * Params  : queue - queue to look in
  *	     SCpnt - command to find
  * Returns : 0 if not found
  */
-int queue_remove_cmd(Queue_t *queue, Scsi_Cmnd *SCpnt);
+int queue_remove_cmd(Queue_t *queue, struct scsi_cmnd *SCpnt);
 
 #endif /* QUEUE_H */

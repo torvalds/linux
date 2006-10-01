@@ -66,7 +66,7 @@ static inline void put_next_SCp_byte(struct scsi_pointer *SCp, unsigned char c)
 	SCp->this_residual -= 1;
 }
 
-static inline void init_SCp(Scsi_Cmnd *SCpnt)
+static inline void init_SCp(struct scsi_cmnd *SCpnt)
 {
 	memset(&SCpnt->SCp, 0, sizeof(struct scsi_pointer));
 
