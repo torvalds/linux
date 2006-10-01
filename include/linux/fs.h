@@ -1641,6 +1641,9 @@ static inline void allow_write_access(struct file *file)
 		atomic_inc(&file->f_dentry->d_inode->i_writecount);
 }
 extern int do_pipe(int *);
+extern struct file *create_read_pipe(struct file *f);
+extern struct file *create_write_pipe(void);
+extern void free_write_pipe(struct file *);
 
 extern int open_namei(int dfd, const char *, int, int, struct nameidata *);
 extern int may_open(struct nameidata *, int, int);

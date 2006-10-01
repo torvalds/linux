@@ -874,87 +874,118 @@ fail_inode:
 	return NULL;
 }
 
-int do_pipe(int *fd)
+struct file *create_write_pipe(void)
 {
-	struct qstr this;
-	char name[32];
+	int err;
+	struct inode *inode;
+	struct file *f;
 	struct dentry *dentry;
-	struct inode * inode;
-	struct file *f1, *f2;
-	int error;
-	int i, j;
+	char name[32];
+	struct qstr this;
 
-	error = -ENFILE;
-	f1 = get_empty_filp();
-	if (!f1)
-		goto no_files;
-
-	f2 = get_empty_filp();
-	if (!f2)
-		goto close_f1;
-
+	f = get_empty_filp();
+	if (!f)
+		return ERR_PTR(-ENFILE);
+	err = -ENFILE;
 	inode = get_pipe_inode();
 	if (!inode)
-		goto close_f12;
+		goto err_file;
 
-	error = get_unused_fd();
-	if (error < 0)
-		goto close_f12_inode;
-	i = error;
-
-	error = get_unused_fd();
-	if (error < 0)
-		goto close_f12_inode_i;
-	j = error;
-
-	error = -ENOMEM;
 	sprintf(name, "[%lu]", inode->i_ino);
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = inode->i_ino; /* will go */
+	err = -ENOMEM;
 	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &this);
 	if (!dentry)
-		goto close_f12_inode_i_j;
+		goto err_inode;
 
 	dentry->d_op = &pipefs_dentry_operations;
 	d_add(dentry, inode);
-	f1->f_vfsmnt = f2->f_vfsmnt = mntget(mntget(pipe_mnt));
-	f1->f_dentry = f2->f_dentry = dget(dentry);
-	f1->f_mapping = f2->f_mapping = inode->i_mapping;
+	f->f_vfsmnt = mntget(pipe_mnt);
+	f->f_dentry = dentry;
+	f->f_mapping = inode->i_mapping;
 
-	/* read file */
-	f1->f_pos = f2->f_pos = 0;
-	f1->f_flags = O_RDONLY;
-	f1->f_op = &read_pipe_fops;
-	f1->f_mode = FMODE_READ;
-	f1->f_version = 0;
+	f->f_flags = O_WRONLY;
+	f->f_op = &write_pipe_fops;
+	f->f_mode = FMODE_WRITE;
+	f->f_version = 0;
 
-	/* write file */
-	f2->f_flags = O_WRONLY;
-	f2->f_op = &write_pipe_fops;
-	f2->f_mode = FMODE_WRITE;
-	f2->f_version = 0;
+	return f;
 
-	fd_install(i, f1);
-	fd_install(j, f2);
-	fd[0] = i;
-	fd[1] = j;
+ err_inode:
+	free_pipe_info(inode);
+	iput(inode);
+ err_file:
+	put_filp(f);
+	return ERR_PTR(err);
+}
+
+void free_write_pipe(struct file *f)
+{
+	mntput(f->f_vfsmnt);
+	dput(f->f_dentry);
+	put_filp(f);
+}
+
+struct file *create_read_pipe(struct file *wrf)
+{
+	struct file *f = get_empty_filp();
+	if (!f)
+		return ERR_PTR(-ENFILE);
+
+	/* Grab pipe from the writer */
+	f->f_vfsmnt = mntget(wrf->f_vfsmnt);
+	f->f_dentry = dget(wrf->f_dentry);
+	f->f_mapping = wrf->f_dentry->d_inode->i_mapping;
+
+	f->f_pos = 0;
+	f->f_flags = O_RDONLY;
+	f->f_op = &read_pipe_fops;
+	f->f_mode = FMODE_READ;
+	f->f_version = 0;
+
+	return f;
+}
+
+int do_pipe(int *fd)
+{
+	struct file *fw, *fr;
+	int error;
+	int fdw, fdr;
+
+	fw = create_write_pipe();
+	if (IS_ERR(fw))
+		return PTR_ERR(fw);
+	fr = create_read_pipe(fw);
+	error = PTR_ERR(fr);
+	if (IS_ERR(fr))
+		goto err_write_pipe;
+
+	error = get_unused_fd();
+	if (error < 0)
+		goto err_read_pipe;
+	fdr = error;
+
+	error = get_unused_fd();
+	if (error < 0)
+		goto err_fdr;
+	fdw = error;
+
+	fd_install(fdr, fr);
+	fd_install(fdw, fw);
+	fd[0] = fdr;
+	fd[1] = fdw;
 
 	return 0;
 
-close_f12_inode_i_j:
-	put_unused_fd(j);
-close_f12_inode_i:
-	put_unused_fd(i);
-close_f12_inode:
-	free_pipe_info(inode);
-	iput(inode);
-close_f12:
-	put_filp(f2);
-close_f1:
-	put_filp(f1);
-no_files:
-	return error;	
+ err_fdr:
+	put_unused_fd(fdr);
+ err_read_pipe:
+	put_filp(fr);
+ err_write_pipe:
+	free_write_pipe(fw);
+	return error;
 }
 
 /*
