@@ -18,6 +18,7 @@
 #include <linux/security.h>
 #include <linux/cpu.h>
 #include <linux/acct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/file.h>
 #include <linux/binfmts.h>
 #include <linux/ptrace.h>

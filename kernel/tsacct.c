@@ -88,4 +88,34 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 	stats->read_syscalls	= p->syscr;
 	stats->write_syscalls	= p->syscw;
 }
+
+
+/**
+ * acct_update_integrals - update mm integral fields in task_struct
+ * @tsk: task_struct for accounting
+ */
+void acct_update_integrals(struct task_struct *tsk)
+{
+	if (likely(tsk->mm)) {
+		long delta =
+			cputime_to_jiffies(tsk->stime) - tsk->acct_stimexpd;
+
+		if (delta == 0)
+			return;
+		tsk->acct_stimexpd = tsk->stime;
+		tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm);
+		tsk->acct_vm_mem1 += delta * tsk->mm->total_vm;
+	}
+}
+
+/**
+ * acct_clear_integrals - clear the mm integral fields in task_struct
+ * @tsk: task_struct whose accounting fields are cleared
+ */
+void acct_clear_integrals(struct task_struct *tsk)
+{
+	tsk->acct_stimexpd = 0;
+	tsk->acct_rss_mem1 = 0;
+	tsk->acct_vm_mem1 = 0;
+}
 #endif
