@@ -64,3 +64,5 @@ kernel patches.
 
 19: All new userspace interfaces are documented in Documentation/ABI/.
     See Documentation/ABI/README for more information.
+
+20: Check that it all passes `make headers_check'.
