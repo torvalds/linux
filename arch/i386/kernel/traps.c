@@ -57,6 +57,8 @@
 
 #include "mach_traps.h"
 
+int panic_on_unrecovered_nmi;
+
 asmlinkage int system_call(void);
 
 struct desc_struct default_ldt[] = { { 0, 0 }, { 0, 0 }, { 0, 0 },

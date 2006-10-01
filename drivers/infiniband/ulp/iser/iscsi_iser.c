@@ -317,6 +317,8 @@ iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
 	iscsi_conn_teardown(cls_conn);
+	if (iser_conn->ib_conn)
+		iser_conn->ib_conn->iser_conn = NULL;
 	kfree(iser_conn);
 }
 

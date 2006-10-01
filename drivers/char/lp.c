@@ -906,7 +906,7 @@ static int __init lp_init (void)
 	lp_class = class_create(THIS_MODULE, "printer");
 	if (IS_ERR(lp_class)) {
 		err = PTR_ERR(lp_class);
-		goto out_devfs;
+		goto out_reg;
 	}
 
 	if (parport_register_driver (&lp_driver)) {
@@ -927,7 +927,7 @@ static int __init lp_init (void)
 
 out_class:
 	class_destroy(lp_class);
-out_devfs:
+out_reg:
 	unregister_chrdev(LP_MAJOR, "lp");
 	return err;
 }

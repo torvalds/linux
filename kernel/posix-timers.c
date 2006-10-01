@@ -973,3 +973,24 @@ sys_clock_nanosleep(const clockid_t which_clock, int flags,
 	return CLOCK_DISPATCH(which_clock, nsleep,
 			      (which_clock, flags, &t, rmtp));
 }
+
+/*
+ * nanosleep_restart for monotonic and realtime clocks
+ */
+static int common_nsleep_restart(struct restart_block *restart_block)
+{
+	return hrtimer_nanosleep_restart(restart_block);
+}
+
+/*
+ * This will restart clock_nanosleep. This is required only by
+ * compat_clock_nanosleep_restart for now.
+ */
+long
+clock_nanosleep_restart(struct restart_block *restart_block)
+{
+	clockid_t which_clock = restart_block->arg0;
+
+	return CLOCK_DISPATCH(which_clock, nsleep_restart,
+			      (restart_block));
+}

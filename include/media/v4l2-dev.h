@@ -9,7 +9,8 @@
 #ifndef _V4L2_DEV_H
 #define _V4L2_DEV_H
 
-#define OBSOLETE_OWNER 1 /* to be removed soon */
+#define OBSOLETE_OWNER   1 /* to be removed soon */
+#define OBSOLETE_DEVDATA 1 /* to be removed soon */
 
 #include <linux/poll.h>
 #include <linux/fs.h>
@@ -338,8 +339,6 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>
 
-extern struct video_device* video_devdata(struct file*);
-
 #define to_video_device(cd) container_of(cd, struct video_device, class_dev)
 static inline int __must_check
 video_device_create_file(struct video_device *vfd,
@@ -370,9 +369,14 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 {
 	dev->priv = data;
 }
+
 #endif
 
+#ifdef OBSOLETE_DEVDATA /* to be removed soon */
+/* Obsolete stuff - Still needed for radio devices and obsolete drivers */
+extern struct video_device* video_devdata(struct file*);
 extern int video_exclusive_open(struct inode *inode, struct file *file);
 extern int video_exclusive_release(struct inode *inode, struct file *file);
+#endif
 
 #endif /* _V4L2_DEV_H */

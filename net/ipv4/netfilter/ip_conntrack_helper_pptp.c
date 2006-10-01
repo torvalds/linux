@@ -242,10 +242,10 @@ exp_gre(struct ip_conntrack *ct,
 	exp_orig->tuple.dst.u.gre.key = callid;
 	exp_orig->tuple.dst.protonum = IPPROTO_GRE;
 
-	exp_orig->mask.src.ip = 0xffffffff;
+	exp_orig->mask.src.ip = htonl(0xffffffff);
 	exp_orig->mask.src.u.all = 0;
 	exp_orig->mask.dst.u.gre.key = htons(0xffff);
-	exp_orig->mask.dst.ip = 0xffffffff;
+	exp_orig->mask.dst.ip = htonl(0xffffffff);
 	exp_orig->mask.dst.protonum = 0xff;
 
 	exp_orig->master = ct;

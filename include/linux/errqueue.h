@@ -38,7 +38,7 @@ struct sock_exterr_skb
 	} header;
 	struct sock_extended_err	ee;
 	u16				addr_offset;
-	u16				port;
+	__be16				port;
 };
 
 #endif

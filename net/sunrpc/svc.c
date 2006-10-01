@@ -256,11 +256,11 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	struct kvec *		argv = &rqstp->rq_arg.head[0];
 	struct kvec *		resv = &rqstp->rq_res.head[0];
 	kxdrproc_t		xdr;
-	u32			*statp;
-	u32			dir, prog, vers, proc,
-				auth_stat, rpc_stat;
+	__be32			*statp;
+	u32			dir, prog, vers, proc;
+	__be32			auth_stat, rpc_stat;
 	int			auth_res;
-	u32			*accept_statp;
+	__be32			*accept_statp;
 
 	rpc_stat = rpc_success;
 
@@ -284,16 +284,16 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	rqstp->rq_sendfile_ok = 1;
 	/* tcp needs a space for the record length... */
 	if (rqstp->rq_prot == IPPROTO_TCP)
-		svc_putu32(resv, 0);
+		svc_putnl(resv, 0);
 
 	rqstp->rq_xid = svc_getu32(argv);
 	svc_putu32(resv, rqstp->rq_xid);
 
-	dir  = ntohl(svc_getu32(argv));
-	vers = ntohl(svc_getu32(argv));
+	dir  = svc_getnl(argv);
+	vers = svc_getnl(argv);
 
 	/* First words of reply: */
-	svc_putu32(resv, xdr_one);		/* REPLY */
+	svc_putnl(resv, 1);		/* REPLY */
 
 	if (dir != 0)		/* direction != CALL */
 		goto err_bad_dir;
@@ -303,11 +303,11 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	/* Save position in case we later decide to reject: */
 	accept_statp = resv->iov_base + resv->iov_len;
 
-	svc_putu32(resv, xdr_zero);		/* ACCEPT */
+	svc_putnl(resv, 0);		/* ACCEPT */
 
-	rqstp->rq_prog = prog = ntohl(svc_getu32(argv));	/* program number */
-	rqstp->rq_vers = vers = ntohl(svc_getu32(argv));	/* version number */
-	rqstp->rq_proc = proc = ntohl(svc_getu32(argv));	/* procedure number */
+	rqstp->rq_prog = prog = svc_getnl(argv);	/* program number */
+	rqstp->rq_vers = vers = svc_getnl(argv);	/* version number */
+	rqstp->rq_proc = proc = svc_getnl(argv);	/* procedure number */
 
 	progp = serv->sv_program;
 
@@ -361,7 +361,7 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 
 	/* Build the reply header. */
 	statp = resv->iov_base +resv->iov_len;
-	svc_putu32(resv, rpc_success);		/* RPC_SUCCESS */
+	svc_putnl(resv, RPC_SUCCESS);
 
 	/* Bump per-procedure stats counter */
 	procp->pc_count++;
@@ -439,10 +439,10 @@ err_bad_dir:
 
 err_bad_rpc:
 	serv->sv_stats->rpcbadfmt++;
-	svc_putu32(resv, xdr_one);	/* REJECT */
-	svc_putu32(resv, xdr_zero);	/* RPC_MISMATCH */
-	svc_putu32(resv, xdr_two);	/* Only RPCv2 supported */
-	svc_putu32(resv, xdr_two);
+	svc_putnl(resv, 1);	/* REJECT */
+	svc_putnl(resv, 0);	/* RPC_MISMATCH */
+	svc_putnl(resv, 2);	/* Only RPCv2 supported */
+	svc_putnl(resv, 2);
 	goto sendit;
 
 err_bad_auth:
@@ -450,15 +450,15 @@ err_bad_auth:
 	serv->sv_stats->rpcbadauth++;
 	/* Restore write pointer to location of accept status: */
 	xdr_ressize_check(rqstp, accept_statp);
-	svc_putu32(resv, xdr_one);	/* REJECT */
-	svc_putu32(resv, xdr_one);	/* AUTH_ERROR */
-	svc_putu32(resv, auth_stat);	/* status */
+	svc_putnl(resv, 1);	/* REJECT */
+	svc_putnl(resv, 1);	/* AUTH_ERROR */
+	svc_putnl(resv, ntohl(auth_stat));	/* status */
 	goto sendit;
 
 err_bad_prog:
 	dprintk("svc: unknown program %d\n", prog);
 	serv->sv_stats->rpcbadfmt++;
-	svc_putu32(resv, rpc_prog_unavail);
+	svc_putnl(resv, RPC_PROG_UNAVAIL);
 	goto sendit;
 
 err_bad_vers:
@@ -466,9 +466,9 @@ err_bad_vers:
 	printk("svc: unknown version (%d)\n", vers);
 #endif
 	serv->sv_stats->rpcbadfmt++;
-	svc_putu32(resv, rpc_prog_mismatch);
-	svc_putu32(resv, htonl(progp->pg_lovers));
-	svc_putu32(resv, htonl(progp->pg_hivers));
+	svc_putnl(resv, RPC_PROG_MISMATCH);
+	svc_putnl(resv, progp->pg_lovers);
+	svc_putnl(resv, progp->pg_hivers);
 	goto sendit;
 
 err_bad_proc:
@@ -476,7 +476,7 @@ err_bad_proc:
 	printk("svc: unknown procedure (%d)\n", proc);
 #endif
 	serv->sv_stats->rpcbadfmt++;
-	svc_putu32(resv, rpc_proc_unavail);
+	svc_putnl(resv, RPC_PROC_UNAVAIL);
 	goto sendit;
 
 err_garbage:
@@ -486,6 +486,6 @@ err_garbage:
 	rpc_stat = rpc_garbage_args;
 err_bad:
 	serv->sv_stats->rpcbadfmt++;
-	svc_putu32(resv, rpc_stat);
+	svc_putnl(resv, ntohl(rpc_stat));
 	goto sendit;
 }

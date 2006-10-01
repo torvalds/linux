@@ -2,7 +2,7 @@
 #define __LINUX_RTNETLINK_H
 
 #include <linux/netlink.h>
-#include <linux/if.h>
+#include <linux/if_link.h>
 
 /****
  *		Routing/neighbour discovery messages.

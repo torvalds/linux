@@ -112,17 +112,17 @@ xfs_Gqm_init(void)
 {
 	xfs_dqhash_t	*udqhash, *gdqhash;
 	xfs_qm_t	*xqm;
-	uint		i, hsize, flags = KM_SLEEP | KM_MAYFAIL;
+	size_t		hsize;
+	uint		i;
 
 	/*
 	 * Initialize the dquot hash tables.
 	 */
-	hsize = XFS_QM_HASHSIZE_HIGH;
-	while (!(udqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), flags))) {
-		if ((hsize >>= 1) <= XFS_QM_HASHSIZE_LOW)
-			flags = KM_SLEEP;
-	}
-	gdqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), KM_SLEEP);
+	udqhash = kmem_zalloc_greedy(&hsize,
+				     XFS_QM_HASHSIZE_LOW, XFS_QM_HASHSIZE_HIGH,
+				     KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	gdqhash = kmem_zalloc(hsize, KM_SLEEP | KM_LARGE);
+	hsize /= sizeof(xfs_dqhash_t);
 	ndquot = hsize << 8;
 
 	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);

@@ -40,10 +40,6 @@ int set_irq_chip(unsigned int irq, struct irq_chip *chip)
 	spin_lock_irqsave(&desc->lock, flags);
 	irq_chip_set_defaults(chip);
 	desc->chip = chip;
-	/*
-	 * For compatibility only:
-	 */
-	desc->chip = chip;
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
@@ -146,7 +142,7 @@ static void default_disable(unsigned int irq)
 	struct irq_desc *desc = irq_desc + irq;
 
 	if (!(desc->status & IRQ_DELAYED_DISABLE))
-		irq_desc[irq].chip->mask(irq);
+		desc->chip->mask(irq);
 }
 
 /*

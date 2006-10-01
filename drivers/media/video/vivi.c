@@ -992,7 +992,8 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 	struct vivi_fh  *fh=priv;
 	struct videobuf_queue *q=&fh->vb_vidq;
 	struct v4l2_requestbuffers req;
-	unsigned int i, ret;
+	unsigned int i;
+	int ret;
 
 	req.type   = q->type;
 	req.count  = 8;
@@ -1358,6 +1359,8 @@ static int __init vivi_init(void)
 	dev->vidq.timeout.function = vivi_vid_timeout;
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
+
+	vivi.current_norm         = tvnorms[0].id;
 
 	ret = video_register_device(&vivi, VFL_TYPE_GRABBER, video_nr);
 	printk(KERN_INFO "Video Technology Magazine Virtual Video Capture Board (Load status: %d)\n", ret);

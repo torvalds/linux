@@ -149,8 +149,6 @@ enum StirFifoCtlMask {
 	FIFOCTL_DIR = 0x10,
 	FIFOCTL_CLR = 0x08,
 	FIFOCTL_EMPTY = 0x04,
-	FIFOCTL_RXERR = 0x02,
-	FIFOCTL_TXERR = 0x01,
 };
 
 enum StirDiagMask {
@@ -614,19 +612,6 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 			| stir->fifo_status[1];
 
 		pr_debug("fifo status 0x%lx count %lu\n", status, count);
-
-		/* error when receive/transmit fifo gets confused */
-		if (status & FIFOCTL_RXERR) {
-			stir->stats.rx_fifo_errors++;
-			stir->stats.rx_errors++;
-			break;
-		}
-
-		if (status & FIFOCTL_TXERR) {
-			stir->stats.tx_fifo_errors++;
-			stir->stats.tx_errors++;
-			break;
-		}
 
 		/* is fifo receiving already, or empty */
 		if (!(status & FIFOCTL_DIR)

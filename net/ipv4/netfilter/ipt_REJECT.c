@@ -104,8 +104,8 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	struct iphdr *iph = oldskb->nh.iph;
 	struct tcphdr _otcph, *oth, *tcph;
 	struct rtable *rt;
-	u_int16_t tmp_port;
-	u_int32_t tmp_addr;
+	__be16 tmp_port;
+	__be32 tmp_addr;
 	int needs_ack;
 	int hh_len;
 

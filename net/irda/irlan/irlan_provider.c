@@ -296,7 +296,14 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
 
-	skb = alloc_skb(128, GFP_ATOMIC);
+	skb = alloc_skb(IRLAN_MAX_HEADER + IRLAN_CMD_HEADER +
+			/* Bigger param length comes from CMD_GET_MEDIA_CHAR */
+			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "DIRECTED") +
+			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "BORADCAST") +
+			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "MULTICAST") +
+			IRLAN_STRING_PARAMETER_LEN("ACCESS_TYPE", "HOSTED"),
+			GFP_ATOMIC);
+
 	if (!skb)
 		return;
 
@@ -354,8 +361,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 		} else
 			skb->data[1] = 0x02; /* 2 parameters */
 		irlan_insert_byte_param(skb, "DATA_CHAN", self->stsap_sel_data);
-		irlan_insert_array_param(skb, "RECONNECT_KEY", "LINUX RULES!",
-					 12);
+		irlan_insert_string_param(skb, "RECONNECT_KEY", "LINUX RULES!");
 		break;
 	case CMD_FILTER_OPERATION:
 		irlan_filter_request(self, skb);

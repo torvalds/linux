@@ -191,7 +191,7 @@ ip_nat_in(unsigned int hooknum,
           int (*okfn)(struct sk_buff *))
 {
 	unsigned int ret;
-	u_int32_t daddr = (*pskb)->nh.iph->daddr;
+	__be32 daddr = (*pskb)->nh.iph->daddr;
 
 	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
 	if (ret != NF_DROP && ret != NF_STOLEN

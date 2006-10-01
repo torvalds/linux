@@ -40,6 +40,7 @@
 #include <linux/input.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
 #include "hidp.h"
@@ -528,6 +529,26 @@ static int hidp_session(void *arg)
 	return 0;
 }
 
+static struct device *hidp_get_device(struct hidp_session *session)
+{
+	bdaddr_t *src = &bt_sk(session->ctrl_sock->sk)->src;
+	bdaddr_t *dst = &bt_sk(session->ctrl_sock->sk)->dst;
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(dst, src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
+	if (!conn)
+		return NULL;
+
+	hci_dev_put(hdev);
+
+	return &conn->dev;
+}
+
 static inline void hidp_setup_input(struct hidp_session *session, struct hidp_connadd_req *req)
 {
 	struct input_dev *input = session->input;
@@ -565,6 +586,8 @@ static inline void hidp_setup_input(struct hidp_session *session, struct hidp_co
 		input->keybit[LONG(BTN_MOUSE)] |= BIT(BTN_SIDE) | BIT(BTN_EXTRA);
 		input->relbit[0] |= BIT(REL_WHEEL);
 	}
+
+	input->cdev.dev = hidp_get_device(session);
 
 	input->event = hidp_input_event;
 

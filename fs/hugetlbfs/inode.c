@@ -229,7 +229,7 @@ static void hugetlbfs_delete_inode(struct inode *inode)
 	clear_inode(inode);
 }
 
-static void hugetlbfs_forget_inode(struct inode *inode)
+static void hugetlbfs_forget_inode(struct inode *inode) __releases(inode_lock)
 {
 	struct super_block *sb = inode->i_sb;
 

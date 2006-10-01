@@ -317,17 +317,9 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 int simple_readpage(struct file *file, struct page *page)
 {
-	void *kaddr;
-
-	if (PageUptodate(page))
-		goto out;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(kaddr, KM_USER0);
+	clear_highpage(page);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
-out:
 	unlock_page(page);
 	return 0;
 }

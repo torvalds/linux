@@ -797,7 +797,7 @@ out_no_task:
 static ssize_t mem_write(struct file * file, const char * buf,
 			 size_t count, loff_t *ppos)
 {
-	int copied = 0;
+	int copied;
 	char *page;
 	struct task_struct *task = get_proc_task(file->f_dentry->d_inode);
 	unsigned long dst = *ppos;
@@ -814,6 +814,7 @@ static ssize_t mem_write(struct file * file, const char * buf,
 	if (!page)
 		goto out;
 
+	copied = 0;
 	while (count > 0) {
 		int this_len, retval;
 

@@ -80,7 +80,7 @@ static inline int appldata_asm(struct appldata_product_id *id,
 	parm_list.product_id_addr = (unsigned long) id;
 	parm_list.buffer_addr = virt_to_phys(buffer);
 	asm volatile(
-		"diag %1,%0,0xdc"
+		"	diag	%1,%0,0xdc"
 		: "=d" (ry)
 		: "d" (&parm_list), "m" (parm_list), "m" (*id)
 		: "cc");

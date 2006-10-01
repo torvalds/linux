@@ -397,12 +397,7 @@ static int wf_sat_detach(struct i2c_client *client)
 
 static int __init sat_sensors_init(void)
 {
-	int err;
-
-	err = i2c_add_driver(&wf_sat_driver);
-	if (err < 0)
-		return err;
-	return 0;
+	return i2c_add_driver(&wf_sat_driver);
 }
 
 static void __exit sat_sensors_exit(void)

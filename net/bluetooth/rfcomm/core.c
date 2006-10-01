@@ -644,7 +644,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 	addr.l2_family = AF_BLUETOOTH;
 	addr.l2_psm    = htobs(RFCOMM_PSM);
 	*err = sock->ops->connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_NONBLOCK);
-	if (*err == 0 || *err == -EAGAIN)
+	if (*err == 0 || *err == -EINPROGRESS)
 		return s;
 
 	rfcomm_session_del(s);

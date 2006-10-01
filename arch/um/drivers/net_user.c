@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include "user.h"
 #include "user_util.h"
 #include "kern_util.h"

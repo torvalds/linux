@@ -15,20 +15,21 @@
 
 typedef unsigned long long cycles_t;
 
-static inline cycles_t get_cycles(void)
-{
-	cycles_t cycles;
-
-	__asm__ __volatile__ ("stck 0(%1)" : "=m" (cycles) : "a" (&cycles) : "cc");
-	return cycles >> 2;
-}
-
 static inline unsigned long long get_clock (void)
 {
 	unsigned long long clk;
 
-	__asm__ __volatile__ ("stck 0(%1)" : "=m" (clk) : "a" (&clk) : "cc");
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
+	asm volatile("stck %0" : "=Q" (clk) : : "cc");
+#else /* __GNUC__ */
+	asm volatile("stck 0(%1)" : "=m" (clk) : "a" (&clk) : "cc");
+#endif /* __GNUC__ */
 	return clk;
+}
+
+static inline cycles_t get_cycles(void)
+{
+	return (cycles_t) get_clock() >> 2;
 }
 
 #endif

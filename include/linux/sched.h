@@ -148,6 +148,7 @@ extern unsigned long weighted_cpuload(const int cpu);
 #define EXIT_DEAD		32
 /* in tsk->state again */
 #define TASK_NONINTERACTIVE	64
+#define TASK_DEAD		128
 
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
@@ -504,8 +505,8 @@ struct signal_struct {
 #define rt_prio(prio)		unlikely((prio) < MAX_RT_PRIO)
 #define rt_task(p)		rt_prio((p)->prio)
 #define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
-#define has_rt_policy(p) \
-	unlikely((p)->policy != SCHED_NORMAL && (p)->policy != SCHED_BATCH)
+#define is_rt_policy(p)		((p) != SCHED_NORMAL && (p) != SCHED_BATCH)
+#define has_rt_policy(p)	unlikely(is_rt_policy((p)->policy))
 
 /*
  * Some day this will be a full-fledged user tracking system..
@@ -709,7 +710,6 @@ extern unsigned int max_cache_size;
 
 
 struct io_context;			/* See blkdev.h */
-void exit_io_context(void);
 struct cpuset;
 
 #define NGROUPS_SMALL		32
@@ -784,8 +784,9 @@ struct task_struct {
 	struct prio_array *array;
 
 	unsigned short ioprio;
+#ifdef CONFIG_BLK_DEV_IO_TRACE
 	unsigned int btrace_seq;
-
+#endif
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;
 	unsigned long long sched_time; /* sched_clock time spent running */
@@ -886,8 +887,10 @@ struct task_struct {
 				     - initialized normally by flush_old_exec */
 /* file system info */
 	int link_count, total_link_count;
+#ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
+#endif
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /* filesystem information */
@@ -1030,6 +1033,16 @@ static inline int pid_alive(struct task_struct *p)
 	return p->pids[PIDTYPE_PID].pid != NULL;
 }
 
+/**
+ * is_init - check if a task structure is the first user space
+ *	     task the kernel created.
+ * @p: Task structure to be checked.
+ */
+static inline int is_init(struct task_struct *tsk)
+{
+	return tsk->pid == 1;
+}
+
 extern void free_task(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
@@ -1048,7 +1061,6 @@ static inline void put_task_struct(struct task_struct *t)
 					/* Not implemented yet, only for 486*/
 #define PF_STARTING	0x00000002	/* being created */
 #define PF_EXITING	0x00000004	/* getting shut down */
-#define PF_DEAD		0x00000008	/* Dead */
 #define PF_FORKNOEXEC	0x00000040	/* forked but didn't exec */
 #define PF_SUPERPRIV	0x00000100	/* used super-user privileges */
 #define PF_DUMPCORE	0x00000200	/* dumped core */
@@ -1193,7 +1205,7 @@ extern void switch_uid(struct user_struct *);
 
 #include <asm/current.h>
 
-extern void do_timer(struct pt_regs *);
+extern void do_timer(unsigned long ticks);
 
 extern int FASTCALL(wake_up_state(struct task_struct * tsk, unsigned int state));
 extern int FASTCALL(wake_up_process(struct task_struct * tsk));

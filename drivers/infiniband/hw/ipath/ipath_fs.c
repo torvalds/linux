@@ -356,18 +356,15 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 	pos = *ppos;
 
-	if ( pos < 0) {
+	if (pos != 0) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if (pos >= sizeof(struct ipath_flash)) {
-		ret = 0;
+	if (count != sizeof(struct ipath_flash)) {
+		ret = -EINVAL;
 		goto bail;
 	}
-
-	if (count > sizeof(struct ipath_flash) - pos)
-		count = sizeof(struct ipath_flash) - pos;
 
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (!tmp) {

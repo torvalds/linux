@@ -62,6 +62,7 @@ static void hci_cc_link_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 
 	switch (ocf) {
 	case OCF_INQUIRY_CANCEL:
+	case OCF_EXIT_PERIODIC_INQ:
 		status = *((__u8 *) skb->data);
 
 		if (status) {
@@ -297,6 +298,7 @@ static void hci_cc_host_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 /* Command Complete OGF INFO_PARAM  */
 static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb)
 {
+	struct hci_rp_read_loc_version *lv;
 	struct hci_rp_read_local_features *lf;
 	struct hci_rp_read_buffer_size *bs;
 	struct hci_rp_read_bd_addr *ba;
@@ -304,6 +306,23 @@ static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *s
 	BT_DBG("%s ocf 0x%x", hdev->name, ocf);
 
 	switch (ocf) {
+	case OCF_READ_LOCAL_VERSION:
+		lv = (struct hci_rp_read_loc_version *) skb->data;
+
+		if (lv->status) {
+			BT_DBG("%s READ_LOCAL_VERSION failed %d", hdev->name, lf->status);
+			break;
+		}
+
+		hdev->hci_ver = lv->hci_ver;
+		hdev->hci_rev = btohs(lv->hci_rev);
+		hdev->manufacturer = btohs(lv->manufacturer);
+
+		BT_DBG("%s: manufacturer %d hci_ver %d hci_rev %d", hdev->name,
+				hdev->manufacturer, hdev->hci_ver, hdev->hci_rev);
+
+		break;
+
 	case OCF_READ_LOCAL_FEATURES:
 		lf = (struct hci_rp_read_local_features *) skb->data;
 
@@ -328,7 +347,8 @@ static void hci_cc_info_param(struct hci_dev *hdev, __u16 ocf, struct sk_buff *s
 		if (hdev->features[1] & LMP_HV3)
 			hdev->pkt_type |= (HCI_HV3);
 
-		BT_DBG("%s: features 0x%x 0x%x 0x%x", hdev->name, lf->features[0], lf->features[1], lf->features[2]);
+		BT_DBG("%s: features 0x%x 0x%x 0x%x", hdev->name,
+				lf->features[0], lf->features[1], lf->features[2]);
 
 		break;
 
@@ -757,6 +777,10 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 			hci_send_cmd(hdev, OGF_LINK_CTL,
 				OCF_CHANGE_CONN_PTYPE, sizeof(cp), &cp);
+		} else {
+			/* Update disconnect timer */
+			hci_conn_hold(conn);
+			hci_conn_put(conn);
 		}
 	} else
 		conn->state = BT_CLOSED;

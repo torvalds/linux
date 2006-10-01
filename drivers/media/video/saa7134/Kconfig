@@ -41,53 +41,15 @@ config VIDEO_SAA7134_DVB
 	select VIDEO_BUF_DVB
 	select FW_LOADER
 	select DVB_PLL
+	select DVB_MT352 if !DVB_FE_CUSTOMISE
+	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
+	select DVB_NXT200X if !DVB_FE_CUSTOMISE
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB cards based on the
 	  Philips saa7134 chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7134-dvb.
-
-	  You must also select one or more DVB demodulators.
-	  If you are unsure which you need, choose all of them.
-
-config VIDEO_SAA7134_DVB_ALL_FRONTENDS
-	bool "Build all supported frontends for saa7134 based TV cards"
-	default y
-	depends on VIDEO_SAA7134_DVB
-	select DVB_MT352
-	select DVB_TDA1004X
-	select DVB_NXT200X
-	---help---
-	  This builds saa7134-dvb with all currently supported frontend
-	  demodulators.  If you wish to tweak your configuration, and
-	  only include support for the hardware that you need, choose N here.
-
-	  If you are unsure, choose Y.
-
-config VIDEO_SAA7134_DVB_MT352
-	bool "Zarlink MT352 DVB-T Support"
-	default y
-	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
-	select DVB_MT352
-	---help---
-	  This adds DVB-T support for cards based on the
-	  Philips saa7134 chip and the MT352 demodulator.
-
-config VIDEO_SAA7134_DVB_TDA1004X
-	bool "Phillips TDA10045H/TDA10046H DVB-T Support"
-	default y
-	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
-	select DVB_TDA1004X
-	---help---
-	  This adds DVB-T support for cards based on the
-	  Philips saa7134 chip and the TDA10045H/TDA10046H demodulator.
-
-config VIDEO_SAA7134_DVB_NXT200X
-	bool "NXT2002/NXT2004 ATSC Support"
-	default y
-	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
-	select DVB_NXT200X
-	---help---
-	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
-	  Philips saa7134 chip and the NXT2002/NXT2004 demodulator.

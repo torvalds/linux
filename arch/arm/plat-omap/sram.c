@@ -174,10 +174,7 @@ void __init omap_map_sram(void)
 	if (cpu_is_omap24xx()) {
 		omap_sram_io_desc[0].virtual = OMAP2_SRAM_VA;
 
-		if (is_sram_locked())
-			base = OMAP2_SRAM_PUB_PA;
-		else
-			base = OMAP2_SRAM_PA;
+		base = OMAP2_SRAM_PA;
 		base = ROUND_DOWN(base, PAGE_SIZE);
 		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
 	}

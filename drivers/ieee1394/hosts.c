@@ -90,6 +90,16 @@ static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
 	return 0;
 }
 
+/*
+ * The pending_packet_queue is special in that it's processed
+ * from hardirq context too (such as hpsb_bus_reset()). Hence
+ * split the lock class from the usual networking skb-head
+ * lock class by using a separate key for it:
+ */
+static struct lock_class_key pending_packet_queue_key;
+
+static DEFINE_MUTEX(host_num_alloc);
+
 /**
  * hpsb_alloc_host - allocate a new host controller.
  * @drv: the driver that will manage the host controller
@@ -105,16 +115,6 @@ static int alloc_hostnum_cb(struct hpsb_host *host, void *__data)
  * Return Value: a pointer to the &hpsb_host if successful, %NULL if
  * no memory was available.
  */
-static DEFINE_MUTEX(host_num_alloc);
-
-/*
- * The pending_packet_queue is special in that it's processed
- * from hardirq context too (such as hpsb_bus_reset()). Hence
- * split the lock class from the usual networking skb-head
- * lock class by using a separate key for it:
- */
-static struct lock_class_key pending_packet_queue_key;
-
 struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 				  struct device *dev)
 {
@@ -142,9 +142,6 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 
 	for (i = 2; i < 16; i++)
 		h->csr.gen_timestamp[i] = jiffies - 60 * HZ;
-
-	for (i = 0; i < ARRAY_SIZE(h->tpool); i++)
-		HPSB_TPOOL_INIT(&h->tpool[i]);
 
 	atomic_set(&h->generation, 0);
 

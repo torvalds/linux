@@ -996,7 +996,6 @@ static void mmc_read_scrs(struct mmc_host *host)
 
 		mmc_set_data_timeout(&data, card, 0);
 
-		data.blksz_bits = 3;
 		data.blksz = 1 << 3;
 		data.blocks = 1;
 		data.flags = MMC_DATA_READ;

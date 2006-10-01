@@ -1270,7 +1270,7 @@ static void __init sunzilog_register_serio(struct uart_sunzilog_port *up)
 }
 #endif
 
-static void __init sunzilog_init_hw(struct uart_sunzilog_port *up)
+static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 {
 	struct zilog_channel __iomem *channel;
 	unsigned long flags;

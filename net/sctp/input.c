@@ -218,12 +218,6 @@ int sctp_rcv(struct sk_buff *skb)
 		}
 	}
 
-	/* SCTP seems to always need a timestamp right now (FIXME) */
-	if (skb->tstamp.off_sec == 0) {
-		__net_timestamp(skb);
-		sock_enable_timestamp(sk); 
-	}
-
 	if (!xfrm_policy_check(sk, XFRM_POLICY_IN, skb, family))
 		goto discard_release;
 	nf_reset(skb);
@@ -388,7 +382,7 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 			 * pmtu discovery on this transport.
 			 */
 			t->pathmtu = SCTP_DEFAULT_MINSEGMENT;
-			t->param_flags = (t->param_flags & ~SPP_HB) |
+			t->param_flags = (t->param_flags & ~SPP_PMTUD) |
 				SPP_PMTUD_DISABLE;
 		} else {
 			t->pathmtu = pmtu;

@@ -650,6 +650,7 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.count  = ARRAY_SIZE(tuner_temic_4009f_5_pal_ranges),
 		.has_tda9887 = 1,
 		.port1_invert_for_secam_lc = 1,
+		.default_pll_gating_18 = 1,
 	},
 };
 

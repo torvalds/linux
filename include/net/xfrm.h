@@ -437,8 +437,8 @@ static inline void xfrm_state_hold(struct xfrm_state *x)
 
 static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 {
-	__u32 *a1 = token1;
-	__u32 *a2 = token2;
+	__be32 *a1 = token1;
+	__be32 *a2 = token2;
 	int pdw;
 	int pbi;
 
@@ -450,7 +450,7 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 			return 0;
 
 	if (pbi) {
-		__u32 mask;
+		__be32 mask;
 
 		mask = htonl((0xffffffff) << (32 - pbi));
 
@@ -462,9 +462,9 @@ static __inline__ int addr_match(void *token1, void *token2, int prefixlen)
 }
 
 static __inline__
-u16 xfrm_flowi_sport(struct flowi *fl)
+__be16 xfrm_flowi_sport(struct flowi *fl)
 {
-	u16 port;
+	__be16 port;
 	switch(fl->proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -487,9 +487,9 @@ u16 xfrm_flowi_sport(struct flowi *fl)
 }
 
 static __inline__
-u16 xfrm_flowi_dport(struct flowi *fl)
+__be16 xfrm_flowi_dport(struct flowi *fl)
 {
-	u16 port;
+	__be16 port;
 	switch(fl->proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
@@ -912,7 +912,7 @@ extern int xfrm_state_check_expire(struct xfrm_state *x);
 extern void xfrm_state_insert(struct xfrm_state *x);
 extern int xfrm_state_add(struct xfrm_state *x);
 extern int xfrm_state_update(struct xfrm_state *x);
-extern struct xfrm_state *xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family);
+extern struct xfrm_state *xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family);
 extern struct xfrm_state *xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family);
 #ifdef CONFIG_XFRM_SUB_POLICY
 extern int xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src,
@@ -935,8 +935,8 @@ static inline int xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **s
 extern struct xfrm_state *xfrm_find_acq_byseq(u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto);
-extern int xfrm_replay_check(struct xfrm_state *x, u32 seq);
-extern void xfrm_replay_advance(struct xfrm_state *x, u32 seq);
+extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
+extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
@@ -945,7 +945,7 @@ extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
-extern int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi);
+extern int xfrm6_rcv_spi(struct sk_buff *skb, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);
@@ -989,7 +989,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 struct xfrm_policy *xfrm_policy_byid(u8, int dir, u32 id, int delete);
 void xfrm_policy_flush(u8 type);
 u32 xfrm_get_acqseq(void);
-void xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);
+void xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi);
 struct xfrm_state * xfrm_find_acq(u8 mode, u32 reqid, u8 proto, 
 				  xfrm_address_t *daddr, xfrm_address_t *saddr, 
 				  int create, unsigned short family);
@@ -1004,7 +1004,7 @@ extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pi
 extern int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
 
 extern void xfrm_input_init(void);
-extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq);
+extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq);
 
 extern void xfrm_probe_algs(void);
 extern int xfrm_count_auth_supported(void);

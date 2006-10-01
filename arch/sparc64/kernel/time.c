@@ -465,7 +465,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		profile_tick(CPU_PROFILING, regs);
 		update_process_times(user_mode(regs));
 #endif
-		do_timer(regs);
+		do_timer(1);
 
 		/* Guarantee that the following sequences execute
 		 * uninterrupted.
@@ -496,7 +496,7 @@ void timer_tick_interrupt(struct pt_regs *regs)
 {
 	write_seqlock(&xtime_lock);
 
-	do_timer(regs);
+	do_timer(1);
 
 	timer_check_rtc();
 

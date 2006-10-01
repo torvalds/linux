@@ -35,25 +35,35 @@ size_t copy_from_user_std(size_t size, const void __user *ptr, void *x)
 	tmp1 = -256UL;
 	asm volatile(
 		"0: mvcp  0(%0,%2),0(%1),%3\n"
-		"   jz    5f\n"
+		"   jz    8f\n"
 		"1:"ALR"  %0,%3\n"
 		"   la    %1,256(%1)\n"
 		"   la    %2,256(%2)\n"
 		"2: mvcp  0(%0,%2),0(%1),%3\n"
 		"   jnz   1b\n"
-		"   j     5f\n"
+		"   j     8f\n"
 		"3: la    %4,255(%1)\n"	/* %4 = ptr + 255 */
 		"  "LHI"  %3,-4096\n"
 		"   nr    %4,%3\n"	/* %4 = (ptr + 255) & -4096 */
 		"  "SLR"  %4,%1\n"
 		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   6f\n"
+		"   jnh   5f\n"
 		"4: mvcp  0(%4,%2),0(%1),%3\n"
 		"  "SLR"  %0,%4\n"
-		"   j     6f\n"
-		"5:"SLR"  %0,%0\n"
-		"6: \n"
-		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,6b)
+		"  "ALR"  %2,%4\n"
+		"5:"LHI"  %4,-1\n"
+		"  "ALR"  %4,%0\n"	/* copy remaining size, subtract 1 */
+		"   bras  %3,7f\n"	/* memset loop */
+		"   xc    0(1,%2),0(%2)\n"
+		"6: xc    0(256,%2),0(%2)\n"
+		"   la    %2,256(%2)\n"
+		"7:"AHI"  %4,-256\n"
+		"   jnm   6b\n"
+		"   ex    %4,0(%3)\n"
+		"   j     9f\n"
+		"8:"SLR"  %0,%0\n"
+		"9: \n"
+		EX_TABLE(0b,3b) EX_TABLE(2b,3b) EX_TABLE(4b,5b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");
 	return size;
@@ -67,16 +77,22 @@ size_t copy_from_user_std_small(size_t size, const void __user *ptr, void *x)
 	asm volatile(
 		"0: mvcp  0(%0,%2),0(%1),%3\n"
 		"  "SLR"  %0,%0\n"
-		"   j     3f\n"
+		"   j     5f\n"
 		"1: la    %4,255(%1)\n" /* %4 = ptr + 255 */
 		"  "LHI"  %3,-4096\n"
 		"   nr    %4,%3\n"	/* %4 = (ptr + 255) & -4096 */
 		"  "SLR"  %4,%1\n"
 		"  "CLR"  %0,%4\n"	/* copy crosses next page boundary? */
-		"   jnh   3f\n"
+		"   jnh   5f\n"
 		"2: mvcp  0(%4,%2),0(%1),%3\n"
 		"  "SLR"  %0,%4\n"
-		"3:\n"
+		"  "ALR"  %2,%4\n"
+		"3:"LHI"  %4,-1\n"
+		"  "ALR"  %4,%0\n"	/* copy remaining size, subtract 1 */
+		"   bras  %3,4f\n"
+		"   xc    0(1,%2),0(%2)\n"
+		"4: ex    %4,0(%3)\n"
+		"5:\n"
 		EX_TABLE(0b,1b) EX_TABLE(2b,3b)
 		: "+a" (size), "+a" (ptr), "+a" (x), "+a" (tmp1), "=a" (tmp2)
 		: : "cc", "memory");

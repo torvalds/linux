@@ -302,7 +302,7 @@ int c2_llp_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	vq_req = vq_req_alloc(c2dev);
 	if (!vq_req) {
 		err = -ENOMEM;
-		goto bail1;
+		goto bail0;
 	}
 	vq_req->qp = qp;
 	vq_req->cm_id = cm_id;
@@ -311,7 +311,7 @@ int c2_llp_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	wr = kmalloc(c2dev->req_vq.msg_size, GFP_KERNEL);
 	if (!wr) {
 		err = -ENOMEM;
-		goto bail2;
+		goto bail1;
 	}
 
 	/* Build the WR */
@@ -331,7 +331,7 @@ int c2_llp_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	/* Validate private_data length */
 	if (iw_param->private_data_len > C2_MAX_PRIVATE_DATA_SIZE) {
 		err = -EINVAL;
-		goto bail2;
+		goto bail1;
 	}
 
 	if (iw_param->private_data) {
@@ -348,19 +348,19 @@ int c2_llp_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	err = vq_send_wr(c2dev, (union c2wr *) wr);
 	if (err) {
 		vq_req_put(c2dev, vq_req);
-		goto bail2;
+		goto bail1;
 	}
 
 	/* Wait for reply from adapter */
 	err = vq_wait_for_reply(c2dev, vq_req);
 	if (err)
-		goto bail2;
+		goto bail1;
 
 	/* Check that reply is present */
 	reply = (struct c2wr_cr_accept_rep *) (unsigned long) vq_req->reply_msg;
 	if (!reply) {
 		err = -ENOMEM;
-		goto bail2;
+		goto bail1;
 	}
 
 	err = c2_errno(reply);
@@ -368,9 +368,8 @@ int c2_llp_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 
 	if (!err)
 		c2_set_qp_state(qp, C2_QP_STATE_RTS);
- bail2:
-	kfree(wr);
  bail1:
+	kfree(wr);
 	vq_req_free(c2dev, vq_req);
  bail0:
 	if (err) {

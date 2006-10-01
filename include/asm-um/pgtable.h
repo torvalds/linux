@@ -274,12 +274,6 @@ static inline pte_t pte_mkread(pte_t pte)
 	return(pte_mknewprot(pte)); 
 }
 
-static inline pte_t pte_mkexec(pte_t pte)
-{ 
-	pte_set_bits(pte, _PAGE_USER);
-	return(pte_mknewprot(pte)); 
-}
-
 static inline pte_t pte_mkdirty(pte_t pte)
 { 
 	pte_set_bits(pte, _PAGE_DIRTY);

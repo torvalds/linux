@@ -548,7 +548,8 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	struct rpc_rqst *rovr;
 	struct sk_buff *skb;
 	int err, repsize, copied;
-	u32 _xid, *xp;
+	u32 _xid;
+	__be32 *xp;
 
 	read_lock(&sk->sk_callback_lock);
 	dprintk("RPC:      xs_udp_data_ready...\n");

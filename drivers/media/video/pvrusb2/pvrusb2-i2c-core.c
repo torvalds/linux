@@ -185,8 +185,6 @@ static int pvr2_i2c_basic_op(struct pvr2_hdw *hdw,
 	}
 }
 
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
-
 /* This is a special entry point that is entered if an I2C operation is
    attempted to a wm8775 chip on model 24xxx hardware.  Autodetect of this
    part doesn't work, but we know it is really there.  So let's look for
@@ -288,8 +286,6 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 	hdw->i2c_cx25840_hack_state = state;
 	return -EIO;
 }
-
-#endif /* CONFIG_VIDEO_PVRUSB2_24XXX */
 
 /* This is a very, very limited I2C adapter implementation.  We can only
    support what we actually know will work on the device... */
@@ -897,14 +893,12 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		hdw->i2c_func[idx] = pvr2_i2c_basic_op;
 	}
 
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	// If however we're dealing with new hardware, insert some hacks in
 	// the I2C transfer stack to let things work better.
 	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
 		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
 		hdw->i2c_func[0x44] = i2c_hack_cx25840;
 	}
-#endif
 
 	// Configure the adapter and set up everything else related to it.
 	memcpy(&hdw->i2c_adap,&pvr2_i2c_adap_template,sizeof(hdw->i2c_adap));

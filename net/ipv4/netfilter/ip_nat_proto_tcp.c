@@ -24,7 +24,7 @@ tcp_in_range(const struct ip_conntrack_tuple *tuple,
 	     const union ip_conntrack_manip_proto *min,
 	     const union ip_conntrack_manip_proto *max)
 {
-	u_int16_t port;
+	__be16 port;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
 		port = tuple->src.u.tcp.port;
@@ -42,7 +42,7 @@ tcp_unique_tuple(struct ip_conntrack_tuple *tuple,
 		 const struct ip_conntrack *conntrack)
 {
 	static u_int16_t port;
-	u_int16_t *portptr;
+	__be16 *portptr;
 	unsigned int range_size, min, i;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
@@ -93,8 +93,8 @@ tcp_manip_pkt(struct sk_buff **pskb,
 	struct iphdr *iph = (struct iphdr *)((*pskb)->data + iphdroff);
 	struct tcphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
-	u32 oldip, newip;
-	u16 *portptr, newport, oldport;
+	__be32 oldip, newip;
+	__be16 *portptr, newport, oldport;
 	int hdrsize = 8; /* TCP connection tracking guarantees this much */
 
 	/* this could be a inner header returned in icmp packet; in such
@@ -130,7 +130,7 @@ tcp_manip_pkt(struct sk_buff **pskb,
 		return 1;
 
 	hdr->check = nf_proto_csum_update(*pskb, ~oldip, newip, hdr->check, 1);
-	hdr->check = nf_proto_csum_update(*pskb, oldport ^ 0xFFFF, newport,
+	hdr->check = nf_proto_csum_update(*pskb, oldport ^ htons(0xFFFF), newport,
 					  hdr->check, 0);
 	return 1;
 }

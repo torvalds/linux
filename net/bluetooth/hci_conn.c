@@ -84,6 +84,20 @@ static void hci_acl_connect(struct hci_conn *conn)
 	hci_send_cmd(hdev, OGF_LINK_CTL, OCF_CREATE_CONN, sizeof(cp), &cp);
 }
 
+static void hci_acl_connect_cancel(struct hci_conn *conn)
+{
+	struct hci_cp_create_conn_cancel cp;
+
+	BT_DBG("%p", conn);
+
+	if (conn->hdev->hci_ver < 2)
+		return;
+
+	bacpy(&cp.bdaddr, &conn->dst);
+	hci_send_cmd(conn->hdev, OGF_LINK_CTL,
+				OCF_CREATE_CONN_CANCEL, sizeof(cp), &cp);
+}
+
 void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
@@ -94,7 +108,8 @@ void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 
 	cp.handle = __cpu_to_le16(conn->handle);
 	cp.reason = reason;
-	hci_send_cmd(conn->hdev, OGF_LINK_CTL, OCF_DISCONNECT, sizeof(cp), &cp);
+	hci_send_cmd(conn->hdev, OGF_LINK_CTL,
+				OCF_DISCONNECT, sizeof(cp), &cp);
 }
 
 void hci_add_sco(struct hci_conn *conn, __u16 handle)
@@ -124,12 +139,20 @@ static void hci_conn_timeout(unsigned long arg)
 		return;
 
 	hci_dev_lock(hdev);
- 	if (conn->state == BT_CONNECTED)
+
+	switch (conn->state) {
+	case BT_CONNECT:
+		hci_acl_connect_cancel(conn);
+		break;
+ 	case BT_CONNECTED:
 		hci_acl_disconn(conn, 0x13);
-	else
+		break;
+	default:
 		conn->state = BT_CLOSED;
+		break;
+	}
+
 	hci_dev_unlock(hdev);
-	return;
 }
 
 static void hci_conn_idle(unsigned long arg)
@@ -179,6 +202,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 
+	hci_conn_add_sysfs(conn);
+
 	tasklet_enable(&hdev->tx_task);
 
 	return conn;
@@ -211,6 +236,8 @@ int hci_conn_del(struct hci_conn *conn)
 
 	tasklet_disable(&hdev->tx_task);
 
+	hci_conn_del_sysfs(conn);
+
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
@@ -221,7 +248,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	hci_dev_put(hdev);
 
-	kfree(conn);
+	/* will free via device release */
+	put_device(&conn->dev);
+
 	return 0;
 }
 

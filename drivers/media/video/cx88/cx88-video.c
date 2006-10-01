@@ -497,6 +497,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int stop_video_dma(struct cx8800_dev    *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -512,6 +513,7 @@ static int stop_video_dma(struct cx8800_dev    *dev)
 	cx_clear(MO_VID_INTMSK, 0x0f0011);
 	return 0;
 }
+#endif
 
 static int restart_video_queue(struct cx8800_dev    *dev,
 			       struct cx88_dmaqueue *q)
@@ -2017,6 +2019,7 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
+#ifdef CONFIG_PM
 static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
@@ -2092,6 +2095,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 
 	return 0;
 }
+#endif
 
 /* ----------------------------------------------------------- */
 
@@ -2112,9 +2116,10 @@ static struct pci_driver cx8800_pci_driver = {
 	.id_table = cx8800_pci_tbl,
 	.probe    = cx8800_initdev,
 	.remove   = __devexit_p(cx8800_finidev),
-
+#ifdef CONFIG_PM
 	.suspend  = cx8800_suspend,
 	.resume   = cx8800_resume,
+#endif
 };
 
 static int cx8800_init(void)

@@ -22,7 +22,7 @@ struct inet_peer
 	unsigned long		dtime;		/* the time of last use of not
 						 * referenced entries */
 	atomic_t		refcnt;
-	__u32			v4daddr;	/* peer's address */
+	__be32			v4daddr;	/* peer's address */
 	__u16			avl_height;
 	__u16			ip_id_count;	/* IP ID for the next packet */
 	atomic_t		rid;		/* Frag reception counter */
@@ -33,7 +33,7 @@ struct inet_peer
 void			inet_initpeers(void) __init;
 
 /* can be called with or without local BH being disabled */
-struct inet_peer	*inet_getpeer(__u32 daddr, int create);
+struct inet_peer	*inet_getpeer(__be32 daddr, int create);
 
 extern spinlock_t inet_peer_unused_lock;
 extern struct inet_peer **inet_peer_unused_tailp;

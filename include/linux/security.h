@@ -1595,6 +1595,7 @@ static inline void security_sb_post_pivotroot (struct nameidata *old_nd,
 
 static inline int security_inode_alloc (struct inode *inode)
 {
+	inode->i_security = NULL;
 	return security_ops->inode_alloc_security (inode);
 }
 

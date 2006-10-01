@@ -48,15 +48,9 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
  */
 
 /*
- * Flags to xfs_log_mount
- */
-#define XFS_LOG_RECOVER		0x1
-
-/*
  * Flags to xfs_log_done()
  */
 #define XFS_LOG_REL_PERM_RESERV	0x1
-
 
 /*
  * Flags to xfs_log_reserve()
@@ -70,8 +64,6 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 #define XFS_LOG_SLEEP		0x0
 #define XFS_LOG_NOSLEEP		0x1
 #define XFS_LOG_PERM_RESERV	0x2
-#define XFS_LOG_RESV_ALL	(XFS_LOG_NOSLEEP|XFS_LOG_PERM_RESERV)
-
 
 /*
  * Flags to xfs_log_force()

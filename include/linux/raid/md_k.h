@@ -18,6 +18,8 @@
 /* and dm-bio-list.h is not under include/linux because.... ??? */
 #include "../../../drivers/md/dm-bio-list.h"
 
+#ifdef CONFIG_BLOCK
+
 #define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_LINEAR		(-1)
 #define	LEVEL_FAULTY		(-5)
@@ -362,5 +364,6 @@ static inline void safe_put_page(struct page *p)
 	if (p) put_page(p);
 }
 
+#endif /* CONFIG_BLOCK */
 #endif
 

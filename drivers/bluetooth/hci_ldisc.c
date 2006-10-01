@@ -241,15 +241,11 @@ static int hci_uart_send_frame(struct sk_buff *skb)
 
 static void hci_uart_destruct(struct hci_dev *hdev)
 {
-	struct hci_uart *hu;
-
 	if (!hdev)
 		return;
 
 	BT_DBG("%s", hdev->name);
-
-	hu = (struct hci_uart *) hdev->driver_data;
-	kfree(hu);
+	kfree(hdev->driver_data);
 }
 
 /* ------ LDISC part ------ */
@@ -272,7 +268,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 		return -EEXIST;
 
 	if (!(hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL))) {
-		BT_ERR("Can't allocate controll structure");
+		BT_ERR("Can't allocate control structure");
 		return -ENFILE;
 	}
 
@@ -360,7 +356,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  *     
  * Return Value:    None
  */
-static void hci_uart_tty_receive(struct tty_struct *tty, const __u8 *data, char *flags, int count)
+static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *flags, int count)
 {
 	struct hci_uart *hu = (void *)tty->disc_data;
 
@@ -375,7 +371,8 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const __u8 *data, char 
 	hu->hdev->stat.byte_rx += count;
 	spin_unlock(&hu->rx_lock);
 
-	if (test_and_clear_bit(TTY_THROTTLED,&tty->flags) && tty->driver->unthrottle)
+	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
+					tty->driver->unthrottle)
 		tty->driver->unthrottle(tty);
 }
 

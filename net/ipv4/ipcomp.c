@@ -183,7 +183,7 @@ out_ok:
 
 static void ipcomp4_err(struct sk_buff *skb, u32 info)
 {
-	u32 spi;
+	__be32 spi;
 	struct iphdr *iph = (struct iphdr *)skb->data;
 	struct ip_comp_hdr *ipch = (struct ip_comp_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;

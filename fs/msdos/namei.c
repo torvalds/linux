@@ -280,7 +280,7 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 			struct nameidata *nd)
 {
 	struct super_block *sb = dir->i_sb;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct fat_slot_info sinfo;
 	struct timespec ts;
 	unsigned char msdos_name[MSDOS_NAME];
@@ -316,6 +316,8 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 	d_instantiate(dentry, inode);
 out:
 	unlock_kernel();
+	if (!err)
+		err = fat_flush_inodes(sb, dir, inode);
 	return err;
 }
 
@@ -348,6 +350,8 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	fat_detach(inode);
 out:
 	unlock_kernel();
+	if (!err)
+		err = fat_flush_inodes(inode->i_sb, dir, inode);
 
 	return err;
 }
@@ -401,6 +405,7 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	d_instantiate(dentry, inode);
 
 	unlock_kernel();
+	fat_flush_inodes(sb, dir, inode);
 	return 0;
 
 out_free:
@@ -430,6 +435,8 @@ static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 	fat_detach(inode);
 out:
 	unlock_kernel();
+	if (!err)
+		err = fat_flush_inodes(inode->i_sb, dir, inode);
 
 	return err;
 }
@@ -635,6 +642,8 @@ static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
 			      new_dir, new_msdos_name, new_dentry, is_hid);
 out:
 	unlock_kernel();
+	if (!err)
+		err = fat_flush_inodes(old_dir->i_sb, old_dir, new_dir);
 	return err;
 }
 

@@ -220,6 +220,7 @@ struct ipath_segarray {
 };
 
 struct ipath_mregion {
+	struct ib_pd *pd;	/* shares refcnt of ibmr.pd */
 	u64 user_base;		/* User's address for this region */
 	u64 iova;		/* IB start address of this region */
 	size_t length;
@@ -364,12 +365,14 @@ struct ipath_qp {
 	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
 	u8 r_sge_inx;		/* current index into sg_list */
+	u8 r_wrid_valid;	/* r_wrid set but CQ entry not yet made */
 	u8 qp_access_flags;
 	u8 s_max_sge;		/* size of s_wq->sg_list */
 	u8 s_retry_cnt;		/* number of times to retry */
 	u8 s_rnr_retry_cnt;
 	u8 s_retry;		/* requester retry counter */
 	u8 s_rnr_retry;		/* requester RNR retry counter */
+	u8 s_wait_credit;	/* limit number of unacked packets sent */
 	u8 s_pkey_index;	/* PKEY index to use */
 	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
@@ -392,6 +395,8 @@ struct ipath_qp {
  */
 #define IPATH_S_BUSY		0
 #define IPATH_S_SIGNAL_REQ_WR	1
+
+#define IPATH_PSN_CREDIT	2048
 
 /*
  * Since struct ipath_swqe is not a fixed size, we can't simply index into
@@ -521,6 +526,7 @@ struct ipath_ibdev {
 	u32 n_rnr_naks;
 	u32 n_other_naks;
 	u32 n_timeouts;
+	u32 n_rc_stalls;
 	u32 n_pkt_drops;
 	u32 n_vl15_dropped;
 	u32 n_wqe_errs;
@@ -634,6 +640,8 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 
 int ipath_destroy_qp(struct ib_qp *ibqp);
 
+void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
+
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
 
@@ -652,12 +660,6 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 		     u32 *hdr, u32 len, struct ipath_sge_state *ss);
 
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
-
-int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
-		  u32 len, u64 vaddr, u32 rkey, int acc);
-
-int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
-		  struct ib_sge *sge, int acc);
 
 void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 
@@ -683,10 +685,10 @@ int ipath_alloc_lkey(struct ipath_lkey_table *rkt,
 
 void ipath_free_lkey(struct ipath_lkey_table *rkt, u32 lkey);
 
-int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
+int ipath_lkey_ok(struct ipath_qp *qp, struct ipath_sge *isge,
 		  struct ib_sge *sge, int acc);
 
-int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
+int ipath_rkey_ok(struct ipath_qp *qp, struct ipath_sge_state *ss,
 		  u32 len, u64 vaddr, u32 rkey, int acc);
 
 int ipath_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,

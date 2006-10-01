@@ -1614,8 +1614,8 @@ isdn_net_ciscohdlck_slarp_send_reply(isdn_net_local *lp)
 	struct sk_buff *skb;
 	unsigned char *p;
 	struct in_device *in_dev = NULL;
-	u32 addr = 0;		/* local ipv4 address */
-	u32 mask = 0;		/* local netmask */
+	__be32 addr = 0;		/* local ipv4 address */
+	__be32 mask = 0;		/* local netmask */
 
 	if ((in_dev = lp->netdev->dev.ip_ptr) != NULL) {
 		/* take primary(first) address of interface */

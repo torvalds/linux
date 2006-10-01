@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  *
  *  Common kernel startup code (non-paged MM)
- *    for 32-bit CPUs which has a process ID register(CP15).
  *
  */
 #include <linux/linkage.h>
@@ -40,7 +39,11 @@
 ENTRY(stext)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
 						@ and irqs disabled
+#ifndef CONFIG_CPU_CP15
+	ldr	r9, =CONFIG_PROCESSOR_ID
+#else
 	mrc	p15, 0, r9, c0, c0		@ get processor id
+#endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
 	beq	__error_p				@ yes, error 'p'
@@ -58,6 +61,7 @@ ENTRY(stext)
  */
 	.type	__after_proc_init, %function
 __after_proc_init:
+#ifdef CONFIG_CPU_CP15
 	mrc	p15, 0, r0, c1, c0, 0		@ read control reg
 #ifdef CONFIG_ALIGNMENT_TRAP
 	orr	r0, r0, #CR_A
@@ -73,7 +77,13 @@ __after_proc_init:
 #ifdef CONFIG_CPU_ICACHE_DISABLE
 	bic	r0, r0, #CR_I
 #endif
+#ifdef CONFIG_CPU_HIGH_VECTOR
+	orr	r0, r0, #CR_V
+#else
+	bic	r0, r0, #CR_V
+#endif
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
+#endif /* CONFIG_CPU_CP15 */
 
 	mov	pc, r13				@ clear the BSS and jump
 						@ to start_kernel

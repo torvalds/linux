@@ -33,7 +33,7 @@ struct ip_nat_range
 	unsigned int flags;
 
 	/* Inclusive: network order. */
-	u_int32_t min_ip, max_ip;
+	__be32 min_ip, max_ip;
 
 	/* Inclusive: network order */
 	union ip_conntrack_manip_proto min, max;

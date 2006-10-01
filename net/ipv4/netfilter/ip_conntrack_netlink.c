@@ -78,8 +78,8 @@ ctnetlink_dump_tuples_ip(struct sk_buff *skb,
 {
 	struct nfattr *nest_parms = NFA_NEST(skb, CTA_TUPLE_IP);
 	
-	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t), &tuple->src.ip);
-	NFA_PUT(skb, CTA_IP_V4_DST, sizeof(u_int32_t), &tuple->dst.ip);
+	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(__be32), &tuple->src.ip);
+	NFA_PUT(skb, CTA_IP_V4_DST, sizeof(__be32), &tuple->dst.ip);
 
 	NFA_NEST_END(skb, nest_parms);
 
@@ -110,7 +110,7 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 static inline int
 ctnetlink_dump_status(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	u_int32_t status = htonl((u_int32_t) ct->status);
+	__be32 status = htonl((u_int32_t) ct->status);
 	NFA_PUT(skb, CTA_STATUS, sizeof(status), &status);
 	return 0;
 
@@ -122,7 +122,7 @@ static inline int
 ctnetlink_dump_timeout(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
 	long timeout_l = ct->timeout.expires - jiffies;
-	u_int32_t timeout;
+	__be32 timeout;
 
 	if (timeout_l < 0)
 		timeout = 0;
@@ -192,13 +192,13 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct ip_conntrack *ct,
 {
 	enum ctattr_type type = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
 	struct nfattr *nest_count = NFA_NEST(skb, type);
-	u_int32_t tmp;
+	__be32 tmp;
 
 	tmp = htonl(ct->counters[dir].packets);
-	NFA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(u_int32_t), &tmp);
+	NFA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(__be32), &tmp);
 
 	tmp = htonl(ct->counters[dir].bytes);
-	NFA_PUT(skb, CTA_COUNTERS32_BYTES, sizeof(u_int32_t), &tmp);
+	NFA_PUT(skb, CTA_COUNTERS32_BYTES, sizeof(__be32), &tmp);
 
 	NFA_NEST_END(skb, nest_count);
 
@@ -215,9 +215,9 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_mark(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	u_int32_t mark = htonl(ct->mark);
+	__be32 mark = htonl(ct->mark);
 
-	NFA_PUT(skb, CTA_MARK, sizeof(u_int32_t), &mark);
+	NFA_PUT(skb, CTA_MARK, sizeof(__be32), &mark);
 	return 0;
 
 nfattr_failure:
@@ -230,8 +230,8 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_id(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	u_int32_t id = htonl(ct->id);
-	NFA_PUT(skb, CTA_ID, sizeof(u_int32_t), &id);
+	__be32 id = htonl(ct->id);
+	NFA_PUT(skb, CTA_ID, sizeof(__be32), &id);
 	return 0;
 
 nfattr_failure:
@@ -241,9 +241,9 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_use(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	u_int32_t use = htonl(atomic_read(&ct->ct_general.use));
+	__be32 use = htonl(atomic_read(&ct->ct_general.use));
 	
-	NFA_PUT(skb, CTA_USE, sizeof(u_int32_t), &use);
+	NFA_PUT(skb, CTA_USE, sizeof(__be32), &use);
 	return 0;
 
 nfattr_failure:
@@ -457,8 +457,8 @@ out:
 }
 
 static const size_t cta_min_ip[CTA_IP_MAX] = {
-	[CTA_IP_V4_SRC-1]	= sizeof(u_int32_t),
-	[CTA_IP_V4_DST-1]	= sizeof(u_int32_t),
+	[CTA_IP_V4_SRC-1]	= sizeof(__be32),
+	[CTA_IP_V4_DST-1]	= sizeof(__be32),
 };
 
 static inline int
@@ -475,11 +475,11 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 
 	if (!tb[CTA_IP_V4_SRC-1])
 		return -EINVAL;
-	tuple->src.ip = *(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
+	tuple->src.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
 
 	if (!tb[CTA_IP_V4_DST-1])
 		return -EINVAL;
-	tuple->dst.ip = *(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
+	tuple->dst.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
 
 	DEBUGP("leaving\n");
 
@@ -602,8 +602,8 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 }
 
 static const size_t cta_min_nat[CTA_NAT_MAX] = {
-	[CTA_NAT_MINIP-1]       = sizeof(u_int32_t),
-	[CTA_NAT_MAXIP-1]       = sizeof(u_int32_t),
+	[CTA_NAT_MINIP-1]       = sizeof(__be32),
+	[CTA_NAT_MAXIP-1]       = sizeof(__be32),
 };
 
 static inline int
@@ -623,12 +623,12 @@ ctnetlink_parse_nat(struct nfattr *nat,
 		return -EINVAL;
 
 	if (tb[CTA_NAT_MINIP-1])
-		range->min_ip = *(u_int32_t *)NFA_DATA(tb[CTA_NAT_MINIP-1]);
+		range->min_ip = *(__be32 *)NFA_DATA(tb[CTA_NAT_MINIP-1]);
 
 	if (!tb[CTA_NAT_MAXIP-1])
 		range->max_ip = range->min_ip;
 	else
-		range->max_ip = *(u_int32_t *)NFA_DATA(tb[CTA_NAT_MAXIP-1]);
+		range->max_ip = *(__be32 *)NFA_DATA(tb[CTA_NAT_MAXIP-1]);
 
 	if (range->min_ip)
 		range->flags |= IP_NAT_RANGE_MAP_IPS;
@@ -663,11 +663,11 @@ ctnetlink_parse_help(struct nfattr *attr, char **helper_name)
 }
 
 static const size_t cta_min[CTA_MAX] = {
-	[CTA_STATUS-1] 		= sizeof(u_int32_t),
-	[CTA_TIMEOUT-1] 	= sizeof(u_int32_t),
-	[CTA_MARK-1]		= sizeof(u_int32_t),
-	[CTA_USE-1]		= sizeof(u_int32_t),
-	[CTA_ID-1]		= sizeof(u_int32_t)
+	[CTA_STATUS-1] 		= sizeof(__be32),
+	[CTA_TIMEOUT-1] 	= sizeof(__be32),
+	[CTA_MARK-1]		= sizeof(__be32),
+	[CTA_USE-1]		= sizeof(__be32),
+	[CTA_ID-1]		= sizeof(__be32)
 };
 
 static int
@@ -706,7 +706,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	ct = tuplehash_to_ctrack(h);
 	
 	if (cda[CTA_ID-1]) {
-		u_int32_t id = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_ID-1]));
+		u_int32_t id = ntohl(*(__be32 *)NFA_DATA(cda[CTA_ID-1]));
 		if (ct->id != id) {
 			ip_conntrack_put(ct);
 			return -ENOENT;
@@ -808,7 +808,7 @@ static inline int
 ctnetlink_change_status(struct ip_conntrack *ct, struct nfattr *cda[])
 {
 	unsigned long d;
-	unsigned status = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_STATUS-1]));
+	unsigned status = ntohl(*(__be32 *)NFA_DATA(cda[CTA_STATUS-1]));
 	d = ct->status ^ status;
 
 	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
@@ -903,7 +903,7 @@ ctnetlink_change_helper(struct ip_conntrack *ct, struct nfattr *cda[])
 static inline int
 ctnetlink_change_timeout(struct ip_conntrack *ct, struct nfattr *cda[])
 {
-	u_int32_t timeout = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_TIMEOUT-1]));
+	u_int32_t timeout = ntohl(*(__be32 *)NFA_DATA(cda[CTA_TIMEOUT-1]));
 	
 	if (!del_timer(&ct->timeout))
 		return -ETIME;
@@ -966,7 +966,7 @@ ctnetlink_change_conntrack(struct ip_conntrack *ct, struct nfattr *cda[])
 
 #if defined(CONFIG_IP_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK-1])
-		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
+		ct->mark = ntohl(*(__be32 *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
 	DEBUGP("all done\n");
@@ -989,7 +989,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 
 	if (!cda[CTA_TIMEOUT-1])
 		goto err;
-	ct->timeout.expires = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_TIMEOUT-1]));
+	ct->timeout.expires = ntohl(*(__be32 *)NFA_DATA(cda[CTA_TIMEOUT-1]));
 
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
 	ct->status |= IPS_CONFIRMED;
@@ -1006,7 +1006,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 
 #if defined(CONFIG_IP_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK-1])
-		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
+		ct->mark = ntohl(*(__be32 *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
 	ct->helper = ip_conntrack_helper_find_get(rtuple);
@@ -1138,8 +1138,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
                           const struct ip_conntrack_expect *exp)
 {
 	struct ip_conntrack *master = exp->master;
-	u_int32_t timeout = htonl((exp->timeout.expires - jiffies) / HZ);
-	u_int32_t id = htonl(exp->id);
+	__be32 timeout = htonl((exp->timeout.expires - jiffies) / HZ);
+	__be32 id = htonl(exp->id);
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nfattr_failure;
@@ -1150,8 +1150,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 				 CTA_EXPECT_MASTER) < 0)
 		goto nfattr_failure;
 	
-	NFA_PUT(skb, CTA_EXPECT_TIMEOUT, sizeof(timeout), &timeout);
-	NFA_PUT(skb, CTA_EXPECT_ID, sizeof(u_int32_t), &id);
+	NFA_PUT(skb, CTA_EXPECT_TIMEOUT, sizeof(__be32), &timeout);
+	NFA_PUT(skb, CTA_EXPECT_ID, sizeof(__be32), &id);
 
 	return 0;
 	
@@ -1272,8 +1272,8 @@ out:
 }
 
 static const size_t cta_min_exp[CTA_EXPECT_MAX] = {
-	[CTA_EXPECT_TIMEOUT-1]          = sizeof(u_int32_t),
-	[CTA_EXPECT_ID-1]               = sizeof(u_int32_t)
+	[CTA_EXPECT_TIMEOUT-1]          = sizeof(__be32),
+	[CTA_EXPECT_ID-1]               = sizeof(__be32)
 };
 
 static int
@@ -1321,7 +1321,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 		return -ENOENT;
 
 	if (cda[CTA_EXPECT_ID-1]) {
-		u_int32_t id = *(u_int32_t *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
+		__be32 id = *(__be32 *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
 		if (exp->id != ntohl(id)) {
 			ip_conntrack_expect_put(exp);
 			return -ENOENT;
@@ -1375,8 +1375,8 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 
 		if (cda[CTA_EXPECT_ID-1]) {
-			u_int32_t id = 
-				*(u_int32_t *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
+			__be32 id =
+				*(__be32 *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
 			if (exp->id != ntohl(id)) {
 				ip_conntrack_expect_put(exp);
 				return -ENOENT;

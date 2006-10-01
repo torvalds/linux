@@ -225,7 +225,7 @@ static inline void mts_debug_dump(struct mts_desc* desc) {
 }
 
 
-static inline void mts_show_command(Scsi_Cmnd *srb)
+static inline void mts_show_command(struct scsi_cmnd *srb)
 {
 	char *what = NULL;
 
@@ -309,7 +309,7 @@ static inline void mts_show_command(Scsi_Cmnd *srb)
 
 #else
 
-static inline void mts_show_command(Scsi_Cmnd * dummy)
+static inline void mts_show_command(struct scsi_cmnd * dummy)
 {
 }
 
@@ -338,7 +338,7 @@ static int mts_slave_configure (struct scsi_device *s)
 	return 0;
 }
 
-static int mts_scsi_abort (Scsi_Cmnd *srb)
+static int mts_scsi_abort(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 
@@ -349,7 +349,7 @@ static int mts_scsi_abort (Scsi_Cmnd *srb)
 	return FAILED;
 }
 
-static int mts_scsi_host_reset (Scsi_Cmnd *srb)
+static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int result, rc;
@@ -366,8 +366,8 @@ static int mts_scsi_host_reset (Scsi_Cmnd *srb)
 	return result ? FAILED : SUCCESS;
 }
 
-static
-int mts_scsi_queuecommand (Scsi_Cmnd *srb, mts_scsi_cmnd_callback callback );
+static int
+mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback);
 
 static void mts_transfer_cleanup( struct urb *transfer );
 static void mts_do_sg(struct urb * transfer, struct pt_regs *regs);
@@ -537,7 +537,7 @@ static const unsigned char mts_direction[256/8] = {
 #define MTS_DIRECTION_IS_IN(x) ((mts_direction[x>>3] >> (x & 7)) & 1)
 
 static void
-mts_build_transfer_context( Scsi_Cmnd *srb, struct mts_desc* desc )
+mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 {
 	int pipe;
 	struct scatterlist * sg;
@@ -588,8 +588,8 @@ mts_build_transfer_context( Scsi_Cmnd *srb, struct mts_desc* desc )
 }
 
 
-static
-int mts_scsi_queuecommand( Scsi_Cmnd *srb, mts_scsi_cmnd_callback callback )
+static int
+mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int err = 0;

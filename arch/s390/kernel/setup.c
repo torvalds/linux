@@ -101,7 +101,7 @@ void __devinit cpu_init (void)
         /*
          * Store processor id in lowcore (used e.g. in timer_interrupt)
          */
-        asm volatile ("stidp %0": "=m" (S390_lowcore.cpu_data.cpu_id));
+	asm volatile("stidp %0": "=m" (S390_lowcore.cpu_data.cpu_id));
         S390_lowcore.cpu_data.cpu_addr = addr;
 
         /*

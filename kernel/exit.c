@@ -38,6 +38,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/audit.h> /* for audit_free() */
 #include <linux/resource.h>
+#include <linux/blkdev.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -219,7 +220,7 @@ static int will_become_orphaned_pgrp(int pgrp, struct task_struct *ignored_task)
 	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
 		if (p == ignored_task
 				|| p->exit_state
-				|| p->real_parent->pid == 1)
+				|| is_init(p->real_parent))
 			continue;
 		if (process_group(p->real_parent) != pgrp
 			    && p->real_parent->signal->session == p->signal->session) {
@@ -249,17 +250,6 @@ static int has_stopped_jobs(int pgrp)
 	do_each_task_pid(pgrp, PIDTYPE_PGID, p) {
 		if (p->state != TASK_STOPPED)
 			continue;
-
-		/* If p is stopped by a debugger on a signal that won't
-		   stop it, then don't count p as stopped.  This isn't
-		   perfect but it's a good approximation.  */
-		if (unlikely (p->ptrace)
-		    && p->exit_code != SIGSTOP
-		    && p->exit_code != SIGTSTP
-		    && p->exit_code != SIGTTOU
-		    && p->exit_code != SIGTTIN)
-			continue;
-
 		retval = 1;
 		break;
 	} while_each_task_pid(pgrp, PIDTYPE_PGID, p);
@@ -292,9 +282,7 @@ static void reparent_to_init(void)
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
 	current->exit_signal = SIGCHLD;
 
-	if ((current->policy == SCHED_NORMAL ||
-			current->policy == SCHED_BATCH)
-				&& (task_nice(current) < 0))
+	if (!has_rt_policy(current) && (task_nice(current) < 0))
 		set_user_nice(current, 0);
 	/* cpus_allowed? */
 	/* rt_priority? */
@@ -486,6 +474,18 @@ void fastcall put_files_struct(struct files_struct *files)
 }
 
 EXPORT_SYMBOL(put_files_struct);
+
+void reset_files_struct(struct task_struct *tsk, struct files_struct *files)
+{
+	struct files_struct *old;
+
+	old = tsk->files;
+	task_lock(tsk);
+	tsk->files = files;
+	task_unlock(tsk);
+	put_files_struct(old);
+}
+EXPORT_SYMBOL(reset_files_struct);
 
 static inline void __exit_files(struct task_struct *tsk)
 {
@@ -954,15 +954,15 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (tsk->splice_pipe)
 		__free_pipe_info(tsk->splice_pipe);
 
-	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();
-	BUG_ON(tsk->flags & PF_DEAD);
-	tsk->flags |= PF_DEAD;
+	/* causes final put_task_struct in finish_task_switch(). */
+	tsk->state = TASK_DEAD;
 
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
-	for (;;) ;
+	for (;;)
+		cpu_relax();	/* For when BUG is null */
 }
 
 EXPORT_SYMBOL_GPL(do_exit);
@@ -971,7 +971,7 @@ NORET_TYPE void complete_and_exit(struct completion *comp, long code)
 {
 	if (comp)
 		complete(comp);
-	
+
 	do_exit(code);
 }
 

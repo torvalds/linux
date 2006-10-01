@@ -166,7 +166,7 @@ EXPORT_SYMBOL(do_settimeofday);
 void account_ticks(struct pt_regs *regs)
 {
 	__u64 tmp;
-	__u32 ticks, xticks;
+	__u32 ticks;
 
 	/* Calculate how many ticks have passed. */
 	if (S390_lowcore.int_clock < S390_lowcore.jiffy_timer) {
@@ -204,6 +204,7 @@ void account_ticks(struct pt_regs *regs)
 	 */
 	write_seqlock(&xtime_lock);
 	if (S390_lowcore.jiffy_timer > xtime_cc) {
+		__u32 xticks;
 		tmp = S390_lowcore.jiffy_timer - xtime_cc;
 		if (tmp >= 2*CLK_TICKS_PER_JIFFY) {
 			xticks = __div(tmp, CLK_TICKS_PER_JIFFY);
@@ -212,13 +213,11 @@ void account_ticks(struct pt_regs *regs)
 			xticks = 1;
 			xtime_cc += CLK_TICKS_PER_JIFFY;
 		}
-		while (xticks--)
-			do_timer(regs);
+		do_timer(xticks);
 	}
 	write_sequnlock(&xtime_lock);
 #else
-	for (xticks = ticks; xticks > 0; xticks--)
-		do_timer(regs);
+	do_timer(ticks);
 #endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
@@ -351,10 +350,12 @@ void __init time_init(void)
 	int cc;
 
         /* kick the TOD clock */
-        asm volatile ("STCK 0(%1)\n\t"
-                      "IPM  %0\n\t"
-                      "SRL  %0,28" : "=r" (cc) : "a" (&init_timer_cc) 
-				   : "memory", "cc");
+	asm volatile(
+		"	stck	0(%2)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "=m" (init_timer_cc)
+		: "a" (&init_timer_cc) : "cc");
         switch (cc) {
         case 0: /* clock in set state: all is fine */
                 break;

@@ -81,7 +81,7 @@ static int ircomm_lmp_connect_response(struct ircomm_cb *self,
 	
 	/* Any userdata supplied? */
 	if (userdata == NULL) {
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -115,7 +115,7 @@ static int ircomm_lmp_disconnect_request(struct ircomm_cb *self,
 	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
 
         if (!userdata) {
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 		

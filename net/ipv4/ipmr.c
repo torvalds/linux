@@ -462,7 +462,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 	return 0;
 }
 
-static struct mfc_cache *ipmr_cache_find(__u32 origin, __u32 mcastgrp)
+static struct mfc_cache *ipmr_cache_find(__be32 origin, __be32 mcastgrp)
 {
 	int line=MFC_HASH(mcastgrp,origin);
 	struct mfc_cache *c;
@@ -1097,7 +1097,7 @@ static struct notifier_block ip_mr_notifier={
  *	important for multicast video.
  */
  
-static void ip_encap(struct sk_buff *skb, u32 saddr, u32 daddr)
+static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph = (struct iphdr *)skb_push(skb,sizeof(struct iphdr));
 

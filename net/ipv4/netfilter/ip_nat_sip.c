@@ -60,8 +60,8 @@ static unsigned int ip_nat_sip(struct sk_buff **pskb,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
 	unsigned int bufflen, dataoff;
-	u_int32_t ip;
-	u_int16_t port;
+	__be32 ip;
+	__be16 port;
 
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);
 
@@ -159,7 +159,7 @@ static int mangle_content_len(struct sk_buff **pskb,
 static unsigned int mangle_sdp(struct sk_buff **pskb,
 			       enum ip_conntrack_info ctinfo,
 			       struct ip_conntrack *ct,
-			       u_int32_t newip, u_int16_t port,
+			       __be32 newip, u_int16_t port,
 			       const char *dptr)
 {
 	char buffer[sizeof("nnn.nnn.nnn.nnn")];
@@ -195,7 +195,7 @@ static unsigned int ip_nat_sdp(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct = exp->master;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	u_int32_t newip;
+	__be32 newip;
 	u_int16_t port;
 
 	DEBUGP("ip_nat_sdp():\n");

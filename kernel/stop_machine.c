@@ -1,3 +1,6 @@
+/* Copyright 2005 Rusty Russell rusty@rustcorp.com.au IBM Corporation.
+ * GPL v2 and any later version.
+ */
 #include <linux/stop_machine.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>

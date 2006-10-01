@@ -70,7 +70,7 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	 */
 	write_seqlock(&xtime_lock);
 
-	do_timer(regs);
+	do_timer(1);
 	update_process_times(user_mode(regs));
 	profile_tick(CPU_PROFILING, regs);
 

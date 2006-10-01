@@ -221,7 +221,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_ESP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u32 *ehdr = (u32 *)xprth;
+				__be32 *ehdr = (__be32 *)xprth;
 
 				fl->fl_ipsec_spi = ehdr[0];
 			}
@@ -229,7 +229,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_AH:
 			if (pskb_may_pull(skb, xprth + 8 - skb->data)) {
-				u32 *ah_hdr = (u32*)xprth;
+				__be32 *ah_hdr = (__be32*)xprth;
 
 				fl->fl_ipsec_spi = ah_hdr[1];
 			}
@@ -237,7 +237,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 
 		case IPPROTO_COMP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
-				u16 *ipcomp_hdr = (u16 *)xprth;
+				__be16 *ipcomp_hdr = (__be16 *)xprth;
 
 				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}

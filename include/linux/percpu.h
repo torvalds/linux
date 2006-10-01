@@ -74,7 +74,7 @@ static inline int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
 	return 0;
 }
 
-static inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
+static __always_inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
 {
 	return kzalloc(size, gfp);
 }

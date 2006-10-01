@@ -51,6 +51,10 @@ config 64BIT
 	  Select this option if you have a 64 bit IBM zSeries machine
 	  and want to use the 64 bit addressing mode.
 
+config 32BIT
+	bool
+	default y if !64BIT
+
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
@@ -148,6 +152,14 @@ config MARCH_Z990
 	  Select this enable optimizations for model z890/z990.
 	  This will be slightly faster but does not work on
 	  older machines such as the z900.
+
+config MARCH_Z9_109
+	bool "IBM System z9"
+	help
+	  Select this to enable optimizations for IBM System z9-109, IBM
+	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
+	  Class (z9 BC). The kernel will be slightly faster but will not
+	  work on older machines such as the z990, z890, z900, and z800.
 
 endchoice
 

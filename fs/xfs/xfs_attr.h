@@ -37,6 +37,7 @@
 
 struct cred;
 struct bhv_vnode;
+struct xfs_attr_list_context;
 
 typedef int (*attrset_t)(struct bhv_vnode *, char *, void *, size_t, int);
 typedef int (*attrget_t)(struct bhv_vnode *, char *, void *, size_t, int);
@@ -160,13 +161,16 @@ struct xfs_da_args;
  */
 int xfs_attr_get(bhv_desc_t *, const char *, char *, int *, int, struct cred *);
 int xfs_attr_set(bhv_desc_t *, const char *, char *, int, int, struct cred *);
+int xfs_attr_set_int(struct xfs_inode *, const char *, int, char *, int, int);
 int xfs_attr_remove(bhv_desc_t *, const char *, int, struct cred *);
-int xfs_attr_list(bhv_desc_t *, char *, int, int,
-			 struct attrlist_cursor_kern *, struct cred *);
+int xfs_attr_remove_int(struct xfs_inode *, const char *, int, int);
+int xfs_attr_list(bhv_desc_t *, char *, int, int, struct attrlist_cursor_kern *, struct cred *);
+int xfs_attr_list_int(struct xfs_attr_list_context *);
 int xfs_attr_inactive(struct xfs_inode *dp);
 
 int xfs_attr_shortform_getvalue(struct xfs_da_args *);
 int xfs_attr_fetch(struct xfs_inode *, const char *, int,
 			char *, int *, int, struct cred *);
+int xfs_attr_rmtval_get(struct xfs_da_args *args);
 
 #endif	/* __XFS_ATTR_H__ */

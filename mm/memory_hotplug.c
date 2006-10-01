@@ -13,6 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/pagevec.h>
+#include <linux/writeback.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
@@ -21,6 +22,7 @@
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 #include <linux/ioport.h>
+#include <linux/cpuset.h>
 
 #include <asm/tlbflush.h>
 
@@ -191,6 +193,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	if (need_zonelists_rebuild)
 		build_all_zonelists();
 	vm_total_pages = nr_free_pagecache_pages();
+	writeback_set_ratelimit();
 	return 0;
 }
 
@@ -282,6 +285,8 @@ int add_memory(int nid, u64 start, u64 size)
 
 	/* we online node here. we can't roll back from here. */
 	node_set_online(nid);
+
+	cpuset_track_online_nodes();
 
 	if (new_pgdat) {
 		ret = register_one_node(nid);

@@ -527,7 +527,7 @@ int c2_rnic_init(struct c2_dev *c2dev)
 				      		DMA_FROM_DEVICE);
 	pci_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
 	pr_debug("%s rep_vq va %p dma %llx\n", __FUNCTION__, q1_pages,
-		 (u64)c2dev->rep_vq.host_dma);
+		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->rep_vq,
 		   1,
 		   qsize,
@@ -550,7 +550,7 @@ int c2_rnic_init(struct c2_dev *c2dev)
 				      		DMA_FROM_DEVICE);
 	pci_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
 	pr_debug("%s aeq va %p dma %llx\n", __FUNCTION__, q1_pages,
-		 (u64)c2dev->rep_vq.host_dma);
+		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->aeq,
 		       2,
 		       qsize,

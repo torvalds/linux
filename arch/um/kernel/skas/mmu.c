@@ -61,8 +61,10 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 #endif
 
 	*pte = mk_pte(virt_to_page(kernel), __pgprot(_PAGE_PRESENT));
-	*pte = pte_mkexec(*pte);
-	*pte = pte_wrprotect(*pte);
+	/* This is wrong for the code page, but it doesn't matter since the
+	 * stub is mapped by hand with the correct permissions.
+	 */
+	*pte = pte_mkwrite(*pte);
 	return(0);
 
  out_pmd:

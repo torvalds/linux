@@ -108,6 +108,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	return line_open(vts, tty);
 }
 
+/* Set in an initcall, checked in an exitcall */
 static int con_init_done = 0;
 
 static const struct tty_operations console_ops = {

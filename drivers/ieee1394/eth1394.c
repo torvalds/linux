@@ -64,19 +64,19 @@
 #include <linux/ethtool.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
-#include <asm/semaphore.h>
 #include <net/arp.h>
 
+#include "config_roms.h"
 #include "csr1212.h"
-#include "ieee1394_types.h"
-#include "ieee1394_core.h"
-#include "ieee1394_transactions.h"
-#include "ieee1394.h"
+#include "eth1394.h"
 #include "highlevel.h"
+#include "ieee1394.h"
+#include "ieee1394_core.h"
+#include "ieee1394_hotplug.h"
+#include "ieee1394_transactions.h"
+#include "ieee1394_types.h"
 #include "iso.h"
 #include "nodemgr.h"
-#include "eth1394.h"
-#include "config_roms.h"
 
 #define ETH1394_PRINT_G(level, fmt, args...) \
 	printk(level "%s: " fmt, driver_name, ## args)

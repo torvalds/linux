@@ -8,12 +8,12 @@
 #ifndef __LINUX_LOCKDEP_H
 #define __LINUX_LOCKDEP_H
 
+#ifdef CONFIG_LOCKDEP
+
 #include <linux/linkage.h>
 #include <linux/list.h>
 #include <linux/debug_locks.h>
 #include <linux/stacktrace.h>
-
-#ifdef CONFIG_LOCKDEP
 
 /*
  * Lock-class usage-state bits:

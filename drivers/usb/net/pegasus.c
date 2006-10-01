@@ -45,7 +45,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.6.13 (2005/11/13)"
+#define DRIVER_VERSION "v0.6.14 (2006/09/27)"
 #define DRIVER_AUTHOR "Petko Manolov <petkan@users.sourceforge.net>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
@@ -339,7 +339,7 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 	}
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 
 	return ret;
 }
@@ -376,7 +376,7 @@ static int write_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 regd)
 
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 
@@ -413,7 +413,7 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 
@@ -461,7 +461,7 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 		return ret;
 fail:
 	if (netif_msg_drv(pegasus))
-		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
+		dev_warn(&pegasus->intf->dev, "%s failed\n", __FUNCTION__);
 	return -ETIMEDOUT;
 }
 #endif				/* PEGASUS_WRITE_EEPROM */
@@ -481,8 +481,12 @@ static void set_ethernet_addr(pegasus_t * pegasus)
 {
 	__u8 node_id[6];
 
-	get_node_id(pegasus, node_id);
-	set_registers(pegasus, EthID, sizeof (node_id), node_id);
+	if (pegasus->features & PEGASUS_II) {
+		get_registers(pegasus, 0x10, sizeof(node_id), node_id);
+	} else {
+		get_node_id(pegasus, node_id);
+		set_registers(pegasus, EthID, sizeof (node_id), node_id);
+	}
 	memcpy(pegasus->net->dev_addr, node_id, sizeof (node_id));
 }
 

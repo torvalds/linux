@@ -174,7 +174,7 @@ struct tty_struct {
 	struct tty_driver *driver;
 	int index;
 	struct tty_ldisc ldisc;
-	struct semaphore termios_sem;
+	struct mutex termios_mutex;
 	struct termios *termios, *termios_locked;
 	char name[64];
 	int pgrp;
@@ -190,7 +190,6 @@ struct tty_struct {
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
 	struct tty_bufhead buf;
-	int max_flip_cnt;
 	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t read_wait;
@@ -307,6 +306,9 @@ extern void tty_ldisc_put(int);
 
 extern void tty_wakeup(struct tty_struct *tty);
 extern void tty_ldisc_flush(struct tty_struct *tty);
+
+extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+		     unsigned long arg);
 
 extern struct mutex tty_mutex;
 

@@ -38,25 +38,14 @@
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current->thread.mm_segment)
 
-#ifdef __s390x__
 #define set_fs(x) \
 ({									\
 	unsigned long __pto;						\
 	current->thread.mm_segment = (x);				\
 	__pto = current->thread.mm_segment.ar4 ?			\
 		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
-	asm volatile ("lctlg 7,7,%0" : : "m" (__pto) );			\
+	__ctl_load(__pto, 7, 7);					\
 })
-#else /* __s390x__ */
-#define set_fs(x) \
-({									\
-	unsigned long __pto;						\
-	current->thread.mm_segment = (x);				\
-	__pto = current->thread.mm_segment.ar4 ?			\
-		S390_lowcore.user_asce : S390_lowcore.kernel_asce;	\
-	asm volatile ("lctl  7,7,%0" : : "m" (__pto) );			\
-})
-#endif /* __s390x__ */
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 

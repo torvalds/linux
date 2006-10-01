@@ -176,6 +176,8 @@ static int wait_for_helper(void *data)
 	if (pid < 0) {
 		sub_info->retval = pid;
 	} else {
+		int ret;
+
 		/*
 		 * Normally it is bogus to call wait4() from in-kernel because
 		 * wait4() wants to write the exit code to a userspace address.
@@ -185,7 +187,15 @@ static int wait_for_helper(void *data)
 		 *
 		 * Thus the __user pointer cast is valid here.
 		 */
-		sys_wait4(pid, (int __user *) &sub_info->retval, 0, NULL);
+		sys_wait4(pid, (int __user *)&ret, 0, NULL);
+
+		/*
+		 * If ret is 0, either ____call_usermodehelper failed and the
+		 * real error code is already in sub_info->retval or
+		 * sub_info->retval is 0 anyway, so don't mess with it then.
+		 */
+		if (ret)
+			sub_info->retval = ret;
 	}
 
 	complete(sub_info->complete);

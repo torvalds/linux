@@ -29,7 +29,7 @@ udp_conn_in_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
 	if (pptr == NULL)
@@ -54,7 +54,7 @@ udp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 const struct iphdr *iph, unsigned int proto_off, int inverse)
 {
 	struct ip_vs_conn *cp;
-	__u16 _ports[2], *pptr;
+	__be16 _ports[2], *pptr;
 
 	pptr = skb_header_pointer(skb, skb->nh.iph->ihl*4,
 				  sizeof(_ports), _ports);
@@ -117,15 +117,15 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 
 static inline void
-udp_fast_csum_update(struct udphdr *uhdr, u32 oldip, u32 newip,
-		     u16 oldport, u16 newport)
+udp_fast_csum_update(struct udphdr *uhdr, __be32 oldip, __be32 newip,
+		     __be16 oldport, __be16 newport)
 {
 	uhdr->check =
 		ip_vs_check_diff(~oldip, newip,
-				 ip_vs_check_diff(oldport ^ 0xFFFF,
+				 ip_vs_check_diff(oldport ^ htonl(0xFFFF),
 						  newport, uhdr->check));
 	if (!uhdr->check)
-		uhdr->check = 0xFFFF;
+		uhdr->check = htonl(0xFFFF);
 }
 
 static int
@@ -173,7 +173,7 @@ udp_snat_handler(struct sk_buff **pskb,
 						cp->protocol,
 						(*pskb)->csum);
 		if (udph->check == 0)
-			udph->check = 0xFFFF;
+			udph->check = htonl(0xFFFF);
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
 			  pp->name, udph->check,
 			  (char*)&(udph->check) - (char*)udph);

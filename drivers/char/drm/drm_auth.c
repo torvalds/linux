@@ -36,20 +36,6 @@
 #include "drmP.h"
 
 /**
- * Generate a hash key from a magic.
- *
- * \param magic magic.
- * \return hash key.
- *
- * The key is the modulus of the hash table size, #DRM_HASH_SIZE, which must be
- * a power of 2.
- */
-static int drm_hash_magic(drm_magic_t magic)
-{
-	return magic & (DRM_HASH_SIZE - 1);
-}
-
-/**
  * Find the file with the given magic number.
  *
  * \param dev DRM device.
@@ -63,14 +49,12 @@ static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
 {
 	drm_file_t *retval = NULL;
 	drm_magic_entry_t *pt;
-	int hash = drm_hash_magic(magic);
+	drm_hash_item_t *hash;
 
 	mutex_lock(&dev->struct_mutex);
-	for (pt = dev->magiclist[hash].head; pt; pt = pt->next) {
-		if (pt->magic == magic) {
-			retval = pt->priv;
-			break;
-		}
+	if (!drm_ht_find_item(&dev->magiclist, (unsigned long)magic, &hash)) {
+		pt = drm_hash_entry(hash, drm_magic_entry_t, hash_item);
+		retval = pt->priv;
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return retval;
@@ -90,28 +74,20 @@ static drm_file_t *drm_find_file(drm_device_t * dev, drm_magic_t magic)
 static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
 			 drm_magic_t magic)
 {
-	int hash;
 	drm_magic_entry_t *entry;
 
 	DRM_DEBUG("%d\n", magic);
 
-	hash = drm_hash_magic(magic);
 	entry = drm_alloc(sizeof(*entry), DRM_MEM_MAGIC);
 	if (!entry)
 		return -ENOMEM;
 	memset(entry, 0, sizeof(*entry));
-	entry->magic = magic;
 	entry->priv = priv;
-	entry->next = NULL;
 
+	entry->hash_item.key = (unsigned long)magic;
 	mutex_lock(&dev->struct_mutex);
-	if (dev->magiclist[hash].tail) {
-		dev->magiclist[hash].tail->next = entry;
-		dev->magiclist[hash].tail = entry;
-	} else {
-		dev->magiclist[hash].head = entry;
-		dev->magiclist[hash].tail = entry;
-	}
+	drm_ht_insert_item(&dev->magiclist, &entry->hash_item);
+	list_add_tail(&entry->head, &dev->magicfree);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -128,34 +104,24 @@ static int drm_add_magic(drm_device_t * dev, drm_file_t * priv,
  */
 static int drm_remove_magic(drm_device_t * dev, drm_magic_t magic)
 {
-	drm_magic_entry_t *prev = NULL;
 	drm_magic_entry_t *pt;
-	int hash;
+	drm_hash_item_t *hash;
 
 	DRM_DEBUG("%d\n", magic);
-	hash = drm_hash_magic(magic);
 
 	mutex_lock(&dev->struct_mutex);
-	for (pt = dev->magiclist[hash].head; pt; prev = pt, pt = pt->next) {
-		if (pt->magic == magic) {
-			if (dev->magiclist[hash].head == pt) {
-				dev->magiclist[hash].head = pt->next;
-			}
-			if (dev->magiclist[hash].tail == pt) {
-				dev->magiclist[hash].tail = prev;
-			}
-			if (prev) {
-				prev->next = pt->next;
-			}
-			mutex_unlock(&dev->struct_mutex);
-			return 0;
-		}
+	if (drm_ht_find_item(&dev->magiclist, (unsigned long)magic, &hash)) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
 	}
+	pt = drm_hash_entry(hash, drm_magic_entry_t, hash_item);
+	drm_ht_remove_item(&dev->magiclist, hash);
+	list_del(&pt->head);
 	mutex_unlock(&dev->struct_mutex);
 
 	drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
 
-	return -EINVAL;
+	return 0;
 }
 
 /**

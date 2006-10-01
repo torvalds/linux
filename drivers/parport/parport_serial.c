@@ -374,6 +374,7 @@ static void __devexit parport_serial_pci_remove (struct pci_dev *dev)
 	return;
 }
 
+#ifdef CONFIG_PM
 static int parport_serial_pci_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	struct parport_serial_private *priv = pci_get_drvdata(dev);
@@ -407,14 +408,17 @@ static int parport_serial_pci_resume(struct pci_dev *dev)
 
 	return 0;
 }
+#endif
 
 static struct pci_driver parport_serial_pci_driver = {
 	.name		= "parport_serial",
 	.id_table	= parport_serial_pci_tbl,
 	.probe		= parport_serial_pci_probe,
 	.remove		= __devexit_p(parport_serial_pci_remove),
+#ifdef CONFIG_PM
 	.suspend	= parport_serial_pci_suspend,
 	.resume		= parport_serial_pci_resume,
+#endif
 };
 
 

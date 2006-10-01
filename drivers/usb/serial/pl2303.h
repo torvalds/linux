@@ -93,3 +93,7 @@
 /* Alcor Micro Corp. USB 2.0 TO RS-232 */
 #define ALCOR_VENDOR_ID		0x058F
 #define ALCOR_PRODUCT_ID	0x9720
+
+/* Huawei E620 UMTS/HSDPA card (ID: 12d1:1001) */
+#define HUAWEI_VENDOR_ID	0x12d1
+#define HUAWEI_PRODUCT_ID	0x1001

@@ -345,7 +345,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	struct usb_ctrlrequest *cmd;
  	u16		typeReq, wValue, wIndex, wLength;
 	u8		*ubuf = urb->transfer_buffer;
-	u8		tbuf [sizeof (struct usb_hub_descriptor)];
+	u8		tbuf [sizeof (struct usb_hub_descriptor)]
+		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
 	int		len = 0;
 	int		patch_wakeup = 0;
@@ -835,8 +836,7 @@ void usb_enable_root_hub_irq (struct usb_bus *bus)
 	struct usb_hcd *hcd;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_irq_enable && !hcd->poll_rh &&
-			hcd->state != HC_STATE_HALT)
+	if (hcd->driver->hub_irq_enable && hcd->state != HC_STATE_HALT)
 		hcd->driver->hub_irq_enable (hcd);
 }
 

@@ -510,8 +510,10 @@ static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
 	    SLAB_CTOR_CONSTRUCTOR) {
 		INIT_LIST_HEAD(&ei->i_prealloc_list);
 		inode_init_once(&ei->vfs_inode);
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 		ei->i_acl_access = NULL;
 		ei->i_acl_default = NULL;
+#endif
 	}
 }
 
@@ -560,6 +562,7 @@ static void reiserfs_dirty_inode(struct inode *inode)
 	reiserfs_write_unlock(inode->i_sb);
 }
 
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 static void reiserfs_clear_inode(struct inode *inode)
 {
 	struct posix_acl *acl;
@@ -574,6 +577,9 @@ static void reiserfs_clear_inode(struct inode *inode)
 		posix_acl_release(acl);
 	REISERFS_I(inode)->i_acl_default = NULL;
 }
+#else
+#define reiserfs_clear_inode NULL
+#endif
 
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,

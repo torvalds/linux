@@ -44,20 +44,25 @@ struct driver_interfacekit {
 	int inputs;
 	int outputs;
 	int has_lcd;
+	int amnesiac;
 };
-#define ifkit(_sensors, _inputs, _outputs, _lcd)			\
-static struct driver_interfacekit ph_##_sensors##_inputs##_outputs = {	\
+
+#define ifkit(_sensors, _inputs, _outputs, _lcd, _amnesiac)		\
+{									\
 	.sensors	= _sensors,					\
 	.inputs		= _inputs,					\
 	.outputs	= _outputs,					\
 	.has_lcd	= _lcd,						\
+	.amnesiac	= _amnesiac					\
 };
-ifkit(0, 0, 4, 0);
-ifkit(8, 8, 8, 0);
-ifkit(0, 4, 7, 1);
-ifkit(8, 8, 4, 0);
-ifkit(0, 8, 8, 1);
-ifkit(0, 16, 16, 0);
+
+static const struct driver_interfacekit ph_004 = ifkit(0, 0, 4, 0, 0);
+static const struct driver_interfacekit ph_888n = ifkit(8, 8, 8, 0, 1);
+static const struct driver_interfacekit ph_888o = ifkit(8, 8, 8, 0, 0);
+static const struct driver_interfacekit ph_047 = ifkit(0, 4, 7, 1, 0);
+static const struct driver_interfacekit ph_884 = ifkit(8, 8, 4, 0, 0);
+static const struct driver_interfacekit ph_088 = ifkit(0, 8, 8, 1, 0);
+static const struct driver_interfacekit ph_01616 = ifkit(0, 16, 16, 0, 0);
 
 static unsigned long device_no;
 
@@ -77,6 +82,7 @@ struct interfacekit {
 	dma_addr_t data_dma;
 
 	struct work_struct do_notify;
+	struct work_struct do_resubmit;
 	unsigned long input_events;
 	unsigned long sensor_events;
 };
@@ -84,8 +90,10 @@ struct interfacekit {
 static struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT004),
 		.driver_info = (kernel_ulong_t)&ph_004},
-	{USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT888),
-		.driver_info = (kernel_ulong_t)&ph_888},
+	{USB_DEVICE_VER(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT888, 0, 0x814),
+		.driver_info = (kernel_ulong_t)&ph_888o},
+	{USB_DEVICE_VER(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT888, 0x0815, 0xffff),
+		.driver_info = (kernel_ulong_t)&ph_888n},
 	{USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT047),
 		.driver_info = (kernel_ulong_t)&ph_047},
 	{USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_INTERFACEKIT088),
@@ -98,15 +106,10 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static int change_outputs(struct interfacekit *kit, int output_num, int enable)
+static int set_outputs(struct interfacekit *kit)
 {
 	u8 *buffer;
 	int retval;
-
-	if (enable)
-		set_bit(output_num, &kit->outputs);
-	else
-		clear_bit(output_num, &kit->outputs);
 
 	buffer = kzalloc(4, GFP_KERNEL);
 	if (!buffer) {
@@ -126,6 +129,9 @@ static int change_outputs(struct interfacekit *kit, int output_num, int enable)
 		dev_err(&kit->udev->dev, "usb_control_msg returned %d\n", 
 				retval);
 	kfree(buffer);
+
+	if (kit->ifkit->amnesiac)
+		schedule_delayed_work(&kit->do_resubmit, HZ / 2);
 
 	return retval < 0 ? retval : 0;
 }
@@ -399,19 +405,29 @@ static void do_notify(void *data)
 	}
 }
 
+static void do_resubmit(void *data)
+{
+	set_outputs(data);
+}
+
 #define show_set_output(value)		\
 static ssize_t set_output##value(struct device *dev,			\
 					struct device_attribute *attr,	\
 					const char *buf, size_t count)	\
 {									\
 	struct interfacekit *kit = dev_get_drvdata(dev);		\
-	int enabled;							\
+	int enable;							\
 	int retval;							\
 									\
-	if (sscanf(buf, "%d", &enabled) < 1)				\
+	if (sscanf(buf, "%d", &enable) < 1)				\
 		return -EINVAL;						\
 									\
-	retval = change_outputs(kit, value - 1, enabled);		\
+	if (enable)							\
+		set_bit(value - 1, &kit->outputs);			\
+	else								\
+		clear_bit(value - 1, &kit->outputs); 			\
+									\
+	retval = set_outputs(kit);					\
 									\
 	return retval ? retval : count;					\
 }									\
@@ -560,6 +576,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 	kit->udev = usb_get_dev(dev);
 	kit->intf = intf;
 	INIT_WORK(&kit->do_notify, do_notify, kit);
+	INIT_WORK(&kit->do_resubmit, do_resubmit, kit);
 	usb_fill_int_urb(kit->irq, kit->udev, pipe, kit->data,
 			maxp > URB_INT_SIZE ? URB_INT_SIZE : maxp,
 			interfacekit_irq, kit, endpoint->bInterval);
@@ -663,6 +680,7 @@ static void interfacekit_disconnect(struct usb_interface *interface)
 	usb_buffer_free(kit->udev, URB_INT_SIZE, kit->data, kit->data_dma);
 
 	cancel_delayed_work(&kit->do_notify);
+	cancel_delayed_work(&kit->do_resubmit);
 
 	for (i=0; i<kit->ifkit->outputs; i++)
 		device_remove_file(kit->dev, &dev_output_attrs[i]);

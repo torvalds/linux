@@ -933,6 +933,15 @@ static ssize_t module_sect_show(struct module_attribute *mattr,
 	return sprintf(buf, "0x%lx\n", sattr->address);
 }
 
+static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
+{
+	int section;
+
+	for (section = 0; section < sect_attrs->nsections; section++)
+		kfree(sect_attrs->attrs[section].name);
+	kfree(sect_attrs);
+}
+
 static void add_sect_attrs(struct module *mod, unsigned int nsect,
 		char *secstrings, Elf_Shdr *sechdrs)
 {
@@ -949,21 +958,26 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 			+ nloaded * sizeof(sect_attrs->attrs[0]),
 			sizeof(sect_attrs->grp.attrs[0]));
 	size[1] = (nloaded + 1) * sizeof(sect_attrs->grp.attrs[0]);
-	if (! (sect_attrs = kmalloc(size[0] + size[1], GFP_KERNEL)))
+	sect_attrs = kzalloc(size[0] + size[1], GFP_KERNEL);
+	if (sect_attrs == NULL)
 		return;
 
 	/* Setup section attributes. */
 	sect_attrs->grp.name = "sections";
 	sect_attrs->grp.attrs = (void *)sect_attrs + size[0];
 
+	sect_attrs->nsections = 0;
 	sattr = &sect_attrs->attrs[0];
 	gattr = &sect_attrs->grp.attrs[0];
 	for (i = 0; i < nsect; i++) {
 		if (! (sechdrs[i].sh_flags & SHF_ALLOC))
 			continue;
 		sattr->address = sechdrs[i].sh_addr;
-		strlcpy(sattr->name, secstrings + sechdrs[i].sh_name,
-			MODULE_SECT_NAME_LEN);
+		sattr->name = kstrdup(secstrings + sechdrs[i].sh_name,
+					GFP_KERNEL);
+		if (sattr->name == NULL)
+			goto out;
+		sect_attrs->nsections++;
 		sattr->mattr.show = module_sect_show;
 		sattr->mattr.store = NULL;
 		sattr->mattr.attr.name = sattr->name;
@@ -979,7 +993,7 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 	mod->sect_attrs = sect_attrs;
 	return;
   out:
-	kfree(sect_attrs);
+	free_sect_attrs(sect_attrs);
 }
 
 static void remove_sect_attrs(struct module *mod)
@@ -989,13 +1003,13 @@ static void remove_sect_attrs(struct module *mod)
 				   &mod->sect_attrs->grp);
 		/* We are positive that no one is using any sect attrs
 		 * at this point.  Deallocate immediately. */
-		kfree(mod->sect_attrs);
+		free_sect_attrs(mod->sect_attrs);
 		mod->sect_attrs = NULL;
 	}
 }
 
-
 #else
+
 static inline void add_sect_attrs(struct module *mod, unsigned int nsect,
 		char *sectstrings, Elf_Shdr *sechdrs)
 {

@@ -26,10 +26,8 @@
 #include "pvrusb2-audio.h"
 #include "pvrusb2-tuner.h"
 #include "pvrusb2-video-v4l.h"
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 #include "pvrusb2-cx2584x-v4l.h"
 #include "pvrusb2-wm8775.h"
-#endif
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
@@ -71,7 +69,6 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 			return;
 		}
 	}
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 	if (id == I2C_DRIVERID_CX25840) {
 		if (pvr2_i2c_cx2584x_v4l_setup(hdw,cp)) {
 			return;
@@ -82,7 +79,6 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 			return;
 		}
 	}
-#endif
 	if (id == I2C_DRIVERID_SAA711X) {
 		if (pvr2_i2c_decoder_v4l_setup(hdw,cp)) {
 			return;

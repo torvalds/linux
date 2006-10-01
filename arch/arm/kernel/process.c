@@ -221,16 +221,26 @@ void __show_regs(struct pt_regs *regs)
 		processor_modes[processor_mode(regs)],
 		thumb_mode(regs) ? " (T)" : "",
 		get_fs() == get_ds() ? "kernel" : "user");
+#if CONFIG_CPU_CP15
 	{
-		unsigned int ctrl, transbase, dac;
+		unsigned int ctrl;
 		  __asm__ (
 		"	mrc p15, 0, %0, c1, c0\n"
-		"	mrc p15, 0, %1, c2, c0\n"
-		"	mrc p15, 0, %2, c3, c0\n"
-		: "=r" (ctrl), "=r" (transbase), "=r" (dac));
-		printk("Control: %04X  Table: %08X  DAC: %08X\n",
-		  	ctrl, transbase, dac);
+		: "=r" (ctrl));
+		printk("Control: %04X\n", ctrl);
 	}
+#ifdef CONFIG_CPU_CP15_MMU
+	{
+		unsigned int transbase, dac;
+		  __asm__ (
+		"	mrc p15, 0, %0, c2, c0\n"
+		"	mrc p15, 0, %1, c3, c0\n"
+		: "=r" (transbase), "=r" (dac));
+		printk("Table: %08X  DAC: %08X\n",
+		  	transbase, dac);
+	}
+#endif
+#endif
 }
 
 void show_regs(struct pt_regs * regs)

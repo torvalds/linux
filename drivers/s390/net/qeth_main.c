@@ -8067,7 +8067,7 @@ qeth_arp_constructor(struct neighbour *neigh)
 	neigh->parms = neigh_parms_clone(parms);
 	rcu_read_unlock();
 
-	neigh->type = inet_addr_type(*(u32 *) neigh->primary_key);
+	neigh->type = inet_addr_type(*(__be32 *) neigh->primary_key);
 	neigh->nud_state = NUD_NOARP;
 	neigh->ops = arp_direct_ops;
 	neigh->output = neigh->ops->queue_xmit;

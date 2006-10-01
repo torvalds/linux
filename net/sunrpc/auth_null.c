@@ -60,8 +60,8 @@ nul_match(struct auth_cred *acred, struct rpc_cred *cred, int taskflags)
 /*
  * Marshal credential.
  */
-static u32 *
-nul_marshal(struct rpc_task *task, u32 *p)
+static __be32 *
+nul_marshal(struct rpc_task *task, __be32 *p)
 {
 	*p++ = htonl(RPC_AUTH_NULL);
 	*p++ = 0;
@@ -81,8 +81,8 @@ nul_refresh(struct rpc_task *task)
 	return 0;
 }
 
-static u32 *
-nul_validate(struct rpc_task *task, u32 *p)
+static __be32 *
+nul_validate(struct rpc_task *task, __be32 *p)
 {
 	rpc_authflavor_t	flavor;
 	u32			size;

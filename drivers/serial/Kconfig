@@ -295,7 +295,7 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  Even if you say Y here, the currently visible framebuffer console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
-	  "console=ttyAM0". (Try "man bootparam" or see the documentation of
+	  "console=ttyAMA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 

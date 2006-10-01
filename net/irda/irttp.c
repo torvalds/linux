@@ -804,12 +804,12 @@ static inline void irttp_give_credit(struct tsap_cb *self)
 		   self->send_credit, self->avail_credit, self->remote_credit);
 
 	/* Give credit to peer */
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(TTP_MAX_HEADER, GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 
 	/* Reserve space for LMP, and LAP header */
-	skb_reserve(tx_skb, self->max_header_size);
+	skb_reserve(tx_skb, LMP_MAX_HEADER);
 
 	/*
 	 *  Since we can transmit and receive frames concurrently,
@@ -1093,7 +1093,8 @@ int irttp_connect_request(struct tsap_cb *self, __u8 dtsap_sel,
 
 	/* Any userdata supplied? */
 	if (userdata == NULL) {
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(TTP_MAX_HEADER + TTP_SAR_HEADER,
+				   GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -1341,7 +1342,8 @@ int irttp_connect_response(struct tsap_cb *self, __u32 max_sdu_size,
 
 	/* Any userdata supplied? */
 	if (userdata == NULL) {
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(TTP_MAX_HEADER + TTP_SAR_HEADER,
+				   GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -1540,14 +1542,14 @@ int irttp_disconnect_request(struct tsap_cb *self, struct sk_buff *userdata,
 
 	if (!userdata) {
 		struct sk_buff *tx_skb;
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
 		/*
 		 *  Reserve space for MUX and LAP header
 		 */
-		skb_reserve(tx_skb, TTP_MAX_HEADER);
+		skb_reserve(tx_skb, LMP_MAX_HEADER);
 
 		userdata = tx_skb;
 	}

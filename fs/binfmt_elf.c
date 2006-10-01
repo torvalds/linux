@@ -46,7 +46,6 @@
 static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs);
 static int load_elf_library(struct file *);
 static unsigned long elf_map (struct file *, unsigned long, struct elf_phdr *, int, int);
-extern int dump_fpu (struct pt_regs *, elf_fpregset_t *);
 
 #ifndef elf_addr_t
 #define elf_addr_t unsigned long
@@ -1038,10 +1037,8 @@ out_free_interp:
 out_free_file:
 	sys_close(elf_exec_fileno);
 out_free_fh:
-	if (files) {
-		put_files_struct(current->files);
-		current->files = files;
-	}
+	if (files)
+		reset_files_struct(current, files);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;
@@ -1481,20 +1478,19 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
 	if (signr) {
 		struct elf_thread_status *tmp;
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
 				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
-					read_unlock(&tasklist_lock);
+					rcu_read_unlock();
 					goto cleanup;
 				}
-				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);
 			}
 		while_each_thread(g,p);
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;

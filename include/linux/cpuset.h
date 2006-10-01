@@ -63,6 +63,8 @@ static inline int cpuset_do_slab_mem_spread(void)
 	return current->flags & PF_SPREAD_SLAB;
 }
 
+extern void cpuset_track_online_nodes(void);
+
 #else /* !CONFIG_CPUSETS */
 
 static inline int cpuset_init_early(void) { return 0; }
@@ -125,6 +127,8 @@ static inline int cpuset_do_slab_mem_spread(void)
 {
 	return 0;
 }
+
+static inline void cpuset_track_online_nodes(void) {}
 
 #endif /* !CONFIG_CPUSETS */
 

@@ -120,7 +120,9 @@ static int s3c244x_irq_add(struct sys_device *sysdev)
 }
 
 static struct sysdev_driver s3c2440_irq_driver = {
-	.add	= s3c244x_irq_add,
+	.add		= s3c244x_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
 
 static int s3c2440_irq_init(void)
@@ -131,8 +133,11 @@ static int s3c2440_irq_init(void)
 arch_initcall(s3c2440_irq_init);
 
 static struct sysdev_driver s3c2442_irq_driver = {
-	.add	= s3c244x_irq_add,
+	.add		= s3c244x_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
+
 
 static int s3c2442_irq_init(void)
 {

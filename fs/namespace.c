@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/quotaops.h>
 #include <linux/acct.h>
 #include <linux/capability.h>
@@ -23,11 +24,10 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/mount.h>
+#include <linux/ramfs.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include "pnode.h"
-
-extern int __init init_rootfs(void);
 
 /* spinlock for vfsmount related operations, inplace of dcache_lock */
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
@@ -1813,6 +1813,7 @@ void __init mnt_init(unsigned long mempages)
 	struct list_head *d;
 	unsigned int nr_hash;
 	int i;
+	int err;
 
 	init_rwsem(&namespace_sem);
 
@@ -1853,8 +1854,14 @@ void __init mnt_init(unsigned long mempages)
 		d++;
 		i--;
 	} while (i);
-	sysfs_init();
-	subsystem_register(&fs_subsys);
+	err = sysfs_init();
+	if (err)
+		printk(KERN_WARNING "%s: sysfs_init error: %d\n",
+			__FUNCTION__, err);
+	err = subsystem_register(&fs_subsys);
+	if (err)
+		printk(KERN_WARNING "%s: subsystem_register error: %d\n",
+			__FUNCTION__, err);
 	init_rootfs();
 	init_mount_tree();
 }

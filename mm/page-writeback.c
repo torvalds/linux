@@ -30,6 +30,8 @@
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
+#include <linux/buffer_head.h>
+#include <linux/pagevec.h>
 
 /*
  * The maximum number of pages to writeout in a single bdflush/kupdate
@@ -46,7 +48,6 @@
  */
 static long ratelimit_pages = 32;
 
-static long total_pages;	/* The total number of pages in the machine. */
 static int dirty_exceeded __cacheline_aligned_in_smp;	/* Dirty mem may be over limit */
 
 /*
@@ -126,7 +127,7 @@ get_dirty_limits(long *pbackground, long *pdirty,
 	int unmapped_ratio;
 	long background;
 	long dirty;
-	unsigned long available_memory = total_pages;
+	unsigned long available_memory = vm_total_pages;
 	struct task_struct *tsk;
 
 #ifdef CONFIG_HIGHMEM
@@ -141,7 +142,7 @@ get_dirty_limits(long *pbackground, long *pdirty,
 
 	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
 				global_page_state(NR_ANON_PAGES)) * 100) /
-					total_pages;
+					vm_total_pages;
 
 	dirty_ratio = vm_dirty_ratio;
 	if (dirty_ratio > unmapped_ratio / 2)
@@ -502,9 +503,9 @@ void laptop_sync_completion(void)
  * will write six megabyte chunks, max.
  */
 
-static void set_ratelimit(void)
+void writeback_set_ratelimit(void)
 {
-	ratelimit_pages = total_pages / (num_online_cpus() * 32);
+	ratelimit_pages = vm_total_pages / (num_online_cpus() * 32);
 	if (ratelimit_pages < 16)
 		ratelimit_pages = 16;
 	if (ratelimit_pages * PAGE_CACHE_SIZE > 4096 * 1024)
@@ -514,7 +515,7 @@ static void set_ratelimit(void)
 static int __cpuinit
 ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
 {
-	set_ratelimit();
+	writeback_set_ratelimit();
 	return 0;
 }
 
@@ -533,9 +534,7 @@ void __init page_writeback_init(void)
 	long buffer_pages = nr_free_buffer_pages();
 	long correction;
 
-	total_pages = nr_free_pagecache_pages();
-
-	correction = (100 * 4 * buffer_pages) / total_pages;
+	correction = (100 * 4 * buffer_pages) / vm_total_pages;
 
 	if (correction < 100) {
 		dirty_background_ratio *= correction;
@@ -549,9 +548,142 @@ void __init page_writeback_init(void)
 			vm_dirty_ratio = 1;
 	}
 	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
-	set_ratelimit();
+	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
 }
+
+/**
+ * generic_writepages - walk the list of dirty pages of the given
+ *                      address space and writepage() all of them.
+ *
+ * @mapping: address space structure to write
+ * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+ *
+ * This is a library function, which implements the writepages()
+ * address_space_operation.
+ *
+ * If a page is already under I/O, generic_writepages() skips it, even
+ * if it's dirty.  This is desirable behaviour for memory-cleaning writeback,
+ * but it is INCORRECT for data-integrity system calls such as fsync().  fsync()
+ * and msync() need to guarantee that all the data which was dirty at the time
+ * the call was made get new I/O started against them.  If wbc->sync_mode is
+ * WB_SYNC_ALL then we were called for data integrity and we must wait for
+ * existing IO to complete.
+ *
+ * Derived from mpage_writepages() - if you fix this you should check that
+ * also!
+ */
+int generic_writepages(struct address_space *mapping,
+		       struct writeback_control *wbc)
+{
+	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	int ret = 0;
+	int done = 0;
+	int (*writepage)(struct page *page, struct writeback_control *wbc);
+	struct pagevec pvec;
+	int nr_pages;
+	pgoff_t index;
+	pgoff_t end;		/* Inclusive */
+	int scanned = 0;
+	int range_whole = 0;
+
+	if (wbc->nonblocking && bdi_write_congested(bdi)) {
+		wbc->encountered_congestion = 1;
+		return 0;
+	}
+
+	writepage = mapping->a_ops->writepage;
+
+	/* deal with chardevs and other special file */
+	if (!writepage)
+		return 0;
+
+	pagevec_init(&pvec, 0);
+	if (wbc->range_cyclic) {
+		index = mapping->writeback_index; /* Start from prev offset */
+		end = -1;
+	} else {
+		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+		end = wbc->range_end >> PAGE_CACHE_SHIFT;
+		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+			range_whole = 1;
+		scanned = 1;
+	}
+retry:
+	while (!done && (index <= end) &&
+	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+					      PAGECACHE_TAG_DIRTY,
+					      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
+		unsigned i;
+
+		scanned = 1;
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/*
+			 * At this point we hold neither mapping->tree_lock nor
+			 * lock on the page itself: the page may be truncated or
+			 * invalidated (changing page->mapping to NULL), or even
+			 * swizzled back from swapper_space to tmpfs file
+			 * mapping
+			 */
+			lock_page(page);
+
+			if (unlikely(page->mapping != mapping)) {
+				unlock_page(page);
+				continue;
+			}
+
+			if (!wbc->range_cyclic && page->index > end) {
+				done = 1;
+				unlock_page(page);
+				continue;
+			}
+
+			if (wbc->sync_mode != WB_SYNC_NONE)
+				wait_on_page_writeback(page);
+
+			if (PageWriteback(page) ||
+			    !clear_page_dirty_for_io(page)) {
+				unlock_page(page);
+				continue;
+			}
+
+			ret = (*writepage)(page, wbc);
+			if (ret) {
+				if (ret == -ENOSPC)
+					set_bit(AS_ENOSPC, &mapping->flags);
+				else
+					set_bit(AS_EIO, &mapping->flags);
+			}
+
+			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
+				unlock_page(page);
+			if (ret || (--(wbc->nr_to_write) <= 0))
+				done = 1;
+			if (wbc->nonblocking && bdi_write_congested(bdi)) {
+				wbc->encountered_congestion = 1;
+				done = 1;
+			}
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+	if (!scanned && !done) {
+		/*
+		 * We hit the last page and there is more work to be done: wrap
+		 * back to the start of the file
+		 */
+		scanned = 1;
+		index = 0;
+		goto retry;
+	}
+	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
+		mapping->writeback_index = index;
+	return ret;
+}
+
+EXPORT_SYMBOL(generic_writepages);
 
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
@@ -675,9 +807,11 @@ int fastcall set_page_dirty(struct page *page)
 
 	if (likely(mapping)) {
 		int (*spd)(struct page *) = mapping->a_ops->set_page_dirty;
-		if (spd)
-			return (*spd)(page);
-		return __set_page_dirty_buffers(page);
+#ifdef CONFIG_BLOCK
+		if (!spd)
+			spd = __set_page_dirty_buffers;
+#endif
+		return (*spd)(page);
 	}
 	if (!PageDirty(page)) {
 		if (!TestSetPageDirty(page))

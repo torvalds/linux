@@ -60,8 +60,8 @@ static void	call_refreshresult(struct rpc_task *task);
 static void	call_timeout(struct rpc_task *task);
 static void	call_connect(struct rpc_task *task);
 static void	call_connect_status(struct rpc_task *task);
-static u32 *	call_header(struct rpc_task *task);
-static u32 *	call_verify(struct rpc_task *task);
+static __be32 *	call_header(struct rpc_task *task);
+static __be32 *	call_verify(struct rpc_task *task);
 
 
 static int
@@ -782,7 +782,7 @@ call_encode(struct rpc_task *task)
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	unsigned int	bufsiz;
 	kxdrproc_t	encode;
-	u32		*p;
+	__be32		*p;
 
 	dprintk("RPC: %4d call_encode (status %d)\n", 
 				task->tk_pid, task->tk_status);
@@ -1100,7 +1100,7 @@ call_decode(struct rpc_task *task)
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	kxdrproc_t	decode = task->tk_msg.rpc_proc->p_decode;
-	u32		*p;
+	__be32		*p;
 
 	dprintk("RPC: %4d call_decode (status %d)\n", 
 				task->tk_pid, task->tk_status);
@@ -1197,12 +1197,12 @@ call_refreshresult(struct rpc_task *task)
 /*
  * Call header serialization
  */
-static u32 *
+static __be32 *
 call_header(struct rpc_task *task)
 {
 	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
-	u32		*p = req->rq_svec[0].iov_base;
+	__be32		*p = req->rq_svec[0].iov_base;
 
 	/* FIXME: check buffer size? */
 
@@ -1221,12 +1221,13 @@ call_header(struct rpc_task *task)
 /*
  * Reply header verification
  */
-static u32 *
+static __be32 *
 call_verify(struct rpc_task *task)
 {
 	struct kvec *iov = &task->tk_rqstp->rq_rcv_buf.head[0];
 	int len = task->tk_rqstp->rq_rcv_buf.len >> 2;
-	u32	*p = iov->iov_base, n;
+	__be32	*p = iov->iov_base;
+	u32 n;
 	int error = -EACCES;
 
 	if ((task->tk_rqstp->rq_rcv_buf.len & 3) != 0) {
@@ -1303,7 +1304,7 @@ call_verify(struct rpc_task *task)
 		printk(KERN_WARNING "call_verify: auth check failed\n");
 		goto out_garbage;		/* bad verifier, retry */
 	}
-	len = p - (u32 *)iov->iov_base - 1;
+	len = p - (__be32 *)iov->iov_base - 1;
 	if (len < 0)
 		goto out_overflow;
 	switch ((n = ntohl(*p++))) {
@@ -1358,12 +1359,12 @@ out_overflow:
 	goto out_garbage;
 }
 
-static int rpcproc_encode_null(void *rqstp, u32 *data, void *obj)
+static int rpcproc_encode_null(void *rqstp, __be32 *data, void *obj)
 {
 	return 0;
 }
 
-static int rpcproc_decode_null(void *rqstp, u32 *data, void *obj)
+static int rpcproc_decode_null(void *rqstp, __be32 *data, void *obj)
 {
 	return 0;
 }

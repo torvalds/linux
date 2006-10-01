@@ -34,20 +34,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
 
-static void __init kafa_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(PQFP_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -62,16 +53,19 @@ static struct at91_uart_config __initdata kafa_uart_config = {
 
 static void __init kafa_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 18.432 MHz crystal */
-	at91_clock_init(18432000);
+	/* Initialize processor: 18.432 MHz crystal */
+	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&kafa_uart_config);
+}
+
+static void __init kafa_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata kafa_eth_data = {

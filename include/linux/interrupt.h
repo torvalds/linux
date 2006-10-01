@@ -123,6 +123,14 @@ static inline void disable_irq_nosync_lockdep(unsigned int irq)
 #endif
 }
 
+static inline void disable_irq_nosync_lockdep_irqsave(unsigned int irq, unsigned long *flags)
+{
+	disable_irq_nosync(irq);
+#ifdef CONFIG_LOCKDEP
+	local_irq_save(*flags);
+#endif
+}
+
 static inline void disable_irq_lockdep(unsigned int irq)
 {
 	disable_irq(irq);
@@ -135,6 +143,14 @@ static inline void enable_irq_lockdep(unsigned int irq)
 {
 #ifdef CONFIG_LOCKDEP
 	local_irq_enable();
+#endif
+	enable_irq(irq);
+}
+
+static inline void enable_irq_lockdep_irqrestore(unsigned int irq, unsigned long *flags)
+{
+#ifdef CONFIG_LOCKDEP
+	local_irq_restore(*flags);
 #endif
 	enable_irq(irq);
 }

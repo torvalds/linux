@@ -626,7 +626,7 @@ repeat:
 		req->rq_disk->disk_name, (req->cmd == READ)?"read":"writ",
 		cyl, head, sec, nsect, req->buffer);
 #endif
-	if (req->flags & REQ_CMD) {
+	if (blk_fs_request(req)) {
 		switch (rq_data_dir(req)) {
 		case READ:
 			hd_out(disk,nsect,sec,head,cyl,WIN_READ,&read_intr);

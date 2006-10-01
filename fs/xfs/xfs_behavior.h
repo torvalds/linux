@@ -176,12 +176,10 @@ extern void bhv_insert_initial(bhv_head_t *, bhv_desc_t *);
  * Behavior module prototypes.
  */
 extern void		bhv_remove_not_first(bhv_head_t *bhp, bhv_desc_t *bdp);
-extern bhv_desc_t *	bhv_lookup(bhv_head_t *bhp, void *ops);
 extern bhv_desc_t *	bhv_lookup_range(bhv_head_t *bhp, int low, int high);
 extern bhv_desc_t *	bhv_base(bhv_head_t *bhp);
 
 /* No bhv locking on Linux */
-#define bhv_lookup_unlocked	bhv_lookup
 #define bhv_base_unlocked	bhv_base
 
 #endif /* __XFS_BEHAVIOR_H__ */
