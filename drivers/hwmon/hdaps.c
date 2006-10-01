@@ -537,6 +537,7 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T42"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T43"),
 		HDAPS_DMI_MATCH_LENOVO("ThinkPad T60p"),
+		HDAPS_DMI_MATCH_LENOVO("ThinkPad T60"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X40"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41"),
 		HDAPS_DMI_MATCH_LENOVO("ThinkPad X60"),
