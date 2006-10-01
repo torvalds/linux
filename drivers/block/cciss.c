@@ -1964,7 +1964,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 	} else {		/* Get geometry failed */
 		printk(KERN_WARNING "cciss: reading geometry failed\n");
 	}
-	printk(KERN_INFO "      heads= %d, sectors= %d, cylinders= %d\n\n",
+	printk(KERN_INFO "      heads=%d, sectors=%d, cylinders=%d\n\n",
 	       drv->heads, drv->sectors, drv->cylinders);
 }
 
