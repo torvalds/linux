@@ -27,7 +27,7 @@ static struct acpi_table_slit *acpi_slit;
 
 static nodemask_t nodes_parsed __initdata;
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
-static struct bootnode nodes_add[MAX_NUMNODES] __initdata;
+static struct bootnode nodes_add[MAX_NUMNODES];
 static int found_add_area __initdata;
 int hotadd_percent __initdata = 0;
 
@@ -466,3 +466,14 @@ int __node_distance(int a, int b)
 }
 
 EXPORT_SYMBOL(__node_distance);
+
+int memory_add_physaddr_to_nid(u64 start)
+{
+	int i, ret = 0;
+
+	for_each_node(i)
+		if (nodes_add[i].start <= start && nodes_add[i].end > start)
+			ret = i;
+
+	return ret;
+}

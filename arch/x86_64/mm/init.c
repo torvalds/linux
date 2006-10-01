@@ -463,19 +463,6 @@ void online_page(struct page *page)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * XXX: memory_add_physaddr_to_nid() is to find node id from physical address
- *	via probe interface of sysfs. If acpi notifies hot-add event, then it
- *	can tell node id by searching dsdt. But, probe interface doesn't have
- *	node id. So, return 0 as node id at this time.
- */
-#ifdef CONFIG_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
-#endif
-
-/*
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
@@ -505,6 +492,13 @@ int remove_memory(u64 start, u64 size)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(remove_memory);
+
+#ifndef CONFIG_ACPI_NUMA
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+#endif
 
 #else /* CONFIG_MEMORY_HOTPLUG */
 /*
