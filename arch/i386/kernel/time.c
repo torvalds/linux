@@ -76,8 +76,6 @@ int pit_latch_buggy;              /* extern */
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
 
-extern unsigned long wall_jiffies;
-
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
@@ -329,7 +327,6 @@ static int timer_resume(struct sys_device *dev)
 	do_settimeofday(&ts);
 	write_seqlock_irqsave(&xtime_lock, flags);
 	jiffies_64 += sleep_length;
-	wall_jiffies += sleep_length;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	touch_softlockup_watchdog();
 	return 0;

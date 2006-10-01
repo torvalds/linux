@@ -80,8 +80,6 @@ unsigned tb_to_us;
 unsigned tb_last_stamp;
 unsigned long tb_to_ns_scale;
 
-extern unsigned long wall_jiffies;
-
 /* used for timezone offset */
 static long timezone_offset;
 
@@ -173,8 +171,7 @@ void timer_interrupt(struct pt_regs * regs)
 		 */
 		if ( ppc_md.set_rtc_time && ntp_synced() &&
 		     xtime.tv_sec - last_rtc_update >= 659 &&
-		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ &&
-		     jiffies - wall_jiffies == 1) {
+		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ) {
 		  	if (ppc_md.set_rtc_time(xtime.tv_sec+1 + timezone_offset) == 0)
 				last_rtc_update = xtime.tv_sec+1;
 			else
@@ -200,7 +197,7 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long seq;
-	unsigned delta, lost_ticks, usec, sec;
+	unsigned delta, usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
@@ -214,10 +211,9 @@ void do_gettimeofday(struct timeval *tv)
 		if (!smp_tb_synchronized)
 			delta = 0;
 #endif /* CONFIG_SMP */
-		lost_ticks = jiffies - wall_jiffies;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	usec += mulhwu(tb_to_us, tb_ticks_per_jiffy * lost_ticks + delta);
+	usec += mulhwu(tb_to_us, delta);
 	while (usec >= 1000000) {
 	  	sec++;
 		usec -= 1000000;
@@ -258,7 +254,6 @@ int do_settimeofday(struct timespec *tv)
 	 * still reasonable when gettimeofday resolution is 1 jiffy.
 	 */
 	tb_delta = tb_ticks_since(last_jiffy_stamp(smp_processor_id()));
-	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
 
 	new_nsec -= 1000 * mulhwu(tb_to_us, tb_delta);
 

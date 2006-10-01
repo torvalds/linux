@@ -47,8 +47,6 @@
 /*
  * forward reference
  */
-extern volatile unsigned long wall_jiffies;
-
 DEFINE_SPINLOCK(rtc_lock);
 
 /*
@@ -159,7 +157,6 @@ void (*mips_hpt_init)(unsigned int);
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long seq;
-	unsigned long lost;
 	unsigned long usec, sec;
 	unsigned long max_ntp_tick;
 
@@ -167,8 +164,6 @@ void do_gettimeofday(struct timeval *tv)
 		seq = read_seqbegin(&xtime_lock);
 
 		usec = do_gettimeoffset();
-
-		lost = jiffies - wall_jiffies;
 
 		/*
 		 * If time_adjust is negative then NTP is slowing the clock
@@ -178,11 +173,7 @@ void do_gettimeofday(struct timeval *tv)
 		if (unlikely(time_adjust < 0)) {
 			max_ntp_tick = (USEC_PER_SEC / HZ) - tickadj;
 			usec = min(usec, max_ntp_tick);
-
-			if (lost)
-				usec += lost * max_ntp_tick;
-		} else if (unlikely(lost))
-			usec += lost * (USEC_PER_SEC / HZ);
+		}
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);
@@ -217,7 +208,6 @@ int do_settimeofday(struct timespec *tv)
 	 * made, and then undo it!
 	 */
 	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
-	nsec -= (jiffies - wall_jiffies) * tick_nsec;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

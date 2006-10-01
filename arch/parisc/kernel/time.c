@@ -32,9 +32,6 @@
 
 #include <linux/timex.h>
 
-/* xtime and wall_jiffies keep wall-clock time */
-extern unsigned long wall_jiffies;
-
 static long clocktick __read_mostly;	/* timer cycles per tick */
 static long halftick __read_mostly;
 
@@ -112,7 +109,7 @@ EXPORT_SYMBOL(profile_pc);
 /*** converted from ia64 ***/
 /*
  * Return the number of micro-seconds that elapsed since the last
- * update to wall time (aka xtime aka wall_jiffies).  The xtime_lock
+ * update to wall time (aka xtime).  The xtime_lock
  * must be at least read-locked when calling this routine.
  */
 static inline unsigned long

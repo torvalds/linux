@@ -53,8 +53,6 @@ static u64 init_timer_cc;
 static u64 jiffies_timer_cc;
 static u64 xtime_cc;
 
-extern unsigned long wall_jiffies;
-
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -87,9 +85,8 @@ static inline unsigned long do_gettimeoffset(void)
 {
 	__u64 now;
 
-        now = (get_clock() - jiffies_timer_cc) >> 12;
-	/* We require the offset from the latest update of xtime */
-	now -= (__u64) wall_jiffies*USECS_PER_JIFFY;
+	now = (get_clock() - jiffies_timer_cc) >> 12;
+	now -= (__u64) jiffies * USECS_PER_JIFFY;
 	return (unsigned long) now;
 }
 

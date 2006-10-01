@@ -66,8 +66,7 @@ static __always_inline void do_vgettimeofday(struct timeval * tv)
 		sequence = read_seqbegin(&__xtime_lock);
 		
 		sec = __xtime.tv_sec;
-		usec = (__xtime.tv_nsec / 1000) +
-			(__jiffies - __wall_jiffies) * (1000000 / HZ);
+		usec = __xtime.tv_nsec / 1000;
 
 		if (__vxtime.mode != VXTIME_HPET) {
 			t = get_cycles_sync();

@@ -117,8 +117,6 @@ unsigned tb_to_ns_shift;
 
 struct gettimeofday_struct do_gtod;
 
-extern unsigned long wall_jiffies;
-
 extern struct timezone sys_tz;
 static long timezone_offset;
 
@@ -816,11 +814,6 @@ int do_settimeofday(struct timespec *tv)
 	/*
 	 * Subtract off the number of nanoseconds since the
 	 * beginning of the last tick.
-	 * Note that since we don't increment jiffies_64 anywhere other
-	 * than in do_timer (since we don't have a lost tick problem),
-	 * wall_jiffies will always be the same as jiffies,
-	 * and therefore the (jiffies - wall_jiffies) computation
-	 * has been removed.
 	 */
 	tb_delta = tb_ticks_since(tb_last_jiffy);
 	tb_delta = mulhdu(tb_delta, do_gtod.varp->tb_to_xs); /* in xsec */

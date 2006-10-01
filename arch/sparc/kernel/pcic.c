@@ -765,8 +765,6 @@ static __inline__ unsigned long do_gettimeoffset(void)
 	return count;
 }
 
-extern unsigned long wall_jiffies;
-
 static void pci_do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
@@ -775,25 +773,16 @@ static void pci_do_gettimeofday(struct timeval *tv)
 	unsigned long max_ntp_tick = tick_usec - tickadj;
 
 	do {
-		unsigned long lost;
-
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = do_gettimeoffset();
-		lost = jiffies - wall_jiffies;
 
 		/*
 		 * If time_adjust is negative then NTP is slowing the clock
 		 * so make sure not to go into next possible interval.
 		 * Better to lose some accuracy than have time go backwards..
 		 */
-		if (unlikely(time_adjust < 0)) {
+		if (unlikely(time_adjust < 0))
 			usec = min(usec, max_ntp_tick);
-
-			if (lost)
-				usec += lost * max_ntp_tick;
-		}
-		else if (unlikely(lost))
-			usec += lost * tick_usec;
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);
@@ -819,8 +808,7 @@ static int pci_do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	tv->tv_nsec -= 1000 * (do_gettimeoffset() + 
-				(jiffies - wall_jiffies) * (USEC_PER_SEC / HZ));
+	tv->tv_nsec -= 1000 * do_gettimeoffset();
 	while (tv->tv_nsec < 0) {
 		tv->tv_nsec += NSEC_PER_SEC;
 		tv->tv_sec--;

@@ -37,8 +37,6 @@
  */
 struct sys_timer *system_timer;
 
-extern unsigned long wall_jiffies;
-
 /* this needs a better home */
 DEFINE_SPINLOCK(rtc_lock);
 
@@ -237,16 +235,11 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
 	unsigned long seq;
-	unsigned long usec, sec, lost;
+	unsigned long usec, sec;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = system_timer->offset();
-
-		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * USECS_PER_JIFFY;
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
@@ -279,7 +272,6 @@ int do_settimeofday(struct timespec *tv)
 	 * done, and then undo it!
 	 */
 	nsec -= system_timer->offset() * NSEC_PER_USEC;
-	nsec -= (jiffies - wall_jiffies) * TICK_NSEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

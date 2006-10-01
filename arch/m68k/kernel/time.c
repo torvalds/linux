@@ -96,30 +96,22 @@ void time_init(void)
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long flags;
-	extern unsigned long wall_jiffies;
 	unsigned long seq;
-	unsigned long usec, sec, lost;
+	unsigned long usec, sec;
 	unsigned long max_ntp_tick = tick_usec - tickadj;
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 
 		usec = mach_gettimeoffset();
-		lost = jiffies - wall_jiffies;
 
 		/*
 		 * If time_adjust is negative then NTP is slowing the clock
 		 * so make sure not to go into next possible interval.
 		 * Better to lose some accuracy than have time go backwards..
 		 */
-		if (unlikely(time_adjust < 0)) {
+		if (unlikely(time_adjust < 0))
 			usec = min(usec, max_ntp_tick);
-
-			if (lost)
-				usec += lost * max_ntp_tick;
-		}
-		else if (unlikely(lost))
-			usec += lost * tick_usec;
 
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec/1000;
@@ -141,7 +133,6 @@ int do_settimeofday(struct timespec *tv)
 {
 	time_t wtm_sec, sec = tv->tv_sec;
 	long wtm_nsec, nsec = tv->tv_nsec;
-	extern unsigned long wall_jiffies;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
@@ -153,8 +144,7 @@ int do_settimeofday(struct timespec *tv)
 	 * Discover what correction gettimeofday
 	 * would have done, and then undo it!
 	 */
-	nsec -= 1000 * (mach_gettimeoffset() +
-			(jiffies - wall_jiffies) * (1000000 / HZ));
+	nsec -= 1000 * mach_gettimeoffset();
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

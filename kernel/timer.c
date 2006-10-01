@@ -768,7 +768,7 @@ static int timekeeping_suspended;
  * @dev:	unused
  *
  * This is for the generic clocksource timekeeping.
- * xtime/wall_to_monotonic/jiffies/wall_jiffies/etc are
+ * xtime/wall_to_monotonic/jiffies/etc are
  * still managed by arch specific suspend/resume code.
  */
 static int timekeeping_resume(struct sys_device *dev)
@@ -1016,9 +1016,6 @@ static inline void calc_load(unsigned long ticks)
 	}
 }
 
-/* jiffies at the most recent update of wall time */
-unsigned long wall_jiffies = INITIAL_JIFFIES;
-
 /*
  * This read-write spinlock protects us from races in SMP while
  * playing with xtime and avenrun.
@@ -1056,7 +1053,6 @@ void run_local_timers(void)
  */
 static inline void update_times(unsigned long ticks)
 {
-	wall_jiffies += ticks;
 	update_wall_time();
 	calc_load(ticks);
 }

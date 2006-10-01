@@ -53,8 +53,6 @@ void __iomem *mstk48t02_regs = NULL;
 unsigned long ds1287_regs = 0UL;
 #endif
 
-extern unsigned long wall_jiffies;
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 

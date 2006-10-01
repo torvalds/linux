@@ -42,8 +42,6 @@
 static unsigned long ct_cur[NR_CPUS];	/* What counter should be at next timer irq */
 static long last_rtc_update;		/* Last time the rtc clock got updated */
 
-extern volatile unsigned long wall_jiffies;
-
 #if 0
 static int set_rtc_mmss(unsigned long nowtime)
 {

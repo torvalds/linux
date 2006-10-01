@@ -107,8 +107,6 @@
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-extern unsigned long wall_jiffies;
-
 static unsigned long tmu_base, rtc_base;
 unsigned long cprc_base;
 
@@ -194,13 +192,6 @@ void do_gettimeofday(struct timeval *tv)
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = usecs_since_tick();
-		{
-			unsigned long lost = jiffies - wall_jiffies;
-
-			if (lost)
-				usec += lost * (1000000 / HZ);
-		}
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
@@ -229,8 +220,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	nsec -= 1000 * (usecs_since_tick() +
-				(jiffies - wall_jiffies) * (1000000 / HZ));
+	nsec -= 1000 * usecs_since_tick();
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

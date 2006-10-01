@@ -101,9 +101,6 @@ SECTIONS
   .vgetcpu_mode : AT(VLOAD(.vgetcpu_mode)) { *(.vgetcpu_mode) }
   vgetcpu_mode = VVIRT(.vgetcpu_mode);
 
-  .wall_jiffies : AT(VLOAD(.wall_jiffies)) { *(.wall_jiffies) }
-  wall_jiffies = VVIRT(.wall_jiffies);
-
   .sys_tz : AT(VLOAD(.sys_tz)) { *(.sys_tz) }
   sys_tz = VVIRT(.sys_tz);
 
