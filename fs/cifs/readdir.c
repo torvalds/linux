@@ -946,6 +946,7 @@ static int cifs_save_resume_key(const char *current_entry,
 		filename = &pFindData->FileName[0];
 		/* one byte length, no name conversion */
 		len = (unsigned int)pFindData->FileNameLength;
+		cifsFile->srch_inf.resume_key = pFindData->ResumeKey;
 	} else {
 		cFYI(1,("Unknown findfirst level %d",level));
 		return -EINVAL;
