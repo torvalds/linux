@@ -169,9 +169,6 @@ static int rtc_probe(struct platform_device *pdev)
 	if (pdev->resource[0].flags != IORESOURCE_MEM)
 		return -EBUSY;
 
-	if (pdev == NULL)
-		return -EBUSY;
-
 	chip = kzalloc(sizeof *chip, GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
