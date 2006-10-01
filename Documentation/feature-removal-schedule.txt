@@ -255,7 +255,7 @@ Who:	Stephen Hemminger <shemminger@osdl.org>
 
 
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
-When:	Oktober 2008
+When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
 	inconsistent.
 	Class devices should not carry any of these properties, and bus
