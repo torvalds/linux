@@ -1034,7 +1034,6 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 	b_blocknr_t finish = SB_BLOCK_COUNT(s) - 1;
 	int passno = 0;
 	int nr_allocated = 0;
-	int bigalloc = 0;
 
 	determine_prealloc_size(hint);
 	if (!hint->formatted_node) {
@@ -1061,28 +1060,9 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 				hint->preallocate = hint->prealloc_size = 0;
 		}
 		/* for unformatted nodes, force large allocations */
-		bigalloc = amount_needed;
 	}
 
 	do {
-		/* in bigalloc mode, nr_allocated should stay zero until
-		 * the entire allocation is filled
-		 */
-		if (unlikely(bigalloc && nr_allocated)) {
-			reiserfs_warning(s, "bigalloc is %d, nr_allocated %d\n",
-					 bigalloc, nr_allocated);
-			/* reset things to a sane value */
-			bigalloc = amount_needed - nr_allocated;
-		}
-		/*
-		 * try pass 0 and pass 1 looking for a nice big
-		 * contiguous allocation.  Then reset and look
-		 * for anything you can find.
-		 */
-		if (passno == 2 && bigalloc) {
-			passno = 0;
-			bigalloc = 0;
-		}
 		switch (passno++) {
 		case 0:	/* Search from hint->search_start to end of disk */
 			start = hint->search_start;
@@ -1120,8 +1100,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 								 new_blocknrs +
 								 nr_allocated,
 								 start, finish,
-								 bigalloc ?
-								 bigalloc : 1,
+								 1,
 								 amount_needed -
 								 nr_allocated,
 								 hint->
