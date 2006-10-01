@@ -289,8 +289,12 @@ static int fixed_mdio_register_device(int number, int speed, int duplex)
 		goto probe_fail;
 	}
 
-	device_bind_driver(&phydev->dev);
+	err = device_bind_driver(&phydev->dev);
+
 	up_write(&phydev->dev.bus->subsys.rwsem);
+
+	if (err)
+		goto probe_fail;
 
 	return 0;
 
