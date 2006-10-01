@@ -434,7 +434,7 @@ again:
 		unlock_kernel();
 		return -ENOSPC;
 	default:
-		inode->i_nlink--;
+		drop_nlink(inode);
 		err = 0;
 	}
 	goto out;
@@ -494,7 +494,7 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 		err = -ENOSPC;
 		break;
 	default:
-		dir->i_nlink--;
+		drop_nlink(dir);
 		inode->i_nlink = 0;
 		err = 0;
 	}
@@ -636,7 +636,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	hpfs_i(i)->i_parent_dir = new_dir->i_ino;
 	if (S_ISDIR(i->i_mode)) {
 		new_dir->i_nlink++;
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 	}
 	if ((fnode = hpfs_map_fnode(i->i_sb, i->i_ino, &bh))) {
 		fnode->up = new_dir->i_ino;

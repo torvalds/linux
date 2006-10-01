@@ -1225,9 +1225,14 @@ static inline void inode_inc_link_count(struct inode *inode)
 	mark_inode_dirty(inode);
 }
 
-static inline void inode_dec_link_count(struct inode *inode)
+static inline void drop_nlink(struct inode *inode)
 {
 	inode->i_nlink--;
+}
+
+static inline void inode_dec_link_count(struct inode *inode)
+{
+	drop_nlink(inode);
 	mark_inode_dirty(inode);
 }
 

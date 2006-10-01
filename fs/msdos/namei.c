@@ -343,7 +343,7 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	err = fat_remove_entries(dir, &sinfo);	/* and releases bh */
 	if (err)
 		goto out;
-	dir->i_nlink--;
+	drop_nlink(dir);
 
 	inode->i_nlink = 0;
 	inode->i_ctime = CURRENT_TIME_SEC;
@@ -549,7 +549,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 			if (err)
 				goto error_dotdot;
 		}
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 		if (!new_inode)
 			new_dir->i_nlink++;
 	}
@@ -566,10 +566,9 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 		mark_inode_dirty(old_dir);
 
 	if (new_inode) {
+		drop_nlink(new_inode);
 		if (is_dir)
-			new_inode->i_nlink -= 2;
-		else
-			new_inode->i_nlink--;
+			drop_nlink(new_inode);
 		new_inode->i_ctime = ts;
 	}
 out:

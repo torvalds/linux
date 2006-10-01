@@ -739,7 +739,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	err = ocfs2_journal_dirty(handle, fe_bh);
 	if (err < 0) {
 		le16_add_cpu(&fe->i_links_count, -1);
-		inode->i_nlink--;
+		drop_nlink(inode);
 		mlog_errno(err);
 		goto bail;
 	}
@@ -749,7 +749,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 			      parent_fe_bh, de_bh);
 	if (err) {
 		le16_add_cpu(&fe->i_links_count, -1);
-		inode->i_nlink--;
+		drop_nlink(inode);
 		mlog_errno(err);
 		goto bail;
 	}

@@ -843,7 +843,7 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 	nfs_inode_return_delegation(inode);
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		lock_kernel();
-		inode->i_nlink--;
+		drop_nlink(inode);
 		nfs_complete_unlink(dentry);
 		unlock_kernel();
 	}
@@ -1401,7 +1401,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
 		if (error == 0)
-			inode->i_nlink--;
+			drop_nlink(inode);
 		nfs_mark_for_revalidate(inode);
 		nfs_end_data_update(inode);
 	} else
@@ -1639,7 +1639,7 @@ static int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out;
 		}
 	} else
-		new_inode->i_nlink--;
+		drop_nlink(new_inode);
 
 go_ahead:
 	/*

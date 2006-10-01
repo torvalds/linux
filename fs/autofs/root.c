@@ -414,7 +414,7 @@ static int autofs_root_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dentry->d_time = (unsigned long)(struct autofs_dir_ent *)NULL;
 	autofs_hash_delete(ent);
-	dir->i_nlink--;
+	drop_nlink(dir);
 	d_drop(dentry);
 	unlock_kernel();
 

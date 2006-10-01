@@ -1052,9 +1052,8 @@ jffs_remove(struct inode *dir, struct dentry *dentry, int type)
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
-	inode->i_nlink--;
 	inode->i_ctime = dir->i_ctime;
-	mark_inode_dirty(inode);
+	inode_dec_link_count(inode);
 
 	d_delete(dentry);	/* This also frees the inode */
 

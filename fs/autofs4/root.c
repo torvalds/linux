@@ -676,7 +676,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	dentry->d_inode->i_nlink = 0;
 
 	if (dir->i_nlink)
-		dir->i_nlink--;
+		drop_nlink(dir);
 
 	return 0;
 }

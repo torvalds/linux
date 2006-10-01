@@ -367,7 +367,7 @@ int coda_unlink(struct inode *dir, struct dentry *de)
         }
 
 	coda_dir_changed(dir, 0);
-	de->d_inode->i_nlink--;
+	drop_nlink(de->d_inode);
 	unlock_kernel();
 
         return 0;
@@ -394,7 +394,7 @@ int coda_rmdir(struct inode *dir, struct dentry *de)
         }
 
 	coda_dir_changed(dir, -1);
-	de->d_inode->i_nlink--;
+	drop_nlink(de->d_inode);
 	d_delete(de);
 	unlock_kernel();
 

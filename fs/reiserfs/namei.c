@@ -20,7 +20,7 @@
 #include <linux/quotaops.h>
 
 #define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { i->i_nlink++; if (i->i_nlink >= REISERFS_LINK_MAX) i->i_nlink=1; }
-#define DEC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) i->i_nlink--;
+#define DEC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) drop_nlink(i);
 
 // directory item contains array of entry headers. This performs
 // binary search through that array
@@ -994,7 +994,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 		inode->i_nlink = 1;
 	}
 
-	inode->i_nlink--;
+	drop_nlink(inode);
 
 	/*
 	 * we schedule before doing the add_save_link call, save the link
@@ -1475,7 +1475,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (S_ISDIR(new_dentry_inode->i_mode)) {
 			new_dentry_inode->i_nlink = 0;
 		} else {
-			new_dentry_inode->i_nlink--;
+			drop_nlink(new_dentry_inode);
 		}
 		new_dentry_inode->i_ctime = ctime;
 		savelink = new_dentry_inode->i_nlink;

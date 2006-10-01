@@ -307,7 +307,7 @@ static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_ctime = dir->i_mtime = dir->i_atime = CURRENT_TIME;
 	dir->i_size -= DIRENT_SIZE;
-  	inode->i_nlink--;
+  	drop_nlink(inode);
   	dput(dentry);
   	return 0;
 }

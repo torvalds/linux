@@ -332,7 +332,7 @@ static int usbfs_unlink (struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
-	dentry->d_inode->i_nlink--;
+	drop_nlink(dentry->d_inode);
 	dput(dentry);
 	mutex_unlock(&inode->i_mutex);
 	d_delete(dentry);
@@ -347,10 +347,11 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&inode->i_mutex);
 	dentry_unhash(dentry);
 	if (usbfs_empty(dentry)) {
-		dentry->d_inode->i_nlink -= 2;
+		drop_nlink(dentry->d_inode);
+		drop_nlink(dentry->d_inode);
 		dput(dentry);
 		inode->i_flags |= S_DEAD;
-		dir->i_nlink--;
+		drop_nlink(dir);
 		error = 0;
 	}
 	mutex_unlock(&inode->i_mutex);

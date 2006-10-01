@@ -246,7 +246,7 @@ static int hfs_unlink(struct inode *dir, struct dentry *dentry)
 	if (res)
 		return res;
 
-	inode->i_nlink--;
+	drop_nlink(inode);
 	hfs_delete_inode(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);

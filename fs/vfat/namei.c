@@ -782,7 +782,7 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	err = fat_remove_entries(dir, &sinfo);	/* and releases bh */
 	if (err)
 		goto out;
-	dir->i_nlink--;
+	drop_nlink(dir);
 
 	inode->i_nlink = 0;
 	inode->i_mtime = inode->i_atime = CURRENT_TIME_SEC;
@@ -930,7 +930,7 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 			if (err)
 				goto error_dotdot;
 		}
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 		if (!new_inode)
  			new_dir->i_nlink++;
 	}
@@ -947,10 +947,9 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		mark_inode_dirty(old_dir);
 
 	if (new_inode) {
+		drop_nlink(new_inode);
 		if (is_dir)
-			new_inode->i_nlink -= 2;
-		else
-			new_inode->i_nlink--;
+			drop_nlink(new_inode);
 		new_inode->i_ctime = ts;
 	}
 out:

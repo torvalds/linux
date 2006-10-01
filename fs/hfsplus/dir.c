@@ -338,7 +338,7 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		return res;
 
 	if (inode->i_nlink > 0)
-		inode->i_nlink--;
+		drop_nlink(inode);
 	hfsplus_delete_inode(inode);
 	if (inode->i_ino != cnid && !inode->i_nlink) {
 		if (!atomic_read(&HFSPLUS_I(inode).opencnt)) {

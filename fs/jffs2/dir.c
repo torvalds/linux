@@ -615,7 +615,7 @@ static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
 	}
 	ret = jffs2_unlink(dir_i, dentry);
 	if (!ret)
-		dir_i->i_nlink--;
+		drop_nlink(dir_i);
 	return ret;
 }
 
@@ -823,7 +823,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	if (victim_f) {
 		/* There was a victim. Kill it off nicely */
-		new_dentry->d_inode->i_nlink--;
+		drop_nlink(new_dentry->d_inode);
 		/* Don't oops if the victim was a dirent pointing to an
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
@@ -862,7 +862,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	}
 
 	if (S_ISDIR(old_dentry->d_inode->i_mode))
-		old_dir_i->i_nlink--;
+		drop_nlink(old_dir_i);
 
 	new_dir_i->i_mtime = new_dir_i->i_ctime = old_dir_i->i_mtime = old_dir_i->i_ctime = ITIME(now);
 
