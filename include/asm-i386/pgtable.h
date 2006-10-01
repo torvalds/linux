@@ -247,6 +247,23 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 #endif
 
 /*
+ * Rules for using pte_update - it must be called after any PTE update which
+ * has not been done using the set_pte / clear_pte interfaces.  It is used by
+ * shadow mode hypervisors to resynchronize the shadow page tables.  Kernel PTE
+ * updates should either be sets, clears, or set_pte_atomic for P->P
+ * transitions, which means this hook should only be called for user PTEs.
+ * This hook implies a P->P protection or access change has taken place, which
+ * requires a subsequent TLB flush.  The notification can optionally be delayed
+ * until the TLB flush event by using the pte_update_defer form of the
+ * interface, but care must be taken to assure that the flush happens while
+ * still holding the same page table lock so that the shadow and primary pages
+ * do not become out of sync on SMP.
+ */
+#define pte_update(mm, addr, ptep)		do { } while (0)
+#define pte_update_defer(mm, addr, ptep)	do { } while (0)
+
+
+/*
  * We only update the dirty/accessed state if we set
  * the dirty bit by hand in the kernel, since the hardware
  * will do the accessed bit for us, and we don't want to
@@ -258,6 +275,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 do {									\
 	if (dirty) {							\
 		(ptep)->pte_low = (entry).pte_low;			\
+		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
 		flush_tlb_page(vma, address);				\
 	}								\
 } while (0)
@@ -287,6 +305,7 @@ do {									\
 	__dirty = pte_dirty(*(ptep));					\
 	if (__dirty) {							\
 		clear_bit(_PAGE_BIT_DIRTY, &(ptep)->pte_low);		\
+		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
 		flush_tlb_page(vma, address);				\
 	}								\
 	__dirty;							\
@@ -299,6 +318,7 @@ do {									\
 	__young = pte_young(*(ptep));					\
 	if (__young) {							\
 		clear_bit(_PAGE_BIT_ACCESSED, &(ptep)->pte_low);	\
+		pte_update_defer((vma)->vm_mm, (addr), (ptep));		\
 		flush_tlb_page(vma, address);				\
 	}								\
 	__young;							\
@@ -321,6 +341,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	clear_bit(_PAGE_BIT_RW, &ptep->pte_low);
+	pte_update(mm, addr, ptep);
 }
 
 /*
