@@ -21,17 +21,6 @@
 #include <linux/debug_locks.h>
 #include <linux/module.h>
 
-/*
- * Generic declaration of the raw read_trylock() function,
- * architectures are supposed to optimize this:
- */
-int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock)
-{
-	__raw_read_lock(lock);
-	return 1;
-}
-EXPORT_SYMBOL(generic__raw_read_trylock);
-
 int __lockfunc _spin_trylock(spinlock_t *lock)
 {
 	preempt_disable();

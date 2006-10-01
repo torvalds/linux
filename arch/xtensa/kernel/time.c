@@ -175,7 +175,7 @@ again:
 
 		last_ccount_stamp = next;
 		next += CCOUNT_PER_JIFFY;
-		do_timer (regs); /* Linux handler in kernel/timer.c */
+		do_timer (1); /* Linux handler in kernel/timer.c */
 
 		if (ntp_synced() &&
 		    xtime.tv_sec - last_rtc_update >= 659 &&

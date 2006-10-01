@@ -126,7 +126,7 @@ static enum task_attribute sas_scsi_get_task_attr(struct scsi_cmnd *cmd)
 	enum task_attribute ta = TASK_ATTR_SIMPLE;
 	if (cmd->request && blk_rq_tagged(cmd->request)) {
 		if (cmd->device->ordered_tags &&
-		    (cmd->request->flags & REQ_HARDBARRIER))
+		    (cmd->request->cmd_flags & REQ_HARDBARRIER))
 			ta = TASK_ATTR_HOQ;
 	}
 	return ta;

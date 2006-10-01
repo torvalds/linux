@@ -479,6 +479,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x0BB4, 0x0A9D) }, /* SmartPhone USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A9E) }, /* SmartPhone USB Sync */
 	{ USB_DEVICE(0x0BB4, 0x0A9F) }, /* SmartPhone USB Sync */
+	{ USB_DEVICE(0x0BB4, 0x0BCE) }, /* "High Tech Computer Corp" */
 	{ USB_DEVICE(0x0BF8, 0x1001) }, /* Fujitsu Siemens Computers USB Sync */
 	{ USB_DEVICE(0x0C44, 0x03A2) }, /* Motorola iDEN Smartphone */
 	{ USB_DEVICE(0x0C8E, 0x6000) }, /* Cesscom Luxian Series */

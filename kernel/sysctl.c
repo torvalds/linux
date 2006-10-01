@@ -52,6 +52,10 @@
 extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
                      void __user *buffer, size_t *lenp, loff_t *ppos);
 
+#ifdef CONFIG_X86
+#include <asm/nmi.h>
+#endif
+
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
@@ -73,13 +77,6 @@ extern int pid_max_min, pid_max_max;
 extern int sysctl_drop_caches;
 extern int percpu_pagelist_fraction;
 extern int compat_log;
-
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
-int unknown_nmi_panic;
-int nmi_watchdog_enabled;
-extern int proc_nmi_enabled(struct ctl_table *, int , struct file *,
-			void __user *, size_t *, loff_t *);
-#endif
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
 static int maxolduid = 65535;
@@ -1915,7 +1912,7 @@ int proc_dointvec_bset(ctl_table *table, int write, struct file *filp,
 		return -EPERM;
 	}
 
-	op = (current->pid == 1) ? OP_SET : OP_AND;
+	op = is_init(current) ? OP_SET : OP_AND;
 	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
 				do_proc_dointvec_bset_conv,&op);
 }

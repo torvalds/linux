@@ -129,6 +129,7 @@ LIST_HEAD(tty_drivers);			/* linked list of tty drivers */
 /* Semaphore to protect creating and releasing a tty. This is shared with
    vt.c for deeply disgusting hack reasons */
 DEFINE_MUTEX(tty_mutex);
+EXPORT_SYMBOL(tty_mutex);
 
 #ifdef CONFIG_UNIX98_PTYS
 extern struct tty_driver *ptm_driver;	/* Unix98 pty masters; for /dev/ptmx */
@@ -160,17 +161,11 @@ static void release_mem(struct tty_struct *tty, int idx);
  *	been initialized in any way but has been zeroed
  *
  *	Locking: none
- *	FIXME: use kzalloc
  */
 
 static struct tty_struct *alloc_tty_struct(void)
 {
-	struct tty_struct *tty;
-
-	tty = kmalloc(sizeof(struct tty_struct), GFP_KERNEL);
-	if (tty)
-		memset(tty, 0, sizeof(struct tty_struct));
-	return tty;
+	return kzalloc(sizeof(struct tty_struct), GFP_KERNEL);
 }
 
 static void tty_buffer_free_all(struct tty_struct *);
@@ -483,10 +478,9 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
 		tb->used += space;
 		copied += space;
 		chars += space;
-	}
-	/* There is a small chance that we need to split the data over
-	   several buffers. If this is the case we must loop */
-	while (unlikely(size > copied));
+		/* There is a small chance that we need to split the data over
+		   several buffers. If this is the case we must loop */
+	} while (unlikely(size > copied));
 	return copied;
 }
 EXPORT_SYMBOL(tty_insert_flip_string);
@@ -521,10 +515,9 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 		copied += space;
 		chars += space;
 		flags += space;
-	}
-	/* There is a small chance that we need to split the data over
-	   several buffers. If this is the case we must loop */
-	while (unlikely(size > copied));
+		/* There is a small chance that we need to split the data over
+		   several buffers. If this is the case we must loop */
+	} while (unlikely(size > copied));
 	return copied;
 }
 EXPORT_SYMBOL(tty_insert_flip_string_flags);
@@ -626,9 +619,9 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
  
 static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
 {
-	down(&tty->termios_sem);
+	mutex_lock(&tty->termios_mutex);
 	tty->termios->c_line = num;
-	up(&tty->termios_sem);
+	mutex_unlock(&tty->termios_mutex);
 }
 
 /*
@@ -1346,9 +1339,9 @@ static void do_tty_hangup(void *data)
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
 	{
-		down(&tty->termios_sem);
+		mutex_lock(&tty->termios_mutex);
 		*tty->termios = tty->driver->init_termios;
-		up(&tty->termios_sem);
+		mutex_unlock(&tty->termios_mutex);
 	}
 	
 	/* Defer ldisc switch */
@@ -2072,8 +2065,9 @@ fail_no_mem:
 
 	/* call the tty release_mem routine to clean out this slot */
 release_mem_out:
-	printk(KERN_INFO "init_dev: ldisc open failed, "
-			 "clearing slot %d\n", idx);
+	if (printk_ratelimit())
+		printk(KERN_INFO "init_dev: ldisc open failed, "
+				 "clearing slot %d\n", idx);
 	release_mem(tty, idx);
 	goto end_init;
 }
@@ -2726,6 +2720,8 @@ static int tty_fasync(int fd, struct file * filp, int on)
  *	Locking:
  *		Called functions take tty_ldisc_lock
  *		current->signal->tty check is safe without locks
+ *
+ *	FIXME: may race normal receive processing
  */
 
 static int tiocsti(struct tty_struct *tty, char __user *p)
@@ -2748,18 +2744,21 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
  *	@tty; tty
  *	@arg: user buffer for result
  *
- *	Copies the kernel idea of the window size into the user buffer. No
- *	locking is done.
+ *	Copies the kernel idea of the window size into the user buffer.
  *
- *	FIXME: Returning random values racing a window size set is wrong
- *	should lock here against that
+ *	Locking: tty->termios_sem is taken to ensure the winsize data
+ *		is consistent.
  */
 
 static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
 {
-	if (copy_to_user(arg, &tty->winsize, sizeof(*arg)))
-		return -EFAULT;
-	return 0;
+	int err;
+
+	mutex_lock(&tty->termios_mutex);
+	err = copy_to_user(arg, &tty->winsize, sizeof(*arg));
+	mutex_unlock(&tty->termios_mutex);
+
+	return err ? -EFAULT: 0;
 }
 
 /**
@@ -2772,12 +2771,11 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user * arg)
  *	actually has driver level meaning and triggers a VC resize.
  *
  *	Locking:
- *		The console_sem is used to ensure we do not try and resize
- *	the console twice at once.
- *	FIXME: Two racing size sets may leave the console and kernel
- *		parameters disagreeing. Is this exploitable ?
- *	FIXME: Random values racing a window size get is wrong
- *	should lock here against that
+ *		Called function use the console_sem is used to ensure we do
+ *	not try and resize the console twice at once.
+ *		The tty->termios_sem is used to ensure we don't double
+ *	resize and get confused. Lock order - tty->termios.sem before
+ *	console sem
  */
 
 static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
@@ -2787,17 +2785,18 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 
 	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
 		return -EFAULT;
+
+	mutex_lock(&tty->termios_mutex);
 	if (!memcmp(&tmp_ws, &tty->winsize, sizeof(*arg)))
-		return 0;
+		goto done;
+
 #ifdef CONFIG_VT
 	if (tty->driver->type == TTY_DRIVER_TYPE_CONSOLE) {
-		int rc;
-
-		acquire_console_sem();
-		rc = vc_resize(tty->driver_data, tmp_ws.ws_col, tmp_ws.ws_row);
-		release_console_sem();
-		if (rc)
-			return -ENXIO;
+		if (vc_lock_resize(tty->driver_data, tmp_ws.ws_col,
+					tmp_ws.ws_row)) {
+			mutex_unlock(&tty->termios_mutex);
+ 			return -ENXIO;
+		}
 	}
 #endif
 	if (tty->pgrp > 0)
@@ -2806,6 +2805,8 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 		kill_pg(real_tty->pgrp, SIGWINCH, 1);
 	tty->winsize = tmp_ws;
 	real_tty->winsize = tmp_ws;
+done:
+	mutex_unlock(&tty->termios_mutex);
 	return 0;
 }
 
@@ -2880,9 +2881,7 @@ static int fionbio(struct file *file, int __user *p)
  *	Locking:
  *		Takes tasklist lock internally to walk sessions
  *		Takes task_lock() when updating signal->tty
- *
- *	FIXME: tty_mutex is needed to protect signal->tty references.
- *	FIXME: why task_lock on the signal->tty reference ??
+ *		Takes tty_mutex() to protect tty instance
  *
  */
 
@@ -2917,9 +2916,11 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 		} else
 			return -EPERM;
 	}
+	mutex_lock(&tty_mutex);
 	task_lock(current);
 	current->signal->tty = tty;
 	task_unlock(current);
+	mutex_unlock(&tty_mutex);
 	current->signal->tty_old_pgrp = 0;
 	tty->session = current->signal->session;
 	tty->pgrp = process_group(current);
@@ -2959,8 +2960,6 @@ static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t 
  *	permitted where the tty session is our session.
  *
  *	Locking: None
- *
- *	FIXME: current->signal->tty referencing is unsafe.
  */
 
 static int tiocspgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
@@ -3039,19 +3038,20 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
  *	timed break functionality.
  *
  *	Locking:
- *		None
+ *		atomic_write_lock serializes
  *
- *	FIXME:
- *		What if two overlap
  */
 
 static int send_break(struct tty_struct *tty, unsigned int duration)
 {
+	if (mutex_lock_interruptible(&tty->atomic_write_lock))
+		return -EINTR;
 	tty->driver->break_ctl(tty, -1);
 	if (!signal_pending(current)) {
 		msleep_interruptible(duration);
 	}
 	tty->driver->break_ctl(tty, 0);
+	mutex_unlock(&tty->atomic_write_lock);
 	if (signal_pending(current))
 		return -EINTR;
 	return 0;
@@ -3143,6 +3143,8 @@ int tty_ioctl(struct inode * inode, struct file * file,
 	tty = (struct tty_struct *)file->private_data;
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
+
+	/* CHECKME: is this safe as one end closes ? */
 
 	real_tty = tty;
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
@@ -3580,7 +3582,7 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	tty_buffer_init(tty);
 	INIT_WORK(&tty->buf.work, flush_to_ldisc, tty);
 	init_MUTEX(&tty->buf.pty_sem);
-	init_MUTEX(&tty->termios_sem);
+	mutex_init(&tty->termios_mutex);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
 	INIT_WORK(&tty->hangup_work, do_tty_hangup, tty);

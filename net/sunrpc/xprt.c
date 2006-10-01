@@ -594,7 +594,7 @@ static void xprt_connect_status(struct rpc_task *task)
  * @xid: RPC XID of incoming reply
  *
  */
-struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid)
+struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 {
 	struct list_head *pos;
 
@@ -801,7 +801,7 @@ void xprt_reserve(struct rpc_task *task)
 	spin_unlock(&xprt->reserve_lock);
 }
 
-static inline u32 xprt_alloc_xid(struct rpc_xprt *xprt)
+static inline __be32 xprt_alloc_xid(struct rpc_xprt *xprt)
 {
 	return xprt->xid++;
 }

@@ -23,6 +23,39 @@
 #define MAX_DMA_ADDRESS		0x40000000
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
+/* We use `virtual` dma channels to hide the fact we have only a limited
+ * number of DMA channels, and not of all of them (dependant on the device)
+ * can be attached to any DMA source. We therefore let the DMA core handle
+ * the allocation of hardware channels to clients.
+*/
+
+enum dma_ch {
+	DMACH_XD0,
+	DMACH_XD1,
+	DMACH_SDI,
+	DMACH_SPI0,
+	DMACH_SPI1,
+	DMACH_UART0,
+	DMACH_UART1,
+	DMACH_UART2,
+	DMACH_TIMER,
+	DMACH_I2S_IN,
+	DMACH_I2S_OUT,
+	DMACH_PCM_IN,
+	DMACH_PCM_OUT,
+	DMACH_MIC_IN,
+	DMACH_USB_EP1,
+	DMACH_USB_EP2,
+	DMACH_USB_EP3,
+	DMACH_USB_EP4,
+	DMACH_UART0_SRC2,	/* s3c2412 second uart sources */
+	DMACH_UART1_SRC2,
+	DMACH_UART2_SRC2,
+	DMACH_MAX,		/* the end entry */
+};
+
+#define DMACH_LOW_LEVEL	(1<<28)	/* use this to specifiy hardware ch no */
+
 /* we have 4 dma channels */
 #define S3C2410_DMA_CHANNELS        (4)
 
@@ -149,6 +182,8 @@ struct s3c2410_dma_stats {
 	unsigned long		timeout_failed;
 };
 
+struct s3c2410_dma_map;
+
 /* struct s3c2410_dma_chan
  *
  * full state information for each DMA channel
@@ -173,6 +208,8 @@ struct s3c2410_dma_chan {
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
 	unsigned int		 flags;		/* channel flags */
+
+	struct s3c24xx_dma_map	*map;		/* channel hw maps */
 
 	/* channel's hardware position and configuration */
 	void __iomem		*regs;		/* channels registers */
@@ -283,6 +320,7 @@ extern int s3c2410_dma_set_buffdone_fn(dmach_t, s3c2410_dma_cbfn_t rtn);
 #define S3C2410_DMA_DCSRC       (0x18)
 #define S3C2410_DMA_DCDST       (0x1C)
 #define S3C2410_DMA_DMASKTRIG   (0x20)
+#define S3C2412_DMA_DMAREQSEL	(0x24)
 
 #define S3C2410_DISRCC_INC	(1<<0)
 #define S3C2410_DISRCC_APB	(1<<1)
@@ -349,4 +387,32 @@ extern int s3c2410_dma_set_buffdone_fn(dmach_t, s3c2410_dma_cbfn_t rtn);
 #define S3C2440_DCON_CH3_PCMOUT	(6<<24)
 #endif
 
+#ifdef CONFIG_CPU_S3C2412
+
+#define S3C2412_DMAREQSEL_SRC(x)	((x)<<1)
+
+#define S3C2412_DMAREQSEL_HW		(1)
+
+#define S3C2412_DMAREQSEL_SPI0TX	S3C2412_DMAREQSEL_SRC(0)
+#define S3C2412_DMAREQSEL_SPI0RX	S3C2412_DMAREQSEL_SRC(1)
+#define S3C2412_DMAREQSEL_SPI1TX	S3C2412_DMAREQSEL_SRC(2)
+#define S3C2412_DMAREQSEL_SPI1RX	S3C2412_DMAREQSEL_SRC(3)
+#define S3C2412_DMAREQSEL_I2STX		S3C2412_DMAREQSEL_SRC(4)
+#define S3C2412_DMAREQSEL_I2SRX		S3C2412_DMAREQSEL_SRC(5)
+#define S3C2412_DMAREQSEL_TIMER		S3C2412_DMAREQSEL_SRC(9)
+#define S3C2412_DMAREQSEL_SDI		S3C2412_DMAREQSEL_SRC(10)
+#define S3C2412_DMAREQSEL_USBEP1	S3C2412_DMAREQSEL_SRC(13)
+#define S3C2412_DMAREQSEL_USBEP2	S3C2412_DMAREQSEL_SRC(14)
+#define S3C2412_DMAREQSEL_USBEP3	S3C2412_DMAREQSEL_SRC(15)
+#define S3C2412_DMAREQSEL_USBEP4	S3C2412_DMAREQSEL_SRC(16)
+#define S3C2412_DMAREQSEL_XDREQ0	S3C2412_DMAREQSEL_SRC(17)
+#define S3C2412_DMAREQSEL_XDREQ1	S3C2412_DMAREQSEL_SRC(18)
+#define S3C2412_DMAREQSEL_UART0_0	S3C2412_DMAREQSEL_SRC(19)
+#define S3C2412_DMAREQSEL_UART0_1	S3C2412_DMAREQSEL_SRC(20)
+#define S3C2412_DMAREQSEL_UART1_0	S3C2412_DMAREQSEL_SRC(21)
+#define S3C2412_DMAREQSEL_UART1_1	S3C2412_DMAREQSEL_SRC(22)
+#define S3C2412_DMAREQSEL_UART2_0	S3C2412_DMAREQSEL_SRC(23)
+#define S3C2412_DMAREQSEL_UART2_1	S3C2412_DMAREQSEL_SRC(24)
+
+#endif
 #endif /* __ASM_ARCH_DMA_H */

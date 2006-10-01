@@ -2,6 +2,8 @@
 # Block device driver configuration
 #
 
+if BLOCK
+
 menu "Block devices"
 
 config BLK_DEV_FD
@@ -468,3 +470,5 @@ config ATA_OVER_ETH
 	devices like the Coraid EtherDrive (R) Storage Blade.
 
 endmenu
+
+endif

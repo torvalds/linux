@@ -69,7 +69,7 @@ static void *noop_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct noop_data *nd;
 
-	nd = kmalloc(sizeof(*nd), GFP_KERNEL);
+	nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
 	if (!nd)
 		return NULL;
 	INIT_LIST_HEAD(&nd->queue);

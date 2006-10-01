@@ -1262,10 +1262,8 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
 
-	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100) {
-		barrier();
+	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100)
 		cpu_relax();
-	}
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave

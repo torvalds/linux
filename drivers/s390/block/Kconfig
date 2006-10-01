@@ -1,4 +1,4 @@
-if S390
+if S390 && BLOCK
 
 comment "S/390 block device drivers"
 	depends on S390

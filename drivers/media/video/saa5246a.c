@@ -830,7 +830,6 @@ static struct video_device saa_template =
 	.owner	  = THIS_MODULE,
 	.name	  = IF_NAME,
 	.type	  = VID_TYPE_TELETEXT,
-	.hardware = VID_HARDWARE_SAA5249,
 	.fops	  = &saa_fops,
 	.release  = video_device_release,
 	.minor    = -1,

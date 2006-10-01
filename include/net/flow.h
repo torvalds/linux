@@ -16,8 +16,8 @@ struct flowi {
 
 	union {
 		struct {
-			__u32			daddr;
-			__u32			saddr;
+			__be32			daddr;
+			__be32			saddr;
 			__u32			fwmark;
 			__u8			tos;
 			__u8			scope;
@@ -56,8 +56,8 @@ struct flowi {
 #define FLOWI_FLAG_MULTIPATHOLDROUTE 0x01
 	union {
 		struct {
-			__u16	sport;
-			__u16	dport;
+			__be16	sport;
+			__be16	dport;
 		} ports;
 
 		struct {
@@ -73,7 +73,7 @@ struct flowi {
 			__u8	objname[16]; /* Not zero terminated */
 		} dnports;
 
-		__u32		spi;
+		__be32		spi;
 
 #ifdef CONFIG_IPV6_MIP6
 		struct {

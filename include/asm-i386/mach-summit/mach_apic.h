@@ -88,7 +88,7 @@ static inline void clustered_apic_check(void)
 
 static inline int apicid_to_node(int logical_apicid)
 {
-	return logical_apicid >> 5;          /* 2 clusterids per CEC */
+	return apicid_2_node[logical_apicid];
 }
 
 /* Mapping from cpu number to logical apicid */

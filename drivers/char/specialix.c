@@ -1087,24 +1087,16 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 		port->MSVR =  (sx_in(bp, CD186x_MSVR) & MSVR_RTS);
 	spin_unlock_irqrestore(&bp->lock, flags);
 	dprintk (SX_DEBUG_TERMIOS, "sx: got MSVR=%02x.\n", port->MSVR);
-	baud = C_BAUD(tty);
+	baud = tty_get_baud_rate(tty);
 
-	if (baud & CBAUDEX) {
-		baud &= ~CBAUDEX;
-		if (baud < 1 || baud > 2)
-			port->tty->termios->c_cflag &= ~CBAUDEX;
-		else
-			baud += 15;
-	}
-	if (baud == 15) {
+	if (baud == 38400) {
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 			baud ++;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
 			baud += 2;
 	}
 
-
-	if (!baud_table[baud]) {
+	if (!baud) {
 		/* Drop DTR & exit */
 		dprintk (SX_DEBUG_TERMIOS, "Dropping DTR...  Hmm....\n");
 		if (!SX_CRTSCTS (tty)) {
@@ -1134,7 +1126,7 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 		                  "This is an untested option, please be carefull.\n",
 		                  port_No (port), tmp);
 	else
-		tmp = (((SX_OSCFREQ + baud_table[baud]/2) / baud_table[baud] +
+		tmp = (((SX_OSCFREQ + baud/2) / baud +
 		         CD186x_TPC/2) / CD186x_TPC);
 
 	if ((tmp < 0x10) && time_before(again, jiffies)) {

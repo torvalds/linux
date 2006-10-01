@@ -2,13 +2,13 @@ config DVB_TTUSB_BUDGET
 	tristate "Technotrend/Hauppauge Nova-USB devices"
 	depends on DVB_CORE && USB && I2C
 	select DVB_PLL
-	select DVB_CX22700
-	select DVB_TDA1004X
-	select DVB_VES1820
-	select DVB_TDA8083
-	select DVB_STV0299
-	select DVB_STV0297
-	select DVB_LNBP21
+	select DVB_CX22700 if !DVB_FE_CUSTOMISE
+	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
+	select DVB_VES1820 if !DVB_FE_CUSTOMISE
+	select DVB_TDA8083 if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_STV0297 if !DVB_FE_CUSTOMISE
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
 	help
 	  Support for external USB adapters designed by Technotrend and
 	  produced by Hauppauge, shipped under the brand name 'Nova-USB'.

@@ -27,7 +27,8 @@ enum dmi_device_type {
 	DMI_DEV_TYPE_ETHERNET,
 	DMI_DEV_TYPE_TOKENRING,
 	DMI_DEV_TYPE_SOUND,
-	DMI_DEV_TYPE_IPMI = -1
+	DMI_DEV_TYPE_IPMI = -1,
+	DMI_DEV_TYPE_OEM_STRING = -2
 };
 
 struct dmi_header {

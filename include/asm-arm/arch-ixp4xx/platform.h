@@ -90,6 +90,11 @@ struct ixp4xx_i2c_pins {
 struct sys_timer;
 
 /*
+ * Frequency of clock used for primary clocksource
+ */
+extern unsigned long ixp4xx_timer_freq;
+
+/*
  * Functions used by platform-level setup code
  */
 extern void ixp4xx_map_io(void);

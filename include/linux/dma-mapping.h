@@ -24,6 +24,13 @@ enum dma_data_direction {
 #define DMA_28BIT_MASK	0x000000000fffffffULL
 #define DMA_24BIT_MASK	0x0000000000ffffffULL
 
+static inline int valid_dma_direction(int dma_direction)
+{
+	return ((dma_direction == DMA_BIDIRECTIONAL) ||
+		(dma_direction == DMA_TO_DEVICE) ||
+		(dma_direction == DMA_FROM_DEVICE));
+}
+
 #include <asm/dma-mapping.h>
 
 /* Backwards compat, remove in 2.7.x */

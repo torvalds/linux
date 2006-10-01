@@ -16,7 +16,7 @@
 #define MAX_PMU_LEVEL 0xFF
 
 static struct backlight_properties pmu_backlight_data;
-static spinlock_t pmu_backlight_lock;
+static DEFINE_SPINLOCK(pmu_backlight_lock);
 static int sleeping;
 static u8 bl_curve[FB_BACKLIGHT_LEVELS];
 

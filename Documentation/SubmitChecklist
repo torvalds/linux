@@ -61,3 +61,6 @@ kernel patches.
     Documentation/kernel-parameters.txt.
 
 18: All new module parameters are documented with MODULE_PARM_DESC()
+
+19: All new userspace interfaces are documented in Documentation/ABI/.
+    See Documentation/ABI/README for more information.

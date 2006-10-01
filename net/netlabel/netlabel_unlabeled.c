@@ -64,6 +64,34 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
 };
 
 /*
+ * Helper Functions
+ */
+
+/**
+ * netlbl_unlabel_acceptflg_set - Set the unlabeled accept flag
+ * @value: desired value
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Set the value of the unlabeled accept flag to @value.
+ *
+ */
+static void netlbl_unlabel_acceptflg_set(u8 value,
+					 struct netlbl_audit *audit_info)
+{
+	struct audit_buffer *audit_buf;
+	u8 old_val;
+
+	old_val = atomic_read(&netlabel_unlabel_accept_flg);
+	atomic_set(&netlabel_unlabel_accept_flg, value);
+
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
+					      audit_info);
+	audit_log_format(audit_buf, " unlbl_accept=%u old=%u", value, old_val);
+	audit_log_end(audit_buf);
+}
+
+/*
  * NetLabel Command Handlers
  */
 
@@ -79,18 +107,19 @@ static struct nla_policy netlbl_unlabel_genl_policy[NLBL_UNLABEL_A_MAX + 1] = {
  */
 static int netlbl_unlabel_accept(struct sk_buff *skb, struct genl_info *info)
 {
-	int ret_val = -EINVAL;
 	u8 value;
+	struct netlbl_audit audit_info;
 
 	if (info->attrs[NLBL_UNLABEL_A_ACPTFLG]) {
 		value = nla_get_u8(info->attrs[NLBL_UNLABEL_A_ACPTFLG]);
 		if (value == 1 || value == 0) {
-			atomic_set(&netlabel_unlabel_accept_flg, value);
-			ret_val = 0;
+			netlbl_netlink_auditinfo(skb, &audit_info);
+			netlbl_unlabel_acceptflg_set(value, &audit_info);
+			return 0;
 		}
 	}
 
-	return ret_val;
+	return -EINVAL;
 }
 
 /**
@@ -229,16 +258,23 @@ int netlbl_unlabel_defconf(void)
 {
 	int ret_val;
 	struct netlbl_dom_map *entry;
+	struct netlbl_audit audit_info;
+
+	/* Only the kernel is allowed to call this function and the only time
+	 * it is called is at bootup before the audit subsystem is reporting
+	 * messages so don't worry to much about these values. */
+	security_task_getsecid(current, &audit_info.secid);
+	audit_info.loginuid = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->type = NETLBL_NLTYPE_UNLABELED;
-	ret_val = netlbl_domhsh_add_default(entry);
+	ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 	if (ret_val != 0)
 		return ret_val;
 
-	atomic_set(&netlabel_unlabel_accept_flg, 1);
+	netlbl_unlabel_acceptflg_set(1, &audit_info);
 
 	return 0;
 }

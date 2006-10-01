@@ -50,7 +50,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct rtable *rt;
-	u32 daddr, nexthop;
+	__be32 daddr, nexthop;
 	int tmp;
 	int err;
 

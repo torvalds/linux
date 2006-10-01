@@ -215,10 +215,8 @@ _error:
 	bprm->interp_flags = 0;
 	bprm->interp_data = 0;
 _unshare:
-	if (files) {
-		put_files_struct(current->files);
-		current->files = files;
-	}
+	if (files)
+		reset_files_struct(current, files);
 	goto _ret;
 }
 

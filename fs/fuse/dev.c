@@ -212,6 +212,7 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
  * Called with fc->lock, unlocks it
  */
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
+	__releases(fc->lock)
 {
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 	req->end = NULL;
@@ -640,6 +641,7 @@ static void request_wait(struct fuse_conn *fc)
  */
 static int fuse_read_interrupt(struct fuse_conn *fc, struct fuse_req *req,
 			       const struct iovec *iov, unsigned long nr_segs)
+	__releases(fc->lock)
 {
 	struct fuse_copy_state cs;
 	struct fuse_in_header ih;

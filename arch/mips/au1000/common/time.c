@@ -96,7 +96,7 @@ void mips_timer_interrupt(struct pt_regs *regs)
 		timerlo = count;
 
 		kstat_this_cpu.irqs[irq]++;
-		do_timer(regs);
+		do_timer(1);
 #ifndef CONFIG_SMP
 		update_process_times(user_mode(regs));
 #endif
@@ -137,7 +137,7 @@ irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	while (time_elapsed > 0) {
-		do_timer(regs);
+		do_timer(1);
 #ifndef CONFIG_SMP
 		update_process_times(user_mode(regs));
 #endif
@@ -156,7 +156,7 @@ irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	if (jiffie_drift >= 999) {
 		jiffie_drift -= 999;
-		do_timer(regs); /* increment jiffies by one */
+		do_timer(1); /* increment jiffies by one */
 #ifndef CONFIG_SMP
 		update_process_times(user_mode(regs));
 #endif

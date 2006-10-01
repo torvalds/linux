@@ -1779,7 +1779,7 @@ static int remote_wakeup(struct usb_device *udev)
 	 * to the parent hub! */
 
 	usb_lock_device(udev);
-	mutex_lock_nested(&udev->pm_mutex, udev->level);
+	usb_pm_lock(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
 		/* TRSMRCY = 10 msec */
@@ -1788,7 +1788,7 @@ static int remote_wakeup(struct usb_device *udev)
 		if (status == 0)
 			udev->dev.power.power_state.event = PM_EVENT_ON;
 	}
-	mutex_unlock(&udev->pm_mutex);
+	usb_pm_unlock(udev);
 
 	if (status == 0)
 		usb_autoresume_device(udev, 0);

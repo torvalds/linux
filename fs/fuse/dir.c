@@ -776,7 +776,7 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		if ((mask & MAY_EXEC) && !S_ISDIR(mode) && !(mode & S_IXUGO))
 			return -EACCES;
 
-		if (nd && (nd->flags & LOOKUP_ACCESS))
+		if (nd && (nd->flags & (LOOKUP_ACCESS | LOOKUP_CHDIR)))
 			return fuse_access(inode, mask);
 		return 0;
 	}

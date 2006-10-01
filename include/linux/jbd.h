@@ -977,7 +977,6 @@ extern void	   journal_write_revoke_records(journal_t *, transaction_t *);
 extern int	journal_set_revoke(journal_t *, unsigned long, tid_t);
 extern int	journal_test_revoke(journal_t *, unsigned long, tid_t);
 extern void	journal_clear_revoke(journal_t *);
-extern void	journal_brelse_array(struct buffer_head *b[], int n);
 extern void	journal_switch_revoke_table(journal_t *journal);
 
 /*

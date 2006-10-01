@@ -183,7 +183,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);
 	atomic_set(&tsk->fs_excl, 0);
+#ifdef CONFIG_BLK_DEV_IO_TRACE
 	tsk->btrace_seq = 0;
+#endif
 	tsk->splice_pipe = NULL;
 	return tsk;
 }
@@ -1061,7 +1063,11 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	p->irq_events = 0;
+#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
+	p->hardirqs_enabled = 1;
+#else
 	p->hardirqs_enabled = 0;
+#endif
 	p->hardirq_enable_ip = 0;
 	p->hardirq_enable_event = 0;
 	p->hardirq_disable_ip = _THIS_IP_;
@@ -1144,7 +1150,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */
-	   
 	p->parent_exec_id = p->self_exec_id;
 
 	/* ok, now we should be set up.. */
@@ -1166,6 +1171,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
+
+	/* for sys_ioprio_set(IOPRIO_WHO_PGRP) */
+	p->ioprio = current->ioprio;
 
 	/*
 	 * The task hasn't been attached yet, so its cpus_allowed mask will
@@ -1225,11 +1233,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			p->it_prof_expires = jiffies_to_cputime(1);
 		}
 	}
-
-	/*
-	 * inherit ioprio
-	 */
-	p->ioprio = current->ioprio;
 
 	if (likely(p->pid)) {
 		add_parent(p);

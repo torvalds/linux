@@ -95,7 +95,7 @@ enum rpc_auth_stat {
  * 2GB.
  */
 
-typedef u32	rpc_fraghdr;
+typedef __be32	rpc_fraghdr;
 
 #define	RPC_LAST_STREAM_FRAGMENT	(1U << 31)
 #define	RPC_FRAGMENT_SIZE_MASK		(~RPC_LAST_STREAM_FRAGMENT)

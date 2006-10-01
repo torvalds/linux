@@ -597,8 +597,7 @@ asmlinkage void data_exception(struct pt_regs * regs, long interruption_code)
 		local_irq_enable();
 
 	if (MACHINE_HAS_IEEE)
-		__asm__ volatile ("stfpc %0\n\t" 
-				  : "=m" (current->thread.fp_regs.fpc));
+		asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
 
 #ifdef CONFIG_MATHEMU
         else if (regs->psw.mask & PSW_MASK_PSTATE) {

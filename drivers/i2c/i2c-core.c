@@ -420,14 +420,6 @@ int i2c_attach_client(struct i2c_client *client)
 	}
 	list_add_tail(&client->list,&adapter->clients);
 	
-	if (adapter->client_register)  {
-		if (adapter->client_register(client))  {
-			dev_dbg(&adapter->dev, "client_register "
-				"failed for client [%s] at 0x%02x\n",
-				client->name, client->addr);
-		}
-	}
-
 	client->usage_count = 0;
 
 	client->dev.parent = &client->adapter->dev;
@@ -445,10 +437,17 @@ int i2c_attach_client(struct i2c_client *client)
 	res = device_create_file(&client->dev, &dev_attr_client_name);
 	if (res)
 		goto out_unregister;
-
-out_unlock:
 	mutex_unlock(&adapter->clist_lock);
-	return res;
+
+	if (adapter->client_register)  {
+		if (adapter->client_register(client)) {
+			dev_dbg(&adapter->dev, "client_register "
+				"failed for client [%s] at 0x%02x\n",
+				client->name, client->addr);
+		}
+	}
+
+	return 0;
 
 out_unregister:
 	init_completion(&client->released); /* Needed? */
@@ -458,7 +457,9 @@ out_list:
 	list_del(&client->list);
 	dev_err(&adapter->dev, "Failed to attach i2c client %s at 0x%02x "
 		"(%d)\n", client->name, client->addr, res);
-	goto out_unlock;
+out_unlock:
+	mutex_unlock(&adapter->clist_lock);
+	return res;
 }
 
 

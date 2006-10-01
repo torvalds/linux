@@ -136,7 +136,7 @@ static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 	list_add_tail(&timer->entry, vec);
 }
 
-/***
+/**
  * init_timer - initialize a timer.
  * @timer: the timer to be initialized
  *
@@ -175,6 +175,7 @@ static inline void detach_timer(struct timer_list *timer,
  */
 static tvec_base_t *lock_timer_base(struct timer_list *timer,
 					unsigned long *flags)
+	__acquires(timer->base->lock)
 {
 	tvec_base_t *base;
 
@@ -235,7 +236,7 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(__mod_timer);
 
-/***
+/**
  * add_timer_on - start a timer on a particular CPU
  * @timer: the timer to be added
  * @cpu: the CPU to start it on
@@ -255,9 +256,10 @@ void add_timer_on(struct timer_list *timer, int cpu)
 }
 
 
-/***
+/**
  * mod_timer - modify a timer's timeout
  * @timer: the timer to be modified
+ * @expires: new timeout in jiffies
  *
  * mod_timer is a more efficient way to update the expire field of an
  * active timer (if the timer is inactive it will be activated)
@@ -291,7 +293,7 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 
 EXPORT_SYMBOL(mod_timer);
 
-/***
+/**
  * del_timer - deactive a timer.
  * @timer: the timer to be deactivated
  *
@@ -323,7 +325,10 @@ int del_timer(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer);
 
 #ifdef CONFIG_SMP
-/*
+/**
+ * try_to_del_timer_sync - Try to deactivate a timer
+ * @timer: timer do del
+ *
  * This function tries to deactivate a timer. Upon successful (ret >= 0)
  * exit the timer is not queued and the handler is not running on any CPU.
  *
@@ -351,7 +356,7 @@ out:
 	return ret;
 }
 
-/***
+/**
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
  * @timer: the timer to be deactivated
  *
@@ -401,15 +406,15 @@ static int cascade(tvec_base_t *base, tvec_t *tv, int index)
 	return index;
 }
 
-/***
+#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
+
+/**
  * __run_timers - run all expired timers (if any) on this CPU.
  * @base: the timer vector to be processed.
  *
  * This function cascades all vectors and executes all expired timer
  * vectors.
  */
-#define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
-
 static inline void __run_timers(tvec_base_t *base)
 {
 	struct timer_list *timer;
@@ -970,7 +975,7 @@ void __init timekeeping_init(void)
 
 
 static int timekeeping_suspended;
-/*
+/**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
  * @dev:	unused
  *
@@ -1106,7 +1111,7 @@ static void clocksource_adjust(struct clocksource *clock, s64 offset)
 	clock->error -= (interval - offset) << (TICK_LENGTH_SHIFT - clock->shift);
 }
 
-/*
+/**
  * update_wall_time - Uses the current clocksource to increment the wall time
  *
  * Called from the timer interrupt, must hold a write on xtime_lock.
@@ -1217,10 +1222,8 @@ static inline void calc_load(unsigned long ticks)
 	unsigned long active_tasks; /* fixed-point */
 	static int count = LOAD_FREQ;
 
-	count -= ticks;
-	if (count < 0) {
-		count += LOAD_FREQ;
-		active_tasks = count_active_tasks();
+	active_tasks = count_active_tasks();
+	for (count -= ticks; count < 0; count += LOAD_FREQ) {
 		CALC_LOAD(avenrun[0], EXP_1, active_tasks);
 		CALC_LOAD(avenrun[1], EXP_5, active_tasks);
 		CALC_LOAD(avenrun[2], EXP_15, active_tasks);
@@ -1265,11 +1268,8 @@ void run_local_timers(void)
  * Called by the timer interrupt. xtime_lock must already be taken
  * by the timer IRQ!
  */
-static inline void update_times(void)
+static inline void update_times(unsigned long ticks)
 {
-	unsigned long ticks;
-
-	ticks = jiffies - wall_jiffies;
 	wall_jiffies += ticks;
 	update_wall_time();
 	calc_load(ticks);
@@ -1281,12 +1281,10 @@ static inline void update_times(void)
  * jiffies is defined in the linker script...
  */
 
-void do_timer(struct pt_regs *regs)
+void do_timer(unsigned long ticks)
 {
-	jiffies_64++;
-	/* prevent loading jiffies before storing new jiffies_64 value. */
-	barrier();
-	update_times();
+	jiffies_64 += ticks;
+	update_times(ticks);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
@@ -1470,8 +1468,9 @@ asmlinkage long sys_gettid(void)
 	return current->pid;
 }
 
-/*
+/**
  * sys_sysinfo - fill in sysinfo struct
+ * @info: pointer to buffer to fill
  */ 
 asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 {
@@ -1688,8 +1687,10 @@ static struct notifier_block __cpuinitdata timers_nb = {
 
 void __init init_timers(void)
 {
-	timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
+	int err = timer_cpu_notify(&timers_nb, (unsigned long)CPU_UP_PREPARE,
 				(void *)(long)smp_processor_id());
+
+	BUG_ON(err == NOTIFY_BAD);
 	register_cpu_notifier(&timers_nb);
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq, NULL);
 }

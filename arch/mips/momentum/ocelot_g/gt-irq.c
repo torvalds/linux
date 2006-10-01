@@ -133,7 +133,7 @@ static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
 		MV_WRITE(TIMER_COUNTER_0_3_INTERRUPT_CAUSE, 0x0);
 
 		/* handle the timer call */
-		do_timer(regs);
+		do_timer(1);
 #ifndef CONFIG_SMP
 		update_process_times(user_mode(regs));
 #endif

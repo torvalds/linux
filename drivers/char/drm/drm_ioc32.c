@@ -1051,7 +1051,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	drm_ioctl_compat_t *fn;
 	int ret;
 
-	if (nr >= DRM_ARRAY_SIZE(drm_compat_ioctls))
+	if (nr >= ARRAY_SIZE(drm_compat_ioctls))
 		return -ENOTTY;
 
 	fn = drm_compat_ioctls[nr];

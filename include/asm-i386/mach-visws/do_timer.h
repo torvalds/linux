@@ -9,7 +9,7 @@ static inline void do_timer_interrupt_hook(struct pt_regs *regs)
 	/* Clear the interrupt */
 	co_cpu_write(CO_CPU_STAT,co_cpu_read(CO_CPU_STAT) & ~CO_STAT_TIMEINTR);
 
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode_vm(regs));
 #endif

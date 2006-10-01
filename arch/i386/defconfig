@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.18-git5
-# Tue Sep 26 09:30:47 2006
+# Linux kernel version: 2.6.18-git7
+# Wed Sep 27 21:53:10 2006
 #
 CONFIG_X86_32=y
 CONFIG_GENERIC_TIME=y
@@ -210,6 +210,7 @@ CONFIG_ARCH_ENABLE_MEMORY_HOTPLUG=y
 CONFIG_PM=y
 CONFIG_PM_LEGACY=y
 # CONFIG_PM_DEBUG is not set
+CONFIG_PM_SYSFS_DEPRECATED=y
 
 #
 # ACPI (Advanced Configuration and Power Interface) Support
@@ -292,6 +293,7 @@ CONFIG_PCI_DIRECT=y
 CONFIG_PCI_MMCONFIG=y
 # CONFIG_PCIEPORTBUS is not set
 CONFIG_PCI_MSI=y
+# CONFIG_PCI_MULTITHREAD_PROBE is not set
 # CONFIG_PCI_DEBUG is not set
 CONFIG_ISA_DMA_API=y
 # CONFIG_ISA is not set
@@ -1427,6 +1429,7 @@ CONFIG_KPROBES=y
 #
 CONFIG_TRACE_IRQFLAGS_SUPPORT=y
 # CONFIG_PRINTK_TIME is not set
+# CONFIG_ENABLE_MUST_CHECK is not set
 CONFIG_MAGIC_SYSRQ=y
 CONFIG_UNUSED_SYMBOLS=y
 CONFIG_DEBUG_KERNEL=y

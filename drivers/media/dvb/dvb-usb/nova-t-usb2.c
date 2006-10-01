@@ -156,7 +156,7 @@ static struct dvb_usb_properties nova_t_properties = {
 	.pid_filter_count = 32,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-nova-t-usb2-01.fw",
+	.firmware = "dvb-usb-nova-t-usb2-02.fw",
 
 	.size_of_priv     = sizeof(struct dibusb_state),
 

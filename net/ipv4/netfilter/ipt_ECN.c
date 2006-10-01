@@ -28,7 +28,7 @@ static inline int
 set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct iphdr *iph = (*pskb)->nh.iph;
-	u_int16_t oldtos;
+	__be16 oldtos;
 
 	if ((iph->tos & IPT_ECN_IP_MASK) != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
@@ -37,7 +37,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		iph->check = nf_csum_update(oldtos ^ 0xFFFF, iph->tos,
+		iph->check = nf_csum_update(oldtos ^ htons(0xFFFF), iph->tos,
 					    iph->check);
 	} 
 	return 1;
@@ -48,7 +48,7 @@ static inline int
 set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 {
 	struct tcphdr _tcph, *tcph;
-	u_int16_t oldval;
+	__be16 oldval;
 
 	/* Not enought header? */
 	tcph = skb_header_pointer(*pskb, (*pskb)->nh.iph->ihl*4,
@@ -66,15 +66,15 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 		return 0;
 	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
 
-	oldval = ((u_int16_t *)tcph)[6];
+	oldval = ((__be16 *)tcph)[6];
 	if (einfo->operation & IPT_ECN_OP_SET_ECE)
 		tcph->ece = einfo->proto.tcp.ece;
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
 		tcph->cwr = einfo->proto.tcp.cwr;
 
 	tcph->check = nf_proto_csum_update((*pskb),
-					   oldval ^ 0xFFFF,
-					   ((u_int16_t *)tcph)[6],
+					   oldval ^ htons(0xFFFF),
+					   ((__be16 *)tcph)[6],
 					   tcph->check, 0);
 	return 1;
 }

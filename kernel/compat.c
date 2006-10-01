@@ -22,8 +22,11 @@
 #include <linux/security.h>
 #include <linux/timex.h>
 #include <linux/migrate.h>
+#include <linux/posix-timers.h>
 
 #include <asm/uaccess.h>
+
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
 
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
@@ -601,6 +604,30 @@ long compat_sys_clock_getres(clockid_t which_clock,
 	return err;
 } 
 
+static long compat_clock_nanosleep_restart(struct restart_block *restart)
+{
+	long err;
+	mm_segment_t oldfs;
+	struct timespec tu;
+	struct compat_timespec *rmtp = (struct compat_timespec *)(restart->arg1);
+
+	restart->arg1 = (unsigned long) &tu;
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	err = clock_nanosleep_restart(restart);
+	set_fs(oldfs);
+
+	if ((err == -ERESTART_RESTARTBLOCK) && rmtp &&
+	    put_compat_timespec(&tu, rmtp))
+		return -EFAULT;
+
+	if (err == -ERESTART_RESTARTBLOCK) {
+		restart->fn = compat_clock_nanosleep_restart;
+		restart->arg1 = (unsigned long) rmtp;
+	}
+	return err;
+}
+
 long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 			    struct compat_timespec __user *rqtp,
 			    struct compat_timespec __user *rmtp)
@@ -608,6 +635,7 @@ long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 	long err;
 	mm_segment_t oldfs;
 	struct timespec in, out; 
+	struct restart_block *restart;
 
 	if (get_compat_timespec(&in, rqtp)) 
 		return -EFAULT;
@@ -618,9 +646,16 @@ long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 				  (struct timespec __user *) &in,
 				  (struct timespec __user *) &out);
 	set_fs(oldfs);
+
 	if ((err == -ERESTART_RESTARTBLOCK) && rmtp &&
 	    put_compat_timespec(&out, rmtp))
 		return -EFAULT;
+
+	if (err == -ERESTART_RESTARTBLOCK) {
+		restart = &current_thread_info()->restart_block;
+		restart->fn = compat_clock_nanosleep_restart;
+		restart->arg1 = (unsigned long) rmtp;
+	}
 	return err;	
 } 
 

@@ -55,7 +55,7 @@ icst525_khz_to_vco(const struct icst525_params *p, unsigned long freq)
 			break;
 	} while (i < ARRAY_SIZE(idx2s));
 
-	if (i > ARRAY_SIZE(idx2s))
+	if (i >= ARRAY_SIZE(idx2s))
 		return vco;
 
 	vco.s = idx2s[i];
@@ -118,7 +118,7 @@ icst525_ps_to_vco(const struct icst525_params *p, unsigned long period)
 			break;
 	} while (i < ARRAY_SIZE(idx2s));
 
-	if (i > ARRAY_SIZE(idx2s))
+	if (i >= ARRAY_SIZE(idx2s))
 		return vco;
 
 	vco.s = idx2s[i];

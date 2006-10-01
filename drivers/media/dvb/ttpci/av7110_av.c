@@ -33,7 +33,6 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
-#include <linux/byteorder/swabb.h>
 #include <linux/smp_lock.h>
 #include <linux/fs.h>
 

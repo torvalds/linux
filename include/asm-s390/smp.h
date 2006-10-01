@@ -56,7 +56,7 @@ static inline __u16 hard_smp_processor_id(void)
 {
         __u16 cpu_address;
  
-        __asm__ ("stap %0\n" : "=m" (cpu_address));
+	asm volatile("stap %0" : "=m" (cpu_address));
         return cpu_address;
 }
 

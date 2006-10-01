@@ -1135,7 +1135,8 @@ struct v4l2_sliced_vbi_cap
 				 (equals frame lines 313-336 for 625 line video
 				  standards, 263-286 for 525 line standards) */
 	__u16   service_lines[2][24];
-	__u32   reserved[4];    /* must be 0 */
+	enum v4l2_buf_type type;
+	__u32   reserved[3];    /* must be 0 */
 };
 
 struct v4l2_sliced_vbi_data
@@ -1242,7 +1243,7 @@ struct v4l2_streamparm
 #define VIDIOC_G_PRIORITY       _IOR  ('V', 67, enum v4l2_priority)
 #define VIDIOC_S_PRIORITY       _IOW  ('V', 68, enum v4l2_priority)
 #if 1
-#define VIDIOC_G_SLICED_VBI_CAP _IOR  ('V', 69, struct v4l2_sliced_vbi_cap)
+#define VIDIOC_G_SLICED_VBI_CAP _IOWR ('V', 69, struct v4l2_sliced_vbi_cap)
 #endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 #define VIDIOC_G_EXT_CTRLS	_IOWR ('V', 71, struct v4l2_ext_controls)

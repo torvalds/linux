@@ -45,26 +45,17 @@ void diag10(unsigned long addr)
 {
         if (addr >= 0x7ff00000)
                 return;
+	asm volatile(
 #ifdef CONFIG_64BIT
-        asm volatile (
-		"   sam31\n"
-		"   diag %0,%0,0x10\n"
-		"0: sam64\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 8\n"
-		"   .quad 0b, 0b\n"
-		".previous\n"
-		: : "a" (addr));
+		"	sam31\n"
+		"	diag	%0,%0,0x10\n"
+		"0:	sam64\n"
 #else
-        asm volatile (
-		"   diag %0,%0,0x10\n"
+		"	diag	%0,%0,0x10\n"
 		"0:\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-		"   .long 0b, 0b\n"
-		".previous\n"
-		: : "a" (addr));
 #endif
+		EX_TABLE(0b,0b)
+		: : "a" (addr));
 }
 
 void show_mem(void)
@@ -156,11 +147,10 @@ void __init paging_init(void)
 	S390_lowcore.kernel_asce = pgdir_k;
 
         /* enable virtual mapping in kernel mode */
-        __asm__ __volatile__("    LCTL  1,1,%0\n"
-                             "    LCTL  7,7,%0\n"
-                             "    LCTL  13,13,%0\n"
-                             "    SSM   %1" 
-			     : : "m" (pgdir_k), "m" (ssm_mask));
+	__ctl_load(pgdir_k, 1, 1);
+	__ctl_load(pgdir_k, 7, 7);
+	__ctl_load(pgdir_k, 13, 13);
+	__raw_local_irq_ssm(ssm_mask);
 
         local_flush_tlb();
         return;
@@ -241,11 +231,10 @@ void __init paging_init(void)
 	S390_lowcore.kernel_asce = pgdir_k;
 
         /* enable virtual mapping in kernel mode */
-        __asm__ __volatile__("lctlg 1,1,%0\n\t"
-                             "lctlg 7,7,%0\n\t"
-                             "lctlg 13,13,%0\n\t"
-                             "ssm   %1"
-			     : :"m" (pgdir_k), "m" (ssm_mask));
+	__ctl_load(pgdir_k, 1, 1);
+	__ctl_load(pgdir_k, 7, 7);
+	__ctl_load(pgdir_k, 13, 13);
+	__raw_local_irq_ssm(ssm_mask);
 
         local_flush_tlb();
 

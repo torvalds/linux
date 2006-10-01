@@ -40,10 +40,10 @@ struct fib4_rule
 	u8			dst_len;
 	u8			src_len;
 	u8			tos;
-	u32			src;
-	u32			srcmask;
-	u32			dst;
-	u32			dstmask;
+	__be32			src;
+	__be32			srcmask;
+	__be32			dst;
+	__be32			dstmask;
 #ifdef CONFIG_IP_ROUTE_FWMARK
 	u32			fwmark;
 	u32			fwmask;
@@ -150,8 +150,8 @@ void fib_select_default(const struct flowi *flp, struct fib_result *res)
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib4_rule *r = (struct fib4_rule *) rule;
-	u32 daddr = fl->fl4_dst;
-	u32 saddr = fl->fl4_src;
+	__be32 daddr = fl->fl4_dst;
+	__be32 saddr = fl->fl4_src;
 
 	if (((saddr ^ r->src) & r->srcmask) ||
 	    ((daddr ^ r->dst) & r->dstmask))
@@ -215,10 +215,10 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	}
 
 	if (tb[FRA_SRC])
-		rule4->src = nla_get_u32(tb[FRA_SRC]);
+		rule4->src = nla_get_be32(tb[FRA_SRC]);
 
 	if (tb[FRA_DST])
-		rule4->dst = nla_get_u32(tb[FRA_DST]);
+		rule4->dst = nla_get_be32(tb[FRA_DST]);
 
 #ifdef CONFIG_IP_ROUTE_FWMARK
 	if (tb[FRA_FWMARK]) {
@@ -277,10 +277,10 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 		return 0;
 #endif
 
-	if (tb[FRA_SRC] && (rule4->src != nla_get_u32(tb[FRA_SRC])))
+	if (tb[FRA_SRC] && (rule4->src != nla_get_be32(tb[FRA_SRC])))
 		return 0;
 
-	if (tb[FRA_DST] && (rule4->dst != nla_get_u32(tb[FRA_DST])))
+	if (tb[FRA_DST] && (rule4->dst != nla_get_be32(tb[FRA_DST])))
 		return 0;
 
 	return 1;
@@ -305,10 +305,10 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 #endif
 
 	if (rule4->dst_len)
-		NLA_PUT_U32(skb, FRA_DST, rule4->dst);
+		NLA_PUT_BE32(skb, FRA_DST, rule4->dst);
 
 	if (rule4->src_len)
-		NLA_PUT_U32(skb, FRA_SRC, rule4->src);
+		NLA_PUT_BE32(skb, FRA_SRC, rule4->src);
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (rule4->tclassid)

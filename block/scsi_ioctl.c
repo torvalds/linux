@@ -294,7 +294,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	rq->sense = sense;
 	rq->sense_len = 0;
 
-	rq->flags |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	bio = rq->bio;
 
 	/*
@@ -470,7 +470,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	memset(sense, 0, sizeof(sense));
 	rq->sense = sense;
 	rq->sense_len = 0;
-	rq->flags |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
 	blk_execute_rq(q, disk, rq, 0);
 
@@ -502,7 +502,7 @@ static int __blk_send_generic(request_queue_t *q, struct gendisk *bd_disk, int c
 	int err;
 
 	rq = blk_get_request(q, WRITE, __GFP_WAIT);
-	rq->flags |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->data = NULL;
 	rq->data_len = 0;
 	rq->timeout = BLK_DEFAULT_TIMEOUT;

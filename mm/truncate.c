@@ -17,6 +17,32 @@
 				   do_invalidatepage */
 
 
+/**
+ * do_invalidatepage - invalidate part of all of a page
+ * @page: the page which is affected
+ * @offset: the index of the truncation point
+ *
+ * do_invalidatepage() is called when all or part of the page has become
+ * invalidated by a truncate operation.
+ *
+ * do_invalidatepage() does not have to release all buffers, but it must
+ * ensure that no dirty buffer is left outside @offset and that no I/O
+ * is underway against any of the blocks which are outside the truncation
+ * point.  Because the caller is about to free (and possibly reuse) those
+ * blocks on-disk.
+ */
+void do_invalidatepage(struct page *page, unsigned long offset)
+{
+	void (*invalidatepage)(struct page *, unsigned long);
+	invalidatepage = page->mapping->a_ops->invalidatepage;
+#ifdef CONFIG_BLOCK
+	if (!invalidatepage)
+		invalidatepage = block_invalidatepage;
+#endif
+	if (invalidatepage)
+		(*invalidatepage)(page, offset);
+}
+
 static inline void truncate_partial_page(struct page *page, unsigned partial)
 {
 	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);

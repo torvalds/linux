@@ -46,7 +46,7 @@ static int scan_revoke_records(journal_t *, struct buffer_head *,
 #ifdef __KERNEL__
 
 /* Release readahead buffers after use */
-void journal_brelse_array(struct buffer_head *b[], int n)
+static void journal_brelse_array(struct buffer_head *b[], int n)
 {
 	while (--n >= 0)
 		brelse (b[n]);

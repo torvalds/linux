@@ -86,7 +86,7 @@ EXPORT_SYMBOL(rdma_copy_addr);
 int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
-	u32 ip = ((struct sockaddr_in *) addr)->sin_addr.s_addr;
+	__be32 ip = ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 	int ret;
 
 	dev = ip_dev_find(ip);
@@ -239,7 +239,7 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 {
 	struct net_device *dev;
 	u32 src_ip = src_in->sin_addr.s_addr;
-	u32 dst_ip = dst_in->sin_addr.s_addr;
+	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	int ret;
 
 	dev = ip_dev_find(dst_ip);

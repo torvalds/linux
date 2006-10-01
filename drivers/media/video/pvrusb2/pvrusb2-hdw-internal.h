@@ -33,39 +33,12 @@
 
 */
 
-#include <linux/config.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
 #include <media/cx2341x.h>
-
-/* Legal values for the SRATE state variable */
-#define PVR2_CVAL_SRATE_48 0
-#define PVR2_CVAL_SRATE_44_1 1
-
-/* Legal values for the AUDIOBITRATE state variable */
-#define PVR2_CVAL_AUDIOBITRATE_384 0
-#define PVR2_CVAL_AUDIOBITRATE_320 1
-#define PVR2_CVAL_AUDIOBITRATE_256 2
-#define PVR2_CVAL_AUDIOBITRATE_224 3
-#define PVR2_CVAL_AUDIOBITRATE_192 4
-#define PVR2_CVAL_AUDIOBITRATE_160 5
-#define PVR2_CVAL_AUDIOBITRATE_128 6
-#define PVR2_CVAL_AUDIOBITRATE_112 7
-#define PVR2_CVAL_AUDIOBITRATE_96 8
-#define PVR2_CVAL_AUDIOBITRATE_80 9
-#define PVR2_CVAL_AUDIOBITRATE_64 10
-#define PVR2_CVAL_AUDIOBITRATE_56 11
-#define PVR2_CVAL_AUDIOBITRATE_48 12
-#define PVR2_CVAL_AUDIOBITRATE_32 13
-#define PVR2_CVAL_AUDIOBITRATE_VBR 14
-
-/* Legal values for the AUDIOEMPHASIS state variable */
-#define PVR2_CVAL_AUDIOEMPHASIS_NONE 0
-#define PVR2_CVAL_AUDIOEMPHASIS_50_15 1
-#define PVR2_CVAL_AUDIOEMPHASIS_CCITT 2
 
 /* Legal values for PVR2_CID_HSM */
 #define PVR2_CVAL_HSM_FAIL 0
@@ -107,6 +80,8 @@ struct pvr2_ctl_info {
 
 	/* Control's implementation */
 	pvr2_ctlf_get_value get_value;      /* Get its value */
+	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
+	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
 	pvr2_ctlf_val_to_sym val_to_sym;    /* Custom convert value->symbol */
 	pvr2_ctlf_sym_to_val sym_to_val;    /* Custom convert symbol->value */
@@ -193,9 +168,7 @@ struct pvr2_decoder_ctrl {
 
 /* Known major hardware variants, keyed from device ID */
 #define PVR2_HDW_TYPE_29XXX 0
-#ifdef CONFIG_VIDEO_PVRUSB2_24XXX
 #define PVR2_HDW_TYPE_24XXX 1
-#endif
 
 typedef int (*pvr2_i2c_func)(struct pvr2_hdw *,u8,u8 *,u16,u8 *, u16);
 #define PVR2_I2C_FUNC_CNT 128

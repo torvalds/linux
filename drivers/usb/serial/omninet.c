@@ -256,14 +256,14 @@ static int omninet_write (struct usb_serial_port *port, const unsigned char *buf
 		return (0);
 	}
 
-	spin_lock(&wport->lock);
+	spin_lock_bh(&wport->lock);
 	if (wport->write_urb_busy) {
-		spin_unlock(&wport->lock);
+		spin_unlock_bh(&wport->lock);
 		dbg("%s - already writing", __FUNCTION__);
 		return 0;
 	}
 	wport->write_urb_busy = 1;
-	spin_unlock(&wport->lock);
+	spin_unlock_bh(&wport->lock);
 
 	count = (count > OMNINET_BULKOUTSIZE) ? OMNINET_BULKOUTSIZE : count;
 

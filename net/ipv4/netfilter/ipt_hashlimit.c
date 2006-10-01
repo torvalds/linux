@@ -50,11 +50,11 @@ static struct file_operations dl_file_ops;
 /* hash table crap */
 
 struct dsthash_dst {
-	u_int32_t src_ip;
-	u_int32_t dst_ip;
+	__be32 src_ip;
+	__be32 dst_ip;
 	/* ports have to be consecutive !!! */
-	u_int16_t src_port;
-	u_int16_t dst_port;
+	__be16 src_port;
+	__be16 dst_port;
 };
 
 struct dsthash_ent {
@@ -106,8 +106,10 @@ static inline int dst_cmp(const struct dsthash_ent *ent, struct dsthash_dst *b)
 static inline u_int32_t
 hash_dst(const struct ipt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 {
-	return (jhash_3words(dst->dst_ip, (dst->dst_port<<16 | dst->src_port), 
-			     dst->src_ip, ht->rnd) % ht->cfg.size);
+	return (jhash_3words((__force u32)dst->dst_ip,
+			    ((__force u32)dst->dst_port<<16 |
+			     (__force u32)dst->src_port),
+			     (__force u32)dst->src_ip, ht->rnd) % ht->cfg.size);
 }
 
 static inline struct dsthash_ent *
@@ -406,7 +408,7 @@ hashlimit_match(const struct sk_buff *skb,
 		dst.src_ip = skb->nh.iph->saddr;
 	if (hinfo->cfg.mode & IPT_HASHLIMIT_HASH_DPT
 	    ||hinfo->cfg.mode & IPT_HASHLIMIT_HASH_SPT) {
-		u_int16_t _ports[2], *ports;
+		__be16 _ports[2], *ports;
 
 		switch (skb->nh.iph->protocol) {
 		case IPPROTO_TCP:

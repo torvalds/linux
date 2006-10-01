@@ -38,7 +38,9 @@ struct sys_timer {
 	void			(*init)(void);
 	void			(*suspend)(void);
 	void			(*resume)(void);
+#ifndef CONFIG_GENERIC_TIME
 	unsigned long		(*offset)(void);
+#endif
 
 #ifdef CONFIG_NO_IDLE_HZ
 	struct dyn_tick_timer	*dyn_tick;

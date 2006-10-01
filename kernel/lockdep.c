@@ -36,6 +36,7 @@
 #include <linux/stacktrace.h>
 #include <linux/debug_locks.h>
 #include <linux/irqflags.h>
+#include <linux/utsname.h>
 
 #include <asm/sections.h>
 
@@ -121,8 +122,8 @@ static struct list_head chainhash_table[CHAINHASH_SIZE];
  * unique.
  */
 #define iterate_chain_key(key1, key2) \
-	(((key1) << MAX_LOCKDEP_KEYS_BITS/2) ^ \
-	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS/2)) ^ \
+	(((key1) << MAX_LOCKDEP_KEYS_BITS) ^ \
+	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
 	(key2))
 
 void lockdep_off(void)
@@ -515,6 +516,13 @@ print_circular_bug_entry(struct lock_list *target, unsigned int depth)
 	return 0;
 }
 
+static void print_kernel_version(void)
+{
+	printk("%s %.*s\n", system_utsname.release,
+		(int)strcspn(system_utsname.version, " "),
+		system_utsname.version);
+}
+
 /*
  * When a circular dependency is detected, print the
  * header first:
@@ -531,6 +539,7 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 
 	printk("\n=======================================================\n");
 	printk(  "[ INFO: possible circular locking dependency detected ]\n");
+	print_kernel_version();
 	printk(  "-------------------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
 		curr->comm, curr->pid);
@@ -712,6 +721,7 @@ print_bad_irq_dependency(struct task_struct *curr,
 	printk("\n======================================================\n");
 	printk(  "[ INFO: %s-safe -> %s-unsafe lock order detected ]\n",
 		irqclass, irqclass);
+	print_kernel_version();
 	printk(  "------------------------------------------------------\n");
 	printk("%s/%d [HC%u[%lu]:SC%u[%lu]:HE%u:SE%u] is trying to acquire:\n",
 		curr->comm, curr->pid,
@@ -793,6 +803,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 
 	printk("\n=============================================\n");
 	printk(  "[ INFO: possible recursive locking detected ]\n");
+	print_kernel_version();
 	printk(  "---------------------------------------------\n");
 	printk("%s/%d is trying to acquire lock:\n",
 		curr->comm, curr->pid);
@@ -1375,6 +1386,7 @@ print_irq_inversion_bug(struct task_struct *curr, struct lock_class *other,
 
 	printk("\n=========================================================\n");
 	printk(  "[ INFO: possible irq lock inversion dependency detected ]\n");
+	print_kernel_version();
 	printk(  "---------------------------------------------------------\n");
 	printk("%s/%d just changed the state of lock:\n",
 		curr->comm, curr->pid);
@@ -1469,6 +1481,7 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 
 	printk("\n=================================\n");
 	printk(  "[ INFO: inconsistent lock state ]\n");
+	print_kernel_version();
 	printk(  "---------------------------------\n");
 
 	printk("inconsistent {%s} -> {%s} usage.\n",

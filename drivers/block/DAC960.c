@@ -3331,7 +3331,7 @@ static int DAC960_process_queue(DAC960_Controller_T *Controller, struct request_
 		Command->DmaDirection = PCI_DMA_TODEVICE;
 		Command->CommandType = DAC960_WriteCommand;
 	}
-	Command->Completion = Request->waiting;
+	Command->Completion = Request->end_io_data;
 	Command->LogicalDriveNumber = (long)Request->rq_disk->private_data;
 	Command->BlockNumber = Request->sector;
 	Command->BlockCount = Request->nr_sectors;

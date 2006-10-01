@@ -84,7 +84,7 @@ struct dst_entry
 struct dst_ops
 {
 	unsigned short		family;
-	unsigned short		protocol;
+	__be16			protocol;
 	unsigned		gc_thresh;
 
 	int			(*gc)(void);

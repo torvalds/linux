@@ -102,6 +102,8 @@ u8 x86_cpu_to_apicid[NR_CPUS] __read_mostly =
 			{ [0 ... NR_CPUS-1] = 0xff };
 EXPORT_SYMBOL(x86_cpu_to_apicid);
 
+u8 apicid_2_node[MAX_APICID];
+
 /*
  * Trampoline 80x86 program as an array.
  */
@@ -645,7 +647,7 @@ static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
 	int apicid = logical_smp_processor_id();
-	int node = apicid_to_node(apicid);
+	int node = apicid_to_node(hard_smp_processor_id());
 
 	if (!node_online(node))
 		node = first_online_node;
@@ -954,6 +956,7 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 
 	irq_ctx_init(cpu);
 
+	x86_cpu_to_apicid[cpu] = apicid;
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.

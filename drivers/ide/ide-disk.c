@@ -699,7 +699,8 @@ static void idedisk_prepare_flush(request_queue_t *q, struct request *rq)
 		rq->cmd[0] = WIN_FLUSH_CACHE;
 
 
-	rq->flags |= REQ_DRIVE_TASK;
+	rq->cmd_type = REQ_TYPE_ATA_TASK;
+	rq->cmd_flags |= REQ_SOFTBARRIER;
 	rq->buffer = rq->cmd;
 }
 
@@ -740,7 +741,7 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (drive->special.b.set_multmode)
 		return -EBUSY;
 	ide_init_drive_cmd (&rq);
-	rq.flags = REQ_DRIVE_CMD;
+	rq.cmd_type = REQ_TYPE_ATA_CMD;
 	drive->mult_req = arg;
 	drive->special.b.set_multmode = 1;
 	(void) ide_do_drive_cmd (drive, &rq, ide_wait);

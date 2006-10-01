@@ -483,10 +483,14 @@ static void do_acct_process(struct file *file)
 	ac.ac_ppid = current->parent->tgid;
 #endif
 
-	read_lock(&tasklist_lock);	/* pin current->signal */
+	mutex_lock(&tty_mutex);
+	/* FIXME: Whoever is responsible for current->signal locking needs
+	   to use the same locking all over the kernel and document it */
+	read_lock(&tasklist_lock);
 	ac.ac_tty = current->signal->tty ?
 		old_encode_dev(tty_devnum(current->signal->tty)) : 0;
 	read_unlock(&tasklist_lock);
+	mutex_unlock(&tty_mutex);
 
 	spin_lock_irq(&current->sighand->siglock);
 	ac.ac_utime = encode_comp_t(jiffies_to_AHZ(cputime_to_jiffies(pacct->ac_utime)));

@@ -960,30 +960,30 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 			goto abort;
 		}
 		
-		if (nextblk) {
-			while (b_off >= (offset + sect_size)) {
-				struct inode *ninode;
-				
-				offset += sect_size;
-				if (nextblk == 0)
-					goto abort;
-				ninode = isofs_iget(inode->i_sb, nextblk, nextoff);
-				if (!ninode)
-					goto abort;
-				firstext  = ISOFS_I(ninode)->i_first_extent;
-				sect_size = ISOFS_I(ninode)->i_section_size >> ISOFS_BUFFER_BITS(ninode);
-				nextblk   = ISOFS_I(ninode)->i_next_section_block;
-				nextoff   = ISOFS_I(ninode)->i_next_section_offset;
-				iput(ninode);
-				
-				if (++section > 100) {
-					printk("isofs_get_blocks: More than 100 file sections ?!?, aborting...\n");
-					printk("isofs_get_blocks: block=%ld firstext=%u sect_size=%u "
-					       "nextblk=%lu nextoff=%lu\n",
-					       iblock, firstext, (unsigned) sect_size,
-					       nextblk, nextoff);
-					goto abort;
-				}
+		/* On the last section, nextblk == 0, section size is likely to
+		 * exceed sect_size by a partial block, and access beyond the
+		 * end of the file will reach beyond the section size, too.
+		 */
+		while (nextblk && (b_off >= (offset + sect_size))) {
+			struct inode *ninode;
+
+			offset += sect_size;
+			ninode = isofs_iget(inode->i_sb, nextblk, nextoff);
+			if (!ninode)
+				goto abort;
+			firstext  = ISOFS_I(ninode)->i_first_extent;
+			sect_size = ISOFS_I(ninode)->i_section_size >> ISOFS_BUFFER_BITS(ninode);
+			nextblk   = ISOFS_I(ninode)->i_next_section_block;
+			nextoff   = ISOFS_I(ninode)->i_next_section_offset;
+			iput(ninode);
+
+			if (++section > 100) {
+				printk("isofs_get_blocks: More than 100 file sections ?!?, aborting...\n");
+				printk("isofs_get_blocks: block=%ld firstext=%u sect_size=%u "
+				       "nextblk=%lu nextoff=%lu\n",
+				       iblock, firstext, (unsigned) sect_size,
+				       nextblk, nextoff);
+				goto abort;
 			}
 		}
 		

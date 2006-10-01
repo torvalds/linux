@@ -398,7 +398,7 @@ static int try_context_mount(struct super_block *sb, void *data)
 		/* Standard string-based options. */
 		char *p, *options = data;
 
-		while ((p = strsep(&options, ",")) != NULL) {
+		while ((p = strsep(&options, "|")) != NULL) {
 			int token;
 			substring_t args[MAX_OPT_ARGS];
 
@@ -1923,11 +1923,32 @@ static inline void take_option(char **to, char *from, int *first, int len)
 	if (!*first) {
 		**to = ',';
 		*to += 1;
-	}
-	else
+	} else
 		*first = 0;
 	memcpy(*to, from, len);
 	*to += len;
+}
+
+static inline void take_selinux_option(char **to, char *from, int *first, 
+		                       int len)
+{
+	int current_size = 0;
+
+	if (!*first) {
+		**to = '|';
+		*to += 1;
+	}
+	else
+		*first = 0;
+
+	while (current_size < len) {
+		if (*from != '"') {
+			**to = *from;
+			*to += 1;
+		}
+		from += 1;
+		current_size += 1;
+	}
 }
 
 static int selinux_sb_copy_data(struct file_system_type *type, void *orig, void *copy)
@@ -1935,6 +1956,7 @@ static int selinux_sb_copy_data(struct file_system_type *type, void *orig, void 
 	int fnosec, fsec, rc = 0;
 	char *in_save, *in_curr, *in_end;
 	char *sec_curr, *nosec_save, *nosec;
+	int open_quote = 0;
 
 	in_curr = orig;
 	sec_curr = copy;
@@ -1956,11 +1978,14 @@ static int selinux_sb_copy_data(struct file_system_type *type, void *orig, void 
 	in_save = in_end = orig;
 
 	do {
-		if (*in_end == ',' || *in_end == '\0') {
+		if (*in_end == '"')
+			open_quote = !open_quote;
+		if ((*in_end == ',' && open_quote == 0) ||
+				*in_end == '\0') {
 			int len = in_end - in_curr;
 
 			if (selinux_option(in_curr, len))
-				take_option(&sec_curr, in_curr, &fsec, len);
+				take_selinux_option(&sec_curr, in_curr, &fsec, len);
 			else
 				take_option(&nosec, in_curr, &fnosec, len);
 
@@ -3594,7 +3619,9 @@ static void selinux_sock_graft(struct sock* sk, struct socket *parent)
 	struct inode_security_struct *isec = SOCK_INODE(parent)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	isec->sid = sksec->sid;
+	if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6 ||
+	    sk->sk_family == PF_UNIX)
+		isec->sid = sksec->sid;
 
 	selinux_netlbl_sock_graft(sk, parent);
 }

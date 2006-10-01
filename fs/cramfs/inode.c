@@ -543,8 +543,15 @@ static struct file_system_type cramfs_fs_type = {
 
 static int __init init_cramfs_fs(void)
 {
-	cramfs_uncompress_init();
-	return register_filesystem(&cramfs_fs_type);
+	int rv;
+
+	rv = cramfs_uncompress_init();
+	if (rv < 0)
+		return rv;
+	rv = register_filesystem(&cramfs_fs_type);
+	if (rv < 0)
+		cramfs_uncompress_exit();
+	return rv;
 }
 
 static void __exit exit_cramfs_fs(void)

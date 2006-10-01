@@ -300,7 +300,7 @@ static struct rpc_clnt *pmap_create(char *hostname, struct sockaddr_in *srvaddr,
 /*
  * XDR encode/decode functions for PMAP
  */
-static int xdr_encode_mapping(struct rpc_rqst *req, u32 *p, struct portmap_args *map)
+static int xdr_encode_mapping(struct rpc_rqst *req, __be32 *p, struct portmap_args *map)
 {
 	dprintk("RPC: xdr_encode_mapping(%u, %u, %u, %u)\n",
 		map->pm_prog, map->pm_vers, map->pm_prot, map->pm_port);
@@ -313,13 +313,13 @@ static int xdr_encode_mapping(struct rpc_rqst *req, u32 *p, struct portmap_args 
 	return 0;
 }
 
-static int xdr_decode_port(struct rpc_rqst *req, u32 *p, unsigned short *portp)
+static int xdr_decode_port(struct rpc_rqst *req, __be32 *p, unsigned short *portp)
 {
 	*portp = (unsigned short) ntohl(*p++);
 	return 0;
 }
 
-static int xdr_decode_bool(struct rpc_rqst *req, u32 *p, unsigned int *boolp)
+static int xdr_decode_bool(struct rpc_rqst *req, __be32 *p, unsigned int *boolp)
 {
 	*boolp = (unsigned int) ntohl(*p++);
 	return 0;

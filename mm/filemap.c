@@ -1471,7 +1471,7 @@ outside_data_content:
 	 * accessible..
 	 */
 	if (area->vm_mm == current->mm)
-		return NULL;
+		return NOPAGE_SIGBUS;
 	/* Fall through to the non-read-ahead case */
 no_cached_page:
 	/*
@@ -1496,7 +1496,7 @@ no_cached_page:
 	 */
 	if (error == -ENOMEM)
 		return NOPAGE_OOM;
-	return NULL;
+	return NOPAGE_SIGBUS;
 
 page_not_uptodate:
 	if (!did_readaround) {
@@ -1565,7 +1565,7 @@ page_not_uptodate:
 	 */
 	shrink_readahead_size_eio(file, ra);
 	page_cache_release(page);
-	return NULL;
+	return NOPAGE_SIGBUS;
 }
 EXPORT_SYMBOL(filemap_nopage);
 
@@ -2020,6 +2020,7 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 		if (unlikely(*pos + *count > inode->i_sb->s_maxbytes))
 			*count = inode->i_sb->s_maxbytes - *pos;
 	} else {
+#ifdef CONFIG_BLOCK
 		loff_t isize;
 		if (bdev_read_only(I_BDEV(inode)))
 			return -EPERM;
@@ -2031,6 +2032,9 @@ inline int generic_write_checks(struct file *file, loff_t *pos, size_t *count, i
 
 		if (*pos + *count > isize)
 			*count = isize - *pos;
+#else
+		return -EPERM;
+#endif
 	}
 	return 0;
 }
@@ -2491,3 +2495,33 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	}
 	return retval;
 }
+
+/**
+ * try_to_release_page() - release old fs-specific metadata on a page
+ *
+ * @page: the page which the kernel is trying to free
+ * @gfp_mask: memory allocation flags (and I/O mode)
+ *
+ * The address_space is to try to release any data against the page
+ * (presumably at page->private).  If the release was successful, return `1'.
+ * Otherwise return zero.
+ *
+ * The @gfp_mask argument specifies whether I/O may be performed to release
+ * this page (__GFP_IO), and whether the call may block (__GFP_WAIT).
+ *
+ * NOTE: @gfp_mask may go away, and this function may become non-blocking.
+ */
+int try_to_release_page(struct page *page, gfp_t gfp_mask)
+{
+	struct address_space * const mapping = page->mapping;
+
+	BUG_ON(!PageLocked(page));
+	if (PageWriteback(page))
+		return 0;
+
+	if (mapping && mapping->a_ops->releasepage)
+		return mapping->a_ops->releasepage(page, gfp_mask);
+	return try_to_free_buffers(page);
+}
+
+EXPORT_SYMBOL(try_to_release_page);

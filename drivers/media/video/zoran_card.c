@@ -1620,10 +1620,10 @@ init_dc10_cards (void)
 	dprintk(5, KERN_DEBUG "Jotti is een held!\n");
 
 	/* some mainboards might not do PCI-PCI data transfer well */
-	if (pci_pci_problems & PCIPCI_FAIL) {
+	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {
 		dprintk(1,
 			KERN_WARNING
-			"%s: chipset may not support reliable PCI-PCI DMA\n",
+			"%s: chipset does not support reliable PCI-PCI DMA\n",
 			ZORAN_NAME);
 	}
 
@@ -1631,7 +1631,7 @@ init_dc10_cards (void)
 	for (i = 0; i < zoran_num; i++) {
 		struct zoran *zr = &zoran[i];
 
-		if (pci_pci_problems & PCIPCI_NATOMA && zr->revision <= 1) {
+		if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 			zr->jpg_buffers.need_contiguous = 1;
 			dprintk(1,
 				KERN_INFO

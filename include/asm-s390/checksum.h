@@ -30,57 +30,13 @@
 static inline unsigned int
 csum_partial(const unsigned char * buff, int len, unsigned int sum)
 {
-	/*
-	 * Experiments with ethernet and slip connections show that buf
-	 * is aligned on either a 2-byte or 4-byte boundary.
-	 */
-#ifndef __s390x__
-	register_pair rp;
+	register unsigned long reg2 asm("2") = (unsigned long) buff;
+	register unsigned long reg3 asm("3") = (unsigned long) len;
 
-	rp.subreg.even = (unsigned long) buff;
-	rp.subreg.odd = (unsigned long) len;
-	__asm__ __volatile__ (
-		"0:  cksm %0,%1\n"	/* do checksum on longs */
-		"    jo   0b\n"
-		: "+&d" (sum), "+&a" (rp) : : "cc", "memory" );
-#else /* __s390x__ */
-        __asm__ __volatile__ (
-                "    lgr  2,%1\n"    /* address in gpr 2 */
-                "    lgfr 3,%2\n"    /* length in gpr 3 */
-                "0:  cksm %0,2\n"    /* do checksum on longs */
-                "    jo   0b\n"
-                : "+&d" (sum)
-                : "d" (buff), "d" (len)
-                : "cc", "memory", "2", "3" );
-#endif /* __s390x__ */
-	return sum;
-}
-
-/*
- * csum_partial as an inline function
- */
-static inline unsigned int 
-csum_partial_inline(const unsigned char * buff, int len, unsigned int sum)
-{
-#ifndef __s390x__
-	register_pair rp;
-
-	rp.subreg.even = (unsigned long) buff;
-	rp.subreg.odd = (unsigned long) len;
-	__asm__ __volatile__ (
-		"0:  cksm %0,%1\n"    /* do checksum on longs */
-		"    jo   0b\n"
-                : "+&d" (sum), "+&a" (rp) : : "cc", "memory" );
-#else /* __s390x__ */
-	__asm__ __volatile__ (
-		"    lgr  2,%1\n"    /* address in gpr 2 */
-		"    lgfr 3,%2\n"    /* length in gpr 3 */
-		"0:  cksm %0,2\n"    /* do checksum on longs */
-		"    jo   0b\n"
-                : "+&d" (sum)
-		: "d" (buff), "d" (len)
-                : "cc", "memory", "2", "3" );
-#endif /* __s390x__ */
+	asm volatile(
+		"0:	cksm	%0,%1\n"	/* do checksum on longs */
+		"	jo	0b\n"
+		: "+d" (sum), "+d" (reg2), "+d" (reg3) : : "cc", "memory");
 	return sum;
 }
 
@@ -114,7 +70,7 @@ static inline unsigned int
 csum_partial_copy_nocheck (const char *src, char *dst, int len, unsigned int sum)
 {
         memcpy(dst,src,len);
-        return csum_partial_inline(dst, len, sum);
+	return csum_partial(dst, len, sum);
 }
 
 /*
@@ -126,22 +82,22 @@ csum_fold(unsigned int sum)
 #ifndef __s390x__
 	register_pair rp;
 
-	__asm__ __volatile__ (
-		"    slr  %N1,%N1\n" /* %0 = H L */
-		"    lr   %1,%0\n"   /* %0 = H L, %1 = H L 0 0 */
-		"    srdl %1,16\n"   /* %0 = H L, %1 = 0 H L 0 */
-		"    alr  %1,%N1\n"  /* %0 = H L, %1 = L H L 0 */
-		"    alr  %0,%1\n"   /* %0 = H+L+C L+H */
-		"    srl  %0,16\n"   /* %0 = H+L+C */
-		: "+&d" (sum), "=d" (rp) : : "cc" );
+	asm volatile(
+		"	slr	%N1,%N1\n"	/* %0 = H L */
+		"	lr	%1,%0\n"	/* %0 = H L, %1 = H L 0 0 */
+		"	srdl	%1,16\n"	/* %0 = H L, %1 = 0 H L 0 */
+		"	alr	%1,%N1\n"	/* %0 = H L, %1 = L H L 0 */
+		"	alr	%0,%1\n"	/* %0 = H+L+C L+H */
+		"	srl	%0,16\n"	/* %0 = H+L+C */
+		: "+&d" (sum), "=d" (rp) : : "cc");
 #else /* __s390x__ */
-	__asm__ __volatile__ (
-		"    sr   3,3\n"   /* %0 = H*65536 + L */
-		"    lr   2,%0\n"  /* %0 = H L, R2/R3 = H L / 0 0 */
-		"    srdl 2,16\n"  /* %0 = H L, R2/R3 = 0 H / L 0 */
-		"    alr  2,3\n"   /* %0 = H L, R2/R3 = L H / L 0 */
-		"    alr  %0,2\n"  /* %0 = H+L+C L+H */
-                "    srl  %0,16\n" /* %0 = H+L+C */
+	asm volatile(
+		"	sr	3,3\n"		/* %0 = H*65536 + L */
+		"	lr	2,%0\n"		/* %0 = H L, 2/3 = H L / 0 0 */
+		"	srdl	2,16\n"		/* %0 = H L, 2/3 = 0 H / L 0 */
+		"	alr	2,3\n"		/* %0 = H L, 2/3 = L H / L 0 */
+		"	alr	%0,2\n"		/* %0 = H+L+C L+H */
+		"	srl	%0,16\n"	/* %0 = H+L+C */
 		: "+&d" (sum) : : "cc", "2", "3");
 #endif /* __s390x__ */
 	return ((unsigned short) ~sum);
@@ -155,29 +111,7 @@ csum_fold(unsigned int sum)
 static inline unsigned short
 ip_fast_csum(unsigned char *iph, unsigned int ihl)
 {
-	unsigned long sum;
-#ifndef __s390x__
-	register_pair rp;
-
-	rp.subreg.even = (unsigned long) iph;
-	rp.subreg.odd = (unsigned long) ihl*4;
-        __asm__ __volatile__ (
-		"    sr   %0,%0\n"   /* set sum to zero */
-                "0:  cksm %0,%1\n"   /* do checksum on longs */
-                "    jo   0b\n"
-                : "=&d" (sum), "+&a" (rp) : : "cc", "memory" );
-#else /* __s390x__ */
-        __asm__ __volatile__ (
-		"    slgr %0,%0\n"   /* set sum to zero */
-                "    lgr  2,%1\n"    /* address in gpr 2 */
-                "    lgfr 3,%2\n"    /* length in gpr 3 */
-                "0:  cksm %0,2\n"    /* do checksum on ints */
-                "    jo   0b\n"
-                : "=&d" (sum)
-                : "d" (iph), "d" (ihl*4)
-                : "cc", "memory", "2", "3" );
-#endif /* __s390x__ */
-        return csum_fold(sum);
+	return csum_fold(csum_partial(iph, ihl*4, 0));
 }
 
 /*
@@ -190,47 +124,47 @@ csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr,
                    unsigned int sum)
 {
 #ifndef __s390x__
-	__asm__ __volatile__ (
-                "    alr   %0,%1\n"  /* sum += saddr */
-                "    brc   12,0f\n"
-		"    ahi   %0,1\n"   /* add carry */
+	asm volatile(
+		"	alr	%0,%1\n" /* sum += saddr */
+		"	brc	12,0f\n"
+		"	ahi	%0,1\n"  /* add carry */
 		"0:"
-		: "+&d" (sum) : "d" (saddr) : "cc" );
-	__asm__ __volatile__ (
-                "    alr   %0,%1\n"  /* sum += daddr */
-                "    brc   12,1f\n"
-                "    ahi   %0,1\n"   /* add carry */
+		: "+&d" (sum) : "d" (saddr) : "cc");
+	asm volatile(
+		"	alr	%0,%1\n" /* sum += daddr */
+		"	brc	12,1f\n"
+		"	ahi	%0,1\n"  /* add carry */
 		"1:"
-		: "+&d" (sum) : "d" (daddr) : "cc" );
-	__asm__ __volatile__ (
-                "    alr   %0,%1\n"  /* sum += (len<<16) + (proto<<8) */
-		"    brc   12,2f\n"
-		"    ahi   %0,1\n"   /* add carry */
+		: "+&d" (sum) : "d" (daddr) : "cc");
+	asm volatile(
+		"	alr	%0,%1\n" /* sum += (len<<16) + (proto<<8) */
+		"	brc	12,2f\n"
+		"	ahi	%0,1\n"  /* add carry */
 		"2:"
 		: "+&d" (sum)
 		: "d" (((unsigned int) len<<16) + (unsigned int) proto)
-		: "cc" );
+		: "cc");
 #else /* __s390x__ */
-	__asm__ __volatile__ (
-                "    lgfr  %0,%0\n"
-                "    algr  %0,%1\n"  /* sum += saddr */
-                "    brc   12,0f\n"
-		"    aghi  %0,1\n"   /* add carry */
-		"0:  algr  %0,%2\n"  /* sum += daddr */
-                "    brc   12,1f\n"
-                "    aghi  %0,1\n"   /* add carry */
-		"1:  algfr %0,%3\n"  /* sum += (len<<16) + proto */
-		"    brc   12,2f\n"
-		"    aghi  %0,1\n"   /* add carry */
-		"2:  srlg  0,%0,32\n"
-                "    alr   %0,0\n"   /* fold to 32 bits */
-                "    brc   12,3f\n"
-                "    ahi   %0,1\n"   /* add carry */
-                "3:  llgfr %0,%0"
+	asm volatile(
+		"	lgfr	%0,%0\n"
+		"	algr	%0,%1\n"  /* sum += saddr */
+		"	brc	12,0f\n"
+		"	aghi	%0,1\n"   /* add carry */
+		"0:	algr	%0,%2\n"  /* sum += daddr */
+		"	brc	12,1f\n"
+		"	aghi	%0,1\n"   /* add carry */
+		"1:	algfr	%0,%3\n"  /* sum += (len<<16) + proto */
+		"	brc	12,2f\n"
+		"	aghi	%0,1\n"   /* add carry */
+		"2:	srlg	0,%0,32\n"
+		"	alr	%0,0\n"   /* fold to 32 bits */
+		"	brc	12,3f\n"
+		"	ahi	%0,1\n"   /* add carry */
+		"3:	llgfr	%0,%0"
 		: "+&d" (sum)
 		: "d" (saddr), "d" (daddr),
 		  "d" (((unsigned int) len<<16) + (unsigned int) proto)
-		: "cc", "0" );
+		: "cc", "0");
 #endif /* __s390x__ */
 	return sum;
 }

@@ -228,7 +228,7 @@ error:
 
 /**
  * class_destroy - destroys a struct class structure
- * @cs: pointer to the struct class that is to be destroyed
+ * @cls: pointer to the struct class that is to be destroyed
  *
  * Note, the pointer to be destroyed must have been created with a call
  * to class_create().
@@ -658,9 +658,9 @@ int class_device_register(struct class_device *class_dev)
 
 /**
  * class_device_create - creates a class device and registers it with sysfs
- * @cs: pointer to the struct class that this device should be registered to.
+ * @cls: pointer to the struct class that this device should be registered to.
  * @parent: pointer to the parent struct class_device of this new device, if any.
- * @dev: the dev_t for the char device to be added.
+ * @devt: the dev_t for the char device to be added.
  * @device: a pointer to a struct device that is assiociated with this class device.
  * @fmt: string for the class device's name
  *
@@ -766,7 +766,7 @@ void class_device_unregister(struct class_device *class_dev)
 /**
  * class_device_destroy - removes a class device that was created with class_device_create()
  * @cls: the pointer to the struct class that this device was registered * with.
- * @dev: the dev_t of the device that was previously registered.
+ * @devt: the dev_t of the device that was previously registered.
  *
  * This call unregisters and cleans up a class device that was created with a
  * call to class_device_create()

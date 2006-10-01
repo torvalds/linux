@@ -288,31 +288,34 @@ static struct cdev raw_cdev = {
 static int __init raw_init(void)
 {
 	dev_t dev = MKDEV(RAW_MAJOR, 0);
+	int ret;
 
-	if (register_chrdev_region(dev, MAX_RAW_MINORS, "raw"))
+	ret = register_chrdev_region(dev, MAX_RAW_MINORS, "raw");
+	if (ret)
 		goto error;
 
 	cdev_init(&raw_cdev, &raw_fops);
-	if (cdev_add(&raw_cdev, dev, MAX_RAW_MINORS)) {
+	ret = cdev_add(&raw_cdev, dev, MAX_RAW_MINORS);
+	if (ret) {
 		kobject_put(&raw_cdev.kobj);
-		unregister_chrdev_region(dev, MAX_RAW_MINORS);
-		goto error;
+		goto error_region;
 	}
 
 	raw_class = class_create(THIS_MODULE, "raw");
 	if (IS_ERR(raw_class)) {
 		printk(KERN_ERR "Error creating raw class.\n");
 		cdev_del(&raw_cdev);
-		unregister_chrdev_region(dev, MAX_RAW_MINORS);
-		goto error;
+		ret = PTR_ERR(raw_class);
+		goto error_region;
 	}
 	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	return 0;
 
+error_region:
+	unregister_chrdev_region(dev, MAX_RAW_MINORS);
 error:
-	printk(KERN_ERR "error register raw device\n");
-	return 1;
+	return ret;
 }
 
 static void __exit raw_exit(void)

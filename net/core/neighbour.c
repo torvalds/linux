@@ -1079,7 +1079,7 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 }
 
 static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
-			  u16 protocol)
+			  __be16 protocol)
 {
 	struct hh_cache	*hh;
 	struct net_device *dev = dst->dev;

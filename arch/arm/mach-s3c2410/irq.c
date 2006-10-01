@@ -181,17 +181,19 @@ s3c_irq_unmask(unsigned int irqno)
 }
 
 struct irqchip s3c_irq_level_chip = {
-	.ack	   = s3c_irq_maskack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake	   = s3c_irq_wake
+	.name		= "s3c-level",
+	.ack		= s3c_irq_maskack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake
 };
 
 static struct irqchip s3c_irq_chip = {
-	.ack	   = s3c_irq_ack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake  = s3c_irq_wake
+	.name		= "s3c",
+	.ack		= s3c_irq_ack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake
 };
 
 static void
@@ -343,19 +345,21 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 }
 
 static struct irqchip s3c_irqext_chip = {
-	.mask	    = s3c_irqext_mask,
-	.unmask	    = s3c_irqext_unmask,
-	.ack	    = s3c_irqext_ack,
-	.set_type    = s3c_irqext_type,
-	.set_wake    = s3c_irqext_wake
+	.name		= "s3c-ext",
+	.mask		= s3c_irqext_mask,
+	.unmask		= s3c_irqext_unmask,
+	.ack		= s3c_irqext_ack,
+	.set_type	= s3c_irqext_type,
+	.set_wake	= s3c_irqext_wake
 };
 
 static struct irqchip s3c_irq_eint0t4 = {
-	.ack	   = s3c_irq_ack,
-	.mask	   = s3c_irq_mask,
-	.unmask	   = s3c_irq_unmask,
-	.set_wake  = s3c_irq_wake,
-	.set_type  = s3c_irqext_type,
+	.name		= "s3c-ext0",
+	.ack		= s3c_irq_ack,
+	.mask		= s3c_irq_mask,
+	.unmask		= s3c_irq_unmask,
+	.set_wake	= s3c_irq_wake,
+	.set_type	= s3c_irqext_type,
 };
 
 /* mask values for the parent registers for each of the interrupt types */
@@ -387,9 +391,10 @@ s3c_irq_uart0_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart0 = {
-	.mask	    = s3c_irq_uart0_mask,
-	.unmask	    = s3c_irq_uart0_unmask,
-	.ack	    = s3c_irq_uart0_ack,
+	.name		= "s3c-uart0",
+	.mask		= s3c_irq_uart0_mask,
+	.unmask		= s3c_irq_uart0_unmask,
+	.ack		= s3c_irq_uart0_ack,
 };
 
 /* UART1 */
@@ -413,9 +418,10 @@ s3c_irq_uart1_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart1 = {
-	.mask	    = s3c_irq_uart1_mask,
-	.unmask	    = s3c_irq_uart1_unmask,
-	.ack	    = s3c_irq_uart1_ack,
+	.name		= "s3c-uart1",
+	.mask		= s3c_irq_uart1_mask,
+	.unmask		= s3c_irq_uart1_unmask,
+	.ack		= s3c_irq_uart1_ack,
 };
 
 /* UART2 */
@@ -439,9 +445,10 @@ s3c_irq_uart2_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_uart2 = {
-	.mask	    = s3c_irq_uart2_mask,
-	.unmask	    = s3c_irq_uart2_unmask,
-	.ack	    = s3c_irq_uart2_ack,
+	.name		= "s3c-uart2",
+	.mask		= s3c_irq_uart2_mask,
+	.unmask		= s3c_irq_uart2_unmask,
+	.ack		= s3c_irq_uart2_ack,
 };
 
 /* ADC and Touchscreen */
@@ -465,9 +472,10 @@ s3c_irq_adc_ack(unsigned int irqno)
 }
 
 static struct irqchip s3c_irq_adc = {
-	.mask	    = s3c_irq_adc_mask,
-	.unmask	    = s3c_irq_adc_unmask,
-	.ack	    = s3c_irq_adc_ack,
+	.name		= "s3c-adc",
+	.mask		= s3c_irq_adc_mask,
+	.unmask		= s3c_irq_adc_unmask,
+	.ack		= s3c_irq_adc_ack,
 };
 
 /* irq demux for adc */
@@ -569,22 +577,103 @@ s3c_irq_demux_uart2(unsigned int irq,
 }
 
 static void
-s3c_irq_demux_extint(unsigned int irq,
-		     struct irqdesc *desc,
-		     struct pt_regs *regs)
+s3c_irq_demux_extint8(unsigned int irq,
+		      struct irqdesc *desc,
+		      struct pt_regs *regs)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
 
 	eintpnd &= ~eintmsk;
+	eintpnd &= ~0xff;	/* ignore lower irqs */
 
-	if (eintpnd) {
-		irq = fls(eintpnd);
-		irq += (IRQ_EINT4 - (4 + 1));
+	/* we may as well handle all the pending IRQs here */
+
+	while (eintpnd) {
+		irq = __ffs(eintpnd);
+		eintpnd &= ~(1<<irq);
+
+		irq += (IRQ_EINT4 - 4);
+		desc_handle_irq(irq, irq_desc + irq, regs);
+	}
+
+}
+
+static void
+s3c_irq_demux_extint4t7(unsigned int irq,
+			struct irqdesc *desc,
+			struct pt_regs *regs)
+{
+	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
+	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
+
+	eintpnd &= ~eintmsk;
+	eintpnd &= 0xff;	/* only lower irqs */
+
+	/* we may as well handle all the pending IRQs here */
+
+	while (eintpnd) {
+		irq = __ffs(eintpnd);
+		eintpnd &= ~(1<<irq);
+
+		irq += (IRQ_EINT4 - 4);
 
 		desc_handle_irq(irq, irq_desc + irq, regs);
 	}
 }
+
+#ifdef CONFIG_PM
+
+static struct sleep_save irq_save[] = {
+	SAVE_ITEM(S3C2410_INTMSK),
+	SAVE_ITEM(S3C2410_INTSUBMSK),
+};
+
+/* the extint values move between the s3c2410/s3c2440 and the s3c2412
+ * so we use an array to hold them, and to calculate the address of
+ * the register at run-time
+*/
+
+static unsigned long save_extint[3];
+static unsigned long save_eintflt[4];
+static unsigned long save_eintmask;
+
+int s3c24xx_irq_suspend(struct sys_device *dev, pm_message_t state)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
+		save_extint[i] = __raw_readl(S3C24XX_EXTINT0 + (i*4));
+
+	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
+		save_eintflt[i] = __raw_readl(S3C24XX_EINFLT0 + (i*4));
+
+	s3c2410_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
+	save_eintmask = __raw_readl(S3C24XX_EINTMASK);
+
+	return 0;
+}
+
+int s3c24xx_irq_resume(struct sys_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(save_extint); i++)
+		__raw_writel(save_extint[i], S3C24XX_EXTINT0 + (i*4));
+
+	for (i = 0; i < ARRAY_SIZE(save_eintflt); i++)
+		__raw_writel(save_eintflt[i], S3C24XX_EINFLT0 + (i*4));
+
+	s3c2410_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
+	__raw_writel(save_eintmask, S3C24XX_EINTMASK);
+
+	return 0;
+}
+
+#else
+#define s3c24xx_irq_suspend NULL
+#define s3c24xx_irq_resume  NULL
+#endif
 
 /* s3c24xx_init_irq
  *
@@ -674,8 +763,8 @@ void __init s3c24xx_init_irq(void)
 
 	/* setup the cascade irq handlers */
 
-	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint);
-	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint);
+	set_irq_chained_handler(IRQ_EINT4t7, s3c_irq_demux_extint4t7);
+	set_irq_chained_handler(IRQ_EINT8t23, s3c_irq_demux_extint8);
 
 	set_irq_chained_handler(IRQ_UART0, s3c_irq_demux_uart0);
 	set_irq_chained_handler(IRQ_UART1, s3c_irq_demux_uart1);

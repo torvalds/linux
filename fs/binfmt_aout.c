@@ -278,6 +278,13 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		return -ENOEXEC;
 	}
 
+	/*
+	 * Requires a mmap handler. This prevents people from using a.out
+	 * as part of an exploit attack against /proc-related vulnerabilities.
+	 */
+	if (!bprm->file->f_op || !bprm->file->f_op->mmap)
+		return -ENOEXEC;
+
 	fd_offset = N_TXTOFF(ex);
 
 	/* Check initial limits. This avoids letting people circumvent
@@ -475,6 +482,13 @@ static int load_aout_library(struct file *file)
 	    i_size_read(inode) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		goto out;
 	}
+
+	/*
+	 * Requires a mmap handler. This prevents people from using a.out
+	 * as part of an exploit attack against /proc-related vulnerabilities.
+	 */
+	if (!file->f_op || !file->f_op->mmap)
+		goto out;
 
 	if (N_FLAGS(ex))
 		goto out;

@@ -8,11 +8,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * Modifications:
- *     29-Aug-2004 BJD  Start of drive-strength control
- *     09-Nov-2004 BJD  Added symbol export
- *     11-Jan-2005 BJD  Include fix
 */
 
 #include <linux/kernel.h>

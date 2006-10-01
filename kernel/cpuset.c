@@ -240,7 +240,7 @@ static struct super_block *cpuset_sb;
  * A cpuset can only be deleted if both its 'count' of using tasks
  * is zero, and its list of 'children' cpusets is empty.  Since all
  * tasks in the system use _some_ cpuset, and since there is always at
- * least one task in the system (init, pid == 1), therefore, top_cpuset
+ * least one task in the system (init), therefore, top_cpuset
  * always has either children cpusets and/or using tasks.  So we don't
  * need a special hack to ensure that top_cpuset cannot be deleted.
  *
@@ -912,6 +912,10 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	int fudge;
 	int retval;
 
+	/* top_cpuset.mems_allowed tracks node_online_map; it's read-only */
+	if (cs == &top_cpuset)
+		return -EACCES;
+
 	trialcs = *cs;
 	retval = nodelist_parse(buf, trialcs.mems_allowed);
 	if (retval < 0)
@@ -1221,7 +1225,12 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 
 	task_lock(tsk);
 	oldcs = tsk->cpuset;
-	if (!oldcs) {
+	/*
+	 * After getting 'oldcs' cpuset ptr, be sure still not exiting.
+	 * If 'oldcs' might be the top_cpuset due to the_top_cpuset_hack
+	 * then fail this attach_task(), to avoid breaking top_cpuset.count.
+	 */
+	if (tsk->flags & PF_EXITING) {
 		task_unlock(tsk);
 		mutex_unlock(&callback_mutex);
 		put_task_struct(tsk);
@@ -2036,30 +2045,101 @@ out:
 	return err;
 }
 
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_MEMORY_HOTPLUG)
+/*
+ * If common_cpu_mem_hotplug_unplug(), below, unplugs any CPUs
+ * or memory nodes, we need to walk over the cpuset hierarchy,
+ * removing that CPU or node from all cpusets.  If this removes the
+ * last CPU or node from a cpuset, then the guarantee_online_cpus()
+ * or guarantee_online_mems() code will use that emptied cpusets
+ * parent online CPUs or nodes.  Cpusets that were already empty of
+ * CPUs or nodes are left empty.
+ *
+ * This routine is intentionally inefficient in a couple of regards.
+ * It will check all cpusets in a subtree even if the top cpuset of
+ * the subtree has no offline CPUs or nodes.  It checks both CPUs and
+ * nodes, even though the caller could have been coded to know that
+ * only one of CPUs or nodes needed to be checked on a given call.
+ * This was done to minimize text size rather than cpu cycles.
+ *
+ * Call with both manage_mutex and callback_mutex held.
+ *
+ * Recursive, on depth of cpuset subtree.
+ */
+
+static void guarantee_online_cpus_mems_in_subtree(const struct cpuset *cur)
+{
+	struct cpuset *c;
+
+	/* Each of our child cpusets mems must be online */
+	list_for_each_entry(c, &cur->children, sibling) {
+		guarantee_online_cpus_mems_in_subtree(c);
+		if (!cpus_empty(c->cpus_allowed))
+			guarantee_online_cpus(c, &c->cpus_allowed);
+		if (!nodes_empty(c->mems_allowed))
+			guarantee_online_mems(c, &c->mems_allowed);
+	}
+}
+
+/*
+ * The cpus_allowed and mems_allowed nodemasks in the top_cpuset track
+ * cpu_online_map and node_online_map.  Force the top cpuset to track
+ * whats online after any CPU or memory node hotplug or unplug event.
+ *
+ * To ensure that we don't remove a CPU or node from the top cpuset
+ * that is currently in use by a child cpuset (which would violate
+ * the rule that cpusets must be subsets of their parent), we first
+ * call the recursive routine guarantee_online_cpus_mems_in_subtree().
+ *
+ * Since there are two callers of this routine, one for CPU hotplug
+ * events and one for memory node hotplug events, we could have coded
+ * two separate routines here.  We code it as a single common routine
+ * in order to minimize text size.
+ */
+
+static void common_cpu_mem_hotplug_unplug(void)
+{
+	mutex_lock(&manage_mutex);
+	mutex_lock(&callback_mutex);
+
+	guarantee_online_cpus_mems_in_subtree(&top_cpuset);
+	top_cpuset.cpus_allowed = cpu_online_map;
+	top_cpuset.mems_allowed = node_online_map;
+
+	mutex_unlock(&callback_mutex);
+	mutex_unlock(&manage_mutex);
+}
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * The top_cpuset tracks what CPUs and Memory Nodes are online,
  * period.  This is necessary in order to make cpusets transparent
  * (of no affect) on systems that are actively using CPU hotplug
  * but making no active use of cpusets.
  *
- * This handles CPU hotplug (cpuhp) events.  If someday Memory
- * Nodes can be hotplugged (dynamically changing node_online_map)
- * then we should handle that too, perhaps in a similar way.
+ * This routine ensures that top_cpuset.cpus_allowed tracks
+ * cpu_online_map on each CPU hotplug (cpuhp) event.
  */
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpuset_handle_cpuhp(struct notifier_block *nb,
 				unsigned long phase, void *cpu)
 {
-	mutex_lock(&manage_mutex);
-	mutex_lock(&callback_mutex);
-
-	top_cpuset.cpus_allowed = cpu_online_map;
-
-	mutex_unlock(&callback_mutex);
-	mutex_unlock(&manage_mutex);
-
+	common_cpu_mem_hotplug_unplug();
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ * Keep top_cpuset.mems_allowed tracking node_online_map.
+ * Call this routine anytime after you change node_online_map.
+ * See also the previous routine cpuset_handle_cpuhp().
+ */
+
+void cpuset_track_online_nodes()
+{
+	common_cpu_mem_hotplug_unplug();
 }
 #endif
 

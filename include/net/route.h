@@ -62,18 +62,18 @@ struct rtable
 	__u16			rt_type;
 	__u16			rt_multipath_alg;
 
-	__u32			rt_dst;	/* Path destination	*/
-	__u32			rt_src;	/* Path source		*/
+	__be32			rt_dst;	/* Path destination	*/
+	__be32			rt_src;	/* Path source		*/
 	int			rt_iif;
 
 	/* Info on neighbour */
-	__u32			rt_gateway;
+	__be32			rt_gateway;
 
 	/* Cache lookup keys */
 	struct flowi		fl;
 
 	/* Miscellaneous cached information */
-	__u32			rt_spec_dst; /* RFC1122 specific destination */
+	__be32			rt_spec_dst; /* RFC1122 specific destination */
 	struct inet_peer	*peer; /* long-living peer info */
 };
 
@@ -109,18 +109,18 @@ extern struct ip_rt_acct *ip_rt_acct;
 
 struct in_device;
 extern int		ip_rt_init(void);
-extern void		ip_rt_redirect(u32 old_gw, u32 dst, u32 new_gw,
-				       u32 src, struct net_device *dev);
+extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
+				       __be32 src, struct net_device *dev);
 extern void		ip_rt_advice(struct rtable **rp, int advice);
 extern void		rt_cache_flush(int how);
 extern int		__ip_route_output_key(struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct rtable **, struct flowi *flp);
 extern int		ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);
-extern int		ip_route_input(struct sk_buff*, u32 dst, u32 src, u8 tos, struct net_device *devin);
+extern int		ip_route_input(struct sk_buff*, __be32 dst, __be32 src, u8 tos, struct net_device *devin);
 extern unsigned short	ip_rt_frag_needed(struct iphdr *iph, unsigned short new_mtu);
 extern void		ip_rt_send_redirect(struct sk_buff *skb);
 
-extern unsigned		inet_addr_type(u32 addr);
+extern unsigned		inet_addr_type(__be32 addr);
 extern void		ip_rt_multicast_event(struct in_device *);
 extern int		ip_rt_ioctl(unsigned int cmd, void __user *arg);
 extern void		ip_rt_get_source(u8 *src, struct rtable *rt);
@@ -144,9 +144,9 @@ static inline char rt_tos2priority(u8 tos)
 	return ip_tos2prio[IPTOS_TOS(tos)>>1];
 }
 
-static inline int ip_route_connect(struct rtable **rp, u32 dst,
-				   u32 src, u32 tos, int oif, u8 protocol,
-				   u16 sport, u16 dport, struct sock *sk)
+static inline int ip_route_connect(struct rtable **rp, __be32 dst,
+				   __be32 src, u32 tos, int oif, u8 protocol,
+				   __be16 sport, __be16 dport, struct sock *sk)
 {
 	struct flowi fl = { .oif = oif,
 			    .nl_u = { .ip4_u = { .daddr = dst,
@@ -172,7 +172,7 @@ static inline int ip_route_connect(struct rtable **rp, u32 dst,
 }
 
 static inline int ip_route_newports(struct rtable **rp, u8 protocol,
-				    u16 sport, u16 dport, struct sock *sk)
+				    __be16 sport, __be16 dport, struct sock *sk)
 {
 	if (sport != (*rp)->fl.fl_ip_sport ||
 	    dport != (*rp)->fl.fl_ip_dport) {

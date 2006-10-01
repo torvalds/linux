@@ -987,6 +987,8 @@ int zoran_ioctl(struct video_device* dev, unsigned int cmd, void *arg)
 			 VID_TYPE_SCALES;
 		if (ztv->have_tuner)
 			c.type |= VID_TYPE_TUNER;
+		if (pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL))
+			c.type &= ~VID_TYPE_OVERLAY;
 		if (ztv->have_decoder) {
 			c.channels = ztv->card->video_inputs;
 			c.audios = ztv->card->audio_inputs;
@@ -1284,6 +1286,8 @@ int zoran_ioctl(struct video_device* dev, unsigned int cmd, void *arg)
 		struct video_buffer v;
 		if(!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+		if (pcipci_problems & (PCIPCI_FAIL|PCIAGP_FAIL))
+			return -ENXIO;
 		if (copy_from_user(&v, arg,sizeof(v)))
 			return -EFAULT;
 		DEBUG(printk(CARD_DEBUG "VIDIOCSFBUF(%p,%d,%d,%d,%d)\n",CARD,v.base, v.width,v.height,v.depth,v.bytesperline));
@@ -2030,7 +2034,7 @@ void release_zoran(int max)
 		/* free it */
 		free_irq(ztv->dev->irq,ztv);
 
-    		/* unregister i2c_bus */
+		/* unregister i2c_bus */
 		i2c_unregister_bus((&ztv->i2c));
 
 		/* unmap and free memory */

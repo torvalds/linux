@@ -551,10 +551,6 @@ int soundcore_open(struct inode *inode, struct file *file)
 	return -ENODEV;
 }
 
-extern int mod_firmware_load(const char *, char **);
-EXPORT_SYMBOL(mod_firmware_load);
-
-
 MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");

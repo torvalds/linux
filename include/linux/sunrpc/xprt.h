@@ -79,7 +79,7 @@ struct rpc_rqst {
 	 * This is the private part
 	 */
 	struct rpc_task *	rq_task;	/* RPC task data */
-	__u32			rq_xid;		/* request XID */
+	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
 	int			rq_received;	/* receive completed */
 	u32			rq_seqno;	/* gss seq no. used on req. */
@@ -171,9 +171,9 @@ struct rpc_xprt {
 	/*
 	 * State of TCP reply receive stuff
 	 */
-	u32			tcp_recm,	/* Fragment header */
-				tcp_xid,	/* Current XID */
-				tcp_reclen,	/* fragment length */
+	__be32			tcp_recm,	/* Fragment header */
+				tcp_xid;	/* Current XID */
+	u32			tcp_reclen,	/* fragment length */
 				tcp_offset;	/* fragment offset */
 	unsigned long		tcp_copied,	/* copied to request */
 				tcp_flags;
@@ -253,7 +253,7 @@ void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
 
-static inline u32 *xprt_skip_transport_header(struct rpc_xprt *xprt, u32 *p)
+static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
 {
 	return p + xprt->tsh_size;
 }
@@ -268,7 +268,7 @@ void			xprt_wait_for_buffer_space(struct rpc_task *task);
 void			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
-struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid);
+struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect(struct rpc_xprt *xprt);

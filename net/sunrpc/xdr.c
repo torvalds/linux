@@ -18,8 +18,8 @@
 /*
  * XDR functions for basic NFS types
  */
-u32 *
-xdr_encode_netobj(u32 *p, const struct xdr_netobj *obj)
+__be32 *
+xdr_encode_netobj(__be32 *p, const struct xdr_netobj *obj)
 {
 	unsigned int	quadlen = XDR_QUADLEN(obj->len);
 
@@ -29,8 +29,8 @@ xdr_encode_netobj(u32 *p, const struct xdr_netobj *obj)
 	return p + XDR_QUADLEN(obj->len);
 }
 
-u32 *
-xdr_decode_netobj(u32 *p, struct xdr_netobj *obj)
+__be32 *
+xdr_decode_netobj(__be32 *p, struct xdr_netobj *obj)
 {
 	unsigned int	len;
 
@@ -55,7 +55,7 @@ xdr_decode_netobj(u32 *p, struct xdr_netobj *obj)
  * Returns the updated current XDR buffer position
  *
  */
-u32 *xdr_encode_opaque_fixed(u32 *p, const void *ptr, unsigned int nbytes)
+__be32 *xdr_encode_opaque_fixed(__be32 *p, const void *ptr, unsigned int nbytes)
 {
 	if (likely(nbytes != 0)) {
 		unsigned int quadlen = XDR_QUADLEN(nbytes);
@@ -79,21 +79,21 @@ EXPORT_SYMBOL(xdr_encode_opaque_fixed);
  *
  * Returns the updated current XDR buffer position
  */
-u32 *xdr_encode_opaque(u32 *p, const void *ptr, unsigned int nbytes)
+__be32 *xdr_encode_opaque(__be32 *p, const void *ptr, unsigned int nbytes)
 {
 	*p++ = htonl(nbytes);
 	return xdr_encode_opaque_fixed(p, ptr, nbytes);
 }
 EXPORT_SYMBOL(xdr_encode_opaque);
 
-u32 *
-xdr_encode_string(u32 *p, const char *string)
+__be32 *
+xdr_encode_string(__be32 *p, const char *string)
 {
 	return xdr_encode_array(p, string, strlen(string));
 }
 
-u32 *
-xdr_decode_string_inplace(u32 *p, char **sp, int *lenp, int maxlen)
+__be32 *
+xdr_decode_string_inplace(__be32 *p, char **sp, int *lenp, int maxlen)
 {
 	unsigned int	len;
 
@@ -432,7 +432,7 @@ xdr_shift_buf(struct xdr_buf *buf, size_t len)
  *	 of the buffer length, and takes care of adjusting the kvec
  *	 length for us.
  */
-void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p)
+void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 {
 	struct kvec *iov = buf->head;
 	int scratch_len = buf->buflen - buf->page_len - buf->tail[0].iov_len;
@@ -440,8 +440,8 @@ void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p)
 	BUG_ON(scratch_len < 0);
 	xdr->buf = buf;
 	xdr->iov = iov;
-	xdr->p = (uint32_t *)((char *)iov->iov_base + iov->iov_len);
-	xdr->end = (uint32_t *)((char *)iov->iov_base + scratch_len);
+	xdr->p = (__be32 *)((char *)iov->iov_base + iov->iov_len);
+	xdr->end = (__be32 *)((char *)iov->iov_base + scratch_len);
 	BUG_ON(iov->iov_len > scratch_len);
 
 	if (p != xdr->p && p != NULL) {
@@ -465,10 +465,10 @@ EXPORT_SYMBOL(xdr_init_encode);
  * bytes of data. If so, update the total xdr_buf length, and
  * adjust the length of the current kvec.
  */
-uint32_t * xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes)
+__be32 * xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes)
 {
-	uint32_t *p = xdr->p;
-	uint32_t *q;
+	__be32 *p = xdr->p;
+	__be32 *q;
 
 	/* align nbytes on the next 32-bit boundary */
 	nbytes += 3;
@@ -524,7 +524,7 @@ EXPORT_SYMBOL(xdr_write_pages);
  * @buf: pointer to XDR buffer from which to decode data
  * @p: current pointer inside XDR buffer
  */
-void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p)
+void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 {
 	struct kvec *iov = buf->head;
 	unsigned int len = iov->iov_len;
@@ -534,7 +534,7 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p)
 	xdr->buf = buf;
 	xdr->iov = iov;
 	xdr->p = p;
-	xdr->end = (uint32_t *)((char *)iov->iov_base + len);
+	xdr->end = (__be32 *)((char *)iov->iov_base + len);
 }
 EXPORT_SYMBOL(xdr_init_decode);
 
@@ -548,10 +548,10 @@ EXPORT_SYMBOL(xdr_init_decode);
  * If so return the current pointer, then update the current
  * pointer position.
  */
-uint32_t * xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
+__be32 * xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {
-	uint32_t *p = xdr->p;
-	uint32_t *q = p + XDR_QUADLEN(nbytes);
+	__be32 *p = xdr->p;
+	__be32 *q = p + XDR_QUADLEN(nbytes);
 
 	if (unlikely(q > xdr->end || q < p))
 		return NULL;
@@ -599,8 +599,8 @@ void xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 	 * Position current pointer at beginning of tail, and
 	 * set remaining message length.
 	 */
-	xdr->p = (uint32_t *)((char *)iov->iov_base + padding);
-	xdr->end = (uint32_t *)((char *)iov->iov_base + end);
+	xdr->p = (__be32 *)((char *)iov->iov_base + padding);
+	xdr->end = (__be32 *)((char *)iov->iov_base + end);
 }
 EXPORT_SYMBOL(xdr_read_pages);
 
@@ -624,8 +624,8 @@ void xdr_enter_page(struct xdr_stream *xdr, unsigned int len)
 	 */
 	if (len > PAGE_CACHE_SIZE - xdr->buf->page_base)
 		len = PAGE_CACHE_SIZE - xdr->buf->page_base;
-	xdr->p = (uint32_t *)(kaddr + xdr->buf->page_base);
-	xdr->end = (uint32_t *)((char *)xdr->p + len);
+	xdr->p = (__be32 *)(kaddr + xdr->buf->page_base);
+	xdr->end = (__be32 *)((char *)xdr->p + len);
 }
 EXPORT_SYMBOL(xdr_enter_page);
 
@@ -743,7 +743,7 @@ out:
 int
 xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
 {
-	u32	raw;
+	__be32	raw;
 	int	status;
 
 	status = read_bytes_from_xdr_buf(buf, base, &raw, sizeof(*obj));
@@ -756,7 +756,7 @@ xdr_decode_word(struct xdr_buf *buf, int base, u32 *obj)
 int
 xdr_encode_word(struct xdr_buf *buf, int base, u32 obj)
 {
-	u32	raw = htonl(obj);
+	__be32	raw = htonl(obj);
 
 	return write_bytes_to_xdr_buf(buf, base, &raw, sizeof(obj));
 }

@@ -831,14 +831,6 @@ config DS1302
 	  will get access to the real time clock (or hardware clock) built
 	  into your computer.
 
-config S3C2410_RTC
-	bool "S3C2410 RTC Driver"
-	depends on ARCH_S3C2410
-	help
-	  RTC (Realtime Clock) driver for the clock inbuilt into the
-	  Samsung S3C2410. This can provide periodic interrupt rates
-	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
-
 config COBALT_LCD
 	bool "Support for Cobalt LCD"
 	depends on MIPS_COBALT
@@ -1014,6 +1006,7 @@ config GPIO_VR41XX
 
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+	depends on BLOCK
 	help
 	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 

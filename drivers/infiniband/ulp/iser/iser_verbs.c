@@ -571,6 +571,8 @@ void iser_conn_release(struct iser_conn *ib_conn)
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
 	if (device != NULL)
 		iser_device_try_release(device);
+	if (ib_conn->iser_conn)
+		ib_conn->iser_conn->ib_conn = NULL;
 	kfree(ib_conn);
 }
 
@@ -694,7 +696,7 @@ int iser_post_recv(struct iser_desc *rx_desc)
 	struct iser_dto   *recv_dto = &rx_desc->dto;
 
 	/* Retrieve conn */
-	ib_conn = recv_dto->conn->ib_conn;
+	ib_conn = recv_dto->ib_conn;
 
 	iser_dto_to_iov(recv_dto, iov, 2);
 
@@ -727,7 +729,7 @@ int iser_post_send(struct iser_desc *tx_desc)
 	struct iser_conn  *ib_conn;
 	struct iser_dto   *dto = &tx_desc->dto;
 
-	ib_conn = dto->conn->ib_conn;
+	ib_conn = dto->ib_conn;
 
 	iser_dto_to_iov(dto, iov, MAX_REGD_BUF_VECTOR_LEN);
 
@@ -774,7 +776,7 @@ static void iser_comp_error_worker(void *data)
 static void iser_handle_comp_error(struct iser_desc *desc)
 {
 	struct iser_dto  *dto     = &desc->dto;
-	struct iser_conn *ib_conn = dto->conn->ib_conn;
+	struct iser_conn *ib_conn = dto->ib_conn;
 
 	iser_dto_buffs_release(dto);
 

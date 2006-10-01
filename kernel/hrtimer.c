@@ -693,7 +693,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	return t->task == NULL;
 }
 
-static long __sched nanosleep_restart(struct restart_block *restart)
+long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 {
 	struct hrtimer_sleeper t;
 	struct timespec __user *rmtp;
@@ -702,13 +702,13 @@ static long __sched nanosleep_restart(struct restart_block *restart)
 
 	restart->fn = do_no_restart_syscall;
 
-	hrtimer_init(&t.timer, restart->arg3, HRTIMER_ABS);
-	t.timer.expires.tv64 = ((u64)restart->arg1 << 32) | (u64) restart->arg0;
+	hrtimer_init(&t.timer, restart->arg0, HRTIMER_ABS);
+	t.timer.expires.tv64 = ((u64)restart->arg3 << 32) | (u64) restart->arg2;
 
 	if (do_nanosleep(&t, HRTIMER_ABS))
 		return 0;
 
-	rmtp = (struct timespec __user *) restart->arg2;
+	rmtp = (struct timespec __user *) restart->arg1;
 	if (rmtp) {
 		time = ktime_sub(t.timer.expires, t.timer.base->get_time());
 		if (time.tv64 <= 0)
@@ -718,7 +718,7 @@ static long __sched nanosleep_restart(struct restart_block *restart)
 			return -EFAULT;
 	}
 
-	restart->fn = nanosleep_restart;
+	restart->fn = hrtimer_nanosleep_restart;
 
 	/* The other values in restart are already filled in */
 	return -ERESTART_RESTARTBLOCK;
@@ -751,11 +751,11 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	}
 
 	restart = &current_thread_info()->restart_block;
-	restart->fn = nanosleep_restart;
-	restart->arg0 = t.timer.expires.tv64 & 0xFFFFFFFF;
-	restart->arg1 = t.timer.expires.tv64 >> 32;
-	restart->arg2 = (unsigned long) rmtp;
-	restart->arg3 = (unsigned long) t.timer.base->index;
+	restart->fn = hrtimer_nanosleep_restart;
+	restart->arg0 = (unsigned long) t.timer.base->index;
+	restart->arg1 = (unsigned long) rmtp;
+	restart->arg2 = t.timer.expires.tv64 & 0xFFFFFFFF;
+	restart->arg3 = t.timer.expires.tv64 >> 32;
 
 	return -ERESTART_RESTARTBLOCK;
 }

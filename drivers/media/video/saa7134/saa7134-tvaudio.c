@@ -1046,6 +1046,7 @@ int saa7134_tvaudio_do_scan(struct saa7134_dev *dev)
 }
 
 EXPORT_SYMBOL(saa_dsp_writel);
+EXPORT_SYMBOL(saa7134_tvaudio_setmute);
 
 /* ----------------------------------------------------------- */
 /*

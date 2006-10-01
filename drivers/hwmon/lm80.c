@@ -394,6 +394,48 @@ static int lm80_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, lm80_detect);
 }
 
+static struct attribute *lm80_attributes[] = {
+	&dev_attr_in0_min.attr,
+	&dev_attr_in1_min.attr,
+	&dev_attr_in2_min.attr,
+	&dev_attr_in3_min.attr,
+	&dev_attr_in4_min.attr,
+	&dev_attr_in5_min.attr,
+	&dev_attr_in6_min.attr,
+	&dev_attr_in0_max.attr,
+	&dev_attr_in1_max.attr,
+	&dev_attr_in2_max.attr,
+	&dev_attr_in3_max.attr,
+	&dev_attr_in4_max.attr,
+	&dev_attr_in5_max.attr,
+	&dev_attr_in6_max.attr,
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in2_input.attr,
+	&dev_attr_in3_input.attr,
+	&dev_attr_in4_input.attr,
+	&dev_attr_in5_input.attr,
+	&dev_attr_in6_input.attr,
+	&dev_attr_fan1_min.attr,
+	&dev_attr_fan2_min.attr,
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan1_div.attr,
+	&dev_attr_fan2_div.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_max_hyst.attr,
+	&dev_attr_temp1_crit.attr,
+	&dev_attr_temp1_crit_hyst.attr,
+	&dev_attr_alarms.attr,
+
+	NULL
+};
+
+static const struct attribute_group lm80_group = {
+	.attrs = lm80_attributes,
+};
+
 static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i, cur;
@@ -452,48 +494,19 @@ static int lm80_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->fan_min[1] = lm80_read_value(new_client, LM80_REG_FAN_MIN(2));
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm80_group)))
+		goto error_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto error_detach;
+		goto error_remove;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_in0_min);
-	device_create_file(&new_client->dev, &dev_attr_in1_min);
-	device_create_file(&new_client->dev, &dev_attr_in2_min);
-	device_create_file(&new_client->dev, &dev_attr_in3_min);
-	device_create_file(&new_client->dev, &dev_attr_in4_min);
-	device_create_file(&new_client->dev, &dev_attr_in5_min);
-	device_create_file(&new_client->dev, &dev_attr_in6_min);
-	device_create_file(&new_client->dev, &dev_attr_in0_max);
-	device_create_file(&new_client->dev, &dev_attr_in1_max);
-	device_create_file(&new_client->dev, &dev_attr_in2_max);
-	device_create_file(&new_client->dev, &dev_attr_in3_max);
-	device_create_file(&new_client->dev, &dev_attr_in4_max);
-	device_create_file(&new_client->dev, &dev_attr_in5_max);
-	device_create_file(&new_client->dev, &dev_attr_in6_max);
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
-	device_create_file(&new_client->dev, &dev_attr_in2_input);
-	device_create_file(&new_client->dev, &dev_attr_in3_input);
-	device_create_file(&new_client->dev, &dev_attr_in4_input);
-	device_create_file(&new_client->dev, &dev_attr_in5_input);
-	device_create_file(&new_client->dev, &dev_attr_in6_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_min);
-	device_create_file(&new_client->dev, &dev_attr_fan2_min);
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan2_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_div);
-	device_create_file(&new_client->dev, &dev_attr_fan2_div);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
-	device_create_file(&new_client->dev, &dev_attr_temp1_crit);
-	device_create_file(&new_client->dev, &dev_attr_temp1_crit_hyst);
-	device_create_file(&new_client->dev, &dev_attr_alarms);
 
 	return 0;
 
+error_remove:
+	sysfs_remove_group(&new_client->dev.kobj, &lm80_group);
 error_detach:
 	i2c_detach_client(new_client);
 error_free:
@@ -508,7 +521,7 @@ static int lm80_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
-
+	sysfs_remove_group(&client->dev.kobj, &lm80_group);
 	if ((err = i2c_detach_client(client)))
 		return err;
 

@@ -353,8 +353,9 @@ no_context:
 */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (tsk->pid == 1) {
+	if (is_init(tsk)) {
 		yield();
+		down_read(&mm->mmap_sem);
 		goto survive;
 	}
 	printk("VM: killing process %s\n", tsk->comm);
@@ -423,20 +424,13 @@ int pfault_init(void)
 
 	if (pfault_disable)
 		return -1;
-        __asm__ __volatile__(
-                "    diag  %1,%0,0x258\n"
-		"0:  j     2f\n"
-		"1:  la    %0,8\n"
+	asm volatile(
+		"	diag	%1,%0,0x258\n"
+		"0:	j	2f\n"
+		"1:	la	%0,8\n"
 		"2:\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-#ifndef CONFIG_64BIT
-		"   .long  0b,1b\n"
-#else /* CONFIG_64BIT */
-		"   .quad  0b,1b\n"
-#endif /* CONFIG_64BIT */
-		".previous"
-                : "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc" );
+		EX_TABLE(0b,1b)
+		: "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc");
         __ctl_set_bit(0, 9);
         return rc;
 }
@@ -449,18 +443,11 @@ void pfault_fini(void)
 	if (pfault_disable)
 		return;
 	__ctl_clear_bit(0,9);
-        __asm__ __volatile__(
-                "    diag  %0,0,0x258\n"
+	asm volatile(
+		"	diag	%0,0,0x258\n"
 		"0:\n"
-		".section __ex_table,\"a\"\n"
-		"   .align 4\n"
-#ifndef CONFIG_64BIT
-		"   .long  0b,0b\n"
-#else /* CONFIG_64BIT */
-		"   .quad  0b,0b\n"
-#endif /* CONFIG_64BIT */
-		".previous"
-		: : "a" (&refbk), "m" (refbk) : "cc" );
+		EX_TABLE(0b,0b)
+		: : "a" (&refbk), "m" (refbk) : "cc");
 }
 
 asmlinkage void

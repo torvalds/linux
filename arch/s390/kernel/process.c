@@ -45,7 +45,7 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 
-asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
+asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 
 /*
  * Return saved PC of a blocked thread. used in kernel/sched.
@@ -177,7 +177,8 @@ void show_regs(struct pt_regs *regs)
 
 extern void kernel_thread_starter(void);
 
-__asm__(".align 4\n"
+asm(
+	".align 4\n"
 	"kernel_thread_starter:\n"
 	"    la    2,0(10)\n"
 	"    basr  14,9\n"

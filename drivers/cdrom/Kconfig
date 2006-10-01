@@ -3,7 +3,7 @@
 #
 
 menu "Old CD-ROM drivers (not SCSI, not IDE)"
-	depends on ISA
+	depends on ISA && BLOCK
 
 config CD_NO_IDESCSI
 	bool "Support non-SCSI/IDE/ATAPI CDROM drives"

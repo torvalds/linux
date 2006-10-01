@@ -54,17 +54,18 @@
 #define	LOCOMO_DAC_SDAOEB	0x01	/* SDA pin output data       */
 
 /* SPI interface */
-#define LOCOMO_SPIMD	0x60		/* SPI mode setting */
-#define LOCOMO_SPICT	0x64		/* SPI mode control */
-#define LOCOMO_SPIST	0x68		/* SPI status */
-#define LOCOMO_SPIIS	0x70		/* SPI interrupt status */
-#define LOCOMO_SPIWE	0x74		/* SPI interrupt status write enable */
-#define LOCOMO_SPIIE	0x78		/* SPI interrupt enable */
-#define LOCOMO_SPIIR	0x7c		/* SPI interrupt request */
-#define LOCOMO_SPITD	0x80		/* SPI transfer data write */
-#define LOCOMO_SPIRD	0x84		/* SPI receive data read */
-#define LOCOMO_SPITS	0x88		/* SPI transfer data shift */
-#define LOCOMO_SPIRS	0x8C		/* SPI receive data shift */
+#define LOCOMO_SPI	0x60
+#define LOCOMO_SPIMD	0x00		/* SPI mode setting */
+#define LOCOMO_SPICT	0x04		/* SPI mode control */
+#define LOCOMO_SPIST	0x08		/* SPI status */
+#define LOCOMO_SPIIS	0x10		/* SPI interrupt status */
+#define LOCOMO_SPIWE	0x14		/* SPI interrupt status write enable */
+#define LOCOMO_SPIIE	0x18		/* SPI interrupt enable */
+#define LOCOMO_SPIIR	0x1c		/* SPI interrupt request */
+#define LOCOMO_SPITD	0x20		/* SPI transfer data write */
+#define LOCOMO_SPIRD	0x24		/* SPI receive data read */
+#define LOCOMO_SPITS	0x28		/* SPI transfer data shift */
+#define LOCOMO_SPIRS	0x2C		/* SPI receive data shift */
 #define	LOCOMO_SPI_TEND	(1 << 3)	/* Transfer end bit */
 #define	LOCOMO_SPI_OVRN	(1 << 2)	/* Over Run bit */
 #define	LOCOMO_SPI_RFW	(1 << 1)	/* write buffer bit */
@@ -161,6 +162,7 @@ extern struct bus_type locomo_bus_type;
 #define LOCOMO_DEVID_AUDIO	3
 #define LOCOMO_DEVID_LED	4
 #define LOCOMO_DEVID_UART	5
+#define LOCOMO_DEVID_SPI		6
 
 struct locomo_dev {
 	struct device	dev;
@@ -197,10 +199,11 @@ int locomo_driver_register(struct locomo_driver *);
 void locomo_driver_unregister(struct locomo_driver *);
 
 /* GPIO control functions */
-void locomo_gpio_set_dir(struct locomo_dev *ldev, unsigned int bits, unsigned int dir);
-unsigned int locomo_gpio_read_level(struct locomo_dev *ldev, unsigned int bits);
-unsigned int locomo_gpio_read_output(struct locomo_dev *ldev, unsigned int bits);
-void locomo_gpio_write(struct locomo_dev *ldev, unsigned int bits, unsigned int set);
+void locomo_gpio_set_dir(struct device *dev, unsigned int bits, unsigned int dir);
+int locomo_gpio_read_level(struct device *dev, unsigned int bits);
+int locomo_gpio_read_output(struct device *dev, unsigned int bits);
+void locomo_gpio_write(struct device *dev, unsigned int bits, unsigned int set);
+
 
 /* M62332 control function */
 void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int channel);

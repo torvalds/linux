@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
+#include <asm/mach-types.h>
 
 #include <asm/arch/cpu.h>
 #include <asm/arch/usb.h>
@@ -586,77 +587,53 @@ static int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
  *-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
-/*
- * Resets some clocks that may be left on from bootloader,
- * but leaves serial clocks on. See also omap_late_clk_reset().
- */
-static inline void omap1_early_clk_reset(void)
-{
-	//omap_writel(0x3 << 29, MOD_CONF_CTRL_0);
-}
 
-static int __init omap1_late_clk_reset(void)
+static void __init omap1_clk_disable_unused(struct clk *clk)
 {
-	/* Turn off all unused clocks */
-	struct clk *p;
 	__u32 regval32;
 
-	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
-	regval32 = omap_readw(SOFT_REQ_REG) & (1 << 4);
-	omap_writew(regval32, SOFT_REQ_REG);
-	omap_writew(0, SOFT_REQ_REG2);
-
-	list_for_each_entry(p, &clocks, node) {
-		if (p->usecount > 0 || (p->flags & ALWAYS_ENABLED) ||
-			p->enable_reg == 0)
-			continue;
-
-		/* Clocks in the DSP domain need api_ck. Just assume bootloader
-		 * has not enabled any DSP clocks */
-		if ((u32)p->enable_reg == DSP_IDLECT2) {
-			printk(KERN_INFO "Skipping reset check for DSP domain "
-			       "clock \"%s\"\n", p->name);
-			continue;
-		}
-
-		/* Is the clock already disabled? */
-		if (p->flags & ENABLE_REG_32BIT) {
-			if (p->flags & VIRTUAL_IO_ADDRESS)
-				regval32 = __raw_readl(p->enable_reg);
-			else
-				regval32 = omap_readl(p->enable_reg);
-		} else {
-			if (p->flags & VIRTUAL_IO_ADDRESS)
-				regval32 = __raw_readw(p->enable_reg);
-			else
-				regval32 = omap_readw(p->enable_reg);
-		}
-
-		if ((regval32 & (1 << p->enable_bit)) == 0)
-			continue;
-
-		/* FIXME: This clock seems to be necessary but no-one
-		 * has asked for its activation. */
-		if (p == &tc2_ck         // FIX: pm.c (SRAM), CCP, Camera
-		    || p == &ck_dpll1out.clk // FIX: SoSSI, SSR
-		    || p == &arm_gpio_ck // FIX: GPIO code for 1510
-		    ) {
-			printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
-			       p->name);
-			continue;
-		}
-
-		printk(KERN_INFO "Disabling unused clock \"%s\"... ", p->name);
-		p->disable(p);
-		printk(" done\n");
+	/* Clocks in the DSP domain need api_ck. Just assume bootloader
+	 * has not enabled any DSP clocks */
+	if ((u32)clk->enable_reg == DSP_IDLECT2) {
+		printk(KERN_INFO "Skipping reset check for DSP domain "
+		       "clock \"%s\"\n", clk->name);
+		return;
 	}
 
-	return 0;
+	/* Is the clock already disabled? */
+	if (clk->flags & ENABLE_REG_32BIT) {
+		if (clk->flags & VIRTUAL_IO_ADDRESS)
+			regval32 = __raw_readl(clk->enable_reg);
+			else
+				regval32 = omap_readl(clk->enable_reg);
+	} else {
+		if (clk->flags & VIRTUAL_IO_ADDRESS)
+			regval32 = __raw_readw(clk->enable_reg);
+		else
+			regval32 = omap_readw(clk->enable_reg);
+	}
+
+	if ((regval32 & (1 << clk->enable_bit)) == 0)
+		return;
+
+	/* FIXME: This clock seems to be necessary but no-one
+	 * has asked for its activation. */
+	if (clk == &tc2_ck		// FIX: pm.c (SRAM), CCP, Camera
+	    || clk == &ck_dpll1out.clk	// FIX: SoSSI, SSR
+	    || clk == &arm_gpio_ck	// FIX: GPIO code for 1510
+		) {
+		printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
+		       clk->name);
+		return;
+	}
+
+	printk(KERN_INFO "Disabling unused clock \"%s\"... ", clk->name);
+	clk->disable(clk);
+	printk(" done\n");
 }
-late_initcall(omap1_late_clk_reset);
 
 #else
-#define omap1_early_clk_reset()	{}
+#define omap1_clk_disable_unused	NULL
 #endif
 
 static struct clk_functions omap1_clk_functions = {
@@ -664,6 +641,7 @@ static struct clk_functions omap1_clk_functions = {
 	.clk_disable		= omap1_clk_disable,
 	.clk_round_rate		= omap1_clk_round_rate,
 	.clk_set_rate		= omap1_clk_set_rate,
+	.clk_disable_unused	= omap1_clk_disable_unused,
 };
 
 int __init omap1_clk_init(void)
@@ -671,8 +649,13 @@ int __init omap1_clk_init(void)
 	struct clk ** clkp;
 	const struct omap_clock_config *info;
 	int crystal_type = 0; /* Default 12 MHz */
+	u32 reg;
 
-	omap1_early_clk_reset();
+	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
+	reg = omap_readw(SOFT_REQ_REG) & (1 << 4);
+	omap_writew(reg, SOFT_REQ_REG);
+	omap_writew(0, SOFT_REQ_REG2);
+
 	clk_init(&omap1_clk_functions);
 
 	/* By default all idlect1 clocks are allowed to idle */
@@ -771,6 +754,12 @@ int __init omap1_clk_init(void)
 	/* Select slicer output as OMAP input clock */
 	omap_writew(omap_readw(OMAP730_PCC_UPLD_CTRL) & ~0x1, OMAP730_PCC_UPLD_CTRL);
 #endif
+
+	/* Amstrad Delta wants BCLK high when inactive */
+	if (machine_is_ams_delta())
+		omap_writel(omap_readl(ULPD_CLOCK_CTRL) |
+				(1 << SDW_MCLK_INV_BIT),
+				ULPD_CLOCK_CTRL);
 
 	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
 	/* (on 730, bit 13 must not be cleared) */

@@ -21,11 +21,11 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_device *d)
 
 	demod_cfg.demod_address = 0x8;
 
-	if ((d->fe = dib3000mb_attach(&demod_cfg,&d->i2c_adap,&st->ops)) == NULL) {
-		d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
-		d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+	if ((d->fe = dib3000mb_attach(&demod_cfg,&d->i2c_adap,&st->ops)) == NULL)
 		return -ENODEV;
-	}
+
+	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
 
 	d->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 
@@ -169,7 +169,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -247,7 +247,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -272,8 +272,8 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 #endif
 	.devices = {
 		{	"Artec T1 USB1.1 TVBOX with AN2235",
-			{ &dibusb_dib3000mb_table[20], NULL },
 			{ &dibusb_dib3000mb_table[21], NULL },
+			{ &dibusb_dib3000mb_table[22], NULL },
 		},
 #ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
@@ -304,7 +304,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -355,7 +355,7 @@ static struct dvb_usb_properties artec_t1_usb2_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,

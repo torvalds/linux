@@ -27,7 +27,7 @@ config RTC_HCTOSYS
 	help
 	  If you say yes here, the system time will be set using
 	  the value read from the specified RTC device. This is useful
-	  in order to avoid unnecessary fschk runs.
+	  in order to avoid unnecessary fsck runs.
 
 config RTC_HCTOSYS_DEVICE
 	string "The RTC to read the time from"

@@ -20,6 +20,7 @@ enum blktrace_cat {
 	BLK_TC_PC	= 1 << 9,	/* pc requests */
 	BLK_TC_NOTIFY	= 1 << 10,	/* special message */
 	BLK_TC_AHEAD	= 1 << 11,	/* readahead */
+	BLK_TC_META	= 1 << 12,	/* metadata */
 
 	BLK_TC_END	= 1 << 15,	/* only 16-bits, reminder */
 };
@@ -148,7 +149,7 @@ static inline void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 				    u32 what)
 {
 	struct blk_trace *bt = q->blk_trace;
-	int rw = rq->flags & 0x03;
+	int rw = rq->cmd_flags & 0x03;
 
 	if (likely(!bt))
 		return;

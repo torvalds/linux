@@ -519,8 +519,8 @@ static void tcp_sack(const struct sk_buff *skb,
 
 	/* Fast path for timestamp-only option */
 	if (length == TCPOLEN_TSTAMP_ALIGNED*4
-	    && *(__u32 *)ptr ==
-	        __constant_ntohl((TCPOPT_NOP << 24) 
+	    && *(__be32 *)ptr ==
+	        __constant_htonl((TCPOPT_NOP << 24)
 	        		 | (TCPOPT_NOP << 16)
 	        		 | (TCPOPT_TIMESTAMP << 8)
 	        		 | TCPOLEN_TIMESTAMP))
@@ -551,7 +551,7 @@ static void tcp_sack(const struct sk_buff *skb,
 			    	for (i = 0;
 			    	     i < (opsize - TCPOLEN_SACK_BASE);
 			    	     i += TCPOLEN_SACK_PERBLOCK) {
-					tmp = ntohl(*((u_int32_t *)(ptr+i)+1));
+					tmp = ntohl(*((__be32 *)(ptr+i)+1));
 					
 					if (after(tmp, *sack))
 						*sack = tmp;

@@ -345,10 +345,11 @@ static void iriap_disconnect_request(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 	if (tx_skb == NULL) {
-		IRDA_DEBUG(0, "%s(), Could not allocate an sk_buff of length %d\n", 
-			__FUNCTION__, 64);
+		IRDA_DEBUG(0,
+			   "%s(), Could not allocate an sk_buff of length %d\n",
+			   __FUNCTION__, LMP_MAX_HEADER);
 		return;
 	}
 
@@ -701,7 +702,7 @@ void iriap_send_ack(struct iriap_cb *self)
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IAS_MAGIC, return;);
 
-	tx_skb = alloc_skb(64, GFP_ATOMIC);
+	tx_skb = alloc_skb(LMP_MAX_HEADER + 1, GFP_ATOMIC);
 	if (!tx_skb)
 		return;
 

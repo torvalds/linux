@@ -105,7 +105,7 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			offset+=bpl;
 		} else {
-			/* scanline needs to be splitted */
+			/* scanline needs to be split */
 			todo = bpl;
 			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
 					    (sg_dma_len(sg)-offset));
@@ -792,6 +792,11 @@ int cx88_start_audio_dma(struct cx88_core *core)
 {
 	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
 	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
+
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
@@ -801,11 +806,16 @@ int cx88_start_audio_dma(struct cx88_core *core)
 
 	/* start dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+
 	return 0;
 }
 
 int cx88_stop_audio_dma(struct cx88_core *core)
 {
+	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
+	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
+		return 0;
+
 	/* stop dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0000);
 
@@ -1123,6 +1133,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 
 	/* init hardware */
 	cx88_reset(core);
+	cx88_card_setup_pre_i2c(core);
 	cx88_i2c_init(core,pci);
 	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);

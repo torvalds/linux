@@ -40,7 +40,7 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  */
 static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 {
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

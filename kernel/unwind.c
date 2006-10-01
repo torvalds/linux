@@ -102,7 +102,7 @@ static struct unwind_table {
 	unsigned long size;
 	struct unwind_table *link;
 	const char *name;
-} root_table, *last_table;
+} root_table;
 
 struct unwind_item {
 	enum item_location {
@@ -173,6 +173,8 @@ void __init unwind_init(void)
 }
 
 #ifdef CONFIG_MODULES
+
+static struct unwind_table *last_table;
 
 /* Must be called with module_mutex held. */
 void *unwind_add_table(struct module *module,

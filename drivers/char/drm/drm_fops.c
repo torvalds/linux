@@ -53,6 +53,8 @@ static int drm_setup(drm_device_t * dev)
 			return ret;
 	}
 
+	dev->magicfree.next = NULL;
+
 	/* prebuild the SAREA */
 	i = drm_addmap(dev, 0, SAREA_MAX, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
 	if (i != 0)
@@ -69,13 +71,11 @@ static int drm_setup(drm_device_t * dev)
 			return i;
 	}
 
-	for (i = 0; i < DRM_ARRAY_SIZE(dev->counts); i++)
+	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
 		atomic_set(&dev->counts[i], 0);
 
-	for (i = 0; i < DRM_HASH_SIZE; i++) {
-		dev->magiclist[i].head = NULL;
-		dev->magiclist[i].tail = NULL;
-	}
+	drm_ht_create(&dev->magiclist, DRM_MAGIC_HASH_ORDER);
+	INIT_LIST_HEAD(&dev->magicfree);
 
 	dev->ctxlist = drm_alloc(sizeof(*dev->ctxlist), DRM_MEM_CTXLIST);
 	if (dev->ctxlist == NULL)

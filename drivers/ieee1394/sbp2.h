@@ -46,8 +46,8 @@
 #define ORB_SET_DIRECTION(value)		((value & 0x1) << 27)
 
 struct sbp2_command_orb {
-	volatile u32 next_ORB_hi;
-	volatile u32 next_ORB_lo;
+	u32 next_ORB_hi;
+	u32 next_ORB_lo;
 	u32 data_descriptor_hi;
 	u32 data_descriptor_lo;
 	u32 misc;
@@ -180,12 +180,14 @@ struct sbp2_unrestricted_page_table {
 
 #define SBP2_SCSI_STATUS_SELECTION_TIMEOUT	0xff
 
-#define STATUS_GET_ORB_OFFSET_HI(value)         (value & 0xffff)
-#define STATUS_GET_SBP_STATUS(value)            ((value >> 16) & 0xff)
-#define STATUS_GET_LENGTH(value)                ((value >> 24) & 0x7)
-#define STATUS_GET_DEAD_BIT(value)              ((value >> 27) & 0x1)
-#define STATUS_GET_RESP(value)                  ((value >> 28) & 0x3)
-#define STATUS_GET_SRC(value)                   ((value >> 30) & 0x3)
+#define STATUS_GET_SRC(value)			(((value) >> 30) & 0x3)
+#define STATUS_GET_RESP(value)			(((value) >> 28) & 0x3)
+#define STATUS_GET_LEN(value)			(((value) >> 24) & 0x7)
+#define STATUS_GET_SBP_STATUS(value)		(((value) >> 16) & 0xff)
+#define STATUS_GET_ORB_OFFSET_HI(value)		((value) & 0x0000ffff)
+#define STATUS_TEST_DEAD(value)			((value) & 0x08000000)
+/* test 'resp' | 'dead' | 'sbp2_status' */
+#define STATUS_TEST_RDS(value)			((value) & 0x38ff0000)
 
 struct sbp2_status_block {
 	u32 ORB_offset_hi_misc;
@@ -318,9 +320,9 @@ struct scsi_id_instance_data {
 	u64 status_fifo_addr;
 
 	/*
-	 * Variable used for logins, reconnects, logouts, query logins
+	 * Waitqueue flag for logins, reconnects, logouts, query logins
 	 */
-	atomic_t sbp2_login_complete;
+	int access_complete:1;
 
 	/*
 	 * Pool of command orbs, so we can have more than overlapped command per id
@@ -344,6 +346,16 @@ struct scsi_id_instance_data {
 
 	/* Device specific workarounds/brokeness */
 	unsigned workarounds;
+
+	atomic_t state;
+	struct work_struct protocol_work;
+};
+
+/* For use in scsi_id_instance_data.state */
+enum sbp2lu_state_types {
+	SBP2LU_STATE_RUNNING,		/* all normal */
+	SBP2LU_STATE_IN_RESET,		/* between bus reset and reconnect */
+	SBP2LU_STATE_IN_SHUTDOWN	/* when sbp2_remove was called */
 };
 
 /* Sbp2 host data structure (one per IEEE1394 host) */
@@ -390,11 +402,6 @@ static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id);
 static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int destid,
 				    quadlet_t *data, u64 addr, size_t length, u16 flags);
 static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait);
-static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
-				 struct sbp2_command_info *command);
-static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
-			     struct scsi_cmnd *SCpnt,
-			     void (*done)(struct scsi_cmnd *));
 static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status,
 					      unchar *sense_data);
 static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
