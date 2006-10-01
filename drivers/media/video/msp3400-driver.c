@@ -904,6 +904,8 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->has_virtual_dolby_surround = msp_revision == 'G' && msp_prod_lo == 1;
 	/* Has Virtual Dolby Surround & Dolby Pro Logic: only in msp34x2 */
 	state->has_dolby_pro_logic = msp_revision == 'G' && msp_prod_lo == 2;
+	/* The msp343xG supports BTSC only and cannot do Automatic Standard Detection. */
+	state->force_btsc = msp_family == 3 && msp_revision == 'G' && msp_prod_hi == 3;
 
 	state->opmode = opmode;
 	if (state->opmode == OPMODE_AUTO) {
