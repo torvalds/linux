@@ -1893,6 +1893,10 @@ mpsc_drv_map_regs(struct mpsc_port_info *pi, struct platform_device *pd)
 	}
 	else {
 		mpsc_resource_err("SDMA base");
+		if (pi->mpsc_base) {
+			iounmap(pi->mpsc_base);
+			pi->mpsc_base = NULL;
+		}
 		return -ENOMEM;
 	}
 
@@ -1905,6 +1909,14 @@ mpsc_drv_map_regs(struct mpsc_port_info *pi, struct platform_device *pd)
 	}
 	else {
 		mpsc_resource_err("BRG base");
+		if (pi->mpsc_base) {
+			iounmap(pi->mpsc_base);
+			pi->mpsc_base = NULL;
+		}
+		if (pi->sdma_base) {
+			iounmap(pi->sdma_base);
+			pi->sdma_base = NULL;
+		}
 		return -ENOMEM;
 	}
 
