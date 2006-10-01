@@ -415,6 +415,12 @@ static int pSeries_check_legacy_ioport(unsigned int baseport)
 			return -ENODEV;
 		of_node_put(np);
 		break;
+	case PARALLEL_BASE:
+		np = of_find_node_by_type(NULL, "parallel");
+		if (np == NULL)
+			return -ENODEV;
+		of_node_put(np);
+		break;
 	}
 	return 0;
 }
