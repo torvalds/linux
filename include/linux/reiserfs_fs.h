@@ -2073,6 +2073,10 @@ void reiserfs_init_alloc_options(struct super_block *s);
  */
 __le32 reiserfs_choose_packing(struct inode *dir);
 
+int reiserfs_init_bitmap_cache(struct super_block *sb);
+void reiserfs_free_bitmap_cache(struct super_block *sb);
+void reiserfs_cache_bitmap_metadata(struct super_block *sb, struct buffer_head *bh, struct reiserfs_bitmap_info *info);
+struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb, unsigned int bitmap);
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value);
 void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct inode *,
 			 b_blocknr_t, int for_unformatted);

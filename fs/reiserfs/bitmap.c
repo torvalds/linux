@@ -9,6 +9,7 @@
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
+#include <linux/vmalloc.h>
 #include <linux/reiserfs_fs_sb.h>
 #include <linux/reiserfs_fs_i.h>
 #include <linux/quotaops.h>
@@ -1284,4 +1285,91 @@ int reiserfs_can_fit_pages(struct super_block *sb	/* superblock of filesystem
 	spin_unlock(&REISERFS_SB(sb)->bitmap_lock);
 
 	return space > 0 ? space : 0;
+}
+
+void reiserfs_cache_bitmap_metadata(struct super_block *sb,
+                                    struct buffer_head *bh,
+                                    struct reiserfs_bitmap_info *info)
+{
+	unsigned long *cur = (unsigned long *)(bh->b_data + bh->b_size);
+
+	info->first_zero_hint = 1 << (sb->s_blocksize_bits + 3);
+
+	while (--cur >= (unsigned long *)bh->b_data) {
+		int base = ((char *)cur - bh->b_data) << 3;
+
+		/* 0 and ~0 are special, we can optimize for them */
+		if (*cur == 0) {
+			info->first_zero_hint = base;
+			info->free_count += BITS_PER_LONG;
+		} else if (*cur != ~0L) {       /* A mix, investigate */
+			int b;
+			for (b = BITS_PER_LONG - 1; b >= 0; b--) {
+				if (!reiserfs_test_le_bit(b, cur)) {
+					info->first_zero_hint = base + b;
+					info->free_count++;
+				}
+			}
+		}
+	}
+	/* The first bit must ALWAYS be 1 */
+	BUG_ON(info->first_zero_hint == 0);
+}
+
+struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
+                                               unsigned int bitmap)
+{
+	b_blocknr_t block = (sb->s_blocksize << 3) * bitmap;
+	struct buffer_head *bh;
+
+	/* Way old format filesystems had the bitmaps packed up front.
+	 * I doubt there are any of these left, but just in case... */
+	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
+	                      &(REISERFS_SB(sb)->s_properties))))
+		block = REISERFS_SB(sb)->s_sbh->b_blocknr + 1 + bitmap;
+	else if (bitmap == 0)
+		block = (REISERFS_DISK_OFFSET_IN_BYTES >> sb->s_blocksize_bits) + 1;
+
+	bh = sb_getblk(sb, block);
+	if (!buffer_uptodate(bh))
+		ll_rw_block(READ, 1, &bh);
+
+	return bh;
+}
+
+int reiserfs_init_bitmap_cache(struct super_block *sb)
+{
+	struct reiserfs_bitmap_info *bitmap;
+	int i;
+
+	bitmap = vmalloc(sizeof (*bitmap) * SB_BMAP_NR(sb));
+	if (bitmap == NULL)
+		return -ENOMEM;
+
+	memset(bitmap, 0, sizeof (*bitmap) * SB_BMAP_NR(sb));
+
+	for (i = 0; i < SB_BMAP_NR(sb); i++)
+		bitmap[i].bh = reiserfs_read_bitmap_block(sb, i);
+
+	/* make sure we have them all */
+	for (i = 0; i < SB_BMAP_NR(sb); i++) {
+		wait_on_buffer(bitmap[i].bh);
+		if (!buffer_uptodate(bitmap[i].bh)) {
+			reiserfs_warning(sb, "sh-2029: %s: "
+					 "bitmap block (#%lu) reading failed",
+			                 __FUNCTION__, bitmap[i].bh->b_blocknr);
+			for (i = 0; i < SB_BMAP_NR(sb); i++)
+				brelse(bitmap[i].bh);
+			vfree(bitmap);
+			return -EIO;
+		}
+	}
+
+	/* Cache the info on the bitmaps before we get rolling */
+	for (i = 0; i < SB_BMAP_NR(sb); i++)
+		reiserfs_cache_bitmap_metadata(sb, bitmap[i].bh, &bitmap[i]);
+
+	SB_AP_BITMAP(sb) = bitmap;
+
+	return 0;
 }
