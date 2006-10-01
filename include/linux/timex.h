@@ -294,11 +294,15 @@ extern void register_time_interpolator(struct time_interpolator *);
 extern void unregister_time_interpolator(struct time_interpolator *);
 extern void time_interpolator_reset(void);
 extern unsigned long time_interpolator_get_offset(void);
+extern void time_interpolator_update(long delta_nsec);
 
 #else /* !CONFIG_TIME_INTERPOLATION */
 
-static inline void
-time_interpolator_reset(void)
+static inline void time_interpolator_reset(void)
+{
+}
+
+static inline void time_interpolator_update(long delta_nsec)
 {
 }
 
@@ -309,6 +313,8 @@ time_interpolator_reset(void)
 /* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
 extern u64 current_tick_length(void);
 
+extern void second_overflow(void);
+extern void update_ntp_one_tick(void);
 extern int do_adjtimex(struct timex *);
 
 #endif /* KERNEL */
