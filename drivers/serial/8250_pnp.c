@@ -327,6 +327,19 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"WACF004",		0	},
 	{	"WACF005",		0	},
 	{       "WACF006",              0       },
+	/* Compaq touchscreen */
+	{       "FPI2002",              0 },
+	/* Fujitsu Stylistic touchscreens */
+	{       "FUJ02B2",              0 },
+	{       "FUJ02B3",              0 },
+	/* Fujitsu Stylistic LT touchscreens */
+	{       "FUJ02B4",              0 },
+	/* Passive Fujitsu Stylistic touchscreens */
+	{       "FUJ02B6",              0 },
+	{       "FUJ02B7",              0 },
+	{       "FUJ02B8",              0 },
+	{       "FUJ02B9",              0 },
+	{       "FUJ02BC",              0 },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
 	/* Unkown PnP modems */
