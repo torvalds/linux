@@ -257,6 +257,15 @@ config CC_OPTIMIZE_FOR_SIZE
 
 	  If unsure, say N.
 
+config TASK_XACCT
+	bool "Enable extended accounting over taskstats (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect extended task accounting data and send the data
+	  to userland for processing over the taskstats interface.
+
+	  Say N if unsure.
+
 config SYSCTL
 	bool
 

@@ -107,6 +107,17 @@ struct taskstats {
 	__u64	ac_minflt;		/* Minor Page Fault */
 	__u64	ac_majflt;		/* Major Page Fault */
 	/* Basic Accounting Fields end */
+
+ 	/* Extended accounting fields start */
+ 	__u64	acct_rss_mem1;		/* accumulated rss usage */
+ 	__u64	acct_vm_mem1;		/* accumulated virtual memory usage */
+ 	__u64	hiwater_rss;		/* High-watermark of RSS usage */
+ 	__u64	hiwater_vm;		/* High-water virtual memory usage */
+ 	__u64	read_char;		/* bytes read */
+ 	__u64	write_char;		/* bytes written */
+ 	__u64	read_syscalls;		/* read syscalls */
+ 	__u64	write_syscalls;		/* write syscalls */
+ 	/* Extended accounting fields end */
 };
 
 

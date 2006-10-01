@@ -16,4 +16,13 @@ static inline void bacct_add_tsk(struct taskstats *stats, struct task_struct *ts
 {}
 #endif /* CONFIG_TASKSTATS */
 
+#ifdef CONFIG_TASK_XACCT
+extern void xacct_add_tsk(struct taskstats *stats, struct task_struct *p);
+#else
+static inline void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
+{}
+#endif /* CONFIG_TASK_XACCT */
+
 #endif
+
+

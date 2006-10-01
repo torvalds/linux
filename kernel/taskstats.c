@@ -20,6 +20,7 @@
 #include <linux/taskstats_kern.h>
 #include <linux/tsacct_kern.h>
 #include <linux/delayacct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 #include <net/genetlink.h>
@@ -203,6 +204,9 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 	/* fill in basic acct fields */
 	stats->version = TASKSTATS_VERSION;
 	bacct_add_tsk(stats, tsk);
+
+	/* fill in extended acct fields */
+	xacct_add_tsk(stats, tsk);
 
 	/* Define err: label here if needed */
 	put_task_struct(tsk);

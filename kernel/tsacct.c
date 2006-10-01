@@ -70,3 +70,22 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 	strncpy(stats->ac_comm, tsk->comm, sizeof(stats->ac_comm));
 }
 
+
+#ifdef CONFIG_TASK_XACCT
+/*
+ * fill in extended accounting fields
+ */
+void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
+{
+	stats->acct_rss_mem1 = p->acct_rss_mem1;
+	stats->acct_vm_mem1  = p->acct_vm_mem1;
+	if (p->mm) {
+		stats->hiwater_rss   = p->mm->hiwater_rss;
+		stats->hiwater_vm    = p->mm->hiwater_vm;
+	}
+	stats->read_char	= p->rchar;
+	stats->write_char	= p->wchar;
+	stats->read_syscalls	= p->syscr;
+	stats->write_syscalls	= p->syscw;
+}
+#endif
