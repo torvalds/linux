@@ -59,6 +59,7 @@ static inline void get_bit_address(struct super_block *s,
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
 	int bmap, offset;
+	struct buffer_head *bh;
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
 		reiserfs_warning(s,
@@ -96,20 +97,21 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 		return 0;
 	}
 
-	if ((bit_value == 0 &&
-	     reiserfs_test_le_bit(offset, SB_AP_BITMAP(s)[bmap].bh->b_data)) ||
-	    (bit_value == 1 &&
-	     reiserfs_test_le_bit(offset, SB_AP_BITMAP(s)[bmap].bh->b_data) == 0)) {
+	bh = SB_AP_BITMAP(s)[bmap].bh;
+	get_bh(bh);
+
+	if ((bit_value == 0 && reiserfs_test_le_bit(offset, bh->b_data)) ||
+	    (bit_value == 1 && reiserfs_test_le_bit(offset, bh->b_data) == 0)) {
 		reiserfs_warning(s,
 				 "vs-4040: is_reusable: corresponding bit of block %lu does not "
 				 "match required value (bmap==%d, offset==%d) test_bit==%d",
-				 block, bmap, offset, reiserfs_test_le_bit(offset,
-								   SB_AP_BITMAP
-								   (s)[bmap].bh->
-								   b_data));
+				 block, bmap, offset,
+				 reiserfs_test_le_bit(offset, bh->b_data));
 
+		brelse(bh);
 		return 0;
 	}
+	brelse(bh);
 
 	if (bit_value == 0 && block == SB_ROOT_BLOCK(s)) {
 		reiserfs_warning(s,
@@ -151,6 +153,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *s = th->t_super;
 	struct reiserfs_bitmap_info *bi = &SB_AP_BITMAP(s)[bmap_n];
+	struct buffer_head *bh;
 	int end, next;
 	int org = *beg;
 
@@ -169,22 +172,28 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 				 bmap_n);
 		return 0;
 	}
-	if (buffer_locked(bi->bh)) {
+	bh = bi->bh;
+	get_bh(bh);
+
+	if (buffer_locked(bh)) {
 		PROC_INFO_INC(s, scan_bitmap.wait);
-		__wait_on_buffer(bi->bh);
+		__wait_on_buffer(bh);
 	}
 
 	while (1) {
 	      cont:
-		if (bi->free_count < min)
+		if (bi->free_count < min) {
+			brelse(bh);
 			return 0;	// No free blocks in this bitmap
+		}
 
 		/* search for a first zero bit -- beggining of a window */
 		*beg = reiserfs_find_next_zero_le_bit
-		    ((unsigned long *)(bi->bh->b_data), boundary, *beg);
+		    ((unsigned long *)(bh->b_data), boundary, *beg);
 
 		if (*beg + min > boundary) {	/* search for a zero bit fails or the rest of bitmap block
 						 * cannot contain a zero window of minimum size */
+			brelse(bh);
 			return 0;
 		}
 
@@ -193,7 +202,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 		/* first zero bit found; we check next bits */
 		for (end = *beg + 1;; end++) {
 			if (end >= *beg + max || end >= boundary
-			    || reiserfs_test_le_bit(end, bi->bh->b_data)) {
+			    || reiserfs_test_le_bit(end, bh->b_data)) {
 				next = end;
 				break;
 			}
@@ -207,12 +216,12 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 		 * (end) points to one bit after the window end */
 		if (end - *beg >= min) {	/* it seems we have found window of proper size */
 			int i;
-			reiserfs_prepare_for_journal(s, bi->bh, 1);
+			reiserfs_prepare_for_journal(s, bh, 1);
 			/* try to set all blocks used checking are they still free */
 			for (i = *beg; i < end; i++) {
 				/* It seems that we should not check in journal again. */
 				if (reiserfs_test_and_set_le_bit
-				    (i, bi->bh->b_data)) {
+				    (i, bh->b_data)) {
 					/* bit was set by another process
 					 * while we slept in prepare_for_journal() */
 					PROC_INFO_INC(s, scan_bitmap.stolen);
@@ -224,17 +233,16 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 					/* otherwise we clear all bit were set ... */
 					while (--i >= *beg)
 						reiserfs_test_and_clear_le_bit
-						    (i, bi->bh->b_data);
-					reiserfs_restore_prepared_buffer(s,
-									 bi->
-									 bh);
+						    (i, bh->b_data);
+					reiserfs_restore_prepared_buffer(s, bh);
 					*beg = org;
 					/* ... and search again in current block from beginning */
 					goto cont;
 				}
 			}
 			bi->free_count -= (end - *beg);
-			journal_mark_dirty(th, s, bi->bh);
+			journal_mark_dirty(th, s, bh);
+			brelse(bh);
 
 			/* free block count calculation */
 			reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s),
@@ -383,7 +391,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *s = th->t_super;
 	struct reiserfs_super_block *rs;
-	struct buffer_head *sbh;
+	struct buffer_head *sbh, *bmbh;
 	struct reiserfs_bitmap_info *apbi;
 	int nr, offset;
 
@@ -404,16 +412,20 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 		return;
 	}
 
-	reiserfs_prepare_for_journal(s, apbi[nr].bh, 1);
+	bmbh = apbi[nr].bh;
+	get_bh(bmbh);
+
+	reiserfs_prepare_for_journal(s, bmbh, 1);
 
 	/* clear bit for the given block in bit map */
-	if (!reiserfs_test_and_clear_le_bit(offset, apbi[nr].bh->b_data)) {
+	if (!reiserfs_test_and_clear_le_bit(offset, bmbh->b_data)) {
 		reiserfs_warning(s, "vs-4080: reiserfs_free_block: "
 				 "free_block (%s:%lu)[dev:blocknr]: bit already cleared",
 				 reiserfs_bdevname(s), block);
 	}
 	apbi[nr].free_count++;
-	journal_mark_dirty(th, s, apbi[nr].bh);
+	journal_mark_dirty(th, s, bmbh);
+	brelse(bmbh);
 
 	reiserfs_prepare_for_journal(s, sbh, 1);
 	/* update super block */

@@ -22,6 +22,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	int err = 0;
 	struct reiserfs_super_block *sb;
 	struct reiserfs_bitmap_info *bitmap;
+	struct reiserfs_bitmap_info *info;
 	struct reiserfs_bitmap_info *old_bitmap = SB_AP_BITMAP(s);
 	struct buffer_head *bh;
 	struct reiserfs_transaction_handle th;
@@ -127,16 +128,19 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 		 * transaction begins, and the new bitmaps don't matter if the
 		 * transaction fails. */
 		for (i = bmap_nr; i < bmap_nr_new; i++) {
-			bitmap[i].bh = sb_getblk(s, i * s->s_blocksize * 8);
-			memset(bitmap[i].bh->b_data, 0, sb_blocksize(sb));
-			reiserfs_test_and_set_le_bit(0, bitmap[i].bh->b_data);
+			bh = sb_getblk(s, i * s->s_blocksize * 8);
+			get_bh(bh);
+			memset(bh->b_data, 0, sb_blocksize(sb));
+			reiserfs_test_and_set_le_bit(0, bh->b_data);
 
-			set_buffer_uptodate(bitmap[i].bh);
-			mark_buffer_dirty(bitmap[i].bh);
-			sync_dirty_buffer(bitmap[i].bh);
+			set_buffer_uptodate(bh);
+			mark_buffer_dirty(bh);
+			sync_dirty_buffer(bh);
 			// update bitmap_info stuff
 			bitmap[i].first_zero_hint = 1;
 			bitmap[i].free_count = sb_blocksize(sb) * 8 - 1;
+			bitmap[i].bh = bh;
+			brelse(bh);
 		}
 		/* free old bitmap blocks array */
 		SB_AP_BITMAP(s) = bitmap;
@@ -150,30 +154,36 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 	if (err)
 		return err;
 
-	/* correct last bitmap blocks in old and new disk layout */
-	reiserfs_prepare_for_journal(s, SB_AP_BITMAP(s)[bmap_nr - 1].bh, 1);
+	/* Extend old last bitmap block - new blocks have been made available */
+	info = SB_AP_BITMAP(s) + bmap_nr - 1;
+	bh = info->bh;
+	get_bh(bh);
+
+	reiserfs_prepare_for_journal(s, bh, 1);
 	for (i = block_r; i < s->s_blocksize * 8; i++)
-		reiserfs_test_and_clear_le_bit(i,
-					       SB_AP_BITMAP(s)[bmap_nr -
-							       1].bh->b_data);
-	SB_AP_BITMAP(s)[bmap_nr - 1].free_count += s->s_blocksize * 8 - block_r;
-	if (!SB_AP_BITMAP(s)[bmap_nr - 1].first_zero_hint)
-		SB_AP_BITMAP(s)[bmap_nr - 1].first_zero_hint = block_r;
+		reiserfs_test_and_clear_le_bit(i, bh->b_data);
+	info->free_count += s->s_blocksize * 8 - block_r;
+	if (!info->first_zero_hint)
+		info->first_zero_hint = block_r;
 
-	journal_mark_dirty(&th, s, SB_AP_BITMAP(s)[bmap_nr - 1].bh);
+	journal_mark_dirty(&th, s, bh);
+	brelse(bh);
 
-	reiserfs_prepare_for_journal(s, SB_AP_BITMAP(s)[bmap_nr_new - 1].bh, 1);
+	/* Correct new last bitmap block - It may not be full */
+	info = SB_AP_BITMAP(s) + bmap_nr_new - 1;
+	bh = info->bh;
+	get_bh(bh);
+
+	reiserfs_prepare_for_journal(s, bh, 1);
 	for (i = block_r_new; i < s->s_blocksize * 8; i++)
-		reiserfs_test_and_set_le_bit(i,
-					     SB_AP_BITMAP(s)[bmap_nr_new -
-							     1].bh->b_data);
-	journal_mark_dirty(&th, s, SB_AP_BITMAP(s)[bmap_nr_new - 1].bh);
+		reiserfs_test_and_set_le_bit(i, bh->b_data);
+	journal_mark_dirty(&th, s, bh);
+	brelse(bh);
 
-	SB_AP_BITMAP(s)[bmap_nr_new - 1].free_count -=
-	    s->s_blocksize * 8 - block_r_new;
+	info->free_count -= s->s_blocksize * 8 - block_r_new;
 	/* Extreme case where last bitmap is the only valid block in itself. */
-	if (!SB_AP_BITMAP(s)[bmap_nr_new - 1].free_count)
-		SB_AP_BITMAP(s)[bmap_nr_new - 1].first_zero_hint = 0;
+	if (!info->free_count)
+		info->first_zero_hint = 0;
 	/* update super */
 	reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
 	free_blocks = SB_FREE_BLOCKS(s);
