@@ -215,9 +215,6 @@ static inline unsigned long gettimeoffset (void)
 
 	/* FIXME: Can we improve the precision? Not with PAGE0. */
 	usec = (elapsed_cycles * 10000) / PAGE0->mem_10msec;
-
-	/* add in "lost" jiffies */
-	usec += cpt * (jiffies - wall_jiffies);
 	return usec;
 #else
 	return 0;
