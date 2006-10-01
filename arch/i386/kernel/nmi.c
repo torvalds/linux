@@ -13,7 +13,6 @@
  *  Mikael Pettersson	: PM converted to driver model. Disable/enable API.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
