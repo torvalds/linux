@@ -50,16 +50,15 @@ static inline void get_bit_address(struct super_block *s,
 {
 	/* It is in the bitmap block number equal to the block
 	 * number divided by the number of bits in a block. */
-	*bmap_nr = block / (s->s_blocksize << 3);
+	*bmap_nr = block >> (s->s_blocksize_bits + 3);
 	/* Within that bitmap block it is located at bit offset *offset. */
 	*offset = block & ((s->s_blocksize << 3) - 1);
-	return;
 }
 
 #ifdef CONFIG_REISERFS_CHECK
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 {
-	int i, j;
+	int bmap, offset;
 
 	if (block == 0 || block >= SB_BLOCK_COUNT(s)) {
 		reiserfs_warning(s,
@@ -68,34 +67,45 @@ int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value)
 		return 0;
 	}
 
-	/* it can't be one of the bitmap blocks */
-	for (i = 0; i < SB_BMAP_NR(s); i++)
-		if (block == SB_AP_BITMAP(s)[i].bh->b_blocknr) {
+	get_bit_address(s, block, &bmap, &offset);
+
+	/* Old format filesystem? Unlikely, but the bitmaps are all up front so
+	 * we need to account for it. */
+	if (unlikely(test_bit(REISERFS_OLD_FORMAT,
+			      &(REISERFS_SB(s)->s_properties)))) {
+		b_blocknr_t bmap1 = REISERFS_SB(s)->s_sbh->b_blocknr + 1;
+		if (block >= bmap1 && block <= bmap1 + SB_BMAP_NR(s)) {
+			reiserfs_warning(s, "vs: 4019: is_reusable: "
+					 "bitmap block %lu(%u) can't be freed or reused",
+					 block, SB_BMAP_NR(s));
+			return 0;
+		}
+	} else {
+		if (offset == 0) {
 			reiserfs_warning(s, "vs: 4020: is_reusable: "
 					 "bitmap block %lu(%u) can't be freed or reused",
 					 block, SB_BMAP_NR(s));
 			return 0;
 		}
+	}
 
-	get_bit_address(s, block, &i, &j);
-
-	if (i >= SB_BMAP_NR(s)) {
+	if (bmap >= SB_BMAP_NR(s)) {
 		reiserfs_warning(s,
 				 "vs-4030: is_reusable: there is no so many bitmap blocks: "
-				 "block=%lu, bitmap_nr=%d", block, i);
+				 "block=%lu, bitmap_nr=%d", block, bmap);
 		return 0;
 	}
 
 	if ((bit_value == 0 &&
-	     reiserfs_test_le_bit(j, SB_AP_BITMAP(s)[i].bh->b_data)) ||
+	     reiserfs_test_le_bit(offset, SB_AP_BITMAP(s)[bmap].bh->b_data)) ||
 	    (bit_value == 1 &&
-	     reiserfs_test_le_bit(j, SB_AP_BITMAP(s)[i].bh->b_data) == 0)) {
+	     reiserfs_test_le_bit(offset, SB_AP_BITMAP(s)[bmap].bh->b_data) == 0)) {
 		reiserfs_warning(s,
 				 "vs-4040: is_reusable: corresponding bit of block %lu does not "
-				 "match required value (i==%d, j==%d) test_bit==%d",
-				 block, i, j, reiserfs_test_le_bit(j,
+				 "match required value (bmap==%d, offset==%d) test_bit==%d",
+				 block, bmap, offset, reiserfs_test_le_bit(offset,
 								   SB_AP_BITMAP
-								   (s)[i].bh->
+								   (s)[bmap].bh->
 								   b_data));
 
 		return 0;

@@ -1818,6 +1818,8 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	if (is_reiserfs_3_5(rs)
 	    || (is_reiserfs_jr(rs) && SB_VERSION(s) == REISERFS_VERSION_1))
 		set_bit(REISERFS_3_5, &(sbi->s_properties));
+	else if (old_format)
+		set_bit(REISERFS_OLD_FORMAT, &(sbi->s_properties));
 	else
 		set_bit(REISERFS_3_6, &(sbi->s_properties));
 
