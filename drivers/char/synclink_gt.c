@@ -1,5 +1,5 @@
 /*
- * $Id: synclink_gt.c,v 4.25 2006/02/06 21:20:33 paulkf Exp $
+ * $Id: synclink_gt.c,v 4.36 2006/08/28 20:47:14 paulkf Exp $
  *
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -91,12 +91,12 @@
  * module identification
  */
 static char *driver_name     = "SyncLink GT";
-static char *driver_version  = "$Revision: 4.25 $";
+static char *driver_version  = "$Revision: 4.36 $";
 static char *tty_driver_name = "synclink_gt";
 static char *tty_dev_prefix  = "ttySLG";
 MODULE_LICENSE("GPL");
 #define MGSL_MAGIC 0x5401
-#define MAX_DEVICES 12
+#define MAX_DEVICES 32
 
 static struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
