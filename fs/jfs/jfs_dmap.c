@@ -403,8 +403,8 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
  *
  * PARAMETERS:
  *      ipbmap	-  pointer to in-core inode for the block map.
- *      free	- TRUE if block range is to be freed from the persistent
- *		  map; FALSE if it is to   be allocated.
+ *      free	-  'true' if block range is to be freed from the persistent
+ *		   map; 'false' if it is to   be allocated.
  *      blkno	-  starting block number of the range.
  *      nblocks	-  number of contiguous blocks in the range.
  *      tblk	-  transaction block;
@@ -2394,7 +2394,7 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
  *		   requires the dmap control page to be adjusted.
  *      newval	-  the new value of the lower level dmap or dmap control
  *		   page root.
- *      alloc	-  TRUE if adjustment is due to an allocation.
+ *      alloc	-  'true' if adjustment is due to an allocation.
  *      level	-  current level of dmap control page (i.e. L0, L1, L2) to
  *		   be adjusted.
  *
@@ -3290,7 +3290,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ipbmap->i_sb);
 	int nbperpage = sbi->nbperpage;
-	int i, i0 = TRUE, j, j0 = TRUE, k, n;
+	int i, i0 = true, j, j0 = true, k, n;
 	s64 newsize;
 	s64 p;
 	struct metapage *mp, *l2mp, *l1mp = NULL, *l0mp = NULL;
@@ -3398,7 +3398,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 			j = (blkno & (MAXL1SIZE - 1)) >> L2MAXL0SIZE;
 			l1leaf = l1dcp->stree + CTLLEAFIND + j;
 			p = BLKTOL0(blkno, sbi->l2nbperpage);
-			j0 = FALSE;
+			j0 = false;
 		} else {
 			/* assign/init L1 page */
 			l1mp = get_metapage(ipbmap, p, PSIZE, 0);
@@ -3432,7 +3432,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				l0leaf = l0dcp->stree + CTLLEAFIND + i;
 				p = BLKTODMAP(blkno,
 					      sbi->l2nbperpage);
-				i0 = FALSE;
+				i0 = false;
 			} else {
 				/* assign/init L0 page */
 				l0mp = get_metapage(ipbmap, p, PSIZE, 0);

@@ -227,7 +227,7 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 #ifdef _JFS_4K
 	if ((rc = extHint(ip, lblock64 << ip->i_sb->s_blocksize_bits, &xad)))
 		goto unlock;
-	rc = extAlloc(ip, xlen, lblock64, &xad, FALSE);
+	rc = extAlloc(ip, xlen, lblock64, &xad, false);
 	if (rc)
 		goto unlock;
 

@@ -65,10 +65,10 @@ extern struct metapage *__get_metapage(struct inode *inode,
 				  int absolute, unsigned long new);
 
 #define read_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, FALSE)
+	 __get_metapage(inode, lblock, size, absolute, false)
 
 #define get_metapage(inode, lblock, size, absolute)\
-	 __get_metapage(inode, lblock, size, absolute, TRUE)
+	 __get_metapage(inode, lblock, size, absolute, true)
 
 extern void release_metapage(struct metapage *);
 extern void grab_metapage(struct metapage *);
