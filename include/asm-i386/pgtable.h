@@ -262,21 +262,36 @@ do {									\
 	}								\
 } while (0)
 
+/*
+ * We don't actually have these, but we want to advertise them so that
+ * we can encompass the flush here.
+ */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
-{
-	if (!pte_dirty(*ptep))
-		return 0;
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low);
-}
-
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
-{
-	if (!pte_young(*ptep))
-		return 0;
-	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low);
-}
+
+#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+#define ptep_clear_flush_dirty(vma, address, ptep)			\
+({									\
+	int __dirty;							\
+	__dirty = pte_dirty(*(ptep));					\
+	if (__dirty) {							\
+		clear_bit(_PAGE_BIT_DIRTY, &(ptep)->pte_low);		\
+		flush_tlb_page(vma, address);				\
+	}								\
+	__dirty;							\
+})
+
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+#define ptep_clear_flush_young(vma, address, ptep)			\
+({									\
+	int __young;							\
+	__young = pte_young(*(ptep));					\
+	if (__young) {							\
+		clear_bit(_PAGE_BIT_ACCESSED, &(ptep)->pte_low);	\
+		flush_tlb_page(vma, address);				\
+	}								\
+	__young;							\
+})
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
