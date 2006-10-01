@@ -15,19 +15,11 @@
  * Note: the old pte is known to not be writable, so we don't need to
  * worry about dirty bits etc getting lost.
  */
-#ifndef __HAVE_ARCH_SET_PTE_ATOMIC
 #define ptep_establish(__vma, __address, __ptep, __entry)		\
 do {				  					\
 	set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry);	\
 	flush_tlb_page(__vma, __address);				\
 } while (0)
-#else /* __HAVE_ARCH_SET_PTE_ATOMIC */
-#define ptep_establish(__vma, __address, __ptep, __entry)		\
-do {				  					\
-	set_pte_atomic(__ptep, __entry);				\
-	flush_tlb_page(__vma, __address);				\
-} while (0)
-#endif /* __HAVE_ARCH_SET_PTE_ATOMIC */
 #endif
 
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS

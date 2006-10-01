@@ -73,7 +73,6 @@ static inline void set_pte_present(struct mm_struct *mm, unsigned long addr, pte
 	ptep->pte_low = pte.pte_low;
 }
 
-#define __HAVE_ARCH_SET_PTE_ATOMIC
 #define set_pte_atomic(pteptr,pteval) \
 		set_64bit((unsigned long long *)(pteptr),pte_val(pteval))
 #define set_pmd(pmdptr,pmdval) \
