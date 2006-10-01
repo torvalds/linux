@@ -495,7 +495,7 @@ static void __exit rtc_dev_exit(void)
 	unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
 }
 
-module_init(rtc_dev_init);
+subsys_initcall(rtc_dev_init);
 module_exit(rtc_dev_exit);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");

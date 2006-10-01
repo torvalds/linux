@@ -156,7 +156,7 @@ static void __exit rtc_proc_exit(void)
 	class_interface_unregister(&rtc_proc_interface);
 }
 
-module_init(rtc_proc_init);
+subsys_initcall(rtc_proc_init);
 module_exit(rtc_proc_exit);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");

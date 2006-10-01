@@ -142,9 +142,9 @@ static void __exit rtc_exit(void)
 	class_destroy(rtc_class);
 }
 
-module_init(rtc_init);
+subsys_initcall(rtc_init);
 module_exit(rtc_exit);
 
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towerteh.it>");
+MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("RTC class support");
 MODULE_LICENSE("GPL");
