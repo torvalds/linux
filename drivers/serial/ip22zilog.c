@@ -1229,11 +1229,25 @@ static int __init ip22zilog_init(void)
 static void __exit ip22zilog_exit(void)
 {
 	int i;
+	struct uart_ip22zilog_port *up;
 
 	for (i = 0; i < NUM_CHANNELS; i++) {
-		struct uart_ip22zilog_port *up = &ip22zilog_port_table[i];
+		up = &ip22zilog_port_table[i];
 
 		uart_remove_one_port(&ip22zilog_reg, &up->port);
+	}
+
+	/* Free IO mem */
+	up = &ip22zilog_port_table[0];
+	for (i = 0; i < NUM_IP22ZILOG; i++) {
+		if (up[(i * 2) + 0].port.mapbase) {
+		   iounmap((void*)up[(i * 2) + 0].port.mapbase);
+		   up[(i * 2) + 0].port.mapbase = 0;
+		}
+		if (up[(i * 2) + 1].port.mapbase) {
+			iounmap((void*)up[(i * 2) + 1].port.mapbase);
+			up[(i * 2) + 1].port.mapbase = 0;
+		}
 	}
 
 	uart_unregister_driver(&ip22zilog_reg);
