@@ -76,8 +76,6 @@ int ioremap_page_range(unsigned long addr,
 
 	BUG_ON(addr >= end);
 
-	flush_cache_all();
-
 	start = addr;
 	phys_addr -= addr;
 	pgd = pgd_offset_k(addr);
@@ -88,7 +86,7 @@ int ioremap_page_range(unsigned long addr,
 			break;
 	} while (pgd++, addr = next, addr != end);
 
-	flush_tlb_all();
+	flush_cache_vmap(start, end);
 
 	return err;
 }
