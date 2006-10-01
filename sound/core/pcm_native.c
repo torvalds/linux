@@ -25,6 +25,7 @@
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/latency.h>
 #include <linux/uio.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -347,11 +348,26 @@ out:
 	return err;
 }
 
+static int period_to_usecs(struct snd_pcm_runtime *runtime)
+{
+	int usecs;
+
+	if (! runtime->rate)
+		return -1; /* invalid */
+
+	/* take 75% of period time as the deadline */
+	usecs = (750000 / runtime->rate) * runtime->period_size;
+	usecs += ((750000 % runtime->rate) * runtime->period_size) /
+		runtime->rate;
+
+	return usecs;
+}
+
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime;
-	int err;
+	int err, usecs;
 	unsigned int bits;
 	snd_pcm_uframes_t frames;
 
@@ -431,6 +447,10 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	snd_pcm_timer_resolution_change(substream);
 	runtime->status->state = SNDRV_PCM_STATE_SETUP;
+
+	remove_acceptable_latency(substream->latency_id);
+	if ((usecs = period_to_usecs(runtime)) >= 0)
+		set_acceptable_latency(substream->latency_id, usecs);
 	return 0;
  _error:
 	/* hardware might be unuseable from this time,
@@ -490,6 +510,7 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
+	remove_acceptable_latency(substream->latency_id);
 	return result;
 }
 
