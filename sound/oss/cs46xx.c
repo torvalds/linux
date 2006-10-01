@@ -2982,7 +2982,7 @@ static void clkrun_hack(struct cs_card *card, int change)
 	
 	card->active+=change;
 	
-	acpi_dev = pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+	acpi_dev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
 	if (acpi_dev == NULL)
 		return;		/* Not a thinkpad thats for sure */
 
@@ -3008,6 +3008,7 @@ static void clkrun_hack(struct cs_card *card, int change)
 				change,card->active));
 		outw(control&~0x2000, port+0x10);
 	}
+	pci_dev_put(acpi_dev);
 }
 
 	
