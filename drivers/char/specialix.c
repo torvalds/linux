@@ -182,7 +182,6 @@ static int sx_poll = HZ;
 #define RS_EVENT_WRITE_WAKEUP	0
 
 static struct tty_driver *specialix_driver;
-static unsigned char * tmp_buf;
 
 static unsigned long baud_table[] =  {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
@@ -1674,7 +1673,7 @@ static int sx_write(struct tty_struct * tty,
 
 	bp = port_Board(port);
 
-	if (!port->xmit_buf || !tmp_buf) {
+	if (!port->xmit_buf) {
 		func_exit();
 		return 0;
 	}
@@ -2398,12 +2397,6 @@ static int sx_init_drivers(void)
 		return 1;
 	}
 
-	if (!(tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL))) {
-		printk(KERN_ERR "sx: Couldn't get free page.\n");
-		put_tty_driver(specialix_driver);
-		func_exit();
-		return 1;
-	}
 	specialix_driver->owner = THIS_MODULE;
 	specialix_driver->name = "ttyW";
 	specialix_driver->major = SPECIALIX_NORMAL_MAJOR;
@@ -2417,7 +2410,6 @@ static int sx_init_drivers(void)
 
 	if ((error = tty_register_driver(specialix_driver))) {
 		put_tty_driver(specialix_driver);
-		free_page((unsigned long)tmp_buf);
 		printk(KERN_ERR "sx: Couldn't register specialix IO8+ driver, error = %d\n",
 		       error);
 		func_exit();
@@ -2443,7 +2435,6 @@ static void sx_release_drivers(void)
 {
 	func_enter();
 
-	free_page((unsigned long)tmp_buf);
 	tty_unregister_driver(specialix_driver);
 	put_tty_driver(specialix_driver);
 	func_exit();
