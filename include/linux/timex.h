@@ -219,18 +219,8 @@ extern long time_reftime;	/* time at last adjustment (s) */
 extern long time_adjust;	/* The amount of adjtime left */
 extern long time_next_adjust;	/* Value for time_adjust at next tick */
 
-/**
- * ntp_clear - Clears the NTP state variables
- *
- * Must be called while holding a write on the xtime_lock
- */
-static inline void ntp_clear(void)
-{
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
-}
+extern void ntp_clear(void);
+extern void ntp_update_frequency(void);
 
 /**
  * ntp_synced - Returns 1 if the NTP status is not UNSYNC

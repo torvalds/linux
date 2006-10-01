@@ -562,12 +562,6 @@ found:
 
 /******************************************************************/
 
-/*
- * Timekeeping variables
- */
-unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
-unsigned long tick_nsec = TICK_NSEC;		/* ACTHZ period (nsec) */
-
 /* 
  * The current time 
  * wall_to_monotonic is what we need to add to xtime (or xtime corrected 
@@ -757,10 +751,13 @@ void __init timekeeping_init(void)
 	unsigned long flags;
 
 	write_seqlock_irqsave(&xtime_lock, flags);
+
+	ntp_clear();
+
 	clock = clocksource_get_next();
 	clocksource_calculate_interval(clock, tick_nsec);
 	clock->cycle_last = clocksource_read(clock);
-	ntp_clear();
+
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 

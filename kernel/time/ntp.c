@@ -15,6 +15,13 @@
 #include <asm/div64.h>
 #include <asm/timex.h>
 
+/*
+ * Timekeeping variables
+ */
+unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
+unsigned long tick_nsec;			/* ACTHZ period (nsec) */
+static u64 tick_length, tick_length_base;
+
 /* Don't completely fail for HZ > 500.  */
 int tickadj = 500/HZ ? : 1;		/* microsecs */
 
@@ -36,6 +43,36 @@ static long time_adj;			/* tick adjust (scaled 1 / HZ)	*/
 long time_reftime;			/* time at last adjustment (s)	*/
 long time_adjust;
 long time_next_adjust;
+
+/**
+ * ntp_clear - Clears the NTP state variables
+ *
+ * Must be called while holding a write on the xtime_lock
+ */
+void ntp_clear(void)
+{
+	time_adjust = 0;		/* stop active adjtime() */
+	time_status |= STA_UNSYNC;
+	time_maxerror = NTP_PHASE_LIMIT;
+	time_esterror = NTP_PHASE_LIMIT;
+
+	ntp_update_frequency();
+
+	tick_length = tick_length_base;
+}
+
+#define CLOCK_TICK_OVERFLOW	(LATCH * HZ - CLOCK_TICK_RATE)
+#define CLOCK_TICK_ADJUST	(((s64)CLOCK_TICK_OVERFLOW * NSEC_PER_SEC) / (s64)CLOCK_TICK_RATE)
+
+void ntp_update_frequency(void)
+{
+	tick_length_base = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << TICK_LENGTH_SHIFT;
+	tick_length_base += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
+
+	do_div(tick_length_base, HZ);
+
+	tick_nsec = tick_length_base >> TICK_LENGTH_SHIFT;
+}
 
 /*
  * this routine handles the overflow of the microsecond field
@@ -151,6 +188,7 @@ void second_overflow(void)
 	 */
 	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
+	tick_length = tick_length_base;
 }
 
 /*
@@ -204,14 +242,13 @@ void update_ntp_one_tick(void)
  */
 u64 current_tick_length(void)
 {
-	long delta_nsec;
 	u64 ret;
 
 	/* calculate the finest interval NTP will allow.
 	 *    ie: nanosecond value shifted by (SHIFT_SCALE - 10)
 	 */
-	delta_nsec = tick_nsec + adjtime_adjustment() * 1000;
-	ret = (u64)delta_nsec << TICK_LENGTH_SHIFT;
+	ret = tick_length;
+	ret += (u64)(adjtime_adjustment() * 1000) << TICK_LENGTH_SHIFT;
 	ret += (s64)time_adj << (TICK_LENGTH_SHIFT - (SHIFT_SCALE - 10));
 
 	return ret;
@@ -351,10 +388,11 @@ int do_adjtimex(struct timex *txc)
 		    time_freq = max(time_freq, -time_tolerance);
 		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
-	    if (txc->modes & ADJ_TICK) {
+	    if (txc->modes & ADJ_TICK)
 		tick_usec = txc->tick;
-		tick_nsec = TICK_USEC_TO_NSEC(tick_usec);
-	    }
+
+	    if (txc->modes & ADJ_TICK)
+		    ntp_update_frequency();
 	} /* txc->modes */
 leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 		result = TIME_ERROR;
