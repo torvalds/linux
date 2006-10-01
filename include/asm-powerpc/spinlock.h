@@ -285,9 +285,9 @@ static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 	rw->lock = 0;
 }
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define _raw_spin_relax(lock)	__spin_yield(lock)
+#define _raw_read_relax(lock)	__rw_yield(lock)
+#define _raw_write_relax(lock)	__rw_yield(lock)
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SPINLOCK_H */
