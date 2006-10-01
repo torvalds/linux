@@ -32,14 +32,21 @@
 
 
 #define TASKSTATS_VERSION	2
-#define TS_COMM_LEN		16	/* should sync up with TASK_COMM_LEN
+#define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
 struct taskstats {
 
-	/* Version 1 */
+	/* The version number of this struct. This field is always set to
+	 * TAKSTATS_VERSION, which is defined in <linux/taskstats.h>.
+	 * Each time the struct is changed, the value should be incremented.
+	 */
 	__u16	version;
-	__u32	ac_exitcode;	/* Exit status */
+	__u32	ac_exitcode;		/* Exit status */
+
+	/* The accounting flags of a task as defined in <linux/acct.h>
+	 * Defined values are AFORK, ASU, ACOMPAT, ACORE, and AXSIG.
+	 */
 	__u8	ac_flag;		/* Record flags */
 	__u8	ac_nice;		/* task_nice */
 
@@ -104,15 +111,30 @@ struct taskstats {
 	__u64	ac_etime;		/* Elapsed time [usec] */
 	__u64	ac_utime;		/* User CPU time [usec] */
 	__u64	ac_stime;		/* SYstem CPU time [usec] */
-	__u64	ac_minflt;		/* Minor Page Fault */
-	__u64	ac_majflt;		/* Major Page Fault */
+	__u64	ac_minflt;		/* Minor Page Fault Count */
+	__u64	ac_majflt;		/* Major Page Fault Count */
 	/* Basic Accounting Fields end */
 
  	/* Extended accounting fields start */
- 	__u64	acct_rss_mem1;		/* accumulated rss usage */
- 	__u64	acct_vm_mem1;		/* accumulated virtual memory usage */
- 	__u64	hiwater_rss;		/* High-watermark of RSS usage */
- 	__u64	hiwater_vm;		/* High-water virtual memory usage */
+	/* Accumulated RSS usage in duration of a task, in MBytes-usecs.
+	 * The current rss usage is added to this counter every time
+	 * a tick is charged to a task's system time. So, at the end we
+	 * will have memory usage multiplied by system time. Thus an
+	 * average usage per system time unit can be calculated.
+	 */
+ 	__u64	coremem;		/* accumulated RSS usage in MB-usec */
+	/* Accumulated virtual memory usage in duration of a task.
+	 * Same as acct_rss_mem1 above except that we keep track of VM usage.
+	 */
+ 	__u64	virtmem;		/* accumulated VM  usage in MB-usec */
+
+	/* High watermark of RSS and virtual memory usage in duration of
+	 * a task, in KBytes.
+	 */
+ 	__u64	hiwater_rss;		/* High-watermark of RSS usage, in KB */
+ 	__u64	hiwater_vm;		/* High-water VM usage, in KB */
+
+	/* The following four fields are I/O statistics of a task. */
  	__u64	read_char;		/* bytes read */
  	__u64	write_char;		/* bytes written */
  	__u64	read_syscalls;		/* read syscalls */

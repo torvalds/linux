@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/tsacct_kern.h>
 #include <linux/acct.h>
+#include <linux/jiffies.h>
 
 
 #define USEC_PER_TICK	(USEC_PER_SEC/HZ)
@@ -62,33 +63,35 @@ void bacct_add_tsk(struct taskstats *stats, struct task_struct *tsk)
 	stats->ac_stime	 = cputime_to_msecs(tsk->stime) * USEC_PER_MSEC;
 	stats->ac_minflt = tsk->min_flt;
 	stats->ac_majflt = tsk->maj_flt;
-	/* Each process gets a minimum of one usec cpu time */
-	if ((stats->ac_utime == 0) && (stats->ac_stime == 0)) {
-		stats->ac_stime = 1;
-	}
 
 	strncpy(stats->ac_comm, tsk->comm, sizeof(stats->ac_comm));
 }
 
 
 #ifdef CONFIG_TASK_XACCT
+
+#define KB 1024
+#define MB (1024*KB)
 /*
  * fill in extended accounting fields
  */
 void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 {
-	stats->acct_rss_mem1 = p->acct_rss_mem1;
-	stats->acct_vm_mem1  = p->acct_vm_mem1;
+	/* convert pages-jiffies to Mbyte-usec */
+	stats->coremem = jiffies_to_usecs(p->acct_rss_mem1) * PAGE_SIZE / MB;
+	stats->virtmem = jiffies_to_usecs(p->acct_vm_mem1) * PAGE_SIZE / MB;
 	if (p->mm) {
-		stats->hiwater_rss   = p->mm->hiwater_rss;
-		stats->hiwater_vm    = p->mm->hiwater_vm;
+		/* adjust to KB unit */
+		stats->hiwater_rss   = p->mm->hiwater_rss * PAGE_SIZE / KB;
+		stats->hiwater_vm    = p->mm->hiwater_vm * PAGE_SIZE / KB;
 	}
 	stats->read_char	= p->rchar;
 	stats->write_char	= p->wchar;
 	stats->read_syscalls	= p->syscr;
 	stats->write_syscalls	= p->syscw;
 }
-
+#undef KB
+#undef MB
 
 /**
  * acct_update_integrals - update mm integral fields in task_struct
@@ -97,8 +100,8 @@ void xacct_add_tsk(struct taskstats *stats, struct task_struct *p)
 void acct_update_integrals(struct task_struct *tsk)
 {
 	if (likely(tsk->mm)) {
-		long delta =
-			cputime_to_jiffies(tsk->stime) - tsk->acct_stimexpd;
+		long delta = cputime_to_jiffies(
+			cputime_sub(tsk->stime, tsk->acct_stimexpd));
 
 		if (delta == 0)
 			return;
