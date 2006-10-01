@@ -725,7 +725,7 @@ static int serdma_reg_access(struct cs4297a_state *s, u64 data)
         serdma_t *d = &s->dma_dac;
         u64 *data_p;
         unsigned swptr;
-        int flags;
+        unsigned long flags;
         serdma_descr_t *descr;
 
         if (s->reg_request) {

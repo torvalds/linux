@@ -388,7 +388,7 @@ ia64_log_get(int sal_info_type, u8 **buffer, int irq_safe)
 {
 	sal_log_record_header_t     *log_buffer;
 	u64                         total_len = 0;
-	int                         s;
+	unsigned long               s;
 
 	IA64_LOG_LOCK(sal_info_type);
 

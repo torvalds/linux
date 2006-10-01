@@ -1049,7 +1049,7 @@ void pdc_iodc_putc(unsigned char c)
         static int __attribute__((aligned(8)))   iodc_retbuf[32];
         static char __attribute__((aligned(64))) iodc_dbuf[4096];
         unsigned int n;
-	unsigned int flags;
+	unsigned long flags;
 
         switch (c) {
         case '\n':
@@ -1088,7 +1088,8 @@ void pdc_iodc_putc(unsigned char c)
  */
 void pdc_iodc_outc(unsigned char c)
 {
-	unsigned int n, flags;
+	unsigned int n;
+	unsigned long flags;
 
 	/* fill buffer with one caracter and print it */
         static int __attribute__((aligned(8)))   iodc_retbuf[32];
@@ -1113,7 +1114,7 @@ void pdc_iodc_outc(unsigned char c)
  */
 int pdc_iodc_getc(void)
 {
-	unsigned int flags;
+	unsigned long flags;
         static int __attribute__((aligned(8)))   iodc_retbuf[32];
         static char __attribute__((aligned(64))) iodc_dbuf[4096];
 	int ch;
