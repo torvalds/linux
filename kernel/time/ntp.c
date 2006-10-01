@@ -39,7 +39,6 @@ long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
 long time_freq = (((NSEC_PER_SEC + HZ/2) % HZ - HZ/2) << SHIFT_USEC) / NSEC_PER_USEC;
 					/* frequency offset (scaled ppm)*/
-static long time_adj;			/* tick adjust (scaled 1 / HZ)	*/
 long time_reftime;			/* time at last adjustment (s)	*/
 long time_adjust;
 long time_next_adjust;
@@ -84,7 +83,7 @@ void ntp_update_frequency(void)
  */
 void second_overflow(void)
 {
-	long ltemp;
+	long ltemp, time_adj;
 
 	/* Bump the maxerror field */
 	time_maxerror += time_tolerance >> SHIFT_USEC;
@@ -189,6 +188,7 @@ void second_overflow(void)
 	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 	tick_length = tick_length_base;
+	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - (SHIFT_SCALE - 10));
 }
 
 /*
@@ -245,11 +245,9 @@ u64 current_tick_length(void)
 	u64 ret;
 
 	/* calculate the finest interval NTP will allow.
-	 *    ie: nanosecond value shifted by (SHIFT_SCALE - 10)
 	 */
 	ret = tick_length;
 	ret += (u64)(adjtime_adjustment() * 1000) << TICK_LENGTH_SHIFT;
-	ret += (s64)time_adj << (TICK_LENGTH_SHIFT - (SHIFT_SCALE - 10));
 
 	return ret;
 }
