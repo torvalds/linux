@@ -112,8 +112,6 @@ struct kiocb {
 	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
 	size_t			ki_left; 	/* remaining bytes */
 	long			ki_retried; 	/* just for testing */
-	long			ki_kicked; 	/* just for testing */
-	long			ki_queued; 	/* just for testing */
 	struct iovec		ki_inline_vec;	/* inline vector */
  	struct iovec		*ki_iovec;
  	unsigned long		ki_nr_segs;
