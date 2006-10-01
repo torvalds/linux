@@ -426,7 +426,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &artop6260_ops,
 	};
 	struct ata_port_info *port_info[2];
-	struct ata_port_info *info;
+	struct ata_port_info *info = NULL;
 	int ports = 2;
 
 	if (!printed_version++)
@@ -470,6 +470,9 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
 
 	}
+
+	BUG_ON(info == NULL);
+
 	port_info[0] = port_info[1] = info;
 	return ata_pci_init_one(pdev, port_info, ports);
 }
