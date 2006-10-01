@@ -257,6 +257,9 @@ config CC_OPTIMIZE_FOR_SIZE
 
 	  If unsure, say N.
 
+config SYSCTL
+	bool
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
@@ -272,11 +275,8 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
-config SYSCTL
-	bool
-
 config SYSCTL_SYSCALL
-	bool "Sysctl syscall support"
+	bool "Sysctl syscall support" if EMBEDDED
 	default n
 	select SYSCTL
 	---help---
@@ -285,11 +285,11 @@ config SYSCTL_SYSCALL
 	  and use.  The interface in /proc/sys is now the primary and what
 	  everyone uses.
 
-	  Nothing has been using the binary sysctl interface for some time
+	  Nothing has been using the binary sysctl interface for some
 	  time now so nothing should break if you disable sysctl syscall
-	  support, and you kernel will get marginally smaller.
+	  support, and your kernel will get marginally smaller.
 
-	  Unless you have an application that uses the sys_syscall interface
+	  Unless you have an application that uses the sys_sysctl interface
  	  you should probably say N here.
 
 config KALLSYMS
