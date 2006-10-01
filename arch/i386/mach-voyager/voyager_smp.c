@@ -99,6 +99,7 @@ static void do_boot_cpu(__u8 cpuid);
 static void do_quad_bootstrap(void);
 
 int hard_smp_processor_id(void);
+int safe_smp_processor_id(void);
 
 /* Inline functions */
 static inline void
@@ -1245,6 +1246,12 @@ hard_smp_processor_id(void)
 	}
 	printk("** WARNING ** Illegal cpuid returned by VIC: %d", cpumask);
 	return 0;
+}
+
+int
+safe_smp_processor_id(void)
+{
+	return hard_smp_processor_id();
 }
 
 /* broadcast a halt to all other CPUs */
