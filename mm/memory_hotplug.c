@@ -26,6 +26,36 @@
 
 #include <asm/tlbflush.h>
 
+/* add this memory to iomem resource */
+static struct resource *register_memory_resource(u64 start, u64 size)
+{
+	struct resource *res;
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	BUG_ON(!res);
+
+	res->name = "System RAM";
+	res->start = start;
+	res->end = start + size - 1;
+	res->flags = IORESOURCE_MEM;
+	if (request_resource(&iomem_resource, res) < 0) {
+		printk("System RAM resource %llx - %llx cannot be added\n",
+		(unsigned long long)res->start, (unsigned long long)res->end);
+		kfree(res);
+		res = NULL;
+	}
+	return res;
+}
+
+static void release_memory_resource(struct resource *res)
+{
+	if (!res)
+		return;
+	release_resource(res);
+	kfree(res);
+	return;
+}
+
+
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
@@ -222,36 +252,6 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 	arch_free_nodedata(pgdat);
 	return;
 }
-
-/* add this memory to iomem resource */
-static struct resource *register_memory_resource(u64 start, u64 size)
-{
-	struct resource *res;
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-	BUG_ON(!res);
-
-	res->name = "System RAM";
-	res->start = start;
-	res->end = start + size - 1;
-	res->flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, res) < 0) {
-		printk("System RAM resource %llx - %llx cannot be added\n",
-		(unsigned long long)res->start, (unsigned long long)res->end);
-		kfree(res);
-		res = NULL;
-	}
-	return res;
-}
-
-static void release_memory_resource(struct resource *res)
-{
-	if (!res)
-		return;
-	release_resource(res);
-	kfree(res);
-	return;
-}
-
 
 
 int add_memory(int nid, u64 start, u64 size)

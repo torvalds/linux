@@ -474,11 +474,11 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
+	init_memory_mapping(start, (start + size -1));
+
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	if (ret)
 		goto error;
-
-	init_memory_mapping(start, (start + size -1));
 
 	return ret;
 error:
@@ -501,7 +501,16 @@ int memory_add_physaddr_to_nid(u64 start)
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
-#else /* CONFIG_MEMORY_HOTPLUG */
+#ifndef CONFIG_ACPI_NUMA
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+#endif
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
 /*
  * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
  * just online the pages.
@@ -527,7 +536,7 @@ int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
 	}
 	return err;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
+#endif
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
