@@ -198,21 +198,15 @@ extern int tickadj;			/* amount of adjustment per tick */
 /*
  * phase-lock loop variables
  */
-extern int time_state;		/* clock status */
 extern int time_status;		/* clock synchronization status bits */
-extern long time_offset;	/* time adjustment (us) */
-extern long time_constant;	/* pll time constant */
-extern long time_precision;	/* clock precision (us) */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
 
 extern long time_freq;		/* frequency offset (scaled ppm) */
-extern long time_reftime;	/* time at last adjustment (s) */
 
 extern long time_adjust;	/* The amount of adjtime left */
 
 extern void ntp_clear(void);
-extern void ntp_update_frequency(void);
 
 /**
  * ntp_synced - Returns 1 if the NTP status is not UNSYNC

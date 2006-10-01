@@ -30,16 +30,30 @@ static u64 tick_length, tick_length_base;
  * phase-lock loop variables
  */
 /* TIME_ERROR prevents overwriting the CMOS clock */
-int time_state = TIME_OK;		/* clock synchronization status	*/
+static int time_state = TIME_OK;	/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
-long time_offset;			/* time adjustment (ns)		*/
-long time_constant = 2;			/* pll time constant		*/
-long time_precision = 1;		/* clock precision (us)		*/
+static long time_offset;		/* time adjustment (ns)		*/
+static long time_constant = 2;		/* pll time constant		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
 long time_freq;				/* frequency offset (scaled ppm)*/
-long time_reftime;			/* time at last adjustment (s)	*/
+static long time_reftime;		/* time at last adjustment (s)	*/
 long time_adjust;
+
+#define CLOCK_TICK_OVERFLOW	(LATCH * HZ - CLOCK_TICK_RATE)
+#define CLOCK_TICK_ADJUST	(((s64)CLOCK_TICK_OVERFLOW * NSEC_PER_SEC) / \
+					(s64)CLOCK_TICK_RATE)
+
+static void ntp_update_frequency(void)
+{
+	tick_length_base = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << TICK_LENGTH_SHIFT;
+	tick_length_base += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
+	tick_length_base += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
+
+	do_div(tick_length_base, HZ);
+
+	tick_nsec = tick_length_base >> TICK_LENGTH_SHIFT;
+}
 
 /**
  * ntp_clear - Clears the NTP state variables
@@ -57,20 +71,6 @@ void ntp_clear(void)
 
 	tick_length = tick_length_base;
 	time_offset = 0;
-}
-
-#define CLOCK_TICK_OVERFLOW	(LATCH * HZ - CLOCK_TICK_RATE)
-#define CLOCK_TICK_ADJUST	(((s64)CLOCK_TICK_OVERFLOW * NSEC_PER_SEC) / (s64)CLOCK_TICK_RATE)
-
-void ntp_update_frequency(void)
-{
-	tick_length_base = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << TICK_LENGTH_SHIFT;
-	tick_length_base += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
-	tick_length_base += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
-
-	do_div(tick_length_base, HZ);
-
-	tick_nsec = tick_length_base >> TICK_LENGTH_SHIFT;
 }
 
 /*
@@ -330,7 +330,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
 	txc->constant	   = time_constant;
-	txc->precision	   = time_precision;
+	txc->precision	   = 1;
 	txc->tolerance	   = MAXFREQ;
 	txc->tick	   = tick_usec;
 
