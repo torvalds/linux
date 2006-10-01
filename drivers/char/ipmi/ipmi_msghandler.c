@@ -96,6 +96,7 @@ struct cmd_rcvr
 	ipmi_user_t   user;
 	unsigned char netfn;
 	unsigned char cmd;
+	unsigned int  chans;
 
 	/*
 	 * This is used to form a linked lised during mass deletion.
@@ -953,24 +954,41 @@ int ipmi_set_gets_events(ipmi_user_t user, int val)
 
 static struct cmd_rcvr *find_cmd_rcvr(ipmi_smi_t    intf,
 				      unsigned char netfn,
-				      unsigned char cmd)
+				      unsigned char cmd,
+				      unsigned char chan)
 {
 	struct cmd_rcvr *rcvr;
 
 	list_for_each_entry_rcu(rcvr, &intf->cmd_rcvrs, link) {
-		if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd))
+		if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)
+					&& (rcvr->chans & (1 << chan)))
 			return rcvr;
 	}
 	return NULL;
 }
 
+static int is_cmd_rcvr_exclusive(ipmi_smi_t    intf,
+				 unsigned char netfn,
+				 unsigned char cmd,
+				 unsigned int  chans)
+{
+	struct cmd_rcvr *rcvr;
+
+	list_for_each_entry_rcu(rcvr, &intf->cmd_rcvrs, link) {
+		if ((rcvr->netfn == netfn) && (rcvr->cmd == cmd)
+					&& (rcvr->chans & chans))
+			return 0;
+	}
+	return 1;
+}
+
 int ipmi_register_for_cmd(ipmi_user_t   user,
 			  unsigned char netfn,
-			  unsigned char cmd)
+			  unsigned char cmd,
+			  unsigned int  chans)
 {
 	ipmi_smi_t      intf = user->intf;
 	struct cmd_rcvr *rcvr;
-	struct cmd_rcvr *entry;
 	int             rv = 0;
 
 
@@ -979,12 +997,12 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 		return -ENOMEM;
 	rcvr->cmd = cmd;
 	rcvr->netfn = netfn;
+	rcvr->chans = chans;
 	rcvr->user = user;
 
 	mutex_lock(&intf->cmd_rcvrs_mutex);
 	/* Make sure the command/netfn is not already registered. */
-	entry = find_cmd_rcvr(intf, netfn, cmd);
-	if (entry) {
+	if (!is_cmd_rcvr_exclusive(intf, netfn, cmd, chans)) {
 		rv = -EBUSY;
 		goto out_unlock;
 	}
@@ -1001,24 +1019,39 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 
 int ipmi_unregister_for_cmd(ipmi_user_t   user,
 			    unsigned char netfn,
-			    unsigned char cmd)
+			    unsigned char cmd,
+			    unsigned int  chans)
 {
 	ipmi_smi_t      intf = user->intf;
 	struct cmd_rcvr *rcvr;
+	struct cmd_rcvr *rcvrs = NULL;
+	int i, rv = -ENOENT;
 
 	mutex_lock(&intf->cmd_rcvrs_mutex);
-	/* Make sure the command/netfn is not already registered. */
-	rcvr = find_cmd_rcvr(intf, netfn, cmd);
-	if ((rcvr) && (rcvr->user == user)) {
-		list_del_rcu(&rcvr->link);
-		mutex_unlock(&intf->cmd_rcvrs_mutex);
-		synchronize_rcu();
-		kfree(rcvr);
-		return 0;
-	} else {
-		mutex_unlock(&intf->cmd_rcvrs_mutex);
-		return -ENOENT;
+	for (i = 0; i < IPMI_NUM_CHANNELS; i++) {
+		if (((1 << i) & chans) == 0)
+			continue;
+		rcvr = find_cmd_rcvr(intf, netfn, cmd, i);
+		if (rcvr == NULL)
+			continue;
+		if (rcvr->user == user) {
+			rv = 0;
+			rcvr->chans &= ~chans;
+			if (rcvr->chans == 0) {
+				list_del_rcu(&rcvr->link);
+				rcvr->next = rcvrs;
+				rcvrs = rcvr;
+			}
+		}
 	}
+	mutex_unlock(&intf->cmd_rcvrs_mutex);
+	synchronize_rcu();
+	while (rcvrs) {
+		rcvr = rcvrs;
+		rcvrs = rcvr->next;
+		kfree(rcvr);
+	}
+	return rv;
 }
 
 void ipmi_user_set_run_to_completion(ipmi_user_t user, int val)
@@ -2548,6 +2581,7 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 	int                      rv = 0;
 	unsigned char            netfn;
 	unsigned char            cmd;
+	unsigned char            chan;
 	ipmi_user_t              user = NULL;
 	struct ipmi_ipmb_addr    *ipmb_addr;
 	struct ipmi_recv_msg     *recv_msg;
@@ -2568,9 +2602,10 @@ static int handle_ipmb_get_msg_cmd(ipmi_smi_t          intf,
 
 	netfn = msg->rsp[4] >> 2;
 	cmd = msg->rsp[8];
+	chan = msg->rsp[3] & 0xf;
 
 	rcu_read_lock();
-	rcvr = find_cmd_rcvr(intf, netfn, cmd);
+	rcvr = find_cmd_rcvr(intf, netfn, cmd, chan);
 	if (rcvr) {
 		user = rcvr->user;
 		kref_get(&user->refcount);
@@ -2728,6 +2763,7 @@ static int handle_lan_get_msg_cmd(ipmi_smi_t          intf,
 	int                      rv = 0;
 	unsigned char            netfn;
 	unsigned char            cmd;
+	unsigned char            chan;
 	ipmi_user_t              user = NULL;
 	struct ipmi_lan_addr     *lan_addr;
 	struct ipmi_recv_msg     *recv_msg;
@@ -2748,9 +2784,10 @@ static int handle_lan_get_msg_cmd(ipmi_smi_t          intf,
 
 	netfn = msg->rsp[6] >> 2;
 	cmd = msg->rsp[10];
+	chan = msg->rsp[3] & 0xf;
 
 	rcu_read_lock();
-	rcvr = find_cmd_rcvr(intf, netfn, cmd);
+	rcvr = find_cmd_rcvr(intf, netfn, cmd, chan);
 	if (rcvr) {
 		user = rcvr->user;
 		kref_get(&user->refcount);
