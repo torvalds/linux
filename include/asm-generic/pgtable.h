@@ -112,8 +112,13 @@ do {				  					  \
 })
 #endif
 
-#ifndef __HAVE_ARCH_PTE_CLEAR_FULL
-#define pte_clear_full(__mm, __address, __ptep, __full)			\
+/*
+ * Some architectures may be able to avoid expensive synchronization
+ * primitives when modifications are made to PTE's which are already
+ * not present, or in the process of an address space destruction.
+ */
+#ifndef __HAVE_ARCH_PTE_CLEAR_NOT_PRESENT_FULL
+#define pte_clear_not_present_full(__mm, __address, __ptep, __full)	\
 do {									\
 	pte_clear((__mm), (__address), (__ptep));			\
 } while (0)
