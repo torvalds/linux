@@ -37,8 +37,7 @@ long time_tolerance = MAXFREQ;		/* frequency tolerance (ppm)	*/
 long time_precision = 1;		/* clock precision (us)		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-long time_freq = (((NSEC_PER_SEC + HZ/2) % HZ - HZ/2) << SHIFT_USEC) / NSEC_PER_USEC;
-					/* frequency offset (scaled ppm)*/
+long time_freq;				/* frequency offset (scaled ppm)*/
 long time_reftime;			/* time at last adjustment (s)	*/
 long time_adjust;
 long time_next_adjust;
@@ -67,6 +66,7 @@ void ntp_update_frequency(void)
 {
 	tick_length_base = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << TICK_LENGTH_SHIFT;
 	tick_length_base += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
+	tick_length_base += ((s64)time_freq * NSEC_PER_USEC) << (TICK_LENGTH_SHIFT - SHIFT_USEC);
 
 	do_div(tick_length_base, HZ);
 
@@ -163,8 +163,6 @@ void second_overflow(void)
 	 * Compute the frequency estimate and additional phase adjustment due
 	 * to frequency error for the next second.
 	 */
-	ltemp = time_freq;
-	time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
 
 #if HZ == 100
 	/*
@@ -389,7 +387,7 @@ int do_adjtimex(struct timex *txc)
 	    if (txc->modes & ADJ_TICK)
 		tick_usec = txc->tick;
 
-	    if (txc->modes & ADJ_TICK)
+	    if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
 		    ntp_update_frequency();
 	} /* txc->modes */
 leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
