@@ -167,6 +167,51 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	return 0;
 }
 
+int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, int reg, int value)
+{
+	if (reg < 0 || reg > 0x3f)
+		return 1;
+	reg += 0x40; /* 0x40 upwards are registers. */
+	if (value < 0 || value > 0x3f) /* 0 to 0x3f are values */
+		return 1;
+	outl(reg, emu->port + A_IOCFG);
+	udelay(10);
+	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	udelay(10);
+	outl(value, emu->port + A_IOCFG);
+	udelay(10);
+	outl(value | 0x80 , emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+
+	return 0;
+}
+
+int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, int reg, int *value)
+{
+	if (reg < 0 || reg > 0x3f)
+		return 1;
+	reg += 0x40; /* 0x40 upwards are registers. */
+	outl(reg, emu->port + A_IOCFG);
+	udelay(10);
+	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	udelay(10);
+	*value = ((inl(emu->port + A_IOCFG) >> 8) & 0x7f);
+
+	return 0;
+}
+
+/* Each Destination has one and only one Source,
+ * but one Source can feed any number of Destinations simultaneously.
+ */
+int snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 * emu, int dst, int src)
+{
+	snd_emu1010_fpga_write(emu, 0x00, ((dst >> 8) & 0x3f) );
+	snd_emu1010_fpga_write(emu, 0x01, (dst & 0x3f) );
+	snd_emu1010_fpga_write(emu, 0x02, ((src >> 8) & 0x3f) );
+	snd_emu1010_fpga_write(emu, 0x03, (src & 0x3f) );
+
+	return 0;
+}
+
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;

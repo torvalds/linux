@@ -3,6 +3,9 @@
  *                   Creative Labs, Inc.
  *  Routines for effect processor FX8010
  *
+ *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  	Added EMU 1010 support.
+ *
  *  BUGS:
  *    --
  *
@@ -1069,6 +1072,21 @@ snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl
 	ctl->translation = EMU10K1_GPR_TRANSLATION_ONOFF;
 }
 
+static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
+				struct snd_emu10k1_fx8010_code *icode,
+				u32 *ptr, int tmp, int bit_shifter16,
+				int reg_in, int reg_out)
+{
+	A_OP(icode, ptr, iACC3, A_GPR(tmp + 1), reg_in, A_C_00000000, A_C_00000000);
+	A_OP(icode, ptr, iANDXOR, A_GPR(tmp), A_GPR(tmp + 1), A_GPR(bit_shifter16 - 1), A_C_00000000);
+	A_OP(icode, ptr, iTSTNEG, A_GPR(tmp + 2), A_GPR(tmp), A_C_80000000, A_GPR(bit_shifter16 - 2));
+	A_OP(icode, ptr, iANDXOR, A_GPR(tmp + 2), A_GPR(tmp + 2), A_C_80000000, A_C_00000000);
+	A_OP(icode, ptr, iANDXOR, A_GPR(tmp), A_GPR(tmp), A_GPR(bit_shifter16 - 3), A_C_00000000);
+	A_OP(icode, ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A_GPR(tmp), A_C_00010000);
+	A_OP(icode, ptr, iANDXOR, reg_out, A_GPR(tmp), A_C_ffffffff, A_GPR(tmp + 2));
+	A_OP(icode, ptr, iACC3, reg_out + 1, A_GPR(tmp + 1), A_C_00000000, A_C_00000000);
+	return 1;
+}
 
 /*
  * initial DSP configuration for Audigy
@@ -1077,6 +1095,7 @@ snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl
 static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 {
 	int err, i, z, gpr, nctl;
+	int bit_shifter16;
 	const int playback = 10;
 	const int capture = playback + (SND_EMU10K1_PLAYBACK_CHANNELS * 2); /* we reserve 10 voices */
 	const int stereo_mix = capture + 2;
@@ -1114,17 +1133,14 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	ptr = 0;
 	nctl = 0;
 	gpr = stereo_mix + 10;
+	gpr_map[gpr++] = 0x00007fff;
+	gpr_map[gpr++] = 0x00008000;
+	gpr_map[gpr++] = 0x0000ffff;
+	bit_shifter16 = gpr;
 
 	/* stop FX processor */
 	snd_emu10k1_ptr_write(emu, A_DBG, 0, (emu->fx8010.dbg = 0) | A_DBG_SINGLE_STEP);
 
-#if 0
-	/* FIX: jcd test */
-	for (z = 0; z < 80; z=z+2) {
-		A_OP(icode, &ptr, iACC3, A_EXTOUT(z), A_FXBUS(FXBUS_PCM_LEFT_FRONT), A_C_00000000, A_C_00000000); /* left */
-		A_OP(icode, &ptr, iACC3, A_EXTOUT(z+1), A_FXBUS(FXBUS_PCM_RIGHT_FRONT), A_C_00000000, A_C_00000000); /* right */
-	}
-#endif /* jcd test */
 #if 1
 	/* PCM front Playback Volume (independent from stereo mix) */
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback), A_C_00000000, A_GPR(gpr), A_FXBUS(FXBUS_PCM_LEFT_FRONT));
@@ -1182,13 +1198,20 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_FXBUS(FXBUS_MIDI_RIGHT));
 	snd_emu10k1_init_stereo_control(&controls[nctl++], "Synth Capture Volume", gpr, 0);
 	gpr += 2;
-
+      
 	/*
 	 * inputs
 	 */
 #define A_ADD_VOLUME_IN(var,vol,input) \
 A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
+	/* emu1212 DSP 0 and DSP 1 Capture */
+	if (emu->card_capabilities->emu1010) {
+		A_OP(icode, &ptr, iMAC0, A_GPR(capture+0), A_GPR(capture+0), A_GPR(gpr), A_P16VIN(0x0));
+		A_OP(icode, &ptr, iMAC0, A_GPR(capture+1), A_GPR(capture+1), A_GPR(gpr+1), A_P16VIN(0x1));
+		snd_emu10k1_init_stereo_control(&controls[nctl++], "EMU Capture Volume", gpr, 0);
+		gpr += 2;
+	}
 	/* AC'97 Playback Volume - used only for mic (renamed later) */
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_AC97_L);
 	A_ADD_VOLUME_IN(stereo_mix+1, gpr+1, A_EXTIN_AC97_R);
@@ -1429,6 +1452,13 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	/* digital outputs */
 	/* A_PUT_STEREO_OUTPUT(A_EXTOUT_FRONT_L, A_EXTOUT_FRONT_R, playback + SND_EMU10K1_PLAYBACK_CHANNELS); */
+	if (emu->card_capabilities->emu1010) {
+		/* EMU1010 Outputs from PCM Front, Rear, Center, LFE, Side */
+		snd_printk("EMU outputs on\n");
+		for (z = 0; z < 8; z++) {
+			A_OP(icode, &ptr, iACC3, A_EMU32OUTL(z), A_GPR(playback + SND_EMU10K1_PLAYBACK_CHANNELS + z), A_C_00000000, A_C_00000000);
+		}
+	}
 
 	/* IEC958 Optical Raw Playback Switch */ 
 	gpr_map[gpr++] = 0;
@@ -1466,9 +1496,57 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_PUT_OUTPUT(A_EXTOUT_ADC_CAP_R, capture+1);
 #endif
 
-	/* EFX capture - capture the 16 EXTINs */
-	for (z = 0; z < 16; z++) {
-		A_OP(icode, &ptr, iACC3, A_FXBUS2(z), A_C_00000000, A_C_00000000, A_EXTIN(z));
+	if (emu->card_capabilities->emu1010) {
+		snd_printk("EMU inputs on\n");
+		/* Capture 8 channels of S32_LE sound */
+		
+		/* printk("emufx.c: gpr=0x%x, tmp=0x%x\n",gpr, tmp); */
+		/* For the EMU1010: How to get 32bit values from the DSP. High 16bits into L, low 16bits into R. */
+		/* A_P16VIN(0) is delayed by one sample,
+		 * so all other A_P16VIN channels will need to also be delayed
+		 */
+		/* Left ADC in. 1 of 2 */
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_P16VIN(0x0), A_FXBUS2(0) );
+		/* Right ADC in 1 of 2 */
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(2) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x1), A_C_00000000, A_C_00000000);
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(4) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x2), A_C_00000000, A_C_00000000);
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(6) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x3), A_C_00000000, A_C_00000000);
+		/* For 96kHz mode */
+		/* Left ADC in. 2 of 2 */
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0x8) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x4), A_C_00000000, A_C_00000000);
+		/* Right ADC in 2 of 2 */
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xa) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x5), A_C_00000000, A_C_00000000);
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xc) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x6), A_C_00000000, A_C_00000000);
+		gpr_map[gpr++] = 0x00000000;
+		snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, bit_shifter16, A_GPR(gpr - 1), A_FXBUS2(0xe) );
+		A_OP(icode, &ptr, iACC3, A_GPR(gpr - 1), A_P16VIN(0x7), A_C_00000000, A_C_00000000);
+
+#if 0
+		for (z = 4; z < 8; z++) {
+			A_OP(icode, &ptr, iACC3, A_FXBUS2(z), A_C_00000000, A_C_00000000, A_C_00000000);
+		}
+		for (z = 0xc; z < 0x10; z++) {
+			A_OP(icode, &ptr, iACC3, A_FXBUS2(z), A_C_00000000, A_C_00000000, A_C_00000000);
+		}
+#endif
+	} else {
+		/* EFX capture - capture the 16 EXTINs */
+		/* Capture 16 channels of S16_LE sound */
+		for (z = 0; z < 16; z++) {
+			A_OP(icode, &ptr, iACC3, A_FXBUS2(z), A_C_00000000, A_C_00000000, A_EXTIN(z));
+		}
 	}
 	
 #endif /* JCD test */
@@ -2138,7 +2216,7 @@ void snd_emu10k1_free_efx(struct snd_emu10k1 *emu)
 		snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg = EMU10K1_DBG_SINGLE_STEP);
 }
 
-#if 0 // FIXME: who use them?
+#if 0 /* FIXME: who use them? */
 int snd_emu10k1_fx8010_tone_control_activate(struct snd_emu10k1 *emu, int output)
 {
 	if (output < 0 || output >= 6)
