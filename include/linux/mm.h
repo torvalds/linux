@@ -946,6 +946,8 @@ extern void mem_init(void);
 extern void show_mem(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
+extern void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+					unsigned long pfn, unsigned long size);
 
 #ifdef CONFIG_NUMA
 extern void setup_per_cpu_pageset(void);

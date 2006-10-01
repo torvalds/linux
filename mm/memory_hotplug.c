@@ -26,8 +26,6 @@
 
 #include <asm/tlbflush.h>
 
-extern void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
-			  unsigned long size);
 static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
@@ -47,8 +45,6 @@ static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	return 0;
 }
 
-extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
-				  int nr_pages);
 static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 {
 	int nr_pages = PAGES_PER_SECTION;
