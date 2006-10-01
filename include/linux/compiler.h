@@ -10,10 +10,10 @@
 # define __force	__attribute__((force))
 # define __nocast	__attribute__((nocast))
 # define __iomem	__attribute__((noderef, address_space(2)))
-# define __acquires(x)	__attribute__((context(0,1)))
-# define __releases(x)	__attribute__((context(1,0)))
-# define __acquire(x)	__context__(1)
-# define __release(x)	__context__(-1)
+# define __acquires(x)	__attribute__((context(x,0,1)))
+# define __releases(x)	__attribute__((context(x,1,0)))
+# define __acquire(x)	__context__(x,1)
+# define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 extern void __chk_user_ptr(void __user *);
 extern void __chk_io_ptr(void __iomem *);
