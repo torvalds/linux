@@ -879,7 +879,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 			char *buff = NULL;
 			u64bit temp64;
 			unsigned long flags;
-			DECLARE_COMPLETION(wait);
+			DECLARE_COMPLETION_ONSTACK(wait);
 
 			if (!arg)
 				return -EINVAL;
@@ -997,7 +997,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 			BYTE sg_used = 0;
 			int status = 0;
 			int i;
-			DECLARE_COMPLETION(wait);
+			DECLARE_COMPLETION_ONSTACK(wait);
 			__u32 left;
 			__u32 sz;
 			BYTE __user *data_ptr;
@@ -1816,7 +1816,7 @@ static int sendcmd_withirq(__u8 cmd,
 	u64bit buff_dma_handle;
 	unsigned long flags;
 	int return_status;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	if ((c = cmd_alloc(h, 0)) == NULL)
 		return -ENOMEM;

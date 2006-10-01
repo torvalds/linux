@@ -348,7 +348,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	request_queue_t *q;
 	struct request *rq;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 	int err = 0;
 
 	q = bdev_get_queue(pd->bdev);

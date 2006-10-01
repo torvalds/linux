@@ -342,7 +342,7 @@ fail:
 static ssize_t
 ep_io (struct ep_data *epdata, void *buf, unsigned len)
 {
-	DECLARE_COMPLETION (done);
+	DECLARE_COMPLETION_ONSTACK (done);
 	int value;
 
 	spin_lock_irq (&epdata->dev->lock);

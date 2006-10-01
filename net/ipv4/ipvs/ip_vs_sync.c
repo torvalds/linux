@@ -836,7 +836,7 @@ static int fork_sync_thread(void *startup)
 
 int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 {
-	DECLARE_COMPLETION(startup);
+	DECLARE_COMPLETION_ONSTACK(startup);
 	pid_t pid;
 
 	if ((state == IP_VS_STATE_MASTER && sync_master_pid) ||

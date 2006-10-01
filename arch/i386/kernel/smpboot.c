@@ -1061,7 +1061,7 @@ static void __cpuinit do_warm_boot_cpu(void *p)
 
 static int __cpuinit __smp_prepare_cpu(int cpu)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;

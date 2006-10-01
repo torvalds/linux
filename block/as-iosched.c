@@ -1479,7 +1479,7 @@ static int __init as_init(void)
 
 static void __exit as_exit(void)
 {
-	DECLARE_COMPLETION(all_gone);
+	DECLARE_COMPLETION_ONSTACK(all_gone);
 	elv_unregister(&iosched_as);
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */

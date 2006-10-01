@@ -56,7 +56,7 @@ static int smu_set_fan(int pwm, u8 id, u16 value)
 {
 	struct smu_cmd cmd;
 	u8 buffer[16];
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	int rc;
 
 	/* Fill SMU command structure */

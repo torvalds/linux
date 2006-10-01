@@ -67,7 +67,7 @@ static void smu_ads_release(struct wf_sensor *sr)
 static int smu_read_adc(u8 id, s32 *value)
 {
 	struct smu_simple_cmd	cmd;
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	int rc;
 
 	rc = smu_queue_simple(&cmd, SMU_CMD_READ_ADC, 1,

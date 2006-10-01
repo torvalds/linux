@@ -870,7 +870,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 
 static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
 {
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	unsigned int chunk;
 	struct smu_cmd cmd;
 	int rc;
@@ -917,7 +917,7 @@ static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
 
 static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 {
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	struct smu_simple_cmd cmd;
 	unsigned int addr, len, tlen;
 	struct smu_sdbp_header *hdr;

@@ -770,7 +770,7 @@ static void DAC960_P_QueueCommand(DAC960_Command_T *Command)
 static void DAC960_ExecuteCommand(DAC960_Command_T *Command)
 {
   DAC960_Controller_T *Controller = Command->Controller;
-  DECLARE_COMPLETION(Completion);
+  DECLARE_COMPLETION_ONSTACK(Completion);
   unsigned long flags;
   Command->Completion = &Completion;
 

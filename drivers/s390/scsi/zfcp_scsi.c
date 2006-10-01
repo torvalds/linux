@@ -301,7 +301,7 @@ zfcp_scsi_command_sync(struct zfcp_unit *unit, struct scsi_cmnd *scpnt,
 		       int use_timer)
 {
 	int ret;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	scpnt->SCp.ptr = (void *) &wait;  /* silent re-use */
 	scpnt->scsi_done = zfcp_scsi_command_sync_handler;

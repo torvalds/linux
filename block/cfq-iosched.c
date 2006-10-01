@@ -2160,7 +2160,7 @@ static int __init cfq_init(void)
 
 static void __exit cfq_exit(void)
 {
-	DECLARE_COMPLETION(all_gone);
+	DECLARE_COMPLETION_ONSTACK(all_gone);
 	elv_unregister(&iosched_cfq);
 	ioc_gone = &all_gone;
 	/* ioc_gone's update must be visible before reading ioc_count */

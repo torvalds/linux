@@ -295,7 +295,7 @@ ecard_task(void * unused)
  */
 static void ecard_call(struct ecard_request *req)
 {
-	DECLARE_COMPLETION(completion);
+	DECLARE_COMPLETION_ONSTACK(completion);
 
 	req->complete = &completion;
 
