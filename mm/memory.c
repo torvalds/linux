@@ -467,7 +467,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 */
 	if (is_cow_mapping(vm_flags)) {
 		ptep_set_wrprotect(src_mm, addr, src_pte);
-		pte = *src_pte;
+		pte = pte_wrprotect(pte);
 	}
 
 	/*
