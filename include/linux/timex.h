@@ -91,10 +91,12 @@
 #define SHIFT_SCALE 22		/* phase scale (shift) */
 #define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
+#define SHIFT_NSEC 12		/* kernel frequency offset scale */
 #define FINENSEC (1L << (SHIFT_SCALE - 10)) /* ~1 ns in phase units */
 
 #define MAXPHASE 512000L        /* max phase error (us) */
 #define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
+#define MAXFREQ_NSEC (512000L << SHIFT_NSEC) /* max frequency error (ppb) */
 #define MINSEC 16L              /* min interval between updates (s) */
 #define MAXSEC 1200L            /* max interval between updates (s) */
 #define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */

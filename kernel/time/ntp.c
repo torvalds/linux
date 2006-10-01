@@ -66,7 +66,7 @@ void ntp_update_frequency(void)
 {
 	tick_length_base = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ) << TICK_LENGTH_SHIFT;
 	tick_length_base += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
-	tick_length_base += ((s64)time_freq * NSEC_PER_USEC) << (TICK_LENGTH_SHIFT - SHIFT_USEC);
+	tick_length_base += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
 
 	do_div(tick_length_base, HZ);
 
@@ -200,6 +200,7 @@ void __attribute__ ((weak)) notify_arch_cmos_timer(void)
 int do_adjtimex(struct timex *txc)
 {
 	long ltemp, mtemp, save_adjust;
+	s64 freq_adj;
 	int result;
 
 	/* In order to modify anything, you gotta be super-user! */
@@ -245,7 +246,7 @@ int do_adjtimex(struct timex *txc)
 		    result = -EINVAL;
 		    goto leave;
 		}
-		time_freq = txc->freq;
+		time_freq = ((s64)txc->freq * NSEC_PER_USEC) >> (SHIFT_USEC - SHIFT_NSEC);
 	    }
 
 	    if (txc->modes & ADJ_MAXERROR) {
@@ -278,14 +279,14 @@ int do_adjtimex(struct timex *txc)
 		    time_adjust = txc->offset;
 		}
 		else if (time_status & STA_PLL) {
-		    ltemp = txc->offset;
+		    ltemp = txc->offset * NSEC_PER_USEC;
 
 		    /*
 		     * Scale the phase adjustment and
 		     * clamp to the operating range.
 		     */
-		    time_offset = min(ltemp, MAXPHASE);
-		    time_offset = max(time_offset, -MAXPHASE);
+		    time_offset = min(ltemp, MAXPHASE * NSEC_PER_USEC);
+		    time_offset = max(time_offset, -MAXPHASE * NSEC_PER_USEC);
 
 		    /*
 		     * Select whether the frequency is to be controlled
@@ -297,24 +298,31 @@ int do_adjtimex(struct timex *txc)
 		        time_reftime = xtime.tv_sec;
 		    mtemp = xtime.tv_sec - time_reftime;
 		    time_reftime = xtime.tv_sec;
+		    freq_adj = 0;
 		    if (time_status & STA_FLL) {
 		        if (mtemp >= MINSEC) {
-			    ltemp = ((time_offset << 12) / mtemp) << (SHIFT_USEC - 12);
-			    time_freq += shift_right(ltemp, SHIFT_KH);
+			    freq_adj = (s64)time_offset << (SHIFT_NSEC - SHIFT_KH);
+			    if (time_offset < 0) {
+				freq_adj = -freq_adj;
+				do_div(freq_adj, mtemp);
+				freq_adj = -freq_adj;
+			    } else
+				do_div(freq_adj, mtemp);
 			} else /* calibration interval too short (p. 12) */
 				result = TIME_ERROR;
 		    } else {	/* PLL mode */
 		        if (mtemp < MAXSEC) {
-			    ltemp *= mtemp;
-			    time_freq += shift_right(ltemp,(time_constant +
+			    freq_adj = (s64)ltemp * mtemp;
+			    freq_adj = shift_right(freq_adj,(time_constant +
 						       time_constant +
-						       SHIFT_KF - SHIFT_USEC));
+						       SHIFT_KF - SHIFT_NSEC));
 			} else /* calibration interval too long (p. 12) */
 				result = TIME_ERROR;
 		    }
-		    time_freq = min(time_freq, MAXFREQ);
-		    time_freq = max(time_freq, -MAXFREQ);
-		    time_offset = (time_offset * NSEC_PER_USEC / HZ) << SHIFT_UPDATE;
+		    freq_adj += time_freq;
+		    freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
+		    time_freq = max(freq_adj, (s64)-MAXFREQ_NSEC);
+		    time_offset = (time_offset / HZ) << SHIFT_UPDATE;
 		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
 	    if (txc->modes & ADJ_TICK)
@@ -330,7 +338,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	    txc->offset	   = save_adjust;
 	else
 	    txc->offset    = shift_right(time_offset, SHIFT_UPDATE) * HZ / 1000;
-	txc->freq	   = time_freq;
+	txc->freq	   = (time_freq / NSEC_PER_USEC) << (SHIFT_USEC - SHIFT_NSEC);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
