@@ -67,10 +67,6 @@ int have_of = 1;
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned long SYSRQ_KEY = 0x54;
-#endif /* CONFIG_MAGIC_SYSRQ */
-
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif

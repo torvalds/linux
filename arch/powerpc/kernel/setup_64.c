@@ -93,11 +93,6 @@ int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
 
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned long SYSRQ_KEY;
-#endif /* CONFIG_MAGIC_SYSRQ */
-
-
 #ifdef CONFIG_SMP
 
 static int smt_enabled_cmdline;
