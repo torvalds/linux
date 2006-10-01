@@ -61,7 +61,7 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 			seq_printf(seq, "%02d-", alrm.time.tm_mon + 1);
 		else
 			seq_printf(seq, "**-");
-		if ((unsigned int)alrm.time.tm_mday <= 31)
+		if (alrm.time.tm_mday && (unsigned int)alrm.time.tm_mday <= 31)
 			seq_printf(seq, "%02d\n", alrm.time.tm_mday);
 		else
 			seq_printf(seq, "**\n");
