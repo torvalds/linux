@@ -22,8 +22,9 @@ unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
 unsigned long tick_nsec;			/* ACTHZ period (nsec) */
 static u64 tick_length, tick_length_base;
 
-/* Don't completely fail for HZ > 500.  */
-int tickadj = 500/HZ ? : 1;		/* microsecs */
+#define MAX_TICKADJ		500		/* microsecs */
+#define MAX_TICKADJ_SCALED	(((u64)(MAX_TICKADJ * NSEC_PER_USEC) << \
+				  TICK_LENGTH_SHIFT) / HZ)
 
 /*
  * phase-lock loop variables
@@ -40,7 +41,6 @@ long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
 long time_freq;				/* frequency offset (scaled ppm)*/
 long time_reftime;			/* time at last adjustment (s)	*/
 long time_adjust;
-long time_next_adjust;
 
 /**
  * ntp_clear - Clears the NTP state variables
@@ -160,46 +160,19 @@ void second_overflow(void)
 	time_adj = max(time_adj, ((MAXPHASE / HZ) << SHIFT_UPDATE) / MINSEC);
 	time_offset -= time_adj;
 	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - SHIFT_UPDATE);
-}
 
-/*
- * Returns how many microseconds we need to add to xtime this tick
- * in doing an adjustment requested with adjtime.
- */
-static long adjtime_adjustment(void)
-{
-	long time_adjust_step;
-
-	time_adjust_step = time_adjust;
-	if (time_adjust_step) {
-		/*
-		 * We are doing an adjtime thing.  Prepare time_adjust_step to
-		 * be within bounds.  Note that a positive time_adjust means we
-		 * want the clock to run faster.
-		 *
-		 * Limit the amount of the step to be in the range
-		 * -tickadj .. +tickadj
-		 */
-		time_adjust_step = min(time_adjust_step, (long)tickadj);
-		time_adjust_step = max(time_adjust_step, (long)-tickadj);
-	}
-	return time_adjust_step;
-}
-
-/* in the NTP reference this is called "hardclock()" */
-void update_ntp_one_tick(void)
-{
-	long time_adjust_step;
-
-	time_adjust_step = adjtime_adjustment();
-	if (time_adjust_step)
-		/* Reduce by this step the amount of time left  */
-		time_adjust -= time_adjust_step;
-
-	/* Changes by adjtime() do not take effect till next tick. */
-	if (time_next_adjust != 0) {
-		time_adjust = time_next_adjust;
-		time_next_adjust = 0;
+	if (unlikely(time_adjust)) {
+		if (time_adjust > MAX_TICKADJ) {
+			time_adjust -= MAX_TICKADJ;
+			tick_length += MAX_TICKADJ_SCALED;
+		} else if (time_adjust < -MAX_TICKADJ) {
+			time_adjust += MAX_TICKADJ;
+			tick_length -= MAX_TICKADJ_SCALED;
+		} else {
+			time_adjust = 0;
+			tick_length += (s64)(time_adjust * NSEC_PER_USEC /
+					     HZ) << TICK_LENGTH_SHIFT;
+		}
 	}
 }
 
@@ -213,14 +186,7 @@ void update_ntp_one_tick(void)
  */
 u64 current_tick_length(void)
 {
-	u64 ret;
-
-	/* calculate the finest interval NTP will allow.
-	 */
-	ret = tick_length;
-	ret += (u64)(adjtime_adjustment() * 1000) << TICK_LENGTH_SHIFT;
-
-	return ret;
+	return tick_length;
 }
 
 
@@ -263,7 +229,7 @@ int do_adjtimex(struct timex *txc)
 	result = time_state;	/* mostly `TIME_OK' */
 
 	/* Save for later - semantics of adjtime is to return old value */
-	save_adjust = time_next_adjust ? time_next_adjust : time_adjust;
+	save_adjust = time_adjust;
 
 #if 0	/* STA_CLOCKERR is never set yet */
 	time_status &= ~STA_CLOCKERR;		/* reset STA_CLOCKERR */
@@ -310,8 +276,7 @@ int do_adjtimex(struct timex *txc)
 	    if (txc->modes & ADJ_OFFSET) {	/* values checked earlier */
 		if (txc->modes == ADJ_OFFSET_SINGLESHOT) {
 		    /* adjtime() is independent from ntp_adjtime() */
-		    if ((time_next_adjust = txc->offset) == 0)
-			 time_adjust = 0;
+		    time_adjust = txc->offset;
 		}
 		else if (time_status & STA_PLL) {
 		    ltemp = txc->offset;

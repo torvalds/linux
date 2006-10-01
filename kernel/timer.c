@@ -937,8 +937,6 @@ static void update_wall_time(void)
 		/* interpolator bits */
 		time_interpolator_update(clock->xtime_interval
 						>> clock->shift);
-		/* increment the NTP state machine */
-		update_ntp_one_tick();
 
 		/* accumulate error between NTP and clock interval */
 		clock->error += current_tick_length();

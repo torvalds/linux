@@ -217,7 +217,6 @@ extern long time_freq;		/* frequency offset (scaled ppm) */
 extern long time_reftime;	/* time at last adjustment (s) */
 
 extern long time_adjust;	/* The amount of adjtime left */
-extern long time_next_adjust;	/* Value for time_adjust at next tick */
 
 extern void ntp_clear(void);
 extern void ntp_update_frequency(void);
