@@ -285,7 +285,7 @@ int main(int argc, char *argv[])
 	if (maskset) {
 		rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
 			      TASKSTATS_CMD_ATTR_REGISTER_CPUMASK,
-			      &cpumask, sizeof(cpumask));
+			      &cpumask, strlen(cpumask) + 1);
 		PRINTF("Sent register cpumask, retval %d\n", rc);
 		if (rc < 0) {
 			printf("error sending register cpumask\n");
@@ -315,7 +315,8 @@ int main(int argc, char *argv[])
 		}
 		if (msg.n.nlmsg_type == NLMSG_ERROR ||
 		    !NLMSG_OK((&msg.n), rep_len)) {
-			printf("fatal reply error,  errno %d\n", errno);
+			struct nlmsgerr *err = NLMSG_DATA(&msg);
+			printf("fatal reply error,  errno %d\n", err->error);
 			goto done;
 		}
 
@@ -383,7 +384,7 @@ done:
 	if (maskset) {
 		rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
 			      TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK,
-			      &cpumask, sizeof(cpumask));
+			      &cpumask, strlen(cpumask) + 1);
 		printf("Sent deregister mask, retval %d\n", rc);
 		if (rc < 0)
 			err(rc, "error sending deregister cpumask\n");
