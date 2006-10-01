@@ -1334,7 +1334,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 			if (err)
 				return err;
 		}
-		result = generic_file_write(file, buf, count, ppos);
+		result = do_sync_write(file, buf, count, ppos);
 
 		if (after_file_end) {	/* Now update i_size and remove the savelink */
 			struct reiserfs_transaction_handle th;
@@ -1566,7 +1566,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 }
 
 const struct file_operations reiserfs_file_operations = {
-	.read = generic_file_read,
+	.read = do_sync_read,
 	.write = reiserfs_file_write,
 	.ioctl = reiserfs_ioctl,
 #ifdef CONFIG_COMPAT
