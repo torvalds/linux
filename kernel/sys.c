@@ -607,11 +607,10 @@ static void kernel_restart_prepare(char *cmd)
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
-	if (!cmd) {
+	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
-	} else {
+	else
 		printk(KERN_EMERG "Restarting system with command '%s'.\n", cmd);
-	}
 	machine_restart(cmd);
 }
 EXPORT_SYMBOL_GPL(kernel_restart);
@@ -627,9 +626,8 @@ static void kernel_kexec(void)
 #ifdef CONFIG_KEXEC
 	struct kimage *image;
 	image = xchg(&kexec_image, NULL);
-	if (!image) {
+	if (!image)
 		return;
-	}
 	kernel_restart_prepare(NULL);
 	printk(KERN_EMERG "Starting new kernel\n");
 	machine_shutdown();
@@ -823,12 +821,10 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 		    (current->sgid == egid) ||
 		    capable(CAP_SETGID))
 			new_egid = egid;
-		else {
+		else
 			return -EPERM;
-		}
 	}
-	if (new_egid != old_egid)
-	{
+	if (new_egid != old_egid) {
 		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
@@ -857,19 +853,14 @@ asmlinkage long sys_setgid(gid_t gid)
 	if (retval)
 		return retval;
 
-	if (capable(CAP_SETGID))
-	{
-		if(old_egid != gid)
-		{
+	if (capable(CAP_SETGID)) {
+		if (old_egid != gid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
 		current->gid = current->egid = current->sgid = current->fsgid = gid;
-	}
-	else if ((gid == current->gid) || (gid == current->sgid))
-	{
-		if(old_egid != gid)
-		{
+	} else if ((gid == current->gid) || (gid == current->sgid)) {
+		if (old_egid != gid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
@@ -900,8 +891,7 @@ static int set_user(uid_t new_ruid, int dumpclear)
 
 	switch_uid(new_user);
 
-	if(dumpclear)
-	{
+	if (dumpclear) {
 		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
@@ -957,8 +947,7 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 	if (new_ruid != old_ruid && set_user(new_ruid, new_euid != old_euid) < 0)
 		return -EAGAIN;
 
-	if (new_euid != old_euid)
-	{
+	if (new_euid != old_euid) {
 		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
@@ -1008,8 +997,7 @@ asmlinkage long sys_setuid(uid_t uid)
 	} else if ((uid != current->uid) && (uid != new_suid))
 		return -EPERM;
 
-	if (old_euid != uid)
-	{
+	if (old_euid != uid) {
 		current->mm->dumpable = suid_dumpable;
 		smp_wmb();
 	}
@@ -1054,8 +1042,7 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 			return -EAGAIN;
 	}
 	if (euid != (uid_t) -1) {
-		if (euid != current->euid)
-		{
+		if (euid != current->euid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
@@ -1105,8 +1092,7 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 			return -EPERM;
 	}
 	if (egid != (gid_t) -1) {
-		if (egid != current->egid)
-		{
+		if (egid != current->egid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
@@ -1151,10 +1137,8 @@ asmlinkage long sys_setfsuid(uid_t uid)
 
 	if (uid == current->uid || uid == current->euid ||
 	    uid == current->suid || uid == current->fsuid || 
-	    capable(CAP_SETUID))
-	{
-		if (uid != old_fsuid)
-		{
+	    capable(CAP_SETUID)) {
+		if (uid != old_fsuid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
@@ -1182,10 +1166,8 @@ asmlinkage long sys_setfsgid(gid_t gid)
 
 	if (gid == current->gid || gid == current->egid ||
 	    gid == current->sgid || gid == current->fsgid || 
-	    capable(CAP_SETGID))
-	{
-		if (gid != old_fsgid)
-		{
+	    capable(CAP_SETGID)) {
+		if (gid != old_fsgid) {
 			current->mm->dumpable = suid_dumpable;
 			smp_wmb();
 		}
@@ -1321,9 +1303,9 @@ out:
 
 asmlinkage long sys_getpgid(pid_t pid)
 {
-	if (!pid) {
+	if (!pid)
 		return process_group(current);
-	} else {
+	else {
 		int retval;
 		struct task_struct *p;
 
@@ -1353,9 +1335,9 @@ asmlinkage long sys_getpgrp(void)
 
 asmlinkage long sys_getsid(pid_t pid)
 {
-	if (!pid) {
+	if (!pid)
 		return current->signal->session;
-	} else {
+	else {
 		int retval;
 		struct task_struct *p;
 
@@ -1363,7 +1345,7 @@ asmlinkage long sys_getsid(pid_t pid)
 		p = find_task_by_pid(pid);
 
 		retval = -ESRCH;
-		if(p) {
+		if (p) {
 			retval = security_task_getsid(p);
 			if (!retval)
 				retval = p->signal->session;
@@ -1431,9 +1413,9 @@ struct group_info *groups_alloc(int gidsetsize)
 	group_info->nblocks = nblocks;
 	atomic_set(&group_info->usage, 1);
 
-	if (gidsetsize <= NGROUPS_SMALL) {
+	if (gidsetsize <= NGROUPS_SMALL)
 		group_info->blocks[0] = group_info->small_block;
-	} else {
+	else {
 		for (i = 0; i < nblocks; i++) {
 			gid_t *b;
 			b = (void *)__get_free_page(GFP_USER);
@@ -1489,7 +1471,7 @@ static int groups_to_user(gid_t __user *grouplist,
 /* fill a group_info from a user-space array - it must be allocated already */
 static int groups_from_user(struct group_info *group_info,
     gid_t __user *grouplist)
- {
+{
 	int i;
 	int count = group_info->ngroups;
 
@@ -1647,9 +1629,8 @@ asmlinkage long sys_setgroups(int gidsetsize, gid_t __user *grouplist)
 int in_group_p(gid_t grp)
 {
 	int retval = 1;
-	if (grp != current->fsgid) {
+	if (grp != current->fsgid)
 		retval = groups_search(current->group_info, grp);
-	}
 	return retval;
 }
 
@@ -1658,9 +1639,8 @@ EXPORT_SYMBOL(in_group_p);
 int in_egroup_p(gid_t grp)
 {
 	int retval = 1;
-	if (grp != current->egid) {
+	if (grp != current->egid)
 		retval = groups_search(current->group_info, grp);
-	}
 	return retval;
 }
 
@@ -1775,9 +1755,9 @@ asmlinkage long sys_old_getrlimit(unsigned int resource, struct rlimit __user *r
 	task_lock(current->group_leader);
 	x = current->signal->rlim[resource];
 	task_unlock(current->group_leader);
-	if(x.rlim_cur > 0x7FFFFFFF)
+	if (x.rlim_cur > 0x7FFFFFFF)
 		x.rlim_cur = 0x7FFFFFFF;
-	if(x.rlim_max > 0x7FFFFFFF)
+	if (x.rlim_max > 0x7FFFFFFF)
 		x.rlim_max = 0x7FFFFFFF;
 	return copy_to_user(rlim, &x, sizeof(x))?-EFAULT:0;
 }
