@@ -31,7 +31,7 @@ int tickadj = 500/HZ ? : 1;		/* microsecs */
 /* TIME_ERROR prevents overwriting the CMOS clock */
 int time_state = TIME_OK;		/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
-long time_offset;			/* time adjustment (us)		*/
+long time_offset;			/* time adjustment (ns)		*/
 long time_constant = 2;			/* pll time constant		*/
 long time_tolerance = MAXFREQ;		/* frequency tolerance (ppm)	*/
 long time_precision = 1;		/* clock precision (us)		*/
@@ -57,6 +57,7 @@ void ntp_clear(void)
 	ntp_update_frequency();
 
 	tick_length = tick_length_base;
+	time_offset = 0;
 }
 
 #define CLOCK_TICK_OVERFLOW	(LATCH * HZ - CLOCK_TICK_RATE)
@@ -83,7 +84,7 @@ void ntp_update_frequency(void)
  */
 void second_overflow(void)
 {
-	long ltemp, time_adj;
+	long time_adj;
 
 	/* Bump the maxerror field */
 	time_maxerror += time_tolerance >> SHIFT_USEC;
@@ -151,42 +152,14 @@ void second_overflow(void)
 	 * adjustment for each second is clamped so as to spread the adjustment
 	 * over not more than the number of seconds between updates.
 	 */
-	ltemp = time_offset;
-	if (!(time_status & STA_FLL))
-		ltemp = shift_right(ltemp, SHIFT_KG + time_constant);
-	ltemp = min(ltemp, (MAXPHASE / MINSEC) << SHIFT_UPDATE);
-	ltemp = max(ltemp, -(MAXPHASE / MINSEC) << SHIFT_UPDATE);
-	time_offset -= ltemp;
-	time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-
-	/*
-	 * Compute the frequency estimate and additional phase adjustment due
-	 * to frequency error for the next second.
-	 */
-
-#if HZ == 100
-	/*
-	 * Compensate for (HZ==100) != (1 << SHIFT_HZ).  Add 25% and 3.125% to
-	 * get 128.125; => only 0.125% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
-#endif
-#if HZ == 250
-	/*
-	 * Compensate for (HZ==250) != (1 << SHIFT_HZ).  Add 1.5625% and
-	 * 0.78125% to get 255.85938; => only 0.05% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
-#endif
-#if HZ == 1000
-	/*
-	 * Compensate for (HZ==1000) != (1 << SHIFT_HZ).  Add 1.5625% and
-	 * 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
-	 */
-	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
-#endif
 	tick_length = tick_length_base;
-	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - (SHIFT_SCALE - 10));
+	time_adj = time_offset;
+	if (!(time_status & STA_FLL))
+		time_adj = shift_right(time_adj, SHIFT_KG + time_constant);
+	time_adj = min(time_adj, -((MAXPHASE / HZ) << SHIFT_UPDATE) / MINSEC);
+	time_adj = max(time_adj, ((MAXPHASE / HZ) << SHIFT_UPDATE) / MINSEC);
+	time_offset -= time_adj;
+	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - SHIFT_UPDATE);
 }
 
 /*
@@ -347,12 +320,8 @@ int do_adjtimex(struct timex *txc)
 		     * Scale the phase adjustment and
 		     * clamp to the operating range.
 		     */
-		    if (ltemp > MAXPHASE)
-		        time_offset = MAXPHASE << SHIFT_UPDATE;
-		    else if (ltemp < -MAXPHASE)
-			time_offset = -(MAXPHASE << SHIFT_UPDATE);
-		    else
-		        time_offset = ltemp << SHIFT_UPDATE;
+		    time_offset = min(ltemp, MAXPHASE);
+		    time_offset = max(time_offset, -MAXPHASE);
 
 		    /*
 		     * Select whether the frequency is to be controlled
@@ -366,8 +335,7 @@ int do_adjtimex(struct timex *txc)
 		    time_reftime = xtime.tv_sec;
 		    if (time_status & STA_FLL) {
 		        if (mtemp >= MINSEC) {
-			    ltemp = (time_offset / mtemp) << (SHIFT_USEC -
-							      SHIFT_UPDATE);
+			    ltemp = ((time_offset << 12) / mtemp) << (SHIFT_USEC - 12);
 			    time_freq += shift_right(ltemp, SHIFT_KH);
 			} else /* calibration interval too short (p. 12) */
 				result = TIME_ERROR;
@@ -382,6 +350,7 @@ int do_adjtimex(struct timex *txc)
 		    }
 		    time_freq = min(time_freq, time_tolerance);
 		    time_freq = max(time_freq, -time_tolerance);
+		    time_offset = (time_offset * NSEC_PER_USEC / HZ) << SHIFT_UPDATE;
 		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
 	    if (txc->modes & ADJ_TICK)
@@ -395,9 +364,8 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT)
 	    txc->offset	   = save_adjust;
-	else {
-	    txc->offset = shift_right(time_offset, SHIFT_UPDATE);
-	}
+	else
+	    txc->offset    = shift_right(time_offset, SHIFT_UPDATE) * HZ / 1000;
 	txc->freq	   = time_freq;
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;

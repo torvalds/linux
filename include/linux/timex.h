@@ -89,7 +89,7 @@
  * FINENSEC is 1 ns in SHIFT_UPDATE units of the time_phase variable.
  */
 #define SHIFT_SCALE 22		/* phase scale (shift) */
-#define SHIFT_UPDATE (SHIFT_KG + MAXTC) /* time offset scale (shift) */
+#define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
 #define FINENSEC (1L << (SHIFT_SCALE - 10)) /* ~1 ns in phase units */
 
