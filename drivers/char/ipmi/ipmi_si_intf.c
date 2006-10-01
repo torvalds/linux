@@ -916,7 +916,11 @@ static int smi_start_processing(void       *send_info,
 	new_smi->last_timeout_jiffies = jiffies;
 	mod_timer(&new_smi->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
- 	if (new_smi->si_type != SI_BT) {
+	/*
+	 * The BT interface is efficient enough to not need a thread,
+	 * and there is no need for a thread if we have interrupts.
+	 */
+ 	if ((new_smi->si_type != SI_BT) && (!new_smi->irq)) {
 		new_smi->thread = kthread_run(ipmi_thread, new_smi,
 					      "kipmi%d", new_smi->intf_num);
 		if (IS_ERR(new_smi->thread)) {
