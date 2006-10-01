@@ -307,16 +307,14 @@ static int serial_suspend(struct pcmcia_device *link)
 
 static int serial_resume(struct pcmcia_device *link)
 {
-	if (pcmcia_dev_present(link)) {
-		struct serial_info *info = link->priv;
-		int i;
+	struct serial_info *info = link->priv;
+	int i;
 
-		for (i = 0; i < info->ndev; i++)
-			serial8250_resume_port(info->line[i]);
+	for (i = 0; i < info->ndev; i++)
+		serial8250_resume_port(info->line[i]);
 
-		if (info->quirk && info->quirk->wakeup)
-			info->quirk->wakeup(link);
-	}
+	if (info->quirk && info->quirk->wakeup)
+		info->quirk->wakeup(link);
 
 	return 0;
 }
