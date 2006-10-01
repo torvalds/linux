@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.2"
 
 #define RTC_REG_SIZE		0x2000
 #define RTC_OFFSET		0x1ff0
@@ -357,9 +357,13 @@ static int __init ds1553_rtc_probe(struct platform_device *pdev)
 	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
-	sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	ret = sysfs_create_bin_file(&pdev->dev.kobj, &ds1553_nvram_attr);
+	if (ret)
+		goto out;
 	return 0;
  out:
+	if (pdata->rtc)
+		rtc_device_unregister(pdata->rtc);
 	if (pdata->irq >= 0)
 		free_irq(pdata->irq, pdev);
 	if (ioaddr)
