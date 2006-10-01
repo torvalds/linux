@@ -213,11 +213,11 @@ int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 				  struct iocb *iocb));
 
 #define get_ioctx(kioctx) do {						\
-	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
 	atomic_inc(&(kioctx)->users);					\
 } while (0)
 #define put_ioctx(kioctx) do {						\
-	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	BUG_ON(atomic_read(&(kioctx)->users) <= 0);			\
 	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
 		__put_ioctx(kioctx);					\
 } while (0)
