@@ -1,6 +1,7 @@
 #ifndef _LINUX_NAMEI_H
 #define _LINUX_NAMEI_H
 
+#include <linux/dcache.h>
 #include <linux/linkage.h>
 
 struct vfsmount;
