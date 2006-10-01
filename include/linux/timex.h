@@ -69,10 +69,9 @@
  * zero to MAXTC, the PLL will converge in 15 minutes to 16 hours,
  * respectively.
  */
-#define SHIFT_KG 6		/* phase factor (shift) */
-#define SHIFT_KF 16		/* PLL frequency factor (shift) */
-#define SHIFT_KH 2		/* FLL frequency factor (shift) */
-#define MAXTC 6			/* maximum time constant (shift) */
+#define SHIFT_PLL	4	/* PLL frequency factor (shift) */
+#define SHIFT_FLL	2	/* FLL frequency factor (shift) */
+#define MAXTC		10	/* maximum time constant (shift) */
 
 /*
  * The SHIFT_SCALE define establishes the decimal point of the time_phase
@@ -97,8 +96,8 @@
 #define MAXPHASE 512000L        /* max phase error (us) */
 #define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
 #define MAXFREQ_NSEC (512000L << SHIFT_NSEC) /* max frequency error (ppb) */
-#define MINSEC 16L              /* min interval between updates (s) */
-#define MAXSEC 1200L            /* max interval between updates (s) */
+#define MINSEC 256		/* min interval between updates (s) */
+#define MAXSEC 2048		/* max interval between updates (s) */
 #define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
 
 /*

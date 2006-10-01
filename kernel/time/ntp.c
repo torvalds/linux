@@ -145,18 +145,11 @@ void second_overflow(void)
 	}
 
 	/*
-	 * Compute the phase adjustment for the next second. In PLL mode, the
-	 * offset is reduced by a fixed factor times the time constant. In FLL
-	 * mode the offset is used directly. In either mode, the maximum phase
-	 * adjustment for each second is clamped so as to spread the adjustment
-	 * over not more than the number of seconds between updates.
+	 * Compute the phase adjustment for the next second. The offset is
+	 * reduced by a fixed factor times the time constant.
 	 */
 	tick_length = tick_length_base;
-	time_adj = time_offset;
-	if (!(time_status & STA_FLL))
-		time_adj = shift_right(time_adj, SHIFT_KG + time_constant);
-	time_adj = min(time_adj, -((MAXPHASE / HZ) << SHIFT_UPDATE) / MINSEC);
-	time_adj = max(time_adj, ((MAXPHASE / HZ) << SHIFT_UPDATE) / MINSEC);
+	time_adj = shift_right(time_offset, SHIFT_PLL + time_constant);
 	time_offset -= time_adj;
 	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - SHIFT_UPDATE);
 
@@ -200,7 +193,7 @@ void __attribute__ ((weak)) notify_arch_cmos_timer(void)
 int do_adjtimex(struct timex *txc)
 {
 	long ltemp, mtemp, save_adjust;
-	s64 freq_adj;
+	s64 freq_adj, temp64;
 	int result;
 
 	/* In order to modify anything, you gotta be super-user! */
@@ -270,7 +263,7 @@ int do_adjtimex(struct timex *txc)
 		    result = -EINVAL;
 		    goto leave;
 		}
-		time_constant = txc->constant;
+		time_constant = min(txc->constant + 4, (long)MAXTC);
 	    }
 
 	    if (txc->modes & ADJ_OFFSET) {	/* values checked earlier */
@@ -298,26 +291,20 @@ int do_adjtimex(struct timex *txc)
 		        time_reftime = xtime.tv_sec;
 		    mtemp = xtime.tv_sec - time_reftime;
 		    time_reftime = xtime.tv_sec;
-		    freq_adj = 0;
-		    if (time_status & STA_FLL) {
-		        if (mtemp >= MINSEC) {
-			    freq_adj = (s64)time_offset << (SHIFT_NSEC - SHIFT_KH);
-			    if (time_offset < 0) {
-				freq_adj = -freq_adj;
-				do_div(freq_adj, mtemp);
-				freq_adj = -freq_adj;
-			    } else
-				do_div(freq_adj, mtemp);
-			} else /* calibration interval too short (p. 12) */
-				result = TIME_ERROR;
-		    } else {	/* PLL mode */
-		        if (mtemp < MAXSEC) {
-			    freq_adj = (s64)ltemp * mtemp;
-			    freq_adj = shift_right(freq_adj,(time_constant +
-						       time_constant +
-						       SHIFT_KF - SHIFT_NSEC));
-			} else /* calibration interval too long (p. 12) */
-				result = TIME_ERROR;
+
+		    freq_adj = (s64)time_offset * mtemp;
+		    freq_adj = shift_right(freq_adj, time_constant * 2 +
+					   (SHIFT_PLL + 2) * 2 - SHIFT_NSEC);
+		    if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
+			temp64 = (s64)time_offset << (SHIFT_NSEC - SHIFT_FLL);
+			if (time_offset < 0) {
+			    temp64 = -temp64;
+			    do_div(temp64, mtemp);
+			    freq_adj -= temp64;
+			} else {
+			    do_div(temp64, mtemp);
+			    freq_adj += temp64;
+			}
 		    }
 		    freq_adj += time_freq;
 		    freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
