@@ -279,6 +279,10 @@ static void dc390_ResetDevParam(struct dc390_acb* pACB);
 static u32	dc390_laststatus = 0;
 static u8	dc390_adapterCnt = 0;
 
+static int disable_clustering;
+module_param(disable_clustering, int, S_IRUGO);
+MODULE_PARM_DESC(disable_clustering, "If you experience problems with your devices, try setting to 1");
+
 /* Startup values, to be overriden on the commandline */
 static int tmscsim[] = {-2, -2, -2, -2, -2, -2};
 
@@ -2299,7 +2303,7 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 /***********************************************************************
@@ -2525,6 +2529,8 @@ static int __devinit dc390_probe_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	error = -ENOMEM;
+	if (disable_clustering)
+		driver_template.use_clustering = DISABLE_CLUSTERING;
 	shost = scsi_host_alloc(&driver_template, sizeof(struct dc390_acb));
 	if (!shost)
 		goto out_disable_device;
@@ -2660,6 +2666,10 @@ static struct pci_driver dc390_driver = {
 
 static int __init dc390_module_init(void)
 {
+	if (!disable_clustering)
+		printk(KERN_INFO "DC390: clustering now enabled by default. If you get problems load\n"
+		       "\twith \"disable_clustering=1\" and report to maintainers\n");
+
 	if (tmscsim[0] == -1 || tmscsim[0] > 15) {
 		tmscsim[0] = 7;
 		tmscsim[1] = 4;
