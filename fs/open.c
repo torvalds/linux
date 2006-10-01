@@ -386,15 +386,21 @@ asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode)
 		current->cap_effective = current->cap_permitted;
 
 	res = __user_walk_fd(dfd, filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
-	if (!res) {
-		res = vfs_permission(&nd, mode);
-		/* SuS v2 requires we report a read only fs too */
-		if(!res && (mode & S_IWOTH) && IS_RDONLY(nd.dentry->d_inode)
-		   && !special_file(nd.dentry->d_inode->i_mode))
-			res = -EROFS;
-		path_release(&nd);
-	}
+	if (res)
+		goto out;
 
+	res = vfs_permission(&nd, mode);
+	/* SuS v2 requires we report a read only fs too */
+	if(res || !(mode & S_IWOTH) ||
+	   special_file(nd.dentry->d_inode->i_mode))
+		goto out_path_release;
+
+	if(IS_RDONLY(nd.dentry->d_inode))
+		res = -EROFS;
+
+out_path_release:
+	path_release(&nd);
+out:
 	current->fsuid = old_fsuid;
 	current->fsgid = old_fsgid;
 	current->cap_effective = old_cap;
@@ -603,10 +609,11 @@ asmlinkage long sys_chown(const char __user * filename, uid_t user, gid_t group)
 	int error;
 
 	error = user_path_walk(filename, &nd);
-	if (!error) {
-		error = chown_common(nd.dentry, user, group);
-		path_release(&nd);
-	}
+	if (error)
+		goto out;
+	error = chown_common(nd.dentry, user, group);
+	path_release(&nd);
+out:
 	return error;
 }
 
@@ -622,10 +629,10 @@ asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
 	error = __user_walk_fd(dfd, filename, follow, &nd);
-	if (!error) {
-		error = chown_common(nd.dentry, user, group);
-		path_release(&nd);
-	}
+	if (error)
+		goto out;
+	error = chown_common(nd.dentry, user, group);
+	path_release(&nd);
 out:
 	return error;
 }
@@ -636,10 +643,11 @@ asmlinkage long sys_lchown(const char __user * filename, uid_t user, gid_t group
 	int error;
 
 	error = user_path_walk_link(filename, &nd);
-	if (!error) {
-		error = chown_common(nd.dentry, user, group);
-		path_release(&nd);
-	}
+	if (error)
+		goto out;
+	error = chown_common(nd.dentry, user, group);
+	path_release(&nd);
+out:
 	return error;
 }
 
@@ -648,15 +656,17 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 {
 	struct file * file;
 	int error = -EBADF;
+	struct dentry * dentry;
 
 	file = fget(fd);
-	if (file) {
-		struct dentry * dentry;
-		dentry = file->f_dentry;
-		audit_inode(NULL, dentry->d_inode);
-		error = chown_common(dentry, user, group);
-		fput(file);
-	}
+	if (!file)
+		goto out;
+
+	dentry = file->f_dentry;
+	audit_inode(NULL, dentry->d_inode);
+	error = chown_common(dentry, user, group);
+	fput(file);
+out:
 	return error;
 }
 
