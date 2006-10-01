@@ -2,6 +2,7 @@
  *
  * Copyright (C) Shailabh Nagar, IBM Corp. 2006
  *           (C) Balbir Singh,   IBM Corp. 2006
+ *           (C) Jay Lan,        SGI, 2006
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2.1 of the GNU Lesser General Public License
@@ -29,16 +30,18 @@
  *	c) add new fields after version comment; maintain 64-bit alignment
  */
 
-#define TASKSTATS_VERSION	1
+
+#define TASKSTATS_VERSION	2
+#define TS_COMM_LEN		16	/* should sync up with TASK_COMM_LEN
+					 * in linux/sched.h */
 
 struct taskstats {
 
 	/* Version 1 */
 	__u16	version;
-	__u16	padding[3];	/* Userspace should not interpret the padding
-				 * field which can be replaced by useful
-				 * fields if struct taskstats is extended.
-				 */
+	__u32	ac_exitcode;	/* Exit status */
+	__u8	ac_flag;		/* Record flags */
+	__u8	ac_nice;		/* task_nice */
 
 	/* Delay accounting fields start
 	 *
@@ -88,6 +91,22 @@ struct taskstats {
 	__u64	cpu_run_virtual_total;
 	/* Delay accounting fields end */
 	/* version 1 ends here */
+
+	/* Basic Accounting Fields start */
+	char	ac_comm[TS_COMM_LEN];	/* Command name */
+	__u8	ac_sched;		/* Scheduling discipline */
+	__u8	ac_pad[3];
+	__u32	ac_uid;			/* User ID */
+	__u32	ac_gid;			/* Group ID */
+	__u32	ac_pid;			/* Process ID */
+	__u32	ac_ppid;		/* Parent process ID */
+	__u32	ac_btime;		/* Begin time [sec since 1970] */
+	__u64	ac_etime;		/* Elapsed time [usec] */
+	__u64	ac_utime;		/* User CPU time [usec] */
+	__u64	ac_stime;		/* SYstem CPU time [usec] */
+	__u64	ac_minflt;		/* Minor Page Fault */
+	__u64	ac_majflt;		/* Major Page Fault */
+	/* Basic Accounting Fields end */
 };
 
 
