@@ -84,6 +84,7 @@ static inline int hard_smp_processor_id(void)
 #endif
 #endif
 
+extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern unsigned int num_processors;
@@ -92,6 +93,7 @@ extern unsigned int num_processors;
 
 #else /* CONFIG_SMP */
 
+#define safe_smp_processor_id()		0
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
