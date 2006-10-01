@@ -436,6 +436,7 @@ cleanup_module(void)
 #ifdef CONFIG_PCI
 		if (ip2config.type[i] == PCI && ip2config.pci_dev[i]) {
 			pci_disable_device(ip2config.pci_dev[i]);
+			pci_dev_put(ip2config.pci_dev[i]);
 			ip2config.pci_dev[i] = NULL;
 		}
 #endif
@@ -505,6 +506,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 	static int loaded;
 	i2eBordStrPtr pB = NULL;
 	int rc = -1;
+	static struct pci_dev *pci_dev_i = NULL;
 
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_ENTER, 0 );
 
@@ -588,8 +590,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		case PCI:
 #ifdef CONFIG_PCI
 			{
-				struct pci_dev *pci_dev_i = NULL;
-				pci_dev_i = pci_find_device(PCI_VENDOR_ID_COMPUTONE,
+				pci_dev_i = pci_get_device(PCI_VENDOR_ID_COMPUTONE,
 							  PCI_DEVICE_ID_COMPUTONE_IP2EX, pci_dev_i);
 				if (pci_dev_i != NULL) {
 					unsigned int addr;
@@ -600,7 +601,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 						break;
 					}
 					ip2config.type[i] = PCI;
-					ip2config.pci_dev[i] = pci_dev_i;
+					ip2config.pci_dev[i] = pci_dev_get(pci_dev_i);
 					status =
 					pci_read_config_dword(pci_dev_i, PCI_BASE_ADDRESS_1, &addr);
 					if ( addr & 1 ) {
@@ -641,6 +642,9 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 			break;
 		}	/* switch */
 	}	/* for */
+	if (pci_dev_i)
+		pci_dev_put(pci_dev_i);
+
 	for ( i = 0; i < IP2_MAX_BOARDS; ++i ) {
 		if ( ip2config.addr[i] ) {
 			pB = kmalloc( sizeof(i2eBordStr), GFP_KERNEL);
