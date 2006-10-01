@@ -80,7 +80,7 @@ static inline void ntfs_unmap_page(struct page *page)
  *
  * The unlocked and uptodate page is returned on success or an encoded error
  * on failure. Caller has to test for error using the IS_ERR() macro on the
- * return value. If that evaluates to TRUE, the negative error code can be
+ * return value. If that evaluates to 'true', the negative error code can be
  * obtained using PTR_ERR() on the return value of ntfs_map_page().
  */
 static inline struct page *ntfs_map_page(struct address_space *mapping,

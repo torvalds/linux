@@ -34,18 +34,18 @@
  * @start_bit:		first bit to set
  * @count:		number of bits to set
  * @value:		value to set the bits to (i.e. 0 or 1)
- * @is_rollback:	if TRUE this is a rollback operation
+ * @is_rollback:	if 'true' this is a rollback operation
  *
  * Set @count bits starting at bit @start_bit in the bitmap described by the
  * vfs inode @vi to @value, where @value is either 0 or 1.
  *
- * @is_rollback should always be FALSE, it is for internal use to rollback
+ * @is_rollback should always be 'false', it is for internal use to rollback
  * errors.  You probably want to use ntfs_bitmap_set_bits_in_run() instead.
  *
  * Return 0 on success and -errno on error.
  */
 int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
-		const s64 count, const u8 value, const BOOL is_rollback)
+		const s64 count, const u8 value, const bool is_rollback)
 {
 	s64 cnt = count;
 	pgoff_t index, end_index;
@@ -172,7 +172,7 @@ rollback:
 		return PTR_ERR(page);
 	if (count != cnt)
 		pos = __ntfs_bitmap_set_bits_in_run(vi, start_bit, count - cnt,
-				value ? 0 : 1, TRUE);
+				value ? 0 : 1, true);
 	else
 		pos = 0;
 	if (!pos) {
