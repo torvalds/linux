@@ -26,6 +26,7 @@
 
 #include <asm/tlbflush.h>
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
@@ -192,6 +193,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	writeback_set_ratelimit();
 	return 0;
 }
+#endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 
 static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
 {
