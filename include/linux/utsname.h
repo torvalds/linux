@@ -32,5 +32,15 @@ struct new_utsname {
 
 extern struct new_utsname system_utsname;
 
+static inline struct new_utsname *utsname(void)
+{
+	return &system_utsname;
+}
+
+static inline struct new_utsname *init_utsname(void)
+{
+	return &system_utsname;
+}
+
 extern struct rw_semaphore uts_sem;
 #endif
