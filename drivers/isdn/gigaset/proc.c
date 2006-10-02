@@ -83,5 +83,6 @@ void gigaset_init_dev_sysfs(struct cardstate *cs)
 		return;
 
 	gig_dbg(DEBUG_INIT, "setting up sysfs");
-	class_device_create_file(cs->class, &class_device_attr_cidmode);
+	if (class_device_create_file(cs->class, &class_device_attr_cidmode))
+		dev_err(cs->dev, "could not create sysfs attribute\n");
 }
