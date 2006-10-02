@@ -2280,7 +2280,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		loop_id = NPH_F_PORT;
 	else
 		loop_id = SNS_FL_PORT;
-	rval = qla2x00_get_port_name(ha, loop_id, NULL, 0);
+	rval = qla2x00_get_port_name(ha, loop_id, ha->fabric_node_name, 1);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): MBC_GET_PORT_NAME Failed, No FL "
 		    "Port\n", ha->host_no));
@@ -2288,6 +2288,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		ha->device_flags &= ~SWITCH_FOUND;
 		return (QLA_SUCCESS);
 	}
+	ha->device_flags |= SWITCH_FOUND;
 
 	/* Mark devices that need re-synchronization. */
 	rval2 = qla2x00_device_resync(ha);

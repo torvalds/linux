@@ -2362,6 +2362,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		*node_name;
 	uint8_t		*port_name;
+	uint8_t		fabric_node_name[WWN_SIZE];
 	uint32_t    isp_abort_cnt;
 
 	/* Option ROM information. */
