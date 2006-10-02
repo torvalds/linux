@@ -402,11 +402,6 @@ __asm__ __volatile__ ( \
 __syscall_return(type,__res); \
 }
 
-
-#ifdef __KERNEL_SYSCALLS__
-static __inline__ _syscall3(int,execve,const char*,file,char**,argv,char**,envp)
-#endif
-
 /*
  * "Conditional" syscalls
  *

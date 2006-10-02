@@ -322,67 +322,6 @@
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
 
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/linkage.h>
-
-/*
- * we need this inline - forking from kernel space will result
- * in NO COPY ON WRITE (!!!), until an execve is executed. This
- * is no problem, but for the stack. This is handled by not letting
- * main() use the stack at all after fork(). Thus, no function
- * calls - which means inline code for fork too, as otherwise we
- * would use the stack upon exit from 'fork()'.
- *
- * Actually only pause and fork are needed inline, so that there
- * won't be any messing with the stack from main(), but we define
- * some others too.
- */
-#define __NR__exit __NR_exit
-static inline _syscall0(pid_t,setsid)
-static inline _syscall3(int,write,int,fd,const char *,buf,off_t,count)
-static inline _syscall3(int,read,int,fd,char *,buf,off_t,count)
-static inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
-static inline _syscall1(int,dup,int,fd)
-static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
-static inline _syscall1(int,close,int,fd)
-
-struct pt_regs;
-asmlinkage long sys_mmap2(
-			unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_execve(const char *fname, char **argv, char **envp,
-			long r13, long mof, long srp, struct pt_regs *regs);
-asmlinkage int sys_clone(unsigned long newusp, unsigned long flags,
-			int* parent_tid, int* child_tid, long mof, long srp,
-			struct pt_regs *regs);
-asmlinkage int sys_fork(long r10, long r11, long r12, long r13,
-			long mof, long srp, struct pt_regs *regs);
-asmlinkage int sys_vfork(long r10, long r11, long r12, long r13,
-			long mof, long srp, struct pt_regs *regs);
-asmlinkage int sys_pipe(unsigned long __user *fildes);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
-
-/*
- * Since we define it "external", it collides with the built-in
- * definition, which has the "noreturn" attribute and will cause
- * complaints.  We don't want to use -fno-builtin, so just use a
- * different name when in the kernel.
- */
-#define _exit kernel_syscall_exit
-static inline _syscall1(int,_exit,int,exitcode)
-static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
-#endif /* __KERNEL_SYSCALLS__ */
-
-
 /*
  * "Conditional" syscalls
  *
