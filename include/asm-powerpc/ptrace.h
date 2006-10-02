@@ -73,6 +73,8 @@ struct pt_regs {
 #ifndef __ASSEMBLY__
 
 #define instruction_pointer(regs) ((regs)->nip)
+#define regs_return_value(regs) ((regs)->gpr[3])
+
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *regs);
 #else

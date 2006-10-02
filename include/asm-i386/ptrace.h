@@ -47,7 +47,10 @@ static inline int user_mode_vm(struct pt_regs *regs)
 {
 	return ((regs->xcs & SEGMENT_RPL_MASK) | (regs->eflags & VM_MASK)) >= USER_RPL;
 }
+
 #define instruction_pointer(regs) ((regs)->eip)
+#define regs_return_value(regs) ((regs)->eax)
+
 extern unsigned long profile_pc(struct pt_regs *regs);
 #endif /* __KERNEL__ */
 
