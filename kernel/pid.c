@@ -53,12 +53,12 @@ int pid_max_max = PID_MAX_LIMIT;
  * value does not cause lots of bitmaps to be allocated, but
  * the scheme scales to up to 4 million PIDs, runtime.
  */
-typedef struct pidmap {
+struct pidmap {
 	atomic_t nr_free;
 	void *page;
-} pidmap_t;
+};
 
-static pidmap_t pidmap_array[PIDMAP_ENTRIES] =
+static struct pidmap pidmap_array[PIDMAP_ENTRIES] =
 	 { [ 0 ... PIDMAP_ENTRIES-1 ] = { ATOMIC_INIT(BITS_PER_PAGE), NULL } };
 
 /*
@@ -78,7 +78,7 @@ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
 static fastcall void free_pidmap(int pid)
 {
-	pidmap_t *map = pidmap_array + pid / BITS_PER_PAGE;
+	struct pidmap *map = pidmap_array + pid / BITS_PER_PAGE;
 	int offset = pid & BITS_PER_PAGE_MASK;
 
 	clear_bit(offset, map->page);
@@ -88,7 +88,7 @@ static fastcall void free_pidmap(int pid)
 static int alloc_pidmap(void)
 {
 	int i, offset, max_scan, pid, last = last_pid;
-	pidmap_t *map;
+	struct pidmap *map;
 
 	pid = last + 1;
 	if (pid >= pid_max)
