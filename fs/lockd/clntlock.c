@@ -202,7 +202,7 @@ reclaimer(void *ptr)
 	/* This one ensures that our parent doesn't terminate while the
 	 * reclaim is in progress */
 	lock_kernel();
-	lockd_up();
+	lockd_up(0);
 
 	nlmclnt_prepare_reclaim(host);
 	/* First, reclaim all locks that have been marked. */

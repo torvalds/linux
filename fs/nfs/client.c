@@ -460,7 +460,8 @@ static int nfs_start_lockd(struct nfs_server *server)
 		goto out;
 	if (server->flags & NFS_MOUNT_NONLM)
 		goto out;
-	error = lockd_up();
+	error = lockd_up((server->flags & NFS_MOUNT_TCP) ?
+			IPPROTO_TCP : IPPROTO_UDP);
 	if (error < 0)
 		server->flags |= NFS_MOUNT_NONLM;
 	else

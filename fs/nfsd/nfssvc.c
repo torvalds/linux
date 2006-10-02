@@ -134,6 +134,9 @@ static int killsig;	/* signal that was used to kill last nfsd */
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
+	struct svc_sock *svsk;
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
+		lockd_down();
 	nfsd_serv = NULL;
 	nfsd_racache_shutdown();
 	nfs4_state_shutdown();
@@ -218,9 +221,14 @@ nfsd_svc(unsigned short port, int nrservs)
 		error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
 		if (error < 0)
 			goto failure;
-
+		error = lockd_up(IPPROTO_UDP);
+		if (error < 0)
+			goto failure;
 #ifdef CONFIG_NFSD_TCP
 		error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
+		if (error < 0)
+			goto failure;
+		error = lockd_up(IPPROTO_TCP);
 		if (error < 0)
 			goto failure;
 #endif
@@ -306,8 +314,6 @@ nfsd(struct svc_rqst *rqstp)
 
 	nfsdstats.th_cnt++;
 
-	lockd_up();				/* start lockd */
-
 	me.task = current;
 	list_add(&me.list, &nfsd_list);
 
@@ -364,13 +370,11 @@ nfsd(struct svc_rqst *rqstp)
 				break;
 		killsig = signo;
 	}
-	/* Clear signals before calling lockd_down() and svc_exit_thread() */
+	/* Clear signals before calling svc_exit_thread() */
 	flush_signals(current);
 
 	lock_kernel();
 
-	/* Release lockd */
-	lockd_down();
 	list_del(&me.list);
 	nfsdstats.th_cnt --;
 

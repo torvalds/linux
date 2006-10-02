@@ -31,6 +31,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
+#include <net/ip.h>
 #include <linux/lockd/lockd.h>
 #include <linux/nfs.h>
 
@@ -46,6 +47,7 @@ EXPORT_SYMBOL(nlmsvc_ops);
 static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static pid_t			nlmsvc_pid;
+static struct svc_serv		*nlmsvc_serv;
 int				nlmsvc_grace_period;
 unsigned long			nlmsvc_timeout;
 
@@ -112,6 +114,7 @@ lockd(struct svc_rqst *rqstp)
 	 * Let our maker know we're running.
 	 */
 	nlmsvc_pid = current->pid;
+	nlmsvc_serv = serv;
 	complete(&lockd_start_done);
 
 	daemonize("lockd");
@@ -189,6 +192,7 @@ lockd(struct svc_rqst *rqstp)
 			nlmsvc_invalidate_all();
 		nlm_shutdown_hosts();
 		nlmsvc_pid = 0;
+		nlmsvc_serv = NULL;
 	} else
 		printk(KERN_DEBUG
 			"lockd: new process, skipping host shutdown\n");
@@ -205,11 +209,42 @@ lockd(struct svc_rqst *rqstp)
 	module_put_and_exit(0);
 }
 
+
+static int find_socket(struct svc_serv *serv, int proto)
+{
+	struct svc_sock *svsk;
+	int found = 0;
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
+		if (svsk->sk_sk->sk_protocol == proto) {
+			found = 1;
+			break;
+		}
+	return found;
+}
+
+static int make_socks(struct svc_serv *serv, int proto)
+{
+	/* Make any sockets that are needed but not present.
+	 * If nlm_udpport or nlm_tcpport were set as module
+	 * options, make those sockets unconditionally
+	 */
+	int err = 0;
+	if (proto == IPPROTO_UDP || nlm_udpport)
+		if (!find_socket(serv, IPPROTO_UDP))
+			err = svc_makesock(serv, IPPROTO_UDP, nlm_udpport);
+	if (err)
+		return err;
+	if (proto == IPPROTO_TCP || nlm_tcpport)
+		if (!find_socket(serv, IPPROTO_TCP))
+			err= svc_makesock(serv, IPPROTO_TCP, nlm_tcpport);
+	return err;
+}
+
 /*
  * Bring up the lockd process if it's not already up.
  */
 int
-lockd_up(void)
+lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 {
 	static int		warned;
 	struct svc_serv *	serv;
@@ -224,8 +259,10 @@ lockd_up(void)
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_pid)
+	if (nlmsvc_pid) {
+		error = make_socks(nlmsvc_serv, proto);
 		goto out;
+	}
 
 	/*
 	 * Sanity check: if there's no pid,
@@ -242,11 +279,7 @@ lockd_up(void)
 		goto out;
 	}
 
-	if ((error = svc_makesock(serv, IPPROTO_UDP, nlm_udpport)) < 0 
-#ifdef CONFIG_NFSD_TCP
-	 || (error = svc_makesock(serv, IPPROTO_TCP, nlm_tcpport)) < 0
-#endif
-		) {
+	if ((error = make_socks(serv, proto)) < 0) {
 		if (warned++ == 0) 
 			printk(KERN_WARNING
 				"lockd_up: makesock failed, error=%d\n", error);

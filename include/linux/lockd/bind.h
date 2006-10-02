@@ -30,7 +30,7 @@ extern struct nlmsvc_binding *	nlmsvc_ops;
  * Functions exported by the lockd module
  */
 extern int	nlmclnt_proc(struct inode *, int, struct file_lock *);
-extern int	lockd_up(void);
+extern int	lockd_up(int proto);
 extern void	lockd_down(void);
 
 #endif /* LINUX_LOCKD_BIND_H */
