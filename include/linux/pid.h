@@ -102,42 +102,29 @@ static inline pid_t pid_nr(struct pid *pid)
 	return nr;
 }
 
-#define pid_next(task, type)					\
-	((task)->pids[(type)].node.next)
 
-#define pid_next_task(task, type) 				\
-	hlist_entry(pid_next(task, type), struct task_struct,	\
-			pids[(type)].node)
+#define do_each_task_pid(who, type, task)					\
+	do {									\
+		struct hlist_node *pos___;					\
+		struct pid *pid___ = find_pid(who);				\
+		if (pid___ != NULL)						\
+			hlist_for_each_entry_rcu((task), pos___,		\
+				&pid___->tasks[type], pids[type].node) {
+
+#define while_each_task_pid(who, type, task)					\
+			}							\
+	} while (0)
 
 
-/* We could use hlist_for_each_entry_rcu here but it takes more arguments
- * than the do_each_task_pid/while_each_task_pid.  So we roll our own
- * to preserve the existing interface.
- */
-#define do_each_task_pid(who, type, task)				\
-	if ((task = find_task_by_pid_type(type, who))) {		\
-		prefetch(pid_next(task, type));				\
-		do {
+#define do_each_pid_task(pid, type, task)					\
+	do {									\
+		struct hlist_node *pos___;					\
+		if (pid != NULL)						\
+			hlist_for_each_entry_rcu((task), pos___,		\
+				&pid->tasks[type], pids[type].node) {
 
-#define while_each_task_pid(who, type, task)				\
-		} while (pid_next(task, type) &&  ({			\
-				task = pid_next_task(task, type);	\
-				rcu_dereference(task);			\
-				prefetch(pid_next(task, type));		\
-				1; }) );				\
-	}
-
-#define do_each_pid_task(pid, type, task)				\
-	if ((task = pid_task(pid, type))) {				\
-		prefetch(pid_next(task, type));				\
-		do {
-
-#define while_each_pid_task(pid, type, task)				\
-		} while (pid_next(task, type) &&  ({			\
-				task = pid_next_task(task, type);	\
-				rcu_dereference(task);			\
-				prefetch(pid_next(task, type));		\
-				1; }) );				\
-	}
+#define while_each_pid_task(pid, type, task)					\
+			}							\
+	} while (0)
 
 #endif /* _LINUX_PID_H */
