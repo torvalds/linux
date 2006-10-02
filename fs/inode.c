@@ -657,7 +657,7 @@ static struct inode * get_new_inode_fast(struct super_block *sb, struct hlist_he
 	return inode;
 }
 
-static inline unsigned long hash(struct super_block *sb, unsigned long hashval)
+static unsigned long hash(struct super_block *sb, unsigned long hashval)
 {
 	unsigned long tmp;
 
@@ -1003,7 +1003,7 @@ void generic_delete_inode(struct inode *inode)
 
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
-	inode->i_state|=I_FREEING;
+	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
@@ -1210,13 +1210,15 @@ void file_update_time(struct file *file)
 		return;
 
 	now = current_fs_time(inode->i_sb);
-	if (!timespec_equal(&inode->i_mtime, &now))
+	if (!timespec_equal(&inode->i_mtime, &now)) {
+		inode->i_mtime = now;
 		sync_it = 1;
-	inode->i_mtime = now;
+	}
 
-	if (!timespec_equal(&inode->i_ctime, &now))
+	if (!timespec_equal(&inode->i_ctime, &now)) {
+		inode->i_ctime = now;
 		sync_it = 1;
-	inode->i_ctime = now;
+	}
 
 	if (sync_it)
 		mark_inode_dirty_sync(inode);
