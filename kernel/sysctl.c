@@ -139,7 +139,7 @@ static int parse_table(int __user *, int, void __user *, size_t __user *,
 		void __user *, size_t, ctl_table *, void **);
 #endif
 
-static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
+static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
 static ctl_table root_table[];
@@ -229,51 +229,100 @@ static ctl_table root_table[] = {
 };
 
 static ctl_table kern_table[] = {
+#ifndef CONFIG_UTS_NS
 	{
 		.ctl_name	= KERN_OSTYPE,
 		.procname	= "ostype",
-		.data		= system_utsname.sysname,
-		.maxlen		= sizeof(system_utsname.sysname),
+		.data		= init_uts_ns.name.sysname,
+		.maxlen		= sizeof(init_uts_ns.name.sysname),
 		.mode		= 0444,
-		.proc_handler	= &proc_doutsstring,
+		.proc_handler	= &proc_do_uts_string,
 		.strategy	= &sysctl_string,
 	},
 	{
 		.ctl_name	= KERN_OSRELEASE,
 		.procname	= "osrelease",
-		.data		= system_utsname.release,
-		.maxlen		= sizeof(system_utsname.release),
+		.data		= init_uts_ns.name.release,
+		.maxlen		= sizeof(init_uts_ns.name.release),
 		.mode		= 0444,
-		.proc_handler	= &proc_doutsstring,
+		.proc_handler	= &proc_do_uts_string,
 		.strategy	= &sysctl_string,
 	},
 	{
 		.ctl_name	= KERN_VERSION,
 		.procname	= "version",
-		.data		= system_utsname.version,
-		.maxlen		= sizeof(system_utsname.version),
+		.data		= init_uts_ns.name.version,
+		.maxlen		= sizeof(init_uts_ns.name.version),
 		.mode		= 0444,
-		.proc_handler	= &proc_doutsstring,
+		.proc_handler	= &proc_do_uts_string,
 		.strategy	= &sysctl_string,
 	},
 	{
 		.ctl_name	= KERN_NODENAME,
 		.procname	= "hostname",
-		.data		= system_utsname.nodename,
-		.maxlen		= sizeof(system_utsname.nodename),
+		.data		= init_uts_ns.name.nodename,
+		.maxlen		= sizeof(init_uts_ns.name.nodename),
 		.mode		= 0644,
-		.proc_handler	= &proc_doutsstring,
+		.proc_handler	= &proc_do_uts_string,
 		.strategy	= &sysctl_string,
 	},
 	{
 		.ctl_name	= KERN_DOMAINNAME,
 		.procname	= "domainname",
-		.data		= system_utsname.domainname,
-		.maxlen		= sizeof(system_utsname.domainname),
+		.data		= init_uts_ns.name.domainname,
+		.maxlen		= sizeof(init_uts_ns.name.domainname),
 		.mode		= 0644,
-		.proc_handler	= &proc_doutsstring,
+		.proc_handler	= &proc_do_uts_string,
 		.strategy	= &sysctl_string,
 	},
+#else  /* !CONFIG_UTS_NS */
+	{
+		.ctl_name	= KERN_OSTYPE,
+		.procname	= "ostype",
+		.data		= NULL,
+		/* could maybe use __NEW_UTS_LEN here? */
+		.maxlen		= FIELD_SIZEOF(struct new_utsname, sysname),
+		.mode		= 0444,
+		.proc_handler	= &proc_do_uts_string,
+		.strategy	= &sysctl_string,
+	},
+	{
+		.ctl_name	= KERN_OSRELEASE,
+		.procname	= "osrelease",
+		.data		= NULL,
+		.maxlen		= FIELD_SIZEOF(struct new_utsname, release),
+		.mode		= 0444,
+		.proc_handler	= &proc_do_uts_string,
+		.strategy	= &sysctl_string,
+	},
+	{
+		.ctl_name	= KERN_VERSION,
+		.procname	= "version",
+		.data		= NULL,
+		.maxlen		= FIELD_SIZEOF(struct new_utsname, version),
+		.mode		= 0444,
+		.proc_handler	= &proc_do_uts_string,
+		.strategy	= &sysctl_string,
+	},
+	{
+		.ctl_name	= KERN_NODENAME,
+		.procname	= "hostname",
+		.data		= NULL,
+		.maxlen		= FIELD_SIZEOF(struct new_utsname, nodename),
+		.mode		= 0644,
+		.proc_handler	= &proc_do_uts_string,
+		.strategy	= &sysctl_string,
+	},
+	{
+		.ctl_name	= KERN_DOMAINNAME,
+		.procname	= "domainname",
+		.data		= NULL,
+		.maxlen		= FIELD_SIZEOF(struct new_utsname, domainname),
+		.mode		= 0644,
+		.proc_handler	= &proc_do_uts_string,
+		.strategy	= &sysctl_string,
+	},
+#endif /* !CONFIG_UTS_NS */
 	{
 		.ctl_name	= KERN_PANIC,
 		.procname	= "panic",
@@ -1704,7 +1753,8 @@ int proc_dostring(ctl_table *table, int write, struct file *filp,
  *	to observe. Should this be in kernel/sys.c ????
  */
  
-static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
+#ifndef CONFIG_UTS_NS
+static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int r;
@@ -1720,6 +1770,48 @@ static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
 	}
 	return r;
 }
+#else /* !CONFIG_UTS_NS */
+static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
+		  void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int r;
+	struct uts_namespace* uts_ns = current->nsproxy->uts_ns;
+	char* which;
+
+	switch (table->ctl_name) {
+	case KERN_OSTYPE:
+		which = uts_ns->name.sysname;
+		break;
+	case KERN_NODENAME:
+		which = uts_ns->name.nodename;
+		break;
+	case KERN_OSRELEASE:
+		which = uts_ns->name.release;
+		break;
+	case KERN_VERSION:
+		which = uts_ns->name.version;
+		break;
+	case KERN_DOMAINNAME:
+		which = uts_ns->name.domainname;
+		break;
+	default:
+		r = -EINVAL;
+		goto out;
+	}
+
+	if (!write) {
+		down_read(&uts_sem);
+		r=_proc_do_string(which,table->maxlen,0,filp,buffer,lenp, ppos);
+		up_read(&uts_sem);
+	} else {
+		down_write(&uts_sem);
+		r=_proc_do_string(which,table->maxlen,1,filp,buffer,lenp, ppos);
+		up_write(&uts_sem);
+	}
+ out:
+	return r;
+}
+#endif /* !CONFIG_UTS_NS */
 
 static int do_proc_dointvec_conv(int *negp, unsigned long *lvalp,
 				 int *valp,
@@ -2283,11 +2375,19 @@ int proc_dostring(ctl_table *table, int write, struct file *filp,
 	return -ENOSYS;
 }
 
-static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
-			    void __user *buffer, size_t *lenp, loff_t *ppos)
+static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
+
+#ifdef CONFIG_SYSVIPC
+static int proc_do_ipc_string(ctl_table *table, int write, struct file *filp,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+#endif
 
 int proc_dointvec(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos)
