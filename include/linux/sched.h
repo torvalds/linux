@@ -753,6 +753,7 @@ static inline void prefetch_stack(struct task_struct *t) { }
 struct audit_context;		/* See audit.c */
 struct mempolicy;
 struct pipe_inode_info;
+struct uts_namespace;
 
 enum sleep_type {
 	SLEEP_NORMAL,

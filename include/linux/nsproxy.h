@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 
 struct namespace;
+struct uts_namespace;
 
 /*
  * A structure to contain pointers to all per-process
@@ -21,6 +22,7 @@ struct namespace;
 struct nsproxy {
 	atomic_t count;
 	spinlock_t nslock;
+	struct uts_namespace *uts_ns;
 	struct namespace *namespace;
 };
 extern struct nsproxy init_nsproxy;

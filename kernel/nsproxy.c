@@ -14,6 +14,7 @@
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
 #include <linux/namespace.h>
+#include <linux/utsname.h>
 
 struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
 
@@ -59,6 +60,8 @@ struct nsproxy *dup_namespaces(struct nsproxy *orig)
 	if (ns) {
 		if (ns->namespace)
 			get_namespace(ns->namespace);
+		if (ns->uts_ns)
+			get_uts_ns(ns->uts_ns);
 	}
 
 	return ns;
@@ -97,6 +100,15 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 		goto out;
 	}
 
+	err = copy_utsname(flags, tsk);
+	if (err) {
+		if (new_ns->namespace)
+			put_namespace(new_ns->namespace);
+		tsk->nsproxy = old_ns;
+		put_nsproxy(new_ns);
+		goto out;
+	}
+
 out:
 	put_nsproxy(old_ns);
 	return err;
@@ -106,5 +118,7 @@ void free_nsproxy(struct nsproxy *ns)
 {
 		if (ns->namespace)
 			put_namespace(ns->namespace);
+		if (ns->uts_ns)
+			put_uts_ns(ns->uts_ns);
 		kfree(ns);
 }

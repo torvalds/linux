@@ -4,6 +4,7 @@
 #include <linux/file.h>
 #include <linux/rcupdate.h>
 #include <linux/irqflags.h>
+#include <linux/utsname.h>
 #include <linux/lockdep.h>
 
 #define INIT_FDTABLE \
@@ -72,6 +73,7 @@ extern struct nsproxy init_nsproxy;
 #define INIT_NSPROXY(nsproxy) {						\
 	.count		= ATOMIC_INIT(1),				\
 	.nslock		= SPIN_LOCK_UNLOCKED,				\
+	.uts_ns		= &init_uts_ns,					\
 	.namespace	= NULL,						\
 }
 
