@@ -163,8 +163,6 @@ int register_nls(struct nls_table * nls)
 {
 	struct nls_table ** tmp = &tables;
 
-	if (!nls)
-		return -EINVAL;
 	if (nls->next)
 		return -EBUSY;
 
