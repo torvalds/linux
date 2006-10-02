@@ -386,7 +386,16 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		},
 		.driver_data = keymap_acer_travelmate_240
 	},
-        {
+	{
+		.callback = dmi_matched,
+		.ident = "Acer TravelMate 2424NWXCi",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2420"),
+		},
+		.driver_data = keymap_acer_travelmate_240
+	},
+	{
 		.callback = dmi_matched,
 		.ident = "AOpen 1559AS",
 		.matches = {
