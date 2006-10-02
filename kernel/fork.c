@@ -1589,6 +1589,16 @@ static int unshare_semundo(unsigned long unshare_flags, struct sem_undo_list **n
 	return 0;
 }
 
+#ifndef CONFIG_IPC_NS
+static inline int unshare_ipcs(unsigned long flags, struct ipc_namespace **ns)
+{
+	if (flags & CLONE_NEWIPC)
+		return -EINVAL;
+
+	return 0;
+}
+#endif
+
 /*
  * unshare allows a process to 'unshare' part of the process
  * context which was originally shared using clone.  copy_*
