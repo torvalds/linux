@@ -2142,71 +2142,42 @@ out_no_task:
 }
 
 /*
- * Find the first tgid to return to user space.
+ * Find the first task with tgid >= tgid
  *
- * Usually this is just whatever follows &init_task, but if the users
- * buffer was too small to hold the full list or there was a seek into
- * the middle of the directory we have more work to do.
- *
- * In the case of a short read we start with find_task_by_pid.
- *
- * In the case of a seek we start with &init_task and walk nr
- * threads past it.
  */
-static struct task_struct *first_tgid(int tgid, unsigned int nr)
+static struct task_struct *next_tgid(unsigned int tgid)
 {
-	struct task_struct *pos;
-	rcu_read_lock();
-	if (tgid && nr) {
-		pos = find_task_by_pid(tgid);
-		if (pos && thread_group_leader(pos))
-			goto found;
-	}
-	/* If nr exceeds the number of processes get out quickly */
-	pos = NULL;
-	if (nr && nr >= nr_processes())
-		goto done;
+	struct task_struct *task;
+	struct pid *pid;
 
-	/* If we haven't found our starting place yet start with
-	 * the init_task and walk nr tasks forward.
-	 */
-	for (pos = next_task(&init_task); nr > 0; --nr) {
-		pos = next_task(pos);
-		if (pos == &init_task) {
-			pos = NULL;
-			goto done;
-		}
+	rcu_read_lock();
+retry:
+	task = NULL;
+	pid = find_ge_pid(tgid);
+	if (pid) {
+		tgid = pid->nr + 1;
+		task = pid_task(pid, PIDTYPE_PID);
+		/* What we to know is if the pid we have find is the
+		 * pid of a thread_group_leader.  Testing for task
+		 * being a thread_group_leader is the obvious thing
+		 * todo but there is a window when it fails, due to
+		 * the pid transfer logic in de_thread.
+		 *
+		 * So we perform the straight forward test of seeing
+		 * if the pid we have found is the pid of a thread
+		 * group leader, and don't worry if the task we have
+		 * found doesn't happen to be a thread group leader.
+		 * As we don't care in the case of readdir.
+		 */
+		if (!task || !has_group_leader_pid(task))
+			goto retry;
+		get_task_struct(task);
 	}
-found:
-	get_task_struct(pos);
-done:
 	rcu_read_unlock();
-	return pos;
+	return task;
 }
 
-/*
- * Find the next task in the task list.
- * Return NULL if we loop or there is any error.
- *
- * The reference to the input task_struct is released.
- */
-static struct task_struct *next_tgid(struct task_struct *start)
-{
-	struct task_struct *pos;
-	rcu_read_lock();
-	pos = start;
-	if (pid_alive(start))
-		pos = next_task(start);
-	if (pid_alive(pos) && (pos != &init_task)) {
-		get_task_struct(pos);
-		goto done;
-	}
-	pos = NULL;
-done:
-	rcu_read_unlock();
-	put_task_struct(start);
-	return pos;
-}
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY + (1 /* /proc/self */))
 
 /* for the /proc/ directory itself, after non-process stuff has been done */
 int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
@@ -2223,29 +2194,24 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		filp->f_pos++;
 		nr++;
 	}
-	nr -= 1;
 
-	/* f_version caches the tgid value that the last readdir call couldn't
-	 * return. lseek aka telldir automagically resets f_version to 0.
-	 */
-	tgid = filp->f_version;
-	filp->f_version = 0;
-	for (task = first_tgid(tgid, nr);
+	tgid = filp->f_pos - TGID_OFFSET;
+	for (task = next_tgid(tgid);
 	     task;
-	     task = next_tgid(task), filp->f_pos++) {
+	     put_task_struct(task), task = next_tgid(tgid + 1)) {
 		int len;
 		ino_t ino;
 		tgid = task->pid;
+		filp->f_pos = tgid + TGID_OFFSET;
 		len = snprintf(buf, sizeof(buf), "%d", tgid);
 		ino = fake_ino(tgid, PROC_TGID_INO);
 		if (filldir(dirent, buf, len, filp->f_pos, ino, DT_DIR) < 0) {
-			/* returning this tgid failed, save it as the first
-			 * pid for the next readir call */
-			filp->f_version = tgid;
 			put_task_struct(task);
-			break;
+			goto out;
 		}
 	}
+	filp->f_pos = PID_MAX_LIMIT + TGID_OFFSET;
+out:
 	return 0;
 }
 

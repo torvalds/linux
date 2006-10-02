@@ -145,6 +145,23 @@ static int alloc_pidmap(void)
 	return -1;
 }
 
+static int next_pidmap(int last)
+{
+	int offset;
+	pidmap_t *map;
+
+	offset = (last + 1) & BITS_PER_PAGE_MASK;
+	map = &pidmap_array[(last + 1)/BITS_PER_PAGE];
+	for (; map < &pidmap_array[PIDMAP_ENTRIES]; map++, offset = 0) {
+		if (unlikely(!map->page))
+			continue;
+		offset = find_next_bit((map)->page, BITS_PER_PAGE, offset);
+		if (offset < BITS_PER_PAGE)
+			return mk_pid(map, offset);
+	}
+	return -1;
+}
+
 fastcall void put_pid(struct pid *pid)
 {
 	if (!pid)
@@ -298,6 +315,25 @@ struct pid *find_get_pid(pid_t nr)
 	rcu_read_lock();
 	pid = get_pid(find_pid(nr));
 	rcu_read_unlock();
+
+	return pid;
+}
+
+/*
+ * Used by proc to find the first pid that is greater then or equal to nr.
+ *
+ * If there is a pid at nr this function is exactly the same as find_pid.
+ */
+struct pid *find_ge_pid(int nr)
+{
+	struct pid *pid;
+
+	do {
+		pid = find_pid(nr);
+		if (pid)
+			break;
+		nr = next_pidmap(nr);
+	} while (nr > 0);
 
 	return pid;
 }
