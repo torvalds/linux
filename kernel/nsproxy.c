@@ -82,7 +82,7 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 
 	get_nsproxy(old_ns);
 
-	if (!(flags & CLONE_NEWNS))
+	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS)))
 		return 0;
 
 	new_ns = clone_namespaces(old_ns);
