@@ -1624,8 +1624,9 @@ static ssize_t proc_writesys(struct file * file, const char __user * buf,
 	return do_rw_proc(1, file, (char __user *) buf, count, ppos);
 }
 
-int _proc_do_string(void* data, int maxlen, int write, struct file *filp,
-		    void __user *buffer, size_t *lenp, loff_t *ppos)
+static int _proc_do_string(void* data, int maxlen, int write,
+			   struct file *filp, void __user *buffer,
+			   size_t *lenp, loff_t *ppos)
 {
 	size_t len;
 	char __user *p;
