@@ -26,7 +26,8 @@
  * Create an RPC service
  */
 struct svc_serv *
-svc_create(struct svc_program *prog, unsigned int bufsize)
+svc_create(struct svc_program *prog, unsigned int bufsize,
+	   void (*shutdown)(struct svc_serv *serv))
 {
 	struct svc_serv	*serv;
 	int vers;
@@ -39,6 +40,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize)
 	serv->sv_nrthreads = 1;
 	serv->sv_stats     = prog->pg_stats;
 	serv->sv_bufsz	   = bufsize? bufsize : 4096;
+	serv->sv_shutdown  = shutdown;
 	xdrsize = 0;
 	while (prog) {
 		prog->pg_lovers = prog->pg_nvers-1;
@@ -91,6 +93,9 @@ svc_destroy(struct svc_serv *serv)
 				  sk_list);
 		svc_delete_socket(svsk);
 	}
+	if (serv->sv_shutdown)
+		serv->sv_shutdown(serv);
+
 	while (!list_empty(&serv->sv_permsocks)) {
 		svsk = list_entry(serv->sv_permsocks.next,
 				  struct svc_sock,

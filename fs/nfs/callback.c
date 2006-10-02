@@ -116,7 +116,7 @@ int nfs_callback_up(void)
 		goto out;
 	init_completion(&nfs_callback_info.started);
 	init_completion(&nfs_callback_info.stopped);
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE);
+	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
 	ret = -ENOMEM;
 	if (!serv)
 		goto out_err;
