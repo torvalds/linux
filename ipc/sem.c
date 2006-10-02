@@ -1003,15 +1003,12 @@ static inline void unlock_semundo(void)
 static inline int get_undo_list(struct sem_undo_list **undo_listp)
 {
 	struct sem_undo_list *undo_list;
-	int size;
 
 	undo_list = current->sysvsem.undo_list;
 	if (!undo_list) {
-		size = sizeof(struct sem_undo_list);
-		undo_list = (struct sem_undo_list *) kmalloc(size, GFP_KERNEL);
+		undo_list = kzalloc(sizeof(*undo_list), GFP_KERNEL);
 		if (undo_list == NULL)
 			return -ENOMEM;
-		memset(undo_list, 0, size);
 		spin_lock_init(&undo_list->lock);
 		atomic_set(&undo_list->refcnt, 1);
 		current->sysvsem.undo_list = undo_list;
