@@ -1268,6 +1268,18 @@ static int dvb_init(struct saa7134_dev *dev)
 			}
 		}
 		break;
+	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
+		dev->dvb.frontend = tda10046_attach(&medion_cardbus,
+						    &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
+			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
+		}
+		break;
+
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
 		break;
