@@ -281,7 +281,7 @@ asmlinkage int sys_uname(struct old_utsname * name)
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err=copy_to_user(name, &system_utsname, sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof (*name));
 	up_read(&uts_sem);
 	return err?-EFAULT:0;
 }

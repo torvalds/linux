@@ -889,8 +889,8 @@ static void init_std_data(struct entropy_store *r)
 
 	do_gettimeofday(&tv);
 	add_entropy_words(r, (__u32 *)&tv, sizeof(tv)/4);
-	add_entropy_words(r, (__u32 *)&system_utsname,
-			  sizeof(system_utsname)/4);
+	add_entropy_words(r, (__u32 *)utsname(),
+			  sizeof(*(utsname()))/4);
 }
 
 static int __init rand_initialize(void)

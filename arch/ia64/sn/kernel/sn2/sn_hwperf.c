@@ -423,7 +423,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 			"coherency_domain %d, "
 			"region_size %d\n",
 
-			partid, system_utsname.nodename,
+			partid, utsname()->nodename,
 			shubtype ? "shub2" : "shub1", 
 			(u64)nasid_mask << nasid_shift, nasid_msb, nasid_shift,
 			system_size, sharing_size, coher, region_size);

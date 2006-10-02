@@ -712,13 +712,13 @@ asmlinkage long sys_getdomainname(char __user *name, int len)
 
  	down_read(&uts_sem);
  	
-	nlen = strlen(system_utsname.domainname) + 1;
+	nlen = strlen(utsname()->domainname) + 1;
 	err = -EINVAL;
 	if (nlen > len)
 		goto out;
 
 	err = -EFAULT;
-	if (!copy_to_user(name, system_utsname.domainname, nlen))
+	if (!copy_to_user(name, utsname()->domainname, nlen))
 		err = 0;
 
 out:

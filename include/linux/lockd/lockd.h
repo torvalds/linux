@@ -80,7 +80,7 @@ struct nlm_wait;
 /*
  * Memory chunk for NLM client RPC request.
  */
-#define NLMCLNT_OHSIZE		(sizeof(system_utsname.nodename)+10)
+#define NLMCLNT_OHSIZE		(sizeof(utsname()->nodename)+10)
 struct nlm_rqst {
 	unsigned int		a_flags;	/* initial RPC task flags */
 	struct nlm_host *	a_host;		/* host handle */

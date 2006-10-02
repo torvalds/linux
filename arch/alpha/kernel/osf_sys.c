@@ -402,15 +402,15 @@ osf_utsname(char __user *name)
 
 	down_read(&uts_sem);
 	error = -EFAULT;
-	if (copy_to_user(name + 0, system_utsname.sysname, 32))
+	if (copy_to_user(name + 0, utsname()->sysname, 32))
 		goto out;
-	if (copy_to_user(name + 32, system_utsname.nodename, 32))
+	if (copy_to_user(name + 32, utsname()->nodename, 32))
 		goto out;
-	if (copy_to_user(name + 64, system_utsname.release, 32))
+	if (copy_to_user(name + 64, utsname()->release, 32))
 		goto out;
-	if (copy_to_user(name + 96, system_utsname.version, 32))
+	if (copy_to_user(name + 96, utsname()->version, 32))
 		goto out;
-	if (copy_to_user(name + 128, system_utsname.machine, 32))
+	if (copy_to_user(name + 128, utsname()->machine, 32))
 		goto out;
 
 	error = 0;
@@ -449,8 +449,8 @@ osf_getdomainname(char __user *name, int namelen)
 
 	down_read(&uts_sem);
 	for (i = 0; i < len; ++i) {
-		__put_user(system_utsname.domainname[i], name + i);
-		if (system_utsname.domainname[i] == '\0')
+		__put_user(utsname()->domainname[i], name + i);
+		if (utsname()->domainname[i] == '\0')
 			break;
 	}
 	up_read(&uts_sem);
@@ -607,12 +607,12 @@ osf_sigstack(struct sigstack __user *uss, struct sigstack __user *uoss)
 asmlinkage long
 osf_sysinfo(int command, char __user *buf, long count)
 {
-	static char * sysinfo_table[] = {
-		system_utsname.sysname,
-		system_utsname.nodename,
-		system_utsname.release,
-		system_utsname.version,
-		system_utsname.machine,
+	char *sysinfo_table[] = {
+		utsname()->sysname,
+		utsname()->nodename,
+		utsname()->release,
+		utsname()->version,
+		utsname()->machine,
 		"alpha",	/* instruction set architecture */
 		"dummy",	/* hardware serial number */
 		"dummy",	/* hardware manufacturer */

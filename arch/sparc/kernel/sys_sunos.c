@@ -483,13 +483,18 @@ asmlinkage int sunos_uname(struct sunos_utsname __user *name)
 {
 	int ret;
 	down_read(&uts_sem);
-	ret = copy_to_user(&name->sname[0], &system_utsname.sysname[0], sizeof(name->sname) - 1);
+	ret = copy_to_user(&name->sname[0], &utsname()->sysname[0],
+			   sizeof(name->sname) - 1);
 	if (!ret) {
-		ret |= __copy_to_user(&name->nname[0], &system_utsname.nodename[0], sizeof(name->nname) - 1);
+		ret |= __copy_to_user(&name->nname[0], &utsname()->nodename[0],
+				      sizeof(name->nname) - 1);
 		ret |= __put_user('\0', &name->nname[8]);
-		ret |= __copy_to_user(&name->rel[0], &system_utsname.release[0], sizeof(name->rel) - 1);
-		ret |= __copy_to_user(&name->ver[0], &system_utsname.version[0], sizeof(name->ver) - 1);
-		ret |= __copy_to_user(&name->mach[0], &system_utsname.machine[0], sizeof(name->mach) - 1);
+		ret |= __copy_to_user(&name->rel[0], &utsname()->release[0],
+				      sizeof(name->rel) - 1);
+		ret |= __copy_to_user(&name->ver[0], &utsname()->version[0],
+				      sizeof(name->ver) - 1);
+		ret |= __copy_to_user(&name->mach[0], &utsname()->machine[0],
+				      sizeof(name->mach) - 1);
 	}
 	up_read(&uts_sem);
 	return ret ? -EFAULT : 0;

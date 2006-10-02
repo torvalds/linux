@@ -128,7 +128,7 @@ out:
 
 int sys_uname(struct old_utsname * name)
 {
-	if (name && !copy_to_user(name, &system_utsname, sizeof (*name)))
+	if (name && !copy_to_user(name, utsname(), sizeof (*name)))
 		return 0;
 	return -EFAULT;
 }

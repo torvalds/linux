@@ -325,7 +325,7 @@ static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
 {
 	locks_copy_lock(&call->a_args.lock.fl, &lock->fl);
 	memcpy(&call->a_args.lock.fh, &lock->fh, sizeof(call->a_args.lock.fh));
-	call->a_args.lock.caller = system_utsname.nodename;
+	call->a_args.lock.caller = utsname()->nodename;
 	call->a_args.lock.oh.len = lock->oh.len;
 
 	/* set default data area */

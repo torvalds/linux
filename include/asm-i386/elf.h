@@ -112,7 +112,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define ELF_PLATFORM  (system_utsname.machine)
+#define ELF_PLATFORM  (utsname()->machine)
 
 #define SET_PERSONALITY(ex, ibcs2) do { } while (0)
 

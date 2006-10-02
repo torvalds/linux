@@ -805,7 +805,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 			}
 			break;
 		case 12:	/* Host name */
-			ic_bootp_string(system_utsname.nodename, ext+1, *ext, __NEW_UTS_LEN);
+			ic_bootp_string(utsname()->nodename, ext+1, *ext, __NEW_UTS_LEN);
 			ic_host_name_set = 1;
 			break;
 		case 15:	/* Domain name (DNS) */
@@ -816,7 +816,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 				ic_bootp_string(root_server_path, ext+1, *ext, sizeof(root_server_path));
 			break;
 		case 40:	/* NIS Domain name (_not_ DNS) */
-			ic_bootp_string(system_utsname.domainname, ext+1, *ext, __NEW_UTS_LEN);
+			ic_bootp_string(utsname()->domainname, ext+1, *ext, __NEW_UTS_LEN);
 			break;
 	}
 }
@@ -1368,7 +1368,7 @@ static int __init ip_auto_config(void)
 	printk(", mask=%u.%u.%u.%u", NIPQUAD(ic_netmask));
 	printk(", gw=%u.%u.%u.%u", NIPQUAD(ic_gateway));
 	printk(",\n     host=%s, domain=%s, nis-domain=%s",
-	       system_utsname.nodename, ic_domain, system_utsname.domainname);
+	       utsname()->nodename, ic_domain, utsname()->domainname);
 	printk(",\n     bootserver=%u.%u.%u.%u", NIPQUAD(ic_servaddr));
 	printk(", rootserver=%u.%u.%u.%u", NIPQUAD(root_server_addr));
 	printk(", rootpath=%s", root_server_path);
@@ -1478,11 +1478,11 @@ static int __init ip_auto_config_setup(char *addrs)
 			case 4:
 				if ((dp = strchr(ip, '.'))) {
 					*dp++ = '\0';
-					strlcpy(system_utsname.domainname, dp,
-						sizeof(system_utsname.domainname));
+					strlcpy(utsname()->domainname, dp,
+						sizeof(utsname()->domainname));
 				}
-				strlcpy(system_utsname.nodename, ip,
-					sizeof(system_utsname.nodename));
+				strlcpy(utsname()->nodename, ip,
+					sizeof(utsname()->nodename));
 				ic_host_name_set = 1;
 				break;
 			case 5:

@@ -1655,7 +1655,7 @@ asmlinkage long sys_newuname(struct new_utsname __user * name)
 	int errno = 0;
 
 	down_read(&uts_sem);
-	if (copy_to_user(name,&system_utsname,sizeof *name))
+	if (copy_to_user(name, utsname(), sizeof *name))
 		errno = -EFAULT;
 	up_read(&uts_sem);
 	return errno;
@@ -1673,8 +1673,8 @@ asmlinkage long sys_sethostname(char __user *name, int len)
 	down_write(&uts_sem);
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
-		memcpy(system_utsname.nodename, tmp, len);
-		system_utsname.nodename[len] = 0;
+		memcpy(utsname()->nodename, tmp, len);
+		utsname()->nodename[len] = 0;
 		errno = 0;
 	}
 	up_write(&uts_sem);
@@ -1690,11 +1690,11 @@ asmlinkage long sys_gethostname(char __user *name, int len)
 	if (len < 0)
 		return -EINVAL;
 	down_read(&uts_sem);
-	i = 1 + strlen(system_utsname.nodename);
+	i = 1 + strlen(utsname()->nodename);
 	if (i > len)
 		i = len;
 	errno = 0;
-	if (copy_to_user(name, system_utsname.nodename, i))
+	if (copy_to_user(name, utsname()->nodename, i))
 		errno = -EFAULT;
 	up_read(&uts_sem);
 	return errno;
@@ -1719,8 +1719,8 @@ asmlinkage long sys_setdomainname(char __user *name, int len)
 	down_write(&uts_sem);
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
-		memcpy(system_utsname.domainname, tmp, len);
-		system_utsname.domainname[len] = 0;
+		memcpy(utsname()->domainname, tmp, len);
+		utsname()->domainname[len] = 0;
 		errno = 0;
 	}
 	up_write(&uts_sem);

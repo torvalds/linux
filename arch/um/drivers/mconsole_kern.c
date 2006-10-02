@@ -106,9 +106,9 @@ void mconsole_version(struct mc_request *req)
 {
 	char version[256];
 
-	sprintf(version, "%s %s %s %s %s", system_utsname.sysname,
-		system_utsname.nodename, system_utsname.release,
-		system_utsname.version, system_utsname.machine);
+	sprintf(version, "%s %s %s %s %s", utsname()->sysname,
+		utsname()->nodename, utsname()->release,
+		utsname()->version, utsname()->machine);
 	mconsole_reply(req, version, 0, 0);
 }
 

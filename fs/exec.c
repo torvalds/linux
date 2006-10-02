@@ -1318,7 +1318,7 @@ static void format_corename(char *corename, const char *pattern, long signr)
 			case 'h':
 				down_read(&uts_sem);
 				rc = snprintf(out_ptr, out_end - out_ptr,
-					      "%s", system_utsname.nodename);
+					      "%s", utsname()->nodename);
 				up_read(&uts_sem);
 				if (rc > out_end - out_ptr)
 					goto out;

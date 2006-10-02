@@ -145,7 +145,7 @@ xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 	 */
 	sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
 	if (!(p = xdr_encode_string(p, buffer))
-	 || !(p = xdr_encode_string(p, system_utsname.nodename)))
+	 || !(p = xdr_encode_string(p, utsname()->nodename)))
 		return ERR_PTR(-EIO);
 	*p++ = htonl(argp->prog);
 	*p++ = htonl(argp->vers);
