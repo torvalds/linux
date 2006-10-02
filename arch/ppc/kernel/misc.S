@@ -942,20 +942,16 @@ _GLOBAL(kernel_thread)
 	addi	r1,r1,16
 	blr
 
+_GLOBAL(kernel_execve)
+	li	r0,__NR_execve
+	sc
+	bnslr
+	neg	r3,r3
+	blr
+
 /*
  * This routine is just here to keep GCC happy - sigh...
  */
 _GLOBAL(__main)
 	blr
 
-#define SYSCALL(name) \
-_GLOBAL(name) \
-	li	r0,__NR_##name; \
-	sc; \
-	bnslr; \
-	lis	r4,errno@ha; \
-	stw	r3,errno@l(r4); \
-	li	r3,-1; \
-	blr
-
-SYSCALL(execve)

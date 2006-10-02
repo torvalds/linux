@@ -406,3 +406,32 @@ asmlinkage void bad_stack(void)
 {
 	do_exit(SIGSEGV);
 }
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register unsigned long __a0 asm("$4") = (unsigned long) filename;
+	register unsigned long __a1 asm("$5") = (unsigned long) argv;
+	register unsigned long __a2 asm("$6") = (unsigned long) envp;
+	register unsigned long __a3 asm("$7");
+	unsigned long __v0;
+
+	__asm__ volatile ("					\n"
+	"	.set	noreorder				\n"
+	"	li	$2, %5		# __NR_execve		\n"
+	"	syscall						\n"
+	"	move	%0, $2					\n"
+	"	.set	reorder					\n"
+	: "=&r" (__v0), "=r" (__a3)
+	: "r" (__a0), "r" (__a1), "r" (__a2), "i" (__NR_execve)
+	: "$2", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$24",
+	  "memory");
+
+	if (__a3 == 0)
+		return __v0;
+
+	return -__v0;
+}

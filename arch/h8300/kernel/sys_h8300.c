@@ -25,6 +25,7 @@
 #include <asm/cachectl.h>
 #include <asm/traps.h>
 #include <asm/ipc.h>
+#include <asm/unistd.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating
@@ -280,3 +281,26 @@ asmlinkage void syscall_print(void *dummy,...)
                ((regs->pc)&0xffffff)-2,regs->orig_er0,regs->er1,regs->er2,regs->er3,regs->er0);
 }
 #endif
+
+/*
+ * Do a system call from kernel instead of calling sys_execve so we
+ * end up with proper pt_regs.
+ */
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	register long res __asm__("er0");
+	register const char * _a __asm__("er1") = filename;
+	register void *_b __asm__("er2") = argv;
+	register void *_c __asm__("er3") = envp;
+	__asm__ __volatile__ ("mov.l %1,er0\n\t"
+			"trapa	#0\n\t"
+			: "=r" (res)
+			: "g" (__NR_execve),
+			  "g" (_a),
+			  "g" (_b),
+			  "g" (_c)
+			: "cc", "memory");
+	return res;
+}
+
+
