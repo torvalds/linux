@@ -1608,13 +1608,15 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct sem_undo_list *new_ulist = NULL;
 	struct nsproxy *new_nsproxy = NULL, *old_nsproxy = NULL;
 	struct uts_namespace *uts, *new_uts = NULL;
+	struct ipc_namespace *ipc, *new_ipc = NULL;
 
 	check_unshare_flags(&unshare_flags);
 
 	/* Return -EINVAL for all unsupported flags */
 	err = -EINVAL;
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
-				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|CLONE_NEWUTS))
+				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
+				CLONE_NEWUTS|CLONE_NEWIPC))
 		goto bad_unshare_out;
 
 	if ((err = unshare_thread(unshare_flags)))
@@ -1633,18 +1635,20 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		goto bad_unshare_cleanup_fd;
 	if ((err = unshare_utsname(unshare_flags, &new_uts)))
 		goto bad_unshare_cleanup_semundo;
+	if ((err = unshare_ipcs(unshare_flags, &new_ipc)))
+		goto bad_unshare_cleanup_uts;
 
-	if (new_ns || new_uts) {
+	if (new_ns || new_uts || new_ipc) {
 		old_nsproxy = current->nsproxy;
 		new_nsproxy = dup_namespaces(old_nsproxy);
 		if (!new_nsproxy) {
 			err = -ENOMEM;
-			goto bad_unshare_cleanup_uts;
+			goto bad_unshare_cleanup_ipc;
 		}
 	}
 
 	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist ||
-				new_uts) {
+				new_uts || new_ipc) {
 
 		task_lock(current);
 
@@ -1692,11 +1696,21 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 			new_uts = uts;
 		}
 
+		if (new_ipc) {
+			ipc = current->nsproxy->ipc_ns;
+			current->nsproxy->ipc_ns = new_ipc;
+			new_ipc = ipc;
+		}
+
 		task_unlock(current);
 	}
 
 	if (new_nsproxy)
 		put_nsproxy(new_nsproxy);
+
+bad_unshare_cleanup_ipc:
+	if (new_ipc)
+		put_ipc_ns(new_ipc);
 
 bad_unshare_cleanup_uts:
 	if (new_uts)

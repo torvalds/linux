@@ -74,6 +74,7 @@ extern struct nsproxy init_nsproxy;
 	.count		= ATOMIC_INIT(1),				\
 	.nslock		= SPIN_LOCK_UNLOCKED,				\
 	.uts_ns		= &init_uts_ns,					\
+	.ipc_ns		= &init_ipc_ns,					\
 	.namespace	= NULL,						\
 }
 

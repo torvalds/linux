@@ -7,6 +7,10 @@
  *  modify it under the terms of the GNU General Public License as
  *  published by the Free Software Foundation, version 2 of the
  *  License.
+ *
+ *  Jun 2006 - namespaces support
+ *             OpenVZ, SWsoft Inc.
+ *             Pavel Emelianov <xemul@openvz.org>
  */
 
 #include <linux/module.h>
@@ -62,6 +66,8 @@ struct nsproxy *dup_namespaces(struct nsproxy *orig)
 			get_namespace(ns->namespace);
 		if (ns->uts_ns)
 			get_uts_ns(ns->uts_ns);
+		if (ns->ipc_ns)
+			get_ipc_ns(ns->ipc_ns);
 	}
 
 	return ns;
@@ -82,7 +88,7 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 
 	get_nsproxy(old_ns);
 
-	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS)))
+	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC)))
 		return 0;
 
 	new_ns = clone_namespaces(old_ns);
@@ -94,24 +100,31 @@ int copy_namespaces(int flags, struct task_struct *tsk)
 	tsk->nsproxy = new_ns;
 
 	err = copy_namespace(flags, tsk);
-	if (err) {
-		tsk->nsproxy = old_ns;
-		put_nsproxy(new_ns);
-		goto out;
-	}
+	if (err)
+		goto out_ns;
 
 	err = copy_utsname(flags, tsk);
-	if (err) {
-		if (new_ns->namespace)
-			put_namespace(new_ns->namespace);
-		tsk->nsproxy = old_ns;
-		put_nsproxy(new_ns);
-		goto out;
-	}
+	if (err)
+		goto out_uts;
+
+	err = copy_ipcs(flags, tsk);
+	if (err)
+		goto out_ipc;
 
 out:
 	put_nsproxy(old_ns);
 	return err;
+
+out_ipc:
+	if (new_ns->uts_ns)
+		put_uts_ns(new_ns->uts_ns);
+out_uts:
+	if (new_ns->namespace)
+		put_namespace(new_ns->namespace);
+out_ns:
+	tsk->nsproxy = old_ns;
+	put_nsproxy(new_ns);
+	goto out;
 }
 
 void free_nsproxy(struct nsproxy *ns)
@@ -120,5 +133,7 @@ void free_nsproxy(struct nsproxy *ns)
 			put_namespace(ns->namespace);
 		if (ns->uts_ns)
 			put_uts_ns(ns->uts_ns);
+		if (ns->ipc_ns)
+			put_ipc_ns(ns->ipc_ns);
 		kfree(ns);
 }

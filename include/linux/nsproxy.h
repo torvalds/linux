@@ -6,6 +6,7 @@
 
 struct namespace;
 struct uts_namespace;
+struct ipc_namespace;
 
 /*
  * A structure to contain pointers to all per-process
@@ -23,6 +24,7 @@ struct nsproxy {
 	atomic_t count;
 	spinlock_t nslock;
 	struct uts_namespace *uts_ns;
+	struct ipc_namespace *ipc_ns;
 	struct namespace *namespace;
 };
 extern struct nsproxy init_nsproxy;
