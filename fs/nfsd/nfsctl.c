@@ -454,12 +454,15 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		err = nfsd_create_serv();
 		if (!err) {
 			int proto = 0;
-			err = svc_addsock(nfsd_serv, fd, buf, &proto);
+			err = lockd_up(proto);
+			if (!err) {
+				err = svc_addsock(nfsd_serv, fd, buf, &proto);
+				if (err)
+					lockd_down();
+			}
 			/* Decrease the count, but don't shutdown the
 			 * the service
 			 */
-			if (err >= 0)
-				lockd_up(proto);
 			nfsd_serv->sv_nrthreads--;
 		}
 		return err;
