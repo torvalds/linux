@@ -347,17 +347,17 @@ struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
  */
 void __kprobes kprobe_flush_task(struct task_struct *tk)
 {
-        struct kretprobe_instance *ri;
-        struct hlist_head *head;
+	struct kretprobe_instance *ri;
+	struct hlist_head *head;
 	struct hlist_node *node, *tmp;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(tk);
-        hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
-                if (ri->task == tk)
-                        recycle_rp_inst(ri);
-        }
+	head = kretprobe_inst_table_head(tk);
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+		if (ri->task == tk)
+			recycle_rp_inst(ri);
+	}
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 }
 
@@ -514,7 +514,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 				(ARCH_INACTIVE_KPROBE_COUNT + 1))
 		register_page_fault_notifier(&kprobe_page_fault_nb);
 
-  	arch_arm_kprobe(p);
+	arch_arm_kprobe(p);
 
 out:
 	mutex_unlock(&kprobe_mutex);

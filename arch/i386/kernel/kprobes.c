@@ -230,20 +230,20 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
 				      struct pt_regs *regs)
 {
 	unsigned long *sara = (unsigned long *)&regs->esp;
-        struct kretprobe_instance *ri;
 
-        if ((ri = get_free_rp_inst(rp)) != NULL) {
-                ri->rp = rp;
-                ri->task = current;
+	struct kretprobe_instance *ri;
+
+	if ((ri = get_free_rp_inst(rp)) != NULL) {
+		ri->rp = rp;
+		ri->task = current;
 		ri->ret_addr = (kprobe_opcode_t *) *sara;
 
 		/* Replace the return addr with trampoline addr */
 		*sara = (unsigned long) &kretprobe_trampoline;
-
-                add_rp_inst(ri);
-        } else {
-                rp->nmissed++;
-        }
+		add_rp_inst(ri);
+	} else {
+		rp->nmissed++;
+	}
 }
 
 /*
@@ -359,7 +359,7 @@ no_kprobe:
  void __kprobes kretprobe_trampoline_holder(void)
  {
 	asm volatile ( ".global kretprobe_trampoline\n"
- 			"kretprobe_trampoline: \n"
+			"kretprobe_trampoline: \n"
 			"	pushf\n"
 			/* skip cs, eip, orig_eax, es, ds */
 			"	subl $20, %esp\n"
@@ -395,14 +395,14 @@ no_kprobe:
  */
 fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 {
-        struct kretprobe_instance *ri = NULL;
-        struct hlist_head *head;
-        struct hlist_node *node, *tmp;
+	struct kretprobe_instance *ri = NULL;
+	struct hlist_head *head;
+	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =(unsigned long)&kretprobe_trampoline;
 
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(current);
+	head = kretprobe_inst_table_head(current);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -413,14 +413,14 @@ fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 	 * We can handle this because:
 	 *     - instances are always inserted at the head of the list
 	 *     - when multiple return probes are registered for the same
-         *       function, the first instance's ret_addr will point to the
+	 *       function, the first instance's ret_addr will point to the
 	 *       real return address, and all the rest will point to
 	 *       kretprobe_trampoline
 	 */
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
-                if (ri->task != current)
+		if (ri->task != current)
 			/* another task is sharing our hash bucket */
-                        continue;
+			continue;
 
 		if (ri->rp && ri->rp->handler){
 			__get_cpu_var(current_kprobe) = &ri->rp->kp;
