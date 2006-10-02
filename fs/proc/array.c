@@ -162,7 +162,7 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 	int g;
 	struct fdtable *fdt = NULL;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	buffer += sprintf(buffer,
 		"State:\t%s\n"
 		"SleepAVG:\t%lu%%\n"
@@ -174,14 +174,13 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 		"Gid:\t%d\t%d\t%d\t%d\n",
 		get_task_state(p),
 		(p->sleep_avg/1024)*100/(1020000000/1024),
-	       	p->tgid,
-		p->pid, pid_alive(p) ? p->group_leader->real_parent->tgid : 0,
-		pid_alive(p) && p->ptrace ? p->parent->pid : 0,
+	       	p->tgid, p->pid,
+	       	pid_alive(p) ? rcu_dereference(p->real_parent)->tgid : 0,
+		pid_alive(p) && p->ptrace ? rcu_dereference(p->parent)->pid : 0,
 		p->uid, p->euid, p->suid, p->fsuid,
 		p->gid, p->egid, p->sgid, p->fsgid);
-	read_unlock(&tasklist_lock);
+
 	task_lock(p);
-	rcu_read_lock();
 	if (p->files)
 		fdt = files_fdtable(p->files);
 	buffer += sprintf(buffer,
