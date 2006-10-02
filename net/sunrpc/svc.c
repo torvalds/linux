@@ -12,6 +12,8 @@
 #include <linux/net.h>
 #include <linux/in.h>
 #include <linux/mm.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -25,8 +27,8 @@
 /*
  * Create an RPC service
  */
-struct svc_serv *
-svc_create(struct svc_program *prog, unsigned int bufsize,
+static struct svc_serv *
+__svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	   void (*shutdown)(struct svc_serv *serv))
 {
 	struct svc_serv	*serv;
@@ -61,7 +63,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 	init_timer(&serv->sv_temptimer);
 	spin_lock_init(&serv->sv_lock);
 
-	serv->sv_nrpools = 1;
+	serv->sv_nrpools = npools;
 	serv->sv_pools =
 		kcalloc(sizeof(struct svc_pool), serv->sv_nrpools,
 			GFP_KERNEL);
@@ -79,12 +81,38 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 		pool->sp_id = i;
 		INIT_LIST_HEAD(&pool->sp_threads);
 		INIT_LIST_HEAD(&pool->sp_sockets);
+		INIT_LIST_HEAD(&pool->sp_all_threads);
 		spin_lock_init(&pool->sp_lock);
 	}
 
 
 	/* Remove any stale portmap registrations */
 	svc_register(serv, 0, 0);
+
+	return serv;
+}
+
+struct svc_serv *
+svc_create(struct svc_program *prog, unsigned int bufsize,
+		void (*shutdown)(struct svc_serv *serv))
+{
+	return __svc_create(prog, bufsize, /*npools*/1, shutdown);
+}
+
+struct svc_serv *
+svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
+		void (*shutdown)(struct svc_serv *serv),
+		  svc_thread_fn func, int sig, struct module *mod)
+{
+	struct svc_serv *serv;
+
+	serv = __svc_create(prog, bufsize, /*npools*/1, shutdown);
+
+	if (serv != NULL) {
+		serv->sv_function = func;
+		serv->sv_kill_signal = sig;
+		serv->sv_module = mod;
+	}
 
 	return serv;
 }
@@ -203,6 +231,7 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 	serv->sv_nrthreads++;
 	spin_lock_bh(&pool->sp_lock);
 	pool->sp_nrthreads++;
+	list_add(&rqstp->rq_all, &pool->sp_all_threads);
 	spin_unlock_bh(&pool->sp_lock);
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
@@ -229,6 +258,109 @@ svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
 }
 
 /*
+ * Choose a pool in which to create a new thread, for svc_set_num_threads
+ */
+static inline struct svc_pool *
+choose_pool(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+{
+	if (pool != NULL)
+		return pool;
+
+ 	return &serv->sv_pools[(*state)++ % serv->sv_nrpools];
+}
+
+/*
+ * Choose a thread to kill, for svc_set_num_threads
+ */
+static inline struct task_struct *
+choose_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+{
+	unsigned int i;
+	struct task_struct *task = NULL;
+
+	if (pool != NULL) {
+		spin_lock_bh(&pool->sp_lock);
+	} else {
+		/* choose a pool in round-robin fashion */
+ 		for (i = 0; i < serv->sv_nrpools; i++) {
+ 			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
+			spin_lock_bh(&pool->sp_lock);
+ 			if (!list_empty(&pool->sp_all_threads))
+ 				goto found_pool;
+			spin_unlock_bh(&pool->sp_lock);
+ 		}
+		return NULL;
+	}
+
+found_pool:
+	if (!list_empty(&pool->sp_all_threads)) {
+		struct svc_rqst *rqstp;
+
+		/*
+		 * Remove from the pool->sp_all_threads list
+		 * so we don't try to kill it again.
+		 */
+		rqstp = list_entry(pool->sp_all_threads.next, struct svc_rqst, rq_all);
+		list_del_init(&rqstp->rq_all);
+		task = rqstp->rq_task;
+    	}
+	spin_unlock_bh(&pool->sp_lock);
+
+	return task;
+}
+
+/*
+ * Create or destroy enough new threads to make the number
+ * of threads the given number.  If `pool' is non-NULL, applies
+ * only to threads in that pool, otherwise round-robins between
+ * all pools.  Must be called with a svc_get() reference and
+ * the BKL held.
+ *
+ * Destroying threads relies on the service threads filling in
+ * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
+ * has been created using svc_create_pooled().
+ *
+ * Based on code that used to be in nfsd_svc() but tweaked
+ * to be pool-aware.
+ */
+int
+svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
+{
+	struct task_struct *victim;
+	int error = 0;
+	unsigned int state = serv->sv_nrthreads-1;
+
+	if (pool == NULL) {
+		/* The -1 assumes caller has done a svc_get() */
+		nrservs -= (serv->sv_nrthreads-1);
+	} else {
+		spin_lock_bh(&pool->sp_lock);
+		nrservs -= pool->sp_nrthreads;
+		spin_unlock_bh(&pool->sp_lock);
+	}
+
+	/* create new threads */
+	while (nrservs > 0) {
+		nrservs--;
+		__module_get(serv->sv_module);
+		error = __svc_create_thread(serv->sv_function, serv,
+					    choose_pool(serv, pool, &state));
+		if (error < 0) {
+			module_put(serv->sv_module);
+			break;
+		}
+	}
+	/* destroy old threads */
+	while (nrservs < 0 &&
+	       (victim = choose_victim(serv, pool, &state)) != NULL) {
+		send_sig(serv->sv_kill_signal, victim, 1);
+		nrservs++;
+	}
+
+	return error;
+}
+
+/*
  * Called from a server thread as it's exiting.  Caller must hold BKL.
  */
 void
@@ -244,6 +376,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 
 	spin_lock_bh(&pool->sp_lock);
 	pool->sp_nrthreads--;
+	list_del(&rqstp->rq_all);
 	spin_unlock_bh(&pool->sp_lock);
 
 	kfree(rqstp);

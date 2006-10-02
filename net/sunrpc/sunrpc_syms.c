@@ -70,6 +70,8 @@ EXPORT_SYMBOL(put_rpccred);
 /* RPC server stuff */
 EXPORT_SYMBOL(svc_create);
 EXPORT_SYMBOL(svc_create_thread);
+EXPORT_SYMBOL(svc_create_pooled);
+EXPORT_SYMBOL(svc_set_num_threads);
 EXPORT_SYMBOL(svc_exit_thread);
 EXPORT_SYMBOL(svc_destroy);
 EXPORT_SYMBOL(svc_drop);

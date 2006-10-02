@@ -17,6 +17,10 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 
+/*
+ * This is the RPC server thread function prototype
+ */
+typedef void		(*svc_thread_fn)(struct svc_rqst *);
 
 /*
  *
@@ -34,6 +38,7 @@ struct svc_pool {
 	struct list_head	sp_threads;	/* idle server threads */
 	struct list_head	sp_sockets;	/* pending sockets */
 	unsigned int		sp_nrthreads;	/* # of threads in pool */
+	struct list_head	sp_all_threads;	/* all server threads */
 } ____cacheline_aligned_in_smp;
 
 /*
@@ -68,6 +73,11 @@ struct svc_serv {
 						/* Callback to use when last thread
 						 * exits.
 						 */
+
+	struct module *		sv_module;	/* optional module to count when
+						 * adding threads */
+	svc_thread_fn		sv_function;	/* main function for threads */
+	int			sv_kill_signal;	/* signal to kill threads */
 };
 
 /*
@@ -164,6 +174,7 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
  */
 struct svc_rqst {
 	struct list_head	rq_list;	/* idle list */
+	struct list_head	rq_all;		/* all threads list */
 	struct svc_sock *	rq_sock;	/* socket */
 	struct sockaddr_in	rq_addr;	/* peer address */
 	int			rq_addrlen;
@@ -218,6 +229,7 @@ struct svc_rqst {
 						 * to prevent encrypting page
 						 * cache pages */
 	wait_queue_head_t	rq_wait;	/* synchronization */
+	struct task_struct	*rq_task;	/* service thread */
 };
 
 /*
@@ -359,17 +371,16 @@ struct svc_procedure {
 };
 
 /*
- * This is the RPC server thread function prototype
- */
-typedef void		(*svc_thread_fn)(struct svc_rqst *);
-
-/*
  * Function prototypes.
  */
 struct svc_serv *  svc_create(struct svc_program *, unsigned int,
 			      void (*shutdown)(struct svc_serv*));
 int		   svc_create_thread(svc_thread_fn, struct svc_serv *);
 void		   svc_exit_thread(struct svc_rqst *);
+struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
+			void (*shutdown)(struct svc_serv*),
+			svc_thread_fn, int sig, struct module *);
+int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
 void		   svc_destroy(struct svc_serv *);
 int		   svc_process(struct svc_rqst *);
 int		   svc_register(struct svc_serv *, int, unsigned short);
