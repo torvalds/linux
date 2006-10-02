@@ -24,7 +24,7 @@ Contents:
 1. General Information
 =======================
 
-The CPUFreq core code is located in linux/kernel/cpufreq.c. This
+The CPUFreq core code is located in drivers/cpufreq/cpufreq.c. This
 cpufreq code offers a standardized interface for the CPUFreq
 architecture drivers (those pieces of code that do actual
 frequency transitions), as well as to "notifiers". These are device
