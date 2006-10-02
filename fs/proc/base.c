@@ -1961,7 +1961,7 @@ retry:
 	return task;
 }
 
-#define TGID_OFFSET (FIRST_PROCESS_ENTRY + (1 /* /proc/self */))
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY + (ARRAY_SIZE(proc_base_stuff) - 1))
 
 static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	struct task_struct *task, int tgid)
