@@ -175,6 +175,8 @@ int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	return res;
 }
 
+#ifdef CONFIG_NFTL_RW
+
 /*
  * Write data and oob to flash
  */
@@ -195,8 +197,6 @@ static int nftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 	*retlen = ops.retlen;
 	return res;
 }
-
-#ifdef CONFIG_NFTL_RW
 
 /* Actual NFTL access routines */
 /* NFTL_findfreeblock: Find a free Erase Unit on the NFTL partition. This function is used
