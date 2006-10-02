@@ -227,15 +227,19 @@ static int make_socks(struct svc_serv *serv, int proto)
 	 * If nlm_udpport or nlm_tcpport were set as module
 	 * options, make those sockets unconditionally
 	 */
+	static int		warned;
 	int err = 0;
 	if (proto == IPPROTO_UDP || nlm_udpport)
 		if (!find_socket(serv, IPPROTO_UDP))
 			err = svc_makesock(serv, IPPROTO_UDP, nlm_udpport);
-	if (err)
-		return err;
-	if (proto == IPPROTO_TCP || nlm_tcpport)
+	if (err == 0 && (proto == IPPROTO_TCP || nlm_tcpport))
 		if (!find_socket(serv, IPPROTO_TCP))
 			err= svc_makesock(serv, IPPROTO_TCP, nlm_tcpport);
+	if (!err)
+		warned = 0;
+	else if (warned++ == 0)
+		printk(KERN_WARNING
+		       "lockd_up: makesock failed, error=%d\n", err);
 	return err;
 }
 
@@ -245,7 +249,6 @@ static int make_socks(struct svc_serv *serv, int proto)
 int
 lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 {
-	static int		warned;
 	struct svc_serv *	serv;
 	int			error = 0;
 
@@ -278,13 +281,8 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 		goto out;
 	}
 
-	if ((error = make_socks(serv, proto)) < 0) {
-		if (warned++ == 0) 
-			printk(KERN_WARNING
-				"lockd_up: makesock failed, error=%d\n", error);
+	if ((error = make_socks(serv, proto)) < 0)
 		goto destroy_and_out;
-	} 
-	warned = 0;
 
 	/*
 	 * Create the kernel thread and wait for it to start.
