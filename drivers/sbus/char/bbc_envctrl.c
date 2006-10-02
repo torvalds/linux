@@ -4,9 +4,6 @@
  * Copyright (C) 2001 David S. Miller (davem@redhat.com)
  */
 
-#define __KERNEL_SYSCALLS__
-static int errno;
-
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -200,7 +197,7 @@ static void do_envctrl_shutdown(struct bbc_cpu_temperature *tp)
 	printk(KERN_CRIT "kenvctrld: Shutting down the system now.\n");
 
 	shutting_down = 1;
-	if (execve("/sbin/shutdown", argv, envp) < 0)
+	if (kernel_execve("/sbin/shutdown", argv, envp) < 0)
 		printk(KERN_CRIT "envctrl: shutdown execution failed\n");
 }
 

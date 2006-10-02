@@ -36,7 +36,6 @@
 #include <asm/cacheflush.h>
 #include <asm/vga.h>
 
-#define __KERNEL_SYSCALLS__
 #include <asm/unistd.h>
 
 extern struct hwrpb_struct *hwrpb;
@@ -116,7 +115,7 @@ EXPORT_SYMBOL(sys_dup);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_write);
 EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(execve);
+EXPORT_SYMBOL(kernel_execve);
 EXPORT_SYMBOL(sys_setsid);
 EXPORT_SYMBOL(sys_wait4);
 

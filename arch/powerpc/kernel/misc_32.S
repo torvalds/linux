@@ -843,7 +843,7 @@ _GLOBAL(kernel_thread)
 	addi	r1,r1,16
 	blr
 
-_GLOBAL(execve)
+_GLOBAL(kernel_execve)
 	li	r0,__NR_execve
 	sc
 	bnslr

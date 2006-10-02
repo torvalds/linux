@@ -556,7 +556,7 @@ _GLOBAL(giveup_altivec)
 
 #endif /* CONFIG_ALTIVEC */
 
-_GLOBAL(execve)
+_GLOBAL(kernel_execve)
 	li	r0,__NR_execve
 	sc
 	bnslr

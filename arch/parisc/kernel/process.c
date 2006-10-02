@@ -368,7 +368,14 @@ out:
 	return error;
 }
 
-unsigned long 
+extern int __execve(const char *filename, char *const argv[],
+		char *const envp[], struct task_struct *task);
+int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+{
+	return __execve(filename, argv, envp, current);
+}
+
+unsigned long
 get_wchan(struct task_struct *p)
 {
 	struct unwind_frame_info info;

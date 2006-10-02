@@ -549,30 +549,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #define __ARCH_WANT_SYS_SOCKETCALL
 #endif
 
-#ifdef __KERNEL_SYSCALLS__
-
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/syscalls.h>
-
-extern long execve(const char *file, char **argv, char **envp);
-
-struct pt_regs;
-asmlinkage int sys_execve(char *filenamei, char **argv, char **envp,
-			struct pt_regs *regs);
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			struct pt_regs *regs);
-asmlinkage int sys_fork(struct pt_regs *regs);
-asmlinkage int sys_vfork(struct pt_regs *regs);
-asmlinkage int sys_pipe(unsigned long *fildes);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				const struct sigaction __user *act,
-				struct sigaction __user *oact,
-				size_t sigsetsize);
-
-#endif /* __KERNEL_SYSCALLS__ */
-
 /*
  * "Conditional" syscalls
  *

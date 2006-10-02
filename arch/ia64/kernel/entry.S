@@ -492,11 +492,11 @@ GLOBAL_ENTRY(prefetch_stack)
 	br.ret.sptk.many rp
 END(prefetch_stack)
 
-GLOBAL_ENTRY(execve)
+GLOBAL_ENTRY(kernel_execve)
 	mov r15=__NR_execve			// put syscall number in place
 	break __BREAK_SYSCALL
 	br.ret.sptk.many rp
-END(execve)
+END(kernel_execve)
 
 GLOBAL_ENTRY(clone)
 	mov r15=__NR_clone			// put syscall number in place

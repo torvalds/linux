@@ -479,13 +479,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #endif
 
 /*
- * System call prototypes.
- */
-#ifdef __KERNEL_SYSCALLS__
-extern int execve(const char *file, char **argv, char **envp);
-#endif /* __KERNEL_SYSCALLS__ */
-
-/*
  * "Conditional" syscalls
  *
  * What we want is __attribute__((weak,alias("sys_ni_syscall"))),

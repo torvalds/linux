@@ -620,10 +620,11 @@ __SYSCALL(__NR_vmsplice, sys_vmsplice)
 #define __NR_move_pages		279
 __SYSCALL(__NR_move_pages, sys_move_pages)
 
-#ifdef __KERNEL__
-
 #define __NR_syscall_max __NR_move_pages
+
+#ifdef __KERNEL__
 #include <linux/err.h>
+#endif
 
 #ifndef __NO_STUBS
 
@@ -662,8 +663,6 @@ do { \
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_TIME
-
-#ifndef __KERNEL_SYSCALLS__
 
 #define __syscall "syscall"
 
@@ -746,83 +745,7 @@ __asm__ volatile ("movq %5,%%r10 ; movq %6,%%r8 ; movq %7,%%r9 ; " __syscall \
 __syscall_return(type,__res); \
 }
 
-#else /* __KERNEL_SYSCALLS__ */
-
-#include <linux/syscalls.h>
-#include <asm/ptrace.h>
-
-/*
- * we need this inline - forking from kernel space will result
- * in NO COPY ON WRITE (!!!), until an execve is executed. This
- * is no problem, but for the stack. This is handled by not letting
- * main() use the stack at all after fork(). Thus, no function
- * calls - which means inline code for fork too, as otherwise we
- * would use the stack upon exit from 'fork()'.
- *
- * Actually only pause and fork are needed inline, so that there
- * won't be any messing with the stack from main(), but we define
- * some others too.
- */
-#define __NR__exit __NR_exit
-
-static inline pid_t setsid(void)
-{
-	return sys_setsid();
-}
-
-static inline ssize_t write(unsigned int fd, char * buf, size_t count)
-{
-	return sys_write(fd, buf, count);
-}
-
-static inline ssize_t read(unsigned int fd, char * buf, size_t count)
-{
-	return sys_read(fd, buf, count);
-}
-
-static inline off_t lseek(unsigned int fd, off_t offset, unsigned int origin)
-{
-	return sys_lseek(fd, offset, origin);
-}
-
-static inline long dup(unsigned int fd)
-{
-	return sys_dup(fd);
-}
-
-/* implemented in asm in arch/x86_64/kernel/entry.S */
-extern int execve(const char *, char * const *, char * const *);
-
-static inline long open(const char * filename, int flags, int mode)
-{
-	return sys_open(filename, flags, mode);
-}
-
-static inline long close(unsigned int fd)
-{
-	return sys_close(fd);
-}
-
-static inline pid_t waitpid(int pid, int * wait_stat, int flags)
-{
-	return sys_wait4(pid, wait_stat, flags, NULL);
-}
-
-extern long sys_mmap(unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long off);
-
-extern int sys_modify_ldt(int func, void *ptr, unsigned long bytecount);
-
-asmlinkage long sys_execve(char *name, char **argv, char **envp,
-			struct pt_regs regs);
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
-			void *parent_tid, void *child_tid,
-			struct pt_regs regs);
-asmlinkage long sys_fork(struct pt_regs regs);
-asmlinkage long sys_vfork(struct pt_regs regs);
-asmlinkage long sys_pipe(int *fildes);
-
+#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 #include <linux/linkage.h>
@@ -839,8 +762,8 @@ asmlinkage long sys_rt_sigaction(int sig,
 				size_t sigsetsize);
 
 #endif  /* __ASSEMBLY__ */
-
-#endif /* __KERNEL_SYSCALLS__ */
+#endif	/* __KERNEL__ */
+#endif	/* __NO_STUBS */
 
 /*
  * "Conditional" syscalls
@@ -849,9 +772,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  * but it doesn't work on all toolchains, so we just do it by hand
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-
-#endif /* __NO_STUBS */
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_64_UNISTD_H_ */

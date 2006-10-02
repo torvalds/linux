@@ -599,4 +599,6 @@ asmlinkage long sys_set_robust_list(struct robust_list_head __user *head,
 				    size_t len);
 asmlinkage long sys_getcpu(unsigned __user *cpu, unsigned __user *node, struct getcpu_cache __user *cache);
 
+int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
+
 #endif
