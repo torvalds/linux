@@ -14,11 +14,13 @@
 #include <linux/genalloc.h>
 
 
-/*
- * Create a new special memory pool.
- *
+/**
+ * gen_pool_create - create a new special memory pool
  * @min_alloc_order: log base 2 of number of bytes each bitmap bit represents
  * @nid: node id of the node the pool structure should be allocated on, or -1
+ *
+ * Create a new special memory pool that can be used to manage special purpose
+ * memory not managed by the regular kmalloc/kfree interface.
  */
 struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 {
@@ -34,15 +36,15 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 }
 EXPORT_SYMBOL(gen_pool_create);
 
-
-/*
- * Add a new chunk of memory to the specified pool.
- *
+/**
+ * gen_pool_add - add a new chunk of special memory to the pool
  * @pool: pool to add new memory chunk to
  * @addr: starting address of memory chunk to add to pool
  * @size: size in bytes of the memory chunk to add to pool
  * @nid: node id of the node the chunk structure and bitmap should be
  *       allocated on, or -1
+ *
+ * Add a new chunk of special memory to the specified pool.
  */
 int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
 		 int nid)
@@ -69,11 +71,12 @@ int gen_pool_add(struct gen_pool *pool, unsigned long addr, size_t size,
 }
 EXPORT_SYMBOL(gen_pool_add);
 
-
-/*
- * Destroy a memory pool. Verifies that there are no outstanding allocations.
- *
+/**
+ * gen_pool_destroy - destroy a special memory pool
  * @pool: pool to destroy
+ *
+ * Destroy the specified special memory pool. Verifies that there are no
+ * outstanding allocations.
  */
 void gen_pool_destroy(struct gen_pool *pool)
 {
@@ -99,13 +102,13 @@ void gen_pool_destroy(struct gen_pool *pool)
 }
 EXPORT_SYMBOL(gen_pool_destroy);
 
-
-/*
- * Allocate the requested number of bytes from the specified pool.
- * Uses a first-fit algorithm.
- *
+/**
+ * gen_pool_alloc - allocate special memory from the pool
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
+ *
+ * Allocate the requested number of bytes from the specified pool.
+ * Uses a first-fit algorithm.
  */
 unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 {
@@ -157,13 +160,13 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 }
 EXPORT_SYMBOL(gen_pool_alloc);
 
-
-/*
- * Free the specified memory back to the specified pool.
- *
+/**
+ * gen_pool_free - free allocated special memory back to the pool
  * @pool: pool to free to
  * @addr: starting address of memory to free back to pool
  * @size: size in bytes of memory to free
+ *
+ * Free previously allocated special memory back to the specified pool.
  */
 void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 {
