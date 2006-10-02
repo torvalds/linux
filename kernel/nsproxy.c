@@ -123,7 +123,7 @@ out_uts:
 		put_namespace(new_ns->namespace);
 out_ns:
 	tsk->nsproxy = old_ns;
-	put_nsproxy(new_ns);
+	kfree(new_ns);
 	goto out;
 }
 
