@@ -77,6 +77,12 @@ struct kprobe {
 	/* location of the probe point */
 	kprobe_opcode_t *addr;
 
+	/* Allow user to indicate symbol name of the probe point */
+	char *symbol_name;
+
+	/* Offset into the symbol */
+	unsigned int offset;
+
 	/* Called before addr is executed. */
 	kprobe_pre_handler_t pre_handler;
 

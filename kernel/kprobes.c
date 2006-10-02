@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/moduleloader.h>
+#include <linux/kallsyms.h>
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
@@ -44,6 +45,16 @@
 
 #define KPROBE_HASH_BITS 6
 #define KPROBE_TABLE_SIZE (1 << KPROBE_HASH_BITS)
+
+
+/*
+ * Some oddball architectures like 64bit powerpc have function descriptors
+ * so this must be overridable.
+ */
+#ifndef kprobe_lookup_name
+#define kprobe_lookup_name(name, addr) \
+	addr = ((kprobe_opcode_t *)(kallsyms_lookup_name(name)))
+#endif
 
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
@@ -446,6 +457,21 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	int ret = 0;
 	struct kprobe *old_p;
 	struct module *probed_mod;
+
+	/*
+	 * If we have a symbol_name argument look it up,
+	 * and add it to the address.  That way the addr
+	 * field can either be global or relative to a symbol.
+	 */
+	if (p->symbol_name) {
+		if (p->addr)
+			return -EINVAL;
+		kprobe_lookup_name(p->symbol_name, p->addr);
+	}
+
+	if (!p->addr)
+		return -EINVAL;
+	p->addr = (kprobe_opcode_t *)(((char *)p->addr)+ p->offset);
 
 	if ((!kernel_text_address((unsigned long) p->addr)) ||
 		in_kprobes_functions((unsigned long) p->addr))
