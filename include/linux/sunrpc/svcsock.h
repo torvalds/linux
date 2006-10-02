@@ -20,6 +20,7 @@ struct svc_sock {
 	struct socket *		sk_sock;	/* berkeley socket layer */
 	struct sock *		sk_sk;		/* INET layer */
 
+	struct svc_pool *	sk_pool;	/* current pool iff queued */
 	struct svc_serv *	sk_server;	/* service for this socket */
 	atomic_t		sk_inuse;	/* use count */
 	unsigned long		sk_flags;

@@ -17,6 +17,25 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 
+
+/*
+ *
+ * RPC service thread pool.
+ *
+ * Pool of threads and temporary sockets.  Generally there is only
+ * a single one of these per RPC service, but on NUMA machines those
+ * services that can benefit from it (i.e. nfs but not lockd) will
+ * have one pool per NUMA node.  This optimisation reduces cross-
+ * node traffic on multi-node NUMA NFS servers.
+ */
+struct svc_pool {
+	unsigned int		sp_id;	    	/* pool id; also node id on NUMA */
+	spinlock_t		sp_lock;	/* protects all fields */
+	struct list_head	sp_threads;	/* idle server threads */
+	struct list_head	sp_sockets;	/* pending sockets */
+	unsigned int		sp_nrthreads;	/* # of threads in pool */
+} ____cacheline_aligned_in_smp;
+
 /*
  * RPC service.
  *
@@ -28,8 +47,6 @@
  * We currently do not support more than one RPC program per daemon.
  */
 struct svc_serv {
-	struct list_head	sv_threads;	/* idle server threads */
-	struct list_head	sv_sockets;	/* pending sockets */
 	struct svc_program *	sv_program;	/* RPC program */
 	struct svc_stat *	sv_stats;	/* RPC statistics */
 	spinlock_t		sv_lock;
@@ -43,6 +60,9 @@ struct svc_serv {
 	struct timer_list	sv_temptimer;	/* timer for aging temporary sockets */
 
 	char *			sv_name;	/* service name */
+
+	unsigned int		sv_nrpools;	/* number of thread pools */
+	struct svc_pool *	sv_pools;	/* array of thread pools */
 
 	void			(*sv_shutdown)(struct svc_serv *serv);
 						/* Callback to use when last thread
@@ -138,6 +158,7 @@ struct svc_rqst {
 	int			rq_addrlen;
 
 	struct svc_serv *	rq_server;	/* RPC service definition */
+	struct svc_pool *	rq_pool;	/* thread pool */
 	struct svc_procedure *	rq_procinfo;	/* procedure info */
 	struct auth_ops *	rq_authop;	/* authentication flavour */
 	struct svc_cred		rq_cred;	/* auth info */

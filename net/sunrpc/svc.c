@@ -32,6 +32,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 	struct svc_serv	*serv;
 	int vers;
 	unsigned int xdrsize;
+	unsigned int i;
 
 	if (!(serv = kzalloc(sizeof(*serv), GFP_KERNEL)))
 		return NULL;
@@ -55,12 +56,32 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 		prog = prog->pg_next;
 	}
 	serv->sv_xdrsize   = xdrsize;
-	INIT_LIST_HEAD(&serv->sv_threads);
-	INIT_LIST_HEAD(&serv->sv_sockets);
 	INIT_LIST_HEAD(&serv->sv_tempsocks);
 	INIT_LIST_HEAD(&serv->sv_permsocks);
 	init_timer(&serv->sv_temptimer);
 	spin_lock_init(&serv->sv_lock);
+
+	serv->sv_nrpools = 1;
+	serv->sv_pools =
+		kcalloc(sizeof(struct svc_pool), serv->sv_nrpools,
+			GFP_KERNEL);
+	if (!serv->sv_pools) {
+		kfree(serv);
+		return NULL;
+	}
+
+	for (i = 0; i < serv->sv_nrpools; i++) {
+		struct svc_pool *pool = &serv->sv_pools[i];
+
+		dprintk("initialising pool %u for %s\n",
+				i, serv->sv_name);
+
+		pool->sp_id = i;
+		INIT_LIST_HEAD(&pool->sp_threads);
+		INIT_LIST_HEAD(&pool->sp_sockets);
+		spin_lock_init(&pool->sp_lock);
+	}
+
 
 	/* Remove any stale portmap registrations */
 	svc_register(serv, 0, 0);
@@ -69,7 +90,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 }
 
 /*
- * Destroy an RPC service
+ * Destroy an RPC service.  Should be called with the BKL held
  */
 void
 svc_destroy(struct svc_serv *serv)
@@ -110,6 +131,7 @@ svc_destroy(struct svc_serv *serv)
 
 	/* Unregister service with the portmapper */
 	svc_register(serv, 0, 0);
+	kfree(serv->sv_pools);
 	kfree(serv);
 }
 
@@ -158,10 +180,11 @@ svc_release_buffer(struct svc_rqst *rqstp)
 }
 
 /*
- * Create a server thread
+ * Create a thread in the given pool.  Caller must hold BKL.
  */
-int
-svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
+static int
+__svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
+		    struct svc_pool *pool)
 {
 	struct svc_rqst	*rqstp;
 	int		error = -ENOMEM;
@@ -178,7 +201,11 @@ svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
 		goto out_thread;
 
 	serv->sv_nrthreads++;
+	spin_lock_bh(&pool->sp_lock);
+	pool->sp_nrthreads++;
+	spin_unlock_bh(&pool->sp_lock);
 	rqstp->rq_server = serv;
+	rqstp->rq_pool = pool;
 	error = kernel_thread((int (*)(void *)) func, rqstp, 0);
 	if (error < 0)
 		goto out_thread;
@@ -193,17 +220,32 @@ out_thread:
 }
 
 /*
- * Destroy an RPC server thread
+ * Create a thread in the default pool.  Caller must hold BKL.
+ */
+int
+svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
+{
+	return __svc_create_thread(func, serv, &serv->sv_pools[0]);
+}
+
+/*
+ * Called from a server thread as it's exiting.  Caller must hold BKL.
  */
 void
 svc_exit_thread(struct svc_rqst *rqstp)
 {
 	struct svc_serv	*serv = rqstp->rq_server;
+	struct svc_pool	*pool = rqstp->rq_pool;
 
 	svc_release_buffer(rqstp);
 	kfree(rqstp->rq_resp);
 	kfree(rqstp->rq_argp);
 	kfree(rqstp->rq_auth_data);
+
+	spin_lock_bh(&pool->sp_lock);
+	pool->sp_nrthreads--;
+	spin_unlock_bh(&pool->sp_lock);
+
 	kfree(rqstp);
 
 	/* Release the server */
