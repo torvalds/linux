@@ -175,8 +175,8 @@ int __init init_cstm_mips_ixx(void)
 			printk(KERN_WARNING "Failed to ioremap\n");
 			for (j = 0; j < i; j++) {
 				if (cstm_mips_ixx_map[j].virt) {
-					iounmap((void *)cstm_mips_ixx_map[j].virt);
-					cstm_mips_ixx_map[j].virt = 0;
+					iounmap(cstm_mips_ixx_map[j].virt);
+					cstm_mips_ixx_map[j].virt = NULL;
 				}
 			}
 			return -EIO;
@@ -214,8 +214,8 @@ int __init init_cstm_mips_ixx(void)
 		else {
 			for (i = 0; i < PHYSMAP_NUMBER; i++) {
 				if (cstm_mips_ixx_map[i].virt) {
-					iounmap((void *)cstm_mips_ixx_map[i].virt);
-					cstm_mips_ixx_map[i].virt = 0;
+					iounmap(cstm_mips_ixx_map[i].virt);
+					cstm_mips_ixx_map[i].virt = NULL;
 				}
 			}
 			return -ENXIO;

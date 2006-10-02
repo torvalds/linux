@@ -126,7 +126,7 @@ static struct mtd_info *redwood_mtd;
 
 int __init init_redwood_flash(void)
 {
-	int err = 0;
+	int err;
 
 	printk(KERN_NOTICE "redwood: flash mapping: %x at %x\n",
 			WINDOW_SIZE, WINDOW_ADDR);

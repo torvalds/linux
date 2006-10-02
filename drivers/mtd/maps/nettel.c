@@ -463,7 +463,7 @@ int __init nettel_init(void)
 
 #ifdef CONFIG_MTD_CFI_INTELEXT
 out_unmap1:
-	iounmap((void *) nettel_intel_map.virt);
+	iounmap(nettel_intel_map.virt);
 #endif
 
 out_unmap2:
