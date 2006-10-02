@@ -920,7 +920,6 @@ fastcall NORET_TYPE void do_exit(long code)
 	exit_sem(tsk);
 	__exit_files(tsk);
 	__exit_fs(tsk);
-	exit_task_namespaces(tsk);
 	exit_thread();
 	cpuset_exit(tsk);
 	exit_keys(tsk);
@@ -935,6 +934,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	tsk->exit_code = code;
 	proc_exit_connector(tsk);
 	exit_notify(tsk);
+	exit_task_namespaces(tsk);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
