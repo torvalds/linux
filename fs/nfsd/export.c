@@ -1178,7 +1178,6 @@ static int e_show(struct seq_file *m, void *p)
 {
 	struct cache_head *cp = p;
 	struct svc_export *exp = container_of(cp, struct svc_export, h);
-	svc_client *clp;
 
 	if (p == (void *)1) {
 		seq_puts(m, "# Version 1.1\n");
@@ -1186,7 +1185,6 @@ static int e_show(struct seq_file *m, void *p)
 		return 0;
 	}
 
-	clp = exp->ex_client;
 	cache_get(&exp->h);
 	if (cache_check(&svc_export_cache, &exp->h, NULL))
 		return 0;
