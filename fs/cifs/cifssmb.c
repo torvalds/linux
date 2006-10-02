@@ -495,7 +495,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 				(int)(utc.tv_sec - ts.tv_sec)));
 			val = (int)(utc.tv_sec - ts.tv_sec);
 			seconds = val < 0 ? -val : val;
-			result = (seconds / IN_TZ_ADJ) * MIN_TZ_ADJ;
+			result = (seconds / MIN_TZ_ADJ) * MIN_TZ_ADJ;
 			remain = seconds % MIN_TZ_ADJ;
 			if(remain >= (MIN_TZ_ADJ / 2))
 				result += MIN_TZ_ADJ;
