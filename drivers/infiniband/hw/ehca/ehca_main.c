@@ -49,7 +49,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0016");
+MODULE_VERSION("SVNEHCA_0017");
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -239,7 +239,7 @@ init_node_guid1:
 	return ret;
 }
 
-int ehca_register_device(struct ehca_shca *shca)
+int ehca_init_device(struct ehca_shca *shca)
 {
 	int ret;
 
@@ -316,11 +316,6 @@ int ehca_register_device(struct ehca_shca *shca)
 	shca->ib_device.detach_mcast	    = ehca_detach_mcast;
 	/* shca->ib_device.process_mad	    = ehca_process_mad;	    */
 	shca->ib_device.mmap		    = ehca_mmap;
-
-	ret = ib_register_device(&shca->ib_device);
-	if (ret)
-		ehca_err(&shca->ib_device,
-			 "ib_register_device() failed ret=%x", ret);
 
 	return ret;
 }
@@ -561,9 +556,9 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		goto probe1;
 	}
 
-	ret = ehca_register_device(shca);
+	ret = ehca_init_device(shca);
 	if (ret) {
-		ehca_gen_err("Cannot register Infiniband device");
+		ehca_gen_err("Cannot init ehca  device struct");
 		goto probe1;
 	}
 
@@ -571,7 +566,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, 2048);
 	if (ret) {
 		ehca_err(&shca->ib_device, "Cannot create EQ.");
-		goto probe2;
+		goto probe1;
 	}
 
 	ret = ehca_create_eq(shca, &shca->neq, EHCA_NEQ, 513);
@@ -600,6 +595,13 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		goto probe5;
 	}
 
+	ret = ib_register_device(&shca->ib_device);
+	if (ret) {
+		ehca_err(&shca->ib_device,
+			 "ib_register_device() failed ret=%x", ret);
+		goto probe6;
+	}
+
 	/* create AQP1 for port 1 */
 	if (ehca_open_aqp1 == 1) {
 		shca->sport[0].port_state = IB_PORT_DOWN;
@@ -607,7 +609,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		if (ret) {
 			ehca_err(&shca->ib_device,
 				 "Cannot create AQP1 for port 1.");
-			goto probe6;
+			goto probe7;
 		}
 	}
 
@@ -618,7 +620,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		if (ret) {
 			ehca_err(&shca->ib_device,
 				 "Cannot create AQP1 for port 2.");
-			goto probe7;
+			goto probe8;
 		}
 	}
 
@@ -630,11 +632,14 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 
 	return 0;
 
-probe7:
+probe8:
 	ret = ehca_destroy_aqp1(&shca->sport[0]);
 	if (ret)
 		ehca_err(&shca->ib_device,
 			 "Cannot destroy AQP1 for port 1. ret=%x", ret);
+
+probe7:
+	ib_unregister_device(&shca->ib_device);
 
 probe6:
 	ret = ehca_dereg_internal_maxmr(shca);
@@ -659,9 +664,6 @@ probe3:
 	if (ret)
 		ehca_err(&shca->ib_device,
 			 "Cannot destroy EQ. ret=%x", ret);
-
-probe2:
-	ib_unregister_device(&shca->ib_device);
 
 probe1:
 	ib_dealloc_device(&shca->ib_device);
@@ -750,7 +752,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	                 "(Rel.: SVNEHCA_0016)\n");
+	                 "(Rel.: SVNEHCA_0017)\n");
 	idr_init(&ehca_qp_idr);
 	idr_init(&ehca_cq_idr);
 	spin_lock_init(&ehca_qp_idr_lock);

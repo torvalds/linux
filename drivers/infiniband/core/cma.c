@@ -874,23 +874,25 @@ static struct rdma_id_private *cma_new_id(struct rdma_cm_id *listen_id,
 	__u16 port;
 	u8 ip_ver;
 
-	id = rdma_create_id(listen_id->event_handler, listen_id->context,
-			    listen_id->ps);
-	if (IS_ERR(id))
-		return NULL;
-
-	rt = &id->route;
-	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths, GFP_KERNEL);
-	if (!rt->path_rec)
-		goto err;
-
 	if (cma_get_net_info(ib_event->private_data, listen_id->ps,
 			     &ip_ver, &port, &src, &dst))
 		goto err;
 
+	id = rdma_create_id(listen_id->event_handler, listen_id->context,
+			    listen_id->ps);
+	if (IS_ERR(id))
+		goto err;
+
 	cma_save_net_info(&id->route.addr, &listen_id->route.addr,
 			  ip_ver, port, src, dst);
+
+	rt = &id->route;
+	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
+	rt->path_rec = kmalloc(sizeof *rt->path_rec * rt->num_paths,
+			       GFP_KERNEL);
+	if (!rt->path_rec)
+		goto destroy_id;
+
 	rt->path_rec[0] = *ib_event->param.req_rcvd.primary_path;
 	if (rt->num_paths == 2)
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
@@ -903,8 +905,10 @@ static struct rdma_id_private *cma_new_id(struct rdma_cm_id *listen_id,
 	id_priv = container_of(id, struct rdma_id_private, id);
 	id_priv->state = CMA_CONNECT;
 	return id_priv;
-err:
+
+destroy_id:
 	rdma_destroy_id(id);
+err:
 	return NULL;
 }
 
@@ -932,6 +936,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	mutex_unlock(&lock);
 	if (ret) {
 		ret = -ENODEV;
+		cma_exch(conn_id, CMA_DESTROYING);
 		cma_release_remove(conn_id);
 		rdma_destroy_id(&conn_id->id);
 		goto out;
@@ -1307,6 +1312,7 @@ static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
 		work->old_state = CMA_ROUTE_QUERY;
 		work->new_state = CMA_ADDR_RESOLVED;
 		work->event.event = RDMA_CM_EVENT_ROUTE_ERROR;
+		work->event.status = status;
 	}
 
 	queue_work(cma_wq, &work->work);
@@ -1862,6 +1868,11 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 
 	ret = ib_send_cm_req(id_priv->cm_id.ib, &req);
 out:
+	if (ret && !IS_ERR(id_priv->cm_id.ib)) {
+		ib_destroy_cm_id(id_priv->cm_id.ib);
+		id_priv->cm_id.ib = NULL;
+	}
+
 	kfree(private_data);
 	return ret;
 }
@@ -1889,10 +1900,8 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	cm_id->remote_addr = *sin;
 
 	ret = cma_modify_qp_rtr(&id_priv->id);
-	if (ret) {
-		iw_destroy_cm_id(cm_id);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
 	iw_param.ord = conn_param->initiator_depth;
 	iw_param.ird = conn_param->responder_resources;
@@ -1904,6 +1913,10 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 		iw_param.qpn = conn_param->qp_num;
 	ret = iw_cm_connect(cm_id, &iw_param);
 out:
+	if (ret && !IS_ERR(cm_id)) {
+		iw_destroy_cm_id(cm_id);
+		id_priv->cm_id.iw = NULL;
+	}
 	return ret;
 }
 
@@ -2142,11 +2155,8 @@ static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 
 static void cma_process_remove(struct cma_device *cma_dev)
 {
-	struct list_head remove_list;
 	struct rdma_id_private *id_priv;
 	int ret;
-
-	INIT_LIST_HEAD(&remove_list);
 
 	mutex_lock(&lock);
 	while (!list_empty(&cma_dev->id_list)) {
@@ -2158,8 +2168,7 @@ static void cma_process_remove(struct cma_device *cma_dev)
 			continue;
 		}
 
-		list_del(&id_priv->list);
-		list_add_tail(&id_priv->list, &remove_list);
+		list_del_init(&id_priv->list);
 		atomic_inc(&id_priv->refcount);
 		mutex_unlock(&lock);
 
