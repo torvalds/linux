@@ -735,6 +735,16 @@ static struct clk uart6_ck = {
 	.enable_reg = UARTCLKCTRL_REG,
 };
 
+static struct clk wdt_ck = {
+	.name = "wdt_ck",
+	.parent = &per_ck,
+	.flags = NEEDS_INITIALIZATION,
+	.round_rate = &on_off_round_rate,
+	.set_rate = &on_off_set_rate,
+	.enable_shift = 0,
+	.enable_reg = TIMCLKCTRL_REG,
+};
+
 /* These clocks are visible outside this module
  * and can be initialized
  */
@@ -765,6 +775,7 @@ static struct clk *onchip_clks[] = {
 	&uart4_ck,
 	&uart5_ck,
 	&uart6_ck,
+	&wdt_ck,
 };
 
 static int local_clk_enable(struct clk *clk)

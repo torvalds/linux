@@ -445,7 +445,7 @@ static int usb_pcwd_ioctl(struct inode *inode, struct file *file,
 		}
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

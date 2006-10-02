@@ -541,7 +541,7 @@ static int pcipcwd_ioctl(struct inode *inode, struct file *file,
 		}
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 

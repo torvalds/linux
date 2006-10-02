@@ -252,7 +252,7 @@ static int fop_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	switch(cmd)
 	{
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 		case WDIOC_GETSUPPORT:
 			return copy_to_user(argp, &ident, sizeof(ident))?-EFAULT:0;
 		case WDIOC_GETSTATUS:

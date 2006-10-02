@@ -125,7 +125,7 @@ static int mpc83xx_wdt_ioctl(struct inode *inode, struct file *file,
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout_sec, p);
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 

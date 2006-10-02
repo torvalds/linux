@@ -107,7 +107,7 @@ static int
 ixp2000_wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			unsigned long arg)
 {
-	int ret = -ENOIOCTLCMD;
+	int ret = -ENOTTY;
 	int time;
 
 	switch (cmd) {

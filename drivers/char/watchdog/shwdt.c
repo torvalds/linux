@@ -360,7 +360,7 @@ static int sh_wdt_ioctl(struct inode *inode, struct file *file,
 
 			return retval;
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 
 	return 0;

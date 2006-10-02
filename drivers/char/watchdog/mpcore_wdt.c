@@ -221,7 +221,7 @@ static int mpcore_wdt_ioctl(struct inode *inode, struct file *file,
 	} uarg;
 
 	if (_IOC_DIR(cmd) && _IOC_SIZE(cmd) > sizeof(uarg))
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
 		ret = copy_from_user(&uarg, (void __user *)arg, _IOC_SIZE(cmd));
@@ -271,7 +271,7 @@ static int mpcore_wdt_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 
 	if (ret == 0 && _IOC_DIR(cmd) & _IOC_READ) {
