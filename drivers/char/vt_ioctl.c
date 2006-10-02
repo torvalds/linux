@@ -645,13 +645,16 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 	 */
 	case KDSIGACCEPT:
 	{
-		extern int spawnpid, spawnsig;
 		if (!perm || !capable(CAP_KILL))
 		  return -EPERM;
 		if (!valid_signal(arg) || arg < 1 || arg == SIGKILL)
 		  return -EINVAL;
-		spawnpid = current->pid;
-		spawnsig = arg;
+
+		spin_lock_irq(&vt_spawn_con.lock);
+		put_pid(vt_spawn_con.pid);
+		vt_spawn_con.pid = get_pid(task_pid(current));
+		vt_spawn_con.sig = arg;
+		spin_unlock_irq(&vt_spawn_con.lock);
 		return 0;
 	}
 

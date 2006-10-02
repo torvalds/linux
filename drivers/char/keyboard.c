@@ -108,7 +108,11 @@ const int NR_TYPES = ARRAY_SIZE(max_vals);
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
 
-int spawnpid, spawnsig;
+struct vt_spawn_console vt_spawn_con = {
+	.lock = SPIN_LOCK_UNLOCKED,
+	.pid  = NULL,
+	.sig  = 0,
+};
 
 /*
  * Variables exported for vt.c
@@ -578,9 +582,13 @@ static void fn_compose(struct vc_data *vc, struct pt_regs *regs)
 
 static void fn_spawn_con(struct vc_data *vc, struct pt_regs *regs)
 {
-	if (spawnpid)
-		if (kill_proc(spawnpid, spawnsig, 1))
-			spawnpid = 0;
+	spin_lock(&vt_spawn_con.lock);
+	if (vt_spawn_con.pid)
+		if (kill_pid(vt_spawn_con.pid, vt_spawn_con.sig, 1)) {
+			put_pid(vt_spawn_con.pid);
+			vt_spawn_con.pid = NULL;
+		}
+	spin_unlock(&vt_spawn_con.lock);
 }
 
 static void fn_SAK(struct vc_data *vc, struct pt_regs *regs)

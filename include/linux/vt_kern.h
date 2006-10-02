@@ -84,4 +84,11 @@ void reset_vc(struct vc_data *vc);
 extern char con_buf[CON_BUF_SIZE];
 extern struct semaphore con_buf_sem;
 
+struct vt_spawn_console {
+	spinlock_t lock;
+	struct pid *pid;
+	int sig;
+};
+extern struct vt_spawn_console vt_spawn_con;
+
 #endif /* _VT_KERN_H */
