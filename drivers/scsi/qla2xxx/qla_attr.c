@@ -879,6 +879,19 @@ qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 	fc_host_fabric_name(shost) = node_name;
 }
 
+static void
+qla2x00_get_host_port_state(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	if (!ha->flags.online)
+		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
+	else if (atomic_read(&ha->loop_state) == LOOP_TIMEOUT)
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+	else
+		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -897,6 +910,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_system_hostname = 1,
 	.get_host_fabric_name = qla2x00_get_host_fabric_name,
 	.show_host_fabric_name = 1,
+	.get_host_port_state = qla2x00_get_host_port_state,
+	.show_host_port_state = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
