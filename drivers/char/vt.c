@@ -903,6 +903,7 @@ void vc_deallocate(unsigned int currcons)
 	if (vc_cons_allocated(currcons)) {
 		struct vc_data *vc = vc_cons[currcons].d;
 		vc->vc_sw->con_deinit(vc);
+		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
 		if (vc->vc_kmalloced)
 			kfree(vc->vc_screenbuf);

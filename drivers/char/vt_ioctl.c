@@ -672,7 +672,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		vc->vt_mode = tmp;
 		/* the frsig is ignored, so we set it to 0 */
 		vc->vt_mode.frsig = 0;
-		vc->vt_pid = current->pid;
+		put_pid(xchg(&vc->vt_pid, get_pid(task_pid(current))));
 		/* no switch is required -- saw@shade.msu.ru */
 		vc->vt_newvt = -1;
 		release_console_sem();
@@ -1063,7 +1063,7 @@ void reset_vc(struct vc_data *vc)
 	vc->vt_mode.relsig = 0;
 	vc->vt_mode.acqsig = 0;
 	vc->vt_mode.frsig = 0;
-	vc->vt_pid = -1;
+	put_pid(xchg(&vc->vt_pid, NULL));
 	vc->vt_newvt = -1;
 	if (!in_interrupt())    /* Via keyboard.c:SAK() - akpm */
 		reset_palette(vc);
@@ -1114,7 +1114,7 @@ static void complete_change_console(struct vc_data *vc)
 		 * tell us if the process has gone or something else
 		 * is awry
 		 */
-		if (kill_proc(vc->vt_pid, vc->vt_mode.acqsig, 1) != 0) {
+		if (kill_pid(vc->vt_pid, vc->vt_mode.acqsig, 1) != 0) {
 		/*
 		 * The controlling process has died, so we revert back to
 		 * normal operation. In this case, we'll also change back
@@ -1174,7 +1174,7 @@ void change_console(struct vc_data *new_vc)
 		 * tell us if the process has gone or something else
 		 * is awry
 		 */
-		if (kill_proc(vc->vt_pid, vc->vt_mode.relsig, 1) == 0) {
+		if (kill_pid(vc->vt_pid, vc->vt_mode.relsig, 1) == 0) {
 			/*
 			 * It worked. Mark the vt to switch to and
 			 * return. The process needs to send us a

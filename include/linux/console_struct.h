@@ -54,7 +54,7 @@ struct vc_data {
 	struct tty_struct *vc_tty;		/* TTY we are attached to */
 	/* data for manual vt switching */
 	struct vt_mode	vt_mode;
-	int		vt_pid;
+	struct pid 	*vt_pid;
 	int		vt_newvt;
 	wait_queue_head_t paste_wait;
 	/* mode flags */
