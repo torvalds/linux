@@ -254,15 +254,11 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 
 	mutex_lock(&nlmsvc_mutex);
 	/*
-	 * Unconditionally increment the user count ... this is
-	 * the number of clients who _want_ a lockd process.
-	 */
-	nlmsvc_users++; 
-	/*
 	 * Check whether we're already up and running.
 	 */
 	if (nlmsvc_pid) {
-		error = make_socks(nlmsvc_serv, proto);
+		if (proto)
+			error = make_socks(nlmsvc_serv, proto);
 		goto out;
 	}
 
@@ -270,7 +266,7 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 	 * Sanity check: if there's no pid,
 	 * we should be the first user ...
 	 */
-	if (nlmsvc_users > 1)
+	if (nlmsvc_users)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
@@ -302,6 +298,8 @@ lockd_up(int proto) /* Maybe add a 'family' option when IPv6 is supported ?? */
 destroy_and_out:
 	svc_destroy(serv);
 out:
+	if (!error)
+		nlmsvc_users++;
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }

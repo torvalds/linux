@@ -221,18 +221,22 @@ static int nfsd_init_socks(int port)
 	if (!list_empty(&nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
-	if (error < 0)
-		return error;
 	error = lockd_up(IPPROTO_UDP);
+	if (error >= 0) {
+		error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
+		if (error < 0)
+			lockd_down();
+	}
 	if (error < 0)
 		return error;
 
 #ifdef CONFIG_NFSD_TCP
-	error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
-	if (error < 0)
-		return error;
 	error = lockd_up(IPPROTO_TCP);
+	if (error >= 0) {
+		error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
+		if (error < 0)
+			lockd_down();
+	}
 	if (error < 0)
 		return error;
 #endif
