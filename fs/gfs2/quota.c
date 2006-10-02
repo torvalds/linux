@@ -43,6 +43,7 @@
 #include <linux/buffer_head.h>
 #include <linux/sort.h>
 #include <linux/fs.h>
+#include <linux/bio.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 
@@ -609,7 +610,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 		set_buffer_uptodate(bh);
 
 	if (!buffer_uptodate(bh)) {
-		ll_rw_block(READ, 1, &bh);
+		ll_rw_block(READ_META, 1, &bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh))
 			goto unlock;

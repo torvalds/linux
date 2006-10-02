@@ -17,6 +17,7 @@
 #include <linux/writeback.h>
 #include <linux/swap.h>
 #include <linux/delay.h>
+#include <linux/bio.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 
@@ -385,7 +386,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 {
 	*bhp = getbuf(gl->gl_sbd, gl->gl_aspace, blkno, CREATE);
 	if (!buffer_uptodate(*bhp))
-		ll_rw_block(READ, 1, bhp);
+		ll_rw_block(READ_META, 1, bhp);
 	if (flags & DIO_WAIT) {
 		int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
 		if (error) {
@@ -659,7 +660,7 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 	} else {
 		u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
 		if (!buffer_uptodate(bh)) {
-			ll_rw_block(READ, 1, &bh);
+			ll_rw_block(READ_META, 1, &bh);
 			if (gfs2_meta_wait(sdp, bh))
 				goto err;
 		}
@@ -712,7 +713,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (buffer_uptodate(first_bh))
 		goto out;
 	if (!buffer_locked(first_bh))
-		ll_rw_block(READ, 1, &first_bh);
+		ll_rw_block(READ_META, 1, &first_bh);
 
 	dblock++;
 	extlen--;
