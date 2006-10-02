@@ -353,6 +353,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 		if (error)
 			goto out_norgrp;
 
+		clear_nlink(&ip->i_inode);
 		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
 		gfs2_glock_dq_uninit(&rg_gh);
 out_norgrp:
