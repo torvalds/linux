@@ -116,7 +116,7 @@ static void init_vfs(struct super_block *sb, unsigned noatime)
 
 static int init_names(struct gfs2_sbd *sdp, int silent)
 {
-	struct gfs2_sb *sb = NULL;
+	struct page *page;
 	char *proto, *table;
 	int error = 0;
 
@@ -126,37 +126,23 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	/*  Try to autodetect  */
 
 	if (!proto[0] || !table[0]) {
-		struct buffer_head *bh;
-		bh = sb_getblk(sdp->sd_vfs,
-			       GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
-		lock_buffer(bh);
-		clear_buffer_uptodate(bh);
-		clear_buffer_dirty(bh);
-		unlock_buffer(bh);
-		ll_rw_block(READ, 1, &bh);
-		wait_on_buffer(bh);
+		struct gfs2_sb *sb;
+		page = gfs2_read_super(sdp->sd_vfs, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+		if (!page)
+			return -ENOBUFS;
+		sb = kmap(page);
+		gfs2_sb_in(&sdp->sd_sb, sb);
+		kunmap(page);
+		__free_page(page);
 
-		if (!buffer_uptodate(bh)) {
-			brelse(bh);
-			return -EIO;
-		}
-
-		sb = kmalloc(sizeof(struct gfs2_sb), GFP_KERNEL);
-		if (!sb) {
-			brelse(bh);
-			return -ENOMEM;
-		}
-		gfs2_sb_in(sb, bh->b_data);
-		brelse(bh);
-
-		error = gfs2_check_sb(sdp, sb, silent);
+		error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
 		if (error)
 			goto out;
 
 		if (!proto[0])
-			proto = sb->sb_lockproto;
+			proto = sdp->sd_sb.sb_lockproto;
 		if (!table[0])
-			table = sb->sb_locktable;
+			table = sdp->sd_sb.sb_locktable;
 	}
 
 	if (!table[0])
@@ -166,7 +152,6 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
 
 out:
-	kfree(sb);
 	return error;
 }
 

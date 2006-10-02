@@ -180,7 +180,7 @@ static int end_bio_io_page(struct bio *bio, unsigned int bytes_done, int error)
 	return 0;
 }
 
-static struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
+struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 {
 	struct page *page;
 	struct bio *bio;
@@ -205,7 +205,7 @@ static struct page *gfs2_read_super(struct super_block *sb, sector_t sector)
 
 	bio->bi_end_io = end_bio_io_page;
 	bio->bi_private = page;
-	submit_bio(READ_SYNC, bio);
+	submit_bio(READ_SYNC | (1 << BIO_RW_META), bio);
 	wait_on_page_locked(page);
 	bio_put(bio);
 	if (!PageUptodate(page)) {
