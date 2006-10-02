@@ -65,7 +65,7 @@ static unsigned long efi_rt_eflags;
 static DEFINE_SPINLOCK(efi_rt_lock);
 static pgd_t efi_bak_pg_dir_pointer[2];
 
-static void efi_call_phys_prelog(void)
+static void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 {
 	unsigned long cr4;
 	unsigned long temp;
@@ -109,7 +109,7 @@ static void efi_call_phys_prelog(void)
 	load_gdt(cpu_gdt_descr);
 }
 
-static void efi_call_phys_epilog(void)
+static void efi_call_phys_epilog(void) __releases(efi_rt_lock)
 {
 	unsigned long cr4;
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);

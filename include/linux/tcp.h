@@ -21,10 +21,10 @@
 #include <asm/byteorder.h>
 
 struct tcphdr {
-	__u16	source;
-	__u16	dest;
-	__u32	seq;
-	__u32	ack_seq;
+	__be16	source;
+	__be16	dest;
+	__be32	seq;
+	__be32	ack_seq;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u16	res1:4,
 		doff:4,
@@ -50,9 +50,9 @@ struct tcphdr {
 #else
 #error	"Adjust your <asm/byteorder.h> defines"
 #endif	
-	__u16	window;
-	__u16	check;
-	__u16	urg_ptr;
+	__be16	window;
+	__be16	check;
+	__be16	urg_ptr;
 };
 
 /*
@@ -62,7 +62,7 @@ struct tcphdr {
  */
 union tcp_word_hdr { 
 	struct tcphdr hdr;
-	__u32 		  words[5];
+	__be32 		  words[5];
 }; 
 
 #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) 
@@ -166,6 +166,11 @@ struct tcp_info
 #include <net/inet_timewait_sock.h>
 
 /* This defines a selective acknowledgement block. */
+struct tcp_sack_block_wire {
+	__be32	start_seq;
+	__be32	end_seq;
+};
+
 struct tcp_sack_block {
 	__u32	start_seq;
 	__u32	end_seq;
@@ -211,7 +216,7 @@ struct tcp_sock {
  *	Header prediction flags
  *	0x5?10 << 16 + snd_wnd in net byte order
  */
-	__u32	pred_flags;
+	__be32	pred_flags;
 
 /*
  *	RFC793 variables by their proper names. This means you can

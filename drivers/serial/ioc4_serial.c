@@ -2685,6 +2685,7 @@ static int ioc4_serial_remove_one(struct ioc4_driver_data *idd)
 	if (soft) {
 		free_irq(control->ic_irq, soft);
 		if (soft->is_ioc4_serial_addr) {
+			iounmap(soft->is_ioc4_serial_addr);
 			release_region((unsigned long)
 			     soft->is_ioc4_serial_addr,
 				sizeof(struct ioc4_serial));
@@ -2887,6 +2888,8 @@ out4:
 out3:
 	kfree(control);
 out2:
+	if (serial)
+		iounmap(serial);
 	release_region(tmp_addr1, sizeof(struct ioc4_serial));
 out1:
 

@@ -160,4 +160,8 @@ static __inline__ int is_write_locked(rwlock_t *rw)
 	return rw->counter < 0;
 }
 
+#define _raw_spin_relax(lock)	cpu_relax()
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
+
 #endif /* __ASM_ARCH_SPINLOCK_H */

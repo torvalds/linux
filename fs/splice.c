@@ -12,7 +12,7 @@
  * Jens to support splicing to files, network, direct splicing, etc and
  * fixing lots of bugs.
  *
- * Copyright (C) 2005-2006 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2005-2006 Jens Axboe <axboe@kernel.dk>
  * Copyright (C) 2005-2006 Linus Torvalds <torvalds@osdl.org>
  * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *

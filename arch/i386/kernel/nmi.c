@@ -13,7 +13,6 @@
  *  Mikael Pettersson	: PM converted to driver model. Disable/enable API.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -30,6 +29,9 @@
 #include <asm/intel_arch_perfmon.h>
 
 #include "mach_traps.h"
+
+int unknown_nmi_panic;
+int nmi_watchdog_enabled;
 
 /* perfctr_nmi_owner tracks the ownership of the perfctr registers:
  * evtsel_nmi_owner tracks the ownership of the event selection

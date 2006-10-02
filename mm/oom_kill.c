@@ -204,14 +204,28 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 	do_posix_clock_monotonic_gettime(&uptime);
 	do_each_thread(g, p) {
 		unsigned long points;
-		int releasing;
 
-		/* skip kernel threads */
+		/*
+		 * skip kernel threads and tasks which have already released
+		 * their mm.
+		 */
 		if (!p->mm)
 			continue;
-		/* skip the init task with pid == 1 */
-		if (p->pid == 1)
+		/* skip the init task */
+		if (is_init(p))
 			continue;
+
+		/*
+		 * This task already has access to memory reserves and is
+		 * being killed. Don't allow any other task access to the
+		 * memory reserve.
+		 *
+		 * Note: this may have a chance of deadlock if it gets
+		 * blocked waiting for another task which itself is waiting
+		 * for memory. Is there a better alternative?
+		 */
+		if (test_tsk_thread_flag(p, TIF_MEMDIE))
+			return ERR_PTR(-1UL);
 
 		/*
 		 * This is in the process of releasing memory so wait for it
@@ -221,21 +235,16 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
 		 * which will allow it to gain access to memory reserves in
 		 * the process of exiting and releasing its resources.
-		 * Otherwise we could get an OOM deadlock.
+		 * Otherwise we could get an easy OOM deadlock.
 		 */
-		releasing = test_tsk_thread_flag(p, TIF_MEMDIE) ||
-						p->flags & PF_EXITING;
-		if (releasing) {
-			/* PF_DEAD tasks have already released their mm */
-			if (p->flags & PF_DEAD)
-				continue;
-			if (p->flags & PF_EXITING && p == current) {
-				chosen = p;
-				*ppoints = ULONG_MAX;
-				break;
-			}
-			return ERR_PTR(-1UL);
+		if (p->flags & PF_EXITING) {
+			if (p != current)
+				return ERR_PTR(-1UL);
+
+			chosen = p;
+			*ppoints = ULONG_MAX;
 		}
+
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
 
@@ -245,6 +254,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
 			*ppoints = points;
 		}
 	} while_each_thread(g, p);
+
 	return chosen;
 }
 
@@ -255,20 +265,17 @@ static struct task_struct *select_bad_process(unsigned long *ppoints)
  */
 static void __oom_kill_task(struct task_struct *p, const char *message)
 {
-	if (p->pid == 1) {
+	if (is_init(p)) {
 		WARN_ON(1);
 		printk(KERN_WARNING "tried to kill init!\n");
 		return;
 	}
 
-	task_lock(p);
-	if (!p->mm || p->mm == &init_mm) {
+	if (!p->mm) {
 		WARN_ON(1);
 		printk(KERN_WARNING "tried to kill an mm-less task!\n");
-		task_unlock(p);
 		return;
 	}
-	task_unlock(p);
 
 	if (message) {
 		printk(KERN_ERR "%s: Killed process %d (%s).\n",
@@ -302,7 +309,7 @@ static int oom_kill_task(struct task_struct *p, const char *message)
 	 * However, this is of no concern to us.
 	 */
 
-	if (mm == NULL || mm == &init_mm)
+	if (mm == NULL)
 		return 1;
 
 	__oom_kill_task(p, message);

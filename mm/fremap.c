@@ -39,7 +39,7 @@ static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
-		pte_clear(mm, addr, ptep);
+		pte_clear_not_present_full(mm, addr, ptep, 0);
 	}
 	return !!page;
 }

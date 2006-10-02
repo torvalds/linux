@@ -64,6 +64,7 @@ serial_init_chip(struct parisc_device *dev)
 	err = serial8250_register_port(&port);
 	if (err < 0) {
 		printk(KERN_WARNING "serial8250_register_port returned error %d\n", err);
+		iounmap(port.membase);
 		return err;
 	}
         

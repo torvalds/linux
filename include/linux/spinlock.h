@@ -167,9 +167,9 @@ do {								\
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPT are set. The various
  * methods are defined as nops in the case they are not required.
  */
-#define spin_trylock(lock)		__cond_lock(_spin_trylock(lock))
-#define read_trylock(lock)		__cond_lock(_read_trylock(lock))
-#define write_trylock(lock)		__cond_lock(_write_trylock(lock))
+#define spin_trylock(lock)		__cond_lock(lock, _spin_trylock(lock))
+#define read_trylock(lock)		__cond_lock(lock, _read_trylock(lock))
+#define write_trylock(lock)		__cond_lock(lock, _write_trylock(lock))
 
 #define spin_lock(lock)			_spin_lock(lock)
 
@@ -236,19 +236,19 @@ do {								\
 					_write_unlock_irqrestore(lock, flags)
 #define write_unlock_bh(lock)		_write_unlock_bh(lock)
 
-#define spin_trylock_bh(lock)		__cond_lock(_spin_trylock_bh(lock))
+#define spin_trylock_bh(lock)	__cond_lock(lock, _spin_trylock_bh(lock))
 
 #define spin_trylock_irq(lock) \
 ({ \
 	local_irq_disable(); \
-	_spin_trylock(lock) ? \
+	spin_trylock(lock) ? \
 	1 : ({ local_irq_enable(); 0;  }); \
 })
 
 #define spin_trylock_irqsave(lock, flags) \
 ({ \
 	local_irq_save(flags); \
-	_spin_trylock(lock) ? \
+	spin_trylock(lock) ? \
 	1 : ({ local_irq_restore(flags); 0; }); \
 })
 
@@ -264,7 +264,7 @@ do {								\
  */
 extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
-		__cond_lock(_atomic_dec_and_lock(atomic, lock))
+		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
 
 /**
  * spin_can_lock - would spin_trylock() succeed?

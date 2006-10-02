@@ -175,36 +175,36 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 int dvb_usb_fe_init(struct dvb_usb_device* d)
 {
 	if (d->props.frontend_attach == NULL) {
-		err("strange '%s' doesn't want to attach a frontend.",d->desc->name);
+		err("strange: '%s' doesn't want to attach a frontend.",d->desc->name);
 		return 0;
 	}
 
-	d->props.frontend_attach(d);
-
 	/* re-assign sleep and wakeup functions */
-	if (d->fe != NULL) {
+	if (d->props.frontend_attach(d) == 0 && d->fe != NULL) {
 		d->fe_init = d->fe->ops.init;   d->fe->ops.init  = dvb_usb_fe_wakeup;
 		d->fe_sleep = d->fe->ops.sleep; d->fe->ops.sleep = dvb_usb_fe_sleep;
 
 		if (dvb_register_frontend(&d->dvb_adap, d->fe)) {
 			err("Frontend registration failed.");
-			if (d->fe->ops.release)
-				d->fe->ops.release(d->fe);
+			dvb_frontend_detach(d->fe);
 			d->fe = NULL;
 			return -ENODEV;
 		}
+
+		/* only attach the tuner if the demod is there */
+		if (d->props.tuner_attach != NULL)
+			d->props.tuner_attach(d);
 	} else
 		err("no frontend was attached by '%s'",d->desc->name);
-
-	if (d->props.tuner_attach != NULL)
-		d->props.tuner_attach(d);
 
 	return 0;
 }
 
 int dvb_usb_fe_exit(struct dvb_usb_device *d)
 {
-	if (d->fe != NULL)
+	if (d->fe != NULL) {
 		dvb_unregister_frontend(d->fe);
+		dvb_frontend_detach(d->fe);
+	}
 	return 0;
 }

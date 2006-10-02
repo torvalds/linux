@@ -16,12 +16,15 @@
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON
-#define WARN_ON(condition) do { \
-	if (unlikely((condition)!=0)) { \
-		printk("BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
-		dump_stack(); \
-	} \
-} while (0)
+#define WARN_ON(condition) ({						\
+	typeof(condition) __ret_warn_on = (condition);			\
+	if (unlikely(__ret_warn_on)) {					\
+		printk("BUG: warning at %s:%d/%s()\n", __FILE__,	\
+			__LINE__, __FUNCTION__);			\
+		dump_stack();						\
+	}								\
+	unlikely(__ret_warn_on);					\
+})
 #endif
 
 #else /* !CONFIG_BUG */
@@ -34,21 +37,18 @@
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON
-#define WARN_ON(condition) do { if (condition) ; } while(0)
+#define WARN_ON(condition) unlikely((condition))
 #endif
 #endif
 
-#define WARN_ON_ONCE(condition)				\
-({							\
+#define WARN_ON_ONCE(condition)	({			\
 	static int __warn_once = 1;			\
-	int __ret = 0;					\
+	typeof(condition) __ret_warn_once = (condition);\
 							\
-	if (unlikely((condition) && __warn_once)) {	\
-		__warn_once = 0;			\
-		WARN_ON(1);				\
-		__ret = 1;				\
-	}						\
-	__ret;						\
+	if (likely(__warn_once))			\
+		if (WARN_ON(__ret_warn_once)) 		\
+			__warn_once = 0;		\
+	unlikely(__ret_warn_once);			\
 })
 
 #ifdef CONFIG_SMP

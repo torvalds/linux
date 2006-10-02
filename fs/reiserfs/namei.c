@@ -19,8 +19,8 @@
 #include <linux/smp_lock.h>
 #include <linux/quotaops.h>
 
-#define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { i->i_nlink++; if (i->i_nlink >= REISERFS_LINK_MAX) i->i_nlink=1; }
-#define DEC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) i->i_nlink--;
+#define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { inc_nlink(i); if (i->i_nlink >= REISERFS_LINK_MAX) i->i_nlink=1; }
+#define DEC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) drop_nlink(i);
 
 // directory item contains array of entry headers. This performs
 // binary search through that array
@@ -913,7 +913,7 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 		reiserfs_warning(inode->i_sb, "%s: empty directory has nlink "
 				 "!= 2 (%d)", __FUNCTION__, inode->i_nlink);
 
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	reiserfs_update_sd(&th, inode);
 
@@ -994,7 +994,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 		inode->i_nlink = 1;
 	}
 
-	inode->i_nlink--;
+	drop_nlink(inode);
 
 	/*
 	 * we schedule before doing the add_save_link call, save the link
@@ -1006,7 +1006,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	    reiserfs_cut_from_item(&th, &path, &(de.de_entry_key), dir, NULL,
 				   0);
 	if (retval < 0) {
-		inode->i_nlink++;
+		inc_nlink(inode);
 		goto end_unlink;
 	}
 	inode->i_ctime = CURRENT_TIME_SEC;
@@ -1143,7 +1143,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	/* inc before scheduling so reiserfs_unlink knows we are here */
-	inode->i_nlink++;
+	inc_nlink(inode);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -1473,9 +1473,9 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dentry_inode) {
 		// adjust link number of the victim
 		if (S_ISDIR(new_dentry_inode->i_mode)) {
-			new_dentry_inode->i_nlink = 0;
+			clear_nlink(new_dentry_inode);
 		} else {
-			new_dentry_inode->i_nlink--;
+			drop_nlink(new_dentry_inode);
 		}
 		new_dentry_inode->i_ctime = ctime;
 		savelink = new_dentry_inode->i_nlink;

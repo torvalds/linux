@@ -224,7 +224,7 @@ static void inetdev_destroy(struct in_device *in_dev)
 	call_rcu(&in_dev->rcu_head, in_dev_rcu_put);
 }
 
-int inet_addr_onlink(struct in_device *in_dev, u32 a, u32 b)
+int inet_addr_onlink(struct in_device *in_dev, __be32 a, __be32 b)
 {
 	rcu_read_lock();
 	for_primary_ifa(in_dev) {
@@ -429,8 +429,8 @@ struct in_device *inetdev_by_index(int ifindex)
 
 /* Called only from RTNL semaphored context. No locks. */
 
-struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, u32 prefix,
-				    u32 mask)
+struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
+				    __be32 mask)
 {
 	ASSERT_RTNL();
 
@@ -467,7 +467,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 	for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
 	     ifap = &ifa->ifa_next) {
 		if (tb[IFA_LOCAL] &&
-		    ifa->ifa_local != nla_get_u32(tb[IFA_LOCAL]))
+		    ifa->ifa_local != nla_get_be32(tb[IFA_LOCAL]))
 			continue;
 
 		if (tb[IFA_LABEL] && nla_strcmp(tb[IFA_LABEL], ifa->ifa_label))
@@ -475,7 +475,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 
 		if (tb[IFA_ADDRESS] &&
 		    (ifm->ifa_prefixlen != ifa->ifa_prefixlen ||
-		    !inet_ifa_match(nla_get_u32(tb[IFA_ADDRESS]), ifa)))
+		    !inet_ifa_match(nla_get_be32(tb[IFA_ADDRESS]), ifa)))
 			continue;
 
 		__inet_del_ifa(in_dev, ifap, 1, nlh, NETLINK_CB(skb).pid);
@@ -540,14 +540,14 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 	ifa->ifa_scope = ifm->ifa_scope;
 	ifa->ifa_dev = in_dev;
 
-	ifa->ifa_local = nla_get_u32(tb[IFA_LOCAL]);
-	ifa->ifa_address = nla_get_u32(tb[IFA_ADDRESS]);
+	ifa->ifa_local = nla_get_be32(tb[IFA_LOCAL]);
+	ifa->ifa_address = nla_get_be32(tb[IFA_ADDRESS]);
 
 	if (tb[IFA_BROADCAST])
-		ifa->ifa_broadcast = nla_get_u32(tb[IFA_BROADCAST]);
+		ifa->ifa_broadcast = nla_get_be32(tb[IFA_BROADCAST]);
 
 	if (tb[IFA_ANYCAST])
-		ifa->ifa_anycast = nla_get_u32(tb[IFA_ANYCAST]);
+		ifa->ifa_anycast = nla_get_be32(tb[IFA_ANYCAST]);
 
 	if (tb[IFA_LABEL])
 		nla_strlcpy(ifa->ifa_label, tb[IFA_LABEL], IFNAMSIZ);
@@ -805,7 +805,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			break;
 		ret = 0;
 		if (ifa->ifa_mask != sin->sin_addr.s_addr) {
-			u32 old_mask = ifa->ifa_mask;
+			__be32 old_mask = ifa->ifa_mask;
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_mask = sin->sin_addr.s_addr;
 			ifa->ifa_prefixlen = inet_mask_len(ifa->ifa_mask);
@@ -876,9 +876,9 @@ out:
 	return done;
 }
 
-u32 inet_select_addr(const struct net_device *dev, u32 dst, int scope)
+__be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 {
-	u32 addr = 0;
+	__be32 addr = 0;
 	struct in_device *in_dev;
 
 	rcu_read_lock();
@@ -927,11 +927,11 @@ out:
 	return addr;
 }
 
-static u32 confirm_addr_indev(struct in_device *in_dev, u32 dst,
-			      u32 local, int scope)
+static __be32 confirm_addr_indev(struct in_device *in_dev, __be32 dst,
+			      __be32 local, int scope)
 {
 	int same = 0;
-	u32 addr = 0;
+	__be32 addr = 0;
 
 	for_ifa(in_dev) {
 		if (!addr &&
@@ -971,9 +971,9 @@ static u32 confirm_addr_indev(struct in_device *in_dev, u32 dst,
  * - local: address, 0=autoselect the local address
  * - scope: maximum allowed scope value for the local address
  */
-u32 inet_confirm_addr(const struct net_device *dev, u32 dst, u32 local, int scope)
+__be32 inet_confirm_addr(const struct net_device *dev, __be32 dst, __be32 local, int scope)
 {
-	u32 addr = 0;
+	__be32 addr = 0;
 	struct in_device *in_dev;
 
 	if (dev) {
@@ -1138,16 +1138,16 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
 	if (ifa->ifa_address)
-		NLA_PUT_U32(skb, IFA_ADDRESS, ifa->ifa_address);
+		NLA_PUT_BE32(skb, IFA_ADDRESS, ifa->ifa_address);
 
 	if (ifa->ifa_local)
-		NLA_PUT_U32(skb, IFA_LOCAL, ifa->ifa_local);
+		NLA_PUT_BE32(skb, IFA_LOCAL, ifa->ifa_local);
 
 	if (ifa->ifa_broadcast)
-		NLA_PUT_U32(skb, IFA_BROADCAST, ifa->ifa_broadcast);
+		NLA_PUT_BE32(skb, IFA_BROADCAST, ifa->ifa_broadcast);
 
 	if (ifa->ifa_anycast)
-		NLA_PUT_U32(skb, IFA_ANYCAST, ifa->ifa_anycast);
+		NLA_PUT_BE32(skb, IFA_ANYCAST, ifa->ifa_anycast);
 
 	if (ifa->ifa_label[0])
 		NLA_PUT_STRING(skb, IFA_LABEL, ifa->ifa_label);

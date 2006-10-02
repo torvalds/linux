@@ -1253,10 +1253,10 @@ static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inode->i_nlink++;
+	inc_nlink(inode);
 	d_add(dentry, inode);
 	/* bump link count on parent directory, too */
-	dir->i_nlink++;
+	inc_nlink(dir);
 out:
 	return ret;
 }

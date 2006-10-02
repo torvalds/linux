@@ -32,13 +32,13 @@
 /****************************************************************************/
 static int set_addr(struct sk_buff **pskb,
 		    unsigned char **data, int dataoff,
-		    unsigned int addroff, u_int32_t ip, u_int16_t port)
+		    unsigned int addroff, __be32 ip, u_int16_t port)
 {
 	enum ip_conntrack_info ctinfo;
 	struct ip_conntrack *ct = ip_conntrack_get(*pskb, &ctinfo);
 	struct {
-		u_int32_t ip;
-		u_int16_t port;
+		__be32 ip;
+		__be16 port;
 	} __attribute__ ((__packed__)) buf;
 	struct tcphdr _tcph, *th;
 
@@ -86,7 +86,7 @@ static int set_addr(struct sk_buff **pskb,
 static int set_h225_addr(struct sk_buff **pskb,
 			 unsigned char **data, int dataoff,
 			 TransportAddress * addr,
-			 u_int32_t ip, u_int16_t port)
+			 __be32 ip, u_int16_t port)
 {
 	return set_addr(pskb, data, dataoff, addr->ipAddress.ip, ip, port);
 }
@@ -95,7 +95,7 @@ static int set_h225_addr(struct sk_buff **pskb,
 static int set_h245_addr(struct sk_buff **pskb,
 			 unsigned char **data, int dataoff,
 			 H245_TransportAddress * addr,
-			 u_int32_t ip, u_int16_t port)
+			 __be32 ip, u_int16_t port)
 {
 	return set_addr(pskb, data, dataoff,
 			addr->unicastAddress.iPAddress.network, ip, port);
@@ -110,7 +110,7 @@ static int set_sig_addr(struct sk_buff **pskb, struct ip_conntrack *ct,
 	struct ip_ct_h323_master *info = &ct->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 
 	for (i = 0; i < count; i++) {
@@ -164,7 +164,7 @@ static int set_ras_addr(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 
 	for (i = 0; i < count; i++) {
@@ -433,7 +433,7 @@ static int nat_q931(struct sk_buff **pskb, struct ip_conntrack *ct,
 	struct ip_ct_h323_master *info = &ct->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = port;
-	u_int32_t ip;
+	__be32 ip;
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;

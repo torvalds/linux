@@ -137,12 +137,12 @@ unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
  * Marshal credentials.
  * Maybe we should keep a cached credential for performance reasons.
  */
-static u32 *
-unx_marshal(struct rpc_task *task, u32 *p)
+static __be32 *
+unx_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct unx_cred	*cred = (struct unx_cred *) task->tk_msg.rpc_cred;
-	u32		*base, *hold;
+	__be32		*base, *hold;
 	int		i;
 
 	*p++ = htonl(RPC_AUTH_UNIX);
@@ -178,8 +178,8 @@ unx_refresh(struct rpc_task *task)
 	return 0;
 }
 
-static u32 *
-unx_validate(struct rpc_task *task, u32 *p)
+static __be32 *
+unx_validate(struct rpc_task *task, __be32 *p)
 {
 	rpc_authflavor_t	flavor;
 	u32			size;

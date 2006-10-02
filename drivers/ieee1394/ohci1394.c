@@ -136,7 +136,7 @@
 #define DBGMSG(fmt, args...) \
 printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 #else
-#define DBGMSG(fmt, args...)
+#define DBGMSG(fmt, args...) do {} while (0)
 #endif
 
 #ifdef CONFIG_IEEE1394_OHCI_DMA_DEBUG
@@ -148,8 +148,8 @@ printk(KERN_INFO "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->
 		--global_outstanding_dmas, ## args)
 static int global_outstanding_dmas = 0;
 #else
-#define OHCI_DMA_ALLOC(fmt, args...)
-#define OHCI_DMA_FREE(fmt, args...)
+#define OHCI_DMA_ALLOC(fmt, args...) do {} while (0)
+#define OHCI_DMA_FREE(fmt, args...) do {} while (0)
 #endif
 
 /* print general (card independent) information */
@@ -181,36 +181,35 @@ static int alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 static void ohci1394_pci_remove(struct pci_dev *pdev);
 
 #ifndef __LITTLE_ENDIAN
-static unsigned hdr_sizes[] =
-{
+const static size_t hdr_sizes[] = {
 	3,	/* TCODE_WRITEQ */
 	4,	/* TCODE_WRITEB */
 	3,	/* TCODE_WRITE_RESPONSE */
-	0,	/* ??? */
+	0,	/* reserved */
 	3,	/* TCODE_READQ */
 	4,	/* TCODE_READB */
 	3,	/* TCODE_READQ_RESPONSE */
 	4,	/* TCODE_READB_RESPONSE */
-	1,	/* TCODE_CYCLE_START (???) */
+	1,	/* TCODE_CYCLE_START */
 	4,	/* TCODE_LOCK_REQUEST */
 	2,	/* TCODE_ISO_DATA */
 	4,	/* TCODE_LOCK_RESPONSE */
+		/* rest is reserved or link-internal */
 };
 
-/* Swap headers */
-static inline void packet_swab(quadlet_t *data, int tcode)
+static inline void header_le32_to_cpu(quadlet_t *data, unsigned char tcode)
 {
-	size_t size = hdr_sizes[tcode];
+	size_t size;
 
-	if (tcode > TCODE_LOCK_RESPONSE || hdr_sizes[tcode] == 0)
+	if (unlikely(tcode >= ARRAY_SIZE(hdr_sizes)))
 		return;
 
+	size = hdr_sizes[tcode];
 	while (size--)
-		data[size] = swab32(data[size]);
+		data[size] = le32_to_cpu(data[size]);
 }
 #else
-/* Don't waste cycles on same sex byte swaps */
-#define packet_swab(w,x)
+#define header_le32_to_cpu(w,x) do {} while (0)
 #endif /* !LITTLE_ENDIAN */
 
 /***********************************
@@ -701,7 +700,7 @@ static void insert_packet(struct ti_ohci *ohci,
 				d->prg_cpu[idx]->data[2] = packet->header[2];
 				d->prg_cpu[idx]->data[3] = packet->header[3];
 			}
-			packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+			header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
                 }
 
                 if (packet->data_size) { /* block transmit */
@@ -777,7 +776,7 @@ static void insert_packet(struct ti_ohci *ohci,
                 d->prg_cpu[idx]->data[0] = packet->speed_code<<16 |
                         (packet->header[0] & 0xFFFF);
                 d->prg_cpu[idx]->data[1] = packet->header[0] & 0xFFFF0000;
-		packet_swab(d->prg_cpu[idx]->data, packet->tcode);
+		header_le32_to_cpu(d->prg_cpu[idx]->data, packet->tcode);
 
                 d->prg_cpu[idx]->begin.control =
 			cpu_to_le32(DMA_CTL_OUTPUT_MORE |
@@ -2598,8 +2597,9 @@ static const int TCODE_SIZE[16] = {20, 0, 16, -1, 16, 20, 20, 0,
  * Determine the length of a packet in the buffer
  * Optimization suggested by Pascal Drolet <pascal.drolet@informission.ca>
  */
-static __inline__ int packet_length(struct dma_rcv_ctx *d, int idx, quadlet_t *buf_ptr,
-			 int offset, unsigned char tcode, int noswap)
+static inline int packet_length(struct dma_rcv_ctx *d, int idx,
+				quadlet_t *buf_ptr, int offset,
+				unsigned char tcode, int noswap)
 {
 	int length = -1;
 
@@ -2730,7 +2730,7 @@ static void dma_rcv_tasklet (unsigned long data)
 		 * bus reset. We always ignore it.  */
 		if (tcode != OHCI1394_TCODE_PHY) {
 			if (!ohci->no_swap_incoming)
-				packet_swab(d->spb, tcode);
+				header_le32_to_cpu(d->spb, tcode);
 			DBGMSG("Packet received from node"
 				" %d ack=0x%02X spd=%d tcode=0x%X"
 				" length=%d ctx=%d tlabel=%d",
@@ -2738,7 +2738,7 @@ static void dma_rcv_tasklet (unsigned long data)
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f,
 				(cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>21)&0x3,
 				tcode, length, d->ctx,
-				(cond_le32_to_cpu(d->spb[0], ohci->no_swap_incoming)>>10)&0x3f);
+				(d->spb[0]>>10)&0x3f);
 
 			ack = (((cond_le32_to_cpu(d->spb[length/4-1], ohci->no_swap_incoming)>>16)&0x1f)
 				== 0x11) ? 1 : 0;
@@ -3529,9 +3529,10 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 		put_device(dev);
 }
 
-
+#ifdef CONFIG_PM
 static int ohci1394_pci_resume (struct pci_dev *pdev)
 {
+/* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
 		struct device_node *of_node;
@@ -3543,17 +3544,23 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 	}
 #endif /* CONFIG_PPC_PMAC */
 
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_device(pdev);
-
-	return 0;
+	return pci_enable_device(pdev);
 }
-
 
 static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
-	pci_save_state(pdev);
+	int err;
 
+	err = pci_save_state(pdev);
+	if (err)
+		goto out;
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		goto out;
+
+/* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
 	if (machine_is(powermac)) {
 		struct device_node *of_node;
@@ -3563,11 +3570,11 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 		if (of_node)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
-#endif
-
-	return 0;
+#endif /* CONFIG_PPC_PMAC */
+out:
+	return err;
 }
-
+#endif /* CONFIG_PM */
 
 #define PCI_CLASS_FIREWIRE_OHCI     ((PCI_CLASS_SERIAL_FIREWIRE << 8) | 0x10)
 
@@ -3590,8 +3597,10 @@ static struct pci_driver ohci1394_pci_driver = {
 	.id_table =	ohci1394_pci_tbl,
 	.probe =	ohci1394_pci_probe,
 	.remove =	ohci1394_pci_remove,
+#ifdef CONFIG_PM
 	.resume =	ohci1394_pci_resume,
 	.suspend =	ohci1394_pci_suspend,
+#endif
 };
 
 /***********************************
@@ -3718,5 +3727,7 @@ static int __init ohci1394_init(void)
 	return pci_register_driver(&ohci1394_pci_driver);
 }
 
-module_init(ohci1394_init);
+/* Register before most other device drivers.
+ * Useful for remote debugging via physical DMA, e.g. using firescope. */
+fs_initcall(ohci1394_init);
 module_exit(ohci1394_cleanup);

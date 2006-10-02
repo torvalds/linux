@@ -254,7 +254,7 @@ static int ntfs_read_block(struct page *page)
 		bh->b_bdev = vol->sb->s_bdev;
 		/* Is the block within the allowed limits? */
 		if (iblock < lblock) {
-			BOOL is_retry = FALSE;
+			bool is_retry = false;
 
 			/* Convert iblock into corresponding vcn and offset. */
 			vcn = (VCN)iblock << blocksize_bits >>
@@ -292,7 +292,7 @@ lock_retry_remap:
 				goto handle_hole;
 			/* If first try and runlist unmapped, map and retry. */
 			if (!is_retry && lcn == LCN_RL_NOT_MAPPED) {
-				is_retry = TRUE;
+				is_retry = true;
 				/*
 				 * Attempt to map runlist, dropping lock for
 				 * the duration.
@@ -558,7 +558,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 	unsigned long flags;
 	unsigned int blocksize, vcn_ofs;
 	int err;
-	BOOL need_end_writeback;
+	bool need_end_writeback;
 	unsigned char blocksize_bits;
 
 	vi = page->mapping->host;
@@ -626,7 +626,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 	rl = NULL;
 	err = 0;
 	do {
-		BOOL is_retry = FALSE;
+		bool is_retry = false;
 
 		if (unlikely(block >= dblock)) {
 			/*
@@ -768,7 +768,7 @@ lock_retry_remap:
 		}
 		/* If first try and runlist unmapped, map and retry. */
 		if (!is_retry && lcn == LCN_RL_NOT_MAPPED) {
-			is_retry = TRUE;
+			is_retry = true;
 			/*
 			 * Attempt to map runlist, dropping lock for
 			 * the duration.
@@ -874,12 +874,12 @@ lock_retry_remap:
 	set_page_writeback(page);	/* Keeps try_to_free_buffers() away. */
 
 	/* Submit the prepared buffers for i/o. */
-	need_end_writeback = TRUE;
+	need_end_writeback = true;
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			submit_bh(WRITE, bh);
-			need_end_writeback = FALSE;
+			need_end_writeback = false;
 		}
 		bh = next;
 	} while (bh != head);
@@ -932,7 +932,7 @@ static int ntfs_write_mst_block(struct page *page,
 	runlist_element *rl;
 	int i, nr_locked_nis, nr_recs, nr_bhs, max_bhs, bhs_per_rec, err, err2;
 	unsigned bh_size, rec_size_bits;
-	BOOL sync, is_mft, page_is_dirty, rec_is_dirty;
+	bool sync, is_mft, page_is_dirty, rec_is_dirty;
 	unsigned char bh_size_bits;
 
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, page index "
@@ -975,10 +975,10 @@ static int ntfs_write_mst_block(struct page *page,
 
 	rl = NULL;
 	err = err2 = nr_bhs = nr_recs = nr_locked_nis = 0;
-	page_is_dirty = rec_is_dirty = FALSE;
+	page_is_dirty = rec_is_dirty = false;
 	rec_start_bh = NULL;
 	do {
-		BOOL is_retry = FALSE;
+		bool is_retry = false;
 
 		if (likely(block < rec_block)) {
 			if (unlikely(block >= dblock)) {
@@ -1009,10 +1009,10 @@ static int ntfs_write_mst_block(struct page *page,
 			}
 			if (!buffer_dirty(bh)) {
 				/* Clean records are not written out. */
-				rec_is_dirty = FALSE;
+				rec_is_dirty = false;
 				continue;
 			}
-			rec_is_dirty = TRUE;
+			rec_is_dirty = true;
 			rec_start_bh = bh;
 		}
 		/* Need to map the buffer if it is not mapped already. */
@@ -1053,7 +1053,7 @@ lock_retry_remap:
 				 */
 				if (!is_mft && !is_retry &&
 						lcn == LCN_RL_NOT_MAPPED) {
-					is_retry = TRUE;
+					is_retry = true;
 					/*
 					 * Attempt to map runlist, dropping
 					 * lock for the duration.
@@ -1063,7 +1063,7 @@ lock_retry_remap:
 					if (likely(!err2))
 						goto lock_retry_remap;
 					if (err2 == -ENOMEM)
-						page_is_dirty = TRUE;
+						page_is_dirty = true;
 					lcn = err2;
 				} else {
 					err2 = -EIO;
@@ -1145,7 +1145,7 @@ lock_retry_remap:
 				 * means we need to redirty the page before
 				 * returning.
 				 */
-				page_is_dirty = TRUE;
+				page_is_dirty = true;
 				/*
 				 * Remove the buffers in this mft record from
 				 * the list of buffers to write.

@@ -44,7 +44,7 @@ static inline int pgd_present(pgd_t pgd)	{ return 1; }
  */
 #define set_pte(pteptr, pteval) (*(pteptr) = pteval)
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
-#define set_pte_atomic(pteptr, pteval)	set_pte(pteptr, pteval)
+
 /*
  * (pmds are folded into pgds so this doesnt get actually called,
  * but the define is needed for a generic inline function.)

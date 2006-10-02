@@ -377,7 +377,8 @@ static int ipmi_ioctl(struct inode  *inode,
 			break;
 		}
 
-		rv = ipmi_register_for_cmd(priv->user, val.netfn, val.cmd);
+		rv = ipmi_register_for_cmd(priv->user, val.netfn, val.cmd,
+					   IPMI_CHAN_ALL);
 		break;
 	}
 
@@ -390,7 +391,36 @@ static int ipmi_ioctl(struct inode  *inode,
 			break;
 		}
 
-		rv = ipmi_unregister_for_cmd(priv->user, val.netfn, val.cmd);
+		rv = ipmi_unregister_for_cmd(priv->user, val.netfn, val.cmd,
+					     IPMI_CHAN_ALL);
+		break;
+	}
+
+	case IPMICTL_REGISTER_FOR_CMD_CHANS:
+	{
+		struct ipmi_cmdspec_chans val;
+
+		if (copy_from_user(&val, arg, sizeof(val))) {
+			rv = -EFAULT;
+			break;
+		}
+
+		rv = ipmi_register_for_cmd(priv->user, val.netfn, val.cmd,
+					   val.chans);
+		break;
+	}
+
+	case IPMICTL_UNREGISTER_FOR_CMD_CHANS:
+	{
+		struct ipmi_cmdspec_chans val;
+
+		if (copy_from_user(&val, arg, sizeof(val))) {
+			rv = -EFAULT;
+			break;
+		}
+
+		rv = ipmi_unregister_for_cmd(priv->user, val.netfn, val.cmd,
+					     val.chans);
 		break;
 	}
 

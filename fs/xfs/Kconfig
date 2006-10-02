@@ -1,5 +1,6 @@
 config XFS_FS
 	tristate "XFS filesystem support"
+	depends on BLOCK
 	help
 	  XFS is a high performance journaling filesystem which originated
 	  on the SGI IRIX platform.  It is completely multi-threaded, can

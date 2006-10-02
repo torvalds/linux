@@ -30,7 +30,7 @@ static DEFINE_SPINLOCK(memcons_lock);
 
 static size_t write (const char *buf, size_t len)
 {
-	int flags;
+	unsigned long flags;
 	char *point;
 
 	spin_lock_irqsave (memcons_lock, flags);

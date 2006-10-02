@@ -87,10 +87,13 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 	struct netlbl_dom_map *entry = NULL;
 	size_t tmp_size;
 	u32 tmp_val;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_DOMAIN] ||
 	    !info->attrs[NLBL_MGMT_A_PROTOCOL])
 		goto add_failure;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
@@ -108,7 +111,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, &audit_info);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -125,7 +128,7 @@ static int netlbl_mgmt_add(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto add_failure;
 		}
-		ret_val = netlbl_domhsh_add(entry);
+		ret_val = netlbl_domhsh_add(entry, &audit_info);
 		rcu_read_unlock();
 		break;
 	default:
@@ -156,12 +159,15 @@ add_failure:
 static int netlbl_mgmt_remove(struct sk_buff *skb, struct genl_info *info)
 {
 	char *domain;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_DOMAIN])
 		return -EINVAL;
 
+	netlbl_netlink_auditinfo(skb, &audit_info);
+
 	domain = nla_data(info->attrs[NLBL_MGMT_A_DOMAIN]);
-	return netlbl_domhsh_remove(domain);
+	return netlbl_domhsh_remove(domain, &audit_info);
 }
 
 /**
@@ -264,9 +270,12 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 	int ret_val = -EINVAL;
 	struct netlbl_dom_map *entry = NULL;
 	u32 tmp_val;
+	struct netlbl_audit audit_info;
 
 	if (!info->attrs[NLBL_MGMT_A_PROTOCOL])
 		goto adddef_failure;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
@@ -277,7 +286,7 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 
 	switch (entry->type) {
 	case NETLBL_NLTYPE_UNLABELED:
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		if (!info->attrs[NLBL_MGMT_A_CV4DOI])
@@ -294,7 +303,7 @@ static int netlbl_mgmt_adddef(struct sk_buff *skb, struct genl_info *info)
 			rcu_read_unlock();
 			goto adddef_failure;
 		}
-		ret_val = netlbl_domhsh_add_default(entry);
+		ret_val = netlbl_domhsh_add_default(entry, &audit_info);
 		rcu_read_unlock();
 		break;
 	default:
@@ -322,7 +331,11 @@ adddef_failure:
  */
 static int netlbl_mgmt_removedef(struct sk_buff *skb, struct genl_info *info)
 {
-	return netlbl_domhsh_remove_default();
+	struct netlbl_audit audit_info;
+
+	netlbl_netlink_auditinfo(skb, &audit_info);
+
+	return netlbl_domhsh_remove_default(&audit_info);
 }
 
 /**

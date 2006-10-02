@@ -238,6 +238,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 			num_enabled++;
 			continue;
 		}
+
+		if (node < 0)
+			node = memory_add_physaddr_to_nid(info->start_addr);
+
 		result = add_memory(node, info->start_addr, info->length);
 		if (result)
 			continue;

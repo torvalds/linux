@@ -61,7 +61,7 @@ redirect_target(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t newdst;
+	__be32 newdst;
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 	struct ip_nat_range newrange;
 

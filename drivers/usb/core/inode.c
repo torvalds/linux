@@ -263,7 +263,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inode->i_nlink++;
+			inc_nlink(inode);
 			break;
 		}
 	}
@@ -295,7 +295,7 @@ static int usbfs_mkdir (struct inode *dir, struct dentry *dentry, int mode)
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
 	res = usbfs_mknod (dir, dentry, mode, 0);
 	if (!res)
-		dir->i_nlink++;
+		inc_nlink(dir);
 	return res;
 }
 
@@ -332,7 +332,7 @@ static int usbfs_unlink (struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	mutex_lock(&inode->i_mutex);
-	dentry->d_inode->i_nlink--;
+	drop_nlink(dentry->d_inode);
 	dput(dentry);
 	mutex_unlock(&inode->i_mutex);
 	d_delete(dentry);
@@ -347,10 +347,11 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&inode->i_mutex);
 	dentry_unhash(dentry);
 	if (usbfs_empty(dentry)) {
-		dentry->d_inode->i_nlink -= 2;
+		drop_nlink(dentry->d_inode);
+		drop_nlink(dentry->d_inode);
 		dput(dentry);
 		inode->i_flags |= S_DEAD;
-		dir->i_nlink--;
+		drop_nlink(dir);
 		error = 0;
 	}
 	mutex_unlock(&inode->i_mutex);

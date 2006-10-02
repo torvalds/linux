@@ -2335,7 +2335,7 @@ done:
 	if (paused)
 		ahc_unpause(ahc);
 	if (wait) {
-		DECLARE_COMPLETION(done);
+		DECLARE_COMPLETION_ONSTACK(done);
 
 		ahc->platform_data->eh_done = &done;
 		ahc_unlock(ahc, &flags);

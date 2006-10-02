@@ -28,6 +28,10 @@
 #include <asm/mce.h>
 #include <asm/intel_arch_perfmon.h>
 
+int unknown_nmi_panic;
+int nmi_watchdog_enabled;
+int panic_on_unrecovered_nmi;
+
 /* perfctr_nmi_owner tracks the ownership of the perfctr registers:
  * evtsel_nmi_owner tracks the ownership of the event selection
  * - different performance counters/ event selection may be reserved for

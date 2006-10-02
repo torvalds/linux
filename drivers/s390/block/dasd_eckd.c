@@ -1266,7 +1266,7 @@ dasd_eckd_build_cp(struct dasd_device * device, struct request *req)
 			recid++;
 		}
 	}
-	if (req->flags & REQ_FAILFAST)
+	if (req->cmd_flags & REQ_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */

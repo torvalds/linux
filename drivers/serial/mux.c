@@ -521,6 +521,8 @@ static void __exit mux_exit(void)
 
 	for (i = 0; i < port_cnt; i++) {
 		uart_remove_one_port(&mux_driver, &mux_ports[i]);
+		if (mux_ports[i].membase)
+			iounmap(mux_ports[i].membase);
 	}
 
 	uart_unregister_driver(&mux_driver);

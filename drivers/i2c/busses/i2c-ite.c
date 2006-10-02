@@ -109,7 +109,7 @@ static int iic_ite_getclock(void *data)
 static void iic_ite_waitforpin(void) {
    DEFINE_WAIT(wait);
    int timeout = 2;
-   long flags;
+   unsigned long flags;
 
    /* If interrupts are enabled (which they are), then put the process to
     * sleep.  This process will be awakened by two events -- either the

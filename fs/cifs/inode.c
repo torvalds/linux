@@ -19,7 +19,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
-#include <linux/buffer_head.h>
 #include <linux/stat.h>
 #include <linux/pagemap.h>
 #include <asm/div64.h>
@@ -591,7 +590,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 	if (!rc) {
 		if (direntry->d_inode)
-			direntry->d_inode->i_nlink--;
+			drop_nlink(direntry->d_inode);
 	} else if (rc == -ENOENT) {
 		d_drop(direntry);
 	} else if (rc == -ETXTBSY) {
@@ -610,7 +609,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			CIFSSMBClose(xid, pTcon, netfid);
 			if (direntry->d_inode)
-				direntry->d_inode->i_nlink--;
+				drop_nlink(direntry->d_inode);
 		}
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
@@ -664,7 +663,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (!rc) {
 				if (direntry->d_inode)
-					direntry->d_inode->i_nlink--;
+					drop_nlink(direntry->d_inode);
 			} else if (rc == -ETXTBSY) {
 				int oplock = FALSE;
 				__u16 netfid;
@@ -685,7 +684,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					CIFSSMBClose(xid, pTcon, netfid);
 					if (direntry->d_inode)
-			                        direntry->d_inode->i_nlink--;
+						drop_nlink(direntry->d_inode);
 				}
 			/* BB if rc = -ETXTBUSY goto the rename logic BB */
 			}
@@ -736,7 +735,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		cFYI(1, ("cifs_mkdir returned 0x%x", rc));
 		d_drop(direntry);
 	} else {
-		inode->i_nlink++;
+		inc_nlink(inode);
 		if (pTcon->ses->capabilities & CAP_UNIX)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb,xid);
@@ -817,9 +816,9 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc) {
-		inode->i_nlink--;
+		drop_nlink(inode);
 		i_size_write(direntry->d_inode,0);
-		direntry->d_inode->i_nlink = 0;
+		clear_nlink(direntry->d_inode);
 	}
 
 	cifsInode = CIFS_I(direntry->d_inode);

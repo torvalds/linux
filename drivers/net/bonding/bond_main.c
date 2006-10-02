@@ -2252,7 +2252,7 @@ static u32 bond_glean_dev_ip(struct net_device *dev)
 {
 	struct in_device *idev;
 	struct in_ifaddr *ifa;
-	u32 addr = 0;
+	__be32 addr = 0;
 
 	if (!dev)
 		return 0;

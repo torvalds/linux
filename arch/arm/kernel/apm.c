@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 
 #include <asm/apm.h> /* apm_power_info */
 #include <asm/system.h>
@@ -80,7 +81,7 @@ struct apm_user {
  */
 static int suspends_pending;
 static int apm_disabled;
-static int arm_apm_active;
+static struct task_struct *kapmd_tsk;
 
 static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
@@ -97,7 +98,6 @@ static LIST_HEAD(apm_user_list);
  * to be suspending the system.
  */
 static DECLARE_WAIT_QUEUE_HEAD(kapmd_wait);
-static DECLARE_COMPLETION(kapmd_exit);
 static DEFINE_SPINLOCK(kapmd_queue_lock);
 static struct apm_queue kapmd_queue;
 
@@ -468,16 +468,13 @@ static int apm_get_info(char *buf, char **start, off_t fpos, int length)
 
 static int kapmd(void *arg)
 {
-	daemonize("kapmd");
-	current->flags |= PF_NOFREEZE;
-
 	do {
 		apm_event_t event;
 
 		wait_event_interruptible(kapmd_wait,
-				!queue_empty(&kapmd_queue) || !arm_apm_active);
+				!queue_empty(&kapmd_queue) || kthread_should_stop());
 
-		if (!arm_apm_active)
+		if (kthread_should_stop())
 			break;
 
 		spin_lock_irq(&kapmd_queue_lock);
@@ -508,7 +505,7 @@ static int kapmd(void *arg)
 		}
 	} while (1);
 
-	complete_and_exit(&kapmd_exit, 0);
+	return 0;
 }
 
 static int __init apm_init(void)
@@ -520,13 +517,14 @@ static int __init apm_init(void)
 		return -ENODEV;
 	}
 
-	arm_apm_active = 1;
-
-	ret = kernel_thread(kapmd, NULL, CLONE_KERNEL);
-	if (ret < 0) {
-		arm_apm_active = 0;
+	kapmd_tsk = kthread_create(kapmd, NULL, "kapmd");
+	if (IS_ERR(kapmd_tsk)) {
+		ret = PTR_ERR(kapmd_tsk);
+		kapmd_tsk = NULL;
 		return ret;
 	}
+	kapmd_tsk->flags |= PF_NOFREEZE;
+	wake_up_process(kapmd_tsk);
 
 #ifdef CONFIG_PROC_FS
 	create_proc_info_entry("apm", 0, NULL, apm_get_info);
@@ -535,10 +533,7 @@ static int __init apm_init(void)
 	ret = misc_register(&apm_device);
 	if (ret != 0) {
 		remove_proc_entry("apm", NULL);
-
-		arm_apm_active = 0;
-		wake_up(&kapmd_wait);
-		wait_for_completion(&kapmd_exit);
+		kthread_stop(kapmd_tsk);
 	}
 
 	return ret;
@@ -549,9 +544,7 @@ static void __exit apm_exit(void)
 	misc_deregister(&apm_device);
 	remove_proc_entry("apm", NULL);
 
-	arm_apm_active = 0;
-	wake_up(&kapmd_wait);
-	wait_for_completion(&kapmd_exit);
+	kthread_stop(kapmd_tsk);
 }
 
 module_init(apm_init);

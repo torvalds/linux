@@ -66,8 +66,8 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_private = data;
 	if ((mode & S_IFMT) == S_IFDIR) {
 		inode->i_op = &simple_dir_inode_operations;
-		inode->i_nlink++;
-		dir->i_nlink++;
+		inc_nlink(inode);
+		inc_nlink(dir);
 	}
 
 	inode->i_fop = fops;
@@ -356,18 +356,15 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 
 	pos = *ppos;
 
-	if ( pos < 0) {
+	if (pos != 0) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if (pos >= sizeof(struct ipath_flash)) {
-		ret = 0;
+	if (count != sizeof(struct ipath_flash)) {
+		ret = -EINVAL;
 		goto bail;
 	}
-
-	if (count > sizeof(struct ipath_flash) - pos)
-		count = sizeof(struct ipath_flash) - pos;
 
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (!tmp) {

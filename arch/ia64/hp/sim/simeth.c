@@ -320,7 +320,7 @@ simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr)
 	}
 
 	printk(KERN_INFO "simeth_device_event: %s ipaddr=0x%x\n",
-	       dev->name, htonl(ifa->ifa_local));
+	       dev->name, ntohl(ifa->ifa_local));
 
 	/*
 	 * XXX Fix me
@@ -331,7 +331,7 @@ simeth_device_event(struct notifier_block *this,unsigned long event, void *ptr)
 	local = dev->priv;
 	/* now do it for real */
 	r = event == NETDEV_UP ?
-		netdev_attach(local->simfd, dev->irq, htonl(ifa->ifa_local)):
+		netdev_attach(local->simfd, dev->irq, ntohl(ifa->ifa_local)):
 		netdev_detach(local->simfd);
 
 	printk(KERN_INFO "simeth: netdev_attach/detach: event=%s ->%d\n",

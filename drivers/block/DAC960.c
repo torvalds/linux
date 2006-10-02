@@ -770,7 +770,7 @@ static void DAC960_P_QueueCommand(DAC960_Command_T *Command)
 static void DAC960_ExecuteCommand(DAC960_Command_T *Command)
 {
   DAC960_Controller_T *Controller = Command->Controller;
-  DECLARE_COMPLETION(Completion);
+  DECLARE_COMPLETION_ONSTACK(Completion);
   unsigned long flags;
   Command->Completion = &Completion;
 
@@ -3331,7 +3331,7 @@ static int DAC960_process_queue(DAC960_Controller_T *Controller, struct request_
 		Command->DmaDirection = PCI_DMA_TODEVICE;
 		Command->CommandType = DAC960_WriteCommand;
 	}
-	Command->Completion = Request->waiting;
+	Command->Completion = Request->end_io_data;
 	Command->LogicalDriveNumber = (long)Request->rq_disk->private_data;
 	Command->BlockNumber = Request->sector;
 	Command->BlockCount = Request->nr_sectors;

@@ -494,7 +494,7 @@ rpc_get_inode(struct super_block *sb, int mode)
 		case S_IFDIR:
 			inode->i_fop = &simple_dir_operations;
 			inode->i_op = &simple_dir_inode_operations;
-			inode->i_nlink++;
+			inc_nlink(inode);
 		default:
 			break;
 	}
@@ -571,7 +571,7 @@ rpc_populate(struct dentry *parent,
 		if (private)
 			rpc_inode_setowner(inode, private);
 		if (S_ISDIR(mode))
-			dir->i_nlink++;
+			inc_nlink(dir);
 		d_add(dentry, inode);
 	}
 	mutex_unlock(&dir->i_mutex);
@@ -593,7 +593,7 @@ __rpc_mkdir(struct inode *dir, struct dentry *dentry)
 		goto out_err;
 	inode->i_ino = iunique(dir->i_sb, 100);
 	d_instantiate(dentry, inode);
-	dir->i_nlink++;
+	inc_nlink(dir);
 	inode_dir_notify(dir, DN_CREATE);
 	return 0;
 out_err:

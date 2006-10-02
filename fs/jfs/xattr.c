@@ -97,26 +97,26 @@ static inline int is_os2_xattr(struct jfs_ea *ea)
 	 */
 	if ((ea->namelen >= XATTR_SYSTEM_PREFIX_LEN) &&
 	    !strncmp(ea->name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return FALSE;
+		return false;
 	/*
 	 * Check for "user."
 	 */
 	if ((ea->namelen >= XATTR_USER_PREFIX_LEN) &&
 	    !strncmp(ea->name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
-		return FALSE;
+		return false;
 	/*
 	 * Check for "security."
 	 */
 	if ((ea->namelen >= XATTR_SECURITY_PREFIX_LEN) &&
 	    !strncmp(ea->name, XATTR_SECURITY_PREFIX,
 		     XATTR_SECURITY_PREFIX_LEN))
-		return FALSE;
+		return false;
 	/*
 	 * Check for "trusted."
 	 */
 	if ((ea->namelen >= XATTR_TRUSTED_PREFIX_LEN) &&
 	    !strncmp(ea->name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
-		return FALSE;
+		return false;
 	/*
 	 * Add any other valid namespace prefixes here
 	 */
@@ -124,7 +124,7 @@ static inline int is_os2_xattr(struct jfs_ea *ea)
 	/*
 	 * We assume it's OS/2's flat namespace
 	 */
-	return TRUE;
+	return true;
 }
 
 static inline int name_size(struct jfs_ea *ea)

@@ -160,7 +160,7 @@ static int rs5c372_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static struct rtc_class_ops rs5c372_rtc_ops = {
+static const struct rtc_class_ops rs5c372_rtc_ops = {
 	.proc		= rs5c372_rtc_proc,
 	.read_time	= rs5c372_rtc_read_time,
 	.set_time	= rs5c372_rtc_set_time,

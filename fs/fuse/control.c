@@ -116,7 +116,7 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 		return 0;
 
 	parent = fuse_control_sb->s_root;
-	parent->d_inode->i_nlink++;
+	inc_nlink(parent->d_inode);
 	sprintf(name, "%llu", (unsigned long long) fc->id);
 	parent = fuse_ctl_add_dentry(parent, fc, name, S_IFDIR | 0500, 2,
 				     &simple_dir_inode_operations,

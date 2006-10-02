@@ -67,13 +67,6 @@ SECTIONS
 
   _edata = .;			/* End of data section */
 
-  __bss_start = .;		/* BSS */
-  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {
-	*(.bss.page_aligned)	
-	*(.bss)
-	}
-  __bss_stop = .;
-
   . = ALIGN(PAGE_SIZE);
   . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
@@ -107,9 +100,6 @@ SECTIONS
 
   .vgetcpu_mode : AT(VLOAD(.vgetcpu_mode)) { *(.vgetcpu_mode) }
   vgetcpu_mode = VVIRT(.vgetcpu_mode);
-
-  .wall_jiffies : AT(VLOAD(.wall_jiffies)) { *(.wall_jiffies) }
-  wall_jiffies = VVIRT(.wall_jiffies);
 
   .sys_tz : AT(VLOAD(.sys_tz)) { *(.sys_tz) }
   sys_tz = VVIRT(.sys_tz);
@@ -228,6 +218,13 @@ SECTIONS
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) { *(.data.nosave) }
   . = ALIGN(4096);
   __nosave_end = .;
+
+  __bss_start = .;		/* BSS */
+  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {
+	*(.bss.page_aligned)
+	*(.bss)
+	}
+  __bss_stop = .;
 
   _end = . ;
 

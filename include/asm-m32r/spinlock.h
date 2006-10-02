@@ -316,4 +316,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 	return 0;
 }
 
+#define _raw_spin_relax(lock)	cpu_relax()
+#define _raw_read_relax(lock)	cpu_relax()
+#define _raw_write_relax(lock)	cpu_relax()
+
 #endif	/* _ASM_M32R_SPINLOCK_H */

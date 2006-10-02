@@ -49,11 +49,11 @@ MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
 int (*set_h245_addr_hook) (struct sk_buff ** pskb,
 			   unsigned char **data, int dataoff,
 			   H245_TransportAddress * addr,
-			   u_int32_t ip, u_int16_t port);
+			   __be32 ip, u_int16_t port);
 int (*set_h225_addr_hook) (struct sk_buff ** pskb,
 			   unsigned char **data, int dataoff,
 			   TransportAddress * addr,
-			   u_int32_t ip, u_int16_t port);
+			   __be32 ip, u_int16_t port);
 int (*set_sig_addr_hook) (struct sk_buff ** pskb,
 			  struct ip_conntrack * ct,
 			  enum ip_conntrack_info ctinfo,
@@ -209,7 +209,7 @@ static int get_tpkt_data(struct sk_buff **pskb, struct ip_conntrack *ct,
 
 /****************************************************************************/
 static int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
-			 u_int32_t * ip, u_int16_t * port)
+			 __be32 * ip, u_int16_t * port)
 {
 	unsigned char *p;
 
@@ -232,7 +232,7 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	u_int16_t rtp_port;
 	struct ip_conntrack_expect *rtp_exp;
@@ -254,10 +254,10 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct ip_conntrack *ct,
 	rtp_exp->tuple.dst.ip = ct->tuplehash[!dir].tuple.dst.ip;
 	rtp_exp->tuple.dst.u.udp.port = htons(rtp_port);
 	rtp_exp->tuple.dst.protonum = IPPROTO_UDP;
-	rtp_exp->mask.src.ip = 0xFFFFFFFF;
+	rtp_exp->mask.src.ip = htonl(0xFFFFFFFF);
 	rtp_exp->mask.src.u.udp.port = 0;
-	rtp_exp->mask.dst.ip = 0xFFFFFFFF;
-	rtp_exp->mask.dst.u.udp.port = 0xFFFF;
+	rtp_exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	rtp_exp->mask.dst.u.udp.port = htons(0xFFFF);
 	rtp_exp->mask.dst.protonum = 0xFF;
 	rtp_exp->flags = 0;
 
@@ -271,10 +271,10 @@ static int expect_rtp_rtcp(struct sk_buff **pskb, struct ip_conntrack *ct,
 	rtcp_exp->tuple.dst.ip = ct->tuplehash[!dir].tuple.dst.ip;
 	rtcp_exp->tuple.dst.u.udp.port = htons(rtp_port + 1);
 	rtcp_exp->tuple.dst.protonum = IPPROTO_UDP;
-	rtcp_exp->mask.src.ip = 0xFFFFFFFF;
+	rtcp_exp->mask.src.ip = htonl(0xFFFFFFFF);
 	rtcp_exp->mask.src.u.udp.port = 0;
-	rtcp_exp->mask.dst.ip = 0xFFFFFFFF;
-	rtcp_exp->mask.dst.u.udp.port = 0xFFFF;
+	rtcp_exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	rtcp_exp->mask.dst.u.udp.port = htons(0xFFFF);
 	rtcp_exp->mask.dst.protonum = 0xFF;
 	rtcp_exp->flags = 0;
 
@@ -325,7 +325,7 @@ static int expect_t120(struct sk_buff **pskb,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp = NULL;
 
@@ -342,10 +342,10 @@ static int expect_t120(struct sk_buff **pskb,
 	exp->tuple.dst.ip = ct->tuplehash[!dir].tuple.dst.ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = IP_CT_EXPECT_PERMANENT;	/* Accept multiple channels */
 
@@ -626,7 +626,7 @@ void ip_conntrack_h245_expect(struct ip_conntrack *new,
 
 /****************************************************************************/
 int get_h225_addr(unsigned char *data, TransportAddress * addr,
-		  u_int32_t * ip, u_int16_t * port)
+		  __be32 * ip, u_int16_t * port)
 {
 	unsigned char *p;
 
@@ -648,7 +648,7 @@ static int expect_h245(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp = NULL;
 
@@ -665,10 +665,10 @@ static int expect_h245(struct sk_buff **pskb, struct ip_conntrack *ct,
 	exp->tuple.dst.ip = ct->tuplehash[!dir].tuple.dst.ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = 0;
 
@@ -709,7 +709,7 @@ static int expect_callforwarding(struct sk_buff **pskb,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp = NULL;
 
@@ -751,10 +751,10 @@ static int expect_callforwarding(struct sk_buff **pskb,
 	exp->tuple.dst.ip = ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = 0;
 
@@ -791,7 +791,7 @@ static int process_setup(struct sk_buff **pskb, struct ip_conntrack *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int ret;
 	int i;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 
 	DEBUGP("ip_ct_q931: Setup\n");
@@ -1188,7 +1188,7 @@ static unsigned char *get_udp_data(struct sk_buff **pskb, int *datalen)
 
 /****************************************************************************/
 static struct ip_conntrack_expect *find_expect(struct ip_conntrack *ct,
-					       u_int32_t ip, u_int16_t port)
+					       __be32 ip, u_int16_t port)
 {
 	struct ip_conntrack_expect *exp;
 	struct ip_conntrack_tuple tuple;
@@ -1228,7 +1228,7 @@ static int expect_q931(struct sk_buff **pskb, struct ip_conntrack *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
 	int i;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp;
 
@@ -1251,10 +1251,10 @@ static int expect_q931(struct sk_buff **pskb, struct ip_conntrack *ct,
 	exp->tuple.dst.ip = ct->tuplehash[!dir].tuple.dst.ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = gkrouted_only ? 0xFFFFFFFF : 0;
+	exp->mask.src.ip = gkrouted_only ? htonl(0xFFFFFFFF) : 0;
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = IP_CT_EXPECT_PERMANENT;	/* Accept multiple calls */
 
@@ -1307,7 +1307,7 @@ static int process_gcf(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp;
 
@@ -1333,10 +1333,10 @@ static int process_gcf(struct sk_buff **pskb, struct ip_conntrack *ct,
 	exp->tuple.dst.ip = ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_UDP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = 0;
 	exp->expectfn = ip_conntrack_ras_expect;
@@ -1477,7 +1477,7 @@ static int process_arq(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	struct ip_ct_h323_master *info = &ct->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 
 	DEBUGP("ip_ct_ras: ARQ\n");
@@ -1513,7 +1513,7 @@ static int process_acf(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp;
 
@@ -1538,10 +1538,10 @@ static int process_acf(struct sk_buff **pskb, struct ip_conntrack *ct,
 	exp->tuple.dst.ip = ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = IP_CT_EXPECT_PERMANENT;
 	exp->expectfn = ip_conntrack_q931_expect;
@@ -1581,7 +1581,7 @@ static int process_lcf(struct sk_buff **pskb, struct ip_conntrack *ct,
 {
 	int dir = CTINFO2DIR(ctinfo);
 	int ret = 0;
-	u_int32_t ip;
+	__be32 ip;
 	u_int16_t port;
 	struct ip_conntrack_expect *exp = NULL;
 
@@ -1598,10 +1598,10 @@ static int process_lcf(struct sk_buff **pskb, struct ip_conntrack *ct,
 	exp->tuple.dst.ip = ip;
 	exp->tuple.dst.u.tcp.port = htons(port);
 	exp->tuple.dst.protonum = IPPROTO_TCP;
-	exp->mask.src.ip = 0xFFFFFFFF;
+	exp->mask.src.ip = htonl(0xFFFFFFFF);
 	exp->mask.src.u.tcp.port = 0;
-	exp->mask.dst.ip = 0xFFFFFFFF;
-	exp->mask.dst.u.tcp.port = 0xFFFF;
+	exp->mask.dst.ip = htonl(0xFFFFFFFF);
+	exp->mask.dst.u.tcp.port = htons(0xFFFF);
 	exp->mask.dst.protonum = 0xFF;
 	exp->flags = IP_CT_EXPECT_PERMANENT;
 	exp->expectfn = ip_conntrack_q931_expect;

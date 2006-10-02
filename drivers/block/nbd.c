@@ -407,10 +407,10 @@ static void do_nbd_request(request_queue_t * q)
 		struct nbd_device *lo;
 
 		blkdev_dequeue_request(req);
-		dprintk(DBG_BLKDEV, "%s: request %p: dequeued (flags=%lx)\n",
-				req->rq_disk->disk_name, req, req->flags);
+		dprintk(DBG_BLKDEV, "%s: request %p: dequeued (flags=%x)\n",
+				req->rq_disk->disk_name, req, req->cmd_type);
 
-		if (!(req->flags & REQ_CMD))
+		if (!blk_fs_request(req))
 			goto error_out;
 
 		lo = req->rq_disk->private_data;
@@ -489,7 +489,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case NBD_DISCONNECT:
 	        printk(KERN_INFO "%s: NBD_DISCONNECT\n", lo->disk->disk_name);
-		sreq.flags = REQ_SPECIAL;
+		sreq.cmd_type = REQ_TYPE_SPECIAL;
 		nbd_cmd(&sreq) = NBD_CMD_DISC;
 		/*
 		 * Set these to sane values in case server implementation

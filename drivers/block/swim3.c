@@ -319,8 +319,8 @@ static void start_request(struct floppy_state *fs)
 		printk("do_fd_req: dev=%s cmd=%d sec=%ld nr_sec=%ld buf=%p\n",
 		       req->rq_disk->disk_name, req->cmd,
 		       (long)req->sector, req->nr_sectors, req->buffer);
-		printk("           rq_status=%d errors=%d current_nr_sectors=%ld\n",
-		       req->rq_status, req->errors, req->current_nr_sectors);
+		printk("           errors=%d current_nr_sectors=%ld\n",
+		       req->errors, req->current_nr_sectors);
 #endif
 
 		if (req->sector < 0 || req->sector >= fs->total_secs) {

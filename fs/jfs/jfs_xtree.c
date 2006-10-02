@@ -2964,7 +2964,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 			cmSetXD(ip, cp, pno, dxaddr, nblks);
 
 			/* release the cbuf, mark it as modified */
-			cmPut(cp, TRUE);
+			cmPut(cp, true);
 
 			dxaddr += nblks;
 			sxaddr += nblks;

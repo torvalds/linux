@@ -76,7 +76,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  * @count:	number of clusters to allocate
  * @start_lcn:	starting lcn at which to allocate the clusters (or -1 if none)
  * @zone:	zone from which to allocate the clusters
- * @is_extension:	if TRUE, this is an attribute extension
+ * @is_extension:	if 'true', this is an attribute extension
  *
  * Allocate @count clusters preferably starting at cluster @start_lcn or at the
  * current allocator position if @start_lcn is -1, on the mounted ntfs volume
@@ -87,11 +87,11 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
  * @start_vcn specifies the vcn of the first allocated cluster.  This makes
  * merging the resulting runlist with the old runlist easier.
  *
- * If @is_extension is TRUE, the caller is allocating clusters to extend an
- * attribute and if it is FALSE, the caller is allocating clusters to fill a
+ * If @is_extension is 'true', the caller is allocating clusters to extend an
+ * attribute and if it is 'false', the caller is allocating clusters to fill a
  * hole in an attribute.  Practically the difference is that if @is_extension
- * is TRUE the returned runlist will be terminated with LCN_ENOENT and if
- * @is_extension is FALSE the runlist will be terminated with
+ * is 'true' the returned runlist will be terminated with LCN_ENOENT and if
+ * @is_extension is 'false' the runlist will be terminated with
  * LCN_RL_NOT_MAPPED.
  *
  * You need to check the return value with IS_ERR().  If this is false, the
@@ -146,7 +146,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
 runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		const s64 count, const LCN start_lcn,
 		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
-		const BOOL is_extension)
+		const bool is_extension)
 {
 	LCN zone_start, zone_end, bmp_pos, bmp_initial_pos, last_read_pos, lcn;
 	LCN prev_lcn = 0, prev_run_len = 0, mft_zone_size;
@@ -818,7 +818,7 @@ out:
  * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
  * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
  *
- * @is_rollback should always be FALSE, it is for internal use to rollback
+ * @is_rollback should always be 'false', it is for internal use to rollback
  * errors.  You probably want to use ntfs_cluster_free() instead.
  *
  * Note, __ntfs_cluster_free() does not modify the runlist, so you have to
@@ -828,7 +828,7 @@ out:
  * success and -errno on error.
  *
  * WARNING: If @ctx is supplied, regardless of whether success or failure is
- *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if 'true' the @ctx
  *	    is no longer valid, i.e. you need to either call
  *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
  *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
@@ -847,7 +847,7 @@ out:
  *	      and it will be left mapped on return.
  */
 s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
-		ntfs_attr_search_ctx *ctx, const BOOL is_rollback)
+		ntfs_attr_search_ctx *ctx, const bool is_rollback)
 {
 	s64 delta, to_free, total_freed, real_freed;
 	ntfs_volume *vol;
@@ -999,7 +999,7 @@ err_out:
 	 * If rollback fails, set the volume errors flag, emit an error
 	 * message, and return the error code.
 	 */
-	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, ctx, TRUE);
+	delta = __ntfs_cluster_free(ni, start_vcn, total_freed, ctx, true);
 	if (delta < 0) {
 		ntfs_error(vol->sb, "Failed to rollback (error %i).  Leaving "
 				"inconsistent metadata!  Unmount and run "

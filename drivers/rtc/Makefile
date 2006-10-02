@@ -2,6 +2,10 @@
 # Makefile for RTC class/drivers.
 #
 
+ifeq ($(CONFIG_RTC_DEBUG),y)
+	EXTRA_CFLAGS		+= -DDEBUG
+endif
+
 obj-$(CONFIG_RTC_LIB)		+= rtc-lib.o
 obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o
 obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o

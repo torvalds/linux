@@ -112,6 +112,18 @@ static int lm75_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, lm75_detect);
 }
 
+static struct attribute *lm75_attributes[] = {
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_max.attr,
+	&dev_attr_temp1_max_hyst.attr,
+
+	NULL
+};
+
+static const struct attribute_group lm75_group = {
+	.attrs = lm75_attributes,
+};
+
 /* This function is called by i2c_probe */
 static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 {
@@ -199,18 +211,19 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	lm75_init_client(new_client);
 	
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm75_group)))
+		goto exit_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max_hyst);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 
 	return 0;
 
+exit_remove:
+	sysfs_remove_group(&new_client->dev.kobj, &lm75_group);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -223,6 +236,7 @@ static int lm75_detach_client(struct i2c_client *client)
 {
 	struct lm75_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &lm75_group);
 	i2c_detach_client(client);
 	kfree(data);
 	return 0;

@@ -145,9 +145,7 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Create the Extended DDP header */
 	ddp = (struct ddpehdr *)skb->data;
-        ddp->deh_len = skb->len;
-        ddp->deh_hops = 1;
-        ddp->deh_pad = 0;
+        ddp->deh_len_hops = htons(skb->len + (1<<10));
         ddp->deh_sum = 0;
 
 	/*
@@ -170,7 +168,6 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
         ddp->deh_sport = 72;
 
         *((__u8 *)(ddp+1)) = 22;        	/* ddp type = IP */
-        *((__u16 *)ddp)=ntohs(*((__u16 *)ddp));	/* fix up length field */
 
         skb->protocol = htons(ETH_P_ATALK);     /* Protocol has changed */
 

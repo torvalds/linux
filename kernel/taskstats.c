@@ -18,7 +18,9 @@
 
 #include <linux/kernel.h>
 #include <linux/taskstats_kern.h>
+#include <linux/tsacct_kern.h>
 #include <linux/delayacct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 #include <net/genetlink.h>
@@ -75,7 +77,7 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	/*
 	 * If new attributes are added, please revisit this allocation
 	 */
-	skb = nlmsg_new(size, GFP_KERNEL);
+	skb = nlmsg_new(genlmsg_total_size(size), GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
@@ -198,7 +200,13 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 	 */
 
 	delayacct_add_tsk(stats, tsk);
+
+	/* fill in basic acct fields */
 	stats->version = TASKSTATS_VERSION;
+	bacct_add_tsk(stats, tsk);
+
+	/* fill in extended acct fields */
+	xacct_add_tsk(stats, tsk);
 
 	/* Define err: label here if needed */
 	put_task_struct(tsk);

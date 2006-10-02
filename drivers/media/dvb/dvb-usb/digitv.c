@@ -128,11 +128,11 @@ static struct nxt6000_config digitv_nxt6000_config = {
 
 static int digitv_frontend_attach(struct dvb_usb_device *d)
 {
-	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL) {
+	if ((d->fe = dvb_attach(mt352_attach, &digitv_mt352_config, &d->i2c_adap)) != NULL) {
 		d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 		return 0;
 	}
-	if ((d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
+	if ((d->fe = dvb_attach(nxt6000_attach, &digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
 		d->fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
 		return 0;
 	}
@@ -147,21 +147,91 @@ static int digitv_tuner_attach(struct dvb_usb_device *d)
 }
 
 static struct dvb_usb_rc_key digitv_rc_keys[] = {
-	{ 0x00, 0x16, KEY_POWER }, /* dummy key */
+	{ 0x5f, 0x55, KEY_0 },
+	{ 0x6f, 0x55, KEY_1 },
+	{ 0x9f, 0x55, KEY_2 },
+	{ 0xaf, 0x55, KEY_3 },
+	{ 0x5f, 0x56, KEY_4 },
+	{ 0x6f, 0x56, KEY_5 },
+	{ 0x9f, 0x56, KEY_6 },
+	{ 0xaf, 0x56, KEY_7 },
+	{ 0x5f, 0x59, KEY_8 },
+	{ 0x6f, 0x59, KEY_9 },
+	{ 0x9f, 0x59, KEY_TV },
+	{ 0xaf, 0x59, KEY_AUX },
+	{ 0x5f, 0x5a, KEY_DVD },
+	{ 0x6f, 0x5a, KEY_POWER },
+	{ 0x9f, 0x5a, KEY_MHP },     /* labelled 'Picture' */
+	{ 0xaf, 0x5a, KEY_AUDIO },
+	{ 0x5f, 0x65, KEY_INFO },
+	{ 0x6f, 0x65, KEY_F13 },     /* 16:9 */
+	{ 0x9f, 0x65, KEY_F14 },     /* 14:9 */
+	{ 0xaf, 0x65, KEY_EPG },
+	{ 0x5f, 0x66, KEY_EXIT },
+	{ 0x6f, 0x66, KEY_MENU },
+	{ 0x9f, 0x66, KEY_UP },
+	{ 0xaf, 0x66, KEY_DOWN },
+	{ 0x5f, 0x69, KEY_LEFT },
+	{ 0x6f, 0x69, KEY_RIGHT },
+	{ 0x9f, 0x69, KEY_ENTER },
+	{ 0xaf, 0x69, KEY_CHANNELUP },
+	{ 0x5f, 0x6a, KEY_CHANNELDOWN },
+	{ 0x6f, 0x6a, KEY_VOLUMEUP },
+	{ 0x9f, 0x6a, KEY_VOLUMEDOWN },
+	{ 0xaf, 0x6a, KEY_RED },
+	{ 0x5f, 0x95, KEY_GREEN },
+	{ 0x6f, 0x95, KEY_YELLOW },
+	{ 0x9f, 0x95, KEY_BLUE },
+	{ 0xaf, 0x95, KEY_SUBTITLE },
+	{ 0x5f, 0x96, KEY_F15 },     /* AD */
+	{ 0x6f, 0x96, KEY_TEXT },
+	{ 0x9f, 0x96, KEY_MUTE },
+	{ 0xaf, 0x96, KEY_REWIND },
+	{ 0x5f, 0x99, KEY_STOP },
+	{ 0x6f, 0x99, KEY_PLAY },
+	{ 0x9f, 0x99, KEY_FASTFORWARD },
+	{ 0xaf, 0x99, KEY_F16 },     /* chapter */
+	{ 0x5f, 0x9a, KEY_PAUSE },
+	{ 0x6f, 0x9a, KEY_PLAY },
+	{ 0x9f, 0x9a, KEY_RECORD },
+	{ 0xaf, 0x9a, KEY_F17 },     /* picture in picture */
+	{ 0x5f, 0xa5, KEY_KPPLUS },  /* zoom in */
+	{ 0x6f, 0xa5, KEY_KPMINUS }, /* zoom out */
+	{ 0x9f, 0xa5, KEY_F18 },     /* capture */
+	{ 0xaf, 0xa5, KEY_F19 },     /* web */
+	{ 0x5f, 0xa6, KEY_EMAIL },
+	{ 0x6f, 0xa6, KEY_PHONE },
+	{ 0x9f, 0xa6, KEY_PC },
 };
 
-/* TODO is it really the NEC protocol ? */
 static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
+	int i;
 	u8 key[5];
+	u8 b[4] = { 0 };
+
+	*event = 0;
+	*state = REMOTE_NO_KEY_PRESSED;
 
 	digitv_ctrl_msg(d,USB_READ_REMOTE,0,NULL,0,&key[1],4);
-	/* TODO state, maybe it is VV ? */
-	if (key[1] != 0)
-		key[0] = 0x01; /* if something is inside the buffer, simulate key press */
 
-	/* call the universal NEC remote processor, to find out the key's state and event */
-	dvb_usb_nec_rc_key_to_event(d,key,event,state);
+	/* Tell the device we've read the remote. Not sure how necessary
+	   this is, but the Nebula SDK does it. */
+	digitv_ctrl_msg(d,USB_WRITE_REMOTE,0,b,4,NULL,0);
+
+	/* if something is inside the buffer, simulate key press */
+	if (key[1] != 0)
+	{
+		  for (i = 0; i < d->props.rc_key_map_size; i++) {
+			if (d->props.rc_key_map[i].custom == key[1] &&
+			    d->props.rc_key_map[i].data == key[2]) {
+				*event = d->props.rc_key_map[i].event;
+				*state = REMOTE_KEY_PRESSED;
+				return 0;
+			}
+		}
+	}
+
 	if (key[0] != 0)
 		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
 	return 0;

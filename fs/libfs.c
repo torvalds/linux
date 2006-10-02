@@ -243,7 +243,7 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 	struct inode *inode = old_dentry->d_inode;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	inode->i_nlink++;
+	inc_nlink(inode);
 	atomic_inc(&inode->i_count);
 	dget(dentry);
 	d_instantiate(dentry, inode);
@@ -275,7 +275,7 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	inode->i_nlink--;
+	drop_nlink(inode);
 	dput(dentry);
 	return 0;
 }
@@ -285,9 +285,9 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!simple_empty(dentry))
 		return -ENOTEMPTY;
 
-	dentry->d_inode->i_nlink--;
+	drop_nlink(dentry->d_inode);
 	simple_unlink(dir, dentry);
-	dir->i_nlink--;
+	drop_nlink(dir);
 	return 0;
 }
 
@@ -303,10 +303,10 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_dentry->d_inode) {
 		simple_unlink(new_dir, new_dentry);
 		if (they_are_dirs)
-			old_dir->i_nlink--;
+			drop_nlink(old_dir);
 	} else if (they_are_dirs) {
-		old_dir->i_nlink--;
-		new_dir->i_nlink++;
+		drop_nlink(old_dir);
+		inc_nlink(new_dir);
 	}
 
 	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
@@ -317,17 +317,9 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 int simple_readpage(struct file *file, struct page *page)
 {
-	void *kaddr;
-
-	if (PageUptodate(page))
-		goto out;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(kaddr, KM_USER0);
+	clear_highpage(page);
 	flush_dcache_page(page);
 	SetPageUptodate(page);
-out:
 	unlock_page(page);
 	return 0;
 }

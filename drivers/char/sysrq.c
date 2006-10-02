@@ -113,6 +113,7 @@ static struct sysrq_key_op sysrq_crashdump_op = {
 static void sysrq_handle_reboot(int key, struct pt_regs *pt_regs,
 				struct tty_struct *tty)
 {
+	lockdep_off();
 	local_irq_enable();
 	emergency_restart();
 }
@@ -208,7 +209,7 @@ static void send_sig_all(int sig)
 	struct task_struct *p;
 
 	for_each_process(p) {
-		if (p->mm && p->pid != 1)
+		if (p->mm && !is_init(p))
 			/* Not swapper, init nor kernel thread */
 			force_sig(sig, p);
 	}

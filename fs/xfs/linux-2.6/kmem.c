@@ -34,6 +34,14 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 	gfp_t	lflags = kmem_flags_convert(flags);
 	void	*ptr;
 
+#ifdef DEBUG
+	if (unlikely(!(flags & KM_LARGE) && (size > PAGE_SIZE))) {
+		printk(KERN_WARNING "Large %s attempt, size=%ld\n",
+			__FUNCTION__, (long)size);
+		dump_stack();
+	}
+#endif
+
 	do {
 		if (size < MAX_SLAB_SIZE || retries > MAX_VMALLOCS)
 			ptr = kmalloc(size, lflags);
@@ -57,6 +65,27 @@ kmem_zalloc(size_t size, unsigned int __nocast flags)
 	ptr = kmem_alloc(size, flags);
 	if (ptr)
 		memset((char *)ptr, 0, (int)size);
+	return ptr;
+}
+
+void *
+kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize,
+		   unsigned int __nocast flags)
+{
+	void		*ptr;
+	size_t		kmsize = maxsize;
+	unsigned int	kmflags = (flags & ~KM_SLEEP) | KM_NOSLEEP;
+
+	while (!(ptr = kmem_zalloc(kmsize, kmflags))) {
+		if ((kmsize <= minsize) && (flags & KM_NOSLEEP))
+			break;
+		if ((kmsize >>= 1) <= minsize) {
+			kmsize = minsize;
+			kmflags = flags;
+		}
+	}
+	if (ptr)
+		*size = kmsize;
 	return ptr;
 }
 

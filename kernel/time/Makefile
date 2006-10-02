@@ -1,1 +1,1 @@
-obj-y += clocksource.o jiffies.o
+obj-y += ntp.o clocksource.o jiffies.o

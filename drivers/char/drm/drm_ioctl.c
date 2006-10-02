@@ -127,9 +127,10 @@ int drm_setunique(struct inode *inode, struct file *filp,
 	domain = bus >> 8;
 	bus &= 0xff;
 
-	if ((domain != dev->pci_domain) ||
-	    (bus != dev->pci_bus) ||
-	    (slot != dev->pci_slot) || (func != dev->pci_func))
+	if ((domain != drm_get_pci_domain(dev)) ||
+	    (bus != dev->pdev->bus->number) ||
+	    (slot != PCI_SLOT(dev->pdev->devfn)) ||
+	    (func != PCI_FUNC(dev->pdev->devfn)))
 		return -EINVAL;
 
 	return 0;
@@ -140,15 +141,17 @@ static int drm_set_busid(drm_device_t * dev)
 	int len;
 
 	if (dev->unique != NULL)
-		return EBUSY;
+		return 0;
 
 	dev->unique_len = 40;
 	dev->unique = drm_alloc(dev->unique_len + 1, DRM_MEM_DRIVER);
 	if (dev->unique == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	len = snprintf(dev->unique, dev->unique_len, "pci:%04x:%02x:%02x.%d",
-		 dev->pci_domain, dev->pci_bus, dev->pci_slot, dev->pci_func);
+		       drm_get_pci_domain(dev), dev->pdev->bus->number,
+		       PCI_SLOT(dev->pdev->devfn),
+		       PCI_FUNC(dev->pdev->devfn));
 
 	if (len > dev->unique_len)
 		DRM_ERROR("Unique buffer overflowed\n");
@@ -157,7 +160,7 @@ static int drm_set_busid(drm_device_t * dev)
 	    drm_alloc(strlen(dev->driver->pci_driver.name) + dev->unique_len +
 		      2, DRM_MEM_DRIVER);
 	if (dev->devname == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
 		dev->unique);
@@ -330,27 +333,32 @@ int drm_setversion(DRM_IOCTL_ARGS)
 	drm_set_version_t retv;
 	int if_version;
 	drm_set_version_t __user *argp = (void __user *)data;
+	int ret;
 
-	DRM_COPY_FROM_USER_IOCTL(sv, argp, sizeof(sv));
+	if (copy_from_user(&sv, argp, sizeof(sv)))
+		return -EFAULT;
 
 	retv.drm_di_major = DRM_IF_MAJOR;
 	retv.drm_di_minor = DRM_IF_MINOR;
 	retv.drm_dd_major = dev->driver->major;
 	retv.drm_dd_minor = dev->driver->minor;
 
-	DRM_COPY_TO_USER_IOCTL(argp, retv, sizeof(sv));
+	if (copy_to_user(argp, &retv, sizeof(retv)))
+		return -EFAULT;
 
 	if (sv.drm_di_major != -1) {
 		if (sv.drm_di_major != DRM_IF_MAJOR ||
 		    sv.drm_di_minor < 0 || sv.drm_di_minor > DRM_IF_MINOR)
-			return EINVAL;
+			return -EINVAL;
 		if_version = DRM_IF_VERSION(sv.drm_di_major, sv.drm_di_minor);
-		dev->if_version = DRM_MAX(if_version, dev->if_version);
+		dev->if_version = max(if_version, dev->if_version);
 		if (sv.drm_di_minor >= 1) {
 			/*
 			 * Version 1.1 includes tying of DRM to specific device
 			 */
-			drm_set_busid(dev);
+			ret = drm_set_busid(dev);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -358,7 +366,7 @@ int drm_setversion(DRM_IOCTL_ARGS)
 		if (sv.drm_dd_major != dev->driver->major ||
 		    sv.drm_dd_minor < 0
 		    || sv.drm_dd_minor > dev->driver->minor)
-			return EINVAL;
+			return -EINVAL;
 
 		if (dev->driver->set_version)
 			dev->driver->set_version(dev, &sv);

@@ -35,20 +35,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 
 #include "generic.h"
 
-static void __init carmeva_init_irq(void)
-{
-	/* Initialize AIC controller */
-	at91rm9200_init_irq(NULL);
-
-	/* Set up the GPIO interrupts */
-	at91_gpio_irq_setup(BGA_GPIO_BANKS);
-}
 
 /*
  * Serial port configuration.
@@ -63,14 +54,18 @@ static struct at91_uart_config __initdata carmeva_uart_config = {
 
 static void __init carmeva_map_io(void)
 {
-	at91rm9200_map_io();
-
-	/* Initialize clocks: 20.000 MHz crystal */
-	at91_clock_init(20000000);
+	/* Initialize processor: 20.000 MHz crystal */
+	at91rm9200_initialize(20000000, AT91RM9200_BGA);
 
 	/* Setup the serial ports and console */
 	at91_init_serial(&carmeva_uart_config);
 }
+
+static void __init carmeva_init_irq(void)
+{
+	at91rm9200_init_interrupts(NULL);
+}
+
 
 static struct at91_eth_data __initdata carmeva_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,

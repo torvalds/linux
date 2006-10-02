@@ -409,7 +409,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	int i;
 	unsigned size = amd64_fetch_size();
 	printk(KERN_INFO "Setting up ULi AGP.\n");
-	dev1 = pci_find_slot ((unsigned int)pdev->bus->number,PCI_DEVFN(0,0));
+	dev1 = pci_get_slot (pdev->bus,PCI_DEVFN(0,0));
 	if (dev1 == NULL) {
 		printk(KERN_INFO PFX "Detected a ULi chipset, "
 			"but could not fine the secondary device.\n");
@@ -442,6 +442,8 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	enuscr= httfea+ (size * 1024 * 1024) - 1;
 	pci_write_config_dword(dev1, ULI_X86_64_HTT_FEA_REG, httfea);
 	pci_write_config_dword(dev1, ULI_X86_64_ENU_SCR_REG, enuscr);
+
+	pci_dev_put(dev1);
 	return 0;
 }
 
@@ -466,7 +468,7 @@ static int __devinit nforce3_agp_init(struct pci_dev *pdev)
 
 	printk(KERN_INFO PFX "Setting up Nforce3 AGP.\n");
 
-	dev1 = pci_find_slot((unsigned int)pdev->bus->number, PCI_DEVFN(11, 0));
+	dev1 = pci_get_slot(pdev->bus, PCI_DEVFN(11, 0));
 	if (dev1 == NULL) {
 		printk(KERN_INFO PFX "agpgart: Detected an NVIDIA "
 			"nForce3 chipset, but could not find "
@@ -509,6 +511,8 @@ static int __devinit nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APLIMIT1, aplimit);
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APBASE2, apbase);
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APLIMIT2, aplimit);
+
+	pci_dev_put(dev1);
 
 	return 0;
 }

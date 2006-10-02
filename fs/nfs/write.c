@@ -51,7 +51,6 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
-#include <linux/mpage.h>
 #include <linux/writeback.h>
 
 #include <linux/sunrpc/clnt.h>

@@ -24,6 +24,7 @@
 #include <linux/vfs.h>
 #include <linux/parser.h>
 #include <linux/uio.h>
+#include <linux/writeback.h>
 #include <asm/unaligned.h>
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
@@ -853,7 +854,7 @@ enum {
 	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
-	Opt_obsolate, Opt_err,
+	Opt_obsolate, Opt_flush, Opt_err,
 };
 
 static match_table_t fat_tokens = {
@@ -885,7 +886,8 @@ static match_table_t fat_tokens = {
 	{Opt_obsolate, "cvf_format=%20s"},
 	{Opt_obsolate, "cvf_options=%100s"},
 	{Opt_obsolate, "posix"},
-	{Opt_err, NULL}
+	{Opt_flush, "flush"},
+	{Opt_err, NULL},
 };
 static match_table_t msdos_tokens = {
 	{Opt_nodots, "nodots"},
@@ -1025,6 +1027,9 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 			if (match_int(&args[0], &option))
 				return 0;
 			opts->codepage = option;
+			break;
+		case Opt_flush:
+			opts->flush = 1;
 			break;
 
 		/* msdos specific */
@@ -1424,6 +1429,56 @@ out_fail:
 }
 
 EXPORT_SYMBOL_GPL(fat_fill_super);
+
+/*
+ * helper function for fat_flush_inodes.  This writes both the inode
+ * and the file data blocks, waiting for in flight data blocks before
+ * the start of the call.  It does not wait for any io started
+ * during the call
+ */
+static int writeback_inode(struct inode *inode)
+{
+
+	int ret;
+	struct address_space *mapping = inode->i_mapping;
+	struct writeback_control wbc = {
+	       .sync_mode = WB_SYNC_NONE,
+	      .nr_to_write = 0,
+	};
+	/* if we used WB_SYNC_ALL, sync_inode waits for the io for the
+	* inode to finish.  So WB_SYNC_NONE is sent down to sync_inode
+	* and filemap_fdatawrite is used for the data blocks
+	*/
+	ret = sync_inode(inode, &wbc);
+	if (!ret)
+	       ret = filemap_fdatawrite(mapping);
+	return ret;
+}
+
+/*
+ * write data and metadata corresponding to i1 and i2.  The io is
+ * started but we do not wait for any of it to finish.
+ *
+ * filemap_flush is used for the block device, so if there is a dirty
+ * page for a block already in flight, we will not wait and start the
+ * io over again
+ */
+int fat_flush_inodes(struct super_block *sb, struct inode *i1, struct inode *i2)
+{
+	int ret = 0;
+	if (!MSDOS_SB(sb)->options.flush)
+		return 0;
+	if (i1)
+		ret = writeback_inode(i1);
+	if (!ret && i2)
+		ret = writeback_inode(i2);
+	if (!ret && sb) {
+		struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+		ret = filemap_flush(mapping);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fat_flush_inodes);
 
 static int __init init_fat_fs(void)
 {

@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/fixmap.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -20,82 +20,6 @@
 
 #define ISA_START_ADDRESS	0xa0000
 #define ISA_END_ADDRESS		0x100000
-
-static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
-		unsigned long end, unsigned long phys_addr, unsigned long flags)
-{
-	pte_t *pte;
-	unsigned long pfn;
-
-	pfn = phys_addr >> PAGE_SHIFT;
-	pte = pte_alloc_kernel(pmd, addr);
-	if (!pte)
-		return -ENOMEM;
-	do {
-		BUG_ON(!pte_none(*pte));
-		set_pte(pte, pfn_pte(pfn, __pgprot(_PAGE_PRESENT | _PAGE_RW | 
-					_PAGE_DIRTY | _PAGE_ACCESSED | flags)));
-		pfn++;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
-	return 0;
-}
-
-static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
-		unsigned long end, unsigned long phys_addr, unsigned long flags)
-{
-	pmd_t *pmd;
-	unsigned long next;
-
-	phys_addr -= addr;
-	pmd = pmd_alloc(&init_mm, pud, addr);
-	if (!pmd)
-		return -ENOMEM;
-	do {
-		next = pmd_addr_end(addr, end);
-		if (ioremap_pte_range(pmd, addr, next, phys_addr + addr, flags))
-			return -ENOMEM;
-	} while (pmd++, addr = next, addr != end);
-	return 0;
-}
-
-static inline int ioremap_pud_range(pgd_t *pgd, unsigned long addr,
-		unsigned long end, unsigned long phys_addr, unsigned long flags)
-{
-	pud_t *pud;
-	unsigned long next;
-
-	phys_addr -= addr;
-	pud = pud_alloc(&init_mm, pgd, addr);
-	if (!pud)
-		return -ENOMEM;
-	do {
-		next = pud_addr_end(addr, end);
-		if (ioremap_pmd_range(pud, addr, next, phys_addr + addr, flags))
-			return -ENOMEM;
-	} while (pud++, addr = next, addr != end);
-	return 0;
-}
-
-static int ioremap_page_range(unsigned long addr,
-		unsigned long end, unsigned long phys_addr, unsigned long flags)
-{
-	pgd_t *pgd;
-	unsigned long next;
-	int err;
-
-	BUG_ON(addr >= end);
-	flush_cache_all();
-	phys_addr -= addr;
-	pgd = pgd_offset_k(addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		err = ioremap_pud_range(pgd, addr, next, phys_addr+addr, flags);
-		if (err)
-			break;
-	} while (pgd++, addr = next, addr != end);
-	flush_tlb_all();
-	return err;
-}
 
 /*
  * Generic mapping function (not visible outside):
@@ -115,6 +39,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	void __iomem * addr;
 	struct vm_struct * area;
 	unsigned long offset, last_addr;
+	pgprot_t prot;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -142,6 +67,9 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 				return NULL;
 	}
 
+	prot = __pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY
+			| _PAGE_ACCESSED | flags);
+
 	/*
 	 * Mappings have to be page-aligned
 	 */
@@ -158,7 +86,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	area->phys_addr = phys_addr;
 	addr = (void __iomem *) area->addr;
 	if (ioremap_page_range((unsigned long) addr,
-			(unsigned long) addr + size, phys_addr, flags)) {
+			(unsigned long) addr + size, phys_addr, prot)) {
 		vunmap((void __force *) addr);
 		return NULL;
 	}

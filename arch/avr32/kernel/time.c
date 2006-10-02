@@ -148,7 +148,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * Call the generic timer interrupt handler
 	 */
 	write_seqlock(&xtime_lock);
-	do_timer(regs);
+	do_timer(1);
 	write_sequnlock(&xtime_lock);
 
 	/*

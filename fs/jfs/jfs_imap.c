@@ -78,8 +78,8 @@ static HLIST_HEAD(aggregate_hash);
 /*
  * forward references
  */
-static int diAllocAG(struct inomap *, int, boolean_t, struct inode *);
-static int diAllocAny(struct inomap *, int, boolean_t, struct inode *);
+static int diAllocAG(struct inomap *, int, bool, struct inode *);
+static int diAllocAny(struct inomap *, int, bool, struct inode *);
 static int diAllocBit(struct inomap *, struct iag *, int);
 static int diAllocExt(struct inomap *, int, struct inode *);
 static int diAllocIno(struct inomap *, int, struct inode *);
@@ -1345,7 +1345,7 @@ diInitInode(struct inode *ip, int iagno, int ino, int extno, struct iag * iagp)
  *
  * PARAMETERS:
  *      pip  	- pointer to incore inode for the parent inode.
- *      dir  	- TRUE if the new disk inode is for a directory.
+ *      dir  	- 'true' if the new disk inode is for a directory.
  *      ip  	- pointer to a new inode
  *
  * RETURN VALUES:
@@ -1353,7 +1353,7 @@ diInitInode(struct inode *ip, int iagno, int ino, int extno, struct iag * iagp)
  *      -ENOSPC	- insufficient disk resources.
  *      -EIO  	- i/o error.
  */
-int diAlloc(struct inode *pip, boolean_t dir, struct inode *ip)
+int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 {
 	int rc, ino, iagno, addext, extno, bitno, sword;
 	int nwords, rem, i, agno;
@@ -1375,7 +1375,7 @@ int diAlloc(struct inode *pip, boolean_t dir, struct inode *ip)
 	/* for a directory, the allocation policy is to start 
 	 * at the ag level using the preferred ag.
 	 */
-	if (dir == TRUE) {
+	if (dir) {
 		agno = dbNextAG(JFS_SBI(pip->i_sb)->ipbmap);
 		AG_LOCK(imap, agno);
 		goto tryag;
@@ -1651,7 +1651,7 @@ int diAlloc(struct inode *pip, boolean_t dir, struct inode *ip)
  * PARAMETERS:
  *      imap  	- pointer to inode map control structure.
  *      agno  	- allocation group to allocate from.
- *      dir  	- TRUE if the new disk inode is for a directory.
+ *      dir  	- 'true' if the new disk inode is for a directory.
  *      ip  	- pointer to the new inode to be filled in on successful return
  *		  with the disk inode number allocated, its extent address
  *		  and the start of the ag.
@@ -1662,7 +1662,7 @@ int diAlloc(struct inode *pip, boolean_t dir, struct inode *ip)
  *      -EIO  	- i/o error.
  */
 static int
-diAllocAG(struct inomap * imap, int agno, boolean_t dir, struct inode *ip)
+diAllocAG(struct inomap * imap, int agno, bool dir, struct inode *ip)
 {
 	int rc, addext, numfree, numinos;
 
@@ -1682,7 +1682,7 @@ diAllocAG(struct inomap * imap, int agno, boolean_t dir, struct inode *ip)
 	 * if there are a small number of free inodes or number of free
 	 * inodes is a small percentage of the number of backed inodes.
 	 */
-	if (dir == TRUE)
+	if (dir)
 		addext = (numfree < 64 ||
 			  (numfree < 256
 			   && ((numfree * 100) / numinos) <= 20));
@@ -1721,7 +1721,7 @@ diAllocAG(struct inomap * imap, int agno, boolean_t dir, struct inode *ip)
  * PARAMETERS:
  *      imap  	- pointer to inode map control structure.
  *      agno  	- primary allocation group (to avoid).
- *      dir  	- TRUE if the new disk inode is for a directory.
+ *      dir  	- 'true' if the new disk inode is for a directory.
  *      ip  	- pointer to a new inode to be filled in on successful return
  *		  with the disk inode number allocated, its extent address
  *		  and the start of the ag.
@@ -1732,7 +1732,7 @@ diAllocAG(struct inomap * imap, int agno, boolean_t dir, struct inode *ip)
  *      -EIO  	- i/o error.
  */
 static int
-diAllocAny(struct inomap * imap, int agno, boolean_t dir, struct inode *ip)
+diAllocAny(struct inomap * imap, int agno, bool dir, struct inode *ip)
 {
 	int ag, rc;
 	int maxag = JFS_SBI(imap->im_ipimap->i_sb)->bmap->db_maxag;
@@ -2749,7 +2749,7 @@ static int diFindFree(u32 word, int start)
  * PARAMETERS:
  *	ipimap	- Incore inode map inode
  *	inum	- Number of inode to mark in permanent map
- *	is_free	- If TRUE indicates inode should be marked freed, otherwise
+ *	is_free	- If 'true' indicates inode should be marked freed, otherwise
  *		  indicates inode should be marked allocated.
  *
  * RETURN VALUES: 
@@ -2757,7 +2757,7 @@ static int diFindFree(u32 word, int start)
  */
 int
 diUpdatePMap(struct inode *ipimap,
-	     unsigned long inum, boolean_t is_free, struct tblock * tblk)
+	     unsigned long inum, bool is_free, struct tblock * tblk)
 {
 	int rc;
 	struct iag *iagp;
@@ -2796,7 +2796,7 @@ diUpdatePMap(struct inode *ipimap,
 	/* 
 	 * mark the inode free in persistent map:
 	 */
-	if (is_free == TRUE) {
+	if (is_free) {
 		/* The inode should have been allocated both in working
 		 * map and in persistent map;
 		 * the inode will be freed from working map at the release

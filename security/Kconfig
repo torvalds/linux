@@ -93,18 +93,6 @@ config SECURITY_ROOTPLUG
 	  
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_SECLVL
-	tristate "BSD Secure Levels"
-	depends on SECURITY
-	select CRYPTO
-	select CRYPTO_SHA1
-	help
-	  Implements BSD Secure Levels as an LSM.  See
-	  <file:Documentation/seclvl.txt> for instructions on how to use this
-	  module.
-
-	  If you are unsure how to answer this question, answer N.
-
 source security/selinux/Kconfig
 
 endmenu

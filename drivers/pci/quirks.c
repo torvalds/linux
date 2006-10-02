@@ -93,8 +93,21 @@ static void __devinit quirk_nopcipci(struct pci_dev *dev)
 		pci_pci_problems |= PCIPCI_FAIL;
 	}
 }
+
+static void __devinit quirk_nopciamd(struct pci_dev *dev)
+{
+	u8 rev;
+	pci_read_config_byte(dev, 0x08, &rev);
+	if (rev == 0x13) {
+		/* Erratum 24 */
+		printk(KERN_INFO "Chipset erratum: Disabling direct PCI/AGP transfers.\n");
+		pci_pci_problems |= PCIAGP_FAIL;
+	}
+}
+
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_5597,		quirk_nopcipci );
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SI,	PCI_DEVICE_ID_SI_496,		quirk_nopcipci );
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD,	PCI_DEVICE_ID_AMD_8151_0,	quirk_nopciamd );
 
 /*
  *	Triton requires workarounds to be used by the drivers
@@ -555,7 +568,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk_via_vt
  * is currently marked NoFix
  *
  * We have multiple reports of hangs with this chipset that went away with
- * noapic specified. For the moment we assume its the errata. We may be wrong
+ * noapic specified. For the moment we assume it's the erratum. We may be wrong
  * of course. However the advice is demonstrably good even if so..
  */
 static void __devinit quirk_amd_ioapic(struct pci_dev *dev)
@@ -564,7 +577,7 @@ static void __devinit quirk_amd_ioapic(struct pci_dev *dev)
 
 	pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
 	if (rev >= 0x02) {
-		printk(KERN_WARNING "I/O APIC: AMD Errata #22 may be present. In the event of instability try\n");
+		printk(KERN_WARNING "I/O APIC: AMD Erratum #22 may be present. In the event of instability try\n");
 		printk(KERN_WARNING "        : booting with the \"noapic\" option.\n");
 	}
 }

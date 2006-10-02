@@ -739,7 +739,7 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 
 	for (i = 0; i < ARRAY_SIZE(SiSHostChipInfo) && !chipset_family; i++) {
 
-		host = pci_find_device(PCI_VENDOR_ID_SI, SiSHostChipInfo[i].host_id, NULL);
+		host = pci_get_device(PCI_VENDOR_ID_SI, SiSHostChipInfo[i].host_id, NULL);
 
 		if (!host)
 			continue;
@@ -753,6 +753,7 @@ static unsigned int __devinit init_chipset_sis5513 (struct pci_dev *dev, const c
 			if (hostrev >= 0x30)
 				chipset_family = ATA_100a;
 		}
+		pci_dev_put(host);
 	
 		printk(KERN_INFO "SIS5513: %s %s controller\n",
 			 SiSHostChipInfo[i].name, chipset_capability[chipset_family]);

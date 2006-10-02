@@ -281,9 +281,6 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 
 		DPRINTK("mount done status=%d", status);
 
-		if (status && dentry->d_inode)
-			return status; /* Try to get the kernel to invalidate this dentry */
-
 		/* Turn this into a real negative dentry? */
 		if (status == -ENOENT) {
 			spin_lock(&dentry->d_lock);
@@ -359,7 +356,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 * don't try to mount it again.
 	 */
 	spin_lock(&dcache_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
+	if (!d_mountpoint(dentry) && __simple_empty(dentry)) {
 		spin_unlock(&dcache_lock);
 
 		status = try_to_fill_dentry(dentry, 0);
@@ -540,6 +537,9 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 			    return ERR_PTR(-ERESTARTNOINTR);
 			}
 		}
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
+		spin_unlock(&dentry->d_lock);
 	}
 
 	/*
@@ -638,7 +638,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	dput(ino->dentry);
 
 	dentry->d_inode->i_size = 0;
-	dentry->d_inode->i_nlink = 0;
+	clear_nlink(dentry->d_inode);
 
 	dir->i_mtime = CURRENT_TIME;
 
@@ -673,10 +673,10 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 	dput(ino->dentry);
 	dentry->d_inode->i_size = 0;
-	dentry->d_inode->i_nlink = 0;
+	clear_nlink(dentry->d_inode);
 
 	if (dir->i_nlink)
-		dir->i_nlink--;
+		drop_nlink(dir);
 
 	return 0;
 }
@@ -713,7 +713,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (p_ino && dentry->d_parent != dentry)
 		atomic_inc(&p_ino->count);
 	ino->inode = inode;
-	dir->i_nlink++;
+	inc_nlink(dir);
 	dir->i_mtime = CURRENT_TIME;
 
 	return 0;

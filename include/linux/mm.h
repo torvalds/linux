@@ -743,7 +743,9 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm, unsigned long 
 		int len, int write, int force, struct page **pages, struct vm_area_struct **vmas);
 void print_bad_pte(struct vm_area_struct *, pte_t, unsigned long);
 
-int __set_page_dirty_buffers(struct page *page);
+extern int try_to_release_page(struct page * page, gfp_t gfp_mask);
+extern void do_invalidatepage(struct page *page, unsigned long offset);
+
 int __set_page_dirty_nobuffers(struct page *page);
 int redirty_page_for_writepage(struct writeback_control *wbc,
 				struct page *page);
@@ -944,6 +946,8 @@ extern void mem_init(void);
 extern void show_mem(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
+extern void zonetable_add(struct zone *zone, int nid, enum zone_type zid,
+					unsigned long pfn, unsigned long size);
 
 #ifdef CONFIG_NUMA
 extern void setup_per_cpu_pageset(void);

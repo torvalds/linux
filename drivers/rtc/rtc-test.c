@@ -75,7 +75,7 @@ static int test_rtc_ioctl(struct device *dev, unsigned int cmd,
 	}
 }
 
-static struct rtc_class_ops test_rtc_ops = {
+static const struct rtc_class_ops test_rtc_ops = {
 	.proc = test_rtc_proc,
 	.read_time = test_rtc_read_time,
 	.set_time = test_rtc_set_time,

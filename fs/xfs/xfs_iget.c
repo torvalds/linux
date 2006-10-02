@@ -50,7 +50,7 @@ void
 xfs_ihash_init(xfs_mount_t *mp)
 {
 	__uint64_t	icount;
-	uint		i, flags = KM_SLEEP | KM_MAYFAIL;
+	uint		i;
 
 	if (!mp->m_ihsize) {
 		icount = mp->m_maxicount ? mp->m_maxicount :
@@ -61,14 +61,13 @@ xfs_ihash_init(xfs_mount_t *mp)
 					(64 * NBPP) / sizeof(xfs_ihash_t));
 	}
 
-	while (!(mp->m_ihash = (xfs_ihash_t *)kmem_zalloc(mp->m_ihsize *
-						sizeof(xfs_ihash_t), flags))) {
-		if ((mp->m_ihsize >>= 1) <= NBPP)
-			flags = KM_SLEEP;
-	}
-	for (i = 0; i < mp->m_ihsize; i++) {
+	mp->m_ihash = kmem_zalloc_greedy(&mp->m_ihsize,
+					 NBPC * sizeof(xfs_ihash_t),
+					 mp->m_ihsize * sizeof(xfs_ihash_t),
+					 KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	mp->m_ihsize /= sizeof(xfs_ihash_t);
+	for (i = 0; i < mp->m_ihsize; i++)
 		rwlock_init(&(mp->m_ihash[i].ih_lock));
-	}
 }
 
 /*
@@ -77,7 +76,7 @@ xfs_ihash_init(xfs_mount_t *mp)
 void
 xfs_ihash_free(xfs_mount_t *mp)
 {
-	kmem_free(mp->m_ihash, mp->m_ihsize*sizeof(xfs_ihash_t));
+	kmem_free(mp->m_ihash, mp->m_ihsize * sizeof(xfs_ihash_t));
 	mp->m_ihash = NULL;
 }
 
@@ -95,7 +94,7 @@ xfs_chash_init(xfs_mount_t *mp)
 	mp->m_chsize = min_t(uint, mp->m_chsize, mp->m_ihsize);
 	mp->m_chash = (xfs_chash_t *)kmem_zalloc(mp->m_chsize
 						 * sizeof(xfs_chash_t),
-						 KM_SLEEP);
+						 KM_SLEEP | KM_LARGE);
 	for (i = 0; i < mp->m_chsize; i++) {
 		spinlock_init(&mp->m_chash[i].ch_lock,"xfshash");
 	}
@@ -244,7 +243,9 @@ again:
 
 				XFS_STATS_INC(xs_ig_found);
 
+				spin_lock(&ip->i_flags_lock);
 				ip->i_flags &= ~XFS_IRECLAIMABLE;
+				spin_unlock(&ip->i_flags_lock);
 				version = ih->ih_version;
 				read_unlock(&ih->ih_lock);
 				xfs_ihash_promote(ih, ip, version);
@@ -290,15 +291,17 @@ again:
 
 finish_inode:
 			if (ip->i_d.di_mode == 0) {
-				if (!(flags & IGET_CREATE))
+				if (!(flags & XFS_IGET_CREATE))
 					return ENOENT;
 				xfs_iocore_inode_reinit(ip);
 			}
-	
+
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
 
+			spin_lock(&ip->i_flags_lock);
 			ip->i_flags &= ~XFS_ISTALE;
+			spin_unlock(&ip->i_flags_lock);
 
 			vn_trace_exit(vp, "xfs_iget.found",
 						(inst_t *)__return_address);
@@ -320,21 +323,20 @@ finish_inode:
 	 * Read the disk inode attributes into a new inode structure and get
 	 * a new vnode for it. This should also initialize i_ino and i_mount.
 	 */
-	error = xfs_iread(mp, tp, ino, &ip, bno);
-	if (error) {
+	error = xfs_iread(mp, tp, ino, &ip, bno,
+			  (flags & XFS_IGET_BULKSTAT) ? XFS_IMAP_BULKSTAT : 0);
+	if (error)
 		return error;
-	}
 
 	vn_trace_exit(vp, "xfs_iget.alloc", (inst_t *)__return_address);
 
 	xfs_inode_lock_init(ip, vp);
 	xfs_iocore_inode_init(ip);
 
-	if (lock_flags != 0) {
+	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
-	}
-		
-	if ((ip->i_d.di_mode == 0) && !(flags & IGET_CREATE)) {
+
+	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		xfs_idestroy(ip);
 		return ENOENT;
 	}
@@ -369,7 +371,9 @@ finish_inode:
 	ih->ih_next = ip;
 	ip->i_udquot = ip->i_gdquot = NULL;
 	ih->ih_version++;
+	spin_lock(&ip->i_flags_lock);
 	ip->i_flags |= XFS_INEW;
+	spin_unlock(&ip->i_flags_lock);
 
 	write_unlock(&ih->ih_lock);
 
@@ -548,7 +552,7 @@ xfs_inode_lock_init(
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", vp->v_number);
 	init_waitqueue_head(&ip->i_ipin_wait);
 	atomic_set(&ip->i_pincount, 0);
-	init_sema(&ip->i_flock, 1, "xfsfino", vp->v_number);
+	initnsema(&ip->i_flock, 1, "xfsfino");
 }
 
 /*

@@ -169,4 +169,22 @@ static inline int genlmsg_len(const struct genlmsghdr *gnlh)
 	return (nlh->nlmsg_len - GENL_HDRLEN - NLMSG_HDRLEN);
 }
 
+/**
+ * genlmsg_msg_size - length of genetlink message not including padding
+ * @payload: length of message payload
+ */
+static inline int genlmsg_msg_size(int payload)
+{
+	return GENL_HDRLEN + payload;
+}
+
+/**
+ * genlmsg_total_size - length of genetlink message including padding
+ * @payload: length of message payload
+ */
+static inline int genlmsg_total_size(int payload)
+{
+	return NLMSG_ALIGN(genlmsg_msg_size(payload));
+}
+
 #endif	/* __NET_GENERIC_NETLINK_H */

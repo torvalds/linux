@@ -37,12 +37,12 @@
  * @entry:	index entry (points into @ir or @ia)
  * @data:	index entry data (points into @entry)
  * @data_len:	length in bytes of @data
- * @is_in_root:	TRUE if @entry is in @ir and FALSE if it is in @ia
+ * @is_in_root:	'true' if @entry is in @ir and 'false' if it is in @ia
  * @ir:		index root if @is_in_root and NULL otherwise
  * @actx:	attribute search context if @is_in_root and NULL otherwise
  * @base_ni:	base inode if @is_in_root and NULL otherwise
- * @ia:		index block if @is_in_root is FALSE and NULL otherwise
- * @page:	page if @is_in_root is FALSE and NULL otherwise
+ * @ia:		index block if @is_in_root is 'false' and NULL otherwise
+ * @page:	page if @is_in_root is 'false' and NULL otherwise
  *
  * @idx_ni is the index inode this context belongs to.
  *
@@ -50,11 +50,11 @@
  * are the index entry data and its length in bytes, respectively.  @data
  * simply points into @entry.  This is probably what the user is interested in.
  *
- * If @is_in_root is TRUE, @entry is in the index root attribute @ir described
+ * If @is_in_root is 'true', @entry is in the index root attribute @ir described
  * by the attribute search context @actx and the base inode @base_ni.  @ia and
  * @page are NULL in this case.
  *
- * If @is_in_root is FALSE, @entry is in the index allocation attribute and @ia
+ * If @is_in_root is 'false', @entry is in the index allocation attribute and @ia
  * and @page point to the index allocation block and the mapped, locked page it
  * is in, respectively.  @ir, @actx and @base_ni are NULL in this case.
  *
@@ -77,7 +77,7 @@ typedef struct {
 	INDEX_ENTRY *entry;
 	void *data;
 	u16 data_len;
-	BOOL is_in_root;
+	bool is_in_root;
 	INDEX_ROOT *ir;
 	ntfs_attr_search_ctx *actx;
 	ntfs_inode *base_ni;

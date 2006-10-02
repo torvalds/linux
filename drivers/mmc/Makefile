@@ -24,7 +24,8 @@ obj-$(CONFIG_MMC_AU1X)		+= au1xmmc.o
 obj-$(CONFIG_MMC_OMAP)		+= omap.o
 obj-$(CONFIG_MMC_AT91RM9200)	+= at91_mci.o
 
-mmc_core-y := mmc.o mmc_queue.o mmc_sysfs.o
+mmc_core-y := mmc.o mmc_sysfs.o
+mmc_core-$(CONFIG_BLOCK) += mmc_queue.o
 
 ifeq ($(CONFIG_MMC_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG

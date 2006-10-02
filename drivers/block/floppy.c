@@ -2991,8 +2991,8 @@ static void do_fd_request(request_queue_t * q)
 	if (usage_count == 0) {
 		printk("warning: usage count=0, current_req=%p exiting\n",
 		       current_req);
-		printk("sect=%ld flags=%lx\n", (long)current_req->sector,
-		       current_req->flags);
+		printk("sect=%ld type=%x flags=%x\n", (long)current_req->sector,
+		       current_req->cmd_type, current_req->cmd_flags);
 		return;
 	}
 	if (test_bit(0, &fdc_busy)) {

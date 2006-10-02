@@ -338,14 +338,23 @@ mpc52xx_uart_release_port(struct uart_port *port)
 static int
 mpc52xx_uart_request_port(struct uart_port *port)
 {
+	int err;
+
 	if (port->flags & UPF_IOREMAP) /* Need to remap ? */
 		port->membase = ioremap(port->mapbase, MPC52xx_PSC_SIZE);
 
 	if (!port->membase)
 		return -EINVAL;
 
-	return request_mem_region(port->mapbase, MPC52xx_PSC_SIZE,
+	err = request_mem_region(port->mapbase, MPC52xx_PSC_SIZE,
 			"mpc52xx_psc_uart") != NULL ? 0 : -EBUSY;
+
+	if (err && (port->flags & UPF_IOREMAP)) {
+		iounmap(port->membase);
+		port->membase = NULL;
+	}
+
+	return err;
 }
 
 static void

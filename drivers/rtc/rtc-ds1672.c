@@ -156,7 +156,7 @@ static ssize_t show_control(struct device *dev, struct device_attribute *attr, c
 }
 static DEVICE_ATTR(control, S_IRUGO, show_control, NULL);
 
-static struct rtc_class_ops ds1672_rtc_ops = {
+static const struct rtc_class_ops ds1672_rtc_ops = {
 	.read_time	= ds1672_rtc_read_time,
 	.set_time	= ds1672_rtc_set_time,
 	.set_mmss	= ds1672_rtc_set_mmss,

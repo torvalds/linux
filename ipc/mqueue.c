@@ -168,7 +168,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb, int mode,
 			/* all is ok */
 			info->user = get_uid(u);
 		} else if (S_ISDIR(mode)) {
-			inode->i_nlink++;
+			inc_nlink(inode);
 			/* Some things misbehave if size == 0 on a directory */
 			inode->i_size = 2 * DIRENT_SIZE;
 			inode->i_op = &mqueue_dir_inode_operations;
@@ -307,7 +307,7 @@ static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_ctime = dir->i_mtime = dir->i_atime = CURRENT_TIME;
 	dir->i_size -= DIRENT_SIZE;
-  	inode->i_nlink--;
+  	drop_nlink(inode);
   	dput(dentry);
   	return 0;
 }

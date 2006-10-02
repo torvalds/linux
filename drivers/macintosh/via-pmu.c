@@ -1827,7 +1827,7 @@ pbook_alloc_pci_save(void)
 	struct pci_dev *pd = NULL;
 
 	npci = 0;
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
 		++npci;
 	}
 	if (npci == 0)
@@ -1857,9 +1857,11 @@ pbook_pci_save(void)
 	if (ps == NULL)
 		return;
 
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
-		if (npci-- == 0)
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
+		if (npci-- == 0) {
+			pci_dev_put(pd);
 			return;
+		}
 #ifndef HACKED_PCI_SAVE
 		pci_read_config_word(pd, PCI_COMMAND, &ps->command);
 		pci_read_config_word(pd, PCI_CACHE_LINE_SIZE, &ps->cache_lat);
@@ -1887,11 +1889,13 @@ pbook_pci_restore(void)
 	int npci = pbook_npci_saves;
 	int j;
 
-	while ((pd = pci_find_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
+	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
 #ifdef HACKED_PCI_SAVE
 		int i;
-		if (npci-- == 0)
+		if (npci-- == 0) {
+			pci_dev_put(pd);
 			return;
+		}
 		ps++;
 		for (i=2;i<16;i++)
 			pci_write_config_dword(pd, i<<4, ps->config[i]);

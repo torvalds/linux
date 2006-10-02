@@ -474,14 +474,15 @@ static const struct file_operations vcs_fops = {
 
 static struct class *vc_class;
 
-void vcs_make_devfs(struct tty_struct *tty)
+void vcs_make_sysfs(struct tty_struct *tty)
 {
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 1),
 			NULL, "vcs%u", tty->index + 1);
 	class_device_create(vc_class, NULL, MKDEV(VCS_MAJOR, tty->index + 129),
 			NULL, "vcsa%u", tty->index + 1);
 }
-void vcs_remove_devfs(struct tty_struct *tty)
+
+void vcs_remove_sysfs(struct tty_struct *tty)
 {
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 1));
 	class_device_destroy(vc_class, MKDEV(VCS_MAJOR, tty->index + 129));

@@ -303,7 +303,7 @@ static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static struct rtc_class_ops sa1100_rtc_ops = {
+static const struct rtc_class_ops sa1100_rtc_ops = {
 	.open = sa1100_rtc_open,
 	.read_callback = sa1100_rtc_read_callback,
 	.release = sa1100_rtc_release,

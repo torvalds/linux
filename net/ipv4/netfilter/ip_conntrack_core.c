@@ -149,8 +149,8 @@ static unsigned int ip_conntrack_hash_rnd;
 static u_int32_t __hash_conntrack(const struct ip_conntrack_tuple *tuple,
 			    unsigned int size, unsigned int rnd)
 {
-	return (jhash_3words(tuple->src.ip,
-	                     (tuple->dst.ip ^ tuple->dst.protonum),
+	return (jhash_3words((__force u32)tuple->src.ip,
+	                     ((__force u32)tuple->dst.ip ^ tuple->dst.protonum),
 	                     (tuple->src.u.all | (tuple->dst.u.all << 16)),
 	                     rnd) % size);
 }
@@ -1169,9 +1169,9 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 int ip_ct_port_tuple_to_nfattr(struct sk_buff *skb,
 			       const struct ip_conntrack_tuple *tuple)
 {
-	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(__be16),
 		&tuple->src.u.tcp.port);
-	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
+	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(__be16),
 		&tuple->dst.u.tcp.port);
 	return 0;
 
@@ -1186,9 +1186,9 @@ int ip_ct_port_nfattr_to_tuple(struct nfattr *tb[],
 		return -EINVAL;
 
 	t->src.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
+		*(__be16 *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
 	t->dst.u.tcp.port =
-		*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
+		*(__be16 *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
 
 	return 0;
 }

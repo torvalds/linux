@@ -232,17 +232,17 @@ enum module_state
 };
 
 /* Similar stuff for section attributes. */
-#define MODULE_SECT_NAME_LEN 32
 struct module_sect_attr
 {
 	struct module_attribute mattr;
-	char name[MODULE_SECT_NAME_LEN];
+	char *name;
 	unsigned long address;
 };
 
 struct module_sect_attrs
 {
 	struct attribute_group grp;
+	int nsections;
 	struct module_sect_attr attrs[0];
 };
 

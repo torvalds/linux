@@ -51,6 +51,7 @@
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
 #include "bnep.h"
@@ -515,6 +516,26 @@ static int bnep_session(void *arg)
 	return 0;
 }
 
+static struct device *bnep_get_device(struct bnep_session *session)
+{
+	bdaddr_t *src = &bt_sk(session->sock->sk)->src;
+	bdaddr_t *dst = &bt_sk(session->sock->sk)->dst;
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(dst, src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
+	if (!conn)
+		return NULL;
+
+	hci_dev_put(hdev);
+
+	return &conn->dev;
+}
+
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 {
 	struct net_device *dev;
@@ -534,7 +555,6 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	if (!dev)
 		return -ENOMEM;
 
-
 	down_write(&bnep_session_sem);
 
 	ss = __bnep_get_session(dst);
@@ -551,7 +571,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	memcpy(s->eh.h_source, &dst, ETH_ALEN);
 	memcpy(dev->dev_addr, s->eh.h_dest, ETH_ALEN);
 
-	s->dev = dev;
+	s->dev   = dev;
 	s->sock  = sock;
 	s->role  = req->role;
 	s->state = BT_CONNECTED;
@@ -567,6 +587,8 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	/* Set default protocol filter */
 	bnep_set_default_proto_filter(s);
 #endif
+
+	SET_NETDEV_DEV(dev, bnep_get_device(s));
 
 	err = register_netdev(dev);
 	if (err) {

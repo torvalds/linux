@@ -132,13 +132,14 @@ static void irda_disconnect_indication(void *instance, void *sap,
 
 	/* Prevent race conditions with irda_release() and irda_shutdown() */
 	if (!sock_flag(sk, SOCK_DEAD) && sk->sk_state != TCP_CLOSE) {
+		lock_sock(sk);
 		sk->sk_state     = TCP_CLOSE;
 		sk->sk_err       = ECONNRESET;
 		sk->sk_shutdown |= SEND_SHUTDOWN;
 
 		sk->sk_state_change(sk);
-		/* Uh-oh... Should use sock_orphan ? */
-                sock_set_flag(sk, SOCK_DEAD);
+                sock_orphan(sk);
+		release_sock(sk);
 
 		/* Close our TSAP.
 		 * If we leave it open, IrLMP put it back into the list of
@@ -308,7 +309,8 @@ static void irda_connect_response(struct irda_sock *self)
 
 	IRDA_ASSERT(self != NULL, return;);
 
-	skb = alloc_skb(64, GFP_ATOMIC);
+	skb = alloc_skb(TTP_MAX_HEADER + TTP_SAR_HEADER,
+			GFP_ATOMIC);
 	if (skb == NULL) {
 		IRDA_DEBUG(0, "%s() Unable to allocate sk_buff!\n",
 			   __FUNCTION__);
@@ -1212,6 +1214,7 @@ static int irda_release(struct socket *sock)
         if (sk == NULL)
 		return 0;
 
+	lock_sock(sk);
 	sk->sk_state       = TCP_CLOSE;
 	sk->sk_shutdown   |= SEND_SHUTDOWN;
 	sk->sk_state_change(sk);
@@ -1221,6 +1224,7 @@ static int irda_release(struct socket *sock)
 
 	sock_orphan(sk);
 	sock->sk   = NULL;
+	release_sock(sk);
 
 	/* Purge queues (see sock_init_data()) */
 	skb_queue_purge(&sk->sk_receive_queue);
@@ -1353,6 +1357,7 @@ static int irda_recvmsg_dgram(struct kiocb *iocb, struct socket *sock,
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(!sock_error(sk), return -1;);
 
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &err);
@@ -1405,6 +1410,7 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 	IRDA_DEBUG(3, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
+	IRDA_ASSERT(!sock_error(sk), return -1;);
 
 	if (sock->flags & __SO_ACCEPTCON)
 		return(-EINVAL);

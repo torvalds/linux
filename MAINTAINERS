@@ -501,7 +501,7 @@ S:	Maintained
 
 BLOCK LAYER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/axboe/linux-2.6-block.git
 S:	Maintained
@@ -851,7 +851,7 @@ P:	Doug Warzecha
 M:	Douglas_Warzecha@dell.com
 S:	Maintained
 
-DEVICE-MAPPER
+DEVICE-MAPPER  (LVM)
 P:	Alasdair Kergon
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
@@ -1398,7 +1398,7 @@ S:	Maintained
 
 IDE/ATAPI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -1416,36 +1416,29 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-IEEE 1394 ETHERNET (eth1394)
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Orphan
-
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/scjody/ieee1394.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 
-IEEE 1394 OHCI DRIVER
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Jody McIntyre
-M:	scjody@modernduck.com
+IEEE 1394 IPV4 DRIVER (eth1394)
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 PCILYNX DRIVER
 P:	Jody McIntyre
 M:	scjody@modernduck.com
+P:	Stefan Richter
+M:	stefanr@s5r6.in-berlin.de
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
+S:	Odd Fixes
 
 IEEE 1394 RAW I/O DRIVER
 P:	Ben Collins
@@ -1453,16 +1446,6 @@ M:	bcollins@debian.org
 P:	Dan Dennedy
 M:	dan@dennedy.org
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
-S:	Maintained
-
-IEEE 1394 SBP2
-P:	Ben Collins
-M:	bcollins@debian.org
-P:	Stefan Richter
-M:	stefanr@s5r6.in-berlin.de
-L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
 S:	Maintained
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
@@ -2080,7 +2063,7 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.linux-ax25.org/
 S:	Maintained
 
-NETWORK BLOCK DEVICE
+NETWORK BLOCK DEVICE (NBD)
 P:	Paul Clements
 M:	Paul.Clements@steeleye.com
 S:	Maintained
@@ -2566,7 +2549,7 @@ S:	Maintained
 
 SCSI CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-scsi@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -2828,6 +2811,12 @@ M:	R.E.Wolff@BitWizard.nl
 L:	linux-kernel@vger.kernel.org ?
 S:	Supported
 
+SPIDERNET NETWORK DRIVER for CELL
+P:	Jim Lewis
+M:	jim@jklewis.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SRM (Alpha) environment access
 P:	Jan-Benedict Glaw
 M:	jbglaw@lug-owl.de
@@ -2852,12 +2841,9 @@ S:	Maintained
 SUPERH (sh)
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-P:	Kazumoto Kojima
-M:	kkojima@rr.iij4u.or.jp
-L:	linuxsh-dev@lists.sourceforge.net
+L:	linuxsh-dev@lists.sourceforge.net (subscribers-only)
 W:	http://www.linux-sh.org
 W:	http://www.m17n.org/linux-sh/
-W:	http://www.rr.iij4u.or.jp/~kkojima/linux-sh4.html
 S:	Maintained
 
 SUPERH64 (sh64)
@@ -3008,7 +2994,7 @@ S:	Maintained
 
 UNIFORM CDROM DRIVER
 P:	Jens Axboe
-M:	axboe@suse.de
+M:	axboe@kernel.dk
 L:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
@@ -3325,6 +3311,12 @@ M:	v4l-dvb-maintainer@linuxtv.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
+S:	Maintained
+
+VT1211 HARDWARE MONITOR DRIVER
+P:	Juerg Haefliger
+M:	juergh@gmail.com
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 VT8231 HARDWARE MONITOR DRIVER

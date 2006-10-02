@@ -6,10 +6,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/phy.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/fs_enet_pd.h>
-
-#include <asm/dma-mapping.h>
 
 #ifdef CONFIG_CPM1
 #include <asm/commproc.h>

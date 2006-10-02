@@ -121,10 +121,17 @@ enum v4l2_chip_ident {
 	/* general idents: reserved range 0-49 */
 	V4L2_IDENT_UNKNOWN = 0,
 
-	/* module saa7115: reserved range 100-149 */
+	/* module saa7110: just ident= 100 */
+	V4L2_IDENT_SAA7110 = 100,
+
+	/* module saa7111: just ident= 101 */
+	V4L2_IDENT_SAA7111 = 101,
+
+	/* module saa7115: reserved range 102-149 */
 	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
+	V4L2_IDENT_SAA7118 = 108,
 
 	/* module saa7127: reserved range 150-199 */
 	V4L2_IDENT_SAA7127 = 157,
@@ -166,11 +173,12 @@ enum v4l2_chip_ident {
 #define VIDIOC_INT_S_STANDBY 	     _IOW('d', 94, u32)
 
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
-#define	VIDIOC_INT_S_REGISTER 		_IOR ('d', 100, struct v4l2_register)
+#define	VIDIOC_INT_S_REGISTER 		_IOW ('d', 100, struct v4l2_register)
 #define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
 
-/* Reset the I2C chip */
-#define VIDIOC_INT_RESET            	_IO  ('d', 102)
+/* Generic reset command. The argument selects which subsystems to reset.
+   Passing 0 will always reset the whole chip. */
+#define VIDIOC_INT_RESET            	_IOW ('d', 102, u32)
 
 /* Set the frequency (in Hz) of the audio clock output.
    Used to slave an audio processor to the video decoder, ensuring that audio

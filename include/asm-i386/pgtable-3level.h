@@ -58,7 +58,21 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-#define __HAVE_ARCH_SET_PTE_ATOMIC
+/*
+ * Since this is only called on user PTEs, and the page fault handler
+ * must handle the already racy situation of simultaneous page faults,
+ * we are justified in merely clearing the PTE present bit, followed
+ * by a set.  The ordering here is important.
+ */
+static inline void set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	ptep->pte_low = 0;
+	smp_wmb();
+	ptep->pte_high = pte.pte_high;
+	smp_wmb();
+	ptep->pte_low = pte.pte_low;
+}
+
 #define set_pte_atomic(pteptr,pteval) \
 		set_64bit((unsigned long long *)(pteptr),pte_val(pteval))
 #define set_pmd(pmdptr,pmdval) \

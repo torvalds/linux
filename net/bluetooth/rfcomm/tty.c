@@ -38,6 +38,7 @@
 #include <linux/skbuff.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/rfcomm.h>
 
 #ifndef CONFIG_BT_RFCOMM_DEBUG
@@ -161,6 +162,24 @@ static inline struct rfcomm_dev *rfcomm_dev_get(int id)
 	return dev;
 }
 
+static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
+{
+	struct hci_dev *hdev;
+	struct hci_conn *conn;
+
+	hdev = hci_get_route(&dev->dst, &dev->src);
+	if (!hdev)
+		return NULL;
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
+	if (!conn)
+		return NULL;
+
+	hci_dev_put(hdev);
+
+	return &conn->dev;
+}
+
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 {
 	struct rfcomm_dev *dev;
@@ -244,7 +263,7 @@ out:
 		return err;
 	}
 
-	tty_register_device(rfcomm_tty_driver, dev->id, NULL);
+	tty_register_device(rfcomm_tty_driver, dev->id, rfcomm_get_device(dev));
 
 	return dev->id;
 }

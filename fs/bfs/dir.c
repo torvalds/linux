@@ -117,8 +117,7 @@ static int bfs_create(struct inode * dir, struct dentry * dentry, int mode,
 
 	err = bfs_add_entry(dir, dentry->d_name.name, dentry->d_name.len, inode->i_ino);
 	if (err) {
-		inode->i_nlink--;
-		mark_inode_dirty(inode);
+		inode_dec_link_count(inode);
 		iput(inode);
 		unlock_kernel();
 		return err;
@@ -164,7 +163,7 @@ static int bfs_link(struct dentry * old, struct inode * dir, struct dentry * new
 		unlock_kernel();
 		return err;
 	}
-	inode->i_nlink++;
+	inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
 	atomic_inc(&inode->i_count);
@@ -196,9 +195,8 @@ static int bfs_unlink(struct inode * dir, struct dentry * dentry)
 	mark_buffer_dirty(bh);
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(dir);
-	inode->i_nlink--;
 	inode->i_ctime = dir->i_ctime;
-	mark_inode_dirty(inode);
+	inode_dec_link_count(inode);
 	error = 0;
 
 out_brelse:
@@ -249,9 +247,8 @@ static int bfs_rename(struct inode * old_dir, struct dentry * old_dentry,
 	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME_SEC;
 	mark_inode_dirty(old_dir);
 	if (new_inode) {
-		new_inode->i_nlink--;
 		new_inode->i_ctime = CURRENT_TIME_SEC;
-		mark_inode_dirty(new_inode);
+		inode_dec_link_count(new_inode);
 	}
 	mark_buffer_dirty(old_bh);
 	error = 0;

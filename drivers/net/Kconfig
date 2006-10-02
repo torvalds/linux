@@ -24,6 +24,9 @@ config NETDEVICES
 
 	  If unsure, say Y.
 
+# All the following symbols are dependent on NETDEVICES - do not repeat
+# that for each of the symbols.
+if NETDEVICES
 
 config IFB
 	tristate "Intermediate Functional Block support"
@@ -2851,6 +2854,8 @@ config NETCONSOLE
 	---help---
 	If you want to log kernel messages over the network, enable this.
 	See <file:Documentation/networking/netconsole.txt> for details.
+
+endif #NETDEVICES
 
 config NETPOLL
 	def_bool NETCONSOLE

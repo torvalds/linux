@@ -46,7 +46,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/rmap.h>
-#include <linux/acct.h>
+#include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
 
@@ -58,7 +58,7 @@
 #endif
 
 int core_uses_pid;
-char core_pattern[65] = "core";
+char core_pattern[128] = "core";
 int suid_dumpable = 0;
 
 EXPORT_SYMBOL(suid_dumpable);
@@ -898,8 +898,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	return 0;
 
 mmap_failed:
-	put_files_struct(current->files);
-	current->files = files;
+	reset_files_struct(current, files);
 out:
 	return retval;
 }
@@ -1464,6 +1463,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	int retval = 0;
 	int fsuid = current->fsuid;
 	int flag = 0;
+	int ispipe = 0;
 
 	binfmt = current->binfmt;
 	if (!binfmt || !binfmt->core_dump)
@@ -1505,22 +1505,34 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
  	lock_kernel();
 	format_corename(corename, core_pattern, signr);
 	unlock_kernel();
-	file = filp_open(corename, O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag, 0600);
+ 	if (corename[0] == '|') {
+		/* SIGPIPE can happen, but it's just never processed */
+ 		if(call_usermodehelper_pipe(corename+1, NULL, NULL, &file)) {
+ 			printk(KERN_INFO "Core dump to %s pipe failed\n",
+			       corename);
+ 			goto fail_unlock;
+ 		}
+		ispipe = 1;
+ 	} else
+ 		file = filp_open(corename,
+				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE, 0600);
 	if (IS_ERR(file))
 		goto fail_unlock;
 	inode = file->f_dentry->d_inode;
 	if (inode->i_nlink > 1)
 		goto close_fail;	/* multiple links - don't dump */
-	if (d_unhashed(file->f_dentry))
+	if (!ispipe && d_unhashed(file->f_dentry))
 		goto close_fail;
 
-	if (!S_ISREG(inode->i_mode))
+	/* AK: actually i see no reason to not allow this for named pipes etc.,
+	   but keep the previous behaviour for now. */
+	if (!ispipe && !S_ISREG(inode->i_mode))
 		goto close_fail;
 	if (!file->f_op)
 		goto close_fail;
 	if (!file->f_op->write)
 		goto close_fail;
-	if (do_truncate(file->f_dentry, 0, 0, file) != 0)
+	if (!ispipe && do_truncate(file->f_dentry, 0, 0, file) != 0)
 		goto close_fail;
 
 	retval = binfmt->core_dump(signr, regs, file);

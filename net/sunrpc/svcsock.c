@@ -1030,7 +1030,7 @@ svc_tcp_sendto(struct svc_rqst *rqstp)
 {
 	struct xdr_buf	*xbufp = &rqstp->rq_res;
 	int sent;
-	u32 reclen;
+	__be32 reclen;
 
 	/* Set up the first element of the reply kvec.
 	 * Any other kvecs that may be in use have been taken
@@ -1393,14 +1393,12 @@ svc_create_socket(struct svc_serv *serv, int protocol, struct sockaddr_in *sin)
 	if ((error = sock_create_kern(PF_INET, type, protocol, &sock)) < 0)
 		return error;
 
-	if (sin != NULL) {
-		if (type == SOCK_STREAM)
-			sock->sk->sk_reuse = 1; /* allow address reuse */
-		error = kernel_bind(sock, (struct sockaddr *) sin,
-						sizeof(*sin));
-		if (error < 0)
-			goto bummer;
-	}
+	if (type == SOCK_STREAM)
+		sock->sk->sk_reuse = 1; /* allow address reuse */
+	error = kernel_bind(sock, (struct sockaddr *) sin,
+					sizeof(*sin));
+	if (error < 0)
+		goto bummer;
 
 	if (protocol == IPPROTO_TCP) {
 		if ((error = kernel_listen(sock, 64)) < 0)

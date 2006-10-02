@@ -392,7 +392,7 @@ int irlmp_connect_request(struct lsap_cb *self, __u8 dlsap_sel,
 
 	/* Any userdata? */
 	if (tx_skb == NULL) {
-		tx_skb = alloc_skb(64, GFP_ATOMIC);
+		tx_skb = alloc_skb(LMP_MAX_HEADER, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 

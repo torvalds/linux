@@ -67,7 +67,6 @@ static void __init pluto_detect_done(Scsi_Cmnd *SCpnt)
 
 static void __init pluto_detect_scsi_done(Scsi_Cmnd *SCpnt)
 {
-	SCpnt->request->rq_status = RQ_SCSI_DONE;
 	PLND(("Detect done %08lx\n", (long)SCpnt))
 	if (atomic_dec_and_test (&fcss))
 		up(&fc_sem);
@@ -166,7 +165,7 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 		
 		SCpnt->cmd_len = COMMAND_SIZE(INQUIRY);
 	
-		SCpnt->request->rq_status = RQ_SCSI_BUSY;
+		SCpnt->request->cmd_flags &= ~REQ_STARTED;
 		
 		SCpnt->done = pluto_detect_done;
 		SCpnt->request_bufflen = 256;
@@ -178,7 +177,8 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 	for (retry = 0; retry < 5; retry++) {
 		for (i = 0; i < fcscount; i++) {
 			if (!fcs[i].fc) break;
-			if (fcs[i].cmd.request->rq_status != RQ_SCSI_DONE) {
+			if (!(fcs[i].cmd.request->cmd_flags & REQ_STARTED)) {
+				fcs[i].cmd.request->cmd_flags |= REQ_STARTED;
 				disable_irq(fcs[i].fc->irq);
 				PLND(("queuecommand %d %d\n", retry, i))
 				fcp_scsi_queuecommand (&(fcs[i].cmd), 

@@ -42,7 +42,7 @@ do {									\
 			len = LED_NUM_DIGITS - pos;			\
 									\
 		if (len > 0) {						\
-			int _flags;					\
+			unsigned long _flags;				\
 			const char *_end = buf + len;			\
 			img_decl = &leds_image[pos];			\
 									\

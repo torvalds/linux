@@ -17,6 +17,10 @@ config ARM
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
+config GENERIC_TIME
+	bool
+	default n
+
 config MMU
 	bool
 	default y
@@ -48,6 +52,10 @@ config MCA
 	  there) before attempting to build an MCA bus kernel.
 
 config GENERIC_HARDIRQS
+	bool
+	default y
+
+config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
 
@@ -91,7 +99,7 @@ config ARCH_MTD_XIP
 
 config VECTORS_BASE
 	hex
-	default 0xffff0000 if MMU
+	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
 	default DRAM_BASE if REMAP_VECTORS_TO_RAM
 	default 0x00000000
 	help
@@ -198,16 +206,27 @@ config ARCH_IMX
 	help
 	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
-config ARCH_IOP3XX
-	bool "IOP3xx-based"
+config ARCH_IOP32X
+	bool "IOP32x-based"
 	depends on MMU
+	select PLAT_IOP
 	select PCI
 	help
-	  Support for Intel's IOP3XX (XScale) family of processors.
+	  Support for Intel's 80219 and IOP32X (XScale) family of
+	  processors.
+
+config ARCH_IOP33X
+	bool "IOP33x-based"
+	depends on MMU
+	select PLAT_IOP
+	select PCI
+	help
+	  Support for Intel's IOP33X (XScale) family of processors.
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
+	select GENERIC_TIME
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
@@ -308,7 +327,9 @@ source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-integrator/Kconfig"
 
-source "arch/arm/mach-iop3xx/Kconfig"
+source "arch/arm/mach-iop32x/Kconfig"
+
+source "arch/arm/mach-iop33x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
@@ -346,6 +367,9 @@ source "arch/arm/mach-netx/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
+	bool
+
+config PLAT_IOP
 	bool
 
 source arch/arm/mm/Kconfig
@@ -602,6 +626,7 @@ config LEDS_CPU
 
 config ALIGNMENT_TRAP
 	bool
+	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
 	help
 	  ARM processors can not fetch/store information which is not
@@ -633,11 +658,12 @@ config ZBOOT_ROM_BSS
 	hex "Compressed ROM boot loader BSS address"
 	default "0"
 	help
-	  The base address of 64KiB of read/write memory in the target
-	  for the ROM-able zImage, which must be available while the
-	  decompressor is running.  Platforms which normally make use of
-	  ROM-able zImage formats normally set this to a suitable
-	  value in their defconfig file.
+	  The base address of an area of read/write memory in the target
+	  for the ROM-able zImage which must be available while the
+	  decompressor is running. It must be large enough to hold the
+	  entire decompressed kernel plus an additional 128 KiB.
+	  Platforms which normally make use of ROM-able zImage formats
+	  normally set this to a suitable value in their defconfig file.
 
 	  If ZBOOT_ROM is not enabled, this has no effect.
 
@@ -832,7 +858,7 @@ source "drivers/base/Kconfig"
 
 source "drivers/connector/Kconfig"
 
-if ALIGNMENT_TRAP
+if ALIGNMENT_TRAP || !CPU_CP15_MMU
 source "drivers/mtd/Kconfig"
 endif
 
@@ -844,7 +870,7 @@ source "drivers/block/Kconfig"
 
 source "drivers/acorn/block/Kconfig"
 
-if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
+if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
 	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
 	|| ARCH_IXP23XX

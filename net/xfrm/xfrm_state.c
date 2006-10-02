@@ -70,7 +70,7 @@ static inline unsigned int xfrm_src_hash(xfrm_address_t *addr,
 }
 
 static inline unsigned int
-xfrm_spi_hash(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
+xfrm_spi_hash(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
 {
 	return __xfrm_spi_hash(daddr, spi, proto, family, xfrm_state_hmask);
 }
@@ -96,9 +96,12 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 				    nhashmask);
 		hlist_add_head(&x->bysrc, nsrctable+h);
 
-		h = __xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
-				    x->props.family, nhashmask);
-		hlist_add_head(&x->byspi, nspitable+h);
+		if (x->id.spi) {
+			h = __xfrm_spi_hash(&x->id.daddr, x->id.spi,
+					    x->id.proto, x->props.family,
+					    nhashmask);
+			hlist_add_head(&x->byspi, nspitable+h);
+		}
 	}
 }
 
@@ -421,7 +424,7 @@ xfrm_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	return 0;
 }
 
-static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family)
+static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family)
 {
 	unsigned int h = xfrm_spi_hash(daddr, spi, proto, family);
 	struct xfrm_state *x;
@@ -622,7 +625,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	h = xfrm_src_hash(&x->props.saddr, x->props.family);
 	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 
-	if (xfrm_id_proto_match(x->id.proto, IPSEC_PROTO_ANY)) {
+	if (x->id.spi) {
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto,
 				  x->props.family);
 
@@ -916,7 +919,7 @@ err:
 EXPORT_SYMBOL(xfrm_state_check);
 
 struct xfrm_state *
-xfrm_state_lookup(xfrm_address_t *daddr, u32 spi, u8 proto,
+xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi, u8 proto,
 		  unsigned short family)
 {
 	struct xfrm_state *x;
@@ -1040,7 +1043,7 @@ u32 xfrm_get_acqseq(void)
 EXPORT_SYMBOL(xfrm_get_acqseq);
 
 void
-xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
+xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi)
 {
 	unsigned int h;
 	struct xfrm_state *x0;
@@ -1057,10 +1060,10 @@ xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi)
 		x->id.spi = minspi;
 	} else {
 		u32 spi = 0;
-		minspi = ntohl(minspi);
-		maxspi = ntohl(maxspi);
-		for (h=0; h<maxspi-minspi+1; h++) {
-			spi = minspi + net_random()%(maxspi-minspi+1);
+		u32 low = ntohl(minspi);
+		u32 high = ntohl(maxspi);
+		for (h=0; h<high-low+1; h++) {
+			spi = low + net_random()%(high-low+1);
 			x0 = xfrm_state_lookup(&x->id.daddr, htonl(spi), x->id.proto, x->props.family);
 			if (x0 == NULL) {
 				x->id.spi = htonl(spi);
@@ -1180,11 +1183,10 @@ static void xfrm_replay_timer_handler(unsigned long data)
 	spin_unlock(&x->lock);
 }
 
-int xfrm_replay_check(struct xfrm_state *x, u32 seq)
+int xfrm_replay_check(struct xfrm_state *x, __be32 net_seq)
 {
 	u32 diff;
-
-	seq = ntohl(seq);
+	u32 seq = ntohl(net_seq);
 
 	if (unlikely(seq == 0))
 		return -EINVAL;
@@ -1206,11 +1208,10 @@ int xfrm_replay_check(struct xfrm_state *x, u32 seq)
 }
 EXPORT_SYMBOL(xfrm_replay_check);
 
-void xfrm_replay_advance(struct xfrm_state *x, u32 seq)
+void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 {
 	u32 diff;
-
-	seq = ntohl(seq);
+	u32 seq = ntohl(net_seq);
 
 	if (seq > x->replay.seq) {
 		diff = seq - x->replay.seq;

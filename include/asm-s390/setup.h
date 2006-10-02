@@ -39,6 +39,7 @@ extern unsigned long machine_flags;
 #define MACHINE_IS_P390		(machine_flags & 4)
 #define MACHINE_HAS_MVPG	(machine_flags & 16)
 #define MACHINE_HAS_IDTE	(machine_flags & 128)
+#define MACHINE_HAS_DIAG9C	(machine_flags & 256)
 
 #ifndef __s390x__
 #define MACHINE_HAS_IEEE	(machine_flags & 2)

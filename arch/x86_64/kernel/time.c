@@ -77,7 +77,6 @@ unsigned long long monotonic_base;
 struct vxtime_data __vxtime __section_vxtime;	/* for vsyscalls */
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
-unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 
@@ -119,7 +118,7 @@ unsigned int (*do_gettimeoffset)(void) = do_gettimeoffset_tsc;
 
 void do_gettimeofday(struct timeval *tv)
 {
-	unsigned long seq, t;
+	unsigned long seq;
  	unsigned int sec, usec;
 
 	do {
@@ -136,10 +135,7 @@ void do_gettimeofday(struct timeval *tv)
 		   be found. Note when you fix it here you need to do the same
 		   in arch/x86_64/kernel/vsyscall.c and export all needed
 		   variables in vmlinux.lds. -AK */ 
-
-		t = (jiffies - wall_jiffies) * USEC_PER_TICK +
-			do_gettimeoffset();
-		usec += t;
+		usec += do_gettimeoffset();
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -165,8 +161,7 @@ int do_settimeofday(struct timespec *tv)
 
 	write_seqlock_irq(&xtime_lock);
 
-	nsec -= do_gettimeoffset() * NSEC_PER_USEC +
-		(jiffies - wall_jiffies) * NSEC_PER_TICK;
+	nsec -= do_gettimeoffset() * NSEC_PER_USEC;
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -415,16 +410,16 @@ void main_timer_handler(struct pt_regs *regs)
 				(((long) offset << US_SCALE) / vxtime.tsc_quot) - 1;
 	}
 
-	if (lost > 0) {
+	if (lost > 0)
 		handle_lost_ticks(lost, regs);
-		jiffies += lost;
-	}
+	else
+		lost = 0;
 
 /*
  * Do the timer stuff.
  */
 
-	do_timer(regs);
+	do_timer(lost + 1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif
@@ -1071,7 +1066,6 @@ static int timer_resume(struct sys_device *dev)
 		vxtime.last_tsc = get_cycles_sync();
 	write_sequnlock_irqrestore(&xtime_lock,flags);
 	jiffies += sleep_length;
-	wall_jiffies += sleep_length;
 	monotonic_base += sleep_length * (NSEC_PER_SEC/HZ);
 	touch_softlockup_watchdog();
 	return 0;

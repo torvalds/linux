@@ -26,17 +26,17 @@ static inline int __sem_update_count(struct semaphore *sem, int incr)
 {
 	int old_val, new_val;
 
-        __asm__ __volatile__("   l     %0,0(%3)\n"
-                             "0: ltr   %1,%0\n"
-			     "   jhe   1f\n"
-			     "   lhi   %1,0\n"
-			     "1: ar    %1,%4\n"
-                             "   cs    %0,%1,0(%3)\n"
-                             "   jl    0b\n"
-                             : "=&d" (old_val), "=&d" (new_val),
-			       "=m" (sem->count)
-			     : "a" (&sem->count), "d" (incr), "m" (sem->count)
-			     : "cc" );
+	asm volatile(
+		"	l	%0,0(%3)\n"
+		"0:	ltr	%1,%0\n"
+		"	jhe	1f\n"
+		"	lhi	%1,0\n"
+		"1:	ar	%1,%4\n"
+		"	cs	%0,%1,0(%3)\n"
+		"	jl	0b\n"
+		: "=&d" (old_val), "=&d" (new_val), "=m" (sem->count)
+		: "a" (&sem->count), "d" (incr), "m" (sem->count)
+		: "cc");
 	return old_val;
 }
 

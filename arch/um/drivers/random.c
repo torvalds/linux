@@ -20,6 +20,10 @@
 
 #define RNG_MISCDEV_MINOR		183 /* official */
 
+/* Changed at init time, in the non-modular case, and at module load
+ * time, in the module case.  Presumably, the module subsystem
+ * protects against a module being loaded twice at the same time.
+ */
 static int random_fd = -1;
 
 static int rng_dev_open (struct inode *inode, struct file *filp)

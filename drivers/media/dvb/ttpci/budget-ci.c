@@ -749,17 +749,17 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb
 	// setup PLL filter and TDA9889
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x14);
+		tda1004x_writereg(fe, 0x0C, 0x14);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_7_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x80);
+		tda1004x_writereg(fe, 0x0C, 0x80);
 		filter = 0;
 		break;
 
 	case BANDWIDTH_8_MHZ:
-		tda1004x_write_byte(fe, 0x0C, 0x14);
+		tda1004x_writereg(fe, 0x0C, 0x14);
 		filter = 1;
 		break;
 
@@ -988,7 +988,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:		// Hauppauge/TT Nova-CI budget (stv0299/ALPS BSRU6(tsa5059))
 		budget_ci->budget.dvb_frontend =
-			stv0299_attach(&alps_bsru6_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(stv0299_attach, &alps_bsru6_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget_ci->budget.dvb_frontend->tuner_priv = &budget_ci->budget.i2c_adap;
@@ -998,7 +998,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x100f:		// Hauppauge/TT Nova-CI budget (stv0299b/Philips su1278(tsa5059))
 		budget_ci->budget.dvb_frontend =
-			stv0299_attach(&philips_su1278_tt_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(stv0299_attach, &philips_su1278_tt_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_su1278_tt_tuner_set_params;
 			break;
@@ -1008,7 +1008,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	case 0x1010:		// TT DVB-C CI budget (stv0297/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x61;
 		budget_ci->budget.dvb_frontend =
-			stv0297_attach(&dvbc_philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(stv0297_attach, &dvbc_philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = dvbc_philips_tdm1316l_tuner_set_params;
 			break;
@@ -1018,7 +1018,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	case 0x1011:		// Hauppauge/TT Nova-T budget (tda10045/Philips tdm1316l(tda6651tt) + TDA9889)
 		budget_ci->tuner_pll_address = 0x63;
 		budget_ci->budget.dvb_frontend =
-			tda10045_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(tda10045_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
@@ -1029,7 +1029,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
 		budget_ci->budget.dvb_frontend =
-			tda10046_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
+			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
@@ -1038,16 +1038,15 @@ static void frontend_init(struct budget_ci *budget_ci)
 		break;
 
 	case 0x1017:		// TT S-1500 PCI
-		budget_ci->budget.dvb_frontend = stv0299_attach(&alps_bsbe1_config, &budget_ci->budget.i2c_adap);
+		budget_ci->budget.dvb_frontend = dvb_attach(stv0299_attach, &alps_bsbe1_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			budget_ci->budget.dvb_frontend->ops.tuner_ops.set_params = alps_bsbe1_tuner_set_params;
 			budget_ci->budget.dvb_frontend->tuner_priv = &budget_ci->budget.i2c_adap;
 
 			budget_ci->budget.dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
-			if (lnbp21_attach(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0)) {
+			if (dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0) == NULL) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
-				if (budget_ci->budget.dvb_frontend->ops.release)
-					budget_ci->budget.dvb_frontend->ops.release(budget_ci->budget.dvb_frontend);
+				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}
 		}
@@ -1065,8 +1064,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		if (dvb_register_frontend
 		    (&budget_ci->budget.dvb_adapter, budget_ci->budget.dvb_frontend)) {
 			printk("budget-ci: Frontend registration failed!\n");
-			if (budget_ci->budget.dvb_frontend->ops.release)
-				budget_ci->budget.dvb_frontend->ops.release(budget_ci->budget.dvb_frontend);
+			dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 			budget_ci->budget.dvb_frontend = NULL;
 		}
 	}
@@ -1114,8 +1112,10 @@ static int budget_ci_detach(struct saa7146_dev *dev)
 
 	if (budget_ci->budget.ci_present)
 		ciintf_deinit(budget_ci);
-	if (budget_ci->budget.dvb_frontend)
+	if (budget_ci->budget.dvb_frontend) {
 		dvb_unregister_frontend(budget_ci->budget.dvb_frontend);
+		dvb_frontend_detach(budget_ci->budget.dvb_frontend);
+	}
 	err = ttpci_budget_deinit(&budget_ci->budget);
 
 	tasklet_kill(&budget_ci->msp430_irq_tasklet);
@@ -1153,7 +1153,7 @@ static struct pci_device_id pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
-	.name = "budget_ci dvb\0",
+	.name = "budget_ci dvb",
 	.flags = SAA7146_I2C_SHORT_DELAY,
 
 	.module = THIS_MODULE,

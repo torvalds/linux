@@ -653,7 +653,7 @@ xfs_attrmulti_by_handle(
 STATIC int
 xfs_ioc_space(
 	bhv_desc_t		*bdp,
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	struct file		*filp,
 	int			flags,
 	unsigned int		cmd,
@@ -735,7 +735,7 @@ xfs_ioctl(
 		    !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		return xfs_ioc_space(bdp, vp, filp, ioflags, cmd, arg);
+		return xfs_ioc_space(bdp, inode, filp, ioflags, cmd, arg);
 
 	case XFS_IOC_DIOINFO: {
 		struct dioattr	da;
@@ -763,6 +763,8 @@ xfs_ioctl(
 		return xfs_ioc_fsgeometry(mp, arg);
 
 	case XFS_IOC_GETVERSION:
+		return put_user(inode->i_generation, (int __user *)arg);
+
 	case XFS_IOC_GETXFLAGS:
 	case XFS_IOC_SETXFLAGS:
 	case XFS_IOC_FSGETXATTR:
@@ -957,7 +959,7 @@ xfs_ioctl(
 STATIC int
 xfs_ioc_space(
 	bhv_desc_t		*bdp,
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	struct file		*filp,
 	int			ioflags,
 	unsigned int		cmd,
@@ -967,13 +969,13 @@ xfs_ioc_space(
 	int			attr_flags = 0;
 	int			error;
 
-	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
+	if (inode->i_flags & (S_IMMUTABLE|S_APPEND))
 		return -XFS_ERROR(EPERM);
 
 	if (!(filp->f_mode & FMODE_WRITE))
 		return -XFS_ERROR(EBADF);
 
-	if (!VN_ISREG(vp))
+	if (!S_ISREG(inode->i_mode))
 		return -XFS_ERROR(EINVAL);
 
 	if (copy_from_user(&bf, arg, sizeof(bf)))
@@ -1261,13 +1263,6 @@ xfs_ioc_xattr(
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 		error = -error;
-		break;
-	}
-
-	case XFS_IOC_GETVERSION: {
-		flags = vn_to_inode(vp)->i_generation;
-		if (copy_to_user(arg, &flags, sizeof(flags)))
-			error = -EFAULT;
 		break;
 	}
 

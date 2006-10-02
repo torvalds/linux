@@ -34,6 +34,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/capability.h>
+#include <linux/audit.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/netlabel.h>
@@ -71,8 +72,25 @@ static inline void *netlbl_netlink_hdr_put(struct sk_buff *skb,
 			   NETLBL_PROTO_VERSION);
 }
 
+/**
+ * netlbl_netlink_auditinfo - Fetch the audit information from a NETLINK msg
+ * @skb: the packet
+ * @audit_info: NetLabel audit information
+ */
+static inline void netlbl_netlink_auditinfo(struct sk_buff *skb,
+					    struct netlbl_audit *audit_info)
+{
+	audit_info->secid = NETLINK_CB(skb).sid;
+	audit_info->loginuid = NETLINK_CB(skb).loginuid;
+}
+
 /* NetLabel NETLINK I/O functions */
 
 int netlbl_netlink_init(void);
+
+/* NetLabel Audit Functions */
+
+struct audit_buffer *netlbl_audit_start_common(int type,
+					      struct netlbl_audit *audit_info);
 
 #endif

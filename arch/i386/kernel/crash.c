@@ -23,6 +23,7 @@
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
 #include <asm/kdebug.h>
+#include <asm/smp.h>
 
 #include <mach_ipi.h>
 
@@ -88,7 +89,7 @@ static void crash_save_self(struct pt_regs *regs)
 {
 	int cpu;
 
-	cpu = smp_processor_id();
+	cpu = safe_smp_processor_id();
 	crash_save_this_cpu(regs, cpu);
 }
 
@@ -133,7 +134,10 @@ static int crash_nmi_callback(struct notifier_block *self,
 
 static void smp_send_nmi_allbutself(void)
 {
-	send_IPI_allbutself(NMI_VECTOR);
+	cpumask_t mask = cpu_online_map;
+	cpu_clear(safe_smp_processor_id(), mask);
+	if (!cpus_empty(mask))
+		send_IPI_mask(mask, NMI_VECTOR);
 }
 
 static struct notifier_block crash_nmi_nb = {
@@ -185,7 +189,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	local_irq_disable();
 
 	/* Make a note of crashing cpu. Will be used in NMI callback.*/
-	crashing_cpu = smp_processor_id();
+	crashing_cpu = safe_smp_processor_id();
 	nmi_shootdown_cpus();
 	lapic_shutdown();
 #if defined(CONFIG_X86_IO_APIC)

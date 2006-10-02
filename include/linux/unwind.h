@@ -12,8 +12,6 @@
  * is not much point in implementing the full Dwarf2 unwind API.
  */
 
-#include <linux/config.h>
-
 struct module;
 
 #ifdef CONFIG_STACK_UNWIND

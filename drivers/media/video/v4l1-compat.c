@@ -349,6 +349,8 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct video_buffer	*buffer = arg;
 
+		memset(buffer, 0, sizeof(*buffer));
+
 		err = drv(inode, file, VIDIOC_G_FBUF, &fbuf2);
 		if (err < 0) {
 			dprintk("VIDIOCGFBUF / VIDIOC_G_FBUF: %d\n",err);
@@ -361,7 +363,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		switch (fbuf2.fmt.pixelformat) {
 		case V4L2_PIX_FMT_RGB332:
 			buffer->depth = 8;
-				break;
+			break;
 		case V4L2_PIX_FMT_RGB555:
 			buffer->depth = 15;
 			break;
@@ -377,9 +379,13 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		default:
 			buffer->depth = 0;
 		}
-		if (0 != fbuf2.fmt.bytesperline)
+		if (fbuf2.fmt.bytesperline) {
 			buffer->bytesperline = fbuf2.fmt.bytesperline;
-		else {
+			if (!buffer->depth && buffer->width)
+				buffer->depth   = ((fbuf2.fmt.bytesperline<<3)
+						  + (buffer->width-1) )
+						  /buffer->width;
+		} else {
 			buffer->bytesperline =
 				(buffer->width * buffer->depth + 7) & 7;
 			buffer->bytesperline >>= 3;

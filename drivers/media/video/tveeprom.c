@@ -605,6 +605,8 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			tvee->tuner_formats |= hauppauge_tuner_fmt[i].id;
 			t_fmt_name1[j++] = hauppauge_tuner_fmt[i].name;
 		}
+	}
+	for (i = j = 0; i < 8; i++) {
 		if (t_format2 & (1 << i)) {
 			tvee->tuner2_formats |= hauppauge_tuner_fmt[i].id;
 			t_fmt_name2[j++] = hauppauge_tuner_fmt[i].name;

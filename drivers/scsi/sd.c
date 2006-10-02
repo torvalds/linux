@@ -443,8 +443,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 		SCpnt->cmnd[0] = READ_6;
 		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
 	} else {
-		printk(KERN_ERR "sd: Unknown command %lx\n", rq->flags);
-/* overkill 	panic("Unknown sd command %lx\n", rq->flags); */
+		printk(KERN_ERR "sd: Unknown command %x\n", rq->cmd_flags);
 		return 0;
 	}
 
@@ -840,7 +839,7 @@ static int sd_issue_flush(struct device *dev, sector_t *error_sector)
 static void sd_prepare_flush(request_queue_t *q, struct request *rq)
 {
 	memset(rq->cmd, 0, sizeof(rq->cmd));
-	rq->flags |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->timeout = SD_TIMEOUT;
 	rq->cmd[0] = SYNCHRONIZE_CACHE;
 	rq->cmd_len = 10;

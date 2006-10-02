@@ -825,29 +825,47 @@ config FB_I810_I2C
 	help
 
 config FB_INTEL
-	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
+	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G support (EXPERIMENTAL)"
 	depends on FB && EXPERIMENTAL && PCI && X86
 	select AGP
 	select AGP_INTEL
+	select I2C_ALGOBIT if FB_INTEL_I2C
+	select I2C if FB_INTEL_I2C
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
 	  This driver supports the on-board graphics built in to the Intel
-          830M/845G/852GM/855GM/865G chipsets.
+          830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM chipsets.
           Say Y if you have and plan to use such a board.
 
-          To compile this driver as a module, choose M here: the
+	  If you say Y here and want DDC/I2C support you must first say Y to
+	  "I2C support" and "I2C bit-banging support" in the character devices
+	  section.
+
+	  If you say M here then "I2C support" and "I2C bit-banging support"
+	  can be build either as modules or built-in.
+
+	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.
 
+	  For more information, please read <file:Documentation/fb/intelfb.txt>
+
 config FB_INTEL_DEBUG
-        bool "Intel driver Debug Messages"
+	bool "Intel driver Debug Messages"
 	depends on FB_INTEL
 	---help---
 	  Say Y here if you want the Intel driver to output all sorts
 	  of debugging informations to provide to the maintainer when
 	  something goes wrong.
+
+config FB_INTEL_I2C
+	bool "DDC/I2C for Intel framebuffer support"
+	depends on FB_INTEL
+	default y
+	help
+	  Say Y here if you want DDC/I2C support for your on-board Intel graphics.
 
 config FB_MATROX
 	tristate "Matrox acceleration"

@@ -2301,7 +2301,7 @@ void ntfs_clear_big_inode(struct inode *vi)
 	}
 #ifdef NTFS_RW
 	if (NInoDirty(ni)) {
-		BOOL was_bad = (is_bad_inode(vi));
+		bool was_bad = (is_bad_inode(vi));
 
 		/* Committing the inode also commits all extent inodes. */
 		ntfs_commit_inode(vi);
@@ -3015,7 +3015,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	MFT_RECORD *m;
 	STANDARD_INFORMATION *si;
 	int err = 0;
-	BOOL modified = FALSE;
+	bool modified = false;
 
 	ntfs_debug("Entering for %sinode 0x%lx.", NInoAttr(ni) ? "attr " : "",
 			vi->i_ino);
@@ -3057,7 +3057,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				sle64_to_cpu(si->last_data_change_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_data_change_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	nt = utc2ntfs(vi->i_ctime);
 	if (si->last_mft_change_time != nt) {
@@ -3066,7 +3066,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				sle64_to_cpu(si->last_mft_change_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_mft_change_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	nt = utc2ntfs(vi->i_atime);
 	if (si->last_access_time != nt) {
@@ -3075,7 +3075,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 				(long long)sle64_to_cpu(si->last_access_time),
 				(long long)sle64_to_cpu(nt));
 		si->last_access_time = nt;
-		modified = TRUE;
+		modified = true;
 	}
 	/*
 	 * If we just modified the standard information attribute we need to

@@ -104,7 +104,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case RTC_AIE_OFF:	/* Mask alarm int. enab. bit	*/
 	{
-		unsigned int flags;
+		unsigned long flags;
 		unsigned char val;
 
 		if (!capable(CAP_SYS_TIME))
@@ -120,7 +120,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 	}
 	case RTC_AIE_ON:	/* Allow alarm interrupts.	*/
 	{
-		unsigned int flags;
+		unsigned long flags;
 		unsigned char val;
 
 		if (!capable(CAP_SYS_TIME))
@@ -136,7 +136,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 	}
 	case RTC_WIE_OFF:	/* Mask watchdog int. enab. bit	*/
 	{
-		unsigned int flags;
+		unsigned long flags;
 		unsigned char val;
 
 		if (!capable(CAP_SYS_TIME))
@@ -152,7 +152,7 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 	}
 	case RTC_WIE_ON:	/* Allow watchdog interrupts.	*/
 	{
-		unsigned int flags;
+		unsigned long flags;
 		unsigned char val;
 
 		if (!capable(CAP_SYS_TIME))
@@ -434,7 +434,7 @@ static inline unsigned char ds1286_is_updating(void)
 static void ds1286_get_time(struct rtc_time *rtc_tm)
 {
 	unsigned char save_control;
-	unsigned int flags;
+	unsigned long flags;
 	unsigned long uip_watchdog = jiffies;
 
 	/*
@@ -494,7 +494,8 @@ static int ds1286_set_time(struct rtc_time *rtc_tm)
 {
 	unsigned char mon, day, hrs, min, sec, leap_yr;
 	unsigned char save_control;
-	unsigned int yrs, flags;
+	unsigned int yrs;
+	unsigned long flags;
 
 
 	yrs = rtc_tm->tm_year + 1900;
@@ -552,7 +553,7 @@ static int ds1286_set_time(struct rtc_time *rtc_tm)
 static void ds1286_get_alm_time(struct rtc_time *alm_tm)
 {
 	unsigned char cmd;
-	unsigned int flags;
+	unsigned long flags;
 
 	/*
 	 * Only the values that we read from the RTC are set. That

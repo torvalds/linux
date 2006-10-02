@@ -104,7 +104,7 @@ static void g5_smu_switch_volt(int speed_mode)
 {
 	struct smu_simple_cmd	cmd;
 
-	DECLARE_COMPLETION(comp);
+	DECLARE_COMPLETION_ONSTACK(comp);
 	smu_queue_simple(&cmd, SMU_CMD_POWER_COMMAND, 8, smu_done_complete,
 			 &comp, 'V', 'S', 'L', 'E', 'W',
 			 0xff, g5_fvt_cur+1, speed_mode);

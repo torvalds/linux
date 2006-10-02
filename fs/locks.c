@@ -314,13 +314,13 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 	off_t start, end;
 
 	switch (l->l_whence) {
-	case 0: /*SEEK_SET*/
+	case SEEK_SET:
 		start = 0;
 		break;
-	case 1: /*SEEK_CUR*/
+	case SEEK_CUR:
 		start = filp->f_pos;
 		break;
-	case 2: /*SEEK_END*/
+	case SEEK_END:
 		start = i_size_read(filp->f_dentry->d_inode);
 		break;
 	default:
@@ -364,13 +364,13 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	loff_t start;
 
 	switch (l->l_whence) {
-	case 0: /*SEEK_SET*/
+	case SEEK_SET:
 		start = 0;
 		break;
-	case 1: /*SEEK_CUR*/
+	case SEEK_CUR:
 		start = filp->f_pos;
 		break;
-	case 2: /*SEEK_END*/
+	case SEEK_END:
 		start = i_size_read(filp->f_dentry->d_inode);
 		break;
 	default:

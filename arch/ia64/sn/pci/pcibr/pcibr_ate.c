@@ -160,7 +160,7 @@ void pcibr_ate_free(struct pcibus_info *pcibus_info, int index)
 
 	volatile u64 ate;
 	int count;
-	u64 flags;
+	unsigned long flags;
 
 	if (pcibr_invalidate_ate) {
 		/* For debugging purposes, clear the valid bit in the ATE */

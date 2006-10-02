@@ -38,6 +38,7 @@
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>	/* need_resched() */
+#include <linux/latency.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -453,7 +454,8 @@ static void acpi_processor_idle(void)
 	 */
 	if (cx->promotion.state &&
 	    ((cx->promotion.state - pr->power.states) <= max_cstate)) {
-		if (sleep_ticks > cx->promotion.threshold.ticks) {
+		if (sleep_ticks > cx->promotion.threshold.ticks &&
+		  cx->promotion.state->latency <= system_latency_constraint()) {
 			cx->promotion.count++;
 			cx->demotion.count = 0;
 			if (cx->promotion.count >=
@@ -494,8 +496,10 @@ static void acpi_processor_idle(void)
       end:
 	/*
 	 * Demote if current state exceeds max_cstate
+	 * or if the latency of the current state is unacceptable
 	 */
-	if ((pr->power.state - pr->power.states) > max_cstate) {
+	if ((pr->power.state - pr->power.states) > max_cstate ||
+		pr->power.state->latency > system_latency_constraint()) {
 		if (cx->demotion.state)
 			next_state = cx->demotion.state;
 	}
@@ -1009,9 +1013,11 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "active state:            C%zd\n"
 		   "max_cstate:              C%d\n"
-		   "bus master activity:     %08x\n",
+		   "bus master activity:     %08x\n"
+		   "maximum allowed latency: %d usec\n",
 		   pr->power.state ? pr->power.state - pr->power.states : 0,
-		   max_cstate, (unsigned)pr->power.bm_activity);
+		   max_cstate, (unsigned)pr->power.bm_activity,
+		   system_latency_constraint());
 
 	seq_puts(seq, "states:\n");
 
@@ -1077,6 +1083,28 @@ static const struct file_operations acpi_processor_power_fops = {
 	.release = single_release,
 };
 
+static void smp_callback(void *v)
+{
+	/* we already woke the CPU up, nothing more to do */
+}
+
+/*
+ * This function gets called when a part of the kernel has a new latency
+ * requirement.  This means we need to get all processors out of their C-state,
+ * and then recalculate a new suitable C-state. Just do a cross-cpu IPI; that
+ * wakes them all right up.
+ */
+static int acpi_processor_latency_notify(struct notifier_block *b,
+		unsigned long l, void *v)
+{
+	smp_call_function(smp_callback, NULL, 0, 1);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block acpi_processor_latency_notifier = {
+	.notifier_call = acpi_processor_latency_notify,
+};
+
 int acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
@@ -1093,6 +1121,7 @@ int acpi_processor_power_init(struct acpi_processor *pr,
 			       "ACPI: processor limited to max C-state %d\n",
 			       max_cstate);
 		first_run++;
+		register_latency_notifier(&acpi_processor_latency_notifier);
 	}
 
 	if (!pr)
@@ -1164,6 +1193,7 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 		 * copies of pm_idle before proceeding.
 		 */
 		cpu_idle_wait();
+		unregister_latency_notifier(&acpi_processor_latency_notifier);
 	}
 
 	return 0;

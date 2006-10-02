@@ -177,9 +177,9 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	msg_start = krb5_hdr + 24;
 	/* XXXJBF: */ BUG_ON(buf->head[0].iov_base + offset + headlen != msg_start + blocksize);
 
-	*(u16 *)(krb5_hdr + 2) = htons(kctx->signalg);
+	*(__be16 *)(krb5_hdr + 2) = htons(kctx->signalg);
 	memset(krb5_hdr + 4, 0xff, 4);
-	*(u16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
+	*(__be16 *)(krb5_hdr + 4) = htons(kctx->sealalg);
 
 	make_confounder(msg_start, blocksize);
 

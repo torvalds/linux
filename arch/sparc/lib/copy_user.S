@@ -14,6 +14,7 @@
 #include <asm/ptrace.h>
 #include <asm/asmmacro.h>
 #include <asm/page.h>
+#include <asm/thread_info.h>
 
 /* Work around cpp -rob */
 #define ALLOC #alloc
@@ -366,6 +367,9 @@ fixupretl:
 	blu	1f
 	 cmp	%o1, %g1
 	bgeu	1f
+	 ld	[%g6 + TI_PREEMPT], %g1
+	cmp	%g1, 0
+	bne	1f
 	 nop
 	save	%sp, -64, %sp
 	mov	%i0, %o0

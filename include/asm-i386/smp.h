@@ -46,6 +46,8 @@ extern u8 x86_cpu_to_apicid[];
 
 #define cpu_physical_id(cpu)	x86_cpu_to_apicid[cpu]
 
+extern u8 apicid_2_node[];
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
@@ -82,6 +84,7 @@ static inline int hard_smp_processor_id(void)
 #endif
 #endif
 
+extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern unsigned int num_processors;
@@ -90,6 +93,7 @@ extern unsigned int num_processors;
 
 #else /* CONFIG_SMP */
 
+#define safe_smp_processor_id()		0
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */

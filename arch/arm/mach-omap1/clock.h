@@ -89,6 +89,7 @@ struct arm_idlect1_clk {
 #define EN_DSPTIMCK	5
 
 /* Various register defines for clock controls scattered around OMAP chip */
+#define SDW_MCLK_INV_BIT	2	/* In ULPD_CLKC_CTRL */
 #define USB_MCLK_EN_BIT		4	/* In ULPD_CLKC_CTRL */
 #define USB_HOST_HHC_UHOST_EN	9	/* In MOD_CONF_CTRL_0 */
 #define SWD_ULPD_PLL_CLK_REQ	1	/* In SWD_CLK_DIV_CTRL_SEL */
@@ -741,6 +742,18 @@ static struct clk i2c_fck = {
 	.disable	= &omap1_clk_disable_generic,
 };
 
+static struct clk i2c_ick = {
+	.name		= "i2c_ick",
+	.id		= 1,
+	.flags		= CLOCK_IN_OMAP16XX |
+			  VIRTUAL_CLOCK | CLOCK_NO_IDLE_PARENT |
+			  ALWAYS_ENABLED,
+	.parent		= &armper_ck.clk,
+	.recalc		= &followparent_recalc,
+	.enable		= &omap1_clk_enable_generic,
+	.disable	= &omap1_clk_disable_generic,
+};
+
 static struct clk * onchip_clks[] = {
 	/* non-ULPD clocks */
 	&ck_ref,
@@ -790,6 +803,7 @@ static struct clk * onchip_clks[] = {
 	/* Virtual clocks */
 	&virtual_ck_mpu,
 	&i2c_fck,
+	&i2c_ick,
 };
 
 #endif

@@ -2869,7 +2869,7 @@ cleanup0:
 
 static int __exit omap_udc_remove(struct platform_device *pdev)
 {
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	if (!udc)
 		return -ENODEV;

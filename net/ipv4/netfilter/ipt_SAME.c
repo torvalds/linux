@@ -135,7 +135,8 @@ same_target(struct sk_buff **pskb,
 {
 	struct ip_conntrack *ct;
 	enum ip_conntrack_info ctinfo;
-	u_int32_t tmpip, aindex, new_ip;
+	u_int32_t tmpip, aindex;
+	__be32 new_ip;
 	const struct ipt_same_info *same = targinfo;
 	struct ip_nat_range newrange;
 	const struct ip_conntrack_tuple *t;

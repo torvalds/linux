@@ -123,6 +123,26 @@ static void __init dmi_save_devices(struct dmi_header *dm)
 		dev->type = *d++ & 0x7f;
 		dev->name = dmi_string(dm, *d);
 		dev->device_data = NULL;
+		list_add(&dev->list, &dmi_devices);
+	}
+}
+
+static void __init dmi_save_oem_strings_devices(struct dmi_header *dm)
+{
+	int i, count = *(u8 *)(dm + 1);
+	struct dmi_device *dev;
+
+	for (i = 1; i <= count; i++) {
+		dev = dmi_alloc(sizeof(*dev));
+		if (!dev) {
+			printk(KERN_ERR
+			   "dmi_save_oem_strings_devices: out of memory.\n");
+			break;
+		}
+
+		dev->type = DMI_DEV_TYPE_OEM_STRING;
+		dev->name = dmi_string(dm, i);
+		dev->device_data = NULL;
 
 		list_add(&dev->list, &dmi_devices);
 	}
@@ -180,6 +200,9 @@ static void __init dmi_decode(struct dmi_header *dm)
 		break;
 	case 10:	/* Onboard Devices Information */
 		dmi_save_devices(dm);
+		break;
+	case 11:	/* OEM Strings */
+		dmi_save_oem_strings_devices(dm);
 		break;
 	case 38:	/* IPMI Device Information */
 		dmi_save_ipmi_device(dm);

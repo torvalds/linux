@@ -11,6 +11,7 @@
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/tty.h>
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/timex.h>
@@ -422,7 +423,9 @@ asmlinkage int solaris_procids(int cmd, s32 pid, s32 pgid)
 			   Solaris setpgrp and setsid? */
 			ret = sys_setpgid(0, 0);
 			if (ret) return ret;
+			mutex_lock(&tty_mutex);
 			current->signal->tty = NULL;
+			mutex_unlock(&tty_mutex);
 			return process_group(current);
 		}
 	case 2: /* getsid */

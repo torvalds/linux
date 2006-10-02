@@ -142,17 +142,17 @@ dcss_diag (__u8 func, void *parameter,
 
 	rx = (unsigned long) parameter;
 	ry = (unsigned long) func;
-	__asm__ __volatile__(
+	asm volatile(
 #ifdef CONFIG_64BIT
-		"   sam31\n" // switch to 31 bit
-		"   diag    %0,%1,0x64\n"
-		"   sam64\n" // switch back to 64 bit
+		"	sam31\n"
+		"	diag	%0,%1,0x64\n"
+		"	sam64\n"
 #else
-		"   diag    %0,%1,0x64\n"
+		"	diag	%0,%1,0x64\n"
 #endif
-		"   ipm     %2\n"
-		"   srl     %2,28\n"
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc" );
+		"	ipm	%2\n"
+		"	srl	%2,28\n"
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
 	*ret1 = rx;
 	*ret2 = ry;
 	return rc;

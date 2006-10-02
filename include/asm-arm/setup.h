@@ -194,13 +194,15 @@ static struct tagtable __tagtable_##fn __tag = { tag, fn }
 # define NR_BANKS 8
 #endif
 
+struct membank {
+	unsigned long start;
+	unsigned long size;
+	int           node;
+};
+
 struct meminfo {
 	int nr_banks;
-	struct {
-		unsigned long start;
-		unsigned long size;
-		int           node;
-	} bank[NR_BANKS];
+	struct membank bank[NR_BANKS];
 };
 
 /*

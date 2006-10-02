@@ -34,7 +34,7 @@ MODULE_DESCRIPTION("ftp NAT helper");
 
 static int
 mangle_rfc959_packet(struct sk_buff **pskb,
-		     u_int32_t newip,
+		     __be32 newip,
 		     u_int16_t port,
 		     unsigned int matchoff,
 		     unsigned int matchlen,
@@ -57,7 +57,7 @@ mangle_rfc959_packet(struct sk_buff **pskb,
 /* |1|132.235.1.2|6275| */
 static int
 mangle_eprt_packet(struct sk_buff **pskb,
-		   u_int32_t newip,
+		   __be32 newip,
 		   u_int16_t port,
 		   unsigned int matchoff,
 		   unsigned int matchlen,
@@ -79,7 +79,7 @@ mangle_eprt_packet(struct sk_buff **pskb,
 /* |1|132.235.1.2|6275| */
 static int
 mangle_epsv_packet(struct sk_buff **pskb,
-		   u_int32_t newip,
+		   __be32 newip,
 		   u_int16_t port,
 		   unsigned int matchoff,
 		   unsigned int matchlen,
@@ -98,7 +98,7 @@ mangle_epsv_packet(struct sk_buff **pskb,
 					matchlen, buffer, strlen(buffer));
 }
 
-static int (*mangle[])(struct sk_buff **, u_int32_t, u_int16_t,
+static int (*mangle[])(struct sk_buff **, __be32, u_int16_t,
 		     unsigned int,
 		     unsigned int,
 		     struct ip_conntrack *,
@@ -120,7 +120,7 @@ static unsigned int ip_nat_ftp(struct sk_buff **pskb,
 			       struct ip_conntrack_expect *exp,
 			       u32 *seq)
 {
-	u_int32_t newip;
+	__be32 newip;
 	u_int16_t port;
 	int dir = CTINFO2DIR(ctinfo);
 	struct ip_conntrack *ct = exp->master;

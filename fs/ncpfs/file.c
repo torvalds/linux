@@ -289,6 +289,9 @@ const struct file_operations ncp_file_operations =
 	.read		= ncp_file_read,
 	.write		= ncp_file_write,
 	.ioctl		= ncp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ncp_compat_ioctl,
+#endif
 	.mmap		= ncp_mmap,
 	.release	= ncp_release,
 	.fsync		= ncp_fsync,

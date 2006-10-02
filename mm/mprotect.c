@@ -34,6 +34,7 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	spinlock_t *ptl;
 
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	arch_enter_lazy_mmu_mode();
 	do {
 		oldpte = *pte;
 		if (pte_present(oldpte)) {
@@ -70,6 +71,7 @@ static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		}
 
 	} while (pte++, addr += PAGE_SIZE, addr != end);
+	arch_leave_lazy_mmu_mode();
 	pte_unmap_unlock(pte - 1, ptl);
 }
 

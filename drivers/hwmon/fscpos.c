@@ -38,6 +38,7 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 /*
  * Addresses to scan
@@ -432,6 +433,44 @@ static DEVICE_ATTR(in0_input, S_IRUGO, show_volt_12, NULL);
 static DEVICE_ATTR(in1_input, S_IRUGO, show_volt_5, NULL);
 static DEVICE_ATTR(in2_input, S_IRUGO, show_volt_batt, NULL);
 
+static struct attribute *fscpos_attributes[] = {
+	&dev_attr_event.attr,
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in2_input.attr,
+
+	&dev_attr_wdog_control.attr,
+	&dev_attr_wdog_preset.attr,
+	&dev_attr_wdog_state.attr,
+
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp1_status.attr,
+	&dev_attr_temp1_reset.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp2_status.attr,
+	&dev_attr_temp2_reset.attr,
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp3_status.attr,
+	&dev_attr_temp3_reset.attr,
+
+	&dev_attr_fan1_input.attr,
+	&dev_attr_fan1_status.attr,
+	&dev_attr_fan1_ripple.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_fan2_input.attr,
+	&dev_attr_fan2_status.attr,
+	&dev_attr_fan2_ripple.attr,
+	&dev_attr_pwm2.attr,
+	&dev_attr_fan3_input.attr,
+	&dev_attr_fan3_status.attr,
+	&dev_attr_fan3_ripple.attr,
+	NULL
+};
+
+static const struct attribute_group fscpos_group = {
+	.attrs = fscpos_attributes,
+};
+
 static int fscpos_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
@@ -497,42 +536,19 @@ static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 	dev_info(&new_client->dev, "Found fscpos chip, rev %u\n", data->revision);
 
 	/* Register sysfs hooks */
+	if ((err = sysfs_create_group(&new_client->dev.kobj, &fscpos_group)))
+		goto exit_detach;
+
 	data->class_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
-		goto exit_detach;
+		goto exit_remove_files;
 	}
-
-	device_create_file(&new_client->dev, &dev_attr_event);
-	device_create_file(&new_client->dev, &dev_attr_in0_input);
-	device_create_file(&new_client->dev, &dev_attr_in1_input);
-	device_create_file(&new_client->dev, &dev_attr_in2_input);
-	device_create_file(&new_client->dev, &dev_attr_wdog_control);
-	device_create_file(&new_client->dev, &dev_attr_wdog_preset);
-	device_create_file(&new_client->dev, &dev_attr_wdog_state);
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_status);
-	device_create_file(&new_client->dev, &dev_attr_temp1_reset);
-	device_create_file(&new_client->dev, &dev_attr_temp2_input);
-	device_create_file(&new_client->dev, &dev_attr_temp2_status);
-	device_create_file(&new_client->dev, &dev_attr_temp2_reset);
-	device_create_file(&new_client->dev, &dev_attr_temp3_input);
-	device_create_file(&new_client->dev, &dev_attr_temp3_status);
-	device_create_file(&new_client->dev, &dev_attr_temp3_reset);
-	device_create_file(&new_client->dev, &dev_attr_fan1_input);
-	device_create_file(&new_client->dev, &dev_attr_fan1_status);
-	device_create_file(&new_client->dev, &dev_attr_fan1_ripple);
-	device_create_file(&new_client->dev, &dev_attr_pwm1);
-	device_create_file(&new_client->dev, &dev_attr_fan2_input);
-	device_create_file(&new_client->dev, &dev_attr_fan2_status);
-	device_create_file(&new_client->dev, &dev_attr_fan2_ripple);
-	device_create_file(&new_client->dev, &dev_attr_pwm2);
-	device_create_file(&new_client->dev, &dev_attr_fan3_input);
-	device_create_file(&new_client->dev, &dev_attr_fan3_status);
-	device_create_file(&new_client->dev, &dev_attr_fan3_ripple);
 
 	return 0;
 
+exit_remove_files:
+	sysfs_remove_group(&new_client->dev.kobj, &fscpos_group);
 exit_detach:
 	i2c_detach_client(new_client);
 exit_free:
@@ -547,6 +563,7 @@ static int fscpos_detach_client(struct i2c_client *client)
 	int err;
 
 	hwmon_device_unregister(data->class_dev);
+	sysfs_remove_group(&client->dev.kobj, &fscpos_group);
 
 	if ((err = i2c_detach_client(client)))
 		return err;

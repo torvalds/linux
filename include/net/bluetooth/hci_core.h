@@ -72,6 +72,9 @@ struct hci_dev {
 	__u8		type;
 	bdaddr_t	bdaddr;
 	__u8		features[8];
+	__u8		hci_ver;
+	__u16		hci_rev;
+	__u16		manufacturer;
 	__u16		voice_setting;
 
 	__u16		pkt_type;
@@ -164,6 +167,10 @@ struct hci_conn {
 
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
+
+	struct work_struct work;
+
+	struct device	dev;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
@@ -309,10 +316,13 @@ static inline void hci_conn_put(struct hci_conn *conn)
 	if (atomic_dec_and_test(&conn->refcnt)) {
 		unsigned long timeo;
 		if (conn->type == ACL_LINK) {
-			timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
-			if (!conn->out)
-				timeo *= 2;
 			del_timer(&conn->idle_timer);
+			if (conn->state == BT_CONNECTED) {
+				timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
+				if (!conn->out)
+					timeo *= 2;
+			} else
+				timeo = msecs_to_jiffies(10);
 		} else
 			timeo = msecs_to_jiffies(10);
 		mod_timer(&conn->disc_timer, jiffies + timeo);
@@ -412,6 +422,8 @@ static inline int hci_recv_frame(struct sk_buff *skb)
 
 int hci_register_sysfs(struct hci_dev *hdev);
 void hci_unregister_sysfs(struct hci_dev *hdev);
+void hci_conn_add_sysfs(struct hci_conn *conn);
+void hci_conn_del_sysfs(struct hci_conn *conn);
 
 #define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
 

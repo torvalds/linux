@@ -89,7 +89,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	brelse(bh);
 	hpfs_mark_4buffers_dirty(&qbh0);
 	hpfs_brelse4(&qbh0);
-	dir->i_nlink++;
+	inc_nlink(dir);
 	insert_inode_hash(result);
 
 	if (result->i_uid != current->fsuid ||
@@ -434,7 +434,7 @@ again:
 		unlock_kernel();
 		return -ENOSPC;
 	default:
-		inode->i_nlink--;
+		drop_nlink(inode);
 		err = 0;
 	}
 	goto out;
@@ -494,8 +494,8 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 		err = -ENOSPC;
 		break;
 	default:
-		dir->i_nlink--;
-		inode->i_nlink = 0;
+		drop_nlink(dir);
+		clear_nlink(inode);
 		err = 0;
 	}
 	goto out;
@@ -590,7 +590,7 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		int r;
 		if ((r = hpfs_remove_dirent(old_dir, dno, dep, &qbh, 1)) != 2) {
 			if ((nde = map_dirent(new_dir, hpfs_i(new_dir)->i_dno, (char *)new_name, new_len, NULL, &qbh1))) {
-				new_inode->i_nlink = 0;
+				clear_nlink(new_inode);
 				copy_de(nde, &de);
 				memcpy(nde->name, new_name, new_len);
 				hpfs_mark_4buffers_dirty(&qbh1);
@@ -635,8 +635,8 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	end:
 	hpfs_i(i)->i_parent_dir = new_dir->i_ino;
 	if (S_ISDIR(i->i_mode)) {
-		new_dir->i_nlink++;
-		old_dir->i_nlink--;
+		inc_nlink(new_dir);
+		drop_nlink(old_dir);
 	}
 	if ((fnode = hpfs_map_fnode(i->i_sb, i->i_ino, &bh))) {
 		fnode->up = new_dir->i_ino;

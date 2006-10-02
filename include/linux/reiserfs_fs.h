@@ -807,21 +807,19 @@ struct stat_data_v1 {
 #define set_sd_v1_first_direct_byte(sdp,v) \
                                 ((sdp)->sd_first_direct_byte = cpu_to_le32(v))
 
-#include <linux/ext2_fs.h>
-
 /* inode flags stored in sd_attrs (nee sd_reserved) */
 
 /* we want common flags to have the same values as in ext2,
    so chattr(1) will work without problems */
-#define REISERFS_IMMUTABLE_FL EXT2_IMMUTABLE_FL
-#define REISERFS_APPEND_FL    EXT2_APPEND_FL
-#define REISERFS_SYNC_FL      EXT2_SYNC_FL
-#define REISERFS_NOATIME_FL   EXT2_NOATIME_FL
-#define REISERFS_NODUMP_FL    EXT2_NODUMP_FL
-#define REISERFS_SECRM_FL     EXT2_SECRM_FL
-#define REISERFS_UNRM_FL      EXT2_UNRM_FL
-#define REISERFS_COMPR_FL     EXT2_COMPR_FL
-#define REISERFS_NOTAIL_FL    EXT2_NOTAIL_FL
+#define REISERFS_IMMUTABLE_FL FS_IMMUTABLE_FL
+#define REISERFS_APPEND_FL    FS_APPEND_FL
+#define REISERFS_SYNC_FL      FS_SYNC_FL
+#define REISERFS_NOATIME_FL   FS_NOATIME_FL
+#define REISERFS_NODUMP_FL    FS_NODUMP_FL
+#define REISERFS_SECRM_FL     FS_SECRM_FL
+#define REISERFS_UNRM_FL      FS_UNRM_FL
+#define REISERFS_COMPR_FL     FS_COMPR_FL
+#define REISERFS_NOTAIL_FL    FS_NOTAIL_FL
 
 /* persistent flags that file inherits from the parent directory */
 #define REISERFS_INHERIT_MASK ( REISERFS_IMMUTABLE_FL |	\
@@ -2075,6 +2073,10 @@ void reiserfs_init_alloc_options(struct super_block *s);
  */
 __le32 reiserfs_choose_packing(struct inode *dir);
 
+int reiserfs_init_bitmap_cache(struct super_block *sb);
+void reiserfs_free_bitmap_cache(struct super_block *sb);
+void reiserfs_cache_bitmap_metadata(struct super_block *sb, struct buffer_head *bh, struct reiserfs_bitmap_info *info);
+struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb, unsigned int bitmap);
 int is_reusable(struct super_block *s, b_blocknr_t block, int bit_value);
 void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct inode *,
 			 b_blocknr_t, int for_unformatted);
@@ -2163,15 +2165,24 @@ __u32 r5_hash(const signed char *msg, int len);
 /* prototypes from ioctl.c */
 int reiserfs_ioctl(struct inode *inode, struct file *filp,
 		   unsigned int cmd, unsigned long arg);
+long reiserfs_compat_ioctl(struct file *filp,
+		   unsigned int cmd, unsigned long arg);
 
 /* ioctl's command */
 #define REISERFS_IOC_UNPACK		_IOW(0xCD,1,long)
 /* define following flags to be the same as in ext2, so that chattr(1),
    lsattr(1) will work with us. */
-#define REISERFS_IOC_GETFLAGS		EXT2_IOC_GETFLAGS
-#define REISERFS_IOC_SETFLAGS		EXT2_IOC_SETFLAGS
-#define REISERFS_IOC_GETVERSION		EXT2_IOC_GETVERSION
-#define REISERFS_IOC_SETVERSION		EXT2_IOC_SETVERSION
+#define REISERFS_IOC_GETFLAGS		FS_IOC_GETFLAGS
+#define REISERFS_IOC_SETFLAGS		FS_IOC_SETFLAGS
+#define REISERFS_IOC_GETVERSION		FS_IOC_GETVERSION
+#define REISERFS_IOC_SETVERSION		FS_IOC_SETVERSION
+
+/* the 32 bit compat definitions with int argument */
+#define REISERFS_IOC32_UNPACK		_IOW(0xCD, 1, int)
+#define REISERFS_IOC32_GETFLAGS		FS_IOC32_GETFLAGS
+#define REISERFS_IOC32_SETFLAGS		FS_IOC32_SETFLAGS
+#define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
+#define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
 /* Locking primitives */
 /* Right now we are still falling back to (un)lock_kernel, but eventually that

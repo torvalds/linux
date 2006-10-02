@@ -2046,10 +2046,9 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 	void *buf = NULL;
 
 	if (size > 0) {
-		buf = kmalloc(size, GFP_KERNEL);
+		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		memcpy(buf, data, size);
 	}
 	err = usb_control_msg(dev, pipe, request, requesttype,
 			      value, index, buf, size, timeout);
@@ -2846,12 +2845,11 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	int stream, err;
 	int *rate_table = NULL;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmemdup(quirk->data, sizeof(*fp), GFP_KERNEL);
 	if (! fp) {
-		snd_printk(KERN_ERR "cannot malloc\n");
+		snd_printk(KERN_ERR "cannot memdup\n");
 		return -ENOMEM;
 	}
-	memcpy(fp, quirk->data, sizeof(*fp));
 	if (fp->nr_rates > 0) {
 		rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
 		if (!rate_table) {
@@ -3029,10 +3027,9 @@ static int create_ua1000_quirk(struct snd_usb_audio *chip,
 	    altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmemdup(&ua1000_format, sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
-	memcpy(fp, &ua1000_format, sizeof(*fp));
 
 	fp->channels = alts->extra[4];
 	fp->iface = altsd->bInterfaceNumber;

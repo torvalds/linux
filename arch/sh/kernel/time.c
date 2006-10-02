@@ -18,7 +18,6 @@
 #include <asm/timer.h>
 #include <asm/kgdb.h>
 
-extern unsigned long wall_jiffies;
 struct sys_timer *sys_timer;
 
 /* Move this somewhere more sensible.. */
@@ -52,16 +51,10 @@ void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long seq;
 	unsigned long usec, sec;
-	unsigned long lost;
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
 		usec = get_timer_offset();
-
-		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * (1000000 / HZ);
-
 		sec = xtime.tv_sec;
 		usec += xtime.tv_nsec / 1000;
 	} while (read_seqretry(&xtime_lock, seq));
@@ -91,8 +84,7 @@ int do_settimeofday(struct timespec *tv)
 	 * wall time.  Discover what correction gettimeofday() would have
 	 * made, and then undo it!
 	 */
-	nsec -= 1000 * (get_timer_offset() +
-				(jiffies - wall_jiffies) * (1000000 / HZ));
+	nsec -= 1000 * get_timer_offset();
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -117,7 +109,7 @@ static long last_rtc_update;
  */
 void handle_timer_tick(struct pt_regs *regs)
 {
-	do_timer(regs);
+	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));
 #endif

@@ -598,6 +598,11 @@ out:
 	mconsole_reply(req, err_msg, err, 0);
 }
 
+struct mconsole_output {
+	struct list_head list;
+	struct mc_request *req;
+};
+
 static DEFINE_SPINLOCK(console_lock);
 static LIST_HEAD(clients);
 static char console_buf[MCONSOLE_MAX_DATA];
@@ -622,10 +627,10 @@ static void console_write(struct console *console, const char *string,
 			return;
 
 		list_for_each(ele, &clients){
-			struct mconsole_entry *entry;
+			struct mconsole_output *entry;
 
-			entry = list_entry(ele, struct mconsole_entry, list);
-			mconsole_reply_len(&entry->request, console_buf,
+			entry = list_entry(ele, struct mconsole_output, list);
+			mconsole_reply_len(entry->req, console_buf,
 					   console_index, 0, 1);
 		}
 
@@ -649,10 +654,10 @@ late_initcall(mc_add_console);
 static void with_console(struct mc_request *req, void (*proc)(void *),
 			 void *arg)
 {
-	struct mconsole_entry entry;
+	struct mconsole_output entry;
 	unsigned long flags;
 
-	entry.request = *req;
+	entry.req = req;
 	list_add(&entry.list, &clients);
 	spin_lock_irqsave(&console_lock, flags);
 

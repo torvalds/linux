@@ -766,7 +766,7 @@ cciss_scsi_do_simple_cmd(ctlr_info_t *c,
 			int direction)
 {
 	unsigned long flags;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	cp->cmd_type = CMD_IOCTL_PEND;		// treat this like an ioctl 
 	cp->scsi_cmd = NULL;

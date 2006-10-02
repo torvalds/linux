@@ -32,6 +32,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
+#include <linux/mmc/host.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -165,6 +166,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	do {
 		struct mmc_blk_request brq;
 		struct mmc_command cmd;
+		u32 readcmd, writecmd;
 
 		memset(&brq, 0, sizeof(struct mmc_blk_request));
 		brq.mrq.cmd = &brq.cmd;
@@ -172,7 +174,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		brq.cmd.arg = req->sector << 9;
 		brq.cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-		brq.data.blksz_bits = md->block_bits;
 		brq.data.blksz = 1 << md->block_bits;
 		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
@@ -181,20 +182,31 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_set_data_timeout(&brq.data, card, rq_data_dir(req) != READ);
 
-		if (rq_data_dir(req) == READ) {
-			brq.cmd.opcode = brq.data.blocks > 1 ? MMC_READ_MULTIPLE_BLOCK : MMC_READ_SINGLE_BLOCK;
-			brq.data.flags |= MMC_DATA_READ;
-		} else {
-			brq.cmd.opcode = MMC_WRITE_BLOCK;
-			brq.data.flags |= MMC_DATA_WRITE;
+		/*
+		 * If the host doesn't support multiple block writes, force
+		 * block writes to single block.
+		 */
+		if (rq_data_dir(req) != READ &&
+		    !(card->host->caps & MMC_CAP_MULTIWRITE))
 			brq.data.blocks = 1;
-		}
 
 		if (brq.data.blocks > 1) {
 			brq.data.flags |= MMC_DATA_MULTI;
 			brq.mrq.stop = &brq.stop;
+			readcmd = MMC_READ_MULTIPLE_BLOCK;
+			writecmd = MMC_WRITE_MULTIPLE_BLOCK;
 		} else {
 			brq.mrq.stop = NULL;
+			readcmd = MMC_READ_SINGLE_BLOCK;
+			writecmd = MMC_WRITE_BLOCK;
+		}
+
+		if (rq_data_dir(req) == READ) {
+			brq.cmd.opcode = readcmd;
+			brq.data.flags |= MMC_DATA_READ;
+		} else {
+			brq.cmd.opcode = writecmd;
+			brq.data.flags |= MMC_DATA_WRITE;
 		}
 
 		brq.data.sg = mq->sg;
@@ -219,27 +231,29 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			goto cmd_err;
 		}
 
-		do {
-			int err;
+		if (rq_data_dir(req) != READ) {
+			do {
+				int err;
 
-			cmd.opcode = MMC_SEND_STATUS;
-			cmd.arg = card->rca << 16;
-			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-			err = mmc_wait_for_cmd(card->host, &cmd, 5);
-			if (err) {
-				printk(KERN_ERR "%s: error %d requesting status\n",
-				       req->rq_disk->disk_name, err);
-				goto cmd_err;
-			}
-		} while (!(cmd.resp[0] & R1_READY_FOR_DATA));
+				cmd.opcode = MMC_SEND_STATUS;
+				cmd.arg = card->rca << 16;
+				cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+				err = mmc_wait_for_cmd(card->host, &cmd, 5);
+				if (err) {
+					printk(KERN_ERR "%s: error %d requesting status\n",
+					       req->rq_disk->disk_name, err);
+					goto cmd_err;
+				}
+			} while (!(cmd.resp[0] & R1_READY_FOR_DATA));
 
 #if 0
-		if (cmd.resp[0] & ~0x00000900)
-			printk(KERN_ERR "%s: status = %08x\n",
-			       req->rq_disk->disk_name, cmd.resp[0]);
-		if (mmc_decode_status(cmd.resp))
-			goto cmd_err;
+			if (cmd.resp[0] & ~0x00000900)
+				printk(KERN_ERR "%s: status = %08x\n",
+				       req->rq_disk->disk_name, cmd.resp[0]);
+			if (mmc_decode_status(cmd.resp))
+				goto cmd_err;
 #endif
+		}
 
 		/*
 		 * A block was successfully transferred.

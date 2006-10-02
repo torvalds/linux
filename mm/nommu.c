@@ -948,7 +948,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 	up_write(&nommu_vma_sem);
 	kfree(vml);
 	if (vma) {
-		fput(vma->vm_file);
+		if (vma->vm_file)
+			fput(vma->vm_file);
 		kfree(vma);
 	}
 	return ret;

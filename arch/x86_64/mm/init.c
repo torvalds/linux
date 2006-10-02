@@ -463,19 +463,6 @@ void online_page(struct page *page)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * XXX: memory_add_physaddr_to_nid() is to find node id from physical address
- *	via probe interface of sysfs. If acpi notifies hot-add event, then it
- *	can tell node id by searching dsdt. But, probe interface doesn't have
- *	node id. So, return 0 as node id at this time.
- */
-#ifdef CONFIG_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
-#endif
-
-/*
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
@@ -487,11 +474,11 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
+	init_memory_mapping(start, (start + size -1));
+
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	if (ret)
 		goto error;
-
-	init_memory_mapping(start, (start + size -1));
 
 	return ret;
 error:
@@ -506,7 +493,24 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-#else /* CONFIG_MEMORY_HOTPLUG */
+#ifndef CONFIG_ACPI_NUMA
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
+
+#ifndef CONFIG_ACPI_NUMA
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+#endif
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
 /*
  * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
  * just online the pages.
@@ -532,7 +536,7 @@ int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
 	}
 	return err;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
+#endif
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;

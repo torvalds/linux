@@ -92,11 +92,14 @@ static int stv0299_writeregI (struct stv0299_state* state, u8 reg, u8 data)
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
-int stv0299_writereg (struct dvb_frontend* fe, u8 reg, u8 data)
+int stv0299_write(struct dvb_frontend* fe, u8 *buf, int len)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 
-	return stv0299_writeregI(state, reg, data);
+	if (len != 2)
+		return -EINVAL;
+
+	return stv0299_writeregI(state, buf[0], buf[1]);
 }
 
 static u8 stv0299_readreg (struct stv0299_state* state, u8 reg)
@@ -694,6 +697,7 @@ static struct dvb_frontend_ops stv0299_ops = {
 
 	.init = stv0299_init,
 	.sleep = stv0299_sleep,
+	.write = stv0299_write,
 	.i2c_gate_ctrl = stv0299_i2c_gate_ctrl,
 
 	.set_frontend = stv0299_set_frontend,
@@ -724,5 +728,4 @@ MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, "
 	      "Andreas Oberritter, Andrew de Quincey, Kenneth Aafly");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(stv0299_writereg);
 EXPORT_SYMBOL(stv0299_attach);

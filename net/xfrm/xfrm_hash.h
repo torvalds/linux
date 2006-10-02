@@ -58,10 +58,10 @@ static inline unsigned __xfrm_src_hash(xfrm_address_t *saddr,
 }
 
 static inline unsigned int
-__xfrm_spi_hash(xfrm_address_t *daddr, u32 spi, u8 proto, unsigned short family,
+__xfrm_spi_hash(xfrm_address_t *daddr, __be32 spi, u8 proto, unsigned short family,
 		unsigned int hmask)
 {
-	unsigned int h = spi ^ proto;
+	unsigned int h = (__force u32)spi ^ proto;
 	switch (family) {
 	case AF_INET:
 		h ^= __xfrm4_addr_hash(daddr);

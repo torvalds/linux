@@ -71,9 +71,11 @@ static struct resource nokia770_kp_resources[] = {
 };
 
 static struct omap_kp_platform_data nokia770_kp_data = {
-	.rows   = 8,
-	.cols   = 8,
-	.keymap = nokia770_keymap
+	.rows		= 8,
+	.cols		= 8,
+	.keymap		= nokia770_keymap,
+	.keymapsize	= ARRAY_SIZE(nokia770_keymap)
+	.delay		= 4,
 };
 
 static struct platform_device nokia770_kp_device = {

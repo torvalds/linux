@@ -372,12 +372,13 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		 * Expose the ship behind i960 for initialization, or it will
 		 * failed
 		 */
-		i960 =
-		    pci_find_slot(c->pdev->bus->number,
+		i960 = pci_get_slot(c->pdev->bus,
 				  PCI_DEVFN(PCI_SLOT(c->pdev->devfn), 0));
 
-		if (i960)
+		if (i960) {
 			pci_write_config_word(i960, 0x42, 0);
+			pci_dev_put(i960);
+		}
 
 		c->promise = 1;
 		c->limit_sectors = 1;

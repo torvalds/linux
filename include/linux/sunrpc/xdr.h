@@ -32,7 +32,7 @@ struct xdr_netobj {
  * side) or svc_rqst pointer (server side).
  * Encode functions always assume there's enough room in the buffer.
  */
-typedef int	(*kxdrproc_t)(void *rqstp, u32 *data, void *obj);
+typedef int	(*kxdrproc_t)(void *rqstp, __be32 *data, void *obj);
 
 /*
  * Basic structure for transmission/reception of a client XDR message.
@@ -88,19 +88,19 @@ struct xdr_buf {
 /*
  * Miscellaneous XDR helper functions
  */
-u32 *	xdr_encode_opaque_fixed(u32 *p, const void *ptr, unsigned int len);
-u32 *	xdr_encode_opaque(u32 *p, const void *ptr, unsigned int len);
-u32 *	xdr_encode_string(u32 *p, const char *s);
-u32 *	xdr_decode_string_inplace(u32 *p, char **sp, int *lenp, int maxlen);
-u32 *	xdr_encode_netobj(u32 *p, const struct xdr_netobj *);
-u32 *	xdr_decode_netobj(u32 *p, struct xdr_netobj *);
+__be32 *xdr_encode_opaque_fixed(__be32 *p, const void *ptr, unsigned int len);
+__be32 *xdr_encode_opaque(__be32 *p, const void *ptr, unsigned int len);
+__be32 *xdr_encode_string(__be32 *p, const char *s);
+__be32 *xdr_decode_string_inplace(__be32 *p, char **sp, int *lenp, int maxlen);
+__be32 *xdr_encode_netobj(__be32 *p, const struct xdr_netobj *);
+__be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 
 void	xdr_encode_pages(struct xdr_buf *, struct page **, unsigned int,
 			 unsigned int);
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
 
-static inline u32 *xdr_encode_array(u32 *p, const void *s, unsigned int len)
+static inline __be32 *xdr_encode_array(__be32 *p, const void *s, unsigned int len)
 {
 	return xdr_encode_opaque(p, s, len);
 }
@@ -108,16 +108,16 @@ static inline u32 *xdr_encode_array(u32 *p, const void *s, unsigned int len)
 /*
  * Decode 64bit quantities (NFSv3 support)
  */
-static inline u32 *
-xdr_encode_hyper(u32 *p, __u64 val)
+static inline __be32 *
+xdr_encode_hyper(__be32 *p, __u64 val)
 {
 	*p++ = htonl(val >> 32);
 	*p++ = htonl(val & 0xFFFFFFFF);
 	return p;
 }
 
-static inline u32 *
-xdr_decode_hyper(u32 *p, __u64 *valp)
+static inline __be32 *
+xdr_decode_hyper(__be32 *p, __u64 *valp)
 {
 	*valp  = ((__u64) ntohl(*p++)) << 32;
 	*valp |= ntohl(*p++);
@@ -128,7 +128,7 @@ xdr_decode_hyper(u32 *p, __u64 *valp)
  * Adjust kvec to reflect end of xdr'ed data (RPC client XDR)
  */
 static inline int
-xdr_adjust_iovec(struct kvec *iov, u32 *p)
+xdr_adjust_iovec(struct kvec *iov, __be32 *p)
 {
 	return iov->iov_len = ((u8 *) p - (u8 *) iov->iov_base);
 }
@@ -180,19 +180,19 @@ extern int xdr_encode_array2(struct xdr_buf *buf, unsigned int base,
  * Provide some simple tools for XDR buffer overflow-checking etc.
  */
 struct xdr_stream {
-	uint32_t *p;		/* start of available buffer */
+	__be32 *p;		/* start of available buffer */
 	struct xdr_buf *buf;	/* XDR buffer to read/write */
 
-	uint32_t *end;		/* end of available buffer space */
+	__be32 *end;		/* end of available buffer space */
 	struct kvec *iov;	/* pointer to the current kvec */
 };
 
-extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p);
-extern uint32_t *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
+extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
+extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
 extern void xdr_write_pages(struct xdr_stream *xdr, struct page **pages,
 		unsigned int base, unsigned int len);
-extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, uint32_t *p);
-extern uint32_t *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
+extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
+extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern void xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 

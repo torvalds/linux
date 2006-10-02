@@ -460,7 +460,7 @@ static int x1205_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static struct rtc_class_ops x1205_rtc_ops = {
+static const struct rtc_class_ops x1205_rtc_ops = {
 	.proc		= x1205_rtc_proc,
 	.read_time	= x1205_rtc_read_time,
 	.set_time	= x1205_rtc_set_time,

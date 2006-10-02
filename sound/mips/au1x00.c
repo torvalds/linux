@@ -258,7 +258,7 @@ au1000_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static unsigned int rates[] = {8000, 11025, 16000, 22050};
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count	=  sizeof(rates) / sizeof(rates[0]),
+	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 	.mask	= 0,
 };

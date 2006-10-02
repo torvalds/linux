@@ -100,7 +100,7 @@ static int notesize(struct memelfnote *en)
 	int sz;
 
 	sz = sizeof(struct elf_note);
-	sz += roundup(strlen(en->name), 4);
+	sz += roundup((strlen(en->name) + 1), 4);
 	sz += roundup(en->datasz, 4);
 
 	return sz;
@@ -116,7 +116,7 @@ static char *storenote(struct memelfnote *men, char *bufp)
 
 #define DUMP_WRITE(addr,nr) do { memcpy(bufp,addr,nr); bufp += nr; } while(0)
 
-	en.n_namesz = strlen(men->name);
+	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
 

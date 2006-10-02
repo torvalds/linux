@@ -13,7 +13,6 @@
 #ifndef __ASM_S390_PROCESSOR_H
 #define __ASM_S390_PROCESSOR_H
 
-#include <asm/page.h>
 #include <asm/ptrace.h>
 
 #ifdef __KERNEL__
@@ -21,7 +20,7 @@
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
  */
-#define current_text_addr() ({ void *pc; __asm__("basr %0,0":"=a"(pc)); pc; })
+#define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
@@ -202,7 +201,7 @@ unsigned long get_wchan(struct task_struct *p);
 static inline void cpu_relax(void)
 {
 	if (MACHINE_HAS_DIAG44)
-		asm volatile ("diag 0,0,68" : : : "memory");
+		asm volatile("diag 0,0,68" : : : "memory");
 	else
 		barrier();
 }
@@ -213,9 +212,9 @@ static inline void cpu_relax(void)
 static inline void __load_psw(psw_t psw)
 {
 #ifndef __s390x__
-	asm volatile ("lpsw  0(%0)" : : "a" (&psw), "m" (psw) : "cc" );
+	asm volatile("lpsw  0(%0)" : : "a" (&psw), "m" (psw) : "cc");
 #else
-	asm volatile ("lpswe 0(%0)" : : "a" (&psw), "m" (psw) : "cc" );
+	asm volatile("lpswe 0(%0)" : : "a" (&psw), "m" (psw) : "cc");
 #endif
 }
 
@@ -232,20 +231,20 @@ static inline void __load_psw_mask (unsigned long mask)
 	psw.mask = mask;
 
 #ifndef __s390x__
-	asm volatile (
-		"    basr %0,0\n"
-		"0:  ahi  %0,1f-0b\n"
-		"    st	  %0,4(%1)\n"
-		"    lpsw 0(%1)\n"
+	asm volatile(
+		"	basr	%0,0\n"
+		"0:	ahi	%0,1f-0b\n"
+		"	st	%0,4(%1)\n"
+		"	lpsw	0(%1)\n"
 		"1:"
-		: "=&d" (addr) : "a" (&psw), "m" (psw) : "memory", "cc" );
+		: "=&d" (addr) : "a" (&psw), "m" (psw) : "memory", "cc");
 #else /* __s390x__ */
-	asm volatile (
-		"    larl  %0,1f\n"
-		"    stg   %0,8(%1)\n"
-		"    lpswe 0(%1)\n"
+	asm volatile(
+		"	larl	%0,1f\n"
+		"	stg	%0,8(%1)\n"
+		"	lpswe	0(%1)\n"
 		"1:"
-		: "=&d" (addr) : "a" (&psw), "m" (psw) : "memory", "cc" );
+		: "=&d" (addr) : "a" (&psw), "m" (psw) : "memory", "cc");
 #endif /* __s390x__ */
 }
  
@@ -274,56 +273,57 @@ static inline void disabled_wait(unsigned long code)
          * the processor is dead afterwards
          */
 #ifndef __s390x__
-        asm volatile ("    stctl 0,0,0(%2)\n"
-                      "    ni    0(%2),0xef\n" /* switch off protection */
-                      "    lctl  0,0,0(%2)\n"
-                      "    stpt  0xd8\n"       /* store timer */
-                      "    stckc 0xe0\n"       /* store clock comparator */
-                      "    stpx  0x108\n"      /* store prefix register */
-                      "    stam  0,15,0x120\n" /* store access registers */
-                      "    std   0,0x160\n"    /* store f0 */
-                      "    std   2,0x168\n"    /* store f2 */
-                      "    std   4,0x170\n"    /* store f4 */
-                      "    std   6,0x178\n"    /* store f6 */
-                      "    stm   0,15,0x180\n" /* store general registers */
-                      "    stctl 0,15,0x1c0\n" /* store control registers */
-                      "    oi    0x1c0,0x10\n" /* fake protection bit */
-                      "    lpsw 0(%1)"
-                      : "=m" (ctl_buf)
-		      : "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc" );
+	asm volatile(
+		"	stctl	0,0,0(%2)\n"
+		"	ni	0(%2),0xef\n"	/* switch off protection */
+		"	lctl	0,0,0(%2)\n"
+		"	stpt	0xd8\n"		/* store timer */
+		"	stckc	0xe0\n"		/* store clock comparator */
+		"	stpx	0x108\n"	/* store prefix register */
+		"	stam	0,15,0x120\n"	/* store access registers */
+		"	std	0,0x160\n"	/* store f0 */
+		"	std	2,0x168\n"	/* store f2 */
+		"	std	4,0x170\n"	/* store f4 */
+		"	std	6,0x178\n"	/* store f6 */
+		"	stm	0,15,0x180\n"	/* store general registers */
+		"	stctl	0,15,0x1c0\n"	/* store control registers */
+		"	oi	0x1c0,0x10\n"	/* fake protection bit */
+		"	lpsw	0(%1)"
+		: "=m" (ctl_buf)
+		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc");
 #else /* __s390x__ */
-        asm volatile ("    stctg 0,0,0(%2)\n"
-                      "    ni    4(%2),0xef\n" /* switch off protection */
-                      "    lctlg 0,0,0(%2)\n"
-                      "    lghi  1,0x1000\n"
-                      "    stpt  0x328(1)\n"      /* store timer */
-                      "    stckc 0x330(1)\n"      /* store clock comparator */
-                      "    stpx  0x318(1)\n"      /* store prefix register */
-                      "    stam  0,15,0x340(1)\n" /* store access registers */
-                      "    stfpc 0x31c(1)\n"      /* store fpu control */
-                      "    std   0,0x200(1)\n"    /* store f0 */
-                      "    std   1,0x208(1)\n"    /* store f1 */
-                      "    std   2,0x210(1)\n"    /* store f2 */
-                      "    std   3,0x218(1)\n"    /* store f3 */
-                      "    std   4,0x220(1)\n"    /* store f4 */
-                      "    std   5,0x228(1)\n"    /* store f5 */
-                      "    std   6,0x230(1)\n"    /* store f6 */
-                      "    std   7,0x238(1)\n"    /* store f7 */
-                      "    std   8,0x240(1)\n"    /* store f8 */
-                      "    std   9,0x248(1)\n"    /* store f9 */
-                      "    std   10,0x250(1)\n"   /* store f10 */
-                      "    std   11,0x258(1)\n"   /* store f11 */
-                      "    std   12,0x260(1)\n"   /* store f12 */
-                      "    std   13,0x268(1)\n"   /* store f13 */
-                      "    std   14,0x270(1)\n"   /* store f14 */
-                      "    std   15,0x278(1)\n"   /* store f15 */
-                      "    stmg  0,15,0x280(1)\n" /* store general registers */
-                      "    stctg 0,15,0x380(1)\n" /* store control registers */
-                      "    oi    0x384(1),0x10\n" /* fake protection bit */
-                      "    lpswe 0(%1)"
-                      : "=m" (ctl_buf)
-		      : "a" (&dw_psw), "a" (&ctl_buf),
-		        "m" (dw_psw) : "cc", "0", "1");
+	asm volatile(
+		"	stctg	0,0,0(%2)\n"
+		"	ni	4(%2),0xef\n"	/* switch off protection */
+		"	lctlg	0,0,0(%2)\n"
+		"	lghi	1,0x1000\n"
+		"	stpt	0x328(1)\n"	/* store timer */
+		"	stckc	0x330(1)\n"	/* store clock comparator */
+		"	stpx	0x318(1)\n"	/* store prefix register */
+		"	stam	0,15,0x340(1)\n"/* store access registers */
+		"	stfpc	0x31c(1)\n"	/* store fpu control */
+		"	std	0,0x200(1)\n"	/* store f0 */
+		"	std	1,0x208(1)\n"	/* store f1 */
+		"	std	2,0x210(1)\n"	/* store f2 */
+		"	std	3,0x218(1)\n"	/* store f3 */
+		"	std	4,0x220(1)\n"	/* store f4 */
+		"	std	5,0x228(1)\n"	/* store f5 */
+		"	std	6,0x230(1)\n"	/* store f6 */
+		"	std	7,0x238(1)\n"	/* store f7 */
+		"	std	8,0x240(1)\n"	/* store f8 */
+		"	std	9,0x248(1)\n"	/* store f9 */
+		"	std	10,0x250(1)\n"	/* store f10 */
+		"	std	11,0x258(1)\n"	/* store f11 */
+		"	std	12,0x260(1)\n"	/* store f12 */
+		"	std	13,0x268(1)\n"	/* store f13 */
+		"	std	14,0x270(1)\n"	/* store f14 */
+		"	std	15,0x278(1)\n"	/* store f15 */
+		"	stmg	0,15,0x280(1)\n"/* store general registers */
+		"	stctg	0,15,0x380(1)\n"/* store control registers */
+		"	oi	0x384(1),0x10\n"/* fake protection bit */
+		"	lpswe	0(%1)"
+		: "=m" (ctl_buf)
+		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0");
 #endif /* __s390x__ */
 }
 

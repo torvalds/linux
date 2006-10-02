@@ -66,8 +66,7 @@ static __always_inline void do_vgettimeofday(struct timeval * tv)
 		sequence = read_seqbegin(&__xtime_lock);
 		
 		sec = __xtime.tv_sec;
-		usec = (__xtime.tv_nsec / 1000) +
-			(__jiffies - __wall_jiffies) * (1000000 / HZ);
+		usec = __xtime.tv_nsec / 1000;
 
 		if (__vxtime.mode != VXTIME_HPET) {
 			t = get_cycles_sync();
@@ -155,8 +154,8 @@ vgetcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
 	   We do this here because otherwise user space would do it on
 	   its own in a likely inferior way (no access to jiffies).
 	   If you don't like it pass NULL. */
-	if (tcache && tcache->t0 == (j = __jiffies)) {
-		p = tcache->t1;
+	if (tcache && tcache->blob[0] == (j = __jiffies)) {
+		p = tcache->blob[1];
 	} else if (__vgetcpu_mode == VGETCPU_RDTSCP) {
 		/* Load per CPU data from RDTSCP */
 		rdtscp(dummy, dummy, p);
@@ -165,8 +164,8 @@ vgetcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
 		asm("lsl %1,%0" : "=r" (p) : "r" (__PER_CPU_SEG));
 	}
 	if (tcache) {
-		tcache->t0 = j;
-		tcache->t1 = p;
+		tcache->blob[0] = j;
+		tcache->blob[1] = p;
 	}
 	if (cpu)
 		*cpu = p & 0xfff;

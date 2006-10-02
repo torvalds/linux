@@ -3084,8 +3084,8 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	 */
 	sp->disable_fragments = 0;
 
-	/* Turn on/off any Nagle-like algorithm.  */
-	sp->nodelay           = 1;
+	/* Enable Nagle algorithm by default.  */
+	sp->nodelay           = 0;
 
 	/* Enable by default. */
 	sp->v4mapped          = 1;

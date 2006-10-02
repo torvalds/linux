@@ -119,32 +119,41 @@ static void clear_lch_regs(int lch)
 		omap_writew(0, lch_base + i);
 }
 
-void omap_set_dma_priority(int dst_port, int priority)
+void omap_set_dma_priority(int lch, int dst_port, int priority)
 {
 	unsigned long reg;
 	u32 l;
 
-	switch (dst_port) {
-	case OMAP_DMA_PORT_OCP_T1:	/* FFFECC00 */
-		reg = OMAP_TC_OCPT1_PRIOR;
-		break;
-	case OMAP_DMA_PORT_OCP_T2:	/* FFFECCD0 */
-		reg = OMAP_TC_OCPT2_PRIOR;
-		break;
-	case OMAP_DMA_PORT_EMIFF:	/* FFFECC08 */
-		reg = OMAP_TC_EMIFF_PRIOR;
-		break;
-	case OMAP_DMA_PORT_EMIFS:	/* FFFECC04 */
-		reg = OMAP_TC_EMIFS_PRIOR;
-		break;
-	default:
-		BUG();
-		return;
+	if (cpu_class_is_omap1()) {
+		switch (dst_port) {
+		case OMAP_DMA_PORT_OCP_T1:	/* FFFECC00 */
+			reg = OMAP_TC_OCPT1_PRIOR;
+			break;
+		case OMAP_DMA_PORT_OCP_T2:	/* FFFECCD0 */
+			reg = OMAP_TC_OCPT2_PRIOR;
+			break;
+		case OMAP_DMA_PORT_EMIFF:	/* FFFECC08 */
+			reg = OMAP_TC_EMIFF_PRIOR;
+			break;
+		case OMAP_DMA_PORT_EMIFS:	/* FFFECC04 */
+			reg = OMAP_TC_EMIFS_PRIOR;
+			break;
+		default:
+			BUG();
+			return;
+		}
+		l = omap_readl(reg);
+		l &= ~(0xf << 8);
+		l |= (priority & 0xf) << 8;
+		omap_writel(l, reg);
 	}
-	l = omap_readl(reg);
-	l &= ~(0xf << 8);
-	l |= (priority & 0xf) << 8;
-	omap_writel(l, reg);
+
+	if (cpu_is_omap24xx()) {
+		if (priority)
+			OMAP_DMA_CCR_REG(lch) |= (1 << 6);
+		else
+			OMAP_DMA_CCR_REG(lch) &= ~(1 << 6);
+	}
 }
 
 void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
@@ -232,6 +241,14 @@ void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 		w |= 1;		/* Channel type G */
 	}
 	OMAP1_DMA_LCH_CTRL_REG(lch) = w;
+}
+
+void omap_set_dma_write_mode(int lch, enum omap_dma_write_mode mode)
+{
+	if (cpu_is_omap24xx()) {
+		OMAP_DMA_CSDP_REG(lch) &= ~(0x3 << 16);
+		OMAP_DMA_CSDP_REG(lch) |= (mode << 16);
+	}
 }
 
 /* Note that src_port is only for omap1 */
@@ -695,6 +712,32 @@ void omap_stop_dma(int lch)
 
 	OMAP_DMA_CCR_REG(lch) &= ~OMAP_DMA_CCR_EN;
 	dma_chan[lch].flags &= ~OMAP_DMA_ACTIVE;
+}
+
+/*
+ * Allows changing the DMA callback function or data. This may be needed if
+ * the driver shares a single DMA channel for multiple dma triggers.
+ */
+int omap_set_dma_callback(int lch,
+			  void (* callback)(int lch, u16 ch_status, void *data),
+			  void *data)
+{
+	unsigned long flags;
+
+	if (lch < 0)
+		return -ENODEV;
+
+	spin_lock_irqsave(&dma_chan_lock, flags);
+	if (dma_chan[lch].dev_id == -1) {
+		printk(KERN_ERR "DMA callback for not set for free channel\n");
+		spin_unlock_irqrestore(&dma_chan_lock, flags);
+		return -EINVAL;
+	}
+	dma_chan[lch].callback = callback;
+	dma_chan[lch].data = data;
+	spin_unlock_irqrestore(&dma_chan_lock, flags);
+
+	return 0;
 }
 
 /*
@@ -1339,6 +1382,14 @@ static int __init omap_init_dma(void)
 			dma_chan_count = 16;
 		} else
 			dma_chan_count = 9;
+		if (cpu_is_omap16xx()) {
+			u16 w;
+
+			/* this would prevent OMAP sleep */
+			w = omap_readw(OMAP1610_DMA_LCD_CTRL);
+			w &= ~(1 << 8);
+			omap_writew(w, OMAP1610_DMA_LCD_CTRL);
+		}
 	} else if (cpu_is_omap24xx()) {
 		u8 revision = omap_readb(OMAP_DMA4_REVISION);
 		printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
@@ -1414,11 +1465,13 @@ EXPORT_SYMBOL(omap_request_dma);
 EXPORT_SYMBOL(omap_free_dma);
 EXPORT_SYMBOL(omap_start_dma);
 EXPORT_SYMBOL(omap_stop_dma);
+EXPORT_SYMBOL(omap_set_dma_callback);
 EXPORT_SYMBOL(omap_enable_dma_irq);
 EXPORT_SYMBOL(omap_disable_dma_irq);
 
 EXPORT_SYMBOL(omap_set_dma_transfer_params);
 EXPORT_SYMBOL(omap_set_dma_color_mode);
+EXPORT_SYMBOL(omap_set_dma_write_mode);
 
 EXPORT_SYMBOL(omap_set_dma_src_params);
 EXPORT_SYMBOL(omap_set_dma_src_index);

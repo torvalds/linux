@@ -201,7 +201,7 @@ static void dev_ip_addr(void *d, char *buf, char *bin_buf)
 	struct net_device *dev = d;
 	struct in_device *ip = dev->ip_ptr;
 	struct in_ifaddr *in;
-	u32 addr;
+	__be32 addr;
 
 	if ((ip == NULL) || ((in = ip->ifa_list) == NULL)) {
 		printk(KERN_WARNING "Device not assigned an IP address!\n");

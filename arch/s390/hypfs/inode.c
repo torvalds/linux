@@ -134,12 +134,20 @@ static int hypfs_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t hypfs_aio_read(struct kiocb *iocb, __user char *buf,
-			      size_t count, loff_t offset)
+static ssize_t hypfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
+			      unsigned long nr_segs, loff_t offset)
 {
 	char *data;
 	size_t len;
 	struct file *filp = iocb->ki_filp;
+	/* XXX: temporary */
+	char __user *buf = iov[0].iov_base;
+	size_t count = iov[0].iov_len;
+
+	if (nr_segs != 1) {
+		count = -EINVAL;
+		goto out;
+	}
 
 	data = filp->private_data;
 	len = strlen(data);
@@ -158,12 +166,13 @@ static ssize_t hypfs_aio_read(struct kiocb *iocb, __user char *buf,
 out:
 	return count;
 }
-static ssize_t hypfs_aio_write(struct kiocb *iocb, const char __user *buf,
-			       size_t count, loff_t pos)
+static ssize_t hypfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
+			      unsigned long nr_segs, loff_t offset)
 {
 	int rc;
 	struct super_block *sb;
 	struct hypfs_sb_info *fs_info;
+	size_t count = iov_length(iov, nr_segs);
 
 	sb = iocb->ki_filp->f_dentry->d_inode->i_sb;
 	fs_info = sb->s_fs_info;

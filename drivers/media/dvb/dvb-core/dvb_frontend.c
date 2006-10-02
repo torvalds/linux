@@ -1105,18 +1105,42 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
-	if (fe->ops.tuner_ops.release) {
-		fe->ops.tuner_ops.release(fe);
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 0);
-	}
-	if (fe->ops.release)
-		fe->ops.release(fe);
-	else
-		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops.info.name);
+
 	/* fe is invalid now */
 	kfree(fepriv);
 	mutex_unlock(&frontend_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
+
+#ifdef CONFIG_DVB_CORE_ATTACH
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	void *ptr;
+
+	if (fe->ops.release_sec) {
+		fe->ops.release_sec(fe);
+		symbol_put_addr(fe->ops.release_sec);
+	}
+	if (fe->ops.tuner_ops.release) {
+		fe->ops.tuner_ops.release(fe);
+		symbol_put_addr(fe->ops.tuner_ops.release);
+	}
+	ptr = (void*)fe->ops.release;
+	if (ptr) {
+		fe->ops.release(fe);
+		symbol_put_addr(ptr);
+	}
+}
+#else
+void dvb_frontend_detach(struct dvb_frontend* fe)
+{
+	if (fe->ops.release_sec)
+		fe->ops.release_sec(fe);
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
+}
+#endif
+EXPORT_SYMBOL(dvb_frontend_detach);

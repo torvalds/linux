@@ -1324,12 +1324,11 @@ struct mempolicy *__mpol_copy(struct mempolicy *old)
 	atomic_set(&new->refcnt, 1);
 	if (new->policy == MPOL_BIND) {
 		int sz = ksize(old->v.zonelist);
-		new->v.zonelist = kmalloc(sz, SLAB_KERNEL);
+		new->v.zonelist = kmemdup(old->v.zonelist, sz, SLAB_KERNEL);
 		if (!new->v.zonelist) {
 			kmem_cache_free(policy_cache, new);
 			return ERR_PTR(-ENOMEM);
 		}
-		memcpy(new->v.zonelist, old->v.zonelist, sz);
 	}
 	return new;
 }

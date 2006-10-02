@@ -35,6 +35,7 @@
 #include <linux/string.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
+#include <linux/bio.h>
 #include <linux/smp_lock.h>
 
 #include "namei.h"
@@ -870,7 +871,7 @@ restart:
 				bh = ext3_getblk(NULL, dir, b++, 0, &err);
 				bh_use[ra_max] = bh;
 				if (bh)
-					ll_rw_block(READ, 1, &bh);
+					ll_rw_block(READ_META, 1, &bh);
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1615,12 +1616,12 @@ static int ext3_delete_entry (handle_t *handle,
  */
 static inline void ext3_inc_count(handle_t *handle, struct inode *inode)
 {
-	inode->i_nlink++;
+	inc_nlink(inode);
 }
 
 static inline void ext3_dec_count(handle_t *handle, struct inode *inode)
 {
-	inode->i_nlink--;
+	drop_nlink(inode);
 }
 
 static int ext3_add_nondir(handle_t *handle,
@@ -1742,7 +1743,7 @@ retry:
 	inode->i_size = EXT3_I(inode)->i_disksize = inode->i_sb->s_blocksize;
 	dir_block = ext3_bread (handle, inode, 0, 1, &err);
 	if (!dir_block) {
-		inode->i_nlink--; /* is this nlink == 0? */
+		drop_nlink(inode); /* is this nlink == 0? */
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -1774,7 +1775,7 @@ retry:
 		iput (inode);
 		goto out_stop;
 	}
-	dir->i_nlink++;
+	inc_nlink(dir);
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 	d_instantiate(dentry, inode);
@@ -2044,7 +2045,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 			      "empty directory has nlink!=2 (%d)",
 			      inode->i_nlink);
 	inode->i_version++;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	/* There's no need to set i_disksize: the fact that i_nlink is
 	 * zero will ensure that the right thing happens during any
 	 * recovery. */
@@ -2052,7 +2053,7 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 	ext3_orphan_add(handle, inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, inode);
-	dir->i_nlink--;
+	drop_nlink(dir);
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
 
@@ -2103,7 +2104,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
 	ext3_update_dx_flag(dir);
 	ext3_mark_inode_dirty(handle, dir);
-	inode->i_nlink--;
+	drop_nlink(inode);
 	if (!inode->i_nlink)
 		ext3_orphan_add(handle, inode);
 	inode->i_ctime = dir->i_ctime;
@@ -2325,7 +2326,7 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	}
 
 	if (new_inode) {
-		new_inode->i_nlink--;
+		drop_nlink(new_inode);
 		new_inode->i_ctime = CURRENT_TIME_SEC;
 	}
 	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME_SEC;
@@ -2336,11 +2337,11 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 		PARENT_INO(dir_bh->b_data) = cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext3_journal_dirty_metadata");
 		ext3_journal_dirty_metadata(handle, dir_bh);
-		old_dir->i_nlink--;
+		drop_nlink(old_dir);
 		if (new_inode) {
-			new_inode->i_nlink--;
+			drop_nlink(new_inode);
 		} else {
-			new_dir->i_nlink++;
+			inc_nlink(new_dir);
 			ext3_update_dx_flag(new_dir);
 			ext3_mark_inode_dirty(handle, new_dir);
 		}

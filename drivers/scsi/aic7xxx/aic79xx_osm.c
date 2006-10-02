@@ -646,7 +646,7 @@ ahd_linux_dev_reset(struct scsi_cmnd *cmd)
 	struct	ahd_initiator_tinfo *tinfo;
 	struct	ahd_tmode_tstate *tstate;
 	unsigned long flags;
-	DECLARE_COMPLETION(done);
+	DECLARE_COMPLETION_ONSTACK(done);
 
 	reset_scb = NULL;
 	paused = FALSE;
@@ -2251,7 +2251,7 @@ done:
 	if (paused)
 		ahd_unpause(ahd);
 	if (wait) {
-		DECLARE_COMPLETION(done);
+		DECLARE_COMPLETION_ONSTACK(done);
 
 		ahd->platform_data->eh_done = &done;
 		ahd_unlock(ahd, &flags);

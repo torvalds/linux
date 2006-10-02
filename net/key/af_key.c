@@ -2140,7 +2140,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	xp->selector.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
 	xp->selector.sport = ((struct sockaddr_in *)(sa+1))->sin_port;
 	if (xp->selector.sport)
-		xp->selector.sport_mask = ~0;
+		xp->selector.sport_mask = htons(0xffff);
 
 	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1], 
 	pfkey_sadb_addr2xfrm_addr(sa, &xp->selector.daddr);
@@ -2153,7 +2153,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	xp->selector.dport = ((struct sockaddr_in *)(sa+1))->sin_port;
 	if (xp->selector.dport)
-		xp->selector.dport_mask = ~0;
+		xp->selector.dport_mask = htons(0xffff);
 
 	sec_ctx = (struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
 	if (sec_ctx != NULL) {
@@ -2243,7 +2243,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
 	sel.sport = ((struct sockaddr_in *)(sa+1))->sin_port;
 	if (sel.sport)
-		sel.sport_mask = ~0;
+		sel.sport_mask = htons(0xffff);
 
 	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1], 
 	pfkey_sadb_addr2xfrm_addr(sa, &sel.daddr);
@@ -2251,7 +2251,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
 	sel.dport = ((struct sockaddr_in *)(sa+1))->sin_port;
 	if (sel.dport)
-		sel.dport_mask = ~0;
+		sel.dport_mask = htons(0xffff);
 
 	sec_ctx = (struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
 	memset(&tmp, 0, sizeof(struct xfrm_policy));

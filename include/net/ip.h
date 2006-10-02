@@ -45,7 +45,7 @@ struct inet_skb_parm
 
 struct ipcm_cookie
 {
-	u32			addr;
+	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
 };
@@ -86,7 +86,7 @@ extern int		igmp_mc_proc_init(void);
  */
 
 extern int		ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
-					      u32 saddr, u32 daddr,
+					      __be32 saddr, __be32 daddr,
 					      struct ip_options *opt);
 extern int		ip_rcv(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt, struct net_device *orig_dev);
@@ -335,7 +335,7 @@ extern int ip_net_unreachable(struct sk_buff *skb);
  *	Functions provided by ip_options.c
  */
  
-extern void ip_options_build(struct sk_buff *skb, struct ip_options *opt, u32 daddr, struct rtable *rt, int is_frag);
+extern void ip_options_build(struct sk_buff *skb, struct ip_options *opt, __be32 daddr, struct rtable *rt, int is_frag);
 extern int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb);
 extern void ip_options_fragment(struct sk_buff *skb);
 extern int ip_options_compile(struct ip_options *opt, struct sk_buff *skb);
@@ -363,8 +363,8 @@ extern int	ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(s
 
 extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len);
 extern void	ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err, 
-			      u16 port, u32 info, u8 *payload);
-extern void	ip_local_error(struct sock *sk, int err, u32 daddr, u16 dport,
+			      __be16 port, u32 info, u8 *payload);
+extern void	ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 dport,
 			       u32 info);
 
 /* sysctl helpers - any sysctl which holds a value that ends up being

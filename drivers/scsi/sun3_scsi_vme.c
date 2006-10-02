@@ -458,7 +458,7 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted, Scsi_Cmnd *cmd,
 				    int write_flag)
 {
-	if(cmd->request->flags & REQ_CMD)
+	if(blk_fs_request(cmd->request))
  		return wanted;
 	else
 		return 0;

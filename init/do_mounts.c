@@ -285,7 +285,11 @@ void __init mount_block_root(char *name, int flags)
 {
 	char *fs_names = __getname();
 	char *p;
+#ifdef CONFIG_BLOCK
 	char b[BDEVNAME_SIZE];
+#else
+	const char *b = name;
+#endif
 
 	get_fs_names(fs_names);
 retry:
@@ -304,7 +308,9 @@ retry:
 		 * Allow the user to distinguish between failed sys_open
 		 * and bad superblock on root device.
 		 */
+#ifdef CONFIG_BLOCK
 		__bdevname(ROOT_DEV, b);
+#endif
 		printk("VFS: Cannot open root device \"%s\" or %s\n",
 				root_device_name, b);
 		printk("Please append a correct \"root=\" boot option\n");
@@ -316,7 +322,10 @@ retry:
 	for (p = fs_names; *p; p += strlen(p)+1)
 		printk(" %s", p);
 	printk("\n");
-	panic("VFS: Unable to mount root fs on %s", __bdevname(ROOT_DEV, b));
+#ifdef CONFIG_BLOCK
+	__bdevname(ROOT_DEV, b);
+#endif
+	panic("VFS: Unable to mount root fs on %s", b);
 out:
 	putname(fs_names);
 }
@@ -387,8 +396,10 @@ void __init mount_root(void)
 			change_floppy("root floppy");
 	}
 #endif
+#ifdef CONFIG_BLOCK
 	create_dev("/dev/root", ROOT_DEV);
 	mount_block_root("/dev/root", root_mountflags);
+#endif
 }
 
 /*

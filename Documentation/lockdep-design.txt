@@ -36,6 +36,28 @@ The validator tracks lock-class usage history into 5 separate state bits:
 
 - 'ever used'                                       [ == !unused        ]
 
+When locking rules are violated, these 4 state bits are presented in the
+locking error messages, inside curlies.  A contrived example:
+
+   modprobe/2287 is trying to acquire lock:
+    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+
+   but task is already holding lock:
+    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+
+
+The bit position indicates hardirq, softirq, hardirq-read,
+softirq-read respectively, and the character displayed in each
+indicates:
+
+   '.'	 acquired while irqs enabled
+   '+'  acquired in irq context
+   '-'  acquired in process context with irqs disabled
+   '?'  read-acquired both with irqs enabled and in irq context
+
+Unused mutexes cannot be part of the cause of an error.
+
+
 Single-lock state rules:
 ------------------------
 

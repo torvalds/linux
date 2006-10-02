@@ -2862,7 +2862,7 @@ aic7xxx_done(struct aic7xxx_host *p, struct aic7xxx_scb *scb)
       aic_dev->r_total++;
       ptr = aic_dev->r_bins;
     }
-    if(cmd->device->simple_tags && cmd->request->flags & REQ_HARDBARRIER)
+    if(cmd->device->simple_tags && cmd->request->cmd_flags & REQ_HARDBARRIER)
     {
       aic_dev->barrier_total++;
       if(scb->tag_action == MSG_ORDERED_Q_TAG)
@@ -10158,7 +10158,7 @@ aic7xxx_buildscb(struct aic7xxx_host *p, Scsi_Cmnd *cmd,
     /* We always force TEST_UNIT_READY to untagged */
     if (cmd->cmnd[0] != TEST_UNIT_READY && sdptr->simple_tags)
     {
-      if (req->flags & REQ_HARDBARRIER)
+      if (req->cmd_flags & REQ_HARDBARRIER)
       {
 	if(sdptr->ordered_tags)
 	{

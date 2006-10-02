@@ -160,6 +160,7 @@ __mb_cache_entry_forget(struct mb_cache_entry *ce, gfp_t gfp_mask)
 
 static void
 __mb_cache_entry_release_unlock(struct mb_cache_entry *ce)
+	__releases(mb_cache_spinlock)
 {
 	/* Wake up all processes queuing for this cache entry. */
 	if (ce->e_queued)

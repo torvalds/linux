@@ -9,6 +9,8 @@
 /*
  * Don't register by default -- as this registeres very early in the
  * boot process it becomes the default console.
+ *
+ * Initialized at init time.
  */
 static int use_stderr_console = 0;
 

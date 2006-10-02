@@ -787,12 +787,13 @@ enum pci_fixup_pass {
 void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev);
 
 extern int pci_pci_problems;
-#define PCIPCI_FAIL		1
+#define PCIPCI_FAIL		1	/* No PCI PCI DMA */
 #define PCIPCI_TRITON		2
 #define PCIPCI_NATOMA		4
 #define PCIPCI_VIAETBF		8
 #define PCIPCI_VSFX		16
-#define PCIPCI_ALIMAGIK		32
+#define PCIPCI_ALIMAGIK		32	/* Need low latency setting */
+#define PCIAGP_FAIL		64	/* No PCI to AGP DMA */
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

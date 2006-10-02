@@ -67,7 +67,10 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 	return 0;
 }
 
-static inline void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
+/*
+ * This is always called under pci_config_lock
+ */
+static void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 {
 	u32 dev_base = base | (bus << 20) | (devfn << 12);
 	if (dev_base != mmcfg_last_accessed_device) {
