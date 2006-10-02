@@ -1020,6 +1020,26 @@ static inline pid_t process_group(struct task_struct *tsk)
 	return tsk->signal->pgrp;
 }
 
+static inline struct pid *task_pid(struct task_struct *task)
+{
+	return task->pids[PIDTYPE_PID].pid;
+}
+
+static inline struct pid *task_tgid(struct task_struct *task)
+{
+	return task->group_leader->pids[PIDTYPE_PID].pid;
+}
+
+static inline struct pid *task_pgrp(struct task_struct *task)
+{
+	return task->group_leader->pids[PIDTYPE_PGID].pid;
+}
+
+static inline struct pid *task_session(struct task_struct *task)
+{
+	return task->group_leader->pids[PIDTYPE_SID].pid;
+}
+
 /**
  * pid_alive - check that a task structure is not stale
  * @p: Task structure to be checked.
