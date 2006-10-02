@@ -72,7 +72,7 @@ static struct mtd_partition beech_partitions[2] = {
 static int __init
 init_beech_mtd(void)
 {
-	int err = 0;
+	int err;
 
 	printk("%s: 0x%08x at 0x%08x\n", NAME, SIZE, PADDR);
 
@@ -89,7 +89,7 @@ init_beech_mtd(void)
 	beech_mtd = do_map_probe("cfi_probe", &beech_mtd_map);
 
 	if (!beech_mtd) {
-		iounmap((void *) beech_mtd_map.virt);
+		iounmap(beech_mtd_map.virt);
 		return -ENXIO;
 	}
 
@@ -98,7 +98,7 @@ init_beech_mtd(void)
 	err = add_mtd_partitions(beech_mtd, beech_partitions, 2);
 	if (err) {
 		printk("%s: add_mtd_partitions failed\n", NAME);
-		iounmap((void *) beech_mtd_map.virt);
+		iounmap(beech_mtd_map.virt);
 	}
 
 	return err;

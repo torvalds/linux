@@ -1,7 +1,7 @@
 /*
  *  linux/include/linux/mtd/onenand.h
  *
- *  Copyright (C) 2005 Samsung Electronics
+ *  Copyright (C) 2005-2006 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -96,6 +96,7 @@ struct onenand_chip {
 	void __iomem		*base;
 	unsigned int		chipsize;
 	unsigned int		device_id;
+	unsigned int		version_id;
 	unsigned int		density_mask;
 	unsigned int		options;
 
@@ -149,7 +150,8 @@ struct onenand_chip {
 /*
  * Options bits
  */
-#define ONENAND_CONT_LOCK		(0x0001)
+#define ONENAND_HAS_CONT_LOCK		(0x0001)
+#define ONENAND_HAS_UNLOCK_ALL		(0x0002)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
 
 /*

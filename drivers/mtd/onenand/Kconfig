@@ -43,10 +43,4 @@ config MTD_ONENAND_OTP
 
 	  OTP block is fully-guaranteed to be a valid block.
 
-config MTD_ONENAND_SYNC_READ
-	bool "OneNAND Sync. Burst Read Support"
-	depends on ARCH_OMAP
-	help
-	  This enables support for Sync. Burst Read.
-
 endmenu
