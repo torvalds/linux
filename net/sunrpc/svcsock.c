@@ -177,13 +177,13 @@ svc_sock_enqueue(struct svc_sock *svsk)
 	}
 
 	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	if (((svsk->sk_reserved + serv->sv_bufsz)*2
+	if (((atomic_read(&svsk->sk_reserved) + serv->sv_bufsz)*2
 	     > svc_sock_wspace(svsk))
 	    && !test_bit(SK_CLOSE, &svsk->sk_flags)
 	    && !test_bit(SK_CONN, &svsk->sk_flags)) {
 		/* Don't enqueue while not enough space for reply */
 		dprintk("svc: socket %p  no space, %d*2 > %ld, not enqueued\n",
-			svsk->sk_sk, svsk->sk_reserved+serv->sv_bufsz,
+			svsk->sk_sk, atomic_read(&svsk->sk_reserved)+serv->sv_bufsz,
 			svc_sock_wspace(svsk));
 		goto out_unlock;
 	}
@@ -209,7 +209,7 @@ svc_sock_enqueue(struct svc_sock *svsk)
 		rqstp->rq_sock = svsk;
 		atomic_inc(&svsk->sk_inuse);
 		rqstp->rq_reserved = serv->sv_bufsz;
-		svsk->sk_reserved += rqstp->rq_reserved;
+		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
 		wake_up(&rqstp->rq_wait);
 	} else {
 		dprintk("svc: socket %p put into queue\n", svsk->sk_sk);
@@ -271,10 +271,8 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 
 	if (space < rqstp->rq_reserved) {
 		struct svc_sock *svsk = rqstp->rq_sock;
-		spin_lock_bh(&svsk->sk_server->sv_lock);
-		svsk->sk_reserved -= (rqstp->rq_reserved - space);
+		atomic_sub((rqstp->rq_reserved - space), &svsk->sk_reserved);
 		rqstp->rq_reserved = space;
-		spin_unlock_bh(&svsk->sk_server->sv_lock);
 
 		svc_sock_enqueue(svsk);
 	}
@@ -1226,7 +1224,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		rqstp->rq_sock = svsk;
 		atomic_inc(&svsk->sk_inuse);
 		rqstp->rq_reserved = serv->sv_bufsz;	
-		svsk->sk_reserved += rqstp->rq_reserved;
+		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
 	} else {
 		/* No data pending. Go to sleep */
 		svc_serv_enqueue(serv, rqstp);
