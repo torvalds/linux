@@ -55,19 +55,18 @@
  * Galileo EV64120 evaluation board
  */
 #ifdef CONFIG_MIPS_EV64120
-#include <asm/galileo-boards/ev96100.h>
-#include <asm/galileo-boards/ev96100int.h>
-#define EV96100_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = EV96100_BASE_BAUD, .irq = EV96100INT_UART_0, \
+#include <mach-gt64120.h>
+#define EV64120_SERIAL_PORT_DEFNS                                  \
+    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
       .flags = STD_COM_FLAGS,  \
-      .iomem_base = EV96100_UART0_REGS_BASE, .iomem_reg_shift = 2, \
+      .iomem_base = EV64120_UART0_REGS_BASE, .iomem_reg_shift = 2, \
       .io_type = SERIAL_IO_MEM }, \
-    { .baud_base = EV96100_BASE_BAUD, .irq = EV96100INT_UART_0, \
+    { .baud_base = EV64120_BASE_BAUD, .irq = EV64120_UART_IRQ, \
       .flags = STD_COM_FLAGS, \
-      .iomem_base = EV96100_UART1_REGS_BASE, .iomem_reg_shift = 2, \
+      .iomem_base = EV64120_UART1_REGS_BASE, .iomem_reg_shift = 2, \
       .io_type = SERIAL_IO_MEM },
 #else
-#define EV96100_SERIAL_PORT_DEFNS
+#define EV64120_SERIAL_PORT_DEFNS
 #endif
 
 #ifdef CONFIG_MIPS_ITE8172
@@ -239,7 +238,7 @@
 
 #define SERIAL_PORT_DFNS				\
 	DDB5477_SERIAL_PORT_DEFNS			\
-	EV96100_SERIAL_PORT_DEFNS			\
+	EV64120_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \
 	ITE_SERIAL_PORT_DEFNS           		\
 	IVR_SERIAL_PORT_DEFNS           		\

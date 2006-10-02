@@ -220,8 +220,8 @@ NESTED(except_vec_vi_handler, 0, sp)
 	CLI
 	TRACE_IRQS_OFF
 	move	a0, sp
-	jalr	v0
-	j	ret_from_irq
+	PTR_LA	ra, ret_from_irq
+	jr	v0
 	END(except_vec_vi_handler)
 
 /*
@@ -349,8 +349,8 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	at
 	__BUILD_\verbose \exception
 	move	a0, sp
-	jal	do_\handler
-	j	ret_from_exception
+	PTR_LA	ra, ret_from_exception
+	j	do_\handler
 	END(handle_\exception)
 	.endm
 

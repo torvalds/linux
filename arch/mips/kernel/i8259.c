@@ -302,11 +302,11 @@ static struct irqaction irq2 = {
 };
 
 static struct resource pic1_io_resource = {
-	.name = "pic1", .start = 0x20, .end = 0x3f, .flags = IORESOURCE_BUSY
+	.name = "pic1", .start = 0x20, .end = 0x21, .flags = IORESOURCE_BUSY
 };
 
 static struct resource pic2_io_resource = {
-	.name = "pic2", .start = 0xa0, .end = 0xbf, .flags = IORESOURCE_BUSY
+	.name = "pic2", .start = 0xa0, .end = 0xa1, .flags = IORESOURCE_BUSY
 };
 
 /*

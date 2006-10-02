@@ -307,66 +307,6 @@ void sb1_flush_icache_range(unsigned long start, unsigned long end)
 #endif
 
 /*
- * Flush the icache for a given physical page.  Need to writeback the
- * dcache first, then invalidate the icache.  If the page isn't
- * executable, nothing is required.
- */
-static void local_sb1_flush_icache_page(struct vm_area_struct *vma,
-	struct page *page)
-{
-	unsigned long start;
-	int cpu = smp_processor_id();
-
-#ifndef CONFIG_SMP
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
-#endif
-
-	/* Need to writeback any dirty data for that page, we have the PA */
-	start = (unsigned long)(page-mem_map) << PAGE_SHIFT;
-	__sb1_writeback_inv_dcache_phys_range(start, start + PAGE_SIZE);
-	/*
-	 * If there's a context, bump the ASID (cheaper than a flush,
-	 * since we don't know VAs!)
-	 */
-	if (vma->vm_mm == current->active_mm) {
-		if (cpu_context(cpu, vma->vm_mm) != 0)
-			drop_mmu_context(vma->vm_mm, cpu);
-	} else
-		__sb1_flush_icache_range(start, start + PAGE_SIZE);
-
-}
-
-#ifdef CONFIG_SMP
-struct flush_icache_page_args {
-	struct vm_area_struct *vma;
-	struct page *page;
-};
-
-static void sb1_flush_icache_page_ipi(void *info)
-{
-	struct flush_icache_page_args *args = info;
-	local_sb1_flush_icache_page(args->vma, args->page);
-}
-
-/* Dirty dcache could be on another CPU, so do the IPIs */
-static void sb1_flush_icache_page(struct vm_area_struct *vma,
-	struct page *page)
-{
-	struct flush_icache_page_args args;
-
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
-	args.vma = vma;
-	args.page = page;
-	on_each_cpu(sb1_flush_icache_page_ipi, (void *) &args, 1, 1);
-}
-#else
-void sb1_flush_icache_page(struct vm_area_struct *vma, struct page *page)
-	__attribute__((alias("local_sb1_flush_icache_page")));
-#endif
-
-/*
  * A signal trampoline must fit into a single cacheline.
  */
 static void local_sb1_flush_cache_sigtramp(unsigned long addr)
@@ -526,7 +466,6 @@ void sb1_cache_init(void)
 
 	/* These routines are for Icache coherence with the Dcache */
 	flush_icache_range = sb1_flush_icache_range;
-	__flush_icache_page = sb1_flush_icache_page;
 	flush_icache_all = __sb1_flush_icache_all; /* local only */
 
 	/* This implies an Icache flush too, so can't be nop'ed */

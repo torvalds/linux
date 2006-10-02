@@ -28,18 +28,7 @@
 NESTED(handle_sys, PT_SIZE, sp)
 	.set	noat
 	SAVE_SOME
-#ifdef CONFIG_TRACE_IRQFLAGS
-	TRACE_IRQS_ON
-#ifdef CONFIG_64BIT
-	LONG_L	$8, PT_R8(sp)
-	LONG_L	$9, PT_R9(sp)
-#endif
-	LONG_L	$7, PT_R7(sp)
-	LONG_L	$6, PT_R6(sp)
-	LONG_L	$5, PT_R5(sp)
-	LONG_L	$4, PT_R4(sp)
-	LONG_L	$2, PT_R2(sp)
-#endif
+	TRACE_IRQS_ON_RELOAD
 	STI
 	.set	at
 

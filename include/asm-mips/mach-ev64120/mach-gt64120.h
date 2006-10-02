@@ -42,6 +42,7 @@ extern unsigned long gt64120_base;
 #define EV64120_UART0_REGS_BASE	(KSEG1ADDR(EV64120_COM1_BASE_ADDR))
 #define EV64120_UART1_REGS_BASE	(KSEG1ADDR(EV64120_COM2_BASE_ADDR))
 #define EV64120_BASE_BAUD ( 3686400 / 16 )
+#define EV64120_UART_IRQ	6
 
 /*
  * PCI interrupts will come in on either the INTA or INTD interrups lines,

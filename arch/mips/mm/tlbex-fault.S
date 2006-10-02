@@ -19,8 +19,8 @@
 	move	a0, sp
 	REG_S	a2, PT_BVADDR(sp)
 	li	a1, \write
-	jal	do_page_fault
-	j	ret_from_exception
+	PTR_LA	ra, ret_from_exception
+	j	do_page_fault
 	END(tlb_do_page_fault_\write)
 	.endm
 

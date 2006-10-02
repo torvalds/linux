@@ -46,8 +46,6 @@ static inline void flush_dcache_page(struct page *page)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-extern void (*__flush_icache_page)(struct vm_area_struct *vma,
-	struct page *page);
 static inline void flush_icache_page(struct vm_area_struct *vma,
 	struct page *page)
 {
