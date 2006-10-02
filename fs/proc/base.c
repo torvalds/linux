@@ -1247,7 +1247,6 @@ out_iput:
 	goto out;
 }
 
-/* SMP-safe */
 static struct dentry *proc_lookupfd(struct inode * dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct task_struct *task = get_proc_task(dir);
@@ -1374,7 +1373,6 @@ out:
 	return error;
 }
 
-/* SMP-safe */
 static struct dentry *proc_pident_lookup(struct inode *dir, 
 					 struct dentry *dentry,
 					 struct pid_entry *ents,
@@ -1899,7 +1897,6 @@ out:
 	return error;
 }
 
-/* SMP-safe */
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct dentry *result = ERR_PTR(-ENOENT);
@@ -2106,7 +2103,6 @@ out:
 	return error;
 }
 
-/* SMP-safe */
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct dentry *result = ERR_PTR(-ENOENT);
