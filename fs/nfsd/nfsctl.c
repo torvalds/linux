@@ -24,9 +24,11 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
+#include <linux/ctype.h>
 
 #include <linux/nfs.h>
 #include <linux/nfsd_idmap.h>
+#include <linux/lockd/bind.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfsd/nfsd.h>
@@ -426,16 +428,55 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 
 static ssize_t write_ports(struct file *file, char *buf, size_t size)
 {
-	/* for now, ignore what was written and just
-	 * return known ports
-	 * AF proto address port
+	if (size == 0) {
+		int len = 0;
+		lock_kernel();
+		if (nfsd_serv)
+			len = svc_sock_names(buf, nfsd_serv, NULL);
+		unlock_kernel();
+		return len;
+	}
+	/* Either a single 'fd' number is written, in which
+	 * case it must be for a socket of a supported family/protocol,
+	 * and we use it as an nfsd socket, or
+	 * A '-' followed by the 'name' of a socket in which case
+	 * we close the socket.
 	 */
-	int len = 0;
-	lock_kernel();
-	if (nfsd_serv)
-		len = svc_sock_names(buf, nfsd_serv);
-	unlock_kernel();
-	return len;
+	if (isdigit(buf[0])) {
+		char *mesg = buf;
+		int fd;
+		int err;
+		err = get_int(&mesg, &fd);
+		if (err)
+			return -EINVAL;
+		if (fd < 0)
+			return -EINVAL;
+		err = nfsd_create_serv();
+		if (!err) {
+			int proto = 0;
+			err = svc_addsock(nfsd_serv, fd, buf, &proto);
+			/* Decrease the count, but don't shutdown the
+			 * the service
+			 */
+			if (err >= 0)
+				lockd_up(proto);
+			nfsd_serv->sv_nrthreads--;
+		}
+		return err;
+	}
+	if (buf[0] == '-') {
+		char *toclose = kstrdup(buf+1, GFP_KERNEL);
+		int len = 0;
+		if (!toclose)
+			return -ENOMEM;
+		lock_kernel();
+		if (nfsd_serv)
+			len = svc_sock_names(buf, nfsd_serv, toclose);
+		unlock_kernel();
+		kfree(toclose);
+		return len;
+	}
+	return -EINVAL;
 }
 
 #ifdef CONFIG_NFSD_V4

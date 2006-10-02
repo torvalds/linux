@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/file.h>
 #include <net/sock.h>
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -451,9 +452,9 @@ static int one_sock_name(char *buf, struct svc_sock *svsk)
 }
 
 int
-svc_sock_names(char *buf, struct svc_serv *serv)
+svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 {
-	struct svc_sock *svsk;
+	struct svc_sock *svsk, *closesk = NULL;
 	int len = 0;
 
 	if (!serv)
@@ -461,9 +462,14 @@ svc_sock_names(char *buf, struct svc_serv *serv)
 	spin_lock(&serv->sv_lock);
 	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list) {
 		int onelen = one_sock_name(buf+len, svsk);
-		len += onelen;
+		if (toclose && strcmp(toclose, buf+len) == 0)
+			closesk = svsk;
+		else
+			len += onelen;
 	}
 	spin_unlock(&serv->sv_lock);
+	if (closesk)
+		svc_delete_socket(closesk);
 	return len;
 }
 EXPORT_SYMBOL(svc_sock_names);
@@ -1407,6 +1413,38 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	return svsk;
 }
 
+int svc_addsock(struct svc_serv *serv,
+		int fd,
+		char *name_return,
+		int *proto)
+{
+	int err = 0;
+	struct socket *so = sockfd_lookup(fd, &err);
+	struct svc_sock *svsk = NULL;
+
+	if (!so)
+		return err;
+	if (so->sk->sk_family != AF_INET)
+		err =  -EAFNOSUPPORT;
+	else if (so->sk->sk_protocol != IPPROTO_TCP &&
+	    so->sk->sk_protocol != IPPROTO_UDP)
+		err =  -EPROTONOSUPPORT;
+	else if (so->state > SS_UNCONNECTED)
+		err = -EISCONN;
+	else {
+		svsk = svc_setup_socket(serv, so, &err, 1);
+		if (svsk)
+			err = 0;
+	}
+	if (err) {
+		sockfd_put(so);
+		return err;
+	}
+	if (proto) *proto = so->sk->sk_protocol;
+	return one_sock_name(name_return, svsk);
+}
+EXPORT_SYMBOL_GPL(svc_addsock);
+
 /*
  * Create socket for RPC service.
  */
@@ -1482,7 +1520,10 @@ svc_delete_socket(struct svc_sock *svsk)
 
 	if (!svsk->sk_inuse) {
 		spin_unlock_bh(&serv->sv_lock);
-		sock_release(svsk->sk_sock);
+		if (svsk->sk_sock->file)
+			sockfd_put(svsk->sk_sock);
+		else
+			sock_release(svsk->sk_sock);
 		kfree(svsk);
 	} else {
 		spin_unlock_bh(&serv->sv_lock);

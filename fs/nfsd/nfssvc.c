@@ -195,7 +195,7 @@ void nfsd_reset_versions(void)
 	}
 }
 
-static int nfsd_create_serv(void)
+int nfsd_create_serv(void)
 {
 	int err = 0;
 	lock_kernel();
@@ -210,8 +210,6 @@ static int nfsd_create_serv(void)
 			       nfsd_last_thread);
 	if (nfsd_serv == NULL)
 		err = -ENOMEM;
-	else
-		nfsd_serv->sv_nrthreads++;
 	unlock_kernel();
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
 	return err;
