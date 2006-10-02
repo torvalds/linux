@@ -36,6 +36,7 @@ struct svc_sock {
 
 	int			sk_reserved;	/* space on outq that is reserved */
 
+	spinlock_t		sk_defer_lock;	/* protects sk_deferred */
 	struct list_head	sk_deferred;	/* deferred requests that need to
 						 * be revisted */
 	struct mutex		sk_mutex;	/* to serialize sending data */

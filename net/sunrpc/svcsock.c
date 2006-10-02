@@ -47,6 +47,7 @@
 /* SMP locking strategy:
  *
  * 	svc_serv->sv_lock protects most stuff for that service.
+ *	svc_sock->sk_defer_lock protects the svc_sock->sk_deferred list
  *
  *	Some flags can be set to certain values at any time
  *	providing that certain rules are followed:
@@ -1416,6 +1417,7 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	svsk->sk_server = serv;
 	atomic_set(&svsk->sk_inuse, 0);
 	svsk->sk_lastrecv = get_seconds();
+	spin_lock_init(&svsk->sk_defer_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
 	INIT_LIST_HEAD(&svsk->sk_ready);
 	mutex_init(&svsk->sk_mutex);
@@ -1594,7 +1596,6 @@ svc_makesock(struct svc_serv *serv, int protocol, unsigned short port)
 static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 {
 	struct svc_deferred_req *dr = container_of(dreq, struct svc_deferred_req, handle);
-	struct svc_serv *serv = dreq->owner;
 	struct svc_sock *svsk;
 
 	if (too_many) {
@@ -1605,9 +1606,9 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 	dprintk("revisit queued\n");
 	svsk = dr->svsk;
 	dr->svsk = NULL;
-	spin_lock_bh(&serv->sv_lock);
+	spin_lock_bh(&svsk->sk_defer_lock);
 	list_add(&dr->handle.recent, &svsk->sk_deferred);
-	spin_unlock_bh(&serv->sv_lock);
+	spin_unlock_bh(&svsk->sk_defer_lock);
 	set_bit(SK_DEFERRED, &svsk->sk_flags);
 	svc_sock_enqueue(svsk);
 	svc_sock_put(svsk);
@@ -1667,11 +1668,10 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
 {
 	struct svc_deferred_req *dr = NULL;
-	struct svc_serv	*serv = svsk->sk_server;
 	
 	if (!test_bit(SK_DEFERRED, &svsk->sk_flags))
 		return NULL;
-	spin_lock_bh(&serv->sv_lock);
+	spin_lock_bh(&svsk->sk_defer_lock);
 	clear_bit(SK_DEFERRED, &svsk->sk_flags);
 	if (!list_empty(&svsk->sk_deferred)) {
 		dr = list_entry(svsk->sk_deferred.next,
@@ -1680,6 +1680,6 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
 		list_del_init(&dr->handle.recent);
 		set_bit(SK_DEFERRED, &svsk->sk_flags);
 	}
-	spin_unlock_bh(&serv->sv_lock);
+	spin_unlock_bh(&svsk->sk_defer_lock);
 	return dr;
 }
