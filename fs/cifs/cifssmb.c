@@ -477,7 +477,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->capabilities = CAP_MPX_MODE;
 		}
 		tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
-		if (tmp == 0xffff) {
+		if (tmp == -1) {
 			/* OS/2 often does not set timezone therefore
 			 * we must use server time to calc time zone.
 			 * Could deviate slightly from the right zone.
