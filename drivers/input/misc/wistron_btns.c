@@ -248,13 +248,10 @@ static int __init dmi_matched(struct dmi_system_id *dmi)
 
 	keymap = dmi->driver_data;
 	for (key = keymap; key->type != KE_END; key++) {
-		if (key->type == KE_WIFI) {
+		if (key->type == KE_WIFI)
 			have_wifi = 1;
-			break;
-		} else if (key->type == KE_BLUETOOTH) {
+		else if (key->type == KE_BLUETOOTH)
 			have_bluetooth = 1;
-			break;
-		}
 	}
 	return 1;
 }
