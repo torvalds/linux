@@ -320,6 +320,8 @@ struct module
 	/* Am I GPL-compatible */
 	int license_gplok;
 
+	unsigned int taints;	/* same bits as kernel:tainted */
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* Reference counts */
 	struct module_ref ref[NR_CPUS];

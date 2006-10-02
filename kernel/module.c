@@ -851,6 +851,7 @@ static int check_version(Elf_Shdr *sechdrs,
 		printk("%s: no version for \"%s\" found: kernel tainted.\n",
 		       mod->name, symname);
 		add_taint(TAINT_FORCED_MODULE);
+		mod->taints |= TAINT_FORCED_MODULE;
 	}
 	return 1;
 }
@@ -1339,6 +1340,7 @@ static void set_license(struct module *mod, const char *license)
 		printk(KERN_WARNING "%s: module license '%s' taints kernel.\n",
 		       mod->name, license);
 		add_taint(TAINT_PROPRIETARY_MODULE);
+		mod->taints |= TAINT_PROPRIETARY_MODULE;
 	}
 }
 
@@ -1618,6 +1620,7 @@ static struct module *load_module(void __user *umod,
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
 		add_taint(TAINT_FORCED_MODULE);
+		mod->taints |= TAINT_FORCED_MODULE;
 		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
 		       mod->name);
 	} else if (!same_magic(modmagic, vermagic)) {
@@ -1711,10 +1714,14 @@ static struct module *load_module(void __user *umod,
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
-	if (strcmp(mod->name, "ndiswrapper") == 0)
+	if (strcmp(mod->name, "ndiswrapper") == 0) {
 		add_taint(TAINT_PROPRIETARY_MODULE);
-	if (strcmp(mod->name, "driverloader") == 0)
+		mod->taints |= TAINT_PROPRIETARY_MODULE;
+	}
+	if (strcmp(mod->name, "driverloader") == 0) {
 		add_taint(TAINT_PROPRIETARY_MODULE);
+		mod->taints |= TAINT_PROPRIETARY_MODULE;
+	}
 
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
@@ -1760,6 +1767,7 @@ static struct module *load_module(void __user *umod,
 		printk(KERN_WARNING "%s: No versions for exported symbols."
 		       " Tainting kernel.\n", mod->name);
 		add_taint(TAINT_FORCED_MODULE);
+		mod->taints |= TAINT_FORCED_MODULE;
 	}
 #endif
 
@@ -2226,14 +2234,37 @@ struct module *module_text_address(unsigned long addr)
 	return mod;
 }
 
+static char *taint_flags(unsigned int taints, char *buf)
+{
+	*buf = '\0';
+	if (taints) {
+		int bx;
+
+		buf[0] = '(';
+		bx = 1;
+		if (taints & TAINT_PROPRIETARY_MODULE)
+			buf[bx++] = 'P';
+		if (taints & TAINT_FORCED_MODULE)
+			buf[bx++] = 'F';
+		/*
+		 * TAINT_FORCED_RMMOD: could be added.
+		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
+		 * apply to modules.
+		 */
+		buf[bx] = ')';
+	}
+	return buf;
+}
+
 /* Don't grab lock, we're oopsing. */
 void print_modules(void)
 {
 	struct module *mod;
+	char buf[8];
 
 	printk("Modules linked in:");
 	list_for_each_entry(mod, &modules, list)
-		printk(" %s", mod->name);
+		printk(" %s%s", mod->name, taint_flags(mod->taints, buf));
 	printk("\n");
 }
 
