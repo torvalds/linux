@@ -612,6 +612,14 @@ qla2x00_rnn_id(scsi_qla_host_t *ha)
 	return (rval);
 }
 
+void
+qla2x00_get_sym_node_name(scsi_qla_host_t *ha, uint8_t *snn)
+{
+	sprintf(snn, "%s FW:v%d.%02d.%02d DVR:v%s",ha->model_number,
+	    ha->fw_major_version, ha->fw_minor_version,
+	    ha->fw_subminor_version, qla2x00_version_str);
+}
+
 /**
  * qla2x00_rsnn_nn() - SNS Register Symbolic Node Name (RSNN_NN) of the HBA.
  * @ha: HA context
@@ -622,9 +630,6 @@ int
 qla2x00_rsnn_nn(scsi_qla_host_t *ha)
 {
 	int		rval;
-	uint8_t		*snn;
-	uint8_t		version[20];
-
 	ms_iocb_entry_t	*ms_pkt;
 	struct ct_sns_req	*ct_req;
 	struct ct_sns_rsp	*ct_rsp;
@@ -649,20 +654,11 @@ qla2x00_rsnn_nn(scsi_qla_host_t *ha)
 	memcpy(ct_req->req.rsnn_nn.node_name, ha->node_name, WWN_SIZE);
 
 	/* Prepare the Symbolic Node Name */
-	/* Board type */
-	snn = ct_req->req.rsnn_nn.sym_node_name;
-	strcpy(snn, ha->model_number);
-	/* Firmware version */
-	strcat(snn, " FW:v");
-	sprintf(version, "%d.%02d.%02d", ha->fw_major_version,
-	    ha->fw_minor_version, ha->fw_subminor_version);
-	strcat(snn, version);
-	/* Driver version */
-	strcat(snn, " DVR:v");
-	strcat(snn, qla2x00_version_str);
+	qla2x00_get_sym_node_name(ha, ct_req->req.rsnn_nn.sym_node_name);
 
 	/* Calculate SNN length */
-	ct_req->req.rsnn_nn.name_len = (uint8_t)strlen(snn);
+	ct_req->req.rsnn_nn.name_len =
+	    (uint8_t)strlen(ct_req->req.rsnn_nn.sym_node_name);
 
 	/* Update MS IOCB request */
 	ms_pkt->req_bytecount =
