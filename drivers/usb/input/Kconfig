@@ -60,16 +60,17 @@ config HID_FF
 	  If unsure, say N.
 
 config HID_PID
-	bool "PID Devices (Microsoft Sidewinder Force Feedback 2)"
+	bool "PID device support"
 	depends on HID_FF
 	help
-	  Say Y here if you have a PID-compliant joystick and wish to enable force
-	  feedback for it. The Microsoft Sidewinder Force Feedback 2 is one such
-	  device.
+	  Say Y here if you have a PID-compliant device and wish to enable force
+	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such
+	  devices.
 
 config LOGITECH_FF
 	bool "Logitech WingMan *3D support"
 	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
 	help
 	  Say Y here if you have one of these devices:
 	  - Logitech WingMan Cordless RumblePad
@@ -81,11 +82,20 @@ config LOGITECH_FF
 config THRUSTMASTER_FF
 	bool "ThrustMaster FireStorm Dual Power 2 support (EXPERIMENTAL)"
 	depends on HID_FF && EXPERIMENTAL
+	select INPUT_FF_MEMLESS if USB_HID
 	help
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2,
 	  and want to enable force feedback support for it.
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
+
+config ZEROPLUS_FF
+	bool "Zeroplus based game controller support"
+	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
+	help
+	  Say Y here if you have a Zeroplus based game controller and want to
+	  enable force feedback for it.
 
 config USB_HIDDEV
 	bool "/dev/hiddev raw HID device support"

@@ -1293,7 +1293,7 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
  */
 static struct input_handle *kbd_connect(struct input_handler *handler,
 					struct input_dev *dev,
-					struct input_device_id *id)
+					const struct input_device_id *id)
 {
 	struct input_handle *handle;
 	int i;
@@ -1342,7 +1342,7 @@ static void kbd_start(struct input_handle *handle)
 	tasklet_enable(&keyboard_tasklet);
 }
 
-static struct input_device_id kbd_ids[] = {
+static const struct input_device_id kbd_ids[] = {
 	{
                 .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
                 .evbit = { BIT(EV_KEY) },
@@ -1370,6 +1370,7 @@ static struct input_handler kbd_handler = {
 int __init kbd_init(void)
 {
 	int i;
+	int error;
 
         for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		kbd_table[i].ledflagstate = KBD_DEFLEDS;
@@ -1381,7 +1382,9 @@ int __init kbd_init(void)
 		kbd_table[i].kbdmode = VC_XLATE;
 	}
 
-	input_register_handler(&kbd_handler);
+	error = input_register_handler(&kbd_handler);
+	if (error)
+		return error;
 
 	tasklet_enable(&keyboard_tasklet);
 	tasklet_schedule(&keyboard_tasklet);

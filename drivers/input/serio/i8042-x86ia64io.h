@@ -160,6 +160,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		.ident = "Toshiba Equium A110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EQUIUM A110"),
+		},
+	},
+	{
 		.ident = "Alienware Sentia",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ALIENWARE"),
@@ -178,6 +185,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FS115B"),
+		},
+	},
+	{
+		.ident = "Amoi M636/A737",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Amoi Electronics CO.,LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "M636/A737 platform"),
 		},
 	},
 	{ }

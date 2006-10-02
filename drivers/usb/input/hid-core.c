@@ -543,8 +543,6 @@ static void hid_free_device(struct hid_device *device)
 {
 	unsigned i,j;
 
-	hid_ff_exit(device);
-
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		struct hid_report_enum *report_enum = device->report_enum + i;
 
@@ -1109,7 +1107,7 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 /*
  * Find a report field with a specified HID usage.
  */
-
+#if 0
 struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_usage, int type)
 {
 	struct hid_report *report;
@@ -1121,6 +1119,7 @@ struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_u
 				return report->field[i];
 	return NULL;
 }
+#endif  /*  0  */
 
 static int hid_submit_out(struct hid_device *hid)
 {

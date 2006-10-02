@@ -652,9 +652,7 @@ static int atkbd_probe(struct atkbd *atkbd)
 		return 0;
 	}
 
-	if (param[0] != 0xab && param[0] != 0xac &&	/* Regular and NCD Sun keyboards */
-	    param[0] != 0x2b && param[0] != 0x5d &&	/* Trust keyboard, raw and translated */
-	    param[0] != 0x60 && param[0] != 0x47)	/* NMB SGI keyboard, raw and translated */
+	if (!ps2_is_keyboard_id(param[0]))
 		return -1;
 
 	atkbd->id = (param[0] << 8) | param[1];

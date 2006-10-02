@@ -449,11 +449,6 @@ struct hid_device {							/* device report descriptor */
 	char phys[64];							/* Device physical location */
 	char uniq[64];							/* Device unique identifier (serial #) */
 
-	void *ff_private;                                               /* Private data for the force-feedback driver */
-	void (*ff_exit)(struct hid_device*);                            /* Called by hid_exit_ff(hid) */
-	int (*ff_event)(struct hid_device *hid, struct input_dev *input,
-			unsigned int type, unsigned int code, int value);
-
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 	unsigned long pb_pressed_fn[NBITS(KEY_MAX)];
 	unsigned long pb_pressed_numlock[NBITS(KEY_MAX)];
@@ -521,29 +516,22 @@ void hid_close(struct hid_device *);
 int hid_set_field(struct hid_field *, unsigned, __s32);
 void hid_submit_report(struct hid_device *, struct hid_report *, unsigned char dir);
 void hid_init_reports(struct hid_device *hid);
-struct hid_field *hid_find_field_by_usage(struct hid_device *hid, __u32 wanted_usage, int type);
 int hid_wait_io(struct hid_device* hid);
 
 
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
+
+int hid_lgff_init(struct hid_device *hid);
+int hid_tmff_init(struct hid_device *hid);
+int hid_zpff_init(struct hid_device *hid);
+#ifdef CONFIG_HID_PID
+int hid_pidff_init(struct hid_device *hid);
+#else
+static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
+#endif
+
 #else
 static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #endif
-static inline void hid_ff_exit(struct hid_device *hid)
-{
-	if (hid->ff_exit)
-		hid->ff_exit(hid);
-}
-static inline int hid_ff_event(struct hid_device *hid, struct input_dev *input,
-			unsigned int type, unsigned int code, int value)
-{
-	if (hid->ff_event)
-		return hid->ff_event(hid, input, type, code, value);
-	return -ENOSYS;
-}
-
-int hid_lgff_init(struct hid_device* hid);
-int hid_tmff_init(struct hid_device* hid);
-int hid_pid_init(struct hid_device* hid);
 

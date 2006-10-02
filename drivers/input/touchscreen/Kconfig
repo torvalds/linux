@@ -108,4 +108,40 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_PENMOUNT
+	tristate "Penmount serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Penmount serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called penmount.
+
+config TOUCHSCREEN_TOUCHRIGHT
+	tristate "Touchright serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Touchright serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchright.
+
+config TOUCHSCREEN_TOUCHWIN
+	tristate "Touchwin serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Touchwin serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called touchwin.
+
 endif

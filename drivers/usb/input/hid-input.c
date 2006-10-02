@@ -65,11 +65,9 @@ static const struct {
 #define map_rel(c)	do { usage->code = c; usage->type = EV_REL; bit = input->relbit; max = REL_MAX; } while (0)
 #define map_key(c)	do { usage->code = c; usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX; } while (0)
 #define map_led(c)	do { usage->code = c; usage->type = EV_LED; bit = input->ledbit; max = LED_MAX; } while (0)
-#define map_ff(c)	do { usage->code = c; usage->type = EV_FF;  bit = input->ffbit;  max =  FF_MAX; } while (0)
 
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
-#define map_ff_effect(c)	do { set_bit(c, input->ffbit); } while (0)
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -525,23 +523,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case HID_UP_PID:
 
-			set_bit(EV_FF, input->evbit);
 			switch(usage->hid & HID_USAGE) {
-				case 0x26: map_ff_effect(FF_CONSTANT);	goto ignore;
-				case 0x27: map_ff_effect(FF_RAMP);	goto ignore;
-				case 0x28: map_ff_effect(FF_CUSTOM);	goto ignore;
-				case 0x30: map_ff_effect(FF_SQUARE);	map_ff_effect(FF_PERIODIC); goto ignore;
-				case 0x31: map_ff_effect(FF_SINE);	map_ff_effect(FF_PERIODIC); goto ignore;
-				case 0x32: map_ff_effect(FF_TRIANGLE);	map_ff_effect(FF_PERIODIC); goto ignore;
-				case 0x33: map_ff_effect(FF_SAW_UP);	map_ff_effect(FF_PERIODIC); goto ignore;
-				case 0x34: map_ff_effect(FF_SAW_DOWN);	map_ff_effect(FF_PERIODIC); goto ignore;
-				case 0x40: map_ff_effect(FF_SPRING);	goto ignore;
-				case 0x41: map_ff_effect(FF_DAMPER);	goto ignore;
-				case 0x42: map_ff_effect(FF_INERTIA);	goto ignore;
-				case 0x43: map_ff_effect(FF_FRICTION);	goto ignore;
-				case 0x7e: map_ff(FF_GAIN);		break;
-				case 0x83: input->ff_effects_max = field->value[0]; goto ignore;
-				case 0x98: map_ff(FF_AUTOCENTER);	break;
 				case 0xa4: map_key_clear(BTN_DEAD);	break;
 				default: goto ignore;
 			}
@@ -698,8 +680,7 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	}
 
 	if (usage->hid == (HID_UP_PID | 0x83UL)) { /* Simultaneous Effects Max */
-		input->ff_effects_max = value;
-		dbg("Maximum Effects - %d",input->ff_effects_max);
+		dbg("Maximum Effects - %d",value);
 		return;
 	}
 
@@ -748,7 +729,7 @@ static int hidinput_input_event(struct input_dev *dev, unsigned int type, unsign
 	int offset;
 
 	if (type == EV_FF)
-		return hid_ff_event(hid, dev, type, code, value);
+		return input_ff_event(dev, type, code, value);
 
 	if (type != EV_LED)
 		return -1;

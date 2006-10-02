@@ -112,8 +112,8 @@ static struct workqueue_struct *kpsmoused_wq;
 
 struct psmouse_protocol {
 	enum psmouse_type type;
-	char *name;
-	char *alias;
+	const char *name;
+	const char *alias;
 	int maxproto;
 	int (*detect)(struct psmouse *, int);
 	int (*init)(struct psmouse *);
@@ -507,15 +507,17 @@ static int thinking_detect(struct psmouse *psmouse, int set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
 	unsigned char param[2];
-	unsigned char seq[] = { 20, 60, 40, 20, 20, 60, 40, 20, 20, 0 };
+	static const unsigned char seq[] = { 20, 60, 40, 20, 20, 60, 40, 20, 20 };
 	int i;
 
 	param[0] = 10;
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
 	param[0] = 0;
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
-	for (i = 0; seq[i]; i++)
-		ps2_command(ps2dev, seq + i, PSMOUSE_CMD_SETRATE);
+	for (i = 0; i < ARRAY_SIZE(seq); i++) {
+		param[0] = seq[i];
+		ps2_command(ps2dev, param, PSMOUSE_CMD_SETRATE);
+	}
 	ps2_command(ps2dev, param, PSMOUSE_CMD_GETID);
 
 	if (param[0] != 2)
@@ -652,7 +654,7 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	return PSMOUSE_PS2;
 }
 
-static struct psmouse_protocol psmouse_protocols[] = {
+static const struct psmouse_protocol psmouse_protocols[] = {
 	{
 		.type		= PSMOUSE_PS2,
 		.name		= "PS/2",
@@ -726,7 +728,7 @@ static struct psmouse_protocol psmouse_protocols[] = {
 	},
 };
 
-static struct psmouse_protocol *psmouse_protocol_by_type(enum psmouse_type type)
+static const struct psmouse_protocol *psmouse_protocol_by_type(enum psmouse_type type)
 {
 	int i;
 
@@ -738,9 +740,9 @@ static struct psmouse_protocol *psmouse_protocol_by_type(enum psmouse_type type)
 	return &psmouse_protocols[0];
 }
 
-static struct psmouse_protocol *psmouse_protocol_by_name(const char *name, size_t len)
+static const struct psmouse_protocol *psmouse_protocol_by_name(const char *name, size_t len)
 {
-	struct psmouse_protocol *p;
+	const struct psmouse_protocol *p;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(psmouse_protocols); i++) {
@@ -795,13 +797,15 @@ static int psmouse_probe(struct psmouse *psmouse)
 
 void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution)
 {
-	unsigned char params[] = { 0, 1, 2, 2, 3 };
+	static const unsigned char params[] = { 0, 1, 2, 2, 3 };
+	unsigned char p;
 
 	if (resolution == 0 || resolution > 200)
 		resolution = 200;
 
-	ps2_command(&psmouse->ps2dev, &params[resolution / 50], PSMOUSE_CMD_SETRES);
-	psmouse->resolution = 25 << params[resolution / 50];
+	p = params[resolution / 50];
+	ps2_command(&psmouse->ps2dev, &p, PSMOUSE_CMD_SETRES);
+	psmouse->resolution = 25 << p;
 }
 
 /*
@@ -810,12 +814,14 @@ void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution)
 
 static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 {
-	unsigned char rates[] = { 200, 100, 80, 60, 40, 20, 10, 0 };
+	static const unsigned char rates[] = { 200, 100, 80, 60, 40, 20, 10, 0 };
+	unsigned char r;
 	int i = 0;
 
 	while (rates[i] > rate) i++;
-	ps2_command(&psmouse->ps2dev, &rates[i], PSMOUSE_CMD_SETRATE);
-	psmouse->rate = rates[i];
+	r = rates[i];
+	ps2_command(&psmouse->ps2dev, &r, PSMOUSE_CMD_SETRATE);
+	psmouse->rate = r;
 }
 
 /*
@@ -1031,7 +1037,7 @@ static void psmouse_disconnect(struct serio *serio)
 	mutex_unlock(&psmouse_mutex);
 }
 
-static int psmouse_switch_protocol(struct psmouse *psmouse, struct psmouse_protocol *proto)
+static int psmouse_switch_protocol(struct psmouse *psmouse, const struct psmouse_protocol *proto)
 {
 	struct input_dev *input_dev = psmouse->dev;
 
@@ -1362,7 +1368,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 	struct serio *serio = psmouse->ps2dev.serio;
 	struct psmouse *parent = NULL;
 	struct input_dev *new_dev;
-	struct psmouse_protocol *proto;
+	const struct psmouse_protocol *proto;
 	int retry = 0;
 
 	if (!(proto = psmouse_protocol_by_name(buf, count)))
@@ -1459,7 +1465,7 @@ static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, void *data, 
 
 static int psmouse_set_maxproto(const char *val, struct kernel_param *kp)
 {
-	struct psmouse_protocol *proto;
+	const struct psmouse_protocol *proto;
 
 	if (!val)
 		return -EINVAL;

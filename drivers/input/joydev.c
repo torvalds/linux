@@ -451,7 +451,7 @@ static int joydev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	}
 }
 
-static struct file_operations joydev_fops = {
+static const struct file_operations joydev_fops = {
 	.owner =	THIS_MODULE,
 	.read =		joydev_read,
 	.write =	joydev_write,
@@ -465,7 +465,8 @@ static struct file_operations joydev_fops = {
 	.fasync =	joydev_fasync,
 };
 
-static struct input_handle *joydev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
+static struct input_handle *joydev_connect(struct input_handler *handler, struct input_dev *dev,
+					   const struct input_device_id *id)
 {
 	struct joydev *joydev;
 	struct class_device *cdev;
@@ -562,7 +563,7 @@ static void joydev_disconnect(struct input_handle *handle)
 		joydev_free(joydev);
 }
 
-static struct input_device_id joydev_blacklist[] = {
+static const struct input_device_id joydev_blacklist[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT(EV_KEY) },
@@ -571,7 +572,7 @@ static struct input_device_id joydev_blacklist[] = {
 	{ }	/* Terminating entry */
 };
 
-static struct input_device_id joydev_ids[] = {
+static const struct input_device_id joydev_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT(EV_ABS) },
@@ -605,8 +606,7 @@ static struct input_handler joydev_handler = {
 
 static int __init joydev_init(void)
 {
-	input_register_handler(&joydev_handler);
-	return 0;
+	return input_register_handler(&joydev_handler);
 }
 
 static void __exit joydev_exit(void)

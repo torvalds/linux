@@ -248,13 +248,10 @@ static int __init dmi_matched(struct dmi_system_id *dmi)
 
 	keymap = dmi->driver_data;
 	for (key = keymap; key->type != KE_END; key++) {
-		if (key->type == KE_WIFI) {
+		if (key->type == KE_WIFI)
 			have_wifi = 1;
-			break;
-		} else if (key->type == KE_BLUETOOTH) {
+		else if (key->type == KE_BLUETOOTH)
 			have_bluetooth = 1;
-			break;
-		}
 	}
 	return 1;
 }
@@ -389,7 +386,16 @@ static struct dmi_system_id dmi_ids[] __initdata = {
 		},
 		.driver_data = keymap_acer_travelmate_240
 	},
-        {
+	{
+		.callback = dmi_matched,
+		.ident = "Acer TravelMate 2424NWXCi",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2420"),
+		},
+		.driver_data = keymap_acer_travelmate_240
+	},
+	{
 		.callback = dmi_matched,
 		.ident = "AOpen 1559AS",
 		.matches = {

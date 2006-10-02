@@ -135,8 +135,6 @@ struct tsdev_list {
 #define TS_GET_CAL	_IOR(IOC_H3600_TS_MAGIC, 10, struct ts_calibration)
 #define TS_SET_CAL	_IOW(IOC_H3600_TS_MAGIC, 11, struct ts_calibration)
 
-static struct input_handler tsdev_handler;
-
 static struct tsdev *tsdev_table[TSDEV_MINORS/2];
 
 static int tsdev_fasync(int fd, struct file *file, int on)
@@ -263,7 +261,7 @@ static int tsdev_ioctl(struct inode *inode, struct file *file,
 	return retval;
 }
 
-static struct file_operations tsdev_fops = {
+static const struct file_operations tsdev_fops = {
 	.owner =	THIS_MODULE,
 	.open =		tsdev_open,
 	.release =	tsdev_release,
@@ -370,7 +368,7 @@ static void tsdev_event(struct input_handle *handle, unsigned int type,
 
 static struct input_handle *tsdev_connect(struct input_handler *handler,
 					  struct input_dev *dev,
-					  struct input_device_id *id)
+					  const struct input_device_id *id)
 {
 	struct tsdev *tsdev;
 	struct class_device *cdev;
@@ -443,7 +441,7 @@ static void tsdev_disconnect(struct input_handle *handle)
 		tsdev_free(tsdev);
 }
 
-static struct input_device_id tsdev_ids[] = {
+static const struct input_device_id tsdev_ids[] = {
 	{
 	      .flags	= INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT | INPUT_DEVICE_ID_MATCH_RELBIT,
 	      .evbit	= { BIT(EV_KEY) | BIT(EV_REL) },
@@ -481,9 +479,7 @@ static struct input_handler tsdev_handler = {
 
 static int __init tsdev_init(void)
 {
-	input_register_handler(&tsdev_handler);
-	printk(KERN_INFO "ts: Compaq touchscreen protocol output\n");
-	return 0;
+	return input_register_handler(&tsdev_handler);
 }
 
 static void __exit tsdev_exit(void)
