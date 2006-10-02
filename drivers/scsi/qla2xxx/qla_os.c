@@ -589,6 +589,23 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 	return (return_status);
 }
 
+static void
+qla2x00_block_error_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		msleep(1000);
+		spin_lock_irqsave(shost->host_lock, flags);
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	return;
+}
+
 /**************************************************************************
 * qla2xxx_eh_abort
 *
@@ -614,6 +631,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	unsigned long serial;
 	unsigned long flags;
 	int wait = 0;
+
+	qla2x00_block_error_handler(cmd);
 
 	if (!CMD_SP(cmd))
 		return SUCCESS;
@@ -748,6 +767,8 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	unsigned int id, lun;
 	unsigned long serial;
 
+	qla2x00_block_error_handler(cmd);
+
 	ret = FAILED;
 
 	id = cmd->device->id;
@@ -877,6 +898,8 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	unsigned int id, lun;
 	unsigned long serial;
 
+	qla2x00_block_error_handler(cmd);
+
 	ret = FAILED;
 
 	id = cmd->device->id;
@@ -935,6 +958,8 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	int ret;
 	unsigned int id, lun;
 	unsigned long serial;
+
+	qla2x00_block_error_handler(cmd);
 
 	ret = FAILED;
 
