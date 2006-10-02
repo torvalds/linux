@@ -36,7 +36,9 @@
  * The online bitmask indicates that the CPU is up and running.
  */
 cpumask_t cpu_possible_map;
+EXPORT_SYMBOL(cpu_possible_map);
 cpumask_t cpu_online_map;
+EXPORT_SYMBOL(cpu_online_map);
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure

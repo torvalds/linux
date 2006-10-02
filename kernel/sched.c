@@ -4384,7 +4384,10 @@ EXPORT_SYMBOL(cpu_present_map);
 
 #ifndef CONFIG_SMP
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_ALL;
+EXPORT_SYMBOL(cpu_online_map);
+
 cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;
+EXPORT_SYMBOL(cpu_possible_map);
 #endif
 
 long sched_getaffinity(pid_t pid, cpumask_t *mask)
