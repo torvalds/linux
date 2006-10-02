@@ -8,7 +8,6 @@
 #ifndef __ASSEMBLY__
 #include <linux/personality.h>
 #include <linux/types.h>
-#include <linux/compat.h>
 #endif
 #endif
 
