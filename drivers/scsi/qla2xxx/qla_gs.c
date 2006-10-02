@@ -687,7 +687,6 @@ qla2x00_rsnn_nn(scsi_qla_host_t *ha)
 	return (rval);
 }
 
-
 /**
  * qla2x00_prep_sns_cmd() - Prepare common SNS command request fields for query.
  * @ha: HA context
@@ -1646,4 +1645,190 @@ qla2x00_fdmi_register(scsi_qla_host_t *ha)
 	rval = qla2x00_fdmi_rpa(ha);
 
 	return rval;
+}
+
+/**
+ * qla2x00_gfpn_id() - SNS Get Fabric Port Name (GFPN_ID) query.
+ * @ha: HA context
+ * @list: switch info entries to populate
+ *
+ * Returns 0 on success.
+ */
+int
+qla2x00_gfpn_id(scsi_qla_host_t *ha, sw_info_t *list)
+{
+	int		rval;
+	uint16_t	i;
+
+	ms_iocb_entry_t	*ms_pkt;
+	struct ct_sns_req	*ct_req;
+	struct ct_sns_rsp	*ct_rsp;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
+		/* Issue GFPN_ID */
+		memset(list[i].fabric_port_name, 0, WWN_SIZE);
+
+		/* Prepare common MS IOCB */
+		ms_pkt = qla2x00_prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
+		    GFPN_ID_RSP_SIZE);
+
+		/* Prepare CT request */
+		ct_req = qla2x00_prep_ct_req(&ha->ct_sns->p.req, GFPN_ID_CMD,
+		    GFPN_ID_RSP_SIZE);
+		ct_rsp = &ha->ct_sns->p.rsp;
+
+		/* Prepare CT arguments -- port_id */
+		ct_req->req.port_id.port_id[0] = list[i].d_id.b.domain;
+		ct_req->req.port_id.port_id[1] = list[i].d_id.b.area;
+		ct_req->req.port_id.port_id[2] = list[i].d_id.b.al_pa;
+
+		/* Execute MS IOCB */
+		rval = qla2x00_issue_iocb(ha, ha->ms_iocb, ha->ms_iocb_dma,
+		    sizeof(ms_iocb_entry_t));
+		if (rval != QLA_SUCCESS) {
+			/*EMPTY*/
+			DEBUG2_3(printk("scsi(%ld): GFPN_ID issue IOCB "
+			    "failed (%d).\n", ha->host_no, rval));
+		} else if (qla2x00_chk_ms_status(ha, ms_pkt, ct_rsp,
+		    "GFPN_ID") != QLA_SUCCESS) {
+			rval = QLA_FUNCTION_FAILED;
+		} else {
+			/* Save fabric portname */
+			memcpy(list[i].fabric_port_name,
+			    ct_rsp->rsp.gfpn_id.port_name, WWN_SIZE);
+		}
+
+		/* Last device exit. */
+		if (list[i].d_id.b.rsvd_1 != 0)
+			break;
+	}
+
+	return (rval);
+}
+
+static inline void *
+qla24xx_prep_ms_fm_iocb(scsi_qla_host_t *ha, uint32_t req_size,
+    uint32_t rsp_size)
+{
+	struct ct_entry_24xx *ct_pkt;
+
+	ct_pkt = (struct ct_entry_24xx *)ha->ms_iocb;
+	memset(ct_pkt, 0, sizeof(struct ct_entry_24xx));
+
+	ct_pkt->entry_type = CT_IOCB_TYPE;
+	ct_pkt->entry_count = 1;
+	ct_pkt->nport_handle = cpu_to_le16(ha->mgmt_svr_loop_id);
+	ct_pkt->timeout = __constant_cpu_to_le16(59);
+	ct_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
+	ct_pkt->rsp_dsd_count = __constant_cpu_to_le16(1);
+	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);
+	ct_pkt->cmd_byte_count = cpu_to_le32(req_size);
+
+	ct_pkt->dseg_0_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
+	ct_pkt->dseg_0_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
+	ct_pkt->dseg_0_len = ct_pkt->cmd_byte_count;
+
+	ct_pkt->dseg_1_address[0] = cpu_to_le32(LSD(ha->ct_sns_dma));
+	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
+	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
+
+	return ct_pkt;
+}
+
+
+static inline struct ct_sns_req *
+qla24xx_prep_ct_fm_req(struct ct_sns_req *ct_req, uint16_t cmd,
+    uint16_t rsp_size)
+{
+	memset(ct_req, 0, sizeof(struct ct_sns_pkt));
+
+	ct_req->header.revision = 0x01;
+	ct_req->header.gs_type = 0xFA;
+	ct_req->header.gs_subtype = 0x01;
+	ct_req->command = cpu_to_be16(cmd);
+	ct_req->max_rsp_size = cpu_to_be16((rsp_size - 16) / 4);
+
+	return ct_req;
+}
+
+/**
+ * qla2x00_gpsc() - FCS Get Port Speed Capabilities (GPSC) query.
+ * @ha: HA context
+ * @list: switch info entries to populate
+ *
+ * Returns 0 on success.
+ */
+int
+qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
+{
+	int		rval;
+	uint16_t	i;
+
+	ms_iocb_entry_t	*ms_pkt;
+	struct ct_sns_req	*ct_req;
+	struct ct_sns_rsp	*ct_rsp;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	rval = qla2x00_mgmt_svr_login(ha);
+	if (rval)
+		return rval;
+
+	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
+		/* Issue GFPN_ID */
+		list[i].fp_speeds = list[i].fp_speed = 0;
+
+		/* Prepare common MS IOCB */
+		ms_pkt = qla24xx_prep_ms_fm_iocb(ha, GPSC_REQ_SIZE,
+		    GPSC_RSP_SIZE);
+
+		/* Prepare CT request */
+		ct_req = qla24xx_prep_ct_fm_req(&ha->ct_sns->p.req,
+		    GPSC_CMD, GPSC_RSP_SIZE);
+		ct_rsp = &ha->ct_sns->p.rsp;
+
+		/* Prepare CT arguments -- port_name */
+		memcpy(ct_req->req.gpsc.port_name, list[i].fabric_port_name,
+		    WWN_SIZE);
+
+		/* Execute MS IOCB */
+		rval = qla2x00_issue_iocb(ha, ha->ms_iocb, ha->ms_iocb_dma,
+		    sizeof(ms_iocb_entry_t));
+		if (rval != QLA_SUCCESS) {
+			/*EMPTY*/
+			DEBUG2_3(printk("scsi(%ld): GPSC issue IOCB "
+			    "failed (%d).\n", ha->host_no, rval));
+		} else if (qla2x00_chk_ms_status(ha, ms_pkt, ct_rsp,
+		    "GPSC") != QLA_SUCCESS) {
+			rval = QLA_FUNCTION_FAILED;
+		} else {
+			/* Save portname */
+			list[i].fp_speeds = ct_rsp->rsp.gpsc.speeds;
+			list[i].fp_speed = ct_rsp->rsp.gpsc.speed;
+
+			DEBUG2_3(printk("scsi(%ld): GPSC ext entry - "
+			    "fpn %02x%02x%02x%02x%02x%02x%02x%02x speeds=%04x "
+			    "speed=%04x.\n", ha->host_no,
+			    list[i].fabric_port_name[0],
+			    list[i].fabric_port_name[1],
+			    list[i].fabric_port_name[2],
+			    list[i].fabric_port_name[3],
+			    list[i].fabric_port_name[4],
+			    list[i].fabric_port_name[5],
+			    list[i].fabric_port_name[6],
+			    list[i].fabric_port_name[7],
+			    be16_to_cpu(list[i].fp_speeds),
+			    be16_to_cpu(list[i].fp_speed)));
+		}
+
+		/* Last device exit. */
+		if (list[i].d_id.b.rsvd_1 != 0)
+			break;
+	}
+
+	return (rval);
 }

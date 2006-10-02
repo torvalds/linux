@@ -208,6 +208,12 @@ qla2x00_trace_control(scsi_qla_host_t *, uint16_t, dma_addr_t, uint16_t);
 extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t, uint16_t);
 
+extern int
+qla2x00_get_idma_speed(scsi_qla_host_t *, uint16_t, uint16_t *, uint16_t *);
+
+extern int
+qla2x00_set_idma_speed(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t *);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
@@ -279,6 +285,8 @@ extern int qla2x00_rsnn_nn(scsi_qla_host_t *);
 extern void *qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_fdmi_register(scsi_qla_host_t *);
+extern int qla2x00_gfpn_id(scsi_qla_host_t *, sw_info_t *);
+extern int qla2x00_gpsc(scsi_qla_host_t *, sw_info_t *);
 
 /*
  * Global Function Prototypes in qla_attr.c source file.

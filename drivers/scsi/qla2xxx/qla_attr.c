@@ -691,13 +691,13 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	uint32_t speed = 0;
 
 	switch (ha->link_data_rate) {
-	case LDR_1GB:
+	case PORT_SPEED_1GB:
 		speed = 1;
 		break;
-	case LDR_2GB:
+	case PORT_SPEED_2GB:
 		speed = 2;
 		break;
-	case LDR_4GB:
+	case PORT_SPEED_4GB:
 		speed = 4;
 		break;
 	}
