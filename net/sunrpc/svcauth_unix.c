@@ -348,11 +348,8 @@ int auth_unix_forget_old(struct auth_domain *dom)
 
 struct auth_domain *auth_unix_lookup(struct in_addr addr)
 {
-	struct ip_map key, *ipm;
+	struct ip_map *ipm;
 	struct auth_domain *rv;
-
-	strcpy(key.m_class, "nfsd");
-	key.m_addr = addr;
 
 	ipm = ip_map_lookup("nfsd", addr);
 
