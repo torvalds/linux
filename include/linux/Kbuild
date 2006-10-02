@@ -223,7 +223,6 @@ unifdef-y += hpet.h
 unifdef-y += i2c.h
 unifdef-y += i2o-dev.h
 unifdef-y += icmpv6.h
-unifdef-y += iflags.h
 unifdef-y += if_bridge.h
 unifdef-y += if_ec.h
 unifdef-y += if_eql.h

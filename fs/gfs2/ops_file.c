@@ -21,7 +21,6 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/ext2_fs.h>
 #include <linux/crc32.h>
-#include <linux/iflags.h>
 #include <linux/lm_interface.h>
 #include <asm/uaccess.h>
 
@@ -201,27 +200,48 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 	return error;
 }
 
+/**
+ * fsflags_cvt
+ * @table: A table of 32 u32 flags
+ * @val: a 32 bit value to convert
+ *
+ * This function can be used to convert between fsflags values and
+ * GFS2's own flags values.
+ *
+ * Returns: the converted flags
+ */
+static u32 fsflags_cvt(const u32 *table, u32 val)
+{
+	u32 res = 0;
+	while(val) {
+		if (val & 1)
+			res |= *table;
+		table++;
+		val >>= 1;
+	}
+	return res;
+}
 
-static const u32 iflags_to_gfs2[32] = {
-	[iflag_Sync] = GFS2_DIF_SYNC,
-	[iflag_Immutable] = GFS2_DIF_IMMUTABLE,
-	[iflag_Append] = GFS2_DIF_APPENDONLY,
-	[iflag_NoAtime] = GFS2_DIF_NOATIME,
-	[iflag_Index] = GFS2_DIF_EXHASH,
-	[iflag_JournalData] = GFS2_DIF_JDATA,
-	[iflag_DirectIO] = GFS2_DIF_DIRECTIO,
+static const u32 fsflags_to_gfs2[32] = {
+	[3] = GFS2_DIF_SYNC,
+	[4] = GFS2_DIF_IMMUTABLE,
+	[5] = GFS2_DIF_APPENDONLY,
+	[7] = GFS2_DIF_NOATIME,
+	[12] = GFS2_DIF_EXHASH,
+	[14] = GFS2_DIF_JDATA,
+	[20] = GFS2_DIF_DIRECTIO,
 };
 
-static const u32 gfs2_to_iflags[32] = {
-	[gfs2fl_Sync] = IFLAG_SYNC,
-	[gfs2fl_Immutable] = IFLAG_IMMUTABLE,
-	[gfs2fl_AppendOnly] = IFLAG_APPEND,
-	[gfs2fl_NoAtime] = IFLAG_NOATIME,
-	[gfs2fl_ExHash] = IFLAG_INDEX,
-	[gfs2fl_Jdata] = IFLAG_JOURNAL_DATA,
-	[gfs2fl_Directio] = IFLAG_DIRECTIO,
-	[gfs2fl_InheritDirectio] = IFLAG_DIRECTIO,
-	[gfs2fl_InheritJdata] = IFLAG_JOURNAL_DATA,
+static const u32 gfs2_to_fsflags[32] = {
+	[gfs2fl_Sync] = FS_SYNC_FL,
+	[gfs2fl_Immutable] = FS_IMMUTABLE_FL,
+	[gfs2fl_AppendOnly] = FS_APPEND_FL,
+	[gfs2fl_NoAtime] = FS_NOATIME_FL,
+	[gfs2fl_ExHash] = FS_INDEX_FL,
+	[gfs2fl_Jdata] = FS_JOURNAL_DATA_FL,
+	[gfs2fl_Directio] = FS_DIRECTIO_FL,
+	[gfs2fl_InheritDirectio] = FS_DIRECTIO_FL,
+	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
 
 static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
@@ -230,15 +250,15 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
-	u32 iflags;
+	u32 fsflags;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
 	error = gfs2_glock_nq_m_atime(1, &gh);
 	if (error)
 		return error;
 
-	iflags = iflags_cvt(gfs2_to_iflags, ip->i_di.di_flags);
-	if (put_user(iflags, ptr))
+	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_di.di_flags);
+	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
 	gfs2_glock_dq_m(1, &gh);
@@ -327,19 +347,19 @@ out:
 
 static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
-	u32 iflags, gfsflags;
-	if (get_user(iflags, ptr))
+	u32 fsflags, gfsflags;
+	if (get_user(fsflags, ptr))
 		return -EFAULT;
-	gfsflags = iflags_cvt(iflags_to_gfs2, iflags);
+	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
 	return do_gfs2_set_flags(filp, gfsflags, ~0);
 }
 
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch(cmd) {
-	case IFLAGS_GET_IOC:
+	case FS_IOC_GETFLAGS:
 		return gfs2_get_flags(filp, (u32 __user *)arg);
-	case IFLAGS_SET_IOC:
+	case FS_IOC_SETFLAGS:
 		return gfs2_set_flags(filp, (u32 __user *)arg);
 	}
 	return -ENOTTY;
