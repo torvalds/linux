@@ -125,24 +125,12 @@
 #define  MACH_MOMENCO_OCELOT_3	4
 
 /*
- * Valid machtype for group ITE
- */
-#define MACH_GROUP_ITE		13	/* ITE Semi Eval Boards		*/
-#define  MACH_QED_4N_S01B	0	/* ITE8172 based eval board */
-
-/*
  * Valid machtype for group PHILIPS
  */
 #define MACH_GROUP_PHILIPS     14
 #define  MACH_PHILIPS_NINO	0	/* Nino */
 #define  MACH_PHILIPS_VELO	1	/* Velo */
 #define  MACH_PHILIPS_JBS	2	/* JBS */
-
-/*
- * Valid machtype for group Globespan
- */
-#define MACH_GROUP_GLOBESPAN   15	/* Globespan */
-#define  MACH_IVR		0	/* IVR eval board */
 
 /*
  * Valid machtype for group SIBYTE

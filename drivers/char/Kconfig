@@ -371,36 +371,6 @@ config AU1000_SERIAL_CONSOLE
 	  If you have an Alchemy AU1000 processor (MIPS based) and you want
 	  to use a console on a serial port, say Y.  Otherwise, say N.
 
-config QTRONIX_KEYBOARD
-	bool "Enable Qtronix 990P Keyboard Support"
-	depends on IT8712
-	help
-	  Images of Qtronix keyboards are at
-	  <http://www.qtronix.com/keyboard.html>.
-
-config IT8172_CIR
-	bool
-	depends on QTRONIX_KEYBOARD
-	default y
-
-config IT8172_SCR0
-	bool "Enable Smart Card Reader 0 Support "
-	depends on IT8712
-	help
-	  Say Y here to support smart-card reader 0 (SCR0) on the Integrated
-	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
-	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
-
-config IT8172_SCR1
-	bool "Enable Smart Card Reader 1 Support "
-	depends on IT8712
-	help
-	  Say Y here to support smart-card reader 1 (SCR1) on the Integrated
-	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
-	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
-
 config A2232
 	tristate "Commodore A2232 serial support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ZORRO && BROKEN_ON_SMP

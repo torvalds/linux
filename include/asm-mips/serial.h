@@ -69,38 +69,6 @@
 #define EV64120_SERIAL_PORT_DEFNS
 #endif
 
-#ifdef CONFIG_MIPS_ITE8172
-#include <asm/it8172/it8172.h>
-#include <asm/it8172/it8172_int.h>
-#include <asm/it8712.h>
-#define ITE_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_UART_BASE), \
-      .irq = IT8172_UART_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    { .baud_base = (24000000/(16*13)), .port = (IT8172_PCI_IO_BASE + IT8712_UART1_PORT), \
-      .irq = IT8172_SERIRQ_4, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    /* Smart Card Reader 0 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR0_BASE), \
-      .irq = IT8172_SCR0_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 }, \
-    /* Smart Card Reader 1 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR1_BASE), \
-      .irq = IT8172_SCR1_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },
-#else
-#define ITE_SERIAL_PORT_DEFNS
-#endif
-
-#ifdef CONFIG_MIPS_IVR
-#include <asm/it8172/it8172.h>
-#include <asm/it8172/it8172_int.h>
-#define IVR_SERIAL_PORT_DEFNS                                  \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_UART_BASE), \
-      .irq = IT8172_UART_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },         \
-    /* Smart Card Reader 1 */ \
-    { .baud_base = BASE_BAUD, .port = (IT8172_PCI_IO_BASE + IT_SCR1_BASE), \
-      .irq = IT8172_SCR1_IRQ, .flags = STD_COM_FLAGS, .port = PORT_16550 },
-#else
-#define IVR_SERIAL_PORT_DEFNS
-#endif
-
 #ifdef CONFIG_HAVE_STD_PC_SERIAL_PORT
 #define STD_SERIAL_PORT_DEFNS			\
 	/* UART CLK   PORT IRQ     FLAGS        */			\
@@ -240,8 +208,6 @@
 	DDB5477_SERIAL_PORT_DEFNS			\
 	EV64120_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \
-	ITE_SERIAL_PORT_DEFNS           		\
-	IVR_SERIAL_PORT_DEFNS           		\
 	JAZZ_SERIAL_PORT_DEFNS				\
 	STD_SERIAL_PORT_DEFNS				\
 	MOMENCO_OCELOT_G_SERIAL_PORT_DEFNS		\
