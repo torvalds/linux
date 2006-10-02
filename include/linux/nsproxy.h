@@ -4,6 +4,8 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 
+struct namespace;
+
 /*
  * A structure to contain pointers to all per-process
  * namespaces - fs (mount), uts, network, sysvipc, etc.
@@ -19,6 +21,7 @@
 struct nsproxy {
 	atomic_t count;
 	spinlock_t nslock;
+	struct namespace *namespace;
 };
 extern struct nsproxy init_nsproxy;
 

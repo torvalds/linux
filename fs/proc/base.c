@@ -71,6 +71,7 @@
 #include <linux/cpuset.h>
 #include <linux/audit.h>
 #include <linux/poll.h>
+#include <linux/nsproxy.h>
 #include "internal.h"
 
 /* NOTE:
@@ -473,7 +474,7 @@ static int mounts_open(struct inode *inode, struct file *file)
 
 	if (task) {
 		task_lock(task);
-		namespace = task->namespace;
+		namespace = task->nsproxy->namespace;
 		if (namespace)
 			get_namespace(namespace);
 		task_unlock(task);
@@ -544,7 +545,7 @@ static int mountstats_open(struct inode *inode, struct file *file)
 
 		if (task) {
 			task_lock(task);
-			namespace = task->namespace;
+			namespace = task->nsproxy->namespace;
 			if (namespace)
 				get_namespace(namespace);
 			task_unlock(task);

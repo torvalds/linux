@@ -1119,11 +1119,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_mm;
 	if ((retval = copy_namespaces(clone_flags, p)))
 		goto bad_fork_cleanup_keys;
-	if ((retval = copy_namespace(clone_flags, p)))
-		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
-		goto bad_fork_cleanup_namespace;
+		goto bad_fork_cleanup_namespaces;
 
 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
 	/*
@@ -1215,7 +1213,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		spin_unlock(&current->sighand->siglock);
 		write_unlock_irq(&tasklist_lock);
 		retval = -ERESTARTNOINTR;
-		goto bad_fork_cleanup_namespace;
+		goto bad_fork_cleanup_namespaces;
 	}
 
 	if (clone_flags & CLONE_THREAD) {
@@ -1263,8 +1261,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	proc_fork_connector(p);
 	return p;
 
-bad_fork_cleanup_namespace:
-	exit_namespace(p);
 bad_fork_cleanup_namespaces:
 	exit_task_namespaces(p);
 bad_fork_cleanup_keys:
@@ -1519,10 +1515,9 @@ static int unshare_fs(unsigned long unshare_flags, struct fs_struct **new_fsp)
  */
 static int unshare_namespace(unsigned long unshare_flags, struct namespace **new_nsp, struct fs_struct *new_fs)
 {
-	struct namespace *ns = current->namespace;
+	struct namespace *ns = current->nsproxy->namespace;
 
-	if ((unshare_flags & CLONE_NEWNS) &&
-	    (ns && atomic_read(&ns->count) > 1)) {
+	if ((unshare_flags & CLONE_NEWNS) && ns) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
@@ -1655,8 +1650,8 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 
 		if (new_ns) {
-			ns = current->namespace;
-			current->namespace = new_ns;
+			ns = current->nsproxy->namespace;
+			current->nsproxy->namespace = new_ns;
 			new_ns = ns;
 		}
 

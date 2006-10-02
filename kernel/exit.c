@@ -399,11 +399,8 @@ void daemonize(const char *name, ...)
 	current->fs = fs;
 	atomic_inc(&fs->count);
 
-	exit_namespace(current);
 	exit_task_namespaces(current);
-	current->namespace = init_task.namespace;
 	current->nsproxy = init_task.nsproxy;
-	get_namespace(current->namespace);
 	get_task_namespaces(current);
 
  	exit_files(current);
@@ -923,7 +920,6 @@ fastcall NORET_TYPE void do_exit(long code)
 	exit_sem(tsk);
 	__exit_files(tsk);
 	__exit_fs(tsk);
-	exit_namespace(tsk);
 	exit_task_namespaces(tsk);
 	exit_thread();
 	cpuset_exit(tsk);
