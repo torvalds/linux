@@ -3,7 +3,6 @@
 #include <linux/sched.h>
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
-#include <linux/nsproxy.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -13,7 +12,6 @@ static struct files_struct init_files = INIT_FILES;
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 struct mm_struct init_mm = INIT_MM(init_mm);
-struct nsproxy init_nsproxy = INIT_NSPROXY(init_nsproxy);
 struct task_struct init_task = INIT_TASK(init_task);
 
 EXPORT_SYMBOL(init_mm);
