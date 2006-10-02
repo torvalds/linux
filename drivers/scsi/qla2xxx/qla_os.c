@@ -2564,14 +2564,20 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 #define FW_ISP2322	3
 #define FW_ISP24XX	4
 
+#define FW_FILE_ISP21XX	"ql2100_fw.bin"
+#define FW_FILE_ISP22XX	"ql2200_fw.bin"
+#define FW_FILE_ISP2300	"ql2300_fw.bin"
+#define FW_FILE_ISP2322	"ql2322_fw.bin"
+#define FW_FILE_ISP24XX	"ql2400_fw.bin"
+
 static DECLARE_MUTEX(qla_fw_lock);
 
 static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
-	{ .name = "ql2100_fw.bin", .segs = { 0x1000, 0 }, },
-	{ .name = "ql2200_fw.bin", .segs = { 0x1000, 0 }, },
-	{ .name = "ql2300_fw.bin", .segs = { 0x800, 0 }, },
-	{ .name = "ql2322_fw.bin", .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
-	{ .name = "ql2400_fw.bin", },
+	{ .name = FW_FILE_ISP21XX, .segs = { 0x1000, 0 }, },
+	{ .name = FW_FILE_ISP22XX, .segs = { 0x1000, 0 }, },
+	{ .name = FW_FILE_ISP2300, .segs = { 0x800, 0 }, },
+	{ .name = FW_FILE_ISP2322, .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
+	{ .name = FW_FILE_ISP24XX, },
 };
 
 struct fw_blob *
@@ -2702,3 +2708,8 @@ MODULE_AUTHOR("QLogic Corporation");
 MODULE_DESCRIPTION("QLogic Fibre Channel HBA Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(QLA2XXX_VERSION);
+MODULE_FIRMWARE(FW_FILE_ISP21XX);
+MODULE_FIRMWARE(FW_FILE_ISP22XX);
+MODULE_FIRMWARE(FW_FILE_ISP2300);
+MODULE_FIRMWARE(FW_FILE_ISP2322);
+MODULE_FIRMWARE(FW_FILE_ISP24XX);
