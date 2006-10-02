@@ -26,8 +26,6 @@
 
 #include <asm/uaccess.h>
 
-extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
-
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
 	return (!access_ok(VERIFY_READ, cts, sizeof(*cts)) ||

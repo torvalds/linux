@@ -13,6 +13,7 @@
 
 #include <asm/compat.h>
 #include <asm/siginfo.h>
+#include <asm/signal.h>
 
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)

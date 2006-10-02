@@ -56,8 +56,6 @@
 
 int compat_log = 1;
 
-extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
-
 int compat_printk(const char *fmt, ...)
 {
 	va_list ap;
