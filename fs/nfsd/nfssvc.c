@@ -238,6 +238,80 @@ static int nfsd_init_socks(int port)
 	return 0;
 }
 
+int nfsd_nrpools(void)
+{
+	if (nfsd_serv == NULL)
+		return 0;
+	else
+		return nfsd_serv->sv_nrpools;
+}
+
+int nfsd_get_nrthreads(int n, int *nthreads)
+{
+	int i = 0;
+
+	if (nfsd_serv != NULL) {
+		for (i = 0; i < nfsd_serv->sv_nrpools && i < n; i++)
+			nthreads[i] = nfsd_serv->sv_pools[i].sp_nrthreads;
+	}
+
+	return 0;
+}
+
+int nfsd_set_nrthreads(int n, int *nthreads)
+{
+	int i = 0;
+	int tot = 0;
+	int err = 0;
+
+	if (nfsd_serv == NULL || n <= 0)
+		return 0;
+
+	if (n > nfsd_serv->sv_nrpools)
+		n = nfsd_serv->sv_nrpools;
+
+	/* enforce a global maximum number of threads */
+	tot = 0;
+	for (i = 0; i < n; i++) {
+		if (nthreads[i] > NFSD_MAXSERVS)
+			nthreads[i] = NFSD_MAXSERVS;
+		tot += nthreads[i];
+	}
+	if (tot > NFSD_MAXSERVS) {
+		/* total too large: scale down requested numbers */
+		for (i = 0; i < n && tot > 0; i++) {
+		    	int new = nthreads[i] * NFSD_MAXSERVS / tot;
+			tot -= (nthreads[i] - new);
+			nthreads[i] = new;
+		}
+		for (i = 0; i < n && tot > 0; i++) {
+			nthreads[i]--;
+			tot--;
+		}
+	}
+
+	/*
+	 * There must always be a thread in pool 0; the admin
+	 * can't shut down NFS completely using pool_threads.
+	 */
+	if (nthreads[0] == 0)
+		nthreads[0] = 1;
+
+	/* apply the new numbers */
+	lock_kernel();
+	svc_get(nfsd_serv);
+	for (i = 0; i < n; i++) {
+		err = svc_set_num_threads(nfsd_serv, &nfsd_serv->sv_pools[i],
+				    	  nthreads[i]);
+		if (err)
+			break;
+	}
+	svc_destroy(nfsd_serv);
+	unlock_kernel();
+
+	return err;
+}
+
 int
 nfsd_svc(unsigned short port, int nrservs)
 {

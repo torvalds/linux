@@ -54,6 +54,7 @@ enum {
 	NFSD_List,
 	NFSD_Fh,
 	NFSD_Threads,
+	NFSD_Pool_Threads,
 	NFSD_Versions,
 	NFSD_Ports,
 	/*
@@ -78,6 +79,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size);
 static ssize_t write_getfs(struct file *file, char *buf, size_t size);
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_threads(struct file *file, char *buf, size_t size);
+static ssize_t write_pool_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_versions(struct file *file, char *buf, size_t size);
 static ssize_t write_ports(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
@@ -95,6 +97,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Getfs] = write_getfs,
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_Threads] = write_threads,
+	[NFSD_Pool_Threads] = write_pool_threads,
 	[NFSD_Versions] = write_versions,
 	[NFSD_Ports] = write_ports,
 #ifdef CONFIG_NFSD_V4
@@ -363,6 +366,72 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 	return strlen(buf);
 }
 
+extern int nfsd_nrpools(void);
+extern int nfsd_get_nrthreads(int n, int *);
+extern int nfsd_set_nrthreads(int n, int *);
+
+static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
+{
+	/* if size > 0, look for an array of number of threads per node
+	 * and apply them  then write out number of threads per node as reply
+	 */
+	char *mesg = buf;
+	int i;
+	int rv;
+	int len;
+    	int npools = nfsd_nrpools();
+	int *nthreads;
+
+	if (npools == 0) {
+		/*
+		 * NFS is shut down.  The admin can start it by
+		 * writing to the threads file but NOT the pool_threads
+		 * file, sorry.  Report zero threads.
+		 */
+		strcpy(buf, "0\n");
+		return strlen(buf);
+	}
+
+	nthreads = kcalloc(npools, sizeof(int), GFP_KERNEL);
+	if (nthreads == NULL)
+		return -ENOMEM;
+
+	if (size > 0) {
+		for (i = 0; i < npools; i++) {
+			rv = get_int(&mesg, &nthreads[i]);
+			if (rv == -ENOENT)
+				break;		/* fewer numbers than pools */
+			if (rv)
+				goto out_free;	/* syntax error */
+			rv = -EINVAL;
+			if (nthreads[i] < 0)
+				goto out_free;
+		}
+		rv = nfsd_set_nrthreads(i, nthreads);
+		if (rv)
+			goto out_free;
+	}
+
+	rv = nfsd_get_nrthreads(npools, nthreads);
+	if (rv)
+		goto out_free;
+
+	mesg = buf;
+	size = SIMPLE_TRANSACTION_LIMIT;
+	for (i = 0; i < npools && size > 0; i++) {
+		snprintf(mesg, size, "%d%c", nthreads[i], (i == npools-1 ? '\n' : ' '));
+		len = strlen(mesg);
+		size -= len;
+		mesg += len;
+	}
+
+	return (mesg-buf);
+
+out_free:
+	kfree(nthreads);
+	return rv;
+}
+
 static ssize_t write_versions(struct file *file, char *buf, size_t size)
 {
 	/*
@@ -544,6 +613,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
 		[NFSD_Fh] = {"filehandle", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Threads] = {"threads", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_Pool_Threads] = {"pool_threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
