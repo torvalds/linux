@@ -450,7 +450,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	} else if((pSMBr->hdr.WordCount == 13)
 			&& ((pSMBr->DialectIndex == LANMAN_PROT)
 				|| (pSMBr->DialectIndex == LANMAN2_PROT))) {
-		int tmp, adjust;
+		__s16 tmp;
 		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 
 		if((secFlags & CIFSSEC_MAY_LANMAN) || 
@@ -476,14 +476,16 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			server->maxRw = 0;/* we do not need to use raw anyway */
 			server->capabilities = CAP_MPX_MODE;
 		}
-		tmp = le16_to_cpu(rsp->ServerTimeZone);
-		if (tmp == (int)0xffff) {
+		tmp = (__s16)le16_to_cpu(rsp->ServerTimeZone);
+		if (tmp == 0xffff) {
 			/* OS/2 often does not set timezone therefore
 			 * we must use server time to calc time zone.
-			 * Could deviate slightly from the right zone. Not easy
-			 * to adjust, since timezones are not always a multiple
-			 * of 60 (sometimes 30 minutes - are there smaller?)
+			 * Could deviate slightly from the right zone.
+			 * Smallest defined timezone difference is 15 minutes
+			 * (i.e. Nepal).  Rounding up/down is done to match
+			 * this requirement.
 			 */
+			int val, seconds, remain, result;
 			struct timespec ts, utc;
 			utc = CURRENT_TIME;
 			ts = cnvrtDosUnixTm(le16_to_cpu(rsp->SrvTime.Date),
@@ -491,12 +493,18 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			cFYI(1,("SrvTime: %d sec since 1970 (utc: %d) diff: %d",
 				(int)ts.tv_sec, (int)utc.tv_sec, 
 				(int)(utc.tv_sec - ts.tv_sec)));
-			tmp = (int)(utc.tv_sec - ts.tv_sec);
-			adjust = tmp < 0 ? -29 : 29;
-			tmp = ((tmp + adjust) / 60) * 60;
-			server->timeAdj = tmp;
+			val = (int)(utc.tv_sec - ts.tv_sec);
+			seconds = val < 0 ? -val : val;
+			result = (seconds / IN_TZ_ADJ) * MIN_TZ_ADJ;
+			remain = seconds % MIN_TZ_ADJ;
+			if(remain >= (MIN_TZ_ADJ / 2))
+				result += MIN_TZ_ADJ;
+			if(val < 0)
+				result = - result;
+			server->timeAdj = result;
 		} else {
-			server->timeAdj = tmp * 60; /* also in seconds */
+			server->timeAdj = (int)tmp;
+			server->timeAdj *= 60; /* also in seconds */
 		}
 		cFYI(1,("server->timeAdj: %d seconds", server->timeAdj));
 
@@ -559,7 +567,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	cFYI(0, ("Max buf = %d", ses->server->maxBuf));
 	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
 	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
-	server->timeAdj = le16_to_cpu(pSMBr->ServerTimeZone) * 60;	
+	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
+	server->timeAdj *= 60;
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
 		memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
@@ -1645,7 +1654,7 @@ CIFSSMBClose(const int xid, struct cifsTconInfo *tcon, int smb_file_id)
 	pSMBr = (CLOSE_RSP *)pSMB; /* BB removeme BB */
 
 	pSMB->FileID = (__u16) smb_file_id;
-	pSMB->LastWriteTime = 0;
+	pSMB->LastWriteTime = 0xFFFFFFFF;
 	pSMB->ByteCount = 0;
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
