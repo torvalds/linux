@@ -384,3 +384,17 @@ config RCU_TORTURE_TEST
 	  at boot time (you probably don't).
 	  Say M if you want the RCU torture tests to build as a module.
 	  Say N if you are unsure.
+
+config LKDTM
+	tristate "Linux Kernel Dump Test Tool Module"
+	depends on KPROBES
+	default n
+	help
+	This module enables testing of the different dumping mechanisms by
+	inducing system failures at predefined crash points.
+	If you don't need it: say N
+	Choose M here to compile this code as a module. The module will be
+	called lkdtm.
+
+	Documentation on how to use the module can be found in
+	drivers/misc/lkdtm.c
