@@ -1549,16 +1549,7 @@ static struct file_operations proc_pid_attr_operations = {
 	.write		= proc_pid_attr_write,
 };
 
-static struct pid_entry tgid_attr_stuff[] = {
-	REG("current",    S_IRUGO|S_IWUGO, pid_attr),
-	REG("prev",       S_IRUGO,	   pid_attr),
-	REG("exec",       S_IRUGO|S_IWUGO, pid_attr),
-	REG("fscreate",   S_IRUGO|S_IWUGO, pid_attr),
-	REG("keycreate",  S_IRUGO|S_IWUGO, pid_attr),
-	REG("sockcreate", S_IRUGO|S_IWUGO, pid_attr),
-	{}
-};
-static struct pid_entry tid_attr_stuff[] = {
+static struct pid_entry attr_dir_stuff[] = {
 	REG("current",    S_IRUGO|S_IWUGO, pid_attr),
 	REG("prev",       S_IRUGO,	   pid_attr),
 	REG("exec",       S_IRUGO|S_IWUGO, pid_attr),
@@ -1568,53 +1559,30 @@ static struct pid_entry tid_attr_stuff[] = {
 	{}
 };
 
-static int proc_tgid_attr_readdir(struct file * filp,
+static int proc_attr_dir_readdir(struct file * filp,
 			     void * dirent, filldir_t filldir)
 {
 	return proc_pident_readdir(filp,dirent,filldir,
-				   tgid_attr_stuff,ARRAY_SIZE(tgid_attr_stuff));
+				   attr_dir_stuff,ARRAY_SIZE(attr_dir_stuff));
 }
 
-static int proc_tid_attr_readdir(struct file * filp,
-			     void * dirent, filldir_t filldir)
-{
-	return proc_pident_readdir(filp,dirent,filldir,
-				   tid_attr_stuff,ARRAY_SIZE(tid_attr_stuff));
-}
-
-static struct file_operations proc_tgid_attr_operations = {
+static struct file_operations proc_attr_dir_operations = {
 	.read		= generic_read_dir,
-	.readdir	= proc_tgid_attr_readdir,
+	.readdir	= proc_attr_dir_readdir,
 };
 
-static struct file_operations proc_tid_attr_operations = {
-	.read		= generic_read_dir,
-	.readdir	= proc_tid_attr_readdir,
-};
-
-static struct dentry *proc_tgid_attr_lookup(struct inode *dir,
+static struct dentry *proc_attr_dir_lookup(struct inode *dir,
 				struct dentry *dentry, struct nameidata *nd)
 {
-	return proc_pident_lookup(dir, dentry, tgid_attr_stuff);
+	return proc_pident_lookup(dir, dentry, attr_dir_stuff);
 }
 
-static struct dentry *proc_tid_attr_lookup(struct inode *dir,
-				struct dentry *dentry, struct nameidata *nd)
-{
-	return proc_pident_lookup(dir, dentry, tid_attr_stuff);
-}
-
-static struct inode_operations proc_tgid_attr_inode_operations = {
-	.lookup		= proc_tgid_attr_lookup,
+static struct inode_operations proc_attr_dir_inode_operations = {
+	.lookup		= proc_attr_dir_lookup,
 	.getattr	= pid_getattr,
 	.setattr	= proc_setattr,
 };
 
-static struct inode_operations proc_tid_attr_inode_operations = {
-	.lookup		= proc_tid_attr_lookup,
-	.getattr	= pid_getattr,
-	.setattr	= proc_setattr,
-};
 #endif
 
 /*
@@ -1791,7 +1759,7 @@ static struct pid_entry tgid_base_stuff[] = {
 	REG("smaps",      S_IRUGO, smaps),
 #endif
 #ifdef CONFIG_SECURITY
-	DIR("attr",       S_IRUGO|S_IXUGO, tgid_attr),
+	DIR("attr",       S_IRUGO|S_IXUGO, attr_dir),
 #endif
 #ifdef CONFIG_KALLSYMS
 	INF("wchan",      S_IRUGO, pid_wchan),
@@ -2066,7 +2034,7 @@ static struct pid_entry tid_base_stuff[] = {
 	REG("smaps",     S_IRUGO, smaps),
 #endif
 #ifdef CONFIG_SECURITY
-	DIR("attr",      S_IRUGO|S_IXUGO, tid_attr),
+	DIR("attr",      S_IRUGO|S_IXUGO, attr_dir),
 #endif
 #ifdef CONFIG_KALLSYMS
 	INF("wchan",     S_IRUGO, pid_wchan),
