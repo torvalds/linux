@@ -1316,7 +1316,18 @@ void dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir);
 void iecpy(u_char * dest, u_char * iestart, int ieoffset);
 #endif	/* __KERNEL__ */
 
-#define HZDELAY(jiffs) {int tout = jiffs; while (tout--) udelay(1000000/HZ);}
+/*
+ * Busywait delay for `jiffs' jiffies
+ */
+#define HZDELAY(jiffs) do {					\
+		int tout = jiffs;				\
+								\
+		while (tout--) {				\
+			int loops = USEC_PER_SEC / HZ;		\
+			while (loops--)				\
+				udelay(1);			\
+		}						\
+	} while (0)
 
 int ll_run(struct IsdnCardState *cs, int addfeatures);
 int CallcNew(void);
