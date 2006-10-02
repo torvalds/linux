@@ -460,7 +460,8 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error = -EOPNOTSUPP;
 	struct buffer_head *dibh;
-	struct gfs2_alloc *al = &ip->i_alloc;;
+	struct gfs2_alloc *al = &ip->i_alloc;
+	struct gfs2_dinode *di;
 
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)))
                 goto fail_nounlock;
@@ -470,6 +471,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		goto fail_endtrans;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	di = (struct gfs2_dinode *)dibh->b_data;
 
 	if (gfs2_is_stuffed(ip)) {
 		u64 file_size;
@@ -495,10 +497,16 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 			goto fail;
 	}
 
-	if (ip->i_di.di_size < inode->i_size)
+	if (ip->i_di.di_size < inode->i_size) {
 		ip->i_di.di_size = inode->i_size;
+		di->di_size = cpu_to_be64(inode->i_size);
+	}
 
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	di->di_mode = cpu_to_be32(inode->i_mode);
+	di->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
+	di->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
+	di->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);
+
 	brelse(dibh);
 	gfs2_trans_end(sdp);
 	if (al->al_requested) {

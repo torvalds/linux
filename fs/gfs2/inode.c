@@ -1166,6 +1166,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 		curtime = get_seconds();
 		if (curtime - ip->i_di.di_atime >= quantum) {
 			struct buffer_head *dibh;
+			struct gfs2_dinode *di;
 
 			error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 			if (error == -EROFS)
@@ -1180,7 +1181,8 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 			ip->i_di.di_atime = curtime;
 
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-			gfs2_dinode_out(&ip->i_di, dibh->b_data);
+			di = (struct gfs2_dinode *)dibh->b_data;
+			di->di_atime = cpu_to_be64(ip->i_di.di_atime);
 			brelse(dibh);
 
 			gfs2_trans_end(sdp);

@@ -121,6 +121,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 {
 	struct buffer_head *bh, *dibh;
+	struct gfs2_dinode *di;
 	u64 block = 0;
 	int isdir = gfs2_is_dir(ip);
 	int error;
@@ -141,8 +142,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 			error = gfs2_dir_get_new_buffer(ip, block, &bh);
 			if (error)
 				goto out_brelse;
-			gfs2_buffer_copy_tail(bh,
-					      sizeof(struct gfs2_meta_header),
+			gfs2_buffer_copy_tail(bh, sizeof(struct gfs2_meta_header),
 					      dibh, sizeof(struct gfs2_dinode));
 			brelse(bh);
 		} else {
@@ -157,18 +157,17 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 	/*  Set up the pointer to the new block  */
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-
+	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	if (ip->i_di.di_size) {
-		*(u64 *)(dibh->b_data + sizeof(struct gfs2_dinode)) =
-			cpu_to_be64(block);
+		*(__be64 *)(di + 1) = cpu_to_be64(block);
 		ip->i_di.di_blocks++;
+		di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	}
 
 	ip->i_di.di_height = 1;
-
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	di->di_height = cpu_to_be16(1);
 
 out_brelse:
 	brelse(dibh);
@@ -229,6 +228,7 @@ static int build_height(struct inode *inode, unsigned height)
 	unsigned new_height = height - ip->i_di.di_height;
 	struct buffer_head *dibh;
 	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
+	struct gfs2_dinode *di;
 	int error;
 	u64 *bp;
 	u64 bn;
@@ -267,12 +267,13 @@ static int build_height(struct inode *inode, unsigned height)
 			      dibh, sizeof(struct gfs2_dinode));
 	brelse(blocks[n]);
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
-	bp = (u64 *)(dibh->b_data + sizeof(struct gfs2_dinode));
-	*bp = cpu_to_be64(bn);
+	*(__be64 *)(di + 1) = cpu_to_be64(bn);
 	ip->i_di.di_height += new_height;
 	ip->i_di.di_blocks += new_height;
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	di->di_height = cpu_to_be16(ip->i_di.di_height);
+	di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	brelse(dibh);
 	return error;
 }
