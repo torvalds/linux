@@ -612,6 +612,7 @@ extern struct {
 /* which logical CPUs are on which nodes */
 cpumask_t node_2_cpu_mask[MAX_NUMNODES] __read_mostly =
 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
+EXPORT_SYMBOL(node_2_cpu_mask);
 /* which node each logical CPU is on */
 int cpu_2_node[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
 EXPORT_SYMBOL(cpu_2_node);
