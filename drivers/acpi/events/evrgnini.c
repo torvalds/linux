@@ -225,13 +225,12 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 				if (!
 				    (ACPI_STRNCMP
 				     (object_hID.value, PCI_ROOT_HID_STRING,
-				      sizeof(PCI_ROOT_HID_STRING))
-				     ||
-				     !(ACPI_STRNCMP
-				       (object_hID.value,
-					PCI_EXPRESS_ROOT_HID_STRING,
-					sizeof(PCI_EXPRESS_ROOT_HID_STRING)))))
-				{
+				      sizeof(PCI_ROOT_HID_STRING)))
+				    ||
+				    !(ACPI_STRNCMP
+				      (object_hID.value,
+				       PCI_EXPRESS_ROOT_HID_STRING,
+				       sizeof(PCI_EXPRESS_ROOT_HID_STRING)))) {
 
 					/* Install a handler for this PCI root bridge */
 
