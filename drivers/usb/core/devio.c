@@ -65,7 +65,7 @@ DEFINE_MUTEX(usbfs_mutex);
 struct async {
 	struct list_head asynclist;
 	struct dev_state *ps;
-	pid_t pid;
+	struct pid *pid;
 	uid_t uid, euid;
 	unsigned int signr;
 	unsigned int ifnum;
@@ -225,6 +225,7 @@ static struct async *alloc_async(unsigned int numisoframes)
 
 static void free_async(struct async *as)
 {
+	put_pid(as->pid);
 	kfree(as->urb->transfer_buffer);
 	kfree(as->urb->setup_packet);
 	usb_free_urb(as->urb);
@@ -317,7 +318,7 @@ static void async_completed(struct urb *urb, struct pt_regs *regs)
 		sinfo.si_errno = as->urb->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
-		kill_proc_info_as_uid(as->signr, &sinfo, as->pid, as->uid, 
+		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
 				      as->euid, as->secid);
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
@@ -573,7 +574,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&ps->async_completed);
 	init_waitqueue_head(&ps->wait);
 	ps->discsignr = 0;
-	ps->disc_pid = current->pid;
+	ps->disc_pid = get_pid(task_pid(current));
 	ps->disc_uid = current->uid;
 	ps->disc_euid = current->euid;
 	ps->disccontext = NULL;
@@ -611,6 +612,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	usb_autosuspend_device(dev, 1);
 	usb_unlock_device(dev);
 	usb_put_dev(dev);
+	put_pid(ps->disc_pid);
 	kfree(ps);
 	return 0;
 }
@@ -1063,7 +1065,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		as->userbuffer = NULL;
 	as->signr = uurb->signr;
 	as->ifnum = ifnum;
-	as->pid = current->pid;
+	as->pid = get_pid(task_pid(current));
 	as->uid = current->uid;
 	as->euid = current->euid;
 	security_task_getsecid(current, &as->secid);

@@ -1136,8 +1136,8 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 	return error;
 }
 
-/* like kill_proc_info(), but doesn't use uid/euid of "current" */
-int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
+/* like kill_pid_info(), but doesn't use uid/euid of "current" */
+int kill_pid_info_as_uid(int sig, struct siginfo *info, struct pid *pid,
 		      uid_t uid, uid_t euid, u32 secid)
 {
 	int ret = -EINVAL;
@@ -1147,7 +1147,7 @@ int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
 		return ret;
 
 	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
+	p = pid_task(pid, PIDTYPE_PID);
 	if (!p) {
 		ret = -ESRCH;
 		goto out_unlock;
@@ -1171,7 +1171,7 @@ out_unlock:
 	read_unlock(&tasklist_lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kill_proc_info_as_uid);
+EXPORT_SYMBOL_GPL(kill_pid_info_as_uid);
 
 /*
  * kill_something_info() interprets pid in interesting ways just like kill(2).
