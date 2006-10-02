@@ -1606,7 +1606,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
 	struct sem_undo_list *new_ulist = NULL;
-	struct nsproxy *new_nsproxy, *old_nsproxy;
+	struct nsproxy *new_nsproxy = NULL, *old_nsproxy = NULL;
 	struct uts_namespace *uts, *new_uts = NULL;
 
 	check_unshare_flags(&unshare_flags);
@@ -1634,18 +1634,24 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	if ((err = unshare_utsname(unshare_flags, &new_uts)))
 		goto bad_unshare_cleanup_semundo;
 
-	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist ||
-				new_uts) {
-
+	if (new_ns || new_uts) {
 		old_nsproxy = current->nsproxy;
 		new_nsproxy = dup_namespaces(old_nsproxy);
 		if (!new_nsproxy) {
 			err = -ENOMEM;
 			goto bad_unshare_cleanup_uts;
 		}
+	}
+
+	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist ||
+				new_uts) {
 
 		task_lock(current);
-		current->nsproxy = new_nsproxy;
+
+		if (new_nsproxy) {
+			current->nsproxy = new_nsproxy;
+			new_nsproxy = old_nsproxy;
+		}
 
 		if (new_fs) {
 			fs = current->fs;
@@ -1687,8 +1693,10 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 
 		task_unlock(current);
-		put_nsproxy(old_nsproxy);
 	}
+
+	if (new_nsproxy)
+		put_nsproxy(new_nsproxy);
 
 bad_unshare_cleanup_uts:
 	if (new_uts)
