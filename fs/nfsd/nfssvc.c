@@ -117,6 +117,32 @@ struct svc_program		nfsd_program = {
 
 };
 
+int nfsd_vers(int vers, enum vers_op change)
+{
+	if (vers < NFSD_MINVERS || vers >= NFSD_NRVERS)
+		return -1;
+	switch(change) {
+	case NFSD_SET:
+		nfsd_versions[vers] = nfsd_version[vers];
+		break;
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		if (vers < NFSD_ACL_NRVERS)
+			nfsd_acl_version[vers] = nfsd_acl_version[vers];
+#endif
+	case NFSD_CLEAR:
+		nfsd_versions[vers] = NULL;
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		if (vers < NFSD_ACL_NRVERS)
+			nfsd_acl_version[vers] = NULL;
+#endif
+		break;
+	case NFSD_TEST:
+		return nfsd_versions[vers] != NULL;
+	case NFSD_AVAIL:
+		return nfsd_version[vers] != NULL;
+	}
+	return 0;
+}
 /*
  * Maximum number of nfsd processes
  */
@@ -147,16 +173,36 @@ static void nfsd_last_thread(struct svc_serv *serv)
 		nfsd_export_flush();
 	}
 }
+
+void nfsd_reset_versions(void)
+{
+	int found_one = 0;
+	int i;
+
+	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
+		if (nfsd_program.pg_vers[i])
+			found_one = 1;
+	}
+
+	if (!found_one) {
+		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
+			nfsd_program.pg_vers[i] = nfsd_version[i];
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
+			nfsd_acl_program.pg_vers[i] =
+				nfsd_acl_version[i];
+#endif
+	}
+}
+
 int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
-	int	found_one, i;
 	struct list_head *victim;
 	
 	lock_kernel();
-	dprintk("nfsd: creating service: vers 0x%x\n",
-		nfsd_versbits);
+	dprintk("nfsd: creating service\n");
 	error = -EINVAL;
 	if (nrservs <= 0)
 		nrservs = 0;
@@ -171,46 +217,7 @@ nfsd_svc(unsigned short port, int nrservs)
 	if (error<0)
 		goto out;
 	if (!nfsd_serv) {
-		/*
-		 * Use the nfsd_ctlbits to define which
-		 * versions that will be advertised.
-		 * If nfsd_ctlbits doesn't list any version,
-		 * export them all.
-		 */
-		found_one = 0;
-
-		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
-			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
-				nfsd_program.pg_vers[i] = nfsd_version[i];
-				found_one = 1;
-			} else
-				nfsd_program.pg_vers[i] = NULL;
-		}
-
-		if (!found_one) {
-			for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
-				nfsd_program.pg_vers[i] = nfsd_version[i];
-		}
-
-
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-		found_one = 0;
-
-		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++) {
-			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
-				nfsd_acl_program.pg_vers[i] =
-					nfsd_acl_version[i];
-				found_one = 1;
-			} else
-				nfsd_acl_program.pg_vers[i] = NULL;
-		}
-
-		if (!found_one) {
-			for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
-				nfsd_acl_program.pg_vers[i] =
-					nfsd_acl_version[i];
-		}
-#endif
+		nfsd_reset_versions();
 
 		atomic_set(&nfsd_busy, 0);
 		error = -ENOMEM;

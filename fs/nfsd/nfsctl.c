@@ -35,8 +35,6 @@
 
 #include <asm/uaccess.h>
 
-unsigned int nfsd_versbits = ~0;
-
 /*
  *	We have a single directory with 9 nodes in it.
  */
@@ -372,6 +370,10 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 
 	if (size>0) {
 		if (nfsd_serv)
+			/* Cannot change versions without updating
+			 * nfsd_serv->sv_xdrsize, and reallocing
+			 * rq_argp and rq_resp
+			 */
 			return -EBUSY;
 		if (buf[size-1] != '\n')
 			return -EINVAL;
@@ -390,10 +392,7 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 			case 2:
 			case 3:
 			case 4:
-				if (sign != '-')
-					NFSCTL_VERSET(nfsd_versbits, num);
-				else
-					NFSCTL_VERUNSET(nfsd_versbits, num);
+				nfsd_vers(num, sign == '-' ? NFSD_CLEAR : NFSD_SET);
 				break;
 			default:
 				return -EINVAL;
@@ -404,16 +403,15 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 		/* If all get turned off, turn them back on, as
 		 * having no versions is BAD
 		 */
-		if ((nfsd_versbits & NFSCTL_VERALL)==0)
-			nfsd_versbits = NFSCTL_VERALL;
+		nfsd_reset_versions();
 	}
 	/* Now write current state into reply buffer */
 	len = 0;
 	sep = "";
 	for (num=2 ; num <= 4 ; num++)
-		if (NFSCTL_VERISSET(NFSCTL_VERALL, num)) {
+		if (nfsd_vers(num, NFSD_AVAIL)) {
 			len += sprintf(buf+len, "%s%c%d", sep,
-				       NFSCTL_VERISSET(nfsd_versbits, num)?'+':'-',
+				       nfsd_vers(num, NFSD_TEST)?'+':'-',
 				       num);
 			sep = " ";
 		}

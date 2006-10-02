@@ -140,6 +140,10 @@ struct posix_acl *nfsd_get_posix_acl(struct svc_fh *, int);
 int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
 #endif
 
+enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
+int nfsd_vers(int vers, enum vers_op change);
+void nfsd_reset_versions(void);
+
 
 /* 
  * NFSv4 State
