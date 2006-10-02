@@ -4,16 +4,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -57,7 +57,7 @@
  *
  *   0            4                   4 + EA_SIZE(ea1)
  *   +------------+-------------------+--------------------+-----
- *   | Overall EA | First FEA Element | Second FEA Element | ..... 
+ *   | Overall EA | First FEA Element | Second FEA Element | .....
  *   | List Size  |                   |                    |
  *   +------------+-------------------+--------------------+-----
  *
@@ -155,9 +155,9 @@ static void ea_release(struct inode *inode, struct ea_buffer *ea_buf);
 
 /*
  * NAME: ea_write_inline
- *                                                                    
+ *
  * FUNCTION: Attempt to write an EA inline if area is available
- *                                                                    
+ *
  * PRE CONDITIONS:
  *	Already verified that the specified EA is small enough to fit inline
  *
@@ -216,10 +216,10 @@ static int ea_write_inline(struct inode *ip, struct jfs_ea_list *ealist,
 
 /*
  * NAME: ea_write
- *                                                                    
+ *
  * FUNCTION: Write an EA for an inode
- *                                                                    
- * PRE CONDITIONS: EA has been verified 
+ *
+ * PRE CONDITIONS: EA has been verified
  *
  * PARAMETERS:
  *	ip	- Inode pointer
@@ -340,9 +340,9 @@ static int ea_write(struct inode *ip, struct jfs_ea_list *ealist, int size,
 
 /*
  * NAME: ea_read_inline
- *                                                                    
+ *
  * FUNCTION: Read an inlined EA into user's buffer
- *                                                                    
+ *
  * PARAMETERS:
  *	ip	- Inode pointer
  *	ealist	- Pointer to buffer to fill in with EA
@@ -372,9 +372,9 @@ static int ea_read_inline(struct inode *ip, struct jfs_ea_list *ealist)
 
 /*
  * NAME: ea_read
- *                                                                    
+ *
  * FUNCTION: copy EA data into user's buffer
- *                                                                    
+ *
  * PARAMETERS:
  *	ip	- Inode pointer
  *	ealist	- Pointer to buffer to fill in with EA
@@ -406,7 +406,7 @@ static int ea_read(struct inode *ip, struct jfs_ea_list *ealist)
 		return -EIO;
 	}
 
-	/* 
+	/*
 	 * Figure out how many blocks were allocated when this EA list was
 	 * originally written to disk.
 	 */
@@ -443,14 +443,14 @@ static int ea_read(struct inode *ip, struct jfs_ea_list *ealist)
 
 /*
  * NAME: ea_get
- *                                                                    
+ *
  * FUNCTION: Returns buffer containing existing extended attributes.
  *	     The size of the buffer will be the larger of the existing
  *	     attributes size, or min_size.
  *
  *	     The buffer, which may be inlined in the inode or in the
- * 	     page cache must be release by calling ea_release or ea_put
- *                                                                    
+ *	     page cache must be release by calling ea_release or ea_put
+ *
  * PARAMETERS:
  *	inode	- Inode pointer
  *	ea_buf	- Structure to be populated with ealist and its metadata
@@ -1054,7 +1054,7 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 
 	/* compute required size of list */
 	for (ea = FIRST_EA(ealist); ea < END_EALIST(ealist); ea = NEXT_EA(ea)) {
-	    	if (can_list(ea))
+		if (can_list(ea))
 			size += name_size(ea) + 1;
 	}
 
@@ -1069,7 +1069,7 @@ ssize_t jfs_listxattr(struct dentry * dentry, char *data, size_t buf_size)
 	/* Copy attribute names to buffer */
 	buffer = data;
 	for (ea = FIRST_EA(ealist); ea < END_EALIST(ealist); ea = NEXT_EA(ea)) {
-	    	if (can_list(ea)) {
+		if (can_list(ea)) {
 			int namelen = copy_name(buffer, ea);
 			buffer += namelen + 1;
 		}

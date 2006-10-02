@@ -3,16 +3,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _H_JFS_TXNMGR
@@ -179,7 +179,7 @@ struct linelock {
 	/* (8) */
 
 	struct lv lv[20];	/* 40: */
-}; 				/* (48) */
+};				/* (48) */
 
 #define dt_lock	linelock
 
@@ -211,8 +211,8 @@ struct xtlock {
  * at tlock.lock/linelock: watch for alignment;
  * N.B. next field may be set by linelock, and should not
  * be modified by maplock;
- * N.B. index of the first pxdlock specifies index of next 
- * free maplock (i.e., number of maplock) in the tlock; 
+ * N.B. index of the first pxdlock specifies index of next
+ * free maplock (i.e., number of maplock) in the tlock;
  */
 struct maplock {
 	lid_t next;		/* 2: */
