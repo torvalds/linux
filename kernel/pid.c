@@ -170,6 +170,7 @@ fastcall void put_pid(struct pid *pid)
 	     atomic_dec_and_test(&pid->count))
 		kmem_cache_free(pid_cachep, pid);
 }
+EXPORT_SYMBOL_GPL(put_pid);
 
 static void delayed_put_pid(struct rcu_head *rhp)
 {
@@ -234,6 +235,7 @@ struct pid * fastcall find_pid(int nr)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(find_pid);
 
 int fastcall attach_pid(struct task_struct *task, enum pid_type type, int nr)
 {
@@ -337,6 +339,7 @@ struct pid *find_ge_pid(int nr)
 
 	return pid;
 }
+EXPORT_SYMBOL_GPL(find_get_pid);
 
 /*
  * The pid hash table is scaled according to the amount of memory in the
