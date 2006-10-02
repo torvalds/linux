@@ -958,7 +958,7 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	/*
 	 * grab the reference to task.
 	 */
-	ei->pid = get_pid(task->pids[PIDTYPE_PID].pid);
+	ei->pid = get_pid(task_pid(task));
 	if (!ei->pid)
 		goto out_unlock;
 
