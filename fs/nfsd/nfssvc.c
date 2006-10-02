@@ -195,6 +195,52 @@ void nfsd_reset_versions(void)
 	}
 }
 
+static int nfsd_create_serv(void)
+{
+	int err = 0;
+	lock_kernel();
+	if (nfsd_serv) {
+		nfsd_serv->sv_nrthreads++;
+		unlock_kernel();
+		return 0;
+	}
+
+	atomic_set(&nfsd_busy, 0);
+	nfsd_serv = svc_create(&nfsd_program, NFSD_BUFSIZE,
+			       nfsd_last_thread);
+	if (nfsd_serv == NULL)
+		err = -ENOMEM;
+	else
+		nfsd_serv->sv_nrthreads++;
+	unlock_kernel();
+	do_gettimeofday(&nfssvc_boot);		/* record boot time */
+	return err;
+}
+
+static int nfsd_init_socks(int port)
+{
+	int error;
+	if (!list_empty(&nfsd_serv->sv_permsocks))
+		return 0;
+
+	error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
+	if (error < 0)
+		return error;
+	error = lockd_up(IPPROTO_UDP);
+	if (error < 0)
+		return error;
+
+#ifdef CONFIG_NFSD_TCP
+	error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
+	if (error < 0)
+		return error;
+	error = lockd_up(IPPROTO_TCP);
+	if (error < 0)
+		return error;
+#endif
+	return 0;
+}
+
 int
 nfsd_svc(unsigned short port, int nrservs)
 {
@@ -216,32 +262,17 @@ nfsd_svc(unsigned short port, int nrservs)
 	error = nfs4_state_start();
 	if (error<0)
 		goto out;
-	if (!nfsd_serv) {
-		nfsd_reset_versions();
 
-		atomic_set(&nfsd_busy, 0);
-		error = -ENOMEM;
-		nfsd_serv = svc_create(&nfsd_program, NFSD_BUFSIZE,
-				       nfsd_last_thread);
-		if (nfsd_serv == NULL)
-			goto out;
-		error = svc_makesock(nfsd_serv, IPPROTO_UDP, port);
-		if (error < 0)
-			goto failure;
-		error = lockd_up(IPPROTO_UDP);
-		if (error < 0)
-			goto failure;
-#ifdef CONFIG_NFSD_TCP
-		error = svc_makesock(nfsd_serv, IPPROTO_TCP, port);
-		if (error < 0)
-			goto failure;
-		error = lockd_up(IPPROTO_TCP);
-		if (error < 0)
-			goto failure;
-#endif
-		do_gettimeofday(&nfssvc_boot);		/* record boot time */
-	} else
-		nfsd_serv->sv_nrthreads++;
+	nfsd_reset_versions();
+
+	error = nfsd_create_serv();
+
+	if (error)
+		goto out;
+	error = nfsd_init_socks(port);
+	if (error)
+		goto failure;
+
 	nrservs -= (nfsd_serv->sv_nrthreads-1);
 	while (nrservs > 0) {
 		nrservs--;
