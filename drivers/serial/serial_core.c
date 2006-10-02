@@ -2111,7 +2111,7 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 	}
 }
 
-static struct tty_operations uart_ops = {
+static const struct tty_operations uart_ops = {
 	.open		= uart_open,
 	.close		= uart_close,
 	.write		= uart_write,

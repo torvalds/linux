@@ -1306,7 +1306,7 @@ static int hvcs_chars_in_buffer(struct tty_struct *tty)
 	return hvcsd->chars_in_buffer;
 }
 
-static struct tty_operations hvcs_ops = {
+static const struct tty_operations hvcs_ops = {
 	.open = hvcs_open,
 	.close = hvcs_close,
 	.hangup = hvcs_hangup,

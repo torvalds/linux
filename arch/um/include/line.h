@@ -91,10 +91,9 @@ extern int line_setup_irq(int fd, int input, int output, struct line *line,
 			  void *data);
 extern void line_close_chan(struct line *line);
 extern struct tty_driver * line_register_devfs(struct lines *set,
-				struct line_driver *line_driver,
-				struct tty_operations *driver,
-				struct line *lines,
-				int nlines);
+					       struct line_driver *line_driver,
+					       const struct tty_operations *driver,
+					       struct line *lines, int nlines);
 extern void lines_init(struct line *lines, int nlines, struct chan_opts *opts);
 extern void close_lines(struct line *lines, int nlines);
 

@@ -1860,7 +1860,7 @@ modem_write_profile(atemu * m)
 		send_sig(SIGIO, dev->profd, 1);
 }
 
-static struct tty_operations modem_ops = {
+static const struct tty_operations modem_ops = {
         .open = isdn_tty_open,
 	.close = isdn_tty_close,
 	.write = isdn_tty_write,

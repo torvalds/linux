@@ -1737,7 +1737,7 @@ tty3270_ioctl(struct tty_struct *tty, struct file *file,
 	return kbd_ioctl(tp->kbd, file, cmd, arg);
 }
 
-static struct tty_operations tty3270_ops = {
+static const struct tty_operations tty3270_ops = {
 	.open = tty3270_open,
 	.close = tty3270_close,
 	.write = tty3270_write,

@@ -458,7 +458,7 @@ cleanup_module(void)
 }
 #endif /* MODULE */
 
-static struct tty_operations ip2_ops = {
+static const struct tty_operations ip2_ops = {
 	.open            = ip2_open,
 	.close           = ip2_close,
 	.write           = ip2_write,

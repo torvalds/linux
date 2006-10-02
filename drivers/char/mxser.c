@@ -453,7 +453,7 @@ static int CheckIsMoxaMust(int io)
 
 /* above is modified by Victor Yu. 08-15-2002 */
 
-static struct tty_operations mxser_ops = {
+static const struct tty_operations mxser_ops = {
 	.open = mxser_open,
 	.close = mxser_close,
 	.write = mxser_write,

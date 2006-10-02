@@ -1583,7 +1583,7 @@ static void do_softint(void *private_)
 	}
 }
 
-static struct tty_operations riscom_ops = {
+static const struct tty_operations riscom_ops = {
 	.open  = rc_open,
 	.close = rc_close,
 	.write = rc_write,

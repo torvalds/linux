@@ -1015,7 +1015,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	dev_info(dev, "device disconnected\n");
 }
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open =			serial_open,
 	.close =		serial_close,
 	.write =		serial_write,

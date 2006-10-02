@@ -2334,7 +2334,7 @@ static int __init init_ISA(int i)
 	return (1);
 }
 
-static struct tty_operations rocket_ops = {
+static const struct tty_operations rocket_ops = {
 	.open = rp_open,
 	.close = rp_close,
 	.write = rp_write,

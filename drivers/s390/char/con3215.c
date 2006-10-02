@@ -1103,7 +1103,7 @@ tty3215_start(struct tty_struct *tty)
 	}
 }
 
-static struct tty_operations tty3215_ops = {
+static const struct tty_operations tty3215_ops = {
 	.open = tty3215_open,
 	.close = tty3215_close,
 	.write = tty3215_write,

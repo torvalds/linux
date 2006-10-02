@@ -2993,7 +2993,7 @@ static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, uns
 	return(rc);
 }
 
-static struct tty_operations stl_ops = {
+static const struct tty_operations stl_ops = {
 	.open = stl_open,
 	.close = stl_close,
 	.write = stl_write,

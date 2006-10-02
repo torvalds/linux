@@ -79,7 +79,7 @@ static struct tty_driver *driver;
 
 hashbin_t *ircomm_tty = NULL;
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open            = ircomm_tty_open,
 	.close           = ircomm_tty_close,
 	.write           = ircomm_tty_write,

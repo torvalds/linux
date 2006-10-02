@@ -1120,7 +1120,7 @@ static struct usb_driver acm_driver = {
  * TTY driver structures.
  */
 
-static struct tty_operations acm_ops = {
+static const struct tty_operations acm_ops = {
 	.open =			acm_tty_open,
 	.close =		acm_tty_close,
 	.write =		acm_tty_write,

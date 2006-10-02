@@ -5205,7 +5205,7 @@ done:
     extra ports are ignored.
  */
 
-static struct tty_operations cy_ops = {
+static const struct tty_operations cy_ops = {
     .open = cy_open,
     .close = cy_close,
     .write = cy_write,

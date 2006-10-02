@@ -3680,7 +3680,8 @@ void put_tty_driver(struct tty_driver *driver)
 	kfree(driver);
 }
 
-void tty_set_operations(struct tty_driver *driver, struct tty_operations *op)
+void tty_set_operations(struct tty_driver *driver,
+			const struct tty_operations *op)
 {
 	driver->open = op->open;
 	driver->close = op->close;

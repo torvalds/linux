@@ -104,7 +104,7 @@ int memcons_tty_chars_in_buffer (struct tty_struct *tty)
 	return 0;
 }
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open = memcons_tty_open,
 	.write = memcons_tty_write,
 	.write_room = memcons_tty_write_room,

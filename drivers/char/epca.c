@@ -1125,7 +1125,7 @@ static void __exit epca_module_exit(void)
 
 module_exit(epca_module_exit);
 
-static struct tty_operations pc_ops = {
+static const struct tty_operations pc_ops = {
 	.open = pc_open,
 	.close = pc_close,
 	.write = pc_write,

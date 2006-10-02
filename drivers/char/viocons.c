@@ -1047,7 +1047,7 @@ static int send_open(HvLpIndex remoteLp, void *sem)
 			0, 0, 0, 0);
 }
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = viotty_open,
 	.close = viotty_close,
 	.write = viotty_write,

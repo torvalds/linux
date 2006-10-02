@@ -727,7 +727,7 @@ static struct vpd_prom *get_VPD_PROM(struct Host *hp)
 	return &vpdp;
 }
 
-static struct tty_operations rio_ops = {
+static const struct tty_operations rio_ops = {
 	.open = riotopen,
 	.close = gs_close,
 	.write = gs_write,

@@ -1666,7 +1666,7 @@ static void show_serial_version(void)
 	printk(mcfrs_drivername);
 }
 
-static struct tty_operations mcfrs_ops = {
+static const struct tty_operations mcfrs_ops = {
 	.open = mcfrs_open,
 	.close = mcfrs_close,
 	.write = mcfrs_write,

@@ -2376,7 +2376,7 @@ static inline int autoconfig(struct esp_struct * info)
 	return (port_detected);
 }
 
-static struct tty_operations esp_ops = {
+static const struct tty_operations esp_ops = {
 	.open = esp_open,
 	.close = rs_close,
 	.write = rs_write,

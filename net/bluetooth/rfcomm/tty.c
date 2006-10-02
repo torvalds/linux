@@ -1011,7 +1011,7 @@ static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsign
 
 /* ---- TTY structure ---- */
 
-static struct tty_operations rfcomm_ops = {
+static const struct tty_operations rfcomm_ops = {
 	.open			= rfcomm_tty_open,
 	.close			= rfcomm_tty_close,
 	.write			= rfcomm_tty_write,

@@ -281,7 +281,7 @@ static int moxa_get_serial_info(struct moxa_str *, struct serial_struct __user *
 static int moxa_set_serial_info(struct moxa_str *, struct serial_struct __user *);
 static void MoxaSetFifo(int port, int enable);
 
-static struct tty_operations moxa_ops = {
+static const struct tty_operations moxa_ops = {
 	.open = moxa_open,
 	.close = moxa_close,
 	.write = moxa_write,

@@ -271,7 +271,7 @@ static unsigned int use_acm = GS_DEFAULT_USE_ACM;
 
 
 /* tty driver struct */
-static struct tty_operations gs_tty_ops = {
+static const struct tty_operations gs_tty_ops = {
 	.open =			gs_open,
 	.close =		gs_close,
 	.write =		gs_write,

@@ -113,7 +113,7 @@ static struct real_driver scc_real_driver = {
 };
 
 
-static struct tty_operations scc_ops = {
+static const struct tty_operations scc_ops = {
 	.open	= scc_open,
 	.close = gs_close,
 	.write = gs_write,

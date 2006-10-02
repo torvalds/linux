@@ -940,7 +940,7 @@ static inline void show_serial_version(void)
 	printk(KERN_INFO " no serial options enabled\n");
 }
 
-static struct tty_operations hp_ops = {
+static const struct tty_operations hp_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

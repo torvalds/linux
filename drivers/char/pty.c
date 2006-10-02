@@ -224,7 +224,7 @@ static void pty_set_termios(struct tty_struct *tty, struct termios *old_termios)
         tty->termios->c_cflag |= (CS8 | CREAD);
 }
 
-static struct tty_operations pty_ops = {
+static const struct tty_operations pty_ops = {
 	.open = pty_open,
 	.close = pty_close,
 	.write = pty_write,

@@ -3441,7 +3441,7 @@ static void __devexit remove_one(struct pci_dev *dev)
 {
 }
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open = open,
 	.close = close,
 	.write = write,

@@ -1298,7 +1298,7 @@ static int capinc_tty_read_proc(char *page, char **start, off_t off,
 
 static struct tty_driver *capinc_tty_driver;
 
-static struct tty_operations capinc_ops = {
+static const struct tty_operations capinc_ops = {
 	.open = capinc_tty_open,
 	.close = capinc_tty_close,
 	.write = capinc_tty_write,

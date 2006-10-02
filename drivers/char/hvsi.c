@@ -1130,7 +1130,7 @@ static int hvsi_tiocmset(struct tty_struct *tty, struct file *file,
 }
 
 
-static struct tty_operations hvsi_ops = {
+static const struct tty_operations hvsi_ops = {
 	.open = hvsi_open,
 	.close = hvsi_close,
 	.write = hvsi_write,

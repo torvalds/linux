@@ -1378,7 +1378,7 @@ void startup_console(void)
 #endif /* CONFIG_PM_LEGACY */
 
 
-static struct tty_operations rs_ops = {
+static const struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

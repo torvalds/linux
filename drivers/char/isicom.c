@@ -1550,7 +1550,7 @@ static void isicom_unregister_ioregion(struct pci_dev *pdev)
 	board->base = 0;
 }
 
-static struct tty_operations isicom_ops = {
+static const struct tty_operations isicom_ops = {
 	.open			= isicom_open,
 	.close			= isicom_close,
 	.write			= isicom_write,

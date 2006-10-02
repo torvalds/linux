@@ -711,7 +711,7 @@ static struct sclp_register sclp_input_event =
 	.receiver_fn = sclp_tty_receiver
 };
 
-static struct tty_operations sclp_ops = {
+static const struct tty_operations sclp_ops = {
 	.open = sclp_tty_open,
 	.close = sclp_tty_close,
 	.write = sclp_tty_write,

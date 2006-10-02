@@ -2363,7 +2363,7 @@ static void do_softint(void *private_)
 	func_exit();
 }
 
-static struct tty_operations sx_ops = {
+static const struct tty_operations sx_ops = {
 	.open  = sx_open,
 	.close = sx_close,
 	.write = sx_write,

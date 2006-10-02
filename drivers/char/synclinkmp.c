@@ -3929,7 +3929,7 @@ void device_init(int adapter_num, struct pci_dev *pdev)
 	}
 }
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open = open,
 	.close = close,
 	.write = write,

@@ -4825,7 +4825,7 @@ show_serial_version(void)
 
 /* rs_init inits the driver at boot (using the module_init chain) */
 
-static struct tty_operations rs_ops = {
+static const struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

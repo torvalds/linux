@@ -1958,7 +1958,7 @@ static void show_serial_version(void)
 }
 
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

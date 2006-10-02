@@ -1701,7 +1701,7 @@ static void __init probe_sccs(void)
 	spin_unlock_irqrestore(&zs_lock, flags);
 }
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

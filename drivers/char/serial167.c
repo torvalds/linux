@@ -2158,7 +2158,7 @@ mvme167_serial_console_setup(int cflag)
 					rcor >> 5, rbpr);
 } /* serial_console_init */
 
-static struct tty_operations cy_ops = {
+static const struct tty_operations cy_ops = {
 	.open = cy_open,
 	.close = cy_close,
 	.write = cy_write,

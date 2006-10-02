@@ -2424,7 +2424,7 @@ long console_360_init(long kmem_start, long kmem_end)
 */
 static	int	baud_idx;
 
-static struct tty_operations rs_360_ops = {
+static const struct tty_operations rs_360_ops = {
 	.owner = THIS_MODULE,
 	.open = rs_360_open,
 	.close = rs_360_close,

@@ -2226,7 +2226,7 @@ static int probe_si (struct sx_board *board)
 	return 1;
 }
 
-static struct tty_operations sx_ops = {
+static const struct tty_operations sx_ops = {
 	.break_ctl = sx_break,
 	.open	= sx_open,
 	.close = gs_close,

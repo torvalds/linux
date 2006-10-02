@@ -661,7 +661,7 @@ static void a2232_init_portstructs(void)
 	}
 }
 
-static struct tty_operations a2232_ops = {
+static const struct tty_operations a2232_ops = {
 	.open = a2232_open,
 	.close = gs_close,
 	.write = gs_write,

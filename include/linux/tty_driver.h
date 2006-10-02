@@ -219,7 +219,8 @@ extern struct list_head tty_drivers;
 
 struct tty_driver *alloc_tty_driver(int lines);
 void put_tty_driver(struct tty_driver *driver);
-void tty_set_operations(struct tty_driver *driver, struct tty_operations *op);
+void tty_set_operations(struct tty_driver *driver,
+			const struct tty_operations *op);
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402

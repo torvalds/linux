@@ -2187,7 +2187,7 @@ static void do_softint(void *private_)
 #endif
 }
 
-static struct tty_operations aurora_ops = {
+static const struct tty_operations aurora_ops = {
 	.open  = aurora_open,
 	.close = aurora_close,
 	.write = aurora_write,

@@ -2675,7 +2675,7 @@ static int __init con_init(void)
 }
 console_initcall(con_init);
 
-static struct tty_operations con_ops = {
+static const struct tty_operations con_ops = {
 	.open = con_open,
 	.close = con_close,
 	.write = con_write,

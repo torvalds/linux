@@ -134,7 +134,7 @@ static int  if_tiocmset(struct tty_struct *tty, struct file *file,
 static int  if_write(struct tty_struct *tty,
 		     const unsigned char *buf, int count);
 
-static struct tty_operations if_ops = {
+static const struct tty_operations if_ops = {
 	.open =			if_open,
 	.close =		if_close,
 	.ioctl =		if_ioctl,

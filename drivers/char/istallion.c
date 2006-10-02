@@ -4636,7 +4636,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 	return rc;
 }
 
-static struct tty_operations stli_ops = {
+static const struct tty_operations stli_ops = {
 	.open = stli_open,
 	.close = stli_close,
 	.write = stli_write,

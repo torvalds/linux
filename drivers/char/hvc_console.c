@@ -696,7 +696,7 @@ int khvcd(void *unused)
 	return 0;
 }
 
-static struct tty_operations hvc_ops = {
+static const struct tty_operations hvc_ops = {
 	.open = hvc_open,
 	.close = hvc_close,
 	.write = hvc_write,

@@ -1720,7 +1720,7 @@ static int siccuart_open(struct tty_struct *tty, struct file *filp)
     return 0;
 }
 
-static struct tty_operations sicc_ops = {
+static const struct tty_operations sicc_ops = {
 	.open = siccuart_open,
 	.close = siccuart_close,
 	.write = siccuart_write,

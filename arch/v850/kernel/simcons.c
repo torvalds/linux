@@ -77,7 +77,7 @@ int simcons_tty_chars_in_buffer (struct tty_struct *tty)
 	return 0;
 }
 
-static struct tty_operations ops = {
+static const struct tty_operations ops = {
 	.open = simcons_tty_open,
 	.write = simcons_tty_write,
 	.write_room = simcons_tty_write_room,

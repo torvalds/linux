@@ -191,7 +191,7 @@ static int rs_read_proc(char *page, char **start, off_t off, int count,
 }
 
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,
