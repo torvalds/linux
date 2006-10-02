@@ -47,16 +47,23 @@ typedef unsigned int kprobe_opcode_t;
 /*
  * 64bit powerpc uses function descriptors.
  * Handle cases where:
- * 		- User passes a <.symbol>
- * 		- User passes a <symbol>
+ * 		- User passes a <.symbol> or <module:.symbol>
+ * 		- User passes a <symbol> or <module:symbol>
  * 		- User passes a non-existant symbol, kallsyms_lookup_name
  * 		  returns 0. Don't deref the NULL pointer in that case
  */
 #define kprobe_lookup_name(name, addr)					\
 {									\
 	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);		\
-	if (!(name[0] == '.') && addr)					\
-		addr = *(kprobe_opcode_t **)addr;			\
+	if (addr) {							\
+		char *colon;						\
+		if ((colon = strchr(name, ':')) != NULL) {		\
+			colon++;					\
+			if (*colon != '\0' && *colon != '.')		\
+				addr = *(kprobe_opcode_t **)addr;	\
+		} else if (name[0] != '.')				\
+			addr = *(kprobe_opcode_t **)addr;		\
+	}								\
 }
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)((func_descr_t *)pentry)
