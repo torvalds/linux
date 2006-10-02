@@ -6274,7 +6274,9 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	IPW_DEBUG_INFO("%s: Bound to %s\n", dev->name, pci_name(pci_dev));
 
 	/* perform this after register_netdev so that dev->name is set */
-	sysfs_create_group(&pci_dev->dev.kobj, &ipw2100_attribute_group);
+	err = sysfs_create_group(&pci_dev->dev.kobj, &ipw2100_attribute_group);
+	if (err)
+		goto fail_unlock;
 
 	/* If the RF Kill switch is disabled, go ahead and complete the
 	 * startup sequence */
@@ -6540,14 +6542,17 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
 	ret = pci_register_driver(&ipw2100_pci_driver);
+	if (ret)
+		goto out;
 
 	set_acceptable_latency("ipw2100", INFINITE_LATENCY);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
-	driver_create_file(&ipw2100_pci_driver.driver,
-			   &driver_attr_debug_level);
+	ret = driver_create_file(&ipw2100_pci_driver.driver,
+				 &driver_attr_debug_level);
 #endif
 
+out:
 	return ret;
 }
 

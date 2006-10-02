@@ -5659,25 +5659,40 @@ static int airo_pci_resume(struct pci_dev *pdev)
 
 static int __init airo_init_module( void )
 {
-	int i, have_isa_dev = 0;
+	int i;
+#if 0
+	int have_isa_dev = 0;
+#endif
 
 	airo_entry = create_proc_entry("aironet",
 				       S_IFDIR | airo_perm,
 				       proc_root_driver);
-        airo_entry->uid = proc_uid;
-        airo_entry->gid = proc_gid;
+
+	if (airo_entry) {
+		airo_entry->uid = proc_uid;
+		airo_entry->gid = proc_gid;
+	}
 
 	for( i = 0; i < 4 && io[i] && irq[i]; i++ ) {
 		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
 			"io=0x%x", irq[i], io[i] );
 		if (init_airo_card( irq[i], io[i], 0, NULL ))
+#if 0
 			have_isa_dev = 1;
+#else
+			/* do nothing */ ;
+#endif
 	}
 
 #ifdef CONFIG_PCI
 	airo_print_info("", "Probing for PCI adapters");
-	pci_register_driver(&airo_driver);
+	i = pci_register_driver(&airo_driver);
 	airo_print_info("", "Finished probing for PCI adapters");
+
+	if (i) {
+		remove_proc_entry("aironet", proc_root_driver);
+		return i;
+	}
 #endif
 
 	/* Always exit with success, as we are a library module

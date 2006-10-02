@@ -188,10 +188,12 @@ struct hp100_private {
 /*
  *  variables
  */
+#ifndef MODULE
 static const char *hp100_isa_tbl[] = {
 	"HWPF150", /* HP J2573 rev A */
 	"HWP1950", /* HP J2573 */
 };
+#endif
 
 #ifdef CONFIG_EISA
 static struct eisa_device_id hp100_eisa_tbl[] = {
@@ -333,6 +335,7 @@ static __devinit const char *hp100_read_id(int ioaddr)
 	return str;
 }
 
+#ifndef MODULE
 static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
 {
 	const char *sig;
@@ -391,8 +394,6 @@ static int  __init hp100_isa_probe(struct net_device *dev, int addr)
 	return err;
 }
 
-
-#ifndef MODULE
 struct net_device * __init hp100_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
