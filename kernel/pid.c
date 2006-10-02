@@ -304,6 +304,15 @@ struct task_struct *find_task_by_pid_type(int type, int nr)
 
 EXPORT_SYMBOL(find_task_by_pid_type);
 
+struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
+{
+	struct pid *pid;
+	rcu_read_lock();
+	pid = get_pid(task->pids[type].pid);
+	rcu_read_unlock();
+	return pid;
+}
+
 struct task_struct *fastcall get_pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result;

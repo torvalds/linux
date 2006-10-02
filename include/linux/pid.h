@@ -68,6 +68,8 @@ extern struct task_struct *FASTCALL(pid_task(struct pid *pid, enum pid_type));
 extern struct task_struct *FASTCALL(get_pid_task(struct pid *pid,
 						enum pid_type));
 
+extern struct pid *get_task_pid(struct task_struct *task, enum pid_type type);
+
 /*
  * attach_pid() and detach_pid() must be called with the tasklist_lock
  * write-held.

@@ -958,7 +958,7 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 	/*
 	 * grab the reference to task.
 	 */
-	ei->pid = get_pid(task_pid(task));
+	ei->pid = get_task_pid(task, PIDTYPE_PID);
 	if (!ei->pid)
 		goto out_unlock;
 
@@ -1677,7 +1677,7 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	/*
 	 * grab the reference to the task.
 	 */
-	ei->pid = get_pid(task_pid(task));
+	ei->pid = get_task_pid(task, PIDTYPE_PID);
 	if (!ei->pid)
 		goto out_iput;
 
