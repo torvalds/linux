@@ -13,4 +13,11 @@ struct pidmap {
 
 #define PIDMAP_ENTRIES         ((PID_MAX_LIMIT + 8*PAGE_SIZE - 1)/PAGE_SIZE/8)
 
+struct pspace {
+       struct pidmap pidmap[PIDMAP_ENTRIES];
+       int last_pid;
+};
+
+extern struct pspace init_pspace;
+
 #endif /* _LINUX_PSPACE_H */

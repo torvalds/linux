@@ -118,7 +118,6 @@ extern unsigned long avenrun[];		/* Load averages */
 
 extern unsigned long total_forks;
 extern int nr_threads;
-extern int last_pid;
 DECLARE_PER_CPU(unsigned long, process_counts);
 extern int nr_processes(void);
 extern unsigned long nr_running(void);

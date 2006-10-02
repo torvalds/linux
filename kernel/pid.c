@@ -34,7 +34,6 @@ static int pidhash_shift;
 static kmem_cache_t *pid_cachep;
 
 int pid_max = PID_MAX_DEFAULT;
-int last_pid;
 
 #define RESERVED_PIDS		300
 
@@ -43,7 +42,12 @@ int pid_max_max = PID_MAX_LIMIT;
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 #define BITS_PER_PAGE_MASK	(BITS_PER_PAGE-1)
-#define mk_pid(map, off)	(((map) - pidmap_array)*BITS_PER_PAGE + (off))
+
+static inline int mk_pid(struct pspace *pspace, struct pidmap *map, int off)
+{
+	return (map - pspace->pidmap)*BITS_PER_PAGE + off;
+}
+
 #define find_next_offset(map, off)					\
 		find_next_zero_bit((map)->page, BITS_PER_PAGE, off)
 
@@ -53,8 +57,12 @@ int pid_max_max = PID_MAX_LIMIT;
  * value does not cause lots of bitmaps to be allocated, but
  * the scheme scales to up to 4 million PIDs, runtime.
  */
-static struct pidmap pidmap_array[PIDMAP_ENTRIES] =
-	 { [ 0 ... PIDMAP_ENTRIES-1 ] = { ATOMIC_INIT(BITS_PER_PAGE), NULL } };
+struct pspace init_pspace = {
+	.pidmap = {
+		[ 0 ... PIDMAP_ENTRIES-1] = { ATOMIC_INIT(BITS_PER_PAGE), NULL }
+	},
+	.last_pid = 0
+};
 
 /*
  * Note: disable interrupts while the pidmap_lock is held as an
@@ -69,40 +77,41 @@ static struct pidmap pidmap_array[PIDMAP_ENTRIES] =
  * irq handlers that take it we can leave the interrupts enabled.
  * For now it is easier to be safe than to prove it can't happen.
  */
+
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
-static fastcall void free_pidmap(int pid)
+static fastcall void free_pidmap(struct pspace *pspace, int pid)
 {
-	struct pidmap *map = pidmap_array + pid / BITS_PER_PAGE;
+	struct pidmap *map = pspace->pidmap + pid / BITS_PER_PAGE;
 	int offset = pid & BITS_PER_PAGE_MASK;
 
 	clear_bit(offset, map->page);
 	atomic_inc(&map->nr_free);
 }
 
-static int alloc_pidmap(void)
+static int alloc_pidmap(struct pspace *pspace)
 {
-	int i, offset, max_scan, pid, last = last_pid;
+	int i, offset, max_scan, pid, last = pspace->last_pid;
 	struct pidmap *map;
 
 	pid = last + 1;
 	if (pid >= pid_max)
 		pid = RESERVED_PIDS;
 	offset = pid & BITS_PER_PAGE_MASK;
-	map = &pidmap_array[pid/BITS_PER_PAGE];
+	map = &pspace->pidmap[pid/BITS_PER_PAGE];
 	max_scan = (pid_max + BITS_PER_PAGE - 1)/BITS_PER_PAGE - !offset;
 	for (i = 0; i <= max_scan; ++i) {
 		if (unlikely(!map->page)) {
-			unsigned long page = get_zeroed_page(GFP_KERNEL);
+			void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 			/*
 			 * Free the page if someone raced with us
 			 * installing it:
 			 */
 			spin_lock_irq(&pidmap_lock);
 			if (map->page)
-				free_page(page);
+				kfree(page);
 			else
-				map->page = (void *)page;
+				map->page = page;
 			spin_unlock_irq(&pidmap_lock);
 			if (unlikely(!map->page))
 				break;
@@ -111,11 +120,11 @@ static int alloc_pidmap(void)
 			do {
 				if (!test_and_set_bit(offset, map->page)) {
 					atomic_dec(&map->nr_free);
-					last_pid = pid;
+					pspace->last_pid = pid;
 					return pid;
 				}
 				offset = find_next_offset(map, offset);
-				pid = mk_pid(map, offset);
+				pid = mk_pid(pspace, map, offset);
 			/*
 			 * find_next_offset() found a bit, the pid from it
 			 * is in-bounds, and if we fell back to the last
@@ -126,16 +135,16 @@ static int alloc_pidmap(void)
 					(i != max_scan || pid < last ||
 					    !((last+1) & BITS_PER_PAGE_MASK)));
 		}
-		if (map < &pidmap_array[(pid_max-1)/BITS_PER_PAGE]) {
+		if (map < &pspace->pidmap[(pid_max-1)/BITS_PER_PAGE]) {
 			++map;
 			offset = 0;
 		} else {
-			map = &pidmap_array[0];
+			map = &pspace->pidmap[0];
 			offset = RESERVED_PIDS;
 			if (unlikely(last == offset))
 				break;
 		}
-		pid = mk_pid(map, offset);
+		pid = mk_pid(pspace, map, offset);
 	}
 	return -1;
 }
@@ -182,7 +191,7 @@ fastcall void free_pid(struct pid *pid)
 	hlist_del_rcu(&pid->pid_chain);
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
-	free_pidmap(pid->nr);
+	free_pidmap(&init_pspace, pid->nr);
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
@@ -196,7 +205,7 @@ struct pid *alloc_pid(void)
 	if (!pid)
 		goto out;
 
-	nr = alloc_pidmap();
+	nr = alloc_pidmap(&init_pspace);
 	if (nr < 0)
 		goto out_free;
 
@@ -363,10 +372,10 @@ void __init pidhash_init(void)
 
 void __init pidmap_init(void)
 {
-	pidmap_array->page = (void *)get_zeroed_page(GFP_KERNEL);
+	init_pspace.pidmap[0].page = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	/* Reserve PID 0. We never call free_pidmap(0) */
-	set_bit(0, pidmap_array->page);
-	atomic_dec(&pidmap_array->nr_free);
+	set_bit(0, init_pspace.pidmap[0].page);
+	atomic_dec(&init_pspace.pidmap[0].nr_free);
 
 	pid_cachep = kmem_cache_create("pid", sizeof(struct pid),
 					__alignof__(struct pid),
