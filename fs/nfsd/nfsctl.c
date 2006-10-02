@@ -23,10 +23,12 @@
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/smp_lock.h>
 
 #include <linux/nfs.h>
 #include <linux/nfsd_idmap.h>
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svcsock.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/cache.h>
 #include <linux/nfsd/xdr.h>
@@ -51,6 +53,7 @@ enum {
 	NFSD_Fh,
 	NFSD_Threads,
 	NFSD_Versions,
+	NFSD_Ports,
 	/*
 	 * The below MUST come last.  Otherwise we leave a hole in nfsd_files[]
 	 * with !CONFIG_NFSD_V4 and simple_fill_super() goes oops
@@ -74,6 +77,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size);
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_versions(struct file *file, char *buf, size_t size);
+static ssize_t write_ports(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
@@ -90,6 +94,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_Threads] = write_threads,
 	[NFSD_Versions] = write_versions,
+	[NFSD_Ports] = write_ports,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
 	[NFSD_RecoveryDir] = write_recoverydir,
@@ -419,6 +424,20 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 	return len;
 }
 
+static ssize_t write_ports(struct file *file, char *buf, size_t size)
+{
+	/* for now, ignore what was written and just
+	 * return known ports
+	 * AF proto address port
+	 */
+	int len = 0;
+	lock_kernel();
+	if (nfsd_serv)
+		len = svc_sock_names(buf, nfsd_serv);
+	unlock_kernel();
+	return len;
+}
+
 #ifdef CONFIG_NFSD_V4
 extern time_t nfs4_leasetime(void);
 
@@ -482,6 +501,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Fh] = {"filehandle", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Threads] = {"threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},

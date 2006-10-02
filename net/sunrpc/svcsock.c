@@ -429,6 +429,46 @@ out:
 }
 
 /*
+ * Report socket names for nfsdfs
+ */
+static int one_sock_name(char *buf, struct svc_sock *svsk)
+{
+	int len;
+
+	switch(svsk->sk_sk->sk_family) {
+	case AF_INET:
+		len = sprintf(buf, "ipv4 %s %u.%u.%u.%u %d\n",
+			      svsk->sk_sk->sk_protocol==IPPROTO_UDP?
+			      "udp" : "tcp",
+			      NIPQUAD(inet_sk(svsk->sk_sk)->rcv_saddr),
+			      inet_sk(svsk->sk_sk)->num);
+		break;
+	default:
+		len = sprintf(buf, "*unknown-%d*\n",
+			       svsk->sk_sk->sk_family);
+	}
+	return len;
+}
+
+int
+svc_sock_names(char *buf, struct svc_serv *serv)
+{
+	struct svc_sock *svsk;
+	int len = 0;
+
+	if (!serv)
+		return 0;
+	spin_lock(&serv->sv_lock);
+	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list) {
+		int onelen = one_sock_name(buf+len, svsk);
+		len += onelen;
+	}
+	spin_unlock(&serv->sv_lock);
+	return len;
+}
+EXPORT_SYMBOL(svc_sock_names);
+
+/*
  * Check input queue length
  */
 static int

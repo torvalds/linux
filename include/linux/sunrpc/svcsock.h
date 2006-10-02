@@ -61,5 +61,6 @@ int		svc_recv(struct svc_serv *, struct svc_rqst *, long);
 int		svc_send(struct svc_rqst *);
 void		svc_drop(struct svc_rqst *);
 void		svc_sock_update_bufs(struct svc_serv *serv);
+int		svc_sock_names(char *buf, struct svc_serv *serv);
 
 #endif /* SUNRPC_SVCSOCK_H */
