@@ -1057,6 +1057,18 @@ static struct dentry_operations pid_dentry_operations =
 
 typedef struct dentry *instantiate_t(struct inode *, struct dentry *, struct task_struct *, void *);
 
+/*
+ * Fill a directory entry.
+ *
+ * If possible create the dcache entry and derive our inode number and
+ * file type from dcache entry.
+ *
+ * Since all of the proc inode numbers are dynamically generated, the inode
+ * numbers do not exist until the inode is cache.  This means creating the
+ * the dcache entry in readdir is necessary to keep the inode numbers
+ * reported by readdir in sync with the inode numbers reported
+ * by stat.
+ */
 static int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	char *name, int len,
 	instantiate_t instantiate, struct task_struct *task, void *ptr)
