@@ -211,14 +211,6 @@ Who:	Nick Piggin <npiggin@suse.de>
 
 ---------------------------
 
-What:	Support for MIPS Technologies' Altas and SEAD evaluation board
-When:	September 2006
-Why:	Some do no longer build and apparently there is no user base left
-	for these platforms.  Hardware out of production since several years.
-Who:	Ralf Baechle <ralf@linux-mips.org>
-
----------------------------
-
 What:	Support for the IT8172-based platforms, ITE 8172G and Globespan IVR
 When:	September 2006
 Why:	Code does no longer build since at least 2.6.0,  apparently there is
