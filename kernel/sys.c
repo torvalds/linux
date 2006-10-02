@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(atomic_notifier_chain_unregister);
  *	of the last notifier function called.
  */
  
-int atomic_notifier_call_chain(struct atomic_notifier_head *nh,
+int __kprobes atomic_notifier_call_chain(struct atomic_notifier_head *nh,
 		unsigned long val, void *v)
 {
 	int ret;
