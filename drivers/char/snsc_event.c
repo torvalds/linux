@@ -220,7 +220,7 @@ scdrv_dispatch_event(char *event, int len)
 			       " Sending SIGPWR to init...\n");
 
 		/* give a SIGPWR signal to init proc */
-		kill_proc(1, SIGPWR, 0);
+		kill_cad_pid(SIGPWR, 0);
 	} else {
 		/* print to system log */
 		printk("%s|$(0x%x)%s\n", severity, esp_code, desc);

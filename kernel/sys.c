@@ -92,7 +92,8 @@ EXPORT_SYMBOL(fs_overflowgid);
  */
 
 int C_A_D = 1;
-int cad_pid = 1;
+struct pid *cad_pid;
+EXPORT_SYMBOL(cad_pid);
 
 /*
  *	Notifier list for kernel code which wants to be called
@@ -773,10 +774,9 @@ void ctrl_alt_del(void)
 	if (C_A_D)
 		schedule_work(&cad_work);
 	else
-		kill_proc(cad_pid, SIGINT, 1);
+		kill_cad_pid(SIGINT, 1);
 }
 	
-
 /*
  * Unprivileged users may change the real gid to the effective gid
  * or vice versa.  (BSD-style)

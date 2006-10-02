@@ -120,7 +120,7 @@ static inline void ip32_power_button(void)
 	if (has_panicked)
 		return;
 
-	if (shuting_down || kill_proc(1, SIGINT, 1)) {
+	if (shuting_down || kill_cad_pid(SIGINT, 1)) {
 		/* No init process or button pressed twice.  */
 		ip32_machine_power_off();
 	}

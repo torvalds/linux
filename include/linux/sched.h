@@ -1065,6 +1065,8 @@ static inline int is_init(struct task_struct *tsk)
 	return tsk->pid == 1;
 }
 
+extern struct pid *cad_pid;
+
 extern void free_task(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
@@ -1291,6 +1293,11 @@ extern int send_sigqueue(int, struct sigqueue *,  struct task_struct *);
 extern int send_group_sigqueue(int, struct sigqueue *,  struct task_struct *);
 extern int do_sigaction(int, struct k_sigaction *, struct k_sigaction *);
 extern int do_sigaltstack(const stack_t __user *, stack_t __user *, unsigned long);
+
+static inline int kill_cad_pid(int sig, int priv)
+{
+	return kill_pid(cad_pid, sig, priv);
+}
 
 /* These can be the second arg to send_sig_info/send_group_sig_info.  */
 #define SEND_SIG_NOINFO ((struct siginfo *) 0)

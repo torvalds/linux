@@ -208,7 +208,7 @@ s390_handle_mcck(void)
 		 */
 		__ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
 		if (xchg(&mchchk_wng_posted, 1) == 0)
-			kill_proc(1, SIGPWR, 1);
+			kill_cad_pid(SIGPWR, 1);
 	}
 #endif
 

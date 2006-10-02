@@ -357,7 +357,7 @@ static int dma_and_signal_ce_msg(char *ce_msg,
  */
 static int shutdown(void)
 {
-	int rc = kill_proc(1, SIGINT, 1);
+	int rc = kill_cad_pid(SIGINT, 1);
 
 	if (rc) {
 		printk(KERN_ALERT "mf.c: SIGINT to init failed (%d), "

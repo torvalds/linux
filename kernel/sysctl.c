@@ -68,7 +68,6 @@ extern int sysrq_enabled;
 extern int core_uses_pid;
 extern int suid_dumpable;
 extern char core_pattern[];
-extern int cad_pid;
 extern int pid_max;
 extern int min_free_kbytes;
 extern int printk_ratelimit_jiffies;
@@ -135,6 +134,9 @@ static int parse_table(int __user *, int, void __user *, size_t __user *,
 #endif
 
 static int proc_do_uts_string(ctl_table *table, int write, struct file *filp,
+		  void __user *buffer, size_t *lenp, loff_t *ppos);
+
+static int proc_do_cad_pid(ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
 
 static ctl_table root_table[];
@@ -543,10 +545,10 @@ static ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_CADPID,
 		.procname	= "cad_pid",
-		.data		= &cad_pid,
+		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_cad_pid,
 	},
 	{
 		.ctl_name	= KERN_MAX_THREADS,
@@ -2426,6 +2428,28 @@ proc_minmax:
 			lenp, ppos, 1l, 1l);
 }
 #endif
+
+static int proc_do_cad_pid(ctl_table *table, int write, struct file *filp,
+			   void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct pid *new_pid;
+	pid_t tmp;
+	int r;
+
+	tmp = pid_nr(cad_pid);
+
+	r = __do_proc_dointvec(&tmp, table, write, filp, buffer,
+			       lenp, ppos, NULL, NULL);
+	if (r || !write)
+		return r;
+
+	new_pid = find_get_pid(tmp);
+	if (!new_pid)
+		return -ESRCH;
+
+	put_pid(xchg(&cad_pid, new_pid));
+	return 0;
+}
 
 #else /* CONFIG_PROC_FS */
 

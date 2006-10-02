@@ -721,6 +721,8 @@ static int init(void * unused)
 	 */
 	child_reaper = current;
 
+	cad_pid = task_pid(current);
+
 	smp_prepare_cpus(max_cpus);
 
 	do_pre_smp_initcalls();
