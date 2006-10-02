@@ -46,14 +46,13 @@
 
 /* SMP locking strategy:
  *
- * 	svc_serv->sv_lock protects most stuff for that service.
+ *	svc_serv->sv_lock protects most stuff for that service.
  *	svc_sock->sk_defer_lock protects the svc_sock->sk_deferred list
+ *	svc_sock->sk_flags.SK_BUSY prevents a svc_sock being enqueued multiply.
  *
  *	Some flags can be set to certain values at any time
  *	providing that certain rules are followed:
  *
- *	SK_BUSY  can be set to 0 at any time.  
- *		svc_sock_enqueue must be called afterwards
  *	SK_CONN, SK_DATA, can be set or cleared at any time.
  *		after a set, svc_sock_enqueue must be called.	
  *		after a clear, the socket must be read/accepted
@@ -170,8 +169,13 @@ svc_sock_enqueue(struct svc_sock *svsk)
 		goto out_unlock;
 	}
 
-	if (test_bit(SK_BUSY, &svsk->sk_flags)) {
-		/* Don't enqueue socket while daemon is receiving */
+	/* Mark socket as busy. It will remain in this state until the
+	 * server has processed all pending data and put the socket back
+	 * on the idle list.  We update SK_BUSY atomically because
+	 * it also guards against trying to enqueue the svc_sock twice.
+	 */
+	if (test_and_set_bit(SK_BUSY, &svsk->sk_flags)) {
+		/* Don't enqueue socket while already enqueued */
 		dprintk("svc: socket %p busy, not enqueued\n", svsk->sk_sk);
 		goto out_unlock;
 	}
@@ -185,15 +189,11 @@ svc_sock_enqueue(struct svc_sock *svsk)
 		dprintk("svc: socket %p  no space, %d*2 > %ld, not enqueued\n",
 			svsk->sk_sk, atomic_read(&svsk->sk_reserved)+serv->sv_bufsz,
 			svc_sock_wspace(svsk));
+		clear_bit(SK_BUSY, &svsk->sk_flags);
 		goto out_unlock;
 	}
 	clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
 
-	/* Mark socket as busy. It will remain in this state until the
-	 * server has processed all pending data and put the socket back
-	 * on the idle list.
-	 */
-	set_bit(SK_BUSY, &svsk->sk_flags);
 
 	if (!list_empty(&serv->sv_threads)) {
 		rqstp = list_entry(serv->sv_threads.next,
