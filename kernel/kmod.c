@@ -18,8 +18,6 @@
 	call_usermodehelper wait flag, and remove exec_usermodehelper.
 	Rusty Russell <rusty@rustcorp.com.au>  Jan 2003
 */
-#define __KERNEL_SYSCALLS__
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
@@ -169,7 +167,8 @@ static int ____call_usermodehelper(void *data)
 
 	retval = -EPERM;
 	if (current->fs->root)
-		retval = execve(sub_info->path, sub_info->argv, sub_info->envp);
+		retval = kernel_execve(sub_info->path,
+				sub_info->argv, sub_info->envp);
 
 	/* Exec failed? */
 	sub_info->retval = retval;

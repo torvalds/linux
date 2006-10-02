@@ -4,8 +4,6 @@
  * Copyright (C) 1999 David S. Miller (davem@redhat.com)
  */
 
-#define __KERNEL_SYSCALLS__
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -14,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
+#include <linux/syscalls.h>
 
 #include <asm/system.h>
 #include <asm/auxio.h>
@@ -98,7 +97,7 @@ again:
 
 	/* Ok, down we go... */
 	button_pressed = 0;
-	if (execve("/sbin/shutdown", argv, envp) < 0) {
+	if (kernel_execve("/sbin/shutdown", argv, envp) < 0) {
 		printk("powerd: shutdown execution failed\n");
 		add_wait_queue(&powerd_wait, &wait);
 		goto again;
