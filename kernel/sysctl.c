@@ -92,13 +92,8 @@ extern char modprobe_path[];
 extern int sg_big_buff;
 #endif
 #ifdef CONFIG_SYSVIPC
-extern size_t shm_ctlmax;
-extern size_t shm_ctlall;
-extern int shm_ctlmni;
-extern int msg_ctlmax;
-extern int msg_ctlmnb;
-extern int msg_ctlmni;
-extern int sem_ctls[];
+static int proc_do_ipc_string(ctl_table *table, int write, struct file *filp,
+		void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
 #ifdef __sparc__
@@ -481,58 +476,58 @@ static ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_SHMMAX,
 		.procname	= "shmmax",
-		.data		= &shm_ctlmax,
+		.data		= NULL,
 		.maxlen		= sizeof (size_t),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_SHMALL,
 		.procname	= "shmall",
-		.data		= &shm_ctlall,
+		.data		= NULL,
 		.maxlen		= sizeof (size_t),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_SHMMNI,
 		.procname	= "shmmni",
-		.data		= &shm_ctlmni,
+		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_MSGMAX,
 		.procname	= "msgmax",
-		.data		= &msg_ctlmax,
+		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_MSGMNI,
 		.procname	= "msgmni",
-		.data		= &msg_ctlmni,
+		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_MSGMNB,
 		.procname	=  "msgmnb",
-		.data		= &msg_ctlmnb,
+		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 	{
 		.ctl_name	= KERN_SEM,
 		.procname	= "sem",
-		.data		= &sem_ctls,
+		.data		= NULL,
 		.maxlen		= 4*sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_do_ipc_string,
 	},
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -1832,8 +1827,9 @@ static int do_proc_dointvec_conv(int *negp, unsigned long *lvalp,
 	return 0;
 }
 
-static int do_proc_dointvec(ctl_table *table, int write, struct file *filp,
-		  void __user *buffer, size_t *lenp, loff_t *ppos,
+static int __do_proc_dointvec(void *tbl_data, ctl_table *table,
+		  int write, struct file *filp, void __user *buffer,
+		  size_t *lenp, loff_t *ppos,
 		  int (*conv)(int *negp, unsigned long *lvalp, int *valp,
 			      int write, void *data),
 		  void *data)
@@ -1846,13 +1842,13 @@ static int do_proc_dointvec(ctl_table *table, int write, struct file *filp,
 	char buf[TMPBUFLEN], *p;
 	char __user *s = buffer;
 	
-	if (!table->data || !table->maxlen || !*lenp ||
+	if (!tbl_data || !table->maxlen || !*lenp ||
 	    (*ppos && !write)) {
 		*lenp = 0;
 		return 0;
 	}
 	
-	i = (int *) table->data;
+	i = (int *) tbl_data;
 	vleft = table->maxlen / sizeof(*i);
 	left = *lenp;
 
@@ -1939,6 +1935,16 @@ static int do_proc_dointvec(ctl_table *table, int write, struct file *filp,
 	*ppos += *lenp;
 	return 0;
 #undef TMPBUFLEN
+}
+
+static int do_proc_dointvec(ctl_table *table, int write, struct file *filp,
+		  void __user *buffer, size_t *lenp, loff_t *ppos,
+		  int (*conv)(int *negp, unsigned long *lvalp, int *valp,
+			      int write, void *data),
+		  void *data)
+{
+	return __do_proc_dointvec(table->data, table, write, filp,
+			buffer, lenp, ppos, conv, data);
 }
 
 /**
@@ -2074,7 +2080,7 @@ int proc_dointvec_minmax(ctl_table *table, int write, struct file *filp,
 				do_proc_dointvec_minmax_conv, &param);
 }
 
-static int do_proc_doulongvec_minmax(ctl_table *table, int write,
+static int __do_proc_doulongvec_minmax(void *data, ctl_table *table, int write,
 				     struct file *filp,
 				     void __user *buffer,
 				     size_t *lenp, loff_t *ppos,
@@ -2088,13 +2094,13 @@ static int do_proc_doulongvec_minmax(ctl_table *table, int write,
 	char buf[TMPBUFLEN], *p;
 	char __user *s = buffer;
 	
-	if (!table->data || !table->maxlen || !*lenp ||
+	if (!data || !table->maxlen || !*lenp ||
 	    (*ppos && !write)) {
 		*lenp = 0;
 		return 0;
 	}
 	
-	i = (unsigned long *) table->data;
+	i = (unsigned long *) data;
 	min = (unsigned long *) table->extra1;
 	max = (unsigned long *) table->extra2;
 	vleft = table->maxlen / sizeof(unsigned long);
@@ -2177,6 +2183,17 @@ static int do_proc_doulongvec_minmax(ctl_table *table, int write,
 	*ppos += *lenp;
 	return 0;
 #undef TMPBUFLEN
+}
+
+static int do_proc_doulongvec_minmax(ctl_table *table, int write,
+				     struct file *filp,
+				     void __user *buffer,
+				     size_t *lenp, loff_t *ppos,
+				     unsigned long convmul,
+				     unsigned long convdiv)
+{
+	return __do_proc_doulongvec_minmax(table->data, table, write,
+			filp, buffer, lenp, ppos, convmul, convdiv);
 }
 
 /**
@@ -2366,6 +2383,49 @@ int proc_dointvec_ms_jiffies(ctl_table *table, int write, struct file *filp,
 	return do_proc_dointvec(table, write, filp, buffer, lenp, ppos,
 				do_proc_dointvec_ms_jiffies_conv, NULL);
 }
+
+#ifdef CONFIG_SYSVIPC
+static int proc_do_ipc_string(ctl_table *table, int write, struct file *filp,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	void *data;
+	struct ipc_namespace *ns;
+
+	ns = current->nsproxy->ipc_ns;
+
+	switch (table->ctl_name) {
+	case KERN_SHMMAX:
+		data = &ns->shm_ctlmax;
+		goto proc_minmax;
+	case KERN_SHMALL:
+		data = &ns->shm_ctlall;
+		goto proc_minmax;
+	case KERN_SHMMNI:
+		data = &ns->shm_ctlmni;
+		break;
+	case KERN_MSGMAX:
+		data = &ns->msg_ctlmax;
+		break;
+	case KERN_MSGMNI:
+		data = &ns->msg_ctlmni;
+		break;
+	case KERN_MSGMNB:
+		data = &ns->msg_ctlmnb;
+		break;
+	case KERN_SEM:
+		data = &ns->sem_ctls;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return __do_proc_dointvec(data, table, write, filp, buffer,
+			lenp, ppos, NULL, NULL);
+proc_minmax:
+	return __do_proc_doulongvec_minmax(data, table, write, filp, buffer,
+			lenp, ppos, 1l, 1l);
+}
+#endif
 
 #else /* CONFIG_PROC_FS */
 
