@@ -244,6 +244,7 @@ static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
 
 static inline char * task_sig(struct task_struct *p, char *buffer)
 {
+	unsigned long flags;
 	sigset_t pending, shpending, blocked, ignored, caught;
 	int num_threads = 0;
 	unsigned long qsize = 0;
@@ -255,10 +256,8 @@ static inline char * task_sig(struct task_struct *p, char *buffer)
 	sigemptyset(&ignored);
 	sigemptyset(&caught);
 
-	/* Gather all the data with the appropriate locks held */
-	read_lock(&tasklist_lock);
-	if (p->sighand) {
-		spin_lock_irq(&p->sighand->siglock);
+	rcu_read_lock();
+	if (lock_task_sighand(p, &flags)) {
 		pending = p->pending.signal;
 		shpending = p->signal->shared_pending.signal;
 		blocked = p->blocked;
@@ -266,9 +265,9 @@ static inline char * task_sig(struct task_struct *p, char *buffer)
 		num_threads = atomic_read(&p->signal->count);
 		qsize = atomic_read(&p->user->sigpending);
 		qlim = p->signal->rlim[RLIMIT_SIGPENDING].rlim_cur;
-		spin_unlock_irq(&p->sighand->siglock);
+		unlock_task_sighand(p, &flags);
 	}
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	buffer += sprintf(buffer, "Threads:\t%d\n", num_threads);
 	buffer += sprintf(buffer, "SigQ:\t%lu/%lu\n", qsize, qlim);
