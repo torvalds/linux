@@ -94,6 +94,14 @@ extern struct pid *find_ge_pid(int nr);
 extern struct pid *alloc_pid(void);
 extern void FASTCALL(free_pid(struct pid *pid));
 
+static inline pid_t pid_nr(struct pid *pid)
+{
+	pid_t nr = 0;
+	if (pid)
+		nr = pid->nr;
+	return nr;
+}
+
 #define pid_next(task, type)					\
 	((task)->pids[(type)].node.next)
 
