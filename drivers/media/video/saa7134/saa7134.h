@@ -61,7 +61,6 @@ enum saa7134_tvaudio_mode {
 	TVAUDIO_FM_K_STEREO   = 4,
 	TVAUDIO_NICAM_AM      = 5,
 	TVAUDIO_NICAM_FM      = 6,
-	TVAUDIO_AM_MONO	      = 7
 };
 
 enum saa7134_audio_in {
