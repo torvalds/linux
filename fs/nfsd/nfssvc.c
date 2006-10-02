@@ -200,7 +200,7 @@ int nfsd_create_serv(void)
 	int err = 0;
 	lock_kernel();
 	if (nfsd_serv) {
-		nfsd_serv->sv_nrthreads++;
+		svc_get(nfsd_serv);
 		unlock_kernel();
 		return 0;
 	}

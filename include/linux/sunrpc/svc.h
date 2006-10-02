@@ -71,6 +71,17 @@ struct svc_serv {
 };
 
 /*
+ * We use sv_nrthreads as a reference count.  svc_destroy() drops
+ * this refcount, so we need to bump it up around operations that
+ * change the number of threads.  Horrible, but there it is.
+ * Should be called with the BKL held.
+ */
+static inline void svc_get(struct svc_serv *serv)
+{
+	serv->sv_nrthreads++;
+}
+
+/*
  * Maximum payload size supported by a kernel RPC server.
  * This is use to determine the max number of pages nfsd is
  * willing to return in a single READ operation.
