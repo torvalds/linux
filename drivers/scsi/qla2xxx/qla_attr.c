@@ -857,6 +857,14 @@ qla2x00_get_host_symbolic_name(struct Scsi_Host *shost)
 	qla2x00_get_sym_node_name(ha, fc_host_symbolic_name(shost));
 }
 
+static void
+qla2x00_set_host_system_hostname(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -871,6 +879,8 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_port_type = 1,
 	.get_host_symbolic_name = qla2x00_get_host_symbolic_name,
 	.show_host_symbolic_name = 1,
+	.set_host_system_hostname = qla2x00_set_host_system_hostname,
+	.show_host_system_hostname = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,

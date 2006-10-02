@@ -1580,6 +1580,21 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	DEBUG13(printk("%s(%ld): OS_DEVICE_NAME=%s.\n", __func__, ha->host_no,
 	    eiter->a.os_dev_name));
 
+	/* Hostname. */
+	if (strlen(fc_host_system_hostname(ha->host))) {
+		eiter = (struct ct_fdmi_port_attr *) (entries + size);
+		eiter->type = __constant_cpu_to_be16(FDMI_PORT_HOST_NAME);
+		snprintf(eiter->a.host_name, sizeof(eiter->a.host_name),
+		    "%s", fc_host_system_hostname(ha->host));
+		alen = strlen(eiter->a.host_name);
+		alen += (alen & 3) ? (4 - (alen & 3)) : 4;
+		eiter->len = cpu_to_be16(4 + alen);
+		size += 4 + alen;
+
+		DEBUG13(printk("%s(%ld): HOSTNAME=%s.\n", __func__,
+		    ha->host_no, eiter->a.host_name));
+	}
+
 	/* Update MS request size. */
 	qla2x00_update_ms_fdmi_iocb(ha, size + 16);
 
