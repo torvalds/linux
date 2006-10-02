@@ -305,9 +305,11 @@ void f_delown(struct file *filp)
 pid_t f_getown(struct file *filp)
 {
 	pid_t pid;
+	read_lock(&filp->f_owner.lock);
 	pid = pid_nr(filp->f_owner.pid);
 	if (filp->f_owner.pid_type == PIDTYPE_PGID)
 		pid = -pid;
+	read_unlock(&filp->f_owner.lock);
 	return pid;
 }
 
