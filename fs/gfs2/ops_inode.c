@@ -411,10 +411,10 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
 		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
-		gfs2_inum_out(&dip->i_num, (char *) &dent->de_inum);
+		gfs2_inum_out(&dip->i_num, &dent->de_inum);
 		dent->de_type = DT_DIR;
 
-		gfs2_dinode_out(&ip->i_di, (char *)di);
+		gfs2_dinode_out(&ip->i_di, di);
 
 		brelse(dibh);
 	}
