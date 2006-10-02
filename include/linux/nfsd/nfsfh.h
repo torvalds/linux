@@ -290,8 +290,9 @@ fill_post_wcc(struct svc_fh *fhp)
  * vfs.c:nfsd_rename as it needs to grab 2 i_mutex's at once
  * so, any changes here should be reflected there.
  */
+
 static inline void
-fh_lock(struct svc_fh *fhp)
+fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 {
 	struct dentry	*dentry = fhp->fh_dentry;
 	struct inode	*inode;
@@ -310,9 +311,15 @@ fh_lock(struct svc_fh *fhp)
 	}
 
 	inode = dentry->d_inode;
-	mutex_lock(&inode->i_mutex);
+	mutex_lock_nested(&inode->i_mutex, subclass);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = 1;
+}
+
+static inline void
+fh_lock(struct svc_fh *fhp)
+{
+	fh_lock_nested(fhp, I_MUTEX_NORMAL);
 }
 
 /*
