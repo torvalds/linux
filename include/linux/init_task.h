@@ -68,6 +68,12 @@
 	.session	= 1,						\
 }
 
+extern struct nsproxy init_nsproxy;
+#define INIT_NSPROXY(nsproxy) {						\
+	.count		= ATOMIC_INIT(1),				\
+	.nslock		= SPIN_LOCK_UNLOCKED,				\
+}
+
 #define INIT_SIGHAND(sighand) {						\
 	.count		= ATOMIC_INIT(1), 				\
 	.action		= { { { .sa_handler = NULL, } }, },		\
@@ -117,6 +123,7 @@ extern struct group_info init_groups;
 	.files		= &init_files,					\
 	.signal		= &init_signals,				\
 	.sighand	= &init_sighand,				\
+	.nsproxy	= &init_nsproxy,				\
 	.pending	= {						\
 		.list = LIST_HEAD_INIT(tsk.pending.list),		\
 		.signal = {{0}}},					\

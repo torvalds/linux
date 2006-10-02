@@ -21,6 +21,7 @@
 #include <linux/tsacct_kern.h>
 #include <linux/file.h>
 #include <linux/binfmts.h>
+#include <linux/nsproxy.h>
 #include <linux/ptrace.h>
 #include <linux/profile.h>
 #include <linux/mount.h>
@@ -397,9 +398,14 @@ void daemonize(const char *name, ...)
 	fs = init_task.fs;
 	current->fs = fs;
 	atomic_inc(&fs->count);
+
 	exit_namespace(current);
+	exit_task_namespaces(current);
 	current->namespace = init_task.namespace;
+	current->nsproxy = init_task.nsproxy;
 	get_namespace(current->namespace);
+	get_task_namespaces(current);
+
  	exit_files(current);
 	current->files = init_task.files;
 	atomic_inc(&current->files->count);
@@ -918,6 +924,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	__exit_files(tsk);
 	__exit_fs(tsk);
 	exit_namespace(tsk);
+	exit_task_namespaces(tsk);
 	exit_thread();
 	cpuset_exit(tsk);
 	exit_keys(tsk);

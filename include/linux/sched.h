@@ -239,6 +239,7 @@ extern signed long schedule_timeout_uninterruptible(signed long timeout);
 asmlinkage void schedule(void);
 
 struct namespace;
+struct nsproxy;
 
 /* Maximum number of active map areas.. This is a random (large) number */
 #define DEFAULT_MAX_MAP_COUNT	65536
@@ -898,6 +899,7 @@ struct task_struct {
 	struct files_struct *files;
 /* namespace */
 	struct namespace *namespace;
+	struct nsproxy *nsproxy;
 /* signal handlers */
 	struct signal_struct *signal;
 	struct sighand_struct *sighand;

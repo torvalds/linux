@@ -27,6 +27,7 @@
 #include <linux/binfmts.h>
 #include <linux/mman.h>
 #include <linux/fs.h>
+#include <linux/nsproxy.h>
 #include <linux/capability.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
@@ -1116,8 +1117,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_signal;
 	if ((retval = copy_keys(clone_flags, p)))
 		goto bad_fork_cleanup_mm;
-	if ((retval = copy_namespace(clone_flags, p)))
+	if ((retval = copy_namespaces(clone_flags, p)))
 		goto bad_fork_cleanup_keys;
+	if ((retval = copy_namespace(clone_flags, p)))
+		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
 		goto bad_fork_cleanup_namespace;
@@ -1262,6 +1265,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 bad_fork_cleanup_namespace:
 	exit_namespace(p);
+bad_fork_cleanup_namespaces:
+	exit_task_namespaces(p);
 bad_fork_cleanup_keys:
 	exit_keys(p);
 bad_fork_cleanup_mm:
@@ -1606,6 +1611,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
 	struct sem_undo_list *new_ulist = NULL;
+	struct nsproxy *new_nsproxy, *old_nsproxy;
 
 	check_unshare_flags(&unshare_flags);
 
@@ -1632,7 +1638,15 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 
 	if (new_fs || new_ns || new_sigh || new_mm || new_fd || new_ulist) {
 
+		old_nsproxy = current->nsproxy;
+		new_nsproxy = dup_namespaces(old_nsproxy);
+		if (!new_nsproxy) {
+			err = -ENOMEM;
+			goto bad_unshare_cleanup_semundo;
+		}
+
 		task_lock(current);
+		current->nsproxy = new_nsproxy;
 
 		if (new_fs) {
 			fs = current->fs;
@@ -1668,8 +1682,10 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		}
 
 		task_unlock(current);
+		put_nsproxy(old_nsproxy);
 	}
 
+bad_unshare_cleanup_semundo:
 bad_unshare_cleanup_fd:
 	if (new_fd)
 		put_files_struct(new_fd);
