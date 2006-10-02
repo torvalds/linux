@@ -149,19 +149,20 @@ static int alloc_pidmap(struct pspace *pspace)
 	return -1;
 }
 
-static int next_pidmap(int last)
+static int next_pidmap(struct pspace *pspace, int last)
 {
 	int offset;
-	struct pidmap *map;
+	struct pidmap *map, *end;
 
 	offset = (last + 1) & BITS_PER_PAGE_MASK;
-	map = &pidmap_array[(last + 1)/BITS_PER_PAGE];
-	for (; map < &pidmap_array[PIDMAP_ENTRIES]; map++, offset = 0) {
+	map = &pspace->pidmap[(last + 1)/BITS_PER_PAGE];
+	end = &pspace->pidmap[PIDMAP_ENTRIES];
+	for (; map < end; map++, offset = 0) {
 		if (unlikely(!map->page))
 			continue;
 		offset = find_next_bit((map)->page, BITS_PER_PAGE, offset);
 		if (offset < BITS_PER_PAGE)
-			return mk_pid(map, offset);
+			return mk_pid(pspace, map, offset);
 	}
 	return -1;
 }
@@ -338,7 +339,7 @@ struct pid *find_ge_pid(int nr)
 		pid = find_pid(nr);
 		if (pid)
 			break;
-		nr = next_pidmap(nr);
+		nr = next_pidmap(&init_pspace, nr);
 	} while (nr > 0);
 
 	return pid;
