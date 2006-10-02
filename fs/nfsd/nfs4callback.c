@@ -131,7 +131,7 @@ xdr_error:                                      \
 #define READ_BUF(nbytes)  do { \
 	p = xdr_inline_decode(xdr, nbytes); \
 	if (!p) { \
-		dprintk("NFSD: %s: reply buffer overflowed in line %d.", \
+		dprintk("NFSD: %s: reply buffer overflowed in line %d.\n", \
 			__FUNCTION__, __LINE__); \
 		return -EIO; \
 	} \

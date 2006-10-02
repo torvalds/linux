@@ -370,7 +370,7 @@ static int check_export(struct inode *inode, int flags)
 	 */
 	if (!(inode->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
 	    !(flags & NFSEXP_FSID)) {
-		dprintk("exp_export: export of non-dev fs without fsid");
+		dprintk("exp_export: export of non-dev fs without fsid\n");
 		return -EINVAL;
 	}
 	if (!inode->i_sb->s_export_op) {

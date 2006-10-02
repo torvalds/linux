@@ -600,7 +600,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_se
 			&setattr->sa_stateid, CHECK_FH | WR_STATE, NULL);
 		nfs4_unlock_state();
 		if (status) {
-			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!");
+			dprintk("NFSD: nfsd4_setattr: couldn't process stateid!\n");
 			return status;
 		}
 	}
