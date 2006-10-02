@@ -323,7 +323,6 @@ update_thread_usage(int busy_threads)
 static void
 nfsd(struct svc_rqst *rqstp)
 {
-	struct svc_serv	*serv = rqstp->rq_server;
 	struct fs_struct *fsp;
 	int		err;
 	struct nfsd_list me;
@@ -373,8 +372,7 @@ nfsd(struct svc_rqst *rqstp)
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
 		 */
-		while ((err = svc_recv(serv, rqstp,
-				       60*60*HZ)) == -EAGAIN)
+		while ((err = svc_recv(rqstp, 60*60*HZ)) == -EAGAIN)
 			;
 		if (err < 0)
 			break;
@@ -387,7 +385,7 @@ nfsd(struct svc_rqst *rqstp)
 		/* Process request with signals blocked.  */
 		sigprocmask(SIG_SETMASK, &allowed_mask, NULL);
 
-		svc_process(serv, rqstp);
+		svc_process(rqstp);
 
 		/* Unlock export hash tables */
 		exp_readunlock();

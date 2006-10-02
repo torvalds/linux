@@ -253,13 +253,14 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
  * Process the RPC request.
  */
 int
-svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
+svc_process(struct svc_rqst *rqstp)
 {
 	struct svc_program	*progp;
 	struct svc_version	*versp = NULL;	/* compiler food */
 	struct svc_procedure	*procp = NULL;
 	struct kvec *		argv = &rqstp->rq_arg.head[0];
 	struct kvec *		resv = &rqstp->rq_res.head[0];
+	struct svc_serv		*serv = rqstp->rq_server;
 	kxdrproc_t		xdr;
 	__be32			*statp;
 	u32			dir, prog, vers, proc;

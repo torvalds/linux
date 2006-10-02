@@ -1166,9 +1166,10 @@ svc_sock_update_bufs(struct svc_serv *serv)
  * Receive the next request on any socket.
  */
 int
-svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
+svc_recv(struct svc_rqst *rqstp, long timeout)
 {
 	struct svc_sock		*svsk =NULL;
+	struct svc_serv		*serv = rqstp->rq_server;
 	int			len;
 	int 			pages;
 	struct xdr_buf		*arg;

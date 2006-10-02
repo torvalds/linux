@@ -338,7 +338,7 @@ struct svc_serv *  svc_create(struct svc_program *, unsigned int,
 int		   svc_create_thread(svc_thread_fn, struct svc_serv *);
 void		   svc_exit_thread(struct svc_rqst *);
 void		   svc_destroy(struct svc_serv *);
-int		   svc_process(struct svc_serv *, struct svc_rqst *);
+int		   svc_process(struct svc_rqst *);
 int		   svc_register(struct svc_serv *, int, unsigned short);
 void		   svc_wake_up(struct svc_serv *);
 void		   svc_reserve(struct svc_rqst *rqstp, int space);

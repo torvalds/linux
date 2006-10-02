@@ -57,7 +57,7 @@ struct svc_sock {
  */
 int		svc_makesock(struct svc_serv *, int, unsigned short);
 void		svc_delete_socket(struct svc_sock *);
-int		svc_recv(struct svc_serv *, struct svc_rqst *, long);
+int		svc_recv(struct svc_rqst *, long);
 int		svc_send(struct svc_rqst *);
 void		svc_drop(struct svc_rqst *);
 void		svc_sock_update_bufs(struct svc_serv *serv);

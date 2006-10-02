@@ -98,7 +98,6 @@ static inline void clear_grace_period(void)
 static void
 lockd(struct svc_rqst *rqstp)
 {
-	struct svc_serv	*serv = rqstp->rq_server;
 	int		err = 0;
 	unsigned long grace_period_expire;
 
@@ -114,7 +113,7 @@ lockd(struct svc_rqst *rqstp)
 	 * Let our maker know we're running.
 	 */
 	nlmsvc_pid = current->pid;
-	nlmsvc_serv = serv;
+	nlmsvc_serv = rqstp->rq_server;
 	complete(&lockd_start_done);
 
 	daemonize("lockd");
@@ -164,7 +163,7 @@ lockd(struct svc_rqst *rqstp)
 		 * Find a socket with data available and call its
 		 * recvfrom routine.
 		 */
-		err = svc_recv(serv, rqstp, timeout);
+		err = svc_recv(rqstp, timeout);
 		if (err == -EAGAIN || err == -EINTR)
 			continue;
 		if (err < 0) {
@@ -177,7 +176,7 @@ lockd(struct svc_rqst *rqstp)
 		dprintk("lockd: request from %08x\n",
 			(unsigned)ntohl(rqstp->rq_addr.sin_addr.s_addr));
 
-		svc_process(serv, rqstp);
+		svc_process(rqstp);
 
 	}
 
