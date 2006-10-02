@@ -366,7 +366,7 @@ static int __init ic_defaults(void)
 	 */
 	 
 	if (!ic_host_name_set)
-		sprintf(system_utsname.nodename, "%u.%u.%u.%u", NIPQUAD(ic_myaddr));
+		sprintf(init_utsname()->nodename, "%u.%u.%u.%u", NIPQUAD(ic_myaddr));
 
 	if (root_server_addr == INADDR_NONE)
 		root_server_addr = ic_servaddr;

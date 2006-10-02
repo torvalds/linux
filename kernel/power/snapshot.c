@@ -906,7 +906,7 @@ static void init_header(struct swsusp_info *info)
 	memset(info, 0, sizeof(struct swsusp_info));
 	info->version_code = LINUX_VERSION_CODE;
 	info->num_physpages = num_physpages;
-	memcpy(&info->uts, &system_utsname, sizeof(system_utsname));
+	memcpy(&info->uts, init_utsname(), sizeof(struct new_utsname));
 	info->cpus = num_online_cpus();
 	info->image_pages = nr_copy_pages;
 	info->pages = nr_copy_pages + nr_meta_pages + 1;
@@ -1050,13 +1050,13 @@ static inline int check_header(struct swsusp_info *info)
 		reason = "kernel version";
 	if (info->num_physpages != num_physpages)
 		reason = "memory size";
-	if (strcmp(info->uts.sysname,system_utsname.sysname))
+	if (strcmp(info->uts.sysname,init_utsname()->sysname))
 		reason = "system type";
-	if (strcmp(info->uts.release,system_utsname.release))
+	if (strcmp(info->uts.release,init_utsname()->release))
 		reason = "kernel release";
-	if (strcmp(info->uts.version,system_utsname.version))
+	if (strcmp(info->uts.version,init_utsname()->version))
 		reason = "version";
-	if (strcmp(info->uts.machine,system_utsname.machine))
+	if (strcmp(info->uts.machine,init_utsname()->machine))
 		reason = "machine";
 	if (reason) {
 		printk(KERN_ERR "swsusp: Resume mismatch: %s\n", reason);

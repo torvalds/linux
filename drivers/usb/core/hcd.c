@@ -318,8 +318,8 @@ static int rh_string (
 
  	// id 3 == vendor description
 	} else if (id == 3) {
-		snprintf (buf, sizeof buf, "%s %s %s", system_utsname.sysname,
-			system_utsname.release, hcd->driver->description);
+		snprintf (buf, sizeof buf, "%s %s %s", init_utsname()->sysname,
+			init_utsname()->release, hcd->driver->description);
 
 	// unsupported IDs --> "protocol stall"
 	} else

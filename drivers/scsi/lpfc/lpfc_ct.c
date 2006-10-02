@@ -933,8 +933,8 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) rh + size);
 			ae->ad.bits.AttrType = be16_to_cpu(OS_NAME_VERSION);
 			sprintf(ae->un.OsNameVersion, "%s %s %s",
-				system_utsname.sysname, system_utsname.release,
-				system_utsname.version);
+				init_utsname()->sysname, init_utsname()->release,
+				init_utsname()->version);
 			len = strlen(ae->un.OsNameVersion);
 			len += (len & 3) ? (4 - (len & 3)) : 4;
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + len);
@@ -1052,7 +1052,7 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 							  size);
 				ae->ad.bits.AttrType = be16_to_cpu(HOST_NAME);
 				sprintf(ae->un.HostName, "%s",
-					system_utsname.nodename);
+					init_utsname()->nodename);
 				len = strlen(ae->un.HostName);
 				len += (len & 3) ? (4 - (len & 3)) : 4;
 				ae->ad.bits.AttrLen =
@@ -1140,7 +1140,7 @@ lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
 
 	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
 	if (ndlp) {
-		if (system_utsname.nodename[0] != '\0') {
+		if (init_utsname()->nodename[0] != '\0') {
 			lpfc_fdmi_cmd(phba, ndlp, SLI_MGMT_DHBA);
 		} else {
 			mod_timer(&phba->fc_fdmitmo, jiffies + HZ * 60);

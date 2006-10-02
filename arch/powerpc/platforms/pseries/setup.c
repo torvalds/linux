@@ -342,7 +342,7 @@ static int __init pSeries_init_panel(void)
 {
 	/* Manually leave the kernel version on the panel. */
 	ppc_md.progress("Linux ppc64\n", 0);
-	ppc_md.progress(system_utsname.release, 0);
+	ppc_md.progress(init_utsname()->version, 0);
 
 	return 0;
 }

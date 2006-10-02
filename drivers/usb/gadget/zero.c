@@ -1242,7 +1242,7 @@ autoconf_fail:
 		EP_OUT_NAME, EP_IN_NAME);
 
 	snprintf (manufacturer, sizeof manufacturer, "%s %s with %s",
-		system_utsname.sysname, system_utsname.release,
+		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	return 0;

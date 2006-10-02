@@ -459,7 +459,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "machine\t\t: %s\n", get_system_type());
 
 	seq_printf(m, "processor\t: %d\n", cpu);
-	seq_printf(m, "cpu family\t: %s\n", system_utsname.machine);
+	seq_printf(m, "cpu family\t: %s\n", init_utsname()->machine);
 	seq_printf(m, "cpu type\t: %s\n", get_cpu_subtype());
 
 	show_cpuflags(m);

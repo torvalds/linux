@@ -1601,7 +1601,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->mmap = ipath_mmap;
 
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
-		 IPATH_IDSTR " %s", system_utsname.nodename);
+		 IPATH_IDSTR " %s", init_utsname()->nodename);
 
 	ret = ib_register_device(dev);
 	if (ret)

@@ -357,9 +357,9 @@ void show_registers(struct pt_regs *regs)
 		KERN_EMERG "EIP:    %04x:[<%08lx>]    %s VLI\n"
 		KERN_EMERG "EFLAGS: %08lx   (%s %.*s)\n",
 		smp_processor_id(), 0xffff & regs->xcs, regs->eip,
-		print_tainted(), regs->eflags, system_utsname.release,
-		(int)strcspn(system_utsname.version, " "),
-		system_utsname.version);
+		print_tainted(), regs->eflags, init_utsname()->release,
+		(int)strcspn(init_utsname()->version, " "),
+		init_utsname()->version);
 	print_symbol(KERN_EMERG "EIP is at %s\n", regs->eip);
 	printk(KERN_EMERG "eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
 		regs->eax, regs->ebx, regs->ecx, regs->edx);

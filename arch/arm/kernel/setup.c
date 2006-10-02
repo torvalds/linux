@@ -348,7 +348,7 @@ static void __init setup_processor(void)
 	       cpu_name, processor_id, (int)processor_id & 15,
 	       proc_arch[cpu_architecture()], cr_alignment);
 
-	sprintf(system_utsname.machine, "%s%c", list->arch_name, ENDIANNESS);
+	sprintf(init_utsname()->machine, "%s%c", list->arch_name, ENDIANNESS);
 	sprintf(elf_platform, "%s%c", list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
 #ifndef CONFIG_ARM_THUMB

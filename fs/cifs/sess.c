@@ -111,7 +111,7 @@ static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	bytes_ret = cifs_strtoUCS((__le16 *)bcc_ptr, "Linux version ", 32,
 				  nls_cp);
 	bcc_ptr += 2 * bytes_ret;
-	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, system_utsname.release,
+	bytes_ret = cifs_strtoUCS((__le16 *) bcc_ptr, init_utsname()->release,
 				  32, nls_cp);
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* trailing null */
@@ -158,8 +158,8 @@ static void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 
 	strcpy(bcc_ptr, "Linux version ");
 	bcc_ptr += strlen("Linux version ");
-	strcpy(bcc_ptr, system_utsname.release);
-	bcc_ptr += strlen(system_utsname.release) + 1;
+	strcpy(bcc_ptr, init_utsname()->release);
+	bcc_ptr += strlen(init_utsname()->release) + 1;
 
 	strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
 	bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;

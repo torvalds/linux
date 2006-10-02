@@ -1434,7 +1434,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		return -ENOMEM;
 
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
-		system_utsname.sysname, system_utsname.release,
+		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	memset(dev, 0, sizeof(struct gs_dev));

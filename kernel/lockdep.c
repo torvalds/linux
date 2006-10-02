@@ -518,9 +518,9 @@ print_circular_bug_entry(struct lock_list *target, unsigned int depth)
 
 static void print_kernel_version(void)
 {
-	printk("%s %.*s\n", system_utsname.release,
-		(int)strcspn(system_utsname.version, " "),
-		system_utsname.version);
+	printk("%s %.*s\n", init_utsname()->release,
+		(int)strcspn(init_utsname()->version, " "),
+		init_utsname()->version);
 }
 
 /*

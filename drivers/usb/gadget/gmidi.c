@@ -1189,7 +1189,7 @@ static int __devinit gmidi_bind(struct usb_gadget *gadget)
 		strlcpy(manufacturer, iManufacturer, sizeof(manufacturer));
 	} else {
 		snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
-			system_utsname.sysname, system_utsname.release,
+			init_utsname()->sysname, init_utsname()->release,
 			gadget->name);
 	}
 	if (iProduct) {

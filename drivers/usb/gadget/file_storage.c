@@ -4001,7 +4001,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	usb_gadget_set_selfpowered(gadget);
 
 	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
-			system_utsname.sysname, system_utsname.release,
+			init_utsname()->sysname, init_utsname()->release,
 			gadget->name);
 
 	/* On a real device, serial[] would be loaded from permanent

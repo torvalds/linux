@@ -2260,7 +2260,7 @@ eth_bind (struct usb_gadget *gadget)
 		return -ENODEV;
 	}
 	snprintf (manufacturer, sizeof manufacturer, "%s %s/%s",
-		system_utsname.sysname, system_utsname.release,
+		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	/* If there's an RNDIS configuration, that's what Windows wants to

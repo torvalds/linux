@@ -143,7 +143,7 @@ static void __init setup_processor(void)
 
 	dump_cpu_info();
 
-	sprintf(system_utsname.machine, "%s", list->arch_name);
+	sprintf(init_utsname()->machine, "%s", list->arch_name);
 	sprintf(elf_platform, "%s", list->elf_name);
 	elf_hwcap = list->elf_hwcap;
 
