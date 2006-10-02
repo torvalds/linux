@@ -338,12 +338,13 @@ static void kretprobe_trampoline(void)
 int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
-	struct hlist_head *head;
+	struct hlist_head *head, empty_rp;
 	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =
 		((struct fnptr *)kretprobe_trampoline)->ip;
 
+	INIT_HLIST_HEAD(&empty_rp);
 	spin_lock_irqsave(&kretprobe_lock, flags);
 	head = kretprobe_inst_table_head(current);
 
@@ -369,7 +370,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			ri->rp->handler(ri, regs);
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
-		recycle_rp_inst(ri);
+		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address)
 			/*
@@ -387,6 +388,10 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	preempt_enable_no_resched();
 
+	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+		hlist_del(&ri->hlist);
+		kfree(ri);
+	}
 	/*
 	 * By returning a non-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler

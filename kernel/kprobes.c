@@ -319,7 +319,8 @@ void __kprobes add_rp_inst(struct kretprobe_instance *ri)
 }
 
 /* Called with kretprobe_lock held */
-void __kprobes recycle_rp_inst(struct kretprobe_instance *ri)
+void __kprobes recycle_rp_inst(struct kretprobe_instance *ri,
+				struct hlist_head *head)
 {
 	/* remove rp inst off the rprobe_inst_table */
 	hlist_del(&ri->hlist);
@@ -331,7 +332,7 @@ void __kprobes recycle_rp_inst(struct kretprobe_instance *ri)
 		hlist_add_head(&ri->uflist, &ri->rp->free_instances);
 	} else
 		/* Unregistering */
-		kfree(ri);
+		hlist_add_head(&ri->hlist, head);
 }
 
 struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
@@ -348,17 +349,23 @@ struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
 void __kprobes kprobe_flush_task(struct task_struct *tk)
 {
 	struct kretprobe_instance *ri;
-	struct hlist_head *head;
+	struct hlist_head *head, empty_rp;
 	struct hlist_node *node, *tmp;
 	unsigned long flags = 0;
 
+	INIT_HLIST_HEAD(&empty_rp);
 	spin_lock_irqsave(&kretprobe_lock, flags);
 	head = kretprobe_inst_table_head(tk);
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
 		if (ri->task == tk)
-			recycle_rp_inst(ri);
+			recycle_rp_inst(ri, &empty_rp);
 	}
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
+
+	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+		hlist_del(&ri->hlist);
+		kfree(ri);
+	}
 }
 
 static inline void free_rp_inst(struct kretprobe *rp)
