@@ -1527,7 +1527,7 @@ static int futex_fd(u32 __user *uaddr, int signal)
 	filp->f_mapping = filp->f_dentry->d_inode->i_mapping;
 
 	if (signal) {
-		err = f_setown(filp, current->pid, 1);
+		err = __f_setown(filp, task_pid(current), PIDTYPE_PID, 1);
 		if (err < 0) {
 			goto error;
 		}

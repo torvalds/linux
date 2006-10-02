@@ -250,19 +250,22 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	return error;
 }
 
-static void f_modown(struct file *filp, unsigned long pid,
+static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
                      uid_t uid, uid_t euid, int force)
 {
 	write_lock_irq(&filp->f_owner.lock);
 	if (force || !filp->f_owner.pid) {
-		filp->f_owner.pid = pid;
+		put_pid(filp->f_owner.pid);
+		filp->f_owner.pid = get_pid(pid);
+		filp->f_owner.pid_type = type;
 		filp->f_owner.uid = uid;
 		filp->f_owner.euid = euid;
 	}
 	write_unlock_irq(&filp->f_owner.lock);
 }
 
-int f_setown(struct file *filp, unsigned long arg, int force)
+int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
+		int force)
 {
 	int err;
 	
@@ -270,15 +273,42 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 	if (err)
 		return err;
 
-	f_modown(filp, arg, current->uid, current->euid, force);
+	f_modown(filp, pid, type, current->uid, current->euid, force);
 	return 0;
 }
+EXPORT_SYMBOL(__f_setown);
 
+int f_setown(struct file *filp, unsigned long arg, int force)
+{
+	enum pid_type type;
+	struct pid *pid;
+	int who = arg;
+	int result;
+	type = PIDTYPE_PID;
+	if (who < 0) {
+		type = PIDTYPE_PGID;
+		who = -who;
+	}
+	rcu_read_lock();
+	pid = find_pid(who);
+	result = __f_setown(filp, pid, type, force);
+	rcu_read_unlock();
+	return result;
+}
 EXPORT_SYMBOL(f_setown);
 
 void f_delown(struct file *filp)
 {
-	f_modown(filp, 0, 0, 0, 1);
+	f_modown(filp, NULL, PIDTYPE_PID, 0, 0, 1);
+}
+
+pid_t f_getown(struct file *filp)
+{
+	pid_t pid;
+	pid = pid_nr(filp->f_owner.pid);
+	if (filp->f_owner.pid_type == PIDTYPE_PGID)
+		pid = -pid;
+	return pid;
 }
 
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
@@ -319,7 +349,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		 * current syscall conventions, the only way
 		 * to fix this will be in libc.
 		 */
-		err = filp->f_owner.pid;
+		err = f_getown(filp);
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
@@ -470,24 +500,19 @@ static void send_sigio_to_task(struct task_struct *p,
 void send_sigio(struct fown_struct *fown, int fd, int band)
 {
 	struct task_struct *p;
-	int pid;
+	enum pid_type type;
+	struct pid *pid;
 	
 	read_lock(&fown->lock);
+	type = fown->pid_type;
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
 	
 	read_lock(&tasklist_lock);
-	if (pid > 0) {
-		p = find_task_by_pid(pid);
-		if (p) {
-			send_sigio_to_task(p, fown, fd, band);
-		}
-	} else {
-		do_each_task_pid(-pid, PIDTYPE_PGID, p) {
-			send_sigio_to_task(p, fown, fd, band);
-		} while_each_task_pid(-pid, PIDTYPE_PGID, p);
-	}
+	do_each_pid_task(pid, type, p) {
+		send_sigio_to_task(p, fown, fd, band);
+	} while_each_pid_task(pid, type, p);
 	read_unlock(&tasklist_lock);
  out_unlock_fown:
 	read_unlock(&fown->lock);
@@ -503,9 +528,12 @@ static void send_sigurg_to_task(struct task_struct *p,
 int send_sigurg(struct fown_struct *fown)
 {
 	struct task_struct *p;
-	int pid, ret = 0;
+	enum pid_type type;
+	struct pid *pid;
+	int ret = 0;
 	
 	read_lock(&fown->lock);
+	type = fown->pid_type;
 	pid = fown->pid;
 	if (!pid)
 		goto out_unlock_fown;
@@ -513,16 +541,9 @@ int send_sigurg(struct fown_struct *fown)
 	ret = 1;
 	
 	read_lock(&tasklist_lock);
-	if (pid > 0) {
-		p = find_task_by_pid(pid);
-		if (p) {
-			send_sigurg_to_task(p, fown);
-		}
-	} else {
-		do_each_task_pid(-pid, PIDTYPE_PGID, p) {
-			send_sigurg_to_task(p, fown);
-		} while_each_task_pid(-pid, PIDTYPE_PGID, p);
-	}
+	do_each_pid_task(pid, type, p) {
+		send_sigurg_to_task(p, fown);
+	} while_each_pid_task(pid, type, p);
 	read_unlock(&tasklist_lock);
  out_unlock_fown:
 	read_unlock(&fown->lock);

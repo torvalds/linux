@@ -92,7 +92,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		prev = &odn->dn_next;
 	}
 
-	error = f_setown(filp, current->pid, 0);
+	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 	if (error)
 		goto out_free;
 

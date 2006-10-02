@@ -174,6 +174,7 @@ void fastcall __fput(struct file *file)
 	fops_put(file->f_op);
 	if (file->f_mode & FMODE_WRITE)
 		put_write_access(inode);
+	put_pid(file->f_owner.pid);
 	file_kill(file);
 	file->f_dentry = NULL;
 	file->f_vfsmnt = NULL;
