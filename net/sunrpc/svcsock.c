@@ -206,7 +206,7 @@ svc_sock_enqueue(struct svc_sock *svsk)
 				"svc_sock_enqueue: server %p, rq_sock=%p!\n",
 				rqstp, rqstp->rq_sock);
 		rqstp->rq_sock = svsk;
-		svsk->sk_inuse++;
+		atomic_inc(&svsk->sk_inuse);
 		rqstp->rq_reserved = serv->sv_bufsz;
 		svsk->sk_reserved += rqstp->rq_reserved;
 		wake_up(&rqstp->rq_wait);
@@ -235,7 +235,7 @@ svc_sock_dequeue(struct svc_serv *serv)
 	list_del_init(&svsk->sk_ready);
 
 	dprintk("svc: socket %p dequeued, inuse=%d\n",
-		svsk->sk_sk, svsk->sk_inuse);
+		svsk->sk_sk, atomic_read(&svsk->sk_inuse));
 
 	return svsk;
 }
@@ -285,17 +285,11 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 static inline void
 svc_sock_put(struct svc_sock *svsk)
 {
-	struct svc_serv *serv = svsk->sk_server;
-
-	spin_lock_bh(&serv->sv_lock);
-	if (!--(svsk->sk_inuse) && test_bit(SK_DEAD, &svsk->sk_flags)) {
-		spin_unlock_bh(&serv->sv_lock);
+	if (atomic_dec_and_test(&svsk->sk_inuse) && test_bit(SK_DEAD, &svsk->sk_flags)) {
 		dprintk("svc: releasing dead socket\n");
 		sock_release(svsk->sk_sock);
 		kfree(svsk);
 	}
-	else
-		spin_unlock_bh(&serv->sv_lock);
 }
 
 static void
@@ -897,7 +891,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 					  struct svc_sock,
 					  sk_list);
 			set_bit(SK_CLOSE, &svsk->sk_flags);
-			svsk->sk_inuse ++;
+			atomic_inc(&svsk->sk_inuse);
 		}
 		spin_unlock_bh(&serv->sv_lock);
 
@@ -1229,7 +1223,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	spin_lock_bh(&serv->sv_lock);
 	if ((svsk = svc_sock_dequeue(serv)) != NULL) {
 		rqstp->rq_sock = svsk;
-		svsk->sk_inuse++;
+		atomic_inc(&svsk->sk_inuse);
 		rqstp->rq_reserved = serv->sv_bufsz;	
 		svsk->sk_reserved += rqstp->rq_reserved;
 	} else {
@@ -1261,7 +1255,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	spin_unlock_bh(&serv->sv_lock);
 
 	dprintk("svc: server %p, socket %p, inuse=%d\n",
-		 rqstp, svsk, svsk->sk_inuse);
+		 rqstp, svsk, atomic_read(&svsk->sk_inuse));
 	len = svsk->sk_recvfrom(rqstp);
 	dprintk("svc: got len=%d\n", len);
 
@@ -1357,9 +1351,9 @@ svc_age_temp_sockets(unsigned long closure)
 
 		if (!test_and_set_bit(SK_OLD, &svsk->sk_flags))
 			continue;
-		if (svsk->sk_inuse || test_bit(SK_BUSY, &svsk->sk_flags))
+		if (atomic_read(&svsk->sk_inuse) || test_bit(SK_BUSY, &svsk->sk_flags))
 			continue;
-		svsk->sk_inuse++;
+		atomic_inc(&svsk->sk_inuse);
 		list_move(le, &to_be_aged);
 		set_bit(SK_CLOSE, &svsk->sk_flags);
 		set_bit(SK_DETACHED, &svsk->sk_flags);
@@ -1420,6 +1414,7 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
 	svsk->sk_server = serv;
+	atomic_set(&svsk->sk_inuse, 0);
 	svsk->sk_lastrecv = get_seconds();
 	INIT_LIST_HEAD(&svsk->sk_deferred);
 	INIT_LIST_HEAD(&svsk->sk_ready);
@@ -1563,7 +1558,7 @@ svc_delete_socket(struct svc_sock *svsk)
 		if (test_bit(SK_TEMP, &svsk->sk_flags))
 			serv->sv_tmpcnt--;
 
-	if (!svsk->sk_inuse) {
+	if (!atomic_read(&svsk->sk_inuse)) {
 		spin_unlock_bh(&serv->sv_lock);
 		if (svsk->sk_sock->file)
 			sockfd_put(svsk->sk_sock);
@@ -1644,10 +1639,8 @@ svc_defer(struct cache_req *req)
 		dr->argslen = rqstp->rq_arg.len >> 2;
 		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip, dr->argslen<<2);
 	}
-	spin_lock_bh(&rqstp->rq_server->sv_lock);
-	rqstp->rq_sock->sk_inuse++;
+	atomic_inc(&rqstp->rq_sock->sk_inuse);
 	dr->svsk = rqstp->rq_sock;
-	spin_unlock_bh(&rqstp->rq_server->sv_lock);
 
 	dr->handle.revisit = svc_revisit;
 	return &dr->handle;
