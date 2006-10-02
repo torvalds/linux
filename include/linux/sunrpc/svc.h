@@ -386,5 +386,6 @@ int		   svc_process(struct svc_rqst *);
 int		   svc_register(struct svc_serv *, int, unsigned short);
 void		   svc_wake_up(struct svc_serv *);
 void		   svc_reserve(struct svc_rqst *rqstp, int space);
+struct svc_pool *  svc_pool_for_cpu(struct svc_serv *serv, int cpu);
 
 #endif /* SUNRPC_SVC_H */

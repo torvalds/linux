@@ -4,6 +4,10 @@
  * High-level RPC service routines
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
+ *
+ * Multiple threads pools and NUMAisation
+ * Copyright (c) 2006 Silicon Graphics, Inc.
+ * by Greg Banks <gnb@melbourne.sgi.com>
  */
 
 #include <linux/linkage.h>
@@ -23,6 +27,242 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 #define RPC_PARANOIA 1
+
+/*
+ * Mode for mapping cpus to pools.
+ */
+enum {
+	SVC_POOL_NONE = -1,	/* uninitialised, choose one of the others */
+	SVC_POOL_GLOBAL,	/* no mapping, just a single global pool
+				 * (legacy & UP mode) */
+	SVC_POOL_PERCPU,	/* one pool per cpu */
+	SVC_POOL_PERNODE	/* one pool per numa node */
+};
+
+/*
+ * Structure for mapping cpus to pools and vice versa.
+ * Setup once during sunrpc initialisation.
+ */
+static struct svc_pool_map {
+	int mode;			/* Note: int not enum to avoid
+					 * warnings about "enumeration value
+					 * not handled in switch" */
+	unsigned int npools;
+	unsigned int *pool_to;		/* maps pool id to cpu or node */
+	unsigned int *to_pool;		/* maps cpu or node to pool id */
+} svc_pool_map = {
+	.mode = SVC_POOL_NONE
+};
+
+
+/*
+ * Detect best pool mapping mode heuristically,
+ * according to the machine's topology.
+ */
+static int
+svc_pool_map_choose_mode(void)
+{
+	unsigned int node;
+
+	if (num_online_nodes() > 1) {
+		/*
+		 * Actually have multiple NUMA nodes,
+		 * so split pools on NUMA node boundaries
+		 */
+		return SVC_POOL_PERNODE;
+	}
+
+	node = any_online_node(node_online_map);
+	if (nr_cpus_node(node) > 2) {
+		/*
+		 * Non-trivial SMP, or CONFIG_NUMA on
+		 * non-NUMA hardware, e.g. with a generic
+		 * x86_64 kernel on Xeons.  In this case we
+		 * want to divide the pools on cpu boundaries.
+		 */
+		return SVC_POOL_PERCPU;
+	}
+
+	/* default: one global pool */
+	return SVC_POOL_GLOBAL;
+}
+
+/*
+ * Allocate the to_pool[] and pool_to[] arrays.
+ * Returns 0 on success or an errno.
+ */
+static int
+svc_pool_map_alloc_arrays(struct svc_pool_map *m, unsigned int maxpools)
+{
+	m->to_pool = kcalloc(maxpools, sizeof(unsigned int), GFP_KERNEL);
+	if (!m->to_pool)
+		goto fail;
+	m->pool_to = kcalloc(maxpools, sizeof(unsigned int), GFP_KERNEL);
+	if (!m->pool_to)
+		goto fail_free;
+
+	return 0;
+
+fail_free:
+	kfree(m->to_pool);
+fail:
+	return -ENOMEM;
+}
+
+/*
+ * Initialise the pool map for SVC_POOL_PERCPU mode.
+ * Returns number of pools or <0 on error.
+ */
+static int
+svc_pool_map_init_percpu(struct svc_pool_map *m)
+{
+	unsigned int maxpools = highest_possible_processor_id()+1;
+	unsigned int pidx = 0;
+	unsigned int cpu;
+	int err;
+
+	err = svc_pool_map_alloc_arrays(m, maxpools);
+	if (err)
+		return err;
+
+	for_each_online_cpu(cpu) {
+		BUG_ON(pidx > maxpools);
+		m->to_pool[cpu] = pidx;
+		m->pool_to[pidx] = cpu;
+		pidx++;
+	}
+	/* cpus brought online later all get mapped to pool0, sorry */
+
+	return pidx;
+};
+
+
+/*
+ * Initialise the pool map for SVC_POOL_PERNODE mode.
+ * Returns number of pools or <0 on error.
+ */
+static int
+svc_pool_map_init_pernode(struct svc_pool_map *m)
+{
+	unsigned int maxpools = highest_possible_node_id()+1;
+	unsigned int pidx = 0;
+	unsigned int node;
+	int err;
+
+	err = svc_pool_map_alloc_arrays(m, maxpools);
+	if (err)
+		return err;
+
+	for_each_node_with_cpus(node) {
+		/* some architectures (e.g. SN2) have cpuless nodes */
+		BUG_ON(pidx > maxpools);
+		m->to_pool[node] = pidx;
+		m->pool_to[pidx] = node;
+		pidx++;
+	}
+	/* nodes brought online later all get mapped to pool0, sorry */
+
+	return pidx;
+}
+
+
+/*
+ * Build the global map of cpus to pools and vice versa.
+ */
+static unsigned int
+svc_pool_map_init(void)
+{
+	struct svc_pool_map *m = &svc_pool_map;
+	int npools = -1;
+
+	if (m->mode != SVC_POOL_NONE)
+		return m->npools;
+
+	m->mode = svc_pool_map_choose_mode();
+
+	switch (m->mode) {
+	case SVC_POOL_PERCPU:
+		npools = svc_pool_map_init_percpu(m);
+		break;
+	case SVC_POOL_PERNODE:
+		npools = svc_pool_map_init_pernode(m);
+		break;
+	}
+
+	if (npools < 0) {
+		/* default, or memory allocation failure */
+		npools = 1;
+		m->mode = SVC_POOL_GLOBAL;
+	}
+	m->npools = npools;
+
+	return m->npools;
+}
+
+/*
+ * Set the current thread's cpus_allowed mask so that it
+ * will only run on cpus in the given pool.
+ *
+ * Returns 1 and fills in oldmask iff a cpumask was applied.
+ */
+static inline int
+svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
+{
+	struct svc_pool_map *m = &svc_pool_map;
+	unsigned int node; /* or cpu */
+
+	/*
+	 * The caller checks for sv_nrpools > 1, which
+	 * implies that we've been initialized and the
+	 * map mode is not NONE.
+	 */
+	BUG_ON(m->mode == SVC_POOL_NONE);
+
+	switch (m->mode)
+	{
+	default:
+		return 0;
+	case SVC_POOL_PERCPU:
+		node = m->pool_to[pidx];
+		*oldmask = current->cpus_allowed;
+		set_cpus_allowed(current, cpumask_of_cpu(node));
+		return 1;
+	case SVC_POOL_PERNODE:
+		node = m->pool_to[pidx];
+		*oldmask = current->cpus_allowed;
+		set_cpus_allowed(current, node_to_cpumask(node));
+		return 1;
+	}
+}
+
+/*
+ * Use the mapping mode to choose a pool for a given CPU.
+ * Used when enqueueing an incoming RPC.  Always returns
+ * a non-NULL pool pointer.
+ */
+struct svc_pool *
+svc_pool_for_cpu(struct svc_serv *serv, int cpu)
+{
+	struct svc_pool_map *m = &svc_pool_map;
+	unsigned int pidx = 0;
+
+	/*
+	 * SVC_POOL_NONE happens in a pure client when
+	 * lockd is brought up, so silently treat it the
+	 * same as SVC_POOL_GLOBAL.
+	 */
+
+	switch (m->mode) {
+	case SVC_POOL_PERCPU:
+		pidx = m->to_pool[cpu];
+		break;
+	case SVC_POOL_PERNODE:
+		pidx = m->to_pool[cpu_to_node(cpu)];
+		break;
+	}
+	return &serv->sv_pools[pidx % serv->sv_nrpools];
+}
+
 
 /*
  * Create an RPC service
@@ -105,8 +345,9 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 		  svc_thread_fn func, int sig, struct module *mod)
 {
 	struct svc_serv *serv;
+	unsigned int npools = svc_pool_map_init();
 
-	serv = __svc_create(prog, bufsize, /*npools*/1, shutdown);
+	serv = __svc_create(prog, bufsize, npools, shutdown);
 
 	if (serv != NULL) {
 		serv->sv_function = func;
@@ -209,6 +450,8 @@ svc_release_buffer(struct svc_rqst *rqstp)
 
 /*
  * Create a thread in the given pool.  Caller must hold BKL.
+ * On a NUMA or SMP machine, with a multi-pool serv, the thread
+ * will be restricted to run on the cpus belonging to the pool.
  */
 static int
 __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
@@ -216,6 +459,8 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 {
 	struct svc_rqst	*rqstp;
 	int		error = -ENOMEM;
+	int		have_oldmask = 0;
+	cpumask_t	oldmask;
 
 	rqstp = kzalloc(sizeof(*rqstp), GFP_KERNEL);
 	if (!rqstp)
@@ -235,7 +480,15 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 	spin_unlock_bh(&pool->sp_lock);
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
+
+	if (serv->sv_nrpools > 1)
+		have_oldmask = svc_pool_map_set_cpumask(pool->sp_id, &oldmask);
+
 	error = kernel_thread((int (*)(void *)) func, rqstp, 0);
+
+	if (have_oldmask)
+		set_cpus_allowed(current, oldmask);
+
 	if (error < 0)
 		goto out_thread;
 	svc_sock_update_bufs(serv);

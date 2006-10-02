@@ -151,14 +151,19 @@ static void
 svc_sock_enqueue(struct svc_sock *svsk)
 {
 	struct svc_serv	*serv = svsk->sk_server;
-	struct svc_pool *pool = &serv->sv_pools[0];
+	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
+	int cpu;
 
 	if (!(svsk->sk_flags &
 	      ( (1<<SK_CONN)|(1<<SK_DATA)|(1<<SK_CLOSE)|(1<<SK_DEFERRED)) ))
 		return;
 	if (test_bit(SK_DEAD, &svsk->sk_flags))
 		return;
+
+	cpu = get_cpu();
+	pool = svc_pool_for_cpu(svsk->sk_server, cpu);
+	put_cpu();
 
 	spin_lock_bh(&pool->sp_lock);
 
