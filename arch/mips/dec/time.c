@@ -184,8 +184,6 @@ void __init dec_time_init(void)
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - __ffs(HZ)), RTC_REG_A);
 }
 
-EXPORT_SYMBOL(do_settimeofday);
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(dec_interrupt[DEC_IRQ_RTC], irq);
