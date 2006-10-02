@@ -1078,6 +1078,7 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 /* Iterator */
 
 static void *e_start(struct seq_file *m, loff_t *pos)
+	__acquires(svc_export_cache.hash_lock)
 {
 	loff_t n = *pos;
 	unsigned hash, export;
@@ -1131,6 +1132,7 @@ static void *e_next(struct seq_file *m, void *p, loff_t *pos)
 }
 
 static void e_stop(struct seq_file *m, void *p)
+	__releases(svc_export_cache.hash_lock)
 {
 	read_unlock(&svc_export_cache.hash_lock);
 	exp_readunlock();
