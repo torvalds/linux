@@ -59,6 +59,7 @@ svc_create(struct svc_program *prog, unsigned int bufsize,
 	INIT_LIST_HEAD(&serv->sv_sockets);
 	INIT_LIST_HEAD(&serv->sv_tempsocks);
 	INIT_LIST_HEAD(&serv->sv_permsocks);
+	init_timer(&serv->sv_temptimer);
 	spin_lock_init(&serv->sv_lock);
 
 	/* Remove any stale portmap registrations */
@@ -86,6 +87,8 @@ svc_destroy(struct svc_serv *serv)
 		}
 	} else
 		printk("svc_destroy: no threads for serv=%p!\n", serv);
+
+	del_timer_sync(&serv->sv_temptimer);
 
 	while (!list_empty(&serv->sv_tempsocks)) {
 		svsk = list_entry(serv->sv_tempsocks.next,

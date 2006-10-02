@@ -31,6 +31,8 @@ struct svc_sock {
 #define	SK_DEAD		6			/* socket closed */
 #define	SK_CHNGBUF	7			/* need to change snd/rcv buffer sizes */
 #define	SK_DEFERRED	8			/* request on sk_deferred */
+#define	SK_OLD		9			/* used for temp socket aging mark+sweep */
+#define	SK_DETACHED	10			/* detached from tempsocks list */
 
 	int			sk_reserved;	/* space on outq that is reserved */
 
