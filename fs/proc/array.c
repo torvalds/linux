@@ -321,7 +321,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	sigset_t sigign, sigcatch;
 	char state;
 	int res;
- 	pid_t ppid, pgid = -1, sid = -1;
+ 	pid_t ppid = 0, pgid = -1, sid = -1;
 	int num_threads = 0;
 	struct mm_struct *mm;
 	unsigned long long start_time;
@@ -329,8 +329,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	unsigned long  min_flt = 0,  maj_flt = 0;
 	cputime_t cutime, cstime, utime, stime;
 	unsigned long rsslim = 0;
-	struct task_struct *t;
 	char tcomm[sizeof(task->comm)];
+	unsigned long flags;
 
 	state = *get_task_state(task);
 	vsize = eip = esp = 0;
@@ -348,15 +348,33 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	cutime = cstime = utime = stime = cputime_zero;
 
 	mutex_lock(&tty_mutex);
-	read_lock(&tasklist_lock);
-	if (task->sighand) {
-		spin_lock_irq(&task->sighand->siglock);
-		num_threads = atomic_read(&task->signal->count);
+	rcu_read_lock();
+	if (lock_task_sighand(task, &flags)) {
+		struct signal_struct *sig = task->signal;
+		struct tty_struct *tty = sig->tty;
+
+		if (tty) {
+			/*
+			 * sig->tty is not stable, but tty_mutex
+			 * protects us from release_dev(tty)
+			 */
+			barrier();
+			tty_pgrp = tty->pgrp;
+			tty_nr = new_encode_dev(tty_devnum(tty));
+		}
+
+		num_threads = atomic_read(&sig->count);
 		collect_sigign_sigcatch(task, &sigign, &sigcatch);
+
+		cmin_flt = sig->cmin_flt;
+		cmaj_flt = sig->cmaj_flt;
+		cutime = sig->cutime;
+		cstime = sig->cstime;
+		rsslim = sig->rlim[RLIMIT_RSS].rlim_cur;
 
 		/* add up live thread stats at the group level */
 		if (whole) {
-			t = task;
+			struct task_struct *t = task;
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
@@ -364,31 +382,20 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 				stime = cputime_add(stime, t->stime);
 				t = next_thread(t);
 			} while (t != task);
+
+			min_flt += sig->min_flt;
+			maj_flt += sig->maj_flt;
+			utime = cputime_add(utime, sig->utime);
+			stime = cputime_add(stime, sig->stime);
 		}
 
-		spin_unlock_irq(&task->sighand->siglock);
-	}
-	if (task->signal) {
-		if (task->signal->tty) {
-			tty_pgrp = task->signal->tty->pgrp;
-			tty_nr = new_encode_dev(tty_devnum(task->signal->tty));
-		}
+		sid = sig->session;
 		pgid = process_group(task);
-		sid = task->signal->session;
-		cmin_flt = task->signal->cmin_flt;
-		cmaj_flt = task->signal->cmaj_flt;
-		cutime = task->signal->cutime;
-		cstime = task->signal->cstime;
-		rsslim = task->signal->rlim[RLIMIT_RSS].rlim_cur;
-		if (whole) {
-			min_flt += task->signal->min_flt;
-			maj_flt += task->signal->maj_flt;
-			utime = cputime_add(utime, task->signal->utime);
-			stime = cputime_add(stime, task->signal->stime);
-		}
+		ppid = rcu_dereference(task->real_parent)->tgid;
+
+		unlock_task_sighand(task, &flags);
 	}
-	ppid = pid_alive(task) ? task->group_leader->real_parent->tgid : 0;
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	mutex_unlock(&tty_mutex);
 
 	if (!whole || num_threads<2)
