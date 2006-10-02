@@ -1,18 +1,18 @@
 /*
- *   Copyright (c) International Business Machines Corp., 2000-2002
+ *   Copyright (C) International Business Machines Corp., 2000-2002
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef	_H_JFS_DMAP
@@ -27,7 +27,7 @@
 #define L2LPERDMAP	8	/* l2 number of leaves per dmap tree */
 #define	DBWORD		32	/* # of blks covered by a map word */
 #define	L2DBWORD	5	/* l2 # of blks covered by a mword */
-#define BUDMIN  	L2DBWORD	/* max free string in a map word */
+#define BUDMIN		L2DBWORD	/* max free string in a map word */
 #define BPERDMAP	(LPERDMAP * DBWORD)	/* num of blks per dmap */
 #define L2BPERDMAP	13	/* l2 num of blks per dmap */
 #define CTLTREESIZE	(1024+256+64+16+4+1)	/* size of a dmapctl tree */
@@ -57,7 +57,7 @@
 
 #define	MAXMAPSIZE	MAXL2SIZE	/* maximum aggregate map size */
 
-/* 
+/*
  * determine the maximum free string for four (lower level) nodes
  * of the tree.
  */
@@ -122,7 +122,7 @@ static __inline signed char TREEMAX(signed char *cp)
 #define BLKTOCTL(b,s,l)   \
         (((l) == 2) ? 1 : ((l) == 1) ? BLKTOL1((b),(s)) : BLKTOL0((b),(s)))
 
-/* 
+/*
  * convert aggregate map size to the zero origin dmapctl level of the
  * top dmapctl.
  */
@@ -192,13 +192,13 @@ typedef union dmtree {
 
 /* macros for accessing fields within dmtree */
 #define	dmt_nleafs	t1.nleafs
-#define	dmt_l2nleafs 	t1.l2nleafs
-#define	dmt_leafidx 	t1.leafidx
-#define	dmt_height 	t1.height
-#define	dmt_budmin 	t1.budmin
-#define	dmt_stree 	t1.stree
+#define	dmt_l2nleafs	t1.l2nleafs
+#define	dmt_leafidx	t1.leafidx
+#define	dmt_height	t1.height
+#define	dmt_budmin	t1.budmin
+#define	dmt_stree	t1.stree
 
-/* 
+/*
  *	on-disk aggregate disk allocation map descriptor.
  */
 struct dbmap_disk {
@@ -237,7 +237,7 @@ struct dbmap {
 	s64 dn_agsize;		/* num of blks per alloc group       */
 	signed char dn_maxfreebud;	/* max free buddy system             */
 };				/* - 4096 -                             */
-/* 
+/*
  *	in-memory aggregate disk allocation map descriptor.
  */
 struct bmap {

@@ -3,16 +3,16 @@
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or 
+ *   the Free Software Foundation; either version 2 of the License, or
  *   (at your option) any later version.
- * 
+ *
  *   This program is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
  *   the GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software 
+ *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -78,7 +78,7 @@
  *
  * case-insensitive search:
  *
- * 	fold search key;
+ *	fold search key;
  *
  *	case-insensitive search of B-tree:
  *	for internal entry, router key is already folded;
@@ -93,7 +93,7 @@
  *	else
  *		return no match;
  *
- * 	serialization:
+ *	serialization:
  * target directory inode lock is being held on entry/exit
  * of all main directory service routines.
  *
@@ -925,7 +925,7 @@ int dtInsert(tid_t tid, struct inode *ip,
  *
  * return: 0 - success;
  *	   errno - failure;
- * 	leaf page unpinned;
+ *	leaf page unpinned;
  */
 static int dtSplitUp(tid_t tid,
 	  struct inode *ip, struct dtsplit * split, struct btstack * btstack)
@@ -3767,7 +3767,7 @@ static int ciCompare(struct component_name * key,	/* search key */
  *	     across page boundary
  *
  * return: non-zero on error
- *	
+ *
  */
 static int ciGetLeafPrefixKey(dtpage_t * lp, int li, dtpage_t * rp,
 			       int ri, struct component_name * key, int flag)
