@@ -148,7 +148,7 @@ static int alloc_pidmap(void)
 static int next_pidmap(int last)
 {
 	int offset;
-	pidmap_t *map;
+	struct pidmap *map;
 
 	offset = (last + 1) & BITS_PER_PAGE_MASK;
 	map = &pidmap_array[(last + 1)/BITS_PER_PAGE];
