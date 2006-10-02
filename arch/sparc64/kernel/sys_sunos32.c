@@ -43,6 +43,7 @@
 #include <asm/idprom.h> /* for gethostid() */
 #include <asm/unistd.h>
 #include <asm/system.h>
+#include <asm/compat_signal.h>
 
 /* For the nfs mount emulation */
 #include <linux/socket.h>
