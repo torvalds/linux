@@ -119,4 +119,17 @@ extern void FASTCALL(free_pid(struct pid *pid));
 				1; }) );				\
 	}
 
+#define do_each_pid_task(pid, type, task)				\
+	if ((task = pid_task(pid, type))) {				\
+		prefetch(pid_next(task, type));				\
+		do {
+
+#define while_each_pid_task(pid, type, task)				\
+		} while (pid_next(task, type) &&  ({			\
+				task = pid_next_task(task, type);	\
+				rcu_dereference(task);			\
+				prefetch(pid_next(task, type));		\
+				1; }) );				\
+	}
+
 #endif /* _LINUX_PID_H */
