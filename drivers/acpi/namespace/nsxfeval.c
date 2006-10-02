@@ -110,6 +110,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	}
 
 	if (return_buffer->length == 0) {
+
 		/* Error because caller specifically asked for a return value */
 
 		ACPI_ERROR((AE_INFO, "No return value"));
@@ -131,6 +132,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		    acpi_ut_get_type_name(return_type)));
 
 	if (must_free) {
+
 		/* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
 
 		acpi_os_free(return_buffer->pointer);
@@ -224,9 +226,9 @@ acpi_evaluate_object(acpi_handle handle,
 	 * 3) Valid handle
 	 */
 	if ((pathname) && (acpi_ns_valid_root_prefix(pathname[0]))) {
-		/*
-		 *  The path is fully qualified, just evaluate by name
-		 */
+
+		/* The path is fully qualified, just evaluate by name */
+
 		status = acpi_ns_evaluate_by_name(pathname, &info);
 	} else if (!handle) {
 		/*
@@ -235,11 +237,12 @@ acpi_evaluate_object(acpi_handle handle,
 		 * qualified names above, this is an error
 		 */
 		if (!pathname) {
-			ACPI_ERROR((AE_INFO,
-				    "Both Handle and Pathname are NULL"));
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Both Handle and Pathname are NULL"));
 		} else {
-			ACPI_ERROR((AE_INFO,
-				    "Handle is NULL and Pathname is relative"));
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Null Handle with relative pathname [%s]",
+					  pathname));
 		}
 
 		status = AE_BAD_PARAMETER;
@@ -256,9 +259,8 @@ acpi_evaluate_object(acpi_handle handle,
 			 */
 			status = acpi_ns_evaluate_by_handle(&info);
 		} else {
-			/*
-			 * Both a Handle and a relative Pathname
-			 */
+			/* Both a Handle and a relative Pathname */
+
 			status = acpi_ns_evaluate_relative(pathname, &info);
 		}
 	}
@@ -295,6 +297,7 @@ acpi_evaluate_object(acpi_handle handle,
 				    acpi_ut_get_object_size(info.return_object,
 							    &buffer_space_needed);
 				if (ACPI_SUCCESS(status)) {
+
 					/* Validate/Allocate/Clear caller buffer */
 
 					status =
@@ -303,7 +306,8 @@ acpi_evaluate_object(acpi_handle handle,
 					     buffer_space_needed);
 					if (ACPI_FAILURE(status)) {
 						/*
-						 * Caller's buffer is too small or a new one can't be allocated
+						 * Caller's buffer is too small or a new one can't
+						 * be allocated
 						 */
 						ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 								  "Needed buffer size %X, %s\n",
@@ -312,9 +316,8 @@ acpi_evaluate_object(acpi_handle handle,
 								  acpi_format_exception
 								  (status)));
 					} else {
-						/*
-						 *  We have enough space for the object, build it
-						 */
+						/* We have enough space for the object, build it */
+
 						status =
 						    acpi_ut_copy_iobject_to_eobject
 						    (info.return_object,
@@ -341,10 +344,10 @@ acpi_evaluate_object(acpi_handle handle,
 		}
 	}
 
-	/*
-	 * Free the input parameter list (if we created one),
-	 */
+	/* Free the input parameter list (if we created one) */
+
 	if (info.parameters) {
+
 		/* Free the allocated parameter block */
 
 		acpi_ut_delete_internal_object_list(info.parameters);
@@ -473,6 +476,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	}
 
 	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
+
 		/* Don't examine children of the device if not present */
 
 		return (AE_CTRL_DEPTH);
@@ -489,6 +493,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		}
 
 		if (ACPI_STRNCMP(hid.value, info->hid, sizeof(hid.value)) != 0) {
+
 			/* Get the list of Compatible IDs */
 
 			status = acpi_ut_execute_CID(node, &cid);
@@ -563,9 +568,9 @@ acpi_get_devices(char *HID,
 	 * We're going to call their callback from OUR callback, so we need
 	 * to know what it is, and their context parameter.
 	 */
+	info.hid = HID;
 	info.context = context;
 	info.user_function = user_function;
-	info.hid = HID;
 
 	/*
 	 * Lock the namespace around the walk.
@@ -578,9 +583,8 @@ acpi_get_devices(char *HID,
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE,
-					ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-					ACPI_NS_WALK_UNLOCK,
+	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+					ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
 					acpi_ns_get_device_callback, &info,
 					return_value);
 

@@ -279,6 +279,7 @@ acpi_walk_resources(acpi_handle device_handle,
 	/* Walk the resource list until the end_tag is found (or buffer end) */
 
 	while (resource < resource_end) {
+
 		/* Sanity check the resource */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
@@ -291,6 +292,7 @@ acpi_walk_resources(acpi_handle device_handle,
 		status = user_function(resource, context);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_CTRL_TERMINATE) {
+
 				/* This is an OK termination by the user function */
 
 				status = AE_OK;

@@ -135,6 +135,7 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
 	/* Allocate the minimum required size object */
 
 	if (flags == ACPI_PARSEOP_GENERIC) {
+
 		/* The generic op (default) is by far the most common (16 to 1) */
 
 		op = acpi_os_acquire_object(acpi_gbl_ps_node_cache);

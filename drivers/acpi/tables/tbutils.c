@@ -96,6 +96,7 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 		    (!ACPI_MEMCMP
 		     (table_desc->pointer, new_table_desc->pointer,
 		      new_table_desc->pointer->length))) {
+
 			/* Match: this table is already installed */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
@@ -249,6 +250,7 @@ u8 acpi_tb_generate_checksum(void *buffer, u32 length)
 	u8 sum = 0;
 
 	if (buffer && length) {
+
 		/*  Buffer and Length are valid   */
 
 		end_buffer = ACPI_ADD_PTR(u8, buffer, length);

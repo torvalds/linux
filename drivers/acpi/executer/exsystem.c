@@ -76,6 +76,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout)
 	}
 
 	if (status == AE_TIME) {
+
 		/* We must wait, so unlock the interpreter */
 
 		acpi_ex_exit_interpreter();
@@ -90,6 +91,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout)
 
 		status2 = acpi_ex_enter_interpreter();
 		if (ACPI_FAILURE(status2)) {
+
 			/* Report fatal error, could not acquire interpreter */
 
 			return_ACPI_STATUS(status2);

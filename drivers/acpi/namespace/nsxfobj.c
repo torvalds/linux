@@ -206,6 +206,7 @@ acpi_get_next_object(acpi_object_type type,
 	/* If null handle, use the parent */
 
 	if (!child) {
+
 		/* Start search at the beginning of the specified scope */
 
 		parent_node = acpi_ns_map_handle_to_node(parent);

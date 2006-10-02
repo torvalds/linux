@@ -463,6 +463,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	}
 
 	if (!obj_desc) {
+
 		/* This could be a null element of a package */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
@@ -532,6 +533,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 				       obj_desc->reference.offset);
 
 			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+
 				/* Value is an Integer */
 
 				acpi_os_printf(" value is [%8.8X%8.8x]",

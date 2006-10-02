@@ -77,6 +77,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 
 	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
+
 		/* Invalid opcode or ASCII character */
 
 		return (NULL);
@@ -85,6 +86,7 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 	/* Check if this opcode requires argument sub-objects */
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
+
 		/* Has no linked argument objects */
 
 		return (NULL);
@@ -130,6 +132,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 
 	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
+
 		/* Invalid opcode */
 
 		ACPI_ERROR((AE_INFO, "Invalid AML Opcode: 0x%2.2X",
@@ -140,6 +143,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	/* Check if this opcode requires argument sub-objects */
 
 	if (!(op_info->flags & AML_HAS_ARGS)) {
+
 		/* Has no linked argument objects */
 
 		return;
@@ -148,6 +152,7 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	/* Append the argument to the linked argument list */
 
 	if (op->common.value.arg) {
+
 		/* Append to existing argument list */
 
 		prev_arg = op->common.value.arg;
@@ -222,12 +227,14 @@ union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
 		}
 
 		if (arg == origin) {
+
 			/* Reached parent of origin, end search */
 
 			return (NULL);
 		}
 
 		if (parent->common.next) {
+
 			/* Found sibling of parent */
 
 			return (parent->common.next);

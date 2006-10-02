@@ -483,8 +483,6 @@ acpi_status
 acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
 			     u8 ** end_tag);
 
-u8 acpi_ut_generate_checksum(u8 * buffer, u32 length);
-
 u32 acpi_ut_dword_byte_swap(u32 value);
 
 void acpi_ut_set_integer_width(u8 revision);

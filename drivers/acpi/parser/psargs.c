@@ -275,6 +275,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+
 		/* This name is actually a control method invocation */
 
 		method_desc = acpi_ns_get_attached_object(node);
@@ -319,6 +320,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 * some not_found cases are allowed
 	 */
 	if (status == AE_NOT_FOUND) {
+
 		/* 1) not_found is ok during load pass 1/2 (allow forward references) */
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) !=
@@ -354,6 +356,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		    ACPI_PARSE_EXECUTE) {
+
 			/* Report a control method execution error */
 
 			status = acpi_ds_method_error(status, walk_state);
@@ -620,6 +623,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_FIELDLIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list */
 
 			while (parser_state->aml < parser_state->pkg_end) {
@@ -645,6 +649,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_BYTELIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list */
 
 			arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP);
@@ -673,6 +678,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 		if (subop == 0 ||
 		    acpi_ps_is_leading_char(subop) ||
 		    acpi_ps_is_prefix_char(subop)) {
+
 			/* null_name or name_string */
 
 			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
@@ -703,6 +709,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_OBJLIST:
 
 		if (parser_state->aml < parser_state->pkg_end) {
+
 			/* Non-empty list of variable arguments, nothing returned */
 
 			walk_state->arg_count = ACPI_VAR_ARGS;

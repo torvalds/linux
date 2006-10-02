@@ -636,6 +636,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (!obj_desc) {
+
 		/* No object, create a new one */
 
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_DEVICE);

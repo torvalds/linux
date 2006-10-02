@@ -75,6 +75,7 @@ acpi_status acpi_tb_validate_rsdp(struct rsdp_descriptor *rsdp)
 	 *  The signature and checksum must both be correct
 	 */
 	if (ACPI_STRNCMP((char *)rsdp, RSDP_SIG, sizeof(RSDP_SIG) - 1) != 0) {
+
 		/* Nope, BAD Signature */
 
 		return (AE_BAD_SIGNATURE);
@@ -217,6 +218,7 @@ acpi_get_firmware_table(acpi_string signature,
 	/* Ensure that we have a RSDP */
 
 	if (!acpi_gbl_RSDP) {
+
 		/* Get the RSDP */
 
 		status = acpi_os_get_root_pointer(flags, &address);
@@ -327,10 +329,12 @@ acpi_get_firmware_table(acpi_string signature,
 		/* Compare table signatures and table instance */
 
 		if (!ACPI_STRNCMP(header->signature, signature, ACPI_NAME_SIZE)) {
+
 			/* An instance of the table was found */
 
 			j++;
 			if (j >= instance) {
+
 				/* Found the correct instance, get the entire table */
 
 				status =
@@ -434,12 +438,14 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 
 	for (mem_rover = start_address; mem_rover < end_address;
 	     mem_rover += ACPI_RSDP_SCAN_STEP) {
+
 		/* The RSDP signature and checksum must both be correct */
 
 		status =
 		    acpi_tb_validate_rsdp(ACPI_CAST_PTR
 					  (struct rsdp_descriptor, mem_rover));
 		if (ACPI_SUCCESS(status)) {
+
 			/* Sig and checksum valid, we have found a real RSDP */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -495,6 +501,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 	 * Scan supports either logical addressing or physical addressing
 	 */
 	if ((flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING) {
+
 		/* 1a) Get the location of the Extended BIOS Data Area (EBDA) */
 
 		status = acpi_os_map_memory((acpi_physical_address)
@@ -542,6 +549,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 			acpi_os_unmap_memory(table_ptr, ACPI_EBDA_WINDOW_SIZE);
 
 			if (mem_rover) {
+
 				/* Return the physical address */
 
 				physical_address +=
@@ -576,6 +584,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 		acpi_os_unmap_memory(table_ptr, ACPI_HI_RSDP_WINDOW_SIZE);
 
 		if (mem_rover) {
+
 			/* Return the physical address */
 
 			physical_address =
@@ -609,6 +618,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 							 (physical_address),
 							 ACPI_EBDA_WINDOW_SIZE);
 			if (mem_rover) {
+
 				/* Return the physical address */
 
 				table_info->physical_address =
@@ -624,6 +634,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 						 (ACPI_HI_RSDP_WINDOW_BASE),
 						 ACPI_HI_RSDP_WINDOW_SIZE);
 		if (mem_rover) {
+
 			/* Found it, return the physical address */
 
 			table_info->physical_address =

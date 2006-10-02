@@ -423,6 +423,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		}
 
 		if (obj_desc) {
+
 			/* Decrement reference count by the ref count of the parent package */
 
 			for (i = 0; i < ((union acpi_operand_object *)
@@ -572,6 +573,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	/* If no implicit conversion, drop into the default case below */
 
 	if ((!implicit_conversion) || (walk_state->opcode == AML_COPY_OP)) {
+
 		/* Force execution of default (no implicit conversion) */
 
 		target_type = ACPI_TYPE_ANY;

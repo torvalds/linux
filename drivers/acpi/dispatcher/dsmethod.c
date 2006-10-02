@@ -81,6 +81,7 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 	/* Invoke the global exception handler */
 
 	if (acpi_gbl_exception_handler) {
+
 		/* Exit the interpreter, allow handler to execute methods */
 
 		acpi_ex_exit_interpreter();
@@ -100,6 +101,7 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 	}
 #ifdef ACPI_DISASSEMBLER
 	if (ACPI_FAILURE(status)) {
+
 		/* Display method locals/args if disassembler is present */
 
 		acpi_dm_dump_method_info(status, walk_state, walk_state->op);
@@ -249,6 +251,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	}
 
 	if (!(obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY)) {
+
 		/* 1) Parse: Create a new walk state for the preempting walk */
 
 		next_walk_state =
@@ -378,9 +381,11 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 	/* Did the called method return a value? */
 
 	if (return_desc) {
+
 		/* Are we actually going to use the return value? */
 
 		if (walk_state->return_used) {
+
 			/* Save the return value from the previous method */
 
 			status = acpi_ds_result_push(return_desc, walk_state);

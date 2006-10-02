@@ -66,6 +66,7 @@ void acpi_ds_scope_stack_clear(struct acpi_walk_state *walk_state)
 	ACPI_FUNCTION_NAME("ds_scope_stack_clear");
 
 	while (walk_state->scope_info) {
+
 		/* Pop a scope off the stack */
 
 		scope_info = walk_state->scope_info;
@@ -105,6 +106,7 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 	ACPI_FUNCTION_TRACE("ds_scope_stack_push");
 
 	if (!node) {
+
 		/* Invalid scope   */
 
 		ACPI_ERROR((AE_INFO, "Null scope parameter"));

@@ -142,6 +142,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	length =
 	    (acpi_size) ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.bit_length);
 	if (length > acpi_gbl_integer_byte_width) {
+
 		/* Field is too large for an Integer, create a Buffer instead */
 
 		buffer_desc = acpi_ut_create_buffer_object(length);
@@ -329,6 +330,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
 
 	if (length < required_length) {
+
 		/* We need to create a new buffer */
 
 		new_buffer = ACPI_MEM_CALLOCATE(required_length);

@@ -148,6 +148,10 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 					    sizeof(struct acpi_table_header),
 					    (void *)&header);
 		if (ACPI_FAILURE(status)) {
+			ACPI_ERROR((AE_INFO,
+				    "Could not map memory at %8.8X%8.8X for table header",
+				    ACPI_FORMAT_UINT64(address->pointer.
+						       physical)));
 			return_ACPI_STATUS(status);
 		}
 
@@ -208,6 +212,7 @@ acpi_tb_get_table_body(struct acpi_pointer *address,
 
 	status = acpi_tb_table_override(header, table_info);
 	if (ACPI_SUCCESS(status)) {
+
 		/* Table was overridden by the host OS */
 
 		return_ACPI_STATUS(status);
@@ -250,6 +255,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	 */
 	status = acpi_os_table_override(header, &new_table);
 	if (ACPI_FAILURE(status)) {
+
 		/* Some severe error from the OSL, but we basically ignore it */
 
 		ACPI_EXCEPTION((AE_INFO, status,
@@ -258,6 +264,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	}
 
 	if (!new_table) {
+
 		/* No table override */
 
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
@@ -381,6 +388,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 #if (!ACPI_CHECKSUM_ABORT)
 		if (ACPI_FAILURE(status)) {
+
 			/* Ignore the error if configuration says so */
 
 			status = AE_OK;
@@ -440,6 +448,7 @@ acpi_tb_get_table_ptr(acpi_table_type table_type,
 	 * instance is always in the list head.
 	 */
 	if (instance == 1) {
+
 		/* Get the first */
 
 		*table_ptr_loc = NULL;

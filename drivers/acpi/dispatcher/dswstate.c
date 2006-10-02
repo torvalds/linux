@@ -170,6 +170,7 @@ acpi_ds_result_pop(union acpi_operand_object ** object,
 	state->results.num_results--;
 
 	for (index = ACPI_OBJ_NUM_OPERANDS; index; index--) {
+
 		/* Check for a valid result object */
 
 		if (state->results.obj_desc[index - 1]) {
@@ -448,6 +449,7 @@ acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state * walk_state)
 	ACPI_FUNCTION_NAME("ds_obj_stack_pop");
 
 	for (i = 0; i < pop_count; i++) {
+
 		/* Check for stack underflow */
 
 		if (walk_state->num_operands == 0) {
@@ -494,6 +496,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 	ACPI_FUNCTION_NAME("ds_obj_stack_pop_and_delete");
 
 	for (i = 0; i < pop_count; i++) {
+
 		/* Check for stack underflow */
 
 		if (walk_state->num_operands == 0) {
@@ -598,6 +601,7 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
 	walk_state = thread->walk_state_list;
 
 	if (walk_state) {
+
 		/* Next walk state becomes the current walk state */
 
 		thread->walk_state_list = walk_state->next;
@@ -778,6 +782,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		}
 
 		if (parser_state->start_node) {
+
 			/* Push start scope on scope stack and make it current  */
 
 			status =

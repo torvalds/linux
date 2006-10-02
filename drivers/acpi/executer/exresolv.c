@@ -382,10 +382,16 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	while (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
 		switch (obj_desc->reference.opcode) {
 		case AML_REF_OF_OP:
+		case AML_INT_NAMEPATH_OP:
 
 			/* Dereference the reference pointer */
 
-			node = obj_desc->reference.object;
+			if (obj_desc->reference.opcode == AML_REF_OF_OP) {
+				node = obj_desc->reference.object;
+			} else {	/* AML_INT_NAMEPATH_OP */
+
+				node = obj_desc->reference.node;
+			}
 
 			/* All "References" point to a NS node */
 
@@ -401,6 +407,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 			obj_desc = acpi_ns_get_attached_object(node);
 			if (!obj_desc) {
+
 				/* No object, use the NS node type */
 
 				type = acpi_ns_get_type(node);
@@ -432,43 +439,11 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 */
 			obj_desc = *(obj_desc->reference.where);
 			if (!obj_desc) {
+
 				/* NULL package elements are allowed */
 
 				type = 0;	/* Uninitialized */
 				goto exit;
-			}
-			break;
-
-		case AML_INT_NAMEPATH_OP:
-
-			/* Dereference the reference pointer */
-
-			node = obj_desc->reference.node;
-
-			/* All "References" point to a NS node */
-
-			if (ACPI_GET_DESCRIPTOR_TYPE(node) !=
-			    ACPI_DESC_TYPE_NAMED) {
-				ACPI_ERROR((AE_INFO, "Not a NS node %p [%s]",
-					    node,
-					    acpi_ut_get_descriptor_name(node)));
-				return_ACPI_STATUS(AE_AML_INTERNAL);
-			}
-
-			/* Get the attached object */
-
-			obj_desc = acpi_ns_get_attached_object(node);
-			if (!obj_desc) {
-				/* No object, use the NS node type */
-
-				type = acpi_ns_get_type(node);
-				goto exit;
-			}
-
-			/* Check for circular references */
-
-			if (obj_desc == operand) {
-				return_ACPI_STATUS(AE_AML_CIRCULAR_REFERENCE);
 			}
 			break;
 

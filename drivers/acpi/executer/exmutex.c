@@ -173,6 +173,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	/* Support for multiple acquires by the owning thread */
 
 	if (obj_desc->mutex.owner_thread) {
+
 		/* Special case for Global Lock, allow all threads */
 
 		if ((obj_desc->mutex.owner_thread->thread_id ==
@@ -192,6 +193,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 
 	status = acpi_ex_system_acquire_mutex(time_desc, obj_desc);
 	if (ACPI_FAILURE(status)) {
+
 		/* Includes failure from a timeout on time_desc */
 
 		return_ACPI_STATUS(status);
@@ -286,6 +288,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 
 	obj_desc->mutex.acquisition_depth--;
 	if (obj_desc->mutex.acquisition_depth != 0) {
+
 		/* Just decrement the depth and return */
 
 		return_ACPI_STATUS(AE_OK);

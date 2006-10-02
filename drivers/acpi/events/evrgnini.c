@@ -199,6 +199,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * handlers with that device.
 	 */
 	if (handler_obj->address_space.node == acpi_gbl_root_node) {
+
 		/* Start search from the parent object */
 
 		pci_root_node = parent_node;
@@ -220,6 +221,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 					PCI_EXPRESS_ROOT_HID_STRING,
 					sizeof(PCI_EXPRESS_ROOT_HID_STRING)))))
 				{
+
 					/* Install a handler for this PCI root bridge */
 
 					status =
@@ -478,11 +480,13 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 	 * ie: acpi_gbl_root_node->parent_entry being set to NULL
 	 */
 	while (node) {
+
 		/* Check to see if a handler exists */
 
 		handler_obj = NULL;
 		obj_desc = acpi_ns_get_attached_object(node);
 		if (obj_desc) {
+
 			/* Can only be a handler if the object exists */
 
 			switch (node->type) {
@@ -507,10 +511,12 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 			}
 
 			while (handler_obj) {
+
 				/* Is this handler of the correct type? */
 
 				if (handler_obj->address_space.space_id ==
 				    space_id) {
+
 					/* Found correct handler */
 
 					ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,

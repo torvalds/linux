@@ -308,6 +308,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
 
 	allocation = acpi_os_allocate(size);
 	if (!allocation) {
+
 		/* Report allocation error */
 
 		ACPI_ERROR((module, line,
@@ -351,6 +352,7 @@ void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line)
 
 	allocation = acpi_os_allocate(size);
 	if (!allocation) {
+
 		/* Report allocation error */
 
 		ACPI_ERROR((module, line,
@@ -477,6 +479,7 @@ void *acpi_ut_callocate_and_track(acpi_size size,
 	    acpi_ut_callocate(size + sizeof(struct acpi_debug_mem_header),
 			      component, module, line);
 	if (!allocation) {
+
 		/* Report allocation error */
 
 		ACPI_ERROR((module, line,
@@ -681,6 +684,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 
 	mem_list = acpi_gbl_global_list;
 	if (NULL == mem_list->list_head) {
+
 		/* No allocations! */
 
 		ACPI_ERROR((module, line,
@@ -807,6 +811,7 @@ void acpi_ut_dump_allocations(u32 component, char *module)
 		if ((element->component & component) &&
 		    ((module == NULL)
 		     || (0 == ACPI_STRCMP(module, element->module)))) {
+
 			/* Ignore allocated objects that are in a cache */
 
 			descriptor =

@@ -366,6 +366,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	status = acpi_ns_search_node(*ACPI_CAST_PTR(u32, METHOD_NAME__INI),
 				     device_node, ACPI_TYPE_METHOD, &ini_node);
 	if (ACPI_FAILURE(status)) {
+
 		/* No _INI method found - move on to next device */
 
 		return_ACPI_STATUS(AE_OK);
@@ -386,6 +387,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 	status = acpi_ut_execute_STA(pinfo.node, &flags);
 	if (ACPI_FAILURE(status)) {
+
 		/* Ignore error and move on to next device */
 
 		return_ACPI_STATUS(AE_OK);
@@ -396,6 +398,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	}
 
 	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
+
 		/* Don't look at children of a not present device */
 
 		return_ACPI_STATUS(AE_CTRL_DEPTH);
@@ -412,6 +415,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	pinfo.node = ini_node;
 	status = acpi_ns_evaluate_by_handle(&pinfo);
 	if (ACPI_FAILURE(status)) {
+
 		/* Ignore error and move on to next device */
 
 #ifdef ACPI_DEBUG_OUTPUT
@@ -435,6 +439,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	}
 
 	if (acpi_gbl_init_handler) {
+
 		/* External initialization handler is present, call it */
 
 		status =

@@ -273,6 +273,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (resource_type & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Verify the large resource type (name) against the max */
 
 		if (resource_type > ACPI_RESOURCE_NAME_LARGE_MAX) {
@@ -376,6 +377,7 @@ u8 acpi_ut_get_resource_type(void *aml)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large Resource Type -- bits 6:0 contain the name */
 
 		return (ACPI_GET8(aml));
@@ -411,6 +413,7 @@ u16 acpi_ut_get_resource_length(void *aml)
 	 * Examine the large/small bit in the resource header
 	 */
 	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
 
 		ACPI_MOVE_16_TO_16(&resource_length, ACPI_ADD_PTR(u8, aml, 1));
@@ -515,6 +518,7 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 	/* Walk the resource template, one descriptor per iteration */
 
 	while (aml < end_aml) {
+
 		/* Validate the Resource Type and Resource Length */
 
 		status = acpi_ut_validate_resource(aml, NULL);

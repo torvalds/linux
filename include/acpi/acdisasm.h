@@ -70,6 +70,7 @@ extern const char *acpi_gbl_match_ops[ACPI_NUM_MATCH_OPS];
 struct acpi_op_walk_info {
 	u32 level;
 	u32 bit_offset;
+	u32 flags;
 	struct acpi_walk_state *walk_state;
 };
 

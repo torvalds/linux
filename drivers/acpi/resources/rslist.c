@@ -77,6 +77,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 	/* Loop until end-of-buffer or an end_tag is found */
 
 	while (aml < end_aml) {
+
 		/* Validate the Resource Type and Resource Length */
 
 		status = acpi_ut_validate_resource(aml, &resource_index);
@@ -155,6 +156,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 	/* Walk the resource descriptor list, convert each descriptor */
 
 	while (aml < end_aml) {
+
 		/* Validate the (internal) Resource Type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
@@ -191,6 +193,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		/* Check for end-of-list, normal exit */
 
 		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
+
 			/* An End Tag indicates the end of the input Resource Template */
 
 			return_ACPI_STATUS(AE_OK);

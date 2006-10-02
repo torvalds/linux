@@ -261,6 +261,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		 */
 
 		if (walk_state->deferred_node) {
+
 			/* This name is already in the namespace, get the node */
 
 			node = walk_state->deferred_node;
@@ -311,6 +312,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 	/* Common exit */
 
 	if (!op) {
+
 		/* Create a new op */
 
 		op = acpi_ps_alloc_op(walk_state->opcode);
@@ -413,6 +415,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 #endif
 
 	if (op->common.aml_opcode == AML_NAME_OP) {
+
 		/* For Name opcode, get the object type from the argument */
 
 		if (op->common.value.arg) {
@@ -521,6 +524,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		if ((walk_state->control_state) &&
 		    (walk_state->control_state->common.state ==
 		     ACPI_CONTROL_CONDITIONAL_EXECUTING)) {
+
 			/* We are executing a while loop outside of a method */
 
 			status = acpi_ds_exec_begin_op(walk_state, out_op);
@@ -554,10 +558,12 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		/* Get the name we are going to enter or lookup in the namespace */
 
 		if (walk_state->opcode == AML_INT_NAMEPATH_OP) {
+
 			/* For Namepath op, get the path string */
 
 			buffer_ptr = op->common.value.string;
 			if (!buffer_ptr) {
+
 				/* No name, just exit */
 
 				return_ACPI_STATUS(AE_OK);
@@ -680,6 +686,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		/* All other opcodes */
 
 		if (op && op->common.node) {
+
 			/* This op/node was previously entered into the namespace */
 
 			node = op->common.node;
@@ -705,6 +712,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		 * Note: Name may already exist if we are executing a deferred opcode.
 		 */
 		if (walk_state->deferred_node) {
+
 			/* This name is already in the namespace, get the node */
 
 			node = walk_state->deferred_node;
@@ -727,6 +735,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	}
 
 	if (!op) {
+
 		/* Create a new op */
 
 		op = acpi_ps_alloc_op(walk_state->opcode);

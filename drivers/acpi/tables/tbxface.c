@@ -174,6 +174,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	status = acpi_tb_install_table(&table_info);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
+
 			/* Table already exists, no error */
 
 			status = AE_OK;
@@ -208,6 +209,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	}
 
 	if (ACPI_FAILURE(status)) {
+
 		/* Uninstall table and free the buffer */
 
 		(void)acpi_tb_uninstall_table(table_info.installed_desc);
@@ -397,6 +399,7 @@ acpi_get_table(acpi_table_type table_type,
 	/* Get the table length */
 
 	if (table_type == ACPI_TABLE_RSDP) {
+
 		/* RSD PTR is the only "table" without a header */
 
 		table_length = sizeof(struct rsdp_descriptor);

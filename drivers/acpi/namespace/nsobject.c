@@ -82,6 +82,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	 * Parameter validation
 	 */
 	if (!node) {
+
 		/* Invalid handle */
 
 		ACPI_ERROR((AE_INFO, "Null named_obj handle"));
@@ -89,6 +90,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	}
 
 	if (!object && (ACPI_TYPE_ANY != type)) {
+
 		/* Null object */
 
 		ACPI_ERROR((AE_INFO,
@@ -97,6 +99,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+
 		/* Not a name handle */
 
 		ACPI_ERROR((AE_INFO, "Invalid handle %p [%s]",

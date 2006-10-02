@@ -147,6 +147,7 @@ acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info)
 	/* Copy the table pointers */
 
 	for (i = 0; i < acpi_gbl_rsdt_table_count; i++) {
+
 		/* RSDT pointers are 32 bits, XSDT pointers are 64 bits */
 
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
@@ -515,6 +516,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 
 	if (acpi_gbl_FADT->revision >= FADT2_REVISION_ID) {
 		if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev2)) {
+
 			/* Length is too short to be a V2.0 table */
 
 			ACPI_WARNING((AE_INFO,
@@ -603,6 +605,7 @@ acpi_status acpi_tb_build_common_facs(struct acpi_table_desc *table_info)
 	if ((acpi_gbl_RSDP->revision < 2) ||
 	    (acpi_gbl_FACS->length < 32) ||
 	    (!(acpi_gbl_FACS->xfirmware_waking_vector))) {
+
 		/* ACPI 1.0 FACS or short table or optional X_ field is zero */
 
 		acpi_gbl_common_fACS.firmware_waking_vector = ACPI_CAST_PTR(u64,

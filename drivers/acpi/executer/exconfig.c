@@ -110,6 +110,7 @@ acpi_ex_add_table(struct acpi_table_header *table,
 
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
+
 			/* Table already exists, just return the handle */
 
 			return_ACPI_STATUS(AE_OK);
@@ -121,6 +122,7 @@ acpi_ex_add_table(struct acpi_table_header *table,
 
 	status = acpi_ns_load_table(table_info.installed_desc, parent_node);
 	if (ACPI_FAILURE(status)) {
+
 		/* Uninstall table on error */
 
 		(void)acpi_tb_uninstall_table(table_info.installed_desc);
@@ -169,6 +171,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	 */
 	status = acpi_tb_match_signature(operand[0]->string.pointer, NULL);
 	if (status == AE_OK) {
+
 		/* Signature matched -- don't allow override */
 
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
@@ -252,6 +255,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	/* Parameter Data (optional) */
 
 	if (parameter_node) {
+
 		/* Store the parameter data into the optional parameter object */
 
 		status = acpi_ex_store(operand[5],
@@ -424,6 +428,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	status = acpi_ex_add_table(table_ptr, acpi_gbl_root_node, &ddb_handle);
 	if (ACPI_FAILURE(status)) {
+
 		/* On error, table_ptr was deallocated above */
 
 		return_ACPI_STATUS(status);

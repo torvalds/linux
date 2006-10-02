@@ -205,6 +205,7 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 	/* Length is stored differently for large and small descriptors */
 
 	if (aml->small_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
+
 		/* Large descriptor -- bytes 1-2 contain the 16-bit length */
 
 		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
@@ -328,6 +329,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 	 * we add 1 to the minimum length.
 	 */
 	if (total_length > (acpi_rsdesc_size) (minimum_length + 1)) {
+
 		/* Get the resource_source_index */
 
 		resource_source->index = aml_resource_source[0];
@@ -351,16 +353,20 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		 * Zero the entire area of the buffer.
 		 */
 		total_length =
+		    (u32)
 		    ACPI_ROUND_UP_to_32_bITS(ACPI_STRLEN
-					     ((char *)&aml_resource_source[1]) +
-					     1);
+					     (ACPI_CAST_PTR
+					      (char,
+					       &aml_resource_source[1])) + 1);
+
 		ACPI_MEMSET(resource_source->string_ptr, 0, total_length);
 
 		/* Copy the resource_source string to the destination */
 
 		resource_source->string_length =
 		    acpi_rs_strcpy(resource_source->string_ptr,
-				   (char *)&aml_resource_source[1]);
+				   ACPI_CAST_PTR(char,
+						 &aml_resource_source[1]));
 
 		return ((acpi_rs_length) total_length);
 	}
@@ -405,6 +411,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 	/* Non-zero string length indicates presence of a resource_source */
 
 	if (resource_source->string_length) {
+
 		/* Point to the end of the AML descriptor */
 
 		aml_resource_source = ACPI_ADD_PTR(u8, aml, minimum_length);
@@ -415,7 +422,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 
 		/* Copy the resource_source string */
 
-		ACPI_STRCPY((char *)&aml_resource_source[1],
+		ACPI_STRCPY(ACPI_CAST_PTR(char, &aml_resource_source[1]),
 			    resource_source->string_ptr);
 
 		/*
@@ -435,9 +442,9 @@ acpi_rs_set_resource_source(union aml_resource * aml,
  *
  * FUNCTION:    acpi_rs_get_prt_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Handle          - Handle to the containing object
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -483,9 +490,9 @@ acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer * ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_crs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Handle          - Handle to the containing object
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -532,9 +539,9 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_prs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ * PARAMETERS:  Handle          - Handle to the containing object
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -583,10 +590,10 @@ acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
  *
  * FUNCTION:    acpi_rs_get_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
+ * PARAMETERS:  Handle          - Handle to the containing object
  *              Path            - Path to method, relative to Handle
- *              ret_buffer      - a pointer to a buffer structure for the
- *                                  results
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
  *
  * RETURN:      Status
  *
@@ -634,9 +641,9 @@ acpi_rs_get_method_data(acpi_handle handle,
  *
  * FUNCTION:    acpi_rs_set_srs_method_data
  *
- * PARAMETERS:  Handle          - a handle to the containing object
- *              in_buffer       - a pointer to a buffer structure of the
- *                                  parameter
+ * PARAMETERS:  Handle          - Handle to the containing object
+ *              in_buffer       - Pointer to a buffer structure of the
+ *                                parameter
  *
  * RETURN:      Status
  *
@@ -696,6 +703,7 @@ acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *in_buffer)
 
 	status = acpi_ns_evaluate_relative(METHOD_NAME__SRS, &info);
 	if (ACPI_SUCCESS(status)) {
+
 		/* Delete any return object (especially if implicit_return is enabled) */
 
 		if (info.return_object) {

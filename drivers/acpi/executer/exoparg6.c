@@ -276,6 +276,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		 * match was found.
 		 */
 		for (; index < operand[0]->package.count; index++) {
+
 			/* Get the current package element */
 
 			this_element = operand[0]->package.elements[index];

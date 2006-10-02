@@ -146,10 +146,12 @@ acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback)
 
 	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
 	while (gpe_xrupt_info) {
+
 		/* Walk all Gpe Blocks attached to this interrupt level */
 
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
+
 			/* One callback per GPE block */
 
 			status = gpe_walk_callback(gpe_xrupt_info, gpe_block);
@@ -195,6 +197,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	/* Examine each GPE Register within the block */
 
 	for (i = 0; i < gpe_block->register_count; i++) {
+
 		/* Now look at the individual GPEs in this byte register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
@@ -289,6 +292,7 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 
 	gpe_number = ACPI_STRTOUL(&name[2], NULL, 16);
 	if (gpe_number == ACPI_UINT32_MAX) {
+
 		/* Conversion failed; invalid method, just ignore it */
 
 		ACPI_ERROR((AE_INFO,
@@ -371,6 +375,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	status = acpi_ut_evaluate_object(obj_handle, METHOD_NAME__PRW,
 					 ACPI_BTYPE_PACKAGE, &pkg_desc);
 	if (ACPI_FAILURE(status)) {
+
 		/* Ignore all errors from _PRW, we don't want to abort the subsystem */
 
 		return_ACPI_STATUS(AE_OK);
@@ -394,6 +399,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	obj_desc = pkg_desc->package.elements[0];
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+
 		/* Use FADT-defined GPE device (from definition of _PRW) */
 
 		target_gpe_device = acpi_gbl_fadt_gpe_device;
@@ -402,6 +408,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 
 		gpe_number = (u32) obj_desc->integer.value;
 	} else if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
+
 		/* Package contains a GPE reference and GPE number within a GPE block */
 
 		if ((obj_desc->package.count < 2) ||
@@ -679,6 +686,7 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 	status = acpi_hw_disable_gpe_block(gpe_block->xrupt_block, gpe_block);
 
 	if (!gpe_block->previous && !gpe_block->next) {
+
 		/* This is the last gpe_block on this interrupt */
 
 		status = acpi_ev_delete_gpe_xrupt(gpe_block->xrupt_block);
@@ -780,6 +788,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	this_event = gpe_event_info;
 
 	for (i = 0; i < gpe_block->register_count; i++) {
+
 		/* Init the register_info for this GPE register (8 GPEs) */
 
 		this_register->base_gpe_number =
@@ -1013,6 +1022,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	for (i = 0; i < gpe_block->register_count; i++) {
 		for (j = 0; j < 8; j++) {
+
 			/* Get the info block for this particular GPE */
 
 			gpe_event_info =
@@ -1099,6 +1109,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	 * particular block is not supported.
 	 */
 	if (acpi_gbl_FADT->gpe0_blk_len && acpi_gbl_FADT->xgpe0_blk.address) {
+
 		/* GPE block 0 exists (has both length and address > 0) */
 
 		register_count0 = (u16) (acpi_gbl_FADT->gpe0_blk_len / 2);
@@ -1121,6 +1132,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	}
 
 	if (acpi_gbl_FADT->gpe1_blk_len && acpi_gbl_FADT->xgpe1_blk.address) {
+
 		/* GPE block 1 exists (has both length and address > 0) */
 
 		register_count1 = (u16) (acpi_gbl_FADT->gpe1_blk_len / 2);
@@ -1168,6 +1180,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 	/* Exit if there are no GPE registers */
 
 	if ((register_count0 + register_count1) == 0) {
+
 		/* GPEs are not required by ACPI, this is OK */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,

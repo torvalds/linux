@@ -208,6 +208,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 			/* If the requested length is zero, don't allocate a buffer */
 
 			if (length > 0) {
+
 				/* Allocate a new buffer for the Buffer */
 
 				buffer = ACPI_MEM_CALLOCATE(length);
@@ -225,6 +226,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		if (buffer) {
+
 			/* We have a buffer, copy the portion requested */
 
 			ACPI_MEMCPY(buffer, operand[0]->string.pointer + index,

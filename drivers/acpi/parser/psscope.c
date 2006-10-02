@@ -165,6 +165,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 	acpi_ut_push_generic_state(&parser_state->scope, scope);
 
 	if (arg_count == ACPI_VAR_ARGS) {
+
 		/* Multiple arguments */
 
 		scope->parse_scope.arg_end = parser_state->pkg_end;

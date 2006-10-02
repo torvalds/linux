@@ -342,6 +342,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			for (i = 0;
 			     (i < acpi_gbl_integer_nybble_width) && (digit > 0);
 			     i++) {
+
 				/* Get the least significant 4-bit BCD digit */
 
 				temp32 = ((u32) digit) & 0xF;
@@ -487,6 +488,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_convert_to_string(operand[0], &return_desc,
 						   ACPI_EXPLICIT_CONVERT_DECIMAL);
 		if (return_desc == operand[0]) {
+
 			/* No conversion performed, add ref to handle return value */
 			acpi_ut_add_reference(return_desc);
 		}
@@ -497,6 +499,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_convert_to_string(operand[0], &return_desc,
 						   ACPI_EXPLICIT_CONVERT_HEX);
 		if (return_desc == operand[0]) {
+
 			/* No conversion performed, add ref to handle return value */
 			acpi_ut_add_reference(return_desc);
 		}
@@ -506,6 +509,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 		status = acpi_ex_convert_to_buffer(operand[0], &return_desc);
 		if (return_desc == operand[0]) {
+
 			/* No conversion performed, add ref to handle return value */
 			acpi_ut_add_reference(return_desc);
 		}
@@ -516,6 +520,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_convert_to_integer(operand[0], &return_desc,
 						    ACPI_ANY_BASE);
 		if (return_desc == operand[0]) {
+
 			/* No conversion performed, add ref to handle return value */
 			acpi_ut_add_reference(return_desc);
 		}
@@ -541,6 +546,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 	}
 
 	if (ACPI_SUCCESS(status)) {
+
 		/* Store the return value computed above into the target object */
 
 		status = acpi_ex_store(return_desc, operand[1], walk_state);
@@ -625,6 +631,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		temp_desc = operand[0];
 		if (ACPI_GET_DESCRIPTOR_TYPE(temp_desc) ==
 		    ACPI_DESC_TYPE_OPERAND) {
+
 			/* Internal reference object - prevent deletion */
 
 			acpi_ut_add_reference(temp_desc);
@@ -777,8 +784,25 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/* Check for a method local or argument, or standalone String */
 
-		if (ACPI_GET_DESCRIPTOR_TYPE(operand[0]) !=
+		if (ACPI_GET_DESCRIPTOR_TYPE(operand[0]) ==
 		    ACPI_DESC_TYPE_NAMED) {
+			temp_desc =
+			    acpi_ns_get_attached_object((struct
+							 acpi_namespace_node *)
+							operand[0]);
+			if (temp_desc
+			    &&
+			    ((ACPI_GET_OBJECT_TYPE(temp_desc) ==
+			      ACPI_TYPE_STRING)
+			     || (ACPI_GET_OBJECT_TYPE(temp_desc) ==
+				 ACPI_TYPE_LOCAL_REFERENCE))) {
+				operand[0] = temp_desc;
+				acpi_ut_add_reference(temp_desc);
+			} else {
+				status = AE_AML_OPERAND_TYPE;
+				goto cleanup;
+			}
+		} else {
 			switch (ACPI_GET_OBJECT_TYPE(operand[0])) {
 			case ACPI_TYPE_LOCAL_REFERENCE:
 				/*
@@ -827,13 +851,24 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				break;
 
 			case ACPI_TYPE_STRING:
+				break;
 
+			default:
+				status = AE_AML_OPERAND_TYPE;
+				goto cleanup;
+			}
+		}
+
+		if (ACPI_GET_DESCRIPTOR_TYPE(operand[0]) !=
+		    ACPI_DESC_TYPE_NAMED) {
+			if (ACPI_GET_OBJECT_TYPE(operand[0]) ==
+			    ACPI_TYPE_STRING) {
 				/*
 				 * This is a deref_of (String). The string is a reference
 				 * to a named ACPI object.
 				 *
 				 * 1) Find the owning Node
-				 * 2) Dereference the node to an actual object.  Could be a
+				 * 2) Dereference the node to an actual object. Could be a
 				 *    Field, so we need to resolve the node to a value.
 				 */
 				status =
@@ -856,11 +891,6 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				    (ACPI_CAST_INDIRECT_PTR
 				     (struct acpi_namespace_node, &return_desc),
 				     walk_state);
-				goto cleanup;
-
-			default:
-
-				status = AE_AML_OPERAND_TYPE;
 				goto cleanup;
 			}
 		}

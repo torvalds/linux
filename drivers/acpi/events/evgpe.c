@@ -207,6 +207,7 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info,
 		ACPI_SET_BIT(gpe_event_info->flags, ACPI_GPE_RUN_ENABLED);
 
 		if (write_to_hardware) {
+
 			/* Clear the GPE (of stale events), then enable it */
 
 			status = acpi_hw_clear_gpe(gpe_event_info);
@@ -313,6 +314,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 	/* A NULL gpe_block means use the FADT-defined GPE block(s) */
 
 	if (!gpe_device) {
+
 		/* Examine GPE Block 0 and 1 (These blocks are permanent) */
 
 		for (i = 0; i < ACPI_MAX_GPE_BLOCKS; i++) {
@@ -402,6 +404,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 		 * Find all currently active GP events.
 		 */
 		for (i = 0; i < gpe_block->register_count; i++) {
+
 			/* Get the next status/enable pair */
 
 			gpe_register_info = &gpe_block->register_info[i];
@@ -437,6 +440,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			enabled_status_byte = (u8) (status_reg & enable_reg);
 			if (!enabled_status_byte) {
+
 				/* No active GPEs in this register, move on */
 
 				continue;
@@ -445,6 +449,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			/* Now look at the individual GPEs in this byte register */
 
 			for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
+
 				/* Examine one GPE bit */
 
 				if (enabled_status_byte &

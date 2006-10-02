@@ -295,6 +295,7 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 	}
 
 	if (ACPI_SUCCESS(status)) {
+
 		/* Normalize the value that was read */
 
 		register_value =

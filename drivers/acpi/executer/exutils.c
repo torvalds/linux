@@ -194,6 +194,7 @@ u8 acpi_ex_acquire_global_lock(u32 field_flags)
 	/* Only attempt lock if the always_lock bit is set */
 
 	if (field_flags & AML_FIELD_LOCK_RULE_MASK) {
+
 		/* We should attempt to get the lock, wait forever */
 
 		status = acpi_ev_acquire_global_lock(ACPI_WAIT_FOREVER);
@@ -230,10 +231,12 @@ void acpi_ex_release_global_lock(u8 locked_by_me)
 	/* Only attempt unlock if the caller locked it */
 
 	if (locked_by_me) {
+
 		/* OK, now release the lock */
 
 		status = acpi_ev_release_global_lock();
 		if (ACPI_FAILURE(status)) {
+
 			/* Report the error, but there isn't much else we can do */
 
 			ACPI_EXCEPTION((AE_INFO, status,

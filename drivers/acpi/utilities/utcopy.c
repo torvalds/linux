@@ -882,6 +882,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 					   acpi_ut_copy_ielement_to_ielement,
 					   walk_state);
 	if (ACPI_FAILURE(status)) {
+
 		/* On failure, delete the destination package object */
 
 		acpi_ut_remove_reference(dest_obj);

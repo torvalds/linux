@@ -106,6 +106,7 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
 	opcode = (u16) ACPI_GET8(aml);
 
 	if (opcode == AML_EXTENDED_OP_PREFIX) {
+
 		/* Extended opcode, get the second opcode byte */
 
 		aml++;
@@ -158,6 +159,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 	if (op->common.parent) {
 		prev = op->common.parent->common.value.arg;
 		if (!prev) {
+
 			/* Nothing more to do */
 
 			goto cleanup;
@@ -245,6 +247,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 		/* We must unlink this op from the parent tree */
 
 		if (prev == op) {
+
 			/* This op is the first in the list */
 
 			if (replacement_op) {
@@ -265,6 +268,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 
 		else
 			while (prev) {
+
 				/* Traverse all siblings in the parent's argument list */
 
 				next = prev->common.next;
@@ -510,6 +514,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		} else if (status == AE_CTRL_TERMINATE) {
 			status = AE_OK;
 		} else if ((status != AE_OK) && (walk_state->method_desc)) {
+
 			/* Either the method parse or actual execution failed */
 
 			ACPI_ERROR_METHOD("Method parse/execution failed",
@@ -551,6 +556,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		if (((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		     ACPI_PARSE_EXECUTE) || (ACPI_FAILURE(status))) {
 			if (walk_state->method_desc) {
+
 				/* Decrement the thread count on the method parse tree */
 
 				if (walk_state->method_desc->method.
@@ -633,12 +639,14 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			}
 		} else {
 			if (previous_walk_state->return_desc) {
+
 				/* Caller doesn't want it, must delete it */
 
 				acpi_ut_remove_reference(previous_walk_state->
 							 return_desc);
 			}
 			if (previous_walk_state->implicit_return_obj) {
+
 				/* Caller doesn't want it, must delete it */
 
 				acpi_ut_remove_reference(previous_walk_state->

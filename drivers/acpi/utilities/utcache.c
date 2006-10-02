@@ -118,6 +118,7 @@ acpi_status acpi_os_purge_cache(struct acpi_memory_list * cache)
 	/* Walk the list of objects in this cache */
 
 	while (cache->list_head) {
+
 		/* Delete and unlink one cached state object */
 
 		next = *(ACPI_CAST_INDIRECT_PTR(char,
@@ -259,6 +260,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	/* Check the cache first */
 
 	if (cache->list_head) {
+
 		/* There is an object available, use it */
 
 		object = cache->list_head;

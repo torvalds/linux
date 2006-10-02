@@ -490,6 +490,7 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 					       ACPI_REGISTER_PM1_CONTROL,
 					       &PM1Acontrol);
 		if (ACPI_SUCCESS(status)) {
+
 			/* Clear SLP_EN and SLP_TYP fields */
 
 			PM1Acontrol &= ~(sleep_type_reg_info->access_bit_mask |

@@ -425,6 +425,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	 * Walk the list of entries in the field_list
 	 */
 	while (arg) {
+
 		/* Ignore OFFSET and ACCESSAS terms here */
 
 		if (arg->common.aml_opcode == AML_INT_NAMEDFIELD_OP) {

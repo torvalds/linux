@@ -202,6 +202,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	 */
 	if ((!op->common.parent) ||
 	    (op->common.parent->common.aml_opcode == AML_SCOPE_OP)) {
+
 		/* No parent, the return value cannot possibly be used */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -352,6 +353,7 @@ acpi_ds_delete_result_if_not_used(union acpi_parse_object *op,
 	}
 
 	if (!acpi_ds_is_result_used(op, walk_state)) {
+
 		/* Must pop the result stack (obj_desc should be equal to result_obj) */
 
 		status = acpi_ds_result_pop(&obj_desc, walk_state);
@@ -498,7 +500,9 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		 */
 		if ((walk_state->deferred_node) &&
 		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
-		    && (arg_index != 0)) {
+		    && (arg_index ==
+			(u32) ((walk_state->opcode ==
+				AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
 					  walk_state->deferred_node);
@@ -521,6 +525,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			    && (parent_op->common.aml_opcode != AML_REGION_OP)
 			    && (parent_op->common.aml_opcode !=
 				AML_INT_NAMEPATH_OP)) {
+
 				/* Enter name into namespace if not found */
 
 				interpreter_mode = ACPI_IMODE_LOAD_PASS2;

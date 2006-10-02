@@ -84,6 +84,7 @@ acpi_tb_match_signature(char *signature,
 
 		if (!ACPI_STRNCMP(signature, acpi_gbl_table_data[i].signature,
 				  acpi_gbl_table_data[i].sig_length)) {
+
 			/* Found a signature match, return index if requested */
 
 			if (table_info) {

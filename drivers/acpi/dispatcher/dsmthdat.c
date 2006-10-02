@@ -701,6 +701,7 @@ acpi_ds_method_data_get_type(u16 opcode,
 
 	object = acpi_ns_get_attached_object(node);
 	if (!object) {
+
 		/* Uninitialized local/arg, return TYPE_ANY */
 
 		return_VALUE(ACPI_TYPE_ANY);

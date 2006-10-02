@@ -123,12 +123,14 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
 	/* All Function names are longer than 4 chars, check is safe */
 
 	if (*(ACPI_CAST_PTR(u32, function_name)) == ACPI_PREFIX_MIXED) {
+
 		/* This is the case where the original source has not been modified */
 
 		return (function_name + 4);
 	}
 
 	if (*(ACPI_CAST_PTR(u32, function_name)) == ACPI_PREFIX_LOWER) {
+
 		/* This is the case where the source has been 'linuxized' */
 
 		return (function_name + 5);
@@ -545,6 +547,7 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 	/* Nasty little dump buffer routine! */
 
 	while (i < count) {
+
 		/* Print current offset */
 
 		acpi_os_printf("%6.4X: ", (u32) i);
@@ -553,6 +556,7 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 
 		for (j = 0; j < 16;) {
 			if (i + j >= count) {
+
 				/* Dump fill spaces */
 
 				acpi_os_printf("%*s", ((display * 2) + 1), " ");

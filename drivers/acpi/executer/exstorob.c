@@ -91,6 +91,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	/* Copy source buffer to target buffer */
 
 	if (length <= target_desc->buffer.length) {
+
 		/* Clear existing buffer and copy in the new one */
 
 		ACPI_MEMSET(target_desc->buffer.pointer, 0,
@@ -113,6 +114,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		 * copy must not truncate the original buffer.
 		 */
 		if (original_src_type == ACPI_TYPE_STRING) {
+
 			/* Set the new length of the target */
 
 			target_desc->buffer.length = length;
@@ -183,6 +185,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		 */
 		if (target_desc->string.pointer &&
 		    (!(target_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
+
 			/* Only free if not a pointer into the DSDT */
 
 			ACPI_MEM_FREE(target_desc->string.pointer);

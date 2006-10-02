@@ -409,6 +409,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		 * being the object_type and size_of operators.
 		 */
 		if (!(walk_state->op_info->flags & AML_NO_OPERAND_RESOLVE)) {
+
 			/* Resolve all operands */
 
 			status = acpi_ex_resolve_operands(walk_state->opcode,
@@ -548,6 +549,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			 */
 			status = acpi_ds_resolve_operands(walk_state);
 			if (ACPI_FAILURE(status)) {
+
 				/* On error, clear all resolved operands */
 
 				acpi_ds_clear_operands(walk_state);
@@ -722,6 +724,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
       cleanup:
 
 	if (walk_state->result_obj) {
+
 		/* Break to debugger to display result */
 
 		ACPI_DEBUGGER_EXEC(acpi_db_display_result_object

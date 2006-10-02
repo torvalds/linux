@@ -135,6 +135,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 		 * Delete the existing mapping and create a new one.
 		 */
 		if (mem_info->mapped_length) {
+
 			/* Valid mapping, delete it */
 
 			acpi_os_unmap_memory(mem_info->mapped_logical_address,

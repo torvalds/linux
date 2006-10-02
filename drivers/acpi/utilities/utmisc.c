@@ -97,6 +97,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 		for (k = acpi_gbl_next_owner_id_offset; k < 32; k++) {
 			if (acpi_gbl_owner_id_mask[j] == ACPI_UINT32_MAX) {
+
 				/* There are no free IDs in this mask */
 
 				break;
@@ -273,6 +274,7 @@ void acpi_ut_print_string(char *string, u8 max_length)
 
 	acpi_os_printf("\"");
 	for (i = 0; string[i] && (i < max_length); i++) {
+
 		/* Escape sequences */
 
 		switch (string[i]) {
@@ -601,11 +603,13 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 	while (*string) {
 		if (ACPI_IS_DIGIT(*string)) {
+
 			/* Convert ASCII 0-9 to Decimal value */
 
 			this_digit = ((u8) * string) - '0';
 		} else {
 			if (base == 10) {
+
 				/* Digit is out of range */
 
 				goto error_exit;
@@ -613,6 +617,7 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 			this_digit = (u8) ACPI_TOUPPER(*string);
 			if (ACPI_IS_XDIGIT((char)this_digit)) {
+
 				/* Convert ASCII Hex char to value */
 
 				this_digit = this_digit - 'A' + 10;
@@ -727,6 +732,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 	}
 
 	while (state) {
+
 		/* Get one element of the package */
 
 		this_index = state->pkg.index;
@@ -810,31 +816,6 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 	/* We should never get here */
 
 	return_ACPI_STATUS(AE_AML_INTERNAL);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_generate_checksum
- *
- * PARAMETERS:  Buffer          - Buffer to be scanned
- *              Length          - number of bytes to examine
- *
- * RETURN:      The generated checksum
- *
- * DESCRIPTION: Generate a checksum on a raw buffer
- *
- ******************************************************************************/
-
-u8 acpi_ut_generate_checksum(u8 * buffer, u32 length)
-{
-	u32 i;
-	signed char sum = 0;
-
-	for (i = 0; i < length; i++) {
-		sum = (signed char)(sum + buffer[i]);
-	}
-
-	return ((u8) (0 - sum));
 }
 
 /*******************************************************************************

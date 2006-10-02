@@ -103,6 +103,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	if ((entry_type == ACPI_TYPE_LOCAL_ALIAS) ||
 	    (entry_type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+
 		/* There is always exactly one level of indirection */
 
 		node = ACPI_CAST_PTR(struct acpi_namespace_node, node->object);
@@ -141,6 +142,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		status = acpi_ds_get_package_arguments(source_desc);
 		if (ACPI_SUCCESS(status)) {
+
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
@@ -158,6 +160,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		status = acpi_ds_get_buffer_arguments(source_desc);
 		if (ACPI_SUCCESS(status)) {
+
 			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
@@ -239,6 +242,8 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 			/* This is a ddb_handle */
 			/* Return an additional reference to the object */
+
+		case AML_REF_OF_OP:
 
 			obj_desc = source_desc;
 			acpi_ut_add_reference(obj_desc);

@@ -176,9 +176,11 @@ acpi_remove_address_space_handler(acpi_handle device,
 	handler_obj = obj_desc->device.handler;
 	last_obj_ptr = &obj_desc->device.handler;
 	while (handler_obj) {
+
 		/* We have a handler, see if user requested this one */
 
 		if (handler_obj->address_space.space_id == space_id) {
+
 			/* Matched space_id, first dereference this in the Regions */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,

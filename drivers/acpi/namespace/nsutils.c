@@ -83,6 +83,7 @@ acpi_ns_report_error(char *module_name,
 	acpi_ut_report_error(module_name, line_number);
 
 	if (lookup_status == AE_BAD_CHARACTER) {
+
 		/* There is a non-ascii character in the name */
 
 		acpi_os_printf("[0x%4.4X] (NON-ASCII)",
@@ -267,6 +268,7 @@ u32 acpi_ns_local(acpi_object_type type)
 	ACPI_FUNCTION_TRACE("ns_local");
 
 	if (!acpi_ut_valid_object_type(type)) {
+
 		/* Type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
@@ -411,6 +413,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 		for (i = 0; i < ACPI_NAME_SIZE; i++) {
 			if (acpi_ns_valid_path_separator(*external_name) ||
 			    (*external_name == 0)) {
+
 				/* Pad the segment with underscore(s) if segment is short */
 
 				result[i] = '_';
@@ -795,6 +798,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 	ACPI_FUNCTION_TRACE_STR("ns_opens_scope", acpi_ut_get_type_name(type));
 
 	if (!acpi_ut_valid_object_type(type)) {
+
 		/* type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type %X", type));
@@ -838,6 +842,7 @@ acpi_ns_get_node_by_path(char *pathname,
 	ACPI_FUNCTION_TRACE_PTR("ns_get_node_by_path", pathname);
 
 	if (pathname) {
+
 		/* Convert path to internal representation */
 
 		status = acpi_ns_internalize_name(pathname, &internal_path);
@@ -963,6 +968,7 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node * child_node)
 	ACPI_FUNCTION_TRACE("ns_find_parent_name");
 
 	if (child_node) {
+
 		/* Valid entry.  Get the parent Node */
 
 		parent_node = acpi_ns_get_parent_node(child_node);

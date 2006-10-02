@@ -190,6 +190,7 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 	}
 
 	if (no_match) {
+
 		/* Invalid RSDT or XSDT signature */
 
 		ACPI_ERROR((AE_INFO,

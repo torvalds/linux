@@ -649,6 +649,7 @@ acpi_ex_do_logical_op(u16 opcode,
 			/* Length and all bytes must be equal */
 
 			if ((length0 == length1) && (compare == 0)) {
+
 				/* Length and all bytes match ==> TRUE */
 
 				local_result = TRUE;

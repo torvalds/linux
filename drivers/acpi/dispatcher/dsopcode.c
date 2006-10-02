@@ -640,6 +640,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 	/* Initialize the Buffer Field */
 
 	if (op->common.aml_opcode == AML_CREATE_FIELD_OP) {
+
 		/* NOTE: Slightly different operands for this opcode */
 
 		status =
@@ -984,6 +985,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "[WHILE_OP] Op=%p\n", op));
 
 		if (walk_state->control_state->common.value) {
+
 			/* Predicate was true, go back and evaluate it again! */
 
 			status = AE_CTRL_PENDING;
@@ -1014,6 +1016,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 		 * has been bubbled up the tree
 		 */
 		if (op->common.value.arg) {
+
 			/* Since we have a real Return(), delete any implicit return */
 
 			acpi_ds_clear_implicit_return(walk_state);
@@ -1047,6 +1050,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			walk_state->return_desc = walk_state->operands[0];
 		} else if ((walk_state->results) &&
 			   (walk_state->results->results.num_results > 0)) {
+
 			/* Since we have a real Return(), delete any implicit return */
 
 			acpi_ds_clear_implicit_return(walk_state);

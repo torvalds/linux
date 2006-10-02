@@ -155,6 +155,7 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 		delta_ticks = end_ticks - start_ticks;
 	} else if (start_ticks > end_ticks) {
 		if (0 == acpi_gbl_FADT->tmr_val_ext) {
+
 			/* 24-bit Timer */
 
 			delta_ticks =

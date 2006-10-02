@@ -173,6 +173,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 	/* Create an actual buffer only if size > 0 */
 
 	if (buffer_size > 0) {
+
 		/* Allocate the actual buffer */
 
 		buffer = ACPI_MEM_CALLOCATE(buffer_size);
@@ -397,6 +398,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	length = sizeof(union acpi_object);
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(internal_object) == ACPI_DESC_TYPE_NAMED) {
+
 		/* Object is a named object (reference), just return the length */
 
 		*obj_length = ACPI_ROUND_UP_TO_NATIVE_WORD(length);

@@ -98,6 +98,7 @@ acpi_status acpi_ns_root_initialize(void)
 			  "Entering predefined entries into namespace\n"));
 
 	for (init_val = acpi_gbl_pre_defined_names; init_val->name; init_val++) {
+
 		/* _OSI is optional for now, will be permanent later */
 
 		if (!ACPI_STRCMP(init_val->name, "_OSI")
@@ -365,6 +366,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	 * Begin examination of the actual pathname
 	 */
 	if (!pathname) {
+
 		/* A Null name_path is allowed and refers to the root */
 
 		num_segments = 0;
@@ -389,6 +391,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		 * to the current scope).
 		 */
 		if (*path == (u8) AML_ROOT_PREFIX) {
+
 			/* Pathname is fully qualified, start from the root */
 
 			this_node = acpi_gbl_root_node;
@@ -416,6 +419,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			this_node = prefix_node;
 			num_carats = 0;
 			while (*path == (u8) AML_PARENT_PREFIX) {
+
 				/* Name is fully qualified, no search rules apply */
 
 				search_parent_flag = ACPI_NS_NO_UPSEARCH;
@@ -430,6 +434,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				num_carats++;
 				this_node = acpi_ns_get_parent_node(this_node);
 				if (!this_node) {
+
 					/* Current scope has no parent scope */
 
 					ACPI_ERROR((AE_INFO,
@@ -569,6 +574,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					     &this_node);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_NOT_FOUND) {
+
 				/* Name not found in ACPI namespace */
 
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
@@ -602,6 +608,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		    (type_to_check_for != ACPI_TYPE_LOCAL_SCOPE) &&
 		    (this_node->type != ACPI_TYPE_ANY) &&
 		    (this_node->type != type_to_check_for)) {
+
 			/* Complain about a type mismatch */
 
 			ACPI_WARNING((AE_INFO,

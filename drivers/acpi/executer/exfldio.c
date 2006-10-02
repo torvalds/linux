@@ -113,6 +113,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	}
 
 	if (rgn_desc->region.space_id == ACPI_ADR_SPACE_SMBUS) {
+
 		/* SMBus has a non-linear address space */
 
 		return_ACPI_STATUS(AE_OK);
@@ -491,6 +492,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 				  value));
 
 		if (read_write == ACPI_READ) {
+
 			/* Read the datum from the data_register */
 
 			status =
@@ -568,6 +570,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 	/* If the mask is all ones, we don't need to worry about the update rule */
 
 	if (mask != ACPI_INTEGER_MAX) {
+
 		/* Decode the update rule */
 
 		switch (obj_desc->common_field.
@@ -704,6 +707,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 	/* Read the rest of the field */
 
 	for (i = 1; i < field_datum_count; i++) {
+
 		/* Get next input datum from the field */
 
 		field_offset += obj_desc->common_field.access_byte_width;
@@ -817,6 +821,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	/* Write the entire field */
 
 	for (i = 1; i < field_datum_count; i++) {
+
 		/* Write merged datum to the target field */
 
 		merged_datum &= mask;

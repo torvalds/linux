@@ -77,6 +77,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 	ACPI_FUNCTION_ENTRY();
 
 	if (type_needed == ACPI_TYPE_ANY) {
+
 		/* All types OK, so we don't perform any typechecks */
 
 		return (AE_OK);
@@ -224,6 +225,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			}
 
 			if (object_type == (u8) ACPI_TYPE_LOCAL_REFERENCE) {
+
 				/* Decode the Reference */
 
 				op_info = acpi_ps_get_opcode_info(opcode);
@@ -332,6 +334,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			}
 
 			if (obj_desc->reference.opcode == AML_NAME_OP) {
+
 				/* Convert a named reference to the actual named object */
 
 				temp_node = obj_desc->reference.object;
@@ -662,6 +665,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				}
 
 				if (target_op == AML_DEBUG_OP) {
+
 					/* Allow store of any object to the Debug object */
 
 					break;

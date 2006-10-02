@@ -114,9 +114,11 @@ acpi_ns_search_node(u32 target_name,
 	 */
 	next_node = node->child;
 	while (next_node) {
+
 		/* Check for match against the name */
 
 		if (next_node->name.integer == target_name) {
+
 			/* Resolve a control method alias if any */
 
 			if (acpi_ns_get_type(next_node) ==
@@ -146,6 +148,7 @@ acpi_ns_search_node(u32 target_name,
 		 * so a flag is used to indicate the end-of-list
 		 */
 		if (next_node->flags & ANOBJ_END_OF_PEER_LIST) {
+
 			/* Searched entire list, we are done */
 
 			break;

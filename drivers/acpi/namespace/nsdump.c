@@ -191,6 +191,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	}
 
 	if (!(info->display_type & ACPI_DISPLAY_SHORT)) {
+
 		/* Indent the object according to the level */
 
 		acpi_os_printf("%2d%*s", (u32) level - 1, (int)level * 2, " ");
@@ -226,6 +227,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	case ACPI_DISPLAY_SUMMARY:
 
 		if (!obj_desc) {
+
 			/* No attached object, we are done */
 
 			acpi_os_printf("\n");
@@ -419,6 +421,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		acpi_os_printf("O:%p", obj_desc);
 		if (!obj_desc) {
+
 			/* No attached object, we are done */
 
 			acpi_os_printf("\n");
@@ -682,6 +685,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 	}
 
 	if (ACPI_NS_ALL == search_base) {
+
 		/* Entire namespace */
 
 		search_handle = acpi_gbl_root_node;

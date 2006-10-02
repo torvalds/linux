@@ -260,12 +260,14 @@ u32 acpi_ev_fixed_event_detect(void)
 	 * Check for all possible Fixed Events and dispatch those that are active
 	 */
 	for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
+
 		/* Both the status and enable bits must be on for this event */
 
 		if ((fixed_status & acpi_gbl_fixed_event_info[i].
 		     status_bit_mask)
 		    && (fixed_enable & acpi_gbl_fixed_event_info[i].
 			enable_bit_mask)) {
+
 			/* Found an active (signalled) event */
 
 			int_status |= acpi_ev_fixed_event_dispatch((u32) i);

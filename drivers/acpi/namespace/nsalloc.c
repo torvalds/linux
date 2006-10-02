@@ -115,6 +115,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	}
 
 	if (prev_node) {
+
 		/* Node is not first child, unlink it */
 
 		prev_node->peer = next_node->peer;
@@ -125,6 +126,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 		/* Node is first child (has no previous peer) */
 
 		if (next_node->flags & ANOBJ_END_OF_PEER_LIST) {
+
 			/* No peers at all */
 
 			parent_node->child = NULL;
@@ -264,6 +266,7 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 	 * Deallocate all children at this level
 	 */
 	do {
+
 		/* Get the things we need */
 
 		next_node = child_node->peer;
@@ -352,11 +355,13 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 	 * to where we started.
 	 */
 	while (level > 0) {
+
 		/* Get the next node in this scope (NULL if none) */
 
 		child_node = acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
 						   child_node);
 		if (child_node) {
+
 			/* Found a child node - detach any attached object */
 
 			acpi_ns_detach_object(child_node);
@@ -427,6 +432,7 @@ static void acpi_ns_remove_reference(struct acpi_namespace_node *node)
 	 */
 	this_node = node;
 	while (this_node) {
+
 		/* Prepare to move up to parent */
 
 		parent_node = acpi_ns_get_parent_node(this_node);
@@ -438,6 +444,7 @@ static void acpi_ns_remove_reference(struct acpi_namespace_node *node)
 		/* Delete the node if no more references */
 
 		if (!this_node->reference_count) {
+
 			/* Delete all children and delete the node */
 
 			acpi_ns_delete_children(this_node);
@@ -500,6 +507,7 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 
 		if (child_node) {
 			if (child_node->owner_id == owner_id) {
+
 				/* Found a matching child node - detach any attached object */
 
 				acpi_ns_detach_object(child_node);

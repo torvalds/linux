@@ -275,6 +275,7 @@ acpi_install_notify_handler(acpi_handle device,
 	 * only one <external> global handler can be regsitered (per notify type).
 	 */
 	if (device == ACPI_ROOT_OBJECT) {
+
 		/* Make sure the handler is not already installed */
 
 		if (((handler_type & ACPI_SYSTEM_NOTIFY) &&
@@ -317,6 +318,7 @@ acpi_install_notify_handler(acpi_handle device,
 
 		obj_desc = acpi_ns_get_attached_object(node);
 		if (obj_desc) {
+
 			/* Object exists - make sure there's no handler */
 
 			if (((handler_type & ACPI_SYSTEM_NOTIFY) &&
@@ -370,6 +372,7 @@ acpi_install_notify_handler(acpi_handle device,
 		}
 
 		if (handler_type == ACPI_ALL_NOTIFY) {
+
 			/* Extra ref if installed in both */
 
 			acpi_ut_add_reference(notify_obj);

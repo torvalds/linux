@@ -129,6 +129,7 @@ union acpi_generic_state *acpi_ut_pop_generic_state(union acpi_generic_state
 
 	state = *list_head;
 	if (state) {
+
 		/* Update the list head */
 
 		*list_head = state->common.next;
@@ -158,6 +159,7 @@ union acpi_generic_state *acpi_ut_create_generic_state(void)
 
 	state = acpi_os_acquire_object(acpi_gbl_state_cache);
 	if (state) {
+
 		/* Initialize */
 		memset(state, 0, sizeof(union acpi_generic_state));
 		state->common.data_type = ACPI_DESC_TYPE_STATE;

@@ -84,6 +84,7 @@ acpi_ns_load_table(struct acpi_table_desc *table_desc,
 	if (!
 	    (acpi_gbl_table_data[table_desc->type].
 	     flags & ACPI_TABLE_EXECUTABLE)) {
+
 		/* Just ignore this table */
 
 		return_ACPI_STATUS(AE_OK);
@@ -325,6 +326,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
 	 * to where we started.
 	 */
 	while (level > 0) {
+
 		/* Attempt to get the next object in this scope */
 
 		status = acpi_get_next_object(ACPI_TYPE_ANY, parent_handle,
@@ -335,6 +337,7 @@ static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle)
 		/* Did we get a new object? */
 
 		if (ACPI_SUCCESS(status)) {
+
 			/* Check if this object has any children */
 
 			if (ACPI_SUCCESS

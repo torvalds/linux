@@ -96,6 +96,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		/* Free the actual string buffer */
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
+
 			/* But only if it is NOT a pointer into an ACPI table */
 
 			obj_pointer = object->string.pointer;
@@ -111,6 +112,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		/* Free the actual buffer */
 
 		if (!(object->common.flags & AOPOBJ_STATIC_POINTER)) {
+
 			/* But only if it is NOT a pointer into an ACPI table */
 
 			obj_pointer = object->buffer.pointer;
@@ -415,6 +417,7 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 	ACPI_FUNCTION_TRACE_PTR("ut_update_object_reference", object);
 
 	while (object) {
+
 		/* Make sure that this isn't a namespace handle */
 
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED) {

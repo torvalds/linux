@@ -326,6 +326,7 @@ acpi_status acpi_ns_evaluate_by_handle(struct acpi_parameter_info *info)
 	 * Check if there is a return value on the stack that must be dealt with
 	 */
 	if (status == AE_CTRL_RETURN_VALUE) {
+
 		/* Map AE_CTRL_RETURN_VALUE to AE_OK, we are done with it */
 
 		status = AE_OK;

@@ -78,6 +78,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 	ACPI_FUNCTION_ENTRY();
 
 	for (bits_set = 0; bit_field; bits_set++) {
+
 		/* Zero the least significant bit that is set */
 
 		bit_field &= (bit_field - 1);
@@ -154,6 +155,7 @@ acpi_rs_stream_option_length(u32 resource_length,
 	 * length, minus one byte for the resource_source_index itself.
 	 */
 	if (resource_length > minimum_aml_resource_length) {
+
 		/* Compute the length of the optional string */
 
 		string_length =
@@ -162,7 +164,7 @@ acpi_rs_stream_option_length(u32 resource_length,
 
 	/* Round up length to 32 bits for internal structure alignment */
 
-	return (ACPI_ROUND_UP_to_32_bITS(string_length));
+	return ((u32) ACPI_ROUND_UP_to_32_bITS(string_length));
 }
 
 /*******************************************************************************
@@ -191,6 +193,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 	/* Traverse entire list of internal resource descriptors */
 
 	while (resource) {
+
 		/* Validate the descriptor type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
@@ -214,6 +217,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			 * is a Large Resource data type.
 			 */
 			if (resource->data.vendor.byte_length > 7) {
+
 				/* Base size of a Large resource descriptor */
 
 				total_size =
@@ -346,6 +350,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 	/* Walk the list of AML resource descriptors */
 
 	while (aml_buffer < end_aml) {
+
 		/* Validate the Resource Type and Resource Length */
 
 		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
@@ -390,7 +395,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Vendor Resource:
 			 * Ensure a 32-bit boundary for the structure
 			 */
-			extra_struct_bytes =
+			extra_struct_bytes = (u32)
 			    ACPI_ROUND_UP_to_32_bITS(resource_length) -
 			    resource_length;
 			break;
@@ -407,7 +412,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Vendor Resource:
 			 * Add vendor data and ensure a 32-bit boundary for the structure
 			 */
-			extra_struct_bytes =
+			extra_struct_bytes = (u32)
 			    ACPI_ROUND_UP_to_32_bITS(resource_length) -
 			    resource_length;
 			break;
@@ -431,7 +436,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 */
 			buffer++;
 
-			extra_struct_bytes =
+			extra_struct_bytes = (u32)
 			    /*
 			     * Add 4 bytes for each additional interrupt. Note: at
 			     * least one interrupt is required and is included in
@@ -450,7 +455,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Add the size of any optional data (resource_source)
 			 * Ensure a 64-bit boundary for the structure
 			 */
-			extra_struct_bytes =
+			extra_struct_bytes = (u32)
 			    ACPI_ROUND_UP_to_64_bITS
 			    (acpi_rs_stream_option_length
 			     (resource_length, minimum_aml_resource_length));
@@ -525,6 +530,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	top_object_list = package_object->package.elements;
 
 	for (index = 0; index < number_of_elements; index++) {
+
 		/* Dereference the sub-package */
 
 		package_element = *top_object_list;

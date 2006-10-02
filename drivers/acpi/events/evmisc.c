@@ -150,6 +150,7 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (obj_desc) {
+
 		/* We have the notify object, Get the right handler */
 
 		switch (node->type) {
@@ -240,6 +241,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 	 * to the device.
 	 */
 	if (notify_info->notify.value <= ACPI_MAX_SYS_NOTIFY) {
+
 		/* Global system notification handler */
 
 		if (acpi_gbl_system_notify.handler) {
@@ -297,6 +299,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_global_lock_thread(void *context)
 	/* Signal threads that are waiting for the lock */
 
 	if (acpi_gbl_global_lock_thread_count) {
+
 		/* Send sufficient units to the semaphore */
 
 		status =
@@ -335,6 +338,7 @@ static u32 acpi_ev_global_lock_handler(void *context)
 	 */
 	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_common_fACS.global_lock, acquired);
 	if (acquired) {
+
 		/* Got the lock, now wake all threads waiting for it */
 
 		acpi_gbl_global_lock_acquired = TRUE;
@@ -439,6 +443,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 
 	ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_common_fACS.global_lock, acquired);
 	if (acquired) {
+
 		/* We got the lock */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -492,6 +497,7 @@ acpi_status acpi_ev_release_global_lock(void)
 
 	acpi_gbl_global_lock_thread_count--;
 	if (acpi_gbl_global_lock_thread_count) {
+
 		/* There are still some threads holding the lock, cannot release */
 
 		return_ACPI_STATUS(AE_OK);

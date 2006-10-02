@@ -69,13 +69,16 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 	/* Visit all nodes in the subtree */
 
 	while (op) {
+
 		/* Check if we are not ascending */
 
 		if (op != parent) {
+
 			/* Look for an argument or child of the current op */
 
 			next = acpi_ps_get_arg(op, 0);
 			if (next) {
+
 				/* Still going downward in tree (Op is not completed yet) */
 
 				op = next;

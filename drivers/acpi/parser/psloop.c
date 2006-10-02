@@ -95,6 +95,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 #if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
 
 	if (walk_state->walk_type & ACPI_WALK_METHOD_RESTART) {
+
 		/* We are restarting a preempted control method */
 
 		if (acpi_ps_has_completed_scope(parser_state)) {
@@ -143,6 +144,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 					  "Popped scope, Op=%p\n", op));
 		} else if (walk_state->prev_op) {
+
 			/* We were in the middle of an op */
 
 			op = walk_state->prev_op;
@@ -156,6 +158,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	while ((parser_state->aml < parser_state->aml_end) || (op)) {
 		aml_op_start = parser_state->aml;
 		if (!op) {
+
 			/* Get the next opcode from the AML stream */
 
 			walk_state->aml_offset =
@@ -213,6 +216,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			/* Create Op structure and append to parent's argument list */
 
 			if (walk_state->op_info->flags & AML_NAMED) {
+
 				/* Allocate a new pre_op if necessary */
 
 				if (!pre_op) {
@@ -388,6 +392,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		/* Are there any arguments that must be processed? */
 
 		if (walk_state->arg_types) {
+
 			/* Get arguments */
 
 			switch (op->common.aml_opcode) {
@@ -853,6 +858,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				}
 
 				else if (ACPI_FAILURE(status)) {
+
 					/* First error is most important */
 
 					(void)

@@ -119,6 +119,7 @@ const char *acpi_format_exception(acpi_status status)
 	}
 
 	if (!exception) {
+
 		/* Exception code was not recognized */
 
 		ACPI_ERROR((AE_INFO,
@@ -747,6 +748,7 @@ u8 acpi_ut_valid_object_type(acpi_object_type type)
 {
 
 	if (type > ACPI_TYPE_LOCAL_MAX) {
+
 		/* Note: Assumes all TYPEs are contiguous (external/local) */
 
 		return (FALSE);

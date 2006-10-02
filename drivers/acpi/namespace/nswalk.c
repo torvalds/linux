@@ -76,6 +76,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
 	ACPI_FUNCTION_ENTRY();
 
 	if (!child_node) {
+
 		/* It's really the parent's _scope_ that we want */
 
 		if (parent_node->child) {
@@ -92,6 +93,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
 	/* If any type is OK, we are done */
 
 	if (type == ACPI_TYPE_ANY) {
+
 		/* next_node is NULL if we are at the end-of-list */
 
 		return (next_node);
@@ -100,6 +102,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
 	/* Must search for the node -- but within this scope only */
 
 	while (next_node) {
+
 		/* If type matches, we are done */
 
 		if (next_node->type == type) {
@@ -182,6 +185,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 	 * bubbled up to (and passed) the original parent handle (start_entry)
 	 */
 	while (level > 0) {
+
 		/* Get the next node in this scope.  Null if not found */
 
 		status = AE_OK;

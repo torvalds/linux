@@ -98,6 +98,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 				 ACPI_CAST_PTR(char,
 					       acpi_gbl_valid_osi_strings[i])))
 		{
+
 			/* This string is supported */
 
 			return_desc->integer.value = 0xFFFFFFFF;
@@ -343,6 +344,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+
 		/* Convert the Numeric HID to string */
 
 		acpi_ex_eisa_id_to_string((u32) obj_desc->integer.value,
@@ -479,6 +481,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 	/* The _CID object can be either a single CID or a package (list) of CIDs */
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
+
 		/* Translate each package element */
 
 		for (i = 0; i < count; i++) {
@@ -543,6 +546,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+
 		/* Convert the Numeric UID to string */
 
 		acpi_ex_unsigned_integer_to_string(obj_desc->integer.value,
