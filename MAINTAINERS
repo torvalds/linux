@@ -144,11 +144,9 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
-P:	Russell King
-M:	rmk+serial@arm.linux.org.uk
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
-S:	Maintained
+S:	Orphan
 
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
 P:	Paul Gortmaker
@@ -1986,9 +1984,7 @@ W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
 MULTIMEDIA CARD (MMC) SUBSYSTEM
-P:	Russell King
-M:	rmk+mmc@arm.linux.org.uk
-S:	Maintained
+S:	Orphan
 
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
