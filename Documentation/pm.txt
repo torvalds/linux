@@ -18,10 +18,10 @@ enabled by default).  If a working ACPI implementation is found, the
 ACPI driver will override and disable APM, otherwise the APM driver
 will be used.
 
-No sorry, you can not have both ACPI and APM enabled and running at
+No, sorry, you cannot have both ACPI and APM enabled and running at
 once.  Some people with broken ACPI or broken APM implementations
 would like to use both to get a full set of working features, but you
-simply can not mix and match the two.  Only one power management
+simply cannot mix and match the two.  Only one power management
 interface can be in control of the machine at once.  Think about it..
 
 User-space Daemons
@@ -106,7 +106,7 @@ void pm_unregister_all(pm_callback cback);
  *
  * Returns: 0 if the request is successful
  *          EINVAL if the request is not supported
- *          EBUSY if the device is now busy and can not handle the request
+ *          EBUSY if the device is now busy and cannot handle the request
  *          ENOMEM if the device was unable to handle the request due to memory
  *          
  * Details: The device request callback will be called before the

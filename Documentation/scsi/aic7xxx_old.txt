@@ -102,7 +102,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
     The hardware RAID devices sold by Adaptec are *NOT* supported by this
     driver (and will people please stop emailing me about them, they are
     a totally separate beast from the bare SCSI controllers and this driver
-    can not be retrofitted in any sane manner to support the hardware RAID
+    cannot be retrofitted in any sane manner to support the hardware RAID
     features on those cards - Doug Ledford).
     
 

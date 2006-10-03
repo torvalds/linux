@@ -258,13 +258,13 @@ booke_wdt.c -- PowerPC BookE Watchdog Timer
 	Timeout default varies according to frequency, supports
 	SETTIMEOUT
 
-	Watchdog can not be turned off, CONFIG_WATCHDOG_NOWAYOUT
+	Watchdog cannot be turned off, CONFIG_WATCHDOG_NOWAYOUT
 	does not make sense
 
 	GETSUPPORT returns the watchdog_info struct, and
 	GETSTATUS returns the supported options. GETBOOTSTATUS
 	returns a 1 if the last reset was caused by the
-	watchdog and a 0 otherwise. This watchdog can not be
+	watchdog and a 0 otherwise. This watchdog cannot be
 	disabled once it has been started. The wdt_period kernel
 	parameter selects which bit of the time base changing
 	from 0->1 will trigger the watchdog exception. Changing

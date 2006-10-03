@@ -629,7 +629,7 @@ config ALIGNMENT_TRAP
 	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
 	help
-	  ARM processors can not fetch/store information which is not
+	  ARM processors cannot fetch/store information which is not
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
 	  address divisible by 4. On 32-bit ARM processors, these non-aligned
 	  fetch/store instructions will be emulated in software if you say

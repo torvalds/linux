@@ -222,7 +222,7 @@ static struct pnp_driver serial_pnp_driver = {
 	.remove		= serial_pnp_remove,
 };
 
-* name and id_table can not be NULL.
+* name and id_table cannot be NULL.
 
 4.) register the driver
 ex:

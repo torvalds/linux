@@ -1733,7 +1733,7 @@ error_burst and error_cost
 
 These  parameters  are used to limit how many ICMP destination unreachable to 
 send  from  the  host  in question. ICMP destination unreachable messages are 
-sent  when  we can not reach the next hop, while trying to transmit a packet. 
+sent  when  we  cannot reach  the next hop while trying to transmit a packet. 
 It  will also print some error messages to kernel logs if someone is ignoring 
 our   ICMP  redirects.  The  higher  the  error_cost  factor  is,  the  fewer 
 destination  unreachable  and error messages will be let through. Error_burst 

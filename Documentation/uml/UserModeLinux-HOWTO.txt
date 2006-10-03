@@ -3972,7 +3972,7 @@
   nneett
 
   If you can connect to the host, and the host can connect to UML, but
-  you can not connect to any other machines, then you may need to enable
+  you cannot connect to any other machines, then you may need to enable
   IP Masquerading on the host.  Usually this is only experienced when
   using private IP addresses (192.168.x.x or 10.x.x.x) for host/UML
   networking, rather than the public address space that your host is

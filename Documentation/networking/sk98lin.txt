@@ -484,7 +484,7 @@ If any problems occur during the installation process, check the
 following list:
 
 
-Problem:  The SK-98xx adapter can not be found by the driver.
+Problem:  The SK-98xx adapter cannot be found by the driver.
 Solution: In /proc/pci search for the following entry:
              'Ethernet controller: SysKonnect SK-98xx ...'
           If this entry exists, the SK-98xx or SK-98xx V2.0 adapter has 
@@ -502,7 +502,7 @@ Solution: In /proc/pci search for the following entry:
           web, e.g. at 'www.linux.org'). 
 
 
-Problem:  Programs such as 'ifconfig' or 'route' can not be found or the 
+Problem:  Programs such as 'ifconfig' or 'route' cannot be found or the 
           error message 'Operation not permitted' is displayed.
 Reason:   You are not logged in as user 'root'.
 Solution: Logout and login as 'root' or change to 'root' via 'su'.

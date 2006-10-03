@@ -584,7 +584,7 @@ of four ways after installing and or configuring the CS8900/20-based adapter:
 
     1.) The system does not boot properly (or at all).
 
-    2.) The driver can not communicate with the adapter, reporting an "Adapter
+    2.) The driver cannot communicate with the adapter, reporting an "Adapter
         not found" error message.
 
     3.) You cannot connect to the network or the driver will not load.
