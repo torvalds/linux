@@ -1378,6 +1378,8 @@ int dm_resume(struct mapped_device *md)
 
 	dm_table_unplug_all(map);
 
+	kobject_uevent(&md->disk->kobj, KOBJ_CHANGE);
+
 	r = 0;
 
 out:
