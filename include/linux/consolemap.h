@@ -13,3 +13,4 @@ struct vc_data;
 extern unsigned char inverse_translate(struct vc_data *conp, int glyph);
 extern unsigned short *set_translate(int m, struct vc_data *vc);
 extern int conv_uni_to_pc(struct vc_data *conp, long ucs);
+void console_map_init(void);
