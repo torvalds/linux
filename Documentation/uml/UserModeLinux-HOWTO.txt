@@ -4621,7 +4621,7 @@
   Chris Reahard built a specialized root filesystem for running a DNS
   server jailed inside UML.  It's available from the download
   <http://user-mode-linux.sourceforge.net/dl-sf.html>  page in the Jail
-  Filesysems section.
+  Filesystems section.
 
 
 

@@ -88,7 +88,7 @@ s/390 z/Architecture
 0       0     Reserved ( must be 0 ) otherwise specification exception occurs.
 
 1       1     Program Event Recording 1 PER enabled, 
-	      PER is used to facilititate debugging e.g. single stepping.
+	      PER is used to facilitate debugging e.g. single stepping.
 
 2-4    2-4    Reserved ( must be 0 ). 
 

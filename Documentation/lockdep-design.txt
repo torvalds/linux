@@ -158,7 +158,7 @@ enum bdev_bd_mutex_lock_class
 In this case the locking is done on a bdev object that is known to be a
 partition.
 
-The validator treats a lock that is taken in such a nested fasion as a
+The validator treats a lock that is taken in such a nested fashion as a
 separate (sub)class for the purposes of validation.
 
 Note: When changing code to use the _nested() primitives, be careful and

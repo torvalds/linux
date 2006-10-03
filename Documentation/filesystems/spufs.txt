@@ -84,7 +84,7 @@ FILES
    /ibox
        The  second  SPU  to CPU communication mailbox. This file is similar to
        the first mailbox file, but can be read in blocking I/O mode,  and  the
-       poll  familiy of system calls can be used to wait for it.  The possible
+       poll  family of system calls can be used to wait for it.  The  possible
        operations on an open ibox file are:
 
        read(2)

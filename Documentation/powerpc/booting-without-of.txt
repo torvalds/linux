@@ -573,7 +573,7 @@ implementation of Open Firmware or an implementation compatible with
 the Open Firmware client interface, those properties will be created
 by the trampoline code in the kernel's prom_init() file. For example,
 that's where you'll have to add code to detect your board model and
-set the platform number. However, when using the flatenned device-tree
+set the platform number. However, when using the flattened device-tree
 entry point, there is no prom_init() pass, and thus you have to
 provide those properties yourself.
 
@@ -689,7 +689,7 @@ is present).
 4) Note about node and property names and character set
 -------------------------------------------------------
 
-While open firmware provides more flexibe usage of 8859-1, this
+While open firmware provides more flexible usage of 8859-1, this
 specification enforces more strict rules. Nodes and properties should
 be comprised only of ASCII characters 'a' to 'z', '0' to
 '9', ',', '.', '_', '+', '#', '?', and '-'. Node names additionally

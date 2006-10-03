@@ -153,7 +153,7 @@ Some very frequently asked questions about linuxtv-dvb
 	- video-buf: capture helper module for the saa7146_vv driver. This
 	  one is responsible to handle capture buffers.
 
-	- dvb-ttpci: The main driver for AV7110 based, full-featued
+	- dvb-ttpci: The main driver for AV7110 based, full-featured
 	  DVB-S/C/T cards
 
 eof

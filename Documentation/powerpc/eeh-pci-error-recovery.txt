@@ -116,7 +116,7 @@ At this time, a generic EEH recovery mechanism has been implemented,
 so that individual device drivers do not need to be modified to support
 EEH recovery.  This generic mechanism piggy-backs on the PCI hotplug
 infrastructure,  and percolates events up through the userspace/udev
-infrastructure.  Followiing is a detailed description of how this is
+infrastructure.  Following is a detailed description of how this is
 accomplished.
 
 EEH must be enabled in the PHB's very early during the boot process,

@@ -184,7 +184,7 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 ---------------------------
 
 What:	USB driver API moves to EXPORT_SYMBOL_GPL
-When:	Febuary 2008
+When:	February 2008
 Files:	include/linux/usb.h, drivers/usb/core/driver.c
 Why:	The USB subsystem has changed a lot over time, and it has been
 	possible to create userspace USB drivers using usbfs/libusb/gadgetfs

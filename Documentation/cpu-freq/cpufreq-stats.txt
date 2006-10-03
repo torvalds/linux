@@ -53,7 +53,7 @@ drwxr-xr-x  3 root root    0 May 14 15:58 ..
 This gives the amount of time spent in each of the frequencies supported by
 this CPU. The cat output will have "<frequency> <time>" pair in each line, which
 will mean this CPU spent <time> usertime units of time at <frequency>. Output
-will have one line for each of the supported freuencies. usertime units here 
+will have one line for each of the supported frequencies. usertime units here 
 is 10mS (similar to other time exported in /proc).
 
 --------------------------------------------------------------------------------

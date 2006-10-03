@@ -77,7 +77,7 @@ Kernel/Modules Options
 	for module : insmod sstfb.o option1=value1 option2=value2 ...
 	in kernel :  video=sstfb:option1,option2:value2,option3 ...
 	
-	sstfb supports the folowing options :
+	sstfb supports the following options :
 
 Module		Kernel		Description
 

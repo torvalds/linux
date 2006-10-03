@@ -55,8 +55,8 @@ echo XXXX > /sys/devices/platform/dell_rbu/packet_size
 In the packet update mechanism, the user neesd to create a new file having
 packets of data arranged back to back. It can be done as follows
 The user creates packets header, gets the chunk of the BIOS image and
-placs it next to the packetheader; now, the packetheader + BIOS image chunk
-added to geather should match the specified packet_size. This makes one
+places it next to the packetheader; now, the packetheader + BIOS image chunk
+added together should match the specified packet_size. This makes one
 packet, the user needs to create more such packets out of the entire BIOS
 image file and then arrange all these packets back to back in to one single
 file.

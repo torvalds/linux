@@ -56,7 +56,7 @@ There are four cases,
 i. No write-back cache.  Keeping requests ordered is enough.
 
 ii. Write-back cache but no flush operation.  There's no way to
-gurantee physical-medium commit order.  This kind of devices can't to
+guarantee physical-medium commit order.  This kind of devices can't to
 I/O barriers.
 
 iii. Write-back cache and flush operation but no FUA (forced unit

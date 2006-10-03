@@ -79,7 +79,7 @@ trie_rebalance()
 
 resize()
 	Analyzes a tnode and optimizes the child array size by either inflating
-	or shrinking it repeatedly until it fullfills the criteria for optimal
+	or shrinking it repeatedly until it fulfills the criteria for optimal
 	level compression. This part follows the original paper pretty closely
 	and there may be some room for experimentation here.
 

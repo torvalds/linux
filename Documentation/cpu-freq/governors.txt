@@ -109,7 +109,7 @@ directory.
 2.4 Ondemand
 ------------
 
-The CPUfreq govenor "ondemand" sets the CPU depending on the
+The CPUfreq governor "ondemand" sets the CPU depending on the
 current usage. To do this the CPU must have the capability to
 switch the frequency very quickly.  There are a number of sysfs file
 accessible parameters:
