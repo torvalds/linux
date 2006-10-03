@@ -47,7 +47,7 @@
 
 MODULE_LICENSE("GPL");
 
-static int nreaders = -1;	/* # reader threads, defaults to 4*ncpus */
+static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int stat_interval;	/* Interval between stats, in seconds. */
 				/*  Defaults to "only at end of test". */
 static int verbose;		/* Print more debug info. */
