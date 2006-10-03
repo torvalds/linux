@@ -224,14 +224,16 @@ probe_ti_parallel(int minor)
 {
 	int i;
 	int seq[] = { 0x00, 0x20, 0x10, 0x30 };
+	int data;
 
 	for (i = 3; i >= 0; i--) {
 		outbyte(3, minor);
 		outbyte(i, minor);
 		udelay(delay);
+		data = inbyte(minor) & 0x30;
 		pr_debug("tipar: Probing -> %i: 0x%02x 0x%02x\n", i,
-			data & 0x30, seq[i]);
-		if ((inbyte(minor) & 0x30) != seq[i]) {
+			data, seq[i]);
+		if (data != seq[i]) {
 			outbyte(3, minor);
 			return -1;
 		}
