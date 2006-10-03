@@ -207,8 +207,7 @@ config BLK_DEV_UMEM
 	  module will be called umem.
 
 	  The umem driver has not yet been allocated a MAJOR number, so
-	  one is chosen dynamically.  Use "devfs" or look in /proc/devices
-	  for the device number
+	  one is chosen dynamically.
 
 config BLK_DEV_UBD
 	bool "Virtual block device"

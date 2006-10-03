@@ -39,7 +39,7 @@ tmpfs has the following uses:
 	tmpfs	/dev/shm	tmpfs	defaults	0 0
 
    Remember to create the directory that you intend to mount tmpfs on
-   if necessary (/dev/shm is automagically created if you use devfs).
+   if necessary.
 
    This mount is _not_ needed for SYSV shared memory. The internal
    mount is used for that. (In the 2.3 kernel versions it was

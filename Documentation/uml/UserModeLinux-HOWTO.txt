@@ -157,7 +157,7 @@
   13. What to do when UML doesn't work
 
      13.1 Strange compilation errors when you build from source
-     13.2 UML hangs on boot after mounting devfs
+     13.2 (obsolete)
      13.3 A variety of panics and hangs with /tmp on a reiserfs  filesystem
      13.4 The compile fails with errors about conflicting types for 'open', 'dup', and 'waitpid'
      13.5 UML doesn't work when /tmp is an NFS filesystem
@@ -377,31 +377,6 @@
 
   where 'x' is the version in your pool. Note that you will not get the
   bug fixes and enhancements that have gone into subsequent releases.
-
-
-  If you build your own kernel, and want to boot it from one of the
-  filesystems distributed from this site, then, in nearly all cases,
-  devfs must be compiled into the kernel and mounted at boot time.  The
-  exception is the SuSE filesystem.  For this, devfs must either not be
-  in the kernel at all, or "devfs=nomount" must be on the kernel command
-  line.  Any disagreement between the kernel and the filesystem being
-  booted about whether devfs is being used will result in the boot
-  getting no further than single-user mode.
-
-
-  If you don't want to use devfs, you can remove the need for it from a
-  filesystem by copying /dev from someplace, making a bunch of /dev/ubd
-  devices:
-
-
-  UML# for i in 0 1 2 3 4 5 6 7; do mknod ubd$i b 98 $i; done
-
-
-
-
-  and changing /etc/fstab and /etc/inittab to refer to the non-devfs
-  devices.
-
 
 
   22..22..  CCoommppiilliinngg aanndd iinnssttaalllliinngg kkeerrnneell mmoodduulleess
@@ -839,9 +814,7 @@
   +o  None - device=none
 
 
-     This causes the device to disappear.  If you are using devfs, the
-     device will not appear in /dev.  If not, then attempts to open it
-     will return -ENODEV.
+     This causes the device to disappear.
 
 
 
@@ -3895,29 +3868,6 @@
   /usr/src/linux/asm-i386.  Then, move your UML pool someplace else and
   build it there.  Also see below, where a more specific set of symptoms
   is described.
-
-
-
-  1133..22..  UUMMLL hhaannggss oonn bboooott aafftteerr mmoouunnttiinngg ddeevvffss
-
-  The boot looks like this:
-
-
-       VFS: Mounted root (ext2 filesystem) readonly.
-       Mounted devfs on /dev
-
-
-
-
-  You're probably running a recent distribution on an old machine.  I
-  saw this with the RH7.1 filesystem running on a Pentium.  The shared
-  library loader, ld.so, was executing an instruction (cmove) which the
-  Pentium didn't support.  That instruction was apparently added later.
-  If you run UML under the debugger, you'll see the hang caused by one
-  instruction causing an infinite SIGILL stream.
-
-
-  The fix is to boot UML on an older filesystem.
 
 
 

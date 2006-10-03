@@ -60,7 +60,7 @@ and install it before going on.
 
 2.2 Device nodes
 ~~~~~~~~~~~~~~~~
-For applications to be able to use the joysticks, in you don't use devfs,
+For applications to be able to use the joysticks,
 you'll have to manually create these nodes in /dev:
 
 cd /dev

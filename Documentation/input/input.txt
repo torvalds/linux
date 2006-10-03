@@ -68,8 +68,8 @@ will be available as a character device on major 13, minor 63:
 
 	crw-r--r--   1 root     root      13,  63 Mar 28 22:45 mice
 
-  This device has to be created, unless you use devfs, in which case it's
-created automatically. The commands to do create it by hand are:
+  This device has to be created.
+  The commands to create it by hand are:
 
 	cd /dev
 	mkdir input

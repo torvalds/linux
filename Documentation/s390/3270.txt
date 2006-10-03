@@ -111,9 +111,7 @@ Here are the installation steps in detail:
 	config3270.sh.	Inspect the output script it produces,
 	/tmp/mkdev3270, and then run that script.  This will create the
 	necessary character special device files and make the necessary
-	changes to /etc/inittab.  If you have selected DEVFS, the driver
-	itself creates the device files, and /tmp/mkdev3270 only changes
-	/etc/inittab.
+	changes to /etc/inittab.
 
 	Then notify /sbin/init that /etc/inittab has changed, by issuing
 	the telinit command with the q operand:

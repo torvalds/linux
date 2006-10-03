@@ -224,13 +224,8 @@ static int skel_probe(struct usb_interface *interface,
      Conversely, when the device is removed from the USB bus, the disconnect
      function is called with the device pointer. The driver needs to clean any
      private data that has been allocated at this time and to shut down any
-     pending urbs that are in the USB system. The driver also unregisters
-     itself from the devfs subsystem with the call:
+     pending urbs that are in the USB system.
   </para>
-  <programlisting>
-/* remove our devfs node */
-devfs_unregister(skel->devfs);
-  </programlisting>
   <para>
      Now that the device is plugged into the system and the driver is bound to
      the device, any of the functions in the file_operations structure that
