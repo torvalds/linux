@@ -34,12 +34,10 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
 			unsigned char modeno, unsigned char rateindex);
 int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			unsigned char rateindex, struct fb_var_screeninfo *var);
-#endif
 BOOLEAN		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			int *htotal, int *vtotal, unsigned char rateindex);
 
@@ -49,7 +47,6 @@ extern BOOLEAN	SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *Mode
 extern void	SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 			int xres, int yres, struct fb_var_screeninfo *var, BOOLEAN writeres);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 int
 sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr, unsigned char modeno,
 			unsigned char rateindex)
@@ -177,7 +174,6 @@ sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
 
     return 1;
 }
-#endif /* Linux >= 2.5 */
 
 BOOLEAN
 sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno, int *htotal,
