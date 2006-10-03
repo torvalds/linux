@@ -832,6 +832,12 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	}
 
 	if (atomic_read(&instance->fw_outstanding)) {
+		/*
+		* Send signal to FW to stop processing any pending cmds.
+		* The controller will be taken offline by the OS now.
+		*/
+		writel(MFI_STOP_ADP,
+				&instance->reg_set->inbound_doorbell);
 		instance->hw_crit_error = 1;
 		return FAILED;
 	}
@@ -1229,10 +1235,12 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 
 	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
 
+	if (fw_state != MFI_STATE_READY)
+ 		printk(KERN_INFO "megasas: Waiting for FW to come to ready"
+ 		       " state\n");
+
 	while (fw_state != MFI_STATE_READY) {
 
-		printk(KERN_INFO "megasas: Waiting for FW to come to ready"
-		       " state\n");
 		switch (fw_state) {
 
 		case MFI_STATE_FAULT:
@@ -1244,19 +1252,27 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * Set the CLR bit in inbound doorbell
 			 */
-			writel(MFI_INIT_CLEAR_HANDSHAKE,
+			writel(MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
 				&instance->reg_set->inbound_doorbell);
 
 			max_wait = 2;
 			cur_state = MFI_STATE_WAIT_HANDSHAKE;
 			break;
 
+		case MFI_STATE_BOOT_MESSAGE_PENDING:
+			writel(MFI_INIT_HOTPLUG,
+				&instance->reg_set->inbound_doorbell);
+
+			max_wait = 10;
+			cur_state = MFI_STATE_BOOT_MESSAGE_PENDING;
+			break;
+
 		case MFI_STATE_OPERATIONAL:
 			/*
-			 * Bring it to READY state; assuming max wait 2 secs
+			 * Bring it to READY state; assuming max wait 10 secs
 			 */
 			megasas_disable_intr(instance);
-			writel(MFI_INIT_READY, &instance->reg_set->inbound_doorbell);
+			writel(MFI_RESET_FLAGS, &instance->reg_set->inbound_doorbell);
 
 			max_wait = 10;
 			cur_state = MFI_STATE_OPERATIONAL;
@@ -1323,6 +1339,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			return -ENODEV;
 		}
 	};
+ 	printk(KERN_INFO "megasas: FW now in Ready state\n");
 
 	return 0;
 }
@@ -1352,7 +1369,7 @@ static void megasas_teardown_frame_pool(struct megasas_instance *instance)
 				      cmd->frame_phys_addr);
 
 		if (cmd->sense)
-			pci_pool_free(instance->sense_dma_pool, cmd->frame,
+			pci_pool_free(instance->sense_dma_pool, cmd->sense,
 				      cmd->sense_phys_addr);
 	}
 
@@ -1690,6 +1707,12 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	 * Get various operational parameters from status register
 	 */
 	instance->max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
+	/*
+	 * Reduce the max supported cmds by 1. This is to ensure that the
+	 * reply_q_sz (1 more than the max cmd that driver may send)
+	 * does not exceed max cmds that the FW can support
+	 */
+	instance->max_fw_cmds = instance->max_fw_cmds-1;
 	instance->max_num_sge = (instance->instancet->read_fw_status_reg(reg_set) & 0xFF0000) >> 
 					0x10;
 	/*

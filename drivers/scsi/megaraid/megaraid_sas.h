@@ -50,6 +50,7 @@
 #define MFI_STATE_WAIT_HANDSHAKE		0x60000000
 #define MFI_STATE_FW_INIT_2			0x70000000
 #define MFI_STATE_DEVICE_SCAN			0x80000000
+#define MFI_STATE_BOOT_MESSAGE_PENDING		0x90000000
 #define MFI_STATE_FLUSH_CACHE			0xA0000000
 #define MFI_STATE_READY				0xB0000000
 #define MFI_STATE_OPERATIONAL			0xC0000000
@@ -64,12 +65,18 @@
  * READY	: Move from OPERATIONAL to READY state; discard queue info
  * MFIMODE	: Discard (possible) low MFA posted in 64-bit mode (??)
  * CLR_HANDSHAKE: FW is waiting for HANDSHAKE from BIOS or Driver
+ * HOTPLUG	: Resume from Hotplug
+ * MFI_STOP_ADP	: Send signal to FW to stop processing
  */
-#define MFI_INIT_ABORT				0x00000000
+#define MFI_INIT_ABORT				0x00000001
 #define MFI_INIT_READY				0x00000002
 #define MFI_INIT_MFIMODE			0x00000004
 #define MFI_INIT_CLEAR_HANDSHAKE		0x00000008
-#define MFI_RESET_FLAGS				MFI_INIT_READY|MFI_INIT_MFIMODE
+#define MFI_INIT_HOTPLUG			0x00000010
+#define MFI_STOP_ADP				0x00000020
+#define MFI_RESET_FLAGS				MFI_INIT_READY| \
+						MFI_INIT_MFIMODE| \
+						MFI_INIT_ABORT
 
 /**
  * MFI frame flags
