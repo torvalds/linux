@@ -2593,6 +2593,24 @@ static int raid5_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
+static int raid5_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+
+	/* No difference between reads and writes.  Just check
+	 * how busy the stripe_cache is
+	 */
+	if (conf->inactive_blocked)
+		return 1;
+	if (conf->quiesce)
+		return 1;
+	if (list_empty_careful(&conf->inactive_list))
+		return 1;
+
+	return 0;
+}
+
 static int make_request(request_queue_t *q, struct bio * bi)
 {
 	mddev_t *mddev = q->queuedata;
@@ -3296,6 +3314,9 @@ static int run(mddev_t *mddev)
 
 	mddev->queue->unplug_fn = raid5_unplug_device;
 	mddev->queue->issue_flush_fn = raid5_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = raid5_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
+
 	mddev->array_size =  mddev->size * (conf->previous_raid_disks -
 					    conf->max_degraded);
 
