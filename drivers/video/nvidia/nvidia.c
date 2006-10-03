@@ -984,7 +984,10 @@ static int nvidiafb_resume(struct pci_dev *dev)
 
 	if (par->pm_state != PM_EVENT_FREEZE) {
 		pci_restore_state(dev);
-		pci_enable_device(dev);
+
+		if (pci_enable_device(dev))
+			goto fail;
+
 		pci_set_master(dev);
 	}
 
@@ -993,6 +996,7 @@ static int nvidiafb_resume(struct pci_dev *dev)
 	fb_set_suspend (info, 0);
 	nvidiafb_blank(FB_BLANK_UNBLANK, info);
 
+fail:
 	release_console_sem();
 	return 0;
 }
