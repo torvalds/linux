@@ -8,7 +8,6 @@
 #ifndef __ASSEMBLY__
 #include <linux/personality.h>
 #include <linux/types.h>
-#include <linux/compat.h>
 #endif
 #endif
 
@@ -167,42 +166,12 @@ struct __new_sigaction {
 	__new_sigset_t		sa_mask;
 };
 
-#ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
-struct __new_sigaction32 {
-	unsigned		sa_handler;
-	unsigned int    	sa_flags;
-	unsigned		sa_restorer;     /* not used by Linux/SPARC yet */
-	compat_sigset_t 	sa_mask;
-};
-#endif
-
-struct k_sigaction {
-	struct __new_sigaction 	sa;
-	void __user		*ka_restorer;
-};
-#endif
-
 struct __old_sigaction {
 	__sighandler_t  	sa_handler;
 	__old_sigset_t  	sa_mask;
 	unsigned long   	sa_flags;
 	void 			(*sa_restorer)(void);     /* not used by Linux/SPARC yet */
 };
-
-#ifdef __KERNEL__
-
-#ifdef CONFIG_COMPAT
-struct __old_sigaction32 {
-	unsigned		sa_handler;
-	compat_old_sigset_t  	sa_mask;
-	unsigned int    	sa_flags;
-	unsigned		sa_restorer;     /* not used by Linux/SPARC yet */
-};
-#endif
-
-#endif
 
 typedef struct sigaltstack {
 	void			__user *ss_sp;
@@ -212,13 +181,10 @@ typedef struct sigaltstack {
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_COMPAT
-typedef struct sigaltstack32 {
-	u32			ss_sp;
-	int			ss_flags;
-	compat_size_t		ss_size;
-} stack_t32;
-#endif
+struct k_sigaction {
+	struct __new_sigaction 	sa;
+	void __user		*ka_restorer;
+};
 
 struct signal_deliver_cookie {
 	int restart_syscall;

@@ -61,6 +61,7 @@
 #include <asm/semaphore.h>
 #include <asm/mmu_context.h>
 #include <asm/a.out.h>
+#include <asm/compat_signal.h>
 
 asmlinkage long sys32_chown16(const char __user * filename, u16 user, u16 group)
 {
