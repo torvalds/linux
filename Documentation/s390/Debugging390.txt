@@ -912,8 +912,8 @@ If you wanted to know does ping work but didn't have the source
 strace ping -c 1 127.0.0.1  
 & then look at the man pages for each of the syscalls below,
 ( In fact this is sometimes easier than looking at some spagetti
-source which conditionally compiles for several architectures )
-Not everything that it throws out needs to make sense immeadiately
+source which conditionally compiles for several architectures ).
+Not everything that it throws out needs to make sense immediately.
 
 Just looking quickly you can see that it is making up a RAW socket
 for the ICMP protocol.
@@ -2315,7 +2315,7 @@ Showing us the shared libraries init uses where they are in memory
 /proc/1/mem is the current running processes memory which you
 can read & write to like a file.
 strace uses this sometimes as it is a bit faster than the
-rather inefficent ptrace interface for peeking at DATA.
+rather inefficient ptrace interface for peeking at DATA.
 
 
 cat status 
@@ -2445,7 +2445,7 @@ displays the following lines as it executes them.
 + RELSTATUS=release
 + MACHTYPE=i586-pc-linux-gnu   
 
-perl -d <scriptname> runs the perlscript in a fully intercative debugger
+perl -d <scriptname> runs the perlscript in a fully interactive debugger
 <like gdb>.
 Type 'h' in the debugger for help.
 

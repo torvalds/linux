@@ -32,7 +32,7 @@ This application requires the following to function properly as of now.
 	  descrambler to function,
 	  eg: $ ca_zap channels.conf "TMC"
 
-	(d) Hopeflly Enjoy your favourite subscribed channel as you do with
+	(d) Hopefully enjoy your favourite subscribed channel as you do with
 	  a FTA card.
 
 (3) Currently ca_zap, and dst_test, both are meant for demonstration
@@ -65,7 +65,7 @@ Modules that have been tested by this driver at present are
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 With the High Level CI approach any new card with almost any random
 architecture can be implemented with this style, the definitions
-insidethe switch statement can be easily adapted for any card, thereby
+inside the switch statement can be easily adapted for any card, thereby
 eliminating the need for any additional ioctls.
 
 The disadvantage is that the driver/hardware has to manage the rest. For

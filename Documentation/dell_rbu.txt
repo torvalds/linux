@@ -16,8 +16,8 @@ OpenManage and Dell Update packages (DUP).
 Libsmbios can also be used to update BIOS on Dell systems go to
 http://linux.dell.com/libsmbios/ for details.
 
-Dell_RBU driver supports BIOS update using the monilothic image and packetized
-image methods. In case of moniolithic the driver allocates a contiguous chunk
+Dell_RBU driver supports BIOS update using the monolithic image and packetized
+image methods. In case of monolithic the driver allocates a contiguous chunk
 of physical pages having the BIOS image. In case of packetized the app
 using the driver breaks the image in to packets of fixed sizes and the driver
 would place each packet in contiguous physical memory. The driver also

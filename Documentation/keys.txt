@@ -715,7 +715,7 @@ The keyctl syscall functions are:
 KERNEL SERVICES
 ===============
 
-The kernel services for key managment are fairly simple to deal with. They can
+The kernel services for key management are fairly simple to deal with. They can
 be broken down into two areas: keys and key types.
 
 Dealing with keys is fairly straightforward. Firstly, the kernel service

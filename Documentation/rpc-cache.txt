@@ -24,7 +24,7 @@ The common code handles such things as:
    - general cache lookup with correct locking
    - supporting 'NEGATIVE' as well as positive entries
    - allowing an EXPIRED time on cache items, and removing
-     items after they expire, and are no longe in-use.
+     items after they expire, and are no longer in-use.
    - making requests to user-space to fill in cache entries
    - allowing user-space to directly set entries in the cache
    - delaying RPC requests that depend on as-yet incomplete

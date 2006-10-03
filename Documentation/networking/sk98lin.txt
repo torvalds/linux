@@ -320,7 +320,7 @@ Parameter:    Moderation
 Values:       None, Static, Dynamic
 Default:      None
 
-Interrupt moderation is employed to limit the maxmimum number of interrupts
+Interrupt moderation is employed to limit the maximum number of interrupts
 the driver has to serve. That is, one or more interrupts (which indicate any
 transmit or receive packet to be processed) are queued until the driver 
 processes them. When queued interrupts are to be served, is determined by the

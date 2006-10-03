@@ -24,7 +24,7 @@ SCSI device:  I-O data CDPS-PX24 (CD-ROM drive)
     You can also use "cardctl" program (this program is in pcmcia-cs source
     code) to get more info.
 
-# cat /var/log/messgaes
+# cat /var/log/messages
 ...
 Jan  2 03:45:06 lindberg cardmgr[78]: unsupported card in socket 1
 Jan  2 03:45:06 lindberg cardmgr[78]:   product info: "WBT", "NinjaSCSI-3", "R1.0"

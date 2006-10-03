@@ -57,7 +57,7 @@ selected for each specific use.
 
 Basically, it's the following flow graph:
 
-CPU can be set to switch independetly	 |	   CPU can only be set
+CPU can be set to switch independently	 |	   CPU can only be set
       within specific "limits"		 |       to specific frequencies
 
                                  "CPUfreq policy"

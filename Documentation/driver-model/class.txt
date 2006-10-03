@@ -12,7 +12,7 @@ device. The following device classes have been identified:
 
 Each device class defines a set of semantics and a programming interface
 that devices of that class adhere to. Device drivers are the
-implemention of that programming interface for a particular device on
+implementation of that programming interface for a particular device on
 a particular bus. 
 
 Device classes are agnostic with respect to what bus a device resides

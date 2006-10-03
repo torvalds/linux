@@ -1588,7 +1588,7 @@ Enable the  strict  RFC793 interpretation of the TCP urgent pointer field. The
 default is  to  use  the  BSD  compatible interpretation of the urgent pointer
 pointing to the first byte after the urgent data. The RFC793 interpretation is
 to have  it  point  to  the last byte of urgent data. Enabling this option may
-lead to interoperatibility problems. Disabled by default.
+lead to interoperability problems. Disabled by default.
 
 tcp_syncookies
 --------------

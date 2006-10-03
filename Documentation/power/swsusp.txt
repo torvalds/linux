@@ -175,8 +175,8 @@ reliable.
 Q: I do not understand why you have such strong objections to idea of
 selective suspend.
 
-A: Do selective suspend during runtime power managment, that's okay. But
-its useless for suspend-to-disk. (And I do not see how you could use
+A: Do selective suspend during runtime power management, that's okay. But
+it's useless for suspend-to-disk. (And I do not see how you could use
 it for suspend-to-ram, I hope you do not want that).
 
 Lets see, so you suggest to
@@ -211,7 +211,7 @@ slowness may not matter to you. It can always be fixed later.
 For devices like disk it does matter, you do not want to spindown for
 FREEZE.
 
-Q: After resuming, system is paging heavilly, leading to very bad interactivity.
+Q: After resuming, system is paging heavily, leading to very bad interactivity.
 
 A: Try running
 

@@ -325,7 +325,7 @@ with the following CCW flags values defined :
 
 CCW_FLAG_DC        - data chaining
 CCW_FLAG_CC        - command chaining
-CCW_FLAG_SLI       - suppress incorrct length
+CCW_FLAG_SLI       - suppress incorrect length
 CCW_FLAG_SKIP      - skip
 CCW_FLAG_PCI       - PCI
 CCW_FLAG_IDA       - indirect addressing

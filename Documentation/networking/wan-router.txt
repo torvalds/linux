@@ -148,7 +148,7 @@ NEW IN THIS RELEASE
 		for async connections.
 
 	o Added the PPPCONFIG utility
-		Used to configure the PPPD dameon for the
+		Used to configure the PPPD daemon for the
 		WANPIPE Async PPP and standard serial port.
 		The wancfg calls the pppconfig to configure
 		the pppd.
@@ -350,7 +350,7 @@ REVISION HISTORY
 				 Available as a patch.                 
 
 2.0.6   Aug 17, 1999		Increased debugging in statup scripts
-				Fixed insallation bugs from 2.0.5
+				Fixed installation bugs from 2.0.5
 				Kernel patch works for both 2.2.10 and 2.2.11 kernels.
 				There is no functional difference between the two packages         
 
@@ -434,7 +434,7 @@ beta3-2.1.4 Jul 2000		o X25 M_BIT Problem fix.
 				  change. 
 	  
 beta1-2.1.5 	Nov 15 2000
-				o Fixed the MulitPort PPP Support for kernels 2.2.16 and above.
+				o Fixed the MultiPort PPP Support for kernels 2.2.16 and above.
 				  2.2.X kernels only
 
 				o Secured the driver UDP debugging calls

@@ -45,7 +45,7 @@ daemon and it crashes the system will not reboot.  Because of this,
 some of the drivers support the configuration option "Disable watchdog
 shutdown on close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when
 compiling the kernel, there is no way of disabling the watchdog once
-it has been started.  So, if the watchdog dameon crashes, the system
+it has been started.  So, if the watchdog daemon crashes, the system
 will reboot after the timeout has passed.
 
 Some other drivers will not disable the watchdog, unless a specific

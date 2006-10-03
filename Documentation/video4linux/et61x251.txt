@@ -80,7 +80,7 @@ Some of the features of the driver are:
   high compression quality (see also "Notes for V4L2 application developers"
   paragraph);
 - full support for the capabilities of every possible image sensors that can
-  be connected to the ET61X[12]51 bridges, including, for istance, red, green,
+  be connected to the ET61X[12]51 bridges, including, for instance, red, green,
   blue and global gain adjustments and exposure control (see "Supported
   devices" paragraph for details);
 - use of default color settings for sunlight conditions;

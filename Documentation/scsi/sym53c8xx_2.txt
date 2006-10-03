@@ -684,7 +684,7 @@ Field H : SCNTL3 Scsi Control Register 3
           Contains the setting of timing values for both asynchronous and 
           synchronous data transfers. 
 Field I : SCNTL4 Scsi Control Register 4
-          Only meaninful for 53C1010 Ultra3 controllers.
+          Only meaningful for 53C1010 Ultra3 controllers.
 
 Understanding Fields J, K, L and dumps requires to have good knowledge of 
 SCSI standards, chip cores functionnals and internal driver data structures.

@@ -778,7 +778,7 @@ port address 0x1400.
   Some scsi boards use a 875 (ultra wide) and only supply narrow connectors.
   If you have connected a wide device with a 50 pins to 68 pins cable 
   converter, any accepted wide negotiation will break further data transfers.
-  In such a case, using "wide:0" in the bootup command will be helpfull. 
+  In such a case, using "wide:0" in the bootup command will be helpful. 
 
 10.2.14 Differential mode
         diff:0	never set up diff mode

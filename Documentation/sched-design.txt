@@ -93,9 +93,9 @@ and the goal is also to add a few new things:
 Design
 ======
 
-the core of the new scheduler are the following mechanizms:
+The core of the new scheduler contains the following mechanisms:
 
- - *two*, priority-ordered 'priority arrays' per CPU. There is an 'active'
+ - *two* priority-ordered 'priority arrays' per CPU. There is an 'active'
    array and an 'expired' array. The active array contains all tasks that
    are affine to this CPU and have timeslices left. The expired array
    contains all tasks which have used up their timeslices - but this array

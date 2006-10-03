@@ -787,7 +787,7 @@ accept_ra_defrtr - BOOLEAN
 			    disabled if accept_ra is disabled.
 
 accept_ra_pinfo - BOOLEAN
-	Learn Prefix Inforamtion in Router Advertisement.
+	Learn Prefix Information in Router Advertisement.
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.

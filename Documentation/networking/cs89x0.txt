@@ -227,7 +227,7 @@ configuration options are available on the command line:
 * media=rj45           - specify media type
    or media=bnc
    or media=aui
-   or medai=auto
+   or media=auto
 * duplex=full          - specify forced half/full/autonegotiate duplex
    or duplex=half
    or duplex=auto

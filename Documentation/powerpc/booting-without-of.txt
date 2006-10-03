@@ -145,7 +145,7 @@ it with special cases.
                 in case you are entering the kernel with MMU enabled
                 and a non-1:1 mapping.
 
-                r5 : NULL (as to differenciate with method a)
+                r5 : NULL (as to differentiate with method a)
 
         Note about SMP entry: Either your firmware puts your other
         CPUs in some sleep loop or spin loop in ROM where you can get
@@ -418,9 +418,9 @@ zero terminated string and is mandatory for version 1 to 3 of the
 format definition (as it is in Open Firmware). Version 0x10 makes it
 optional as it can generate it from the unit name defined below.
 
-There is also a "unit name" that is used to differenciate nodes with
+There is also a "unit name" that is used to differentiate nodes with
 the same name at the same level, it is usually made of the node
-name's, the "@" sign, and a "unit address", which definition is
+names, the "@" sign, and a "unit address", which definition is
 specific to the bus type the node sits on.
 
 The unit name doesn't exist as a property per-se but is included in

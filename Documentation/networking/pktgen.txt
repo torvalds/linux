@@ -18,7 +18,7 @@ root       129  0.3  0.0     0    0 ?        SW    2003 523:20 [pktgen/0]
 root       130  0.3  0.0     0    0 ?        SW    2003 509:50 [pktgen/1]
 
 
-For montoring and control pktgen creates:
+For monitoring and control pktgen creates:
 	/proc/net/pktgen/pgctrl
 	/proc/net/pktgen/kpktgend_X
         /proc/net/pktgen/ethX

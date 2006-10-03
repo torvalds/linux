@@ -194,7 +194,7 @@ lower layers and lower layers are ready to process or fail the scmd
 again.
 
  To achieve these goals, EH performs recovery actions with increasing
-severity.  Some actions are performed by issueing SCSI commands and
+severity.  Some actions are performed by issuing SCSI commands and
 others are performed by invoking one of the following fine-grained
 hostt EH callbacks.  Callbacks may be omitted and omitted ones are
 considered to fail always.

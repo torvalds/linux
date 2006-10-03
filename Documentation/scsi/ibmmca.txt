@@ -229,7 +229,7 @@
 
    In a second step of the driver development, the following improvement has
    been applied: The first approach limited the number of devices to 7, far
-   fewer than the 15 that it could usem then it just maped ldn -> 
+   fewer than the 15 that it could use, then it just mapped ldn -> 
    (ldn/8,ldn%8) for pun,lun.  We ended up with a real mishmash of puns
    and luns, but it all seemed to work.
 
@@ -254,12 +254,12 @@
    device to be existant, but it has no ldn assigned, it gets a ldn out of 7 
    to 14. The numbers are assigned in cyclic order. Therefore it takes 8 
    dynamical reassignments on the SCSI-devices, until a certain device 
-   loses its ldn again. This assures, that dynamical remapping is avoided 
+   loses its ldn again. This assures that dynamical remapping is avoided 
    during intense I/O between up to 15 SCSI-devices (means pun,lun 
-   combinations). A further advantage of this method is, that people who
+   combinations). A further advantage of this method is that people who
    build their kernel without probing on all luns will get what they expect,
    because the driver just won't assign everything with lun>0 when 
-   multpile lun probing is inactive.
+   multiple lun probing is inactive.
  
    2.4 SCSI-Device Order
    ---------------------
@@ -1104,7 +1104,7 @@
 	The parameter 'normal' sets the new industry standard, starting
 	from pun 0, scanning up to pun 6. This allows you to change your 
 	opinion still after having already compiled the kernel.
-     Q: Why I cannot find the IBM MCA SCSI support in the config menue?
+     Q: Why can't I find IBM MCA SCSI support in the config menu?
      A: You have to activate MCA bus support, first.
      Q: Where can I find the latest info about this driver?
      A: See the file MAINTAINERS for the current WWW-address, which offers

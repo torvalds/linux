@@ -215,8 +215,8 @@ called pg_vec, its size limits the number of blocks that can be allocated.
      block #1
 
 
-kmalloc allocates any number of bytes of phisically contiguous memory from 
-a pool of pre-determined sizes. This pool of memory is mantained by the slab 
+kmalloc allocates any number of bytes of physically contiguous memory from 
+a pool of pre-determined sizes. This pool of memory is maintained by the slab 
 allocator which is at the end the responsible for doing the allocation and 
 hence which imposes the maximum memory that kmalloc can allocate. 
 

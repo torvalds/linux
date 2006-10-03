@@ -85,7 +85,7 @@ Some of the features of the driver are:
   high compression quality (see also "Notes for V4L2 application developers"
   and "Video frame formats" paragraphs);
 - full support for the capabilities of many of the possible image sensors that
-  can be connected to the SN9C10x bridges, including, for istance, red, green,
+  can be connected to the SN9C10x bridges, including, for instance, red, green,
   blue and global gain adjustments and exposure (see "Supported devices"
   paragraph for details);
 - use of default color settings for sunlight conditions;

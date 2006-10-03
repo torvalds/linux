@@ -406,7 +406,7 @@ INTERROGATION MODE.
 9.18 SET JOYSTICK MONITORING
 
     0x17
-    rate                ; time between samples in hundreths of a second
+    rate                ; time between samples in hundredths of a second
     Returns: (in packets of two as long as in mode)
             %000000xy   ; where y is JOYSTICK1 Fire button
                         ; and x is JOYSTICK0 Fire button
