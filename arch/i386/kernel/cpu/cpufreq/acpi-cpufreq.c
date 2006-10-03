@@ -324,11 +324,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	online_policy_cpus = policy->cpus;
 #endif
 
-	cmd.val = get_cur_val(online_policy_cpus);
-	freqs.old = extract_freq(cmd.val, data);
-	freqs.new = data->freq_table[next_state].frequency;
 	next_perf_state = data->freq_table[next_state].index;
-	if (freqs.new == freqs.old) {
+	if (perf->state == next_perf_state) {
 		if (unlikely(data->resume)) {
 			dprintk("Called after resume, resetting to P%d\n",
 				next_perf_state);
@@ -366,6 +363,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	else
 		cpu_set(policy->cpu, cmd.mask);
 
+	freqs.old = data->freq_table[perf->state].frequency;
+	freqs.new = data->freq_table[next_perf_state].frequency;
 	for_each_cpu_mask(i, cmd.mask) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -613,6 +612,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
+		acpi_cpufreq_driver.get = get_cur_freq_on_cpu;
 		get_cur_freq_on_cpu(cpu);
 		break;
 	default:
@@ -687,7 +687,6 @@ static struct freq_attr *acpi_cpufreq_attr[] = {
 static struct cpufreq_driver acpi_cpufreq_driver = {
 	.verify = acpi_cpufreq_verify,
 	.target = acpi_cpufreq_target,
-	.get = get_cur_freq_on_cpu,
 	.init = acpi_cpufreq_cpu_init,
 	.exit = acpi_cpufreq_cpu_exit,
 	.resume = acpi_cpufreq_resume,
