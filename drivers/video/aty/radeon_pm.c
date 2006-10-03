@@ -86,6 +86,9 @@ static struct radeon_device_id radeon_workaround_list[] = {
 	BUGFIX("Samsung P35",
 	       PCI_VENDOR_ID_SAMSUNG, 0xc00c,
 	       radeon_pm_off, radeon_reinitialize_M10),
+	BUGFIX("Acer Aspire 2010",
+	       PCI_VENDOR_ID_AI, 0x0061,
+	       radeon_pm_off, radeon_reinitialize_M10),
 	{ .ident = NULL }
 };
 
