@@ -111,8 +111,6 @@ void udbg_scc_init(int force_scc)
 	pmac_call_feature(PMAC_FTR_SCC_ENABLE, ch,
 			  PMAC_SCC_ASYNC | PMAC_SCC_FLAG_XMON, 1);
 
-
-	/* Setup for 57600 8N1 */
 	if (ch == ch_a)
 		addr += 0x20;
 	sccc = ioremap(addr & PAGE_MASK, PAGE_SIZE) ;
@@ -125,8 +123,20 @@ void udbg_scc_init(int force_scc)
 		x = in_8(sccc);
 	out_8(sccc, 0x09);		/* reset A or B side */
 	out_8(sccc, 0xc0);
+
+	/* If SCC was the OF output port, read the BRG value, else
+	 * Setup for 57600 8N1
+	 */
+	if (ch_def != NULL) {
+		out_8(sccc, 13);
+		scc_inittab[1] = in_8(sccc);
+		out_8(sccc, 12);
+		scc_inittab[3] = in_8(sccc);
+	}
+
 	for (i = 0; i < sizeof(scc_inittab); ++i)
 		out_8(sccc, scc_inittab[i]);
+
 
 	udbg_putc = udbg_scc_putc;
 	udbg_getc = udbg_scc_getc;
