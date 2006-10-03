@@ -39,6 +39,7 @@
 #include <acpi/processor.h>
 
 #include <asm/io.h>
+#include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 #include <asm/delay.h>
@@ -51,10 +52,19 @@ MODULE_DESCRIPTION("ACPI Processor P-States Driver");
 MODULE_LICENSE("GPL");
 
 
+enum {
+	UNDEFINED_CAPABLE = 0,
+	SYSTEM_INTEL_MSR_CAPABLE,
+	SYSTEM_IO_CAPABLE,
+};
+
+#define INTEL_MSR_RANGE		(0xffff)
+
 struct acpi_cpufreq_data {
 	struct acpi_processor_performance	*acpi_data;
 	struct cpufreq_frequency_table		*freq_table;
 	unsigned int				resume;
+	unsigned int				cpu_feature;
 };
 
 static struct acpi_cpufreq_data	*drv_data[NR_CPUS];
@@ -64,7 +74,20 @@ static struct cpufreq_driver acpi_cpufreq_driver;
 
 static unsigned int acpi_pstate_strict;
 
-static unsigned extract_freq(u32 value, struct acpi_cpufreq_data *data)
+
+static int check_est_cpu(unsigned int cpuid)
+{
+	struct cpuinfo_x86 *cpu = &cpu_data[cpuid];
+
+	if (cpu->x86_vendor != X86_VENDOR_INTEL ||
+			!cpu_has(cpu, X86_FEATURE_EST))
+		return 0;
+
+	return 1;
+}
+
+
+static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)
 {
 	struct acpi_processor_performance       *perf;
 	int                                     i;
@@ -78,6 +101,31 @@ static unsigned extract_freq(u32 value, struct acpi_cpufreq_data *data)
 	return 0;
 }
 
+
+static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
+{
+	int i;
+
+	msr &= INTEL_MSR_RANGE;
+	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (msr == data->freq_table[i].index)
+			return data->freq_table[i].frequency;
+	}
+	return data->freq_table[0].frequency;
+}
+
+
+static unsigned extract_freq(u32 val, struct acpi_cpufreq_data *data)
+{
+	switch (data->cpu_feature) {
+	    case SYSTEM_INTEL_MSR_CAPABLE:
+		return extract_msr(val, data);
+	    case SYSTEM_IO_CAPABLE:
+		return extract_io(val, data);
+	    default:
+		return 0;
+	}
+}
 
 static void wrport(u16 port, u8 bit_width, u32 value)
 {
@@ -102,27 +150,57 @@ static void rdport(u16 port, u8 bit_width, u32 *ret)
 	}
 }
 
+struct msr_addr {
+	u32 reg;
+};
+
 struct io_addr {
 	u16 port;
 	u8 bit_width;
 };
 
+typedef union {
+	struct msr_addr msr;
+	struct io_addr io;
+} drv_addr_union;
+
 struct drv_cmd {
+	unsigned int type;
 	cpumask_t mask;
-	struct io_addr addr;
+	drv_addr_union addr;
 	u32 val;
 };
 
 static void do_drv_read(struct drv_cmd *cmd)
 {
-	rdport(cmd->addr.port, cmd->addr.bit_width, &cmd->val);
-	return;
+	u32 h;
+
+	switch (cmd->type) {
+	    case SYSTEM_INTEL_MSR_CAPABLE:
+		rdmsr(cmd->addr.msr.reg, cmd->val, h);
+		break;
+	    case SYSTEM_IO_CAPABLE:
+		rdport(cmd->addr.io.port, cmd->addr.io.bit_width, &cmd->val);
+		break;
+	    default:
+		break;
+	}
 }
 
 static void do_drv_write(struct drv_cmd *cmd)
 {
-	wrport(cmd->addr.port, cmd->addr.bit_width, cmd->val);
-	return;
+	u32 h = 0;
+
+	switch (cmd->type) {
+	    case SYSTEM_INTEL_MSR_CAPABLE:
+		wrmsr(cmd->addr.msr.reg, cmd->val, h);
+		break;
+	    case SYSTEM_IO_CAPABLE:
+		wrport(cmd->addr.io.port, cmd->addr.io.bit_width, cmd->val);
+		break;
+	    default:
+		break;
+	}
 }
 
 static inline void drv_read(struct drv_cmd *cmd)
@@ -158,9 +236,21 @@ static u32 get_cur_val(cpumask_t mask)
 	if (unlikely(cpus_empty(mask)))
 		return 0;
 
-	perf = drv_data[first_cpu(mask)]->acpi_data;
-	cmd.addr.port = perf->control_register.address;
-	cmd.addr.bit_width = perf->control_register.bit_width;
+	switch (drv_data[first_cpu(mask)]->cpu_feature) {
+	case SYSTEM_INTEL_MSR_CAPABLE:
+		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
+		cmd.addr.msr.reg = MSR_IA32_PERF_STATUS;
+		break;
+	case SYSTEM_IO_CAPABLE:
+		cmd.type = SYSTEM_IO_CAPABLE;
+		perf = drv_data[first_cpu(mask)]->acpi_data;
+		cmd.addr.io.port = perf->control_register.address;
+		cmd.addr.io.bit_width = perf->control_register.bit_width;
+		break;
+	default:
+		return 0;
+	}
+
 	cmd.mask = mask;
 
 	drv_read(&cmd);
@@ -213,6 +303,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs			freqs;
 	cpumask_t				online_policy_cpus;
 	struct drv_cmd				cmd;
+	unsigned int				msr;
 	unsigned int				next_state = 0;
 	unsigned int				next_perf_state = 0;
 	unsigned int				i;
@@ -256,9 +347,22 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	cmd.addr.port = perf->control_register.address;
-	cmd.addr.bit_width = perf->control_register.bit_width;
-	cmd.val = (u32) perf->states[next_perf_state].control;
+ 	switch (data->cpu_feature) {
+ 	    case SYSTEM_INTEL_MSR_CAPABLE:
+ 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
+ 		cmd.addr.msr.reg = MSR_IA32_PERF_CTL;
+		msr = (u32) perf->states[next_perf_state].control & INTEL_MSR_RANGE;
+ 		cmd.val = (cmd.val & ~INTEL_MSR_RANGE) | msr;
+ 		break;
+ 	    case SYSTEM_IO_CAPABLE:
+ 		cmd.type = SYSTEM_IO_CAPABLE;
+ 		cmd.addr.io.port = perf->control_register.address;
+ 		cmd.addr.io.bit_width = perf->control_register.bit_width;
+ 		cmd.val = (u32) perf->states[next_perf_state].control;
+ 		break;
+ 	    default:
+ 		return -ENODEV;
+ 	}
 
 	cpus_clear(cmd.mask);
 
@@ -405,6 +509,7 @@ acpi_cpufreq_cpu_init (
 	unsigned int			valid_states = 0;
 	unsigned int			cpu = policy->cpu;
 	struct acpi_cpufreq_data	*data;
+	unsigned int			l, h;
 	unsigned int			result = 0;
 	struct cpuinfo_x86 		*c = &cpu_data[policy->cpu];
 	struct acpi_processor_performance	*perf;
@@ -463,6 +568,15 @@ acpi_cpufreq_cpu_init (
 	switch (perf->control_register.space_id) {
 	    case ACPI_ADR_SPACE_SYSTEM_IO:
 		dprintk("SYSTEM IO addr space\n");
+		data->cpu_feature = SYSTEM_IO_CAPABLE;
+		break;
+	    case ACPI_ADR_SPACE_FIXED_HARDWARE:
+		dprintk("HARDWARE addr space\n");
+		if (!check_est_cpu(cpu)) {
+			result = -ENODEV;
+			goto err_unreg;
+		}
+		data->cpu_feature = SYSTEM_INTEL_MSR_CAPABLE;
 		break;
 	    default:
 		dprintk("Unknown addr space %d\n",
@@ -485,9 +599,6 @@ acpi_cpufreq_cpu_init (
 	}
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
-	/* The current speed is unknown and not detectable by ACPI...  */
-	policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
-
 	/* table init */
 	for (i=0; i<perf->state_count; i++)
 	{
@@ -505,6 +616,18 @@ acpi_cpufreq_cpu_init (
 	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
 	if (result) {
 		goto err_freqfree;
+	}
+
+	switch (data->cpu_feature) {
+	    case ACPI_ADR_SPACE_SYSTEM_IO:
+		/* Current speed is unknown and not detectable by IO port */
+		policy->cur = acpi_cpufreq_guess_freq(data, policy->cpu);
+		break;
+	    case ACPI_ADR_SPACE_FIXED_HARDWARE:
+		get_cur_freq_on_cpu(cpu);
+		break;
+	    default:
+		break;
 	}
 
 	/* notify BIOS that we exist */
@@ -599,7 +722,7 @@ acpi_cpufreq_init (void)
 
 	acpi_cpufreq_early_init();
 
-	return cpufreq_register_driver(&acpi_cpufreq_driver);
+ 	return cpufreq_register_driver(&acpi_cpufreq_driver);
 }
 
 
