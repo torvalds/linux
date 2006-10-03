@@ -103,9 +103,6 @@ static int gl861_identify_state(struct usb_device *udev,
 static struct zl10353_config gl861_zl10353_config = {
 	.demod_address = 0x1e,
 	.no_tuner = 1,
-/*
-	.parallel_ts = 1,
-*/
 };
 
 static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
