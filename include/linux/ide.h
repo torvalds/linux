@@ -251,7 +251,8 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 #include <asm/ide.h>
 
-#ifndef MAX_HWIFS
+#if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
+#undef MAX_HWIFS
 #define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
 #endif
 

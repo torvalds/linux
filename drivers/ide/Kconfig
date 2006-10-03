@@ -56,7 +56,7 @@ if IDE
 
 config IDE_MAX_HWIFS
 	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH || IA64
+	depends on ALPHA || SUPERH || IA64 || EMBEDDED
 	default 4
 	help
 	  This is the maximum number of IDE hardware interfaces that will
