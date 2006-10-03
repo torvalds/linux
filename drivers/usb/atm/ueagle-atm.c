@@ -744,7 +744,7 @@ static inline void wake_up_cmv_ack(struct uea_softc *sc)
 
 static inline int wait_cmv_ack(struct uea_softc *sc)
 {
-	int ret = wait_event_timeout(sc->cmv_ack_wait,
+	int ret = wait_event_interruptible_timeout(sc->cmv_ack_wait,
 						   sc->cmv_ack, ACK_TIMEOUT);
 	sc->cmv_ack = 0;
 
@@ -1172,7 +1172,7 @@ static int uea_kthread(void *data)
 		if (!ret)
 			ret = uea_stat(sc);
 		if (ret != -EAGAIN)
-			msleep(1000);
+			msleep_interruptible(1000);
  		if (try_to_freeze())
 			uea_err(INS_TO_USBDEV(sc), "suspend/resume not supported, "
 				"please unplug/replug your modem\n");
@@ -1600,7 +1600,7 @@ static int uea_heavy(struct usbatm_data *usbatm, struct usb_interface *intf)
 {
 	struct uea_softc *sc = usbatm->driver_data;
 
-	wait_event(sc->sync_q, IS_OPERATIONAL(sc));
+	wait_event_interruptible(sc->sync_q, IS_OPERATIONAL(sc));
 
 	return 0;
 
