@@ -527,6 +527,8 @@ static int ibmveth_open(struct net_device *netdev)
 	ibmveth_debug_printk("filter list @ 0x%p\n", adapter->filter_list_addr);
 	ibmveth_debug_printk("receive q   @ 0x%p\n", adapter->rx_queue.queue_addr);
 
+	h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
+
 	lpar_rc = ibmveth_register_logical_lan(adapter, rxq_desc, mac_address);
 
 	if(lpar_rc != H_SUCCESS) {
