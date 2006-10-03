@@ -102,7 +102,7 @@ linux: vmlinux
 define archhelp
   echo '* linux		- Binary kernel image (./linux) - for backward'
   echo '		   compatibility only, this creates a hard link to the'
-  echo '		   real kernel binary, the the "vmlinux" binary you'
+  echo '		   real kernel binary, the "vmlinux" binary you'
   echo '		   find in the kernel root.'
 endef
 

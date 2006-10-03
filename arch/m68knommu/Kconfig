@@ -495,7 +495,7 @@ config VECTORBASE
 	hex "Address of the base of system vectors"
 	default "0"
 	help
-	  Define the address of the the system vectors. Commonly this is
+	  Define the address of the system vectors. Commonly this is
 	  put at the start of RAM, but it doesn't have to be. On ColdFire
 	  platforms this address is programmed into the VBR register, thus
 	  actually setting the address to use.

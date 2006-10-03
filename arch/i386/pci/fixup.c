@@ -393,7 +393,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
  * We pretend to bring them out of full D3 state, and restore the proper
  * IRQ, PCI cache line size, and BARs, otherwise the device won't function
  * properly.  In some cases, the device will generate an interrupt on
- * the wrong IRQ line, causing any devices sharing the the line it's
+ * the wrong IRQ line, causing any devices sharing the line it's
  * *supposed* to use to be disabled by the kernel's IRQ debug code.
  */
 static u16 toshiba_line_size;
