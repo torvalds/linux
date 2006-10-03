@@ -943,7 +943,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!md->queue)
-		goto bad1;
+		goto bad1_free_minor;
 
 	md->queue->queuedata = md;
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
@@ -993,6 +993,7 @@ static struct mapped_device *alloc_dev(int minor)
 	mempool_destroy(md->io_pool);
  bad2:
 	blk_cleanup_queue(md->queue);
+ bad1_free_minor:
 	free_minor(minor);
  bad1:
 	module_put(THIS_MODULE);
