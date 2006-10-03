@@ -698,9 +698,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!test_bit(Faulty, &rdev->flags)) {
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		if (test_bit(In_sync, &rdev->flags)) {
-			conf->working_disks--;
 			mddev->degraded++;
-			conf->failed_disks++;
 			clear_bit(In_sync, &rdev->flags);
 			/*
 			 * if recovery was running, make sure it aborts.
@@ -711,7 +709,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		printk (KERN_ALERT
 			"raid5: Disk failure on %s, disabling device."
 			" Operation continuing on %d devices\n",
-			bdevname(rdev->bdev,b), conf->working_disks);
+			bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 	}
 }
 
@@ -3074,6 +3072,7 @@ static int run(mddev_t *mddev)
 	mdk_rdev_t *rdev;
 	struct disk_info *disk;
 	struct list_head *tmp;
+	int working_disks = 0;
 
 	if (mddev->level != 5 && mddev->level != 4 && mddev->level != 6) {
 		printk(KERN_ERR "raid5: %s: raid level not set to 4/5/6 (%d)\n",
@@ -3176,14 +3175,14 @@ static int run(mddev_t *mddev)
 			printk(KERN_INFO "raid5: device %s operational as raid"
 				" disk %d\n", bdevname(rdev->bdev,b),
 				raid_disk);
-			conf->working_disks++;
+			working_disks++;
 		}
 	}
 
 	/*
 	 * 0 for a fully functional array, 1 or 2 for a degraded array.
 	 */
-	mddev->degraded = conf->failed_disks = conf->raid_disks - conf->working_disks;
+	mddev->degraded = conf->raid_disks - working_disks;
 	conf->mddev = mddev;
 	conf->chunk_size = mddev->chunk_size;
 	conf->level = mddev->level;
@@ -3218,7 +3217,7 @@ static int run(mddev_t *mddev)
 	if (mddev->degraded > conf->max_degraded) {
 		printk(KERN_ERR "raid5: not enough operational devices for %s"
 			" (%d/%d failed)\n",
-			mdname(mddev), conf->failed_disks, conf->raid_disks);
+			mdname(mddev), mddev->degraded, conf->raid_disks);
 		goto abort;
 	}
 
@@ -3375,7 +3374,7 @@ static void status (struct seq_file *seq, mddev_t *mddev)
 	int i;
 
 	seq_printf (seq, " level %d, %dk chunk, algorithm %d", mddev->level, mddev->chunk_size >> 10, mddev->layout);
-	seq_printf (seq, " [%d/%d] [", conf->raid_disks, conf->working_disks);
+	seq_printf (seq, " [%d/%d] [", conf->raid_disks, conf->raid_disks - mddev->degraded);
 	for (i = 0; i < conf->raid_disks; i++)
 		seq_printf (seq, "%s",
 			       conf->disks[i].rdev &&
@@ -3397,8 +3396,8 @@ static void print_raid5_conf (raid5_conf_t *conf)
 		printk("(conf==NULL)\n");
 		return;
 	}
-	printk(" --- rd:%d wd:%d fd:%d\n", conf->raid_disks,
-		 conf->working_disks, conf->failed_disks);
+	printk(" --- rd:%d wd:%d\n", conf->raid_disks,
+		 conf->raid_disks - conf->mddev->degraded);
 
 	for (i = 0; i < conf->raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
@@ -3422,8 +3421,6 @@ static int raid5_spare_active(mddev_t *mddev)
 		    && !test_bit(Faulty, &tmp->rdev->flags)
 		    && !test_bit(In_sync, &tmp->rdev->flags)) {
 			mddev->degraded--;
-			conf->failed_disks--;
-			conf->working_disks++;
 			set_bit(In_sync, &tmp->rdev->flags);
 		}
 	}
@@ -3593,7 +3590,6 @@ static int raid5_start_reshape(mddev_t *mddev)
 			if (raid5_add_disk(mddev, rdev)) {
 				char nm[20];
 				set_bit(In_sync, &rdev->flags);
-				conf->working_disks++;
 				added_devices++;
 				rdev->recovery_offset = 0;
 				sprintf(nm, "rd%d", rdev->raid_disk);

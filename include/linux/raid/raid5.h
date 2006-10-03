@@ -214,7 +214,7 @@ struct raid5_private_data {
 	struct disk_info	*spare;
 	int			chunk_size, level, algorithm;
 	int			max_degraded;
-	int			raid_disks, working_disks, failed_disks;
+	int			raid_disks;
 	int			max_nr_stripes;
 
 	/* used during an expand */
