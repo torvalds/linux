@@ -1,4 +1,4 @@
-/* linux/net/inet/arp.c
+/* linux/net/ipv4/arp.c
  *
  * Version:	$Id: arp.c,v 1.99 2001/08/30 22:55:42 davem Exp $
  *

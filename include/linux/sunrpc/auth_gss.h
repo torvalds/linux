@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/auth_gss.h
+ * linux/include/linux/sunrpc/auth_gss.h
  *
  * Declarations for RPCSEC_GSS
  *

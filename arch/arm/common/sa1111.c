@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-sa1100/sa1111.c
+ * linux/arch/arm/common/sa1111.c
  *
  * SA1111 support
  *

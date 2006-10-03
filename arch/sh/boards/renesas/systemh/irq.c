@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/systemh/irq.c
+ * linux/arch/sh/boards/renesas/systemh/irq.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
  *

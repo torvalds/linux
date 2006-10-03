@@ -1,5 +1,5 @@
 /*
- * sound/dev_table.c
+ * sound/oss/dev_table.c
  *
  * Device call tables.
  *

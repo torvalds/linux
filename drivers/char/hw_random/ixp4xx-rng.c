@@ -1,5 +1,5 @@
 /*
- * drivers/char/rng/ixp4xx-rng.c
+ * drivers/char/hw_random/ixp4xx-rng.c
  *
  * RNG driver for Intel IXP4xx family of NPUs
  *

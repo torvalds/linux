@@ -1,5 +1,5 @@
 /*
- * sound/maui.c
+ * sound/oss/maui.c
  *
  * The low level driver for Turtle Beach Maui and Tropez.
  *

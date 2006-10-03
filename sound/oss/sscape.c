@@ -1,5 +1,5 @@
 /*
- * sound/sscape.c
+ * sound/oss/sscape.c
  *
  * Low level driver for Ensoniq SoundScape
  *

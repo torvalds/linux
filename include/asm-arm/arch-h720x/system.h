@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-h720x/system.h
+ * linux/include/asm-arm/arch-h720x/system.h
  *
  * Copyright (C) 2001-2002 Jungjun Kim, Hynix Semiconductor Inc.
  *

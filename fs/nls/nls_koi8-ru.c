@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_koi8-ru.c
+ * linux/fs/nls/nls_koi8-ru.c
  *
  * Charset koi8-ru translation based on charset koi8-u.
  * The Unicode to charset table has only exact mappings.

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/sound/soundcard.c
+ * linux/sound/oss/soundcard.c
  *
  * Sound card driver for Linux
  *

@@ -1,5 +1,5 @@
 /*
- * linux/include/asm/qdio.h
+ * linux/include/asm-s390/qdio.h
  *
  * Linux for S/390 QDIO base support, Hipersocket base support
  * version 2

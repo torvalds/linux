@@ -1,5 +1,5 @@
 /*
- 	drivers/sound/harmony.c 
+ 	sound/oss/harmony.c
 
 	This is a sound driver for ASP's and Lasi's Harmony sound chip
 	and is unlikely to be used for anything other than on a HP PA-RISC.

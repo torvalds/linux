@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp936.c
+ * linux/fs/nls/nls_cp936.c
  *
  * Charset cp936 translation tables.
  * This translation table was generated automatically, the

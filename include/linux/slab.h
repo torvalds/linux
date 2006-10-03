@@ -1,5 +1,5 @@
 /*
- * linux/mm/slab.h
+ * linux/include/linux/slab.h
  * Written by Mark Hemment, 1996.
  * (markhe@nextd.demon.co.uk)
  */

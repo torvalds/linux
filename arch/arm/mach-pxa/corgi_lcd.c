@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/w100fb.c
+ * linux/arch/arm/mach-pxa/corgi_lcd.c
  *
  * Corgi/Spitz LCD Specific Code
  *

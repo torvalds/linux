@@ -1,5 +1,5 @@
 /*
- * drivers/i2c/i2c-adap-ixp4xx.c
+ * drivers/i2c/busses/i2c-ixp4xx.c
  *
  * Intel's IXP4xx XScale NPU chipsets (IXP420, 421, 422, 425) do not have
  * an on board I2C controller but provide 16 GPIO pins that are often

@@ -1,5 +1,5 @@
 /*
- * sound/gus2_midi.c
+ * sound/oss/gus_midi.c
  *
  * The low level driver for the GUS Midi Interface.
  *

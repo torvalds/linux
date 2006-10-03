@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/pci-hs7751rvoip.c
+ * linux/arch/sh/boards/renesas/hs7751rvoip/pci.c
  *
  * Author:  Ian DaSilva (idasilva@mvista.com)
  *

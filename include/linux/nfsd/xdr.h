@@ -1,5 +1,5 @@
 /*
- * linux/inxlude/linux/nfsd/xdr.h
+ * linux/include/linux/nfsd/xdr.h
  *
  * XDR types for nfsd. This is mainly a typing exercise.
  */

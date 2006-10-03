@@ -1,5 +1,5 @@
 /*
- *	arch/mips/dec/call_o32.S
+ *	arch/mips/dec/prom/call_o32.S
  *
  *	O32 interface for the 64 (or N32) ABI.
  *

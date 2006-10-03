@@ -1,5 +1,5 @@
 /*
- * linux/arch/ia64/kernel/irq.c
+ * linux/arch/ia64/kernel/irq_ia64.c
  *
  * Copyright (C) 1998-2001 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>

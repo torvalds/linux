@@ -1,5 +1,5 @@
 /*
- * sound/audio.c
+ * sound/oss/audio.c
  *
  * Device file manager for /dev/audio
  */

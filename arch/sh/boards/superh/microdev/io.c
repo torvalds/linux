@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/io_microdev.c
+ * linux/arch/sh/boards/superh/microdev/io.c
  *
  * Copyright (C) 2003 Sean McGoogan (Sean.McGoogan@superh.com)
  * Copyright (C) 2003, 2004 SuperH, Inc.

@@ -1,5 +1,5 @@
 /*
- * arch/sh/pci/fixups-dreamcast.c
+ * arch/sh/drivers/pci/fixups-dreamcast.c
  *
  * PCI fixups for the Sega Dreamcast
  *

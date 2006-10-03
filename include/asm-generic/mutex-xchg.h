@@ -1,5 +1,5 @@
 /*
- * asm-generic/mutex-xchg.h
+ * include/asm-generic/mutex-xchg.h
  *
  * Generic implementation of the mutex fastpath, based on xchg().
  *

@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-footbridge/entry-macro.S
+ * include/asm-arm/arch-ebsa285/entry-macro.S
  *
  * Low-level IRQ helper macros for footbridge-based platforms
  *

@@ -1,5 +1,5 @@
 /*
- * arch/mips/dec/decstation.c
+ * arch/mips/dec/boot/decstation.c
  */
 #include <asm/sections.h>
 

@@ -1,5 +1,5 @@
 /*
- * linux/arch/alpha/kernel/ksyms.c
+ * linux/arch/alpha/kernel/alpha_ksyms.c
  *
  * Export the alpha-specific functions that are needed for loadable
  * modules.

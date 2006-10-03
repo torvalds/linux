@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/85xx/mpc85xx_cds_common.h
+ * arch/powerpc/platforms/85xx/mpc85xx_cds.h
  *
  * MPC85xx CDS board definitions
  *

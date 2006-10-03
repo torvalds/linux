@@ -1,5 +1,5 @@
 /*
- * sound/midi_synth.c
+ * sound/oss/midi_synth.c
  *
  * High level midi sequencer manager for dumb MIDI interfaces.
  */

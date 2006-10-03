@@ -1,5 +1,5 @@
 /*
- * linux/include/asm/arch-omap/pm.h
+ * linux/include/asm-arm/arch-omap/pm.h
  *
  * Header file for OMAP Power Management Routines
  *

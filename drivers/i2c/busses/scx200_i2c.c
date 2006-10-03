@@ -1,4 +1,4 @@
-/* linux/drivers/i2c/scx200_i2c.c 
+/* linux/drivers/i2c/busses/scx200_i2c.c
 
    Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
 

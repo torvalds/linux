@@ -1,5 +1,5 @@
 /*
- * arch/sh/lib/csum_parial.c
+ * arch/sh64/lib/c-checksum.c
  *
  * This file contains network checksum routines that are better done
  * in an architecture-specific manner due to speed..

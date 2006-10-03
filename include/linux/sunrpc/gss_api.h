@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/gss_api.h
+ * linux/include/linux/sunrpc/gss_api.h
  *
  * Somewhat simplified version of the gss api.
  *

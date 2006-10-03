@@ -1,4 +1,4 @@
-/* kernel/perfmon_fsl_booke.c
+/* arch/powerpc/kernel/perfmon_fsl_booke.c
  * Freescale Book-E Performance Monitor code
  *
  * Author: Andy Fleming

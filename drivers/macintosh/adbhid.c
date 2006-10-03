@@ -1,5 +1,5 @@
 /*
- * drivers/input/adbhid.c
+ * drivers/macintosh/adbhid.c
  *
  * ADB HID driver for Power Macintosh computers.
  *

@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_ascii.c
+ * linux/fs/nls/nls_ascii.c
  *
  * Charset ascii translation tables.
  * Generated automatically from the Unicode and charset

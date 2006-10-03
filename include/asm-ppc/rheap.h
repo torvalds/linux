@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/rheap.c
+ * include/asm-ppc/rheap.h
  *
  * Header file for the implementation of a remote heap.
  *

@@ -1,5 +1,5 @@
 /*
- * asm-ppc/harrier_defs.h
+ * include/linux/harrier_defs.h
  *
  * Definitions for Motorola MCG Harrier North Bridge & Memory controller
  *

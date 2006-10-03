@@ -1,5 +1,5 @@
 /*
- * sound/awe_wave.c
+ * sound/oss/awe_wave.c
  *
  * The low level driver for the AWE32/SB32/AWE64 wave table synth.
  *   version 0.4.4; Jan. 4, 2000

@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/io_hs7751rvoip.c
+ * linux/arch/sh/boards/renesas/hs7751rvoip/io.c
  *
  * Copyright (C) 2001  Ian da Silva, Jeremy Siegel
  * Based largely on io_se.c.

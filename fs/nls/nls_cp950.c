@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp950.c
+ * linux/fs/nls/nls_cp950.c
  *
  * Charset cp950 translation tables.
  * This translation table was generated automatically, the

@@ -1,6 +1,6 @@
 
 /*
- * drivers/mtd/maps/svme182.c
+ * drivers/mtd/maps/dmv182.c
  *
  * Flash map driver for the Dy4 SVME182 board
  *

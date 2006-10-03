@@ -1,5 +1,5 @@
 /*
- * lib/reed_solomon/rslib.c
+ * lib/reed_solomon/reed_solomon.c
  *
  * Overview:
  *   Generic Reed Solomon encoder / decoder library

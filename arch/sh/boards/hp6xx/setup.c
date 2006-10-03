@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/hp6xx/hp680/setup.c
+ * linux/arch/sh/boards/hp6xx/setup.c
  *
  * Copyright (C) 2002 Andriy Skulysh
  *

@@ -1,5 +1,5 @@
 /*
- * linux/include/net/sunrpc/msg_prot.h
+ * linux/include/linux/sunrpc/msg_prot.h
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */

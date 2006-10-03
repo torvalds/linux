@@ -1,5 +1,5 @@
 /*
- * sound/sgalaxy.c
+ * sound/oss/sgalaxy.c
  *
  * Low level driver for Aztech Sound Galaxy cards.
  * Copyright 1998 Artur Skawina <skawina@geocities.com>

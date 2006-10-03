@@ -1,5 +1,5 @@
 /*
- * sound/ics2101.c
+ * sound/oss/ics2101.c
  *
  * Driver for the ICS2101 mixer of GUS v3.7.
  *

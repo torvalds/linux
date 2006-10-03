@@ -1,5 +1,5 @@
 /*
- * sound/sequencer.c
+ * sound/oss/sequencer.c
  *
  * The sequencer personality manager.
  */

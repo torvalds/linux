@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/omap2/board-generic.c
+ * linux/arch/arm/mach-omap2/board-generic.c
  *
  * Copyright (C) 2005 Nokia Corporation
  * Author: Paul Mundt <paul.mundt@nokia.com>

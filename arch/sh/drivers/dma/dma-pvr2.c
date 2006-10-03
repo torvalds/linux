@@ -1,5 +1,5 @@
 /*
- * arch/sh/boards/dreamcast/dma-pvr2.c
+ * arch/sh/drivers/dma/dma-pvr2.c
  *
  * NEC PowerVR 2 (Dreamcast) DMA support
  *

@@ -1,5 +1,5 @@
 /*
- * sound/opl3sa.c
+ * sound/oss/opl3sa.c
  *
  * Low level driver for Yamaha YMF701B aka OPL3-SA chip
  * 

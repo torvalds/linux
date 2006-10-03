@@ -1,5 +1,5 @@
 /*
- * include/linux/befs_fs_types.h
+ * fs/befs/befs_fs_types.h
  *
  * Copyright (C) 2001 Will Dyson (will@cs.earlham.edu)
  *

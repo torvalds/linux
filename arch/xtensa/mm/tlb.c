@@ -1,5 +1,5 @@
 /*
- * arch/xtensa/mm/mmu.c
+ * arch/xtensa/mm/tlb.c
  *
  * Logic that manipulates the Xtensa MMU.  Derived from MIPS.
  *

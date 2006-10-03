@@ -1,5 +1,5 @@
 /*
- * sound/ad1848.c
+ * sound/oss/ad1848.c
  *
  * The low level driver for the AD1848/CS4248 codec chip which
  * is used for example in the MS Sound System.

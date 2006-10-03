@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_koi8-u.c
+ * linux/fs/nls/nls_koi8-u.c
  *
  * Charset koi8-u translation tables.
  * The Unicode to charset table has only exact mappings.

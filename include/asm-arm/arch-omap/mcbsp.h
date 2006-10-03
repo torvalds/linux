@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arch-omap/gpio.h
+ * linux/include/asm-arm/arch-omap/mcbsp.h
  *
  * Defines for Multi-Channel Buffered Serial Port
  *

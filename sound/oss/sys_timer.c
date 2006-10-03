@@ -1,5 +1,5 @@
 /*
- * sound/sys_timer.c
+ * sound/oss/sys_timer.c
  *
  * The default timer for the Level 2 sequencer interface
  * Uses the (1/HZ sec) timer of kernel.

@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_rts7751r2d.c
+ * linux/arch/sh/boards/renesas/rts7751r2d/led.c
  *
  * Copyright (C) Atom Create Engineering Co., Ltd.
  *

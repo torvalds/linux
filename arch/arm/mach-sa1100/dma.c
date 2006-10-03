@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/dma-sa1100.c
+ * arch/arm/mach-sa1100/dma.c
  *
  * Support functions for the SA11x0 internal DMA channels.
  *

@@ -1,5 +1,5 @@
 /*
- * arch/arch/mach-ixp4xx/ixdpg425-pci.c
+ * arch/arm/mach-ixp4xx/ixdpg425-pci.c
  *
  * PCI setup routines for Intel IXDPG425 Platform
  *

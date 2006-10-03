@@ -1,5 +1,5 @@
 /*
- * arch/ia64/kernel/cpufreq/processor.c
+ * arch/ia64/kernel/acpi-processor.c
  *
  * Copyright (C) 2005 Intel Corporation
  * 	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>

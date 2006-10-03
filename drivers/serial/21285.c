@@ -1,5 +1,5 @@
 /*
- * linux/drivers/char/21285.c
+ * linux/drivers/serial/21285.c
  *
  * Driver for the serial port on the 21285 StrongArm-110 core logic chip.
  *

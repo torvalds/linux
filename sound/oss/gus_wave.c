@@ -1,5 +1,5 @@
 /*
- * sound/gus_wave.c
+ * sound/oss/gus_wave.c
  *
  * Driver for the Gravis UltraSound wave table synth.
  *

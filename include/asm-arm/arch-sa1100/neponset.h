@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arch-sa1100/assabet.h
+ * linux/include/asm-arm/arch-sa1100/neponset.h
  *
  * Created 2000/06/05 by Nicolas Pitre <nico@cam.org>
  *

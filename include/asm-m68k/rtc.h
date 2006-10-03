@@ -1,4 +1,4 @@
-/* asm-m68k/rtc.h
+/* include/asm-m68k/rtc.h
  *
  * Copyright Richard Zidlicky
  * implementation details for genrtc/q40rtc driver

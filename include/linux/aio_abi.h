@@ -1,4 +1,4 @@
-/* linux/aio_abi.h
+/* include/linux/aio_abi.h
  *
  * Copyright 2000,2001,2002 Red Hat.
  *

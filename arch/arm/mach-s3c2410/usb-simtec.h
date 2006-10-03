@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/usb-simtec.c
+/* linux/arch/arm/mach-s3c2410/usb-simtec.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>

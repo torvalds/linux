@@ -1,4 +1,4 @@
-/* linux/drivers/mtd/maps/bast_flash.c
+/* linux/drivers/mtd/maps/bast-flash.c
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/serial.h
+ * include/asm-sh64/serial.h
  *
  * Configuration details for 8250, 16450, 16550, etc. serial ports
  */
