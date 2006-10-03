@@ -1907,7 +1907,7 @@ static struct sk_buff *receive_copy(struct sky2_port *sky2,
 		pci_dma_sync_single_for_device(sky2->hw->pdev, re->data_addr,
 					       length, PCI_DMA_FROMDEVICE);
 		re->skb->ip_summed = CHECKSUM_NONE;
-		__skb_put(skb, length);
+		skb_put(skb, length);
 	}
 	return skb;
 }
@@ -1970,7 +1970,7 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 	if (skb_shinfo(skb)->nr_frags)
 		skb_put_frags(skb, hdr_space, length);
 	else
-		skb_put(skb, hdr_space);
+		skb_put(skb, length);
 	return skb;
 }
 
