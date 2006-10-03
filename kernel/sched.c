@@ -5977,13 +5977,15 @@ static void calibrate_migration_costs(const cpumask_t *cpu_map)
 #endif
 		);
 	if (system_state == SYSTEM_BOOTING) {
-		printk("migration_cost=");
-		for (distance = 0; distance <= max_distance; distance++) {
-			if (distance)
-				printk(",");
-			printk("%ld", (long)migration_cost[distance] / 1000);
+		if (num_online_cpus() > 1) {
+			printk("migration_cost=");
+			for (distance = 0; distance <= max_distance; distance++) {
+				if (distance)
+					printk(",");
+				printk("%ld", (long)migration_cost[distance] / 1000);
+			}
+			printk("\n");
 		}
-		printk("\n");
 	}
 	j1 = jiffies;
 	if (migration_debug)
