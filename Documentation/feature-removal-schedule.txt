@@ -325,3 +325,11 @@ Why:	i2c-isa is a non-sense and doesn't fit in the device driver
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
+
+What:	ftape
+When:	2.6.20
+Why:	Orphaned for ages.  SMP bugs long unfixed.  Few users left
+	in the world.
+Who:	Jeff Garzik <jeff@garzik.org>
+
+---------------------------
