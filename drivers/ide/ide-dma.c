@@ -798,9 +798,9 @@ static int ide_release_dma_engine(ide_hwif_t *hwif)
 
 static int ide_release_iomio_dma(ide_hwif_t *hwif)
 {
-	if ((hwif->dma_extra) && (hwif->channel == 0))
-		release_region((hwif->dma_base + 16), hwif->dma_extra);
 	release_region(hwif->dma_base, 8);
+	if (hwif->extra_ports)
+		release_region(hwif->extra_base, hwif->extra_ports);
 	if (hwif->dma_base2)
 		release_region(hwif->dma_base, 8);
 	return 1;
@@ -840,9 +840,7 @@ static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base, unsigned in
 {
 	printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
 
-	hwif->dma_base = base;
-	if (hwif->cds->extra && hwif->channel == 0)
-		hwif->dma_extra = hwif->cds->extra;
+ 	hwif->dma_base = base;
 
 	if(hwif->mate)
 		hwif->dma_master = (hwif->channel) ? hwif->mate->dma_base : base;
@@ -854,17 +852,29 @@ static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base, unsigned in
 static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int ports)
 {
 	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
-		hwif->name, base, base + ports - 1);
+	       hwif->name, base, base + ports - 1);
+
 	if (!request_region(base, ports, hwif->name)) {
 		printk(" -- Error, ports in use.\n");
 		return 1;
 	}
+
 	hwif->dma_base = base;
-	if ((hwif->cds->extra) && (hwif->channel == 0)) {
-		request_region(base+16, hwif->cds->extra, hwif->cds->name);
-		hwif->dma_extra = hwif->cds->extra;
+
+	if (hwif->cds->extra) {
+		hwif->extra_base = base + (hwif->channel ? 8 : 16);
+
+		if (!hwif->mate || !hwif->mate->extra_ports) {
+			if (!request_region(hwif->extra_base,
+					    hwif->cds->extra, hwif->cds->name)) {
+				printk(" -- Error, extra ports in use.\n");
+				release_region(base, ports);
+				return 1;
+			}
+			hwif->extra_ports = hwif->cds->extra;
+		}
 	}
-	
+
 	if(hwif->mate)
 		hwif->dma_master = (hwif->channel) ? hwif->mate->dma_base : base;
 	else
@@ -874,6 +884,8 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 		{
 			printk(" -- Error, secondary ports in use.\n");
 			release_region(base, ports);
+			if (hwif->extra_ports)
+				release_region(hwif->extra_base, hwif->extra_ports);
 			return 1;
 		}
 	}

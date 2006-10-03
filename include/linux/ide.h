@@ -775,9 +775,11 @@ typedef struct hwif_s {
 	unsigned long	dma_prdtable;	/* actual prd table address */
 	unsigned long	dma_base2;	/* extended base addr for dma ports */
 
-	unsigned	dma_extra;	/* extra addr for dma ports */
 	unsigned long	config_data;	/* for use by chipset-specific code */
 	unsigned long	select_data;	/* for use by chipset-specific code */
+
+	unsigned long	extra_base;	/* extra addr for dma ports */
+	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	noprobe    : 1;	/* don't probe for this interface */
 	unsigned	present    : 1;	/* this interface exists */
