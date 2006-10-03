@@ -410,6 +410,15 @@ also have
       than sectors, this my be larger than the number of actual errors
       by a factor of the number of sectors in a page.
 
+   bitmap_set_bits
+      If the array has a write-intent bitmap, then writing to this
+      attribute can set bits in the bitmap, indicating that a resync
+      would need to check the corresponding blocks. Either individual
+      numbers or start-end pairs can be written.  Multiple numbers
+      can be separated by a space.
+      Note that the numbers are 'bit' numbers, not 'block' numbers.
+      They should be scaled by the bitmap_chunksize.
+
 Each active md device may also have attributes specific to the
 personality module that manages it.
 These are specific to the implementation of the module and could

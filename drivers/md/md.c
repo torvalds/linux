@@ -2524,6 +2524,36 @@ static struct md_sysfs_entry md_new_device =
 __ATTR(new_dev, S_IWUSR, null_show, new_dev_store);
 
 static ssize_t
+bitmap_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *end;
+	unsigned long chunk, end_chunk;
+
+	if (!mddev->bitmap)
+		goto out;
+	/* buf should be <chunk> <chunk> ... or <chunk>-<chunk> ... (range) */
+	while (*buf) {
+		chunk = end_chunk = simple_strtoul(buf, &end, 0);
+		if (buf == end) break;
+		if (*end == '-') { /* range */
+			buf = end + 1;
+			end_chunk = simple_strtoul(buf, &end, 0);
+			if (buf == end) break;
+		}
+		if (*end && !isspace(*end)) break;
+		bitmap_dirty_bits(mddev->bitmap, chunk, end_chunk);
+		buf = end;
+		while (isspace(*buf)) buf++;
+	}
+	bitmap_unplug(mddev->bitmap); /* flush the bits to disk */
+out:
+	return len;
+}
+
+static struct md_sysfs_entry md_bitmap =
+__ATTR(bitmap_set_bits, S_IWUSR, null_show, bitmap_store);
+
+static ssize_t
 size_show(mddev_t *mddev, char *page)
 {
 	return sprintf(page, "%llu\n", (unsigned long long)mddev->size);
@@ -2843,6 +2873,7 @@ static struct attribute *md_redundancy_attrs[] = {
 	&md_sync_completed.attr,
 	&md_suspend_lo.attr,
 	&md_suspend_hi.attr,
+	&md_bitmap.attr,
 	NULL,
 };
 static struct attribute_group md_redundancy_group = {

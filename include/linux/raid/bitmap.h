@@ -265,6 +265,8 @@ int bitmap_update_sb(struct bitmap *bitmap);
 int  bitmap_setallbits(struct bitmap *bitmap);
 void bitmap_write_all(struct bitmap *bitmap);
 
+void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e);
+
 /* these are exported */
 int bitmap_startwrite(struct bitmap *bitmap, sector_t offset,
 			unsigned long sectors, int behind);

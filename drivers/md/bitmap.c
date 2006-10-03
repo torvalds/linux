@@ -613,6 +613,7 @@ static inline unsigned long file_page_offset(unsigned long chunk)
 static inline struct page *filemap_get_page(struct bitmap *bitmap,
 					unsigned long chunk)
 {
+	if (file_page_index(chunk) >= bitmap->file_pages) return NULL;
 	return bitmap->filemap[file_page_index(chunk) - file_page_index(0)];
 }
 
@@ -739,6 +740,7 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 	}
 
 	page = filemap_get_page(bitmap, chunk);
+	if (!page) return;
 	bit = file_page_offset(chunk);
 
  	/* set the bit */
@@ -1320,6 +1322,18 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int n
 	}
 	spin_unlock_irq(&bitmap->lock);
 
+}
+
+/* dirty the memory and file bits for bitmap chunks "s" to "e" */
+void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e)
+{
+	unsigned long chunk;
+
+	for (chunk = s; chunk <= e; chunk++) {
+		sector_t sec = chunk << CHUNK_BLOCK_SHIFT(bitmap);
+		bitmap_set_memory_bits(bitmap, sec, 1);
+		bitmap_file_set_bit(bitmap, sec);
+	}
 }
 
 /*
