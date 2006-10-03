@@ -33,9 +33,6 @@
 #define PMU_CNT64	0x008	/* Make CCNT count every 64th cycle */
 
 /* TODO do runtime detection */
-#ifdef CONFIG_ARCH_IOP310
-#define XSCALE_PMU_IRQ  IRQ_XS80200_PMU
-#endif
 #ifdef CONFIG_ARCH_IOP32X
 #define XSCALE_PMU_IRQ  IRQ_IOP32X_CORE_PMU
 #endif

@@ -431,10 +431,10 @@ struct platform_device corgifb_device = {
 
 #include <asm/arch/pxafb.h>
 
-void spitz_lcd_power(int on)
+void spitz_lcd_power(int on, struct fb_var_screeninfo *var)
 {
 	if (on)
-		lcdtg_hw_init(480);
+		lcdtg_hw_init(var->xres);
 	else
 		lcdtg_suspend();
 }

@@ -204,13 +204,6 @@ static struct platform_device udc_device = {
 	}
 };
 
-static struct pxafb_mach_info pxa_fb_info;
-
-void __init set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info)
-{
-	memcpy(&pxa_fb_info,hard_pxa_fb_info,sizeof(struct pxafb_mach_info));
-}
-
 static struct resource pxafb_resources[] = {
 	[0] = {
 		.start	= 0x44000000,
@@ -230,13 +223,17 @@ static struct platform_device pxafb_device = {
 	.name		= "pxa2xx-fb",
 	.id		= -1,
 	.dev		= {
- 		.platform_data	= &pxa_fb_info,
 		.dma_mask	= &fb_dma_mask,
 		.coherent_dma_mask = 0xffffffff,
 	},
 	.num_resources	= ARRAY_SIZE(pxafb_resources),
 	.resource	= pxafb_resources,
 };
+
+void __init set_pxa_fb_info(struct pxafb_mach_info *info)
+{
+	pxafb_device.dev.platform_data = info;
+}
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
 {

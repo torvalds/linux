@@ -82,7 +82,7 @@ static void idp_vlcd(int on)
 	}
 }
 
-static void idp_lcd_power(int on)
+static void idp_lcd_power(int on, struct fb_var_screeninfo *var)
 {
 	if (on) {
 		IDP_CPLD_LCD |= (1<<0);
@@ -99,7 +99,7 @@ static void idp_lcd_power(int on)
 	idp_vlcd(on);
 }
 
-static struct pxafb_mach_info sharp_lm8v31 __initdata = {
+static struct pxafb_mode_info sharp_lm8v31_mode = {
 	.pixclock	= 270000,
 	.xres		= 640,
 	.yres		= 480,
@@ -112,6 +112,11 @@ static struct pxafb_mach_info sharp_lm8v31 __initdata = {
 	.lower_margin	= 0,
 	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	.cmap_greyscale	= 0,
+};
+
+static struct pxafb_mach_info sharp_lm8v31 = {
+	.modes          = &sharp_lm8v31_mode,
+	.num_modes      = 1,
 	.cmap_inverse	= 0,
 	.cmap_static	= 0,
 	.lccr0		= LCCR0_SDS,
