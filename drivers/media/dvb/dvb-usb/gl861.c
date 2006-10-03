@@ -115,15 +115,6 @@ static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
-static int gl861_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	adap->pll_addr = 0xc4;
-	adap->pll_desc = NULL;
-	adap->fe->ops.tuner_ops.set_params = qt1010_set_params;
-
-	return 0;
-}
-
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties gl861_properties;
 
@@ -170,7 +161,7 @@ static struct dvb_usb_device_properties gl861_properties = {
 		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 		.frontend_attach  = gl861_frontend_attach,
-		.tuner_attach     = gl861_tuner_attach,
+		.tuner_attach     = qt1010_tuner_attach,
 
 		.stream = {
 			.type = USB_BULK,
