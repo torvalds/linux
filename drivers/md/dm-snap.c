@@ -851,7 +851,6 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 {
 	struct exception *e;
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
-	int copy_needed = 0;
 	int r = 1;
 	chunk_t chunk;
 	struct pending_exception *pe = NULL;
@@ -866,29 +865,28 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (unlikely(bio_barrier(bio)))
 		return -EOPNOTSUPP;
 
+	/* FIXME: should only take write lock if we need
+	 * to copy an exception */
+	down_write(&s->lock);
+
+	if (!s->valid) {
+		r = -EIO;
+		goto out_unlock;
+	}
+
+	/* If the block is already remapped - use that, else remap it */
+	e = lookup_exception(&s->complete, chunk);
+	if (e) {
+		remap_exception(s, e, bio);
+		goto out_unlock;
+	}
+
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO
 	 * flags so we should only get this if we are
 	 * writeable.
 	 */
 	if (bio_rw(bio) == WRITE) {
-
-		/* FIXME: should only take write lock if we need
-		 * to copy an exception */
-		down_write(&s->lock);
-
-		if (!s->valid) {
-			r = -EIO;
-			goto out_unlock;
-		}
-
-		/* If the block is already remapped - use that, else remap it */
-		e = lookup_exception(&s->complete, chunk);
-		if (e) {
-			remap_exception(s, e, bio);
-			goto out_unlock;
-		}
-
 		pe = __find_pending_exception(s, bio);
 		if (!pe) {
 			__invalidate_snapshot(s, pe, -ENOMEM);
@@ -899,45 +897,27 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		remap_exception(s, &pe->e, bio);
 		bio_list_add(&pe->snapshot_bios, bio);
 
+		r = 0;
+
 		if (!pe->started) {
 			/* this is protected by snap->lock */
 			pe->started = 1;
-			copy_needed = 1;
-		}
-
-		r = 0;
-
- out_unlock:
-		up_write(&s->lock);
-
-		if (copy_needed)
+			up_write(&s->lock);
 			start_copy(pe);
-	} else {
+			goto out;
+		}
+	} else
 		/*
 		 * FIXME: this read path scares me because we
 		 * always use the origin when we have a pending
 		 * exception.  However I can't think of a
 		 * situation where this is wrong - ejt.
 		 */
+		bio->bi_bdev = s->origin->bdev;
 
-		/* Do reads */
-		down_read(&s->lock);
-
-		if (!s->valid) {
-			up_read(&s->lock);
-			return -EIO;
-		}
-
-		/* See if it it has been remapped */
-		e = lookup_exception(&s->complete, chunk);
-		if (e)
-			remap_exception(s, e, bio);
-		else
-			bio->bi_bdev = s->origin->bdev;
-
-		up_read(&s->lock);
-	}
-
+ out_unlock:
+	up_write(&s->lock);
+ out:
 	return r;
 }
 
