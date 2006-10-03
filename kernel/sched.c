@@ -1232,7 +1232,7 @@ nextgroup:
 }
 
 /*
- * find_idlest_queue - find the idlest runqueue among the cpus in group.
+ * find_idlest_cpu - find the idlest cpu among the cpus in group.
  */
 static int
 find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
