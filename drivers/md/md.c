@@ -4641,9 +4641,11 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 	seq_printf(seq, " %s =%3u.%u%% (%llu/%llu)",
 		   (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)?
 		    "reshape" :
-		      (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ?
-		       "resync" : "recovery")),
-		      per_milli/10, per_milli % 10,
+		    (test_bit(MD_RECOVERY_CHECK, &mddev->recovery)?
+		     "check" :
+		     (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ?
+		      "resync" : "recovery"))),
+		   per_milli/10, per_milli % 10,
 		   (unsigned long long) resync,
 		   (unsigned long long) max_blocks);
 
@@ -5032,12 +5034,25 @@ void md_do_sync(mddev_t *mddev)
 	int skipped = 0;
 	struct list_head *rtmp;
 	mdk_rdev_t *rdev;
+	char *desc;
 
 	/* just incase thread restarts... */
 	if (test_bit(MD_RECOVERY_DONE, &mddev->recovery))
 		return;
 	if (mddev->ro) /* never try to sync a read-only array */
 		return;
+
+	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
+		if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
+			desc = "data-check";
+		else if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
+			desc = "requested-resync";
+		else
+			desc = "resync";
+	} else if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+		desc = "reshape";
+	else
+		desc = "recovery";
 
 	/* we overload curr_resync somewhat here.
 	 * 0 == not engaged in resync at all
@@ -5082,10 +5097,10 @@ void md_do_sync(mddev_t *mddev)
 				prepare_to_wait(&resync_wait, &wq, TASK_UNINTERRUPTIBLE);
 				if (!kthread_should_stop() &&
 				    mddev2->curr_resync >= mddev->curr_resync) {
-					printk(KERN_INFO "md: delaying resync of %s"
-					       " until %s has finished resync (they"
+					printk(KERN_INFO "md: delaying %s of %s"
+					       " until %s has finished (they"
 					       " share one or more physical units)\n",
-					       mdname(mddev), mdname(mddev2));
+					       desc, mdname(mddev), mdname(mddev2));
 					mddev_put(mddev2);
 					schedule();
 					finish_wait(&resync_wait, &wq);
@@ -5121,12 +5136,12 @@ void md_do_sync(mddev_t *mddev)
 				j = rdev->recovery_offset;
 	}
 
-	printk(KERN_INFO "md: syncing RAID array %s\n", mdname(mddev));
-	printk(KERN_INFO "md: minimum _guaranteed_ reconstruction speed:"
-		" %d KB/sec/disc.\n", speed_min(mddev));
+	printk(KERN_INFO "md: %s of RAID array %s\n", desc, mdname(mddev));
+	printk(KERN_INFO "md: minimum _guaranteed_  speed:"
+		" %d KB/sec/disk.\n", speed_min(mddev));
 	printk(KERN_INFO "md: using maximum available idle IO bandwidth "
-	       "(but not more than %d KB/sec) for reconstruction.\n",
-	       speed_max(mddev));
+	       "(but not more than %d KB/sec) for %s.\n",
+	       speed_max(mddev), desc);
 
 	is_mddev_idle(mddev); /* this also initializes IO event counters */
 
@@ -5152,8 +5167,8 @@ void md_do_sync(mddev_t *mddev)
 
 	if (j>2) {
 		printk(KERN_INFO 
-			"md: resuming recovery of %s from checkpoint.\n",
-			mdname(mddev));
+		       "md: resuming %s of %s from checkpoint.\n",
+		       desc, mdname(mddev));
 		mddev->curr_resync = j;
 	}
 
@@ -5236,7 +5251,7 @@ void md_do_sync(mddev_t *mddev)
 			}
 		}
 	}
-	printk(KERN_INFO "md: %s: sync done.\n",mdname(mddev));
+	printk(KERN_INFO "md: %s: %s done.\n",mdname(mddev), desc);
 	/*
 	 * this also signals 'finished resyncing' to md_stop
 	 */
@@ -5256,8 +5271,8 @@ void md_do_sync(mddev_t *mddev)
 			if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 				if (mddev->curr_resync >= mddev->recovery_cp) {
 					printk(KERN_INFO
-					       "md: checkpointing recovery of %s.\n",
-					       mdname(mddev));
+					       "md: checkpointing %s of %s.\n",
+					       desc, mdname(mddev));
 					mddev->recovery_cp = mddev->curr_resync;
 				}
 			} else
