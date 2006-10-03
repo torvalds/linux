@@ -11,7 +11,6 @@
 
 /* Check of existence of legacy devices */
 extern int check_legacy_ioport(unsigned long base_port);
-#define PARALLEL_BASE	0x378
 #define PNPBIOS_BASE	0xf000	/* only relevant for PReP */
 
 #ifndef CONFIG_PPC64
