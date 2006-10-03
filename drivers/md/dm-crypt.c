@@ -504,12 +504,14 @@ static void clone_init(struct crypt_io *io, struct bio *clone)
 	clone->bi_rw      = io->base_bio->bi_rw;
 }
 
-static struct bio *clone_read(struct crypt_io *io,
-			      sector_t sector)
+static int process_read(struct crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
+	sector_t sector = base_bio->bi_sector - io->target->begin;
+
+	atomic_inc(&io->pending);
 
 	/*
 	 * The block layer might modify the bvec array, so always
@@ -517,47 +519,94 @@ static struct bio *clone_read(struct crypt_io *io,
 	 * one in order to decrypt the whole bio data *afterwards*.
 	 */
 	clone = bio_alloc(GFP_NOIO, bio_segments(base_bio));
-	if (unlikely(!clone))
-		return NULL;
+	if (unlikely(!clone)) {
+		dec_pending(io, -ENOMEM);
+		return 0;
+	}
 
 	clone_init(io, clone);
 	clone->bi_idx = 0;
 	clone->bi_vcnt = bio_segments(base_bio);
 	clone->bi_size = base_bio->bi_size;
+	clone->bi_sector = cc->start + sector;
 	memcpy(clone->bi_io_vec, bio_iovec(base_bio),
 	       sizeof(struct bio_vec) * clone->bi_vcnt);
-	clone->bi_sector = cc->start + sector;
 
-	return clone;
+	generic_make_request(clone);
+
+	return 0;
 }
 
-static struct bio *clone_write(struct crypt_io *io,
-			       sector_t sector,
-			       unsigned *bvec_idx,
-			       struct convert_context *ctx)
+static int process_write(struct crypt_io *io)
 {
 	struct crypt_config *cc = io->target->private;
 	struct bio *base_bio = io->base_bio;
 	struct bio *clone;
+	struct convert_context ctx;
+	unsigned remaining = base_bio->bi_size;
+	sector_t sector = base_bio->bi_sector - io->target->begin;
+	unsigned bvec_idx = 0;
 
-	clone = crypt_alloc_buffer(cc, base_bio->bi_size,
-				   io->first_clone, bvec_idx);
-	if (!clone)
-		return NULL;
+	atomic_inc(&io->pending);
 
-	ctx->bio_out = clone;
+	crypt_convert_init(cc, &ctx, NULL, base_bio, sector, 1);
 
-	if (unlikely(crypt_convert(cc, ctx) < 0)) {
-		crypt_free_buffer_pages(cc, clone,
-		                        clone->bi_size);
-		bio_put(clone);
-		return NULL;
+	/*
+	 * The allocated buffers can be smaller than the whole bio,
+	 * so repeat the whole process until all the data can be handled.
+	 */
+	while (remaining) {
+		clone = crypt_alloc_buffer(cc, base_bio->bi_size,
+					   io->first_clone, &bvec_idx);
+		if (unlikely(!clone))
+			goto cleanup;
+
+		ctx.bio_out = clone;
+
+		if (unlikely(crypt_convert(cc, &ctx) < 0)) {
+			crypt_free_buffer_pages(cc, clone, clone->bi_size);
+			bio_put(clone);
+			goto cleanup;
+		}
+
+		clone_init(io, clone);
+		clone->bi_sector = cc->start + sector;
+
+		if (!io->first_clone) {
+			/*
+			 * hold a reference to the first clone, because it
+			 * holds the bio_vec array and that can't be freed
+			 * before all other clones are released
+			 */
+			bio_get(clone);
+			io->first_clone = clone;
+		}
+
+		atomic_inc(&io->pending);
+
+		remaining -= clone->bi_size;
+		sector += bio_sectors(clone);
+
+		generic_make_request(clone);
+
+		/* out of memory -> run queues */
+		if (remaining)
+			blk_congestion_wait(bio_data_dir(clone), HZ/100);
 	}
 
-	clone_init(io, clone);
-	clone->bi_sector = cc->start + sector;
+	/* drop reference, clones could have returned before we reach this */
+	dec_pending(io, 0);
+	return 0;
 
-	return clone;
+cleanup:
+	if (io->first_clone) {
+		dec_pending(io, -ENOMEM);
+		return 0;
+	}
+
+	 /* if no bio has been dispatched yet, we can directly return the error */
+	mempool_free(io, cc->io_pool);
+	return -ENOMEM;
 }
 
 static void process_read_endio(struct crypt_io *io)
@@ -838,68 +887,19 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 {
 	struct crypt_config *cc = ti->private;
 	struct crypt_io *io;
-	struct convert_context ctx;
-	struct bio *clone;
-	unsigned int remaining = bio->bi_size;
-	sector_t sector = bio->bi_sector - ti->begin;
-	unsigned int bvec_idx = 0;
 
 	io = mempool_alloc(cc->io_pool, GFP_NOIO);
+
 	io->target = ti;
 	io->base_bio = bio;
 	io->first_clone = NULL;
 	io->error = 0;
-	atomic_set(&io->pending, 1); /* hold a reference */
+	atomic_set(&io->pending, 0);
 
 	if (bio_data_dir(bio) == WRITE)
-		crypt_convert_init(cc, &ctx, NULL, bio, sector, 1);
+		return process_write(io);
 
-	/*
-	 * The allocated buffers can be smaller than the whole bio,
-	 * so repeat the whole process until all the data can be handled.
-	 */
-	while (remaining) {
-		if (bio_data_dir(bio) == WRITE)
-			clone = clone_write(io, sector, &bvec_idx, &ctx);
-		else
-			clone = clone_read(io, sector);
-		if (!clone)
-			goto cleanup;
-
-		if (!io->first_clone) {
-			/*
-			 * hold a reference to the first clone, because it
-			 * holds the bio_vec array and that can't be freed
-			 * before all other clones are released
-			 */
-			bio_get(clone);
-			io->first_clone = clone;
-		}
-		atomic_inc(&io->pending);
-
-		remaining -= clone->bi_size;
-		sector += bio_sectors(clone);
-
-		generic_make_request(clone);
-
-		/* out of memory -> run queues */
-		if (remaining)
-			blk_congestion_wait(bio_data_dir(clone), HZ/100);
-	}
-
-	/* drop reference, clones could have returned before we reach this */
-	dec_pending(io, 0);
-	return 0;
-
-cleanup:
-	if (io->first_clone) {
-		dec_pending(io, -ENOMEM);
-		return 0;
-	}
-
-	/* if no bio has been dispatched yet, we can directly return the error */
-	mempool_free(io, cc->io_pool);
-	return -ENOMEM;
+	return process_read(io);
 }
 
 static int crypt_status(struct dm_target *ti, status_type_t type,
