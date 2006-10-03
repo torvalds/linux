@@ -77,6 +77,7 @@ struct crypt_config {
 	 */
 	mempool_t *io_pool;
 	mempool_t *page_pool;
+	struct bio_set *bs;
 
 	/*
 	 * crypto related data
@@ -95,7 +96,7 @@ struct crypt_config {
 	u8 key[0];
 };
 
-#define MIN_IOS        256
+#define MIN_IOS        16
 #define MIN_POOL_PAGES 32
 #define MIN_BIO_PAGES  8
 
@@ -311,6 +312,14 @@ static int crypt_convert(struct crypt_config *cc,
 	return r;
 }
 
+ static void dm_crypt_bio_destructor(struct bio *bio)
+ {
+	struct crypt_io *io = bio->bi_private;
+	struct crypt_config *cc = io->target->private;
+
+	bio_free(bio, cc->bs);
+ }
+
 /*
  * Generate a new unfragmented bio with the given size
  * This should never violate the device limitations
@@ -325,17 +334,16 @@ crypt_alloc_buffer(struct crypt_config *cc, unsigned int size,
 	gfp_t gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
 	unsigned int i;
 
-	/*
-	 * Use __GFP_NOMEMALLOC to tell the VM to act less aggressively and
-	 * to fail earlier.  This is not necessary but increases throughput.
-	 * FIXME: Is this really intelligent?
-	 */
-	if (base_bio)
-		clone = bio_clone(base_bio, GFP_NOIO|__GFP_NOMEMALLOC);
-	else
-		clone = bio_alloc(GFP_NOIO|__GFP_NOMEMALLOC, nr_iovecs);
+	if (base_bio) {
+		clone = bio_alloc_bioset(GFP_NOIO, base_bio->bi_max_vecs, cc->bs);
+		__bio_clone(clone, base_bio);
+	} else
+		clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, cc->bs);
+
 	if (!clone)
 		return NULL;
+
+	clone->bi_destructor = dm_crypt_bio_destructor;
 
 	/* if the last bio was not complete, continue where that one ended */
 	clone->bi_idx = *bio_vec_idx;
@@ -517,13 +525,14 @@ static void process_read(struct crypt_io *io)
 	 * copy the required bvecs because we need the original
 	 * one in order to decrypt the whole bio data *afterwards*.
 	 */
-	clone = bio_alloc(GFP_NOIO, bio_segments(base_bio));
+	clone = bio_alloc_bioset(GFP_NOIO, bio_segments(base_bio), cc->bs);
 	if (unlikely(!clone)) {
 		dec_pending(io, -ENOMEM);
 		return;
 	}
 
 	clone_init(io, clone);
+	clone->bi_destructor = dm_crypt_bio_destructor;
 	clone->bi_idx = 0;
 	clone->bi_vcnt = bio_segments(base_bio);
 	clone->bi_size = base_bio->bi_size;
@@ -594,7 +603,6 @@ static void process_write(struct crypt_io *io)
 		/* out of memory -> run queues */
 		if (remaining)
 			blk_congestion_wait(bio_data_dir(clone), HZ/100);
-
 	}
 }
 
@@ -804,6 +812,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad4;
 	}
 
+	cc->bs = bioset_create(MIN_IOS, MIN_IOS, 4);
+	if (!cc->bs) {
+		ti->error = "Cannot allocate crypt bioset";
+		goto bad_bs;
+	}
+
 	if (crypto_blkcipher_setkey(tfm, cc->key, key_size) < 0) {
 		ti->error = "Error setting key";
 		goto bad5;
@@ -843,6 +857,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	return 0;
 
 bad5:
+	bioset_free(cc->bs);
+bad_bs:
 	mempool_destroy(cc->page_pool);
 bad4:
 	mempool_destroy(cc->io_pool);
@@ -862,6 +878,7 @@ static void crypt_dtr(struct dm_target *ti)
 {
 	struct crypt_config *cc = (struct crypt_config *) ti->private;
 
+	bioset_free(cc->bs);
 	mempool_destroy(cc->page_pool);
 	mempool_destroy(cc->io_pool);
 
