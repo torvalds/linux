@@ -951,6 +951,12 @@ S: Brevia 1043
 S: S-114 79 Stockholm
 S: Sweden
 
+N: Pekka Enberg
+E: penberg@cs.helsinki.fi
+W: http://www.cs.helsinki.fi/u/penberg/
+D: Various kernel hacks, fixes, and cleanups.
+S: Finland
+
 N: David Engebretsen
 E: engebret@us.ibm.com
 D: Linux port to 64-bit PowerPC architecture
