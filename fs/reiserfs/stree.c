@@ -1476,9 +1476,7 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 	int n_block_size = p_s_sb->s_blocksize;
 	int cut_bytes;
 	BUG_ON(!th->t_trans_id);
-
-	if (n_new_file_size != p_s_inode->i_size)
-		BUG();
+	BUG_ON(n_new_file_size != p_s_inode->i_size);
 
 	/* the page being sent in could be NULL if there was an i/o error
 	 ** reading in the last block.  The user will hit problems trying to

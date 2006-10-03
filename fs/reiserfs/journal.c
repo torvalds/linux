@@ -718,8 +718,7 @@ static int add_to_chunk(struct buffer_chunk *chunk, struct buffer_head *bh,
 			spinlock_t * lock, void (fn) (struct buffer_chunk *))
 {
 	int ret = 0;
-	if (chunk->nr >= CHUNK_SIZE)
-		BUG();
+	BUG_ON(chunk->nr >= CHUNK_SIZE);
 	chunk->bh[chunk->nr++] = bh;
 	if (chunk->nr >= CHUNK_SIZE) {
 		ret = 1;
@@ -788,8 +787,7 @@ static inline int __add_jh(struct reiserfs_journal *j, struct buffer_head *bh,
 		/* buffer must be locked for __add_jh, should be able to have
 		 * two adds at the same time
 		 */
-		if (bh->b_private)
-			BUG();
+		BUG_ON(bh->b_private);
 		jh->bh = bh;
 		bh->b_private = jh;
 	}
@@ -2967,8 +2965,7 @@ static int do_journal_begin_r(struct reiserfs_transaction_handle *th,
 	int retval;
 
 	reiserfs_check_lock_depth(p_s_sb, "journal_begin");
-	if (nblocks > journal->j_trans_max)
-		BUG();
+	BUG_ON(nblocks > journal->j_trans_max);
 
 	PROC_INFO_INC(p_s_sb, journal.journal_being);
 	/* set here for journal_join */
@@ -3084,9 +3081,8 @@ struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
 	if (reiserfs_transaction_running(s)) {
 		th = current->journal_info;
 		th->t_refcount++;
-		if (th->t_refcount < 2) {
-			BUG();
-		}
+		BUG_ON(th->t_refcount < 2);
+		
 		return th;
 	}
 	th = kmalloc(sizeof(struct reiserfs_transaction_handle), GFP_NOFS);
@@ -3126,9 +3122,7 @@ static int journal_join(struct reiserfs_transaction_handle *th,
 	 ** pointer
 	 */
 	th->t_handle_save = cur_th;
-	if (cur_th && cur_th->t_refcount > 1) {
-		BUG();
-	}
+	BUG_ON(cur_th && cur_th->t_refcount > 1);
 	return do_journal_begin_r(th, p_s_sb, nblocks, JBEGIN_JOIN);
 }
 
@@ -3141,9 +3135,7 @@ int journal_join_abort(struct reiserfs_transaction_handle *th,
 	 ** pointer
 	 */
 	th->t_handle_save = cur_th;
-	if (cur_th && cur_th->t_refcount > 1) {
-		BUG();
-	}
+	BUG_ON(cur_th && cur_th->t_refcount > 1);
 	return do_journal_begin_r(th, p_s_sb, nblocks, JBEGIN_ABORT);
 }
 
@@ -3178,8 +3170,7 @@ int journal_begin(struct reiserfs_transaction_handle *th,
 		current->journal_info = th;
 	}
 	ret = do_journal_begin_r(th, p_s_sb, nblocks, JBEGIN_REG);
-	if (current->journal_info != th)
-		BUG();
+	BUG_ON(current->journal_info != th);
 
 	/* I guess this boils down to being the reciprocal of clm-2100 above.
 	 * If do_journal_begin_r fails, we need to put it back, since journal_end
@@ -3324,8 +3315,7 @@ int journal_end(struct reiserfs_transaction_handle *th,
 		/* we aren't allowed to close a nested transaction on a different
 		 ** filesystem from the one in the task struct
 		 */
-		if (cur_th->t_super != th->t_super)
-			BUG();
+		BUG_ON(cur_th->t_super != th->t_super);
 
 		if (th != cur_th) {
 			memcpy(current->journal_info, th, sizeof(*th));
@@ -3444,9 +3434,7 @@ int journal_end_sync(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 	/* you can sync while nested, very, very bad */
-	if (th->t_refcount > 1) {
-		BUG();
-	}
+	BUG_ON(th->t_refcount > 1);
 	if (journal->j_len == 0) {
 		reiserfs_prepare_for_journal(p_s_sb, SB_BUFFER_WITH_SB(p_s_sb),
 					     1);
@@ -3556,9 +3544,8 @@ static int check_journal_end(struct reiserfs_transaction_handle *th,
 	 ** will be dealt with by next transaction that actually writes something, but should be taken
 	 ** care of in this trans
 	 */
-	if (journal->j_len == 0) {
-		BUG();
-	}
+	BUG_ON(journal->j_len == 0);
+
 	/* if wcount > 0, and we are called to with flush or commit_now,
 	 ** we wait on j_join_wait.  We will wake up when the last writer has
 	 ** finished the transaction, and started it on its way to the disk.
@@ -3592,9 +3579,8 @@ static int check_journal_end(struct reiserfs_transaction_handle *th,
 					unlock_journal(p_s_sb);
 				}
 			}
-			if (journal->j_trans_id == trans_id) {
-				BUG();
-			}
+			BUG_ON(journal->j_trans_id == trans_id);
+			
 			if (commit_now
 			    && journal_list_still_alive(p_s_sb, trans_id)
 			    && wait_on_commit) {
@@ -4074,9 +4060,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	set_commit_trans_len(commit, journal->j_len);
 
 	/* special check in case all buffers in the journal were marked for not logging */
-	if (journal->j_len == 0) {
-		BUG();
-	}
+	BUG_ON(journal->j_len == 0);
 
 	/* we're about to dirty all the log blocks, mark the description block
 	 * dirty now too.  Don't mark the commit block dirty until all the
@@ -4173,8 +4157,7 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 				      journal, jl, &jl->j_tail_bh_list);
 		lock_kernel();
 	}
-	if (!list_empty(&jl->j_tail_bh_list))
-		BUG();
+	BUG_ON(!list_empty(&jl->j_tail_bh_list));
 	up(&jl->j_commit_lock);
 
 	/* honor the flush wishes from the caller, simple commits can
