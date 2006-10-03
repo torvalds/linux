@@ -396,9 +396,8 @@ static void fb_flashcursor(void *private)
 		vc = vc_cons[ops->currcon].d;
 
 	if (!vc || !CON_IS_VISIBLE(vc) ||
-	    fbcon_is_inactive(vc, info) ||
  	    registered_fb[con2fb_map[vc->vc_num]] != info ||
-	    vc_cons[ops->currcon].d->vc_deccm != 1) {
+	    vc->vc_deccm != 1) {
 		release_console_sem();
 		return;
 	}
@@ -2166,7 +2165,12 @@ static int fbcon_switch(struct vc_data *vc)
 			fbcon_del_cursor_timer(old_info);
 	}
 
-	fbcon_add_cursor_timer(info);
+	if (fbcon_is_inactive(vc, info) ||
+	    ops->blank_state != FB_BLANK_UNBLANK)
+		fbcon_del_cursor_timer(info);
+	else
+		fbcon_add_cursor_timer(info);
+
 	set_blitting_type(vc, info);
 	ops->cursor_reset = 1;
 
@@ -2276,10 +2280,11 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 			update_screen(vc);
 	}
 
-	if (!blank)
-		fbcon_add_cursor_timer(info);
-	else
+	if (fbcon_is_inactive(vc, info) ||
+	    ops->blank_state != FB_BLANK_UNBLANK)
 		fbcon_del_cursor_timer(info);
+	else
+		fbcon_add_cursor_timer(info);
 
 	return 0;
 }
