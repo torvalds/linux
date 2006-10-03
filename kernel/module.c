@@ -2040,7 +2040,8 @@ const char *module_address_lookup(unsigned long addr,
 	list_for_each_entry(mod, &modules, list) {
 		if (within(addr, mod->module_init, mod->init_size)
 		    || within(addr, mod->module_core, mod->core_size)) {
-			*modname = mod->name;
+			if (modname)
+				*modname = mod->name;
 			return get_ksymbol(mod, addr, size, offset);
 		}
 	}

@@ -69,6 +69,15 @@ static inline int is_kernel(unsigned long addr)
 	return in_gate_area_no_task(addr);
 }
 
+static int is_ksym_addr(unsigned long addr)
+{
+	if (all_var)
+		return is_kernel(addr);
+
+	return is_kernel_text(addr) || is_kernel_inittext(addr) ||
+		is_kernel_extratext(addr);
+}
+
 /* expand a compressed symbol data into the resulting uncompressed string,
    given the offset to where the symbol is in the compressed stream */
 static unsigned int kallsyms_expand_symbol(unsigned int off, char *result)
@@ -155,6 +164,73 @@ unsigned long kallsyms_lookup_name(const char *name)
 	return module_kallsyms_lookup_name(name);
 }
 
+static unsigned long get_symbol_pos(unsigned long addr,
+				    unsigned long *symbolsize,
+				    unsigned long *offset)
+{
+	unsigned long symbol_start = 0, symbol_end = 0;
+	unsigned long i, low, high, mid;
+
+	/* This kernel should never had been booted. */
+	BUG_ON(!kallsyms_addresses);
+
+	/* do a binary search on the sorted kallsyms_addresses array */
+	low = 0;
+	high = kallsyms_num_syms;
+
+	while (high - low > 1) {
+		mid = (low + high) / 2;
+		if (kallsyms_addresses[mid] <= addr)
+			low = mid;
+		else
+			high = mid;
+	}
+
+	/*
+	 * search for the first aliased symbol. Aliased
+	 * symbols are symbols with the same address
+	 */
+	while (low && kallsyms_addresses[low-1] == kallsyms_addresses[low])
+		--low;
+
+	symbol_start = kallsyms_addresses[low];
+
+	/* Search for next non-aliased symbol */
+	for (i = low + 1; i < kallsyms_num_syms; i++) {
+		if (kallsyms_addresses[i] > symbol_start) {
+			symbol_end = kallsyms_addresses[i];
+			break;
+		}
+	}
+
+	/* if we found no next symbol, we use the end of the section */
+	if (!symbol_end) {
+		if (is_kernel_inittext(addr))
+			symbol_end = (unsigned long)_einittext;
+		else if (all_var)
+			symbol_end = (unsigned long)_end;
+		else
+			symbol_end = (unsigned long)_etext;
+	}
+
+	*symbolsize = symbol_end - symbol_start;
+	*offset = addr - symbol_start;
+
+	return low;
+}
+
+/*
+ * Lookup an address but don't bother to find any names.
+ */
+int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
+				unsigned long *offset)
+{
+	if (is_ksym_addr(addr))
+		return !!get_symbol_pos(addr, symbolsize, offset);
+
+	return !!module_address_lookup(addr, symbolsize, offset, NULL);
+}
+
 /*
  * Lookup an address
  * - modname is set to NULL if it's in the kernel
@@ -167,57 +243,18 @@ const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *offset,
 			    char **modname, char *namebuf)
 {
-	unsigned long i, low, high, mid;
 	const char *msym;
-
-	/* This kernel should never had been booted. */
-	BUG_ON(!kallsyms_addresses);
 
 	namebuf[KSYM_NAME_LEN] = 0;
 	namebuf[0] = 0;
 
-	if ((all_var && is_kernel(addr)) ||
-	    (!all_var && (is_kernel_text(addr) || is_kernel_inittext(addr) ||
-				is_kernel_extratext(addr)))) {
-		unsigned long symbol_end = 0;
+	if (is_ksym_addr(addr)) {
+		unsigned long pos;
 
-		/* do a binary search on the sorted kallsyms_addresses array */
-		low = 0;
-		high = kallsyms_num_syms;
-
-		while (high-low > 1) {
-			mid = (low + high) / 2;
-			if (kallsyms_addresses[mid] <= addr) low = mid;
-			else high = mid;
-		}
-
-		/* search for the first aliased symbol. Aliased symbols are
-		   symbols with the same address */
-		while (low && kallsyms_addresses[low - 1] == kallsyms_addresses[low])
-			--low;
-
+		pos = get_symbol_pos(addr, symbolsize, offset);
 		/* Grab name */
-		kallsyms_expand_symbol(get_symbol_offset(low), namebuf);
-
-		/* Search for next non-aliased symbol */
-		for (i = low + 1; i < kallsyms_num_syms; i++) {
-			if (kallsyms_addresses[i] > kallsyms_addresses[low]) {
-				symbol_end = kallsyms_addresses[i];
-				break;
-			}
-		}
-
-		/* if we found no next symbol, we use the end of the section */
-		if (!symbol_end) {
-			if (is_kernel_inittext(addr))
-				symbol_end = (unsigned long)_einittext;
-			else
-				symbol_end = all_var ? (unsigned long)_end : (unsigned long)_etext;
-		}
-
-		*symbolsize = symbol_end - kallsyms_addresses[low];
+		kallsyms_expand_symbol(get_symbol_offset(pos), namebuf);
 		*modname = NULL;
-		*offset = addr - kallsyms_addresses[low];
 		return namebuf;
 	}
 
