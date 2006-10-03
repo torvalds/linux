@@ -133,6 +133,7 @@ static int info_idx = -1;
 
 /* console rotation */
 static int rotate;
+static int fbcon_has_sysfs;
 
 static const struct consw fb_con;
 
@@ -3166,11 +3167,26 @@ static struct class_device_attribute class_device_attrs[] = {
 
 static int fbcon_init_class_device(void)
 {
-	int i;
+	int i, error = 0;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_create_file(fbcon_class_device,
-					 &class_device_attrs[i]);
+	fbcon_has_sysfs = 1;
+
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++) {
+		error = class_device_create_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		if (error)
+			break;
+	}
+
+	if (error) {
+		while (--i >= 0)
+			class_device_remove_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		fbcon_has_sysfs = 0;
+	}
+
 	return 0;
 }
 
@@ -3279,9 +3295,13 @@ static void __exit fbcon_deinit_class_device(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_remove_file(fbcon_class_device,
-					 &class_device_attrs[i]);
+	if (fbcon_has_sysfs) {
+		for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+			class_device_remove_file(fbcon_class_device,
+						 &class_device_attrs[i]);
+
+		fbcon_has_sysfs = 0;
+	}
 }
 
 static void __exit fb_console_exit(void)
