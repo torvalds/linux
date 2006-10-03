@@ -151,8 +151,6 @@ int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *driv
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(ide_in_drive_list);
-
 /**
  *	ide_dma_intr	-	IDE DMA interrupt handler
  *	@drive: the drive the interrupt is for
