@@ -125,6 +125,7 @@ sys32_execve (char __user *name, compat_uptr_t __user *argv, compat_uptr_t __use
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 {
+	compat_ino_t ino;
 	int err;
 
 	if ((u64) stat->size > MAX_NON_LFS ||
@@ -132,11 +133,15 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 	    !old_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 
+	ino = stat->ino;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
+		return -EOVERFLOW;
+
 	if (clear_user(ubuf, sizeof(*ubuf)))
 		return -EFAULT;
 
 	err  = __put_user(old_encode_dev(stat->dev), &ubuf->st_dev);
-	err |= __put_user(stat->ino, &ubuf->st_ino);
+	err |= __put_user(ino, &ubuf->st_ino);
 	err |= __put_user(stat->mode, &ubuf->st_mode);
 	err |= __put_user(stat->nlink, &ubuf->st_nlink);
 	err |= __put_user(high2lowuid(stat->uid), &ubuf->st_uid);
@@ -1222,16 +1227,20 @@ struct readdir32_callback {
 };
 
 static int
-filldir32 (void *__buf, const char *name, int namlen, loff_t offset, ino_t ino,
+filldir32 (void *__buf, const char *name, int namlen, loff_t offset, u64 ino,
 	   unsigned int d_type)
 {
 	struct compat_dirent __user * dirent;
 	struct getdents32_callback * buf = (struct getdents32_callback *) __buf;
 	int reclen = ROUND_UP(offsetof(struct compat_dirent, d_name) + namlen + 1, 4);
+	u32 d_ino;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	buf->error = -EFAULT;	/* only used if we fail.. */
 	dirent = buf->previous;
 	if (dirent)
@@ -1239,7 +1248,7 @@ filldir32 (void *__buf, const char *name, int namlen, loff_t offset, ino_t ino,
 			return -EFAULT;
 	dirent = buf->current_dir;
 	buf->previous = dirent;
-	if (put_user(ino, &dirent->d_ino)
+	if (put_user(d_ino, &dirent->d_ino)
 	    || put_user(reclen, &dirent->d_reclen)
 	    || copy_to_user(dirent->d_name, name, namlen)
 	    || put_user(0, dirent->d_name + namlen))
@@ -1287,17 +1296,21 @@ out:
 }
 
 static int
-fillonedir32 (void * __buf, const char * name, int namlen, loff_t offset, ino_t ino,
+fillonedir32 (void * __buf, const char * name, int namlen, loff_t offset, u64 ino,
 	      unsigned int d_type)
 {
 	struct readdir32_callback * buf = (struct readdir32_callback *) __buf;
 	struct old_linux32_dirent __user * dirent;
+	u32 d_ino;
 
 	if (buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	buf->count++;
 	dirent = buf->dirent;
-	if (put_user(ino, &dirent->d_ino)
+	if (put_user(d_ino, &dirent->d_ino)
 	    || put_user(offset, &dirent->d_offset)
 	    || put_user(namlen, &dirent->d_namlen)
 	    || copy_to_user(dirent->d_name, name, namlen)

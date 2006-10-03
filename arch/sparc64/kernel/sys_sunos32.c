@@ -280,16 +280,20 @@ static int sunos_filldir(void * __buf, const char * name, int namlen,
 	struct sunos_dirent __user *dirent;
 	struct sunos_dirent_callback * buf = (struct sunos_dirent_callback *) __buf;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
+	u32 d_ino;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	if (dirent)
 		put_user(offset, &dirent->d_off);
 	dirent = buf->curr;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
 	if (copy_to_user(dirent->d_name, name, namlen))
@@ -363,14 +367,18 @@ static int sunos_filldirentry(void * __buf, const char * name, int namlen,
 	struct sunos_direntry_callback * buf =
 		(struct sunos_direntry_callback *) __buf;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
+	u32 d_ino;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	dirent = buf->curr;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
 	if (copy_to_user(dirent->d_name, name, namlen))

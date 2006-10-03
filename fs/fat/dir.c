@@ -648,7 +648,7 @@ static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 }
 
 static int fat_ioctl_filldir(void *__buf, const char *name, int name_len,
-			     loff_t offset, ino_t ino, unsigned int d_type)
+			     loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct fat_ioctl_filldir_callback *buf = __buf;
 	struct dirent __user *d1 = buf->dirent;

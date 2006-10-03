@@ -76,6 +76,8 @@
 
 int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
 {
+	compat_ino_t ino;
+
 	typeof(ubuf->st_uid) uid = 0;
 	typeof(ubuf->st_gid) gid = 0;
 	SET_UID(uid, kbuf->uid);
@@ -84,9 +86,12 @@ int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
 		return -EOVERFLOW;
 	if (kbuf->size >= 0x7fffffff)
 		return -EOVERFLOW;
+	ino = kbuf->ino;
+	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
+		return -EOVERFLOW;
 	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct compat_stat)) ||
 	    __put_user (old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
-	    __put_user (kbuf->ino, &ubuf->st_ino) ||
+	    __put_user (ino, &ubuf->st_ino) ||
 	    __put_user (kbuf->mode, &ubuf->st_mode) ||
 	    __put_user (kbuf->nlink, &ubuf->st_nlink) ||
 	    __put_user (uid, &ubuf->st_uid) ||

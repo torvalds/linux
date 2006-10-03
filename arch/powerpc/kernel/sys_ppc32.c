@@ -69,16 +69,20 @@ struct readdir_callback32 {
 };
 
 static int fillonedir(void * __buf, const char * name, int namlen,
-		                  off_t offset, ino_t ino, unsigned int d_type)
+		                  off_t offset, u64 ino, unsigned int d_type)
 {
 	struct readdir_callback32 * buf = (struct readdir_callback32 *) __buf;
 	struct old_linux_dirent32 __user * dirent;
+	ino_t d_ino;
 
 	if (buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	buf->count++;
 	dirent = buf->dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(offset, &dirent->d_offset);
 	put_user(namlen, &dirent->d_namlen);
 	copy_to_user(dirent->d_name, name, namlen);
@@ -120,15 +124,20 @@ asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 {
+	compat_ino_t ino;
 	long err;
 
 	if (stat->size > MAX_NON_LFS || !new_valid_dev(stat->dev) ||
 	    !new_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 
+	ino = stat->ino;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
+		return -EOVERFLOW;
+
 	err  = access_ok(VERIFY_WRITE, statbuf, sizeof(*statbuf)) ? 0 : -EFAULT;
 	err |= __put_user(new_encode_dev(stat->dev), &statbuf->st_dev);
-	err |= __put_user(stat->ino, &statbuf->st_ino);
+	err |= __put_user(ino, &statbuf->st_ino);
 	err |= __put_user(stat->mode, &statbuf->st_mode);
 	err |= __put_user(stat->nlink, &statbuf->st_nlink);
 	err |= __put_user(stat->uid, &statbuf->st_uid);

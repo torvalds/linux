@@ -1049,7 +1049,7 @@ int generic_osync_inode(struct inode *, struct address_space *, int);
  * This allows the kernel to read directories into kernel space or
  * to have different dirent layouts depending on the binary type.
  */
-typedef int (*filldir_t)(void *, const char *, int, loff_t, ino_t, unsigned);
+typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 struct block_device_operations {
 	int (*open) (struct inode *, struct file *);

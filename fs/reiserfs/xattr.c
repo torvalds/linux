@@ -773,7 +773,7 @@ int reiserfs_xattr_del(struct inode *inode, const char *name)
 
 static int
 reiserfs_delete_xattrs_filler(void *buf, const char *name, int namelen,
-			      loff_t offset, ino_t ino, unsigned int d_type)
+			      loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct dentry *xadir = (struct dentry *)buf;
 
@@ -851,7 +851,7 @@ struct reiserfs_chown_buf {
 /* XXX: If there is a better way to do this, I'd love to hear about it */
 static int
 reiserfs_chown_xattrs_filler(void *buf, const char *name, int namelen,
-			     loff_t offset, ino_t ino, unsigned int d_type)
+			     loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct reiserfs_chown_buf *chown_buf = (struct reiserfs_chown_buf *)buf;
 	struct dentry *xafile, *xadir = chown_buf->xadir;
@@ -1036,7 +1036,7 @@ struct reiserfs_listxattr_buf {
 
 static int
 reiserfs_listxattr_filler(void *buf, const char *name, int namelen,
-			  loff_t offset, ino_t ino, unsigned int d_type)
+			  loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct reiserfs_listxattr_buf *b = (struct reiserfs_listxattr_buf *)buf;
 	int len = 0;

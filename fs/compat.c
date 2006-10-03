@@ -914,20 +914,24 @@ struct compat_readdir_callback {
 };
 
 static int compat_fillonedir(void *__buf, const char *name, int namlen,
-			loff_t offset, ino_t ino, unsigned int d_type)
+			loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct compat_readdir_callback *buf = __buf;
 	struct compat_old_linux_dirent __user *dirent;
+	compat_ulong_t d_ino;
 
 	if (buf->result)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	buf->result++;
 	dirent = buf->dirent;
 	if (!access_ok(VERIFY_WRITE, dirent,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
 		goto efault;
-	if (	__put_user(ino, &dirent->d_ino) ||
+	if (	__put_user(d_ino, &dirent->d_ino) ||
 		__put_user(offset, &dirent->d_offset) ||
 		__put_user(namlen, &dirent->d_namlen) ||
 		__copy_to_user(dirent->d_name, name, namlen) ||
@@ -978,22 +982,26 @@ struct compat_getdents_callback {
 };
 
 static int compat_filldir(void *__buf, const char *name, int namlen,
-		loff_t offset, ino_t ino, unsigned int d_type)
+		loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct compat_linux_dirent __user * dirent;
 	struct compat_getdents_callback *buf = __buf;
+	compat_ulong_t d_ino;
 	int reclen = COMPAT_ROUND_UP(NAME_OFFSET(dirent) + namlen + 2);
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	if (dirent) {
 		if (__put_user(offset, &dirent->d_off))
 			goto efault;
 	}
 	dirent = buf->current_dir;
-	if (__put_user(ino, &dirent->d_ino))
+	if (__put_user(d_ino, &dirent->d_ino))
 		goto efault;
 	if (__put_user(reclen, &dirent->d_reclen))
 		goto efault;
@@ -1064,7 +1072,7 @@ struct compat_getdents_callback64 {
 };
 
 static int compat_filldir64(void * __buf, const char * name, int namlen, loff_t offset,
-		     ino_t ino, unsigned int d_type)
+		     u64 ino, unsigned int d_type)
 {
 	struct linux_dirent64 __user *dirent;
 	struct compat_getdents_callback64 *buf = __buf;

@@ -77,17 +77,21 @@ static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 {
 	struct hpux_dirent * dirent;
 	struct getdents_callback * buf = (struct getdents_callback *) __buf;
+	ino_t d_ino;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	if (dirent)
 		put_user(offset, &dirent->d_off);
 	dirent = buf->current_dir;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(reclen, &dirent->d_reclen);
 	put_user(namlen, &dirent->d_namlen);
 	copy_to_user(dirent->d_name, name, namlen);

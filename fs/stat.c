@@ -140,6 +140,8 @@ static int cp_old_stat(struct kstat *stat, struct __old_kernel_stat __user * sta
 	memset(&tmp, 0, sizeof(struct __old_kernel_stat));
 	tmp.st_dev = old_encode_dev(stat->dev);
 	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
 	if (tmp.st_nlink != stat->nlink)
@@ -210,6 +212,8 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 	tmp.st_dev = new_encode_dev(stat->dev);
 #endif
 	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
 	if (tmp.st_nlink != stat->nlink)
@@ -347,6 +351,8 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	tmp.st_rdev = huge_encode_dev(stat->rdev);
 #endif
 	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
 #ifdef STAT64_HAS_BROKEN_ST_INO
 	tmp.__st_ino = stat->ino;
 #endif

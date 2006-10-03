@@ -77,6 +77,8 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.st_dev = new_encode_dev(stat->dev);
 	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
 	SET_UID(tmp.st_uid, stat->uid);

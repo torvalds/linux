@@ -30,7 +30,7 @@ static int afs_dir_readdir(struct file *file, void *dirent, filldir_t filldir);
 static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
 static int afs_d_delete(struct dentry *dentry);
 static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
-				  loff_t fpos, ino_t ino, unsigned dtype);
+				  loff_t fpos, u64 ino, unsigned dtype);
 
 const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
@@ -409,7 +409,7 @@ static int afs_dir_readdir(struct file *file, void *cookie, filldir_t filldir)
  *   uniquifier through dtype
  */
 static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
-				  loff_t fpos, ino_t ino, unsigned dtype)
+				  loff_t fpos, u64 ino, unsigned dtype)
 {
 	struct afs_dir_lookup_cookie *cookie = _cookie;
 

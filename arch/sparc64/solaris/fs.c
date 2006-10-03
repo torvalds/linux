@@ -82,12 +82,17 @@ struct sol_stat64 {
 
 static inline int putstat(struct sol_stat __user *ubuf, struct kstat *kbuf)
 {
+	u32 ino;
+
 	if (kbuf->size > MAX_NON_LFS ||
 	    !sysv_valid_dev(kbuf->dev) ||
 	    !sysv_valid_dev(kbuf->rdev))
 		return -EOVERFLOW;
+	ino = kbuf->ino;
+	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
+		return -EOVERFLOW;
 	if (put_user (sysv_encode_dev(kbuf->dev), &ubuf->st_dev)	||
-	    __put_user (kbuf->ino, &ubuf->st_ino)		||
+	    __put_user (ino, &ubuf->st_ino)				||
 	    __put_user (kbuf->mode, &ubuf->st_mode)		||
 	    __put_user (kbuf->nlink, &ubuf->st_nlink)	||
 	    __put_user (kbuf->uid, &ubuf->st_uid)		||

@@ -237,14 +237,19 @@ int sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user 
 
 int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 {
+	compat_ino_t ino;
 	int err;
 
 	if (stat->size > MAX_NON_LFS || !new_valid_dev(stat->dev) ||
 	    !new_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 
+	ino = stat->ino;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
+		return -EOVERFLOW;
+
 	err  = put_user(new_encode_dev(stat->dev), &statbuf->st_dev);
-	err |= put_user(stat->ino, &statbuf->st_ino);
+	err |= put_user(ino, &statbuf->st_ino);
 	err |= put_user(stat->mode, &statbuf->st_mode);
 	err |= put_user(stat->nlink, &statbuf->st_nlink);
 	err |= put_user(0, &statbuf->st_reserved1);
@@ -312,16 +317,20 @@ filldir32 (void *__buf, const char *name, int namlen, loff_t offset, ino_t ino,
 	struct linux32_dirent __user * dirent;
 	struct getdents32_callback * buf = (struct getdents32_callback *) __buf;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1, 4);
+	u32 d_ino;
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	if (dirent)
 		put_user(offset, &dirent->d_off);
 	dirent = buf->current_dir;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(reclen, &dirent->d_reclen);
 	copy_to_user(dirent->d_name, name, namlen);
 	put_user(0, dirent->d_name + namlen);
@@ -371,12 +380,16 @@ fillonedir32 (void * __buf, const char * name, int namlen, loff_t offset, ino_t 
 {
 	struct readdir32_callback * buf = (struct readdir32_callback *) __buf;
 	struct old_linux32_dirent __user * dirent;
+	u32 d_ino;
 
 	if (buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	buf->count++;
 	dirent = buf->dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(offset, &dirent->d_offset);
 	put_user(namlen, &dirent->d_namlen);
 	copy_to_user(dirent->d_name, name, namlen);

@@ -184,7 +184,7 @@ struct dentry_list_arg {
 
 static int
 nfsd4_build_dentrylist(void *arg, const char *name, int namlen,
-		loff_t offset, ino_t ino, unsigned int d_type)
+		loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct dentry_list_arg *dla = arg;
 	struct list_head *dentries = &dla->dentries;

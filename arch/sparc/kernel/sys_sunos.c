@@ -325,21 +325,25 @@ struct sunos_dirent_callback {
 #define ROUND_UP(x) (((x)+sizeof(long)-1) & ~(sizeof(long)-1))
 
 static int sunos_filldir(void * __buf, const char * name, int namlen,
-			 loff_t offset, ino_t ino, unsigned int d_type)
+			 loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct sunos_dirent __user *dirent;
 	struct sunos_dirent_callback * buf = __buf;
+	unsigned long d_ino;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	if (dirent)
 		put_user(offset, &dirent->d_off);
 	dirent = buf->curr;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
 	copy_to_user(dirent->d_name, name, namlen);
@@ -406,19 +410,23 @@ struct sunos_direntry_callback {
 };
 
 static int sunos_filldirentry(void * __buf, const char * name, int namlen,
-			      loff_t offset, ino_t ino, unsigned int d_type)
+			      loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct sunos_direntry __user *dirent;
 	struct sunos_direntry_callback *buf = __buf;
+	unsigned long d_ino;
 	int reclen = ROUND_UP(NAME_OFFSET(dirent) + namlen + 1);
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
+	d_ino = ino;
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+		return -EOVERFLOW;
 	dirent = buf->previous;
 	dirent = buf->curr;
 	buf->previous = dirent;
-	put_user(ino, &dirent->d_ino);
+	put_user(d_ino, &dirent->d_ino);
 	put_user(namlen, &dirent->d_namlen);
 	put_user(reclen, &dirent->d_reclen);
 	copy_to_user(dirent->d_name, name, namlen);
