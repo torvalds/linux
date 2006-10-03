@@ -8,6 +8,7 @@
  *  	<c.pellegrin@exadron.com>
  *
  * PM support added by Rodolfo Giometti <giometti@linux.it>
+ * Cursor enable/disable by Rodolfo Giometti <giometti@linux.it>
  *
  * Copyright 2002 MontaVista Software
  * Author: MontaVista Software, Inc.
@@ -109,6 +110,10 @@ static struct fb_var_screeninfo au1100fb_var __initdata = {
 };
 
 static struct au1100fb_drv_info drv_info;
+
+static int nocursor = 0;
+module_param(nocursor, int, 0644);
+MODULE_PARM_DESC(nocursor, "cursor enable/disable");
 
 /*
  * Set hardware with var settings. This will enable the controller with a specific
@@ -422,6 +427,17 @@ int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	return 0;
 }
 
+/* fb_cursor
+ * Used to disable cursor drawing...
+ */
+int au1100fb_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
+{
+	if (nocursor)
+		return 0;
+	else
+		return -EINVAL;	/* just to force soft_cursor() call */
+}
+
 static struct fb_ops au1100fb_ops =
 {
 	.owner			= THIS_MODULE,
@@ -433,6 +449,7 @@ static struct fb_ops au1100fb_ops =
 	.fb_imageblit		= cfb_imageblit,
 	.fb_rotate		= au1100fb_fb_rotate,
 	.fb_mmap		= au1100fb_fb_mmap,
+	.fb_cursor		= au1100fb_fb_cursor,
 };
 
 
@@ -677,7 +694,7 @@ int au1100fb_setup(char *options)
 	if (options) {
 		while ((this_opt = strsep(&options,",")) != NULL) {
 			/* Panel option */
-		if (!strncmp(this_opt, "panel:", 6)) {
+			if (!strncmp(this_opt, "panel:", 6)) {
 				int i;
 				this_opt += 6;
 				for (i = 0; i < num_panels; i++) {
@@ -685,12 +702,17 @@ int au1100fb_setup(char *options)
 					      	     known_lcd_panels[i].name,
 							strlen(this_opt))) {
 						panel_idx = i;
-					break;
+						break;
+					}
 				}
-			}
 				if (i >= num_panels) {
  					print_warn("Panel %s not supported!", this_opt);
 				}
+			}
+			if (!strncmp(this_opt, "nocursor", 8)) {
+				this_opt += 8;
+				nocursor = 1;
+				print_info("Cursor disabled");
 			}
 			/* Mode option (only option that start with digit) */
 			else if (isdigit(this_opt[0])) {
@@ -700,7 +722,7 @@ int au1100fb_setup(char *options)
 			/* Unsupported option */
 			else {
 				print_warn("Unsupported option \"%s\"", this_opt);
-		}
+			}
 		}
 	}
 
