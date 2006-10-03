@@ -538,7 +538,7 @@ static void __iomem * __init map_spe_prop(struct spu *spu,
 
 	const void *p;
 	int proplen;
-	void* ret = NULL;
+	void __iomem *ret = NULL;
 	int err = 0;
 
 	p = get_property(n, name, &proplen);
@@ -562,7 +562,7 @@ static void spu_unmap(struct spu *spu)
 	iounmap(spu->priv2);
 	iounmap(spu->priv1);
 	iounmap(spu->problem);
-	iounmap((u8 __iomem *)spu->local_store);
+	iounmap((__force u8 __iomem *)spu->local_store);
 }
 
 /* This function shall be abstracted for HV platforms */

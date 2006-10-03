@@ -25,8 +25,8 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 /* SMT stuff */
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-/* default to snooze disabled */
-DEFINE_PER_CPU(unsigned long, smt_snooze_delay);
+/* Time in microseconds we delay before sleeping in the idle loop */
+DEFINE_PER_CPU(unsigned long, smt_snooze_delay) = { 100 };
 
 static ssize_t store_smt_snooze_delay(struct sys_device *dev, const char *buf,
 				      size_t count)

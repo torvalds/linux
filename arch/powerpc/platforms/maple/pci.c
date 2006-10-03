@@ -96,14 +96,14 @@ static unsigned long u3_agp_cfa1(u8 bus, u8 devfn, u8 off)
 		1UL;
 }
 
-static unsigned long u3_agp_cfg_access(struct pci_controller* hose,
+static volatile void __iomem *u3_agp_cfg_access(struct pci_controller* hose,
 				       u8 bus, u8 dev_fn, u8 offset)
 {
 	unsigned int caddr;
 
 	if (bus == hose->first_busno) {
 		if (dev_fn < (11 << 3))
-			return 0;
+			return NULL;
 		caddr = u3_agp_cfa0(dev_fn, offset);
 	} else
 		caddr = u3_agp_cfa1(bus, dev_fn, offset);
@@ -114,14 +114,14 @@ static unsigned long u3_agp_cfg_access(struct pci_controller* hose,
 	} while (in_le32(hose->cfg_addr) != caddr);
 
 	offset &= 0x07;
-	return ((unsigned long)hose->cfg_data) + offset;
+	return hose->cfg_data + offset;
 }
 
 static int u3_agp_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	volatile void __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
@@ -136,13 +136,13 @@ static int u3_agp_read_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		*val = in_8((u8 *)addr);
+		*val = in_8(addr);
 		break;
 	case 2:
-		*val = in_le16((u16 *)addr);
+		*val = in_le16(addr);
 		break;
 	default:
-		*val = in_le32((u32 *)addr);
+		*val = in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -152,7 +152,7 @@ static int u3_agp_write_config(struct pci_bus *bus, unsigned int devfn,
 			       int offset, int len, u32 val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	volatile void __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
@@ -167,16 +167,16 @@ static int u3_agp_write_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		out_8((u8 *)addr, val);
-		(void) in_8((u8 *)addr);
+		out_8(addr, val);
+		(void) in_8(addr);
 		break;
 	case 2:
-		out_le16((u16 *)addr, val);
-		(void) in_le16((u16 *)addr);
+		out_le16(addr, val);
+		(void) in_le16(addr);
 		break;
 	default:
-		out_le32((u32 *)addr, val);
-		(void) in_le32((u32 *)addr);
+		out_le32(addr, val);
+		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -198,22 +198,22 @@ static unsigned long u3_ht_cfa1(u8 bus, u8 devfn, u8 off)
 	return u3_ht_cfa0(devfn, off) + (bus << 16) + 0x01000000UL;
 }
 
-static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
+static volatile void __iomem *u3_ht_cfg_access(struct pci_controller* hose,
 				      u8 bus, u8 devfn, u8 offset)
 {
 	if (bus == hose->first_busno) {
 		if (PCI_SLOT(devfn) == 0)
-			return 0;
-		return ((unsigned long)hose->cfg_data) + u3_ht_cfa0(devfn, offset);
+			return NULL;
+		return hose->cfg_data + u3_ht_cfa0(devfn, offset);
 	} else
-		return ((unsigned long)hose->cfg_data) + u3_ht_cfa1(bus, devfn, offset);
+		return hose->cfg_data + u3_ht_cfa1(bus, devfn, offset);
 }
 
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 			     int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	volatile void __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
@@ -232,13 +232,13 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		*val = in_8((u8 *)addr);
+		*val = in_8(addr);
 		break;
 	case 2:
-		*val = in_le16((u16 *)addr);
+		*val = in_le16(addr);
 		break;
 	default:
-		*val = in_le32((u32 *)addr);
+		*val = in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -248,7 +248,7 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 			      int offset, int len, u32 val)
 {
 	struct pci_controller *hose;
-	unsigned long addr;
+	volatile void __iomem *addr;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
@@ -266,16 +266,16 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 	 */
 	switch (len) {
 	case 1:
-		out_8((u8 *)addr, val);
-		(void) in_8((u8 *)addr);
+		out_8(addr, val);
+		(void) in_8(addr);
 		break;
 	case 2:
-		out_le16((u16 *)addr, val);
-		(void) in_le16((u16 *)addr);
+		out_le16(addr, val);
+		(void) in_le16(addr);
 		break;
 	default:
-		out_le32((u32 *)addr, val);
-		(void) in_le32((u32 *)addr);
+		out_le32(addr, val);
+		(void) in_le32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -315,7 +315,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-	hose->cfg_data = (volatile unsigned char *)ioremap(0xf2000000, 0x02000000);
+	hose->cfg_data = ioremap(0xf2000000, 0x02000000);
 
 	hose->first_busno = 0;
 	hose->last_busno = 0xef;

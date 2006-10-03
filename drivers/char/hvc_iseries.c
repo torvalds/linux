@@ -153,9 +153,7 @@ static int put_chars(uint32_t vtermno, const char *buf, int count)
 	spin_lock_irqsave(&consolelock, flags);
 
 	if (viochar_is_console(pi) && !viopath_isactive(pi->lp)) {
-		spin_lock_irqsave(&consoleloglock, flags);
 		HvCall_writeLogBuffer(buf, count);
-		spin_unlock_irqrestore(&consoleloglock, flags);
 		sent = count;
 		goto done;
 	}
@@ -171,11 +169,8 @@ static int put_chars(uint32_t vtermno, const char *buf, int count)
 
 		len = (count > VIOCHAR_MAX_DATA) ? VIOCHAR_MAX_DATA : count;
 
-		if (viochar_is_console(pi)) {
-			spin_lock_irqsave(&consoleloglock, flags);
+		if (viochar_is_console(pi))
 			HvCall_writeLogBuffer(buf, len);
-			spin_unlock_irqrestore(&consoleloglock, flags);
-		}
 
 		init_data_event(viochar, pi->lp);
 

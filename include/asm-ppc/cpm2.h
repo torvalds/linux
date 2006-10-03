@@ -42,6 +42,8 @@
 #define CPM_CR_IDMA4_SBLOCK	(0x17)
 #define CPM_CR_MCC1_SBLOCK	(0x1c)
 
+#define CPM_CR_FCC_SBLOCK(x)	(x + 0x10)
+
 #define CPM_CR_SCC1_PAGE	(0x00)
 #define CPM_CR_SCC2_PAGE	(0x01)
 #define CPM_CR_SCC3_PAGE	(0x02)
@@ -61,6 +63,8 @@
 #define CPM_CR_IDMA4_PAGE	(0x0a)
 #define CPM_CR_MCC1_PAGE	(0x07)
 #define CPM_CR_MCC2_PAGE	(0x08)
+
+#define CPM_CR_FCC_PAGE(x)	(x + 0x04)
 
 /* Some opcodes (there are more...later)
 */
@@ -172,6 +176,10 @@ typedef struct cpm_buf_desc {
 #define PROFF_RAND		((uint)0x8af8)
 #define PROFF_I2C_BASE		((uint)0x8afc)
 #define PROFF_IDMA4_BASE	((uint)0x8afe)
+
+#define PROFF_SCC_SIZE		((uint)0x100)
+#define PROFF_FCC_SIZE		((uint)0x100)
+#define PROFF_SMC_SIZE		((uint)64)
 
 /* The SMCs are relocated to any of the first eight DPRAM pages.
  * We will fix these at the first locations of DPRAM, until we
@@ -1186,7 +1194,60 @@ typedef struct im_idma {
 #define FCC_MEM_OFFSET(x) (CPM_FCC_SPECIAL_BASE + (x*128))
 #define FCC1_MEM_OFFSET FCC_MEM_OFFSET(0)
 #define FCC2_MEM_OFFSET FCC_MEM_OFFSET(1)
-#define FCC2_MEM_OFFSET FCC_MEM_OFFSET(2)
+#define FCC3_MEM_OFFSET FCC_MEM_OFFSET(2)
+
+/* Clocks and GRG's */
+
+enum cpm_clk_dir {
+	CPM_CLK_RX,
+	CPM_CLK_TX,
+	CPM_CLK_RTX
+};
+
+enum cpm_clk_target {
+	CPM_CLK_SCC1,
+	CPM_CLK_SCC2,
+	CPM_CLK_SCC3,
+	CPM_CLK_SCC4,
+	CPM_CLK_FCC1,
+	CPM_CLK_FCC2,
+	CPM_CLK_FCC3
+};
+
+enum cpm_clk {
+	CPM_CLK_NONE = 0,
+	CPM_BRG1,	/* Baud Rate Generator  1 */
+	CPM_BRG2,	/* Baud Rate Generator  2 */
+	CPM_BRG3,	/* Baud Rate Generator  3 */
+	CPM_BRG4,	/* Baud Rate Generator  4 */
+	CPM_BRG5,	/* Baud Rate Generator  5 */
+	CPM_BRG6,	/* Baud Rate Generator  6 */
+	CPM_BRG7,	/* Baud Rate Generator  7 */
+	CPM_BRG8,	/* Baud Rate Generator  8 */
+	CPM_CLK1,	/* Clock  1 */
+	CPM_CLK2,	/* Clock  2 */
+	CPM_CLK3,	/* Clock  3 */
+	CPM_CLK4,	/* Clock  4 */
+	CPM_CLK5,	/* Clock  5 */
+	CPM_CLK6,	/* Clock  6 */
+	CPM_CLK7,	/* Clock  7 */
+	CPM_CLK8,	/* Clock  8 */
+	CPM_CLK9,	/* Clock  9 */
+	CPM_CLK10,	/* Clock 10 */
+	CPM_CLK11,	/* Clock 11 */
+	CPM_CLK12,	/* Clock 12 */
+	CPM_CLK13,	/* Clock 13 */
+	CPM_CLK14,	/* Clock 14 */
+	CPM_CLK15,	/* Clock 15 */
+	CPM_CLK16,	/* Clock 16 */
+	CPM_CLK17,	/* Clock 17 */
+	CPM_CLK18,	/* Clock 18 */
+	CPM_CLK19,	/* Clock 19 */
+	CPM_CLK20,	/* Clock 20 */
+	CPM_CLK_DUMMY
+};
+
+extern int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode);
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

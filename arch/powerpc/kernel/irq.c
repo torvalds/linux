@@ -777,7 +777,6 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 {
 	unsigned long flags;
 	unsigned int i, j, found = NO_IRQ;
-	unsigned int limit = irq_virq_count - count;
 
 	if (count == 0 || count > (irq_virq_count - NUM_ISA_INTERRUPTS))
 		return NO_IRQ;
@@ -794,14 +793,16 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 	/* Look for count consecutive numbers in the allocatable
 	 * (non-legacy) space
 	 */
-	for (i = NUM_ISA_INTERRUPTS; i <= limit; ) {
-		for (j = i; j < (i + count); j++)
-			if (irq_map[j].host != NULL) {
-				i = j + 1;
-				continue;
-			}
-		found = i;
-		break;
+	for (i = NUM_ISA_INTERRUPTS, j = 0; i < irq_virq_count; i++) {
+		if (irq_map[i].host != NULL)
+			j = 0;
+		else
+			j++;
+
+		if (j == count) {
+			found = i - count + 1;
+			break;
+		}
 	}
 	if (found == NO_IRQ) {
 		spin_unlock_irqrestore(&irq_big_lock, flags);

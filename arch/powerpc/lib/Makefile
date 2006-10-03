@@ -14,9 +14,15 @@ endif
 obj-$(CONFIG_PPC64)	+= checksum_64.o copypage_64.o copyuser_64.o \
 			   memcpy_64.o usercopy_64.o mem_64.o string.o \
 			   strcase.o
+obj-$(CONFIG_QUICC_ENGINE) += rheap.o
 obj-$(CONFIG_XMON)	+= sstep.o
 
 ifeq ($(CONFIG_PPC64),y)
 obj-$(CONFIG_SMP)	+= locks.o
 obj-$(CONFIG_DEBUG_KERNEL) += sstep.o
+endif
+
+# Temporary hack until we have migrated to asm-powerpc
+ifeq ($(CONFIG_PPC_MERGE),y)
+obj-$(CONFIG_CPM2)	+= rheap.o
 endif
