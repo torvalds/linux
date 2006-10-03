@@ -1286,21 +1286,29 @@ static int sched_balance_self(int cpu, int flag)
 	while (sd) {
 		cpumask_t span;
 		struct sched_group *group;
-		int new_cpu;
-		int weight;
+		int new_cpu, weight;
+
+		if (!(sd->flags & flag)) {
+			sd = sd->child;
+			continue;
+		}
 
 		span = sd->span;
 		group = find_idlest_group(sd, t, cpu);
-		if (!group)
-			goto nextlevel;
+		if (!group) {
+			sd = sd->child;
+			continue;
+		}
 
 		new_cpu = find_idlest_cpu(group, t, cpu);
-		if (new_cpu == -1 || new_cpu == cpu)
-			goto nextlevel;
+		if (new_cpu == -1 || new_cpu == cpu) {
+			/* Now try balancing at a lower domain level of cpu */
+			sd = sd->child;
+			continue;
+		}
 
-		/* Now try balancing at a lower domain level */
+		/* Now try balancing at a lower domain level of new_cpu */
 		cpu = new_cpu;
-nextlevel:
 		sd = NULL;
 		weight = cpus_weight(span);
 		for_each_domain(cpu, tmp) {
@@ -5448,12 +5456,18 @@ static void cpu_attach_domain(struct sched_domain *sd, int cpu)
 		struct sched_domain *parent = tmp->parent;
 		if (!parent)
 			break;
-		if (sd_parent_degenerate(tmp, parent))
+		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
+			if (parent->parent)
+				parent->parent->child = tmp;
+		}
 	}
 
-	if (sd && sd_degenerate(sd))
+	if (sd && sd_degenerate(sd)) {
 		sd = sd->parent;
+		if (sd)
+			sd->child = NULL;
+	}
 
 	sched_domain_debug(sd, cpu);
 
@@ -6288,6 +6302,8 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		*sd = SD_NODE_INIT;
 		sd->span = sched_domain_node_span(cpu_to_node(i));
 		sd->parent = p;
+		if (p)
+			p->child = sd;
 		cpus_and(sd->span, sd->span, *cpu_map);
 #endif
 
@@ -6297,6 +6313,8 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		*sd = SD_CPU_INIT;
 		sd->span = nodemask;
 		sd->parent = p;
+		if (p)
+			p->child = sd;
 		sd->groups = &sched_group_phys[group];
 
 #ifdef CONFIG_SCHED_MC
@@ -6307,6 +6325,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		sd->span = cpu_coregroup_map(i);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
+		p->child = sd;
 		sd->groups = &sched_group_core[group];
 #endif
 
@@ -6318,6 +6337,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		sd->span = cpu_sibling_map[i];
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
+		p->child = sd;
 		sd->groups = &sched_group_cpus[group];
 #endif
 	}
