@@ -1862,7 +1862,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 	unsigned swptr;
 	int cnt;
 
-	pr_debug("trident: trident_read called, count = %d\n", count);
+	pr_debug("trident: trident_read called, count = %zd\n", count);
 
 	VALIDATE_STATE(state);
 
@@ -1978,7 +1978,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 	unsigned int copy_count;
 	int lret; /* for lock_set_fmt */
 
-	pr_debug("trident: trident_write called, count = %d\n", count);
+	pr_debug("trident: trident_write called, count = %zd\n", count);
 
 	VALIDATE_STATE(state);
 
