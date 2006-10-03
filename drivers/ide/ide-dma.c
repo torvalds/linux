@@ -799,8 +799,6 @@ static int ide_release_iomio_dma(ide_hwif_t *hwif)
 	release_region(hwif->dma_base, 8);
 	if (hwif->extra_ports)
 		release_region(hwif->extra_base, hwif->extra_ports);
-	if (hwif->dma_base2)
-		release_region(hwif->dma_base, 8);
 	return 1;
 }
 
@@ -872,19 +870,9 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base, unsigned int port
 	}
 
 	if(hwif->mate)
-		hwif->dma_master = (hwif->channel) ? hwif->mate->dma_base : base;
+		hwif->dma_master = (hwif->channel) ? hwif->mate->dma_base:base;
 	else
 		hwif->dma_master = base;
-	if (hwif->dma_base2) {
-		if (!request_region(hwif->dma_base2, ports, hwif->name))
-		{
-			printk(" -- Error, secondary ports in use.\n");
-			release_region(base, ports);
-			if (hwif->extra_ports)
-				release_region(hwif->extra_base, hwif->extra_ports);
-			return 1;
-		}
-	}
 	return 0;
 }
 

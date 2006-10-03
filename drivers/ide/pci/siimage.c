@@ -898,7 +898,6 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
        	base = (unsigned long) addr;
 
 	hwif->dma_base			= base + (ch ? 0x08 : 0x00);
-	hwif->dma_base2			= base + (ch ? 0x18 : 0x10);
 	hwif->mmio			= 2;
 }
 
