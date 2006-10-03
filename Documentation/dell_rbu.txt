@@ -4,7 +4,7 @@ for updating BIOS images on Dell servers and desktops.
 
 Scope:
 This document discusses the functionality of the rbu driver only.
-It does not cover the support needed from aplications to enable the BIOS to
+It does not cover the support needed from applications to enable the BIOS to
 update itself with the image downloaded in to the memory.
 
 Overview:

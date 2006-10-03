@@ -188,7 +188,7 @@ Bytes 0-512 ( 200 hex ) on s/390 & 0-512,4096-4544,4604-5119 currently on z/Arch
 are used by the processor itself for holding such information as exception indications & 
 entry points for exceptions.
 Bytes after 0xc00 hex are used by linux for per processor globals on s/390 & z/Architecture 
-( there is a gap on z/Architecure too currently between 0xc00 & 1000 which linux uses ).
+( there is a gap on z/Architecture too currently between 0xc00 & 1000 which linux uses ).
 The closest thing to this on traditional architectures is the interrupt
 vector table. This is a good thing & does simplify some of the kernel coding
 however it means that we now cannot catch stray NULL pointers in the
@@ -861,7 +861,7 @@ Linux source tree.
 6) rm /arch/s390/kernel/signal.o
 7) make /arch/s390/kernel/signal.o
 8) watch the gcc command line emitted
-9) type it in again or alernatively cut & paste it on the console adding the -g option.
+9) type it in again or alternatively cut & paste it on the console adding the -g option.
 10) objdump --source arch/s390/kernel/signal.o > signal.lst
 This will output the source & the assembly intermixed, as the snippet below shows
 This will unfortunately output addresses which aren't the same

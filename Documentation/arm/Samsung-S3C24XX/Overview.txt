@@ -80,7 +80,7 @@ Machines
 Adding New Machines
 -------------------
 
-  The archicture has been designed to support as many machines as can
+  The architecture has been designed to support as many machines as can
   be configured for it in one kernel build, and any future additions
   should keep this in mind before altering items outside of their own
   machine files.

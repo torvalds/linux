@@ -56,7 +56,7 @@ FEATURES
 
       ethtool -C eth0 rx-usecs 100
 
-  You may also provide a timer latency value while disabling adpative-rx:
+  You may also provide a timer latency value while disabling adaptive-rx:
 
       ethtool -C <interface> adaptive-rx off rx-usecs <microseconds>
 

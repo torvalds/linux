@@ -18,7 +18,7 @@ The EISA infrastructure is made up of three parts :
 
     - The bus code implements most of the generic code. It is shared
     among all the architectures that the EISA code runs on. It
-    implements bus probing (detecting EISA cards avaible on the bus),
+    implements bus probing (detecting EISA cards available on the bus),
     allocates I/O resources, allows fancy naming through sysfs, and
     offers interfaces for driver to register.
 

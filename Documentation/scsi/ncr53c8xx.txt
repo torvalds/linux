@@ -1151,7 +1151,7 @@ Driver files:
 
 New driver versions are made available separately in order to allow testing 
 changes and new features prior to including them into the linux kernel 
-distribution. The following URL provides informations on latest avalaible 
+distribution. The following URL provides information on latest available 
 patches: 
 
       ftp://ftp.tux.org/pub/people/gerard-roudier/README

@@ -708,7 +708,7 @@ The keyctl syscall functions are:
 
      If the specified key is 0, then any assumed authority will be divested.
 
-     The assumed authorititive key is inherited across fork and exec.
+     The assumed authoritative key is inherited across fork and exec.
 
 
 ===============

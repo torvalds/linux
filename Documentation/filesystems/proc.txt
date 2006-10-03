@@ -410,7 +410,7 @@ VmallocChunk:   111088 kB
               this memory, making it slower to access than lowmem.
     LowTotal:
      LowFree: Lowmem is memory which can be used for everything that
-              highmem can be used for, but it is also availble for the
+              highmem can be used for, but it is also available for the
               kernel's use for its own data structures.  Among many
               other things, it is where everything from the Slab is
               allocated.  Bad things happen when you're out of lowmem.

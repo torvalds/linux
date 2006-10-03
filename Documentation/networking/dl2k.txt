@@ -173,7 +173,7 @@ Installing the Driver
 
 Parameter Description
 =====================
-You can install this driver without any addtional parameter. However, if you
+You can install this driver without any additional parameter. However, if you
 are going to have extensive functions then it is necessary to set extra
 parameter. Below is a list of the command line parameters supported by the
 Linux device

@@ -27,7 +27,7 @@ Tekram DC390(T) adapter. This is where the name comes from: tm = Tekram
 scsi = SCSI driver, m = AMD (?) as opposed to w for the DC390W/U/F
 (NCR53c8X5, X=2/7) driver. Yes, there was also a driver for the latter,
 tmscsiw, which supported DC390W/U/F adapters. It's not maintained any more,
-as the ncr53c8xx is perfectly supporting these adpaters since some time.
+as the ncr53c8xx is perfectly supporting these adapters since some time.
 
 The driver first appeared in April 1996, exclusively supported the DC390 
 and has been enhanced since then in various steps. In May 1998 support for 

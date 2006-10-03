@@ -175,7 +175,7 @@ All md devices contain:
      raid levels that involve striping (1,4,5,6,10). The address space
      of the array is conceptually divided into chunks and consecutive
      chunks are striped onto neighbouring devices.
-     The size should be atleast PAGE_SIZE (4k) and should be a power
+     The size should be at least PAGE_SIZE (4k) and should be a power
      of 2.  This can only be set while assembling an array
 
   component_size

@@ -355,9 +355,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	clock=		[BUGS=IA-32, HW] gettimeofday clocksource override.
 			[Deprecated]
-			Forces specified clocksource (if avaliable) to be used
+			Forces specified clocksource (if available) to be used
 			when calculating gettimeofday(). If specified
-			clocksource is not avalible, it defaults to PIT.
+			clocksource is not available, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
 	disable_8254_timer

@@ -10,7 +10,7 @@ provides a convenient connection point for a mouse and switch-type joysticks.
 The ikbd processor also maintains a time-of-day clock with one second
 resolution.
 The ikbd has been designed to be general enough that it can be used with a
-ariety of new computer products. Product variations in a number of
+variety of new computer products. Product variations in a number of
 keyswitches, mouse resolution, etc. can be accommodated.
 The ikbd communicates with the main processor over a high speed bi-directional
 serial interface. It can function in a variety of modes to facilitate

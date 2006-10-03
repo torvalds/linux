@@ -296,7 +296,7 @@ the following (from include/linux/if_packet.h):
    - struct tpacket_hdr
    - pad to TPACKET_ALIGNMENT=16
    - struct sockaddr_ll
-   - Gap, chosen so that packet data (Start+tp_net) alignes to 
+   - Gap, chosen so that packet data (Start+tp_net) aligns to 
      TPACKET_ALIGNMENT=16
    - Start+tp_mac: [ Optional MAC header ]
    - Start+tp_net: Packet data, aligned to TPACKET_ALIGNMENT=16.

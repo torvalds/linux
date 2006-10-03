@@ -348,7 +348,7 @@ The ccw_device_start() function returns :
           not online.
 
 When the I/O request completes, the CDS first level interrupt handler will
-accumalate the status in a struct irb and then call the device interrupt handler.
+accumulate the status in a struct irb and then call the device interrupt handler.
 The intparm field will contain the value the device driver has associated with a 
 particular I/O request. If a pending device status was recognized, 
 intparm will be set to 0 (zero). This may happen during I/O initiation or delayed

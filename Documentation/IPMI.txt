@@ -473,7 +473,7 @@ on the I2C bus to fail. The SMBus driver writes a "Get Device ID" IPMI
 message as a block write to the I2C bus and waits for a response.
 This action can be detrimental to some I2C devices. It is highly recommended
 that the known I2c address be given to the SMBus driver in the smb_addr
-parameter. The default adrress range will not be used when a smb_addr
+parameter. The default address range will not be used when a smb_addr
 parameter is provided.
 
 When compiled into the kernel, the addresses can be specified on the

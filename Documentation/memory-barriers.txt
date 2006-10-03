@@ -1915,7 +1915,7 @@ Whilst most CPUs do imply a data dependency barrier on the read when a memory
 access depends on a read, not all do, so it may not be relied on.
 
 Other CPUs may also have split caches, but must coordinate between the various
-cachelets for normal memory accesss.  The semantics of the Alpha removes the
+cachelets for normal memory accesses.  The semantics of the Alpha removes the
 need for coordination in absence of memory barriers.
 
 

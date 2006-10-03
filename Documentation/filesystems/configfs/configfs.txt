@@ -406,7 +406,7 @@ that condition is met.
 
 Far better would be an explicit action notifying the subsystem that the
 config_item is ready to go.  More importantly, an explicit action allows
-the subsystem to provide feedback as to whether the attibutes are
+the subsystem to provide feedback as to whether the attributes are
 initialized in a way that makes sense.  configfs provides this as
 committable items.
 
