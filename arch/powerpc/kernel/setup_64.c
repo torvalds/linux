@@ -391,18 +391,14 @@ void __init setup_system(void)
 	find_legacy_serial_ports();
 
 	/*
-	 * Initialize xmon
-	 */
-#ifdef CONFIG_XMON_DEFAULT
-	xmon_init(1);
-#endif
-	/*
 	 * Register early console
 	 */
 	register_early_udbg_console();
 
-	if (do_early_xmon)
-		debugger(NULL);
+	/*
+	 * Initialize xmon
+	 */
+	xmon_setup();
 
 	check_smt_enabled();
 	smp_setup_cpu_maps();

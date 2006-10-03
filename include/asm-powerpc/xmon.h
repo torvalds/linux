@@ -12,7 +12,11 @@
 
 #ifdef __KERNEL__
 
-extern void xmon_init(int);
+#ifdef CONFIG_XMON
+extern void xmon_setup(void);
+#else
+static inline void xmon_setup(void) { };
+#endif
 
 #endif /* __KERNEL __ */
 #endif /* __ASM_POWERPC_XMON_H */

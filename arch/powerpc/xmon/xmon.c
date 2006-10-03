@@ -2,6 +2,8 @@
  * Routines providing a simple monitor for use on the PowerMac.
  *
  * Copyright (C) 1996-2005 Paul Mackerras.
+ * Copyright (C) 2001 PPC64 Team, IBM Corp
+ * Copyrignt (C) 2006 Michael Ellerman, IBM Corp
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -2597,3 +2599,34 @@ static int __init setup_xmon_sysrq(void)
 }
 __initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
+
+int __initdata xmon_early, xmon_off;
+
+static int __init early_parse_xmon(char *p)
+{
+	if (!p || strncmp(p, "early", 5) == 0) {
+		/* just "xmon" is equivalent to "xmon=early" */
+		xmon_init(1);
+		xmon_early = 1;
+	} else if (strncmp(p, "on", 2) == 0)
+		xmon_init(1);
+	else if (strncmp(p, "off", 3) == 0)
+		xmon_off = 1;
+	else if (strncmp(p, "nobt", 4) == 0)
+		xmon_no_auto_backtrace = 1;
+	else
+		return 1;
+
+	return 0;
+}
+early_param("xmon", early_parse_xmon);
+
+void __init xmon_setup(void)
+{
+#ifdef CONFIG_XMON_DEFAULT
+	if (!xmon_off)
+		xmon_init(1);
+#endif
+	if (xmon_early)
+		debugger(NULL);
+}
