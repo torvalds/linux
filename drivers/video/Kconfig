@@ -53,6 +53,11 @@ config FB
 	  (e.g. an accelerated X server) and that are not frame buffer
 	  device-aware may cause unexpected results. If unsure, say N.
 
+config FB_DDC
+       tristate
+       depends on FB && I2C && I2C_ALGOBIT
+       default n
+
 config FB_CFB_FILLRECT
 	tristate
 	depends on FB
