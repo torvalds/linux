@@ -114,12 +114,10 @@ static void trigger_event(void *data);
 
 static struct pgpath *alloc_pgpath(void)
 {
-	struct pgpath *pgpath = kmalloc(sizeof(*pgpath), GFP_KERNEL);
+	struct pgpath *pgpath = kzalloc(sizeof(*pgpath), GFP_KERNEL);
 
-	if (pgpath) {
-		memset(pgpath, 0, sizeof(*pgpath));
+	if (pgpath)
 		pgpath->path.is_active = 1;
-	}
 
 	return pgpath;
 }
@@ -133,12 +131,10 @@ static struct priority_group *alloc_priority_group(void)
 {
 	struct priority_group *pg;
 
-	pg = kmalloc(sizeof(*pg), GFP_KERNEL);
-	if (!pg)
-		return NULL;
+	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 
-	memset(pg, 0, sizeof(*pg));
-	INIT_LIST_HEAD(&pg->pgpaths);
+	if (pg)
+		INIT_LIST_HEAD(&pg->pgpaths);
 
 	return pg;
 }
@@ -172,9 +168,8 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 {
 	struct multipath *m;
 
-	m = kmalloc(sizeof(*m), GFP_KERNEL);
+	m = kzalloc(sizeof(*m), GFP_KERNEL);
 	if (m) {
-		memset(m, 0, sizeof(*m));
 		INIT_LIST_HEAD(&m->priority_groups);
 		spin_lock_init(&m->lock);
 		m->queue_io = 1;
