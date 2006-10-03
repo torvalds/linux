@@ -17,7 +17,7 @@ module_param_named(debug,dvb_usb_gl861_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
 static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
-					u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
+			 u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	u16 index;
 	u16 value = addr << 8;
@@ -33,25 +33,25 @@ static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 	}
 
 	switch (wlen) {
-		case 1:
-			index = wbuf[0];
-			break;
-		case 2:
-			index = wbuf[0];
-			value = value + wbuf[1];
-			break;
-		default:
-			warn("wlen = %x, aborting.", wlen);
-			return -EINVAL;
+	case 1:
+		index = wbuf[0];
+		break;
+	case 2:
+		index = wbuf[0];
+		value = value + wbuf[1];
+		break;
+	default:
+		warn("wlen = %x, aborting.", wlen);
+		return -EINVAL;
 	}
 
 	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), req, type,
-					value, index, rbuf, rlen, 2000);
+			       value, index, rbuf, rlen, 2000);
 }
 
 /* I2C */
 static int gl861_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
-								int num)
+			  int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
@@ -66,12 +66,12 @@ static int gl861_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		/* write/read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
 			if (gl861_i2c_msg(d, msg[i].addr, msg[i].buf,
-				msg[i].len, msg[i+1].buf, msg[i+1].len) < 0)
+					  msg[i].len, msg[i+1].buf, msg[i+1].len) < 0)
 				break;
 			i++;
 		} else
 			if (gl861_i2c_msg(d, msg[i].addr, msg[i].buf,
-						msg[i].len, NULL, 0) < 0)
+					  msg[i].len, NULL, 0) < 0)
 				break;
 	}
 
@@ -108,7 +108,7 @@ static struct zl10353_config gl861_zl10353_config = {
 static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	if ((adap->fe = dvb_attach(zl10353_attach, &gl861_zl10353_config,
-					&adap->dev->i2c_adap)) != NULL) {
+				   &adap->dev->i2c_adap)) != NULL) {
 		return 0;
 	}
 
@@ -119,7 +119,7 @@ static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
 static struct dvb_usb_device_properties gl861_properties;
 
 static int gl861_probe(struct usb_interface *intf,
-						const struct usb_device_id *id)
+		       const struct usb_device_id *id)
 {
 	struct dvb_usb_device *d;
 	struct usb_host_interface *alt;
@@ -128,8 +128,7 @@ static int gl861_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < 2)
 		return -ENODEV;
 
-	if ((ret = dvb_usb_device_init(intf, &gl861_properties, THIS_MODULE,
-								&d)) == 0) {
+	if ((ret = dvb_usb_device_init(intf, &gl861_properties, THIS_MODULE, &d)) == 0) {
 		alt = usb_altnum_to_altsetting(intf, 0);
 
 		if (alt == NULL) {
@@ -138,7 +137,7 @@ static int gl861_probe(struct usb_interface *intf,
 		}
 
 		ret = usb_set_interface(d->udev, alt->desc.bInterfaceNumber,
-						alt->desc.bAlternateSetting);
+					alt->desc.bAlternateSetting);
 	}
 
 	return ret;
@@ -146,7 +145,7 @@ static int gl861_probe(struct usb_interface *intf,
 
 static struct usb_device_id gl861_table [] = {
 		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580_55801) },
-		{}		/* Terminating entry */
+		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, gl861_table);
 
