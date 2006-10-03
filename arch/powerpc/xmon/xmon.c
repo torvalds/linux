@@ -505,7 +505,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
 	mtmsr(msr);		/* restore interrupt enable */
 
-	return cmd != 'X';
+	return cmd != 'X' && cmd != EOF;
 }
 
 int xmon(struct pt_regs *excp)
