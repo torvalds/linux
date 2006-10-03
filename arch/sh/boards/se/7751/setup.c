@@ -8,12 +8,10 @@
  * Modified for 7751 Solution Engine by
  * Ian da Silva and Jeremy Siegel, 2001.
  */
-
 #include <linux/init.h>
-#include <linux/irq.h>
-#include <linux/ide.h>
-#include <asm/io.h>
+#include <asm/machvec.h>
 #include <asm/se7751.h>
+#include <asm/io.h>
 
 void heartbeat_7751se(void);
 void init_7751se_IRQ(void);

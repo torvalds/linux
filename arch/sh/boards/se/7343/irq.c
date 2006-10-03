@@ -73,7 +73,7 @@ static void
 make_intreq_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &intreq_irq_type;
+	irq_desc[irq].chip = &intreq_irq_type;
 	disable_intreq_irq(irq);
 }
 

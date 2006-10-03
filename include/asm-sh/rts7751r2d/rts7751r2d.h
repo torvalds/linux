@@ -68,4 +68,7 @@
 #define IRQ_PCISLOT2	10		/* PCI Slot #2 IRQ */
 #define	IRQ_EXTENTION	11		/* EXTn IRQ */
 
+#define __IO_PREFIX rts7751r2d
+#include <asm/io_generic.h>
+
 #endif  /* __ASM_SH_RENESAS_RTS7751R2D */

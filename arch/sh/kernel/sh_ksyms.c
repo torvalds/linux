@@ -72,6 +72,7 @@ DECLARE_EXPORT(__ashrdi3);
 DECLARE_EXPORT(__ashldi3);
 DECLARE_EXPORT(__lshrdi3);
 DECLARE_EXPORT(__movstr);
+DECLARE_EXPORT(__movstrSI16);
 
 EXPORT_SYMBOL(strcpy);
 

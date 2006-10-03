@@ -48,12 +48,11 @@ static int __init dma_sysclass_init(void)
 	int ret;
 
 	ret = sysdev_class_register(&dma_sysclass);
-	if (ret == 0)
-		sysfs_create_file(&dma_sysclass.kset.kobj, &attr_devices.attr);
+	if (unlikely(ret))
+		return ret;
 
-	return ret;
+	return sysfs_create_file(&dma_sysclass.kset.kobj, &attr_devices.attr);
 }
-
 postcore_initcall(dma_sysclass_init);
 
 static ssize_t dma_show_dev_id(struct sys_device *dev, char *buf)
@@ -152,4 +151,3 @@ void dma_remove_sysfs_files(struct dma_channel *chan, struct dma_info *info)
 
 	sysdev_unregister(dev);
 }
-

@@ -111,7 +111,7 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 
 static int cache_debugfs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, cache_seq_show, inode->u.generic_ip);
+	return single_open(file, cache_seq_show, inode->i_private);
 }
 
 static struct file_operations cache_debugfs_fops = {

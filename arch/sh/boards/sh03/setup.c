@@ -7,6 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
 #include <asm/sh03/io.h>

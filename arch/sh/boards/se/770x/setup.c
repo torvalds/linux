@@ -8,13 +8,10 @@
  *
  */
 #include <linux/init.h>
-#include <linux/irq.h>
-#include <linux/hdreg.h>
-#include <linux/ide.h>
-#include <asm/io.h>
-#include <asm/se.h>
-#include <asm/smc37c93x.h>
 #include <asm/machvec.h>
+#include <asm/se.h>
+#include <asm/io.h>
+#include <asm/smc37c93x.h>
 
 void heartbeat_se(void);
 void init_se_IRQ(void);

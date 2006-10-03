@@ -1,5 +1,4 @@
-/* $Id: setup.c,v 1.30 2003/10/13 07:21:19 lethal Exp $
- *
+/*
  *  linux/arch/sh/kernel/setup.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
@@ -21,6 +20,7 @@
 #include <linux/utsname.h>
 #include <linux/cpu.h>
 #include <linux/pfn.h>
+#include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
