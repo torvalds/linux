@@ -531,6 +531,9 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
+	printk("speedstep-centrino with X86_SPEEDSTEP_CENTRINO_ACPI"
+			"config is deprecated.\n "
+			"Use X86_ACPI_CPUFREQ (acpi-cpufreq instead.\n" );
 
 	return 0;
 

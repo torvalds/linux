@@ -27,10 +27,13 @@ config X86_POWERNOW_K8_ACPI
 	default y
 
 config X86_SPEEDSTEP_CENTRINO
-	tristate "Intel Enhanced SpeedStep"
+	tristate "Intel Enhanced SpeedStep (deprecated)"
 	select CPU_FREQ_TABLE
 	depends on ACPI_PROCESSOR
 	help
+	  This is deprecated and this functionality is now merged into
+	  acpi_cpufreq (X86_ACPI_CPUFREQ). Use that driver instead of
+	  speedstep_centrino.
 	  This adds the CPUFreq driver for Enhanced SpeedStep enabled
 	  mobile CPUs.  This means Intel Pentium M (Centrino) CPUs
 	  or 64bit enabled Intel Xeons.
@@ -50,6 +53,7 @@ config X86_ACPI_CPUFREQ
 	help
 	  This driver adds a CPUFreq driver which utilizes the ACPI
 	  Processor Performance States.
+	  This driver also supports Intel Enhanced Speedstep.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
