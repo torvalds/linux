@@ -625,9 +625,17 @@ enum idle_type
 #define SD_WAKE_BALANCE		64	/* Perform balancing at task wakeup */
 #define SD_SHARE_CPUPOWER	128	/* Domain members share cpu power */
 #define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
+#define SD_SHARE_PKG_RESOURCES	512	/* Domain members share cpu pkg resources */
 
-#define BALANCE_FOR_POWER	((sched_mc_power_savings || sched_smt_power_savings) \
-				 ? SD_POWERSAVINGS_BALANCE : 0)
+#define BALANCE_FOR_MC_POWER	\
+	(sched_smt_power_savings ? SD_POWERSAVINGS_BALANCE : 0)
+
+#define BALANCE_FOR_PKG_POWER	\
+	((sched_mc_power_savings || sched_smt_power_savings) ?	\
+	 SD_POWERSAVINGS_BALANCE : 0)
+
+#define test_sd_parent(sd, flag)	((sd->parent &&		\
+					 (sd->parent->flags & flag)) ? 1 : 0)
 
 
 struct sched_group {

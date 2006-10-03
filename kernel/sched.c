@@ -2541,8 +2541,14 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	struct rq *busiest;
 	cpumask_t cpus = CPU_MASK_ALL;
 
+	/*
+	 * When power savings policy is enabled for the parent domain, idle
+	 * sibling can pick up load irrespective of busy siblings. In this case,
+	 * let the state of idle sibling percolate up as IDLE, instead of
+	 * portraying it as NOT_IDLE.
+	 */
 	if (idle != NOT_IDLE && sd->flags & SD_SHARE_CPUPOWER &&
-	    !sched_smt_power_savings)
+	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[idle]);
@@ -2638,7 +2644,7 @@ redo:
 	}
 
 	if (!nr_moved && !sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
-	    !sched_smt_power_savings)
+	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		return -1;
 	return nr_moved;
 
@@ -2654,7 +2660,7 @@ out_one_pinned:
 		sd->balance_interval *= 2;
 
 	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
-			!sched_smt_power_savings)
+	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		return -1;
 	return 0;
 }
@@ -2676,7 +2682,14 @@ load_balance_newidle(int this_cpu, struct rq *this_rq, struct sched_domain *sd)
 	int sd_idle = 0;
 	cpumask_t cpus = CPU_MASK_ALL;
 
-	if (sd->flags & SD_SHARE_CPUPOWER && !sched_smt_power_savings)
+	/*
+	 * When power savings policy is enabled for the parent domain, idle
+	 * sibling can pick up load irrespective of busy siblings. In this case,
+	 * let the state of idle sibling percolate up as IDLE, instead of
+	 * portraying it as NOT_IDLE.
+	 */
+	if (sd->flags & SD_SHARE_CPUPOWER &&
+	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		sd_idle = 1;
 
 	schedstat_inc(sd, lb_cnt[NEWLY_IDLE]);
@@ -2717,7 +2730,8 @@ redo:
 
 	if (!nr_moved) {
 		schedstat_inc(sd, lb_failed[NEWLY_IDLE]);
-		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER)
+		if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
+		    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 			return -1;
 	} else
 		sd->nr_balance_failed = 0;
@@ -2727,7 +2741,7 @@ redo:
 out_balanced:
 	schedstat_inc(sd, lb_balanced[NEWLY_IDLE]);
 	if (!sd_idle && sd->flags & SD_SHARE_CPUPOWER &&
-					!sched_smt_power_savings)
+	    !test_sd_parent(sd, SD_POWERSAVINGS_BALANCE))
 		return -1;
 	sd->nr_balance_failed = 0;
 
@@ -5400,7 +5414,9 @@ static int sd_degenerate(struct sched_domain *sd)
 	if (sd->flags & (SD_LOAD_BALANCE |
 			 SD_BALANCE_NEWIDLE |
 			 SD_BALANCE_FORK |
-			 SD_BALANCE_EXEC)) {
+			 SD_BALANCE_EXEC |
+			 SD_SHARE_CPUPOWER |
+			 SD_SHARE_PKG_RESOURCES)) {
 		if (sd->groups != sd->groups->next)
 			return 0;
 	}
@@ -5434,7 +5450,9 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 		pflags &= ~(SD_LOAD_BALANCE |
 				SD_BALANCE_NEWIDLE |
 				SD_BALANCE_FORK |
-				SD_BALANCE_EXEC);
+				SD_BALANCE_EXEC |
+				SD_SHARE_CPUPOWER |
+				SD_SHARE_PKG_RESOURCES);
 	}
 	if (~cflags & pflags)
 		return 0;
@@ -6241,12 +6259,65 @@ static void free_sched_groups(const cpumask_t *cpu_map)
 #endif
 
 /*
+ * Initialize sched groups cpu_power.
+ *
+ * cpu_power indicates the capacity of sched group, which is used while
+ * distributing the load between different sched groups in a sched domain.
+ * Typically cpu_power for all the groups in a sched domain will be same unless
+ * there are asymmetries in the topology. If there are asymmetries, group
+ * having more cpu_power will pickup more load compared to the group having
+ * less cpu_power.
+ *
+ * cpu_power will be a multiple of SCHED_LOAD_SCALE. This multiple represents
+ * the maximum number of tasks a group can handle in the presence of other idle
+ * or lightly loaded groups in the same sched domain.
+ */
+static void init_sched_groups_power(int cpu, struct sched_domain *sd)
+{
+	struct sched_domain *child;
+	struct sched_group *group;
+
+	WARN_ON(!sd || !sd->groups);
+
+	if (cpu != first_cpu(sd->groups->cpumask))
+		return;
+
+	child = sd->child;
+
+	/*
+	 * For perf policy, if the groups in child domain share resources
+	 * (for example cores sharing some portions of the cache hierarchy
+	 * or SMT), then set this domain groups cpu_power such that each group
+	 * can handle only one task, when there are other idle groups in the
+	 * same sched domain.
+	 */
+	if (!child || (!(sd->flags & SD_POWERSAVINGS_BALANCE) &&
+		       (child->flags &
+			(SD_SHARE_CPUPOWER | SD_SHARE_PKG_RESOURCES)))) {
+		sd->groups->cpu_power = SCHED_LOAD_SCALE;
+		return;
+	}
+
+	sd->groups->cpu_power = 0;
+
+	/*
+	 * add cpu_power of each child group to this groups cpu_power
+	 */
+	group = child->groups;
+	do {
+		sd->groups->cpu_power += group->cpu_power;
+		group = group->next;
+	} while (group != child->groups);
+}
+
+/*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
  */
 static int build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
+	struct sched_domain *sd;
 #ifdef CONFIG_NUMA
 	struct sched_group **sched_group_nodes = NULL;
 	struct sched_group *sched_group_allnodes = NULL;
@@ -6456,72 +6527,20 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	/* Calculate CPU power for physical packages and nodes */
 #ifdef CONFIG_SCHED_SMT
 	for_each_cpu_mask(i, *cpu_map) {
-		struct sched_domain *sd;
 		sd = &per_cpu(cpu_domains, i);
-		sd->groups->cpu_power = SCHED_LOAD_SCALE;
+		init_sched_groups_power(i, sd);
 	}
 #endif
 #ifdef CONFIG_SCHED_MC
 	for_each_cpu_mask(i, *cpu_map) {
-		int power;
-		struct sched_domain *sd;
 		sd = &per_cpu(core_domains, i);
-		if (sched_smt_power_savings)
-			power = SCHED_LOAD_SCALE * cpus_weight(sd->groups->cpumask);
-		else
-			power = SCHED_LOAD_SCALE + (cpus_weight(sd->groups->cpumask)-1)
-					    * SCHED_LOAD_SCALE / 10;
-		sd->groups->cpu_power = power;
+		init_sched_groups_power(i, sd);
 	}
 #endif
 
 	for_each_cpu_mask(i, *cpu_map) {
-		struct sched_domain *sd;
-#ifdef CONFIG_SCHED_MC
 		sd = &per_cpu(phys_domains, i);
-		if (i != first_cpu(sd->groups->cpumask))
-			continue;
-
-		sd->groups->cpu_power = 0;
-		if (sched_mc_power_savings || sched_smt_power_savings) {
-			int j;
-
- 			for_each_cpu_mask(j, sd->groups->cpumask) {
-				struct sched_domain *sd1;
- 				sd1 = &per_cpu(core_domains, j);
- 				/*
- 			 	 * for each core we will add once
- 				 * to the group in physical domain
- 			 	 */
-  	 			if (j != first_cpu(sd1->groups->cpumask))
- 					continue;
-
- 				if (sched_smt_power_savings)
-   					sd->groups->cpu_power += sd1->groups->cpu_power;
- 				else
-   					sd->groups->cpu_power += SCHED_LOAD_SCALE;
-   			}
- 		} else
- 			/*
- 			 * This has to be < 2 * SCHED_LOAD_SCALE
- 			 * Lets keep it SCHED_LOAD_SCALE, so that
- 			 * while calculating NUMA group's cpu_power
- 			 * we can simply do
- 			 *  numa_group->cpu_power += phys_group->cpu_power;
- 			 *
- 			 * See "only add power once for each physical pkg"
- 			 * comment below
- 			 */
- 			sd->groups->cpu_power = SCHED_LOAD_SCALE;
-#else
-		int power;
-		sd = &per_cpu(phys_domains, i);
-		if (sched_smt_power_savings)
-			power = SCHED_LOAD_SCALE * cpus_weight(sd->groups->cpumask);
-		else
-			power = SCHED_LOAD_SCALE;
-		sd->groups->cpu_power = power;
-#endif
+		init_sched_groups_power(i, sd);
 	}
 
 #ifdef CONFIG_NUMA

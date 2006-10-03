@@ -115,6 +115,38 @@
 #endif
 #endif /* CONFIG_SCHED_SMT */
 
+#ifdef CONFIG_SCHED_MC
+/* Common values for MC siblings. for now mostly derived from SD_CPU_INIT */
+#ifndef SD_MC_INIT
+#define SD_MC_INIT (struct sched_domain) {		\
+	.span			= CPU_MASK_NONE,	\
+	.parent			= NULL,			\
+	.child			= NULL,			\
+	.groups			= NULL,			\
+	.min_interval		= 1,			\
+	.max_interval		= 4,			\
+	.busy_factor		= 64,			\
+	.imbalance_pct		= 125,			\
+	.cache_nice_tries	= 1,			\
+	.per_cpu_gain		= 100,			\
+	.busy_idx		= 2,			\
+	.idle_idx		= 1,			\
+	.newidle_idx		= 2,			\
+	.wake_idx		= 1,			\
+	.forkexec_idx		= 1,			\
+	.flags			= SD_LOAD_BALANCE	\
+				| SD_BALANCE_NEWIDLE	\
+				| SD_BALANCE_EXEC	\
+				| SD_WAKE_AFFINE	\
+				| SD_SHARE_PKG_RESOURCES\
+				| BALANCE_FOR_MC_POWER,	\
+	.last_balance		= jiffies,		\
+	.balance_interval	= 1,			\
+	.nr_balance_failed	= 0,			\
+}
+#endif
+#endif /* CONFIG_SCHED_MC */
+
 /* Common values for CPUs */
 #ifndef SD_CPU_INIT
 #define SD_CPU_INIT (struct sched_domain) {		\
@@ -137,7 +169,7 @@
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_EXEC	\
 				| SD_WAKE_AFFINE	\
-				| BALANCE_FOR_POWER,	\
+				| BALANCE_FOR_PKG_POWER,\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 	.nr_balance_failed	= 0,			\
@@ -167,15 +199,6 @@
 	.balance_interval	= 64,			\
 	.nr_balance_failed	= 0,			\
 }
-
-#ifdef CONFIG_SCHED_MC
-#ifndef SD_MC_INIT
-/* for now its same as SD_CPU_INIT.
- * TBD: Tune Domain parameters!
- */
-#define SD_MC_INIT   SD_CPU_INIT
-#endif
-#endif
 
 #ifdef CONFIG_NUMA
 #ifndef SD_NODE_INIT
