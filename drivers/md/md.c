@@ -389,8 +389,12 @@ static int super_written(struct bio *bio, unsigned int bytes_done, int error)
 	if (bio->bi_size)
 		return 1;
 
-	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags))
+	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+		printk("md: super_written gets error=%d, uptodate=%d\n",
+		       error, test_bit(BIO_UPTODATE, &bio->bi_flags));
+		WARN_ON(test_bit(BIO_UPTODATE, &bio->bi_flags));
 		md_error(mddev, rdev);
+	}
 
 	if (atomic_dec_and_test(&mddev->pending_writes))
 		wake_up(&mddev->sb_wait);
