@@ -48,11 +48,6 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsnames")
 
-/* Local prototypes */
-static void
-acpi_ns_build_external_path(struct acpi_namespace_node *node,
-			    acpi_size size, char *name_buffer);
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_build_external_path
@@ -67,8 +62,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
  * DESCRIPTION: Generate a full pathaname
  *
  ******************************************************************************/
-
-static void
+void
 acpi_ns_build_external_path(struct acpi_namespace_node *node,
 			    acpi_size size, char *name_buffer)
 {
@@ -146,7 +140,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	/* Allocate a buffer to be returned to caller */
 
-	name_buffer = ACPI_MEM_CALLOCATE(size);
+	name_buffer = ACPI_ALLOCATE_ZEROED(size);
 	if (!name_buffer) {
 		ACPI_ERROR((AE_INFO, "Allocation failure"));
 		return_PTR(NULL);

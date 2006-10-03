@@ -577,7 +577,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		/* Free the namestring created above */
 
-		ACPI_MEM_FREE(name_string);
+		ACPI_FREE(name_string);
 
 		/* Check status from the lookup */
 

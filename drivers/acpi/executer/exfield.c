@@ -333,7 +333,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 		/* We need to create a new buffer */
 
-		new_buffer = ACPI_MEM_CALLOCATE(required_length);
+		new_buffer = ACPI_ALLOCATE_ZEROED(required_length);
 		if (!new_buffer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -377,7 +377,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	/* Free temporary buffer if we used one */
 
 	if (new_buffer) {
-		ACPI_MEM_FREE(new_buffer);
+		ACPI_FREE(new_buffer);
 	}
 
 	return_ACPI_STATUS(status);

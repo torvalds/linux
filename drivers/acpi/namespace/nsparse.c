@@ -62,7 +62,7 @@ ACPI_MODULE_NAME("nsparse")
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc * table_desc)
+acpi_ns_one_complete_parse(u8 pass_number, struct acpi_table_desc *table_desc)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;

@@ -43,8 +43,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
@@ -220,7 +218,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_sleep_type_data);
+ACPI_EXPORT_SYMBOL(acpi_get_sleep_type_data)
 
 /*******************************************************************************
  *
@@ -233,7 +231,6 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
  * DESCRIPTION: Map register_id into a register bitmask.
  *
  ******************************************************************************/
-
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 {
 	ACPI_FUNCTION_ENTRY();
@@ -312,7 +309,7 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_register);
+ACPI_EXPORT_SYMBOL(acpi_get_register)
 
 /*******************************************************************************
  *
@@ -328,7 +325,6 @@ EXPORT_SYMBOL(acpi_get_register);
  * DESCRIPTION: ACPI Bit Register write function.
  *
  ******************************************************************************/
-
 acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 {
 	u32 register_value = 0;
@@ -475,7 +471,7 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_register);
+ACPI_EXPORT_SYMBOL(acpi_set_register)
 
 /******************************************************************************
  *
@@ -491,7 +487,6 @@ EXPORT_SYMBOL(acpi_set_register);
  *              given offset.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 {

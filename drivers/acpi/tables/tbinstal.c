@@ -248,7 +248,7 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 
 	/* Allocate a descriptor for this table */
 
-	table_desc = ACPI_MEM_CALLOCATE(sizeof(struct acpi_table_desc));
+	table_desc = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_table_desc));
 	if (!table_desc) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -275,7 +275,7 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 		 * at this location, so return an error.
 		 */
 		if (list_head->next) {
-			ACPI_MEM_FREE(table_desc);
+			ACPI_FREE(table_desc);
 			return_ACPI_STATUS(AE_ALREADY_EXISTS);
 		}
 
@@ -472,7 +472,7 @@ void acpi_tb_delete_single_table(struct acpi_table_desc *table_desc)
 
 	case ACPI_MEM_ALLOCATED:
 
-		ACPI_MEM_FREE(table_desc->pointer);
+		ACPI_FREE(table_desc->pointer);
 		break;
 
 	case ACPI_MEM_MAPPED:
@@ -531,7 +531,7 @@ struct acpi_table_desc *acpi_tb_uninstall_table(struct acpi_table_desc
 	/* Free the table descriptor */
 
 	next_desc = table_desc->next;
-	ACPI_MEM_FREE(table_desc);
+	ACPI_FREE(table_desc);
 
 	/* Return pointer to the next descriptor */
 

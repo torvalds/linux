@@ -98,7 +98,7 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 	 * Allocate a buffer for the name.
 	 * This buffer must be deleted by the caller!
 	 */
-	name_string = ACPI_MEM_ALLOCATE(size_needed);
+	name_string = ACPI_ALLOCATE(size_needed);
 	if (!name_string) {
 		ACPI_ERROR((AE_INFO,
 			    "Could not allocate size %d", size_needed));
@@ -424,7 +424,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 	if (ACPI_FAILURE(status)) {
 		if (name_string) {
-			ACPI_MEM_FREE(name_string);
+			ACPI_FREE(name_string);
 		}
 		return_ACPI_STATUS(status);
 	}

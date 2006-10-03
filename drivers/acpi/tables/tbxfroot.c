@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
@@ -263,7 +261,7 @@ acpi_get_firmware_table(acpi_string signature,
 
 	/* Get and validate the RSDT */
 
-	rsdt_info = ACPI_MEM_CALLOCATE(sizeof(struct acpi_table_desc));
+	rsdt_info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_table_desc));
 	if (!rsdt_info) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -280,13 +278,13 @@ acpi_get_firmware_table(acpi_string signature,
 
 	/* Allocate a scratch table header and table descriptor */
 
-	header = ACPI_MEM_ALLOCATE(sizeof(struct acpi_table_header));
+	header = ACPI_ALLOCATE(sizeof(struct acpi_table_header));
 	if (!header) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
 	}
 
-	table_info = ACPI_MEM_ALLOCATE(sizeof(struct acpi_table_desc));
+	table_info = ACPI_ALLOCATE(sizeof(struct acpi_table_desc));
 	if (!table_info) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -359,23 +357,21 @@ acpi_get_firmware_table(acpi_string signature,
 		acpi_os_unmap_memory(rsdt_info->pointer,
 				     (acpi_size) rsdt_info->pointer->length);
 	}
-	ACPI_MEM_FREE(rsdt_info);
+	ACPI_FREE(rsdt_info);
 
 	if (header) {
-		ACPI_MEM_FREE(header);
+		ACPI_FREE(header);
 	}
 	if (table_info) {
-		ACPI_MEM_FREE(table_info);
+		ACPI_FREE(table_info);
 	}
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_firmware_table);
+ACPI_EXPORT_SYMBOL(acpi_get_firmware_table)
 
 /* TBD: Move to a new file */
-
 #if ACPI_MACHINE_WIDTH != 16
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_find_root_pointer
@@ -388,7 +384,6 @@ EXPORT_SYMBOL(acpi_get_firmware_table);
  * DESCRIPTION: Find the RSDP
  *
  ******************************************************************************/
-
 acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 {
 	struct acpi_table_desc table_info;
@@ -411,6 +406,8 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_find_root_pointer)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_scan_memory_for_rsdp
@@ -423,7 +420,6 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
  * DESCRIPTION: Search a block of memory for the RSDP signature
  *
  ******************************************************************************/
-
 static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 {
 	acpi_status status;

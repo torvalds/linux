@@ -75,7 +75,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 
 	if (function == ACPI_REGION_DEACTIVATE) {
 		if (*region_context) {
-			ACPI_MEM_FREE(*region_context);
+			ACPI_FREE(*region_context);
 			*region_context = NULL;
 		}
 		return_ACPI_STATUS(AE_OK);
@@ -84,7 +84,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 	/* Create a new context */
 
 	local_region_context =
-	    ACPI_MEM_CALLOCATE(sizeof(struct acpi_mem_space_context));
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_mem_space_context));
 	if (!(local_region_context)) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -178,7 +178,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	*region_context = NULL;
 	if (function == ACPI_REGION_DEACTIVATE) {
 		if (pci_id) {
-			ACPI_MEM_FREE(pci_id);
+			ACPI_FREE(pci_id);
 		}
 		return_ACPI_STATUS(status);
 	}
@@ -264,7 +264,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 
 	/* Region is still not initialized. Create a new context */
 
-	pci_id = ACPI_MEM_CALLOCATE(sizeof(struct acpi_pci_id));
+	pci_id = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pci_id));
 	if (!pci_id) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

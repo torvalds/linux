@@ -306,5 +306,4 @@ union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 	return (child);
 }
 #endif
-
 #endif				/*  ACPI_FUTURE_USAGE  */

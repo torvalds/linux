@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
@@ -94,6 +92,8 @@ acpi_status acpi_enable(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_enable)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_disable
@@ -105,7 +105,6 @@ acpi_status acpi_enable(void)
  * DESCRIPTION: Transfers the system into LEGACY (non-ACPI) mode.
  *
  ******************************************************************************/
-
 acpi_status acpi_disable(void)
 {
 	acpi_status status = AE_OK;
@@ -137,6 +136,8 @@ acpi_status acpi_disable(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_disable)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enable_event
@@ -149,7 +150,6 @@ acpi_status acpi_disable(void)
  * DESCRIPTION: Enable an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_event(u32 event, u32 flags)
 {
 	acpi_status status = AE_OK;
@@ -193,7 +193,7 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_enable_event);
+ACPI_EXPORT_SYMBOL(acpi_enable_event)
 
 /*******************************************************************************
  *
@@ -208,7 +208,6 @@ EXPORT_SYMBOL(acpi_enable_event);
  * DESCRIPTION: Set the type of an individual GPE
  *
  ******************************************************************************/
-
 acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type)
 {
 	acpi_status status = AE_OK;
@@ -236,7 +235,7 @@ acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_gpe_type);
+ACPI_EXPORT_SYMBOL(acpi_set_gpe_type)
 
 /*******************************************************************************
  *
@@ -252,7 +251,6 @@ EXPORT_SYMBOL(acpi_set_gpe_type);
  * DESCRIPTION: Enable an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
@@ -288,7 +286,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_enable_gpe);
+ACPI_EXPORT_SYMBOL(acpi_enable_gpe)
 
 /*******************************************************************************
  *
@@ -304,7 +302,6 @@ EXPORT_SYMBOL(acpi_enable_gpe);
  * DESCRIPTION: Disable an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
@@ -338,6 +335,8 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_disable_event
@@ -350,7 +349,6 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
  * DESCRIPTION: Disable an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_disable_event(u32 event, u32 flags)
 {
 	acpi_status status = AE_OK;
@@ -392,7 +390,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_disable_event);
+ACPI_EXPORT_SYMBOL(acpi_disable_event)
 
 /*******************************************************************************
  *
@@ -405,7 +403,6 @@ EXPORT_SYMBOL(acpi_disable_event);
  * DESCRIPTION: Clear an ACPI event (fixed)
  *
  ******************************************************************************/
-
 acpi_status acpi_clear_event(u32 event)
 {
 	acpi_status status = AE_OK;
@@ -429,7 +426,7 @@ acpi_status acpi_clear_event(u32 event)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_clear_event);
+ACPI_EXPORT_SYMBOL(acpi_clear_event)
 
 /*******************************************************************************
  *
@@ -444,7 +441,6 @@ EXPORT_SYMBOL(acpi_clear_event);
  * DESCRIPTION: Clear an ACPI event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 {
 	acpi_status status = AE_OK;
@@ -478,6 +474,8 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
+
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -492,7 +490,6 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
  * DESCRIPTION: Obtains and returns the current status of the event
  *
  ******************************************************************************/
-
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 {
 	acpi_status status = AE_OK;
@@ -518,6 +515,8 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_event_status)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_gpe_status
@@ -533,7 +532,6 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
  * DESCRIPTION: Get status of an event (general purpose)
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number, u32 flags, acpi_event_status * event_status)
@@ -570,6 +568,8 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 	}
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -586,7 +586,6 @@ acpi_get_gpe_status(acpi_handle gpe_device,
  * DESCRIPTION: Create and Install a block of GPE registers
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_gpe_block(acpi_handle gpe_device,
 		       struct acpi_generic_address *gpe_block_address,
@@ -666,7 +665,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_gpe_block);
+ACPI_EXPORT_SYMBOL(acpi_install_gpe_block)
 
 /*******************************************************************************
  *
@@ -679,7 +678,6 @@ EXPORT_SYMBOL(acpi_install_gpe_block);
  * DESCRIPTION: Remove a previously installed block of GPE registers
  *
  ******************************************************************************/
-
 acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 {
 	union acpi_operand_object *obj_desc;
@@ -722,4 +720,4 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_gpe_block);
+ACPI_EXPORT_SYMBOL(acpi_remove_gpe_block)

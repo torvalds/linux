@@ -186,14 +186,14 @@ static void acpi_ut_terminate(void)
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
 			next_gpe_block = gpe_block->next;
-			ACPI_MEM_FREE(gpe_block->event_info);
-			ACPI_MEM_FREE(gpe_block->register_info);
-			ACPI_MEM_FREE(gpe_block);
+			ACPI_FREE(gpe_block->event_info);
+			ACPI_FREE(gpe_block->register_info);
+			ACPI_FREE(gpe_block);
 
 			gpe_block = next_gpe_block;
 		}
 		next_gpe_xrupt_info = gpe_xrupt_info->next;
-		ACPI_MEM_FREE(gpe_xrupt_info);
+		ACPI_FREE(gpe_xrupt_info);
 		gpe_xrupt_info = next_gpe_xrupt_info;
 	}
 

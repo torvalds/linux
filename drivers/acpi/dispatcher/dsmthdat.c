@@ -81,7 +81,7 @@ acpi_ds_method_data_get_type(u16 opcode,
  *              special data types.
  *
  * NOTES:       walk_state fields are initialized to zero by the
- *              ACPI_MEM_CALLOCATE().
+ *              ACPI_ALLOCATE_ZEROED().
  *
  *              A pseudo-Namespace Node is assigned to each argument and local
  *              so that ref_of() can return a pointer to the Node.

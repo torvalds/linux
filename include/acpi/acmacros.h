@@ -713,18 +713,18 @@
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            acpi_ut_allocate((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           acpi_ut_callocate((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_MEM_FREE(a)                acpi_os_free(a)
+#define ACPI_ALLOCATE(a)            acpi_ut_allocate((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_ALLOCATE_ZEROED(a)           acpi_ut_callocate((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_FREE(a)                acpi_os_free(a)
 #define ACPI_MEM_TRACKING(a)
 
 #else
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            acpi_ut_allocate_and_track((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           acpi_ut_callocate_and_track((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_MEM_FREE(a)                acpi_ut_free_and_track(a,_COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_ALLOCATE(a)            acpi_ut_allocate_and_track((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_ALLOCATE_ZEROED(a)           acpi_ut_callocate_and_track((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_FREE(a)                acpi_ut_free_and_track(a,_COMPONENT,_acpi_module_name,__LINE__)
 #define ACPI_MEM_TRACKING(a)            a
 
 #endif				/* ACPI_DBG_TRACK_ALLOCATIONS */

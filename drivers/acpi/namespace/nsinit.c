@@ -424,7 +424,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 		ACPI_WARNING((AE_INFO, "%s._INI failed: %s",
 			      scope_name, acpi_format_exception(status)));
 
-		ACPI_MEM_FREE(scope_name);
+		ACPI_FREE(scope_name);
 #endif
 	} else {
 		/* Delete any return object (especially if implicit_return is enabled) */

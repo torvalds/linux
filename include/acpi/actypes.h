@@ -288,6 +288,21 @@ typedef acpi_native_uint acpi_size;
 #define ACPI_UNUSED_VAR
 #endif
 
+/*
+ * All ACPICA functions that are available to the rest of the kernel are
+ * tagged with this macro which can be defined as appropriate for the host.
+ */
+#ifndef ACPI_EXPORT_SYMBOL
+#define ACPI_EXPORT_SYMBOL(symbol)
+#endif
+
+/*
+ * thread_id is returned by acpi_os_get_thread_id.
+ */
+#ifndef acpi_thread_id
+#define acpi_thread_id                          acpi_native_uint
+#endif
+
 /*******************************************************************************
  *
  * Independent types

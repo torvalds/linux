@@ -245,7 +245,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 				  "Buffer defined with zero length in AML, creating\n"));
 	} else {
 		obj_desc->buffer.pointer =
-		    ACPI_MEM_CALLOCATE(obj_desc->buffer.length);
+		    ACPI_ALLOCATE_ZEROED(obj_desc->buffer.length);
 		if (!obj_desc->buffer.pointer) {
 			acpi_ut_delete_object_desc(obj_desc);
 			return_ACPI_STATUS(AE_NO_MEMORY);
@@ -341,9 +341,10 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	 * individual objects). Add an extra pointer slot so
 	 * that the list is always null terminated.
 	 */
-	obj_desc->package.elements = ACPI_MEM_CALLOCATE(((acpi_size) obj_desc->
-							 package.count +
-							 1) * sizeof(void *));
+	obj_desc->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size)
+							   obj_desc->package.
+							   count +
+							   1) * sizeof(void *));
 
 	if (!obj_desc->package.elements) {
 		acpi_ut_delete_object_desc(obj_desc);

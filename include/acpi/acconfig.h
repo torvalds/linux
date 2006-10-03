@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20060217
+#define ACPI_CA_VERSION                 0x20060310
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -102,9 +102,9 @@
 
 #define ACPI_MAX_SEMAPHORE_COUNT        256
 
-/* Max reference count (for debug only) */
+/* Maximum object reference count (detects object deletion issues) */
 
-#define ACPI_MAX_REFERENCE_COUNT        0x400
+#define ACPI_MAX_REFERENCE_COUNT        0x800
 
 /* Size of cached memory mapping for system memory operation region */
 

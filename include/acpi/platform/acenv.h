@@ -59,6 +59,7 @@
 #define ACPI_APPLICATION
 #define ACPI_DISASSEMBLER
 #define ACPI_NO_METHOD_EXECUTION
+#define ACPI_LARGE_NAMESPACE_NODE
 #endif
 
 #ifdef ACPI_EXEC_APP
@@ -76,6 +77,7 @@
 #define ACPI_APPLICATION
 #define ACPI_DISASSEMBLER
 #define ACPI_CONSTANT_EVAL_ONLY
+#define ACPI_LARGE_NAMESPACE_NODE
 #endif
 
 #ifdef ACPI_APPLICATION
@@ -271,8 +273,8 @@ typedef char *va_list;
 /*
  * Storage alignment properties
  */
-#define  _AUPBND                (sizeof (acpi_native_uint) - 1)
-#define  _ADNBND                (sizeof (acpi_native_uint) - 1)
+#define  _AUPBND                (sizeof (acpi_native_int) - 1)
+#define  _ADNBND                (sizeof (acpi_native_int) - 1)
 
 /*
  * Variable argument list macro definitions

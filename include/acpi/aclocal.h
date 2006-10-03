@@ -129,7 +129,7 @@ typedef u8 acpi_owner_id;
 struct acpi_mutex_info {
 	acpi_mutex mutex;
 	u32 use_count;
-	u32 thread_id;
+	acpi_thread_id thread_id;
 };
 
 /* Lock flag parameter for various interfaces */
@@ -181,9 +181,9 @@ struct acpi_namespace_node {
 	u8 owner_id;		/* Who created this node */
 	u8 flags;
 
-	/* Fields used by the ASL compiler only */
+	/* Fields used by the ASL compiler and disassembler only */
 
-#ifdef ACPI_ASL_COMPILER
+#ifdef ACPI_LARGE_NAMESPACE_NODE
 	u32 value;
 	union acpi_parse_object *op;
 #endif
@@ -479,7 +479,7 @@ struct acpi_pscope_state {
 struct acpi_thread_state {
 	ACPI_STATE_COMMON struct acpi_walk_state *walk_state_list;	/* Head of list of walk_states for this thread */
 	union acpi_operand_object *acquired_mutex_list;	/* List of all currently acquired mutexes */
-	u32 thread_id;		/* Running thread ID */
+	acpi_thread_id thread_id;	/* Running thread ID */
 	u8 current_sync_level;	/* Mutex Sync (nested acquire) level */
 };
 

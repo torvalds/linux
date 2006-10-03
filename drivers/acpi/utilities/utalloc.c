@@ -252,7 +252,7 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 
 		/* Allocate a new buffer with local interface to allow tracking */
 
-		buffer->pointer = ACPI_MEM_CALLOCATE(required_length);
+		buffer->pointer = ACPI_ALLOCATE_ZEROED(required_length);
 		if (!buffer->pointer) {
 			return (AE_NO_MEMORY);
 		}

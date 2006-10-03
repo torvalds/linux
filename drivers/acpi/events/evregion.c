@@ -366,7 +366,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 				/* The handler for this region was already installed */
 
-				ACPI_MEM_FREE(region_context);
+				ACPI_FREE(region_context);
 			} else {
 				/*
 				 * Save the returned context for use in all accesses to

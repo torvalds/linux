@@ -161,7 +161,7 @@ acpi_os_remove_interrupt_handler(u32 gsi, acpi_osd_handler service_routine);
 /*
  * Threads and Scheduling
  */
-u32 acpi_os_get_thread_id(void);
+acpi_thread_id acpi_os_get_thread_id(void);
 
 acpi_status
 acpi_os_queue_for_execution(u32 priority,

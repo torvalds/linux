@@ -50,6 +50,7 @@
 #define BLOCK_PAREN             1
 #define BLOCK_BRACE             2
 #define BLOCK_COMMA_LIST        4
+#define ACPI_DEFAULT_RESNAME    *(u32 *) "__RD"
 
 struct acpi_external_list {
 	char *path;
@@ -78,12 +79,22 @@ typedef
 acpi_status(*asl_walk_callback) (union acpi_parse_object * op,
 				 u32 level, void *context);
 
+struct acpi_resource_tag {
+	u32 bit_index;
+	char *tag;
+};
+
 /*
  * dmwalk
  */
 void
 acpi_dm_disassemble(struct acpi_walk_state *walk_state,
 		    union acpi_parse_object *origin, u32 num_opcodes);
+
+void
+acpi_dm_walk_parse_tree(union acpi_parse_object *op,
+			asl_walk_callback descending_callback,
+			asl_walk_callback ascending_callback, void *context);
 
 /*
  * dmopcode
@@ -167,6 +178,7 @@ void acpi_dm_dump_integer64(u64 value, char *name);
 
 void
 acpi_dm_resource_template(struct acpi_op_walk_info *info,
+			  union acpi_parse_object *op,
 			  u8 * byte_data, u32 byte_count);
 
 u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
@@ -176,6 +188,8 @@ void acpi_dm_indent(u32 level);
 void acpi_dm_bit_list(u16 mask);
 
 void acpi_dm_decode_attribute(u8 attribute);
+
+void acpi_dm_descriptor_name(void);
 
 /*
  * dmresrcl
@@ -250,5 +264,14 @@ acpi_dm_vendor_small_descriptor(union aml_resource *resource,
  * dmutils
  */
 void acpi_dm_add_to_external_list(char *path);
+
+/*
+ * dmrestag
+ */
+void acpi_dm_find_resources(union acpi_parse_object *root);
+
+void
+acpi_dm_check_resource_reference(union acpi_parse_object *op,
+				 struct acpi_walk_state *walk_state);
 
 #endif				/* __ACDISASM_H__ */

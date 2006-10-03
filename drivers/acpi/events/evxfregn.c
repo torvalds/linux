@@ -42,8 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
@@ -114,7 +112,7 @@ acpi_install_address_space_handler(acpi_handle device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_address_space_handler);
+ACPI_EXPORT_SYMBOL(acpi_install_address_space_handler)
 
 /*******************************************************************************
  *
@@ -129,7 +127,6 @@ EXPORT_SYMBOL(acpi_install_address_space_handler);
  * DESCRIPTION: Remove a previously installed handler.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_remove_address_space_handler(acpi_handle device,
 				  acpi_adr_space_type space_id,
@@ -242,4 +239,4 @@ acpi_remove_address_space_handler(acpi_handle device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_address_space_handler);
+ACPI_EXPORT_SYMBOL(acpi_remove_address_space_handler)

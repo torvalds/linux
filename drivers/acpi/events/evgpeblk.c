@@ -207,7 +207,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
-				ACPI_MEM_FREE(gpe_event_info->dispatch.handler);
+				ACPI_FREE(gpe_event_info->dispatch.handler);
 				gpe_event_info->dispatch.handler = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;
@@ -504,7 +504,7 @@ static struct acpi_gpe_xrupt_info *acpi_ev_get_gpe_xrupt_block(u32
 
 	/* Not found, must allocate a new xrupt descriptor */
 
-	gpe_xrupt = ACPI_MEM_CALLOCATE(sizeof(struct acpi_gpe_xrupt_info));
+	gpe_xrupt = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_xrupt_info));
 	if (!gpe_xrupt) {
 		return_PTR(NULL);
 	}
@@ -595,7 +595,7 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 
 	/* Free the block */
 
-	ACPI_MEM_FREE(gpe_xrupt);
+	ACPI_FREE(gpe_xrupt);
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -712,9 +712,9 @@ acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block)
 
 	/* Free the gpe_block */
 
-	ACPI_MEM_FREE(gpe_block->register_info);
-	ACPI_MEM_FREE(gpe_block->event_info);
-	ACPI_MEM_FREE(gpe_block);
+	ACPI_FREE(gpe_block->register_info);
+	ACPI_FREE(gpe_block->event_info);
+	ACPI_FREE(gpe_block);
 
       unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_EVENTS);
@@ -748,10 +748,10 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 	/* Allocate the GPE register information block */
 
-	gpe_register_info = ACPI_MEM_CALLOCATE((acpi_size) gpe_block->
-					       register_count *
-					       sizeof(struct
-						      acpi_gpe_register_info));
+	gpe_register_info = ACPI_ALLOCATE_ZEROED((acpi_size) gpe_block->
+						 register_count *
+						 sizeof(struct
+							acpi_gpe_register_info));
 	if (!gpe_register_info) {
 		ACPI_ERROR((AE_INFO,
 			    "Could not allocate the gpe_register_info table"));
@@ -762,10 +762,11 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	 * Allocate the GPE event_info block. There are eight distinct GPEs
 	 * per register. Initialization to zeros is sufficient.
 	 */
-	gpe_event_info = ACPI_MEM_CALLOCATE(((acpi_size) gpe_block->
-					     register_count *
-					     ACPI_GPE_REGISTER_WIDTH) *
-					    sizeof(struct acpi_gpe_event_info));
+	gpe_event_info = ACPI_ALLOCATE_ZEROED(((acpi_size) gpe_block->
+					       register_count *
+					       ACPI_GPE_REGISTER_WIDTH) *
+					      sizeof(struct
+						     acpi_gpe_event_info));
 	if (!gpe_event_info) {
 		ACPI_ERROR((AE_INFO,
 			    "Could not allocate the gpe_event_info table"));
@@ -848,10 +849,10 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
       error_exit:
 	if (gpe_register_info) {
-		ACPI_MEM_FREE(gpe_register_info);
+		ACPI_FREE(gpe_register_info);
 	}
 	if (gpe_event_info) {
-		ACPI_MEM_FREE(gpe_event_info);
+		ACPI_FREE(gpe_event_info);
 	}
 
 	return_ACPI_STATUS(status);
@@ -895,7 +896,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	/* Allocate a new GPE block */
 
-	gpe_block = ACPI_MEM_CALLOCATE(sizeof(struct acpi_gpe_block_info));
+	gpe_block = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_block_info));
 	if (!gpe_block) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -915,7 +916,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	 */
 	status = acpi_ev_create_gpe_info_blocks(gpe_block);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(gpe_block);
+		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
 
@@ -923,7 +924,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	status = acpi_ev_install_gpe_block(gpe_block, interrupt_number);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(gpe_block);
+		ACPI_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
 

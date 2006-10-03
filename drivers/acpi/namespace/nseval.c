@@ -151,7 +151,7 @@ acpi_ns_evaluate_relative(char *pathname, struct acpi_parameter_info *info)
 	acpi_ut_delete_generic_state(scope_info);
 
       cleanup1:
-	ACPI_MEM_FREE(internal_path);
+	ACPI_FREE(internal_path);
 	return_ACPI_STATUS(status);
 }
 
@@ -228,7 +228,7 @@ acpi_ns_evaluate_by_name(char *pathname, struct acpi_parameter_info *info)
 	/* Cleanup */
 
 	if (internal_path) {
-		ACPI_MEM_FREE(internal_path);
+		ACPI_FREE(internal_path);
 	}
 
 	return_ACPI_STATUS(status);

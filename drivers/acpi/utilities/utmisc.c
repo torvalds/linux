@@ -463,7 +463,7 @@ acpi_ut_display_init_pathname(u8 type,
 	}
 	acpi_os_printf("\n");
 
-	ACPI_MEM_FREE(buffer.pointer);
+	ACPI_FREE(buffer.pointer);
 }
 #endif
 

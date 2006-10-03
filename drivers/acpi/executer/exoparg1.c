@@ -554,14 +554,16 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
       cleanup:
 
-	if (!walk_state->result_obj) {
-		walk_state->result_obj = return_desc;
-	}
-
 	/* Delete return object on error */
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(return_desc);
+	}
+
+	/* Save return object on success */
+
+	else if (!walk_state->result_obj) {
+		walk_state->result_obj = return_desc;
 	}
 
 	return_ACPI_STATUS(status);
@@ -1028,6 +1030,11 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		acpi_ut_remove_reference(return_desc);
 	}
 
-	walk_state->result_obj = return_desc;
+	/* Save return object on success */
+
+	else {
+		walk_state->result_obj = return_desc;
+	}
+
 	return_ACPI_STATUS(status);
 }

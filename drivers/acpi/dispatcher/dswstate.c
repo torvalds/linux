@@ -66,7 +66,6 @@ void *acpi_ds_obj_stack_get_value(u32 index,
 #endif
 
 #ifdef ACPI_FUTURE_USAGE
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_result_remove
@@ -128,7 +127,6 @@ acpi_ds_result_remove(union acpi_operand_object **object,
 
 	return (AE_OK);
 }
-
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -645,7 +643,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 
 	ACPI_FUNCTION_TRACE("ds_create_walk_state");
 
-	walk_state = ACPI_MEM_CALLOCATE(sizeof(struct acpi_walk_state));
+	walk_state = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_walk_state));
 	if (!walk_state) {
 		return_PTR(NULL);
 	}
@@ -668,7 +666,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 
 	status = acpi_ds_result_stack_push(walk_state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(walk_state);
+		ACPI_FREE(walk_state);
 		return_PTR(NULL);
 	}
 
@@ -859,7 +857,7 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 		acpi_ut_delete_generic_state(state);
 	}
 
-	ACPI_MEM_FREE(walk_state);
+	ACPI_FREE(walk_state);
 	return_VOID;
 }
 

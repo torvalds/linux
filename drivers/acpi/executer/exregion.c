@@ -182,8 +182,8 @@ acpi_ex_system_memory_space_handler(u32 function,
 	     (acpi_integer) mem_info->mapped_physical_address);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "system_memory %d (%d width) Address=%8.8X%8.8X\n",
-			  function, bit_width, ACPI_FORMAT_UINT64(address)));
+			  "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
+			  bit_width, function, ACPI_FORMAT_UINT64(address)));
 
 	/*
 	 * Perform the memory read or write
@@ -287,8 +287,8 @@ acpi_ex_system_io_space_handler(u32 function,
 	ACPI_FUNCTION_TRACE("ex_system_io_space_handler");
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "system_iO %d (%d width) Address=%8.8X%8.8X\n",
-			  function, bit_width, ACPI_FORMAT_UINT64(address)));
+			  "System-IO (width %d) R/W %d Address=%8.8X%8.8X\n",
+			  bit_width, function, ACPI_FORMAT_UINT64(address)));
 
 	/* Decode the function parameter */
 
@@ -361,7 +361,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	pci_register = (u16) (u32) address;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "pci_config %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+			  "Pci-Config %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
 			  function, bit_width, pci_id->segment, pci_id->bus,
 			  pci_id->device, pci_id->function, pci_register));
 

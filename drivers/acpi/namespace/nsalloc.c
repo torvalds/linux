@@ -68,7 +68,7 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 
 	ACPI_FUNCTION_TRACE("ns_create_node");
 
-	node = ACPI_MEM_CALLOCATE(sizeof(struct acpi_namespace_node));
+	node = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_namespace_node));
 	if (!node) {
 		return_PTR(NULL);
 	}
@@ -142,7 +142,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	 * Detach an object if there is one then delete the node
 	 */
 	acpi_ns_detach_object(node);
-	ACPI_MEM_FREE(node);
+	ACPI_FREE(node);
 	return_VOID;
 }
 
@@ -311,7 +311,7 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 
 		/* Now we can delete the node */
 
-		ACPI_MEM_FREE(child_node);
+		ACPI_FREE(child_node);
 
 		/* And move on to the next child in the list */
 

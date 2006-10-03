@@ -1113,7 +1113,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				   ACPI_NS_DONT_OPEN_SCOPE, walk_state,
 				   &(new_node));
 		if (ACPI_SUCCESS(status)) {
-
 			/*
 			 * Make sure that what we found is indeed a method
 			 * We didn't search for a method on purpose, to see if the name

@@ -461,7 +461,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 	size = (((count - 1) * sizeof(struct acpi_compatible_id)) +
 		sizeof(struct acpi_compatible_id_list));
 
-	cid_list = ACPI_MEM_CALLOCATE((acpi_size) size);
+	cid_list = ACPI_ALLOCATE_ZEROED((acpi_size) size);
 	if (!cid_list) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -502,7 +502,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 	/* Cleanup on error */
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(cid_list);
+		ACPI_FREE(cid_list);
 	} else {
 		*return_cid_list = cid_list;
 	}

@@ -103,7 +103,7 @@ acpi_ns_search_node(u32 target_name,
 									  &target_name),
 					  acpi_ut_get_type_name(type)));
 
-			ACPI_MEM_FREE(scope_name);
+			ACPI_FREE(scope_name);
 		}
 	}
 #endif

@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
 #include <acpi/acpi.h>
 
 #define _COMPONENT          ACPI_HARDWARE
@@ -79,6 +78,8 @@ acpi_set_firmware_waking_vector(acpi_physical_address physical_address)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_firmware_waking_vector
@@ -92,7 +93,6 @@ acpi_set_firmware_waking_vector(acpi_physical_address physical_address)
  * DESCRIPTION: Access function for the firmware_waking_vector field in FACS
  *
  ******************************************************************************/
-
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
@@ -118,6 +118,8 @@ acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 
 	return_ACPI_STATUS(AE_OK);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_firmware_waking_vector)
 #endif
 
 /*******************************************************************************
@@ -134,7 +136,6 @@ acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
  *              various OS-specific tasks between the two steps.
  *
  ******************************************************************************/
-
 acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 {
 	acpi_status status;
@@ -206,6 +207,8 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enter_sleep_state
@@ -218,7 +221,6 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-
 acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 {
 	u32 PM1Acontrol;
@@ -378,7 +380,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	return_ACPI_STATUS(AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_enter_sleep_state);
+ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
 
 /*******************************************************************************
  *
@@ -392,7 +394,6 @@ EXPORT_SYMBOL(acpi_enter_sleep_state);
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-
 acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 {
 	u32 in_value;
@@ -443,7 +444,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 	return_ACPI_STATUS(AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios);
+ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios)
 
 /*******************************************************************************
  *
@@ -457,7 +458,6 @@ EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios);
  *              Called with interrupts ENABLED.
  *
  ******************************************************************************/
-
 acpi_status acpi_leave_sleep_state(u8 sleep_state)
 {
 	struct acpi_object_list arg_list;
@@ -584,3 +584,5 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_leave_sleep_state)

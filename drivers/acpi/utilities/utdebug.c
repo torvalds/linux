@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -164,7 +162,7 @@ acpi_ut_debug_print(u32 requested_debug_level,
 		    const char *function_name,
 		    char *module_name, u32 component_id, char *format, ...)
 {
-	u32 thread_id;
+	acpi_thread_id thread_id;
 	va_list args;
 
 	/*
@@ -179,7 +177,6 @@ acpi_ut_debug_print(u32 requested_debug_level,
 	 * Thread tracking and context switch notification
 	 */
 	thread_id = acpi_os_get_thread_id();
-
 	if (thread_id != acpi_gbl_prev_thread_id) {
 		if (ACPI_LV_THREADS & acpi_dbg_level) {
 			acpi_os_printf
@@ -208,7 +205,7 @@ acpi_ut_debug_print(u32 requested_debug_level,
 	acpi_os_vprintf(format, args);
 }
 
-EXPORT_SYMBOL(acpi_ut_debug_print);
+ACPI_EXPORT_SYMBOL(acpi_ut_debug_print)
 
 /*******************************************************************************
  *
@@ -228,7 +225,6 @@ EXPORT_SYMBOL(acpi_ut_debug_print);
  *              debug_print so that the same macros can be used.
  *
  ******************************************************************************/
-
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw(u32 requested_debug_level,
 			u32 line_number,
@@ -246,7 +242,7 @@ acpi_ut_debug_print_raw(u32 requested_debug_level,
 	acpi_os_vprintf(format, args);
 }
 
-EXPORT_SYMBOL(acpi_ut_debug_print_raw);
+ACPI_EXPORT_SYMBOL(acpi_ut_debug_print_raw)
 
 /*******************************************************************************
  *
@@ -263,7 +259,6 @@ EXPORT_SYMBOL(acpi_ut_debug_print_raw);
  *              set in debug_level
  *
  ******************************************************************************/
-
 void
 acpi_ut_trace(u32 line_number,
 	      const char *function_name, char *module_name, u32 component_id)
@@ -277,7 +272,7 @@ acpi_ut_trace(u32 line_number,
 			    component_id, "%s\n", acpi_gbl_fn_entry_str);
 }
 
-EXPORT_SYMBOL(acpi_ut_trace);
+ACPI_EXPORT_SYMBOL(acpi_ut_trace)
 
 /*******************************************************************************
  *
@@ -295,7 +290,6 @@ EXPORT_SYMBOL(acpi_ut_trace);
  *              set in debug_level
  *
  ******************************************************************************/
-
 void
 acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
@@ -402,7 +396,7 @@ acpi_ut_exit(u32 line_number,
 	acpi_gbl_nesting_level--;
 }
 
-EXPORT_SYMBOL(acpi_ut_exit);
+ACPI_EXPORT_SYMBOL(acpi_ut_exit)
 
 /*******************************************************************************
  *
@@ -420,7 +414,6 @@ EXPORT_SYMBOL(acpi_ut_exit);
  *              set in debug_level. Prints exit status also.
  *
  ******************************************************************************/
-
 void
 acpi_ut_status_exit(u32 line_number,
 		    const char *function_name,
@@ -444,7 +437,7 @@ acpi_ut_status_exit(u32 line_number,
 	acpi_gbl_nesting_level--;
 }
 
-EXPORT_SYMBOL(acpi_ut_status_exit);
+ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
 
 /*******************************************************************************
  *
@@ -462,7 +455,6 @@ EXPORT_SYMBOL(acpi_ut_status_exit);
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
-
 void
 acpi_ut_value_exit(u32 line_number,
 		   const char *function_name,
@@ -477,7 +469,7 @@ acpi_ut_value_exit(u32 line_number,
 	acpi_gbl_nesting_level--;
 }
 
-EXPORT_SYMBOL(acpi_ut_value_exit);
+ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
 
 /*******************************************************************************
  *
@@ -495,7 +487,6 @@ EXPORT_SYMBOL(acpi_ut_value_exit);
  *              set in debug_level. Prints exit value also.
  *
  ******************************************************************************/
-
 void
 acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,

@@ -391,7 +391,6 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		index = operand[1]->integer.value;
 		return_desc->reference.offset = (u32) index;
 		return_desc->reference.opcode = AML_INDEX_OP;
-		return_desc->reference.object = operand[0];
 
 		/*
 		 * At this point, the Source operand is a String, Buffer, or Package.
@@ -445,9 +444,10 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * Add a reference to the target package/buffer/string for the life
+		 * Save the target object and add a reference to it for the life
 		 * of the index
 		 */
+		return_desc->reference.object = operand[0];
 		acpi_ut_add_reference(operand[0]);
 
 		/* Store the reference to the Target */

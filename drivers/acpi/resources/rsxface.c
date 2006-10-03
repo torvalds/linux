@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
 
@@ -118,6 +116,8 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_irq_routing_table)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_current_resources
@@ -141,7 +141,6 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
  *              the object indicated by the passed device_handle.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer)
@@ -169,8 +168,9 @@ acpi_get_current_resources(acpi_handle device_handle,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_current_resources);
+ACPI_EXPORT_SYMBOL(acpi_get_current_resources)
 
+#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_possible_resources
@@ -191,8 +191,6 @@ EXPORT_SYMBOL(acpi_get_current_resources);
  *              and the value of ret_buffer is undefined.
  *
  ******************************************************************************/
-
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_possible_resources(acpi_handle device_handle,
 			    struct acpi_buffer *ret_buffer)
@@ -220,7 +218,7 @@ acpi_get_possible_resources(acpi_handle device_handle,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_possible_resources);
+ACPI_EXPORT_SYMBOL(acpi_get_possible_resources)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -241,7 +239,6 @@ EXPORT_SYMBOL(acpi_get_possible_resources);
  *              each resource in the list.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_walk_resources(acpi_handle device_handle,
 		    char *name,
@@ -313,11 +310,11 @@ acpi_walk_resources(acpi_handle device_handle,
 				 resource->length);
 	}
 
-	ACPI_MEM_FREE(buffer.pointer);
+	ACPI_FREE(buffer.pointer);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_walk_resources);
+ACPI_EXPORT_SYMBOL(acpi_walk_resources)
 
 /*******************************************************************************
  *
@@ -336,7 +333,6 @@ EXPORT_SYMBOL(acpi_walk_resources);
  *              the buffer pointed to by the in_buffer variable.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_set_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *in_buffer)
@@ -356,7 +352,7 @@ acpi_set_current_resources(acpi_handle device_handle,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_set_current_resources);
+ACPI_EXPORT_SYMBOL(acpi_set_current_resources)
 
 /******************************************************************************
  *
@@ -375,7 +371,6 @@ EXPORT_SYMBOL(acpi_set_current_resources);
  *              addresses.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_resource_to_address64(struct acpi_resource *resource,
 			   struct acpi_resource_address64 *out)
@@ -417,7 +412,7 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 	return (AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_resource_to_address64);
+ACPI_EXPORT_SYMBOL(acpi_resource_to_address64)
 
 /*******************************************************************************
  *
@@ -437,7 +432,6 @@ EXPORT_SYMBOL(acpi_resource_to_address64);
  *              UUID subtype. Returns a struct acpi_resource of type Vendor.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_vendor_resource(acpi_handle device_handle,
 			 char *name,
@@ -469,6 +463,8 @@ acpi_get_vendor_resource(acpi_handle device_handle,
 	return (info.status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_vendor_resource)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_match_vendor_resource
@@ -480,7 +476,6 @@ acpi_get_vendor_resource(acpi_handle device_handle,
  * DESCRIPTION: Match a vendor resource via the ACPI 3.0 UUID
  *
  ******************************************************************************/
-
 static acpi_status
 acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 {
@@ -528,3 +523,5 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 	info->status = AE_OK;
 	return (AE_CTRL_TERMINATE);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_rs_match_vendor_resource)

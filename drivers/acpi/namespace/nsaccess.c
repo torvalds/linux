@@ -347,14 +347,17 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
-		/*
-		 * This node might not be a actual "scope" node (such as a
-		 * Device/Method, etc.)  It could be a Package or other object node.
-		 * Backup up the tree to find the containing scope node.
-		 */
-		while (!acpi_ns_opens_scope(prefix_node->type) &&
-		       prefix_node->type != ACPI_TYPE_ANY) {
-			prefix_node = acpi_ns_get_parent_node(prefix_node);
+		if (!(flags & ACPI_NS_PREFIX_IS_SCOPE)) {
+			/*
+			 * This node might not be a actual "scope" node (such as a
+			 * Device/Method, etc.)  It could be a Package or other object node.
+			 * Backup up the tree to find the containing scope node.
+			 */
+			while (!acpi_ns_opens_scope(prefix_node->type) &&
+			       prefix_node->type != ACPI_TYPE_ANY) {
+				prefix_node =
+				    acpi_ns_get_parent_node(prefix_node);
+			}
 		}
 	}
 

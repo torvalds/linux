@@ -63,6 +63,7 @@
 #define ACPI_NS_DONT_OPEN_SCOPE     0x02
 #define ACPI_NS_NO_PEER_SEARCH      0x04
 #define ACPI_NS_ERROR_IF_FOUND      0x08
+#define ACPI_NS_PREFIX_IS_SCOPE     0x10
 
 #define ACPI_NS_WALK_UNLOCK         TRUE
 #define ACPI_NS_WALK_NO_UNLOCK      FALSE
@@ -183,6 +184,10 @@ acpi_ns_evaluate_relative(char *pathname, struct acpi_parameter_info *info);
  * nsnames - Name and Scope manipulation
  */
 u32 acpi_ns_opens_scope(acpi_object_type type);
+
+void
+acpi_ns_build_external_path(struct acpi_namespace_node *node,
+			    acpi_size size, char *name_buffer);
 
 char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node);
 

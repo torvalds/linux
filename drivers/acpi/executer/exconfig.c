@@ -349,7 +349,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		/* Allocate a buffer for the entire table */
 
-		table_ptr = ACPI_MEM_ALLOCATE(table_header.length);
+		table_ptr = ACPI_ALLOCATE(table_header.length);
 		if (!table_ptr) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -447,7 +447,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
       cleanup:
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(table_ptr);
+		ACPI_FREE(table_ptr);
 	}
 	return_ACPI_STATUS(status);
 }

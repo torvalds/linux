@@ -330,7 +330,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 		/* Pointer matches processor mode, copy the table to a new buffer */
 
-		full_table = ACPI_MEM_ALLOCATE(header->length);
+		full_table = ACPI_ALLOCATE(header->length);
 		if (!full_table) {
 			ACPI_ERROR((AE_INFO,
 				    "Could not allocate table memory for [%4.4s] length %X",

@@ -236,7 +236,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	if (obj_pointer) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Deleting Object Subptr %p\n", obj_pointer));
-		ACPI_MEM_FREE(obj_pointer);
+		ACPI_FREE(obj_pointer);
 	}
 
 	/* Now the object can be safely deleted */
@@ -275,7 +275,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 
 	/* Free the combined parameter pointer list and object array */
 
-	ACPI_MEM_FREE(obj_list);
+	ACPI_FREE(obj_list);
 	return_VOID;
 }
 

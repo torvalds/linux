@@ -43,7 +43,6 @@
 
 #define DEFINE_ACPI_GLOBALS
 
-#include <linux/module.h>
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
@@ -144,12 +143,10 @@ const char *acpi_format_exception(acpi_status status)
 
 /* Debug switch - level and trace mask */
 u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-EXPORT_SYMBOL(acpi_dbg_level);
 
 /* Debug switch - layer (component) mask */
 
 u32 acpi_dbg_layer = ACPI_COMPONENT_DEFAULT | ACPI_ALL_DRIVERS;
-EXPORT_SYMBOL(acpi_dbg_layer);
 u32 acpi_gbl_nesting_level = 0;
 
 /* Debugger globals */
@@ -871,3 +868,6 @@ void acpi_ut_init_globals(void)
 
 	return_VOID;
 }
+
+ACPI_EXPORT_SYMBOL(acpi_dbg_level)
+ACPI_EXPORT_SYMBOL(acpi_dbg_layer)

@@ -472,8 +472,8 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_STRING:
 
 		internal_object->string.pointer =
-		    ACPI_MEM_CALLOCATE((acpi_size) external_object->string.
-				       length + 1);
+		    ACPI_ALLOCATE_ZEROED((acpi_size) external_object->string.
+					 length + 1);
 		if (!internal_object->string.pointer) {
 			goto error_exit;
 		}
@@ -488,7 +488,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_BUFFER:
 
 		internal_object->buffer.pointer =
-		    ACPI_MEM_CALLOCATE(external_object->buffer.length);
+		    ACPI_ALLOCATE_ZEROED(external_object->buffer.length);
 		if (!internal_object->buffer.pointer) {
 			goto error_exit;
 		}
@@ -676,7 +676,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		if ((source_desc->buffer.pointer) &&
 		    (source_desc->buffer.length)) {
 			dest_desc->buffer.pointer =
-			    ACPI_MEM_ALLOCATE(source_desc->buffer.length);
+			    ACPI_ALLOCATE(source_desc->buffer.length);
 			if (!dest_desc->buffer.pointer) {
 				return (AE_NO_MEMORY);
 			}
@@ -697,8 +697,8 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		 */
 		if (source_desc->string.pointer) {
 			dest_desc->string.pointer =
-			    ACPI_MEM_ALLOCATE((acpi_size) source_desc->string.
-					      length + 1);
+			    ACPI_ALLOCATE((acpi_size) source_desc->string.
+					  length + 1);
 			if (!dest_desc->string.pointer) {
 				return (AE_NO_MEMORY);
 			}
@@ -805,9 +805,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 		/*
 		 * Create the object array
 		 */
-		target_object->package.elements =
-		    ACPI_MEM_CALLOCATE(((acpi_size) source_object->package.
-					count + 1) * sizeof(void *));
+		target_object->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size) source_object->package.count + 1) * sizeof(void *));
 		if (!target_object->package.elements) {
 			status = AE_NO_MEMORY;
 			goto error_exit;
@@ -865,10 +863,10 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 	/*
 	 * Create the object array and walk the source package tree
 	 */
-	dest_obj->package.elements = ACPI_MEM_CALLOCATE(((acpi_size)
-							 source_obj->package.
-							 count +
-							 1) * sizeof(void *));
+	dest_obj->package.elements = ACPI_ALLOCATE_ZEROED(((acpi_size)
+							   source_obj->package.
+							   count +
+							   1) * sizeof(void *));
 	if (!dest_obj->package.elements) {
 		ACPI_ERROR((AE_INFO, "Package allocation failure"));
 		return_ACPI_STATUS(AE_NO_MEMORY);

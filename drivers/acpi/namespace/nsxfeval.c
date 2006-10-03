@@ -42,8 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acinterp.h>
@@ -51,6 +49,7 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfeval")
 
+#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object_typed
@@ -71,12 +70,11 @@ ACPI_MODULE_NAME("nsxfeval")
  *              be valid (non-null)
  *
  ******************************************************************************/
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_evaluate_object_typed(acpi_handle handle,
 			   acpi_string pathname,
-			   struct acpi_object_list *external_params,
-			   struct acpi_buffer *return_buffer,
+			   struct acpi_object_list * external_params,
+			   struct acpi_buffer * return_buffer,
 			   acpi_object_type return_type)
 {
 	acpi_status status;
@@ -142,6 +140,8 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	return_buffer->length = 0;
 	return_ACPI_STATUS(AE_TYPE);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -163,7 +163,6 @@ acpi_evaluate_object_typed(acpi_handle handle,
  *              be valid (non-null)
  *
  ******************************************************************************/
-
 acpi_status
 acpi_evaluate_object(acpi_handle handle,
 		     acpi_string pathname,
@@ -193,9 +192,9 @@ acpi_evaluate_object(acpi_handle handle,
 		 * Allocate a new parameter block for the internal objects
 		 * Add 1 to count to allow for null terminated internal list
 		 */
-		info.parameters = ACPI_MEM_CALLOCATE(((acpi_size)
-						      external_params->count +
-						      1) * sizeof(void *));
+		info.parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)
+							external_params->count +
+							1) * sizeof(void *));
 		if (!info.parameters) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
@@ -356,7 +355,7 @@ acpi_evaluate_object(acpi_handle handle,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_evaluate_object);
+ACPI_EXPORT_SYMBOL(acpi_evaluate_object)
 
 /*******************************************************************************
  *
@@ -387,7 +386,6 @@ EXPORT_SYMBOL(acpi_evaluate_object);
  *              function, etc.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_walk_namespace(acpi_object_type type,
 		    acpi_handle start_object,
@@ -424,7 +422,7 @@ acpi_walk_namespace(acpi_object_type type,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_walk_namespace);
+ACPI_EXPORT_SYMBOL(acpi_walk_namespace)
 
 /*******************************************************************************
  *
@@ -439,7 +437,6 @@ EXPORT_SYMBOL(acpi_walk_namespace);
  *              on that.
  *
  ******************************************************************************/
-
 static acpi_status
 acpi_ns_get_device_callback(acpi_handle obj_handle,
 			    u32 nesting_level,
@@ -510,11 +507,11 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 						 sizeof(struct
 							acpi_compatible_id)) !=
 				    0) {
-					ACPI_MEM_FREE(cid);
+					ACPI_FREE(cid);
 					return (AE_OK);
 				}
 			}
-			ACPI_MEM_FREE(cid);
+			ACPI_FREE(cid);
 		}
 	}
 
@@ -592,7 +589,7 @@ acpi_get_devices(char *HID,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_get_devices);
+ACPI_EXPORT_SYMBOL(acpi_get_devices)
 
 /*******************************************************************************
  *
@@ -607,7 +604,6 @@ EXPORT_SYMBOL(acpi_get_devices);
  * DESCRIPTION: Attach arbitrary data and handler to a namespace node.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_attach_data(acpi_handle obj_handle,
 		 acpi_object_handler handler, void *data)
@@ -641,6 +637,8 @@ acpi_attach_data(acpi_handle obj_handle,
 	return (status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_attach_data)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_detach_data
@@ -653,7 +651,6 @@ acpi_attach_data(acpi_handle obj_handle,
  * DESCRIPTION: Remove data that was previously attached to a node.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 {
@@ -686,6 +683,8 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 	return (status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_detach_data)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_data
@@ -699,7 +698,6 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
  * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 {
@@ -731,3 +729,5 @@ acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return (status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_get_data)

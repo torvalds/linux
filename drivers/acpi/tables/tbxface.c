@@ -42,8 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/actables.h>
@@ -123,6 +121,8 @@ acpi_status acpi_load_tables(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_load_tables)
+
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -139,7 +139,6 @@ acpi_status acpi_load_tables(void)
  *              is determined that the table is invalid, the call will fail.
  *
  ******************************************************************************/
-
 acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 {
 	acpi_status status;
@@ -218,6 +217,8 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_load_table)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_unload_table
@@ -229,7 +230,6 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
  * DESCRIPTION: This routine is used to force the unload of a table
  *
  ******************************************************************************/
-
 acpi_status acpi_unload_table(acpi_table_type table_type)
 {
 	struct acpi_table_desc *table_desc;
@@ -263,6 +263,8 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
 	return_ACPI_STATUS(AE_OK);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_unload_table)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_table_header
@@ -283,7 +285,6 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
  *              have a standard header and is fixed length.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_table_header(acpi_table_type table_type,
 		      u32 instance, struct acpi_table_header *out_table_header)
@@ -327,6 +328,7 @@ acpi_get_table_header(acpi_table_type table_type,
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_get_table_header)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -351,7 +353,6 @@ acpi_get_table_header(acpi_table_type table_type,
  *              a complete table including the header.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_get_table(acpi_table_type table_type,
 	       u32 instance, struct acpi_buffer *ret_buffer)
@@ -420,4 +421,4 @@ acpi_get_table(acpi_table_type table_type,
 	return_ACPI_STATUS(AE_OK);
 }
 
-EXPORT_SYMBOL(acpi_get_table);
+ACPI_EXPORT_SYMBOL(acpi_get_table)

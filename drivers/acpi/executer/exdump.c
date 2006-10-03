@@ -903,7 +903,7 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 			acpi_os_printf("Could not convert name to pathname\n");
 		} else {
 			acpi_os_printf("%s\n", (char *)ret_buf.pointer);
-			ACPI_MEM_FREE(ret_buf.pointer);
+			ACPI_FREE(ret_buf.pointer);
 		}
 	} else if (obj_desc->reference.object) {
 		acpi_os_printf("\nReferenced Object: %p\n",

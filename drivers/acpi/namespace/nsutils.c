@@ -104,7 +104,7 @@ acpi_ns_report_error(char *module_name,
 		}
 
 		if (name) {
-			ACPI_MEM_FREE(name);
+			ACPI_FREE(name);
 		}
 	}
 
@@ -187,7 +187,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node, char *message)
 		}
 
 		acpi_os_printf("[%s] (Node %p)", (char *)buffer.pointer, node);
-		ACPI_MEM_FREE(buffer.pointer);
+		ACPI_FREE(buffer.pointer);
 	}
 }
 
@@ -490,7 +490,7 @@ acpi_status acpi_ns_internalize_name(char *external_name, char **converted_name)
 
 	/* We need a segment to store the internal  name */
 
-	internal_name = ACPI_MEM_CALLOCATE(info.length);
+	internal_name = ACPI_ALLOCATE_ZEROED(info.length);
 	if (!internal_name) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -500,7 +500,7 @@ acpi_status acpi_ns_internalize_name(char *external_name, char **converted_name)
 	info.internal_name = internal_name;
 	status = acpi_ns_build_internal_name(&info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_MEM_FREE(internal_name);
+		ACPI_FREE(internal_name);
 		return_ACPI_STATUS(status);
 	}
 
@@ -632,7 +632,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	/*
 	 * Build converted_name
 	 */
-	*converted_name = ACPI_MEM_CALLOCATE(required_length);
+	*converted_name = ACPI_ALLOCATE_ZEROED(required_length);
 	if (!(*converted_name)) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
@@ -879,7 +879,7 @@ acpi_ns_get_node_by_path(char *pathname,
 
       cleanup:
 	if (internal_path) {
-		ACPI_MEM_FREE(internal_path);
+		ACPI_FREE(internal_path);
 	}
 	return_ACPI_STATUS(status);
 }

@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
@@ -90,6 +88,8 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
 
 /*******************************************************************************
@@ -107,7 +107,6 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
  *              event.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_fixed_event_handler(u32 event,
 				 acpi_event_handler handler, void *context)
@@ -161,7 +160,7 @@ acpi_install_fixed_event_handler(u32 event,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_fixed_event_handler);
+ACPI_EXPORT_SYMBOL(acpi_install_fixed_event_handler)
 
 /*******************************************************************************
  *
@@ -175,7 +174,6 @@ EXPORT_SYMBOL(acpi_install_fixed_event_handler);
  * DESCRIPTION: Disables the event and unregisters the event handler.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 {
@@ -216,7 +214,7 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_fixed_event_handler);
+ACPI_EXPORT_SYMBOL(acpi_remove_fixed_event_handler)
 
 /*******************************************************************************
  *
@@ -235,7 +233,6 @@ EXPORT_SYMBOL(acpi_remove_fixed_event_handler);
  * DESCRIPTION: Install a handler for notifies on an ACPI device
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_notify_handler(acpi_handle device,
 			    u32 handler_type,
@@ -384,7 +381,7 @@ acpi_install_notify_handler(acpi_handle device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_notify_handler);
+ACPI_EXPORT_SYMBOL(acpi_install_notify_handler)
 
 /*******************************************************************************
  *
@@ -402,7 +399,6 @@ EXPORT_SYMBOL(acpi_install_notify_handler);
  * DESCRIPTION: Remove a handler for notifies on an ACPI device
  *
  ******************************************************************************/
-
 acpi_status
 acpi_remove_notify_handler(acpi_handle device,
 			   u32 handler_type, acpi_notify_handler handler)
@@ -538,7 +534,7 @@ acpi_remove_notify_handler(acpi_handle device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_notify_handler);
+ACPI_EXPORT_SYMBOL(acpi_remove_notify_handler)
 
 /*******************************************************************************
  *
@@ -557,7 +553,6 @@ EXPORT_SYMBOL(acpi_remove_notify_handler);
  * DESCRIPTION: Install a handler for a General Purpose Event.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_install_gpe_handler(acpi_handle gpe_device,
 			 u32 gpe_number,
@@ -599,7 +594,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	/* Allocate and init handler object */
 
-	handler = ACPI_MEM_CALLOCATE(sizeof(struct acpi_handler_info));
+	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_handler_info));
 	if (!handler) {
 		status = AE_NO_MEMORY;
 		goto unlock_and_exit;
@@ -633,7 +628,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_install_gpe_handler);
+ACPI_EXPORT_SYMBOL(acpi_install_gpe_handler)
 
 /*******************************************************************************
  *
@@ -649,7 +644,6 @@ EXPORT_SYMBOL(acpi_install_gpe_handler);
  * DESCRIPTION: Remove a handler for a General Purpose acpi_event.
  *
  ******************************************************************************/
-
 acpi_status
 acpi_remove_gpe_handler(acpi_handle gpe_device,
 			u32 gpe_number, acpi_event_handler address)
@@ -727,14 +721,14 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 
 	/* Now we can free the handler object */
 
-	ACPI_MEM_FREE(handler);
+	ACPI_FREE(handler);
 
       unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 	return_ACPI_STATUS(status);
 }
 
-EXPORT_SYMBOL(acpi_remove_gpe_handler);
+ACPI_EXPORT_SYMBOL(acpi_remove_gpe_handler)
 
 /*******************************************************************************
  *
@@ -749,7 +743,6 @@ EXPORT_SYMBOL(acpi_remove_gpe_handler);
  * DESCRIPTION: Acquire the ACPI Global Lock
  *
  ******************************************************************************/
-
 acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 {
 	acpi_status status;
@@ -774,7 +767,7 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 	return (status);
 }
 
-EXPORT_SYMBOL(acpi_acquire_global_lock);
+ACPI_EXPORT_SYMBOL(acpi_acquire_global_lock)
 
 /*******************************************************************************
  *
@@ -787,7 +780,6 @@ EXPORT_SYMBOL(acpi_acquire_global_lock);
  * DESCRIPTION: Release the ACPI Global Lock. The handle must be valid.
  *
  ******************************************************************************/
-
 acpi_status acpi_release_global_lock(u32 handle)
 {
 	acpi_status status;
@@ -800,4 +792,4 @@ acpi_status acpi_release_global_lock(u32 handle)
 	return (status);
 }
 
-EXPORT_SYMBOL(acpi_release_global_lock);
+ACPI_EXPORT_SYMBOL(acpi_release_global_lock)

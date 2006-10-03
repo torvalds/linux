@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include <linux/module.h>
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
@@ -64,7 +62,7 @@ acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
 		      struct fadt_descriptor_rev2 *original_fadt);
 
 u8 acpi_fadt_is_v1;
-EXPORT_SYMBOL(acpi_fadt_is_v1);
+ACPI_EXPORT_SYMBOL(acpi_fadt_is_v1)
 
 /*******************************************************************************
  *
@@ -133,7 +131,7 @@ acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info)
 
 	/* Allocate an XSDT */
 
-	new_table = ACPI_MEM_CALLOCATE(table_size);
+	new_table = ACPI_ALLOCATE_ZEROED(table_size);
 	if (!new_table) {
 		return (AE_NO_MEMORY);
 	}
@@ -509,7 +507,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 
 	/* Allocate buffer for the ACPI 2.0(+) FADT */
 
-	local_fadt = ACPI_MEM_CALLOCATE(sizeof(struct fadt_descriptor_rev2));
+	local_fadt = ACPI_ALLOCATE_ZEROED(sizeof(struct fadt_descriptor_rev2));
 	if (!local_fadt) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}

@@ -176,7 +176,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 
 		/* Allocate the actual buffer */
 
-		buffer = ACPI_MEM_CALLOCATE(buffer_size);
+		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
 			ACPI_ERROR((AE_INFO, "Could not allocate size %X",
 				    (u32) buffer_size));
@@ -228,7 +228,7 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	 * Allocate the actual string buffer -- (Size + 1) for NULL terminator.
 	 * NOTE: Zero-length strings are NULL terminated
 	 */
-	string = ACPI_MEM_CALLOCATE(string_size + 1);
+	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
 		ACPI_ERROR((AE_INFO, "Could not allocate size %X",
 			    (u32) string_size));
@@ -320,6 +320,7 @@ void *acpi_ut_allocate_object_desc_dbg(char *module_name,
 	}
 
 	/* Mark the descriptor type */
+
 	memset(object, 0, sizeof(union acpi_operand_object));
 	ACPI_SET_DESCRIPTOR_TYPE(object, ACPI_DESC_TYPE_OPERAND);
 

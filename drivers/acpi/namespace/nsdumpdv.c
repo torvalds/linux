@@ -92,7 +92,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 				      info->hardware_id.value,
 				      ACPI_FORMAT_UINT64(info->address),
 				      info->current_status));
-		ACPI_MEM_FREE(info);
+		ACPI_FREE(info);
 	}
 
 	return (status);

@@ -192,7 +192,7 @@ static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status;
-	u32 this_thread_id;
+	acpi_thread_id this_thread_id;
 
 	ACPI_FUNCTION_NAME("ut_acquire_mutex");
 
@@ -275,7 +275,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status;
-	u32 this_thread_id;
+	acpi_thread_id this_thread_id;
 
 	ACPI_FUNCTION_NAME("ut_release_mutex");
 
