@@ -648,6 +648,26 @@ static int raid10_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
+static int raid10_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	conf_t *conf = mddev_to_conf(mddev);
+	int i, ret = 0;
+
+	rcu_read_lock();
+	for (i = 0; i < mddev->raid_disks && ret == 0; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+			request_queue_t *q = bdev_get_queue(rdev->bdev);
+
+			ret |= bdi_congested(&q->backing_dev_info, bits);
+		}
+	}
+	rcu_read_unlock();
+	return ret;
+}
+
+
 /* Barriers....
  * Sometimes we need to suspend IO while we do something else,
  * either some resync/recovery, or reconfigure the array.
@@ -2094,6 +2114,8 @@ static int run(mddev_t *mddev)
 
 	mddev->queue->unplug_fn = raid10_unplug;
 	mddev->queue->issue_flush_fn = raid10_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = raid10_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	/* Calculate max read-ahead size.
 	 * We need to readahead at least twice a whole stripe....

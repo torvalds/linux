@@ -228,6 +228,28 @@ static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
 	rcu_read_unlock();
 	return ret;
 }
+static int multipath_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	multipath_conf_t *conf = mddev_to_conf(mddev);
+	int i, ret = 0;
+
+	rcu_read_lock();
+	for (i = 0; i < mddev->raid_disks ; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
+			request_queue_t *q = bdev_get_queue(rdev->bdev);
+
+			ret |= bdi_congested(&q->backing_dev_info, bits);
+			/* Just like multipath_map, we just check the
+			 * first available device
+			 */
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
+}
 
 /*
  * Careful, this can execute in IRQ contexts as well!
@@ -509,6 +531,8 @@ static int multipath_run (mddev_t *mddev)
 
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->issue_flush_fn = multipath_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	return 0;
 
