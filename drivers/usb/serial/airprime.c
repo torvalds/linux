@@ -24,6 +24,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless Aircard 580 */
 	{ USB_DEVICE(0x1199, 0x0218) }, /* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1410, 0x1110) }, /* Novatel Wireless Merlin CDMA */
+	{ USB_DEVICE(0x1410, 0x1100) }, /* ExpressCard34 Qualcomm 3G CDMA */
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
