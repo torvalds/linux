@@ -25,8 +25,6 @@
 #include "rivafb.h"
 #include "../edid.h"
 
-#define RIVA_DDC 	0x50
-
 static void riva_gpio_setscl(void* data, int state)
 {
 	struct riva_i2c_chan 	*chan = data;
@@ -158,50 +156,12 @@ void riva_delete_i2c_busses(struct riva_par *par)
 	par->chan[2].par = NULL;
 }
 
-static u8 *riva_do_probe_i2c_edid(struct riva_i2c_chan *chan)
-{
-	u8 start = 0x0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= RIVA_DDC,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= RIVA_DDC,
-			.flags	= I2C_M_RD,
-			.len	= EDID_LENGTH,
-		},
-	};
-	u8 *buf;
-
-	if (!chan->par)
-		return NULL;
-
-	buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (!buf) {
-		dev_warn(&chan->par->pdev->dev, "Out of memory!\n");
-		return NULL;
-	}
-	msgs[1].buf = buf;
-
-	if (i2c_transfer(&chan->adapter, msgs, 2) == 2)
-		return buf;
-	dev_dbg(&chan->par->pdev->dev, "Unable to read EDID block.\n");
-	kfree(buf);
-	return NULL;
-}
-
 int riva_probe_i2c_connector(struct riva_par *par, int conn, u8 **out_edid)
 {
 	u8 *edid = NULL;
-	int i;
 
-	for (i = 0; i < 3; i++) {
-		/* Do the real work */
-		edid = riva_do_probe_i2c_edid(&par->chan[conn-1]);
-		if (edid)
-			break;
-	}
+	edid = fb_ddc_read(&par->chan[conn-1].adapter);
+
 	if (out_edid)
 		*out_edid = edid;
 	if (!edid)
