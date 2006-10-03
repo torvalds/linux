@@ -398,21 +398,60 @@ static void read_snapshot_metadata(struct dm_snapshot *s)
 	}
 }
 
+static int set_chunk_size(struct dm_snapshot *s, const char *chunk_size_arg,
+			  char **error)
+{
+	unsigned long chunk_size;
+	char *value;
+
+	chunk_size = simple_strtoul(chunk_size_arg, &value, 10);
+	if (*chunk_size_arg == '\0' || *value != '\0') {
+		*error = "Invalid chunk size";
+		return -EINVAL;
+	}
+
+	if (!chunk_size) {
+		s->chunk_size = s->chunk_mask = s->chunk_shift = 0;
+		return 0;
+	}
+
+	/*
+	 * Chunk size must be multiple of page size.  Silently
+	 * round up if it's not.
+	 */
+	chunk_size = round_up(chunk_size, PAGE_SIZE >> 9);
+
+	/* Check chunk_size is a power of 2 */
+	if (chunk_size & (chunk_size - 1)) {
+		*error = "Chunk size is not a power of 2";
+		return -EINVAL;
+	}
+
+	/* Validate the chunk size against the device block size */
+	if (chunk_size % (bdev_hardsect_size(s->cow->bdev) >> 9)) {
+		*error = "Chunk size is not a multiple of device blocksize";
+		return -EINVAL;
+	}
+
+	s->chunk_size = chunk_size;
+	s->chunk_mask = chunk_size - 1;
+	s->chunk_shift = ffs(chunk_size) - 1;
+
+	return 0;
+}
+
 /*
  * Construct a snapshot mapping: <origin_dev> <COW-dev> <p/n> <chunk-size>
  */
 static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dm_snapshot *s;
-	unsigned long chunk_size;
 	int r = -EINVAL;
 	char persistent;
 	char *origin_path;
 	char *cow_path;
-	char *value;
-	int blocksize;
 
-	if (argc < 4) {
+	if (argc != 4) {
 		ti->error = "requires exactly 4 arguments";
 		r = -EINVAL;
 		goto bad1;
@@ -424,13 +463,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (persistent != 'P' && persistent != 'N') {
 		ti->error = "Persistent flag is not P or N";
-		r = -EINVAL;
-		goto bad1;
-	}
-
-	chunk_size = simple_strtoul(argv[3], &value, 10);
-	if (chunk_size == 0 || value == NULL) {
-		ti->error = "Invalid chunk size";
 		r = -EINVAL;
 		goto bad1;
 	}
@@ -457,31 +489,11 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad2;
 	}
 
-	/*
-	 * Chunk size must be multiple of page size.  Silently
-	 * round up if it's not.
-	 */
-	chunk_size = round_up(chunk_size, PAGE_SIZE >> 9);
-
-	/* Validate the chunk size against the device block size */
-	blocksize = s->cow->bdev->bd_disk->queue->hardsect_size;
-	if (chunk_size % (blocksize >> 9)) {
-		ti->error = "Chunk size is not a multiple of device blocksize";
-		r = -EINVAL;
+	r = set_chunk_size(s, argv[3], &ti->error);
+	if (r)
 		goto bad3;
-	}
 
-	/* Check chunk_size is a power of 2 */
-	if (chunk_size & (chunk_size - 1)) {
-		ti->error = "Chunk size is not a power of 2";
-		r = -EINVAL;
-		goto bad3;
-	}
-
-	s->chunk_size = chunk_size;
-	s->chunk_mask = chunk_size - 1;
 	s->type = persistent;
-	s->chunk_shift = ffs(chunk_size) - 1;
 
 	s->valid = 1;
 	s->active = 0;
@@ -496,16 +508,12 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad3;
 	}
 
-	/*
-	 * Check the persistent flag - done here because we need the iobuf
-	 * to check the LV header
-	 */
 	s->store.snap = s;
 
 	if (persistent == 'P')
-		r = dm_create_persistent(&s->store, chunk_size);
+		r = dm_create_persistent(&s->store);
 	else
-		r = dm_create_transient(&s->store, s, blocksize);
+		r = dm_create_transient(&s->store);
 
 	if (r) {
 		ti->error = "Couldn't create exception store";
@@ -1205,7 +1213,7 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -1216,7 +1224,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,

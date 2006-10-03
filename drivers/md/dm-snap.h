@@ -128,10 +128,9 @@ int dm_add_exception(struct dm_snapshot *s, chunk_t old, chunk_t new);
  * Constructor and destructor for the default persistent
  * store.
  */
-int dm_create_persistent(struct exception_store *store, uint32_t chunk_size);
+int dm_create_persistent(struct exception_store *store);
 
-int dm_create_transient(struct exception_store *store,
-			struct dm_snapshot *s, int blocksize);
+int dm_create_transient(struct exception_store *store);
 
 /*
  * Return the number of sectors in the device.
