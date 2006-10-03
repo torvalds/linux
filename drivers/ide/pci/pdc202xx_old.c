@@ -154,7 +154,8 @@ static int pdc202xx_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 	u8			AP, BP, CP, DP;
 	u8			TA = 0, TB = 0, TC = 0;
 
-	if ((drive->media != ide_disk) && (speed < XFER_SW_DMA_0))
+	if (drive->media != ide_disk &&
+		drive->media != ide_cdrom && speed < XFER_SW_DMA_0)
 		return -1;
 
 	pci_read_config_dword(dev, drive_pci, &drive_conf);
@@ -330,14 +331,12 @@ static int config_chipset_for_dma (ide_drive_t *drive)
 
 chipset_is_set:
 
-	if (drive->media == ide_disk) {
-		pci_read_config_byte(dev, (drive_pci), &AP);
-		if (id->capability & 4)	/* IORDY_EN */
-			pci_write_config_byte(dev, (drive_pci), AP|IORDY_EN);
-		pci_read_config_byte(dev, (drive_pci), &AP);
-		if (drive->media == ide_disk)	/* PREFETCH_EN */
-			pci_write_config_byte(dev, (drive_pci), AP|PREFETCH_EN);
-	}
+	pci_read_config_byte(dev, (drive_pci), &AP);
+	if (id->capability & 4) /* IORDY_EN */
+		pci_write_config_byte(dev, (drive_pci), AP|IORDY_EN);
+	pci_read_config_byte(dev, (drive_pci), &AP);
+	if (drive->media == ide_disk)	/* PREFETCH_EN */
+		pci_write_config_byte(dev, (drive_pci), AP|PREFETCH_EN);
 
 	speed = ide_dma_speed(drive, pdc202xx_ratemask(drive));
 
@@ -385,7 +384,7 @@ static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 {
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_enable_66MHz_clock(drive->hwif);
-	if (drive->addressing == 1) {
+	if (drive->media != ide_disk || drive->addressing == 1) {
 		struct request *rq	= HWGROUP(drive)->rq;
 		ide_hwif_t *hwif	= HWIF(drive);
 		unsigned long high_16   = hwif->dma_master;
@@ -405,7 +404,7 @@ static void pdc202xx_old_ide_dma_start(ide_drive_t *drive)
 
 static int pdc202xx_old_ide_dma_end(ide_drive_t *drive)
 {
-	if (drive->addressing == 1) {
+	if (drive->media != ide_disk || drive->addressing == 1) {
 		ide_hwif_t *hwif	= HWIF(drive);
 		unsigned long high_16	= hwif->dma_master;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
@@ -519,6 +518,7 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->ultra_mask = 0x3f;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
+	hwif->atapi_dma = 1;
 
 	hwif->err_stops_fifo = 1;
 
