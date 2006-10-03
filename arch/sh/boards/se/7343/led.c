@@ -2,8 +2,6 @@
  * arch/sh/boards/se/7343/led.c
  *
  */
-
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <asm/mach/se7343.h>
 

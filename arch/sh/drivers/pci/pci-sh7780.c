@@ -12,10 +12,8 @@
  *  License.  See linux/COPYING for more information.
  *
  */
-
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

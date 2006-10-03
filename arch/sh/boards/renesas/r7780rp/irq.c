@@ -8,8 +8,6 @@
  * Modified for R7780RP-1 by
  * Atom Create Engineering Co., Ltd. 2002.
  */
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/io.h>

@@ -2,8 +2,6 @@
  * arch/sh/boards/se/7343/irq.c
  *
  */
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

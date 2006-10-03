@@ -11,8 +11,6 @@
  *
  * LED control drive function added by kogiidena
  */
-
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

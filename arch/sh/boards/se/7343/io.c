@@ -4,8 +4,6 @@
  * I/O routine for SH-Mobile3AS 7343 SolutionEngine.
  *
  */
-
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <asm/io.h>
 #include <asm/mach/se7343.h>
