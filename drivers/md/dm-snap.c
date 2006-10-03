@@ -609,26 +609,6 @@ static void error_bios(struct bio *bio)
 	}
 }
 
-static inline void error_snapshot_bios(struct pending_exception *pe)
-{
-	error_bios(bio_list_get(&pe->snapshot_bios));
-}
-
-static struct bio *__flush_bios(struct pending_exception *pe)
-{
-	/*
-	 * If this pe is involved in a write to the origin and
-	 * it is the last sibling to complete then release
-	 * the bios for the original write to the origin.
-	 */
-
-	if (pe->primary_pe &&
-	    atomic_dec_and_test(&pe->primary_pe->sibling_count))
-		return bio_list_get(&pe->primary_pe->origin_bios);
-
-	return NULL;
-}
-
 static void __invalidate_snapshot(struct dm_snapshot *s,
 				struct pending_exception *pe, int err)
 {
@@ -656,16 +636,15 @@ static void pending_complete(struct pending_exception *pe, int success)
 	struct exception *e;
 	struct pending_exception *primary_pe;
 	struct dm_snapshot *s = pe->snap;
-	struct bio *flush = NULL;
+	struct bio *origin_bios = NULL;
+	struct bio *snapshot_bios = NULL;
+	int error = 0;
 
 	if (!success) {
 		/* Read/write error - snapshot is unusable */
 		down_write(&s->lock);
 		__invalidate_snapshot(s, pe, -EIO);
-		flush = __flush_bios(pe);
-		up_write(&s->lock);
-
-		error_snapshot_bios(pe);
+		error = 1;
 		goto out;
 	}
 
@@ -673,40 +652,38 @@ static void pending_complete(struct pending_exception *pe, int success)
 	if (!e) {
 		down_write(&s->lock);
 		__invalidate_snapshot(s, pe, -ENOMEM);
-		flush = __flush_bios(pe);
-		up_write(&s->lock);
-
-		error_snapshot_bios(pe);
+		error = 1;
 		goto out;
 	}
 	*e = pe->e;
+
+	down_write(&s->lock);
+	if (!s->valid) {
+		free_exception(e);
+		error = 1;
+		goto out;
+	}
 
 	/*
 	 * Add a proper exception, and remove the
 	 * in-flight exception from the list.
 	 */
-	down_write(&s->lock);
-	if (!s->valid) {
-		flush = __flush_bios(pe);
-		up_write(&s->lock);
-
-		free_exception(e);
-
-		error_snapshot_bios(pe);
-		goto out;
-	}
-
 	insert_exception(&s->complete, e);
 	remove_exception(&pe->e);
-	flush = __flush_bios(pe);
-
-	up_write(&s->lock);
-
-	/* Submit any pending write bios */
-	flush_bios(bio_list_get(&pe->snapshot_bios));
 
  out:
+	snapshot_bios = bio_list_get(&pe->snapshot_bios);
+
 	primary_pe = pe->primary_pe;
+
+	/*
+	 * If this pe is involved in a write to the origin and
+	 * it is the last sibling to complete then release
+	 * the bios for the original write to the origin.
+	 */
+	if (primary_pe &&
+	    atomic_dec_and_test(&primary_pe->sibling_count))
+		origin_bios = bio_list_get(&primary_pe->origin_bios);
 
 	/*
 	 * Free the pe if it's not linked to an origin write or if
@@ -721,8 +698,15 @@ static void pending_complete(struct pending_exception *pe, int success)
 	if (primary_pe && !atomic_read(&primary_pe->sibling_count))
 		free_pending_exception(primary_pe);
 
-	if (flush)
-		flush_bios(flush);
+	up_write(&s->lock);
+
+	/* Submit any pending write bios */
+	if (error)
+		error_bios(snapshot_bios);
+	else
+		flush_bios(snapshot_bios);
+
+	flush_bios(origin_bios);
 }
 
 static void commit_callback(void *context, int success)
