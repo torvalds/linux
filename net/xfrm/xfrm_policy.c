@@ -778,8 +778,9 @@ void xfrm_policy_flush(u8 type)
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy *pol;
 		struct hlist_node *entry;
-		int i;
+		int i, killed;
 
+		killed = 0;
 	again1:
 		hlist_for_each_entry(pol, entry,
 				     &xfrm_policy_inexact[dir], bydst) {
@@ -790,6 +791,7 @@ void xfrm_policy_flush(u8 type)
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_policy_kill(pol);
+			killed++;
 
 			write_lock_bh(&xfrm_policy_lock);
 			goto again1;
@@ -807,13 +809,14 @@ void xfrm_policy_flush(u8 type)
 				write_unlock_bh(&xfrm_policy_lock);
 
 				xfrm_policy_kill(pol);
+				killed++;
 
 				write_lock_bh(&xfrm_policy_lock);
 				goto again2;
 			}
 		}
 
-		xfrm_policy_count[dir] = 0;
+		xfrm_policy_count[dir] -= killed;
 	}
 	atomic_inc(&flow_cache_genid);
 	write_unlock_bh(&xfrm_policy_lock);
