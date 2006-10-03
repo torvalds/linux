@@ -1165,7 +1165,9 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 {
 	struct proc_dir_entry *entry;
 	if (ibmveth_proc_dir) {
-		entry = create_proc_entry(adapter->netdev->name, S_IFREG, ibmveth_proc_dir);
+		char u_addr[10];
+		sprintf(u_addr, "%x", adapter->vdev->unit_address);
+		entry = create_proc_entry(u_addr, S_IFREG, ibmveth_proc_dir);
 		if (!entry) {
 			ibmveth_error_printk("Cannot create adapter proc entry");
 		} else {
@@ -1180,7 +1182,9 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter)
 {
 	if (ibmveth_proc_dir) {
-		remove_proc_entry(adapter->netdev->name, ibmveth_proc_dir);
+		char u_addr[10];
+		sprintf(u_addr, "%x", adapter->vdev->unit_address);
+		remove_proc_entry(u_addr, ibmveth_proc_dir);
 	}
 }
 
