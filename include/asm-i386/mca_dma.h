@@ -181,7 +181,7 @@ static __inline__ void mca_set_dma_io(unsigned int dmanr, unsigned int io_addr)
  *	@mode: mode to set
  *
  *	The DMA controller supports several modes. The mode values you can
- *	set are :
+ *	set are-
  *
  *	%MCA_DMA_MODE_READ when reading from the DMA device.
  *
@@ -190,7 +190,6 @@ static __inline__ void mca_set_dma_io(unsigned int dmanr, unsigned int io_addr)
  *	%MCA_DMA_MODE_IO to do DMA to or from an I/O port.
  *
  *	%MCA_DMA_MODE_16 to do 16bit transfers.
- *
  */
 
 static __inline__ void mca_set_dma_mode(unsigned int dmanr, unsigned int mode)
