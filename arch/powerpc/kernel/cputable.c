@@ -558,6 +558,18 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750cx,
 		.platform		= "ppc750",
 	},
+	{	/* 750CL */
+		.pvr_mask		= 0xfffff0f0,
+		.pvr_value		= 0x00087010,
+		.cpu_name		= "750CL",
+		.cpu_features		= CPU_FTRS_750,
+		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.num_pmcs		= 4,
+		.cpu_setup		= __setup_cpu_750cx,
+		.platform		= "ppc750",
+	},
 	{	/* 745/755 */
 		.pvr_mask		= 0xfffff000,
 		.pvr_value		= 0x00083000,
