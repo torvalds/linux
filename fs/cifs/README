@@ -269,7 +269,7 @@ A partial list of the supported mount options follows:
 		(gid) mount option is specified.  For the uid (gid) of newly
 		created files and directories, ie files created since 
 		the last mount of the server share, the expected uid 
-		(gid) is cached as as long as the inode remains in 
+		(gid) is cached as long as the inode remains in 
 		memory on the client.   Also note that permission
 		checks (authorization checks) on accesses to a file occur
 		at the server, but there are cases in which an administrator
@@ -375,7 +375,7 @@ A partial list of the supported mount options follows:
 		the local process on newly created files, directories, and
 		devices (create, mkdir, mknod).  If the CIFS Unix Extensions
 		are not negotiated, for newly created files and directories
-		instead of using the default uid and gid specified on the
+		instead of using the default uid and gid specified on
 		the mount, cache the new file's uid and gid locally which means
 		that the uid for the file can change when the inode is
 	        reloaded (or the user remounts the share).
@@ -440,7 +440,7 @@ A partial list of the supported mount options follows:
 		create device files and fifos in a format compatible with
 		Services for Unix (SFU).  In addition retrieve bits 10-12
 		of the mode via the SETFILEBITS extended attribute (as
-		SFU does).  In the future the bottom 9 bits of the mode
+		SFU does).  In the future the bottom 9 bits of the
 		mode also will be emulated using queries of the security
 		descriptor (ACL).
  sign           Must use packet signing (helps avoid unwanted data modification

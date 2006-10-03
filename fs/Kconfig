@@ -1365,7 +1365,7 @@ config SYSV_FS
 
 	  If you have floppies or hard disk partitions like that, it is likely
 	  that they contain binaries from those other Unix systems; in order
-	  to run these binaries, you will want to install linux-abi which is a
+	  to run these binaries, you will want to install linux-abi which is
 	  a set of kernel modules that lets you run SCO, Xenix, Wyse,
 	  UnixWare, Dell Unix and System V programs under Linux.  It is
 	  available via FTP (user: ftp) from

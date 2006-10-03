@@ -188,7 +188,7 @@ config FB_ARMCLCD_SHARP_LQ035Q7DB02_HRTFT
 	bool "LogicPD LCD 3.5\" QVGA w/HRTFT IC"
 	help
 	  This is an implementation of the Sharp LQ035Q7DB02, a 3.5"
-	  color QVGA, HRTFT panel.  The LogicPD device includes an
+	  color QVGA, HRTFT panel.  The LogicPD device includes
 	  an integrated HRTFT controller IC.
 	  The native resolution is 240x320.
 

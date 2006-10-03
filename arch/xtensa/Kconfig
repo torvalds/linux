@@ -206,7 +206,7 @@ source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
-menu "Exectuable file formats"
+menu "Executable file formats"
 
 # only elf supported
 config KCORE_ELF
@@ -241,7 +241,7 @@ menu "Xtensa initrd options"
 	bool "Embed root filesystem ramdisk into the kernel"
 
 config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gziped ramdisk image"
+	string "Filename of gzipped ramdisk image"
 	depends on EMBEDDED_RAMDISK
 	default "ramdisk.gz"
 	help

@@ -13,7 +13,7 @@ config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select CPU_S3C2440
 	help
-	  Say Y gere if you are using the Simtec Electronics ANUBIS
+	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
 
 config MACH_OSIRIS
