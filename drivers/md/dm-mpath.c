@@ -1266,12 +1266,39 @@ error:
 	return -EINVAL;
 }
 
+static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
+			   struct file *filp, unsigned int cmd,
+			   unsigned long arg)
+{
+	struct multipath *m = (struct multipath *) ti->private;
+	struct block_device *bdev = NULL;
+	unsigned long flags;
+	int r = 0;
+
+	spin_lock_irqsave(&m->lock, flags);
+
+	if (!m->current_pgpath)
+		__choose_pgpath(m);
+
+	if (m->current_pgpath)
+		bdev = m->current_pgpath->path.dev->bdev;
+
+	if (m->queue_io)
+		r = -EAGAIN;
+	else if (!bdev)
+		r = -EIO;
+
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	return r ? : blkdev_ioctl(bdev->bd_inode, filp, cmd, arg);
+}
+
 /*-----------------------------------------------------------------
  * Module setup
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 0, 4},
+	.version = {1, 0, 5},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
@@ -1281,6 +1308,7 @@ static struct target_type multipath_target = {
 	.resume = multipath_resume,
 	.status = multipath_status,
 	.message = multipath_message,
+	.ioctl  = multipath_ioctl,
 };
 
 static int __init dm_multipath_init(void)
