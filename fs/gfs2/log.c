@@ -58,6 +58,90 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 	return blks;
 }
 
+/**
+ * gfs2_ail1_start_one - Start I/O on a part of the AIL
+ * @sdp: the filesystem
+ * @tr: the part of the AIL
+ *
+ */
+
+static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+{
+	struct gfs2_bufdata *bd, *s;
+	struct buffer_head *bh;
+	int retry;
+
+	BUG_ON(!spin_is_locked(&sdp->sd_log_lock));
+
+	do {
+		retry = 0;
+
+		list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list,
+						 bd_ail_st_list) {
+			bh = bd->bd_bh;
+
+			gfs2_assert(sdp, bd->bd_ail == ai);
+
+			if (!buffer_busy(bh)) {
+				if (!buffer_uptodate(bh)) {
+					gfs2_log_unlock(sdp);
+					gfs2_io_error_bh(sdp, bh);
+					gfs2_log_lock(sdp);
+				}
+				list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+				continue;
+			}
+
+			if (!buffer_dirty(bh))
+				continue;
+
+			list_move(&bd->bd_ail_st_list, &ai->ai_ail1_list);
+
+			gfs2_log_unlock(sdp);
+			wait_on_buffer(bh);
+			ll_rw_block(WRITE, 1, &bh);
+			gfs2_log_lock(sdp);
+
+			retry = 1;
+			break;
+		}
+	} while (retry);
+}
+
+/**
+ * gfs2_ail1_empty_one - Check whether or not a trans in the AIL has been synced
+ * @sdp: the filesystem
+ * @ai: the AIL entry
+ *
+ */
+
+static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int flags)
+{
+	struct gfs2_bufdata *bd, *s;
+	struct buffer_head *bh;
+
+	list_for_each_entry_safe_reverse(bd, s, &ai->ai_ail1_list,
+					 bd_ail_st_list) {
+		bh = bd->bd_bh;
+
+		gfs2_assert(sdp, bd->bd_ail == ai);
+
+		if (buffer_busy(bh)) {
+			if (flags & DIO_ALL)
+				continue;
+			else
+				break;
+		}
+
+		if (!buffer_uptodate(bh))
+			gfs2_io_error_bh(sdp, bh);
+
+		list_move(&bd->bd_ail_st_list, &ai->ai_ail2_list);
+	}
+
+	return list_empty(&ai->ai_ail1_list);
+}
+
 void gfs2_ail1_start(struct gfs2_sbd *sdp, int flags)
 {
 	struct list_head *head = &sdp->sd_ail1_list;
@@ -119,6 +203,31 @@ int gfs2_ail1_empty(struct gfs2_sbd *sdp, int flags)
 	gfs2_log_unlock(sdp);
 
 	return ret;
+}
+
+
+/**
+ * gfs2_ail2_empty_one - Check whether or not a trans in the AIL has been synced
+ * @sdp: the filesystem
+ * @ai: the AIL entry
+ *
+ */
+
+static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+{
+	struct list_head *head = &ai->ai_ail2_list;
+	struct gfs2_bufdata *bd;
+
+	while (!list_empty(head)) {
+		bd = list_entry(head->prev, struct gfs2_bufdata,
+				bd_ail_st_list);
+		gfs2_assert(sdp, bd->bd_ail == ai);
+		bd->bd_ail = NULL;
+		list_del(&bd->bd_ail_st_list);
+		list_del(&bd->bd_ail_gl_list);
+		atomic_dec(&bd->bd_gl->gl_ail_count);
+		brelse(bd->bd_bh);
+	}
 }
 
 static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)

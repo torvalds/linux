@@ -26,7 +26,58 @@
 #include "recovery.h"
 #include "rgrp.h"
 #include "util.h"
+#include "trans.h"
 
+/**
+ * ail_empty_gl - remove all buffers for a given lock from the AIL
+ * @gl: the glock
+ *
+ * None of the buffers should be dirty, locked, or pinned.
+ */
+
+static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	unsigned int blocks;
+	struct list_head *head = &gl->gl_ail_list;
+	struct gfs2_bufdata *bd;
+	struct buffer_head *bh;
+	u64 blkno;
+	int error;
+
+	blocks = atomic_read(&gl->gl_ail_count);
+	if (!blocks)
+		return;
+
+	error = gfs2_trans_begin(sdp, 0, blocks);
+	if (gfs2_assert_withdraw(sdp, !error))
+		return;
+
+	gfs2_log_lock(sdp);
+	while (!list_empty(head)) {
+		bd = list_entry(head->next, struct gfs2_bufdata,
+				bd_ail_gl_list);
+		bh = bd->bd_bh;
+		blkno = bh->b_blocknr;
+		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
+
+		bd->bd_ail = NULL;
+		list_del(&bd->bd_ail_st_list);
+		list_del(&bd->bd_ail_gl_list);
+		atomic_dec(&gl->gl_ail_count);
+		brelse(bh);
+		gfs2_log_unlock(sdp);
+
+		gfs2_trans_add_revoke(sdp, blkno);
+
+		gfs2_log_lock(sdp);
+	}
+	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
+	gfs2_log_unlock(sdp);
+
+	gfs2_trans_end(sdp);
+	gfs2_log_flush(sdp, NULL);
+}
 
 /**
  * gfs2_pte_inval - Sync and invalidate all PTEs associated with a glock

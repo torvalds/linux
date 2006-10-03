@@ -40,11 +40,6 @@ static inline void gfs2_buffer_copy_tail(struct buffer_head *to_bh,
 struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp);
 void gfs2_aspace_put(struct inode *aspace);
 
-void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai);
-int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai, int flags);
-void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai);
-void gfs2_ail_empty_gl(struct gfs2_glock *gl);
-
 void gfs2_meta_inval(struct gfs2_glock *gl);
 void gfs2_meta_sync(struct gfs2_glock *gl);
 
@@ -73,6 +68,11 @@ static inline int gfs2_meta_inode_buffer(struct gfs2_inode *ip,
 
 struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen);
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
+
+#define buffer_busy(bh) \
+((bh)->b_state & ((1ul << BH_Dirty) | (1ul << BH_Lock) | (1ul << BH_Pinned)))
+#define buffer_in_io(bh) \
+((bh)->b_state & ((1ul << BH_Dirty) | (1ul << BH_Lock)))
 
 #endif /* __DIO_DOT_H__ */
 
