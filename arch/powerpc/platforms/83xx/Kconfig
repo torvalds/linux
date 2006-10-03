@@ -5,6 +5,13 @@ choice
 	prompt "Machine Type"
 	default MPC834x_SYS
 
+config MPC832x_MDS
+	bool "Freescale MPC832x MDS"
+	select DEFAULT_UIMAGE
+	select QUICC_ENGINE
+	help
+	  This option enables support for the MPC832x MDS evaluation board.
+
 config MPC834x_SYS
 	bool "Freescale MPC834x SYS"
 	select DEFAULT_UIMAGE
@@ -26,6 +33,12 @@ config MPC834x_ITX
 	  responsiblilty.
 
 endchoice
+
+config PPC_MPC832x
+	bool
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC832x_MDS
 
 config MPC834x
 	bool
