@@ -153,8 +153,7 @@ static void __init find_max_pfn_node(int nid)
 	 */
 	if (node_start_pfn[nid] > max_pfn)
 		node_start_pfn[nid] = max_pfn;
-	if (node_start_pfn[nid] > node_end_pfn[nid])
-		BUG();
+	BUG_ON(node_start_pfn[nid] > node_end_pfn[nid]);
 }
 
 /* 
