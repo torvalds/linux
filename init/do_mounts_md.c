@@ -20,7 +20,7 @@ static struct {
 	int level;
 	int chunk;
 	char *device_names;
-} md_setup_args[MAX_MD_DEVS] __initdata;
+} md_setup_args[256] __initdata;
 
 static int md_setup_ents __initdata;
 
@@ -61,10 +61,6 @@ static int __init md_setup(char *str)
 		return 0;
 	}
 	str1 = str;
-	if (minor >= MAX_MD_DEVS) {
-		printk(KERN_WARNING "md: md=%d, Minor device number too high.\n", minor);
-		return 0;
-	}
 	for (ent=0 ; ent< md_setup_ents ; ent++)
 		if (md_setup_args[ent].minor == minor &&
 		    md_setup_args[ent].partitioned == partitioned) {
@@ -72,7 +68,7 @@ static int __init md_setup(char *str)
 			       "Replacing previous definition.\n", partitioned?"d":"", minor);
 			break;
 		}
-	if (ent >= MAX_MD_DEVS) {
+	if (ent >= ARRAY_SIZE(md_setup_args)) {
 		printk(KERN_WARNING "md: md=%s%d - too many md initialisations\n", partitioned?"d":"", minor);
 		return 0;
 	}

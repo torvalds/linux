@@ -3409,6 +3409,7 @@ static void autorun_devices(int part)
 
 	printk(KERN_INFO "md: autorun ...\n");
 	while (!list_empty(&pending_raid_disks)) {
+		int unit;
 		dev_t dev;
 		LIST_HEAD(candidates);
 		rdev0 = list_entry(pending_raid_disks.next,
@@ -3428,16 +3429,19 @@ static void autorun_devices(int part)
 		 * mostly sane superblocks. It's time to allocate the
 		 * mddev.
 		 */
-		if (rdev0->preferred_minor < 0 || rdev0->preferred_minor >= MAX_MD_DEVS) {
+		if (part) {
+			dev = MKDEV(mdp_major,
+				    rdev0->preferred_minor << MdpMinorShift);
+			unit = MINOR(dev) >> MdpMinorShift;
+		} else {
+			dev = MKDEV(MD_MAJOR, rdev0->preferred_minor);
+			unit = MINOR(dev);
+		}
+		if (rdev0->preferred_minor != unit) {
 			printk(KERN_INFO "md: unit number in %s is bad: %d\n",
 			       bdevname(rdev0->bdev, b), rdev0->preferred_minor);
 			break;
 		}
-		if (part)
-			dev = MKDEV(mdp_major,
-				    rdev0->preferred_minor << MdpMinorShift);
-		else
-			dev = MKDEV(MD_MAJOR, rdev0->preferred_minor);
 
 		md_probe(dev, NULL, NULL);
 		mddev = mddev_find(dev);
@@ -5524,22 +5528,15 @@ static void md_geninit(void)
 
 static int __init md_init(void)
 {
-	printk(KERN_INFO "md: md driver %d.%d.%d MAX_MD_DEVS=%d,"
-			" MD_SB_DISKS=%d\n",
-			MD_MAJOR_VERSION, MD_MINOR_VERSION,
-			MD_PATCHLEVEL_VERSION, MAX_MD_DEVS, MD_SB_DISKS);
-	printk(KERN_INFO "md: bitmap version %d.%d\n", BITMAP_MAJOR_HI,
-			BITMAP_MINOR);
-
 	if (register_blkdev(MAJOR_NR, "md"))
 		return -1;
 	if ((mdp_major=register_blkdev(0, "mdp"))<=0) {
 		unregister_blkdev(MAJOR_NR, "md");
 		return -1;
 	}
-	blk_register_region(MKDEV(MAJOR_NR, 0), MAX_MD_DEVS, THIS_MODULE,
-				md_probe, NULL, NULL);
-	blk_register_region(MKDEV(mdp_major, 0), MAX_MD_DEVS<<MdpMinorShift, THIS_MODULE,
+	blk_register_region(MKDEV(MAJOR_NR, 0), 1UL<<MINORBITS, THIS_MODULE,
+			    md_probe, NULL, NULL);
+	blk_register_region(MKDEV(mdp_major, 0), 1UL<<MINORBITS, THIS_MODULE,
 			    md_probe, NULL, NULL);
 
 	register_reboot_notifier(&md_notifier);
@@ -5598,8 +5595,8 @@ static __exit void md_exit(void)
 	mddev_t *mddev;
 	struct list_head *tmp;
 
-	blk_unregister_region(MKDEV(MAJOR_NR,0), MAX_MD_DEVS);
-	blk_unregister_region(MKDEV(mdp_major,0), MAX_MD_DEVS << MdpMinorShift);
+	blk_unregister_region(MKDEV(MAJOR_NR,0), 1U << MINORBITS);
+	blk_unregister_region(MKDEV(mdp_major,0), 1U << MINORBITS);
 
 	unregister_blkdev(MAJOR_NR,"md");
 	unregister_blkdev(mdp_major, "mdp");

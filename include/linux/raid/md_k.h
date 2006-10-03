@@ -31,18 +31,15 @@
 #define	LEVEL_NONE		(-1000000)
 
 #define MaxSector (~(sector_t)0)
-#define MD_THREAD_NAME_MAX 14
 
 typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
-
-#define MAX_MD_DEVS  256	/* Max number of md dev */
 
 /*
  * options passed in raidrun:
  */
 
-/* Currently this must fix in an 'int' */
+/* Currently this must fit in an 'int' */
 #define MAX_CHUNK_SIZE (1<<30)
 
 /*
