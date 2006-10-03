@@ -180,7 +180,7 @@ static void __init pseries_mpic_init_IRQ(void)
 
 	cascade_irq = irq_of_parse_and_map(cascade, 0);
 	if (cascade == NO_IRQ) {
-		printk(KERN_ERR "xics: failed to map cascade interrupt");
+		printk(KERN_ERR "mpic: failed to map cascade interrupt");
 		return;
 	}
 
