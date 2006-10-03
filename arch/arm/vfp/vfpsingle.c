@@ -198,8 +198,10 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 	vfp_single_dump("pack: final", vs);
 	{
 		s32 d = vfp_single_pack(vs);
+#ifdef DEBUG
 		pr_debug("VFP: %s: d(s%d)=%08x exceptions=%08x\n", func,
 			 sd, d, exceptions);
+#endif
 		vfp_put_float(d, sd);
 	}
 
