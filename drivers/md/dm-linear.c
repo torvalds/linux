@@ -98,14 +98,25 @@ static int linear_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
+static int linear_ioctl(struct dm_target *ti, struct inode *inode,
+			struct file *filp, unsigned int cmd,
+			unsigned long arg)
+{
+	struct linear_c *lc = (struct linear_c *) ti->private;
+	struct block_device *bdev = lc->dev->bdev;
+
+	return blkdev_ioctl(bdev->bd_inode, filp, cmd, arg);
+}
+
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version= {1, 0, 1},
+	.version= {1, 0, 2},
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
 	.map    = linear_map,
 	.status = linear_status,
+	.ioctl  = linear_ioctl,
 };
 
 int __init dm_linear_init(void)
