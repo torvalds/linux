@@ -104,8 +104,14 @@ static int linear_ioctl(struct dm_target *ti, struct inode *inode,
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;
 	struct block_device *bdev = lc->dev->bdev;
+	struct file fake_file = {};
+	struct dentry fake_dentry = {};
 
-	return blkdev_driver_ioctl(bdev->bd_inode, filp, bdev->bd_disk, cmd, arg);
+	fake_file.f_mode = lc->dev->mode;
+	fake_file.f_dentry = &fake_dentry;
+	fake_dentry.d_inode = bdev->bd_inode;
+
+	return blkdev_driver_ioctl(bdev->bd_inode, &fake_file, bdev->bd_disk, cmd, arg);
 }
 
 static struct target_type linear_target = {
