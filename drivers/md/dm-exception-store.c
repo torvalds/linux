@@ -296,42 +296,29 @@ static int write_header(struct pstore *ps)
  */
 static struct disk_exception *get_exception(struct pstore *ps, uint32_t index)
 {
-	if (index >= ps->exceptions_per_area)
-		return NULL;
+	BUG_ON(index >= ps->exceptions_per_area);
 
 	return ((struct disk_exception *) ps->area) + index;
 }
 
-static int read_exception(struct pstore *ps,
-			  uint32_t index, struct disk_exception *result)
+static void read_exception(struct pstore *ps,
+			   uint32_t index, struct disk_exception *result)
 {
-	struct disk_exception *e;
-
-	e = get_exception(ps, index);
-	if (!e)
-		return -EINVAL;
+	struct disk_exception *e = get_exception(ps, index);
 
 	/* copy it */
 	result->old_chunk = le64_to_cpu(e->old_chunk);
 	result->new_chunk = le64_to_cpu(e->new_chunk);
-
-	return 0;
 }
 
-static int write_exception(struct pstore *ps,
-			   uint32_t index, struct disk_exception *de)
+static void write_exception(struct pstore *ps,
+			    uint32_t index, struct disk_exception *de)
 {
-	struct disk_exception *e;
-
-	e = get_exception(ps, index);
-	if (!e)
-		return -EINVAL;
+	struct disk_exception *e = get_exception(ps, index);
 
 	/* copy it */
 	e->old_chunk = cpu_to_le64(de->old_chunk);
 	e->new_chunk = cpu_to_le64(de->new_chunk);
-
-	return 0;
 }
 
 /*
@@ -349,10 +336,7 @@ static int insert_exceptions(struct pstore *ps, int *full)
 	*full = 1;
 
 	for (i = 0; i < ps->exceptions_per_area; i++) {
-		r = read_exception(ps, i, &de);
-
-		if (r)
-			return r;
+		read_exception(ps, i, &de);
 
 		/*
 		 * If the new_chunk is pointing at the start of
