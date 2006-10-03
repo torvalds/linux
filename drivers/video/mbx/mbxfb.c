@@ -255,8 +255,8 @@ static int mbxfb_set_par(struct fb_info *info)
 
 	/* setup resolution */
 	gsctrl &= ~(FMsk(GSCTRL_GSWIDTH) | FMsk(GSCTRL_GSHEIGHT));
-	gsctrl |= Gsctrl_Width(info->var.xres - 1) |
-		Gsctrl_Height(info->var.yres - 1);
+	gsctrl |= Gsctrl_Width(info->var.xres) |
+		Gsctrl_Height(info->var.yres);
 	writel(gsctrl, GSCTRL);
 	udelay(1000);
 
@@ -413,8 +413,8 @@ static void __devinit setup_graphics(struct fb_info *fbi)
 {
 	unsigned long gsctrl;
 
-	gsctrl = GSCTRL_GAMMA_EN | Gsctrl_Width(fbi->var.xres - 1) |
-		Gsctrl_Height(fbi->var.yres - 1);
+	gsctrl = GSCTRL_GAMMA_EN | Gsctrl_Width(fbi->var.xres) |
+		Gsctrl_Height(fbi->var.yres);
 	switch (fbi->var.bits_per_pixel) {
 	case 16:
 		if (fbi->var.green.length == 5)
