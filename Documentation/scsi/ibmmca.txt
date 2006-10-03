@@ -309,9 +309,9 @@
    2.6 Abort & Reset Commands
    --------------------------
    These are implemented with busy waiting for interrupt to arrive.
-   ibmmca_reset() and ibmmca_abort() do not work sufficently well
-   up to now and need still a lot of development work. But, this seems
-   to be even a problem with other SCSI-low level drivers, too. However,
+   ibmmca_reset() and ibmmca_abort() do not work sufficiently well
+   up to now and need still a lot of development work. This seems
+   to be a problem with other low-level SCSI drivers too, however
    this should be no excuse.
 
    2.7 Disk Geometry
@@ -684,8 +684,8 @@
       not like sending commands to non-existing SCSI-devices and will react
       with a command error as a sign of protest. While this error is not
       present on IBM SCSI Adapter w/cache, it appears on IBM Integrated SCSI
-      Adapters. Therefore, I implemented a workarround to forgive those 
-      adapters their protests, but it is marked up in the statisctis, so
+      Adapters. Therefore, I implemented a workaround to forgive those 
+      adapters their protests, but it is marked up in the statistics, so
       after a successful boot, you can see in /proc/scsi/ibmmca/<host_number>
       how often the command errors have been forgiven to the SCSI-subsystem.
       If the number is bigger than 0, you have a SCSI subsystem of older
@@ -778,15 +778,15 @@
 	 not accept this, as they stick quite near to ANSI-SCSI and report
 	 a COMMAND_ERROR message which causes the driver to panic. The main
 	 problem was located around the INQUIRY command. Now, for all the
-	 mentioned commands, the buffersize, sent to the adapter is at 
+	 mentioned commands, the buffersize sent to the adapter is at 
 	 maximum 255 which seems to be a quite reasonable solution. 
-	 TEST_UNIT_READY gets a buffersize of 0 to make sure, that no 
+	 TEST_UNIT_READY gets a buffersize of 0 to make sure that no 
 	 data is transferred in order to avoid any possible command failure.
-      2) On unsuccessful TEST_UNIT_READY, the midlevel-driver has to send
-         a REQUEST_SENSE in order to see, where the problem is located. This
+      2) On unsuccessful TEST_UNIT_READY, the mid-level driver has to send
+         a REQUEST_SENSE in order to see where the problem is located. This
 	 REQUEST_SENSE may have various length in its answer-buffer. IBM
-	 SCSI-subsystems report a command failure, if the returned buffersize
-	 is different from the sent buffersize, but this can be supressed by
+	 SCSI-subsystems report a command failure if the returned buffersize
+	 is different from the sent buffersize, but this can be suppressed by
 	 a special bit, which is now done and problems seem to be solved.
    2) Code adaption to all kernel-releases. Now, the 3.2 code compiles on 
       2.0.x, 2.1.x, 2.2.x and 2.3.x kernel releases without any code-changes.
@@ -1156,7 +1156,7 @@
         Guide) what has to be done for reset, we still share the bad shape of
 	the reset functions with all other low level SCSI-drivers. 
 	Astonishingly, reset works in most cases quite ok, but the harddisks
-	won't run in synchonous mode anymore after a reset, until you reboot.
+	won't run in synchronous mode anymore after a reset, until you reboot.
      Q: Why does my XXX w/Cache adapter not use read-prefetch?
      A: Ok, that is not completely possible. If a cache is present, the 
         adapter tries to use it internally. Explicitly, one can use the cache

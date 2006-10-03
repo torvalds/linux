@@ -582,7 +582,7 @@ The rcu_read_lock() and rcu_read_unlock() primitive read-acquire
 and release a global reader-writer lock.  The synchronize_rcu()
 primitive write-acquires this same lock, then immediately releases
 it.  This means that once synchronize_rcu() exits, all RCU read-side
-critical sections that were in progress before synchonize_rcu() was
+critical sections that were in progress before synchronize_rcu() was
 called are guaranteed to have completed -- there is no way that
 synchronize_rcu() would have been able to write-acquire the lock
 otherwise.

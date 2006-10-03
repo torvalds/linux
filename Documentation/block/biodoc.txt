@@ -890,7 +890,7 @@ Aside:
 
   Kvec i/o:
 
-  Ben LaHaise's aio code uses a slighly different structure instead
+  Ben LaHaise's aio code uses a slightly different structure instead
   of kiobufs, called a kvec_cb. This contains an array of <page, offset, len>
   tuples (very much like the networking code), together with a callback function
   and data pointer. This is embedded into a brw_cb structure when passed
@@ -988,7 +988,7 @@ elevator_exit_fn		Allocate and free any elevator specific storage
 				for a queue.
 
 4.2 Request flows seen by I/O schedulers
-All requests seens by I/O schedulers strictly follow one of the following three
+All requests seen by I/O schedulers strictly follow one of the following three
 flows.
 
  set_req_fn ->

@@ -39,7 +39,7 @@ For instance the playback devices are configured to have max. 4
 substreams performing hardware mixing. This could be changed to a
 maximum of 24 substreams if wished.
 Mono files will be played on the left and right channel. Each channel
-can be muted for each stream to use 8 analog/digital outputs seperately.
+can be muted for each stream to use 8 analog/digital outputs separately.
 
 Capture
 -------

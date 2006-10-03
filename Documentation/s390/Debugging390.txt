@@ -317,9 +317,9 @@ Each process/thread under Linux for S390 has its own kernel task_struct
 defined in linux/include/linux/sched.h
 The S390 on initialisation & resuming of a process on a cpu sets
 the __LC_KERNEL_STACK variable in the spare prefix area for this cpu
-( which we use for per processor globals).
+(which we use for per-processor globals).
 
-The kernel stack pointer is intimately tied with the task stucture for
+The kernel stack pointer is intimately tied with the task structure for
 each processor as follows.
 
                       s/390
@@ -973,8 +973,9 @@ through the pipe for each line containing the string open.
 
 Example 3
 ---------
-Getting sophistocated
-telnetd crashes on & I don't know why
+Getting sophisticated
+telnetd crashes & I don't know why
+
 Steps
 -----
 1) Replace the following line in /etc/inetd.conf
@@ -1836,7 +1837,7 @@ RDRLIST
 RECEIVE / LOG TXT A1 ( replace
 8)
 filel & press F11 to look at it
-You should see someting like.
+You should see something like:
 
 00020942' SSCH  B2334000    0048813C    CC 0    SCH 0000    DEV 7C08
           CPA 000FFDF0   PARM 00E2C9C4    KEY 0  FPI C0  LPM 80

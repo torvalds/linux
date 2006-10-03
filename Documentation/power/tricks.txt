@@ -9,7 +9,7 @@ If you want to trick swsusp/S3 into working, you might want to try:
 
 * turn off APIC and preempt
 
-* use ext2. At least it has working fsck. [If something seemes to go
+* use ext2. At least it has working fsck. [If something seems to go
   wrong, force fsck when you have a chance]
 
 * turn off modules

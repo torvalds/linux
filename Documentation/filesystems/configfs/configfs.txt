@@ -254,7 +254,7 @@ using the group _init() functions on the group.
 
 Finally, when userspace calls rmdir(2) on the item or group,
 ct_group_ops->drop_item() is called.  As a config_group is also a
-config_item, it is not necessary for a seperate drop_group() method.
+config_item, it is not necessary for a separate drop_group() method.
 The subsystem must config_item_put() the reference that was initialized
 upon item allocation.  If a subsystem has no work to do, it may omit
 the ct_group_ops->drop_item() method, and configfs will call

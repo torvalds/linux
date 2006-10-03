@@ -1255,7 +1255,7 @@ to allocate (but not use) more memory than is actually available.
 		address space are refused. Used for a typical system. It
 		ensures a seriously wild allocation fails while allowing
 		overcommit to reduce swap usage.  root is allowed to
-		allocate slighly more memory in this mode. This is the
+		allocate slightly more memory in this mode. This is the
 		default.
 
 1	-	Always overcommit. Appropriate for some scientific
@@ -1857,7 +1857,7 @@ proxy_qlen
 
 Maximum queue length of the delayed proxy arp timer. (see proxy_delay).
 
-app_solcit
+app_solicit
 ----------
 
 Determines the  number of requests to send to the user level ARP daemon. Use 0

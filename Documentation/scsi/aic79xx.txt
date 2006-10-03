@@ -81,7 +81,7 @@ The following information is available in this file:
           an SDTR with an offset of 0 to be sure the target
           knows we are async.  This works around a firmware defect
           in the Quantum Atlas 10K.
-        - Implement controller susupend and resume.
+        - Implement controller suspend and resume.
         - Clear PCI error state during driver attach so that we
           don't disable memory mapped I/O due to a stray write
           by some other driver probe that occurred before we

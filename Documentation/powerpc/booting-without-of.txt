@@ -550,11 +550,11 @@ Here's the basic structure of a single node:
      * [child nodes if any]
      * token OF_DT_END_NODE (that is 0x00000002)
 
-So the node content can be summmarised as a start token, a full path,
-a list of properties, a list of child node and an end token. Every
+So the node content can be summarised as a start token, a full path,
+a list of properties, a list of child nodes, and an end token. Every
 child node is a full node structure itself as defined above.
 
-4) Device tree 'strings" block
+4) Device tree "strings" block
 
 In order to save space, property names, which are generally redundant,
 are stored separately in the "strings" block. This block is simply the

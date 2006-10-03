@@ -5,7 +5,7 @@ Hardware supported by the linuxtv.org DVB drivers
   frontends (i.e. tuner / demodulator units) used, usually without
   changing the product name, revision number or specs. Some cards
   are also available in versions with different frontends for
-  DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed seperately.
+  DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
 
   Note 1: There is no guarantee that every frontend driver works
   out of the box with every card, because of different wiring.

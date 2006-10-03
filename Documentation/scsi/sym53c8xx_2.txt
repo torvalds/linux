@@ -67,7 +67,7 @@ under Linux is contained in 2 files named sym_glue.h and sym_glue.c.
 Other drivers files are intended not to depend on the Operating System 
 on which the driver is used.
 
-The history of this driver can be summerized as follows:
+The history of this driver can be summarized as follows:
 
 1993: ncr driver written for 386bsd and FreeBSD by:
           Wolfgang Stanglmeier        <wolf@cologne.de>

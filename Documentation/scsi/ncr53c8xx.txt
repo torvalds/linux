@@ -70,7 +70,7 @@ Written by Gerard Roudier <groudier@free.fr>
 15. SCSI problem troubleshooting
       15.1 Problem tracking
       15.2 Understanding hardware error reports
-16. Synchonous transfer negotiation tables
+16. Synchronous transfer negotiation tables
       16.1 Synchronous timings for 53C875 and 53C860 Ultra-SCSI controllers
       16.2 Synchronous timings for fast SCSI-2 53C8XX controllers
 17. Serial NVRAM support (by Richard Waltham)
@@ -1382,7 +1382,7 @@ SCSI standards, chip cores functionnals and internal driver data structures.
 You are not required to decode and understand them, unless you want to help 
 maintain the driver code.
 
-16. Synchonous transfer negotiation tables
+16. Synchronous transfer negotiation tables
 
 Tables below have been created by calling the routine the driver uses
 for synchronisation negotiation timing calculation and chip setting.

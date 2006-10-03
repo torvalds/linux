@@ -1,5 +1,5 @@
 
-     CPU frequency and voltage scaling statictics in the Linux(TM) kernel
+     CPU frequency and voltage scaling statistics in the Linux(TM) kernel
 
 
              L i n u x    c p u f r e q - s t a t s   d r i v e r
@@ -18,8 +18,8 @@ Contents
 1. Introduction
 
 cpufreq-stats is a driver that provices CPU frequency statistics for each CPU.
-This statistics is provided in /sysfs as a bunch of read_only interfaces. This
-interface (when configured) will appear in a seperate directory under cpufreq
+These statistics are provided in /sysfs as a bunch of read_only interfaces. This
+interface (when configured) will appear in a separate directory under cpufreq
 in /sysfs (<sysfs root>/devices/system/cpu/cpuX/cpufreq/stats/) for each CPU.
 Various statistics will form read_only files under this directory.
 
@@ -115,7 +115,7 @@ basic statistics which includes time_in_state and total_trans.
 
 "CPU frequency translation statistics details" (CONFIG_CPU_FREQ_STAT_DETAILS)
 provides fine grained cpufreq stats by trans_table. The reason for having a
-seperate config option for trans_table is:
+separate config option for trans_table is:
 - trans_table goes against the traditional /sysfs rule of one value per
   interface. It provides a whole bunch of value in a 2 dimensional matrix
   form.

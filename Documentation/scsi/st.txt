@@ -369,7 +369,7 @@ MTSETDRVBUFFER
 		the device dependent address. It is recommended to set
 		this flag unless there are tapes using the device
 		dependent (from the old times) (global)
-	     MT_ST_SYSV sets the SYSV sematics (mode)
+	     MT_ST_SYSV sets the SYSV semantics (mode)
 	     MT_ST_NOWAIT enables immediate mode (i.e., don't wait for
 	        the command to finish) for some commands (e.g., rewind)
 	     MT_ST_DEBUGGING debugging (global; debugging must be

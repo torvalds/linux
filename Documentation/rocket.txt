@@ -97,7 +97,7 @@ a range of I/O addresses for it to use. The first RocketPort card
 requires a 68-byte contiguous block of I/O addresses, starting at one
 of the following: 0x100h, 0x140h, 0x180h, 0x200h, 0x240h, 0x280h,
 0x300h, 0x340h, 0x380h.  This I/O address must be reflected in the DIP
-switiches of *all* of the Rocketport cards.
+switches of *all* of the Rocketport cards.
 
 The second, third, and fourth RocketPort cards require a 64-byte
 contiguous block of I/O addresses, starting at one of the following

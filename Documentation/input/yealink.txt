@@ -87,7 +87,7 @@ Line 3  Format			: 888888888888
 
 
 Format description:
-  From a user space perspective the world is seperated in "digits" and "icons".
+  From a userspace perspective the world is separated into "digits" and "icons".
   A digit can have a character set, an icon can only be ON or OFF.
 
   Format specifier

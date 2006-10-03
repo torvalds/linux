@@ -262,7 +262,7 @@ which begin with '//' are the comments.
 //	initialised.
 // AUXP - Auxiliary Pattern Indication - 01010101.. received.
 // LFA  - Loss of Frame Alignment - no frame sync received.
-// RRA  - Receive Remote Alarm - the remote end's OK, but singnals error cond.
+// RRA  - Receive Remote Alarm - the remote end's OK, but signals error cond.
 // LMFA - Loss of CRC4 Multiframe Alignment - no CRC4 multiframe sync.
 // NMF  - No Multiframe alignment Found after 400 msec - no such alarm using
 //	no-crc4 or crc4 framing, see below.
@@ -364,6 +364,6 @@ Treat them very carefully, these can cause much trouble!
 
 	# echo >lbireg 0x1d 0x21
 
-		- Swithing the loop off:
+		- Switching the loop off:
 
 	# echo >lbireg 0x1d 0x00
