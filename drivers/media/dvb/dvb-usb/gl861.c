@@ -229,7 +229,7 @@ static void __exit gl861_module_exit(void)
 module_init (gl861_module_init);
 module_exit (gl861_module_exit);
 
-MODULE_AUTHOR("comabug@gmail.com");
+MODULE_AUTHOR("Carl Lundqvist <comabug@gmail.com>");
 MODULE_DESCRIPTION("Driver MSI Mega Sky 580 DVB-T USB2.0 / GL861");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
