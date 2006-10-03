@@ -921,7 +921,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 			seq_printf(seq, " %d far-copies", conf->far_copies);
 	}
 	seq_printf(seq, " [%d/%d] [", conf->raid_disks,
-						conf->working_disks);
+					conf->raid_disks - mddev->degraded);
 	for (i = 0; i < conf->raid_disks; i++)
 		seq_printf(seq, "%s",
 			      conf->mirrors[i].rdev &&
@@ -941,7 +941,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * else mark the drive as failed
 	 */
 	if (test_bit(In_sync, &rdev->flags)
-	    && conf->working_disks == 1)
+	    && conf->raid_disks-mddev->degraded == 1)
 		/*
 		 * Don't fail the drive, just return an IO error.
 		 * The test should really be more sophisticated than
@@ -952,7 +952,6 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		return;
 	if (test_bit(In_sync, &rdev->flags)) {
 		mddev->degraded++;
-		conf->working_disks--;
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
@@ -963,7 +962,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT "raid10: Disk failure on %s, disabling device. \n"
 		"	Operation continuing on %d devices\n",
-		bdevname(rdev->bdev,b), conf->working_disks);
+		bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 }
 
 static void print_conf(conf_t *conf)
@@ -976,7 +975,7 @@ static void print_conf(conf_t *conf)
 		printk("(!conf)\n");
 		return;
 	}
-	printk(" --- wd:%d rd:%d\n", conf->working_disks,
+	printk(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		conf->raid_disks);
 
 	for (i = 0; i < conf->raid_disks; i++) {
@@ -1035,7 +1034,6 @@ static int raid10_spare_active(mddev_t *mddev)
 		if (tmp->rdev
 		    && !test_bit(Faulty, &tmp->rdev->flags)
 		    && !test_bit(In_sync, &tmp->rdev->flags)) {
-			conf->working_disks++;
 			mddev->degraded--;
 			set_bit(In_sync, &tmp->rdev->flags);
 		}
@@ -2035,8 +2033,6 @@ static int run(mddev_t *mddev)
 			mddev->queue->max_sectors = (PAGE_SIZE>>9);
 
 		disk->head_position = 0;
-		if (!test_bit(Faulty, &rdev->flags) && test_bit(In_sync, &rdev->flags))
-			conf->working_disks++;
 	}
 	conf->raid_disks = mddev->raid_disks;
 	conf->mddev = mddev;
