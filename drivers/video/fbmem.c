@@ -554,7 +554,8 @@ static int fbmem_read_proc(char *buf, char **start, off_t offset,
 	int clen;
 
 	clen = 0;
-	for (fi = registered_fb; fi < &registered_fb[FB_MAX] && len < 4000; fi++)
+	for (fi = registered_fb; fi < &registered_fb[FB_MAX] && clen < 4000;
+	     fi++)
 		if (*fi)
 			clen += sprintf(buf + clen, "%d %s\n",
 				        (*fi)->node,
