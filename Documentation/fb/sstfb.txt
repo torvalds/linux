@@ -72,8 +72,8 @@ Module Usage
 
 Kernel/Modules Options
 
-	You can pass some otions to sstfb module, and via the kernel command
-	line when the driver is compiled in :
+	You can pass some options to the sstfb module, and via the kernel 
+	command line when the driver is compiled in:
 	for module : insmod sstfb.o option1=value1 option2=value2 ...
 	in kernel :  video=sstfb:option1,option2:value2,option3 ...
 	

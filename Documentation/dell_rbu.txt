@@ -52,7 +52,7 @@ echo packet > /sys/devices/platform/dell_rbu/image_type
 In packet update mode the packet size has to be given before any packets can
 be downloaded. It is done as below
 echo XXXX > /sys/devices/platform/dell_rbu/packet_size
-In the packet update mechanism, the user neesd to create a new file having
+In the packet update mechanism, the user needs to create a new file having
 packets of data arranged back to back. It can be done as follows
 The user creates packets header, gets the chunk of the BIOS image and
 places it next to the packetheader; now, the packetheader + BIOS image chunk
@@ -93,8 +93,8 @@ read back the image downloaded.
 NOTE:
 This driver requires a patch for firmware_class.c which has the modified
 request_firmware_nowait function.
-Also after updating the BIOS image an user mdoe application neeeds to execute
-code which message the BIOS update request to the BIOS. So on the next reboot
-the BIOS knows about the new image downloaded and it updates it self.
-Also don't unload the rbu drive if the image has to be updated.
+Also after updating the BIOS image a user mode application needs to execute
+code which sends the BIOS update request to the BIOS. So on the next reboot
+the BIOS knows about the new image downloaded and it updates itself.
+Also don't unload the rbu driver if the image has to be updated.
 

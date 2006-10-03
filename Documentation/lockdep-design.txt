@@ -170,7 +170,7 @@ Proof of 100% correctness:
 
 The validator achieves perfect, mathematical 'closure' (proof of locking
 correctness) in the sense that for every simple, standalone single-task
-locking sequence that occured at least once during the lifetime of the
+locking sequence that occurred at least once during the lifetime of the
 kernel, the validator proves it with a 100% certainty that no
 combination and timing of these locking sequences can cause any class of
 lock related deadlock. [*]

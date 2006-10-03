@@ -366,8 +366,8 @@ Register Usage & Stackframes on Linux for s/390 & z/Architecture
 Overview:
 ---------
 This is the code that gcc produces at the top & the bottom of
-each function, it usually is fairly consistent & similar from 
-function to function & if you know its layout you can probalby
+each function. It usually is fairly consistent & similar from 
+function to function & if you know its layout you can probably
 make some headway in finding the ultimate cause of a problem
 after a crash without a source level debugger.
 
@@ -1703,7 +1703,7 @@ concentrate on data processing.
 IOP's can use one or more links ( known as channel paths ) to talk to each 
 IO device. It first checks for path availability & chooses an available one,
 then starts ( & sometimes terminates IO ).
-There are two types of channel path ESCON & the Paralell IO interface.
+There are two types of channel path: ESCON & the Parallel IO interface.
 
 IO devices are attached to control units, control units provide the
 logic to interface the channel paths & channel path IO protocols to 
@@ -1742,11 +1742,11 @@ controllers or a control unit which connects to 1000 3270 terminals ).
 
 The 390 IO systems come in 2 flavours the current 390 machines support both
 
-The Older 360 & 370 Interface,sometimes called the paralell I/O interface,
+The Older 360 & 370 Interface,sometimes called the Parallel I/O interface,
 sometimes called Bus-and Tag & sometimes Original Equipment Manufacturers
 Interface (OEMI).
 
-This byte wide paralell channel path/bus has parity & data on the "Bus" cable 
+This byte wide Parallel channel path/bus has parity & data on the "Bus" cable 
 & control lines on the "Tag" cable. These can operate in byte multiplex mode for
 sharing between several slow devices or burst mode & monopolize the channel for the
 whole burst. Upto 256 devices can be addressed  on one of these cables. These cables are
@@ -1776,7 +1776,7 @@ Consoles 3270 & 3215 ( a teletype emulated under linux for a line mode console )
 DASD's direct access storage devices ( otherwise known as hard disks ).
 Tape Drives.
 CTC ( Channel to Channel Adapters ),
-ESCON or Paralell Cables used as a very high speed serial link
+ESCON or Parallel Cables used as a very high speed serial link
 between 2 machines. We use 2 cables under linux to do a bi-directional serial link.
 
 
@@ -1802,8 +1802,8 @@ OSA  7C09 ON OSA   7C09 SUBCHANNEL = 0001
 OSA  7C14 ON OSA   7C14 SUBCHANNEL = 0002
 OSA  7C15 ON OSA   7C15 SUBCHANNEL = 0003
 
-If you have a guest with certain priviliges you may be able to see devices
-which don't belong to you to avoid this do add the option V.
+If you have a guest with certain privileges you may be able to see devices
+which don't belong to you. To avoid this, add the option V.
 e.g.
 Q V OSA
 

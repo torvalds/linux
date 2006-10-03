@@ -214,7 +214,7 @@ PRODUCT COMPONENTS AND RELATED FILES
 /usr/local/wanrouter/patches/kdrivers:
 	Sources of the latest WANPIPE device drivers.
 	These are used to UPGRADE the linux kernel to the newest
-	version if the kernel source has already been pathced with
+	version if the kernel source has already been patched with
 	WANPIPE drivers.
 
 /usr/local/wanrouter/samples:
@@ -438,7 +438,7 @@ beta1-2.1.5 	Nov 15 2000
 				  2.2.X kernels only
 
 				o Secured the driver UDP debugging calls
-					- All illegal netowrk debugging calls are reported to
+					- All illegal network debugging calls are reported to
 					  the log.
 					- Defined a set of allowed commands, all other denied.
 					
@@ -451,7 +451,7 @@ beta1-2.1.5 	Nov 15 2000
 
 				o Keyboard Led Monitor/Debugger
 					- A new utilty /usr/sbin/wpkbdmon uses keyboard leds
-					  to convey operatinal statistic information of the 
+					  to convey operational statistic information of the 
 					  Sangoma WANPIPE cards.
 					NUM_LOCK    = Line State  (On=connected,    Off=disconnected)
 					CAPS_LOCK   = Tx data     (On=transmitting, Off=no tx data)
@@ -470,7 +470,7 @@ beta1-2.1.5 	Nov 15 2000
 				o Fixed the Frame Relay and Chdlc network interfaces so they are
 				  compatible with libpcap libraries.  Meaning, tcpdump, snort,
 				  ethereal, and all other packet sniffers and debuggers work on
-				  all WANPIPE netowrk interfaces.
+				  all WANPIPE network interfaces.
 					- Set the network interface encoding type to ARPHRD_PPP.
 					  This tell the sniffers that data obtained from the
 					  network interface is in pure IP format.

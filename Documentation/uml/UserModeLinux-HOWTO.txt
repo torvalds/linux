@@ -2031,7 +2031,7 @@
   there are multiple COWs associated with a backing file, a -d merge of
   one of them will invalidate all of the others.  However, it is
   convenient if you're short of disk space, and it should also be
-  noticably faster than a non-destructive merge.
+  noticeably faster than a non-destructive merge.
 
 
 

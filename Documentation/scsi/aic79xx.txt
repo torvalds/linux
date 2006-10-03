@@ -94,7 +94,7 @@ The following information is available in this file:
         - Add support for scsi_report_device_reset() found in
           2.5.X kernels.
         - Add 7901B support.
-        - Simplify handling of the packtized lun Rev A workaround.
+        - Simplify handling of the packetized lun Rev A workaround.
         - Correct and simplify handling of the ignore wide residue
           message.  The previous code would fail to report a residual
           if the transaction data length was even and we received

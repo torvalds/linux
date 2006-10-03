@@ -42,7 +42,7 @@ iii. Devices which have queue depth of 1.  This is a degenerate case
 of ii.  Just keeping issue order suffices.  Ancient SCSI
 controllers/drives and IDE drives are in this category.
 
-2. Forced flushing to physcial medium
+2. Forced flushing to physical medium
 
 Again, if you're not gonna do synchronization with disk drives (dang,
 it sounds even more appealing now!), the reason you use I/O barriers

@@ -177,11 +177,11 @@ This routine returns the characteristics for the device specified.
 The function is meant to be called with an irq handler in place; that is,
 at earliest during set_online() processing.
 
-While the request is procesed synchronously, the device interrupt
+While the request is processed synchronously, the device interrupt
 handler is called for final ending status. In case of error situations the
 interrupt handler may recover appropriately. The device irq handler can
 recognize the corresponding interrupts by the interruption parameter be
-0x00524443.The ccw_device must not be locked prior to calling read_dev_chars().
+0x00524443. The ccw_device must not be locked prior to calling read_dev_chars().
 
 The function may be called enabled or disabled.
 

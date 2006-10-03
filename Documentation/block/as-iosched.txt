@@ -99,8 +99,8 @@ contrast, many write requests may be dispatched to the disk controller
 at a time during a write batch.  It is this characteristic that can make
 the anticipatory scheduler perform anomalously with controllers supporting
 TCQ, or with hardware striped RAID devices. Setting the antic_expire
-queue paramter (see below) to zero disables this behavior, and the anticipatory
-scheduler behaves essentially like the deadline scheduler.
+queue parameter (see below) to zero disables this behavior, and the 
+anticipatory scheduler behaves essentially like the deadline scheduler.
 
 When read anticipation is enabled (antic_expire is not zero), reads
 are dispatched to the disk controller one at a time.

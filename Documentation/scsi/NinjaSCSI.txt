@@ -59,10 +59,10 @@ $ emacs Makefile
 ...
 $ make
 
-[5] Copy nsp_cs.o to suitable plase, like /lib/modules/<Kernel version>/pcmcia/ .
+[5] Copy nsp_cs.ko to suitable place, like /lib/modules/<Kernel version>/pcmcia/ .
 
 [6] Add these lines to /etc/pcmcia/config .
-    If you yse pcmcia-cs-3.1.8 or later, we can use "nsp_cs.conf" file.
+    If you use pcmcia-cs-3.1.8 or later, we can use "nsp_cs.conf" file.
     So, you don't need to edit file. Just copy to /etc/pcmcia/ .
 
 -------------------------------------

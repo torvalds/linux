@@ -2005,7 +2005,7 @@ Your cooperation is appreciated.
 116 char	Advanced Linux Sound Driver (ALSA)
 
 116 block       MicroMemory battery backed RAM adapter (NVRAM)
-                Supports 16 boards, 15 paritions each.
+                Supports 16 boards, 15 partitions each.
                 Requested by neilb at cse.unsw.edu.au.
 
 		 0 = /dev/umem/d0      Whole of first board
@@ -3094,7 +3094,7 @@ Your cooperation is appreciated.
 		This major is reserved to assist the expansion to a
 		larger number space.  No device nodes with this major
 		should ever be created on the filesystem.
-		(This is probaly not true anymore, but I'll leave it
+		(This is probably not true anymore, but I'll leave it
 		for now /Torben)
 
 ---LARGE MAJORS!!!!!---

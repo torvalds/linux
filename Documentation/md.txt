@@ -330,7 +330,7 @@ Each directory contains:
         This gives the role that the device has in the array.  It will
 	either be 'none' if the device is not active in the array
         (i.e. is a spare or has failed) or an integer less than the
-	'raid_disks' number for the array indicating which possition
+	'raid_disks' number for the array indicating which position
 	it currently fills.  This can only be set while assembling an
 	array.  A device for which this is set is assumed to be working.
 
@@ -353,7 +353,7 @@ in the array.  These are named
 
     rdNN
 
-where 'NN' is the possition in the array, starting from 0.
+where 'NN' is the position in the array, starting from 0.
 So for a 3 drive array there will be rd0, rd1, rd2.
 These are symbolic links to the appropriate 'dev-XXX' entry.
 Thus, for example,

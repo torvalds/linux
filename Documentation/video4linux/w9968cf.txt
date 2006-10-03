@@ -15,7 +15,7 @@ Index
 5.  Supported devices
 6.  Module dependencies
 7.  Module loading
-8.  Module paramaters
+8.  Module parameters
 9.  Contact information
 10. Credits
 

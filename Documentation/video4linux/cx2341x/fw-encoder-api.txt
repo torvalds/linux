@@ -280,7 +280,7 @@ Param[0]
 Param[1]
 	Unknown, but leaving this to 0 seems to work best. Indications are that
 	this might have to do with USB support, although passing anything but 0
-	onl breaks things.
+	only breaks things.
 
 -------------------------------------------------------------------------------
 

@@ -278,7 +278,7 @@ an i386 kernel's memory size is limited to 1GiB.
 All memory allocations are not freed until the socket is closed. The memory 
 allocations are done with GFP_KERNEL priority, this basically means that 
 the allocation can wait and swap other process' memory in order to allocate 
-the nececessary memory, so normally limits can be reached.
+the necessary memory, so normally limits can be reached.
 
  Other constraints
 -------------------

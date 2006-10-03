@@ -630,12 +630,11 @@ like address space bits, you'll have to add a bus translator to the
 prom_parse.c file of the recent kernels for your bus type.
 
 The "reg" property only defines addresses and sizes (if #size-cells
-is
-non-0) within a given bus. In order to translate addresses upward
+is non-0) within a given bus. In order to translate addresses upward
 (that is into parent bus addresses, and possibly into cpu physical
 addresses), all busses must contain a "ranges" property. If the
 "ranges" property is missing at a given level, it's assumed that
-translation isn't possible. The format of the "ranges" proprety for a
+translation isn't possible. The format of the "ranges" property for a
 bus is a list of:
 
 	bus address, parent bus address, size

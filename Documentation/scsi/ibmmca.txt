@@ -1086,7 +1086,7 @@
    
      Q: "Reset SCSI-devices at boottime" halts the system at boottime, why?
      A: This is only tested with the IBM SCSI Adapter w/cache. It is not
-        yet prooved to run on other adapters, however you may be lucky.
+        yet proven to run on other adapters, however you may be lucky.
 	In version 3.1d this has been hugely improved and should work better,
 	now. Normally you really won't need to activate this flag in the
 	kernel configuration, as all post 1989 SCSI-devices should accept

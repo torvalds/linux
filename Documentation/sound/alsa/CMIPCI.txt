@@ -76,7 +76,7 @@ in alsa-lib.  For example, you can play a WAV file with 6 channels like
 
 	% aplay -Dsurround51 sixchannels.wav
 
-For programmin the 4/6 channel playback, you need to specify the PCM
+For programming the 4/6 channel playback, you need to specify the PCM
 channels as you like and set the format S16LE.  For example, for playback
 with 4 channels,
 

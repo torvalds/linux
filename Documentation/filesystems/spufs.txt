@@ -359,7 +359,7 @@ ERRORS
        EFAULT npc is not a valid pointer or status is neither NULL nor a valid
               pointer.
 
-       EINTR  A signal occured while spu_run was in progress.  The  npc  value
+       EINTR  A signal occurred while spu_run was in progress.  The npc  value
               has  been updated to the new program counter value if necessary.
 
        EINVAL fd is not a file descriptor returned from spu_create(2).

@@ -465,8 +465,8 @@ more parallel ports.
 
   There are two options specific to PSX driver portion.  gamecon.psx_delay sets
 the command delay when talking to the controllers. The default of 25 should
-work but you can try lowering it for better performace. If your pads don't
-respond try raising it untill they work. Setting the type to 8 allows the
+work but you can try lowering it for better performance. If your pads don't
+respond try raising it until they work. Setting the type to 8 allows the
 driver to be used with Dance Dance Revolution or similar games. Arrow keys are
 registered as key presses instead of X and Y axes.
 

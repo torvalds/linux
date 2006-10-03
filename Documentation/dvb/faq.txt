@@ -5,7 +5,7 @@ Some very frequently asked questions about linuxtv-dvb
 	It's not a bug, it's a feature. Because the frontends have
 	significant power requirements (and hence get very hot), they
 	are powered down if they are unused (i.e. if the frontend device
-	is closed). The dvb-core.o module paramter "dvb_shutdown_timeout"
+	is closed). The dvb-core.o module parameter "dvb_shutdown_timeout"
 	allow you to change the timeout (default 5 seconds). Setting the
 	timeout to 0 disables the timeout feature.
 

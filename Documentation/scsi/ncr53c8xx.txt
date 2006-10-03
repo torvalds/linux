@@ -631,8 +631,8 @@ string variable using 'insmod'.
 
 A boot setup command for the ncr53c8xx (sym53c8xx) driver begins with the 
 driver name "ncr53c8xx="(sym53c8xx). The kernel syntax parser then expects 
-an optionnal list of integers separated with comma followed by an optional 
-list of  comma-separated strings. Example of boot setup command under lilo 
+an optional list of integers separated with comma followed by an optional 
+list of comma-separated strings. Example of boot setup command under lilo 
 prompt:
 
 lilo: linux root=/dev/hda2 ncr53c8xx=tags:4,sync:10,debug:0x200
@@ -899,7 +899,7 @@ boot setup can be:
     ncr53c8xx=safe:y,mpar:y
     ncr53c8xx=safe:y
 
-My personnal system works flawlessly with the following equivalent setup:
+My personal system works flawlessly with the following equivalent setup:
 
    ncr53c8xx=mpar:y,spar:y,disc:y,specf:1,fsn:n,ultra:2,fsn:n,revprob:n,verb:1\
              tags:32,sync:12,debug:0,burst:7,led:1,wide:1,settle:2,diff:0,irqm:0

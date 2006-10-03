@@ -27,7 +27,7 @@ several reasons why such integration is hard/impossible:
   high-res timers.
 
 - the unpredictable [O(N)] overhead of cascading leads to delays which
-  necessiate a more complex handling of high resolution timers, which
+  necessitate a more complex handling of high resolution timers, which
   in turn decreases robustness. Such a design still led to rather large
   timing inaccuracies. Cascading is a fundamental property of the timer
   wheel concept, it cannot be 'designed out' without unevitably
