@@ -101,10 +101,13 @@ static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)
 static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 {
 	int i;
+	struct acpi_processor_performance *perf;
 
 	msr &= INTEL_MSR_RANGE;
+	perf = data->acpi_data;
+
 	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		if (msr == data->freq_table[i].index)
+		if (msr == perf->states[data->freq_table[i].index].status)
 			return data->freq_table[i].frequency;
 	}
 	return data->freq_table[0].frequency;
