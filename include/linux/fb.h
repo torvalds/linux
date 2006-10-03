@@ -776,6 +776,7 @@ struct fb_info {
 	struct fb_ops *fbops;
 	struct device *device;
 	struct class_device *class_device; /* sysfs per device attrs */
+	int class_flag;                    /* private sysfs flags */
 #ifdef CONFIG_FB_TILEBLITTING
 	struct fb_tile_ops *tileops;    /* Tile Blitting */
 #endif
