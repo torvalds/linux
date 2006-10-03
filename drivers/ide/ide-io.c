@@ -59,8 +59,6 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 {
 	int ret = 1;
 
-	BUG_ON(!blk_rq_started(rq));
-
 	/*
 	 * if failfast is set on a request, override number of sectors and
 	 * complete the whole request right now
@@ -82,7 +80,8 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 
 	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
 		add_disk_randomness(rq->rq_disk);
-		blkdev_dequeue_request(rq);
+		if (!list_empty(&rq->queuelist))
+			blkdev_dequeue_request(rq);
 		HWGROUP(drive)->rq = NULL;
 		end_that_request_last(rq, uptodate);
 		ret = 0;
@@ -1346,6 +1345,10 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 * make sure request is sane
 	 */
 	rq = HWGROUP(drive)->rq;
+
+	if (!rq)
+		goto out;
+
 	HWGROUP(drive)->rq = NULL;
 
 	rq->errors = 0;
