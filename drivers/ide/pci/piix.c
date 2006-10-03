@@ -222,13 +222,15 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	u16 master_data;
 	u8 slave_data;
 	static DEFINE_SPINLOCK(tune_lock);
+	int control = 0;
 
 				 /* ISP  RTC */
-	u8 timings[][2]	= { { 0, 0 },
-			    { 0, 0 },
-			    { 1, 0 },
-			    { 2, 1 },
-			    { 2, 3 }, };
+	static const u8 timings[][2]= {
+					{ 0, 0 },
+					{ 0, 0 },
+					{ 1, 0 },
+					{ 2, 1 },
+					{ 2, 3 }, };
 
 	pio = ide_get_best_pio_mode(drive, pio, 5, NULL);
 
@@ -239,19 +241,30 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 	 */
 	spin_lock_irqsave(&tune_lock, flags);
 	pci_read_config_word(dev, master_port, &master_data);
+
+	if (pio >= 2)
+		control |= 1;	/* Programmable timing on */
+	if (drive->media == ide_disk)
+		control |= 4;	/* Prefetch, post write */
+	if (pio >= 3)
+		control |= 2;	/* IORDY */
 	if (is_slave) {
 		master_data = master_data | 0x4000;
-		if (pio > 1)
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0070;
+			master_data = master_data | (control << 4);
+		} else {
+			master_data &= ~0x0070;
+		}
 		pci_read_config_byte(dev, slave_port, &slave_data);
 		slave_data = slave_data & (hwif->channel ? 0x0f : 0xf0);
 		slave_data = slave_data | (((timings[pio][0] << 2) | timings[pio][1]) << (hwif->channel ? 4 : 0));
 	} else {
 		master_data = master_data & 0xccf8;
-		if (pio > 1)
+		if (pio > 1) {
 			/* enable PPE, IE and TIME */
-			master_data = master_data | 0x0007;
+			master_data = master_data | control;
+		}
 		master_data = master_data | (timings[pio][0] << 12) | (timings[pio][1] << 8);
 	}
 	pci_write_config_word(dev, master_port, master_data);
