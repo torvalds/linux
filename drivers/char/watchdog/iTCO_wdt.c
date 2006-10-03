@@ -494,7 +494,7 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 		}
 
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
 	}
 }
 
