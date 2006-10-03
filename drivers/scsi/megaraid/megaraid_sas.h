@@ -18,9 +18,9 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.03.01"
-#define MEGASAS_RELDATE				"May 14, 2006"
-#define MEGASAS_EXT_VERSION			"Sun May 14 22:49:52 PDT 2006"
+#define MEGASAS_VERSION				"00.00.03.05"
+#define MEGASAS_RELDATE				"Oct 02, 2006"
+#define MEGASAS_EXT_VERSION			"Mon Oct 02 11:21:32 PDT 2006"
 
 /*
  * Device IDs
@@ -547,6 +547,7 @@ struct megasas_ctrl_info {
  * every MEGASAS_RESET_NOTICE_INTERVAL seconds
  */
 #define MEGASAS_RESET_WAIT_TIME			180
+#define MEGASAS_INTERNAL_CMD_WAIT_TIME		180
 #define	MEGASAS_RESET_NOTICE_INTERVAL		5
 
 #define MEGASAS_IOCTL_CMD			0

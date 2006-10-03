@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.03.01
+ * Version	: v00.00.03.05
  *
  * Authors:
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
@@ -347,6 +347,7 @@ megasas_issue_polled(struct megasas_instance *instance, struct megasas_cmd *cmd)
  * @cmd:			Command to be issued
  *
  * This function waits on an event for the command to be returned from ISR.
+ * Max wait time is MEGASAS_INTERNAL_CMD_WAIT_TIME secs
  * Used to issue ioctl commands.
  */
 static int
@@ -357,7 +358,8 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
 
 	instance->instancet->fire_cmd(cmd->frame_phys_addr ,0,instance->reg_set);
 
-	wait_event(instance->int_cmd_wait_q, (cmd->cmd_status != ENODATA));
+	wait_event_timeout(instance->int_cmd_wait_q, (cmd->cmd_status != ENODATA),
+		MEGASAS_INTERNAL_CMD_WAIT_TIME*HZ);
 
 	return 0;
 }
@@ -369,7 +371,8 @@ megasas_issue_blocked_cmd(struct megasas_instance *instance,
  *
  * MFI firmware can abort previously issued AEN comamnd (automatic event
  * notification). The megasas_issue_blocked_abort_cmd() issues such abort
- * cmd and blocks till it is completed.
+ * cmd and waits for return status.
+ * Max wait time is MEGASAS_INTERNAL_CMD_WAIT_TIME secs
  */
 static int
 megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
@@ -403,7 +406,8 @@ megasas_issue_blocked_abort_cmd(struct megasas_instance *instance,
 	/*
 	 * Wait for this cmd to complete
 	 */
-	wait_event(instance->abort_cmd_wait_q, (cmd->cmd_status != 0xFF));
+	wait_event_timeout(instance->abort_cmd_wait_q, (cmd->cmd_status != 0xFF),
+		MEGASAS_INTERNAL_CMD_WAIT_TIME*HZ);
 
 	megasas_return_cmd(instance, cmd);
 	return 0;
