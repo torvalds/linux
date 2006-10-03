@@ -201,7 +201,7 @@ static struct dvb_usb_device_properties gl861_properties = {
 };
 
 static struct usb_driver gl861_driver = {
-	.name		= "gl861",
+	.name		= "dvb_usb_gl861",
 	.probe		= gl861_probe,
 	.disconnect	= dvb_usb_device_exit,
 	.id_table	= gl861_table,
