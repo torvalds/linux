@@ -1034,7 +1034,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 
 		pe = __find_pending_exception(snap, bio);
 		if (!pe) {
-			__invalidate_snapshot(snap, pe, ENOMEM);
+			__invalidate_snapshot(snap, pe, -ENOMEM);
 			goto next_snapshot;
 		}
 
