@@ -216,8 +216,10 @@ extern void dump_stack(void);
 #define pr_debug(fmt,arg...) \
 	printk(KERN_DEBUG fmt,##arg)
 #else
-#define pr_debug(fmt,arg...) \
-	do { } while (0)
+static inline int __attribute__ ((format (printf, 1, 2))) pr_debug(const char * fmt, ...)
+{
+	return 0;
+}
 #endif
 
 #define pr_info(fmt,arg...) \
