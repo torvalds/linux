@@ -1102,6 +1102,7 @@ struct megasas_instance {
 	u32 hw_crit_error;
 
 	struct megasas_instance_template *instancet;
+	struct tasklet_struct isr_tasklet;
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\

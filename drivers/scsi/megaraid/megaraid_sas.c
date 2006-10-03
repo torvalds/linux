@@ -1271,11 +1271,6 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 static int
 megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 {
-	u32 producer;
-	u32 consumer;
-	u32 context;
-	struct megasas_cmd *cmd;
-
 	/*
 	 * Check if it is our interrupt
 	 * Clear the interrupt 
@@ -1283,23 +1278,10 @@ megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 	if(instance->instancet->clear_intr(instance->reg_set))
 		return IRQ_NONE;
 
-	producer = *instance->producer;
-	consumer = *instance->consumer;
-
-	while (consumer != producer) {
-		context = instance->reply_queue[consumer];
-
-		cmd = instance->cmd_list[context];
-
-		megasas_complete_cmd(instance, cmd, alt_status);
-
-		consumer++;
-		if (consumer == (instance->max_fw_cmds + 1)) {
-			consumer = 0;
-		}
-	}
-
-	*instance->consumer = producer;
+        /*
+	 * Schedule the tasklet for cmd completion
+	 */
+	tasklet_schedule(&instance->isr_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -1742,6 +1724,39 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 }
 
 /**
+ * megasas_complete_cmd_dpc	 -	Returns FW's controller structure
+ * @instance_addr:			Address of adapter soft state
+ *
+ * Tasklet to complete cmds
+ */
+void megasas_complete_cmd_dpc(unsigned long instance_addr)
+{
+	u32 producer;
+	u32 consumer;
+	u32 context;
+	struct megasas_cmd *cmd;
+	struct megasas_instance *instance = (struct megasas_instance *)instance_addr;
+
+	producer = *instance->producer;
+	consumer = *instance->consumer;
+
+	while (consumer != producer) {
+		context = instance->reply_queue[consumer];
+
+		cmd = instance->cmd_list[context];
+
+		megasas_complete_cmd(instance, cmd, DID_OK);
+
+		consumer++;
+		if (consumer == (instance->max_fw_cmds + 1)) {
+			consumer = 0;
+		}
+	}
+
+	*instance->consumer = producer;
+}
+
+/**
  * megasas_init_mfi -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -1911,6 +1926,12 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 
 	kfree(ctrl_info);
 
+        /*
+	* Setup tasklet for cmd completion
+	*/
+
+        tasklet_init(&instance->isr_tasklet, megasas_complete_cmd_dpc,
+                        (unsigned long)instance);
 	return 0;
 
       fail_fw_init:
@@ -2470,6 +2491,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	scsi_remove_host(instance->host);
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance);
+	tasklet_kill(&instance->isr_tasklet);
 
 	/*
 	 * Take the instance off the instance array. Note that we will not
