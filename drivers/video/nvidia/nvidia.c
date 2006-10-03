@@ -28,6 +28,9 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #endif
+#ifdef CONFIG_BOOTX_TEXT
+#include <asm/btext.h>
+#endif
 
 #include "nv_local.h"
 #include "nv_type.h"
@@ -680,6 +683,13 @@ static int nvidiafb_set_par(struct fb_info *info)
 	par->cursor_reset = 1;
 
 	nvidia_vga_protect(par, 0);
+
+#ifdef CONFIG_BOOTX_TEXT
+	/* Update debug text engine */
+	btext_update_display(info->fix.smem_start,
+			     info->var.xres, info->var.yres,
+			     info->var.bits_per_pixel, info->fix.line_length);
+#endif
 
 	NVTRACE_LEAVE();
 	return 0;
