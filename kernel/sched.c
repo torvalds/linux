@@ -5489,15 +5489,17 @@ __setup ("isolcpus=", isolated_cpu_setup);
  * covered by the given span, and will set each group's ->cpumask correctly,
  * and ->cpu_power to 0.
  */
-static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
-				    int (*group_fn)(int cpu))
+static void
+init_sched_build_groups(struct sched_group groups[], cpumask_t span,
+			const cpumask_t *cpu_map,
+			int (*group_fn)(int cpu, const cpumask_t *cpu_map))
 {
 	struct sched_group *first = NULL, *last = NULL;
 	cpumask_t covered = CPU_MASK_NONE;
 	int i;
 
 	for_each_cpu_mask(i, span) {
-		int group = group_fn(i);
+		int group = group_fn(i, cpu_map);
 		struct sched_group *sg = &groups[group];
 		int j;
 
@@ -5508,7 +5510,7 @@ static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
 		sg->cpu_power = 0;
 
 		for_each_cpu_mask(j, span) {
-			if (group_fn(j) != group)
+			if (group_fn(j, cpu_map) != group)
 				continue;
 
 			cpu_set(j, covered);
@@ -6084,7 +6086,7 @@ int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
 static DEFINE_PER_CPU(struct sched_domain, cpu_domains);
 static struct sched_group sched_group_cpus[NR_CPUS];
 
-static int cpu_to_cpu_group(int cpu)
+static int cpu_to_cpu_group(int cpu, const cpumask_t *cpu_map)
 {
 	return cpu;
 }
@@ -6095,31 +6097,36 @@ static int cpu_to_cpu_group(int cpu)
  */
 #ifdef CONFIG_SCHED_MC
 static DEFINE_PER_CPU(struct sched_domain, core_domains);
-static struct sched_group *sched_group_core_bycpu[NR_CPUS];
+static struct sched_group sched_group_core[NR_CPUS];
 #endif
 
 #if defined(CONFIG_SCHED_MC) && defined(CONFIG_SCHED_SMT)
-static int cpu_to_core_group(int cpu)
+static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map)
 {
-	return first_cpu(cpu_sibling_map[cpu]);
+	cpumask_t mask = cpu_sibling_map[cpu];
+	cpus_and(mask, mask, *cpu_map);
+	return first_cpu(mask);
 }
 #elif defined(CONFIG_SCHED_MC)
-static int cpu_to_core_group(int cpu)
+static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map)
 {
 	return cpu;
 }
 #endif
 
 static DEFINE_PER_CPU(struct sched_domain, phys_domains);
-static struct sched_group *sched_group_phys_bycpu[NR_CPUS];
+static struct sched_group sched_group_phys[NR_CPUS];
 
-static int cpu_to_phys_group(int cpu)
+static int cpu_to_phys_group(int cpu, const cpumask_t *cpu_map)
 {
 #ifdef CONFIG_SCHED_MC
 	cpumask_t mask = cpu_coregroup_map(cpu);
+	cpus_and(mask, mask, *cpu_map);
 	return first_cpu(mask);
 #elif defined(CONFIG_SCHED_SMT)
-	return first_cpu(cpu_sibling_map[cpu]);
+	cpumask_t mask = cpu_sibling_map[cpu];
+	cpus_and(mask, mask, *cpu_map);
+	return first_cpu(mask);
 #else
 	return cpu;
 #endif
@@ -6137,7 +6144,7 @@ static struct sched_group **sched_group_nodes_bycpu[NR_CPUS];
 static DEFINE_PER_CPU(struct sched_domain, allnodes_domains);
 static struct sched_group *sched_group_allnodes_bycpu[NR_CPUS];
 
-static int cpu_to_allnodes_group(int cpu)
+static int cpu_to_allnodes_group(int cpu, const cpumask_t *cpu_map)
 {
 	return cpu_to_node(cpu);
 }
@@ -6169,12 +6176,11 @@ next_sg:
 }
 #endif
 
+#ifdef CONFIG_NUMA
 /* Free memory allocated for various sched_group structures */
 static void free_sched_groups(const cpumask_t *cpu_map)
 {
-	int cpu;
-#ifdef CONFIG_NUMA
-	int i;
+	int cpu, i;
 
 	for_each_cpu_mask(cpu, *cpu_map) {
 		struct sched_group *sched_group_allnodes
@@ -6211,20 +6217,12 @@ next_sg:
 		kfree(sched_group_nodes);
 		sched_group_nodes_bycpu[cpu] = NULL;
 	}
-#endif
-	for_each_cpu_mask(cpu, *cpu_map) {
-		if (sched_group_phys_bycpu[cpu]) {
-			kfree(sched_group_phys_bycpu[cpu]);
-			sched_group_phys_bycpu[cpu] = NULL;
-		}
-#ifdef CONFIG_SCHED_MC
-		if (sched_group_core_bycpu[cpu]) {
-			kfree(sched_group_core_bycpu[cpu]);
-			sched_group_core_bycpu[cpu] = NULL;
-		}
-#endif
-	}
 }
+#else
+static void free_sched_groups(const cpumask_t *cpu_map)
+{
+}
+#endif
 
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
@@ -6233,10 +6231,6 @@ next_sg:
 static int build_sched_domains(const cpumask_t *cpu_map)
 {
 	int i;
-	struct sched_group *sched_group_phys = NULL;
-#ifdef CONFIG_SCHED_MC
-	struct sched_group *sched_group_core = NULL;
-#endif
 #ifdef CONFIG_NUMA
 	struct sched_group **sched_group_nodes = NULL;
 	struct sched_group *sched_group_allnodes = NULL;
@@ -6282,7 +6276,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			sd = &per_cpu(allnodes_domains, i);
 			*sd = SD_ALLNODES_INIT;
 			sd->span = *cpu_map;
-			group = cpu_to_allnodes_group(i);
+			group = cpu_to_allnodes_group(i, cpu_map);
 			sd->groups = &sched_group_allnodes[group];
 			p = sd;
 		} else
@@ -6295,42 +6289,18 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		cpus_and(sd->span, sd->span, *cpu_map);
 #endif
 
-		if (!sched_group_phys) {
-			sched_group_phys
-				= kmalloc(sizeof(struct sched_group) * NR_CPUS,
-					  GFP_KERNEL);
-			if (!sched_group_phys) {
-				printk (KERN_WARNING "Can not alloc phys sched"
-						     "group\n");
-				goto error;
-			}
-			sched_group_phys_bycpu[i] = sched_group_phys;
-		}
-
 		p = sd;
 		sd = &per_cpu(phys_domains, i);
-		group = cpu_to_phys_group(i);
+		group = cpu_to_phys_group(i, cpu_map);
 		*sd = SD_CPU_INIT;
 		sd->span = nodemask;
 		sd->parent = p;
 		sd->groups = &sched_group_phys[group];
 
 #ifdef CONFIG_SCHED_MC
-		if (!sched_group_core) {
-			sched_group_core
-				= kmalloc(sizeof(struct sched_group) * NR_CPUS,
-					  GFP_KERNEL);
-			if (!sched_group_core) {
-				printk (KERN_WARNING "Can not alloc core sched"
-						     "group\n");
-				goto error;
-			}
-			sched_group_core_bycpu[i] = sched_group_core;
-		}
-
 		p = sd;
 		sd = &per_cpu(core_domains, i);
-		group = cpu_to_core_group(i);
+		group = cpu_to_core_group(i, cpu_map);
 		*sd = SD_MC_INIT;
 		sd->span = cpu_coregroup_map(i);
 		cpus_and(sd->span, sd->span, *cpu_map);
@@ -6341,7 +6311,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 #ifdef CONFIG_SCHED_SMT
 		p = sd;
 		sd = &per_cpu(cpu_domains, i);
-		group = cpu_to_cpu_group(i);
+		group = cpu_to_cpu_group(i, cpu_map);
 		*sd = SD_SIBLING_INIT;
 		sd->span = cpu_sibling_map[i];
 		cpus_and(sd->span, sd->span, *cpu_map);
@@ -6359,7 +6329,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			continue;
 
 		init_sched_build_groups(sched_group_cpus, this_sibling_map,
-						&cpu_to_cpu_group);
+					cpu_map, &cpu_to_cpu_group);
 	}
 #endif
 
@@ -6371,7 +6341,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		if (i != first_cpu(this_core_map))
 			continue;
 		init_sched_build_groups(sched_group_core, this_core_map,
-					&cpu_to_core_group);
+					cpu_map, &cpu_to_core_group);
 	}
 #endif
 
@@ -6385,14 +6355,14 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			continue;
 
 		init_sched_build_groups(sched_group_phys, nodemask,
-						&cpu_to_phys_group);
+					cpu_map, &cpu_to_phys_group);
 	}
 
 #ifdef CONFIG_NUMA
 	/* Set up node groups */
 	if (sched_group_allnodes)
 		init_sched_build_groups(sched_group_allnodes, *cpu_map,
-					&cpu_to_allnodes_group);
+					cpu_map, &cpu_to_allnodes_group);
 
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		/* Set up node groups */
@@ -6537,7 +6507,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		init_numa_sched_groups_power(sched_group_nodes[i]);
 
 	if (sched_group_allnodes) {
-		int group = cpu_to_allnodes_group(first_cpu(*cpu_map));
+		int group = cpu_to_allnodes_group(first_cpu(*cpu_map), cpu_map);
 		struct sched_group *sg = &sched_group_allnodes[group];
 
 		init_numa_sched_groups_power(sg);
@@ -6563,9 +6533,11 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 
 	return 0;
 
+#ifdef CONFIG_NUMA
 error:
 	free_sched_groups(cpu_map);
 	return -ENOMEM;
+#endif
 }
 /*
  * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
