@@ -800,6 +800,7 @@ static int alloc_shaper(struct atm_dev *dev,int *pcr,int min,int max,int ubr)
 		i = m = 1;
 		zatm_dev->ubr_ref_cnt++;
 		zatm_dev->ubr = shaper;
+		*pcr = 0;
 	}
 	else {
 		if (min) {
