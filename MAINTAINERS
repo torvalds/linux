@@ -2825,17 +2825,13 @@ P:	Paul Mundt
 M:	lethal@linux-sh.org
 L:	linuxsh-dev@lists.sourceforge.net (subscribers-only)
 W:	http://www.linux-sh.org
-W:	http://www.m17n.org/linux-sh/
 S:	Maintained
 
 SUPERH64 (sh64)
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-P:	Richard Curnow
-M:	rc@rc0.org.uk
 L:	linuxsh-shmedia-dev@lists.sourceforge.net
 W:	http://www.linux-sh.org
-W:	http://www.rc0.org.uk/sh64
 S:	Maintained
 
 SUN3/3X
