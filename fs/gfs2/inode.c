@@ -17,6 +17,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/lm_interface.h>
+#include <linux/security.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -806,6 +807,39 @@ fail:
 	return error;
 }
 
+static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
+{
+	int err;
+	size_t len;
+	void *value;
+	char *name;
+	struct gfs2_ea_request er;
+
+	err = security_inode_init_security(&ip->i_inode, &dip->i_inode,
+					   &name, &value, &len);
+
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+
+	memset(&er, 0, sizeof(struct gfs2_ea_request));
+
+	er.er_type = GFS2_EATYPE_SECURITY;
+	er.er_name = name;
+	er.er_data = value;
+	er.er_name_len = strlen(name);
+	er.er_data_len = len;
+
+	err = gfs2_ea_set_i(ip, &er);
+
+	kfree(value);
+	kfree(name);
+
+	return err;
+}
+
 /**
  * gfs2_createi - Create a new inode
  * @ghs: An array of two holders
@@ -894,6 +928,10 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 		goto fail_iput;
 
 	error = gfs2_acl_create(dip, GFS2_I(inode));
+	if (error)
+		goto fail_iput;
+
+	error = gfs2_security_init(dip, GFS2_I(inode));
 	if (error)
 		goto fail_iput;
 
