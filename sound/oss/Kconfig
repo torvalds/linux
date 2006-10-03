@@ -647,7 +647,7 @@ config SOUND_PSS
 	  command line.
 
 config PSS_MIXER
-	bool "Enable PSS mixer (Beethoven ADSP-16 and other compatibile)"
+	bool "Enable PSS mixer (Beethoven ADSP-16 and other compatible)"
 	depends on SOUND_PSS
 	help
 	  Answer Y for Beethoven ADSP-16. You may try to say Y also for other

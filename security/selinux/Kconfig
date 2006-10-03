@@ -112,7 +112,7 @@ config SECURITY_SELINUX_ENABLE_SECMARK_DEFAULT
 	  your distribution will provide these and enable the new controls
 	  in the kernel they also distribute.
 
-	  Note that this option can be overriden at boot with the
+	  Note that this option can be overridden at boot with the
 	  selinux_compat_net parameter, and after boot via
 	  /selinux/compat_net.  See Documentation/kernel-parameters.txt
 	  for details on this parameter.

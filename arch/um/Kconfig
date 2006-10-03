@@ -257,7 +257,7 @@ config UML_REAL_TIME_CLOCK
 	UML and spend long times with UML stopped at a breakpoint.  In this
 	case, when UML is restarted, it will call the timer enough times to make
 	up for the time spent at the breakpoint.  This could result in a
-	noticable lag.  If this is a problem, then disable this option.
+	noticeable lag.  If this is a problem, then disable this option.
 
 endmenu
 

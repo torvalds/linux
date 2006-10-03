@@ -81,7 +81,7 @@ config	IP_VS_PROTO_ESP
 	bool "ESP load balancing support"
 	depends on IP_VS
 	---help---
-	  This option enables support for load balancing ESP (Encapsultion
+	  This option enables support for load balancing ESP (Encapsulation
 	  Security Payload) transport protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH

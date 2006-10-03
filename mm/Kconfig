@@ -104,7 +104,7 @@ config SPARSEMEM_STATIC
 	def_bool n
 
 #
-# Architectecture platforms which require a two level mem_section in SPARSEMEM
+# Architecture platforms which require a two level mem_section in SPARSEMEM
 # must select this option. This is usually for architecture platforms with
 # an extremely sparse physical address space.
 #

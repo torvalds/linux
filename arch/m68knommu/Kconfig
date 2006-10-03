@@ -161,8 +161,8 @@ config CLOCK_FREQ
 	  frequency, it may or may not be the same as the external clock
 	  crystal fitted to your board. Some processors have an internal
 	  PLL and can have their frequency programmed at run time, others
-	  use internal dividers. In gernal the kernel won't setup a PLL
-	  if it is fitted (there are some expections). This value will be
+	  use internal dividers. In general the kernel won't setup a PLL
+	  if it is fitted (there are some exceptions). This value will be
 	  specific to the exact CPU that you are using.
 
 config CLOCK_DIV

@@ -1032,7 +1032,7 @@ config BEFS_FS
 	  on files and directories, and database-like indeces on selected
 	  attributes. (Also note that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
-	  extremly large volumes and files.
+	  extremely large volumes and files.
 
 	  If you use this filesystem, you should also say Y to at least one
 	  of the NLS (native language support) options below.
