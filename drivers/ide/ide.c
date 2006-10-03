@@ -1364,6 +1364,11 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 
 			spin_lock_irqsave(&ide_lock, flags);
 
+			if (HWGROUP(drive)->resetting) {
+				spin_unlock_irqrestore(&ide_lock, flags);
+				return -EBUSY;
+			}
+
 			ide_abort(drive, "drive reset");
 
 			BUG_ON(HWGROUP(drive)->handler);

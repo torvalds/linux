@@ -825,6 +825,9 @@ typedef struct hwgroup_s {
 	unsigned int sleeping	: 1;
 		/* BOOL: polling active & poll_timeout field valid */
 	unsigned int polling	: 1;
+	 	/* BOOL: in a polling reset situation. Must not trigger another reset yet */
+	unsigned int resetting  : 1;
+
 		/* current drive */
 	ide_drive_t *drive;
 		/* ptr to current hwif in linked-list */
