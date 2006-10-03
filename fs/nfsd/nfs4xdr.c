@@ -198,8 +198,7 @@ static char *savemem(struct nfsd4_compoundargs *argp, u32 *p, int nbytes)
 		p = new;
 		memcpy(p, argp->tmp, nbytes);
 	} else {
-		if (p != argp->tmpp)
-			BUG();
+		BUG_ON(p != argp->tmpp);
 		argp->tmpp = NULL;
 	}
 	if (defer_free(argp, kfree, p)) {
