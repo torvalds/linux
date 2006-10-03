@@ -1351,10 +1351,9 @@ static int page_is_zero(struct page *p)
 static int stripe_to_pdidx(sector_t stripe, raid5_conf_t *conf, int disks)
 {
 	int sectors_per_chunk = conf->chunk_size >> 9;
-	sector_t x = stripe;
 	int pd_idx, dd_idx;
-	int chunk_offset = sector_div(x, sectors_per_chunk);
-	stripe = x;
+	int chunk_offset = sector_div(stripe, sectors_per_chunk);
+
 	raid5_compute_sector(stripe*(disks-1)*sectors_per_chunk
 			     + chunk_offset, disks, disks-1, &dd_idx, &pd_idx, conf);
 	return pd_idx;
