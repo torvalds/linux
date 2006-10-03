@@ -720,9 +720,10 @@ static int ep_getfd(int *efd, struct inode **einode, struct file **efile,
 
 	/* Allocates an inode from the eventpoll file system */
 	inode = ep_eventpoll_inode();
-	error = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		goto eexit_2;
+	}
 
 	/* Allocates a free descriptor to plug the file onto */
 	error = get_unused_fd();
