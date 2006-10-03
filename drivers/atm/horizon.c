@@ -2719,15 +2719,13 @@ static int __devinit hrz_probe(struct pci_dev *pci_dev, const struct pci_device_
 		goto out_disable;
 	}
 
-	dev = kmalloc(sizeof(hrz_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(hrz_dev), GFP_KERNEL);
 	if (!dev) {
 		// perhaps we should be nice: deregister all adapters and abort?
 		PRINTD(DBG_ERR, "out of memory");
 		err = -ENOMEM;
 		goto out_release;
 	}
-
-	memset(dev, 0, sizeof(hrz_dev));
 
 	pci_set_drvdata(pci_dev, dev);
 
