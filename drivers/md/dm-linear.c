@@ -105,7 +105,7 @@ static int linear_ioctl(struct dm_target *ti, struct inode *inode,
 	struct linear_c *lc = (struct linear_c *) ti->private;
 	struct block_device *bdev = lc->dev->bdev;
 
-	return blkdev_ioctl(bdev->bd_inode, filp, cmd, arg);
+	return blkdev_driver_ioctl(bdev->bd_inode, filp, bdev->bd_disk, cmd, arg);
 }
 
 static struct target_type linear_target = {

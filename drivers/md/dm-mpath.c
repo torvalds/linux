@@ -1290,7 +1290,8 @@ static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	return r ? : blkdev_ioctl(bdev->bd_inode, filp, cmd, arg);
+	return r ? : blkdev_driver_ioctl(bdev->bd_inode, filp, bdev->bd_disk,
+		     cmd, arg);
 }
 
 /*-----------------------------------------------------------------
