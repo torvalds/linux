@@ -106,7 +106,8 @@
 #define MAX_NR_CON_DRIVER 16
 
 #define CON_DRIVER_FLAG_MODULE 1
-#define CON_DRIVER_FLAG_INIT 2
+#define CON_DRIVER_FLAG_INIT   2
+#define CON_DRIVER_FLAG_ATTR   4
 
 struct con_driver {
 	const struct consw *con;
@@ -3070,22 +3071,37 @@ static struct class_device_attribute class_device_attrs[] = {
 static int vtconsole_init_class_device(struct con_driver *con)
 {
 	int i;
+	int error = 0;
 
+	con->flag |= CON_DRIVER_FLAG_ATTR;
 	class_set_devdata(con->class_dev, con);
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_create_file(con->class_dev,
+	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++) {
+		error = class_device_create_file(con->class_dev,
 					 &class_device_attrs[i]);
+		if (error)
+			break;
+	}
 
-	return 0;
+	if (error) {
+		while (--i >= 0)
+			class_device_remove_file(con->class_dev,
+					 &class_device_attrs[i]);
+		con->flag &= ~CON_DRIVER_FLAG_ATTR;
+	}
+
+	return error;
 }
 
 static void vtconsole_deinit_class_device(struct con_driver *con)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
-		class_device_remove_file(con->class_dev,
-					 &class_device_attrs[i]);
+	if (con->flag & CON_DRIVER_FLAG_ATTR) {
+		for (i = 0; i < ARRAY_SIZE(class_device_attrs); i++)
+			class_device_remove_file(con->class_dev,
+						 &class_device_attrs[i]);
+		con->flag &= ~CON_DRIVER_FLAG_ATTR;
+	}
 }
 
 /**
@@ -3184,6 +3200,7 @@ int register_con_driver(const struct consw *csw, int first, int last)
 	} else {
 		vtconsole_init_class_device(con_driver);
 	}
+
 err:
 	release_console_sem();
 	module_put(owner);
