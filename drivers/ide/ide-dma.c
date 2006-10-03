@@ -809,15 +809,14 @@ static int ide_release_iomio_dma(ide_hwif_t *hwif)
 /*
  * Needed for allowing full modular support of ide-driver
  */
-int ide_release_dma (ide_hwif_t *hwif)
+int ide_release_dma(ide_hwif_t *hwif)
 {
+	ide_release_dma_engine(hwif);
+
 	if (hwif->mmio == 2)
 		return 1;
-	if (hwif->chipset == ide_etrax100)
-		return 1;
-
-	ide_release_dma_engine(hwif);
-	return ide_release_iomio_dma(hwif);
+	else
+		return ide_release_iomio_dma(hwif);
 }
 
 static int ide_allocate_dma_engine(ide_hwif_t *hwif)
@@ -829,10 +828,9 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	if (hwif->dmatable_cpu)
 		return 0;
 
-	printk(KERN_ERR "%s: -- Error, unable to allocate%s DMA table(s).\n",
-			hwif->cds->name, !hwif->dmatable_cpu ? " CPU" : "");
+	printk(KERN_ERR "%s: -- Error, unable to allocate DMA table.\n",
+	       hwif->cds->name);
 
-	ide_release_dma_engine(hwif);
 	return 1;
 }
 
