@@ -1820,15 +1820,18 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 					break;
 		if (i == TVNORMS)
 			return -EINVAL;
-		if (*id & V4L2_STD_SECAM) {
-			if (secam[0] == 'L' || secam[0] == 'l')
+		if ((*id & V4L2_STD_SECAM) && (secam[0] != '-')) {
+			if (secam[0] == 'L' || secam[0] == 'l') {
 				if (secam[1] == 'C' || secam[1] == 'c')
 					fixup = V4L2_STD_SECAM_LC;
 				else
 					fixup = V4L2_STD_SECAM_L;
-			else
+			} else {
 				if (secam[0] == 'D' || secam[0] == 'd')
 					fixup = V4L2_STD_SECAM_DK;
+				else
+					fixup = V4L2_STD_SECAM;
+			}
 			for (i = 0; i < TVNORMS; i++)
 				if (fixup == tvnorms[i].id)
 					break;
