@@ -271,7 +271,7 @@ static int raid1_end_read_request(struct bio *bio, unsigned int bytes_done, int 
 	 */
 	update_head_pos(mirror, r1_bio);
 
-	if (uptodate || conf->working_disks <= 1) {
+	if (uptodate || (conf->raid_disks - conf->mddev->degraded) <= 1) {
 		/*
 		 * Set R1BIO_Uptodate in our master bio, so that
 		 * we will return a good error code for to the higher
@@ -929,7 +929,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 	int i;
 
 	seq_printf(seq, " [%d/%d] [", conf->raid_disks,
-						conf->working_disks);
+		   conf->raid_disks - mddev->degraded);
 	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
@@ -953,7 +953,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * else mark the drive as failed
 	 */
 	if (test_bit(In_sync, &rdev->flags)
-	    && conf->working_disks == 1)
+	    && (conf->raid_disks - mddev->degraded) == 1)
 		/*
 		 * Don't fail the drive, act as though we were just a
 		 * normal single drive
@@ -961,7 +961,6 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		return;
 	if (test_bit(In_sync, &rdev->flags)) {
 		mddev->degraded++;
-		conf->working_disks--;
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
@@ -972,7 +971,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT "raid1: Disk failure on %s, disabling device. \n"
 		"	Operation continuing on %d devices\n",
-		bdevname(rdev->bdev,b), conf->working_disks);
+		bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 }
 
 static void print_conf(conf_t *conf)
@@ -984,7 +983,7 @@ static void print_conf(conf_t *conf)
 		printk("(!conf)\n");
 		return;
 	}
-	printk(" --- wd:%d rd:%d\n", conf->working_disks,
+	printk(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		conf->raid_disks);
 
 	rcu_read_lock();
@@ -1024,7 +1023,6 @@ static int raid1_spare_active(mddev_t *mddev)
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_bit(In_sync, &rdev->flags)) {
-			conf->working_disks++;
 			mddev->degraded--;
 			set_bit(In_sync, &rdev->flags);
 		}
@@ -1901,15 +1899,11 @@ static int run(mddev_t *mddev)
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		disk->head_position = 0;
-		if (!test_bit(Faulty, &rdev->flags) && test_bit(In_sync, &rdev->flags))
-			conf->working_disks++;
 	}
 	conf->raid_disks = mddev->raid_disks;
 	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);
-	if (conf->working_disks == 1)
-		mddev->recovery_cp = MaxSector;
 
 	spin_lock_init(&conf->resync_lock);
 	init_waitqueue_head(&conf->wait_barrier);
@@ -1917,11 +1911,6 @@ static int run(mddev_t *mddev)
 	bio_list_init(&conf->pending_bio_list);
 	bio_list_init(&conf->flushing_bio_list);
 
-	if (!conf->working_disks) {
-		printk(KERN_ERR "raid1: no operational mirrors for %s\n",
-			mdname(mddev));
-		goto out_free_conf;
-	}
 
 	mddev->degraded = 0;
 	for (i = 0; i < conf->raid_disks; i++) {
@@ -1934,6 +1923,13 @@ static int run(mddev_t *mddev)
 			mddev->degraded++;
 		}
 	}
+	if (mddev->degraded == conf->raid_disks) {
+		printk(KERN_ERR "raid1: no operational mirrors for %s\n",
+			mdname(mddev));
+		goto out_free_conf;
+	}
+	if (conf->raid_disks - mddev->degraded == 1)
+		mddev->recovery_cp = MaxSector;
 
 	/*
 	 * find the first working one and use it as a starting point
