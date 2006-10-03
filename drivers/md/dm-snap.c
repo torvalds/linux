@@ -387,17 +387,6 @@ static inline ulong round_up(ulong n, ulong size)
 	return (n + size) & ~size;
 }
 
-static void read_snapshot_metadata(struct dm_snapshot *s)
-{
-	if (s->store.read_metadata(&s->store)) {
-		down_write(&s->lock);
-		s->valid = 0;
-		up_write(&s->lock);
-
-		dm_table_event(s->table);
-	}
-}
-
 static int set_chunk_size(struct dm_snapshot *s, const char *chunk_size_arg,
 			  char **error)
 {
@@ -528,7 +517,11 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	/* Metadata must only be loaded into one table at once */
-	read_snapshot_metadata(s);
+	r = s->store.read_metadata(&s->store);
+	if (r) {
+		ti->error = "Failed to read snapshot metadata";
+		goto bad6;
+	}
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
