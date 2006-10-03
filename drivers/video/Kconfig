@@ -1619,7 +1619,8 @@ config FB_VIRTUAL
 	  kernel option `video=vfb:'.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called vfb.
+	  module will be called vfb. In order to load it, you must use
+	  the vfb_enable=1 option.
 
 	  If unsure, say N.
 if VT
