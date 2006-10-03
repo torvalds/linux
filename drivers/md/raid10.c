@@ -950,14 +950,16 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		 * really dead" tests...
 		 */
 		return;
-	if (test_bit(In_sync, &rdev->flags)) {
+	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(&conf->device_lock, flags);
 		mddev->degraded++;
+		spin_unlock_irqrestore(&conf->device_lock, flags);
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
 		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
 	}
-	clear_bit(In_sync, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT "raid10: Disk failure on %s, disabling device. \n"
@@ -1033,9 +1035,11 @@ static int raid10_spare_active(mddev_t *mddev)
 		tmp = conf->mirrors + i;
 		if (tmp->rdev
 		    && !test_bit(Faulty, &tmp->rdev->flags)
-		    && !test_bit(In_sync, &tmp->rdev->flags)) {
+		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
+			unsigned long flags;
+			spin_lock_irqsave(&conf->device_lock, flags);
 			mddev->degraded--;
-			set_bit(In_sync, &tmp->rdev->flags);
+			spin_unlock_irqrestore(&conf->device_lock, flags);
 		}
 	}
 

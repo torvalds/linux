@@ -959,14 +959,16 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		 * normal single drive
 		 */
 		return;
-	if (test_bit(In_sync, &rdev->flags)) {
+	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+		unsigned long flags;
+		spin_lock_irqsave(&conf->device_lock, flags);
 		mddev->degraded++;
+		spin_unlock_irqrestore(&conf->device_lock, flags);
 		/*
 		 * if recovery is running, make sure it aborts.
 		 */
 		set_bit(MD_RECOVERY_ERR, &mddev->recovery);
 	}
-	clear_bit(In_sync, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT "raid1: Disk failure on %s, disabling device. \n"
@@ -1022,9 +1024,11 @@ static int raid1_spare_active(mddev_t *mddev)
 		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
-		    && !test_bit(In_sync, &rdev->flags)) {
+		    && !test_and_set_bit(In_sync, &rdev->flags)) {
+			unsigned long flags;
+			spin_lock_irqsave(&conf->device_lock, flags);
 			mddev->degraded--;
-			set_bit(In_sync, &rdev->flags);
+			spin_unlock_irqrestore(&conf->device_lock, flags);
 		}
 	}
 
@@ -2048,7 +2052,7 @@ static int raid1_reshape(mddev_t *mddev)
 	mirror_info_t *newmirrors;
 	conf_t *conf = mddev_to_conf(mddev);
 	int cnt, raid_disks;
-
+	unsigned long flags;
 	int d, d2;
 
 	/* Cannot change chunk_size, layout, or level */
@@ -2107,7 +2111,9 @@ static int raid1_reshape(mddev_t *mddev)
 	kfree(conf->poolinfo);
 	conf->poolinfo = newpoolinfo;
 
+	spin_lock_irqsave(&conf->device_lock, flags);
 	mddev->degraded += (raid_disks - conf->raid_disks);
+	spin_unlock_irqrestore(&conf->device_lock, flags);
 	conf->raid_disks = mddev->raid_disks = raid_disks;
 	mddev->delta_disks = 0;
 

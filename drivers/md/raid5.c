@@ -636,7 +636,6 @@ static int raid5_end_write_request (struct bio *bi, unsigned int bytes_done,
  	struct stripe_head *sh = bi->bi_private;
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
-	unsigned long flags;
 	int uptodate = test_bit(BIO_UPTODATE, &bi->bi_flags);
 
 	if (bi->bi_size)
@@ -654,7 +653,6 @@ static int raid5_end_write_request (struct bio *bi, unsigned int bytes_done,
 		return 0;
 	}
 
-	spin_lock_irqsave(&conf->device_lock, flags);
 	if (!uptodate)
 		md_error(conf->mddev, conf->disks[i].rdev);
 
@@ -662,8 +660,7 @@ static int raid5_end_write_request (struct bio *bi, unsigned int bytes_done,
 	
 	clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
-	__release_stripe(conf, sh);
-	spin_unlock_irqrestore(&conf->device_lock, flags);
+	release_stripe(sh);
 	return 0;
 }
 
@@ -697,9 +694,11 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (!test_bit(Faulty, &rdev->flags)) {
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
-		if (test_bit(In_sync, &rdev->flags)) {
+		if (test_and_clear_bit(In_sync, &rdev->flags)) {
+			unsigned long flags;
+			spin_lock_irqsave(&conf->device_lock, flags);
 			mddev->degraded++;
-			clear_bit(In_sync, &rdev->flags);
+			spin_unlock_irqrestore(&conf->device_lock, flags);
 			/*
 			 * if recovery was running, make sure it aborts.
 			 */
@@ -3418,9 +3417,11 @@ static int raid5_spare_active(mddev_t *mddev)
 		tmp = conf->disks + i;
 		if (tmp->rdev
 		    && !test_bit(Faulty, &tmp->rdev->flags)
-		    && !test_bit(In_sync, &tmp->rdev->flags)) {
+		    && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
+			unsigned long flags;
+			spin_lock_irqsave(&conf->device_lock, flags);
 			mddev->degraded--;
-			set_bit(In_sync, &tmp->rdev->flags);
+			spin_unlock_irqrestore(&conf->device_lock, flags);
 		}
 	}
 	print_raid5_conf(conf);
@@ -3556,6 +3557,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	struct list_head *rtmp;
 	int spares = 0;
 	int added_devices = 0;
+	unsigned long flags;
 
 	if (mddev->degraded ||
 	    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
@@ -3597,7 +3599,9 @@ static int raid5_start_reshape(mddev_t *mddev)
 				break;
 		}
 
+	spin_lock_irqsave(&conf->device_lock, flags);
 	mddev->degraded = (conf->raid_disks - conf->previous_raid_disks) - added_devices;
+	spin_unlock_irqrestore(&conf->device_lock, flags);
 	mddev->raid_disks = conf->raid_disks;
 	mddev->reshape_position = 0;
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
