@@ -536,22 +536,22 @@ static void persistent_commit(struct exception_store *store,
 		if (r)
 			ps->valid = 0;
 
+		/*
+		 * Have we completely filled the current area ?
+		 */
+		if (ps->current_committed == ps->exceptions_per_area) {
+			ps->current_committed = 0;
+			r = zero_area(ps, ps->current_area + 1);
+			if (r)
+				ps->valid = 0;
+		}
+
 		for (i = 0; i < ps->callback_count; i++) {
 			cb = ps->callbacks + i;
 			cb->callback(cb->context, r == 0 ? 1 : 0);
 		}
 
 		ps->callback_count = 0;
-	}
-
-	/*
-	 * Have we completely filled the current area ?
-	 */
-	if (ps->current_committed == ps->exceptions_per_area) {
-		ps->current_committed = 0;
-		r = zero_area(ps, ps->current_area + 1);
-		if (r)
-			ps->valid = 0;
 	}
 }
 
