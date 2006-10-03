@@ -1360,7 +1360,9 @@ int dm_resume(struct mapped_device *md)
 	if (!map || !dm_table_get_size(map))
 		goto out;
 
-	dm_table_resume_targets(map);
+	r = dm_table_resume_targets(map);
+	if (r)
+		goto out;
 
 	down_write(&md->io_lock);
 	clear_bit(DMF_BLOCK_IO, &md->flags);

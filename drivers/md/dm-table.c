@@ -939,9 +939,20 @@ void dm_table_postsuspend_targets(struct dm_table *t)
 	return suspend_targets(t, 1);
 }
 
-void dm_table_resume_targets(struct dm_table *t)
+int dm_table_resume_targets(struct dm_table *t)
 {
-	int i;
+	int i, r = 0;
+
+	for (i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = t->targets + i;
+
+		if (!ti->type->preresume)
+			continue;
+
+		r = ti->type->preresume(ti);
+		if (r)
+			return r;
+	}
 
 	for (i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = t->targets + i;
@@ -949,6 +960,8 @@ void dm_table_resume_targets(struct dm_table *t)
 		if (ti->type->resume)
 			ti->type->resume(ti);
 	}
+
+	return 0;
 }
 
 int dm_table_any_congested(struct dm_table *t, int bdi_bits)
