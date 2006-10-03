@@ -157,7 +157,7 @@ static int gl861_probe(struct usb_interface *intf,
 }
 
 static struct usb_device_id gl861_table [] = {
-		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY55801) },
+		{ USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580_55801) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, gl861_table);
