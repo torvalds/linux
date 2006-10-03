@@ -57,8 +57,8 @@ use strict;
 #	other functions are ignored.
 #
 #  -nofunction funcname
-#	If set, then only generate documentation for the other function(s).  All
-#	other functions are ignored. Cannot be used with -function together
+#	If set, then only generate documentation for the other function(s).
+#	Cannot be used together with -function
 #	(yes, that's a bug -- perl hackers can fix it 8))
 #
 #  c files - list of 'c' files to process
