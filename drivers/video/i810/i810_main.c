@@ -1602,7 +1602,10 @@ static int i810fb_resume(struct pci_dev *dev)
 	acquire_console_sem();
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
-	pci_enable_device(dev);
+
+	if (pci_enable_device(dev))
+		goto fail;
+
 	pci_set_master(dev);
 	agp_bind_memory(par->i810_gtt.i810_fb_memory,
 			par->fb.offset);
@@ -1611,6 +1614,7 @@ static int i810fb_resume(struct pci_dev *dev)
 	i810fb_set_par(info);
 	fb_set_suspend (info, 0);
 	info->fbops->fb_blank(VESA_NO_BLANKING, info);
+fail:
 	release_console_sem();
 	return 0;
 }
