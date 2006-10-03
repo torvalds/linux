@@ -594,6 +594,12 @@ config BLK_DEV_HPT366
 	  ide-probe at boot. It is reported to support DVD II drives, by the
 	  manufacturer.
 
+config BLK_DEV_JMICRON
+	tristate "JMicron JMB36x support"
+	help
+	  Basic support for the JMicron ATA controllers. For full support
+	  use the libata drivers.
+
 config BLK_DEV_SC1200
 	tristate "National SCx200 chipset support"
 	help
