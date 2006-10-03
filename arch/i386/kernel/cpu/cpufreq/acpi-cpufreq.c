@@ -197,6 +197,7 @@ acpi_cpufreq_target (
 	unsigned int relation)
 {
 	struct cpufreq_acpi_io *data = acpi_io_data[policy->cpu];
+	struct cpufreq_acpi_io *cpudata;
 	struct acpi_processor_performance *perf;
 	struct cpufreq_freqs freqs;
 	cpumask_t online_policy_cpus;
@@ -260,7 +261,8 @@ acpi_cpufreq_target (
 			break;
 		}
 
-		result = acpi_processor_set_performance (data, j, next_state);
+		cpudata = acpi_io_data[j];
+		result = acpi_processor_set_performance(cpudata, j, next_state);
 		if (result) {
 			result = -EAGAIN;
 			break;
@@ -287,8 +289,11 @@ acpi_cpufreq_target (
 
 		if (!cpus_empty(covered_cpus)) {
 			for_each_cpu_mask(j, covered_cpus) {
-				policy->cpu = j;
-				acpi_processor_set_performance (data, 
+				cpus_clear(set_mask);
+				cpu_set(j, set_mask);
+				set_cpus_allowed(current, set_mask);
+				cpudata = acpi_io_data[j];
+				acpi_processor_set_performance(cpudata,
 						j, 
 						cur_state);
 			}
