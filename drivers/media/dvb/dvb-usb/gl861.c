@@ -184,7 +184,6 @@ static struct dvb_usb_device_properties gl861_properties = {
 			{ &gl861_table[0], NULL },
 			{ NULL },
 		},
-		{ NULL },
 	}
 };
 
