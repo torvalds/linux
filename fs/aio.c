@@ -675,7 +675,7 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	}
 
 	if (!(iocb->ki_retried & 0xff)) {
-		pr_debug("%ld retry: %d of %d\n", iocb->ki_retried,
+		pr_debug("%ld retry: %zd of %zd\n", iocb->ki_retried,
 			iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 	}
 
@@ -1008,7 +1008,7 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
 
-	pr_debug("%ld retries: %d of %d\n", iocb->ki_retried,
+	pr_debug("%ld retries: %zd of %zd\n", iocb->ki_retried,
 		iocb->ki_nbytes - iocb->ki_left, iocb->ki_nbytes);
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
