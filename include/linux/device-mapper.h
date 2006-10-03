@@ -72,6 +72,11 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, struct inode *inode,
 void dm_error(const char *message);
 
 /*
+ * Combine device limits.
+ */
+void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
+
+/*
  * Constructors should call these functions to ensure destination devices
  * are opened/closed correctly.
  * FIXME: too many arguments.

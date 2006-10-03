@@ -522,56 +522,61 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 	return 0;
 }
 
+void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
+{
+	request_queue_t *q = bdev_get_queue(bdev);
+	struct io_restrictions *rs = &ti->limits;
+
+	/*
+	 * Combine the device limits low.
+	 *
+	 * FIXME: if we move an io_restriction struct
+	 *        into q this would just be a call to
+	 *        combine_restrictions_low()
+	 */
+	rs->max_sectors =
+		min_not_zero(rs->max_sectors, q->max_sectors);
+
+	/* FIXME: Device-Mapper on top of RAID-0 breaks because DM
+	 *        currently doesn't honor MD's merge_bvec_fn routine.
+	 *        In this case, we'll force DM to use PAGE_SIZE or
+	 *        smaller I/O, just to be safe. A better fix is in the
+	 *        works, but add this for the time being so it will at
+	 *        least operate correctly.
+	 */
+	if (q->merge_bvec_fn)
+		rs->max_sectors =
+			min_not_zero(rs->max_sectors,
+				     (unsigned int) (PAGE_SIZE >> 9));
+
+	rs->max_phys_segments =
+		min_not_zero(rs->max_phys_segments,
+			     q->max_phys_segments);
+
+	rs->max_hw_segments =
+		min_not_zero(rs->max_hw_segments, q->max_hw_segments);
+
+	rs->hardsect_size = max(rs->hardsect_size, q->hardsect_size);
+
+	rs->max_segment_size =
+		min_not_zero(rs->max_segment_size, q->max_segment_size);
+
+	rs->seg_boundary_mask =
+		min_not_zero(rs->seg_boundary_mask,
+			     q->seg_boundary_mask);
+
+	rs->no_cluster |= !test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
+}
+EXPORT_SYMBOL_GPL(dm_set_device_limits);
 
 int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
 		  sector_t len, int mode, struct dm_dev **result)
 {
 	int r = __table_get_device(ti->table, ti, path,
 				   start, len, mode, result);
-	if (!r) {
-		request_queue_t *q = bdev_get_queue((*result)->bdev);
-		struct io_restrictions *rs = &ti->limits;
 
-		/*
-		 * Combine the device limits low.
-		 *
-		 * FIXME: if we move an io_restriction struct
-		 *        into q this would just be a call to
-		 *        combine_restrictions_low()
-		 */
-		rs->max_sectors =
-			min_not_zero(rs->max_sectors, q->max_sectors);
-
-		/* FIXME: Device-Mapper on top of RAID-0 breaks because DM
-		 *        currently doesn't honor MD's merge_bvec_fn routine.
-		 *        In this case, we'll force DM to use PAGE_SIZE or
-		 *        smaller I/O, just to be safe. A better fix is in the
-		 *        works, but add this for the time being so it will at
-		 *        least operate correctly.
-		 */
-		if (q->merge_bvec_fn)
-			rs->max_sectors =
-				min_not_zero(rs->max_sectors,
-					     (unsigned int) (PAGE_SIZE >> 9));
-
-		rs->max_phys_segments =
-			min_not_zero(rs->max_phys_segments,
-				     q->max_phys_segments);
-
-		rs->max_hw_segments =
-			min_not_zero(rs->max_hw_segments, q->max_hw_segments);
-
-		rs->hardsect_size = max(rs->hardsect_size, q->hardsect_size);
-
-		rs->max_segment_size =
-			min_not_zero(rs->max_segment_size, q->max_segment_size);
-
-		rs->seg_boundary_mask =
-			min_not_zero(rs->seg_boundary_mask,
-				     q->seg_boundary_mask);
-
-		rs->no_cluster |= !test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
-	}
+	if (!r)
+		dm_set_device_limits(ti, (*result)->bdev);
 
 	return r;
 }
