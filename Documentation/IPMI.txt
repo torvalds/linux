@@ -364,6 +364,7 @@ You can change this at module load time (for a module) with:
        regspacings=<sp1>,<sp2>,... regsizes=<size1>,<size2>,...
        regshifts=<shift1>,<shift2>,...
        slave_addrs=<addr1>,<addr2>,...
+       force_kipmid=<enable1>,<enable2>,...
 
 Each of these except si_trydefaults is a list, the first item for the
 first interface, second item for the second interface, etc.
@@ -409,7 +410,13 @@ The slave_addrs specifies the IPMI address of the local BMC.  This is
 usually 0x20 and the driver defaults to that, but in case it's not, it
 can be specified when the driver starts up.
 
-When compiled into the kernel, the addresses can be specified on the
+The force_ipmid parameter forcefully enables (if set to 1) or disables
+(if set to 0) the kernel IPMI daemon.  Normally this is auto-detected
+by the driver, but systems with broken interrupts might need an enable,
+or users that don't want the daemon (don't need the performance, don't
+want the CPU hit) can disable it.
+
+When compiled into the kernel, the parameters can be specified on the
 kernel command line as:
 
   ipmi_si.type=<type1>,<type2>...
@@ -419,6 +426,7 @@ kernel command line as:
        ipmi_si.regsizes=<size1>,<size2>,...
        ipmi_si.regshifts=<shift1>,<shift2>,...
        ipmi_si.slave_addrs=<addr1>,<addr2>,...
+       ipmi_si.force_kipmid=<enable1>,<enable2>,...
 
 It works the same as the module parameters of the same names.
 
