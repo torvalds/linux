@@ -482,7 +482,7 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	write_c0_compare(read_c0_count());
 #endif
 
-	pending = read_c0_cause();
+	pending = read_c0_cause() & read_c0_status();
 
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
 	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
