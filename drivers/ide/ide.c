@@ -1997,10 +1997,16 @@ EXPORT_SYMBOL_GPL(ide_bus_type);
  */
 static int __init ide_init(void)
 {
+	int ret;
+
 	printk(KERN_INFO "Uniform Multi-Platform E-IDE driver " REVISION "\n");
 	system_bus_speed = ide_system_bus_speed();
 
-	bus_register(&ide_bus_type);
+	ret = bus_register(&ide_bus_type);
+	if (ret < 0) {
+		printk(KERN_WARNING "IDE: bus_register error: %d\n", ret);
+		return ret;
+	}
 
 	init_ide_data();
 
