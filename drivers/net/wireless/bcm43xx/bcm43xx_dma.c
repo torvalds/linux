@@ -705,11 +705,30 @@ int bcm43xx_dma_init(struct bcm43xx_private *bcm)
 	struct bcm43xx_dmaring *ring;
 	int err = -ENOMEM;
 	int dma64 = 0;
-	u32 sbtmstatehi;
+	u64 mask = bcm43xx_get_supported_dma_mask(bcm);
+	int nobits;
 
-	sbtmstatehi = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATEHIGH);
-	if (sbtmstatehi & BCM43xx_SBTMSTATEHIGH_DMA64BIT)
+	if (mask == DMA_64BIT_MASK) {
 		dma64 = 1;
+		nobits = 64;
+	} else if (mask == DMA_32BIT_MASK)
+		nobits = 32;
+	else
+		nobits = 30;
+	err = pci_set_dma_mask(bcm->pci_dev, mask);
+	err |= pci_set_consistent_dma_mask(bcm->pci_dev, mask);
+	if (err) {
+#ifdef CONFIG_BCM43XX_PIO
+		printk(KERN_WARNING PFX "DMA not supported on this device."
+					" Falling back to PIO.\n");
+		bcm->__using_pio = 1;
+		return -ENOSYS;
+#else
+		printk(KERN_ERR PFX "FATAL: DMA not supported and PIO not configured. "
+				    "Please recompile the driver with PIO support.\n");
+		return -ENODEV;
+#endif /* CONFIG_BCM43XX_PIO */
+	}
 
 	/* setup TX DMA channels. */
 	ring = bcm43xx_setup_dmaring(bcm, 0, 1, dma64);
@@ -755,8 +774,7 @@ int bcm43xx_dma_init(struct bcm43xx_private *bcm)
 		dma->rx_ring3 = ring;
 	}
 
-	dprintk(KERN_INFO PFX "%s DMA initialized\n",
-			dma64 ? "64-bit" : "32-bit");
+	dprintk(KERN_INFO PFX "%d-bit DMA initialized\n", nobits);
 	err = 0;
 out:
 	return err;
