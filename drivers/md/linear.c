@@ -111,6 +111,19 @@ static int linear_issue_flush(request_queue_t *q, struct gendisk *disk,
 	return ret;
 }
 
+static int linear_congested(void *data, int bits)
+{
+	mddev_t *mddev = data;
+	linear_conf_t *conf = mddev_to_conf(mddev);
+	int i, ret = 0;
+
+	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
+		request_queue_t *q = bdev_get_queue(conf->disks[i].rdev->bdev);
+		ret |= bdi_congested(&q->backing_dev_info, bits);
+	}
+	return ret;
+}
+
 static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
@@ -269,6 +282,8 @@ static int linear_run (mddev_t *mddev)
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->unplug_fn = linear_unplug;
 	mddev->queue->issue_flush_fn = linear_issue_flush;
+	mddev->queue->backing_dev_info.congested_fn = linear_congested;
+	mddev->queue->backing_dev_info.congested_data = mddev;
 	return 0;
 }
 
