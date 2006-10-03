@@ -122,15 +122,6 @@ Who:    Arjan van de Ven
 
 ---------------------------
 
-What:	START_ARRAY ioctl for md
-When:	July 2006
-Files:	drivers/md/md.c
-Why:	Not reliable by design - can fail when most needed.
-	Alternatives exist
-Who:	NeilBrown <neilb@suse.de>
-
----------------------------
-
 What:   eepro100 network driver
 When:   January 2007
 Why:    replaced by the e100 driver

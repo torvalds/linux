@@ -3440,67 +3440,6 @@ static void autorun_devices(int part)
 	printk(KERN_INFO "md: ... autorun DONE.\n");
 }
 
-/*
- * import RAID devices based on one partition
- * if possible, the array gets run as well.
- */
-
-static int autostart_array(dev_t startdev)
-{
-	char b[BDEVNAME_SIZE];
-	int err = -EINVAL, i;
-	mdp_super_t *sb = NULL;
-	mdk_rdev_t *start_rdev = NULL, *rdev;
-
-	start_rdev = md_import_device(startdev, 0, 0);
-	if (IS_ERR(start_rdev))
-		return err;
-
-
-	/* NOTE: this can only work for 0.90.0 superblocks */
-	sb = (mdp_super_t*)page_address(start_rdev->sb_page);
-	if (sb->major_version != 0 ||
-	    sb->minor_version != 90 ) {
-		printk(KERN_WARNING "md: can only autostart 0.90.0 arrays\n");
-		export_rdev(start_rdev);
-		return err;
-	}
-
-	if (test_bit(Faulty, &start_rdev->flags)) {
-		printk(KERN_WARNING 
-			"md: can not autostart based on faulty %s!\n",
-			bdevname(start_rdev->bdev,b));
-		export_rdev(start_rdev);
-		return err;
-	}
-	list_add(&start_rdev->same_set, &pending_raid_disks);
-
-	for (i = 0; i < MD_SB_DISKS; i++) {
-		mdp_disk_t *desc = sb->disks + i;
-		dev_t dev = MKDEV(desc->major, desc->minor);
-
-		if (!dev)
-			continue;
-		if (dev == startdev)
-			continue;
-		if (MAJOR(dev) != desc->major || MINOR(dev) != desc->minor)
-			continue;
-		rdev = md_import_device(dev, 0, 0);
-		if (IS_ERR(rdev))
-			continue;
-
-		list_add(&rdev->same_set, &pending_raid_disks);
-	}
-
-	/*
-	 * possibly return codes
-	 */
-	autorun_devices(0);
-	return 0;
-
-}
-
-
 static int get_version(void __user * arg)
 {
 	mdu_version_t ver;
@@ -4257,27 +4196,6 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	if (!mddev) {
 		BUG();
 		goto abort;
-	}
-
-
-	if (cmd == START_ARRAY) {
-		/* START_ARRAY doesn't need to lock the array as autostart_array
-		 * does the locking, and it could even be a different array
-		 */
-		static int cnt = 3;
-		if (cnt > 0 ) {
-			printk(KERN_WARNING
-			       "md: %s(pid %d) used deprecated START_ARRAY ioctl. "
-			       "This will not be supported beyond July 2006\n",
-			       current->comm, current->pid);
-			cnt--;
-		}
-		err = autostart_array(new_decode_dev(arg));
-		if (err) {
-			printk(KERN_WARNING "md: autostart failed!\n");
-			goto abort;
-		}
-		goto done;
 	}
 
 	err = mddev_lock(mddev);
