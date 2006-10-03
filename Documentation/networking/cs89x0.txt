@@ -684,7 +684,7 @@ ethernet@crystal.cirrus.com) and request that you be registered for automatic
 software-update notification.
 
 Cirrus Logic maintains a web page at http://www.cirrus.com with the
-the latest drivers and technical publications.
+latest drivers and technical publications.
 
 
 6.4 Current maintainer

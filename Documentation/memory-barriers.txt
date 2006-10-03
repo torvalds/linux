@@ -670,7 +670,7 @@ effectively random order, despite the write barrier issued by CPU 1:
 
 
 In the above example, CPU 2 perceives that B is 7, despite the load of *C
-(which would be B) coming after the the LOAD of C.
+(which would be B) coming after the LOAD of C.
 
 If, however, a data dependency barrier were to be placed between the load of C
 and the load of *C (ie: B) on CPU 2:

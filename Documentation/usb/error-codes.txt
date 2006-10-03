@@ -145,7 +145,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 hardware problems such as bad devices (including firmware) or cables.
 
 (**) This is also one of several codes that different kinds of host
-controller use to to indicate a transfer has failed because of device
+controller use to indicate a transfer has failed because of device
 disconnect.  In the interval before the hub driver starts disconnect
 processing, devices may receive such fault reports for every request.
 

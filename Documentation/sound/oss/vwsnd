@@ -12,7 +12,7 @@ boxes.
 
 The Visual Workstation has an Analog Devices AD1843 "SoundComm" audio
 codec chip.  The AD1843 is accessed through the Cobalt I/O ASIC, also
-known as Lithium.  This driver programs both both chips.
+known as Lithium.  This driver programs both chips.
 
 ==============================================================================
 QUICK CONFIGURATION

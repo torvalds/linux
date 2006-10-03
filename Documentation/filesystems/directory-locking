@@ -82,7 +82,7 @@ own descendent.  Moreover, there is exactly one cross-directory rename
 
 	Consider the object blocking the cross-directory rename.  One
 of its descendents is locked by cross-directory rename (otherwise we
-would again have an infinite set of of contended objects).  But that
+would again have an infinite set of contended objects).  But that
 means that cross-directory rename is taking locks out of order.  Due
 to (2) the order hadn't changed since we had acquired filesystem lock.
 But locking rules for cross-directory rename guarantee that we do not

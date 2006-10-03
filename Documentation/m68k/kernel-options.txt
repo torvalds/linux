@@ -415,7 +415,7 @@ switch to another mode once Linux has started.
 
   The first 3 parameters of this sub-option should be obvious: <xres>,
 <yres> and <depth> give the dimensions of the screen and the number of
-planes (depth). The depth is is the logarithm to base 2 of the number
+planes (depth). The depth is the logarithm to base 2 of the number
 of colors possible. (Or, the other way round: The number of colors is
 2^depth).
 

@@ -671,7 +671,7 @@ The keyctl syscall functions are:
 
      Note that this setting is inherited across fork/exec.
 
-     [1] The default default is: the thread keyring if there is one, otherwise
+     [1] The default is: the thread keyring if there is one, otherwise
      the process keyring if there is one, otherwise the session keyring if
      there is one, otherwise the user default session keyring.
 

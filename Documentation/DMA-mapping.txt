@@ -107,7 +107,7 @@ The query is performed via a call to pci_set_dma_mask():
 
 	int pci_set_dma_mask(struct pci_dev *pdev, u64 device_mask);
 
-The query for consistent allocations is performed via a a call to
+The query for consistent allocations is performed via a call to
 pci_set_consistent_dma_mask():
 
 	int pci_set_consistent_dma_mask(struct pci_dev *pdev, u64 device_mask);

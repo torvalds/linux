@@ -53,7 +53,7 @@ Creating a Cache
 		structure
 	void cache_put(struct kref *)
 		This is called when the last reference to an item is
-		is dropped.  The pointer passed is to the 'ref' field
+		dropped.  The pointer passed is to the 'ref' field
 		in the cache_head.  cache_put should release any
 		references create by 'cache_init' and, if CACHE_VALID
 		is set, any references created by cache_update.

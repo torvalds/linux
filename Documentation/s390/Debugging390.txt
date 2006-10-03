@@ -1085,8 +1085,7 @@ Notes
 -----
 Addresses & values in the VM debugger are always hex never decimal
 Address ranges are of the format <HexValue1>-<HexValue2> or <HexValue1>.<HexValue2> 
-e.g. The address range  0x2000 to 0x3000 can be described described as
-2000-3000 or 2000.1000
+e.g. The address range  0x2000 to 0x3000 can be described as 2000-3000 or 2000.1000
 
 The VM Debugger is case insensitive.
 
@@ -1413,7 +1412,7 @@ SMP Specific commands
 To find out how many cpus you have
 Q CPUS displays all the CPU's available to your virtual machine
 To find the cpu that the current cpu VM debugger commands are being directed at do
-Q CPU to change the current cpu cpu VM debugger commands are being directed at do
+Q CPU to change the current cpu VM debugger commands are being directed at do
 CPU <desired cpu no>
 
 On a SMP guest issue a command to all CPUs try prefixing the command with cpu all.
@@ -2184,7 +2183,7 @@ ps -aux | grep gdb
 kill -SIGSEGV <gdb's pid>
 or alternatively use killall -SIGSEGV gdb if you have the killall command.
 Now look at the core dump.
-./gdb ./gdb core
+./gdb core
 Displays the following
 GNU gdb 4.18
 Copyright 1998 Free Software Foundation, Inc.
@@ -2477,7 +2476,7 @@ Lcrash is a perfectly normal program,however, it requires 2
 additional files, Kerntypes which is built using a patch to the 
 linux kernel sources in the linux root directory & the System.map.
 
-Kerntypes is an an objectfile whose sole purpose in life
+Kerntypes is an objectfile whose sole purpose in life
 is to provide stabs debug info to lcrash, to do this
 Kerntypes is built from kerntypes.c which just includes the most commonly
 referenced header files used when debugging, lcrash can then read the

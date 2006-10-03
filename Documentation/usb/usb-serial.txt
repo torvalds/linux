@@ -223,7 +223,7 @@ Cypress M8 CY4601 Family Serial Driver
 		-Cypress HID->COM RS232 adapter
 	
 		Note: Cypress Semiconductor claims no affiliation with the
-			the hid->com device.
+			hid->com device.
 
 	Most devices using chipsets under the CY4601 family should
      work with the driver.  As long as they stay true to the CY4601
@@ -422,7 +422,7 @@ Options supported:
   debug			- extra verbose debugging info
   			  (default: 0; nonzero enables)
   use_lowlatency	- use low_latency flag to speed up tty layer
-			  when reading from from the device.
+			  when reading from the device.
 			  (default: 0; nonzero enables)
 
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date

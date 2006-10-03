@@ -497,7 +497,7 @@ Solution: In /proc/pci search for the following entry:
           www.syskonnect.com
           
           Some COMPAQ machines have problems dealing with PCI under Linux.
-          Linux. This problem is described in the 'PCI howto' document
+          This problem is described in the 'PCI howto' document
           (included in some distributions or available from the
           web, e.g. at 'www.linux.org'). 
 

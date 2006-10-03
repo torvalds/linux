@@ -156,7 +156,7 @@ instead set the PF_NOFREEZE process flag when creating the thread (and
 be very carefull).
 
 
-Q: What is the difference between between "platform", "shutdown" and
+Q: What is the difference between "platform", "shutdown" and
 "firmware" in /sys/power/disk?
 
 A:

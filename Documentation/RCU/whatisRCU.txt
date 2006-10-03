@@ -750,7 +750,7 @@ Or, for those who prefer a side-by-side listing:
 
 Either way, the differences are quite small.  Read-side locking moves
 to rcu_read_lock() and rcu_read_unlock, update-side locking moves from
-from a reader-writer lock to a simple spinlock, and a synchronize_rcu()
+a reader-writer lock to a simple spinlock, and a synchronize_rcu()
 precedes the kfree().
 
 However, there is one potential catch: the read-side and update-side

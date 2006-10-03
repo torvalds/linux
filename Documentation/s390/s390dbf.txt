@@ -65,7 +65,7 @@ Predefined views for hex/ascii, sprintf and raw binary data are provided.
 It is also possible to define other views. The content of
 a view can be inspected simply by reading the corresponding debugfs file.
 
-All debug logs have an an actual debug level (range from 0 to 6).
+All debug logs have an actual debug level (range from 0 to 6).
 The default level is 3. Event and Exception functions have a 'level'
 parameter. Only debug entries with a level that is lower or equal
 than the actual level are written to the log. This means, when
@@ -556,7 +556,7 @@ The input_proc can be used to implement functionality when it is written to
 the view (e.g. like with 'echo "0" > /sys/kernel/debug/s390dbf/dasd/level).
 
 For header_proc there can be used the default function
-debug_dflt_header_fn() which is defined in in debug.h.
+debug_dflt_header_fn() which is defined in debug.h.
 and which produces the same header output as the predefined views.
 E.g:
 00 00964419409:440761 2 - 00 88023ec

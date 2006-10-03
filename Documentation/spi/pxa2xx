@@ -124,12 +124,12 @@ use a value of 8.
 The "pxa2xx_spi_chip.timeout_microsecs" fields is used to efficiently handle
 trailing bytes in the SSP receiver fifo.  The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
-slave device.  Please note the the PXA2xx SSP 1 does not support trailing byte
+slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
 timeouts and must busy-wait any trailing bytes.
 
 The "pxa2xx_spi_chip.enable_loopback" field is used to place the SSP porting
 into internal loopback mode.  In this mode the SSP controller internally
-connects the SSPTX pin the the SSPRX pin.  This is useful for initial setup
+connects the SSPTX pin to the SSPRX pin.  This is useful for initial setup
 testing.
 
 The "pxa2xx_spi_chip.cs_control" field is used to point to a board specific
@@ -208,7 +208,7 @@ DMA and PIO I/O Support
 -----------------------
 The pxa2xx_spi driver support both DMA and interrupt driven PIO message
 transfers.  The driver defaults to PIO mode and DMA transfers must enabled by
-setting the "enable_dma" flag in the "pxa2xx_spi_master" structure and and
+setting the "enable_dma" flag in the "pxa2xx_spi_master" structure and
 ensuring that the "pxa2xx_spi_chip.dma_burst_size" field is non-zero.  The DMA
 mode support both coherent and stream based DMA mappings.
 

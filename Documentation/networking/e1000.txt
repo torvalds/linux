@@ -350,7 +350,7 @@ Additional Configurations
 
   As an example, if you install the e1000 driver for two PRO/1000 adapters
   (eth0 and eth1) and set the speed and duplex to 10full and 100half, add
-  the following to modules.conf or or modprobe.conf:
+  the following to modules.conf or modprobe.conf:
 
        alias eth0 e1000
        alias eth1 e1000

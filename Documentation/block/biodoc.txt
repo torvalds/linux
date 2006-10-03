@@ -135,7 +135,7 @@ Some new queue property settings:
 		Sets two variables that limit the size of the request.
 
 		- The request queue's max_sectors, which is a soft size in
-		in units of 512 byte sectors, and could be dynamically varied
+		units of 512 byte sectors, and could be dynamically varied
 		by the core kernel.
 
 		- The request queue's max_hw_sectors, which is a hard limit

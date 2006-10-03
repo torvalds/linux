@@ -63,7 +63,7 @@ size:      The limit of allocated bytes for this tmpfs instance. The
 nr_blocks: The same as size, but in blocks of PAGE_CACHE_SIZE.
 nr_inodes: The maximum number of inodes for this instance. The default
            is half of the number of your physical RAM pages, or (on a
-           a machine with highmem) the number of lowmem RAM pages,
+           machine with highmem) the number of lowmem RAM pages,
            whichever is the lower.
 
 These parameters accept a suffix k, m or g for kilo, mega and giga and

@@ -230,7 +230,7 @@ generated in the kernel straight to the program, with timestamps. The
 API is still evolving, but should be useable now. It's described in
 section 5. 
 
-  This should be the way for GPM and X to get keyboard and mouse mouse
+  This should be the way for GPM and X to get keyboard and mouse
 events. It allows for multihead in X without any specific multihead
 kernel support. The event codes are the same on all architectures and
 are hardware independent.

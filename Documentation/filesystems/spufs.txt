@@ -105,7 +105,7 @@ FILES
 
 
    /wbox
-       The CPU to SPU communation mailbox. It is write-only can can be written
+       The CPU to SPU communation mailbox. It is write-only and can be written
        in  units  of  32  bits. If the mailbox is full, write() will block and
        poll can be used to wait for it becoming  empty  again.   The  possible
        operations  on  an open wbox file are: write(2) If a count smaller than
