@@ -34,7 +34,7 @@
  * possible cpu).
  *
  * The sequence counters are for flush_scheduled_work().  It wants to wait
- * until until all currently-scheduled works are completed, but it doesn't
+ * until all currently-scheduled works are completed, but it doesn't
  * want to be livelocked by new, incoming ones.  So it waits until
  * remove_sequence is >= the insert_sequence which pertained when
  * flush_scheduled_work() was called.
