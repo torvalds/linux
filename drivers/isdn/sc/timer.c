@@ -76,7 +76,7 @@ void check_reset(unsigned long data)
 		if (sc_adapter[card]->StartOnReset)
 			startproc(card);
 	} else  {
-		pr_debug("%s: No signature yet, waiting another %d jiffies.\n", 
+		pr_debug("%s: No signature yet, waiting another %lu jiffies.\n",
 			sc_adapter[card]->devicename, CHECKRESET_TIME);
 		mod_timer(&sc_adapter[card]->reset_timer, jiffies+CHECKRESET_TIME);
 		spin_unlock_irqrestore(&sc_adapter[card]->lock, flags);

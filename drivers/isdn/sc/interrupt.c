@@ -91,7 +91,7 @@ irqreturn_t interrupt_handler(int interrupt, void *cardptr, struct pt_regs *regs
 		 */
 		if (IS_CE_MESSAGE(rcvmsg, Lnk, 1, Read))
 		{
-			pr_debug("%s: Received packet 0x%x bytes long at 0x%x\n",
+			pr_debug("%s: Received packet 0x%x bytes long at 0x%lx\n",
 						sc_adapter[card]->devicename,
 						rcvmsg.msg_data.response.msg_len,
 						rcvmsg.msg_data.response.buff_offset);
