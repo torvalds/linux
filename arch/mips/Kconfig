@@ -203,39 +203,6 @@ config MIPS_EV64120
 	  <http://www.marvell.com/>.  Say Y here if you wish to build a
 	  kernel for this platform.
 
-config MIPS_IVR
-	bool "Globespan IVR board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select ITE_BOARD_GEN
-	select SYS_HAS_CPU_NEVADA
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This is an evaluation board built by Globespan to showcase thir
-	  iVR (Internet Video Recorder) design. It utilizes a QED RM5231
-	  R5000 MIPS core. More information can be found out their website
-	  located at <http://www.globespan.net/>. Say Y here if you wish to
-	  build a kernel for this platform.
-
-config MIPS_ITE8172
-	bool "ITE 8172G board"
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select ITE_BOARD_GEN
-	select SYS_HAS_CPU_R5432
-	select SYS_HAS_CPU_NEVADA
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  Ths is an evaluation board made by ITE <http://www.ite.com.tw/>
-	  with ATX form factor that utilizes a MIPS R5000 to work with its
-	  ITE8172G companion internet appliance chip. The MIPS core can be
-	  either a NEC Vr5432 or QED RM5231. Say Y here if you wish to build
-	  a kernel for this platform.
-
 config MACH_JAZZ
 	bool "Jazz family of machines"
 	select ARC
@@ -804,7 +771,6 @@ endchoice
 source "arch/mips/ddb5xxx/Kconfig"
 source "arch/mips/gt64120/ev64120/Kconfig"
 source "arch/mips/jazz/Kconfig"
-source "arch/mips/ite-boards/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/momentum/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -834,6 +800,10 @@ config GENERIC_HWEIGHT
 	default y
 
 config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config GENERIC_TIME
 	bool
 	default y
 
@@ -964,9 +934,6 @@ config MIPS_RM9122
 config PCI_MARVELL
 	bool
 
-config ITE_BOARD_GEN
-	bool
-
 config SOC_AU1000
 	bool
 	select SOC_AU1X00
@@ -1049,16 +1016,6 @@ config AU1X00_USB_DEVICE
 	bool
 	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
 	default n
-
-config IT8172_CIR
-	bool
-	depends on MIPS_ITE8172 || MIPS_IVR
-	default y
-
-config IT8712
-	bool
-	depends on MIPS_ITE8172
-	default y
 
 config BOOT_ELF32
 	bool

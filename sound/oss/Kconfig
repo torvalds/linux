@@ -115,10 +115,6 @@ config SOUND_HAL2
 	  Say Y or M if you have an SGI Indy or Indigo2 system and want to be able to
 	  use its on-board A2 audio system.
 
-config SOUND_IT8172
-	tristate "IT8172G Sound"
-	depends on SOUND_PRIME && (MIPS_ITE8172 || MIPS_IVR)
-
 config SOUND_VRC5477
 	tristate "NEC Vrc5477 AC97 sound"
 	depends on SOUND_PRIME && DDB5477

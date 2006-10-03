@@ -614,15 +614,6 @@ config BLK_DEV_PIIX
 	  the kernel to change PIO, DMA and UDMA speeds and to configure
 	  the chip to optimum performance.
 
-config BLK_DEV_IT8172
-	bool "IT8172 IDE support"
-	depends on (MIPS_ITE8172 || MIPS_IVR)
-	help
-	  Say Y here to support the on-board IDE controller on the Integrated
-	  Technology Express, Inc. ITE8172 SBC.  Vendor page at
-	  <http://www.ite.com.tw/ia/brief_it8172bsp.htm>; picture of the
-	  board at <http://www.mvista.com/partners/semiconductor/ite.html>.
-
 config BLK_DEV_IT821X
 	tristate "IT821X IDE support"
 	help

@@ -7,7 +7,6 @@ obj-y				+= pci.o
 #
 # PCI bus host bridge specific code
 #
-obj-$(CONFIG_ITE_BOARD_GEN)	+= ops-it8172.o
 obj-$(CONFIG_MIPS_BONITO64)	+= ops-bonito64.o
 obj-$(CONFIG_MIPS_GT64111)	+= ops-gt64111.o
 obj-$(CONFIG_MIPS_GT64120)	+= ops-gt64120.o
@@ -28,8 +27,6 @@ obj-$(CONFIG_LASAT)		+= pci-lasat.o
 obj-$(CONFIG_MIPS_ATLAS)	+= fixup-atlas.o
 obj-$(CONFIG_MIPS_COBALT)	+= fixup-cobalt.o
 obj-$(CONFIG_MIPS_EV64120)	+= fixup-ev64120.o
-obj-$(CONFIG_MIPS_ITE8172)	+= fixup-ite8172g.o
-obj-$(CONFIG_MIPS_IVR)		+= fixup-ivr.o
 obj-$(CONFIG_SOC_AU1500)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_AU1550)	+= fixup-au1000.o ops-au1000.o
 obj-$(CONFIG_SOC_PNX8550)	+= fixup-pnx8550.o ops-pnx8550.o

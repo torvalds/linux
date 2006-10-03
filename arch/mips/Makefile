@@ -287,19 +287,6 @@ cflags-$(CONFIG_WR_PPMC)		+= -Iinclude/asm-mips/mach-wrppmc
 load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
 
 #
-# Globespan IVR eval board with QED 5231 CPU
-#
-core-$(CONFIG_ITE_BOARD_GEN)	+= arch/mips/ite-boards/generic/
-core-$(CONFIG_MIPS_IVR)		+= arch/mips/ite-boards/ivr/
-load-$(CONFIG_MIPS_IVR)		+= 0xffffffff80100000
-
-#
-# ITE 8172 eval board with QED 5231 CPU
-#
-core-$(CONFIG_MIPS_ITE8172)	+= arch/mips/ite-boards/qed-4n-s01b/
-load-$(CONFIG_MIPS_ITE8172)	+= 0xffffffff80100000
-
-#
 # For all MIPS, Inc. eval boards
 #
 core-$(CONFIG_MIPS_BOARDS_GEN)	+= arch/mips/mips-boards/generic/
