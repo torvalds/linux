@@ -1,5 +1,5 @@
 /*
- * sound/opl3.c
+ * sound/oss/opl3.c
  *
  * A low level driver for Yamaha YM3812 and OPL-3 -chips
  *

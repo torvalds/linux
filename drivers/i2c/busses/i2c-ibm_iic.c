@@ -1,5 +1,5 @@
 /*
- * drivers/i2c/i2c-ibm_iic.c
+ * drivers/i2c/busses/i2c-ibm_iic.c
  *
  * Support for the IIC peripheral on IBM PPC 4xx
  *

@@ -310,7 +310,7 @@ config K8_NUMA
        help
 	 Enable K8 NUMA node topology detection.  You should say Y here if
 	 you have a multi processor AMD K8 system. This uses an old
-	 method to read the NUMA configurtion directly from the builtin
+	 method to read the NUMA configuration directly from the builtin
 	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
 	 instead, which also takes priority if both are compiled in.   
 

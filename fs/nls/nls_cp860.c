@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp860.c
+ * linux/fs/nls/nls_cp860.c
  *
  * Charset cp860 translation tables.
  * Generated automatically from the Unicode and charset

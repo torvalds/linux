@@ -1,5 +1,5 @@
 /*
- * linux/fs/nfsd/xdr.c
+ * linux/fs/nfsd/nfsxdr.c
  *
  * XDR support for nfsd
  *

@@ -1,5 +1,5 @@
 /*
- * linux/asm-sparc/reg.h
+ * linux/include/asm-sparc/reg.h
  * Layout of the registers as expected by gdb on the Sparc
  * we should replace the user.h definitions with those in
  * this file, we don't even use the other 

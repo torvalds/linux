@@ -47,7 +47,7 @@ config ISDN_DIVAS_MAINT
 	tristate "DIVA Maint driver support"
 	depends on ISDN_DIVAS && m
 	help
-	  Enable Divas Maintainance driver.
+	  Enable Divas Maintenance driver.
 
 endmenu
 

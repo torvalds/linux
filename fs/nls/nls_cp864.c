@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp864.c
+ * linux/fs/nls/nls_cp864.c
  *
  * Charset cp864 translation tables.
  * Generated automatically from the Unicode and charset

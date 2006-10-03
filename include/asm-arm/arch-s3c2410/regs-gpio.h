@@ -1,4 +1,4 @@
-/* linux/include/asm/hardware/s3c2410/regs-gpio.h
+/* linux/include/asm-arm/arch-s3c2410/regs-gpio.h
  *
  * Copyright (c) 2003,2004 Simtec Electronics <linux@simtec.co.uk>
  *		           http://www.simtec.co.uk/products/SWLINUX/

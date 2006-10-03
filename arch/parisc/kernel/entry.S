@@ -941,8 +941,8 @@ syscall_exit_rfi:
 	 * to "proper" values now (otherwise we'll wind up restoring
 	 * whatever was last stored in the task structure, which might
 	 * be inconsistent if an interrupt occured while on the gateway
-	 * page) Note that we may be "trashing" values the user put in
-	 * them, but we don't support the the user changing them.
+	 * page). Note that we may be "trashing" values the user put in
+	 * them, but we don't support the user changing them.
 	 */
 
 	STREG   %r0,PT_SR2(%r16)

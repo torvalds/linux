@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/platforms/prpmc750.h
+ * arch/ppc/platforms/prpmc750.h
  *
  * Definitions for Motorola PrPMC750 board support
  *

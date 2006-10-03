@@ -80,7 +80,7 @@ Some of the features of the driver are:
   high compression quality (see also "Notes for V4L2 application developers"
   paragraph);
 - full support for the capabilities of every possible image sensors that can
-  be connected to the ET61X[12]51 bridges, including, for istance, red, green,
+  be connected to the ET61X[12]51 bridges, including, for instance, red, green,
   blue and global gain adjustments and exposure control (see "Supported
   devices" paragraph for details);
 - use of default color settings for sunlight conditions;
@@ -222,7 +222,7 @@ identifier - of the camera registered as "/dev/video0":
 	[root@localhost #] echo 1 > i2c_reg
 	[root@localhost #] cat i2c_val
 
-Note that if the sensor registers can not be read, "cat" will fail.
+Note that if the sensor registers cannot be read, "cat" will fail.
 To avoid race conditions, all the I/O accesses to the files are serialized.
 
 

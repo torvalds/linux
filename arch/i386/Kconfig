@@ -682,7 +682,7 @@ config EFI
 	depends on ACPI
 	default n
 	---help---
-	This enables the the kernel to boot on EFI platforms using
+	This enables the kernel to boot on EFI platforms using
 	system configuration information passed to it from the firmware.
 	This also enables the kernel to use any EFI runtime services that are
 	available (such as the EFI variable services).

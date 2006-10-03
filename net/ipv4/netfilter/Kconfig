@@ -373,7 +373,7 @@ config IP_NF_TARGET_ULOG
 	  daemon using netlink multicast sockets; unlike the LOG target
 	  which can only be viewed through syslog.
 
-	  The apropriate userspace logging daemon (ulogd) may be obtained from
+	  The appropriate userspace logging daemon (ulogd) may be obtained from
 	  <http://www.gnumonks.org/projects/ulogd/>
 
 	  To compile it as a module, choose M here.  If unsure, say N.

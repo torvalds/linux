@@ -1,5 +1,5 @@
 /*
- * linux/arch/m68k/motorola.c
+ * linux/arch/m68k/mm/motorola.c
  *
  * Routines specific to the Motorola MMU, originally from:
  * linux/arch/m68k/init.c

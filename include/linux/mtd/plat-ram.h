@@ -1,4 +1,4 @@
-/* linux/include/mtd/plat-ram.h
+/* linux/include/linux/mtd/plat-ram.h
  *
  * (c) 2004 Simtec Electronics
  *	http://www.simtec.co.uk/products/SWLINUX/

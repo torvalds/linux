@@ -1,5 +1,5 @@
 /*
- * include/linux/writeback.h.
+ * include/linux/writeback.h
  */
 #ifndef WRITEBACK_H
 #define WRITEBACK_H

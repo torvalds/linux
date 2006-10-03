@@ -1,5 +1,5 @@
 /*
- * linux/drivers/sound/waveartist.c
+ * linux/sound/oss/waveartist.c
  *
  * The low level driver for the RWA010 Rockwell Wave Artist
  * codec chip used in the Rebel.com NetWinder.

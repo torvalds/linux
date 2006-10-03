@@ -52,6 +52,6 @@ messages is high, but should have no other impact.
 Netconsole was designed to be as instantaneous as possible, to
 enable the logging of even the most critical kernel bugs. It works
 from IRQ contexts as well, and does not enable interrupts while
-sending packets. Due to these unique needs, configuration can not
+sending packets. Due to these unique needs, configuration cannot
 be more automatic, and some fundamental limitations will remain:
 only IP networks, UDP packets and ethernet devices are supported.

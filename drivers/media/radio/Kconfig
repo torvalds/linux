@@ -195,8 +195,7 @@ config RADIO_MIROPCM20_RDS
 	---help---
 	  Choose Y here if you want to see RDS/RBDS information like
 	  RadioText, Programme Service name, Clock Time and date, Programme
-	  TYpe and Traffic Announcement/Programme identification.  You also
-	  need to say Y to "miroSOUND PCM20 radio" and devfs!
+	  Type and Traffic Announcement/Programme identification.
 
 	  It's not possible to read the raw RDS packets from the device, so
 	  the driver cant provide an V4L interface for this.  But the

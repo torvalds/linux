@@ -1,5 +1,5 @@
 /*
- * oprofile/op_model_7450.c
+ * arch/powerpc/oprofile/op_model_7450.c
  *
  * Freescale 745x/744x oprofile support, based on fsl_booke support
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM

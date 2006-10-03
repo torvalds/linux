@@ -497,7 +497,7 @@ void close_lines(struct line *lines, int nlines)
 }
 
 /* Common setup code for both startup command line and mconsole initialization.
- * @lines contains the the array (of size @num) to modify;
+ * @lines contains the array (of size @num) to modify;
  * @init is the setup string;
  */
 

@@ -13,7 +13,6 @@ CONFIGURATION
   Currently the driver can handle up to 256 different serial interfaces at
   one time. 
 
-  If you are not using devfs:
     The major number that the driver uses is 188 so to use the driver,
     create the following nodes:
 	mknod /dev/ttyUSB0 c 188 0
@@ -25,10 +24,6 @@ CONFIGURATION
 		.
 	mknod /dev/ttyUSB254 c 188 254
 	mknod /dev/ttyUSB255 c 188 255
-
-  If you are using devfs:
-    The devices supported by this driver will show up as
-    /dev/usb/tts/{0,1,...}
 
   When the device is connected and recognized by the driver, the driver
   will print to the system log, which node(s) the device has been bound
@@ -228,7 +223,7 @@ Cypress M8 CY4601 Family Serial Driver
 		-Cypress HID->COM RS232 adapter
 	
 		Note: Cypress Semiconductor claims no affiliation with the
-			the hid->com device.
+			hid->com device.
 
 	Most devices using chipsets under the CY4601 family should
      work with the driver.  As long as they stay true to the CY4601
@@ -277,7 +272,7 @@ Digi AccelePort Driver
   work under SMP with the uhci driver.
 
   The driver is generally working, though we still have a few more ioctls
-  to implement and final testing and debugging to do.  The paralled port
+  to implement and final testing and debugging to do.  The parallel port
   on the USB 2 is supported as a serial to parallel converter; in other
   words, it appears as another USB serial port on Linux, even though
   physically it is really a parallel port.  The Digi Acceleport USB 8
@@ -427,7 +422,7 @@ Options supported:
   debug			- extra verbose debugging info
   			  (default: 0; nonzero enables)
   use_lowlatency	- use low_latency flag to speed up tty layer
-			  when reading from from the device.
+			  when reading from the device.
 			  (default: 0; nonzero enables)
 
   See http://www.uuhaus.de/linux/palmconnect.html for up-to-date

@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/semaphore.h
+ * linux/include/asm-arm26/semaphore.h
  */
 #ifndef __ASM_ARM_SEMAPHORE_H
 #define __ASM_ARM_SEMAPHORE_H

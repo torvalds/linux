@@ -31,7 +31,7 @@ With a miXart8AES/EBU there is in addition 1 stereo digital input
 Formats
 -------
 U8, S16_LE, S16_BE, S24_3LE, S24_3BE, FLOAT_LE, FLOAT_BE
-Sample rates : 8000 - 48000 Hz continously
+Sample rates : 8000 - 48000 Hz continuously
 
 Playback
 --------
@@ -39,7 +39,7 @@ For instance the playback devices are configured to have max. 4
 substreams performing hardware mixing. This could be changed to a
 maximum of 24 substreams if wished.
 Mono files will be played on the left and right channel. Each channel
-can be muted for each stream to use 8 analog/digital outputs seperately.
+can be muted for each stream to use 8 analog/digital outputs separately.
 
 Capture
 -------
@@ -97,4 +97,4 @@ COPYRIGHT
 =========
 
 Copyright (c) 2003 Digigram SA <alsa@digigram.com>
-Distributalbe under GPL.
+Distributable under GPL.

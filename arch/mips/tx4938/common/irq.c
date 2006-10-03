@@ -1,5 +1,5 @@
 /*
- * linux/arch/mps/tx4938/common/irq.c
+ * linux/arch/mips/tx4938/common/irq.c
  *
  * Common tx4938 irq handler
  * Copyright (C) 2000-2001 Toshiba Corporation

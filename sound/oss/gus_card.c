@@ -1,5 +1,5 @@
 /*
- * sound/gus_card.c
+ * sound/oss/gus_card.c
  *
  * Detection routine for the Gravis Ultrasound.
  *

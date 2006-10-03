@@ -1,5 +1,5 @@
 /*
- * sound/awe_voice.h
+ * include/linux/awe_voice.h
  *
  * Voice information definitions for the low level driver for the 
  * AWE32/SB32/AWE64 wave table synth.

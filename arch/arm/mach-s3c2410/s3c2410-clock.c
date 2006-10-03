@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/clock.c
+/* linux/arch/arm/mach-s3c2410/s3c2410-clock.c
  *
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

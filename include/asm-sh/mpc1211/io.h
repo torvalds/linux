@@ -1,5 +1,5 @@
 /*
- * include/asm-sh/io_mpc1211.h
+ * include/asm-sh/mpc1211/io.h
  *
  * Copyright 2001 Saito.K & Jeanne
  *

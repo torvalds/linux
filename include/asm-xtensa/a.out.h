@@ -1,5 +1,5 @@
 /*
- * include/asm-xtensa/addrspace.h
+ * include/asm-xtensa/a.out.h
  *
  * Dummy a.out file. Xtensa does not support the a.out format, but the kernel
  * seems to depend on it.

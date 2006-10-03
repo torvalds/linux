@@ -1105,7 +1105,7 @@ static void compute_parity6(struct stripe_head *sh, int method)
 				if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
 					wake_up(&conf->wait_for_overlap);
 
-				if (sh->dev[i].written) BUG();
+				BUG_ON(sh->dev[i].written);
 				sh->dev[i].written = chosen;
 			}
 		break;

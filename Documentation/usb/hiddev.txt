@@ -118,7 +118,7 @@ index, the ioctl returns -1 and sets errno to -EINVAL.
 HIDIOCGDEVINFO - struct hiddev_devinfo (read)
 Gets a hiddev_devinfo structure which describes the device.
 
-HIDIOCGSTRING - struct struct hiddev_string_descriptor (read/write)
+HIDIOCGSTRING - struct hiddev_string_descriptor (read/write)
 Gets a string descriptor from the device. The caller must fill in the
 "index" field to indicate which descriptor should be returned.
 

@@ -164,7 +164,7 @@ static void lh7a40x_ack_cpld_irq (u32 irq)
 	/* CPLD doesn't have ack capability, but some devices may */
 
 #if defined (CPLD_INTMASK_TOUCH)
-	/* The touch control *must* mask the the interrupt because the
+	/* The touch control *must* mask the interrupt because the
 	 * interrupt bit is read by the driver to determine if the pen
 	 * is still down. */
 	if (irq == IRQ_TOUCH)

@@ -1,5 +1,5 @@
 /*
- * sound/sb_dsp.c
+ * sound/oss/sb_midi.c
  *
  * The low level driver for the Sound Blaster DS chips.
  *

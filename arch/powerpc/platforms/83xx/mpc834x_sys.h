@@ -1,5 +1,5 @@
 /*
- * arch/powerppc/platforms/83xx/mpc834x_sys.h
+ * arch/powerpc/platforms/83xx/mpc834x_sys.h
  *
  * MPC834X SYS common board definitions
  *

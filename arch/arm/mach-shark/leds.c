@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/leds-shark.c
+ * arch/arm/mach-shark/leds.c
  * by Alexander Schulz
  *
  * derived from:

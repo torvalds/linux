@@ -1,5 +1,5 @@
 /*
- * sound/pas2_midi.c
+ * sound/oss/pas2_midi.c
  *
  * The low level driver for the PAS Midi Interface.
  */

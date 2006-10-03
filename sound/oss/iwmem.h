@@ -1,5 +1,5 @@
 /*
- * sound/iwmem.h
+ * sound/oss/iwmem.h
  *
  * DRAM size encoding table for AMD Interwave chip.
  */

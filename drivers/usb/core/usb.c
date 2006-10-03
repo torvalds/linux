@@ -1,5 +1,5 @@
 /*
- * drivers/usb/usb.c
+ * drivers/usb/core/usb.c
  *
  * (C) Copyright Linus Torvalds 1999
  * (C) Copyright Johannes Erdfelt 1999-2001

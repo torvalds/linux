@@ -40,7 +40,7 @@ History
    Per-interface rather than per-driver message level setting.
    More selective control over the type of messages emitted.
 
- The netif_msg recommandation adds these features with only a minor
+ The netif_msg recommendation adds these features with only a minor
  complexity and code size increase.
 
  The recommendation is the following points

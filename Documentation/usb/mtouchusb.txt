@@ -11,7 +11,7 @@ CHANGES
    Changed reset from standard USB dev reset to vendor reset
    Changed data sent to host from compensated to raw coordinates
    Eliminated vendor/product module params
-   Performed multiple successfull tests with an EXII-5010UC
+   Performed multiple successful tests with an EXII-5010UC
 
 SUPPORTED HARDWARE:
 
@@ -38,7 +38,7 @@ This driver appears to be one of possible 2 Linux USB Input Touchscreen
 drivers.  Although 3M produces a binary only driver available for
 download, I persist in updating this driver since I would like to use the
 touchscreen for embedded apps using QTEmbedded, DirectFB, etc. So I feel the
-logical choice is to use Linux Imput.
+logical choice is to use Linux Input.
 
 Currently there is no way to calibrate the device via this driver.  Even if
 the device could be calibrated, the driver pulls to raw coordinate data from
@@ -63,7 +63,7 @@ TODO:
 Implement a control urb again to handle requests to and from the device
 such as calibration, etc once/if it becomes available.
 
-DISCLAMER:
+DISCLAIMER:
 
 I am not a MicroTouch/3M employee, nor have I ever been.  3M does not support 
 this driver!  If you want touch drivers only supported within X, please go to:

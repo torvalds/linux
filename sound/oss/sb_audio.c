@@ -1,5 +1,5 @@
 /*
- * sound/sb_audio.c
+ * sound/oss/sb_audio.c
  *
  * Audio routines for Sound Blaster compatible cards.
  *

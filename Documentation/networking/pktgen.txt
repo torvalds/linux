@@ -7,7 +7,7 @@ Date: 041221
 
 Enable CONFIG_NET_PKTGEN to compile and build pktgen.o either in kernel
 or as module. Module is preferred. insmod pktgen if needed. Once running
-pktgen creates a thread on each CPU where each thread has affinty it's CPU.
+pktgen creates a thread on each CPU where each thread has affinity to its CPU.
 Monitoring and controlling is done via /proc. Easiest to select a suitable 
 a sample script and configure.
 
@@ -18,7 +18,7 @@ root       129  0.3  0.0     0    0 ?        SW    2003 523:20 [pktgen/0]
 root       130  0.3  0.0     0    0 ?        SW    2003 509:50 [pktgen/1]
 
 
-For montoring and control pktgen creates:
+For monitoring and control pktgen creates:
 	/proc/net/pktgen/pgctrl
 	/proc/net/pktgen/kpktgend_X
         /proc/net/pktgen/ethX
@@ -32,7 +32,7 @@ Running:
 Stopped: eth1 
 Result: OK: max_before_softirq=10000
 
-Most important the devices assigend to thread. Note! A device can only belong 
+Most important the devices assigned to thread. Note! A device can only belong 
 to one thread.
 
 
@@ -147,7 +147,7 @@ Examples:
 Example scripts
 ===============
 
-A collection of small tutorial scripts for pktgen is in expamples dir.
+A collection of small tutorial scripts for pktgen is in examples dir.
 
 pktgen.conf-1-1                  # 1 CPU 1 dev 
 pktgen.conf-1-2                  # 1 CPU 2 dev

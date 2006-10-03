@@ -1,5 +1,5 @@
 /*
- * linux/kernel/ldt.c
+ * linux/arch/i386/kernel/ldt.c
  *
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>

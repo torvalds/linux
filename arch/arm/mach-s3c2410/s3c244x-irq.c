@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/s3c2440-irq.c
+/* linux/arch/arm/mach-s3c2410/s3c244x-irq.c
  *
  * Copyright (c) 2003,2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

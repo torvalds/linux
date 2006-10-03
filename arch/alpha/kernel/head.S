@@ -1,5 +1,5 @@
 /*
- * alpha/boot/head.S
+ * arch/alpha/kernel/head.S
  *
  * initial boot stuff.. At this point, the bootloader has already
  * switched into OSF/1 PAL-code, and loaded us at the correct address

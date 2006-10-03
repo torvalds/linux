@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-CLPS711x/entry-macro.S
+ * include/asm-arm/arch-clps711x/entry-macro.S
  *
  * Low-level IRQ helper macros for CLPS711X-based platforms
  *

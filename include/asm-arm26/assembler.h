@@ -1,5 +1,5 @@
 /*
- * linux/asm/assembler.h
+ * linux/include/asm-arm26/assembler.h
  *
  * This file contains arm architecture specific defines
  * for the different processors.

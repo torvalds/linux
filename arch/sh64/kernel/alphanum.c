@@ -1,5 +1,5 @@
 /*
- * arch/sh64/kernel/alpanum.c
+ * arch/sh64/kernel/alphanum.c
  *
  * Copyright (C) 2002 Stuart Menefy <stuart.menefy@st.com>
  *

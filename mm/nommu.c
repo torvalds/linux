@@ -221,7 +221,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
  *	Allocate enough pages to cover @size from the page level
  *	allocator and map them into continguos kernel virtual space.
  *
- *	For tight cotrol over page level allocator and protection flags
+ *	For tight control over page level allocator and protection flags
  *	use __vmalloc() instead.
  */
 void *vmalloc(unsigned long size)

@@ -1,5 +1,5 @@
 /*
- * sound/uart401.c
+ * sound/oss/uart401.c
  *
  * MPU-401 UART driver (formerly uart401_midi.c)
  *

@@ -1,5 +1,5 @@
 /*
- * sound/uart6850.c
+ * sound/oss/uart6850.c
  *
  *
  * Copyright (C) by Hannu Savolainen 1993-1997

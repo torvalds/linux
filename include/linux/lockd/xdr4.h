@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/lockd/xdr.h
+ * linux/include/linux/lockd/xdr4.h
  *
  * XDR types for the NLM protocol
  *

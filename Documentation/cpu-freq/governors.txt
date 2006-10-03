@@ -57,7 +57,7 @@ selected for each specific use.
 
 Basically, it's the following flow graph:
 
-CPU can be set to switch independetly	 |	   CPU can only be set
+CPU can be set to switch independently	 |	   CPU can only be set
       within specific "limits"		 |       to specific frequencies
 
                                  "CPUfreq policy"
@@ -109,7 +109,7 @@ directory.
 2.4 Ondemand
 ------------
 
-The CPUfreq govenor "ondemand" sets the CPU depending on the
+The CPUfreq governor "ondemand" sets the CPU depending on the
 current usage. To do this the CPU must have the capability to
 switch the frequency very quickly.  There are a number of sysfs file
 accessible parameters:
@@ -137,11 +137,11 @@ have to be made in a row before the CPU frequency is actually lower.
 If set to '1' then the frequency decreases as quickly as it increases,
 if set to '2' it decreases at half the rate of the increase.
 
-ignore_nice_load: this parameter takes a value of '0' or '1', when set
-to '0' (its default) then all processes are counted towards towards the
-'cpu utilisation' value.   When set to '1' then processes that are
+ignore_nice_load: this parameter takes a value of '0' or '1'. When
+set to '0' (its default), all processes are counted towards the
+'cpu utilisation' value.  When set to '1', the processes that are
 run with a 'nice' value will not count (and thus be ignored) in the
-overal usage calculation.  This is useful if you are running a CPU
+overall usage calculation.  This is useful if you are running a CPU
 intensive calculation on your laptop that you do not care how long it
 takes to complete as you can 'nice' it and prevent it from taking part
 in the deciding process of whether to increase your CPU frequency.

@@ -1,5 +1,5 @@
 /* 
- * inclue/asm-generic/rtc.h
+ * include/asm-generic/rtc.h
  *
  * Author: Tom Rini <trini@mvista.com>
  *

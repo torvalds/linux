@@ -1211,7 +1211,7 @@ static void __init build_r4000_tlb_refill_handler(void)
 	 * Overflow check: For the 64bit handler, we need at least one
 	 * free instruction slot for the wrap-around branch. In worst
 	 * case, if the intended insertion point is a delay slot, we
-	 * need three, with the the second nop'ed and the third being
+	 * need three, with the second nop'ed and the third being
 	 * unused.
 	 */
 #ifdef CONFIG_32BIT

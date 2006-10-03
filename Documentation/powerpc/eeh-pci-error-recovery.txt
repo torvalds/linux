@@ -90,7 +90,7 @@ EEH-isolated, there is a firmware call it can make to determine if
 this is the case. If so, then the device driver should put itself
 into a consistent state (given that it won't be able to complete any
 pending work) and start recovery of the card.  Recovery normally
-would consist of reseting the PCI device (holding the PCI #RST
+would consist of resetting the PCI device (holding the PCI #RST
 line high for two seconds), followed by setting up the device
 config space (the base address registers (BAR's), latency timer,
 cache line size, interrupt line, and so on).  This is followed by a
@@ -116,7 +116,7 @@ At this time, a generic EEH recovery mechanism has been implemented,
 so that individual device drivers do not need to be modified to support
 EEH recovery.  This generic mechanism piggy-backs on the PCI hotplug
 infrastructure,  and percolates events up through the userspace/udev
-infrastructure.  Followiing is a detailed description of how this is
+infrastructure.  Following is a detailed description of how this is
 accomplished.
 
 EEH must be enabled in the PHB's very early during the boot process,

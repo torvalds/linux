@@ -37,7 +37,7 @@ Transmit path guidelines:
 		...
 	}
 
-   And then at the end of your TX reclaimation event handling:
+   And then at the end of your TX reclamation event handling:
 
 	if (netif_queue_stopped(dp->dev) &&
             TX_BUFFS_AVAIL(dp) > (MAX_SKB_FRAGS + 1))

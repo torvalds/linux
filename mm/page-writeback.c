@@ -1,5 +1,5 @@
 /*
- * mm/page-writeback.c.
+ * mm/page-writeback.c
  *
  * Copyright (C) 2002, Linus Torvalds.
  *

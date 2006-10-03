@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/85xx/mpc85xx.h
+ * arch/powerpc/platforms/85xx/mpc85xx.h
  *
  * MPC85xx soc definitions/function decls
  *

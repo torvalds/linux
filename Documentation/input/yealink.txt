@@ -87,13 +87,13 @@ Line 3  Format			: 888888888888
 
 
 Format description:
-  From a user space perspective the world is seperated in "digits" and "icons".
+  From a userspace perspective the world is separated into "digits" and "icons".
   A digit can have a character set, an icon can only be ON or OFF.
 
   Format specifier
     '8' :  Generic 7 segment digit with individual addressable segments
 
-    Reduced capabillity 7 segm digit, when segments are hard wired together.
+    Reduced capability 7 segm digit, when segments are hard wired together.
     '1' : 2 segments digit only able to produce a 1.
     'e' : Most significant day of the month digit,
           able to produce at least 1 2 3.

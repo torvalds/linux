@@ -1,4 +1,4 @@
-/* linux/include/asm/arch-s3c2410/regs-udc.h
+/* linux/include/asm-arm/arch-s3c2410/regs-udc.h
  *
  * Copyright (C) 2004 Herbert Poetzl <herbert@13thfloor.at>
  *

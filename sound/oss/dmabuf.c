@@ -1,5 +1,5 @@
 /*
- * sound/dmabuf.c
+ * sound/oss/dmabuf.c
  *
  * The DMA buffer manager for digitized voice applications
  */

@@ -10,7 +10,7 @@ back and forth trying to integrate high-resolution and high-precision
 features into the existing timer framework, and after testing various
 such high-resolution timer implementations in practice, we came to the
 conclusion that the timer wheel code is fundamentally not suitable for
-such an approach. We initially didnt believe this ('there must be a way
+such an approach. We initially didn't believe this ('there must be a way
 to solve this'), and spent a considerable effort trying to integrate
 things into the timer wheel, but we failed. In hindsight, there are
 several reasons why such integration is hard/impossible:
@@ -27,7 +27,7 @@ several reasons why such integration is hard/impossible:
   high-res timers.
 
 - the unpredictable [O(N)] overhead of cascading leads to delays which
-  necessiate a more complex handling of high resolution timers, which
+  necessitate a more complex handling of high resolution timers, which
   in turn decreases robustness. Such a design still led to rather large
   timing inaccuracies. Cascading is a fundamental property of the timer
   wheel concept, it cannot be 'designed out' without unevitably
@@ -58,7 +58,7 @@ several reasons why such integration is hard/impossible:
 The primary users of precision timers are user-space applications that
 utilize nanosleep, posix-timers and itimer interfaces. Also, in-kernel
 users like drivers and subsystems which require precise timed events
-(e.g. multimedia) can benefit from the availability of a seperate
+(e.g. multimedia) can benefit from the availability of a separate
 high-resolution timer subsystem as well.
 
 While this subsystem does not offer high-resolution clock sources just
@@ -68,7 +68,7 @@ The increasing demand for realtime and multimedia applications along
 with other potential users for precise timers gives another reason to
 separate the "timeout" and "precise timer" subsystems.
 
-Another potential benefit is that such a seperation allows even more
+Another potential benefit is that such a separation allows even more
 special-purpose optimization of the existing timer wheel for the low
 resolution and low precision use cases - once the precision-sensitive
 APIs are separated from the timer wheel and are migrated over to
@@ -96,8 +96,8 @@ file systems. The rbtree is solely used for time sorted ordering, while
 a separate list is used to give the expiry code fast access to the
 queued timers, without having to walk the rbtree.
 
-(This seperate list is also useful for later when we'll introduce
-high-resolution clocks, where we need seperate pending and expired
+(This separate list is also useful for later when we'll introduce
+high-resolution clocks, where we need separate pending and expired
 queues while keeping the time-order intact.)
 
 Time-ordered enqueueing is not purely for the purposes of

@@ -68,8 +68,8 @@ will be available as a character device on major 13, minor 63:
 
 	crw-r--r--   1 root     root      13,  63 Mar 28 22:45 mice
 
-  This device has to be created, unless you use devfs, in which case it's
-created automatically. The commands to do create it by hand are:
+  This device has to be created.
+  The commands to create it by hand are:
 
 	cd /dev
 	mkdir input
@@ -154,7 +154,7 @@ about it.
 
 3.2 Event handlers
 ~~~~~~~~~~~~~~~~~~
-  Event handlers distrubite the events from the devices to userland and
+  Event handlers distribute the events from the devices to userland and
 kernel, as needed.
 
 3.2.1 keybdev
@@ -230,7 +230,7 @@ generated in the kernel straight to the program, with timestamps. The
 API is still evolving, but should be useable now. It's described in
 section 5. 
 
-  This should be the way for GPM and X to get keyboard and mouse mouse
+  This should be the way for GPM and X to get keyboard and mouse
 events. It allows for multihead in X without any specific multihead
 kernel support. The event codes are the same on all architectures and
 are hardware independent.
@@ -279,7 +279,7 @@ struct input_event {
 };
 
   'time' is the timestamp, it returns the time at which the event happened.
-Type is for example EV_REL for relative momement, REL_KEY for a keypress or
+Type is for example EV_REL for relative moment, REL_KEY for a keypress or
 release. More types are defined in include/linux/input.h.
 
   'code' is event code, for example REL_X or KEY_BACKSPACE, again a complete
@@ -288,25 +288,4 @@ list is in include/linux/input.h.
   'value' is the value the event carries. Either a relative change for
 EV_REL, absolute new value for EV_ABS (joysticks ...), or 0 for EV_KEY for
 release, 1 for keypress and 2 for autorepeat.
-
-6. Contacts
-~~~~~~~~~~~
-  This effort has its home page at:
-
-	http://www.suse.cz/development/input/
-
-You'll find both the latest HID driver and the complete Input driver
-there as well as information how to access the CVS repository for
-latest revisions of the drivers.
-
-  There is also a mailing list for this:
-
-	majordomo@atrey.karlin.mff.cuni.cz
-
-Send "subscribe linux-input" to subscribe to it.
-
-The input changes are also being worked on as part of the LinuxConsole
-project, see:
-
-	 http://sourceforge.net/projects/linuxconsole/
 

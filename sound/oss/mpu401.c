@@ -1,5 +1,5 @@
 /*
- * sound/mpu401.c
+ * sound/oss/mpu401.c
  *
  * The low level driver for Roland MPU-401 compatible Midi cards.
  */

@@ -26,7 +26,7 @@ Structure T30_s description:
   If the HL-driver receives ISDN_CMD_FAXCMD, all needed information
   is in this struct set by the LL.
   To signal information to the LL, the HL-driver has to set the 
-  the parameters and use ISDN_STAT_FAXIND.
+  parameters and use ISDN_STAT_FAXIND.
   (Please refer to INTERFACE)
 
 Structure T30_s:

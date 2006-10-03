@@ -16,7 +16,7 @@ problem for S1 standby, because hardware should retain its state over
 that.
 
 We either have to run video BIOS during early resume, or interpret it
-using vbetool later, or maybe nothing is neccessary on particular
+using vbetool later, or maybe nothing is necessary on particular
 system because video state is preserved. Unfortunately different
 methods work on different systems, and no known method suits all of
 them.

@@ -1,5 +1,5 @@
 /*
- * sound/awe_config.h
+ * sound/oss/awe_wave.h
  *
  * Configuration of AWE32/SB32/AWE64 wave table synth driver.
  *   version 0.4.4; Jan. 4, 2000

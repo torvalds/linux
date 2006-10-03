@@ -1,5 +1,5 @@
 /*
- * linux/fs/journal.c
+ * linux/fs/jbd/journal.c
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *

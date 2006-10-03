@@ -140,7 +140,7 @@ config IEEE1394_SBP2_PHYS_DMA
 	help
 	  This builds sbp2 for use with non-OHCI host adapters which do not
 	  support physical DMA or for when ohci1394 is run with phys_dma=0.
-	  Physical DMA is data movement without assistence of the drivers'
+	  Physical DMA is data movement without assistance of the drivers'
 	  interrupt handlers.  This option includes the interrupt handlers
 	  that are required in absence of this hardware feature.
 

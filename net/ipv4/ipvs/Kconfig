@@ -81,7 +81,7 @@ config	IP_VS_PROTO_ESP
 	bool "ESP load balancing support"
 	depends on IP_VS
 	---help---
-	  This option enables support for load balancing ESP (Encapsultion
+	  This option enables support for load balancing ESP (Encapsulation
 	  Security Payload) transport protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH
@@ -204,7 +204,7 @@ config	IP_VS_SED
 	  connections to the server with the shortest expected delay. The 
 	  expected delay that the job will experience is (Ci + 1) / Ui if 
 	  sent to the ith server, in which Ci is the number of connections
-	  on the the ith server and Ui is the fixed service rate (weight)
+	  on the ith server and Ui is the fixed service rate (weight)
 	  of the ith server.
 
 	  If you want to compile it in kernel, say Y. To compile it as a

@@ -1,5 +1,5 @@
 /*
- * linux/net/sunrpc/auth_gss.c
+ * linux/net/sunrpc/auth_gss/auth_gss.c
  *
  * RPCSEC_GSS client authentication.
  * 

@@ -55,7 +55,7 @@ the fdtable structure -
 2. Reading of the fdtable as described above must be protected
    by rcu_read_lock()/rcu_read_unlock().
 
-3. For any update to the the fd table, files->file_lock must
+3. For any update to the fd table, files->file_lock must
    be held.
 
 4. To look up the file structure given an fd, a reader

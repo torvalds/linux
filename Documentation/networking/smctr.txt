@@ -11,7 +11,7 @@ This driver is rather simple to use. Select Y to Token Ring adapter support
 in the kernel configuration. A choice for SMC Token Ring adapters will
 appear. This drives supports all SMC ISA/MCA adapters. Choose this
 option. I personally recommend compiling the driver as a module (M), but if you
-you would like to compile it staticly answer Y instead.
+you would like to compile it statically answer Y instead.
 
 This driver supports multiple adapters without the need to load multiple copies
 of the driver. You should be able to load up to 7 adapters without any kernel

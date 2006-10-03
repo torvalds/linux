@@ -157,7 +157,7 @@ notify: This function is called by the common I/O layer for some state changes
 	* In online state, device detached (CIO_GONE) or last path gone
 	  (CIO_NO_PATH). The driver must return !0 to keep the device; for
 	  return code 0, the device will be deleted as usual (also when no
-	  notify function is registerd). If the driver wants to keep the
+	  notify function is registered). If the driver wants to keep the
 	  device, it is moved into disconnected state.
 	* In disconnected state, device operational again (CIO_OPER). The
 	  common I/O layer performs some sanity checks on device number and
@@ -262,7 +262,7 @@ attribute 'online' which can be 0 or 1.
 -----------
 
 The netiucv driver creates an attribute 'connection' under
-bus/iucv/drivers/netiucv. Piping to this attibute creates a new netiucv
+bus/iucv/drivers/netiucv. Piping to this attribute creates a new netiucv
 connection to the specified host.
 
 Netiucv connections show up under devices/iucv/ as "netiucv<ifnum>". The interface

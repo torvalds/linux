@@ -1,5 +1,5 @@
 /*
- * include/asm/m32700ut_lcd.h
+ * include/asm-m32r/m32700ut/m32700ut_lcd.h
  *
  * M32700UT-LCD board
  *

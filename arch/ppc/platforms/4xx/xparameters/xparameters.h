@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/xparameters.h
+ * arch/ppc/platforms/4xx/xparameters/xparameters.h
  *
  * This file includes the correct xparameters.h for the CONFIG'ed board plus
  * fixups to translate board specific XPAR values to a common set of names

@@ -569,8 +569,7 @@ void __init mem_init(void)
 	int bad_ppro;
 
 #ifdef CONFIG_FLATMEM
-	if (!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 #endif
 	
 	bad_ppro = ppro_with_ram_bug();

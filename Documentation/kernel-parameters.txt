@@ -355,9 +355,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	clock=		[BUGS=IA-32, HW] gettimeofday clocksource override.
 			[Deprecated]
-			Forces specified clocksource (if avaliable) to be used
+			Forces specified clocksource (if available) to be used
 			when calculating gettimeofday(). If specified
-			clocksource is not avalible, it defaults to PIT.
+			clocksource is not available, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
 	disable_8254_timer
@@ -611,8 +611,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	noirqbalance	[IA-32,SMP,KNL] Disable kernel irq balancing
 
 	i8042.direct	[HW] Put keyboard port into non-translated mode
-	i8042.dumbkbd	[HW] Pretend that controlled can only read data from
-			     keyboard and can not control its state
+	i8042.dumbkbd	[HW] Pretend that controller can only read data from
+			     keyboard and cannot control its state
 			     (Don't attempt to blink the leds)
 	i8042.noaux	[HW] Don't check for auxiliary (== mouse) port
 	i8042.nokbd	[HW] Don't check/create keyboard port
@@ -1368,7 +1368,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	reboot=		[BUGS=IA-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
-			See arch/*/kernel/reboot.c.
+			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 

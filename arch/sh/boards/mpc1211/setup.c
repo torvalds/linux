@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/board/mpc1211/setup.c
+ * linux/arch/sh/boards/mpc1211/setup.c
  *
  * Copyright (C) 2002  Saito.K & Jeanne,  Fujii.Y
  *

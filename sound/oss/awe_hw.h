@@ -1,5 +1,5 @@
 /*
- * sound/awe_hw.h
+ * sound/oss/awe_hw.h
  *
  * Access routines and definitions for the low level driver for the 
  * Creative AWE32/SB32/AWE64 wave table synth.

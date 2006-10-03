@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_mpc1211.c
+ * linux/arch/sh/boards/mpc1211/led.c
  *
  * Copyright (C) 2001  Saito.K & Jeanne
  *

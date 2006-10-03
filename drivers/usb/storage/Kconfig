@@ -119,7 +119,7 @@ config USB_STORAGE_ALAUDA
 	  Say Y here to include additional code to support the Olympus MAUSB-10
 	  and Fujifilm DPC-R1 USB Card reader/writer devices.
 
-	  These devices are based on the Alauda chip and support support both
+	  These devices are based on the Alauda chip and support both
 	  XD and SmartMedia cards.
 
 config USB_STORAGE_ONETOUCH

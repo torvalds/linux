@@ -177,7 +177,7 @@ config KEYBOARD_HIL_OLD
 	  However, it has been thoroughly tested and is stable.
 
 	  If you want full HIL support including support for multiple
-	  keyboards, mices and tablets, you have to enable the
+	  keyboards, mice, and tablets, you have to enable the
 	  "HP System Device Controller i8042 Support" in the input/serio
 	  submenu.
 

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/serial/cpm_uart_cpm2.h
+ * linux/drivers/serial/cpm_uart/cpm_uart_cpm2.h
  *
  * Driver for CPM (SCC/SMC) serial ports
  * 

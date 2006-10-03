@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/pci-bigsur.c
+ * linux/arch/sh/drivers/pci/ops-bigsur.c
  *
  * By Dustin McIntire (dustin@sensoria.com) (c)2001
  *

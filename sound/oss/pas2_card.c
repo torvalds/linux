@@ -1,5 +1,5 @@
 /*
- * sound/pas2_card.c
+ * sound/oss/pas2_card.c
  *
  * Detection routine for the Pro Audio Spectrum cards.
  */

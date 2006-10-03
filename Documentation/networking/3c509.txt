@@ -126,7 +126,7 @@ packets faster than they can be removed from the card. This should be rare
 or impossible in normal operation. Possible causes of this error report are:
  
    - a "green" mode enabled that slows the processor down when there is no
-     keyboard activitiy. 
+     keyboard activity. 
 
    - some other device or device driver hogging the bus or disabling interrupts.
      Check /proc/interrupts for excessive interrupt counts. The timer tick

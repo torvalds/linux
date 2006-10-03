@@ -1,4 +1,4 @@
-/* asm-generic/tlb.h
+/* include/asm-generic/tlb.h
  *
  *	Generic TLB shootdown code
  *

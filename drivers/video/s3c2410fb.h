@@ -1,5 +1,5 @@
 /*
- * linux/drivers/s3c2410fb.h
+ * linux/drivers/video/s3c2410fb.h
  * Copyright (c) Arnaud Patard
  *
  * This file is subject to the terms and conditions of the GNU General Public

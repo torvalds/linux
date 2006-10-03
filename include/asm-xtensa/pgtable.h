@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-xtensa/page.h
+ * linux/include/asm-xtensa/pgtable.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version2 as

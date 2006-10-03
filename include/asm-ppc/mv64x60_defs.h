@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/gt64260_defs.h
+ * include/asm-ppc/mv64x60_defs.h
  *
  * Register definitions for the Marvell/Galileo GT64260, MV64360, etc.
  * host bridges.

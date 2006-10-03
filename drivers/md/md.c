@@ -4438,8 +4438,7 @@ static int md_release(struct inode *inode, struct file * file)
 {
  	mddev_t *mddev = inode->i_bdev->bd_disk->private_data;
 
-	if (!mddev)
-		BUG();
+	BUG_ON(!mddev);
 	mddev_put(mddev);
 
 	return 0;

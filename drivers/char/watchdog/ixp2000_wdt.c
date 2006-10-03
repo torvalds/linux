@@ -1,5 +1,5 @@
 /*
- * drivers/watchdog/ixp2000_wdt.c
+ * drivers/char/watchdog/ixp2000_wdt.c
  *
  * Watchdog driver for Intel IXP2000 network processors
  *

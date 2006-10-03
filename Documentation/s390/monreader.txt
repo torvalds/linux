@@ -83,7 +83,7 @@ This loads the module and sets the DCSS name to "MYDCSS".
 
 NOTE:
 -----
-This API provides no interface to control the *MONITOR service, e.g. specifiy
+This API provides no interface to control the *MONITOR service, e.g. specify
 which data should be collected. This can be done by the CP command MONITOR
 (Class E privileged), see "CP Command and Utility Reference".
 

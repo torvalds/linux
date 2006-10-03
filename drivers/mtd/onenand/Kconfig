@@ -21,7 +21,7 @@ config MTD_ONENAND_VERIFY_WRITE
 	  OneNAND flash device internally checks only bits transitioning
 	  from 1 to 0. There is a rare possibility that even though the
 	  device thinks the write was successful, a bit could have been
-	  flipped accidentaly due to device wear or something else.
+	  flipped accidentally due to device wear or something else.
 
 config MTD_ONENAND_GENERIC
 	tristate "OneNAND Flash device via platform device driver"

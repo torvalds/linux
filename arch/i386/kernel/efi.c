@@ -498,8 +498,7 @@ void __init efi_enter_virtual_mode(void)
 		check_range_for_systab(md);
 	}
 
-	if (!efi.systab)
-		BUG();
+	BUG_ON(!efi.systab);
 
 	status = phys_efi_set_virtual_address_map(
 			memmap.desc_size * memmap.nr_map,

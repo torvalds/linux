@@ -69,6 +69,6 @@ config VIDEO_CX88_VP3054
 	depends on VIDEO_CX88_DVB && DVB_MT352
 	---help---
 	  This adds DVB-T support for cards based on the
-	  Connexant 2388x chip and the MT352 demodulator,
+	  Conexant 2388x chip and the MT352 demodulator,
 	  which also require support for the VP-3054
 	  Secondary I2C bus, such at DNTV Live! DVB-T Pro.

@@ -55,7 +55,7 @@ SB32.
   install awe_wave /sbin/modprobe --first-time -i awe_wave && /usr/local/bin/sfxload PATH_TO_SOUND_BANK_FILE
 
   You will of course have to change "PATH_TO_SOUND_BANK_FILE" to the full
-  path of of the sound bank file. That will enable the Sound Blaster and AWE
+  path of the sound bank file. That will enable the Sound Blaster and AWE
   wave synthesis. To play midi files you should get one of these programs if
   you don't already have them:
 

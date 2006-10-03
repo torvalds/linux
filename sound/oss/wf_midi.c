@@ -1,5 +1,5 @@
 /*
- * sound/wf_midi.c
+ * sound/oss/wf_midi.c
  *
  * The low level driver for the WaveFront ICS2115 MIDI interface(s)
  * Note that there is also an MPU-401 emulation (actually, a UART-401

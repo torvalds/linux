@@ -1,5 +1,5 @@
 /*
- * include/asm/opsput_lan.h
+ * include/asm-m32r/opsput/opsput_lan.h
  *
  * OPSPUT-LAN board
  *

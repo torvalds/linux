@@ -31,7 +31,7 @@ changers. But it allows to handle nearly all possible cases. It knows
   media transport - this one shuffles around the media, i.e. the
                     transport arm.  Also known as "picker".
   storage         - a slot which can hold a media.
-  import/export   - the same as above, but is accessable from outside,
+  import/export   - the same as above, but is accessible from outside,
                     i.e. there the operator (you !) can use this to
                     fill in and remove media from the changer.
 		    Sometimes named "mailslot".

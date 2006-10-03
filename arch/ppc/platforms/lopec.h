@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/lopec_serial.h
+ * arch/ppc/platforms/lopec.h
  *
  * Definitions for Motorola LoPEC board.
  *

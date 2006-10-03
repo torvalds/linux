@@ -22,7 +22,7 @@ The initial port includes NUMAizing the bootmem allocator code by
 encapsulating all the pieces of information into a bootmem_data_t
 structure. Node specific calls have been added to the allocator. 
 In theory, any platform which uses the bootmem allocator should 
-be able to to put the bootmem and mem_map data structures anywhere
+be able to put the bootmem and mem_map data structures anywhere
 it deems best.
 
 Each node's page allocation data structures have also been encapsulated

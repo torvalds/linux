@@ -1,5 +1,5 @@
 /*
- * oprofile/op_model_e500.c
+ * arch/powerpc/oprofile/op_model_fsl_booke.c
  *
  * Freescale Book-E oprofile support, based on ppc64 oprofile support
  * Copyright (C) 2004 Anton Blanchard <anton@au.ibm.com>, IBM

@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp775.c
+ * linux/fs/nls/nls_cp775.c
  *
  * Charset cp775 translation tables.
  * Generated automatically from the Unicode and charset

@@ -410,7 +410,7 @@ VmallocChunk:   111088 kB
               this memory, making it slower to access than lowmem.
     LowTotal:
      LowFree: Lowmem is memory which can be used for everything that
-              highmem can be used for, but it is also availble for the
+              highmem can be used for, but it is also available for the
               kernel's use for its own data structures.  Among many
               other things, it is where everything from the Slab is
               allocated.  Bad things happen when you're out of lowmem.
@@ -1255,7 +1255,7 @@ to allocate (but not use) more memory than is actually available.
 		address space are refused. Used for a typical system. It
 		ensures a seriously wild allocation fails while allowing
 		overcommit to reduce swap usage.  root is allowed to
-		allocate slighly more memory in this mode. This is the
+		allocate slightly more memory in this mode. This is the
 		default.
 
 1	-	Always overcommit. Appropriate for some scientific
@@ -1588,7 +1588,7 @@ Enable the  strict  RFC793 interpretation of the TCP urgent pointer field. The
 default is  to  use  the  BSD  compatible interpretation of the urgent pointer
 pointing to the first byte after the urgent data. The RFC793 interpretation is
 to have  it  point  to  the last byte of urgent data. Enabling this option may
-lead to interoperatibility problems. Disabled by default.
+lead to interoperability problems. Disabled by default.
 
 tcp_syncookies
 --------------
@@ -1733,7 +1733,7 @@ error_burst and error_cost
 
 These  parameters  are used to limit how many ICMP destination unreachable to 
 send  from  the  host  in question. ICMP destination unreachable messages are 
-sent  when  we can not reach the next hop, while trying to transmit a packet. 
+sent  when  we  cannot reach  the next hop while trying to transmit a packet. 
 It  will also print some error messages to kernel logs if someone is ignoring 
 our   ICMP  redirects.  The  higher  the  error_cost  factor  is,  the  fewer 
 destination  unreachable  and error messages will be let through. Error_burst 
@@ -1857,7 +1857,7 @@ proxy_qlen
 
 Maximum queue length of the delayed proxy arp timer. (see proxy_delay).
 
-app_solcit
+app_solicit
 ----------
 
 Determines the  number of requests to send to the user level ARP daemon. Use 0

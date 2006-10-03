@@ -74,11 +74,11 @@ config EXT3_FS
 	tristate "Ext3 journalling file system support"
 	select JBD
 	help
-	  This is the journaling version of the Second extended file system
+	  This is the journalling version of the Second extended file system
 	  (often called ext3), the de facto standard Linux file system
 	  (method to organize files on a storage device) for hard disks.
 
-	  The journaling code included in this driver means you do not have
+	  The journalling code included in this driver means you do not have
 	  to run e2fsck (file system checker) on your file systems after a
 	  crash.  The journal keeps track of any changes that were being made
 	  at the time the system crashed, and can ensure that your file system
@@ -143,7 +143,7 @@ config EXT3_FS_SECURITY
 config JBD
 	tristate
 	help
-	  This is a generic journaling layer for block devices.  It is
+	  This is a generic journalling layer for block devices.  It is
 	  currently used by the ext3 and OCFS2 file systems, but it could
 	  also be used to add journal support to other file systems or block
 	  devices such as RAID or LVM.
@@ -183,7 +183,7 @@ config REISERFS_FS
 	tristate "Reiserfs support"
 	help
 	  Stores not just filenames but the files themselves in a balanced
-	  tree.  Uses journaling.
+	  tree.  Uses journalling.
 
 	  Balanced trees are more efficient than traditional file system
 	  architectural foundations.
@@ -1032,7 +1032,7 @@ config BEFS_FS
 	  on files and directories, and database-like indeces on selected
 	  attributes. (Also note that this driver doesn't make those features
 	  available at this time). It is a 64 bit filesystem, so it supports
-	  extremly large volumes and files.
+	  extremely large volumes and files.
 
 	  If you use this filesystem, you should also say Y to at least one
 	  of the NLS (native language support) options below.
@@ -1090,7 +1090,7 @@ config JFFS_FS
 	tristate "Journalling Flash File System (JFFS) support"
 	depends on MTD && BLOCK
 	help
-	  JFFS is the Journaling Flash File System developed by Axis
+	  JFFS is the Journalling Flash File System developed by Axis
 	  Communications in Sweden, aimed at providing a crash/powerdown-safe
 	  file system for disk-less embedded devices. Further information is
 	  available at (<http://developer.axis.com/software/jffs/>).
@@ -1260,7 +1260,7 @@ config JFFS2_CMODE_NONE
 config JFFS2_CMODE_PRIORITY
         bool "priority"
         help
-          Tries the compressors in a predefinied order and chooses the first
+          Tries the compressors in a predefined order and chooses the first
           successful one.
 
 config JFFS2_CMODE_SIZE
@@ -1365,7 +1365,7 @@ config SYSV_FS
 
 	  If you have floppies or hard disk partitions like that, it is likely
 	  that they contain binaries from those other Unix systems; in order
-	  to run these binaries, you will want to install linux-abi which is a
+	  to run these binaries, you will want to install linux-abi which is
 	  a set of kernel modules that lets you run SCO, Xenix, Wyse,
 	  UnixWare, Dell Unix and System V programs under Linux.  It is
 	  available via FTP (user: ftp) from
@@ -1950,7 +1950,7 @@ config AFS_FS
 	  If you say Y here, you will get an experimental Andrew File System
 	  driver. It currently only supports unsecured read-only AFS access.
 
-	  See <file:Documentation/filesystems/afs.txt> for more intormation.
+	  See <file:Documentation/filesystems/afs.txt> for more information.
 
 	  If unsure, say N.
 

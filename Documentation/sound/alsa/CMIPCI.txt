@@ -16,11 +16,11 @@ As default, ALSA driver assigns the first PCM device (i.e. hw:0,0 for
 card#0) for front and 4/6ch playbacks, while the second PCM device
 (hw:0,1) is assigned to the second DAC for rear playback.
 
-There are slight difference between two DACs.
+There are slight differences between the two DACs:
 
 - The first DAC supports U8 and S16LE formats, while the second DAC
   supports only S16LE.
-- The seconde DAC supports only two channel stereo.
+- The second DAC supports only two channel stereo.
 
 Please note that the CM8x38 DAC doesn't support continuous playback
 rate but only fixed rates: 5512, 8000, 11025, 16000, 22050, 32000,
@@ -76,7 +76,7 @@ in alsa-lib.  For example, you can play a WAV file with 6 channels like
 
 	% aplay -Dsurround51 sixchannels.wav
 
-For programmin the 4/6 channel playback, you need to specify the PCM
+For programming the 4/6 channel playback, you need to specify the PCM
 channels as you like and set the format S16LE.  For example, for playback
 with 4 channels,
 

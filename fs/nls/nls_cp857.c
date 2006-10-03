@@ -1,5 +1,5 @@
 /*
- * linux/fs/nls_cp857.c
+ * linux/fs/nls/nls_cp857.c
  *
  * Charset cp857 translation tables.
  * Generated automatically from the Unicode and charset

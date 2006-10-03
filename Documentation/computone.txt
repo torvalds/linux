@@ -199,30 +199,6 @@ boxes this will leave gaps in the sequence of device names. ip2mkdev uses
 Linux tty naming conventions: ttyF0 - ttyF255 for normal devices, and
 cuf0 - cuf255 for callout devices.
 
-If you are using devfs, existing devices are automatically created within
-the devfs name space.  Normal devices will be tts/F0 - tts/F255 and callout
-devices will be cua/F0 - cua/F255.  With devfs installed, ip2mkdev will
-create symbolic links in /dev from the old conventional names to the newer
-devfs names as follows:
-
-	/dev/ip2ipl[n]	-> /dev/ip2/ipl[n]	n = 0 - 3
-	/dev/ip2stat[n]	-> /dev/ip2/stat[n]	n = 0 - 3
-	/dev/ttyF[n]	-> /dev/tts/F[n]	n = 0 - 255
-	/dev/cuf[n]	-> /dev/cua/F[n]	n = 0 - 255
-
-Only devices for existing ports and boards will be created.
-
-IMPORTANT NOTE:  The naming convention used for devfs by this driver
-was changed from 1.2.12 to 1.2.13.  The old naming convention was to
-use ttf/%d for the tty device and cuf/%d for the cua device.  That
-has been changed to conform to an agreed-upon standard of placing
-all the tty devices under tts.  The device names are now tts/F%d for
-the tty device and cua/F%d for the cua devices.  If you were using
-the older devfs names, you must update for the newer convention.
-
-You do not need to run ip2mkdev if you are using devfs and only want to
-use the devfs native device names.
-
 
 4. USING THE DRIVERS
 
@@ -256,57 +232,15 @@ cut out and run as "ip2mkdev" to create the necessary device files.  To
 use the ip2mkdev script, you must have procfs enabled and the proc file
 system mounted on /proc.
 
-You do not need to run ip2mkdev if you are using devfs and only want to
-use the devfs native device names.
 
-
-6. DEVFS
-
-DEVFS is the DEVice File System available as an add on package for the
-2.2.x kernels and available as a configuration option in 2.3.46 and higher.
-Devfs allows for the automatic creation and management of device names
-under control of the device drivers themselves.  The Devfs namespace is
-hierarchical and reduces the clutter present in the normal flat /dev
-namespace.  Devfs names and conventional device names may be intermixed.
-A userspace daemon, devfsd, exists to allow for automatic creation and
-management of symbolic links from the devfs name space to the conventional
-names.  More details on devfs can be found on the DEVFS home site at
-<http://www.atnf.csiro.au/~rgooch/linux/> or in the file kernel
-documentation files, .../linux/Documentation/filesystems/devfs/README.
-
-If you are using devfs, existing devices are automatically created within
-the devfs name space.  Normal devices will be tts/F0 - tts/F255 and callout
-devices will be cua/F0 - cua/F255.  With devfs installed, ip2mkdev will
-create symbolic links in /dev from the old conventional names to the newer
-devfs names as follows:
-
-	/dev/ip2ipl[n]	-> /dev/ip2/ipl[n]	n = 0 - 3
-	/dev/ip2stat[n]	-> /dev/ip2/stat[n]	n = 0 - 3
-	/dev/ttyF[n]	-> /dev/tts/F[n]	n = 0 - 255
-	/dev/cuf[n]	-> /dev/cua/F[n]	n = 0 - 255
-
-Only devices for existing ports and boards will be created.
-
-IMPORTANT NOTE:  The naming convention used for devfs by this driver
-was changed from 1.2.12 to 1.2.13.  The old naming convention was to
-use ttf/%d for the tty device and cuf/%d for the cua device.  That
-has been changed to conform to an agreed-upon standard of placing
-all the tty devices under tts.  The device names are now tts/F%d for
-the tty device and cua/F%d for the cua devices.  If you were using
-the older devfs names, you must update for the newer convention.
-
-You do not need to run ip2mkdev if you are using devfs and only want to
-use the devfs native device names.
- 
-
-7. NOTES
+6. NOTES
 
 This is a release version of the driver, but it is impossible to test it
 in all configurations of Linux. If there is any anomalous behaviour that 
 does not match the standard serial port's behaviour please let us know.
 
 
-8. ip2mkdev shell script
+7. ip2mkdev shell script
 
 Previously, this script was simply attached here.  It is now attached as a
 shar archive to make it easier to extract the script from the documentation.

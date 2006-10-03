@@ -1,5 +1,5 @@
 /*
- * sound/sb_common.c
+ * sound/oss/sb_common.c
  *
  * Common routines for Sound Blaster compatible cards.
  *

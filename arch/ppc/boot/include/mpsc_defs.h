@@ -1,5 +1,5 @@
 /*
- * drivers/serial/mpsc/mpsc_defs.h
+ * arch/ppc/boot/include/mpsc_defs.h
  *
  * Register definitions for the Marvell Multi-Protocol Serial Controller (MPSC),
  * Serial DMA Controller (SDMA), and Baud Rate Generator (BRG).

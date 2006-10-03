@@ -1,5 +1,5 @@
 /*
- * arch/ppc/platforms/82xx/pq2ads_pd.c
+ * arch/ppc/platforms/mpc8272ads_setup.c
  *
  * MPC82xx Board-specific PlatformDevice descriptions
  *

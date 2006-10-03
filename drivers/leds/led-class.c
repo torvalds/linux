@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(led_classdev_register);
 
 /**
  * led_classdev_unregister - unregisters a object of led_properties class.
- * @led_cdev: the led device to unreigister
+ * @led_cdev: the led device to unregister
  *
  * Unregisters a previously registered via led_classdev_register object.
  */

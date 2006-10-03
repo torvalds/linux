@@ -15,4 +15,4 @@ config RAPIDIO_DISC_TIMEOUT
 	default "30"
 	---help---
 	  Amount of time a discovery node waits for a host to complete
-	  enumeration beforing giving up.
+	  enumeration before giving up.

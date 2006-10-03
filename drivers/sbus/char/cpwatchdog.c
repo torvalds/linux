@@ -10,8 +10,6 @@
  * 			timer interrupts.  We use a timer to periodically 
  * 			reset 'stopped' watchdogs on affected platforms.
  *
- * TODO:	DevFS support (/dev/watchdogs/0 ... /dev/watchdogs/2)
- *
  * Copyright (c) 2000 Eric Brower (ebrower@usa.net)
  */
 

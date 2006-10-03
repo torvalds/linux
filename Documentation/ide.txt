@@ -281,7 +281,7 @@ Summary of ide driver parameters for kernel command line
 
  "idex=serialize"	: do not overlap operations on idex. Please note
 			  that you will have to specify this option for
-			  both the respecitve primary and secondary channel
+			  both the respective primary and secondary channel
 			  to take effect.
 
  "idex=four"		: four drives on idex and ide(x^1) share same ports

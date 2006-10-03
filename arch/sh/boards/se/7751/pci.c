@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/pci-7751se.c
+ * linux/arch/sh/boards/se/7751/pci.c
  *
  * Author:  Ian DaSilva (idasilva@mvista.com)
  *

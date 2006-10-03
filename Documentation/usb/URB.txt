@@ -184,7 +184,7 @@ you can pass information to the completion handler.
 Note that even when an error (or unlink) is reported, data may have been
 transferred.  That's because USB transfers are packetized; it might take
 sixteen packets to transfer your 1KByte buffer, and ten of them might
-have transferred succesfully before the completion was called.
+have transferred successfully before the completion was called.
 
 
 NOTE:  ***** WARNING *****

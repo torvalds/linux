@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/spi.h
+/* linux/include/asm-arm/arch-s3c2410/spi-gpio.h
  *
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

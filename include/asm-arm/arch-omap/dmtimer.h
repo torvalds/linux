@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arm/arch-omap/dmtimer.h
+ * linux/include/asm-arm/arch-omap/dmtimer.h
  *
  * OMAP Dual-Mode Timers
  *

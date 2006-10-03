@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/io_ec3104.c
+ * linux/arch/sh/boards/ec3104/io.c
  *  EC3104 companion chip support
  *
  * Copyright (C) 2000 Philipp Rumpf <prumpf@tux.org>

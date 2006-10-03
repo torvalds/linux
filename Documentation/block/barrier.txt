@@ -25,7 +25,7 @@ of the following three ways.
 i. For devices which have queue depth greater than 1 (TCQ devices) and
 support ordered tags, block layer can just issue the barrier as an
 ordered request and the lower level driver, controller and drive
-itself are responsible for making sure that the ordering contraint is
+itself are responsible for making sure that the ordering constraint is
 met.  Most modern SCSI controllers/drives should support this.
 
 NOTE: SCSI ordered tag isn't currently used due to limitation in the
@@ -42,7 +42,7 @@ iii. Devices which have queue depth of 1.  This is a degenerate case
 of ii.  Just keeping issue order suffices.  Ancient SCSI
 controllers/drives and IDE drives are in this category.
 
-2. Forced flushing to physcial medium
+2. Forced flushing to physical medium
 
 Again, if you're not gonna do synchronization with disk drives (dang,
 it sounds even more appealing now!), the reason you use I/O barriers
@@ -56,7 +56,7 @@ There are four cases,
 i. No write-back cache.  Keeping requests ordered is enough.
 
 ii. Write-back cache but no flush operation.  There's no way to
-gurantee physical-medium commit order.  This kind of devices can't to
+guarantee physical-medium commit order.  This kind of devices can't to
 I/O barriers.
 
 iii. Write-back cache and flush operation but no FUA (forced unit

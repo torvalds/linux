@@ -1023,7 +1023,7 @@ Changing a Bond's Configuration
 files located in /sys/class/net/<bond name>/bonding
 
 	The names of these files correspond directly with the command-
-line parameters described elsewhere in in this file, and, with the
+line parameters described elsewhere in this file, and, with the
 exception of arp_ip_target, they accept the same values.  To see the
 current setting, simply cat the appropriate file.
 

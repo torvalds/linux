@@ -62,7 +62,7 @@ be reconstructed (due to no parity).
 
 For this reason, md will normally refuse to start such an array.  This
 requires the sysadmin to take action to explicitly start the array
-desipite possible corruption.  This is normally done with
+despite possible corruption.  This is normally done with
    mdadm --assemble --force ....
 
 This option is not really available if the array has the root
@@ -175,7 +175,7 @@ All md devices contain:
      raid levels that involve striping (1,4,5,6,10). The address space
      of the array is conceptually divided into chunks and consecutive
      chunks are striped onto neighbouring devices.
-     The size should be atleast PAGE_SIZE (4k) and should be a power
+     The size should be at least PAGE_SIZE (4k) and should be a power
      of 2.  This can only be set while assembling an array
 
   component_size
@@ -214,8 +214,8 @@ All md devices contain:
    safe_mode_delay
      When an md array has seen no write requests for a certain period
      of time, it will be marked as 'clean'.  When another write
-     request arrive, the array is marked as 'dirty' before the write
-     commenses.  This is known as 'safe_mode'.
+     request arrives, the array is marked as 'dirty' before the write
+     commences.  This is known as 'safe_mode'.
      The 'certain period' is controlled by this file which stores the
      period as a number of seconds.  The default is 200msec (0.200).
      Writing a value of 0 disables safemode.
@@ -307,8 +307,8 @@ Each directory contains:
 			 This applies only to raid1 arrays.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
-			 of being recoverred to
-	This list make grow in future.
+			 of being recovered to
+	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
 	Writing "remove" removes the device from the array.
@@ -330,7 +330,7 @@ Each directory contains:
         This gives the role that the device has in the array.  It will
 	either be 'none' if the device is not active in the array
         (i.e. is a spare or has failed) or an integer less than the
-	'raid_disks' number for the array indicating which possition
+	'raid_disks' number for the array indicating which position
 	it currently fills.  This can only be set while assembling an
 	array.  A device for which this is set is assumed to be working.
 
@@ -353,7 +353,7 @@ in the array.  These are named
 
     rdNN
 
-where 'NN' is the possition in the array, starting from 0.
+where 'NN' is the position in the array, starting from 0.
 So for a 3 drive array there will be rd0, rd1, rd2.
 These are symbolic links to the appropriate 'dev-XXX' entry.
 Thus, for example,

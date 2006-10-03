@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-ixp4x//system.h 
+ * include/asm-arm/arch-ixp4xx/system.h
  *
  * Copyright (C) 2002 Intel Corporation.
  *

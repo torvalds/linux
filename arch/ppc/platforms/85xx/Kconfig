@@ -24,12 +24,12 @@ config MPC8540_ADS
 config MPC8548_CDS
 	bool "Freescale MPC8548 CDS"
 	help
-	  This option enablese support for the MPC8548 CDS evaluation board.
+	  This option enables support for the MPC8548 CDS evaluation board.
 
 config MPC8555_CDS
 	bool "Freescale MPC8555 CDS"
 	help
-	  This option enablese support for the MPC8555 CDS evaluation board.
+	  This option enables support for the MPC8555 CDS evaluation board.
 
 config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
@@ -51,22 +51,22 @@ config STX_GP3
 config TQM8540
 	bool "TQ Components TQM8540"
 	help
-	  This option enablese support for the TQ Components TQM8540 board.
+	  This option enables support for the TQ Components TQM8540 board.
 
 config TQM8541
 	bool "TQ Components TQM8541"
 	help
-	  This option enablese support for the TQ Components TQM8541 board.
+	  This option enables support for the TQ Components TQM8541 board.
 
 config TQM8555
 	bool "TQ Components TQM8555"
 	help
-	  This option enablese support for the TQ Components TQM8555 board.
+	  This option enables support for the TQ Components TQM8555 board.
 
 config TQM8560
 	bool "TQ Components TQM8560"
 	help
-	  This option enablese support for the TQ Components TQM8560 board.
+	  This option enables support for the TQ Components TQM8560 board.
 
 endchoice
 
@@ -94,7 +94,7 @@ config MPC8560
 	default y
 
 config 85xx_PCI2
-	bool "Supprt for 2nd PCI host controller"
+	bool "Support for 2nd PCI host controller"
 	depends on MPC8555_CDS
 	default y
 

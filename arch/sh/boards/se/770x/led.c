@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_se.c
+ * linux/arch/sh/boards/se/770x/led.c
  *
  * Copyright (C) 2000 Stuart Menefy <stuart.menefy@st.com>
  *

@@ -495,7 +495,7 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 
 	Note that if no primary address exists for the interface selected,
 	then the primary address of the first non-loopback interface that
-	has one will be used regarldess of this setting.
+	has one will be used regardless of this setting.
 
 	Default: 0
 
@@ -787,7 +787,7 @@ accept_ra_defrtr - BOOLEAN
 			    disabled if accept_ra is disabled.
 
 accept_ra_pinfo - BOOLEAN
-	Learn Prefix Inforamtion in Router Advertisement.
+	Learn Prefix Information in Router Advertisement.
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.

@@ -173,7 +173,7 @@ Installing the Driver
 
 Parameter Description
 =====================
-You can install this driver without any addtional parameter. However, if you
+You can install this driver without any additional parameter. However, if you
 are going to have extensive functions then it is necessary to set extra
 parameter. Below is a list of the command line parameters supported by the
 Linux device
@@ -222,7 +222,7 @@ rx_timeout=n			- Rx DMA wait time for an interrupt.
 				  reach timeout of n * 640 nano seconds. 
 				  Set proper rx_coalesce and rx_timeout can 
 				  reduce congestion collapse and overload which
-				  has been a bottlenect for high speed network.
+				  has been a bottleneck for high speed network.
 				  
 				  For example, rx_coalesce=10 rx_timeout=800.
 				  that is, hardware assert only 1 interrupt 

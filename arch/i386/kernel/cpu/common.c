@@ -669,8 +669,7 @@ old_gdt:
 	 */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
-	if (current->mm)
-		BUG();
+	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	load_esp0(t, thread);

@@ -71,7 +71,7 @@ The status of MIDI I/O is found in midi* files.  It shows the device
 name and the received/transmitted bytes through the MIDI device.
 
 When the card is equipped with AC97 codecs, there are codec97#*
-subdirectories (desribed later).
+subdirectories (described later).
 
 When the OSS mixer emulation is enabled (and the module is loaded),
 oss_mixer file appears here, too.  This shows the current mapping of
@@ -161,12 +161,12 @@ seq/drivers
 	Lists the currently available ALSA sequencer drivers.
 
 seq/clients
-	Shows the list of currently available sequencer clinets and
+	Shows the list of currently available sequencer clients and
 	ports.  The connection status and the running status are shown
 	in this file, too.
 
 seq/queues
-	Lists the currently allocated/running sequener queues.
+	Lists the currently allocated/running sequencer queues.
 
 seq/timer
 	Lists the currently allocated/running sequencer timers.
@@ -182,10 +182,10 @@ When the problem is related with PCM, first try to turn on xrun_debug
 mode.  This will give you the kernel messages when and where xrun
 happened.
 
-If it's really a bug, report it with the following information
+If it's really a bug, report it with the following information:
 
   - the name of the driver/card, show in /proc/asound/cards
-  - the reigster dump, if available (e.g. card*/cmipci)
+  - the register dump, if available (e.g. card*/cmipci)
 
 when it's a PCM problem,
 

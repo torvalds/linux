@@ -1,5 +1,5 @@
 /*
- * linux/fs/nfsd/nfsacl.c
+ * linux/fs/nfsd/nfs2acl.c
  *
  * Process version 2 NFSACL requests.
  *

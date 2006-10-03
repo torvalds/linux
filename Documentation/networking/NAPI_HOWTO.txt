@@ -35,7 +35,7 @@ Legend:
 packets out of the rx ring. Note from this that the lower the
 load the more we could clean up the rxring
 "Ndone" == is the converse of "Done". Note again, that the higher
-the load the more times we couldnt clean up the rxring.
+the load the more times we couldn't clean up the rxring.
 
 Observe that:
 when the NIC receives 890Kpackets/sec only 17 rx interrupts are generated. 

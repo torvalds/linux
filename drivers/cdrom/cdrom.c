@@ -1,4 +1,4 @@
-/* linux/drivers/cdrom/cdrom.c. 
+/* linux/drivers/cdrom/cdrom.c
    Copyright (c) 1996, 1997 David A. van Leeuwen.
    Copyright (c) 1997, 1998 Erik Andersen <andersee@debian.org>
    Copyright (c) 1998, 1999 Jens Axboe <axboe@image.dk>

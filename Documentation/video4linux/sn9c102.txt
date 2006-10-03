@@ -60,7 +60,7 @@ It's worth to note that SONiX has never collaborated with the author during the
 development of this project, despite several requests for enough detailed
 specifications of the register tables, compression engine and video data format
 of the above chips. Nevertheless, these informations are no longer necessary,
-becouse all the aspects related to these chips are known and have been
+because all the aspects related to these chips are known and have been
 described in detail in this documentation.
 
 The driver relies on the Video4Linux2 and USB core modules. It has been
@@ -85,7 +85,7 @@ Some of the features of the driver are:
   high compression quality (see also "Notes for V4L2 application developers"
   and "Video frame formats" paragraphs);
 - full support for the capabilities of many of the possible image sensors that
-  can be connected to the SN9C10x bridges, including, for istance, red, green,
+  can be connected to the SN9C10x bridges, including, for instance, red, green,
   blue and global gain adjustments and exposure (see "Supported devices"
   paragraph for details);
 - use of default color settings for sunlight conditions;

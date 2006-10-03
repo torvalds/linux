@@ -1,5 +1,5 @@
 /*
- * include/asm-ppc/ipic.h
+ * include/asm-powerpc/ipic.h
  *
  * IPIC external definitions and structure.
  *

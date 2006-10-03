@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/pci-rts7751r2d.c
+ * linux/arch/sh/drivers/pci/ops-rts7751r2d.c
  *
  * Author:  Ian DaSilva (idasilva@mvista.com)
  *

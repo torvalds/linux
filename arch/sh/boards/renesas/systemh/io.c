@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/systemh/io.c
+ * linux/arch/sh/boards/renesas/systemh/io.c
  *
  * Copyright (C) 2001  Ian da Silva, Jeremy Siegel
  * Based largely on io_se.c.

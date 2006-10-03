@@ -1,5 +1,5 @@
 /*
- * ia64/kernel/entry.S
+ * arch/ia64/kernel/entry.S
  *
  * Kernel entry points.
  *

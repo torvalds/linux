@@ -1,5 +1,5 @@
 /*
- * sound/midibuf.c
+ * sound/oss/midibuf.c
  *
  * Device file manager for /dev/midi#
  */

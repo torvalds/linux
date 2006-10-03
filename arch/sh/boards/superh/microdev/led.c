@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/kernel/led_microdev.c
+ * linux/arch/sh/boards/superh/microdev/led.c
  *
  * Copyright (C) 2002 Stuart Menefy <stuart.menefy@st.com>
  * Copyright (C) 2003 Richard Curnow (Richard.Curnow@superh.com)

@@ -61,9 +61,9 @@ Example:	z990 crypto instruction for SHA1 algorithm is available
 		-> when the sha1 algorithm is requested through the crypto API
 		(which has a module autoloader) the z990 module will be loaded.
 
-TBD:	a userspace module probin mechanism
+TBD:	a userspace module probing mechanism
 	something like 'probe sha1 sha1_z990 sha1' in modprobe.conf
-	-> try module sha1_z990, if it fails to load load standard module sha1
+	-> try module sha1_z990, if it fails to load standard module sha1
 	the 'probe' statement is currently not supported in modprobe.conf
 
 

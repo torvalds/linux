@@ -10,7 +10,7 @@ int verify_area(int type, const void * addr, unsigned long size)
 function (which has since been replaced by access_ok()).
 
 This function verified that the memory area starting at address 
-addr and of size size was accessible for the operation specified 
+'addr' and of size 'size' was accessible for the operation specified
 in type (read or write). To do this, verify_read had to look up the 
 virtual memory area (vma) that contained the address addr. In the 
 normal case (correctly working program), this test was successful. 

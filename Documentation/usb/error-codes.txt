@@ -126,7 +126,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 			urb->transfer_flags.
 
 -ENODEV			Device was removed.  Often preceded by a burst of
-			other errors, since the hub driver does't detect
+			other errors, since the hub driver doesn't detect
 			device removal events immediately.
 
 -EXDEV			ISO transfer only partially completed
@@ -145,7 +145,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 hardware problems such as bad devices (including firmware) or cables.
 
 (**) This is also one of several codes that different kinds of host
-controller use to to indicate a transfer has failed because of device
+controller use to indicate a transfer has failed because of device
 disconnect.  In the interval before the hub driver starts disconnect
 processing, devices may receive such fault reports for every request.
 

@@ -2005,7 +2005,7 @@ Your cooperation is appreciated.
 116 char	Advanced Linux Sound Driver (ALSA)
 
 116 block       MicroMemory battery backed RAM adapter (NVRAM)
-                Supports 16 boards, 15 paritions each.
+                Supports 16 boards, 15 partitions each.
                 Requested by neilb at cse.unsw.edu.au.
 
 		 0 = /dev/umem/d0      Whole of first board
@@ -3094,7 +3094,7 @@ Your cooperation is appreciated.
 		This major is reserved to assist the expansion to a
 		larger number space.  No device nodes with this major
 		should ever be created on the filesystem.
-		(This is probaly not true anymore, but I'll leave it
+		(This is probably not true anymore, but I'll leave it
 		for now /Torben)
 
 ---LARGE MAJORS!!!!!---
@@ -3205,7 +3205,7 @@ for a session; this includes virtual consoles, serial ports, and
 pseudoterminals (PTYs).
 
 All terminal devices share a common set of capabilities known as line
-diciplines; these include the common terminal line dicipline as well
+disciplines; these include the common terminal line discipline as well
 as SLIP and PPP modes.
 
 All terminal devices are named similarly; this section explains the
@@ -3285,7 +3285,7 @@ port TTY, for which no alternate device would exist.
 	Pseudoterminals (PTYs)
 
 Pseudoterminals, or PTYs, are used to create login sessions or provide
-other capabilities requiring a TTY line dicipline (including SLIP or
+other capabilities requiring a TTY line discipline (including SLIP or
 PPP capability) to arbitrary data-generation processes.	 Each PTY has
 a master side, named /dev/pty[p-za-e][0-9a-f], and a slave side, named
 /dev/tty[p-za-e][0-9a-f].  The kernel arbitrates the use of PTYs by

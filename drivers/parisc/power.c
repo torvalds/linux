@@ -1,5 +1,5 @@
 /*
- * linux/arch/parisc/kernel/power.c
+ * linux/drivers/parisc/power.c
  * HP PARISC soft power switch support driver
  *
  * Copyright (c) 2001-2005 Helge Deller <deller@gmx.de>

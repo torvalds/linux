@@ -6,7 +6,7 @@ is at least one report of it working on later silicon.
 The chip behaves differently than described in the data sheet,
 likely due to a chip bug. Working around this would require
 the help of ESS (for example by publishing an errata sheet),
-but ESS has not done so so far.
+but ESS has not done so far.
 
 Also, the chip only supports 24 bit addresses for recording,
 which means it cannot work on some Alpha mainboards.

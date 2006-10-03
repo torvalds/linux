@@ -1,4 +1,4 @@
-/* include/asm-sh/dc_sysasic.h
+/* include/asm-sh/dreamcast/sysasic.h
  *
  * Definitions for the Dreamcast System ASIC and related peripherals.
  *

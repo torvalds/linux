@@ -40,10 +40,10 @@ config SCSI_PROC_FS
 	default y
 	---help---
 	  This option enables support for the various files in
-	  /proc/scsi.  In Linux 2.6 this has been superceeded by
+	  /proc/scsi.  In Linux 2.6 this has been superseded by
 	  files in sysfs but many legacy applications rely on this.
 
-	  If unusure say Y.
+	  If unsure say Y.
 
 comment "SCSI support type (disk, tape, CD-ROM)"
 	depends on SCSI
@@ -85,7 +85,7 @@ config CHR_DEV_OSST
 	tristate "SCSI OnStream SC-x0 tape support"
 	depends on SCSI
 	---help---
-	  The OnStream SC-x0 SCSI tape drives can not be driven by the
+	  The OnStream SC-x0 SCSI tape drives cannot be driven by the
 	  standard st driver, but instead need this special osst driver and
 	  use the  /dev/osstX char device nodes (major 206).  Via usb-storage
 	  and ide-scsi, you may be able to drive the USB-x0 and DI-x0 drives

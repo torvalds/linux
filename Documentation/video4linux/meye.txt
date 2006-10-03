@@ -29,7 +29,7 @@ driver (PCI vendor/device is 0x136b/0xff01)
 
 The third one, present in recent (more or less last year) Picturebooks
 (C1M* models), is not supported. The manufacturer has given the specs
-to the developers under a NDA (which allows the develoment of a GPL
+to the developers under a NDA (which allows the development of a GPL
 driver however), but things are not moving very fast (see
 http://r-engine.sourceforge.net/) (PCI vendor/device is 0x10cf/0x2011).
 

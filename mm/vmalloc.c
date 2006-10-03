@@ -503,7 +503,7 @@ EXPORT_SYMBOL(__vmalloc);
  *	Allocate enough pages to cover @size from the page level
  *	allocator and map them into contiguous kernel virtual space.
  *
- *	For tight cotrol over page level allocator and protection flags
+ *	For tight control over page level allocator and protection flags
  *	use __vmalloc() instead.
  */
 void *vmalloc(unsigned long size)
@@ -542,7 +542,7 @@ EXPORT_SYMBOL(vmalloc_user);
  *	Allocate enough pages to cover @size from the page level
  *	allocator and map them into contiguous kernel virtual space.
  *
- *	For tight cotrol over page level allocator and protection flags
+ *	For tight control over page level allocator and protection flags
  *	use __vmalloc() instead.
  */
 void *vmalloc_node(unsigned long size, int node)
@@ -563,7 +563,7 @@ EXPORT_SYMBOL(vmalloc_node);
  *	the page level allocator and map them into contiguous and
  *	executable kernel virtual space.
  *
- *	For tight cotrol over page level allocator and protection flags
+ *	For tight control over page level allocator and protection flags
  *	use __vmalloc() instead.
  */
 

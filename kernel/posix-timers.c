@@ -1,5 +1,5 @@
 /*
- * linux/kernel/posix_timers.c
+ * linux/kernel/posix-timers.c
  *
  *
  * 2002-10-15  Posix Clocks & timers

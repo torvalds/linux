@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/omap2/board-apollon.c
+ * linux/arch/arm/mach-omap2/board-apollon.c
  *
  * Copyright (C) 2005,2006 Samsung Electronics
  * Author: Kyungmin Park <kyungmin.park@samsung.com>

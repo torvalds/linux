@@ -1,5 +1,5 @@
 /*
- * asm-generic/mutex-dec.h
+ * include/asm-generic/mutex-dec.h
  *
  * Generic implementation of the mutex fastpath, based on atomic
  * decrement/increment.

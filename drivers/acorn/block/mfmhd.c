@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/drivers/block/mfmhd.c
+ * linux/drivers/acorn/block/mfmhd.c
  *
  * Copyright (C) 1995, 1996 Russell King, Dave Alan Gilbert (gilbertd@cs.man.ac.uk)
  *

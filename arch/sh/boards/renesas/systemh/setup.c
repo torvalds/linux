@@ -1,5 +1,5 @@
 /*
- * linux/arch/sh/boards/systemh/setup.c
+ * linux/arch/sh/boards/renesas/systemh/setup.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
  * Copyright (C) 2003  Paul Mundt

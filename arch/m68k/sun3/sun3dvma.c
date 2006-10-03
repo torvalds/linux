@@ -1,5 +1,5 @@
 /*
- * linux/arch/m68k/mm/sun3dvma.c
+ * linux/arch/m68k/sun3/sun3dvma.c
  *
  * Copyright (C) 2000 Sam Creasey
  *

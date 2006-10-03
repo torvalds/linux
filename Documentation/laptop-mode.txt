@@ -152,7 +152,7 @@ loaded on demand while the application executes) and sequentially accessed data
 DO_REMOUNTS:
 
 The control script automatically remounts any mounted journaled filesystems
-with approriate commit interval options. When this option is set to 0, this
+with appropriate commit interval options. When this option is set to 0, this
 feature is disabled.
 
 DO_REMOUNT_NOATIME:

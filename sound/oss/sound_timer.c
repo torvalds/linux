@@ -1,5 +1,5 @@
 /*
- * sound/sound_timer.c
+ * sound/oss/sound_timer.c
  */
 /*
  * Copyright (C) by Hannu Savolainen 1993-1997
