@@ -118,8 +118,19 @@ static unsigned int mbxfb_get_pixclock(unsigned int pixclock_ps,
 	/* convert pixclock to KHz */
 	pixclock = PICOS2KHZ(pixclock_ps);
 
+	/* PLL output freq = (ref_clk * M) / (N * 2^P)
+	 *
+	 * M: 1 to 63
+	 * N: 1 to 7
+	 * P: 0 to 7
+	 */
+
+	/* RAPH: When N==1, the resulting pixel clock appears to
+	 * get divided by 2. Preventing N=1 by starting the following
+	 * loop at 2 prevents this. Is this a bug with my chip
+	 * revision or something I dont understand? */
 	for (m = 1; m < 64; m++) {
-		for (n = 1; n < 8; n++) {
+		for (n = 2; n < 8; n++) {
 			for (p = 0; p < 8; p++) {
 				clk = (ref_clk * m) / (n * (1 << p));
 				err = (clk > pixclock) ? (clk - pixclock) :
