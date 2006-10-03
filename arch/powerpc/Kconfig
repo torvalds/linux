@@ -594,12 +594,6 @@ config TAU_AVERAGE
 
 	  If in doubt, say N here.
 
-config PPC_TODC
-	depends on EMBEDDED6xx
-	bool "Generic Time-of-day Clock (TODC) support"
-	---help---
-	  This adds support for many TODC/RTC chips.
-
 endmenu
 
 source arch/powerpc/platforms/embedded6xx/Kconfig
