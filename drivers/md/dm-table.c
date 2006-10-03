@@ -1001,6 +1001,11 @@ int dm_table_flush_all(struct dm_table *t)
 {
 	struct list_head *d, *devices = dm_table_get_devices(t);
 	int ret = 0;
+	unsigned i;
+
+	for (i = 0; i < t->num_targets; i++)
+		if (t->targets[i].type->flush)
+			t->targets[i].type->flush(&t->targets[i]);
 
 	for (d = devices->next; d != devices; d = d->next) {
 		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
