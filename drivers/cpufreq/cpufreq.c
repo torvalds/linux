@@ -1274,6 +1274,26 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
+int cpufreq_driver_getavg(struct cpufreq_policy *policy)
+{
+	int ret = 0;
+
+	policy = cpufreq_cpu_get(policy->cpu);
+	if (!policy)
+		return -EINVAL;
+
+	mutex_lock(&policy->lock);
+
+	if (cpu_online(policy->cpu) && cpufreq_driver->getavg)
+		ret = cpufreq_driver->getavg(policy->cpu);
+
+	mutex_unlock(&policy->lock);
+
+	cpufreq_cpu_put(policy);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cpufreq_driver_getavg);
+
 /*
  * Locking: Must be called with the lock_cpu_hotplug() lock held
  * when "event" is CPUFREQ_GOV_LIMITS

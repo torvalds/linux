@@ -393,8 +393,15 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
 	if (load < (dbs_tuners_ins.up_threshold - 10)) {
-		unsigned int freq_next = (policy->cur * load) /
+		unsigned int freq_next, freq_cur;
+
+		freq_cur = cpufreq_driver_getavg(policy);
+		if (!freq_cur)
+			freq_cur = policy->cur;
+
+		freq_next = (freq_cur * load) /
 			(dbs_tuners_ins.up_threshold - 10);
+
 		if (!dbs_tuners_ins.powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
 					CPUFREQ_RELATION_L);
