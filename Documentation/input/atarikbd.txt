@@ -84,7 +84,7 @@ selected.
 4.2 Absolute Position reporting
 
 The ikbd can also maintain absolute mouse position. Commands exist for
-reseting the mouse position, setting X/Y scaling, and interrogating the
+resetting the mouse position, setting X/Y scaling, and interrogating the
 current mouse position.
 
 4.3 Mouse Cursor Key Mode

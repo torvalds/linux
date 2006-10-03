@@ -98,7 +98,7 @@ in your .remove method.
 
 	Any memory allocated, registers mapped, IRQs registered,
 etc. must be undone by your .remove method so that all resources
-of your device are relased by the time it returns.
+of your device are released by the time it returns.
 
 	You should _NOT_ use the for_each_sbus(), for_each_sbusdev(),
 and for_all_sbusdev() interfaces.  They are deprecated, will be

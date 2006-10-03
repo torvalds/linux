@@ -267,7 +267,7 @@ y =	The number of MSI capable devices populated in the system.
 	vector reserved to avoid the case where some MSI-X capable
 	drivers may attempt to claim all available vector resources.
 
-z =	The number of MSI-X capable devices pupulated in the system.
+z =	The number of MSI-X capable devices populated in the system.
 	This policy ensures that maximum (x - y) is distributed
 	evenly among MSI-X capable devices.
 

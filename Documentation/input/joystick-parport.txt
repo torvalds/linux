@@ -456,8 +456,8 @@ uses the following kernel/module command line:
 	  8  | Sony PSX DDR controller
 	  9  | SNES mouse
 
-  The exact type of the PSX controller type is autoprobed when used so
-hot swapping should work (but is not recomended).
+  The exact type of the PSX controller type is autoprobed when used, so
+hot swapping should work (but is not recommended).
 
   Should you want to use more than one of parallel ports at once, you can use
 gamecon.map2 and gamecon.map3 as additional command line parameters for two

@@ -450,7 +450,7 @@ his laptop (the location of sensors may vary on other models):
 
 No commands can be written to this file.
 
-EXPERIMENTAL: Embedded controller reigster dump -- /proc/acpi/ibm/ecdump
+EXPERIMENTAL: Embedded controller register dump -- /proc/acpi/ibm/ecdump
 ------------------------------------------------------------------------
 
 This feature is marked EXPERIMENTAL because the implementation

@@ -3903,9 +3903,9 @@
 
   1133..55..  UUMMLL ddooeessnn''tt wwoorrkk wwhheenn //ttmmpp iiss aann NNFFSS ffiilleessyysstteemm
 
-  This seems to be a similar situation with the resierfs problem above.
+  This seems to be a similar situation with the ReiserFS problem above.
   Some versions of NFS seems not to handle mmap correctly, which UML
-  depends on.  The workaround is have /tmp be non-NFS directory.
+  depends on.  The workaround is have /tmp be a non-NFS directory.
 
 
   1133..66..  UUMMLL hhaannggss oonn bboooott wwhheenn ccoommppiilleedd wwiitthh ggpprrooff ssuuppppoorrtt

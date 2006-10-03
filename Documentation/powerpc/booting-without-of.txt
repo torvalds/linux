@@ -245,7 +245,7 @@ the block to RAM before passing it to the kernel.
 ---------
 
    The kernel is entered with r3 pointing to an area of memory that is
-   roughtly described in include/asm-powerpc/prom.h by the structure
+   roughly described in include/asm-powerpc/prom.h by the structure
    boot_param_header:
 
 struct boot_param_header {
@@ -1068,13 +1068,13 @@ while all this has been defined and implemented.
     around. It contains no internal offsets or pointers for this
     purpose.
 
-  - An example of code for iterating nodes & retreiving properties
+  - An example of code for iterating nodes & retrieving properties
     directly from the flattened tree format can be found in the kernel
     file arch/ppc64/kernel/prom.c, look at scan_flat_dt() function,
-    it's usage in early_init_devtree(), and the corresponding various
+    its usage in early_init_devtree(), and the corresponding various
     early_init_dt_scan_*() callbacks. That code can be re-used in a
     GPL bootloader, and as the author of that code, I would be happy
-    do discuss possible free licencing to any vendor who wishes to
+    to discuss possible free licencing to any vendor who wishes to
     integrate all or part of this code into a non-GPL bootloader.
 
 

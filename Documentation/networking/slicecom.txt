@@ -89,7 +89,7 @@ red:	green:	meaning:
 
 -	-	no frame-sync, no signal received, or signal SNAFU.
 -	on	"Everything is OK"
-on	on	Recepion is ok, but the remote end sends Remote Alarm
+on	on	Reception is ok, but the remote end sends Remote Alarm
 on	-	The interface is unconfigured
 
 -----------------------------------------------------------------
@@ -257,7 +257,7 @@ which begin with '//' are the comments.
 // No alarms - Everything OK
 //
 // LOS  - Loss Of Signal - No signal sensed on the input
-// AIS  - Alarm Indication Signal - The remot side sends '11111111'-s, 
+// AIS  - Alarm Indication Signal - The remote side sends '11111111'-s, 
 //	it tells, that there's an error condition, or it's not
 //	initialised.
 // AUXP - Auxiliary Pattern Indication - 01010101.. received.

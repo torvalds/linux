@@ -307,8 +307,8 @@ Each directory contains:
 			 This applies only to raid1 arrays.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
-			 of being recoverred to
-	This list make grow in future.
+			 of being recovered to
+	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
 	Writing "remove" removes the device from the array.

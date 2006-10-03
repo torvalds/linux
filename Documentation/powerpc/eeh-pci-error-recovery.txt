@@ -90,7 +90,7 @@ EEH-isolated, there is a firmware call it can make to determine if
 this is the case. If so, then the device driver should put itself
 into a consistent state (given that it won't be able to complete any
 pending work) and start recovery of the card.  Recovery normally
-would consist of reseting the PCI device (holding the PCI #RST
+would consist of resetting the PCI device (holding the PCI #RST
 line high for two seconds), followed by setting up the device
 config space (the base address registers (BAR's), latency timer,
 cache line size, interrupt line, and so on).  This is followed by a

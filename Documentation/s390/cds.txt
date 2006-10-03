@@ -133,7 +133,7 @@ determine the device driver owning the device that raised the interrupt.
 In order not to introduce a new I/O concept to the common Linux code,
 Linux/390 preserves the IRQ concept and semantically maps the ESA/390
 subchannels to Linux as IRQs. This allows Linux/390 to support up to 64k
-different IRQs, uniquely representig a single device each.
+different IRQs, uniquely representing a single device each.
 
 Up to kernel 2.4, Linux/390 used to provide interfaces via the IRQ (subchannel).
 For internal use of the common I/O layer, these are still there. However, 

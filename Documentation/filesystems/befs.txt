@@ -7,7 +7,7 @@ WARNING
 Make sure you understand that this is alpha software.  This means that the
 implementation is neither complete nor well-tested. 
 
-I DISCLAIM ALL RESPONSIBILTY FOR ANY POSSIBLE BAD EFFECTS OF THIS CODE!
+I DISCLAIM ALL RESPONSIBILITY FOR ANY POSSIBLE BAD EFFECTS OF THIS CODE!
 
 LICENSE
 =====

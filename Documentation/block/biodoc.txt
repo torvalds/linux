@@ -783,7 +783,7 @@ all the outstanding requests. There's a third helper to do that:
 
 	blk_queue_invalidate_tags(request_queue_t *q)
 
-	Clear the internal block tag queue and readd all the pending requests
+	Clear the internal block tag queue and re-add all the pending requests
 	to the request queue. The driver will receive them again on the
 	next request_fn run, just like it did the first time it encountered
 	them.

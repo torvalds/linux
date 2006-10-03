@@ -30,7 +30,7 @@ provide for a handler)
 GP_SAMPLE register is at 0x35C058
 
 Bits are then right shifted into the GP_SAMPLE register at the specified
-rate; you get an interrupt when a full DWORD is recieved.
+rate; you get an interrupt when a full DWORD is received.
 You need to recover the actual RC5 bits out of the (oversampled) IR sensor
 bits. (Hint: look for the 0/1and 1/0 crossings of the RC5 bi-phase data)  An
 actual raw RC5 code will span 2-3 DWORDS, depending on the actual alignment.

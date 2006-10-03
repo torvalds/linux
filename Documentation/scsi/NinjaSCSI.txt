@@ -36,18 +36,18 @@ Socket 1:
   product info: "IO DATA", "CBSC16       ", "1"
 
 
-[2] Get Linux kernel source, and extract it to /usr/src.
-    Because NinjaSCSI driver requiers some SCSI header files in Linux kernel
-    source.
-    I recomend rebuilding your kernel. This eliminate some versioning problem.
+[2] Get the Linux kernel source, and extract it to /usr/src.
+    Because the NinjaSCSI driver requires some SCSI header files in Linux 
+    kernel source, I recommend rebuilding your kernel; this eliminates 
+    some versioning problems.
 $ cd /usr/src
 $ tar -zxvf linux-x.x.x.tar.gz
 $ cd linux
 $ make config
 ...
 
-[3] If you use this driver with Kernel 2.2, Unpack pcmcia-cs in some directory
-    and make & install. This driver requies pcmcia-cs header file.
+[3] If you use this driver with Kernel 2.2, unpack pcmcia-cs in some directory
+    and make & install. This driver requires the pcmcia-cs header file.
 $ cd /usr/src
 $ tar zxvf cs-pcmcia-cs-3.x.x.tar.gz
 ...

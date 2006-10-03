@@ -182,10 +182,10 @@ When the problem is related with PCM, first try to turn on xrun_debug
 mode.  This will give you the kernel messages when and where xrun
 happened.
 
-If it's really a bug, report it with the following information
+If it's really a bug, report it with the following information:
 
   - the name of the driver/card, show in /proc/asound/cards
-  - the reigster dump, if available (e.g. card*/cmipci)
+  - the register dump, if available (e.g. card*/cmipci)
 
 when it's a PCM problem,
 
