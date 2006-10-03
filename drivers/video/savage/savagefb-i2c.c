@@ -213,52 +213,15 @@ void savagefb_delete_i2c_busses(struct fb_info *info)
 	par->chan.par = NULL;
 }
 
-static u8 *savage_do_probe_i2c_edid(struct savagefb_i2c_chan *chan)
-{
-	u8 start = 0x0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= SAVAGE_DDC,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= SAVAGE_DDC,
-			.flags	= I2C_M_RD,
-			.len	= EDID_LENGTH,
-		},
-	};
-	u8 *buf = NULL;
-
-	if (chan->par) {
-		buf = kmalloc(EDID_LENGTH, GFP_KERNEL);
-
-		if (buf) {
-			msgs[1].buf = buf;
-
-			if (i2c_transfer(&chan->adapter, msgs, 2) != 2) {
-				dev_dbg(&chan->par->pcidev->dev,
-					"Unable to read EDID block.\n");
-				kfree(buf);
-				buf = NULL;
-			}
-		}
-	}
-
-	return buf;
-}
-
 int savagefb_probe_i2c_connector(struct fb_info *info, u8 **out_edid)
 {
 	struct savagefb_par *par = info->par;
-	u8 *edid = NULL;
-	int i;
+	u8 *edid;
 
-	for (i = 0; i < 3; i++) {
-		/* Do the real work */
-		edid = savage_do_probe_i2c_edid(&par->chan);
-		if (edid)
-			break;
-	}
+	if (par->chan.par)
+		edid = fb_ddc_read(&par->chan.adapter);
+	else
+		edid = NULL;
 
 	if (!edid) {
 		/* try to get from firmware */
