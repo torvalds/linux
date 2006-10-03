@@ -4,7 +4,6 @@
 #define DVB_USB_LOG_PREFIX "gl861"
 #include "dvb-usb.h"
 
-extern int dvb_usb_gl861_debug;
 #define deb_rc(args...)   dprintk(dvb_usb_gl861_debug,0x01,args)
 
 #define GL861_WRITE		0x40
