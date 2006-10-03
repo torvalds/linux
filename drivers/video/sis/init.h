@@ -77,15 +77,8 @@
 #include <linux/types.h>
 #include <asm/io.h>
 #include <linux/fb.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <video/fbcon.h>
-#endif
 #include "sis.h"
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <linux/sisfb.h>
-#else
 #include <video/sisfb.h>
-#endif
 #endif
 
 /* Mode numbers */
