@@ -770,6 +770,8 @@ do_append_data:
 		udp_v6_flush_pending_frames(sk);
 	else if (!corkreq)
 		err = udp_v6_push_pending_frames(sk, up);
+	else if (unlikely(skb_queue_empty(&sk->sk_write_queue)))
+		up->pending = 0;
 
 	if (dst) {
 		if (connected) {
