@@ -478,6 +478,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			goto rx_exit;
 	}
 #endif
+	/* drop duplicate 802.11 retransmissions (IEEE 802.11 Chap. 9.29) */
+	if (sc == ieee->prev_seq_ctl)
+		goto rx_dropped;
+	else
+		ieee->prev_seq_ctl = sc;
 
 	/* Data frame - extract src/dst addresses */
 	if (skb->len < IEEE80211_3ADDR_LEN)

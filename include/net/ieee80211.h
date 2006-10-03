@@ -1080,6 +1080,8 @@ struct ieee80211_device {
 	int perfect_rssi;
 	int worst_rssi;
 
+	u16 prev_seq_ctl;	/* used to drop duplicate frames */
+
 	/* Callback functions */
 	void (*set_security) (struct net_device * dev,
 			      struct ieee80211_security * sec);
