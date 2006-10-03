@@ -537,6 +537,8 @@ struct megasas_ctrl_info {
 #define MEGASAS_MAX_LUN				8
 #define MEGASAS_MAX_LD				64
 
+#define MEGASAS_DBG_LVL				1
+
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
  * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Note
