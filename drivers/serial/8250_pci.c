@@ -1789,6 +1789,7 @@ static void __devexit pciserial_remove_one(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
+#ifdef CONFIG_PM
 static int pciserial_suspend_one(struct pci_dev *dev, pm_message_t state)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
@@ -1818,6 +1819,7 @@ static int pciserial_resume_one(struct pci_dev *dev)
 	}
 	return 0;
 }
+#endif
 
 static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_V3, PCI_DEVICE_ID_V3_V960,
@@ -2375,8 +2377,10 @@ static struct pci_driver serial_pci_driver = {
 	.name		= "serial",
 	.probe		= pciserial_init_one,
 	.remove		= __devexit_p(pciserial_remove_one),
+#ifdef CONFIG_PM
 	.suspend	= pciserial_suspend_one,
 	.resume		= pciserial_resume_one,
+#endif
 	.id_table	= serial_pci_tbl,
 };
 

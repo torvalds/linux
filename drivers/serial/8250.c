@@ -1896,6 +1896,17 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 		serial_outp(up, UART_EFR, efr);
 	}
 
+#ifdef CONFIG_ARCH_OMAP15XX
+	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
+	if (cpu_is_omap1510() && is_omap_port((unsigned int)up->port.membase)) {
+		if (baud == 115200) {
+			quot = 1;
+			serial_out(up, UART_OMAP_OSC_12M_SEL, 1);
+		} else
+			serial_out(up, UART_OMAP_OSC_12M_SEL, 0);
+	}
+#endif
+
 	if (up->capabilities & UART_NATSEMI) {
 		/* Switch to bank 2 not bank 1, to avoid resetting EXCR2 */
 		serial_outp(up, UART_LCR, 0xe0);
@@ -1949,6 +1960,8 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 		size = 0x100000;
 		/* fall thru */
+	case UPIO_TSI:
+	case UPIO_MEM32:
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -1984,6 +1997,8 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_AU:
 		size = 0x100000;
 		/* fall thru */
+	case UPIO_TSI:
+	case UPIO_MEM32:
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -2007,17 +2022,15 @@ static int serial8250_request_rsa_resource(struct uart_8250_port *up)
 {
 	unsigned long start = UART_RSA_BASE << up->port.regshift;
 	unsigned int size = 8 << up->port.regshift;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	switch (up->port.iotype) {
-	case UPIO_MEM:
-		ret = -EINVAL;
-		break;
-
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		start += up->port.iobase;
-		if (!request_region(start, size, "serial-rsa"))
+		if (request_region(start, size, "serial-rsa"))
+			ret = 0;
+		else
 			ret = -EBUSY;
 		break;
 	}
@@ -2031,9 +2044,6 @@ static void serial8250_release_rsa_resource(struct uart_8250_port *up)
 	unsigned int size = 8 << up->port.regshift;
 
 	switch (up->port.iotype) {
-	case UPIO_MEM:
-		break;
-
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		release_region(up->port.iobase + offset, size);
@@ -2222,9 +2232,10 @@ static inline void wait_for_xmitr(struct uart_8250_port *up, int bits)
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
 		tmout = 1000000;
-		while (--tmout &&
-		       ((serial_in(up, UART_MSR) & UART_MSR_CTS) == 0))
+		while (!(serial_in(up, UART_MSR) & UART_MSR_CTS) && --tmout) {
 			udelay(1);
+			touch_nmi_watchdog();
+		}
 	}
 }
 
@@ -2397,7 +2408,6 @@ int __init early_serial_setup(struct uart_port *port)
 /**
  *	serial8250_suspend_port - suspend one serial port
  *	@line:  serial line number
- *      @level: the level of port suspension, as per uart_suspend_port
  *
  *	Suspend one serial port.
  */
@@ -2409,7 +2419,6 @@ void serial8250_suspend_port(int line)
 /**
  *	serial8250_resume_port - resume one serial port
  *	@line:  serial line number
- *      @level: the level of port resumption, as per uart_resume_port
  *
  *	Resume one serial port.
  */

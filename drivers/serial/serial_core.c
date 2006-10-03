@@ -792,6 +792,7 @@ static int uart_set_info(struct uart_state *state,
 			 * We failed anyway.
 			 */
 			retval = -EBUSY;
+			goto exit;  // Added to return the correct error -Ram Gupta
 		}
 	}
 
@@ -1662,16 +1663,16 @@ static int uart_line_info(char *buf, struct uart_driver *drv, int i)
 	struct uart_port *port = state->port;
 	char stat_buf[32];
 	unsigned int status;
-	int ret;
+	int mmio, ret;
 
 	if (!port)
 		return 0;
 
+	mmio = port->iotype >= UPIO_MEM;
 	ret = sprintf(buf, "%d: uart:%s %s%08lX irq:%d",
 			port->line, uart_type(port),
-			port->iotype == UPIO_MEM ? "mmio:0x" : "port:",
-			port->iotype == UPIO_MEM ? port->mapbase :
-						(unsigned long) port->iobase,
+			mmio ? "mmio:0x" : "port:",
+			mmio ? port->mapbase : (unsigned long) port->iobase,
 			port->irq);
 
 	if (port->type == PORT_UNKNOWN) {
@@ -1939,6 +1940,9 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		const struct uart_ops *ops = port->ops;
 
+		state->info->flags = (state->info->flags & ~UIF_INITIALIZED)
+				     | UIF_SUSPENDED;
+
 		spin_lock_irq(&port->lock);
 		ops->stop_tx(port);
 		ops->set_mctrl(port, 0);
@@ -2005,7 +2009,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 		console_start(port->cons);
 	}
 
-	if (state->info && state->info->flags & UIF_INITIALIZED) {
+	if (state->info && state->info->flags & UIF_SUSPENDED) {
 		const struct uart_ops *ops = port->ops;
 		int ret;
 
@@ -2017,15 +2021,17 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 			ops->set_mctrl(port, port->mctrl);
 			ops->start_tx(port);
 			spin_unlock_irq(&port->lock);
+			state->info->flags |= UIF_INITIALIZED;
 		} else {
 			/*
 			 * Failed to resume - maybe hardware went away?
 			 * Clear the "initialized" flag so we won't try
 			 * to call the low level drivers shutdown method.
 			 */
-			state->info->flags &= ~UIF_INITIALIZED;
 			uart_shutdown(state);
 		}
+
+		state->info->flags &= ~UIF_SUSPENDED;
 	}
 
 	mutex_unlock(&state->mutex);

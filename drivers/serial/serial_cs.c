@@ -80,22 +80,15 @@ module_param(buggy_uart, int, 0444);
 
 /* Table of multi-port card ID's */
 
-struct multi_id {
-	u_short manfid;
-	u_short prodid;
+struct serial_quirk {
+	unsigned int manfid;
+	unsigned int prodid;
 	int multi;		/* 1 = multifunction, > 1 = # ports */
+	void (*config)(struct pcmcia_device *);
+	void (*setup)(struct pcmcia_device *, struct uart_port *);
+	void (*wakeup)(struct pcmcia_device *);
+	int (*post)(struct pcmcia_device *);
 };
-
-static const struct multi_id multi_id[] = {
-	{ MANFID_OMEGA,   PRODID_OMEGA_QSP_100,         4 },
-	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232,    2 },
-	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
-	{ MANFID_QUATECH, PRODID_QUATECH_QUAD_RS232,    4 },
-	{ MANFID_SOCKET,  PRODID_SOCKET_DUAL_RS232,     2 },
-	{ MANFID_INTEL,   PRODID_INTEL_DUAL_RS232,      2 },
-	{ MANFID_NATINST, PRODID_NATINST_QUAD_RS232,    4 }
-};
-#define MULTI_COUNT (sizeof(multi_id)/sizeof(struct multi_id))
 
 struct serial_info {
 	struct pcmcia_device	*p_dev;
@@ -107,6 +100,7 @@ struct serial_info {
 	int			c950ctrl;
 	dev_node_t		node[4];
 	int			line[4];
+	const struct serial_quirk *quirk;
 };
 
 struct serial_cfg_mem {
@@ -115,36 +109,164 @@ struct serial_cfg_mem {
 	u_char buf[256];
 };
 
+/*
+ * vers_1 5.0, "Brain Boxes", "2-Port RS232 card", "r6"
+ * manfid 0x0160, 0x0104
+ * This card appears to have a 14.7456MHz clock.
+ */
+static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_port *port)
+{
+	port->uartclk = 14745600;
+}
+
+static int quirk_post_ibm(struct pcmcia_device *link)
+{
+	conf_reg_t reg = { 0, CS_READ, 0x800, 0 };
+	int last_ret, last_fn;
+
+	last_ret = pcmcia_access_configuration_register(link, &reg);
+	if (last_ret) {
+		last_fn = AccessConfigurationRegister;
+		goto cs_failed;
+	}
+	reg.Action = CS_WRITE;
+	reg.Value = reg.Value | 1;
+	last_ret = pcmcia_access_configuration_register(link, &reg);
+	if (last_ret) {
+		last_fn = AccessConfigurationRegister;
+		goto cs_failed;
+	}
+	return 0;
+
+ cs_failed:
+	cs_error(link, last_fn, last_ret);
+	return -ENODEV;
+}
+
+/*
+ * Nokia cards are not really multiport cards.  Shouldn't this
+ * be handled by setting the quirk entry .multi = 0 | 1 ?
+ */
+static void quirk_config_nokia(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	if (info->multi > 1)
+		info->multi = 1;
+}
+
+static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	outb(12, info->c950ctrl + 1);
+}
+
+/* request_region? oxsemi branch does no request_region too... */
+/*
+ * This sequence is needed to properly initialize MC45 attached to OXCF950.
+ * I tried decreasing these msleep()s, but it worked properly (survived
+ * 1000 stop/start operations) with these timeouts (or bigger).
+ */
+static void quirk_wakeup_possio_gcc(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+	unsigned int ctrl = info->c950ctrl;
+
+	outb(0xA, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(300);
+	outb(0xC, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(200);
+	outb(0xF, ctrl + 1);
+	msleep(100);
+	outb(0xE, ctrl + 1);
+	msleep(100);
+	outb(0xC, ctrl + 1);
+}
+
+/*
+ * Socket Dual IO: this enables irq's for second port
+ */
+static void quirk_config_socket(struct pcmcia_device *link)
+{
+	struct serial_info *info = link->priv;
+
+	if (info->multi) {
+		link->conf.Present |= PRESENT_EXT_STATUS;
+		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
+	}
+}
+
+static const struct serial_quirk quirks[] = {
+	{
+		.manfid	= 0x0160,
+		.prodid	= 0x0104,
+		.multi	= -1,
+		.setup	= quirk_setup_brainboxes_0104,
+	}, {
+		.manfid	= MANFID_IBM,
+		.prodid	= ~0,
+		.multi	= -1,
+		.post	= quirk_post_ibm,
+	}, {
+		.manfid	= MANFID_INTEL,
+		.prodid	= PRODID_INTEL_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_NATINST,
+		.prodid	= PRODID_NATINST_QUAD_RS232,
+		.multi	= 4,
+	}, {
+		.manfid	= MANFID_NOKIA,
+		.prodid	= ~0,
+		.multi	= -1,
+		.config	= quirk_config_nokia,
+	}, {
+		.manfid	= MANFID_OMEGA,
+		.prodid	= PRODID_OMEGA_QSP_100,
+		.multi	= 4,
+	}, {
+		.manfid	= MANFID_OXSEMI,
+		.prodid	= ~0,
+		.multi	= -1,
+		.wakeup	= quirk_wakeup_oxsemi,
+	}, {
+		.manfid	= MANFID_POSSIO,
+		.prodid	= PRODID_POSSIO_GCC,
+		.multi	= -1,
+		.wakeup	= quirk_wakeup_possio_gcc,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_DUAL_RS232,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_DUAL_RS232_D1,
+		.multi	= 2,
+	}, {
+		.manfid	= MANFID_QUATECH,
+		.prodid	= PRODID_QUATECH_QUAD_RS232,
+		.multi	= 4,
+	}, {
+		.manfid	= MANFID_SOCKET,
+		.prodid	= PRODID_SOCKET_DUAL_RS232,
+		.multi	= 2,
+		.config	= quirk_config_socket,
+	}, {
+		.manfid	= MANFID_SOCKET,
+		.prodid	= ~0,
+		.multi	= -1,
+		.config	= quirk_config_socket,
+	}
+};
+
 
 static int serial_config(struct pcmcia_device * link);
 
-
-static void wakeup_card(struct serial_info *info)
-{
-	int ctrl = info->c950ctrl;
-
-	if (info->manfid == MANFID_OXSEMI) {
-		outb(12, ctrl + 1);
-	} else if (info->manfid == MANFID_POSSIO && info->prodid == PRODID_POSSIO_GCC) {
-		/* request_region? oxsemi branch does no request_region too... */
-		/* This sequence is needed to properly initialize MC45 attached to OXCF950.
-		 * I tried decreasing these msleep()s, but it worked properly (survived
-		 * 1000 stop/start operations) with these timeouts (or bigger). */
-		outb(0xA, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(300);
-		outb(0xC, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(200);
-		outb(0xF, ctrl + 1);
-		msleep(100);
-		outb(0xE, ctrl + 1);
-		msleep(100);
-		outb(0xC, ctrl + 1);
-	}
-}
 
 /*======================================================================
 
@@ -185,14 +307,14 @@ static int serial_suspend(struct pcmcia_device *link)
 
 static int serial_resume(struct pcmcia_device *link)
 {
-	if (pcmcia_dev_present(link)) {
-		struct serial_info *info = link->priv;
-		int i;
+	struct serial_info *info = link->priv;
+	int i;
 
-		for (i = 0; i < info->ndev; i++)
-			serial8250_resume_port(info->line[i]);
-		wakeup_card(info);
-	}
+	for (i = 0; i < info->ndev; i++)
+		serial8250_resume_port(info->line[i]);
+
+	if (info->quirk && info->quirk->wakeup)
+		info->quirk->wakeup(link);
 
 	return 0;
 }
@@ -278,6 +400,10 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info * info,
 	port.dev = &handle_to_dev(handle);
 	if (buggy_uart)
 		port.flags |= UPF_BUGGY_UART;
+
+	if (info->quirk && info->quirk->setup)
+		info->quirk->setup(handle, &port);
+
 	line = serial8250_register_port(&port);
 	if (line < 0) {
 		printk(KERN_NOTICE "serial_cs: serial8250_register_port() at "
@@ -433,6 +559,13 @@ next_entry:
 	}
 	if (info->multi && (info->manfid == MANFID_3COM))
 		link->conf.ConfigIndex &= ~(0x08);
+
+	/*
+	 * Apply any configuration quirks.
+	 */
+	if (info->quirk && info->quirk->config)
+		info->quirk->config(link);
+
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, i);
@@ -521,11 +654,13 @@ static int multi_config(struct pcmcia_device * link)
 		cs_error(link, RequestIRQ, i);
 		link->irq.AssignedIRQ = 0;
 	}
-	/* Socket Dual IO: this enables irq's for second port */
-	if (info->multi && (info->manfid == MANFID_SOCKET)) {
-		link->conf.Present |= PRESENT_EXT_STATUS;
-		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
-	}
+
+	/*
+	 * Apply any configuration quirks.
+	 */
+	if (info->quirk && info->quirk->config)
+		info->quirk->config(link);
+
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, i);
@@ -550,17 +685,19 @@ static int multi_config(struct pcmcia_device * link)
 					link->irq.AssignedIRQ);
 		}
 		info->c950ctrl = base2;
-		wakeup_card(info);
+
+		/*
+		 * FIXME: We really should wake up the port prior to
+		 * handing it over to the serial layer.
+		 */
+		if (info->quirk && info->quirk->wakeup)
+			info->quirk->wakeup(link);
+
 		rc = 0;
 		goto free_cfg_mem;
 	}
 
 	setup_serial(link, info, link->io.BasePort1, link->irq.AssignedIRQ);
-	/* The Nokia cards are not really multiport cards */
-	if (info->manfid == MANFID_NOKIA) {
-		rc = 0;
-		goto free_cfg_mem;
-	}
 	for (i = 0; i < info->multi - 1; i++)
 		setup_serial(link, info, base2 + (8 * i),
 				link->irq.AssignedIRQ);
@@ -622,13 +759,16 @@ static int serial_config(struct pcmcia_device * link)
 	tuple->DesiredTuple = CISTPL_MANFID;
 	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 		info->manfid = parse->manfid.manf;
-		info->prodid = le16_to_cpu(buf[1]);
-		for (i = 0; i < MULTI_COUNT; i++)
-			if ((info->manfid == multi_id[i].manfid) &&
-			    (parse->manfid.card == multi_id[i].prodid))
+		info->prodid = parse->manfid.card;
+
+		for (i = 0; i < ARRAY_SIZE(quirks); i++)
+			if ((quirks[i].manfid == ~0 ||
+			     quirks[i].manfid == info->manfid) &&
+			    (quirks[i].prodid == ~0 ||
+			     quirks[i].prodid == info->prodid)) {
+				info->quirk = &quirks[i];
 				break;
-		if (i < MULTI_COUNT)
-			info->multi = multi_id[i].multi;
+			}
 	}
 
 	/* Another check for dual-serial cards: look for either serial or
@@ -648,6 +788,12 @@ static int serial_config(struct pcmcia_device * link)
 		}
 	}
 
+	/*
+	 * Apply any multi-port quirk.
+	 */
+	if (info->quirk && info->quirk->multi != -1)
+		info->multi = info->quirk->multi;
+
 	if (info->multi > 1)
 		multi_config(link);
 	else
@@ -656,21 +802,13 @@ static int serial_config(struct pcmcia_device * link)
 	if (info->ndev == 0)
 		goto failed;
 
-	if (info->manfid == MANFID_IBM) {
-		conf_reg_t reg = { 0, CS_READ, 0x800, 0 };
-		last_ret = pcmcia_access_configuration_register(link, &reg);
-		if (last_ret) {
-			last_fn = AccessConfigurationRegister;
-			goto cs_failed;
-		}
-		reg.Action = CS_WRITE;
-		reg.Value = reg.Value | 1;
-		last_ret = pcmcia_access_configuration_register(link, &reg);
-		if (last_ret) {
-			last_fn = AccessConfigurationRegister;
-			goto cs_failed;
-		}
-	}
+	/*
+	 * Apply any post-init quirk.  FIXME: This should really happen
+	 * before we register the port, since it might already be in use.
+	 */
+	if (info->quirk && info->quirk->post)
+		if (info->quirk->post(link))
+			goto failed;
 
 	link->dev_node = &info->node[0];
 	kfree(cfg_mem);

@@ -319,6 +319,7 @@ struct uart_info {
 #define UIF_CTS_FLOW		((__force uif_t) (1 << 26))
 #define UIF_NORMAL_ACTIVE	((__force uif_t) (1 << 29))
 #define UIF_INITIALIZED		((__force uif_t) (1 << 31))
+#define UIF_SUSPENDED		((__force uif_t) (1 << 30))
 
 	int			blocked_open;
 
@@ -414,7 +415,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, regs, NULL);
+			handle_sysrq(ch, regs, port->info->tty);
 			port->sysrq = 0;
 			return 1;
 		}
