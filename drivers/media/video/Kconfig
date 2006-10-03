@@ -351,7 +351,7 @@ config VIDEO_SAA6588
 	help
 	  Support for  Radio Data System (RDS) decoder. This allows seeing
 	  radio station identification transmitted using this standard.
-	  Currentlly, it works only with bt8x8 chips.
+	  Currently, it works only with bt8x8 chips.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa6588.

@@ -403,7 +403,7 @@ config FB_ARC
 	  is based on the KS-108 lcd controller and is typically a matrix
 	  of 2*n chips. This driver was tested with a 128x64 panel. This
 	  driver supports it for use with x86 SBCs through a 16 bit GPIO
-	  interface (8 bit data, 8 bit control). If you anticpate using
+	  interface (8 bit data, 8 bit control). If you anticipate using
 	  this driver, say Y or M; otherwise say N. You must specify the
 	  GPIO IO address to be used for setting control and data.
 
@@ -771,7 +771,7 @@ config FB_RIVA_DEBUG
 	default n
 	help
 	  Say Y here if you want the Riva driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
 
 config FB_RIVA_BACKLIGHT
@@ -865,7 +865,7 @@ config FB_INTEL_DEBUG
 	depends on FB_INTEL
 	---help---
 	  Say Y here if you want the Intel driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
 
 config FB_INTEL_I2C
@@ -1062,7 +1062,7 @@ config FB_RADEON_DEBUG
 	default n
 	help
 	  Say Y here if you want the Radeon driver to output all sorts
-	  of debugging informations to provide to the maintainer when
+	  of debugging information to provide to the maintainer when
 	  something goes wrong.
 
 config FB_ATY128

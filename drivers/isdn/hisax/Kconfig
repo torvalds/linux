@@ -321,7 +321,7 @@ config HISAX_HFC_PCI
 	help
 	  This enables HiSax support for the HFC-S PCI 2BDS0 based cards.
 
-	  For more informations see under
+	  For more information see under
 	  <file:Documentation/isdn/README.hfc-pci>.
 
 config HISAX_W6692

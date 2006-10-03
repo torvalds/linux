@@ -56,7 +56,7 @@ config DVB_CINERGYT2_QUERY_INTERVAL
 	  measurements.
 
 	  Please keep in mind that these updates cause traffic on the tuner
-	  control bus and thus may or may not affect receiption sensitivity.
+	  control bus and thus may or may not affect reception sensitivity.
 
 	  The default value should be a safe choice for common applications.
 

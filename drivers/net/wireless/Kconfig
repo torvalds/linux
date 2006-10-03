@@ -301,7 +301,7 @@ config HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
 	depends on NET_RADIO && (PPC_PMAC || PCI || PCMCIA)
 	---help---
-	  A driver for 802.11b wireless cards based based on the "Hermes" or
+	  A driver for 802.11b wireless cards based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
 	  majority of the PCMCIA 802.11b cards (which are nearly all rebadges)
 	  - except for the Cisco/Aironet cards.  Cards supported include the

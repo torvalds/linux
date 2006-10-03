@@ -121,7 +121,7 @@ config SERIAL_8250_RUNTIME_UARTS
 	default "4"
 	help
 	  Set this to the maximum number of serial ports you want
-	  the kernel to register at boot time.  This can be overriden
+	  the kernel to register at boot time.  This can be overridden
 	  with the module parameter "nr_uarts", or boot-time parameter
 	  8250.nr_uarts
 
@@ -205,7 +205,7 @@ config SERIAL_8250_BOCA
 	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
 	help
 	  Say Y here if you have a Boca serial board.  Please read the Boca
-	  mini-HOWTO, avaialble from <http://www.tldp.org/docs.html#howto>
+	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_boca.
@@ -667,7 +667,7 @@ config SERIAL_68328
 	depends on M68328 || M68EZ328 || M68VZ328
 	help
 	  This driver supports the built-in serial port of the Motorola 68328
-	  (standard, EZ and VZ varities).
+	  (standard, EZ and VZ varieties).
 
 config SERIAL_68328_RTS_CTS
 	bool "Support RTS/CTS on 68328 serial port"
