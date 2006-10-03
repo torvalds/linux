@@ -227,7 +227,7 @@ static int packetize_data(void *data, size_t length)
 	int packet_length;
 	u8 *temp;
 	u8 *end = (u8 *) data + length;
-	pr_debug("packetize_data: data length %d\n", length);
+	pr_debug("packetize_data: data length %zd\n", length);
 	if (!rbu_data.packetsize) {
 		printk(KERN_WARNING
 			"dell_rbu: packetsize not specified\n");
@@ -249,7 +249,7 @@ static int packetize_data(void *data, size_t length)
 		if ((rc = create_packet(temp, packet_length)))
 			return rc;
 
-		pr_debug("%lu:%lu\n", temp, (end - temp));
+		pr_debug("%p:%lu\n", temp, (end - temp));
 		temp += packet_length;
 	}
 
