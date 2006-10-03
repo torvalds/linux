@@ -68,7 +68,7 @@
 
 #include "usbatm.h"
 
-#define EAGLEUSBVERSION "ueagle 1.3"
+#define EAGLEUSBVERSION "ueagle 1.4"
 
 
 /*
@@ -80,14 +80,14 @@
 			dev_dbg(&(usb_dev)->dev, \
 				"[ueagle-atm dbg] %s: " format, \
 					__FUNCTION__, ##args); \
-       } while (0)
+	} while (0)
 
 #define uea_vdbg(usb_dev, format, args...)	\
 	do { \
 		if (debug >= 2) \
 			dev_dbg(&(usb_dev)->dev, \
 				"[ueagle-atm vdbg]  " format, ##args); \
-       } while (0)
+	} while (0)
 
 #define uea_enters(usb_dev) \
 	uea_vdbg(usb_dev, "entering %s\n", __FUNCTION__)
@@ -218,8 +218,8 @@ enum {
 #define UEA_CHIP_VERSION(x) \
 	((x)->driver_info & 0xf)
 
-#define IS_ISDN(sc) \
-	(le16_to_cpu(sc->usb_dev->descriptor.bcdDevice) & 0x80)
+#define IS_ISDN(usb_dev) \
+	(le16_to_cpu((usb_dev)->descriptor.bcdDevice) & 0x80)
 
 #define INS_TO_USBDEV(ins) ins->usb_dev
 
@@ -625,12 +625,12 @@ static int request_dsp(struct uea_softc *sc)
 	char *dsp_name;
 
 	if (UEA_CHIP_VERSION(sc) == ADI930) {
-		if (IS_ISDN(sc))
+		if (IS_ISDN(sc->usb_dev))
 			dsp_name = FW_DIR "DSP9i.bin";
 		else
 			dsp_name = FW_DIR "DSP9p.bin";
 	} else {
-		if (IS_ISDN(sc))
+		if (IS_ISDN(sc->usb_dev))
 			dsp_name = FW_DIR "DSPei.bin";
 		else
 			dsp_name = FW_DIR "DSPep.bin";
@@ -885,7 +885,8 @@ static int uea_stat(struct uea_softc *sc)
 		break;
 
 	case 3:		/* fail ... */
-		uea_info(INS_TO_USBDEV(sc), "modem synchronization failed\n");
+		uea_info(INS_TO_USBDEV(sc), "modem synchronization failed"
+				" (may be try other cmv/dsp)\n");
 		return -EAGAIN;
 
 	case 4 ... 6:	/* test state */
@@ -913,12 +914,6 @@ static int uea_stat(struct uea_softc *sc)
 			release_firmware(sc->dsp_firm);
 			sc->dsp_firm = NULL;
 		}
-
-		ret = uea_read_cmv(sc, SA_INFO, 10, &sc->stats.phy.firmid);
-		if (ret < 0)
-			return ret;
-		uea_info(INS_TO_USBDEV(sc), "ATU-R firmware version : %x\n",
-				sc->stats.phy.firmid);
 	}
 
 	/* always update it as atm layer could not be init when we switch to
@@ -1033,9 +1028,9 @@ static int request_cmvs(struct uea_softc *sc,
 
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
-			file = (IS_ISDN(sc)) ? "CMV9i.bin" : "CMV9p.bin";
+			file = (IS_ISDN(sc->usb_dev)) ? "CMV9i.bin" : "CMV9p.bin";
 		else
-			file = (IS_ISDN(sc)) ? "CMVei.bin" : "CMVep.bin";
+			file = (IS_ISDN(sc->usb_dev)) ? "CMVei.bin" : "CMVep.bin";
 	} else
 		file = cmv_file[sc->modem_index];
 
@@ -1131,6 +1126,13 @@ static int uea_start_reset(struct uea_softc *sc)
 	if (ret < 0)
 		return ret;
 
+	/* Dump firmware version */
+	ret = uea_read_cmv(sc, SA_INFO, 10, &sc->stats.phy.firmid);
+	if (ret < 0)
+		return ret;
+	uea_info(INS_TO_USBDEV(sc), "ATU-R firmware version : %x\n",
+			sc->stats.phy.firmid);
+
 	/* get options */
  	ret = len = request_cmvs(sc, &cmvs, &cmvs_fw);
 	if (ret < 0)
@@ -1147,6 +1149,8 @@ static int uea_start_reset(struct uea_softc *sc)
 	/* Enter in R-ACT-REQ */
 	ret = uea_write_cmv(sc, SA_CNTL, 0, 2);
 	uea_vdbg(INS_TO_USBDEV(sc), "Entering in R-ACT-REQ state\n");
+	uea_info(INS_TO_USBDEV(sc), "Modem started, "
+		"waiting synchronization\n");
 out:
 	release_firmware(cmvs_fw);
 	sc->reset = 0;
@@ -1569,6 +1573,7 @@ UEA_ATTR(uscorr, 0);
 UEA_ATTR(dscorr, 0);
 UEA_ATTR(usunc, 0);
 UEA_ATTR(dsunc, 0);
+UEA_ATTR(firmid, 0);
 
 /* Retrieve the device End System Identifier (MAC) */
 
@@ -1642,6 +1647,7 @@ static struct attribute *attrs[] = {
 	&dev_attr_stat_dscorr.attr,
 	&dev_attr_stat_usunc.attr,
 	&dev_attr_stat_dsunc.attr,
+	&dev_attr_stat_firmid.attr,
 };
 static struct attribute_group attr_grp = {
 	.attrs = attrs,
@@ -1756,10 +1762,10 @@ static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_device *usb = interface_to_usbdev(intf);
 
 	uea_enters(usb);
-	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) : %s\n",
+	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) : %s %s\n",
 	       le16_to_cpu(usb->descriptor.idVendor),
 	       le16_to_cpu(usb->descriptor.idProduct),
-	       chip_name[UEA_CHIP_VERSION(id)]);
+	       chip_name[UEA_CHIP_VERSION(id)], IS_ISDN(usb)?"isdn":"pots");
 
 	usb_reset_device(usb);
 
