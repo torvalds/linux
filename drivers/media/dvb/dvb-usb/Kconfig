@@ -123,7 +123,7 @@ config DVB_USB_M920X
 config DVB_USB_GL861
 	tristate "Genesys Logic GL861 USB2.0 support"
 	depends on DVB_USB
-	select DVB_ZL10353
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
 	  receiver with USB ID 0db0:5581.
