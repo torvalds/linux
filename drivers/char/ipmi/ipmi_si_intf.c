@@ -1734,6 +1734,7 @@ static void __devinit dmi_find_bmc(void)
 	int                  rv;
 
 	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev))) {
+		memset(&data, 0, sizeof(data));
 		rv = decode_dmi((struct dmi_header *) dev->device_data, &data);
 		if (!rv)
 			try_init_dmi(&data);
