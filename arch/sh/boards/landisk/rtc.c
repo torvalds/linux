@@ -8,8 +8,6 @@
  * modifed by kogiidena
  * 2005.09.16
  */
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

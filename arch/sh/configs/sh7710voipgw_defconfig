@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.17
-# Mon Aug  7 17:07:06 2006
+# Linux kernel version: 2.6.18
+# Tue Oct  3 12:48:56 2006
 #
 CONFIG_SUPERH=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
@@ -10,6 +10,7 @@ CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_HARDIRQS=y
 CONFIG_GENERIC_IRQ_PROBE=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
+CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
 # Code maturity level options
@@ -25,16 +26,20 @@ CONFIG_LOCALVERSION=""
 CONFIG_LOCALVERSION_AUTO=y
 # CONFIG_SWAP is not set
 CONFIG_SYSVIPC=y
+# CONFIG_IPC_NS is not set
 CONFIG_POSIX_MQUEUE=y
 # CONFIG_BSD_PROCESS_ACCT is not set
-CONFIG_SYSCTL=y
+# CONFIG_TASKSTATS is not set
+# CONFIG_UTS_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
 # CONFIG_RELAY is not set
 CONFIG_INITRAMFS_SOURCE=""
-CONFIG_UID16=y
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
+CONFIG_SYSCTL=y
 CONFIG_EMBEDDED=y
+CONFIG_UID16=y
+# CONFIG_SYSCTL_SYSCALL is not set
 CONFIG_KALLSYMS=y
 # CONFIG_KALLSYMS_EXTRA_PASS is not set
 CONFIG_HOTPLUG=y
@@ -46,10 +51,10 @@ CONFIG_BASE_FULL=y
 # CONFIG_EPOLL is not set
 # CONFIG_SHMEM is not set
 CONFIG_SLAB=y
+CONFIG_VM_EVENT_COUNTERS=y
 CONFIG_TINY_SHMEM=y
 CONFIG_BASE_SMALL=0
 # CONFIG_SLOB is not set
-CONFIG_OBSOLETE_INTERMODULE=y
 
 #
 # Loadable module support
@@ -64,6 +69,7 @@ CONFIG_MODULE_FORCE_UNLOAD=y
 #
 # Block layer
 #
+CONFIG_BLOCK=y
 # CONFIG_LBD is not set
 # CONFIG_BLK_DEV_IO_TRACE is not set
 # CONFIG_LSF is not set
@@ -87,6 +93,7 @@ CONFIG_DEFAULT_IOSCHED="deadline"
 # CONFIG_SH_SOLUTION_ENGINE is not set
 # CONFIG_SH_7751_SOLUTION_ENGINE is not set
 # CONFIG_SH_7300_SOLUTION_ENGINE is not set
+# CONFIG_SH_7343_SOLUTION_ENGINE is not set
 # CONFIG_SH_73180_SOLUTION_ENGINE is not set
 # CONFIG_SH_7751_SYSTEMH is not set
 # CONFIG_SH_HP6XX is not set
@@ -150,9 +157,14 @@ CONFIG_CPU_SUBTYPE_SH7710=y
 #
 # SH-4A Processor Support
 #
-# CONFIG_CPU_SUBTYPE_SH73180 is not set
 # CONFIG_CPU_SUBTYPE_SH7770 is not set
 # CONFIG_CPU_SUBTYPE_SH7780 is not set
+
+#
+# SH4AL-DSP Processor Support
+#
+# CONFIG_CPU_SUBTYPE_SH73180 is not set
+# CONFIG_CPU_SUBTYPE_SH7343 is not set
 
 #
 # Memory management options
@@ -161,6 +173,7 @@ CONFIG_MMU=y
 CONFIG_PAGE_OFFSET=0x80000000
 CONFIG_MEMORY_START=0x0c000000
 CONFIG_MEMORY_SIZE=0x00800000
+CONFIG_VSYSCALL=y
 CONFIG_SELECT_MEMORY_MODEL=y
 CONFIG_FLATMEM_MANUAL=y
 # CONFIG_DISCONTIGMEM_MANUAL is not set
@@ -169,6 +182,7 @@ CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
+# CONFIG_RESOURCES_64BIT is not set
 
 #
 # Cache configuration
@@ -216,10 +230,10 @@ CONFIG_HZ_250=y
 # CONFIG_HZ_1000 is not set
 CONFIG_HZ=250
 # CONFIG_KEXEC is not set
-# CONFIG_PREEMPT is not set
 # CONFIG_SMP is not set
 CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT_VOLUNTARY is not set
+# CONFIG_PREEMPT is not set
 
 #
 # Boot options
@@ -267,6 +281,9 @@ CONFIG_NET=y
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
+CONFIG_XFRM=y
+# CONFIG_XFRM_USER is not set
+# CONFIG_XFRM_SUB_POLICY is not set
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -282,9 +299,12 @@ CONFIG_SYN_COOKIES=y
 # CONFIG_INET_IPCOMP is not set
 # CONFIG_INET_XFRM_TUNNEL is not set
 # CONFIG_INET_TUNNEL is not set
+CONFIG_INET_XFRM_MODE_TRANSPORT=y
+CONFIG_INET_XFRM_MODE_TUNNEL=y
 # CONFIG_INET_DIAG is not set
 # CONFIG_TCP_CONG_ADVANCED is not set
-CONFIG_TCP_CONG_BIC=y
+CONFIG_TCP_CONG_CUBIC=y
+CONFIG_DEFAULT_TCP_CONG="cubic"
 
 #
 # IP: Virtual Server Configuration
@@ -293,6 +313,7 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_IPV6 is not set
 # CONFIG_INET6_XFRM_TUNNEL is not set
 # CONFIG_INET6_TUNNEL is not set
+# CONFIG_NETWORK_SECMARK is not set
 CONFIG_NETFILTER=y
 # CONFIG_NETFILTER_DEBUG is not set
 
@@ -317,6 +338,7 @@ CONFIG_IP_NF_FTP=m
 # CONFIG_IP_NF_AMANDA is not set
 CONFIG_IP_NF_PPTP=m
 # CONFIG_IP_NF_H323 is not set
+# CONFIG_IP_NF_SIP is not set
 # CONFIG_IP_NF_QUEUE is not set
 
 #
@@ -342,7 +364,6 @@ CONFIG_IP_NF_PPTP=m
 # CONFIG_ATALK is not set
 # CONFIG_X25 is not set
 # CONFIG_LAPB is not set
-# CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
 
@@ -409,6 +430,7 @@ CONFIG_NET_ESTIMATOR=y
 CONFIG_STANDALONE=y
 CONFIG_PREVENT_FIRMWARE_BUILD=y
 CONFIG_FW_LOADER=y
+# CONFIG_SYS_HYPERVISOR is not set
 
 #
 # Connector - unified userspace <-> kernelspace linker
@@ -434,6 +456,7 @@ CONFIG_MTD_BLOCK=y
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
 # CONFIG_RFD_FTL is not set
+# CONFIG_SSFDC is not set
 
 #
 # RAM/ROM/Flash chip drivers
@@ -466,8 +489,6 @@ CONFIG_MTD_RAM=y
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
 # CONFIG_MTD_PHYSMAP is not set
-# CONFIG_MTD_SOLUTIONENGINE is not set
-CONFIG_MTD_SH7710VOIPGW=y
 # CONFIG_MTD_PLATRAM is not set
 
 #
@@ -525,6 +546,12 @@ CONFIG_MTD_SH7710VOIPGW=y
 #
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
+# CONFIG_SCSI_NETLINK is not set
+
+#
+# Serial ATA (prod) and Parallel ATA (experimental) drivers
+#
+# CONFIG_ATA is not set
 
 #
 # Multi-device support (RAID and LVM)
@@ -565,7 +592,6 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_MII is not set
 # CONFIG_STNIC is not set
 # CONFIG_SMC91X is not set
-# CONFIG_NE2000 is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -610,6 +636,7 @@ CONFIG_PHONE=y
 # Input device support
 #
 CONFIG_INPUT=y
+# CONFIG_INPUT_FF_MEMLESS is not set
 
 #
 # Userland interfaces
@@ -667,7 +694,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
-# CONFIG_RTC is not set
+CONFIG_HW_RANDOM=y
 # CONFIG_GEN_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
@@ -697,7 +724,6 @@ CONFIG_LEGACY_PTY_COUNT=256
 #
 # Dallas's 1-wire bus
 #
-# CONFIG_W1 is not set
 
 #
 # Hardware Monitoring support
@@ -723,7 +749,9 @@ CONFIG_VIDEO_V4L2=y
 #
 # Graphics support
 #
+CONFIG_FIRMWARE_EDID=y
 # CONFIG_FB is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
@@ -778,6 +806,19 @@ CONFIG_VIDEO_V4L2=y
 # CONFIG_RTC_CLASS is not set
 
 #
+# DMA Engine support
+#
+# CONFIG_DMA_ENGINE is not set
+
+#
+# DMA Clients
+#
+
+#
+# DMA Devices
+#
+
+#
 # File systems
 #
 # CONFIG_EXT2_FS is not set
@@ -814,8 +855,10 @@ CONFIG_VIDEO_V4L2=y
 #
 CONFIG_PROC_FS=y
 # CONFIG_PROC_KCORE is not set
+CONFIG_PROC_SYSCTL=y
 CONFIG_SYSFS=y
 CONFIG_TMPFS=y
+# CONFIG_TMPFS_POSIX_ACL is not set
 # CONFIG_HUGETLBFS is not set
 # CONFIG_HUGETLB_PAGE is not set
 CONFIG_RAMFS=y
@@ -836,6 +879,7 @@ CONFIG_JFFS2_FS=y
 CONFIG_JFFS2_FS_DEBUG=0
 CONFIG_JFFS2_FS_WRITEBUFFER=y
 # CONFIG_JFFS2_SUMMARY is not set
+# CONFIG_JFFS2_FS_XATTR is not set
 # CONFIG_JFFS2_COMPRESSION_OPTIONS is not set
 CONFIG_JFFS2_ZLIB=y
 CONFIG_JFFS2_RTIME=y
@@ -879,7 +923,9 @@ CONFIG_MSDOS_PARTITION=y
 # Kernel hacking
 #
 # CONFIG_PRINTK_TIME is not set
+CONFIG_ENABLE_MUST_CHECK=y
 # CONFIG_MAGIC_SYSRQ is not set
+# CONFIG_UNUSED_SYMBOLS is not set
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
@@ -897,10 +943,6 @@ CONFIG_LOG_BUF_SHIFT=14
 # Cryptographic options
 #
 # CONFIG_CRYPTO is not set
-
-#
-# Hardware crypto devices
-#
 
 #
 # Library routines

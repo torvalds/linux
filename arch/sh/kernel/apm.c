@@ -16,7 +16,6 @@
  * [This document is available from Microsoft at:
  *    http://www.microsoft.com/hwdev/busbios/amp_12.htm]
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/timer.h>

@@ -11,8 +11,6 @@
  *
  * PCI initialization for the Titan boards
  */
-
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>

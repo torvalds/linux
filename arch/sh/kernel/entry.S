@@ -10,8 +10,8 @@
  * for more details.
  *
  */
-
 #include <linux/sys.h>
+#include <linux/errno.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -53,10 +53,6 @@
  *	syscall #
  *
  */
-
-ENOSYS = 38
-EINVAL = 22
-
 #if defined(CONFIG_KGDB_NMI)
 NMI_VEC = 0x1c0			! Must catch early for debounce
 #endif

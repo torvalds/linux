@@ -14,8 +14,6 @@
  * modified by kogiidena
  * 2005.03.03
  */
-
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/io.h>
@@ -83,7 +81,7 @@ static struct hw_interrupt_type landisk_irq_type = {
 static void make_landisk_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &landisk_irq_type;
+	irq_desc[irq].chip = &landisk_irq_type;
 	disable_landisk_irq(irq);
 }
 

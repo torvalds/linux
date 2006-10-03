@@ -53,6 +53,6 @@ struct sh_machine_vector mv_7751systemh __initmv = {
 	.mv_outsw		= sh7751systemh_outsw,
 	.mv_outsl		= sh7751systemh_outsl,
 
-	.mv_init_irq		= sh7751system_init_irq,
+	.mv_init_irq		= sh7751systemh_init_irq,
 };
 ALIAS_MV(7751systemh)

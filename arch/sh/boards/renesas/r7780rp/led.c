@@ -6,8 +6,6 @@
  *
  * This file contains Renesas Solutions HIGHLANDER R7780RP-1 specific LED code.
  */
-
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/r7780rp/r7780rp.h>

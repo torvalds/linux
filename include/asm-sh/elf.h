@@ -1,7 +1,6 @@
 #ifndef __ASM_SH_ELF_H
 #define __ASM_SH_ELF_H
 
-#include <asm/processor.h>
 #include <asm/auxvec.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>

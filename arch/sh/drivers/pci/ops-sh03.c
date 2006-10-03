@@ -35,10 +35,10 @@ static struct resource sh7751_mem_resource = {
 	.flags  = IORESOURCE_MEM
 };
 
-extern struct pci_ops sh7751_pci_ops;
+extern struct pci_ops sh4_pci_ops;
 
 struct pci_channel board_pci_channels[] = {
-	{ &sh7751_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
+	{ &sh4_pci_ops, &sh7751_io_resource, &sh7751_mem_resource, 0, 0xff },
 	{ NULL, NULL, NULL, 0, 0 },
 };
 

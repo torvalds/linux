@@ -16,7 +16,6 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/mm.h>
