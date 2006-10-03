@@ -240,9 +240,6 @@ static int atyfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static int atyfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info);
 static int atyfb_blank(int blank, struct fb_info *info);
 static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg);
-extern void atyfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
-extern void atyfb_copyarea(struct fb_info *info, const struct fb_copyarea *area);
-extern void atyfb_imageblit(struct fb_info *info, const struct fb_image *image);
 #ifdef __sparc__
 static int atyfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 #endif

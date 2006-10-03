@@ -27,7 +27,7 @@ u8 aty_ld_pll_ct(int offset, const struct atyfb_par *par)
 	return res;
 }
 
-void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par)
+static void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par)
 {
 	/* write addr byte */
 	aty_st_8(CLOCK_CNTL_ADDR, ((offset << 2) & PLL_ADDR) | PLL_WR_EN, par);
