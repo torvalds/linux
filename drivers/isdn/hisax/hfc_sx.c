@@ -970,7 +970,7 @@ HFCSX_l1hw(struct PStack *st, int pr, void *arg)
 			break;
 		case (HW_TESTLOOP | REQUEST):
 			spin_lock_irqsave(&cs->lock, flags);
-			switch ((int) arg) {
+			switch ((long) arg) {
 				case (1):
 					Write_hfc(cs, HFCSX_B1_SSL, 0x80);	/* tx slot */
 					Write_hfc(cs, HFCSX_B1_RSL, 0x80);	/* rx slot */
@@ -986,7 +986,7 @@ HFCSX_l1hw(struct PStack *st, int pr, void *arg)
 				default:
 					spin_unlock_irqrestore(&cs->lock, flags);
 					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "hfcsx_l1hw loop invalid %4x", (int) arg);
+						debugl1(cs, "hfcsx_l1hw loop invalid %4lx", arg);
 					return;
 			}
 			cs->hw.hfcsx.trm |= 0x80;	/* enable IOM-loop */

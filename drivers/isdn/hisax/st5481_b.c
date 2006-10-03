@@ -86,7 +86,7 @@ static void usb_b_out(struct st5481_bcs *bcs,int buf_nr)
 			if (!skb->len) {
 				// Frame sent
 				b_out->tx_skb = NULL;
-				B_L1L2(bcs, PH_DATA | CONFIRM, (void *) skb->truesize);
+				B_L1L2(bcs, PH_DATA | CONFIRM, (void *)(unsigned long) skb->truesize);
 				dev_kfree_skb_any(skb);
 
 /* 				if (!(bcs->tx_skb = skb_dequeue(&bcs->sq))) { */
@@ -350,7 +350,7 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 {
 	struct st5481_bcs *bcs = ifc->priv;
 	struct sk_buff *skb = arg;
-	int mode;
+	long mode;
 
 	DBG(4, "");
 
@@ -360,8 +360,8 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 		bcs->b_out.tx_skb = skb;
 		break;
 	case PH_ACTIVATE | REQUEST:
-		mode = (int) arg;
-		DBG(4,"B%d,PH_ACTIVATE_REQUEST %d", bcs->channel + 1, mode);
+		mode = (long) arg;
+		DBG(4,"B%d,PH_ACTIVATE_REQUEST %ld", bcs->channel + 1, mode);
 		st5481B_mode(bcs, mode);
 		B_L1L2(bcs, PH_ACTIVATE | INDICATION, NULL);
 		break;

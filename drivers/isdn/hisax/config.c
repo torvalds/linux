@@ -1721,11 +1721,11 @@ static void hisax_b_l1l2(struct hisax_if *ifc, int pr, void *arg)
 		hisax_b_sched_event(bcs, B_RCVBUFREADY);
 		break;
 	case PH_DATA | CONFIRM:
-		bcs->tx_cnt -= (int) arg;
+		bcs->tx_cnt -= (long)arg;
 		if (test_bit(FLG_LLI_L1WAKEUP,&bcs->st->lli.flag)) {
 			u_long	flags;
 			spin_lock_irqsave(&bcs->aclock, flags);
-			bcs->ackcnt += (int) arg;
+			bcs->ackcnt += (long)arg;
 			spin_unlock_irqrestore(&bcs->aclock, flags);
 			schedule_event(bcs, B_ACKPENDING);
 		}
@@ -1789,7 +1789,7 @@ static void hisax_b_l2l1(struct PStack *st, int pr, void *arg)
 
 	switch (pr) {
 	case PH_ACTIVATE | REQUEST:
-		B_L2L1(b_if, pr, (void *) st->l1.mode);
+		B_L2L1(b_if, pr, (void *)(unsigned long)st->l1.mode);
 		break;
 	case PH_DATA | REQUEST:
 	case PH_PULL | INDICATION:

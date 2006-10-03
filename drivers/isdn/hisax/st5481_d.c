@@ -374,7 +374,7 @@ static void usb_d_out_complete(struct urb *urb, struct pt_regs *regs)
 {
 	struct st5481_adapter *adapter = urb->context;
 	struct st5481_d_out *d_out = &adapter->d_out;
-	int buf_nr;
+	long buf_nr;
 	
 	DBG(2, "");
 
@@ -546,7 +546,7 @@ static void dout_reseted(struct FsmInst *fsm, int event, void *arg)
 static void dout_complete(struct FsmInst *fsm, int event, void *arg)
 {
 	struct st5481_adapter *adapter = fsm->userdata;
-	int buf_nr = (int) arg;
+	long buf_nr = (long) arg;
 
 	usb_d_out(adapter, buf_nr);
 }

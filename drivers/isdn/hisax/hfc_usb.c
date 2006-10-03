@@ -696,7 +696,7 @@ tx_iso_complete(struct urb *urb, struct pt_regs *regs)
 				fifo->delete_flg = TRUE;
 				fifo->hif->l1l2(fifo->hif,
 						PH_DATA | CONFIRM,
-						(void *) fifo->skbuff->
+						(void *) (unsigned long) fifo->skbuff->
 						truesize);
 				if (fifo->skbuff && fifo->delete_flg) {
 					dev_kfree_skb_any(fifo->skbuff);
@@ -1144,7 +1144,7 @@ hfc_usb_l2l1(struct hisax_if *my_hisax_if, int pr, void *arg)
 				set_hfcmode(hfc,
 					    (fifo->fifonum ==
 					     HFCUSB_B1_TX) ? 0 : 1,
-					    (int) arg);
+					    (long) arg);
 				fifo->hif->l1l2(fifo->hif,
 						PH_ACTIVATE | INDICATION,
 						NULL);
