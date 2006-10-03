@@ -68,10 +68,6 @@
 #  define print_var(X,Y...)
 #endif
 
-#define eprintk(X...)	printk(KERN_ERR "sstfb: " X)
-#define iprintk(X...)	printk(KERN_INFO "sstfb: " X)
-#define wprintk(X...)	printk(KERN_WARNING "sstfb: " X)
-
 #define BIT(x)		(1ul<<(x))
 #define POW2(x)		(1ul<<(x))
 
