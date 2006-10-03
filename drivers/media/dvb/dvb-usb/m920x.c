@@ -131,7 +131,6 @@ static int m9206_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 }
 
 /* I2C */
-
 static int m9206_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
@@ -464,7 +463,6 @@ static struct dvb_usb_device_properties megasky_properties = {
 			{ &m920x_table[0], NULL },
 			{ NULL },
 		},
-		{ NULL },
 	}
 };
 
