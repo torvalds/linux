@@ -168,7 +168,7 @@ static void free_priority_group(struct priority_group *pg,
 	kfree(pg);
 }
 
-static struct multipath *alloc_multipath(void)
+static struct multipath *alloc_multipath(struct dm_target *ti)
 {
 	struct multipath *m;
 
@@ -185,6 +185,8 @@ static struct multipath *alloc_multipath(void)
 			kfree(m);
 			return NULL;
 		}
+		m->ti = ti;
+		ti->private = m;
 	}
 
 	return m;
@@ -557,8 +559,7 @@ static struct pgpath *parse_path(struct arg_set *as, struct path_selector *ps,
 }
 
 static struct priority_group *parse_priority_group(struct arg_set *as,
-						   struct multipath *m,
-						   struct dm_target *ti)
+						   struct multipath *m)
 {
 	static struct param _params[] = {
 		{1, 1024, "invalid number of paths"},
@@ -568,6 +569,7 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 	int r;
 	unsigned i, nr_selector_args, nr_params;
 	struct priority_group *pg;
+	struct dm_target *ti = m->ti;
 
 	if (as->argc < 2) {
 		as->argc = 0;
@@ -624,12 +626,12 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 	return NULL;
 }
 
-static int parse_hw_handler(struct arg_set *as, struct multipath *m,
-			    struct dm_target *ti)
+static int parse_hw_handler(struct arg_set *as, struct multipath *m)
 {
 	int r;
 	struct hw_handler_type *hwht;
 	unsigned hw_argc;
+	struct dm_target *ti = m->ti;
 
 	static struct param _params[] = {
 		{0, 1024, "invalid number of hardware handler args"},
@@ -661,11 +663,11 @@ static int parse_hw_handler(struct arg_set *as, struct multipath *m,
 	return 0;
 }
 
-static int parse_features(struct arg_set *as, struct multipath *m,
-			  struct dm_target *ti)
+static int parse_features(struct arg_set *as, struct multipath *m)
 {
 	int r;
 	unsigned argc;
+	struct dm_target *ti = m->ti;
 
 	static struct param _params[] = {
 		{0, 1, "invalid number of feature args"},
@@ -704,19 +706,17 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	as.argc = argc;
 	as.argv = argv;
 
-	m = alloc_multipath();
+	m = alloc_multipath(ti);
 	if (!m) {
 		ti->error = "can't allocate multipath";
 		return -EINVAL;
 	}
 
-	m->ti = ti;
-
-	r = parse_features(&as, m, ti);
+	r = parse_features(&as, m);
 	if (r)
 		goto bad;
 
-	r = parse_hw_handler(&as, m, ti);
+	r = parse_hw_handler(&as, m);
 	if (r)
 		goto bad;
 
@@ -732,7 +732,7 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	while (as.argc) {
 		struct priority_group *pg;
 
-		pg = parse_priority_group(&as, m, ti);
+		pg = parse_priority_group(&as, m);
 		if (!pg) {
 			r = -EINVAL;
 			goto bad;
@@ -751,8 +751,6 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 		r = -EINVAL;
 		goto bad;
 	}
-
-	ti->private = m;
 
 	return 0;
 
