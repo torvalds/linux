@@ -829,6 +829,7 @@ config FB_I810_I2C
 	depends on FB_I810 && FB_I810_GTF
 	select I2C
 	select I2C_ALGOBIT
+	select FB_DDC
 	help
 
 config FB_INTEL
