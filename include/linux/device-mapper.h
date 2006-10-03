@@ -64,6 +64,10 @@ typedef int (*dm_status_fn) (struct dm_target *ti, status_type_t status_type,
 
 typedef int (*dm_message_fn) (struct dm_target *ti, unsigned argc, char **argv);
 
+typedef int (*dm_ioctl_fn) (struct dm_target *ti, struct inode *inode,
+			    struct file *filp, unsigned int cmd,
+			    unsigned long arg);
+
 void dm_error(const char *message);
 
 /*
@@ -91,6 +95,7 @@ struct target_type {
 	dm_resume_fn resume;
 	dm_status_fn status;
 	dm_message_fn message;
+	dm_ioctl_fn ioctl;
 };
 
 struct io_restrictions {

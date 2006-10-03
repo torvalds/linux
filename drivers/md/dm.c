@@ -20,6 +20,7 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
+#include <linux/smp_lock.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -286,6 +287,45 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 
 	return dm_get_geometry(md, geo);
+}
+
+static int dm_blk_ioctl(struct inode *inode, struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	struct mapped_device *md;
+	struct dm_table *map;
+	struct dm_target *tgt;
+	int r = -ENOTTY;
+
+	/* We don't really need this lock, but we do need 'inode'. */
+	unlock_kernel();
+
+	md = inode->i_bdev->bd_disk->private_data;
+
+	map = dm_get_table(md);
+
+	if (!map || !dm_table_get_size(map))
+		goto out;
+
+	/* We only support devices that have a single target */
+	if (dm_table_get_num_targets(map) != 1)
+		goto out;
+
+	tgt = dm_table_get_target(map, 0);
+
+	if (dm_suspended(md)) {
+		r = -EAGAIN;
+		goto out;
+	}
+
+	if (tgt->type->ioctl)
+		r = tgt->type->ioctl(tgt, inode, file, cmd, arg);
+
+out:
+	dm_table_put(map);
+
+	lock_kernel();
+	return r;
 }
 
 static inline struct dm_io *alloc_io(struct mapped_device *md)
@@ -1377,6 +1417,7 @@ int dm_suspended(struct mapped_device *md)
 static struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
+	.ioctl = dm_blk_ioctl,
 	.getgeo = dm_blk_getgeo,
 	.owner = THIS_MODULE
 };
