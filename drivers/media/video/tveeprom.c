@@ -222,8 +222,8 @@ hauppauge_tuner[] =
 	{ TUNER_TCL_2002MB,    "TCL M2523_3DB_E"},
 	{ TUNER_ABSENT,        "Philips 8275A"},
 	{ TUNER_ABSENT,        "Microtune MT2060"},
-	{ TUNER_ABSENT,        "Philips FM1236 MK5"},
-	{ TUNER_ABSENT,        "Philips FM1216ME MK5"},
+	{ TUNER_PHILIPS_FM1236_MK3, "Philips FM1236 MK5"},
+	{ TUNER_PHILIPS_FM1216ME_MK3, "Philips FM1216ME MK5"},
 	{ TUNER_ABSENT,        "TCL M2523_3DI_E"},
 	{ TUNER_ABSENT,        "Samsung THPD5222FG30A"},
 	/* 120-129 */
