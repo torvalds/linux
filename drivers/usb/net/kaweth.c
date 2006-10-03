@@ -76,6 +76,9 @@
 
 #define KAWETH_STATUS_BROKEN		0x0000001
 #define KAWETH_STATUS_CLOSING		0x0000002
+#define KAWETH_STATUS_SUSPENDING	0x0000004
+
+#define KAWETH_STATUS_BLOCKED (KAWETH_STATUS_CLOSING | KAWETH_STATUS_SUSPENDING)
 
 #define KAWETH_PACKET_FILTER_PROMISCUOUS	0x01
 #define KAWETH_PACKET_FILTER_ALL_MULTICAST	0x02
@@ -102,6 +105,8 @@
 #define STATE_MASK				0x40
 #define	STATE_SHIFT				5
 
+#define IS_BLOCKED(s) (s & KAWETH_STATUS_BLOCKED)
+
 
 MODULE_AUTHOR("Michael Zappe <zapman@interlan.net>, Stephane Alnet <stephane@u-picardie.fr>, Brad Hards <bhards@bigpond.net.au> and Oliver Neukum <oliver@neukum.org>");
 MODULE_DESCRIPTION("KL5USB101 USB Ethernet driver");
@@ -118,6 +123,8 @@ static int kaweth_internal_control_msg(struct usb_device *usb_dev,
 				       unsigned int pipe,
 				       struct usb_ctrlrequest *cmd, void *data,
 				       int len, int timeout);
+static int kaweth_suspend(struct usb_interface *intf, pm_message_t message);
+static int kaweth_resume(struct usb_interface *intf);
 
 /****************************************************************
  *     usb_device_id
@@ -169,6 +176,8 @@ static struct usb_driver kaweth_driver = {
 	.name =		driver_name,
 	.probe =	kaweth_probe,
 	.disconnect =	kaweth_disconnect,
+	.suspend =	kaweth_suspend,
+	.resume =	kaweth_resume,
 	.id_table =     usb_klsi_table,
 };
 
@@ -212,6 +221,7 @@ struct kaweth_device
 	int suspend_lowmem_rx;
 	int suspend_lowmem_ctrl;
 	int linkstate;
+	int opened;
 	struct work_struct lowmem_work;
 
 	struct usb_device *dev;
@@ -524,7 +534,7 @@ static void kaweth_resubmit_tl(void *d)
 {
 	struct kaweth_device *kaweth = (struct kaweth_device *)d;
 
-	if (kaweth->status | KAWETH_STATUS_CLOSING)
+	if (IS_BLOCKED(kaweth->status))
 		return;
 
 	if (kaweth->suspend_lowmem_rx)
@@ -591,8 +601,12 @@ static void kaweth_usb_receive(struct urb *urb)
 		return;
 	}
 
-	if (kaweth->status & KAWETH_STATUS_CLOSING)
+	spin_lock(&kaweth->device_lock);
+	if (IS_BLOCKED(kaweth->status)) {
+		spin_unlock(&kaweth->device_lock);
 		return;
+	}
+	spin_unlock(&kaweth->device_lock);
 
 	if(urb->status && urb->status != -EREMOTEIO && count != 1) {
 		err("%s RX status: %d count: %d packet_len: %d",
@@ -668,6 +682,7 @@ static int kaweth_open(struct net_device *net)
 		usb_kill_urb(kaweth->rx_urb);
 		return -EIO;
 	}
+	kaweth->opened = 1;
 
 	netif_start_queue(net);
 
@@ -678,14 +693,8 @@ static int kaweth_open(struct net_device *net)
 /****************************************************************
  *     kaweth_close
  ****************************************************************/
-static int kaweth_close(struct net_device *net)
+static void kaweth_kill_urbs(struct kaweth_device *kaweth)
 {
-	struct kaweth_device *kaweth = netdev_priv(net);
-
-	netif_stop_queue(net);
-
-	kaweth->status |= KAWETH_STATUS_CLOSING;
-
 	usb_kill_urb(kaweth->irq_urb);
 	usb_kill_urb(kaweth->rx_urb);
 	usb_kill_urb(kaweth->tx_urb);
@@ -696,6 +705,21 @@ static int kaweth_close(struct net_device *net)
 	   we hit them again */
 	usb_kill_urb(kaweth->irq_urb);
 	usb_kill_urb(kaweth->rx_urb);
+}
+
+/****************************************************************
+ *     kaweth_close
+ ****************************************************************/
+static int kaweth_close(struct net_device *net)
+{
+	struct kaweth_device *kaweth = netdev_priv(net);
+
+	netif_stop_queue(net);
+	kaweth->opened = 0;
+
+	kaweth->status |= KAWETH_STATUS_CLOSING;
+
+	kaweth_kill_urbs(kaweth);
 
 	kaweth->status &= ~KAWETH_STATUS_CLOSING;
 
@@ -742,6 +766,9 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	kaweth_async_set_rx_mode(kaweth);
 	netif_stop_queue(net);
+	if (IS_BLOCKED(kaweth->status)) {
+		goto skip;
+	}
 
 	/* We now decide whether we can put our special header into the sk_buff */
 	if (skb_cloned(skb) || skb_headroom(skb) < 2) {
@@ -774,6 +801,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 	if((res = usb_submit_urb(kaweth->tx_urb, GFP_ATOMIC)))
 	{
 		warn("kaweth failed tx_urb %d", res);
+skip:
 		kaweth->stats.tx_errors++;
 
 		netif_start_queue(net);
@@ -869,6 +897,42 @@ static void kaweth_tx_timeout(struct net_device *net)
 	net->trans_start = jiffies;
 
 	usb_unlink_urb(kaweth->tx_urb);
+}
+
+/****************************************************************
+ *     kaweth_suspend
+ ****************************************************************/
+static int kaweth_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct kaweth_device *kaweth = usb_get_intfdata(intf);
+	unsigned long flags;
+
+	spin_lock_irqsave(&kaweth->device_lock, flags);
+	kaweth->status |= KAWETH_STATUS_SUSPENDING;
+	spin_unlock_irqrestore(&kaweth->device_lock, flags);
+
+	kaweth_kill_urbs(kaweth);
+	return 0;
+}
+
+/****************************************************************
+ *     kaweth_resume
+ ****************************************************************/
+static int kaweth_resume(struct usb_interface *intf)
+{
+	struct kaweth_device *kaweth = usb_get_intfdata(intf);
+	unsigned long flags;
+
+	spin_lock_irqsave(&kaweth->device_lock, flags);
+	kaweth->status &= ~KAWETH_STATUS_SUSPENDING;
+	spin_unlock_irqrestore(&kaweth->device_lock, flags);
+
+	if (!kaweth->opened)
+		return 0;
+	kaweth_resubmit_rx_urb(kaweth, GFP_NOIO);
+	kaweth_resubmit_int_urb(kaweth, GFP_NOIO);
+
+	return 0;
 }
 
 /****************************************************************
