@@ -222,7 +222,7 @@ rx_timeout=n			- Rx DMA wait time for an interrupt.
 				  reach timeout of n * 640 nano seconds. 
 				  Set proper rx_coalesce and rx_timeout can 
 				  reduce congestion collapse and overload which
-				  has been a bottlenect for high speed network.
+				  has been a bottleneck for high speed network.
 				  
 				  For example, rx_coalesce=10 rx_timeout=800.
 				  that is, hardware assert only 1 interrupt 

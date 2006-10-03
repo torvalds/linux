@@ -57,7 +57,7 @@ if the patching step fails (i.e. there are rejected hunks), you can try to
 figure it out yourself (it shouldn't be hard), or mail the maintainer 
 (Will Dyson <will_dyson@pobox.com>) for help.
 
-step 2.  Configuretion & make kernel
+step 2.  Configuration & make kernel
 
 The linux kernel has many compile-time options. Most of them are beyond the
 scope of this document. I suggest the Kernel-HOWTO document as a good general

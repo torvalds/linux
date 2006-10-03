@@ -41,7 +41,7 @@ The driver supports two types of update mechanism; monolithic and packetized.
 These update mechanism depends upon the BIOS currently running on the system.
 Most of the Dell systems support a monolithic update where the BIOS image is
 copied to a single contiguous block of physical memory.
-In case of packet mechanism the single memory can be broken in smaller chuks
+In case of packet mechanism the single memory can be broken in smaller chunks
 of contiguous memory and the BIOS image is scattered in these packets.
 
 By default the driver uses monolithic memory for the update type. This can be

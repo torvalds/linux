@@ -1,5 +1,5 @@
 
-configfs - Userspace-driven kernel object configuation.
+configfs - Userspace-driven kernel object configuration.
 
 Joel Becker <joel.becker@oracle.com>
 

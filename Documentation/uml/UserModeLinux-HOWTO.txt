@@ -1020,7 +1020,7 @@
 
   Note that the IP address you assign to the host end of the tap device
   must be different than the IP you assign to the eth device inside UML.
-  If you are short on IPs and don't want to comsume two per UML, then
+  If you are short on IPs and don't want to consume two per UML, then
   you can reuse the host's eth IP address for the host ends of the tap
   devices.  Internally, the UMLs must still get unique IPs for their eth
   devices.  You can also give the UMLs non-routable IPs (192.168.x.x or

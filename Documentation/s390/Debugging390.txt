@@ -163,7 +163,7 @@ s/390 z/Architecture
                 1         1        64 bit
 
 32             1=31 bit addressing mode 0=24 bit addressing mode (for backward 
-               compatibility ), linux always runs with this bit set to 1
+               compatibility), linux always runs with this bit set to 1
 
 33-64          Instruction address.
       33-63    Reserved must be 0
@@ -239,7 +239,7 @@ they go to 64 Bit.
 
 On 390 our limitations & strengths make us slightly different.
 For backward compatibility we are only allowed use 31 bits (2GB)
-of our 32 bit addresses,however, we use entirely separate address 
+of our 32 bit addresses, however, we use entirely separate address 
 spaces for the user & kernel.
 
 This means we can support 2GB of non Extended RAM on s/390, & more
@@ -1311,7 +1311,7 @@ for finding out when a particular variable changes.
 
 An alternative way of finding the STD of a currently running process 
 is to do the following, ( this method is more complex but
-could be quite convient if you aren't updating the kernel much &
+could be quite convenient if you aren't updating the kernel much &
 so your kernel structures will stay constant for a reasonable period of
 time ).
 
@@ -2045,13 +2045,13 @@ what gdb does when the victim receives certain signals.
 list:
 e.g.
 list lists current function source
-list 1,10 list first 10 lines of curret file.
+list 1,10 list first 10 lines of current file.
 list test.c:1,10
 
 
 directory:
 Adds directories to be searched for source if gdb cannot find the source.
-(note it is a bit sensititive about slashes ) 
+(note it is a bit sensititive about slashes) 
 e.g. To add the root of the filesystem to the searchpath do
 directory //
 
@@ -2123,9 +2123,9 @@ p/x (*(**$sp+56))&0x7fffffff
 
 Disassembling instructions without debug info
 ---------------------------------------------
-gdb typically compains if there is a lack of debugging
-symbols in  the disassemble command with 
-"No function contains specified address." to get around
+gdb typically complains if there is a lack of debugging
+symbols in the disassemble command with 
+"No function contains specified address." To get around
 this do 
 x/<number lines to disassemble>xi <address>
 e.g.

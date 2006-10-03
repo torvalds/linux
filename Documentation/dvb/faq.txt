@@ -138,7 +138,7 @@ Some very frequently asked questions about linuxtv-dvb
 
 	- v4l2-common: common functions for Video4Linux-2 drivers
 
-	- v4l1-compat: backward compatiblity layer for Video4Linux-1 legacy
+	- v4l1-compat: backward compatibility layer for Video4Linux-1 legacy
 	  applications
 
 	- dvb-core: DVB core module. This provides you with the

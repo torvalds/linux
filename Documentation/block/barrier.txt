@@ -25,7 +25,7 @@ of the following three ways.
 i. For devices which have queue depth greater than 1 (TCQ devices) and
 support ordered tags, block layer can just issue the barrier as an
 ordered request and the lower level driver, controller and drive
-itself are responsible for making sure that the ordering contraint is
+itself are responsible for making sure that the ordering constraint is
 met.  Most modern SCSI controllers/drives should support this.
 
 NOTE: SCSI ordered tag isn't currently used due to limitation in the

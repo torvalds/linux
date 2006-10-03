@@ -522,7 +522,7 @@ controller memory. The time between data bytes must be less than 20ms.
             0x20        ; memory access
             { data }    ; 6 data bytes starting at ADR
 
-This comand permits the host to read from the ikbd controller memory.
+This command permits the host to read from the ikbd controller memory.
 
 9.26 CONTROLLER EXECUTE
 

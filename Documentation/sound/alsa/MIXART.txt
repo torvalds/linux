@@ -31,7 +31,7 @@ With a miXart8AES/EBU there is in addition 1 stereo digital input
 Formats
 -------
 U8, S16_LE, S16_BE, S24_3LE, S24_3BE, FLOAT_LE, FLOAT_BE
-Sample rates : 8000 - 48000 Hz continously
+Sample rates : 8000 - 48000 Hz continuously
 
 Playback
 --------

@@ -732,12 +732,12 @@ address which can extend beyond that limit.
       that typically get driven by the same platform code in the
       kernel, you would use a different "model" property but put a
       value in "compatible". The kernel doesn't directly use that
-      value (see /chosen/linux,platform for how the kernel choses a
+      value (see /chosen/linux,platform for how the kernel chooses a
       platform type) but it is generally useful.
 
   The root node is also generally where you add additional properties
   specific to your board like the serial number if any, that sort of
-  thing. it is recommended that if you add any "custom" property whose
+  thing. It is recommended that if you add any "custom" property whose
   name may clash with standard defined ones, you prefix them with your
   vendor name and a comma.
 
@@ -817,7 +817,7 @@ address which can extend beyond that limit.
       your board. It's a list of addresses/sizes concatenated
       together, with the number of cells of each defined by the
       #address-cells and #size-cells of the root node. For example,
-      with both of these properties beeing 2 like in the example given
+      with both of these properties being 2 like in the example given
       earlier, a 970 based machine with 6Gb of RAM could typically
       have a "reg" property here that looks like:
 
@@ -970,7 +970,7 @@ device-tree in another format. The currently supported formats are:
      - "asm": assembly language file. This is a file that can be
        sourced by gas to generate a device-tree "blob". That file can
        then simply be added to your Makefile. Additionally, the
-       assembly file exports some symbols that can be use
+       assembly file exports some symbols that can be used.
 
 
 The syntax of the dtc tool is
@@ -984,10 +984,10 @@ generated. Supported versions are 1,2,3 and 16. The default is
 currently version 3 but that may change in the future to version 16.
 
 Additionally, dtc performs various sanity checks on the tree, like the
-uniqueness of linux,phandle properties, validity of strings, etc...
+uniqueness of linux, phandle properties, validity of strings, etc...
 
 The format of the .dts "source" file is "C" like, supports C and C++
-style commments.
+style comments.
 
 / {
 }
