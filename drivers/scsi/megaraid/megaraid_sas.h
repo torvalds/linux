@@ -1049,6 +1049,7 @@ struct megasas_evt_detail {
 	void (*fire_cmd)(dma_addr_t ,u32 ,struct megasas_register_set __iomem *);
 
 	void (*enable_intr)(struct megasas_register_set __iomem *) ;
+	void (*disable_intr)(struct megasas_register_set __iomem *);
 
 	int (*clear_intr)(struct megasas_register_set __iomem *);
 

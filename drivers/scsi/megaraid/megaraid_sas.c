@@ -135,6 +135,19 @@ megasas_enable_intr_xscale(struct megasas_register_set __iomem * regs)
 }
 
 /**
+ * megasas_disable_intr_xscale -Disables interrupt
+ * @regs:			MFI register set
+ */
+static inline void
+megasas_disable_intr_xscale(struct megasas_register_set __iomem * regs)
+{
+	u32 mask = 0x1f;
+	writel(mask, &regs->outbound_intr_mask);
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
  * megasas_read_fw_status_reg_xscale - returns the current FW status value
  * @regs:			MFI register set
  */
@@ -185,6 +198,7 @@ static struct megasas_instance_template megasas_instance_template_xscale = {
 
 	.fire_cmd = megasas_fire_cmd_xscale,
 	.enable_intr = megasas_enable_intr_xscale,
+	.disable_intr = megasas_disable_intr_xscale,
 	.clear_intr = megasas_clear_intr_xscale,
 	.read_fw_status_reg = megasas_read_fw_status_reg_xscale,
 };
@@ -210,6 +224,19 @@ megasas_enable_intr_ppc(struct megasas_register_set __iomem * regs)
     
 	writel(~0x80000004, &(regs)->outbound_intr_mask);
 
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_disable_intr_ppc -	Disable interrupt
+ * @regs:			MFI register set
+ */
+static inline void
+megasas_disable_intr_ppc(struct megasas_register_set __iomem * regs)
+{
+	u32 mask = 0xFFFFFFFF;
+	writel(mask, &regs->outbound_intr_mask);
 	/* Dummy readl to force pci flush */
 	readl(&regs->outbound_intr_mask);
 }
@@ -265,6 +292,7 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
 	
 	.fire_cmd = megasas_fire_cmd_ppc,
 	.enable_intr = megasas_enable_intr_ppc,
+	.disable_intr = megasas_disable_intr_ppc,
 	.clear_intr = megasas_clear_intr_ppc,
 	.read_fw_status_reg = megasas_read_fw_status_reg_ppc,
 };
@@ -273,25 +301,6 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
 *	This is the end of set of functions & definitions
 * 	specific to ppc (deviceid : 0x60) controllers
 */
-
-/**
- * megasas_disable_intr -	Disables interrupts
- * @regs:			MFI register set
- */
-static inline void
-megasas_disable_intr(struct megasas_instance *instance)
-{
-	u32 mask = 0x1f; 
-	struct megasas_register_set __iomem *regs = instance->reg_set;
-
-	if(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1078R)
-		mask = 0xffffffff;
-
-	writel(mask, &regs->outbound_intr_mask);
-
-	/* Dummy readl to force pci flush */
-	readl(&regs->outbound_intr_mask);
-}
 
 /**
  * megasas_issue_polled -	Issues a polling command
@@ -1293,7 +1302,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			/*
 			 * Bring it to READY state; assuming max wait 10 secs
 			 */
-			megasas_disable_intr(instance);
+			instance->instancet->disable_intr(instance->reg_set);
 			writel(MFI_RESET_FLAGS, &instance->reg_set->inbound_doorbell);
 
 			max_wait = 10;
@@ -1799,7 +1808,7 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	/*
 	 * disable the intr before firing the init frame to FW
 	 */
-	megasas_disable_intr(instance);
+	instance->instancet->disable_intr(instance->reg_set);
 
 	/*
 	 * Issue the init frame in polled mode
@@ -2279,7 +2288,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	megasas_mgmt_info.max_index--;
 
 	pci_set_drvdata(pdev, NULL);
-	megasas_disable_intr(instance);
+	instance->instancet->disable_intr(instance->reg_set);
 	free_irq(instance->pdev->irq, instance);
 
 	megasas_release_mfi(instance);
@@ -2409,7 +2418,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 
 	pci_set_drvdata(instance->pdev, NULL);
 
-	megasas_disable_intr(instance);
+	instance->instancet->disable_intr(instance->reg_set);
 
 	free_irq(instance->pdev->irq, instance);
 
