@@ -145,7 +145,7 @@ int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *driv
 {
 	for ( ; drive_table->id_model ; drive_table++)
 		if ((!strcmp(drive_table->id_model, id->model)) &&
-		    ((strstr(drive_table->id_firmware, id->fw_rev)) ||
+		    ((strstr(id->fw_rev, drive_table->id_firmware)) ||
 		     (!strcmp(drive_table->id_firmware, "ALL"))))
 			return 1;
 	return 0;
