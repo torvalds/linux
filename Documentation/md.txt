@@ -62,7 +62,7 @@ be reconstructed (due to no parity).
 
 For this reason, md will normally refuse to start such an array.  This
 requires the sysadmin to take action to explicitly start the array
-desipite possible corruption.  This is normally done with
+despite possible corruption.  This is normally done with
    mdadm --assemble --force ....
 
 This option is not really available if the array has the root
@@ -214,8 +214,8 @@ All md devices contain:
    safe_mode_delay
      When an md array has seen no write requests for a certain period
      of time, it will be marked as 'clean'.  When another write
-     request arrive, the array is marked as 'dirty' before the write
-     commenses.  This is known as 'safe_mode'.
+     request arrives, the array is marked as 'dirty' before the write
+     commences.  This is known as 'safe_mode'.
      The 'certain period' is controlled by this file which stores the
      period as a number of seconds.  The default is 200msec (0.200).
      Writing a value of 0 disables safemode.

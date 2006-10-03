@@ -390,7 +390,7 @@ stripes with parity, i.e. raid level 5, should not work, too.
 
 You have to use the "persistent-superblock 0" option for each raid-disk in the
 NTFS volume/stripe you are configuring in /etc/raidtab as the persistent
-superblock used by the MD driver would damange the NTFS volume.
+superblock used by the MD driver would damage the NTFS volume.
 
 Windows by default uses a stripe chunk size of 64k, so you probably want the
 "chunk-size 64k" option for each raid-disk, too.

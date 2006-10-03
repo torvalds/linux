@@ -326,7 +326,7 @@ A reference implementation
 
 This is a typical implementation. Drivers can slightly change the order
 of the operations in the implementation, ignore some operations or add
-more deriver specific operations in it, but drivers should do something like
+more driver specific operations in it, but drivers should do something like
 this on the whole.
 
 5. Resources

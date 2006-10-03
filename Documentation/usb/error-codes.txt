@@ -126,7 +126,7 @@ one or more packets could finish before an error stops further endpoint I/O.
 			urb->transfer_flags.
 
 -ENODEV			Device was removed.  Often preceded by a burst of
-			other errors, since the hub driver does't detect
+			other errors, since the hub driver doesn't detect
 			device removal events immediately.
 
 -EXDEV			ISO transfer only partially completed

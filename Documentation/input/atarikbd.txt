@@ -30,7 +30,7 @@ is obtained by ORing 0x80 with the make code.
 The special codes 0xF6 through 0xFF are reserved for use as follows:
     0xF6            status report
     0xF7            absolute mouse position record
-    0xF8-0xFB       relative mouse position records(lsbs determind by
+    0xF8-0xFB       relative mouse position records (lsbs determined by
                      mouse button states)
     0xFC            time-of-day
     0xFD            joystick report (both sticks)

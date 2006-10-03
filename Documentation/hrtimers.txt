@@ -10,7 +10,7 @@ back and forth trying to integrate high-resolution and high-precision
 features into the existing timer framework, and after testing various
 such high-resolution timer implementations in practice, we came to the
 conclusion that the timer wheel code is fundamentally not suitable for
-such an approach. We initially didnt believe this ('there must be a way
+such an approach. We initially didn't believe this ('there must be a way
 to solve this'), and spent a considerable effort trying to integrate
 things into the timer wheel, but we failed. In hindsight, there are
 several reasons why such integration is hard/impossible:

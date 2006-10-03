@@ -1203,6 +1203,6 @@ temporarily map a bio into the virtual address space.
 and Linus' comments - Jan 2001)
 9.2 Discussions about kiobuf and bh design on lkml between sct, linus, alan
 et al - Feb-March 2001 (many of the initial thoughts that led to bio were
-brought up in this discusion thread)
+brought up in this discussion thread)
 9.3 Discussions on mempool on lkml - Dec 2001.
 

@@ -570,7 +570,7 @@ bata1-2.2.1	Feb 09 2001
 
 				Option to COMPILE WANPIPE modules against the currently 
 				running kernel, thus no need for manual kernel and module
-				re-compilatin.
+				re-compilation.
 			
 			o Updates and Bug Fixes to wancfg utility.
 

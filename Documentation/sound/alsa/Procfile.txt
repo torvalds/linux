@@ -71,7 +71,7 @@ The status of MIDI I/O is found in midi* files.  It shows the device
 name and the received/transmitted bytes through the MIDI device.
 
 When the card is equipped with AC97 codecs, there are codec97#*
-subdirectories (desribed later).
+subdirectories (described later).
 
 When the OSS mixer emulation is enabled (and the module is loaded),
 oss_mixer file appears here, too.  This shows the current mapping of

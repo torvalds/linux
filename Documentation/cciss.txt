@@ -80,7 +80,7 @@ the /proc filesystem entry which the "block" side of the driver creates as
 the SCSI core may not yet be initialized (because the driver is a block 
 driver) and attempting to register it with the SCSI core in such a case 
 would cause a hang.  This is best done via an initialization script 
-(typically in /etc/init.d, but could vary depending on distibution). 
+(typically in /etc/init.d, but could vary depending on distribution). 
 For example:
 
 	for x in /proc/driver/cciss/cciss[0-9]*

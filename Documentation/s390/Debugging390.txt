@@ -8,8 +8,8 @@
 Overview of Document:
 =====================
 This document is intended to give an good overview of how to debug 
-Linux for s/390 & z/Architecture it isn't intended as a complete reference & not a
-tutorial on the fundamentals of C & assembly, it dosen't go into
+Linux for s/390 & z/Architecture. It isn't intended as a complete reference & not a
+tutorial on the fundamentals of C & assembly. It doesn't go into
 390 IO in any detail. It is intended to complement the documents in the
 reference section below & any other worthwhile references you get.
 
@@ -354,7 +354,7 @@ static inline struct task_struct * get_current(void)
 }
 
 i.e. just anding the current kernel stack pointer with the mask -8192.
-Thankfully because Linux dosen't have support for nested IO interrupts
+Thankfully because Linux doesn't have support for nested IO interrupts
 & our devices have large buffers can survive interrupts being shut for 
 short amounts of time we don't need a separate stack for interrupts.
 
@@ -394,7 +394,7 @@ i.e they aren't in registers & they aren't static.
 back-chain:
 This is a pointer to the stack pointer before entering a
 framed functions ( see frameless function ) prologue got by 
-deferencing the address of the current stack pointer,
+dereferencing the address of the current stack pointer,
  i.e. got by accessing the 32 bit value at the stack pointers
 current location.
 
@@ -724,7 +724,7 @@ This is useful for debugging because
 1) You can double check whether the files you expect to be included are the ones
 that are being included ( e.g. double check that you aren't going to the i386 asm directory ).
 2) Check that macro definitions aren't clashing with typedefs,
-3) Check that definitons aren't being used before they are being included.
+3) Check that definitions aren't being used before they are being included.
 4) Helps put the line emitting the error under the microscope if it contains macros.
 
 For convenience the Linux kernel's makefile will do preprocessing automatically for you
@@ -840,12 +840,11 @@ using the strip command to make it a more reasonable size to boot it.
 
 A source/assembly mixed dump of the kernel can be done with the line
 objdump --source vmlinux > vmlinux.lst
-Also if the file isn't compiled -g this will output as much debugging information
-as it can ( e.g. function names ), however, this is very slow as it spends lots
-of time searching for debugging info, the following self explanitory line should be used 
-instead if the code isn't compiled -g.
+Also, if the file isn't compiled -g, this will output as much debugging information
+as it can (e.g. function names). This is very slow as it spends lots
+of time searching for debugging info. The following self explanatory line should be used 
+instead if the code isn't compiled -g, as it is much faster:
 objdump --disassemble-all --syms vmlinux > vmlinux.lst  
-as it is much faster
 
 As hard drive space is valuble most of us use the following approach.
 1) Look at the emitted psw on the console to find the crash address in the kernel.
@@ -1674,8 +1673,8 @@ channel is idle & the second for device end ( secondary status ) sometimes you g
 concurrently, you check how the IO went on by issuing a TEST SUBCHANNEL at each interrupt,
 from which you receive an Interruption response block (IRB). If you get channel & device end 
 status in the IRB without channel checks etc. your IO probably went okay. If you didn't you
-probably need a doctorto examine the IRB & extended status word etc.
-If an error occurs more sophistocated control units have a facitity known as
+probably need a doctor to examine the IRB & extended status word etc.
+If an error occurs, more sophistocated control units have a facitity known as
 concurrent sense this means that if an error occurs Extended sense information will
 be presented in the Extended status word in the IRB if not you have to issue a
 subsequent SENSE CCW command after the test subchannel. 
@@ -1916,7 +1915,7 @@ Assembly
 --------
 info registers: displays registers other than floating point.
 info all-registers: displays floating points as well.
-disassemble: dissassembles
+disassemble: disassembles
 e.g.
 disassemble without parameters will disassemble the current function
 disassemble $pc $pc+10 
@@ -1935,7 +1934,7 @@ undisplay : undo's display's
 
 info breakpoints: shows all current breakpoints
 
-info stack: shows stack back trace ( if this dosent work too well, I'll show you the
+info stack: shows stack back trace ( if this doesn't work too well, I'll show you the
 stacktrace by hand below ).
 
 info locals: displays local variables.

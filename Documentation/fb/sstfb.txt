@@ -48,12 +48,12 @@ Module Usage
 
 	Module insertion:
 	# insmod sstfb.o
-	  you should see some strange output frome the board: 
+	  you should see some strange output from the board: 
 	  a big blue square, a green and a red small squares and a vertical
-	  white rectangle. why ? the function's name is self explanatory :
+	  white rectangle. why? the function's name is self-explanatory:
 	  "sstfb_test()"...
 	  (if you don't have a second monitor, you'll have to plug your monitor
-	  directely to the 2D videocard to see what you're typing)
+	  directly to the 2D videocard to see what you're typing)
 	# con2fb /dev/fbx /dev/ttyx
 	  bind a tty to the new frame buffer. if you already have a frame
 	  buffer driver, the voodoo fb will likely be /dev/fb1. if not, 
@@ -95,11 +95,11 @@ inverse=1	inverse		Supposed to enable inverse console.
 
 clipping=1	clipping	Enable or disable clipping.
 clipping=0	noclipping	With clipping enabled, all offscreen
-				reads and writes are disgarded.
+				reads and writes are discarded.
 				Default: enable clipping.
 
 gfxclk=x	gfxclk:x	Force graphic clock frequency (in MHz).
-				Be carefull with this option, it may be
+				Be careful with this option, it may be
 				DANGEROUS.
 				Default: auto 
 					50Mhz for Voodoo 1,

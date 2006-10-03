@@ -1263,8 +1263,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: on some notebooks the buffer address cannot be detected
     automatically, or causes hang-up during initialization.
-    In such a case, specify the buffer top address explicity via
-    buffer_top option.
+    In such a case, specify the buffer top address explicitly via
+    the buffer_top option.
     For example,
       Sony F250: buffer_top=0x25a800
       Sony F270: buffer_top=0x272800

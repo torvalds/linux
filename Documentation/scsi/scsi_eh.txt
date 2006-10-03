@@ -160,7 +160,7 @@ ways.
  - Fine-grained EH callbacks
 	LLDD can implement fine-grained EH callbacks and let SCSI
 	midlayer drive error handling and call appropriate callbacks.
-	This will be dicussed further in [2-1].
+	This will be discussed further in [2-1].
 
  - eh_strategy_handler() callback
 	This is one big callback which should perform whole error

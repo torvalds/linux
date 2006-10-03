@@ -154,7 +154,7 @@ about it.
 
 3.2 Event handlers
 ~~~~~~~~~~~~~~~~~~
-  Event handlers distrubite the events from the devices to userland and
+  Event handlers distribute the events from the devices to userland and
 kernel, as needed.
 
 3.2.1 keybdev

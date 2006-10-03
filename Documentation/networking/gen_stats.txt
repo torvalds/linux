@@ -103,8 +103,8 @@ In the kernel when setting up:
    else
        failed
 
-From now on, everytime you dump my_rate_est_stats it will contain
-uptodate info.
+From now on, every time you dump my_rate_est_stats it will contain
+up-to-date info.
 
 Once you are done, call gen_kill_estimator(my_basicstats,
 my_rate_est_stats) Make sure that my_basicstats and my_rate_est_stats

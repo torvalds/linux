@@ -63,7 +63,7 @@ TODO:
 Implement a control urb again to handle requests to and from the device
 such as calibration, etc once/if it becomes available.
 
-DISCLAMER:
+DISCLAIMER:
 
 I am not a MicroTouch/3M employee, nor have I ever been.  3M does not support 
 this driver!  If you want touch drivers only supported within X, please go to:

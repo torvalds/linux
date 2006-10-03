@@ -97,4 +97,4 @@ COPYRIGHT
 =========
 
 Copyright (c) 2003 Digigram SA <alsa@digigram.com>
-Distributalbe under GPL.
+Distributable under GPL.

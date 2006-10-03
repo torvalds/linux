@@ -3205,7 +3205,7 @@ for a session; this includes virtual consoles, serial ports, and
 pseudoterminals (PTYs).
 
 All terminal devices share a common set of capabilities known as line
-diciplines; these include the common terminal line dicipline as well
+disciplines; these include the common terminal line discipline as well
 as SLIP and PPP modes.
 
 All terminal devices are named similarly; this section explains the
@@ -3285,7 +3285,7 @@ port TTY, for which no alternate device would exist.
 	Pseudoterminals (PTYs)
 
 Pseudoterminals, or PTYs, are used to create login sessions or provide
-other capabilities requiring a TTY line dicipline (including SLIP or
+other capabilities requiring a TTY line discipline (including SLIP or
 PPP capability) to arbitrary data-generation processes.	 Each PTY has
 a master side, named /dev/pty[p-za-e][0-9a-f], and a slave side, named
 /dev/tty[p-za-e][0-9a-f].  The kernel arbitrates the use of PTYs by

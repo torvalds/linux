@@ -335,7 +335,7 @@ struct boot_param_header {
      "compact" format for the tree itself that is however not backward
      compatible. You should always generate a structure of the highest
      version defined at the time of your implementation. Currently
-     that is version 16, unless you explicitely aim at being backward
+     that is version 16, unless you explicitly aim at being backward
      compatible.
 
    - last_comp_version

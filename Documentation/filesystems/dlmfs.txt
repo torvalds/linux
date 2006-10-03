@@ -68,7 +68,7 @@ request for an already acquired lock will not generate another DLM
 call. Userspace programs are assumed to handle their own local
 locking.
 
-Two levels of locks are supported - Shared Read, and Exlcusive.
+Two levels of locks are supported - Shared Read, and Exclusive.
 Also supported is a Trylock operation.
 
 For information on the libo2dlm interface, please see o2dlm.h,

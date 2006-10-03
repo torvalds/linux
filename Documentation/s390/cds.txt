@@ -433,7 +433,7 @@ puts the CPU into I/O disabled state by preserving the current PSW flags.
 
 The device driver is allowed to issue the next ccw_device_start() call from
 within its interrupt handler already. It is not required to schedule a
-bottom-half, unless an non deterministicly long running error recovery procedure
+bottom-half, unless an non deterministically long running error recovery procedure
 or similar needs to be scheduled. During I/O processing the Linux/390 generic
 I/O device driver support has already obtained the IRQ lock, i.e. the handler
 must not try to obtain it again when calling ccw_device_start() or we end in a

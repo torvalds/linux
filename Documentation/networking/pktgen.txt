@@ -147,7 +147,7 @@ Examples:
 Example scripts
 ===============
 
-A collection of small tutorial scripts for pktgen is in expamples dir.
+A collection of small tutorial scripts for pktgen is in examples dir.
 
 pktgen.conf-1-1                  # 1 CPU 1 dev 
 pktgen.conf-1-2                  # 1 CPU 2 dev

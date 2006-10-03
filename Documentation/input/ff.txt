@@ -38,7 +38,7 @@ joystick.txt for details.
 There is an utility called fftest that will allow you to test the driver.
 % fftest /dev/input/eventXX
 
-3. Instructions to the developper
+3. Instructions to the developer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 All interactions are done using the event API. That is, you can use ioctl()
 and write() on /dev/input/eventXX.

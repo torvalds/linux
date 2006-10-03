@@ -118,9 +118,9 @@ card is not there, please try if any other card gives some
 response, and mail me if you got a working tvcard addition.
 
 PS. <TVCard editors behold!)
-    Dont forget to set video_input to the number of inputs
+    Don't forget to set video_input to the number of inputs
     you defined in the video_mux part of the tvcard definition.
-    Its a common error to add a channel but not incrementing
+    It's a common error to add a channel but not incrementing
     video_input and getting angry with me/v4l/linux/linus :(
 
 You are now ready to test the framegrabber with your favorite

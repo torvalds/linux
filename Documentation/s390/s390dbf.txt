@@ -468,7 +468,7 @@ The hex_ascii view shows the data field in hex and ascii representation
 The raw view returns a bytestream as the debug areas are stored in memory.
 
 The sprintf view formats the debug entries in the same way as the sprintf
-function would do. The sprintf event/expection functions write to the
+function would do. The sprintf event/exception functions write to the
 debug entry a pointer to the format string (size = sizeof(long)) 
 and for each vararg a long value. So e.g. for a debug entry with a format 
 string plus two varargs one would need to allocate a (3 * sizeof(long)) 

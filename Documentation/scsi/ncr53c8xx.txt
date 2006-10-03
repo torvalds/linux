@@ -96,10 +96,10 @@ The original driver has been written for 386bsd and FreeBSD by:
 It is now available as a bundle of 2 drivers:
 
 - ncr53c8xx generic driver that supports all the SYM53C8XX family including 
-  the ealiest 810 rev. 1, the latest 896 (2 channel LVD SCSI controller) and
+  the earliest 810 rev. 1, the latest 896 (2 channel LVD SCSI controller) and
   the new 895A (1 channel LVD SCSI controller).
 - sym53c8xx enhanced driver (a.k.a. 896 drivers) that drops support of oldest 
-  chips in order to gain advantage of new features, as LOAD/STORE intructions 
+  chips in order to gain advantage of new features, as LOAD/STORE instructions 
   available since the 810A and hardware phase mismatch available with the 
   896 and the 895A.
 
@@ -207,7 +207,7 @@ The 896 and the 895A allows handling of the phase mismatch context from
 SCRIPTS (avoids the phase mismatch interrupt that stops the SCSI processor 
 until the C code has saved the context of the transfer).
 Implementing this without using LOAD/STORE instructions would be painfull 
-and I did'nt even want to try it.
+and I didn't even want to try it.
 
 The 896 chip supports 64 bit PCI transactions and addressing, while the 
 895A supports 32 bit PCI transactions and 64 bit addressing.
