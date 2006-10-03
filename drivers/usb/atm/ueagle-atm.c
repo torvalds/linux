@@ -1173,6 +1173,9 @@ static int uea_kthread(void *data)
 			ret = uea_stat(sc);
 		if (ret != -EAGAIN)
 			msleep(1000);
+ 		if (try_to_freeze())
+			uea_err(INS_TO_USBDEV(sc), "suspend/resume not supported, "
+				"please unplug/replug your modem\n");
 	}
 	uea_leaves(INS_TO_USBDEV(sc));
 	return ret;
