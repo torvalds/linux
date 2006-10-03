@@ -39,6 +39,9 @@
  */
 #define SNAPSHOT_PAGES 256
 
+struct workqueue_struct *ksnapd;
+static void flush_queued_bios(void *data);
+
 struct pending_exception {
 	struct exception e;
 
@@ -488,6 +491,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->active = 0;
 	s->last_percent = 0;
 	init_rwsem(&s->lock);
+	spin_lock_init(&s->pe_lock);
 	s->table = ti->table;
 
 	/* Allocate hash table for COW data */
@@ -522,6 +526,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Failed to read snapshot metadata";
 		goto bad6;
 	}
+
+	bio_list_init(&s->queued_bios);
+	INIT_WORK(&s->queued_bios_work, flush_queued_bios, s);
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -561,6 +568,8 @@ static void snapshot_dtr(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
 
+	flush_workqueue(ksnapd);
+
 	/* Prevent further origin writes from using this snapshot. */
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
@@ -592,6 +601,19 @@ static void flush_bios(struct bio *bio)
 		generic_make_request(bio);
 		bio = n;
 	}
+}
+
+static void flush_queued_bios(void *data)
+{
+	struct dm_snapshot *s = (struct dm_snapshot *) data;
+	struct bio *queued_bios;
+	unsigned long flags;
+
+	spin_lock_irqsave(&s->pe_lock, flags);
+	queued_bios = bio_list_get(&s->queued_bios);
+	spin_unlock_irqrestore(&s->pe_lock, flags);
+
+	flush_bios(queued_bios);
 }
 
 /*
@@ -1240,8 +1262,17 @@ static int __init dm_snapshot_init(void)
 		goto bad5;
 	}
 
+	ksnapd = create_singlethread_workqueue("ksnapd");
+	if (!ksnapd) {
+		DMERR("Failed to create ksnapd workqueue.");
+		r = -ENOMEM;
+		goto bad6;
+	}
+
 	return 0;
 
+      bad6:
+	mempool_destroy(pending_pool);
       bad5:
 	kmem_cache_destroy(pending_cache);
       bad4:
@@ -1258,6 +1289,8 @@ static int __init dm_snapshot_init(void)
 static void __exit dm_snapshot_exit(void)
 {
 	int r;
+
+	destroy_workqueue(ksnapd);
 
 	r = dm_unregister_target(&snapshot_target);
 	if (r)

@@ -10,7 +10,9 @@
 #define DM_SNAPSHOT_H
 
 #include "dm.h"
+#include "dm-bio-list.h"
 #include <linux/blkdev.h>
+#include <linux/workqueue.h>
 
 struct exception_table {
 	uint32_t hash_mask;
@@ -112,10 +114,20 @@ struct dm_snapshot {
 	struct exception_table pending;
 	struct exception_table complete;
 
+	/*
+	 * pe_lock protects all pending_exception operations and access
+	 * as well as the snapshot_bios list.
+	 */
+	spinlock_t pe_lock;
+
 	/* The on disk metadata handler */
 	struct exception_store store;
 
 	struct kcopyd_client *kcopyd_client;
+
+	/* Queue of snapshot writes for ksnapd to flush */
+	struct bio_list queued_bios;
+	struct work_struct queued_bios_work;
 };
 
 /*
