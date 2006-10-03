@@ -34,6 +34,7 @@ E: magrawal@nortelnetworks.com
 D: Basic Interphase 5575 driver with UBR and ABR support.
 S: 75 Donald St, Apt 42
 S: Weymouth, MA 02188
+S: USA
 
 N: Dave Airlie
 E: airlied@linux.ie
@@ -202,6 +203,7 @@ S: MS42
 S: Hewlett-Packard
 S: 3404 E Harmony Rd
 S: Fort Collins, CO 80525
+S: USA
 
 N: Arindam Banerji
 E: axb@cse.nd.edu
@@ -444,6 +446,7 @@ E: rbradetich@uswest.net
 D: Linux/PA-RISC hacker
 S: 1200 Goldenrod Dr.
 S: Nampa, Idaho 83686
+S: USA
 
 N: Derrick J. Brashear
 E: shadow@dementia.org
@@ -633,6 +636,7 @@ E: scole@lanl.gov
 E: elenstev@mesatop.com
 D: Various build fixes and kernel documentation.
 S: Los Alamos, New Mexico
+S: USA
 
 N: Hamish Coleman
 E: hamish@zot.apana.org.au
@@ -2009,6 +2013,7 @@ W: http://www.mathematik.uni-stuttgart.de/~floeff
 D: Busmaster driver for HP 10/100 Mbit Network Adapters
 S: University of Stuttgart, Germany and
 S: Ecole Nationale Superieure des Telecommunications, Paris
+S: France
 
 N: Jamie Lokier
 E: jamie@shareable.org
@@ -2178,6 +2183,7 @@ S: Hewlett Packard
 S: MS 42
 S: 3404 E. Harmony Road
 S: Fort Collins, CO 80528
+S: USA
 
 N: Torben Mathiasen
 E: torben.mathiasen@compaq.com
