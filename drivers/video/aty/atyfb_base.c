@@ -3863,6 +3863,7 @@ static int __devinit atyfb_setup(char *options)
 
 static int __devinit atyfb_init(void)
 {
+    int err1 = 1, err2 = 1;
 #ifndef MODULE
     char *option = NULL;
 
@@ -3872,12 +3873,13 @@ static int __devinit atyfb_init(void)
 #endif
 
 #ifdef CONFIG_PCI
-    pci_register_driver(&atyfb_driver);
+    err1 = pci_register_driver(&atyfb_driver);
 #endif
 #ifdef CONFIG_ATARI
-    atyfb_atari_probe();
+    err2 = atyfb_atari_probe();
 #endif
-    return 0;
+
+    return (err1 && err2) ? -ENODEV : 0;
 }
 
 static void __exit atyfb_exit(void)
