@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
  *
  * This function removes a file or directory in debugfs that was previously
  * created with a call to another debugfs function (like
- * debufs_create_file() or variants thereof.)
+ * debugfs_create_file() or variants thereof.)
  *
  * This function is required to be called in order for the file to be
  * removed, no automatic cleanup of files will happen when a module is
