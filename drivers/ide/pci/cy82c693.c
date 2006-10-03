@@ -281,7 +281,7 @@ static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
 
 	/* select primary or secondary channel */
 	if (hwif->index > 0) {  /* drive is on the secondary channel */
-		dev = pci_find_slot(dev->bus->number, dev->devfn+1);
+		dev = pci_get_slot(dev->bus, dev->devfn+1);
 		if (!dev) {
 			printk(KERN_ERR "%s: tune_drive: "
 				"Cannot find secondary interface!\n",
@@ -500,8 +500,9 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	   Function 1 is primary IDE channel, function 2 - secondary. */
         if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	    PCI_FUNC(dev->devfn) == 1) {
-		dev2 = pci_find_slot(dev->bus->number, dev->devfn + 1);
+		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
 		ret = ide_setup_pci_devices(dev, dev2, d);
+		/* We leak pci refs here but thats ok - we can't be unloaded */
 	}
 	return ret;
 }

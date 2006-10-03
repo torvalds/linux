@@ -248,7 +248,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 	u8 t;
 
 	for (via_config = via_isa_bridges; via_config->id; via_config++)
-		if ((*isa = pci_find_device(PCI_VENDOR_ID_VIA +
+		if ((*isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(via_config->flags & VIA_BAD_ID),
 			via_config->id, NULL))) {
 
@@ -256,6 +256,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 			if (t >= via_config->rev_min &&
 			    t <= via_config->rev_max)
 				break;
+			pci_dev_put(*isa);
 		}
 
 	return via_config;
@@ -283,6 +284,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	via_config = via_config_find(&isa);
 	if (!via_config->id) {
 		printk(KERN_WARNING "VP_IDE: Unknown VIA SouthBridge, disabling DMA.\n");
+		pci_dev_put(isa);
 		return -ENODEV;
 	}
 
@@ -361,6 +363,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 		via_dma[via_config->flags & VIA_UDMA],
 		pci_name(dev));
 
+	pci_dev_put(isa);
 	return 0;
 }
 

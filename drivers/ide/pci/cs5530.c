@@ -222,23 +222,23 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 	unsigned long flags;
 
 	dev = NULL;
-	while ((dev = pci_find_device(PCI_VENDOR_ID_CYRIX, PCI_ANY_ID, dev)) != NULL) {
+	while ((dev = pci_get_device(PCI_VENDOR_ID_CYRIX, PCI_ANY_ID, dev)) != NULL) {
 		switch (dev->device) {
 			case PCI_DEVICE_ID_CYRIX_PCI_MASTER:
-				master_0 = dev;
+				master_0 = pci_dev_get(dev);
 				break;
 			case PCI_DEVICE_ID_CYRIX_5530_LEGACY:
-				cs5530_0 = dev;
+				cs5530_0 = pci_dev_get(dev);
 				break;
 		}
 	}
 	if (!master_0) {
 		printk(KERN_ERR "%s: unable to locate PCI MASTER function\n", name);
-		return 0;
+		goto out;
 	}
 	if (!cs5530_0) {
 		printk(KERN_ERR "%s: unable to locate CS5530 LEGACY function\n", name);
-		return 0;
+		goto out;
 	}
 
 	spin_lock_irqsave(&ide_lock, flags);
@@ -296,6 +296,9 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 
+out:
+	pci_dev_put(master_0);
+	pci_dev_put(cs5530_0);
 	return 0;
 }
 
