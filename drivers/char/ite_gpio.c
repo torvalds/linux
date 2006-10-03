@@ -384,13 +384,13 @@ int __init ite_gpio_init(void)
 	}
 
 	/* initialize registers */
-        ITE_GPACR = 0xffff;
-        ITE_GPBCR = 0xffff;
-        ITE_GPCCR = 0xffff;
-        ITE_GPAICR = 0x00ff;
-        ITE_GPBICR = 0x00ff;
-        ITE_GPCICR = 0x00ff;
-        ITE_GCR = 0;
+	ITE_GPACR = 0xffff;
+	ITE_GPBCR = 0xffff;
+	ITE_GPCCR = 0xffff;
+	ITE_GPAICR = 0x00ff;
+	ITE_GPBICR = 0x00ff;
+	ITE_GPCICR = 0x00ff;
+	ITE_GCR = 0;
 	
 	for (i = 0; i < MAX_GPIO_LINE; i++) {
 		ite_gpio_irq_pending[i]=0;	
