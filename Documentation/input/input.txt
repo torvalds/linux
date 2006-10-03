@@ -289,24 +289,3 @@ list is in include/linux/input.h.
 EV_REL, absolute new value for EV_ABS (joysticks ...), or 0 for EV_KEY for
 release, 1 for keypress and 2 for autorepeat.
 
-6. Contacts
-~~~~~~~~~~~
-  This effort has its home page at:
-
-	http://www.suse.cz/development/input/
-
-You'll find both the latest HID driver and the complete Input driver
-there as well as information how to access the CVS repository for
-latest revisions of the drivers.
-
-  There is also a mailing list for this:
-
-	majordomo@atrey.karlin.mff.cuni.cz
-
-Send "subscribe linux-input" to subscribe to it.
-
-The input changes are also being worked on as part of the LinuxConsole
-project, see:
-
-	 http://sourceforge.net/projects/linuxconsole/
-
