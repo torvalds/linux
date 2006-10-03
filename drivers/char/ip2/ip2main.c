@@ -779,8 +779,6 @@ retry:
 	ip2trace (ITRC_NO_PORT, ITRC_INIT, ITRC_RETURN, 0 );
 	goto out;
 
-out_class:
-	class_destroy(ip2_class);
 out_chrdev:
 	unregister_chrdev(IP2_IPL_MAJOR, "ip2");
 out:
