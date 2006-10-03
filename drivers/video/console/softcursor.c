@@ -20,11 +20,12 @@
 
 int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
+	struct fbcon_ops *ops = info->fbcon_par;
 	unsigned int scan_align = info->pixmap.scan_align - 1;
 	unsigned int buf_align = info->pixmap.buf_align - 1;
 	unsigned int i, size, dsize, s_pitch, d_pitch;
 	struct fb_image *image;
-	u8 *dst, *src;
+	u8 *dst;
 
 	if (info->state != FBINFO_STATE_RUNNING)
 		return 0;
@@ -32,11 +33,19 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	s_pitch = (cursor->image.width + 7) >> 3;
 	dsize = s_pitch * cursor->image.height;
 
-	src = kmalloc(dsize + sizeof(struct fb_image), GFP_ATOMIC);
-	if (!src)
-		return -ENOMEM;
+	if (dsize + sizeof(struct fb_image) != ops->cursor_size) {
+		if (ops->cursor_src != NULL)
+			kfree(ops->cursor_src);
+		ops->cursor_size = dsize + sizeof(struct fb_image);
 
-	image = (struct fb_image *) (src + dsize);
+		ops->cursor_src = kmalloc(ops->cursor_size, GFP_ATOMIC);
+		if (!ops->cursor_src) {
+			ops->cursor_size = 0;
+			return -ENOMEM;
+		}
+	}
+
+	image = (struct fb_image *) (ops->cursor_src + dsize);
 	*image = cursor->image;
 	d_pitch = (s_pitch + scan_align) & ~scan_align;
 
@@ -48,21 +57,23 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		switch (cursor->rop) {
 		case ROP_XOR:
 			for (i = 0; i < dsize; i++)
-				src[i] = image->data[i] ^ cursor->mask[i];
+				ops->cursor_src[i] = image->data[i] ^
+					cursor->mask[i];
 			break;
 		case ROP_COPY:
 		default:
 			for (i = 0; i < dsize; i++)
-				src[i] = image->data[i] & cursor->mask[i];
+				ops->cursor_src[i] = image->data[i] &
+					cursor->mask[i];
 			break;
 		}
 	} else
-		memcpy(src, image->data, dsize);
+		memcpy(ops->cursor_src, image->data, dsize);
 
-	fb_pad_aligned_buffer(dst, d_pitch, src, s_pitch, image->height);
+	fb_pad_aligned_buffer(dst, d_pitch, ops->cursor_src, s_pitch,
+			      image->height);
 	image->data = dst;
 	info->fbops->fb_imageblit(info, image);
-	kfree(src);
 	return 0;
 }
 

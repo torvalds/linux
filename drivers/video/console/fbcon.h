@@ -80,6 +80,8 @@ struct fbcon_ops {
 	char  *cursor_data;
 	u8    *fontbuffer;
 	u8    *fontdata;
+	u8    *cursor_src;
+	u32    cursor_size;
 	u32    fd_size;
 };
     /*
