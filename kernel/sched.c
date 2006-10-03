@@ -6349,9 +6349,10 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 				> SD_NODES_PER_DOMAIN*cpus_weight(nodemask)) {
 			if (!sched_group_allnodes) {
 				sched_group_allnodes
-					= kmalloc(sizeof(struct sched_group)
-							* MAX_NUMNODES,
-						  GFP_KERNEL);
+					= kmalloc_node(sizeof(struct sched_group)
+						  	* MAX_NUMNODES,
+						  GFP_KERNEL,
+						  cpu_to_node(i));
 				if (!sched_group_allnodes) {
 					printk(KERN_WARNING
 					"Can not alloc allnodes sched group\n");
