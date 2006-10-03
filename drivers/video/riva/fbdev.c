@@ -393,8 +393,8 @@ static void riva_bl_init(struct riva_par *par)
 	mutex_lock(&info->bl_mutex);
 	info->bl_dev = bd;
 	fb_bl_default_curve(info, 0,
-		0x158 * FB_BACKLIGHT_MAX / MAX_LEVEL,
-		0x534 * FB_BACKLIGHT_MAX / MAX_LEVEL);
+		MIN_LEVEL * FB_BACKLIGHT_MAX / MAX_LEVEL,
+		FB_BACKLIGHT_MAX);
 	mutex_unlock(&info->bl_mutex);
 
 	down(&bd->sem);
@@ -784,7 +784,7 @@ static void riva_load_video_mode(struct fb_info *info)
 	
 	NVTRACE_ENTER();
 	/* time to calculate */
-	rivafb_blank(1, info);
+	rivafb_blank(FB_BLANK_NORMAL, info);
 
 	bpp = info->var.bits_per_pixel;
 	if (bpp == 16 && info->var.green.length == 5)
@@ -917,7 +917,7 @@ static void riva_load_video_mode(struct fb_info *info)
 	par->current_state = newmode;
 	riva_load_state(par, &par->current_state);
 	par->riva.LockUnlock(&par->riva, 0); /* important for HW cursor */
-	rivafb_blank(0, info);
+	rivafb_blank(FB_BLANK_UNBLANK, info);
 	NVTRACE_LEAVE();
 }
 
