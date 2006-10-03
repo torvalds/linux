@@ -631,8 +631,7 @@ static void error_bios(struct bio *bio)
 	}
 }
 
-static void __invalidate_snapshot(struct dm_snapshot *s,
-				struct pending_exception *pe, int err)
+static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 {
 	if (!s->valid)
 		return;
@@ -641,9 +640,6 @@ static void __invalidate_snapshot(struct dm_snapshot *s,
 		DMERR("Invalidating snapshot: Error reading/writing.");
 	else if (err == -ENOMEM)
 		DMERR("Invalidating snapshot: Unable to allocate exception.");
-
-	if (pe)
-		remove_exception(&pe->e);
 
 	if (s->store.drop_snapshot)
 		s->store.drop_snapshot(&s->store);
@@ -701,7 +697,7 @@ static void pending_complete(struct pending_exception *pe, int success)
 	if (!success) {
 		/* Read/write error - snapshot is unusable */
 		down_write(&s->lock);
-		__invalidate_snapshot(s, pe, -EIO);
+		__invalidate_snapshot(s, -EIO);
 		error = 1;
 		goto out;
 	}
@@ -709,7 +705,7 @@ static void pending_complete(struct pending_exception *pe, int success)
 	e = alloc_exception();
 	if (!e) {
 		down_write(&s->lock);
-		__invalidate_snapshot(s, pe, -ENOMEM);
+		__invalidate_snapshot(s, -ENOMEM);
 		error = 1;
 		goto out;
 	}
@@ -727,9 +723,9 @@ static void pending_complete(struct pending_exception *pe, int success)
 	 * in-flight exception from the list.
 	 */
 	insert_exception(&s->complete, e);
-	remove_exception(&pe->e);
 
  out:
+	remove_exception(&pe->e);
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = put_pending_exception(pe);
 
@@ -909,7 +905,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	if (bio_rw(bio) == WRITE) {
 		pe = __find_pending_exception(s, bio);
 		if (!pe) {
-			__invalidate_snapshot(s, pe, -ENOMEM);
+			__invalidate_snapshot(s, -ENOMEM);
 			r = -EIO;
 			goto out_unlock;
 		}
@@ -1035,7 +1031,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 
 		pe = __find_pending_exception(snap, bio);
 		if (!pe) {
-			__invalidate_snapshot(snap, pe, -ENOMEM);
+			__invalidate_snapshot(snap, -ENOMEM);
 			goto next_snapshot;
 		}
 
