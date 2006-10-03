@@ -116,7 +116,11 @@ struct mddev_s
 	dev_t				unit;
 	int				md_minor;
 	struct list_head 		disks;
-	int				sb_dirty;
+	unsigned long			flags;
+#define MD_CHANGE_DEVS	0	/* Some device status has changed */
+#define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
+#define MD_CHANGE_PENDING 2	/* superblock update in progress */
+
 	int				ro;
 
 	struct gendisk			*gendisk;

@@ -95,7 +95,6 @@ extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
 
-extern void md_update_sb(mddev_t * mddev);
 
 #endif /* CONFIG_MD */
 #endif 

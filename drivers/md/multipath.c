@@ -253,7 +253,7 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 			char b[BDEVNAME_SIZE];
 			clear_bit(In_sync, &rdev->flags);
 			set_bit(Faulty, &rdev->flags);
-			mddev->sb_dirty = 1;
+			set_bit(MD_CHANGE_DEVS, &mddev->flags);
 			conf->working_disks--;
 			printk(KERN_ALERT "multipath: IO failure on %s,"
 				" disabling IO path. \n	Operation continuing"
@@ -470,7 +470,6 @@ static int multipath_run (mddev_t *mddev)
 	}
 
 	conf->raid_disks = mddev->raid_disks;
-	mddev->sb_dirty = 1;
 	conf->mddev = mddev;
 	spin_lock_init(&conf->device_lock);
 	INIT_LIST_HEAD(&conf->retry_list);

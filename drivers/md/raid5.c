@@ -696,7 +696,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	PRINTK("raid5: error called\n");
 
 	if (!test_bit(Faulty, &rdev->flags)) {
-		mddev->sb_dirty = 1;
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		if (test_bit(In_sync, &rdev->flags)) {
 			conf->working_disks--;
 			mddev->degraded++;
@@ -2781,9 +2781,9 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		wait_event(conf->wait_for_overlap,
 			   atomic_read(&conf->reshape_stripes)==0);
 		mddev->reshape_position = conf->expand_progress;
-		mddev->sb_dirty = 1;
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
-		wait_event(mddev->sb_wait, mddev->sb_dirty == 0 ||
+		wait_event(mddev->sb_wait, mddev->flags == 0 ||
 			   kthread_should_stop());
 		spin_lock_irq(&conf->device_lock);
 		conf->expand_lo = mddev->reshape_position;
@@ -3605,7 +3605,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	mddev->degraded = (conf->raid_disks - conf->previous_raid_disks) - added_devices;
 	mddev->raid_disks = conf->raid_disks;
 	mddev->reshape_position = 0;
-	mddev->sb_dirty = 1;
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);

@@ -969,7 +969,7 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	}
 	clear_bit(In_sync, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
-	mddev->sb_dirty = 1;
+	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 	printk(KERN_ALERT "raid1: Disk failure on %s, disabling device. \n"
 		"	Operation continuing on %d devices\n",
 		bdevname(rdev->bdev,b), conf->working_disks);
