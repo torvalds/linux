@@ -411,7 +411,6 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_FSGID:
 		case AUDIT_LOGINUID:
 		case AUDIT_PERS:
-		case AUDIT_ARCH:
 		case AUDIT_MSGTYPE:
 		case AUDIT_PPID:
 		case AUDIT_DEVMAJOR:
@@ -422,6 +421,14 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
+			break;
+		/* arch is only allowed to be = or != */
+		case AUDIT_ARCH:
+			if ((f->op != AUDIT_NOT_EQUAL) && (f->op != AUDIT_EQUAL)
+					&& (f->op != AUDIT_NEGATE) && (f->op)) {
+				err = -EINVAL;
+				goto exit_free;
+			}
 			break;
 		case AUDIT_PERM:
 			if (f->val & ~15)

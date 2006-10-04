@@ -278,8 +278,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 			result = audit_comparator(tsk->pid, f->op, f->val);
 			break;
 		case AUDIT_PPID:
-			if (ctx)
+			if (ctx) {
+				if (!ctx->ppid)
+					ctx->ppid = sys_getppid();
 				result = audit_comparator(ctx->ppid, f->op, f->val);
+			}
 			break;
 		case AUDIT_UID:
 			result = audit_comparator(tsk->uid, f->op, f->val);
@@ -795,7 +798,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 	/* tsk == current */
 	context->pid = tsk->pid;
-	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
+	if (!context->ppid)
+		context->ppid = sys_getppid();
 	context->uid = tsk->uid;
 	context->gid = tsk->gid;
 	context->euid = tsk->euid;
@@ -1137,6 +1141,7 @@ void audit_syscall_entry(int arch, int major,
 	context->ctime      = CURRENT_TIME;
 	context->in_syscall = 1;
 	context->auditable  = !!(state == AUDIT_RECORD_CONTEXT);
+	context->ppid       = 0;
 }
 
 /**
@@ -1352,7 +1357,13 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 		}
 
 update_context:
-	idx = context->name_count++;
+	idx = context->name_count;
+	if (context->name_count == AUDIT_NAMES) {
+		printk(KERN_DEBUG "name_count maxed and losing %s\n",
+			found_name ?: "(null)");
+		return;
+	}
+	context->name_count++;
 #if AUDIT_DEBUG
 	context->ino_count++;
 #endif
@@ -1370,7 +1381,16 @@ update_context:
 	/* A parent was not found in audit_names, so copy the inode data for the
 	 * provided parent. */
 	if (!found_name) {
-		idx = context->name_count++;
+		idx = context->name_count;
+		if (context->name_count == AUDIT_NAMES) {
+			printk(KERN_DEBUG
+				"name_count maxed and losing parent inode data: dev=%02x:%02x, inode=%lu",
+				MAJOR(parent->i_sb->s_dev),
+				MINOR(parent->i_sb->s_dev),
+				parent->i_ino);
+			return;
+		}
+		context->name_count++;
 #if AUDIT_DEBUG
 		context->ino_count++;
 #endif
