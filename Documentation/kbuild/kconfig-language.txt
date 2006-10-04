@@ -1,7 +1,7 @@
 Introduction
 ------------
 
-The configuration database is collection of configuration options
+The configuration database is a collection of configuration options
 organized in a tree structure:
 
 	+- Code maturity level options
