@@ -253,13 +253,14 @@ static int sc1200_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 1);
 }
 
-static struct pci_device_id sc1200[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_IDE), },
-	{ 0, },
+static const struct pci_device_id sc1200[] = {
+	{ PCI_VDEVICE(NS, PCI_DEVICE_ID_NS_SCx200_IDE), },
+
+	{ },
 };
 
 static struct pci_driver sc1200_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= sc1200,
 	.probe 		= sc1200_init_one,
 	.remove		= ata_pci_remove_one
@@ -270,12 +271,10 @@ static int __init sc1200_init(void)
 	return pci_register_driver(&sc1200_pci_driver);
 }
 
-
 static void __exit sc1200_exit(void)
 {
 	pci_unregister_driver(&sc1200_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox, Mark Lord");
 MODULE_DESCRIPTION("low-level driver for the NS/AMD SC1200");

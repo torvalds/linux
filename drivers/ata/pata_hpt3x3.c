@@ -192,13 +192,14 @@ static int hpt3x3_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id hpt3x3[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_TTI, PCI_DEVICE_ID_TTI_HPT343), },
-	{ 0, },
+static const struct pci_device_id hpt3x3[] = {
+	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT343), },
+
+	{ },
 };
 
 static struct pci_driver hpt3x3_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= hpt3x3,
 	.probe 		= hpt3x3_init_one,
 	.remove		= ata_pci_remove_one

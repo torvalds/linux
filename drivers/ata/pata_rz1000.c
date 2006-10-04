@@ -170,19 +170,19 @@ fail:
 	return -ENODEV;
 }
 
-static struct pci_device_id pata_rz1000[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_RZ1000), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_RZ1001), },
-	{ 0, },
+static const struct pci_device_id pata_rz1000[] = {
+	{ PCI_VDEVICE(PCTECH, PCI_DEVICE_ID_PCTECH_RZ1000), },
+	{ PCI_VDEVICE(PCTECH, PCI_DEVICE_ID_PCTECH_RZ1001), },
+
+	{ },
 };
 
 static struct pci_driver rz1000_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= pata_rz1000,
 	.probe 		= rz1000_init_one,
 	.remove		= ata_pci_remove_one
 };
-
 
 static int __init rz1000_init(void)
 {

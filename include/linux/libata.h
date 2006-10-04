@@ -109,6 +109,10 @@ static inline u32 ata_msg_init(int dval, int default_msg_enable_bits)
 #define ATA_TAG_POISON		0xfafbfcfdU
 
 /* move to PCI layer? */
+#define PCI_VDEVICE(vendor, device)		\
+	PCI_VENDOR_ID_##vendor, (device),	\
+	PCI_ANY_ID, PCI_ANY_ID, 0, 0
+
 static inline struct device *pci_dev_to_dev(struct pci_dev *pdev)
 {
 	return &pdev->dev;
@@ -138,8 +142,9 @@ enum {
 	ATA_DFLAG_NCQ		= (1 << 3), /* device supports NCQ */
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
-	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
-	ATA_DFLAG_SUSPENDED	= (1 << 9), /* device suspended */
+	ATA_DFLAG_PIO		= (1 << 8), /* device limited to PIO mode */
+	ATA_DFLAG_NCQ_OFF	= (1 << 9), /* devied limited to non-NCQ mode */
+	ATA_DFLAG_SUSPENDED	= (1 << 10), /* device suspended */
 	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 16),

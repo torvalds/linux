@@ -305,7 +305,8 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 static const struct pci_device_id efar_pci_tbl[] = {
-	{ 0x1055, 0x9130, PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VDEVICE(EFAR, 0x9130), },
+
 	{ }	/* terminate list */
 };
 
@@ -325,7 +326,6 @@ static void __exit efar_exit(void)
 {
 	pci_unregister_driver(&efar_pci_driver);
 }
-
 
 module_init(efar_init);
 module_exit(efar_exit);

@@ -192,8 +192,7 @@ static struct ata_port_info adma_port_info[] = {
 };
 
 static const struct pci_device_id adma_ata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PDC, 0x1841, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_1841_idx },
+	{ PCI_VDEVICE(PDC, 0x1841), board_1841_idx },
 
 	{ }	/* terminate list */
 };

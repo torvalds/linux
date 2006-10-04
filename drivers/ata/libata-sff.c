@@ -828,7 +828,6 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = IRQF_SHARED;
-	probe_ent->private_data = port[0]->private_data;
 
 	if (ports & ATA_PORT_PRIMARY) {
 		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 0);
@@ -878,7 +877,6 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 		return NULL;
 
 	probe_ent->n_ports = 2;
-	probe_ent->private_data = port[0]->private_data;
 
 	if (port_mask & ATA_PORT_PRIMARY) {
 		probe_ent->irq = ATA_PRIMARY_IRQ;
@@ -908,6 +906,8 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 				probe_ent->_host_flags |= ATA_HOST_SIMPLEX;
 		}
 		ata_std_ports(&probe_ent->port[1]);
+
+		/* FIXME: could be pointing to stack area; must copy */
 		probe_ent->pinfo2 = port[1];
 	} else
 		probe_ent->dummy_port_mask |= ATA_PORT_SECONDARY;
@@ -946,34 +946,20 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 {
 	struct ata_probe_ent *probe_ent = NULL;
 	struct ata_port_info *port[2];
-	u8 tmp8, mask;
+	u8 mask;
 	unsigned int legacy_mode = 0;
 	int disable_dev_on_err = 1;
 	int rc;
 
 	DPRINTK("ENTER\n");
 
+	BUG_ON(n_ports < 1 || n_ports > 2);
+
 	port[0] = port_info[0];
 	if (n_ports > 1)
 		port[1] = port_info[1];
 	else
 		port[1] = port[0];
-
-	if ((port[0]->flags & ATA_FLAG_NO_LEGACY) == 0
-	    && (pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		/* TODO: What if one channel is in native mode ... */
-		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
-		mask = (1 << 2) | (1 << 0);
-		if ((tmp8 & mask) != mask)
-			legacy_mode = (1 << 3);
-	}
-
-	/* FIXME... */
-	if ((!legacy_mode) && (n_ports > 2)) {
-		printk(KERN_ERR "ata: BUG: native mode, n_ports > 2\n");
-		n_ports = 2;
-		/* For now */
-	}
 
 	/* FIXME: Really for ATA it isn't safe because the device may be
 	   multi-purpose and we want to leave it alone if it was already
@@ -986,6 +972,16 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
+
+	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
+		u8 tmp8;
+
+		/* TODO: What if one channel is in native mode ... */
+		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
+		mask = (1 << 2) | (1 << 0);
+		if ((tmp8 & mask) != mask)
+			legacy_mode = (1 << 3);
+	}
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
@@ -1039,7 +1035,7 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 		goto err_out_regions;
 	}
 
-	/* FIXME: If we get no DMA mask we should fall back to PIO */
+	/* TODO: If we get no DMA mask we should fall back to PIO */
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)
 		goto err_out_regions;
@@ -1062,13 +1058,17 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	pci_set_master(pdev);
 
-	/* FIXME: check ata_device_add return */
-	ata_device_add(probe_ent);
+	if (!ata_device_add(probe_ent)) {
+		rc = -ENODEV;
+		goto err_out_ent;
+	}
 
 	kfree(probe_ent);
 
 	return 0;
 
+err_out_ent:
+	kfree(probe_ent);
 err_out_regions:
 	if (legacy_mode & ATA_PORT_PRIMARY)
 		release_region(ATA_PRIMARY_CMD, 8);

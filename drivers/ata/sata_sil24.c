@@ -344,11 +344,12 @@ static int sil24_pci_device_resume(struct pci_dev *pdev);
 #endif
 
 static const struct pci_device_id sil24_pci_tbl[] = {
-	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x8086, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
-	{ 0x1095, 0x3131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
-	{ 0x1095, 0x3531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(INTEL, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(CMD, 0x3132), BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x3131), BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3531), BID_SIL3131 },
+
 	{ } /* terminate list */
 };
 

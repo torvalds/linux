@@ -889,6 +889,7 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev;
+	unsigned long flags;
 	int max_depth;
 
 	if (queue_depth < 1)
@@ -904,6 +905,14 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 		queue_depth = max_depth;
 
 	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
+
+	spin_lock_irqsave(ap->lock, flags);
+	if (queue_depth > 1)
+		dev->flags &= ~ATA_DFLAG_NCQ_OFF;
+	else
+		dev->flags |= ATA_DFLAG_NCQ_OFF;
+	spin_unlock_irqrestore(ap->lock, flags);
+
 	return queue_depth;
 }
 
@@ -1293,7 +1302,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		 */
 		goto nothing_to_do;
 
-	if ((dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ) {
+	if ((dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ_OFF |
+			   ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ) {
 		/* yay, NCQ */
 		if (!lba_48_ok(block, n_block))
 			goto out_of_range;
@@ -3174,7 +3184,7 @@ void ata_scsi_dev_rescan(void *data)
 
 /**
  *	ata_sas_port_alloc - Allocate port for a SAS attached SATA device
- *	@pdev: PCI device that the scsi device is attached to
+ *	@host: ATA host container for all SAS ports
  *	@port_info: Information from low-level host driver
  *	@shost: SCSI host that the scsi device is attached to
  *

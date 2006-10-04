@@ -512,12 +512,13 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id optidma[] = {
-	{ PCI_DEVICE(0x1045, 0xD568), },	/* Opti 82C700 */
-	{ 0, },
+	{ PCI_VDEVICE(OPTI, 0xD568), },		/* Opti 82C700 */
+
+	{ },
 };
 
 static struct pci_driver optidma_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= optidma,
 	.probe 		= optidma_init_one,
 	.remove		= ata_pci_remove_one
@@ -528,12 +529,10 @@ static int __init optidma_init(void)
 	return pci_register_driver(&optidma_pci_driver);
 }
 
-
 static void __exit optidma_exit(void)
 {
 	pci_unregister_driver(&optidma_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Opti Firestar/Firestar Plus");

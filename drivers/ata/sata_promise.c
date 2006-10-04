@@ -234,48 +234,31 @@ static const struct ata_port_info pdc_port_info[] = {
 };
 
 static const struct pci_device_id pdc_ata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PROMISE, 0x3371, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3571, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3373, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3375, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3376, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3574, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2057x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d75, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2057x },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d73, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3371), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3570), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3571), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3373), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3375), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3376), board_2037x },
+	{ PCI_VDEVICE(PROMISE, 0x3574), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d75), board_2057x },
+	{ PCI_VDEVICE(PROMISE, 0x3d73), board_2037x },
 
-	{ PCI_VENDOR_ID_PROMISE, 0x3318, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3319, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3515, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3519, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d17, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20319 },
-	{ PCI_VENDOR_ID_PROMISE, 0x3d18, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_40518 },
+	{ PCI_VDEVICE(PROMISE, 0x3318), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3319), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3515), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3519), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3d17), board_20319 },
+	{ PCI_VDEVICE(PROMISE, 0x3d18), board_40518 },
 
-	{ PCI_VENDOR_ID_PROMISE, 0x6629, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20619 },
+	{ PCI_VDEVICE(PROMISE, 0x6629), board_20619 },
 
 /* TODO: remove all associated board_20771 code, as it completely
  * duplicates board_2037x code, unless reason for separation can be
  * divined.
  */
 #if 0
-	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_20771 },
+	{ PCI_VDEVICE(PROMISE, 0x3570), board_20771 },
 #endif
 
 	{ }	/* terminate list */

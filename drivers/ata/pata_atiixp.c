@@ -267,12 +267,13 @@ static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id atiixp[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP200_IDE), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_IDE), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_IDE), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_IDE), },
-	{ 0, },
+static const struct pci_device_id atiixp[] = {
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP200_IDE), },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP300_IDE), },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP400_IDE), },
+	{ PCI_VDEVICE(ATI, PCI_DEVICE_ID_ATI_IXP600_IDE), },
+
+	{ },
 };
 
 static struct pci_driver atiixp_pci_driver = {
@@ -292,7 +293,6 @@ static void __exit atiixp_exit(void)
 {
 	pci_unregister_driver(&atiixp_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for ATI IXP200/300/400");
