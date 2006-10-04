@@ -286,9 +286,10 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 	list_add_tail(&pcidev_info->pdi_list,
 		      &(SN_PLATFORM_DATA(dev->bus)->pcidev_info));
 
-	if (!SN_ACPI_BASE_SUPPORT())
+	if (SN_ACPI_BASE_SUPPORT())
+		sn_acpi_slot_fixup(dev, pcidev_info);
+	else
 		sn_more_slot_fixup(dev, pcidev_info);
-
 	/*
 	 * Using the PROMs values for the PCI host bus, get the Linux
  	 * PCI host_pci_dev struct and set up host bus linkages

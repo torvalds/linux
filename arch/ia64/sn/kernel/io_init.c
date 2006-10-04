@@ -210,6 +210,9 @@ sn_more_slot_fixup(struct pci_dev *dev, struct pcidev_info *pcidev_info)
 			dev->resource[idx].parent = &ioport_resource;
 		else
 			dev->resource[idx].parent = &iomem_resource;
+		/* If ROM, mark as shadowed in PROM */
+		if (idx == PCI_ROM_RESOURCE)
+			dev->resource[idx].flags |= IORESOURCE_ROM_BIOS_COPY;
 	}
 	/* Create a pci_window in the pci_controller struct for
 	 * each device resource.

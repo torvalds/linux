@@ -169,6 +169,39 @@ sn_acpi_bus_fixup(struct pci_bus *bus)
 	}
 }
 
+/*
+ * sn_acpi_slot_fixup - Perform any SN specific slot fixup.
+ *			At present there does not appear to be
+ *			any generic way to handle a ROM image
+ *			that has been shadowed by the PROM, so
+ *			we pass a pointer to it	within the
+ *			pcidev_info structure.
+ */
+
+void
+sn_acpi_slot_fixup(struct pci_dev *dev, struct pcidev_info *pcidev_info)
+{
+	void __iomem *addr;
+	size_t size;
+
+	if (pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE]) {
+		/*
+		 * A valid ROM image exists and has been shadowed by the
+		 * PROM. Setup the pci_dev ROM resource to point to
+		 * the shadowed copy.
+		 */
+		size = dev->resource[PCI_ROM_RESOURCE].end -
+				dev->resource[PCI_ROM_RESOURCE].start;
+		addr =
+		     ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
+			     size);
+		dev->resource[PCI_ROM_RESOURCE].start = (unsigned long) addr;
+		dev->resource[PCI_ROM_RESOURCE].end =
+						(unsigned long) addr + size;
+		dev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_BIOS_COPY;
+	}
+}
+
 static struct acpi_driver acpi_sn_hubdev_driver = {
 	.name = "SGI HUBDEV Driver",
 	.ids = "SGIHUB,SGITIO",
