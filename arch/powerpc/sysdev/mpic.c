@@ -341,7 +341,7 @@ static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
 		u8 id = readb(devbase + pos + PCI_CAP_LIST_ID);
 		if (id == PCI_CAP_ID_HT) {
 			id = readb(devbase + pos + 3);
-			if (id == 0x80)
+			if (id == HT_CAPTYPE_IRQ)
 				break;
 		}
 	}

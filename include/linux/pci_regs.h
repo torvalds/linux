@@ -12,6 +12,11 @@
  *	PCI Local Bus Specification
  *	PCI to PCI Bridge Specification
  *	PCI System Design Guide
+ *
+ * 	For hypertransport information, please consult the following manuals
+ * 	from http://www.hypertransport.org
+ *
+ *	The Hypertransport I/O Link Specification
  */
 
 #ifndef LINUX_PCI_REGS_H
@@ -462,5 +467,21 @@
 #define  PCI_PWR_DATA_RAIL(x)	(((x) >> 18) & 7)   /* Power Rail */
 #define PCI_PWR_CAP		12	/* Capability */
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
+
+/* Hypertransport sub capability types */
+#define HT_CAPTYPE_SLAVE	0x00	/* Slave/Primary link configuration */
+#define HT_CAPTYPE_HOST		0x20	/* Host/Secondary link configuration */
+#define HT_CAPTYPE_IRQ		0x80	/* IRQ Configuration */
+#define HT_CAPTYPE_REMAPPING_40	0xA0	/* 40 bit address remapping */
+#define HT_CAPTYPE_REMAPPING_64 0xA2	/* 64 bit address remapping */
+#define HT_CAPTYPE_UNITID_CLUMP	0x90	/* Unit ID clumping */
+#define HT_CAPTYPE_EXTCONF	0x98	/* Extended Configuration Space Access */
+#define HT_CAPTYPE_MSI_MAPPING	0xA8	/* MSI Mapping Capability */
+#define HT_CAPTYPE_DIRECT_ROUTE	0xB0	/* Direct routing configuration */
+#define HT_CAPTYPE_VCSET	0xB8	/* Virtual Channel configuration */
+#define HT_CAPTYPE_ERROR_RETRY	0xC0	/* Retry on error configuration */
+#define HT_CAPTYPE_GEN3		0xD0	/* Generation 3 hypertransport configuration */
+#define HT_CAPTYPE_PM		0xE0	/* Hypertransport powermanagement configuration */
+
 
 #endif /* LINUX_PCI_REGS_H */
