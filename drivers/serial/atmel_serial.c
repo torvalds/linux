@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/char/at91_serial.c
  *
- *  Driver for Atmel AT91RM9200 Serial ports
+ *  Driver for Atmel AT91 / AT32 Serial ports
  *  Copyright (C) 2003 Rick Bronson
  *
  *  Based on drivers/char/serial_sa1100.c, by Deep Blue Solutions Ltd.
@@ -55,51 +55,51 @@
 /* Use device name ttyAT, major 204 and minor 154-169.  This is necessary if we
  * should coexist with the 8250 driver, such as if we have an external 16C550
  * UART. */
-#define SERIAL_AT91_MAJOR	204
+#define SERIAL_ATMEL_MAJOR	204
 #define MINOR_START		154
-#define AT91_DEVICENAME		"ttyAT"
+#define ATMEL_DEVICENAME	"ttyAT"
 
 #else
 
 /* Use device name ttyS, major 4, minor 64-68.  This is the usual serial port
  * name, but it is legally reserved for the 8250 driver. */
-#define SERIAL_AT91_MAJOR	TTY_MAJOR
+#define SERIAL_ATMEL_MAJOR	TTY_MAJOR
 #define MINOR_START		64
-#define AT91_DEVICENAME		"ttyS"
+#define ATMEL_DEVICENAME	"ttyS"
 
 #endif
 
-#define AT91_ISR_PASS_LIMIT	256
+#define ATMEL_ISR_PASS_LIMIT	256
 
-#define UART_PUT_CR(port,v)	writel(v, (port)->membase + AT91_US_CR)
-#define UART_GET_MR(port)	readl((port)->membase + AT91_US_MR)
-#define UART_PUT_MR(port,v)	writel(v, (port)->membase + AT91_US_MR)
-#define UART_PUT_IER(port,v)	writel(v, (port)->membase + AT91_US_IER)
-#define UART_PUT_IDR(port,v)	writel(v, (port)->membase + AT91_US_IDR)
-#define UART_GET_IMR(port)	readl((port)->membase + AT91_US_IMR)
-#define UART_GET_CSR(port)	readl((port)->membase + AT91_US_CSR)
-#define UART_GET_CHAR(port)	readl((port)->membase + AT91_US_RHR)
-#define UART_PUT_CHAR(port,v)	writel(v, (port)->membase + AT91_US_THR)
-#define UART_GET_BRGR(port)	readl((port)->membase + AT91_US_BRGR)
-#define UART_PUT_BRGR(port,v)	writel(v, (port)->membase + AT91_US_BRGR)
-#define UART_PUT_RTOR(port,v)	writel(v, (port)->membase + AT91_US_RTOR)
+#define UART_PUT_CR(port,v)	writel(v, (port)->membase + ATMEL_US_CR)
+#define UART_GET_MR(port)	readl((port)->membase + ATMEL_US_MR)
+#define UART_PUT_MR(port,v)	writel(v, (port)->membase + ATMEL_US_MR)
+#define UART_PUT_IER(port,v)	writel(v, (port)->membase + ATMEL_US_IER)
+#define UART_PUT_IDR(port,v)	writel(v, (port)->membase + ATMEL_US_IDR)
+#define UART_GET_IMR(port)	readl((port)->membase + ATMEL_US_IMR)
+#define UART_GET_CSR(port)	readl((port)->membase + ATMEL_US_CSR)
+#define UART_GET_CHAR(port)	readl((port)->membase + ATMEL_US_RHR)
+#define UART_PUT_CHAR(port,v)	writel(v, (port)->membase + ATMEL_US_THR)
+#define UART_GET_BRGR(port)	readl((port)->membase + ATMEL_US_BRGR)
+#define UART_PUT_BRGR(port,v)	writel(v, (port)->membase + ATMEL_US_BRGR)
+#define UART_PUT_RTOR(port,v)	writel(v, (port)->membase + ATMEL_US_RTOR)
 
-// #define UART_GET_CR(port)	readl((port)->membase + AT91_US_CR)		// is write-only
+// #define UART_GET_CR(port)	readl((port)->membase + ATMEL_US_CR)		// is write-only
 
  /* PDC registers */
-#define UART_PUT_PTCR(port,v)	writel(v, (port)->membase + AT91_PDC_PTCR)
-#define UART_GET_PTSR(port)	readl((port)->membase + AT91_PDC_PTSR)
+#define UART_PUT_PTCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_PTCR)
+#define UART_GET_PTSR(port)	readl((port)->membase + ATMEL_PDC_PTSR)
 
-#define UART_PUT_RPR(port,v)	writel(v, (port)->membase + AT91_PDC_RPR)
-#define UART_GET_RPR(port)	readl((port)->membase + AT91_PDC_RPR)
-#define UART_PUT_RCR(port,v)	writel(v, (port)->membase + AT91_PDC_RCR)
-#define UART_PUT_RNPR(port,v)	writel(v, (port)->membase + AT91_PDC_RNPR)
-#define UART_PUT_RNCR(port,v)	writel(v, (port)->membase + AT91_PDC_RNCR)
+#define UART_PUT_RPR(port,v)	writel(v, (port)->membase + ATMEL_PDC_RPR)
+#define UART_GET_RPR(port)	readl((port)->membase + ATMEL_PDC_RPR)
+#define UART_PUT_RCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_RCR)
+#define UART_PUT_RNPR(port,v)	writel(v, (port)->membase + ATMEL_PDC_RNPR)
+#define UART_PUT_RNCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_RNCR)
 
-#define UART_PUT_TPR(port,v)	writel(v, (port)->membase + AT91_PDC_TPR)
-#define UART_PUT_TCR(port,v)	writel(v, (port)->membase + AT91_PDC_TCR)
-//#define UART_PUT_TNPR(port,v)	writel(v, (port)->membase + AT91_PDC_TNPR)
-//#define UART_PUT_TNCR(port,v)	writel(v, (port)->membase + AT91_PDC_TNCR)
+#define UART_PUT_TPR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TPR)
+#define UART_PUT_TCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TCR)
+//#define UART_PUT_TNPR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TNPR)
+//#define UART_PUT_TNCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TNCR)
 
 static int (*at91_open)(struct uart_port *);
 static void (*at91_close)(struct uart_port *);
@@ -107,30 +107,30 @@ static void (*at91_close)(struct uart_port *);
 /*
  * We wrap our port structure around the generic uart_port.
  */
-struct at91_uart_port {
+struct atmel_uart_port {
 	struct uart_port	uart;		/* uart */
 	struct clk		*clk;		/* uart clock */
 	unsigned short		suspended;	/* is port suspended? */
 };
 
-static struct at91_uart_port at91_ports[ATMEL_MAX_UART];
+static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
 
 #ifdef SUPPORT_SYSRQ
-static struct console at91_console;
+static struct console atmel_console;
 #endif
 
 /*
  * Return TIOCSER_TEMT when transmitter FIFO and Shift register is empty.
  */
-static u_int at91_tx_empty(struct uart_port *port)
+static u_int atmel_tx_empty(struct uart_port *port)
 {
-	return (UART_GET_CSR(port) & AT91_US_TXEMPTY) ? TIOCSER_TEMT : 0;
+	return (UART_GET_CSR(port) & ATMEL_US_TXEMPTY) ? TIOCSER_TEMT : 0;
 }
 
 /*
  * Set state of the modem control output lines
  */
-static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
+static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 {
 	unsigned int control = 0;
 	unsigned int mode;
@@ -149,30 +149,30 @@ static void at91_set_mctrl(struct uart_port *port, u_int mctrl)
 	}
 
 	if (mctrl & TIOCM_RTS)
-		control |= AT91_US_RTSEN;
+		control |= ATMEL_US_RTSEN;
 	else
-		control |= AT91_US_RTSDIS;
+		control |= ATMEL_US_RTSDIS;
 
 	if (mctrl & TIOCM_DTR)
-		control |= AT91_US_DTREN;
+		control |= ATMEL_US_DTREN;
 	else
-		control |= AT91_US_DTRDIS;
+		control |= ATMEL_US_DTRDIS;
 
 	UART_PUT_CR(port, control);
 
 	/* Local loopback mode? */
-	mode = UART_GET_MR(port) & ~AT91_US_CHMODE;
+	mode = UART_GET_MR(port) & ~ATMEL_US_CHMODE;
 	if (mctrl & TIOCM_LOOP)
-		mode |= AT91_US_CHMODE_LOC_LOOP;
+		mode |= ATMEL_US_CHMODE_LOC_LOOP;
 	else
-		mode |= AT91_US_CHMODE_NORMAL;
+		mode |= ATMEL_US_CHMODE_NORMAL;
 	UART_PUT_MR(port, mode);
 }
 
 /*
  * Get state of the modem control input lines
  */
-static u_int at91_get_mctrl(struct uart_port *port)
+static u_int atmel_get_mctrl(struct uart_port *port)
 {
 	unsigned int status, ret = 0;
 
@@ -181,13 +181,13 @@ static u_int at91_get_mctrl(struct uart_port *port)
 	/*
 	 * The control signals are active low.
 	 */
-	if (!(status & AT91_US_DCD))
+	if (!(status & ATMEL_US_DCD))
 		ret |= TIOCM_CD;
-	if (!(status & AT91_US_CTS))
+	if (!(status & ATMEL_US_CTS))
 		ret |= TIOCM_CTS;
-	if (!(status & AT91_US_DSR))
+	if (!(status & ATMEL_US_DSR))
 		ret |= TIOCM_DSR;
-	if (!(status & AT91_US_RI))
+	if (!(status & ATMEL_US_RI))
 		ret |= TIOCM_RI;
 
 	return ret;
@@ -196,62 +196,62 @@ static u_int at91_get_mctrl(struct uart_port *port)
 /*
  * Stop transmitting.
  */
-static void at91_stop_tx(struct uart_port *port)
+static void atmel_stop_tx(struct uart_port *port)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
-	UART_PUT_IDR(port, AT91_US_TXRDY);
+	UART_PUT_IDR(port, ATMEL_US_TXRDY);
 }
 
 /*
  * Start transmitting.
  */
-static void at91_start_tx(struct uart_port *port)
+static void atmel_start_tx(struct uart_port *port)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
-	UART_PUT_IER(port, AT91_US_TXRDY);
+	UART_PUT_IER(port, ATMEL_US_TXRDY);
 }
 
 /*
  * Stop receiving - port is in process of being closed.
  */
-static void at91_stop_rx(struct uart_port *port)
+static void atmel_stop_rx(struct uart_port *port)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
-	UART_PUT_IDR(port, AT91_US_RXRDY);
+	UART_PUT_IDR(port, ATMEL_US_RXRDY);
 }
 
 /*
  * Enable modem status interrupts
  */
-static void at91_enable_ms(struct uart_port *port)
+static void atmel_enable_ms(struct uart_port *port)
 {
-	UART_PUT_IER(port, AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC);
+	UART_PUT_IER(port, ATMEL_US_RIIC | ATMEL_US_DSRIC | ATMEL_US_DCDIC | ATMEL_US_CTSIC);
 }
 
 /*
  * Control the transmission of a break signal
  */
-static void at91_break_ctl(struct uart_port *port, int break_state)
+static void atmel_break_ctl(struct uart_port *port, int break_state)
 {
 	if (break_state != 0)
-		UART_PUT_CR(port, AT91_US_STTBRK);	/* start break */
+		UART_PUT_CR(port, ATMEL_US_STTBRK);	/* start break */
 	else
-		UART_PUT_CR(port, AT91_US_STPBRK);	/* stop break */
+		UART_PUT_CR(port, ATMEL_US_STPBRK);	/* stop break */
 }
 
 /*
  * Characters received (called from interrupt handler)
  */
-static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
+static void atmel_rx_chars(struct uart_port *port, struct pt_regs *regs)
 {
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flg;
 
 	status = UART_GET_CSR(port);
-	while (status & AT91_US_RXRDY) {
+	while (status & ATMEL_US_RXRDY) {
 		ch = UART_GET_CHAR(port);
 
 		port->icount.rx++;
@@ -262,35 +262,35 @@ static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
 		 * note that the error handling code is
 		 * out of the main execution path
 		 */
-		if (unlikely(status & (AT91_US_PARE | AT91_US_FRAME | AT91_US_OVRE | AT91_US_RXBRK))) {
-			UART_PUT_CR(port, AT91_US_RSTSTA);	/* clear error */
-			if (status & AT91_US_RXBRK) {
-				status &= ~(AT91_US_PARE | AT91_US_FRAME);	/* ignore side-effect */
+		if (unlikely(status & (ATMEL_US_PARE | ATMEL_US_FRAME | ATMEL_US_OVRE | ATMEL_US_RXBRK))) {
+			UART_PUT_CR(port, ATMEL_US_RSTSTA);	/* clear error */
+			if (status & ATMEL_US_RXBRK) {
+				status &= ~(ATMEL_US_PARE | ATMEL_US_FRAME);	/* ignore side-effect */
 				port->icount.brk++;
 				if (uart_handle_break(port))
 					goto ignore_char;
 			}
-			if (status & AT91_US_PARE)
+			if (status & ATMEL_US_PARE)
 				port->icount.parity++;
-			if (status & AT91_US_FRAME)
+			if (status & ATMEL_US_FRAME)
 				port->icount.frame++;
-			if (status & AT91_US_OVRE)
+			if (status & ATMEL_US_OVRE)
 				port->icount.overrun++;
 
 			status &= port->read_status_mask;
 
-			if (status & AT91_US_RXBRK)
+			if (status & ATMEL_US_RXBRK)
 				flg = TTY_BREAK;
-			else if (status & AT91_US_PARE)
+			else if (status & ATMEL_US_PARE)
 				flg = TTY_PARITY;
-			else if (status & AT91_US_FRAME)
+			else if (status & ATMEL_US_FRAME)
 				flg = TTY_FRAME;
 		}
 
 		if (uart_handle_sysrq_char(port, ch, regs))
 			goto ignore_char;
 
-		uart_insert_char(port, status, AT91_US_OVRE, ch, flg);
+		uart_insert_char(port, status, ATMEL_US_OVRE, ch, flg);
 
 	ignore_char:
 		status = UART_GET_CSR(port);
@@ -302,7 +302,7 @@ static void at91_rx_chars(struct uart_port *port, struct pt_regs *regs)
 /*
  * Transmit characters (called from interrupt handler)
  */
-static void at91_tx_chars(struct uart_port *port)
+static void atmel_tx_chars(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->info->xmit;
 
@@ -313,11 +313,11 @@ static void at91_tx_chars(struct uart_port *port)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		at91_stop_tx(port);
+		atmel_stop_tx(port);
 		return;
 	}
 
-	while (UART_GET_CSR(port) & AT91_US_TXRDY) {
+	while (UART_GET_CSR(port) & ATMEL_US_TXRDY) {
 		UART_PUT_CHAR(port, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
@@ -329,40 +329,40 @@ static void at91_tx_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		at91_stop_tx(port);
+		atmel_stop_tx(port);
 }
 
 /*
  * Interrupt handler
  */
-static irqreturn_t at91_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t atmel_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct uart_port *port = dev_id;
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 	unsigned int status, pending, pass_counter = 0;
 
 	status = UART_GET_CSR(port);
 	pending = status & UART_GET_IMR(port);
 	while (pending) {
 		/* Interrupt receive */
-		if (pending & AT91_US_RXRDY)
-			at91_rx_chars(port, regs);
+		if (pending & ATMEL_US_RXRDY)
+			atmel_rx_chars(port, regs);
 
 		// TODO: All reads to CSR will clear these interrupts!
-		if (pending & AT91_US_RIIC) port->icount.rng++;
-		if (pending & AT91_US_DSRIC) port->icount.dsr++;
-		if (pending & AT91_US_DCDIC)
-			uart_handle_dcd_change(port, !(status & AT91_US_DCD));
-		if (pending & AT91_US_CTSIC)
-			uart_handle_cts_change(port, !(status & AT91_US_CTS));
-		if (pending & (AT91_US_RIIC | AT91_US_DSRIC | AT91_US_DCDIC | AT91_US_CTSIC))
+		if (pending & ATMEL_US_RIIC) port->icount.rng++;
+		if (pending & ATMEL_US_DSRIC) port->icount.dsr++;
+		if (pending & ATMEL_US_DCDIC)
+			uart_handle_dcd_change(port, !(status & ATMEL_US_DCD));
+		if (pending & ATMEL_US_CTSIC)
+			uart_handle_cts_change(port, !(status & ATMEL_US_CTS));
+		if (pending & (ATMEL_US_RIIC | ATMEL_US_DSRIC | ATMEL_US_DCDIC | ATMEL_US_CTSIC))
 			wake_up_interruptible(&port->info->delta_msr_wait);
 
 		/* Interrupt transmit */
-		if (pending & AT91_US_TXRDY)
-			at91_tx_chars(port);
+		if (pending & ATMEL_US_TXRDY)
+			atmel_tx_chars(port);
 
-		if (pass_counter++ > AT91_ISR_PASS_LIMIT)
+		if (pass_counter++ > ATMEL_ISR_PASS_LIMIT)
 			break;
 
 		status = UART_GET_CSR(port);
@@ -374,9 +374,9 @@ static irqreturn_t at91_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 /*
  * Perform initialization and enable port for reception
  */
-static int at91_startup(struct uart_port *port)
+static int atmel_startup(struct uart_port *port)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 	int retval;
 
 	/*
@@ -389,9 +389,9 @@ static int at91_startup(struct uart_port *port)
 	/*
 	 * Allocate the IRQ
 	 */
-	retval = request_irq(port->irq, at91_interrupt, IRQF_SHARED, "at91_serial", port);
+	retval = request_irq(port->irq, atmel_interrupt, IRQF_SHARED, "atmel_serial", port);
 	if (retval) {
-		printk("at91_serial: at91_startup - Can't get irq\n");
+		printk("atmel_serial: atmel_startup - Can't get irq\n");
 		return retval;
 	}
 
@@ -410,10 +410,10 @@ static int at91_startup(struct uart_port *port)
 	/*
 	 * Finally, enable the serial port
 	 */
-	UART_PUT_CR(port, AT91_US_RSTSTA | AT91_US_RSTRX);
-	UART_PUT_CR(port, AT91_US_TXEN | AT91_US_RXEN);		/* enable xmit & rcvr */
+	UART_PUT_CR(port, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
+	UART_PUT_CR(port, ATMEL_US_TXEN | ATMEL_US_RXEN);		/* enable xmit & rcvr */
 
-	UART_PUT_IER(port, AT91_US_RXRDY);		/* enable receive only */
+	UART_PUT_IER(port, ATMEL_US_RXRDY);		/* enable receive only */
 
 	return 0;
 }
@@ -421,14 +421,14 @@ static int at91_startup(struct uart_port *port)
 /*
  * Disable the port
  */
-static void at91_shutdown(struct uart_port *port)
+static void atmel_shutdown(struct uart_port *port)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
 	/*
 	 * Disable all interrupts, port and break condition.
 	 */
-	UART_PUT_CR(port, AT91_US_RSTSTA);
+	UART_PUT_CR(port, ATMEL_US_RSTSTA);
 	UART_PUT_IDR(port, -1);
 
 	/*
@@ -447,9 +447,9 @@ static void at91_shutdown(struct uart_port *port)
 /*
  * Power / Clock management.
  */
-static void at91_serial_pm(struct uart_port *port, unsigned int state, unsigned int oldstate)
+static void atmel_serial_pm(struct uart_port *port, unsigned int state, unsigned int oldstate)
 {
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
 	switch (state) {
 		case 0:
@@ -457,24 +457,24 @@ static void at91_serial_pm(struct uart_port *port, unsigned int state, unsigned 
 			 * Enable the peripheral clock for this serial port.
 			 * This is called on uart_open() or a resume event.
 			 */
-			clk_enable(at91_port->clk);
+			clk_enable(atmel_port->clk);
 			break;
 		case 3:
 			/*
 			 * Disable the peripheral clock for this serial port.
 			 * This is called on uart_close() or a suspend event.
 			 */
-			clk_disable(at91_port->clk);
+			clk_disable(atmel_port->clk);
 			break;
 		default:
-			printk(KERN_ERR "at91_serial: unknown pm %d\n", state);
+			printk(KERN_ERR "atmel_serial: unknown pm %d\n", state);
 	}
 }
 
 /*
  * Change the port parameters
  */
-static void at91_set_termios(struct uart_port *port, struct termios * termios, struct termios * old)
+static void atmel_set_termios(struct uart_port *port, struct termios * termios, struct termios * old)
 {
 	unsigned long flags;
 	unsigned int mode, imr, quot, baud;
@@ -483,66 +483,66 @@ static void at91_set_termios(struct uart_port *port, struct termios * termios, s
 	quot = uart_get_divisor(port, baud);
 
 	/* Get current mode register */
-	mode = UART_GET_MR(port) & ~(AT91_US_CHRL | AT91_US_NBSTOP | AT91_US_PAR);
+	mode = UART_GET_MR(port) & ~(ATMEL_US_CHRL | ATMEL_US_NBSTOP | ATMEL_US_PAR);
 
 	/* byte size */
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		mode |= AT91_US_CHRL_5;
+		mode |= ATMEL_US_CHRL_5;
 		break;
 	case CS6:
-		mode |= AT91_US_CHRL_6;
+		mode |= ATMEL_US_CHRL_6;
 		break;
 	case CS7:
-		mode |= AT91_US_CHRL_7;
+		mode |= ATMEL_US_CHRL_7;
 		break;
 	default:
-		mode |= AT91_US_CHRL_8;
+		mode |= ATMEL_US_CHRL_8;
 		break;
 	}
 
 	/* stop bits */
 	if (termios->c_cflag & CSTOPB)
-		mode |= AT91_US_NBSTOP_2;
+		mode |= ATMEL_US_NBSTOP_2;
 
 	/* parity */
 	if (termios->c_cflag & PARENB) {
 		if (termios->c_cflag & CMSPAR) {			/* Mark or Space parity */
 			if (termios->c_cflag & PARODD)
-				mode |= AT91_US_PAR_MARK;
+				mode |= ATMEL_US_PAR_MARK;
 			else
-				mode |= AT91_US_PAR_SPACE;
+				mode |= ATMEL_US_PAR_SPACE;
 		}
 		else if (termios->c_cflag & PARODD)
-			mode |= AT91_US_PAR_ODD;
+			mode |= ATMEL_US_PAR_ODD;
 		else
-			mode |= AT91_US_PAR_EVEN;
+			mode |= ATMEL_US_PAR_EVEN;
 	}
 	else
-		mode |= AT91_US_PAR_NONE;
+		mode |= ATMEL_US_PAR_NONE;
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	port->read_status_mask = AT91_US_OVRE;
+	port->read_status_mask = ATMEL_US_OVRE;
 	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= (AT91_US_FRAME | AT91_US_PARE);
+		port->read_status_mask |= (ATMEL_US_FRAME | ATMEL_US_PARE);
 	if (termios->c_iflag & (BRKINT | PARMRK))
-		port->read_status_mask |= AT91_US_RXBRK;
+		port->read_status_mask |= ATMEL_US_RXBRK;
 
 	/*
 	 * Characters to ignore
 	 */
 	port->ignore_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= (AT91_US_FRAME | AT91_US_PARE);
+		port->ignore_status_mask |= (ATMEL_US_FRAME | ATMEL_US_PARE);
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= AT91_US_RXBRK;
+		port->ignore_status_mask |= ATMEL_US_RXBRK;
 		/*
 		 * If we're ignoring parity and break indicators,
 		 * ignore overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= AT91_US_OVRE;
+			port->ignore_status_mask |= ATMEL_US_OVRE;
 	}
 
 	// TODO: Ignore all characters if CREAD is set.
@@ -553,18 +553,18 @@ static void at91_set_termios(struct uart_port *port, struct termios * termios, s
 	/* disable interrupts and drain transmitter */
 	imr = UART_GET_IMR(port);	/* get interrupt mask */
 	UART_PUT_IDR(port, -1);		/* disable all interrupts */
-	while (!(UART_GET_CSR(port) & AT91_US_TXEMPTY)) { barrier(); }
+	while (!(UART_GET_CSR(port) & ATMEL_US_TXEMPTY)) { barrier(); }
 
 	/* disable receiver and transmitter */
-	UART_PUT_CR(port, AT91_US_TXDIS | AT91_US_RXDIS);
+	UART_PUT_CR(port, ATMEL_US_TXDIS | ATMEL_US_RXDIS);
 
 	/* set the parity, stop bits and data size */
 	UART_PUT_MR(port, mode);
 
 	/* set the baud rate */
 	UART_PUT_BRGR(port, quot);
-	UART_PUT_CR(port, AT91_US_RSTSTA | AT91_US_RSTRX);
-	UART_PUT_CR(port, AT91_US_TXEN | AT91_US_RXEN);
+	UART_PUT_CR(port, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
+	UART_PUT_CR(port, ATMEL_US_TXEN | ATMEL_US_RXEN);
 
 	/* restore interrupts */
 	UART_PUT_IER(port, imr);
@@ -579,15 +579,15 @@ static void at91_set_termios(struct uart_port *port, struct termios * termios, s
 /*
  * Return string describing the specified port
  */
-static const char *at91_type(struct uart_port *port)
+static const char *atmel_type(struct uart_port *port)
 {
-	return (port->type == PORT_AT91) ? "AT91_SERIAL" : NULL;
+	return (port->type == PORT_AT91) ? "ATMEL_SERIAL" : NULL;
 }
 
 /*
  * Release the memory region(s) being used by 'port'.
  */
-static void at91_release_port(struct uart_port *port)
+static void atmel_release_port(struct uart_port *port)
 {
 	struct platform_device *pdev = to_platform_device(port->dev);
 	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
@@ -603,12 +603,12 @@ static void at91_release_port(struct uart_port *port)
 /*
  * Request the memory region(s) being used by 'port'.
  */
-static int at91_request_port(struct uart_port *port)
+static int atmel_request_port(struct uart_port *port)
 {
 	struct platform_device *pdev = to_platform_device(port->dev);
 	int size = pdev->resource[0].end - pdev->resource[0].start + 1;
 
-	if (!request_mem_region(port->mapbase, size, "at91_serial"))
+	if (!request_mem_region(port->mapbase, size, "atmel_serial"))
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
@@ -625,18 +625,18 @@ static int at91_request_port(struct uart_port *port)
 /*
  * Configure/autoconfigure the port.
  */
-static void at91_config_port(struct uart_port *port, int flags)
+static void atmel_config_port(struct uart_port *port, int flags)
 {
 	if (flags & UART_CONFIG_TYPE) {
 		port->type = PORT_AT91;
-		at91_request_port(port);
+		atmel_request_port(port);
 	}
 }
 
 /*
  * Verify the new serial_struct (for TIOCSSERIAL).
  */
-static int at91_verify_port(struct uart_port *port, struct serial_struct *ser)
+static int atmel_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AT91)
@@ -656,37 +656,37 @@ static int at91_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
-static struct uart_ops at91_pops = {
-	.tx_empty	= at91_tx_empty,
-	.set_mctrl	= at91_set_mctrl,
-	.get_mctrl	= at91_get_mctrl,
-	.stop_tx	= at91_stop_tx,
-	.start_tx	= at91_start_tx,
-	.stop_rx	= at91_stop_rx,
-	.enable_ms	= at91_enable_ms,
-	.break_ctl	= at91_break_ctl,
-	.startup	= at91_startup,
-	.shutdown	= at91_shutdown,
-	.set_termios	= at91_set_termios,
-	.type		= at91_type,
-	.release_port	= at91_release_port,
-	.request_port	= at91_request_port,
-	.config_port	= at91_config_port,
-	.verify_port	= at91_verify_port,
-	.pm		= at91_serial_pm,
+static struct uart_ops atmel_pops = {
+	.tx_empty	= atmel_tx_empty,
+	.set_mctrl	= atmel_set_mctrl,
+	.get_mctrl	= atmel_get_mctrl,
+	.stop_tx	= atmel_stop_tx,
+	.start_tx	= atmel_start_tx,
+	.stop_rx	= atmel_stop_rx,
+	.enable_ms	= atmel_enable_ms,
+	.break_ctl	= atmel_break_ctl,
+	.startup	= atmel_startup,
+	.shutdown	= atmel_shutdown,
+	.set_termios	= atmel_set_termios,
+	.type		= atmel_type,
+	.release_port	= atmel_release_port,
+	.request_port	= atmel_request_port,
+	.config_port	= atmel_config_port,
+	.verify_port	= atmel_verify_port,
+	.pm		= atmel_serial_pm,
 };
 
 /*
  * Configure the port from the platform device resource info.
  */
-static void __devinit at91_init_port(struct at91_uart_port *at91_port, struct platform_device *pdev)
+static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port, struct platform_device *pdev)
 {
-	struct uart_port *port = &at91_port->uart;
+	struct uart_port *port = &atmel_port->uart;
 	struct atmel_uart_data *data = pdev->dev.platform_data;
 
 	port->iotype	= UPIO_MEM;
 	port->flags     = UPF_BOOT_AUTOCONF;
-	port->ops	= &at91_pops;
+	port->ops	= &atmel_pops;
 	port->fifosize  = 1;
 	port->line	= pdev->id;
 	port->dev	= &pdev->dev;
@@ -701,10 +701,10 @@ static void __devinit at91_init_port(struct at91_uart_port *at91_port, struct pl
 		port->membase	= NULL;
 	}
 
-	if (!at91_port->clk) {		/* for console, the clock could already be configured */
-		at91_port->clk = clk_get(&pdev->dev, "usart");
-		clk_enable(at91_port->clk);
-		port->uartclk = clk_get_rate(at91_port->clk);
+	if (!atmel_port->clk) {		/* for console, the clock could already be configured */
+		atmel_port->clk = clk_get(&pdev->dev, "usart");
+		clk_enable(atmel_port->clk);
+		port->uartclk = clk_get_rate(atmel_port->clk);
 	}
 }
 
@@ -714,22 +714,22 @@ static void __devinit at91_init_port(struct at91_uart_port *at91_port, struct pl
 void __init at91_register_uart_fns(struct at91_port_fns *fns)
 {
 	if (fns->enable_ms)
-		at91_pops.enable_ms = fns->enable_ms;
+		atmel_pops.enable_ms = fns->enable_ms;
 	if (fns->get_mctrl)
-		at91_pops.get_mctrl = fns->get_mctrl;
+		atmel_pops.get_mctrl = fns->get_mctrl;
 	if (fns->set_mctrl)
-		at91_pops.set_mctrl = fns->set_mctrl;
-	at91_open          = fns->open;
-	at91_close         = fns->close;
-	at91_pops.pm       = fns->pm;
-	at91_pops.set_wake = fns->set_wake;
+		atmel_pops.set_mctrl = fns->set_mctrl;
+	at91_open		= fns->open;
+	at91_close		= fns->close;
+	atmel_pops.pm		= fns->pm;
+	atmel_pops.set_wake	= fns->set_wake;
 }
 
 
 #ifdef CONFIG_SERIAL_ATMEL_CONSOLE
-static void at91_console_putchar(struct uart_port *port, int ch)
+static void atmel_console_putchar(struct uart_port *port, int ch)
 {
-	while (!(UART_GET_CSR(port) & AT91_US_TXRDY))
+	while (!(UART_GET_CSR(port) & ATMEL_US_TXRDY))
 		barrier();
 	UART_PUT_CHAR(port, ch);
 }
@@ -737,18 +737,18 @@ static void at91_console_putchar(struct uart_port *port, int ch)
 /*
  * Interrupts are disabled on entering
  */
-static void at91_console_write(struct console *co, const char *s, u_int count)
+static void atmel_console_write(struct console *co, const char *s, u_int count)
 {
-	struct uart_port *port = &at91_ports[co->index].uart;
+	struct uart_port *port = &atmel_ports[co->index].uart;
 	unsigned int status, imr;
 
 	/*
 	 *	First, save IMR and then disable interrupts
 	 */
 	imr = UART_GET_IMR(port);	/* get interrupt mask */
-	UART_PUT_IDR(port, AT91_US_RXRDY | AT91_US_TXRDY);
+	UART_PUT_IDR(port, ATMEL_US_RXRDY | ATMEL_US_TXRDY);
 
-	uart_console_write(port, s, count, at91_console_putchar);
+	uart_console_write(port, s, count, atmel_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -756,7 +756,7 @@ static void at91_console_write(struct console *co, const char *s, u_int count)
 	 */
 	do {
 		status = UART_GET_CSR(port);
-	} while (!(status & AT91_US_TXRDY));
+	} while (!(status & ATMEL_US_TXRDY));
 	UART_PUT_IER(port, imr);	/* set interrupts back the way they were */
 }
 
@@ -764,37 +764,37 @@ static void at91_console_write(struct console *co, const char *s, u_int count)
  * If the port was already initialised (eg, by a boot loader), try to determine
  * the current setup.
  */
-static void __init at91_console_get_options(struct uart_port *port, int *baud, int *parity, int *bits)
+static void __init atmel_console_get_options(struct uart_port *port, int *baud, int *parity, int *bits)
 {
 	unsigned int mr, quot;
 
 // TODO: CR is a write-only register
 //	unsigned int cr;
 //
-//	cr = UART_GET_CR(port) & (AT91_US_RXEN | AT91_US_TXEN);
-//	if (cr == (AT91_US_RXEN | AT91_US_TXEN)) {
+//	cr = UART_GET_CR(port) & (ATMEL_US_RXEN | ATMEL_US_TXEN);
+//	if (cr == (ATMEL_US_RXEN | ATMEL_US_TXEN)) {
 //		/* ok, the port was enabled */
 //	}
 
-	mr = UART_GET_MR(port) & AT91_US_CHRL;
-	if (mr == AT91_US_CHRL_8)
+	mr = UART_GET_MR(port) & ATMEL_US_CHRL;
+	if (mr == ATMEL_US_CHRL_8)
 		*bits = 8;
 	else
 		*bits = 7;
 
-	mr = UART_GET_MR(port) & AT91_US_PAR;
-	if (mr == AT91_US_PAR_EVEN)
+	mr = UART_GET_MR(port) & ATMEL_US_PAR;
+	if (mr == ATMEL_US_PAR_EVEN)
 		*parity = 'e';
-	else if (mr == AT91_US_PAR_ODD)
+	else if (mr == ATMEL_US_PAR_ODD)
 		*parity = 'o';
 
 	quot = UART_GET_BRGR(port);
 	*baud = port->uartclk / (16 * (quot));
 }
 
-static int __init at91_console_setup(struct console *co, char *options)
+static int __init atmel_console_setup(struct console *co, char *options)
 {
-	struct uart_port *port = &at91_ports[co->index].uart;
+	struct uart_port *port = &atmel_ports[co->index].uart;
 	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
@@ -804,115 +804,115 @@ static int __init at91_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	UART_PUT_IDR(port, -1);				/* disable interrupts */
-	UART_PUT_CR(port, AT91_US_RSTSTA | AT91_US_RSTRX);
-	UART_PUT_CR(port, AT91_US_TXEN | AT91_US_RXEN);
+	UART_PUT_CR(port, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
+	UART_PUT_CR(port, ATMEL_US_TXEN | ATMEL_US_RXEN);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
-		at91_console_get_options(port, &baud, &parity, &bits);
+		atmel_console_get_options(port, &baud, &parity, &bits);
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static struct uart_driver at91_uart;
+static struct uart_driver atmel_uart;
 
-static struct console at91_console = {
-	.name		= AT91_DEVICENAME,
-	.write		= at91_console_write,
+static struct console atmel_console = {
+	.name		= ATMEL_DEVICENAME,
+	.write		= atmel_console_write,
 	.device		= uart_console_device,
-	.setup		= at91_console_setup,
+	.setup		= atmel_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
-	.data		= &at91_uart,
+	.data		= &atmel_uart,
 };
 
-#define AT91_CONSOLE_DEVICE	&at91_console
+#define ATMEL_CONSOLE_DEVICE	&atmel_console
 
 /*
  * Early console initialization (before VM subsystem initialized).
  */
-static int __init at91_console_init(void)
+static int __init atmel_console_init(void)
 {
 	if (atmel_default_console_device) {
-		add_preferred_console(AT91_DEVICENAME, atmel_default_console_device->id, NULL);
-		at91_init_port(&(at91_ports[atmel_default_console_device->id]), atmel_default_console_device);
-		register_console(&at91_console);
+		add_preferred_console(ATMEL_DEVICENAME, atmel_default_console_device->id, NULL);
+		atmel_init_port(&(atmel_ports[atmel_default_console_device->id]), atmel_default_console_device);
+		register_console(&atmel_console);
 	}
 
 	return 0;
 }
-console_initcall(at91_console_init);
+console_initcall(atmel_console_init);
 
 /*
  * Late console initialization.
  */
-static int __init at91_late_console_init(void)
+static int __init atmel_late_console_init(void)
 {
-	if (atmel_default_console_device && !(at91_console.flags & CON_ENABLED))
-		register_console(&at91_console);
+	if (atmel_default_console_device && !(atmel_console.flags & CON_ENABLED))
+		register_console(&atmel_console);
 
 	return 0;
 }
-core_initcall(at91_late_console_init);
+core_initcall(atmel_late_console_init);
 
 #else
-#define AT91_CONSOLE_DEVICE	NULL
+#define ATMEL_CONSOLE_DEVICE	NULL
 #endif
 
-static struct uart_driver at91_uart = {
+static struct uart_driver atmel_uart = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "at91_serial",
-	.dev_name		= AT91_DEVICENAME,
-	.major			= SERIAL_AT91_MAJOR,
+	.driver_name		= "atmel_serial",
+	.dev_name		= ATMEL_DEVICENAME,
+	.major			= SERIAL_ATMEL_MAJOR,
 	.minor			= MINOR_START,
 	.nr			= ATMEL_MAX_UART,
-	.cons			= AT91_CONSOLE_DEVICE,
+	.cons			= ATMEL_CONSOLE_DEVICE,
 };
 
 #ifdef CONFIG_PM
-static int at91_serial_suspend(struct platform_device *pdev, pm_message_t state)
+static int atmel_serial_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
 	if (device_may_wakeup(&pdev->dev) && !at91_suspend_entering_slow_clock())
 		enable_irq_wake(port->irq);
 	else {
 		disable_irq_wake(port->irq);
-		uart_suspend_port(&at91_uart, port);
-		at91_port->suspended = 1;
+		uart_suspend_port(&atmel_uart, port);
+		atmel_port->suspended = 1;
 	}
 
 	return 0;
 }
 
-static int at91_serial_resume(struct platform_device *pdev)
+static int atmel_serial_resume(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 
-	if (at91_port->suspended) {
-		uart_resume_port(&at91_uart, port);
-		at91_port->suspended = 0;
+	if (atmel_port->suspended) {
+		uart_resume_port(&atmel_uart, port);
+		atmel_port->suspended = 0;
 	}
 
 	return 0;
 }
 #else
-#define at91_serial_suspend NULL
-#define at91_serial_resume NULL
+#define atmel_serial_suspend NULL
+#define atmel_serial_resume NULL
 #endif
 
-static int __devinit at91_serial_probe(struct platform_device *pdev)
+static int __devinit atmel_serial_probe(struct platform_device *pdev)
 {
-	struct at91_uart_port *port;
+	struct atmel_uart_port *port;
 	int ret;
 
-	port = &at91_ports[pdev->id];
-	at91_init_port(port, pdev);
+	port = &atmel_ports[pdev->id];
+	atmel_init_port(port, pdev);
 
-	ret = uart_add_one_port(&at91_uart, &port->uart);
+	ret = uart_add_one_port(&atmel_uart, &port->uart);
 	if (!ret) {
 		device_init_wakeup(&pdev->dev, 1);
 		platform_set_drvdata(pdev, port);
@@ -921,61 +921,61 @@ static int __devinit at91_serial_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit at91_serial_remove(struct platform_device *pdev)
+static int __devexit atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct at91_uart_port *at91_port = (struct at91_uart_port *) port;
+	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
 	int ret = 0;
 
-	clk_disable(at91_port->clk);
-	clk_put(at91_port->clk);
+	clk_disable(atmel_port->clk);
+	clk_put(atmel_port->clk);
 
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
 	if (port) {
-		ret = uart_remove_one_port(&at91_uart, port);
+		ret = uart_remove_one_port(&atmel_uart, port);
 		kfree(port);
 	}
 
 	return ret;
 }
 
-static struct platform_driver at91_serial_driver = {
-	.probe		= at91_serial_probe,
-	.remove		= __devexit_p(at91_serial_remove),
-	.suspend	= at91_serial_suspend,
-	.resume		= at91_serial_resume,
+static struct platform_driver atmel_serial_driver = {
+	.probe		= atmel_serial_probe,
+	.remove		= __devexit_p(atmel_serial_remove),
+	.suspend	= atmel_serial_suspend,
+	.resume		= atmel_serial_resume,
 	.driver		= {
 		.name	= "atmel_usart",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init at91_serial_init(void)
+static int __init atmel_serial_init(void)
 {
 	int ret;
 
-	ret = uart_register_driver(&at91_uart);
+	ret = uart_register_driver(&atmel_uart);
 	if (ret)
 		return ret;
 
-	ret = platform_driver_register(&at91_serial_driver);
+	ret = platform_driver_register(&atmel_serial_driver);
 	if (ret)
-		uart_unregister_driver(&at91_uart);
+		uart_unregister_driver(&atmel_uart);
 
 	return ret;
 }
 
-static void __exit at91_serial_exit(void)
+static void __exit atmel_serial_exit(void)
 {
-	platform_driver_unregister(&at91_serial_driver);
-	uart_unregister_driver(&at91_uart);
+	platform_driver_unregister(&atmel_serial_driver);
+	uart_unregister_driver(&atmel_uart);
 }
 
-module_init(at91_serial_init);
-module_exit(at91_serial_exit);
+module_init(atmel_serial_init);
+module_exit(atmel_serial_exit);
 
 MODULE_AUTHOR("Rick Bronson");
-MODULE_DESCRIPTION("AT91 generic serial port driver");
+MODULE_DESCRIPTION("Atmel AT91 / AT32 serial port driver");
 MODULE_LICENSE("GPL");
