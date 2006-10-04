@@ -469,10 +469,11 @@ pcibios_fixup_resources(struct pci_dev *dev, int start, int limit)
 	}
 }
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
+void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 {
 	pcibios_fixup_resources(dev, 0, PCI_BRIDGE_RESOURCES);
 }
+EXPORT_SYMBOL_GPL(pcibios_fixup_device_resources);
 
 static void __devinit pcibios_fixup_bridge_resources(struct pci_dev *dev)
 {
@@ -493,6 +494,7 @@ pcibios_fixup_bus (struct pci_bus *b)
 	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
+	platform_pci_fixup_bus(b);
 
 	return;
 }

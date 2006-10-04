@@ -388,6 +388,14 @@ void __init sn_setup(char **cmdline_p)
 	ia64_sn_plat_set_error_handling_features();	// obsolete
 	ia64_sn_set_os_feature(OSF_MCA_SLV_TO_OS_INIT_SLV);
 	ia64_sn_set_os_feature(OSF_FEAT_LOG_SBES);
+	/*
+	 * Note: The calls to notify the PROM of ACPI and PCI Segment
+	 *	 support must be done prior to acpi_load_tables(), as
+	 *	 an ACPI capable PROM will rebuild the DSDT as result
+	 *	 of the call.
+	 */
+	ia64_sn_set_os_feature(OSF_PCISEGMENT_ENABLE);
+	ia64_sn_set_os_feature(OSF_ACPI_ENABLE);
 
 
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
@@ -412,6 +420,16 @@ void __init sn_setup(char **cmdline_p)
 
 	if (! vga_console_membase)
 		sn_scan_pcdp();
+
+	/*
+	 *	Setup legacy IO space.
+	 *	vga_console_iobase maps to PCI IO Space address 0 on the
+	 * 	bus containing the VGA console.
+	 */
+	if (vga_console_iobase) {
+		io_space[0].mmio_base = vga_console_iobase;
+		io_space[0].sparse = 0;
+	}
 
 	if (vga_console_membase) {
 		/* usable vga ... make tty0 the preferred default console */

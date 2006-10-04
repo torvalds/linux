@@ -3,10 +3,11 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2000-2003 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2000-2003, 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/vga.h>
@@ -15,6 +16,7 @@
 #include <asm/sn/pda.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/shub_mmr.h>
+#include <asm/sn/acpi.h>
 
 #define IS_LEGACY_VGA_IOPORT(p) \
 	(((p) >= 0x3b0 && (p) <= 0x3bb) || ((p) >= 0x3c0 && (p) <= 0x3df))
@@ -31,11 +33,14 @@ void *sn_io_addr(unsigned long port)
 {
 	if (!IS_RUNNING_ON_SIMULATOR()) {
 		if (IS_LEGACY_VGA_IOPORT(port))
-			port += vga_console_iobase;
+			return (__ia64_mk_io_addr(port));
 		/* On sn2, legacy I/O ports don't point at anything */
 		if (port < (64 * 1024))
 			return NULL;
-		return ((void *)(port | __IA64_UNCACHED_OFFSET));
+		if (SN_ACPI_BASE_SUPPORT())
+			return (__ia64_mk_io_addr(port));
+		else
+			return ((void *)(port | __IA64_UNCACHED_OFFSET));
 	} else {
 		/* but the simulator uses them... */
 		unsigned long addr;

@@ -36,6 +36,7 @@ typedef int ia64_mv_pci_legacy_read_t (struct pci_bus *, u16 port, u32 *val,
 typedef int ia64_mv_pci_legacy_write_t (struct pci_bus *, u16 port, u32 val,
 					u8 size);
 typedef void ia64_mv_migrate_t(struct task_struct * task);
+typedef void ia64_mv_pci_fixup_bus_t (struct pci_bus *);
 
 /* DMA-mapping interface: */
 typedef void ia64_mv_dma_init (void);
@@ -92,6 +93,11 @@ machvec_noop_mm (struct mm_struct *mm)
 
 static inline void
 machvec_noop_task (struct task_struct *task)
+{
+}
+
+static inline void
+machvec_noop_bus (struct pci_bus *bus)
 {
 }
 
@@ -159,6 +165,7 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_migrate		ia64_mv.migrate
 #  define platform_setup_msi_irq	ia64_mv.setup_msi_irq
 #  define platform_teardown_msi_irq	ia64_mv.teardown_msi_irq
+#  define platform_pci_fixup_bus	ia64_mv.pci_fixup_bus
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -210,6 +217,7 @@ struct ia64_machine_vector {
 	ia64_mv_migrate_t *migrate;
 	ia64_mv_setup_msi_irq_t *setup_msi_irq;
 	ia64_mv_teardown_msi_irq_t *teardown_msi_irq;
+	ia64_mv_pci_fixup_bus_t *pci_fixup_bus;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
@@ -257,6 +265,7 @@ struct ia64_machine_vector {
 	platform_migrate,			\
 	platform_setup_msi_irq,			\
 	platform_teardown_msi_irq,		\
+	platform_pci_fixup_bus,			\
 }
 
 extern struct ia64_machine_vector ia64_mv;
@@ -415,6 +424,9 @@ extern int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size
 #endif
 #ifndef platform_teardown_msi_irq
 # define platform_teardown_msi_irq	((ia64_mv_teardown_msi_irq_t*)NULL)
+#endif
+#ifndef platform_pci_fixup_bus
+# define platform_pci_fixup_bus	machvec_noop_bus
 #endif
 
 #endif /* _ASM_IA64_MACHVEC_H */
