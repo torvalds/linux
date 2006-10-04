@@ -11,7 +11,7 @@
  */
 void *__kzalloc(size_t size, gfp_t flags)
 {
-	void *ret = ____kmalloc(size, flags);
+	void *ret = kmalloc_track_caller(size, flags);
 	if (ret)
 		memset(ret, 0, size);
 	return ret;
@@ -33,7 +33,7 @@ char *kstrdup(const char *s, gfp_t gfp)
 		return NULL;
 
 	len = strlen(s) + 1;
-	buf = ____kmalloc(len, gfp);
+	buf = kmalloc_track_caller(len, gfp);
 	if (buf)
 		memcpy(buf, s, len);
 	return buf;
@@ -51,7 +51,7 @@ void *kmemdup(const void *src, size_t len, gfp_t gfp)
 {
 	void *p;
 
-	p = ____kmalloc(len, gfp);
+	p = kmalloc_track_caller(len, gfp);
 	if (p)
 		memcpy(p, src, len);
 	return p;

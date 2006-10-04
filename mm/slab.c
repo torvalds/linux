@@ -3488,22 +3488,25 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 }
 
 
+#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc(size_t size, gfp_t flags)
 {
-#ifndef CONFIG_DEBUG_SLAB
-	return __do_kmalloc(size, flags, NULL);
-#else
 	return __do_kmalloc(size, flags, __builtin_return_address(0));
-#endif
 }
 EXPORT_SYMBOL(__kmalloc);
 
-#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc_track_caller(size_t size, gfp_t flags, void *caller)
 {
 	return __do_kmalloc(size, flags, caller);
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
+
+#else
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return __do_kmalloc(size, flags, NULL);
+}
+EXPORT_SYMBOL(__kmalloc);
 #endif
 
 /**
