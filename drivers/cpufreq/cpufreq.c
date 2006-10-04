@@ -52,8 +52,14 @@ static void handle_update(void *data);
  * The mutex locks both lists.
  */
 static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
-static BLOCKING_NOTIFIER_HEAD(cpufreq_transition_notifier_list);
+static struct srcu_notifier_head cpufreq_transition_notifier_list;
 
+static int __init init_cpufreq_transition_notifier_list(void)
+{
+	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
+	return 0;
+}
+core_initcall(init_cpufreq_transition_notifier_list);
 
 static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX (cpufreq_governor_mutex);
@@ -262,14 +268,14 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 				freqs->old = policy->cur;
 			}
 		}
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_PRECHANGE, freqs);
 		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
 		break;
 
 	case CPUFREQ_POSTCHANGE:
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_POSTCHANGE, freqs);
 		if (likely(policy) && likely(policy->cpu == freqs->cpu))
 			policy->cur = freqs->new;
@@ -1049,7 +1055,7 @@ static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
 		freqs.old = cpu_policy->cur;
 		freqs.new = cur_freq;
 
-		blocking_notifier_call_chain(&cpufreq_transition_notifier_list,
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				    CPUFREQ_SUSPENDCHANGE, &freqs);
 		adjust_jiffies(CPUFREQ_SUSPENDCHANGE, &freqs);
 
@@ -1130,7 +1136,7 @@ static int cpufreq_resume(struct sys_device * sysdev)
 			freqs.old = cpu_policy->cur;
 			freqs.new = cur_freq;
 
-			blocking_notifier_call_chain(
+			srcu_notifier_call_chain(
 					&cpufreq_transition_notifier_list,
 					CPUFREQ_RESUMECHANGE, &freqs);
 			adjust_jiffies(CPUFREQ_RESUMECHANGE, &freqs);
@@ -1176,7 +1182,7 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
-		ret = blocking_notifier_chain_register(
+		ret = srcu_notifier_chain_register(
 				&cpufreq_transition_notifier_list, nb);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
@@ -1208,7 +1214,7 @@ int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list)
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
-		ret = blocking_notifier_chain_unregister(
+		ret = srcu_notifier_chain_unregister(
 				&cpufreq_transition_notifier_list, nb);
 		break;
 	case CPUFREQ_POLICY_NOTIFIER:
