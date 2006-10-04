@@ -161,15 +161,16 @@ int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
 /*
  * Host cache
  */
-struct nlm_host * nlmclnt_lookup_host(struct sockaddr_in *, int, int);
+struct nlm_host * nlmclnt_lookup_host(const struct sockaddr_in *, int, int);
 struct nlm_host * nlmsvc_lookup_host(struct svc_rqst *);
-struct nlm_host * nlm_lookup_host(int server, struct sockaddr_in *, int, int);
+struct nlm_host * nlm_lookup_host(int server, const struct sockaddr_in *, int, int);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 extern struct nlm_host *nlm_find_client(void);
+extern void	  nlm_host_rebooted(const struct sockaddr_in *, const struct nlm_reboot *);
 
 
 /*

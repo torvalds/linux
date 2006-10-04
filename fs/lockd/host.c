@@ -39,7 +39,7 @@ static void			nlm_gc_hosts(void);
  * Find an NLM server handle in the cache. If there is none, create it.
  */
 struct nlm_host *
-nlmclnt_lookup_host(struct sockaddr_in *sin, int proto, int version)
+nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version)
 {
 	return nlm_lookup_host(0, sin, proto, version);
 }
@@ -58,7 +58,7 @@ nlmsvc_lookup_host(struct svc_rqst *rqstp)
  * Common host lookup routine for server & client
  */
 struct nlm_host *
-nlm_lookup_host(int server, struct sockaddr_in *sin,
+nlm_lookup_host(int server, const struct sockaddr_in *sin,
 					int proto, int version)
 {
 	struct nlm_host	*host, **hp;
@@ -257,6 +257,32 @@ void nlm_release_host(struct nlm_host *host)
 			BUG_ON(!list_empty(&host->h_reclaim));
 		}
 	}
+}
+
+/*
+ * We were notified that the host indicated by address &sin
+ * has rebooted.
+ * Release all resources held by that peer.
+ */
+void nlm_host_rebooted(const struct sockaddr_in *sin, const struct nlm_reboot *argp)
+{
+	struct nlm_host *host;
+
+	/* Obtain the host pointer for this NFS server and try to
+	 * reclaim all locks we hold on this server.
+	 */
+	if ((argp->proto & 1)==0) {
+		/* We are client, he's the server: try to reclaim all locks. */
+		if ((host = nlmclnt_lookup_host(sin, argp->proto >> 1, argp->vers)) == NULL)
+			return;
+		nlmclnt_recovery(host, argp->state);
+	} else {
+		/* He's the client, we're the server: delete all locks held by the client */
+		if ((host = nlm_lookup_host(1, sin, argp->proto >> 1, argp->vers)) == NULL)
+			return;
+		nlmsvc_free_host_resources(host);
+	}
+	nlm_release_host(host);
 }
 
 /*
