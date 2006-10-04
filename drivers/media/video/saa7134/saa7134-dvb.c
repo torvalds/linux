@@ -874,6 +874,34 @@ static struct tda1004x_config philips_tiger_config = {
 
 /* ------------------------------------------------------------------ */
 
+static int asus_p7131_dual_tuner_init(struct dvb_frontend *fe)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	static u8 data[] = { 0x3c, 0x33, 0x6a};
+	struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
+		return -EIO;
+	/* make sure the DVB-T antenna input is set */
+	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0200000);
+	return 0;
+}
+
+static int asus_p7131_dual_tuner_sleep(struct dvb_frontend *fe)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	static u8 data[] = { 0x3c, 0x33, 0x68};
+	struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+
+	i2c_transfer(&dev->i2c_adap, &msg, 1);
+	philips_tda827xa_tuner_sleep( 0x61, fe);
+	/* reset antenna inputs for analog usage */
+	saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0200000);
+	return 0;
+}
+
+/* ------------------------------------------------------------------ */
+
 static int lifeview_trio_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	int ret;
@@ -1148,8 +1176,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &philips_tiger_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops.tuner_ops.init = philips_tiger_tuner_init;
-			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tiger_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.init = asus_p7131_dual_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = asus_p7131_dual_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tiger_tuner_set_params;
 		}
 		break;
@@ -1240,6 +1268,18 @@ static int dvb_init(struct saa7134_dev *dev)
 			}
 		}
 		break;
+	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
+		dev->dvb.frontend = tda10046_attach(&medion_cardbus,
+						    &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
+			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
+		}
+		break;
+
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
 		break;
