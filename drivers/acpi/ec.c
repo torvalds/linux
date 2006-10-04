@@ -384,6 +384,8 @@ extern int ec_transaction(u8 command,
 				   wdata_len, rdata, rdata_len);
 }
 
+EXPORT_SYMBOL(ec_transaction);
+
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 {
 	int result;
