@@ -84,6 +84,102 @@ static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 }
 
 /*
+ * I2C access to the PT2258 volume controller on GPIO 6/7 (Revolution 5.1)
+ */
+
+static void revo_i2c_start(struct snd_i2c_bus *bus)
+{
+	struct snd_ice1712 *ice = bus->private_data;
+	snd_ice1712_save_gpio_status(ice);
+}
+
+static void revo_i2c_stop(struct snd_i2c_bus *bus)
+{
+	struct snd_ice1712 *ice = bus->private_data;
+	snd_ice1712_restore_gpio_status(ice);
+}
+
+static void revo_i2c_direction(struct snd_i2c_bus *bus, int clock, int data)
+{
+	struct snd_ice1712 *ice = bus->private_data;
+	unsigned int mask, val;
+
+	val = 0;
+	if (clock)
+		val |= VT1724_REVO_I2C_CLOCK;	/* write SCL */
+	if (data)
+		val |= VT1724_REVO_I2C_DATA;	/* write SDA */
+	mask = VT1724_REVO_I2C_CLOCK | VT1724_REVO_I2C_DATA;
+	ice->gpio.direction &= ~mask;
+	ice->gpio.direction |= val;
+	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
+	snd_ice1712_gpio_set_mask(ice, ~mask);
+}
+
+static void revo_i2c_setlines(struct snd_i2c_bus *bus, int clk, int data)
+{
+	struct snd_ice1712 *ice = bus->private_data;
+	unsigned int val = 0;
+
+	if (clk)
+		val |= VT1724_REVO_I2C_CLOCK;
+	if (data)
+		val |= VT1724_REVO_I2C_DATA;
+	snd_ice1712_gpio_write_bits(ice,
+				    VT1724_REVO_I2C_DATA |
+				    VT1724_REVO_I2C_CLOCK, val);
+	udelay(5);
+}
+
+static int revo_i2c_getdata(struct snd_i2c_bus *bus, int ack)
+{
+	struct snd_ice1712 *ice = bus->private_data;
+	int bit;
+
+	if (ack)
+		udelay(5);
+	bit = snd_ice1712_gpio_read_bits(ice, VT1724_REVO_I2C_DATA) ? 1 : 0;
+	return bit;
+}
+
+static struct snd_i2c_bit_ops revo51_bit_ops = {
+	.start = revo_i2c_start,
+	.stop = revo_i2c_stop,
+	.direction = revo_i2c_direction,
+	.setlines = revo_i2c_setlines,
+	.getdata = revo_i2c_getdata,
+};
+
+static int revo51_i2c_init(struct snd_ice1712 *ice,
+			   struct snd_pt2258 *pt)
+{
+	int err;
+
+	/* create the I2C bus */
+	err = snd_i2c_bus_create(ice->card, "ICE1724 GPIO6", NULL, &ice->i2c);
+	if (err < 0)
+		return err;
+
+	ice->i2c->private_data = ice;
+	ice->i2c->hw_ops.bit = &revo51_bit_ops;
+
+	/* create the I2C device */
+	err = snd_i2c_device_create(ice->i2c, "PT2258", 0x40,
+				    &ice->spec.revo51.dev);
+	if (err < 0)
+		return err;
+
+	pt->card = ice->card;
+	pt->i2c_bus = ice->i2c;
+	pt->i2c_dev = ice->spec.revo51.dev;
+	ice->spec.revo51.pt2258 = pt;
+
+	snd_pt2258_reset(pt);
+
+	return 0;
+}
+
+/*
  * initialize the chips on M-Audio Revolution cards
  */
 
@@ -180,9 +276,9 @@ static struct snd_ak4xxx_private akm_revo51_priv __devinitdata = {
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
 	.clk_mask = VT1724_REVO_CCLK,
-	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
-	.cs_addr = VT1724_REVO_CS1 | VT1724_REVO_CS2,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_addr = VT1724_REVO_CS1,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
@@ -198,12 +294,14 @@ static struct snd_ak4xxx_private akm_revo51_adc_priv __devinitdata = {
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
 	.clk_mask = VT1724_REVO_CCLK,
-	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
-	.cs_addr = VT1724_REVO_CS0 | VT1724_REVO_CS2,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1 | VT1724_REVO_CS2,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_addr = VT1724_REVO_CS0,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
+
+static struct snd_pt2258 ptc_revo51_volume;
 
 static int __devinit revo_init(struct snd_ice1712 *ice)
 {
@@ -243,14 +341,20 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		break;
 	case VT1724_SUBDEVICE_REVOLUTION51:
 		ice->akm_codecs = 2;
-		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_revo51, &akm_revo51_priv, ice)) < 0)
+		err = snd_ice1712_akm4xxx_init(ak, &akm_revo51,
+					       &akm_revo51_priv, ice);
+		if (err < 0)
 			return err;
-		err = snd_ice1712_akm4xxx_init(ak + 1, &akm_revo51_adc,
+		err = snd_ice1712_akm4xxx_init(ak+1, &akm_revo51_adc,
 					       &akm_revo51_adc_priv, ice);
 		if (err < 0)
 			return err;
-		/* unmute all codecs - needed! */
-		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
+		err = revo51_i2c_init(ice, &ptc_revo51_volume);
+		if (err < 0)
+			return err;
+		/* unmute all codecs */
+		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE,
+					    VT1724_REVO_MUTE);
 		break;
 	}
 
@@ -264,10 +368,18 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_REVOLUTION71:
+		err = snd_ice1712_akm4xxx_build_controls(ice);
+		if (err < 0)
+			return err;
+		break;
 	case VT1724_SUBDEVICE_REVOLUTION51:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
+		err = snd_pt2258_build_controls(ice->spec.revo51.pt2258);
+		if (err < 0)
+			return err;
+		break;
 	}
 	return 0;
 }
