@@ -1254,9 +1254,39 @@ static int ioapic_retrigger_vector(unsigned int vector)
  * races.
  */
 
-static void ack_apic(unsigned int vector)
+static void ack_apic(unsigned int irq)
 {
 	ack_APIC_irq();
+}
+
+static void ack_apic_edge(unsigned int irq)
+{
+	move_native_irq(irq);
+	ack_APIC_irq();
+}
+
+static void ack_apic_level(unsigned int irq)
+{
+	int do_unmask_irq = 0;
+
+#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
+	/* If we are moving the irq we need to mask it */
+	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
+		do_unmask_irq = 1;
+		mask_IO_APIC_irq(irq);
+	}
+#endif
+
+	/*
+	 * We must acknowledge the irq before we move it or the acknowledge will
+	 * not propogate properly.
+	 */
+	ack_APIC_irq();
+
+	/* Now we can move and renable the irq */
+	move_masked_irq(irq);
+	if (unlikely(do_unmask_irq))
+		unmask_IO_APIC_irq(irq);
 }
 
 static struct irq_chip ioapic_chip __read_mostly = {
@@ -1264,8 +1294,8 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.startup 	= startup_ioapic_vector,
 	.mask	 	= mask_ioapic_vector,
 	.unmask	 	= unmask_ioapic_vector,
-	.ack 		= ack_apic,
-	.eoi 		= ack_apic,
+	.ack 		= ack_apic_edge,
+	.eoi 		= ack_apic_level,
 #ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity_vector,
 #endif
