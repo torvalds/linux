@@ -28,6 +28,8 @@ struct nsm_args {
 	u32		prog;		/* RPC callback info */
 	u32		vers;
 	u32		proc;
+
+	char *		mon_name;
 };
 
 /*

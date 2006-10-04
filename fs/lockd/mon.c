@@ -47,6 +47,7 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 	}
 
 	memset(&args, 0, sizeof(args));
+	args.mon_name = nsm->sm_name;
 	args.addr = nsm->sm_addr.sin_addr.s_addr;
 	args.prog = NLM_PROGRAM;
 	args.vers = 3;
@@ -150,7 +151,7 @@ nsm_create(void)
 static u32 *
 xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 {
-	char	buffer[20];
+	char	buffer[20], *name;
 
 	/*
 	 * Use the dotted-quad IP address of the remote host as
@@ -158,8 +159,13 @@ xdr_encode_common(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 	 * hostname first for whatever remote hostname it receives,
 	 * so this works alright.
 	 */
-	sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
-	if (!(p = xdr_encode_string(p, buffer))
+	if (nsm_use_hostnames) {
+		name = argp->mon_name;
+	} else {
+		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
+		name = buffer;
+	}
+	if (!(p = xdr_encode_string(p, name))
 	 || !(p = xdr_encode_string(p, utsname()->nodename)))
 		return ERR_PTR(-EIO);
 	*p++ = htonl(argp->prog);

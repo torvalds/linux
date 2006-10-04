@@ -462,7 +462,11 @@ __nsm_find(const struct sockaddr_in *sin,
 	list_for_each(pos, &nsm_handles) {
 		nsm = list_entry(pos, struct nsm_handle, sm_link);
 
-		if (!nlm_cmp_addr(&nsm->sm_addr, sin))
+		if (hostname && nsm_use_hostnames) {
+			if (strlen(nsm->sm_name) != hostname_len
+			 || memcmp(nsm->sm_name, hostname, hostname_len))
+				continue;
+		} else if (!nlm_cmp_addr(&nsm->sm_addr, sin))
 			continue;
 		atomic_inc(&nsm->sm_count);
 		goto out;
