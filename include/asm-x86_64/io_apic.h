@@ -10,8 +10,6 @@
  * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
  */
 
-static inline int use_pci_vector(void)	{return 0;}
-
 #define APIC_MISMATCH_DEBUG
 
 #define IO_APIC_BASE(idx) \

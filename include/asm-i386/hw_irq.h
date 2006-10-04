@@ -28,7 +28,6 @@
 
 extern u8 irq_vector[NR_IRQ_VECTORS];
 #define IO_APIC_VECTOR(irq)	(irq_vector[irq])
-#define AUTO_ASSIGN		-1
 
 extern void (*interrupt[NR_IRQS])(void);
 

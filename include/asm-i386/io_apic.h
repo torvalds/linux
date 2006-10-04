@@ -12,46 +12,6 @@
 
 #ifdef CONFIG_X86_IO_APIC
 
-#ifdef CONFIG_PCI_MSI
-static inline int use_pci_vector(void)	{return 1;}
-static inline void disable_edge_ioapic_vector(unsigned int vector) { }
-static inline void mask_and_ack_level_ioapic_vector(unsigned int vector) { }
-static inline void end_edge_ioapic_vector (unsigned int vector) { }
-#define startup_level_ioapic	startup_level_ioapic_vector
-#define shutdown_level_ioapic	mask_IO_APIC_vector
-#define enable_level_ioapic	unmask_IO_APIC_vector
-#define disable_level_ioapic	mask_IO_APIC_vector
-#define mask_and_ack_level_ioapic mask_and_ack_level_ioapic_vector
-#define end_level_ioapic	end_level_ioapic_vector
-#define set_ioapic_affinity	set_ioapic_affinity_vector
-
-#define startup_edge_ioapic 	startup_edge_ioapic_vector
-#define shutdown_edge_ioapic 	disable_edge_ioapic_vector
-#define enable_edge_ioapic 	unmask_IO_APIC_vector
-#define disable_edge_ioapic 	disable_edge_ioapic_vector
-#define ack_edge_ioapic 	ack_edge_ioapic_vector
-#define end_edge_ioapic 	end_edge_ioapic_vector
-#else
-static inline int use_pci_vector(void)	{return 0;}
-static inline void disable_edge_ioapic_irq(unsigned int irq) { }
-static inline void mask_and_ack_level_ioapic_irq(unsigned int irq) { }
-static inline void end_edge_ioapic_irq (unsigned int irq) { }
-#define startup_level_ioapic	startup_level_ioapic_irq
-#define shutdown_level_ioapic	mask_IO_APIC_irq
-#define enable_level_ioapic	unmask_IO_APIC_irq
-#define disable_level_ioapic	mask_IO_APIC_irq
-#define mask_and_ack_level_ioapic mask_and_ack_level_ioapic_irq
-#define end_level_ioapic	end_level_ioapic_irq
-#define set_ioapic_affinity	set_ioapic_affinity_irq
-
-#define startup_edge_ioapic 	startup_edge_ioapic_irq
-#define shutdown_edge_ioapic 	disable_edge_ioapic_irq
-#define enable_edge_ioapic 	unmask_IO_APIC_irq
-#define disable_edge_ioapic 	disable_edge_ioapic_irq
-#define ack_edge_ioapic 	ack_edge_ioapic_irq
-#define end_edge_ioapic 	end_edge_ioapic_irq
-#endif
-
 #define IO_APIC_BASE(idx) \
 		((volatile int *)(__fix_to_virt(FIX_IO_APIC_BASE_0 + idx) \
 		+ (mp_ioapics[idx].mpc_apicaddr & ~PAGE_MASK)))
@@ -218,7 +178,5 @@ extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 #define io_apic_assign_pci_irqs 0
 static inline void disable_ioapic_setup(void) { }
 #endif
-
-extern int assign_irq_vector(int irq);
 
 #endif

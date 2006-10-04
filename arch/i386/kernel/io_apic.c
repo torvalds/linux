@@ -88,15 +88,6 @@ static struct irq_pin_list {
 	int apic, pin, next;
 } irq_2_pin[PIN_MAP_SIZE];
 
-int vector_irq[NR_VECTORS] __read_mostly = { [0 ... NR_VECTORS - 1] = -1};
-#ifdef CONFIG_PCI_MSI
-#define vector_to_irq(vector) 	\
-	(platform_legacy_irq(vector) ? vector : vector_irq[vector])
-#else
-#define vector_to_irq(vector)	(vector)
-#endif
-
-
 union entry_union {
 	struct { u32 w1, w2; };
 	struct IO_APIC_route_entry entry;
@@ -282,7 +273,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 			break;
 		entry = irq_2_pin + entry->next;
 	}
-	set_irq_info(irq, cpumask);
+	set_native_irq_info(irq, cpumask);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -1183,44 +1174,44 @@ static inline int IO_APIC_irq_trigger(int irq)
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
 u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
 
-int assign_irq_vector(int irq)
+static int __assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, offset = 0;
-	unsigned long flags;
 	int vector;
 
-	BUG_ON(irq != AUTO_ASSIGN && (unsigned)irq >= NR_IRQ_VECTORS);
+	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
 
-	spin_lock_irqsave(&vector_lock, flags);
-
-	if (irq != AUTO_ASSIGN && IO_APIC_VECTOR(irq) > 0) {
-		spin_unlock_irqrestore(&vector_lock, flags);
+	if (IO_APIC_VECTOR(irq) > 0)
 		return IO_APIC_VECTOR(irq);
-	}
-next:
+
 	current_vector += 8;
 	if (current_vector == SYSCALL_VECTOR)
-		goto next;
+		current_vector += 8;
 
 	if (current_vector >= FIRST_SYSTEM_VECTOR) {
 		offset++;
-		if (!(offset%8)) {
-			spin_unlock_irqrestore(&vector_lock, flags);
+		if (!(offset % 8))
 			return -ENOSPC;
-		}
 		current_vector = FIRST_DEVICE_VECTOR + offset;
 	}
 
 	vector = current_vector;
-	vector_irq[vector] = irq;
-	if (irq != AUTO_ASSIGN)
-		IO_APIC_VECTOR(irq) = vector;
-
-	spin_unlock_irqrestore(&vector_lock, flags);
+	IO_APIC_VECTOR(irq) = vector;
 
 	return vector;
 }
 
+static int assign_irq_vector(int irq)
+{
+	unsigned long flags;
+	int vector;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	vector = __assign_irq_vector(irq);
+	spin_unlock_irqrestore(&vector_lock, flags);
+
+	return vector;
+}
 static struct irq_chip ioapic_chip;
 
 #define IOAPIC_AUTO	-1
@@ -1229,18 +1220,14 @@ static struct irq_chip ioapic_chip;
 
 static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
-	unsigned idx;
-
-	idx = use_pci_vector() && !platform_legacy_irq(irq) ? vector : irq;
-
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		set_irq_chip_and_handler(idx, &ioapic_chip,
+		set_irq_chip_and_handler(irq, &ioapic_chip,
 					 handle_fasteoi_irq);
 	else
-		set_irq_chip_and_handler(idx, &ioapic_chip,
+		set_irq_chip_and_handler(irq, &ioapic_chip,
 					 handle_edge_irq);
-	set_intr_gate(vector, interrupt[idx]);
+	set_intr_gate(vector, interrupt[irq]);
 }
 
 static void __init setup_IO_APIC_irqs(void)
@@ -1485,17 +1472,12 @@ void __init print_IO_APIC(void)
 		);
 	}
 	}
-	if (use_pci_vector())
-		printk(KERN_INFO "Using vector-based indexing\n");
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
 	for (i = 0; i < NR_IRQS; i++) {
 		struct irq_pin_list *entry = irq_2_pin + i;
 		if (entry->pin < 0)
 			continue;
- 		if (use_pci_vector() && !platform_legacy_irq(i))
-			printk(KERN_DEBUG "IRQ%d ", IO_APIC_VECTOR(i));
-		else
-			printk(KERN_DEBUG "IRQ%d ", i);
+		printk(KERN_DEBUG "IRQ%d ", i);
 		for (;;) {
 			printk("-> %d:%d", entry->apic, entry->pin);
 			if (!entry->next)
@@ -1953,7 +1935,7 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 
 static void ack_ioapic_irq(unsigned int irq)
 {
-	move_irq(irq);
+	move_native_irq(irq);
 	ack_APIC_irq();
 }
 
@@ -1962,7 +1944,7 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
 	unsigned long v;
 	int i;
 
-	move_irq(irq);
+	move_native_irq(irq);
 /*
  * It appears there is an erratum which affects at least version 0x11
  * of I/O APIC (that's the 82093AA and cores integrated into various
@@ -1997,63 +1979,8 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
 	}
 }
 
-static unsigned int startup_ioapic_vector(unsigned int vector)
+static int ioapic_retrigger_irq(unsigned int irq)
 {
-	int irq = vector_to_irq(vector);
-
-	return startup_ioapic_irq(irq);
-}
-
-static void ack_ioapic_vector(unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
-	move_native_irq(vector);
-	ack_ioapic_irq(irq);
-}
-
-static void ack_ioapic_quirk_vector(unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
-	move_native_irq(vector);
-	ack_ioapic_quirk_irq(irq);
-}
-
-static void mask_IO_APIC_vector (unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
-	mask_IO_APIC_irq(irq);
-}
-
-static void unmask_IO_APIC_vector (unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
-	unmask_IO_APIC_irq(irq);
-}
-
-/*
- * Oh just glorious.  If CONFIG_PCI_MSI we've done
- * #define set_ioapic_affinity set_ioapic_affinity_vector
- */
-#if defined (CONFIG_SMP) && defined(CONFIG_X86_IO_APIC) && \
-		defined(CONFIG_PCI_MSI)
-static void set_ioapic_affinity_vector (unsigned int vector,
-					cpumask_t cpu_mask)
-{
-	int irq = vector_to_irq(vector);
-
-	set_native_irq_info(vector, cpu_mask);
-	set_ioapic_affinity_irq(irq, cpu_mask);
-}
-#endif
-
-static int ioapic_retrigger_vector(unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
 	send_IPI_self(IO_APIC_VECTOR(irq));
 
 	return 1;
@@ -2061,15 +1988,15 @@ static int ioapic_retrigger_vector(unsigned int vector)
 
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name 		= "IO-APIC",
-	.startup 	= startup_ioapic_vector,
-	.mask	 	= mask_IO_APIC_vector,
-	.unmask	 	= unmask_IO_APIC_vector,
-	.ack 		= ack_ioapic_vector,
-	.eoi 		= ack_ioapic_quirk_vector,
+	.startup 	= startup_ioapic_irq,
+	.mask	 	= mask_IO_APIC_irq,
+	.unmask	 	= unmask_IO_APIC_irq,
+	.ack 		= ack_ioapic_irq,
+	.eoi 		= ack_ioapic_quirk_irq,
 #ifdef CONFIG_SMP
-	.set_affinity 	= set_ioapic_affinity,
+	.set_affinity 	= set_ioapic_affinity_irq,
 #endif
-	.retrigger	= ioapic_retrigger_vector,
+	.retrigger	= ioapic_retrigger_irq,
 };
 
 
@@ -2090,11 +2017,6 @@ static inline void init_IO_APIC_traps(void)
 	 */
 	for (irq = 0; irq < NR_IRQS ; irq++) {
 		int tmp = irq;
-		if (use_pci_vector()) {
-			if (!platform_legacy_irq(tmp))
-				if ((tmp = vector_to_irq(tmp)) == -1)
-					continue;
-		}
 		if (IO_APIC_IRQ(tmp) && !IO_APIC_VECTOR(tmp)) {
 			/*
 			 * Hmm.. We don't have an entry for this,
@@ -2491,28 +2413,26 @@ device_initcall(ioapic_init_sysfs);
  */
 int create_irq(void)
 {
-	/* Hack of the day: irq == vector.
-	 *
-	 * Ultimately this will be be more general,
-	 * and not depend on the irq to vector identity mapping.
-	 * But this version is needed until msi.c can cope with
-	 * the more general form.
-	 */
-	int irq, vector;
+	/* Allocate an unused irq */
+	int irq, new, vector;
 	unsigned long flags;
-	vector = assign_irq_vector(AUTO_ASSIGN);
-	irq = vector;
 
-	if (vector >= 0) {
-		struct irq_desc *desc;
+	irq = -ENOSPC;
+	spin_lock_irqsave(&vector_lock, flags);
+	for (new = (NR_IRQS - 1); new >= 0; new--) {
+		if (platform_legacy_irq(new))
+			continue;
+		if (irq_vector[new] != 0)
+			continue;
+		vector = __assign_irq_vector(new);
+		if (likely(vector > 0))
+			irq = new;
+		break;
+	}
+	spin_unlock_irqrestore(&vector_lock, flags);
 
-		spin_lock_irqsave(&vector_lock, flags);
-		vector_irq[vector] = irq;
-		irq_vector[irq] = vector;
-		spin_unlock_irqrestore(&vector_lock, flags);
-
+	if (irq >= 0) {
 		set_intr_gate(vector, interrupt[irq]);
-
 		dynamic_irq_init(irq);
 	}
 	return irq;
@@ -2521,13 +2441,10 @@ int create_irq(void)
 void destroy_irq(unsigned int irq)
 {
 	unsigned long flags;
-	unsigned int vector;
 
 	dynamic_irq_cleanup(irq);
 
 	spin_lock_irqsave(&vector_lock, flags);
-	vector = irq_vector[irq];
-	vector_irq[vector] = -1;
 	irq_vector[irq] = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
@@ -2754,7 +2671,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 
 	ioapic_write_entry(ioapic, pin, entry);
 	spin_lock_irqsave(&ioapic_lock, flags);
-	set_native_irq_info(use_pci_vector() ? entry.vector : irq, TARGET_CPUS);
+	set_native_irq_info(irq, TARGET_CPUS);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
 	return 0;

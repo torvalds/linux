@@ -981,10 +981,6 @@ static void __init pcibios_fixup_irqs(void)
 							pci_name(bridge), 'A' + pin, irq);
 				}
 				if (irq >= 0) {
-					if (use_pci_vector() &&
-						!platform_legacy_irq(irq))
-						irq = IO_APIC_VECTOR(irq);
-
 					printk(KERN_INFO "PCI->APIC IRQ transform: %s[%c] -> IRQ %d\n",
 						pci_name(dev), 'A' + pin, irq);
 					dev->irq = irq;
