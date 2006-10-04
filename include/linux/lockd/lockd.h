@@ -40,14 +40,13 @@ struct nlm_host {
 	struct nlm_host *	h_next;		/* linked list (hash table) */
 	struct sockaddr_in	h_addr;		/* peer address */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
-	char			h_name[20];	/* remote hostname */
+	char *			h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
 	unsigned short		h_proto;	/* transport proto */
 	unsigned short		h_reclaiming : 1,
 				h_server     : 1, /* server side, not client side */
 				h_inuse      : 1,
-				h_killed     : 1,
-				h_monitored  : 1;
+				h_killed     : 1;
 	wait_queue_head_t	h_gracewait;	/* wait while reclaiming */
 	struct rw_semaphore	h_rwsem;	/* Reboot recovery lock */
 	u32			h_state;	/* pseudo-state counter */
@@ -61,6 +60,16 @@ struct nlm_host {
 	spinlock_t		h_lock;
 	struct list_head	h_granted;	/* Locks in GRANTED state */
 	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
+	struct nsm_handle *	h_nsmhandle;	/* NSM status handle */
+};
+
+struct nsm_handle {
+	struct list_head	sm_link;
+	atomic_t		sm_count;
+	char *			sm_name;
+	struct sockaddr_in	sm_addr;
+	unsigned int		sm_monitored : 1,
+				sm_sticky : 1;	/* don't unmonitor */
 };
 
 /*
@@ -171,6 +180,8 @@ void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 extern struct nlm_host *nlm_find_client(void);
 extern void	  nlm_host_rebooted(const struct sockaddr_in *, const struct nlm_reboot *);
+struct nsm_handle *nsm_find(const struct sockaddr_in *, const char *, int);
+void		  nsm_release(struct nsm_handle *);
 
 
 /*

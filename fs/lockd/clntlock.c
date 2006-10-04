@@ -150,7 +150,8 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 static void nlmclnt_prepare_reclaim(struct nlm_host *host)
 {
 	down_write(&host->h_rwsem);
-	host->h_monitored = 0;
+	if (host->h_nsmhandle)
+		host->h_nsmhandle->sm_monitored = 0;
 	host->h_state++;
 	host->h_nextrebind = 0;
 	nlm_rebind_host(host);
