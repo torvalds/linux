@@ -182,14 +182,8 @@
 #include <linux/dma-mapping.h>
 
 #include <scsi/sg.h>
-
 #include "scsi.h"
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
-#include "hosts.h"
-#else
 #include <scsi/scsi_host.h>
-#endif
 
 #include "ips.h"
 
