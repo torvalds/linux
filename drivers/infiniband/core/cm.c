@@ -1902,6 +1902,32 @@ out:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 }
 EXPORT_SYMBOL(ib_send_cm_drep);
 
+static int cm_issue_drep(struct cm_port *port,
+			 struct ib_mad_recv_wc *mad_recv_wc)
+{
+	struct ib_mad_send_buf *msg = NULL;
+	struct cm_dreq_msg *dreq_msg;
+	struct cm_drep_msg *drep_msg;
+	int ret;
+
+	ret = cm_alloc_response_msg(port, mad_recv_wc, &msg);
+	if (ret)
+		return ret;
+
+	dreq_msg = (struct cm_dreq_msg *) mad_recv_wc->recv_buf.mad;
+	drep_msg = (struct cm_drep_msg *) msg->mad;
+
+	cm_format_mad_hdr(&drep_msg->hdr, CM_DREP_ATTR_ID, dreq_msg->hdr.tid);
+	drep_msg->remote_comm_id = dreq_msg->local_comm_id;
+	drep_msg->local_comm_id = dreq_msg->remote_comm_id;
+
+	ret = ib_post_send_mad(msg, NULL);
+	if (ret)
+		cm_free_msg(msg);
+
+	return ret;
+}
+
 static int cm_dreq_handler(struct cm_work *work)
 {
 	struct cm_id_private *cm_id_priv;
@@ -1913,8 +1939,10 @@ static int cm_dreq_handler(struct cm_work *work)
 	dreq_msg = (struct cm_dreq_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(dreq_msg->remote_comm_id,
 				   dreq_msg->local_comm_id);
-	if (!cm_id_priv)
+	if (!cm_id_priv) {
+		cm_issue_drep(work->port, work->mad_recv_wc);
 		return -EINVAL;
+	}
 
 	work->cm_event.private_data = &dreq_msg->private_data;
 
