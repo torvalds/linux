@@ -56,8 +56,9 @@ test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
 		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
 		"rcu_bh" for the rcu_read_lock_bh() API, "rcu_bh_sync" for
-		rcu_read_lock_bh() with synchronous reclamation, and "srcu"
-		for the "srcu_read_lock()" API.
+		rcu_read_lock_bh() with synchronous reclamation, "srcu" for
+		the "srcu_read_lock()" API, and "sched" for the use of
+		preempt_disable() together with synchronize_sched().
 
 verbose		Enable debug printk()s.  Default is disabled.
 

@@ -464,9 +464,47 @@ static struct rcu_torture_ops srcu_ops = {
 	.name = "srcu"
 };
 
+/*
+ * Definitions for sched torture testing.
+ */
+
+static int sched_torture_read_lock(void)
+{
+	preempt_disable();
+	return 0;
+}
+
+static void sched_torture_read_unlock(int idx)
+{
+	preempt_enable();
+}
+
+static int sched_torture_completed(void)
+{
+	return 0;
+}
+
+static void sched_torture_synchronize(void)
+{
+	synchronize_sched();
+}
+
+static struct rcu_torture_ops sched_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = sched_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock = sched_torture_read_unlock,
+	.completed = sched_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = sched_torture_synchronize,
+	.stats = NULL,
+	.name = "sched"
+};
+
 static struct rcu_torture_ops *torture_ops[] =
 	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops, &srcu_ops,
-	  NULL };
+	  &sched_ops, NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
