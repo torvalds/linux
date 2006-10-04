@@ -438,7 +438,7 @@ nlm4svc_proc_sm_notify(struct svc_rqst *rqstp, struct nlm_reboot *argp,
 	 */
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.sin_addr.s_addr = argp->addr;
-	nlm_host_rebooted(&saddr, argp);
+	nlm_host_rebooted(&saddr, argp->mon, argp->len, argp->state);
 
 	return rpc_success;
 }

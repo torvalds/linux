@@ -164,7 +164,7 @@ struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock 
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
 u32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
-void		  nlmclnt_recovery(struct nlm_host *, u32);
+void		  nlmclnt_recovery(struct nlm_host *);
 int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
 
 /*
@@ -179,7 +179,7 @@ struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 extern struct nlm_host *nlm_find_client(void);
-extern void	  nlm_host_rebooted(const struct sockaddr_in *, const struct nlm_reboot *);
+extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *, int, u32);
 struct nsm_handle *nsm_find(const struct sockaddr_in *, const char *, int);
 void		  nsm_release(struct nsm_handle *);
 

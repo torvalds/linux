@@ -290,28 +290,57 @@ void nlm_release_host(struct nlm_host *host)
  * has rebooted.
  * Release all resources held by that peer.
  */
-void nlm_host_rebooted(const struct sockaddr_in *sin, const struct nlm_reboot *argp)
+void nlm_host_rebooted(const struct sockaddr_in *sin,
+				const char *hostname, int hostname_len,
+				u32 new_state)
 {
-	struct nlm_host *host;
-	int server;
+	struct nsm_handle *nsm;
+	struct nlm_host	*host, **hp;
+	int		hash;
 
-	/* Obtain the host pointer for this NFS server and try to
-	 * reclaim all locks we hold on this server.
-	 */
-	server = (argp->proto & 1)? 1 : 0;
-	host = nlm_lookup_host(server, sin, argp->proto >> 1, argp->vers,
-			argp->mon, argp->len);
-	if (host == NULL)
+	dprintk("lockd: nlm_host_rebooted(%s, %u.%u.%u.%u)\n",
+			hostname, NIPQUAD(sin->sin_addr));
+
+	/* Find the NSM handle for this peer */
+	if (!(nsm = __nsm_find(sin, hostname, hostname_len, 0)))
 		return;
 
-	if (server == 0) {
-		/* We are client, he's the server: try to reclaim all locks. */
-		nlmclnt_recovery(host, argp->state);
-	} else {
-		/* He's the client, we're the server: delete all locks held by the client */
-		nlmsvc_free_host_resources(host);
+	/* When reclaiming locks on this peer, make sure that
+	 * we set up a new notification */
+	nsm->sm_monitored = 0;
+
+	/* Mark all hosts tied to this NSM state as having rebooted.
+	 * We run the loop repeatedly, because we drop the host table
+	 * lock for this.
+	 * To avoid processing a host several times, we match the nsmstate.
+	 */
+again:	mutex_lock(&nlm_host_mutex);
+	for (hash = 0; hash < NLM_HOST_NRHASH; hash++) {
+		for (hp = &nlm_hosts[hash]; (host = *hp); hp = &host->h_next) {
+			if (host->h_nsmhandle == nsm
+			 && host->h_nsmstate != new_state) {
+				host->h_nsmstate = new_state;
+				host->h_state++;
+
+				nlm_get_host(host);
+				mutex_unlock(&nlm_host_mutex);
+
+				if (host->h_server) {
+					/* We're server for this guy, just ditch
+					 * all the locks he held. */
+					nlmsvc_free_host_resources(host);
+				} else {
+					/* He's the server, initiate lock recovery. */
+					nlmclnt_recovery(host);
+				}
+
+				nlm_release_host(host);
+				goto again;
+			}
+		}
 	}
-	nlm_release_host(host);
+
+	mutex_unlock(&nlm_host_mutex);
 }
 
 /*
