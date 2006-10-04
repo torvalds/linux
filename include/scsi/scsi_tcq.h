@@ -144,5 +144,25 @@ static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 	return shost->bqt ? 0 : -ENOMEM;
 }
 
+/**
+ * scsi_host_find_tag - find the tagged command by host
+ * @shost:	pointer to scsi_host
+ * @tag:	tag of the scsi_cmnd
+ *
+ * Notes:
+ *	Only works with tags allocated by the generic blk layer.
+ **/
+static inline struct scsi_cmnd *scsi_host_find_tag(struct Scsi_Host *shost,
+						int tag)
+{
+	struct request *req;
+
+	if (tag != SCSI_NO_TAG) {
+		req = blk_map_queue_find_tag(shost->bqt, tag);
+		return req ? (struct scsi_cmnd *)req->special : NULL;
+	}
+	return NULL;
+}
+
 #endif /* CONFIG_BLOCK */
 #endif /* _SCSI_SCSI_TCQ_H */

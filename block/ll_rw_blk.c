@@ -840,12 +840,7 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
  **/
 struct request *blk_queue_find_tag(request_queue_t *q, int tag)
 {
-	struct blk_queue_tag *bqt = q->queue_tags;
-
-	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
-		return NULL;
-
-	return bqt->tag_index[tag];
+	return blk_map_queue_find_tag(q->queue_tags, tag);
 }
 
 EXPORT_SYMBOL(blk_queue_find_tag);

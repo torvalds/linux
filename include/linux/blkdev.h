@@ -769,6 +769,14 @@ extern struct blk_queue_tag *blk_init_tags(int);
 extern void blk_free_tags(struct blk_queue_tag *);
 extern void blk_congestion_end(int rw);
 
+static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
+						int tag)
+{
+	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
+		return NULL;
+	return bqt->tag_index[tag];
+}
+
 extern void blk_rq_bio_prep(request_queue_t *, struct request *, struct bio *);
 extern int blkdev_issue_flush(struct block_device *, sector_t *);
 
