@@ -211,6 +211,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	case XFRM_MODE_TRANSPORT:
 	case XFRM_MODE_TUNNEL:
 	case XFRM_MODE_ROUTEOPTIMIZATION:
+	case XFRM_MODE_BEET:
 		break;
 
 	default:
