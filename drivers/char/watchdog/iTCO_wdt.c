@@ -85,6 +85,7 @@ enum iTCO_chipsets {
 	TCO_ICH7,	/* ICH7 & ICH7R */
 	TCO_ICH7M,	/* ICH7-M */
 	TCO_ICH7MDH,	/* ICH7-M DH */
+	TCO_ICH8,	/* ICH8 */
 };
 
 static struct {
@@ -108,6 +109,7 @@ static struct {
 	{"ICH7 or ICH7R", 2},
 	{"ICH7-M", 2},
 	{"ICH7-M DH", 2},
+	{"ICH8 or ICH8R", 2},
 	{NULL,0}
 };
 
@@ -135,6 +137,7 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7M   },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_31,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7MDH },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE (pci, iTCO_wdt_pci_tbl);
