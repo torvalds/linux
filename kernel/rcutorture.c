@@ -780,7 +780,7 @@ rcu_torture_init(void)
 		writer_task = NULL;
 		goto unwind;
 	}
-	reader_tasks = kmalloc(nrealreaders * sizeof(reader_tasks[0]),
+	reader_tasks = kzalloc(nrealreaders * sizeof(reader_tasks[0]),
 			       GFP_KERNEL);
 	if (reader_tasks == NULL) {
 		VERBOSE_PRINTK_ERRSTRING("out of memory");
