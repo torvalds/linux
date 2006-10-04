@@ -778,6 +778,8 @@ Markers for RCU read-side critical sections:
 	rcu_read_unlock
 	rcu_read_lock_bh
 	rcu_read_unlock_bh
+	srcu_read_lock
+	srcu_read_unlock
 
 RCU pointer/list traversal:
 
@@ -804,6 +806,7 @@ RCU grace period:
 	synchronize_net
 	synchronize_sched
 	synchronize_rcu
+	synchronize_srcu
 	call_rcu
 	call_rcu_bh
 

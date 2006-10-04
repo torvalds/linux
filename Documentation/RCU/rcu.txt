@@ -45,7 +45,8 @@ o	How can I see where RCU is currently used in the Linux kernel?
 
 	Search for "rcu_read_lock", "rcu_read_unlock", "call_rcu",
 	"rcu_read_lock_bh", "rcu_read_unlock_bh", "call_rcu_bh",
-	"synchronize_rcu", and "synchronize_net".
+	"srcu_read_lock", "srcu_read_unlock", "synchronize_rcu",
+	"synchronize_net", and "synchronize_srcu".
 
 o	What guidelines should I follow when writing code that uses RCU?
 
