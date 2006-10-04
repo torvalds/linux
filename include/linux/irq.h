@@ -207,36 +207,6 @@ void set_pending_irq(unsigned int irq, cpumask_t mask);
 void move_native_irq(int irq);
 void move_masked_irq(int irq);
 
-#ifdef CONFIG_PCI_MSI
-/*
- * Wonder why these are dummies?
- * For e.g the set_ioapic_affinity_vector() calls the set_ioapic_affinity_irq()
- * counter part after translating the vector to irq info. We need to perform
- * this operation on the real irq, when we dont use vector, i.e when
- * pci_use_vector() is false.
- */
-static inline void move_irq(int irq)
-{
-}
-
-static inline void set_irq_info(int irq, cpumask_t mask)
-{
-}
-
-#else /* CONFIG_PCI_MSI */
-
-static inline void move_irq(int irq)
-{
-	move_native_irq(irq);
-}
-
-static inline void set_irq_info(int irq, cpumask_t mask)
-{
-	set_native_irq_info(irq, mask);
-}
-
-#endif /* CONFIG_PCI_MSI */
-
 #else /* CONFIG_GENERIC_PENDING_IRQ || CONFIG_IRQBALANCE */
 
 static inline void move_irq(int irq)
@@ -255,16 +225,10 @@ static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
 {
 }
 
-static inline void set_irq_info(int irq, cpumask_t mask)
-{
-	set_native_irq_info(irq, mask);
-}
-
 #endif /* CONFIG_GENERIC_PENDING_IRQ */
 
 #else /* CONFIG_SMP */
 
-#define move_irq(x)
 #define move_native_irq(x)
 #define move_masked_irq(x)
 
