@@ -644,23 +644,32 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 	unsigned long		flags;
 	int			i, error = 0, dummy;
 
-	progp = serv->sv_program;
-
-	dprintk("RPC: svc_register(%s, %s, %d)\n",
-		progp->pg_name, proto == IPPROTO_UDP? "udp" : "tcp", port);
-
 	if (!port)
 		clear_thread_flag(TIF_SIGPENDING);
 
-	for (i = 0; i < progp->pg_nvers; i++) {
-		if (progp->pg_vers[i] == NULL)
-			continue;
-		error = rpc_register(progp->pg_prog, i, proto, port, &dummy);
-		if (error < 0)
-			break;
-		if (port && !dummy) {
-			error = -EACCES;
-			break;
+	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
+		for (i = 0; i < progp->pg_nvers; i++) {
+			if (progp->pg_vers[i] == NULL)
+				continue;
+
+			dprintk("RPC: svc_register(%s, %s, %d, %d)%s\n",
+					progp->pg_name,
+					proto == IPPROTO_UDP?  "udp" : "tcp",
+					port,
+					i,
+					progp->pg_vers[i]->vs_hidden?
+						" (but not telling portmap)" : "");
+
+			if (progp->pg_vers[i]->vs_hidden)
+				continue;
+
+			error = rpc_register(progp->pg_prog, i, proto, port, &dummy);
+			if (error < 0)
+				break;
+			if (port && !dummy) {
+				error = -EACCES;
+				break;
+			}
 		}
 	}
 

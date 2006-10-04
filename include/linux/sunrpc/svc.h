@@ -321,6 +321,9 @@ struct svc_version {
 	struct svc_procedure *	vs_proc;	/* per-procedure info */
 	u32			vs_xdrsize;	/* xdrsize needed for this version */
 
+	unsigned int		vs_hidden : 1;	/* Don't register with portmapper.
+						 * Only used for nfsacl so far. */
+
 	/* Override dispatch function (e.g. when caching replies).
 	 * A return value of 0 means drop the request. 
 	 * vs_dispatch == NULL means use default dispatcher.
