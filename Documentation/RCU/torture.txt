@@ -118,6 +118,21 @@ o	"Free-Block Circulation": Shows the number of torture structures
 	as it is only incremented if a torture structure's counter
 	somehow gets incremented farther than it should.
 
+Different implementations of RCU can provide implementation-specific
+additional information.  For example, SRCU provides the following:
+
+	srcu-torture: rtc: f8cf46a8 ver: 355 tfle: 0 rta: 356 rtaf: 0 rtf: 346 rtmbe: 0
+	srcu-torture: Reader Pipe:  559738 939 0 0 0 0 0 0 0 0 0
+	srcu-torture: Reader Batch:  560434 243 0 0 0 0 0 0 0 0
+	srcu-torture: Free-Block Circulation:  355 354 353 352 351 350 349 348 347 346 0
+	srcu-torture: per-CPU(idx=1): 0(0,1) 1(0,1) 2(0,0) 3(0,1)
+
+The first four lines are similar to those for RCU.  The last line shows
+the per-CPU counter state.  The numbers in parentheses are the values
+of the "old" and "current" counters for the corresponding CPU.  The
+"idx" value maps the "old" and "current" values to the underlying array,
+and is useful for debugging.
+
 
 USAGE
 

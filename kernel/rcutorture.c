@@ -44,6 +44,7 @@
 #include <linux/delay.h>
 #include <linux/byteorder/swabb.h>
 #include <linux/stat.h>
+#include <linux/srcu.h>
 
 MODULE_LICENSE("GPL");
 
@@ -53,7 +54,7 @@ static int stat_interval;	/* Interval between stats, in seconds. */
 static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
-static char *torture_type = "rcu"; /* What to torture. */
+static char *torture_type = "rcu"; /* What to torture: rcu, srcu. */
 
 module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
@@ -66,7 +67,7 @@ MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
 module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 module_param(torture_type, charp, 0);
-MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh)");
+MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, srcu)");
 
 #define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
@@ -104,11 +105,11 @@ static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_count) =
 static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_batch) =
 	{ 0 };
 static atomic_t rcu_torture_wcount[RCU_TORTURE_PIPE_LEN + 1];
-atomic_t n_rcu_torture_alloc;
-atomic_t n_rcu_torture_alloc_fail;
-atomic_t n_rcu_torture_free;
-atomic_t n_rcu_torture_mberror;
-atomic_t n_rcu_torture_error;
+static atomic_t n_rcu_torture_alloc;
+static atomic_t n_rcu_torture_alloc_fail;
+static atomic_t n_rcu_torture_free;
+static atomic_t n_rcu_torture_mberror;
+static atomic_t n_rcu_torture_error;
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -180,6 +181,7 @@ struct rcu_torture_ops {
 	void (*init)(void);
 	void (*cleanup)(void);
 	int (*readlock)(void);
+	void (*readdelay)(struct rcu_random_state *rrsp);
 	void (*readunlock)(int idx);
 	int (*completed)(void);
 	void (*deferredfree)(struct rcu_torture *p);
@@ -196,6 +198,18 @@ static int rcu_torture_read_lock(void) __acquires(RCU)
 {
 	rcu_read_lock();
 	return 0;
+}
+
+static void rcu_read_delay(struct rcu_random_state *rrsp)
+{
+	long delay;
+	const long longdelay = 200;
+
+	/* We want there to be long-running readers, but not all the time. */
+
+	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay);
+	if (!delay)
+		udelay(longdelay);
 }
 
 static void rcu_torture_read_unlock(int idx) __releases(RCU)
@@ -239,6 +253,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.init = NULL,
 	.cleanup = NULL,
 	.readlock = rcu_torture_read_lock,
+	.readdelay = rcu_read_delay,
 	.readunlock = rcu_torture_read_unlock,
 	.completed = rcu_torture_completed,
 	.deferredfree = rcu_torture_deferred_free,
@@ -275,6 +290,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.init = NULL,
 	.cleanup = NULL,
 	.readlock = rcu_bh_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock = rcu_bh_torture_read_unlock,
 	.completed = rcu_bh_torture_completed,
 	.deferredfree = rcu_bh_torture_deferred_free,
@@ -282,8 +298,105 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.name = "rcu_bh"
 };
 
+/*
+ * Definitions for srcu torture testing.
+ */
+
+static struct srcu_struct srcu_ctl;
+static struct list_head srcu_removed;
+
+static void srcu_torture_init(void)
+{
+	init_srcu_struct(&srcu_ctl);
+	INIT_LIST_HEAD(&srcu_removed);
+}
+
+static void srcu_torture_cleanup(void)
+{
+	synchronize_srcu(&srcu_ctl);
+	cleanup_srcu_struct(&srcu_ctl);
+}
+
+static int srcu_torture_read_lock(void)
+{
+	return srcu_read_lock(&srcu_ctl);
+}
+
+static void srcu_read_delay(struct rcu_random_state *rrsp)
+{
+	long delay;
+	const long uspertick = 1000000 / HZ;
+	const long longdelay = 10;
+
+	/* We want there to be long-running readers, but not all the time. */
+
+	delay = rcu_random(rrsp) % (nrealreaders * 2 * longdelay * uspertick);
+	if (!delay)
+		schedule_timeout_interruptible(longdelay);
+}
+
+static void srcu_torture_read_unlock(int idx)
+{
+	srcu_read_unlock(&srcu_ctl, idx);
+}
+
+static int srcu_torture_completed(void)
+{
+	return srcu_batches_completed(&srcu_ctl);
+}
+
+static void srcu_torture_deferred_free(struct rcu_torture *p)
+{
+	int i;
+	struct rcu_torture *rp;
+	struct rcu_torture *rp1;
+
+	synchronize_srcu(&srcu_ctl);
+	list_add(&p->rtort_free, &srcu_removed);
+	list_for_each_entry_safe(rp, rp1, &srcu_removed, rtort_free) {
+		i = rp->rtort_pipe_count;
+		if (i > RCU_TORTURE_PIPE_LEN)
+			i = RCU_TORTURE_PIPE_LEN;
+		atomic_inc(&rcu_torture_wcount[i]);
+		if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
+			rp->rtort_mbtest = 0;
+			list_del(&rp->rtort_free);
+			rcu_torture_free(rp);
+		}
+	}
+}
+
+static int srcu_torture_stats(char *page)
+{
+	int cnt = 0;
+	int cpu;
+	int idx = srcu_ctl.completed & 0x1;
+
+	cnt += sprintf(&page[cnt], "%s%s per-CPU(idx=%d):",
+		       torture_type, TORTURE_FLAG, idx);
+	for_each_possible_cpu(cpu) {
+		cnt += sprintf(&page[cnt], " %d(%d,%d)", cpu,
+			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[!idx],
+			       per_cpu_ptr(srcu_ctl.per_cpu_ref, cpu)->c[idx]);
+	}
+	cnt += sprintf(&page[cnt], "\n");
+	return cnt;
+}
+
+static struct rcu_torture_ops srcu_ops = {
+	.init = srcu_torture_init,
+	.cleanup = srcu_torture_cleanup,
+	.readlock = srcu_torture_read_lock,
+	.readdelay = srcu_read_delay,
+	.readunlock = srcu_torture_read_unlock,
+	.completed = srcu_torture_completed,
+	.deferredfree = srcu_torture_deferred_free,
+	.stats = srcu_torture_stats,
+	.name = "srcu"
+};
+
 static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, &rcu_bh_ops, NULL };
+	{ &rcu_ops, &rcu_bh_ops, &srcu_ops, NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
@@ -359,7 +472,7 @@ rcu_torture_reader(void *arg)
 		}
 		if (p->rtort_mbtest == 0)
 			atomic_inc(&n_rcu_torture_mberror);
-		udelay(rcu_random(&rand) & 0x7f);
+		cur_ops->readdelay(&rand);
 		preempt_disable();
 		pipe_count = p->rtort_pipe_count;
 		if (pipe_count > RCU_TORTURE_PIPE_LEN) {
@@ -483,7 +596,7 @@ static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
 /* Shuffle tasks such that we allow @rcu_idle_cpu to become idle. A special case
  * is when @rcu_idle_cpu = -1, when we allow the tasks to run on all CPUs.
  */
-void rcu_torture_shuffle_tasks(void)
+static void rcu_torture_shuffle_tasks(void)
 {
 	cpumask_t tmp_mask = CPU_MASK_ALL;
 	int i;
