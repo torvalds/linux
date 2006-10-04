@@ -110,16 +110,13 @@ nlm_lookup_host(int server, const struct sockaddr_in *sin,
 		if (host->h_server != server)
 			continue;
 
-		{
-			if (hp != nlm_hosts + hash) {
-				*hp = host->h_next;
-				host->h_next = nlm_hosts[hash];
-				nlm_hosts[hash] = host;
-			}
-			nlm_get_host(host);
-			mutex_unlock(&nlm_host_mutex);
-			return host;
+		if (hp != nlm_hosts + hash) {
+			*hp = host->h_next;
+			host->h_next = nlm_hosts[hash];
+			nlm_hosts[hash] = host;
 		}
+		nlm_get_host(host);
+		goto out;
 	}
 
 	/* Sadly, the host isn't in our hash table yet. See if

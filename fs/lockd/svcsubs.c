@@ -115,7 +115,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	 * the file.
 	 */
 	if ((nfserr = nlmsvc_ops->fopen(rqstp, f, &file->f_file)) != 0) {
-		dprintk("lockd: open failed (nfserr %d)\n", ntohl(nfserr));
+		dprintk("lockd: open failed (error %d)\n", nfserr);
 		goto out_free;
 	}
 
@@ -313,10 +313,12 @@ nlmsvc_free_host_resources(struct nlm_host *host)
 {
 	dprintk("lockd: nlmsvc_free_host_resources\n");
 
-	if (nlm_traverse_files(host, NLM_ACT_UNLOCK))
+	if (nlm_traverse_files(host, NLM_ACT_UNLOCK)) {
 		printk(KERN_WARNING
-			"lockd: couldn't remove all locks held by %s",
+			"lockd: couldn't remove all locks held by %s\n",
 			host->h_name);
+		BUG();
+	}
 }
 
 /*
