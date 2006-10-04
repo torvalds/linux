@@ -258,10 +258,10 @@ startup_continue:
 # find out if the diag 0x9c is available
 #
 	mvc	__LC_PGM_NEW_PSW(8),.Lpcdiag9c-.LPG1(%r13)
-	stap   __LC_CPUID+4		# store cpu address
-	lh     %r1,__LC_CPUID+4
-	diag   %r1,0,0x9c		# test diag 0x9c
-	oi     2(%r12),1		# set diag9c flag
+	stap	__LC_CPUID+4		# store cpu address
+	lh	%r1,__LC_CPUID+4
+	diag	%r1,0,0x9c		# test diag 0x9c
+	oi	2(%r12),1		# set diag9c flag
 .Lchkdiag9c:
 
 	lpsw  .Lentry-.LPG1(13)		# jump to _stext in primary-space,
