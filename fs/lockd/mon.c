@@ -30,7 +30,7 @@ u32				nsm_local_state;
  * Common procedure for SM_MON/SM_UNMON calls
  */
 static int
-nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
+nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 {
 	struct rpc_clnt	*clnt;
 	int		status;
@@ -46,10 +46,10 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 		goto out;
 	}
 
-	args.addr = host->h_addr.sin_addr.s_addr;
-	args.proto= (host->h_proto<<1) | host->h_server;
+	memset(&args, 0, sizeof(args));
+	args.addr = nsm->sm_addr.sin_addr.s_addr;
 	args.prog = NLM_PROGRAM;
-	args.vers = host->h_version;
+	args.vers = 3;
 	args.proc = NLMPROC_NSM_NOTIFY;
 	memset(res, 0, sizeof(*res));
 
@@ -80,7 +80,7 @@ nsm_monitor(struct nlm_host *host)
 	if (nsm->sm_monitored)
 		return 0;
 
-	status = nsm_mon_unmon(host, SM_MON, &res);
+	status = nsm_mon_unmon(nsm, SM_MON, &res);
 
 	if (status < 0 || res.status != 0)
 		printk(KERN_NOTICE "lockd: cannot monitor %s\n", host->h_name);
@@ -99,16 +99,20 @@ nsm_unmonitor(struct nlm_host *host)
 	struct nsm_res	res;
 	int		status = 0;
 
-	dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
 	if (nsm == NULL)
 		return 0;
 	host->h_nsmhandle = NULL;
 
-	if (!host->h_killed) {
-		status = nsm_mon_unmon(host, SM_UNMON, &res);
+	if (atomic_read(&nsm->sm_count) == 1
+	 && nsm->sm_monitored && !nsm->sm_sticky) {
+		dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
+
+		status = nsm_mon_unmon(nsm, SM_UNMON, &res);
 		if (status < 0)
-			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n", host->h_name);
-		nsm->sm_monitored = 0;
+			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n",
+					host->h_name);
+		else
+			nsm->sm_monitored = 0;
 	}
 	nsm_release(nsm);
 	return status;
@@ -171,9 +175,11 @@ xdr_encode_mon(struct rpc_rqst *rqstp, u32 *p, struct nsm_args *argp)
 	p = xdr_encode_common(rqstp, p, argp);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
+
+	/* Surprise - there may even be room for an IPv6 address now */
 	*p++ = argp->addr;
-	*p++ = argp->vers;
-	*p++ = argp->proto;
+	*p++ = 0;
+	*p++ = 0;
 	*p++ = 0;
 	rqstp->rq_slen = xdr_adjust_iovec(rqstp->rq_svec, p);
 	return 0;
