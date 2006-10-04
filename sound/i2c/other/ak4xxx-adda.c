@@ -513,6 +513,66 @@ static int ak4xxx_switch_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+#define AK5365_NUM_INPUTS 5
+
+static int ak4xxx_capture_source_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
+{
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
+	int mixer_ch = AK_GET_SHIFT(kcontrol->private_value);
+	const char **input_names;
+	int  num_names, idx;
+
+	input_names = ak->adc_info[mixer_ch].input_names;
+
+	num_names = 0;
+	while (num_names < AK5365_NUM_INPUTS && input_names[num_names])
+		++num_names;
+	
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = num_names;
+	idx = uinfo->value.enumerated.item;
+	if (idx >= num_names)
+		return -EINVAL;
+	strncpy(uinfo->value.enumerated.name, input_names[idx],
+		sizeof(uinfo->value.enumerated.name));
+	return 0;
+}
+
+static int ak4xxx_capture_source_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
+	int chip = AK_GET_CHIP(kcontrol->private_value);
+	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int mask = AK_GET_MASK(kcontrol->private_value);
+	unsigned char val;
+
+	val = snd_akm4xxx_get(ak, chip, addr) & mask;
+	ucontrol->value.enumerated.item[0] = val;
+	return 0;
+}
+
+static int ak4xxx_capture_source_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
+	int chip = AK_GET_CHIP(kcontrol->private_value);
+	int addr = AK_GET_ADDR(kcontrol->private_value);
+	int mask = AK_GET_MASK(kcontrol->private_value);
+	unsigned char oval, val;
+
+	oval = snd_akm4xxx_get(ak, chip, addr);
+	val = oval & ~mask;
+	val |= ucontrol->value.enumerated.item[0] & mask;
+	if (val != oval) {
+		snd_akm4xxx_write(ak, chip, addr, val);
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * build AK4xxx controls
  */
@@ -647,9 +707,10 @@ static int build_adc_controls(struct snd_akm4xxx *ak)
 
 		if (ak->type == SND_AK5365 && (idx % 2) == 0) {
 			if (! ak->adc_info || 
-			    ! ak->adc_info[mixer_ch].switch_name)
+			    ! ak->adc_info[mixer_ch].switch_name) {
 				knew.name = "Capture Switch";
-			else
+				knew.index = mixer_ch + ak->idx_offset * 2;
+			} else
 				knew.name = ak->adc_info[mixer_ch].switch_name;
 			knew.info = ak4xxx_switch_info;
 			knew.get = ak4xxx_switch_get;
@@ -659,6 +720,26 @@ static int build_adc_controls(struct snd_akm4xxx *ak)
 			   1 = mute */
 			knew.private_value =
 				AK_COMPOSE(idx/2, 2, 0, 0) | AK_INVERT;
+			err = snd_ctl_add(ak->card, snd_ctl_new1(&knew, ak));
+			if (err < 0)
+				return err;
+
+			memset(&knew, 0, sizeof(knew));
+			knew.name = ak->adc_info[mixer_ch].selector_name;
+			if (!knew.name) {
+				knew.name = "Capture Channel";
+				knew.index = mixer_ch + ak->idx_offset * 2;
+			}
+
+			knew.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+			knew.info = ak4xxx_capture_source_info;
+			knew.get = ak4xxx_capture_source_get;
+			knew.put = ak4xxx_capture_source_put;
+			knew.access = 0;
+			/* input selector control: reg. 1, bits 0-2.
+			 * mis-use 'shift' to pass mixer_ch */
+			knew.private_value
+				= AK_COMPOSE(idx/2, 1, mixer_ch, 0x07);
 			err = snd_ctl_add(ak->card, snd_ctl_new1(&knew, ak));
 			if (err < 0)
 				return err;

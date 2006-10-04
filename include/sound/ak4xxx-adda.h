@@ -50,6 +50,8 @@ struct snd_akm4xxx_adc_channel {
 	char *name;		/* capture gain volume label */
 	char *switch_name;	/* capture switch */
 	unsigned int num_channels;
+	char *selector_name;	/* capture source select label */
+	const char **input_names; /* capture source names (NULL terminated) */
 };
 
 struct snd_akm4xxx {

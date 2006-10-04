@@ -107,11 +107,19 @@ static struct snd_akm4xxx_dac_channel revo51_dac[] = {
 	AK_DAC("PCM Rear Playback Volume", 2),
 };
 
+static const char *revo51_adc_input_names[] = {
+	"Mic",
+	"Line",
+	"CD",
+	NULL
+};
+
 static struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	{
 		.name = "PCM Capture Volume",
 		.switch_name = "PCM Capture Switch",
-		.num_channels = 2
+		.num_channels = 2,
+		.input_names = revo51_adc_input_names
 	},
 };
 
