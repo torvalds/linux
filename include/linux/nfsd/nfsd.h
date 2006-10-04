@@ -216,6 +216,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_clid_inuse	__constant_htonl(NFSERR_CLID_INUSE)
 #define	nfserr_stale_clientid	__constant_htonl(NFSERR_STALE_CLIENTID)
 #define	nfserr_resource		__constant_htonl(NFSERR_RESOURCE)
+#define	nfserr_moved		__constant_htonl(NFSERR_MOVED)
 #define	nfserr_nofilehandle	__constant_htonl(NFSERR_NOFILEHANDLE)
 #define	nfserr_minor_vers_mismatch	__constant_htonl(NFSERR_MINOR_VERS_MISMATCH)
 #define nfserr_share_denied	__constant_htonl(NFSERR_SHARE_DENIED)

@@ -60,6 +60,14 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
+/*
+ * As per referral draft, the fsid for a referral MUST be different from the fsid of the containing
+ * directory in order to indicate to the client that a filesystem boundary is present
+ * We use a fixed fsid for a referral
+ */
+#define NFS4_REFERRAL_FSID_MAJOR	0x8000000ULL
+#define NFS4_REFERRAL_FSID_MINOR	0x8000000ULL
+
 static int
 check_filename(char *str, int len, int err)
 {
@@ -1385,6 +1393,25 @@ nfsd4_encode_aclname(struct svc_rqst *rqstp, int whotype, uid_t id, int group,
 	return nfsd4_encode_name(rqstp, whotype, id, group, p, buflen);
 }
 
+#define WORD0_ABSENT_FS_ATTRS (FATTR4_WORD0_FS_LOCATIONS | FATTR4_WORD0_FSID | \
+			      FATTR4_WORD0_RDATTR_ERROR)
+#define WORD1_ABSENT_FS_ATTRS FATTR4_WORD1_MOUNTED_ON_FILEID
+
+static int fattr_handle_absent_fs(u32 *bmval0, u32 *bmval1, u32 *rdattr_err)
+{
+	/* As per referral draft:  */
+	if (*bmval0 & ~WORD0_ABSENT_FS_ATTRS ||
+	    *bmval1 & ~WORD1_ABSENT_FS_ATTRS) {
+		if (*bmval0 & FATTR4_WORD0_RDATTR_ERROR ||
+	            *bmval0 & FATTR4_WORD0_FS_LOCATIONS)
+			*rdattr_err = NFSERR_MOVED;
+		else
+			return nfserr_moved;
+	}
+	*bmval0 &= WORD0_ABSENT_FS_ATTRS;
+	*bmval1 &= WORD1_ABSENT_FS_ATTRS;
+	return 0;
+}
 
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
@@ -1407,6 +1434,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	u32 *attrlenp;
 	u32 dummy;
 	u64 dummy64;
+	u32 rdattr_err = 0;
 	u32 *p = buffer;
 	int status;
 	int aclsupport = 0;
@@ -1415,6 +1443,12 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
 	BUG_ON(bmval0 & ~NFSD_SUPPORTED_ATTRS_WORD0);
 	BUG_ON(bmval1 & ~NFSD_SUPPORTED_ATTRS_WORD1);
+
+	if (exp->ex_fslocs.migrated) {
+		status = fattr_handle_absent_fs(&bmval0, &bmval1, &rdattr_err);
+		if (status)
+			goto out;
+	}
 
 	status = vfs_getattr(exp->ex_mnt, dentry, &stat);
 	if (status)
@@ -1461,12 +1495,15 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	attrlenp = p++;                /* to be backfilled later */
 
 	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
+		u32 word0 = NFSD_SUPPORTED_ATTRS_WORD0;
 		if ((buflen -= 12) < 0)
 			goto out_resource;
+		if (!aclsupport)
+			word0 &= ~FATTR4_WORD0_ACL;
+		if (!exp->ex_fslocs.locations)
+			word0 &= ~FATTR4_WORD0_FS_LOCATIONS;
 		WRITE32(2);
-		WRITE32(aclsupport ?
-			NFSD_SUPPORTED_ATTRS_WORD0 :
-			NFSD_SUPPORTED_ATTRS_WORD0 & ~FATTR4_WORD0_ACL);
+		WRITE32(word0);
 		WRITE32(NFSD_SUPPORTED_ATTRS_WORD1);
 	}
 	if (bmval0 & FATTR4_WORD0_TYPE) {
@@ -1520,7 +1557,10 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	if (bmval0 & FATTR4_WORD0_FSID) {
 		if ((buflen -= 16) < 0)
 			goto out_resource;
-		if (is_fsid(fhp, rqstp->rq_reffh)) {
+		if (exp->ex_fslocs.migrated) {
+			WRITE64(NFS4_REFERRAL_FSID_MAJOR);
+			WRITE64(NFS4_REFERRAL_FSID_MINOR);
+		} else if (is_fsid(fhp, rqstp->rq_reffh)) {
 			WRITE64((u64)exp->ex_fsid);
 			WRITE64((u64)0);
 		} else {
@@ -1543,7 +1583,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
 		if ((buflen -= 4) < 0)
 			goto out_resource;
-		WRITE32(0);
+		WRITE32(rdattr_err);
 	}
 	if (bmval0 & FATTR4_WORD0_ACL) {
 		struct nfs4_ace *ace;
@@ -1970,7 +2010,6 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_ge
 	nfserr = nfsd4_encode_fattr(fhp, fhp->fh_export, fhp->fh_dentry,
 				    resp->p, &buflen, getattr->ga_bmval,
 				    resp->rqstp);
-
 	if (!nfserr)
 		resp->p += buflen;
 	return nfserr;
