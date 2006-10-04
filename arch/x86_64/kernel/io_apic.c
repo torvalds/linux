@@ -615,6 +615,7 @@ next:
 	}
 
 	vector = current_vector;
+	vector_irq[vector] = irq;
 	IO_APIC_VECTOR(irq) = vector;
 
 	return vector;
@@ -649,7 +650,6 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 	else
 		set_irq_chip_and_handler(irq, &ioapic_chip,
 					 handle_edge_irq);
-	set_intr_gate(vector, interrupt[irq]);
 }
 
 static void __init setup_IO_APIC_irqs(void)
@@ -1420,7 +1420,6 @@ static inline void check_timer(void)
 	 */
 	disable_8259A_irq(0);
 	vector = assign_irq_vector(0);
-	set_intr_gate(vector, interrupt[0]);
 
 	/*
 	 * Subtle, code in do_timer_interrupt() expects an AEOI
@@ -1671,7 +1670,6 @@ int create_irq(void)
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	if (irq >= 0) {
-		set_intr_gate(vector, interrupt[irq]);
 		dynamic_irq_init(irq);
 	}
 	return irq;

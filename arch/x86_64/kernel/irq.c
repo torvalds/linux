@@ -105,7 +105,12 @@ skip:
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 {	
 	/* high bit used in ret_from_ code  */
-	unsigned irq = ~regs->orig_rax;
+	unsigned vector = ~regs->orig_rax;
+	unsigned irq;
+
+	exit_idle();
+	irq_enter();
+	irq = vector_irq[vector];
 
 	if (unlikely(irq >= NR_IRQS)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
@@ -113,8 +118,6 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 		BUG();
 	}
 
-	exit_idle();
-	irq_enter();
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	stack_overflow_check(regs);
 #endif

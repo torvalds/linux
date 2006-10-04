@@ -74,6 +74,7 @@
 
 #ifndef __ASSEMBLY__
 extern u8 irq_vector[NR_IRQ_VECTORS];
+extern int vector_irq[NR_VECTORS];
 #define IO_APIC_VECTOR(irq)	(irq_vector[irq])
 
 /*

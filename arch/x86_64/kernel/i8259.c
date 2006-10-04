@@ -43,17 +43,10 @@
 	BI(x,8) BI(x,9) BI(x,a) BI(x,b) \
 	BI(x,c) BI(x,d) BI(x,e) BI(x,f)
 
-#define BUILD_15_IRQS(x) \
-	BI(x,0) BI(x,1) BI(x,2) BI(x,3) \
-	BI(x,4) BI(x,5) BI(x,6) BI(x,7) \
-	BI(x,8) BI(x,9) BI(x,a) BI(x,b) \
-	BI(x,c) BI(x,d) BI(x,e)
-
 /*
  * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
  * (these are usually mapped to vectors 0x20-0x2f)
  */
-BUILD_16_IRQS(0x0)
 
 /*
  * The IO-APIC gives us many more interrupt sources. Most of these 
@@ -65,17 +58,12 @@ BUILD_16_IRQS(0x0)
  *
  * (these are usually mapped into the 0x30-0xff vector range)
  */
-		   BUILD_16_IRQS(0x1) BUILD_16_IRQS(0x2) BUILD_16_IRQS(0x3)
+				      BUILD_16_IRQS(0x2) BUILD_16_IRQS(0x3)
 BUILD_16_IRQS(0x4) BUILD_16_IRQS(0x5) BUILD_16_IRQS(0x6) BUILD_16_IRQS(0x7)
 BUILD_16_IRQS(0x8) BUILD_16_IRQS(0x9) BUILD_16_IRQS(0xa) BUILD_16_IRQS(0xb)
-BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd)
-
-#ifdef CONFIG_PCI_MSI
-	BUILD_15_IRQS(0xe)
-#endif
+BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd) BUILD_16_IRQS(0xe) BUILD_16_IRQS(0xf)
 
 #undef BUILD_16_IRQS
-#undef BUILD_15_IRQS
 #undef BI
 
 
@@ -88,29 +76,15 @@ BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd)
 	IRQ(x,8), IRQ(x,9), IRQ(x,a), IRQ(x,b), \
 	IRQ(x,c), IRQ(x,d), IRQ(x,e), IRQ(x,f)
 
-#define IRQLIST_15(x) \
-	IRQ(x,0), IRQ(x,1), IRQ(x,2), IRQ(x,3), \
-	IRQ(x,4), IRQ(x,5), IRQ(x,6), IRQ(x,7), \
-	IRQ(x,8), IRQ(x,9), IRQ(x,a), IRQ(x,b), \
-	IRQ(x,c), IRQ(x,d), IRQ(x,e)
-
 void (*interrupt[NR_IRQS])(void) = {
-	IRQLIST_16(0x0),
-
-			 IRQLIST_16(0x1), IRQLIST_16(0x2), IRQLIST_16(0x3),
+					  IRQLIST_16(0x2), IRQLIST_16(0x3),
 	IRQLIST_16(0x4), IRQLIST_16(0x5), IRQLIST_16(0x6), IRQLIST_16(0x7),
 	IRQLIST_16(0x8), IRQLIST_16(0x9), IRQLIST_16(0xa), IRQLIST_16(0xb),
-	IRQLIST_16(0xc), IRQLIST_16(0xd)
-
-#ifdef CONFIG_PCI_MSI
-	, IRQLIST_15(0xe)
-#endif
-
+	IRQLIST_16(0xc), IRQLIST_16(0xd), IRQLIST_16(0xe), IRQLIST_16(0xf)
 };
 
 #undef IRQ
 #undef IRQLIST_16
-#undef IRQLIST_14
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
@@ -420,6 +394,26 @@ device_initcall(i8259A_init_sysfs);
  */
 
 static struct irqaction irq2 = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL};
+int vector_irq[NR_VECTORS] __read_mostly = {
+	[0 ... FIRST_EXTERNAL_VECTOR - 1] = -1,
+	[FIRST_EXTERNAL_VECTOR + 0] = 0,
+	[FIRST_EXTERNAL_VECTOR + 1] = 1,
+	[FIRST_EXTERNAL_VECTOR + 2] = 2,
+	[FIRST_EXTERNAL_VECTOR + 3] = 3,
+	[FIRST_EXTERNAL_VECTOR + 4] = 4,
+	[FIRST_EXTERNAL_VECTOR + 5] = 5,
+	[FIRST_EXTERNAL_VECTOR + 6] = 6,
+	[FIRST_EXTERNAL_VECTOR + 7] = 7,
+	[FIRST_EXTERNAL_VECTOR + 8] = 8,
+	[FIRST_EXTERNAL_VECTOR + 9] = 9,
+	[FIRST_EXTERNAL_VECTOR + 10] = 10,
+	[FIRST_EXTERNAL_VECTOR + 11] = 11,
+	[FIRST_EXTERNAL_VECTOR + 12] = 12,
+	[FIRST_EXTERNAL_VECTOR + 13] = 13,
+	[FIRST_EXTERNAL_VECTOR + 14] = 14,
+	[FIRST_EXTERNAL_VECTOR + 15] = 15,
+	[FIRST_EXTERNAL_VECTOR + 16 ... NR_VECTORS - 1] = -1
+};
 
 void __init init_ISA_irqs (void)
 {
@@ -517,8 +511,6 @@ void __init init_IRQ(void)
 	 */
 	for (i = 0; i < (NR_VECTORS - FIRST_EXTERNAL_VECTOR); i++) {
 		int vector = FIRST_EXTERNAL_VECTOR + i;
-		if (i >= NR_IRQS)
-			break;
 		if (vector != IA32_SYSCALL_VECTOR)
 			set_intr_gate(vector, interrupt[i]);
 	}
@@ -528,7 +520,7 @@ void __init init_IRQ(void)
 	 * IRQ0 must be given a fixed assignment and initialized,
 	 * because it's used before the IO-APIC is set up.
 	 */
-	set_intr_gate(FIRST_DEVICE_VECTOR, interrupt[0]);
+	vector_irq[FIRST_DEVICE_VECTOR] = 0;
 
 	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
