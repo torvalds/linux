@@ -1658,3 +1658,10 @@ compat_sys_vmsplice_wrapper:
 	llgfr	%r4,%r4			# unsigned int
 	llgfr	%r5,%r5			# unsigned int
 	jg	compat_sys_vmsplice
+
+	.globl	sys_getcpu_wrapper
+sys_getcpu_wrapper:
+	llgtr	%r2,%r2			# unsigned *
+	llgtr	%r3,%r3			# unsigned *
+	llgtr	%r4,%r4			# struct getcpu_cache *
+	jg	sys_tee
