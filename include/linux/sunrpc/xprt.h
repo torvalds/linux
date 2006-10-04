@@ -15,6 +15,7 @@
 #include <linux/kref.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/msg_prot.h>
 
 extern unsigned int xprt_udp_slot_table_entries;
 extern unsigned int xprt_tcp_slot_table_entries;
@@ -22,13 +23,6 @@ extern unsigned int xprt_tcp_slot_table_entries;
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
-
-/*
- * RPC call and reply header size as number of 32bit words (verifier
- * size computed separately)
- */
-#define RPC_CALLHDRSIZE		6
-#define RPC_REPHDRSIZE		4
 
 /*
  * Parameters for choosing a free port

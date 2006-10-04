@@ -330,6 +330,7 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, u32 *p,
 {
 	unsigned int len;
 	int v,pn;
+	u32 max_blocksize = svc_max_payload(rqstp);
 
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = xdr_decode_hyper(p, &args->offset)))
@@ -337,8 +338,8 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, u32 *p,
 
 	len = args->count = ntohl(*p++);
 
-	if (len > NFSSVC_MAXBLKSIZE)
-		len = NFSSVC_MAXBLKSIZE;
+	if (len > max_blocksize)
+		len = max_blocksize;
 
 	/* set up the kvec */
 	v=0;
@@ -358,6 +359,7 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd3_writeargs *args)
 {
 	unsigned int len, v, hdr;
+	u32 max_blocksize = svc_max_payload(rqstp);
 
 	if (!(p = decode_fh(p, &args->fh))
 	 || !(p = xdr_decode_hyper(p, &args->offset)))
@@ -375,8 +377,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, u32 *p,
 	rqstp->rq_vec[0].iov_base = (void*)p;
 	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
 
-	if (len > NFSSVC_MAXBLKSIZE)
-		len = NFSSVC_MAXBLKSIZE;
+	if (len > max_blocksize)
+		len = max_blocksize;
 	v=  0;
 	while (len > rqstp->rq_vec[v].iov_len) {
 		len -= rqstp->rq_vec[v].iov_len;
@@ -564,6 +566,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd3_readdirargs *args)
 {
 	int len, pn;
+	u32 max_blocksize = svc_max_payload(rqstp);
 
 	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
@@ -572,7 +575,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, u32 *p,
 	args->dircount = ntohl(*p++);
 	args->count    = ntohl(*p++);
 
-	len = (args->count > NFSSVC_MAXBLKSIZE) ? NFSSVC_MAXBLKSIZE :
+	len = (args->count > max_blocksize) ? max_blocksize :
 						  args->count;
 	args->count = len;
 

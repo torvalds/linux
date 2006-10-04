@@ -13,6 +13,7 @@
 #include <linux/nfs2.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
+#include <linux/sunrpc/msg_prot.h>
 
 /*
  * Maximum protocol version supported by knfsd
@@ -23,6 +24,8 @@
  * Maximum blocksize supported by daemon currently at 32K
  */
 #define NFSSVC_MAXBLKSIZE	(32*1024)
+/* NFSv2 is limited by the protocol specification, see RFC 1094 */
+#define NFSSVC_MAXBLKSIZE_V2	(8*1024)
 
 #ifdef __KERNEL__
 
@@ -30,7 +33,17 @@
 # define NFS_SUPER_MAGIC	0x6969
 #endif
 
-#define NFSD_BUFSIZE		(1024 + NFSSVC_MAXBLKSIZE)
+/*
+ * Largest number of bytes we need to allocate for an NFS
+ * call or reply.  Used to control buffer sizes.  We use
+ * the length of v3 WRITE, READDIR and READDIR replies
+ * which are an RPC header, up to 26 XDR units of reply
+ * data, and some page data.
+ *
+ * Note that accuracy here doesn't matter too much as the
+ * size is rounded up to a page size when allocating space.
+ */
+#define NFSD_BUFSIZE		((RPC_MAX_HEADER_WITH_AUTH+26)*XDR_UNIT + NFSSVC_MAXBLKSIZE)
 
 #ifdef CONFIG_NFSD_V4
 # define NFSSVC_XDRSIZE		NFS4_SVC_XDRSIZE

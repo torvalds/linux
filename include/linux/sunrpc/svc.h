@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/svcauth.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
@@ -95,8 +96,28 @@ static inline void svc_get(struct svc_serv *serv)
  * Maximum payload size supported by a kernel RPC server.
  * This is use to determine the max number of pages nfsd is
  * willing to return in a single READ operation.
+ *
+ * These happen to all be powers of 2, which is not strictly
+ * necessary but helps enforce the real limitation, which is
+ * that they should be multiples of PAGE_CACHE_SIZE.
+ *
+ * For UDP transports, a block plus NFS,RPC, and UDP headers
+ * has to fit into the IP datagram limit of 64K.  The largest
+ * feasible number for all known page sizes is probably 48K,
+ * but we choose 32K here.  This is the same as the historical
+ * Linux limit; someone who cares more about NFS/UDP performance
+ * can test a larger number.
+ *
+ * For TCP transports we have more freedom.  A size of 1MB is
+ * chosen to match the client limit.  Other OSes are known to
+ * have larger limits, but those numbers are probably beyond
+ * the point of diminishing returns.
  */
-#define RPCSVC_MAXPAYLOAD	(64*1024u)
+#define RPCSVC_MAXPAYLOAD	(1*1024*1024u)
+#define RPCSVC_MAXPAYLOAD_TCP	RPCSVC_MAXPAYLOAD
+#define RPCSVC_MAXPAYLOAD_UDP	(32*1024u)
+
+extern u32 svc_max_payload(const struct svc_rqst *rqstp);
 
 /*
  * RPC Requsts and replies are stored in one or more pages.

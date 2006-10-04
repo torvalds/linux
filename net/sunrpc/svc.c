@@ -919,3 +919,18 @@ err_bad:
 	svc_putnl(resv, ntohl(rpc_stat));
 	goto sendit;
 }
+
+/*
+ * Return (transport-specific) limit on the rpc payload.
+ */
+u32 svc_max_payload(const struct svc_rqst *rqstp)
+{
+	int max = RPCSVC_MAXPAYLOAD_TCP;
+
+	if (rqstp->rq_sock->sk_sock->type == SOCK_DGRAM)
+		max = RPCSVC_MAXPAYLOAD_UDP;
+	if (rqstp->rq_server->sv_bufsz < max)
+		max = rqstp->rq_server->sv_bufsz;
+	return max;
+}
+EXPORT_SYMBOL_GPL(svc_max_payload);
