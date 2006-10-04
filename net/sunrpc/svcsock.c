@@ -492,6 +492,9 @@ svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 	}
 	spin_unlock(&serv->sv_lock);
 	if (closesk)
+		/* Should unregister with portmap, but you cannot
+		 * unregister just one protocol...
+		 */
 		svc_delete_socket(closesk);
 	else if (toclose)
 		return -ENOENT;

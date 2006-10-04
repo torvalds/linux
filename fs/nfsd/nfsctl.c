@@ -523,11 +523,11 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		err = nfsd_create_serv();
 		if (!err) {
 			int proto = 0;
-			err = lockd_up(proto);
-			if (!err) {
-				err = svc_addsock(nfsd_serv, fd, buf, &proto);
-				if (err)
-					lockd_down();
+			err = svc_addsock(nfsd_serv, fd, buf, &proto);
+			if (err >= 0) {
+				err = lockd_up(proto);
+				if (err < 0)
+					svc_sock_names(buf+strlen(buf)+1, nfsd_serv, buf);
 			}
 			/* Decrease the count, but don't shutdown the
 			 * the service
@@ -536,7 +536,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			nfsd_serv->sv_nrthreads--;
 			unlock_kernel();
 		}
-		return err;
+		return err < 0 ? err : 0;
 	}
 	if (buf[0] == '-') {
 		char *toclose = kstrdup(buf+1, GFP_KERNEL);
