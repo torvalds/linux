@@ -31,6 +31,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/sysdev.h>
+#include <linux/pci.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -38,6 +39,7 @@
 #include <asm/timer.h>
 #include <asm/i8259.h>
 #include <asm/nmi.h>
+#include <asm/msidef.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -2529,6 +2531,74 @@ void destroy_irq(unsigned int irq)
 	irq_vector[irq] = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
+#endif /* CONFIG_PCI_MSI */
+
+/*
+ * MSI mesage composition
+ */
+#ifdef CONFIG_PCI_MSI
+static int msi_msg_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+{
+	/* For now always this code always uses physical delivery
+	 * mode.
+	 */
+	int vector;
+	unsigned dest;
+
+	vector = assign_irq_vector(irq);
+	if (vector >= 0) {
+		dest = cpu_mask_to_apicid(TARGET_CPUS);
+
+		msg->address_hi = MSI_ADDR_BASE_HI;
+		msg->address_lo =
+			MSI_ADDR_BASE_LO |
+			((INT_DEST_MODE == 0) ?
+				MSI_ADDR_DEST_MODE_PHYSICAL:
+				MSI_ADDR_DEST_MODE_LOGICAL) |
+			((INT_DELIVERY_MODE != dest_LowestPrio) ?
+				MSI_ADDR_REDIRECTION_CPU:
+				MSI_ADDR_REDIRECTION_LOWPRI) |
+			MSI_ADDR_DEST_ID(dest);
+
+		msg->data =
+			MSI_DATA_TRIGGER_EDGE |
+			MSI_DATA_LEVEL_ASSERT |
+			((INT_DELIVERY_MODE != dest_LowestPrio) ?
+				MSI_DATA_DELIVERY_FIXED:
+				MSI_DATA_DELIVERY_LOWPRI) |
+			MSI_DATA_VECTOR(vector);
+	}
+	return vector;
+}
+
+static void msi_msg_teardown(unsigned int irq)
+{
+	return;
+}
+
+static void msi_msg_set_affinity(unsigned int irq, cpumask_t mask, struct msi_msg *msg)
+{
+	int vector;
+	unsigned dest;
+
+	vector = assign_irq_vector(irq);
+	if (vector > 0) {
+		dest = cpu_mask_to_apicid(mask);
+
+		msg->data &= ~MSI_DATA_VECTOR_MASK;
+		msg->data |= MSI_DATA_VECTOR(vector);
+		msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+		msg->address_lo |= MSI_ADDR_DEST_ID(dest);
+	}
+}
+
+struct msi_ops arch_msi_ops = {
+	.needs_64bit_address = 0,
+	.setup = msi_msg_setup,
+	.teardown = msi_msg_teardown,
+	.target = msi_msg_set_affinity,
+};
+
 #endif /* CONFIG_PCI_MSI */
 
 /* --------------------------------------------------------------------------
