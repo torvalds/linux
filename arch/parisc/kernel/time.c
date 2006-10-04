@@ -38,11 +38,28 @@ static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
 extern void smp_do_timer(struct pt_regs *regs);
 #endif
 
+/*
+ * We keep time on PA-RISC Linux by using the Interval Timer which is
+ * a pair of registers; one is read-only and one is write-only; both
+ * accessed through CR16.  The read-only register is 32 or 64 bits wide,
+ * and increments by 1 every CPU clock tick.  The architecture only
+ * guarantees us a rate between 0.5 and 2, but all implementations use a
+ * rate of 1.  The write-only register is 32-bits wide.  When the lowest
+ * 32 bits of the read-only register compare equal to the write-only
+ * register, it raises a maskable external interrupt.  Each processor has
+ * an Interval Timer of its own and they are not synchronised.  
+ *
+ * We want to generate an interrupt every 1/HZ seconds.  So we program
+ * CR16 to interrupt every @clocktick cycles.  The it_value in cpu_data
+ * is programmed with the intended time of the next tick.  We can be
+ * held off for an arbitrarily long period of time by interrupts being
+ * disabled, so we may miss one or more ticks.
+ */
 irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned long now;
 	unsigned long next_tick;
-	unsigned long cycles_elapsed;
+	unsigned long cycles_elapsed, ticks_elapsed;
 	unsigned long cycles_remainder;
 	unsigned int cpu = smp_processor_id();
 
@@ -67,11 +84,14 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 * of the more expensive div/mul method
 		 */
 		cycles_remainder = cycles_elapsed;
+		ticks_elapsed = 1;
 		while (cycles_remainder > cpt) {
 			cycles_remainder -= cpt;
+			ticks_elapsed++;
 		}
 	} else {
 		cycles_remainder = cycles_elapsed % cpt;
+		ticks_elapsed = 1 + cycles_elapsed / cpt;
 	}
 
 	/* Can we differentiate between "early CR16" (aka Scenario 1) and
@@ -81,18 +101,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * cycles after the IT fires. But it's arbitrary how much time passes
 	 * before we call it "late". I've picked one second.
 	 */
-/* aproximate HZ with shifts. Intended math is "(elapsed/clocktick) > HZ" */
-#if HZ == 1000
-	if (cycles_elapsed > (cpt << 10) )
-#elif HZ == 250
-	if (cycles_elapsed > (cpt << 8) )
-#elif HZ == 100
-	if (cycles_elapsed > (cpt << 7) )
-#else
-#warn WTF is HZ set to anyway?
-	if (cycles_elapsed > (HZ * cpt) )
-#endif
-	{
+	if (ticks_elapsed > HZ) {
 		/* Scenario 3: very long delay?  bad in any case */
 		printk (KERN_CRIT "timer_interrupt(CPU %d): delayed!"
 			" cycles %lX rem %lX "
@@ -136,7 +145,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 	if (cpu == 0) {
 		write_seqlock(&xtime_lock);
-		do_timer(regs);
+		do_timer(ticks_elapsed);
 		write_sequnlock(&xtime_lock);
 	}
 
