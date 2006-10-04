@@ -2864,7 +2864,8 @@ static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
 	int i;
 	int error = 0;
 
-	clear_user(ioc, sizeof(*ioc));
+	if (clear_user(ioc, sizeof(*ioc)))
+		return -EFAULT;
 
 	if (copy_in_user(&ioc->host_no, &cioc->host_no, sizeof(u16)) ||
 	    copy_in_user(&ioc->sgl_off, &cioc->sgl_off, sizeof(u32)) ||
@@ -3010,16 +3011,33 @@ static int __init megasas_init(void)
 
 	if (rval) {
 		printk(KERN_DEBUG "megasas: PCI hotplug regisration failed \n");
-		unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");
+		goto err_pcidrv;
 	}
 
-	driver_create_file(&megasas_pci_driver.driver, &driver_attr_version);
-	driver_create_file(&megasas_pci_driver.driver,
-			   &driver_attr_release_date);
-	driver_create_file(&megasas_pci_driver.driver,
-			   &driver_attr_dbg_lvl);
+	rval = driver_create_file(&megasas_pci_driver.driver,
+				  &driver_attr_version);
+	if (rval)
+		goto err_dcf_attr_ver;
+	rval = driver_create_file(&megasas_pci_driver.driver,
+				  &driver_attr_release_date);
+	if (rval)
+		goto err_dcf_rel_date;
+	rval = driver_create_file(&megasas_pci_driver.driver,
+				  &driver_attr_dbg_lvl);
+	if (rval)
+		goto err_dcf_dbg_lvl;
 
 	return rval;
+err_dcf_dbg_lvl:
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_release_date);
+err_dcf_rel_date:
+	driver_remove_file(&megasas_pci_driver.driver, &driver_attr_version);
+err_dcf_attr_ver:
+	pci_unregister_driver(&megasas_pci_driver);
+err_pcidrv:
+	unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");
+  	return rval;
 }
 
 /**
@@ -3027,11 +3045,11 @@ static int __init megasas_init(void)
  */
 static void __exit megasas_exit(void)
 {
-	driver_remove_file(&megasas_pci_driver.driver, &driver_attr_version);
-	driver_remove_file(&megasas_pci_driver.driver,
-			   &driver_attr_release_date);
 	driver_remove_file(&megasas_pci_driver.driver,
 			   &driver_attr_dbg_lvl);
+	driver_remove_file(&megasas_pci_driver.driver,
+			   &driver_attr_release_date);
+	driver_remove_file(&megasas_pci_driver.driver, &driver_attr_version);
 
 	pci_unregister_driver(&megasas_pci_driver);
 	unregister_chrdev(megasas_mgmt_majorno, "megaraid_sas_ioctl");
