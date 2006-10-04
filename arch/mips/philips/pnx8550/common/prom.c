@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/serial_ip3106.h>
+#include <linux/serial_pnx8xxx.h>
 
 #include <asm/bootinfo.h>
 #include <uart.h>
@@ -126,7 +126,7 @@ void prom_putchar(char c)
 {
 	if (pnx8550_console_port != -1) {
 		/* Wait until FIFO not full */
-		while( ((ip3106_fifo(UART_BASE, pnx8550_console_port) & IP3106_UART_FIFO_TXFIFO) >> 16) >= 16)
+		while( ((ip3106_fifo(UART_BASE, pnx8550_console_port) & PNX8XXX_UART_FIFO_TXFIFO) >> 16) >= 16)
 			;
 		/* Send one char */
 		ip3106_fifo(UART_BASE, pnx8550_console_port) = c;
