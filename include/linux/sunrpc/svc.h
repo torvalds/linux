@@ -170,7 +170,6 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
 /*
  * The context of a single thread, including the request currently being
  * processed.
- * NOTE: First two items must be prev/next.
  */
 struct svc_rqst {
 	struct list_head	rq_list;	/* idle list */
@@ -189,12 +188,9 @@ struct svc_rqst {
 
 	struct xdr_buf		rq_arg;
 	struct xdr_buf		rq_res;
-	struct page *		rq_argpages[RPCSVC_MAXPAGES];
-	struct page *		rq_respages[RPCSVC_MAXPAGES];
-	int			rq_restailpage;
-	short			rq_argused;	/* pages used for argument */
-	short			rq_arghi;	/* pages available in argument page list */
-	short			rq_resused;	/* pages used for result */
+	struct page *		rq_pages[RPCSVC_MAXPAGES];
+	struct page *		*rq_respages;	/* points into rq_pages */
+	int			rq_resused;	/* number of pages used for result */
 
 	__be32			rq_xid;		/* transmission id */
 	u32			rq_prog;	/* program number */
@@ -255,60 +251,15 @@ xdr_ressize_check(struct svc_rqst *rqstp, __be32 *p)
 	return vec->iov_len <= PAGE_SIZE;
 }
 
-static inline struct page *
-svc_take_res_page(struct svc_rqst *rqstp)
+static inline void svc_free_res_pages(struct svc_rqst *rqstp)
 {
-	if (rqstp->rq_arghi <= rqstp->rq_argused)
-		return NULL;
-	rqstp->rq_arghi--;
-	rqstp->rq_respages[rqstp->rq_resused] =
-		rqstp->rq_argpages[rqstp->rq_arghi];
-	return rqstp->rq_respages[rqstp->rq_resused++];
-}
-
-static inline void svc_take_page(struct svc_rqst *rqstp)
-{
-	if (rqstp->rq_arghi <= rqstp->rq_argused) {
-		WARN_ON(1);
-		return;
-	}
-	rqstp->rq_arghi--;
-	rqstp->rq_respages[rqstp->rq_resused] =
-		rqstp->rq_argpages[rqstp->rq_arghi];
-	rqstp->rq_resused++;
-}
-
-static inline void svc_pushback_allpages(struct svc_rqst *rqstp)
-{
-        while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		rqstp->rq_argpages[rqstp->rq_arghi++] =
-			rqstp->rq_respages[rqstp->rq_resused];
-		rqstp->rq_respages[rqstp->rq_resused] = NULL;
-	}
-}
-
-static inline void svc_pushback_unused_pages(struct svc_rqst *rqstp)
-{
-	while (rqstp->rq_resused &&
-	       rqstp->rq_res.pages != &rqstp->rq_respages[rqstp->rq_resused]) {
-
-		if (rqstp->rq_respages[--rqstp->rq_resused] != NULL) {
-			rqstp->rq_argpages[rqstp->rq_arghi++] =
-				rqstp->rq_respages[rqstp->rq_resused];
-			rqstp->rq_respages[rqstp->rq_resused] = NULL;
+	while (rqstp->rq_resused) {
+		struct page **pp = (rqstp->rq_respages +
+				    --rqstp->rq_resused);
+		if (*pp) {
+			put_page(*pp);
+			*pp = NULL;
 		}
-	}
-}
-
-static inline void svc_free_allpages(struct svc_rqst *rqstp)
-{
-        while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		put_page(rqstp->rq_respages[rqstp->rq_resused]);
-		rqstp->rq_respages[rqstp->rq_resused] = NULL;
 	}
 }
 

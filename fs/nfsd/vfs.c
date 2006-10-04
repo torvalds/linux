@@ -791,22 +791,26 @@ nfsd_read_actor(read_descriptor_t *desc, struct page *page, unsigned long offset
 {
 	unsigned long count = desc->count;
 	struct svc_rqst *rqstp = desc->arg.data;
+	struct page **pp = rqstp->rq_respages + rqstp->rq_resused;
 
 	if (size > count)
 		size = count;
 
 	if (rqstp->rq_res.page_len == 0) {
 		get_page(page);
-		rqstp->rq_respages[rqstp->rq_resused++] = page;
+		put_page(*pp);
+		*pp = page;
+		rqstp->rq_resused++;
 		rqstp->rq_res.page_base = offset;
 		rqstp->rq_res.page_len = size;
-	} else if (page != rqstp->rq_respages[rqstp->rq_resused-1]) {
+	} else if (page != pp[-1]) {
 		get_page(page);
-		rqstp->rq_respages[rqstp->rq_resused++] = page;
+		put_page(*pp);
+		*pp = page;
+		rqstp->rq_resused++;
 		rqstp->rq_res.page_len += size;
-	} else {
+	} else
 		rqstp->rq_res.page_len += size;
-	}
 
 	desc->count = count - size;
 	desc->written += size;
@@ -837,7 +841,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		file->f_ra = ra->p_ra;
 
 	if (file->f_op->sendfile && rqstp->rq_sendfile_ok) {
-		svc_pushback_unused_pages(rqstp);
+		rqstp->rq_resused = 1;
 		err = file->f_op->sendfile(file, &offset, *count,
 						 nfsd_read_actor, rqstp);
 	} else {

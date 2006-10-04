@@ -2039,7 +2039,8 @@ nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, int nfserr, struct n
 }
 
 static int
-nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_read *read)
+nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr,
+		  struct nfsd4_read *read)
 {
 	u32 eof;
 	int v, pn;
@@ -2061,10 +2062,11 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_read 
 	len = maxcount;
 	v = 0;
 	while (len > 0) {
-		pn = resp->rqstp->rq_resused;
-		svc_take_page(resp->rqstp);
-		read->rd_iov[v].iov_base = page_address(resp->rqstp->rq_respages[pn]);
-		read->rd_iov[v].iov_len = len < PAGE_SIZE ? len : PAGE_SIZE;
+		pn = resp->rqstp->rq_resused++;
+		read->rd_iov[v].iov_base =
+			page_address(resp->rqstp->rq_respages[pn]);
+		read->rd_iov[v].iov_len =
+			len < PAGE_SIZE ? len : PAGE_SIZE;
 		v++;
 		len -= PAGE_SIZE;
 	}
@@ -2078,7 +2080,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_read 
 		nfserr = nfserr_inval;
 	if (nfserr)
 		return nfserr;
-	eof = (read->rd_offset + maxcount >= read->rd_fhp->fh_dentry->d_inode->i_size);
+	eof = (read->rd_offset + maxcount >=
+	       read->rd_fhp->fh_dentry->d_inode->i_size);
 
 	WRITE32(eof);
 	WRITE32(maxcount);
@@ -2088,7 +2091,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_read 
 	resp->xbuf->page_len = maxcount;
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->rqstp->rq_restailpage = 0;
 	resp->xbuf->tail[0].iov_base = p;
 	resp->xbuf->tail[0].iov_len = 0;
 	if (maxcount&3) {
@@ -2113,8 +2115,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_r
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
 
-	svc_take_page(resp->rqstp);
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
+	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
 
 	maxcount = PAGE_SIZE;
 	RESERVE_SPACE(4);
@@ -2138,7 +2139,6 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_r
 	resp->xbuf->page_len = maxcount;
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->rqstp->rq_restailpage = 0;
 	resp->xbuf->tail[0].iov_base = p;
 	resp->xbuf->tail[0].iov_len = 0;
 	if (maxcount&3) {
@@ -2189,8 +2189,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_re
 		goto err_no_verf;
 	}
 
-	svc_take_page(resp->rqstp);
-	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
+	page = page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused++]);
 	readdir->common.err = 0;
 	readdir->buflen = maxcount;
 	readdir->buffer = page;
@@ -2215,10 +2214,10 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_re
 	p = readdir->buffer;
 	*p++ = 0;	/* no more entries */
 	*p++ = htonl(readdir->common.err == nfserr_eof);
-	resp->xbuf->page_len = ((char*)p) - (char*)page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
+	resp->xbuf->page_len = ((char*)p) - (char*)page_address(
+		resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
 
 	/* Use rest of head for padding and remaining ops: */
-	resp->rqstp->rq_restailpage = 0;
 	resp->xbuf->tail[0].iov_base = tailbase;
 	resp->xbuf->tail[0].iov_len = 0;
 	resp->p = resp->xbuf->tail[0].iov_base;

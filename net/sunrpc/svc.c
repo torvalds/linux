@@ -417,18 +417,15 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 	if (size > RPCSVC_MAXPAYLOAD)
 		size = RPCSVC_MAXPAYLOAD;
 	pages = 2 + (size+ PAGE_SIZE -1) / PAGE_SIZE;
-	rqstp->rq_argused = 0;
-	rqstp->rq_resused = 0;
 	arghi = 0;
 	BUG_ON(pages > RPCSVC_MAXPAGES);
 	while (pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p)
 			break;
-		rqstp->rq_argpages[arghi++] = p;
+		rqstp->rq_pages[arghi++] = p;
 		pages--;
 	}
-	rqstp->rq_arghi = arghi;
 	return ! pages;
 }
 
@@ -438,14 +435,10 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 static void
 svc_release_buffer(struct svc_rqst *rqstp)
 {
-	while (rqstp->rq_arghi)
-		put_page(rqstp->rq_argpages[--rqstp->rq_arghi]);
-	while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		put_page(rqstp->rq_respages[rqstp->rq_resused]);
-	}
-	rqstp->rq_argused = 0;
+	int i;
+	for (i=0; i<ARRAY_SIZE(rqstp->rq_pages); i++)
+		if (rqstp->rq_pages[i])
+			put_page(rqstp->rq_pages[i]);
 }
 
 /*
@@ -707,10 +700,10 @@ svc_process(struct svc_rqst *rqstp)
 	/* setup response xdr_buf.
 	 * Initially it has just one page 
 	 */
-	svc_take_page(rqstp); /* must succeed */
+	rqstp->rq_resused = 1;
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
-	rqstp->rq_res.pages = rqstp->rq_respages+1;
+	rqstp->rq_res.pages = rqstp->rq_respages + 1;
 	rqstp->rq_res.len = 0;
 	rqstp->rq_res.page_base = 0;
 	rqstp->rq_res.page_len = 0;

@@ -1191,7 +1191,6 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
 						+ resbuf->head[0].iov_len;
 		resbuf->tail[0].iov_len = 0;
-		rqstp->rq_restailpage = 0;
 		resv = &resbuf->tail[0];
 	} else {
 		resv = &resbuf->tail[0];
@@ -1240,7 +1239,7 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	inpages = resbuf->pages;
 	/* XXX: Would be better to write some xdr helper functions for
 	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
-	if (resbuf->tail[0].iov_base && rqstp->rq_restailpage == 0) {
+	if (resbuf->tail[0].iov_base) {
 		BUG_ON(resbuf->tail[0].iov_base >= resbuf->head[0].iov_base
 							+ PAGE_SIZE);
 		BUG_ON(resbuf->tail[0].iov_base < resbuf->head[0].iov_base);
@@ -1258,7 +1257,6 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 		resbuf->tail[0].iov_base = resbuf->head[0].iov_base
 			+ resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE;
 		resbuf->tail[0].iov_len = 0;
-		rqstp->rq_restailpage = 0;
 	}
 	if (gss_wrap(gsd->rsci->mechctx, offset, resbuf, inpages))
 		return -ENOMEM;

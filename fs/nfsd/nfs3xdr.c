@@ -343,8 +343,7 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, u32 *p,
 	/* set up the kvec */
 	v=0;
 	while (len > 0) {
-		pn = rqstp->rq_resused;
-		svc_take_page(rqstp);
+		pn = rqstp->rq_resused++;
 		args->vec[v].iov_base = page_address(rqstp->rq_respages[pn]);
 		args->vec[v].iov_len = len < PAGE_SIZE? len : PAGE_SIZE;
 		len -= args->vec[v].iov_len;
@@ -382,7 +381,7 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, u32 *p,
 	while (len > args->vec[v].iov_len) {
 		len -= args->vec[v].iov_len;
 		v++;
-		args->vec[v].iov_base = page_address(rqstp->rq_argpages[v]);
+		args->vec[v].iov_base = page_address(rqstp->rq_pages[v]);
 		args->vec[v].iov_len = PAGE_SIZE;
 	}
 	args->vec[v].iov_len = len;
@@ -446,11 +445,11 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, u32 *p,
 	 * This page appears in the rq_res.pages list, but as pages_len is always
 	 * 0, it won't get in the way
 	 */
-	svc_take_page(rqstp);
 	len = ntohl(*p++);
 	if (len == 0 || len > NFS3_MAXPATHLEN || len >= PAGE_SIZE)
 		return 0;
-	args->tname = new = page_address(rqstp->rq_respages[rqstp->rq_resused-1]);
+	args->tname = new =
+		page_address(rqstp->rq_respages[rqstp->rq_resused++]);
 	args->tlen = len;
 	/* first copy and check from the first page */
 	old = (char*)p;
@@ -522,8 +521,8 @@ nfs3svc_decode_readlinkargs(struct svc_rqst *rqstp, u32 *p,
 {
 	if (!(p = decode_fh(p, &args->fh)))
 		return 0;
-	svc_take_page(rqstp);
-	args->buffer = page_address(rqstp->rq_respages[rqstp->rq_resused-1]);
+	args->buffer =
+		page_address(rqstp->rq_respages[rqstp->rq_resused++]);
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -554,8 +553,8 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, u32 *p,
 	if (args->count > PAGE_SIZE)
 		args->count = PAGE_SIZE;
 
-	svc_take_page(rqstp);
-	args->buffer = page_address(rqstp->rq_respages[rqstp->rq_resused-1]);
+	args->buffer =
+		page_address(rqstp->rq_respages[rqstp->rq_resused++]);
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -578,8 +577,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, u32 *p,
 	args->count = len;
 
 	while (len > 0) {
-		pn = rqstp->rq_resused;
-		svc_take_page(rqstp);
+		pn = rqstp->rq_resused++;
 		if (!args->buffer)
 			args->buffer = page_address(rqstp->rq_respages[pn]);
 		len -= PAGE_SIZE;
@@ -668,7 +666,6 @@ nfs3svc_encode_readlinkres(struct svc_rqst *rqstp, u32 *p,
 		rqstp->rq_res.page_len = resp->len;
 		if (resp->len & 3) {
 			/* need to pad the tail */
-			rqstp->rq_restailpage = 0;
 			rqstp->rq_res.tail[0].iov_base = p;
 			*p = 0;
 			rqstp->rq_res.tail[0].iov_len = 4 - (resp->len&3);
@@ -693,7 +690,6 @@ nfs3svc_encode_readres(struct svc_rqst *rqstp, u32 *p,
 		rqstp->rq_res.page_len = resp->count;
 		if (resp->count & 3) {
 			/* need to pad the tail */
-			rqstp->rq_restailpage = 0;
 			rqstp->rq_res.tail[0].iov_base = p;
 			*p = 0;
 			rqstp->rq_res.tail[0].iov_len = 4 - (resp->count & 3);
@@ -768,7 +764,6 @@ nfs3svc_encode_readdirres(struct svc_rqst *rqstp, u32 *p,
 		rqstp->rq_res.page_len = (resp->count) << 2;
 
 		/* add the 'tail' to the end of the 'head' page - page 0. */
-		rqstp->rq_restailpage = 0;
 		rqstp->rq_res.tail[0].iov_base = p;
 		*p++ = 0;		/* no more entries */
 		*p++ = htonl(resp->common.err == nfserr_eof);

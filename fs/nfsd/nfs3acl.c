@@ -185,7 +185,7 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
 
 		rqstp->rq_res.page_len = w;
 		while (w > 0) {
-			if (!svc_take_res_page(rqstp))
+			if (!rqstp->rq_respages[rqstp->rq_resused++])
 				return 0;
 			w -= PAGE_SIZE;
 		}
