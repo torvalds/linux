@@ -47,6 +47,7 @@
 #include <linux/srcu.h>
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com>");
 
 static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int stat_interval;	/* Interval between stats, in seconds. */
