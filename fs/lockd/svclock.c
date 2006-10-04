@@ -265,24 +265,20 @@ static void nlmsvc_release_block(struct nlm_block *block)
 		kref_put(&block->b_count, nlmsvc_free_block);
 }
 
-static void nlmsvc_act_mark(struct nlm_host *host, struct nlm_file *file)
-{
-	struct nlm_block *block;
-
-	down(&file->f_sema);
-	list_for_each_entry(block, &file->f_blocks, b_flist)
-		block->b_host->h_inuse = 1;
-	up(&file->f_sema);
-}
-
-static void nlmsvc_act_unlock(struct nlm_host *host, struct nlm_file *file)
+/*
+ * Loop over all blocks and delete blocks held by
+ * a matching host.
+ */
+void nlmsvc_traverse_blocks(struct nlm_host *host,
+			struct nlm_file *file,
+			nlm_host_match_fn_t match)
 {
 	struct nlm_block *block, *next;
 
 restart:
 	down(&file->f_sema);
 	list_for_each_entry_safe(block, next, &file->f_blocks, b_flist) {
-		if (host != NULL && host != block->b_host)
+		if (!match(block->b_host, host))
 			continue;
 		/* Do not destroy blocks that are not on
 		 * the global retry list - why? */
@@ -295,19 +291,6 @@ restart:
 		goto restart;
 	}
 	up(&file->f_sema);
-}
-
-/*
- * Loop over all blocks and perform the action specified.
- * (NLM_ACT_CHECK handled by nlmsvc_inspect_file).
- */
-void
-nlmsvc_traverse_blocks(struct nlm_host *host, struct nlm_file *file, int action)
-{
-	if (action == NLM_ACT_MARK)
-		nlmsvc_act_mark(host, file);
-	else
-		nlmsvc_act_unlock(host, file);
 }
 
 /*

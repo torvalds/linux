@@ -134,13 +134,6 @@ struct nlm_block {
 };
 
 /*
- * Valid actions for nlmsvc_traverse_files
- */
-#define NLM_ACT_CHECK		0		/* check for locks */
-#define NLM_ACT_MARK		1		/* mark & sweep */
-#define NLM_ACT_UNLOCK		2		/* release all locks */
-
-/*
  * Global variables
  */
 extern struct rpc_program	nlm_program;
@@ -183,6 +176,12 @@ void		  nsm_release(struct nsm_handle *);
 
 
 /*
+ * This is used in garbage collection and resource reclaim
+ * A return value != 0 means destroy the lock/block/share
+ */
+typedef int	  (*nlm_host_match_fn_t)(struct nlm_host *cur, struct nlm_host *ref);
+
+/*
  * Server-side lock handling
  */
 u32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
@@ -193,7 +192,7 @@ u32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
 u32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
-					int action);
+					nlm_host_match_fn_t match);
 void	  nlmsvc_grant_reply(struct svc_rqst *, struct nlm_cookie *, u32);
 
 /*
