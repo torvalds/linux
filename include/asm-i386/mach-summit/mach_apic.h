@@ -88,7 +88,7 @@ static inline void clustered_apic_check(void)
 
 static inline int apicid_to_node(int logical_apicid)
 {
-	return apicid_2_node[logical_apicid];
+	return apicid_2_node[hard_smp_processor_id()];
 }
 
 /* Mapping from cpu number to logical apicid */
