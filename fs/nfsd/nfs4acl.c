@@ -360,39 +360,33 @@ nfs4_acl_nfsv4_to_posix(struct nfs4_acl *acl, struct posix_acl **pacl,
 	if (error < 0)
 		goto out_acl;
 
-	if (pacl != NULL) {
-		if (acl->naces == 0) {
-			error = -ENODATA;
-			goto try_dpacl;
-		}
-
-		*pacl = _nfsv4_to_posix_one(acl, flags);
-		if (IS_ERR(*pacl)) {
-			error = PTR_ERR(*pacl);
-			*pacl = NULL;
-			goto out_acl;
-		}
+	if (acl->naces == 0) {
+		error = -ENODATA;
+		goto try_dpacl;
 	}
 
+	*pacl = _nfsv4_to_posix_one(acl, flags);
+	if (IS_ERR(*pacl)) {
+		error = PTR_ERR(*pacl);
+		*pacl = NULL;
+		goto out_acl;
+	}
 try_dpacl:
-	if (dpacl != NULL) {
-		if (dacl->naces == 0) {
-			if (pacl == NULL || *pacl == NULL)
-				error = -ENODATA;
-			goto out_acl;
-		}
-
-		error = 0;
-		*dpacl = _nfsv4_to_posix_one(dacl, flags);
-		if (IS_ERR(*dpacl)) {
-			error = PTR_ERR(*dpacl);
-			*dpacl = NULL;
-			goto out_acl;
-		}
+	if (dacl->naces == 0) {
+		if (pacl == NULL || *pacl == NULL)
+			error = -ENODATA;
+		goto out_acl;
 	}
 
+	error = 0;
+	*dpacl = _nfsv4_to_posix_one(dacl, flags);
+	if (IS_ERR(*dpacl)) {
+		error = PTR_ERR(*dpacl);
+		*dpacl = NULL;
+		goto out_acl;
+	}
 out_acl:
-	if (error && pacl) {
+	if (error) {
 		posix_acl_release(*pacl);
 		*pacl = NULL;
 	}
