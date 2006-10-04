@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
+#include <linux/pci.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
 #include <linux/sysdev.h>
@@ -41,6 +42,7 @@
 #include <asm/acpi.h>
 #include <asm/dma.h>
 #include <asm/nmi.h>
+#include <asm/msidef.h>
 
 #define __apicdebuginit  __init
 
@@ -1737,6 +1739,78 @@ void destroy_irq(unsigned int irq)
 	irq_vector[irq] = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
+#endif
+
+/*
+ * MSI mesage composition
+ */
+#ifdef CONFIG_PCI_MSI
+static int msi_msg_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+{
+	/* For now always this code always uses physical delivery
+	 * mode.
+	 */
+	int vector;
+	unsigned dest;
+
+	vector = assign_irq_vector(irq);
+	if (vector >= 0) {
+		cpumask_t tmp;
+
+		cpus_clear(tmp);
+		cpu_set(first_cpu(cpu_online_map), tmp);
+		dest = cpu_mask_to_apicid(tmp);
+
+		msg->address_hi = MSI_ADDR_BASE_HI;
+		msg->address_lo =
+			MSI_ADDR_BASE_LO |
+			((INT_DEST_MODE == 0) ?
+				MSI_ADDR_DEST_MODE_PHYSICAL:
+				MSI_ADDR_DEST_MODE_LOGICAL) |
+			((INT_DELIVERY_MODE != dest_LowestPrio) ?
+				MSI_ADDR_REDIRECTION_CPU:
+				MSI_ADDR_REDIRECTION_LOWPRI) |
+			MSI_ADDR_DEST_ID(dest);
+
+		msg->data =
+			MSI_DATA_TRIGGER_EDGE |
+			MSI_DATA_LEVEL_ASSERT |
+			((INT_DELIVERY_MODE != dest_LowestPrio) ?
+				MSI_DATA_DELIVERY_FIXED:
+				MSI_DATA_DELIVERY_LOWPRI) |
+			MSI_DATA_VECTOR(vector);
+	}
+	return vector;
+}
+
+static void msi_msg_teardown(unsigned int irq)
+{
+	return;
+}
+
+static void msi_msg_set_affinity(unsigned int irq, cpumask_t mask, struct msi_msg *msg)
+{
+	int vector;
+	unsigned dest;
+
+	vector = assign_irq_vector(irq);
+	if (vector > 0) {
+		dest = cpu_mask_to_apicid(mask);
+
+		msg->data &= ~MSI_DATA_VECTOR_MASK;
+		msg->data |= MSI_DATA_VECTOR(vector);
+		msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+		msg->address_lo |= MSI_ADDR_DEST_ID(dest);
+	}
+}
+
+struct msi_ops arch_msi_ops = {
+	.needs_64bit_address = 0,
+	.setup = msi_msg_setup,
+	.teardown = msi_msg_teardown,
+	.target = msi_msg_set_affinity,
+};
+
 #endif
 
 /* --------------------------------------------------------------------------
