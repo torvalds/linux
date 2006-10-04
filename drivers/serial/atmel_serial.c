@@ -694,8 +694,9 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port, struct
 	port->mapbase	= pdev->resource[0].start;
 	port->irq	= pdev->resource[1].start;
 
-	if (port->mapbase == AT91_VA_BASE_SYS + AT91_DBGU)		/* Part of system perpherals - already mapped */
-		port->membase = (void __iomem *) port->mapbase;
+	if (data->regs)
+		/* Already mapped by setup code */
+		port->membase = data->regs;
 	else {
 		port->flags	|= UPF_IOREMAP;
 		port->membase	= NULL;

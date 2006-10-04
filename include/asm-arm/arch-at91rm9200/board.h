@@ -103,6 +103,7 @@ extern void __init at91_init_serial(struct at91_uart_config *config);
 struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */
 	short		use_dma_rx;	/* use receive DMA? */
+	void __iomem	*regs;		/* virtual base address, if any */
 };
 extern void __init at91_add_device_serial(void);
 

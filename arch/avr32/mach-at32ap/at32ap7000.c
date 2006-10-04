@@ -523,32 +523,48 @@ void __init at32_add_system_devices(void)
  *  USART
  * -------------------------------------------------------------------- */
 
+static struct atmel_uart_data atmel_usart0_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
 static struct resource atmel_usart0_resource[] = {
 	PBMEM(0xffe00c00),
 	IRQ(7),
 };
-DEFINE_DEV(atmel_usart, 0);
+DEFINE_DEV_DATA(atmel_usart, 0);
 DEV_CLK(usart, atmel_usart0, pba, 4);
 
+static struct atmel_uart_data atmel_usart1_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
 static struct resource atmel_usart1_resource[] = {
 	PBMEM(0xffe01000),
 	IRQ(7),
 };
-DEFINE_DEV(atmel_usart, 1);
+DEFINE_DEV_DATA(atmel_usart, 1);
 DEV_CLK(usart, atmel_usart1, pba, 4);
 
+static struct atmel_uart_data atmel_usart2_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
 static struct resource atmel_usart2_resource[] = {
 	PBMEM(0xffe01400),
 	IRQ(8),
 };
-DEFINE_DEV(atmel_usart, 2);
+DEFINE_DEV_DATA(atmel_usart, 2);
 DEV_CLK(usart, atmel_usart2, pba, 5);
 
+static struct atmel_uart_data atmel_usart3_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
 static struct resource atmel_usart3_resource[] = {
 	PBMEM(0xffe01800),
 	IRQ(9),
 };
-DEFINE_DEV(atmel_usart, 3);
+DEFINE_DEV_DATA(atmel_usart, 3);
 DEV_CLK(usart, atmel_usart3, pba, 6);
 
 static inline void configure_usart0_pins(void)
@@ -597,8 +613,13 @@ static struct platform_device *setup_usart(unsigned int id)
 		configure_usart3_pins();
 		break;
 	default:
-		pdev = NULL;
-		break;
+		return NULL;
+	}
+
+	if (PXSEG(pdev->resource[0].start) == P4SEG) {
+		/* Addresses in the P4 segment are permanently mapped 1:1 */
+		struct atmel_uart_data *data = pdev->dev.platform_data;
+		data->regs = (void __iomem *)pdev->resource[0].start;
 	}
 
 	return pdev;
