@@ -163,6 +163,17 @@ static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 	kref_put(&h->ref, cd->cache_put);
 }
 
+static inline int cache_valid(struct cache_head *h)
+{
+	/* If an item has been unhashed pending removal when
+	 * the refcount drops to 0, the expiry_time will be
+	 * set to 0.  We don't want to consider such items
+	 * valid in this context even though CACHE_VALID is
+	 * set.
+	 */
+	return (h->expiry_time != 0 && test_bit(CACHE_VALID, &h->flags));
+}
+
 extern int cache_check(struct cache_detail *detail,
 		       struct cache_head *h, struct cache_req *rqstp);
 extern void cache_flush(void);

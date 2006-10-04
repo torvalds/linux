@@ -9,6 +9,7 @@
 #include <linux/seq_file.h>
 #include <linux/hash.h>
 #include <linux/string.h>
+#include <net/sock.h>
 
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
@@ -375,6 +376,44 @@ void svcauth_unix_purge(void)
 	cache_purge(&ip_map_cache);
 }
 
+static inline struct ip_map *
+ip_map_cached_get(struct svc_rqst *rqstp)
+{
+	struct ip_map *ipm = rqstp->rq_sock->sk_info_authunix;
+	if (ipm != NULL) {
+		if (!cache_valid(&ipm->h)) {
+			/*
+			 * The entry has been invalidated since it was
+			 * remembered, e.g. by a second mount from the
+			 * same IP address.
+			 */
+			rqstp->rq_sock->sk_info_authunix = NULL;
+			cache_put(&ipm->h, &ip_map_cache);
+			return NULL;
+		}
+		cache_get(&ipm->h);
+	}
+	return ipm;
+}
+
+static inline void
+ip_map_cached_put(struct svc_rqst *rqstp, struct ip_map *ipm)
+{
+	struct svc_sock *svsk = rqstp->rq_sock;
+
+	if (svsk->sk_sock->type == SOCK_STREAM && svsk->sk_info_authunix == NULL)
+		svsk->sk_info_authunix = ipm;	/* newly cached, keep the reference */
+	else
+		cache_put(&ipm->h, &ip_map_cache);
+}
+
+void
+svcauth_unix_info_release(void *info)
+{
+	struct ip_map *ipm = info;
+	cache_put(&ipm->h, &ip_map_cache);
+}
+
 static int
 svcauth_unix_set_client(struct svc_rqst *rqstp)
 {
@@ -384,8 +423,10 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 	if (rqstp->rq_proc == 0)
 		return SVC_OK;
 
-	ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
-			    rqstp->rq_addr.sin_addr);
+	ipm = ip_map_cached_get(rqstp);
+	if (ipm == NULL)
+		ipm = ip_map_lookup(rqstp->rq_server->sv_program->pg_class,
+				    rqstp->rq_addr.sin_addr);
 
 	if (ipm == NULL)
 		return SVC_DENIED;
@@ -400,7 +441,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
 			kref_get(&rqstp->rq_client->ref);
-			cache_put(&ipm->h, &ip_map_cache);
+			ip_map_cached_put(rqstp, ipm);
 			break;
 	}
 	return SVC_OK;

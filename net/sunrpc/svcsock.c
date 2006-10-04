@@ -1610,6 +1610,8 @@ svc_delete_socket(struct svc_sock *svsk)
 			sockfd_put(svsk->sk_sock);
 		else
 			sock_release(svsk->sk_sock);
+		if (svsk->sk_info_authunix != NULL)
+			svcauth_unix_info_release(svsk->sk_info_authunix);
 		kfree(svsk);
 	} else {
 		spin_unlock_bh(&serv->sv_lock);
