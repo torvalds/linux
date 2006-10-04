@@ -80,6 +80,8 @@
 #define	IPOPT_TS_TSANDADDR	1		/* timestamps and addresses */
 #define	IPOPT_TS_PRESPEC	3		/* specified modules only */
 
+#define IPV4_BEET_PHMAXLEN 8
+
 struct iphdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	ihl:4,
@@ -121,6 +123,13 @@ struct ip_comp_hdr {
 	__u8 nexthdr;
 	__u8 flags;
 	__be16 cpi;
+};
+
+struct ip_beet_phdr {
+	__u8 nexthdr;
+	__u8 hdrlen;
+	__u8 padlen;
+	__u8 reserved;
 };
 
 #endif	/* _LINUX_IP_H */

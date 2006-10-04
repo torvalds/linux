@@ -344,12 +344,12 @@ struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
 {
 	struct neighbour *n;
 	int key_len = tbl->key_len;
-	u32 hash_val = tbl->hash(pkey, dev) & tbl->hash_mask;
+	u32 hash_val = tbl->hash(pkey, dev);
 	
 	NEIGH_CACHE_STAT_INC(tbl, lookups);
 
 	read_lock_bh(&tbl->lock);
-	for (n = tbl->hash_buckets[hash_val]; n; n = n->next) {
+	for (n = tbl->hash_buckets[hash_val & tbl->hash_mask]; n; n = n->next) {
 		if (dev == n->dev && !memcmp(n->primary_key, pkey, key_len)) {
 			neigh_hold(n);
 			NEIGH_CACHE_STAT_INC(tbl, hits);
@@ -364,12 +364,12 @@ struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, const void *pkey)
 {
 	struct neighbour *n;
 	int key_len = tbl->key_len;
-	u32 hash_val = tbl->hash(pkey, NULL) & tbl->hash_mask;
+	u32 hash_val = tbl->hash(pkey, NULL);
 
 	NEIGH_CACHE_STAT_INC(tbl, lookups);
 
 	read_lock_bh(&tbl->lock);
-	for (n = tbl->hash_buckets[hash_val]; n; n = n->next) {
+	for (n = tbl->hash_buckets[hash_val & tbl->hash_mask]; n; n = n->next) {
 		if (!memcmp(n->primary_key, pkey, key_len)) {
 			neigh_hold(n);
 			NEIGH_CACHE_STAT_INC(tbl, hits);
@@ -1998,12 +1998,12 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 	int rc, h, s_h = cb->args[1];
 	int idx, s_idx = idx = cb->args[2];
 
+	read_lock_bh(&tbl->lock);
 	for (h = 0; h <= tbl->hash_mask; h++) {
 		if (h < s_h)
 			continue;
 		if (h > s_h)
 			s_idx = 0;
-		read_lock_bh(&tbl->lock);
 		for (n = tbl->hash_buckets[h], idx = 0; n; n = n->next, idx++) {
 			if (idx < s_idx)
 				continue;
@@ -2016,8 +2016,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 				goto out;
 			}
 		}
-		read_unlock_bh(&tbl->lock);
 	}
+	read_unlock_bh(&tbl->lock);
 	rc = skb->len;
 out:
 	cb->args[1] = h;

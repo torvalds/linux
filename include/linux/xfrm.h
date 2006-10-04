@@ -129,7 +129,8 @@ enum
 #define XFRM_MODE_TUNNEL 1
 #define XFRM_MODE_ROUTEOPTIMIZATION 2
 #define XFRM_MODE_IN_TRIGGER 3
-#define XFRM_MODE_MAX 4
+#define XFRM_MODE_BEET 4
+#define XFRM_MODE_MAX 5
 
 /* Netlink configuration messages.  */
 enum {

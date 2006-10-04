@@ -41,17 +41,18 @@ static inline unsigned int __xfrm_dst_hash(xfrm_address_t *daddr, xfrm_address_t
 	return (h ^ (h >> 16)) & hmask;
 }
 
-static inline unsigned __xfrm_src_hash(xfrm_address_t *saddr,
+static inline unsigned __xfrm_src_hash(xfrm_address_t *daddr,
+				       xfrm_address_t *saddr,
 				       unsigned short family,
 				       unsigned int hmask)
 {
 	unsigned int h = family;
 	switch (family) {
 	case AF_INET:
-		h ^= __xfrm4_addr_hash(saddr);
+		h ^= __xfrm4_daddr_saddr_hash(daddr, saddr);
 		break;
 	case AF_INET6:
-		h ^= __xfrm6_addr_hash(saddr);
+		h ^= __xfrm6_daddr_saddr_hash(daddr, saddr);
 		break;
 	};
 	return (h ^ (h >> 16)) & hmask;

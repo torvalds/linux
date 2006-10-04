@@ -1666,8 +1666,9 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 		char addr_string[16];
 
 		tipc_printf(TIPC_OUTPUT, "Msg seq number: %u,  ", msg_seqno(msg));
-		tipc_printf(TIPC_OUTPUT, "Outstanding acks: %u\n", (u32)TIPC_SKB_CB(buf)->handle);
-		
+		tipc_printf(TIPC_OUTPUT, "Outstanding acks: %lu\n",
+				     (unsigned long) TIPC_SKB_CB(buf)->handle);
+
 		n_ptr = l_ptr->owner->next;
 		tipc_node_lock(n_ptr);
 

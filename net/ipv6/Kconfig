@@ -136,6 +136,16 @@ config INET6_XFRM_MODE_TUNNEL
 
 	  If unsure, say Y.
 
+config INET6_XFRM_MODE_BEET
+	tristate "IPv6: IPsec BEET mode"
+	depends on IPV6
+	default IPV6
+	select XFRM
+	---help---
+	  Support for IPsec BEET mode.
+
+	  If unsure, say Y.
+
 config INET6_XFRM_MODE_ROUTEOPTIMIZATION
 	tristate "IPv6: MIPv6 route optimization mode (EXPERIMENTAL)"
 	depends on IPV6 && EXPERIMENTAL

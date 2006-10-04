@@ -391,7 +391,7 @@ static inline void htb_add_class_to_row(struct htb_sched *q,
 /* If this triggers, it is a bug in this code, but it need not be fatal */
 static void htb_safe_rb_erase(struct rb_node *rb, struct rb_root *root)
 {
-	if (!RB_EMPTY_NODE(rb)) {
+	if (RB_EMPTY_NODE(rb)) {
 		WARN_ON(1);
 	} else {
 		rb_erase(rb, root);
