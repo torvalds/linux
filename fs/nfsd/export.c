@@ -1058,14 +1058,11 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	if (IS_ERR(exp) && PTR_ERR(exp) == -EAGAIN)
 		return nfserr_dropit;
 	if (exp == NULL)
-		rv = nfserr_perm;
+		return nfserr_perm;
 	else if (IS_ERR(exp))
-		rv = nfserrno(PTR_ERR(exp));
-	else {
-		rv = fh_compose(fhp, exp,
-				exp->ex_dentry, NULL);
-		exp_put(exp);
-	}
+		return nfserrno(PTR_ERR(exp));
+	rv = fh_compose(fhp, exp, exp->ex_dentry, NULL);
+	exp_put(exp);
 	return rv;
 }
 
