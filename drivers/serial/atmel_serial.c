@@ -947,7 +947,7 @@ static struct platform_driver at91_serial_driver = {
 	.suspend	= at91_serial_suspend,
 	.resume		= at91_serial_resume,
 	.driver		= {
-		.name	= "at91_usart",
+		.name	= "atmel_usart",
 		.owner	= THIS_MODULE,
 	},
 };

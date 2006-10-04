@@ -564,7 +564,7 @@ static struct at91_uart_data dbgu_data = {
 };
 
 static struct platform_device at91rm9200_dbgu_device = {
-	.name		= "at91_usart",
+	.name		= "atmel_usart",
 	.id		= 0,
 	.dev		= {
 				.platform_data	= &dbgu_data,
@@ -599,7 +599,7 @@ static struct at91_uart_data uart0_data = {
 };
 
 static struct platform_device at91rm9200_uart0_device = {
-	.name		= "at91_usart",
+	.name		= "atmel_usart",
 	.id		= 1,
 	.dev		= {
 				.platform_data	= &uart0_data,
@@ -641,7 +641,7 @@ static struct at91_uart_data uart1_data = {
 };
 
 static struct platform_device at91rm9200_uart1_device = {
-	.name		= "at91_usart",
+	.name		= "atmel_usart",
 	.id		= 2,
 	.dev		= {
 				.platform_data	= &uart1_data,
@@ -682,7 +682,7 @@ static struct at91_uart_data uart2_data = {
 };
 
 static struct platform_device at91rm9200_uart2_device = {
-	.name		= "at91_usart",
+	.name		= "atmel_usart",
 	.id		= 3,
 	.dev		= {
 				.platform_data	= &uart2_data,
@@ -717,7 +717,7 @@ static struct at91_uart_data uart3_data = {
 };
 
 static struct platform_device at91rm9200_uart3_device = {
-	.name		= "at91_usart",
+	.name		= "atmel_usart",
 	.id		= 4,
 	.dev		= {
 				.platform_data	= &uart3_data,
