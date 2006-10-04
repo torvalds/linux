@@ -73,7 +73,7 @@ struct getdents_callback {
 #define ROUND_UP(x) (((x)+sizeof(long)-1) & ~(sizeof(long)-1))
 
 static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
-		ino_t ino, unsigned d_type)
+		u64 ino, unsigned d_type)
 {
 	struct hpux_dirent * dirent;
 	struct getdents_callback * buf = (struct getdents_callback *) __buf;

@@ -313,9 +313,8 @@ struct readdir32_callback {
 
 #define ROUND_UP(x,a)	((__typeof__(x))(((unsigned long)(x) + ((a) - 1)) & ~((a) - 1)))
 #define NAME_OFFSET(de) ((int) ((de)->d_name - (char __user *) (de)))
-static int
-filldir32 (void *__buf, const char *name, int namlen, loff_t offset, ino_t ino,
-	   unsigned int d_type)
+static int filldir32 (void *__buf, const char *name, int namlen,
+			loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct linux32_dirent __user * dirent;
 	struct getdents32_callback * buf = (struct getdents32_callback *) __buf;
@@ -377,9 +376,8 @@ out:
 	return error;
 }
 
-static int
-fillonedir32 (void * __buf, const char * name, int namlen, loff_t offset, ino_t ino,
-	      unsigned int d_type)
+static int fillonedir32(void * __buf, const char * name, int namlen,
+			loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct readdir32_callback * buf = (struct readdir32_callback *) __buf;
 	struct old_linux32_dirent __user * dirent;
