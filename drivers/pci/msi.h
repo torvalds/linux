@@ -8,9 +8,6 @@
 
 #include <asm/msi.h>
 
-extern int vector_irq[NR_VECTORS];
-extern void (*interrupt[NR_IRQS])(void);
-
 /*
  * MSI-X Address Register
  */
@@ -58,9 +55,9 @@ struct msi_desc {
 		__u8	maskbit	: 1; 	/* mask-pending bit supported ?   */
 		__u8	state	: 1; 	/* {0: free, 1: busy}		  */
 		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
-		__u8	entry_nr;    	/* specific enabled entry 	  */
-		__u8	default_vector; /* default pre-assigned vector    */
 		__u8	pos;	 	/* Location of the msi capability */
+		__u16	entry_nr;    	/* specific enabled entry 	  */
+		unsigned default_irq;	/* default pre-assigned irq	  */
 	}msi_attrib;
 
 	struct {
