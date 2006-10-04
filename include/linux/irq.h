@@ -205,6 +205,7 @@ static inline void set_native_irq_info(int irq, cpumask_t mask)
 
 void set_pending_irq(unsigned int irq, cpumask_t mask);
 void move_native_irq(int irq);
+void move_masked_irq(int irq);
 
 #ifdef CONFIG_PCI_MSI
 /*
@@ -246,6 +247,10 @@ static inline void move_native_irq(int irq)
 {
 }
 
+static inline void move_masked_irq(int irq)
+{
+}
+
 static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
 {
 }
@@ -261,6 +266,7 @@ static inline void set_irq_info(int irq, cpumask_t mask)
 
 #define move_irq(x)
 #define move_native_irq(x)
+#define move_masked_irq(x)
 
 #endif /* CONFIG_SMP */
 
