@@ -27,32 +27,42 @@
 static int uninorth_rev;
 static int is_u3;
 
+static char __devinitdata *aperture = NULL;
 
 static int uninorth_fetch_size(void)
 {
-	int i;
-	u32 temp;
-	struct aper_size_info_32 *values;
+	int i, size = 0;
+	struct aper_size_info_32 *values =
+	    A_SIZE_32(agp_bridge->driver->aperture_sizes);
 
-	pci_read_config_dword(agp_bridge->dev, UNI_N_CFG_GART_BASE, &temp);
-	temp &= ~(0xfffff000);
-	values = A_SIZE_32(agp_bridge->driver->aperture_sizes);
+	if (aperture) {
+		char *save = aperture;
 
-	for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++) {
-		if (temp == values[i].size_value) {
-			agp_bridge->previous_size =
-			    agp_bridge->current_size = (void *) (values + i);
-			agp_bridge->aperture_size_idx = i;
-			return values[i].size;
+		size = memparse(aperture, &aperture) >> 20;
+		aperture = save;
+
+		for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++)
+			if (size == values[i].size)
+				break;
+
+		if (i == agp_bridge->driver->num_aperture_sizes) {
+			printk(KERN_ERR PFX "Invalid aperture size, using"
+			       " default\n");
+			size = 0;
+			aperture = NULL;
 		}
 	}
 
-	agp_bridge->previous_size =
-	    agp_bridge->current_size = (void *) (values + 1);
-	agp_bridge->aperture_size_idx = 1;
-	return values[1].size;
+	if (!size) {
+		for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++)
+			if (values[i].size == 32)
+				break;
+	}
 
-	return 0;
+	agp_bridge->previous_size =
+	    agp_bridge->current_size = (void *)(values + i);
+	agp_bridge->aperture_size_idx = i;
+	return values[i].size;
 }
 
 static void uninorth_tlbflush(struct agp_memory *mem)
@@ -682,6 +692,12 @@ static void __exit agp_uninorth_cleanup(void)
 
 module_init(agp_uninorth_init);
 module_exit(agp_uninorth_cleanup);
+
+module_param(aperture, charp, 0);
+MODULE_PARM_DESC(aperture,
+		 "Aperture size, must be power of two between 4MB and an\n"
+		 "\t\tupper limit specific to the UniNorth revision.\n"
+		 "\t\tDefault: 32M");
 
 MODULE_AUTHOR("Ben Herrenschmidt & Paul Mackerras");
 MODULE_LICENSE("GPL");
