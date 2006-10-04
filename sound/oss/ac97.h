@@ -192,9 +192,6 @@ extern int ac97_put_register (struct ac97_hwint *dev, u8 reg, u16 value);
 extern int ac97_mixer_ioctl (struct ac97_hwint *dev, unsigned int cmd,
 			     void __user * arg);
 
-/* Do a complete reset on the AC97 mixer, restoring all mixer registers to
-   the current values.  Normally used after an APM resume event.  */
-extern int ac97_reset (struct ac97_hwint *dev);
 #endif
 
 /*

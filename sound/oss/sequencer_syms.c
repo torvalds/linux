@@ -20,10 +20,3 @@ EXPORT_SYMBOL(sound_timer_init);
 EXPORT_SYMBOL(sound_timer_interrupt);
 EXPORT_SYMBOL(sound_timer_syncinterval);
 
-/* Tuning */
-
-#define _SEQUENCER_C_
-#include "tuning.h"
-
-EXPORT_SYMBOL(cent_tuning);
-EXPORT_SYMBOL(semitone_tuning);

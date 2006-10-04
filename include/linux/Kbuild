@@ -160,7 +160,6 @@ header-y += video_decoder.h
 header-y += video_encoder.h
 header-y += videotext.h
 header-y += vt.h
-header-y += wavefront.h
 header-y += wireless.h
 header-y += xattr.h
 header-y += x25.h

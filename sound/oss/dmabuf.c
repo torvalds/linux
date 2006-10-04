@@ -1155,36 +1155,6 @@ void DMAbuf_inputintr(int dev)
 	spin_unlock_irqrestore(&dmap->lock,flags);
 }
 
-int DMAbuf_open_dma(int dev)
-{
-	/*
-	 *    NOTE!  This routine opens only the primary DMA channel (output).
-	 */
-	struct audio_operations *adev = audio_devs[dev];
-	int err;
-
-	if ((err = open_dmap(adev, OPEN_READWRITE, adev->dmap_out)) < 0)
-		return -EBUSY;
-	dma_init_buffers(adev->dmap_out);
-	adev->dmap_out->flags |= DMA_ALLOC_DONE;
-	adev->dmap_out->fragment_size = adev->dmap_out->buffsize;
-
-	if (adev->dmap_out->dma >= 0) {
-		unsigned long flags;
-
-		flags=claim_dma_lock();
-		clear_dma_ff(adev->dmap_out->dma);
-		disable_dma(adev->dmap_out->dma);
-		release_dma_lock(flags);
-	}
-	return 0;
-}
-
-void DMAbuf_close_dma(int dev)
-{
-	close_dmap(audio_devs[dev], audio_devs[dev]->dmap_out);
-}
-
 void DMAbuf_init(int dev, int dma1, int dma2)
 {
 	struct audio_operations *adev = audio_devs[dev];

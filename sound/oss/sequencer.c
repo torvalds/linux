@@ -16,7 +16,6 @@
  */
 #include <linux/kmod.h>
 #include <linux/spinlock.h>
-#define SEQUENCER_C
 #include "sound_config.h"
 
 #include "midi_ctrl.h"

@@ -1,13 +1,11 @@
-#ifdef SEQUENCER_C
-
-unsigned short semitone_tuning[24] = 
+static unsigned short semitone_tuning[24] =
 {
 /*   0 */ 10000, 10595, 11225, 11892, 12599, 13348, 14142, 14983, 
 /*   8 */ 15874, 16818, 17818, 18877, 20000, 21189, 22449, 23784, 
 /*  16 */ 25198, 26697, 28284, 29966, 31748, 33636, 35636, 37755
 };
 
-unsigned short cent_tuning[100] =
+static unsigned short cent_tuning[100] =
 {
 /*   0 */ 10000, 10006, 10012, 10017, 10023, 10029, 10035, 10041, 
 /*   8 */ 10046, 10052, 10058, 10064, 10070, 10075, 10081, 10087, 
@@ -23,7 +21,3 @@ unsigned short cent_tuning[100] =
 /*  88 */ 10521, 10528, 10534, 10540, 10546, 10552, 10558, 10564, 
 /*  96 */ 10570, 10576, 10582, 10589
 };
-#else
-extern unsigned short semitone_tuning[24];
-extern unsigned short cent_tuning[100];
-#endif

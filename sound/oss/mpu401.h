@@ -10,5 +10,3 @@ int probe_mpu401(struct address_info *hw_config, struct resource *ports);
 int attach_mpu401(struct address_info * hw_config, struct module *owner);
 void unload_mpu401(struct address_info *hw_info);
 
-int intchk_mpu401(void *dev_id);
-irqreturn_t mpuintr(int irq, void *dev_id, struct pt_regs * dummy);

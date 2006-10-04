@@ -1900,11 +1900,6 @@ M: 	rroesler@syskonnect.de
 W: 	http://www.syskonnect.com
 S: 	Supported
 
-MAESTRO PCI SOUND DRIVERS
-P:	Zach Brown
-M:	zab@zabbo.net
-S:	Odd Fixes
-
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 P: Michael Kerrisk
 M: mtk-manpages@gmx.net
@@ -3401,12 +3396,6 @@ P:	Henk Vergonet
 M:	Henk.Vergonet@gmail.com
 L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
-
-YMFPCI YAMAHA PCI SOUND (Use ALSA instead)
-P:	Pete Zaitcev
-M:	zaitcev@yahoo.com
-L:	linux-kernel@vger.kernel.org
-S:	Obsolete
 
 Z8530 DRIVER FOR AX.25
 P:	Joerg Reuter
