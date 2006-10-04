@@ -22,7 +22,6 @@
 #include <asm/hardware.h>
 #include <asm/parisc-device.h>
 #include <asm/io.h>
-#include <asm/serial.h> /* for LASI_BASE_BAUD */
 
 #include "8250.h"
 
@@ -54,7 +53,8 @@ serial_init_chip(struct parisc_device *dev)
 
 	memset(&port, 0, sizeof(port));
 	port.iotype	= UPIO_MEM;
-	port.uartclk	= LASI_BASE_BAUD * 16;
+	/* 7.272727MHz on Lasi.  Assumed the same for Dino, Wax and Timi. */
+	port.uartclk	= 7272727;
 	port.mapbase	= address;
 	port.membase	= ioremap_nocache(address, 16);
 	port.irq	= dev->irq;

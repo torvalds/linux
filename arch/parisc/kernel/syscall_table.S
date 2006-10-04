@@ -132,7 +132,7 @@
 	ENTRY_SAME(socketpair)
 	ENTRY_SAME(setpgid)
 	ENTRY_SAME(send)
-	ENTRY_SAME(newuname)
+	ENTRY_OURS(newuname)
 	ENTRY_SAME(umask)		/* 60 */
 	ENTRY_SAME(chroot)
 	ENTRY_SAME(ustat)
@@ -221,7 +221,7 @@
 	ENTRY_SAME(fchdir)
 	ENTRY_SAME(bdflush)
 	ENTRY_SAME(sysfs)		/* 135 */
-	ENTRY_SAME(personality)
+	ENTRY_OURS(personality)
 	ENTRY_SAME(ni_syscall)	/* for afs_syscall */
 	ENTRY_SAME(setfsuid)
 	ENTRY_SAME(setfsgid)

@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
+#include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -244,6 +245,15 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
 		current->comm, current->pid, str, err);
 	show_regs(regs);
+
+	if (in_interrupt())
+		panic("Fatal exception in interrupt");
+
+	if (panic_on_oops) {
+		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
+		ssleep(5);
+		panic("Fatal exception");
+	}
 
 	/* Wot's wrong wif bein' racy? */
 	if (current->thread.flags & PARISC_KERNEL_DEATH) {

@@ -31,6 +31,8 @@
 #include <linux/shm.h>
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
+#include <linux/utsname.h>
+#include <linux/personality.h>
 
 int sys_pipe(int __user *fildes)
 {
@@ -247,4 +249,47 @@ asmlinkage unsigned long sys_alloc_hugepages(int key, unsigned long addr, unsign
 asmlinkage int sys_free_hugepages(unsigned long addr)
 {
 	return -EINVAL;
+}
+
+long parisc_personality(unsigned long personality)
+{
+	long err;
+
+	if (personality(current->personality) == PER_LINUX32
+	    && personality == PER_LINUX)
+		personality = PER_LINUX32;
+
+	err = sys_personality(personality);
+	if (err == PER_LINUX32)
+		err = PER_LINUX;
+
+	return err;
+}
+
+static inline int override_machine(char __user *mach) {
+#ifdef CONFIG_COMPAT
+	if (personality(current->personality) == PER_LINUX32) {
+		if (__put_user(0, mach + 6) ||
+		    __put_user(0, mach + 7))
+			return -EFAULT;
+	}
+
+	return 0;
+#else /*!CONFIG_COMPAT*/
+	return 0;
+#endif /*CONFIG_COMPAT*/
+}
+
+long parisc_newuname(struct new_utsname __user *utsname)
+{
+	int err = 0;
+
+	down_read(&uts_sem);
+	if (copy_to_user(utsname, &system_utsname, sizeof(*utsname)))
+		err = -EFAULT;
+	up_read(&uts_sem);
+
+	err = override_machine(utsname->machine);
+
+	return (long)err;
 }

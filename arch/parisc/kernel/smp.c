@@ -262,6 +262,9 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 					this_cpu, which);
 				return IRQ_NONE;
 			} /* Switch */
+		/* let in any pending interrupts */
+		local_irq_enable();
+		local_irq_disable();
 		} /* while (ops) */
 	}
 	return IRQ_HANDLED;
@@ -430,8 +433,9 @@ smp_do_timer(struct pt_regs *regs)
 static void __init
 smp_cpu_init(int cpunum)
 {
-	extern int init_per_cpu(int);  /* arch/parisc/kernel/setup.c */
+	extern int init_per_cpu(int);  /* arch/parisc/kernel/processor.c */
 	extern void init_IRQ(void);    /* arch/parisc/kernel/irq.c */
+	extern void start_cpu_itimer(void); /* arch/parisc/kernel/time.c */
 
 	/* Set modes and Enable floating point coprocessor */
 	(void) init_per_cpu(cpunum);
@@ -457,6 +461,7 @@ smp_cpu_init(int cpunum)
 	enter_lazy_tlb(&init_mm, current);
 
 	init_IRQ();   /* make sure no IRQ's are enabled or pending */
+	start_cpu_itimer();
 }
 
 

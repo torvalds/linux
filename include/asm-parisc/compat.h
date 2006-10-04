@@ -5,7 +5,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/personality.h>
+#include <linux/thread_info.h>
 
 #define COMPAT_USER_HZ 100
 
@@ -152,7 +152,7 @@ static __inline__ void __user *compat_alloc_user_space(long len)
 
 static inline int __is_compat_task(struct task_struct *t)
 {
-	return personality(t->personality) == PER_LINUX32;
+	return test_ti_thread_flag(t->thread_info, TIF_32BIT);
 }
 
 static inline int is_compat_task(void)

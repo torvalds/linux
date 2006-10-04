@@ -31,10 +31,7 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-extern char _text;	/* start of kernel code, defined by linker */
 extern int  data_start;
-extern char _end;	/* end of BSS, defined by linker */
-extern char __init_begin, __init_end;
 
 #ifdef CONFIG_DISCONTIGMEM
 struct node_map_data node_data[MAX_NUMNODES] __read_mostly;
@@ -319,8 +316,8 @@ static void __init setup_bootmem(void)
 
 	reserve_bootmem_node(NODE_DATA(0), 0UL,
 			(unsigned long)(PAGE0->mem_free + PDC_CONSOLE_IO_IODC_SIZE));
-	reserve_bootmem_node(NODE_DATA(0),__pa((unsigned long)&_text),
-			(unsigned long)(&_end - &_text));
+	reserve_bootmem_node(NODE_DATA(0), __pa((unsigned long)_text),
+			(unsigned long)(_end - _text));
 	reserve_bootmem_node(NODE_DATA(0), (bootmap_start_pfn << PAGE_SHIFT),
 			((bootmap_pfn - bootmap_start_pfn) << PAGE_SHIFT));
 
@@ -355,8 +352,8 @@ static void __init setup_bootmem(void)
 #endif
 
 	data_resource.start =  virt_to_phys(&data_start);
-	data_resource.end = virt_to_phys(&_end)-1;
-	code_resource.start = virt_to_phys(&_text);
+	data_resource.end = virt_to_phys(_end) - 1;
+	code_resource.start = virt_to_phys(_text);
 	code_resource.end = virt_to_phys(&data_start)-1;
 
 	/* We don't know which region the kernel will be in, so try
@@ -385,12 +382,12 @@ void free_initmem(void)
 	 */
 	local_irq_disable();
 
-	memset(&__init_begin, 0x00, 
-		(unsigned long)&__init_end - (unsigned long)&__init_begin);
+	memset(__init_begin, 0x00,
+		(unsigned long)__init_end - (unsigned long)__init_begin);
 
 	flush_data_cache();
 	asm volatile("sync" : : );
-	flush_icache_range((unsigned long)&__init_begin, (unsigned long)&__init_end);
+	flush_icache_range((unsigned long)__init_begin, (unsigned long)__init_end);
 	asm volatile("sync" : : );
 
 	local_irq_enable();
@@ -398,8 +395,8 @@ void free_initmem(void)
 	
 	/* align __init_begin and __init_end to page size,
 	   ignoring linker script where we might have tried to save RAM */
-	init_begin = PAGE_ALIGN((unsigned long)(&__init_begin));
-	init_end   = PAGE_ALIGN((unsigned long)(&__init_end));
+	init_begin = PAGE_ALIGN((unsigned long)(__init_begin));
+	init_end   = PAGE_ALIGN((unsigned long)(__init_end));
 	for (addr = init_begin; addr < init_end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
@@ -578,7 +575,7 @@ static void __init map_pages(unsigned long start_vaddr, unsigned long start_padd
 	extern const unsigned long fault_vector_20;
 	extern void * const linux_gateway_page;
 
-	ro_start = __pa((unsigned long)&_text);
+	ro_start = __pa((unsigned long)_text);
 	ro_end   = __pa((unsigned long)&data_start);
 	fv_addr  = __pa((unsigned long)&fault_vector_20) & PAGE_MASK;
 	gw_addr  = __pa((unsigned long)&linux_gateway_page) & PAGE_MASK;
