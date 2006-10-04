@@ -63,6 +63,8 @@
 #define NFS4_INHERITANCE_FLAGS (NFS4_ACE_FILE_INHERIT_ACE \
 		| NFS4_ACE_DIRECTORY_INHERIT_ACE | NFS4_ACE_INHERIT_ONLY_ACE)
 
+#define NFS4_SUPPORTED_FLAGS (NFS4_INHERITANCE_FLAGS | NFS4_ACE_IDENTIFIER_GROUP)
+
 #define MASK_EQUAL(mask1, mask2) \
 	( ((mask1) & NFS4_ACE_MASK_ALL) == ((mask2) & NFS4_ACE_MASK_ALL) )
 
@@ -721,22 +723,37 @@ nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 		    ace->type != NFS4_ACE_ACCESS_DENIED_ACE_TYPE)
 			return -EINVAL;
 
-		if ((ace->flag & NFS4_INHERITANCE_FLAGS)
-				!= NFS4_INHERITANCE_FLAGS)
+		if (ace->flag & ~NFS4_SUPPORTED_FLAGS)
+			return -EINVAL;
+
+		switch (ace->flag & NFS4_INHERITANCE_FLAGS) {
+		case 0:
+			/* Leave this ace in the effective acl: */
 			continue;
-
-		error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
+		case NFS4_INHERITANCE_FLAGS:
+			/* Add this ace to the default acl and remove it
+			 * from the effective acl: */
+			error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
 				ace->access_mask, ace->whotype, ace->who);
-		if (error < 0)
-			goto out;
-
-		list_del(h);
-		kfree(ace);
-		acl->naces--;
+			if (error)
+				return error;
+			list_del(h);
+			kfree(ace);
+			acl->naces--;
+			break;
+		case NFS4_INHERITANCE_FLAGS & ~NFS4_ACE_INHERIT_ONLY_ACE:
+			/* Add this ace to the default, but leave it in
+			 * the effective acl as well: */
+			error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
+				ace->access_mask, ace->whotype, ace->who);
+			if (error)
+				return error;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
-
-out:
-	return error;
+	return 0;
 }
 
 static short
