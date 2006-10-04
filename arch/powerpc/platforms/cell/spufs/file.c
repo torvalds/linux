@@ -211,6 +211,27 @@ static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 #define spufs_cntl_mmap NULL
 #endif /* !SPUFS_MMAP_4K */
 
+static u64 spufs_cntl_get(void *data)
+{
+	struct spu_context *ctx = data;
+	u64 val;
+
+	spu_acquire(ctx);
+	val = ctx->ops->status_read(ctx);
+	spu_release(ctx);
+
+	return val;
+}
+
+static void spufs_cntl_set(void *data, u64 val)
+{
+	struct spu_context *ctx = data;
+
+	spu_acquire(ctx);
+	ctx->ops->runcntl_write(ctx, val);
+	spu_release(ctx);
+}
+
 static int spufs_cntl_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
@@ -219,29 +240,14 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	file->private_data = ctx;
 	file->f_mapping = inode->i_mapping;
 	ctx->cntl = inode->i_mapping;
-	return 0;
-}
-
-static ssize_t
-spufs_cntl_read(struct file *file, char __user *buffer,
-		size_t size, loff_t *pos)
-{
-	/* FIXME: read from spu status */
-	return -EINVAL;
-}
-
-static ssize_t
-spufs_cntl_write(struct file *file, const char __user *buffer,
-		 size_t size, loff_t *pos)
-{
-	/* FIXME: write to runctl bit */
-	return -EINVAL;
+	return simple_attr_open(inode, file, spufs_cntl_get,
+					spufs_cntl_set, "0x%08lx");
 }
 
 static struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
-	.read = spufs_cntl_read,
-	.write = spufs_cntl_write,
+	.read = simple_attr_read,
+	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
 };
 
