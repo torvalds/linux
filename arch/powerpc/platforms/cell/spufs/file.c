@@ -102,12 +102,16 @@ spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 
 	spu_acquire(ctx);
 
-	if (ctx->state == SPU_STATE_SAVED)
+	if (ctx->state == SPU_STATE_SAVED) {
+		vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+					& ~(_PAGE_NO_CACHE | _PAGE_GUARDED));
 		page = vmalloc_to_page(ctx->csa.lscsa->ls + offset);
-	else
+	} else {
+		vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+					| _PAGE_NO_CACHE | _PAGE_GUARDED);
 		page = pfn_to_page((ctx->spu->local_store_phys + offset)
 				   >> PAGE_SHIFT);
-
+	}
 	spu_release(ctx);
 
 	if (type)
