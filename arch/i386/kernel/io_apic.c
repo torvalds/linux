@@ -2483,6 +2483,54 @@ static int __init ioapic_init_sysfs(void)
 
 device_initcall(ioapic_init_sysfs);
 
+#ifdef CONFIG_PCI_MSI
+/*
+ * Dynamic irq allocate and deallocation for MSI
+ */
+int create_irq(void)
+{
+	/* Hack of the day: irq == vector.
+	 *
+	 * Ultimately this will be be more general,
+	 * and not depend on the irq to vector identity mapping.
+	 * But this version is needed until msi.c can cope with
+	 * the more general form.
+	 */
+	int irq, vector;
+	unsigned long flags;
+	vector = assign_irq_vector(AUTO_ASSIGN);
+	irq = vector;
+
+	if (vector >= 0) {
+		struct irq_desc *desc;
+
+		spin_lock_irqsave(&vector_lock, flags);
+		vector_irq[vector] = irq;
+		irq_vector[irq] = vector;
+		spin_unlock_irqrestore(&vector_lock, flags);
+
+		set_intr_gate(vector, interrupt[irq]);
+
+		dynamic_irq_init(irq);
+	}
+	return irq;
+}
+
+void destroy_irq(unsigned int irq)
+{
+	unsigned long flags;
+	unsigned int vector;
+
+	dynamic_irq_cleanup(irq);
+
+	spin_lock_irqsave(&vector_lock, flags);
+	vector = irq_vector[irq];
+	vector_irq[vector] = -1;
+	irq_vector[irq] = 0;
+	spin_unlock_irqrestore(&vector_lock, flags);
+}
+#endif /* CONFIG_PCI_MSI */
+
 /* --------------------------------------------------------------------------
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */
