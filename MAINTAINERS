@@ -2441,6 +2441,19 @@ M:	mporter@kernel.crashing.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+READ-COPY UPDATE (RCU)
+P:	Dipankar Sarma
+M:	dipankar@in.ibm.com
+W:	http://www.rdrop.com/users/paulmck/rclock/
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+
+RCUTORTURE MODULE
+P:	Josh Triplett
+M:	josh@freedesktop.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 REAL TIME CLOCK DRIVER
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com

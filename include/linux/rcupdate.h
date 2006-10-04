@@ -19,7 +19,7 @@
  *
  * Author: Dipankar Sarma <dipankar@in.ibm.com>
  * 
- * Based on the original work by Paul McKenney <paul.mckenney@us.ibm.com>
+ * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  * Papers:
  * http://www.rdrop.com/users/paulmck/paper/rclockpdcsproof.pdf

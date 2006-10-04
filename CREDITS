@@ -2240,6 +2240,12 @@ D: tc: HFSC scheduler
 S: Freiburg
 S: Germany
 
+N: Paul E. McKenney
+E: paulmck@us.ibm.com
+W: http://www.rdrop.com/users/paulmck/
+D: RCU and variants
+D: rcutorture module
+
 N: Mike McLagan
 E: mike.mclagan@linux.org
 W: http://www.invlogic.com/~mmclagan
@@ -2981,6 +2987,10 @@ S: 69 rue Dunois
 S: 75013 Paris
 S: France
 
+N: Dipankar Sarma
+E: dipankar@in.ibm.com
+D: RCU
+
 N: Hannu Savolainen
 E: hannu@opensound.com
 D: Maintainer of the sound drivers until 2.1.x days.
@@ -3292,6 +3302,12 @@ D: dosemu, networking, samba
 S: 3 Ballow Crescent
 S: MacGregor A.C.T 2615
 S: Australia
+
+N: Josh Triplett
+E: josh@freedesktop.org
+P: 1024D/D0FE7AFB B24A 65C9 1D71 2AC2 DE87  CA26 189B 9946 D0FE 7AFB
+D: rcutorture maintainer
+D: lock annotations, finding and fixing lock bugs
 
 N: Winfried Trümper
 E: winni@xpilot.org
