@@ -288,10 +288,10 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 		 if (cdev->private->flags.doverify ||
 			 cdev->private->state == DEV_STATE_VERIFY)
 			 cdev->private->intparm = -EAGAIN;
-		 if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) &&
-		     !(irb->ecw[0] &
-		       (SNS0_CMD_REJECT | SNS0_INTERVENTION_REQ)))
-			 cdev->private->intparm = -EAGAIN;
+		else if ((irb->scsw.dstat & DEV_STAT_UNIT_CHECK) &&
+			 !(irb->ecw[0] &
+			   (SNS0_CMD_REJECT | SNS0_INTERVENTION_REQ)))
+			cdev->private->intparm = -EAGAIN;
 		else if ((irb->scsw.dstat & DEV_STAT_ATTENTION) &&
 			 (irb->scsw.dstat & DEV_STAT_DEV_END) &&
 			 (irb->scsw.dstat & DEV_STAT_UNIT_EXCEP))
