@@ -1223,6 +1223,119 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
  			stateowner->so_replay.rp_buflen); 	\
 	} } while (0);
 
+/* Encode as an array of strings the string given with components
+ * seperated @sep.
+ */
+static int nfsd4_encode_components(char sep, char *components,
+				   u32 **pp, int *buflen)
+{
+	u32 *p = *pp;
+	u32 *countp = p;
+	int strlen, count=0;
+	char *str, *end;
+
+	dprintk("nfsd4_encode_components(%s)\n", components);
+	if ((*buflen -= 4) < 0)
+		return nfserr_resource;
+	WRITE32(0); /* We will fill this in with @count later */
+	end = str = components;
+	while (*end) {
+		for (; *end && (*end != sep); end++)
+			; /* Point to end of component */
+		strlen = end - str;
+		if (strlen) {
+			if ((*buflen -= ((XDR_QUADLEN(strlen) << 2) + 4)) < 0)
+				return nfserr_resource;
+			WRITE32(strlen);
+			WRITEMEM(str, strlen);
+			count++;
+		}
+		else
+			end++;
+		str = end;
+	}
+	*pp = p;
+	p = countp;
+	WRITE32(count);
+	return 0;
+}
+
+/*
+ * encode a location element of a fs_locations structure
+ */
+static int nfsd4_encode_fs_location4(struct nfsd4_fs_location *location,
+				    u32 **pp, int *buflen)
+{
+	int status;
+	u32 *p = *pp;
+
+	status = nfsd4_encode_components(':', location->hosts, &p, buflen);
+	if (status)
+		return status;
+	status = nfsd4_encode_components('/', location->path, &p, buflen);
+	if (status)
+		return status;
+	*pp = p;
+	return 0;
+}
+
+/*
+ * Return the path to an export point in the pseudo filesystem namespace
+ * Returned string is safe to use as long as the caller holds a reference
+ * to @exp.
+ */
+static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp)
+{
+	struct svc_fh tmp_fh;
+	char *path, *rootpath;
+	int stat;
+
+	fh_init(&tmp_fh, NFS4_FHSIZE);
+	stat = exp_pseudoroot(rqstp->rq_client, &tmp_fh, &rqstp->rq_chandle);
+	if (stat)
+		return ERR_PTR(stat);
+	rootpath = tmp_fh.fh_export->ex_path;
+
+	path = exp->ex_path;
+
+	if (strncmp(path, rootpath, strlen(rootpath))) {
+		printk("nfsd: fs_locations failed;"
+			"%s is not contained in %s\n", path, rootpath);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	return path + strlen(rootpath);
+}
+
+/*
+ *  encode a fs_locations structure
+ */
+static int nfsd4_encode_fs_locations(struct svc_rqst *rqstp,
+				     struct svc_export *exp,
+				     u32 **pp, int *buflen)
+{
+	int status, i;
+	u32 *p = *pp;
+	struct nfsd4_fs_locations *fslocs = &exp->ex_fslocs;
+	char *root = nfsd4_path(rqstp, exp);
+
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	status = nfsd4_encode_components('/', root, &p, buflen);
+	if (status)
+		return status;
+	if ((*buflen -= 4) < 0)
+		return nfserr_resource;
+	WRITE32(fslocs->locations_count);
+	for (i=0; i<fslocs->locations_count; i++) {
+		status = nfsd4_encode_fs_location4(&fslocs->locations[i],
+						   &p, buflen);
+		if (status)
+			return status;
+	}
+	*pp = p;
+	return 0;
+}
 
 static u32 nfs4_ftypes[16] = {
         NF4BAD,  NF4FIFO, NF4CHR, NF4BAD,
@@ -1332,6 +1445,11 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 				goto out;
 			} else if (status != 0)
 				goto out_nfserr;
+		}
+	}
+	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
+		if (exp->ex_fslocs.locations == NULL) {
+			bmval0 &= ~FATTR4_WORD0_FS_LOCATIONS;
 		}
 	}
 	if ((buflen -= 16) < 0)
@@ -1512,6 +1630,13 @@ out_acl:
 		if ((buflen -= 8) < 0)
 			goto out_resource;
 		WRITE64((u64) statfs.f_files);
+	}
+	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
+		status = nfsd4_encode_fs_locations(rqstp, exp, &p, &buflen);
+		if (status == nfserr_resource)
+			goto out_resource;
+		if (status)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_HOMOGENEOUS) {
 		if ((buflen -= 4) < 0)
