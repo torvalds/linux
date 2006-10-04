@@ -903,9 +903,9 @@ out_seq:
 struct gss_svc_data {
 	/* decoded gss client cred: */
 	struct rpc_gss_wire_cred	clcred;
-	/* pointer to the beginning of the procedure-specific results,
-	 * which may be encrypted/checksummed in svcauth_gss_release: */
-	__be32				*body_start;
+	/* save a pointer to the beginning of the encoded verifier,
+	 * for use in encryption/checksumming in svcauth_gss_release: */
+	__be32				*verf_start;
 	struct rsc			*rsci;
 };
 
@@ -968,7 +968,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	if (!svcdata)
 		goto auth_err;
 	rqstp->rq_auth_data = svcdata;
-	svcdata->body_start = NULL;
+	svcdata->verf_start = NULL;
 	svcdata->rsci = NULL;
 	gc = &svcdata->clcred;
 
@@ -1097,6 +1097,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		goto complete;
 	case RPC_GSS_PROC_DATA:
 		*authp = rpcsec_gsserr_ctxproblem;
+		svcdata->verf_start = resv->iov_base + resv->iov_len;
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
 		rqstp->rq_cred = rsci->cred;
@@ -1110,7 +1111,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 					gc->gc_seq, rsci->mechctx))
 				goto auth_err;
 			/* placeholders for length and seq. number: */
-			svcdata->body_start = resv->iov_base + resv->iov_len;
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
 			break;
@@ -1119,7 +1119,6 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 					gc->gc_seq, rsci->mechctx))
 				goto auth_err;
 			/* placeholders for length and seq. number: */
-			svcdata->body_start = resv->iov_base + resv->iov_len;
 			svc_putnl(resv, 0);
 			svc_putnl(resv, 0);
 			break;
@@ -1150,14 +1149,21 @@ out:
 u32 *
 svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
 {
-	u32 *p;
+	u32 *p, verf_len;
 
-	p = gsd->body_start;
-	gsd->body_start = NULL;
+	p = gsd->verf_start;
+	gsd->verf_start = NULL;
+
+	/* If the reply stat is nonzero, don't wrap: */
+	if (*(p-1) != rpc_success)
+		return NULL;
+	/* Skip the verifier: */
+	p += 1;
+	verf_len = ntohl(*p++);
+	p += XDR_QUADLEN(verf_len);
 	/* move accept_stat to right place: */
 	memcpy(p, p + 2, 4);
-	/* Don't wrap in failure case: */
-	/* Counting on not getting here if call was not even accepted! */
+	/* Also don't wrap if the accept stat is nonzero: */
 	if (*p != rpc_success) {
 		resbuf->head[0].iov_len -= 2 * 4;
 		return NULL;
@@ -1283,7 +1289,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	if (gc->gc_proc != RPC_GSS_PROC_DATA)
 		goto out;
 	/* Release can be called twice, but we only wrap once. */
-	if (gsd->body_start == NULL)
+	if (gsd->verf_start == NULL)
 		goto out;
 	/* normally not set till svc_send, but we need it here: */
 	/* XXX: what for?  Do we mess it up the moment we call svc_putu32
