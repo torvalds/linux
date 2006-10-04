@@ -153,6 +153,7 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 {
 	struct rpc_clnt		*client = NFS_CLIENT(inode);
 	struct sockaddr_in	addr;
+	struct nfs_server	*nfssrv = NFS_SERVER(inode);
 	struct nlm_host		*host;
 	struct nlm_rqst		*call;
 	sigset_t		oldset;
@@ -166,7 +167,9 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 	}
 
 	rpc_peeraddr(client, (struct sockaddr *) &addr, sizeof(addr));
-	host = nlmclnt_lookup_host(&addr, client->cl_xprt->prot, vers);
+	host = nlmclnt_lookup_host(&addr, client->cl_xprt->prot, vers,
+				   nfssrv->nfs_client->cl_hostname,
+				   strlen(nfssrv->nfs_client->cl_hostname));
 	if (host == NULL)
 		return -ENOLCK;
 

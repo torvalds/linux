@@ -39,19 +39,23 @@ static void			nlm_gc_hosts(void);
  * Find an NLM server handle in the cache. If there is none, create it.
  */
 struct nlm_host *
-nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version)
+nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version,
+			const char *hostname, int hostname_len)
 {
-	return nlm_lookup_host(0, sin, proto, version);
+	return nlm_lookup_host(0, sin, proto, version,
+			       hostname, hostname_len);
 }
 
 /*
  * Find an NLM client handle in the cache. If there is none, create it.
  */
 struct nlm_host *
-nlmsvc_lookup_host(struct svc_rqst *rqstp)
+nlmsvc_lookup_host(struct svc_rqst *rqstp,
+			const char *hostname, int hostname_len)
 {
 	return nlm_lookup_host(1, &rqstp->rq_addr,
-			       rqstp->rq_prot, rqstp->rq_vers);
+			       rqstp->rq_prot, rqstp->rq_vers,
+			       hostname, hostname_len);
 }
 
 /*
@@ -59,14 +63,20 @@ nlmsvc_lookup_host(struct svc_rqst *rqstp)
  */
 struct nlm_host *
 nlm_lookup_host(int server, const struct sockaddr_in *sin,
-					int proto, int version)
+					int proto, int version,
+					const char *hostname,
+					int hostname_len)
 {
 	struct nlm_host	*host, **hp;
 	u32		addr;
 	int		hash;
 
-	dprintk("lockd: nlm_lookup_host(%08x, p=%d, v=%d)\n",
-			(unsigned)(sin? ntohl(sin->sin_addr.s_addr) : 0), proto, version);
+	dprintk("lockd: nlm_lookup_host(%u.%u.%u.%u, p=%d, v=%d, my role=%s, name=%.*s)\n",
+			NIPQUAD(sin->sin_addr.s_addr), proto, version,
+			server? "server" : "client",
+			hostname_len,
+			hostname? hostname : "<none>");
+
 
 	hash = NLM_ADDRHASH(sin->sin_addr.s_addr);
 
@@ -267,19 +277,22 @@ void nlm_release_host(struct nlm_host *host)
 void nlm_host_rebooted(const struct sockaddr_in *sin, const struct nlm_reboot *argp)
 {
 	struct nlm_host *host;
+	int server;
 
 	/* Obtain the host pointer for this NFS server and try to
 	 * reclaim all locks we hold on this server.
 	 */
-	if ((argp->proto & 1)==0) {
+	server = (argp->proto & 1)? 1 : 0;
+	host = nlm_lookup_host(server, sin, argp->proto >> 1, argp->vers,
+			argp->mon, argp->len);
+	if (host == NULL)
+		return;
+
+	if (server == 0) {
 		/* We are client, he's the server: try to reclaim all locks. */
-		if ((host = nlmclnt_lookup_host(sin, argp->proto >> 1, argp->vers)) == NULL)
-			return;
 		nlmclnt_recovery(host, argp->state);
 	} else {
 		/* He's the client, we're the server: delete all locks held by the client */
-		if ((host = nlm_lookup_host(1, sin, argp->proto >> 1, argp->vers)) == NULL)
-			return;
 		nlmsvc_free_host_resources(host);
 	}
 	nlm_release_host(host);

@@ -38,7 +38,7 @@ nlm4svc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 		return nlm_lck_denied_nolocks;
 
 	/* Obtain host handle */
-	if (!(host = nlmsvc_lookup_host(rqstp))
+	if (!(host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len))
 	 || (argp->monitor && nsm_monitor(host) < 0))
 		goto no_locks;
 	*hostp = host;
@@ -260,7 +260,9 @@ static int nlm4svc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_args *a
 	struct nlm_rqst	*call;
 	int stat;
 
-	host = nlmsvc_lookup_host(rqstp);
+	host = nlmsvc_lookup_host(rqstp,
+				  argp->lock.caller,
+				  argp->lock.len);
 	if (host == NULL)
 		return rpc_system_err;
 

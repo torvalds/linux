@@ -179,7 +179,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	struct nlm_rqst		*call = NULL;
 
 	/* Create host handle for callback */
-	host = nlmsvc_lookup_host(rqstp);
+	host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len);
 	if (host == NULL)
 		return NULL;
 
@@ -451,6 +451,7 @@ nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				(long long)conflock->fl.fl_start,
 				(long long)conflock->fl.fl_end);
 		conflock->caller = "somehost";	/* FIXME */
+		conflock->len = strlen(conflock->caller);
 		conflock->oh.len = 0;		/* don't return OH info */
 		conflock->svid = conflock->fl.fl_pid;
 		return nlm_lck_denied;
