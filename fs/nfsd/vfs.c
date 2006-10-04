@@ -447,13 +447,11 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	} else if (error < 0)
 		goto out_nfserr;
 
-	if (pacl) {
-		error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
-		if (error < 0)
-			goto out_nfserr;
-	}
+	error = set_nfsv4_acl_one(dentry, pacl, POSIX_ACL_XATTR_ACCESS);
+	if (error < 0)
+		goto out_nfserr;
 
-	if (dpacl) {
+	if (S_ISDIR(inode->i_mode)) {
 		error = set_nfsv4_acl_one(dentry, dpacl, POSIX_ACL_XATTR_DEFAULT);
 		if (error < 0)
 			goto out_nfserr;
