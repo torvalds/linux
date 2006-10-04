@@ -24,7 +24,7 @@ struct at91_port_fns {
 	void	(*close)(struct uart_port *);
 };
 
-#if defined(CONFIG_SERIAL_AT91)
+#if defined(CONFIG_SERIAL_ATMEL)
 void at91_register_uart_fns(struct at91_port_fns *fns);
 #else
 #define at91_register_uart_fns(fns) do { } while (0)

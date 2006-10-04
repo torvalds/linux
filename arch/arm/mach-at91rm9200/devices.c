@@ -544,7 +544,7 @@ void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
  *  UART
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_SERIAL_AT91)
+#if defined(CONFIG_SERIAL_ATMEL)
 static struct resource dbgu_resources[] = {
 	[0] = {
 		.start	= AT91_VA_BASE_SYS + AT91_DBGU,

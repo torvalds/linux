@@ -44,13 +44,13 @@
 
 #include "atmel_serial.h"
 
-#if defined(CONFIG_SERIAL_AT91_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#if defined(CONFIG_SERIAL_ATMEL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
 #include <linux/serial_core.h>
 
-#ifdef CONFIG_SERIAL_AT91_TTYAT
+#ifdef CONFIG_SERIAL_ATMEL_TTYAT
 
 /* Use device name ttyAT, major 204 and minor 154-169.  This is necessary if we
  * should coexist with the 8250 driver, such as if we have an external 16C550
@@ -726,7 +726,7 @@ void __init at91_register_uart_fns(struct at91_port_fns *fns)
 }
 
 
-#ifdef CONFIG_SERIAL_AT91_CONSOLE
+#ifdef CONFIG_SERIAL_ATMEL_CONSOLE
 static void at91_console_putchar(struct uart_port *port, int ch)
 {
 	while (!(UART_GET_CSR(port) & AT91_US_TXRDY))
