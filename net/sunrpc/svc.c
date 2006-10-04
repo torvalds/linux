@@ -699,7 +699,7 @@ svc_process(struct svc_rqst *rqstp)
 	u32			dir, prog, vers, proc;
 	__be32			auth_stat, rpc_stat;
 	int			auth_res;
-	__be32			*accept_statp;
+	__be32			*reply_statp;
 
 	rpc_stat = rpc_success;
 
@@ -740,7 +740,7 @@ svc_process(struct svc_rqst *rqstp)
 		goto err_bad_rpc;
 
 	/* Save position in case we later decide to reject: */
-	accept_statp = resv->iov_base + resv->iov_len;
+	reply_statp = resv->iov_base + resv->iov_len;
 
 	svc_putnl(resv, 0);		/* ACCEPT */
 
@@ -888,7 +888,7 @@ err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n", ntohl(auth_stat));
 	serv->sv_stats->rpcbadauth++;
 	/* Restore write pointer to location of accept status: */
-	xdr_ressize_check(rqstp, accept_statp);
+	xdr_ressize_check(rqstp, reply_statp);
 	svc_putnl(resv, 1);	/* REJECT */
 	svc_putnl(resv, 1);	/* AUTH_ERROR */
 	svc_putnl(resv, ntohl(auth_stat));	/* status */
