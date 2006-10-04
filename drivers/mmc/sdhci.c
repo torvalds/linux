@@ -35,6 +35,8 @@ static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+/* Controller doesn't like some resets when there is no card inserted. */
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -51,7 +53,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
+				  SDHCI_QUIRK_NO_CARD_NO_RESET,
 	},
 
 	{
@@ -124,6 +127,12 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	unsigned long timeout;
+
+	if (host->chip->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
+		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
+			SDHCI_CARD_PRESENT))
+			return;
+	}
 
 	writeb(mask, host->ioaddr + SDHCI_SOFTWARE_RESET);
 
@@ -1174,6 +1183,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 
+	host->chip = chip;
+	chip->hosts[slot] = host;
+
 	host->bar = first_bar + slot;
 
 	host->addr = pci_resource_start(pdev, host->bar);
@@ -1329,9 +1341,6 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 #ifdef CONFIG_MMC_DEBUG
 	sdhci_dumpregs(host);
 #endif
-
-	host->chip = chip;
-	chip->hosts[slot] = host;
 
 	mmiowb();
 
