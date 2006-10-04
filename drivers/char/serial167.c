@@ -119,17 +119,6 @@ struct cyclades_port cy_port[] = {
 #define NR_PORTS        ARRAY_SIZE(cy_port)
 
 /*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char *tmp_buf = 0;
-
-/*
  * This is used to look up the divisor speeds and the timeouts
  * We're normally limited to 15 distinct baud rates.  The extra
  * are accessed via settings in info->flags.
@@ -1198,7 +1187,7 @@ cy_write(struct tty_struct * tty,
 	return 0;
     }
 	
-    if (!tty || !info->xmit_buf || !tmp_buf){
+    if (!tty || !info->xmit_buf){
         return 0;
     }
 
@@ -1982,13 +1971,6 @@ cy_open(struct tty_struct *tty, struct file * filp)
 #endif
     tty->driver_data = info;
     info->tty = tty;
-
-    if (!tmp_buf) {
-	tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL);
-	if (!tmp_buf){
-	    return -ENOMEM;
-        }
-    }
 
     /*
      * Start up serial port

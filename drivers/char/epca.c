@@ -1113,11 +1113,8 @@ static void __exit epca_module_exit(void)
 		ch = card_ptr[crd];
 		for (count = 0; count < bd->numports; count++, ch++) 
 		{ /* Begin for each port */
-			if (ch) {
-				if (ch->tty)
-					tty_hangup(ch->tty);
-				kfree(ch->tmp_buf);
-			}
+			if (ch && ch->tty)
+				tty_hangup(ch->tty);
 		} /* End for each port */
 	} /* End for each card */
 	pci_unregister_driver (&epca_driver);
@@ -1635,16 +1632,6 @@ static void post_fep_init(unsigned int crd)
 		init_waitqueue_head(&ch->close_wait);
 
 		spin_unlock_irqrestore(&epca_lock, flags);
-
-		ch->tmp_buf = kmalloc(ch->txbufsize,GFP_KERNEL);
-		if (!ch->tmp_buf) {
-			printk(KERN_ERR "POST FEP INIT : kmalloc failed for port 0x%x\n",i);
-			release_region((int)bd->port, 4);
-			while(i-- > 0)
-				kfree((ch--)->tmp_buf);
-			return;
-		} else
-			memset((void *)ch->tmp_buf,0,ch->txbufsize);
 	} /* End for each port */
 
 	printk(KERN_INFO 
