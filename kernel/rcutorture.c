@@ -55,7 +55,7 @@ static int stat_interval;	/* Interval between stats, in seconds. */
 static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
-static char *torture_type = "rcu"; /* What to torture: rcu, srcu. */
+static char *torture_type = "rcu"; /* What to torture: rcu, rcu_bh, srcu. */
 
 module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
