@@ -243,7 +243,7 @@ static void i_usX2Y_usbpcm_urb_complete(struct urb *urb)
 		usX2Y_error_urb_status(usX2Y, subs, urb);
 		return;
 	}
-	if (likely((0xFFFF & urb->start_frame) == usX2Y->wait_iso_frame))
+	if (likely(urb->start_frame == usX2Y->wait_iso_frame))
 		subs->completed_urb = urb;
 	else {
 		usX2Y_error_sequence(usX2Y, subs, urb);
@@ -256,13 +256,9 @@ static void i_usX2Y_usbpcm_urb_complete(struct urb *urb)
 	if (capsubs->completed_urb && atomic_read(&capsubs->state) >= state_PREPARED &&
 	    (NULL == capsubs2 || capsubs2->completed_urb) &&
 	    (playbacksubs->completed_urb || atomic_read(&playbacksubs->state) < state_PREPARED)) {
-		if (!usX2Y_usbpcm_usbframe_complete(capsubs, capsubs2, playbacksubs, urb->start_frame)) {
-			if (nr_of_packs() <= urb->start_frame &&
-			    urb->start_frame <= (2 * nr_of_packs() - 1))	// uhci and ohci
-				usX2Y->wait_iso_frame = urb->start_frame - nr_of_packs();
-			else
-				usX2Y->wait_iso_frame +=  nr_of_packs();
-		} else {
+		if (!usX2Y_usbpcm_usbframe_complete(capsubs, capsubs2, playbacksubs, urb->start_frame))
+			usX2Y->wait_iso_frame += nr_of_packs();
+		else {
 			snd_printdd("\n");
 			usX2Y_clients_stop(usX2Y);
 		}
@@ -433,7 +429,6 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 		if (subs != NULL && atomic_read(&subs->state) >= state_PREPARED)
 			goto start;
 	}
-	usX2Y->wait_iso_frame = -1;
 
  start:
 	usX2Y_usbpcm_subs_startup(subs);
@@ -459,7 +454,7 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 						goto cleanup;
 					}  else {
 						snd_printdd("%i\n", urb->start_frame);
-						if (0 > usX2Y->wait_iso_frame)
+						if (u == 0)
 							usX2Y->wait_iso_frame = urb->start_frame;
 					}
 					urb->transfer_flags = 0;
