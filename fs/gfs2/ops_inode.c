@@ -404,7 +404,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_qstr2dirent(&str, GFS2_DIRENT_SIZE(str.len), dent);
 		dent->de_inum = di->di_num; /* already GFS2 endian */
-		dent->de_type = DT_DIR;
+		dent->de_type = cpu_to_be16(DT_DIR);
 		di->di_entries = cpu_to_be32(1);
 
 		gfs2_str2qstr(&str, "..");
@@ -412,7 +412,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
 		gfs2_inum_out(&dip->i_num, &dent->de_inum);
-		dent->de_type = DT_DIR;
+		dent->de_type = cpu_to_be16(DT_DIR);
 
 		gfs2_dinode_out(&ip->i_di, di);
 
