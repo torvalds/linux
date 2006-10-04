@@ -27,7 +27,8 @@ obj-$(CONFIG_PPC64) += setup-bus.o
 obj-$(CONFIG_MIPS) += setup-bus.o setup-irq.o
 obj-$(CONFIG_X86_VISWS) += setup-irq.o
 
-msiobj-y := msi.o msi-apic.o
+msiobj-y := msi.o
+msiobj-$(CONFIG_IA64) += msi-apic.o
 msiobj-$(CONFIG_IA64_GENERIC) += msi-altix.o
 msiobj-$(CONFIG_IA64_SGI_SN2) += msi-altix.o
 obj-$(CONFIG_PCI_MSI) += $(msiobj-y)
