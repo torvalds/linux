@@ -32,7 +32,7 @@ extern unsigned scx200_cb_base;
 
 /* High Resolution Timer */
 #define SCx200_TIMER_OFFSET 0x08
-#define SCx200_TIMER_SIZE 0x05
+#define SCx200_TIMER_SIZE 0x06
 
 /* Clock Generators */
 #define SCx200_CLOCKGEN_OFFSET 0x10
