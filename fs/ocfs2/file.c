@@ -30,6 +30,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/uio.h>
+#include <linux/sched.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -691,6 +692,12 @@ static int ocfs2_zero_extend(struct inode *inode,
 		}
 
 		start_off += sb->s_blocksize;
+
+		/*
+		 * Very large extends have the potential to lock up
+		 * the cpu for extended periods of time.
+		 */
+		cond_resched();
 	}
 
 out:
