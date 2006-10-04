@@ -10,7 +10,6 @@
  *  Modified to support SH7300(SH-Mobile) SCIF. Takashi Kusuda (Jun 2003).
  *  Modified to support H8/300 Series Yoshinori Sato (Feb 2004).
  */
-#include <linux/config.h>
 #include <linux/serial_core.h>
 #include <asm/io.h>
 

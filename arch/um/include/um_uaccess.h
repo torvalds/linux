@@ -6,7 +6,6 @@
 #ifndef __ARCH_UM_UACCESS_H
 #define __ARCH_UM_UACCESS_H
 
-#include "linux/config.h"
 #include "choose-mode.h"
 
 #ifdef CONFIG_MODE_TT

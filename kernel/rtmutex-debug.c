@@ -16,7 +16,6 @@
  *
  * See rt.c in preempt-rt for proper credits and further information
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/module.h>

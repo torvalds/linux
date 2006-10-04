@@ -6,7 +6,6 @@
 #include <asm-ppc/pci-bridge.h>
 #else
 
-#include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/list.h>
 

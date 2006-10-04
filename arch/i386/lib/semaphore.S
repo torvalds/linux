@@ -13,7 +13,6 @@
  * rw semaphores implemented November 1999 by Benjamin LaHaise <bcrl@kvack.org>
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/rwlock.h>
 #include <asm/alternative-asm.i>

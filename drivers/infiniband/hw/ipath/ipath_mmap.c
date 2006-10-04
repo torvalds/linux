@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>

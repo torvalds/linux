@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/sched.h"
 #include "linux/list.h"
 #include "linux/spinlock.h"

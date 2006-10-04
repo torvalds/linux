@@ -4,7 +4,6 @@
  * The system call table. 
  */
 
-#include <linux/config.h>			/* CONFIG_OSF4_COMPAT */
 #include <asm/unistd.h>
 
 	.data

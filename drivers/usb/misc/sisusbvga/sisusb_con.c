@@ -47,7 +47,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

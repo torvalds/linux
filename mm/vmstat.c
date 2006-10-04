@@ -9,7 +9,6 @@
  *		Christoph Lameter <christoph@lameter.com>
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/cpu.h>

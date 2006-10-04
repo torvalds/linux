@@ -6,8 +6,6 @@
 #ifndef __MODE_KERN_H__
 #define __MODE_KERN_H__
 
-#include "linux/config.h"
-
 #ifdef CONFIG_MODE_TT
 #include "mode_kern_tt.h"
 #endif

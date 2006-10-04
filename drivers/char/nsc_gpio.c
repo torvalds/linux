@@ -7,7 +7,6 @@
    Copyright (c) 2005      Jim Cromie <jim.cromie@gmail.com>
 */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/errno.h>

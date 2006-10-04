@@ -6,7 +6,6 @@
  *  (C) 1991  Linus Torvalds - minix filesystem
  */
 
-#include <linux/config.h>	/* Joliet? */
 #include <linux/smp_lock.h>
 #include "isofs.h"
 

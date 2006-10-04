@@ -1,7 +1,6 @@
 /* Exports for assembly files.
    All C exports should go in the respective C files. */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/smp.h>
 
