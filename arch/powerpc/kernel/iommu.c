@@ -75,7 +75,7 @@ static unsigned long iommu_range_alloc(struct iommu_table *tbl,
 	/* This allocator was derived from x86_64's bit string search */
 
 	/* Sanity check */
-	if (unlikely(npages) == 0) {
+	if (unlikely(npages == 0)) {
 		if (printk_ratelimit())
 			WARN_ON(1);
 		return DMA_ERROR_CODE;
