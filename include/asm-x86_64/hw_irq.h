@@ -19,6 +19,7 @@
 #include <asm/irq.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
+#include <linux/percpu.h>
 #endif
 
 #define NMI_VECTOR		0x02
@@ -73,8 +74,9 @@
 
 
 #ifndef __ASSEMBLY__
-extern u8 irq_vector[NR_IRQ_VECTORS];
-extern int vector_irq[NR_VECTORS];
+extern unsigned int irq_vector[NR_IRQ_VECTORS];
+typedef int vector_irq_t[NR_VECTORS];
+DECLARE_PER_CPU(vector_irq_t, vector_irq);
 #define IO_APIC_VECTOR(irq)	(irq_vector[irq])
 
 /*

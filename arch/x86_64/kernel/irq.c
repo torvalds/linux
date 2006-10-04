@@ -110,7 +110,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 
 	exit_idle();
 	irq_enter();
-	irq = vector_irq[vector];
+	irq = __get_cpu_var(vector_irq)[vector];
 
 	if (unlikely(irq >= NR_IRQS)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",

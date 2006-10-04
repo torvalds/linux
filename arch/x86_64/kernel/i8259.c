@@ -394,7 +394,7 @@ device_initcall(i8259A_init_sysfs);
  */
 
 static struct irqaction irq2 = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL};
-int vector_irq[NR_VECTORS] __read_mostly = {
+DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[0 ... FIRST_EXTERNAL_VECTOR - 1] = -1,
 	[FIRST_EXTERNAL_VECTOR + 0] = 0,
 	[FIRST_EXTERNAL_VECTOR + 1] = 1,
@@ -520,7 +520,7 @@ void __init init_IRQ(void)
 	 * IRQ0 must be given a fixed assignment and initialized,
 	 * because it's used before the IO-APIC is set up.
 	 */
-	vector_irq[FIRST_DEVICE_VECTOR] = 0;
+	__get_cpu_var(vector_irq)[FIRST_DEVICE_VECTOR] = 0;
 
 	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
