@@ -37,7 +37,7 @@
  * Lockd host handle (used both by the client and server personality).
  */
 struct nlm_host {
-	struct nlm_host *	h_next;		/* linked list (hash table) */
+	struct hlist_node	h_hash;		/* doubly linked list */
 	struct sockaddr_in	h_addr;		/* peer address */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
 	char *			h_name;		/* remote hostname */
