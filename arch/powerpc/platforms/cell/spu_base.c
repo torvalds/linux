@@ -568,24 +568,23 @@ static void spu_unmap(struct spu *spu)
 /* This function shall be abstracted for HV platforms */
 static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 {
-	struct irq_host *host;
 	unsigned int isrc;
 	const u32 *tmp;
 
-	host = iic_get_irq_host(spu->node);
-	if (host == NULL)
-		return -ENODEV;
-
-	/* Get the interrupt source from the device-tree */
+	/* Get the interrupt source unit from the device-tree */
 	tmp = get_property(np, "isrc", NULL);
 	if (!tmp)
 		return -ENODEV;
-	spu->isrc = isrc = tmp[0];
+	isrc = tmp[0];
+
+	/* Add the node number */
+	isrc |= spu->node << IIC_IRQ_NODE_SHIFT;
+	spu->isrc = isrc;
 
 	/* Now map interrupts of all 3 classes */
-	spu->irqs[0] = irq_create_mapping(host, 0x00 | isrc);
-	spu->irqs[1] = irq_create_mapping(host, 0x10 | isrc);
-	spu->irqs[2] = irq_create_mapping(host, 0x20 | isrc);
+	spu->irqs[0] = irq_create_mapping(NULL, IIC_IRQ_CLASS_0 | isrc);
+	spu->irqs[1] = irq_create_mapping(NULL, IIC_IRQ_CLASS_1 | isrc);
+	spu->irqs[2] = irq_create_mapping(NULL, IIC_IRQ_CLASS_2 | isrc);
 
 	/* Right now, we only fail if class 2 failed */
 	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;

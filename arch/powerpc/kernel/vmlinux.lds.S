@@ -132,6 +132,14 @@ SECTIONS
 		*(__ftr_fixup)
 		__stop___ftr_fixup = .;
 	}
+#ifdef CONFIG_PPC64
+	. = ALIGN(8);
+	__fw_ftr_fixup : {
+		__start___fw_ftr_fixup = .;
+		*(__fw_ftr_fixup)
+		__stop___fw_ftr_fixup = .;
+	}
+#endif
 
 	. = ALIGN(PAGE_SIZE);
 	.init.ramfs : {

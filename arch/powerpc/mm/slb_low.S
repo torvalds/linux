@@ -21,6 +21,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
+#include <asm/firmware.h>
 
 /* void slb_allocate_realmode(unsigned long ea);
  *
@@ -183,6 +184,7 @@ slb_finish_load:
  	 * dont have any LRU information to help us choose a slot.
  	 */
 #ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
 	/*
 	 * On iSeries, the "bolted" stack segment can be cast out on
 	 * shared processor switch so we need to check for a miss on
@@ -194,6 +196,7 @@ slb_finish_load:
 	li	r10,SLB_NUM_BOLTED-1	/* Stack goes in last bolted slot */
 	cmpld	r9,r3
 	beq	3f
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 
 	ld	r10,PACASTABRR(r13)

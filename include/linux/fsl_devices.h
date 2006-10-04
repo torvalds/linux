@@ -46,18 +46,17 @@
 
 struct gianfar_platform_data {
 	/* device specific information */
-	u32 device_flags;
-
+	u32	device_flags;
 	/* board specific information */
-	u32 board_flags;
-	u32 bus_id;
-	u32 phy_id;
-	u8 mac_addr[6];
+	u32	board_flags;
+	u32	bus_id;
+	u32	phy_id;
+	u8	mac_addr[6];
 };
 
 struct gianfar_mdio_data {
 	/* board specific information */
-	int irq[32];
+	int	irq[32];
 };
 
 /* Flags related to gianfar device features */
@@ -76,13 +75,12 @@ struct gianfar_mdio_data {
 
 struct fsl_i2c_platform_data {
 	/* device specific information */
-	u32 device_flags;
+	u32	device_flags;
 };
 
 /* Flags related to I2C device features */
 #define FSL_I2C_DEV_SEPARATE_DFSRR	0x00000001
 #define FSL_I2C_DEV_CLOCK_5200		0x00000002
-
 
 enum fsl_usb2_operating_modes {
 	FSL_USB2_MPH_HOST,
@@ -101,9 +99,9 @@ enum fsl_usb2_phy_modes {
 
 struct fsl_usb2_platform_data {
 	/* board specific information */
-	enum fsl_usb2_operating_modes operating_mode;
-	enum fsl_usb2_phy_modes phy_mode;
-	unsigned int port_enables;
+	enum fsl_usb2_operating_modes	operating_mode;
+	enum fsl_usb2_phy_modes		phy_mode;
+	unsigned int			port_enables;
 };
 
 /* Flags in fsl_usb2_mph_platform_data */
@@ -121,5 +119,44 @@ struct fsl_spi_platform_data {
 	u32	sysclk;
 };
 
-#endif				/* _FSL_DEVICE_H_ */
-#endif				/* __KERNEL__ */
+/* Ethernet interface (phy management and speed)
+*/
+enum enet_interface {
+	ENET_10_MII,		/* 10 Base T,   MII interface */
+	ENET_10_RMII,		/* 10 Base T,  RMII interface */
+	ENET_10_RGMII,		/* 10 Base T, RGMII interface */
+	ENET_100_MII,		/* 100 Base T,   MII interface */
+	ENET_100_RMII,		/* 100 Base T,  RMII interface */
+	ENET_100_RGMII,		/* 100 Base T, RGMII interface */
+	ENET_1000_GMII,		/* 1000 Base T,  GMII interface */
+	ENET_1000_RGMII,	/* 1000 Base T, RGMII interface */
+	ENET_1000_TBI,		/* 1000 Base T,   TBI interface */
+	ENET_1000_RTBI		/* 1000 Base T,  RTBI interface */
+};
+
+struct ucc_geth_platform_data {
+	/* device specific information */
+	u32			device_flags;
+	u32			phy_reg_addr;
+
+	/* board specific information */
+	u32			board_flags;
+	u8			rx_clock;
+	u8			tx_clock;
+	u32			phy_id;
+	enum enet_interface	phy_interface;
+	u32			phy_interrupt;
+	u8			mac_addr[6];
+};
+
+/* Flags related to UCC Gigabit Ethernet device features */
+#define FSL_UGETH_DEV_HAS_GIGABIT		0x00000001
+#define FSL_UGETH_DEV_HAS_COALESCE		0x00000002
+#define FSL_UGETH_DEV_HAS_RMON			0x00000004
+
+/* Flags in ucc_geth_platform_data */
+#define FSL_UGETH_BRD_HAS_PHY_INTR		0x00000001
+				/* if not set use a timer */
+
+#endif /* _FSL_DEVICE_H_ */
+#endif /* __KERNEL__ */
