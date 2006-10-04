@@ -63,10 +63,10 @@ obj-$(CONFIG_DMASOUND)		+= dmasound/
 # Declare multi-part drivers.
 
 sound-objs	:= 							\
-    dev_table.o soundcard.o sound_syms.o		\
-    audio.o audio_syms.o dmabuf.o					\
-    midi_syms.o midi_synth.o midibuf.o					\
-    sequencer.o sequencer_syms.o sound_timer.o sys_timer.o
+    dev_table.o soundcard.o 		\
+    audio.o dmabuf.o					\
+    midi_synth.o midibuf.o					\
+    sequencer.o sound_timer.o sys_timer.o
 
 pas2-objs	:= pas2_card.o pas2_midi.o pas2_mixer.o pas2_pcm.o
 sb-objs		:= sb_card.o

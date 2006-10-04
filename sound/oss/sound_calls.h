@@ -71,7 +71,6 @@ unsigned int MIDIbuf_poll(int dev, struct file *file, poll_table * wait);
 int MIDIbuf_avail(int dev);
 
 void MIDIbuf_bytes_received(int dev, unsigned char *buf, int count);
-void MIDIbuf_init(void);
 
 
 /*	From soundcard.c	*/

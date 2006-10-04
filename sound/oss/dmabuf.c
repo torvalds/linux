@@ -926,6 +926,7 @@ int DMAbuf_start_dma(int dev, unsigned long physaddr, int count, int dma_mode)
 	sound_start_dma(dmap, physaddr, count, dma_mode);
 	return count;
 }
+EXPORT_SYMBOL(DMAbuf_start_dma);
 
 static int local_start_dma(struct audio_operations *adev, unsigned long physaddr, int count, int dma_mode)
 {
@@ -1055,6 +1056,8 @@ void DMAbuf_outputintr(int dev, int notify_only)
 		do_outputintr(dev, notify_only);
 	spin_unlock_irqrestore(&dmap->lock,flags);
 }
+EXPORT_SYMBOL(DMAbuf_outputintr);
+
 /* called with dmap->lock held in irq context */
 static void do_inputintr(int dev)
 {
@@ -1154,6 +1157,7 @@ void DMAbuf_inputintr(int dev)
 		do_inputintr(dev);
 	spin_unlock_irqrestore(&dmap->lock,flags);
 }
+EXPORT_SYMBOL(DMAbuf_inputintr);
 
 void DMAbuf_init(int dev, int dma1, int dma2)
 {
@@ -1161,12 +1165,6 @@ void DMAbuf_init(int dev, int dma1, int dma2)
 	/*
 	 * NOTE! This routine could be called several times.
 	 */
-
-	/* drag in audio_syms.o */
-	{
-		extern char audio_syms_symbol;
-		audio_syms_symbol = 0;
-	}
 
 	if (adev && adev->dmap_out == NULL) {
 		if (adev->d == NULL)
