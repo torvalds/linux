@@ -191,8 +191,6 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 }
 #endif
 
-static u8 gsi_2_irq[NR_IRQ_VECTORS] = { [0 ... NR_IRQ_VECTORS-1] = 0xFF };
-
 /*
  * The common case is 1:1 IRQ<->pin mappings. Sometimes there are
  * shared ISA-space IRQs, so we have to support them. We are super
@@ -518,64 +516,6 @@ static inline int irq_trigger(int idx)
 	return MPBIOS_trigger(idx);
 }
 
-static int next_irq = 16;
-
-/*
- * gsi_irq_sharing -- Name overload!  "irq" can be either a legacy IRQ
- * in the range 0-15, a linux IRQ in the range 0-223, or a GSI number
- * from ACPI, which can reach 800 in large boxen.
- *
- * Compact the sparse GSI space into a sequential IRQ series and reuse
- * vectors if possible.
- */
-int gsi_irq_sharing(int gsi)
-{
-	int i, tries, vector;
-
-	BUG_ON(gsi >= NR_IRQ_VECTORS);
-
-	if (platform_legacy_irq(gsi))
-		return gsi;
-
-	if (gsi_2_irq[gsi] != 0xFF)
-		return (int)gsi_2_irq[gsi];
-
-	tries = NR_IRQS;
-  try_again:
-	vector = assign_irq_vector(gsi, TARGET_CPUS);
-
-	/*
-	 * Sharing vectors means sharing IRQs, so scan irq_vectors for previous
-	 * use of vector and if found, return that IRQ.  However, we never want
-	 * to share legacy IRQs, which usually have a different trigger mode
-	 * than PCI.
-	 */
-	for (i = 0; i < NR_IRQS; i++)
-		if (IO_APIC_VECTOR(i) == vector)
-			break;
-	if (platform_legacy_irq(i)) {
-		if (--tries >= 0) {
-			IO_APIC_VECTOR(i) = 0;
-			goto try_again;
-		}
-		panic("gsi_irq_sharing: didn't find an IRQ using vector 0x%02X for GSI %d", vector, gsi);
-	}
-	if (i < NR_IRQS) {
-		gsi_2_irq[gsi] = i;
-		printk(KERN_INFO "GSI %d sharing vector 0x%02X and IRQ %d\n",
-				gsi, vector, i);
-		return i;
-	}
-
-	i = next_irq++;
-	BUG_ON(i >= NR_IRQS);
-	gsi_2_irq[gsi] = i;
-	IO_APIC_VECTOR(i) = vector;
-	printk(KERN_INFO "GSI %d assigned vector 0x%02X and IRQ %d\n",
-			gsi, vector, i);
-	return i;
-}
-
 static int pin_2_irq(int idx, int apic, int pin)
 {
 	int irq, i;
@@ -597,7 +537,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 		while (i < apic)
 			irq += nr_ioapic_registers[i++];
 		irq += pin;
-		irq = gsi_irq_sharing(irq);
 	}
 	BUG_ON(irq >= NR_IRQS);
 	return irq;
@@ -1872,7 +1811,6 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int p
 		return -EINVAL;
 	}
 
-	irq = gsi_irq_sharing(irq);
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */

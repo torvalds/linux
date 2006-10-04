@@ -62,8 +62,6 @@ static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return
 #include <mach_mpparse.h>
 #endif				/* CONFIG_X86_LOCAL_APIC */
 
-static inline int gsi_irq_sharing(int gsi) { return gsi; }
-
 #endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \
@@ -468,7 +466,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
-	*irq = gsi_irq_sharing(gsi);
+	*irq = gsi;
 	return 0;
 }
 
