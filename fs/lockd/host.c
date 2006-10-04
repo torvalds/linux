@@ -164,6 +164,34 @@ out:
 	return host;
 }
 
+/*
+ * Destroy a host
+ */
+static void
+nlm_destroy_host(struct nlm_host *host)
+{
+	struct rpc_clnt	*clnt;
+
+	BUG_ON(!list_empty(&host->h_lockowners));
+	BUG_ON(atomic_read(&host->h_count));
+
+	/*
+	 * Release NSM handle and unmonitor host.
+	 */
+	nsm_unmonitor(host);
+
+	if ((clnt = host->h_rpcclnt) != NULL) {
+		if (atomic_read(&clnt->cl_users)) {
+			printk(KERN_WARNING
+				"lockd: active RPC handle\n");
+			clnt->cl_dead = 1;
+		} else {
+			rpc_destroy_client(host->h_rpcclnt);
+		}
+	}
+	kfree(host);
+}
+
 struct nlm_host *
 nlm_find_client(void)
 {
@@ -400,7 +428,6 @@ nlm_gc_hosts(void)
 	struct hlist_head *chain;
 	struct hlist_node *pos, *next;
 	struct nlm_host	*host;
-	struct rpc_clnt	*clnt;
 
 	dprintk("lockd: host garbage collection\n");
 	for (chain = nlm_hosts; chain < nlm_hosts + NLM_HOST_NRHASH; ++chain) {
@@ -423,21 +450,7 @@ nlm_gc_hosts(void)
 			dprintk("lockd: delete host %s\n", host->h_name);
 			hlist_del_init(&host->h_hash);
 
-			/*
-			 * Unmonitor unless host was invalidated (i.e. lockd restarted)
-			 */
-			nsm_unmonitor(host);
-
-			if ((clnt = host->h_rpcclnt) != NULL) {
-				if (atomic_read(&clnt->cl_users)) {
-					printk(KERN_WARNING
-						"lockd: active RPC handle\n");
-					clnt->cl_dead = 1;
-				} else {
-					rpc_destroy_client(host->h_rpcclnt);
-				}
-			}
-			kfree(host);
+			nlm_destroy_host(host);
 			nrhosts--;
 		}
 	}
