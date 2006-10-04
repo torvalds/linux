@@ -1487,6 +1487,21 @@ static u64 spufs_id_get(void *data)
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_id_ops, spufs_id_get, NULL, "0x%llx\n")
 
+static u64 spufs_object_id_get(void *data)
+{
+	struct spu_context *ctx = data;
+	return ctx->object_id;
+}
+
+static void spufs_object_id_set(void *data, u64 id)
+{
+	struct spu_context *ctx = data;
+	ctx->object_id = id;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(spufs_object_id_ops, spufs_object_id_get,
+		spufs_object_id_set, "0x%llx\n");
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
@@ -1510,7 +1525,8 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "spu_tag_mask", &spufs_spu_tag_mask_ops, 0666, },
 	{ "event_mask", &spufs_event_mask_ops, 0666, },
 	{ "srr0", &spufs_srr0_ops, 0666, },
-	{ "phys-id", &spufs_id_ops, 0666, },
 	{ "psmap", &spufs_psmap_fops, 0666, },
+	{ "phys-id", &spufs_id_ops, 0666, },
+	{ "object-id", &spufs_object_id_ops, 0666, },
 	{},
 };

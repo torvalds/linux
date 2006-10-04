@@ -201,6 +201,24 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 
 
 /*
+ * Notifier blocks:
+ *
+ * oprofile can get notified when a context switch is performed
+ * on an spe. The notifer function that gets called is passed
+ * a pointer to the SPU structure as well as the object-id that
+ * identifies the binary running on that SPU now.
+ *
+ * For a context save, the object-id that is passed is zero,
+ * identifying that the kernel will run from that moment on.
+ *
+ * For a context restore, the object-id is the value written
+ * to object-id spufs file from user space and the notifer
+ * function can assume that spu->ctx is valid.
+ */
+int spu_switch_event_register(struct notifier_block * n);
+int spu_switch_event_unregister(struct notifier_block * n);
+
+/*
  * This defines the Local Store, Problem Area and Privlege Area of an SPU.
  */
 

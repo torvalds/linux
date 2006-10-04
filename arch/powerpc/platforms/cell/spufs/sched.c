@@ -35,6 +35,7 @@
 #include <linux/unistd.h>
 #include <linux/numa.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -75,6 +76,25 @@ static inline void mm_needs_global_tlbie(struct mm_struct *mm)
 	__cpus_setall(&mm->cpu_vm_mask, nr);
 }
 
+static BLOCKING_NOTIFIER_HEAD(spu_switch_notifier);
+
+static void spu_switch_notify(struct spu *spu, struct spu_context *ctx)
+{
+	blocking_notifier_call_chain(&spu_switch_notifier,
+			    ctx ? ctx->object_id : 0, spu);
+}
+
+int spu_switch_event_register(struct notifier_block * n)
+{
+	return blocking_notifier_chain_register(&spu_switch_notifier, n);
+}
+
+int spu_switch_event_unregister(struct notifier_block * n)
+{
+	return blocking_notifier_chain_unregister(&spu_switch_notifier, n);
+}
+
+
 static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: pid=%d SPU=%d NODE=%d\n", __FUNCTION__, current->pid,
@@ -97,12 +117,14 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_restore(&ctx->csa, spu);
 	spu->timestamp = jiffies;
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
+	spu_switch_notify(spu, ctx);
 }
 
 static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
 		 spu->pid, spu->number, spu->node);
+	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
 	spu->timestamp = jiffies;
