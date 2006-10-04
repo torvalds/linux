@@ -372,6 +372,13 @@ set_irq_chained_handler(unsigned int irq,
 extern int create_irq(void);
 extern void destroy_irq(unsigned int irq);
 
+/* Test to see if a driver has successfully requested an irq */
+static inline int irq_has_action(unsigned int irq)
+{
+	struct irq_desc *desc = irq_desc + irq;
+	return desc->action != NULL;
+}
+
 /* Dynamic irq helper functions */
 extern void dynamic_irq_init(unsigned int irq);
 extern void dynamic_irq_cleanup(unsigned int irq);

@@ -188,18 +188,6 @@ static void unmask_MSI_irq(unsigned int irq)
 
 static unsigned int startup_msi_irq_wo_maskbit(unsigned int irq)
 {
-	struct msi_desc *entry;
-	unsigned long flags;
-
-	spin_lock_irqsave(&msi_lock, flags);
-	entry = msi_desc[irq];
-	if (!entry || !entry->dev) {
-		spin_unlock_irqrestore(&msi_lock, flags);
-		return 0;
-	}
-	entry->msi_attrib.state = 1;	/* Mark it active */
-	spin_unlock_irqrestore(&msi_lock, flags);
-
 	return 0;	/* never anything pending */
 }
 
@@ -212,14 +200,6 @@ static unsigned int startup_msi_irq_w_maskbit(unsigned int irq)
 
 static void shutdown_msi_irq(unsigned int irq)
 {
-	struct msi_desc *entry;
-	unsigned long flags;
-
-	spin_lock_irqsave(&msi_lock, flags);
-	entry = msi_desc[irq];
-	if (entry && entry->dev)
-		entry->msi_attrib.state = 0;	/* Mark it not active */
-	spin_unlock_irqrestore(&msi_lock, flags);
 }
 
 static void end_msi_irq_wo_maskbit(unsigned int irq)
@@ -671,7 +651,6 @@ static int msi_capability_init(struct pci_dev *dev)
 	entry->link.head = irq;
 	entry->link.tail = irq;
 	entry->msi_attrib.type = PCI_CAP_ID_MSI;
-	entry->msi_attrib.state = 0;			/* Mark it not active */
 	entry->msi_attrib.is_64 = is_64bit_address(control);
 	entry->msi_attrib.entry_nr = 0;
 	entry->msi_attrib.maskbit = is_mask_bit_support(control);
@@ -744,7 +723,6 @@ static int msix_capability_init(struct pci_dev *dev,
  		j = entries[i].entry;
  		entries[i].vector = irq;
 		entry->msi_attrib.type = PCI_CAP_ID_MSIX;
- 		entry->msi_attrib.state = 0;		/* Mark it not active */
 		entry->msi_attrib.is_64 = 1;
 		entry->msi_attrib.entry_nr = j;
 		entry->msi_attrib.maskbit = 1;
@@ -897,12 +875,12 @@ void pci_disable_msi(struct pci_dev* dev)
 		spin_unlock_irqrestore(&msi_lock, flags);
 		return;
 	}
-	if (entry->msi_attrib.state) {
+	if (irq_has_action(dev->irq)) {
 		spin_unlock_irqrestore(&msi_lock, flags);
 		printk(KERN_WARNING "PCI: %s: pci_disable_msi() called without "
 		       "free_irq() on MSI irq %d\n",
 		       pci_name(dev), dev->irq);
-		BUG_ON(entry->msi_attrib.state > 0);
+		BUG_ON(irq_has_action(dev->irq));
 	} else {
 		default_irq = entry->msi_attrib.default_irq;
 		spin_unlock_irqrestore(&msi_lock, flags);
@@ -1035,17 +1013,16 @@ void pci_disable_msix(struct pci_dev* dev)
 
 	temp = dev->irq;
 	if (!msi_lookup_irq(dev, PCI_CAP_ID_MSIX)) {
-		int state, irq, head, tail = 0, warning = 0;
+		int irq, head, tail = 0, warning = 0;
 		unsigned long flags;
 
 		irq = head = dev->irq;
 		dev->irq = temp;			/* Restore pin IRQ */
 		while (head != tail) {
 			spin_lock_irqsave(&msi_lock, flags);
-			state = msi_desc[irq]->msi_attrib.state;
 			tail = msi_desc[irq]->link.tail;
 			spin_unlock_irqrestore(&msi_lock, flags);
-			if (state)
+			if (irq_has_action(irq))
 				warning = 1;
 			else if (irq != head)	/* Release MSI-X irq */
 				msi_free_irq(dev, irq);
@@ -1072,7 +1049,7 @@ void pci_disable_msix(struct pci_dev* dev)
  **/
 void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 {
-	int state, pos, temp;
+	int pos, temp;
 	unsigned long flags;
 
 	if (!pci_msi_enable || !dev)
@@ -1081,14 +1058,11 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 	temp = dev->irq;		/* Save IOAPIC IRQ */
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (pos > 0 && !msi_lookup_irq(dev, PCI_CAP_ID_MSI)) {
-		spin_lock_irqsave(&msi_lock, flags);
-		state = msi_desc[dev->irq]->msi_attrib.state;
-		spin_unlock_irqrestore(&msi_lock, flags);
-		if (state) {
+		if (irq_has_action(dev->irq)) {
 			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
 			       "called without free_irq() on MSI irq %d\n",
 			       pci_name(dev), dev->irq);
-			BUG_ON(state > 0);
+			BUG_ON(irq_has_action(dev->irq));
 		} else /* Release MSI irq assigned to this device */
 			msi_free_irq(dev, dev->irq);
 		dev->irq = temp;		/* Restore IOAPIC IRQ */
@@ -1101,11 +1075,10 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		irq = head = dev->irq;
 		while (head != tail) {
 			spin_lock_irqsave(&msi_lock, flags);
-			state = msi_desc[irq]->msi_attrib.state;
 			tail = msi_desc[irq]->link.tail;
 			base = msi_desc[irq]->mask_base;
 			spin_unlock_irqrestore(&msi_lock, flags);
-			if (state)
+			if (irq_has_action(irq))
 				warning = 1;
 			else if (irq != head) /* Release MSI-X irq */
 				msi_free_irq(dev, irq);

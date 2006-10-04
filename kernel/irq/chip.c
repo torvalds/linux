@@ -67,6 +67,13 @@ void dynamic_irq_cleanup(unsigned int irq)
 
 	desc = irq_desc + irq;
 	spin_lock_irqsave(&desc->lock, flags);
+	if (desc->action) {
+		spin_unlock_irqrestore(&desc->lock, flags);
+		printk(KERN_ERR "Destroying IRQ%d without calling free_irq\n",
+			irq);
+		WARN_ON(1);
+		return;
+	}
 	desc->handle_irq = handle_bad_irq;
 	desc->chip = &no_irq_chip;
 	spin_unlock_irqrestore(&desc->lock, flags);
