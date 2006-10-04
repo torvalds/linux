@@ -331,9 +331,12 @@ nlm_gc_hosts(void)
 			}
 			dprintk("lockd: delete host %s\n", host->h_name);
 			*q = host->h_next;
-			/* Don't unmonitor hosts that have been invalidated */
-			if (host->h_monitored && !host->h_killed)
-				nsm_unmonitor(host);
+
+			/*
+			 * Unmonitor unless host was invalidated (i.e. lockd restarted)
+			 */
+			nsm_unmonitor(host);
+
 			if ((clnt = host->h_rpcclnt) != NULL) {
 				if (atomic_read(&clnt->cl_users)) {
 					printk(KERN_WARNING

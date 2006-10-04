@@ -74,6 +74,8 @@ nsm_monitor(struct nlm_host *host)
 	int		status;
 
 	dprintk("lockd: nsm_monitor(%s)\n", host->h_name);
+	if (host->h_monitored)
+		return 0;
 
 	status = nsm_mon_unmon(host, SM_MON, &res);
 
@@ -91,15 +93,18 @@ int
 nsm_unmonitor(struct nlm_host *host)
 {
 	struct nsm_res	res;
-	int		status;
+	int		status = 0;
 
 	dprintk("lockd: nsm_unmonitor(%s)\n", host->h_name);
+	if (!host->h_monitored)
+		return 0;
+	host->h_monitored = 0;
 
-	status = nsm_mon_unmon(host, SM_UNMON, &res);
-	if (status < 0)
-		printk(KERN_NOTICE "lockd: cannot unmonitor %s\n", host->h_name);
-	else
-		host->h_monitored = 0;
+	if (!host->h_killed) {
+		status = nsm_mon_unmon(host, SM_UNMON, &res);
+		if (status < 0)
+			printk(KERN_NOTICE "lockd: cannot unmonitor %s\n", host->h_name);
+	}
 	return status;
 }
 
