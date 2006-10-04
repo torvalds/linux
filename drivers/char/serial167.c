@@ -1121,7 +1121,7 @@ cy_put_char(struct tty_struct *tty, unsigned char ch)
     if (serial_paranoia_check(info, tty->name, "cy_put_char"))
 	return;
 
-    if (!tty || !info->xmit_buf)
+    if (!info->xmit_buf)
 	return;
 
     local_irq_save(flags);
@@ -1187,7 +1187,7 @@ cy_write(struct tty_struct * tty,
 	return 0;
     }
 	
-    if (!tty || !info->xmit_buf){
+    if (!info->xmit_buf){
         return 0;
     }
 
