@@ -18,7 +18,7 @@ config IBM_ASM
 	  service processor board as a regular serial port. To make use of
 	  this feature serial driver support (CONFIG_SERIAL_8250) must be
 	  enabled.
-	  
+
 	  WARNING: This software may not be supported or function
 	  correctly on your IBM server. Please consult the IBM ServerProven
 	  website <http://www.pc.ibm.com/ww/eserver/xseries/serverproven> for
@@ -28,5 +28,33 @@ config IBM_ASM
 
 	  If unsure, say N.
 
-endmenu
+config TIFM_CORE
+	tristate "TI Flash Media interface support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  If you want support for Texas Instruments(R) Flash Media adapters
+	  you should select this option and then also choose an appropriate
+	  host adapter, such as 'TI Flash Media PCI74xx/PCI76xx host adapter
+	  support', if you have a TI PCI74xx compatible card reader, for
+	  example.
+	  You will also have to select some flash card format drivers. MMC/SD
+	  cards are supported via 'MMC/SD Card support: TI Flash Media MMC/SD
+	  Interface support (MMC_TIFM_SD)'.
 
+          To compile this driver as a module, choose M here: the module will
+	  be called tifm_core.
+
+config TIFM_7XX1
+	tristate "TI Flash Media PCI74xx/PCI76xx host adapter support (EXPERIMENTAL)"
+	depends on PCI && TIFM_CORE && EXPERIMENTAL
+	default TIFM_CORE
+	help
+	  This option enables support for Texas Instruments(R) PCI74xx and
+	  PCI76xx families of Flash Media adapters, found in many laptops.
+	  To make actual use of the device, you will have to select some
+	  flash card format drivers, as outlined in the TIFM_CORE Help.
+
+          To compile this driver as a module, choose M here: the module will
+	  be called tifm_7xx1.
+
+endmenu
