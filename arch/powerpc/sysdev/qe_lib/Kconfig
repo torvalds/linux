@@ -1,0 +1,30 @@
+#
+# QE Communication options
+#
+
+menu "QE Options"
+	depends on QUICC_ENGINE
+
+config UCC_SLOW
+	bool "UCC Slow Protocols Support"
+	default n
+	select UCC
+	help
+	  This option provides qe_lib support to UCC slow
+	  protocols: UART, BISYNC, QMC
+
+config UCC_FAST
+	bool "UCC Fast Protocols Support"
+	default n
+	select UCC
+	select UCC_SLOW
+	help
+	  This option provides qe_lib support to UCC fast
+	  protocols: HDLC, Ethernet, ATM, transparent
+
+config UCC
+	bool
+	default y if UCC_FAST || UCC_SLOW
+
+endmenu
+
