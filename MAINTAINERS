@@ -2854,6 +2854,11 @@ M:	hlhung3i@gmail.com
 W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
 
+TI FLASH MEDIA INTERFACE DRIVER
+P:      Alex Dubov
+M:      oakad@yahoo.com
+S:      Maintained
+
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
 M:	dsaxena@plexity.net
