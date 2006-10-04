@@ -6,8 +6,6 @@
 #ifndef MSI_H
 #define MSI_H
 
-#include <asm/msi.h>
-
 /*
  * MSI-X Address Register
  */
@@ -48,30 +46,5 @@
 #define msix_unmask(address)	 	(address & ~PCI_MSIX_FLAGS_BITMASK)
 #define msix_mask(address)		(address | PCI_MSIX_FLAGS_BITMASK)
 #define msix_is_pending(address) 	(address & PCI_MSIX_FLAGS_PENDMASK)
-
-struct msi_desc {
-	struct {
-		__u8	type	: 5; 	/* {0: unused, 5h:MSI, 11h:MSI-X} */
-		__u8	maskbit	: 1; 	/* mask-pending bit supported ?   */
-		__u8	unused	: 1;
-		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
-		__u8	pos;	 	/* Location of the msi capability */
-		__u16	entry_nr;    	/* specific enabled entry 	  */
-		unsigned default_irq;	/* default pre-assigned irq	  */
-	}msi_attrib;
-
-	struct {
-		__u16	head;
-		__u16	tail;
-	}link;
-
-	void __iomem *mask_base;
-	struct pci_dev *dev;
-
-#ifdef CONFIG_PM
-	/* PM save area for MSIX address/data */
-	struct msi_msg msg_save;
-#endif
-};
 
 #endif /* MSI_H */

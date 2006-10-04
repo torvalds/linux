@@ -15,6 +15,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
+#include <linux/msi.h>
 
 #include <asm/errno.h>
 #include <asm/io.h>
@@ -28,15 +29,6 @@ static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
 static kmem_cache_t* msi_cachep;
 
 static int pci_msi_enable = 1;
-
-static struct msi_ops *msi_ops;
-
-int
-msi_register(struct msi_ops *ops)
-{
-	msi_ops = ops;
-	return 0;
-}
 
 static int msi_cache_init(void)
 {
@@ -80,8 +72,9 @@ static void msi_set_mask_bit(unsigned int irq, int flag)
 	}
 }
 
-static void read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
+	struct msi_desc *entry = get_irq_data(irq);
 	switch(entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 	{
@@ -118,8 +111,9 @@ static void read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	}
 }
 
-static void write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
+	struct msi_desc *entry = get_irq_data(irq);
 	switch (entry->msi_attrib.type) {
 	case PCI_CAP_ID_MSI:
 	{
@@ -157,52 +151,15 @@ static void write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 	}
 }
 
-#ifdef CONFIG_SMP
-static void set_msi_affinity(unsigned int irq, cpumask_t cpu_mask)
-{
-	struct msi_desc *entry;
-	struct msi_msg msg;
-
-	entry = msi_desc[irq];
-	if (!entry || !entry->dev)
-		return;
-
-	read_msi_msg(entry, &msg);
-	msi_ops->target(irq, cpu_mask, &msg);
-	write_msi_msg(entry, &msg);
-	set_native_irq_info(irq, cpu_mask);
-}
-#else
-#define set_msi_affinity NULL
-#endif /* CONFIG_SMP */
-
-static void mask_MSI_irq(unsigned int irq)
+void mask_msi_irq(unsigned int irq)
 {
 	msi_set_mask_bit(irq, 1);
 }
 
-static void unmask_MSI_irq(unsigned int irq)
+void unmask_msi_irq(unsigned int irq)
 {
 	msi_set_mask_bit(irq, 0);
 }
-
-static void ack_msi_irq(unsigned int irq)
-{
-	move_native_irq(irq);
-	ack_APIC_irq();
-}
-
-/*
- * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
- * which implement the MSI or MSI-X Capability Structure.
- */
-static struct irq_chip msi_chip = {
-	.name		= "PCI-MSI",
-	.unmask		= unmask_MSI_irq,
-	.mask		= mask_MSI_irq,
-	.ack		= ack_msi_irq,
-	.set_affinity	= set_msi_affinity
-};
 
 static int msi_free_irq(struct pci_dev* dev, int irq);
 static int msi_init(void)
@@ -215,22 +172,6 @@ static int msi_init(void)
 	if (pci_msi_quirk) {
 		pci_msi_enable = 0;
 		printk(KERN_WARNING "PCI: MSI quirk detected. MSI disabled.\n");
-		status = -EINVAL;
-		return status;
-	}
-
-	status = msi_arch_init();
-	if (status < 0) {
-		pci_msi_enable = 0;
-		printk(KERN_WARNING
-		       "PCI: MSI arch init failed.  MSI disabled.\n");
-		return status;
-	}
-
-	if (! msi_ops) {
-		pci_msi_enable = 0;
-		printk(KERN_WARNING
-		       "PCI: MSI ops not registered. MSI disabled.\n");
 		status = -EINVAL;
 		return status;
 	}
@@ -268,7 +209,7 @@ static void attach_msi_entry(struct msi_desc *entry, int irq)
 	spin_unlock_irqrestore(&msi_lock, flags);
 }
 
-static int create_msi_irq(struct irq_chip *chip)
+static int create_msi_irq(void)
 {
 	struct msi_desc *entry;
 	int irq;
@@ -283,7 +224,6 @@ static int create_msi_irq(struct irq_chip *chip)
 		return -EBUSY;
 	}
 
-	set_irq_chip_and_handler(irq, chip, handle_edge_irq);
 	set_irq_data(irq, entry);
 
 	return irq;
@@ -473,7 +413,7 @@ int pci_save_msix_state(struct pci_dev *dev)
 		struct msi_desc *entry;
 
 		entry = msi_desc[irq];
-		read_msi_msg(entry, &entry->msg_save);
+		read_msi_msg(irq, &entry->msg_save);
 
 		tail = msi_desc[irq]->link.tail;
 		irq = tail;
@@ -512,7 +452,7 @@ void pci_restore_msix_state(struct pci_dev *dev)
 	irq = head = dev->irq;
 	while (head != tail) {
 		entry = msi_desc[irq];
-		write_msi_msg(entry, &entry->msg_save);
+		write_msi_msg(irq, &entry->msg_save);
 
 		tail = msi_desc[irq]->link.tail;
 		irq = tail;
@@ -523,39 +463,6 @@ void pci_restore_msix_state(struct pci_dev *dev)
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 }
 #endif
-
-static int msi_register_init(struct pci_dev *dev, struct msi_desc *entry)
-{
-	int status;
-	struct msi_msg msg;
-	int pos;
-	u16 control;
-
-	pos = entry->msi_attrib.pos;
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
-
-	/* Configure MSI capability structure */
-	status = msi_ops->setup(dev, dev->irq, &msg);
-	if (status < 0)
-		return status;
-
-	write_msi_msg(entry, &msg);
-	if (entry->msi_attrib.maskbit) {
-		unsigned int maskbits, temp;
-		/* All MSIs are unmasked by default, Mask them all */
-		pci_read_config_dword(dev,
-			msi_mask_bits_reg(pos, is_64bit_address(control)),
-			&maskbits);
-		temp = (1 << multi_msi_capable(control));
-		temp = ((temp - 1) & ~temp);
-		maskbits |= temp;
-		pci_write_config_dword(dev,
-			msi_mask_bits_reg(pos, is_64bit_address(control)),
-			maskbits);
-	}
-
-	return 0;
-}
 
 /**
  * msi_capability_init - configure device's MSI capability structure
@@ -576,7 +483,7 @@ static int msi_capability_init(struct pci_dev *dev)
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
-	irq = create_msi_irq(&msi_chip);
+	irq = create_msi_irq();
 	if (irq < 0)
 		return irq;
 
@@ -589,16 +496,27 @@ static int msi_capability_init(struct pci_dev *dev)
 	entry->msi_attrib.maskbit = is_mask_bit_support(control);
 	entry->msi_attrib.default_irq = dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos = pos;
-	dev->irq = irq;
-	entry->dev = dev;
 	if (is_mask_bit_support(control)) {
 		entry->mask_base = (void __iomem *)(long)msi_mask_bits_reg(pos,
 				is_64bit_address(control));
 	}
+	entry->dev = dev;
+	if (entry->msi_attrib.maskbit) {
+		unsigned int maskbits, temp;
+		/* All MSIs are unmasked by default, Mask them all */
+		pci_read_config_dword(dev,
+			msi_mask_bits_reg(pos, is_64bit_address(control)),
+			&maskbits);
+		temp = (1 << multi_msi_capable(control));
+		temp = ((temp - 1) & ~temp);
+		maskbits |= temp;
+		pci_write_config_dword(dev,
+			msi_mask_bits_reg(pos, is_64bit_address(control)),
+			maskbits);
+	}
 	/* Configure MSI capability structure */
-	status = msi_register_init(dev, entry);
-	if (status != 0) {
-		dev->irq = entry->msi_attrib.default_irq;
+	status = arch_setup_msi_irq(irq, dev);
+	if (status < 0) {
 		destroy_msi_irq(irq);
 		return status;
 	}
@@ -607,6 +525,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	/* Set MSI enabled bits	 */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 
+	dev->irq = irq;
 	return 0;
 }
 
@@ -624,7 +543,6 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *head = NULL, *tail = NULL, *entry = NULL;
-	struct msi_msg msg;
 	int status;
 	int irq, pos, i, j, nr_entries, temp = 0;
 	unsigned long phys_addr;
@@ -648,7 +566,7 @@ static int msix_capability_init(struct pci_dev *dev,
 
 	/* MSI-X Table Initialization */
 	for (i = 0; i < nvec; i++) {
-		irq = create_msi_irq(&msi_chip);
+		irq = create_msi_irq();
 		if (irq < 0)
 			break;
 
@@ -676,13 +594,12 @@ static int msix_capability_init(struct pci_dev *dev,
 		temp = irq;
 		tail = entry;
 		/* Configure MSI-X capability structure */
-		status = msi_ops->setup(dev, irq, &msg);
+		status = arch_setup_msi_irq(irq, dev);
 		if (status < 0) {
 			destroy_msi_irq(irq);
 			break;
 		}
 
-		write_msi_msg(entry, &msg);
 		attach_msi_entry(entry, irq);
 	}
 	if (i != nvec) {
@@ -746,7 +663,6 @@ int pci_msi_supported(struct pci_dev * dev)
 int pci_enable_msi(struct pci_dev* dev)
 {
 	int pos, temp, status;
-	u16 control;
 
 	if (pci_msi_supported(dev) < 0)
 		return -EINVAL;
@@ -759,10 +675,6 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (!pos)
-		return -EINVAL;
-
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
-	if (!is_64bit_address(control) && msi_ops->needs_64bit_address)
 		return -EINVAL;
 
 	WARN_ON(!msi_lookup_irq(dev, PCI_CAP_ID_MSI));
@@ -831,7 +743,7 @@ static int msi_free_irq(struct pci_dev* dev, int irq)
 	void __iomem *base;
 	unsigned long flags;
 
-	msi_ops->teardown(irq);
+	arch_teardown_msi_irq(irq);
 
 	spin_lock_irqsave(&msi_lock, flags);
 	entry = msi_desc[irq];

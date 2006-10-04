@@ -7,8 +7,10 @@
  */
 
 #include <linux/types.h>
+#include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/cpumask.h>
+#include <linux/msi.h>
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
@@ -16,17 +18,16 @@
 #include <asm/sn/pcidev.h>
 #include <asm/sn/nodepda.h>
 
-#include "msi.h"
-
 struct sn_msi_info {
 	u64 pci_addr;
 	struct sn_irq_info *sn_irq_info;
 };
 
-static struct sn_msi_info *sn_msi_info;
+static struct sn_msi_info sn_msi_info[NR_IRQS];
 
-static void
-sn_msi_teardown(unsigned int irq)
+static struct irq_chip sn_msi_chip;
+
+void sn_teardown_msi_irq(unsigned int irq)
 {
 	nasid_t nasid;
 	int widget;
@@ -61,9 +62,10 @@ sn_msi_teardown(unsigned int irq)
 	return;
 }
 
-int
-sn_msi_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+int sn_setup_msi_irq(unsigned int irq, struct pci_dev *pdev)
 {
+	struct msi_msg msg;
+	struct msi_desc *entry;
 	int widget;
 	int status;
 	nasid_t nasid;
@@ -71,6 +73,10 @@ sn_msi_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 	struct sn_irq_info *sn_irq_info;
 	struct pcibus_bussoft *bussoft = SN_PCIDEV_BUSSOFT(pdev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
+
+	entry = get_irq_data(irq);
+	if (!entry->msi_attrib.is_64)
+		return -EINVAL;
 
 	if (bussoft == NULL)
 		return -EINVAL;
@@ -121,25 +127,29 @@ sn_msi_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 	sn_msi_info[irq].sn_irq_info = sn_irq_info;
 	sn_msi_info[irq].pci_addr = bus_addr;
 
-	msg->address_hi = (u32)(bus_addr >> 32);
-	msg->address_lo = (u32)(bus_addr & 0x00000000ffffffff);
+	msg.address_hi = (u32)(bus_addr >> 32);
+	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
 
 	/*
 	 * In the SN platform, bit 16 is a "send vector" bit which
 	 * must be present in order to move the vector through the system.
 	 */
-	msg->data = 0x100 + irq;
+	msg.data = 0x100 + irq;
 
 #ifdef CONFIG_SMP
 	set_irq_affinity_info(irq, sn_irq_info->irq_cpuid, 0);
 #endif
 
+	write_msi_msg(irq, &msg);
+	set_irq_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
+
 	return 0;
 }
 
-static void
-sn_msi_target(unsigned int irq, cpumask_t cpu_mask, struct msi_msg *msg)
+#ifdef CONFIG_SMP
+static void sn_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 {
+	struct msi_msg msg;
 	int slice;
 	nasid_t nasid;
 	u64 bus_addr;
@@ -159,11 +169,12 @@ sn_msi_target(unsigned int irq, cpumask_t cpu_mask, struct msi_msg *msg)
 	 * Release XIO resources for the old MSI PCI address
 	 */
 
+	read_msi_msg(irq, &msg);
         sn_pdev = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	pdev = sn_pdev->pdi_linux_pcidev;
 	provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	bus_addr = (u64)(msg->address_hi) << 32 | (u64)(msg->address_lo);
+	bus_addr = (u64)(msg.address_hi) << 32 | (u64)(msg.address_lo);
 	(*provider->dma_unmap)(pdev, bus_addr, PCI_DMA_FROMDEVICE);
 	sn_msi_info[irq].pci_addr = 0;
 
@@ -185,27 +196,35 @@ sn_msi_target(unsigned int irq, cpumask_t cpu_mask, struct msi_msg *msg)
 					SN_DMA_MSI|SN_DMA_ADDR_XIO);
 
 	sn_msi_info[irq].pci_addr = bus_addr;
-	msg->address_hi = (u32)(bus_addr >> 32);
-	msg->address_lo = (u32)(bus_addr & 0x00000000ffffffff);
+	msg.address_hi = (u32)(bus_addr >> 32);
+	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
+
+	write_msi_msg(irq, &msg);
+	set_native_irq_info(irq, cpu_mask);
 }
+#endif /* CONFIG_SMP */
 
-struct msi_ops sn_msi_ops = {
-	.needs_64bit_address = 1,
-	.setup = sn_msi_setup,
-	.teardown = sn_msi_teardown,
-#ifdef CONFIG_SMP
-	.target = sn_msi_target,
-#endif
-};
-
-int
-sn_msi_init(void)
+static void sn_ack_msi_irq(unsigned int irq)
 {
-	sn_msi_info =
-		kzalloc(sizeof(struct sn_msi_info) * NR_IRQS, GFP_KERNEL);
-	if (! sn_msi_info)
-		return -ENOMEM;
-
-	msi_register(&sn_msi_ops);
-	return 0;
+	move_native_irq(irq);
+	ia64_eoi();
 }
+
+static int sn_msi_retrigger_irq(unsigned int irq)
+{
+	unsigned int vector = irq;
+	ia64_resend_irq(vector);
+
+	return 1;
+}
+
+static struct irq_chip sn_msi_chip = {
+	.name		= "PCI-MSI",
+	.mask		= mask_msi_irq,
+	.unmask		= unmask_msi_irq,
+	.ack		= sn_ack_msi_irq,
+#ifdef CONFIG_SMP
+	.set_affinity	= sn_set_msi_irq_affinity,
+#endif
+	.retrigger	= sn_msi_retrigger_irq,
+};

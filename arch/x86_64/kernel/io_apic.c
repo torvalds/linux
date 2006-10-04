@@ -30,6 +30,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
 #include <linux/sysdev.h>
+#include <linux/msi.h>
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif
@@ -1701,11 +1702,8 @@ void destroy_irq(unsigned int irq)
  * MSI mesage composition
  */
 #ifdef CONFIG_PCI_MSI
-static int msi_msg_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 {
-	/* For now always this code always uses physical delivery
-	 * mode.
-	 */
 	int vector;
 	unsigned dest;
 
@@ -1739,39 +1737,76 @@ static int msi_msg_setup(struct pci_dev *pdev, unsigned int irq, struct msi_msg 
 	return vector;
 }
 
-static void msi_msg_teardown(unsigned int irq)
+#ifdef CONFIG_SMP
+static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
+{
+	struct msi_msg msg;
+	unsigned int dest;
+	cpumask_t tmp;
+	int vector;
+
+	cpus_and(tmp, mask, cpu_online_map);
+	if (cpus_empty(tmp))
+		tmp = TARGET_CPUS;
+
+	cpus_and(mask, tmp, CPU_MASK_ALL);
+
+	vector = assign_irq_vector(irq, mask);
+	if (vector < 0)
+		return;
+
+	cpus_clear(tmp);
+	cpu_set(vector >> 8, tmp);
+	dest = cpu_mask_to_apicid(tmp);
+
+	read_msi_msg(irq, &msg);
+
+	msg.data &= ~MSI_DATA_VECTOR_MASK;
+	msg.data |= MSI_DATA_VECTOR(vector);
+	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
+
+	write_msi_msg(irq, &msg);
+	set_native_irq_info(irq, mask);
+}
+#endif /* CONFIG_SMP */
+
+/*
+ * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
+ * which implement the MSI or MSI-X Capability Structure.
+ */
+static struct irq_chip msi_chip = {
+	.name		= "PCI-MSI",
+	.unmask		= unmask_msi_irq,
+	.mask		= mask_msi_irq,
+	.ack		= ack_apic_edge,
+#ifdef CONFIG_SMP
+	.set_affinity	= set_msi_irq_affinity,
+#endif
+	.retrigger	= ioapic_retrigger_irq,
+};
+
+int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
+{
+	struct msi_msg msg;
+	int ret;
+	ret = msi_compose_msg(dev, irq, &msg);
+	if (ret < 0)
+		return ret;
+
+	write_msi_msg(irq, &msg);
+
+	set_irq_chip_and_handler(irq, &msi_chip, handle_edge_irq);
+
+	return 0;
+}
+
+void arch_teardown_msi_irq(unsigned int irq)
 {
 	return;
 }
 
-static void msi_msg_set_affinity(unsigned int irq, cpumask_t mask, struct msi_msg *msg)
-{
-	int vector;
-	unsigned dest;
-
-	vector = assign_irq_vector(irq, mask);
-	if (vector > 0) {
-		cpumask_t tmp;
-
-		cpus_clear(tmp);
-		cpu_set(vector >> 8, tmp);
-		dest = cpu_mask_to_apicid(tmp);
-
-		msg->data &= ~MSI_DATA_VECTOR_MASK;
-		msg->data |= MSI_DATA_VECTOR(vector);
-		msg->address_lo &= ~MSI_ADDR_DEST_ID_MASK;
-		msg->address_lo |= MSI_ADDR_DEST_ID(dest);
-	}
-}
-
-struct msi_ops arch_msi_ops = {
-	.needs_64bit_address = 0,
-	.setup = msi_msg_setup,
-	.teardown = msi_msg_teardown,
-	.target = msi_msg_set_affinity,
-};
-
-#endif
+#endif /* CONFIG_PCI_MSI */
 
 /*
  * Hypertransport interrupt support

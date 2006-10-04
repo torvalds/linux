@@ -67,7 +67,8 @@ extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
 extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
 extern ia64_mv_dma_supported		sn_dma_supported;
 extern ia64_mv_migrate_t		sn_migrate;
-extern ia64_mv_msi_init_t		sn_msi_init;
+extern ia64_mv_setup_msi_irq_t		sn_setup_msi_irq;
+extern ia64_mv_teardown_msi_irq_t	sn_teardown_msi_irq;
 
 
 /*
@@ -120,9 +121,11 @@ extern ia64_mv_msi_init_t		sn_msi_init;
 #define platform_dma_supported		sn_dma_supported
 #define platform_migrate		sn_migrate
 #ifdef CONFIG_PCI_MSI
-#define platform_msi_init		sn_msi_init
+#define platform_setup_msi_irq		sn_setup_msi_irq
+#define platform_teardown_msi_irq	sn_teardown_msi_irq
 #else
-#define platform_msi_init		((ia64_mv_msi_init_t*)NULL)
+#define platform_setup_msi_irq		((ia64_mv_setup_msi_irq_t*)NULL)
+#define platform_teardown_msi_irq	((ia64_mv_teardown_msi_irq_t*)NULL)
 #endif
 
 #include <asm/sn/io.h>
