@@ -11,9 +11,9 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-
 #include <linux/smp.h>
+
+#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 
 static inline int
 _raw_compare_and_swap(volatile unsigned int *lock,
