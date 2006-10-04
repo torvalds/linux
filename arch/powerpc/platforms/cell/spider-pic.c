@@ -367,7 +367,7 @@ void __init spider_init_IRQ(void)
 		} else if (device_is_compatible(dn, "sti,platform-spider-pic")
 			   && (chip < 2)) {
 			static long hard_coded_pics[] =
-				{ 0x24000008000, 0x34000008000 };
+				{ 0x24000008000ul, 0x34000008000ul};
 			r.start = hard_coded_pics[chip];
 		} else
 			continue;

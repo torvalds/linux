@@ -101,7 +101,7 @@ static void iic_ioexc_eoi(unsigned int irq)
 static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc,
 			    struct pt_regs *regs)
 {
-	struct cbe_iic_regs *node_iic = desc->handler_data;
+	struct cbe_iic_regs __iomem *node_iic = (void __iomem *)desc->handler_data;
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
 	unsigned long bits, ack;
 	int cascade;
@@ -320,7 +320,7 @@ static int __init setup_iic(void)
 	struct device_node *dn;
 	struct resource r0, r1;
 	unsigned int node, cascade, found = 0;
-	struct cbe_iic_regs *node_iic;
+	struct cbe_iic_regs __iomem *node_iic;
 	const u32 *np;
 
 	for (dn = NULL;
@@ -357,7 +357,11 @@ static int __init setup_iic(void)
 		cascade = irq_create_mapping(iic_host, cascade);
 		if (cascade == NO_IRQ)
 			continue;
-		set_irq_data(cascade, node_iic);
+		/*
+		 * irq_data is a generic pointer that gets passed back
+		 * to us later, so the forced cast is fine.
+		 */
+		set_irq_data(cascade, (void __force *)node_iic);
 		set_irq_chained_handler(cascade , iic_ioexc_cascade);
 		out_be64(&node_iic->iic_ir,
 			 (1 << 12)		/* priority */ |
