@@ -46,21 +46,21 @@ EXPORT_SYMBOL_GPL(spu_priv1_ops);
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	force_sig(SIGBUS, /* info, */ current);
+	spu->dma_callback(spu, SPE_EVENT_INVALID_DMA);
 	return 0;
 }
 
 static int __spu_trap_dma_align(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	force_sig(SIGBUS, /* info, */ current);
+	spu->dma_callback(spu, SPE_EVENT_DMA_ALIGNMENT);
 	return 0;
 }
 
 static int __spu_trap_error(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	force_sig(SIGILL, /* info, */ current);
+	spu->dma_callback(spu, SPE_EVENT_SPE_ERROR);
 	return 0;
 }
 

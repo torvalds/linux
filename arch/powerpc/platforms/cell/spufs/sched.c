@@ -81,7 +81,6 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 		 spu->number, spu->node);
 	spu->ctx = ctx;
 	spu->flags = 0;
-	ctx->flags = 0;
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
@@ -92,6 +91,7 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
 	spu->mfc_callback = spufs_mfc_callback;
+	spu->dma_callback = spufs_dma_callback;
 	mb();
 	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
@@ -111,12 +111,12 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
 	spu->mfc_callback = NULL;
+	spu->dma_callback = NULL;
 	spu->mm = NULL;
 	spu->pid = 0;
 	spu->prio = MAX_PRIO;
 	ctx->ops = &spu_backing_ops;
 	ctx->spu = NULL;
-	ctx->flags = 0;
 	spu->flags = 0;
 	spu->ctx = NULL;
 }

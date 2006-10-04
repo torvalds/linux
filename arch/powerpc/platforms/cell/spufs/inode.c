@@ -224,7 +224,8 @@ struct file_operations spufs_context_fops = {
 };
 
 static int
-spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
+		int mode)
 {
 	int ret;
 	struct inode *inode;
@@ -243,6 +244,8 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	SPUFS_I(inode)->i_ctx = ctx;
 	if (!ctx)
 		goto out_iput;
+
+	ctx->flags = flags;
 
 	inode->i_op = &spufs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
@@ -304,7 +307,7 @@ long spufs_create_thread(struct nameidata *nd,
 		goto out;
 
 	/* all flags are reserved */
-	if (flags)
+	if (flags & (~SPU_CREATE_FLAG_ALL))
 		goto out;
 
 	dentry = lookup_create(nd, 1);
@@ -317,7 +320,7 @@ long spufs_create_thread(struct nameidata *nd,
 		goto out_dput;
 
 	mode &= ~current->fs->umask;
-	ret = spufs_mkdir(nd->dentry->d_inode, dentry, mode & S_IRWXUGO);
+	ret = spufs_mkdir(nd->dentry->d_inode, dentry, flags, mode & S_IRWXUGO);
 	if (ret)
 		goto out_dput;
 

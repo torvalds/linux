@@ -66,7 +66,8 @@ struct spu_context {
 	u32 tagwait;
 	struct spu_context_ops *ops;
 	struct work_struct reap_work;
-	u64 flags;
+	unsigned long flags;
+	unsigned long event_return;
 };
 
 struct mfc_dma_command {
@@ -183,5 +184,6 @@ void spufs_ibox_callback(struct spu *spu);
 void spufs_wbox_callback(struct spu *spu);
 void spufs_stop_callback(struct spu *spu);
 void spufs_mfc_callback(struct spu *spu);
+void spufs_dma_callback(struct spu *spu, int type);
 
 #endif

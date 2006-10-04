@@ -138,6 +138,7 @@ struct spu {
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
 	void (* mfc_callback)(struct spu *spu);
+	void (* dma_callback)(struct spu *spu, int type);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -168,6 +169,19 @@ extern struct spufs_calls {
 						__u32 __user *ustatus);
 	struct module *owner;
 } spufs_calls;
+
+/* return status from spu_run, same as in libspe */
+#define SPE_EVENT_DMA_ALIGNMENT		0x0008	/*A DMA alignment error */
+#define SPE_EVENT_SPE_ERROR		0x0010	/*An illegal instruction error*/
+#define SPE_EVENT_SPE_DATA_SEGMENT	0x0020	/*A DMA segmentation error    */
+#define SPE_EVENT_SPE_DATA_STORAGE	0x0040	/*A DMA storage error */
+#define SPE_EVENT_INVALID_DMA		0x0800	/* Invalid MFC DMA */
+
+/*
+ * Flags for sys_spu_create.
+ */
+#define SPU_CREATE_EVENTS_ENABLED	0x0001
+#define SPU_CREATE_FLAG_ALL		0x0001 /* mask of all valid flags */
 
 #ifdef CONFIG_SPU_FS_MODULE
 int register_spu_syscalls(struct spufs_calls *calls);

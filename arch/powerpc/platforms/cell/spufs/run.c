@@ -14,6 +14,26 @@ void spufs_stop_callback(struct spu *spu)
 	wake_up_all(&ctx->stop_wq);
 }
 
+void spufs_dma_callback(struct spu *spu, int type)
+{
+	struct spu_context *ctx = spu->ctx;
+
+	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
+		ctx->event_return |= type;
+		wake_up_all(&ctx->stop_wq);
+	} else {
+		switch (type) {
+		case SPE_EVENT_DMA_ALIGNMENT:
+		case SPE_EVENT_INVALID_DMA:
+			force_sig(SIGBUS, /* info, */ current);
+			break;
+		case SPE_EVENT_SPE_ERROR:
+			force_sig(SIGILL, /* info */ current);
+			break;
+		}
+	}
+}
+
 static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 {
 	struct spu *spu;
@@ -28,8 +48,7 @@ static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
 }
 
-static inline int spu_run_init(struct spu_context *ctx, u32 * npc,
-			       u32 * status)
+static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
 	int ret;
 
@@ -72,7 +91,7 @@ static inline int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 		       SPU_STATUS_STOPPED_BY_HALT)) {
 		return *status;
 	}
-	if ((ret = spu_run_init(ctx, npc, status)) != 0)
+	if ((ret = spu_run_init(ctx, npc)) != 0)
 		return ret;
 	return 0;
 }
@@ -177,46 +196,49 @@ static inline int spu_process_events(struct spu_context *ctx)
 }
 
 long spufs_run_spu(struct file *file, struct spu_context *ctx,
-		   u32 * npc, u32 * status)
+		   u32 *npc, u32 *event)
 {
 	int ret;
+	u32 status;
 
 	if (down_interruptible(&ctx->run_sema))
 		return -ERESTARTSYS;
 
-	ret = spu_run_init(ctx, npc, status);
+	ctx->event_return = 0;
+	ret = spu_run_init(ctx, npc);
 	if (ret)
 		goto out;
 
 	do {
-		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, status));
+		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, &status));
 		if (unlikely(ret))
 			break;
-		if ((*status & SPU_STATUS_STOPPED_BY_STOP) &&
-		    (*status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
+		if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
+		    (status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
 			ret = spu_process_callback(ctx);
 			if (ret)
 				break;
-			*status &= ~SPU_STATUS_STOPPED_BY_STOP;
+			status &= ~SPU_STATUS_STOPPED_BY_STOP;
 		}
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
-			ret = spu_reacquire_runnable(ctx, npc, status);
+			ret = spu_reacquire_runnable(ctx, npc, &status);
 			if (ret)
 				goto out;
 			continue;
 		}
 		ret = spu_process_events(ctx);
 
-	} while (!ret && !(*status & (SPU_STATUS_STOPPED_BY_STOP |
+	} while (!ret && !(status & (SPU_STATUS_STOPPED_BY_STOP |
 				      SPU_STATUS_STOPPED_BY_HALT)));
 
 	ctx->ops->runcntl_stop(ctx);
-	ret = spu_run_fini(ctx, npc, status);
+	ret = spu_run_fini(ctx, npc, &status);
 	if (!ret)
-		ret = *status;
+		ret = status;
 	spu_yield(ctx);
 
 out:
+	*event = ctx->event_return;
 	up(&ctx->run_sema);
 	return ret;
 }
