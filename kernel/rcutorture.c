@@ -58,7 +58,7 @@ static int stat_interval;	/* Interval between stats, in seconds. */
 static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
-static char *torture_type = "rcu"; /* What to torture: rcu, rcu_bh, srcu. */
+static char *torture_type = "rcu"; /* What RCU implementation to torture. */
 
 module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
@@ -297,6 +297,19 @@ static void rcu_sync_torture_init(void)
 	INIT_LIST_HEAD(&rcu_torture_removed);
 }
 
+static struct rcu_torture_ops rcu_sync_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = rcu_torture_read_lock,
+	.readdelay = rcu_read_delay,
+	.readunlock = rcu_torture_read_unlock,
+	.completed = rcu_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = synchronize_rcu,
+	.stats = NULL,
+	.name = "rcu_sync"
+};
+
 /*
  * Definitions for rcu_bh torture testing.
  */
@@ -439,7 +452,7 @@ static struct rcu_torture_ops srcu_ops = {
 };
 
 static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, &rcu_bh_ops, &srcu_ops, NULL };
+	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &srcu_ops, NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure

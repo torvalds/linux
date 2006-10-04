@@ -53,9 +53,10 @@ test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		a kernel that disables the scheduling-clock interrupt to
 		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
 
-torture_type	The type of RCU to test: "rcu" for the rcu_read_lock()
-		API, "rcu_bh" for the rcu_read_lock_bh() API, and "srcu"
-		for the "srcu_read_lock()" API.
+torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
+		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
+		"rcu_bh" for the rcu_read_lock_bh() API, and "srcu" for the
+		"srcu_read_lock()" API.
 
 verbose		Enable debug printk()s.  Default is disabled.
 
