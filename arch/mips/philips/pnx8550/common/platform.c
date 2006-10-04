@@ -17,14 +17,12 @@
 #include <linux/init.h>
 #include <linux/resource.h>
 #include <linux/serial.h>
-#include <linux/serial_ip3106.h>
+#include <linux/serial_pnx8xxx.h>
 #include <linux/platform_device.h>
 
 #include <int.h>
 #include <usb.h>
 #include <uart.h>
-
-extern struct uart_ops ip3106_pops;
 
 static struct resource pnx8550_usb_ohci_resources[] = {
 	[0] = {
@@ -63,31 +61,29 @@ static struct resource pnx8550_uart_resources[] = {
 	},
 };
 
-struct ip3106_port ip3106_ports[] = {
+struct pnx8xxx_port pnx8xxx_ports[] = {
 	[0] = {
 		.port   = {
-			.type		= PORT_IP3106,
+			.type		= PORT_PNX8XXX,
 			.iotype		= UPIO_MEM,
 			.membase	= (void __iomem *)PNX8550_UART_PORT0,
 			.mapbase	= PNX8550_UART_PORT0,
 			.irq		= PNX8550_UART_INT(0),
 			.uartclk	= 3692300,
 			.fifosize	= 16,
-			.ops		= &ip3106_pops,
 			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 0,
 		},
 	},
 	[1] = {
 		.port   = {
-			.type		= PORT_IP3106,
+			.type		= PORT_PNX8XXX,
 			.iotype		= UPIO_MEM,
 			.membase	= (void __iomem *)PNX8550_UART_PORT1,
 			.mapbase	= PNX8550_UART_PORT1,
 			.irq		= PNX8550_UART_INT(1),
 			.uartclk	= 3692300,
 			.fifosize	= 16,
-			.ops		= &ip3106_pops,
 			.flags		= UPF_BOOT_AUTOCONF,
 			.line		= 1,
 		},
@@ -111,12 +107,12 @@ static struct platform_device pnx8550_usb_ohci_device = {
 };
 
 static struct platform_device pnx8550_uart_device = {
-	.name		= "ip3106-uart",
+	.name		= "pnx8xxx-uart",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &uart_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
-		.platform_data = ip3106_ports,
+		.platform_data = pnx8xxx_ports,
 	},
 	.num_resources	= ARRAY_SIZE(pnx8550_uart_resources),
 	.resource	= pnx8550_uart_resources,
