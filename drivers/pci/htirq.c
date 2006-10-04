@@ -11,6 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
+#include <linux/htirq.h>
 
 /* Global ht irq lock.
  *

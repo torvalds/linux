@@ -31,6 +31,7 @@
 #include <linux/acpi.h>
 #include <linux/sysdev.h>
 #include <linux/msi.h>
+#include <linux/htirq.h>
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif

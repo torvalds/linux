@@ -55,7 +55,6 @@ config PCI_DEBUG
 config HT_IRQ
 	bool "Interrupts on hypertransport devices"
 	default y
-	depends on PCI_MSI
 	depends on X86_LOCAL_APIC && X86_IO_APIC
 	help
 	   This allows native hypertransport devices to use interrupts.

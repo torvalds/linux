@@ -33,6 +33,7 @@
 #include <linux/sysdev.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
+#include <linux/htirq.h>
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -2409,9 +2410,8 @@ static int __init ioapic_init_sysfs(void)
 
 device_initcall(ioapic_init_sysfs);
 
-#ifdef CONFIG_PCI_MSI
 /*
- * Dynamic irq allocate and deallocation for MSI
+ * Dynamic irq allocate and deallocation
  */
 int create_irq(void)
 {
@@ -2450,7 +2450,6 @@ void destroy_irq(unsigned int irq)
 	irq_vector[irq] = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
-#endif /* CONFIG_PCI_MSI */
 
 /*
  * MSI mesage composition
