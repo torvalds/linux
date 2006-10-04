@@ -28,11 +28,16 @@
 
 #ifndef HARDIRQ_BITS
 #define HARDIRQ_BITS	12
+
+#ifndef MAX_HARDIRQS_PER_CPU
+#define MAX_HARDIRQS_PER_CPU NR_IRQS
+#endif
+
 /*
  * The hardirq mask has to be large enough to have space for potentially
  * all IRQ sources in the system nesting on a single CPU.
  */
-#if (1 << HARDIRQ_BITS) < NR_IRQS
+#if (1 << HARDIRQ_BITS) < MAX_HARDIRQS_PER_CPU
 # error HARDIRQ_BITS is too low!
 #endif
 #endif
