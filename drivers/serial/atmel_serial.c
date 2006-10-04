@@ -113,7 +113,7 @@ struct at91_uart_port {
 	unsigned short		suspended;	/* is port suspended? */
 };
 
-static struct at91_uart_port at91_ports[AT91_NR_UART];
+static struct at91_uart_port at91_ports[ATMEL_MAX_UART];
 
 #ifdef SUPPORT_SYSRQ
 static struct console at91_console;
@@ -682,7 +682,7 @@ static struct uart_ops at91_pops = {
 static void __devinit at91_init_port(struct at91_uart_port *at91_port, struct platform_device *pdev)
 {
 	struct uart_port *port = &at91_port->uart;
-	struct at91_uart_data *data = pdev->dev.platform_data;
+	struct atmel_uart_data *data = pdev->dev.platform_data;
 
 	port->iotype	= UPIO_MEM;
 	port->flags     = UPF_BOOT_AUTOCONF;
@@ -834,9 +834,9 @@ static struct console at91_console = {
  */
 static int __init at91_console_init(void)
 {
-	if (at91_default_console_device) {
-		add_preferred_console(AT91_DEVICENAME, at91_default_console_device->id, NULL);
-		at91_init_port(&(at91_ports[at91_default_console_device->id]), at91_default_console_device);
+	if (atmel_default_console_device) {
+		add_preferred_console(AT91_DEVICENAME, atmel_default_console_device->id, NULL);
+		at91_init_port(&(at91_ports[atmel_default_console_device->id]), atmel_default_console_device);
 		register_console(&at91_console);
 	}
 
@@ -849,7 +849,7 @@ console_initcall(at91_console_init);
  */
 static int __init at91_late_console_init(void)
 {
-	if (at91_default_console_device && !(at91_console.flags & CON_ENABLED))
+	if (atmel_default_console_device && !(at91_console.flags & CON_ENABLED))
 		register_console(&at91_console);
 
 	return 0;
@@ -866,7 +866,7 @@ static struct uart_driver at91_uart = {
 	.dev_name		= AT91_DEVICENAME,
 	.major			= SERIAL_AT91_MAJOR,
 	.minor			= MINOR_START,
-	.nr			= AT91_NR_UART,
+	.nr			= ATMEL_MAX_UART,
 	.cons			= AT91_CONSOLE_DEVICE,
 };
 

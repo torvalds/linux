@@ -615,11 +615,11 @@ struct platform_device *__init at32_add_device_usart(unsigned int id)
 	return pdev;
 }
 
-struct platform_device *at91_default_console_device;
+struct platform_device *atmel_default_console_device;
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
-	at91_default_console_device = setup_usart(usart_id);
+	atmel_default_console_device = setup_usart(usart_id);
 }
 
 /* --------------------------------------------------------------------

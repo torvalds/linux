@@ -558,7 +558,7 @@ static struct resource dbgu_resources[] = {
 	},
 };
 
-static struct at91_uart_data dbgu_data = {
+static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
 };
@@ -593,7 +593,7 @@ static struct resource uart0_resources[] = {
 	},
 };
 
-static struct at91_uart_data uart0_data = {
+static struct atmel_uart_data uart0_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
 };
@@ -635,7 +635,7 @@ static struct resource uart1_resources[] = {
 	},
 };
 
-static struct at91_uart_data uart1_data = {
+static struct atmel_uart_data uart1_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
 };
@@ -676,7 +676,7 @@ static struct resource uart2_resources[] = {
 	},
 };
 
-static struct at91_uart_data uart2_data = {
+static struct atmel_uart_data uart2_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
 };
@@ -711,7 +711,7 @@ static struct resource uart3_resources[] = {
 	},
 };
 
-static struct at91_uart_data uart3_data = {
+static struct atmel_uart_data uart3_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
 };
@@ -733,8 +733,8 @@ static inline void configure_usart3_pins(void)
 	at91_set_B_periph(AT91_PIN_PA6, 0);		/* RXD3 */
 }
 
-struct platform_device *at91_uarts[AT91_NR_UART];	/* the UARTs to use */
-struct platform_device *at91_default_console_device;	/* the serial console device */
+struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init at91_init_serial(struct at91_uart_config *config)
 {
@@ -775,9 +775,9 @@ void __init at91_init_serial(struct at91_uart_config *config)
 	}
 
 	/* Set serial console device */
-	if (config->console_tty < AT91_NR_UART)
-		at91_default_console_device = at91_uarts[config->console_tty];
-	if (!at91_default_console_device)
+	if (config->console_tty < ATMEL_MAX_UART)
+		atmel_default_console_device = at91_uarts[config->console_tty];
+	if (!atmel_default_console_device)
 		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
@@ -785,7 +785,7 @@ void __init at91_add_device_serial(void)
 {
 	int i;
 
-	for (i = 0; i < AT91_NR_UART; i++) {
+	for (i = 0; i < ATMEL_MAX_UART; i++) {
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}

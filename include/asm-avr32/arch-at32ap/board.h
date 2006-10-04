@@ -9,8 +9,8 @@
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 
-#define AT91_NR_UART	4
-extern struct platform_device *at91_default_console_device;
+#define ATMEL_MAX_UART	4
+extern struct platform_device *atmel_default_console_device;
 
 struct platform_device *at32_add_device_usart(unsigned int id);
 
