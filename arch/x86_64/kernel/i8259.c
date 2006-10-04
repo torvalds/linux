@@ -121,42 +121,15 @@ void (*interrupt[NR_IRQS])(void) = {
  * moves to arch independent land
  */
 
-DEFINE_SPINLOCK(i8259A_lock);
-
 static int i8259A_auto_eoi;
-
-static void end_8259A_irq (unsigned int irq)
-{
-	if (irq > 256) { 
-		char var;
-		printk("return %p stack %p ti %p\n", __builtin_return_address(0), &var, task_thread_info(current));
-
-		BUG(); 
-	}
-
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)) &&
-	    irq_desc[irq].action)
-		enable_8259A_irq(irq);
-}
-
-#define shutdown_8259A_irq	disable_8259A_irq
-
+DEFINE_SPINLOCK(i8259A_lock);
 static void mask_and_ack_8259A(unsigned int);
 
-static unsigned int startup_8259A_irq(unsigned int irq)
-{ 
-	enable_8259A_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static struct hw_interrupt_type i8259A_irq_type = {
-	.typename = "XT-PIC",
-	.startup = startup_8259A_irq,
-	.shutdown = shutdown_8259A_irq,
-	.enable = enable_8259A_irq,
-	.disable = disable_8259A_irq,
-	.ack = mask_and_ack_8259A,
-	.end = end_8259A_irq,
+static struct irq_chip i8259A_chip = {
+	.name		= "XT-PIC",
+	.mask		= disable_8259A_irq,
+	.unmask		= enable_8259A_irq,
+	.mask_ack	= mask_and_ack_8259A,
 };
 
 /*
@@ -231,7 +204,7 @@ void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
 	io_apic_irqs &= ~(1<<irq);
-	irq_desc[irq].chip = &i8259A_irq_type;
+	set_irq_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
 	enable_irq(irq);
 }
 
@@ -367,9 +340,9 @@ void init_8259A(int auto_eoi)
 		 * in AEOI mode we just have to mask the interrupt
 		 * when acking.
 		 */
-		i8259A_irq_type.ack = disable_8259A_irq;
+		i8259A_chip.mask_ack = disable_8259A_irq;
 	else
-		i8259A_irq_type.ack = mask_and_ack_8259A;
+		i8259A_chip.mask_ack = mask_and_ack_8259A;
 
 	udelay(100);		/* wait for 8259A to initialize */
 
@@ -464,12 +437,13 @@ void __init init_ISA_irqs (void)
 			/*
 			 * 16 old-style INTA-cycle interrupts:
 			 */
-			irq_desc[i].chip = &i8259A_irq_type;
+			set_irq_chip_and_handler(i, &i8259A_chip,
+						 handle_level_irq);
 		} else {
 			/*
 			 * 'high' PCI IRQs filled in on demand
 			 */
-			irq_desc[i].chip = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }

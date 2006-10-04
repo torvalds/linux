@@ -19,8 +19,6 @@
 #include <asm/irq.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
-
-struct hw_interrupt_type;
 #endif
 
 #define NMI_VECTOR		0x02
