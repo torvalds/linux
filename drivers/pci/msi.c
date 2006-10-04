@@ -165,19 +165,17 @@ static void write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 }
 
 #ifdef CONFIG_SMP
-static void set_msi_affinity(unsigned int vector, cpumask_t cpu_mask)
+static void set_msi_affinity(unsigned int irq, cpumask_t cpu_mask)
 {
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	unsigned int irq = vector;
-	unsigned int dest_cpu = first_cpu(cpu_mask);
 
-	entry = (struct msi_desc *)msi_desc[vector];
+	entry = msi_desc[irq];
 	if (!entry || !entry->dev)
 		return;
 
 	read_msi_msg(entry, &msg);
-	msi_ops->target(vector, dest_cpu, &msg.address_hi, &msg.address_lo);
+	msi_ops->target(irq, cpu_mask, &msg);
 	write_msi_msg(entry, &msg);
 	set_native_irq_info(irq, cpu_mask);
 }
@@ -701,14 +699,14 @@ static int msi_register_init(struct pci_dev *dev, struct msi_desc *entry)
 {
 	int status;
 	struct msi_msg msg;
-	int pos, vector = dev->irq;
+	int pos;
 	u16 control;
 
 	pos = entry->msi_attrib.pos;
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 
 	/* Configure MSI capability structure */
-	status = msi_ops->setup(dev, vector, &msg.address_hi, &msg.address_lo, &msg.data);
+	status = msi_ops->setup(dev, dev->irq, &msg);
 	if (status < 0)
 		return status;
 
@@ -863,10 +861,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		/* Replace with MSI-X handler */
 		irq_handler_init(PCI_CAP_ID_MSIX, vector, 1);
 		/* Configure MSI-X capability structure */
-		status = msi_ops->setup(dev, vector,
-					&msg.address_hi,
-					&msg.address_lo,
-					&msg.data);
+		status = msi_ops->setup(dev, vector, &msg);
 		if (status < 0)
 			break;
 
@@ -928,6 +923,7 @@ int pci_msi_supported(struct pci_dev * dev)
 int pci_enable_msi(struct pci_dev* dev)
 {
 	int pos, temp, status;
+	u16 control;
 
 	if (pci_msi_supported(dev) < 0)
 		return -EINVAL;
@@ -940,6 +936,10 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(dev, msi_control_reg(pos), &control);
+	if (!is_64bit_address(control) && msi_ops->needs_64bit_address)
 		return -EINVAL;
 
 	WARN_ON(!msi_lookup_vector(dev, PCI_CAP_ID_MSI));

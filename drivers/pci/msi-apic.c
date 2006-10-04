@@ -46,37 +46,36 @@
 
 
 static void
-msi_target_apic(unsigned int vector,
-		unsigned int dest_cpu,
-		u32 *address_hi,	/* in/out */
-		u32 *address_lo)	/* in/out */
+msi_target_apic(unsigned int irq, cpumask_t cpu_mask, struct msi_msg *msg)
 {
-	u32 addr = *address_lo;
+	u32 addr = msg->address_lo;
 
 	addr &= MSI_ADDR_DESTID_MASK;
-	addr |= MSI_ADDR_DESTID_CPU(cpu_physical_id(dest_cpu));
+	addr |= MSI_ADDR_DESTID_CPU(cpu_physical_id(first_cpu(cpu_mask)));
 
-	*address_lo = addr;
+	msg->address_lo = addr;
 }
 
 static int
 msi_setup_apic(struct pci_dev *pdev,	/* unused in generic */
-		unsigned int vector,
-		u32 *address_hi,
-		u32 *address_lo,
-		u32 *data)
+		unsigned int irq,
+		struct msi_msg *msg)
 {
 	unsigned long	dest_phys_id;
+	unsigned int	vector;
 
 	dest_phys_id = cpu_physical_id(first_cpu(cpu_online_map));
+	vector = irq;
 
-	*address_hi = 0;
-	*address_lo =	MSI_ADDR_HEADER |
-			MSI_ADDR_DESTMODE_PHYS |
-			MSI_ADDR_REDIRECTION_CPU |
-			MSI_ADDR_DESTID_CPU(dest_phys_id);
+	msg->address_hi = 0;
+	msg->address_lo =
+		MSI_ADDR_HEADER |
+		MSI_ADDR_DESTMODE_PHYS |
+		MSI_ADDR_REDIRECTION_CPU |
+		MSI_ADDR_DESTID_CPU(dest_phys_id);
 
-	*data = MSI_DATA_TRIGGER_EDGE |
+	msg->data =
+		MSI_DATA_TRIGGER_EDGE |
 		MSI_DATA_LEVEL_ASSERT |
 		MSI_DATA_DELIVERY_FIXED |
 		MSI_DATA_VECTOR(vector);
@@ -85,7 +84,7 @@ msi_setup_apic(struct pci_dev *pdev,	/* unused in generic */
 }
 
 static void
-msi_teardown_apic(unsigned int vector)
+msi_teardown_apic(unsigned int irq)
 {
 	return;		/* no-op */
 }
@@ -95,6 +94,7 @@ msi_teardown_apic(unsigned int vector)
  */
 
 struct msi_ops msi_apic_ops = {
+	.needs_64bit_address = 0,
 	.setup = msi_setup_apic,
 	.teardown = msi_teardown_apic,
 	.target = msi_target_apic,
