@@ -109,7 +109,7 @@ struct nlm_file {
 	struct nfs_fh		f_handle;	/* NFS file handle */
 	struct file *		f_file;		/* VFS file pointer */
 	struct nlm_share *	f_shares;	/* DOS shares */
-	struct nlm_block *	f_blocks;	/* blocked locks */
+	struct list_head	f_blocks;	/* blocked locks */
 	unsigned int		f_locks;	/* guesstimate # of locks */
 	unsigned int		f_count;	/* reference count */
 	struct semaphore	f_sema;		/* avoid concurrent access */
@@ -123,14 +123,13 @@ struct nlm_file {
 #define NLM_NEVER		(~(unsigned long) 0)
 struct nlm_block {
 	struct kref		b_count;	/* Reference count */
-	struct nlm_block *	b_next;		/* linked list (all blocks) */
-	struct nlm_block *	b_fnext;	/* linked list (per file) */
+	struct list_head	b_list;		/* linked list of all blocks */
+	struct list_head	b_flist;	/* linked list (per file) */
 	struct nlm_rqst	*	b_call;		/* RPC args & callback info */
 	struct svc_serv *	b_daemon;	/* NLM service */
 	struct nlm_host *	b_host;		/* host handle for RPC clnt */
 	unsigned long		b_when;		/* next re-xmit */
 	unsigned int		b_id;		/* block id */
-	unsigned char		b_queued;	/* re-queued */
 	unsigned char		b_granted;	/* VFS granted lock */
 	struct nlm_file *	b_file;		/* file in question */
 };

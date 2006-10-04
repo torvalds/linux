@@ -107,6 +107,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	memcpy(&file->f_handle, f, sizeof(struct nfs_fh));
 	file->f_hash = hash;
 	init_MUTEX(&file->f_sema);
+	INIT_LIST_HEAD(&file->f_blocks);
 
 	/* Open the file. Note that this must not sleep for too long, else
 	 * we would lock up lockd:-) So no NFS re-exports, folks.
@@ -220,7 +221,7 @@ nlm_inspect_file(struct nlm_host *host, struct nlm_file *file, int action)
 {
 	if (action == NLM_ACT_CHECK) {
 		/* Fast path for mark and sweep garbage collection */
-		if (file->f_count || file->f_blocks || file->f_shares)
+		if (file->f_count || list_empty(&file->f_blocks) || file->f_shares)
 			return 1;
 	} else {
 		nlmsvc_traverse_blocks(host, file, action);
@@ -253,7 +254,7 @@ nlm_traverse_files(struct nlm_host *host, int action)
 			mutex_lock(&nlm_file_mutex);
 			file->f_count--;
 			/* No more references to this file. Let go of it. */
-			if (!file->f_blocks && !file->f_locks
+			if (list_empty(&file->f_blocks) && !file->f_locks
 			 && !file->f_shares && !file->f_count) {
 				*fp = file->f_next;
 				nlmsvc_ops->fclose(file->f_file);

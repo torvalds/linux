@@ -40,7 +40,7 @@
 
 static void nlmsvc_release_block(struct nlm_block *block);
 static void	nlmsvc_insert_block(struct nlm_block *block, unsigned long);
-static int	nlmsvc_remove_block(struct nlm_block *block);
+static void	nlmsvc_remove_block(struct nlm_block *block);
 
 static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock);
 static void nlmsvc_freegrantargs(struct nlm_rqst *call);
@@ -49,7 +49,7 @@ static const struct rpc_call_ops nlmsvc_grant_ops;
 /*
  * The list of blocked locks to retry
  */
-static struct nlm_block *	nlm_blocked;
+static LIST_HEAD(nlm_blocked);
 
 /*
  * Insert a blocked lock into the global list
@@ -57,48 +57,44 @@ static struct nlm_block *	nlm_blocked;
 static void
 nlmsvc_insert_block(struct nlm_block *block, unsigned long when)
 {
-	struct nlm_block **bp, *b;
+	struct nlm_block *b;
+	struct list_head *pos;
 
 	dprintk("lockd: nlmsvc_insert_block(%p, %ld)\n", block, when);
-	kref_get(&block->b_count);
-	if (block->b_queued)
-		nlmsvc_remove_block(block);
-	bp = &nlm_blocked;
+	if (list_empty(&block->b_list)) {
+		kref_get(&block->b_count);
+	} else {
+		list_del_init(&block->b_list);
+	}
+
+	pos = &nlm_blocked;
 	if (when != NLM_NEVER) {
 		if ((when += jiffies) == NLM_NEVER)
 			when ++;
-		while ((b = *bp) && time_before_eq(b->b_when,when) && b->b_when != NLM_NEVER)
-			bp = &b->b_next;
-	} else
-		while ((b = *bp) != 0)
-			bp = &b->b_next;
+		list_for_each(pos, &nlm_blocked) {
+			b = list_entry(pos, struct nlm_block, b_list);
+			if (time_after(b->b_when,when) || b->b_when == NLM_NEVER)
+				break;
+		}
+		/* On normal exit from the loop, pos == &nlm_blocked,
+		 * so we will be adding to the end of the list - good
+		 */
+	}
 
-	block->b_queued = 1;
+	list_add_tail(&block->b_list, pos);
 	block->b_when = when;
-	block->b_next = b;
-	*bp = block;
 }
 
 /*
  * Remove a block from the global list
  */
-static int
+static inline void
 nlmsvc_remove_block(struct nlm_block *block)
 {
-	struct nlm_block **bp, *b;
-
-	if (!block->b_queued)
-		return 1;
-	for (bp = &nlm_blocked; (b = *bp) != 0; bp = &b->b_next) {
-		if (b == block) {
-			*bp = block->b_next;
-			block->b_queued = 0;
-			nlmsvc_release_block(block);
-			return 1;
-		}
+	if (!list_empty(&block->b_list)) {
+		list_del_init(&block->b_list);
+		nlmsvc_release_block(block);
 	}
-
-	return 0;
 }
 
 /*
@@ -107,14 +103,14 @@ nlmsvc_remove_block(struct nlm_block *block)
 static struct nlm_block *
 nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock)
 {
-	struct nlm_block	**head, *block;
+	struct nlm_block	*block;
 	struct file_lock	*fl;
 
 	dprintk("lockd: nlmsvc_lookup_block f=%p pd=%d %Ld-%Ld ty=%d\n",
 				file, lock->fl.fl_pid,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end, lock->fl.fl_type);
-	for (head = &nlm_blocked; (block = *head) != 0; head = &block->b_next) {
+	list_for_each_entry(block, &nlm_blocked, b_list) {
 		fl = &block->b_call->a_args.lock.fl;
 		dprintk("lockd: check f=%p pd=%d %Ld-%Ld ty=%d cookie=%s\n",
 				block->b_file, fl->fl_pid,
@@ -147,16 +143,16 @@ nlmsvc_find_block(struct nlm_cookie *cookie,  struct sockaddr_in *sin)
 {
 	struct nlm_block *block;
 
-	for (block = nlm_blocked; block; block = block->b_next) {
-		dprintk("cookie: head of blocked queue %p, block %p\n", 
-			nlm_blocked, block);
+	list_for_each_entry(block, &nlm_blocked, b_list) {
 		if (nlm_cookie_match(&block->b_call->a_args.cookie,cookie)
 				&& nlm_cmp_addr(sin, &block->b_host->h_addr))
-			break;
+			goto found;
 	}
 
-	if (block != NULL)
-		kref_get(&block->b_count);
+	return NULL;
+
+found:
+	kref_get(&block->b_count);
 	return block;
 }
 
@@ -192,6 +188,8 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	if (block == NULL)
 		goto failed;
 	kref_init(&block->b_count);
+	INIT_LIST_HEAD(&block->b_list);
+	INIT_LIST_HEAD(&block->b_flist);
 
 	if (!nlmsvc_setgrantargs(call, lock))
 		goto failed_free;
@@ -210,8 +208,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	file->f_count++;
 
 	/* Add to file's list of blocks */
-	block->b_fnext  = file->f_blocks;
-	file->f_blocks  = block;
+	list_add(&block->b_flist, &file->f_blocks);
 
 	/* Set up RPC arguments for callback */
 	block->b_call = call;
@@ -248,18 +245,12 @@ static void nlmsvc_free_block(struct kref *kref)
 {
 	struct nlm_block *block = container_of(kref, struct nlm_block, b_count);
 	struct nlm_file		*file = block->b_file;
-	struct nlm_block	**bp;
 
 	dprintk("lockd: freeing block %p...\n", block);
 
-	down(&file->f_sema);
 	/* Remove block from file's list of blocks */
-	for (bp = &file->f_blocks; *bp; bp = &(*bp)->b_fnext) {
-		if (*bp == block) {
-			*bp = block->b_fnext;
-			break;
-		}
-	}
+	down(&file->f_sema);
+	list_del_init(&block->b_flist);
 	up(&file->f_sema);
 
 	nlmsvc_freegrantargs(block->b_call);
@@ -279,21 +270,23 @@ static void nlmsvc_act_mark(struct nlm_host *host, struct nlm_file *file)
 	struct nlm_block *block;
 
 	down(&file->f_sema);
-	for (block = file->f_blocks; block != NULL; block = block->b_fnext)
+	list_for_each_entry(block, &file->f_blocks, b_flist)
 		block->b_host->h_inuse = 1;
 	up(&file->f_sema);
 }
 
 static void nlmsvc_act_unlock(struct nlm_host *host, struct nlm_file *file)
 {
-	struct nlm_block *block;
+	struct nlm_block *block, *next;
 
 restart:
 	down(&file->f_sema);
-	for (block = file->f_blocks; block != NULL; block = block->b_fnext) {
+	list_for_each_entry_safe(block, next, &file->f_blocks, b_flist) {
 		if (host != NULL && host != block->b_host)
 			continue;
-		if (!block->b_queued)
+		/* Do not destroy blocks that are not on
+		 * the global retry list - why? */
+		if (list_empty(&block->b_list))
 			continue;
 		kref_get(&block->b_count);
 		up(&file->f_sema);
@@ -528,10 +521,10 @@ nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 static void
 nlmsvc_notify_blocked(struct file_lock *fl)
 {
-	struct nlm_block	**bp, *block;
+	struct nlm_block	*block;
 
 	dprintk("lockd: VFS unblock notification for block %p\n", fl);
-	for (bp = &nlm_blocked; (block = *bp) != 0; bp = &block->b_next) {
+	list_for_each_entry(block, &nlm_blocked, b_list) {
 		if (nlm_compare_locks(&block->b_call->a_args.lock.fl, fl)) {
 			nlmsvc_insert_block(block, 0);
 			svc_wake_up(block->b_daemon);
@@ -697,16 +690,19 @@ nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status
 unsigned long
 nlmsvc_retry_blocked(void)
 {
-	struct nlm_block	*block;
+	unsigned long	timeout = MAX_SCHEDULE_TIMEOUT;
+	struct nlm_block *block;
 
-	dprintk("nlmsvc_retry_blocked(%p, when=%ld)\n",
-			nlm_blocked,
-			nlm_blocked? nlm_blocked->b_when : 0);
-	while ((block = nlm_blocked) != 0) {
+	while (!list_empty(&nlm_blocked)) {
+		block = list_entry(nlm_blocked.next, struct nlm_block, b_list);
+
 		if (block->b_when == NLM_NEVER)
 			break;
-	        if (time_after(block->b_when,jiffies))
+	        if (time_after(block->b_when,jiffies)) {
+			timeout = block->b_when - jiffies;
 			break;
+		}
+
 		dprintk("nlmsvc_retry_blocked(%p, when=%ld)\n",
 			block, block->b_when);
 		kref_get(&block->b_count);
@@ -714,8 +710,5 @@ nlmsvc_retry_blocked(void)
 		nlmsvc_release_block(block);
 	}
 
-	if ((block = nlm_blocked) && block->b_when != NLM_NEVER)
-		return (block->b_when - jiffies);
-
-	return MAX_SCHEDULE_TIMEOUT;
+	return timeout;
 }
