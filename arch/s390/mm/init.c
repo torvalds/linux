@@ -62,19 +62,21 @@ void show_mem(void)
 {
         int i, total = 0, reserved = 0;
         int shared = 0, cached = 0;
+	struct page *page;
 
         printk("Mem-info:\n");
         show_free_areas();
         printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
         i = max_mapnr;
         while (i-- > 0) {
+		page = pfn_to_page(i);
                 total++;
-                if (PageReserved(mem_map+i))
+		if (PageReserved(page))
                         reserved++;
-                else if (PageSwapCache(mem_map+i))
+		else if (PageSwapCache(page))
                         cached++;
-                else if (page_count(mem_map+i))
-                        shared += page_count(mem_map+i) - 1;
+		else if (page_count(page))
+			shared += page_count(page) - 1;
         }
         printk("%d pages of RAM\n",total);
         printk("%d reserved pages\n",reserved);

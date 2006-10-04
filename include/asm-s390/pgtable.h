@@ -599,7 +599,7 @@ ptep_establish(struct vm_area_struct *vma,
  */
 static inline int page_test_and_clear_dirty(struct page *page)
 {
-	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+	unsigned long physpage = page_to_phys(page);
 	int skey = page_get_storage_key(physpage);
 
 	if (skey & _PAGE_CHANGED)
@@ -612,13 +612,13 @@ static inline int page_test_and_clear_dirty(struct page *page)
  */
 static inline int page_test_and_clear_young(struct page *page)
 {
-	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+	unsigned long physpage = page_to_phys(page);
 	int ccode;
 
-	asm volatile (
-		"rrbe 0,%1\n"
-		"ipm  %0\n"
-		"srl  %0,28\n"
+	asm volatile(
+		"	rrbe	0,%1\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
 		: "=d" (ccode) : "a" (physpage) : "cc" );
 	return ccode & 2;
 }
@@ -636,7 +636,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 
 static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 {
-	unsigned long physpage = __pa((page - mem_map) << PAGE_SHIFT);
+	unsigned long physpage = page_to_phys(page);
 
 	return mk_pte_phys(physpage, pgprot);
 }
@@ -664,11 +664,11 @@ static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 
 #define pmd_page_vaddr(pmd) (pmd_val(pmd) & PAGE_MASK)
 
-#define pmd_page(pmd) (mem_map+(pmd_val(pmd) >> PAGE_SHIFT))
+#define pmd_page(pmd) pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
 
 #define pgd_page_vaddr(pgd) (pgd_val(pgd) & PAGE_MASK)
 
-#define pgd_page(pgd) (mem_map+(pgd_val(pgd) >> PAGE_SHIFT))
+#define pgd_page(pgd) pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
 
 /* to find an entry in a page-table-directory */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
