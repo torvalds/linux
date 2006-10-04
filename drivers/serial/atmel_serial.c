@@ -793,8 +793,14 @@ static void __init atmel_console_get_options(struct uart_port *port, int *baud, 
 	else if (mr == ATMEL_US_PAR_ODD)
 		*parity = 'o';
 
+	/*
+	 * The serial core only rounds down when matching this to a
+	 * supported baud rate. Make sure we don't end up slightly
+	 * lower than one of those, as it would make us fall through
+	 * to a much lower baud rate than we really want.
+	 */
 	quot = UART_GET_BRGR(port);
-	*baud = port->uartclk / (16 * (quot));
+	*baud = port->uartclk / (16 * (quot - 1));
 }
 
 static int __init atmel_console_setup(struct console *co, char *options)
