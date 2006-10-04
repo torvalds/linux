@@ -209,7 +209,7 @@ int nfsd_create_serv(void)
 		 * Of course, this is only a default.
 		 */
 		nfsd_max_blksize = NFSSVC_MAXBLKSIZE;
-		i.totalram >>= 12;
+		i.totalram <<= PAGE_SHIFT - 12;
 		while (nfsd_max_blksize > i.totalram &&
 		       nfsd_max_blksize >= 8*1024*2)
 			nfsd_max_blksize /= 2;
