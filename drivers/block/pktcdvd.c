@@ -82,7 +82,7 @@
 
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
-static int pkt_major;
+static int pktdev_major;
 static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
 
@@ -2476,7 +2476,7 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 	init_waitqueue_head(&pd->wqueue);
 	pd->bio_queue = RB_ROOT;
 
-	disk->major = pkt_major;
+	disk->major = pktdev_major;
 	disk->first_minor = idx;
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
@@ -2625,13 +2625,13 @@ static int __init pkt_init(void)
 	if (!psd_pool)
 		return -ENOMEM;
 
-	ret = register_blkdev(pkt_major, DRIVER_NAME);
+	ret = register_blkdev(pktdev_major, DRIVER_NAME);
 	if (ret < 0) {
 		printk(DRIVER_NAME": Unable to register block device\n");
 		goto out2;
 	}
-	if (!pkt_major)
-		pkt_major = ret;
+	if (!pktdev_major)
+		pktdev_major = ret;
 
 	ret = misc_register(&pkt_misc);
 	if (ret) {
@@ -2646,7 +2646,7 @@ static int __init pkt_init(void)
 	return 0;
 
 out:
-	unregister_blkdev(pkt_major, DRIVER_NAME);
+	unregister_blkdev(pktdev_major, DRIVER_NAME);
 out2:
 	mempool_destroy(psd_pool);
 	return ret;
@@ -2656,7 +2656,7 @@ static void __exit pkt_exit(void)
 {
 	remove_proc_entry(DRIVER_NAME, proc_root_driver);
 	misc_deregister(&pkt_misc);
-	unregister_blkdev(pkt_major, DRIVER_NAME);
+	unregister_blkdev(pktdev_major, DRIVER_NAME);
 	mempool_destroy(psd_pool);
 }
 
