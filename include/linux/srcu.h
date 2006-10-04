@@ -43,7 +43,7 @@ struct srcu_struct {
 #define srcu_barrier()
 #endif /* #else #ifndef CONFIG_PREEMPT */
 
-void init_srcu_struct(struct srcu_struct *sp);
+int init_srcu_struct(struct srcu_struct *sp);
 void cleanup_srcu_struct(struct srcu_struct *sp);
 int srcu_read_lock(struct srcu_struct *sp) __acquires(sp);
 void srcu_read_unlock(struct srcu_struct *sp, int idx) __releases(sp);

@@ -42,11 +42,12 @@
  * to any other function.  Each srcu_struct represents a separate domain
  * of SRCU protection.
  */
-void init_srcu_struct(struct srcu_struct *sp)
+int init_srcu_struct(struct srcu_struct *sp)
 {
 	sp->completed = 0;
-	sp->per_cpu_ref = alloc_percpu(struct srcu_struct_array);
 	mutex_init(&sp->mutex);
+	sp->per_cpu_ref = alloc_percpu(struct srcu_struct_array);
+	return (sp->per_cpu_ref ? 0 : -ENOMEM);
 }
 
 /*

@@ -517,7 +517,8 @@ EXPORT_SYMBOL_GPL(srcu_notifier_call_chain);
 void srcu_init_notifier_head(struct srcu_notifier_head *nh)
 {
 	mutex_init(&nh->mutex);
-	init_srcu_struct(&nh->srcu);
+	if (init_srcu_struct(&nh->srcu) < 0)
+		BUG();
 	nh->head = NULL;
 }
 
