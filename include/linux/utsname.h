@@ -1,11 +1,6 @@
 #ifndef _LINUX_UTSNAME_H
 #define _LINUX_UTSNAME_H
 
-#include <linux/sched.h>
-#include <linux/kref.h>
-#include <linux/nsproxy.h>
-#include <asm/atomic.h>
-
 #define __OLD_UTS_LEN 8
 
 struct oldold_utsname {
@@ -34,6 +29,13 @@ struct new_utsname {
 	char machine[65];
 	char domainname[65];
 };
+
+#ifdef __KERNEL__
+
+#include <linux/sched.h>
+#include <linux/kref.h>
+#include <linux/nsproxy.h>
+#include <asm/atomic.h>
 
 struct uts_namespace {
 	struct kref kref;
@@ -86,4 +88,7 @@ static inline struct new_utsname *init_utsname(void)
 }
 
 extern struct rw_semaphore uts_sem;
-#endif
+
+#endif /* __KERNEL__ */
+
+#endif /* _LINUX_UTSNAME_H */
