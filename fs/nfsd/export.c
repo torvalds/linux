@@ -325,6 +325,7 @@ static void svc_export_put(struct kref *ref)
 	dput(exp->ex_dentry);
 	mntput(exp->ex_mnt);
 	auth_domain_put(exp->ex_client);
+	kfree(exp->ex_path);
 	kfree(exp);
 }
 
@@ -398,6 +399,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	int an_int;
 
 	nd.dentry = NULL;
+	exp.ex_path = NULL;
 
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
@@ -428,6 +430,10 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	exp.ex_client = dom;
 	exp.ex_mnt = nd.mnt;
 	exp.ex_dentry = nd.dentry;
+	exp.ex_path = kstrdup(buf, GFP_KERNEL);
+	err = -ENOMEM;
+	if (!exp.ex_path)
+		goto out;
 
 	/* expiry */
 	err = -EINVAL;
@@ -473,6 +479,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	else
 		exp_put(expp);
  out:
+ 	kfree(exp.ex_path);
 	if (nd.dentry)
 		path_release(&nd);
  out_no_path:
@@ -524,6 +531,7 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_client = item->ex_client;
 	new->ex_dentry = dget(item->ex_dentry);
 	new->ex_mnt = mntget(item->ex_mnt);
+	new->ex_path = NULL;
 }
 
 static void export_update(struct cache_head *cnew, struct cache_head *citem)
@@ -535,6 +543,8 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_anon_uid = item->ex_anon_uid;
 	new->ex_anon_gid = item->ex_anon_gid;
 	new->ex_fsid = item->ex_fsid;
+	new->ex_path = item->ex_path;
+	item->ex_path = NULL;
 }
 
 static struct cache_head *svc_export_alloc(void)
