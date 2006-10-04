@@ -244,7 +244,6 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	int imaplen, intsize, unit;
 	struct device_node *iic;
 
-#if 0 /* Enable that when we have a way to retreive the node as well */
 	/* First, we check wether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
@@ -252,9 +251,8 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	if (of_irq_map_one(pic->of_node, 0, &oirq) == 0) {
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
-		goto bail;
+		return virq;
 	}
-#endif
 
 	/* Now do the horrible hacks */
 	tmp = get_property(pic->of_node, "#interrupt-cells", NULL);
