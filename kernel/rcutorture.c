@@ -147,7 +147,7 @@ rcu_torture_free(struct rcu_torture *p)
 
 struct rcu_random_state {
 	unsigned long rrs_state;
-	unsigned long rrs_count;
+	long rrs_count;
 };
 
 #define RCU_RANDOM_MULT 39916801  /* prime */
@@ -160,7 +160,7 @@ struct rcu_random_state {
  * Crude but fast random-number generator.  Uses a linear congruential
  * generator, with occasional help from get_random_bytes().
  */
-static long
+static unsigned long
 rcu_random(struct rcu_random_state *rrsp)
 {
 	long refresh;
