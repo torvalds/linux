@@ -18,6 +18,62 @@
 #include "internals.h"
 
 /**
+ *	dynamic_irq_init - initialize a dynamically allocated irq
+ *	@irq:	irq number to initialize
+ */
+void dynamic_irq_init(unsigned int irq)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+
+	if (irq >= NR_IRQS) {
+		printk(KERN_ERR "Trying to initialize invalid IRQ%d\n", irq);
+		WARN_ON(1);
+		return;
+	}
+
+	/* Ensure we don't have left over values from a previous use of this irq */
+	desc = irq_desc + irq;
+	spin_lock_irqsave(&desc->lock, flags);
+	desc->status = IRQ_DISABLED;
+	desc->chip = &no_irq_chip;
+	desc->handle_irq = handle_bad_irq;
+	desc->depth = 1;
+	desc->handler_data = NULL;
+	desc->chip_data = NULL;
+	desc->action = NULL;
+	desc->irq_count = 0;
+	desc->irqs_unhandled = 0;
+#ifdef CONFIG_SMP
+	desc->affinity = CPU_MASK_ALL;
+#endif
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+/**
+ *	dynamic_irq_cleanup - cleanup a dynamically allocated irq
+ *	@irq:	irq number to initialize
+ */
+void dynamic_irq_cleanup(unsigned int irq)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+
+	if (irq >= NR_IRQS) {
+		printk(KERN_ERR "Trying to cleanup invalid IRQ%d\n", irq);
+		WARN_ON(1);
+		return;
+	}
+
+	desc = irq_desc + irq;
+	spin_lock_irqsave(&desc->lock, flags);
+	desc->handle_irq = handle_bad_irq;
+	desc->chip = &no_irq_chip;
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+
+/**
  *	set_irq_chip - set the irq chip for an irq
  *	@irq:	irq number
  *	@chip:	pointer to irq chip description structure

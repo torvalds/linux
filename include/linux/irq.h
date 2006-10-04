@@ -404,8 +404,15 @@ set_irq_chained_handler(unsigned int irq,
 	__set_irq_handler(irq, handle, 1);
 }
 
-/* Set/get chip/data for an IRQ: */
+/* Handle dynamic irq creation and destruction */
+extern int create_irq(void);
+extern void destroy_irq(unsigned int irq);
 
+/* Dynamic irq helper functions */
+extern void dynamic_irq_init(unsigned int irq);
+extern void dynamic_irq_cleanup(unsigned int irq);
+
+/* Set/get chip/data for an IRQ: */
 extern int set_irq_chip(unsigned int irq, struct irq_chip *chip);
 extern int set_irq_data(unsigned int irq, void *data);
 extern int set_irq_chip_data(unsigned int irq, void *data);
