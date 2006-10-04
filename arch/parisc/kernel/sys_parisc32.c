@@ -111,13 +111,14 @@ struct __sysctl_args32 {
 
 asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 {
+#ifndef CONFIG_SYSCTL_SYSCALL
+	return -ENOSYS;
+#else
 	struct __sysctl_args32 tmp;
 	int error;
 	unsigned int oldlen32;
-	size_t oldlen, *oldlenp = NULL;
+	size_t oldlen, __user *oldlenp = NULL;
 	unsigned long addr = (((long __force)&args->__unused[0]) + 7) & ~7;
-	extern int do_sysctl(int *name, int nlen, void *oldval, size_t *oldlenp,
-	       void *newval, size_t newlen);
 
 	DBG(("sysctl32(%p)\n", args));
 
@@ -144,8 +145,9 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 	}
 
 	lock_kernel();
-	error = do_sysctl((int *)(u64)tmp.name, tmp.nlen, (void *)(u64)tmp.oldval,
-			  oldlenp, (void *)(u64)tmp.newval, tmp.newlen);
+	error = do_sysctl((int __user *)(u64)tmp.name, tmp.nlen,
+			  (void __user *)(u64)tmp.oldval, oldlenp,
+			  (void __user *)(u64)tmp.newval, tmp.newlen);
 	unlock_kernel();
 	if (oldlenp) {
 		if (!error) {
@@ -157,10 +159,11 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 					error = -EFAULT;
 			}
 		}
-		if (copy_to_user(&args->__unused[0], tmp.__unused, sizeof(tmp.__unused)))
+		if (copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused)))
 			error = -EFAULT;
 	}
 	return error;
+#endif
 }
 
 #endif /* CONFIG_SYSCTL */
