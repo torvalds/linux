@@ -532,7 +532,9 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			/* Decrease the count, but don't shutdown the
 			 * the service
 			 */
+			lock_kernel();
 			nfsd_serv->sv_nrthreads--;
+			unlock_kernel();
 		}
 		return err;
 	}
