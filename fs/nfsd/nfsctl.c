@@ -57,6 +57,7 @@ enum {
 	NFSD_Pool_Threads,
 	NFSD_Versions,
 	NFSD_Ports,
+	NFSD_MaxBlkSize,
 	/*
 	 * The below MUST come last.  Otherwise we leave a hole in nfsd_files[]
 	 * with !CONFIG_NFSD_V4 and simple_fill_super() goes oops
@@ -82,6 +83,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_pool_threads(struct file *file, char *buf, size_t size);
 static ssize_t write_versions(struct file *file, char *buf, size_t size);
 static ssize_t write_ports(struct file *file, char *buf, size_t size);
+static ssize_t write_maxblksize(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
@@ -100,6 +102,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Pool_Threads] = write_pool_threads,
 	[NFSD_Versions] = write_versions,
 	[NFSD_Ports] = write_ports,
+	[NFSD_MaxBlkSize] = write_maxblksize,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
 	[NFSD_RecoveryDir] = write_recoverydir,
@@ -555,6 +558,35 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 	return -EINVAL;
 }
 
+int nfsd_max_blksize;
+
+static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
+{
+	char *mesg = buf;
+	if (size > 0) {
+		int bsize;
+		int rv = get_int(&mesg, &bsize);
+		if (rv)
+			return rv;
+		/* force bsize into allowed range and
+		 * required alignment.
+		 */
+		if (bsize < 1024)
+			bsize = 1024;
+		if (bsize > NFSSVC_MAXBLKSIZE)
+			bsize = NFSSVC_MAXBLKSIZE;
+		bsize &= ~(1024-1);
+		lock_kernel();
+		if (nfsd_serv && nfsd_serv->sv_nrthreads) {
+			unlock_kernel();
+			return -EBUSY;
+		}
+		nfsd_max_blksize = bsize;
+		unlock_kernel();
+	}
+	return sprintf(buf, "%d\n", nfsd_max_blksize);
+}
+
 #ifdef CONFIG_NFSD_V4
 extern time_t nfs4_leasetime(void);
 
@@ -620,6 +652,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Pool_Threads] = {"pool_threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
+		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},

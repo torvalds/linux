@@ -145,6 +145,7 @@ int nfsd_vers(int vers, enum vers_op change);
 void nfsd_reset_versions(void);
 int nfsd_create_serv(void);
 
+extern int nfsd_max_blksize;
 
 /* 
  * NFSv4 State
