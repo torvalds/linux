@@ -147,6 +147,7 @@ struct spu {
 };
 
 struct spu *spu_alloc(void);
+struct spu *spu_alloc_node(int node);
 void spu_free(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);

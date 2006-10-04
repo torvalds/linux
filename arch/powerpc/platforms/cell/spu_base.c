@@ -317,7 +317,7 @@ static void spu_free_irqs(struct spu *spu)
 		free_irq(spu->irqs[2], spu);
 }
 
-static LIST_HEAD(spu_list);
+static struct list_head spu_list[MAX_NUMNODES];
 static DEFINE_MUTEX(spu_mutex);
 
 static void spu_init_channels(struct spu *spu)
@@ -354,32 +354,42 @@ static void spu_init_channels(struct spu *spu)
 	}
 }
 
-struct spu *spu_alloc(void)
+struct spu *spu_alloc_node(int node)
 {
-	struct spu *spu;
+	struct spu *spu = NULL;
 
 	mutex_lock(&spu_mutex);
-	if (!list_empty(&spu_list)) {
-		spu = list_entry(spu_list.next, struct spu, list);
+	if (!list_empty(&spu_list[node])) {
+		spu = list_entry(spu_list[node].next, struct spu, list);
 		list_del_init(&spu->list);
-		pr_debug("Got SPU %x %d\n", spu->isrc, spu->number);
-	} else {
-		pr_debug("No SPU left\n");
-		spu = NULL;
+		pr_debug("Got SPU %x %d %d\n",
+			 spu->isrc, spu->number, spu->node);
+		spu_init_channels(spu);
 	}
 	mutex_unlock(&spu_mutex);
 
-	if (spu)
-		spu_init_channels(spu);
+	return spu;
+}
+EXPORT_SYMBOL_GPL(spu_alloc_node);
+
+struct spu *spu_alloc(void)
+{
+	struct spu *spu = NULL;
+	int node;
+
+	for (node = 0; node < MAX_NUMNODES; node++) {
+		spu = spu_alloc_node(node);
+		if (spu)
+			break;
+	}
 
 	return spu;
 }
-EXPORT_SYMBOL_GPL(spu_alloc);
 
 void spu_free(struct spu *spu)
 {
 	mutex_lock(&spu_mutex);
-	list_add_tail(&spu->list, &spu_list);
+	list_add_tail(&spu->list, &spu_list[spu->node]);
 	mutex_unlock(&spu_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_free);
@@ -712,7 +722,7 @@ static int __init create_spu(struct device_node *spe)
 	if (ret)
 		goto out_free_irqs;
 
-	list_add(&spu->list, &spu_list);
+	list_add(&spu->list, &spu_list[spu->node]);
 	mutex_unlock(&spu_mutex);
 
 	pr_debug(KERN_DEBUG "Using SPE %s %02x %p %p %p %p %d\n",
@@ -745,9 +755,13 @@ static void destroy_spu(struct spu *spu)
 static void cleanup_spu_base(void)
 {
 	struct spu *spu, *tmp;
+	int node;
+
 	mutex_lock(&spu_mutex);
-	list_for_each_entry_safe(spu, tmp, &spu_list, list)
-		destroy_spu(spu);
+	for (node = 0; node < MAX_NUMNODES; node++) {
+		list_for_each_entry_safe(spu, tmp, &spu_list[node], list)
+			destroy_spu(spu);
+	}
 	mutex_unlock(&spu_mutex);
 	sysdev_class_unregister(&spu_sysdev_class);
 }
@@ -756,12 +770,15 @@ module_exit(cleanup_spu_base);
 static int __init init_spu_base(void)
 {
 	struct device_node *node;
-	int ret;
+	int i, ret;
 
 	/* create sysdev class for spus */
 	ret = sysdev_class_register(&spu_sysdev_class);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < MAX_NUMNODES; i++)
+		INIT_LIST_HEAD(&spu_list[i]);
 
 	ret = -ENODEV;
 	for (node = of_find_node_by_type(NULL, "spe");
