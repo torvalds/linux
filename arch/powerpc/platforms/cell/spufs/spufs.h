@@ -39,6 +39,8 @@ struct spu_context_ops;
 
 #define SPU_CONTEXT_PREEMPT          0UL
 
+struct spu_gang;
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -68,6 +70,16 @@ struct spu_context {
 	struct work_struct reap_work;
 	unsigned long flags;
 	unsigned long event_return;
+
+	struct list_head gang_list;
+	struct spu_gang *gang;
+};
+
+struct spu_gang {
+	struct list_head list;
+	struct mutex mutex;
+	struct kref kref;
+	int contexts;
 };
 
 struct mfc_dma_command {
@@ -115,6 +127,7 @@ extern struct spu_context_ops spu_backing_ops;
 
 struct spufs_inode_info {
 	struct spu_context *i_ctx;
+	struct spu_gang *i_gang;
 	struct inode vfs_inode;
 };
 #define SPUFS_I(inode) \
@@ -125,12 +138,19 @@ extern struct tree_descr spufs_dir_contents[];
 /* system call implementation */
 long spufs_run_spu(struct file *file,
 		   struct spu_context *ctx, u32 *npc, u32 *status);
-long spufs_create_thread(struct nameidata *nd,
+long spufs_create(struct nameidata *nd,
 			 unsigned int flags, mode_t mode);
 extern struct file_operations spufs_context_fops;
 
+/* gang management */
+struct spu_gang *alloc_spu_gang(void);
+struct spu_gang *get_spu_gang(struct spu_gang *gang);
+int put_spu_gang(struct spu_gang *gang);
+void spu_gang_remove_ctx(struct spu_gang *gang, struct spu_context *ctx);
+void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
+
 /* context management */
-struct spu_context * alloc_spu_context(void);
+struct spu_context * alloc_spu_context(struct spu_gang *gang);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
 int put_spu_context(struct spu_context *ctx);

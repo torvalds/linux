@@ -181,7 +181,10 @@ extern struct spufs_calls {
  * Flags for sys_spu_create.
  */
 #define SPU_CREATE_EVENTS_ENABLED	0x0001
-#define SPU_CREATE_FLAG_ALL		0x0001 /* mask of all valid flags */
+#define SPU_CREATE_GANG			0x0002
+
+#define SPU_CREATE_FLAG_ALL		0x0003 /* mask of all valid flags */
+
 
 #ifdef CONFIG_SPU_FS_MODULE
 int register_spu_syscalls(struct spufs_calls *calls);

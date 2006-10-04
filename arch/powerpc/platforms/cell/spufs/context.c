@@ -27,7 +27,7 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-struct spu_context *alloc_spu_context(void)
+struct spu_context *alloc_spu_context(struct spu_gang *gang)
 {
 	struct spu_context *ctx;
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
@@ -51,6 +51,8 @@ struct spu_context *alloc_spu_context(void)
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
+	if (gang)
+		spu_gang_add_ctx(gang, ctx);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -67,6 +69,8 @@ void destroy_spu_context(struct kref *kref)
 	spu_deactivate(ctx);
 	up_write(&ctx->state_sema);
 	spu_fini_csa(&ctx->csa);
+	if (ctx->gang)
+		spu_gang_remove_ctx(ctx->gang, ctx);
 	kfree(ctx);
 }
 
