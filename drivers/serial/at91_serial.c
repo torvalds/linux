@@ -36,12 +36,13 @@
 
 #include <asm/io.h>
 
-#include <asm/arch/at91rm9200_usart.h>
 #include <asm/arch/at91rm9200_pdc.h>
 #include <asm/mach/serial_at91.h>
 #include <asm/arch/board.h>
 #include <asm/arch/system.h>
 #include <asm/arch/gpio.h>
+
+#include "atmel_serial.h"
 
 #if defined(CONFIG_SERIAL_AT91_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
