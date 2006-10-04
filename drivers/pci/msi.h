@@ -130,10 +130,10 @@ struct msi_desc {
 		__u8	type	: 5; 	/* {0: unused, 5h:MSI, 11h:MSI-X} */
 		__u8	maskbit	: 1; 	/* mask-pending bit supported ?   */
 		__u8	state	: 1; 	/* {0: free, 1: busy}		  */
-		__u8	reserved: 1; 	/* reserved			  */
+		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
 		__u8	entry_nr;    	/* specific enabled entry 	  */
 		__u8	default_vector; /* default pre-assigned vector    */
-		__u8	unused; 	/* formerly unused destination cpu*/
+		__u8	pos;	 	/* Location of the msi capability */
 	}msi_attrib;
 
 	struct {
@@ -146,10 +146,7 @@ struct msi_desc {
 
 #ifdef CONFIG_PM
 	/* PM save area for MSIX address/data */
-
-	u32	address_hi_save;
-	u32	address_lo_save;
-	u32	data_save;
+	struct msi_msg msg_save;
 #endif
 };
 

@@ -595,6 +595,12 @@ struct msix_entry {
 	u16	entry;	/* driver uses to specify entry, OS writes */
 };
 
+struct msi_msg {
+	u32	address_lo;	/* low 32 bits of msi message address */
+	u32	address_hi;	/* high 32 bits of msi message address */
+	u32	data;		/* 16 bits of msi message data */
+};
+
 #ifndef CONFIG_PCI_MSI
 static inline void pci_scan_msi_device(struct pci_dev *dev) {}
 static inline int pci_enable_msi(struct pci_dev *dev) {return -1;}
