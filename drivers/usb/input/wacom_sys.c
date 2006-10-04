@@ -282,8 +282,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 		input_unregister_device(wacom->dev);
 		usb_free_urb(wacom->irq);
 		usb_buffer_free(interface_to_usbdev(intf), 10, wacom->wacom_wac->data, wacom->data_dma);
-		kfree(wacom);
 		kfree(wacom->wacom_wac);
+		kfree(wacom);
 	}
 }
 
