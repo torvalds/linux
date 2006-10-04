@@ -1357,10 +1357,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
 			RCU callbacks below which batch limiting is re-enabled.
 
-	rcu.rsinterval=	[KNL,BOOT,SMP] Set the number of additional
-			RCU callbacks to queued before forcing reschedule
-			on all cpus.
-
 	rdinit=		[KNL]
 			Format: <full_path>
 			Run specified binary instead of /init from the ramdisk,
