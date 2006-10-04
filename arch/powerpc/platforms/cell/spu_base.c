@@ -25,11 +25,13 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
 
+#include <asm/firmware.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <linux/mutex.h>
@@ -576,7 +578,7 @@ static void spu_unmap(struct spu *spu)
 }
 
 /* This function shall be abstracted for HV platforms */
-static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
+static int __init spu_map_interrupts_old(struct spu *spu, struct device_node *np)
 {
 	unsigned int isrc;
 	const u32 *tmp;
@@ -600,7 +602,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 	return spu->irqs[2] == NO_IRQ ? -EINVAL : 0;
 }
 
-static int __init spu_map_device(struct spu *spu, struct device_node *node)
+static int __init spu_map_device_old(struct spu *spu, struct device_node *node)
 {
 	const char *prop;
 	int ret;
@@ -642,6 +644,88 @@ static int __init spu_map_device(struct spu *spu, struct device_node *node)
 out_unmap:
 	spu_unmap(spu);
 out:
+	return ret;
+}
+
+static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
+{
+	struct of_irq oirq;
+	int ret;
+	int i;
+
+	for (i=0; i < 3; i++) {
+		ret = of_irq_map_one(np, i, &oirq);
+		if (ret)
+			goto err;
+
+		ret = -EINVAL;
+		spu->irqs[i] = irq_create_of_mapping(oirq.controller,
+					oirq.specifier, oirq.size);
+		if (spu->irqs[i] == NO_IRQ)
+			goto err;
+	}
+	return 0;
+
+err:
+	pr_debug("failed to map irq %x for spu %s\n", *oirq.specifier, spu->name);
+	for (; i >= 0; i--) {
+		if (spu->irqs[i] != NO_IRQ)
+			irq_dispose_mapping(spu->irqs[i]);
+	}
+	return ret;
+}
+
+static int spu_map_resource(struct device_node *node, int nr,
+		void __iomem** virt, unsigned long *phys)
+{
+	struct resource resource = { };
+	int ret;
+
+	ret = of_address_to_resource(node, 0, &resource);
+	if (ret)
+		goto out;
+
+	if (phys)
+		*phys = resource.start;
+	*virt = ioremap(resource.start, resource.end - resource.start);
+	if (!*virt)
+		ret = -EINVAL;
+
+out:
+	return ret;
+}
+
+static int __init spu_map_device(struct spu *spu, struct device_node *node)
+{
+	int ret = -ENODEV;
+	spu->name = get_property(node, "name", NULL);
+	if (!spu->name)
+		goto out;
+
+	ret = spu_map_resource(node, 0, (void __iomem**)&spu->local_store,
+					&spu->local_store_phys);
+	if (ret)
+		goto out;
+	ret = spu_map_resource(node, 1, (void __iomem**)&spu->problem,
+					&spu->problem_phys);
+	if (ret)
+		goto out_unmap;
+	ret = spu_map_resource(node, 2, (void __iomem**)&spu->priv2,
+					NULL);
+	if (ret)
+		goto out_unmap;
+
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
+		ret = spu_map_resource(node, 3, (void __iomem**)&spu->priv1,
+					NULL);
+	if (ret)
+		goto out_unmap;
+	return 0;
+
+out_unmap:
+	spu_unmap(spu);
+out:
+	pr_debug("failed to map spe %s: %d\n", spu->name, ret);
 	return ret;
 }
 
@@ -698,6 +782,9 @@ static int __init create_spu(struct device_node *spe)
 		goto out;
 
 	ret = spu_map_device(spu, spe);
+	/* try old method */
+	if (ret)
+		ret = spu_map_device_old(spu, spe);
 	if (ret)
 		goto out_free;
 
@@ -706,6 +793,8 @@ static int __init create_spu(struct device_node *spe)
 	if (spu->nid == -1)
 		spu->nid = 0;
 	ret = spu_map_interrupts(spu, spe);
+	if (ret)
+		ret = spu_map_interrupts_old(spu, spe);
 	if (ret)
 		goto out_unmap;
 	spin_lock_init(&spu->register_lock);
@@ -716,7 +805,7 @@ static int __init create_spu(struct device_node *spe)
 	spu->number = number++;
 	ret = spu_request_irqs(spu);
 	if (ret)
-		goto out_unmap;
+		goto out_unlock;
 
 	ret = spu_create_sysdev(spu);
 	if (ret)
@@ -732,9 +821,9 @@ static int __init create_spu(struct device_node *spe)
 
 out_free_irqs:
 	spu_free_irqs(spu);
-
-out_unmap:
+out_unlock:
 	mutex_unlock(&spu_mutex);
+out_unmap:
 	spu_unmap(spu);
 out_free:
 	kfree(spu);
