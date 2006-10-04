@@ -717,6 +717,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	} else
 		sdhci_send_command(host, mrq->cmd);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -753,6 +754,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -860,6 +862,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 
 	sdhci_deactivate_led(host);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
@@ -893,6 +896,7 @@ static void sdhci_timeout_timer(unsigned long data)
 		}
 	}
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -1030,6 +1034,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	result = IRQ_HANDLED;
 
+	mmiowb();
 out:
 	spin_unlock(&host->lock);
 
@@ -1095,6 +1100,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
 		sdhci_init(chip->hosts[i]);
+		mmiowb();
 		ret = mmc_resume_host(chip->hosts[i]->mmc);
 		if (ret)
 			return ret;
@@ -1326,6 +1332,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	host->chip = chip;
 	chip->hosts[slot] = host;
+
+	mmiowb();
 
 	mmc_add_host(mmc);
 
