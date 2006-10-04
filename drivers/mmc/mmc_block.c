@@ -158,13 +158,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
+	struct mmc_blk_request brq;
 	int ret;
 
 	if (mmc_card_claim_host(card))
 		goto cmd_err;
 
 	do {
-		struct mmc_blk_request brq;
 		struct mmc_command cmd;
 		u32 readcmd, writecmd;
 
@@ -278,17 +278,27 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
  cmd_err:
 	mmc_card_release_host(card);
 
+	ret = 1;
+
 	/*
-	 * This is a little draconian, but until we get proper
-	 * error handling sorted out here, its the best we can
-	 * do - especially as some hosts have no idea how much
-	 * data was transferred before the error occurred.
+	 * For writes and where the host claims to support proper
+	 * error reporting, we first ok the successful blocks.
+	 *
+	 * For reads we just fail the entire chunk as that should
+	 * be safe in all cases.
 	 */
+	if (rq_data_dir(req) != READ &&
+	    (card->host->caps & MMC_CAP_MULTIWRITE)) {
+		spin_lock_irq(&md->lock);
+		ret = end_that_request_chunk(req, 1, brq.data.bytes_xfered);
+		spin_unlock_irq(&md->lock);
+	}
+
 	spin_lock_irq(&md->lock);
-	do {
+	while (ret) {
 		ret = end_that_request_chunk(req, 0,
 				req->current_nr_sectors << 9);
-	} while (ret);
+	}
 
 	add_disk_randomness(req->rq_disk);
 	blkdev_dequeue_request(req);
