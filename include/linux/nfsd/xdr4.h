@@ -241,7 +241,6 @@ struct nfsd4_read {
 	stateid_t	rd_stateid;         /* request */
 	u64		rd_offset;          /* request */
 	u32		rd_length;          /* request */
-	struct kvec	rd_iov[RPCSVC_MAXPAGES];
 	int		rd_vlen;
 	struct file     *rd_filp;
 	
@@ -326,7 +325,6 @@ struct nfsd4_write {
 	u64		wr_offset;          /* request */
 	u32		wr_stable_how;      /* request */
 	u32		wr_buflen;          /* request */
-	struct kvec	wr_vec[RPCSVC_MAXPAGES]; /* request */
 	int		wr_vlen;
 
 	u32		wr_bytes_written;   /* response */

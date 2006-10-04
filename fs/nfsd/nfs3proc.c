@@ -180,7 +180,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 	fh_copy(&resp->fh, &argp->fh);
 	nfserr = nfsd_read(rqstp, &resp->fh, NULL,
 				  argp->offset,
-			   	  argp->vec, argp->vlen,
+			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
 	if (nfserr == 0) {
 		struct inode	*inode = resp->fh.fh_dentry->d_inode;
@@ -210,7 +210,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp, struct nfsd3_writeargs *argp,
 	resp->committed = argp->stable;
 	nfserr = nfsd_write(rqstp, &resp->fh, NULL,
 				   argp->offset,
-				   argp->vec, argp->vlen,
+				   rqstp->rq_vec, argp->vlen,
 				   argp->len,
 				   &resp->committed);
 	resp->count = argp->count;

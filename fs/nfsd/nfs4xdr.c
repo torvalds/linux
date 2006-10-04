@@ -926,26 +926,26 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 		printk(KERN_NOTICE "xdr error! (%s:%d)\n", __FILE__, __LINE__); 
 		goto xdr_error;
 	}
-	write->wr_vec[0].iov_base = p;
-	write->wr_vec[0].iov_len = avail;
+	argp->rqstp->rq_vec[0].iov_base = p;
+	argp->rqstp->rq_vec[0].iov_len = avail;
 	v = 0;
 	len = write->wr_buflen;
-	while (len > write->wr_vec[v].iov_len) {
-		len -= write->wr_vec[v].iov_len;
+	while (len > argp->rqstp->rq_vec[v].iov_len) {
+		len -= argp->rqstp->rq_vec[v].iov_len;
 		v++;
-		write->wr_vec[v].iov_base = page_address(argp->pagelist[0]);
+		argp->rqstp->rq_vec[v].iov_base = page_address(argp->pagelist[0]);
 		argp->pagelist++;
 		if (argp->pagelen >= PAGE_SIZE) {
-			write->wr_vec[v].iov_len = PAGE_SIZE;
+			argp->rqstp->rq_vec[v].iov_len = PAGE_SIZE;
 			argp->pagelen -= PAGE_SIZE;
 		} else {
-			write->wr_vec[v].iov_len = argp->pagelen;
+			argp->rqstp->rq_vec[v].iov_len = argp->pagelen;
 			argp->pagelen -= len;
 		}
 	}
-	argp->end = (u32*) (write->wr_vec[v].iov_base + write->wr_vec[v].iov_len);
-	argp->p = (u32*)  (write->wr_vec[v].iov_base + (XDR_QUADLEN(len) << 2));
-	write->wr_vec[v].iov_len = len;
+	argp->end = (u32*) (argp->rqstp->rq_vec[v].iov_base + argp->rqstp->rq_vec[v].iov_len);
+	argp->p = (u32*)  (argp->rqstp->rq_vec[v].iov_base + (XDR_QUADLEN(len) << 2));
+	argp->rqstp->rq_vec[v].iov_len = len;
 	write->wr_vlen = v+1;
 
 	DECODE_TAIL;
@@ -2063,9 +2063,9 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr,
 	v = 0;
 	while (len > 0) {
 		pn = resp->rqstp->rq_resused++;
-		read->rd_iov[v].iov_base =
+		resp->rqstp->rq_vec[v].iov_base =
 			page_address(resp->rqstp->rq_respages[pn]);
-		read->rd_iov[v].iov_len =
+		resp->rqstp->rq_vec[v].iov_len =
 			len < PAGE_SIZE ? len : PAGE_SIZE;
 		v++;
 		len -= PAGE_SIZE;
@@ -2073,7 +2073,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr,
 	read->rd_vlen = v;
 
 	nfserr = nfsd_read(read->rd_rqstp, read->rd_fhp, read->rd_filp,
-			read->rd_offset, read->rd_iov, read->rd_vlen,
+			read->rd_offset, resp->rqstp->rq_vec, read->rd_vlen,
 			&maxcount);
 
 	if (nfserr == nfserr_symlink)

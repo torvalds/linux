@@ -344,9 +344,9 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, u32 *p,
 	v=0;
 	while (len > 0) {
 		pn = rqstp->rq_resused++;
-		args->vec[v].iov_base = page_address(rqstp->rq_respages[pn]);
-		args->vec[v].iov_len = len < PAGE_SIZE? len : PAGE_SIZE;
-		len -= args->vec[v].iov_len;
+		rqstp->rq_vec[v].iov_base = page_address(rqstp->rq_respages[pn]);
+		rqstp->rq_vec[v].iov_len = len < PAGE_SIZE? len : PAGE_SIZE;
+		len -= rqstp->rq_vec[v].iov_len;
 		v++;
 	}
 	args->vlen = v;
@@ -372,22 +372,22 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, u32 *p,
 	    rqstp->rq_arg.len - hdr < len)
 		return 0;
 
-	args->vec[0].iov_base = (void*)p;
-	args->vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
+	rqstp->rq_vec[0].iov_base = (void*)p;
+	rqstp->rq_vec[0].iov_len = rqstp->rq_arg.head[0].iov_len - hdr;
 
 	if (len > NFSSVC_MAXBLKSIZE)
 		len = NFSSVC_MAXBLKSIZE;
 	v=  0;
-	while (len > args->vec[v].iov_len) {
-		len -= args->vec[v].iov_len;
+	while (len > rqstp->rq_vec[v].iov_len) {
+		len -= rqstp->rq_vec[v].iov_len;
 		v++;
-		args->vec[v].iov_base = page_address(rqstp->rq_pages[v]);
-		args->vec[v].iov_len = PAGE_SIZE;
+		rqstp->rq_vec[v].iov_base = page_address(rqstp->rq_pages[v]);
+		rqstp->rq_vec[v].iov_len = PAGE_SIZE;
 	}
-	args->vec[v].iov_len = len;
+	rqstp->rq_vec[v].iov_len = len;
 	args->vlen = v+1;
 
-	return args->count == args->len && args->vec[0].iov_len > 0;
+	return args->count == args->len && rqstp->rq_vec[0].iov_len > 0;
 }
 
 int

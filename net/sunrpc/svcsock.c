@@ -955,7 +955,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	struct svc_sock	*svsk = rqstp->rq_sock;
 	struct svc_serv	*serv = svsk->sk_server;
 	int		len;
-	struct kvec vec[RPCSVC_MAXPAGES];
+	struct kvec *vec;
 	int pnum, vlen;
 
 	dprintk("svc: tcp_recv %p data %d conn %d close %d\n",
@@ -1053,6 +1053,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	len = svsk->sk_reclen;
 	set_bit(SK_DATA, &svsk->sk_flags);
 
+	vec = rqstp->rq_vec;
 	vec[0] = rqstp->rq_arg.head[0];
 	vlen = PAGE_SIZE;
 	pnum = 1;

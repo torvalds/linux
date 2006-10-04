@@ -646,7 +646,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 	*p++ = nfssvc_boot.tv_usec;
 
 	status =  nfsd_write(rqstp, current_fh, filp, write->wr_offset,
-			write->wr_vec, write->wr_vlen, write->wr_buflen,
+			rqstp->rq_vec, write->wr_vlen, write->wr_buflen,
 			&write->wr_how_written);
 	if (filp)
 		fput(filp);

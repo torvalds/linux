@@ -192,6 +192,8 @@ struct svc_rqst {
 	struct page *		*rq_respages;	/* points into rq_pages */
 	int			rq_resused;	/* number of pages used for result */
 
+	struct kvec		rq_vec[RPCSVC_MAXPAGES]; /* generally useful.. */
+
 	__be32			rq_xid;		/* transmission id */
 	u32			rq_prog;	/* program number */
 	u32			rq_vers;	/* program version */

@@ -159,7 +159,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 	resp->count = argp->count;
 	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh), NULL,
 				  argp->offset,
-			   	  argp->vec, argp->vlen,
+			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
 
 	if (nfserr) return nfserr;
@@ -185,7 +185,7 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 
 	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh), NULL,
 				   argp->offset,
-				   argp->vec, argp->vlen,
+				   rqstp->rq_vec, argp->vlen,
 				   argp->len,
 				   &stable);
 	return nfsd_return_attrs(nfserr, resp);
