@@ -29,8 +29,6 @@ static kmem_cache_t* msi_cachep;
 static int pci_msi_enable = 1;
 static int last_alloc_vector;
 static int nr_released_vectors;
-static int nr_reserved_vectors = NR_HP_RESERVED_VECTORS;
-static int nr_msix_devices;
 
 #ifndef CONFIG_X86_IO_APIC
 int vector_irq[NR_VECTORS] = { [0 ... NR_VECTORS - 1] = -1};
@@ -534,11 +532,6 @@ void pci_scan_msi_device(struct pci_dev *dev)
 {
 	if (!dev)
 		return;
-
-   	if (pci_find_capability(dev, PCI_CAP_ID_MSIX) > 0)
-		nr_msix_devices++;
-	else if (pci_find_capability(dev, PCI_CAP_ID_MSI) > 0)
-		nr_reserved_vectors++;
 }
 
 #ifdef CONFIG_PM
@@ -869,13 +862,19 @@ static int msix_capability_init(struct pci_dev *dev,
 		attach_msi_entry(entry, vector);
 	}
 	if (i != nvec) {
+		int avail = i - 1;
 		i--;
 		for (; i >= 0; i--) {
 			vector = (entries + i)->vector;
 			msi_free_vector(dev, vector, 0);
 			(entries + i)->vector = 0;
 		}
-		return -EBUSY;
+		/* If we had some success report the number of irqs
+		 * we succeeded in setting up.
+		 */
+		if (avail <= 0)
+			avail = -EBUSY;
+		return avail;
 	}
 	/* Set MSI-X enabled bits */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
@@ -954,14 +953,6 @@ int pci_enable_msi(struct pci_dev* dev)
 			return -EINVAL;
 	}
 	status = msi_capability_init(dev);
-	if (!status) {
-   		if (!pos)
-			nr_reserved_vectors--;	/* Only MSI capable */
-		else if (nr_msix_devices > 0)
-			nr_msix_devices--;	/* Both MSI and MSI-X capable,
-						   but choose enabling MSI */
-	}
-
 	return status;
 }
 
@@ -1070,10 +1061,9 @@ static int msi_free_vector(struct pci_dev* dev, int vector, int reassign)
  **/
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
-	int status, pos, nr_entries, free_vectors;
+	int status, pos, nr_entries;
 	int i, j, temp;
 	u16 control;
-	unsigned long flags;
 
 	if (!entries || pci_msi_supported(dev) < 0)
  		return -EINVAL;
@@ -1112,34 +1102,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 		dev->irq = temp;
 		return -EINVAL;
 	}
-
-	spin_lock_irqsave(&msi_lock, flags);
-	/*
-	 * msi_lock is provided to ensure that enough vectors resources are
-	 * available before granting.
-	 */
-	free_vectors = pci_vector_resources(last_alloc_vector,
-				nr_released_vectors);
-	/* Ensure that each MSI/MSI-X device has one vector reserved by
-	   default to avoid any MSI-X driver to take all available
- 	   resources */
-	free_vectors -= nr_reserved_vectors;
-	/* Find the average of free vectors among MSI-X devices */
-	if (nr_msix_devices > 0)
-		free_vectors /= nr_msix_devices;
-	spin_unlock_irqrestore(&msi_lock, flags);
-
-	if (nvec > free_vectors) {
-		if (free_vectors > 0)
-			return free_vectors;
-		else
-			return -EBUSY;
-	}
-
 	status = msix_capability_init(dev, entries, nvec);
-	if (!status && nr_msix_devices > 0)
-		nr_msix_devices--;
-
 	return status;
 }
 

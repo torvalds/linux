@@ -8,19 +8,8 @@
 
 #include <asm/msi.h>
 
-/*
- * Assume the maximum number of hot plug slots supported by the system is about
- * ten. The worstcase is that each of these slots is hot-added with a device,
- * which has two MSI/MSI-X capable functions. To avoid any MSI-X driver, which
- * attempts to request all available vectors, NR_HP_RESERVED_VECTORS is defined
- * as below to ensure at least one message is assigned to each detected MSI/
- * MSI-X device function.
- */
-#define NR_HP_RESERVED_VECTORS 	20
-
 extern int vector_irq[NR_VECTORS];
 extern void (*interrupt[NR_IRQS])(void);
-extern int pci_vector_resources(int last, int nr_released);
 
 /*
  * MSI-X Address Register
