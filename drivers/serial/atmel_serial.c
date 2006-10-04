@@ -39,8 +39,10 @@
 #include <asm/arch/at91rm9200_pdc.h>
 #include <asm/mach/serial_at91.h>
 #include <asm/arch/board.h>
+#ifdef CONFIG_ARM
 #include <asm/arch/system.h>
 #include <asm/arch/gpio.h>
+#endif
 
 #include "atmel_serial.h"
 
@@ -135,6 +137,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 	unsigned int control = 0;
 	unsigned int mode;
 
+#ifdef CONFIG_ARM
 	if (arch_identify() == ARCH_ID_AT91RM9200) {
 		/*
 		 * AT91RM9200 Errata #39: RTS0 is not internally connected to PA21.
@@ -147,6 +150,7 @@ static void atmel_set_mctrl(struct uart_port *port, u_int mctrl)
 				at91_set_gpio_value(AT91_PIN_PA21, 1);
 		}
 	}
+#endif
 
 	if (mctrl & TIOCM_RTS)
 		control |= ATMEL_US_RTSEN;
