@@ -349,6 +349,8 @@ ccw_device_done(struct ccw_device *cdev, int state)
 
 	sch = to_subchannel(cdev->dev.parent);
 
+	ccw_device_set_timeout(cdev, 0);
+
 	if (state != DEV_STATE_ONLINE)
 		cio_disable_subchannel(sch);
 

@@ -216,6 +216,9 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	      (stctl & SCSW_STCTL_PRIM_STATUS)))
 		return 0;
 
+	/* Clear pending timers for device driver initiated I/O. */
+	if (ending_status)
+		ccw_device_set_timeout(cdev, 0);
 	/*
 	 * Now we are ready to call the device driver interrupt handler.
 	 */
