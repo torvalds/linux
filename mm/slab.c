@@ -86,7 +86,6 @@
  *	All object allocations for a node occur from node specific slab lists.
  */
 
-#include	<linux/config.h>
 #include	<linux/slab.h>
 #include	<linux/mm.h>
 #include	<linux/poison.h>

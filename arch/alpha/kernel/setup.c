@@ -21,7 +21,6 @@
 #include <linux/a.out.h>
 #include <linux/screen_info.h>
 #include <linux/delay.h>
-#include <linux/config.h>	/* CONFIG_ALPHA_LCA etc */
 #include <linux/mc146818rtc.h>
 #include <linux/console.h>
 #include <linux/cpu.h>

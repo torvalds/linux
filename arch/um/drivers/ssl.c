@@ -3,7 +3,6 @@
  * Licensed under the GPL
  */
 
-#include "linux/config.h"
 #include "linux/fs.h"
 #include "linux/tty.h"
 #include "linux/tty_driver.h"

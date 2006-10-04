@@ -1,6 +1,5 @@
 /* Copyright 2002 Andi Kleen, SuSE Labs */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 

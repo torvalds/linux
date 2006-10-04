@@ -3,6 +3,7 @@
 /* This file is no longer in use and kept only for backward compatibility.
  * autoconf.h is now included via -imacros on the commandline
  */
+#warning Including config.h is deprecated.
 #include <linux/autoconf.h>
 
 #endif

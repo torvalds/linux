@@ -16,9 +16,8 @@
  *                    usage of CS4231A codec, GUS wave and MIDI for GUS MAX.
  * Bartlomiej Zolnierkiewicz : added some __init/__exit
  */
- 
-#include <linux/init.h> 
-#include <linux/config.h>
+
+#include <linux/init.h>
 #include <linux/spinlock.h>
 
 #define GUSPNP_AUTODETECT

@@ -8,7 +8,6 @@
  * Authors:	Thomas Graf <tgraf@suug.ch>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>

@@ -63,7 +63,6 @@
 #define MAX_PCI_DEVICES 10
 #define MAX_TOTAL_DEVICES 20
 
-#include <linux/config.h>	
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

@@ -32,7 +32,6 @@
     The w83791g chip is the same as the w83791d but lead-free.
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

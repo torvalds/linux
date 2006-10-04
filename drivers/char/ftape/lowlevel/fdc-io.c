@@ -26,7 +26,6 @@
  *      Linux.
  */
 
-#include <linux/config.h> /* for CONFIG_FT_* */
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>

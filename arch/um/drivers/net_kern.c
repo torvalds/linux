@@ -5,7 +5,6 @@
  * Licensed under the GPL.
  */
 
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/netdevice.h"
 #include "linux/rtnetlink.h"

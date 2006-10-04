@@ -11,8 +11,6 @@
  *
  */
 
-#include <linux/config.h> /* for CONFIG_VIDEO_* */
-
 /* Enable autodetection of SVGA adapters and modes. */
 #undef CONFIG_VIDEO_SVGA
 

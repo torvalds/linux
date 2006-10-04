@@ -6,7 +6,6 @@
 
 /* $Id: mmu.S,v 1.15 2004/03/16 02:56:27 takata Exp $ */
 
-#include <linux/config.h>	/* CONFIG_MMU */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/smp.h>

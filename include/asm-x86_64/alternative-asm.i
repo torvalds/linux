@@ -1,5 +1,3 @@
-#include <linux/config.h>
-
 #ifdef CONFIG_SMP
 	.macro LOCK_PREFIX
 1:	lock

@@ -20,7 +20,6 @@
  */
 #ifndef NETDMA_H
 #define NETDMA_H
-#include <linux/config.h>
 #ifdef CONFIG_NET_DMA
 #include <linux/dmaengine.h>
 #include <linux/skbuff.h>

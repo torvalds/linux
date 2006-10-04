@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h> /* CONFIG_HEARTBEAT */
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

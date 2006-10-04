@@ -24,7 +24,6 @@
  *      zftape.
  */
 
-#include <linux/config.h> /* for CONFIG_ZFT_DFLT_BLK_SZ */
 #include <linux/errno.h>
 #include <linux/mm.h>
 

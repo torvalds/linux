@@ -19,7 +19,6 @@
  *    Questions/Comments/Bugfixes to iss_storagedev@hp.com
  *
  */
-#include <linux/config.h>	/* CONFIG_PROC_FS */
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>

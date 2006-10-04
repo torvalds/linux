@@ -11,11 +11,10 @@
  * Christoph Hellwig: Adapted to module_init/module_exit, simple cleanups.
  *
  * Status:
- *              Tested... 
+ *              Tested...
  */
-      
- 
-#include <linux/config.h>
+
+
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>

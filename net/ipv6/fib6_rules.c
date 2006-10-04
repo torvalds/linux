@@ -13,7 +13,6 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  */
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 
 #include <net/fib_rules.h>

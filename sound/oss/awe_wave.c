@@ -28,7 +28,6 @@
  */
 
 #include <linux/awe_voice.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>

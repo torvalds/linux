@@ -21,8 +21,6 @@
  *
  *************************************************************************/
 
-#include <linux/config.h>
-
 #define DRV_NAME	"pcnet32"
 #ifdef CONFIG_PCNET32_NAPI
 #define DRV_VERSION	"1.33-NAPI"

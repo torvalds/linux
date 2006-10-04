@@ -203,9 +203,7 @@
 #define RCS_ID "$Id: sx.c,v 1.33 2000/03/08 10:01:02 wolff, pvdl Exp $"
 #define RCS_REV "$Revision: 1.33 $"
 
-
 #include <linux/module.h>
-#include <linux/config.h> 
 #include <linux/kdev_t.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

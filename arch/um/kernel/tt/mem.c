@@ -4,7 +4,6 @@
  */
 
 #include "linux/stddef.h"
-#include "linux/config.h"
 #include "linux/mm.h"
 #include "asm/uaccess.h"
 #include "mem_user.h"

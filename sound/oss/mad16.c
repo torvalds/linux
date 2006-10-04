@@ -39,7 +39,6 @@
  *	Pavel Rabel		Clean up                           Nov-2000
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/gameport.h>

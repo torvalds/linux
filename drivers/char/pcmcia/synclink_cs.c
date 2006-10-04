@@ -35,7 +35,6 @@
 
 #define MAX_DEVICE_COUNT 4
 
-#include <linux/config.h>	
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

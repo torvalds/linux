@@ -9,7 +9,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
