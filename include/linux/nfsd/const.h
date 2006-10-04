@@ -13,7 +13,6 @@
 #include <linux/nfs2.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
-#include <linux/sunrpc/msg_prot.h>
 
 /*
  * Maximum protocol version supported by knfsd
@@ -28,6 +27,8 @@
 #define NFSSVC_MAXBLKSIZE_V2	(8*1024)
 
 #ifdef __KERNEL__
+
+#include <linux/sunrpc/msg_prot.h>
 
 #ifndef NFS_SUPER_MAGIC
 # define NFS_SUPER_MAGIC	0x6969
