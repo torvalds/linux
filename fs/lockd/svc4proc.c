@@ -455,7 +455,7 @@ nlm4svc_proc_granted_res(struct svc_rqst *rqstp, struct nlm_res  *argp,
 
         dprintk("lockd: GRANTED_RES   called\n");
 
-        nlmsvc_grant_reply(rqstp, &argp->cookie, argp->status);
+        nlmsvc_grant_reply(&argp->cookie, argp->status);
         return rpc_success;
 }
 

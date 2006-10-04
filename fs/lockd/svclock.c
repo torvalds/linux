@@ -139,19 +139,19 @@ static inline int nlm_cookie_match(struct nlm_cookie *a, struct nlm_cookie *b)
  * Find a block with a given NLM cookie.
  */
 static inline struct nlm_block *
-nlmsvc_find_block(struct nlm_cookie *cookie,  struct sockaddr_in *sin)
+nlmsvc_find_block(struct nlm_cookie *cookie)
 {
 	struct nlm_block *block;
 
 	list_for_each_entry(block, &nlm_blocked, b_list) {
-		if (nlm_cookie_match(&block->b_call->a_args.cookie,cookie)
-				&& nlm_cmp_addr(sin, &block->b_host->h_addr))
+		if (nlm_cookie_match(&block->b_call->a_args.cookie,cookie))
 			goto found;
 	}
 
 	return NULL;
 
 found:
+	dprintk("nlmsvc_find_block(%s): block=%p\n", nlmdbg_cookie2a(cookie), block);
 	kref_get(&block->b_count);
 	return block;
 }
@@ -165,6 +165,11 @@ found:
  * request, but (as I found out later) that's because some implementations
  * do just this. Never mind the standards comittees, they support our
  * logging industries.
+ *
+ * 10 years later: I hope we can safely ignore these old and broken
+ * clients by now. Let's fix this so we can uniquely identify an incoming
+ * GRANTED_RES message by cookie, without having to rely on the client's IP
+ * address. --okir
  */
 static inline struct nlm_block *
 nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
@@ -197,7 +202,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	/* Set notifier function for VFS, and init args */
 	call->a_args.lock.fl.fl_flags |= FL_SLEEP;
 	call->a_args.lock.fl.fl_lmops = &nlmsvc_lock_operations;
-	call->a_args.cookie = *cookie;	/* see above */
+	nlmclnt_next_cookie(&call->a_args.cookie);
 
 	dprintk("lockd: created block %p...\n", block);
 
@@ -640,17 +645,14 @@ static const struct rpc_call_ops nlmsvc_grant_ops = {
  * block.
  */
 void
-nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status)
+nlmsvc_grant_reply(struct nlm_cookie *cookie, u32 status)
 {
 	struct nlm_block	*block;
-	struct nlm_file		*file;
 
-	dprintk("grant_reply: looking for cookie %x, host (%08x), s=%d \n", 
-		*(unsigned int *)(cookie->data), 
-		ntohl(rqstp->rq_addr.sin_addr.s_addr), status);
-	if (!(block = nlmsvc_find_block(cookie, &rqstp->rq_addr)))
+	dprintk("grant_reply: looking for cookie %x, s=%d \n",
+		*(unsigned int *)(cookie->data), status);
+	if (!(block = nlmsvc_find_block(cookie)))
 		return;
-	file = block->b_file;
 
 	if (block) {
 		if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
