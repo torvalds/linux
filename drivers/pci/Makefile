@@ -14,6 +14,9 @@ obj-$(CONFIG_HOTPLUG) += hotplug.o
 # Build the PCI Hotplug drivers if we were asked to
 obj-$(CONFIG_HOTPLUG_PCI) += hotplug/
 
+# Build the PCI MSI interrupt support
+obj-$(CONFIG_PCI_MSI) += msi.o
+
 #
 # Some architectures use the generic PCI setup functions
 #
@@ -27,12 +30,6 @@ obj-$(CONFIG_PPC64) += setup-bus.o
 obj-$(CONFIG_MIPS) += setup-bus.o setup-irq.o
 obj-$(CONFIG_X86_VISWS) += setup-irq.o
 obj-$(CONFIG_HT_IRQ) += htirq.o
-
-msiobj-y := msi.o
-msiobj-$(CONFIG_IA64) += msi-apic.o
-msiobj-$(CONFIG_IA64_GENERIC) += msi-altix.o
-msiobj-$(CONFIG_IA64_SGI_SN2) += msi-altix.o
-obj-$(CONFIG_PCI_MSI) += $(msiobj-y)
 
 #
 # ACPI Related PCI FW Functions
