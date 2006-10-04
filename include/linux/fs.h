@@ -250,6 +250,8 @@ extern int dir_notify_enable;
 #define FS_NOTAIL_FL			0x00008000 /* file tail should not be merged */
 #define FS_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define FS_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
+#define FS_EXTENT_FL			0x00080000 /* Extents */
+#define FS_DIRECTIO_FL			0x00100000 /* Use direct i/o */
 #define FS_RESERVED_FL			0x80000000 /* reserved for ext2 lib */
 
 #define FS_FL_USER_VISIBLE		0x0003DFFF /* User visible flags */

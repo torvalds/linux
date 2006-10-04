@@ -898,6 +898,16 @@ M:	jack@suse.cz
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+DISTRIBUTED LOCK MANAGER
+P:	Patrick Caulfield
+M:	pcaulfie@redhat.com
+P:	David Teigland
+M:	teigland@redhat.com
+L:	cluster-devel@redhat.com
+W:	http://sources.redhat.com/cluster/
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+S:	Supported
+
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 P:	Tobias Ringstrom
 M:	tori@unhappy.mine.nu
@@ -1172,6 +1182,14 @@ P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
 S:	Maintained
+
+GFS2 FILE SYSTEM
+P:	Steven Whitehouse
+M:	swhiteho@redhat.com
+L:	cluster-devel@redhat.com
+W:	http://sources.redhat.com/cluster/
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+S:	Supported
 
 GIGASET ISDN DRIVERS
 P:	Hansjoerg Lipp

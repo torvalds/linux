@@ -3578,11 +3578,11 @@ S: Fargo, North Dakota 58122
 S: USA
 
 N: Steven Whitehouse
-E: SteveW@ACM.org
+E: steve@chygwyn.com
 W: http://www.chygwyn.com/~steve
-D: Linux DECnet project: http://www.sucs.swan.ac.uk/~rohan/DECnet/index.html
+D: Linux DECnet project
 D: Minor debugging of other networking protocols.
-D: Misc bug fixes and filesystem development
+D: Misc bug fixes and GFS2 filesystem development
 
 N: Hans-Joachim Widmaier
 E: hjw@zvw.de
