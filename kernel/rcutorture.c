@@ -370,6 +370,19 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.name = "rcu_bh"
 };
 
+static struct rcu_torture_ops rcu_bh_sync_ops = {
+	.init = rcu_sync_torture_init,
+	.cleanup = NULL,
+	.readlock = rcu_bh_torture_read_lock,
+	.readdelay = rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock = rcu_bh_torture_read_unlock,
+	.completed = rcu_bh_torture_completed,
+	.deferredfree = rcu_sync_torture_deferred_free,
+	.sync = rcu_bh_torture_synchronize,
+	.stats = NULL,
+	.name = "rcu_bh_sync"
+};
+
 /*
  * Definitions for srcu torture testing.
  */
@@ -452,7 +465,8 @@ static struct rcu_torture_ops srcu_ops = {
 };
 
 static struct rcu_torture_ops *torture_ops[] =
-	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &srcu_ops, NULL };
+	{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops, &srcu_ops,
+	  NULL };
 
 /*
  * RCU torture writer kthread.  Repeatedly substitutes a new structure
