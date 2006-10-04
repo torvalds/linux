@@ -262,14 +262,6 @@ void __init iSeries_pci_final_fixup(void)
 	mf_display_src(0xC9000200);
 }
 
-void pcibios_fixup_bus(struct pci_bus *PciBus)
-{
-}
-
-void pcibios_fixup_resources(struct pci_dev *pdev)
-{
-}
-
 /*
  * Look down the chain to find the matching Device Device
  */
