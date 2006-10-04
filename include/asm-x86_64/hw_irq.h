@@ -75,7 +75,6 @@
 #ifndef __ASSEMBLY__
 extern u8 irq_vector[NR_IRQ_VECTORS];
 #define IO_APIC_VECTOR(irq)	(irq_vector[irq])
-#define AUTO_ASSIGN		-1
 
 /*
  * Various low-level irq details needed by irq.c, process.c,
