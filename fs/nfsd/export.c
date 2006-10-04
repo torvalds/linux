@@ -1048,30 +1048,24 @@ int
 exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	       struct cache_req *creq)
 {
-	struct svc_expkey *fsid_key;
 	struct svc_export *exp;
 	int rv;
 	u32 fsidv[2];
 
 	mk_fsid_v1(fsidv, 0);
 
-	fsid_key = exp_find_key(clp, 1, fsidv, creq);
-	if (IS_ERR(fsid_key) && PTR_ERR(fsid_key) == -EAGAIN)
+	exp = exp_find(clp, 1, fsidv, creq);
+	if (IS_ERR(exp) && PTR_ERR(exp) == -EAGAIN)
 		return nfserr_dropit;
-	if (!fsid_key || IS_ERR(fsid_key))
-		return nfserr_perm;
-
-	exp = exp_get_by_name(clp, fsid_key->ek_mnt, fsid_key->ek_dentry, creq);
 	if (exp == NULL)
 		rv = nfserr_perm;
 	else if (IS_ERR(exp))
 		rv = nfserrno(PTR_ERR(exp));
 	else {
 		rv = fh_compose(fhp, exp,
-				fsid_key->ek_dentry, NULL);
+				exp->ex_dentry, NULL);
 		exp_put(exp);
 	}
-	cache_put(&fsid_key->h, &svc_expkey_cache);
 	return rv;
 }
 
