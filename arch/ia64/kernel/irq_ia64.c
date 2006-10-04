@@ -30,6 +30,7 @@
 #include <linux/smp_lock.h>
 #include <linux/threads.h>
 #include <linux/bitops.h>
+#include <linux/irq.h>
 
 #include <asm/delay.h>
 #include <asm/intrinsics.h>
@@ -103,6 +104,25 @@ reserve_irq_vector (int vector)
 
 	pos = vector - IA64_FIRST_DEVICE_VECTOR;
 	return test_and_set_bit(pos, ia64_vector_mask);
+}
+
+/*
+ * Dynamic irq allocate and deallocation for MSI
+ */
+int create_irq(void)
+{
+	int vector = assign_irq_vector(AUTO_ASSIGN);
+
+	if (vector >= 0)
+		dynamic_irq_init(vector);
+
+	return vector;
+}
+
+void destroy_irq(unsigned int irq)
+{
+	dynamic_irq_cleanup(irq);
+	free_irq_vector(irq);
 }
 
 #ifdef CONFIG_SMP
