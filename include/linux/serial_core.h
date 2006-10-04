@@ -67,8 +67,8 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
-/* Atmel AT91xxx SoC */
-#define PORT_AT91	49
+/* Atmel AT91 / AT32 SoC */
+#define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */
 #define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */

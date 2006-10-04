@@ -581,7 +581,7 @@ static void atmel_set_termios(struct uart_port *port, struct termios * termios, 
  */
 static const char *atmel_type(struct uart_port *port)
 {
-	return (port->type == PORT_AT91) ? "ATMEL_SERIAL" : NULL;
+	return (port->type == PORT_ATMEL) ? "ATMEL_SERIAL" : NULL;
 }
 
 /*
@@ -628,7 +628,7 @@ static int atmel_request_port(struct uart_port *port)
 static void atmel_config_port(struct uart_port *port, int flags)
 {
 	if (flags & UART_CONFIG_TYPE) {
-		port->type = PORT_AT91;
+		port->type = PORT_ATMEL;
 		atmel_request_port(port);
 	}
 }
@@ -639,7 +639,7 @@ static void atmel_config_port(struct uart_port *port, int flags)
 static int atmel_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	int ret = 0;
-	if (ser->type != PORT_UNKNOWN && ser->type != PORT_AT91)
+	if (ser->type != PORT_UNKNOWN && ser->type != PORT_ATMEL)
 		ret = -EINVAL;
 	if (port->irq != ser->irq)
 		ret = -EINVAL;
