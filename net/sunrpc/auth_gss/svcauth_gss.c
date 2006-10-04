@@ -1147,6 +1147,25 @@ out:
 	return ret;
 }
 
+u32 *
+svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
+{
+	u32 *p;
+
+	p = gsd->body_start;
+	gsd->body_start = NULL;
+	/* move accept_stat to right place: */
+	memcpy(p, p + 2, 4);
+	/* Don't wrap in failure case: */
+	/* Counting on not getting here if call was not even accepted! */
+	if (*p != rpc_success) {
+		resbuf->head[0].iov_len -= 2 * 4;
+		return NULL;
+	}
+	p++;
+	return p;
+}
+
 static inline int
 svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 {
@@ -1160,17 +1179,9 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	int integ_offset, integ_len;
 	int stat = -EINVAL;
 
-	p = gsd->body_start;
-	gsd->body_start = NULL;
-	/* move accept_stat to right place: */
-	memcpy(p, p + 2, 4);
-	/* Don't wrap in failure case: */
-	/* Counting on not getting here if call was not even accepted! */
-	if (*p != rpc_success) {
-		resbuf->head[0].iov_len -= 2 * 4;
+	p = svcauth_gss_prepare_to_wrap(resbuf, gsd);
+	if (p == NULL)
 		goto out;
-	}
-	p++;
 	integ_offset = (u8 *)(p + 1) - (u8 *)resbuf->head[0].iov_base;
 	integ_len = resbuf->len - integ_offset;
 	BUG_ON(integ_len % 4);
@@ -1222,17 +1233,9 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	int offset;
 	int pad;
 
-	p = gsd->body_start;
-	gsd->body_start = NULL;
-	/* move accept_stat to right place: */
-	memcpy(p, p + 2, 4);
-	/* Don't wrap in failure case: */
-	/* Counting on not getting here if call was not even accepted! */
-	if (*p != rpc_success) {
-		resbuf->head[0].iov_len -= 2 * 4;
+	p = svcauth_gss_prepare_to_wrap(resbuf, gsd);
+	if (p == NULL)
 		return 0;
-	}
-	p++;
 	len = p++;
 	offset = (u8 *)p - (u8 *)resbuf->head[0].iov_base;
 	*p++ = htonl(gc->gc_seq);
