@@ -391,6 +391,16 @@ static int retire_capture_urb(struct snd_usb_substream *subs,
 	return 0;
 }
 
+/*
+ * Process after capture complete when paused.  Nothing to do.
+ */
+static int retire_paused_capture_urb(struct snd_usb_substream *subs,
+				     struct snd_pcm_runtime *runtime,
+				     struct urb *urb)
+{
+	return 0;
+}
+
 
 /*
  * prepare urb for full speed playback sync pipe
@@ -493,13 +503,13 @@ static int snd_usb_audio_next_packet_size(struct snd_usb_substream *subs)
 }
 
 /*
- * Prepare urb for streaming before playback starts.
+ * Prepare urb for streaming before playback starts or when paused.
  *
- * We don't yet have data, so we send a frame of silence.
+ * We don't have any data, so we send a frame of silence.
  */
-static int prepare_startup_playback_urb(struct snd_usb_substream *subs,
-					struct snd_pcm_runtime *runtime,
-					struct urb *urb)
+static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
+				       struct snd_pcm_runtime *runtime,
+				       struct urb *urb)
 {
 	unsigned int i, offs, counts;
 	struct snd_urb_ctx *ctx = urb->context;
@@ -622,7 +632,7 @@ static int retire_playback_urb(struct snd_usb_substream *subs,
  */
 static struct snd_urb_ops audio_urb_ops[2] = {
 	{
-		.prepare =	prepare_startup_playback_urb,
+		.prepare =	prepare_nodata_playback_urb,
 		.retire =	retire_playback_urb,
 		.prepare_sync =	prepare_playback_sync_urb,
 		.retire_sync =	retire_playback_sync_urb,
@@ -637,7 +647,7 @@ static struct snd_urb_ops audio_urb_ops[2] = {
 
 static struct snd_urb_ops audio_urb_ops_high_speed[2] = {
 	{
-		.prepare =	prepare_startup_playback_urb,
+		.prepare =	prepare_nodata_playback_urb,
 		.retire =	retire_playback_urb,
 		.prepare_sync =	prepare_playback_sync_urb_hs,
 		.retire_sync =	retire_playback_sync_urb_hs,
@@ -925,10 +935,14 @@ static int snd_usb_pcm_playback_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		subs->ops.prepare = prepare_playback_urb;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 		return deactivate_urbs(subs, 0, 0);
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		subs->ops.prepare = prepare_nodata_playback_urb;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -944,9 +958,16 @@ static int snd_usb_pcm_capture_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		subs->ops.retire = retire_capture_urb;
 		return start_urbs(subs, substream->runtime);
 	case SNDRV_PCM_TRIGGER_STOP:
 		return deactivate_urbs(subs, 0, 0);
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		subs->ops.retire = retire_paused_capture_urb;
+		return 0;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		subs->ops.retire = retire_capture_urb;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1505,7 +1526,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	/* for playback, submit the URBs now; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		subs->ops.prepare = prepare_startup_playback_urb;
+		subs->ops.prepare = prepare_nodata_playback_urb;
 		return start_urbs(subs, runtime);
 	} else
 		return 0;
@@ -1517,7 +1538,8 @@ static struct snd_pcm_hardware snd_usb_hardware =
 				SNDRV_PCM_INFO_MMAP_VALID |
 				SNDRV_PCM_INFO_BATCH |
 				SNDRV_PCM_INFO_INTERLEAVED |
-				SNDRV_PCM_INFO_BLOCK_TRANSFER,
+				SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				SNDRV_PCM_INFO_PAUSE,
 	.buffer_bytes_max =	1024 * 1024,
 	.period_bytes_min =	64,
 	.period_bytes_max =	512 * 1024,
