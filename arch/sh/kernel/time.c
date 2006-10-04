@@ -47,6 +47,7 @@ unsigned long long __attribute__ ((weak)) sched_clock(void)
 	return (unsigned long long)jiffies * (1000000000 / HZ);
 }
 
+#ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
 {
 	unsigned long seq;
@@ -99,6 +100,7 @@ int do_settimeofday(struct timespec *tv)
 	return 0;
 }
 EXPORT_SYMBOL(do_settimeofday);
+#endif /* !CONFIG_GENERIC_TIME */
 
 /* last time the RTC clock got updated */
 static long last_rtc_update;

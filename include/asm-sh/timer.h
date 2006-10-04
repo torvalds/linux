@@ -8,7 +8,9 @@ struct sys_timer_ops {
 	int (*init)(void);
 	int (*start)(void);
 	int (*stop)(void);
+#ifndef CONFIG_GENERIC_TIME
 	unsigned long (*get_offset)(void);
+#endif
 	unsigned long (*get_frequency)(void);
 };
 
@@ -24,10 +26,12 @@ struct sys_timer {
 extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
 
+#ifndef CONFIG_GENERIC_TIME
 static inline unsigned long get_timer_offset(void)
 {
 	return sys_timer->ops->get_offset();
 }
+#endif
 
 static inline unsigned long get_timer_frequency(void)
 {
