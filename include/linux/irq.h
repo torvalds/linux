@@ -59,6 +59,7 @@
 #define IRQ_NOAUTOEN		0x08000000	/* IRQ will not be enabled on request irq */
 #define IRQ_DELAYED_DISABLE	0x10000000	/* IRQ disable (masking) happens delayed. */
 #define IRQ_WAKEUP		0x20000000	/* IRQ triggers system wakeup */
+#define IRQ_MOVE_PENDING	0x40000000	/* need to re-target IRQ destination */
 
 struct proc_dir_entry;
 
@@ -132,7 +133,6 @@ struct irq_chip {
  * @affinity:		IRQ affinity on SMP
  * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
- * @move_irq:		need to re-target IRQ destination
  * @dir:		/proc/irq/ procfs entry
  * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
  *
@@ -159,7 +159,6 @@ struct irq_desc {
 #endif
 #if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
 	cpumask_t		pending_mask;
-	unsigned int		move_irq;	/* need to re-target IRQ dest */
 #endif
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *dir;

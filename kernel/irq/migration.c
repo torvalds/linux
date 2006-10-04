@@ -7,7 +7,7 @@ void set_pending_irq(unsigned int irq, cpumask_t mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&desc->lock, flags);
-	desc->move_irq = 1;
+	desc->status |= IRQ_MOVE_PENDING;
 	irq_desc[irq].pending_mask = mask;
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
@@ -17,7 +17,7 @@ void move_native_irq(int irq)
 	struct irq_desc *desc = irq_desc + irq;
 	cpumask_t tmp;
 
-	if (likely(!desc->move_irq))
+	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
 		return;
 
 	/*
@@ -28,7 +28,7 @@ void move_native_irq(int irq)
 		return;
 	}
 
-	desc->move_irq = 0;
+	desc->status &= ~IRQ_MOVE_PENDING;
 
 	if (unlikely(cpus_empty(irq_desc[irq].pending_mask)))
 		return;
