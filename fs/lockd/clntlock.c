@@ -184,7 +184,7 @@ restart:
 	/* Force a portmap getport - the peer's lockd will
 	 * most likely end up on a different port.
 	 */
-	host->h_nextrebind = 0;
+	host->h_nextrebind = jiffies;
 	nlm_rebind_host(host);
 
 	/* First, reclaim all locks that have been granted. */
