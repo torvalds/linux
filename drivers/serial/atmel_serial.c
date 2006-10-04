@@ -101,8 +101,8 @@
 //#define UART_PUT_TNPR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TNPR)
 //#define UART_PUT_TNCR(port,v)	writel(v, (port)->membase + ATMEL_PDC_TNCR)
 
-static int (*at91_open)(struct uart_port *);
-static void (*at91_close)(struct uart_port *);
+static int (*atmel_open_hook)(struct uart_port *);
+static void (*atmel_close_hook)(struct uart_port *);
 
 /*
  * We wrap our port structure around the generic uart_port.
@@ -399,8 +399,8 @@ static int atmel_startup(struct uart_port *port)
 	 * If there is a specific "open" function (to register
 	 * control line interrupts)
 	 */
-	if (at91_open) {
-		retval = at91_open(port);
+	if (atmel_open_hook) {
+		retval = atmel_open_hook(port);
 		if (retval) {
 			free_irq(port->irq, port);
 			return retval;
@@ -440,8 +440,8 @@ static void atmel_shutdown(struct uart_port *port)
 	 * If there is a specific "close" function (to unregister
 	 * control line interrupts)
 	 */
-	if (at91_close)
-		at91_close(port);
+	if (atmel_close_hook)
+		atmel_close_hook(port);
 }
 
 /*
@@ -711,7 +711,7 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port, struct
 /*
  * Register board-specific modem-control line handlers.
  */
-void __init at91_register_uart_fns(struct at91_port_fns *fns)
+void __init atmel_register_uart_fns(struct atmel_port_fns *fns)
 {
 	if (fns->enable_ms)
 		atmel_pops.enable_ms = fns->enable_ms;
@@ -719,8 +719,8 @@ void __init at91_register_uart_fns(struct at91_port_fns *fns)
 		atmel_pops.get_mctrl = fns->get_mctrl;
 	if (fns->set_mctrl)
 		atmel_pops.set_mctrl = fns->set_mctrl;
-	at91_open		= fns->open;
-	at91_close		= fns->close;
+	atmel_open_hook		= fns->open;
+	atmel_close_hook	= fns->close;
 	atmel_pops.pm		= fns->pm;
 	atmel_pops.set_wake	= fns->set_wake;
 }

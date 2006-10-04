@@ -14,7 +14,7 @@ struct uart_port;
  * This is a temporary structure for registering these
  * functions; it is intended to be discarded after boot.
  */
-struct at91_port_fns {
+struct atmel_port_fns {
 	void	(*set_mctrl)(struct uart_port *, u_int);
 	u_int	(*get_mctrl)(struct uart_port *);
 	void	(*enable_ms)(struct uart_port *);
@@ -25,9 +25,9 @@ struct at91_port_fns {
 };
 
 #if defined(CONFIG_SERIAL_ATMEL)
-void at91_register_uart_fns(struct at91_port_fns *fns);
+void atmel_register_uart_fns(struct atmel_port_fns *fns);
 #else
-#define at91_register_uart_fns(fns) do { } while (0)
+#define atmel_register_uart_fns(fns) do { } while (0)
 #endif
 
 
