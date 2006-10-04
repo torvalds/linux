@@ -436,7 +436,7 @@ nlm_gc_hosts(void)
  * Manage NSM handles
  */
 static LIST_HEAD(nsm_handles);
-static DECLARE_MUTEX(nsm_sema);
+static DEFINE_MUTEX(nsm_mutex);
 
 static struct nsm_handle *
 __nsm_find(const struct sockaddr_in *sin,
@@ -458,7 +458,7 @@ __nsm_find(const struct sockaddr_in *sin,
 		return NULL;
 	}
 
-	down(&nsm_sema);
+	mutex_lock(&nsm_mutex);
 	list_for_each(pos, &nsm_handles) {
 		nsm = list_entry(pos, struct nsm_handle, sm_link);
 
@@ -488,7 +488,8 @@ __nsm_find(const struct sockaddr_in *sin,
 		list_add(&nsm->sm_link, &nsm_handles);
 	}
 
-out:	up(&nsm_sema);
+out:
+	mutex_unlock(&nsm_mutex);
 	return nsm;
 }
 
@@ -507,11 +508,11 @@ nsm_release(struct nsm_handle *nsm)
 	if (!nsm)
 		return;
 	if (atomic_dec_and_test(&nsm->sm_count)) {
-		down(&nsm_sema);
+		mutex_lock(&nsm_mutex);
 		if (atomic_read(&nsm->sm_count) == 0) {
 			list_del(&nsm->sm_link);
 			kfree(nsm);
 		}
-		up(&nsm_sema);
+		mutex_unlock(&nsm_mutex);
 	}
 }

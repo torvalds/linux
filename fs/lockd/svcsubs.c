@@ -106,7 +106,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 		goto out_unlock;
 
 	memcpy(&file->f_handle, f, sizeof(struct nfs_fh));
-	init_MUTEX(&file->f_sema);
+	mutex_init(&file->f_mutex);
 	INIT_HLIST_NODE(&file->f_list);
 	INIT_LIST_HEAD(&file->f_blocks);
 

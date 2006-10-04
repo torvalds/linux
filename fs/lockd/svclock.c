@@ -254,9 +254,9 @@ static void nlmsvc_free_block(struct kref *kref)
 	dprintk("lockd: freeing block %p...\n", block);
 
 	/* Remove block from file's list of blocks */
-	down(&file->f_sema);
+	mutex_lock(&file->f_mutex);
 	list_del_init(&block->b_flist);
-	up(&file->f_sema);
+	mutex_unlock(&file->f_mutex);
 
 	nlmsvc_freegrantargs(block->b_call);
 	nlm_release_call(block->b_call);
@@ -281,7 +281,7 @@ void nlmsvc_traverse_blocks(struct nlm_host *host,
 	struct nlm_block *block, *next;
 
 restart:
-	down(&file->f_sema);
+	mutex_lock(&file->f_mutex);
 	list_for_each_entry_safe(block, next, &file->f_blocks, b_flist) {
 		if (!match(block->b_host, host))
 			continue;
@@ -290,12 +290,12 @@ restart:
 		if (list_empty(&block->b_list))
 			continue;
 		kref_get(&block->b_count);
-		up(&file->f_sema);
+		mutex_unlock(&file->f_mutex);
 		nlmsvc_unlink_block(block);
 		nlmsvc_release_block(block);
 		goto restart;
 	}
-	up(&file->f_sema);
+	mutex_unlock(&file->f_mutex);
 }
 
 /*
@@ -354,7 +354,7 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	lock->fl.fl_flags &= ~FL_SLEEP;
 again:
 	/* Lock file against concurrent access */
-	down(&file->f_sema);
+	mutex_lock(&file->f_mutex);
 	/* Get existing block (in case client is busy-waiting) */
 	block = nlmsvc_lookup_block(file, lock);
 	if (block == NULL) {
@@ -392,10 +392,10 @@ again:
 
 	/* If we don't have a block, create and initialize it. Then
 	 * retry because we may have slept in kmalloc. */
-	/* We have to release f_sema as nlmsvc_create_block may try to
+	/* We have to release f_mutex as nlmsvc_create_block may try to
 	 * to claim it while doing host garbage collection */
 	if (newblock == NULL) {
-		up(&file->f_sema);
+		mutex_unlock(&file->f_mutex);
 		dprintk("lockd: blocking on this lock (allocating).\n");
 		if (!(newblock = nlmsvc_create_block(rqstp, file, lock, cookie)))
 			return nlm_lck_denied_nolocks;
@@ -405,7 +405,7 @@ again:
 	/* Append to list of blocked */
 	nlmsvc_insert_block(newblock, NLM_NEVER);
 out:
-	up(&file->f_sema);
+	mutex_unlock(&file->f_mutex);
 	nlmsvc_release_block(newblock);
 	nlmsvc_release_block(block);
 	dprintk("lockd: nlmsvc_lock returned %u\n", ret);
@@ -489,9 +489,9 @@ nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	down(&file->f_sema);
+	mutex_lock(&file->f_mutex);
 	block = nlmsvc_lookup_block(file, lock);
-	up(&file->f_sema);
+	mutex_unlock(&file->f_mutex);
 	if (block != NULL) {
 		status = nlmsvc_unlink_block(block);
 		nlmsvc_release_block(block);

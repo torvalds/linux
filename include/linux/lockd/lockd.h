@@ -111,7 +111,7 @@ struct nlm_file {
 	struct list_head	f_blocks;	/* blocked locks */
 	unsigned int		f_locks;	/* guesstimate # of locks */
 	unsigned int		f_count;	/* reference count */
-	struct semaphore	f_sema;		/* avoid concurrent access */
+	struct mutex		f_mutex;	/* avoid concurrent access */
 };
 
 /*
