@@ -17,6 +17,7 @@ struct atmel_uart_data {
 	short		use_dma_rx;	/* use receive DMA? */
 	void __iomem	*regs;		/* virtual base address, if any */
 };
+void at32_map_usart(unsigned int hw_id, unsigned int line);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
 struct eth_platform_data {

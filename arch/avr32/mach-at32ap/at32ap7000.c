@@ -591,11 +591,13 @@ static inline void configure_usart3_pins(void)
 	portmux_set_func(PIOB, 17, FUNC_B);	/* TXD	*/
 }
 
-static struct platform_device *setup_usart(unsigned int id)
+static struct platform_device *at32_usarts[4];
+
+void __init at32_map_usart(unsigned int hw_id, unsigned int line)
 {
 	struct platform_device *pdev;
 
-	switch (id) {
+	switch (hw_id) {
 	case 0:
 		pdev = &atmel_usart0_device;
 		configure_usart0_pins();
@@ -613,7 +615,7 @@ static struct platform_device *setup_usart(unsigned int id)
 		configure_usart3_pins();
 		break;
 	default:
-		return NULL;
+		return;
 	}
 
 	if (PXSEG(pdev->resource[0].start) == P4SEG) {
@@ -622,25 +624,21 @@ static struct platform_device *setup_usart(unsigned int id)
 		data->regs = (void __iomem *)pdev->resource[0].start;
 	}
 
-	return pdev;
+	pdev->id = line;
+	at32_usarts[line] = pdev;
 }
 
 struct platform_device *__init at32_add_device_usart(unsigned int id)
 {
-	struct platform_device *pdev;
-
-	pdev = setup_usart(id);
-	if (pdev)
-		platform_device_register(pdev);
-
-	return pdev;
+	platform_device_register(at32_usarts[id]);
+	return at32_usarts[id];
 }
 
 struct platform_device *atmel_default_console_device;
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
-	atmel_default_console_device = setup_usart(usart_id);
+	atmel_default_console_device = at32_usarts[usart_id];
 }
 
 /* --------------------------------------------------------------------

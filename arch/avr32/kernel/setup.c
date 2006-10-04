@@ -292,6 +292,7 @@ void __init setup_arch (char **cmdline_p)
 
 	setup_processor();
 	setup_platform();
+	setup_board();
 
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk)) {
