@@ -111,7 +111,7 @@ void crash_ipi_callback(struct pt_regs *regs)
 	if (!cpu_online(cpu))
 		return;
 
-	local_irq_disable();
+	hard_irq_disable();
 	if (!cpu_isset(cpu, cpus_in_crash))
 		crash_save_this_cpu(regs, cpu);
 	cpu_set(cpu, cpus_in_crash);
@@ -289,7 +289,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	 * an SMP system.
 	 * The kernel is broken so disable interrupts.
 	 */
-	local_irq_disable();
+	hard_irq_disable();
 
 	for_each_irq(irq) {
 		struct irq_desc *desc = irq_desc + irq;

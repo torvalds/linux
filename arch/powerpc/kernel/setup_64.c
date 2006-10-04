@@ -223,8 +223,8 @@ void early_setup_secondary(void)
 {
 	struct paca_struct *lpaca = get_paca();
 
-	/* Mark enabled in PACA */
-	lpaca->proc_enabled = 0;
+	/* Mark interrupts enabled in PACA */
+	lpaca->soft_enabled = 0;
 
 	/* Initialize hash table for that CPU */
 	htab_initialize_secondary();

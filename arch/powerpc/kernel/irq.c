@@ -64,8 +64,9 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
-#ifdef CONFIG_PPC_ISERIES
+#ifdef CONFIG_PPC64
 #include <asm/paca.h>
+#include <asm/firmware.h>
 #endif
 
 int __irq_offset_value;
@@ -95,6 +96,27 @@ extern atomic_t ipi_sent;
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
+
+void local_irq_restore(unsigned long en)
+{
+	get_paca()->soft_enabled = en;
+	if (!en)
+		return;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		if (get_paca()->lppaca_ptr->int_dword.any_int)
+			iseries_handle_interrupts();
+		return;
+	}
+
+	if (get_paca()->hard_enabled)
+		return;
+	/* need to hard-enable interrupts here */
+	get_paca()->hard_enabled = en;
+	if ((int)mfspr(SPRN_DEC) < 0)
+		mtspr(SPRN_DEC, 1);
+	hard_irq_enable();
+}
 #endif /* CONFIG_PPC64 */
 
 int show_interrupts(struct seq_file *p, void *v)

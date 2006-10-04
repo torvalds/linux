@@ -7,16 +7,30 @@
 #ifdef __KERNEL__
 
 #include <linux/errno.h>
+#include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 
 extern void timer_interrupt(struct pt_regs *);
 
-#ifdef CONFIG_PPC_ISERIES
+#ifdef CONFIG_PPC64
+#include <asm/paca.h>
 
-extern unsigned long local_get_flags(void);
-extern unsigned long local_irq_disable(void);
+static inline unsigned long local_get_flags(void)
+{
+	return get_paca()->soft_enabled;
+}
+
+static inline unsigned long local_irq_disable(void)
+{
+	unsigned long flag = get_paca()->soft_enabled;
+	get_paca()->soft_enabled = 0;
+	barrier();
+	return flag;
+}
+
 extern void local_irq_restore(unsigned long);
+extern void iseries_handle_interrupts(void);
 
 #define local_irq_enable()	local_irq_restore(1)
 #define local_save_flags(flags)	((flags) = local_get_flags())
@@ -24,17 +38,14 @@ extern void local_irq_restore(unsigned long);
 
 #define irqs_disabled()		(local_get_flags() == 0)
 
+#define hard_irq_enable()	__mtmsrd(mfmsr() | MSR_EE, 1)
+#define hard_irq_disable()	__mtmsrd(mfmsr() & ~MSR_EE, 1)
+
 #else
 
 #if defined(CONFIG_BOOKE)
 #define SET_MSR_EE(x)	mtmsr(x)
 #define local_irq_restore(flags)	__asm__ __volatile__("wrtee %0" : : "r" (flags) : "memory")
-#elif defined(__powerpc64__)
-#define SET_MSR_EE(x)	__mtmsrd(x, 1)
-#define local_irq_restore(flags) do { \
-	__asm__ __volatile__("": : :"memory"); \
-	__mtmsrd((flags), 1); \
-} while(0)
 #else
 #define SET_MSR_EE(x)	mtmsr(x)
 #define local_irq_restore(flags)	mtmsr(flags)
@@ -81,7 +92,7 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 #define local_irq_save(flags)	local_irq_save_ptr(&flags)
 #define irqs_disabled()		((mfmsr() & MSR_EE) == 0)
 
-#endif /* CONFIG_PPC_ISERIES */
+#endif /* CONFIG_PPC64 */
 
 #define mask_irq(irq)						\
 	({							\
