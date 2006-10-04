@@ -103,8 +103,8 @@ nlm_lookup_host(int server, const struct sockaddr_in *sin,
 			continue;
 
 		/* See if we have an NSM handle for this client */
-		if (!nsm && (nsm = host->h_nsmhandle) != 0)
-			atomic_inc(&nsm->sm_count);
+		if (!nsm)
+			nsm = host->h_nsmhandle;
 
 		if (host->h_proto != proto)
 			continue;
@@ -120,6 +120,8 @@ nlm_lookup_host(int server, const struct sockaddr_in *sin,
 		nlm_get_host(host);
 		goto out;
 	}
+	if (nsm)
+		atomic_inc(&nsm->sm_count);
 
 	host = NULL;
 
