@@ -11,7 +11,6 @@ struct sys_timer_ops {
 #ifndef CONFIG_GENERIC_TIME
 	unsigned long (*get_offset)(void);
 #endif
-	unsigned long (*get_frequency)(void);
 };
 
 struct sys_timer {
@@ -32,11 +31,6 @@ static inline unsigned long get_timer_offset(void)
 	return sys_timer->ops->get_offset();
 }
 #endif
-
-static inline unsigned long get_timer_frequency(void)
-{
-	return sys_timer->ops->get_frequency();
-}
 
 /* arch/sh/kernel/timers/timer.c */
 struct sys_timer *get_sys_timer(void);
