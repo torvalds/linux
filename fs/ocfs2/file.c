@@ -728,31 +728,36 @@ static int ocfs2_extend_file(struct inode *inode,
 	clusters_to_add = ocfs2_clusters_for_bytes(inode->i_sb, new_i_size) - 
 		OCFS2_I(inode)->ip_clusters;
 
-	if (clusters_to_add) {
-		/* 
-		 * protect the pages that ocfs2_zero_extend is going to
-		 * be pulling into the page cache.. we do this before the
-		 * metadata extend so that we don't get into the situation
-		 * where we've extended the metadata but can't get the data
-		 * lock to zero.
-		 */
-		ret = ocfs2_data_lock(inode, 1);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out;
-		}
+	/* 
+	 * protect the pages that ocfs2_zero_extend is going to be
+	 * pulling into the page cache.. we do this before the
+	 * metadata extend so that we don't get into the situation
+	 * where we've extended the metadata but can't get the data
+	 * lock to zero.
+	 */
+	ret = ocfs2_data_lock(inode, 1);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
 
+	if (clusters_to_add) {
 		ret = ocfs2_extend_allocation(inode, clusters_to_add);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out_unlock;
 		}
+	}
 
-		ret = ocfs2_zero_extend(inode, (u64)new_i_size - tail_to_skip);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out_unlock;
-		}
+	/*
+	 * Call this even if we don't add any clusters to the tree. We
+	 * still need to zero the area between the old i_size and the
+	 * new i_size.
+	 */
+	ret = ocfs2_zero_extend(inode, (u64)new_i_size - tail_to_skip);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_unlock;
 	}
 
 	if (!tail_to_skip) {
@@ -764,8 +769,7 @@ static int ocfs2_extend_file(struct inode *inode,
 	}
 
 out_unlock:
-	if (clusters_to_add) /* this is the only case in which we lock */
-		ocfs2_data_unlock(inode, 1);
+	ocfs2_data_unlock(inode, 1);
 
 out:
 	return ret;
