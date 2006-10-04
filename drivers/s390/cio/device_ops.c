@@ -312,7 +312,10 @@ __ccw_device_retry_loop(struct ccw_device *cdev, struct ccw1 *ccw, long magic, _
 
 	sch = to_subchannel(cdev->dev.parent);
 	do {
+		ccw_device_set_timeout(cdev, 60 * HZ);
 		ret = cio_start (sch, ccw, lpm);
+		if (ret != 0)
+			ccw_device_set_timeout(cdev, 0);
 		if (ret == -EBUSY) {
 			/* Try again later. */
 			spin_unlock_irq(&sch->lock);
