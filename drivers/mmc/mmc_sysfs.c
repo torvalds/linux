@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/idr.h>
+#include <linux/workqueue.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -317,10 +318,41 @@ void mmc_free_host_sysfs(struct mmc_host *host)
 	class_device_put(&host->class_dev);
 }
 
+static struct workqueue_struct *workqueue;
+
+/*
+ * Internal function. Schedule work in the MMC work queue.
+ */
+int mmc_schedule_work(struct work_struct *work)
+{
+	return queue_work(workqueue, work);
+}
+
+/*
+ * Internal function. Schedule delayed work in the MMC work queue.
+ */
+int mmc_schedule_delayed_work(struct work_struct *work, unsigned long delay)
+{
+	return queue_delayed_work(workqueue, work, delay);
+}
+
+/*
+ * Internal function. Flush all scheduled work from the MMC work queue.
+ */
+void mmc_flush_scheduled_work(void)
+{
+	flush_workqueue(workqueue);
+}
 
 static int __init mmc_init(void)
 {
-	int ret = bus_register(&mmc_bus_type);
+	int ret;
+
+	workqueue = create_singlethread_workqueue("kmmcd");
+	if (!workqueue)
+		return -ENOMEM;
+
+	ret = bus_register(&mmc_bus_type);
 	if (ret == 0) {
 		ret = class_register(&mmc_host_class);
 		if (ret)
@@ -333,6 +365,7 @@ static void __exit mmc_exit(void)
 {
 	class_unregister(&mmc_host_class);
 	bus_unregister(&mmc_bus_type);
+	destroy_workqueue(workqueue);
 }
 
 module_init(mmc_init);

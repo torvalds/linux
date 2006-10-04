@@ -1166,9 +1166,9 @@ static void mmc_setup(struct mmc_host *host)
 void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
 	if (delay)
-		schedule_delayed_work(&host->detect, delay);
+		mmc_schedule_delayed_work(&host->detect, delay);
 	else
-		schedule_work(&host->detect);
+		mmc_schedule_work(&host->detect);
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -1311,7 +1311,7 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
-	flush_scheduled_work();
+	mmc_flush_scheduled_work();
 	mmc_free_host_sysfs(host);
 }
 
