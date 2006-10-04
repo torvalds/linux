@@ -28,6 +28,15 @@ nreaders	This is the number of RCU reading threads supported.
 		To properly exercise RCU implementations with preemptible
 		read-side critical sections.
 
+nfakewriters	This is the number of RCU fake writer threads to run.  Fake
+		writer threads repeatedly use the synchronous "wait for
+		current readers" function of the interface selected by
+		torture_type, with a delay between calls to allow for various
+		different numbers of writers running in parallel.
+		nfakewriters defaults to 4, which provides enough parallelism
+		to trigger special cases caused by multiple writers, such as
+		the synchronize_srcu() early return optimization.
+
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
 		statistics are printed when the module is unloaded.
