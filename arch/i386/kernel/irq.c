@@ -55,6 +55,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 {	
 	/* high bit used in ret_from_ code */
 	int irq = ~regs->orig_eax;
+	struct irq_desc *desc = irq_desc + irq;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
 	u32 *isp;
@@ -94,7 +95,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	 * current stack (which is the irq stack already after all)
 	 */
 	if (curctx != irqctx) {
-		int arg1, arg2, ebx;
+		int arg1, arg2, arg3, ebx;
 
 		/* build the stack frame on the IRQ stack */
 		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
@@ -110,16 +111,17 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 		asm volatile(
-			"       xchgl   %%ebx,%%esp      \n"
-			"       call    __do_IRQ         \n"
+			"       xchgl  %%ebx,%%esp      \n"
+			"       call   *%%edi           \n"
 			"       movl   %%ebx,%%esp      \n"
-			: "=a" (arg1), "=d" (arg2), "=b" (ebx)
-			:  "0" (irq),   "1" (regs),  "2" (isp)
-			: "memory", "cc", "ecx"
+			: "=a" (arg1), "=d" (arg2), "=c" (arg3), "=b" (ebx)
+			:  "0" (irq),   "1" (desc),  "2" (regs),  "3" (isp),
+			   "D" (desc->handle_irq)
+			: "memory", "cc"
 		);
 	} else
 #endif
-		__do_IRQ(irq, regs);
+		desc->handle_irq(irq, desc, regs);
 
 	irq_exit();
 
@@ -253,7 +255,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %8s", irq_desc[i].chip->name);
+		seq_printf(p, "-%s", handle_irq_name(irq_desc[i].handle_irq));
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)

@@ -1219,8 +1219,7 @@ next:
 	return vector;
 }
 
-static struct hw_interrupt_type ioapic_level_type;
-static struct hw_interrupt_type ioapic_edge_type;
+static struct irq_chip ioapic_chip;
 
 #define IOAPIC_AUTO	-1
 #define IOAPIC_EDGE	0
@@ -1234,9 +1233,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		irq_desc[idx].chip = &ioapic_level_type;
+		set_irq_chip_and_handler(idx, &ioapic_chip,
+					 handle_fasteoi_irq);
 	else
-		irq_desc[idx].chip = &ioapic_edge_type;
+		set_irq_chip_and_handler(idx, &ioapic_chip,
+					 handle_edge_irq);
 	set_intr_gate(vector, interrupt[idx]);
 }
 
@@ -1346,7 +1347,8 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	 * The timer IRQ doesn't have to know that behind the
 	 * scene we have a 8259A-master in AEOI mode ...
 	 */
-	irq_desc[0].chip = &ioapic_edge_type;
+	irq_desc[0].chip = &ioapic_chip;
+	set_irq_handler(0, handle_edge_irq);
 
 	/*
 	 * Add it to the IO-APIC irq-routing table:
@@ -1918,6 +1920,8 @@ static int __init timer_irq_works(void)
  */
 
 /*
+ * Startup quirk:
+ *
  * Starting up a edge-triggered IO-APIC interrupt is
  * nasty - we need to make sure that we get the edge.
  * If it is already asserted for some reason, we need
@@ -1925,8 +1929,10 @@ static int __init timer_irq_works(void)
  *
  * This is not complete - we should be able to fake
  * an edge even if it isn't on the 8259A...
+ *
+ * (We do this for level-triggered IRQs too - it cannot hurt.)
  */
-static unsigned int startup_edge_ioapic_irq(unsigned int irq)
+static unsigned int startup_ioapic_irq(unsigned int irq)
 {
 	int was_pending = 0;
 	unsigned long flags;
@@ -1943,42 +1949,13 @@ static unsigned int startup_edge_ioapic_irq(unsigned int irq)
 	return was_pending;
 }
 
-/*
- * Once we have recorded IRQ_PENDING already, we can mask the
- * interrupt for real. This prevents IRQ storms from unhandled
- * devices.
- */
-static void ack_edge_ioapic_irq(unsigned int irq)
+static void ack_ioapic_irq(unsigned int irq)
 {
 	move_irq(irq);
-	if ((irq_desc[irq].status & (IRQ_PENDING | IRQ_DISABLED))
-					== (IRQ_PENDING | IRQ_DISABLED))
-		mask_IO_APIC_irq(irq);
 	ack_APIC_irq();
 }
 
-/*
- * Level triggered interrupts can just be masked,
- * and shutting down and starting up the interrupt
- * is the same as enabling and disabling them -- except
- * with a startup need to return a "was pending" value.
- *
- * Level triggered interrupts are special because we
- * do not touch any IO-APIC register while handling
- * them. We ack the APIC in the end-IRQ handler, not
- * in the start-IRQ-handler. Protection against reentrance
- * from the same interrupt is still provided, both by the
- * generic IRQ layer and by the fact that an unacked local
- * APIC does not accept IRQs.
- */
-static unsigned int startup_level_ioapic_irq (unsigned int irq)
-{
-	unmask_IO_APIC_irq(irq);
-
-	return 0; /* don't check for pending */
-}
-
-static void end_level_ioapic_irq (unsigned int irq)
+static void ack_ioapic_quirk_irq(unsigned int irq)
 {
 	unsigned long v;
 	int i;
@@ -2018,35 +1995,27 @@ static void end_level_ioapic_irq (unsigned int irq)
 	}
 }
 
-#ifdef CONFIG_PCI_MSI
-static unsigned int startup_edge_ioapic_vector(unsigned int vector)
+static unsigned int startup_ioapic_vector(unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
-	return startup_edge_ioapic_irq(irq);
+	return startup_ioapic_irq(irq);
 }
 
-static void ack_edge_ioapic_vector(unsigned int vector)
+static void ack_ioapic_vector(unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
 	move_native_irq(vector);
-	ack_edge_ioapic_irq(irq);
+	ack_ioapic_irq(irq);
 }
 
-static unsigned int startup_level_ioapic_vector (unsigned int vector)
-{
-	int irq = vector_to_irq(vector);
-
-	return startup_level_ioapic_irq (irq);
-}
-
-static void end_level_ioapic_vector (unsigned int vector)
+static void ack_ioapic_quirk_vector(unsigned int vector)
 {
 	int irq = vector_to_irq(vector);
 
 	move_native_irq(vector);
-	end_level_ioapic_irq(irq);
+	ack_ioapic_quirk_irq(irq);
 }
 
 static void mask_IO_APIC_vector (unsigned int vector)
@@ -2063,7 +2032,12 @@ static void unmask_IO_APIC_vector (unsigned int vector)
 	unmask_IO_APIC_irq(irq);
 }
 
-#ifdef CONFIG_SMP
+/*
+ * Oh just glorious.  If CONFIG_PCI_MSI we've done
+ * #define set_ioapic_affinity set_ioapic_affinity_vector
+ */
+#if defined (CONFIG_SMP) && defined(CONFIG_X86_IO_APIC) && \
+		defined(CONFIG_PCI_MSI)
 static void set_ioapic_affinity_vector (unsigned int vector,
 					cpumask_t cpu_mask)
 {
@@ -2073,50 +2047,29 @@ static void set_ioapic_affinity_vector (unsigned int vector,
 	set_ioapic_affinity_irq(irq, cpu_mask);
 }
 #endif
-#endif
 
-static int ioapic_retrigger(unsigned int irq)
+static int ioapic_retrigger_vector(unsigned int vector)
 {
+	int irq = vector_to_irq(vector);
+
 	send_IPI_self(IO_APIC_VECTOR(irq));
 
 	return 1;
 }
 
-/*
- * Level and edge triggered IO-APIC interrupts need different handling,
- * so we use two separate IRQ descriptors. Edge triggered IRQs can be
- * handled with the level-triggered descriptor, but that one has slightly
- * more overhead. Level-triggered interrupts cannot be handled with the
- * edge-triggered handler, without risking IRQ storms and other ugly
- * races.
- */
-static struct hw_interrupt_type ioapic_edge_type __read_mostly = {
-	.typename 	= "IO-APIC-edge",
-	.startup 	= startup_edge_ioapic,
-	.shutdown 	= shutdown_edge_ioapic,
-	.enable 	= enable_edge_ioapic,
-	.disable 	= disable_edge_ioapic,
-	.ack 		= ack_edge_ioapic,
-	.end 		= end_edge_ioapic,
+static struct irq_chip ioapic_chip __read_mostly = {
+	.name 		= "IO-APIC",
+	.startup 	= startup_ioapic_vector,
+	.mask	 	= mask_IO_APIC_vector,
+	.unmask	 	= unmask_IO_APIC_vector,
+	.ack 		= ack_ioapic_vector,
+	.eoi 		= ack_ioapic_quirk_vector,
 #ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity,
 #endif
-	.retrigger	= ioapic_retrigger,
+	.retrigger	= ioapic_retrigger_vector,
 };
 
-static struct hw_interrupt_type ioapic_level_type __read_mostly = {
-	.typename 	= "IO-APIC-level",
-	.startup 	= startup_level_ioapic,
-	.shutdown 	= shutdown_level_ioapic,
-	.enable 	= enable_level_ioapic,
-	.disable 	= disable_level_ioapic,
-	.ack 		= mask_and_ack_level_ioapic,
-	.end 		= end_level_ioapic,
-#ifdef CONFIG_SMP
-	.set_affinity 	= set_ioapic_affinity,
-#endif
-	.retrigger	= ioapic_retrigger,
-};
 
 static inline void init_IO_APIC_traps(void)
 {
@@ -2150,20 +2103,21 @@ static inline void init_IO_APIC_traps(void)
 				make_8259A_irq(irq);
 			else
 				/* Strange. Oh, well.. */
-				irq_desc[irq].chip = &no_irq_type;
+				irq_desc[irq].chip = &no_irq_chip;
 		}
 	}
 }
 
-static void enable_lapic_irq (unsigned int irq)
-{
-	unsigned long v;
+/*
+ * The local APIC irq-chip implementation:
+ */
 
-	v = apic_read(APIC_LVT0);
-	apic_write_around(APIC_LVT0, v & ~APIC_LVT_MASKED);
+static void ack_apic(unsigned int irq)
+{
+	ack_APIC_irq();
 }
 
-static void disable_lapic_irq (unsigned int irq)
+static void mask_lapic_irq (unsigned int irq)
 {
 	unsigned long v;
 
@@ -2171,21 +2125,19 @@ static void disable_lapic_irq (unsigned int irq)
 	apic_write_around(APIC_LVT0, v | APIC_LVT_MASKED);
 }
 
-static void ack_lapic_irq (unsigned int irq)
+static void unmask_lapic_irq (unsigned int irq)
 {
-	ack_APIC_irq();
+	unsigned long v;
+
+	v = apic_read(APIC_LVT0);
+	apic_write_around(APIC_LVT0, v & ~APIC_LVT_MASKED);
 }
 
-static void end_lapic_irq (unsigned int i) { /* nothing */ }
-
-static struct hw_interrupt_type lapic_irq_type __read_mostly = {
-	.typename 	= "local-APIC-edge",
-	.startup 	= NULL, /* startup_irq() not used for IRQ0 */
-	.shutdown 	= NULL, /* shutdown_irq() not used for IRQ0 */
-	.enable 	= enable_lapic_irq,
-	.disable 	= disable_lapic_irq,
-	.ack 		= ack_lapic_irq,
-	.end 		= end_lapic_irq
+static struct irq_chip lapic_chip __read_mostly = {
+	.name		= "local-APIC-edge",
+	.mask		= mask_lapic_irq,
+	.unmask		= unmask_lapic_irq,
+	.eoi		= ack_apic,
 };
 
 static void setup_nmi (void)
@@ -2356,7 +2308,7 @@ static inline void check_timer(void)
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
 	disable_8259A_irq(0);
-	irq_desc[0].chip = &lapic_irq_type;
+	set_irq_chip_and_handler(0, &lapic_chip, handle_fasteoi_irq);
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 

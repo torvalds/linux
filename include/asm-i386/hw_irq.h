@@ -17,8 +17,6 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 
-struct hw_interrupt_type;
-
 #define NMI_VECTOR		0x02
 
 /*
