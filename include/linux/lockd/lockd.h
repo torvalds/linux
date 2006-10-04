@@ -105,7 +105,7 @@ struct nlm_rqst {
  * an NFS client.
  */
 struct nlm_file {
-	struct nlm_file *	f_next;		/* linked list */
+	struct hlist_node	f_list;		/* linked list */
 	struct nfs_fh		f_handle;	/* NFS file handle */
 	struct file *		f_file;		/* VFS file pointer */
 	struct nlm_share *	f_shares;	/* DOS shares */
@@ -113,7 +113,6 @@ struct nlm_file {
 	unsigned int		f_locks;	/* guesstimate # of locks */
 	unsigned int		f_count;	/* reference count */
 	struct semaphore	f_sema;		/* avoid concurrent access */
-	int		       	f_hash;		/* hash of f_handle */
 };
 
 /*
