@@ -192,33 +192,6 @@ nlm_destroy_host(struct nlm_host *host)
 	kfree(host);
 }
 
-struct nlm_host *
-nlm_find_client(void)
-{
-	struct hlist_head *chain;
-	struct hlist_node *pos;
-
-	/* find a nlm_host for a client for which h_killed == 0.
-	 * and return it
-	 */
-	mutex_lock(&nlm_host_mutex);
-	for (chain = nlm_hosts; chain < nlm_hosts + NLM_HOST_NRHASH; ++chain) {
-		struct nlm_host *host;
-
-		hlist_for_each_entry(host, pos, chain, h_hash) {
-			if (host->h_server &&
-			    host->h_killed == 0) {
-				nlm_get_host(host);
-				mutex_unlock(&nlm_host_mutex);
-				return host;
-			}
-		}
-	}
-	mutex_unlock(&nlm_host_mutex);
-	return NULL;
-}
-
-				
 /*
  * Create the NLM RPC client for an NLM peer
  */

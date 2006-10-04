@@ -354,13 +354,11 @@ nlmsvc_free_host_resources(struct nlm_host *host)
 }
 
 /*
- * delete all hosts structs for clients
+ * Remove all locks held for clients
  */
 void
 nlmsvc_invalidate_all(void)
 {
-	struct nlm_host *host;
-
 	/* Release all locks held by NFS clients.
 	 * Previously, the code would call
 	 * nlmsvc_free_host_resources for each client in
@@ -368,10 +366,4 @@ nlmsvc_invalidate_all(void)
 	 * Now we just do it once in nlm_traverse_files.
 	 */
 	nlm_traverse_files(NULL, nlmsvc_is_client);
-
-	while ((host = nlm_find_client()) != NULL) {
-		host->h_expires = 0;
-		host->h_killed = 1;
-		nlm_release_host(host);
-	}
 }
