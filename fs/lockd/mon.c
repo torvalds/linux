@@ -24,7 +24,7 @@ static struct rpc_program	nsm_program;
 /*
  * Local NSM state
  */
-u32				nsm_local_state;
+int				nsm_local_state;
 
 /*
  * Common procedure for SM_MON/SM_UNMON calls

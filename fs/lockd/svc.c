@@ -33,6 +33,7 @@
 #include <linux/sunrpc/svcsock.h>
 #include <net/ip.h>
 #include <linux/lockd/lockd.h>
+#include <linux/lockd/sm_inter.h>
 #include <linux/nfs.h>
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
@@ -400,6 +401,14 @@ static ctl_table nlm_sysctls[] = {
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nsm_use_hostnames",
 		.data		= &nsm_use_hostnames,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nsm_local_state",
+		.data		= &nsm_local_state,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
