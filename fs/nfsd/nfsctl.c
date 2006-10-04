@@ -545,6 +545,8 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		if (nfsd_serv)
 			len = svc_sock_names(buf, nfsd_serv, toclose);
 		unlock_kernel();
+		if (len >= 0)
+			lockd_down();
 		kfree(toclose);
 		return len;
 	}
