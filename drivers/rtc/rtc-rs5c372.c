@@ -91,7 +91,7 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	unsigned char buf[8] = { RS5C372_REG_BASE };
 
 	dev_dbg(&client->dev,
-		"%s: secs=%d, mins=%d, hours=%d ",
+		"%s: secs=%d, mins=%d, hours=%d "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
 		__FUNCTION__, tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
@@ -126,7 +126,7 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 		return -EIO;
 	}
 
-	dev_dbg(&client->dev, "%s: raw trim=%x\n", __FUNCTION__, trim);
+	dev_dbg(&client->dev, "%s: raw trim=%x\n", __FUNCTION__, *trim);
 
 	if (osc)
 		*osc = (buf & RS5C372_TRIM_XSL) ? 32000 : 32768;
