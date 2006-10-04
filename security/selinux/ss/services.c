@@ -2172,7 +2172,12 @@ struct netlbl_cache {
  */
 static void selinux_netlbl_cache_free(const void *data)
 {
-	struct netlbl_cache *cache = NETLBL_CACHE(data);
+	struct netlbl_cache *cache;
+
+	if (data == NULL)
+		return;
+
+	cache = NETLBL_CACHE(data);
 	switch (cache->type) {
 	case NETLBL_CACHE_T_MLS:
 		ebitmap_destroy(&cache->data.mls_label.level[0].cat);
@@ -2197,17 +2202,20 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 	struct netlbl_lsm_secattr secattr;
 
 	netlbl_secattr_init(&secattr);
+	secattr.cache = netlbl_secattr_cache_alloc(GFP_ATOMIC);
+	if (secattr.cache == NULL)
+		goto netlbl_cache_add_return;
 
 	cache = kzalloc(sizeof(*cache),	GFP_ATOMIC);
 	if (cache == NULL)
-		goto netlbl_cache_add_failure;
-	secattr.cache.free = selinux_netlbl_cache_free;
-	secattr.cache.data = (void *)cache;
+		goto netlbl_cache_add_return;
+	secattr.cache->free = selinux_netlbl_cache_free;
+	secattr.cache->data = (void *)cache;
 
 	cache->type = NETLBL_CACHE_T_MLS;
 	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
 			&ctx->range.level[0].cat) != 0)
-		goto netlbl_cache_add_failure;
+		goto netlbl_cache_add_return;
 	cache->data.mls_label.level[1].cat.highbit =
 		cache->data.mls_label.level[0].cat.highbit;
 	cache->data.mls_label.level[1].cat.node =
@@ -2215,13 +2223,10 @@ static void selinux_netlbl_cache_add(struct sk_buff *skb, struct context *ctx)
 	cache->data.mls_label.level[0].sens = ctx->range.level[0].sens;
 	cache->data.mls_label.level[1].sens = ctx->range.level[0].sens;
 
-	if (netlbl_cache_add(skb, &secattr) != 0)
-		goto netlbl_cache_add_failure;
+	netlbl_cache_add(skb, &secattr);
 
-	return;
-
-netlbl_cache_add_failure:
-	netlbl_secattr_destroy(&secattr, 1);
+netlbl_cache_add_return:
+	netlbl_secattr_destroy(&secattr);
 }
 
 /**
@@ -2263,8 +2268,8 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 
 	POLICY_RDLOCK;
 
-	if (secattr->cache.data) {
-		cache = NETLBL_CACHE(secattr->cache.data);
+	if (secattr->cache) {
+		cache = NETLBL_CACHE(secattr->cache->data);
 		switch (cache->type) {
 		case NETLBL_CACHE_T_SID:
 			*sid = cache->data.sid;
@@ -2369,7 +2374,7 @@ static int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 						   &secattr,
 						   base_sid,
 						   sid);
-	netlbl_secattr_destroy(&secattr, 0);
+	netlbl_secattr_destroy(&secattr);
 
 	return rc;
 }
@@ -2415,7 +2420,7 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 	if (rc == 0)
 		sksec->nlbl_state = NLBL_LABELED;
 
-	netlbl_secattr_destroy(&secattr, 0);
+	netlbl_secattr_destroy(&secattr);
 
 netlbl_socket_setsid_return:
 	POLICY_RDUNLOCK;
@@ -2517,7 +2522,7 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 					  sksec->sid,
 					  &nlbl_peer_sid) == 0)
 		sksec->peer_sid = nlbl_peer_sid;
-	netlbl_secattr_destroy(&secattr, 0);
+	netlbl_secattr_destroy(&secattr);
 
 	sksec->nlbl_state = NLBL_REQUIRE;
 

@@ -200,7 +200,7 @@ void netlbl_cache_invalidate(void)
 int netlbl_cache_add(const struct sk_buff *skb,
 		     const struct netlbl_lsm_secattr *secattr)
 {
-	if (secattr->cache.data == NULL)
+	if (secattr->cache == NULL)
 		return -ENOMSG;
 
 	if (CIPSO_V4_OPTEXIST(skb))
