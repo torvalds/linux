@@ -97,7 +97,7 @@ quiet_cmd_unifdef	  = UNIFDEF $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
 				   | $(HDRSED) > $@ || :
 
 quiet_cmd_check		  = CHECK   $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/.check.%,$(_dst)/%,$@)
-      cmd_check		  = $(srctree)/scripts/hdrcheck.sh		\
+      cmd_check		  = $(CONFIG_SHELL) $(srctree)/scripts/hdrcheck.sh \
                               $(INSTALL_HDR_PATH)/include $(subst /.check.,/,$@) $@
 
 quiet_cmd_remove	  = REMOVE  $(_dst)/$@
