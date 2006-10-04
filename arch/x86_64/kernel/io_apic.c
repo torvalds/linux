@@ -43,6 +43,7 @@
 #include <asm/dma.h>
 #include <asm/nmi.h>
 #include <asm/msidef.h>
+#include <asm/hypertransport.h>
 
 static int assign_irq_vector(int irq, cpumask_t mask);
 
@@ -1771,6 +1772,101 @@ struct msi_ops arch_msi_ops = {
 };
 
 #endif
+
+/*
+ * Hypertransport interrupt support
+ */
+#ifdef CONFIG_HT_IRQ
+
+#ifdef CONFIG_SMP
+
+static void target_ht_irq(unsigned int irq, unsigned int dest, u8 vector)
+{
+	u32 low, high;
+	low  = read_ht_irq_low(irq);
+	high = read_ht_irq_high(irq);
+
+	low  &= ~(HT_IRQ_LOW_VECTOR_MASK | HT_IRQ_LOW_DEST_ID_MASK);
+	high &= ~(HT_IRQ_HIGH_DEST_ID_MASK);
+
+	low  |= HT_IRQ_LOW_VECTOR(vector) | HT_IRQ_LOW_DEST_ID(dest);
+	high |= HT_IRQ_HIGH_DEST_ID(dest);
+
+	write_ht_irq_low(irq, low);
+	write_ht_irq_high(irq, high);
+}
+
+static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
+{
+	unsigned int dest;
+	cpumask_t tmp;
+	int vector;
+
+	cpus_and(tmp, mask, cpu_online_map);
+	if (cpus_empty(tmp))
+		tmp = TARGET_CPUS;
+
+	cpus_and(mask, tmp, CPU_MASK_ALL);
+
+	vector = assign_irq_vector(irq, mask);
+	if (vector < 0)
+		return;
+
+	cpus_clear(tmp);
+	cpu_set(vector >> 8, tmp);
+	dest = cpu_mask_to_apicid(tmp);
+
+	target_ht_irq(irq, dest, vector & 0xff);
+	set_native_irq_info(irq, mask);
+}
+#endif
+
+static struct hw_interrupt_type ht_irq_chip = {
+	.name		= "PCI-HT",
+	.mask		= mask_ht_irq,
+	.unmask		= unmask_ht_irq,
+	.ack		= ack_apic_edge,
+#ifdef CONFIG_SMP
+	.set_affinity	= set_ht_irq_affinity,
+#endif
+	.retrigger	= ioapic_retrigger_irq,
+};
+
+int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
+{
+	int vector;
+
+	vector = assign_irq_vector(irq, TARGET_CPUS);
+	if (vector >= 0) {
+		u32 low, high;
+		unsigned dest;
+		cpumask_t tmp;
+
+		cpus_clear(tmp);
+		cpu_set(vector >> 8, tmp);
+		dest = cpu_mask_to_apicid(tmp);
+
+		high = 	HT_IRQ_HIGH_DEST_ID(dest);
+
+		low =	HT_IRQ_LOW_BASE |
+			HT_IRQ_LOW_DEST_ID(dest) |
+			HT_IRQ_LOW_VECTOR(vector) |
+			((INT_DEST_MODE == 0) ?
+				HT_IRQ_LOW_DM_PHYSICAL :
+				HT_IRQ_LOW_DM_LOGICAL) |
+			HT_IRQ_LOW_RQEOI_EDGE |
+			((INT_DELIVERY_MODE != dest_LowestPrio) ?
+				HT_IRQ_LOW_MT_FIXED :
+				HT_IRQ_LOW_MT_ARBITRATED);
+
+		write_ht_irq_low(irq, low);
+		write_ht_irq_high(irq, high);
+
+		set_irq_chip_and_handler(irq, &ht_irq_chip, handle_edge_irq);
+	}
+	return vector;
+}
+#endif /* CONFIG_HT_IRQ */
 
 /* --------------------------------------------------------------------------
                           ACPI-based IOAPIC Configuration

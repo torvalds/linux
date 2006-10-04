@@ -681,6 +681,23 @@ extern int msi_register(struct msi_ops *ops);
 
 #endif
 
+#ifdef CONFIG_HT_IRQ
+/* Helper functions.. */
+void write_ht_irq_low(unsigned int irq, u32 data);
+void write_ht_irq_high(unsigned int irq, u32 data);
+u32  read_ht_irq_low(unsigned int irq);
+u32  read_ht_irq_high(unsigned int irq);
+void mask_ht_irq(unsigned int irq);
+void unmask_ht_irq(unsigned int irq);
+
+/* The functions a driver should call */
+int  ht_create_irq(struct pci_dev *dev, int idx);
+void ht_destroy_irq(unsigned int irq);
+
+/* The arch hook for getting things started */
+int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev);
+#endif /* CONFIG_HT_IRQ */
+
 extern void pci_block_user_cfg_access(struct pci_dev *dev);
 extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
 
