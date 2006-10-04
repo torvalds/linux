@@ -364,6 +364,8 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	pte_t *ptep;
 	pte_t pte;
 	struct page *page;
+	struct page *tmp;
+	LIST_HEAD(page_list);
 
 	WARN_ON(!is_vm_hugetlb_page(vma));
 	BUG_ON(start & ~HPAGE_MASK);
@@ -384,12 +386,16 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 			continue;
 
 		page = pte_page(pte);
-		put_page(page);
+		list_add(&page->lru, &page_list);
 		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
 
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
+	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+		list_del(&page->lru);
+		put_page(page);
+	}
 }
 
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
