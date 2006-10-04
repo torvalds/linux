@@ -291,9 +291,9 @@ struct dentry * dget_locked(struct dentry *dentry)
  * it can be unhashed only if it has no children, or if it is the root
  * of a filesystem.
  *
- * If the inode has a DCACHE_DISCONNECTED alias, then prefer
+ * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
  * any other hashed alias over that one unless @want_discon is set,
- * in which case only return a DCACHE_DISCONNECTED alias.
+ * in which case only return an IS_ROOT, DCACHE_DISCONNECTED alias.
  */
 
 static struct dentry * __d_find_alias(struct inode *inode, int want_discon)
@@ -309,7 +309,8 @@ static struct dentry * __d_find_alias(struct inode *inode, int want_discon)
 		prefetch(next);
 		alias = list_entry(tmp, struct dentry, d_alias);
  		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (alias->d_flags & DCACHE_DISCONNECTED)
+			if (IS_ROOT(alias) &&
+			    (alias->d_flags & DCACHE_DISCONNECTED))
 				discon_alias = alias;
 			else if (!want_discon) {
 				__dget_locked(alias);
@@ -1004,7 +1005,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 {
 	struct dentry *new = NULL;
 
-	if (inode) {
+	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&dcache_lock);
 		new = __d_find_alias(inode, 1);
 		if (new) {
