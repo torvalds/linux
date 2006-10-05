@@ -3481,7 +3481,7 @@ static inline void tg3_full_unlock(struct tg3 *tp)
 /* One-shot MSI handler - Chip automatically disables interrupt
  * after sending MSI so driver doesn't have to do it.
  */
-static irqreturn_t tg3_msi_1shot(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tg3_msi_1shot(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
@@ -3499,7 +3499,7 @@ static irqreturn_t tg3_msi_1shot(int irq, void *dev_id, struct pt_regs *regs)
  * flush status block and interrupt mailbox. PCI ordering rules
  * guarantee that MSI will arrive after the status block.
  */
-static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tg3_msi(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
@@ -3520,7 +3520,7 @@ static irqreturn_t tg3_msi(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_RETVAL(1);
 }
 
-static irqreturn_t tg3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tg3_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
@@ -3563,7 +3563,7 @@ out:
 	return IRQ_RETVAL(handled);
 }
 
-static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
@@ -3606,8 +3606,7 @@ out:
 }
 
 /* ISR for interrupt test */
-static irqreturn_t tg3_test_isr(int irq, void *dev_id,
-		struct pt_regs *regs)
+static irqreturn_t tg3_test_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct tg3 *tp = netdev_priv(dev);
@@ -3651,7 +3650,7 @@ static void tg3_poll_controller(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	tg3_interrupt(tp->pdev->irq, dev, NULL);
+	tg3_interrupt(tp->pdev->irq, dev);
 }
 #endif
 
@@ -6838,7 +6837,7 @@ restart_timer:
 
 static int tg3_request_irq(struct tg3 *tp)
 {
-	irqreturn_t (*fn)(int, void *, struct pt_regs *);
+	irq_handler_t fn;
 	unsigned long flags;
 	struct net_device *dev = tp->dev;
 

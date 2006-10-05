@@ -52,12 +52,12 @@ _GLOBAL(call_do_softirq)
 	blr
 
 _GLOBAL(call_handle_irq)
-	ld	r8,0(r7)
+	ld	r8,0(r6)
 	mflr	r0
 	std	r0,16(r1)
 	mtctr	r8
-	stdu	r1,THREAD_SIZE-112(r6)
-	mr	r1,r6
+	stdu	r1,THREAD_SIZE-112(r5)
+	mr	r1,r5
 	bctrl
 	ld	r1,0(r1)
 	ld	r0,16(r1)

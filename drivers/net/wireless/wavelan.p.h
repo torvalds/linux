@@ -642,8 +642,7 @@ static int
 /* ---------------------- INTERRUPT HANDLING ---------------------- */
 static irqreturn_t
 	wavelan_interrupt(int,		/* interrupt handler */
-			  void *,
-			  struct pt_regs *);
+			  void *);
 static void
 	wavelan_watchdog(struct net_device *);	/* transmission watchdog */
 /* ------------------- CONFIGURATION CALLBACKS ------------------- */

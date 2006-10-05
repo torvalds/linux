@@ -189,8 +189,7 @@ static int ds1553_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t ds1553_rtc_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);

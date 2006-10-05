@@ -440,14 +440,13 @@ static void __init pmac_pic_probe_oldstyle(void)
 }
 #endif /* CONFIG_PPC32 */
 
-static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs)
+static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct mpic *mpic = desc->handler_data;
 
-	unsigned int cascade_irq = mpic_get_one_irq(mpic, regs);
+	unsigned int cascade_irq = mpic_get_one_irq(mpic, get_irq_regs());
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 

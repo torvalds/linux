@@ -320,8 +320,8 @@ static Signature __initdata signatures[] = {
  */
 
 static int hostno = -1;
-static void seagate_reconnect_intr (int, void *, struct pt_regs *);
-static irqreturn_t do_seagate_reconnect_intr (int, void *, struct pt_regs *);
+static void seagate_reconnect_intr (int, void *);
+static irqreturn_t do_seagate_reconnect_intr (int, void *);
 static int seagate_st0x_bus_reset(struct scsi_cmnd *);
 
 #ifdef FAST
@@ -619,19 +619,18 @@ static int should_reconnect = 0;
  * asserting SEL.
  */
 
-static irqreturn_t do_seagate_reconnect_intr(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t do_seagate_reconnect_intr(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = dev_id;
 	
 	spin_lock_irqsave (dev->host_lock, flags);
-	seagate_reconnect_intr (irq, dev_id, regs);
+	seagate_reconnect_intr (irq, dev_id);
 	spin_unlock_irqrestore (dev->host_lock, flags);
 	return IRQ_HANDLED;
 }
 
-static void seagate_reconnect_intr (int irq, void *dev_id, struct pt_regs *regs)
+static void seagate_reconnect_intr (int irq, void *dev_id)
 {
 	int temp;
 	struct scsi_cmnd *SCtmp;

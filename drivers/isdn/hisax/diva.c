@@ -289,7 +289,7 @@ MemWriteHSCX_IPACX(struct IsdnCardState *cs, int hscx, u_char offset, u_char val
 #include "hscx_irq.c"
 
 static irqreturn_t
-diva_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+diva_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val, sval;
@@ -319,7 +319,7 @@ diva_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-diva_irq_ipac_isa(int intno, void *dev_id, struct pt_regs *regs)
+diva_irq_ipac_isa(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char ista,val;
@@ -630,7 +630,7 @@ Memhscx_int_main(struct IsdnCardState *cs, u_char val)
 }
 
 static irqreturn_t
-diva_irq_ipac_pci(int intno, void *dev_id, struct pt_regs *regs)
+diva_irq_ipac_pci(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char ista,val;
@@ -685,7 +685,7 @@ Start_IPACPCI:
 }
 
 static irqreturn_t
-diva_irq_ipacx_pci(int intno, void *dev_id, struct pt_regs *regs)
+diva_irq_ipacx_pci(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;

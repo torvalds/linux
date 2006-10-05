@@ -330,7 +330,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance);
 static void sil24_freeze(struct ata_port *ap);
 static void sil24_thaw(struct ata_port *ap);
 static void sil24_error_handler(struct ata_port *ap);
@@ -870,7 +870,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 			slot_stat, ap->active_tag, ap->sactive);
 }
 
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct sil24_host_priv *hpriv = host->private_data;

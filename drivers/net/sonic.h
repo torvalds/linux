@@ -328,7 +328,7 @@ struct sonic_local {
 
 static int sonic_open(struct net_device *dev);
 static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t sonic_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t sonic_interrupt(int irq, void *dev_id);
 static void sonic_rx(struct net_device *dev);
 static int sonic_close(struct net_device *dev);
 static struct net_device_stats *sonic_get_stats(struct net_device *dev);

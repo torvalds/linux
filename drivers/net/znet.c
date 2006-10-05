@@ -158,7 +158,7 @@ struct netidblk {
 
 static int	znet_open(struct net_device *dev);
 static int	znet_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t znet_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t znet_interrupt(int irq, void *dev_id);
 static void	znet_rx(struct net_device *dev);
 static int	znet_close(struct net_device *dev);
 static struct net_device_stats *net_get_stats(struct net_device *dev);
@@ -602,7 +602,7 @@ static int znet_send_packet(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* The ZNET interrupt handler. */
-static irqreturn_t znet_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t znet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct znet_private *znet = dev->priv;

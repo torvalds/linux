@@ -440,7 +440,7 @@ static uint16_t get_events(vrc4173_socket_t *socket)
 	return events;
 }
 
-static void cardu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void cardu_interrupt(int irq, void *dev_id)
 {
 	vrc4173_socket_t *socket = (vrc4173_socket_t *)dev_id;
 	uint16_t events;

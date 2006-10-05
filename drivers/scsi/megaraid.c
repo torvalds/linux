@@ -1256,14 +1256,13 @@ bug_blocked_mailbox:
  * megaraid_isr_iomapped()
  * @irq - irq
  * @devp - pointer to our soft state
- * @regs - unused
  *
  * Interrupt service routine for io-mapped controllers.
  * Find out if our device is interrupting. If yes, acknowledge the interrupt
  * and service the completed commands.
  */
 static irqreturn_t
-megaraid_isr_iomapped(int irq, void *devp, struct pt_regs *regs)
+megaraid_isr_iomapped(int irq, void *devp)
 {
 	adapter_t	*adapter = devp;
 	unsigned long	flags;
@@ -1333,14 +1332,13 @@ megaraid_isr_iomapped(int irq, void *devp, struct pt_regs *regs)
  * megaraid_isr_memmapped()
  * @irq - irq
  * @devp - pointer to our soft state
- * @regs - unused
  *
  * Interrupt service routine for memory-mapped controllers.
  * Find out if our device is interrupting. If yes, acknowledge the interrupt
  * and service the completed commands.
  */
 static irqreturn_t
-megaraid_isr_memmapped(int irq, void *devp, struct pt_regs *regs)
+megaraid_isr_memmapped(int irq, void *devp)
 {
 	adapter_t	*adapter = devp;
 	unsigned long	flags;

@@ -158,7 +158,7 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usbnet_get_endpoints);
 
-static void intr_complete (struct urb *urb, struct pt_regs *regs);
+static void intr_complete (struct urb *urb);
 
 static int init_status (struct usbnet *dev, struct usb_interface *intf)
 {
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(usbnet_defer_kevent);
 
 /*-------------------------------------------------------------------------*/
 
-static void rx_complete (struct urb *urb, struct pt_regs *regs);
+static void rx_complete (struct urb *urb);
 
 static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 {
@@ -383,7 +383,7 @@ error:
 
 /*-------------------------------------------------------------------------*/
 
-static void rx_complete (struct urb *urb, struct pt_regs *regs)
+static void rx_complete (struct urb *urb)
 {
 	struct sk_buff		*skb = (struct sk_buff *) urb->context;
 	struct skb_data		*entry = (struct skb_data *) skb->cb;
@@ -467,7 +467,7 @@ block:
 		devdbg (dev, "no read resubmitted");
 }
 
-static void intr_complete (struct urb *urb, struct pt_regs *regs)
+static void intr_complete (struct urb *urb)
 {
 	struct usbnet	*dev = urb->context;
 	int		status = urb->status;
@@ -797,7 +797,7 @@ kevent (void *data)
 
 /*-------------------------------------------------------------------------*/
 
-static void tx_complete (struct urb *urb, struct pt_regs *regs)
+static void tx_complete (struct urb *urb)
 {
 	struct sk_buff		*skb = (struct sk_buff *) urb->context;
 	struct skb_data		*entry = (struct skb_data *) skb->cb;

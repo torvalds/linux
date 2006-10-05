@@ -87,7 +87,7 @@ voyager_detect(struct voyager_bios_info *bios)
 }
 
 void
-voyager_system_interrupt(int cpl, void *dev_id, struct pt_regs *regs)
+voyager_system_interrupt(int cpl, void *dev_id)
 {
 	printk("Voyager: detected system interrupt\n");
 }

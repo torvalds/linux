@@ -615,8 +615,7 @@ static inline void check_modem_status(struct esp_struct *info)
 /*
  * This is the serial driver's interrupt routine
  */
-static irqreturn_t rs_interrupt_single(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
 	struct esp_struct * info;
 	unsigned err_status;

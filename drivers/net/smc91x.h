@@ -507,7 +507,7 @@ smc_pxa_dma_insw(void __iomem *ioaddr, u_long physaddr, int reg, int dma,
 #endif
 
 static void
-smc_pxa_dma_irq(int dma, void *dummy, struct pt_regs *regs)
+smc_pxa_dma_irq(int dma, void *dummy)
 {
 	DCSR(dma) = 0;
 }

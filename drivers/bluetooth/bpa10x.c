@@ -263,7 +263,7 @@ static void bpa10x_wakeup(struct bpa10x_data *data)
 	}
 }
 
-static void bpa10x_complete(struct urb *urb, struct pt_regs *regs)
+static void bpa10x_complete(struct urb *urb)
 {
 	struct bpa10x_data *data = urb->context;
 	unsigned char *buf = urb->transfer_buffer;

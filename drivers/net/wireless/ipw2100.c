@@ -3255,7 +3255,7 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
 	IPW_DEBUG_ISR("exit\n");
 }
 
-static irqreturn_t ipw2100_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t ipw2100_interrupt(int irq, void *data)
 {
 	struct ipw2100_priv *priv = data;
 	u32 inta, inta_mask;

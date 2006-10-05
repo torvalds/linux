@@ -368,8 +368,7 @@ static struct hw_interrupt_type dino_interrupt_type = {
  * ilr_loop counter is a kluge to prevent a "stuck" IRQ line from
  * wedging the CPU. Could be removed or made optional at some point.
  */
-static irqreturn_t
-dino_isr(int irq, void *intr_dev, struct pt_regs *regs)
+static irqreturn_t dino_isr(int irq, void *intr_dev)
 {
 	struct dino_device *dino_dev = intr_dev;
 	u32 mask;

@@ -24,10 +24,7 @@
 /*
  * FRV DMA controller management
  */
-struct pt_regs;
-
-typedef irqreturn_t (*dma_irq_handler_t)(int dmachan, unsigned long cstr, void *data,
-					 struct pt_regs *regs);
+typedef irqreturn_t (*dma_irq_handler_t)(int dmachan, unsigned long cstr, void *data);
 
 extern void frv_dma_init(void);
 

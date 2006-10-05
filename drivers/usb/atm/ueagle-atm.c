@@ -1297,7 +1297,7 @@ bad1:
 /*
  * interrupt handler
  */
-static void uea_intr(struct urb *urb, struct pt_regs *regs)
+static void uea_intr(struct urb *urb)
 {
 	struct uea_softc *sc = urb->context;
 	struct intr_pkt *intr = urb->transfer_buffer;

@@ -1965,7 +1965,7 @@ quit_polling:
 	return 1;
 }
 
-static irqreturn_t ql3xxx_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 {
 
 	struct net_device *ndev = dev_id;

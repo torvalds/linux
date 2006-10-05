@@ -15,7 +15,7 @@
 #define DBG(fmt...)
 #endif
 
-static irqreturn_t macio_gpio_irq(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t macio_gpio_irq(int irq, void *data)
 {
 	pmf_do_irq(data);
 

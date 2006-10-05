@@ -536,7 +536,7 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 	}
 }
 
-static irqreturn_t myri_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t myri_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev		= (struct net_device *) dev_id;
 	struct myri_eth *mp		= (struct myri_eth *) dev->priv;

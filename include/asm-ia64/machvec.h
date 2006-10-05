@@ -26,7 +26,7 @@ typedef void ia64_mv_setup_t (char **);
 typedef void ia64_mv_cpu_init_t (void);
 typedef void ia64_mv_irq_init_t (void);
 typedef void ia64_mv_send_ipi_t (int, int, int, int);
-typedef void ia64_mv_timer_interrupt_t (int, void *, struct pt_regs *);
+typedef void ia64_mv_timer_interrupt_t (int, void *);
 typedef void ia64_mv_global_tlb_purge_t (struct mm_struct *, unsigned long, unsigned long, unsigned long);
 typedef void ia64_mv_tlb_migrate_finish_t (struct mm_struct *);
 typedef unsigned int ia64_mv_local_vector_to_irq (u8);
@@ -96,7 +96,7 @@ machvec_noop_task (struct task_struct *task)
 }
 
 extern void machvec_setup (char **);
-extern void machvec_timer_interrupt (int, void *, struct pt_regs *);
+extern void machvec_timer_interrupt (int, void *);
 extern void machvec_dma_sync_single (struct device *, dma_addr_t, size_t, int);
 extern void machvec_dma_sync_sg (struct device *, struct scatterlist *, int, int);
 extern void machvec_tlb_migrate_finish (struct mm_struct *);

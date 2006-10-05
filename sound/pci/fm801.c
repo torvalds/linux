@@ -520,7 +520,7 @@ static snd_pcm_uframes_t snd_fm801_capture_pointer(struct snd_pcm_substream *sub
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 {
 	struct fm801 *chip = dev_id;
 	unsigned short status;
@@ -561,7 +561,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *re
 		snd_pcm_period_elapsed(chip->capture_substream);
 	}
 	if (chip->rmidi && (status & FM801_IRQ_MPU))
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 	if (status & FM801_IRQ_VOLUME)
 		;/* TODO */
 

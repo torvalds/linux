@@ -363,7 +363,7 @@ static void rio_reset_interrupt(struct Host *HostP)
 }
 
 
-static irqreturn_t rio_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t rio_interrupt(int irq, void *ptr)
 {
 	struct Host *HostP;
 	func_enter();
@@ -417,7 +417,7 @@ static void rio_pollfunc(unsigned long data)
 {
 	func_enter();
 
-	rio_interrupt(0, &p->RIOHosts[data], NULL);
+	rio_interrupt(0, &p->RIOHosts[data]);
 	p->RIOHosts[data].timer.expires = jiffies + rio_poll;
 	add_timer(&p->RIOHosts[data].timer);
 

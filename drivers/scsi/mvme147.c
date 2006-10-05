@@ -20,7 +20,7 @@
 
 static struct Scsi_Host *mvme147_host = NULL;
 
-static irqreturn_t mvme147_intr (int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t mvme147_intr (int irq, void *dummy)
 {
     if (irq == MVME147_IRQ_SCSI_PORT)
 	wd33c93_intr (mvme147_host);

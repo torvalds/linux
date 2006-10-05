@@ -65,13 +65,12 @@ struct nkbd {
 };
 
 static irqreturn_t nkbd_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct nkbd *nkbd = serio_get_drvdata(serio);
 
 	/* invalid scan codes are probably the init sequence, so we ignore them */
 	if (nkbd->keycode[data & NKBD_KEY]) {
-		input_regs(nkbd->dev, regs);
 		input_report_key(nkbd->dev, nkbd->keycode[data & NKBD_KEY], data & NKBD_PRESS);
 		input_sync(nkbd->dev);
 	}

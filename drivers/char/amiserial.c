@@ -447,7 +447,7 @@ static void check_modem_status(struct async_struct *info)
 	}
 }
 
-static irqreturn_t ser_vbl_int( int irq, void *data, struct pt_regs *regs)
+static irqreturn_t ser_vbl_int( int irq, void *data)
 {
         /* vbl is just a periodic interrupt we tie into to update modem status */
 	struct async_struct * info = IRQ_ports;
@@ -460,7 +460,7 @@ static irqreturn_t ser_vbl_int( int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ser_rx_int(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ser_rx_int(int irq, void *dev_id)
 {
 	struct async_struct * info;
 
@@ -480,7 +480,7 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id, struct pt_regs * regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ser_tx_int(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ser_tx_int(int irq, void *dev_id)
 {
 	struct async_struct * info;
 

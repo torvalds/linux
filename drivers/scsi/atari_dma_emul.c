@@ -110,7 +110,7 @@ static inline void set_restdata_reg(unsigned char *cur_addr)
 }
 
 /*
- * void hades_dma_emulator(int irq, void *dummy, struct pt_regs *fp)
+ * void hades_dma_emulator(int irq, void *dummy)
  * 
  * This code emulates TT SCSI DMA on the Hades.
  * 
@@ -140,7 +140,7 @@ static inline void set_restdata_reg(unsigned char *cur_addr)
  *    increased with one.
  */
 
-static irqreturn_t hades_dma_emulator(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t hades_dma_emulator(int irq, void *dummy)
 {
 	unsigned long dma_base;
 	register unsigned long dma_cnt asm ("d3");

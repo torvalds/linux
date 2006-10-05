@@ -363,7 +363,7 @@ SYM53C500_pio_write(int fast_pio, int base, unsigned char *request, unsigned int
 }
 
 static irqreturn_t
-SYM53C500_intr(int irq, void *dev_id, struct pt_regs *regs)
+SYM53C500_intr(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = dev_id;

@@ -335,13 +335,13 @@ DEBUG(printk(CARD_DEBUG "turning off\n",CARD));
 }
 
 static
-void zoran_irq(int irq, void *dev_id, struct pt_regs * regs)
+void zoran_irq(int irq, void *dev_id)
 {
 	u32 stat,estat;
 	int count = 0;
 	struct zoran *ztv = dev_id;
 
-	UNUSED(irq); UNUSED(regs);
+	UNUSED(irq);
 	for (;;) {
 		/* get/clear interrupt status bits */
 		stat=zrread(ZORAN_ISR);

@@ -195,7 +195,7 @@ static void     ad1848_halt(int dev);
 static void     ad1848_halt_input(int dev);
 static void     ad1848_halt_output(int dev);
 static void     ad1848_trigger(int dev, int bits);
-static irqreturn_t adintr(int irq, void *dev_id, struct pt_regs *dummy);
+static irqreturn_t adintr(int irq, void *dev_id);
 
 #ifndef EXCLUDE_TIMERS
 static int ad1848_tmr_install(int dev);
@@ -2196,7 +2196,7 @@ void ad1848_unload(int io_base, int irq, int dma_playback, int dma_capture, int 
 		printk(KERN_ERR "ad1848: Can't find device to be unloaded. Base=%x\n", io_base);
 }
 
-static irqreturn_t adintr(int irq, void *dev_id, struct pt_regs *dummy)
+static irqreturn_t adintr(int irq, void *dev_id)
 {
 	unsigned char status;
 	ad1848_info *devc;

@@ -608,7 +608,7 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 				debugl1(cs, "D-Channel Busy no skb");
 			}
 			cs->writeisac(cs, ICC_CMDR, 0x01); /* Transmitter reset */
-			cs->irq_func(cs->irq, cs, NULL);
+			cs->irq_func(cs->irq, cs);
 		}
 	}
 }

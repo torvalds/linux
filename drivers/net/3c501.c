@@ -496,7 +496,6 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * el_interrupt:
  * @irq: Interrupt number
  * @dev_id: The 3c501 that burped
- * @regs: Register data (surplus to our requirements)
  *
  * Handle the ether interface interrupts. The 3c501 needs a lot more
  * hand holding than most cards. In particular we get a transmit interrupt
@@ -515,7 +514,7 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * TCP window.
  */
 
-static irqreturn_t el_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t el_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *lp;

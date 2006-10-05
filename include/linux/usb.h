@@ -764,9 +764,8 @@ struct usb_iso_packet_descriptor {
 };
 
 struct urb;
-struct pt_regs;
 
-typedef void (*usb_complete_t)(struct urb *, struct pt_regs *);
+typedef void (*usb_complete_t)(struct urb *);
 
 /**
  * struct urb - USB Request Block

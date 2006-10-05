@@ -2346,7 +2346,7 @@ start_receive(struct e100_serial *info)
 */
 
 static irqreturn_t
-tr_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+tr_interrupt(int irq, void *dev_id)
 {
 	struct e100_serial *info;
 	unsigned long ireg;
@@ -2395,7 +2395,7 @@ tr_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 /* dma input channel interrupt handler */
 
 static irqreturn_t
-rec_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+rec_interrupt(int irq, void *dev_id)
 {
 	struct e100_serial *info;
 	unsigned long ireg;
@@ -3054,7 +3054,7 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
  * ser_int duration: just sending: 8-15 us normally, up to 73 us
  */
 static irqreturn_t
-ser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ser_interrupt(int irq, void *dev_id)
 {
 	static volatile int tx_started = 0;
 	struct e100_serial *info;

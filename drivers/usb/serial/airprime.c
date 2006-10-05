@@ -46,7 +46,7 @@ struct airprime_private {
 	struct urb *read_urbp[NUM_READ_URBS];
 };
 
-static void airprime_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void airprime_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -80,7 +80,7 @@ static void airprime_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	return;
 }
 
-static void airprime_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void airprime_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct airprime_private *priv = usb_get_serial_port_data(port);

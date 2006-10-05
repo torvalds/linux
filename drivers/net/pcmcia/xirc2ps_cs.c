@@ -308,7 +308,7 @@ static void xirc2ps_detach(struct pcmcia_device *p_dev);
  * less on other parts of the kernel.
  */
 
-static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
 /****************
  * A linked list of "instances" of the device.  Each actual
@@ -1121,7 +1121,7 @@ static int xirc2ps_resume(struct pcmcia_device *link)
  * This is the Interrupt service route.
  */
 static irqreturn_t
-xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+xirc2ps_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *)dev_id;
     local_info_t *lp = netdev_priv(dev);

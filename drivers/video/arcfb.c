@@ -218,8 +218,7 @@ static int arcfb_pan_display(struct fb_var_screeninfo *var,
 	return -EINVAL;
 }
 
-static irqreturn_t arcfb_interrupt(int vec, void *dev_instance,
-		struct pt_regs *regs)
+static irqreturn_t arcfb_interrupt(int vec, void *dev_instance)
 {
 	struct fb_info *info = dev_instance;
 	unsigned char ctl2status;

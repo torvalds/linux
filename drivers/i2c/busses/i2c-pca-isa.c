@@ -99,7 +99,7 @@ static int pca_isa_waitforinterrupt(struct i2c_algo_pca_data *adap)
 	return ret;
 }
 
-static irqreturn_t pca_handler(int this_irq, void *dev_id, struct pt_regs *regs) {
+static irqreturn_t pca_handler(int this_irq, void *dev_id) {
 	wake_up_interruptible(&pca_wait);
 	return IRQ_HANDLED;
 }

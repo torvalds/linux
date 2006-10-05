@@ -496,7 +496,7 @@ static inline unsigned int phy_interrupt (struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct tulip_private *tp = netdev_priv(dev);

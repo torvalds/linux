@@ -26,7 +26,7 @@
 
 static struct Scsi_Host *a3000_host = NULL;
 
-static irqreturn_t a3000_intr (int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t a3000_intr (int irq, void *dummy)
 {
 	unsigned long flags;
 	unsigned int status = DMA(a3000_host)->ISTR;

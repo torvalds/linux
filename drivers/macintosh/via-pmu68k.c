@@ -107,7 +107,7 @@ BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 static int pmu_probe(void);
 static int pmu_init(void);
 static void pmu_start(void);
-static irqreturn_t pmu_interrupt(int irq, void *arg, struct pt_regs *regs);
+static irqreturn_t pmu_interrupt(int irq, void *arg);
 static int pmu_send_request(struct adb_request *req, int sync);
 static int pmu_autopoll(int devs);
 void pmu_poll(void);
@@ -118,8 +118,7 @@ static void pmu_start(void);
 static void send_byte(int x);
 static void recv_byte(void);
 static void pmu_done(struct adb_request *req);
-static void pmu_handle_data(unsigned char *data, int len,
-			    struct pt_regs *regs);
+static void pmu_handle_data(unsigned char *data, int len);
 static void set_volume(int level);
 static void pmu_enable_backlight(int on);
 static void pmu_set_brightness(int level);
@@ -573,7 +572,7 @@ pmu_poll(void)
 }
 
 static irqreturn_t
-pmu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+pmu_interrupt(int irq, void *dev_id)
 {
 	struct adb_request *req;
 	int timeout, bite = 0;	/* to prevent compiler warning */
@@ -657,7 +656,7 @@ pmu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			}
 
 			if (pmu_state == reading_intr) {
-				pmu_handle_data(interrupt_data, data_index, regs);
+				pmu_handle_data(interrupt_data, data_index);
 			} else {
 				req = current_req;
 				current_req = req->next;
@@ -701,7 +700,7 @@ pmu_done(struct adb_request *req)
 
 /* Interrupt data could be the result data from an ADB cmd */
 static void 
-pmu_handle_data(unsigned char *data, int len, struct pt_regs *regs)
+pmu_handle_data(unsigned char *data, int len)
 {
 	static int show_pmu_ints = 1;
 
@@ -726,7 +725,7 @@ pmu_handle_data(unsigned char *data, int len, struct pt_regs *regs)
 			}
 			pmu_done(req);
 		} else {
-			adb_input(data+1, len-1, regs, 1);
+			adb_input(data+1, len-1, 1);
 		}
 	} else {
 		if (data[0] == 0x08 && len == 3) {

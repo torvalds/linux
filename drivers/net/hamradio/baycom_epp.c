@@ -323,7 +323,7 @@ static int eppconfig(struct baycom_state *bc)
 
 /* ---------------------------------------------------------------------- */
 
-static void epp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void epp_interrupt(int irq, void *dev_id)
 {
 }
 

@@ -83,8 +83,8 @@ static int ipaq_write(struct usb_serial_port *port, const unsigned char *buf,
 static int ipaq_write_bulk(struct usb_serial_port *port, const unsigned char *buf,
 			   int count);
 static void ipaq_write_gather(struct usb_serial_port *port);
-static void ipaq_read_bulk_callback (struct urb *urb, struct pt_regs *regs);
-static void ipaq_write_bulk_callback(struct urb *urb, struct pt_regs *regs);
+static void ipaq_read_bulk_callback (struct urb *urb);
+static void ipaq_write_bulk_callback(struct urb *urb);
 static int ipaq_write_room(struct usb_serial_port *port);
 static int ipaq_chars_in_buffer(struct usb_serial_port *port);
 static void ipaq_destroy_lists(struct usb_serial_port *port);
@@ -721,7 +721,7 @@ static void ipaq_close(struct usb_serial_port *port, struct file *filp)
 	/* info ("Bytes In = %d  Bytes Out = %d", bytes_in, bytes_out); */
 }
 
-static void ipaq_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void ipaq_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port	*port = (struct usb_serial_port *)urb->context;
 	struct tty_struct	*tty;
@@ -859,7 +859,7 @@ static void ipaq_write_gather(struct usb_serial_port *port)
 	return;
 }
 
-static void ipaq_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void ipaq_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port	*port = (struct usb_serial_port *)urb->context;
 	struct ipaq_private	*priv = usb_get_serial_port_data(port);

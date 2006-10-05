@@ -1200,7 +1200,7 @@ static inline void carm_handle_responses(struct carm_host *host)
 	host->resp_idx += work;
 }
 
-static irqreturn_t carm_interrupt(int irq, void *__host, struct pt_regs *regs)
+static irqreturn_t carm_interrupt(int irq, void *__host)
 {
 	struct carm_host *host = __host;
 	void __iomem *mmio;

@@ -143,15 +143,13 @@ struct hcd_timeout {	/* timeouts we allocate */
 /*-------------------------------------------------------------------------*/
 
 
-struct pt_regs;
-
 struct hc_driver {
 	const char	*description;	/* "ehci-hcd" etc */
 	const char	*product_desc;	/* product/vendor string */
 	size_t		hcd_priv_size;	/* size of private data */
 
 	/* irq handler */
-	irqreturn_t	(*irq) (struct usb_hcd *hcd, struct pt_regs *regs);
+	irqreturn_t	(*irq) (struct usb_hcd *hcd);
 
 	int	flags;
 #define	HCD_MEMORY	0x0001		/* HC regs use memory (else I/O) */
@@ -205,8 +203,7 @@ struct hc_driver {
 
 extern int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags);
 extern int usb_hcd_unlink_urb (struct urb *urb, int status);
-extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb,
-		struct pt_regs *regs);
+extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb);
 extern void usb_hcd_endpoint_disable (struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern int usb_hcd_get_frame_number (struct usb_device *udev);
@@ -248,7 +245,7 @@ void hcd_buffer_free (struct usb_bus *bus, size_t size,
 	void *addr, dma_addr_t dma);
 
 /* generic bus glue, needed for host controllers that don't use PCI */
-extern irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs *r);
+extern irqreturn_t usb_hcd_irq (int irq, void *__hcd);
 
 extern void usb_hc_died (struct usb_hcd *hcd);
 extern void usb_hcd_poll_rh_status(struct usb_hcd *hcd);

@@ -315,7 +315,7 @@ static snd_pcm_uframes_t snd_ad1816a_capture_pointer(struct snd_pcm_substream *s
 }
 
 
-static irqreturn_t snd_ad1816a_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_ad1816a_interrupt(int irq, void *dev_id)
 {
 	struct snd_ad1816a *chip = dev_id;
 	unsigned char status;

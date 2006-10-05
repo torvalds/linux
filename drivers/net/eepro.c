@@ -311,7 +311,7 @@ struct eepro_local {
 static int	eepro_probe1(struct net_device *dev, int autoprobe);
 static int	eepro_open(struct net_device *dev);
 static int	eepro_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t eepro_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t eepro_interrupt(int irq, void *dev_id);
 static void 	eepro_rx(struct net_device *dev);
 static void 	eepro_transmit_interrupt(struct net_device *dev);
 static int	eepro_close(struct net_device *dev);
@@ -1196,7 +1196,7 @@ static int eepro_send_packet(struct sk_buff *skb, struct net_device *dev)
 	Handle the network interface interrupts. */
 
 static irqreturn_t
-eepro_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+eepro_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev =  (struct net_device *)dev_id;
 	                      /* (struct net_device *)(irq2dev_map[irq]);*/

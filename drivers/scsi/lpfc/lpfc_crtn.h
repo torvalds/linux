@@ -120,7 +120,7 @@ int lpfc_sli_queue_setup(struct lpfc_hba *);
 
 void lpfc_handle_eratt(struct lpfc_hba *);
 void lpfc_handle_latt(struct lpfc_hba *);
-irqreturn_t lpfc_intr_handler(int, void *, struct pt_regs *);
+irqreturn_t lpfc_intr_handler(int, void *);
 
 void lpfc_read_rev(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_ring(struct lpfc_hba *, int, LPFC_MBOXQ_t *);

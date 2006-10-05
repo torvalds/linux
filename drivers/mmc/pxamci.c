@@ -299,7 +299,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	return 1;
 }
 
-static irqreturn_t pxamci_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t pxamci_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = devid;
 	unsigned int ireg;
@@ -399,13 +399,13 @@ static struct mmc_host_ops pxamci_ops = {
 	.set_ios	= pxamci_set_ios,
 };
 
-static void pxamci_dma_irq(int dma, void *devid, struct pt_regs *regs)
+static void pxamci_dma_irq(int dma, void *devid)
 {
 	printk(KERN_ERR "DMA%d: IRQ???\n", dma);
 	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
 }
 
-static irqreturn_t pxamci_detect_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = mmc_priv(devid);
 

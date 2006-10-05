@@ -176,8 +176,8 @@ static struct _urb *_urb_dequeue(struct _urb_queue *q)
 	return _urb;
 }
 
-static void hci_usb_rx_complete(struct urb *urb, struct pt_regs *regs);
-static void hci_usb_tx_complete(struct urb *urb, struct pt_regs *regs);
+static void hci_usb_rx_complete(struct urb *urb);
+static void hci_usb_tx_complete(struct urb *urb);
 
 #define __pending_tx(husb, type)  (&husb->pending_tx[type-1])
 #define __pending_q(husb, type)   (&husb->pending_q[type-1])
@@ -732,7 +732,7 @@ static inline int __recv_frame(struct hci_usb *husb, int type, void *data, int c
 	return 0;
 }
 
-static void hci_usb_rx_complete(struct urb *urb, struct pt_regs *regs)
+static void hci_usb_rx_complete(struct urb *urb)
 {
 	struct _urb *_urb = container_of(urb, struct _urb, urb);
 	struct hci_usb *husb = (void *) urb->context;
@@ -786,7 +786,7 @@ unlock:
 	read_unlock(&husb->completion_lock);
 }
 
-static void hci_usb_tx_complete(struct urb *urb, struct pt_regs *regs)
+static void hci_usb_tx_complete(struct urb *urb)
 {
 	struct _urb *_urb = container_of(urb, struct _urb, urb);
 	struct hci_usb *husb = (void *) urb->context;

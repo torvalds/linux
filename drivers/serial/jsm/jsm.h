@@ -99,7 +99,7 @@ struct jsm_channel;
  * Per board operations structure					*
  ************************************************************************/
 struct board_ops {
-	irqreturn_t (*intr) (int irq, void *voidbrd, struct pt_regs *regs);
+	irq_handler_t intr;
 	void (*uart_init) (struct jsm_channel *ch);
 	void (*uart_off) (struct jsm_channel *ch);
 	void (*param) (struct jsm_channel *ch);

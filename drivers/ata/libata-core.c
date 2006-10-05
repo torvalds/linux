@@ -4857,7 +4857,6 @@ idle_irq:
  *	ata_interrupt - Default ATA host interrupt handler
  *	@irq: irq line (unused)
  *	@dev_instance: pointer to our ata_host information structure
- *	@regs: unused
  *
  *	Default interrupt handler for PCI IDE devices.  Calls
  *	ata_host_intr() for each port that is not disabled.
@@ -4869,7 +4868,7 @@ idle_irq:
  *	IRQ_NONE or IRQ_HANDLED.
  */
 
-irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+irqreturn_t ata_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;

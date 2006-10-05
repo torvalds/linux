@@ -623,7 +623,7 @@ static void free_ring(struct net_device *dev);
 static void reinit_ring(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int start_tx(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t intr_handler(int irq, void *dev_instance);
 static void netdev_error(struct net_device *dev, int intr_status);
 static int natsemi_poll(struct net_device *dev, int *budget);
 static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do);
@@ -2088,7 +2088,7 @@ static void netdev_tx_done(struct net_device *dev)
 
 /* The interrupt handler doesn't actually handle interrupts itself, it
  * schedules a NAPI poll if there is anything to do. */
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs)
+static irqreturn_t intr_handler(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct netdev_private *np = netdev_priv(dev);
@@ -2373,7 +2373,7 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 static void natsemi_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	intr_handler(dev->irq, dev, NULL);
+	intr_handler(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

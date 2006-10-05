@@ -331,7 +331,7 @@ EXPORT_SYMBOL(bbc_i2c_readb);
 EXPORT_SYMBOL(bbc_i2c_write_buf);
 EXPORT_SYMBOL(bbc_i2c_read_buf);
 
-static irqreturn_t bbc_i2c_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bbc_i2c_interrupt(int irq, void *dev_id)
 {
 	struct bbc_i2c_bus *bp = dev_id;
 

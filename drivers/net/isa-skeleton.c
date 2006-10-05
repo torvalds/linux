@@ -107,7 +107,7 @@ struct net_local {
 static int	netcard_probe1(struct net_device *dev, int ioaddr);
 static int	net_open(struct net_device *dev);
 static int	net_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t net_interrupt(int irq, void *dev_id);
 static void	net_rx(struct net_device *dev);
 static int	net_close(struct net_device *dev);
 static struct	net_device_stats *net_get_stats(struct net_device *dev);
@@ -504,7 +504,7 @@ void net_tx(struct net_device *dev)
  * The typical workload of the driver:
  * Handle the network interface interrupts.
  */
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t net_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *np;

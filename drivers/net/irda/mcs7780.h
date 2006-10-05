@@ -156,8 +156,8 @@ static int mcs_net_close(struct net_device *netdev);
 static int mcs_net_open(struct net_device *netdev);
 static struct net_device_stats *mcs_net_get_stats(struct net_device *netdev);
 
-static void mcs_receive_irq(struct urb *urb, struct pt_regs *regs);
-static void mcs_send_irq(struct urb *urb, struct pt_regs *regs);
+static void mcs_receive_irq(struct urb *urb);
+static void mcs_send_irq(struct urb *urb);
 static int mcs_hard_xmit(struct sk_buff *skb, struct net_device *netdev);
 
 static int mcs_probe(struct usb_interface *intf,

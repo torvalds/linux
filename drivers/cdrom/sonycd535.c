@@ -322,7 +322,7 @@ disable_interrupts(void)
 }
 
 static irqreturn_t
-cdu535_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+cdu535_interrupt(int irq, void *dev_id)
 {
 	disable_interrupts();
 	if (waitqueue_active(&cdu535_irq_wait)) {

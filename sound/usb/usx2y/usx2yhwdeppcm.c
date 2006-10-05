@@ -226,7 +226,7 @@ static inline int usX2Y_usbpcm_usbframe_complete(struct snd_usX2Y_substream *cap
 }
 
 
-static void i_usX2Y_usbpcm_urb_complete(struct urb *urb, struct pt_regs *regs)
+static void i_usX2Y_usbpcm_urb_complete(struct urb *urb)
 {
 	struct snd_usX2Y_substream *subs = urb->context;
 	struct usX2Ydev *usX2Y = subs->usX2Y;
@@ -294,7 +294,7 @@ static void usX2Y_usbpcm_subs_startup_finish(struct usX2Ydev * usX2Y)
 	usX2Y->prepare_subs = NULL;
 }
 
-static void i_usX2Y_usbpcm_subs_startup(struct urb *urb, struct pt_regs *regs)
+static void i_usX2Y_usbpcm_subs_startup(struct urb *urb)
 {
 	struct snd_usX2Y_substream *subs = urb->context;
 	struct usX2Ydev *usX2Y = subs->usX2Y;
@@ -311,7 +311,7 @@ static void i_usX2Y_usbpcm_subs_startup(struct urb *urb, struct pt_regs *regs)
 		wake_up(&usX2Y->prepare_wait_queue);
 	}
 
-	i_usX2Y_usbpcm_urb_complete(urb, regs);
+	i_usX2Y_usbpcm_urb_complete(urb);
 }
 
 /*

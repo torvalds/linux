@@ -176,7 +176,7 @@ static void netx_eth_receive(struct net_device *ndev)
 }
 
 static irqreturn_t
-netx_eth_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+netx_eth_interrupt(int irq, void *dev_id)
 {
 	struct net_device *ndev = dev_id;
 	struct netx_eth_priv *priv = netdev_priv(ndev);

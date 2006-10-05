@@ -13,7 +13,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb);
 int qla4xxx_initialize_adapter(struct scsi_qla_host * ha,
 			       uint8_t renew_ddb_list);
 int qla4xxx_soft_reset(struct scsi_qla_host *ha);
-irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id);
 
 void qla4xxx_free_ddb_list(struct scsi_qla_host * ha);
 void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen);

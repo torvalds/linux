@@ -441,7 +441,7 @@ static void fs_enet_tx(struct net_device *dev)
  * This is called from the MPC core interrupt.
  */
 static irqreturn_t
-fs_enet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+fs_enet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct fs_enet_private *fep;
@@ -667,7 +667,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int fs_request_irq(struct net_device *dev, int irq, const char *name,
-		irqreturn_t (*irqf)(int irq, void *dev_id, struct pt_regs *regs))
+		irq_handler_t irqf)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 

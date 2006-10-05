@@ -82,7 +82,7 @@ MODULE_DEVICE_TABLE(parisc, gscps2_device_tbl);
 #define GSC_ID_MOUSE		1
 
 
-static irqreturn_t gscps2_interrupt(int irq, void *dev, struct pt_regs *regs);
+static irqreturn_t gscps2_interrupt(int irq, void *dev);
 
 #define BUFFER_SIZE 0x0f
 
@@ -226,7 +226,7 @@ static LIST_HEAD(ps2port_list);
  * later.
  */
 
-static irqreturn_t gscps2_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t gscps2_interrupt(int irq, void *dev)
 {
 	struct gscps2port *ps2port;
 
@@ -267,7 +267,7 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev, struct pt_regs *regs)
 	    rxflags =	((status & GSC_STAT_TERR) ? SERIO_TIMEOUT : 0 ) |
 			((status & GSC_STAT_PERR) ? SERIO_PARITY  : 0 );
 
-	    serio_interrupt(ps2port->port, data, rxflags, regs);
+	    serio_interrupt(ps2port->port, data, rxflags);
 
 	  } /* while() */
 

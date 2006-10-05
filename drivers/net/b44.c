@@ -896,7 +896,7 @@ static int b44_poll(struct net_device *netdev, int *budget)
 	return (done ? 0 : 1);
 }
 
-static irqreturn_t b44_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t b44_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct b44 *bp = netdev_priv(dev);
@@ -1461,7 +1461,7 @@ out:
 static void b44_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	b44_interrupt(dev->irq, dev, NULL);
+	b44_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

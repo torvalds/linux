@@ -512,7 +512,7 @@ pcbit_firmware_bug(struct pcbit_dev *dev)
 }
 
 irqreturn_t
-pcbit_irq_handler(int interrupt, void *devptr, struct pt_regs *regs)
+pcbit_irq_handler(int interrupt, void *devptr)
 {
 	struct pcbit_dev *dev;
 	u_char info,

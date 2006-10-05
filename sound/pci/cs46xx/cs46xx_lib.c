@@ -1149,7 +1149,7 @@ static int snd_cs46xx_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_cs46xx_interrupt(int irq, void *dev_id)
 {
 	struct snd_cs46xx *chip = dev_id;
 	u32 status1;

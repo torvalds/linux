@@ -2009,7 +2009,7 @@ struct isp_operations {
 	char * (*pci_info_str) (struct scsi_qla_host *, char *);
 	char * (*fw_version_str) (struct scsi_qla_host *, char *);
 
-	irqreturn_t (*intr_handler) (int, void *, struct pt_regs *);
+	irq_handler_t intr_handler;
 	void (*enable_intrs) (struct scsi_qla_host *);
 	void (*disable_intrs) (struct scsi_qla_host *);
 

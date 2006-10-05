@@ -518,7 +518,7 @@ sn9c102_find_eof_header(struct sn9c102_device* cam, void* mem, size_t len)
 }
 
 
-static void sn9c102_urb_complete(struct urb *urb, struct pt_regs* regs)
+static void sn9c102_urb_complete(struct urb *urb)
 {
 	struct sn9c102_device* cam = urb->context;
 	struct sn9c102_frame_t** f;

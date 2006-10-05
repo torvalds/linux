@@ -55,7 +55,7 @@ struct usb_mouse {
 	dma_addr_t data_dma;
 };
 
-static void usb_mouse_irq(struct urb *urb, struct pt_regs *regs)
+static void usb_mouse_irq(struct urb *urb)
 {
 	struct usb_mouse *mouse = urb->context;
 	signed char *data = mouse->data;
@@ -73,8 +73,6 @@ static void usb_mouse_irq(struct urb *urb, struct pt_regs *regs)
 	default:		/* error */
 		goto resubmit;
 	}
-
-	input_regs(dev, regs);
 
 	input_report_key(dev, BTN_LEFT,   data[0] & 0x01);
 	input_report_key(dev, BTN_RIGHT,  data[0] & 0x02);

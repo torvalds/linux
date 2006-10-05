@@ -180,7 +180,7 @@ sizeof(nop_cmd) = 8;
       	dev->name,__LINE__); \
       elmc_id_reset586(); } } }
 
-static irqreturn_t elmc_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr);
+static irqreturn_t elmc_interrupt(int irq, void *dev_id);
 static int elmc_open(struct net_device *dev);
 static int elmc_close(struct net_device *dev);
 static int elmc_send_packet(struct sk_buff *, struct net_device *);
@@ -900,14 +900,14 @@ static void *alloc_rfa(struct net_device *dev, void *ptr)
  */
 
 static irqreturn_t
-elmc_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
+elmc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	unsigned short stat;
 	struct priv *p;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "elmc-interrupt: irq %d for unknown device.\n", (int) -(((struct pt_regs *) reg_ptr)->orig_eax + 2));
+		printk(KERN_ERR "elmc-interrupt: irq %d for unknown device.\n", irq);
 		return IRQ_NONE;
 	} else if (!netif_running(dev)) {
 		/* The 3c523 has this habit of generating interrupts during the

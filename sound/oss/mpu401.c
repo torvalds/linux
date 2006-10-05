@@ -432,7 +432,7 @@ static void mpu401_input_loop(struct mpu_config *devc)
 	devc->m_busy = 0;
 }
 
-static irqreturn_t mpuintr(int irq, void *dev_id, struct pt_regs *dummy)
+static irqreturn_t mpuintr(int irq, void *dev_id)
 {
 	struct mpu_config *devc;
 	int dev = (int) dev_id;

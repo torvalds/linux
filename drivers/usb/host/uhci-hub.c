@@ -176,7 +176,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
 		goto done;
 	uhci_check_ports(uhci);

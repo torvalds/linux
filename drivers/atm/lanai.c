@@ -1890,12 +1890,12 @@ static inline void lanai_int_1(struct lanai_dev *lanai, u32 reason)
 		reg_write(lanai, ack, IntAck_Reg);
 }
 
-static irqreturn_t lanai_int(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t lanai_int(int irq, void *devid)
 {
 	struct lanai_dev *lanai = (struct lanai_dev *) devid;
 	u32 reason;
 
-	(void) irq; (void) regs;	/* unused variables */
+	(void) irq;	/* unused variables */
 
 #ifdef USE_POWERDOWN
 	/*

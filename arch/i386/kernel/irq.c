@@ -53,6 +53,7 @@ static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
  */
 fastcall unsigned int do_IRQ(struct pt_regs *regs)
 {	
+	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
 	int irq = ~regs->orig_eax;
 	struct irq_desc *desc = irq_desc + irq;
@@ -67,6 +68,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 		BUG();
 	}
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 1KB free? */
@@ -95,7 +97,7 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 	 * current stack (which is the irq stack already after all)
 	 */
 	if (curctx != irqctx) {
-		int arg1, arg2, arg3, ebx;
+		int arg1, arg2, ebx;
 
 		/* build the stack frame on the IRQ stack */
 		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
@@ -114,17 +116,17 @@ fastcall unsigned int do_IRQ(struct pt_regs *regs)
 			"       xchgl  %%ebx,%%esp      \n"
 			"       call   *%%edi           \n"
 			"       movl   %%ebx,%%esp      \n"
-			: "=a" (arg1), "=d" (arg2), "=c" (arg3), "=b" (ebx)
-			:  "0" (irq),   "1" (desc),  "2" (regs),  "3" (isp),
+			: "=a" (arg1), "=d" (arg2), "=b" (ebx)
+			:  "0" (irq),   "1" (desc),  "2" (isp),
 			   "D" (desc->handle_irq)
 			: "memory", "cc"
 		);
 	} else
 #endif
-		desc->handle_irq(irq, desc, regs);
+		desc->handle_irq(irq, desc);
 
 	irq_exit();
-
+	set_irq_regs(old_regs);
 	return 1;
 }
 

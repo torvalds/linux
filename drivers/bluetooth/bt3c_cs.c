@@ -338,7 +338,7 @@ static void bt3c_receive(bt3c_info_t *info)
 }
 
 
-static irqreturn_t bt3c_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
+static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 {
 	bt3c_info_t *info = dev_inst;
 	unsigned int iobase;

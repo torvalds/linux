@@ -861,10 +861,8 @@ static inline void interrupts_off (amb_dev * dev) {
 
 /********** interrupt handling **********/
 
-static irqreturn_t interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *pt_regs) {
+static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   amb_dev * dev = (amb_dev *) dev_id;
-  (void) pt_regs;
   
   PRINTD (DBG_IRQ|DBG_FLOW, "interrupt_handler: %p", dev_id);
   

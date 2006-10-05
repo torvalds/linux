@@ -376,7 +376,7 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
 #define MAX_IRQ_LOOP 10
 
-static irqreturn_t cx8802_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cx8802_irq(int irq, void *dev_id)
 {
 	struct cx8802_dev *dev = dev_id;
 	struct cx88_core *core = dev->core;

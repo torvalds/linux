@@ -64,14 +64,12 @@ struct warrior {
  * Warrior. It updates the data accordingly.
  */
 
-static void warrior_process_packet(struct warrior *warrior, struct pt_regs *regs)
+static void warrior_process_packet(struct warrior *warrior)
 {
 	struct input_dev *dev = warrior->dev;
 	unsigned char *data = warrior->data;
 
 	if (!warrior->idx) return;
-
-	input_regs(dev, regs);
 
 	switch ((data[0] >> 4) & 7) {
 		case 1:					/* Button data */
@@ -101,12 +99,12 @@ static void warrior_process_packet(struct warrior *warrior, struct pt_regs *regs
  */
 
 static irqreturn_t warrior_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct warrior *warrior = serio_get_drvdata(serio);
 
 	if (data & 0x80) {
-		if (warrior->idx) warrior_process_packet(warrior, regs);
+		if (warrior->idx) warrior_process_packet(warrior);
 		warrior->idx = 0;
 		warrior->len = warrior_lengths[(data >> 4) & 7];
 	}
@@ -115,7 +113,7 @@ static irqreturn_t warrior_interrupt(struct serio *serio,
 		warrior->data[warrior->idx++] = data;
 
 	if (warrior->idx == warrior->len) {
-		if (warrior->idx) warrior_process_packet(warrior, regs);
+		if (warrior->idx) warrior_process_packet(warrior);
 		warrior->idx = 0;
 		warrior->len = 0;
 	}

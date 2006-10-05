@@ -93,7 +93,7 @@ struct pdc_host_priv {
 static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t pdc_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
 static void pdc_port_stop(struct ata_port *ap);
@@ -498,7 +498,7 @@ static void pdc_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_INT_SEQMASK);
 }
 
-static irqreturn_t pdc_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ata_port *ap;

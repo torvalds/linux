@@ -421,7 +421,7 @@ static int mos7840_handle_new_lsr(struct moschip_port *port, __u8 new_lsr)
 /************************************************************************/
 /************************************************************************/
 
-static void mos7840_control_callback(struct urb *urb, struct pt_regs *regs)
+static void mos7840_control_callback(struct urb *urb)
 {
 	unsigned char *data;
 	struct moschip_port *mos7840_port;
@@ -497,7 +497,7 @@ static int mos7840_get_reg(struct moschip_port *mcs, __u16 Wval, __u16 reg,
  *	interrupt endpoint.
  *****************************************************************************/
 
-static void mos7840_interrupt_callback(struct urb *urb, struct pt_regs *regs)
+static void mos7840_interrupt_callback(struct urb *urb)
 {
 	int result;
 	int length;
@@ -647,7 +647,7 @@ static struct usb_serial *mos7840_get_usb_serial(struct usb_serial_port *port,
  *	bulk in endpoint.
  *****************************************************************************/
 
-static void mos7840_bulk_in_callback(struct urb *urb, struct pt_regs *regs)
+static void mos7840_bulk_in_callback(struct urb *urb)
 {
 	int status;
 	unsigned char *data;
@@ -726,8 +726,7 @@ static void mos7840_bulk_in_callback(struct urb *urb, struct pt_regs *regs)
  *	on the bulk out endpoint.
  *****************************************************************************/
 
-static void mos7840_bulk_out_data_callback(struct urb *urb,
-					   struct pt_regs *regs)
+static void mos7840_bulk_out_data_callback(struct urb *urb)
 {
 	struct moschip_port *mos7840_port;
 	struct tty_struct *tty;

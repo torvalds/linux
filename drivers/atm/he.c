@@ -109,7 +109,7 @@ static int he_open(struct atm_vcc *vcc);
 static void he_close(struct atm_vcc *vcc);
 static int he_send(struct atm_vcc *vcc, struct sk_buff *skb);
 static int he_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg);
-static irqreturn_t he_irq_handler(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t he_irq_handler(int irq, void *dev_id);
 static void he_tasklet(unsigned long data);
 static int he_proc_read(struct atm_dev *dev,loff_t *pos,char *page);
 static int he_start(struct atm_dev *dev);
@@ -2216,7 +2216,7 @@ he_tasklet(unsigned long data)
 }
 
 static irqreturn_t
-he_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+he_irq_handler(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct he_dev *he_dev = (struct he_dev * )dev_id;

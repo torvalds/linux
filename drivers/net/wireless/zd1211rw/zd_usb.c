@@ -408,7 +408,7 @@ static inline void handle_retry_failed_int(struct urb *urb)
 }
 
 
-static void int_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void int_urb_complete(struct urb *urb)
 {
 	int r;
 	struct usb_int_header *hdr;
@@ -609,7 +609,7 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 	}
 }
 
-static void rx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void rx_urb_complete(struct urb *urb)
 {
 	struct zd_usb *usb;
 	struct zd_usb_rx *rx;
@@ -779,7 +779,7 @@ void zd_usb_disable_rx(struct zd_usb *usb)
 	spin_unlock_irqrestore(&rx->lock, flags);
 }
 
-static void tx_urb_complete(struct urb *urb, struct pt_regs *pt_regs)
+static void tx_urb_complete(struct urb *urb)
 {
 	int r;
 

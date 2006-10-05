@@ -211,7 +211,7 @@ vsxxxaa_smells_like_packet (struct vsxxxaa *mouse, unsigned char type, size_t le
 }
 
 static void
-vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
+vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -258,7 +258,6 @@ vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 	/*
 	 * Report what we've found so far...
 	 */
-	input_regs (dev, regs);
 	input_report_key (dev, BTN_LEFT, left);
 	input_report_key (dev, BTN_MIDDLE, middle);
 	input_report_key (dev, BTN_RIGHT, right);
@@ -269,7 +268,7 @@ vsxxxaa_handle_REL_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 }
 
 static void
-vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
+vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -312,7 +311,6 @@ vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 	/*
 	 * Report what we've found so far...
 	 */
-	input_regs (dev, regs);
 	input_report_key (dev, BTN_LEFT, left);
 	input_report_key (dev, BTN_MIDDLE, middle);
 	input_report_key (dev, BTN_RIGHT, right);
@@ -323,7 +321,7 @@ vsxxxaa_handle_ABS_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 }
 
 static void
-vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
+vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse)
 {
 	struct input_dev *dev = mouse->dev;
 	unsigned char *buf = mouse->buf;
@@ -367,7 +365,6 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 
 	if (error <= 0x1f) {
 		/* No (serious) error. Report buttons */
-		input_regs (dev, regs);
 		input_report_key (dev, BTN_LEFT, left);
 		input_report_key (dev, BTN_MIDDLE, middle);
 		input_report_key (dev, BTN_RIGHT, right);
@@ -395,7 +392,7 @@ vsxxxaa_handle_POR_packet (struct vsxxxaa *mouse, struct pt_regs *regs)
 }
 
 static void
-vsxxxaa_parse_buffer (struct vsxxxaa *mouse, struct pt_regs *regs)
+vsxxxaa_parse_buffer (struct vsxxxaa *mouse)
 {
 	unsigned char *buf = mouse->buf;
 	int stray_bytes;
@@ -432,7 +429,7 @@ vsxxxaa_parse_buffer (struct vsxxxaa *mouse, struct pt_regs *regs)
 				continue;
 			}
 
-			vsxxxaa_handle_REL_packet (mouse, regs);
+			vsxxxaa_handle_REL_packet (mouse);
 			continue; /* More to parse? */
 		}
 
@@ -446,7 +443,7 @@ vsxxxaa_parse_buffer (struct vsxxxaa *mouse, struct pt_regs *regs)
 				continue;
 			}
 
-			vsxxxaa_handle_ABS_packet (mouse, regs);
+			vsxxxaa_handle_ABS_packet (mouse);
 			continue; /* More to parse? */
 		}
 
@@ -460,7 +457,7 @@ vsxxxaa_parse_buffer (struct vsxxxaa *mouse, struct pt_regs *regs)
 				continue;
 			}
 
-			vsxxxaa_handle_POR_packet (mouse, regs);
+			vsxxxaa_handle_POR_packet (mouse);
 			continue; /* More to parse? */
 		}
 
@@ -469,13 +466,12 @@ vsxxxaa_parse_buffer (struct vsxxxaa *mouse, struct pt_regs *regs)
 }
 
 static irqreturn_t
-vsxxxaa_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
-		struct pt_regs *regs)
+vsxxxaa_interrupt (struct serio *serio, unsigned char data, unsigned int flags)
 {
 	struct vsxxxaa *mouse = serio_get_drvdata (serio);
 
 	vsxxxaa_queue_byte (mouse, data);
-	vsxxxaa_parse_buffer (mouse, regs);
+	vsxxxaa_parse_buffer (mouse);
 
 	return IRQ_HANDLED;
 }

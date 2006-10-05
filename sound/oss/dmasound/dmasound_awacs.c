@@ -281,9 +281,9 @@ static int PMacSetFormat(int format);
 static int PMacSetVolume(int volume);
 static void PMacPlay(void);
 static void PMacRecord(void);
-static irqreturn_t pmac_awacs_tx_intr(int irq, void *devid, struct pt_regs *regs);
-static irqreturn_t pmac_awacs_rx_intr(int irq, void *devid, struct pt_regs *regs);
-static irqreturn_t pmac_awacs_intr(int irq, void *devid, struct pt_regs *regs);
+static irqreturn_t pmac_awacs_tx_intr(int irq, void *devid);
+static irqreturn_t pmac_awacs_rx_intr(int irq, void *devid);
+static irqreturn_t pmac_awacs_intr(int irq, void *devid);
 static void awacs_write(int val);
 static int awacs_get_volume(int reg, int lshift);
 static int awacs_volume_setter(int volume, int n, int mute, int lshift);
@@ -398,7 +398,7 @@ read_audio_gpio(int gpio_addr)
  * Headphone interrupt via GPIO (Tumbler, Snapper, DACA)
  */
 static irqreturn_t
-headphone_intr(int irq, void *devid, struct pt_regs *regs)
+headphone_intr(int irq, void *devid)
 {
 	unsigned long flags;
 
@@ -1037,7 +1037,7 @@ static void PMacRecord(void)
 */
 
 static irqreturn_t
-pmac_awacs_tx_intr(int irq, void *devid, struct pt_regs *regs)
+pmac_awacs_tx_intr(int irq, void *devid)
 {
 	int i = write_sq.front;
 	int stat;
@@ -1129,7 +1129,7 @@ printk("dmasound_pmac: tx-irq: xfer died - patching it up...\n") ;
 
 
 static irqreturn_t
-pmac_awacs_rx_intr(int irq, void *devid, struct pt_regs *regs)
+pmac_awacs_rx_intr(int irq, void *devid)
 {
 	int stat ;
 	/* For some reason on my PowerBook G3, I get one interrupt
@@ -1212,7 +1212,7 @@ printk("dmasound_pmac: rx-irq: DIED - attempting resurection\n");
 
 
 static irqreturn_t
-pmac_awacs_intr(int irq, void *devid, struct pt_regs *regs)
+pmac_awacs_intr(int irq, void *devid)
 {
 	int ctrl;
 	int status;

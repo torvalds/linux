@@ -179,8 +179,7 @@ void emac_dbg_dump_all(void)
 }
 
 #if defined(CONFIG_MAGIC_SYSRQ)
-static void emac_sysrq_handler(int key, struct pt_regs *pt_regs,
-			       struct tty_struct *tty)
+static void emac_sysrq_handler(int key, struct tty_struct *tty)
 {
 	emac_dbg_dump_all();
 }

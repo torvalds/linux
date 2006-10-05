@@ -1546,7 +1546,7 @@ static void __devexit free_freepool (struct fs_dev *dev, struct freepool *fp)
 
 
 
-static irqreturn_t fs_irq (int irq, void *dev_id,  struct pt_regs * pt_regs) 
+static irqreturn_t fs_irq (int irq, void *dev_id) 
 {
 	int i;
 	u32 status;

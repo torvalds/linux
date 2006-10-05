@@ -160,7 +160,7 @@ void iforce_delete_device(struct iforce *iforce);
 
 /* iforce-packets.c */
 int iforce_control_playback(struct iforce*, u16 id, unsigned int);
-void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data, struct pt_regs *regs);
+void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data);
 int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data);
 void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data) ;
 int iforce_get_id_packet(struct iforce *iforce, char *packet);

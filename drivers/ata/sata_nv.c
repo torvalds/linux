@@ -82,12 +82,9 @@ enum {
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static void nv_ck804_host_stop(struct ata_host *host);
-static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance,
-					struct pt_regs *regs);
-static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
-				    struct pt_regs *regs);
-static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance,
-				      struct pt_regs *regs);
+static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance);
+static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance);
+static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance);
 static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
@@ -276,8 +273,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, nv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance,
-					struct pt_regs *regs)
+static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
@@ -357,8 +353,7 @@ static irqreturn_t nv_do_interrupt(struct ata_host *host, u8 irq_stat)
 	return IRQ_RETVAL(handled);
 }
 
-static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
-				    struct pt_regs *regs)
+static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	u8 irq_stat;
@@ -372,8 +367,7 @@ static irqreturn_t nv_nf2_interrupt(int irq, void *dev_instance,
 	return ret;
 }
 
-static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance,
-				      struct pt_regs *regs)
+static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	u8 irq_stat;

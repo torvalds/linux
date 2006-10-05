@@ -93,7 +93,7 @@ static int ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
-static irqreturn_t ixgb_intr(int irq, void *data, struct pt_regs *regs);
+static irqreturn_t ixgb_intr(int irq, void *data);
 static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_IXGB_NAPI
@@ -1687,11 +1687,10 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
  * ixgb_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  **/
 
 static irqreturn_t
-ixgb_intr(int irq, void *data, struct pt_regs *regs)
+ixgb_intr(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2213,7 +2212,7 @@ static void ixgb_netpoll(struct net_device *dev)
 	struct ixgb_adapter *adapter = netdev_priv(dev);
 
 	disable_irq(adapter->pdev->irq);
-	ixgb_intr(adapter->pdev->irq, dev, NULL);
+	ixgb_intr(adapter->pdev->irq, dev);
 	enable_irq(adapter->pdev->irq);
 }
 #endif

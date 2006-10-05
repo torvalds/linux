@@ -229,7 +229,7 @@ struct fec_enet_private {
 static int fec_enet_open(struct net_device *dev);
 static int fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void fec_enet_mii(struct net_device *dev);
-static irqreturn_t fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t fec_enet_interrupt(int irq, void * dev_id);
 static void fec_enet_tx(struct net_device *dev);
 static void fec_enet_rx(struct net_device *dev);
 static int fec_enet_close(struct net_device *dev);
@@ -450,7 +450,7 @@ fec_timeout(struct net_device *dev)
  * This is called from the MPC core interrupt.
  */
 static irqreturn_t
-fec_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+fec_enet_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile fec_t	*fecp;
@@ -1236,7 +1236,7 @@ static void
 mii_link_interrupt(void *dev_id);
 #else
 static irqreturn_t
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+mii_link_interrupt(int irq, void * dev_id);
 #endif
 #endif
 
@@ -1251,7 +1251,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 	static const struct idesc {
 		char *name;
 		unsigned short irq;
-		irqreturn_t (*handler)(int, void *, struct pt_regs *);
+		irq_handler_t handler;
 	} *idp, id[] = {
 		{ "fec(RX)", 86, fec_enet_interrupt },
 		{ "fec(TX)", 87, fec_enet_interrupt },
@@ -2117,7 +2117,7 @@ static void
 mii_link_interrupt(void *dev_id)
 #else
 static irqreturn_t
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+mii_link_interrupt(int irq, void * dev_id)
 #endif
 {
 	struct	net_device *dev = dev_id;

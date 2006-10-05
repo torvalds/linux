@@ -302,20 +302,20 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
+static noinline void handle_lost_ticks(int lost)
 {
 	static long lost_count;
 	static int warned;
 	if (report_lost_ticks) {
 		printk(KERN_WARNING "time.c: Lost %d timer tick(s)! ", lost);
-		print_symbol("rip %s)\n", regs->rip);
+		print_symbol("rip %s)\n", get_irq_regs()->rip);
 	}
 
 	if (lost_count == 1000 && !warned) {
 		printk(KERN_WARNING "warning: many lost ticks.\n"
 		       KERN_WARNING "Your time source seems to be instable or "
 		   		"some driver is hogging interupts\n");
-		print_symbol("rip %s\n", regs->rip);
+		print_symbol("rip %s\n", get_irq_regs()->rip);
 		if (vxtime.mode == VXTIME_TSC && vxtime.hpet_address) {
 			printk(KERN_WARNING "Falling back to HPET\n");
 			if (hpet_use_timer)
@@ -339,7 +339,7 @@ static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
 #endif
 }
 
-void main_timer_handler(struct pt_regs *regs)
+void main_timer_handler(void)
 {
 	static unsigned long rtc_update = 0;
 	unsigned long tsc;
@@ -411,7 +411,7 @@ void main_timer_handler(struct pt_regs *regs)
 	}
 
 	if (lost > 0)
-		handle_lost_ticks(lost, regs);
+		handle_lost_ticks(lost);
 	else
 		lost = 0;
 
@@ -421,7 +421,7 @@ void main_timer_handler(struct pt_regs *regs)
 
 	do_timer(lost + 1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 
 /*
@@ -431,7 +431,7 @@ void main_timer_handler(struct pt_regs *regs)
  */
 
 	if (!using_apic_timer)
-		smp_local_timer_interrupt(regs);
+		smp_local_timer_interrupt();
 
 /*
  * If we have an externally synchronized Linux clock, then update CMOS clock
@@ -450,11 +450,11 @@ void main_timer_handler(struct pt_regs *regs)
 	write_sequnlock(&xtime_lock);
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	if (apic_runs_main_timer > 1)
 		return IRQ_HANDLED;
-	main_timer_handler(regs);
+	main_timer_handler();
 	if (using_apic_timer)
 		smp_send_timer_broadcast_ipi();
 	return IRQ_HANDLED;
@@ -1337,7 +1337,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	if (call_rtc_interrupt) {
 		rtc_int_flag |= (RTC_IRQF | (RTC_NUM_INTS << 8));
-		rtc_interrupt(rtc_int_flag, dev_id, regs);
+		rtc_interrupt(rtc_int_flag, dev_id);
 	}
 	return IRQ_HANDLED;
 }

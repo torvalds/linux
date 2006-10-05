@@ -845,7 +845,7 @@ static void mcdx_delay(struct s_drive_stuff *stuff, long jifs)
 	}
 }
 
-static irqreturn_t mcdx_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mcdx_intr(int irq, void *dev_id)
 {
 	struct s_drive_stuff *stuffp = dev_id;
 	unsigned char b;

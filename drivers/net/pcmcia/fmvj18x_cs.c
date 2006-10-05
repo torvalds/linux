@@ -97,7 +97,7 @@ static int fjn_config(struct net_device *dev, struct ifmap *map);
 static int fjn_open(struct net_device *dev);
 static int fjn_close(struct net_device *dev);
 static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t fjn_interrupt(int irq, void *dev_id);
 static void fjn_rx(struct net_device *dev);
 static void fjn_reset(struct net_device *dev);
 static struct net_device_stats *fjn_get_stats(struct net_device *dev);
@@ -733,7 +733,7 @@ module_exit(exit_fmvj18x_cs);
 
 /*====================================================================*/
 
-static irqreturn_t fjn_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t fjn_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = dev_id;
     local_info_t *lp = netdev_priv(dev);

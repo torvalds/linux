@@ -1191,7 +1191,7 @@ snd_azf3328_capture_pointer(struct snd_pcm_substream *substream)
 }
 
 static irqreturn_t
-snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+snd_azf3328_interrupt(int irq, void *dev_id)
 {
 	struct snd_azf3328 *chip = dev_id;
 	u8 status, which;
@@ -1256,7 +1256,7 @@ snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* MPU401 has less critical IRQ requirements
 	 * than timer and playback/recording, right? */
 	if (status & IRQ_MPU401) {
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 
 		/* hmm, do we have to ack the IRQ here somehow?
 		 * If so, then I don't know how... */

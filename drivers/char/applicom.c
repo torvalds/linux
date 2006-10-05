@@ -110,7 +110,7 @@ static ssize_t ac_read (struct file *, char __user *, size_t, loff_t *);
 static ssize_t ac_write (struct file *, const char __user *, size_t, loff_t *);
 static int ac_ioctl(struct inode *, struct file *, unsigned int,
 		    unsigned long);
-static irqreturn_t ac_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t ac_interrupt(int, void *);
 
 static const struct file_operations ac_fops = {
 	.owner = THIS_MODULE,
@@ -617,7 +617,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 	} 
 }
 
-static irqreturn_t ac_interrupt(int vec, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t ac_interrupt(int vec, void *dev_instance)
 {
 	unsigned int i;
 	unsigned int FlagInt;

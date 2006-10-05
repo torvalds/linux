@@ -889,7 +889,7 @@ int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 }
 
 
-irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data, struct pt_regs *regs)
+irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 {
 	struct controller *ctrl = data;
 	u8 schedule_flag = 0;

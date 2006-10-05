@@ -172,7 +172,7 @@ static void snd_usX2Y_card_private_free(struct snd_card *card);
 /* 
  * pipe 4 is used for switching the lamps, setting samplerate, volumes ....   
  */
-static void i_usX2Y_Out04Int(struct urb *urb, struct pt_regs *regs)
+static void i_usX2Y_Out04Int(struct urb *urb)
 {
 #ifdef CONFIG_SND_DEBUG
 	if (urb->status) {
@@ -184,7 +184,7 @@ static void i_usX2Y_Out04Int(struct urb *urb, struct pt_regs *regs)
 #endif
 }
 
-static void i_usX2Y_In04Int(struct urb *urb, struct pt_regs *regs)
+static void i_usX2Y_In04Int(struct urb *urb)
 {
 	int			err = 0;
 	struct usX2Ydev		*usX2Y = urb->context;

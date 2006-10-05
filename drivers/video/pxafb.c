@@ -846,7 +846,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 /*
  *  pxafb_handle_irq: Handle 'LCD DONE' interrupts.
  */
-static irqreturn_t pxafb_handle_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
 	unsigned int lcsr = LCSR;

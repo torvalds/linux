@@ -252,8 +252,7 @@ static void ip22zilog_maybe_update_regs(struct uart_ip22zilog_port *up,
 }
 
 static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
-				   struct zilog_channel *channel,
-				   struct pt_regs *regs)
+				   struct zilog_channel *channel)
 {
 	struct tty_struct *tty = up->port.info->tty;	/* XXX info==NULL? */
 
@@ -319,7 +318,7 @@ static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 			else if (r1 & CRC_ERR)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto next_char;
 
 		if (up->port.ignore_status_mask == 0xff ||
@@ -339,8 +338,7 @@ static void ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 }
 
 static void ip22zilog_status_handle(struct uart_ip22zilog_port *up,
-				   struct zilog_channel *channel,
-				   struct pt_regs *regs)
+				   struct zilog_channel *channel)
 {
 	unsigned char status;
 
@@ -443,7 +441,7 @@ ack_tx_int:
 	ZS_WSYNC(channel);
 }
 
-static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 {
 	struct uart_ip22zilog_port *up = dev_id;
 
@@ -462,9 +460,9 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id, struct pt_regs *re
 			ZS_WSYNC(channel);
 
 			if (r3 & CHARxIP)
-				ip22zilog_receive_chars(up, channel, regs);
+				ip22zilog_receive_chars(up, channel);
 			if (r3 & CHAEXT)
-				ip22zilog_status_handle(up, channel, regs);
+				ip22zilog_status_handle(up, channel);
 			if (r3 & CHATxIP)
 				ip22zilog_transmit_chars(up, channel);
 		}
@@ -481,9 +479,9 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id, struct pt_regs *re
 			ZS_WSYNC(channel);
 
 			if (r3 & CHBRxIP)
-				ip22zilog_receive_chars(up, channel, regs);
+				ip22zilog_receive_chars(up, channel);
 			if (r3 & CHBEXT)
-				ip22zilog_status_handle(up, channel, regs);
+				ip22zilog_status_handle(up, channel);
 			if (r3 & CHBTxIP)
 				ip22zilog_transmit_chars(up, channel);
 		}

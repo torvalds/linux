@@ -218,7 +218,7 @@ static int acm_write_start(struct acm *acm)
  */
 
 /* control interface reports status changes with "interrupt" transfers */
-static void acm_ctrl_irq(struct urb *urb, struct pt_regs *regs)
+static void acm_ctrl_irq(struct urb *urb)
 {
 	struct acm *acm = urb->context;
 	struct usb_cdc_notification *dr = urb->transfer_buffer;
@@ -285,7 +285,7 @@ exit:
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
-static void acm_read_bulk(struct urb *urb, struct pt_regs *regs)
+static void acm_read_bulk(struct urb *urb)
 {
 	struct acm_rb *buf;
 	struct acm_ru *rcv = urb->context;
@@ -409,7 +409,7 @@ urbs:
 }
 
 /* data interface wrote those outgoing bytes */
-static void acm_write_bulk(struct urb *urb, struct pt_regs *regs)
+static void acm_write_bulk(struct urb *urb)
 {
 	struct acm *acm = (struct acm *)urb->context;
 

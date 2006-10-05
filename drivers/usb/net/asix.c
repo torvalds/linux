@@ -214,7 +214,7 @@ static int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		USB_CTRL_SET_TIMEOUT);
 }
 
-static void asix_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
+static void asix_async_cmd_callback(struct urb *urb)
 {
 	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
 

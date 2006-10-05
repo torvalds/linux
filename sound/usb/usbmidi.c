@@ -223,7 +223,7 @@ static void dump_urb(const char *type, const u8 *data, int length)
 /*
  * Processes the data read from the device.
  */
-static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
+static void snd_usbmidi_in_urb_complete(struct urb* urb)
 {
 	struct snd_usb_midi_in_endpoint* ep = urb->context;
 
@@ -247,7 +247,7 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
 	snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
 }
 
-static void snd_usbmidi_out_urb_complete(struct urb* urb, struct pt_regs *regs)
+static void snd_usbmidi_out_urb_complete(struct urb* urb)
 {
 	struct snd_usb_midi_out_endpoint* ep = urb->context;
 

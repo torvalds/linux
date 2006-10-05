@@ -420,7 +420,7 @@ static void snd_ice1712_set_input_clock_source(struct snd_ice1712 *ice, int spdi
  *  Interrupt handler
  */
 
-static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id)
 {
 	struct snd_ice1712 *ice = dev_id;
 	unsigned char status;
@@ -433,7 +433,7 @@ static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id, struct pt_regs *
 		handled = 1;
 		if (status & ICE1712_IRQ_MPU1) {
 			if (ice->rmidi[0])
-				snd_mpu401_uart_interrupt(irq, ice->rmidi[0]->private_data, regs);
+				snd_mpu401_uart_interrupt(irq, ice->rmidi[0]->private_data);
 			outb(ICE1712_IRQ_MPU1, ICEREG(ice, IRQSTAT));
 			status &= ~ICE1712_IRQ_MPU1;
 		}
@@ -441,7 +441,7 @@ static irqreturn_t snd_ice1712_interrupt(int irq, void *dev_id, struct pt_regs *
 			outb(ICE1712_IRQ_TIMER, ICEREG(ice, IRQSTAT));
 		if (status & ICE1712_IRQ_MPU2) {
 			if (ice->rmidi[1])
-				snd_mpu401_uart_interrupt(irq, ice->rmidi[1]->private_data, regs);
+				snd_mpu401_uart_interrupt(irq, ice->rmidi[1]->private_data);
 			outb(ICE1712_IRQ_MPU2, ICEREG(ice, IRQSTAT));
 			status &= ~ICE1712_IRQ_MPU2;
 		}

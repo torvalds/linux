@@ -395,7 +395,7 @@ static int snd_sb16_capture_trigger(struct snd_pcm_substream *substream,
 	return result;
 }
 
-irqreturn_t snd_sb16dsp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t snd_sb16dsp_interrupt(int irq, void *dev_id)
 {
 	struct snd_sb *chip = dev_id;
 	unsigned char status;
@@ -405,7 +405,7 @@ irqreturn_t snd_sb16dsp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	status = snd_sbmixer_read(chip, SB_DSP4_IRQSTATUS);
 	spin_unlock(&chip->mixer_lock);
 	if ((status & SB_IRQTYPE_MPUIN) && chip->rmidi_callback)
-		chip->rmidi_callback(irq, chip->rmidi->private_data, regs);
+		chip->rmidi_callback(irq, chip->rmidi->private_data);
 	if (status & SB_IRQTYPE_8BIT) {
 		ok = 0;
 		if (chip->mode & SB_MODE_PLAYBACK_8) {

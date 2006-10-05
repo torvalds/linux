@@ -1017,7 +1017,7 @@ static int __devinit snd_atiixp_pcm_new(struct atiixp_modem *chip)
 /*
  * interrupt handler
  */
-static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_atiixp_interrupt(int irq, void *dev_id)
 {
 	struct atiixp_modem *chip = dev_id;
 	unsigned int status;

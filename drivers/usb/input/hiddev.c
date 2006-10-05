@@ -179,7 +179,7 @@ static void hiddev_send_event(struct hid_device *hid,
  * the interrupt pipe
  */
 void hiddev_hid_event(struct hid_device *hid, struct hid_field *field,
-		      struct hid_usage *usage, __s32 value, struct pt_regs *regs)
+		      struct hid_usage *usage, __s32 value)
 {
 	unsigned type = field->report_type;
 	struct hiddev_usage_ref uref;

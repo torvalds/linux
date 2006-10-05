@@ -1736,7 +1736,7 @@ snd_riptide_pcm(struct snd_riptide *chip, int device, struct snd_pcm **rpcm)
 }
 
 static irqreturn_t
-snd_riptide_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+snd_riptide_interrupt(int irq, void *dev_id)
 {
 	struct snd_riptide *chip = dev_id;
 	struct cmdif *cif = chip->cif;
@@ -1751,8 +1751,7 @@ snd_riptide_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		if (chip->rmidi && IS_MPUIRQ(cif->hwport)) {
 			chip->handled_irqs++;
 			snd_mpu401_uart_interrupt(irq,
-						  chip->rmidi->private_data,
-						  regs);
+						  chip->rmidi->private_data);
 		}
 		SET_AIACK(cif->hwport);
 	}
