@@ -1118,7 +1118,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
 	void *instance_id = ctrl;
-	int rc, num_slots = 0;
+	int rc = -1, num_slots = 0;
 	u8 hp_slot;
 	u32 shpc_base_offset;
 	u32 tempdword, slot_reg, slot_config;
@@ -1184,11 +1184,15 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor, 
 		pdev->subsystem_device);
 	
-	if (pci_enable_device(pdev))
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		err("%s: pci_enable_device failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
+	}
 
 	if (!request_mem_region(ctrl->mmio_base, ctrl->mmio_size, MY_NAME)) {
 		err("%s: cannot reserve MMIO region\n", __FUNCTION__);
+		rc = -1;
 		goto abort_free_ctlr;
 	}
 
@@ -1197,6 +1201,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		err("%s: cannot remap MMIO region %lx @ %lx\n", __FUNCTION__,
 		    ctrl->mmio_size, ctrl->mmio_base);
 		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
+		rc = -1;
 		goto abort_free_ctlr;
 	}
 	dbg("%s: php_ctlr->creg %p\n", __FUNCTION__, php_ctlr->creg);
@@ -1299,8 +1304,10 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	 */
 	if (atomic_add_return(1, &shpchp_num_controllers) == 1) {
 		shpchp_wq = create_singlethread_workqueue("shpchpd");
-		if (!shpchp_wq)
-			return -ENOMEM;
+		if (!shpchp_wq) {
+			rc = -ENOMEM;
+			goto abort_free_ctlr;
+		}
 	}
 
 	/*
@@ -1330,8 +1337,10 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 
 	/* We end up here for the many possible ways to fail this API.  */
 abort_free_ctlr:
+	if (php_ctlr->creg)
+		iounmap(php_ctlr->creg);
 	kfree(php_ctlr);
 abort:
 	DBG_LEAVE_ROUTINE
-	return -1;
+	return rc;
 }
