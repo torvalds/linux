@@ -659,7 +659,6 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 	int err = 0, num_ev = 0;
 	struct snd_seq_event event_saved;
 	struct snd_seq_client_port *src_port;
-	struct list_head *p;
 	struct snd_seq_port_subs_info *grp;
 
 	src_port = snd_seq_port_use_ptr(client, event->source.port);
@@ -674,8 +673,7 @@ static int deliver_to_subscribers(struct snd_seq_client *client,
 		read_lock(&grp->list_lock);
 	else
 		down_read(&grp->list_mutex);
-	list_for_each(p, &grp->list_head) {
-		subs = list_entry(p, struct snd_seq_subscribers, src_list);
+	list_for_each_entry(subs, &grp->list_head, src_list) {
 		event->dest = subs->info.dest;
 		if (subs->info.flags & SNDRV_SEQ_PORT_SUBS_TIMESTAMP)
 			/* convert time according to flag with subscription */
@@ -709,15 +707,14 @@ static int port_broadcast_event(struct snd_seq_client *client,
 {
 	int num_ev = 0, err = 0;
 	struct snd_seq_client *dest_client;
-	struct list_head *p;
+	struct snd_seq_client_port *port;
 
 	dest_client = get_event_dest_client(event, SNDRV_SEQ_FILTER_BROADCAST);
 	if (dest_client == NULL)
 		return 0; /* no matching destination */
 
 	read_lock(&dest_client->ports_lock);
-	list_for_each(p, &dest_client->ports_list_head) {
-		struct snd_seq_client_port *port = list_entry(p, struct snd_seq_client_port, list);
+	list_for_each_entry(port, &dest_client->ports_list_head, list) {
 		event->dest.port = port->addr.port;
 		/* pass NULL as source client to avoid error bounce */
 		err = snd_seq_deliver_single_event(NULL, event,
@@ -2473,11 +2470,10 @@ static void snd_seq_info_dump_subscribers(struct snd_info_buffer *buffer,
 static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 				    struct snd_seq_client *client)
 {
-	struct list_head *l;
+	struct snd_seq_client_port *p;
 
 	mutex_lock(&client->ports_mutex);
-	list_for_each(l, &client->ports_list_head) {
-		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
+	list_for_each_entry(p, &client->ports_list_head, list) {
 		snd_iprintf(buffer, "  Port %3d : \"%s\" (%c%c%c%c)\n",
 			    p->addr.port, p->name,
 			    FLAG_PERM_RD(p->capability),
