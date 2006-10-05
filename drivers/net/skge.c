@@ -197,8 +197,8 @@ static u32 skge_supported_modes(const struct skge_hw *hw)
 		else if (hw->chip_id == CHIP_ID_YUKON)
 			supported &= ~SUPPORTED_1000baseT_Half;
 	} else
-		supported = SUPPORTED_1000baseT_Full | SUPPORTED_FIBRE
-			| SUPPORTED_Autoneg;
+		supported = SUPPORTED_1000baseT_Full | SUPPORTED_1000baseT_Half
+			| SUPPORTED_FIBRE | SUPPORTED_Autoneg;
 
 	return supported;
 }
@@ -1018,6 +1018,14 @@ static const u16 phy_pause_map[] = {
 	[FLOW_MODE_REM_SEND]  = PHY_AN_PAUSE_CAP | PHY_AN_PAUSE_ASYM,
 };
 
+/* special defines for FIBER (88E1011S only) */
+static const u16 fiber_pause_map[] = {
+	[FLOW_MODE_NONE]	= PHY_X_P_NO_PAUSE,
+	[FLOW_MODE_LOC_SEND]	= PHY_X_P_ASYM_MD,
+	[FLOW_MODE_SYMMETRIC]	= PHY_X_P_SYM_MD,
+	[FLOW_MODE_REM_SEND]	= PHY_X_P_BOTH_MD,
+};
+
 
 /* Check status of Broadcom phy link */
 static void bcom_check_link(struct skge_hw *hw, int port)
@@ -1207,17 +1215,7 @@ static void xm_phy_init(struct skge_port *skge)
 		if (skge->advertising & ADVERTISED_1000baseT_Full)
 			ctrl |= PHY_X_AN_FD;
 
-		switch(skge->flow_control) {
-		case FLOW_MODE_NONE:
-			ctrl |= PHY_X_P_NO_PAUSE;
-			break;
-		case FLOW_MODE_LOC_SEND:
-			ctrl |= PHY_X_P_ASYM_MD;
-			break;
-		case FLOW_MODE_SYMMETRIC:
-			ctrl |= PHY_X_P_BOTH_MD;
-			break;
-		}
+		ctrl |= fiber_pause_map[skge->flow_control];
 
 		xm_phy_write(hw, port, PHY_XMAC_AUNE_ADV, ctrl);
 
@@ -1796,11 +1794,17 @@ static void yukon_init(struct skge_hw *hw, int port)
 				adv |= PHY_M_AN_10_FD;
 			if (skge->advertising & ADVERTISED_10baseT_Half)
 				adv |= PHY_M_AN_10_HD;
-		} else	/* special defines for FIBER (88E1011S only) */
-			adv |= PHY_M_AN_1000X_AHD | PHY_M_AN_1000X_AFD;
 
-		/* Set Flow-control capabilities */
-		adv |= phy_pause_map[skge->flow_control];
+			/* Set Flow-control capabilities */
+			adv |= phy_pause_map[skge->flow_control];
+		} else {
+			if (skge->advertising & ADVERTISED_1000baseT_Full)
+				adv |= PHY_M_AN_1000X_AFD;
+			if (skge->advertising & ADVERTISED_1000baseT_Half)
+				adv |= PHY_M_AN_1000X_AHD;
+
+			adv |= fiber_pause_map[skge->flow_control];
+		}
 
 		/* Restart Auto-negotiation */
 		ctrl |= PHY_CT_ANE | PHY_CT_RE_CFG;
