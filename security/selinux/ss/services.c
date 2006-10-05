@@ -2336,7 +2336,7 @@ static int selinux_netlbl_secattr_to_sid(struct sk_buff *skb,
 			selinux_netlbl_cache_add(skb, &ctx_new);
 		ebitmap_destroy(&ctx_new.range.level[0].cat);
 	} else {
-		*sid = SECINITSID_UNLABELED;
+		*sid = SECSID_NULL;
 		rc = 0;
 	}
 
@@ -2519,7 +2519,7 @@ void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 	if (netlbl_sock_getattr(sk, &secattr) == 0 &&
 	    selinux_netlbl_secattr_to_sid(NULL,
 					  &secattr,
-					  sksec->sid,
+					  SECINITSID_UNLABELED,
 					  &nlbl_peer_sid) == 0)
 		sksec->peer_sid = nlbl_peer_sid;
 	netlbl_secattr_destroy(&secattr);
@@ -2550,9 +2550,6 @@ u32 selinux_netlbl_inet_conn_request(struct sk_buff *skb, u32 sock_sid)
 
 	rc = selinux_netlbl_skbuff_getsid(skb, sock_sid, &peer_sid);
 	if (rc != 0)
-		return SECSID_NULL;
-
-	if (peer_sid == SECINITSID_UNLABELED)
 		return SECSID_NULL;
 
 	return peer_sid;
@@ -2616,11 +2613,13 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 	u32 netlbl_sid;
 	u32 recv_perm;
 
-	rc = selinux_netlbl_skbuff_getsid(skb, SECINITSID_NETMSG, &netlbl_sid);
+	rc = selinux_netlbl_skbuff_getsid(skb,
+					  SECINITSID_UNLABELED,
+					  &netlbl_sid);
 	if (rc != 0)
 		return rc;
 
-	if (netlbl_sid == SECINITSID_UNLABELED)
+	if (netlbl_sid == SECSID_NULL)
 		return 0;
 
 	switch (sksec->sclass) {
@@ -2658,10 +2657,6 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
 {
 	struct sk_security_struct *sksec = sock->sk->sk_security;
-
-	if (sksec->peer_sid == SECINITSID_UNLABELED)
-		return SECSID_NULL;
-
 	return sksec->peer_sid;
 }
 
@@ -2677,16 +2672,10 @@ u32 selinux_netlbl_socket_getpeersec_stream(struct socket *sock)
 u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
 {
 	int peer_sid;
-	struct sock *sk = skb->sk;
-	struct inode_security_struct *isec;
 
-	if (sk == NULL || sk->sk_socket == NULL)
-		return SECSID_NULL;
-
-	isec = SOCK_INODE(sk->sk_socket)->i_security;
-	if (selinux_netlbl_skbuff_getsid(skb, isec->sid, &peer_sid) != 0)
-		return SECSID_NULL;
-	if (peer_sid == SECINITSID_UNLABELED)
+	if (selinux_netlbl_skbuff_getsid(skb,
+					 SECINITSID_UNLABELED,
+					 &peer_sid) != 0)
 		return SECSID_NULL;
 
 	return peer_sid;
