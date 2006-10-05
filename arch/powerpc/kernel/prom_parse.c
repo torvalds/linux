@@ -914,6 +914,17 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 	u8 pin;
 	int rc;
 
+	/* We need to first check if the PCI device has a PCI interrupt at all
+	 * since we have cases where the device-node might expose non-PCI
+	 * interrupts, but the device has no PCI interrupt to it
+	 */
+	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
+	if (rc != 0)
+		return rc;
+	/* No pin, exit */
+	if (pin == 0)
+		return -ENODEV;
+
 	/* Check if we have a device node, if yes, fallback to standard OF
 	 * parsing
 	 */
@@ -925,12 +936,6 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 	 * interrupt spec.  we assume #interrupt-cells is 1, which is standard
 	 * for PCI. If you do different, then don't use that routine.
 	 */
-	rc = pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &pin);
-	if (rc != 0)
-		return rc;
-	/* No pin, exit */
-	if (pin == 0)
-		return -ENODEV;
 
 	/* Now we walk up the PCI tree */
 	lspec = pin;
