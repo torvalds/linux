@@ -41,6 +41,7 @@ extern void __setup_cpu_745x(unsigned long offset, struct cpu_spec* spec);
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_PPC64
 extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_ppc970MP(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_ppc970(void);
 #endif /* CONFIG_PPC64 */
 
@@ -221,7 +222,7 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
-		.cpu_setup		= __setup_cpu_ppc970,
+		.cpu_setup		= __setup_cpu_ppc970MP,
 		.cpu_restore		= __restore_cpu_ppc970,
 		.oprofile_cpu_type	= "ppc64/970",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
