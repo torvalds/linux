@@ -615,7 +615,7 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 * emu, const char * file
 		snd_printk(KERN_ERR "firmware: %s not found. Err=%d\n",filename, err);
 		return err;
 	}
-	snd_printk(KERN_INFO "firmware size=0x%x\n",fw_entry->size);
+	snd_printk(KERN_INFO "firmware size=0x%zx\n", fw_entry->size);
 	if (fw_entry->size != 0x133a4) {
 		snd_printk(KERN_ERR "firmware: %s wrong size.\n",filename);
 		return -EINVAL;
