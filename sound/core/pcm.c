@@ -944,6 +944,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	struct list_head *list;
 	char str[16];
 	struct snd_pcm *pcm = device->device_data;
+	struct device *dev;
 
 	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
 	mutex_lock(&register_mutex);
@@ -966,11 +967,18 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			devtype = SNDRV_DEVICE_TYPE_PCM_CAPTURE;
 			break;
 		}
-		if ((err = snd_register_device(devtype, pcm->card,
-					       pcm->device,
-					       &snd_pcm_f_ops[cidx],
-					       pcm, str)) < 0)
-		{
+		/* device pointer to use, pcm->dev takes precedence if
+		 * it is assigned, otherwise fall back to card's device
+		 * if possible */
+		dev = pcm->dev;
+		if (!dev)
+			dev = pcm->card ? pcm->card->dev : NULL;
+		/* register pcm */
+		err = snd_register_device_for_dev(devtype, pcm->card,
+						  pcm->device,
+						  &snd_pcm_f_ops[cidx],
+						  pcm, str, dev);
+		if (err < 0) {
 			list_del(&pcm->list);
 			mutex_unlock(&register_mutex);
 			return err;
