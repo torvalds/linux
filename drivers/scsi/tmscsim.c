@@ -2304,6 +2304,7 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.max_sectors		= 0x4000, /* 8MiB = 16 * 1024 * 512 */
 };
 
 /***********************************************************************
