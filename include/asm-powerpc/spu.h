@@ -138,6 +138,7 @@ struct spu {
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
 	void (* mfc_callback)(struct spu *spu);
+	void (* dma_callback)(struct spu *spu, int type);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -147,6 +148,7 @@ struct spu {
 };
 
 struct spu *spu_alloc(void);
+struct spu *spu_alloc_node(int node);
 void spu_free(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
@@ -168,6 +170,22 @@ extern struct spufs_calls {
 	struct module *owner;
 } spufs_calls;
 
+/* return status from spu_run, same as in libspe */
+#define SPE_EVENT_DMA_ALIGNMENT		0x0008	/*A DMA alignment error */
+#define SPE_EVENT_SPE_ERROR		0x0010	/*An illegal instruction error*/
+#define SPE_EVENT_SPE_DATA_SEGMENT	0x0020	/*A DMA segmentation error    */
+#define SPE_EVENT_SPE_DATA_STORAGE	0x0040	/*A DMA storage error */
+#define SPE_EVENT_INVALID_DMA		0x0800	/* Invalid MFC DMA */
+
+/*
+ * Flags for sys_spu_create.
+ */
+#define SPU_CREATE_EVENTS_ENABLED	0x0001
+#define SPU_CREATE_GANG			0x0002
+
+#define SPU_CREATE_FLAG_ALL		0x0003 /* mask of all valid flags */
+
+
 #ifdef CONFIG_SPU_FS_MODULE
 int register_spu_syscalls(struct spufs_calls *calls);
 void unregister_spu_syscalls(struct spufs_calls *calls);
@@ -181,6 +199,24 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 }
 #endif /* MODULE */
 
+
+/*
+ * Notifier blocks:
+ *
+ * oprofile can get notified when a context switch is performed
+ * on an spe. The notifer function that gets called is passed
+ * a pointer to the SPU structure as well as the object-id that
+ * identifies the binary running on that SPU now.
+ *
+ * For a context save, the object-id that is passed is zero,
+ * identifying that the kernel will run from that moment on.
+ *
+ * For a context restore, the object-id is the value written
+ * to object-id spufs file from user space and the notifer
+ * function can assume that spu->ctx is valid.
+ */
+int spu_switch_event_register(struct notifier_block * n);
+int spu_switch_event_unregister(struct notifier_block * n);
 
 /*
  * This defines the Local Store, Problem Area and Privlege Area of an SPU.
