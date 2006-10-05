@@ -503,7 +503,7 @@
 
 /*
  * An mtfsf instruction with the L bit set. On CPUs that support this a
- * full 64bits of FPSCR is restored and on other CPUs it is ignored.
+ * full 64bits of FPSCR is restored and on other CPUs the L bit is ignored.
  *
  * Until binutils gets the new form of mtfsf, hardwire the instruction.
  */
