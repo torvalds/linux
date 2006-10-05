@@ -505,10 +505,7 @@ handle_percpu_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
 #endif /* CONFIG_SMP */
 
 void
-__set_irq_handler(unsigned int irq,
-		  void fastcall (*handle)(unsigned int, irq_desc_t *,
-					  struct pt_regs *),
-		  int is_chained)
+__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained)
 {
 	struct irq_desc *desc;
 	unsigned long flags;
@@ -561,9 +558,7 @@ __set_irq_handler(unsigned int irq,
 
 void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 void fastcall (*handle)(unsigned int,
-						 struct irq_desc *,
-						 struct pt_regs *))
+			 irq_flow_handler_t handle)
 {
 	set_irq_chip(irq, chip);
 	__set_irq_handler(irq, handle, 0);
@@ -574,8 +569,7 @@ set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
  * /proc/interrupts output:
  */
 const char *
-handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
-					struct pt_regs *))
+handle_irq_name(irq_flow_handler_t handle)
 {
 	if (handle == handle_level_irq)
 		return "level  ";

@@ -22,6 +22,12 @@
 #include <asm/irq.h>
 #include <asm/ptrace.h>
 
+struct irq_desc;
+typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
+					    struct irq_desc *desc,
+					    struct pt_regs *regs);
+
+
 /*
  * IRQ line status.
  *
@@ -139,9 +145,7 @@ struct irq_chip {
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
 struct irq_desc {
-	void fastcall		(*handle_irq)(unsigned int irq,
-					      struct irq_desc *desc,
-					      struct pt_regs *regs);
+	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
 	void			*handler_data;
 	void			*chip_data;
@@ -281,9 +285,7 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
  * Get a descriptive string for the highlevel handler, for
  * /proc/interrupts output:
  */
-extern const char *
-handle_irq_name(void fastcall (*handle)(unsigned int, struct irq_desc *,
-					struct pt_regs *));
+extern const char *handle_irq_name(irq_flow_handler_t handle);
 
 /*
  * Monolithic do_IRQ implementation.
@@ -335,22 +337,15 @@ extern struct irq_chip dummy_irq_chip;
 
 extern void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 void fastcall (*handle)(unsigned int,
-						 struct irq_desc *,
-						 struct pt_regs *));
+			 irq_flow_handler_t handle);
 extern void
-__set_irq_handler(unsigned int irq,
-		  void fastcall (*handle)(unsigned int, struct irq_desc *,
-					  struct pt_regs *),
-		  int is_chained);
+__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained);
 
 /*
  * Set a highlevel flow handler for a given IRQ:
  */
 static inline void
-set_irq_handler(unsigned int irq,
-		void fastcall (*handle)(unsigned int, struct irq_desc *,
-					struct pt_regs *))
+set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
 {
 	__set_irq_handler(irq, handle, 0);
 }
@@ -362,8 +357,7 @@ set_irq_handler(unsigned int irq,
  */
 static inline void
 set_irq_chained_handler(unsigned int irq,
-			void fastcall (*handle)(unsigned int, struct irq_desc *,
-						struct pt_regs *))
+			irq_flow_handler_t handle)
 {
 	__set_irq_handler(irq, handle, 1);
 }
