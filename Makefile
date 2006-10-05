@@ -576,7 +576,7 @@ libs-y		:= $(libs-y1) $(libs-y2)
 # ---------------------------------------------------------------------------
 # vmlinux is built from the objects selected by $(vmlinux-init) and
 # $(vmlinux-main). Most are built-in.o files from top-level directories
-# in the kernel tree, others are specified in arch/$(ARCH)Makefile.
+# in the kernel tree, others are specified in arch/$(ARCH)/Makefile.
 # Ordering when linking is important, and $(vmlinux-init) must be first.
 #
 # vmlinux
