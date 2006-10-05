@@ -816,6 +816,8 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	void __iomem *bbar;
 	int ret;
 
+	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
+
 	address = locate_register_space(dev);
 	/* map entire 1MB of Calgary config space */
 	bbar = ioremap_nocache(address, 1024 * 1024);
@@ -842,10 +844,10 @@ done:
 
 static int __init calgary_init(void)
 {
-	int i, ret = -ENODEV;
+	int ret = -ENODEV;
 	struct pci_dev *dev = NULL;
 
-	for (i = 0; i < MAX_PHB_BUS_NUM; i++) {
+	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM,
 				     PCI_DEVICE_ID_IBM_CALGARY,
 				     dev);
@@ -861,12 +863,12 @@ static int __init calgary_init(void)
 		ret = calgary_init_one(dev);
 		if (ret)
 			goto error;
-	}
+	} while (1);
 
 	return ret;
 
 error:
-	for (i--; i >= 0; i--) {
+	do {
 		dev = pci_find_device_reverse(PCI_VENDOR_ID_IBM,
 					      PCI_DEVICE_ID_IBM_CALGARY,
 					      dev);
@@ -882,7 +884,7 @@ error:
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
 		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
-	}
+	} while (1);
 
 	return ret;
 }
