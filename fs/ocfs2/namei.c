@@ -655,7 +655,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		      struct inode *dir,
 		      struct dentry *dentry)
 {
-	struct ocfs2_journal_handle *handle = NULL;
+	struct ocfs2_journal_handle *handle;
 	struct inode *inode = old_dentry->d_inode;
 	int err;
 	struct buffer_head *fe_bh = NULL;
@@ -668,68 +668,60 @@ static int ocfs2_link(struct dentry *old_dentry,
 		   old_dentry->d_name.len, old_dentry->d_name.name,
 		   dentry->d_name.len, dentry->d_name.name);
 
-	if (S_ISDIR(inode->i_mode)) {
-		err = -EPERM;
-		goto bail;
-	}
+	if (S_ISDIR(inode->i_mode))
+		return -EPERM;
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		err = -ENOMEM;
-		goto bail;
-	}
-
-	err = ocfs2_meta_lock(dir, handle, &parent_fe_bh, 1);
+	err = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
-		goto bail;
+		return err;
 	}
 
 	if (!dir->i_nlink) {
 		err = -ENOENT;
-		goto bail;
+		goto out;
 	}
 
 	err = ocfs2_check_dir_for_entry(dir, dentry->d_name.name,
 					dentry->d_name.len);
 	if (err)
-		goto bail;
+		goto out;
 
 	err = ocfs2_prepare_dir_for_insert(osb, dir, parent_fe_bh,
 					   dentry->d_name.name,
 					   dentry->d_name.len, &de_bh);
 	if (err < 0) {
 		mlog_errno(err);
-		goto bail;
+		goto out;
 	}
 
-	err = ocfs2_meta_lock(inode, handle, &fe_bh, 1);
+	err = ocfs2_meta_lock(inode, NULL, &fe_bh, 1);
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
-		goto bail;
+		goto out;
 	}
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 	if (le16_to_cpu(fe->i_links_count) >= OCFS2_LINK_MAX) {
 		err = -EMLINK;
-		goto bail;
+		goto out_unlock_inode;
 	}
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_LINK_CREDITS);
+	handle = ocfs2_start_trans(osb, NULL, OCFS2_LINK_CREDITS);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		handle = NULL;
 		mlog_errno(err);
-		goto bail;
+		goto out_unlock_inode;
 	}
 
 	err = ocfs2_journal_access(handle, inode, fe_bh,
 				   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (err < 0) {
 		mlog_errno(err);
-		goto bail;
+		goto out_commit;
 	}
 
 	inc_nlink(inode);
@@ -743,7 +735,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		le16_add_cpu(&fe->i_links_count, -1);
 		drop_nlink(inode);
 		mlog_errno(err);
-		goto bail;
+		goto out_commit;
 	}
 
 	err = ocfs2_add_entry(handle, dentry, inode,
@@ -753,21 +745,27 @@ static int ocfs2_link(struct dentry *old_dentry,
 		le16_add_cpu(&fe->i_links_count, -1);
 		drop_nlink(inode);
 		mlog_errno(err);
-		goto bail;
+		goto out_commit;
 	}
 
 	err = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
 	if (err) {
 		mlog_errno(err);
-		goto bail;
+		goto out_commit;
 	}
 
 	atomic_inc(&inode->i_count);
 	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
-bail:
-	if (handle)
-		ocfs2_commit_trans(handle);
+
+out_commit:
+	ocfs2_commit_trans(handle);
+out_unlock_inode:
+	ocfs2_meta_unlock(inode, 1);
+
+out:
+	ocfs2_meta_unlock(dir, 1);
+
 	if (de_bh)
 		brelse(de_bh);
 	if (fe_bh)
