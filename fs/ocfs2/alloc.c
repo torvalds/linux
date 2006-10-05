@@ -1113,7 +1113,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 {
 	int status;
 	unsigned int num_to_flush;
-	struct ocfs2_journal_handle *handle = NULL;
+	struct ocfs2_journal_handle *handle;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct inode *data_alloc_inode = NULL;
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
@@ -1130,7 +1130,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	if (!OCFS2_IS_VALID_DINODE(di)) {
 		OCFS2_RO_ON_INVALID_DINODE(osb->sb, di);
 		status = -EIO;
-		goto bail;
+		goto out;
 	}
 
 	num_to_flush = le16_to_cpu(tl->tl_used);
@@ -1138,14 +1138,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	     num_to_flush, (unsigned long long)OCFS2_I(tl_inode)->ip_blkno);
 	if (!num_to_flush) {
 		status = 0;
-		goto bail;
-	}
-
-	handle = ocfs2_alloc_handle(osb);
-	if (!handle) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
+		goto out;
 	}
 
 	data_alloc_inode = ocfs2_get_system_file_inode(osb,
@@ -1154,41 +1147,40 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	if (!data_alloc_inode) {
 		status = -EINVAL;
 		mlog(ML_ERROR, "Could not get bitmap inode!\n");
-		goto bail;
+		goto out;
 	}
 
-	ocfs2_handle_add_inode(handle, data_alloc_inode);
-	status = ocfs2_meta_lock(data_alloc_inode, handle, &data_alloc_bh, 1);
+	mutex_lock(&data_alloc_inode->i_mutex);
+
+	status = ocfs2_meta_lock(data_alloc_inode, NULL, &data_alloc_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
-		goto bail;
+		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_TRUNCATE_LOG_UPDATE);
+	handle = ocfs2_start_trans(osb, NULL, OCFS2_TRUNCATE_LOG_UPDATE);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
-		handle = NULL;
 		mlog_errno(status);
-		goto bail;
+		goto out_unlock;
 	}
 
 	status = ocfs2_replay_truncate_records(osb, handle, data_alloc_inode,
 					       data_alloc_bh);
-	if (status < 0) {
+	if (status < 0)
 		mlog_errno(status);
-		goto bail;
-	}
 
-bail:
-	if (handle)
-		ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(handle);
 
-	if (data_alloc_inode)
-		iput(data_alloc_inode);
+out_unlock:
+	brelse(data_alloc_bh);
+	ocfs2_meta_unlock(data_alloc_inode, 1);
 
-	if (data_alloc_bh)
-		brelse(data_alloc_bh);
+out_mutex:
+	mutex_unlock(&data_alloc_inode->i_mutex);
+	iput(data_alloc_inode);
 
+out:
 	mlog_exit(status);
 	return status;
 }
