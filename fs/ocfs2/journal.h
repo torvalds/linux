@@ -144,7 +144,6 @@ struct ocfs2_journal_handle {
 	handle_t            *k_handle; /* kernel handle.                */
 	struct ocfs2_journal        *journal;
 	u32                 flags;     /* see flags below.              */
-	int                 max_buffs; /* Buffs reserved by this handle */
 
 	/* The following two fields are for ocfs2_handle_add_lock */
 	int                 num_locks;

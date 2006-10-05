@@ -124,7 +124,6 @@ struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 		return NULL;
 	}
 
-	retval->max_buffs = 0;
 	retval->num_locks = 0;
 	retval->k_handle = NULL;
 
@@ -171,8 +170,6 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 		     "handle!\n");
 		goto done_free;
 	}
-
-	handle->max_buffs = max_buffs;
 
 	down_read(&osb->journal->j_trans_barrier);
 
@@ -353,9 +350,7 @@ int ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
 			mlog_errno(status);
 			goto bail;
 		}
-		handle->max_buffs = nblocks;
-	} else
-		handle->max_buffs += nblocks;
+	}
 
 	status = 0;
 bail:
