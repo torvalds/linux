@@ -790,7 +790,16 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 	int rionodeid;
 	u32 address;
 
-	rionodeid = (dev->bus->number % 15 > 4) ? 3 : 2;
+	/*
+	 * Each Calgary has four busses. The first four busses (first Calgary)
+	 * have RIO node ID 2, then the next four (second Calgary) have RIO
+	 * node ID 3, the next four (third Calgary) have node ID 2 again, etc.
+	 * We use a gross hack - relying on the dev->bus->number ordering,
+	 * modulo 14 - to decide which Calgary a given bus is on. Busses 0, 1,
+	 * 2 and 4 are on the first Calgary (id 2), 6, 8, a and c are on the
+	 * second (id 3), and then it repeats modulo 14.
+ 	 */
+	rionodeid = (dev->bus->number % 14 > 4) ? 3 : 2;
 	/*
 	 * register space address calculation as follows:
 	 * FE0MB-8MB*OneBasedChassisNumber+1MB*(RioNodeId-ChassisBase)
@@ -798,7 +807,7 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 	 * RioNodeId is 2 for first Calgary, 3 for second Calgary
 	 */
 	address = START_ADDRESS	-
-		(0x800000 * (ONE_BASED_CHASSIS_NUM + dev->bus->number / 15)) +
+		(0x800000 * (ONE_BASED_CHASSIS_NUM + dev->bus->number / 14)) +
 		(0x100000) * (rionodeid - CHASSIS_BASE);
 	return address;
 }
