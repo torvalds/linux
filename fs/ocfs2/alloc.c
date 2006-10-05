@@ -1074,7 +1074,7 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 		/* TODO: Perhaps we can calculate the bulk of the
 		 * credits up front rather than extending like
 		 * this. */
-		status = ocfs2_extend_trans(handle,
+		status = ocfs2_extend_trans(handle->k_handle,
 					    OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
 		if (status < 0) {
 			mlog_errno(status);

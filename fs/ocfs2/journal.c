@@ -323,20 +323,18 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
  * good because transaction ids haven't yet been recorded on the
  * cluster locks associated with this handle.
  */
-int ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
-		       int nblocks)
+int ocfs2_extend_trans(handle_t *handle, int nblocks)
 {
 	int status;
 
 	BUG_ON(!handle);
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 	BUG_ON(!nblocks);
 
 	mlog_entry_void();
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
 
-	status = journal_extend(handle->k_handle, nblocks);
+	status = journal_extend(handle, nblocks);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -344,9 +342,8 @@ int ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
 
 	if (status > 0) {
 		mlog(0, "journal_extend failed, trying journal_restart\n");
-		status = journal_restart(handle->k_handle, nblocks);
+		status = journal_restart(handle, nblocks);
 		if (status < 0) {
-			handle->k_handle = NULL;
 			mlog_errno(status);
 			goto bail;
 		}

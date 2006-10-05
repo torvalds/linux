@@ -264,8 +264,7 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 					       struct ocfs2_journal_handle *handle,
 					       int max_buffs);
 void			     ocfs2_commit_trans(struct ocfs2_journal_handle *handle);
-int			     ocfs2_extend_trans(struct ocfs2_journal_handle *handle,
-						int nblocks);
+int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 
 /*
  * Create access is for when we get a newly created buffer and we're

@@ -566,7 +566,7 @@ restarted_transaction:
 			credits = ocfs2_calc_extend_credits(osb->sb,
 							    fe,
 							    clusters_to_add);
-			status = ocfs2_extend_trans(handle, credits);
+			status = ocfs2_extend_trans(handle->k_handle, credits);
 			if (status < 0) {
 				/* handle still has to be committed at
 				 * this point. */
