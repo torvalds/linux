@@ -190,7 +190,6 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 	}
 
 	atomic_inc(&(osb->journal->j_num_trans));
-	handle->flags |= OCFS2_HANDLE_STARTED;
 
 	mlog_exit_ptr(handle);
 	return handle;
@@ -247,8 +246,6 @@ static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle)
 {
 	mlog_entry_void();
 
-	BUG_ON(handle->flags & OCFS2_HANDLE_STARTED);
-
 	ocfs2_handle_unlock_inodes(handle);
 	/* You are allowed to add journal locks before the transaction
 	 * has started. */
@@ -269,7 +266,7 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
 
 	BUG_ON(!handle);
 
-	if (!(handle->flags & OCFS2_HANDLE_STARTED)) {
+	if (!handle->k_handle) {
 		ocfs2_commit_unstarted_handle(handle);
 		mlog_exit_void();
 		return;
@@ -284,11 +281,6 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
 	 * clear k_handle as it's not valid any more. */
 	if (handle->k_handle) {
 		jbd_handle = handle->k_handle;
-
-		if (handle->flags & OCFS2_HANDLE_SYNC)
-			jbd_handle->h_sync = 1;
-		else
-			jbd_handle->h_sync = 0;
 
 		/* actually stop the transaction. if we've set h_sync,
 		 * it'll have been committed when we return */
@@ -366,7 +358,6 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	BUG_ON(!inode);
 	BUG_ON(!handle);
 	BUG_ON(!bh);
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 
 	mlog_entry("bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %zu\n",
 		   (unsigned long long)bh->b_blocknr, type,
@@ -420,8 +411,6 @@ int ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
 			struct buffer_head *bh)
 {
 	int status;
-
-	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 
 	mlog_entry("(bh->b_blocknr=%llu)\n",
 		   (unsigned long long)bh->b_blocknr);

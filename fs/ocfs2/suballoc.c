@@ -414,7 +414,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 
 	mlog_entry_void();
 
-	BUG_ON(handle->flags & OCFS2_HANDLE_STARTED);
+	BUG_ON(handle->k_handle);
 
 	ocfs2_handle_add_inode(handle, alloc_inode);
 	status = ocfs2_meta_lock(alloc_inode, handle, &bh, 1);

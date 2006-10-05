@@ -423,7 +423,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	}
 
 	/* we want the bitmap change to be recorded on disk asap */
-	ocfs2_handle_set_sync(handle, 1);
+	handle->k_handle->h_sync = 1;
 
 	status = ocfs2_sync_local_to_main(osb, handle, alloc,
 					  main_bm_inode, main_bm_bh);
@@ -465,7 +465,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	BUG_ON(!passed_handle);
 	BUG_ON(!ac);
-	BUG_ON(passed_handle->flags & OCFS2_HANDLE_STARTED);
+	BUG_ON(passed_handle->k_handle);
 
 	local_alloc_inode =
 		ocfs2_get_system_file_inode(osb,

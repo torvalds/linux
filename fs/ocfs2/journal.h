@@ -143,7 +143,6 @@ struct ocfs2_journal_lock {
 struct ocfs2_journal_handle {
 	handle_t            *k_handle; /* kernel handle.                */
 	struct ocfs2_journal        *journal;
-	u32                 flags;     /* see flags below.              */
 
 	/* The following two fields are for ocfs2_handle_add_lock */
 	int                 num_locks;
@@ -153,22 +152,6 @@ struct ocfs2_journal_handle {
 
 	struct list_head     inode_list;
 };
-
-#define OCFS2_HANDLE_STARTED			1
-/* should we sync-commit this handle? */
-#define OCFS2_HANDLE_SYNC			2
-static inline int ocfs2_handle_started(struct ocfs2_journal_handle *handle)
-{
-	return handle->flags & OCFS2_HANDLE_STARTED;
-}
-
-static inline void ocfs2_handle_set_sync(struct ocfs2_journal_handle *handle, int sync)
-{
-	if (sync)
-		handle->flags |= OCFS2_HANDLE_SYNC;
-	else
-		handle->flags &= ~OCFS2_HANDLE_SYNC;
-}
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
 void ocfs2_complete_recovery(void *data);
