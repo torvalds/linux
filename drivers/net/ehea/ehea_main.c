@@ -766,7 +766,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		if (EHEA_BMASK_GET(NEQE_PORT_UP, eqe)) {
 			if (!netif_carrier_ok(port->netdev)) {
 				ret = ehea_sense_port_attr(
-					adapter->port[portnum]);
+					port);
 				if (ret) {
 					ehea_error("failed resensing port "
 						   "attributes");
@@ -818,7 +818,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		netif_stop_queue(port->netdev);
 		break;
 	default:
-		ehea_error("unknown event code %x", ec);
+		ehea_error("unknown event code %x, eqe=0x%lX", ec, eqe);
 		break;
 	}
 }
@@ -1841,7 +1841,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (netif_msg_tx_queued(port)) {
 		ehea_info("post swqe on QP %d", pr->qp->init_attr.qp_nr);
-		ehea_dump(swqe, sizeof(*swqe), "swqe");
+		ehea_dump(swqe, 512, "swqe");
 	}
 
 	ehea_post_swqe(pr->qp, swqe);
