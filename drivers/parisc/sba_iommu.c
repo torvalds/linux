@@ -1320,12 +1320,12 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	** the GART code to handshake on.
 	*/
 	klist_iter_init(&sba->dev.klist_children, &i);
-	while (dev = next_device(&i)) {
+	while ((dev = next_device(&i))) {
 		struct parisc_device *lba = to_parisc_device(dev);
 		if (IS_QUICKSILVER(lba))
 			agp_found = 1;
 	}
-	klist_iter_exit(&sba->dev.klist_children, &i);
+	klist_iter_exit(&i);
 
 	if (agp_found && sba_reserve_agpgart) {
 		printk(KERN_INFO "%s: reserving %dMb of IOVA space for agpgart\n",

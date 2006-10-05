@@ -266,30 +266,17 @@ long parisc_personality(unsigned long personality)
 	return err;
 }
 
-static inline int override_machine(char __user *mach) {
-#ifdef CONFIG_COMPAT
-	if (personality(current->personality) == PER_LINUX32) {
-		if (__put_user(0, mach + 6) ||
-		    __put_user(0, mach + 7))
-			return -EFAULT;
-	}
-
-	return 0;
-#else /*!CONFIG_COMPAT*/
-	return 0;
-#endif /*CONFIG_COMPAT*/
-}
-
-long parisc_newuname(struct new_utsname __user *utsname)
+long parisc_newuname(struct new_utsname __user *name)
 {
-	int err = 0;
+	int err = sys_newuname(name);
 
-	down_read(&uts_sem);
-	if (copy_to_user(utsname, &system_utsname, sizeof(*utsname)))
-		err = -EFAULT;
-	up_read(&uts_sem);
+#ifdef CONFIG_COMPAT
+	if (!err && personality(current->personality) == PER_LINUX32) {
+		if (__put_user(0, name->machine + 6) ||
+		    __put_user(0, name->machine + 7))
+			err = -EFAULT;
+	}
+#endif
 
-	err = override_machine(utsname->machine);
-
-	return (long)err;
+	return err;
 }
