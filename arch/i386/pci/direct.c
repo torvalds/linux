@@ -256,6 +256,8 @@ static int __init pci_check_type2(void)
 
 void __init pci_direct_init(int type)
 {
+	if (type == 0)
+		return;
 	printk(KERN_INFO "PCI: Using configuration type %d\n", type);
 	if (type == 1)
 		raw_pci_ops = &pci_direct_conf1;
