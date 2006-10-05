@@ -884,6 +884,29 @@ static void skge_link_down(struct skge_port *skge)
 		printk(KERN_INFO PFX "%s: Link is down.\n", skge->netdev->name);
 }
 
+
+static void xm_link_down(struct skge_hw *hw, int port)
+{
+	struct net_device *dev = hw->dev[port];
+	struct skge_port *skge = netdev_priv(dev);
+	u16 cmd, msk;
+
+	if (hw->phy_type == SK_PHY_XMAC) {
+		msk = xm_read16(hw, port, XM_IMSK);
+		msk |= XM_IS_INP_ASS | XM_IS_LIPA_RC | XM_IS_RX_PAGE | XM_IS_AND;
+		xm_write16(hw, port, XM_IMSK, msk);
+	}
+
+	cmd = xm_read16(hw, port, XM_MMU_CMD);
+	cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
+	xm_write16(hw, port, XM_MMU_CMD, cmd);
+	/* dummy read to ensure writing */
+	(void) xm_read16(hw, port, XM_MMU_CMD);
+
+	if (netif_carrier_ok(dev))
+		skge_link_down(skge);
+}
+
 static int __xm_phy_read(struct skge_hw *hw, int port, u16 reg, u16 *val)
 {
 	int i;
@@ -1008,14 +1031,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 	status = xm_phy_read(hw, port, PHY_BCOM_STAT);
 
 	if ((status & PHY_ST_LSYNC) == 0) {
-		u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
-		cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-		xm_write16(hw, port, XM_MMU_CMD, cmd);
-		/* dummy read to ensure writing */
-		(void) xm_read16(hw, port, XM_MMU_CMD);
-
-		if (netif_carrier_ok(dev))
-			skge_link_down(skge);
+		xm_link_down(hw, port);
 		return;
 	}
 
@@ -1235,14 +1251,7 @@ static void xm_check_link(struct net_device *dev)
 	status = xm_phy_read(hw, port, PHY_XMAC_STAT);
 
 	if ((status & PHY_ST_LSYNC) == 0) {
-		u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
-		cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-		xm_write16(hw, port, XM_MMU_CMD, cmd);
-		/* dummy read to ensure writing */
-		(void) xm_read16(hw, port, XM_MMU_CMD);
-
-		if (netif_carrier_ok(dev))
-			skge_link_down(skge);
+		xm_link_down(hw, port);
 		return;
 	}
 
@@ -1568,6 +1577,10 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 		printk(KERN_DEBUG PFX "%s: mac interrupt status 0x%x\n",
 		       skge->netdev->name, status);
 
+	if (hw->phy_type == SK_PHY_XMAC &&
+	    (status & (XM_IS_INP_ASS | XM_IS_LIPA_RC)))
+		xm_link_down(hw, port);
+
 	if (status & XM_IS_TXF_UR) {
 		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
 		++skge->net_stats.tx_fifo_errors;
@@ -1582,7 +1595,7 @@ static void genesis_link_up(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u16 cmd;
+	u16 cmd, msk;
 	u32 mode;
 
 	cmd = xm_read16(hw, port, XM_MMU_CMD);
@@ -1631,7 +1644,11 @@ static void genesis_link_up(struct skge_port *skge)
 	}
 
 	xm_write32(hw, port, XM_MODE, mode);
-	xm_write16(hw, port, XM_IMSK, XM_DEF_MSK);
+	msk = XM_DEF_MSK;
+	if (hw->phy_type != SK_PHY_XMAC)
+		msk |= XM_IS_INP_ASS;	/* disable GP0 interrupt bit */
+
+	xm_write16(hw, port, XM_IMSK, msk);
 	xm_read16(hw, port, XM_ISRC);
 
 	/* get MMU Command Reg. */
