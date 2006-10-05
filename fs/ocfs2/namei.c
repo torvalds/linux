@@ -333,17 +333,17 @@ static int ocfs2_mknod(struct inode *dir,
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
+	status = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
+	if (status < 0) {
+		if (status != -ENOENT)
+			mlog_errno(status);
+		return status;
+	}
+
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto leave;
-	}
-
-	status = ocfs2_meta_lock(dir, handle, &parent_fe_bh, 1);
-	if (status < 0) {
-		if (status != -ENOENT)
-			mlog_errno(status);
 		goto leave;
 	}
 
@@ -454,6 +454,8 @@ static int ocfs2_mknod(struct inode *dir,
 leave:
 	if (handle)
 		ocfs2_commit_trans(handle);
+
+	ocfs2_meta_unlock(dir, 1);
 
 	if (status == -ENOSPC)
 		mlog(0, "Disk is full\n");
