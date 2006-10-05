@@ -152,6 +152,8 @@ ENTRY(__read_lock_failed)
 
 #endif
 
+#ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
+
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
 	CFI_STARTPROC
@@ -214,3 +216,4 @@ ENTRY(call_rwsem_downgrade_wake)
 	CFI_ENDPROC
 	END(call_rwsem_downgrade_wake)
 
+#endif
