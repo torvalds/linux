@@ -2,8 +2,9 @@
  * Derived from arch/powerpc/kernel/iommu.c
  *
  * Copyright (C) IBM Corporation, 2006
+ * Copyright (C) 2006  Jon Mason <jdmason@kudzu.us>
  *
- * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Jon Mason <jdmason@kudzu.us>
  * Author: Muli Ben-Yehuda <muli@il.ibm.com>
 
  * This program is free software; you can redistribute it and/or modify
