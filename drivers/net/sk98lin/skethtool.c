@@ -581,6 +581,30 @@ static int setRxCsum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int getRegsLen(struct net_device *dev)
+{
+	return 0x4000;
+}
+
+/*
+ * Returns copy of whole control register region
+ * Note: skip RAM address register because accessing it will
+ * 	 cause bus hangs!
+ */
+static void getRegs(struct net_device *dev, struct ethtool_regs *regs,
+			  void *p)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	const void __iomem *io = pNet->pAC->IoBase;
+
+	regs->version = 1;
+	memset(p, 0, regs->len);
+	memcpy_fromio(p, io, B3_RAM_ADDR);
+
+	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1,
+		      regs->len - B3_RI_WTO_R1);
+}
+
 const struct ethtool_ops SkGeEthtoolOps = {
 	.get_settings		= getSettings,
 	.set_settings		= setSettings,
@@ -599,4 +623,6 @@ const struct ethtool_ops SkGeEthtoolOps = {
 	.set_tx_csum		= setTxCsum,
 	.get_rx_csum		= getRxCsum,
 	.set_rx_csum		= setRxCsum,
+	.get_regs		= getRegs,
+	.get_regs_len		= getRegsLen,
 };
