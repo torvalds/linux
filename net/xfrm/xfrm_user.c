@@ -1992,15 +1992,6 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 	xp->type = XFRM_POLICY_TYPE_MAIN;
 	copy_templates(xp, ut, nr);
 
-	if (!xp->security) {
-		int err = security_xfrm_sock_policy_alloc(xp, sk);
-		if (err) {
-			kfree(xp);
-			*dir = err;
-			return NULL;
-		}
-	}
-
 	*dir = p->dir;
 
 	return xp;

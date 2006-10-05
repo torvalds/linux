@@ -19,7 +19,8 @@ int selinux_xfrm_state_delete(struct xfrm_state *x);
 int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
-int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm);
+int selinux_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm,
+			struct xfrm_policy *xp);
 
 
 /*
