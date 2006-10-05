@@ -1219,7 +1219,7 @@ static void dump_register_info(struct AdapterCtlBlk *acb,
 			    	srb, srb->cmd, srb->cmd->pid,
 				srb->cmd->cmnd[0], srb->cmd->device->id,
 			       	srb->cmd->device->lun);
-		printk("  sglist=%p cnt=%i idx=%i len=%i\n",
+		printk("  sglist=%p cnt=%i idx=%i len=%Zd\n",
 		       srb->segment_x, srb->sg_count, srb->sg_index,
 		       srb->total_xfer_length);
 		printk("  state=0x%04x status=0x%02x phase=0x%02x (%sconn.)\n",
@@ -4949,7 +4949,7 @@ static struct pci_driver dc395x_driver = {
  **/
 static int __init dc395x_module_init(void)
 {
-	return pci_module_init(&dc395x_driver);
+	return pci_register_driver(&dc395x_driver);
 }
 
 

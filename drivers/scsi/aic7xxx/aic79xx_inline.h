@@ -527,7 +527,8 @@ ahd_inw(struct ahd_softc *ahd, u_int port)
 	 * or have other side effects when the low byte is
 	 * read.
 	 */
-	return ((ahd_inb(ahd, port+1) << 8) | ahd_inb(ahd, port));
+	uint16_t r = ahd_inb(ahd, port+1) << 8;
+	return r | ahd_inb(ahd, port);
 }
 
 static __inline void

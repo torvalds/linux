@@ -277,8 +277,8 @@ struct status_entry {
 typedef struct acornscsi_hostdata {
     /* miscellaneous */
     struct Scsi_Host	*host;			/* host					*/
-    Scsi_Cmnd		*SCpnt;			/* currently processing command		*/
-    Scsi_Cmnd		*origSCpnt;		/* original connecting command		*/
+    struct scsi_cmnd	*SCpnt;			/* currently processing command		*/
+    struct scsi_cmnd	*origSCpnt;		/* original connecting command		*/
 
     /* driver information */
     struct {

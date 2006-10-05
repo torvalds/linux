@@ -1187,7 +1187,7 @@ static struct pci_driver inia100_pci_driver = {
 
 static int __init inia100_init(void)
 {
-	return pci_module_init(&inia100_pci_driver);
+	return pci_register_driver(&inia100_pci_driver);
 }
 
 static void __exit inia100_exit(void)

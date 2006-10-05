@@ -218,11 +218,11 @@ typedef struct {
 	unsigned long		magic_start;
 	spinlock_t		host_lock;
 	struct Scsi_Host	*host;			/* host					*/
-	Scsi_Cmnd		*SCpnt;			/* currently processing command		*/
-	Scsi_Cmnd		*origSCpnt;		/* original connecting command		*/
-	Scsi_Cmnd		*reqSCpnt;		/* request sense command		*/
-	Scsi_Cmnd		*rstSCpnt;		/* reset command			*/
-	Scsi_Cmnd		*pending_SCpnt[8];	/* per-device pending commands		*/
+	struct scsi_cmnd	*SCpnt;			/* currently processing command		*/
+	struct scsi_cmnd	*origSCpnt;		/* original connecting command		*/
+	struct scsi_cmnd	*reqSCpnt;		/* request sense command		*/
+	struct scsi_cmnd	*rstSCpnt;		/* reset command			*/
+	struct scsi_cmnd	*pending_SCpnt[8];	/* per-device pending commands		*/
 	int			next_pending;		/* next pending device			*/
 
 	/*
@@ -328,21 +328,23 @@ extern int fas216_init (struct Scsi_Host *instance);
  */
 extern int fas216_add (struct Scsi_Host *instance, struct device *dev);
 
-/* Function: int fas216_queue_command (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+/* Function: int fas216_queue_command(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
  * Purpose : queue a command for adapter to process.
  * Params  : SCpnt - Command to queue
  *	     done  - done function to call once command is complete
  * Returns : 0 - success, else error
  */
-extern int fas216_queue_command (Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
+extern int fas216_queue_command(struct scsi_cmnd *,
+				void (*done)(struct scsi_cmnd *));
 
-/* Function: int fas216_noqueue_command (Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+/* Function: int fas216_noqueue_command(istruct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
  * Purpose : queue a command for adapter to process, and process it to completion.
  * Params  : SCpnt - Command to queue
  *	     done  - done function to call once command is complete
  * Returns : 0 - success, else error
  */
-extern int fas216_noqueue_command (Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
+extern int fas216_noqueue_command(struct scsi_cmnd *,
+				  void (*done)(struct scsi_cmnd *));
 
 /* Function: irqreturn_t fas216_intr (FAS216_Info *info)
  * Purpose : handle interrupts from the interface to progress a command
@@ -363,32 +365,32 @@ extern int fas216_print_host(FAS216_Info *info, char *buffer);
 extern int fas216_print_stats(FAS216_Info *info, char *buffer);
 extern int fas216_print_devices(FAS216_Info *info, char *buffer);
 
-/* Function: int fas216_eh_abort(Scsi_Cmnd *SCpnt)
+/* Function: int fas216_eh_abort(struct scsi_cmnd *SCpnt)
  * Purpose : abort this command
  * Params  : SCpnt - command to abort
  * Returns : FAILED if unable to abort
  */
-extern int fas216_eh_abort(Scsi_Cmnd *SCpnt);
+extern int fas216_eh_abort(struct scsi_cmnd *SCpnt);
 
-/* Function: int fas216_eh_device_reset(Scsi_Cmnd *SCpnt)
+/* Function: int fas216_eh_device_reset(struct scsi_cmnd *SCpnt)
  * Purpose : Reset the device associated with this command
  * Params  : SCpnt - command specifing device to reset
  * Returns : FAILED if unable to reset
  */
-extern int fas216_eh_device_reset(Scsi_Cmnd *SCpnt);
+extern int fas216_eh_device_reset(struct scsi_cmnd *SCpnt);
 
-/* Function: int fas216_eh_bus_reset(Scsi_Cmnd *SCpnt)
+/* Function: int fas216_eh_bus_reset(struct scsi_cmnd *SCpnt)
  * Purpose : Reset the complete bus associated with this command
  * Params  : SCpnt - command specifing bus to reset
  * Returns : FAILED if unable to reset
  */
-extern int fas216_eh_bus_reset(Scsi_Cmnd *SCpnt);
+extern int fas216_eh_bus_reset(struct scsi_cmnd *SCpnt);
 
-/* Function: int fas216_eh_host_reset(Scsi_Cmnd *SCpnt)
+/* Function: int fas216_eh_host_reset(struct scsi_cmnd *SCpnt)
  * Purpose : Reset the host associated with this command
  * Params  : SCpnt - command specifing host to reset
  * Returns : FAILED if unable to reset
  */
-extern int fas216_eh_host_reset(Scsi_Cmnd *SCpnt);
+extern int fas216_eh_host_reset(struct scsi_cmnd *SCpnt);
 
 #endif /* FAS216_H */

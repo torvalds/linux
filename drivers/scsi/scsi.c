@@ -128,7 +128,7 @@ const char * scsi_device_type(unsigned type)
 		return "Well-known LUN   ";
 	if (type == 0x1f)
 		return "No Device        ";
-	if (type > ARRAY_SIZE(scsi_device_types))
+	if (type >= ARRAY_SIZE(scsi_device_types))
 		return "Unknown          ";
 	return scsi_device_types[type];
 }

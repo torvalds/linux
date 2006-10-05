@@ -44,7 +44,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 
 
 /*
- * struct scsi_host_template (see hosts.h)
+ * struct scsi_host_template (see scsi/scsi_host.h)
  */
 
 #define DPT_DRIVER_NAME	"Adaptec I2O RAID"

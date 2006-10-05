@@ -1794,7 +1794,7 @@ static void sd_shutdown(struct device *dev)
  **/
 static int __init init_sd(void)
 {
-	int majors = 0, i;
+	int majors = 0, i, err;
 
 	SCSI_LOG_HLQUEUE(3, printk("init_sd: sd driver entry point\n"));
 
@@ -1805,9 +1805,22 @@ static int __init init_sd(void)
 	if (!majors)
 		return -ENODEV;
 
-	class_register(&sd_disk_class);
+	err = class_register(&sd_disk_class);
+	if (err)
+		goto err_out;
 
-	return scsi_register_driver(&sd_template.gendrv);
+	err = scsi_register_driver(&sd_template.gendrv);
+	if (err)
+		goto err_out_class;
+
+	return 0;
+
+err_out_class:
+	class_unregister(&sd_disk_class);
+err_out:
+	for (i = 0; i < SD_MAJORS; i++)
+		unregister_blkdev(sd_major(i), "sd");
+	return err;
 }
 
 /**
@@ -1822,10 +1835,10 @@ static void __exit exit_sd(void)
 	SCSI_LOG_HLQUEUE(3, printk("exit_sd: exiting sd driver\n"));
 
 	scsi_unregister_driver(&sd_template.gendrv);
+	class_unregister(&sd_disk_class);
+
 	for (i = 0; i < SD_MAJORS; i++)
 		unregister_blkdev(sd_major(i), "sd");
-
-	class_unregister(&sd_disk_class);
 }
 
 module_init(init_sd);
