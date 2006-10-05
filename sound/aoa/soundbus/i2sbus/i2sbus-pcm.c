@@ -901,11 +901,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	}
 
 	if (!dev->pcm) {
-		err = snd_pcm_new(card,
-				  dev->pcmname,
-				  dev->pcmid,
-				  0,
-				  0,
+		err = snd_pcm_new(card, dev->pcmname, dev->pcmid, 0, 0,
 				  &dev->pcm);
 		if (err) {
 			printk(KERN_DEBUG "i2sbus: failed to create pcm\n");
@@ -915,6 +911,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			module_put(THIS_MODULE);
 			return err;
 		}
+		dev->pcm->dev = &dev->ofdev.dev;
 	}
 
 	/* ALSA yet again sucks.
