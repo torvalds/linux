@@ -715,7 +715,7 @@ static void calgary_watchdog(unsigned long data)
 
 	/* If no error, the agent ID in the CSR is not valid */
 	if (val32 & CSR_AGENT_MASK) {
-		printk(KERN_EMERG "calgary_watchdog: DMA error on bus %d, "
+		printk(KERN_EMERG "calgary_watchdog: DMA error on PHB %#x, "
 				  "CSR = %#x\n", dev->bus->number, val32);
 		writel(0, target);
 
@@ -749,7 +749,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 |= PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE;
 
-	printk(KERN_INFO "Calgary: enabling translation on PHB %d\n", busnum);
+	printk(KERN_INFO "Calgary: enabling translation on PHB %#x\n", busnum);
 	printk(KERN_INFO "Calgary: errant DMAs will now be prevented on this "
 	       "bus.\n");
 
@@ -779,7 +779,7 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 &= ~(PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE);
 
-	printk(KERN_INFO "Calgary: disabling translation on PHB %d!\n", busnum);
+	printk(KERN_INFO "Calgary: disabling translation on PHB %#x!\n", busnum);
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
@@ -1064,7 +1064,7 @@ static int __init calgary_parse_options(char *p)
 
 			if (bridge < MAX_PHB_BUS_NUM) {
 				printk(KERN_INFO "Calgary: disabling "
-				       "translation for PHB 0x%x\n", bridge);
+				       "translation for PHB %#x\n", bridge);
 				bus_info[bridge].translation_disabled = 1;
 			}
 		}
