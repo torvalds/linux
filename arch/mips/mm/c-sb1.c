@@ -49,6 +49,15 @@ static unsigned short dcache_sets;
 static unsigned int icache_range_cutoff;
 static unsigned int dcache_range_cutoff;
 
+static inline void sb1_on_each_cpu(void (*func) (void *info), void *info,
+				   int retry, int wait)
+{
+	preempt_disable();
+	smp_call_function(func, info, retry, wait);
+	func(info);
+	preempt_enable();
+}
+
 /*
  * The dcache is fully coherent to the system, with one
  * big caveat:  the instruction stream.  In other words,
@@ -226,7 +235,7 @@ static void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr,
 	args.vma = vma;
 	args.addr = addr;
 	args.pfn = pfn;
-	on_each_cpu(sb1_flush_cache_page_ipi, (void *) &args, 1, 1);
+	sb1_on_each_cpu(sb1_flush_cache_page_ipi, (void *) &args, 1, 1);
 }
 #else
 void sb1_flush_cache_page(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
@@ -249,7 +258,7 @@ void sb1___flush_cache_all_ipi(void *ignored)
 
 static void sb1___flush_cache_all(void)
 {
-	on_each_cpu(sb1___flush_cache_all_ipi, 0, 1, 1);
+	sb1_on_each_cpu(sb1___flush_cache_all_ipi, 0, 1, 1);
 }
 #else
 void sb1___flush_cache_all(void)
@@ -299,7 +308,7 @@ void sb1_flush_icache_range(unsigned long start, unsigned long end)
 
 	args.start = start;
 	args.end = end;
-	on_each_cpu(sb1_flush_icache_range_ipi, &args, 1, 1);
+	sb1_on_each_cpu(sb1_flush_icache_range_ipi, &args, 1, 1);
 }
 #else
 void sb1_flush_icache_range(unsigned long start, unsigned long end)
@@ -326,7 +335,7 @@ static void sb1_flush_cache_sigtramp_ipi(void *info)
 
 static void sb1_flush_cache_sigtramp(unsigned long addr)
 {
-	on_each_cpu(sb1_flush_cache_sigtramp_ipi, (void *) addr, 1, 1);
+	sb1_on_each_cpu(sb1_flush_cache_sigtramp_ipi, (void *) addr, 1, 1);
 }
 #else
 void sb1_flush_cache_sigtramp(unsigned long addr)
