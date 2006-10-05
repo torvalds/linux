@@ -113,6 +113,7 @@
 #include	<linux/init.h>
 #include	<linux/dma-mapping.h>
 #include	<linux/ip.h>
+#include	<linux/mii.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"
@@ -2843,6 +2844,56 @@ unsigned long	Flags;			/* for spin lock */
 	return(&pAC->stats);
 } /* SkGeStats */
 
+/*
+ * Basic MII register access
+ */
+static int SkGeMiiIoctl(struct net_device *dev,
+			struct mii_ioctl_data *data, int cmd)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+	SK_IOC IoC = pAC->IoBase;
+	int Port = pNet->PortNr;
+	SK_GEPORT *pPrt = &pAC->GIni.GP[Port];
+	unsigned long Flags;
+	int err = 0;
+	int reg = data->reg_num & 0x1f;
+	SK_U16 val = data->val_in;
+
+	if (!netif_running(dev))
+		return -ENODEV;	/* Phy still in reset */
+
+	spin_lock_irqsave(&pAC->SlowPathLock, Flags);
+	switch(cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = pPrt->PhyAddr;
+
+		/* fallthru */
+	case SIOCGMIIREG:
+		if (pAC->GIni.GIGenesis)
+			SkXmPhyRead(pAC, IoC, Port, reg, &val);
+		else
+			SkGmPhyRead(pAC, IoC, Port, reg, &val);
+
+		data->val_out = val;
+		break;
+
+	case SIOCSMIIREG:
+		if (!capable(CAP_NET_ADMIN))
+			err = -EPERM;
+
+		else if (pAC->GIni.GIGenesis)
+			SkXmPhyWrite(pAC, IoC, Port, reg, val);
+		else
+			SkGmPhyWrite(pAC, IoC, Port, reg, val);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+        spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
+	return err;
+}
+
 
 /*****************************************************************************
  *
@@ -2876,6 +2927,9 @@ int		HeaderLength = sizeof(SK_U32) + sizeof(SK_U32);
 	pNet = netdev_priv(dev);
 	pAC = pNet->pAC;
 	
+	if (cmd == SIOCGMIIPHY || cmd == SIOCSMIIREG || cmd == SIOCGMIIREG)
+	    return SkGeMiiIoctl(dev, if_mii(rq), cmd);
+
 	if(copy_from_user(&Ioctl, rq->ifr_data, sizeof(SK_GE_IOCTL))) {
 		return -EFAULT;
 	}
