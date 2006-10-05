@@ -211,9 +211,40 @@ extern struct class *sound_class;
 
 void snd_request_card(int card);
 
-int snd_register_device(int type, struct snd_card *card, int dev,
-			const struct file_operations *f_ops, void *private_data,
-			const char *name);
+int snd_register_device_for_dev(int type, struct snd_card *card,
+				int dev,
+				const struct file_operations *f_ops,
+				void *private_data,
+				const char *name,
+				struct device *device);
+
+/**
+ * snd_register_device - Register the ALSA device file for the card
+ * @type: the device type, SNDRV_DEVICE_TYPE_XXX
+ * @card: the card instance
+ * @dev: the device index
+ * @f_ops: the file operations
+ * @private_data: user pointer for f_ops->open()
+ * @name: the device file name
+ *
+ * Registers an ALSA device file for the given card.
+ * The operators have to be set in reg parameter.
+ *
+ * This function uses the card's device pointer to link to the
+ * correct &struct device.
+ *
+ * Returns zero if successful, or a negative error code on failure.
+ */
+static inline int snd_register_device(int type, struct snd_card *card, int dev,
+				      const struct file_operations *f_ops,
+				      void *private_data,
+				      const char *name)
+{
+	return snd_register_device_for_dev(type, card, dev, f_ops,
+					   private_data, name,
+					   card ? card->dev : NULL);
+}
+
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
 int snd_add_device_sysfs_file(int type, struct snd_card *card, int dev,
