@@ -812,7 +812,6 @@ static void i2sbus_private_free(struct snd_pcm *pcm)
 	module_put(THIS_MODULE);
 }
 
-/* FIXME: this function needs an error handling strategy with labels */
 int
 i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		    struct codec_info *ci, void *data)
@@ -880,24 +879,21 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	if (!cii->sdev) {
 		printk(KERN_DEBUG
 		       "i2sbus: failed to get soundbus dev reference\n");
-		kfree(cii);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_free_cii;
 	}
 
 	if (!try_module_get(THIS_MODULE)) {
 		printk(KERN_DEBUG "i2sbus: failed to get module reference!\n");
-		soundbus_dev_put(dev);
-		kfree(cii);
-		return -EBUSY;
+		err = -EBUSY;
+		goto out_put_sdev;
 	}
 
 	if (!try_module_get(ci->owner)) {
 		printk(KERN_DEBUG
 		       "i2sbus: failed to get module reference to codec owner!\n");
-		module_put(THIS_MODULE);
-		soundbus_dev_put(dev);
-		kfree(cii);
-		return -EBUSY;
+		err = -EBUSY;
+		goto out_put_this_module;
 	}
 
 	if (!dev->pcm) {
@@ -905,11 +901,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 				  &dev->pcm);
 		if (err) {
 			printk(KERN_DEBUG "i2sbus: failed to create pcm\n");
-			kfree(cii);
-			module_put(ci->owner);
-			soundbus_dev_put(dev);
-			module_put(THIS_MODULE);
-			return err;
+			goto out_put_ci_module;
 		}
 		dev->pcm->dev = &dev->ofdev.dev;
 	}
@@ -923,20 +915,12 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 			/* eh? */
 			printk(KERN_ERR
 			       "Can't attach same bus to different cards!\n");
-			module_put(ci->owner);
-			kfree(cii);
-			soundbus_dev_put(dev);
-			module_put(THIS_MODULE);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_ci_module;
 		}
-		if ((err =
-		     snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK, 1))) {
-			module_put(ci->owner);
-			kfree(cii);
-			soundbus_dev_put(dev);
-			module_put(THIS_MODULE);
-			return err;
-		}
+		err = snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK, 1);
+		if (err)
+			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				&i2sbus_playback_ops);
 		i2sdev->out.created = 1;
@@ -946,20 +930,11 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		if (dev->pcm->card != card) {
 			printk(KERN_ERR
 			       "Can't attach same bus to different cards!\n");
-			module_put(ci->owner);
-			kfree(cii);
-			soundbus_dev_put(dev);
-			module_put(THIS_MODULE);
-			return -EINVAL;
+			goto out_put_ci_module;
 		}
-		if ((err =
-		     snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_CAPTURE, 1))) {
-			module_put(ci->owner);
-			kfree(cii);
-			soundbus_dev_put(dev);
-			module_put(THIS_MODULE);
-			return err;
-		}
+		err = snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_CAPTURE, 1);
+		if (err)
+			goto out_put_ci_module;
 		snd_pcm_set_ops(dev->pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&i2sbus_record_ops);
 		i2sdev->in.created = 1;
@@ -974,11 +949,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	err = snd_device_register(card, dev->pcm);
 	if (err) {
 		printk(KERN_ERR "i2sbus: error registering new pcm\n");
-		module_put(ci->owner);
-		kfree(cii);
-		soundbus_dev_put(dev);
-		module_put(THIS_MODULE);
-		return err;
+		goto out_put_ci_module;
 	}
 	/* no errors any more, so let's add this to our list */
 	list_add(&cii->list, &dev->codec_list);
@@ -993,6 +964,15 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		64 * 1024, 64 * 1024);
 
 	return 0;
+ out_put_ci_module:
+	module_put(ci->owner);
+ out_put_this_module:
+	module_put(THIS_MODULE);
+ out_put_sdev:
+	soundbus_dev_put(dev);
+ out_free_cii:
+	kfree(cii);
+	return err;
 }
 
 void i2sbus_detach_codec(struct soundbus_dev *dev, void *data)
