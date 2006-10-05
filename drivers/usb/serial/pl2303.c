@@ -948,7 +948,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	wake_up_interruptible(&priv->delta_msr_wait);
 }
 
-static void pl2303_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void pl2303_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -987,7 +987,7 @@ exit:
 			__FUNCTION__, status);
 }
 
-static void pl2303_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void pl2303_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
@@ -1070,7 +1070,7 @@ static void pl2303_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	return;
 }
 
-static void pl2303_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void pl2303_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);

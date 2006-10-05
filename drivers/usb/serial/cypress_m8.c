@@ -172,8 +172,8 @@ static int  cypress_chars_in_buffer	(struct usb_serial_port *port);
 static void cypress_throttle		(struct usb_serial_port *port);
 static void cypress_unthrottle		(struct usb_serial_port *port);
 static void cypress_set_dead		(struct usb_serial_port *port);
-static void cypress_read_int_callback	(struct urb *urb, struct pt_regs *regs);
-static void cypress_write_int_callback	(struct urb *urb, struct pt_regs *regs);
+static void cypress_read_int_callback	(struct urb *urb);
+static void cypress_write_int_callback	(struct urb *urb);
 /* baud helper functions */
 static int	 mask_to_rate		(unsigned mask);
 static unsigned  rate_to_mask		(int rate);
@@ -1275,7 +1275,7 @@ static void cypress_unthrottle (struct usb_serial_port *port)
 }
 
 
-static void cypress_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void cypress_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
@@ -1426,7 +1426,7 @@ continue_read:
 } /* cypress_read_int_callback */
 
 
-static void cypress_write_int_callback(struct urb *urb, struct pt_regs *regs)
+static void cypress_write_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);

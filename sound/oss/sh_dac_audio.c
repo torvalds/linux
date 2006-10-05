@@ -263,7 +263,7 @@ struct file_operations dac_audio_fops = {
       .release =	dac_audio_release,
 };
 
-static irqreturn_t timer1_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t timer1_interrupt(int irq, void *dev)
 {
 	unsigned long timer_status;
 

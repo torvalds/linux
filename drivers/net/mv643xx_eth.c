@@ -507,8 +507,7 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
  * Output :	N/A
  */
 
-static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct mv643xx_private *mp = netdev_priv(dev);

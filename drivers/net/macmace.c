@@ -77,8 +77,8 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev);
 static struct net_device_stats *mace_stats(struct net_device *dev);
 static void mace_set_multicast(struct net_device *dev);
 static int mace_set_address(struct net_device *dev, void *addr);
-static irqreturn_t mace_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t mace_interrupt(int irq, void *dev_id);
+static irqreturn_t mace_dma_intr(int irq, void *dev_id);
 static void mace_tx_timeout(struct net_device *dev);
 
 /* Bit-reverse one byte of an ethernet hardware address. */
@@ -573,7 +573,7 @@ static void mace_recv_interrupt(struct net_device *dev)
  * Process the chip interrupt
  */
 
-static irqreturn_t mace_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mace_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct mace_data *mp = (struct mace_data *) dev->priv;
@@ -645,7 +645,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
  * The PSC has passed us a DMA interrupt event.
  */
 
-static irqreturn_t mace_dma_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mace_dma_intr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct mace_data *mp = (struct mace_data *) dev->priv;

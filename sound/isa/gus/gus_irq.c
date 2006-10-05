@@ -30,7 +30,7 @@
 #define STAT_ADD(x)	while (0) { ; }
 #endif
 
-irqreturn_t snd_gus_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t snd_gus_interrupt(int irq, void *dev_id)
 {
 	struct snd_gus_card * gus = dev_id;
 	unsigned char status;

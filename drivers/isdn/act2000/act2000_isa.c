@@ -63,7 +63,7 @@ act2000_isa_detect(unsigned short portbase)
 }
 
 static irqreturn_t
-act2000_isa_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+act2000_isa_interrupt(int irq, void *dev_id)
 {
         act2000_card *card = irq2card_map[irq];
         u_char istatus;

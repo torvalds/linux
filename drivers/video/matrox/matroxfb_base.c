@@ -198,7 +198,7 @@ static void matroxfb_crtc1_panpos(WPMINFO2) {
 	}
 }
 
-static irqreturn_t matrox_irq(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t matrox_irq(int irq, void *dev_id)
 {
 	u_int32_t status;
 	int handled = 0;

@@ -1322,7 +1322,7 @@ struct ncr_device {
 
 extern struct Scsi_Host *ncr_attach(struct scsi_host_template *tpnt, int unit, struct ncr_device *device);
 extern int ncr53c8xx_release(struct Scsi_Host *host);
-irqreturn_t ncr53c8xx_intr(int irq, void *dev_id, struct pt_regs * regs);
+irqreturn_t ncr53c8xx_intr(int irq, void *dev_id);
 extern int ncr53c8xx_init(void);
 extern void ncr53c8xx_exit(void);
 

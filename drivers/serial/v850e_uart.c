@@ -271,14 +271,14 @@ void v850e_uart_tx (struct uart_port *port)
 		v850e_uart_stop_tx (port, stopped);
 }
 
-static irqreturn_t v850e_uart_tx_irq(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t v850e_uart_tx_irq(int irq, void *data)
 {
 	struct uart_port *port = data;
 	v850e_uart_tx (port);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t v850e_uart_rx_irq(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t v850e_uart_rx_irq(int irq, void *data)
 {
 	struct uart_port *port = data;
 	unsigned ch_stat = TTY_NORMAL;

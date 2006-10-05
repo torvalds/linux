@@ -1192,7 +1192,7 @@ static inline void sx_check_modem_signals (struct sx_port *port)
  * Small, elegant, clear.
  */
 
-static irqreturn_t sx_interrupt (int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sx_interrupt (int irq, void *ptr)
 {
 	struct sx_board *board = ptr;
 	struct sx_port *port;
@@ -1300,7 +1300,7 @@ static void sx_pollfunc (unsigned long data)
 
 	func_enter ();
 
-	sx_interrupt (0, board, NULL);
+	sx_interrupt (0, board);
 
 	init_timer(&board->timer);
 

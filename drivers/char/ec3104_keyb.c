@@ -370,7 +370,7 @@ static void e5_receive(struct e5_struct *k)
 	}
 }
 
-static void ec3104_keyb_interrupt(int irq, void *data, struct pt_regs *regs)
+static void ec3104_keyb_interrupt(int irq, void *data)
 {
 	struct e5_struct *k = &ec3104_keyb;
 	u8 msr, lsr;

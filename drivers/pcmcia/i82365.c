@@ -80,7 +80,7 @@ module_param(pc_debug, int, 0644);
 #define debug(lvl, fmt, arg...) do { } while (0)
 #endif
 
-static irqreturn_t i365_count_irq(int, void *, struct pt_regs *);
+static irqreturn_t i365_count_irq(int, void *);
 static inline int _check_irq(int irq, int flags)
 {
     if (request_irq(irq, i365_count_irq, flags, "x", i365_count_irq) != 0)
@@ -498,7 +498,7 @@ static u_int __init set_bridge_opts(u_short s, u_short ns)
 static volatile u_int irq_hits;
 static u_short irq_sock;
 
-static irqreturn_t i365_count_irq(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t i365_count_irq(int irq, void *dev)
 {
     i365_get(irq_sock, I365_CSC);
     irq_hits++;
@@ -848,8 +848,7 @@ static void __init isa_probe(void)
 
 /*====================================================================*/
 
-static irqreturn_t pcic_interrupt(int irq, void *dev,
-				    struct pt_regs *regs)
+static irqreturn_t pcic_interrupt(int irq, void *dev)
 {
     int i, j, csc;
     u_int events, active;
@@ -898,7 +897,7 @@ static irqreturn_t pcic_interrupt(int irq, void *dev,
 
 static void pcic_interrupt_wrapper(u_long data)
 {
-    pcic_interrupt(0, NULL, NULL);
+    pcic_interrupt(0, NULL);
     poll_timer.expires = jiffies + poll_interval;
     add_timer(&poll_timer);
 }

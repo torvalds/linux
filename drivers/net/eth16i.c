@@ -410,7 +410,7 @@ static int     eth16i_close(struct net_device *dev);
 static int     eth16i_tx(struct sk_buff *skb, struct net_device *dev);
 static void    eth16i_rx(struct net_device *dev);
 static void    eth16i_timeout(struct net_device *dev);
-static irqreturn_t eth16i_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t eth16i_interrupt(int irq, void *dev_id);
 static void    eth16i_reset(struct net_device *dev);
 static void    eth16i_timeout(struct net_device *dev);
 static void    eth16i_skip_packet(struct net_device *dev);
@@ -1226,7 +1226,7 @@ static void eth16i_rx(struct net_device *dev)
 	} /* while */
 }
 
-static irqreturn_t eth16i_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t eth16i_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct eth16i_local *lp;

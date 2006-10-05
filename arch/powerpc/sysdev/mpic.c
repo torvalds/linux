@@ -489,9 +489,9 @@ static inline void mpic_eoi(struct mpic *mpic)
 }
 
 #ifdef CONFIG_SMP
-static irqreturn_t mpic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mpic_ipi_action(int irq, void *dev_id)
 {
-	smp_message_recv(mpic_irq_to_hw(irq) - MPIC_VEC_IPI_0, regs);
+	smp_message_recv(mpic_irq_to_hw(irq) - MPIC_VEC_IPI_0);
 	return IRQ_HANDLED;
 }
 #endif /* CONFIG_SMP */

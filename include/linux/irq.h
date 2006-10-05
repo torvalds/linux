@@ -21,11 +21,11 @@
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
+#include <asm/irq_regs.h>
 
 struct irq_desc;
 typedef	void fastcall (*irq_flow_handler_t)(unsigned int irq,
-					    struct irq_desc *desc,
-					    struct pt_regs *regs);
+					    struct irq_desc *desc);
 
 
 /*
@@ -258,28 +258,18 @@ static inline int select_smp_affinity(unsigned int irq)
 extern int no_irq_affinity;
 
 /* Handle irq action chains: */
-extern int handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-			    struct irqaction *action);
+extern int handle_IRQ_event(unsigned int irq, struct irqaction *action);
 
 /*
  * Built-in IRQ handlers for various IRQ types,
  * callable via desc->chip->handle_irq()
  */
-extern void fastcall
-handle_level_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
-extern void fastcall
-handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc,
-			 struct pt_regs *regs);
-extern void fastcall
-handle_edge_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
-extern void fastcall
-handle_simple_irq(unsigned int irq, struct irq_desc *desc,
-		  struct pt_regs *regs);
-extern void fastcall
-handle_percpu_irq(unsigned int irq, struct irq_desc *desc,
-		  struct pt_regs *regs);
-extern void fastcall
-handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs);
+extern void fastcall handle_level_irq(unsigned int irq, struct irq_desc *desc);
+extern void fastcall handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc);
+extern void fastcall handle_edge_irq(unsigned int irq, struct irq_desc *desc);
+extern void fastcall handle_simple_irq(unsigned int irq, struct irq_desc *desc);
+extern void fastcall handle_percpu_irq(unsigned int irq, struct irq_desc *desc);
+extern void fastcall handle_bad_irq(unsigned int irq, struct irq_desc *desc);
 
 /*
  * Get a descriptive string for the highlevel handler, for
@@ -292,7 +282,7 @@ extern const char *handle_irq_name(irq_flow_handler_t handle);
  * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
 #ifndef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
-extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
+extern fastcall unsigned int __do_IRQ(unsigned int irq);
 #endif
 
 /*
@@ -301,23 +291,23 @@ extern fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs);
  * irqchip-style controller then we call the ->handle_irq() handler,
  * and it calls __do_IRQ() if it's attached to an irqtype-style controller.
  */
-static inline void generic_handle_irq(unsigned int irq, struct pt_regs *regs)
+static inline void generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_desc + irq;
 
 #ifdef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
-	desc->handle_irq(irq, desc, regs);
+	desc->handle_irq(irq, desc);
 #else
 	if (likely(desc->handle_irq))
-		desc->handle_irq(irq, desc, regs);
+		desc->handle_irq(irq, desc);
 	else
-		__do_IRQ(irq, regs);
+		__do_IRQ(irq);
 #endif
 }
 
 /* Handling of unhandled and spurious interrupts: */
 extern void note_interrupt(unsigned int irq, struct irq_desc *desc,
-			   int action_ret, struct pt_regs *regs);
+			   int action_ret);
 
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);

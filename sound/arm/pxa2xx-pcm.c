@@ -137,7 +137,7 @@ static int pxa2xx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id, struct pt_regs *regs)
+static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id)
 {
 	struct snd_pcm_substream *substream = dev_id;
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;

@@ -660,8 +660,7 @@ static int ali_ircc_read_dongle_id (int i, chipio_t *info)
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct ali_ircc_cb *self;

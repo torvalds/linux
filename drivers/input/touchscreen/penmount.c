@@ -46,7 +46,7 @@ struct pm {
 };
 
 static irqreturn_t pm_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct pm *pm = serio_get_drvdata(serio);
 	struct input_dev *dev = pm->dev;
@@ -55,7 +55,6 @@ static irqreturn_t pm_interrupt(struct serio *serio,
 
 	if (pm->data[0] & 0x80) {
 		if (PM_MAX_LENGTH == ++pm->idx) {
-			input_regs(dev, regs);
 			input_report_abs(dev, ABS_X, pm->data[2] * 128 + pm->data[1]);
 			input_report_abs(dev, ABS_Y, pm->data[4] * 128 + pm->data[3]);
 			input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));

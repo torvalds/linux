@@ -547,7 +547,7 @@ static void speedtch_resubmit_int(unsigned long data)
 	}
 }
 
-static void speedtch_handle_int(struct urb *int_urb, struct pt_regs *regs)
+static void speedtch_handle_int(struct urb *int_urb)
 {
 	struct speedtch_instance_data *instance = int_urb->context;
 	struct usbatm_data *usbatm = instance->usbatm;

@@ -3999,7 +3999,7 @@ STATIC PortAddr     _asc_def_iop_base[];
  * advansys.h contains function prototypes for functions global to Linux.
  */
 
-STATIC irqreturn_t advansys_interrupt(int, void *, struct pt_regs *);
+STATIC irqreturn_t advansys_interrupt(int, void *);
 STATIC int	  advansys_slave_configure(struct scsi_device *);
 STATIC void       asc_scsi_done_list(struct scsi_cmnd *);
 STATIC int        asc_execute_scsi_cmnd(struct scsi_cmnd *);
@@ -5997,7 +5997,7 @@ static struct scsi_host_template driver_template = {
  * an AdvanSys adapter.
  */
 STATIC irqreturn_t
-advansys_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+advansys_interrupt(int irq, void *dev_id)
 {
     ulong           flags;
     int             i;

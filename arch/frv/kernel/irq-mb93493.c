@@ -90,7 +90,7 @@ static struct irq_chip frv_mb93493_pic = {
 /*
  * MB93493 PIC interrupt handler
  */
-static irqreturn_t mb93493_interrupt(int irq, void *_piqsr, struct pt_regs *regs)
+static irqreturn_t mb93493_interrupt(int irq, void *_piqsr)
 {
 	volatile void *piqsr = _piqsr;
 	uint32_t iqsr;
@@ -106,7 +106,7 @@ static irqreturn_t mb93493_interrupt(int irq, void *_piqsr, struct pt_regs *regs
 		irq = 31 - irq;
 		iqsr &= ~(1 << irq);
 
-		generic_handle_irq(IRQ_BASE_MB93493 + irq, regs);
+		generic_handle_irq(IRQ_BASE_MB93493 + irq);
 	}
 
 	return IRQ_HANDLED;

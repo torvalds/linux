@@ -953,7 +953,6 @@ struct input_dev {
 	unsigned int repeat_key;
 	struct timer_list timer;
 
-	struct pt_regs *regs;
 	int state;
 
 	int sync;
@@ -1149,15 +1148,9 @@ static inline void input_report_switch(struct input_dev *dev, unsigned int code,
 	input_event(dev, EV_SW, code, !!value);
 }
 
-static inline void input_regs(struct input_dev *dev, struct pt_regs *regs)
-{
-	dev->regs = regs;
-}
-
 static inline void input_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_REPORT, 0);
-	dev->regs = NULL;
 }
 
 static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)

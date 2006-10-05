@@ -1328,7 +1328,7 @@ fore200e_irq(struct fore200e* fore200e)
 
 
 static irqreturn_t
-fore200e_interrupt(int irq, void* dev, struct pt_regs* regs)
+fore200e_interrupt(int irq, void* dev)
 {
     struct fore200e* fore200e = FORE200E_DEV((struct atm_dev*)dev);
 

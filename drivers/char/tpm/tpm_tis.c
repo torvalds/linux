@@ -377,7 +377,7 @@ static struct tpm_vendor_specific tpm_tis = {
 		    .fops = &tis_ops,},
 };
 
-static irqreturn_t tis_int_probe(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tis_int_probe(int irq, void *dev_id)
 {
 	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
 	u32 interrupt;
@@ -397,7 +397,7 @@ static irqreturn_t tis_int_probe(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tis_int_handler(int irq, void *dev_id)
 {
 	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
 	u32 interrupt;

@@ -152,7 +152,7 @@ static void pxa2xx_ac97_reset(struct snd_ac97 *ac97)
 	GCR |= GCR_SDONE_IE|GCR_CDONE_IE;
 }
 
-static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 {
 	long status;
 

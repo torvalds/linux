@@ -61,7 +61,7 @@ struct usbtouch_device_info {
 	int rept_size;
 	int flags;
 
-	void (*process_pkt) (struct usbtouch_usb *usbtouch, struct pt_regs *regs, unsigned char *pkt, int len);
+	void (*process_pkt) (struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
 	int  (*get_pkt_len) (unsigned char *pkt, int len);
 	int  (*read_data)   (unsigned char *pkt, int *x, int *y, int *touch, int *press);
 	int  (*init)        (struct usbtouch_usb *usbtouch);
@@ -91,7 +91,6 @@ struct usbtouch_usb {
 
 #ifdef MULTI_PACKET
 static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
-                                   struct pt_regs *regs,
                                    unsigned char *pkt, int len);
 #endif
 
@@ -397,7 +396,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
  * Generic Part
  */
 static void usbtouch_process_pkt(struct usbtouch_usb *usbtouch,
-                                 struct pt_regs *regs, unsigned char *pkt, int len)
+                                 unsigned char *pkt, int len)
 {
 	int x, y, touch, press;
 	struct usbtouch_device_info *type = usbtouch->type;
@@ -405,7 +404,6 @@ static void usbtouch_process_pkt(struct usbtouch_usb *usbtouch,
 	if (!type->read_data(pkt, &x, &y, &touch, &press))
 			return;
 
-	input_regs(usbtouch->input, regs);
 	input_report_key(usbtouch->input, BTN_TOUCH, touch);
 
 	if (swap_xy) {
@@ -423,7 +421,6 @@ static void usbtouch_process_pkt(struct usbtouch_usb *usbtouch,
 
 #ifdef MULTI_PACKET
 static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
-                                   struct pt_regs *regs,
                                    unsigned char *pkt, int len)
 {
 	unsigned char *buffer;
@@ -460,7 +457,7 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 		if (usbtouch->buf_len + tmp >= usbtouch->type->rept_size)
 			goto out_flush_buf;
 		memcpy(usbtouch->buffer + usbtouch->buf_len, pkt, tmp);
-		usbtouch_process_pkt(usbtouch, regs, usbtouch->buffer, pkt_len);
+		usbtouch_process_pkt(usbtouch, usbtouch->buffer, pkt_len);
 
 		buffer = pkt + tmp;
 		buf_len = len - tmp;
@@ -481,7 +478,7 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 
 		/* full packet: process */
 		if (likely((pkt_len > 0) && (pkt_len <= buf_len - pos))) {
-			usbtouch_process_pkt(usbtouch, regs, buffer + pos, pkt_len);
+			usbtouch_process_pkt(usbtouch, buffer + pos, pkt_len);
 		} else {
 			/* incomplete packet: save in buffer */
 			memcpy(usbtouch->buffer, buffer + pos, buf_len - pos);
@@ -498,7 +495,7 @@ out_flush_buf:
 #endif
 
 
-static void usbtouch_irq(struct urb *urb, struct pt_regs *regs)
+static void usbtouch_irq(struct urb *urb)
 {
 	struct usbtouch_usb *usbtouch = urb->context;
 	int retval;
@@ -525,7 +522,7 @@ static void usbtouch_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	usbtouch->type->process_pkt(usbtouch, regs, usbtouch->data, urb->actual_length);
+	usbtouch->type->process_pkt(usbtouch, usbtouch->data, urb->actual_length);
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);

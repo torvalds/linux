@@ -911,7 +911,7 @@ void serio_close(struct serio *serio)
 }
 
 irqreturn_t serio_interrupt(struct serio *serio,
-		unsigned char data, unsigned int dfl, struct pt_regs *regs)
+		unsigned char data, unsigned int dfl)
 {
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
@@ -919,7 +919,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 	spin_lock_irqsave(&serio->lock, flags);
 
         if (likely(serio->drv)) {
-                ret = serio->drv->interrupt(serio, data, dfl, regs);
+                ret = serio->drv->interrupt(serio, data, dfl);
 	} else if (!dfl && serio->registered) {
 		serio_rescan(serio);
 		ret = IRQ_HANDLED;

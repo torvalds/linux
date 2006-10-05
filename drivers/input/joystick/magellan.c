@@ -82,15 +82,13 @@ static int magellan_crunch_nibbles(unsigned char *data, int count)
 	return 0;
 }
 
-static void magellan_process_packet(struct magellan* magellan, struct pt_regs *regs)
+static void magellan_process_packet(struct magellan* magellan)
 {
 	struct input_dev *dev = magellan->dev;
 	unsigned char *data = magellan->data;
 	int i, t;
 
 	if (!magellan->idx) return;
-
-	input_regs(dev, regs);
 
 	switch (magellan->data[0]) {
 
@@ -115,12 +113,12 @@ static void magellan_process_packet(struct magellan* magellan, struct pt_regs *r
 }
 
 static irqreturn_t magellan_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct magellan* magellan = serio_get_drvdata(serio);
 
 	if (data == '\r') {
-		magellan_process_packet(magellan, regs);
+		magellan_process_packet(magellan);
 		magellan->idx = 0;
 	} else {
 		if (magellan->idx < MAGELLAN_MAX_LENGTH)

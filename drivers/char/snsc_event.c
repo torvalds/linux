@@ -36,7 +36,7 @@ DECLARE_TASKLET(sn_sysctl_event, scdrv_event, 0);
  * destination.
  */
 static irqreturn_t
-scdrv_event_interrupt(int irq, void *subch_data, struct pt_regs *regs)
+scdrv_event_interrupt(int irq, void *subch_data)
 {
 	struct subch_data_s *sd = subch_data;
 	unsigned long flags;

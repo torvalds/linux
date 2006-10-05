@@ -398,7 +398,7 @@ int et61x251_i2c_write(struct et61x251_device* cam, u8 address, u8 value)
 
 /*****************************************************************************/
 
-static void et61x251_urb_complete(struct urb *urb, struct pt_regs* regs)
+static void et61x251_urb_complete(struct urb *urb)
 {
 	struct et61x251_device* cam = urb->context;
 	struct et61x251_frame_t** f;

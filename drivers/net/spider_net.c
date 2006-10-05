@@ -1445,7 +1445,7 @@ spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
  * interrupts for this device and makes the stack poll the driver
  */
 static irqreturn_t
-spider_net_interrupt(int irq, void *ptr, struct pt_regs *regs)
+spider_net_interrupt(int irq, void *ptr)
 {
 	struct net_device *netdev = ptr;
 	struct spider_net_card *card = netdev_priv(netdev);
@@ -1481,7 +1481,7 @@ static void
 spider_net_poll_controller(struct net_device *netdev)
 {
 	disable_irq(netdev->irq);
-	spider_net_interrupt(netdev->irq, netdev, NULL);
+	spider_net_interrupt(netdev->irq, netdev);
 	enable_irq(netdev->irq);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */

@@ -191,8 +191,8 @@ static int pmu_adb_reset_bus(void);
 
 static int init_pmu(void);
 static void pmu_start(void);
-static irqreturn_t via_pmu_interrupt(int irq, void *arg, struct pt_regs *regs);
-static irqreturn_t gpio1_interrupt(int irq, void *arg, struct pt_regs *regs);
+static irqreturn_t via_pmu_interrupt(int irq, void *arg);
+static irqreturn_t gpio1_interrupt(int irq, void *arg);
 static int proc_get_info(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
 static int proc_get_irqstats(char *page, char **start, off_t off,
@@ -555,7 +555,7 @@ init_pmu(void)
 		}
 		if (pmu_state == idle)
 			adb_int_pending = 1;
-		via_pmu_interrupt(0, NULL, NULL);
+		via_pmu_interrupt(0, NULL);
 		udelay(10);
 	}
 
@@ -1215,7 +1215,7 @@ pmu_poll(void)
 		return;
 	if (disable_poll)
 		return;
-	via_pmu_interrupt(0, NULL, NULL);
+	via_pmu_interrupt(0, NULL);
 }
 
 void
@@ -1228,7 +1228,7 @@ pmu_poll_adb(void)
 	/* Kicks ADB read when PMU is suspended */
 	adb_int_pending = 1;
 	do {
-		via_pmu_interrupt(0, NULL, NULL);
+		via_pmu_interrupt(0, NULL);
 	} while (pmu_suspended && (adb_int_pending || pmu_state != idle
 		|| req_awaiting_reply));
 }
@@ -1239,7 +1239,7 @@ pmu_wait_complete(struct adb_request *req)
 	if (!via)
 		return;
 	while((pmu_state != idle && pmu_state != locked) || !req->complete)
-		via_pmu_interrupt(0, NULL, NULL);
+		via_pmu_interrupt(0, NULL);
 }
 
 /* This function loops until the PMU is idle and prevents it from
@@ -1268,7 +1268,7 @@ pmu_suspend(void)
 		spin_unlock_irqrestore(&pmu_lock, flags);
 		if (req_awaiting_reply)
 			adb_int_pending = 1;
-		via_pmu_interrupt(0, NULL, NULL);
+		via_pmu_interrupt(0, NULL);
 		spin_lock_irqsave(&pmu_lock, flags);
 		if (!adb_int_pending && pmu_state == idle && !req_awaiting_reply) {
 #ifdef SUSPEND_USES_PMU
@@ -1318,7 +1318,7 @@ pmu_resume(void)
 
 /* Interrupt data could be the result data from an ADB cmd */
 static void
-pmu_handle_data(unsigned char *data, int len, struct pt_regs *regs)
+pmu_handle_data(unsigned char *data, int len)
 {
 	unsigned char ints, pirq;
 	int i = 0;
@@ -1393,7 +1393,7 @@ next:
 			if (!(pmu_kind == PMU_OHARE_BASED && len == 4
 			      && data[1] == 0x2c && data[3] == 0xff
 			      && (data[2] & ~1) == 0xf4))
-				adb_input(data+1, len-1, regs, 1);
+				adb_input(data+1, len-1, 1);
 #endif /* CONFIG_ADB */		
 		}
 	}
@@ -1431,7 +1431,7 @@ next:
 }
 
 static struct adb_request*
-pmu_sr_intr(struct pt_regs *regs)
+pmu_sr_intr(void)
 {
 	struct adb_request *req;
 	int bite = 0;
@@ -1537,7 +1537,7 @@ pmu_sr_intr(struct pt_regs *regs)
 }
 
 static irqreturn_t
-via_pmu_interrupt(int irq, void *arg, struct pt_regs *regs)
+via_pmu_interrupt(int irq, void *arg)
 {
 	unsigned long flags;
 	int intr;
@@ -1567,7 +1567,7 @@ via_pmu_interrupt(int irq, void *arg, struct pt_regs *regs)
 			pmu_irq_stats[0]++;
 		}
 		if (intr & SR_INT) {
-			req = pmu_sr_intr(regs);
+			req = pmu_sr_intr();
 			if (req)
 				break;
 		}
@@ -1613,7 +1613,7 @@ no_free_slot:
 		
 	/* Deal with interrupt datas outside of the lock */
 	if (int_data >= 0) {
-		pmu_handle_data(interrupt_data[int_data], interrupt_data_len[int_data], regs);
+		pmu_handle_data(interrupt_data[int_data], interrupt_data_len[int_data]);
 		spin_lock_irqsave(&pmu_lock, flags);
 		++disable_poll;
 		int_data_state[int_data] = int_data_empty;
@@ -1638,7 +1638,7 @@ pmu_unlock(void)
 
 
 static irqreturn_t
-gpio1_interrupt(int irq, void *arg, struct pt_regs *regs)
+gpio1_interrupt(int irq, void *arg)
 {
 	unsigned long flags;
 
@@ -1651,7 +1651,7 @@ gpio1_interrupt(int irq, void *arg, struct pt_regs *regs)
 		pmu_irq_stats[1]++;
 		adb_int_pending = 1;
 		spin_unlock_irqrestore(&pmu_lock, flags);
-		via_pmu_interrupt(0, NULL, NULL);
+		via_pmu_interrupt(0, NULL);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -2116,7 +2116,7 @@ pmac_wakeup_devices(void)
 
 	/* Force a poll of ADB interrupts */
 	adb_int_pending = 1;
-	via_pmu_interrupt(0, NULL, NULL);
+	via_pmu_interrupt(0, NULL);
 
 	/* Restart jiffies & scheduling */
 	wakeup_decrementer();

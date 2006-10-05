@@ -1811,7 +1811,7 @@ cyber_address_interrupt(struct trident_card *card)
 }
 
 static irqreturn_t
-trident_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+trident_interrupt(int irq, void *dev_id)
 {
 	struct trident_card *card = (struct trident_card *) dev_id;
 	u32 event;

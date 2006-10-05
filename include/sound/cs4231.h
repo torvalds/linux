@@ -273,7 +273,7 @@ unsigned char snd_cs4236_ext_in(struct snd_cs4231 *chip, unsigned char reg);
 void snd_cs4231_mce_up(struct snd_cs4231 *chip);
 void snd_cs4231_mce_down(struct snd_cs4231 *chip);
 
-irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id);
 
 const char *snd_cs4231_chip_id(struct snd_cs4231 *chip);
 

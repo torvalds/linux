@@ -1087,7 +1087,7 @@ static __inline__ void eval_dsp_msg(register WORD wMessage)
 	}
 }
 
-static irqreturn_t intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t intr(int irq, void *dev_id)
 {
 	/* Send ack to DSP */
 	msnd_inb(dev.io + HP_RXL);

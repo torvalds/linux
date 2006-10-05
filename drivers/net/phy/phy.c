@@ -480,7 +480,7 @@ void phy_error(struct phy_device *phydev)
  * description: When a PHY interrupt occurs, the handler disables
  * interrupts, and schedules a work task to clear the interrupt.
  */
-static irqreturn_t phy_interrupt(int irq, void *phy_dat, struct pt_regs *regs)
+static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
 

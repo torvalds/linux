@@ -400,7 +400,7 @@ omap_i2c_ack_stat(struct omap_i2c_dev *dev, u16 stat)
 }
 
 static irqreturn_t
-omap_i2c_rev1_isr(int this_irq, void *dev_id, struct pt_regs *regs)
+omap_i2c_rev1_isr(int this_irq, void *dev_id)
 {
 	struct omap_i2c_dev *dev = dev_id;
 	u16 iv, w;
@@ -452,7 +452,7 @@ omap_i2c_rev1_isr(int this_irq, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-omap_i2c_isr(int this_irq, void *dev_id, struct pt_regs *regs)
+omap_i2c_isr(int this_irq, void *dev_id)
 {
 	struct omap_i2c_dev *dev = dev_id;
 	u16 bits;

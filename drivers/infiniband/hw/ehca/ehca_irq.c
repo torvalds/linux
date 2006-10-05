@@ -360,7 +360,7 @@ static inline void reset_eq_pending(struct ehca_cq *cq)
 	return;
 }
 
-irqreturn_t ehca_interrupt_neq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t ehca_interrupt_neq(int irq, void *dev_id)
 {
 	struct ehca_shca *shca = (struct ehca_shca*)dev_id;
 
@@ -393,7 +393,7 @@ void ehca_tasklet_neq(unsigned long data)
 	return;
 }
 
-irqreturn_t ehca_interrupt_eq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t ehca_interrupt_eq(int irq, void *dev_id)
 {
 	struct ehca_shca *shca = (struct ehca_shca*)dev_id;
 

@@ -479,7 +479,7 @@ static int snd_es1688_capture_trigger(struct snd_pcm_substream *substream,
 	return snd_es1688_trigger(chip, cmd, 0x0f);
 }
 
-static irqreturn_t snd_es1688_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_es1688_interrupt(int irq, void *dev_id)
 {
 	struct snd_es1688 *chip = dev_id;
 

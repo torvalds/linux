@@ -249,7 +249,7 @@ static void eexp_timeout(struct net_device *dev);
 static struct net_device_stats *eexp_stats(struct net_device *dev);
 static int eexp_xmit(struct sk_buff *buf, struct net_device *dev);
 
-static irqreturn_t eexp_irq(int irq, void *dev_addr, struct pt_regs *regs);
+static irqreturn_t eexp_irq(int irq, void *dev_addr);
 static void eexp_set_multicast(struct net_device *dev);
 
 /*
@@ -789,7 +789,7 @@ static void eexp_cmd_clear(struct net_device *dev)
 	}
 }
 
-static irqreturn_t eexp_irq(int irq, void *dev_info, struct pt_regs *regs)
+static irqreturn_t eexp_irq(int irq, void *dev_info)
 {
 	struct net_device *dev = dev_info;
 	struct net_local *lp;

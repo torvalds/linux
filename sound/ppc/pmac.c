@@ -713,7 +713,7 @@ void snd_pmac_beep_dma_stop(struct snd_pmac *chip)
  * interrupt handlers
  */
 static irqreturn_t
-snd_pmac_tx_intr(int irq, void *devid, struct pt_regs *regs)
+snd_pmac_tx_intr(int irq, void *devid)
 {
 	struct snd_pmac *chip = devid;
 	snd_pmac_pcm_update(chip, &chip->playback);
@@ -722,7 +722,7 @@ snd_pmac_tx_intr(int irq, void *devid, struct pt_regs *regs)
 
 
 static irqreturn_t
-snd_pmac_rx_intr(int irq, void *devid, struct pt_regs *regs)
+snd_pmac_rx_intr(int irq, void *devid)
 {
 	struct snd_pmac *chip = devid;
 	snd_pmac_pcm_update(chip, &chip->capture);
@@ -731,7 +731,7 @@ snd_pmac_rx_intr(int irq, void *devid, struct pt_regs *regs)
 
 
 static irqreturn_t
-snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
+snd_pmac_ctrl_intr(int irq, void *devid)
 {
 	struct snd_pmac *chip = devid;
 	int ctrl = in_le32(&chip->awacs->control);

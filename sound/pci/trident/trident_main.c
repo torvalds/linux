@@ -52,8 +52,7 @@ static int snd_trident_pcm_mixer_build(struct snd_trident *trident,
 static int snd_trident_pcm_mixer_free(struct snd_trident *trident,
 				      struct snd_trident_voice * voice,
 				      struct snd_pcm_substream *substream);
-static irqreturn_t snd_trident_interrupt(int irq, void *dev_id,
-					 struct pt_regs *regs);
+static irqreturn_t snd_trident_interrupt(int irq, void *dev_id);
 static int snd_trident_sis_reset(struct snd_trident *trident);
 
 static void snd_trident_clear_voices(struct snd_trident * trident,
@@ -3737,7 +3736,7 @@ static int snd_trident_free(struct snd_trident *trident)
   
   ---------------------------------------------------------------------------*/
 
-static irqreturn_t snd_trident_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_trident_interrupt(int irq, void *dev_id)
 {
 	struct snd_trident *trident = dev_id;
 	unsigned int audio_int, chn_int, stimer, channel, mask, tmp;
@@ -3825,7 +3824,7 @@ static irqreturn_t snd_trident_interrupt(int irq, void *dev_id, struct pt_regs *
 	}
 	if (audio_int & MPU401_IRQ) {
 		if (trident->rmidi) {
-			snd_mpu401_uart_interrupt(irq, trident->rmidi->private_data, regs);
+			snd_mpu401_uart_interrupt(irq, trident->rmidi->private_data);
 		} else {
 			inb(TRID_REG(trident, T4D_MPUR0));
 		}

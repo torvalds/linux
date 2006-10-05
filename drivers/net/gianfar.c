@@ -119,9 +119,9 @@ struct sk_buff *gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp);
 static struct net_device_stats *gfar_get_stats(struct net_device *dev);
 static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
-static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t gfar_error(int irq, void *dev_id);
+static irqreturn_t gfar_transmit(int irq, void *dev_id);
+static irqreturn_t gfar_interrupt(int irq, void *dev_id);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
@@ -1173,7 +1173,7 @@ static void gfar_timeout(struct net_device *dev)
 }
 
 /* Interrupt Handler for Transmit complete */
-static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_transmit(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1305,7 +1305,7 @@ static inline void count_errors(unsigned short status, struct gfar_private *priv
 	}
 }
 
-irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t gfar_receive(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1537,7 +1537,7 @@ static int gfar_poll(struct net_device *dev, int *budget)
 #endif
 
 /* The interrupt handler for devices with one interrupt */
-static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1550,11 +1550,11 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* Check for reception */
 	if ((events & IEVENT_RXF0) || (events & IEVENT_RXB0))
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 	/* Check for transmit completion */
 	if ((events & IEVENT_TXF) || (events & IEVENT_TXB))
-		gfar_transmit(irq, dev_id, regs);
+		gfar_transmit(irq, dev_id);
 
 	/* Update error statistics */
 	if (events & IEVENT_TXE) {
@@ -1578,7 +1578,7 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		priv->stats.rx_errors++;
 		priv->extra_stats.rx_bsy++;
 
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 #ifndef CONFIG_GFAR_NAPI
 		/* Clear the halt bit in RSTAT */
@@ -1857,7 +1857,7 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr)
 }
 
 /* GFAR error interrupt handler */
-static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gfar_error(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
@@ -1898,7 +1898,7 @@ static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs)
 		priv->stats.rx_errors++;
 		priv->extra_stats.rx_bsy++;
 
-		gfar_receive(irq, dev_id, regs);
+		gfar_receive(irq, dev_id);
 
 #ifndef CONFIG_GFAR_NAPI
 		/* Clear the halt bit in RSTAT */

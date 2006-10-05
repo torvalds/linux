@@ -64,7 +64,7 @@
 #define SA_TRIGGER_RISING	IRQF_TRIGGER_RISING
 #define SA_TRIGGER_MASK		IRQF_TRIGGER_MASK
 
-typedef irqreturn_t (*irq_handler_t)(int, void *, struct pt_regs *);
+typedef irqreturn_t (*irq_handler_t)(int, void *);
 
 struct irqaction {
 	irq_handler_t handler;
@@ -77,7 +77,7 @@ struct irqaction {
 	struct proc_dir_entry *dir;
 };
 
-extern irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t no_action(int cpl, void *dev_id);
 extern int request_irq(unsigned int, irq_handler_t handler,
 		       unsigned long, const char *, void *);
 extern void free_irq(unsigned int, void *);

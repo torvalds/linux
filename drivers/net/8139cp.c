@@ -631,8 +631,7 @@ rx_next:
 	return 1;		/* not done */
 }
 
-static irqreturn_t
-cp_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct cp_private *cp;
@@ -696,7 +695,7 @@ cp_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 static void cp_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	cp_interrupt(dev->irq, dev, NULL);
+	cp_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

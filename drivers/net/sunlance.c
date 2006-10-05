@@ -820,7 +820,7 @@ out:
 	spin_unlock(&lp->lock);
 }
 
-static irqreturn_t lance_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t lance_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct lance_private *lp = netdev_priv(dev);

@@ -80,7 +80,7 @@ MODULE_PARM_DESC(irq, "IRQ of MK712 touchscreen controller");
 static struct input_dev *mk712_dev;
 static DEFINE_SPINLOCK(mk712_lock);
 
-static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mk712_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	static int debounce = 1;
@@ -88,7 +88,6 @@ static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	static unsigned short last_y;
 
 	spin_lock(&mk712_lock);
-	input_regs(mk712_dev, regs);
 
 	status = inb(mk712_io + MK712_STATUS);
 

@@ -3880,12 +3880,11 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
  * ipr_isr - Interrupt service routine
  * @irq:	irq number
  * @devp:	pointer to ioa config struct
- * @regs:	pt_regs struct
  *
  * Return value:
  * 	IRQ_NONE / IRQ_HANDLED
  **/
-static irqreturn_t ipr_isr(int irq, void *devp, struct pt_regs *regs)
+static irqreturn_t ipr_isr(int irq, void *devp)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
 	unsigned long lock_flags = 0;

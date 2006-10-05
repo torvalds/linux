@@ -750,7 +750,7 @@ static void ioc3_error(struct ioc3_private *ip, u32 eisr)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread.  */
-static irqreturn_t ioc3_interrupt(int irq, void *_dev, struct pt_regs *regs)
+static irqreturn_t ioc3_interrupt(int irq, void *_dev)
 {
 	struct net_device *dev = (struct net_device *)_dev;
 	struct ioc3_private *ip = netdev_priv(dev);

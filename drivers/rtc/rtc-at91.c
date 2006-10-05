@@ -238,8 +238,7 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 /*
  * IRQ handler for the RTC
  */
-static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct rtc_device *rtc = platform_get_drvdata(pdev);

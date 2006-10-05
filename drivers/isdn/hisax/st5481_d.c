@@ -370,7 +370,7 @@ static void fifo_reseted(void *context)
 	FsmEvent(&adapter->d_out.fsm, EV_DOUT_RESETED, NULL);
 }
 
-static void usb_d_out_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_d_out_complete(struct urb *urb)
 {
 	struct st5481_adapter *adapter = urb->context;
 	struct st5481_d_out *d_out = &adapter->d_out;

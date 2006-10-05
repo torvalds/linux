@@ -462,8 +462,7 @@ static void xd_recalibrate (u_char drive)
 }
 
 /* xd_interrupt_handler: interrupt service routine */
-static irqreturn_t xd_interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t xd_interrupt_handler(int irq, void *dev_id)
 {
 	if (inb(XD_STATUS) & STAT_INTERRUPT) {							/* check if it was our device */
 #ifdef DEBUG_OTHER

@@ -404,7 +404,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 static int  rhine_open(struct net_device *dev);
 static void rhine_tx_timeout(struct net_device *dev);
 static int  rhine_start_tx(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t rhine_interrupt(int irq, void *dev_instance);
 static void rhine_tx(struct net_device *dev);
 static int rhine_rx(struct net_device *dev, int limit);
 static void rhine_error(struct net_device *dev, int intr_status);
@@ -569,7 +569,7 @@ static void __devinit rhine_reload_eeprom(long pioaddr, struct net_device *dev)
 static void rhine_poll(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	rhine_interrupt(dev->irq, (void *)dev, NULL);
+	rhine_interrupt(dev->irq, (void *)dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1290,7 +1290,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
+static irqreturn_t rhine_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct rhine_private *rp = netdev_priv(dev);

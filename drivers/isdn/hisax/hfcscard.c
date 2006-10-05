@@ -21,7 +21,7 @@ extern const char *CardType[];
 static const char *hfcs_revision = "$Revision: 1.10.2.4 $";
 
 static irqreturn_t
-hfcs_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+hfcs_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val, stat;

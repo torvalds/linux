@@ -691,7 +691,7 @@ receive_emsg(struct IsdnCardState *cs)
 /* Interrupt handler */
 /*********************/
 static irqreturn_t
-hfcsx_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+hfcsx_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char exval;

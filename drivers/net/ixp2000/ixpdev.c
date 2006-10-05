@@ -188,7 +188,7 @@ static void ixpdev_tx_complete(void)
 	}
 }
 
-static irqreturn_t ixpdev_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ixpdev_interrupt(int irq, void *dev_id)
 {
 	u32 status;
 

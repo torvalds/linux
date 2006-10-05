@@ -536,16 +536,14 @@ void ehea_send_irq_tasklet(unsigned long data)
 		tasklet_hi_schedule(&pr->send_comp_task);
 }
 
-static irqreturn_t ehea_send_irq_handler(int irq, void *param,
-					 struct pt_regs *regs)
+static irqreturn_t ehea_send_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
 	tasklet_hi_schedule(&pr->send_comp_task);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
-					 struct pt_regs *regs)
+static irqreturn_t ehea_recv_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
 	struct ehea_port *port = pr->port;
@@ -553,8 +551,7 @@ static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param,
-					   struct pt_regs *regs)
+static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 {
 	struct ehea_port *port = param;
 	struct ehea_eqe *eqe;
@@ -850,8 +847,7 @@ static void ehea_neq_tasklet(unsigned long data)
 			    adapter->neq->fw_handle, event_mask);
 }
 
-static irqreturn_t ehea_interrupt_neq(int irq, void *param,
-				      struct pt_regs *regs)
+static irqreturn_t ehea_interrupt_neq(int irq, void *param)
 {
 	struct ehea_adapter *adapter = param;
 	tasklet_hi_schedule(&adapter->neq_tasklet);

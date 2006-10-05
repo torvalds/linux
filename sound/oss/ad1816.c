@@ -521,7 +521,7 @@ static struct audio_driver ad1816_audio_driver =
 /* Interrupt handler */
 
 
-static irqreturn_t ad1816_interrupt (int irq, void *dev_id, struct pt_regs *dummy)
+static irqreturn_t ad1816_interrupt (int irq, void *dev_id)
 {
 	unsigned char	status;
 	ad1816_info	*devc = (ad1816_info *)dev_id;

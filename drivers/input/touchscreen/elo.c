@@ -67,7 +67,7 @@ struct elo {
 	char phys[32];
 };
 
-static void elo_process_data_10(struct elo *elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_10(struct elo *elo, unsigned char data)
 {
 	struct input_dev *dev = elo->dev;
 
@@ -95,7 +95,6 @@ static void elo_process_data_10(struct elo *elo, unsigned char data, struct pt_r
 				break;
 			}
 			if (likely(elo->data[1] == ELO10_TOUCH_PACKET)) {
-				input_regs(dev, regs);
 				input_report_abs(dev, ABS_X, (elo->data[4] << 8) | elo->data[3]);
 				input_report_abs(dev, ABS_Y, (elo->data[6] << 8) | elo->data[5]);
 				if (elo->data[2] & ELO10_PRESSURE)
@@ -116,7 +115,7 @@ static void elo_process_data_10(struct elo *elo, unsigned char data, struct pt_r
 	elo->csum += data;
 }
 
-static void elo_process_data_6(struct elo *elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_6(struct elo *elo, unsigned char data)
 {
 	struct input_dev *dev = elo->dev;
 
@@ -134,7 +133,6 @@ static void elo_process_data_6(struct elo *elo, unsigned char data, struct pt_re
 				break;
 			}
 
-			input_regs(dev, regs);
 			input_report_abs(dev, ABS_X, ((elo->data[0] & 0x3f) << 6) | (elo->data[1] & 0x3f));
 			input_report_abs(dev, ABS_Y, ((elo->data[2] & 0x3f) << 6) | (elo->data[3] & 0x3f));
 
@@ -164,7 +162,7 @@ static void elo_process_data_6(struct elo *elo, unsigned char data, struct pt_re
 	}
 }
 
-static void elo_process_data_3(struct elo *elo, unsigned char data, struct pt_regs *regs)
+static void elo_process_data_3(struct elo *elo, unsigned char data)
 {
 	struct input_dev *dev = elo->dev;
 
@@ -177,7 +175,6 @@ static void elo_process_data_3(struct elo *elo, unsigned char data, struct pt_re
 				elo->idx = 0;
 			break;
 		case 2:
-			input_regs(dev, regs);
 			input_report_key(dev, BTN_TOUCH, !(elo->data[1] & 0x80));
 			input_report_abs(dev, ABS_X, elo->data[1]);
 			input_report_abs(dev, ABS_Y, elo->data[2]);
@@ -188,22 +185,22 @@ static void elo_process_data_3(struct elo *elo, unsigned char data, struct pt_re
 }
 
 static irqreturn_t elo_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct elo *elo = serio_get_drvdata(serio);
 
 	switch(elo->id) {
 		case 0:
-			elo_process_data_10(elo, data, regs);
+			elo_process_data_10(elo, data);
 			break;
 
 		case 1:
 		case 2:
-			elo_process_data_6(elo, data, regs);
+			elo_process_data_6(elo, data);
 			break;
 
 		case 3:
-			elo_process_data_3(elo, data, regs);
+			elo_process_data_3(elo, data);
 			break;
 	}
 

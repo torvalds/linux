@@ -867,7 +867,7 @@ static void sdla_receive(struct net_device *dev)
 	spin_unlock_irqrestore(&sdla_lock, flags);
 }
 
-static irqreturn_t sdla_isr(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t sdla_isr(int irq, void *dev_id)
 {
 	struct net_device     *dev;
 	struct frad_local *flp;

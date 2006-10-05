@@ -4117,8 +4117,7 @@ wv_pcmcia_release(struct pcmcia_device *link)
  */
 static irqreturn_t
 wavelan_interrupt(int		irq,
-		  void *	dev_id,
-		  struct pt_regs * regs)
+		  void *	dev_id)
 {
   struct net_device *	dev;
   net_local *	lp;

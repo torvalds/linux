@@ -14,11 +14,11 @@
  *	timer interrupt as a means of triggering reschedules etc.
  **/
 
-static inline void do_timer_interrupt_hook(struct pt_regs *regs)
+static inline void do_timer_interrupt_hook(void)
 {
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode_vm(regs));
+	update_process_times(user_mode_vm(get_irq_regs()));
 #endif
 /*
  * In the SMP case we use the local APIC timer interrupt to do the
@@ -26,10 +26,10 @@ static inline void do_timer_interrupt_hook(struct pt_regs *regs)
  * system, in that case we have to call the local interrupt handler.
  */
 #ifndef CONFIG_X86_LOCAL_APIC
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #else
 	if (!using_apic_timer)
-		smp_local_timer_interrupt(regs);
+		smp_local_timer_interrupt();
 #endif
 }
 

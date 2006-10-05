@@ -258,7 +258,7 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * Handle the network interface interrupts.
  */
 
-static irqreturn_t de600_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t de600_interrupt(int irq, void *dev_id)
 {
 	struct net_device	*dev = dev_id;
 	u8		irq_status;

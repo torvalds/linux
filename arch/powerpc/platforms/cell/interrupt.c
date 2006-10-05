@@ -190,11 +190,11 @@ struct irq_host *iic_get_irq_host(int node)
 EXPORT_SYMBOL_GPL(iic_get_irq_host);
 
 
-static irqreturn_t iic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t iic_ipi_action(int irq, void *dev_id)
 {
 	int ipi = (int)(long)dev_id;
 
-	smp_message_recv(ipi, regs);
+	smp_message_recv(ipi);
 
 	return IRQ_HANDLED;
 }

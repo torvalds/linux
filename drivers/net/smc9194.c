@@ -270,7 +270,7 @@ static void smc_set_multicast_list(struct net_device *dev);
 /*
  . Handles the actual interrupt
 */
-static irqreturn_t smc_interrupt(int irq, void *, struct pt_regs *regs);
+static irqreturn_t smc_interrupt(int irq, void *);
 /*
  . This is a separate procedure to handle the receipt of a packet, to
  . leave the interrupt code looking slightly cleaner
@@ -1391,7 +1391,7 @@ static void smc_tx( struct net_device * dev )
  .
  ---------------------------------------------------------------------*/
 
-static irqreturn_t smc_interrupt(int irq, void * dev_id,  struct pt_regs * regs)
+static irqreturn_t smc_interrupt(int irq, void * dev_id)
 {
 	struct net_device *dev 	= dev_id;
 	int ioaddr 		= dev->base_addr;

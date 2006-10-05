@@ -138,7 +138,7 @@ int snd_pdacf_suspend(struct snd_pdacf *chip, pm_message_t state);
 int snd_pdacf_resume(struct snd_pdacf *chip);
 #endif
 int snd_pdacf_pcm_new(struct snd_pdacf *chip);
-irqreturn_t pdacf_interrupt(int irq, void *dev, struct pt_regs *regs);
+irqreturn_t pdacf_interrupt(int irq, void *dev);
 void pdacf_tasklet(unsigned long private_data);
 void pdacf_reinit(struct snd_pdacf *chip, int resume);
 

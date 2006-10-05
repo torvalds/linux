@@ -1912,7 +1912,7 @@ static void via_intr_channel (struct via_info *card, struct via_channel *chan)
 }
 
 
-static irqreturn_t  via_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t  via_interrupt(int irq, void *dev_id)
 {
 	struct via_info *card = dev_id;
 	u32 status32;
@@ -1927,7 +1927,7 @@ static irqreturn_t  via_interrupt(int irq, void *dev_id, struct pt_regs *regs)
         {
 #ifdef CONFIG_MIDI_VIA82CXXX
 	    	 if (card->midi_devc)
-                    	uart401intr(irq, card->midi_devc, regs);
+                    	uart401intr(irq, card->midi_devc);
 #endif
 		return IRQ_HANDLED;
     	}
@@ -1950,7 +1950,7 @@ static irqreturn_t  via_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t via_new_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t via_new_interrupt(int irq, void *dev_id)
 {
 	struct via_info *card = dev_id;
 	u32 status32;

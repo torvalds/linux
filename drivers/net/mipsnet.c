@@ -116,8 +116,7 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t count)
 	return count;
 }
 
-static irqreturn_t
-mipsnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mipsnet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 

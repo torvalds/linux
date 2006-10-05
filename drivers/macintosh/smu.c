@@ -145,7 +145,7 @@ static void smu_start_cmd(void)
 }
 
 
-static irqreturn_t smu_db_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t smu_db_intr(int irq, void *arg)
 {
 	unsigned long flags;
 	struct smu_cmd *cmd;
@@ -224,7 +224,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg, struct pt_regs *regs)
 }
 
 
-static irqreturn_t smu_msg_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t smu_msg_intr(int irq, void *arg)
 {
 	/* I don't quite know what to do with this one, we seem to never
 	 * receive it, so I suspect we have to arm it someway in the SMU
@@ -309,7 +309,7 @@ void smu_poll(void)
 
 	gpio = pmac_do_feature_call(PMAC_FTR_READ_GPIO, NULL, smu->doorbell);
 	if ((gpio & 7) == 7)
-		smu_db_intr(smu->db_irq, smu, NULL);
+		smu_db_intr(smu->db_irq, smu);
 }
 EXPORT_SYMBOL(smu_poll);
 

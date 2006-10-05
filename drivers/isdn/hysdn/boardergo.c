@@ -33,7 +33,7 @@
 /* The cards interrupt handler. Called from system */
 /***************************************************/
 static irqreturn_t
-ergo_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+ergo_interrupt(int intno, void *dev_id)
 {
 	hysdn_card *card = dev_id;	/* parameter from irq */
 	tErgDpram *dpr;

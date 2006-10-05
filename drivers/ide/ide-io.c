@@ -1562,7 +1562,7 @@ static void unexpected_intr (int irq, ide_hwgroup_t *hwgroup)
  *	on the hwgroup and the process begins again.
  */
  
-irqreturn_t ide_intr (int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t ide_intr (int irq, void *dev_id)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = (ide_hwgroup_t *)dev_id;

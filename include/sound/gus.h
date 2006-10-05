@@ -638,7 +638,7 @@ int snd_gus_initialize(struct snd_gus_card * gus);
 
 /* gus_irq.c */
 
-irqreturn_t snd_gus_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t snd_gus_interrupt(int irq, void *dev_id);
 #ifdef CONFIG_SND_DEBUG
 void snd_gus_irq_profile_init(struct snd_gus_card *gus);
 #endif

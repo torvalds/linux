@@ -2066,8 +2066,7 @@ static void nsc_ircc_fir_interrupt(struct nsc_ircc_cb *self, int iobase,
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id,
-				struct pt_regs *regs)
+static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct nsc_ircc_cb *self;

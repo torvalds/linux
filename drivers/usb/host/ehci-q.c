@@ -214,7 +214,7 @@ static void qtd_copy_status (
 }
 
 static void
-ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb, struct pt_regs *regs)
+ehci_urb_done (struct ehci_hcd *ehci, struct urb *urb)
 __releases(ehci->lock)
 __acquires(ehci->lock)
 {
@@ -262,7 +262,7 @@ __acquires(ehci->lock)
 
 	/* complete() can reenter this HCD */
 	spin_unlock (&ehci->lock);
-	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb, regs);
+	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb);
 	spin_lock (&ehci->lock);
 }
 
@@ -279,7 +279,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
  */
 #define HALT_BIT __constant_cpu_to_le32(QTD_STS_HALT)
 static unsigned
-qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
+qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	struct ehci_qtd		*last = NULL, *end = qh->dummy;
 	struct list_head	*entry, *tmp;
@@ -317,7 +317,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh, struct pt_regs *regs)
 		/* clean up any state from previous QTD ...*/
 		if (last) {
 			if (likely (last->urb != urb)) {
-				ehci_urb_done (ehci, last->urb, regs);
+				ehci_urb_done (ehci, last->urb);
 				count++;
 			}
 			ehci_qtd_free (ehci, last);
@@ -407,7 +407,7 @@ halt:
 
 	/* last urb's completion might still need calling */
 	if (likely (last != NULL)) {
-		ehci_urb_done (ehci, last->urb, regs);
+		ehci_urb_done (ehci, last->urb);
 		count++;
 		ehci_qtd_free (ehci, last);
 	}
@@ -962,7 +962,7 @@ submit_async (
 
 /* the async qh for the qtds being reclaimed are now unlinked from the HC */
 
-static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void end_unlink_async (struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh = ehci->reclaim;
 	struct ehci_qh		*next;
@@ -979,7 +979,7 @@ static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs)
 	ehci->reclaim = next;
 	qh->reclaim = NULL;
 
-	qh_completions (ehci, qh, regs);
+	qh_completions (ehci, qh);
 
 	if (!list_empty (&qh->qtd_list)
 			&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
@@ -1047,7 +1047,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* if (unlikely (qh->reclaim != 0))
 		 *	this will recurse, probably not much
 		 */
-		end_unlink_async (ehci, NULL);
+		end_unlink_async (ehci);
 		return;
 	}
 
@@ -1059,8 +1059,7 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 /*-------------------------------------------------------------------------*/
 
-static void
-scan_async (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void scan_async (struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
 	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
@@ -1084,7 +1083,7 @@ rescan:
 				 */
 				qh = qh_get (qh);
 				qh->stamp = ehci->stamp;
-				temp = qh_completions (ehci, qh, regs);
+				temp = qh_completions (ehci, qh);
 				qh_put (qh);
 				if (temp != 0) {
 					goto rescan;

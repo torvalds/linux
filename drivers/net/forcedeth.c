@@ -2397,7 +2397,7 @@ static void nv_link_irq(struct net_device *dev)
 	dprintk(KERN_DEBUG "%s: link change notification done.\n", dev->name);
 }
 
-static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
@@ -2490,7 +2490,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 	return IRQ_RETVAL(i);
 }
 
-static irqreturn_t nv_nic_irq_tx(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
@@ -2576,7 +2576,7 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 #endif
 
 #ifdef CONFIG_FORCEDETH_NAPI
-static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	u8 __iomem *base = get_hwbase(dev);
@@ -2594,7 +2594,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 #else
-static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
@@ -2641,7 +2641,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 }
 #endif
 
-static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq_other(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
@@ -2695,7 +2695,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
 	return IRQ_RETVAL(i);
 }
 
-static irqreturn_t nv_nic_irq_test(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t nv_nic_irq_test(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct fe_priv *np = netdev_priv(dev);
@@ -2905,22 +2905,22 @@ static void nv_do_nic_poll(unsigned long data)
 	pci_push(base);
 
 	if (!using_multi_irqs(dev)) {
-		nv_nic_irq(0, dev, NULL);
+		nv_nic_irq(0, dev);
 		if (np->msi_flags & NV_MSI_X_ENABLED)
 			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_ALL].vector);
 		else
 			enable_irq_lockdep(dev->irq);
 	} else {
 		if (np->nic_poll_irq & NVREG_IRQ_RX_ALL) {
-			nv_nic_irq_rx(0, dev, NULL);
+			nv_nic_irq_rx(0, dev);
 			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_TX_ALL) {
-			nv_nic_irq_tx(0, dev, NULL);
+			nv_nic_irq_tx(0, dev);
 			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector);
 		}
 		if (np->nic_poll_irq & NVREG_IRQ_OTHER) {
-			nv_nic_irq_other(0, dev, NULL);
+			nv_nic_irq_other(0, dev);
 			enable_irq_lockdep(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector);
 		}
 	}

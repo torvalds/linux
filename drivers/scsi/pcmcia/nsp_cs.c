@@ -948,7 +948,7 @@ static int nsp_nexus(Scsi_Cmnd *SCpnt)
 /*
  * interrupt handler
  */
-static irqreturn_t nspintr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nspintr(int irq, void *dev_id)
 {
 	unsigned int   base;
 	unsigned char  irq_status, irq_phase, phase;

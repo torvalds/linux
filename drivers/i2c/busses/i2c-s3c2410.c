@@ -423,8 +423,7 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
  * top level IRQ servicing routine
 */
 
-static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id,
-				   struct pt_regs *regs)
+static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)
 {
 	struct s3c24xx_i2c *i2c = dev_id;
 	unsigned long status;

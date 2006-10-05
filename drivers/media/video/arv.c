@@ -549,7 +549,7 @@ static int ar_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 /*
  * Interrupt handler
  */
-static void ar_interrupt(int irq, void *dev, struct pt_regs *regs)
+static void ar_interrupt(int irq, void *dev)
 {
 	struct ar_device *ar = dev;
 	unsigned int line_count;

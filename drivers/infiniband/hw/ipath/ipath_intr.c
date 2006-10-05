@@ -839,7 +839,7 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	}
 }
 
-irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
+irqreturn_t ipath_intr(int irq, void *data)
 {
 	struct ipath_devdata *dd = data;
 	u32 istat, chk0rcv = 0;

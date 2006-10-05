@@ -336,8 +336,7 @@ static struct miscdevice s3c2410wdt_miscdev = {
 
 /* interrupt handler code */
 
-static irqreturn_t s3c2410wdt_irq(int irqno, void *param,
-				  struct pt_regs *regs)
+static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 {
 	printk(KERN_INFO PFX "Watchdog timer expired!\n");
 

@@ -249,7 +249,7 @@ static void start_timer(struct scc_priv *priv, int t, int r15);
 static inline unsigned char random(void);
 
 static inline void z8530_isr(struct scc_info *info);
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t scc_isr(int irq, void *dev_id);
 static void rx_isr(struct scc_priv *priv);
 static void special_condition(struct scc_priv *priv, int rc);
 static void rx_bh(void *arg);
@@ -1142,7 +1142,7 @@ static inline void z8530_isr(struct scc_info *info)
 }
 
 
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scc_isr(int irq, void *dev_id)
 {
 	struct scc_info *info = dev_id;
 

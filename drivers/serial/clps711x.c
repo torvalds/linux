@@ -93,7 +93,7 @@ static void clps711xuart_enable_ms(struct uart_port *port)
 {
 }
 
-static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct tty_struct *tty = port->info->tty;
@@ -131,7 +131,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 #endif
 		}
 
-		if (uart_handle_sysrq_char(port, ch, regs))
+		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
 		/*
@@ -147,7 +147,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct circ_buf *xmit = &port->info->xmit;

@@ -387,7 +387,7 @@ static void resubmit_urb(struct uvd *uvd, struct urb *urb)
 }
 
 
-static void konicawc_isoc_irq(struct urb *urb, struct pt_regs *regs)
+static void konicawc_isoc_irq(struct urb *urb)
 {
 	struct uvd *uvd = urb->context;
 	struct konicawc *cam = (struct konicawc *)uvd->user_data;

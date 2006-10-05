@@ -60,7 +60,7 @@ struct tw {
 };
 
 static irqreturn_t tw_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct tw *tw = serio_get_drvdata(serio);
 	struct input_dev *dev = tw->dev;
@@ -70,7 +70,6 @@ static irqreturn_t tw_interrupt(struct serio *serio,
 		tw->data[tw->idx++] = data;
 		/* verify length and that the two Y's are the same */
 		if (tw->idx == TW_LENGTH && tw->data[1] == tw->data[2]) {
-			input_regs(dev, regs);
 			input_report_abs(dev, ABS_X, tw->data[0]);
 			input_report_abs(dev, ABS_Y, tw->data[1]);
 			input_report_key(dev, BTN_TOUCH, 1);

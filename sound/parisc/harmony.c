@@ -193,7 +193,7 @@ harmony_set_control(struct snd_harmony *h)
 }
 
 static irqreturn_t
-snd_harmony_interrupt(int irq, void *dev, struct pt_regs *regs)
+snd_harmony_interrupt(int irq, void *dev)
 {
 	u32 dstatus;
 	struct snd_harmony *h = dev;

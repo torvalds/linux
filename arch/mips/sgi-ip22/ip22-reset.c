@@ -169,7 +169,7 @@ static inline void volume_down_button(unsigned long data)
 	}
 }
 
-static irqreturn_t panel_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t panel_int(int irq, void *dev_id)
 {
 	unsigned int buttons;
 

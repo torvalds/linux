@@ -54,7 +54,7 @@ static struct scsi_host_template NCR_Q720_tpnt = {
 };
 
 static irqreturn_t
-NCR_Q720_intr(int irq, void *data, struct pt_regs * regs)
+NCR_Q720_intr(int irq, void *data)
 {
 	struct NCR_Q720_private *p = (struct NCR_Q720_private *)data;
 	__u8 sir = (readb(p->mem_base + 0x0d) & 0xf0) >> 4;
@@ -68,7 +68,7 @@ NCR_Q720_intr(int irq, void *data, struct pt_regs * regs)
 
 	while((siop = ffz(sir)) < p->siops) {
 		sir |= 1<<siop;
-		ncr53c8xx_intr(irq, p->hosts[siop], regs);
+		ncr53c8xx_intr(irq, p->hosts[siop]);
 	}
 	return IRQ_HANDLED;
 }

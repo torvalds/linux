@@ -745,8 +745,7 @@ static int lan_saa9730_rx(struct net_device *dev)
 	return 0;
 }
 
-static irqreturn_t lan_saa9730_interrupt(const int irq, void *dev_id,
-				  struct pt_regs *regs)
+static irqreturn_t lan_saa9730_interrupt(const int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct lan_saa9730_private *lp = netdev_priv(dev);

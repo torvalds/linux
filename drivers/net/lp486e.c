@@ -379,7 +379,7 @@ static char init_setup[14] = {
 
 static int i596_open(struct net_device *dev);
 static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static struct net_device_stats *i596_get_stats(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
@@ -1151,7 +1151,7 @@ i596_handle_CU_completion(struct net_device *dev,
 }
 
 static irqreturn_t
-i596_interrupt (int irq, void *dev_instance, struct pt_regs *regs) {
+i596_interrupt (int irq, void *dev_instance) {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct i596_private *lp;
 	unsigned short status, ack_cmd = 0;

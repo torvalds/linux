@@ -138,10 +138,9 @@ eesoxscsi_terminator_ctl(struct Scsi_Host *host, int on_off)
  * Purpose  : handle interrupts from EESOX SCSI card
  * Params   : irq    - interrupt number
  *	      dev_id - user-defined (Scsi_Host structure)
- *	      regs   - processor registers at interrupt
  */
 static irqreturn_t
-eesoxscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
+eesoxscsi_intr(int irq, void *dev_id)
 {
 	struct eesoxscsi_info *info = dev_id;
 

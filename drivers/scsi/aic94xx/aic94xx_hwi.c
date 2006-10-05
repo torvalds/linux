@@ -996,11 +996,10 @@ static inline void asd_hst_pcix_isr(struct asd_ha_struct *asd_ha)
  * asd_hw_isr -- host adapter interrupt service routine
  * @irq: ignored
  * @dev_id: pointer to host adapter structure
- * @regs: ignored
  *
  * The ISR processes done list entries and level 3 error handling.
  */
-irqreturn_t asd_hw_isr(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t asd_hw_isr(int irq, void *dev_id)
 {
 	struct asd_ha_struct *asd_ha = dev_id;
 	u32 chimint = asd_read_reg_dword(asd_ha, CHIMINT);

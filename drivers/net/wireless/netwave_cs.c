@@ -207,7 +207,7 @@ static int netwave_start_xmit( struct sk_buff *skb, struct net_device *dev);
 static int netwave_rx( struct net_device *dev);
 
 /* Interrupt routines */
-static irqreturn_t netwave_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t netwave_interrupt(int irq, void *dev_id);
 static void netwave_watchdog(struct net_device *);
 
 /* Statistics */
@@ -1072,7 +1072,7 @@ static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 } /* netwave_start_xmit */
 
 /*
- * Function netwave_interrupt (irq, dev_id, regs)
+ * Function netwave_interrupt (irq, dev_id)
  *
  *    This function is the interrupt handler for the Netwave card. This
  *    routine will be called whenever: 
@@ -1081,7 +1081,7 @@ static int netwave_start_xmit(struct sk_buff *skb, struct net_device *dev) {
  *	     ready to transmit another packet.
  *	  3. A command has completed execution.
  */
-static irqreturn_t netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs)
+static irqreturn_t netwave_interrupt(int irq, void* dev_id)
 {
     kio_addr_t iobase;
     u_char __iomem *ramBase;
