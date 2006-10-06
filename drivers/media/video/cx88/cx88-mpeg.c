@@ -572,6 +572,8 @@ struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board
 
 	list_for_each(list,&cx8802_devlist) {
 		h = list_entry(list, struct cx8802_dev, devlist);
+		if (h != dev)
+			continue;
 
 		list_for_each(list2, &h->drvlist.devlist) {
 			d = list_entry(list2, struct cx8802_driver, devlist);
