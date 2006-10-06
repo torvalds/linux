@@ -425,6 +425,7 @@ struct snd_ac97_build_ops {
 
 struct snd_ac97_bus_ops {
 	void (*reset) (struct snd_ac97 *ac97);
+	void (*warm_reset)(struct snd_ac97 *ac97);
 	void (*write) (struct snd_ac97 *ac97, unsigned short reg, unsigned short val);
 	unsigned short (*read) (struct snd_ac97 *ac97, unsigned short reg);
 	void (*wait) (struct snd_ac97 *ac97);
