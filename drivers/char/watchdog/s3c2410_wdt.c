@@ -381,18 +381,21 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		printk(KERN_INFO PFX "failed to get irq resource\n");
+		iounmap(wdt_base);
 		return -ENOENT;
 	}
 
 	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, pdev);
 	if (ret != 0) {
 		printk(KERN_INFO PFX "failed to install irq (%d)\n", ret);
+		iounmap(wdt_base);
 		return ret;
 	}
 
 	wdt_clock = clk_get(&pdev->dev, "watchdog");
 	if (wdt_clock == NULL) {
 		printk(KERN_INFO PFX "failed to find watchdog clock source\n");
+		iounmap(wdt_base);
 		return -ENOENT;
 	}
 
@@ -416,6 +419,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		printk (KERN_ERR PFX "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
+		iounmap(wdt_base);
 		return ret;
 	}
 
@@ -452,6 +456,7 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 		wdt_clock = NULL;
 	}
 
+	iounmap(wdt_base);
 	misc_deregister(&s3c2410wdt_miscdev);
 	return 0;
 }
