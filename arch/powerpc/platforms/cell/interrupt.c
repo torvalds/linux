@@ -121,7 +121,7 @@ static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc,
 					irq_linear_revmap(iic_host,
 							  base | cascade);
 				if (cirq != NO_IRQ)
-					generic_handle_irq(cirq, regs);
+					generic_handle_irq(cirq);
 			}
 		/* post-ack level interrupts */
 		ack = bits & ~IIC_ISR_EDGE_MASK;

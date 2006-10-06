@@ -343,7 +343,7 @@ void fastcall qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc,
 
 	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	chip->unmask(irq);
 }
 
@@ -359,7 +359,7 @@ void fastcall qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc,
 
 	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	chip->unmask(irq);
 }
 

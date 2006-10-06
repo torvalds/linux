@@ -465,7 +465,7 @@ tas_dmasound_init(void)
 			val = pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, gpio_headphone_detect, 0);
 			pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, gpio_headphone_detect, val | 0x80);
 			/* Trigger it */
-  			headphone_intr(0,NULL,NULL);
+  			headphone_intr(0, NULL);
   		}
   	}
   	if (!gpio_headphone_irq) {
@@ -1499,7 +1499,7 @@ static int awacs_sleep_notify(struct pmu_sleep_notifier *self, int when)
 				write_audio_gpio(gpio_audio_reset, !gpio_audio_reset_pol);
 				msleep(150);
 				tas_leave_sleep(); /* Stub for now */
-				headphone_intr(0,NULL,NULL);
+				headphone_intr(0, NULL);
 				break;
 			case AWACS_DACA:
 				msleep(10); /* Check this !!! */

@@ -138,7 +138,7 @@ static void mpc85xx_8259_cascade(unsigned int irq, struct
 	unsigned int cascade_irq = i8259_irq(regs);
 
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 
 	desc->chip->eoi(irq);
 }

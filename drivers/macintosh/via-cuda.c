@@ -437,7 +437,7 @@ cuda_poll(void)
      * disable_irq(), would that work on m68k ? --BenH
      */
     local_irq_save(flags);
-    cuda_interrupt(0, NULL, NULL);
+    cuda_interrupt(0, NULL);
     local_irq_restore(flags);
 }
 
