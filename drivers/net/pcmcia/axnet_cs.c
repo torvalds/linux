@@ -1201,14 +1201,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	struct ei_device *ei_local;
     	int handled = 0;
 
-	if (dev == NULL) 
-	{
-		printk ("net_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-    
 	e8390_base = dev->base_addr;
-	ei_local = (struct ei_device *) netdev_priv(dev);
+	ei_local = netdev_priv(dev);
 
 	/*
 	 *	Protect the irq test too.

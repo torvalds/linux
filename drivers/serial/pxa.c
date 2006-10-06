@@ -232,7 +232,7 @@ static inline void check_modem_status(struct uart_pxa_port *up)
  */
 static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 {
-	struct uart_pxa_port *up = (struct uart_pxa_port *)dev_id;
+	struct uart_pxa_port *up = dev_id;
 	unsigned int iir, lsr;
 
 	iir = serial_in(up, UART_IIR);

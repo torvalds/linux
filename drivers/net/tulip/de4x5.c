@@ -1540,16 +1540,12 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 static irqreturn_t
 de4x5_interrupt(int irq, void *dev_id)
 {
-    struct net_device *dev = (struct net_device *)dev_id;
+    struct net_device *dev = dev_id;
     struct de4x5_private *lp;
     s32 imr, omr, sts, limit;
     u_long iobase;
     unsigned int handled = 0;
 
-    if (dev == NULL) {
-	printk ("de4x5_interrupt(): irq %d for unknown device.\n", irq);
-	return IRQ_NONE;
-    }
     lp = netdev_priv(dev);
     spin_lock(&lp->lock);
     iobase = dev->base_addr;

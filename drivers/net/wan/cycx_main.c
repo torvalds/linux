@@ -303,9 +303,9 @@ out:	return ret;
  */
 static irqreturn_t cycx_isr(int irq, void *dev_id)
 {
-	struct cycx_device *card = (struct cycx_device *)dev_id;
+	struct cycx_device *card = dev_id;
 
-	if (!card || card->wandev.state == WAN_UNCONFIGURED)
+	if (card->wandev.state == WAN_UNCONFIGURED)
 		goto out;
 
 	if (card->in_isr) {

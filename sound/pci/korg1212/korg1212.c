@@ -1124,9 +1124,6 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
         u32 doorbellValue;
         struct snd_korg1212 *korg1212 = dev_id;
 
-	if(irq != korg1212->irq)
-		return IRQ_NONE;
-
         doorbellValue = readl(korg1212->inDoorbellPtr);
 
         if (!doorbellValue)
@@ -1139,7 +1136,6 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
         korg1212->irqcount++;
 
 	korg1212->inIRQ++;
-
 
         switch (doorbellValue) {
                 case K1212_DB_DSPDownloadDone:

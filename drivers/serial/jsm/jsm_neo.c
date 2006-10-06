@@ -1116,7 +1116,7 @@ static void neo_param(struct jsm_channel *ch)
  */
 static irqreturn_t neo_intr(int irq, void *voidbrd)
 {
-	struct jsm_board *brd = (struct jsm_board *) voidbrd;
+	struct jsm_board *brd = voidbrd;
 	struct jsm_channel *ch;
 	int port = 0;
 	int type = 0;

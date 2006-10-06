@@ -610,11 +610,6 @@ static irqreturn_t znet_interrupt(int irq, void *dev_id)
 	int boguscnt = 20;
 	int handled = 0;
 
-	if (dev == NULL) {
-		printk(KERN_WARNING "znet_interrupt(): IRQ %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-
 	spin_lock (&znet->lock);
 
 	ioaddr = dev->base_addr;

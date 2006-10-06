@@ -862,14 +862,9 @@ static inline void interrupts_off (amb_dev * dev) {
 /********** interrupt handling **********/
 
 static irqreturn_t interrupt_handler(int irq, void *dev_id) {
-  amb_dev * dev = (amb_dev *) dev_id;
+  amb_dev * dev = dev_id;
   
   PRINTD (DBG_IRQ|DBG_FLOW, "interrupt_handler: %p", dev_id);
-  
-  if (!dev_id) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
   
   {
     u32 interrupt = rd_plain (dev, offsetof(amb_mem, interrupt));

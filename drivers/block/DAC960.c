@@ -5254,7 +5254,7 @@ static void DAC960_V2_ProcessCompletedCommand(DAC960_Command_T *Command)
 static irqreturn_t DAC960_GEM_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5295,7 +5295,7 @@ static irqreturn_t DAC960_GEM_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_BA_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5337,7 +5337,7 @@ static irqreturn_t DAC960_BA_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_LP_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V2_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5379,7 +5379,7 @@ static irqreturn_t DAC960_LP_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_LA_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V1_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5417,7 +5417,7 @@ static irqreturn_t DAC960_LA_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_PG_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   DAC960_V1_StatusMailbox_T *NextStatusMailbox;
   unsigned long flags;
@@ -5455,7 +5455,7 @@ static irqreturn_t DAC960_PG_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_PD_InterruptHandler(int IRQ_Channel,
 				       void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   unsigned long flags;
 
@@ -5493,7 +5493,7 @@ static irqreturn_t DAC960_PD_InterruptHandler(int IRQ_Channel,
 static irqreturn_t DAC960_P_InterruptHandler(int IRQ_Channel,
 				      void *DeviceIdentifier)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) DeviceIdentifier;
+  DAC960_Controller_T *Controller = DeviceIdentifier;
   void __iomem *ControllerBaseAddress = Controller->BaseAddress;
   unsigned long flags;
 

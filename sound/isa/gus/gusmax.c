@@ -107,7 +107,7 @@ static int __init snd_gusmax_detect(struct snd_gus_card * gus)
 
 static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id)
 {
-	struct snd_gusmax *maxcard = (struct snd_gusmax *) dev_id;
+	struct snd_gusmax *maxcard = dev_id;
 	int loop, max = 5;
 	int handled = 0;
 

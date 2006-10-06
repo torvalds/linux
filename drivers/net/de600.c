@@ -265,12 +265,6 @@ static irqreturn_t de600_interrupt(int irq, void *dev_id)
 	int		retrig = 0;
 	int		boguscount = 0;
 
-	/* This might just as well be deleted now, no crummy drivers present :-) */
-	if ((dev == NULL) || (DE600_IRQ != irq)) {
-		printk(KERN_ERR "%s: bogus interrupt %d\n", dev?dev->name:"DE-600", irq);
-		return IRQ_NONE;
-	}
-
 	spin_lock(&de600_lock);
 
 	select_nic();

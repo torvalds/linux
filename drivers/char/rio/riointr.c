@@ -181,7 +181,7 @@ static int RupIntr;
 static int RxIntr;
 static int TxIntr;
 
-void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
+void RIOServiceHost(struct rio_info *p, struct Host *HostP)
 {
 	rio_spin_lock(&HostP->HostLock);
 	if ((HostP->Flags & RUN_STATE) != RC_RUNNING) {

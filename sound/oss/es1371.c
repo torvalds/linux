@@ -1102,7 +1102,7 @@ static void es1371_handle_midi(struct es1371_state *s)
 
 static irqreturn_t es1371_interrupt(int irq, void *dev_id)
 {
-        struct es1371_state *s = (struct es1371_state *)dev_id;
+        struct es1371_state *s = dev_id;
 	unsigned int intsrc, sctl;
 	
 	/* fastpath out, to ease interrupt sharing */

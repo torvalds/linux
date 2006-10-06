@@ -616,14 +616,9 @@ static int skfp_close(struct net_device *dev)
 
 irqreturn_t skfp_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct s_smc *smc;	/* private board structure pointer */
 	skfddi_priv *bp;
-
-	if (dev == NULL) {
-		printk("%s: irq %d for unknown device\n", dev->name, irq);
-		return IRQ_NONE;
-	}
 
 	smc = netdev_priv(dev);
 	bp = &smc->os;

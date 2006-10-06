@@ -669,7 +669,7 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 static irqreturn_t ssp_int(int irq, void *dev_id)
 {
-	struct driver_data *drv_data = (struct driver_data *)dev_id;
+	struct driver_data *drv_data = dev_id;
 	void *reg = drv_data->ioaddr;
 
 	if (!drv_data->cur_msg) {

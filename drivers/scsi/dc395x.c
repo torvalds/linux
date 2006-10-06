@@ -1815,7 +1815,7 @@ static void dc395x_handle_interrupt(struct AdapterCtlBlk *acb,
 
 static irqreturn_t dc395x_interrupt(int irq, void *dev_id)
 {
-	struct AdapterCtlBlk *acb = (struct AdapterCtlBlk *)dev_id;
+	struct AdapterCtlBlk *acb = dev_id;
 	u16 scsi_status;
 	u8 dma_status;
 	irqreturn_t handled = IRQ_NONE;

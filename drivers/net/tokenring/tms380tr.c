@@ -751,11 +751,6 @@ irqreturn_t tms380tr_interrupt(int irq, void *dev_id)
 	unsigned short irq_type;
 	int handled = 0;
 
-	if(dev == NULL) {
-		printk(KERN_INFO "%s: irq %d for unknown device.\n", dev->name, irq);
-		return IRQ_NONE;
-	}
-
 	tp = netdev_priv(dev);
 
 	irq_type = SIFREADW(SIFSTS);

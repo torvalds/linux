@@ -2569,13 +2569,6 @@ pcnet32_interrupt(int irq, void *dev_id)
 	u16 csr0;
 	int boguscnt = max_interrupt_work;
 
-	if (!dev) {
-		if (pcnet32_debug & NETIF_MSG_INTR)
-			printk(KERN_DEBUG "%s(): irq %d for unknown device\n",
-			       __FUNCTION__, irq);
-		return IRQ_NONE;
-	}
-
 	ioaddr = dev->base_addr;
 	lp = dev->priv;
 
