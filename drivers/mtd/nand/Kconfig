@@ -232,6 +232,13 @@ config MTD_NAND_CS553X
 
 	  If you say "m", the module will be called "cs553x_nand.ko".
 
+config MTD_NAND_CAFE
+       tristate "NAND support for OLPC CAFÉ chip"
+       depends on PCI
+       help
+	 Use NAND flash attached to the CAFÉ chip designed for the $100
+	 laptop.
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
 	depends on MTD_NAND && MTD_PARTITIONS
