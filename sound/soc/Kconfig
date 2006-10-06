@@ -5,6 +5,9 @@
 menu "SoC audio support"
 	depends on SND!=n
 
+config SND_SOC_AC97_BUS
+	bool
+
 config SND_SOC
 	tristate "SoC audio support"
 	---help---
@@ -15,5 +18,8 @@ config SND_SOC
 
 	  This SoC audio support can also be built as a module.  If so, the module
 	  will be called snd-soc-core.
+
+# Supported codecs
+source "sound/soc/codecs/Kconfig"
 
 endmenu
