@@ -384,6 +384,7 @@ struct snd_pcm_substream {
 	struct snd_info_entry *proc_sw_params_entry;
 	struct snd_info_entry *proc_status_entry;
 	struct snd_info_entry *proc_prealloc_entry;
+	struct snd_info_entry *proc_prealloc_max_entry;
 #endif
 	/* misc flags */
 	unsigned int hw_opened: 1;
