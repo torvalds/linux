@@ -322,7 +322,7 @@ static void i_usX2Y_urb_complete(struct urb *urb)
 		usX2Y_error_urb_status(usX2Y, subs, urb);
 		return;
 	}
-	if (likely((0xFFFF & urb->start_frame) == usX2Y->wait_iso_frame))
+	if (likely(urb->start_frame == usX2Y->wait_iso_frame))
 		subs->completed_urb = urb;
 	else {
 		usX2Y_error_sequence(usX2Y, subs, urb);
@@ -335,13 +335,9 @@ static void i_usX2Y_urb_complete(struct urb *urb)
 		    atomic_read(&capsubs->state) >= state_PREPARED &&
 		    (playbacksubs->completed_urb ||
 		     atomic_read(&playbacksubs->state) < state_PREPARED)) {
-			if (!usX2Y_usbframe_complete(capsubs, playbacksubs, urb->start_frame)) {
-				if (nr_of_packs() <= urb->start_frame &&
-				    urb->start_frame <= (2 * nr_of_packs() - 1))	// uhci and ohci
-					usX2Y->wait_iso_frame = urb->start_frame - nr_of_packs();
-				else
-					usX2Y->wait_iso_frame +=  nr_of_packs();
-			} else {
+			if (!usX2Y_usbframe_complete(capsubs, playbacksubs, urb->start_frame))
+				usX2Y->wait_iso_frame += nr_of_packs();
+			else {
 				snd_printdd("\n");
 				usX2Y_clients_stop(usX2Y);
 			}
@@ -495,7 +491,6 @@ static int usX2Y_urbs_start(struct snd_usX2Y_substream *subs)
 		if (subs != NULL && atomic_read(&subs->state) >= state_PREPARED)
 			goto start;
 	}
-	usX2Y->wait_iso_frame = -1;
 
  start:
 	usX2Y_subs_startup(subs);
@@ -516,10 +511,9 @@ static int usX2Y_urbs_start(struct snd_usX2Y_substream *subs)
 				snd_printk (KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
 				err = -EPIPE;
 				goto cleanup;
-			} else {
-				if (0 > usX2Y->wait_iso_frame)
+			} else
+				if (i == 0)
 					usX2Y->wait_iso_frame = urb->start_frame;
-			}
 			urb->transfer_flags = 0;
 		} else {
 			atomic_set(&subs->state, state_STARTING1);
