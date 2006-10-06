@@ -1724,13 +1724,13 @@ static int __init qla4xxx_module_init(void)
 		goto release_srb_cache;
 	}
 
-	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	ret = pci_register_driver(&qla4xxx_pci_driver);
 	if (ret)
 		goto unregister_transport;
 
 	printk(KERN_INFO "QLogic iSCSI HBA Driver\n");
 	return 0;
+
 unregister_transport:
 	iscsi_unregister_transport(&qla4xxx_iscsi_transport);
 release_srb_cache:
