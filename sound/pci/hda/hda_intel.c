@@ -1285,7 +1285,7 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &azx_pcm_ops);
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci),
-					      1024 * 64, 1024 * 128);
+					      1024 * 64, 1024 * 1024);
 	chip->pcm[pcm_dev] = pcm;
 	if (chip->pcm_devs < pcm_dev + 1)
 		chip->pcm_devs = pcm_dev + 1;
