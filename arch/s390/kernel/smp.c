@@ -339,7 +339,7 @@ void machine_power_off_smp(void)
  * cpus are handled.
  */
 
-void do_ext_call_interrupt(struct pt_regs *regs, __u16 code)
+void do_ext_call_interrupt(__u16 code)
 {
         unsigned long bits;
 

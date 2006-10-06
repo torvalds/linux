@@ -116,7 +116,7 @@ static DEFINE_SPINLOCK(iucv_irq_queue_lock);
  *Internal function prototypes
  */
 static void iucv_tasklet_handler(unsigned long);
-static void iucv_irq_handler(struct pt_regs *, __u16);
+static void iucv_irq_handler(__u16);
 
 static DECLARE_TASKLET(iucv_tasklet,iucv_tasklet_handler,0);
 
@@ -2251,7 +2251,7 @@ iucv_sever(__u16 pathid, __u8 user_data[16])
  * Places the interrupt buffer on a queue and schedules iucv_tasklet_handler().
  */
 static void
-iucv_irq_handler(struct pt_regs *regs, __u16 code)
+iucv_irq_handler(__u16 code)
 {
 	iucv_irqdata *irqdata;
 

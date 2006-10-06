@@ -30,6 +30,9 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_TIME
+	def_bool y
+
 config GENERIC_BUST_SPINLOCK
 	bool
 

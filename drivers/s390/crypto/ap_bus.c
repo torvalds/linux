@@ -1062,7 +1062,7 @@ static int ap_poll_thread(void *data)
 	unsigned long flags;
 	int requests;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, 19);
 	while (1) {
 		if (need_resched()) {
 			schedule();

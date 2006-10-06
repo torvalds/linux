@@ -324,7 +324,7 @@ __sclp_find_req(u32 sccb)
  * Prepare read event data request if necessary. Start processing of next
  * request on queue. */
 static void
-sclp_interrupt_handler(struct pt_regs *regs, __u16 code)
+sclp_interrupt_handler(__u16 code)
 {
 	struct sclp_req *req;
 	u32 finished_sccb;
@@ -743,7 +743,7 @@ EXPORT_SYMBOL(sclp_reactivate);
 /* Handler for external interruption used during initialization. Modify
  * request state to done. */
 static void
-sclp_check_handler(struct pt_regs *regs, __u16 code)
+sclp_check_handler(__u16 code)
 {
 	u32 finished_sccb;
 

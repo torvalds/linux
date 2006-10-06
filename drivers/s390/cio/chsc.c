@@ -200,11 +200,13 @@ css_get_ssd_info(struct subchannel *sch)
 	spin_unlock_irq(&sch->lock);
 	free_page((unsigned long)page);
 	if (!ret) {
-		int j, chpid;
+		int j, chpid, mask;
 		/* Allocate channel path structures, if needed. */
 		for (j = 0; j < 8; j++) {
+			mask = 0x80 >> j;
 			chpid = sch->ssd_info.chpid[j];
-			if (chpid && (get_chp_status(chpid) < 0))
+			if ((sch->schib.pmcw.pim & mask) &&
+			    (get_chp_status(chpid) < 0))
 			    new_channel_path(chpid);
 		}
 	}
@@ -222,13 +224,15 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 
 	sch = to_subchannel(dev);
 	chpid = data;
-	for (j = 0; j < 8; j++)
-		if (sch->schib.pmcw.chpid[j] == chpid->id)
+	for (j = 0; j < 8; j++) {
+		mask = 0x80 >> j;
+		if ((sch->schib.pmcw.pim & mask) &&
+		    (sch->schib.pmcw.chpid[j] == chpid->id))
 			break;
+	}
 	if (j >= 8)
 		return 0;
 
-	mask = 0x80 >> j;
 	spin_lock_irq(&sch->lock);
 
 	stsch(sch->schid, &schib);
@@ -620,7 +624,7 @@ __chp_add_new_sch(struct subchannel_id schid)
 static int
 __chp_add(struct subchannel_id schid, void *data)
 {
-	int i;
+	int i, mask;
 	struct channel_path *chp;
 	struct subchannel *sch;
 
@@ -630,8 +634,10 @@ __chp_add(struct subchannel_id schid, void *data)
 		/* Check if the subchannel is now available. */
 		return __chp_add_new_sch(schid);
 	spin_lock_irq(&sch->lock);
-	for (i=0; i<8; i++)
-		if (sch->schib.pmcw.chpid[i] == chp->id) {
+	for (i=0; i<8; i++) {
+		mask = 0x80 >> i;
+		if ((sch->schib.pmcw.pim & mask) &&
+		    (sch->schib.pmcw.chpid[i] == chp->id)) {
 			if (stsch(sch->schid, &sch->schib) != 0) {
 				/* Endgame. */
 				spin_unlock_irq(&sch->lock);
@@ -639,6 +645,7 @@ __chp_add(struct subchannel_id schid, void *data)
 			}
 			break;
 		}
+	}
 	if (i==8) {
 		spin_unlock_irq(&sch->lock);
 		return 0;
@@ -646,7 +653,7 @@ __chp_add(struct subchannel_id schid, void *data)
 	sch->lpm = ((sch->schib.pmcw.pim &
 		     sch->schib.pmcw.pam &
 		     sch->schib.pmcw.pom)
-		    | 0x80 >> i) & sch->opm;
+		    | mask) & sch->opm;
 
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
