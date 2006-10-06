@@ -918,44 +918,41 @@ __le64 cnvrtDosCifsTm(__u16 date, __u16 time)
 {
 	return cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(date, time)));
 }
+
 struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 {
-	__u8  dt[2];
-	__u8  tm[2];
 	struct timespec ts;
-	int sec,min, days, month, year;
-	struct timespec removeme; /* BB removeme BB */
-/*	SMB_TIME * st = (SMB_TIME *)&time;*/
+	int sec, min, days, month, year;
+	SMB_TIME * st = (SMB_TIME *)&time;
+	SMB_DATE * sd = (SMB_DATE *)&date;
 
 	cFYI(1,("date %d time %d",date, time));
 
-	dt[0] = date & 0xFF;
-	dt[1] = (date & 0xFF00) >> 8;
-	tm[0] = time & 0xFF;
-	tm[1] = (time & 0xFF00) >> 8;
-
-	sec = tm[0] & 0x1F;
-	sec = 2 * sec;
-	min = ((tm[0] >>5)&0xFF) + ((tm[1] & 0x7)<<3);
-
+	sec = 2 * st->TwoSeconds;
+	min = st->Minutes;
+	if((sec > 59) || (min > 59))
+		cERROR(1,("illegal time min %d sec %d", min, sec));
 	sec += (min * 60);
-	sec += 60 * 60 * ((tm[1] >> 3) &0xFF) /* hours */;
-	days = (dt[0] & 0x1F) - 1;
-	month = ((dt[0] >> 5) & 0xFF) + ((dt[1] & 0x1) <<3);
-	if(month > 12)
-		cERROR(1,("illegal month %d in date", month));
+	sec += 60 * 60 * st->Hours;
+	if(st->Hours > 24)
+		cERROR(1,("illegal hours %d",st->Hours));
+	days = sd->Day;
+	month = sd->Month;
+	if((days > 31) || (month > 12))
+		cERROR(1,("illegal date, month %d day: %d", month, days));
 	month -= 1;
 	days += total_days_of_prev_months[month];
 	days += 3653; /* account for difference in days between 1980 and 1970 */
-	year = (dt[1]>>1) & 0xFF;
+	year = sd->Year;
 	days += year * 365;
 	days += (year/4); /* leap year */
 	/* adjust for leap year where we are still before leap day */
 	days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days; 
 
-	removeme = CURRENT_TIME; /* BB removeme BB */
 	ts.tv_sec = sec;
+
+	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
 
 	ts.tv_nsec = 0;
 	return ts;

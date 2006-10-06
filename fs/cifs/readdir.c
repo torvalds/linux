@@ -139,19 +139,19 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		FIND_FILE_STANDARD_INFO * pfindData = 
 			(FIND_FILE_STANDARD_INFO *)buf;
 
-/*		ts = cnvrtDosUnixTm(
+		tmp_inode->i_mtime = cnvrtDosUnixTm(
 				le16_to_cpu(pfindData->LastWriteDate),
-				le16_to_cpu(pfindData->LastWriteTime));*/
+				le16_to_cpu(pfindData->LastWriteTime));
+		tmp_inode->i_atime = cnvrtDosUnixTm(
+				le16_to_cpu(pfindData->LastAccessDate),
+				le16_to_cpu(pfindData->LastAccessTime));
+                tmp_inode->i_ctime = cnvrtDosUnixTm(
+                                le16_to_cpu(pfindData->LastWriteDate),
+                                le16_to_cpu(pfindData->LastWriteTime));
+
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
 		end_of_file = le32_to_cpu(pfindData->DataSize);
-		/* do not need to use current_fs_time helper function since
-		 time not stored for this case so atime can not "go backwards"
-		 by pulling newer older from disk when inode refrenshed */
-		tmp_inode->i_atime = CURRENT_TIME;
-		/* tmp_inode->i_mtime =  BB FIXME - add dos time handling
-		tmp_inode->i_ctime = 0;   BB FIXME */
-
 	}
 
 	/* Linux can not store file creation time unfortunately so ignore it */
