@@ -27,6 +27,7 @@
 #include <linux/profile.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
+#include <linux/irq.h>
 
 #include <asm/leds.h>
 #include <asm/thread_info.h>
@@ -327,7 +328,7 @@ EXPORT_SYMBOL(restore_time_delta);
 void timer_tick(void)
 {
 	struct pt_regs *regs = get_irq_regs();
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 	do_leds();
 	do_set_rtc();
 	do_timer(1);
