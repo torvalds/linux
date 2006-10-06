@@ -33,7 +33,7 @@ extern void pcibios_init(void);
  * EraseConfig handling functions
  */
 
-static irqreturn_t eraseconfig_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t eraseconfig_interrupt(int irq, void *dev_id)
 {
 	volatile char dummy __attribute__((unused)) = * (volatile char *) 0xb8000000;
 

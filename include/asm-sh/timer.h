@@ -36,7 +36,6 @@ static inline unsigned long get_timer_offset(void)
 struct sys_timer *get_sys_timer(void);
 
 /* arch/sh/kernel/time.c */
-void handle_timer_tick(struct pt_regs *);
+void handle_timer_tick(void);
 
 #endif /* __ASM_SH_TIMER_H */
-

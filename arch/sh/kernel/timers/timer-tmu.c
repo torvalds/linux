@@ -80,8 +80,7 @@ static unsigned long tmu_timer_get_offset(void)
 	return count;
 }
 
-static irqreturn_t tmu_timer_interrupt(int irq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 {
 	unsigned long timer_status;
 
@@ -98,7 +97,7 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dev_id,
 	 * locally disabled. -arca
 	 */
 	write_seqlock(&xtime_lock);
-	handle_timer_tick(regs);
+	handle_timer_tick();
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;

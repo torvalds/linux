@@ -135,7 +135,7 @@ static int swdrv_write(struct file *filp, const char *buff, size_t count,
 	return count;
 }
 
-static irqreturn_t sw_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sw_interrupt(int irq, void *dev_id)
 {
 	landisk_btn = (0x0ff & (~ctrl_inb(PA_STATUS)));
 	disable_irq(IRQ_BUTTON);
