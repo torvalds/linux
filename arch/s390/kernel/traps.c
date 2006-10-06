@@ -61,7 +61,7 @@ extern pgm_check_handler_t do_dat_exception;
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);
 extern void pfault_fini(void);
-extern void pfault_interrupt(struct pt_regs *regs, __u16 error_code);
+extern void pfault_interrupt(__u16 error_code);
 static ext_int_info_t ext_int_pfault;
 #endif
 extern pgm_check_handler_t do_monitor_call;

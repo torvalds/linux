@@ -22,6 +22,7 @@
 
 #include <asm/s390_ext.h>
 #include <asm/timer.h>
+#include <asm/irq_regs.h>
 
 static ext_int_info_t ext_int_info_timer;
 DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
@@ -241,7 +242,7 @@ static void do_callbacks(struct list_head *cb_list, struct pt_regs *regs)
 /*
  * Handler for the virtual CPU timer.
  */
-static void do_cpu_timer_interrupt(struct pt_regs *regs, __u16 error_code)
+static void do_cpu_timer_interrupt(__u16 error_code)
 {
 	int cpu;
 	__u64 next, delta;
@@ -274,7 +275,7 @@ static void do_cpu_timer_interrupt(struct pt_regs *regs, __u16 error_code)
 		list_move_tail(&event->entry, &cb_list);
 	}
 	spin_unlock(&vt_list->lock);
-	do_callbacks(&cb_list, regs);
+	do_callbacks(&cb_list, get_irq_regs());
 
 	/* next event is first in list */
 	spin_lock(&vt_list->lock);

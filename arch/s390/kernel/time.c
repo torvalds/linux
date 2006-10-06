@@ -34,6 +34,7 @@
 #include <asm/s390_ext.h>
 #include <asm/div64.h>
 #include <asm/irq.h>
+#include <asm/irq_regs.h>
 #include <asm/timer.h>
 
 /* change this if you have some constant time drift */
@@ -150,9 +151,9 @@ EXPORT_SYMBOL(do_settimeofday);
 
 
 #ifdef CONFIG_PROFILING
-#define s390_do_profile(regs)	profile_tick(CPU_PROFILING, regs)
+#define s390_do_profile()	profile_tick(CPU_PROFILING)
 #else
-#define s390_do_profile(regs)  do { ; } while(0)
+#define s390_do_profile()	do { ; } while(0)
 #endif /* CONFIG_PROFILING */
 
 
@@ -160,7 +161,7 @@ EXPORT_SYMBOL(do_settimeofday);
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-void account_ticks(struct pt_regs *regs)
+void account_ticks(void)
 {
 	__u64 tmp;
 	__u32 ticks;
@@ -221,10 +222,10 @@ void account_ticks(struct pt_regs *regs)
 	account_tick_vtime(current);
 #else
 	while (ticks--)
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 
-	s390_do_profile(regs);
+	s390_do_profile();
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -285,9 +286,11 @@ static inline void stop_hz_timer(void)
  */
 static inline void start_hz_timer(void)
 {
+	BUG_ON(!in_interrupt());
+
 	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
 		return;
-	account_ticks(task_pt_regs(current));
+	account_ticks();
 	cpu_clear(smp_processor_id(), nohz_cpu_mask);
 }
 
