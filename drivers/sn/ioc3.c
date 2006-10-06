@@ -401,7 +401,7 @@ static inline uint32_t get_pending_intrs(struct ioc3_driver_data *idd)
 static irqreturn_t ioc3_intr_io(int irq, void *arg)
 {
 	unsigned long flags;
-	struct ioc3_driver_data *idd = (struct ioc3_driver_data *)arg;
+	struct ioc3_driver_data *idd = arg;
 	int handled = 1, id;
 	unsigned int pending;
 

@@ -2235,7 +2235,7 @@ static void vwsnd_audio_write_intr(vwsnd_dev_t *devc, unsigned int status)
 
 static irqreturn_t vwsnd_audio_intr(int irq, void *dev_id)
 {
-	vwsnd_dev_t *devc = (vwsnd_dev_t *) dev_id;
+	vwsnd_dev_t *devc = dev_id;
 	unsigned int status;
 
 	DBGEV("(irq=%d, dev_id=0x%p)\n", irq, dev_id);

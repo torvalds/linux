@@ -1892,10 +1892,8 @@ static inline void lanai_int_1(struct lanai_dev *lanai, u32 reason)
 
 static irqreturn_t lanai_int(int irq, void *devid)
 {
-	struct lanai_dev *lanai = (struct lanai_dev *) devid;
+	struct lanai_dev *lanai = devid;
 	u32 reason;
-
-	(void) irq;	/* unused variables */
 
 #ifdef USE_POWERDOWN
 	/*
