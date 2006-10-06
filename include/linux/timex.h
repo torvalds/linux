@@ -293,6 +293,9 @@ extern void second_overflow(void);
 extern void update_ntp_one_tick(void);
 extern int do_adjtimex(struct timex *);
 
+/* Don't use! Compatibility define for existing users. */
+#define tickadj	(500/HZ ? : 1)
+
 #endif /* KERNEL */
 
 #endif /* LINUX_TIMEX_H */
