@@ -47,7 +47,7 @@ unsigned long iop3xx_gettimeoffset(void)
 }
 
 static irqreturn_t
-iop3xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+iop3xx_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -57,7 +57,7 @@ iop3xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	while ((signed long)(next_jiffy_time - *IOP3XX_TU_TCR1)
 							>= ticks_per_jiffy) {
-		timer_tick(regs);
+		timer_tick();
 		next_jiffy_time -= ticks_per_jiffy;
 	}
 

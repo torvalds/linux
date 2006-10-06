@@ -80,10 +80,10 @@ static void __init shark_map_io(void)
 #define HZ_TIME ((1193180 + HZ/2) / HZ)
 
 static irqreturn_t
-shark_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+shark_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }

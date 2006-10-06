@@ -174,7 +174,7 @@ static unsigned long ebsa110_gettimeoffset(void)
 }
 
 static irqreturn_t
-ebsa110_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ebsa110_timer_interrupt(int irq, void *dev_id)
 {
 	u32 count;
 
@@ -190,7 +190,7 @@ ebsa110_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	__raw_writeb(count & 0xff, PIT_T1);
 	__raw_writeb(count >> 8, PIT_T1);
 
-	timer_tick(regs);
+	timer_tick();
 
 	write_sequnlock(&xtime_lock);
 

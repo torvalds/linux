@@ -30,10 +30,9 @@ extern int show_fiq_list(struct seq_file *, void *);
 /*
  * Obsolete inline function for calling irq descriptor handlers.
  */
-static inline void desc_handle_irq(unsigned int irq, struct irq_desc *desc,
-				   struct pt_regs *regs)
+static inline void desc_handle_irq(unsigned int irq, struct irq_desc *desc)
 {
-	desc->handle_irq(irq, desc, regs);
+	desc->handle_irq(irq, desc);
 }
 
 void set_irq_flags(unsigned int irq, unsigned int flags);
@@ -51,10 +50,10 @@ void set_irq_flags(unsigned int irq, unsigned int flags);
 #define irqdesc		irq_desc
 #define irqchip		irq_chip
 
-#define do_bad_IRQ(irq,desc,regs)			\
+#define do_bad_IRQ(irq,desc)				\
 do {							\
 	spin_lock(&desc->lock);				\
-	handle_bad_irq(irq, desc, regs);		\
+	handle_bad_irq(irq, desc);			\
 	spin_unlock(&desc->lock);			\
 } while(0)
 

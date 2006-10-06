@@ -682,8 +682,7 @@ static int omap_pm_finish(suspend_state_t state)
 }
 
 
-static irqreturn_t  omap_wakeup_interrupt(int  irq, void *  dev,
-				     struct pt_regs *  regs)
+static irqreturn_t  omap_wakeup_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }

@@ -251,7 +251,7 @@ static void ixp23xx_pci_irq_unmask(unsigned int irq)
 /*
  * TODO: Should this just be done at ASM level?
  */
-static void pci_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+static void pci_handler(unsigned int irq, struct irqdesc *desc)
 {
 	u32 pci_interrupt;
 	unsigned int irqno;
@@ -271,7 +271,7 @@ static void pci_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *
 	}
 
 	int_desc = irq_desc + irqno;
-	desc_handle_irq(irqno, int_desc, regs);
+	desc_handle_irq(irqno, int_desc);
 
 	desc->chip->unmask(irq);
 }
@@ -348,12 +348,12 @@ ixp23xx_gettimeoffset(void)
 }
 
 static irqreturn_t
-ixp23xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+ixp23xx_timer_interrupt(int irq, void *dev_id)
 {
 	/* Clear Pending Interrupt by writing '1' to it */
 	*IXP23XX_TIMER_STATUS = IXP23XX_TIMER1_INT_PEND;
 	while ((signed long)(*IXP23XX_TIMER_CONT - next_jiffy_time) >= LATCH) {
-		timer_tick(regs);
+		timer_tick();
 		next_jiffy_time += LATCH;
 	}
 

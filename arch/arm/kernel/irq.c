@@ -122,7 +122,8 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_enter();
 
-	desc_handle_irq(irq, desc, regs);
+	set_irq_regs(regs);
+	desc_handle_irq(irq, desc);
 
 	/* AT91 specific workaround */
 	irq_finish(irq);

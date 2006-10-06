@@ -43,8 +43,9 @@
  * Handler for RTC timer interrupt
  */
 static irqreturn_t
-timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+timer_interrupt(int irq, void *dev_id)
 {
+	struct pt_regs *regs = get_irq_regs();
 	do_timer(1);
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(regs));

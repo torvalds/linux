@@ -440,9 +440,10 @@ v3_pci_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 1;
 }
 
-static irqreturn_t v3_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t v3_irq(int irq, void *devid)
 {
 #ifdef CONFIG_DEBUG_LL
+	struct pt_regs *regs = get_irq_regs();
 	unsigned long pc = instruction_pointer(regs);
 	unsigned long instr = *(unsigned long *)pc;
 	char buf[128];

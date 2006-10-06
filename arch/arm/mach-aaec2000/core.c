@@ -127,12 +127,12 @@ static unsigned long aaec2000_gettimeoffset(void)
 
 /* We enter here with IRQs enabled */
 static irqreturn_t
-aaec2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+aaec2000_timer_interrupt(int irq, void *dev_id)
 {
 	/* TODO: Check timer accuracy */
 	write_seqlock(&xtime_lock);
 
-	timer_tick(regs);
+	timer_tick();
 	TIMER1_CLEAR = 1;
 
 	write_sequnlock(&xtime_lock);

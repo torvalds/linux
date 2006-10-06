@@ -324,8 +324,9 @@ EXPORT_SYMBOL(restore_time_delta);
 /*
  * Kernel system timer support.
  */
-void timer_tick(struct pt_regs *regs)
+void timer_tick(void)
 {
+	struct pt_regs *regs = get_irq_regs();
 	profile_tick(CPU_PROFILING, regs);
 	do_leds();
 	do_set_rtc();
