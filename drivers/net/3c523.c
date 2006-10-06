@@ -902,14 +902,11 @@ static void *alloc_rfa(struct net_device *dev, void *ptr)
 static irqreturn_t
 elmc_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	unsigned short stat;
 	struct priv *p;
 
-	if (dev == NULL) {
-		printk(KERN_ERR "elmc-interrupt: irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	} else if (!netif_running(dev)) {
+	if (!netif_running(dev)) {
 		/* The 3c523 has this habit of generating interrupts during the
 		   reset.  I'm not sure if the ni52 has this same problem, but it's
 		   really annoying if we haven't finished initializing it.  I was

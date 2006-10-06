@@ -295,14 +295,9 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
  */
 static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct sonic_local *lp = netdev_priv(dev);
 	int status;
-
-	if (dev == NULL) {
-		printk(KERN_ERR "sonic_interrupt: irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
 
 	if (!(status = SONIC_READ(SONIC_ISR) & SONIC_IMR_DEFAULT))
 		return IRQ_NONE;

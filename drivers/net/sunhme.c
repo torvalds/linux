@@ -2095,8 +2095,8 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 
 static irqreturn_t happy_meal_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct happy_meal *hp  = dev->priv;
+	struct net_device *dev = dev_id;
+	struct happy_meal *hp  = netdev_priv(dev);
 	u32 happy_status       = hme_read32(hp, hp->gregs + GREG_STAT);
 
 	HMD(("happy_meal_interrupt: status=%08x ", happy_status));

@@ -662,19 +662,13 @@ static int ali_ircc_read_dongle_id (int i, chipio_t *info)
  */
 static irqreturn_t ali_ircc_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct ali_ircc_cb *self;
 	int ret;
 		
 	IRDA_DEBUG(2, "%s(), ---------------- Start ----------------\n", __FUNCTION__);
 		
- 	if (!dev) {
-		IRDA_WARNING("%s: irq %d for unknown device.\n",
-			     ALI_IRCC_DRIVER_NAME, irq);
-		return IRQ_NONE;
-	}	
-	
-	self = (struct ali_ircc_cb *) dev->priv;
+	self = dev->priv;
 	
 	spin_lock(&self->lock);
 	

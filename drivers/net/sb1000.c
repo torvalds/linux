@@ -1084,18 +1084,12 @@ static irqreturn_t sb1000_interrupt(int irq, void *dev_id)
 	char *name;
 	unsigned char st;
 	int ioaddr[2];
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct sb1000_private *lp = netdev_priv(dev);
 
 	const unsigned char Command0[6] = {0x80, 0x2c, 0x00, 0x00, 0x00, 0x00};
 	const unsigned char Command1[6] = {0x80, 0x2e, 0x00, 0x00, 0x00, 0x00};
 	const int MaxRxErrorCount = 6;
-
-	if (dev == NULL) {
-		printk(KERN_ERR "sb1000_interrupt(): irq %d for unknown device.\n",
-			irq);
-		return IRQ_NONE;
-	}
 
 	ioaddr[0] = dev->base_addr;
 	/* mem_start holds the second I/O address */
