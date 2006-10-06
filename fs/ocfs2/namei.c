@@ -104,13 +104,6 @@ static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 			      struct buffer_head *fe_bh,
 			      struct ocfs2_alloc_context *data_ac);
 
-static int ocfs2_double_lock(struct ocfs2_super *osb,
-			     struct ocfs2_journal_handle *handle,
-			     struct buffer_head **bh1,
-			     struct inode *inode1,
-			     struct buffer_head **bh2,
-			     struct inode *inode2);
-
 static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 				    struct inode **ret_orphan_dir,
 				    struct inode *inode,
@@ -992,7 +985,6 @@ leave:
  * if they have the same id, then the 1st one is the only one locked.
  */
 static int ocfs2_double_lock(struct ocfs2_super *osb,
-			     struct ocfs2_journal_handle *handle,
 			     struct buffer_head **bh1,
 			     struct inode *inode1,
 			     struct buffer_head **bh2,
@@ -1007,8 +999,6 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	mlog_entry("(inode1 = %llu, inode2 = %llu)\n",
 		   (unsigned long long)oi1->ip_blkno,
 		   (unsigned long long)oi2->ip_blkno);
-
-	BUG_ON(!handle);
 
 	if (*bh1)
 		*bh1 = NULL;
@@ -1029,23 +1019,39 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 			inode1 = tmpinode;
 		}
 		/* lock id2 */
-		status = ocfs2_meta_lock(inode2, handle, bh2, 1);
+		status = ocfs2_meta_lock(inode2, NULL, bh2, 1);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
 			goto bail;
 		}
 	}
+
 	/* lock id1 */
-	status = ocfs2_meta_lock(inode1, handle, bh1, 1);
+	status = ocfs2_meta_lock(inode1, NULL, bh1, 1);
 	if (status < 0) {
+		/*
+		 * An error return must mean that no cluster locks
+		 * were held on function exit.
+		 */
+		if (oi1->ip_blkno != oi2->ip_blkno)
+			ocfs2_meta_unlock(inode2, 1);
+
 		if (status != -ENOENT)
 			mlog_errno(status);
-		goto bail;
 	}
+
 bail:
 	mlog_exit(status);
 	return status;
+}
+
+static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
+{
+	ocfs2_meta_unlock(inode1, 1);
+
+	if (inode1 != inode2)
+		ocfs2_meta_unlock(inode2, 1);
 }
 
 #define PARENT_INO(buffer) \
@@ -1058,7 +1064,8 @@ static int ocfs2_rename(struct inode *old_dir,
 			struct inode *new_dir,
 			struct dentry *new_dentry)
 {
-	int status = 0, rename_lock = 0;
+	int status = 0, rename_lock = 0, parents_locked = 0;
+	int old_child_locked = 0, new_child_locked = 0;
 	struct inode *old_inode = old_dentry->d_inode;
 	struct inode *new_inode = new_dentry->d_inode;
 	struct inode *orphan_dir = NULL;
@@ -1122,13 +1129,13 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 
 	/* if old and new are the same, this'll just do one lock. */
-	status = ocfs2_double_lock(osb, handle,
-				  &old_dir_bh, old_dir,
-				  &new_dir_bh, new_dir);
+	status = ocfs2_double_lock(osb, &old_dir_bh, old_dir,
+				   &new_dir_bh, new_dir);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
+	parents_locked = 1;
 
 	/* make sure both dirs have bhs
 	 * get an extra ref on old_dir_bh if old==new */
@@ -1149,12 +1156,13 @@ static int ocfs2_rename(struct inode *old_dir,
 	 * the vote thread on other nodes won't have to concurrently
 	 * downconvert the inode and the dentry locks.
 	 */
-	status = ocfs2_meta_lock(old_inode, handle, NULL, 1);
+	status = ocfs2_meta_lock(old_inode, NULL, NULL, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
 		goto bail;
 	}
+	old_child_locked = 1;
 
 	status = ocfs2_remote_dentry_delete(old_dentry);
 	if (status < 0) {
@@ -1240,12 +1248,13 @@ static int ocfs2_rename(struct inode *old_dir,
 			goto bail;
 		}
 
-		status = ocfs2_meta_lock(new_inode, handle, &newfe_bh, 1);
+		status = ocfs2_meta_lock(new_inode, NULL, &newfe_bh, 1);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
 			goto bail;
 		}
+		new_child_locked = 1;
 
 		status = ocfs2_remote_dentry_delete(new_dentry);
 		if (status < 0) {
@@ -1434,6 +1443,15 @@ bail:
 
 	if (handle)
 		ocfs2_commit_trans(handle);
+
+	if (parents_locked)
+		ocfs2_double_unlock(old_dir, new_dir);
+
+	if (old_child_locked)
+		ocfs2_meta_unlock(old_inode, 1);
+
+	if (new_child_locked)
+		ocfs2_meta_unlock(new_inode, 1);
 
 	if (orphan_dir) {
 		/* This was locked for us in ocfs2_prepare_orphan_dir() */
