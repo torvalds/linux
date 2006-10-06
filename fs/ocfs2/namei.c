@@ -1603,19 +1603,12 @@ static int ocfs2_symlink(struct inode *dir,
 
 	credits = ocfs2_calc_symlink_credits(sb);
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
-
 	/* lock the parent directory */
-	status = ocfs2_meta_lock(dir, handle, &parent_fe_bh, 1);
+	status = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
-		goto bail;
+		return status;
 	}
 
 	dirfe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
@@ -1634,6 +1627,13 @@ static int ocfs2_symlink(struct inode *dir,
 					      dentry->d_name.name,
 					      dentry->d_name.len, &de_bh);
 	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	handle = ocfs2_alloc_handle(osb);
+	if (handle == NULL) {
+		status = -ENOMEM;
 		mlog_errno(status);
 		goto bail;
 	}
@@ -1734,6 +1734,9 @@ static int ocfs2_symlink(struct inode *dir,
 bail:
 	if (handle)
 		ocfs2_commit_trans(handle);
+
+	ocfs2_meta_unlock(dir, 1);
+
 	if (new_fe_bh)
 		brelse(new_fe_bh);
 	if (parent_fe_bh)
