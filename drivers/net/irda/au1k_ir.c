@@ -51,7 +51,7 @@ static int au1k_irda_start(struct net_device *);
 static int au1k_irda_stop(struct net_device *dev);
 static int au1k_irda_hard_xmit(struct sk_buff *, struct net_device *);
 static int au1k_irda_rx(struct net_device *);
-static void au1k_irda_interrupt(int, void *, struct pt_regs *);
+static void au1k_irda_interrupt(int, void *);
 static void au1k_tx_timeout(struct net_device *);
 static struct net_device_stats *au1k_irda_stats(struct net_device *);
 static int au1k_irda_ioctl(struct net_device *, struct ifreq *, int);
@@ -627,7 +627,7 @@ static int au1k_irda_rx(struct net_device *dev)
 }
 
 
-void au1k_irda_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+void au1k_irda_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 

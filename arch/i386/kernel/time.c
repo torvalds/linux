@@ -161,7 +161,7 @@ EXPORT_SYMBOL(profile_pc);
  * Time Stamp Counter value at the time of the timer interrupt, so that
  * we later on can estimate the time of day more exactly.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
@@ -188,7 +188,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 #endif
 
-	do_timer_interrupt_hook(regs);
+	do_timer_interrupt_hook();
 
 
 	if (MCA_bus) {
@@ -209,7 +209,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi(regs);
+		smp_send_timer_broadcast_ipi();
 #endif
 
 	return IRQ_HANDLED;

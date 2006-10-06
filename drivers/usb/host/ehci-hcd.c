@@ -254,8 +254,8 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 /*-------------------------------------------------------------------------*/
 
-static void end_unlink_async (struct ehci_hcd *ehci, struct pt_regs *regs);
-static void ehci_work(struct ehci_hcd *ehci, struct pt_regs *regs);
+static void end_unlink_async (struct ehci_hcd *ehci);
+static void ehci_work(struct ehci_hcd *ehci);
 
 #include "ehci-hub.c"
 #include "ehci-mem.c"
@@ -280,7 +280,7 @@ static void ehci_iaa_watchdog (unsigned long param)
 			ehci_vdbg (ehci, "lost IAA\n");
 			COUNT (ehci->stats.lost_iaa);
 			writel (STS_IAA, &ehci->regs->status);
-			end_unlink_async (ehci, NULL);
+			end_unlink_async (ehci);
 		}
 	}
 
@@ -299,7 +299,7 @@ static void ehci_watchdog (unsigned long param)
 		start_unlink_async (ehci, ehci->async);
 
 	/* ehci could run by timer, without IRQs ... */
-	ehci_work (ehci, NULL);
+	ehci_work (ehci);
 
 	spin_unlock_irqrestore (&ehci->lock, flags);
 }
@@ -342,7 +342,7 @@ static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
  * ehci_work is called from some interrupts, timers, and so on.
  * it calls driver completion functions, after dropping ehci->lock.
  */
-static void ehci_work (struct ehci_hcd *ehci, struct pt_regs *regs)
+static void ehci_work (struct ehci_hcd *ehci)
 {
 	timer_action_done (ehci, TIMER_IO_WATCHDOG);
 
@@ -353,9 +353,9 @@ static void ehci_work (struct ehci_hcd *ehci, struct pt_regs *regs)
 	if (ehci->scanning)
 		return;
 	ehci->scanning = 1;
-	scan_async (ehci, regs);
+	scan_async (ehci);
 	if (ehci->next_uframe != -1)
-		scan_periodic (ehci, regs);
+		scan_periodic (ehci);
 	ehci->scanning = 0;
 
 	/* the IO watchdog guards against hardware or driver bugs that
@@ -397,7 +397,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 	/* root hub is shut down separately (first, when possible) */
 	spin_lock_irq (&ehci->lock);
 	if (ehci->async)
-		ehci_work (ehci, NULL);
+		ehci_work (ehci);
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
 
@@ -573,7 +573,7 @@ static int ehci_run (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
-static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			status;
@@ -619,7 +619,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 	/* complete the unlinking of some qh [4.15.2.3] */
 	if (status & STS_IAA) {
 		COUNT (ehci->stats.reclaim);
-		end_unlink_async (ehci, regs);
+		end_unlink_async (ehci);
 		bh = 1;
 	}
 
@@ -670,7 +670,7 @@ dead:
 	}
 
 	if (bh)
-		ehci_work (ehci, regs);
+		ehci_work (ehci);
 	spin_unlock (&ehci->lock);
 	return IRQ_HANDLED;
 }
@@ -727,7 +727,7 @@ static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* failfast */
 	if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
-		end_unlink_async (ehci, NULL);
+		end_unlink_async (ehci);
 
 	/* defer till later if busy */
 	else if (ehci->reclaim) {
@@ -787,7 +787,7 @@ static int ehci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 			intr_deschedule (ehci, qh);
 			/* FALL THROUGH */
 		case QH_STATE_IDLE:
-			qh_completions (ehci, qh, NULL);
+			qh_completions (ehci, qh);
 			break;
 		default:
 			ehci_dbg (ehci, "bogus qh %p state %d\n",

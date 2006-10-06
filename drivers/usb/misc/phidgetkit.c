@@ -300,7 +300,7 @@ out:
 
 static DEVICE_ATTR(lcd, S_IWUGO, NULL, enable_lcd_files);
 
-static void interfacekit_irq(struct urb *urb, struct pt_regs *regs)
+static void interfacekit_irq(struct urb *urb)
 {
 	struct interfacekit *kit = urb->context;
 	unsigned char *buffer = kit->data;

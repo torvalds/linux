@@ -104,9 +104,9 @@ parport_atari_restore_state(struct parport *p, struct parport_state *s)
 }
 
 static irqreturn_t
-parport_atari_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+parport_atari_interrupt(int irq, void *dev_id)
 {
-	parport_generic_irq(irq, (struct parport *) dev_id, regs);
+	parport_generic_irq(irq, (struct parport *) dev_id);
 	return IRQ_HANDLED;
 }
 

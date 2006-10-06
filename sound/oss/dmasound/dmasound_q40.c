@@ -48,8 +48,8 @@ static int Q40SetFormat(int format);
 static int Q40SetVolume(int volume);
 static void Q40PlayNextFrame(int index);
 static void Q40Play(void);
-static irqreturn_t Q40StereoInterrupt(int irq, void *dummy, struct pt_regs *fp);
-static irqreturn_t Q40MonoInterrupt(int irq, void *dummy, struct pt_regs *fp);
+static irqreturn_t Q40StereoInterrupt(int irq, void *dummy);
+static irqreturn_t Q40MonoInterrupt(int irq, void *dummy);
 static void Q40Interrupt(void);
 
 
@@ -451,7 +451,7 @@ static void Q40Play(void)
 	spin_unlock_irqrestore(&dmasound.lock, flags);
 }
 
-static irqreturn_t Q40StereoInterrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t Q40StereoInterrupt(int irq, void *dummy)
 {
 	spin_lock(&dmasound.lock);
         if (q40_sc>1){
@@ -463,7 +463,7 @@ static irqreturn_t Q40StereoInterrupt(int irq, void *dummy, struct pt_regs *fp)
 	spin_unlock(&dmasound.lock);
 	return IRQ_HANDLED;
 }
-static irqreturn_t Q40MonoInterrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t Q40MonoInterrupt(int irq, void *dummy)
 {
 	spin_lock(&dmasound.lock);
         if (q40_sc>0){

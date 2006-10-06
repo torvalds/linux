@@ -629,8 +629,7 @@ static int rtl8139_poll(struct net_device *dev, int *budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void rtl8139_poll_controller(struct net_device *dev);
 #endif
-static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance,
-			       struct pt_regs *regs);
+static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
 static int rtl8139_close (struct net_device *dev);
 static int netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
 static struct net_device_stats *rtl8139_get_stats (struct net_device *dev);
@@ -2146,8 +2145,7 @@ static int rtl8139_poll(struct net_device *dev, int *budget)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance,
-			       struct pt_regs *regs)
+static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct rtl8139_private *tp = netdev_priv(dev);
@@ -2219,7 +2217,7 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance,
 static void rtl8139_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	rtl8139_interrupt(dev->irq, dev, NULL);
+	rtl8139_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

@@ -495,7 +495,7 @@ static void print_irqstatus(struct saa7134_dev *dev, int loop,
 	printk("\n");
 }
 
-static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t saa7134_irq(int irq, void *dev_id)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev*) dev_id;
 	unsigned long report,status;

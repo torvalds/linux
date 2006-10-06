@@ -1057,7 +1057,7 @@ detect_isa_irq(void __iomem *address)
    received, out buffer empty, modem change, etc.
  */
 static irqreturn_t
-cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+cyy_interrupt(int irq, void *dev_id)
 {
   struct tty_struct *tty;
   int status;
@@ -1802,7 +1802,7 @@ cyz_handle_cmd(struct cyclades_card *cinfo)
 
 #ifdef CONFIG_CYZ_INTR
 static irqreturn_t
-cyz_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+cyz_interrupt(int irq, void *dev_id)
 {
   struct cyclades_card *cinfo;
 

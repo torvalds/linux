@@ -64,7 +64,7 @@ struct xtkbd {
 };
 
 static irqreturn_t xtkbd_interrupt(struct serio *serio,
-	unsigned char data, unsigned int flags, struct pt_regs *regs)
+	unsigned char data, unsigned int flags)
 {
 	struct xtkbd *xtkbd = serio_get_drvdata(serio);
 
@@ -75,7 +75,6 @@ static irqreturn_t xtkbd_interrupt(struct serio *serio,
 		default:
 
 			if (xtkbd->keycode[data & XTKBD_KEY]) {
-				input_regs(xtkbd->dev, regs);
 				input_report_key(xtkbd->dev, xtkbd->keycode[data & XTKBD_KEY], !(data & XTKBD_RELEASE));
 				input_sync(xtkbd->dev);
 			} else {

@@ -883,8 +883,7 @@ e1000_eeprom_test(struct e1000_adapter *adapter, uint64_t *data)
 
 static irqreturn_t
 e1000_test_intr(int irq,
-		void *data,
-		struct pt_regs *regs)
+		void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);

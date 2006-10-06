@@ -713,7 +713,7 @@ static irqreturn_t c4_handle_interrupt(avmcard *card)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t c4_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+static irqreturn_t c4_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 

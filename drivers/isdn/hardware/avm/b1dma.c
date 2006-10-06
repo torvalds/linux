@@ -628,7 +628,7 @@ static void b1dma_handle_interrupt(avmcard *card)
 	spin_unlock(&card->lock);
 }
 
-irqreturn_t b1dma_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+irqreturn_t b1dma_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 

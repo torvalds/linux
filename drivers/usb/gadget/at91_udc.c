@@ -1366,7 +1366,7 @@ static void handle_ep0(struct at91_udc *udc)
 	}
 }
 
-static irqreturn_t at91_udc_irq (int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t at91_udc_irq (int irq, void *_udc)
 {
 	struct at91_udc		*udc = _udc;
 	u32			rescans = 5;
@@ -1552,7 +1552,7 @@ static struct at91_udc controller = {
 	/* ep6 and ep7 are also reserved (custom silicon might use them) */
 };
 
-static irqreturn_t at91_vbus_irq(int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t at91_vbus_irq(int irq, void *_udc)
 {
 	struct at91_udc	*udc = _udc;
 	unsigned	value;

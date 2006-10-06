@@ -191,12 +191,14 @@ void indy_8254timer_irq(struct pt_regs *regs)
 
 void indy_r4k_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int irq = SGI_TIMER_IRQ;
 
 	irq_enter();
 	kstat_this_cpu.irqs[irq]++;
-	timer_interrupt(irq, NULL, regs);
+	timer_interrupt(irq, NULL);
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void __init plat_timer_setup(struct irqaction *irq)

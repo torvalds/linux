@@ -109,7 +109,7 @@ static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
-static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
 static int set_config(struct net_device *dev, struct ifmap *map);
@@ -1071,11 +1071,11 @@ static int set_config(struct net_device *dev, struct ifmap *map)
 
 /*====================================================================*/
 
-static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ei_irq_wrapper(int irq, void *dev_id)
 {
     struct net_device *dev = dev_id;
     pcnet_dev_t *info;
-    irqreturn_t ret = ei_interrupt(irq, dev_id, regs);
+    irqreturn_t ret = ei_interrupt(irq, dev_id);
 
     if (ret == IRQ_HANDLED) {
 	    info = PRIV(dev);
@@ -1100,7 +1100,7 @@ static void ei_watchdog(u_long arg)
     if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	ei_irq_wrapper(dev->irq, dev, NULL);
+	ei_irq_wrapper(dev->irq, dev);
 	info->fast_poll = HZ;
     }
     if (info->fast_poll) {

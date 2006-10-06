@@ -283,7 +283,7 @@ static void serial_txx9_enable_ms(struct uart_port *port)
 }
 
 static inline void
-receive_chars(struct uart_txx9_port *up, unsigned int *status, struct pt_regs *regs)
+receive_chars(struct uart_txx9_port *up, unsigned int *status)
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch;
@@ -344,7 +344,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status, struct pt_regs *r
 			else if (disr & TXX9_SIDISR_UFER)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 
 		uart_insert_char(&up->port, disr, TXX9_SIDISR_UOER, ch, flag);
@@ -391,7 +391,7 @@ static inline void transmit_chars(struct uart_txx9_port *up)
 		serial_txx9_stop_tx(&up->port);
 }
 
-static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id)
 {
 	int pass_counter = 0;
 	struct uart_txx9_port *up = dev_id;
@@ -409,7 +409,7 @@ static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id, struct pt_regs *
 		}
 
 		if (status & TXX9_SIDISR_RDIS)
-			receive_chars(up, &status, regs);
+			receive_chars(up, &status);
 		if (status & TXX9_SIDISR_TDIS)
 			transmit_chars(up);
 		/* Clear TX/RX Int. Status */

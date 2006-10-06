@@ -1113,7 +1113,7 @@ qla1280_enable_intrs(struct scsi_qla_host *ha)
  *   Handles the H/W interrupt
  **************************************************************************/
 static irqreturn_t
-qla1280_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla1280_intr_handler(int irq, void *dev_id)
 {
 	struct scsi_qla_host *ha;
 	struct device_reg __iomem *reg;

@@ -125,7 +125,7 @@ WriteJADE(struct IsdnCardState *cs, int jade, u_char offset, u_char value)
 #include "jade_irq.c"
 
 static irqreturn_t
-bkm_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+bkm_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val = 0;

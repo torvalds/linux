@@ -103,7 +103,9 @@ skip:
  * handlers).
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
-{	
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
 	/* high bit used in ret_from_ code  */
 	unsigned vector = ~regs->orig_rax;
 	unsigned irq;
@@ -121,9 +123,10 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	stack_overflow_check(regs);
 #endif
-	generic_handle_irq(irq, regs);
+	generic_handle_irq(irq);
 	irq_exit();
 
+	set_irq_regs(old_regs);
 	return 1;
 }
 

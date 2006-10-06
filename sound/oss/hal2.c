@@ -370,7 +370,7 @@ static void hal2_adc_interrupt(struct hal2_codec *adc)
 	wake_up(&adc->dma_wait);
 }
 
-static irqreturn_t hal2_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hal2_interrupt(int irq, void *dev_id)
 {
 	struct hal2_card *hal2 = (struct hal2_card*)dev_id;
 	irqreturn_t ret = IRQ_NONE;

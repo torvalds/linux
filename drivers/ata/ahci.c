@@ -204,7 +204,7 @@ static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
-static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t ahci_interrupt (int irq, void *dev_instance);
 static void ahci_irq_clear(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
@@ -1059,7 +1059,7 @@ static void ahci_irq_clear(struct ata_port *ap)
 	/* TODO */
 }
 
-static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv;

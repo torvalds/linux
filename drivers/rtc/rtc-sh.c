@@ -73,7 +73,7 @@ struct sh_rtc {
 	spinlock_t lock;
 };
 
-static irqreturn_t sh_rtc_interrupt(int irq, void *id, struct pt_regs *regs)
+static irqreturn_t sh_rtc_interrupt(int irq, void *id)
 {
 	struct platform_device *pdev = id;
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
@@ -97,7 +97,7 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sh_rtc_periodic(int irq, void *id, struct pt_regs *regs)
+static irqreturn_t sh_rtc_periodic(int irq, void *id)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(id);
 

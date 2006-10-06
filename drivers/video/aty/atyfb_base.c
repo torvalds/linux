@@ -1532,7 +1532,7 @@ static int atyfb_open(struct fb_info *info, int user)
 	return (0);
 }
 
-static irqreturn_t aty_irq(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t aty_irq(int irq, void *dev_id)
 {
 	struct atyfb_par *par = dev_id;
 	int handled = 0;

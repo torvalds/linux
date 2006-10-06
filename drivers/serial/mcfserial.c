@@ -385,7 +385,7 @@ static inline void transmit_chars(struct mcf_serial *info)
 /*
  * This is the serial driver's generic interrupt routine
  */
-irqreturn_t mcfrs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t mcfrs_interrupt(int irq, void *dev_id)
 {
 	struct mcf_serial	*info;
 	unsigned char		isr;

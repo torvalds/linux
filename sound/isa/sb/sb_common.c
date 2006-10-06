@@ -205,7 +205,7 @@ static int snd_sbdsp_dev_free(struct snd_device *device)
 int snd_sbdsp_create(struct snd_card *card,
 		     unsigned long port,
 		     int irq,
-		     irqreturn_t (*irq_handler)(int, void *, struct pt_regs *),
+		     irq_handler_t irq_handler,
 		     int dma8,
 		     int dma16,
 		     unsigned short hardware,

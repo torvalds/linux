@@ -81,7 +81,7 @@ static void iforce_serio_write_wakeup(struct serio *serio)
 }
 
 static irqreturn_t iforce_serio_irq(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct iforce *iforce = serio_get_drvdata(serio);
 
@@ -115,7 +115,7 @@ static irqreturn_t iforce_serio_irq(struct serio *serio,
 	}
 
 	if (iforce->idx == iforce->len) {
-		iforce_process_packet(iforce, (iforce->id << 8) | iforce->idx, iforce->data, regs);
+		iforce_process_packet(iforce, (iforce->id << 8) | iforce->idx, iforce->data);
 		iforce->pkt = 0;
 		iforce->id  = 0;
 		iforce->len = 0;

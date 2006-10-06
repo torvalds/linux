@@ -1090,7 +1090,7 @@ static void snd_opti93x_overrange(struct snd_opti93x *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
-static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id)
 {
 	struct snd_opti93x *codec = dev_id;
 	unsigned char status;

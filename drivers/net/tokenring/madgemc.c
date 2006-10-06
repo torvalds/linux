@@ -70,7 +70,7 @@ static void madgemc_setregpage(struct net_device *dev, int page);
 static void madgemc_setsifsel(struct net_device *dev, int val);
 static void madgemc_setint(struct net_device *dev, int val);
 
-static irqreturn_t madgemc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t madgemc_interrupt(int irq, void *dev_id);
 
 /*
  * These work around paging, however they don't guarentee you're on the
@@ -417,7 +417,7 @@ getout:
  * exhausted all contiguous interrupts.
  *
  */
-static irqreturn_t madgemc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t madgemc_interrupt(int irq, void *dev_id)
 {
 	int pending,reg1;
 	struct net_device *dev;
@@ -451,7 +451,7 @@ static irqreturn_t madgemc_interrupt(int irq, void *dev_id, struct pt_regs *regs
 			outb(reg1, dev->base_addr + MC_CONTROL_REG1);
 
 			/* Continue handling as normal */
-			tms380tr_interrupt(irq, dev_id, regs);
+			tms380tr_interrupt(irq, dev_id);
 
 			pending = SIFREADW(SIFSTS); /* restart - the SIF way */
 

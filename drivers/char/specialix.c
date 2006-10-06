@@ -200,7 +200,7 @@ static struct specialix_port sx_port[SX_NBOARD * SX_NPORT];
 
 #ifdef SPECIALIX_TIMER
 static struct timer_list missed_irq_timer;
-static irqreturn_t sx_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t sx_interrupt(int irq, void * dev_id);
 #endif
 
 
@@ -897,7 +897,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 
 
 /* The main interrupt processing routine */
-static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sx_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	unsigned char ack;

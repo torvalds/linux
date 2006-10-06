@@ -95,8 +95,8 @@ struct bfusb_data_scb {
 	struct urb *urb;
 };
 
-static void bfusb_tx_complete(struct urb *urb, struct pt_regs *regs);
-static void bfusb_rx_complete(struct urb *urb, struct pt_regs *regs);
+static void bfusb_tx_complete(struct urb *urb);
+static void bfusb_rx_complete(struct urb *urb);
 
 static struct urb *bfusb_get_completed(struct bfusb_data *data)
 {
@@ -190,7 +190,7 @@ static void bfusb_tx_wakeup(struct bfusb_data *data)
 	clear_bit(BFUSB_TX_PROCESS, &data->state);
 }
 
-static void bfusb_tx_complete(struct urb *urb, struct pt_regs *regs)
+static void bfusb_tx_complete(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
 	struct bfusb_data *data = (struct bfusb_data *) skb->dev;
@@ -349,7 +349,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 	return 0;
 }
 
-static void bfusb_rx_complete(struct urb *urb, struct pt_regs *regs)
+static void bfusb_rx_complete(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *) urb->context;
 	struct bfusb_data *data = (struct bfusb_data *) skb->dev;

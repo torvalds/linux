@@ -157,7 +157,7 @@ WriteHFC(struct IsdnCardState *cs, int data, u_char reg, u_char value)
 }
 
 static irqreturn_t
-TeleInt_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+TeleInt_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;

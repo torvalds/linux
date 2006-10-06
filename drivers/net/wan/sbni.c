@@ -119,7 +119,7 @@ static int  sbni_ioctl( struct net_device *, struct ifreq *, int );
 static struct net_device_stats  *sbni_get_stats( struct net_device * );
 static void  set_multicast_list( struct net_device * );
 
-static irqreturn_t sbni_interrupt( int, void *, struct pt_regs * );
+static irqreturn_t sbni_interrupt( int, void * );
 static void  handle_channel( struct net_device * );
 static int   recv_frame( struct net_device * );
 static void  send_frame( struct net_device * );
@@ -501,7 +501,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
  */ 
 
 static irqreturn_t
-sbni_interrupt( int  irq,  void  *dev_id,  struct pt_regs  *regs )
+sbni_interrupt( int  irq,  void  *dev_id )
 {
 	struct net_device	  *dev = (struct net_device *) dev_id;
 	struct net_local  *nl  = (struct net_local *) dev->priv;

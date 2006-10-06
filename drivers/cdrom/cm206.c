@@ -359,7 +359,7 @@ static struct tasklet_struct cm206_tasklet;
    as there seems so reason for this to happen.
 */
 
-static irqreturn_t cm206_interrupt(int sig, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cm206_interrupt(int sig, void *dev_id)
 {
 	volatile ush fool;
 	cd->intr_ds = inw(r_data_status);	/* resets data_ready, data_error,

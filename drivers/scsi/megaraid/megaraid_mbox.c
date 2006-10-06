@@ -120,7 +120,7 @@ static void megaraid_mbox_prepare_pthru(adapter_t *, scb_t *,
 static void megaraid_mbox_prepare_epthru(adapter_t *, scb_t *,
 		struct scsi_cmnd *);
 
-static irqreturn_t megaraid_isr(int, void *, struct pt_regs *);
+static irqreturn_t megaraid_isr(int, void *);
 
 static void megaraid_mbox_dpc(unsigned long);
 
@@ -2231,7 +2231,7 @@ megaraid_ack_sequence(adapter_t *adapter)
  * Interrupt service routine for memory-mapped mailbox controllers.
  */
 static irqreturn_t
-megaraid_isr(int irq, void *devp, struct pt_regs *regs)
+megaraid_isr(int irq, void *devp)
 {
 	adapter_t	*adapter = devp;
 	int		handled;

@@ -8111,7 +8111,7 @@ printk("ncr53c8xx : command successfully queued\n");
      return sts;
 }
 
-irqreturn_t ncr53c8xx_intr(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
 {
      unsigned long flags;
      struct Scsi_Host *shost = (struct Scsi_Host *)dev_id;

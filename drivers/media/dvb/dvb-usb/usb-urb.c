@@ -11,7 +11,7 @@
 #include "dvb-usb-common.h"
 
 /* URB stuff for streaming */
-static void usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
+static void usb_urb_complete(struct urb *urb)
 {
 	struct usb_data_stream *stream = urb->context;
 	int ptype = usb_pipetype(urb->pipe);

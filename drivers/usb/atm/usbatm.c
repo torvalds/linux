@@ -254,7 +254,7 @@ static int usbatm_submit_urb(struct urb *urb)
 	return ret;
 }
 
-static void usbatm_complete(struct urb *urb, struct pt_regs *regs)
+static void usbatm_complete(struct urb *urb)
 {
 	struct usbatm_channel *channel = urb->context;
 	unsigned long flags;

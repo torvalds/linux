@@ -628,7 +628,7 @@ struct ata_port_operations {
 	void (*error_handler) (struct ata_port *ap);
 	void (*post_internal_cmd) (struct ata_queued_cmd *qc);
 
-	irqreturn_t (*irq_handler)(int, void *, struct pt_regs *);
+	irq_handler_t irq_handler;
 	void (*irq_clear) (struct ata_port *);
 
 	u32 (*scr_read) (struct ata_port *ap, unsigned int sc_reg);
@@ -769,7 +769,7 @@ extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
 extern void ata_host_stop (struct ata_host *host);
-extern irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+extern irqreturn_t ata_interrupt (int irq, void *dev_instance);
 extern void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			       unsigned int buflen, int write_data);
 extern void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,

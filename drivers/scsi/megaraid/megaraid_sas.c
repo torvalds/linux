@@ -1293,7 +1293,7 @@ megasas_deplete_reply_queue(struct megasas_instance *instance, u8 alt_status)
 /**
  * megasas_isr - isr entry point
  */
-static irqreturn_t megasas_isr(int irq, void *devp, struct pt_regs *regs)
+static irqreturn_t megasas_isr(int irq, void *devp)
 {
 	return megasas_deplete_reply_queue((struct megasas_instance *)devp,
 					   DID_OK);

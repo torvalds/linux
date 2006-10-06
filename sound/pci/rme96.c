@@ -1117,8 +1117,7 @@ snd_rme96_capture_stop(struct rme96 *rme96)
 
 static irqreturn_t
 snd_rme96_interrupt(int irq,
-		    void *dev_id,
-		    struct pt_regs *regs)
+		    void *dev_id)
 {
 	struct rme96 *rme96 = (struct rme96 *)dev_id;
 

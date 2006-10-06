@@ -1053,7 +1053,7 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 }
 
 
-static irqreturn_t rr_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t rr_interrupt(int irq, void *dev_id)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;

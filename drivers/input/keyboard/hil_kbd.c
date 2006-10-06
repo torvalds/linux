@@ -198,7 +198,7 @@ static void hil_kbd_process_err(struct hil_kbd *kbd) {
 }
 
 static irqreturn_t hil_kbd_interrupt(struct serio *serio, 
-	      unsigned char data, unsigned int flags, struct pt_regs *regs)
+	      unsigned char data, unsigned int flags)
 {
 	struct hil_kbd *kbd;
 	hil_packet packet;

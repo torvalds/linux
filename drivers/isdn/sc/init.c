@@ -35,7 +35,7 @@ module_param_array(irq, int, NULL, 0);
 module_param_array(ram, int, NULL, 0);
 module_param(do_reset, bool, 0);
 
-extern irqreturn_t interrupt_handler(int, void *, struct pt_regs *);
+extern irqreturn_t interrupt_handler(int, void *);
 extern int sndpkt(int, int, int, struct sk_buff *);
 extern int command(isdn_ctrl *);
 extern int indicate_status(int, int, ulong, char*);

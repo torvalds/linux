@@ -370,7 +370,7 @@ cy_sched_event(struct cyclades_port *info, int event)
    received, out buffer empty, modem change, etc.
  */
 static irqreturn_t
-cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_rxerr_interrupt(int irq, void *dev_id)
 {
     struct tty_struct *tty;
     struct cyclades_port *info;
@@ -451,7 +451,7 @@ cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 } /* cy_rxerr_interrupt */
 
 static irqreturn_t
-cd2401_modem_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_modem_interrupt(int irq, void *dev_id)
 {
     struct cyclades_port *info;
     volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
@@ -506,7 +506,7 @@ cd2401_modem_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 } /* cy_modem_interrupt */
 
 static irqreturn_t
-cd2401_tx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_tx_interrupt(int irq, void *dev_id)
 {
     struct cyclades_port *info;
     volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
@@ -626,7 +626,7 @@ cd2401_tx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 } /* cy_tx_interrupt */
 
 static irqreturn_t
-cd2401_rx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_rx_interrupt(int irq, void *dev_id)
 {
     struct tty_struct *tty;
     struct cyclades_port *info;

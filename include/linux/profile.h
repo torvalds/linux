@@ -17,7 +17,7 @@ struct notifier_block;
 
 /* init basic kernel profiler */
 void __init profile_init(void);
-void profile_tick(int, struct pt_regs *);
+void profile_tick(int);
 void profile_hit(int, void *);
 #ifdef CONFIG_PROC_FS
 void create_prof_cpu_mask(struct proc_dir_entry *);

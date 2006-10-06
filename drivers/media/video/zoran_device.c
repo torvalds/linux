@@ -1408,8 +1408,7 @@ error_handler (struct zoran *zr,
 
 irqreturn_t
 zoran_irq (int             irq,
-	   void           *dev_id,
-	   struct pt_regs *regs)
+	   void           *dev_id)
 {
 	u32 stat, astat;
 	int count;

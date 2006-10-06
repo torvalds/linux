@@ -1085,7 +1085,7 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 /*
  *  sa1100fb_handle_irq: Handle 'LCD DONE' interrupts.
  */
-static irqreturn_t sa1100fb_handle_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sa1100fb_handle_irq(int irq, void *dev_id)
 {
 	struct sa1100fb_info *fbi = dev_id;
 	unsigned int lcsr = LCSR;

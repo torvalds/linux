@@ -93,7 +93,7 @@ struct cir_port *cir;
 static unsigned char kbdbytes[5];
 static unsigned char cir_data[32]; /* we only need 16 chars */
 
-static void kbd_int_handler(int irq, void *dev_id, struct pt_regs *regs);
+static void kbd_int_handler(int irq, void *dev_id);
 static int handle_data(unsigned char *p_data);
 static inline void handle_mouse_event(unsigned char scancode);
 static inline void handle_keyboard_event(unsigned char scancode, int down);
@@ -197,7 +197,7 @@ int CheckSumOk(u_int8_t byte1, u_int8_t byte2,
 }
 
 
-static void kbd_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+static void kbd_int_handler(int irq, void *dev_id)
 {
 	struct cir_port *cir;
 	int j;

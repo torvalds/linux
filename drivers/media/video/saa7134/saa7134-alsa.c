@@ -212,7 +212,7 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
  *
  */
 
-static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id)
 {
 	struct saa7134_dmasound *dmasound = dev_id;
 	struct saa7134_dev *dev = dmasound->priv_data;

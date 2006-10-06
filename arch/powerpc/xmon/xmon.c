@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -2577,12 +2578,11 @@ void xmon_init(int enable)
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
-			      struct tty_struct *tty) 
+static void sysrq_handle_xmon(int key, struct tty_struct *tty) 
 {
 	/* ensure xmon is enabled */
 	xmon_init(1);
-	debugger(pt_regs);
+	debugger(get_irq_regs());
 }
 
 static struct sysrq_key_op sysrq_xmon_op = 

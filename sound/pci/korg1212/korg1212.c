@@ -1119,7 +1119,7 @@ static void snd_korg1212_OnDSPDownloadComplete(struct snd_korg1212 *korg1212)
 	snd_korg1212_setCardState(korg1212, K1212_STATE_DSP_COMPLETE);
 }
 
-static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
 {
         u32 doorbellValue;
         struct snd_korg1212 *korg1212 = dev_id;

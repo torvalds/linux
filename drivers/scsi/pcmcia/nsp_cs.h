@@ -346,7 +346,7 @@ static int  nsp_reselected       (Scsi_Cmnd *SCpnt);
 static struct Scsi_Host *nsp_detect(struct scsi_host_template *sht);
 
 /* Interrupt handler */
-//static irqreturn_t nspintr(int irq, void *dev_id, struct pt_regs *regs);
+//static irqreturn_t nspintr(int irq, void *dev_id);
 
 /* Module entry point*/
 static int  __init nsp_cs_init(void);

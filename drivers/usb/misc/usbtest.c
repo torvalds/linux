@@ -198,7 +198,7 @@ found:
  * them with non-zero test data (or test for it) when appropriate.
  */
 
-static void simple_callback (struct urb *urb, struct pt_regs *regs)
+static void simple_callback (struct urb *urb)
 {
 	complete ((struct completion *) urb->context);
 }
@@ -730,7 +730,7 @@ struct subcase {
 	int			expected;
 };
 
-static void ctrl_complete (struct urb *urb, struct pt_regs *regs)
+static void ctrl_complete (struct urb *urb)
 {
 	struct ctrl_ctx		*ctx = urb->context;
 	struct usb_ctrlrequest	*reqp;
@@ -1035,7 +1035,7 @@ cleanup:
 
 /*-------------------------------------------------------------------------*/
 
-static void unlink1_callback (struct urb *urb, struct pt_regs *regs)
+static void unlink1_callback (struct urb *urb)
 {
 	int	status = urb->status;
 
@@ -1343,7 +1343,7 @@ struct iso_context {
 	struct usbtest_dev	*dev;
 };
 
-static void iso_callback (struct urb *urb, struct pt_regs *regs)
+static void iso_callback (struct urb *urb)
 {
 	struct iso_context	*ctx = urb->context;
 

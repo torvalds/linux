@@ -270,9 +270,9 @@ static int clear_epp_timeout(struct parport *pb)
  * of these are in parport_pc.h.
  */
 
-static irqreturn_t parport_pc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t parport_pc_interrupt(int irq, void *dev_id)
 {
-	parport_generic_irq(irq, (struct parport *) dev_id, regs);
+	parport_generic_irq(irq, (struct parport *) dev_id);
 	/* FIXME! Was it really ours? */
 	return IRQ_HANDLED;
 }

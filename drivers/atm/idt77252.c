@@ -2774,7 +2774,7 @@ idt77252_collect_stat(struct idt77252_dev *card)
 }
 
 static irqreturn_t
-idt77252_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+idt77252_interrupt(int irq, void *dev_id)
 {
 	struct idt77252_dev *card = dev_id;
 	u32 stat;

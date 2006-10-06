@@ -2748,7 +2748,7 @@ int tul_wait_done_disc(HCS * pCurHcb)
 	return (tul_bad_seq(pCurHcb));
 }
 
-static irqreturn_t i91u_intr(int irqno, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i91u_intr(int irqno, void *dev_id)
 {
 	struct Scsi_Host *dev = dev_id;
 	unsigned long flags;

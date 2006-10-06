@@ -196,8 +196,8 @@ static SK_BOOL	BoardAllocMem(SK_AC *pAC);
 static void	BoardFreeMem(SK_AC *pAC);
 static void	BoardInitMem(SK_AC *pAC);
 static void	SetupRing(SK_AC*, void*, uintptr_t, RXD**, RXD**, RXD**, int*, SK_BOOL);
-static SkIsrRetVar	SkGeIsr(int irq, void *dev_id, struct pt_regs *ptregs);
-static SkIsrRetVar	SkGeIsrOnePort(int irq, void *dev_id, struct pt_regs *ptregs);
+static SkIsrRetVar	SkGeIsr(int irq, void *dev_id);
+static SkIsrRetVar	SkGeIsrOnePort(int irq, void *dev_id);
 static int	SkGeOpen(struct SK_NET_DEVICE *dev);
 static int	SkGeClose(struct SK_NET_DEVICE *dev);
 static int	SkGeXmit(struct sk_buff *skb, struct SK_NET_DEVICE *dev);
@@ -880,7 +880,7 @@ int	PortIndex)	/* index of the port for which to re-init */
  * Returns: N/A
  *
  */
-static SkIsrRetVar SkGeIsr(int irq, void *dev_id, struct pt_regs *ptregs)
+static SkIsrRetVar SkGeIsr(int irq, void *dev_id)
 {
 struct SK_NET_DEVICE *dev = (struct SK_NET_DEVICE *)dev_id;
 DEV_NET		*pNet;
@@ -1029,7 +1029,7 @@ SK_U32		IntSrc;		/* interrupts source register contents */
  * Returns: N/A
  *
  */
-static SkIsrRetVar SkGeIsrOnePort(int irq, void *dev_id, struct pt_regs *ptregs)
+static SkIsrRetVar SkGeIsrOnePort(int irq, void *dev_id)
 {
 struct SK_NET_DEVICE *dev = (struct SK_NET_DEVICE *)dev_id;
 DEV_NET		*pNet;
@@ -1140,7 +1140,7 @@ SK_U32		IntSrc;		/* interrupts source register contents */
 static void SkGePollController(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	SkGeIsr(dev->irq, dev, NULL);
+	SkGeIsr(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

@@ -322,18 +322,18 @@ static long last_rtc_update;
  * a broadcasted inter-processor interrupt which itself is triggered
  * by the global timer interrupt.
  */
-void local_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+void local_timer_interrupt(int irq, void *dev_id)
 {
 	if (current->pid)
-		profile_tick(CPU_PROFILING, regs);
-	update_process_times(user_mode(regs));
+		profile_tick(CPU_PROFILING);
+	update_process_times(user_mode(get_irq_regs()));
 }
 
 /*
  * High-level timer interrupt service routines.  This function
  * is set as irqaction->handler and is invoked through do_IRQ.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long j;
 	unsigned int count;
@@ -419,23 +419,24 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * In SMP mode, local_timer_interrupt() is invoked by appropriate
 	 * low-level local timer interrupt handler.
 	 */
-	local_timer_interrupt(irq, dev_id, regs);
+	local_timer_interrupt(irq, dev_id);
 
 	return IRQ_HANDLED;
 }
 
-int null_perf_irq(struct pt_regs *regs)
+int null_perf_irq(void)
 {
 	return 0;
 }
 
-int (*perf_irq)(struct pt_regs *regs) = null_perf_irq;
+int (*perf_irq)(void) = null_perf_irq;
 
 EXPORT_SYMBOL(null_perf_irq);
 EXPORT_SYMBOL(perf_irq);
 
 asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int r2 = cpu_has_mips_r2;
 
 	irq_enter();
@@ -448,27 +449,30 @@ asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs)
 	 * performance counter interrupt handler anyway.
 	 */
 	if (!r2 || (read_c0_cause() & (1 << 26)))
-		if (perf_irq(regs))
+		if (perf_irq())
 			goto out;
 
 	/* we keep interrupt disabled all the time */
 	if (!r2 || (read_c0_cause() & (1 << 30)))
-		timer_interrupt(irq, NULL, regs);
+		timer_interrupt(irq, NULL);
 
 out:
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	irq_enter();
 	if (smp_processor_id() != 0)
 		kstat_this_cpu.irqs[irq]++;
 
 	/* we keep interrupt disabled all the time */
-	local_timer_interrupt(irq, NULL, regs);
+	local_timer_interrupt(irq, NULL);
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*

@@ -563,7 +563,7 @@ static struct pci_driver ioat_pci_drv = {
 	.remove	= __devexit_p(ioat_remove),
 };
 
-static irqreturn_t ioat_do_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t ioat_do_interrupt(int irq, void *data)
 {
 	struct ioat_device *instance = data;
 	unsigned long attnstatus;

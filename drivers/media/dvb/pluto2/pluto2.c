@@ -306,7 +306,7 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 			TS_DMA_BYTES, PCI_DMA_FROMDEVICE);
 }
 
-static irqreturn_t pluto_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pluto_irq(int irq, void *dev_id)
 {
 	struct pluto *pluto = dev_id;
 	u32 tscr;

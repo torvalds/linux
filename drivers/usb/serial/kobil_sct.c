@@ -80,8 +80,8 @@ static int  kobil_ioctl(struct usb_serial_port *port, struct file *file,
 static int  kobil_tiocmget(struct usb_serial_port *port, struct file *file);
 static int  kobil_tiocmset(struct usb_serial_port *port, struct file *file,
 			   unsigned int set, unsigned int clear);
-static void kobil_read_int_callback( struct urb *urb, struct pt_regs *regs );
-static void kobil_write_callback( struct urb *purb, struct pt_regs *regs );
+static void kobil_read_int_callback( struct urb *urb );
+static void kobil_write_callback( struct urb *purb );
 
 
 static struct usb_device_id id_table [] = {
@@ -360,7 +360,7 @@ static void kobil_close (struct usb_serial_port *port, struct file *filp)
 }
 
 
-static void kobil_read_int_callback( struct urb *purb, struct pt_regs *regs)
+static void kobil_read_int_callback( struct urb *purb)
 {
 	int result;
 	struct usb_serial_port *port = (struct usb_serial_port *) purb->context;
@@ -405,7 +405,7 @@ static void kobil_read_int_callback( struct urb *purb, struct pt_regs *regs)
 }
 
 
-static void kobil_write_callback( struct urb *purb, struct pt_regs *regs )
+static void kobil_write_callback( struct urb *purb )
 {
 }
 

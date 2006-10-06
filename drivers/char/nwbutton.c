@@ -144,7 +144,7 @@ static void button_sequence_finished (unsigned long parameters)
  *  increments the counter.
  */ 
 
-static irqreturn_t button_handler (int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t button_handler (int irq, void *dev_id)
 {
 	if (button_press_count) {
 		del_timer (&button_timer);

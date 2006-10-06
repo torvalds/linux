@@ -291,7 +291,7 @@ static void dtl1_receive(dtl1_info_t *info)
 }
 
 
-static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
+static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 {
 	dtl1_info_t *info = dev_inst;
 	unsigned int iobase;

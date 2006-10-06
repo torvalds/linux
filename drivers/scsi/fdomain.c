@@ -403,8 +403,7 @@ static volatile int      in_interrupt_flag;
 static int               FIFO_Size = 0x2000; /* 8k FIFO for
 						pre-tmc18c30 chips */
 
-static irqreturn_t       do_fdomain_16x0_intr( int irq, void *dev_id,
-					    struct pt_regs * regs );
+static irqreturn_t       do_fdomain_16x0_intr( int irq, void *dev_id );
 /* Allow insmod parameters to be like LILO parameters.  For example:
    insmod fdomain fdomain=0x140,11 */
 static char * fdomain = NULL;
@@ -1094,8 +1093,7 @@ static void my_done(int error)
 #endif
 }
 
-static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
-					struct pt_regs * regs )
+static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id)
 {
    unsigned long flags;
    int      status;

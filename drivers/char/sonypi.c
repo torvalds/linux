@@ -826,7 +826,7 @@ static void sonypi_report_input_event(u8 event)
 }
 
 /* Interrupt handler: some event is available */
-static irqreturn_t sonypi_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sonypi_irq(int irq, void *dev_id)
 {
 	u8 v1, v2, event = 0;
 	int i, j;

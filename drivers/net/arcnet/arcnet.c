@@ -752,7 +752,7 @@ static void arcnet_timeout(struct net_device *dev)
  * interrupts. Establish which device needs attention, and call the correct
  * chipset interrupt handler.
  */
-irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct arcnet_local *lp;

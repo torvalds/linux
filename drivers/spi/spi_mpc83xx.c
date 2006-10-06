@@ -296,8 +296,7 @@ static int mpc83xx_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	return t->len - mpc83xx_spi->count;
 }
 
-irqreturn_t mpc83xx_spi_irq(s32 irq, void *context_data,
-			    struct pt_regs * ptregs)
+irqreturn_t mpc83xx_spi_irq(s32 irq, void *context_data)
 {
 	struct mpc83xx_spi *mpc83xx_spi = context_data;
 	u32 event;

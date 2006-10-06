@@ -152,9 +152,9 @@ static void bmac_init_chip(struct net_device *dev);
 static void bmac_init_registers(struct net_device *dev);
 static void bmac_enable_and_reset_chip(struct net_device *dev);
 static int bmac_set_address(struct net_device *dev, void *addr);
-static irqreturn_t bmac_misc_intr(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t bmac_txdma_intr(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t bmac_misc_intr(int irq, void *dev_id);
+static irqreturn_t bmac_txdma_intr(int irq, void *dev_id);
+static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id);
 static void bmac_set_timeout(struct net_device *dev);
 static void bmac_tx_timeout(unsigned long data);
 static int bmac_output(struct sk_buff *skb, struct net_device *dev);
@@ -688,7 +688,7 @@ static int bmac_transmit_packet(struct sk_buff *skb, struct net_device *dev)
 
 static int rxintcount;
 
-static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct bmac_data *bp = netdev_priv(dev);
@@ -765,7 +765,7 @@ static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 static int txintcount;
 
-static irqreturn_t bmac_txdma_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct bmac_data *bp = netdev_priv(dev);
@@ -1082,7 +1082,7 @@ static void bmac_set_multicast(struct net_device *dev)
 
 static int miscintcount;
 
-static irqreturn_t bmac_misc_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bmac_misc_intr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct bmac_data *bp = netdev_priv(dev);
@@ -1091,7 +1091,7 @@ static irqreturn_t bmac_misc_intr(int irq, void *dev_id, struct pt_regs *regs)
 		XXDEBUG(("bmac_misc_intr\n"));
 	}
 	/* XXDEBUG(("bmac_misc_intr, status=%#08x\n", status)); */
-	/*     bmac_txdma_intr_inner(irq, dev_id, regs); */
+	/*     bmac_txdma_intr_inner(irq, dev_id); */
 	/*   if (status & FrameReceived) bp->stats.rx_dropped++; */
 	if (status & RxErrorMask) bp->stats.rx_errors++;
 	if (status & RxCRCCntExp) bp->stats.rx_crc_errors++;

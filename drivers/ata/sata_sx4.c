@@ -152,7 +152,7 @@ struct pdc_host_priv {
 
 
 static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance);
 static void pdc_eng_timeout(struct ata_port *ap);
 static void pdc_20621_phy_reset (struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
@@ -788,7 +788,7 @@ static void pdc20621_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_20621_SEQMASK);
 }
 
-static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ata_port *ap;

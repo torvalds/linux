@@ -248,8 +248,8 @@ static loff_t tower_llseek	(struct file *file, loff_t off, int whence);
 
 static void tower_abort_transfers (struct lego_usb_tower *dev);
 static void tower_check_for_read_packet (struct lego_usb_tower *dev);
-static void tower_interrupt_in_callback (struct urb *urb, struct pt_regs *regs);
-static void tower_interrupt_out_callback (struct urb *urb, struct pt_regs *regs);
+static void tower_interrupt_in_callback (struct urb *urb);
+static void tower_interrupt_out_callback (struct urb *urb);
 
 static int  tower_probe	(struct usb_interface *interface, const struct usb_device_id *id);
 static void tower_disconnect	(struct usb_interface *interface);
@@ -755,7 +755,7 @@ exit:
 /**
  *	tower_interrupt_in_callback
  */
-static void tower_interrupt_in_callback (struct urb *urb, struct pt_regs *regs)
+static void tower_interrupt_in_callback (struct urb *urb)
 {
 	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
 	int retval;
@@ -811,7 +811,7 @@ exit:
 /**
  *	tower_interrupt_out_callback
  */
-static void tower_interrupt_out_callback (struct urb *urb, struct pt_regs *regs)
+static void tower_interrupt_out_callback (struct urb *urb)
 {
 	struct lego_usb_tower *dev = (struct lego_usb_tower *)urb->context;
 

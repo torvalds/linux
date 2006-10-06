@@ -55,13 +55,15 @@ unsigned long irq_hwmask[NR_IRQS];
  */
 asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	__DO_IRQ_SMTC_HOOK();
-	__do_IRQ(irq, regs);
+	__do_IRQ(irq);
 
 	irq_exit();
 
+	set_irq_regs(old_regs);
 	return 1;
 }
 

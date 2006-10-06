@@ -82,7 +82,7 @@ struct bcm203x_data {
 	unsigned int		fw_sent;
 };
 
-static void bcm203x_complete(struct urb *urb, struct pt_regs *regs)
+static void bcm203x_complete(struct urb *urb)
 {
 	struct bcm203x_data *data = urb->context;
 	struct usb_device *udev = urb->dev;

@@ -784,7 +784,7 @@ EXPORT_SYMBOL(pcmcia_request_io);
  */
 
 #ifdef CONFIG_PCMCIA_PROBE
-static irqreturn_t test_action(int cpl, void *dev_id, struct pt_regs *regs)
+static irqreturn_t test_action(int cpl, void *dev_id)
 {
 	return IRQ_NONE;
 }

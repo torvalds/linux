@@ -1192,7 +1192,7 @@ out:
 } /* End twa_initialize_device_extension() */
 
 /* This function is the interrupt service routine */
-static irqreturn_t twa_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 {
 	int request_id, error = 0;
 	u32 status_reg_value;

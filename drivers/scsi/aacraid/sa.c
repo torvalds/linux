@@ -46,7 +46,7 @@
 
 #include "aacraid.h"
 
-static irqreturn_t aac_sa_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t aac_sa_intr(int irq, void *dev_id)
 {
 	struct aac_dev *dev = dev_id;
 	unsigned short intstat, mask;

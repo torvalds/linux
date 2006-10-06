@@ -811,7 +811,7 @@ static void azx_init_chip(struct azx *chip)
 /*
  * interrupt handler
  */
-static irqreturn_t azx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t azx_interrupt(int irq, void *dev_id)
 {
 	struct azx *chip = dev_id;
 	struct azx_dev *azx_dev;

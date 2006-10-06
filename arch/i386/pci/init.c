@@ -28,6 +28,10 @@ static __init int pci_access_init(void)
 #ifdef CONFIG_PCI_DIRECT
 	pci_direct_init(type);
 #endif
+	if (!raw_pci_ops)
+		printk(KERN_ERR
+		"PCI: Fatal: No config space access function found\n");
+
 	return 0;
 }
 arch_initcall(pci_access_init);

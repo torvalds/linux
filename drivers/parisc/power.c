@@ -188,7 +188,7 @@ static void polling_tasklet_func(unsigned long soft_power_reg)
  * powerfail interruption handler (irq IRQ_FROM_REGION(CPU_IRQ_REGION)+2) 
  */
 #if 0
-static void powerfail_interrupt(int code, void *x, struct pt_regs *regs)
+static void powerfail_interrupt(int code, void *x)
 {
 	printk(KERN_CRIT "POWERFAIL INTERRUPTION !\n");
 	poweroff();

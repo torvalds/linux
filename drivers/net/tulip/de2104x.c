@@ -484,7 +484,7 @@ rx_next:
 	de->rx_tail = rx_tail;
 }
 
-static irqreturn_t de_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t de_interrupt (int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct de_private *de = dev->priv;

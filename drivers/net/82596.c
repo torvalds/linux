@@ -357,7 +357,7 @@ static char init_setup[] =
 
 static int i596_open(struct net_device *dev);
 static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static struct net_device_stats *i596_get_stats(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
@@ -501,7 +501,7 @@ static void i596_display_data(struct net_device *dev)
 
 
 #if defined(ENABLE_MVME16x_NET) || defined(ENABLE_BVME6000_NET)
-static irqreturn_t i596_error(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i596_error(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 #ifdef ENABLE_MVME16x_NET
@@ -1283,7 +1283,7 @@ out:
 	return ERR_PTR(err);
 }
 
-static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i596_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct i596_private *lp;
@@ -1294,7 +1294,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #ifdef ENABLE_BVME6000_NET
 	if (MACH_IS_BVME6000) {
 		if (*(char *) BVME_LOCAL_IRQ_STAT & BVME_ETHERR) {
-			i596_error(irq, dev_id, regs);
+			i596_error(irq, dev_id);
 			return IRQ_HANDLED;
 		}
 	}

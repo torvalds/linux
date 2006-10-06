@@ -236,7 +236,7 @@ struct nm256 {
 
 	int irq;
 	int irq_acks;
-	irqreturn_t (*interrupt)(int, void *, struct pt_regs *);
+	irq_handler_t interrupt;
 	int badintrcount;		/* counter to check bogus interrupts */
 	struct mutex irq_mutex;
 
@@ -1004,7 +1004,7 @@ snd_nm256_intr_check(struct nm256 *chip)
  */
 
 static irqreturn_t
-snd_nm256_interrupt(int irq, void *dev_id, struct pt_regs *dummy)
+snd_nm256_interrupt(int irq, void *dev_id)
 {
 	struct nm256 *chip = dev_id;
 	u16 status;
@@ -1069,7 +1069,7 @@ snd_nm256_interrupt(int irq, void *dev_id, struct pt_regs *dummy)
  */
 
 static irqreturn_t
-snd_nm256_interrupt_zx(int irq, void *dev_id, struct pt_regs *dummy)
+snd_nm256_interrupt_zx(int irq, void *dev_id)
 {
 	struct nm256 *chip = dev_id;
 	u32 status;

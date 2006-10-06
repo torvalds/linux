@@ -895,7 +895,7 @@ static int dgrs_ioctl(struct net_device *devN, struct ifreq *ifr, int cmd)
  *	dev, priv will always refer to the 0th device in Multi-NIC mode.
  */
 
-static irqreturn_t dgrs_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dgrs_intr(int irq, void *dev_id)
 {
 	struct net_device	*dev0 = (struct net_device *) dev_id;
 	DGRS_PRIV	*priv0 = (DGRS_PRIV *) dev0->priv;

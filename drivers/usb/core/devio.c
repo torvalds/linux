@@ -304,7 +304,7 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	printk("\n");
 }
 
-static void async_completed(struct urb *urb, struct pt_regs *regs)
+static void async_completed(struct urb *urb)
 {
         struct async *as = urb->context;
         struct dev_state *ps = as->ps;

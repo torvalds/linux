@@ -63,7 +63,7 @@ struct ioc3_submodule {
 	/* IRQ stuff */
 	unsigned int irq_mask;	/* IOC3 IRQ mask, leave clear for Ethernet */
 	int reset_mask;		/* non-zero if you want the ioc3.c module to reset interrupts */
-	int (*intr) (struct ioc3_submodule *, struct ioc3_driver_data *, unsigned int, struct pt_regs *);
+	int (*intr) (struct ioc3_submodule *, struct ioc3_driver_data *, unsigned int);
 	/* private submodule data */
 	void *data;		/* assigned by submodule */
 };

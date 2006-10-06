@@ -84,7 +84,7 @@ extern int sb1000_probe(struct net_device *dev);
 static int sb1000_open(struct net_device *dev);
 static int sb1000_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd);
 static int sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t sb1000_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t sb1000_interrupt(int irq, void *dev_id);
 static struct net_device_stats *sb1000_stats(struct net_device *dev);
 static int sb1000_close(struct net_device *dev);
 
@@ -1079,7 +1079,7 @@ sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* SB1000 interrupt handler. */
-static irqreturn_t sb1000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sb1000_interrupt(int irq, void *dev_id)
 {
 	char *name;
 	unsigned char st;

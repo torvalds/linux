@@ -615,6 +615,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		prev->gsindex = gsindex;
 	}
 
+	/* Must be after DS reload */
+	unlazy_fpu(prev_p);
+
 	/* 
 	 * Switch the PDA and FPU contexts.
 	 */
@@ -622,10 +625,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	write_pda(oldrsp, next->userrsp); 
 	write_pda(pcurrent, next_p); 
 
-	/* This must be here to ensure both math_state_restore() and
-	   kernel_fpu_begin() work consistently. 
-	   And the AMD workaround requires it to be after DS reload. */
-	unlazy_fpu(prev_p);
 	write_pda(kernelstack,
 	(unsigned long)task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
 #ifdef CONFIG_CC_STACKPROTECTOR

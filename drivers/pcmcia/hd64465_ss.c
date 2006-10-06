@@ -671,7 +671,7 @@ static int hs_irq_demux(int irq, void *dev)
  * Interrupt handling routine.
  */
  
-static irqreturn_t hs_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t hs_interrupt(int irq, void *dev)
 {
     	hs_socket_t *sp = (hs_socket_t *)dev;
 	u_int events = 0;

@@ -635,7 +635,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 	return trans_done;
 }
 
-static void imxmci_dma_irq(int dma, void *devid, struct pt_regs *regs)
+static void imxmci_dma_irq(int dma, void *devid)
 {
 	struct imxmci_host *host = devid;
 	uint32_t stat = MMC_STATUS;
@@ -646,7 +646,7 @@ static void imxmci_dma_irq(int dma, void *devid, struct pt_regs *regs)
 	tasklet_schedule(&host->tasklet);
 }
 
-static irqreturn_t imxmci_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t imxmci_irq(int irq, void *devid)
 {
 	struct imxmci_host *host = devid;
 	uint32_t stat = MMC_STATUS;

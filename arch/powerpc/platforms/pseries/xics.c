@@ -324,7 +324,7 @@ static unsigned int xics_get_irq_lpar(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 
-static irqreturn_t xics_ipi_dispatch(int cpu, struct pt_regs *regs)
+static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	WARN_ON(cpu_is_offline(cpu));
 
@@ -332,47 +332,47 @@ static irqreturn_t xics_ipi_dispatch(int cpu, struct pt_regs *regs)
 		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_CALL_FUNCTION, regs);
+			smp_message_recv(PPC_MSG_CALL_FUNCTION);
 		}
 		if (test_and_clear_bit(PPC_MSG_RESCHEDULE,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_RESCHEDULE, regs);
+			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
 #if 0
 		if (test_and_clear_bit(PPC_MSG_MIGRATE_TASK,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_MIGRATE_TASK, regs);
+			smp_message_recv(PPC_MSG_MIGRATE_TASK);
 		}
 #endif
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_DEBUGGER_BREAK, regs);
+			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
 		}
 #endif
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t xics_ipi_action_direct(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action_direct(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
 	direct_qirr_info(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu, regs);
+	return xics_ipi_dispatch(cpu);
 }
 
-static irqreturn_t xics_ipi_action_lpar(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t xics_ipi_action_lpar(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
 	lpar_qirr_info(cpu, 0xff);
 
-	return xics_ipi_dispatch(cpu, regs);
+	return xics_ipi_dispatch(cpu);
 }
 
 void xics_cause_IPI(int cpu)

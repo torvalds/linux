@@ -1903,8 +1903,7 @@ static void dbri_process_interrupt_buffer(struct snd_dbri * dbri)
 	}
 }
 
-static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id)
 {
 	struct snd_dbri *dbri = dev_id;
 	static int errcnt = 0;

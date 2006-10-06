@@ -166,9 +166,9 @@ static int ti_tiocmget(struct usb_serial_port *port, struct file *file);
 static int ti_tiocmset(struct usb_serial_port *port, struct file *file,
 	unsigned int set, unsigned int clear);
 static void ti_break(struct usb_serial_port *port, int break_state);
-static void ti_interrupt_callback(struct urb *urb, struct pt_regs *regs);
-static void ti_bulk_in_callback(struct urb *urb, struct pt_regs *regs);
-static void ti_bulk_out_callback(struct urb *urb, struct pt_regs *regs);
+static void ti_interrupt_callback(struct urb *urb);
+static void ti_bulk_in_callback(struct urb *urb);
+static void ti_bulk_out_callback(struct urb *urb);
 
 static void ti_recv(struct device *dev, struct tty_struct *tty,
 	unsigned char *data, int length);
@@ -1098,7 +1098,7 @@ static void ti_break(struct usb_serial_port *port, int break_state)
 }
 
 
-static void ti_interrupt_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_interrupt_callback(struct urb *urb)
 {
 	struct ti_device *tdev = (struct ti_device *)urb->context;
 	struct usb_serial_port *port;
@@ -1178,7 +1178,7 @@ exit:
 }
 
 
-static void ti_bulk_in_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_bulk_in_callback(struct urb *urb)
 {
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;
@@ -1241,7 +1241,7 @@ exit:
 }
 
 
-static void ti_bulk_out_callback(struct urb *urb, struct pt_regs *regs)
+static void ti_bulk_out_callback(struct urb *urb)
 {
 	struct ti_port *tport = (struct ti_port *)urb->context;
 	struct usb_serial_port *port = tport->tp_port;

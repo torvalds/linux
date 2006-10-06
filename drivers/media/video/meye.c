@@ -786,7 +786,7 @@ static void mchip_cont_compression_start(void)
 /* Interrupt handling                                                       */
 /****************************************************************************/
 
-static irqreturn_t meye_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t meye_irq(int irq, void *dev_id)
 {
 	u32 v;
 	int reqnr;

@@ -41,7 +41,7 @@ fastcall void call_function_interrupt(void);
 fastcall void apic_timer_interrupt(void);
 fastcall void error_interrupt(void);
 fastcall void spurious_interrupt(void);
-fastcall void thermal_interrupt(struct pt_regs *);
+fastcall void thermal_interrupt(void);
 #define platform_legacy_irq(irq)	((irq) < 16)
 #endif
 

@@ -1111,8 +1111,7 @@ static __u8 w83977af_fir_interrupt(struct w83977af_ir *self, int isr)
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t w83977af_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t w83977af_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct w83977af_ir *self;

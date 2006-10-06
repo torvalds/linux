@@ -513,7 +513,7 @@ static inline void write_cmd(unsigned char cmd)
 	outb(cmd, sony_cd_cmd_reg);
 }
 
-static irqreturn_t cdu31a_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cdu31a_interrupt(int irq, void *dev_id)
 {
 	unsigned char val;
 

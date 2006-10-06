@@ -161,7 +161,7 @@ static void led_blink(struct st5481_adapter *adapter)
 	st5481_usb_device_ctrl_msg(adapter, GPIO_OUT, leds, NULL, NULL);
 }
 
-static void usb_b_out_complete(struct urb *urb, struct pt_regs *regs)
+static void usb_b_out_complete(struct urb *urb)
 {
 	struct st5481_bcs *bcs = urb->context;
 	struct st5481_b_out *b_out = &bcs->b_out;

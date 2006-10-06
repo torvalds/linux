@@ -1888,7 +1888,7 @@ next_rx:
  * is that the MSI interrupt is always serviced.
  */
 static irqreturn_t
-bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
+bnx2_msi(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
@@ -1908,7 +1908,7 @@ bnx2_msi(int irq, void *dev_instance, struct pt_regs *regs)
 }
 
 static irqreturn_t
-bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+bnx2_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
@@ -5554,7 +5554,7 @@ poll_bnx2(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	disable_irq(bp->pdev->irq);
-	bnx2_interrupt(bp->pdev->irq, dev, NULL);
+	bnx2_interrupt(bp->pdev->irq, dev);
 	enable_irq(bp->pdev->irq);
 }
 #endif

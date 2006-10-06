@@ -362,7 +362,7 @@ static void gigaset_modem_fill(unsigned long data)
  *
  *	It is called if the data was received from the device.
  */
-static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void gigaset_read_int_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
@@ -420,7 +420,7 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 
 
 /* This callback routine is called when data was transmitted to the device. */
-static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void gigaset_write_bulk_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	unsigned long flags;

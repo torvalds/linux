@@ -992,12 +992,12 @@ static void s2io_init_pci(nic_t * sp);
 static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
 static int s2io_enable_msi(nic_t *nic);
-static irqreturn_t s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t s2io_msi_handle(int irq, void *dev_id);
 static irqreturn_t
-s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs);
+s2io_msix_ring_handle(int irq, void *dev_id);
 static irqreturn_t
-s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
+s2io_msix_fifo_handle(int irq, void *dev_id);
+static irqreturn_t s2io_isr(int irq, void *dev_id);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static const struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);

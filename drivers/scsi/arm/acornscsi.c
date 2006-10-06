@@ -2461,14 +2461,13 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 }
 
 /*
- * Prototype: void acornscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
+ * Prototype: void acornscsi_intr(int irq, void *dev_id)
  * Purpose  : handle interrupts from Acorn SCSI card
  * Params   : irq    - interrupt number
  *	      dev_id - device specific data (AS_Host structure)
- *	      regs   - processor registers when interrupt occurred
  */
 static irqreturn_t
-acornscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
+acornscsi_intr(int irq, void *dev_id)
 {
     AS_Host *host = (AS_Host *)dev_id;
     intr_ret_t ret;

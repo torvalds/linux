@@ -1521,7 +1521,7 @@ static void falcon_set_par( struct atafb_par *par )
 }
 
 
-static irqreturn_t falcon_vbl_switcher( int irq, void *dummy, struct pt_regs *fp )
+static irqreturn_t falcon_vbl_switcher( int irq, void *dummy )
 {
 	struct falcon_hw *hw = &f_new_mode;
 

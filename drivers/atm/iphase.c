@@ -2195,7 +2195,7 @@ err_out:
 	return -ENOMEM;
 }   
    
-static irqreturn_t ia_int(int irq, void *dev_id, struct pt_regs *regs)  
+static irqreturn_t ia_int(int irq, void *dev_id)  
 {  
    struct atm_dev *dev;  
    IADEV *iadev;  

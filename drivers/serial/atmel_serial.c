@@ -249,7 +249,7 @@ static void atmel_break_ctl(struct uart_port *port, int break_state)
 /*
  * Characters received (called from interrupt handler)
  */
-static void atmel_rx_chars(struct uart_port *port, struct pt_regs *regs)
+static void atmel_rx_chars(struct uart_port *port)
 {
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flg;
@@ -291,7 +291,7 @@ static void atmel_rx_chars(struct uart_port *port, struct pt_regs *regs)
 				flg = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, ch, regs))
+		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
 		uart_insert_char(port, status, ATMEL_US_OVRE, ch, flg);
@@ -339,7 +339,7 @@ static void atmel_tx_chars(struct uart_port *port)
 /*
  * Interrupt handler
  */
-static irqreturn_t atmel_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct atmel_uart_port *atmel_port = (struct atmel_uart_port *) port;
@@ -350,7 +350,7 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	while (pending) {
 		/* Interrupt receive */
 		if (pending & ATMEL_US_RXRDY)
-			atmel_rx_chars(port, regs);
+			atmel_rx_chars(port);
 
 		// TODO: All reads to CSR will clear these interrupts!
 		if (pending & ATMEL_US_RIIC) port->icount.rng++;

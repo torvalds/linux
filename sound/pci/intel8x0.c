@@ -801,7 +801,7 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 		 status & (ICH_FIFOE | ICH_BCIS | ICH_LVBCI));
 }
 
-static irqreturn_t snd_intel8x0_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_intel8x0_interrupt(int irq, void *dev_id)
 {
 	struct intel8x0 *chip = dev_id;
 	struct ichdev *ichdev;

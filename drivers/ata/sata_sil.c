@@ -116,8 +116,7 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
-static irqreturn_t sil_interrupt(int irq, void *dev_instance,
-				 struct pt_regs *regs);
+static irqreturn_t sil_interrupt(int irq, void *dev_instance);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
 
@@ -437,8 +436,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	ata_port_freeze(ap);
 }
 
-static irqreturn_t sil_interrupt(int irq, void *dev_instance,
-				 struct pt_regs *regs)
+static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	void __iomem *mmio_base = host->mmio_base;

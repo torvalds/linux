@@ -67,7 +67,7 @@ static void tifm_7xx1_remove_media(void *adapter)
 	class_device_put(&fm->cdev);
 }
 
-static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 {
 	struct tifm_adapter *fm = dev_id;
 	unsigned int irq_status;

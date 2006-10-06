@@ -666,12 +666,11 @@ tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma
  * tioce_error_intr_handler - SGI TIO CE error interrupt handler
  * @irq: unused
  * @arg: pointer to tioce_common struct for the given CE
- * @pt: unused
  *
  * Handle a CE error interrupt.  Simply a wrapper around a SAL call which
  * defers processing to the SGI prom.
  */ static irqreturn_t
-tioce_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
+tioce_error_intr_handler(int irq, void *arg)
 {
 	struct tioce_common *soft = arg;
 	struct ia64_sal_retval ret_stuff;

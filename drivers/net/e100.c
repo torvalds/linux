@@ -1949,7 +1949,7 @@ static int e100_rx_alloc_list(struct nic *nic)
 	return 0;
 }
 
-static irqreturn_t e100_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t e100_intr(int irq, void *dev_id)
 {
 	struct net_device *netdev = dev_id;
 	struct nic *nic = netdev_priv(netdev);
@@ -2005,7 +2005,7 @@ static void e100_netpoll(struct net_device *netdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	e100_disable_irq(nic);
-	e100_intr(nic->pdev->irq, netdev, NULL);
+	e100_intr(nic->pdev->irq, netdev);
 	e100_tx_clean(nic);
 	e100_enable_irq(nic);
 }

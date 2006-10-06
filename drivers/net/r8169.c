@@ -473,8 +473,7 @@ MODULE_VERSION(RTL8169_VERSION);
 
 static int rtl8169_open(struct net_device *dev);
 static int rtl8169_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance,
-			      struct pt_regs *regs);
+static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance);
 static int rtl8169_init_ring(struct net_device *dev);
 static void rtl8169_hw_start(struct net_device *dev);
 static int rtl8169_close(struct net_device *dev);
@@ -1392,7 +1391,7 @@ static void rtl8169_netpoll(struct net_device *dev)
 	struct pci_dev *pdev = tp->pci_dev;
 
 	disable_irq(pdev->irq);
-	rtl8169_interrupt(pdev->irq, dev, NULL);
+	rtl8169_interrupt(pdev->irq, dev);
 	enable_irq(pdev->irq);
 }
 #endif
@@ -2592,7 +2591,7 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 
 /* The interrupt handler does all of the Rx thread work and cleans up after the Tx thread. */
 static irqreturn_t
-rtl8169_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+rtl8169_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct rtl8169_private *tp = netdev_priv(dev);

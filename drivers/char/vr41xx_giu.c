@@ -221,7 +221,7 @@ static struct hw_interrupt_type giuint_high_irq_type = {
 	.end		= end_giuint_high_irq,
 };
 
-static int giu_get_irq(unsigned int irq, struct pt_regs *regs)
+static int giu_get_irq(unsigned int irq)
 {
 	uint16_t pendl, pendh, maskl, maskh;
 	int i;

@@ -709,7 +709,7 @@ stuff_byte (__u8 byte, __u8 * buf)
 }
 
 static irqreturn_t
-toshoboe_probeinterrupt (int irq, void *dev_id, struct pt_regs *regs)
+toshoboe_probeinterrupt (int irq, void *dev_id)
 {
   struct toshoboe_cb *self = (struct toshoboe_cb *) dev_id;
   __u8 irqstat;
@@ -1161,7 +1161,7 @@ dumpbufs(skb->data,skb->len,'>');
 
 /*interrupt handler */
 static irqreturn_t
-toshoboe_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+toshoboe_interrupt (int irq, void *dev_id)
 {
   struct toshoboe_cb *self = (struct toshoboe_cb *) dev_id;
   __u8 irqstat;

@@ -2653,7 +2653,7 @@ static void BusLogic_ProcessCompletedCCBs(struct BusLogic_HostAdapter *HostAdapt
   Adapters.
 */
 
-static irqreturn_t BusLogic_InterruptHandler(int IRQ_Channel, void *DeviceIdentifier, struct pt_regs *InterruptRegisters)
+static irqreturn_t BusLogic_InterruptHandler(int IRQ_Channel, void *DeviceIdentifier)
 {
 	struct BusLogic_HostAdapter *HostAdapter = (struct BusLogic_HostAdapter *) DeviceIdentifier;
 	unsigned long ProcessorFlags;

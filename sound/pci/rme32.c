@@ -818,8 +818,7 @@ static void snd_rme32_pcm_stop(struct rme32 * rme32, int to_pause)
 		writel(0, rme32->iobase + RME32_IO_RESET_POS);
 }
 
-static irqreturn_t
-snd_rme32_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_rme32_interrupt(int irq, void *dev_id)
 {
 	struct rme32 *rme32 = (struct rme32 *) dev_id;
 

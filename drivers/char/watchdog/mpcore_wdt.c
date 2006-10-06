@@ -64,7 +64,7 @@ MODULE_PARM_DESC(mpcore_noboot, "MPcore watchdog action, set to 1 to ignore rebo
  *	This is the interrupt handler.  Note that we only use this
  *	in testing mode, so don't actually do a reboot here.
  */
-static irqreturn_t mpcore_wdt_fire(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t mpcore_wdt_fire(int irq, void *arg)
 {
 	struct mpcore_wdt *wdt = arg;
 

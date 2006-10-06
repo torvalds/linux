@@ -248,7 +248,7 @@ static int ips_eh_abort(struct scsi_cmnd *);
 static int ips_eh_reset(struct scsi_cmnd *);
 static int ips_queue(struct scsi_cmnd *, void (*)(struct scsi_cmnd *));
 static const char *ips_info(struct Scsi_Host *);
-static irqreturn_t do_ipsintr(int, void *, struct pt_regs *);
+static irqreturn_t do_ipsintr(int, void *);
 static int ips_hainit(ips_ha_t *);
 static int ips_map_status(ips_ha_t *, ips_scb_t *, ips_stat_t *);
 static int ips_send_wait(ips_ha_t *, ips_scb_t *, int, int);
@@ -1328,7 +1328,7 @@ ips_slave_configure(struct scsi_device * SDptr)
 /*                                                                          */
 /****************************************************************************/
 static irqreturn_t
-do_ipsintr(int irq, void *dev_id, struct pt_regs * regs)
+do_ipsintr(int irq, void *dev_id)
 {
 	ips_ha_t *ha;
 	unsigned long cpu_flags;

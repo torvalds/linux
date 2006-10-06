@@ -108,7 +108,7 @@ static unsigned char i8042_kbd_irq_registered;
 static unsigned char i8042_aux_irq_registered;
 static struct platform_device *i8042_platform_device;
 
-static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t i8042_interrupt(int irq, void *dev_id);
 
 /*
  * The i8042_wait_read() and i8042_wait_write functions wait for the i8042 to
@@ -271,7 +271,7 @@ static int i8042_aux_write(struct serio *serio, unsigned char c)
  * characters later.
  */
 
-	i8042_interrupt(0, NULL, NULL);
+	i8042_interrupt(0, NULL);
 	return retval;
 }
 
@@ -309,7 +309,7 @@ static void i8042_stop(struct serio *serio)
  * to the upper layers.
  */
 
-static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 {
 	struct i8042_port *port;
 	unsigned long flags;
@@ -379,7 +379,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    dfl & SERIO_TIMEOUT ? ", timeout" : "");
 
 	if (likely(port->exists))
-		serio_interrupt(port->serio, data, dfl, regs);
+		serio_interrupt(port->serio, data, dfl);
 
 	ret = 1;
  out:
@@ -519,7 +519,7 @@ static int __devinit i8042_check_mux(void)
 static struct completion i8042_aux_irq_delivered __devinitdata;
 static int i8042_irq_being_tested __devinitdata;
 
-static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned char str, data;
@@ -905,7 +905,7 @@ static int i8042_resume(struct platform_device *dev)
 	if (i8042_ports[I8042_KBD_PORT_NO].serio)
 		i8042_enable_kbd_port();
 
-	i8042_interrupt(0, NULL, NULL);
+	i8042_interrupt(0, NULL);
 
 	return 0;
 }

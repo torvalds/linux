@@ -78,7 +78,7 @@ int macide_ack_intr(ide_hwif_t* hwif)
 }
 
 #ifdef CONFIG_BLK_DEV_MAC_MEDIABAY
-static void macide_mediabay_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void macide_mediabay_interrupt(int irq, void *dev_id)
 {
 	int state = baboon->mb_status & 0x04;
 

@@ -252,7 +252,7 @@ __acquires(uhci->lock)
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	uhci_fsbr_off(uhci);
 }
 
@@ -309,7 +309,7 @@ __acquires(uhci->lock)
 	mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
 }
 
-static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned short status;
@@ -358,7 +358,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		usb_hcd_poll_rh_status(hcd);
 	else {
 		spin_lock_irqsave(&uhci->lock, flags);
-		uhci_scan_schedule(uhci, regs);
+		uhci_scan_schedule(uhci);
 		spin_unlock_irqrestore(&uhci->lock, flags);
 	}
 
@@ -671,7 +671,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&uhci->lock);
 	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) && !uhci->dead)
 		uhci_hc_died(uhci);
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	spin_unlock_irq(&uhci->lock);
 
 	del_timer_sync(&uhci->fsbr_timer);

@@ -1257,7 +1257,7 @@ static int amd8111e_calc_coalesce(struct net_device *dev)
 /*
 This is device interrupt function. It handles transmit, receive,link change and hardware timer interrupts.
 */
-static irqreturn_t amd8111e_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 {
 
 	struct net_device * dev = (struct net_device *) dev_id;
@@ -1336,7 +1336,7 @@ static void amd8111e_poll(struct net_device *dev)
 	unsigned long flags;
 	local_save_flags(flags);
 	local_irq_disable();
-	amd8111e_interrupt(0, dev, NULL);
+	amd8111e_interrupt(0, dev);
 	local_irq_restore(flags);
 }
 #endif

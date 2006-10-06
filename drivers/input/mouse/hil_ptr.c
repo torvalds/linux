@@ -190,7 +190,7 @@ static void hil_ptr_process_err(struct hil_ptr *ptr) {
 }
 
 static irqreturn_t hil_ptr_interrupt(struct serio *serio, 
-        unsigned char data, unsigned int flags, struct pt_regs *regs)
+        unsigned char data, unsigned int flags)
 {
 	struct hil_ptr *ptr;
 	hil_packet packet;

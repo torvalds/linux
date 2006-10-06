@@ -2301,8 +2301,7 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 	spin_unlock_irqrestore(&ohci->iso_tasklet_list_lock, flags);
 }
 
-static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
-                             struct pt_regs *regs_are_unused)
+static irqreturn_t ohci_irq_handler(int irq, void *dev_id)
 {
 	quadlet_t event, node_id;
 	struct ti_ohci *ohci = (struct ti_ohci *)dev_id;

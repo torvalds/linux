@@ -1013,7 +1013,7 @@ static void inia100SCBPost(BYTE * pHcb, BYTE * pScb)
 /*
  * Interrupt handler (main routine of the driver)
  */
-static irqreturn_t inia100_intr(int irqno, void *devid, struct pt_regs *regs)
+static irqreturn_t inia100_intr(int irqno, void *devid)
 {
 	struct Scsi_Host *host = (struct Scsi_Host *)devid;
 	ORC_HCS *pHcb = (ORC_HCS *)host->hostdata;
