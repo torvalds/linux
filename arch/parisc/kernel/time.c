@@ -319,13 +319,15 @@ void __init time_init(void)
 
 	start_cpu_itimer();	/* get CPU 0 started */
 
-	if(pdc_tod_read(&tod_data) == 0) {
-		write_seqlock_irq(&xtime_lock);
+	if (pdc_tod_read(&tod_data) == 0) {
+		unsigned long flags;
+
+		write_seqlock_irqsave(&xtime_lock, flags);
 		xtime.tv_sec = tod_data.tod_sec;
 		xtime.tv_nsec = tod_data.tod_usec * 1000;
 		set_normalized_timespec(&wall_to_monotonic,
 		                        -xtime.tv_sec, -xtime.tv_nsec);
-		write_sequnlock_irq(&xtime_lock);
+		write_sequnlock_irqrestore(&xtime_lock, flags);
 	} else {
 		printk(KERN_ERR "Error reading tod clock\n");
 	        xtime.tv_sec = 0;
