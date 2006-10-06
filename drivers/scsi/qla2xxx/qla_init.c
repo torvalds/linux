@@ -1644,7 +1644,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 * Set host adapter parameters.
 	 */
 	if (nv->host_p[0] & BIT_7)
-		qla2_extended_error_logging = 1;
+		ql2xextended_error_logging = 1;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
