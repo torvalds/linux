@@ -3022,6 +3022,39 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		},
 	},
+	[SAA7134_BOARD_PINNACLE_PCTV_310i] = {
+		.name           = "Pinnacle PCTV 310i",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x000200000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 4,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux   = TV,
+			.gpio   = 0x0200000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3631,6 +3664,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4860,
 		.driver_data  = SAA7134_BOARD_ASUS_EUROPA2_HYBRID,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x11bd,
+		.subdevice    = 0x002f,
+		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_310i,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3793,6 +3832,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	/* i2c remotes */
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
@@ -3924,6 +3964,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
