@@ -994,16 +994,6 @@ static int eepro_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-#ifdef irq2dev_map
-	if  (((irq2dev_map[dev->irq] != 0)
-		|| (irq2dev_map[dev->irq] = dev) == 0) &&
-		(irq2dev_map[dev->irq]!=dev)) {
-		/* printk("%s: IRQ map wrong\n", dev->name); */
-	        free_irq(dev->irq, dev);
-		return -EAGAIN;
-	}
-#endif
-
 	/* Initialize the 82595. */
 
 	eepro_sw2bank2(ioaddr); /* be CAREFUL, BANK 2 now */
@@ -1281,10 +1271,6 @@ static int eepro_close(struct net_device *dev)
 
 	/* release the interrupt */
 	free_irq(dev->irq, dev);
-
-#ifdef irq2dev_map
-	irq2dev_map[dev->irq] = 0;
-#endif
 
 	/* Update the statistics here. What statistics? */
 
