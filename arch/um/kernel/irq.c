@@ -356,7 +356,7 @@ void forward_interrupts(int pid)
 unsigned int do_IRQ(int irq, union uml_pt_regs *regs)
 {
        irq_enter();
-       __do_IRQ(irq, (struct pt_regs *)regs);
+       __do_IRQ(irq);
        irq_exit();
        return 1;
 }
