@@ -773,6 +773,7 @@ struct scsi_host_template aic79xx_driver_template = {
 #endif
 	.can_queue		= AHD_MAX_QUEUE,
 	.this_id		= -1,
+	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.slave_alloc		= ahd_linux_slave_alloc,
