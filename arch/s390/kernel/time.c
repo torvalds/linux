@@ -28,6 +28,7 @@
 #include <linux/profile.h>
 #include <linux/timex.h>
 #include <linux/notifier.h>
+#include <linux/clocksource.h>
 
 #include <asm/uaccess.h>
 #include <asm/delay.h>
@@ -81,74 +82,6 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 	todval -= (sec * 1000000) << 12;
 	xtime->tv_nsec = ((todval * 1000) >> 12);
 }
-
-static inline unsigned long do_gettimeoffset(void) 
-{
-	__u64 now;
-
-	now = (get_clock() - jiffies_timer_cc) >> 12;
-	now -= (__u64) jiffies * USECS_PER_JIFFY;
-	return (unsigned long) now;
-}
-
-/*
- * This version of gettimeofday has microsecond resolution.
- */
-void do_gettimeofday(struct timeval *tv)
-{
-	unsigned long flags;
-	unsigned long seq;
-	unsigned long usec, sec;
-
-	do {
-		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-
-		sec = xtime.tv_sec;
-		usec = xtime.tv_nsec / 1000 + do_gettimeoffset();
-	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
-
-	while (usec >= 1000000) {
-		usec -= 1000000;
-		sec++;
-	}
-
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-
-int do_settimeofday(struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	write_seqlock_irq(&xtime_lock);
-	/* This is revolting. We need to set the xtime.tv_nsec
-	 * correctly. However, the value in this location is
-	 * is value at the last tick.
-	 * Discover what correction gettimeofday
-	 * would have done, and then undo it!
-	 */
-	nsec -= do_gettimeoffset() * 1000;
-
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	ntp_clear();
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return 0;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
-
 
 #ifdef CONFIG_PROFILING
 #define s390_do_profile()	profile_tick(CPU_PROFILING)
@@ -340,6 +273,22 @@ void init_cpu_timer(void)
 
 extern void vtime_init(void);
 
+static cycle_t read_tod_clock(void)
+{
+	return get_clock();
+}
+
+static struct clocksource clocksource_tod = {
+	.name		= "tod",
+	.rating		= 100,
+	.read		= read_tod_clock,
+	.mask		= -1ULL,
+	.mult		= 1000,
+	.shift		= 12,
+	.is_continuous	= 1,
+};
+
+
 /*
  * Initialize the TOD clock and the CPU timer of
  * the boot cpu.
@@ -383,6 +332,9 @@ void __init time_init(void)
 	if (register_early_external_interrupt(0x1004, NULL,
 					      &ext_int_info_cc) != 0)
                 panic("Couldn't request external interrupt 0x1004");
+
+	if (clocksource_register(&clocksource_tod) != 0)
+		panic("Could not register TOD clock source");
 
         init_cpu_timer();
 
