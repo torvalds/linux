@@ -194,8 +194,11 @@ void fixup_irqs(void)
 	 */
 	for (irq=0; irq < NR_IRQS; irq++) {
 		if (vectors_in_migration[irq]) {
+			struct pt_regs *old_regs = set_irq_regs(NULL);
+
 			vectors_in_migration[irq]=0;
-			__do_IRQ(irq, NULL);
+			__do_IRQ(irq);
+			set_irq_regs(old_regs);
 		}
 	}
 
