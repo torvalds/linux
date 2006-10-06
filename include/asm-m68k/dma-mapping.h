@@ -26,7 +26,7 @@ static inline int dma_is_consistent(dma_addr_t dma_addr)
 }
 
 extern void *dma_alloc_coherent(struct device *, size_t,
-				dma_addr_t *, int);
+				dma_addr_t *, gfp_t);
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
 
