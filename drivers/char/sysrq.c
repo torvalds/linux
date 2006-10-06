@@ -38,6 +38,7 @@
 #include <linux/irq.h>
 
 #include <asm/ptrace.h>
+#include <asm/irq_regs.h>
 
 /* Whether we react on sysrq keys or just ignore them */
 int sysrq_enabled = 1;
