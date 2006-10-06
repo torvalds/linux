@@ -1,0 +1,232 @@
+ASoC Codec Driver
+=================
+
+The codec driver is generic and hardware independent code that configures the
+codec to provide audio capture and playback. It should contain no code that is
+specific to the target platform or machine. All platform and machine specific
+code should be added to the platform and machine drivers respectively.
+
+Each codec driver must provide the following features:-
+
+ 1) Digital audio interface (DAI) description
+ 2) Digital audio interface configuration
+ 3) PCM's description
+ 4) Codec control IO - using I2C, 3 Wire(SPI) or both API's
+ 5) Mixers and audio controls
+ 6) Sysclk configuration
+ 7) Codec audio operations
+
+Optionally, codec drivers can also provide:-
+
+ 8) DAPM description.
+ 9) DAPM event handler.
+10) DAC Digital mute control.
+
+It's probably best to use this guide in conjuction with the existing codec
+driver code in sound/soc/codecs/
+
+ASoC Codec driver breakdown
+===========================
+
+1 - Digital Audio Interface (DAI) description
+---------------------------------------------
+The DAI is a digital audio data transfer link between the codec and host SoC
+CPU. It typically has data transfer capabilities in both directions
+(playback and capture) and can run at a variety of different speeds.
+Supported interfaces currently include AC97, I2S and generic PCM style links.
+Please read DAI.txt for implementation information.
+
+
+2 - Digital Audio Interface (DAI) configuration
+-----------------------------------------------
+DAI configuration is handled by the codec_pcm_prepare function and is
+responsible for configuring and starting the DAI on the codec. This can be
+called multiple times and is atomic. It can access the runtime parameters.
+
+This usually consists of a large function with numerous switch statements to
+set up each configuration option. These options are set by the core at runtime.
+
+
+3 - Codec PCM's
+---------------
+Each codec must have it's PCM's defined. This defines the number of channels,
+stream names, callbacks and codec name. It is also used to register the DAI
+with the ASoC core. The PCM structure also associates the DAI capabilities with
+the ALSA PCM.
+
+e.g.
+
+static struct snd_soc_pcm_codec wm8731_pcm_client = {
+	.name = "WM8731",
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+	.config_sysclk = wm8731_config_sysclk,
+	.ops = {
+		.prepare = wm8731_pcm_prepare,
+	},
+	.caps = {
+		.num_modes = ARRAY_SIZE(wm8731_hwfmt),
+		.modes = &wm8731_hwfmt[0],
+	},
+};
+
+
+4 - Codec control IO
+--------------------
+The codec can ususally be controlled via an I2C or SPI style interface (AC97
+combines control with data in the DAI). The codec drivers will have to provide
+functions to read and write the codec registers along with supplying a register
+cache:-
+
+	/* IO control data and register cache */
+    void *control_data; /* codec control (i2c/3wire) data */
+    void *reg_cache;
+
+Codec read/write should do any data formatting and call the hardware read write
+below to perform the IO. These functions are called by the core and alsa when
+performing DAPM or changing the mixer:-
+
+    unsigned int (*read)(struct snd_soc_codec *, unsigned int);
+    int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
+
+Codec hardware IO functions - usually points to either the I2C, SPI or AC97
+read/write:-
+
+	hw_write_t hw_write;
+	hw_read_t hw_read;
+
+
+5 - Mixers and audio controls
+-----------------------------
+All the codec mixers and audio controls can be defined using the convenience
+macros defined in soc.h.
+
+    #define SOC_SINGLE(xname, reg, shift, mask, invert)
+
+Defines a single control as follows:-
+
+  xname = Control name e.g. "Playback Volume"
+  reg = codec register
+  shift = control bit(s) offset in register
+  mask = control bit size(s) e.g. mask of 7 = 3 bits
+  invert = the control is inverted
+
+Other macros include:-
+
+    #define SOC_DOUBLE(xname, reg, shift_left, shift_right, mask, invert)
+
+A stereo control
+
+    #define SOC_DOUBLE_R(xname, reg_left, reg_right, shift, mask, invert)
+
+A stereo control spanning 2 registers
+
+    #define SOC_ENUM_SINGLE(xreg, xshift, xmask, xtexts)
+
+Defines an single enumerated control as follows:-
+
+   xreg = register
+   xshift = control bit(s) offset in register
+   xmask = control bit(s) size
+   xtexts = pointer to array of strings that describe each setting
+
+   #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts)
+
+Defines a stereo enumerated control
+
+
+6 - System clock configuration.
+-------------------------------
+The system clock that drives the audio subsystem can change depending on sample
+rate and the system power state. i.e.
+
+o Higher sample rates sometimes need a higher system clock.
+o Low system power states can sometimes limit the available clocks.
+
+This function is a callback that the machine driver can call to set and
+determine if the clock and sample rate combination is supported by the codec at
+the present time (and system state).
+
+NOTE: If the codec has a PLL then it has a lot more flexability wrt clock and
+sample rate combinations.
+
+Your config_sysclock function should return the MCLK if it's a valid
+combination for your codec else 0;
+
+Please read clocking.txt now.
+
+
+7 - Codec Audio Operations
+--------------------------
+The codec driver also supports the following alsa operations:-
+
+/* SoC audio ops */
+struct snd_soc_ops {
+	int (*startup)(snd_pcm_substream_t *);
+	void (*shutdown)(snd_pcm_substream_t *);
+	int (*hw_params)(snd_pcm_substream_t *, snd_pcm_hw_params_t *);
+	int (*hw_free)(snd_pcm_substream_t *);
+	int (*prepare)(snd_pcm_substream_t *);
+};
+
+Please refer to the alsa driver PCM documentation for details.
+http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c436.htm
+
+
+8 - DAPM description.
+---------------------
+The Dynamic Audio Power Management description describes the codec's power
+components, their relationships and registers to the ASoC core. Please read
+dapm.txt for details of building the description.
+
+Please also see the examples in other codec drivers.
+
+
+9 - DAPM event handler
+----------------------
+This function is a callback that handles codec domain PM calls and system
+domain PM calls (e.g. suspend and resume). It's used to put the codec to sleep
+when not in use.
+
+Power states:-
+
+	SNDRV_CTL_POWER_D0: /* full On */
+	/* vref/mid, clk and osc on, active */
+
+	SNDRV_CTL_POWER_D1: /* partial On */
+	SNDRV_CTL_POWER_D2: /* partial On */
+
+	SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	/* everything off except vref/vmid, inactive */
+
+	SNDRV_CTL_POWER_D3cold: /* Everything Off, without power */
+
+
+10 - Codec DAC digital mute control.
+------------------------------------
+Most codecs have a digital mute before the DAC's that can be used to minimise
+any system noise.  The mute stops any digital data from entering the DAC.
+
+A callback can be created that is called by the core for each codec DAI when the
+mute is applied or freed.
+
+i.e.
+
+static int wm8974_mute(struct snd_soc_codec *codec,
+	struct snd_soc_codec_dai *dai, int mute)
+{
+	u16 mute_reg = wm8974_read_reg_cache(codec, WM8974_DAC) & 0xffbf;
+	if(mute)
+		wm8974_write(codec, WM8974_DAC, mute_reg | 0x40);
+	else
+		wm8974_write(codec, WM8974_DAC, mute_reg);
+	return 0;
+}

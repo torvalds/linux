@@ -3037,6 +3037,12 @@ M:	perex@suse.cz
 L:	alsa-devel@alsa-project.org
 S:	Maintained
 
+SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT
+P:	Liam Girdwood
+M:	liam.girdwood@wolfsonmicro.com
+L:	alsa-devel@alsa-project.org
+S:	Supported
+
 SPI SUBSYSTEM
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net

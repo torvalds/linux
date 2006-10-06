@@ -1,0 +1,380 @@
+ASoC currently supports the three main Digital Audio Interfaces (DAI) found on
+SoC controllers and portable audio CODECS today, namely AC97, I2S and PCM.
+
+
+AC97
+====
+
+  AC97 is a five wire interface commonly found on many PC sound cards. It is
+now also popular in many portable devices. This DAI has a reset line and time
+multiplexes its data on its SDATA_OUT (playback) and SDATA_IN (capture) lines.
+The bit clock (BCLK) is always driven by the CODEC (usually 12.288MHz) and the
+frame (FRAME) (usually 48kHz) is always driven by the controller. Each AC97
+frame is 21uS long and is divided into 13 time slots.
+
+The AC97 specification can be found at http://intel.com/
+
+
+I2S
+===
+
+ I2S is a common 4 wire DAI used in HiFi, STB and portable devices. The Tx and
+Rx lines are used for audio transmision, whilst the bit clock (BCLK) and
+left/right clock (LRC) synchronise the link. I2S is flexible in that either the
+controller or CODEC can drive (master) the BCLK and LRC clock lines. Bit clock
+usually varies depending on the sample rate and the master system clock
+(SYSCLK). LRCLK is the same as the sample rate. A few devices support separate
+ADC and DAC LRCLK's, this allows for similtanious capture and playback at
+different sample rates.
+
+I2S has several different operating modes:-
+
+ o I2S - MSB is transmitted on the falling edge of the first BCLK after LRC
+         transition.
+
+ o Left Justified - MSB is transmitted on transition of LRC.
+
+ o Right Justified - MSB is transmitted sample size BCLK's before LRC
+                     transition.
+
+PCM
+===
+
+PCM is another 4 wire interface, very similar to I2S, that can support a more
+flexible protocol. It has bit clock (BCLK) and sync (SYNC) lines that are used
+to synchronise the link whilst the Tx and Rx lines are used to transmit and
+receive the audio data. Bit clock usually varies depending on sample rate
+whilst sync runs at the sample rate. PCM also supports Time Division
+Multiplexing (TDM) in that several devices can use the bus similtaniuosly (This
+is sometimes referred to as network mode).
+
+Common PCM operating modes:-
+
+ o Mode A - MSB is transmitted on falling edge of first BCLK after FRAME/SYNC.
+
+ o Mode B - MSB is transmitted on rising edge of FRAME/SYNC.
+
+
+ASoC DAI Configuration
+======================
+
+Every CODEC DAI and SoC DAI must have their capabilities defined in order to
+be configured together at runtime when the audio and clocking parameters are
+known. This is achieved by creating an array of struct snd_soc_hw_mode in the
+the CODEC and SoC interface drivers. Each element in the array describes a DAI
+mode and each mode is usually based upon the DAI system clock to sample rate
+ratio (FS).
+
+i.e. 48k sample rate @ 256 FS = sytem clock of 12.288 MHz
+     48000 * 256 = 12288000
+
+The CPU and Codec DAI modes are then ANDed together at runtime to determine the
+rutime DAI configuration for both the Codec and CPU.
+
+When creating a new codec or SoC DAI it's probably best to start of with a few
+sample rates first and then test your interface.
+
+struct snd_soc_dai_mode is defined (in soc.h) as:-
+
+/* SoC DAI mode */
+struct snd_soc_hw_mode {
+	unsigned int fmt:16;		/* SND_SOC_DAIFMT_* */
+	unsigned int tdm:16;		/* SND_SOC_DAITDM_* */
+	unsigned int pcmfmt:6; 		/* SNDRV_PCM_FORMAT_* */
+	unsigned int pcmrate:16;	/* SND_SOC_DAIRATE_* */
+	unsigned int pcmdir:2;		/* SND_SOC_DAIDIR_* */
+	unsigned int flags:8;		/* hw flags */
+	unsigned int fs:32;			/* mclk to rate dividers */
+	unsigned int bfs:16;		/* mclk to bclk dividers */
+	unsigned long priv;	        /* private mode data */
+};
+
+fmt:
+----
+This field defines the DAI mode hardware format (e.g. I2S settings) and
+supports the following settings:-
+
+ 1) hardware DAI formats
+
+#define SND_SOC_DAIFMT_I2S        (1 << 0)	/* I2S mode */
+#define SND_SOC_DAIFMT_RIGHT_J    (1 << 1)	/* Right justified mode */
+#define SND_SOC_DAIFMT_LEFT_J     (1 << 2)	/* Left Justified mode */
+#define SND_SOC_DAIFMT_DSP_A      (1 << 3)	/* L data msb after FRM */
+#define SND_SOC_DAIFMT_DSP_B      (1 << 4)	/* L data msb during FRM */
+#define SND_SOC_DAIFMT_AC97       (1 << 5)	/* AC97 */
+
+ 2) hw DAI signal inversions
+
+#define SND_SOC_DAIFMT_NB_NF		(1 << 8)	/* normal bit clock + frame */
+#define SND_SOC_DAIFMT_NB_IF		(1 << 9)	/* normal bclk + inv frm */
+#define SND_SOC_DAIFMT_IB_NF		(1 << 10)	/* invert bclk + nor frm */
+#define SND_SOC_DAIFMT_IB_IF		(1 << 11)	/* invert bclk + frm */
+
+ 3) hw clock masters
+    This is wrt the codec, the inverse is true for the interface
+    i.e. if the codec is clk and frm master then the interface is
+    clk and frame slave.
+
+#define SND_SOC_DAIFMT_CBM_CFM		(1 << 12)	/* codec clk & frm master */
+#define SND_SOC_DAIFMT_CBS_CFM		(1 << 13)	/* codec clk slave & frm master */
+#define SND_SOC_DAIFMT_CBM_CFS		(1 << 14)	/* codec clk master & frame slave */
+#define SND_SOC_DAIFMT_CBS_CFS		(1 << 15)	/* codec clk & frm slave */
+
+At least one option from each section must be selected. Multiple selections are
+also supported e.g.
+
+ .fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_RIGHT_J | \
+	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_NB_IF | SND_SOC_DAIFMT_IB_NF | \
+	SND_SOC_DAIFMT_IB_IF
+
+
+tdm:
+------
+This field defines the Time Division Multiplexing left and right word
+positions for the DAI mode if applicable. Set to SND_SOC_DAITDM_LRDW(0,0) for
+no TDM.
+
+
+pcmfmt:
+---------
+The hardware PCM format. This describes the PCM formats supported by the DAI
+mode e.g.
+
+ .hwpcmfmt = SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
+ 	SNDRV_PCM_FORMAT_S24_3LE
+
+pcmrate:
+----------
+The PCM sample rates supported by the DAI mode. e.g.
+
+ .hwpcmrate = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
+	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
+	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000
+
+
+pcmdir:
+---------
+The stream directions supported by this mode. e.g. playback and capture
+
+
+flags:
+--------
+The DAI hardware flags supported by the mode.
+
+SND_SOC_DAI_BFS_DIV
+This flag states that bit clock is generated by dividing MCLK in this mode, if
+this flag is absent the bitclock generated by mulitiplying sample rate.
+
+NOTE: Bitclock division and mulitiplication modes can be safely matched by the
+core logic.
+
+
+fs:
+-----
+The FS supported by this DAI mode FS is the ratio between the system clock and
+the sample rate. See above
+
+bfs:
+------
+BFS is the ratio of BCLK to MCLK or the ratio of BCLK to sample rate (this
+depends on the codec or CPU DAI).
+
+The BFS supported by the DAI mode. This can either be the ratio between the
+bitclock (BCLK) and the sample rate OR the ratio between the system clock and
+the sample rate. Depends on the SND_SOC_DAI_BFS_DIV flag above.
+
+priv:
+-----
+private codec mode data.
+
+
+
+Examples
+========
+
+Note that Codec DAI and CPU DAI examples are interchangeable in these examples
+as long as the bus master is reversed. i.e.
+
+  SND_SOC_DAIFMT_CBM_CFM would become SND_SOC_DAIFMT_CBS_CFS
+  and vice versa.
+
+This applies to all SND_SOC_DAIFMT_CB*_CF*.
+
+Example 1
+---------
+
+Simple codec that only runs at 8k & 48k @ 256FS in master mode, can generate a
+BCLK of either MCLK/2 or MCLK/4.
+
+	/* codec master */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_48000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	256, SND_SOC_FSBD(2) | SND_SOC_FSBD(4)},
+
+
+Example 2
+---------
+Simple codec that only runs at 8k & 48k @ 256FS in master mode, can generate a
+BCLK of either Rate * 32 or Rate * 64.
+
+	/* codec master */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_48000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, 0,
+	256, SND_SOC_FSB(32) | SND_SOC_FSB(64)},
+
+
+Example 3
+---------
+Codec that only runs at 8k & 48k @ 256FS in master mode, can generate a
+BCLK of either Rate * 32 or Rate * 64. Codec can also run in slave mode as long
+as BCLK is rate * 32 or rate * 64.
+
+	/* codec master */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_48000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, 0,
+	256, SND_SOC_FSB(32) | SND_SOC_FSB(64)},
+
+	/* codec slave */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_48000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, 0,
+	SND_SOC_FS_ALL, SND_SOC_FSB(32) | SND_SOC_FSB(64)},
+
+
+Example 4
+---------
+Codec that only runs at 8k, 16k, 32k, 48k, 96k @ 128FS, 192FS & 256FS in master
+mode and can generate a BCLK of MCLK / (1,2,4,8,16). Codec can also run in slave
+mode as and does not care about FS or BCLK (as long as there is enough bandwidth).
+
+	#define CODEC_FSB \
+	(SND_SOC_FSBD(1) | SND_SOC_FSBD(2) | SND_SOC_FSBD(4) | \
+	SND_SOC_FSBD(8) | SND_SOC_FSBD(16))
+
+	#define CODEC_RATES \
+	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 |\
+	 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
+
+	/* codec master @ 128, 192 & 256 FS */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, CODEC_RATES,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	128, CODEC_FSB},
+
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, CODEC_RATES,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	192, CODEC_FSB},
+
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, CODEC_RATES,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	256, CODEC_FSB},
+
+	/* codec slave */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, CODEC_RATES,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, 0,
+	SND_SOC_FS_ALL, SND_SOC_FSB_ALL},
+
+
+Example 5
+---------
+Codec that only runs at 8k, 44.1k, 48k @ different FS in master mode (for use
+with a fixed MCLK) and can generate a BCLK of MCLK / (1,2,4,8,16).
+Codec can also run in slave mode as and does not care about FS or BCLK (as long
+as there is enough bandwidth). Codec can support 16, 24 and 32 bit PCM sample
+sizes.
+
+	#define CODEC_FSB \
+	(SND_SOC_FSBD(1) | SND_SOC_FSBD(2) | SND_SOC_FSBD(4) | \
+	SND_SOC_FSBD(8) | SND_SOC_FSBD(16))
+
+	#define CODEC_PCM_FORMATS \
+	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
+	SNDRV_PCM_FORMAT_S24_3LE | SNDRV_PCM_FORMAT_S24_LE | SNDRV_PCM_FORMAT_S32_LE)
+
+	/* codec master */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_8000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	1536, CODEC_FSB},
+
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_44100,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	272, CODEC_FSB},
+
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, SNDRV_PCM_RATE_48000,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, SND_SOC_DAI_BFS_DIV,
+	256, CODEC_FSB},
+
+	/* codec slave */
+	{SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0),
+	SNDRV_PCM_FORMAT_S16_LE, CODEC_RATES,
+	SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE, 0,
+	SND_SOC_FS_ALL, SND_SOC_FSB_ALL},
+
+
+Example 6
+---------
+AC97 Codec that does not support VRA (i.e only runs at 48k).
+
+	#define AC97_DIR \
+	(SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE)
+
+
+	#define AC97_PCM_FORMATS \
+	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S18_3LE | \
+	SNDRV_PCM_FORMAT_S20_3LE)
+
+	/* AC97 with no VRA */
+	{0, 0,	AC97_PCM_FORMATS,	SNDRV_PCM_RATE_48000},
+
+
+Example 7
+---------
+
+CPU DAI that supports 8k - 48k @ 256FS and BCLK = MCLK / 4 in master mode.
+Slave mode (CPU DAI is FRAME master) supports 8k - 96k at any FS as long as
+BCLK = 64 * rate. (Intel XScale I2S controller).
+
+	#define PXA_I2S_DAIFMT \
+	(SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF)
+
+	#define PXA_I2S_DIR \
+	(SND_SOC_DAIDIR_PLAYBACK | SND_SOC_DAIDIR_CAPTURE)
+
+	#define PXA_I2S_RATES \
+	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
+	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
+	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+
+	/* pxa2xx I2S frame and clock master modes */
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_8000, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0x48},
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_11025, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0x34},
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_16000, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0x24},
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_22050, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0x1a},
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_44100, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0xd},
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBS_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		SNDRV_PCM_RATE_48000, PXA_I2S_DIR, SND_SOC_DAI_BFS_DIV, 256,
+		SND_SOC_FSBD(4), 0xc},
+
+	/* pxa2xx I2S frame master and clock slave mode */
+	{PXA_I2S_DAIFMT | SND_SOC_DAIFMT_CBM_CFS, SND_SOC_DAITDM_LRDW(0,0), SNDRV_PCM_FORMAT_S16_LE,
+		PXA_I2S_RATES, PXA_I2S_DIR, 0, SND_SOC_FS_ALL, SND_SOC_FSB(64)},
+
