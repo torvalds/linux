@@ -813,6 +813,7 @@ static int ocfs2_unlink(struct inode *dir,
 			struct dentry *dentry)
 {
 	int status;
+	int child_locked = 0;
 	struct inode *inode = dentry->d_inode;
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
@@ -835,22 +836,14 @@ static int ocfs2_unlink(struct inode *dir,
 
 	if (inode == osb->root_inode) {
 		mlog(0, "Cannot delete the root directory\n");
-		status = -EPERM;
-		goto leave;
+		return -EPERM;
 	}
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto leave;
-	}
-
-	status = ocfs2_meta_lock(dir, handle, &parent_node_bh, 1);
+	status = ocfs2_meta_lock(dir, NULL, &parent_node_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
-		goto leave;
+		return status;
 	}
 
 	status = ocfs2_find_files_on_disk(dentry->d_name.name,
@@ -871,12 +864,13 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_meta_lock(inode, handle, &fe_bh, 1);
+	status = ocfs2_meta_lock(inode, NULL, &fe_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
 		goto leave;
 	}
+	child_locked = 1;
 
 	if (S_ISDIR(inode->i_mode)) {
 	       	if (!ocfs2_empty_dir(inode)) {
@@ -906,7 +900,7 @@ static int ocfs2_unlink(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_UNLINK_CREDITS);
+	handle = ocfs2_start_trans(osb, NULL, OCFS2_UNLINK_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -963,6 +957,11 @@ static int ocfs2_unlink(struct inode *dir,
 leave:
 	if (handle)
 		ocfs2_commit_trans(handle);
+
+	if (child_locked)
+		ocfs2_meta_unlock(inode, 1);
+
+	ocfs2_meta_unlock(dir, 1);
 
 	if (orphan_dir) {
 		/* This was locked for us in ocfs2_prepare_orphan_dir() */
