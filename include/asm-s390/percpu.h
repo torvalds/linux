@@ -16,7 +16,7 @@
 #if defined(__s390x__) && defined(MODULE)
 
 #define __reloc_hide(var,offset) (*({			\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	unsigned long *__ptr;				\
 	asm ( "larl %0,per_cpu__"#var"@GOTENT"		\
 	    : "=a" (__ptr) : "X" (per_cpu__##var) );	\
@@ -25,7 +25,7 @@
 #else
 
 #define __reloc_hide(var, offset) (*({				\
-	extern int simple_indentifier_##var(void);		\
+	extern int simple_identifier_##var(void);		\
 	unsigned long __ptr;					\
 	asm ( "" : "=a" (__ptr) : "0" (&per_cpu__##var) );	\
 	(typeof(&per_cpu__##var)) (__ptr + (offset)); }))
