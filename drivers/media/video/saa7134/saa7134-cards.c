@@ -3055,6 +3055,49 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_STUDIO_507] = {
+		/* Mikhail Fedotov <mo_fedotov@mail.ru> */
+		.name           = "Avermedia AVerTV Studio 507",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FM1256_IH3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x03,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x00,
+		},{
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x00,
+		},{
+			.name = name_comp2,
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x00,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x00,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x01,
+		},
+		.mute  = {
+			.name = name_mute,
+			.amux = LINE1,
+			.gpio = 0x00,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3670,6 +3713,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x002f,
 		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_310i,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0x9715,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3756,6 +3805,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_305:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_307:
+	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
 	case SAA7134_BOARD_AVERMEDIA_777:
 /*      case SAA7134_BOARD_SABRENT_SBTTVFM:  */ /* not finished yet */
