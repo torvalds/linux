@@ -175,7 +175,7 @@ static struct dvb_usb_device_properties gl861_properties = {
 	}},
 	.i2c_algo         = &gl861_i2c_algo,
 
-	.generic_bulk_ctrl_endpoint = 0x01,
+	.generic_bulk_ctrl_endpoint = 0x02,
 
 	.num_device_descs = 1,
 	.devices = {
