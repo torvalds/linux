@@ -238,6 +238,8 @@ config_item_type.
 		struct config_group *(*make_group)(struct config_group *group,
 						   const char *name);
 		int (*commit_item)(struct config_item *item);
+		void (*disconnect_notify)(struct config_group *group,
+					  struct config_item *item);
 		void (*drop_item)(struct config_group *group,
 				  struct config_item *item);
 	};
@@ -267,6 +269,16 @@ responsible for responding to this.  If the subsystem has references to
 the item in other threads, the memory is safe.  It may take some time
 for the item to actually disappear from the subsystem's usage.  But it
 is gone from configfs.
+
+When drop_item() is called, the item's linkage has already been torn
+down.  It no longer has a reference on its parent and has no place in
+the item hierarchy.  If a client needs to do some cleanup before this
+teardown happens, the subsystem can implement the
+ct_group_ops->disconnect_notify() method.  The method is called after
+configfs has removed the item from the filesystem view but before the
+item is removed from its parent group.  Like drop_item(),
+disconnect_notify() is void and cannot fail.  Client subsystems should
+not drop any references here, as they still must do it in drop_item().
 
 A config_group cannot be removed while it still has child items.  This
 is implemented in the configfs rmdir(2) code.  ->drop_item() will not be
