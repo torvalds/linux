@@ -399,9 +399,10 @@ struct device {
 
 	/* class_device migration path */
 	struct list_head	node;
-	struct class		*class;		/* optional*/
+	struct class		*class;
 	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 	struct attribute_group	**groups;	/* optional groups */
+	int			uevent_suppress;
 
 	void	(*release)(struct device * dev);
 };

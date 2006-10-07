@@ -589,7 +589,8 @@ int device_add(struct device *dev)
 		goto PMError;
 	if ((error = bus_add_device(dev)))
 		goto BusError;
-	kobject_uevent(&dev->kobj, KOBJ_ADD);
+	if (!dev->uevent_suppress)
+		kobject_uevent(&dev->kobj, KOBJ_ADD);
 	if ((error = bus_attach_device(dev)))
 		goto AttachError;
 	if (parent)
