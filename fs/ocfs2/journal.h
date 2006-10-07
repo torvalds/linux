@@ -133,22 +133,9 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 	spin_unlock(&trans_inc_lock);
 }
 
-extern kmem_cache_t *ocfs2_lock_cache;
-
-struct ocfs2_journal_lock {
-	struct inode     *jl_inode;
-	struct list_head  jl_lock_list;
-};
-
 struct ocfs2_journal_handle {
 	handle_t            *k_handle; /* kernel handle.                */
 	struct ocfs2_journal        *journal;
-
-	/* The following two fields are for ocfs2_handle_add_lock */
-	int                 num_locks;
-	struct list_head    locks;     /* A bunch of locks to
-					* release on commit. This
-					* should be a list_head */
 };
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
@@ -229,11 +216,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
  *  ocfs2_journal_dirty_data - Indicate that a data buffer should go out before
  *                             the current handle commits.
- *  ocfs2_handle_add_lock  - Sometimes we need to delay lock release
- *                          until after a transaction has been completed. Use
- *                          ocfs2_handle_add_lock to indicate that a lock needs
- *                          to be released at the end of that handle. Locks
- *                          will be released in the order that they are added.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
@@ -288,8 +270,6 @@ int                  ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
 					 struct buffer_head *bh);
 int                  ocfs2_journal_dirty_data(handle_t *handle,
 					      struct buffer_head *bh);
-int                  ocfs2_handle_add_lock(struct ocfs2_journal_handle *handle,
-					   struct inode *inode);
 
 /*
  *  Credit Macros:

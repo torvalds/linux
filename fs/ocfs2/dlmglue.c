@@ -1668,12 +1668,6 @@ int ocfs2_meta_lock_full(struct inode *inode,
 		}
 	}
 
-	if (handle) {
-		status = ocfs2_handle_add_lock(handle, inode);
-		if (status < 0)
-			mlog_errno(status);
-	}
-
 bail:
 	if (status < 0) {
 		if (ret_bh && (*ret_bh)) {

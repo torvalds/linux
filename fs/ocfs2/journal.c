@@ -57,9 +57,6 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 static int __ocfs2_recovery_thread(void *arg);
 static int ocfs2_commit_cache(struct ocfs2_super *osb);
 static int ocfs2_wait_on_mount(struct ocfs2_super *osb);
-static void ocfs2_handle_cleanup_locks(struct ocfs2_journal *journal,
-				       struct ocfs2_journal_handle *handle);
-static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle);
 static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 				      int dirty);
 static int ocfs2_trylock_journal(struct ocfs2_super *osb,
@@ -123,11 +120,8 @@ struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 		     "handle!\n");
 		return NULL;
 	}
-
-	retval->num_locks = 0;
 	retval->k_handle = NULL;
 
-	INIT_LIST_HEAD(&retval->locks);
 	retval->journal = osb->journal;
 
 	return retval;
@@ -195,25 +189,10 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 
 done_free:
 	if (handle)
-		ocfs2_commit_unstarted_handle(handle); /* will kfree handle */
+		kfree(handle);
 
 	mlog_exit(ret);
 	return ERR_PTR(ret);
-}
-
-/* This is trivial so we do it out of the main commit
- * paths. Beware, it can be called from start_trans too! */
-static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle)
-{
-	mlog_entry_void();
-
-	/* You are allowed to add journal locks before the transaction
-	 * has started. */
-	ocfs2_handle_cleanup_locks(handle->journal, handle);
-
-	kfree(handle);
-
-	mlog_exit_void();
 }
 
 void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
@@ -227,7 +206,7 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
 	BUG_ON(!handle);
 
 	if (!handle->k_handle) {
-		ocfs2_commit_unstarted_handle(handle);
+		kfree(handle);
 		mlog_exit_void();
 		return;
 	}
@@ -250,8 +229,6 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
 
 		handle->k_handle = NULL; /* it's been free'd in journal_stop */
 	}
-
-	ocfs2_handle_cleanup_locks(journal, handle);
 
 	up_read(&journal->j_trans_barrier);
 
@@ -392,59 +369,6 @@ int ocfs2_journal_dirty_data(handle_t *handle,
 	 * error here. */
 
 	return err;
-}
-
-/* We always assume you're adding a metadata lock at level 'ex' */
-int ocfs2_handle_add_lock(struct ocfs2_journal_handle *handle,
-			  struct inode *inode)
-{
-	int status;
-	struct ocfs2_journal_lock *lock;
-
-	BUG_ON(!inode);
-
-	lock = kmem_cache_alloc(ocfs2_lock_cache, GFP_NOFS);
-	if (!lock) {
-		status = -ENOMEM;
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
-
-	if (!igrab(inode))
-		BUG();
-	lock->jl_inode = inode;
-
-	list_add_tail(&(lock->jl_lock_list), &(handle->locks));
-	handle->num_locks++;
-
-	status = 0;
-bail:
-	mlog_exit(status);
-	return status;
-}
-
-static void ocfs2_handle_cleanup_locks(struct ocfs2_journal *journal,
-				       struct ocfs2_journal_handle *handle)
-{
-	struct list_head *p, *n;
-	struct ocfs2_journal_lock *lock;
-	struct inode *inode;
-
-	list_for_each_safe(p, n, &(handle->locks)) {
-		lock = list_entry(p, struct ocfs2_journal_lock,
-				  jl_lock_list);
-		list_del(&lock->jl_lock_list);
-		handle->num_locks--;
-
-		inode = lock->jl_inode;
-		ocfs2_meta_unlock(inode, 1);
-		if (atomic_read(&inode->i_count) == 1)
-			mlog(ML_ERROR,
-			     "Inode %llu, I'm doing a last iput for!",
-			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		iput(inode);
-		kmem_cache_free(ocfs2_lock_cache, lock);
-	}
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL 	(HZ * 5)

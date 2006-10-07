@@ -70,8 +70,6 @@
 
 static kmem_cache_t *ocfs2_inode_cachep = NULL;
 
-kmem_cache_t *ocfs2_lock_cache = NULL;
-
 /* OCFS2 needs to schedule several differnt types of work which
  * require cluster locking, disk I/O, recovery waits, etc. Since these
  * types of work tend to be heavy we avoid using the kernel events
@@ -946,14 +944,6 @@ static int ocfs2_initialize_mem_caches(void)
 	if (!ocfs2_inode_cachep)
 		return -ENOMEM;
 
-	ocfs2_lock_cache = kmem_cache_create("ocfs2_lock",
-					     sizeof(struct ocfs2_journal_lock),
-					     0,
-					     SLAB_HWCACHE_ALIGN,
-					     NULL, NULL);
-	if (!ocfs2_lock_cache)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -961,11 +951,8 @@ static void ocfs2_free_mem_caches(void)
 {
 	if (ocfs2_inode_cachep)
 		kmem_cache_destroy(ocfs2_inode_cachep);
-	if (ocfs2_lock_cache)
-		kmem_cache_destroy(ocfs2_lock_cache);
 
 	ocfs2_inode_cachep = NULL;
-	ocfs2_lock_cache = NULL;
 }
 
 static int ocfs2_get_sector(struct super_block *sb,
