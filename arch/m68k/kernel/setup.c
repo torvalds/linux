@@ -64,7 +64,7 @@ static char m68k_command_line[CL_SIZE];
 
 char m68k_debug_device[6] = "";
 
-void (*mach_sched_init) (irqreturn_t (*handler)(int, void *, struct pt_regs *)) __initdata = NULL;
+void (*mach_sched_init) (irqreturn_t (*handler)(int, void *)) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);

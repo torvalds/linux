@@ -205,7 +205,7 @@ ENTRY(auto_inthandler)
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
 auto_irqhandler_fixup = . + 2
-	jsr	m68k_handle_int		|  process the IRQ
+	jsr	__m68k_handle_int	|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
 ret_from_interrupt:
@@ -239,7 +239,7 @@ user_irqvec_fixup = . + 2
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
 user_irqhandler_fixup = . + 2
-	jsr	m68k_handle_int		|  process the IRQ
+	jsr	__m68k_handle_int	|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
 	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)

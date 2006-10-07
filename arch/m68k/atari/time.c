@@ -20,7 +20,7 @@
 #include <asm/atariints.h>
 
 void __init
-atari_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
+atari_sched_init(irqreturn_t (*timer_routine)(int, void *))
 {
     /* set Timer C data Register */
     mfp.tim_dt_c = INT_TICKS;

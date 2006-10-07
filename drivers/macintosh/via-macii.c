@@ -295,7 +295,7 @@ static void macii_poll(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	if (via[IFR] & SR_INT) macii_interrupt(0, NULL, NULL);
+	if (via[IFR] & SR_INT) macii_interrupt(0, NULL);
 	local_irq_restore(flags);
 }
 

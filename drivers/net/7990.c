@@ -674,7 +674,7 @@ void lance_poll(struct net_device *dev)
 	WRITERAP(lp, LE_CSR0);
 	WRITERDP(lp, LE_C0_STRT);
 	spin_unlock (&lp->devlock);
-	lance_interrupt(dev->irq, dev, NULL);
+	lance_interrupt(dev->irq, dev);
 }
 #endif
 

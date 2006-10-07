@@ -25,7 +25,7 @@
 int baboon_present,baboon_active;
 volatile struct baboon *baboon;
 
-irqreturn_t baboon_irq(int, void *, struct pt_regs *);
+irqreturn_t baboon_irq(int, void *);
 
 #if 0
 extern int macide_ack_intr(struct ata_channel *);
@@ -64,7 +64,7 @@ void __init baboon_register_interrupts(void)
  * Baboon interrupt handler. This works a lot like a VIA.
  */
 
-irqreturn_t baboon_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t baboon_irq(int irq, void *dev_id)
 {
 	int irq_bit,i;
 	unsigned char events;
@@ -81,7 +81,7 @@ irqreturn_t baboon_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 3 ; i++, irq_bit <<= 1) {
 	        if (events & irq_bit/* & baboon_active*/) {
 			baboon_active &= ~irq_bit;
-			m68k_handle_int(IRQ_BABOON_0 + i, regs);
+			m68k_handle_int(IRQ_BABOON_0 + i);
 			baboon_active |= irq_bit;
 			baboon->mb_ifr &= ~irq_bit;
 		}

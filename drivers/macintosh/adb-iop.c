@@ -266,7 +266,7 @@ int adb_iop_autopoll(int devs)
 void adb_iop_poll(void)
 {
 	if (adb_iop_state == idle) adb_iop_start();
-	iop_ism_irq(0, (void *) ADB_IOP, NULL);
+	iop_ism_irq(0, (void *) ADB_IOP);
 }
 
 int adb_iop_reset_bus(void)

@@ -162,7 +162,7 @@ void __init config_sun3(void)
 	sun3_bootmem_alloc(memory_start, memory_end);
 }
 
-void __init sun3_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
+void __init sun3_sched_init(irqreturn_t (*timer_routine)(int, void *))
 {
 	sun3_disable_interrupts();
         intersil_clock->cmd_reg=(INTERSIL_RUN|INTERSIL_INT_DISABLE|INTERSIL_24H_MODE);
