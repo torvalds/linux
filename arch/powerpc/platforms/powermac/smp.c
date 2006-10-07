@@ -160,7 +160,7 @@ static inline void psurge_clr_ipi(int cpu)
  */
 static unsigned long psurge_smp_message[NR_CPUS];
 
-void psurge_smp_message_recv(struct pt_regs *regs)
+void psurge_smp_message_recv(void)
 {
 	int cpu = smp_processor_id();
 	int msg;
@@ -174,12 +174,12 @@ void psurge_smp_message_recv(struct pt_regs *regs)
 	/* make sure there is a message there */
 	for (msg = 0; msg < 4; msg++)
 		if (test_and_clear_bit(msg, &psurge_smp_message[cpu]))
-			smp_message_recv(msg, regs);
+			smp_message_recv(msg);
 }
 
-irqreturn_t psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
+irqreturn_t psurge_primary_intr(int irq, void *d)
 {
-	psurge_smp_message_recv(regs);
+	psurge_smp_message_recv();
 	return IRQ_HANDLED;
 }
 

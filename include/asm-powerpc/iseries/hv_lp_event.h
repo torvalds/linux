@@ -50,7 +50,7 @@ struct HvLpEvent {
 	u64	xCorrelationToken;	/* Unique value for source/type x10-x17 */
 };
 
-typedef void (*LpEventHandler)(struct HvLpEvent *, struct pt_regs *);
+typedef void (*LpEventHandler)(struct HvLpEvent *);
 
 /* Register a handler for an event type - returns 0 on success */
 extern int HvLpEvent_registerHandler(HvLpEvent_Type eventType,

@@ -5,7 +5,7 @@
 
 extern struct hw_interrupt_type pmac_pic;
 
-void pmac_pic_init(void);
-int pmac_get_irq(struct pt_regs *regs);
+extern void pmac_pic_init(void);
+extern int pmac_get_irq(void);
 
 #endif /* __PPC_PLATFORMS_PMAC_PIC_H */

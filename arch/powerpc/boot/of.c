@@ -176,12 +176,9 @@ static void *claim(unsigned long virt, unsigned long size, unsigned long align)
 static void *of_try_claim(u32 size)
 {
 	unsigned long addr = 0;
-	static u8 first_time = 1;
 
-	if (first_time) {
+	if (claim_base == 0)
 		claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
-		first_time = 0;
-	}
 
 	for(; claim_base < RAM_END; claim_base += ONE_MB) {
 #ifdef DEBUG

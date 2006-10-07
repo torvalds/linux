@@ -300,7 +300,7 @@ static struct irq_host_ops qe_ic_host_ops = {
 };
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
-unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic, struct pt_regs *regs)
+unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 {
 	int irq;
 
@@ -316,7 +316,7 @@ unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic, struct pt_regs *regs)
 }
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
-unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic, struct pt_regs *regs)
+unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 {
 	int irq;
 
@@ -333,13 +333,12 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic, struct pt_regs *regs)
 
 /* FIXME: We mask all the QE Low interrupts while handling.  We should
  * let other interrupt come in, but BAD interrupts are generated */
-void fastcall qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc,
-				struct pt_regs *regs)
+void fastcall qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = desc->handler_data;
 	struct irq_chip *chip = irq_desc[irq].chip;
 
-	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic, regs);
+	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
 
 	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)
@@ -349,13 +348,12 @@ void fastcall qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc,
 
 /* FIXME: We mask all the QE High interrupts while handling.  We should
  * let other interrupt come in, but BAD interrupts are generated */
-void fastcall qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc,
-				 struct pt_regs *regs)
+void fastcall qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc)
 {
 	struct qe_ic *qe_ic = desc->handler_data;
 	struct irq_chip *chip = irq_desc[irq].chip;
 
-	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic, regs);
+	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
 
 	chip->mask_ack(irq);
 	if (cascade_irq != NO_IRQ)

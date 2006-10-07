@@ -308,14 +308,14 @@ static inline unsigned int xics_remap_irq(unsigned int vec)
 	return NO_IRQ;
 }
 
-static unsigned int xics_get_irq_direct(struct pt_regs *regs)
+static unsigned int xics_get_irq_direct(void)
 {
 	unsigned int cpu = smp_processor_id();
 
 	return xics_remap_irq(direct_xirr_info_get(cpu));
 }
 
-static unsigned int xics_get_irq_lpar(struct pt_regs *regs)
+static unsigned int xics_get_irq_lpar(void)
 {
 	unsigned int cpu = smp_processor_id();
 

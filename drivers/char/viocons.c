@@ -947,7 +947,7 @@ static void vioHandleData(struct HvLpEvent *event)
 				 */
 				continue;
 			} else if (vio_sysrq_pressed) {
-				handle_sysrq(cevent->data[index], NULL, tty);
+				handle_sysrq(cevent->data[index], tty);
 				vio_sysrq_pressed = 0;
 				/*
 				 * continue because we don't want to add

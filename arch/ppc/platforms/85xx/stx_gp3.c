@@ -156,10 +156,10 @@ gp3_setup_arch(void)
 	printk ("bi_immr_base = %8.8lx\n", binfo->bi_immr_base);
 }
 
-static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpm2_cascade(int irq, void *dev_id)
 {
-	while ((irq = cpm2_get_irq(regs)) >= 0)
-		__do_IRQ(irq, regs);
+	while ((irq = cpm2_get_irq()) >= 0)
+		__do_IRQ(irq);
 
 	return IRQ_HANDLED;
 }

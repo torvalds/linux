@@ -217,7 +217,7 @@ void do_IRQ(struct pt_regs *regs)
 	 * The value -2 is for buggy hardware and means that this IRQ
 	 * has already been handled. -- Tom
 	 */
-	irq = ppc_md.get_irq(regs);
+	irq = ppc_md.get_irq();
 
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
 #ifdef CONFIG_IRQSTACKS
