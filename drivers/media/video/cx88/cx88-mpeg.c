@@ -662,7 +662,6 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 	}
 
 	list_for_each(list,&cx8802_devlist) {
-		i++;
 		h = list_entry(list, struct cx8802_dev, devlist);
 
 		printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d]\n",
@@ -685,6 +684,7 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 
 		err = drv->probe(driver);
 		if (err == 0) {
+			i++;
 			mutex_lock(&drv->core->lock);
 			list_add_tail(&driver->devlist,&h->drvlist.devlist);
 			mutex_unlock(&drv->core->lock);
@@ -695,6 +695,8 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 	}
 	if (i == 0)
 		err = -ENODEV;
+	else
+		err = 0;
 
 	return err;
 }
