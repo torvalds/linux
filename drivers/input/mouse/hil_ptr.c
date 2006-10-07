@@ -375,7 +375,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	ptr->dev->id.vendor	= PCI_VENDOR_ID_HP;
 	ptr->dev->id.product	= 0x0001; /* TODO: get from ptr->rsc */
 	ptr->dev->id.version	= 0x0100; /* TODO: get from ptr->rsc */
-	ptr->dev->dev		= &serio->dev;
+	ptr->dev->cdev.dev	= &serio->dev;
 
 	input_register_device(ptr->dev);
 	printk(KERN_INFO "input: %s (%s), ID: %d\n",

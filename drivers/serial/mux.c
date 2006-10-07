@@ -230,7 +230,7 @@ static void mux_read(struct uart_port *port)
 				continue;
 		}
 
-		if (uart_handle_sysrq_char(port, data & 0xffu, NULL))
+		if (uart_handle_sysrq_char(port, data & 0xffu))
 			continue;
 
 		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
