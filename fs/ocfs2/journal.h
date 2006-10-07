@@ -149,8 +149,6 @@ struct ocfs2_journal_handle {
 	struct list_head    locks;     /* A bunch of locks to
 					* release on commit. This
 					* should be a list_head */
-
-	struct list_head     inode_list;
 };
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
@@ -236,7 +234,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *                          ocfs2_handle_add_lock to indicate that a lock needs
  *                          to be released at the end of that handle. Locks
  *                          will be released in the order that they are added.
- *  ocfs2_handle_add_inode - Add a locked inode to a transaction.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
@@ -293,12 +290,6 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 					      struct buffer_head *bh);
 int                  ocfs2_handle_add_lock(struct ocfs2_journal_handle *handle,
 					   struct inode *inode);
-/*
- * Use this to protect from other processes reading buffer state while
- * it's in flight.
- */
-void                 ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
-					    struct inode *inode);
 
 /*
  *  Credit Macros:

@@ -128,7 +128,6 @@ struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 	retval->k_handle = NULL;
 
 	INIT_LIST_HEAD(&retval->locks);
-	INIT_LIST_HEAD(&retval->inode_list);
 	retval->journal = osb->journal;
 
 	return retval;
@@ -202,51 +201,12 @@ done_free:
 	return ERR_PTR(ret);
 }
 
-void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
-			    struct inode *inode)
-{
-	BUG_ON(!handle);
-	BUG_ON(!inode);
-
-	atomic_inc(&inode->i_count);
-
-	/* we're obviously changing it... */
-	mutex_lock(&inode->i_mutex);
-
-	/* sanity check */
-	BUG_ON(OCFS2_I(inode)->ip_handle);
-	BUG_ON(!list_empty(&OCFS2_I(inode)->ip_handle_list));
-
-	OCFS2_I(inode)->ip_handle = handle;
-	list_move_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
-}
-
-static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)
-{
-	struct list_head *p, *n;
-	struct inode *inode;
-	struct ocfs2_inode_info *oi;
-
-	list_for_each_safe(p, n, &handle->inode_list) {
-		oi = list_entry(p, struct ocfs2_inode_info,
-				ip_handle_list);
-		inode = &oi->vfs_inode;
-
-		OCFS2_I(inode)->ip_handle = NULL;
-		list_del_init(&OCFS2_I(inode)->ip_handle_list);
-
-		mutex_unlock(&inode->i_mutex);
-		iput(inode);
-	}
-}
-
 /* This is trivial so we do it out of the main commit
  * paths. Beware, it can be called from start_trans too! */
 static void ocfs2_commit_unstarted_handle(struct ocfs2_journal_handle *handle)
 {
 	mlog_entry_void();
 
-	ocfs2_handle_unlock_inodes(handle);
 	/* You are allowed to add journal locks before the transaction
 	 * has started. */
 	ocfs2_handle_cleanup_locks(handle->journal, handle);
@@ -271,9 +231,6 @@ void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
 		mlog_exit_void();
 		return;
 	}
-
-	/* release inode semaphores we took during this transaction */
-	ocfs2_handle_unlock_inodes(handle);
 
 	/* ocfs2_extend_trans may have had to call journal_restart
 	 * which will always commit the transaction, but may return

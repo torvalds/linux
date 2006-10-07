@@ -48,13 +48,6 @@ struct ocfs2_inode_info
 
 	struct mutex			ip_io_mutex;
 
-	/* Used by the journalling code to attach an inode to a
-	 * handle.  These are protected by ip_io_mutex in order to lock
-	 * out other I/O to the inode until we either commit or
-	 * abort. */
-	struct list_head		ip_handle_list;
-	struct ocfs2_journal_handle	*ip_handle;
-
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
 

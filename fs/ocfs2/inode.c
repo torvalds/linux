@@ -1067,12 +1067,6 @@ void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(oi->ip_open_count,
 			"Clear inode of %llu has open count %d\n",
 			(unsigned long long)oi->ip_blkno, oi->ip_open_count);
-	mlog_bug_on_msg(!list_empty(&oi->ip_handle_list),
-			"Clear inode of %llu has non empty handle list\n",
-			(unsigned long long)oi->ip_blkno);
-	mlog_bug_on_msg(oi->ip_handle,
-			"Clear inode of %llu has non empty handle pointer\n",
-			(unsigned long long)oi->ip_blkno);
 
 	/* Clear all other flags. */
 	oi->ip_flags = OCFS2_INODE_CACHE_INLINE;
