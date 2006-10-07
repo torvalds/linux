@@ -98,8 +98,7 @@ static void iic_ioexc_eoi(unsigned int irq)
 {
 }
 
-static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs)
+static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct cbe_iic_regs __iomem *node_iic = (void __iomem *)desc->handler_data;
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
@@ -140,7 +139,7 @@ static struct irq_chip iic_ioexc_chip = {
 };
 
 /* Get an IRQ number from the pending state register of the IIC */
-static unsigned int iic_get_irq(struct pt_regs *regs)
+static unsigned int iic_get_irq(void)
 {
 	struct cbe_iic_pending_bits pending;
 	struct iic *iic;

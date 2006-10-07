@@ -1217,7 +1217,7 @@ void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask)
 		       mpic_physmask(cpu_mask & cpus_addr(cpu_online_map)[0]));
 }
 
-unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
+unsigned int mpic_get_one_irq(struct mpic *mpic)
 {
 	u32 src;
 
@@ -1230,13 +1230,13 @@ unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
 	return irq_linear_revmap(mpic->irqhost, src);
 }
 
-unsigned int mpic_get_irq(struct pt_regs *regs)
+unsigned int mpic_get_irq(void)
 {
 	struct mpic *mpic = mpic_primary;
 
 	BUG_ON(mpic == NULL);
 
-	return mpic_get_one_irq(mpic, regs);
+	return mpic_get_one_irq(mpic);
 }
 
 
