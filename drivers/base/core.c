@@ -95,6 +95,8 @@ static void device_release(struct kobject * kobj)
 
 	if (dev->release)
 		dev->release(dev);
+	else if (dev->type && dev->type->release)
+		dev->type->release(dev);
 	else if (dev->class && dev->class->dev_release)
 		dev->class->dev_release(dev);
 	else {
@@ -206,19 +208,25 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 	if (dev->bus && dev->bus->uevent) {
 		/* have the bus specific function add its stuff */
 		retval = dev->bus->uevent(dev, envp, num_envp, buffer, buffer_size);
-			if (retval) {
-			pr_debug ("%s - uevent() returned %d\n",
+		if (retval)
+			pr_debug ("%s: bus uevent() returned %d\n",
 				  __FUNCTION__, retval);
-		}
 	}
 
 	if (dev->class && dev->class->dev_uevent) {
 		/* have the class specific function add its stuff */
 		retval = dev->class->dev_uevent(dev, envp, num_envp, buffer, buffer_size);
-			if (retval) {
-				pr_debug("%s - dev_uevent() returned %d\n",
-					 __FUNCTION__, retval);
-		}
+		if (retval)
+			pr_debug("%s: class uevent() returned %d\n",
+				 __FUNCTION__, retval);
+	}
+
+	if (dev->type && dev->type->uevent) {
+		/* have the device type specific fuction add its stuff */
+		retval = dev->type->uevent(dev, envp, num_envp, buffer, buffer_size);
+		if (retval)
+			pr_debug("%s: dev_type uevent() returned %d\n",
+				 __FUNCTION__, retval);
 	}
 
 	return retval;
@@ -269,36 +277,49 @@ static void device_remove_groups(struct device *dev)
 static int device_add_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
+	struct device_type *type = dev->type;
 	int error = 0;
 	int i;
 
-	if (!class)
-		return 0;
-
-	if (class->dev_attrs) {
+	if (class && class->dev_attrs) {
 		for (i = 0; attr_name(class->dev_attrs[i]); i++) {
 			error = device_create_file(dev, &class->dev_attrs[i]);
 			if (error)
 				break;
 		}
+		if (error)
+			while (--i >= 0)
+				device_remove_file(dev, &class->dev_attrs[i]);
 	}
-	if (error)
-		while (--i >= 0)
-			device_remove_file(dev, &class->dev_attrs[i]);
+
+	if (type && type->attrs) {
+		for (i = 0; attr_name(type->attrs[i]); i++) {
+			error = device_create_file(dev, &type->attrs[i]);
+			if (error)
+				break;
+		}
+		if (error)
+			while (--i >= 0)
+				device_remove_file(dev, &type->attrs[i]);
+	}
+
 	return error;
 }
 
 static void device_remove_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
+	struct device_type *type = dev->type;
 	int i;
 
-	if (!class)
-		return;
-
-	if (class->dev_attrs) {
+	if (class && class->dev_attrs) {
 		for (i = 0; attr_name(class->dev_attrs[i]); i++)
 			device_remove_file(dev, &class->dev_attrs[i]);
+	}
+
+	if (type && type->attrs) {
+		for (i = 0; attr_name(type->attrs[i]); i++)
+			device_remove_file(dev, &type->attrs[i]);
 	}
 }
 
