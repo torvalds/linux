@@ -1328,7 +1328,6 @@ static void init_list(struct kmem_cache *cachep, struct kmem_list3 *list,
 {
 	struct kmem_list3 *ptr;
 
-	BUG_ON(cachep->nodelists[nodeid] != list);
 	ptr = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, nodeid);
 	BUG_ON(!ptr);
 
