@@ -55,6 +55,17 @@ void warn(const char *fmt, ...)
 	va_end(arglist);
 }
 
+void merror(const char *fmt, ...)
+{
+	va_list arglist;
+
+	fprintf(stderr, "ERROR: ");
+
+	va_start(arglist, fmt);
+	vfprintf(stderr, fmt, arglist);
+	va_end(arglist);
+}
+
 static int is_vmlinux(const char *modname)
 {
 	const char *myname;
@@ -1307,9 +1318,14 @@ static int add_versions(struct buffer *b, struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
 			if (have_vmlinux && !s->weak) {
-				warn("\"%s\" [%s.ko] undefined!\n",
-				     s->name, mod->name);
-				err = warn_unresolved ? 0 : 1;
+				if (warn_unresolved) {
+					warn("\"%s\" [%s.ko] undefined!\n",
+					     s->name, mod->name);
+				} else {
+					merror("\"%s\" [%s.ko] undefined!\n",
+					          s->name, mod->name);
+					err = 1;
+				}
 			}
 			continue;
 		}
