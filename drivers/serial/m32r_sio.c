@@ -590,7 +590,7 @@ static void m32r_sio_timeout(unsigned long data)
 	sts = sio_in(up, SIOSTS);
 	if (sts & 0x5) {
 		spin_lock(&up->port.lock);
-		m32r_sio_handle_port(up, sts, NULL);
+		m32r_sio_handle_port(up, sts);
 		spin_unlock(&up->port.lock);
 	}
 
