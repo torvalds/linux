@@ -515,12 +515,15 @@ smp_cpus_done(unsigned int max_cpus)
 void
 smp_percpu_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	int cpu = smp_processor_id();
 	unsigned long user = user_mode(regs);
 	struct cpuinfo_alpha *data = &cpu_data[cpu];
 
+	old_regs = set_irq_regs(regs);
+
 	/* Record kernel PC.  */
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	if (!--data->prof_counter) {
 		/* We need to make like a normal interrupt -- otherwise
@@ -534,6 +537,7 @@ smp_percpu_timer_interrupt(struct pt_regs *regs)
 
 		irq_exit();
 	}
+	set_irq_regs(old_regs);
 }
 
 int __init
