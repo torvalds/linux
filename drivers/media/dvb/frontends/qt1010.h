@@ -79,7 +79,7 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 			{ QT1010_W, 0x01, 0x00 },
 			};
 	struct i2c_msg msg;
-	struct dvb_usb_device *d = fe->dvb->priv;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	unsigned long freq = params->frequency;
 
 	if (freq % QT1010_MIN_STEP)
@@ -203,10 +203,10 @@ static int qt1010_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 
 		msg.flags = 0;
 		msg.len = 2;
-		msg.addr = d->adapter[0].pll_addr;
+		msg.addr = adap->dev->adapter[0].pll_addr;
 		msg.buf = &rd[i].reg;
 
-		if (i2c_transfer(&d->i2c_adap, &msg, 1) != 1) {
+		if (i2c_transfer(&adap->dev->i2c_adap, &msg, 1) != 1) {
 			printk("tuner write failed\n");
 			return -EIO;
 		}
