@@ -463,13 +463,6 @@ restart_all:
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, i_size_read(inode),
 	     fe->i_clusters, clusters_to_add);
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto leave;
-	}
-
 	num_free_extents = ocfs2_num_free_extents(osb,
 						  inode,
 						  fe);
@@ -480,10 +473,7 @@ restart_all:
 	}
 
 	if (!num_free_extents) {
-		status = ocfs2_reserve_new_metadata(osb,
-						    handle,
-						    fe,
-						    &meta_ac);
+		status = ocfs2_reserve_new_metadata(osb, fe, &meta_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -491,10 +481,7 @@ restart_all:
 		}
 	}
 
-	status = ocfs2_reserve_clusters(osb,
-					handle,
-					clusters_to_add,
-					&data_ac);
+	status = ocfs2_reserve_clusters(osb, clusters_to_add, &data_ac);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -509,7 +496,7 @@ restart_all:
 	drop_alloc_sem = 1;
 
 	credits = ocfs2_calc_extend_credits(osb->sb, fe, clusters_to_add);
-	handle = ocfs2_start_trans(osb, handle, credits);
+	handle = ocfs2_start_trans(osb, NULL, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;

@@ -43,7 +43,6 @@ struct ocfs2_alloc_context {
 #define OCFS2_AC_USE_INODE 3
 #define OCFS2_AC_USE_META  4
 	u32    ac_which;
-	struct ocfs2_journal_handle *ac_handle;
 
 	/* these are used by the chain search */
 	u16    ac_chain;
@@ -60,14 +59,11 @@ static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 }
 
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
-			       struct ocfs2_journal_handle *handle,
 			       struct ocfs2_dinode *fe,
 			       struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
-			    struct ocfs2_journal_handle *handle,
 			    struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_clusters(struct ocfs2_super *osb,
-			   struct ocfs2_journal_handle *handle,
 			   u32 bits_wanted,
 			   struct ocfs2_alloc_context **ac);
 

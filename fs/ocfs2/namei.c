@@ -334,13 +334,6 @@ static int ocfs2_mknod(struct inode *dir,
 		return status;
 	}
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto leave;
-	}
-
 	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
 		status = -EMLINK;
 		goto leave;
@@ -368,7 +361,7 @@ static int ocfs2_mknod(struct inode *dir,
 	}
 
 	/* reserve an inode spot */
-	status = ocfs2_reserve_new_inode(osb, handle, &inode_ac);
+	status = ocfs2_reserve_new_inode(osb, &inode_ac);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -378,7 +371,7 @@ static int ocfs2_mknod(struct inode *dir,
 	/* are we making a directory? If so, reserve a cluster for his
 	 * 1st extent. */
 	if (S_ISDIR(mode)) {
-		status = ocfs2_reserve_clusters(osb, handle, 1, &data_ac);
+		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -386,7 +379,7 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_MKNOD_CREDITS);
+	handle = ocfs2_start_trans(osb, NULL, OCFS2_MKNOD_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1649,14 +1642,7 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
-
-	status = ocfs2_reserve_new_inode(osb, handle, &inode_ac);
+	status = ocfs2_reserve_new_inode(osb, &inode_ac);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -1665,7 +1651,7 @@ static int ocfs2_symlink(struct inode *dir,
 
 	/* don't reserve bitmap space for fast symlinks. */
 	if (l > ocfs2_fast_symlink_chars(sb)) {
-		status = ocfs2_reserve_clusters(osb, handle, 1, &data_ac);
+		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -1673,7 +1659,7 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, handle, credits);
+	handle = ocfs2_start_trans(osb, NULL, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;

@@ -409,13 +409,6 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	mlog(0, "extending dir %llu (i_size = %lld)\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir_i_size);
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
-
 	/* dir->i_size is always block aligned. */
 	spin_lock(&OCFS2_I(dir)->ip_lock);
 	if (dir_i_size == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters)) {
@@ -428,8 +421,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		}
 
 		if (!num_free_extents) {
-			status = ocfs2_reserve_new_metadata(osb, handle,
-							    fe, &meta_ac);
+			status = ocfs2_reserve_new_metadata(osb, fe, &meta_ac);
 			if (status < 0) {
 				if (status != -ENOSPC)
 					mlog_errno(status);
@@ -437,7 +429,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 			}
 		}
 
-		status = ocfs2_reserve_clusters(osb, handle, 1, &data_ac);
+		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -450,7 +442,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
 	}
 
-	handle = ocfs2_start_trans(osb, handle, credits);
+	handle = ocfs2_start_trans(osb, NULL, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
