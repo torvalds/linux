@@ -154,7 +154,7 @@ halt_processor(void)
 
 
 irqreturn_t
-ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs) 
+ipi_interrupt(int irq, void *dev_id) 
 {
 	int this_cpu = smp_processor_id();
 	struct cpuinfo_parisc *p = &cpu_data[this_cpu];
@@ -412,19 +412,6 @@ void
 smp_flush_tlb_all(void)
 {
 	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
-}
-
-
-void 
-smp_do_timer(struct pt_regs *regs)
-{
-	int cpu = smp_processor_id();
-	struct cpuinfo_parisc *data = &cpu_data[cpu];
-
-        if (!--data->prof_counter) {
-		data->prof_counter = data->prof_multiplier;
-		update_process_times(user_mode(regs));
-	}
 }
 
 /*
