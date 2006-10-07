@@ -1114,13 +1114,6 @@ static int ocfs2_rename(struct inode *old_dir,
 		rename_lock = 1;
 	}
 
-	handle = ocfs2_alloc_handle(osb);
-	if (handle == NULL) {
-		status = -ENOMEM;
-		mlog_errno(status);
-		goto bail;
-	}
-
 	/* if old and new are the same, this'll just do one lock. */
 	status = ocfs2_double_lock(osb, &old_dir_bh, old_dir,
 				   &new_dir_bh, new_dir);
@@ -1291,7 +1284,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, handle, OCFS2_RENAME_CREDITS);
+	handle = ocfs2_start_trans(osb, NULL, OCFS2_RENAME_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
