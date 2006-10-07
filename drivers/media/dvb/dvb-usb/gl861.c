@@ -150,6 +150,7 @@ static struct usb_device_id gl861_table [] = {
 MODULE_DEVICE_TABLE (usb, gl861_table);
 
 static struct dvb_usb_device_properties gl861_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 
 	.size_of_priv     = 0,
@@ -157,7 +158,6 @@ static struct dvb_usb_device_properties gl861_properties = {
 	.identify_state   = gl861_identify_state,
 	.num_adapters = 1,
 	.adapter = {{
-		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 		.frontend_attach  = gl861_frontend_attach,
 		.tuner_attach     = qt1010_tuner_attach,
