@@ -162,10 +162,10 @@ static void hil_mlc_send_polls(hil_mlc *mlc) {
 		if (did != (p & HIL_PKT_ADDR_MASK) >> 8) {
 			if (drv == NULL || drv->interrupt == NULL) goto skip;
 
-			drv->interrupt(serio, 0, 0, NULL);
-			drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-			drv->interrupt(serio, HIL_PKT_CMD >> 8,  0, NULL);
-			drv->interrupt(serio, HIL_CMD_POL + cnt, 0, NULL);
+			drv->interrupt(serio, 0, 0);
+			drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+			drv->interrupt(serio, HIL_PKT_CMD >> 8,  0);
+			drv->interrupt(serio, HIL_CMD_POL + cnt, 0);
 		skip:
 			did = (p & HIL_PKT_ADDR_MASK) >> 8;
 			serio = did ? mlc->serio[mlc->di_map[did-1]] : NULL;
@@ -174,10 +174,10 @@ static void hil_mlc_send_polls(hil_mlc *mlc) {
 		}
 		cnt++; i++;
 		if (drv == NULL || drv->interrupt == NULL) continue;
-		drv->interrupt(serio, (p >> 24), 0, NULL);
-		drv->interrupt(serio, (p >> 16) & 0xff, 0, NULL);
-		drv->interrupt(serio, (p >> 8) & ~HIL_PKT_ADDR_MASK, 0, NULL);
-		drv->interrupt(serio, p & 0xff, 0, NULL);
+		drv->interrupt(serio, (p >> 24), 0);
+		drv->interrupt(serio, (p >> 16) & 0xff, 0);
+		drv->interrupt(serio, (p >> 8) & ~HIL_PKT_ADDR_MASK, 0);
+		drv->interrupt(serio, p & 0xff, 0);
 	}
 }
 
@@ -780,16 +780,16 @@ static int hil_mlc_serio_write(struct serio *serio, unsigned char c) {
 	while ((last != idx) && (*last == 0)) last--;
 
 	while (idx != last) {
-		drv->interrupt(serio, 0, 0, NULL);
-		drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-		drv->interrupt(serio, 0, 0, NULL);
-		drv->interrupt(serio, *idx, 0, NULL);
+		drv->interrupt(serio, 0, 0);
+		drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+		drv->interrupt(serio, 0, 0);
+		drv->interrupt(serio, *idx, 0);
 		idx++;
 	}
-	drv->interrupt(serio, 0, 0, NULL);
-	drv->interrupt(serio, HIL_ERR_INT >> 16, 0, NULL);
-	drv->interrupt(serio, HIL_PKT_CMD >> 8, 0, NULL);
-	drv->interrupt(serio, *idx, 0, NULL);
+	drv->interrupt(serio, 0, 0);
+	drv->interrupt(serio, HIL_ERR_INT >> 16, 0);
+	drv->interrupt(serio, HIL_PKT_CMD >> 8, 0);
+	drv->interrupt(serio, *idx, 0);
 	
 	mlc->serio_oidx[map->didx] = 0;
 	mlc->serio_opacket[map->didx] = 0;

@@ -166,7 +166,7 @@ static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 
 	/* make sure any received data is returned as fast as possible */
 	/* this is important e.g. when we set the LEDs on the keyboard */
-	gscps2_interrupt(0, NULL, NULL);
+	gscps2_interrupt(0, NULL);
 
 	return 1;
 }
@@ -306,7 +306,7 @@ static int gscps2_open(struct serio *port)
 	/* enable it */
 	gscps2_enable(ps2port, ENABLE);
 
-	gscps2_interrupt(0, NULL, NULL);
+	gscps2_interrupt(0, NULL);
 
 	return 0;
 }
