@@ -151,12 +151,12 @@ $(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call cmd,wrap,uboot)
 
-image-$(CONFIG_PPC_PSERIES)	+= zImage.pseries
-image-$(CONFIG_PPC_MAPLE)	+= zImage.pseries
-image-$(CONFIG_PPC_CELL)	+= zImage.pseries
-image-$(CONFIG_PPC_CHRP)	+= zImage.chrp
-image-$(CONFIG_PPC_PMAC)	+= zImage.pmac
-image-$(CONFIG_DEFAULT_UIMAGE)	+= uImage
+image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
+image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
+image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
+image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
+image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
+image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.
