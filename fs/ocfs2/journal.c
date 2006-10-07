@@ -110,7 +110,7 @@ finally:
 	return status;
 }
 
-struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
+static struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 {
 	struct ocfs2_journal_handle *retval = NULL;
 

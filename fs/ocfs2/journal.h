@@ -198,11 +198,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  Transaction Handling:
  *  Manage the lifetime of a transaction handle.
  *
- *  ocfs2_alloc_handle     - Only allocate a handle so we can start putting
- *                          cluster locks on it. To actually change blocks,
- *                          call ocfs2_start_trans with the handle returned
- *                          from this function. You may call ocfs2_commit_trans
- *                           at any time in the lifetime of a handle.
  *  ocfs2_start_trans      - Begin a transaction. Give it an upper estimate of
  *                          the number of blocks that will be changed during
  *                          this handle.
@@ -221,7 +216,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 /* You must always start_trans with a number of buffs > 0, but it's
  * perfectly legal to go through an entire transaction without having
  * dirtied any buffers. */
-struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb);
 struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 					       struct ocfs2_journal_handle *handle,
 					       int max_buffs);
