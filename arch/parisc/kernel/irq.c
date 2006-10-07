@@ -347,12 +347,14 @@ static inline int eirr_to_irq(unsigned long eirr)
 /* ONLY called from entry.S:intr_extint() */
 void do_cpu_irq_mask(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	unsigned long eirr_val;
 	int irq, cpu = smp_processor_id();
 #ifdef CONFIG_SMP
 	cpumask_t dest;
 #endif
 
+	old_regs = set_irq_regs(regs);
 	local_irq_disable();
 	irq_enter();
 
@@ -379,6 +381,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 
  out:
 	irq_exit();
+	set_irq_regs(old_regs);
 	return;
 
  set_out:
