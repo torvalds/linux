@@ -154,25 +154,47 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			       "MINOR=%u", MINOR(dev->devt));
 	}
 
-#ifdef CONFIG_SYSFS_DEPRECATED
-	/* add bus name (same as SUBSYSTEM, deprecated) */
-	if (dev->bus)
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "PHYSDEVBUS=%s", dev->bus->name);
-#endif
-
-	/* add driver name (PHYSDEV* values are deprecated)*/
-	if (dev->driver) {
+	if (dev->driver)
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
 			       "DRIVER=%s", dev->driver->name);
+
 #ifdef CONFIG_SYSFS_DEPRECATED
+	if (dev->class) {
+		struct device *parent = dev->parent;
+
+		/* find first bus device in parent chain */
+		while (parent && !parent->bus)
+			parent = parent->parent;
+		if (parent && parent->bus) {
+			const char *path;
+
+			path = kobject_get_path(&parent->kobj, GFP_KERNEL);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVPATH=%s", path);
+			kfree(path);
+
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVBUS=%s", parent->bus->name);
+
+			if (parent->driver)
+				add_uevent_var(envp, num_envp, &i,
+					       buffer, buffer_size, &length,
+					       "PHYSDEVDRIVER=%s", parent->driver->name);
+		}
+	} else if (dev->bus) {
 		add_uevent_var(envp, num_envp, &i,
 			       buffer, buffer_size, &length,
-			       "PHYSDEVDRIVER=%s", dev->driver->name);
-#endif
+			       "PHYSDEVBUS=%s", dev->bus->name);
+
+		if (dev->driver)
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVDRIVER=%s", dev->driver->name);
 	}
+#endif
 
 	/* terminate, set to next free slot, shrink available space */
 	envp[i] = NULL;
