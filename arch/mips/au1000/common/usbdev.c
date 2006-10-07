@@ -1031,8 +1031,7 @@ process_ep_receive (struct usb_dev* dev, endpoint_t *ep)
 
 
 /* This ISR handles the receive complete and suspend events */
-static void
-req_sus_intr (int irq, void *dev_id, struct pt_regs *regs)
+static void req_sus_intr (int irq, void *dev_id)
 {
 	struct usb_dev *dev = (struct usb_dev *) dev_id;
 	u32 status;
@@ -1050,8 +1049,7 @@ req_sus_intr (int irq, void *dev_id, struct pt_regs *regs)
 
 
 /* This ISR handles the DMA done events on EP0 */
-static void
-dma_done_ep0_intr(int irq, void *dev_id, struct pt_regs *regs)
+static void dma_done_ep0_intr(int irq, void *dev_id)
 {
 	struct usb_dev *dev = (struct usb_dev *) dev_id;
 	usbdev_pkt_t* pkt;
@@ -1094,8 +1092,7 @@ dma_done_ep0_intr(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /* This ISR handles the DMA done events on endpoints 2,3,4,5 */
-static void
-dma_done_ep_intr(int irq, void *dev_id, struct pt_regs *regs)
+static void dma_done_ep_intr(int irq, void *dev_id)
 {
 	struct usb_dev *dev = (struct usb_dev *) dev_id;
 	int i;

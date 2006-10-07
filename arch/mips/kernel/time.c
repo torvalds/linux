@@ -324,8 +324,7 @@ static long last_rtc_update;
  */
 void local_timer_interrupt(int irq, void *dev_id)
 {
-	if (current->pid)
-		profile_tick(CPU_PROFILING);
+	profile_tick(CPU_PROFILING);
 	update_process_times(user_mode(get_irq_regs()));
 }
 
@@ -434,9 +433,8 @@ int (*perf_irq)(void) = null_perf_irq;
 EXPORT_SYMBOL(null_perf_irq);
 EXPORT_SYMBOL(perf_irq);
 
-asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs)
+asmlinkage void ll_timer_interrupt(int irq)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	int r2 = cpu_has_mips_r2;
 
 	irq_enter();
@@ -458,12 +456,10 @@ asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs)
 
 out:
 	irq_exit();
-	set_irq_regs(old_regs);
 }
 
-asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs)
+asmlinkage void ll_local_timer_interrupt(int irq)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	irq_enter();
 	if (smp_processor_id() != 0)
 		kstat_this_cpu.irqs[irq]++;
@@ -472,7 +468,6 @@ asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs)
 	local_timer_interrupt(irq, NULL);
 
 	irq_exit();
-	set_irq_regs(old_regs);
 }
 
 /*

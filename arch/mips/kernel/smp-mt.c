@@ -106,22 +106,22 @@ void __init sanitize_tlb_entries(void)
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 }
 
-static void ipi_resched_dispatch (struct pt_regs *regs)
+static void ipi_resched_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
 }
 
-static void ipi_call_dispatch (struct pt_regs *regs)
+static void ipi_call_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ);
 }
 
-irqreturn_t ipi_resched_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
 }
 
-irqreturn_t ipi_call_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 {
 	smp_call_function_interrupt();
 
@@ -250,8 +250,8 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 {
 	/* set up ipi interrupts */
 	if (cpu_has_vint) {
-		set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
-		set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
+		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
+		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
 	}
 
 	cpu_ipi_resched_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ;

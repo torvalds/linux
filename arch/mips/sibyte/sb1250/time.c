@@ -125,7 +125,7 @@ void sb1250_time_init(void)
 	 */
 }
 
-void sb1250_timer_interrupt(struct pt_regs *regs)
+void sb1250_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
 	int irq = K_INT_TIMER_0 + cpu;
@@ -138,13 +138,13 @@ void sb1250_timer_interrupt(struct pt_regs *regs)
 		/*
 		 * CPU 0 handles the global timer interrupt job
 		 */
-		ll_timer_interrupt(irq, regs);
+		ll_timer_interrupt(irq);
 	}
 	else {
 		/*
 		 * other CPUs should just do profiling and process accounting
 		 */
-		ll_local_timer_interrupt(irq, regs);
+		ll_local_timer_interrupt(irq);
 	}
 }
 

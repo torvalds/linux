@@ -104,8 +104,6 @@ tx4938_irq_cp0_init(void)
 		irq_desc[i].depth = 1;
 		irq_desc[i].chip = &tx4938_irq_cp0_type;
 	}
-
-	return;
 }
 
 static unsigned int
@@ -113,7 +111,7 @@ tx4938_irq_cp0_startup(unsigned int irq)
 {
 	tx4938_irq_cp0_enable(irq);
 
-	return (0);
+	return 0;
 }
 
 static void
@@ -144,16 +142,12 @@ tx4938_irq_cp0_disable(unsigned int irq)
 	clear_c0_status(tx4938_irq_cp0_mask(irq));
 
 	spin_unlock_irqrestore(&tx4938_cp0_lock, flags);
-
-	return;
 }
 
 static void
 tx4938_irq_cp0_mask_and_ack(unsigned int irq)
 {
 	tx4938_irq_cp0_disable(irq);
-
-	return;
 }
 
 static void
@@ -162,8 +156,6 @@ tx4938_irq_cp0_end(unsigned int irq)
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
 		tx4938_irq_cp0_enable(irq);
 	}
-
-	return;
 }
 
 /**********************************************************************************/
@@ -227,7 +219,7 @@ tx4938_irq_pic_addr(int irq)
 		}
 	}
 
-	return (0);
+	return 0;
 }
 
 u32
@@ -278,7 +270,7 @@ tx4938_irq_pic_mask(int irq)
 			return (0x00000007);
 		}
 	}
-	return (0x00000000);
+	return 0x00000000;
 }
 
 static void
@@ -292,8 +284,6 @@ tx4938_irq_pic_modify(unsigned pic_reg, unsigned clr_bits, unsigned set_bits)
 	TX4938_WR(pic_reg, val);
 	mmiowb();
 	TX4938_RD(pic_reg);
-
-	return;
 }
 
 static void __init
@@ -317,8 +307,6 @@ tx4938_irq_pic_init(void)
 	TX4938_WR(0xff1ff600, TX4938_RD(0xff1ff600) | 0x1);	/* irq enable */
 
 	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
-
-	return;
 }
 
 static unsigned int
@@ -326,15 +314,13 @@ tx4938_irq_pic_startup(unsigned int irq)
 {
 	tx4938_irq_pic_enable(irq);
 
-	return (0);
+	return 0;
 }
 
 static void
 tx4938_irq_pic_shutdown(unsigned int irq)
 {
 	tx4938_irq_pic_disable(irq);
-
-	return;
 }
 
 static void
@@ -348,8 +334,6 @@ tx4938_irq_pic_enable(unsigned int irq)
 			      tx4938_irq_pic_mask(irq));
 
 	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
-
-	return;
 }
 
 static void
@@ -363,16 +347,12 @@ tx4938_irq_pic_disable(unsigned int irq)
 			      tx4938_irq_pic_mask(irq), 0);
 
 	spin_unlock_irqrestore(&tx4938_pic_lock, flags);
-
-	return;
 }
 
 static void
 tx4938_irq_pic_mask_and_ack(unsigned int irq)
 {
 	tx4938_irq_pic_disable(irq);
-
-	return;
 }
 
 static void
@@ -381,8 +361,6 @@ tx4938_irq_pic_end(unsigned int irq)
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
 		tx4938_irq_pic_enable(irq);
 	}
-
-	return;
 }
 
 /**********************************************************************************/
@@ -394,8 +372,6 @@ tx4938_irq_init(void)
 {
 	tx4938_irq_cp0_init();
 	tx4938_irq_pic_init();
-
-	return;
 }
 
 int
@@ -417,23 +393,23 @@ tx4938_irq_nested(void)
 	}
 
 	wbflush();
-	return (sw_irq);
+	return sw_irq;
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status();
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(TX4938_IRQ_CPU_TIMER, regs);
+		do_IRQ(TX4938_IRQ_CPU_TIMER);
 	else if (pending & STATUSF_IP2) {
 		int irq = tx4938_irq_nested();
 		if (irq)
-			do_IRQ(irq, regs);
+			do_IRQ(irq);
 		else
-			spurious_interrupt(regs);
+			spurious_interrupt();
 	} else if (pending & STATUSF_IP1)
-		do_IRQ(TX4938_IRQ_USER1, regs);
+		do_IRQ(TX4938_IRQ_USER1);
 	else if (pending & STATUSF_IP0)
-		do_IRQ(TX4938_IRQ_USER0, regs);
+		do_IRQ(TX4938_IRQ_USER0);
 }

@@ -576,24 +576,24 @@ static int tx4927_irq_nested(void)
 	return (sw_irq);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP7)			/* cpu timer */
-		do_IRQ(TX4927_IRQ_CPU_TIMER, regs);
+		do_IRQ(TX4927_IRQ_CPU_TIMER);
 	else if (pending & STATUSF_IP2) {		/* tx4927 pic */
 		unsigned int irq = tx4927_irq_nested();
 
 		if (unlikely(irq == 0)) {
-			spurious_interrupt(regs);
+			spurious_interrupt();
 			return;
 		}
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	} else if (pending & STATUSF_IP0)		/* user line 0 */
-		do_IRQ(TX4927_IRQ_USER0, regs);
+		do_IRQ(TX4927_IRQ_USER0);
 	else if (pending & STATUSF_IP1)			/* user line 1 */
-		do_IRQ(TX4927_IRQ_USER1, regs);
+		do_IRQ(TX4927_IRQ_USER1);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }

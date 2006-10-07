@@ -264,8 +264,10 @@
 		 srlv	t3,t1,t2
 
 handle_it:
+		LONG_L	s0, TI_REGS($28)
+		LONG_S	sp, TI_REGS($28)
 		jal	do_IRQ
-		 move	a1,sp
+		LONG_S	s0, TI_REGS($28)
 
 		j	ret_from_irq
 		 nop

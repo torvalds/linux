@@ -115,14 +115,14 @@ static void end_msc_irq(unsigned int irq)
 /*
  * Interrupt handler for interrupts coming from SOC-it.
  */
-void ll_msc_irq(struct pt_regs *regs)
+void ll_msc_irq(void)
 {
  	unsigned int irq;
 
 	/* read the interrupt vector register */
 	MSCIC_READ(MSC01_IC_VEC, irq);
 	if (irq < 64)
-		do_IRQ(irq + irq_base, regs);
+		do_IRQ(irq + irq_base);
 	else {
 		/* Ignore spurious interrupt */
 	}

@@ -113,7 +113,7 @@ static void end_mv64340_irq(unsigned int irq)
  * Interrupt handler for interrupts coming from the Marvell chip.
  * It could be built in ethernet ports etc...
  */
-void ll_mv64340_irq(struct pt_regs *regs)
+void ll_mv64340_irq(void)
 {
 	unsigned int irq_src_low, irq_src_high;
  	unsigned int irq_mask_low, irq_mask_high;
@@ -129,9 +129,9 @@ void ll_mv64340_irq(struct pt_regs *regs)
 	irq_src_high &= irq_mask_high;
 
 	if (irq_src_low)
-		do_IRQ(ls1bit32(irq_src_low) + irq_base, regs);
+		do_IRQ(ls1bit32(irq_src_low) + irq_base);
 	else
-		do_IRQ(ls1bit32(irq_src_high) + irq_base + 32, regs);
+		do_IRQ(ls1bit32(irq_src_high) + irq_base + 32);
 }
 
 #define shutdown_mv64340_irq	disable_mv64340_irq

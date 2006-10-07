@@ -70,7 +70,7 @@ static char __init *decode_eisa_sig(unsigned long addr)
 	return sig_str;
 }
 
-static irqreturn_t ip22_eisa_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ip22_eisa_intr(int irq, void *dev_id)
 {
 	u8 eisa_irq;
 	u8 dma1, dma2;
@@ -80,7 +80,7 @@ static irqreturn_t ip22_eisa_intr(int irq, void *dev_id, struct pt_regs *regs)
 	dma2 = inb(EISA_DMA2_STATUS);
 
 	if (eisa_irq < EISA_MAX_IRQ) {
-		do_IRQ(eisa_irq, regs);
+		do_IRQ(eisa_irq);
 		return IRQ_HANDLED;
 	}
 
@@ -89,6 +89,7 @@ static irqreturn_t ip22_eisa_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	outb(0x20, EISA_INT2_CTRL);
 	outb(0x20, EISA_INT1_CTRL);
+
 	return IRQ_NONE;
 }
 

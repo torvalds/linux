@@ -39,7 +39,7 @@
 /*
  * the first level int-handler will jump here if it is a emma2rh irq
  */
-asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
+void emma2rh_irq_dispatch(void)
 {
 	u32 intStatus;
 	u32 bitmask;
@@ -56,7 +56,7 @@ asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
 		    & emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
 		for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
 			if (swIntStatus & bitmask) {
-				do_IRQ(EMMA2RH_SW_IRQ_BASE + i, regs);
+				do_IRQ(EMMA2RH_SW_IRQ_BASE + i);
 				return;
 			}
 		}
@@ -65,7 +65,7 @@ asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
 
 	for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
 		if (intStatus & bitmask) {
-			do_IRQ(EMMA2RH_IRQ_BASE + i, regs);
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
 			return;
 		}
 	}
@@ -81,7 +81,7 @@ asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
 		    & emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
 		for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
 			if (gpioIntStatus & bitmask) {
-				do_IRQ(EMMA2RH_GPIO_IRQ_BASE + i, regs);
+				do_IRQ(EMMA2RH_GPIO_IRQ_BASE + i);
 				return;
 			}
 		}
@@ -90,7 +90,7 @@ asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
 
 	for (i = 32, bitmask = 1; i < 64; i++, bitmask <<= 1) {
 		if (intStatus & bitmask) {
-			do_IRQ(EMMA2RH_IRQ_BASE + i, regs);
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
 			return;
 		}
 	}
@@ -100,7 +100,7 @@ asmlinkage void emma2rh_irq_dispatch(struct pt_regs *regs)
 
 	for (i = 64, bitmask = 1; i < 96; i++, bitmask <<= 1) {
 		if (intStatus & bitmask) {
-			do_IRQ(EMMA2RH_IRQ_BASE + i, regs);
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
 			return;
 		}
 	}

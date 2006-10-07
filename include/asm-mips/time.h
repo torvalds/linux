@@ -72,13 +72,13 @@ extern irqreturn_t timer_interrupt(int irq, void *dev_id);
 /*
  * the corresponding low-level timer interrupt routine.
  */
-extern asmlinkage void ll_timer_interrupt(int irq, struct pt_regs *regs);
+extern asmlinkage void ll_timer_interrupt(int irq);
 
 /*
  * profiling and process accouting is done separately in local_timer_interrupt
  */
 extern void local_timer_interrupt(int irq, void *dev_id);
-extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
+extern asmlinkage void ll_local_timer_interrupt(int irq);
 
 /*
  * board specific routines required by time_init().

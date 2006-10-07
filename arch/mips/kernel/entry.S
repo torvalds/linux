@@ -79,7 +79,6 @@ FEXPORT(syscall_exit)
 FEXPORT(restore_all)			# restore full frame
 #ifdef CONFIG_MIPS_MT_SMTC
 /* Detect and execute deferred IPI "interrupts" */
-	move	a0,sp
 	jal	deferred_smtc_ipi
 /* Re-arm any temporarily masked interrupts not explicitly "acked" */
 	mfc0	v0, CP0_TCSTATUS

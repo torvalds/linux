@@ -114,7 +114,7 @@ static inline int get_int(void)
 	return irq;
 }
 
-static void malta_hw0_irqdispatch(struct pt_regs *regs)
+static void malta_hw0_irqdispatch(void)
 {
 	int irq;
 
@@ -123,17 +123,21 @@ static void malta_hw0_irqdispatch(struct pt_regs *regs)
 		return;  /* interrupt has already been cleared */
 	}
 
-	do_IRQ(MALTA_INT_BASE+irq, regs);
+	do_IRQ(MALTA_INT_BASE + irq);
 }
 
-void corehi_irqdispatch(struct pt_regs *regs)
+static void corehi_irqdispatch(void)
 {
+	unsigned int intedge, intsteer, pcicmd, pcibadaddr;
+        unsigned int pcimstat, intisr, inten, intpol;
 	unsigned int intrcause,datalo,datahi;
-        unsigned int pcimstat, intisr, inten, intpol, intedge, intsteer, pcicmd, pcibadaddr;
+	struct pt_regs *regs;
 
         printk("CoreHI interrupt, shouldn't happen, so we die here!!!\n");
-        printk("epc   : %08lx\nStatus: %08lx\nCause : %08lx\nbadVaddr : %08lx\n"
-, regs->cp0_epc, regs->cp0_status, regs->cp0_cause, regs->cp0_badvaddr);
+        printk("epc   : %08lx\nStatus: %08lx\n"
+	       "Cause : %08lx\nbadVaddr : %08lx\n",
+	       regs->cp0_epc, regs->cp0_status,
+	       regs->cp0_cause, regs->cp0_badvaddr);
 
 	/* Read all the registers and then print them as there is a
 	   problem with interspersed printk's upsetting the Bonito controller.
@@ -146,7 +150,7 @@ void corehi_irqdispatch(struct pt_regs *regs)
         case MIPS_REVISION_CORID_CORE_FPGA3:
         case MIPS_REVISION_CORID_CORE_24K:
         case MIPS_REVISION_CORID_CORE_EMUL_MSC:
-                ll_msc_irq(regs);
+                ll_msc_irq();
                 break;
         case MIPS_REVISION_CORID_QED_RM5261:
         case MIPS_REVISION_CORID_CORE_LV:
@@ -255,7 +259,7 @@ static inline unsigned int irq_ffs(unsigned int pending)
  * another exception, big deal.
  */
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 	int irq;
@@ -263,11 +267,11 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	irq = irq_ffs(pending);
 
 	if (irq == MIPSCPU_INT_I8259A)
-		malta_hw0_irqdispatch(regs);
+		malta_hw0_irqdispatch();
 	else if (irq > 0)
-		do_IRQ(MIPSCPU_INT_BASE + irq, regs);
+		do_IRQ(MIPSCPU_INT_BASE + irq);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 static struct irqaction i8259irq = {
