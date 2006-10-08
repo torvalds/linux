@@ -1,5 +1,4 @@
 /*
- *  
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
  *  This program is free software; you can redistribute it and/or modify
@@ -48,7 +47,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 		/* read the index of the first fragment to be freed */
 		index = priv->free_data_tx % ISL38XX_CB_TX_QSIZE;
 
-		/* check for holes in the arrays caused by multi fragment frames 
+		/* check for holes in the arrays caused by multi fragment frames
 		 * searching for the last fragment of a frame */
 		if (priv->pci_map_tx_address[index] != (dma_addr_t) NULL) {
 			/* entry is the last fragment of a frame
@@ -285,7 +284,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		    (struct avs_80211_1_header *) skb_push(*skb,
 							   sizeof (struct
 								   avs_80211_1_header));
-		
+
 		avs->version = cpu_to_be32(P80211CAPTURE_VERSION);
 		avs->length = cpu_to_be32(sizeof (struct avs_80211_1_header));
 		avs->mactime = cpu_to_be64(le64_to_cpu(clock));
@@ -391,7 +390,7 @@ islpci_eth_receive(islpci_private *priv)
 			struct rx_annex_header *annex =
 			    (struct rx_annex_header *) skb->data;
 			wstats.level = annex->rfmon.rssi;
-			/* The noise value can be a bit outdated if nobody's 
+			/* The noise value can be a bit outdated if nobody's
 			 * reading wireless stats... */
 			wstats.noise = priv->local_iwstatistics.qual.noise;
 			wstats.qual = wstats.level - wstats.noise;
