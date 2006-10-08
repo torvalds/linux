@@ -243,9 +243,8 @@ titan_legacy_init_irq(void)
 }
 
 void
-titan_dispatch_irqs(u64 mask, struct pt_regs *regs)
+titan_dispatch_irqs(u64 mask)
 {
-	struct pt_regs *old_regs;
 	unsigned long vector;
 
 	/*
@@ -253,7 +252,6 @@ titan_dispatch_irqs(u64 mask, struct pt_regs *regs)
 	 */
 	mask &= titan_cpu_irq_affinity[smp_processor_id()];
 
-	old_regs = set_irq_regs(regs);
 	/*
 	 * Dispatch all requested interrupts 
 	 */
@@ -267,7 +265,6 @@ titan_dispatch_irqs(u64 mask, struct pt_regs *regs)
 		/* dispatch it */
 		alpha_mv.device_interrupt(vector);
 	}
-	set_irq_regs(old_regs);
 }
   
 

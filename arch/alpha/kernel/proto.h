@@ -177,7 +177,7 @@ extern void dik_show_regs(struct pt_regs *regs, unsigned long *r9_15);
 extern void die_if_kernel(char *, struct pt_regs *, long, unsigned long *);
 
 /* sys_titan.c */
-extern void titan_dispatch_irqs(u64, struct pt_regs *);
+extern void titan_dispatch_irqs(u64);
 
 /* ../mm/init.c */
 extern void switch_to_system_map(void);

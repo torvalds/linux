@@ -452,7 +452,7 @@ titan_machine_check(u64 vector, u64 la_ptr)
 		 * machine checks to interrupts
 		 */
 		irqmask = tmchk->c_dirx & TITAN_MCHECK_INTERRUPT_MASK;
-		titan_dispatch_irqs(irqmask, get_irq_regs());
+		titan_dispatch_irqs(irqmask);
 	}	
 
 
@@ -746,7 +746,7 @@ privateer_machine_check(u64 vector, u64 la_ptr)
 	/*
 	 * Dispatch the interrupt(s).
 	 */
-	titan_dispatch_irqs(irqmask, get_irq_regs());
+	titan_dispatch_irqs(irqmask);
 
 	/* 
 	 * Release the logout frame.
