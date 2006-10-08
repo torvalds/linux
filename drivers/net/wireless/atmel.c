@@ -784,11 +784,11 @@ static void tx_update_descriptor(struct atmel_private *priv, int is_bcast,
 
 static int start_tx(struct sk_buff *skb, struct net_device *dev)
 {
+	static const u8 SNAP_RFC1024[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 	struct atmel_private *priv = netdev_priv(dev);
 	struct ieee80211_hdr_4addr header;
 	unsigned long flags;
 	u16 buff, frame_ctl, len = (ETH_ZLEN < skb->len) ? skb->len : ETH_ZLEN;
-	u8 SNAP_RFC1024[6] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 	if (priv->card && priv->present_callback &&
 	    !(*priv->present_callback)(priv->card)) {
