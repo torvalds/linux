@@ -322,25 +322,11 @@ found_client:
 	if (new)
 		nfs_free_client(new);
 
-	if (clp->cl_cons_state == NFS_CS_INITING) {
-		DECLARE_WAITQUEUE(myself, current);
-
-		add_wait_queue(&nfs_client_active_wq, &myself);
-
-		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (signal_pending(current) ||
-			    clp->cl_cons_state != NFS_CS_INITING)
-				break;
-			schedule();
-		}
-
-		remove_wait_queue(&nfs_client_active_wq, &myself);
-
-		if (signal_pending(current)) {
-			nfs_put_client(clp);
-			return ERR_PTR(-ERESTARTSYS);
-		}
+	error = wait_event_interruptible(&nfs_client_active_wq,
+				clp->cl_cons_state != NFS_CS_INITING);
+	if (error < 0) {
+		nfs_put_client(clp);
+		return ERR_PTR(-ERESTARTSYS);
 	}
 
 	if (clp->cl_cons_state < NFS_CS_READY) {
