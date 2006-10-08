@@ -82,6 +82,14 @@ static struct sdram_params sdram_tbl[] __initdata = {
 		.twr		= 9,
 		.refresh	= 64000,
 		.cas_latency	= 3,
+	}, {    /* Samsung K4S281632B-1H */
+	        .name           = "K4S281632b-1H",
+		.rows           = 12,
+		.tck            = 10,
+		.trp            = 20,
+		.twr            = 10,
+		.refresh        = 64000,
+		.cas_latency    = 3,
 	}, {	/* Samsung KM416S4030CT */
 		.name		= "KM416S4030CT",
 		.rows		= 13,
@@ -366,6 +374,8 @@ static int __init sa1110_clk_init(void)
 
 		if (machine_is_h3100())
 			name = "KM416S4030CT";
+		if (machine_is_jornada720())
+		        name = "K4S281632B-1H";
 	}
 
 	sdram = sa1110_find_sdram(name);
