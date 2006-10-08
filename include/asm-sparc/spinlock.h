@@ -129,6 +129,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	: /* no outputs */
 	: "r" (lp)
 	: "g2", "g4", "memory", "cc");
+	*(volatile __u32 *)&lp->lock = ~0U;
 }
 
 static inline int __raw_write_trylock(raw_rwlock_t *rw)
@@ -144,15 +145,40 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		val = rw->lock & ~0xff;
 		if (val)
 			((volatile u8*)&rw->lock)[3] = 0;
+		else
+			*(volatile u32*)&rw->lock = ~0U;
 	}
 
 	return (val == 0);
 }
 
+static inline int __read_trylock(raw_rwlock_t *rw)
+{
+	register raw_rwlock_t *lp asm("g1");
+	register int res asm("o0");
+	lp = rw;
+	__asm__ __volatile__(
+	"mov	%%o7, %%g4\n\t"
+	"call	___rw_read_try\n\t"
+	" ldstub	[%%g1 + 3], %%g2\n"
+	: "=r" (res)
+	: "r" (lp)
+	: "g2", "g4", "memory", "cc");
+	return res;
+}
+
+#define __raw_read_trylock(lock) \
+({	unsigned long flags; \
+	int res; \
+	local_irq_save(flags); \
+	res = __read_trylock(lock); \
+	local_irq_restore(flags); \
+	res; \
+})
+
 #define __raw_write_unlock(rw)	do { (rw)->lock = 0; } while(0)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
-#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
 #define _raw_spin_relax(lock)	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()
