@@ -81,7 +81,6 @@ IRQ  Device
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <linux/bootmem.h>

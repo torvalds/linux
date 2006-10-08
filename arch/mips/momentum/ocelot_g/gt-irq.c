@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/gt64240.h>

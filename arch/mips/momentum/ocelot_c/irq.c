@@ -79,7 +79,7 @@ asmlinkage void plat_irq_dispatch(void)
 	else if (pending & STATUSF_IP5)
 		ll_cpci_irq();
 	else if (pending & STATUSF_IP6)
-		ll_mv64340_irq(regs);
+		ll_mv64340_irq();
 	else if (pending & STATUSF_IP7)
 		do_IRQ(7);
 	else

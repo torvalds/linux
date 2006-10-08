@@ -28,7 +28,6 @@
 #include <asm/irq_regs.h>
 #include <asm/signal.h>
 #include <asm/system.h>
-#include <asm/ptrace.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/bcm1480_regs.h>

@@ -31,7 +31,6 @@
 #include <asm/irq.h>
 #include <asm/mc146818-time.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/sni.h>
 #include <asm/time.h>

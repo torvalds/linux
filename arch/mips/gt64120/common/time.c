@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/irq_regs.h>
-#include <asm/ptrace.h>
 #include <asm/gt64120.h>
 
 /*
@@ -20,7 +19,7 @@
  * differently than other MIPS interrupts.
  */
 
-static void gt64120_irq(int irq, void *dev_id)
+static irqreturn_t gt64120_irq(int irq, void *dev_id)
 {
 	unsigned int irq_src, int_high_src, irq_src_mask, int_high_src_mask;
 	int handled = 0;
@@ -43,6 +42,8 @@ static void gt64120_irq(int irq, void *dev_id)
 
 	GT_WRITE(GT_INTRCAUSE_OFS, 0);
 	GT_WRITE(GT_HINTRCAUSE_OFS, 0);
+
+	return IRQ_HANDLED;
 }
 
 /*

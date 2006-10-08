@@ -14,7 +14,6 @@
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
-#include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/ip32/crime.h>
 #include <asm/ip32/mace.h>

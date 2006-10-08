@@ -78,8 +78,7 @@ struct pt_regs;
 
 extern void dec_kn02xa_be_init(void);
 extern int dec_kn02xa_be_handler(struct pt_regs *regs, int is_fixup);
-extern irqreturn_t dec_kn02xa_be_interrupt(int irq, void *dev_id,
-					   struct pt_regs *regs);
+extern irqreturn_t dec_kn02xa_be_interrupt(int irq, void *dev_id);
 #endif
 
 #endif /* __ASM_MIPS_DEC_KN02XA_H */
