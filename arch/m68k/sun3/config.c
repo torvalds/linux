@@ -35,7 +35,7 @@ extern char _text, _end;
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
 extern unsigned long sun3_gettimeoffset(void);
-extern void sun3_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
+extern void sun3_sched_init(irqreturn_t (*handler)(int, void *));
 extern void sun3_get_model (char* model);
 extern void idprom_init (void);
 extern int sun3_hwclk(int set, struct rtc_time *t);
