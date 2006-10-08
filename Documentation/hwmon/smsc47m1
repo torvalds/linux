@@ -2,12 +2,14 @@ Kernel driver smsc47m1
 ======================
 
 Supported chips:
-  * SMSC LPC47B27x, LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x and LPC47M192
+  * SMSC LPC47B27x, LPC47M112, LPC47M10x, LPC47M13x, LPC47M14x,
+    LPC47M15x and LPC47M192
     Addresses scanned: none, address read from Super I/O config space
     Prefix: 'smsc47m1'
     Datasheets:
         http://www.smsc.com/main/datasheets/47b27x.pdf
         http://www.smsc.com/main/datasheets/47m10x.pdf
+        http://www.smsc.com/main/datasheets/47m112.pdf
         http://www.smsc.com/main/tools/discontinued/47m13x.pdf
         http://www.smsc.com/main/datasheets/47m14x.pdf
         http://www.smsc.com/main/tools/discontinued/47m15x.pdf
