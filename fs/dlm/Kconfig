@@ -1,10 +1,9 @@
 menu "Distributed Lock Manager"
-	depends on INET && EXPERIMENTAL
+	depends on INET && IP_SCTP && EXPERIMENTAL
 
 config DLM
 	tristate "Distributed Lock Manager (DLM)"
 	depends on IPV6 || IPV6=n
-	depends on IP_SCTP
 	select CONFIGFS_FS
 	help
 	A general purpose distributed lock manager for kernel or userspace
