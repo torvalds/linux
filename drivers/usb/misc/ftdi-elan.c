@@ -513,8 +513,6 @@ static void ftdi_elan_respond_work(void *data)
                         ftdi->disconnected += 1;
                 } else if (retval == -ENODEV) {
                         ftdi->disconnected += 1;
-                } else if (retval == -ENODEV) {
-                        ftdi->disconnected += 1;
                 } else if (retval == -EILSEQ) {
                         ftdi->disconnected += 1;
                 } else {
