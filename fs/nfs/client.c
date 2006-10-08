@@ -330,7 +330,7 @@ found_client:
 		for (;;) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (signal_pending(current) ||
-			    clp->cl_cons_state > NFS_CS_READY)
+			    clp->cl_cons_state != NFS_CS_INITING)
 				break;
 			schedule();
 		}
