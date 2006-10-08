@@ -265,8 +265,7 @@ config RFD_FTL
 
 config SSFDC
 	tristate "NAND SSFDC (SmartMedia) read only translation layer"
-	depends on MTD
-	default n
+	depends on MTD && BLOCK
 	help
 	  This enables read only access to SmartMedia formatted NAND
 	  flash. You can mount it with FAT file system.
