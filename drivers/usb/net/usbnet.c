@@ -1144,6 +1144,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);
+	mutex_init (&dev->phy_mutex);
 
 	SET_MODULE_OWNER (net);
 	dev->net = net;

@@ -184,6 +184,7 @@ static int mcs7830_read_phy(struct usbnet *dev, u8 index)
 		HIF_REG_PHY_CMD2_PEND_FLAG_BIT | index,
 	};
 
+	mutex_lock(&dev->phy_mutex);
 	/* write the MII command */
 	ret = mcs7830_set_reg(dev, HIF_REG_PHY_CMD1, 2, cmd);
 	if (ret < 0)
@@ -208,6 +209,7 @@ static int mcs7830_read_phy(struct usbnet *dev, u8 index)
 	dev_dbg(&dev->udev->dev, "read PHY reg %02x: %04x (%d tries)\n",
 		index, val, i);
 out:
+	mutex_unlock(&dev->phy_mutex);
 	return ret;
 }
 
@@ -221,6 +223,8 @@ static int mcs7830_write_phy(struct usbnet *dev, u8 index, u16 val)
 		HIF_REG_PHY_CMD1_WRITE | HIF_REG_PHY_CMD1_PHYADDR,
 		HIF_REG_PHY_CMD2_PEND_FLAG_BIT | (index & 0x1F),
 	};
+
+	mutex_lock(&dev->phy_mutex);
 
 	/* write the new register contents */
 	le_val = cpu_to_le16(val);
@@ -248,6 +252,7 @@ static int mcs7830_write_phy(struct usbnet *dev, u8 index, u16 val)
 	dev_dbg(&dev->udev->dev, "write PHY reg %02x: %04x (%d tries)\n",
 		index, val, i);
 out:
+	mutex_unlock(&dev->phy_mutex);
 	return ret;
 }
 

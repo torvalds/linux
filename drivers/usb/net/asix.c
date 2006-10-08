@@ -569,10 +569,12 @@ static int asix_mdio_read(struct net_device *netdev, int phy_id, int loc)
 	struct usbnet *dev = netdev_priv(netdev);
 	u16 res;
 
+	mutex_lock(&dev->phy_mutex);
 	asix_set_sw_mii(dev);
 	asix_read_cmd(dev, AX_CMD_READ_MII_REG, phy_id,
 				(__u16)loc, 2, (u16 *)&res);
 	asix_set_hw_mii(dev);
+	mutex_unlock(&dev->phy_mutex);
 
 	devdbg(dev, "asix_mdio_read() phy_id=0x%02x, loc=0x%02x, returns=0x%04x", phy_id, loc, le16_to_cpu(res & 0xffff));
 
@@ -586,10 +588,12 @@ asix_mdio_write(struct net_device *netdev, int phy_id, int loc, int val)
 	u16 res = cpu_to_le16(val);
 
 	devdbg(dev, "asix_mdio_write() phy_id=0x%02x, loc=0x%02x, val=0x%04x", phy_id, loc, val);
+	mutex_lock(&dev->phy_mutex);
 	asix_set_sw_mii(dev);
 	asix_write_cmd(dev, AX_CMD_WRITE_MII_REG, phy_id,
 				(__u16)loc, 2, (u16 *)&res);
 	asix_set_hw_mii(dev);
+	mutex_unlock(&dev->phy_mutex);
 }
 
 /* Get the PHY Identifier from the PHYSID1 & PHYSID2 MII registers */

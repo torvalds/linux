@@ -30,6 +30,7 @@ struct usbnet {
 	struct usb_device	*udev;
 	struct driver_info	*driver_info;
 	wait_queue_head_t	*wait;
+	struct mutex		phy_mutex;
 
 	/* i/o info: pipes etc */
 	unsigned		in, out;
