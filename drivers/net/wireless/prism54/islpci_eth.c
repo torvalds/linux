@@ -253,6 +253,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 	 * header and without the FCS. But there a is a bit that
 	 * indicates if the packet is corrupted :-) */
 	struct rfmon_header *hdr = (struct rfmon_header *) (*skb)->data;
+
 	if (hdr->flags & 0x01)
 		/* This one is bad. Drop it ! */
 		return -1;
@@ -464,10 +465,8 @@ islpci_eth_receive(islpci_private *priv)
 			break;
 		}
 		/* update the fragment address */
-		control_block->rx_data_low[index].address = cpu_to_le32((u32)
-									priv->
-									pci_map_rx_address
-									[index]);
+		control_block->rx_data_low[index].address =
+			cpu_to_le32((u32)priv->pci_map_rx_address[index]);
 		wmb();
 
 		/* increment the driver read pointer */
@@ -484,10 +483,12 @@ islpci_eth_receive(islpci_private *priv)
 void
 islpci_do_reset_and_wake(void *data)
 {
-	islpci_private *priv = (islpci_private *) data;
+	islpci_private *priv = data;
+
 	islpci_reset(priv, 1);
-	netif_wake_queue(priv->ndev);
 	priv->reset_task_pending = 0;
+	smp_wmb();
+	netif_wake_queue(priv->ndev);
 }
 
 void
@@ -499,12 +500,14 @@ islpci_eth_tx_timeout(struct net_device *ndev)
 	/* increment the transmit error counter */
 	statistics->tx_errors++;
 
-	printk(KERN_WARNING "%s: tx_timeout", ndev->name);
 	if (!priv->reset_task_pending) {
-		priv->reset_task_pending = 1;
-		printk(", scheduling a reset");
+		printk(KERN_WARNING
+			"%s: tx_timeout, scheduling reset", ndev->name);
 		netif_stop_queue(ndev);
+		priv->reset_task_pending = 1;
 		schedule_work(&priv->reset_task);
+	} else {
+		printk(KERN_WARNING
+			"%s: tx_timeout, waiting for reset", ndev->name);
 	}
-	printk("\n");
 }
