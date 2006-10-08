@@ -37,10 +37,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
-#ifdef CONFIG_NS_ABS_POS
-#include <asm/io.h>
-#endif
-
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \
@@ -440,14 +436,6 @@ init_nandsim(struct mtd_info *mtd)
 	printk("options: %#x\n",                ns->options);
 
 	/* Map / allocate and initialize the flash image */
-#ifdef CONFIG_NS_ABS_POS
-	ns->mem.byte = ioremap(CONFIG_NS_ABS_POS, ns->geom.totszoob);
-	if (!ns->mem.byte) {
-		NS_ERR("init_nandsim: failed to map the NAND flash image at address %p\n",
-			(void *)CONFIG_NS_ABS_POS);
-		return -ENOMEM;
-	}
-#else
 	ns->mem.byte = vmalloc(ns->geom.totszoob);
 	if (!ns->mem.byte) {
 		NS_ERR("init_nandsim: unable to allocate %u bytes for flash image\n",
@@ -455,7 +443,6 @@ init_nandsim(struct mtd_info *mtd)
 		return -ENOMEM;
 	}
 	memset(ns->mem.byte, 0xFF, ns->geom.totszoob);
-#endif
 
 	/* Allocate / initialize the internal buffer */
 	ns->buf.byte = kmalloc(ns->geom.pgszoob, GFP_KERNEL);
@@ -474,11 +461,7 @@ init_nandsim(struct mtd_info *mtd)
 	return 0;
 
 error:
-#ifdef CONFIG_NS_ABS_POS
-	iounmap(ns->mem.byte);
-#else
 	vfree(ns->mem.byte);
-#endif
 
 	return -ENOMEM;
 }
@@ -490,12 +473,7 @@ static void
 free_nandsim(struct nandsim *ns)
 {
 	kfree(ns->buf.byte);
-
-#ifdef CONFIG_NS_ABS_POS
-	iounmap(ns->mem.byte);
-#else
 	vfree(ns->mem.byte);
-#endif
 
 	return;
 }
