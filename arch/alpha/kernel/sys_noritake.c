@@ -77,7 +77,7 @@ static struct hw_interrupt_type noritake_irq_type = {
 };
 
 static void 
-noritake_device_interrupt(unsigned long vector, struct pt_regs *regs)
+noritake_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
 	unsigned int i;
@@ -96,15 +96,15 @@ noritake_device_interrupt(unsigned long vector, struct pt_regs *regs)
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i < 16) {
-			isa_device_interrupt(vector, regs);
+			isa_device_interrupt(vector);
 		} else {
-			handle_irq(i, regs);
+			handle_irq(i, get_irq_regs());
 		}
 	}
 }
 
 static void 
-noritake_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+noritake_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -122,7 +122,7 @@ noritake_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	if (irq >= 16)
 		irq = irq + 1;
 
-	handle_irq(irq, regs);
+	handle_irq(irq, get_irq_regs());
 }
 
 static void __init

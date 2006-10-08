@@ -39,6 +39,7 @@ asmlinkage void
 do_entInt(unsigned long type, unsigned long vector,
 	  unsigned long la_ptr, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	switch (type) {
 	case 0:
 #ifdef CONFIG_SMP
@@ -72,7 +73,9 @@ do_entInt(unsigned long type, unsigned long vector,
 		alpha_mv.machine_check(vector, la_ptr, regs);
 		return;
 	case 3:
-		alpha_mv.device_interrupt(vector, regs);
+		old_regs = set_irq_regs(regs);
+		alpha_mv.device_interrupt(vector);
+		set_irq_regs(old_regs);
 		return;
 	case 4:
 		perf_irq(la_ptr, regs);

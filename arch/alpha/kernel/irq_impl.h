@@ -15,10 +15,10 @@
 
 #define RTC_IRQ    8
 
-extern void isa_device_interrupt(unsigned long, struct pt_regs *);
+extern void isa_device_interrupt(unsigned long);
 extern void isa_no_iack_sc_device_interrupt(unsigned long, struct pt_regs *);
-extern void srm_device_interrupt(unsigned long, struct pt_regs *);
-extern void pyxis_device_interrupt(unsigned long, struct pt_regs *);
+extern void srm_device_interrupt(unsigned long);
+extern void pyxis_device_interrupt(unsigned long);
 
 extern struct irqaction timer_irqaction;
 extern struct irqaction isa_cascade_irqaction;

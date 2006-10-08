@@ -79,7 +79,7 @@ static struct hw_interrupt_type mikasa_irq_type = {
 };
 
 static void 
-mikasa_device_interrupt(unsigned long vector, struct pt_regs *regs)
+mikasa_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
 	unsigned int i;
@@ -97,9 +97,9 @@ mikasa_device_interrupt(unsigned long vector, struct pt_regs *regs)
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i < 16) {
-			isa_device_interrupt(vector, regs);
+			isa_device_interrupt(vector);
 		} else {
-			handle_irq(i, regs);
+			handle_irq(i, get_irq_regs());
 		}
 	}
 }

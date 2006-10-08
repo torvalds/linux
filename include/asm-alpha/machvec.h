@@ -79,7 +79,7 @@ struct alpha_machine_vector
 
 	void (*update_irq_hw)(unsigned long, unsigned long, int);
 	void (*ack_irq)(unsigned long);
-	void (*device_interrupt)(unsigned long vector, struct pt_regs *regs);
+	void (*device_interrupt)(unsigned long vector);
 	void (*machine_check)(u64 vector, u64 la, struct pt_regs *regs);
 
 	void (*smp_callin)(void);

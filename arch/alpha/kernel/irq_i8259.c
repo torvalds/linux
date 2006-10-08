@@ -137,7 +137,7 @@ init_i8259a_irqs(void)
 
 #if defined(IACK_SC)
 void
-isa_device_interrupt(unsigned long vector, struct pt_regs *regs)
+isa_device_interrupt(unsigned long vector)
 {
 	/*
 	 * Generate a PCI interrupt acknowledge cycle.  The PIC will
@@ -147,7 +147,7 @@ isa_device_interrupt(unsigned long vector, struct pt_regs *regs)
 	 */
 	int j = *(vuip) IACK_SC;
 	j &= 0xff;
-	handle_irq(j, regs);
+	handle_irq(j, get_irq_regs());
 }
 #endif
 
