@@ -430,8 +430,12 @@ static struct ethtool_ops mcs7830_ethtool_ops = {
 	.get_regs		= mcs7830_get_regs,
 
 	/* common usbnet calls */
+	.get_link		= usbnet_get_link,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
+	.nway_reset		= usbnet_nway_reset,
 };
 
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)

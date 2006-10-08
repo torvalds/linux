@@ -700,32 +700,6 @@ static void asix_get_drvinfo (struct net_device *net,
 	info->eedump_len = data->eeprom_len;
 }
 
-static int asix_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	return mii_ethtool_gset(&dev->mii,cmd);
-}
-
-static int asix_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
-{
-	struct usbnet *dev = netdev_priv(net);
-	int res = mii_ethtool_sset(&dev->mii,cmd);
-
-	/* link speed/duplex might have changed */
-	if (dev->driver_info->link_reset)
-		dev->driver_info->link_reset(dev);
-
-	return res;
-}
-
-static int asix_nway_reset(struct net_device *net)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	return mii_nway_restart(&dev->mii);
-}
-
 static u32 asix_get_link(struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -746,15 +720,15 @@ static int asix_ioctl (struct net_device *net, struct ifreq *rq, int cmd)
 static struct ethtool_ops ax88172_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
-	.nway_reset		= asix_nway_reset,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 	.get_wol		= asix_get_wol,
 	.set_wol		= asix_set_wol,
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
-	.get_settings		= asix_get_settings,
-	.set_settings		= asix_set_settings,
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
+	.nway_reset		= usbnet_nway_reset,
 };
 
 static void ax88172_set_multicast(struct net_device *net)
@@ -885,15 +859,15 @@ out1:
 static struct ethtool_ops ax88772_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
-	.nway_reset		= asix_nway_reset,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 	.get_wol		= asix_get_wol,
 	.set_wol		= asix_set_wol,
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
-	.get_settings		= asix_get_settings,
-	.set_settings		= asix_set_settings,
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
+	.nway_reset		= usbnet_nway_reset,
 };
 
 static int ax88772_link_reset(struct usbnet *dev)
@@ -1046,15 +1020,15 @@ out1:
 static struct ethtool_ops ax88178_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
-	.nway_reset		= asix_nway_reset,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 	.get_wol		= asix_get_wol,
 	.set_wol		= asix_set_wol,
 	.get_eeprom_len		= asix_get_eeprom_len,
 	.get_eeprom		= asix_get_eeprom,
-	.get_settings		= asix_get_settings,
-	.set_settings		= asix_set_settings,
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
+	.nway_reset		= usbnet_nway_reset,
 };
 
 static int marvell_phy_init(struct usbnet *dev)
