@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/irq_regs.h>
-#include <asm/ptrace.h>
 #include <asm/gt64120.h>
 
 /*

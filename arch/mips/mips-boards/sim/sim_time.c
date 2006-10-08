@@ -15,7 +15,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/timex.h>
 #include <asm/mipsregs.h>
-#include <asm/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/irq.h>
 #include <asm/div64.h>

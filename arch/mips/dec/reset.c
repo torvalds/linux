@@ -8,7 +8,6 @@
 #include <linux/linkage.h>
 
 #include <asm/addrspace.h>
-#include <asm/ptrace.h>
 
 typedef void ATTRIB_NORET (* noret_func_t)(void);
 

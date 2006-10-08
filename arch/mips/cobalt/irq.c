@@ -16,7 +16,6 @@
 #include <asm/i8259.h>
 #include <asm/irq_cpu.h>
 #include <asm/gt64120.h>
-#include <asm/ptrace.h>
 
 #include <asm/mach-cobalt/cobalt.h>
 

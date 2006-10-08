@@ -127,7 +127,6 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 #include <asm/irq.h>
 #include <asm/pci.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <linux/bootmem.h>

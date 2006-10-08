@@ -30,7 +30,6 @@
 
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
-#include <asm/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/irq.h>
 #include <asm/div64.h>

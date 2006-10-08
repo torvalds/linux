@@ -28,7 +28,6 @@
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/system.h>
-#include <asm/ptrace.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/sb1250_regs.h>

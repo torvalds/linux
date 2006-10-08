@@ -1,7 +1,7 @@
 /*
  * Copyright 2002 Momentum Computer
  * Author: mdharm@momenco.com
- * Copyright (C) 2004 Ralf Baechle <ralf@linux-mips.org>
+ * Copyright (C) 2004, 06 Ralf Baechle <ralf@linux-mips.org>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,7 +15,6 @@
 #include <linux/mv643xx.h>
 #include <linux/sched.h>
 
-#include <asm/ptrace.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/marvell.h>

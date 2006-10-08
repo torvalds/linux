@@ -60,7 +60,6 @@
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <linux/bootmem.h>

@@ -31,7 +31,6 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/irq.h>
-#include <asm/ptrace.h>
 #include <asm/addrspace.h>
 #include <asm/time.h>
 #include <asm/io.h>

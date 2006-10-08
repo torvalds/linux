@@ -25,7 +25,6 @@
 #include <asm/irq.h>
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>

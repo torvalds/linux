@@ -30,7 +30,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-#include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pci/bridge.h>
 #include <asm/sn/addrs.h>
