@@ -515,7 +515,7 @@ static void schizo_check_iommu_error(struct pci_controller_info *p,
 #define SCHIZO_UEAFSR_MTAG	0x000000000000e000UL /* Safari */
 #define SCHIZO_UEAFSR_ECCSYND	0x00000000000001ffUL /* Safari */
 
-static irqreturn_t schizo_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t schizo_ue_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_B.controller_regs + SCHIZO_UE_AFSR;
@@ -603,7 +603,7 @@ static irqreturn_t schizo_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
 #define SCHIZO_CEAFSR_MTAG	0x000000000000e000UL
 #define SCHIZO_CEAFSR_ECCSYND	0x00000000000001ffUL
 
-static irqreturn_t schizo_ce_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t schizo_ce_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_B.controller_regs + SCHIZO_CE_AFSR;
@@ -778,7 +778,7 @@ static irqreturn_t schizo_pcierr_intr_other(struct pci_pbm_info *pbm)
 	return ret;
 }
 
-static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
 	struct pci_controller_info *p = pbm->parent;
@@ -933,7 +933,7 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id, struct pt_regs *reg
 /* We only expect UNMAP errors here.  The rest of the Safari errors
  * are marked fatal and thus cause a system reset.
  */
-static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	u64 errlog;

@@ -547,9 +547,11 @@ void timer_irq(int irq, struct pt_regs *regs)
 void handler_irq(int irq, struct pt_regs *regs)
 {
 	struct ino_bucket *bucket;
+	struct pt_regs *old_regs;
 
 	clear_softint(1 << irq);
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	/* Sliiiick... */
@@ -558,12 +560,13 @@ void handler_irq(int irq, struct pt_regs *regs)
 		struct ino_bucket *next = __bucket(bucket->irq_chain);
 
 		bucket->irq_chain = 0;
-		__do_IRQ(bucket->virt_irq, regs);
+		__do_IRQ(bucket->virt_irq);
 
 		bucket = next;
 	}
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 struct sun5_timer {

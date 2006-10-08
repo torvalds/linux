@@ -35,7 +35,7 @@ static void __iomem *power_reg;
 static DECLARE_WAIT_QUEUE_HEAD(powerd_wait);
 static int button_pressed;
 
-static irqreturn_t power_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t power_handler(int irq, void *dev_id)
 {
 	if (button_pressed == 0) {
 		button_pressed = 1;
