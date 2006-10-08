@@ -595,7 +595,7 @@ static void atmel_join_bss(struct atmel_private *priv, int bss_index);
 static void atmel_smooth_qual(struct atmel_private *priv);
 static void atmel_writeAR(struct net_device *dev, u16 data);
 static int probe_atmel_card(struct net_device *dev);
-static int reset_atmel_card(struct net_device *dev );
+static int reset_atmel_card(struct net_device *dev);
 static void atmel_enter_state(struct atmel_private *priv, int new_state);
 int atmel_open (struct net_device *dev);
 
@@ -1736,7 +1736,7 @@ static int atmel_set_encode(struct net_device *dev,
 				/* Disable the key */
 				priv->wep_key_len[index] = 0;
 		/* Check if the key is not marked as invalid */
-		if(!(dwrq->flags & IW_ENCODE_NOKEY)) {
+		if (!(dwrq->flags & IW_ENCODE_NOKEY)) {
 			/* Cleanup */
 			memset(priv->wep_keys[index], 0, 13);
 			/* Copy the key in the driver */
@@ -1907,7 +1907,7 @@ static int atmel_get_encodeext(struct net_device *dev,
 
 	encoding->flags = idx + 1;
 	memset(ext, 0, sizeof(*ext));
-	
+
 	if (!priv->wep_is_on) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
