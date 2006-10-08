@@ -98,8 +98,6 @@ void __init plat_mem_setup(void)
 	_machine_halt = jazz_machine_halt;
 	pm_power_off = jazz_machine_power_off;
 
-#warning "Somebody should check if screen_info is ok for Jazz."
-
 	screen_info = (struct screen_info) {
 		0, 0,		/* orig-x, orig-y */
 		0,		/* unused */
