@@ -270,6 +270,6 @@ static void macio_adb_poll(void)
 
 	local_irq_save(flags);
 	if (in_8(&adb->intr.r) != 0)
-		macio_adb_interrupt(0, NULL, NULL);
+		macio_adb_interrupt(0, NULL);
 	local_irq_restore(flags);
 }
