@@ -22,6 +22,7 @@
 #include <sound/core.h>
 #include "pdaudiocf.h"
 #include <sound/initval.h>
+#include <asm/irq_regs.h>
 
 /*
  *
