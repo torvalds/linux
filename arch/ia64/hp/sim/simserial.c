@@ -130,7 +130,7 @@ static void rs_start(struct tty_struct *tty)
 #endif
 }
 
-static  void receive_chars(struct tty_struct *tty, struct pt_regs *regs)
+static  void receive_chars(struct tty_struct *tty)
 {
 	unsigned char ch;
 	static unsigned char seen_esc = 0;
@@ -152,7 +152,7 @@ static  void receive_chars(struct tty_struct *tty, struct pt_regs *regs)
 						ch = ia64_ssc(0, 0, 0, 0,
 							      SSC_GETCHAR);
 					while (!ch);
-					handle_sysrq(ch, regs, NULL);
+					handle_sysrq(ch, NULL);
 				}
 #endif
 				seen_esc = 0;
@@ -170,7 +170,7 @@ static  void receive_chars(struct tty_struct *tty, struct pt_regs *regs)
 /*
  * This is the serial driver's interrupt routine for a single port
  */
-static irqreturn_t rs_interrupt_single(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
 	struct async_struct * info;
 
@@ -187,7 +187,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id, struct pt_regs * r
 	 * pretty simple in our case, because we only get interrupts
 	 * on inbound traffic
 	 */
-	receive_chars(info->tty, regs);
+	receive_chars(info->tty);
 	return IRQ_HANDLED;
 }
 
@@ -714,7 +714,7 @@ startup(struct async_struct *info)
 {
 	unsigned long flags;
 	int	retval=0;
-	irqreturn_t (*handler)(int, void *, struct pt_regs *);
+	irqreturn_t (*handler)(int, void *);
 	struct serial_state *state= info->state;
 	unsigned long page;
 
