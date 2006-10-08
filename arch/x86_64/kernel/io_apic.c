@@ -47,7 +47,7 @@
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
 
-static int assign_irq_vector(int irq, cpumask_t mask);
+static int assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result);
 
 #define __apicdebuginit  __init
 
@@ -174,12 +174,10 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 
 	cpus_and(mask, tmp, CPU_MASK_ALL);
 
-	vector = assign_irq_vector(irq, mask);
+	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
 		return;
 
-	cpus_clear(tmp);
-	cpu_set(vector >> 8, tmp);
 	dest = cpu_mask_to_apicid(tmp);
 
 	/*
@@ -188,7 +186,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 	dest = SET_APIC_LOGICAL_ID(dest);
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	__target_IO_APIC_irq(irq, dest, vector & 0xff);
+	__target_IO_APIC_irq(irq, dest, vector);
 	set_native_irq_info(irq, mask);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
@@ -563,9 +561,45 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-unsigned int irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_EXTERNAL_VECTOR, 0 };
+static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = {
+	[0] = FIRST_EXTERNAL_VECTOR + 0,
+	[1] = FIRST_EXTERNAL_VECTOR + 1,
+	[2] = FIRST_EXTERNAL_VECTOR + 2,
+	[3] = FIRST_EXTERNAL_VECTOR + 3,
+	[4] = FIRST_EXTERNAL_VECTOR + 4,
+	[5] = FIRST_EXTERNAL_VECTOR + 5,
+	[6] = FIRST_EXTERNAL_VECTOR + 6,
+	[7] = FIRST_EXTERNAL_VECTOR + 7,
+	[8] = FIRST_EXTERNAL_VECTOR + 8,
+	[9] = FIRST_EXTERNAL_VECTOR + 9,
+	[10] = FIRST_EXTERNAL_VECTOR + 10,
+	[11] = FIRST_EXTERNAL_VECTOR + 11,
+	[12] = FIRST_EXTERNAL_VECTOR + 12,
+	[13] = FIRST_EXTERNAL_VECTOR + 13,
+	[14] = FIRST_EXTERNAL_VECTOR + 14,
+	[15] = FIRST_EXTERNAL_VECTOR + 15,
+};
 
-static int __assign_irq_vector(int irq, cpumask_t mask)
+static cpumask_t irq_domain[NR_IRQ_VECTORS] __read_mostly = {
+	[0] = CPU_MASK_ALL,
+	[1] = CPU_MASK_ALL,
+	[2] = CPU_MASK_ALL,
+	[3] = CPU_MASK_ALL,
+	[4] = CPU_MASK_ALL,
+	[5] = CPU_MASK_ALL,
+	[6] = CPU_MASK_ALL,
+	[7] = CPU_MASK_ALL,
+	[8] = CPU_MASK_ALL,
+	[9] = CPU_MASK_ALL,
+	[10] = CPU_MASK_ALL,
+	[11] = CPU_MASK_ALL,
+	[12] = CPU_MASK_ALL,
+	[13] = CPU_MASK_ALL,
+	[14] = CPU_MASK_ALL,
+	[15] = CPU_MASK_ALL,
+};
+
+static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 {
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -589,14 +623,22 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 
 	if (irq_vector[irq] > 0)
 		old_vector = irq_vector[irq];
-	if ((old_vector > 0) && cpu_isset(old_vector >> 8, mask)) {
-		return old_vector;
+	if (old_vector > 0) {
+		cpus_and(*result, irq_domain[irq], mask);
+		if (!cpus_empty(*result))
+			return old_vector;
 	}
 
 	for_each_cpu_mask(cpu, mask) {
+		cpumask_t domain;
+		int first, new_cpu;
 		int vector, offset;
-		vector = pos[cpu].vector;
-		offset = pos[cpu].offset;
+
+		domain = vector_allocation_domain(cpu);
+		first = first_cpu(domain);
+
+		vector = pos[first].vector;
+		offset = pos[first].offset;
 next:
 		vector += 8;
 		if (vector >= FIRST_SYSTEM_VECTOR) {
@@ -604,35 +646,40 @@ next:
 			offset = (offset + 1) % 8;
 			vector = FIRST_DEVICE_VECTOR + offset;
 		}
-		if (unlikely(pos[cpu].vector == vector))
+		if (unlikely(pos[first].vector == vector))
 			continue;
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
-		if (per_cpu(vector_irq, cpu)[vector] != -1)
-			goto next;
+		for_each_cpu_mask(new_cpu, domain)
+			if (per_cpu(vector_irq, cpu)[vector] != -1)
+				goto next;
 		/* Found one! */
-		pos[cpu].vector = vector;
-		pos[cpu].offset = offset;
-		if (old_vector >= 0) {
-			int old_cpu = old_vector >> 8;
-			old_vector &= 0xff;
-			per_cpu(vector_irq, old_cpu)[old_vector] = -1;
+		for_each_cpu_mask(new_cpu, domain) {
+			pos[cpu].vector = vector;
+			pos[cpu].offset = offset;
 		}
-		per_cpu(vector_irq, cpu)[vector] = irq;
-		vector |= cpu << 8;
+		if (old_vector >= 0) {
+			int old_cpu;
+			for_each_cpu_mask(old_cpu, domain)
+				per_cpu(vector_irq, old_cpu)[old_vector] = -1;
+		}
+		for_each_cpu_mask(new_cpu, domain)
+			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		irq_vector[irq] = vector;
+		irq_domain[irq] = domain;
+		cpus_and(*result, domain, mask);
 		return vector;
 	}
 	return -ENOSPC;
 }
 
-static int assign_irq_vector(int irq, cpumask_t mask)
+static int assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 {
 	int vector;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	vector = __assign_irq_vector(irq, mask);
+	vector = __assign_irq_vector(irq, mask, result);
 	spin_unlock_irqrestore(&vector_lock, flags);
 	return vector;
 }
@@ -704,14 +751,12 @@ static void __init setup_IO_APIC_irqs(void)
 
 		if (IO_APIC_IRQ(irq)) {
 			cpumask_t mask;
-			vector = assign_irq_vector(irq, TARGET_CPUS);
+			vector = assign_irq_vector(irq, TARGET_CPUS, &mask);
 			if (vector < 0)
 				continue;
 
-			cpus_clear(mask);
-			cpu_set(vector >> 8, mask);
 			entry.dest.logical.logical_dest = cpu_mask_to_apicid(mask);
-			entry.vector = vector & 0xff;
+			entry.vector = vector;
 
 			ioapic_register_intr(irq, vector, IOAPIC_AUTO);
 			if (!apic && (irq < 16))
@@ -1430,12 +1475,13 @@ static inline void check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
+	cpumask_t mask;
 
 	/*
 	 * get/set the timer IRQ vector:
 	 */
 	disable_8259A_irq(0);
-	vector = assign_irq_vector(0, TARGET_CPUS);
+	vector = assign_irq_vector(0, TARGET_CPUS, &mask);
 
 	/*
 	 * Subtle, code in do_timer_interrupt() expects an AEOI
@@ -1667,6 +1713,7 @@ int create_irq(void)
 	int new;
 	int vector = 0;
 	unsigned long flags;
+	cpumask_t mask;
 
 	irq = -ENOSPC;
 	spin_lock_irqsave(&vector_lock, flags);
@@ -1675,7 +1722,7 @@ int create_irq(void)
 			continue;
 		if (irq_vector[new] != 0)
 			continue;
-		vector = __assign_irq_vector(new, TARGET_CPUS);
+		vector = __assign_irq_vector(new, TARGET_CPUS, &mask);
 		if (likely(vector > 0))
 			irq = new;
 		break;
@@ -1707,13 +1754,10 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 {
 	int vector;
 	unsigned dest;
+	cpumask_t tmp;
 
-	vector = assign_irq_vector(irq, TARGET_CPUS);
+	vector = assign_irq_vector(irq, TARGET_CPUS, &tmp);
 	if (vector >= 0) {
-		cpumask_t tmp;
-
-		cpus_clear(tmp);
-		cpu_set(vector >> 8, tmp);
 		dest = cpu_mask_to_apicid(tmp);
 
 		msg->address_hi = MSI_ADDR_BASE_HI;
@@ -1752,12 +1796,10 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	cpus_and(mask, tmp, CPU_MASK_ALL);
 
-	vector = assign_irq_vector(irq, mask);
+	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
 		return;
 
-	cpus_clear(tmp);
-	cpu_set(vector >> 8, tmp);
 	dest = cpu_mask_to_apicid(tmp);
 
 	read_msi_msg(irq, &msg);
@@ -1844,12 +1886,10 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 
 	cpus_and(mask, tmp, CPU_MASK_ALL);
 
-	vector = assign_irq_vector(irq, mask);
+	vector = assign_irq_vector(irq, mask, &tmp);
 	if (vector < 0)
 		return;
 
-	cpus_clear(tmp);
-	cpu_set(vector >> 8, tmp);
 	dest = cpu_mask_to_apicid(tmp);
 
 	target_ht_irq(irq, dest, vector & 0xff);
@@ -1871,15 +1911,13 @@ static struct hw_interrupt_type ht_irq_chip = {
 int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 {
 	int vector;
+	cpumask_t tmp;
 
-	vector = assign_irq_vector(irq, TARGET_CPUS);
+	vector = assign_irq_vector(irq, TARGET_CPUS, &tmp);
 	if (vector >= 0) {
 		u32 low, high;
 		unsigned dest;
-		cpumask_t tmp;
 
-		cpus_clear(tmp);
-		cpu_set(vector >> 8, tmp);
 		dest = cpu_mask_to_apicid(tmp);
 
 		high = 	HT_IRQ_HIGH_DEST_ID(dest);
@@ -1945,12 +1983,9 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int p
 		add_pin_to_irq(irq, ioapic, pin);
 
 
-	vector = assign_irq_vector(irq, TARGET_CPUS);
+	vector = assign_irq_vector(irq, TARGET_CPUS, &mask);
 	if (vector < 0)
 		return vector;
-
-	cpus_clear(mask);
-	cpu_set(vector >> 8, mask);
 
 	/*
 	 * Generate a PCI IRQ routing entry and program the IOAPIC accordingly.
