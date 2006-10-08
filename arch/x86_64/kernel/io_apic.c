@@ -587,8 +587,8 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 
 	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
 
-	if (IO_APIC_VECTOR(irq) > 0)
-		old_vector = IO_APIC_VECTOR(irq);
+	if (irq_vector[irq] > 0)
+		old_vector = irq_vector[irq];
 	if ((old_vector > 0) && cpu_isset(old_vector >> 8, mask)) {
 		return old_vector;
 	}
@@ -620,7 +620,7 @@ next:
 		}
 		per_cpu(vector_irq, cpu)[vector] = irq;
 		vector |= cpu << 8;
-		IO_APIC_VECTOR(irq) = vector;
+		irq_vector[irq] = vector;
 		return vector;
 	}
 	return -ENOSPC;
@@ -1289,7 +1289,7 @@ static inline void init_IO_APIC_traps(void)
 	 */
 	for (irq = 0; irq < NR_IRQS ; irq++) {
 		int tmp = irq;
-		if (IO_APIC_IRQ(tmp) && !IO_APIC_VECTOR(tmp)) {
+		if (IO_APIC_IRQ(tmp) && !irq_vector[tmp]) {
 			/*
 			 * Hmm.. We don't have an entry for this,
 			 * so default to an old-fashioned 8259

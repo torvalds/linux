@@ -26,9 +26,6 @@
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern u8 irq_vector[NR_IRQ_VECTORS];
-#define IO_APIC_VECTOR(irq)	(irq_vector[irq])
-
 extern void (*interrupt[NR_IRQS])(void);
 
 #ifdef CONFIG_SMP

@@ -74,10 +74,8 @@
 
 
 #ifndef __ASSEMBLY__
-extern unsigned int irq_vector[NR_IRQ_VECTORS];
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
-#define IO_APIC_VECTOR(irq)	(irq_vector[irq])
 
 /*
  * Various low-level irq details needed by irq.c, process.c,
