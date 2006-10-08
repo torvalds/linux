@@ -1141,10 +1141,6 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			}
 			dev = temp_dev;
 			if (irq >= 0) {
-#ifdef CONFIG_PCI_MSI
-				if (!platform_legacy_irq(irq))
-					irq = IO_APIC_VECTOR(irq);
-#endif
 				printk(KERN_INFO "PCI->APIC IRQ transform: %s[%c] -> IRQ %d\n",
 					pci_name(dev), 'A' + pin, irq);
 				dev->irq = irq;
