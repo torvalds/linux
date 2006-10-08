@@ -264,8 +264,7 @@ noritake_swizzle(struct pci_dev *dev, u8 *pinp)
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
 static void
-noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr,
-			     struct pt_regs * regs)
+noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 #define MCHK_NO_DEVSEL 0x205U
 #define MCHK_NO_TABT 0x204U
@@ -284,7 +283,7 @@ noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr,
         mb();
 
         code = mchk_header->code;
-        process_mcheck_info(vector, la_ptr, regs, "NORITAKE APECS",
+        process_mcheck_info(vector, la_ptr, "NORITAKE APECS",
                             (mcheck_expected(0)
                              && (code == MCHK_NO_DEVSEL
                                  || code == MCHK_NO_TABT)));

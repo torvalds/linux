@@ -72,7 +72,9 @@ do_entInt(unsigned long type, unsigned long vector,
 		set_irq_regs(old_regs);
 		return;
 	case 2:
-		alpha_mv.machine_check(vector, la_ptr, regs);
+		old_regs = set_irq_regs(regs);
+		alpha_mv.machine_check(vector, la_ptr);
+		set_irq_regs(old_regs);
 		return;
 	case 3:
 		old_regs = set_irq_regs(regs);
@@ -125,8 +127,7 @@ struct mcheck_info __mcheck_info;
 
 void
 process_mcheck_info(unsigned long vector, unsigned long la_ptr,
-		    struct pt_regs *regs, const char *machine,
-		    int expected)
+		    const char *machine, int expected)
 {
 	struct el_common *mchk_header;
 	const char *reason;
@@ -153,7 +154,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	mchk_header = (struct el_common *)la_ptr;
 
 	printk(KERN_CRIT "%s machine check: vector=0x%lx pc=0x%lx code=0x%x\n",
-	       machine, vector, regs->pc, mchk_header->code);
+	       machine, vector, get_irq_regs()->pc, mchk_header->code);
 
 	switch (mchk_header->code) {
 	/* Machine check reasons.  Defined according to PALcode sources.  */
@@ -194,7 +195,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	printk(KERN_CRIT "machine check type: %s%s\n",
 	       reason, mchk_header->retry ? " (retryable)" : "");
 
-	dik_show_regs(regs, NULL);
+	dik_show_regs(get_irq_regs(), NULL);
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	if (alpha_verbose_mcheck > 1) {

@@ -244,7 +244,7 @@ jensen_init_arch(void)
 }
 
 static void
-jensen_machine_check (u64 vector, u64 la, struct pt_regs *regs)
+jensen_machine_check (u64 vector, u64 la)
 {
 	printk(KERN_CRIT "Machine check\n");
 }

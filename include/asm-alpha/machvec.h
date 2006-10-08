@@ -15,7 +15,6 @@
 
 struct task_struct;
 struct mm_struct;
-struct pt_regs;
 struct vm_area_struct;
 struct linux_hose_info;
 struct pci_dev;
@@ -80,7 +79,7 @@ struct alpha_machine_vector
 	void (*update_irq_hw)(unsigned long, unsigned long, int);
 	void (*ack_irq)(unsigned long);
 	void (*device_interrupt)(unsigned long vector);
-	void (*machine_check)(u64 vector, u64 la, struct pt_regs *regs);
+	void (*machine_check)(u64 vector, u64 la);
 
 	void (*smp_callin)(void);
 	void (*init_arch)(void);
