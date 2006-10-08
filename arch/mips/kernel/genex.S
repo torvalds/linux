@@ -133,9 +133,8 @@ NESTED(handle_int, PT_SIZE, sp)
 
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)
-	jal	plat_irq_dispatch
-	LONG_S	s0, TI_REGS($28)
-	j	ret_from_irq
+	PTR_LA	ra, ret_from_irq
+	j	plat_irq_dispatch
 	END(handle_int)
 
 	__INIT
@@ -224,9 +223,8 @@ NESTED(except_vec_vi_handler, 0, sp)
 
 	LONG_L	s0, TI_REGS($28)
 	LONG_S	sp, TI_REGS($28)
-	jalr	v0
-	LONG_S	s0, TI_REGS($28)
 	PTR_LA	ra, ret_from_irq
+	jr	v0
 	END(except_vec_vi_handler)
 
 /*
