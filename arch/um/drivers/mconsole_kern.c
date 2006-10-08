@@ -675,7 +675,7 @@ static void sysrq_proc(void *arg)
 {
 	char *op = arg;
 
-	handle_sysrq(*op, &current->thread.regs, NULL);
+	handle_sysrq(*op, NULL);
 }
 
 void mconsole_sysrq(struct mc_request *req)
