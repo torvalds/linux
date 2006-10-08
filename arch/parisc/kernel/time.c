@@ -34,10 +34,6 @@
 
 static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
 
-#ifdef CONFIG_SMP
-extern void smp_do_timer(struct pt_regs *regs);
-#endif
-
 /*
  * We keep time on PA-RISC Linux by using the Interval Timer which is
  * a pair of registers; one is read-only and one is write-only; both
@@ -55,13 +51,14 @@ extern void smp_do_timer(struct pt_regs *regs);
  * held off for an arbitrarily long period of time by interrupts being
  * disabled, so we may miss one or more ticks.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long now;
 	unsigned long next_tick;
 	unsigned long cycles_elapsed, ticks_elapsed;
 	unsigned long cycles_remainder;
 	unsigned int cpu = smp_processor_id();
+	struct cpuinfo_parisc *cpuinfo = &cpu_data[cpu];
 
 	/* gcc can optimize for "read-only" case with a local clocktick */
 	unsigned long cpt = clocktick;
@@ -69,7 +66,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	profile_tick(CPU_PROFILING);
 
 	/* Initialize next_tick to the expected tick time. */
-	next_tick = cpu_data[cpu].it_value;
+	next_tick = cpuinfo->it_value;
 
 	/* Get current interval timer.
 	 * CR16 reads as 64 bits in CPU wide mode.
@@ -120,7 +117,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 	next_tick = now + cycles_remainder;
 
-	cpu_data[cpu].it_value = next_tick;
+	cpuinfo->it_value = next_tick;
 
 	/* Skip one clocktick on purpose if we are likely to miss next_tick.
 	 * We want to avoid the new next_tick being less than CR16.
@@ -131,18 +128,19 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		next_tick += cpt;
 
 	/* Program the IT when to deliver the next interrupt. */
-        /* Only bottom 32-bits of next_tick are written to cr16.  */
+	/* Only bottom 32-bits of next_tick are written to cr16.  */
 	mtctl(next_tick, 16);
 
 
 	/* Done mucking with unreliable delivery of interrupts.
 	 * Go do system house keeping.
 	 */
-#ifdef CONFIG_SMP
-	smp_do_timer(regs);
-#else
-	update_process_times(user_mode(regs));
-#endif
+
+	if (!--cpuinfo->prof_counter) {
+		cpuinfo->prof_counter = cpuinfo->prof_multiplier;
+		update_process_times(user_mode(get_irq_regs()));
+	}
+
 	if (cpu == 0) {
 		write_seqlock(&xtime_lock);
 		do_timer(ticks_elapsed);
@@ -319,13 +317,15 @@ void __init time_init(void)
 
 	start_cpu_itimer();	/* get CPU 0 started */
 
-	if(pdc_tod_read(&tod_data) == 0) {
-		write_seqlock_irq(&xtime_lock);
+	if (pdc_tod_read(&tod_data) == 0) {
+		unsigned long flags;
+
+		write_seqlock_irqsave(&xtime_lock, flags);
 		xtime.tv_sec = tod_data.tod_sec;
 		xtime.tv_nsec = tod_data.tod_usec * 1000;
 		set_normalized_timespec(&wall_to_monotonic,
 		                        -xtime.tv_sec, -xtime.tv_nsec);
-		write_sequnlock_irq(&xtime_lock);
+		write_sequnlock_irqrestore(&xtime_lock, flags);
 	} else {
 		printk(KERN_ERR "Error reading tod clock\n");
 	        xtime.tv_sec = 0;
