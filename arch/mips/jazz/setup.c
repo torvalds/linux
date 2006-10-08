@@ -19,6 +19,7 @@
 #include <linux/fb.h>
 #include <linux/ide.h>
 #include <linux/pm.h>
+#include <linux/screen_info.h>
 
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
