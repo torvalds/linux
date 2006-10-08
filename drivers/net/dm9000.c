@@ -346,7 +346,7 @@ static void dm9000_timeout(struct net_device *dev)
 static void dm9000_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	dm9000_interrupt(dev->irq,dev,NULL);
+	dm9000_interrupt(dev->irq,dev);
 	enable_irq(dev->irq);
 }
 #endif
