@@ -246,7 +246,7 @@ wildfire_device_interrupt(unsigned long vector)
 	 * bits 5-0:	irq in PCA
 	 */
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 	return;
 }
 

@@ -99,7 +99,7 @@ mikasa_device_interrupt(unsigned long vector)
 		if (i < 16) {
 			isa_device_interrupt(vector);
 		} else {
-			handle_irq(i, get_irq_regs());
+			handle_irq(i);
 		}
 	}
 }

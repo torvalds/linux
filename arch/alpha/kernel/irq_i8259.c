@@ -147,13 +147,13 @@ isa_device_interrupt(unsigned long vector)
 	 */
 	int j = *(vuip) IACK_SC;
 	j &= 0xff;
-	handle_irq(j, get_irq_regs());
+	handle_irq(j);
 }
 #endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(IACK_SC)
 void
-isa_no_iack_sc_device_interrupt(unsigned long vector, struct pt_regs *regs)
+isa_no_iack_sc_device_interrupt(unsigned long vector)
 {
 	unsigned long pic;
 
@@ -176,7 +176,7 @@ isa_no_iack_sc_device_interrupt(unsigned long vector, struct pt_regs *regs)
 	while (pic) {
 		int j = ffz(~pic);
 		pic &= pic - 1;
-		handle_irq(j, regs);
+		handle_irq(j);
 	}
 }
 #endif

@@ -100,7 +100,7 @@ cabriolet_device_interrupt(unsigned long v)
 		if (i == 4) {
 			isa_device_interrupt(v);
 		} else {
-			handle_irq(16 + i, get_irq_regs());
+			handle_irq(16 + i);
 		}
 	}
 }

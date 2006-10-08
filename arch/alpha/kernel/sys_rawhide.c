@@ -158,7 +158,7 @@ rawhide_srm_device_interrupt(unsigned long vector)
 	/* Adjust by which hose it is from.  */
 	irq -= ((irq + 16) >> 2) & 0x38;
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

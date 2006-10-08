@@ -526,7 +526,7 @@ sable_lynx_srm_device_interrupt(unsigned long vector)
 	printk("%s: vector 0x%lx bit 0x%x irq 0x%x\n",
 	       __FUNCTION__, vector, bit, irq);
 #endif
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

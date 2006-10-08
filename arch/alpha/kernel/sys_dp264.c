@@ -238,7 +238,7 @@ dp264_device_interrupt(unsigned long vector)
 		if (i == 55)
 			isa_device_interrupt(vector);
 		else
-			handle_irq(16 + i, get_irq_regs());
+			handle_irq(16 + i);
 #if 0
 		TSUNAMI_cchip->dir0.csr = 1UL << i; mb();
 		tmp = TSUNAMI_cchip->dir0.csr;
@@ -268,7 +268,7 @@ dp264_srm_device_interrupt(unsigned long vector)
 	if (irq >= 32)
 		irq -= 16;
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void 
@@ -290,7 +290,7 @@ clipper_srm_device_interrupt(unsigned long vector)
 	 *
 	 * Eg IRQ 24 is DRIR bit 8, etc, etc
 	 */
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

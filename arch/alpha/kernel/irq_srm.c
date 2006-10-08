@@ -75,5 +75,5 @@ void
 srm_device_interrupt(unsigned long vector)
 {
 	int irq = (vector - 0x800) >> 4;
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }

@@ -98,7 +98,7 @@ noritake_device_interrupt(unsigned long vector)
 		if (i < 16) {
 			isa_device_interrupt(vector);
 		} else {
-			handle_irq(i, get_irq_regs());
+			handle_irq(i);
 		}
 	}
 }
@@ -122,7 +122,7 @@ noritake_srm_device_interrupt(unsigned long vector)
 	if (irq >= 16)
 		irq = irq + 1;
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

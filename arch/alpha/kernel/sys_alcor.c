@@ -118,7 +118,7 @@ alcor_device_interrupt(unsigned long vector)
 		if (i == 31) {
 			isa_device_interrupt(vector);
 		} else {
-			handle_irq(16 + i, get_irq_regs());
+			handle_irq(16 + i);
 		}
 	}
 }

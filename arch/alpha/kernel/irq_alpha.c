@@ -52,6 +52,7 @@ do_entInt(unsigned long type, unsigned long vector,
 #endif
 		break;
 	case 1:
+		old_regs = set_irq_regs(regs);
 #ifdef CONFIG_SMP
 	  {
 		long cpu;
@@ -62,12 +63,13 @@ do_entInt(unsigned long type, unsigned long vector,
 		if (cpu != boot_cpuid) {
 		        kstat_cpu(cpu).irqs[RTC_IRQ]++;
 		} else {
-			handle_irq(RTC_IRQ, regs);
+			handle_irq(RTC_IRQ);
 		}
 	  }
 #else
-		handle_irq(RTC_IRQ, regs);
+		handle_irq(RTC_IRQ);
 #endif
+		set_irq_regs(old_regs);
 		return;
 	case 2:
 		alpha_mv.machine_check(vector, la_ptr, regs);

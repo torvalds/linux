@@ -127,9 +127,8 @@ unlock:
 #define MAX_ILLEGAL_IRQS 16
 
 void
-handle_irq(int irq, struct pt_regs * regs)
+handle_irq(int irq)
 {	
-	struct pt_regs *old_regs;
 	/* 
 	 * We ack quickly, we don't want the irq controller
 	 * thinking we're snobs just because some other CPU has
@@ -150,7 +149,6 @@ handle_irq(int irq, struct pt_regs * regs)
 		return;
 	}
 
-	old_regs = set_irq_regs(regs);
 	irq_enter();
 	/*
 	 * __do_IRQ() must be called with IPL_MAX. Note that we do not
@@ -161,5 +159,4 @@ handle_irq(int irq, struct pt_regs * regs)
 	local_irq_disable();
 	__do_IRQ(irq);
 	irq_exit();
-	set_irq_regs(old_regs);
 }

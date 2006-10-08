@@ -198,7 +198,7 @@ jensen_device_interrupt(unsigned long vector)
         }
 #endif
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

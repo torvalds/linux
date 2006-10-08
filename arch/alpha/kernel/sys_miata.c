@@ -56,7 +56,7 @@ miata_srm_device_interrupt(unsigned long vector)
 	if (irq >= 16)
 		irq = irq + 8;
 
-	handle_irq(irq, get_irq_regs());
+	handle_irq(irq);
 }
 
 static void __init

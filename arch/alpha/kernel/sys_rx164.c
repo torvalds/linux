@@ -102,9 +102,9 @@ rx164_device_interrupt(unsigned long vector)
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i == 20) {
-			isa_no_iack_sc_device_interrupt(vector, get_irq_regs());
+			isa_no_iack_sc_device_interrupt(vector);
 		} else {
-			handle_irq(16+i, get_irq_regs());
+			handle_irq(16+i);
 		}
 	}
 }
