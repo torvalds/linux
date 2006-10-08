@@ -107,7 +107,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "processor\t\t: %ld\n", n);
 	sprintf(fmt, "cpu model\t\t: %%s V%%d.%%d%s\n",
-	        cpu_has_fpu ? "  FPU V%d.%d" : "");
+	        cpu_data[n].options & MIPS_CPU_FPU ? "  FPU V%d.%d" : "");
 	seq_printf(m, fmt, cpu_name[cpu_data[n].cputype <= CPU_LAST ?
 	                            cpu_data[n].cputype : CPU_UNKNOWN],
 	                           (version >> 4) & 0x0f, version & 0x0f,
