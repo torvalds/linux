@@ -116,26 +116,23 @@ struct ei_device {
 #undef outb
 #undef outb_p
 
-#define inb(port)   in_8(port)
-#define outb(val,port)  out_8(port,val)
-#define inb_p(port)   in_8(port)
-#define outb_p(val,port)  out_8(port,val)
-
-#elif defined(CONFIG_ARM_ETHERH) || defined(CONFIG_ARM_ETHERH_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#undef inb
-#undef inb_p
-#undef outb
-#undef outb_p
-
-#define inb(_p)		readb(_p)
-#define outb(_v,_p)	writeb(_v,_p)
-#define inb_p(_p)	inb(_p)
-#define outb_p(_v,_p)	outb(_v,_p)
+#define ei_inb(port)   in_8(port)
+#define ei_outb(val,port)  out_8(port,val)
+#define ei_inb_p(port)   in_8(port)
+#define ei_outb_p(val,port)  out_8(port,val)
 
 #elif defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
 #define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#else
+#endif
+
+#ifndef ei_inb
+#define ei_inb(_p)	inb(_p)
+#define ei_outb(_v,_p)	outb(_v,_p)
+#define ei_inb_p(_p)	inb_p(_p)
+#define ei_outb_p(_v,_p) outb_p(_v,_p)
+#endif
+
+#ifndef EI_SHIFT
 #define EI_SHIFT(x)	(x)
 #endif
 

@@ -52,13 +52,23 @@
 #include <asm/ecard.h>
 #include <asm/io.h>
 
-#include "../8390.h"
+#define EI_SHIFT(x)	(ei_local->reg_offset[x])
+
+#define ei_inb(_p)	 readb(_p)
+#define ei_outb(_v,_p)	 writeb(_v,_p)
+#define ei_inb_p(_p)	 readb(_p)
+#define ei_outb_p(_v,_p) writeb(_v,_p)
 
 #define NET_DEBUG  0
 #define DEBUG_INIT 2
 
 #define DRV_NAME	"etherh"
 #define DRV_VERSION	"1.11"
+
+static char version[] __initdata =
+	"EtherH/EtherM Driver (c) 2002-2004 Russell King " DRV_VERSION "\n";
+
+#include "../lib8390.c"
 
 static unsigned int net_debug = NET_DEBUG;
 
@@ -86,9 +96,6 @@ struct etherh_data {
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("EtherH/EtherM driver");
 MODULE_LICENSE("GPL");
-
-static char version[] __initdata =
-	"EtherH/EtherM Driver (c) 2002-2004 Russell King " DRV_VERSION "\n";
 
 #define ETHERH500_DATAPORT	0x800	/* MEMC */
 #define ETHERH500_NS8390	0x000	/* MEMC */
@@ -360,7 +367,7 @@ etherh_block_output (struct net_device *dev, int count, const unsigned char *buf
 			printk(KERN_ERR "%s: timeout waiting for TX RDC\n",
 				dev->name);
 			etherh_reset (dev);
-			NS8390_init (dev, 1);
+			__NS8390_init (dev, 1);
 			break;
 		}
 
@@ -465,7 +472,7 @@ etherh_open(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	if (request_irq(dev->irq, ei_interrupt, 0, dev->name, dev))
+	if (request_irq(dev->irq, __ei_interrupt, 0, dev->name, dev))
 		return -EAGAIN;
 
 	/*
@@ -491,7 +498,7 @@ etherh_open(struct net_device *dev)
 		etherh_setif(dev);
 
 	etherh_reset(dev);
-	ei_open(dev);
+	__ei_open(dev);
 
 	return 0;
 }
@@ -502,7 +509,7 @@ etherh_open(struct net_device *dev)
 static int
 etherh_close(struct net_device *dev)
 {
-	ei_close (dev);
+	__ei_close (dev);
 	free_irq (dev->irq, dev);
 	return 0;
 }
@@ -650,7 +657,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto out;
 
-	dev = __alloc_ei_netdev(sizeof(struct etherh_priv));
+	dev = ____alloc_ei_netdev(sizeof(struct etherh_priv));
 	if (!dev) {
 		ret = -ENOMEM;
 		goto release;
@@ -736,7 +743,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	ei_local->interface_num = 0;
 
 	etherh_reset(dev);
-	NS8390_init(dev, 0);
+	__NS8390_init(dev, 0);
 
 	ret = register_netdev(dev);
 	if (ret)
