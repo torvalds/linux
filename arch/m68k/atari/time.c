@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/delay.h>
 
 #include <asm/atariints.h>
 
@@ -212,8 +213,12 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
      * additionally the RTC_SET bit is set to prevent an update cycle.
      */
 
-    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP )
-        schedule_timeout_interruptible(HWCLK_POLL_INTERVAL);
+    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP ) {
+	if (in_atomic() || irqs_disabled())
+	    mdelay(1);
+	else
+	    schedule_timeout_interruptible(HWCLK_POLL_INTERVAL);
+    }
 
     local_irq_save(flags);
     RTC_WRITE( RTC_CONTROL, ctrl | RTC_SET );
