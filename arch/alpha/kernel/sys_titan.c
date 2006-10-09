@@ -204,7 +204,7 @@ static struct hw_interrupt_type titan_irq_type = {
 };
 
 static irqreturn_t
-titan_intr_nop(int irq, void *dev_id, struct pt_regs *regs)                    
+titan_intr_nop(int irq, void *dev_id)
 {
       /*
        * This is a NOP interrupt handler for the purposes of
