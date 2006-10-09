@@ -2025,10 +2025,10 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	chip->bank_size_effect = snd_ymfpci_readl(chip, YDSXGR_EFFCTRLSIZE) << 2;
 	chip->work_size = YDSXG_DEFAULT_WORK_SIZE;
 	
-	size = ((playback_ctrl_size + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_playback * 2 * YDSXG_PLAYBACK_VOICES + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_capture * 2 * YDSXG_CAPTURE_VOICES + 0x00ff) & ~0x00ff) +
-	       ((chip->bank_size_effect * 2 * YDSXG_EFFECT_VOICES + 0x00ff) & ~0x00ff) +
+	size = ALIGN(playback_ctrl_size, 0x100) +
+	       ALIGN(chip->bank_size_playback * 2 * YDSXG_PLAYBACK_VOICES, 0x100) +
+	       ALIGN(chip->bank_size_capture * 2 * YDSXG_CAPTURE_VOICES, 0x100) +
+	       ALIGN(chip->bank_size_effect * 2 * YDSXG_EFFECT_VOICES, 0x100) +
 	       chip->work_size;
 	/* work_ptr must be aligned to 256 bytes, but it's already
 	   covered with the kernel page allocation mechanism */
@@ -2043,8 +2043,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	chip->bank_base_playback_addr = ptr_addr;
 	chip->ctrl_playback = (u32 *)ptr;
 	chip->ctrl_playback[0] = cpu_to_le32(YDSXG_PLAYBACK_VOICES);
-	ptr += (playback_ctrl_size + 0x00ff) & ~0x00ff;
-	ptr_addr += (playback_ctrl_size + 0x00ff) & ~0x00ff;
+	ptr += ALIGN(playback_ctrl_size, 0x100);
+	ptr_addr += ALIGN(playback_ctrl_size, 0x100);
 	for (voice = 0; voice < YDSXG_PLAYBACK_VOICES; voice++) {
 		chip->voices[voice].number = voice;
 		chip->voices[voice].bank = (struct snd_ymfpci_playback_bank *)ptr;
@@ -2055,8 +2055,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr_addr += chip->bank_size_playback;
 		}
 	}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->bank_base_capture = ptr;
 	chip->bank_base_capture_addr = ptr_addr;
 	for (voice = 0; voice < YDSXG_CAPTURE_VOICES; voice++)
@@ -2065,8 +2065,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr += chip->bank_size_capture;
 			ptr_addr += chip->bank_size_capture;
 		}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->bank_base_effect = ptr;
 	chip->bank_base_effect_addr = ptr_addr;
 	for (voice = 0; voice < YDSXG_EFFECT_VOICES; voice++)
@@ -2075,8 +2075,8 @@ static int __devinit snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 			ptr += chip->bank_size_effect;
 			ptr_addr += chip->bank_size_effect;
 		}
-	ptr = (char *)(((unsigned long)ptr + 0x00ff) & ~0x00ff);
-	ptr_addr = (ptr_addr + 0x00ff) & ~0x00ff;
+	ptr = (char *)ALIGN((unsigned long)ptr, 0x100);
+	ptr_addr = ALIGN(ptr_addr, 0x100);
 	chip->work_base = ptr;
 	chip->work_base_addr = ptr_addr;
 	

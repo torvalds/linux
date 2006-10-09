@@ -2377,7 +2377,7 @@ static int __devinit snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma 
 	 * shifted list address is aligned.
 	 * list address = (mem address >> 1) >> 7;
 	 */
-	data_bytes = (data_bytes + 255) & ~255;
+	data_bytes = ALIGN(data_bytes, 256);
 	address = 0x1100 + ((data_bytes/2) * index);
 
 	if ((address + (data_bytes/2)) >= 0x1c00) {

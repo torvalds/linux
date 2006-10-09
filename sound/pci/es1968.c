@@ -1337,7 +1337,7 @@ static struct esm_memory *snd_es1968_new_memory(struct es1968 *chip, int size)
 	struct esm_memory *buf;
 	struct list_head *p;
 	
-	size = ((size + ESM_MEM_ALIGN - 1) / ESM_MEM_ALIGN) * ESM_MEM_ALIGN;
+	size = ALIGN(size, ESM_MEM_ALIGN);
 	mutex_lock(&chip->memory_mutex);
 	list_for_each(p, &chip->buf_list) {
 		buf = list_entry(p, struct esm_memory, list);

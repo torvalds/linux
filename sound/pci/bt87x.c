@@ -699,7 +699,7 @@ static int __devinit snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *nam
 						     SNDRV_DMA_TYPE_DEV_SG,
 						     snd_dma_pci_data(chip->pci),
 							128 * 1024,
-							(255 * 4092 + 1023) & ~1023);
+							ALIGN(255 * 4092, 1024));
 }
 
 static int __devinit snd_bt87x_create(struct snd_card *card,

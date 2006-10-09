@@ -1827,8 +1827,8 @@ static int __devinit snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 
 	/* Align to bus-space 64K boundary */
 
-	cb_bus = (rme9652->capture_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
-	pb_bus = (rme9652->playback_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
+	cb_bus = ALIGN(rme9652->capture_dma_buf.addr, 0x10000ul);
+	pb_bus = ALIGN(rme9652->playback_dma_buf.addr, 0x10000ul);
 
 	/* Tell the card where it is */
 

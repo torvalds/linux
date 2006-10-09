@@ -3516,8 +3516,8 @@ static int __devinit snd_hdsp_initialize_memory(struct hdsp *hdsp)
 
 	/* Align to bus-space 64K boundary */
 
-	cb_bus = (hdsp->capture_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
-	pb_bus = (hdsp->playback_dma_buf.addr + 0xFFFF) & ~0xFFFFl;
+	cb_bus = ALIGN(hdsp->capture_dma_buf.addr, 0x10000ul);
+	pb_bus = ALIGN(hdsp->playback_dma_buf.addr, 0x10000ul);
 
 	/* Tell the card where it is */
 
