@@ -322,7 +322,7 @@ found_client:
 	if (new)
 		nfs_free_client(new);
 
-	error = wait_event_interruptible(&nfs_client_active_wq,
+	error = wait_event_interruptible(nfs_client_active_wq,
 				clp->cl_cons_state != NFS_CS_INITING);
 	if (error < 0) {
 		nfs_put_client(clp);
