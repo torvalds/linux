@@ -421,7 +421,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 
 	mutex_lock(&alloc_inode->i_mutex);
 
-	status = ocfs2_meta_lock(alloc_inode, NULL, &bh, 1);
+	status = ocfs2_meta_lock(alloc_inode, &bh, 1);
 	if (status < 0) {
 		mutex_unlock(&alloc_inode->i_mutex);
 		iput(alloc_inode);

@@ -1579,7 +1579,6 @@ static int ocfs2_assign_bh(struct inode *inode,
  * the result of the lock will be communicated via the callback.
  */
 int ocfs2_meta_lock_full(struct inode *inode,
-			 struct ocfs2_journal_handle *handle,
 			 struct buffer_head **ret_bh,
 			 int ex,
 			 int arg_flags)
@@ -1707,18 +1706,16 @@ bail:
  * the lock inversion simply.
  */
 int ocfs2_meta_lock_with_page(struct inode *inode,
-			      struct ocfs2_journal_handle *handle,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page)
 {
 	int ret;
 
-	ret = ocfs2_meta_lock_full(inode, handle, ret_bh, ex,
-				   OCFS2_LOCK_NONBLOCK);
+	ret = ocfs2_meta_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
 		unlock_page(page);
-		if (ocfs2_meta_lock(inode, handle, ret_bh, ex) == 0)
+		if (ocfs2_meta_lock(inode, ret_bh, ex) == 0)
 			ocfs2_meta_unlock(inode, ex);
 		ret = AOP_TRUNCATED_PAGE;
 	}

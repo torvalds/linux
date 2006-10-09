@@ -200,7 +200,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, NULL, 0, page);
+	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		if (ret == AOP_TRUNCATED_PAGE)
 			unlock = 0;
@@ -305,7 +305,7 @@ static int ocfs2_prepare_write(struct file *file, struct page *page,
 
 	mlog_entry("(0x%p, 0x%p, %u, %u)\n", file, page, from, to);
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, NULL, 0, page);
+	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		mlog_errno(ret);
 		goto out;
@@ -412,7 +412,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	 *    stale inode allocation image (i_size, i_clusters, etc).
 	 */
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, &di_bh, 1, page);
+	ret = ocfs2_meta_lock_with_page(inode, &di_bh, 1, page);
 	if (ret != 0) {
 		mlog_errno(ret);
 		goto out;
@@ -490,7 +490,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	 * accessed concurrently from multiple nodes.
 	 */
 	if (!INODE_JOURNAL(inode)) {
-		err = ocfs2_meta_lock(inode, NULL, NULL, 0);
+		err = ocfs2_meta_lock(inode, NULL, 0);
 		if (err) {
 			if (err != -ENOENT)
 				mlog_errno(err);

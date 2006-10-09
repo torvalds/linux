@@ -159,7 +159,7 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 	mlog(0, "find name %.*s in directory %llu\n", dentry->d_name.len,
 	     dentry->d_name.name, (unsigned long long)OCFS2_I(dir)->ip_blkno);
 
-	status = ocfs2_meta_lock(dir, NULL, NULL, 0);
+	status = ocfs2_meta_lock(dir, NULL, 0);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -327,7 +327,7 @@ static int ocfs2_mknod(struct inode *dir,
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
-	status = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
+	status = ocfs2_meta_lock(dir, &parent_fe_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -658,7 +658,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
 
-	err = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
+	err = ocfs2_meta_lock(dir, &parent_fe_bh, 1);
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
@@ -683,7 +683,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto out;
 	}
 
-	err = ocfs2_meta_lock(inode, NULL, &fe_bh, 1);
+	err = ocfs2_meta_lock(inode, &fe_bh, 1);
 	if (err < 0) {
 		if (err != -ENOENT)
 			mlog_errno(err);
@@ -825,7 +825,7 @@ static int ocfs2_unlink(struct inode *dir,
 		return -EPERM;
 	}
 
-	status = ocfs2_meta_lock(dir, NULL, &parent_node_bh, 1);
+	status = ocfs2_meta_lock(dir, &parent_node_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -850,7 +850,7 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_meta_lock(inode, NULL, &fe_bh, 1);
+	status = ocfs2_meta_lock(inode, &fe_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1012,7 +1012,7 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 			inode1 = tmpinode;
 		}
 		/* lock id2 */
-		status = ocfs2_meta_lock(inode2, NULL, bh2, 1);
+		status = ocfs2_meta_lock(inode2, bh2, 1);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
@@ -1021,7 +1021,7 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	}
 
 	/* lock id1 */
-	status = ocfs2_meta_lock(inode1, NULL, bh1, 1);
+	status = ocfs2_meta_lock(inode1, bh1, 1);
 	if (status < 0) {
 		/*
 		 * An error return must mean that no cluster locks
@@ -1142,7 +1142,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	 * the vote thread on other nodes won't have to concurrently
 	 * downconvert the inode and the dentry locks.
 	 */
-	status = ocfs2_meta_lock(old_inode, NULL, NULL, 1);
+	status = ocfs2_meta_lock(old_inode, NULL, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1234,7 +1234,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			goto bail;
 		}
 
-		status = ocfs2_meta_lock(new_inode, NULL, &newfe_bh, 1);
+		status = ocfs2_meta_lock(new_inode, &newfe_bh, 1);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
@@ -1608,7 +1608,7 @@ static int ocfs2_symlink(struct inode *dir,
 	credits = ocfs2_calc_symlink_credits(sb);
 
 	/* lock the parent directory */
-	status = ocfs2_meta_lock(dir, NULL, &parent_fe_bh, 1);
+	status = ocfs2_meta_lock(dir, &parent_fe_bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -2127,7 +2127,7 @@ static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
 
-	status = ocfs2_meta_lock(orphan_dir_inode, NULL, &orphan_dir_bh, 1);
+	status = ocfs2_meta_lock(orphan_dir_inode, &orphan_dir_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;

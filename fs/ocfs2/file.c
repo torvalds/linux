@@ -812,7 +812,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	status = ocfs2_meta_lock(inode, NULL, &bh, 1);
+	status = ocfs2_meta_lock(inode, &bh, 1);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -1006,7 +1006,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	 */
 	meta_level = (filp->f_flags & O_APPEND) ? 1 : 0;
 	for(;;) {
-		ret = ocfs2_meta_lock(inode, NULL, NULL, meta_level);
+		ret = ocfs2_meta_lock(inode, NULL, meta_level);
 		if (ret < 0) {
 			meta_level = -1;
 			mlog_errno(ret);
@@ -1174,7 +1174,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	 * like i_size. This allows the checks down below
 	 * generic_file_aio_read() a chance of actually working. 
 	 */
-	ret = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	ret = ocfs2_meta_lock(inode, NULL, 0);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto bail;

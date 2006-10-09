@@ -89,7 +89,7 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	stored = 0;
 	bh = NULL;
 
-	error = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	error = ocfs2_meta_lock(inode, NULL, 0);
 	if (error < 0) {
 		if (error != -ENOENT)
 			mlog_errno(error);

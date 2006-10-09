@@ -1152,7 +1152,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 
 	mutex_lock(&data_alloc_inode->i_mutex);
 
-	status = ocfs2_meta_lock(data_alloc_inode, NULL, &data_alloc_bh, 1);
+	status = ocfs2_meta_lock(data_alloc_inode, &data_alloc_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -2003,10 +2003,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 		mutex_lock(&ext_alloc_inode->i_mutex);
 		(*tc)->tc_ext_alloc_inode = ext_alloc_inode;
 
-		status = ocfs2_meta_lock(ext_alloc_inode,
-					 NULL,
-					 &ext_alloc_bh,
-					 1);
+		status = ocfs2_meta_lock(ext_alloc_inode, &ext_alloc_bh, 1);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
