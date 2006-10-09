@@ -575,8 +575,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	dbg("asoc: %s <-> %s info:\n", rtd->codec_dai->name, rtd->cpu_dai->name);
-	dbg("asoc: rate mask 0x%x \nasoc: min ch %d max ch %d\n
-		asoc: min rate %d max rate %d\n",
+	dbg("asoc: rate mask 0x%x \nasoc: min ch %d max ch %d\n"
+		"asoc: min rate %d max rate %d\n",
 		runtime->hw.rates, runtime->hw.channels_min,
 		runtime->hw.channels_max, runtime->hw.rate_min, runtime->hw.rate_max);
 
