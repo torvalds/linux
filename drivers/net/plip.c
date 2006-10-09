@@ -909,11 +909,6 @@ plip_interrupt(int irq, void *dev_id)
 	struct plip_local *rcv;
 	unsigned char c0;
 
-	if (dev == NULL) {
-		printk(KERN_DEBUG "plip_interrupt: irq %d for unknown device.\n", irq);
-		return;
-	}
-
 	nl = netdev_priv(dev);
 	rcv = &nl->rcv_data;
 

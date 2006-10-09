@@ -912,15 +912,10 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static irqreturn_t
 el3_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct el3_private *lp;
 	int ioaddr, status;
 	int i = max_interrupt_work;
-
-	if (dev == NULL) {
-		printk ("el3_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
 
 	lp = netdev_priv(dev);
 	spin_lock(&lp->lock);

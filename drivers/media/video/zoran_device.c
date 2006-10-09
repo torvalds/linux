@@ -1415,7 +1415,7 @@ zoran_irq (int             irq,
 	struct zoran *zr;
 	unsigned long flags;
 
-	zr = (struct zoran *) dev_id;
+	zr = dev_id;
 	count = 0;
 
 	if (zr->testing) {

@@ -1324,11 +1324,6 @@ static irqreturn_t mc32_interrupt(int irq, void *dev_id)
 	int rx_event = 0;
 	int tx_event = 0;
 
-	if (dev == NULL) {
-		printk(KERN_WARNING "%s: irq %d for unknown device.\n", cardname, irq);
-		return IRQ_NONE;
-	}
-
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
 

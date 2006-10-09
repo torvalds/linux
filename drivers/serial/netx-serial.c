@@ -247,7 +247,7 @@ static void netx_rxint(struct uart_port *port)
 
 static irqreturn_t netx_int(int irq, void *dev_id)
 {
-	struct uart_port *port = (struct uart_port *)dev_id;
+	struct uart_port *port = dev_id;
 	unsigned long flags;
 	unsigned char status;
 

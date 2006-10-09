@@ -1113,17 +1113,12 @@ static __u8 w83977af_fir_interrupt(struct w83977af_ir *self, int isr)
  */
 static irqreturn_t w83977af_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct w83977af_ir *self;
 	__u8 set, icr, isr;
 	int iobase;
 
-	if (!dev) {
-		printk(KERN_WARNING "%s: irq %d for unknown device.\n", 
-			driver_name, irq);
-		return IRQ_NONE;
-	}
-	self = (struct w83977af_ir *) dev->priv;
+	self = dev->priv;
 
 	iobase = self->io.fir_base;
 

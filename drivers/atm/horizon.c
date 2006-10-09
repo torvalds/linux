@@ -1389,15 +1389,6 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   
   PRINTD (DBG_FLOW, "interrupt_handler: %p", dev_id);
   
-  if (!dev_id) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
-  if (irq != dev->irq) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq mismatch: %d", irq);
-    return IRQ_NONE;
-  }
-  
   // definitely for us
   irq_ok = 0;
   while ((int_source = rd_regl (dev, INT_SOURCE_REG_OFF)

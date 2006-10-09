@@ -598,17 +598,13 @@ static int atp_send_packet(struct sk_buff *skb, struct net_device *dev)
    Handle the network interface interrupts. */
 static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 {
-	struct net_device *dev = (struct net_device *)dev_instance;
+	struct net_device *dev = dev_instance;
 	struct net_local *lp;
 	long ioaddr;
 	static int num_tx_since_rx;
 	int boguscount = max_interrupt_work;
 	int handled = 0;
 
-	if (dev == NULL) {
-		printk(KERN_ERR "ATP_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
 

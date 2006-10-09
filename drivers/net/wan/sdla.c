@@ -875,13 +875,7 @@ static irqreturn_t sdla_isr(int irq, void *dev_id)
 
 	dev = dev_id;
 
-	if (dev == NULL)
-	{
-		printk(KERN_WARNING "sdla_isr(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-
-	flp = dev->priv;
+	flp = netdev_priv(dev);
 
 	if (!flp->initialized)
 	{
