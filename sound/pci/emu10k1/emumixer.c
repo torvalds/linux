@@ -315,30 +315,30 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] __devinitdata = {
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC1 Left", 0),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC1 Right", 1),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC2 Left", 2),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC2 Right", 3),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC3 Left", 4),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC3 Right", 5),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC4 Left", 6),
-	EMU1010_SOURCE_OUTPUT("Playback Dock DAC4 Right", 7),
-	EMU1010_SOURCE_OUTPUT("Playback Dock Phones Left", 8),
-	EMU1010_SOURCE_OUTPUT("Playback Dock Phones Right", 9),
-	EMU1010_SOURCE_OUTPUT("Playback Dock SPDIF Left", 0xa),
-	EMU1010_SOURCE_OUTPUT("Playback Dock SPDIF Right", 0xb),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 SPDIF Left", 0xc),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 SPDIF Right", 0xd),
-	EMU1010_SOURCE_OUTPUT("Playback 0202 DAC Left", 0xe),
-	EMU1010_SOURCE_OUTPUT("Playback 0202 DAC Right", 0xf),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 0", 0x10),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 1", 0x11),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 2", 0x12),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 3", 0x13),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 4", 0x14),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 5", 0x15),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 6", 0x16),
-	EMU1010_SOURCE_OUTPUT("Playback 1010 ADAT 7", 0x17),
+	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Switch", 0),
+	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Switch", 1),
+	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Switch", 2),
+	EMU1010_SOURCE_OUTPUT("Dock DAC2 Right Playback Switch", 3),
+	EMU1010_SOURCE_OUTPUT("Dock DAC3 Left Playback Switch", 4),
+	EMU1010_SOURCE_OUTPUT("Dock DAC3 Right Playback Switch", 5),
+	EMU1010_SOURCE_OUTPUT("Dock DAC4 Left Playback Switch", 6),
+	EMU1010_SOURCE_OUTPUT("Dock DAC4 Right Playback Switch", 7),
+	EMU1010_SOURCE_OUTPUT("Dock Phones Left Playback Switch", 8),
+	EMU1010_SOURCE_OUTPUT("Dock Phones Right Playback Switch", 9),
+	EMU1010_SOURCE_OUTPUT("Dock SPDIF Left Playback Switch", 0xa),
+	EMU1010_SOURCE_OUTPUT("Dock SPDIF Right Playback Switch", 0xb),
+	EMU1010_SOURCE_OUTPUT("1010 SPDIF Left Playback Switch", 0xc),
+	EMU1010_SOURCE_OUTPUT("1010 SPDIF Right Playback Switch", 0xd),
+	EMU1010_SOURCE_OUTPUT("0202 DAC Left Playback Switch", 0xe),
+	EMU1010_SOURCE_OUTPUT("0202 DAC Right Playback Switch", 0xf),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 0 Playback Switch", 0x10),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 1 Playback Switch", 0x11),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 2 Playback Switch", 0x12),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 3 Playback Switch", 0x13),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 4 Playback Switch", 0x14),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 5 Playback Switch", 0x15),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 6 Playback Switch", 0x16),
+	EMU1010_SOURCE_OUTPUT("1010 ADAT 7 Playback Switch", 0x17),
 };
 
 #define EMU1010_SOURCE_INPUT(xname,chid) \
@@ -352,28 +352,142 @@ static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] __devinitdata = {
 }
 
 static struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] __devinitdata = {
-	EMU1010_SOURCE_INPUT("DSP 0 CAPTURE ENUM", 0),
-	EMU1010_SOURCE_INPUT("DSP 1 CAPTURE ENUM", 1),
-	EMU1010_SOURCE_INPUT("DSP 2 CAPTURE ENUM", 2),
-	EMU1010_SOURCE_INPUT("DSP 3 CAPTURE ENUM", 3),
-	EMU1010_SOURCE_INPUT("DSP 4 CAPTURE ENUM", 4),
-	EMU1010_SOURCE_INPUT("DSP 5 CAPTURE ENUM", 5),
-	EMU1010_SOURCE_INPUT("DSP 6 CAPTURE ENUM", 6),
-	EMU1010_SOURCE_INPUT("DSP 7 CAPTURE ENUM", 7),
-	EMU1010_SOURCE_INPUT("DSP 8 CAPTURE ENUM", 8),
-	EMU1010_SOURCE_INPUT("DSP 9 CAPTURE ENUM", 9),
-	EMU1010_SOURCE_INPUT("DSP A CAPTURE ENUM", 0xa),
-	EMU1010_SOURCE_INPUT("DSP B CAPTURE ENUM", 0xb),
-	EMU1010_SOURCE_INPUT("DSP C CAPTURE ENUM", 0xc),
-	EMU1010_SOURCE_INPUT("DSP D CAPTURE ENUM", 0xd),
-	EMU1010_SOURCE_INPUT("DSP E CAPTURE ENUM", 0xe),
-	EMU1010_SOURCE_INPUT("DSP F CAPTURE ENUM", 0xf),
-	EMU1010_SOURCE_INPUT("DSP 10 CAPTURE ENUM", 0x10),
-	EMU1010_SOURCE_INPUT("DSP 11 CAPTURE ENUM", 0x11),
-	EMU1010_SOURCE_INPUT("DSP 12 CAPTURE ENUM", 0x12),
-	EMU1010_SOURCE_INPUT("DSP 13 CAPTURE ENUM", 0x13),
-	EMU1010_SOURCE_INPUT("DSP 14 CAPTURE ENUM", 0x14),
-	EMU1010_SOURCE_INPUT("DSP 15 CAPTURE ENUM", 0x15),
+	EMU1010_SOURCE_INPUT("DSP 0 Capture Switch", 0),
+	EMU1010_SOURCE_INPUT("DSP 1 Capture Switch", 1),
+	EMU1010_SOURCE_INPUT("DSP 2 Capture Switch", 2),
+	EMU1010_SOURCE_INPUT("DSP 3 Capture Switch", 3),
+	EMU1010_SOURCE_INPUT("DSP 4 Capture Switch", 4),
+	EMU1010_SOURCE_INPUT("DSP 5 Capture Switch", 5),
+	EMU1010_SOURCE_INPUT("DSP 6 Capture Switch", 6),
+	EMU1010_SOURCE_INPUT("DSP 7 Capture Switch", 7),
+	EMU1010_SOURCE_INPUT("DSP 8 Capture Switch", 8),
+	EMU1010_SOURCE_INPUT("DSP 9 Capture Switch", 9),
+	EMU1010_SOURCE_INPUT("DSP A Capture Switch", 0xa),
+	EMU1010_SOURCE_INPUT("DSP B Capture Switch", 0xb),
+	EMU1010_SOURCE_INPUT("DSP C Capture Switch", 0xc),
+	EMU1010_SOURCE_INPUT("DSP D Capture Switch", 0xd),
+	EMU1010_SOURCE_INPUT("DSP E Capture Switch", 0xe),
+	EMU1010_SOURCE_INPUT("DSP F Capture Switch", 0xf),
+	EMU1010_SOURCE_INPUT("DSP 10 Capture Switch", 0x10),
+	EMU1010_SOURCE_INPUT("DSP 11 Capture Switch", 0x11),
+	EMU1010_SOURCE_INPUT("DSP 12 Capture Switch", 0x12),
+	EMU1010_SOURCE_INPUT("DSP 13 Capture Switch", 0x13),
+	EMU1010_SOURCE_INPUT("DSP 14 Capture Switch", 0x14),
+	EMU1010_SOURCE_INPUT("DSP 15 Capture Switch", 0x15),
+};
+
+
+
+
+static int snd_emu1010_adc_pads_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int snd_emu1010_adc_pads_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = kcontrol->private_value & 0xff;
+	ucontrol->value.integer.value[0] = (emu->emu1010.adc_pads & mask) ? 1 : 0;
+	return 0;
+}
+
+static int snd_emu1010_adc_pads_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = kcontrol->private_value & 0xff;
+	unsigned int val, cache;
+	val = ucontrol->value.integer.value[0];
+	cache = emu->emu1010.adc_pads;
+	if (val == 1) 
+		cache = cache | mask;
+	else
+		cache = cache & ~mask;
+	if (cache != emu->emu1010.adc_pads) {
+		snd_emu1010_fpga_write(emu, EMU_HANA_ADC_PADS, cache );
+	        emu->emu1010.adc_pads = cache;
+	}
+
+	return 0;
+}
+
+
+
+#define EMU1010_ADC_PADS(xname,chid) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,		\
+	.info =  snd_emu1010_adc_pads_info,			\
+	.get =   snd_emu1010_adc_pads_get,			\
+	.put =   snd_emu1010_adc_pads_put,			\
+	.private_value = chid					\
+}
+
+static struct snd_kcontrol_new snd_emu1010_adc_pads[] __devinitdata = {
+	EMU1010_ADC_PADS("ADC1 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD1),
+	EMU1010_ADC_PADS("ADC2 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD2),
+	EMU1010_ADC_PADS("ADC3 14dB PAD Audio Dock Capture Switch", EMU_HANA_DOCK_ADC_PAD3),
+	EMU1010_ADC_PADS("ADC1 14dB PAD 0202 Capture Switch", EMU_HANA_0202_ADC_PAD1),
+};
+
+static int snd_emu1010_dac_pads_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int snd_emu1010_dac_pads_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = kcontrol->private_value & 0xff;
+	ucontrol->value.integer.value[0] = (emu->emu1010.dac_pads & mask) ? 1 : 0;
+	return 0;
+}
+
+static int snd_emu1010_dac_pads_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = kcontrol->private_value & 0xff;
+	unsigned int val, cache;
+	val = ucontrol->value.integer.value[0];
+	cache = emu->emu1010.dac_pads;
+	if (val == 1) 
+		cache = cache | mask;
+	else
+		cache = cache & ~mask;
+	if (cache != emu->emu1010.dac_pads) {
+		snd_emu1010_fpga_write(emu, EMU_HANA_DAC_PADS, cache );
+	        emu->emu1010.dac_pads = cache;
+	}
+
+	return 0;
+}
+
+
+
+#define EMU1010_DAC_PADS(xname,chid) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,		\
+	.info =  snd_emu1010_dac_pads_info,			\
+	.get =   snd_emu1010_dac_pads_get,			\
+	.put =   snd_emu1010_dac_pads_put,			\
+	.private_value = chid					\
+}
+
+static struct snd_kcontrol_new snd_emu1010_dac_pads[] __devinitdata = {
+	EMU1010_DAC_PADS("DAC1 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD1),
+	EMU1010_DAC_PADS("DAC2 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD2),
+	EMU1010_DAC_PADS("DAC3 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD3),
+	EMU1010_DAC_PADS("DAC4 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD4),
+	EMU1010_DAC_PADS("DAC1 0202 14dB PAD Playback Switch", EMU_HANA_0202_DAC_PAD1),
 };
 
 #if 0
@@ -1364,6 +1478,16 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		}
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_input_enum_ctls); i++) {
 			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_input_enum_ctls[i], emu));
+			if (err < 0)
+				return err;
+		}
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_adc_pads); i++) {
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_adc_pads[i], emu));
+			if (err < 0)
+				return err;
+		}
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_dac_pads); i++) {
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_dac_pads[i], emu));
 			if (err < 0)
 				return err;
 		}
