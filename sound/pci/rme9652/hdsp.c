@@ -598,6 +598,7 @@ static int hdsp_playback_to_output_key (struct hdsp *hdsp, int in, int out)
 		return (64 * out) + (32 + (in));
 	case 0x96:
 	case 0x97:
+	case 0x98:
 		return (32 * out) + (16 + (in));
 	default:
 		return (52 * out) + (26 + (in));
@@ -611,6 +612,7 @@ static int hdsp_input_to_output_key (struct hdsp *hdsp, int in, int out)
 		return (64 * out) + in;
 	case 0x96:
 	case 0x97:
+	case 0x98:
 		return (32 * out) + in;
 	default:
 		return (52 * out) + in;
