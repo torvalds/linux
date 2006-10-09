@@ -1010,11 +1010,6 @@ endchoice
 config ARC32
 	bool
 
-config AU1X00_USB_DEVICE
-	bool
-	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
-	default n
-
 config BOOT_ELF32
 	bool
 
