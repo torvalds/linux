@@ -120,4 +120,7 @@ extern void ata_scsi_error(struct Scsi_Host *host);
 extern void ata_port_wait_eh(struct ata_port *ap);
 extern void ata_qc_schedule_eh(struct ata_queued_cmd *qc);
 
+/* libata-sff.c */
+extern u8 ata_irq_on(struct ata_port *ap);
+
 #endif /* __LIBATA_H__ */

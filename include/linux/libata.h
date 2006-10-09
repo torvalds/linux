@@ -1150,37 +1150,6 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_irq_on - Enable interrupts on a port.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Enable interrupts on a legacy IDE device using MMIO or PIO,
- *	wait for idle, clear any pending interrupts.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static inline u8 ata_irq_on(struct ata_port *ap)
-{
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 tmp;
-
-	ap->ctl &= ~ATA_NIEN;
-	ap->last_ctl = ap->ctl;
-
-	if (ap->flags & ATA_FLAG_MMIO)
-		writeb(ap->ctl, (void __iomem *) ioaddr->ctl_addr);
-	else
-		outb(ap->ctl, ioaddr->ctl_addr);
-	tmp = ata_wait_idle(ap);
-
-	ap->ops->irq_clear(ap);
-
-	return tmp;
-}
-
-
-/**
  *	ata_irq_ack - Acknowledge a device interrupt.
  *	@ap: Port on which interrupts are enabled.
  *
