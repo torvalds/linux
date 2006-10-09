@@ -31,7 +31,16 @@
 #include <asm/amigahw.h>
 #include <linux/zorro.h>
 
-#include "8390.h"
+#define EI_SHIFT(x)	(ei_local->reg_offset[x])
+#define ei_inb(port)   in_8(port)
+#define ei_outb(val,port)  out_8(port,val)
+#define ei_inb_p(port)   in_8(port)
+#define ei_outb_p(val,port)  out_8(port,val)
+
+static const char version[] =
+    "8390.c:v1.10cvs 9/23/94 Donald Becker (becker@cesdis.gsfc.nasa.gov)\n";
+
+#include "lib8390.c"
 
 #define NE_EN0_DCFG     (0x0e*2)
 
@@ -100,7 +109,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
 	0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
     };
 
-    dev = alloc_ei_netdev();
+    dev = ____alloc_ei_netdev(0);
     if (!dev)
 	return -ENOMEM;
     SET_MODULE_OWNER(dev);
@@ -117,7 +126,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
     dev->irq = IRQ_AMIGA_PORTS;
 
     /* Install the Interrupt handler */
-    if (request_irq(IRQ_AMIGA_PORTS, ei_interrupt, IRQF_SHARED, "Hydra Ethernet",
+    if (request_irq(IRQ_AMIGA_PORTS, __ei_interrupt, IRQF_SHARED, "Hydra Ethernet",
 		    dev)) {
 	free_netdev(dev);
 	return -EAGAIN;
@@ -139,10 +148,10 @@ static int __devinit hydra_init(struct zorro_dev *z)
     dev->open = &hydra_open;
     dev->stop = &hydra_close;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = ei_poll;
+    dev->poll_controller = __ei_poll;
 #endif
 
-    NS8390_init(dev, 0);
+    __NS8390_init(dev, 0);
 
     err = register_netdev(dev);
     if (err) {
@@ -164,7 +173,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
 
 static int hydra_open(struct net_device *dev)
 {
-    ei_open(dev);
+    __ei_open(dev);
     return 0;
 }
 
@@ -172,7 +181,7 @@ static int hydra_close(struct net_device *dev)
 {
     if (ei_debug > 1)
 	printk(KERN_DEBUG "%s: Shutting down ethercard.\n", dev->name);
-    ei_close(dev);
+    __ei_close(dev);
     return 0;
 }
 
