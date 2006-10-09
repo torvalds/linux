@@ -1422,7 +1422,6 @@ cy_tiocmget(struct tty_struct *tty, struct file *file)
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
   unsigned char status;
-  unsigned int result;
 
     channel = info->line;
 
@@ -1446,7 +1445,6 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
   int channel;
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
-  unsigned int arg;
 	  
     channel = info->line;
 
