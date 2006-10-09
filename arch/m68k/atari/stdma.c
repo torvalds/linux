@@ -44,7 +44,7 @@
 
 static int stdma_locked;			/* the semaphore */
 						/* int func to be called */
-static irqreturn_t (*stdma_isr)(int, void *);
+static irq_handler_t stdma_isr;
 static void *stdma_isr_data;			/* data passed to isr */
 static DECLARE_WAIT_QUEUE_HEAD(stdma_wait);	/* wait queue for ST-DMA */
 
@@ -75,7 +75,7 @@ static irqreturn_t stdma_int (int irq, void *dummy);
  *
  */
 
-void stdma_lock(irqreturn_t (*handler)(int, void *), void *data)
+void stdma_lock(irq_handler_t handler, void *data)
 {
 	unsigned long flags;
 

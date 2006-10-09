@@ -38,7 +38,7 @@
 
 static void mvme147_get_model(char *model);
 static int  mvme147_get_hardware_list(char *buffer);
-extern void mvme147_sched_init(irqreturn_t (*handler)(int, void *));
+extern void mvme147_sched_init(irq_handler_t handler);
 extern unsigned long mvme147_gettimeoffset (void);
 extern int mvme147_hwclk (int, struct rtc_time *);
 extern int mvme147_set_clock_mmss (unsigned long);
@@ -51,7 +51,7 @@ static int bcd2int (unsigned char b);
 /* Save tick handler routine pointer, will point to do_timer() in
  * kernel/sched.c, called via mvme147_process_int() */
 
-irqreturn_t (*tick_handler)(int, void *);
+irq_handler_t tick_handler;
 
 
 int mvme147_parse_bootinfo(const struct bi_record *bi)
@@ -122,7 +122,7 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 }
 
 
-void mvme147_sched_init (irqreturn_t (*timer_routine)(int, void *))
+void mvme147_sched_init (irq_handler_t timer_routine)
 {
 	tick_handler = timer_routine;
 	request_irq (PCC_IRQ_TIMER1, mvme147_timer_int,

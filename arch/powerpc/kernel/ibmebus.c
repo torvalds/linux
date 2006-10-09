@@ -319,7 +319,7 @@ EXPORT_SYMBOL(ibmebus_unregister_driver);
 
 int ibmebus_request_irq(struct ibmebus_dev *dev,
 			u32 ist, 
-			irqreturn_t (*handler)(int, void*),
+			irq_handler_t handler,
 			unsigned long irq_flags, const char * devname,
 			void *dev_id)
 {

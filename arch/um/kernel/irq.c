@@ -364,7 +364,7 @@ unsigned int do_IRQ(int irq, union uml_pt_regs *regs)
 }
 
 int um_request_irq(unsigned int irq, int fd, int type,
-		   irqreturn_t (*handler)(int, void *),
+		   irq_handler_t handler,
 		   unsigned long irqflags, const char * devname,
 		   void *dev_id)
 {
@@ -425,7 +425,7 @@ void __init init_IRQ(void)
 	}
 }
 
-int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *))
+int init_aio_irq(int irq, char *name, irq_handler_t handler)
 {
 	int fds[2], err;
 

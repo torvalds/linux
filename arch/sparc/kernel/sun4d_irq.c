@@ -276,7 +276,7 @@ unsigned int sun4d_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint)
 }
 
 int sun4d_request_irq(unsigned int irq,
-		irqreturn_t (*handler)(int, void *),
+		irq_handler_t handler,
 		unsigned long irqflags, const char * devname, void *dev_id)
 {
 	struct irqaction *action, *tmp = NULL, **actionp;
@@ -470,7 +470,7 @@ static void sun4d_load_profile_irq(int cpu, unsigned int limit)
 	bw_set_prof_limit(cpu, limit);
 }
 
-static void __init sun4d_init_timers(irqreturn_t (*counter_fn)(int, void *))
+static void __init sun4d_init_timers(irq_handler_t counter_fn)
 {
 	int irq;
 	int cpu;

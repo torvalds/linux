@@ -288,7 +288,7 @@ static struct irq_chip level_irq_type = {
 };
 
 #ifdef CONFIG_PM
-void startup_match20_interrupt(irqreturn_t (*handler)(int, void *))
+void startup_match20_interrupt(irq_handler_t handler)
 {
 	struct irq_desc *desc = &irq_desc[AU1000_TOY_MATCH2_INT];
 

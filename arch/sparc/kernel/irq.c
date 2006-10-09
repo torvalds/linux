@@ -134,8 +134,8 @@ static void irq_panic(void)
     prom_halt();
 }
 
-void (*sparc_init_timers)(irqreturn_t (*)(int, void *)) =
-    (void (*)(irqreturn_t (*)(int, void *))) irq_panic;
+void (*sparc_init_timers)(irq_handler_t ) =
+    (void (*)(irq_handler_t )) irq_panic;
 
 /*
  * Dave Redman (djhr@tadpole.co.uk)
@@ -376,7 +376,7 @@ void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
  * thus no sharing possible.
  */
 int request_fast_irq(unsigned int irq,
-		     irqreturn_t (*handler)(int, void *),
+		     irq_handler_t handler,
 		     unsigned long irqflags, const char *devname)
 {
 	struct irqaction *action;
@@ -475,7 +475,7 @@ out:
 }
 
 int request_irq(unsigned int irq,
-		irqreturn_t (*handler)(int, void *),
+		irq_handler_t handler,
 		unsigned long irqflags, const char * devname, void *dev_id)
 {
 	struct irqaction * action, **actionp;
@@ -485,7 +485,7 @@ int request_irq(unsigned int irq,
 	
 	if (sparc_cpu_model == sun4d) {
 		extern int sun4d_request_irq(unsigned int, 
-					     irqreturn_t (*)(int, void *),
+					     irq_handler_t ,
 					     unsigned long, const char *, void *);
 		return sun4d_request_irq(irq, handler, irqflags, devname, dev_id);
 	}

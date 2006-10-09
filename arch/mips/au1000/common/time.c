@@ -61,7 +61,7 @@ static unsigned int timerhi = 0, timerlo = 0;
 #error "unsupported HZ value! Must be in [100,1000]"
 #endif
 #define MATCH20_INC (328*100/HZ) /* magic number 328 is for HZ=100... */
-extern void startup_match20_interrupt(irqreturn_t (*handler)(int, void *));
+extern void startup_match20_interrupt(irq_handler_t handler);
 static unsigned long last_pc0, last_match20;
 #endif
 

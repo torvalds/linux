@@ -235,7 +235,7 @@ void __init via_init(void)
  * Start the 100 Hz clock
  */
 
-void __init via_init_clock(irqreturn_t (*func)(int, void *))
+void __init via_init_clock(irq_handler_t func)
 {
 	via1[vACR] |= 0x40;
 	via1[vT1LL] = MAC_CLOCK_LOW;
