@@ -41,6 +41,7 @@ struct xattr_handler {
 };
 
 ssize_t vfs_getxattr(struct dentry *, char *, void *, size_t);
+ssize_t vfs_listxattr(struct dentry *d, char *list, size_t size);
 int vfs_setxattr(struct dentry *, char *, void *, size_t, int);
 int vfs_removexattr(struct dentry *, char *);
 
