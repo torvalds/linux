@@ -62,6 +62,7 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/tty_flip.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -427,8 +428,9 @@ cd2401_rxerr_interrupt(int irq, void *dev_id)
 		       overflowing, we still loose
 		       the next incoming character.
 		     */
-		    tty_insert_flip_char(tty, data, TTY_NORMAL);
-		}
+		    if (tty_buffer_request_room(tty, 1) != 0){
+			tty_insert_flip_char(tty, data, TTY_FRAME);
+		    }
 		/* These two conditions may imply */
 		/* a normal read should be done. */
 		/* else if(data & CyTIMEOUT) */
@@ -437,14 +439,14 @@ cd2401_rxerr_interrupt(int irq, void *dev_id)
 		    tty_insert_flip_char(tty, 0, TTY_NORMAL);
 		}
 	    }else{
-		    tty_insert_flip_char(tty, data, TTY_NORMAL);
+		tty_insert_flip_char(tty, data, TTY_NORMAL);
 	    }
 	}else{
 	    /* there was a software buffer overrun
 	       and nothing could be done about it!!! */
 	}
     }
-    schedule_delayed_work(&tty->flip.work, 1);
+    tty_schedule_flip(tty);
     /* end of service */
     base_addr[CyREOIR] = rfoc ? 0 : CyNOTRANS;
     return IRQ_HANDLED;
@@ -635,6 +637,7 @@ cd2401_rx_interrupt(int irq, void *dev_id)
     char data;
     int char_count;
     int save_cnt;
+    int len;
 
     /* determine the channel and change to that context */
     channel = (u_short ) (base_addr[CyLICR] >> 2);
@@ -667,14 +670,15 @@ cd2401_rx_interrupt(int irq, void *dev_id)
 	    info->mon.char_max = char_count;
 	info->mon.char_last = char_count;
 #endif
-	while(char_count--){
+	len = tty_buffer_request_room(tty, char_count);
+	while(len--){
 	    data = base_addr[CyRDR];
 	    tty_insert_flip_char(tty, data, TTY_NORMAL);
 #ifdef CYCLOM_16Y_HACK
 	    udelay(10L);
 #endif
         }
-	schedule_delayed_work(&tty->flip.work, 1);
+	tty_schedule_flip(tty);
     }
     /* end of service */
     base_addr[CyREOIR] = save_cnt ? 0 : CyNOTRANS;
