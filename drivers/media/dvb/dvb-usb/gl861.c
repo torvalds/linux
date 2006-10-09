@@ -103,6 +103,7 @@ static int gl861_identify_state(struct usb_device *udev,
 static struct zl10353_config gl861_zl10353_config = {
 	.demod_address = 0x1e,
 	.no_tuner = 1,
+	.parallel_ts = 1,
 };
 
 static int gl861_frontend_attach(struct dvb_usb_adapter *adap)
@@ -215,5 +216,5 @@ module_exit (gl861_module_exit);
 
 MODULE_AUTHOR("Carl Lundqvist <comabug@gmail.com>");
 MODULE_DESCRIPTION("Driver MSI Mega Sky 580 DVB-T USB2.0 / GL861");
-MODULE_VERSION("1.0");
+MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
