@@ -501,13 +501,13 @@ static void tifm_sd_end_cmd(void *data)
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct mmc_request *mrq;
-	struct mmc_data *r_data = 0;
+	struct mmc_data *r_data = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sock->lock, flags);
 
 	mrq = host->req;
-	host->req = 0;
+	host->req = NULL;
 	host->state = IDLE;
 
 	if (!mrq) {
@@ -546,7 +546,7 @@ static void tifm_sd_request_nodma(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct tifm_dev *sock = host->dev;
 	unsigned long flags;
 	struct mmc_data *r_data = mrq->cmd->data;
-	char *t_buffer = 0;
+	char *t_buffer = NULL;
 
 	if (r_data) {
 		t_buffer = kmap(r_data->sg->page);
@@ -613,13 +613,13 @@ static void tifm_sd_end_cmd_nodma(void *data)
 	struct tifm_dev *sock = host->dev;
 	struct mmc_host *mmc = tifm_get_drvdata(sock);
 	struct mmc_request *mrq;
-	struct mmc_data *r_data = 0;
+	struct mmc_data *r_data = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sock->lock, flags);
 
 	mrq = host->req;
-	host->req = 0;
+	host->req = NULL;
 	host->state = IDLE;
 
 	if (!mrq) {
@@ -644,7 +644,7 @@ static void tifm_sd_end_cmd_nodma(void *data)
 			r_data->bytes_xfered += r_data->blksz -
 				readl(sock->addr + SOCK_MMCSD_BLOCK_LEN) + 1;
 		}
-		host->buffer = 0;
+		host->buffer = NULL;
 		host->buffer_pos = 0;
 		host->buffer_size = 0;
 	}
@@ -895,7 +895,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 		sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
 	writel(0, sock->addr + SOCK_DMA_FIFO_INT_ENABLE_SET);
 
-	tifm_set_drvdata(sock, 0);
+	tifm_set_drvdata(sock, NULL);
 	mmc_free_host(mmc);
 }
 

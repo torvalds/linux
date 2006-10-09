@@ -48,7 +48,7 @@ static void tifm_7xx1_remove_media(void *adapter)
 			printk(KERN_INFO DRIVER_NAME
 			       ": demand removing card from socket %d\n", cnt);
 			sock = fm->sockets[cnt];
-			fm->sockets[cnt] = 0;
+			fm->sockets[cnt] = NULL;
 			fm->remove_mask &= ~(1 << cnt);
 
 			writel(0x0e00, sock->addr + SOCK_CONTROL);
@@ -118,7 +118,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static tifm_media_id tifm_7xx1_toggle_sock_power(char *sock_addr, int is_x2)
+static tifm_media_id tifm_7xx1_toggle_sock_power(char __iomem *sock_addr, int is_x2)
 {
 	unsigned int s_state;
 	int cnt;
@@ -163,7 +163,8 @@ static tifm_media_id tifm_7xx1_toggle_sock_power(char *sock_addr, int is_x2)
 	return (readl(sock_addr + SOCK_PRESENT_STATE) >> 4) & 7;
 }
 
-inline static char *tifm_7xx1_sock_addr(char *base_addr, unsigned int sock_num)
+inline static char __iomem *
+tifm_7xx1_sock_addr(char __iomem *base_addr, unsigned int sock_num)
 {
 	return base_addr + ((sock_num + 1) << 10);
 }
@@ -176,7 +177,7 @@ static void tifm_7xx1_insert_media(void *adapter)
 	char *card_name = "xx";
 	int cnt, ok_to_register;
 	unsigned int insert_mask;
-	struct tifm_dev *new_sock = 0;
+	struct tifm_dev *new_sock = NULL;
 
 	if (!class_device_get(&fm->cdev))
 		return;
@@ -230,7 +231,7 @@ static void tifm_7xx1_insert_media(void *adapter)
 				if (!ok_to_register ||
 					    device_register(&new_sock->dev)) {
 					spin_lock_irqsave(&fm->lock, flags);
-					fm->sockets[cnt] = 0;
+					fm->sockets[cnt] = NULL;
 					spin_unlock_irqrestore(&fm->lock,
 								flags);
 					tifm_free_device(&new_sock->dev);
@@ -390,7 +391,7 @@ static void tifm_7xx1_remove(struct pci_dev *dev)
 
 	tifm_remove_adapter(fm);
 
-	pci_set_drvdata(dev, 0);
+	pci_set_drvdata(dev, NULL);
 
 	iounmap(fm->addr);
 	pci_intx(dev, 0);
