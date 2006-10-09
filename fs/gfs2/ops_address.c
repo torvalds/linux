@@ -370,15 +370,17 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + from;
 	loff_t end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 	struct gfs2_alloc *al;
+	unsigned int write_len = to - from;
+
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|GL_AOP, &ip->i_gh);
 	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
 	if (error)
 		goto out_uninit;
 
-	gfs2_write_calc_reserv(ip, to - from, &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, write_len, &data_blocks, &ind_blocks);
 
-	error = gfs2_write_alloc_required(ip, pos, from - to, &alloc_required);
+	error = gfs2_write_alloc_required(ip, pos, write_len, &alloc_required);
 	if (error)
 		goto out_unlock;
 
