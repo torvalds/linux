@@ -107,10 +107,6 @@ struct ei_device {
  *      - removed AMIGA_PCMCIA from this list, handled as ISA io now
  */
 
-#if defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
-#define EI_SHIFT(x)	(ei_local->reg_offset[x])
-#endif
-
 #ifndef ei_inb
 #define ei_inb(_p)	inb(_p)
 #define ei_outb(_v,_p)	outb(_v,_p)
