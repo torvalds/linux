@@ -378,7 +378,7 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 #define	MMC_POLL_RATE		msecs_to_jiffies(1000)
 
 static void lubbock_mmc_poll(unsigned long);
-static irqreturn_t (*mmc_detect_int)(int, void *);
+static irq_handler_t mmc_detect_int;
 
 static struct timer_list mmc_timer = {
 	.function	= lubbock_mmc_poll,
@@ -412,7 +412,7 @@ static irqreturn_t lubbock_detect_int(int irq, void *data)
 }
 
 static int lubbock_mci_init(struct device *dev,
-		irqreturn_t (*detect_int)(int, void *),
+		irq_handler_t detect_int,
 		void *data)
 {
 	/* setup GPIO for PXA25x MMC controller	*/

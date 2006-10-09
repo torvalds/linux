@@ -714,7 +714,7 @@ startup(struct async_struct *info)
 {
 	unsigned long flags;
 	int	retval=0;
-	irqreturn_t (*handler)(int, void *);
+	irq_handler_t handler;
 	struct serial_state *state= info->state;
 	unsigned long page;
 

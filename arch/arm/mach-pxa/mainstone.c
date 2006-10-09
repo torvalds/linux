@@ -313,7 +313,7 @@ static struct pxafb_mach_info mainstone_pxafb_info = {
 	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
-static int mainstone_mci_init(struct device *dev, irqreturn_t (*mstone_detect_int)(int, void *), void *data)
+static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_int, void *data)
 {
 	int err;
 

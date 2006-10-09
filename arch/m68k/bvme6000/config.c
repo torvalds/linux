@@ -38,7 +38,7 @@
 
 static void bvme6000_get_model(char *model);
 static int  bvme6000_get_hardware_list(char *buffer);
-extern void bvme6000_sched_init(irqreturn_t (*handler)(int, void *));
+extern void bvme6000_sched_init(irq_handler_t handler);
 extern unsigned long bvme6000_gettimeoffset (void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
 extern int bvme6000_set_clock_mmss (unsigned long);
@@ -52,7 +52,7 @@ static unsigned char bin2bcd (unsigned char b);
 /* Save tick handler routine pointer, will point to do_timer() in
  * kernel/sched.c, called via bvme6000_process_int() */
 
-static irqreturn_t (*tick_handler)(int, void *);
+static irq_handler_t tick_handler;
 
 
 int bvme6000_parse_bootinfo(const struct bi_record *bi)
@@ -190,7 +190,7 @@ static irqreturn_t bvme6000_timer_int (int irq, void *dev_id)
  * so divide by 8 to get the microsecond result.
  */
 
-void bvme6000_sched_init (irqreturn_t (*timer_routine)(int, void *))
+void bvme6000_sched_init (irq_handler_t timer_routine)
 {
     volatile RtcPtr_t rtc = (RtcPtr_t)BVME_RTC_BASE;
     unsigned char msr = rtc->msr & 0xc0;

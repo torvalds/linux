@@ -216,7 +216,7 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 }
 
 int request_irq(unsigned int irq,
-		irqreturn_t (*handler) (int, void *),
+		irq_handler_t handler,
 		unsigned long flags, const char *devname, void *dev_id)
 {
 	struct irq_node *node;

@@ -125,7 +125,7 @@ void q40_mksound(unsigned int hz, unsigned int ticks)
 	sound_ticks = ticks << 1;
 }
 
-static irqreturn_t (*q40_timer_routine)(int, void *);
+static irq_handler_t q40_timer_routine;
 
 static irqreturn_t q40_timer_int (int irq, void * dev)
 {
@@ -142,7 +142,7 @@ static irqreturn_t q40_timer_int (int irq, void * dev)
 	return IRQ_HANDLED;
 }
 
-void q40_sched_init (irqreturn_t (*timer_routine)(int, void *))
+void q40_sched_init (irq_handler_t timer_routine)
 {
 	int timer_irq;
 
