@@ -119,7 +119,7 @@ config MOUSE_VSXXXAA
 
 config MOUSE_HIL
 	tristate "HIL pointers (mice etc)."     
-	depends on GSC
+	depends on GSC || HP300
 	select HP_SDC
 	select HIL_MLC
 	help
