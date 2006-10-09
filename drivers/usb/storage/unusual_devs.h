@@ -55,7 +55,8 @@ UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_IGNORE_RESIDUE),
 
-UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
+/* modified by Tobias Lorenz <tobias.lorenz@gmx.net> */
+UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0200,
 		"Mitsumi",
 		"USB FDD",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
