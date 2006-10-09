@@ -665,6 +665,10 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	case BTTV_BOARD_TWINHAN_DST:
 		/*	DST is not a frontend driver !!!		*/
 		state = (struct dst_state *) kmalloc(sizeof (struct dst_state), GFP_KERNEL);
+		if (!state) {
+			printk("dvb_bt8xx: No memory\n");
+			break;
+		}
 		/*	Setup the Card					*/
 		state->config = &dst_config;
 		state->i2c = card->i2c_adapter;
