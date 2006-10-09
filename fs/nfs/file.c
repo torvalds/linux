@@ -307,11 +307,14 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
 {
-	struct inode *inode = page->mapping->host;
+	loff_t range_start, range_end;
 
+	if (offset != 0)
+		return;
 	/* Cancel any unstarted writes on this page */
-	if (offset == 0)
-		nfs_sync_inode_wait(inode, page->index, 1, FLUSH_INVALIDATE);
+	range_start = page_offset(page);
+	range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+	nfs_sync_mapping_range(page->mapping, range_start, range_end, FLUSH_INVALIDATE);
 }
 
 static int nfs_release_page(struct page *page, gfp_t gfp)

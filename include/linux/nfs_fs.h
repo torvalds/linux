@@ -432,7 +432,10 @@ extern void nfs_writedata_release(void *);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern long nfs_sync_inode_wait(struct inode *, unsigned long, unsigned int, int);
+extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
+extern int nfs_sync_mapping_range(struct address_space *, loff_t, loff_t, int);
+extern int nfs_wb_all(struct inode *inode);
+extern int nfs_wb_page(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
 extern struct nfs_write_data *nfs_commit_alloc(void);
@@ -450,28 +453,6 @@ static inline int
 nfs_have_writebacks(struct inode *inode)
 {
 	return NFS_I(inode)->npages != 0;
-}
-
-static inline int
-nfs_wb_all(struct inode *inode)
-{
-	int error = nfs_sync_inode_wait(inode, 0, 0, 0);
-	return (error < 0) ? error : 0;
-}
-
-/*
- * Write back all requests on one page - we do this before reading it.
- */
-static inline int nfs_wb_page_priority(struct inode *inode, struct page* page, int how)
-{
-	int error = nfs_sync_inode_wait(inode, page->index, 1,
-			how | FLUSH_STABLE);
-	return (error < 0) ? error : 0;
-}
-
-static inline int nfs_wb_page(struct inode *inode, struct page* page)
-{
-	return nfs_wb_page_priority(inode, page, 0);
 }
 
 /*

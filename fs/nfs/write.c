@@ -80,6 +80,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
 static long nfs_flush_mapping(struct address_space *mapping, struct writeback_control *wbc, int how);
+static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how);
 static const struct rpc_call_ops nfs_write_partial_ops;
 static const struct rpc_call_ops nfs_write_full_ops;
 static const struct rpc_call_ops nfs_commit_ops;
@@ -1476,29 +1477,38 @@ int nfs_commit_inode(struct inode *inode, int how)
 }
 #endif
 
-long nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
-		unsigned int npages, int how)
+long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
+	struct inode *inode = mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
-	struct address_space *mapping = inode->i_mapping;
-	struct writeback_control wbc = {
-		.bdi = mapping->backing_dev_info,
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.range_start = ((loff_t)idx_start) << PAGE_CACHE_SHIFT,
-		.range_end = ((loff_t)(idx_start + npages - 1)) << PAGE_CACHE_SHIFT,
-	};
+	unsigned long idx_start, idx_end;
+	unsigned int npages = 0;
 	LIST_HEAD(head);
 	int nocommit = how & FLUSH_NOCOMMIT;
 	long pages, ret;
 
+	/* FIXME */
+	if (wbc->range_cyclic)
+		idx_start = 0;
+	else {
+		idx_start = wbc->range_start >> PAGE_CACHE_SHIFT;
+		idx_end = wbc->range_end >> PAGE_CACHE_SHIFT;
+		if (idx_end > idx_start) {
+			unsigned long l_npages = 1 + idx_end - idx_start;
+			npages = l_npages;
+			if (sizeof(npages) != sizeof(l_npages) &&
+					(unsigned long)npages != l_npages)
+				npages = 0;
+		}
+	}
 	how &= ~FLUSH_NOCOMMIT;
 	spin_lock(&nfsi->req_lock);
 	do {
+		wbc->pages_skipped = 0;
 		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
 		if (ret != 0)
 			continue;
-		pages = nfs_scan_dirty(mapping, &wbc, &head);
+		pages = nfs_scan_dirty(mapping, wbc, &head);
 		if (pages != 0) {
 			spin_unlock(&nfsi->req_lock);
 			if (how & FLUSH_INVALIDATE) {
@@ -1509,11 +1519,16 @@ long nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 			spin_lock(&nfsi->req_lock);
 			continue;
 		}
+		if (wbc->pages_skipped != 0)
+			continue;
 		if (nocommit)
 			break;
 		pages = nfs_scan_commit(inode, &head, idx_start, npages);
-		if (pages == 0)
+		if (pages == 0) {
+			if (wbc->pages_skipped != 0)
+				continue;
 			break;
+		}
 		if (how & FLUSH_INVALIDATE) {
 			spin_unlock(&nfsi->req_lock);
 			nfs_cancel_commit_list(&head);
@@ -1529,6 +1544,60 @@ long nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 	spin_unlock(&nfsi->req_lock);
 	return ret;
 }
+
+/*
+ * flush the inode to disk.
+ */
+int nfs_wb_all(struct inode *inode)
+{
+	struct address_space *mapping = inode->i_mapping;
+	struct writeback_control wbc = {
+		.bdi = mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_cyclic = 1,
+	};
+	int ret;
+
+	ret = nfs_sync_mapping_wait(mapping, &wbc, 0);
+	if (ret >= 0)
+		return 0;
+	return ret;
+}
+
+int nfs_sync_mapping_range(struct address_space *mapping, loff_t range_start, loff_t range_end, int how)
+{
+	struct writeback_control wbc = {
+		.bdi = mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_start = range_start,
+		.range_end = range_end,
+	};
+	int ret;
+
+	ret = nfs_sync_mapping_wait(mapping, &wbc, how);
+	if (ret >= 0)
+		return 0;
+	return ret;
+}
+
+static int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
+{
+	loff_t range_start = page_offset(page);
+	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+
+	return nfs_sync_mapping_range(inode->i_mapping, range_start, range_end, how | FLUSH_STABLE);
+}
+
+/*
+ * Write back all requests on one page - we do this before reading it.
+ */
+int nfs_wb_page(struct inode *inode, struct page* page)
+{
+	return nfs_wb_page_priority(inode, page, 0);
+}
+
 
 int __init nfs_init_writepagecache(void)
 {
