@@ -488,7 +488,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	get_bh(*new_de_bh);
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);

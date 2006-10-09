@@ -382,7 +382,7 @@ struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 out:
 	if (ret) {
 		if (handle)
-			ocfs2_commit_trans(handle);
+			ocfs2_commit_trans(osb, handle);
 		handle = ERR_PTR(ret);
 	}
 	return handle;
@@ -464,7 +464,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	}
 
 out_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out_unlock_data:
 	ocfs2_data_unlock(inode, 1);
 out_unlock_meta:

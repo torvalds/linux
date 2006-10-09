@@ -1170,7 +1170,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	if (status < 0)
 		mlog_errno(status);
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
 	brelse(data_alloc_bh);
@@ -1379,7 +1379,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 
 		status = ocfs2_truncate_log_append(osb, handle,
 						   start_blk, clusters);
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail_up;
@@ -1883,7 +1883,7 @@ start:
 	mutex_unlock(&tl_inode->i_mutex);
 	tl_sem = 0;
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 	handle = NULL;
 
 	BUG_ON(le32_to_cpu(fe->i_clusters) < target_i_clusters);
@@ -1898,7 +1898,7 @@ bail:
 		mutex_unlock(&tl_inode->i_mutex);
 
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (last_eb_bh)
 		brelse(last_eb_bh);

@@ -538,7 +538,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 	handle = NULL;
 
 	status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
@@ -554,7 +554,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	}
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	mlog_exit(status);
 	return status;
@@ -629,7 +629,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		mlog_errno(status);
 
 bail_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 bail_unlock:
 	ocfs2_meta_unlock(inode_alloc_inode, 1);
 	mutex_unlock(&inode_alloc_inode->i_mutex);

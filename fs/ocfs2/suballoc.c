@@ -387,7 +387,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	status = 0;
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (ac)
 		ocfs2_free_alloc_context(ac);

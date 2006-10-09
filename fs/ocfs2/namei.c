@@ -440,7 +440,7 @@ static int ocfs2_mknod(struct inode *dir,
 	status = 0;
 leave:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	ocfs2_meta_unlock(dir, 1);
 
@@ -746,7 +746,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 	d_instantiate(dentry, inode);
 
 out_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 out_unlock_inode:
 	ocfs2_meta_unlock(inode, 1);
 
@@ -942,7 +942,7 @@ static int ocfs2_unlink(struct inode *dir,
 
 leave:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (child_locked)
 		ocfs2_meta_unlock(inode, 1);
@@ -1428,7 +1428,7 @@ bail:
 		ocfs2_rename_unlock(osb);
 
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (parents_locked)
 		ocfs2_double_unlock(old_dir, new_dir);
@@ -1730,7 +1730,7 @@ static int ocfs2_symlink(struct inode *dir,
 	d_instantiate(dentry, inode);
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	ocfs2_meta_unlock(dir, 1);
 

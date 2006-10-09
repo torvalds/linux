@@ -178,7 +178,7 @@ static int ocfs2_simple_size_update(struct inode *inode,
 	if (ret < 0)
 		mlog_errno(ret);
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 out:
 	return ret;
 }
@@ -207,7 +207,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	if (status < 0)
 		mlog_errno(status);
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 out:
 	mlog_exit(status);
 	return status;
@@ -576,7 +576,7 @@ leave:
 		drop_alloc_sem = 0;
 	}
 	if (handle) {
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 		handle = NULL;
 	}
 	if (data_ac) {
@@ -655,7 +655,7 @@ static int ocfs2_write_zero_page(struct inode *inode,
 		ret = 0;
 
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
@@ -850,7 +850,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		mlog_errno(status);
 
 bail_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 bail_unlock:
 	ocfs2_meta_unlock(inode, 1);
 bail_unlock_rw:
@@ -938,7 +938,7 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 out_bh:
 	brelse(bh);
 out_trans:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 out:
 	mlog_exit(ret);
 	return ret;

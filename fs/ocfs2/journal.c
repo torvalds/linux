@@ -195,11 +195,12 @@ done_free:
 	return ERR_PTR(ret);
 }
 
-void ocfs2_commit_trans(struct ocfs2_journal_handle *handle)
+void ocfs2_commit_trans(struct ocfs2_super *osb,
+			struct ocfs2_journal_handle *handle)
 {
 	handle_t *jbd_handle;
 	int retval;
-	struct ocfs2_journal *journal = handle->journal;
+	struct ocfs2_journal *journal = osb->journal;
 
 	mlog_entry_void();
 

@@ -219,7 +219,8 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 					       struct ocfs2_journal_handle *handle,
 					       int max_buffs);
-void			     ocfs2_commit_trans(struct ocfs2_journal_handle *handle);
+void			     ocfs2_commit_trans(struct ocfs2_super *osb,
+						struct ocfs2_journal_handle *handle);
 int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 
 /*

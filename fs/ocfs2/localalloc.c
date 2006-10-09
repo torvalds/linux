@@ -280,7 +280,7 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 		mlog_errno(status);
 
 out_commit:
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
 	if (main_bm_bh)
@@ -421,7 +421,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	if (status < 0)
 		mlog_errno(status);
 
-	ocfs2_commit_trans(handle);
+	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
 	ocfs2_meta_unlock(main_bm_inode, 1);
@@ -954,7 +954,7 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 	status = 0;
 bail:
 	if (handle)
-		ocfs2_commit_trans(handle);
+		ocfs2_commit_trans(osb, handle);
 
 	if (main_bm_bh)
 		brelse(main_bm_bh);
