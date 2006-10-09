@@ -284,10 +284,15 @@
 #define __NR_add_key		279
 #define __NR_request_key	280
 #define __NR_keyctl		281
+#define __NR_ioprio_set		282
+#define __NR_ioprio_get		283
+#define __NR_inotify_init	284
+#define __NR_inotify_add_watch	285
+#define __NR_inotify_rm_watch	286
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		282
+#define NR_syscalls		287
 #include <linux/err.h>
 
 /* user-visible error numbers are in the range -1 - -MAX_ERRNO: see

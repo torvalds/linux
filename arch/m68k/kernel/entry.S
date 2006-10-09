@@ -706,4 +706,9 @@ sys_call_table:
 	.long sys_add_key
 	.long sys_request_key	/* 280 */
 	.long sys_keyctl
+	.long sys_ioprio_set
+	.long sys_ioprio_get
+	.long sys_inotify_init
+	.long sys_inotify_add_watch	/* 285 */
+	.long sys_inotify_rm_watch
 
