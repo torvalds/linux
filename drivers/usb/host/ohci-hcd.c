@@ -885,6 +885,10 @@ MODULE_LICENSE ("GPL");
 #include "ohci-au1xxx.c"
 #endif
 
+#ifdef CONFIG_PNX8550
+#include "ohci-pnx8550.c"
+#endif
+
 #ifdef CONFIG_USB_OHCI_HCD_PPC_SOC
 #include "ohci-ppc-soc.c"
 #endif
