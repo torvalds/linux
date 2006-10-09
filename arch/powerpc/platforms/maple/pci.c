@@ -516,8 +516,21 @@ void __init maple_pcibios_fixup(void)
 			dev->irq = irq_create_mapping(NULL, 1);
 			if (dev->irq != NO_IRQ)
 				set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);
-		} else
-			pci_read_irq_line(dev);
+			continue;
+		}
+
+		/* Hide AMD8111 IDE interrupt when in legacy mode so
+		 * the driver calls pci_get_legacy_ide_irq()
+		 */
+		if (dev->vendor == PCI_VENDOR_ID_AMD &&
+		    dev->device == PCI_DEVICE_ID_AMD_8111_IDE &&
+		    (dev->class & 5) != 5) {
+			dev->irq = NO_IRQ;
+			continue;
+		}
+
+		/* For all others, map the interrupt from the device-tree */
+		pci_read_irq_line(dev);
 	}
 
 	DBG(" <- maple_pcibios_fixup\n");
