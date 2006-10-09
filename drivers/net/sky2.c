@@ -2220,8 +2220,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 		/* PCI-Express uncorrectable Error occurred */
 		u32 pex_err;
 
-		pex_err = sky2_pci_read32(hw,
-					  hw->err_cap + PCI_ERR_UNCOR_STATUS);
+		pex_err = sky2_pci_read32(hw, PEX_UNC_ERR_STAT);
 
 		if (net_ratelimit())
 			printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
@@ -2229,20 +2228,15 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		/* clear the interrupt */
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		sky2_pci_write32(hw,
-				 hw->err_cap + PCI_ERR_UNCOR_STATUS,
-				 0xffffffffUL);
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT,
+				       0xffffffffUL);
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
-
-		/* In case of fatal error mask off to keep from getting stuck */
-		if (pex_err & (PCI_ERR_UNC_POISON_TLP | PCI_ERR_UNC_FCP
-			       | PCI_ERR_UNC_DLP)) {
+		if (pex_err & PEX_FATAL_ERRORS) {
 			u32 hwmsk = sky2_read32(hw, B0_HWE_IMSK);
 			hwmsk &= ~Y2_IS_PCI_EXP;
 			sky2_write32(hw, B0_HWE_IMSK, hwmsk);
 		}
-
 	}
 
 	if (status & Y2_HWE_L1_MASK)
@@ -2423,7 +2417,6 @@ static int sky2_reset(struct sky2_hw *hw)
 	u16 status;
 	u8 t8;
 	int i;
-	u32 msk;
 
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
@@ -2464,13 +2457,9 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) {
-		hw->err_cap = pci_find_ext_capability(hw->pdev, PCI_EXT_CAP_ID_ERR);
-		if (hw->err_cap)
-			sky2_pci_write32(hw,
-					 hw->err_cap + PCI_ERR_UNCOR_STATUS,
-					 0xffffffffUL);
-	}
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP))
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT, 0xffffffffUL);
+
 
 	hw->pmd_type = sky2_read8(hw, B2_PMD_TYP);
 	hw->ports = 1;
@@ -2527,10 +2516,7 @@ static int sky2_reset(struct sky2_hw *hw)
 		sky2_write8(hw, RAM_BUFFER(i, B3_RI_RTO_XS2), SK_RI_TO_53);
 	}
 
-	msk = Y2_HWE_ALL_MASK;
-	if (!hw->err_cap)
-		msk &= ~Y2_IS_PCI_EXP;
-	sky2_write32(hw, B0_HWE_IMSK, msk);
+	sky2_write32(hw, B0_HWE_IMSK, Y2_HWE_ALL_MASK);
 
 	for (i = 0; i < hw->ports; i++)
 		sky2_gmac_reset(hw, i);
