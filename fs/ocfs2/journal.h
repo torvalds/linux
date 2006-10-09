@@ -135,7 +135,6 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 
 struct ocfs2_journal_handle {
 	handle_t            *k_handle; /* kernel handle.                */
-	struct ocfs2_journal        *journal;
 };
 
 /* Exported only for the journal struct init code in super.c. Do not call. */

@@ -122,8 +122,6 @@ static struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 	}
 	retval->k_handle = NULL;
 
-	retval->journal = osb->journal;
-
 	return retval;
 }
 
