@@ -55,10 +55,9 @@
 
 static void mv64360_unmask_irq(unsigned int);
 static void mv64360_mask_irq(unsigned int);
-static irqreturn_t mv64360_cpu_error_int_handler(int, void *, struct pt_regs *);
-static irqreturn_t mv64360_sram_error_int_handler(int, void *,
-						  struct pt_regs *);
-static irqreturn_t mv64360_pci_error_int_handler(int, void *, struct pt_regs *);
+static irqreturn_t mv64360_cpu_error_int_handler(int, void *);
+static irqreturn_t mv64360_sram_error_int_handler(int, void *);
+static irqreturn_t mv64360_pci_error_int_handler(int, void *);
 
 /* ========================== local declarations =========================== */
 
@@ -131,9 +130,6 @@ mv64360_init_irq(void)
  * This function returns the lowest interrupt number of all interrupts that
  * are currently asserted.
  *
- * Input Variable(s):
- *  struct pt_regs*	not used
- *
  * Output Variable(s):
  *  None.
  *
@@ -142,7 +138,7 @@ mv64360_init_irq(void)
  *
  */
 int
-mv64360_get_irq(struct pt_regs *regs)
+mv64360_get_irq(void)
 {
 	int irq;
 	int irq_gpp;
@@ -283,7 +279,7 @@ mv64360_mask_irq(unsigned int irq)
 }
 
 static irqreturn_t
-mv64360_cpu_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+mv64360_cpu_error_int_handler(int irq, void *dev_id)
 {
 	printk(KERN_ERR "mv64360_cpu_error_int_handler: %s 0x%08x\n",
 		"Error on CPU interface - Cause regiser",
@@ -304,7 +300,7 @@ mv64360_cpu_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-mv64360_sram_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+mv64360_sram_error_int_handler(int irq, void *dev_id)
 {
 	printk(KERN_ERR "mv64360_sram_error_int_handler: %s 0x%08x\n",
 		"Error in internal SRAM - Cause register",
@@ -325,7 +321,7 @@ mv64360_sram_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-mv64360_pci_error_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+mv64360_pci_error_int_handler(int irq, void *dev_id)
 {
 	u32 val;
 	unsigned int pci_bus = (unsigned int)dev_id;

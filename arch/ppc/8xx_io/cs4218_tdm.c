@@ -331,7 +331,7 @@ static int CS_SetFormat(int format);
 static int CS_SetVolume(int volume);
 static void cs4218_tdm_tx_intr(void *devid);
 static void cs4218_tdm_rx_intr(void *devid);
-static void cs4218_intr(void *devid, struct pt_regs *regs);
+static void cs4218_intr(void *devid);
 static int cs_get_volume(uint reg);
 static int cs_volume_setter(int volume, int mute);
 static int cs_get_gain(uint reg);
@@ -2646,7 +2646,7 @@ int __init tdm8xx_sound_init(void)
  * full duplex operation.
  */
 static void
-cs4218_intr(void *dev_id, struct pt_regs *regs)
+cs4218_intr(void *dev_id)
 {
 	volatile smc_t	*sp;
 	volatile cpm8xx_t	*cp;

@@ -149,7 +149,7 @@ struct scc_enet_private {
 static int scc_enet_open(struct net_device *dev);
 static int scc_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int scc_enet_rx(struct net_device *dev);
-static void scc_enet_interrupt(void *dev_id, struct pt_regs *regs);
+static void scc_enet_interrupt(void *dev_id);
 static int scc_enet_close(struct net_device *dev);
 static struct net_device_stats *scc_enet_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -305,7 +305,7 @@ scc_enet_timeout(struct net_device *dev)
  * This is called from the CPM handler, not the MPC core interrupt.
  */
 static void
-scc_enet_interrupt(void *dev_id, struct pt_regs *regs)
+scc_enet_interrupt(void *dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile struct	scc_enet_private *cep;

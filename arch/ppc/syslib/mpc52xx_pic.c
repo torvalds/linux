@@ -220,7 +220,7 @@ mpc52xx_init_irq(void)
 }
 
 int
-mpc52xx_get_irq(struct pt_regs *regs)
+mpc52xx_get_irq(void)
 {
 	u32 status;
 	int irq = -1;

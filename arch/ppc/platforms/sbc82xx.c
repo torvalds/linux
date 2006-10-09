@@ -121,7 +121,7 @@ struct hw_interrupt_type sbc82xx_i8259_ic = {
 	.end = sbc82xx_i8259_end_irq,
 };
 
-static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id)
 {
 	spin_lock(&sbc82xx_i8259_lock);
 
@@ -139,7 +139,7 @@ static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id, struct pt_regs *re
 			return IRQ_HANDLED;
 		}
 	}
-	__do_IRQ(NR_SIU_INTS + irq, regs);
+	__do_IRQ(NR_SIU_INTS + irq);
 	return IRQ_HANDLED;
 }
 

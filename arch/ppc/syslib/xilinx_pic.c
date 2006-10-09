@@ -86,7 +86,7 @@ static struct hw_interrupt_type xilinx_intc = {
 };
 
 int
-xilinx_pic_get_irq(struct pt_regs *regs)
+xilinx_pic_get_irq(void)
 {
 	int irq;
 
