@@ -629,9 +629,7 @@ proc_write_ledd(struct file *file, const char __user * buffer,
 			       "Asus ACPI: LED display write failed\n");
 		else
 			hotk->ledd_status = (u32) value;
-	} else if (rv < 0)
-		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
-
+	}
 	return rv;
 }
 
@@ -849,10 +847,7 @@ proc_write_brn(struct file *file, const char __user * buffer,
 		value = (0 < value) ? ((15 < value) ? 15 : value) : 0;
 		/* 0 <= value <= 15 */
 		set_brightness(value);
-	} else if (rv < 0) {
-		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
 	}
-
 	return rv;
 }
 
@@ -897,9 +892,6 @@ proc_write_disp(struct file *file, const char __user * buffer,
 	rv = parse_arg(buffer, count, &value);
 	if (rv > 0)
 		set_display(value);
-	else if (rv < 0)
-		printk(KERN_WARNING "Asus ACPI: Error reading user input\n");
-
 	return rv;
 }
 
