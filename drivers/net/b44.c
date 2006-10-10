@@ -2056,7 +2056,7 @@ static int b44_read_eeprom(struct b44 *bp, u8 *data)
 	u16 *ptr = (u16 *) data;
 
 	for (i = 0; i < 128; i += 2)
-		ptr[i / 2] = readw(bp->regs + 4096 + i);
+		ptr[i / 2] = cpu_to_le16(readw(bp->regs + 4096 + i));
 
 	return 0;
 }
