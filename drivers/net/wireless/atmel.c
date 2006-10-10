@@ -2343,6 +2343,14 @@ static int atmel_get_scan(struct net_device *dev,
 		iwe.u.freq.e = 0;
 		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA, &iwe, IW_EV_FREQ_LEN);
 
+		/* Add quality statistics */
+		iwe.cmd = IWEVQUAL;
+		iwe.u.qual.level = priv->BSSinfo[i].RSSI;
+		iwe.u.qual.qual  = iwe.u.qual.level;
+		/* iwe.u.qual.noise  = SOMETHING */
+		current_ev = iwe_stream_add_event(current_ev, extra + IW_SCAN_MAX_DATA , &iwe, IW_EV_QUAL_LEN);
+
+
 		iwe.cmd = SIOCGIWENCODE;
 		if (priv->BSSinfo[i].UsingWEP)
 			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
