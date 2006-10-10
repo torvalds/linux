@@ -759,8 +759,6 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 	unsigned long flags;
 	int status;
 
-	spider_net_read_reg(card, SPIDER_NET_GDTDMACCNTR);
-
 	while (chain->tail != chain->head) {
 		spin_lock_irqsave(&chain->lock, flags);
 		descr = chain->tail;
