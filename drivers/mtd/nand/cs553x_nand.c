@@ -249,7 +249,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	goto out;
 
 out_ior:
-	iounmap((void *)this->IO_ADDR_R);
+	iounmap(this->IO_ADDR_R);
 out_mtd:
 	kfree(new_mtd);
 out:
