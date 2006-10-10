@@ -854,7 +854,7 @@ static void __devexit pdc2027x_remove_one(struct pci_dev *pdev)
  */
 static int __init pdc2027x_init(void)
 {
-	return pci_module_init(&pdc2027x_pci_driver);
+	return pci_register_driver(&pdc2027x_pci_driver);
 }
 
 /**
