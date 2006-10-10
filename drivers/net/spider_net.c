@@ -684,6 +684,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 			break;
 		}
 
+	/* Chain the bus address, so that the DMA engine finds this descr. */
 	descr->prev->next_descr_addr = descr->bus_addr;
 
 	card->netdev->trans_start = jiffies; /* set netdev watchdog timer */
@@ -715,6 +716,41 @@ spider_net_release_tx_descr(struct spider_net_card *card)
 	pci_unmap_single(card->pdev, descr->buf_addr, len,
 			PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(skb);
+}
+
+static void
+spider_net_set_low_watermark(struct spider_net_card *card)
+{
+	int status;
+	int cnt=0;
+	int i;
+	struct spider_net_descr *descr = card->tx_chain.tail;
+
+	/* Measure the length of the queue. */
+	while (descr != card->tx_chain.head) {
+		status = descr->dmac_cmd_status & SPIDER_NET_DESCR_NOT_IN_USE;
+		if (status == SPIDER_NET_DESCR_NOT_IN_USE)
+			break;
+		descr = descr->next;
+		cnt++;
+	}
+
+	/* If TX queue is short, don't even bother with interrupts */
+	if (cnt < card->tx_desc/4)
+		return;
+
+	/* Set low-watermark 3/4th's of the way into the queue. */
+	descr = card->tx_chain.tail;
+	cnt = (cnt*3)/4;
+	for (i=0;i<cnt; i++)
+		descr = descr->next;
+
+	/* Set the new watermark, clear the old watermark */
+	descr->dmac_cmd_status |= SPIDER_NET_DESCR_TXDESFLG;
+	if (card->low_watermark && card->low_watermark != descr)
+		card->low_watermark->dmac_cmd_status =
+		     card->low_watermark->dmac_cmd_status & ~SPIDER_NET_DESCR_TXDESFLG;
+	card->low_watermark = descr;
 }
 
 /**
@@ -838,6 +874,7 @@ spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
+	spider_net_set_low_watermark(card);
 	spider_net_kick_tx_dma(card);
 	card->tx_chain.head = card->tx_chain.head->next;
 	spin_unlock_irqrestore(&chain->lock, flags);
@@ -1467,6 +1504,10 @@ spider_net_interrupt(int irq, void *ptr)
 		spider_net_rx_irq_off(card);
 		netif_rx_schedule(netdev);
 	}
+	if (status_reg & SPIDER_NET_TXINT ) {
+		spider_net_cleanup_tx_ring(card);
+		netif_wake_queue(netdev);
+	}
 
 	if (status_reg & SPIDER_NET_ERRINT )
 		spider_net_handle_error_irq(card, status_reg);
@@ -1628,6 +1669,8 @@ spider_net_open(struct net_device *netdev)
 	if (spider_net_init_chain(card, &card->tx_chain, card->descr,
 			PCI_DMA_TODEVICE, card->tx_desc))
 		goto alloc_tx_failed;
+
+	card->low_watermark = NULL;
 
 	/* rx_chain is after tx_chain, so offset is descr + tx_count */
 	if (spider_net_init_chain(card, &card->rx_chain,
