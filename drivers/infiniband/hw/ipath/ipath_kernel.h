@@ -869,9 +869,6 @@ int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);
 int ipath_expose_reset(struct device *);
 
-int ipath_diagpkt_add(void);
-void ipath_diagpkt_remove(void);
-
 int ipath_init_ipathfs(void);
 void ipath_exit_ipathfs(void);
 int ipathfs_add_device(struct ipath_devdata *);
