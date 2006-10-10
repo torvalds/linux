@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
+#include <linux/delay.h>
 
 #define AC97_ID_STAC9758	0x83847658
 
@@ -488,6 +489,94 @@ static struct snd_kcontrol_new snd_emu1010_dac_pads[] __devinitdata = {
 	EMU1010_DAC_PADS("DAC3 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD3),
 	EMU1010_DAC_PADS("DAC4 Audio Dock 14dB PAD Playback Switch", EMU_HANA_DOCK_DAC_PAD4),
 	EMU1010_DAC_PADS("DAC1 0202 14dB PAD Playback Switch", EMU_HANA_0202_DAC_PAD1),
+};
+
+
+static int snd_emu1010_internal_clock_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[2] = {
+		"44100", "48000"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+                uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_emu1010_internal_clock_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->emu1010.internal_clock;
+	return 0;
+}
+
+static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int change = 0;
+
+	val = ucontrol->value.enumerated.item[0] ;
+	change = (emu->emu1010.internal_clock != val);
+	if (change) {
+		emu->emu1010.internal_clock = val;
+		switch (val) {
+		case 0:
+			/* 44100 */
+			/* Mute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
+			/* Default fallback clock 48kHz */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_44_1K );
+			/* Word Clock source, Internal 44.1kHz x1 */
+			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
+			EMU_HANA_WCLOCK_INT_44_1K | EMU_HANA_WCLOCK_1X );
+			/* Set LEDs on Audio Dock */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
+				EMU_HANA_DOCK_LEDS_2_44K | EMU_HANA_DOCK_LEDS_2_LOCK );
+			/* Allow DLL to settle */
+			udelay(10000);
+			/* Unmute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
+			break;
+		case 1:
+			/* 48000 */
+			/* Mute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE );
+			/* Default fallback clock 48kHz */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K );
+			/* Word Clock source, Internal 48kHz x1 */
+			snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK,
+				EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_1X );
+			/* Set LEDs on Audio Dock */
+			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
+				EMU_HANA_DOCK_LEDS_2_48K | EMU_HANA_DOCK_LEDS_2_LOCK );
+			/* Allow DLL to settle */
+			udelay(10000);
+			/* Unmute all */
+			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
+			break;
+		}
+	}
+        return change;
+}
+
+static struct snd_kcontrol_new snd_emu1010_internal_clock =
+{
+	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =         "Clock Internal Rate",
+	.count =	1,
+	.info =         snd_emu1010_internal_clock_info,
+	.get =          snd_emu1010_internal_clock_get,
+	.put =          snd_emu1010_internal_clock_put
 };
 
 #if 0
@@ -1491,6 +1580,9 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			if (err < 0)
 				return err;
 		}
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_internal_clock, emu));
+		if (err < 0)
+			return err;
 	}
 		
 	return 0;

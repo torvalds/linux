@@ -358,7 +358,10 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
 	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
 	snd_emu10k1_ptr_write(emu, PSST, voice, start_addr | (send_amount[2] << 24));
-	pitch_target = emu10k1_calc_pitch_target(runtime->rate);
+	if (emu->card_capabilities->emu1010)
+		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
+	else 
+		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
 	if (extra)
 		snd_emu10k1_ptr_write(emu, CCCA, voice, start_addr |
 			      emu10k1_select_interprom(pitch_target) |
@@ -698,7 +701,10 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 	voice = evoice->number;
 
 	pitch = snd_emu10k1_rate_to_pitch(runtime->rate) >> 8;
-	pitch_target = emu10k1_calc_pitch_target(runtime->rate);
+	if (emu->card_capabilities->emu1010)
+		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
+	else 
+		pitch_target = emu10k1_calc_pitch_target(runtime->rate);
 	snd_emu10k1_ptr_write(emu, PTRX_PITCHTARGET, voice, pitch_target);
 	if (master || evoice->epcm->type == PLAYBACK_EFX)
 		snd_emu10k1_ptr_write(emu, CPF_CURRENTPITCH, voice, pitch_target);
@@ -1247,10 +1253,20 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * for 192kHz 24bit, one has 2 channels
 		 */
 #if 1
-		/* For 48kHz */
-		runtime->hw.rates = SNDRV_PCM_RATE_48000;
-		runtime->hw.rate_min = runtime->hw.rate_max = 48000;
-		runtime->hw.channels_min = runtime->hw.channels_max = 8;
+		switch (emu->emu1010.internal_clock) {
+		case 0:
+			/* For 44.1kHz */
+			runtime->hw.rates = SNDRV_PCM_RATE_44100;
+			runtime->hw.rate_min = runtime->hw.rate_max = 44100;
+			runtime->hw.channels_min = runtime->hw.channels_max = 8;
+			break;
+		case 1:
+			/* For 48kHz */
+			runtime->hw.rates = SNDRV_PCM_RATE_48000;
+			runtime->hw.rate_min = runtime->hw.rate_max = 48000;
+			runtime->hw.channels_min = runtime->hw.channels_max = 8;
+			break;
+		};
 #endif
 #if 0
 		/* For 96kHz */

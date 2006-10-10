@@ -1392,6 +1392,7 @@ struct snd_emu1010 {
 	unsigned int input_source[64];
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
+	unsigned int internal_clock; /* 44100 or 48000 */
 };
 
 struct snd_emu10k1 {

@@ -1014,6 +1014,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	/* Word Clock source, Internal 48kHz x1 */
 	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K );
 	//snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X );
+	emu->emu1010.internal_clock = 1; /* 48000 */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, 0x12);/* Set LEDs on Audio Dock */
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, 0x1); /* Unmute all */
 	//snd_emu1010_fpga_write(emu, 0x7, 0x0); /* Mute all */
