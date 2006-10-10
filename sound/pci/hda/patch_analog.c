@@ -1640,7 +1640,7 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 	int err = snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
 				      spec->num_channel_mode,
 				      &spec->multiout.max_channels);
-	if (! err && spec->need_dac_fix)
+	if (err >= 0 && spec->need_dac_fix)
 		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return err;
 }
