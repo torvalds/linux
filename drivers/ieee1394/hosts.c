@@ -157,10 +157,9 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	h->speed_map = (u8 *)(h->csr.speed_map + 2);
 
 	mutex_lock(&host_num_alloc);
-
 	while (nodemgr_for_each_host(&hostnum, alloc_hostnum_cb))
 		hostnum++;
-
+	mutex_unlock(&host_num_alloc);
 	h->id = hostnum;
 
 	memcpy(&h->device, &nodemgr_dev_template_host, sizeof(h->device));
@@ -174,8 +173,6 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	device_register(&h->device);
 	class_device_register(&h->class_dev);
 	get_device(&h->device);
-
-	mutex_unlock(&host_num_alloc);
 
 	return h;
 }
