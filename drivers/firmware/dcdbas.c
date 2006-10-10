@@ -559,7 +559,7 @@ static int __devinit dcdbas_probe(struct platform_device *dev)
 			while (--i >= 0)
 				sysfs_remove_bin_file(&dev->dev.kobj,
 						      dcdbas_bin_attrs[i]);
-			sysfs_create_group(&dev->dev.kobj, &dcdbas_attr_group);
+			sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
 			return error;
 		}
 	}
