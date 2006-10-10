@@ -1182,7 +1182,7 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	return 0;
 }
 
-static struct console sunzilog_console = {
+static struct console sunzilog_console_ops = {
 	.name	=	"ttyS",
 	.write	=	sunzilog_console_write,
 	.device	=	uart_console_device,
@@ -1208,10 +1208,10 @@ static inline struct console *SUNZILOG_CONSOLE(void)
 	if (i == NUM_CHANNELS)
 		return NULL;
 
-	sunzilog_console.index = i;
+	sunzilog_console_ops.index = i;
 	sunzilog_port_table[i].flags |= SUNZILOG_FLAG_IS_CONS;
 
-	return &sunzilog_console;
+	return &sunzilog_console_ops;
 }
 
 #else
