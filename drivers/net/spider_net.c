@@ -718,7 +718,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
 	}
 
 	/* If TX queue is short, don't even bother with interrupts */
-	if (cnt < card->tx_desc/4)
+	if (cnt < card->num_tx_desc/4)
 		return cnt;
 
 	/* Set low-watermark 3/4th's of the way into the queue. */
@@ -1666,15 +1666,15 @@ spider_net_open(struct net_device *netdev)
 
 	result = -ENOMEM;
 	if (spider_net_init_chain(card, &card->tx_chain, card->descr,
-			PCI_DMA_TODEVICE, card->tx_desc))
+			PCI_DMA_TODEVICE, card->num_tx_desc))
 		goto alloc_tx_failed;
 
 	card->low_watermark = NULL;
 
 	/* rx_chain is after tx_chain, so offset is descr + tx_count */
 	if (spider_net_init_chain(card, &card->rx_chain,
-			card->descr + card->tx_desc,
-			PCI_DMA_FROMDEVICE, card->rx_desc))
+			card->descr + card->num_tx_desc,
+			PCI_DMA_FROMDEVICE, card->num_rx_desc))
 		goto alloc_rx_failed;
 
 	/* allocate rx skbs */
@@ -2060,8 +2060,8 @@ spider_net_setup_netdev(struct spider_net_card *card)
 
 	card->options.rx_csum = SPIDER_NET_RX_CSUM_DEFAULT;
 
-	card->tx_desc = tx_descriptors;
-	card->rx_desc = rx_descriptors;
+	card->num_tx_desc = tx_descriptors;
+	card->num_rx_desc = rx_descriptors;
 
 	spider_net_setup_netdev_ops(netdev);
 

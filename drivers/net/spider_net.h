@@ -455,8 +455,8 @@ struct spider_net_card {
 
 	/* for ethtool */
 	int msg_enable;
-	int rx_desc;
-	int tx_desc;
+	int num_rx_desc;
+	int num_tx_desc;
 	struct spider_net_extra_stats spider_stats;
 
 	struct spider_net_descr descr[0];
