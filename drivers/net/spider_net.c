@@ -823,39 +823,25 @@ spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct spider_net_descr_chain *chain = &card->tx_chain;
 	struct spider_net_descr *descr = chain->head;
 	unsigned long flags;
-	int result;
 
 	spin_lock_irqsave(&chain->lock, flags);
 
 	spider_net_release_tx_chain(card, 0);
 
-	if (chain->head->next == chain->tail->prev) {
-		card->netdev_stats.tx_dropped++;
-		result = NETDEV_TX_LOCKED;
-		goto out;
-	}
+	if ((chain->head->next == chain->tail->prev) ||
+	   (spider_net_get_descr_status(descr) != SPIDER_NET_DESCR_NOT_IN_USE) ||
+	   (spider_net_prepare_tx_descr(card, skb) != 0)) {
 
-	if (spider_net_get_descr_status(descr) != SPIDER_NET_DESCR_NOT_IN_USE) {
 		card->netdev_stats.tx_dropped++;
-		result = NETDEV_TX_LOCKED;
-		goto out;
+		spin_unlock_irqrestore(&chain->lock, flags);
+		netif_stop_queue(netdev);
+		return NETDEV_TX_BUSY;
 	}
-
-	if (spider_net_prepare_tx_descr(card, skb) != 0) {
-		card->netdev_stats.tx_dropped++;
-		result = NETDEV_TX_BUSY;
-		goto out;
-	}
-
-	result = NETDEV_TX_OK;
 
 	spider_net_kick_tx_dma(card);
 	card->tx_chain.head = card->tx_chain.head->next;
-
-out:
 	spin_unlock_irqrestore(&chain->lock, flags);
-	netif_wake_queue(netdev);
-	return result;
+	return NETDEV_TX_OK;
 }
 
 /**
@@ -874,9 +860,10 @@ spider_net_cleanup_tx_ring(struct spider_net_card *card)
 	spin_lock_irqsave(&card->tx_chain.lock, flags);
 
 	if ((spider_net_release_tx_chain(card, 0) != 0) &&
-	    (card->netdev->flags & IFF_UP))
+	    (card->netdev->flags & IFF_UP)) {
 		spider_net_kick_tx_dma(card);
-
+		netif_wake_queue(card->netdev);
+	}
 	spin_unlock_irqrestore(&card->tx_chain.lock, flags);
 }
 
