@@ -1708,7 +1708,6 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	target_host->max_lun = SRP_MAX_LUN;
 
 	target = host_to_target(target_host);
-	memset(target, 0, sizeof *target);
 
 	target->io_class   = SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host  = target_host;
