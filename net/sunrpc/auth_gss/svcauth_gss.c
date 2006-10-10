@@ -1146,10 +1146,11 @@ out:
 	return ret;
 }
 
-u32 *
+static __be32 *
 svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
 {
-	u32 *p, verf_len;
+	__be32 *p;
+	u32 verf_len;
 
 	p = gsd->verf_start;
 	gsd->verf_start = NULL;
