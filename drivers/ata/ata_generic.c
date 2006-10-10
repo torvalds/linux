@@ -231,7 +231,7 @@ static struct pci_driver ata_generic_pci_driver = {
 
 static int __init ata_generic_init(void)
 {
-	return pci_module_init(&ata_generic_pci_driver);
+	return pci_register_driver(&ata_generic_pci_driver);
 }
 
 
