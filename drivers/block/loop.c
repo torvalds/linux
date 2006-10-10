@@ -1187,7 +1187,7 @@ struct compat_loop_info {
  * - noinlined to reduce stack space usage in main part of driver
  */
 static noinline int
-loop_info64_from_compat(const struct compat_loop_info *arg,
+loop_info64_from_compat(const struct compat_loop_info __user *arg,
 			struct loop_info64 *info64)
 {
 	struct compat_loop_info info;
