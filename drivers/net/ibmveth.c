@@ -936,7 +936,7 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 static void ibmveth_poll_controller(struct net_device *dev)
 {
 	ibmveth_replenish_task(dev->priv);
-	ibmveth_interrupt(dev->irq, dev, NULL);
+	ibmveth_interrupt(dev->irq, dev);
 }
 #endif
 
