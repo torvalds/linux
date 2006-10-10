@@ -216,7 +216,6 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  * perfectly legal to go through an entire transaction without having
  * dirtied any buffers. */
 struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
-					       struct ocfs2_journal_handle *handle,
 					       int max_buffs);
 void			     ocfs2_commit_trans(struct ocfs2_super *osb,
 						struct ocfs2_journal_handle *handle);

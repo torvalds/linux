@@ -1158,7 +1158,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_TRUNCATE_LOG_UPDATE);
+	handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_UPDATE);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -1365,8 +1365,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 			}
 		}
 
-		handle = ocfs2_start_trans(osb, NULL,
-					   OCFS2_TRUNCATE_LOG_UPDATE);
+		handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_UPDATE);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
@@ -1860,7 +1859,7 @@ start:
 
 	credits = ocfs2_calc_tree_trunc_credits(osb->sb, clusters_to_del,
 						fe, el);
-	handle = ocfs2_start_trans(osb, NULL, credits);
+	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;

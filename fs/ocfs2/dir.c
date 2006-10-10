@@ -442,7 +442,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, credits);
+	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;

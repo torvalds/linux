@@ -364,7 +364,7 @@ struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 	struct ocfs2_journal_handle *handle = NULL;
 	int ret = 0;
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (!handle) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

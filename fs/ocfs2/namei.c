@@ -379,7 +379,7 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_MKNOD_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_MKNOD_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -696,7 +696,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto out_unlock_inode;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_LINK_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_LINK_CREDITS);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		handle = NULL;
@@ -886,7 +886,7 @@ static int ocfs2_unlink(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_UNLINK_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_UNLINK_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1284,7 +1284,7 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_RENAME_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_RENAME_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -1652,7 +1652,7 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, credits);
+	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;

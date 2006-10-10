@@ -165,8 +165,7 @@ static int ocfs2_simple_size_update(struct inode *inode,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_journal_handle *handle = NULL;
 
-	handle = ocfs2_start_trans(osb, NULL,
-				   OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (handle == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -196,7 +195,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	/* TODO: This needs to actually orphan the inode in this
 	 * transaction. */
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -496,7 +495,7 @@ restart_all:
 	drop_alloc_sem = 1;
 
 	credits = ocfs2_calc_extend_credits(osb->sb, fe, clusters_to_add);
-	handle = ocfs2_start_trans(osb, NULL, credits);
+	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -832,7 +831,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -905,7 +904,7 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 	mlog_entry("(Inode %llu, mode 0%o)\n",
 		   (unsigned long long)oi->ip_blkno, inode->i_mode);
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_INODE_UPDATE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (handle == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

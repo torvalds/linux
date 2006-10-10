@@ -129,20 +129,16 @@ static struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
  * you pass it a handle however, it may still return error, in which
  * case it has free'd the passed handle for you. */
 struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
-					       struct ocfs2_journal_handle *handle,
 					       int max_buffs)
 {
 	int ret;
 	journal_t *journal = osb->journal->j_journal;
-
-	mlog_entry("(max_buffs = %d)\n", max_buffs);
+	struct ocfs2_journal_handle *handle;
 
 	BUG_ON(!osb || !osb->journal->j_journal);
 
-	if (ocfs2_is_hard_readonly(osb)) {
-		ret = -EROFS;
-		goto done_free;
-	}
+	if (ocfs2_is_hard_readonly(osb))
+		return ERR_PTR(-EROFS);
 
 	BUG_ON(osb->journal->j_state == OCFS2_JOURNAL_FREE);
 	BUG_ON(max_buffs <= 0);
@@ -153,13 +149,11 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 		BUG();
 	}
 
-	if (!handle)
-		handle = ocfs2_alloc_handle(osb);
+	handle = ocfs2_alloc_handle(osb);
 	if (!handle) {
 		ret = -ENOMEM;
-		mlog(ML_ERROR, "Failed to allocate memory for journal "
-		     "handle!\n");
-		goto done_free;
+		mlog_errno(ret);
+		return ERR_PTR(ret);
 	}
 
 	down_read(&osb->journal->j_trans_barrier);
@@ -168,6 +162,7 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 	handle->k_handle = journal_start(journal, max_buffs);
 	if (IS_ERR(handle->k_handle)) {
 		up_read(&osb->journal->j_trans_barrier);
+		kfree(handle);
 
 		ret = PTR_ERR(handle->k_handle);
 		handle->k_handle = NULL;
@@ -177,20 +172,12 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 			ocfs2_abort(osb->sb, "Detected aborted journal");
 			ret = -EROFS;
 		}
-		goto done_free;
+		return ERR_PTR(ret);
 	}
 
 	atomic_inc(&(osb->journal->j_num_trans));
 
-	mlog_exit_ptr(handle);
 	return handle;
-
-done_free:
-	if (handle)
-		kfree(handle);
-
-	mlog_exit(ret);
-	return ERR_PTR(ret);
 }
 
 void ocfs2_commit_trans(struct ocfs2_super *osb,

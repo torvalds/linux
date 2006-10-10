@@ -238,7 +238,7 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 	}
 
 	/* WINDOW_MOVE_CREDITS is a bit heavy... */
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_WINDOW_MOVE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_WINDOW_MOVE_CREDITS);
 	if (IS_ERR(handle)) {
 		mlog_errno(PTR_ERR(handle));
 		handle = NULL;
@@ -405,7 +405,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_WINDOW_MOVE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_WINDOW_MOVE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
@@ -896,7 +896,7 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	handle = ocfs2_start_trans(osb, NULL, OCFS2_WINDOW_MOVE_CREDITS);
+	handle = ocfs2_start_trans(osb, OCFS2_WINDOW_MOVE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		handle = NULL;
