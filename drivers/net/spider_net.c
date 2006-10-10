@@ -648,18 +648,26 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 {
 	struct spider_net_descr *descr = card->tx_chain.head;
 	dma_addr_t buf;
+	int length;
 
-	buf = pci_map_single(card->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
+	length = skb->len;
+	if (length < ETH_ZLEN) {
+		if (skb_pad(skb, ETH_ZLEN-length))
+			return 0;
+		length = ETH_ZLEN;
+	}
+
+	buf = pci_map_single(card->pdev, skb->data, length, PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(buf)) {
 		if (netif_msg_tx_err(card) && net_ratelimit())
 			pr_err("could not iommu-map packet (%p, %i). "
-				  "Dropping packet\n", skb->data, skb->len);
+				  "Dropping packet\n", skb->data, length);
 		card->spider_stats.tx_iommu_map_error++;
 		return -ENOMEM;
 	}
 
 	descr->buf_addr = buf;
-	descr->buf_size = skb->len;
+	descr->buf_size = length;
 	descr->next_descr_addr = 0;
 	descr->skb = skb;
 	descr->data_status = 0;
@@ -693,6 +701,7 @@ spider_net_release_tx_descr(struct spider_net_card *card)
 {
 	struct spider_net_descr *descr = card->tx_chain.tail;
 	struct sk_buff *skb;
+	unsigned int len;
 
 	card->tx_chain.tail = card->tx_chain.tail->next;
 	descr->dmac_cmd_status |= SPIDER_NET_DESCR_NOT_IN_USE;
@@ -701,7 +710,8 @@ spider_net_release_tx_descr(struct spider_net_card *card)
 	skb = descr->skb;
 	if (!skb)
 		return;
-	pci_unmap_single(card->pdev, descr->buf_addr, skb->len,
+	len = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
+	pci_unmap_single(card->pdev, descr->buf_addr, len,
 			PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(skb);
 }
