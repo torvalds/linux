@@ -413,11 +413,14 @@ static ssize_t fw_get_destroy_node(struct bus_type *bus, char *buf)
 static BUS_ATTR(destroy_node, S_IWUSR | S_IRUGO, fw_get_destroy_node, fw_set_destroy_node);
 
 
-static ssize_t fw_set_rescan(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t fw_set_rescan(struct bus_type *bus, const char *buf,
+			     size_t count)
 {
+	int error = 0;
+
 	if (simple_strtoul(buf, NULL, 10) == 1)
-		bus_rescan_devices(&ieee1394_bus_type);
-	return count;
+		error = bus_rescan_devices(&ieee1394_bus_type);
+	return error ? error : count;
 }
 static ssize_t fw_get_rescan(struct bus_type *bus, char *buf)
 {
@@ -583,7 +586,11 @@ static void nodemgr_create_drv_files(struct hpsb_protocol_driver *driver)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_drv_attrs); i++)
-		driver_create_file(drv, fw_drv_attrs[i]);
+		if (driver_create_file(drv, fw_drv_attrs[i]))
+			goto fail;
+	return;
+fail:
+	HPSB_ERR("Failed to add sysfs attribute for driver %s", driver->name);
 }
 
 
@@ -603,7 +610,12 @@ static void nodemgr_create_ne_dev_files(struct node_entry *ne)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_ne_attrs); i++)
-		device_create_file(dev, fw_ne_attrs[i]);
+		if (device_create_file(dev, fw_ne_attrs[i]))
+			goto fail;
+	return;
+fail:
+	HPSB_ERR("Failed to add sysfs attribute for node %016Lx",
+		 (unsigned long long)ne->guid);
 }
 
 
@@ -613,11 +625,16 @@ static void nodemgr_create_host_dev_files(struct hpsb_host *host)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_host_attrs); i++)
-		device_create_file(dev, fw_host_attrs[i]);
+		if (device_create_file(dev, fw_host_attrs[i]))
+			goto fail;
+	return;
+fail:
+	HPSB_ERR("Failed to add sysfs attribute for host %d", host->id);
 }
 
 
-static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host, nodeid_t nodeid);
+static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host,
+					       nodeid_t nodeid);
 
 static void nodemgr_update_host_dev_links(struct hpsb_host *host)
 {
@@ -628,12 +645,18 @@ static void nodemgr_update_host_dev_links(struct hpsb_host *host)
 	sysfs_remove_link(&dev->kobj, "busmgr_id");
 	sysfs_remove_link(&dev->kobj, "host_id");
 
-	if ((ne = find_entry_by_nodeid(host, host->irm_id)))
-		sysfs_create_link(&dev->kobj, &ne->device.kobj, "irm_id");
-	if ((ne = find_entry_by_nodeid(host, host->busmgr_id)))
-		sysfs_create_link(&dev->kobj, &ne->device.kobj, "busmgr_id");
-	if ((ne = find_entry_by_nodeid(host, host->node_id)))
-		sysfs_create_link(&dev->kobj, &ne->device.kobj, "host_id");
+	if ((ne = find_entry_by_nodeid(host, host->irm_id)) &&
+	    sysfs_create_link(&dev->kobj, &ne->device.kobj, "irm_id"))
+		goto fail;
+	if ((ne = find_entry_by_nodeid(host, host->busmgr_id)) &&
+	    sysfs_create_link(&dev->kobj, &ne->device.kobj, "busmgr_id"))
+		goto fail;
+	if ((ne = find_entry_by_nodeid(host, host->node_id)) &&
+	    sysfs_create_link(&dev->kobj, &ne->device.kobj, "host_id"))
+		goto fail;
+	return;
+fail:
+	HPSB_ERR("Failed to update sysfs attributes for host %d", host->id);
 }
 
 static void nodemgr_create_ud_dev_files(struct unit_directory *ud)
@@ -642,25 +665,32 @@ static void nodemgr_create_ud_dev_files(struct unit_directory *ud)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_ud_attrs); i++)
-		device_create_file(dev, fw_ud_attrs[i]);
-
+		if (device_create_file(dev, fw_ud_attrs[i]))
+			goto fail;
 	if (ud->flags & UNIT_DIRECTORY_SPECIFIER_ID)
-		device_create_file(dev, &dev_attr_ud_specifier_id);
-
+		if (device_create_file(dev, &dev_attr_ud_specifier_id))
+			goto fail;
 	if (ud->flags & UNIT_DIRECTORY_VERSION)
-		device_create_file(dev, &dev_attr_ud_version);
-
+		if (device_create_file(dev, &dev_attr_ud_version))
+			goto fail;
 	if (ud->flags & UNIT_DIRECTORY_VENDOR_ID) {
-		device_create_file(dev, &dev_attr_ud_vendor_id);
-		if (ud->vendor_name_kv)
-			device_create_file(dev, &dev_attr_ud_vendor_name_kv);
+		if (device_create_file(dev, &dev_attr_ud_vendor_id))
+			goto fail;
+		if (ud->vendor_name_kv &&
+		    device_create_file(dev, &dev_attr_ud_vendor_name_kv))
+			goto fail;
 	}
-
 	if (ud->flags & UNIT_DIRECTORY_MODEL_ID) {
-		device_create_file(dev, &dev_attr_ud_model_id);
-		if (ud->model_name_kv)
-			device_create_file(dev, &dev_attr_ud_model_name_kv);
+		if (device_create_file(dev, &dev_attr_ud_model_id))
+			goto fail;
+		if (ud->model_name_kv &&
+		    device_create_file(dev, &dev_attr_ud_model_name_kv))
+			goto fail;
 	}
+	return;
+fail:
+	HPSB_ERR("Failed to add sysfs attributes for unit %s",
+		 ud->device.bus_id);
 }
 
 
@@ -748,7 +778,7 @@ static int __nodemgr_remove_host_dev(struct device *dev, void *data)
 
 static void nodemgr_remove_host_dev(struct device *dev)
 {
-	device_for_each_child(dev, NULL, __nodemgr_remove_host_dev);
+	WARN_ON(device_for_each_child(dev, NULL, __nodemgr_remove_host_dev));
 	sysfs_remove_link(&dev->kobj, "irm_id");
 	sysfs_remove_link(&dev->kobj, "busmgr_id");
 	sysfs_remove_link(&dev->kobj, "host_id");
@@ -792,7 +822,7 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 
 	ne = kzalloc(sizeof(*ne), GFP_KERNEL);
 	if (!ne)
-		return NULL;
+		goto fail_alloc;
 
 	ne->host = host;
 	ne->nodeid = nodeid;
@@ -815,12 +845,15 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 	snprintf(ne->class_dev.class_id, BUS_ID_SIZE, "%016Lx",
 		 (unsigned long long)(ne->guid));
 
-	device_register(&ne->device);
-	class_device_register(&ne->class_dev);
+	if (device_register(&ne->device))
+		goto fail_devreg;
+	if (class_device_register(&ne->class_dev))
+		goto fail_classdevreg;
 	get_device(&ne->device);
 
-	if (ne->guid_vendor_oui)
-		device_create_file(&ne->device, &dev_attr_ne_guid_vendor_oui);
+	if (ne->guid_vendor_oui &&
+	    device_create_file(&ne->device, &dev_attr_ne_guid_vendor_oui))
+		goto fail_addoiu;
 	nodemgr_create_ne_dev_files(ne);
 
 	nodemgr_update_bus_options(ne);
@@ -830,6 +863,18 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 		   NODE_BUS_ARGS(host, nodeid), (unsigned long long)guid);
 
 	return ne;
+
+fail_addoiu:
+	put_device(&ne->device);
+fail_classdevreg:
+	device_unregister(&ne->device);
+fail_devreg:
+	kfree(ne);
+fail_alloc:
+	HPSB_ERR("Failed to create node ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
+		 NODE_BUS_ARGS(host, nodeid), (unsigned long long)guid);
+
+	return NULL;
 }
 
 
@@ -891,13 +936,25 @@ static void nodemgr_register_device(struct node_entry *ne,
 	snprintf(ud->class_dev.class_id, BUS_ID_SIZE, "%s-%u",
 		 ne->device.bus_id, ud->id);
 
-	device_register(&ud->device);
-	class_device_register(&ud->class_dev);
+	if (device_register(&ud->device))
+		goto fail_devreg;
+	if (class_device_register(&ud->class_dev))
+		goto fail_classdevreg;
 	get_device(&ud->device);
 
-	if (ud->vendor_oui)
-		device_create_file(&ud->device, &dev_attr_ud_vendor_oui);
+	if (ud->vendor_oui &&
+	    device_create_file(&ud->device, &dev_attr_ud_vendor_oui))
+		goto fail_addoui;
 	nodemgr_create_ud_dev_files(ud);
+
+	return;
+
+fail_addoui:
+	put_device(&ud->device);
+fail_classdevreg:
+	device_unregister(&ud->device);
+fail_devreg:
+	HPSB_ERR("Failed to create unit %s", ud->device.bus_id);
 }	
 
 
@@ -1094,10 +1151,16 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 		last_key_id = kv->key.id;
 	}
 
-	if (ne->vendor_oui)
-		device_create_file(&ne->device, &dev_attr_ne_vendor_oui);
-	if (ne->vendor_name_kv)
-		device_create_file(&ne->device, &dev_attr_ne_vendor_name_kv);
+	if (ne->vendor_oui &&
+	    device_create_file(&ne->device, &dev_attr_ne_vendor_oui))
+		goto fail;
+	if (ne->vendor_name_kv &&
+	    device_create_file(&ne->device, &dev_attr_ne_vendor_name_kv))
+		goto fail;
+	return;
+fail:
+	HPSB_ERR("Failed to add sysfs attribute for node %016Lx",
+		 (unsigned long long)ne->guid);
 }
 
 #ifdef CONFIG_HOTPLUG
@@ -1170,7 +1233,7 @@ int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
 	if (!ret)
 		nodemgr_create_drv_files(driver);
 
-	return ret;
+	return 0;
 }
 
 void hpsb_unregister_protocol(struct hpsb_protocol_driver *driver)
@@ -1327,7 +1390,7 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
 
 	ne->in_limbo = 1;
-	device_create_file(&ne->device, &dev_attr_ne_in_limbo);
+	WARN_ON(device_create_file(&ne->device, &dev_attr_ne_in_limbo));
 
 	down_write(&ne->device.bus->subsys.rwsem);
 	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
@@ -1498,7 +1561,7 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * just removed.  */
 
 	if (generation == get_hpsb_generation(host))
-		bus_rescan_devices(&ieee1394_bus_type);
+		WARN_ON(bus_rescan_devices(&ieee1394_bus_type));
 
 	return;
 }

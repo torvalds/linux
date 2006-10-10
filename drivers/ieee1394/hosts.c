@@ -131,10 +131,8 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 		return NULL;
 
 	h->csr.rom = csr1212_create_csr(&csr_bus_ops, CSR_BUS_INFO_SIZE, h);
-	if (!h->csr.rom) {
-		kfree(h);
-		return NULL;
-	}
+	if (!h->csr.rom)
+		goto fail;
 
 	h->hostdata = h + 1;
 	h->driver = drv;
@@ -173,11 +171,19 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	h->class_dev.class = &hpsb_host_class;
 	snprintf(h->class_dev.class_id, BUS_ID_SIZE, "fw-host%d", h->id);
 
-	device_register(&h->device);
-	class_device_register(&h->class_dev);
+	if (device_register(&h->device))
+		goto fail;
+	if (class_device_register(&h->class_dev)) {
+		device_unregister(&h->device);
+		goto fail;
+	}
 	get_device(&h->device);
 
 	return h;
+
+fail:
+	kfree(h);
+	return NULL;
 }
 
 int hpsb_add_host(struct hpsb_host *host)
