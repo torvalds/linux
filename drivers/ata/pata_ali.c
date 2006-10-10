@@ -78,7 +78,7 @@ static int ali_c2_cable_detect(struct ata_port *ap)
 	   implement the detect logic */
 
 	if (ali_cable_override(pdev))
-		return ATA_CBL_PATA80;
+		return ATA_CBL_PATA40_SHORT;
 
 	/* Host view cable detect 0x4A bit 0 primary bit 1 secondary
 	   Bit set for 40 pin */

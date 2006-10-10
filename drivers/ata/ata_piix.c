@@ -93,7 +93,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"2.00ac6"
+#define DRV_VERSION	"2.00ac7"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
@@ -571,6 +571,23 @@ module_param(force_pcs, int, 0444);
 MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
 		 "device mis-detection (0=default, 1=ignore PCS, 2=honor PCS)");
 
+struct ich_laptop {
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+};
+
+/*
+ *	List of laptops that use short cables rather than 80 wire
+ */
+
+static const struct ich_laptop ich_laptop[] = {
+	/* devid, subvendor, subdev */
+	{ 0x27DF, 0x0005, 0x0280 },	/* ICH7 on Acer 5602WLMi */
+	/* end marker */
+	{ 0, }
+};
+
 /**
  *	piix_pata_cbl_detect - Probe host controller cable detect info
  *	@ap: Port for which cable detect info is desired
@@ -585,11 +602,23 @@ MODULE_PARM_DESC(force_pcs, "force honoring or ignoring PCS to work around "
 static void ich_pata_cbl_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	const struct ich_laptop *lap = &ich_laptop[0];
 	u8 tmp, mask;
 
 	/* no 80c support in host controller? */
 	if ((ap->udma_mask & ~ATA_UDMA_MASK_40C) == 0)
 		goto cbl40;
+
+	/* Check for specials - Acer Aspire 5602WLMi */
+	while (lap->device) {
+		if (lap->device == pdev->device &&
+		    lap->subvendor == pdev->subsystem_vendor &&
+		    lap->subdevice == pdev->subsystem_device) {
+			ap->cbl = ATA_CBL_PATA40_SHORT;
+		    	return;
+		}
+		lap++;
+	}
 
 	/* check BIOS cable detect results */
 	mask = ap->port_no == 0 ? PIIX_80C_PRI : PIIX_80C_SEC;

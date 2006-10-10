@@ -3119,6 +3119,13 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	 */
 	if (ap->cbl == ATA_CBL_PATA40)
 		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
+	/* Apply drive side cable rule. Unknown or 80 pin cables reported
+	 * host side are checked drive side as well. Cases where we know a
+	 * 40wire cable is used safely for 80 are not checked here.
+	 */
+        if (ata_drive_40wire(dev->id) && (ap->cbl == ATA_CBL_PATA_UNK || ap->cbl == ATA_CBL_PATA80))
+		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
+
 
 	xfer_mask &= ata_pack_xfermask(dev->pio_mask,
 				       dev->mwdma_mask, dev->udma_mask);
