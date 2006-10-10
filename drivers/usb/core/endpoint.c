@@ -282,8 +282,6 @@ void usb_remove_ep_files(struct usb_host_endpoint *endpoint)
 		sysfs_remove_group(&endpoint->ep_dev->dev.kobj, &ep_dev_attr_grp);
 		device_unregister(&endpoint->ep_dev->dev);
 		endpoint->ep_dev = NULL;
+		destroy_endpoint_class();
 	}
-	destroy_endpoint_class();
 }
-
-
