@@ -134,6 +134,7 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		}
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
+			kfree(buffer);
 			dev_err(&port->dev, "%s - no more urbs?\n",
 				__FUNCTION__);
 			result = -ENOMEM;
