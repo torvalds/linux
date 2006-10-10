@@ -750,21 +750,31 @@ static __inline__ __u32 s32ton(__s32 value, unsigned n)
 }
 
 /*
- * Extract/implement a data field from/to a report.
+ * Extract/implement a data field from/to a little endian report (bit array).
  */
 
 static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1ULL << n) - 1);
+	u32 x;
+
+	report += offset >> 3;  /* adjust byte index */
+	offset &= 8 - 1;
+	x = get_unaligned((u32 *) report);
+	x = le32_to_cpu(x);
+	x = (x >> offset) & ((1 << n) - 1);
+	return x;
 }
 
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	put_unaligned((get_unaligned((__le64*)report)
-		& cpu_to_le64(~((((__u64) 1 << n) - 1) << offset)))
-		| cpu_to_le64((__u64)value << offset), (__le64*)report);
+	u32 x;
+
+	report += offset >> 3;
+	offset &= 8 - 1;
+	x = get_unaligned((u32 *)report);
+	x &= cpu_to_le32(~((((__u32) 1 << n) - 1) << offset));
+	x |= cpu_to_le32(value << offset);
+	put_unaligned(x,(u32 *)report);
 }
 
 /*
