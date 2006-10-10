@@ -875,7 +875,17 @@ pci_set_master(struct pci_dev *dev)
 	pcibios_set_master(dev);
 }
 
-#ifndef HAVE_ARCH_PCI_MWI
+#ifdef PCI_DISABLE_MWI
+int pci_set_mwi(struct pci_dev *dev)
+{
+	return 0;
+}
+
+void pci_clear_mwi(struct pci_dev *dev)
+{
+}
+
+#else
 
 #ifndef PCI_CACHE_LINE_BYTES
 #define PCI_CACHE_LINE_BYTES L1_CACHE_BYTES
@@ -886,17 +896,17 @@ pci_set_master(struct pci_dev *dev)
 u8 pci_cache_line_size = PCI_CACHE_LINE_BYTES / 4;
 
 /**
- * pci_generic_prep_mwi - helper function for pci_set_mwi
- * @dev: the PCI device for which MWI is enabled
+ * pci_set_cacheline_size - ensure the CACHE_LINE_SIZE register is programmed
+ * @dev: the PCI device for which MWI is to be enabled
  *
- * Helper function for generic implementation of pcibios_prep_mwi
- * function.  Originally copied from drivers/net/acenic.c.
+ * Helper function for pci_set_mwi.
+ * Originally copied from drivers/net/acenic.c.
  * Copyright 1998-2001 by Jes Sorensen, <jes@trained-monkey.org>.
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
 static int
-pci_generic_prep_mwi(struct pci_dev *dev)
+pci_set_cacheline_size(struct pci_dev *dev)
 {
 	u8 cacheline_size;
 
@@ -922,7 +932,6 @@ pci_generic_prep_mwi(struct pci_dev *dev)
 
 	return -EINVAL;
 }
-#endif /* !HAVE_ARCH_PCI_MWI */
 
 /**
  * pci_set_mwi - enables memory-write-invalidate PCI transaction
@@ -940,12 +949,7 @@ pci_set_mwi(struct pci_dev *dev)
 	int rc;
 	u16 cmd;
 
-#ifdef HAVE_ARCH_PCI_MWI
-	rc = pcibios_prep_mwi(dev);
-#else
-	rc = pci_generic_prep_mwi(dev);
-#endif
-
+	rc = pci_set_cacheline_size(dev);
 	if (rc)
 		return rc;
 
@@ -976,6 +980,7 @@ pci_clear_mwi(struct pci_dev *dev)
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 }
+#endif /* ! PCI_DISABLE_MWI */
 
 /**
  * pci_intx - enables/disables PCI INTx for device dev
