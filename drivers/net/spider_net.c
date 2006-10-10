@@ -698,7 +698,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	return 0;
 }
 
-static void
+static int
 spider_net_set_low_watermark(struct spider_net_card *card)
 {
 	unsigned long flags;
@@ -719,7 +719,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
 
 	/* If TX queue is short, don't even bother with interrupts */
 	if (cnt < card->tx_desc/4)
-		return;
+		return cnt;
 
 	/* Set low-watermark 3/4th's of the way into the queue. */
 	descr = card->tx_chain.tail;
@@ -735,6 +735,7 @@ spider_net_set_low_watermark(struct spider_net_card *card)
 		     card->low_watermark->dmac_cmd_status & ~SPIDER_NET_DESCR_TXDESFLG;
 	card->low_watermark = descr;
 	spin_unlock_irqrestore(&card->tx_chain.lock, flags);
+	return cnt;
 }
 
 /**
@@ -819,8 +820,12 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
  * @card: card structure
  * @descr: descriptor address to enable TX processing at
  *
- * spider_net_kick_tx_dma writes the current tx chain head as start address
- * of the tx descriptor chain and enables the transmission DMA engine
+ * This routine will start the transmit DMA running if
+ * it is not already running. This routine ned only be
+ * called when queueing a new packet to an empty tx queue.
+ * Writes the current tx chain head as start address
+ * of the tx descriptor chain and enables the transmission
+ * DMA engine.
  */
 static inline void
 spider_net_kick_tx_dma(struct spider_net_card *card)
@@ -860,6 +865,7 @@ out:
 static int
 spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
+	int cnt;
 	struct spider_net_card *card = netdev_priv(netdev);
 	struct spider_net_descr_chain *chain = &card->tx_chain;
 
@@ -873,8 +879,9 @@ spider_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	spider_net_set_low_watermark(card);
-	spider_net_kick_tx_dma(card);
+	cnt = spider_net_set_low_watermark(card);
+	if (cnt < 5)
+		spider_net_kick_tx_dma(card);
 	return NETDEV_TX_OK;
 }
 
