@@ -44,9 +44,10 @@ static void delayed_reset_bus(struct work_struct *work)
 
 	CSR_SET_BUS_INFO_GENERATION(host->csr.rom, generation);
 	if (csr1212_generate_csr_image(host->csr.rom) != CSR1212_SUCCESS) {
-		/* CSR image creation failed, reset generation field and do not
-		 * issue a bus reset. */
-		CSR_SET_BUS_INFO_GENERATION(host->csr.rom, host->csr.generation);
+		/* CSR image creation failed.
+		 * Reset generation field and do not issue a bus reset. */
+		CSR_SET_BUS_INFO_GENERATION(host->csr.rom,
+					    host->csr.generation);
 		return;
 	}
 
@@ -54,7 +55,8 @@ static void delayed_reset_bus(struct work_struct *work)
 
 	host->update_config_rom = 0;
 	if (host->driver->set_hw_config_rom)
-		host->driver->set_hw_config_rom(host, host->csr.rom->bus_info_data);
+		host->driver->set_hw_config_rom(host,
+						host->csr.rom->bus_info_data);
 
 	host->csr.gen_timestamp[host->csr.generation] = jiffies;
 	hpsb_reset_bus(host, SHORT_RESET);
@@ -70,7 +72,8 @@ static int dummy_devctl(struct hpsb_host *h, enum devctl_cmd c, int arg)
 	return -1;
 }
 
-static int dummy_isoctl(struct hpsb_iso *iso, enum isoctl_cmd command, unsigned long arg)
+static int dummy_isoctl(struct hpsb_iso *iso, enum isoctl_cmd command,
+			unsigned long arg)
 {
 	return -1;
 }
@@ -151,7 +154,7 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	init_timer(&h->timeout);
 	h->timeout.data = (unsigned long) h;
 	h->timeout.function = abort_timedouts;
-	h->timeout_interval = HZ / 20; // 50ms by default
+	h->timeout_interval = HZ / 20; /* 50ms, half of minimum SPLIT_TIMEOUT */
 
 	h->topology_map = h->csr.topology_map + 3;
 	h->speed_map = (u8 *)(h->csr.speed_map + 2);
@@ -226,7 +229,8 @@ int hpsb_update_config_rom_image(struct hpsb_host *host)
 	if (time_before(jiffies, host->csr.gen_timestamp[next_gen] + 60 * HZ))
 		/* Wait 60 seconds from the last time this generation number was
 		 * used. */
-		reset_delay = (60 * HZ) + host->csr.gen_timestamp[next_gen] - jiffies;
+		reset_delay =
+			(60 * HZ) + host->csr.gen_timestamp[next_gen] - jiffies;
 	else
 		/* Wait 1 second in case some other code wants to change the
 		 * Config ROM in the near future. */
