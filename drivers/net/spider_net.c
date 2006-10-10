@@ -358,7 +358,7 @@ spider_net_free_rx_chain_contents(struct spider_net_card *card)
 	struct spider_net_descr *descr;
 
 	descr = card->rx_chain.head;
-	while (descr->next != card->rx_chain.head) {
+	do {
 		if (descr->skb) {
 			dev_kfree_skb(descr->skb);
 			pci_unmap_single(card->pdev, descr->buf_addr,
@@ -366,7 +366,7 @@ spider_net_free_rx_chain_contents(struct spider_net_card *card)
 					 PCI_DMA_BIDIRECTIONAL);
 		}
 		descr = descr->next;
-	}
+	} while (descr != card->rx_chain.head);
 }
 
 /**
