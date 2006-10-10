@@ -345,7 +345,6 @@ struct snd_ymfpci {
 	struct snd_kcontrol *spdif_pcm_ctl;
 	int mode_dup4ch;
 	int rear_opened;
-	int rear_swap;
 	int spdif_opened;
 	struct {
 		u16 left;
@@ -378,7 +377,7 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
-int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch, int rear_swap);
+int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch);
 int snd_ymfpci_timer(struct snd_ymfpci *chip, int device);
 
 #endif /* __SOUND_YMFPCI_H */
