@@ -1612,10 +1612,10 @@ sys_set_robust_list(struct robust_list_head __user *head,
  * @len_ptr: pointer to a length field, the kernel fills in the header size
  */
 asmlinkage long
-sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
+sys_get_robust_list(int pid, struct robust_list_head __user * __user *head_ptr,
 		    size_t __user *len_ptr)
 {
-	struct robust_list_head *head;
+	struct robust_list_head __user *head;
 	unsigned long ret;
 
 	if (!pid)
@@ -1694,14 +1694,15 @@ retry:
  * Fetch a robust-list pointer. Bit 0 signals PI futexes:
  */
 static inline int fetch_robust_entry(struct robust_list __user **entry,
-				     struct robust_list __user **head, int *pi)
+				     struct robust_list __user * __user *head,
+				     int *pi)
 {
 	unsigned long uentry;
 
-	if (get_user(uentry, (unsigned long *)head))
+	if (get_user(uentry, (unsigned long __user *)head))
 		return -EFAULT;
 
-	*entry = (void *)(uentry & ~1UL);
+	*entry = (void __user *)(uentry & ~1UL);
 	*pi = uentry & 1;
 
 	return 0;
@@ -1739,7 +1740,7 @@ void exit_robust_list(struct task_struct *curr)
 		return;
 
 	if (pending)
-		handle_futex_death((void *)pending + futex_offset, curr, pip);
+		handle_futex_death((void __user *)pending + futex_offset, curr, pip);
 
 	while (entry != &head->list) {
 		/*
@@ -1747,7 +1748,7 @@ void exit_robust_list(struct task_struct *curr)
 		 * don't process it twice:
 		 */
 		if (entry != pending)
-			if (handle_futex_death((void *)entry + futex_offset,
+			if (handle_futex_death((void __user *)entry + futex_offset,
 						curr, pi))
 				return;
 		/*
