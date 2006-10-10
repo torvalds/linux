@@ -385,6 +385,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 		goto out_unlock;
 
 
+	ip->i_alloc.al_requested = 0;
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
 
