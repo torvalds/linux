@@ -1057,7 +1057,7 @@ static void sunzilog_free_tables(void)
 
 static void sunzilog_putchar(struct uart_port *port, int ch)
 {
-	struct zilog_channel *channel = ZILOG_CHANNEL_FROM_PORT(port);
+	struct zilog_channel __iomem *channel = ZILOG_CHANNEL_FROM_PORT(port);
 	int loops = ZS_PUT_CHAR_MAX_DELAY;
 
 	/* This is a timed polling loop so do not switch the explicit
