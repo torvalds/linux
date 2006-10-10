@@ -1628,8 +1628,10 @@ spider_net_open(struct net_device *netdev)
 	if (spider_net_init_chain(card, &card->tx_chain, card->descr,
 			PCI_DMA_TODEVICE, card->tx_desc))
 		goto alloc_tx_failed;
+
+	/* rx_chain is after tx_chain, so offset is descr + tx_count */
 	if (spider_net_init_chain(card, &card->rx_chain,
-			card->descr + card->rx_desc,
+			card->descr + card->tx_desc,
 			PCI_DMA_FROMDEVICE, card->rx_desc))
 		goto alloc_rx_failed;
 
