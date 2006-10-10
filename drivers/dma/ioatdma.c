@@ -80,7 +80,7 @@ static int enumerate_dma_channels(struct ioat_device *device)
 
 static struct ioat_desc_sw *ioat_dma_alloc_descriptor(
 	struct ioat_dma_chan *ioat_chan,
-	int flags)
+	gfp_t flags)
 {
 	struct ioat_dma_descriptor *desc;
 	struct ioat_desc_sw *desc_sw;
@@ -686,7 +686,7 @@ static int __devinit ioat_probe(struct pci_dev *pdev,
 {
 	int err;
 	unsigned long mmio_start, mmio_len;
-	void *reg_base;
+	void __iomem *reg_base;
 	struct ioat_device *device;
 
 	err = pci_enable_device(pdev);
