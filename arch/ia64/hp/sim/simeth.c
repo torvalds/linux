@@ -87,7 +87,7 @@ static int simeth_debug;		/* set to 1 to get debug information */
  */
 static struct notifier_block simeth_dev_notifier = {
 	simeth_device_event,
-	0
+	NULL
 };
 
 

@@ -92,7 +92,7 @@ static struct serial_uart_config uart_config[] = {
 	{ "ST16650V2", 32, UART_CLEAR_FIFO | UART_USE_FIFO |
 		  UART_STARTECH },
 	{ "TI16750", 64, UART_CLEAR_FIFO | UART_USE_FIFO},
-	{ 0, 0}
+	{ NULL, 0}
 };
 
 struct tty_driver *hp_simserial_driver;
@@ -555,7 +555,7 @@ static void shutdown(struct async_struct * info)
 
 		if (info->xmit.buf) {
 			free_page((unsigned long) info->xmit.buf);
-			info->xmit.buf = 0;
+			info->xmit.buf = NULL;
 		}
 
 		if (info->tty) set_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -628,7 +628,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	if (tty->driver->flush_buffer) tty->driver->flush_buffer(tty);
 	if (tty->ldisc.flush_buffer) tty->ldisc.flush_buffer(tty);
 	info->event = 0;
-	info->tty = 0;
+	info->tty = NULL;
 	if (info->blocked_open) {
 		if (info->close_delay)
 			schedule_timeout_interruptible(info->close_delay);
@@ -668,7 +668,7 @@ static void rs_hangup(struct tty_struct *tty)
 	info->event = 0;
 	state->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
-	info->tty = 0;
+	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
@@ -769,7 +769,7 @@ startup(struct async_struct *info)
 	/*
 	 * Insert serial port into IRQ chain.
 	 */
-	info->prev_port = 0;
+	info->prev_port = NULL;
 	info->next_port = IRQ_ports[state->irq];
 	if (info->next_port)
 		info->next_port->prev_port = info;
