@@ -738,75 +738,44 @@ int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	return ret;
 }
 
+/* It's defined in drivers/pci/pci.c */
+extern u8 pci_cache_line_size;
+
 /**
- * pci_cacheline_size - determine cacheline size for PCI devices
- * @dev: void
+ * set_pci_cacheline_size - determine cacheline size for PCI devices
  *
  * We want to use the line-size of the outer-most cache.  We assume
  * that this line-size is the same for all CPUs.
  *
  * Code mostly taken from arch/ia64/kernel/palinfo.c:cache_info().
- *
- * RETURNS: An appropriate -ERRNO error value on eror, or zero for success.
  */
-static unsigned long
-pci_cacheline_size (void)
+static void __init set_pci_cacheline_size(void)
 {
 	u64 levels, unique_caches;
 	s64 status;
 	pal_cache_config_info_t cci;
-	static u8 cacheline_size;
-
-	if (cacheline_size)
-		return cacheline_size;
 
 	status = ia64_pal_cache_summary(&levels, &unique_caches);
 	if (status != 0) {
-		printk(KERN_ERR "%s: ia64_pal_cache_summary() failed (status=%ld)\n",
-		       __FUNCTION__, status);
-		return SMP_CACHE_BYTES;
+		printk(KERN_ERR "%s: ia64_pal_cache_summary() failed "
+			"(status=%ld)\n", __FUNCTION__, status);
+		return;
 	}
 
-	status = ia64_pal_cache_config_info(levels - 1, /* cache_type (data_or_unified)= */ 2,
-					    &cci);
+	status = ia64_pal_cache_config_info(levels - 1,
+				/* cache_type (data_or_unified)= */ 2, &cci);
 	if (status != 0) {
-		printk(KERN_ERR "%s: ia64_pal_cache_config_info() failed (status=%ld)\n",
-		       __FUNCTION__, status);
-		return SMP_CACHE_BYTES;
+		printk(KERN_ERR "%s: ia64_pal_cache_config_info() failed "
+			"(status=%ld)\n", __FUNCTION__, status);
+		return;
 	}
-	cacheline_size = 1 << cci.pcci_line_size;
-	return cacheline_size;
+	pci_cache_line_size = (1 << cci.pcci_line_size) / 4;
 }
 
-/**
- * pcibios_prep_mwi - helper function for drivers/pci/pci.c:pci_set_mwi()
- * @dev: the PCI device for which MWI is enabled
- *
- * For ia64, we can get the cacheline sizes from PAL.
- *
- * RETURNS: An appropriate -ERRNO error value on eror, or zero for success.
- */
-int
-pcibios_prep_mwi (struct pci_dev *dev)
+static int __init pcibios_init(void)
 {
-	unsigned long desired_linesize, current_linesize;
-	int rc = 0;
-	u8 pci_linesize;
-
-	desired_linesize = pci_cacheline_size();
-
-	pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, &pci_linesize);
-	current_linesize = 4 * pci_linesize;
-	if (desired_linesize != current_linesize) {
-		printk(KERN_WARNING "PCI: slot %s has incorrect PCI cache line size of %lu bytes,",
-		       pci_name(dev), current_linesize);
-		if (current_linesize > desired_linesize) {
-			printk(" expected %lu bytes instead\n", desired_linesize);
-			rc = -EINVAL;
-		} else {
-			printk(" correcting to %lu\n", desired_linesize);
-			pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, desired_linesize / 4);
-		}
-	}
-	return rc;
+	set_pci_cacheline_size();
+	return 0;
 }
+
+subsys_initcall(pcibios_init);
