@@ -193,10 +193,8 @@ static void zd1201_usbrx(struct urb *urb)
 	struct sk_buff *skb;
 	unsigned char type;
 
-	if (!zd) {
-		free = 1;
-		goto exit;
-	}
+	if (!zd)
+		return;
 
 	switch(urb->status) {
 		case -EILSEQ:
