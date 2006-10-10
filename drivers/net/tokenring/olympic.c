@@ -1771,7 +1771,7 @@ static struct pci_driver olympic_driver = {
 
 static int __init olympic_pci_init(void) 
 {
-	return pci_module_init (&olympic_driver) ; 
+	return pci_register_driver(&olympic_driver) ;
 }
 
 static void __exit olympic_pci_cleanup(void)
