@@ -1001,7 +1001,7 @@ static int usbatm_do_heavy_init(void *arg)
 
 	daemonize(instance->driver->driver_name);
 	allow_signal(SIGTERM);
-	instance->thread_pid = get_current()->pid;
+	instance->thread_pid = current->pid;
 
 	complete(&instance->thread_started);
 
