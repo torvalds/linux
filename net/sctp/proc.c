@@ -344,7 +344,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
 			   assoc->state, hash, assoc->assoc_id,
 			   assoc->sndbuf_used,
-			   (sk->sk_rcvbuf - assoc->rwnd),
+			   atomic_read(&assoc->rmem_alloc),
 			   sock_i_uid(sk), sock_i_ino(sk),
 			   epb->bind_addr.port,
 			   assoc->peer.port);
