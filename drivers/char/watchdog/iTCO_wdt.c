@@ -368,7 +368,8 @@ static int iTCO_wdt_get_timeleft (int *time_left)
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
 		*time_left = (val8 * 6) / 10;
-	}
+	} else
+		return -EINVAL;
 	return 0;
 }
 
@@ -439,7 +440,6 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 {
 	int new_options, retval = -EINVAL;
 	int new_heartbeat;
-	int time_left;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
@@ -499,6 +499,8 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMELEFT:
 		{
+			int time_left;
+
 			if (iTCO_wdt_get_timeleft(&time_left))
 				return -EINVAL;
 
