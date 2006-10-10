@@ -150,8 +150,8 @@ static int c2_rnic_query(struct c2_dev *c2dev, struct ib_device_attr *props)
 	    (struct c2wr_rnic_query_rep *) (unsigned long) (vq_req->reply_msg);
 	if (!reply)
 		err = -ENOMEM;
-
-	err = c2_errno(reply);
+	else
+		err = c2_errno(reply);
 	if (err)
 		goto bail2;
 
