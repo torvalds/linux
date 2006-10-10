@@ -309,7 +309,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
  			if (!new)
  				return NULL;	/* try again later */
 
- 			new->sk = f_frag->sk;
+ 			sctp_skb_set_owner_r(new, f_frag->sk);
 
  			skb_shinfo(new)->frag_list = pos;
  		} else
