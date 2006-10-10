@@ -1678,11 +1678,9 @@ static int atmel_get_essid(struct net_device *dev,
 	/* Get the current SSID */
 	if (priv->new_SSID_size != 0) {
 		memcpy(extra, priv->new_SSID, priv->new_SSID_size);
-		extra[priv->new_SSID_size] = '\0';
 		dwrq->length = priv->new_SSID_size;
 	} else {
 		memcpy(extra, priv->SSID, priv->SSID_size);
-		extra[priv->SSID_size] = '\0';
 		dwrq->length = priv->SSID_size;
 	}
 

@@ -5970,7 +5970,6 @@ static int airo_get_essid(struct net_device *dev,
 
 	/* Get the current SSID */
 	memcpy(extra, status_rid.SSID, status_rid.SSIDlen);
-	extra[status_rid.SSIDlen] = '\0';
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */

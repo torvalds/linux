@@ -1198,7 +1198,6 @@ static int ray_get_essid(struct net_device *dev,
 
 	/* Get the essid that was set */
 	memcpy(extra, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
-	extra[IW_ESSID_MAX_SIZE] = '\0';
 
 	/* Push it out ! */
 	dwrq->length = strlen(extra);
