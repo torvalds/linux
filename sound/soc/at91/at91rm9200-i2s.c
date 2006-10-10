@@ -270,8 +270,7 @@ static struct at91rm9200_ssc_info {
 };
 
 
-static int at91rm9200_i2s_interrupt(int irq, void *dev_id,
-	struct pt_regs *regs)
+static irqreturn_t at91rm9200_i2s_interrupt(int irq, void *dev_id)
 {
 	struct at91rm9200_ssc_info *ssc_p = dev_id;
 	at91rm9200_pcm_dma_params_t *dma_params;
