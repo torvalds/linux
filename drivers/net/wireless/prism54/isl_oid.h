@@ -104,14 +104,14 @@ struct obj_attachment {
 static inline void
 __bug_on_wrong_struct_sizes(void)
 {
-	BUG_ON(sizeof (struct obj_ssid) != 34);
-	BUG_ON(sizeof (struct obj_key) != 34);
-	BUG_ON(sizeof (struct obj_mlme) != 12);
-	BUG_ON(sizeof (struct obj_mlmeex) != 14);
-	BUG_ON(sizeof (struct obj_buffer) != 8);
-	BUG_ON(sizeof (struct obj_bss) != 60);
-	BUG_ON(sizeof (struct obj_bsslist) != 4);
-	BUG_ON(sizeof (struct obj_frequencies) != 2);
+	BUILD_BUG_ON(sizeof (struct obj_ssid) != 34);
+	BUILD_BUG_ON(sizeof (struct obj_key) != 34);
+	BUILD_BUG_ON(sizeof (struct obj_mlme) != 12);
+	BUILD_BUG_ON(sizeof (struct obj_mlmeex) != 14);
+	BUILD_BUG_ON(sizeof (struct obj_buffer) != 8);
+	BUILD_BUG_ON(sizeof (struct obj_bss) != 60);
+	BUILD_BUG_ON(sizeof (struct obj_bsslist) != 4);
+	BUILD_BUG_ON(sizeof (struct obj_frequencies) != 2);
 }
 
 enum dot11_state_t {
