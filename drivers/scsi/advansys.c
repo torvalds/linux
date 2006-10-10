@@ -3881,7 +3881,7 @@ typedef struct asc_board {
     /*
      * The following fields are used only for Wide Boards.
      */
-    void                 *ioremap_addr;         /* I/O Memory remap address. */
+    void                 __iomem *ioremap_addr; /* I/O Memory remap address. */
     ushort               ioport;                /* I/O Port address. */
     ADV_CARR_T           *orig_carrp;           /* ADV_CARR_T memory block. */
     adv_req_t            *orig_reqp;            /* adv_req_t memory block. */
