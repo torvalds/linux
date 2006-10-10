@@ -699,6 +699,8 @@ spider_net_release_tx_descr(struct spider_net_card *card)
 
 	/* unmap the skb */
 	skb = descr->skb;
+	if (!skb)
+		return;
 	pci_unmap_single(card->pdev, descr->buf_addr, skb->len,
 			PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(skb);
@@ -751,7 +753,8 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 
 		default:
 			card->netdev_stats.tx_dropped++;
-			return 1;
+			if (!brutal)
+				return 1;
 		}
 		spider_net_release_tx_descr(card);
 	}
