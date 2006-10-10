@@ -601,7 +601,7 @@ void ipic_clear_mcp_status(u32 mask)
 }
 
 /* Return an interrupt vector or -1 if no interrupt is pending. */
-int ipic_get_irq(struct pt_regs *regs)
+int ipic_get_irq(void)
 {
 	int irq;
 

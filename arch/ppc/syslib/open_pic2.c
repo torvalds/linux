@@ -529,7 +529,7 @@ static void openpic2_end_irq(unsigned int irq_nr)
 }
 
 int
-openpic2_get_irq(struct pt_regs *regs)
+openpic2_get_irq(void)
 {
 	int irq = openpic2_irq();
 
