@@ -876,8 +876,14 @@ pci_set_master(struct pci_dev *dev)
 }
 
 #ifndef HAVE_ARCH_PCI_MWI
+
+#ifndef PCI_CACHE_LINE_BYTES
+#define PCI_CACHE_LINE_BYTES L1_CACHE_BYTES
+#endif
+
 /* This can be overridden by arch code. */
-u8 pci_cache_line_size = L1_CACHE_BYTES >> 2;
+/* Don't forget this is measured in 32-bit words, not bytes */
+u8 pci_cache_line_size = PCI_CACHE_LINE_BYTES / 4;
 
 /**
  * pci_generic_prep_mwi - helper function for pci_set_mwi
