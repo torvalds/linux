@@ -48,7 +48,6 @@ static struct pci_controller *u3_ht;
 static int has_second_ohare;
 #endif /* CONFIG_PPC64 */
 
-extern u8 pci_cache_line_size;
 extern int pcibios_assign_bus_offset;
 
 struct device_node *k2_skiplist[2];
