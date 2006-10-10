@@ -36,6 +36,7 @@
 #include <asm/rtas.h>
 #include <asm/sstep.h>
 #include <asm/bug.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -521,13 +522,12 @@ int xmon(struct pt_regs *excp)
 }
 EXPORT_SYMBOL(xmon);
 
-irqreturn_t
-xmon_irq(int irq, void *d, struct pt_regs *regs)
+irqreturn_t xmon_irq(int irq, void *d)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	printf("Keyboard interrupt\n");
-	xmon(regs);
+	xmon(get_irq_regs());
 	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
