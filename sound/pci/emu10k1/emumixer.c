@@ -542,7 +542,7 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
 				EMU_HANA_DOCK_LEDS_2_44K | EMU_HANA_DOCK_LEDS_2_LOCK );
 			/* Allow DLL to settle */
-			udelay(10000);
+			msleep(10);
 			/* Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
 			break;
@@ -559,7 +559,7 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 			snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2,
 				EMU_HANA_DOCK_LEDS_2_48K | EMU_HANA_DOCK_LEDS_2_LOCK );
 			/* Allow DLL to settle */
-			udelay(10000);
+			msleep(10);
 			/* Unmute all */
 			snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE );
 			break;
