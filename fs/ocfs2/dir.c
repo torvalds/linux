@@ -340,7 +340,7 @@ int ocfs2_empty_dir(struct inode *inode)
 
 /* returns a bh of the 1st new block in the allocation. */
 int ocfs2_do_extend_dir(struct super_block *sb,
-			struct ocfs2_journal_handle *handle,
+			handle_t *handle,
 			struct inode *dir,
 			struct buffer_head *parent_fe_bh,
 			struct ocfs2_alloc_context *data_ac,
@@ -398,7 +398,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) parent_fe_bh->b_data;
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct ocfs2_alloc_context *meta_ac = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct buffer_head *new_bh = NULL;
 	struct ocfs2_dir_entry * de;
 	struct super_block *sb = osb->sb;

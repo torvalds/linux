@@ -52,14 +52,14 @@ static int ocfs2_extent_contig(struct inode *inode,
 			       u64 blkno);
 
 static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
-				     struct ocfs2_journal_handle *handle,
+				     handle_t *handle,
 				     struct inode *inode,
 				     int wanted,
 				     struct ocfs2_alloc_context *meta_ac,
 				     struct buffer_head *bhs[]);
 
 static int ocfs2_add_branch(struct ocfs2_super *osb,
-			    struct ocfs2_journal_handle *handle,
+			    handle_t *handle,
 			    struct inode *inode,
 			    struct buffer_head *fe_bh,
 			    struct buffer_head *eb_bh,
@@ -67,14 +67,14 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context *meta_ac);
 
 static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
-				  struct ocfs2_journal_handle *handle,
+				  handle_t *handle,
 				  struct inode *inode,
 				  struct buffer_head *fe_bh,
 				  struct ocfs2_alloc_context *meta_ac,
 				  struct buffer_head **ret_new_eb_bh);
 
 static int ocfs2_do_insert_extent(struct ocfs2_super *osb,
-				  struct ocfs2_journal_handle *handle,
+				  handle_t *handle,
 				  struct inode *inode,
 				  struct buffer_head *fe_bh,
 				  u64 blkno,
@@ -152,7 +152,7 @@ bail:
  * l_count for you
  */
 static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
-				     struct ocfs2_journal_handle *handle,
+				     handle_t *handle,
 				     struct inode *inode,
 				     int wanted,
 				     struct ocfs2_alloc_context *meta_ac,
@@ -253,7 +253,7 @@ bail:
  * contain a single record with e_clusters == 0.
  */
 static int ocfs2_add_branch(struct ocfs2_super *osb,
-			    struct ocfs2_journal_handle *handle,
+			    handle_t *handle,
 			    struct inode *inode,
 			    struct buffer_head *fe_bh,
 			    struct buffer_head *eb_bh,
@@ -418,7 +418,7 @@ bail:
  * after this call.
  */
 static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
-				  struct ocfs2_journal_handle *handle,
+				  handle_t *handle,
 				  struct inode *inode,
 				  struct buffer_head *fe_bh,
 				  struct ocfs2_alloc_context *meta_ac,
@@ -520,7 +520,7 @@ bail:
  * down.
  */
 static int ocfs2_do_insert_extent(struct ocfs2_super *osb,
-				  struct ocfs2_journal_handle *handle,
+				  handle_t *handle,
 				  struct inode *inode,
 				  struct buffer_head *fe_bh,
 				  u64 start_blk,
@@ -809,7 +809,7 @@ bail:
 
 /* the caller needs to update fe->i_clusters */
 int ocfs2_insert_extent(struct ocfs2_super *osb,
-			struct ocfs2_journal_handle *handle,
+			handle_t *handle,
 			struct inode *inode,
 			struct buffer_head *fe_bh,
 			u64 start_blk,
@@ -951,7 +951,7 @@ static int ocfs2_truncate_log_can_coalesce(struct ocfs2_truncate_log *tl,
 }
 
 static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
-				     struct ocfs2_journal_handle *handle,
+				     handle_t *handle,
 				     u64 start_blk,
 				     unsigned int num_clusters)
 {
@@ -1034,7 +1034,7 @@ bail:
 }
 
 static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
-					 struct ocfs2_journal_handle *handle,
+					 handle_t *handle,
 					 struct inode *data_alloc_inode,
 					 struct buffer_head *data_alloc_bh)
 {
@@ -1074,7 +1074,7 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 		/* TODO: Perhaps we can calculate the bulk of the
 		 * credits up front rather than extending like
 		 * this. */
-		status = ocfs2_extend_trans(handle->k_handle,
+		status = ocfs2_extend_trans(handle,
 					    OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1113,7 +1113,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 {
 	int status;
 	unsigned int num_to_flush;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct inode *data_alloc_inode = NULL;
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
@@ -1339,7 +1339,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	int i;
 	unsigned int clusters, num_recs, start_cluster;
 	u64 start_blk;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct ocfs2_truncate_log *tl;
 
@@ -1534,7 +1534,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 			     struct inode *inode,
 			     struct buffer_head *fe_bh,
 			     struct buffer_head *old_last_eb_bh,
-			     struct ocfs2_journal_handle *handle,
+			     handle_t *handle,
 			     struct ocfs2_truncate_context *tc)
 {
 	int status, i, depth;
@@ -1773,7 +1773,7 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 	struct buffer_head *last_eb_bh;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct inode *tl_inode = osb->osb_tl_inode;
 
 	mlog_entry_void();

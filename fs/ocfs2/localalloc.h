@@ -46,7 +46,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 				   struct ocfs2_alloc_context *ac);
 
 int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
-				 struct ocfs2_journal_handle *handle,
+				 handle_t *handle,
 				 struct ocfs2_alloc_context *ac,
 				 u32 min_bits,
 				 u32 *bit_off,

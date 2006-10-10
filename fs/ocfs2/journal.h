@@ -37,7 +37,6 @@ enum ocfs2_journal_state {
 
 struct ocfs2_super;
 struct ocfs2_dinode;
-struct ocfs2_journal_handle;
 
 struct ocfs2_journal {
 	enum ocfs2_journal_state   j_state;    /* Journals current state   */
@@ -133,10 +132,6 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 	spin_unlock(&trans_inc_lock);
 }
 
-struct ocfs2_journal_handle {
-	handle_t            *k_handle; /* kernel handle.                */
-};
-
 /* Exported only for the journal struct init code in super.c. Do not call. */
 void ocfs2_complete_recovery(void *data);
 
@@ -200,7 +195,11 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  ocfs2_start_trans      - Begin a transaction. Give it an upper estimate of
  *                          the number of blocks that will be changed during
  *                          this handle.
- *  ocfs2_commit_trans     - Complete a handle.
+ *  ocfs2_commit_trans - Complete a handle. It might return -EIO if
+ *                       the journal was aborted. The majority of paths don't
+ *                       check the return value as an error there comes too
+ *                       late to do anything (and will be picked up in a
+ *                       later transaction).
  *  ocfs2_extend_trans     - Extend a handle by nblocks credits. This may
  *                          commit the handle to disk in the process, but will
  *                          not release any locks taken during the transaction.
@@ -215,10 +214,10 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
 /* You must always start_trans with a number of buffs > 0, but it's
  * perfectly legal to go through an entire transaction without having
  * dirtied any buffers. */
-struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
+handle_t		    *ocfs2_start_trans(struct ocfs2_super *osb,
 					       int max_buffs);
-void			     ocfs2_commit_trans(struct ocfs2_super *osb,
-						struct ocfs2_journal_handle *handle);
+int			     ocfs2_commit_trans(struct ocfs2_super *osb,
+						handle_t *handle);
 int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 
 /*
@@ -236,7 +235,7 @@ int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 #define OCFS2_JOURNAL_ACCESS_WRITE  1
 #define OCFS2_JOURNAL_ACCESS_UNDO   2
 
-int                  ocfs2_journal_access(struct ocfs2_journal_handle *handle,
+int                  ocfs2_journal_access(handle_t *handle,
 					  struct inode *inode,
 					  struct buffer_head *bh,
 					  int type);
@@ -259,7 +258,7 @@ int                  ocfs2_journal_access(struct ocfs2_journal_handle *handle,
  *	<modify the bh>
  * 	ocfs2_journal_dirty(handle, bh);
  */
-int                  ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
+int                  ocfs2_journal_dirty(handle_t *handle,
 					 struct buffer_head *bh);
 int                  ocfs2_journal_dirty_data(handle_t *handle,
 					      struct buffer_head *bh);

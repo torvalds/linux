@@ -134,7 +134,7 @@ bail:
 	return (err < 0) ? -EIO : 0;
 }
 
-int ocfs2_set_inode_size(struct ocfs2_journal_handle *handle,
+int ocfs2_set_inode_size(handle_t *handle,
 			 struct inode *inode,
 			 struct buffer_head *fe_bh,
 			 u64 new_i_size)
@@ -163,7 +163,7 @@ static int ocfs2_simple_size_update(struct inode *inode,
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (handle == NULL) {
@@ -188,7 +188,7 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 				     u64 new_i_size)
 {
 	int status;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 
 	mlog_entry_void();
 
@@ -327,7 +327,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct inode *inode,
 			       u32 clusters_to_add,
 			       struct buffer_head *fe_bh,
-			       struct ocfs2_journal_handle *handle,
+			       handle_t *handle,
 			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
 			       enum ocfs2_alloc_restarted *reason_ret)
@@ -432,7 +432,7 @@ static int ocfs2_extend_allocation(struct inode *inode,
 	u32 prev_clusters;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *fe = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	enum ocfs2_alloc_restarted why;
@@ -552,7 +552,7 @@ restarted_transaction:
 			credits = ocfs2_calc_extend_credits(osb->sb,
 							    fe,
 							    clusters_to_add);
-			status = ocfs2_extend_trans(handle->k_handle, credits);
+			status = ocfs2_extend_trans(handle, credits);
 			if (status < 0) {
 				/* handle still has to be committed at
 				 * this point. */
@@ -610,7 +610,7 @@ static int ocfs2_write_zero_page(struct inode *inode,
 	struct page *page;
 	unsigned long index;
 	unsigned int offset;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	int ret;
 
 	offset = (size & (PAGE_CACHE_SIZE-1)); /* Within page */
@@ -775,7 +775,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct super_block *sb = inode->i_sb;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 	           dentry->d_name.len, dentry->d_name.name);
@@ -897,7 +897,7 @@ static int ocfs2_write_remove_suid(struct inode *inode)
 	int ret;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di;
 

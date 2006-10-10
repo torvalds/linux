@@ -512,7 +512,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 				     struct buffer_head *fe_bh)
 {
 	int status = 0;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_truncate_context *tc = NULL;
 	struct ocfs2_dinode *fe;
 
@@ -568,7 +568,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	int status;
 	struct inode *inode_alloc_inode = NULL;
 	struct buffer_head *inode_alloc_bh = NULL;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
 
@@ -1198,7 +1198,7 @@ bail:
  * struct inode.
  * Only takes ip_lock.
  */
-int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
+int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh)
 {

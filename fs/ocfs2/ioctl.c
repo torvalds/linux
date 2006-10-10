@@ -43,7 +43,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 {
 	struct ocfs2_inode_info *ocfs2_inode = OCFS2_I(inode);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct buffer_head *bh = NULL;
 	unsigned oldflags;
 	int status;

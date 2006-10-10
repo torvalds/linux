@@ -136,7 +136,7 @@ ssize_t ocfs2_rw_direct(int rw, struct file *filp, char *buf,
 void ocfs2_sync_blockdev(struct super_block *sb);
 void ocfs2_refresh_inode(struct inode *inode,
 			 struct ocfs2_dinode *fe);
-int ocfs2_mark_inode_dirty(struct ocfs2_journal_handle *handle,
+int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh);
 int ocfs2_aio_read(struct file *file, struct kiocb *req, struct iocb *iocb);

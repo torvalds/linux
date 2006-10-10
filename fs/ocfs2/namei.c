@@ -75,12 +75,12 @@ static int inline ocfs2_search_dirblock(struct buffer_head *bh,
 					unsigned long offset,
 					struct ocfs2_dir_entry **res_dir);
 
-static int ocfs2_delete_entry(struct ocfs2_journal_handle *handle,
+static int ocfs2_delete_entry(handle_t *handle,
 			      struct inode *dir,
 			      struct ocfs2_dir_entry *de_del,
 			      struct buffer_head *bh);
 
-static int __ocfs2_add_entry(struct ocfs2_journal_handle *handle,
+static int __ocfs2_add_entry(handle_t *handle,
 			     struct inode *dir,
 			     const char *name, int namelen,
 			     struct inode *inode, u64 blkno,
@@ -93,12 +93,12 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 			      dev_t dev,
 			      struct buffer_head **new_fe_bh,
 			      struct buffer_head *parent_fe_bh,
-			      struct ocfs2_journal_handle *handle,
+			      handle_t *handle,
 			      struct inode **ret_inode,
 			      struct ocfs2_alloc_context *inode_ac);
 
 static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
-			      struct ocfs2_journal_handle *handle,
+			      handle_t *handle,
 			      struct inode *parent,
 			      struct inode *inode,
 			      struct buffer_head *fe_bh,
@@ -111,7 +111,7 @@ static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 				    struct buffer_head **de_bh);
 
 static int ocfs2_orphan_add(struct ocfs2_super *osb,
-			    struct ocfs2_journal_handle *handle,
+			    handle_t *handle,
 			    struct inode *inode,
 			    struct ocfs2_dinode *fe,
 			    char *name,
@@ -119,11 +119,11 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 			    struct inode *orphan_dir_inode);
 
 static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
-				     struct ocfs2_journal_handle *handle,
+				     handle_t *handle,
 				     struct inode *inode,
 				     const char *symname);
 
-static inline int ocfs2_add_entry(struct ocfs2_journal_handle *handle,
+static inline int ocfs2_add_entry(handle_t *handle,
 				  struct dentry *dentry,
 				  struct inode *inode, u64 blkno,
 				  struct buffer_head *parent_fe_bh,
@@ -236,7 +236,7 @@ bail:
 }
 
 static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
-			      struct ocfs2_journal_handle *handle,
+			      handle_t *handle,
 			      struct inode *parent,
 			      struct inode *inode,
 			      struct buffer_head *fe_bh,
@@ -311,7 +311,7 @@ static int ocfs2_mknod(struct inode *dir,
 {
 	int status = 0;
 	struct buffer_head *parent_fe_bh = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_super *osb;
 	struct ocfs2_dinode *dirfe;
 	struct buffer_head *new_fe_bh = NULL;
@@ -476,7 +476,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 			      dev_t dev,
 			      struct buffer_head **new_fe_bh,
 			      struct buffer_head *parent_fe_bh,
-			      struct ocfs2_journal_handle *handle,
+			      handle_t *handle,
 			      struct inode **ret_inode,
 			      struct ocfs2_alloc_context *inode_ac)
 {
@@ -642,7 +642,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		      struct inode *dir,
 		      struct dentry *dentry)
 {
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct inode *inode = old_dentry->d_inode;
 	int err;
 	struct buffer_head *fe_bh = NULL;
@@ -807,7 +807,7 @@ static int ocfs2_unlink(struct inode *dir,
 	struct ocfs2_dinode *fe = NULL;
 	struct buffer_head *fe_bh = NULL;
 	struct buffer_head *parent_node_bh = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_dir_entry *dirent = NULL;
 	struct buffer_head *dirent_bh = NULL;
 	char orphan_name[OCFS2_ORPHAN_NAMELEN + 1];
@@ -1069,7 +1069,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *insert_entry_bh = NULL;
 	struct ocfs2_super *osb = NULL;
 	u64 newfe_blkno;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct buffer_head *old_dir_bh = NULL;
 	struct buffer_head *new_dir_bh = NULL;
 	struct ocfs2_dir_entry *old_de = NULL, *new_de = NULL; // dirent for old_dentry
@@ -1478,7 +1478,7 @@ bail:
  * data, including the null terminator.
  */
 static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
-				     struct ocfs2_journal_handle *handle,
+				     handle_t *handle,
 				     struct inode *inode,
 				     const char *symname)
 {
@@ -1593,7 +1593,7 @@ static int ocfs2_symlink(struct inode *dir,
 	struct buffer_head *parent_fe_bh = NULL;
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_dinode *dirfe;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_alloc_context *inode_ac = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
 
@@ -1784,7 +1784,7 @@ int ocfs2_check_dir_entry(struct inode * dir,
  * If you pass me insert_bh, I'll skip the search of the other dir
  * blocks and put the record in there.
  */
-static int __ocfs2_add_entry(struct ocfs2_journal_handle *handle,
+static int __ocfs2_add_entry(handle_t *handle,
 			     struct inode *dir,
 			     const char *name, int namelen,
 			     struct inode *inode, u64 blkno,
@@ -1870,7 +1870,7 @@ bail:
  * ocfs2_delete_entry deletes a directory entry by merging it with the
  * previous entry
  */
-static int ocfs2_delete_entry(struct ocfs2_journal_handle *handle,
+static int ocfs2_delete_entry(handle_t *handle,
 			      struct inode *dir,
 			      struct ocfs2_dir_entry *de_del,
 			      struct buffer_head *bh)
@@ -2159,7 +2159,7 @@ leave:
 }
 
 static int ocfs2_orphan_add(struct ocfs2_super *osb,
-			    struct ocfs2_journal_handle *handle,
+			    handle_t *handle,
 			    struct inode *inode,
 			    struct ocfs2_dinode *fe,
 			    char *name,
@@ -2232,7 +2232,7 @@ leave:
 
 /* unlike orphan_add, we expect the orphan dir to already be locked here. */
 int ocfs2_orphan_del(struct ocfs2_super *osb,
-		     struct ocfs2_journal_handle *handle,
+		     handle_t *handle,
 		     struct inode *orphan_dir_inode,
 		     struct inode *inode,
 		     struct buffer_head *orphan_dir_bh)

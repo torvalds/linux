@@ -355,13 +355,13 @@ static int walk_page_buffers(	handle_t *handle,
 	return ret;
 }
 
-struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
+handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,
 							 unsigned to)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	int ret = 0;
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
@@ -372,7 +372,7 @@ struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 	}
 
 	if (ocfs2_should_order_data(inode)) {
-		ret = walk_page_buffers(handle->k_handle,
+		ret = walk_page_buffers(handle,
 					page_buffers(page),
 					from, to, NULL,
 					ocfs2_journal_dirty_data);
@@ -394,7 +394,7 @@ static int ocfs2_commit_write(struct file *file, struct page *page,
 	int ret;
 	struct buffer_head *di_bh = NULL;
 	struct inode *inode = page->mapping->host;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_dinode *di;
 
 	mlog_entry("(0x%p, 0x%p, %u, %u)\n", file, page, from, to);

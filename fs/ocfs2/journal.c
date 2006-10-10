@@ -110,30 +110,13 @@ finally:
 	return status;
 }
 
-static struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
-{
-	struct ocfs2_journal_handle *retval = NULL;
-
-	retval = kcalloc(1, sizeof(*retval), GFP_NOFS);
-	if (!retval) {
-		mlog(ML_ERROR, "Failed to allocate memory for journal "
-		     "handle!\n");
-		return NULL;
-	}
-	retval->k_handle = NULL;
-
-	return retval;
-}
-
 /* pass it NULL and it will allocate a new handle object for you.  If
  * you pass it a handle however, it may still return error, in which
  * case it has free'd the passed handle for you. */
-struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
-					       int max_buffs)
+handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 {
-	int ret;
 	journal_t *journal = osb->journal->j_journal;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 
 	BUG_ON(!osb || !osb->journal->j_journal);
 
@@ -149,77 +132,39 @@ struct ocfs2_journal_handle *ocfs2_start_trans(struct ocfs2_super *osb,
 		BUG();
 	}
 
-	handle = ocfs2_alloc_handle(osb);
-	if (!handle) {
-		ret = -ENOMEM;
-		mlog_errno(ret);
-		return ERR_PTR(ret);
-	}
-
 	down_read(&osb->journal->j_trans_barrier);
 
-	/* actually start the transaction now */
-	handle->k_handle = journal_start(journal, max_buffs);
-	if (IS_ERR(handle->k_handle)) {
+	handle = journal_start(journal, max_buffs);
+	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
-		kfree(handle);
 
-		ret = PTR_ERR(handle->k_handle);
-		handle->k_handle = NULL;
-		mlog_errno(ret);
+		mlog_errno(PTR_ERR(handle));
 
 		if (is_journal_aborted(journal)) {
 			ocfs2_abort(osb->sb, "Detected aborted journal");
-			ret = -EROFS;
+			handle = ERR_PTR(-EROFS);
 		}
-		return ERR_PTR(ret);
-	}
-
-	atomic_inc(&(osb->journal->j_num_trans));
+	} else
+		atomic_inc(&(osb->journal->j_num_trans));
 
 	return handle;
 }
 
-void ocfs2_commit_trans(struct ocfs2_super *osb,
-			struct ocfs2_journal_handle *handle)
+int ocfs2_commit_trans(struct ocfs2_super *osb,
+		       handle_t *handle)
 {
-	handle_t *jbd_handle;
-	int retval;
+	int ret;
 	struct ocfs2_journal *journal = osb->journal;
-
-	mlog_entry_void();
 
 	BUG_ON(!handle);
 
-	if (!handle->k_handle) {
-		kfree(handle);
-		mlog_exit_void();
-		return;
-	}
-
-	/* ocfs2_extend_trans may have had to call journal_restart
-	 * which will always commit the transaction, but may return
-	 * error for any number of reasons. If this is the case, we
-	 * clear k_handle as it's not valid any more. */
-	if (handle->k_handle) {
-		jbd_handle = handle->k_handle;
-
-		/* actually stop the transaction. if we've set h_sync,
-		 * it'll have been committed when we return */
-		retval = journal_stop(jbd_handle);
-		if (retval < 0) {
-			mlog_errno(retval);
-			mlog(ML_ERROR, "Could not commit transaction\n");
-			BUG();
-		}
-
-		handle->k_handle = NULL; /* it's been free'd in journal_stop */
-	}
+	ret = journal_stop(handle);
+	if (ret < 0)
+		mlog_errno(ret);
 
 	up_read(&journal->j_trans_barrier);
 
-	kfree(handle);
-	mlog_exit_void();
+	return ret;
 }
 
 /*
@@ -268,7 +213,7 @@ bail:
 	return status;
 }
 
-int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
+int ocfs2_journal_access(handle_t *handle,
 			 struct inode *inode,
 			 struct buffer_head *bh,
 			 int type)
@@ -306,11 +251,11 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
-		status = journal_get_write_access(handle->k_handle, bh);
+		status = journal_get_write_access(handle, bh);
 		break;
 
 	case OCFS2_JOURNAL_ACCESS_UNDO:
-		status = journal_get_undo_access(handle->k_handle, bh);
+		status = journal_get_undo_access(handle, bh);
 		break;
 
 	default:
@@ -327,7 +272,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	return status;
 }
 
-int ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
+int ocfs2_journal_dirty(handle_t *handle,
 			struct buffer_head *bh)
 {
 	int status;
@@ -335,7 +280,7 @@ int ocfs2_journal_dirty(struct ocfs2_journal_handle *handle,
 	mlog_entry("(bh->b_blocknr=%llu)\n",
 		   (unsigned long long)bh->b_blocknr);
 
-	status = journal_dirty_metadata(handle->k_handle, bh);
+	status = journal_dirty_metadata(handle, bh);
 	if (status < 0)
 		mlog(ML_ERROR, "Could not dirty metadata buffer. "
 		     "(bh->b_blocknr=%llu)\n",

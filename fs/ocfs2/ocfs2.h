@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/jbd.h>
 
 #include "cluster/nodemanager.h"
 #include "cluster/heartbeat.h"
@@ -181,7 +182,6 @@ enum ocfs2_mount_options
 #define OCFS2_OSB_ERROR_FS	0x0004
 
 struct ocfs2_journal;
-struct ocfs2_journal_handle;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;

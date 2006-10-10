@@ -58,7 +58,7 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 static void ocfs2_clear_local_alloc(struct ocfs2_dinode *alloc);
 
 static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
-				    struct ocfs2_journal_handle *handle,
+				    handle_t *handle,
 				    struct ocfs2_dinode *alloc,
 				    struct inode *main_bm_inode,
 				    struct buffer_head *main_bm_bh);
@@ -69,7 +69,7 @@ static int ocfs2_local_alloc_reserve_for_window(struct ocfs2_super *osb,
 						struct buffer_head **bitmap_bh);
 
 static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
-					struct ocfs2_journal_handle *handle,
+					handle_t *handle,
 					struct ocfs2_alloc_context *ac);
 
 static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
@@ -195,7 +195,7 @@ bail:
 void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 {
 	int status;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct inode *local_alloc_inode = NULL;
 	struct buffer_head *bh = NULL;
 	struct buffer_head *main_bm_bh = NULL;
@@ -382,7 +382,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 					struct ocfs2_dinode *alloc)
 {
 	int status;
-	struct ocfs2_journal_handle *handle;
+	handle_t *handle;
 	struct buffer_head *main_bm_bh = NULL;
 	struct inode *main_bm_inode;
 
@@ -414,7 +414,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	}
 
 	/* we want the bitmap change to be recorded on disk asap */
-	handle->k_handle->h_sync = 1;
+	handle->h_sync = 1;
 
 	status = ocfs2_sync_local_to_main(osb, handle, alloc,
 					  main_bm_inode, main_bm_bh);
@@ -521,7 +521,7 @@ bail:
 }
 
 int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
-				 struct ocfs2_journal_handle *handle,
+				 handle_t *handle,
 				 struct ocfs2_alloc_context *ac,
 				 u32 min_bits,
 				 u32 *bit_off,
@@ -699,7 +699,7 @@ static void ocfs2_verify_zero_bits(unsigned long *bitmap,
  * passed is used for caching.
  */
 static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
-				    struct ocfs2_journal_handle *handle,
+				    handle_t *handle,
 				    struct ocfs2_dinode *alloc,
 				    struct inode *main_bm_inode,
 				    struct buffer_head *main_bm_bh)
@@ -811,7 +811,7 @@ bail:
  * pass it the bitmap lock in lock_bh if you have it.
  */
 static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
-					struct ocfs2_journal_handle *handle,
+					handle_t *handle,
 					struct ocfs2_alloc_context *ac)
 {
 	int status = 0;
@@ -878,7 +878,7 @@ static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 	int status = 0;
 	struct buffer_head *main_bm_bh = NULL;
 	struct inode *main_bm_inode = NULL;
-	struct ocfs2_journal_handle *handle = NULL;
+	handle_t *handle = NULL;
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_dinode *alloc_copy = NULL;
 	struct ocfs2_alloc_context *ac = NULL;
