@@ -275,13 +275,14 @@ static int check_perm(struct inode * inode, struct file * file)
 	 * it in file->private_data for easy access.
 	 */
 	buffer = kzalloc(sizeof(struct configfs_buffer),GFP_KERNEL);
-	if (buffer) {
-		init_MUTEX(&buffer->sem);
-		buffer->needs_read_fill = 1;
-		buffer->ops = ops;
-		file->private_data = buffer;
-	} else
+	if (!buffer) {
 		error = -ENOMEM;
+		goto Enomem;
+	}
+	init_MUTEX(&buffer->sem);
+	buffer->needs_read_fill = 1;
+	buffer->ops = ops;
+	file->private_data = buffer;
 	goto Done;
 
  Einval:
@@ -289,6 +290,7 @@ static int check_perm(struct inode * inode, struct file * file)
 	goto Done;
  Eaccess:
 	error = -EACCES;
+ Enomem:
 	module_put(attr->ca_owner);
  Done:
 	if (error && item)
