@@ -591,7 +591,7 @@ ccw_device_add_changed(void *data)
 
 	struct ccw_device *cdev;
 
-	cdev = (struct ccw_device *)data;
+	cdev = data;
 	if (device_add(&cdev->dev)) {
 		put_device(&cdev->dev);
 		return;
@@ -612,7 +612,7 @@ ccw_device_do_unreg_rereg(void *data)
 	struct subchannel *sch;
 	int need_rename;
 
-	cdev = (struct ccw_device *)data;
+	cdev = data;
 	sch = to_subchannel(cdev->dev.parent);
 	if (cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
 		/*
@@ -660,7 +660,7 @@ ccw_device_do_unreg_rereg(void *data)
 		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
 			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
-		     ccw_device_add_changed, (void *)cdev);
+		     ccw_device_add_changed, cdev);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
@@ -685,7 +685,7 @@ io_subchannel_register(void *data)
 	int ret;
 	unsigned long flags;
 
-	cdev = (struct ccw_device *) data;
+	cdev = data;
 	sch = to_subchannel(cdev->dev.parent);
 
 	if (klist_node_attached(&cdev->dev.knode_parent)) {
@@ -757,7 +757,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 			break;
 		sch = to_subchannel(cdev->dev.parent);
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister, (void *) cdev);
+			     ccw_device_call_sch_unregister, cdev);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -772,7 +772,7 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		if (!get_device(&cdev->dev))
 			break;
 		PREPARE_WORK(&cdev->private->kick_work,
-			     io_subchannel_register, (void *) cdev);
+			     io_subchannel_register, cdev);
 		queue_work(slow_path_wq, &cdev->private->kick_work);
 		break;
 	}
@@ -910,7 +910,7 @@ io_subchannel_remove (struct subchannel *sch)
 	 */
 	if (get_device(&cdev->dev)) {
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_unregister, (void *) cdev);
+			     ccw_device_unregister, cdev);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
 	}
 	return 0;
@@ -1053,7 +1053,7 @@ __ccwdev_check_busid(struct device *dev, void *id)
 {
 	char *bus_id;
 
-	bus_id = (char *)id;
+	bus_id = id;
 
 	return (strncmp(bus_id, dev->bus_id, BUS_ID_SIZE) == 0);
 }

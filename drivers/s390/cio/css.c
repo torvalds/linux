@@ -177,7 +177,7 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	struct device *dev;
 
 	dev = bus_find_device(&css_bus_type, NULL,
-			      (void *)&schid, check_subchannel);
+			      &schid, check_subchannel);
 
 	return dev ? to_subchannel(dev) : NULL;
 }

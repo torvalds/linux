@@ -370,7 +370,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 	struct res_acc_data *res_data;
 	struct subchannel *sch;
 
-	res_data = (struct res_acc_data *)data;
+	res_data = data;
 	sch = get_subchannel_by_schid(schid);
 	if (!sch)
 		/* Check if a subchannel is newly available. */
@@ -444,7 +444,7 @@ __get_chpid_from_lir(void *data)
 		u32 isinfo[28];
 	} *lir;
 
-	lir = (struct lir*) data;
+	lir = data;
 	if (!(lir->iq&0x80))
 		/* NULL link incident record */
 		return -EINVAL;
@@ -628,7 +628,7 @@ __chp_add(struct subchannel_id schid, void *data)
 	struct channel_path *chp;
 	struct subchannel *sch;
 
-	chp = (struct channel_path *)data;
+	chp = data;
 	sch = get_subchannel_by_schid(schid);
 	if (!sch)
 		/* Check if the subchannel is now available. */
