@@ -431,6 +431,10 @@ asmlinkage long sys_epoll_ctl(int epfd, int op, int fd,
 				struct epoll_event __user *event);
 asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
 				int maxevents, int timeout);
+asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
+				int maxevents, int timeout,
+				const sigset_t __user *sigmask,
+				size_t sigsetsize);
 asmlinkage long sys_gethostname(char __user *name, int len);
 asmlinkage long sys_sethostname(char __user *name, int len);
 asmlinkage long sys_setdomainname(char __user *name, int len);
