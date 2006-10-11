@@ -304,7 +304,7 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 		2 +		/* Auth Transaction Seq */
 		2 +		/* Status Code */
 		 /* Challenge Text IE */
-		is_shared_response ? 0 : 1 + 1 + net->challenge_len
+		(is_shared_response ? 1 + 1 + net->challenge_len : 0)
 	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
