@@ -449,6 +449,8 @@ static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					   dccp_hdr(skb)->dccph_sport);
 }
 
+static struct request_sock_ops dccp_request_sock_ops;
+
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
@@ -489,7 +491,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = reqsk_alloc(sk->sk_prot->rsk_prot);
+	req = reqsk_alloc(&dccp_request_sock_ops);
 	if (req == NULL)
 		goto drop;
 
