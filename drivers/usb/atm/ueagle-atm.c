@@ -1648,15 +1648,11 @@ static struct attribute *attrs[] = {
 	&dev_attr_stat_usunc.attr,
 	&dev_attr_stat_dsunc.attr,
 	&dev_attr_stat_firmid.attr,
+	NULL,
 };
 static struct attribute_group attr_grp = {
 	.attrs = attrs,
 };
-
-static int create_fs_entries(struct usb_interface *intf)
-{
-	return sysfs_create_group(&intf->dev.kobj, &attr_grp);
-}
 
 static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 		   const struct usb_device_id *id)
@@ -1717,31 +1713,25 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 		}
 	}
 
+	ret = sysfs_create_group(&intf->dev.kobj, &attr_grp);
+	if (ret < 0)
+		goto error;
+
 	ret = uea_boot(sc);
-	if (ret < 0) {
-		kfree(sc);
-		return ret;
-	}
+	if (ret < 0)
+		goto error;
 
-	ret = create_fs_entries(intf);
-	if (ret) {
-		uea_stop(sc);
-		kfree(sc);
-		return ret;
-	}
 	return 0;
-}
-
-static void destroy_fs_entries(struct usb_interface *intf)
-{
-	sysfs_remove_group(&intf->dev.kobj, &attr_grp);
+error:
+	kfree(sc);
+	return ret;
 }
 
 static void uea_unbind(struct usbatm_data *usbatm, struct usb_interface *intf)
 {
 	struct uea_softc *sc = usbatm->driver_data;
 
-	destroy_fs_entries(intf);
+	sysfs_remove_group(&intf->dev.kobj, &attr_grp);
 	uea_stop(sc);
 	kfree(sc);
 }
