@@ -141,6 +141,8 @@ typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
 
 #define EXT_MAX_BLOCK	0xffffffff
 
+#define EXT_MAX_LEN	((1UL << 15) - 1)
+
 
 #define EXT_FIRST_EXTENT(__hdr__) \
 	((struct ext4_extent *) (((char *) (__hdr__)) +		\

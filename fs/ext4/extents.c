@@ -1082,6 +1082,13 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	    != le32_to_cpu(ex2->ee_block))
 		return 0;
 
+	/*
+	 * To allow future support for preallocated extents to be added
+	 * as an RO_COMPAT feature, refuse to merge to extents if
+	 * can result in the top bit of ee_len being set
+	 */
+	if (le16_to_cpu(ex1->ee_len) + le16_to_cpu(ex2->ee_len) > EXT_MAX_LEN)
+		return 0;
 #ifdef AGRESSIVE_TEST
 	if (le16_to_cpu(ex1->ee_len) >= 4)
 		return 0;
@@ -1944,6 +1951,15 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	        unsigned long ee_block = le32_to_cpu(ex->ee_block);
 		ext4_fsblk_t ee_start = ext_pblock(ex);
 		unsigned short ee_len  = le16_to_cpu(ex->ee_len);
+
+		/*
+		 * Allow future support for preallocated extents to be added
+		 * as an RO_COMPAT feature:
+		 * Uninitialized extents are treated as holes, except that
+		 * we avoid (fail) allocating new blocks during a write.
+		 */
+		if (ee_len > EXT_MAX_LEN)
+			goto out2;
 		/* if found exent covers block, simple return it */
 	        if (iblock >= ee_block && iblock < ee_block + ee_len) {
 			newblock = iblock - ee_block + ee_start;
