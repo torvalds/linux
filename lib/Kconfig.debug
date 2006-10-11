@@ -71,7 +71,7 @@ config LOG_BUF_SHIFT
 
 config DETECT_SOFTLOCKUP
 	bool "Detect Soft Lockups"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && !S390
 	default y
 	help
 	  Say Y here to enable the kernel to detect "soft lockups",
