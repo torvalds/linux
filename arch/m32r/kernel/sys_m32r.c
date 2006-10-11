@@ -31,7 +31,7 @@
 /*
  * sys_tas() - test-and-set
  */
-asmlinkage int sys_tas(int *addr)
+asmlinkage int sys_tas(int __user *addr)
 {
 	int oldval;
 
@@ -90,7 +90,7 @@ sys_pipe(unsigned long r0, unsigned long r1, unsigned long r2,
 
 	error = do_pipe(fd);
 	if (!error) {
-		if (copy_to_user((void *)r0, (void *)fd, 2*sizeof(int)))
+		if (copy_to_user((void __user *)r0, fd, 2*sizeof(int)))
 			error = -EFAULT;
 	}
 	return error;
@@ -201,7 +201,7 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 	}
 }
 
-asmlinkage int sys_uname(struct old_utsname * name)
+asmlinkage int sys_uname(struct old_utsname __user * name)
 {
 	int err;
 	if (!name)
