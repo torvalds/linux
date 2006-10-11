@@ -46,7 +46,8 @@
  * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
  * bitmap_bitremap(oldbit, old, new, nbits)	newbit = map(old, new)(oldbit)
  * bitmap_scnprintf(buf, len, src, nbits)	Print bitmap src to buf
- * bitmap_parse(ubuf, ulen, dst, nbits)		Parse bitmap dst from user buf
+ * bitmap_parse(buf, buflen, dst, nbits)	Parse bitmap dst from kernel buf
+ * bitmap_parse_user(ubuf, ulen, dst, nbits)	Parse bitmap dst from user buf
  * bitmap_scnlistprintf(buf, len, src, nbits)	Print bitmap src as list to buf
  * bitmap_parselist(buf, dst, nbits)		Parse bitmap dst from list
  * bitmap_find_free_region(bitmap, bits, order)	Find and allocate bit region
@@ -106,7 +107,9 @@ extern int __bitmap_weight(const unsigned long *bitmap, int bits);
 
 extern int bitmap_scnprintf(char *buf, unsigned int len,
 			const unsigned long *src, int nbits);
-extern int bitmap_parse(const char __user *ubuf, unsigned int ulen,
+extern int __bitmap_parse(const char *buf, unsigned int buflen, int is_user,
+			unsigned long *dst, int nbits);
+extern int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
 			unsigned long *dst, int nbits);
 extern int bitmap_scnlistprintf(char *buf, unsigned int len,
 			const unsigned long *src, int nbits);
@@ -268,6 +271,12 @@ static inline void bitmap_shift_left(unsigned long *dst,
 		*dst = (*src << n) & BITMAP_LAST_WORD_MASK(nbits);
 	else
 		__bitmap_shift_left(dst, src, n, nbits);
+}
+
+static inline int bitmap_parse(const char *buf, unsigned int buflen,
+			unsigned long *maskp, int nmaskbits)
+{
+	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
 
 #endif /* __ASSEMBLY__ */

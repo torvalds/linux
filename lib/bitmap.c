@@ -316,10 +316,11 @@ int bitmap_scnprintf(char *buf, unsigned int buflen,
 EXPORT_SYMBOL(bitmap_scnprintf);
 
 /**
- * bitmap_parse - convert an ASCII hex string into a bitmap.
- * @ubuf: pointer to buffer in user space containing string.
- * @ubuflen: buffer size in bytes.  If string is smaller than this
+ * __bitmap_parse - convert an ASCII hex string into a bitmap.
+ * @buf: pointer to buffer containing string.
+ * @buflen: buffer size in bytes.  If string is smaller than this
  *    then it must be terminated with a \0.
+ * @is_user: location of buffer, 0 indicates kernel space
  * @maskp: pointer to bitmap array that will contain result.
  * @nmaskbits: size of bitmap, in bits.
  *
@@ -330,11 +331,13 @@ EXPORT_SYMBOL(bitmap_scnprintf);
  * characters and for grouping errors such as "1,,5", ",44", "," and "".
  * Leading and trailing whitespace accepted, but not embedded whitespace.
  */
-int bitmap_parse(const char __user *ubuf, unsigned int ubuflen,
-        unsigned long *maskp, int nmaskbits)
+int __bitmap_parse(const char *buf, unsigned int buflen,
+		int is_user, unsigned long *maskp,
+		int nmaskbits)
 {
 	int c, old_c, totaldigits, ndigits, nchunks, nbits;
 	u32 chunk;
+	const char __user *ubuf = buf;
 
 	bitmap_zero(maskp, nmaskbits);
 
@@ -343,11 +346,15 @@ int bitmap_parse(const char __user *ubuf, unsigned int ubuflen,
 		chunk = ndigits = 0;
 
 		/* Get the next chunk of the bitmap */
-		while (ubuflen) {
+		while (buflen) {
 			old_c = c;
-			if (get_user(c, ubuf++))
-				return -EFAULT;
-			ubuflen--;
+			if (is_user) {
+				if (__get_user(c, ubuf++))
+					return -EFAULT;
+			}
+			else
+				c = *buf++;
+			buflen--;
 			if (isspace(c))
 				continue;
 
@@ -388,11 +395,36 @@ int bitmap_parse(const char __user *ubuf, unsigned int ubuflen,
 		nbits += (nchunks == 1) ? nbits_to_hold_value(chunk) : CHUNKSZ;
 		if (nbits > nmaskbits)
 			return -EOVERFLOW;
-	} while (ubuflen && c == ',');
+	} while (buflen && c == ',');
 
 	return 0;
 }
-EXPORT_SYMBOL(bitmap_parse);
+EXPORT_SYMBOL(__bitmap_parse);
+
+/**
+ * bitmap_parse_user()
+ *
+ * @ubuf: pointer to user buffer containing string.
+ * @ulen: buffer size in bytes.  If string is smaller than this
+ *    then it must be terminated with a \0.
+ * @maskp: pointer to bitmap array that will contain result.
+ * @nmaskbits: size of bitmap, in bits.
+ *
+ * Wrapper for __bitmap_parse(), providing it with user buffer.
+ *
+ * We cannot have this as an inline function in bitmap.h because it needs
+ * linux/uaccess.h to get the access_ok() declaration and this causes
+ * cyclic dependencies.
+ */
+int bitmap_parse_user(const char __user *ubuf,
+			unsigned int ulen, unsigned long *maskp,
+			int nmaskbits)
+{
+	if (!access_ok(VERIFY_READ, ubuf, ulen))
+		return -EFAULT;
+	return __bitmap_parse((const char *)ubuf, ulen, 1, maskp, nmaskbits);
+}
+EXPORT_SYMBOL(bitmap_parse_user);
 
 /*
  * bscnl_emit(buf, buflen, rbot, rtop, bp)

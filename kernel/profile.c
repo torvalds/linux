@@ -399,7 +399,7 @@ static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffe
 	unsigned long full_count = count, err;
 	cpumask_t new_value;
 
-	err = cpumask_parse(buffer, count, new_value);
+	err = cpumask_parse_user(buffer, count, new_value);
 	if (err)
 		return err;
 
