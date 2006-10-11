@@ -26,7 +26,7 @@ static cpumask_t ktext_repmask;
  * kernel.  For example, we should never put a copy on a headless node,
  * and we should respect the topology of the machine.
  */
-void __init setup_replication_mask()
+void __init setup_replication_mask(void)
 {
 	cnodeid_t	cnode;
 
