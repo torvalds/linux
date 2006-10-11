@@ -275,6 +275,12 @@ struct ccw_dev_id {
 	u16 devno;
 };
 
+static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
+				      struct ccw_dev_id *dev_id2)
+{
+	return !memcmp(dev_id1, dev_id2, sizeof(struct ccw_dev_id));
+}
+
 extern int diag210(struct diag210 *addr);
 
 extern void wait_cons_dev(void);

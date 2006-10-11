@@ -76,9 +76,8 @@ struct ccw_device_private {
 	int state;		/* device state */
 	atomic_t onoff;
 	unsigned long registered;
-	__u16 devno;		/* device number */
-	__u16 sch_no;		/* subchannel number */
-	__u8 ssid;              /* subchannel set id */
+	struct ccw_dev_id dev_id;	/* device id */
+	struct subchannel_id schid;	/* subchannel number */
 	__u8 imask;		/* lpm mask for SNID/SID/SPGID */
 	int iretry;		/* retry counter SNID/SID/SPGID */
 	struct {

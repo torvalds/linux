@@ -183,7 +183,7 @@ ccw_device_handle_oper(struct ccw_device *cdev)
 	    cdev->id.cu_model != cdev->private->senseid.cu_model ||
 	    cdev->id.dev_type != cdev->private->senseid.dev_type ||
 	    cdev->id.dev_model != cdev->private->senseid.dev_model ||
-	    cdev->private->devno != sch->schib.pmcw.dev) {
+	    cdev->private->dev_id.devno != sch->schib.pmcw.dev) {
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_do_unreg_rereg, (void *)cdev);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -255,7 +255,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	case DEV_STATE_NOT_OPER:
 		CIO_DEBUG(KERN_WARNING, 2,
 			  "SenseID : unknown device %04x on subchannel "
-			  "0.%x.%04x\n", cdev->private->devno,
+			  "0.%x.%04x\n", cdev->private->dev_id.devno,
 			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
@@ -282,14 +282,15 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		CIO_DEBUG(KERN_INFO, 2, "SenseID : device 0.%x.%04x reports: "
 			  "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
 			  "%04X/%02X\n",
-			  cdev->private->ssid, cdev->private->devno,
+			  cdev->private->dev_id.ssid,
+			  cdev->private->dev_id.devno,
 			  cdev->id.cu_type, cdev->id.cu_model,
 			  cdev->id.dev_type, cdev->id.dev_model);
 		break;
 	case DEV_STATE_BOXED:
 		CIO_DEBUG(KERN_WARNING, 2,
 			  "SenseID : boxed device %04x on subchannel "
-			  "0.%x.%04x\n", cdev->private->devno,
+			  "0.%x.%04x\n", cdev->private->dev_id.devno,
 			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	}
@@ -363,7 +364,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 	if (state == DEV_STATE_BOXED)
 		CIO_DEBUG(KERN_WARNING, 2,
 			  "Boxed device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->schid.sch_no);
+			  cdev->private->dev_id.devno, sch->schid.sch_no);
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
@@ -412,7 +413,8 @@ static void __ccw_device_get_common_pgid(struct ccw_device *cdev)
 		/* PGID mismatch, can't pathgroup. */
 		CIO_MSG_EVENT(0, "SNID - pgid mismatch for device "
 			      "0.%x.%04x, can't pathgroup\n",
-			      cdev->private->ssid, cdev->private->devno);
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno);
 		cdev->private->options.pgroup = 0;
 		return;
 	}
