@@ -72,10 +72,10 @@ struct ext4_block_alloc_info {
  * storage for cached extent
  */
 struct ext4_ext_cache {
-	__u32	ec_start;
-	__u32	ec_block;
-	__u32	ec_len; /* must be 32bit to return holes */
-	__u32	ec_type;
+	ext4_fsblk_t	ec_start;
+	__u32		ec_block;
+	__u32		ec_len; /* must be 32bit to return holes */
+	__u32		ec_type;
 };
 
 /*

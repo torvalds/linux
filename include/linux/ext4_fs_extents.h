@@ -108,7 +108,7 @@ struct ext4_extent_header {
  * truncate uses it to simulate recursive walking
  */
 struct ext4_ext_path {
-	__u32				p_block;
+	ext4_fsblk_t			p_block;
 	__u16				p_depth;
 	struct ext4_extent		*p_ext;
 	struct ext4_extent_idx		*p_idx;
