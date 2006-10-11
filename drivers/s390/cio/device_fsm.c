@@ -885,7 +885,8 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 			/* Basic sense hasn't started. Try again. */
 			ccw_device_do_sense(cdev, irb);
 		else {
-			printk("Huh? %s(%s): unsolicited interrupt...\n",
+			printk(KERN_INFO "Huh? %s(%s): unsolicited "
+			       "interrupt...\n",
 			       __FUNCTION__, cdev->dev.bus_id);
 			if (cdev->handler)
 				cdev->handler (cdev, 0, irb);
