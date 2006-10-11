@@ -1433,8 +1433,8 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	 * block sizes.  We need to calculate the offset from buffer start.
 	 */
 	if (blocksize != EXT4_MIN_BLOCK_SIZE) {
-		logic_sb_block = (sb_block * EXT4_MIN_BLOCK_SIZE) / blocksize;
-		offset = (sb_block * EXT4_MIN_BLOCK_SIZE) % blocksize;
+		logic_sb_block = sb_block * EXT4_MIN_BLOCK_SIZE;
+		offset = sector_div(logic_sb_block, blocksize);
 	} else {
 		logic_sb_block = sb_block;
 	}
@@ -1539,8 +1539,8 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 
 		brelse (bh);
 		sb_set_blocksize(sb, blocksize);
-		logic_sb_block = (sb_block * EXT4_MIN_BLOCK_SIZE) / blocksize;
-		offset = (sb_block * EXT4_MIN_BLOCK_SIZE) % blocksize;
+		logic_sb_block = sb_block * EXT4_MIN_BLOCK_SIZE;
+		offset = sector_div(logic_sb_block, blocksize);
 		bh = sb_bread(sb, logic_sb_block);
 		if (!bh) {
 			printk(KERN_ERR

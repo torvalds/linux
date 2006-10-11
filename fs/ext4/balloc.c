@@ -147,7 +147,7 @@ restart:
 		rsv = list_entry(n, struct ext4_reserve_window_node, rsv_node);
 		if (verbose)
 			printk("reservation window 0x%p "
-			       "start:  %lu, end:  %lu\n",
+			       "start:  "E3FSBLK", end:  "E3FSBLK"\n",
 			       rsv, rsv->rsv_start, rsv->rsv_end);
 		if (rsv->rsv_start && rsv->rsv_start >= rsv->rsv_end) {
 			printk("Bad reservation %p (start >= end)\n",
@@ -443,10 +443,7 @@ void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
 
 do_more:
 	overflow = 0;
-	block_group = (block - le32_to_cpu(es->s_first_data_block)) /
-		      EXT4_BLOCKS_PER_GROUP(sb);
-	bit = (block - le32_to_cpu(es->s_first_data_block)) %
-		      EXT4_BLOCKS_PER_GROUP(sb);
+	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
 	/*
 	 * Check to see if we are freeing blocks across a group
 	 * boundary.
@@ -1404,7 +1401,7 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gdp_bh;
-	int group_no;
+	unsigned long group_no;
 	int goal_group;
 	ext4_grpblk_t grp_target_blk;	/* blockgroup relative goal block */
 	ext4_grpblk_t grp_alloc_blk;	/* blockgroup-relative allocated block*/
@@ -1467,8 +1464,7 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 	if (goal < le32_to_cpu(es->s_first_data_block) ||
 	    goal >= le32_to_cpu(es->s_blocks_count))
 		goal = le32_to_cpu(es->s_first_data_block);
-	group_no = (goal - le32_to_cpu(es->s_first_data_block)) /
-			EXT4_BLOCKS_PER_GROUP(sb);
+	ext4_get_group_no_and_offset(sb, goal, &group_no, &grp_target_blk);
 	goal_group = group_no;
 retry_alloc:
 	gdp = ext4_get_group_desc(sb, group_no, &gdp_bh);
@@ -1485,8 +1481,6 @@ retry_alloc:
 		my_rsv = NULL;
 
 	if (free_blocks > 0) {
-		grp_target_blk = ((goal - le32_to_cpu(es->s_first_data_block)) %
-				EXT4_BLOCKS_PER_GROUP(sb));
 		bitmap_bh = read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
@@ -1613,7 +1607,7 @@ allocated:
 	if (ret_block + num - 1 >= le32_to_cpu(es->s_blocks_count)) {
 		ext4_error(sb, "ext4_new_block",
 			    "block("E3FSBLK") >= blocks count(%d) - "
-			    "block_group = %d, es == %p ", ret_block,
+			    "block_group = %lu, es == %p ", ret_block,
 			le32_to_cpu(es->s_blocks_count), group_no, es);
 		goto out;
 	}
@@ -1733,9 +1727,10 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 static inline int
 block_in_use(ext4_fsblk_t block, struct super_block *sb, unsigned char *map)
 {
-	return ext4_test_bit ((block -
-		le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block)) %
-			 EXT4_BLOCKS_PER_GROUP(sb), map);
+	ext4_grpblk_t offset;
+
+	ext4_get_group_no_and_offset(sb, block, NULL, &offset);
+	return ext4_test_bit (offset, map);
 }
 
 static inline int test_root(int a, int b)

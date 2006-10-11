@@ -23,7 +23,7 @@
 #include <linux/buffer_head.h>
 #include <linux/random.h>
 #include <linux/bitops.h>
-
+#include <linux/blkdev.h>
 #include <asm/byteorder.h>
 
 #include "xattr.h"
@@ -274,7 +274,8 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	freei = percpu_counter_read_positive(&sbi->s_freeinodes_counter);
 	avefreei = freei / ngroups;
 	freeb = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
-	avefreeb = freeb / ngroups;
+	avefreeb = freeb;
+	sector_div(avefreeb, ngroups);
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
 	if ((parent == sb->s_root->d_inode) ||
@@ -303,13 +304,15 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 		goto fallback;
 	}
 
-	blocks_per_dir = (le32_to_cpu(es->s_blocks_count) - freeb) / ndirs;
+	blocks_per_dir = le32_to_cpu(es->s_blocks_count) - freeb;
+	sector_div(blocks_per_dir, ndirs);
 
 	max_dirs = ndirs / ngroups + inodes_per_group / 16;
 	min_inodes = avefreei - inodes_per_group / 4;
 	min_blocks = avefreeb - EXT4_BLOCKS_PER_GROUP(sb) / 4;
 
-	max_debt = EXT4_BLOCKS_PER_GROUP(sb) / max(blocks_per_dir, (ext4_fsblk_t)BLOCK_COST);
+	max_debt = EXT4_BLOCKS_PER_GROUP(sb);
+	sector_div(max_debt, max(blocks_per_dir, (ext4_fsblk_t)BLOCK_COST));
 	if (max_debt * INODE_COST > inodes_per_group)
 		max_debt = inodes_per_group / INODE_COST;
 	if (max_debt > 255)

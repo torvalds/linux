@@ -17,6 +17,7 @@
 #define _LINUX_EXT4_FS_H
 
 #include <linux/types.h>
+#include <linux/blkdev.h>
 #include <linux/magic.h>
 
 /*
@@ -750,6 +751,27 @@ ext4_group_first_block_no(struct super_block *sb, unsigned long group_no)
 #define ERR_BAD_DX_DIR	-75000
 
 /*
+ * This function calculate the block group number and offset,
+ * given a block number
+ */
+
+static inline void ext4_get_group_no_and_offset(struct super_block * sb,
+                                ext4_fsblk_t blocknr, unsigned long* blockgrpp,
+                                ext4_grpblk_t *offsetp)
+{
+        struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+	ext4_grpblk_t offset;
+
+        blocknr = blocknr - le32_to_cpu(es->s_first_data_block);
+        offset = sector_div(blocknr, EXT4_BLOCKS_PER_GROUP(sb));
+	if (offsetp)
+		*offsetp = offset;
+	if (blockgrpp)
+	        *blockgrpp = blocknr;
+
+}
+
+/*
  * Function prototypes
  */
 
@@ -762,6 +784,10 @@ ext4_group_first_block_no(struct super_block *sb, unsigned long group_no)
 # define NORET_AND     noreturn,
 
 /* balloc.c */
+extern unsigned int ext4_block_group(struct super_block *sb,
+			ext4_fsblk_t blocknr);
+extern ext4_grpblk_t ext4_block_group_offset(struct super_block *sb,
+			ext4_fsblk_t blocknr);
 extern int ext4_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext4_bg_num_gdb(struct super_block *sb, int group);
 extern ext4_fsblk_t ext4_new_block (handle_t *handle, struct inode *inode,

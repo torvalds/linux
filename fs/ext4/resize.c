@@ -36,7 +36,7 @@ static int verify_group_input(struct super_block *sb,
 		 le16_to_cpu(es->s_reserved_gdt_blocks)) : 0;
 	ext4_fsblk_t metaend = start + overhead;
 	struct buffer_head *bh = NULL;
-	ext4_grpblk_t free_blocks_count;
+	ext4_grpblk_t free_blocks_count, offset;
 	int err = -EINVAL;
 
 	input->free_blocks_count = free_blocks_count =
@@ -49,13 +49,13 @@ static int verify_group_input(struct super_block *sb,
 		       "no-super", input->group, input->blocks_count,
 		       free_blocks_count, input->reserved_blocks);
 
+	ext4_get_group_no_and_offset(sb, start, NULL, &offset);
 	if (group != sbi->s_groups_count)
 		ext4_warning(sb, __FUNCTION__,
 			     "Cannot add at group %u (only %lu groups)",
 			     input->group, sbi->s_groups_count);
-	else if ((start - le32_to_cpu(es->s_first_data_block)) %
-		 EXT4_BLOCKS_PER_GROUP(sb))
-		ext4_warning(sb, __FUNCTION__, "Last group not full");
+	else if (offset != 0)
+			ext4_warning(sb, __FUNCTION__, "Last group not full");
 	else if (input->reserved_blocks > input->blocks_count / 5)
 		ext4_warning(sb, __FUNCTION__, "Reserved blocks too high (%u)",
 			     input->reserved_blocks);
@@ -945,7 +945,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	if (n_blocks_count > (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
 		printk(KERN_ERR "EXT4-fs: filesystem on %s:"
-			" too large to resize to %lu blocks safely\n",
+			" too large to resize to "E3FSBLK" blocks safely\n",
 			sb->s_id, n_blocks_count);
 		if (sizeof(sector_t) < 8)
 			ext4_warning(sb, __FUNCTION__,
@@ -960,8 +960,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	}
 
 	/* Handle the remaining blocks in the last group only. */
-	last = (o_blocks_count - le32_to_cpu(es->s_first_data_block)) %
-		EXT4_BLOCKS_PER_GROUP(sb);
+	ext4_get_group_no_and_offset(sb, o_blocks_count, NULL, &last);
 
 	if (last == 0) {
 		ext4_warning(sb, __FUNCTION__,
