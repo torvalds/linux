@@ -154,7 +154,7 @@ __ext4_journal_forget(const char *where, handle_t *handle, struct buffer_head *b
 
 static inline int
 __ext4_journal_revoke(const char *where, handle_t *handle,
-		      unsigned long blocknr, struct buffer_head *bh)
+		      ext4_fsblk_t blocknr, struct buffer_head *bh)
 {
 	int err = jbd2_journal_revoke(handle, blocknr, bh);
 	if (err)

@@ -70,7 +70,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 {
 	int err;
 	unsigned int max, nbufs, next;
-	unsigned long blocknr;
+	sector_t blocknr;
 	struct buffer_head *bh;
 
 	struct buffer_head * bufs[MAXBUF];
@@ -132,7 +132,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 		 unsigned int offset)
 {
 	int err;
-	unsigned long blocknr;
+	sector_t blocknr;
 	struct buffer_head *bh;
 
 	*bhp = NULL;
@@ -452,7 +452,7 @@ static int do_one_pass(journal_t *journal,
 						"block %ld in log\n",
 						err, io_block);
 				} else {
-					unsigned long blocknr;
+					sector_t blocknr;
 
 					J_ASSERT(obh != NULL);
 					blocknr = read_tag_block(tag_bytes,
@@ -592,7 +592,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 		record_len = 8;
 
 	while (offset + record_len <= max) {
-		unsigned long blocknr;
+		sector_t blocknr;
 		int err;
 
 		if (record_len == 4)

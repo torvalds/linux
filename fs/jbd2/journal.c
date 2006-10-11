@@ -271,7 +271,7 @@ static void journal_kill_thread(journal_t *journal)
 int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 				  struct journal_head  *jh_in,
 				  struct journal_head **jh_out,
-				  unsigned long blocknr)
+				  sector_t blocknr)
 {
 	int need_copy_out = 0;
 	int done_copy_out = 0;
@@ -555,7 +555,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
  * Log buffer allocation routines:
  */
 
-int jbd2_journal_next_log_block(journal_t *journal, unsigned long *retp)
+int jbd2_journal_next_log_block(journal_t *journal, sector_t *retp)
 {
 	unsigned long blocknr;
 
@@ -579,10 +579,10 @@ int jbd2_journal_next_log_block(journal_t *journal, unsigned long *retp)
  * ready.
  */
 int jbd2_journal_bmap(journal_t *journal, unsigned long blocknr,
-		 unsigned long *retp)
+		 sector_t *retp)
 {
 	int err = 0;
-	unsigned long ret;
+	sector_t ret;
 
 	if (journal->j_inode) {
 		ret = bmap(journal->j_inode, blocknr);
@@ -618,7 +618,7 @@ int jbd2_journal_bmap(journal_t *journal, unsigned long blocknr,
 struct journal_head *jbd2_journal_get_descriptor_buffer(journal_t *journal)
 {
 	struct buffer_head *bh;
-	unsigned long blocknr;
+	sector_t blocknr;
 	int err;
 
 	err = jbd2_journal_next_log_block(journal, &blocknr);
@@ -706,7 +706,7 @@ fail:
  */
 journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 			struct block_device *fs_dev,
-			int start, int len, int blocksize)
+			sector_t start, int len, int blocksize)
 {
 	journal_t *journal = journal_init_common();
 	struct buffer_head *bh;
@@ -753,7 +753,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 	journal_t *journal = journal_init_common();
 	int err;
 	int n;
-	unsigned long blocknr;
+	sector_t blocknr;
 
 	if (!journal)
 		return NULL;
@@ -819,7 +819,7 @@ static void journal_fail_superblock (journal_t *journal)
 static int journal_reset(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
-	unsigned long first, last;
+	sector_t first, last;
 
 	first = be32_to_cpu(sb->s_first);
 	last = be32_to_cpu(sb->s_maxlen);
@@ -853,7 +853,7 @@ static int journal_reset(journal_t *journal)
  **/
 int jbd2_journal_create(journal_t *journal)
 {
-	unsigned long blocknr;
+	sector_t blocknr;
 	struct buffer_head *bh;
 	journal_superblock_t *sb;
 	int i, err;
