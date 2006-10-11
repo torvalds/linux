@@ -1007,7 +1007,7 @@ i2InputAvailable(i2ChanStrPtr pCh)
 // applications that one cannot break out of.
 //******************************************************************************
 static int
-i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
+i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 {
 	i2eBordStrPtr pB;
 	unsigned char *pInsert;
@@ -1020,7 +1020,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
 
 	int bailout = 10;
 
-	ip2trace (CHANN, ITRC_OUTPUT, ITRC_ENTER, 2, count, user );
+	ip2trace (CHANN, ITRC_OUTPUT, ITRC_ENTER, 2, count, 0 );
 
 	// Ensure channel structure seems real
 	if ( !i2Validate ( pCh ) ) 
@@ -1087,12 +1087,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count, int user )
 			DATA_COUNT_OF(pInsert)  = amountToMove;
 
 			// Move the data
-			if ( user ) {
-				rc = copy_from_user((char*)(DATA_OF(pInsert)), pSource,
-						amountToMove );
-			} else {
-				memcpy( (char*)(DATA_OF(pInsert)), pSource, amountToMove );
-			}
+			memcpy( (char*)(DATA_OF(pInsert)), pSource, amountToMove );
 			// Adjust pointers and indices
 			pSource					+= amountToMove;
 			pCh->Obuf_char_count	+= amountToMove;
