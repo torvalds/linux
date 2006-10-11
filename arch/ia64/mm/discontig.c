@@ -709,6 +709,7 @@ void __init paging_init(void)
 			max_pfn = mem_data[node].max_pfn;
 	}
 
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = max_dma;
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 	free_area_init_nodes(max_zone_pfns);

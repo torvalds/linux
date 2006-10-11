@@ -356,11 +356,12 @@ void __init numa_kva_reserve(void)
 void __init zone_sizes_init(void)
 {
 	int nid;
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
-		max_low_pfn,
-		highend_pfn
-	};
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] =
+		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
 
 	/* If SRAT has not registered memory, register it now */
 	if (find_max_pfn_with_active_regions() == 0) {
