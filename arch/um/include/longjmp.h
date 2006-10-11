@@ -12,7 +12,8 @@ extern void longjmp(jmp_buf, int);
 } while(0)
 
 #define UML_SETJMP(buf) ({ \
-	int n, enable;	   \
+	int n;	   \
+	volatile int enable;	\
 	enable = get_signals(); \
 	n = setjmp(*buf); \
 	if(n != 0) \
