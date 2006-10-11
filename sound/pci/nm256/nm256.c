@@ -1390,6 +1390,7 @@ static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
 	chip->coeffs_current = 0;
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1401,8 +1402,17 @@ static int nm256_resume(struct pci_dev *pci)
 
 	/* Perform a full reset on the hardware */
 	chip->in_resume = 1;
+
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "nm256: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+	pci_set_master(pci);
+
 	snd_nm256_init_chip(chip);
 
 	/* restore ac97 */

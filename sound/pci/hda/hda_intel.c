@@ -1379,12 +1379,16 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
 	azx_free_cmd_io(chip);
-	if (chip->irq >= 0)
+	if (chip->irq >= 0) {
+		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
+		chip->irq = -1;
+	}
 	if (!disable_msi)
 		pci_disable_msi(chip->pci);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1393,15 +1397,25 @@ static int azx_resume(struct pci_dev *pci)
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "hda-intel: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
+	pci_set_master(pci);
 	if (!disable_msi)
 		pci_enable_msi(pci);
-	/* FIXME: need proper error handling */
-	request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
-		    "HDA Intel", chip);
+	if (request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
+			"HDA Intel", chip)) {
+		printk(KERN_ERR "hda-intel: unable to grab IRQ %d, "
+		       "disabling device\n", pci->irq);
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	chip->irq = pci->irq;
-	pci_set_master(pci);
 	azx_init_chip(chip);
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -1431,15 +1445,14 @@ static int azx_free(struct azx *chip)
 		/* disable position buffer */
 		azx_writel(chip, DPLBASE, 0);
 		azx_writel(chip, DPUBASE, 0);
-
-		synchronize_irq(chip->irq);
 	}
 
 	if (chip->irq >= 0) {
+		synchronize_irq(chip->irq);
 		free_irq(chip->irq, (void*)chip);
-		if (!disable_msi)
-			pci_disable_msi(chip->pci);
 	}
+	if (!disable_msi)
+		pci_disable_msi(chip->pci);
 	if (chip->remap_addr)
 		iounmap(chip->remap_addr);
 
