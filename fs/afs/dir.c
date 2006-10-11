@@ -211,8 +211,8 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 {
 	_enter("{%lu}", inode->i_ino);
 
-	BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
 
 	if (AFS_FS_I(inode)->flags & AFS_VNODE_DELETED)
 		return -ENOENT;
@@ -446,8 +446,8 @@ static struct dentry *afs_dir_lookup(struct inode *dir, struct dentry *dentry,
 	_enter("{%lu},%p{%s}", dir->i_ino, dentry, dentry->d_name.name);
 
 	/* insanity checks first */
-	BUG_ON(sizeof(union afs_dir_block) != 2048);
-	BUG_ON(sizeof(union afs_dirent) != 32);
+	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
+	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
 
 	if (dentry->d_name.len > 255) {
 		_leave(" = -ENAMETOOLONG");

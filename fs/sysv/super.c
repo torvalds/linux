@@ -358,16 +358,11 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned long blocknr;
 	int size = 0, i;
 	
-	if (1024 != sizeof (struct xenix_super_block))
-		panic("Xenix FS: bad superblock size");
-	if (512 != sizeof (struct sysv4_super_block))
-		panic("SystemV FS: bad superblock size");
-	if (512 != sizeof (struct sysv2_super_block))
-		panic("SystemV FS: bad superblock size");
-	if (500 != sizeof (struct coh_super_block))
-		panic("Coherent FS: bad superblock size");
-	if (64 != sizeof (struct sysv_inode))
-		panic("sysv fs: bad inode size");
+	BUILD_BUG_ON(1024 != sizeof (struct xenix_super_block));
+	BUILD_BUG_ON(512 != sizeof (struct sysv4_super_block));
+	BUILD_BUG_ON(512 != sizeof (struct sysv2_super_block));
+	BUILD_BUG_ON(500 != sizeof (struct coh_super_block));
+	BUILD_BUG_ON(64 != sizeof (struct sysv_inode));
 
 	sbi = kzalloc(sizeof(struct sysv_sb_info), GFP_KERNEL);
 	if (!sbi)
