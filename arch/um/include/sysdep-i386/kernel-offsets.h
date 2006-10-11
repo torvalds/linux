@@ -18,9 +18,5 @@
 void foo(void)
 {
 	OFFSET(HOST_TASK_DEBUGREGS, task_struct, thread.arch.debugregs);
-	DEFINE(KERNEL_MADV_REMOVE, MADV_REMOVE);
-#ifdef CONFIG_MODE_TT
-	OFFSET(HOST_TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
-#endif
 #include <common-offsets.h>
 }
