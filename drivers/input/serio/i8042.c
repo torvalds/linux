@@ -106,6 +106,7 @@ static unsigned char i8042_ctr;
 static unsigned char i8042_mux_present;
 static unsigned char i8042_kbd_irq_registered;
 static unsigned char i8042_aux_irq_registered;
+static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 
 static irqreturn_t i8042_interrupt(int irq, void *dev_id);
@@ -316,7 +317,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	unsigned char str, data;
 	unsigned int dfl;
 	unsigned int port_no;
-	int ret;
+	int ret = 1;
 
 	spin_lock_irqsave(&i8042_lock, flags);
 	str = i8042_read_status();
@@ -378,10 +379,16 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	    dfl & SERIO_PARITY ? ", bad parity" : "",
 	    dfl & SERIO_TIMEOUT ? ", timeout" : "");
 
+	if (unlikely(i8042_suppress_kbd_ack))
+		if (port_no == I8042_KBD_PORT_NO &&
+		    (data == 0xfa || data == 0xfe)) {
+			i8042_suppress_kbd_ack = 0;
+			goto out;
+		}
+
 	if (likely(port->exists))
 		serio_interrupt(port->serio, data, dfl);
 
-	ret = 1;
  out:
 	return IRQ_RETVAL(ret);
 }
@@ -842,11 +849,13 @@ static long i8042_panic_blink(long count)
 	led ^= 0x01 | 0x04;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
+	i8042_suppress_kbd_ack = 1;
 	i8042_write_data(0xed); /* set leds */
 	DELAY;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
 	DELAY;
+	i8042_suppress_kbd_ack = 1;
 	i8042_write_data(led);
 	DELAY;
 	last_blink = count;
