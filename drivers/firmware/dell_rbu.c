@@ -718,14 +718,27 @@ static int __init dcdrbu_init(void)
 		return -EIO;
 	}
 
-	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
-	sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
-	sysfs_create_bin_file(&rbu_device->dev.kobj,
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
+	if (rc)
+		goto out_devreg;
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
+	if (rc)
+		goto out_data;
+	rc = sysfs_create_bin_file(&rbu_device->dev.kobj,
 		&rbu_packet_size_attr);
+	if (rc)
+		goto out_imtype;
 
 	rbu_data.entry_created = 0;
-	return rc;
+	return 0;
 
+out_imtype:
+	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_image_type_attr);
+out_data:
+	sysfs_remove_bin_file(&rbu_device->dev.kobj, &rbu_data_attr);
+out_devreg:
+	platform_device_unregister(rbu_device);
+	return rc;
 }
 
 static __exit void dcdrbu_exit(void)
