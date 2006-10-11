@@ -134,8 +134,7 @@ static int ext4_readdir(struct file * filp,
 		struct buffer_head *bh = NULL;
 
 		map_bh.b_state = 0;
-		err = ext4_get_blocks_handle(NULL, inode, blk, 1,
-						&map_bh, 0, 0);
+		err = ext4_get_blocks_wrap(NULL, inode, blk, 1, &map_bh, 0, 0);
 		if (err > 0) {
 			page_cache_readahead(sb->s_bdev->bd_inode->i_mapping,
 				&filp->f_ra,

@@ -65,6 +65,16 @@ struct ext4_block_alloc_info {
 #define rsv_end rsv_window._rsv_end
 
 /*
+ * storage for cached extent
+ */
+struct ext4_ext_cache {
+	__u32	ec_start;
+	__u32	ec_block;
+	__u32	ec_len; /* must be 32bit to return holes */
+	__u32	ec_type;
+};
+
+/*
  * third extended file system inode data in memory
  */
 struct ext4_inode_info {
@@ -142,6 +152,9 @@ struct ext4_inode_info {
 	 */
 	struct mutex truncate_mutex;
 	struct inode vfs_inode;
+
+	unsigned long i_ext_generation;
+	struct ext4_ext_cache i_cached_extent;
 };
 
 #endif	/* _LINUX_EXT4_FS_I */

@@ -390,6 +390,7 @@ static void ext4_put_super (struct super_block * sb)
 	struct ext4_super_block *es = sbi->s_es;
 	int i;
 
+	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
 	jbd2_journal_destroy(sbi->s_journal);
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -454,6 +455,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 #endif
 	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
+	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
 	return &ei->vfs_inode;
 }
 
@@ -677,7 +679,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota
+	Opt_grpquota, Opt_extents,
 };
 
 static match_table_t tokens = {
@@ -727,6 +729,7 @@ static match_table_t tokens = {
 	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_barrier, "barrier=%u"},
+	{Opt_extents, "extents"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
 };
@@ -1058,6 +1061,9 @@ clear_qf_name:
 			break;
 		case Opt_bh:
 			clear_opt(sbi->s_mount_opt, NOBH);
+			break;
+		case Opt_extents:
+			set_opt (sbi->s_mount_opt, EXTENTS);
 			break;
 		default:
 			printk (KERN_ERR
@@ -1786,6 +1792,8 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		test_opt(sb,DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ? "journal":
 		test_opt(sb,DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA ? "ordered":
 		"writeback");
+
+	ext4_ext_init(sb);
 
 	lock_kernel();
 	return 0;

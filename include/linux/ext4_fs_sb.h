@@ -78,6 +78,16 @@ struct ext4_sb_info {
 	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
+
+#ifdef EXTENTS_STATS
+	/* ext4 extents stats */
+	unsigned long s_ext_min;
+	unsigned long s_ext_max;
+	unsigned long s_depth_max;
+	spinlock_t s_ext_stats_lock;
+	unsigned long s_ext_blocks;
+	unsigned long s_ext_extents;
+#endif
 };
 
 #endif	/* _LINUX_EXT4_FS_SB */

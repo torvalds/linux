@@ -248,7 +248,6 @@ flags_err:
 		return err;
 	}
 
-
 	default:
 		return -ENOTTY;
 	}

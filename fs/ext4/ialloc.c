@@ -615,6 +615,17 @@ got:
 		ext4_std_error(sb, err);
 		goto fail_free_drop;
 	}
+	if (test_opt(sb, EXTENTS)) {
+		EXT4_I(inode)->i_flags |= EXT4_EXTENTS_FL;
+		ext4_ext_tree_init(handle, inode);
+		if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+			err = ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh);
+			if (err) goto fail;
+			EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS);
+			BUFFER_TRACE(EXT4_SB(sb)->s_sbh, "call ext4_journal_dirty_metadata");
+			err = ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
+		}
+	}
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);
 	goto really_out;

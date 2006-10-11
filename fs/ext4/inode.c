@@ -40,8 +40,6 @@
 #include "xattr.h"
 #include "acl.h"
 
-static int ext4_writepage_trans_blocks(struct inode *inode);
-
 /*
  * Test whether an inode is a fast symlink.
  */
@@ -804,6 +802,7 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t first_block = 0;
 
 
+	J_ASSERT(!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL));
 	J_ASSERT(handle != NULL || create == 0);
 	depth = ext4_block_to_path(inode,iblock,offsets,&blocks_to_boundary);
 
@@ -984,7 +983,7 @@ static int ext4_get_block(struct inode *inode, sector_t iblock,
 
 get_block:
 	if (ret == 0) {
-		ret = ext4_get_blocks_handle(handle, inode, iblock,
+		ret = ext4_get_blocks_wrap(handle, inode, iblock,
 					max_blocks, bh_result, create, 0);
 		if (ret > 0) {
 			bh_result->b_size = (ret << inode->i_blkbits);
@@ -1008,7 +1007,7 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	dummy.b_state = 0;
 	dummy.b_blocknr = -1000;
 	buffer_trace_init(&dummy.b_history);
-	err = ext4_get_blocks_handle(handle, inode, block, 1,
+	err = ext4_get_blocks_wrap(handle, inode, block, 1,
 					&dummy, create, 1);
 	/*
 	 * ext4_get_blocks_handle() returns number of blocks
@@ -1759,7 +1758,7 @@ void ext4_set_aops(struct inode *inode)
  * This required during truncate. We need to physically zero the tail end
  * of that block so it doesn't yield old data if the file is later grown.
  */
-static int ext4_block_truncate_page(handle_t *handle, struct page *page,
+int ext4_block_truncate_page(handle_t *handle, struct page *page,
 		struct address_space *mapping, loff_t from)
 {
 	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
@@ -2262,6 +2261,9 @@ void ext4_truncate(struct inode *inode)
 		if (!page)
 			return;
 	}
+
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_truncate(inode, page);
 
 	handle = start_transaction(inode);
 	if (IS_ERR(handle)) {
@@ -3003,11 +3005,14 @@ err_out:
  * block and work out the exact number of indirects which are touched.  Pah.
  */
 
-static int ext4_writepage_trans_blocks(struct inode *inode)
+int ext4_writepage_trans_blocks(struct inode *inode)
 {
 	int bpp = ext4_journal_blocks_per_page(inode);
 	int indirects = (EXT4_NDIR_BLOCKS % bpp) ? 5 : 3;
 	int ret;
+
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_writepage_trans_blocks(inode, bpp);
 
 	if (ext4_should_journal_data(inode))
 		ret = 3 * (bpp + indirects) + 2;

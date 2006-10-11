@@ -178,8 +178,9 @@ struct ext4_group_desc
 #define EXT4_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define EXT4_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
+#define EXT4_EXTENTS_FL			0x00080000 /* Inode uses extents */
 
-#define EXT4_FL_USER_VISIBLE		0x0003DFFF /* User visible flags */
+#define EXT4_FL_USER_VISIBLE		0x000BDFFF /* User visible flags */
 #define EXT4_FL_USER_MODIFIABLE		0x000380FF /* User modifiable flags */
 
 /*
@@ -384,6 +385,7 @@ struct ext4_inode {
 #define EXT4_MOUNT_QUOTA		0x80000 /* Some quota option set */
 #define EXT4_MOUNT_USRQUOTA		0x100000 /* "old" user quota */
 #define EXT4_MOUNT_GRPQUOTA		0x200000 /* "old" group quota */
+#define EXT4_MOUNT_EXTENTS		0x400000 /* Extents support */
 
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
@@ -582,11 +584,13 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_INCOMPAT_RECOVER		0x0004 /* Needs recovery */
 #define EXT4_FEATURE_INCOMPAT_JOURNAL_DEV	0x0008 /* Journal device */
 #define EXT4_FEATURE_INCOMPAT_META_BG		0x0010
+#define EXT4_FEATURE_INCOMPAT_EXTENTS		0x0040 /* extents support */
 
 #define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
 #define EXT4_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
 					 EXT4_FEATURE_INCOMPAT_RECOVER| \
-					 EXT4_FEATURE_INCOMPAT_META_BG)
+					 EXT4_FEATURE_INCOMPAT_META_BG| \
+					 EXT4_FEATURE_INCOMPAT_EXTENTS)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
@@ -825,6 +829,9 @@ extern int ext4_get_inode_loc(struct inode *, struct ext4_iloc *);
 extern void ext4_truncate (struct inode *);
 extern void ext4_set_inode_flags(struct inode *);
 extern void ext4_set_aops(struct inode *inode);
+extern int ext4_writepage_trans_blocks(struct inode *);
+extern int ext4_block_truncate_page(handle_t *handle, struct page *page,
+		struct address_space *mapping, loff_t from);
 
 /* ioctl.c */
 extern int ext4_ioctl (struct inode *, struct file *, unsigned int,
@@ -878,6 +885,28 @@ extern struct inode_operations ext4_special_inode_operations;
 /* symlink.c */
 extern struct inode_operations ext4_symlink_inode_operations;
 extern struct inode_operations ext4_fast_symlink_inode_operations;
+
+/* extents.c */
+extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
+extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
+extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
+			ext4_fsblk_t iblock,
+			unsigned long max_blocks, struct buffer_head *bh_result,
+			int create, int extend_disksize);
+extern void ext4_ext_truncate(struct inode *, struct page *);
+extern void ext4_ext_init(struct super_block *);
+extern void ext4_ext_release(struct super_block *);
+static inline int
+ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
+			unsigned long max_blocks, struct buffer_head *bh,
+			int create, int extend_disksize)
+{
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_get_blocks(handle, inode, block, max_blocks,
+					bh, create, extend_disksize);
+	return ext4_get_blocks_handle(handle, inode, block, max_blocks, bh,
+					create, extend_disksize);
+}
 
 
 #endif	/* __KERNEL__ */
