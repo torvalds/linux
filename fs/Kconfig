@@ -140,6 +140,73 @@ config EXT3_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
+config EXT4DEV_FS
+	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+        select JBD
+        help
+	  Ext4dev is a predecessor filesystem of the next generation
+	  extended fs ext4, based on ext3 filesystem code. It will be
+	  renamed ext4 fs later, once ext4dev is mature and stabilized.
+
+          Unlike the change from ext2 filesystem to ext3 filesystem,
+          the on-disk format of ext4dev is not the same as ext3 any more:
+	  it is based on extent maps and it supports 48-bit physical block
+          numbers. These combined on-disk format changes will allow
+	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
+	  a hard limit that ext3 cannot overcome without changing the
+          on-disk format.
+
+	  Other than extent maps and 48-bit block numbers, ext4dev also is
+          likely to have other new features such as persistent preallocation,
+	  high resolution time stamps, and larger file support etc.  These
+          features will be added to ext4dev gradually.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called ext4dev.  Be aware, however, that the filesystem
+	  of your root partition (the one containing the directory /) cannot
+	  be compiled as a module, and so this could be dangerous.
+
+	  If unsure, say N.
+
+config EXT4DEV_FS_XATTR
+	bool "Ext4dev extended attributes"
+	depends on EXT4DEV_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+	  You need this for POSIX ACL support on ext4dev/ext4.
+
+config EXT4DEV_FS_POSIX_ACL
+	bool "Ext4dev POSIX Access Control Lists"
+	depends on EXT4DEV_FS_XATTR
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT4DEV_FS_SECURITY
+	bool "Ext4dev Security Labels"
+	depends on EXT4DEV_FS_XATTR
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext4dev/ext4 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.
+
 config JBD
 	tristate
 	help
@@ -173,11 +240,11 @@ config JBD_DEBUG
 	  "echo 0 > /proc/sys/fs/jbd-debug".
 
 config FS_MBCACHE
-# Meta block cache for Extended Attributes (ext2/ext3)
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m
+	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
+	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
+	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
 
 config REISERFS_FS
 	tristate "Reiserfs support"
