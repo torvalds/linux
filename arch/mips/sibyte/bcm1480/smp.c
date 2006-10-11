@@ -88,7 +88,7 @@ void core_send_ipi(int cpu, unsigned int action)
 	__raw_writeq((((u64)action)<< 48), mailbox_0_set_regs[cpu]);
 }
 
-void bcm1480_mailbox_interrupt(struct pt_regs *regs)
+void bcm1480_mailbox_interrupt(void)
 {
 	int cpu = smp_processor_id();
 	unsigned int action;

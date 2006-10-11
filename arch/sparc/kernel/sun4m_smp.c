@@ -19,6 +19,7 @@
 #include <linux/profile.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/irq_regs.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
@@ -353,11 +354,14 @@ void smp4m_cross_call_irq(void)
 
 void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	int cpu = smp_processor_id();
+
+	old_regs = set_irq_regs(regs);
 
 	clear_profile_irq(cpu);
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	if(!--prof_counter(cpu)) {
 		int user = user_mode(regs);
@@ -368,6 +372,7 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 
 		prof_counter(cpu) = prof_multiplier(cpu);
 	}
+	set_irq_regs(old_regs);
 }
 
 extern unsigned int lvl14_resolution;

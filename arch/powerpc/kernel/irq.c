@@ -217,7 +217,7 @@ void do_IRQ(struct pt_regs *regs)
 	 * The value -2 is for buggy hardware and means that this IRQ
 	 * has already been handled. -- Tom
 	 */
-	irq = ppc_md.get_irq(regs);
+	irq = ppc_md.get_irq();
 
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
 #ifdef CONFIG_IRQSTACKS
@@ -572,8 +572,8 @@ unsigned int irq_create_mapping(struct irq_host *host,
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  u32 *intspec, unsigned int intsize)
+unsigned int irq_create_of_mapping(struct device_node *controller,
+				   u32 *intspec, unsigned int intsize)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;

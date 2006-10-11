@@ -665,8 +665,6 @@ acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 
 		/*
 		 * Perform a read first to preserve certain bits (per ACPI spec)
-		 *
-		 * Note: This includes SCI_EN, we never want to change this bit
 		 */
 		status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
 					       ACPI_REGISTER_PM1_CONTROL,

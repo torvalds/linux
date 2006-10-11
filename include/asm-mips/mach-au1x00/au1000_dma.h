@@ -123,8 +123,7 @@ struct dma_chan {
 extern struct dma_chan au1000_dma_table[];
 extern int request_au1000_dma(int dev_id,
 			      const char *dev_str,
-			      irqreturn_t (*irqhandler)(int, void *,
-						 struct pt_regs *),
+			      irq_handler_t irqhandler,
 			      unsigned long irqflags,
 			      void *irq_dev_id);
 extern void free_au1000_dma(unsigned int dmanr);

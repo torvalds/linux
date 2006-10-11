@@ -48,7 +48,7 @@
 
 static irqreturn_t parport_sunbpp_interrupt(int irq, void *dev_id)
 {
-	parport_generic_irq(irq, (struct parport *) dev_id, regs);
+	parport_generic_irq(irq, (struct parport *) dev_id);
 	return IRQ_HANDLED;
 }
 

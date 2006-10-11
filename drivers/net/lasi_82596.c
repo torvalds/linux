@@ -1252,7 +1252,7 @@ static int __devinit i82596_probe(struct net_device *dev,
 static void i596_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	i596_interrupt(dev->irq, dev, NULL);
+	i596_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

@@ -160,7 +160,7 @@ void dump_au1000_dma_channel(unsigned int dmanr)
  * Requests the DMA done IRQ if irqhandler != NULL.
  */
 int request_au1000_dma(int dev_id, const char *dev_str,
-		       irqreturn_t (*irqhandler)(int, void *, struct pt_regs *),
+		       irq_handler_t irqhandler,
 		       unsigned long irqflags,
 		       void *irq_dev_id)
 {

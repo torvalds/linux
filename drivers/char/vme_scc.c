@@ -593,7 +593,7 @@ static void scc_enable_tx_interrupts(void *ptr)
 	local_irq_save(flags);
 	SCCmod(INT_AND_DMA_REG, 0xff, IDR_TX_INT_ENAB);
 	/* restart the transmitter */
-	scc_tx_int (0, port, 0);
+	scc_tx_int (0, port);
 	local_irq_restore(flags);
 }
 

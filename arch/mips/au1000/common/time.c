@@ -41,7 +41,6 @@
 
 #include <asm/compiler.h>
 #include <asm/mipsregs.h>
-#include <asm/ptrace.h>
 #include <asm/time.h>
 #include <asm/div64.h>
 #include <asm/mach-au1x00/au1000.h>
@@ -62,7 +61,7 @@ static unsigned int timerhi = 0, timerlo = 0;
 #error "unsupported HZ value! Must be in [100,1000]"
 #endif
 #define MATCH20_INC (328*100/HZ) /* magic number 328 is for HZ=100... */
-extern void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_regs *));
+extern void startup_match20_interrupt(irq_handler_t handler);
 static unsigned long last_pc0, last_match20;
 #endif
 
@@ -79,7 +78,8 @@ static inline void ack_r4ktimer(unsigned long newval)
  * is provably more robust.
  */
 unsigned long wtimer;
-void mips_timer_interrupt(struct pt_regs *regs)
+
+void mips_timer_interrupt(void)
 {
 	int irq = 63;
 	unsigned long count;
@@ -98,7 +98,7 @@ void mips_timer_interrupt(struct pt_regs *regs)
 		kstat_this_cpu.irqs[irq]++;
 		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 		r4k_cur += r4k_offset;
 		ack_r4ktimer(r4k_cur);
@@ -115,7 +115,7 @@ null:
 }
 
 #ifdef CONFIG_PM
-irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t counter0_irq(int irq, void *dev_id)
 {
 	unsigned long pc0;
 	int time_elapsed;
@@ -139,7 +139,7 @@ irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 	while (time_elapsed > 0) {
 		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 		time_elapsed -= MATCH20_INC;
 		last_match20 += MATCH20_INC;
@@ -158,7 +158,7 @@ irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 		jiffie_drift -= 999;
 		do_timer(1); /* increment jiffies by one */
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 	}
 

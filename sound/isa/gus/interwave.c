@@ -301,7 +301,7 @@ static int __devinit snd_interwave_detect(struct snd_interwave *iwcard,
 
 static irqreturn_t snd_interwave_interrupt(int irq, void *dev_id)
 {
-	struct snd_interwave *iwcard = (struct snd_interwave *) dev_id;
+	struct snd_interwave *iwcard = dev_id;
 	int loop, max = 5;
 	int handled = 0;
 

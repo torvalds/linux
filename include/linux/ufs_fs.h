@@ -351,6 +351,14 @@ struct ufs2_csum_total {
 	__fs64   cs_spare[3];	/* future expansion */
 };
 
+struct ufs_csum_core {
+	__u64	cs_ndir;	/* number of directories */
+	__u64	cs_nbfree;	/* number of free blocks */
+	__u64	cs_nifree;	/* number of free inodes */
+	__u64	cs_nffree;	/* number of free frags */
+	__u64   cs_numclusters;	/* number of free clusters */
+};
+
 /*
  * File system flags
  */
@@ -715,7 +723,7 @@ struct ufs_cg_private_info {
 
 struct ufs_sb_private_info {
 	struct ufs_buffer_head s_ubh; /* buffer containing super block */
-	struct ufs2_csum_total cs_total;
+	struct ufs_csum_core cs_total;
 	__u32	s_sblkno;	/* offset of super-blocks in filesys */
 	__u32	s_cblkno;	/* offset of cg-block in filesys */
 	__u32	s_iblkno;	/* offset of inode-blocks in filesys */

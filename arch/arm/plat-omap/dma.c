@@ -899,8 +899,7 @@ static int omap1_dma_handle_ch(int ch)
 	return 1;
 }
 
-static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id,
-					 struct pt_regs *regs)
+static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 {
 	int ch = ((int) dev_id) - 1;
 	int handled = 0;
@@ -962,8 +961,7 @@ static int omap2_dma_handle_ch(int ch)
 }
 
 /* STATUS register count is from 1-32 while our is 0-31 */
-static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id,
-					 struct pt_regs *regs)
+static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id)
 {
 	u32 val;
 	int i;
@@ -1220,8 +1218,7 @@ static void set_b1_regs(void)
 	omap_writew(fi, OMAP1610_DMA_LCD_SRC_FI_B1_L);
 }
 
-static irqreturn_t lcd_dma_irq_handler(int irq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t lcd_dma_irq_handler(int irq, void *dev_id)
 {
 	u16 w;
 

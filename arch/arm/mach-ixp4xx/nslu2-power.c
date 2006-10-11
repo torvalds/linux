@@ -25,7 +25,7 @@
 
 #include <asm/mach-types.h>
 
-static irqreturn_t nslu2_power_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nslu2_power_handler(int irq, void *dev_id)
 {
 	/* Signal init to do the ctrlaltdel action, this will bypass init if
 	 * it hasn't started and do a kernel_restart.
@@ -35,7 +35,7 @@ static irqreturn_t nslu2_power_handler(int irq, void *dev_id, struct pt_regs *re
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t nslu2_reset_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nslu2_reset_handler(int irq, void *dev_id)
 {
 	/* This is the paper-clip reset, it shuts the machine down directly.
 	 */

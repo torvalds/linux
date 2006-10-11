@@ -10,7 +10,7 @@
 #include <asm/mpc8xx.h>
 #include "ppc8xx_pic.h"
 
-extern int cpm_get_irq(struct pt_regs *regs);
+extern int cpm_get_irq(void);
 
 /* The 8xx internal interrupt controller.  It is usually
  * the only interrupt controller.  Some boards, like the MBX and
@@ -96,7 +96,7 @@ m8xx_get_irq(struct pt_regs *regs)
 	 * get back SIU_LEVEL7.  In this case, return -1
 	 */
         if (irq == CPM_INTERRUPT)
-        	irq = CPM_IRQ_OFFSET + cpm_get_irq(regs);
+        	irq = CPM_IRQ_OFFSET + cpm_get_irq();
 #if defined(CONFIG_PCI)
 	else if (irq == ISA_BRIDGE_INT) {
 		int isa_irq;

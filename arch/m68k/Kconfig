@@ -600,7 +600,7 @@ config MVME147_SCC
 
 config SERIAL167
 	bool "CD2401 support for MVME166/7 serial ports"
-	depends on MVME16x && BROKEN
+	depends on MVME16x
 	help
 	  This is the driver for the serial ports on the Motorola MVME166,
 	  167, and 172 boards.  Everyone using one of these boards should say

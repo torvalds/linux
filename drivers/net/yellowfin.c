@@ -896,13 +896,6 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 	int boguscnt = max_interrupt_work;
 	unsigned int handled = 0;
 
-#ifndef final_version			/* Can never occur. */
-	if (dev == NULL) {
-		printk (KERN_ERR "yellowfin_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-#endif
-
 	yp = netdev_priv(dev);
 	ioaddr = yp->base;
 

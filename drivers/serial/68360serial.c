@@ -620,7 +620,7 @@ static void rs_360_interrupt(int vec, void *dev_id)
 	volatile struct smc_regs *smcp;
 	volatile struct scc_regs *sccp;
 	
-	info = (ser_info_t *)dev_id;
+	info = dev_id;
 
 	idx = PORT_NUM(info->state->smc_scc_num);
 	if (info->state->smc_scc_num & NUM_IS_SCC) {

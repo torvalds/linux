@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include <linux/linkage.h>
 #include <linux/sched.h>
-#include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/user.h>
 #include <linux/elfcore.h>
@@ -53,9 +52,6 @@ EXPORT_SYMBOL(mach_beep);
 #endif
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(dump_thread);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(kernel_thread);
 #ifdef CONFIG_VME
 EXPORT_SYMBOL(vme_brdtype);

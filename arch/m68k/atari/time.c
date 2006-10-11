@@ -16,11 +16,12 @@
 #include <linux/init.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/delay.h>
 
 #include <asm/atariints.h>
 
 void __init
-atari_sched_init(irqreturn_t (*timer_routine)(int, void *, struct pt_regs *))
+atari_sched_init(irq_handler_t timer_routine)
 {
     /* set Timer C data Register */
     mfp.tim_dt_c = INT_TICKS;
@@ -212,8 +213,12 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
      * additionally the RTC_SET bit is set to prevent an update cycle.
      */
 
-    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP )
-        schedule_timeout_interruptible(HWCLK_POLL_INTERVAL);
+    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP ) {
+	if (in_atomic() || irqs_disabled())
+	    mdelay(1);
+	else
+	    schedule_timeout_interruptible(HWCLK_POLL_INTERVAL);
+    }
 
     local_irq_save(flags);
     RTC_WRITE( RTC_CONTROL, ctrl | RTC_SET );

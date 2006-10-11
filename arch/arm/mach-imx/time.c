@@ -56,7 +56,7 @@ static unsigned long imx_gettimeoffset(void)
  * IRQ handler for the timer
  */
 static irqreturn_t
-imx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+imx_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -64,7 +64,7 @@ imx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (IMX_TSTAT(TIMER_BASE))
 		IMX_TSTAT(TIMER_BASE) = 0;
 
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;

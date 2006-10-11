@@ -221,7 +221,7 @@ pmu_init(void)
 		}
 		if (pmu_state == idle) {
 			adb_int_pending = 1;
-			pmu_interrupt(0, NULL, NULL);
+			pmu_interrupt(0, NULL);
 		}
 		pmu_poll();
 		udelay(10);
@@ -562,11 +562,11 @@ pmu_poll(void)
 	local_irq_save(flags);
 	if (via1[IFR] & SR_INT) {
 		via1[IFR] = SR_INT;
-		pmu_interrupt(IRQ_MAC_ADB_SR, NULL, NULL);
+		pmu_interrupt(IRQ_MAC_ADB_SR, NULL);
 	}
 	if (via1[IFR] & CB1_INT) {
 		via1[IFR] = CB1_INT;
-		pmu_interrupt(IRQ_MAC_ADB_CL, NULL, NULL);
+		pmu_interrupt(IRQ_MAC_ADB_CL, NULL);
 	}
 	local_irq_restore(flags);
 }

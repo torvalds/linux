@@ -23,6 +23,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
+#include <asm/irq_regs.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -369,10 +370,12 @@ void smp4d_message_pass(int target, int msg, unsigned long data, int wait)
 
 void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	int cpu = hard_smp4d_processor_id();
 	static int cpu_tick[NR_CPUS];
 	static char led_mask[] = { 0xe, 0xd, 0xb, 0x7, 0xb, 0xd };
 
+	old_regs = set_irq_regs(regs);
 	bw_get_prof_limit(cpu);	
 	bw_clear_intr_mask(0, 1);	/* INTR_TABLE[0] & 1 is Profile IRQ */
 
@@ -384,7 +387,7 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 		show_leds(cpu);
 	}
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	if(!--prof_counter(cpu)) {
 		int user = user_mode(regs);
@@ -395,6 +398,7 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 
 		prof_counter(cpu) = prof_multiplier(cpu);
 	}
+	set_irq_regs(old_regs);
 }
 
 extern unsigned int lvl14_resolution;

@@ -43,10 +43,7 @@
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
-
-#if defined(CONFIG_SMP)
-extern void iSeries_smp_message_recv(struct pt_regs *);
-#endif
+#include "smp.h"
 
 #ifdef CONFIG_PCI
 
@@ -88,7 +85,7 @@ static DEFINE_SPINLOCK(pending_irqs_lock);
 static int num_pending_irqs;
 static int pending_irqs[NR_IRQS];
 
-static void int_received(struct pci_event *event, struct pt_regs *regs)
+static void int_received(struct pci_event *event)
 {
 	int irq;
 
@@ -146,11 +143,11 @@ static void int_received(struct pci_event *event, struct pt_regs *regs)
 	}
 }
 
-static void pci_event_handler(struct HvLpEvent *event, struct pt_regs *regs)
+static void pci_event_handler(struct HvLpEvent *event)
 {
 	if (event && (event->xType == HvLpEvent_Type_PciIo)) {
 		if (hvlpevent_is_int(event))
-			int_received((struct pci_event *)event, regs);
+			int_received((struct pci_event *)event);
 		else
 			printk(KERN_ERR
 				"pci_event_handler: unexpected ack received\n");
@@ -308,18 +305,18 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 /*
  * Get the next pending IRQ.
  */
-unsigned int iSeries_get_irq(struct pt_regs *regs)
+unsigned int iSeries_get_irq(void)
 {
 	int irq = NO_IRQ_IGNORE;
 
 #ifdef CONFIG_SMP
 	if (get_lppaca()->int_dword.fields.ipi_cnt) {
 		get_lppaca()->int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv(regs);
+		iSeries_smp_message_recv();
 	}
 #endif /* CONFIG_SMP */
 	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
+		process_hvlpevents();
 
 #ifdef CONFIG_PCI
 	if (num_pending_irqs) {

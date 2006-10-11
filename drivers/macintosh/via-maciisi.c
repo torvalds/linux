@@ -421,7 +421,7 @@ maciisi_poll(void)
 
 	local_irq_save(flags);
 	if (via[IFR] & SR_INT) {
-		maciisi_interrupt(0, NULL, NULL);
+		maciisi_interrupt(0, NULL);
 	}
 	else /* avoid calling this function too quickly in a loop */
 		udelay(ADB_DELAY);

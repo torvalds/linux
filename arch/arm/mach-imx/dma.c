@@ -279,8 +279,8 @@ imx_dma_setup_sg(imx_dmach_t dma_ch,
  */
 int
 imx_dma_setup_handlers(imx_dmach_t dma_ch,
-		       void (*irq_handler) (int, void *, struct pt_regs *),
-		       void (*err_handler) (int, void *, struct pt_regs *, int),
+		       void (*irq_handler) (int, void *),
+		       void (*err_handler) (int, void *, int),
 		       void *data)
 {
 	struct imx_dma_channel *imxdma = &imx_dma_channels[dma_ch];
@@ -461,7 +461,7 @@ imx_dma_request_by_prio(imx_dmach_t * pdma_ch, const char *name,
 	return -ENODEV;
 }
 
-static irqreturn_t dma_err_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_err_handler(int irq, void *dev_id)
 {
 	int i, disr = DISR;
 	struct imx_dma_channel *channel;
@@ -500,7 +500,7 @@ static irqreturn_t dma_err_handler(int irq, void *dev_id, struct pt_regs *regs)
 		/*imx_dma_channels[i].sg = NULL;*/
 
 		if (channel->name && channel->err_handler) {
-			channel->err_handler(i, channel->data, regs, errcode);
+			channel->err_handler(i, channel->data, errcode);
 			continue;
 		}
 
@@ -517,7 +517,7 @@ static irqreturn_t dma_err_handler(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
 	int i, disr = DISR;
 
@@ -536,7 +536,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 				} else {
 					if (channel->irq_handler)
 						channel->irq_handler(i,
-							channel->data, regs);
+							channel->data);
 				}
 			} else {
 				/*

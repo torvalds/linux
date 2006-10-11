@@ -1251,7 +1251,7 @@ static void mv643xx_netpoll(struct net_device *netdev)
 	/* wait for previous write to complete */
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
-	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
+	mv643xx_eth_int_handler(netdev->irq, netdev);
 
 	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
 }

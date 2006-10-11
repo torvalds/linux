@@ -2261,6 +2261,17 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
 T:	cvs cvs.parisc-linux.org:/var/cvs/linux-2.6
 S:	Maintained
 
+PC87360 HARDWARE MONITORING DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
+PC8736x GPIO DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
+
 PCI ERROR RECOVERY
 P:	Linas Vepstas
 M:	linas@austin.ibm.com
@@ -2592,10 +2603,19 @@ L: lksctp-developers@lists.sourceforge.net
 S: Supported
 
 SCx200 CPU SUPPORT
-P:	Christer Weinigel
-M:	christer@weinigel.se
-W:	http://www.weinigel.se
-S:	Supported
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Odd Fixes
+
+SCx200 GPIO DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
+
+SCx200 HRT CLOCKSOURCE DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
 
 SECURITY CONTACT
 P:	Security Officers
@@ -2760,14 +2780,7 @@ S:	Maintained
 UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
-P:	Eddie C. Dost
-M:	ecd@brainaid.de
-P:	Jakub Jelinek
-M:	jj@sunsite.ms.mff.cuni.cz
-P:	Anton Blanchard
-M:	anton@samba.org
 L:	sparclinux@vger.kernel.org
-L:	ultralinux@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 

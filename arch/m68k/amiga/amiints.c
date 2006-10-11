@@ -47,10 +47,10 @@
 
 static void amiga_enable_irq(unsigned int irq);
 static void amiga_disable_irq(unsigned int irq);
-static irqreturn_t ami_int1(int irq, void *dev_id, struct pt_regs *fp);
-static irqreturn_t ami_int3(int irq, void *dev_id, struct pt_regs *fp);
-static irqreturn_t ami_int4(int irq, void *dev_id, struct pt_regs *fp);
-static irqreturn_t ami_int5(int irq, void *dev_id, struct pt_regs *fp);
+static irqreturn_t ami_int1(int irq, void *dev_id);
+static irqreturn_t ami_int3(int irq, void *dev_id);
+static irqreturn_t ami_int4(int irq, void *dev_id);
+static irqreturn_t ami_int5(int irq, void *dev_id);
 
 static struct irq_controller amiga_irq_controller = {
 	.name		= "amiga",
@@ -113,98 +113,98 @@ static void amiga_disable_irq(unsigned int irq)
  * The builtin Amiga hardware interrupt handlers.
  */
 
-static irqreturn_t ami_int1(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t ami_int1(int irq, void *dev_id)
 {
 	unsigned short ints = amiga_custom.intreqr & amiga_custom.intenar;
 
 	/* if serial transmit buffer empty, interrupt */
 	if (ints & IF_TBE) {
 		amiga_custom.intreq = IF_TBE;
-		m68k_handle_int(IRQ_AMIGA_TBE, fp);
+		m68k_handle_int(IRQ_AMIGA_TBE);
 	}
 
 	/* if floppy disk transfer complete, interrupt */
 	if (ints & IF_DSKBLK) {
 		amiga_custom.intreq = IF_DSKBLK;
-		m68k_handle_int(IRQ_AMIGA_DSKBLK, fp);
+		m68k_handle_int(IRQ_AMIGA_DSKBLK);
 	}
 
 	/* if software interrupt set, interrupt */
 	if (ints & IF_SOFT) {
 		amiga_custom.intreq = IF_SOFT;
-		m68k_handle_int(IRQ_AMIGA_SOFT, fp);
+		m68k_handle_int(IRQ_AMIGA_SOFT);
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ami_int3(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t ami_int3(int irq, void *dev_id)
 {
 	unsigned short ints = amiga_custom.intreqr & amiga_custom.intenar;
 
 	/* if a blitter interrupt */
 	if (ints & IF_BLIT) {
 		amiga_custom.intreq = IF_BLIT;
-		m68k_handle_int(IRQ_AMIGA_BLIT, fp);
+		m68k_handle_int(IRQ_AMIGA_BLIT);
 	}
 
 	/* if a copper interrupt */
 	if (ints & IF_COPER) {
 		amiga_custom.intreq = IF_COPER;
-		m68k_handle_int(IRQ_AMIGA_COPPER, fp);
+		m68k_handle_int(IRQ_AMIGA_COPPER);
 	}
 
 	/* if a vertical blank interrupt */
 	if (ints & IF_VERTB) {
 		amiga_custom.intreq = IF_VERTB;
-		m68k_handle_int(IRQ_AMIGA_VERTB, fp);
+		m68k_handle_int(IRQ_AMIGA_VERTB);
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ami_int4(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t ami_int4(int irq, void *dev_id)
 {
 	unsigned short ints = amiga_custom.intreqr & amiga_custom.intenar;
 
 	/* if audio 0 interrupt */
 	if (ints & IF_AUD0) {
 		amiga_custom.intreq = IF_AUD0;
-		m68k_handle_int(IRQ_AMIGA_AUD0, fp);
+		m68k_handle_int(IRQ_AMIGA_AUD0);
 	}
 
 	/* if audio 1 interrupt */
 	if (ints & IF_AUD1) {
 		amiga_custom.intreq = IF_AUD1;
-		m68k_handle_int(IRQ_AMIGA_AUD1, fp);
+		m68k_handle_int(IRQ_AMIGA_AUD1);
 	}
 
 	/* if audio 2 interrupt */
 	if (ints & IF_AUD2) {
 		amiga_custom.intreq = IF_AUD2;
-		m68k_handle_int(IRQ_AMIGA_AUD2, fp);
+		m68k_handle_int(IRQ_AMIGA_AUD2);
 	}
 
 	/* if audio 3 interrupt */
 	if (ints & IF_AUD3) {
 		amiga_custom.intreq = IF_AUD3;
-		m68k_handle_int(IRQ_AMIGA_AUD3, fp);
+		m68k_handle_int(IRQ_AMIGA_AUD3);
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ami_int5(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t ami_int5(int irq, void *dev_id)
 {
 	unsigned short ints = amiga_custom.intreqr & amiga_custom.intenar;
 
 	/* if serial receive buffer full interrupt */
 	if (ints & IF_RBF) {
 		/* acknowledge of IF_RBF must be done by the serial interrupt */
-		m68k_handle_int(IRQ_AMIGA_RBF, fp);
+		m68k_handle_int(IRQ_AMIGA_RBF);
 	}
 
 	/* if a disk sync interrupt */
 	if (ints & IF_DSKSYN) {
 		amiga_custom.intreq = IF_DSKSYN;
-		m68k_handle_int(IRQ_AMIGA_DSKSYN, fp);
+		m68k_handle_int(IRQ_AMIGA_DSKSYN);
 	}
 	return IRQ_HANDLED;
 }

@@ -57,8 +57,7 @@ static struct irq_chip lh7a40x_cpld_chip = {
 	.unmask	= lh7a40x_unmask_cpld_irq,
 };
 
-static void lh7a40x_cpld_handler (unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void lh7a40x_cpld_handler (unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int mask = CPLD_INTERRUPTS;
 

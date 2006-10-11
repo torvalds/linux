@@ -39,6 +39,7 @@
 #include <asm/page.h>
 #include <asm/machdep.h>
 #include <asm/cacheflush.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_Q40
 #include <asm/q40ints.h>
@@ -104,7 +105,7 @@ void __init init_IRQ(void)
  * @handler: called from auto vector interrupts
  *
  * setup the handler to be called from auto vector interrupts instead of the
- * standard m68k_handle_int(), it will be called with irq numbers in the range
+ * standard __m68k_handle_int(), it will be called with irq numbers in the range
  * from IRQ_AUTO_1 - IRQ_AUTO_7.
  */
 void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *))
@@ -123,7 +124,7 @@ void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_re
  * setup user vector interrupts, this includes activating the specified range
  * of interrupts, only then these interrupts can be requested (note: this is
  * different from auto vector interrupts). An optional handler can be installed
- * to be called instead of the default m68k_handle_int(), it will be called
+ * to be called instead of the default __m68k_handle_int(), it will be called
  * with irq numbers starting from IRQ_USER.
  */
 void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
@@ -131,6 +132,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 {
 	int i;
 
+	BUG_ON(IRQ_USER + cnt >= NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
 		irq_controller[IRQ_USER + i] = &user_irq_controller;
@@ -215,7 +217,7 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 }
 
 int request_irq(unsigned int irq,
-		irqreturn_t (*handler) (int, void *, struct pt_regs *),
+		irq_handler_t handler,
 		unsigned long flags, const char *devname, void *dev_id)
 {
 	struct irq_node *node;
@@ -379,16 +381,23 @@ unsigned int irq_canonicalize(unsigned int irq)
 
 EXPORT_SYMBOL(irq_canonicalize);
 
-asmlinkage void m68k_handle_int(unsigned int irq, struct pt_regs *regs)
+asmlinkage void m68k_handle_int(unsigned int irq)
 {
 	struct irq_node *node;
-
 	kstat_cpu(0).irqs[irq]++;
 	node = irq_list[irq];
 	do {
-		node->handler(irq, node->dev_id, regs);
+		node->handler(irq, node->dev_id);
 		node = node->next;
 	} while (node);
+}
+
+asmlinkage void __m68k_handle_int(unsigned int irq, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	old_regs = set_irq_regs(regs);
+	m68k_handle_int(irq);
+	set_irq_regs(old_regs);
 }
 
 asmlinkage void handle_badint(struct pt_regs *regs)

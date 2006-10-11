@@ -759,12 +759,7 @@ static inline Scsi_Cmnd *remove_SC(Scsi_Cmnd **SC, Scsi_Cmnd *SCp)
 
 static irqreturn_t swintr(int irqno, void *dev_id)
 {
-	struct Scsi_Host *shpnt = (struct Scsi_Host *)dev_id;
-
-	if (!shpnt) {
-        	printk(KERN_ERR "aha152x: catched software interrupt %d for unknown controller.\n", irqno);
-		return IRQ_NONE;
-	}
+	struct Scsi_Host *shpnt = dev_id;
 
 	HOSTDATA(shpnt)->swint++;
 

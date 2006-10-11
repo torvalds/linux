@@ -79,7 +79,7 @@ static void __ebus_dma_reset(struct ebus_dma_info *p, int no_drain)
 	}
 }
 
-static irqreturn_t ebus_dma_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ebus_dma_irq(int irq, void *dev_id)
 {
 	struct ebus_dma_info *p = dev_id;
 	unsigned long flags;

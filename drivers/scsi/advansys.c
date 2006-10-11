@@ -3881,7 +3881,7 @@ typedef struct asc_board {
     /*
      * The following fields are used only for Wide Boards.
      */
-    void                 *ioremap_addr;         /* I/O Memory remap address. */
+    void                 __iomem *ioremap_addr; /* I/O Memory remap address. */
     ushort               ioport;                /* I/O Port address. */
     ADV_CARR_T           *orig_carrp;           /* ADV_CARR_T memory block. */
     adv_req_t            *orig_reqp;            /* adv_req_t memory block. */
@@ -3951,7 +3951,7 @@ typedef struct _PCI_CONFIG_SPACE_
 
 /* Number of boards detected in system. */
 STATIC int asc_board_count = 0;
-STATIC struct Scsi_Host    *asc_host[ASC_NUM_BOARD_SUPPORTED] = { 0 };
+STATIC struct Scsi_Host    *asc_host[ASC_NUM_BOARD_SUPPORTED] = { NULL };
 
 /* Overrun buffer used by all narrow boards. */
 STATIC uchar overrun_buf[ASC_OVERRUN_BSIZE] = { 0 };
@@ -6621,7 +6621,7 @@ adv_build_req(asc_board_t *boardp, struct scsi_cmnd *scp,
 	        dma_map_single(dev, scp->request_buffer,
 			       scp->request_bufflen, scp->sc_data_direction);
 	} else {
-	    scsiqp->vdata_addr = 0;
+	    scsiqp->vdata_addr = NULL;
 	    scp->SCp.dma_handle = 0;
 	}
 	scsiqp->data_addr = cpu_to_le32(scp->SCp.dma_handle);

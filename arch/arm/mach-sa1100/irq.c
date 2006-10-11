@@ -110,8 +110,7 @@ static struct irq_chip sa1100_low_gpio_chip = {
  * and call the handler.
  */
 static void
-sa1100_high_gpio_handler(unsigned int irq, struct irqdesc *desc,
-			 struct pt_regs *regs)
+sa1100_high_gpio_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int mask;
 
@@ -128,7 +127,7 @@ sa1100_high_gpio_handler(unsigned int irq, struct irqdesc *desc,
 		mask >>= 11;
 		do {
 			if (mask & 1)
-				desc_handle_irq(irq, desc, regs);
+				desc_handle_irq(irq, desc);
 			mask >>= 1;
 			irq++;
 			desc++;

@@ -355,6 +355,11 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	tx_req->skb = skb;
 	addr = dma_map_single(priv->ca->dma_device, skb->data, skb->len,
 			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(addr))) {
+		++priv->stats.tx_errors;
+		dev_kfree_skb_any(skb);
+		return;
+	}
 	pci_unmap_addr_set(tx_req, mapping, addr);
 
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),

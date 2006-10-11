@@ -322,8 +322,7 @@ wildfire_init_arch(void)
 }
 
 void
-wildfire_machine_check(unsigned long vector, unsigned long la_ptr,
-		       struct pt_regs * regs)
+wildfire_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	mb();
 	mb();  /* magic */
@@ -332,7 +331,7 @@ wildfire_machine_check(unsigned long vector, unsigned long la_ptr,
 	wrmces(0x7);
 	mb();
 
-	process_mcheck_info(vector, la_ptr, regs, "WILDFIRE",
+	process_mcheck_info(vector, la_ptr, "WILDFIRE",
 			    mcheck_expected(smp_processor_id()));
 }
 

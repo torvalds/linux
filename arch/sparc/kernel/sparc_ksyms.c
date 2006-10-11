@@ -87,6 +87,7 @@ extern void ___set_bit(void);
 extern void ___clear_bit(void);
 extern void ___change_bit(void);
 extern void ___rw_read_enter(void);
+extern void ___rw_read_try(void);
 extern void ___rw_read_exit(void);
 extern void ___rw_write_enter(void);
 
@@ -104,8 +105,9 @@ extern unsigned _Urem(unsigned, unsigned);
 EXPORT_SYMBOL(sparc_cpu_model);
 EXPORT_SYMBOL(kernel_thread);
 #ifdef CONFIG_SMP
-// XXX find what uses (or used) these.
+// XXX find what uses (or used) these.   AV: see asm/spinlock.h
 EXPORT_SYMBOL(___rw_read_enter);
+EXPORT_SYMBOL(___rw_read_try);
 EXPORT_SYMBOL(___rw_read_exit);
 EXPORT_SYMBOL(___rw_write_enter);
 #endif

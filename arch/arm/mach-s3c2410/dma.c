@@ -595,7 +595,7 @@ s3c2410_dma_lastxfer(struct s3c2410_dma_chan *chan)
 #define dmadbg2(x...)
 
 static irqreturn_t
-s3c2410_dma_irq(int irq, void *devpw, struct pt_regs *regs)
+s3c2410_dma_irq(int irq, void *devpw)
 {
 	struct s3c2410_dma_chan *chan = (struct s3c2410_dma_chan *)devpw;
 	struct s3c2410_dma_buf  *buf;

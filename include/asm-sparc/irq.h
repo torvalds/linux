@@ -76,8 +76,8 @@ static inline void load_profile_irq(int cpu, int limit)
 	BTFIXUP_CALL(load_profile_irq)(cpu, limit);
 }
 
-extern void (*sparc_init_timers)(irqreturn_t (*lvl10_irq)(int, void *, struct pt_regs *));
-extern void claim_ticker14(irqreturn_t (*irq_handler)(int, void *, struct pt_regs *),
+extern void (*sparc_init_timers)(irq_handler_t lvl10_irq);
+extern void claim_ticker14(irq_handler_t irq_handler,
 			   int irq,
 			   unsigned int timeout);
 
@@ -91,7 +91,7 @@ BTFIXUPDEF_CALL(void, set_irq_udt, int)
 #define set_irq_udt(cpu) BTFIXUP_CALL(set_irq_udt)(cpu)
 #endif
 
-extern int request_fast_irq(unsigned int irq, irqreturn_t (*handler)(int, void *, struct pt_regs *), unsigned long flags, __const__ char *devname);
+extern int request_fast_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, __const__ char *devname);
 
 /* On the sun4m, just like the timers, we have both per-cpu and master
  * interrupt registers.

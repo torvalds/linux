@@ -701,7 +701,10 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  */
 int __set_page_dirty_buffers(struct page *page)
 {
-	struct address_space * const mapping = page->mapping;
+	struct address_space * const mapping = page_mapping(page);
+
+	if (unlikely(!mapping))
+		return !TestSetPageDirty(page);
 
 	spin_lock(&mapping->private_lock);
 	if (page_has_buffers(page)) {

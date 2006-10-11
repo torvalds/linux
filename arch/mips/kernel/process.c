@@ -115,7 +115,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	status |= KU_USER;
 	regs->cp0_status = status;
 	clear_used_math();
-	lose_fpu();
+	clear_fpu_owner();
 	if (cpu_has_dsp)
 		__init_dsp();
 	regs->cp0_epc = pc;

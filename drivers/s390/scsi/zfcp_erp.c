@@ -1987,7 +1987,7 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 		sbale = &(adapter->response_queue.buffer[i]->element[0]);
 		sbale->length = 0;
 		sbale->flags = SBAL_FLAGS_LAST_ENTRY;
-		sbale->addr = 0;
+		sbale->addr = NULL;
 	}
 
 	ZFCP_LOG_TRACE("calling do_QDIO on adapter %s (flags=0x%x, "

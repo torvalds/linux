@@ -1184,8 +1184,8 @@ static int __assign_irq_vector(int irq)
 
 	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
 
-	if (IO_APIC_VECTOR(irq) > 0)
-		return IO_APIC_VECTOR(irq);
+	if (irq_vector[irq] > 0)
+		return irq_vector[irq];
 
 	current_vector += 8;
 	if (current_vector == SYSCALL_VECTOR)
@@ -1199,7 +1199,7 @@ static int __assign_irq_vector(int irq)
 	}
 
 	vector = current_vector;
-	IO_APIC_VECTOR(irq) = vector;
+	irq_vector[irq] = vector;
 
 	return vector;
 }
@@ -1967,7 +1967,7 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
  * operation to prevent an edge-triggered interrupt escaping meanwhile.
  * The idea is from Manfred Spraul.  --macro
  */
-	i = IO_APIC_VECTOR(irq);
+	i = irq_vector[irq];
 
 	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
 
@@ -1984,7 +1984,7 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
 
 static int ioapic_retrigger_irq(unsigned int irq)
 {
-	send_IPI_self(IO_APIC_VECTOR(irq));
+	send_IPI_self(irq_vector[irq]);
 
 	return 1;
 }
@@ -2020,7 +2020,7 @@ static inline void init_IO_APIC_traps(void)
 	 */
 	for (irq = 0; irq < NR_IRQS ; irq++) {
 		int tmp = irq;
-		if (IO_APIC_IRQ(tmp) && !IO_APIC_VECTOR(tmp)) {
+		if (IO_APIC_IRQ(tmp) && !irq_vector[tmp]) {
 			/*
 			 * Hmm.. We don't have an entry for this,
 			 * so default to an old-fashioned 8259

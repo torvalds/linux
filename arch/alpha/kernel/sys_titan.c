@@ -167,18 +167,18 @@ titan_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 }
 
 static void
-titan_device_interrupt(unsigned long vector, struct pt_regs * regs)
+titan_device_interrupt(unsigned long vector)
 {
 	printk("titan_device_interrupt: NOT IMPLEMENTED YET!! \n");
 }
 
 static void 
-titan_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+titan_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
 	irq = (vector - 0x800) >> 4;
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 
@@ -204,7 +204,7 @@ static struct hw_interrupt_type titan_irq_type = {
 };
 
 static irqreturn_t
-titan_intr_nop(int irq, void *dev_id, struct pt_regs *regs)                    
+titan_intr_nop(int irq, void *dev_id)
 {
       /*
        * This is a NOP interrupt handler for the purposes of
@@ -243,7 +243,7 @@ titan_legacy_init_irq(void)
 }
 
 void
-titan_dispatch_irqs(u64 mask, struct pt_regs *regs)
+titan_dispatch_irqs(u64 mask)
 {
 	unsigned long vector;
 
@@ -263,7 +263,7 @@ titan_dispatch_irqs(u64 mask, struct pt_regs *regs)
 		vector = 0x900 + (vector << 4);	/* convert to SRM vector */
 		
 		/* dispatch it */
-		alpha_mv.device_interrupt(vector, regs);
+		alpha_mv.device_interrupt(vector);
 	}
 }
   

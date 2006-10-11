@@ -270,7 +270,7 @@ void board_pcmcia_power(int power)	{;}
 #endif		/* CONFIG_MACH_TRIZEPS4_CONXS */
 EXPORT_SYMBOL(board_pcmcia_power);
 
-static int trizeps4_mci_init(struct device *dev, irqreturn_t (*mci_detect_int)(int, void *, struct pt_regs *), void *data)
+static int trizeps4_mci_init(struct device *dev, irq_handler_t mci_detect_int, void *data)
 {
 	int err;
 	/* setup GPIO for PXA27x MMC controller */

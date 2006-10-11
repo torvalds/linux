@@ -48,10 +48,10 @@ static unsigned long clps711x_gettimeoffset(void)
  * IRQ handler for the timer
  */
 static irqreturn_t
-p720t_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+p720t_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }

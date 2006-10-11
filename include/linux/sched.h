@@ -1065,9 +1065,10 @@ static inline int pid_alive(struct task_struct *p)
 }
 
 /**
- * is_init - check if a task structure is the first user space
- *	     task the kernel created.
- * @p: Task structure to be checked.
+ * is_init - check if a task structure is init
+ * @tsk: Task structure to be checked.
+ *
+ * Check if a task structure is the first user space task the kernel created.
  */
 static inline int is_init(struct task_struct *tsk)
 {

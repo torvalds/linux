@@ -1019,11 +1019,6 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	int csr0, ioaddr, boguscnt=10;
 	int must_restart;
 
-	if (dev == NULL) {
-		printk ("lance_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-
 	ioaddr = dev->base_addr;
 	lp = dev->priv;
 

@@ -197,7 +197,7 @@ static struct platform_device poodle_ts_device = {
  */
 static struct pxamci_platform_data poodle_mci_platform_data;
 
-static int poodle_mci_init(struct device *dev, irqreturn_t (*poodle_detect_int)(int, void *, struct pt_regs *), void *data)
+static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, void *data)
 {
 	int err;
 

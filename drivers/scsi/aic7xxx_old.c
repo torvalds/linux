@@ -6345,12 +6345,12 @@ aic7xxx_handle_command_completion_intr(struct aic7xxx_host *p)
  *   SCSI controller interrupt handler.
  *-F*************************************************************************/
 static void
-aic7xxx_isr(int irq, void *dev_id)
+aic7xxx_isr(void *dev_id)
 {
   struct aic7xxx_host *p;
   unsigned char intstat;
 
-  p = (struct aic7xxx_host *)dev_id;
+  p = dev_id;
 
   /*
    * Just a few sanity checks.  Make sure that we have an int pending.
@@ -6489,7 +6489,7 @@ do_aic7xxx_isr(int irq, void *dev_id)
   p->flags |= AHC_IN_ISR;
   do
   {
-    aic7xxx_isr(irq, dev_id);
+    aic7xxx_isr(dev_id);
   } while ( (aic_inb(p, INTSTAT) & INT_PEND) );
   aic7xxx_done_cmds_complete(p);
   aic7xxx_run_waiting_queues(p);
@@ -10377,7 +10377,7 @@ static int __aic7xxx_bus_device_reset(struct scsi_cmnd *cmd)
 
   hscb = scb->hscb;
 
-  aic7xxx_isr(p->irq, (void *)p);
+  aic7xxx_isr(p);
   aic7xxx_done_cmds_complete(p);
   /* If the command was already complete or just completed, then we didn't
    * do a reset, return FAILED */
@@ -10608,7 +10608,7 @@ static int __aic7xxx_abort(struct scsi_cmnd *cmd)
   else
     return FAILED;
 
-  aic7xxx_isr(p->irq, (void *)p);
+  aic7xxx_isr(p);
   aic7xxx_done_cmds_complete(p);
   /* If the command was already complete or just completed, then we didn't
    * do a reset, return FAILED */
@@ -10863,7 +10863,7 @@ static int aic7xxx_reset(struct scsi_cmnd *cmd)
 
   while((aic_inb(p, INTSTAT) & INT_PEND) && !(p->flags & AHC_IN_ISR))
   {
-    aic7xxx_isr(p->irq, p);
+    aic7xxx_isr(p);
     pause_sequencer(p);
   }
   aic7xxx_done_cmds_complete(p);

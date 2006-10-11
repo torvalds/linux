@@ -361,14 +361,14 @@ __ioremap(unsigned long phys_addr, size_t size, unsigned long flags)
 }
 EXPORT_SYMBOL(__ioremap);
 
-void __iounmap(void __iomem *addr)
+void __iounmap(volatile void __iomem *addr)
 {
 #ifndef CONFIG_SMP
 	struct vm_struct **p, *tmp;
 #endif
 	unsigned int section_mapping = 0;
 
-	addr = (void __iomem *)(PAGE_MASK & (unsigned long)addr);
+	addr = (volatile void __iomem *)(PAGE_MASK & (unsigned long)addr);
 
 #ifndef CONFIG_SMP
 	/*
@@ -395,6 +395,6 @@ void __iounmap(void __iomem *addr)
 #endif
 
 	if (!section_mapping)
-		vunmap(addr);
+		vunmap((void __force *)addr);
 }
 EXPORT_SYMBOL(__iounmap);

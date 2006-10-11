@@ -234,7 +234,7 @@ static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
 	}
 	spin_unlock_irqrestore(&eisa_irq_lock, flags);
 
-	__do_IRQ(irq, regs);
+	__do_IRQ(irq);
    
 	spin_lock_irqsave(&eisa_irq_lock, flags);
 	/* unmask */

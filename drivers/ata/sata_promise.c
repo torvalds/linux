@@ -361,7 +361,7 @@ static void pdc_sata_phy_reset(struct ata_port *ap)
 static void pdc_pata_cbl_detect(struct ata_port *ap)
 {
 	u8 tmp;
-	void __iomem *mmio = (void *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
 
 	tmp = readb(mmio);
 

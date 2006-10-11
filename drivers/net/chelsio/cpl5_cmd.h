@@ -108,7 +108,7 @@ struct cpl_tx_pkt_lso {
 	u8 iff:4;
 #endif
 	u16 vlan;
-	u32 len;
+	__be32 len;
 
 	u32 rsvd2;
 	u8 rsvd3;
@@ -119,7 +119,7 @@ struct cpl_tx_pkt_lso {
 	u8 ip_hdr_words:4;
 	u8 tcp_hdr_words:4;
 #endif
-	u16 eth_type_mss;
+	__be16 eth_type_mss;
 };
 
 struct cpl_rx_pkt {
@@ -138,7 +138,7 @@ struct cpl_rx_pkt {
 	u8 iff:4;
 #endif
 	u16 csum;
-	u16 vlan;
+	__be16 vlan;
 	u16 len;
 };
 

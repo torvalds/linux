@@ -389,7 +389,7 @@ static void receive_chars(struct dec_serial *info)
 			if (ch == 0)
 				continue;
 			if (time_before(jiffies, break_pressed + HZ * 5)) {
-				handle_sysrq(ch, regs, NULL);
+				handle_sysrq(ch, NULL);
 				break_pressed = 0;
 				continue;
 			}

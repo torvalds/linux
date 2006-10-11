@@ -112,7 +112,7 @@ config SERIO_GSCPS2
 
 config HP_SDC
 	tristate "HP System Device Controller i8042 Support"
-	depends on GSC && SERIO
+	depends on (GSC || HP300) && SERIO
 	default y
 	---help---
 	  This option enables support for the "System Device

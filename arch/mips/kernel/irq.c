@@ -53,9 +53,8 @@ unsigned long irq_hwmask[NR_IRQS];
  * SMP cross-CPU interrupts have their own specific
  * handlers).
  */
-asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs)
+asmlinkage unsigned int do_IRQ(unsigned int irq)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	__DO_IRQ_SMTC_HOOK();
@@ -63,7 +62,6 @@ asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_exit();
 
-	set_irq_regs(old_regs);
 	return 1;
 }
 
@@ -112,7 +110,7 @@ skip:
 	return 0;
 }
 
-asmlinkage void spurious_interrupt(struct pt_regs *regs)
+asmlinkage void spurious_interrupt(void)
 {
 	atomic_inc(&irq_err_count);
 }

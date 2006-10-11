@@ -65,7 +65,7 @@ int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
  */
 static volatile int pb1200_cascade_en=0;
 
-irqreturn_t pb1200_cascade_handler( int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t pb1200_cascade_handler( int irq, void *dev_id)
 {
 	unsigned short bisr = bcsr->int_status;
 	int extirq_nr = 0;
@@ -76,8 +76,9 @@ irqreturn_t pb1200_cascade_handler( int irq, void *dev_id, struct pt_regs *regs)
 	{
 		extirq_nr = (PB1200_INT_BEGIN-1) + au_ffs(bisr);
 		/* Ack and dispatch IRQ */
-		do_IRQ(extirq_nr,regs);
+		do_IRQ(extirq_nr);
 	}
+
 	return IRQ_RETVAL(1);
 }
 

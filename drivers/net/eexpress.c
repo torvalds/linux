@@ -796,13 +796,6 @@ static irqreturn_t eexp_irq(int irq, void *dev_info)
 	unsigned short ioaddr,status,ack_cmd;
 	unsigned short old_read_ptr, old_write_ptr;
 
-	if (dev==NULL)
-	{
-		printk(KERN_WARNING "eexpress: irq %d for unknown device\n",
-		       irq);
-		return IRQ_NONE;
-	}
-
 	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
 

@@ -75,26 +75,26 @@ void __init arch_init_irq(void)
 
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status();
 
 	if (pending & STATUSF_IP0)
-		do_IRQ(0, regs);
+		do_IRQ(0);
 	else if (pending & STATUSF_IP1)
-		do_IRQ(1, regs);
+		do_IRQ(1);
 	else if (pending & STATUSF_IP2)
-		do_IRQ(2, regs);
+		do_IRQ(2);
 	else if (pending & STATUSF_IP3)
-		do_IRQ(3, regs);
+		do_IRQ(3);
 	else if (pending & STATUSF_IP4)
-		do_IRQ(4, regs);
+		do_IRQ(4);
 	else if (pending & STATUSF_IP5)
-		do_IRQ(5, regs);
+		do_IRQ(5);
 	else if (pending & STATUSF_IP6)
-		do_IRQ(6, regs);
+		do_IRQ(6);
 	else if (pending & STATUSF_IP7)
-		do_IRQ(7, regs);
+		do_IRQ(7);
 	else {
 		/*
 		 * Now look at the extended interrupts
@@ -102,8 +102,8 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		pending = (read_c0_cause() & (read_c0_intcontrol() << 8)) >> 16;
 
 		if (pending & STATUSF_IP8)
-			ll_mv64340_irq(regs);
+			ll_mv64340_irq();
 		else
-			spurious_interrupt(regs);
+			spurious_interrupt();
 	}
 }

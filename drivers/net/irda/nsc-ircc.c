@@ -2068,17 +2068,12 @@ static void nsc_ircc_fir_interrupt(struct nsc_ircc_cb *self, int iobase,
  */
 static irqreturn_t nsc_ircc_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct nsc_ircc_cb *self;
 	__u8 bsr, eir;
 	int iobase;
 
-	if (!dev) {
-		IRDA_WARNING("%s: irq %d for unknown device.\n",
-			     driver_name, irq);
-		return IRQ_NONE;
-	}
-	self = (struct nsc_ircc_cb *) dev->priv;
+	self = dev->priv;
 
 	spin_lock(&self->lock);	
 

@@ -703,7 +703,7 @@ static int cdrom_has_defect_mgt(struct cdrom_device_info *cdi)
 {
 	struct packet_command cgc;
 	char buffer[16];
-	__u16 *feature_code;
+	__be16 *feature_code;
 	int ret;
 
 	init_cdrom_command(&cgc, buffer, sizeof(buffer), CGC_DATA_READ);
@@ -716,7 +716,7 @@ static int cdrom_has_defect_mgt(struct cdrom_device_info *cdi)
 	if ((ret = cdi->ops->generic_packet(cdi, &cgc)))
 		return ret;
 
-	feature_code = (__u16 *) &buffer[sizeof(struct feature_header)];
+	feature_code = (__be16 *) &buffer[sizeof(struct feature_header)];
 	if (be16_to_cpu(*feature_code) == CDF_HWDM)
 		return 0;
 
@@ -2963,7 +2963,7 @@ static int mmc_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 		   how much data is available for transfer. buffer[1] is
 		   unfortunately ambigious and the only reliable way seem
 		   to be to simply skip over the block descriptor... */
-		offset = 8 + be16_to_cpu(*(unsigned short *)(buffer+6));
+		offset = 8 + be16_to_cpu(*(__be16 *)(buffer+6));
 
 		if (offset + 16 > sizeof(buffer))
 			return -E2BIG;

@@ -1990,15 +1990,8 @@ static irqreturn_t smctr_interrupt(int irq, void *dev_id)
         __u8 isb_type, isb_subtype;
         __u16 isb_index;
 
-        if(dev == NULL)
-        {
-                printk(KERN_CRIT "%s: irq %d for unknown device.\n", dev->name, irq);
-                return IRQ_NONE;
-        }
-
         ioaddr = dev->base_addr;
         tp = netdev_priv(dev);
-        
 
         if(tp->status == NOT_INITIALIZED)
                 return IRQ_NONE;

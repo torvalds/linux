@@ -55,7 +55,7 @@ void __init board_setup(void)
 	au_writel(0, SYS_PININPUTEN);
 	udelay(100);
 
-#if defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
+#ifdef CONFIG_USB_OHCI
 	// configure pins GPIO[14:9] as GPIO
 	pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x80);
 
@@ -92,12 +92,10 @@ void __init board_setup(void)
 
 	// get USB Functionality pin state (device vs host drive pins)
 	pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x8000);
-#ifndef CONFIG_AU1X00_USB_DEVICE
 	// 2nd USB port is USB host
 	pin_func |= 0x8000;
-#endif
 	au_writel(pin_func, SYS_PINFUNC);
-#endif // defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
+#endif // defined (CONFIG_USB_OHCI)
 
 	/* Enable sys bus clock divider when IDLE state or no bus activity. */
 	au_writel(au_readl(SYS_POWERCTRL) | (0x3 << 5), SYS_POWERCTRL);

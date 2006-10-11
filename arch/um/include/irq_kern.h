@@ -10,12 +10,11 @@
 #include "asm/ptrace.h"
 
 extern int um_request_irq(unsigned int irq, int fd, int type,
-			  irqreturn_t (*handler)(int, void *,
-						 struct pt_regs *),
+			  irq_handler_t handler,
 			  unsigned long irqflags,  const char * devname,
 			  void *dev_id);
 extern int init_aio_irq(int irq, char *name,
-			irqreturn_t (*handler)(int, void *, struct pt_regs *));
+			irq_handler_t handler);
 
 #endif
 

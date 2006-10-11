@@ -205,7 +205,7 @@ ENTRY(auto_inthandler)
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
 auto_irqhandler_fixup = . + 2
-	jsr	m68k_handle_int		|  process the IRQ
+	jsr	__m68k_handle_int	|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
 ret_from_interrupt:
@@ -239,7 +239,7 @@ user_irqvec_fixup = . + 2
 	movel	%sp,%sp@-
 	movel	%d0,%sp@-		|  put vector # on stack
 user_irqhandler_fixup = . + 2
-	jsr	m68k_handle_int		|  process the IRQ
+	jsr	__m68k_handle_int	|  process the IRQ
 	addql	#8,%sp			|  pop parameters off stack
 
 	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+1)
@@ -706,4 +706,33 @@ sys_call_table:
 	.long sys_add_key
 	.long sys_request_key	/* 280 */
 	.long sys_keyctl
+	.long sys_ioprio_set
+	.long sys_ioprio_get
+	.long sys_inotify_init
+	.long sys_inotify_add_watch	/* 285 */
+	.long sys_inotify_rm_watch
+	.long sys_migrate_pages
+	.long sys_openat
+	.long sys_mkdirat
+	.long sys_mknodat		/* 290 */
+	.long sys_fchownat
+	.long sys_futimesat
+	.long sys_fstatat64
+	.long sys_unlinkat
+	.long sys_renameat		/* 295 */
+	.long sys_linkat
+	.long sys_symlinkat
+	.long sys_readlinkat
+	.long sys_fchmodat
+	.long sys_faccessat		/* 300 */
+	.long sys_ni_syscall		/* Reserved for pselect6 */
+	.long sys_ni_syscall		/* Reserved for ppoll */
+	.long sys_unshare
+	.long sys_set_robust_list
+	.long sys_get_robust_list	/* 305 */
+	.long sys_splice
+	.long sys_sync_file_range
+	.long sys_tee
+	.long sys_vmsplice
+	.long sys_move_pages		/* 310 */
 

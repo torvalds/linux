@@ -203,7 +203,7 @@ static void __init apollon_led_init(void)
 	omap_set_gpio_dataout(LED2_GPIO15, 0);
 }
 
-static irqreturn_t apollon_sw_interrupt(int irq, void *ignored, struct pt_regs *regs)
+static irqreturn_t apollon_sw_interrupt(int irq, void *ignored)
 {
 	static unsigned int led0, led1, led2;
 

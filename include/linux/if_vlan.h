@@ -44,7 +44,7 @@ struct vlan_ethhdr {
    unsigned char	h_source[ETH_ALEN];	   /* source ether addr	*/
    __be16               h_vlan_proto;              /* Should always be 0x8100 */
    __be16               h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
-   unsigned short	h_vlan_encapsulated_proto; /* packet type ID field (or len) */
+   __be16		h_vlan_encapsulated_proto; /* packet type ID field (or len) */
 };
 
 #include <linux/skbuff.h>

@@ -137,7 +137,7 @@ extern void pnx4008_free_ll_entry(struct pnx4008_dma_ll *, dma_addr_t);
 extern void pnx4008_free_ll(u32 ll_dma, struct pnx4008_dma_ll *);
 
 extern int pnx4008_request_channel(char *, int,
-				   void (*)(int, int, void *, struct pt_regs *),
+				   void (*)(int, int, void *),
 				   void *);
 extern void pnx4008_free_channel(int);
 extern int pnx4008_config_dma(int, int, int);

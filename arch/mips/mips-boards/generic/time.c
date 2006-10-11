@@ -30,7 +30,6 @@
 
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
-#include <asm/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
@@ -82,19 +81,19 @@ static inline void scroll_display_message(void)
 	}
 }
 
-static void mips_timer_dispatch (struct pt_regs *regs)
+static void mips_timer_dispatch(void)
 {
-	do_IRQ (mips_cpu_timer_irq, regs);
+	do_IRQ(mips_cpu_timer_irq);
 }
 
 /*
  * Redeclare until I get around mopping the timer code insanity on MIPS.
  */
-extern int null_perf_irq(struct pt_regs *regs);
+extern int null_perf_irq(void);
 
-extern int (*perf_irq)(struct pt_regs *regs);
+extern int (*perf_irq)(void);
 
-irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t mips_timer_interrupt(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
@@ -119,7 +118,7 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * perf counter overflow, or both.
 	 */
 	if (read_c0_cause() & (1 << 26))
-		perf_irq(regs);
+		perf_irq();
 
 	if (read_c0_cause() & (1 << 30)) {
 		/* If timer interrupt, make it de-assert */
@@ -139,13 +138,13 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 * the tick on VPE 0 to run the full timer_interrupt().
 		 */
 		if (cpu_data[cpu].vpe_id == 0) {
-				timer_interrupt(irq, NULL, regs);
+				timer_interrupt(irq, NULL);
 				smtc_timer_broadcast(cpu_data[cpu].vpe_id);
 				scroll_display_message();
 		} else {
 			write_c0_compare(read_c0_count() +
 			                 (mips_hpt_frequency/HZ));
-			local_timer_interrupt(irq, dev_id, regs);
+			local_timer_interrupt(irq, dev_id);
 			smtc_timer_broadcast(cpu_data[cpu].vpe_id);
 		}
 	}
@@ -159,12 +158,12 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 * timer int.
 		 */
 		if (!r2 || (read_c0_cause() & (1 << 26)))
-			if (perf_irq(regs))
+			if (perf_irq())
 				goto out;
 
 		/* we keep interrupt disabled all the time */
 		if (!r2 || (read_c0_cause() & (1 << 30)))
-			timer_interrupt(irq, NULL, regs);
+			timer_interrupt(irq, NULL);
 
 		scroll_display_message();
 	} else {
@@ -180,7 +179,7 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		/*
 		 * Other CPUs should do profiling and process accounting
 		 */
-		local_timer_interrupt(irq, dev_id, regs);
+		local_timer_interrupt(irq, dev_id);
 	}
 out:
 #endif /* CONFIG_MIPS_MT_SMTC */

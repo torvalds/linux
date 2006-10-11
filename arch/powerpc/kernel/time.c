@@ -706,7 +706,7 @@ void timer_interrupt(struct pt_regs * regs)
 
 #ifdef CONFIG_PPC_ISERIES
 	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
+		process_hvlpevents();
 #endif
 
 #ifdef CONFIG_PPC64

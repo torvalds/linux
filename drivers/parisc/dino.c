@@ -389,7 +389,7 @@ ilr_again:
 		int irq = dino_dev->global_irq[local_irq];
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__FUNCTION__, irq, intr_dev, mask);
-		__do_IRQ(irq, regs);
+		__do_IRQ(irq);
 		mask &= ~(1 << local_irq);
 	} while (mask);
 

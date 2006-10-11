@@ -44,7 +44,7 @@ extern struct list_head dma_client_list;
 
 struct ioat_device {
 	struct pci_dev *pdev;
-	void *reg_base;
+	void __iomem *reg_base;
 	struct pci_pool *dma_pool;
 	struct pci_pool *completion_pool;
 
@@ -73,7 +73,7 @@ struct ioat_device {
 
 struct ioat_dma_chan {
 
-	void *reg_base;
+	void __iomem *reg_base;
 
 	dma_cookie_t completed_cookie;
 	unsigned long last_completion;

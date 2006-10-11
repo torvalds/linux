@@ -212,7 +212,7 @@ static struct platform_device corgits_device = {
  */
 static struct pxamci_platform_data corgi_mci_platform_data;
 
-static int corgi_mci_init(struct device *dev, irqreturn_t (*corgi_detect_int)(int, void *, struct pt_regs *), void *data)
+static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, void *data)
 {
 	int err;
 

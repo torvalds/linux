@@ -35,7 +35,7 @@
 
 #ifdef CONFIG_SMP
 extern void send_IPI_allbutself(int, int);
-extern void smp_local_timer_interrupt(struct pt_regs *);
+extern void smp_local_timer_interrupt(void);
 #endif
 
 #define TICK_SIZE	(tick_nsec / 1000)
@@ -188,15 +188,15 @@ static long last_rtc_update = 0;
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 #ifndef CONFIG_SMP
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #endif
 	do_timer(1);
 
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -221,7 +221,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	   a hack, so don't look closely for now.. */
 
 #ifdef CONFIG_SMP
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	smp_send_timer();
 #endif
 

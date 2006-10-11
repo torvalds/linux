@@ -162,11 +162,11 @@ static inline void
 tioca_tlbflush(struct tioca_kernel *tioca_kernel)
 {
 	volatile u64 tmp;
-	volatile struct tioca *ca_base;
+	volatile struct tioca __iomem *ca_base;
 	struct tioca_common *tioca_common;
 
 	tioca_common = tioca_kernel->ca_common;
-	ca_base = (struct tioca *)tioca_common->ca_common.bs_base;
+	ca_base = (struct tioca __iomem *)tioca_common->ca_common.bs_base;
 
 	/*
 	 * Explicit flushes not needed if GART is in cached mode

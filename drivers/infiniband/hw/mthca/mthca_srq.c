@@ -201,6 +201,8 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	if (mthca_is_memfree(dev))
 		srq->max = roundup_pow_of_two(srq->max + 1);
+	else
+		srq->max = srq->max + 1;
 
 	ds = max(64UL,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
@@ -277,7 +279,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	srq->first_free = 0;
 	srq->last_free  = srq->max - 1;
 
-	attr->max_wr    = (mthca_is_memfree(dev)) ? srq->max - 1 : srq->max;
+	attr->max_wr    = srq->max - 1;
 	attr->max_sge   = srq->max_gs;
 
 	return 0;
@@ -413,7 +415,7 @@ int mthca_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 		srq_attr->srq_limit = be16_to_cpu(tavor_ctx->limit_watermark);
 	}
 
-	srq_attr->max_wr  = (mthca_is_memfree(dev)) ? srq->max - 1 : srq->max;
+	srq_attr->max_wr  = srq->max - 1;
 	srq_attr->max_sge = srq->max_gs;
 
 out:

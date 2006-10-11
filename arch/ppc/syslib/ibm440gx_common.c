@@ -119,7 +119,7 @@ static inline u32 l2c_diag(u32 addr)
 	return mfdcr(DCRN_L2C0_DATA);
 }
 
-static irqreturn_t l2c_error_handler(int irq, void* dev, struct pt_regs* regs)
+static irqreturn_t l2c_error_handler(int irq, void* dev)
 {
 	u32 sr = mfdcr(DCRN_L2C0_SR);
 	if (sr & L2C_SR_CPE){

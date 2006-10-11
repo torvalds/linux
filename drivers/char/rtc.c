@@ -35,13 +35,13 @@
  *	1.09a	Pete Zaitcev: Sun SPARC
  *	1.09b	Jeff Garzik: Modularize, init cleanup
  *	1.09c	Jeff Garzik: SMP cleanup
- *	1.10    Paul Barton-Davis: add support for async I/O
+ *	1.10	Paul Barton-Davis: add support for async I/O
  *	1.10a	Andrea Arcangeli: Alpha updates
  *	1.10b	Andrew Morton: SMP lock fix
  *	1.10c	Cesar Barros: SMP locking fixes and cleanup
  *	1.10d	Paul Gortmaker: delete paranoia check in rtc_exit
  *	1.10e	Maciej W. Rozycki: Handle DECstation's year weirdness.
- *      1.11    Takashi Iwai: Kernel access functions
+ *	1.11	Takashi Iwai: Kernel access functions
  *			      rtc_register/rtc_unregister/rtc_control
  *      1.11a   Daniele Bellucci: Audit create_proc_read_entry in rtc_init
  *	1.12	Venkatesh Pallipadi: Hooks for emulating rtc on HPET base-timer

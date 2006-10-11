@@ -451,7 +451,7 @@ void pfault_fini(void)
 }
 
 asmlinkage void
-pfault_interrupt(struct pt_regs *regs, __u16 error_code)
+pfault_interrupt(__u16 error_code)
 {
 	struct task_struct *tsk;
 	__u16 subcode;

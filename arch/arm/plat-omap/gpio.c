@@ -783,8 +783,7 @@ void omap_free_gpio(int gpio)
  * line's interrupt handler has been run, we may miss some nested
  * interrupts.
  */
-static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
-			     struct pt_regs *regs)
+static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	void __iomem *isr_reg = NULL;
 	u32 isr;
@@ -882,7 +881,7 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 				continue;
 			}
 
-			desc_handle_irq(gpio_irq, d, regs);
+			desc_handle_irq(gpio_irq, d);
 
 			if (unlikely((d->status & IRQ_PENDING) && !d->depth)) {
 				irq_mask = 1 <<

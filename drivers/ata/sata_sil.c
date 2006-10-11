@@ -349,7 +349,7 @@ static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg)
 
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
-	void *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
 	if (mmio)
 		writel(val, mmio);
 }

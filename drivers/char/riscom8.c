@@ -559,11 +559,10 @@ static irqreturn_t rc_interrupt(int irq, void * dev_id)
 	int handled = 0;
 
 	bp = IRQ_to_board[irq];
-	
-	if (!bp || !(bp->flags & RC_BOARD_ACTIVE))  {
+
+	if (!(bp->flags & RC_BOARD_ACTIVE))
 		return IRQ_NONE;
-	}
-	
+
 	while ((++loop < 16) && ((status = ~(rc_in(bp, RC_BSR))) &
 				 (RC_BSR_TOUT | RC_BSR_TINT |
 				  RC_BSR_MINT | RC_BSR_RINT))) {

@@ -674,7 +674,7 @@ static void sn_sal_timer_poll(unsigned long data)
 	if (!port->sc_port.irq) {
 		spin_lock_irqsave(&port->sc_port.lock, flags);
 		if (sn_process_input)
-			sn_receive_chars(port, NULL, flags);
+			sn_receive_chars(port, flags);
 		sn_transmit_chars(port, TRANSMIT_RAW);
 		spin_unlock_irqrestore(&port->sc_port.lock, flags);
 		mod_timer(&port->sc_timer,

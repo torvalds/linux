@@ -468,7 +468,7 @@ static void qe_tx_reclaim(struct sunqe *qep);
  */
 static irqreturn_t qec_interrupt(int irq, void *dev_id)
 {
-	struct sunqec *qecp = (struct sunqec *) dev_id;
+	struct sunqec *qecp = dev_id;
 	u32 qec_status;
 	int channel = 0;
 

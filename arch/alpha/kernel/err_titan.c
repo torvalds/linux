@@ -379,7 +379,7 @@ titan_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-titan_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
+titan_machine_check(u64 vector, u64 la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 	struct el_TITAN_sysdata_mcheck *tmchk =
@@ -408,7 +408,7 @@ titan_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 	 * Only handle system errors here 
 	 */
 	if ((vector != SCB_Q_SYSMCHK) && (vector != SCB_Q_SYSERR)) {
-		ev6_machine_check(vector, la_ptr, regs);
+		ev6_machine_check(vector, la_ptr);
 		return;
 	}
 
@@ -442,7 +442,7 @@ titan_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 #ifdef CONFIG_VERBOSE_MCHECK
 		titan_process_logout_frame(mchk_header, alpha_verbose_mcheck);
 		if (alpha_verbose_mcheck)
-			dik_show_regs(regs, NULL);
+			dik_show_regs(get_irq_regs(), NULL);
 #endif /* CONFIG_VERBOSE_MCHECK */
 
 		err_print_prefix = saved_err_prefix;
@@ -452,7 +452,7 @@ titan_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 		 * machine checks to interrupts
 		 */
 		irqmask = tmchk->c_dirx & TITAN_MCHECK_INTERRUPT_MASK;
-		titan_dispatch_irqs(irqmask, regs);
+		titan_dispatch_irqs(irqmask);
 	}	
 
 
@@ -701,7 +701,7 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-privateer_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
+privateer_machine_check(u64 vector, u64 la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 	struct el_TITAN_sysdata_mcheck *tmchk =
@@ -723,7 +723,7 @@ privateer_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 	 * Only handle system events here.
 	 */
 	if (vector != SCB_Q_SYSEVENT) 
-		return titan_machine_check(vector, la_ptr, regs);
+		return titan_machine_check(vector, la_ptr);
 
 	/*
 	 * Report the event - System Events should be reported even if no
@@ -746,7 +746,7 @@ privateer_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
 	/*
 	 * Dispatch the interrupt(s).
 	 */
-	titan_dispatch_irqs(irqmask, regs);
+	titan_dispatch_irqs(irqmask);
 
 	/* 
 	 * Release the logout frame.

@@ -332,7 +332,7 @@ static struct irq_chip gpio_irqchip = {
 	.set_wake	= gpio_irq_set_wake,
 };
 
-static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs *regs)
+static void gpio_irq_handler(unsigned irq, struct irqdesc *desc)
 {
 	unsigned	pin;
 	struct irqdesc	*gpio;
@@ -363,7 +363,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 					gpio_irq_mask(pin);
 				}
 				else
-					desc_handle_irq(pin, gpio, regs);
+					desc_handle_irq(pin, gpio);
 			}
 			pin++;
 			gpio++;

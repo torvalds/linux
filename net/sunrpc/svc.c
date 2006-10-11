@@ -282,7 +282,10 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	serv->sv_program   = prog;
 	serv->sv_nrthreads = 1;
 	serv->sv_stats     = prog->pg_stats;
-	serv->sv_bufsz	   = bufsize? bufsize : 4096;
+	if (bufsize > RPCSVC_MAXPAYLOAD)
+		bufsize = RPCSVC_MAXPAYLOAD;
+	serv->sv_max_payload = bufsize? bufsize : 4096;
+	serv->sv_max_mesg  = roundup(serv->sv_max_payload + PAGE_SIZE, PAGE_SIZE);
 	serv->sv_shutdown  = shutdown;
 	xdrsize = 0;
 	while (prog) {
@@ -414,9 +417,9 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 	int pages;
 	int arghi;
 	
-	if (size > RPCSVC_MAXPAYLOAD)
-		size = RPCSVC_MAXPAYLOAD;
-	pages = 2 + (size+ PAGE_SIZE -1) / PAGE_SIZE;
+	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
+				       * We assume one is at most one page
+				       */
 	arghi = 0;
 	BUG_ON(pages > RPCSVC_MAXPAGES);
 	while (pages) {
@@ -463,7 +466,7 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 
 	if (!(rqstp->rq_argp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
 	 || !(rqstp->rq_resp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
-	 || !svc_init_buffer(rqstp, serv->sv_bufsz))
+	 || !svc_init_buffer(rqstp, serv->sv_max_mesg))
 		goto out_thread;
 
 	serv->sv_nrthreads++;
@@ -938,8 +941,8 @@ u32 svc_max_payload(const struct svc_rqst *rqstp)
 
 	if (rqstp->rq_sock->sk_sock->type == SOCK_DGRAM)
 		max = RPCSVC_MAXPAYLOAD_UDP;
-	if (rqstp->rq_server->sv_bufsz < max)
-		max = rqstp->rq_server->sv_bufsz;
+	if (rqstp->rq_server->sv_max_payload < max)
+		max = rqstp->rq_server->sv_max_payload;
 	return max;
 }
 EXPORT_SYMBOL_GPL(svc_max_payload);

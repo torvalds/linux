@@ -218,7 +218,7 @@ dasd_diag_term_IO(struct dasd_ccw_req * cqr)
 
 /* Handle external interruption. */
 static void
-dasd_ext_handler(struct pt_regs *regs, __u16 code)
+dasd_ext_handler(__u16 code)
 {
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;

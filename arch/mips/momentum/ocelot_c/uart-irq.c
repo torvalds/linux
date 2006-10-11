@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/io.h>
@@ -105,7 +104,7 @@ static void end_uart_irq(unsigned int irq)
 /*
  * Interrupt handler for interrupts coming from the FPGA chip.
  */
-void ll_uart_irq(struct pt_regs *regs)
+void ll_uart_irq(void)
 {
 	unsigned int irq_src, irq_mask;
 
@@ -116,7 +115,7 @@ void ll_uart_irq(struct pt_regs *regs)
 	/* mask for just the interrupts we want */
 	irq_src &= ~irq_mask;
 
-	do_IRQ(ls1bit8(irq_src) + 74, regs);
+	do_IRQ(ls1bit8(irq_src) + 74);
 }
 
 #define shutdown_uart_irq	disable_uart_irq

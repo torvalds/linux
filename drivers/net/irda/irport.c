@@ -766,18 +766,14 @@ static inline void irport_receive(struct irport_cb *self)
  */
 static irqreturn_t irport_interrupt(int irq, void *dev_id) 
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct irport_cb *self;
 	int boguscount = 0;
 	int iobase;
 	int iir, lsr;
 	int handled = 0;
 
-	if (!dev) {
-		IRDA_WARNING("%s() irq %d for unknown device.\n", __FUNCTION__, irq);
-		return IRQ_NONE;
-	}
-	self = (struct irport_cb *) dev->priv;
+	self = dev->priv;
 
 	spin_lock(&self->lock);
 

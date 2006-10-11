@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/gt64240.h>
@@ -108,7 +107,7 @@ int disable_galileo_irq(int int_cause, int bit_num)
  * we keep this particular structure in the function.
  */
 
-static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t gt64240_p0int_irq(int irq, void *dev)
 {
 	uint32_t irq_src, irq_src_mask;
 	int handled;
@@ -135,7 +134,7 @@ static irqreturn_t gt64240_p0int_irq(int irq, void *dev, struct pt_regs *regs)
 		/* handle the timer call */
 		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 	}
 

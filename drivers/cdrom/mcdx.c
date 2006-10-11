@@ -850,10 +850,6 @@ static irqreturn_t mcdx_intr(int irq, void *dev_id)
 	struct s_drive_stuff *stuffp = dev_id;
 	unsigned char b;
 
-	if (stuffp == NULL) {
-		xwarn("mcdx: no device for intr %d\n", irq);
-		return IRQ_NONE;
-	}
 #ifdef AK2
 	if (!stuffp->busy && stuffp->pending)
 		stuffp->int_err = 1;

@@ -22,7 +22,6 @@
 #include "datastream.h"
 #include "super.h"
 #include "io.h"
-#include "endian.h"
 
 MODULE_DESCRIPTION("BeOS File System (BeFS) driver");
 MODULE_AUTHOR("Will Dyson");

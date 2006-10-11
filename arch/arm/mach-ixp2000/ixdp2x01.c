@@ -63,7 +63,7 @@ static void ixdp2x01_irq_unmask(unsigned int irq)
 
 static u32 valid_irq_mask;
 
-static void ixdp2x01_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+static void ixdp2x01_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	u32 ex_interrupt;
 	int i;
@@ -82,7 +82,7 @@ static void ixdp2x01_irq_handler(unsigned int irq, struct irqdesc *desc, struct 
 			struct irqdesc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
 			cpld_desc = irq_desc + cpld_irq;
-			desc_handle_irq(cpld_irq, cpld_desc, regs);
+			desc_handle_irq(cpld_irq, cpld_desc);
 		}
 	}
 

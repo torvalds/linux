@@ -274,7 +274,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	while (data <= data_limit - 6) {
 		if (strnicmp(data, "PASV\r\n", 6) == 0) {
 			/* Passive mode on */
-			IP_VS_DBG(7, "got PASV at %zd of %zd\n",
+			IP_VS_DBG(7, "got PASV at %td of %td\n",
 				  data - data_start,
 				  data_limit - data_start);
 			cp->app_data = &ip_vs_ftp_pasv;

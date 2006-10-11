@@ -512,18 +512,10 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 static irqreturn_t 
 mpc52xx_uart_int(int irq, void *dev_id)
 {
-	struct uart_port *port = (struct uart_port *) dev_id;
+	struct uart_port *port = dev_id;
 	unsigned long pass = ISR_PASS_LIMIT;
 	unsigned int keepgoing;
 	unsigned short status;
-	
-	if ( irq != port->irq ) {
-		printk( KERN_WARNING
-		        "mpc52xx_uart_int : " \
-		        "Received wrong int %d. Waiting for %d\n",
-		       irq, port->irq);
-		return IRQ_NONE;
-	}
 	
 	spin_lock(&port->lock);
 	

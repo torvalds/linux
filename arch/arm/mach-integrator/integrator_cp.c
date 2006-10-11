@@ -202,12 +202,12 @@ static struct irq_chip sic_chip = {
 };
 
 static void
-sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+sic_handle_irq(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned long status = sic_readl(INTCP_VA_SIC_BASE + IRQ_STATUS);
 
 	if (status == 0) {
-		do_bad_IRQ(irq, desc, regs);
+		do_bad_IRQ(irq, desc);
 		return;
 	}
 
@@ -218,7 +218,7 @@ sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		irq += IRQ_SIC_START;
 
 		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc, regs);
+		desc_handle_irq(irq, desc);
 	} while (status);
 }
 

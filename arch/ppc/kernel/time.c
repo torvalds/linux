@@ -142,7 +142,7 @@ void timer_interrupt(struct pt_regs * regs)
 	while ((next_dec = tb_ticks_per_jiffy - tb_delta(&jiffy_stamp)) <= 0) {
 		jiffy_stamp += tb_ticks_per_jiffy;
 		
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 		update_process_times(user_mode(regs));
 
 	  	if (smp_processor_id())

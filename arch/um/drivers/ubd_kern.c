@@ -524,7 +524,7 @@ static void ubd_handler(void)
 	do_ubd_request(ubd_queue);
 }
 
-static irqreturn_t ubd_intr(int irq, void *dev, struct pt_regs *unused)
+static irqreturn_t ubd_intr(int irq, void *dev)
 {
 	ubd_handler();
 	return(IRQ_HANDLED);

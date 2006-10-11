@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/serial.h>
 #include <asm/titan_dep.h>

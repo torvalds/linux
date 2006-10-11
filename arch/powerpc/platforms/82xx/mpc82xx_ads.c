@@ -12,8 +12,6 @@
  * option) any later version.
  */
 
-
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -384,8 +382,7 @@ struct hw_interrupt_type m82xx_pci_ic = {
 };
 
 static void
-m82xx_pci_irq_demux(unsigned int irq, struct irq_desc *desc,
-		    struct pt_regs *regs)
+m82xx_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long stat, mask, pend;
 	int bit;
@@ -398,7 +395,7 @@ m82xx_pci_irq_demux(unsigned int irq, struct irq_desc *desc,
 			break;
 		for (bit = 0; pend != 0; ++bit, pend <<= 1) {
 			if (pend & 0x80000000)
-				__do_IRQ(pci_int_base + bit, regs);
+				__do_IRQ(pci_int_base + bit);
 		}
 	}
 }

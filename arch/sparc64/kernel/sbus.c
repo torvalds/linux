@@ -839,7 +839,7 @@ unsigned int sbus_build_irq(void *buscookie, unsigned int ino)
 #define  SYSIO_UEAFSR_SIZE  0x00001c0000000000UL /* Bad transfer size 2^SIZE  */
 #define  SYSIO_UEAFSR_MID   0x000003e000000000UL /* UPA MID causing the fault */
 #define  SYSIO_UEAFSR_RESV2 0x0000001fffffffffUL /* Reserved                  */
-static irqreturn_t sysio_ue_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sysio_ue_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
 	struct sbus_iommu *iommu = sbus->iommu;
@@ -911,7 +911,7 @@ static irqreturn_t sysio_ue_handler(int irq, void *dev_id, struct pt_regs *regs)
 #define  SYSIO_CEAFSR_SIZE  0x00001c0000000000UL /* Bad transfer size 2^SIZE  */
 #define  SYSIO_CEAFSR_MID   0x000003e000000000UL /* UPA MID causing the fault */
 #define  SYSIO_CEAFSR_RESV2 0x0000001fffffffffUL /* Reserved                  */
-static irqreturn_t sysio_ce_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sysio_ce_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
 	struct sbus_iommu *iommu = sbus->iommu;
@@ -988,7 +988,7 @@ static irqreturn_t sysio_ce_handler(int irq, void *dev_id, struct pt_regs *regs)
 #define  SYSIO_SBAFSR_SIZE  0x00001c0000000000UL /* Size of transfer          */
 #define  SYSIO_SBAFSR_MID   0x000003e000000000UL /* MID causing the error     */
 #define  SYSIO_SBAFSR_RESV3 0x0000001fffffffffUL /* Reserved                  */
-static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sysio_sbus_error_handler(int irq, void *dev_id)
 {
 	struct sbus_bus *sbus = dev_id;
 	struct sbus_iommu *iommu = sbus->iommu;

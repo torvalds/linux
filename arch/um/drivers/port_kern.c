@@ -47,7 +47,7 @@ struct connection {
 	struct port_list *port;
 };
 
-static irqreturn_t pipe_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t pipe_interrupt(int irq, void *data)
 {
 	struct connection *conn = data;
 	int fd;
@@ -152,7 +152,7 @@ void port_work_proc(void *unused)
 
 DECLARE_WORK(port_work, port_work_proc, NULL);
 
-static irqreturn_t port_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t port_interrupt(int irq, void *data)
 {
 	struct port_list *port = data;
 

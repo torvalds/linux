@@ -1086,6 +1086,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				default:
 					BUG();
 				}
+				cond_resched();
 			}
 			if (pages) {
 				pages[i] = page;
@@ -2169,11 +2170,13 @@ retry:
 	 * after the next truncate_count read.
 	 */
 
-	/* no page was available -- either SIGBUS or OOM */
-	if (new_page == NOPAGE_SIGBUS)
+	/* no page was available -- either SIGBUS, OOM or REFAULT */
+	if (unlikely(new_page == NOPAGE_SIGBUS))
 		return VM_FAULT_SIGBUS;
-	if (new_page == NOPAGE_OOM)
+	else if (unlikely(new_page == NOPAGE_OOM))
 		return VM_FAULT_OOM;
+	else if (unlikely(new_page == NOPAGE_REFAULT))
+		return VM_FAULT_MINOR;
 
 	/*
 	 * Should we do an early C-O-W break?
