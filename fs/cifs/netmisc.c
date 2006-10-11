@@ -946,6 +946,15 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 	year = sd->Year;
 	days += year * 365;
 	days += (year/4); /* leap year */
+	/* generalized leap year calculation is more complex, ie no leap year
+	for years/100 except for years/400, but since the maximum number for DOS
+	 year is 2**7, the last year is 1980+127, which means we need only
+	 consider 2 special case years, ie the years 2000 and 2100, and only
+	 adjust for the lack of leap year for the year 2100, as 2000 was a 
+	 leap year (divisable by 400) */
+	if(year >= 120)  /* the year 2100 */
+		days = days - 1;  /* do not count leap year for the year 2100 */
+
 	/* adjust for leap year where we are still before leap day */
 	days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days; 
