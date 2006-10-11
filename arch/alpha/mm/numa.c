@@ -13,12 +13,14 @@
 #include <linux/swap.h>
 #include <linux/initrd.h>
 #include <linux/pfn.h>
+#include <linux/module.h>
 
 #include <asm/hwrpb.h>
 #include <asm/pgalloc.h>
 
 pg_data_t node_data[MAX_NUMNODES];
 bootmem_data_t node_bdata[MAX_NUMNODES];
+EXPORT_SYMBOL(node_data);
 
 #undef DEBUG_DISCONTIG
 #ifdef DEBUG_DISCONTIG

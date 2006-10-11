@@ -66,6 +66,7 @@ static struct notifier_block alpha_panic_block = {
 
 
 struct hwrpb_struct *hwrpb;
+EXPORT_SYMBOL(hwrpb);
 unsigned long srm_hae;
 
 int alpha_l1i_cacheshape;
@@ -111,6 +112,7 @@ unsigned long alpha_agpgart_size = DEFAULT_AGP_APER_SIZE;
 #ifdef CONFIG_ALPHA_GENERIC
 struct alpha_machine_vector alpha_mv;
 int alpha_using_srm;
+EXPORT_SYMBOL(alpha_using_srm);
 #endif
 
 static struct alpha_machine_vector *get_sysvec(unsigned long, unsigned long,
@@ -137,6 +139,8 @@ struct screen_info screen_info = {
 	.orig_video_points = 16
 };
 
+EXPORT_SYMBOL(screen_info);
+
 /*
  * The direct map I/O window, if any.  This should be the same
  * for all busses, since it's used by virt_to_bus.
@@ -144,6 +148,8 @@ struct screen_info screen_info = {
 
 unsigned long __direct_map_base;
 unsigned long __direct_map_size;
+EXPORT_SYMBOL(__direct_map_base);
+EXPORT_SYMBOL(__direct_map_size);
 
 /*
  * Declare all of the machine vectors.

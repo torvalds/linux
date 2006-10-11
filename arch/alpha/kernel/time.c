@@ -57,6 +57,7 @@
 static int set_rtc_mmss(unsigned long);
 
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 
 #define TICK_SIZE (tick_nsec / 1000)
 
