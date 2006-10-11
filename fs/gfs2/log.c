@@ -569,16 +569,15 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle)
 		log_write_header(sdp, 0, PULL);
 	lops_after_commit(sdp, ai);
+
+	gfs2_log_lock(sdp);
 	sdp->sd_log_head = sdp->sd_log_flush_head;
-
 	sdp->sd_log_blks_free -= sdp->sd_log_num_hdrs;
-
 	sdp->sd_log_blks_reserved = 0;
 	sdp->sd_log_commited_buf = 0;
 	sdp->sd_log_num_hdrs = 0;
 	sdp->sd_log_commited_revoke = 0;
 
-	gfs2_log_lock(sdp);
 	if (!list_empty(&ai->ai_ail1_list)) {
 		list_add(&ai->ai_list, &sdp->sd_ail1_list);
 		ai = NULL;
