@@ -45,7 +45,6 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 		fput(sbi->pipe);	/* Close the pipe */
 		sbi->pipe = NULL;
 	}
-	shrink_dcache_sb(sbi->sb);
 }
 
 static int autofs4_write(struct file *file, const void *addr, int bytes)
