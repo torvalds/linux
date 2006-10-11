@@ -25,6 +25,19 @@ config PCI
 config PCMCIA
 	bool
 
+# Yet to do!
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default n
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
