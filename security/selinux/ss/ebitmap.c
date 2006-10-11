@@ -93,11 +93,15 @@ int ebitmap_export(const struct ebitmap *src,
 	size_t bitmap_byte;
 	unsigned char bitmask;
 
+	if (src->highbit == 0) {
+		*dst = NULL;
+		*dst_len = 0;
+		return 0;
+	}
+
 	bitmap_len = src->highbit / 8;
 	if (src->highbit % 7)
 		bitmap_len += 1;
-	if (bitmap_len == 0)
-		return -EINVAL;
 
 	bitmap = kzalloc((bitmap_len & ~(sizeof(MAPTYPE) - 1)) +
 			 sizeof(MAPTYPE),
