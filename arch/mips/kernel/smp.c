@@ -310,7 +310,7 @@ static void flush_tlb_all_ipi(void *info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(flush_tlb_all_ipi, 0, 1, 1);
+	on_each_cpu(flush_tlb_all_ipi, NULL, 1, 1);
 }
 
 static void flush_tlb_mm_ipi(void *mm)
