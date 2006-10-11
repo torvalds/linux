@@ -272,7 +272,7 @@ write_out_data:
 }
 
 static inline void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
-				   sector_t block)
+				   unsigned long long block)
 {
 	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
 	if (tag_bytes > JBD_TAG_SIZE32)
@@ -293,7 +293,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int bufs;
 	int flags;
 	int err;
-	sector_t blocknr;
+	unsigned long long blocknr;
 	char *tagp = NULL;
 	journal_header_t *header;
 	journal_block_tag_t *tag = NULL;

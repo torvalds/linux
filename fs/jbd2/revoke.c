@@ -81,7 +81,7 @@ struct jbd2_revoke_record_s
 {
 	struct list_head  hash;
 	tid_t		  sequence;	/* Used for recovery only */
-	sector_t	  blocknr;
+	unsigned long long	  blocknr;
 };
 
 
@@ -106,7 +106,7 @@ static void flush_descriptor(journal_t *, struct journal_head *, int);
 /* Utility functions to maintain the revoke table */
 
 /* Borrowed from buffer.c: this is a tried and tested block hash function */
-static inline int hash(journal_t *journal, sector_t block)
+static inline int hash(journal_t *journal, unsigned long long block)
 {
 	struct jbd2_revoke_table_s *table = journal->j_revoke;
 	int hash_shift = table->hash_shift;
@@ -117,7 +117,7 @@ static inline int hash(journal_t *journal, sector_t block)
 		(hash << (hash_shift - 12))) & (table->hash_size - 1);
 }
 
-static int insert_revoke_hash(journal_t *journal, sector_t blocknr,
+static int insert_revoke_hash(journal_t *journal, unsigned long long blocknr,
 			      tid_t seq)
 {
 	struct list_head *hash_list;
@@ -147,7 +147,7 @@ oom:
 /* Find a revoke record in the journal's hash table. */
 
 static struct jbd2_revoke_record_s *find_revoke_record(journal_t *journal,
-						      sector_t blocknr)
+						      unsigned long long blocknr)
 {
 	struct list_head *hash_list;
 	struct jbd2_revoke_record_s *record;
@@ -326,7 +326,7 @@ void jbd2_journal_destroy_revoke(journal_t *journal)
  * by one.
  */
 
-int jbd2_journal_revoke(handle_t *handle, sector_t blocknr,
+int jbd2_journal_revoke(handle_t *handle, unsigned long long blocknr,
 		   struct buffer_head *bh_in)
 {
 	struct buffer_head *bh = NULL;
@@ -650,7 +650,7 @@ static void flush_descriptor(journal_t *journal,
  */
 
 int jbd2_journal_set_revoke(journal_t *journal,
-		       sector_t blocknr,
+		       unsigned long long blocknr,
 		       tid_t sequence)
 {
 	struct jbd2_revoke_record_s *record;
@@ -674,7 +674,7 @@ int jbd2_journal_set_revoke(journal_t *journal,
  */
 
 int jbd2_journal_test_revoke(journal_t *journal,
-			sector_t blocknr,
+			unsigned long long blocknr,
 			tid_t sequence)
 {
 	struct jbd2_revoke_record_s *record;

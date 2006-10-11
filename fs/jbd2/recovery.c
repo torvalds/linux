@@ -70,7 +70,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 {
 	int err;
 	unsigned int max, nbufs, next;
-	sector_t blocknr;
+	unsigned long long blocknr;
 	struct buffer_head *bh;
 
 	struct buffer_head * bufs[MAXBUF];
@@ -132,7 +132,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 		 unsigned int offset)
 {
 	int err;
-	sector_t blocknr;
+	unsigned long long blocknr;
 	struct buffer_head *bh;
 
 	*bhp = NULL;
@@ -308,9 +308,9 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 	return err;
 }
 
-static inline sector_t read_tag_block(int tag_bytes, journal_block_tag_t *tag)
+static inline unsigned long long read_tag_block(int tag_bytes, journal_block_tag_t *tag)
 {
-	sector_t block = be32_to_cpu(tag->t_blocknr);
+	unsigned long long block = be32_to_cpu(tag->t_blocknr);
 	if (tag_bytes > JBD_TAG_SIZE32)
 		block |= (u64)be32_to_cpu(tag->t_blocknr_high) << 32;
 	return block;
@@ -452,7 +452,7 @@ static int do_one_pass(journal_t *journal,
 						"block %ld in log\n",
 						err, io_block);
 				} else {
-					sector_t blocknr;
+					unsigned long long blocknr;
 
 					J_ASSERT(obh != NULL);
 					blocknr = read_tag_block(tag_bytes,
@@ -592,7 +592,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 		record_len = 8;
 
 	while (offset + record_len <= max) {
-		sector_t blocknr;
+		unsigned long long blocknr;
 		int err;
 
 		if (record_len == 4)

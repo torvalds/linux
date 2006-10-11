@@ -741,7 +741,7 @@ struct journal_s
 	 */
 	struct block_device	*j_dev;
 	int			j_blocksize;
-	sector_t		j_blk_offset;
+	unsigned long long		j_blk_offset;
 
 	/*
 	 * Device which holds the client fs.  For internal journal this will be
@@ -860,7 +860,7 @@ extern void __journal_clean_data_list(transaction_t *transaction);
 
 /* Log buffer allocation */
 extern struct journal_head * jbd2_journal_get_descriptor_buffer(journal_t *);
-int jbd2_journal_next_log_block(journal_t *, sector_t *);
+int jbd2_journal_next_log_block(journal_t *, unsigned long long *);
 
 /* Commit management */
 extern void jbd2_journal_commit_transaction(journal_t *);
@@ -875,7 +875,7 @@ extern int
 jbd2_journal_write_metadata_buffer(transaction_t	  *transaction,
 			      struct journal_head  *jh_in,
 			      struct journal_head **jh_out,
-			      sector_t	   blocknr);
+			      unsigned long long   blocknr);
 
 /* Transaction locking */
 extern void		__wait_on_journal (journal_t *);
@@ -923,7 +923,7 @@ extern void	 jbd2_journal_unlock_updates (journal_t *);
 
 extern journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 				struct block_device *fs_dev,
-				sector_t start, int len, int bsize);
+				unsigned long long start, int len, int bsize);
 extern journal_t * jbd2_journal_init_inode (struct inode *);
 extern int	   jbd2_journal_update_format (journal_t *);
 extern int	   jbd2_journal_check_used_features
@@ -944,7 +944,7 @@ extern void	   jbd2_journal_abort      (journal_t *, int);
 extern int	   jbd2_journal_errno      (journal_t *);
 extern void	   jbd2_journal_ack_err    (journal_t *);
 extern int	   jbd2_journal_clear_err  (journal_t *);
-extern int	   jbd2_journal_bmap(journal_t *, unsigned long, sector_t *);
+extern int	   jbd2_journal_bmap(journal_t *, unsigned long, unsigned long long *);
 extern int	   jbd2_journal_force_commit(journal_t *);
 
 /*
@@ -977,13 +977,13 @@ extern void	   jbd2_journal_destroy_revoke_caches(void);
 extern int	   jbd2_journal_init_revoke_caches(void);
 
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
-extern int	   jbd2_journal_revoke (handle_t *, sector_t, struct buffer_head *);
+extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
 extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
 extern void	   jbd2_journal_write_revoke_records(journal_t *, transaction_t *);
 
 /* Recovery revoke support */
-extern int	jbd2_journal_set_revoke(journal_t *, sector_t, tid_t);
-extern int	jbd2_journal_test_revoke(journal_t *, sector_t, tid_t);
+extern int	jbd2_journal_set_revoke(journal_t *, unsigned long long, tid_t);
+extern int	jbd2_journal_test_revoke(journal_t *, unsigned long long, tid_t);
 extern void	jbd2_journal_clear_revoke(journal_t *);
 extern void	jbd2_journal_switch_revoke_table(journal_t *journal);
 
