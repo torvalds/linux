@@ -1,5 +1,5 @@
 /*
- *  linux/fs/ext3/hash.c
+ *  linux/fs/ext4/hash.c
  *
  * Copyright (C) 2002 by Theodore Ts'o
  *
@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/jbd.h>
 #include <linux/sched.h>
-#include <linux/ext3_fs.h>
+#include <linux/ext4_fs.h>
 #include <linux/cryptohash.h>
 
 #define DELTA 0x9E3779B9
@@ -89,7 +89,7 @@ static void str2hashbuf(const char *msg, int len, __u32 *buf, int num)
  * represented, and whether or not the returned hash is 32 bits or 64
  * bits.  32 bit hashes will return 0 for the minor hash.
  */
-int ext3fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
+int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 {
 	__u32	hash;
 	__u32	minor_hash = 0;
@@ -144,8 +144,8 @@ int ext3fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 		return -1;
 	}
 	hash = hash & ~1;
-	if (hash == (EXT3_HTREE_EOF << 1))
-		hash = (EXT3_HTREE_EOF-1) << 1;
+	if (hash == (EXT4_HTREE_EOF << 1))
+		hash = (EXT4_HTREE_EOF-1) << 1;
 	hinfo->hash = hash;
 	hinfo->minor_hash = minor_hash;
 	return 0;

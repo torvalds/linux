@@ -1,5 +1,5 @@
 /*
- * linux/fs/ext3/xattr_user.c
+ * linux/fs/ext4/xattr_user.c
  * Handler for extended user attributes.
  *
  * Copyright (C) 2001 by Andreas Gruenbacher, <a.gruenbacher@computer.org>
@@ -9,14 +9,14 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
-#include <linux/ext3_jbd.h>
-#include <linux/ext3_fs.h>
+#include <linux/ext4_jbd.h>
+#include <linux/ext4_fs.h>
 #include "xattr.h"
 
 #define XATTR_USER_PREFIX "user."
 
 static size_t
-ext3_xattr_user_list(struct inode *inode, char *list, size_t list_size,
+ext4_xattr_user_list(struct inode *inode, char *list, size_t list_size,
 		     const char *name, size_t name_len)
 {
 	const size_t prefix_len = sizeof(XATTR_USER_PREFIX)-1;
@@ -34,31 +34,31 @@ ext3_xattr_user_list(struct inode *inode, char *list, size_t list_size,
 }
 
 static int
-ext3_xattr_user_get(struct inode *inode, const char *name,
+ext4_xattr_user_get(struct inode *inode, const char *name,
 		    void *buffer, size_t size)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
 	if (!test_opt(inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext3_xattr_get(inode, EXT3_XATTR_INDEX_USER, name, buffer, size);
+	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_USER, name, buffer, size);
 }
 
 static int
-ext3_xattr_user_set(struct inode *inode, const char *name,
+ext4_xattr_user_set(struct inode *inode, const char *name,
 		    const void *value, size_t size, int flags)
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
 	if (!test_opt(inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext3_xattr_set(inode, EXT3_XATTR_INDEX_USER, name,
+	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_USER, name,
 			      value, size, flags);
 }
 
-struct xattr_handler ext3_xattr_user_handler = {
+struct xattr_handler ext4_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.list	= ext3_xattr_user_list,
-	.get	= ext3_xattr_user_get,
-	.set	= ext3_xattr_user_set,
+	.list	= ext4_xattr_user_list,
+	.get	= ext4_xattr_user_get,
+	.set	= ext4_xattr_user_set,
 };

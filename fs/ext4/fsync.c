@@ -1,5 +1,5 @@
 /*
- *  linux/fs/ext3/fsync.c
+ *  linux/fs/ext4/fsync.c
  *
  *  Copyright (C) 1993  Stephen Tweedie (sct@redhat.com)
  *  from
@@ -9,7 +9,7 @@
  *  from
  *  linux/fs/minix/truncate.c   Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  ext3fs fsync primitive
+ *  ext4fs fsync primitive
  *
  *  Big-endian to little-endian byte-swapping/bitmaps by
  *        David S. Miller (davem@caip.rutgers.edu), 1995
@@ -27,11 +27,11 @@
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
+#include <linux/ext4_fs.h>
+#include <linux/ext4_jbd.h>
 
 /*
- * akpm: A new design for ext3_sync_file().
+ * akpm: A new design for ext4_sync_file().
  *
  * This is only called from sys_fsync(), sys_fdatasync() and sys_msync().
  * There cannot be a transaction open by this task.
@@ -42,12 +42,12 @@
  * inode to disk.
  */
 
-int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
+int ext4_sync_file(struct file * file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	int ret = 0;
 
-	J_ASSERT(ext3_journal_current_handle() == 0);
+	J_ASSERT(ext4_journal_current_handle() == 0);
 
 	/*
 	 * data=writeback:
@@ -61,14 +61,14 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 	 *
 	 * data=journal:
 	 *  filemap_fdatawrite won't do anything (the buffers are clean).
-	 *  ext3_force_commit will write the file data into the journal and
+	 *  ext4_force_commit will write the file data into the journal and
 	 *  will wait on that.
 	 *  filemap_fdatawait() will encounter a ton of newly-dirtied pages
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext3_should_journal_data(inode)) {
-		ret = ext3_force_commit(inode->i_sb);
+	if (ext4_should_journal_data(inode)) {
+		ret = ext4_force_commit(inode->i_sb);
 		goto out;
 	}
 

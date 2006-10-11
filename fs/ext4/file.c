@@ -1,5 +1,5 @@
 /*
- *  linux/fs/ext3/file.c
+ *  linux/fs/ext4/file.c
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -12,7 +12,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  ext3 fs regular file handling primitives
+ *  ext4 fs regular file handling primitives
  *
  *  64-bit file support on 64-bit platforms by Jakub Jelinek
  *	(jj@sunsite.ms.mff.cuni.cz)
@@ -21,34 +21,34 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
+#include <linux/ext4_fs.h>
+#include <linux/ext4_jbd.h>
 #include "xattr.h"
 #include "acl.h"
 
 /*
  * Called when an inode is released. Note that this is different
- * from ext3_file_open: open gets called at every open, but release
+ * from ext4_file_open: open gets called at every open, but release
  * gets called only when /all/ the files are closed.
  */
-static int ext3_release_file (struct inode * inode, struct file * filp)
+static int ext4_release_file (struct inode * inode, struct file * filp)
 {
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
 			(atomic_read(&inode->i_writecount) == 1))
 	{
-		mutex_lock(&EXT3_I(inode)->truncate_mutex);
-		ext3_discard_reservation(inode);
-		mutex_unlock(&EXT3_I(inode)->truncate_mutex);
+		mutex_lock(&EXT4_I(inode)->truncate_mutex);
+		ext4_discard_reservation(inode);
+		mutex_unlock(&EXT4_I(inode)->truncate_mutex);
 	}
 	if (is_dx(inode) && filp->private_data)
-		ext3_htree_free_dir_info(filp->private_data);
+		ext4_htree_free_dir_info(filp->private_data);
 
 	return 0;
 }
 
 static ssize_t
-ext3_file_write(struct kiocb *iocb, const struct iovec *iov,
+ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		unsigned long nr_segs, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
@@ -79,7 +79,7 @@ ext3_file_write(struct kiocb *iocb, const struct iovec *iov,
 		 * Open question --- do we care about flushing timestamps too
 		 * if the inode is IS_SYNC?
 		 */
-		if (!ext3_should_journal_data(inode))
+		if (!ext4_should_journal_data(inode))
 			return ret;
 
 		goto force_commit;
@@ -100,40 +100,40 @@ ext3_file_write(struct kiocb *iocb, const struct iovec *iov,
 	 */
 
 force_commit:
-	err = ext3_force_commit(inode->i_sb);
+	err = ext4_force_commit(inode->i_sb);
 	if (err)
 		return err;
 	return ret;
 }
 
-const struct file_operations ext3_file_operations = {
+const struct file_operations ext4_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.aio_read	= generic_file_aio_read,
-	.aio_write	= ext3_file_write,
-	.ioctl		= ext3_ioctl,
+	.aio_write	= ext4_file_write,
+	.ioctl		= ext4_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= ext3_compat_ioctl,
+	.compat_ioctl	= ext4_compat_ioctl,
 #endif
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
-	.release	= ext3_release_file,
-	.fsync		= ext3_sync_file,
+	.release	= ext4_release_file,
+	.fsync		= ext4_sync_file,
 	.sendfile	= generic_file_sendfile,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 };
 
-struct inode_operations ext3_file_inode_operations = {
-	.truncate	= ext3_truncate,
-	.setattr	= ext3_setattr,
-#ifdef CONFIG_EXT3_FS_XATTR
+struct inode_operations ext4_file_inode_operations = {
+	.truncate	= ext4_truncate,
+	.setattr	= ext4_setattr,
+#ifdef CONFIG_EXT4DEV_FS_XATTR
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,
-	.listxattr	= ext3_listxattr,
+	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.permission	= ext3_permission,
+	.permission	= ext4_permission,
 };
 
