@@ -832,8 +832,8 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
-		net_spot_max = host_cat_len - 1;
-		while (net_spot_max > 0 && host_cat[net_spot_max] == 0)
+		net_spot_max = host_cat_len;
+		while (net_spot_max > 0 && host_cat[net_spot_max - 1] == 0)
 			net_spot_max--;
 		if (net_spot_max > net_cat_len)
 			return -EINVAL;
