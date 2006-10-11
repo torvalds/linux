@@ -956,7 +956,8 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		days = days - 1;  /* do not count leap year for the year 2100 */
 
 	/* adjust for leap year where we are still before leap day */
-	days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
+	if(year != 120)
+		days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days; 
 
 	ts.tv_sec = sec;
