@@ -273,10 +273,10 @@ static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp)
 {
 	if (tp->rx_opt.tstamp_ok) {
-		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) |
-					  (TCPOPT_NOP << 16) |
-					  (TCPOPT_TIMESTAMP << 8) |
-					  TCPOLEN_TIMESTAMP);
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_TIMESTAMP << 8) |
+			       TCPOLEN_TIMESTAMP);
 		*ptr++ = htonl(tstamp);
 		*ptr++ = htonl(tp->rx_opt.ts_recent);
 	}
@@ -325,18 +325,27 @@ static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 	*ptr++ = htonl((TCPOPT_MSS << 24) | (TCPOLEN_MSS << 16) | mss);
 	if (ts) {
 		if(sack)
-			*ptr++ = __constant_htonl((TCPOPT_SACK_PERM << 24) | (TCPOLEN_SACK_PERM << 16) |
-						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+			*ptr++ = htonl((TCPOPT_SACK_PERM << 24) |
+				       (TCPOLEN_SACK_PERM << 16) |
+				       (TCPOPT_TIMESTAMP << 8) |
+				       TCPOLEN_TIMESTAMP);
 		else
-			*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+			*ptr++ = htonl((TCPOPT_NOP << 24) |
+				       (TCPOPT_NOP << 16) |
+				       (TCPOPT_TIMESTAMP << 8) |
+				       TCPOLEN_TIMESTAMP);
 		*ptr++ = htonl(tstamp);		/* TSVAL */
 		*ptr++ = htonl(ts_recent);	/* TSECR */
 	} else if(sack)
-		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-					  (TCPOPT_SACK_PERM << 8) | TCPOLEN_SACK_PERM);
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_SACK_PERM << 8) |
+			       TCPOLEN_SACK_PERM);
 	if (offer_wscale)
-		*ptr++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_WINDOW << 16) | (TCPOLEN_WINDOW << 8) | (wscale));
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_WINDOW << 16) |
+			       (TCPOLEN_WINDOW << 8) |
+			       (wscale));
 }
 
 /* This routine actually transmits TCP packets queued in by
