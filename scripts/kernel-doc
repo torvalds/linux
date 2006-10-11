@@ -1518,6 +1518,9 @@ sub dump_function($$) {
     $prototype =~ s/^asmlinkage +//;
     $prototype =~ s/^inline +//;
     $prototype =~ s/^__inline__ +//;
+    $prototype =~ s/^__inline +//;
+    $prototype =~ s/^__always_inline +//;
+    $prototype =~ s/^noinline +//;
     $prototype =~ s/__devinit +//;
     $prototype =~ s/^#define +//; #ak added
     $prototype =~ s/__attribute__ \(\([a-z,]*\)\)//;
