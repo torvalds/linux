@@ -639,7 +639,12 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 
 	kobject_set_name(&new_efivar->kobj, "%s", short_name);
 	kobj_set_kset_s(new_efivar, vars_subsys);
-	kobject_register(&new_efivar->kobj);
+	i = kobject_register(&new_efivar->kobj);
+	if (i) {
+		kfree(short_name);
+		kfree(new_efivar);
+		return 1;
+	}
 
 	kfree(short_name);
 	short_name = NULL;
