@@ -74,10 +74,12 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 		return NULL;
 	}
 
-	desc = (struct ext4_group_desc *) sbi->s_group_desc[group_desc]->b_data;
+	desc = (struct ext4_group_desc *)(
+		(__u8 *)sbi->s_group_desc[group_desc]->b_data +
+		offset * EXT4_DESC_SIZE(sb));
 	if (bh)
 		*bh = sbi->s_group_desc[group_desc];
-	return desc + offset;
+	return desc;
 }
 
 /**

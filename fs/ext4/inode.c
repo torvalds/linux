@@ -2432,14 +2432,16 @@ static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 		return 0;
 	}
 
-	gdp = (struct ext4_group_desc *)bh->b_data;
+	gdp = (struct ext4_group_desc *)((__u8 *)bh->b_data +
+		desc * EXT4_DESC_SIZE(sb));
 	/*
 	 * Figure out the offset within the block group inode table
 	 */
 	offset = ((ino - 1) % EXT4_INODES_PER_GROUP(sb)) *
 		EXT4_INODE_SIZE(sb);
-	block = ext4_inode_table(gdp + desc) +
-			(offset >> EXT4_BLOCK_SIZE_BITS(sb));
+	block = ext4_inode_table(gdp) + (offset >> EXT4_BLOCK_SIZE_BITS(sb));
+
+
 
 	iloc->block_group = block_group;
 	iloc->offset = offset & (EXT4_BLOCK_SIZE(sb) - 1);

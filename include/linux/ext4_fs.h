@@ -142,6 +142,9 @@ struct ext4_group_desc
 /*
  * Macro-instructions used to manage group descriptors
  */
+#define EXT4_MIN_DESC_SIZE		32
+#define	EXT4_MAX_DESC_SIZE		EXT4_MIN_BLOCK_SIZE
+#define EXT4_DESC_SIZE(s)		(EXT4_SB(s)->s_desc_size)
 #ifdef __KERNEL__
 # define EXT4_BLOCKS_PER_GROUP(s)	(EXT4_SB(s)->s_blocks_per_group)
 # define EXT4_DESC_PER_BLOCK(s)		(EXT4_SB(s)->s_desc_per_block)
@@ -149,7 +152,7 @@ struct ext4_group_desc
 # define EXT4_DESC_PER_BLOCK_BITS(s)	(EXT4_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT4_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
-# define EXT4_DESC_PER_BLOCK(s)		(EXT4_BLOCK_SIZE(s) / sizeof (struct ext4_group_desc))
+# define EXT4_DESC_PER_BLOCK(s)		(EXT4_BLOCK_SIZE(s) / EXT4_DESC_SIZE(s))
 # define EXT4_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
 #endif
 
@@ -474,7 +477,7 @@ struct ext4_super_block {
 	 * things it doesn't understand...
 	 */
 	__le32	s_first_ino;		/* First non-reserved inode */
-	__le16   s_inode_size;		/* size of inode structure */
+	__le16  s_inode_size;		/* size of inode structure */
 	__le16	s_block_group_nr;	/* block group # of this superblock */
 	__le32	s_feature_compat;	/* compatible feature set */
 /*60*/	__le32	s_feature_incompat;	/* incompatible feature set */
@@ -500,7 +503,7 @@ struct ext4_super_block {
 	__le32	s_hash_seed[4];		/* HTREE hash seed */
 	__u8	s_def_hash_version;	/* Default hash version to use */
 	__u8	s_reserved_char_pad;
-	__u16	s_reserved_word_pad;
+	__le16  s_desc_size;		/* size of group descriptor */
 /*100*/	__le32	s_default_mount_opts;
 	__le32	s_first_meta_bg;	/* First metablock block group */
 	__le32	s_mkfs_time;		/* When the filesystem was created */

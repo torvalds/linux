@@ -1268,7 +1268,8 @@ static int ext4_check_descriptors (struct super_block * sb)
 			return 0;
 		}
 		first_block += EXT4_BLOCKS_PER_GROUP(sb);
-		gdp++;
+		gdp = (struct ext4_group_desc *)
+			((__u8 *)gdp + EXT4_DESC_SIZE(sb));
 	}
 
 	ext4_free_blocks_count_set(sbi->s_es, ext4_count_free_blocks(sb));
@@ -1619,7 +1620,18 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		       sbi->s_frag_size, blocksize);
 		goto failed_mount;
 	}
-	sbi->s_frags_per_block = 1;
+	sbi->s_desc_size = le16_to_cpu(es->s_desc_size);
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT)) {
+		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE ||
+		    sbi->s_desc_size > EXT4_MAX_DESC_SIZE ||
+		    sbi->s_desc_size & (sbi->s_desc_size - 1)) {
+			printk(KERN_ERR
+			       "EXT4-fs: unsupported descriptor size %ld\n",
+			       sbi->s_desc_size);
+			goto failed_mount;
+		}
+	} else
+		sbi->s_desc_size = EXT4_MIN_DESC_SIZE;
 	sbi->s_blocks_per_group = le32_to_cpu(es->s_blocks_per_group);
 	sbi->s_frags_per_group = le32_to_cpu(es->s_frags_per_group);
 	sbi->s_inodes_per_group = le32_to_cpu(es->s_inodes_per_group);
@@ -1630,7 +1642,7 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		goto cantfind_ext4;
 	sbi->s_itb_per_group = sbi->s_inodes_per_group /
 					sbi->s_inodes_per_block;
-	sbi->s_desc_per_block = blocksize / sizeof(struct ext4_group_desc);
+	sbi->s_desc_per_block = blocksize / EXT4_DESC_SIZE(sb);
 	sbi->s_sbh = bh;
 	sbi->s_mount_state = le16_to_cpu(es->s_state);
 	sbi->s_addr_per_block_bits = log2(EXT4_ADDR_PER_BLOCK(sb));
