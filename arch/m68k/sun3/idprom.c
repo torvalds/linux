@@ -6,6 +6,7 @@
  * Sun3/3x models added by David Monro (davidm@psrg.cs.usyd.edu.au)
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -16,6 +17,8 @@
 #include <asm/machines.h>  /* Fun with Sun released architectures. */
 
 struct idprom *idprom;
+EXPORT_SYMBOL(idprom);
+
 static struct idprom idprom_buffer;
 
 /* Here is the master table of Sun machines which use some implementation

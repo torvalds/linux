@@ -187,6 +187,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	set_fs (fs);
 	return pid;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
@@ -311,6 +312,7 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 		: "memory");
 	return 1;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 /*
  * fill in the user structure for a core dump..
@@ -357,6 +359,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	/* dump floating point stuff */
 	dump->u_fpvalid = dump_fpu (regs, &dump->m68kfp);
 }
+EXPORT_SYMBOL(dump_thread);
 
 /*
  * sys_execve() executes a new program.
