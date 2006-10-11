@@ -773,13 +773,15 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 {
 	int cat = -1;
 	u32 bitmap_len_bits = bitmap_len * 8;
-	u32 cipso_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *cipso_array = doi_def->map.std->cat.cipso;
+	u32 cipso_cat_size;
+	u32 *cipso_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
 		return 0;
 	case CIPSO_V4_MAP_STD:
+		cipso_cat_size = doi_def->map.std->cat.cipso_size;
+		cipso_array = doi_def->map.std->cat.cipso;
 		for (;;) {
 			cat = cipso_v4_bitmap_walk(bitmap,
 						   bitmap_len_bits,
@@ -825,8 +827,8 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 	u32 net_spot_max = 0;
 	u32 host_clen_bits = host_cat_len * 8;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_cat_size = doi_def->map.std->cat.local_size;
-	u32 *host_cat_array = doi_def->map.std->cat.local;
+	u32 host_cat_size;
+	u32 *host_cat_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
@@ -838,6 +840,8 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 		memcpy(net_cat, host_cat, net_spot_max);
 		return net_spot_max;
 	case CIPSO_V4_MAP_STD:
+		host_cat_size = doi_def->map.std->cat.local_size;
+		host_cat_array = doi_def->map.std->cat.local;
 		for (;;) {
 			host_spot = cipso_v4_bitmap_walk(host_cat,
 							 host_clen_bits,
@@ -893,8 +897,8 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 	int net_spot = -1;
 	u32 net_clen_bits = net_cat_len * 8;
 	u32 host_clen_bits = host_cat_len * 8;
-	u32 net_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *net_cat_array = doi_def->map.std->cat.cipso;
+	u32 net_cat_size;
+	u32 *net_cat_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
@@ -903,6 +907,8 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 		memcpy(host_cat, net_cat, net_cat_len);
 		return net_cat_len;
 	case CIPSO_V4_MAP_STD:
+		net_cat_size = doi_def->map.std->cat.cipso_size;
+		net_cat_array = doi_def->map.std->cat.cipso;
 		for (;;) {
 			net_spot = cipso_v4_bitmap_walk(net_cat,
 							net_clen_bits,
