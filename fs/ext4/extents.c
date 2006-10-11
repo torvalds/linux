@@ -1014,7 +1014,7 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
  * returns first allocated block from next leaf or EXT_MAX_BLOCK
  */
 static unsigned ext4_ext_next_leaf_block(struct inode *inode,
-                                               struct ext4_ext_path *path)
+					struct ext4_ext_path *path)
 {
 	int depth;
 
@@ -1097,8 +1097,8 @@ static int inline
 ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 				struct ext4_extent *ex2)
 {
-        if (le32_to_cpu(ex1->ee_block) + le16_to_cpu(ex1->ee_len)
-	    != le32_to_cpu(ex2->ee_block))
+	if (le32_to_cpu(ex1->ee_block) + le16_to_cpu(ex1->ee_len) !=
+			le32_to_cpu(ex2->ee_block))
 		return 0;
 
 	/*
@@ -1113,7 +1113,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 		return 0;
 #endif
 
-        if (ext_pblock(ex1) + le16_to_cpu(ex1->ee_len) == ext_pblock(ex2))
+	if (ext_pblock(ex1) + le16_to_cpu(ex1->ee_len) == ext_pblock(ex2))
 		return 1;
 	return 0;
 }
@@ -2008,9 +2008,9 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		goto out2;
 	}
 	/*
-         * Okay, we need to do block allocation.  Lazily initialize the block
-         * allocation info here if necessary.
-        */
+	 * Okay, we need to do block allocation.  Lazily initialize the block
+	 * allocation info here if necessary.
+	 */
 	if (S_ISREG(inode->i_mode) && (!EXT4_I(inode)->i_block_alloc_info))
 		ext4_init_block_alloc_info(inode);
 

@@ -141,7 +141,7 @@ ext4_iget_acl(struct inode *inode, struct posix_acl **i_acl)
 
 static inline void
 ext4_iset_acl(struct inode *inode, struct posix_acl **i_acl,
-                  struct posix_acl *acl)
+		struct posix_acl *acl)
 {
 	spin_lock(&inode->i_lock);
 	if (*i_acl != EXT4_ACL_NOT_CACHED)
@@ -375,7 +375,7 @@ int
 ext4_acl_chmod(struct inode *inode)
 {
 	struct posix_acl *acl, *clone;
-        int error;
+	int error;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;

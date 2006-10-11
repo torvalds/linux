@@ -188,8 +188,9 @@ revalidate:
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
 			if (!ext4_check_dir_entry ("ext4_readdir", inode, de,
 						   bh, offset)) {
-				/* On error, skip the f_pos to the
-                                   next block. */
+				/*
+				 * On error, skip the f_pos to the next block
+				 */
 				filp->f_pos = (filp->f_pos |
 						(sb->s_blocksize - 1)) + 1;
 				brelse (bh);
@@ -508,7 +509,7 @@ finished:
 
 static int ext4_release_dir (struct inode * inode, struct file * filp)
 {
-       if (filp->private_data)
+	if (filp->private_data)
 		ext4_htree_free_dir_info(filp->private_data);
 
 	return 0;
