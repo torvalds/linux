@@ -50,7 +50,6 @@ ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
-	    cdev->private->state != DEV_STATE_WAIT4IO &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
@@ -155,7 +154,6 @@ ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE &&
-	    cdev->private->state != DEV_STATE_WAIT4IO &&
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
@@ -592,13 +590,13 @@ ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 int
 _ccw_device_get_subchannel_number(struct ccw_device *cdev)
 {
-	return cdev->private->sch_no;
+	return cdev->private->schid.sch_no;
 }
 
 int
 _ccw_device_get_device_number(struct ccw_device *cdev)
 {
-	return cdev->private->devno;
+	return cdev->private->dev_id.devno;
 }
 
 

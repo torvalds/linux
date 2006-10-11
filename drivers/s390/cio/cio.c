@@ -609,8 +609,8 @@ do_IRQ (struct pt_regs *regs)
 	struct irb *irb;
 	struct pt_regs *old_regs;
 
-	irq_enter ();
 	old_regs = set_irq_regs(regs);
+	irq_enter();
 	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		/**
@@ -655,8 +655,8 @@ do_IRQ (struct pt_regs *regs)
 		 * out of the sie which costs more cycles than it saves.
 		 */
 	} while (!MACHINE_IS_VM && tpi (NULL) != 0);
+	irq_exit();
 	set_irq_regs(old_regs);
-	irq_exit ();
 }
 
 #ifdef CONFIG_CCW_CONSOLE

@@ -251,7 +251,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		 */
 		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel "
 			      "0.%x.%04x reports cmd reject\n",
-			      cdev->private->devno, sch->schid.ssid,
+			      cdev->private->dev_id.devno, sch->schid.ssid,
 			      sch->schid.sch_no);
 		return -EOPNOTSUPP;
 	}
@@ -259,7 +259,8 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		CIO_MSG_EVENT(2, "SenseID : UC on dev 0.%x.%04x, "
 			      "lpum %02X, cnt %02d, sns :"
 			      " %02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->ssid, cdev->private->devno,
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno,
 			      irb->esw.esw0.sublog.lpum,
 			      irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
@@ -274,14 +275,15 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "
 				      "'not operational'\n", sch->orb.lpm,
-				      cdev->private->devno, sch->schid.ssid,
-				      sch->schid.sch_no);
+				      cdev->private->dev_id.devno,
+				      sch->schid.ssid, sch->schid.sch_no);
 		return -EACCES;
 	}
 	/* Hmm, whatever happened, try again. */
 	CIO_MSG_EVENT(2, "SenseID : start_IO() for device %04x on "
 		      "subchannel 0.%x.%04x returns status %02X%02X\n",
-		      cdev->private->devno, sch->schid.ssid, sch->schid.sch_no,
+		      cdev->private->dev_id.devno, sch->schid.ssid,
+		      sch->schid.sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 	return -EAGAIN;
 }
@@ -330,7 +332,7 @@ ccw_device_sense_id_irq(struct ccw_device *cdev, enum dev_event dev_event)
 		/* fall through. */
 	default:		/* Sense ID failed. Try asking VM. */
 		if (MACHINE_IS_VM) {
-			VM_virtual_device_info (cdev->private->devno,
+			VM_virtual_device_info (cdev->private->dev_id.devno,
 						&cdev->private->senseid);
 			if (cdev->private->senseid.cu_type != 0xFFFF) {
 				/* Got the device information from VM. */
