@@ -311,7 +311,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (sk->sk_state == DCCP_TIME_WAIT) {
-		inet_twsk_put((struct inet_timewait_sock *)sk);
+		inet_twsk_put(inet_twsk(sk));
 		return;
 	}
 
@@ -614,7 +614,7 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 			bh_lock_sock(nsk);
 			return nsk;
 		}
-		inet_twsk_put((struct inet_timewait_sock *)nsk);
+		inet_twsk_put(inet_twsk(nsk));
 		return NULL;
 	}
 
@@ -980,7 +980,7 @@ discard_and_relse:
 	goto discard_it;
 
 do_time_wait:
-	inet_twsk_put((struct inet_timewait_sock *)sk);
+	inet_twsk_put(inet_twsk(sk));
 	goto no_dccp_socket;
 }
 
