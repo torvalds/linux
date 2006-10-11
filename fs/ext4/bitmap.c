@@ -8,7 +8,7 @@
  */
 
 #include <linux/buffer_head.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
 
 #ifdef EXT4FS_DEBUG

@@ -14,9 +14,9 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>
@@ -497,7 +497,7 @@ repeat_in_this_group:
 				goto got;
 			}
 			/* we lost it */
-			journal_release_buffer(handle, bitmap_bh);
+			jbd2_journal_release_buffer(handle, bitmap_bh);
 
 			if (++ino < EXT4_INODES_PER_GROUP(sb))
 				goto repeat_in_this_group;

@@ -22,7 +22,7 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>

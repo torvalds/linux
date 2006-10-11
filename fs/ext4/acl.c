@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include <linux/ext4_fs.h>
 #include "xattr.h"
 #include "acl.h"

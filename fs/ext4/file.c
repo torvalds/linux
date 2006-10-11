@@ -20,9 +20,9 @@
 
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include "xattr.h"
 #include "acl.h"
 

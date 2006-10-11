@@ -25,8 +25,8 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/time.h>
-#include <linux/ext4_jbd.h>
-#include <linux/jbd.h>
+#include <linux/ext4_jbd2.h>
+#include <linux/jbd2.h>
 #include <linux/smp_lock.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
@@ -84,7 +84,7 @@ int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
 	    (!is_metadata && !ext4_should_journal_data(inode))) {
 		if (bh) {
-			BUFFER_TRACE(bh, "call journal_forget");
+			BUFFER_TRACE(bh, "call jbd2_journal_forget");
 			return ext4_journal_forget(handle, bh);
 		}
 		return 0;
@@ -657,7 +657,7 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 failed:
 	/* Allocation failed, free what we already allocated */
 	for (i = 1; i <= n ; i++) {
-		BUFFER_TRACE(branch[i].bh, "call journal_forget");
+		BUFFER_TRACE(branch[i].bh, "call jbd2_journal_forget");
 		ext4_journal_forget(handle, branch[i].bh);
 	}
 	for (i = 0; i <indirect_blks; i++)
@@ -758,7 +758,7 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 
 err_out:
 	for (i = 1; i <= num; i++) {
-		BUFFER_TRACE(where[i].bh, "call journal_forget");
+		BUFFER_TRACE(where[i].bh, "call jbd2_journal_forget");
 		ext4_journal_forget(handle, where[i].bh);
 		ext4_free_blocks(handle,inode,le32_to_cpu(where[i-1].key),1);
 	}
@@ -1119,7 +1119,7 @@ static int walk_page_buffers(	handle_t *handle,
  * To preserve ordering, it is essential that the hole instantiation and
  * the data write be encapsulated in a single transaction.  We cannot
  * close off a transaction and start a new one between the ext4_get_block()
- * and the commit_write().  So doing the journal_start at the start of
+ * and the commit_write().  So doing the jbd2_journal_start at the start of
  * prepare_write() is the right place.
  *
  * Also, this function can nest inside ext4_writepage() ->
@@ -1135,7 +1135,7 @@ static int walk_page_buffers(	handle_t *handle,
  * transaction open and was blocking on the quota lock - a ranking
  * violation.
  *
- * So what we do is to rely on the fact that journal_stop/journal_start
+ * So what we do is to rely on the fact that jbd2_journal_stop/journal_start
  * will _not_ run commit under these circumstances because handle->h_ref
  * is elevated.  We'll still have enough credits for the tiny quotafile
  * write.
@@ -1184,7 +1184,7 @@ out:
 
 int ext4_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 {
-	int err = journal_dirty_data(handle, bh);
+	int err = jbd2_journal_dirty_data(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(__FUNCTION__, __FUNCTION__,
 						bh, handle,err);
@@ -1333,9 +1333,9 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 
 		EXT4_I(inode)->i_state &= ~EXT4_STATE_JDATA;
 		journal = EXT4_JOURNAL(inode);
-		journal_lock_updates(journal);
-		err = journal_flush(journal);
-		journal_unlock_updates(journal);
+		jbd2_journal_lock_updates(journal);
+		err = jbd2_journal_flush(journal);
+		jbd2_journal_unlock_updates(journal);
 
 		if (err)
 			return 0;
@@ -1356,7 +1356,7 @@ static int bput_one(handle_t *handle, struct buffer_head *bh)
 	return 0;
 }
 
-static int journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
+static int jbd2_journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
 {
 	if (buffer_mapped(bh))
 		return ext4_journal_dirty_data(handle, bh);
@@ -1464,7 +1464,7 @@ static int ext4_ordered_writepage(struct page *page,
 	 */
 	if (ret == 0) {
 		err = walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE,
-					NULL, journal_dirty_data_fn);
+					NULL, jbd2_journal_dirty_data_fn);
 		if (!ret)
 			ret = err;
 	}
@@ -1595,7 +1595,7 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	journal_invalidatepage(journal, page, offset);
+	jbd2_journal_invalidatepage(journal, page, offset);
 }
 
 static int ext4_releasepage(struct page *page, gfp_t wait)
@@ -1605,7 +1605,7 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 	WARN_ON(PageChecked(page));
 	if (!page_has_buffers(page))
 		return 0;
-	return journal_try_to_free_buffers(journal, page, wait);
+	return jbd2_journal_try_to_free_buffers(journal, page, wait);
 }
 
 /*
@@ -1982,11 +1982,11 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 
 	/*
 	 * Any buffers which are on the journal will be in memory. We find
-	 * them on the hash table so journal_revoke() will run journal_forget()
+	 * them on the hash table so jbd2_journal_revoke() will run jbd2_journal_forget()
 	 * on them.  We've already detached each block from the file, so
-	 * bforget() in journal_forget() should be safe.
+	 * bforget() in jbd2_journal_forget() should be safe.
 	 *
-	 * AKPM: turn on bforget in journal_forget()!!!
+	 * AKPM: turn on bforget in jbd2_journal_forget()!!!
 	 */
 	for (p = first; p < last; p++) {
 		u32 nr = le32_to_cpu(*p);
@@ -2132,11 +2132,11 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * We've probably journalled the indirect block several
 			 * times during the truncate.  But it's no longer
 			 * needed and we now drop it from the transaction via
-			 * journal_revoke().
+			 * jbd2_journal_revoke().
 			 *
 			 * That's easy if it's exclusively part of this
 			 * transaction.  But if it's part of the committing
-			 * transaction then journal_forget() will simply
+			 * transaction then jbd2_journal_forget() will simply
 			 * brelse() it.  That means that if the underlying
 			 * block is reallocated in ext4_get_block(),
 			 * unmap_underlying_metadata() will find this block
@@ -2251,7 +2251,7 @@ void ext4_truncate(struct inode *inode)
 
 	/*
 	 * We have to lock the EOF page here, because lock_page() nests
-	 * outside journal_start().
+	 * outside jbd2_journal_start().
 	 */
 	if ((inode->i_size & (blocksize - 1)) == 0) {
 		/* Block boundary? Nothing to do */
@@ -3035,7 +3035,7 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	/* the do_update_inode consumes one bh->b_count */
 	get_bh(iloc->bh);
 
-	/* ext4_do_update_inode() does journal_dirty_metadata */
+	/* ext4_do_update_inode() does jbd2_journal_dirty_metadata */
 	err = ext4_do_update_inode(handle, inode, iloc);
 	put_bh(iloc->bh);
 	return err;
@@ -3153,7 +3153,7 @@ static int ext4_pin_inode(handle_t *handle, struct inode *inode)
 		err = ext4_get_inode_loc(inode, &iloc);
 		if (!err) {
 			BUFFER_TRACE(iloc.bh, "get_write_access");
-			err = journal_get_write_access(handle, iloc.bh);
+			err = jbd2_journal_get_write_access(handle, iloc.bh);
 			if (!err)
 				err = ext4_journal_dirty_metadata(handle,
 								  iloc.bh);
@@ -3185,8 +3185,8 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 	if (is_journal_aborted(journal) || IS_RDONLY(inode))
 		return -EROFS;
 
-	journal_lock_updates(journal);
-	journal_flush(journal);
+	jbd2_journal_lock_updates(journal);
+	jbd2_journal_flush(journal);
 
 	/*
 	 * OK, there are no updates running now, and all cached data is
@@ -3202,7 +3202,7 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		EXT4_I(inode)->i_flags &= ~EXT4_JOURNAL_DATA_FL;
 	ext4_set_aops(inode);
 
-	journal_unlock_updates(journal);
+	jbd2_journal_unlock_updates(journal);
 
 	/* Finally we can mark the inode as dirty. */
 

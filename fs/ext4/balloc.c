@@ -14,9 +14,9 @@
 #include <linux/time.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 
@@ -526,12 +526,12 @@ do_more:
 		 * transaction.
 		 *
 		 * Ideally we would want to allow that to happen, but to
-		 * do so requires making journal_forget() capable of
+		 * do so requires making jbd2_journal_forget() capable of
 		 * revoking the queued write of a data block, which
 		 * implies blocking on the journal lock.  *forget()
 		 * cannot block due to truncate races.
 		 *
-		 * Eventually we can fix this by making journal_forget()
+		 * Eventually we can fix this by making jbd2_journal_forget()
 		 * return a status indicating whether or not it was able
 		 * to revoke the buffer.  On successful revoke, it is
 		 * safe not to set the allocation bit in the committed
@@ -1382,7 +1382,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 
 	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
 
-	return journal_force_commit_nested(EXT4_SB(sb)->s_journal);
+	return jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
 }
 
 /**

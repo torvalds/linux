@@ -26,10 +26,10 @@
 
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/time.h>
 #include <linux/ext4_fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/string.h>

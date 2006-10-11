@@ -8,10 +8,10 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/capability.h>
 #include <linux/ext4_fs.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 #include <linux/time.h>
 #include <linux/compat.h>
 #include <linux/smp_lock.h>
@@ -219,9 +219,9 @@ flags_err:
 			return -EFAULT;
 
 		err = ext4_group_extend(sb, EXT4_SB(sb)->s_es, n_blocks_count);
-		journal_lock_updates(EXT4_SB(sb)->s_journal);
-		journal_flush(EXT4_SB(sb)->s_journal);
-		journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+		jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 
 		return err;
 	}
@@ -241,9 +241,9 @@ flags_err:
 			return -EFAULT;
 
 		err = ext4_group_add(sb, &input);
-		journal_lock_updates(EXT4_SB(sb)->s_journal);
-		journal_flush(EXT4_SB(sb)->s_journal);
-		journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+		jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 
 		return err;
 	}

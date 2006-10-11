@@ -143,24 +143,24 @@ config EXT3_FS_SECURITY
 config EXT4DEV_FS
 	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-        select JBD
-        help
+	select JBD2
+	help
 	  Ext4dev is a predecessor filesystem of the next generation
 	  extended fs ext4, based on ext3 filesystem code. It will be
 	  renamed ext4 fs later, once ext4dev is mature and stabilized.
 
-          Unlike the change from ext2 filesystem to ext3 filesystem,
-          the on-disk format of ext4dev is not the same as ext3 any more:
+	  Unlike the change from ext2 filesystem to ext3 filesystem,
+	  the on-disk format of ext4dev is not the same as ext3 any more:
 	  it is based on extent maps and it supports 48-bit physical block
-          numbers. These combined on-disk format changes will allow
+	  numbers. These combined on-disk format changes will allow
 	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
 	  a hard limit that ext3 cannot overcome without changing the
-          on-disk format.
+	  on-disk format.
 
 	  Other than extent maps and 48-bit block numbers, ext4dev also is
-          likely to have other new features such as persistent preallocation,
+	  likely to have other new features such as persistent preallocation,
 	  high resolution time stamps, and larger file support etc.  These
-          features will be added to ext4dev gradually.
+	  features will be added to ext4dev gradually.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called ext4dev.  Be aware, however, that the filesystem
@@ -238,6 +238,38 @@ config JBD_DEBUG
 	  1 and 5, the higher the number, the more debugging output is
 	  generated.  To turn debugging off again, do
 	  "echo 0 > /proc/sys/fs/jbd-debug".
+
+config JBD2
+	tristate
+	help
+	  This is a generic journaling layer for block devices that support
+	  both 32-bit and 64-bit block numbers.  It is currently used by
+	  the ext4dev/ext4 filesystem, but it could also be used to add
+	  journal support to other file systems or block devices such
+	  as RAID or LVM.
+
+	  If you are using ext4dev/ext4, you need to say Y here. If you are not
+	  using ext4dev/ext4 then you will probably want to say N.
+
+	  To compile this device as a module, choose M here. The module will be
+	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
+	  you cannot compile this code as a module.
+
+config JBD2_DEBUG
+	bool "JBD2 (ext4dev/ext4) debugging support"
+	depends on JBD2
+	help
+	  If you are using the ext4dev/ext4 journaled file system (or
+	  potentially any other filesystem/device using JBD2), this option
+	  allows you to enable debugging output while the system is running,
+	  in order to help track down any problems you are having.
+	  By default, the debugging output will be turned off.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with "echo N > /proc/sys/fs/jbd2-debug", where N is a number between
+	  1 and 5. The higher the number, the more debugging output is
+	  generated.  To turn debugging off again, do
+	  "echo 0 > /proc/sys/fs/jbd2-debug".
 
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)

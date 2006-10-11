@@ -13,7 +13,7 @@
 
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
-#include <linux/ext4_jbd.h>
+#include <linux/ext4_jbd2.h>
 
 #include <linux/errno.h>
 #include <linux/slab.h>
