@@ -103,7 +103,7 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	if (!bh)
 		ext4_error (sb, "read_block_bitmap",
 			    "Cannot read block bitmap - "
-			    "block_group = %d, block_bitmap = "E3FSBLK,
+			    "block_group = %d, block_bitmap = %llu",
 			    block_group,
 			    ext4_block_bitmap(desc));
 error_out:
@@ -148,7 +148,7 @@ restart:
 		rsv = list_entry(n, struct ext4_reserve_window_node, rsv_node);
 		if (verbose)
 			printk("reservation window 0x%p "
-			       "start:  "E3FSBLK", end:  "E3FSBLK"\n",
+			       "start:  %llu, end:  %llu\n",
 			       rsv, rsv->rsv_start, rsv->rsv_end);
 		if (rsv->rsv_start && rsv->rsv_start >= rsv->rsv_end) {
 			printk("Bad reservation %p (start >= end)\n",
@@ -436,7 +436,7 @@ void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
 	    block + count > ext4_blocks_count(es)) {
 		ext4_error (sb, "ext4_free_blocks",
 			    "Freeing blocks not in datazone - "
-			    "block = "E3FSBLK", count = %lu", block, count);
+			    "block = %llu, count = %lu", block, count);
 		goto error_return;
 	}
 
@@ -468,7 +468,7 @@ do_more:
 		     sbi->s_itb_per_group))
 		ext4_error (sb, "ext4_free_blocks",
 			    "Freeing blocks in system zones - "
-			    "Block = "E3FSBLK", count = %lu",
+			    "Block = %llu, count = %lu",
 			    block, count);
 
 	/*
@@ -552,7 +552,7 @@ do_more:
 						bit + i, bitmap_bh->b_data)) {
 			jbd_unlock_bh_state(bitmap_bh);
 			ext4_error(sb, __FUNCTION__,
-				   "bit already cleared for block "E3FSBLK,
+				   "bit already cleared for block %llu",
 				   (ext4_fsblk_t)(block + i));
 			jbd_lock_bh_state(bitmap_bh);
 			BUFFER_TRACE(bitmap_bh, "bit already cleared");
@@ -1569,7 +1569,7 @@ allocated:
 		     EXT4_SB(sb)->s_itb_per_group))
 		ext4_error(sb, "ext4_new_block",
 			    "Allocating block in system zone - "
-			    "blocks from "E3FSBLK", length %lu",
+			    "blocks from %llu, length %lu",
 			     ret_block, num);
 
 	performed_allocation = 1;
@@ -1606,7 +1606,7 @@ allocated:
 
 	if (ret_block + num - 1 >= ext4_blocks_count(es)) {
 		ext4_error(sb, "ext4_new_block",
-			    "block("E3FSBLK") >= blocks count("E3FSBLK") - "
+			    "block(%llu) >= blocks count(%llu) - "
 			    "block_group = %lu, es == %p ", ret_block,
 			ext4_blocks_count(es), group_no, es);
 		goto out;
@@ -1705,8 +1705,8 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk("ext4_count_free_blocks: stored = "E3FSBLK
-		", computed = "E3FSBLK", "E3FSBLK"\n",
+	printk("ext4_count_free_blocks: stored = %llu"
+		", computed = %llu, %llu\n",
 	       EXT4_FREE_BLOCKS_COUNT(es),
 		desc_count, bitmap_count);
 	return bitmap_count;

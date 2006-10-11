@@ -25,13 +25,7 @@
 typedef int ext4_grpblk_t;
 
 /* data type for filesystem-wide blocks number */
-typedef sector_t ext4_fsblk_t;
-
-#if BITS_PER_LONG == 64
-#define E3FSBLK "%lu"
-#else
-#define E3FSBLK "%llu"
-#endif
+typedef unsigned long long ext4_fsblk_t;
 
 struct ext4_reserve_window {
 	ext4_fsblk_t	_rsv_start;	/* First byte reserved */

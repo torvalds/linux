@@ -281,10 +281,10 @@ static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
 	ext_debug("path:");
 	for (k = 0; k <= l; k++, path++) {
 		if (path->p_idx) {
-		  ext_debug("  %d->"E3FSBLK, le32_to_cpu(path->p_idx->ei_block),
+		  ext_debug("  %d->%llu", le32_to_cpu(path->p_idx->ei_block),
 			    idx_pblock(path->p_idx));
 		} else if (path->p_ext) {
-			ext_debug("  %d:%d:"E3FSBLK" ",
+			ext_debug("  %d:%d:%llu ",
 				  le32_to_cpu(path->p_ext->ee_block),
 				  le16_to_cpu(path->p_ext->ee_len),
 				  ext_pblock(path->p_ext));
@@ -308,7 +308,7 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 	ex = EXT_FIRST_EXTENT(eh);
 
 	for (i = 0; i < le16_to_cpu(eh->eh_entries); i++, ex++) {
-		ext_debug("%d:%d:"E3FSBLK" ", le32_to_cpu(ex->ee_block),
+		ext_debug("%d:%d:%llu ", le32_to_cpu(ex->ee_block),
 			  le16_to_cpu(ex->ee_len), ext_pblock(ex));
 	}
 	ext_debug("\n");
@@ -426,7 +426,7 @@ ext4_ext_binsearch(struct inode *inode, struct ext4_ext_path *path, int block)
 	}
 
 	path->p_ext = l - 1;
-	ext_debug("  -> %d:"E3FSBLK":%d ",
+	ext_debug("  -> %d:%llu:%d ",
 		        le32_to_cpu(path->p_ext->ee_block),
 		        ext_pblock(path->p_ext),
 			le16_to_cpu(path->p_ext->ee_len));
@@ -687,7 +687,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	path[depth].p_ext++;
 	while (path[depth].p_ext <=
 			EXT_MAX_EXTENT(path[depth].p_hdr)) {
-		ext_debug("move %d:"E3FSBLK":%d in new leaf "E3FSBLK"\n",
+		ext_debug("move %d:%llu:%d in new leaf %llu\n",
 			        le32_to_cpu(path[depth].p_ext->ee_block),
 			        ext_pblock(path[depth].p_ext),
 			        le16_to_cpu(path[depth].p_ext->ee_len),
@@ -752,7 +752,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		fidx->ei_block = border;
 		ext4_idx_store_pblock(fidx, oldblock);
 
-		ext_debug("int.index at %d (block "E3FSBLK"): %lu -> "E3FSBLK"\n", i,
+		ext_debug("int.index at %d (block %llu): %lu -> %llu\n", i,
 				newblock, (unsigned long) le32_to_cpu(border),
 				oldblock);
 		/* copy indexes */
@@ -764,7 +764,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		BUG_ON(EXT_MAX_INDEX(path[i].p_hdr) !=
 				EXT_LAST_INDEX(path[i].p_hdr));
 		while (path[i].p_idx <= EXT_MAX_INDEX(path[i].p_hdr)) {
-			ext_debug("%d: move %d:%d in new index "E3FSBLK"\n", i,
+			ext_debug("%d: move %d:%d in new index %llu\n", i,
 				        le32_to_cpu(path[i].p_idx->ei_block),
 				        idx_pblock(path[i].p_idx),
 				        newblock);
@@ -898,7 +898,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 
 	neh = ext_inode_hdr(inode);
 	fidx = EXT_FIRST_INDEX(neh);
-	ext_debug("new root: num %d(%d), lblock %d, ptr "E3FSBLK"\n",
+	ext_debug("new root: num %d(%d), lblock %d, ptr %llu\n",
 		  le16_to_cpu(neh->eh_entries), le16_to_cpu(neh->eh_max),
 		  le32_to_cpu(fidx->ei_block), idx_pblock(fidx));
 
@@ -1145,7 +1145,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 
 	/* try to insert block into found extent and return */
 	if (ex && ext4_can_extents_be_merged(inode, ex, newext)) {
-		ext_debug("append %d block to %d:%d (from "E3FSBLK")\n",
+		ext_debug("append %d block to %d:%d (from %llu)\n",
 				le16_to_cpu(newext->ee_len),
 				le32_to_cpu(ex->ee_block),
 				le16_to_cpu(ex->ee_len), ext_pblock(ex));
@@ -1204,7 +1204,7 @@ has_space:
 
 	if (!nearex) {
 		/* there is no extent in this leaf, create first one */
-		ext_debug("first extent in the leaf: %d:"E3FSBLK":%d\n",
+		ext_debug("first extent in the leaf: %d:%llu:%d\n",
 			        le32_to_cpu(newext->ee_block),
 			        ext_pblock(newext),
 			        le16_to_cpu(newext->ee_len));
@@ -1216,7 +1216,7 @@ has_space:
 			len = EXT_MAX_EXTENT(eh) - nearex;
 			len = (len - 1) * sizeof(struct ext4_extent);
 			len = len < 0 ? 0 : len;
-			ext_debug("insert %d:"E3FSBLK":%d after: nearest 0x%p, "
+			ext_debug("insert %d:%llu:%d after: nearest 0x%p, "
 					"move %d from 0x%p to 0x%p\n",
 				        le32_to_cpu(newext->ee_block),
 				        ext_pblock(newext),
@@ -1229,7 +1229,7 @@ has_space:
 		BUG_ON(newext->ee_block == nearex->ee_block);
 		len = (EXT_MAX_EXTENT(eh) - nearex) * sizeof(struct ext4_extent);
 		len = len < 0 ? 0 : len;
-		ext_debug("insert %d:"E3FSBLK":%d before: nearest 0x%p, "
+		ext_debug("insert %d:%llu:%d before: nearest 0x%p, "
 				"move %d from 0x%p to 0x%p\n",
 				le32_to_cpu(newext->ee_block),
 				ext_pblock(newext),
@@ -1464,7 +1464,7 @@ ext4_ext_in_cache(struct inode *inode, unsigned long block,
 	        ex->ee_block = cpu_to_le32(cex->ec_block);
 		ext4_ext_store_pblock(ex, cex->ec_start);
 	        ex->ee_len = cpu_to_le16(cex->ec_len);
-		ext_debug("%lu cached by %lu:%lu:"E3FSBLK"\n",
+		ext_debug("%lu cached by %lu:%lu:%llu\n",
 				(unsigned long) block,
 				(unsigned long) cex->ec_block,
 				(unsigned long) cex->ec_len,
@@ -1498,7 +1498,7 @@ int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	path->p_hdr->eh_entries = cpu_to_le16(le16_to_cpu(path->p_hdr->eh_entries)-1);
 	if ((err = ext4_ext_dirty(handle, inode, path)))
 		return err;
-	ext_debug("index is empty, remove it, free block "E3FSBLK"\n", leaf);
+	ext_debug("index is empty, remove it, free block %llu\n", leaf);
 	bh = sb_find_get_block(inode->i_sb, leaf);
 	ext4_forget(handle, 1, inode, bh, leaf);
 	ext4_free_blocks(handle, inode, leaf, 1);
@@ -1585,7 +1585,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		ext4_fsblk_t start;
 		num = le32_to_cpu(ex->ee_block) + le16_to_cpu(ex->ee_len) - from;
 		start = ext_pblock(ex) + le16_to_cpu(ex->ee_len) - num;
-		ext_debug("free last %lu blocks starting "E3FSBLK"\n", num, start);
+		ext_debug("free last %lu blocks starting %llu\n", num, start);
 		for (i = 0; i < num; i++) {
 			bh = sb_find_get_block(inode->i_sb, start + i);
 			ext4_forget(handle, 0, inode, bh, start + i);
@@ -1699,7 +1699,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		if (err)
 			goto out;
 
-		ext_debug("new extent: %u:%u:"E3FSBLK"\n", block, num,
+		ext_debug("new extent: %u:%u:%llu\n", block, num,
 				ext_pblock(ex));
 		ex--;
 		ex_ee_block = le32_to_cpu(ex->ee_block);
@@ -1816,7 +1816,7 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 				path[i].p_idx);
 		if (ext4_ext_more_to_rm(path + i)) {
 			/* go to the next level */
-			ext_debug("move to level %d (block "E3FSBLK")\n",
+			ext_debug("move to level %d (block %llu)\n",
 				  i + 1, idx_pblock(path[i].p_idx));
 			memset(path + i + 1, 0, sizeof(*path));
 			path[i+1].p_bh =
@@ -1993,7 +1993,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			newblock = iblock - ee_block + ee_start;
 			/* number of remaining blocks in the extent */
 			allocated = ee_len - (iblock - ee_block);
-			ext_debug("%d fit into %lu:%d -> "E3FSBLK"\n", (int) iblock,
+			ext_debug("%d fit into %lu:%d -> %llu\n", (int) iblock,
 					ee_block, ee_len, newblock);
 			ext4_ext_put_in_cache(inode, ee_block, ee_len,
 						ee_start, EXT4_EXT_CACHE_EXTENT);
@@ -2024,7 +2024,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	newblock = ext4_new_blocks(handle, inode, goal, &allocated, &err);
 	if (!newblock)
 		goto out2;
-	ext_debug("allocate new block: goal "E3FSBLK", found "E3FSBLK"/%lu\n",
+	ext_debug("allocate new block: goal %llu, found %llu/%lu\n",
 			goal, newblock, allocated);
 
 	/* try to insert new extent into found leaf and return */

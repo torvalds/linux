@@ -64,7 +64,7 @@ static int verify_group_input(struct super_block *sb,
 			     input->blocks_count);
 	else if (!(bh = sb_bread(sb, end - 1)))
 		ext4_warning(sb, __FUNCTION__,
-			     "Cannot read last block ("E3FSBLK")",
+			     "Cannot read last block (%llu)",
 			     end - 1);
 	else if (outside(input->block_bitmap, start, end))
 		ext4_warning(sb, __FUNCTION__,
@@ -94,18 +94,18 @@ static int verify_group_input(struct super_block *sb,
 	else if (inside(input->block_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Block bitmap (%llu) in GDT table"
-			     " ("E3FSBLK"-"E3FSBLK")",
+			     " (%llu-%llu)",
 			     input->block_bitmap, start, metaend - 1);
 	else if (inside(input->inode_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
 			     "Inode bitmap (%llu) in GDT table"
-			     " ("E3FSBLK"-"E3FSBLK")",
+			     " (%llu-%llu)",
 			     input->inode_bitmap, start, metaend - 1);
 	else if (inside(input->inode_table, start, metaend) ||
 	         inside(itend - 1, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode table ("E3FSBLK"-"E3FSBLK") overlaps"
-			     "GDT table ("E3FSBLK"-"E3FSBLK")",
+			     "Inode table (%llu-%llu) overlaps"
+			     "GDT table (%llu-%llu)",
 			     input->inode_table, itend - 1, start, metaend - 1);
 	else
 		err = 0;
@@ -344,8 +344,8 @@ static int verify_reserved_gdb(struct super_block *sb,
 		if (le32_to_cpu(*p++) !=
 		    grp * EXT4_BLOCKS_PER_GROUP(sb) + blk){
 			ext4_warning(sb, __FUNCTION__,
-				     "reserved GDT "E3FSBLK
-				     " missing grp %d ("E3FSBLK")",
+				     "reserved GDT %llu"
+				     " missing grp %d (%llu)",
 				     blk, grp,
 				     grp *
 				     (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
@@ -424,7 +424,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	data = (__le32 *)dind->b_data;
 	if (le32_to_cpu(data[gdb_num % EXT4_ADDR_PER_BLOCK(sb)]) != gdblock) {
 		ext4_warning(sb, __FUNCTION__,
-			     "new group %u GDT block "E3FSBLK" not reserved",
+			     "new group %u GDT block %llu not reserved",
 			     input->group, gdblock);
 		err = -EINVAL;
 		goto exit_dind;
@@ -547,7 +547,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	for (res = 0; res < reserved_gdb; res++, blk++) {
 		if (le32_to_cpu(*data) != blk) {
 			ext4_warning(sb, __FUNCTION__,
-				     "reserved block "E3FSBLK
+				     "reserved block %llu"
 				     " not at offset %ld",
 				     blk,
 				     (long)(data - (__le32 *)dind->b_data));
@@ -941,7 +941,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	o_groups_count = EXT4_SB(sb)->s_groups_count;
 
 	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG "EXT4-fs: extending last group from "E3FSBLK" uto "E3FSBLK" blocks\n",
+		printk(KERN_DEBUG "EXT4-fs: extending last group from %llu uto %llu blocks\n",
 		       o_blocks_count, n_blocks_count);
 
 	if (n_blocks_count == 0 || n_blocks_count == o_blocks_count)
@@ -949,7 +949,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	if (n_blocks_count > (sector_t)(~0ULL) >> (sb->s_blocksize_bits - 9)) {
 		printk(KERN_ERR "EXT4-fs: filesystem on %s:"
-			" too large to resize to "E3FSBLK" blocks safely\n",
+			" too large to resize to %llu blocks safely\n",
 			sb->s_id, n_blocks_count);
 		if (sizeof(sector_t) < 8)
 			ext4_warning(sb, __FUNCTION__,
@@ -984,7 +984,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	if (o_blocks_count + add < n_blocks_count)
 		ext4_warning(sb, __FUNCTION__,
-			     "will only finish group ("E3FSBLK
+			     "will only finish group (%llu"
 			     " blocks, %u new)",
 			     o_blocks_count + add, add);
 
@@ -1028,10 +1028,10 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
 	sb->s_dirt = 1;
 	unlock_super(sb);
-	ext4_debug("freeing blocks %lu through "E3FSBLK"\n", o_blocks_count,
+	ext4_debug("freeing blocks %lu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	ext4_free_blocks_sb(handle, sb, o_blocks_count, add, &freed_blocks);
-	ext4_debug("freed blocks "E3FSBLK" through "E3FSBLK"\n", o_blocks_count,
+	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	if ((err = ext4_journal_stop(handle)))
 		goto exit_put;

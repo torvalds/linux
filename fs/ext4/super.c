@@ -1244,7 +1244,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
 				    "Block bitmap for group %d"
-				    " not in group (block "E3FSBLK")!",
+				    " not in group (block %llu)!",
 				    i, block_bitmap);
 			return 0;
 		}
@@ -1253,7 +1253,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
 				    "Inode bitmap for group %d"
-				    " not in group (block "E3FSBLK")!",
+				    " not in group (block %llu)!",
 				    i, inode_bitmap);
 			return 0;
 		}
@@ -1263,7 +1263,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
 				    "Inode table for group %d"
-				    " not in group (block "E3FSBLK")!",
+				    " not in group (block %llu)!",
 				    i, inode_table);
 			return 0;
 		}

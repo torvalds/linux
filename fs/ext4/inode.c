@@ -2115,7 +2115,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 */
 			if (!bh) {
 				ext4_error(inode->i_sb, "ext4_free_branches",
-					   "Read failure, inode=%lu, block="E3FSBLK,
+					   "Read failure, inode=%lu, block=%llu",
 					   inode->i_ino, nr);
 				continue;
 			}
@@ -2466,7 +2466,7 @@ static int __ext4_get_inode_loc(struct inode *inode,
 	if (!bh) {
 		ext4_error (inode->i_sb, "ext4_get_inode_loc",
 				"unable to read inode block - "
-				"inode=%lu, block="E3FSBLK,
+				"inode=%lu, block=%llu",
 				 inode->i_ino, block);
 		return -EIO;
 	}
@@ -2548,7 +2548,7 @@ make_io:
 		if (!buffer_uptodate(bh)) {
 			ext4_error(inode->i_sb, "ext4_get_inode_loc",
 					"unable to read inode block - "
-					"inode=%lu, block="E3FSBLK,
+					"inode=%lu, block=%llu",
 					inode->i_ino, block);
 			brelse(bh);
 			return -EIO;

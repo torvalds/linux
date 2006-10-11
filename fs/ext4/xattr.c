@@ -233,7 +233,7 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext4_xattr_check_block(bh)) {
 bad_block:	ext4_error(inode->i_sb, __FUNCTION__,
-			   "inode %lu: bad block "E3FSBLK, inode->i_ino,
+			   "inode %lu: bad block %llu", inode->i_ino,
 			   EXT4_I(inode)->i_file_acl);
 		error = -EIO;
 		goto cleanup;
@@ -375,7 +375,7 @@ ext4_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext4_xattr_check_block(bh)) {
 		ext4_error(inode->i_sb, __FUNCTION__,
-			   "inode %lu: bad block "E3FSBLK, inode->i_ino,
+			   "inode %lu: bad block %llu", inode->i_ino,
 			   EXT4_I(inode)->i_file_acl);
 		error = -EIO;
 		goto cleanup;
@@ -647,7 +647,7 @@ ext4_xattr_block_find(struct inode *inode, struct ext4_xattr_info *i,
 			le32_to_cpu(BHDR(bs->bh)->h_refcount));
 		if (ext4_xattr_check_block(bs->bh)) {
 			ext4_error(sb, __FUNCTION__,
-				"inode %lu: bad block "E3FSBLK, inode->i_ino,
+				"inode %lu: bad block %llu", inode->i_ino,
 				EXT4_I(inode)->i_file_acl);
 			error = -EIO;
 			goto cleanup;
@@ -848,7 +848,7 @@ cleanup_dquot:
 
 bad_block:
 	ext4_error(inode->i_sb, __FUNCTION__,
-		   "inode %lu: bad block "E3FSBLK, inode->i_ino,
+		   "inode %lu: bad block %llu", inode->i_ino,
 		   EXT4_I(inode)->i_file_acl);
 	goto cleanup;
 
@@ -1077,14 +1077,14 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode)
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 	if (!bh) {
 		ext4_error(inode->i_sb, __FUNCTION__,
-			"inode %lu: block "E3FSBLK" read error", inode->i_ino,
+			"inode %lu: block %llu read error", inode->i_ino,
 			EXT4_I(inode)->i_file_acl);
 		goto cleanup;
 	}
 	if (BHDR(bh)->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC) ||
 	    BHDR(bh)->h_blocks != cpu_to_le32(1)) {
 		ext4_error(inode->i_sb, __FUNCTION__,
-			"inode %lu: bad block "E3FSBLK, inode->i_ino,
+			"inode %lu: bad block %llu", inode->i_ino,
 			EXT4_I(inode)->i_file_acl);
 		goto cleanup;
 	}
