@@ -69,10 +69,6 @@ EXPORT_SYMBOL(memcpy_toio);
 EXPORT_SYMBOL(memcpy_fromio);
 EXPORT_SYMBOL(memset_io);
 
-#include <asm/unistd.h>
-EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_write);
-
 #include <asm/semaphore.h>
 EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__down_interruptible);
