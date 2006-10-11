@@ -741,6 +741,9 @@ endif # ifdef CONFIG_KALLSYMS
 
 # vmlinux image - including updated kernel symbols
 vmlinux: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) $(kallsyms.o) FORCE
+ifdef CONFIG_HEADERS_CHECK
+	$(Q)$(MAKE) headers_check
+endif
 	$(call if_changed_rule,vmlinux__)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost $@
 	$(Q)rm -f .old_version
