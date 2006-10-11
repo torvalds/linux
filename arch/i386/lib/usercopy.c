@@ -179,7 +179,7 @@ __clear_user(void __user *to, unsigned long n)
 EXPORT_SYMBOL(__clear_user);
 
 /**
- * strlen_user: - Get the size of a string in user space.
+ * strnlen_user: - Get the size of a string in user space.
  * @s: The string to measure.
  * @n: The maximum valid length
  *
