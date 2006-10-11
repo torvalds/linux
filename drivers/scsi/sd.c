@@ -1051,6 +1051,14 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 						      &sshdr, SD_TIMEOUT,
 						      SD_MAX_RETRIES);
 
+			/*
+			 * If the drive has indicated to us that it
+			 * doesn't have any media in it, don't bother
+			 * with any more polling.
+			 */
+			if (media_not_present(sdkp, &sshdr))
+				return;
+
 			if (the_result)
 				sense_valid = scsi_sense_valid(&sshdr);
 			retries++;
@@ -1058,14 +1066,6 @@ sd_spinup_disk(struct scsi_disk *sdkp, char *diskname)
 			 (!scsi_status_is_good(the_result) ||
 			  ((driver_byte(the_result) & DRIVER_SENSE) &&
 			  sense_valid && sshdr.sense_key == UNIT_ATTENTION)));
-
-		/*
-		 * If the drive has indicated to us that it doesn't have
-		 * any media in it, don't bother with any of the rest of
-		 * this crap.
-		 */
-		if (media_not_present(sdkp, &sshdr))
-			return;
 
 		if ((driver_byte(the_result) & DRIVER_SENSE) == 0) {
 			/* no sense, TUR either succeeded or failed
