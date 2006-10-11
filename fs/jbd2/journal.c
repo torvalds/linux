@@ -1631,7 +1631,7 @@ void * __jbd2_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 
 static kmem_cache_t *jbd_slab[JBD_MAX_SLABS];
 static const char *jbd_slab_names[JBD_MAX_SLABS] = {
-	"jbd_1k", "jbd_2k", "jbd_4k", NULL, "jbd_8k"
+	"jbd2_1k", "jbd2_2k", "jbd2_4k", NULL, "jbd2_8k"
 };
 
 static void jbd2_journal_destroy_jbd_slabs(void)
@@ -1702,7 +1702,7 @@ static int journal_init_jbd2_journal_head_cache(void)
 	int retval;
 
 	J_ASSERT(jbd2_journal_head_cache == 0);
-	jbd2_journal_head_cache = kmem_cache_create("journal_head",
+	jbd2_journal_head_cache = kmem_cache_create("jbd2_journal_head",
 				sizeof(struct journal_head),
 				0,		/* offset */
 				0,		/* flags */
@@ -1999,7 +1999,7 @@ kmem_cache_t *jbd2_handle_cache;
 
 static int __init journal_init_handle_cache(void)
 {
-	jbd2_handle_cache = kmem_cache_create("journal_handle",
+	jbd2_handle_cache = kmem_cache_create("jbd2_journal_handle",
 				sizeof(handle_t),
 				0,		/* offset */
 				0,		/* flags */

@@ -168,13 +168,13 @@ static struct jbd2_revoke_record_s *find_revoke_record(journal_t *journal,
 
 int __init jbd2_journal_init_revoke_caches(void)
 {
-	jbd2_revoke_record_cache = kmem_cache_create("revoke_record",
+	jbd2_revoke_record_cache = kmem_cache_create("jbd2_revoke_record",
 					   sizeof(struct jbd2_revoke_record_s),
 					   0, SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (jbd2_revoke_record_cache == 0)
 		return -ENOMEM;
 
-	jbd2_revoke_table_cache = kmem_cache_create("revoke_table",
+	jbd2_revoke_table_cache = kmem_cache_create("jbd2_revoke_table",
 					   sizeof(struct jbd2_revoke_table_s),
 					   0, 0, NULL, NULL);
 	if (jbd2_revoke_table_cache == 0) {
