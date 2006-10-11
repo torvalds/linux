@@ -495,7 +495,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	int i;
 	int reserved = 0;
 
-	arch_free_page(page, order);
 	if (!PageHighMem(page))
 		debug_check_no_locks_freed(page_address(page),
 					   PAGE_SIZE<<order);
@@ -505,7 +504,9 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	if (reserved)
 		return;
 
+	arch_free_page(page, order);
 	kernel_map_pages(page, 1 << order, 0);
+
 	local_irq_save(flags);
 	__count_vm_events(PGFREE, 1 << order);
 	free_one_page(page_zone(page), page, order);
@@ -781,13 +782,12 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	struct per_cpu_pages *pcp;
 	unsigned long flags;
 
-	arch_free_page(page, 0);
-
 	if (PageAnon(page))
 		page->mapping = NULL;
 	if (free_pages_check(page))
 		return;
 
+	arch_free_page(page, 0);
 	kernel_map_pages(page, 1, 0);
 
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
