@@ -35,7 +35,7 @@ shmem_get_acl(struct inode *inode, int type)
 }
 
 /**
- * shmem_get_acl  -   generic_acl_operations->setacl() operation
+ * shmem_set_acl  -   generic_acl_operations->setacl() operation
  */
 static void
 shmem_set_acl(struct inode *inode, int type, struct posix_acl *acl)
