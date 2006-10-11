@@ -101,13 +101,13 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	desc = ext4_get_group_desc (sb, block_group, NULL);
 	if (!desc)
 		goto error_out;
-	bh = sb_bread(sb, ext4_block_bitmap(desc));
+	bh = sb_bread(sb, ext4_block_bitmap(sb, desc));
 	if (!bh)
 		ext4_error (sb, "read_block_bitmap",
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %llu",
 			    block_group,
-			    ext4_block_bitmap(desc));
+			    ext4_block_bitmap(sb, desc));
 error_out:
 	return bh;
 }
@@ -463,10 +463,10 @@ do_more:
 	if (!desc)
 		goto error_return;
 
-	if (in_range(ext4_block_bitmap(desc), block, count) ||
-	    in_range(ext4_inode_bitmap(desc), block, count) ||
-	    in_range(block, ext4_inode_table(desc), sbi->s_itb_per_group) ||
-	    in_range(block + count - 1, ext4_inode_table(desc),
+	if (in_range(ext4_block_bitmap(sb, desc), block, count) ||
+	    in_range(ext4_inode_bitmap(sb, desc), block, count) ||
+	    in_range(block, ext4_inode_table(sb, desc), sbi->s_itb_per_group) ||
+	    in_range(block + count - 1, ext4_inode_table(sb, desc),
 		     sbi->s_itb_per_group))
 		ext4_error (sb, "ext4_free_blocks",
 			    "Freeing blocks in system zones - "
@@ -1563,11 +1563,11 @@ allocated:
 
 	ret_block = grp_alloc_blk + ext4_group_first_block_no(sb, group_no);
 
-	if (in_range(ext4_block_bitmap(gdp), ret_block, num) ||
-	    in_range(ext4_block_bitmap(gdp), ret_block, num) ||
-	    in_range(ret_block, ext4_inode_table(gdp),
+	if (in_range(ext4_block_bitmap(sb, gdp), ret_block, num) ||
+	    in_range(ext4_block_bitmap(sb, gdp), ret_block, num) ||
+	    in_range(ret_block, ext4_inode_table(sb, gdp),
 		     EXT4_SB(sb)->s_itb_per_group) ||
-	    in_range(ret_block + num - 1, ext4_inode_table(gdp),
+	    in_range(ret_block + num - 1, ext4_inode_table(sb, gdp),
 		     EXT4_SB(sb)->s_itb_per_group))
 		ext4_error(sb, "ext4_new_block",
 			    "Allocating block in system zone - "

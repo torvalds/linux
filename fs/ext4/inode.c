@@ -2439,9 +2439,8 @@ static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 	 */
 	offset = ((ino - 1) % EXT4_INODES_PER_GROUP(sb)) *
 		EXT4_INODE_SIZE(sb);
-	block = ext4_inode_table(gdp) + (offset >> EXT4_BLOCK_SIZE_BITS(sb));
-
-
+	block = ext4_inode_table(sb, gdp) +
+		(offset >> EXT4_BLOCK_SIZE_BITS(sb));
 
 	iloc->block_group = block_group;
 	iloc->offset = offset & (EXT4_BLOCK_SIZE(sb) - 1);
@@ -2508,7 +2507,7 @@ static int __ext4_get_inode_loc(struct inode *inode,
 				goto make_io;
 
 			bitmap_bh = sb_getblk(inode->i_sb,
-				ext4_inode_bitmap(desc));
+				ext4_inode_bitmap(inode->i_sb, desc));
 			if (!bitmap_bh)
 				goto make_io;
 

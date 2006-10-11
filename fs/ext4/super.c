@@ -63,40 +63,52 @@ static void ext4_write_super (struct super_block * sb);
 static void ext4_write_super_lockfs(struct super_block *sb);
 
 
-ext4_fsblk_t ext4_block_bitmap(struct ext4_group_desc *bg)
+ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
+			       struct ext4_group_desc *bg)
 {
 	return le32_to_cpu(bg->bg_block_bitmap) |
-		((ext4_fsblk_t)le16_to_cpu(bg->bg_block_bitmap_hi) << 32);
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		 (ext4_fsblk_t)le32_to_cpu(bg->bg_block_bitmap_hi) << 32 : 0);
 }
 
-ext4_fsblk_t ext4_inode_bitmap(struct ext4_group_desc *bg)
+ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
+			       struct ext4_group_desc *bg)
 {
 	return le32_to_cpu(bg->bg_inode_bitmap) |
-		((ext4_fsblk_t)le16_to_cpu(bg->bg_inode_bitmap_hi) << 32);
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		 (ext4_fsblk_t)le32_to_cpu(bg->bg_inode_bitmap_hi) << 32 : 0);
 }
 
-ext4_fsblk_t ext4_inode_table(struct ext4_group_desc *bg)
+ext4_fsblk_t ext4_inode_table(struct super_block *sb,
+			      struct ext4_group_desc *bg)
 {
 	return le32_to_cpu(bg->bg_inode_table) |
-		((ext4_fsblk_t)le16_to_cpu(bg->bg_inode_table_hi) << 32);
+		(EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT ?
+		 (ext4_fsblk_t)le32_to_cpu(bg->bg_inode_table_hi) << 32 : 0);
 }
 
-void ext4_block_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk)
+void ext4_block_bitmap_set(struct super_block *sb,
+			   struct ext4_group_desc *bg, ext4_fsblk_t blk)
 {
 	bg->bg_block_bitmap = cpu_to_le32((u32)blk);
-	bg->bg_block_bitmap_hi = cpu_to_le16(blk >> 32);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_block_bitmap_hi = cpu_to_le32(blk >> 32);
 }
 
-void ext4_inode_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk)
+void ext4_inode_bitmap_set(struct super_block *sb,
+			   struct ext4_group_desc *bg, ext4_fsblk_t blk)
 {
 	bg->bg_inode_bitmap  = cpu_to_le32((u32)blk);
-	bg->bg_inode_bitmap_hi = cpu_to_le16(blk >> 32);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_inode_bitmap_hi = cpu_to_le32(blk >> 32);
 }
 
-void ext4_inode_table_set(struct ext4_group_desc *bg, ext4_fsblk_t blk)
+void ext4_inode_table_set(struct super_block *sb,
+			  struct ext4_group_desc *bg, ext4_fsblk_t blk)
 {
 	bg->bg_inode_table = cpu_to_le32((u32)blk);
-	bg->bg_inode_table_hi = cpu_to_le16(blk >> 32);
+	if (EXT4_DESC_SIZE(sb) >= EXT4_MIN_DESC_SIZE_64BIT)
+		bg->bg_inode_table_hi = cpu_to_le32(blk >> 32);
 }
 
 /*
@@ -1239,7 +1251,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		if ((i % EXT4_DESC_PER_BLOCK(sb)) == 0)
 			gdp = (struct ext4_group_desc *)
 					sbi->s_group_desc[desc_block++]->b_data;
-		block_bitmap = ext4_block_bitmap(gdp);
+		block_bitmap = ext4_block_bitmap(sb, gdp);
 		if (block_bitmap < first_block || block_bitmap > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
@@ -1248,7 +1260,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 				    i, block_bitmap);
 			return 0;
 		}
-		inode_bitmap = ext4_inode_bitmap(gdp);
+		inode_bitmap = ext4_inode_bitmap(sb, gdp);
 		if (inode_bitmap < first_block || inode_bitmap > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
@@ -1257,7 +1269,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 				    i, inode_bitmap);
 			return 0;
 		}
-		inode_table = ext4_inode_table(gdp);
+		inode_table = ext4_inode_table(sb, gdp);
 		if (inode_table < first_block ||
 		    inode_table + sbi->s_itb_per_group > last_block)
 		{
@@ -1622,11 +1634,11 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	}
 	sbi->s_desc_size = le16_to_cpu(es->s_desc_size);
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT)) {
-		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE ||
+		if (sbi->s_desc_size < EXT4_MIN_DESC_SIZE_64BIT ||
 		    sbi->s_desc_size > EXT4_MAX_DESC_SIZE ||
 		    sbi->s_desc_size & (sbi->s_desc_size - 1)) {
 			printk(KERN_ERR
-			       "EXT4-fs: unsupported descriptor size %ld\n",
+			       "EXT4-fs: unsupported descriptor size %lu\n",
 			       sbi->s_desc_size);
 			goto failed_mount;
 		}

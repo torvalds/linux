@@ -834,9 +834,9 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	/* Update group descriptor block for new group */
 	gdp = (struct ext4_group_desc *)primary->b_data + gdb_off;
 
-	ext4_block_bitmap_set(gdp, input->block_bitmap); /* LV FIXME */
-	ext4_inode_bitmap_set(gdp, input->inode_bitmap); /* LV FIXME */
-	ext4_inode_table_set(gdp, input->inode_table); /* LV FIXME */
+	ext4_block_bitmap_set(sb, gdp, input->block_bitmap); /* LV FIXME */
+	ext4_inode_bitmap_set(sb, gdp, input->inode_bitmap); /* LV FIXME */
+	ext4_inode_table_set(sb, gdp, input->inode_table); /* LV FIXME */
 	gdp->bg_free_blocks_count = cpu_to_le16(input->free_blocks_count);
 	gdp->bg_free_inodes_count = cpu_to_le16(EXT4_INODES_PER_GROUP(sb));
 

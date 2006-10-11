@@ -60,12 +60,12 @@ read_inode_bitmap(struct super_block * sb, unsigned long block_group)
 	if (!desc)
 		goto error_out;
 
-	bh = sb_bread(sb, ext4_inode_bitmap(desc));
+	bh = sb_bread(sb, ext4_inode_bitmap(sb, desc));
 	if (!bh)
 		ext4_error(sb, "read_inode_bitmap",
 			    "Cannot read inode bitmap - "
 			    "block_group = %lu, inode_bitmap = %llu",
-			    block_group, ext4_inode_bitmap(desc));
+			    block_group, ext4_inode_bitmap(sb, desc));
 error_out:
 	return bh;
 }

@@ -129,10 +129,10 @@ struct ext4_group_desc
 	__le16	bg_free_inodes_count;	/* Free inodes count */
 	__le16	bg_used_dirs_count;	/* Directories count */
 	__u16	bg_flags;
-	__le16	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
-	__le16	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
-	__le16	bg_inode_table_hi;	/* Inodes table block MSB */
-	__u16	bg_reserved[3];
+	__u32	bg_reserved[3];
+	__le32	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
+	__le32	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
+	__le32	bg_inode_table_hi;	/* Inodes table block MSB */
 };
 
 #ifdef __KERNEL__
@@ -143,6 +143,7 @@ struct ext4_group_desc
  * Macro-instructions used to manage group descriptors
  */
 #define EXT4_MIN_DESC_SIZE		32
+#define EXT4_MIN_DESC_SIZE_64BIT	64
 #define	EXT4_MAX_DESC_SIZE		EXT4_MIN_BLOCK_SIZE
 #define EXT4_DESC_SIZE(s)		(EXT4_SB(s)->s_desc_size)
 #ifdef __KERNEL__
@@ -904,12 +905,18 @@ extern void ext4_abort (struct super_block *, const char *, const char *, ...)
 extern void ext4_warning (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_update_dynamic_rev (struct super_block *sb);
-extern ext4_fsblk_t ext4_block_bitmap(struct ext4_group_desc *bg);
-extern ext4_fsblk_t ext4_inode_bitmap(struct ext4_group_desc *bg);
-extern ext4_fsblk_t ext4_inode_table(struct ext4_group_desc *bg);
-extern void ext4_block_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
-extern void ext4_inode_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
-extern void ext4_inode_table_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
+				      struct ext4_group_desc *bg);
+extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
+				      struct ext4_group_desc *bg);
+extern ext4_fsblk_t ext4_inode_table(struct super_block *sb,
+				     struct ext4_group_desc *bg);
+extern void ext4_block_bitmap_set(struct super_block *sb,
+				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern void ext4_inode_bitmap_set(struct super_block *sb,
+				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern void ext4_inode_table_set(struct super_block *sb,
+				 struct ext4_group_desc *bg, ext4_fsblk_t blk);
 
 static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
 {
