@@ -26,9 +26,6 @@
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern u8 irq_vector[NR_IRQ_VECTORS];
-#define IO_APIC_VECTOR(irq)	(irq_vector[irq])
-
 extern void (*interrupt[NR_IRQS])(void);
 
 #ifdef CONFIG_SMP
@@ -41,7 +38,7 @@ fastcall void call_function_interrupt(void);
 fastcall void apic_timer_interrupt(void);
 fastcall void error_interrupt(void);
 fastcall void spurious_interrupt(void);
-fastcall void thermal_interrupt(struct pt_regs *);
+fastcall void thermal_interrupt(void);
 #define platform_legacy_irq(irq)	((irq) < 16)
 #endif
 

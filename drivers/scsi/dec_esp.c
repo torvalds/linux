@@ -94,9 +94,9 @@ volatile unsigned char pmaz_cmd_buffer[16];
 				 * via PIO.
 				 */
 
-static irqreturn_t scsi_dma_merr_int(int, void *, struct pt_regs *);
-static irqreturn_t scsi_dma_err_int(int, void *, struct pt_regs *);
-static irqreturn_t scsi_dma_int(int, void *, struct pt_regs *);
+static irqreturn_t scsi_dma_merr_int(int, void *);
+static irqreturn_t scsi_dma_err_int(int, void *);
+static irqreturn_t scsi_dma_int(int, void *);
 
 static int dec_esp_detect(struct scsi_host_template * tpnt);
 
@@ -307,7 +307,7 @@ err_dealloc:
 }
 
 /************************************************************* DMA Functions */
-static irqreturn_t scsi_dma_merr_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scsi_dma_merr_int(int irq, void *dev_id)
 {
 	printk("Got unexpected SCSI DMA Interrupt! < ");
 	printk("SCSI_DMA_MEMRDERR ");
@@ -316,14 +316,14 @@ static irqreturn_t scsi_dma_merr_int(int irq, void *dev_id, struct pt_regs *regs
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t scsi_dma_err_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scsi_dma_err_int(int irq, void *dev_id)
 {
 	/* empty */
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t scsi_dma_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scsi_dma_int(int irq, void *dev_id)
 {
 	u32 scsi_next_ptr;
 

@@ -4117,23 +4117,13 @@ wv_pcmcia_release(struct pcmcia_device *link)
  */
 static irqreturn_t
 wavelan_interrupt(int		irq,
-		  void *	dev_id,
-		  struct pt_regs * regs)
+		  void *	dev_id)
 {
-  struct net_device *	dev;
+  struct net_device *	dev = dev_id;
   net_local *	lp;
   kio_addr_t	base;
   int		status0;
   u_int		tx_status;
-
-  if ((dev = dev_id) == NULL)
-    {
-#ifdef DEBUG_INTERRUPT_ERROR
-      printk(KERN_WARNING "wavelan_interrupt(): irq %d for unknown device.\n",
-	     irq);
-#endif
-      return IRQ_NONE;
-    }
 
 #ifdef DEBUG_INTERRUPT_TRACE
   printk(KERN_DEBUG "%s: ->wavelan_interrupt()\n", dev->name);

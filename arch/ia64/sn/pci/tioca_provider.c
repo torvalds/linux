@@ -550,13 +550,12 @@ tioca_dma_map(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
  * tioca_error_intr_handler - SGI TIO CA error interrupt handler
  * @irq: unused
  * @arg: pointer to tioca_common struct for the given CA
- * @pt: unused
  *
  * Handle a CA error interrupt.  Simply a wrapper around a SAL call which
  * defers processing to the SGI prom.
  */
 static irqreturn_t
-tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
+tioca_error_intr_handler(int irq, void *arg)
 {
 	struct tioca_common *soft = arg;
 	struct ia64_sal_retval ret_stuff;

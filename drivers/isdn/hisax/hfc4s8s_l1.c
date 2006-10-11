@@ -1268,7 +1268,7 @@ hfc4s8s_bh(hfc4s8s_hw * hw)
 /* interrupt handler */
 /*********************/
 static irqreturn_t
-hfc4s8s_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+hfc4s8s_interrupt(int intno, void *dev_id)
 {
 	hfc4s8s_hw *hw = dev_id;
 	u_char b, ovr;

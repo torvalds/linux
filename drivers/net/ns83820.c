@@ -1288,7 +1288,7 @@ static void ns83820_mib_isr(struct ns83820 *dev)
 }
 
 static void ns83820_do_isr(struct net_device *ndev, u32 isr);
-static irqreturn_t ns83820_irq(int foo, void *data, struct pt_regs *regs)
+static irqreturn_t ns83820_irq(int foo, void *data)
 {
 	struct net_device *ndev = data;
 	struct ns83820 *dev = PRIV(ndev);

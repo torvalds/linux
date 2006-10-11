@@ -682,7 +682,7 @@ static int pwc_rcv_short_packet(struct pwc_device *pdev, const struct pwc_frame_
 /* This gets called for the Isochronous pipe (video). This is done in
  * interrupt time, so it has to be fast, not crash, and not stall. Neat.
  */
-static void pwc_isoc_handler(struct urb *urb, struct pt_regs *regs)
+static void pwc_isoc_handler(struct urb *urb)
 {
 	struct pwc_device *pdev;
 	int i, fst, flen;

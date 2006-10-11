@@ -634,7 +634,7 @@ static unsigned long io_port[] = {
 #define H2DEV(x) cpu_to_le32(x)
 #define DEV2H(x) le32_to_cpu(x)
 
-static irqreturn_t do_interrupt_handler(int, void *, struct pt_regs *);
+static irqreturn_t do_interrupt_handler(int, void *);
 static void flush_dev(struct scsi_device *, unsigned long, unsigned int, unsigned int);
 static int do_trace = FALSE;
 static int setup_done = FALSE;
@@ -1932,8 +1932,7 @@ none:
    return IRQ_NONE;
 }
 
-static irqreturn_t do_interrupt_handler(int irq, void *shap,
-                                        struct pt_regs *regs) {
+static irqreturn_t do_interrupt_handler(int irq, void *shap) {
    unsigned int j;
    unsigned long spin_flags;
    irqreturn_t ret;

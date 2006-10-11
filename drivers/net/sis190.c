@@ -713,7 +713,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
  * The interrupt handler does all of the Rx thread work and cleans up after
  * the Tx thread.
  */
-static irqreturn_t sis190_interrupt(int irq, void *__dev, struct pt_regs *regs)
+static irqreturn_t sis190_interrupt(int irq, void *__dev)
 {
 	struct net_device *dev = __dev;
 	struct sis190_private *tp = netdev_priv(dev);
@@ -758,7 +758,7 @@ static void sis190_netpoll(struct net_device *dev)
 	struct pci_dev *pdev = tp->pci_dev;
 
 	disable_irq(pdev->irq);
-	sis190_interrupt(pdev->irq, dev, NULL);
+	sis190_interrupt(pdev->irq, dev);
 	enable_irq(pdev->irq);
 }
 #endif

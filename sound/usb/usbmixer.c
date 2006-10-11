@@ -1710,7 +1710,7 @@ static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 	}
 }
 
-static void snd_usb_mixer_status_complete(struct urb *urb, struct pt_regs *regs)
+static void snd_usb_mixer_status_complete(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
 
@@ -1772,8 +1772,7 @@ static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
-static void snd_usb_soundblaster_remote_complete(struct urb *urb,
-						 struct pt_regs *regs)
+static void snd_usb_soundblaster_remote_complete(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
 	const struct rc_config *rc = mixer->rc_cfg;

@@ -583,7 +583,7 @@ static int snd_ad1848_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static irqreturn_t snd_ad1848_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_ad1848_interrupt(int irq, void *dev_id)
 {
 	struct snd_ad1848 *chip = dev_id;
 

@@ -365,7 +365,7 @@ static int dscc4_init_ring(struct net_device *);
 static void dscc4_release_ring(struct dscc4_dev_priv *);
 static void dscc4_timer(unsigned long);
 static void dscc4_tx_timeout(struct net_device *);
-static irqreturn_t dscc4_irq(int irq, void *dev_id, struct pt_regs *ptregs);
+static irqreturn_t dscc4_irq(int irq, void *dev_id);
 static int dscc4_hdlc_attach(struct net_device *, unsigned short, unsigned short);
 static int dscc4_set_iface(struct dscc4_dev_priv *, struct net_device *);
 #ifdef DSCC4_POLLING
@@ -1476,7 +1476,7 @@ static int dscc4_set_iface(struct dscc4_dev_priv *dpriv, struct net_device *dev)
 	return ret;
 }
 
-static irqreturn_t dscc4_irq(int irq, void *token, struct pt_regs *ptregs)
+static irqreturn_t dscc4_irq(int irq, void *token)
 {
 	struct dscc4_dev_priv *root = token;
 	struct dscc4_pci_priv *priv;

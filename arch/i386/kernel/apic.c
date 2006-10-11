@@ -1193,11 +1193,11 @@ EXPORT_SYMBOL(switch_ipi_to_APIC_timer);
  * value into /proc/profile.
  */
 
-inline void smp_local_timer_interrupt(struct pt_regs * regs)
+inline void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #ifdef CONFIG_SMP
-	update_process_times(user_mode_vm(regs));
+	update_process_times(user_mode_vm(get_irq_regs()));
 #endif
 
 	/*
@@ -1223,6 +1223,7 @@ inline void smp_local_timer_interrupt(struct pt_regs * regs)
 
 fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int cpu = smp_processor_id();
 
 	/*
@@ -1241,12 +1242,13 @@ fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 #ifndef CONFIG_SMP
-static void up_apic_timer_interrupt_call(struct pt_regs *regs)
+static void up_apic_timer_interrupt_call(void)
 {
 	int cpu = smp_processor_id();
 
@@ -1255,11 +1257,11 @@ static void up_apic_timer_interrupt_call(struct pt_regs *regs)
 	 */
 	per_cpu(irq_stat, cpu).apic_timer_irqs++;
 
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 }
 #endif
 
-void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
+void smp_send_timer_broadcast_ipi(void)
 {
 	cpumask_t mask;
 
@@ -1272,7 +1274,7 @@ void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
 		 * We can directly call the apic timer interrupt handler
 		 * in UP case. Minus all irq related functions
 		 */
-		up_apic_timer_interrupt_call(regs);
+		up_apic_timer_interrupt_call();
 #endif
 	}
 }

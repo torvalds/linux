@@ -613,7 +613,7 @@ static void snd_via82xx_channel_reset(struct via82xx *chip, struct viadev *viade
  *  Interrupt handler
  *  Used for 686 and 8233A
  */
-static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_via686_interrupt(int irq, void *dev_id)
 {
 	struct via82xx *chip = dev_id;
 	unsigned int status;
@@ -623,7 +623,7 @@ static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *r
 	if (! (status & chip->intr_mask)) {
 		if (chip->rmidi)
 			/* check mpu401 interrupt */
-			return snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+			return snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 		return IRQ_NONE;
 	}
 
@@ -659,7 +659,7 @@ static irqreturn_t snd_via686_interrupt(int irq, void *dev_id, struct pt_regs *r
 /*
  *  Interrupt handler
  */
-static irqreturn_t snd_via8233_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_via8233_interrupt(int irq, void *dev_id)
 {
 	struct via82xx *chip = dev_id;
 	unsigned int status;

@@ -3051,7 +3051,7 @@ static void skge_extirq(void *arg)
 	spin_unlock_irq(&hw->hw_lock);
 }
 
-static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t skge_intr(int irq, void *dev_id)
 {
 	struct skge_hw *hw = dev_id;
 	u32 status;
@@ -3125,7 +3125,7 @@ static void skge_netpoll(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 
 	disable_irq(dev->irq);
-	skge_intr(dev->irq, skge->hw, NULL);
+	skge_intr(dev->irq, skge->hw);
 	enable_irq(dev->irq);
 }
 #endif

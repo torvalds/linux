@@ -24,6 +24,7 @@
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/irq_regs.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/traps.h>
@@ -200,8 +201,10 @@ int dec_ecc_be_handler(struct pt_regs *regs, int is_fixup)
 	return dec_ecc_be_backend(regs, is_fixup, 0);
 }
 
-irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id)
 {
+	struct pt_regs *regs = get_irq_regs();
+
 	int action = dec_ecc_be_backend(regs, 0, 1);
 
 	if (action == MIPS_BE_DISCARD)

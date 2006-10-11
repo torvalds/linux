@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -35,6 +36,7 @@
 #include <asm/rtas.h>
 #include <asm/sstep.h>
 #include <asm/bug.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -520,13 +522,12 @@ int xmon(struct pt_regs *excp)
 }
 EXPORT_SYMBOL(xmon);
 
-irqreturn_t
-xmon_irq(int irq, void *d, struct pt_regs *regs)
+irqreturn_t xmon_irq(int irq, void *d)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	printf("Keyboard interrupt\n");
-	xmon(regs);
+	xmon(get_irq_regs());
 	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
@@ -2577,12 +2578,11 @@ void xmon_init(int enable)
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
-			      struct tty_struct *tty) 
+static void sysrq_handle_xmon(int key, struct tty_struct *tty) 
 {
 	/* ensure xmon is enabled */
 	xmon_init(1);
-	debugger(pt_regs);
+	debugger(get_irq_regs());
 }
 
 static struct sysrq_key_op sysrq_xmon_op = 

@@ -45,8 +45,8 @@
 
 struct imx_dma_channel {
 	const char *name;
-	void (*irq_handler) (int, void *, struct pt_regs *);
-	void (*err_handler) (int, void *, struct pt_regs *, int errcode);
+	void (*irq_handler) (int, void *);
+	void (*err_handler) (int, void *, int errcode);
 	void *data;
 	dmamode_t  dma_mode;
 	struct scatterlist *sg;
@@ -77,8 +77,8 @@ imx_dma_setup_sg(imx_dmach_t dma_ch,
 
 int
 imx_dma_setup_handlers(imx_dmach_t dma_ch,
-		void (*irq_handler) (int, void *, struct pt_regs *),
-		void (*err_handler) (int, void *, struct pt_regs *, int), void *data);
+		void (*irq_handler) (int, void *),
+		void (*err_handler) (int, void *, int), void *data);
 
 void imx_dma_enable(imx_dmach_t dma_ch);
 

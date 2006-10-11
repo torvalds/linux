@@ -95,7 +95,7 @@ u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus)
  * bridge sends an error interrupt.
  */
 static irqreturn_t
-pcibr_error_intr_handler(int irq, void *arg, struct pt_regs *regs)
+pcibr_error_intr_handler(int irq, void *arg)
 {
 	struct pcibus_info *soft = (struct pcibus_info *)arg;
 
@@ -138,7 +138,7 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/*
 	 * register the bridge's error interrupt handler
 	 */
-	if (request_irq(SGI_PCIASIC_ERROR, (void *)pcibr_error_intr_handler,
+	if (request_irq(SGI_PCIASIC_ERROR, pcibr_error_intr_handler,
 			IRQF_SHARED, "PCIBR error", (void *)(soft))) {
 		printk(KERN_WARNING
 		       "pcibr cannot allocate interrupt for error handler\n");

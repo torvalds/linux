@@ -26,6 +26,7 @@
 #define MONWRITE_MAX_DATALEN	4024
 
 static int mon_max_bufs = 255;
+static int mon_buf_count;
 
 struct mon_buf {
 	struct list_head list;
@@ -40,7 +41,6 @@ struct mon_private {
 	size_t hdr_to_read;
 	size_t data_to_read;
 	struct mon_buf *current_buf;
-	int mon_buf_count;
 };
 
 /*
@@ -99,13 +99,13 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 			rc = monwrite_diag(monhdr, monbuf->data,
 					   APPLDATA_STOP_REC);
 			list_del(&monbuf->list);
-			monpriv->mon_buf_count--;
+			mon_buf_count--;
 			kfree(monbuf->data);
 			kfree(monbuf);
 			monbuf = NULL;
 		}
 	} else {
-		if (monpriv->mon_buf_count >= mon_max_bufs)
+		if (mon_buf_count >= mon_max_bufs)
 			return -ENOSPC;
 		monbuf = kzalloc(sizeof(struct mon_buf), GFP_KERNEL);
 		if (!monbuf)
@@ -118,7 +118,7 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 		}
 		monbuf->hdr = *monhdr;
 		list_add_tail(&monbuf->list, &monpriv->list);
-		monpriv->mon_buf_count++;
+		mon_buf_count++;
 	}
 	monpriv->current_buf = monbuf;
 	return 0;
@@ -186,7 +186,7 @@ static int monwrite_close(struct inode *inode, struct file *filp)
 		if (entry->hdr.mon_function != MONWRITE_GEN_EVENT)
 			monwrite_diag(&entry->hdr, entry->data,
 				      APPLDATA_STOP_REC);
-		monpriv->mon_buf_count--;
+		mon_buf_count--;
 		list_del(&entry->list);
 		kfree(entry->data);
 		kfree(entry);

@@ -249,7 +249,7 @@ static void hp100_misc_interrupt(struct net_device *dev);
 static void hp100_update_stats(struct net_device *dev);
 static void hp100_clear_stats(struct hp100_private *lp, int ioaddr);
 static void hp100_set_multicast_list(struct net_device *dev);
-static irqreturn_t hp100_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t hp100_interrupt(int irq, void *dev_id);
 static void hp100_start_interface(struct net_device *dev);
 static void hp100_stop_interface(struct net_device *dev);
 static void hp100_load_eeprom(struct net_device *dev, u_short ioaddr);
@@ -2187,7 +2187,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
  *  hardware interrupt handling
  */
 
-static irqreturn_t hp100_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct hp100_private *lp = netdev_priv(dev);

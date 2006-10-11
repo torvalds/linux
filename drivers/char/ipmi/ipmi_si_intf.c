@@ -872,7 +872,7 @@ static void smi_timeout(unsigned long data)
 	add_timer(&(smi_info->si_timer));
 }
 
-static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t si_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	unsigned long   flags;
@@ -899,14 +899,14 @@ static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t si_bt_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	/* We need to clear the IRQ flag for the BT interface. */
 	smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
 			     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
 			     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
-	return si_irq_handler(irq, data, regs);
+	return si_irq_handler(irq, data);
 }
 
 static int smi_start_processing(void       *send_info,

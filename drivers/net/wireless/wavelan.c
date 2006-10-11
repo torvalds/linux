@@ -3768,7 +3768,7 @@ static int wv_check_ioaddr(unsigned long ioaddr, u8 * mac)
  * This function is the interrupt handler for the WaveLAN card. This
  * routine will be called whenever: 
  */
-static irqreturn_t wavelan_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wavelan_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev;
 	unsigned long ioaddr;

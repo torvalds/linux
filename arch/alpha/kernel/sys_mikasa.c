@@ -79,7 +79,7 @@ static struct hw_interrupt_type mikasa_irq_type = {
 };
 
 static void 
-mikasa_device_interrupt(unsigned long vector, struct pt_regs *regs)
+mikasa_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
 	unsigned int i;
@@ -97,9 +97,9 @@ mikasa_device_interrupt(unsigned long vector, struct pt_regs *regs)
 		i = ffz(~pld);
 		pld &= pld - 1; /* clear least bit set */
 		if (i < 16) {
-			isa_device_interrupt(vector, regs);
+			isa_device_interrupt(vector);
 		} else {
-			handle_irq(i, regs);
+			handle_irq(i);
 		}
 	}
 }
@@ -182,8 +182,7 @@ mikasa_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
 static void
-mikasa_apecs_machine_check(unsigned long vector, unsigned long la_ptr,
-		           struct pt_regs * regs)
+mikasa_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 #define MCHK_NO_DEVSEL 0x205U
 #define MCHK_NO_TABT 0x204U
@@ -202,7 +201,7 @@ mikasa_apecs_machine_check(unsigned long vector, unsigned long la_ptr,
 	mb();
 
 	code = mchk_header->code;
-	process_mcheck_info(vector, la_ptr, regs, "MIKASA APECS",
+	process_mcheck_info(vector, la_ptr, "MIKASA APECS",
 			    (mcheck_expected(0)
 			     && (code == MCHK_NO_DEVSEL
 			         || code == MCHK_NO_TABT)));

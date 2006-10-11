@@ -196,7 +196,7 @@ static void smsc_ircc_dma_xmit(struct smsc_ircc_cb *self, int bofs);
 static void smsc_ircc_dma_xmit_complete(struct smsc_ircc_cb *self);
 static void smsc_ircc_change_speed(struct smsc_ircc_cb *self, u32 speed);
 static void smsc_ircc_set_sir_speed(struct smsc_ircc_cb *self, u32 speed);
-static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id);
 static irqreturn_t smsc_ircc_interrupt_sir(struct net_device *dev);
 static void smsc_ircc_sir_start(struct smsc_ircc_cb *self);
 #if SMSC_IRCC2_C_SIR_STOP
@@ -1455,7 +1455,7 @@ static void smsc_ircc_sir_receive(struct smsc_ircc_cb *self)
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct smsc_ircc_cb *self;
@@ -1520,7 +1520,7 @@ static irqreturn_t smsc_ircc_interrupt(int irq, void *dev_id, struct pt_regs *re
 }
 
 /*
- * Function irport_interrupt_sir (irq, dev_id, regs)
+ * Function irport_interrupt_sir (irq, dev_id)
  *
  *    Interrupt handler for SIR modes
  */

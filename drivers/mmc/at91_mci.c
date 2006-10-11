@@ -661,7 +661,7 @@ static void at91_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 /*
  * Handle an interrupt
  */
-static irqreturn_t at91_mci_irq(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t at91_mci_irq(int irq, void *devid)
 {
 	struct at91mci_host *host = devid;
 	int completed = 0;
@@ -754,7 +754,7 @@ static irqreturn_t at91_mci_irq(int irq, void *devid, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t at91_mmc_det_irq(int irq, void *_host, struct pt_regs *regs)
+static irqreturn_t at91_mmc_det_irq(int irq, void *_host)
 {
 	struct at91mci_host *host = _host;
 	int present = !at91_get_gpio_value(irq);

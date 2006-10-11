@@ -177,7 +177,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 dmactl;
-	void *mmio = (void *) ap->ioaddr.bmdma_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
 	writel(ap->prd_dma, mmio + ATA_DMA_TABLE_OFS);
@@ -205,7 +205,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 static void k2_bmdma_start_mmio (struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void *mmio = (void *) ap->ioaddr.bmdma_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 	u8 dmactl;
 
 	/* start host DMA transaction */

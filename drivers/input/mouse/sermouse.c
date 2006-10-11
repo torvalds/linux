@@ -61,12 +61,10 @@ struct sermouse {
  * second, which is as good as a PS/2 or USB mouse.
  */
 
-static void sermouse_process_msc(struct sermouse *sermouse, signed char data, struct pt_regs *regs)
+static void sermouse_process_msc(struct sermouse *sermouse, signed char data)
 {
 	struct input_dev *dev = sermouse->dev;
 	signed char *buf = sermouse->buf;
-
-	input_regs(dev, regs);
 
 	switch (sermouse->count) {
 
@@ -104,14 +102,12 @@ static void sermouse_process_msc(struct sermouse *sermouse, signed char data, st
  * standard 3-byte packets and 1200 bps.
  */
 
-static void sermouse_process_ms(struct sermouse *sermouse, signed char data, struct pt_regs *regs)
+static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 {
 	struct input_dev *dev = sermouse->dev;
 	signed char *buf = sermouse->buf;
 
 	if (data & 0x40) sermouse->count = 0;
-
-	input_regs(dev, regs);
 
 	switch (sermouse->count) {
 
@@ -206,7 +202,7 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data, str
  */
 
 static irqreturn_t sermouse_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct sermouse *sermouse = serio_get_drvdata(serio);
 
@@ -214,9 +210,9 @@ static irqreturn_t sermouse_interrupt(struct serio *serio,
 	sermouse->last = jiffies;
 
 	if (sermouse->type > SERIO_SUN)
-		sermouse_process_ms(sermouse, data, regs);
+		sermouse_process_ms(sermouse, data);
 	else
-		sermouse_process_msc(sermouse, data, regs);
+		sermouse_process_msc(sermouse, data);
 	return IRQ_HANDLED;
 }
 

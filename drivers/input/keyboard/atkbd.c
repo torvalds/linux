@@ -318,7 +318,7 @@ static unsigned int atkbd_compat_scancode(struct atkbd *atkbd, unsigned int code
  */
 
 static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
-			unsigned int flags, struct pt_regs *regs)
+			unsigned int flags)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct input_dev *dev = atkbd->dev;
@@ -458,7 +458,6 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 				atkbd->time = jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]) / 2;
 			}
 
-			input_regs(dev, regs);
 			input_event(dev, EV_KEY, keycode, value);
 			input_sync(dev);
 
@@ -469,7 +468,6 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	}
 
 	if (atkbd->scroll) {
-		input_regs(dev, regs);
 		if (click != -1)
 			input_report_key(dev, BTN_MIDDLE, click);
 		input_report_rel(dev, REL_WHEEL, scroll);

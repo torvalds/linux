@@ -550,7 +550,7 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 }
 
 /* The main interrupt processing routine */
-static irqreturn_t rc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t rc_interrupt(int irq, void * dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
@@ -559,11 +559,10 @@ static irqreturn_t rc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 	int handled = 0;
 
 	bp = IRQ_to_board[irq];
-	
-	if (!bp || !(bp->flags & RC_BOARD_ACTIVE))  {
+
+	if (!(bp->flags & RC_BOARD_ACTIVE))
 		return IRQ_NONE;
-	}
-	
+
 	while ((++loop < 16) && ((status = ~(rc_in(bp, RC_BSR))) &
 				 (RC_BSR_TOUT | RC_BSR_TINT |
 				  RC_BSR_MINT | RC_BSR_RINT))) {

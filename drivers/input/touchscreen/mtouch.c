@@ -63,12 +63,11 @@ struct mtouch {
 	char phys[32];
 };
 
-static void mtouch_process_format_tablet(struct mtouch *mtouch, struct pt_regs *regs)
+static void mtouch_process_format_tablet(struct mtouch *mtouch)
 {
 	struct input_dev *dev = mtouch->dev;
 
 	if (MTOUCH_FORMAT_TABLET_LENGTH == ++mtouch->idx) {
-		input_regs(dev, regs);
 		input_report_abs(dev, ABS_X, MTOUCH_GET_XC(mtouch->data));
 		input_report_abs(dev, ABS_Y, MTOUCH_MAX_YC - MTOUCH_GET_YC(mtouch->data));
 		input_report_key(dev, BTN_TOUCH, MTOUCH_GET_TOUCHED(mtouch->data));
@@ -78,7 +77,7 @@ static void mtouch_process_format_tablet(struct mtouch *mtouch, struct pt_regs *
 	}
 }
 
-static void mtouch_process_response(struct mtouch *mtouch, struct pt_regs *regs)
+static void mtouch_process_response(struct mtouch *mtouch)
 {
 	if (MTOUCH_RESPONSE_END_BYTE == mtouch->data[mtouch->idx++]) {
 		/* FIXME - process response */
@@ -90,16 +89,16 @@ static void mtouch_process_response(struct mtouch *mtouch, struct pt_regs *regs)
 }
 
 static irqreturn_t mtouch_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct mtouch* mtouch = serio_get_drvdata(serio);
 
 	mtouch->data[mtouch->idx] = data;
 
 	if (MTOUCH_FORMAT_TABLET_STATUS_BIT & mtouch->data[0])
-		mtouch_process_format_tablet(mtouch, regs);
+		mtouch_process_format_tablet(mtouch);
 	else if (MTOUCH_RESPONSE_BEGIN_BYTE == mtouch->data[0])
-		mtouch_process_response(mtouch, regs);
+		mtouch_process_response(mtouch);
 	else
 		printk(KERN_DEBUG "mtouch.c: unknown/unsynchronized data from device, byte %x\n",mtouch->data[0]);
 

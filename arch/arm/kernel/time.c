@@ -27,6 +27,7 @@
 #include <linux/profile.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
+#include <linux/irq.h>
 
 #include <asm/leds.h>
 #include <asm/thread_info.h>
@@ -324,9 +325,10 @@ EXPORT_SYMBOL(restore_time_delta);
 /*
  * Kernel system timer support.
  */
-void timer_tick(struct pt_regs *regs)
+void timer_tick(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	struct pt_regs *regs = get_irq_regs();
+	profile_tick(CPU_PROFILING);
 	do_leds();
 	do_set_rtc();
 	do_timer(1);

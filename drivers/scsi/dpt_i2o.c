@@ -1989,7 +1989,7 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd,
 }
 
 
-static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t adpt_isr(int irq, void *dev_id)
 {
 	struct scsi_cmnd* cmd;
 	adpt_hba* pHba = dev_id;

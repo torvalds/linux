@@ -84,7 +84,7 @@ struct appledisplay {
 static atomic_t count_displays = ATOMIC_INIT(0);
 static struct workqueue_struct *wq;
 
-static void appledisplay_complete(struct urb *urb, struct pt_regs *regs)
+static void appledisplay_complete(struct urb *urb)
 {
 	struct appledisplay *pdata = urb->context;
 	unsigned long flags;

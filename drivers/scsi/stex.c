@@ -871,7 +871,7 @@ update_status:
 	readl(base + IMR1); /* flush */
 }
 
-static irqreturn_t stex_intr(int irq, void *__hba, struct pt_regs *regs)
+static irqreturn_t stex_intr(int irq, void *__hba)
 {
 	struct st_hba *hba = __hba;
 	void __iomem *base = hba->mmio_base;

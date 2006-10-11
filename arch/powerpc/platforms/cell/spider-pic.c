@@ -213,8 +213,7 @@ static struct irq_host_ops spider_host_ops = {
 	.xlate = spider_host_xlate,
 };
 
-static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc,
-			       struct pt_regs *regs)
+static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct spider_pic *pic = desc->handler_data;
 	unsigned int cs, virq;
@@ -225,7 +224,7 @@ static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc,
 	else
 		virq = irq_linear_revmap(pic->host, cs);
 	if (virq != NO_IRQ)
-		generic_handle_irq(virq, regs);
+		generic_handle_irq(virq);
 	desc->chip->eoi(irq);
 }
 

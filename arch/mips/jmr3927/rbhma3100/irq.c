@@ -46,6 +46,7 @@
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
 
+#include <asm/irq_regs.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
@@ -239,45 +240,80 @@ struct tb_irq_space jmr3927_ioc_irqspace = {
 	.space_id = 0,
 	can_share : 1
 };
+
 struct tb_irq_space jmr3927_irc_irqspace = {
-	.next = NULL,
-	.start_irqno = JMR3927_IRQ_IRC,
-	nr_irqs : JMR3927_NR_IRQ_IRC,
-	.mask_func = mask_irq_irc,
-	.unmask_func = unmask_irq_irc,
-	.name = "on-chip",
-	.space_id = 0,
-	can_share : 0
+	.next		= NULL,
+	.start_irqno	= JMR3927_IRQ_IRC,
+	.nr_irqs	= JMR3927_NR_IRQ_IRC,
+	.mask_func	= mask_irq_irc,
+	.unmask_func	= unmask_irq_irc,
+	.name		= "on-chip",
+	.space_id	= 0,
+	.can_share	= 0
 };
 
-void jmr3927_spurious(struct pt_regs *regs)
+
+#ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
+static int tx_branch_likely_bug_count = 0;
+static int have_tx_branch_likely_bug = 0;
+
+static void tx_branch_likely_bug_fixup(void)
+{
+	struct pt_regs *regs = get_irq_regs();
+
+	/* TX39/49-BUG: Under this condition, the insn in delay slot
+           of the branch likely insn is executed (not nullified) even
+           the branch condition is false. */
+	if (!have_tx_branch_likely_bug)
+		return;
+	if ((regs->cp0_epc & 0xfff) == 0xffc &&
+	    KSEGX(regs->cp0_epc) != KSEG0 &&
+	    KSEGX(regs->cp0_epc) != KSEG1) {
+		unsigned int insn = *(unsigned int*)(regs->cp0_epc - 4);
+		/* beql,bnel,blezl,bgtzl */
+		/* bltzl,bgezl,blezall,bgezall */
+		/* bczfl, bcztl */
+		if ((insn & 0xf0000000) == 0x50000000 ||
+		    (insn & 0xfc0e0000) == 0x04020000 ||
+		    (insn & 0xf3fe0000) == 0x41020000) {
+			regs->cp0_epc -= 4;
+			tx_branch_likely_bug_count++;
+			printk(KERN_INFO
+			       "fix branch-likery bug in %s (insn %08x)\n",
+			       current->comm, insn);
+		}
+	}
+}
+#endif
+
+static void jmr3927_spurious(void)
 {
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
-	tx_branch_likely_bug_fixup(regs);
+	tx_branch_likely_bug_fixup();
 #endif
 	printk(KERN_WARNING "spurious interrupt (cause 0x%lx, pc 0x%lx, ra 0x%lx).\n",
 	       regs->cp0_cause, regs->cp0_epc, regs->regs[31]);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	int irq;
 
 #ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
-	tx_branch_likely_bug_fixup(regs);
+	tx_branch_likely_bug_fixup();
 #endif
 	if ((regs->cp0_cause & CAUSEF_IP7) == 0) {
 #if 0
-		jmr3927_spurious(regs);
+		jmr3927_spurious();
 #endif
 		return;
 	}
 	irq = (regs->cp0_cause >> CAUSEB_IP2) & 0x0f;
 
-	do_IRQ(irq + JMR3927_IRQ_IRC, regs);
+	do_IRQ(irq + JMR3927_IRQ_IRC);
 }
 
-static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id)
 {
 	unsigned char istat = jmr3927_ioc_reg_in(JMR3927_IOC_INTS2_ADDR);
 	int i;
@@ -285,7 +321,7 @@ static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id, struct pt_regs *
 	for (i = 0; i < JMR3927_NR_IRQ_IOC; i++) {
 		if (istat & (1 << i)) {
 			irq = JMR3927_IRQ_IOC + i;
-			do_IRQ(irq, regs);
+			do_IRQ(irq);
 		}
 	}
 	return IRQ_HANDLED;
@@ -295,7 +331,7 @@ static struct irqaction ioc_action = {
 	jmr3927_ioc_interrupt, 0, CPU_MASK_NONE, "IOC", NULL, NULL,
 };
 
-static irqreturn_t jmr3927_isac_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t jmr3927_isac_interrupt(int irq, void *dev_id)
 {
 	unsigned char istat = jmr3927_isac_reg_in(JMR3927_ISAC_INTS2_ADDR);
 	int i;
@@ -303,7 +339,7 @@ static irqreturn_t jmr3927_isac_interrupt(int irq, void *dev_id, struct pt_regs 
 	for (i = 0; i < JMR3927_NR_IRQ_ISAC; i++) {
 		if (istat & (1 << i)) {
 			irq = JMR3927_IRQ_ISAC + i;
-			do_IRQ(irq, regs);
+			do_IRQ(irq);
 		}
 	}
 	return IRQ_HANDLED;
@@ -314,7 +350,7 @@ static struct irqaction isac_action = {
 };
 
 
-static irqreturn_t jmr3927_isaerr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t jmr3927_isaerr_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_WARNING "ISA error interrupt (irq 0x%x).\n", irq);
 
@@ -324,7 +360,7 @@ static struct irqaction isaerr_action = {
 	jmr3927_isaerr_interrupt, 0, CPU_MASK_NONE, "ISA error", NULL, NULL,
 };
 
-static irqreturn_t jmr3927_pcierr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t jmr3927_pcierr_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_WARNING "PCI error interrupt (irq 0x%x).\n", irq);
 	printk(KERN_WARNING "pcistat:%02x, lbstat:%04lx\n",
@@ -439,33 +475,3 @@ void jmr3927_irq_init(u32 irq_base)
 
 	jmr3927_irq_base = irq_base;
 }
-
-#ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
-static int tx_branch_likely_bug_count = 0;
-static int have_tx_branch_likely_bug = 0;
-void tx_branch_likely_bug_fixup(struct pt_regs *regs)
-{
-	/* TX39/49-BUG: Under this condition, the insn in delay slot
-           of the branch likely insn is executed (not nullified) even
-           the branch condition is false. */
-	if (!have_tx_branch_likely_bug)
-		return;
-	if ((regs->cp0_epc & 0xfff) == 0xffc &&
-	    KSEGX(regs->cp0_epc) != KSEG0 &&
-	    KSEGX(regs->cp0_epc) != KSEG1) {
-		unsigned int insn = *(unsigned int*)(regs->cp0_epc - 4);
-		/* beql,bnel,blezl,bgtzl */
-		/* bltzl,bgezl,blezall,bgezall */
-		/* bczfl, bcztl */
-		if ((insn & 0xf0000000) == 0x50000000 ||
-		    (insn & 0xfc0e0000) == 0x04020000 ||
-		    (insn & 0xf3fe0000) == 0x41020000) {
-			regs->cp0_epc -= 4;
-			tx_branch_likely_bug_count++;
-			printk(KERN_INFO
-			       "fix branch-likery bug in %s (insn %08x)\n",
-			       current->comm, insn);
-		}
-	}
-}
-#endif

@@ -221,7 +221,7 @@ static void	de620_set_multicast_list(struct net_device *);
 static int	de620_start_xmit(struct sk_buff *, struct net_device *);
 
 /* Dispatch from interrupts. */
-static irqreturn_t de620_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t de620_interrupt(int, void *);
 static int	de620_rx_intr(struct net_device *);
 
 /* Initialization */
@@ -591,7 +591,7 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
  *
  */
 static irqreturn_t
-de620_interrupt(int irq_in, void *dev_id, struct pt_regs *regs)
+de620_interrupt(int irq_in, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	byte irq_status;

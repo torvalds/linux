@@ -38,7 +38,7 @@ static void resend_irqs(unsigned long arg)
 		clear_bit(irq, irqs_resend);
 		desc = irq_desc + irq;
 		local_irq_disable();
-		desc->handle_irq(irq, desc, NULL);
+		desc->handle_irq(irq, desc);
 		local_irq_enable();
 	}
 }

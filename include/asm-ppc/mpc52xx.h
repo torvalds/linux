@@ -415,7 +415,7 @@ struct mpc52xx_cdm {
 #ifndef __ASSEMBLY__
 
 extern void mpc52xx_init_irq(void);
-extern int mpc52xx_get_irq(struct pt_regs *regs);
+extern int mpc52xx_get_irq(void);
 
 extern unsigned long mpc52xx_find_end_of_memory(void);
 extern void mpc52xx_set_bat(void);

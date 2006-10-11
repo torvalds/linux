@@ -112,7 +112,7 @@ exit:
 	return err;
 }
 
-static void zd1201_usbfree(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbfree(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 
@@ -177,7 +177,7 @@ static int zd1201_docmd(struct zd1201 *zd, int cmd, int parm0,
 }
 
 /* Callback after sending out a packet */
-static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbtx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
@@ -185,7 +185,7 @@ static void zd1201_usbtx(struct urb *urb, struct pt_regs *regs)
 }
 
 /* Incoming data */
-static void zd1201_usbrx(struct urb *urb, struct pt_regs *regs)
+static void zd1201_usbrx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	int free = 0;

@@ -405,10 +405,10 @@ static unsigned int ql_pcmd(Scsi_Cmnd * cmd)
  *	Interrupt handler 
  */
 
-static void ql_ihandl(int irq, void *dev_id, struct pt_regs *regs)
+static void ql_ihandl(void *dev_id)
 {
 	Scsi_Cmnd *icmd;
-	struct Scsi_Host *host = (struct Scsi_Host *)dev_id;
+	struct Scsi_Host *host = dev_id;
 	struct qlogicfas408_priv *priv = get_priv_by_host(host);
 	int qbase = priv->qbase;
 	REG0;
@@ -432,13 +432,13 @@ static void ql_ihandl(int irq, void *dev_id, struct pt_regs *regs)
 	(icmd->scsi_done) (icmd);
 }
 
-irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *host = dev_id;
 
 	spin_lock_irqsave(host->host_lock, flags);
-	ql_ihandl(irq, dev_id, regs);
+	ql_ihandl(dev_id);
 	spin_unlock_irqrestore(host->host_lock, flags);
 	return IRQ_HANDLED;
 }

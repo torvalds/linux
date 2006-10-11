@@ -260,7 +260,7 @@ WriteISAR(struct IsdnCardState *cs, int mode, u_char offset, u_char value)
 #include "hscx_irq.c"
 
 static irqreturn_t
-sedlbauer_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+sedlbauer_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;
@@ -306,7 +306,7 @@ sedlbauer_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-sedlbauer_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
+sedlbauer_interrupt_ipac(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char ista, val, icnt = 5;
@@ -353,7 +353,7 @@ Start_IPAC:
 }
 
 static irqreturn_t
-sedlbauer_interrupt_isar(int intno, void *dev_id, struct pt_regs *regs)
+sedlbauer_interrupt_isar(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;

@@ -34,7 +34,7 @@ static struct irq_host *i8259_host;
  * which is called.  It should be noted that polling is broken on some
  * IBM and Motorola PReP boxes so we must use the int-ack feature on them.
  */
-unsigned int i8259_irq(struct pt_regs *regs)
+unsigned int i8259_irq(void)
 {
 	int irq;
 	int lock = 0;

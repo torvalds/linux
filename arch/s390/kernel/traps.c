@@ -61,7 +61,7 @@ extern pgm_check_handler_t do_dat_exception;
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);
 extern void pfault_fini(void);
-extern void pfault_interrupt(struct pt_regs *regs, __u16 error_code);
+extern void pfault_interrupt(__u16 error_code);
 static ext_int_info_t ext_int_pfault;
 #endif
 extern pgm_check_handler_t do_monitor_call;
@@ -474,7 +474,7 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 			signal = math_emu_b3(opcode, regs);
                 } else if (opcode[0] == 0xed) {
 			get_user(*((__u32 *) (opcode+2)),
-				 (__u32 *)(location+1));
+				 (__u32 __user *)(location+1));
 			signal = math_emu_ed(opcode, regs);
 		} else if (*((__u16 *) opcode) == 0xb299) {
 			get_user(*((__u16 *) (opcode+2)), location+1);
@@ -499,7 +499,7 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 		info.si_signo = signal;
 		info.si_errno = 0;
 		info.si_code = SEGV_MAPERR;
-		info.si_addr = (void *) location;
+		info.si_addr = (void __user *) location;
 		do_trap(interruption_code, signal,
 			"user address fault", regs, &info);
 	} else
@@ -520,10 +520,10 @@ asmlinkage void
 specification_exception(struct pt_regs * regs, long interruption_code)
 {
         __u8 opcode[6];
-	__u16 *location = NULL;
+	__u16 __user *location = NULL;
 	int signal = 0;
 
-	location = (__u16 *) get_check_address(regs);
+	location = (__u16 __user *) get_check_address(regs);
 
 	/*
 	 * We got all needed information from the lowcore and can
@@ -632,7 +632,7 @@ asmlinkage void data_exception(struct pt_regs * regs, long interruption_code)
 			break;
                 case 0xed:
 			get_user(*((__u32 *) (opcode+2)),
-				 (__u32 *)(location+1));
+				 (__u32 __user *)(location+1));
 			signal = math_emu_ed(opcode, regs);
 			break;
 	        case 0xb2:

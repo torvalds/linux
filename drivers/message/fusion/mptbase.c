@@ -122,7 +122,7 @@ static DECLARE_WAIT_QUEUE_HEAD(mpt_waitq);
 /*
  *  Forward protos...
  */
-static irqreturn_t mpt_interrupt(int irq, void *bus_id, struct pt_regs *r);
+static irqreturn_t mpt_interrupt(int irq, void *bus_id);
 static int	mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply);
 static int	mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes,
 			u32 *req, int replyBytes, u16 *u16reply, int maxwait,
@@ -351,7 +351,6 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
  *	mpt_interrupt - MPT adapter (IOC) specific interrupt handler.
  *	@irq: irq number (not used)
  *	@bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
- *	@r: pt_regs pointer (not used)
  *
  *	This routine is registered via the request_irq() kernel API call,
  *	and handles all interrupts generated from a specific MPT adapter
@@ -365,7 +364,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
  *	the protocol-specific details of the MPT request completion.
  */
 static irqreturn_t
-mpt_interrupt(int irq, void *bus_id, struct pt_regs *r)
+mpt_interrupt(int irq, void *bus_id)
 {
 	MPT_ADAPTER *ioc = bus_id;
 	u32 pa = CHIPREG_READ32_dmasync(&ioc->chip->ReplyFifo);

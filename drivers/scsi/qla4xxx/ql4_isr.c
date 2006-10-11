@@ -610,9 +610,8 @@ void qla4xxx_interrupt_service_routine(struct scsi_qla_host * ha,
  * qla4xxx_intr_handler - hardware interrupt handler.
  * @irq: Unused
  * @dev_id: Pointer to host adapter structure
- * @regs: Unused
  **/
-irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 {
 	struct scsi_qla_host *ha;
 	uint32_t intr_status;

@@ -174,7 +174,7 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 	return 0;
 }
 
-static struct nodeinfo *nodeid2nodeinfo(int nodeid, int alloc)
+static struct nodeinfo *nodeid2nodeinfo(int nodeid, gfp_t alloc)
 {
 	struct nodeinfo *ni;
 	int r;
@@ -726,7 +726,7 @@ static int init_sock(void)
 }
 
 
-static struct writequeue_entry *new_writequeue_entry(int allocation)
+static struct writequeue_entry *new_writequeue_entry(gfp_t allocation)
 {
 	struct writequeue_entry *entry;
 
@@ -748,7 +748,7 @@ static struct writequeue_entry *new_writequeue_entry(int allocation)
 	return entry;
 }
 
-void *dlm_lowcomms_get_buffer(int nodeid, int len, int allocation, char **ppc)
+void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 {
 	struct writequeue_entry *e;
 	int offset = 0;

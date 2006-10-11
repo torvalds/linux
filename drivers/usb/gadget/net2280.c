@@ -2753,7 +2753,7 @@ static void handle_stat1_irqs (struct net2280 *dev, u32 stat)
 		DEBUG (dev, "unhandled irqstat1 %08x\n", stat);
 }
 
-static irqreturn_t net2280_irq (int irq, void *_dev, struct pt_regs * r)
+static irqreturn_t net2280_irq (int irq, void *_dev)
 {
 	struct net2280		*dev = _dev;
 

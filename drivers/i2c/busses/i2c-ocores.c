@@ -143,7 +143,7 @@ static void ocores_process(struct ocores_i2c *i2c)
 	}
 }
 
-static irqreturn_t ocores_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ocores_isr(int irq, void *dev_id)
 {
 	struct ocores_i2c *i2c = dev_id;
 

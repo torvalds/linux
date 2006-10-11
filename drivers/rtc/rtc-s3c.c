@@ -46,7 +46,7 @@ static unsigned int tick_count;
 
 /* IRQ Handlers */
 
-static irqreturn_t s3c_rtc_alarmirq(int irq, void *id, struct pt_regs *r)
+static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 
@@ -54,7 +54,7 @@ static irqreturn_t s3c_rtc_alarmirq(int irq, void *id, struct pt_regs *r)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c_rtc_tickirq(int irq, void *id, struct pt_regs *r)
+static irqreturn_t s3c_rtc_tickirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 

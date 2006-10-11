@@ -100,7 +100,7 @@ typedef struct stlibrd {
 	unsigned int	iobase;
 	int		iosize;
 	unsigned long	memaddr;
-	void		*membase;
+	void		__iomem *membase;
 	int		memsize;
 	int		pagesize;
 	int		hostoffset;
@@ -113,7 +113,7 @@ typedef struct stlibrd {
 	void		(*enable)(struct stlibrd *brdp);
 	void		(*reenable)(struct stlibrd *brdp);
 	void		(*disable)(struct stlibrd *brdp);
-	char		*(*getmemptr)(struct stlibrd *brdp, unsigned long offset, int line);
+	void		__iomem *(*getmemptr)(struct stlibrd *brdp, unsigned long offset, int line);
 	void		(*intr)(struct stlibrd *brdp);
 	void		(*reset)(struct stlibrd *brdp);
 	stliport_t	*ports[STL_MAXPORTS];

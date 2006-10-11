@@ -90,7 +90,7 @@ static void sun3x_timer_tick(int irq, void *dev_id, struct pt_regs *regs)
 }
 #endif
 
-void __init sun3x_sched_init(irqreturn_t (*vector)(int, void *, struct pt_regs *))
+void __init sun3x_sched_init(irq_handler_t vector)
 {
 
 	sun3_disable_interrupts();

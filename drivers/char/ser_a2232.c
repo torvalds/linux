@@ -111,7 +111,7 @@
 
 /***************************** Prototypes ***************************/
 /* The interrupt service routine */
-static irqreturn_t a2232_vbl_inter(int irq, void *data, struct pt_regs *fp);
+static irqreturn_t a2232_vbl_inter(int irq, void *data);
 /* Initialize the port structures */
 static void a2232_init_portstructs(void);
 /* Initialize and register TTY drivers. */
@@ -504,7 +504,7 @@ static int  a2232_open(struct tty_struct * tty, struct file * filp)
 }
 /*** END OF FUNCTIONS EXPECTED BY TTY DRIVER STRUCTS ***/
 
-static irqreturn_t a2232_vbl_inter(int irq, void *data, struct pt_regs *fp)
+static irqreturn_t a2232_vbl_inter(int irq, void *data)
 {
 #if A2232_IOBUFLEN != 256
 #error "Re-Implement a2232_vbl_inter()!"

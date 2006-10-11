@@ -234,7 +234,7 @@ wildfire_init_irq(void)
 }
 
 static void 
-wildfire_device_interrupt(unsigned long vector, struct pt_regs * regs)
+wildfire_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -246,7 +246,7 @@ wildfire_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	 * bits 5-0:	irq in PCA
 	 */
 
-	handle_irq(irq, regs);
+	handle_irq(irq);
 	return;
 }
 

@@ -182,7 +182,7 @@ isl_upload_firmware(islpci_private *priv)
 ******************************************************************************/
 
 irqreturn_t
-islpci_interrupt(int irq, void *config, struct pt_regs *regs)
+islpci_interrupt(int irq, void *config)
 {
 	u32 reg;
 	islpci_private *priv = config;

@@ -159,7 +159,7 @@ static void dm9000_init_dm9000(struct net_device *);
 
 static struct net_device_stats *dm9000_get_stats(struct net_device *);
 
-static irqreturn_t dm9000_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t dm9000_interrupt(int, void *);
 
 static int dm9000_phy_read(struct net_device *dev, int phyaddr_unsused, int reg);
 static void dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg,
@@ -346,7 +346,7 @@ static void dm9000_timeout(struct net_device *dev)
 static void dm9000_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	dm9000_interrupt(dev->irq,dev,NULL);
+	dm9000_interrupt(dev->irq,dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -804,7 +804,7 @@ dm9000_tx_done(struct net_device *dev, board_info_t * db)
 }
 
 static irqreturn_t
-dm9000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+dm9000_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	board_info_t *db;

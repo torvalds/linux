@@ -1553,8 +1553,7 @@ itd_link_urb (
 static unsigned
 itd_complete (
 	struct ehci_hcd	*ehci,
-	struct ehci_itd	*itd,
-	struct pt_regs	*regs
+	struct ehci_itd	*itd
 ) {
 	struct urb				*urb = itd->urb;
 	struct usb_iso_packet_descriptor	*desc;
@@ -1613,7 +1612,7 @@ itd_complete (
 
 	/* give urb back to the driver ... can be out-of-order */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb, regs);
+	ehci_urb_done (ehci, urb);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -1930,8 +1929,7 @@ sitd_link_urb (
 static unsigned
 sitd_complete (
 	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd,
-	struct pt_regs		*regs
+	struct ehci_sitd	*sitd
 ) {
 	struct urb				*urb = sitd->urb;
 	struct usb_iso_packet_descriptor	*desc;
@@ -1978,7 +1976,7 @@ sitd_complete (
 
 	/* give urb back to the driver */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb, regs);
+	ehci_urb_done (ehci, urb);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -2065,8 +2063,7 @@ sitd_submit (struct ehci_hcd *ehci, struct urb *urb, gfp_t mem_flags)
 static inline unsigned
 sitd_complete (
 	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd,
-	struct pt_regs		*regs
+	struct ehci_sitd	*sitd
 ) {
 	ehci_err (ehci, "sitd_complete %p?\n", sitd);
 	return 0;
@@ -2077,7 +2074,7 @@ sitd_complete (
 /*-------------------------------------------------------------------------*/
 
 static void
-scan_periodic (struct ehci_hcd *ehci, struct pt_regs *regs)
+scan_periodic (struct ehci_hcd *ehci)
 {
 	unsigned	frame, clock, now_uframe, mod;
 	unsigned	modified;
@@ -2131,7 +2128,7 @@ restart:
 				temp.qh = qh_get (q.qh);
 				type = Q_NEXT_TYPE (q.qh->hw_next);
 				q = q.qh->qh_next;
-				modified = qh_completions (ehci, temp.qh, regs);
+				modified = qh_completions (ehci, temp.qh);
 				if (unlikely (list_empty (&temp.qh->qtd_list)))
 					intr_deschedule (ehci, temp.qh);
 				qh_put (temp.qh);
@@ -2169,7 +2166,7 @@ restart:
 				*hw_p = q.itd->hw_next;
 				type = Q_NEXT_TYPE (q.itd->hw_next);
 				wmb();
-				modified = itd_complete (ehci, q.itd, regs);
+				modified = itd_complete (ehci, q.itd);
 				q = *q_p;
 				break;
 			case Q_TYPE_SITD:
@@ -2185,7 +2182,7 @@ restart:
 				*hw_p = q.sitd->hw_next;
 				type = Q_NEXT_TYPE (q.sitd->hw_next);
 				wmb();
-				modified = sitd_complete (ehci, q.sitd, regs);
+				modified = sitd_complete (ehci, q.sitd);
 				q = *q_p;
 				break;
 			default:

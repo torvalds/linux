@@ -2364,7 +2364,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 }
 
-static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sky2_intr(int irq, void *dev_id)
 {
 	struct sky2_hw *hw = dev_id;
 	struct net_device *dev0 = hw->dev[0];
@@ -3298,8 +3298,7 @@ static void __devinit sky2_show_addr(struct net_device *dev)
 }
 
 /* Handle software interrupt used during MSI test */
-static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id,
-					    struct pt_regs *regs)
+static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id)
 {
 	struct sky2_hw *hw = dev_id;
 	u32 status = sky2_read32(hw, B0_Y2_SP_ISRC2);

@@ -125,7 +125,7 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 	.pxafb_lcd_power = &idp_lcd_power
 };
 
-static int idp_mci_init(struct device *dev, irqreturn_t (*idp_detect_int)(int, void *, struct pt_regs *), void *data)
+static int idp_mci_init(struct device *dev, irq_handler_t idp_detect_int, void *data)
 {
 	/* setup GPIO for PXA25x MMC controller	*/
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);

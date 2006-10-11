@@ -336,9 +336,9 @@ int mv64x60_pci_exclude_device(u8 bus, u8 devfn);
 
 
 void gt64260_init_irq(void);
-int gt64260_get_irq(struct pt_regs *regs);
+int gt64260_get_irq(void);
 void mv64360_init_irq(void);
-int mv64360_get_irq(struct pt_regs *regs);
+int mv64360_get_irq(void);
 
 u32 mv64x60_mask(u32 val, u32 num_bits);
 u32 mv64x60_shift_left(u32 val, u32 num_bits);

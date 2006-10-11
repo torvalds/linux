@@ -574,7 +574,7 @@ static void sabre_check_iommu_error(struct pci_controller_info *p,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static irqreturn_t sabre_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_A.controller_regs + SABRE_UE_AFSR;
@@ -634,7 +634,7 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sabre_ce_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_A.controller_regs + SABRE_CE_AFSR;
@@ -726,7 +726,7 @@ static irqreturn_t sabre_pcierr_intr_other(struct pci_controller_info *p)
 	return ret;
 }
 
-static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg, afar_reg;

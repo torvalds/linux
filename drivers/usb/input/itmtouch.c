@@ -80,7 +80,7 @@ static struct usb_device_id itmtouch_ids [] = {
 	{ }
 };
 
-static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
+static void itmtouch_irq(struct urb *urb)
 {
 	struct itmtouch_dev *itmtouch = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -108,8 +108,6 @@ static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
 		    __FUNCTION__, urb->status);
 		goto exit;
 	}
-
-	input_regs(dev, regs);
 
 	/* if pressure has been released, then don't report X/Y */
 	if (!(data[7] & 0x20)) {

@@ -51,15 +51,11 @@ void board_reset (void)
 
 void __init board_setup(void)
 {
-#if defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
-#ifdef CONFIG_AU1X00_USB_DEVICE
-	// 2nd USB port is USB device
-	au_writel(au_readl(SYS_PINFUNC) & (u32)(~0x8000), SYS_PINFUNC);
-#endif
+#ifdef CONFIG_USB_OHCI
 	// enable USB power switch
 	au_writel( au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR );
 	au_writel( 0x100000, GPIO2_OUTPUT );
-#endif // defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
+#endif // defined (CONFIG_USB_OHCI)
 
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)

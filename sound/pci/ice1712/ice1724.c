@@ -218,7 +218,7 @@ static unsigned int snd_vt1724_get_gpio_data(struct snd_ice1712 *ice)
  *  Interrupt handler
  */
 
-static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 {
 	struct snd_ice1712 *ice = dev_id;
 	unsigned char status;
@@ -236,7 +236,7 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id, struct pt_regs *r
 		 */
 		if ((status & VT1724_IRQ_MPU_RX)||(status & VT1724_IRQ_MPU_TX)) {
 			if (ice->rmidi[0])
-				snd_mpu401_uart_interrupt(irq, ice->rmidi[0]->private_data, regs);
+				snd_mpu401_uart_interrupt(irq, ice->rmidi[0]->private_data);
 			outb(status & (VT1724_IRQ_MPU_RX|VT1724_IRQ_MPU_TX), ICEREG1724(ice, IRQSTAT));
 			status &= ~(VT1724_IRQ_MPU_RX|VT1724_IRQ_MPU_TX);
 		}

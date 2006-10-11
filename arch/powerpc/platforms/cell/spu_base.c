@@ -147,7 +147,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 }
 
 static irqreturn_t
-spu_irq_class_0(int irq, void *data, struct pt_regs *regs)
+spu_irq_class_0(int irq, void *data)
 {
 	struct spu *spu;
 
@@ -186,7 +186,7 @@ spu_irq_class_0_bottom(struct spu *spu)
 EXPORT_SYMBOL_GPL(spu_irq_class_0_bottom);
 
 static irqreturn_t
-spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
+spu_irq_class_1(int irq, void *data)
 {
 	struct spu *spu;
 	unsigned long stat, mask, dar, dsisr;
@@ -224,7 +224,7 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 EXPORT_SYMBOL_GPL(spu_irq_class_1_bottom);
 
 static irqreturn_t
-spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
+spu_irq_class_2(int irq, void *data)
 {
 	struct spu *spu;
 	unsigned long stat;

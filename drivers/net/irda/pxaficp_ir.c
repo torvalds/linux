@@ -199,7 +199,7 @@ static int pxa_irda_set_speed(struct pxa_irda *si, int speed)
 }
 
 /* SIR interrupt service routine. */
-static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct pxa_irda *si = netdev_priv(dev);
@@ -281,7 +281,7 @@ static irqreturn_t pxa_irda_sir_irq(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /* FIR Receive DMA interrupt handler */
-static void pxa_irda_fir_dma_rx_irq(int channel, void *data, struct pt_regs *regs)
+static void pxa_irda_fir_dma_rx_irq(int channel, void *data)
 {
 	int dcsr = DCSR(channel);
 
@@ -291,7 +291,7 @@ static void pxa_irda_fir_dma_rx_irq(int channel, void *data, struct pt_regs *reg
 }
 
 /* FIR Transmit DMA interrupt handler */
-static void pxa_irda_fir_dma_tx_irq(int channel, void *data, struct pt_regs *regs)
+static void pxa_irda_fir_dma_tx_irq(int channel, void *data)
 {
 	struct net_device *dev = data;
 	struct pxa_irda *si = netdev_priv(dev);
@@ -388,7 +388,7 @@ static void pxa_irda_fir_irq_eif(struct pxa_irda *si, struct net_device *dev)
 }
 
 /* FIR interrupt handler */
-static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct pxa_irda *si = netdev_priv(dev);

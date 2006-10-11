@@ -429,7 +429,7 @@ static void pvr2_stream_done(struct pvr2_stream *sp)
 	} while (0); mutex_unlock(&sp->mutex);
 }
 
-static void buffer_complete(struct urb *urb, struct pt_regs *regs)
+static void buffer_complete(struct urb *urb)
 {
 	struct pvr2_buffer *bp = urb->context;
 	struct pvr2_stream *sp;

@@ -222,7 +222,7 @@ static struct irq_chip ip22_local3_irq_type = {
 	.end		= end_local3_irq,
 };
 
-static void indy_local0_irqdispatch(struct pt_regs *regs)
+static void indy_local0_irqdispatch(void)
 {
 	u8 mask = sgint->istat0 & sgint->imask0;
 	u8 mask2;
@@ -236,11 +236,10 @@ static void indy_local0_irqdispatch(struct pt_regs *regs)
 
 	/* if irq == 0, then the interrupt has already been cleared */
 	if (irq)
-		do_IRQ(irq, regs);
-	return;
+		do_IRQ(irq);
 }
 
-static void indy_local1_irqdispatch(struct pt_regs *regs)
+static void indy_local1_irqdispatch(void)
 {
 	u8 mask = sgint->istat1 & sgint->imask1;
 	u8 mask2;
@@ -254,19 +253,18 @@ static void indy_local1_irqdispatch(struct pt_regs *regs)
 
 	/* if irq == 0, then the interrupt has already been cleared */
 	if (irq)
-		do_IRQ(irq, regs);
-	return;
+		do_IRQ(irq);
 }
 
-extern void ip22_be_interrupt(int irq, struct pt_regs *regs);
+extern void ip22_be_interrupt(int irq);
 
-static void indy_buserror_irq(struct pt_regs *regs)
+static void indy_buserror_irq(void)
 {
 	int irq = SGI_BUSERR_IRQ;
 
 	irq_enter();
 	kstat_this_cpu.irqs[irq]++;
-	ip22_be_interrupt(irq, regs);
+	ip22_be_interrupt(irq);
 	irq_exit();
 }
 
@@ -305,8 +303,8 @@ static struct irqaction map1_cascade = {
 #define SGI_INTERRUPTS	SGINT_LOCAL3
 #endif
 
-extern void indy_r4k_timer_interrupt(struct pt_regs *regs);
-extern void indy_8254timer_irq(struct pt_regs *regs);
+extern void indy_r4k_timer_interrupt(void);
+extern void indy_8254timer_irq(void);
 
 /*
  * IRQs on the INDY look basically (barring software IRQs which we don't use
@@ -336,7 +334,7 @@ extern void indy_8254timer_irq(struct pt_regs *regs);
  * another exception, big deal.
  */
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause();
 
@@ -344,15 +342,15 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	 * First we check for r4k counter/timer IRQ.
 	 */
 	if (pending & CAUSEF_IP7)
-		indy_r4k_timer_interrupt(regs);
+		indy_r4k_timer_interrupt();
 	else if (pending & CAUSEF_IP2)
-		indy_local0_irqdispatch(regs);
+		indy_local0_irqdispatch();
 	else if (pending & CAUSEF_IP3)
-		indy_local1_irqdispatch(regs);
+		indy_local1_irqdispatch();
 	else if (pending & CAUSEF_IP6)
-		indy_buserror_irq(regs);
+		indy_buserror_irq();
 	else if (pending & (CAUSEF_IP4 | CAUSEF_IP5))
-		indy_8254timer_irq(regs);
+		indy_8254timer_irq();
 }
 
 extern void mips_cpu_irq_init(unsigned int irq_base);

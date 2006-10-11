@@ -405,11 +405,10 @@ void __init tsi108_pci_int_init(void)
 	init_pci_source();
 }
 
-void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs)
+void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq = get_pci_source();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }

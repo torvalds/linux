@@ -94,7 +94,7 @@ struct sunkbd {
  */
 
 static irqreturn_t sunkbd_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct sunkbd* sunkbd = serio_get_drvdata(serio);
 
@@ -129,7 +129,6 @@ static irqreturn_t sunkbd_interrupt(struct serio *serio,
 				break;
 
 			if (sunkbd->keycode[data & SUNKBD_KEY]) {
-				input_regs(sunkbd->dev, regs);
                                 input_report_key(sunkbd->dev, sunkbd->keycode[data & SUNKBD_KEY], !(data & SUNKBD_RELEASE));
 				input_sync(sunkbd->dev);
                         } else {

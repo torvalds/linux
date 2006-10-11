@@ -93,7 +93,7 @@ static void ibmveth_proc_register_driver(void);
 static void ibmveth_proc_unregister_driver(void);
 static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter);
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter);
-static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance);
 static inline void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 static struct kobj_type ktype_veth_pool;
 
@@ -570,7 +570,7 @@ static int ibmveth_open(struct net_device *netdev)
 	}
 
 	ibmveth_debug_printk("initial replenish cycle\n");
-	ibmveth_interrupt(netdev->irq, netdev, NULL);
+	ibmveth_interrupt(netdev->irq, netdev);
 
 	netif_start_queue(netdev);
 
@@ -843,7 +843,7 @@ static int ibmveth_poll(struct net_device *netdev, int *budget)
 	return 0;
 }
 
-static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *netdev = dev_instance;
 	struct ibmveth_adapter *adapter = netdev->priv;
@@ -1303,7 +1303,7 @@ const char * buf, size_t count)
 	}
 
 	/* kick the interrupt handler to allocate/deallocate pools */
-	ibmveth_interrupt(netdev->irq, netdev, NULL);
+	ibmveth_interrupt(netdev->irq, netdev);
 	return count;
 }
 

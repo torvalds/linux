@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <asm/ptrace.h>
+#include <asm/irq_regs.h>
 #include <asm/gt64120.h>
 
 /*
@@ -19,7 +19,7 @@
  * differently than other MIPS interrupts.
  */
 
-static void gt64120_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gt64120_irq(int irq, void *dev_id)
 {
 	unsigned int irq_src, int_high_src, irq_src_mask, int_high_src_mask;
 	int handled = 0;
@@ -36,12 +36,14 @@ static void gt64120_irq(int irq, void *dev_id, struct pt_regs *regs)
 		irq_src &= ~0x00000800;
 		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 	}
 
 	GT_WRITE(GT_INTRCAUSE_OFS, 0);
 	GT_WRITE(GT_HINTRCAUSE_OFS, 0);
+
+	return IRQ_HANDLED;
 }
 
 /*

@@ -941,7 +941,7 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	int sz_to_copy;
 	int sz_copied = 0;
 	int needed;
-	char *crs = m->msg_iov->iov_base;
+	char __user *crs = m->msg_iov->iov_base;
 	unsigned char *buf_crs;
 	u32 err;
 	int res;
@@ -1496,7 +1496,7 @@ static int setsockopt(struct socket *sock,
 		return -ENOPROTOOPT;
 	if (ol < sizeof(value))
 		return -EINVAL;
-        if ((res = get_user(value, (u32 *)ov)))
+        if ((res = get_user(value, (u32 __user *)ov)))
 		return res;
 
 	if (down_interruptible(&tsock->sem)) 
@@ -1541,7 +1541,7 @@ static int setsockopt(struct socket *sock,
  */
 
 static int getsockopt(struct socket *sock, 
-		      int lvl, int opt, char __user *ov, int *ol)
+		      int lvl, int opt, char __user *ov, int __user *ol)
 {
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
         int len;

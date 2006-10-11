@@ -61,9 +61,9 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 		"during HBA initialization.  Memory allocation requirements "
 		"vary by ISP type.  Default is 1 - allocate memory.");
 
-int extended_error_logging;
-module_param(extended_error_logging, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(extended_error_logging,
+int qla2_extended_error_logging;
+module_param(qla2_extended_error_logging, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(qla2_extended_error_logging,
 		"Option to enable extended error logging, "
 		"Default is 0 - no logging. 1 - log errors.");
 
@@ -2697,7 +2697,7 @@ qla2x00_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
-	if (extended_error_logging)
+	if (qla2_extended_error_logging)
 		strcat(qla2x00_version_str, "-debug");
 
 	qla2xxx_transport_template =

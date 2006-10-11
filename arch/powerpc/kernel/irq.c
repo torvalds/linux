@@ -187,6 +187,7 @@ void fixup_irqs(cpumask_t map)
 
 void do_IRQ(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned int irq;
 #ifdef CONFIG_IRQSTACKS
 	struct thread_info *curtp, *irqtp;
@@ -216,7 +217,7 @@ void do_IRQ(struct pt_regs *regs)
 	 * The value -2 is for buggy hardware and means that this IRQ
 	 * has already been handled. -- Tom
 	 */
-	irq = ppc_md.get_irq(regs);
+	irq = ppc_md.get_irq();
 
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE) {
 #ifdef CONFIG_IRQSTACKS
@@ -230,18 +231,19 @@ void do_IRQ(struct pt_regs *regs)
 				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
-			call_handle_irq(irq, desc, regs, irqtp, handler);
+			call_handle_irq(irq, desc, irqtp, handler);
 			irqtp->task = NULL;
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
 #endif
-			generic_handle_irq(irq, regs);
+			generic_handle_irq(irq);
 	} else if (irq != NO_IRQ_IGNORE)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
         irq_exit();
+	set_irq_regs(old_regs);
 
 #ifdef CONFIG_PPC_ISERIES
 	if (get_lppaca()->int_dword.fields.decr_int) {
@@ -570,8 +572,8 @@ unsigned int irq_create_mapping(struct irq_host *host,
 }
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
-extern unsigned int irq_create_of_mapping(struct device_node *controller,
-					  u32 *intspec, unsigned int intsize)
+unsigned int irq_create_of_mapping(struct device_node *controller,
+				   u32 *intspec, unsigned int intsize)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;

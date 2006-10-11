@@ -42,7 +42,7 @@ static struct input_dev * get_input_dev(struct wacom_combo *wcombo)
 	return wcombo->wacom->dev;
 }
 
-void wacom_sys_irq(struct urb *urb, struct pt_regs *regs)
+void wacom_sys_irq(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
 	struct wacom_combo wcombo;
@@ -65,7 +65,6 @@ void wacom_sys_irq(struct urb *urb, struct pt_regs *regs)
 
 	wcombo.wacom = wacom;
 	wcombo.urb = urb;
-	wcombo.regs = regs;
 
 	if (wacom_wac_irq(wacom->wacom_wac, (void *)&wcombo))
 		input_sync(get_input_dev(&wcombo));
@@ -113,12 +112,6 @@ __u16 wacom_le16_to_cpu(unsigned char *data)
 	__u16 value;
 	value = be16_to_cpu(*(__be16 *) data);
 	return value;
-}
-
-void wacom_input_regs(void *wcombo)
-{
-	input_regs(get_input_dev((struct wacom_combo *)wcombo), ((struct wacom_combo *)wcombo)->regs);
-	return;
 }
 
 void wacom_input_sync(void *wcombo)

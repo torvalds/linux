@@ -60,7 +60,7 @@ extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
-extern int extended_error_logging;
+extern int qla2_extended_error_logging;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
@@ -217,9 +217,9 @@ qla2x00_set_idma_speed(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t *);
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
-extern irqreturn_t qla2100_intr_handler(int, void *, struct pt_regs *);
-extern irqreturn_t qla2300_intr_handler(int, void *, struct pt_regs *);
-extern irqreturn_t qla24xx_intr_handler(int, void *, struct pt_regs *);
+extern irqreturn_t qla2100_intr_handler(int, void *);
+extern irqreturn_t qla2300_intr_handler(int, void *);
+extern irqreturn_t qla24xx_intr_handler(int, void *);
 extern void qla2x00_process_response_queue(struct scsi_qla_host *);
 extern void qla24xx_process_response_queue(struct scsi_qla_host *);
 

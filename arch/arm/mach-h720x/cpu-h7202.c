@@ -106,8 +106,7 @@ static struct platform_device *devices[] __initdata = {
  * we have to handle all timer interrupts in one place.
  */
 static void
-h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
-			struct pt_regs *regs)
+h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc)
 {
 	unsigned int mask, irq;
 
@@ -115,7 +114,7 @@ h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
 
 	if ( mask & TSTAT_T0INT ) {
 		write_seqlock(&xtime_lock);
-		timer_tick(regs);
+		timer_tick();
 		write_sequnlock(&xtime_lock);
 		if( mask == TSTAT_T0INT )
 			return;
@@ -126,7 +125,7 @@ h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
 	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1)
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		irq++;
 		desc++;
 		mask >>= 1;
@@ -137,9 +136,9 @@ h7202_timerx_demux_handler(unsigned int irq_unused, struct irqdesc *desc,
  * Timer interrupt handler
  */
 static irqreturn_t
-h7202_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+h7202_timer_interrupt(int irq, void *dev_id)
 {
-	h7202_timerx_demux_handler(0, NULL, regs);
+	h7202_timerx_demux_handler(0, NULL);
 	return IRQ_HANDLED;
 }
 

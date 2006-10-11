@@ -3849,6 +3849,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	}
 	clear_bit(In_sync, &rdev->flags);
 	rdev->desc_nr = -1;
+	rdev->saved_raid_disk = -1;
 	err = bind_rdev_to_array(rdev, mddev);
 	if (err)
 		goto abort_export;

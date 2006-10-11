@@ -326,8 +326,7 @@ static __inline__ unsigned int sym53c416_write(int base, unsigned char *buffer, 
 	return orig_len - len;
 }
 
-static irqreturn_t sym53c416_intr_handle(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t sym53c416_intr_handle(int irq, void *dev_id)
 {
 	struct Scsi_Host *dev = dev_id;
 	int base = 0;

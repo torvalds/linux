@@ -3,12 +3,13 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 by Ralf Baechle
+ * Copyright (C) 2004, 05, 06 by Ralf Baechle
  * Copyright (C) 2005 by MIPS Technologies, Inc.
  */
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
+#include <asm/irq_regs.h>
 
 #include "op_impl.h"
 
@@ -170,7 +171,7 @@ static void mipsxx_cpu_stop(void *args)
 	}
 }
 
-static int mipsxx_perfcount_handler(struct pt_regs *regs)
+static int mipsxx_perfcount_handler(void)
 {
 	unsigned int counters = op_model_mipsxx_ops.num_counters;
 	unsigned int control;
@@ -184,7 +185,7 @@ static int mipsxx_perfcount_handler(struct pt_regs *regs)
 		counter = r_c0_perfcntr ## n();				\
 		if ((control & M_PERFCTL_INTERRUPT_ENABLE) &&		\
 		    (counter & M_COUNTER_OVERFLOW)) {			\
-			oprofile_add_sample(regs, n);			\
+			oprofile_add_sample(get_irq_regs(), n);		\
 			w_c0_perfcntr ## n(reg.counter[n]);		\
 			handled = 1;					\
 		}

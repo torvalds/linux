@@ -143,7 +143,7 @@ static void plip_bh(struct net_device *dev);
 static void plip_timer_bh(struct net_device *dev);
 
 /* Interrupt handler */
-static void plip_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static void plip_interrupt(int irq, void *dev_id);
 
 /* Functions for DEV methods */
 static int plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
@@ -385,7 +385,7 @@ plip_timer_bh(struct net_device *dev)
 	struct net_local *nl = netdev_priv(dev);
 
 	if (!(atomic_read (&nl->kill_timer))) {
-		plip_interrupt (-1, dev, NULL);
+		plip_interrupt (-1, dev);
 
 		schedule_delayed_work(&nl->timer, 1);
 	}
@@ -902,17 +902,12 @@ plip_error(struct net_device *dev, struct net_local *nl,
 
 /* Handle the parallel port interrupts. */
 static void
-plip_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+plip_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *nl;
 	struct plip_local *rcv;
 	unsigned char c0;
-
-	if (dev == NULL) {
-		printk(KERN_DEBUG "plip_interrupt: irq %d for unknown device.\n", irq);
-		return;
-	}
 
 	nl = netdev_priv(dev);
 	rcv = &nl->rcv_data;

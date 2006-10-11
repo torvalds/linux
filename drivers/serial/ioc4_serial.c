@@ -987,10 +987,9 @@ intr_connect(struct ioc4_soft *soft, int type,
  * ioc4_intr - Top level IOC4 interrupt handler.
  * @irq: irq value
  * @arg: handler arg
- * @regs: registers
  */
 
-static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t ioc4_intr(int irq, void *arg)
 {
 	struct ioc4_soft *soft;
 	uint32_t this_ir, this_mir;

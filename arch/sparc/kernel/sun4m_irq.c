@@ -228,7 +228,7 @@ static void sun4m_load_profile_irq(int cpu, unsigned int limit)
 	sun4m_timers->cpu_timers[cpu].l14_timer_limit = limit;
 }
 
-static void __init sun4m_init_timers(irqreturn_t (*counter_fn)(int, void *, struct pt_regs *))
+static void __init sun4m_init_timers(irq_handler_t counter_fn)
 {
 	int reg_count, irq, cpu;
 	struct linux_prom_registers cnt_regs[PROMREG_MAX];

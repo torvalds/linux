@@ -111,6 +111,7 @@ static struct irq_desc bad_irq_desc = {
  */
 asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irqdesc *desc = irq_desc + irq;
 
 	/*
@@ -122,12 +123,13 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_enter();
 
-	desc_handle_irq(irq, desc, regs);
+	desc_handle_irq(irq, desc);
 
 	/* AT91 specific workaround */
 	irq_finish(irq);
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)

@@ -45,14 +45,11 @@ static unsigned int partition_number = -1;
  * ibmvscsi_handle_event: - Interrupt handler for crq events
  * @irq:	number of irq to handle, not used
  * @dev_instance: ibmvscsi_host_data of host that received interrupt
- * @regs:	pt_regs with registers
  *
  * Disables interrupts and schedules srp_task
  * Always returns IRQ_HANDLED
  */
-static irqreturn_t ibmvscsi_handle_event(int irq,
-					 void *dev_instance,
-					 struct pt_regs *regs)
+static irqreturn_t ibmvscsi_handle_event(int irq, void *dev_instance)
 {
 	struct ibmvscsi_host_data *hostdata =
 	    (struct ibmvscsi_host_data *)dev_instance;

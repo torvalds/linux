@@ -47,7 +47,7 @@ struct pl031_local {
 	void __iomem *base;
 };
 
-static irqreturn_t pl031_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pl031_interrupt(int irq, void *dev_id)
 {
 	struct rtc_device *rtc = dev_id;
 

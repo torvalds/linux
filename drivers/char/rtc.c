@@ -35,13 +35,13 @@
  *	1.09a	Pete Zaitcev: Sun SPARC
  *	1.09b	Jeff Garzik: Modularize, init cleanup
  *	1.09c	Jeff Garzik: SMP cleanup
- *	1.10    Paul Barton-Davis: add support for async I/O
+ *	1.10	Paul Barton-Davis: add support for async I/O
  *	1.10a	Andrea Arcangeli: Alpha updates
  *	1.10b	Andrew Morton: SMP lock fix
  *	1.10c	Cesar Barros: SMP locking fixes and cleanup
  *	1.10d	Paul Gortmaker: delete paranoia check in rtc_exit
  *	1.10e	Maciej W. Rozycki: Handle DECstation's year weirdness.
- *      1.11    Takashi Iwai: Kernel access functions
+ *	1.11	Takashi Iwai: Kernel access functions
  *			      rtc_register/rtc_unregister/rtc_control
  *      1.11a   Daniele Bellucci: Audit create_proc_read_entry in rtc_init
  *	1.12	Venkatesh Pallipadi: Hooks for emulating rtc on HPET base-timer
@@ -113,9 +113,9 @@ static int rtc_has_irq = 1;
 #define hpet_set_rtc_irq_bit(arg) 		0
 #define hpet_rtc_timer_init() 			do { } while (0)
 #define hpet_rtc_dropped_irq() 			0
-static inline irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs) {return 0;}
+static inline irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id) {return 0;}
 #else
-extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif
 
 /*
@@ -229,7 +229,7 @@ static inline unsigned char rtc_is_updating(void)
  *	(See ./arch/XXXX/kernel/time.c for the set_rtc_mmss() function.)
  */
 
-irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t rtc_interrupt(int irq, void *dev_id)
 {
 	/*
 	 *	Can be an alarm interrupt, update complete interrupt,
@@ -915,7 +915,7 @@ static const struct file_operations rtc_proc_fops = {
 };
 
 #if defined(RTC_IRQ) && !defined(__sparc__)
-static irqreturn_t (*rtc_int_handler_ptr)(int irq, void *dev_id, struct pt_regs *regs);
+static irq_handler_t rtc_int_handler_ptr;
 #endif
 
 static int __init rtc_init(void)

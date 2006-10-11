@@ -339,7 +339,7 @@ static inline void check_modem_status(struct dz_port *dport)
  * It deals with the multiple ports.
  * ------------------------------------------------------------
  */
-static irqreturn_t dz_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t dz_interrupt(int irq, void *dev)
 {
 	struct dz_port *dport;
 	unsigned short status;

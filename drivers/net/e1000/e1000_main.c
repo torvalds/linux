@@ -153,7 +153,7 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 static struct net_device_stats * e1000_get_stats(struct net_device *netdev);
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu);
 static int e1000_set_mac(struct net_device *netdev, void *p);
-static irqreturn_t e1000_intr(int irq, void *data, struct pt_regs *regs);
+static irqreturn_t e1000_intr(int irq, void *data);
 static boolean_t e1000_clean_tx_irq(struct e1000_adapter *adapter,
                                     struct e1000_tx_ring *tx_ring);
 #ifdef CONFIG_E1000_NAPI
@@ -3436,11 +3436,10 @@ e1000_update_stats(struct e1000_adapter *adapter)
  * e1000_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  **/
 
 static irqreturn_t
-e1000_intr(int irq, void *data, struct pt_regs *regs)
+e1000_intr(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -4862,7 +4861,7 @@ e1000_netpoll(struct net_device *netdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	disable_irq(adapter->pdev->irq);
-	e1000_intr(adapter->pdev->irq, netdev, NULL);
+	e1000_intr(adapter->pdev->irq, netdev);
 	e1000_clean_tx_irq(adapter, adapter->tx_ring);
 #ifndef CONFIG_E1000_NAPI
 	adapter->clean_rx(adapter, adapter->rx_ring);

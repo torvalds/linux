@@ -567,7 +567,7 @@ static int __init fs_enet_of_init(void)
 		struct resource r[4];
 		struct device_node *phy, *mdio;
 		struct fs_platform_info fs_enet_data;
-		const unsigned int *id, *phy_addr, phy_irq;
+		const unsigned int *id, *phy_addr, *phy_irq;
 		const void *mac_addr;
 		const phandle *ph;
 		const char *model;
@@ -641,7 +641,7 @@ static int __init fs_enet_of_init(void)
 
 		if (strstr(model, "FCC")) {
 			int fcc_index = *id - 1;
-			unsigned char* mdio_bb_prop;
+			const unsigned char *mdio_bb_prop;
 
 			fs_enet_data.dpram_offset = (u32)cpm_dpram_addr(0);
 			fs_enet_data.rx_ring = 32;
@@ -708,8 +708,9 @@ static int __init fs_enet_of_init(void)
 			ret = platform_device_add_data(fs_enet_dev, &fs_enet_data,
 						     sizeof(struct
 							    fs_platform_info));
-		if (ret)
-			goto unreg;
+			if (ret)
+				goto unreg;
+		}
 	}
 	return 0;
 

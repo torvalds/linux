@@ -35,8 +35,8 @@
 
 #undef PARISC_IRQ_CR16_COUNTS
 
-extern irqreturn_t timer_interrupt(int, void *, struct pt_regs *);
-extern irqreturn_t ipi_interrupt(int, void *, struct pt_regs *);
+extern irqreturn_t timer_interrupt(int, void *);
+extern irqreturn_t ipi_interrupt(int, void *);
 
 #define EIEM_MASK(irq)       (1UL<<(CPU_IRQ_MAX - irq))
 
@@ -347,12 +347,14 @@ static inline int eirr_to_irq(unsigned long eirr)
 /* ONLY called from entry.S:intr_extint() */
 void do_cpu_irq_mask(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs;
 	unsigned long eirr_val;
 	int irq, cpu = smp_processor_id();
 #ifdef CONFIG_SMP
 	cpumask_t dest;
 #endif
 
+	old_regs = set_irq_regs(regs);
 	local_irq_disable();
 	irq_enter();
 
@@ -375,10 +377,11 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		goto set_out;
 	}
 #endif
-	__do_IRQ(irq, regs);
+	__do_IRQ(irq);
 
  out:
 	irq_exit();
+	set_irq_regs(old_regs);
 	return;
 
  set_out:

@@ -98,8 +98,8 @@ static int cuda_reset_adb_bus(void);
 
 static int cuda_init_via(void);
 static void cuda_start(void);
-static irqreturn_t cuda_interrupt(int irq, void *arg, struct pt_regs *regs);
-static void cuda_input(unsigned char *buf, int nb, struct pt_regs *regs);
+static irqreturn_t cuda_interrupt(int irq, void *arg);
+static void cuda_input(unsigned char *buf, int nb);
 void cuda_poll(void);
 static int cuda_write(struct adb_request *req);
 
@@ -437,12 +437,12 @@ cuda_poll(void)
      * disable_irq(), would that work on m68k ? --BenH
      */
     local_irq_save(flags);
-    cuda_interrupt(0, NULL, NULL);
+    cuda_interrupt(0, NULL);
     local_irq_restore(flags);
 }
 
 static irqreturn_t
-cuda_interrupt(int irq, void *arg, struct pt_regs *regs)
+cuda_interrupt(int irq, void *arg)
 {
     int status;
     struct adb_request *req = NULL;
@@ -594,12 +594,12 @@ cuda_interrupt(int irq, void *arg, struct pt_regs *regs)
 		(*done)(req);
     }
     if (ibuf_len)
-	cuda_input(ibuf, ibuf_len, regs);
+	cuda_input(ibuf, ibuf_len);
     return IRQ_HANDLED;
 }
 
 static void
-cuda_input(unsigned char *buf, int nb, struct pt_regs *regs)
+cuda_input(unsigned char *buf, int nb)
 {
     int i;
 
@@ -615,7 +615,7 @@ cuda_input(unsigned char *buf, int nb, struct pt_regs *regs)
 	}
 #endif /* CONFIG_XMON */
 #ifdef CONFIG_ADB
-	adb_input(buf+2, nb-2, regs, buf[1] & 0x40);
+	adb_input(buf+2, nb-2, buf[1] & 0x40);
 #endif /* CONFIG_ADB */
 	break;
 

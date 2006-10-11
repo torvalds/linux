@@ -42,7 +42,7 @@
  * has to include <linux/interrupt.h> (to get irqreturn_t), which
  * causes all sorts of problems.  -- paulus
  */
-extern irqreturn_t xmon_irq(int, void *, struct pt_regs *);
+extern irqreturn_t xmon_irq(int, void *);
 
 #ifdef CONFIG_PPC32
 struct pmac_irq_hw {
@@ -210,7 +210,7 @@ static struct irq_chip pmac_pic = {
 	.retrigger	= pmac_retrigger,
 };
 
-static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gatwick_action(int cpl, void *dev_id)
 {
 	unsigned long flags;
 	int irq, bits;
@@ -227,7 +227,7 @@ static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
 			continue;
 		irq += __ilog2(bits);
 		spin_unlock_irqrestore(&pmac_pic_lock, flags);
-		__do_IRQ(irq, regs);
+		__do_IRQ(irq);
 		spin_lock_irqsave(&pmac_pic_lock, flags);
 		rc = IRQ_HANDLED;
 	}
@@ -235,18 +235,18 @@ static irqreturn_t gatwick_action(int cpl, void *dev_id, struct pt_regs *regs)
 	return rc;
 }
 
-static unsigned int pmac_pic_get_irq(struct pt_regs *regs)
+static unsigned int pmac_pic_get_irq(void)
 {
 	int irq;
 	unsigned long bits = 0;
 	unsigned long flags;
 
 #ifdef CONFIG_SMP
-	void psurge_smp_message_recv(struct pt_regs *);
+	void psurge_smp_message_recv(void);
 
        	/* IPI's are a hack on the powersurge -- Cort */
        	if ( smp_processor_id() != 0 ) {
-		psurge_smp_message_recv(regs);
+		psurge_smp_message_recv();
 		return NO_IRQ_IGNORE;	/* ignore, already handled */
         }
 #endif /* CONFIG_SMP */
@@ -440,14 +440,13 @@ static void __init pmac_pic_probe_oldstyle(void)
 }
 #endif /* CONFIG_PPC32 */
 
-static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs)
+static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct mpic *mpic = desc->handler_data;
 
-	unsigned int cascade_irq = mpic_get_one_irq(mpic, regs);
+	unsigned int cascade_irq = mpic_get_one_irq(mpic);
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 

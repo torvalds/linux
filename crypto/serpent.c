@@ -364,10 +364,10 @@ static void serpent_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u32
-		*k = ctx->expkey,
-		*s = (const u32 *)src;
-	u32	*d = (u32 *)dst,
-		r0, r1, r2, r3, r4;
+		*k = ctx->expkey;
+	const __le32 *s = (const __le32 *)src;
+	__le32	*d = (__le32 *)dst;
+	u32	r0, r1, r2, r3, r4;
 
 /*
  * Note: The conversions between u8* and u32* might cause trouble
@@ -423,10 +423,10 @@ static void serpent_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct serpent_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u32
-		*k = ((struct serpent_ctx *)ctx)->expkey,
-		*s = (const u32 *)src;
-	u32	*d = (u32 *)dst,
-		r0, r1, r2, r3, r4;
+		*k = ((struct serpent_ctx *)ctx)->expkey;
+	const __le32 *s = (const __le32 *)src;
+	__le32	*d = (__le32 *)dst;
+	u32	r0, r1, r2, r3, r4;
 
 	r0 = le32_to_cpu(s[0]);
 	r1 = le32_to_cpu(s[1]);

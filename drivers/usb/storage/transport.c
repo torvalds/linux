@@ -108,7 +108,7 @@
 /* This is the completion handler which will wake us up when an URB
  * completes.
  */
-static void usb_stor_blocking_completion(struct urb *urb, struct pt_regs *regs)
+static void usb_stor_blocking_completion(struct urb *urb)
 {
 	struct completion *urb_done_ptr = (struct completion *)urb->context;
 

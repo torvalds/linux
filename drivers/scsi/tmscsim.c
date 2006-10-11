@@ -700,9 +700,9 @@ dc390_InvalidCmd(struct dc390_acb* pACB)
 
 
 static irqreturn_t __inline__
-DC390_Interrupt(int irq, void *dev_id, struct pt_regs *regs)
+DC390_Interrupt(void *dev_id)
 {
-    struct dc390_acb *pACB = (struct dc390_acb*)dev_id;
+    struct dc390_acb *pACB = dev_id;
     struct dc390_dcb *pDCB;
     struct dc390_srb *pSRB;
     u8  sstatus=0;
@@ -811,12 +811,12 @@ DC390_Interrupt(int irq, void *dev_id, struct pt_regs *regs)
     return IRQ_HANDLED;
 }
 
-static irqreturn_t do_DC390_Interrupt( int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_DC390_Interrupt(int irq, void *dev_id)
 {
     irqreturn_t ret;
     DEBUG1(printk (KERN_INFO "DC390: Irq (%i) caught: ", irq));
     /* Locking is done in DC390_Interrupt */
-    ret = DC390_Interrupt(irq, dev_id, regs);
+    ret = DC390_Interrupt(dev_id);
     DEBUG1(printk (".. IRQ returned\n"));
     return ret;
 }

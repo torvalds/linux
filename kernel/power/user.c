@@ -145,10 +145,10 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = freeze_processes();
 			if (error) {
 				thaw_processes();
+				enable_nonboot_cpus();
 				error = -EBUSY;
 			}
 		}
-		enable_nonboot_cpus();
 		up(&pm_sem);
 		if (!error)
 			data->frozen = 1;

@@ -20,7 +20,6 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 
 	switch (data[0]) {
 		case 1:
-			wacom_input_regs(wcombo);
 			if (data[5] & 0x80) {
 				wacom->tool[0] = (data[5] & 0x20) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 				wacom->id[0] = (data[5] & 0x20) ? ERASER_DEVICE_ID : STYLUS_DEVICE_ID;
@@ -39,7 +38,6 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 			}
 			break;
 		case 2:
-			wacom_input_regs(wcombo);
 			wacom_report_key(wcombo, BTN_TOOL_PEN, 1);
 			wacom_report_abs(wcombo, ABS_MISC, STYLUS_DEVICE_ID); /* report tool id */
 			wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
@@ -66,8 +64,6 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	prox = data[1] & 0x40;
-
-	wacom_input_regs(wcombo);
 
 	id = ERASER_DEVICE_ID;
 	if (prox) {
@@ -138,7 +134,6 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 		return 0;
 	}
 
-	wacom_input_regs(wcombo);
 	if (data[1] & 0x04) {
 		wacom_report_key(wcombo, BTN_TOOL_RUBBER, data[1] & 0x20);
 		wacom_report_key(wcombo, BTN_TOUCH, data[1] & 0x08);
@@ -166,8 +161,6 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 		dbg("wacom_graphire_irq: received unknown report #%d", data[0]);
 		return 0;
 	}
-
-	wacom_input_regs(wcombo);
 
 	id = STYLUS_DEVICE_ID;
 	if (data[1] & 0x10) { /* in prox */
@@ -368,8 +361,6 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 		dbg("wacom_intuos_irq: received unknown report #%d", data[0]);
                 return 0;
 	}
-
-	wacom_input_regs(wcombo);
 
 	/* tool number */
 	idx = data[1] & 0x01;

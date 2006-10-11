@@ -278,7 +278,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 }
 
 static int
-mv64xxx_i2c_intr(int irq, void *dev_id, struct pt_regs *regs)
+mv64xxx_i2c_intr(int irq, void *dev_id)
 {
 	struct mv64xxx_i2c_data	*drv_data = dev_id;
 	unsigned long	flags;

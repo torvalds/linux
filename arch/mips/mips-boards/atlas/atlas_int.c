@@ -101,7 +101,7 @@ static inline int ls1bit32(unsigned int x)
 	return b;
 }
 
-static inline void atlas_hw0_irqdispatch(struct pt_regs *regs)
+static inline void atlas_hw0_irqdispatch(void)
 {
 	unsigned long int_status;
 	int irq;
@@ -116,7 +116,7 @@ static inline void atlas_hw0_irqdispatch(struct pt_regs *regs)
 
 	DEBUG_INT("atlas_hw0_irqdispatch: irq=%d\n", irq);
 
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
 static inline int clz(unsigned long x)
@@ -188,7 +188,7 @@ static inline unsigned int irq_ffs(unsigned int pending)
  * then we just return, if multiple IRQs are pending then we will just take
  * another exception, big deal.
  */
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 	int irq;
@@ -196,11 +196,11 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	irq = irq_ffs(pending);
 
 	if (irq == MIPSCPU_INT_ATLAS)
-		atlas_hw0_irqdispatch(regs);
+		atlas_hw0_irqdispatch();
 	else if (irq >= 0)
-		do_IRQ(MIPSCPU_INT_BASE + irq, regs);
+		do_IRQ(MIPSCPU_INT_BASE + irq);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 static inline void init_atlas_irqs (int base)

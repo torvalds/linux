@@ -21,7 +21,7 @@
 static int wdt_timeout;
 int m8xx_has_internal_rtc = 0;
 
-static irqreturn_t m8xx_wdt_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t m8xx_wdt_interrupt(int, void *);
 static struct irqaction m8xx_wdt_irqaction = {
 	.handler = m8xx_wdt_interrupt,
 	.name = "watchdog",
@@ -35,7 +35,7 @@ void m8xx_wdt_reset(void)
 	out_be16(&imap->im_siu_conf.sc_swsr, 0xaa39);	/* write magic2 */
 }
 
-static irqreturn_t m8xx_wdt_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t m8xx_wdt_interrupt(int irq, void *dev)
 {
 	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
 

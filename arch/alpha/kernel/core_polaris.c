@@ -187,8 +187,7 @@ polaris_pci_clr_err(void)
 }
 
 void
-polaris_machine_check(unsigned long vector, unsigned long la_ptr,
-		      struct pt_regs * regs)
+polaris_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	/* Clear the error before any reporting.  */
 	mb();
@@ -198,6 +197,6 @@ polaris_machine_check(unsigned long vector, unsigned long la_ptr,
 	wrmces(0x7);
 	mb();
 
-	process_mcheck_info(vector, la_ptr, regs, "POLARIS",
+	process_mcheck_info(vector, la_ptr, "POLARIS",
 			    mcheck_expected(0));
 }

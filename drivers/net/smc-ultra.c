@@ -127,7 +127,7 @@ MODULE_DEVICE_TABLE(isapnp, ultra_device_ids);
 static void ultra_poll(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	ei_interrupt(dev->irq, dev, NULL);
+	ei_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

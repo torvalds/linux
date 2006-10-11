@@ -2325,7 +2325,7 @@ static void vino_capture_tasklet(unsigned long channel) {
 	}
 }
 
-static irqreturn_t vino_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t vino_interrupt(int irq, void *dev_id)
 {
 	u32 ctrl, intr;
 	unsigned int fc_a, fc_b;

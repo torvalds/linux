@@ -97,9 +97,9 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 extern void
 i2sbus_detach_codec(struct soundbus_dev *dev, void *data);
 extern irqreturn_t
-i2sbus_tx_intr(int irq, void *devid, struct pt_regs *regs);
+i2sbus_tx_intr(int irq, void *devid);
 extern irqreturn_t
-i2sbus_rx_intr(int irq, void *devid, struct pt_regs *regs);
+i2sbus_rx_intr(int irq, void *devid);
 
 /* control specific functions */
 extern int i2sbus_control_init(struct macio_dev* dev,

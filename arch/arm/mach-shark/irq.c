@@ -61,7 +61,7 @@ static void shark_enable_8259A_irq(unsigned int irq)
 
 static void shark_ack_8259A_irq(unsigned int irq){}
 
-static irqreturn_t bogus_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bogus_int(int irq, void *dev_id)
 {
 	printk("Got interrupt %i!\n",irq);
 	return IRQ_NONE;

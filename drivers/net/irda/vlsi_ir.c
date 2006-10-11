@@ -1455,8 +1455,7 @@ static int vlsi_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 
 /********************************************************/
 
-static irqreturn_t vlsi_interrupt(int irq, void *dev_instance,
-					struct pt_regs *regs)
+static irqreturn_t vlsi_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
 	vlsi_irda_dev_t *idev = ndev->priv;

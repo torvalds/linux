@@ -36,7 +36,7 @@ extern irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
 #define SN_LB_INT_WAR_INTERVAL 100
 
-void sn_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+void sn_timer_interrupt(int irq, void *dev_id)
 {
 	/* LED blinking */
 	if (!pda->hb_count--) {

@@ -218,7 +218,7 @@ static spinlock_t list_lock;
 
 static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
 
-static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t shpc_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec);
 static int hpc_check_cmd_status(struct controller *ctrl);
 
@@ -276,7 +276,7 @@ static void int_poll_timeout(unsigned long lphp_ctlr)
 	DBG_ENTER_ROUTINE
 
 	/* Poll for interrupt events.  regs == NULL => polling */
-	shpc_isr(0, php_ctlr->callback_instance_id, NULL);
+	shpc_isr(0, php_ctlr->callback_instance_id);
 
 	init_timer(&php_ctlr->int_poll_timer);
 	if (!shpchp_poll_time)
@@ -870,7 +870,7 @@ static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 	return retval;
 }
 
-static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t shpc_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;

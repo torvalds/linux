@@ -90,7 +90,7 @@ static int set_motor(struct motorcontrol *mc, int motor)
 	return retval < 0 ? retval : 0;
 }
 
-static void motorcontrol_irq(struct urb *urb, struct pt_regs *regs)
+static void motorcontrol_irq(struct urb *urb)
 {
 	struct motorcontrol *mc = urb->context;
 	unsigned char *buffer = mc->data;

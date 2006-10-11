@@ -97,15 +97,12 @@ FEXPORT(__smtc_ipi_vector)
 	SAVE_ALL
 	CLI
 	TRACE_IRQS_OFF
-	move	a0,sp
 	/* Function to be invoked passed stack pad slot 5 */
 	lw	t0,PT_PADSLOT5(sp)
 	/* Argument from sender passed in stack pad slot 4 */
-	lw	a1,PT_PADSLOT4(sp)
-	jalr	t0
-	nop
-	j	ret_from_irq
-	nop
+	lw	a0,PT_PADSLOT4(sp)
+	PTR_LA	ra, _ret_from_irq
+	jr	t0
 
 /*
  * Called from idle loop to provoke processing of queued IPIs

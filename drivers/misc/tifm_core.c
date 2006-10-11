@@ -157,7 +157,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id)
 		dev->wq = create_singlethread_workqueue(dev->wq_name);
 		if (!dev->wq) {
 			kfree(dev);
-			return 0;
+			return NULL;
 		}
 		dev->dev.parent = fm->dev;
 		dev->dev.bus = &tifm_bus_type;

@@ -7,6 +7,8 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/irq.h>
+
 static void urb_free_priv (struct ohci_hcd *hc, urb_priv_t *urb_priv)
 {
 	int		last = urb_priv->length - 1;
@@ -34,7 +36,7 @@ static void urb_free_priv (struct ohci_hcd *hc, urb_priv_t *urb_priv)
  * PRECONDITION:  ohci lock held, irqs blocked.
  */
 static void
-finish_urb (struct ohci_hcd *ohci, struct urb *urb, struct pt_regs *regs)
+finish_urb (struct ohci_hcd *ohci, struct urb *urb)
 __releases(ohci->lock)
 __acquires(ohci->lock)
 {
@@ -73,7 +75,7 @@ __acquires(ohci->lock)
 
 	/* urb->complete() can reenter this HCD */
 	spin_unlock (&ohci->lock);
-	usb_hcd_giveback_urb (ohci_to_hcd(ohci), urb, regs);
+	usb_hcd_giveback_urb (ohci_to_hcd(ohci), urb);
 	spin_lock (&ohci->lock);
 
 	/* stop periodic dma if it's not needed */
@@ -910,7 +912,7 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 
 /* there are some urbs/eds to unlink; called in_irq(), with HCD locked */
 static void
-finish_unlinks (struct ohci_hcd *ohci, u16 tick, struct pt_regs *regs)
+finish_unlinks (struct ohci_hcd *ohci, u16 tick)
 {
 	struct ed	*ed, **last;
 
@@ -923,7 +925,7 @@ rescan_all:
 		/* only take off EDs that the HC isn't using, accounting for
 		 * frame counter wraps and EDs with partially retired TDs
 		 */
-		if (likely (regs && HC_IS_RUNNING(ohci_to_hcd(ohci)->state))) {
+		if (likely (HC_IS_RUNNING(ohci_to_hcd(ohci)->state))) {
 			if (tick_before (tick, ed->tick)) {
 skip_ed:
 				last = &ed->ed_next;
@@ -990,7 +992,7 @@ rescan_this:
 			/* if URB is done, clean up */
 			if (urb_priv->td_cnt == urb_priv->length) {
 				modified = completed = 1;
-				finish_urb (ohci, urb, regs);
+				finish_urb (ohci, urb);
 			}
 		}
 		if (completed && !list_empty (&ed->td_list))
@@ -1068,7 +1070,7 @@ rescan_this:
  * scanning the (re-reversed) donelist as this does.
  */
 static void
-dl_done_list (struct ohci_hcd *ohci, struct pt_regs *regs)
+dl_done_list (struct ohci_hcd *ohci)
 {
 	struct td	*td = dl_reverse_done_list (ohci);
 
@@ -1084,7 +1086,7 @@ dl_done_list (struct ohci_hcd *ohci, struct pt_regs *regs)
 
 		/* If all this urb's TDs are done, call complete() */
   		if (urb_priv->td_cnt == urb_priv->length)
-  			finish_urb (ohci, urb, regs);
+  			finish_urb (ohci, urb);
 
 		/* clean schedule:  unlink EDs that are no longer busy */
 		if (list_empty (&ed->td_list)) {

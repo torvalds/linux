@@ -193,7 +193,7 @@ static DEFINE_SPINLOCK(event_lock);
 
 static int tlclk_major = TLCLK_MAJOR;
 
-static irqreturn_t tlclk_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t tlclk_interrupt(int irq, void *dev_id);
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 
@@ -856,7 +856,7 @@ static void switchover_timeout(unsigned long data)
 	wake_up(&wq);
 }
 
-static irqreturn_t tlclk_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tlclk_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 

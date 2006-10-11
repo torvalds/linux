@@ -123,7 +123,7 @@ static __inline__ void ide_release_lock (void)
 }
 
 static __inline__ void
-ide_get_lock(irqreturn_t (*handler)(int, void *, struct pt_regs *), void *data)
+ide_get_lock(irq_handler_t handler, void *data)
 {
 	if (MACH_IS_ATARI) {
 		if (falconide_intr_lock == 0) {

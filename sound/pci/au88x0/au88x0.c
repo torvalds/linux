@@ -128,6 +128,7 @@ static int snd_vortex_dev_free(struct snd_device *device)
 	// Take down PCI interface.
 	synchronize_irq(vortex->irq);
 	free_irq(vortex->irq, vortex);
+	iounmap(vortex->mmio);
 	pci_release_regions(vortex->pci_dev);
 	pci_disable_device(vortex->pci_dev);
 	kfree(vortex);

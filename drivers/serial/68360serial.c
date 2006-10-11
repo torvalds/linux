@@ -612,7 +612,7 @@ static _INLINE_ void check_modem_status(struct async_struct *info)
  * This is the serial driver's interrupt routine for a single port
  */
 /* static void rs_360_interrupt(void *dev_id) */ /* until and if we start servicing irqs here */
-static void rs_360_interrupt(int vec, void *dev_id, struct pt_regs *fp)
+static void rs_360_interrupt(int vec, void *dev_id)
 {
 	u_char	events;
 	int	idx;
@@ -620,7 +620,7 @@ static void rs_360_interrupt(int vec, void *dev_id, struct pt_regs *fp)
 	volatile struct smc_regs *smcp;
 	volatile struct scc_regs *sccp;
 	
-	info = (ser_info_t *)dev_id;
+	info = dev_id;
 
 	idx = PORT_NUM(info->state->smc_scc_num);
 	if (info->state->smc_scc_num & NUM_IS_SCC) {

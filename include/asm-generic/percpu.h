@@ -15,7 +15,7 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 
 /* var is in discarded region: offset to particular copy we want */
 #define per_cpu(var, cpu) (*({				\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset[cpu]); }))
 #define __get_cpu_var(var) per_cpu(var, smp_processor_id())
 #define __raw_get_cpu_var(var) per_cpu(var, raw_smp_processor_id())

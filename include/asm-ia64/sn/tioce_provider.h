@@ -53,7 +53,7 @@ struct tioce_dmamap {
 	u64		ct_start;	/* coretalk start address */
 	u64		pci_start;	/* bus start address */
 
-	u64		*ate_hw;	/* hw ptr of first ate in map */
+	u64		__iomem *ate_hw;/* hw ptr of first ate in map */
 	u64		*ate_shadow;	/* shadow ptr of firat ate */
 	u16		ate_count;	/* # ate's in the map */
 };

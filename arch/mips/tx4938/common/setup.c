@@ -41,29 +41,10 @@ void __init tx4938_setup(void);
 void __init tx4938_time_init(void);
 void dump_cp0(char *key);
 
-void (*__wbflush) (void);
-
-static void
-tx4938_write_buffer_flush(void)
-{
-	mmiowb();
-
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	noreorder\n\t"
-		"lw	$0,%0\n\t"
-		"nop\n\t"
-		".set	pop"
-		: /* no output */
-		: "m" (*(int *)KSEG1)
-		: "memory");
-}
-
 void __init
 plat_mem_setup(void)
 {
 	board_time_init = tx4938_time_init;
-	__wbflush = tx4938_write_buffer_flush;
 	toshiba_rbtx4938_setup();
 }
 

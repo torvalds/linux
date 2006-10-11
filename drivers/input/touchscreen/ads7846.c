@@ -487,7 +487,7 @@ static void ads7846_timer(unsigned long handle)
 	spin_unlock_irq(&ts->lock);
 }
 
-static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
+static irqreturn_t ads7846_irq(int irq, void *handle)
 {
 	struct ads7846 *ts = handle;
 	unsigned long flags;

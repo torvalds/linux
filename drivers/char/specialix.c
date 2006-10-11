@@ -200,7 +200,7 @@ static struct specialix_port sx_port[SX_NBOARD * SX_NPORT];
 
 #ifdef SPECIALIX_TIMER
 static struct timer_list missed_irq_timer;
-static irqreturn_t sx_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t sx_interrupt(int irq, void * dev_id);
 #endif
 
 
@@ -897,7 +897,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 
 
 /* The main interrupt processing routine */
-static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sx_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
@@ -912,7 +912,7 @@ static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	spin_lock_irqsave(&bp->lock, flags);
 
 	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __FUNCTION__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
-	if (!bp || !(bp->flags & SX_BOARD_ACTIVE)) {
+	if (!(bp->flags & SX_BOARD_ACTIVE)) {
 		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", irq);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		func_exit();

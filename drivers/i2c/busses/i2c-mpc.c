@@ -63,7 +63,7 @@ static __inline__ void writeccr(struct mpc_i2c *i2c, u32 x)
 	writeb(x, i2c->base + MPC_I2C_CR);
 }
 
-static irqreturn_t mpc_i2c_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 {
 	struct mpc_i2c *i2c = dev_id;
 	if (readb(i2c->base + MPC_I2C_SR) & CSR_MIF) {

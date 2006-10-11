@@ -1175,7 +1175,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 }
 
 static void
-receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
+receive_chars(struct uart_8250_port *up, int *status)
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch, lsr = *status;
@@ -1233,7 +1233,7 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 			else if (lsr & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 
 		uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, flag);
@@ -1309,7 +1309,7 @@ static unsigned int check_modem_status(struct uart_8250_port *up)
  * This handles the interrupt from one port.
  */
 static inline void
-serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
+serial8250_handle_port(struct uart_8250_port *up)
 {
 	unsigned int status;
 
@@ -1320,7 +1320,7 @@ serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
 	DEBUG_INTR("status = %x...", status);
 
 	if (status & UART_LSR_DR)
-		receive_chars(up, &status, regs);
+		receive_chars(up, &status);
 	check_modem_status(up);
 	if (status & UART_LSR_THRE)
 		transmit_chars(up);
@@ -1342,7 +1342,7 @@ serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
  * This means we need to loop through all ports. checking that they
  * don't have an interrupt pending.
  */
-static irqreturn_t serial8250_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 {
 	struct irq_info *i = dev_id;
 	struct list_head *l, *end = NULL;
@@ -1361,7 +1361,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 		iir = serial_in(up, UART_IIR);
 		if (!(iir & UART_IIR_NO_INT)) {
-			serial8250_handle_port(up, regs);
+			serial8250_handle_port(up);
 
 			handled = 1;
 
@@ -1461,7 +1461,7 @@ static void serial8250_timeout(unsigned long data)
 
 	iir = serial_in(up, UART_IIR);
 	if (!(iir & UART_IIR_NO_INT))
-		serial8250_handle_port(up, NULL);
+		serial8250_handle_port(up);
 
 	timeout = up->port.timeout;
 	timeout = timeout > 6 ? (timeout / 2 - 2) : 1;

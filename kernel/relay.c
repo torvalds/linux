@@ -887,7 +887,7 @@ static int subbuf_read_actor(size_t read_start,
 
 	from = buf->start + read_start;
 	ret = avail;
-	if (copy_to_user(desc->arg.data, from, avail)) {
+	if (copy_to_user(desc->arg.buf, from, avail)) {
 		desc->error = -EFAULT;
 		ret = 0;
 	}
@@ -946,23 +946,16 @@ typedef int (*subbuf_actor_t) (size_t read_start,
  */
 static inline ssize_t relay_file_read_subbufs(struct file *filp,
 					      loff_t *ppos,
-					      size_t count,
 					      subbuf_actor_t subbuf_actor,
 					      read_actor_t actor,
-					      void *target)
+					      read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
 	size_t read_start, avail;
-	read_descriptor_t desc;
 	int ret;
 
-	if (!count)
+	if (!desc->count)
 		return 0;
-
-	desc.written = 0;
-	desc.count = count;
-	desc.arg.data = target;
-	desc.error = 0;
 
 	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
 	do {
@@ -974,19 +967,19 @@ static inline ssize_t relay_file_read_subbufs(struct file *filp,
 		if (!avail)
 			break;
 
-		avail = min(desc.count, avail);
-		ret = subbuf_actor(read_start, buf, avail, &desc, actor);
-		if (desc.error < 0)
+		avail = min(desc->count, avail);
+		ret = subbuf_actor(read_start, buf, avail, desc, actor);
+		if (desc->error < 0)
 			break;
 
 		if (ret) {
 			relay_file_read_consume(buf, read_start, ret);
 			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
-	} while (desc.count && ret);
+	} while (desc->count && ret);
 	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
 
-	return desc.written;
+	return desc->written;
 }
 
 static ssize_t relay_file_read(struct file *filp,
@@ -994,8 +987,13 @@ static ssize_t relay_file_read(struct file *filp,
 			       size_t count,
 			       loff_t *ppos)
 {
-	return relay_file_read_subbufs(filp, ppos, count, subbuf_read_actor,
-				       NULL, buffer);
+	read_descriptor_t desc;
+	desc.written = 0;
+	desc.count = count;
+	desc.arg.buf = buffer;
+	desc.error = 0;
+	return relay_file_read_subbufs(filp, ppos, subbuf_read_actor,
+				       NULL, &desc);
 }
 
 static ssize_t relay_file_sendfile(struct file *filp,
@@ -1004,8 +1002,13 @@ static ssize_t relay_file_sendfile(struct file *filp,
 				   read_actor_t actor,
 				   void *target)
 {
-	return relay_file_read_subbufs(filp, ppos, count, subbuf_send_actor,
-				       actor, target);
+	read_descriptor_t desc;
+	desc.written = 0;
+	desc.count = count;
+	desc.arg.data = target;
+	desc.error = 0;
+	return relay_file_read_subbufs(filp, ppos, subbuf_send_actor,
+				       actor, &desc);
 }
 
 struct file_operations relay_file_operations = {

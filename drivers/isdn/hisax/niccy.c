@@ -122,8 +122,7 @@ static void WriteHSCX(struct IsdnCardState *cs, int hscx, u_char offset,
 
 #include "hscx_irq.c"
 
-static irqreturn_t niccy_interrupt(int intno, void *dev_id,
-		struct pt_regs *regs)
+static irqreturn_t niccy_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;

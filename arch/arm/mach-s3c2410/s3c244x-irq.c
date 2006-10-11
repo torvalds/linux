@@ -42,8 +42,7 @@
 /* camera irq */
 
 static void s3c_irq_demux_cam(unsigned int irq,
-			      struct irqdesc *desc,
-			      struct pt_regs *regs)
+			      struct irqdesc *desc)
 {
 	unsigned int subsrc, submsk;
 	struct irqdesc *mydesc;
@@ -61,11 +60,11 @@ static void s3c_irq_demux_cam(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_C;
-			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_C, mydesc);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_S3C2440_CAM_P;
-			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc, regs);
+			desc_handle_irq(IRQ_S3C2440_CAM_P, mydesc);
 		}
 	}
 }

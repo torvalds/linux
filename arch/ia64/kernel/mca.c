@@ -499,7 +499,7 @@ int cpe_vector = -1;
 int ia64_cpe_irq = -1;
 
 static irqreturn_t
-ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
+ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 {
 	static unsigned long	cpe_history[CPE_HISTORY_LENGTH];
 	static int		index;
@@ -744,7 +744,7 @@ ia64_mca_wakeup_all(void)
  *  Outputs :   None
  */
 static irqreturn_t
-ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
+ia64_mca_rendez_int_handler(int rendez_irq, void *arg)
 {
 	unsigned long flags;
 	int cpu = smp_processor_id();
@@ -753,8 +753,8 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
 
 	/* Mask all interrupts */
 	local_irq_save(flags);
-	if (notify_die(DIE_MCA_RENDZVOUS_ENTER, "MCA", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
+	if (notify_die(DIE_MCA_RENDZVOUS_ENTER, "MCA", get_irq_regs(),
+		       (long)&nd, 0, 0) == NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
 	ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_DONE;
@@ -763,16 +763,16 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
 	 */
 	ia64_sal_mc_rendez();
 
-	if (notify_die(DIE_MCA_RENDZVOUS_PROCESS, "MCA", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
+	if (notify_die(DIE_MCA_RENDZVOUS_PROCESS, "MCA", get_irq_regs(),
+		       (long)&nd, 0, 0) == NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
 	/* Wait for the monarch cpu to exit. */
 	while (monarch_cpu != -1)
 	       cpu_relax();	/* spin until monarch leaves */
 
-	if (notify_die(DIE_MCA_RENDZVOUS_LEAVE, "MCA", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
+	if (notify_die(DIE_MCA_RENDZVOUS_LEAVE, "MCA", get_irq_regs(),
+		       (long)&nd, 0, 0) == NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
 	/* Enable all interrupts */
@@ -791,12 +791,11 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
  *
  *  Inputs  :   wakeup_irq  (Wakeup-interrupt bit)
  *	arg		(Interrupt handler specific argument)
- *	ptregs		(Exception frame at the time of the interrupt)
  *  Outputs :   None
  *
  */
 static irqreturn_t
-ia64_mca_wakeup_int_handler(int wakeup_irq, void *arg, struct pt_regs *ptregs)
+ia64_mca_wakeup_int_handler(int wakeup_irq, void *arg)
 {
 	return IRQ_HANDLED;
 }
@@ -1261,13 +1260,12 @@ static DECLARE_WORK(cmc_enable_work, ia64_mca_cmc_vector_enable_keventd, NULL);
  * Inputs
  *      interrupt number
  *      client data arg ptr
- *      saved registers ptr
  *
  * Outputs
  *	None
  */
 static irqreturn_t
-ia64_mca_cmc_int_handler(int cmc_irq, void *arg, struct pt_regs *ptregs)
+ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 {
 	static unsigned long	cmc_history[CMC_HISTORY_LENGTH];
 	static int		index;
@@ -1336,12 +1334,11 @@ out:
  * Inputs
  *	interrupt number
  *	client data arg ptr
- *	saved registers ptr
  * Outputs
  * 	handled
  */
 static irqreturn_t
-ia64_mca_cmc_int_caller(int cmc_irq, void *arg, struct pt_regs *ptregs)
+ia64_mca_cmc_int_caller(int cmc_irq, void *arg)
 {
 	static int start_count = -1;
 	unsigned int cpuid;
@@ -1352,7 +1349,7 @@ ia64_mca_cmc_int_caller(int cmc_irq, void *arg, struct pt_regs *ptregs)
 	if (start_count == -1)
 		start_count = IA64_LOG_COUNT(SAL_INFO_TYPE_CMC);
 
-	ia64_mca_cmc_int_handler(cmc_irq, arg, ptregs);
+	ia64_mca_cmc_int_handler(cmc_irq, arg);
 
 	for (++cpuid ; cpuid < NR_CPUS && !cpu_online(cpuid) ; cpuid++);
 
@@ -1403,14 +1400,13 @@ ia64_mca_cmc_poll (unsigned long dummy)
  * Inputs
  *	interrupt number
  *	client data arg ptr
- *	saved registers ptr
  * Outputs
  * 	handled
  */
 #ifdef CONFIG_ACPI
 
 static irqreturn_t
-ia64_mca_cpe_int_caller(int cpe_irq, void *arg, struct pt_regs *ptregs)
+ia64_mca_cpe_int_caller(int cpe_irq, void *arg)
 {
 	static int start_count = -1;
 	static int poll_time = MIN_CPE_POLL_INTERVAL;
@@ -1422,7 +1418,7 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg, struct pt_regs *ptregs)
 	if (start_count == -1)
 		start_count = IA64_LOG_COUNT(SAL_INFO_TYPE_CPE);
 
-	ia64_mca_cpe_int_handler(cpe_irq, arg, ptregs);
+	ia64_mca_cpe_int_handler(cpe_irq, arg);
 
 	for (++cpuid ; cpuid < NR_CPUS && !cpu_online(cpuid) ; cpuid++);
 

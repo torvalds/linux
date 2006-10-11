@@ -657,12 +657,6 @@ toshoboe_makemttpacket (struct toshoboe_cb *self, void *buf, int mtt)
   return xbofs;
 }
 
-static int toshoboe_invalid_dev(int irq)
-{
-  printk (KERN_WARNING DRIVER_NAME ": irq %d for unknown device.\n", irq);
-  return 1;
-}
-
 #ifdef USE_PROBE
 /***********************************************************************/
 /* Probe code */
@@ -709,13 +703,10 @@ stuff_byte (__u8 byte, __u8 * buf)
 }
 
 static irqreturn_t
-toshoboe_probeinterrupt (int irq, void *dev_id, struct pt_regs *regs)
+toshoboe_probeinterrupt (int irq, void *dev_id)
 {
-  struct toshoboe_cb *self = (struct toshoboe_cb *) dev_id;
+  struct toshoboe_cb *self = dev_id;
   __u8 irqstat;
-
-  if (self == NULL && toshoboe_invalid_dev(irq))
-    return IRQ_NONE;
 
   irqstat = INB (OBOE_ISR);
 
@@ -1161,14 +1152,11 @@ dumpbufs(skb->data,skb->len,'>');
 
 /*interrupt handler */
 static irqreturn_t
-toshoboe_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+toshoboe_interrupt (int irq, void *dev_id)
 {
-  struct toshoboe_cb *self = (struct toshoboe_cb *) dev_id;
+  struct toshoboe_cb *self = dev_id;
   __u8 irqstat;
   struct sk_buff *skb = NULL;
-
-  if (self == NULL && toshoboe_invalid_dev(irq))
-    return IRQ_NONE;
 
   irqstat = INB (OBOE_ISR);
 
@@ -1357,13 +1345,11 @@ toshoboe_net_open (struct net_device *dev)
 {
   struct toshoboe_cb *self;
   unsigned long flags;
+  int rc;
 
   IRDA_DEBUG (4, "%s()\n", __FUNCTION__);
 
-  IRDA_ASSERT (dev != NULL, return -1; );
-  self = (struct toshoboe_cb *) dev->priv;
-
-  IRDA_ASSERT (self != NULL, return 0; );
+  self = netdev_priv(dev);
 
   if (self->async)
     return -EBUSY;
@@ -1371,11 +1357,10 @@ toshoboe_net_open (struct net_device *dev)
   if (self->stopped)
     return 0;
 
-  if (request_irq (self->io.irq, toshoboe_interrupt,
-                   IRQF_SHARED | IRQF_DISABLED, dev->name, (void *) self))
-    {
-      return -EAGAIN;
-    }
+  rc = request_irq (self->io.irq, toshoboe_interrupt,
+                    IRQF_SHARED | IRQF_DISABLED, dev->name, self);
+  if (rc)
+  	return rc;
 
   spin_lock_irqsave(&self->spinlock, flags);
   toshoboe_startchip (self);

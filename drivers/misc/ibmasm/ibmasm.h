@@ -196,10 +196,10 @@ extern int ibmasm_send_os_state(struct service_processor *sp, int os_state);
 
 /* low level message processing */
 extern int ibmasm_send_i2o_message(struct service_processor *sp);
-extern irqreturn_t ibmasm_interrupt_handler(int irq, void * dev_id, struct pt_regs *regs);
+extern irqreturn_t ibmasm_interrupt_handler(int irq, void * dev_id);
 
 /* remote console */
-extern void ibmasm_handle_mouse_interrupt(struct service_processor *sp, struct pt_regs *regs);
+extern void ibmasm_handle_mouse_interrupt(struct service_processor *sp);
 extern int ibmasm_init_remote_input_dev(struct service_processor *sp);
 extern void ibmasm_free_remote_input_dev(struct service_processor *sp);
 

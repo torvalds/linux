@@ -209,7 +209,7 @@ static int fd_device[4] = { 0, 0, 0, 0 };
 
 /* Milliseconds timer */
 
-static irqreturn_t ms_isr(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t ms_isr(int irq, void *dummy)
 {
 	ms_busy = -1;
 	wake_up(&ms_wait);
@@ -560,7 +560,7 @@ static unsigned long fd_get_drive_id(int drive)
 	return (id);
 }
 
-static irqreturn_t fd_block_done(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t fd_block_done(int irq, void *dummy)
 {
 	if (block_flag)
 		custom.dsklen = 0x4000;

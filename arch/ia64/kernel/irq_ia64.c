@@ -138,6 +138,7 @@ void destroy_irq(unsigned int irq)
 void
 ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long saved_tpr;
 
 #if IRQ_DEBUG
@@ -183,7 +184,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
 			ia64_srlz_d();
 
-			__do_IRQ(local_vector_to_irq(vector), regs);
+			__do_IRQ(local_vector_to_irq(vector));
 
 			/*
 			 * Disable interrupts and send EOI:
@@ -200,6 +201,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 	 * come through until ia64_eoi() has been done.
 	 */
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -224,6 +226,8 @@ void ia64_process_pending_intr(void)
 	  */
 	while (vector != IA64_SPURIOUS_INT_VECTOR) {
 		if (!IS_RESCHEDULE(vector)) {
+			struct pt_regs *old_regs = set_irq_regs(NULL);
+
 			ia64_setreg(_IA64_REG_CR_TPR, vector);
 			ia64_srlz_d();
 
@@ -234,7 +238,8 @@ void ia64_process_pending_intr(void)
 			 * Probably could shared code.
 			 */
 			vectors_in_migration[local_vector_to_irq(vector)]=0;
-			__do_IRQ(local_vector_to_irq(vector), NULL);
+			__do_IRQ(local_vector_to_irq(vector));
+			set_irq_regs(old_regs);
 
 			/*
 			 * Disable interrupts and send EOI
@@ -251,7 +256,7 @@ void ia64_process_pending_intr(void)
 
 
 #ifdef CONFIG_SMP
-extern irqreturn_t handle_IPI (int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t handle_IPI (int irq, void *dev_id);
 
 static struct irqaction ipi_irqaction = {
 	.handler =	handle_IPI,

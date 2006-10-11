@@ -3503,7 +3503,7 @@ check_middle:
 }
 
 static void
-ov51x_isoc_irq(struct urb *urb, struct pt_regs *regs)
+ov51x_isoc_irq(struct urb *urb)
 {
 	int i;
 	struct usb_ov511 *ov;

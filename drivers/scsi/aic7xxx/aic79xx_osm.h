@@ -862,7 +862,7 @@ int	ahd_platform_abort_scbs(struct ahd_softc *ahd, int target,
 				char channel, int lun, u_int tag,
 				role_t role, uint32_t status);
 irqreturn_t
-	ahd_linux_isr(int irq, void *dev_id, struct pt_regs * regs);
+	ahd_linux_isr(int irq, void *dev_id);
 void	ahd_done(struct ahd_softc*, struct scb*);
 void	ahd_send_async(struct ahd_softc *, char channel,
 		       u_int target, u_int lun, ac_code);

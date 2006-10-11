@@ -32,6 +32,6 @@ typedef struct {
 
 #define HARDIRQ_BITS	8
 
-extern void account_ticks(struct pt_regs *);
+extern void account_ticks(void);
 
 #endif /* __ASM_HARDIRQ_H */

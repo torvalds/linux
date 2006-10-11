@@ -151,7 +151,7 @@ static void media_check(unsigned long arg);
 static int el3_config(struct net_device *dev, struct ifmap *map);
 static int el3_open(struct net_device *dev);
 static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t el3_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t el3_interrupt(int irq, void *dev_id);
 static void update_stats(struct net_device *dev);
 static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev);
@@ -645,7 +645,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /* The EL3 interrupt handler. */
-static irqreturn_t el3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t el3_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *) dev_id;
     struct el3_private *lp = netdev_priv(dev);
@@ -748,7 +748,7 @@ static void media_check(unsigned long arg)
 	(inb(ioaddr + EL3_TIMER) == 0xff)) {
 	if (!lp->fast_poll)
 	    printk(KERN_WARNING "%s: interrupt(s) dropped!\n", dev->name);
-	el3_interrupt(dev->irq, lp, NULL);
+	el3_interrupt(dev->irq, lp);
 	lp->fast_poll = HZ;
     }
     if (lp->fast_poll) {

@@ -261,7 +261,7 @@ static int ohci_urb_enqueue (
 	if (urb->status != -EINPROGRESS) {
 		spin_unlock (&urb->lock);
 		urb->hcpriv = urb_priv;
-		finish_urb (ohci, urb, NULL);
+		finish_urb (ohci, urb);
 		retval = 0;
 		goto fail;
 	}
@@ -337,7 +337,7 @@ static int ohci_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 		 * any more ... just clean up every urb's memory.
 		 */
 		if (urb->hcpriv)
-			finish_urb (ohci, urb, NULL);
+			finish_urb (ohci, urb);
 	}
 	spin_unlock_irqrestore (&ohci->lock, flags);
 	return 0;
@@ -369,7 +369,7 @@ rescan:
 	if (!HC_IS_RUNNING (hcd->state)) {
 sanitize:
 		ed->state = ED_IDLE;
-		finish_unlinks (ohci, 0, NULL);
+		finish_unlinks (ohci, 0);
 	}
 
 	switch (ed->state) {
@@ -691,7 +691,7 @@ retry:
 
 /* an interrupt happens */
 
-static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
+static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	struct ohci_regs __iomem *regs = ohci->regs;
@@ -747,7 +747,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 		if (HC_IS_RUNNING(hcd->state))
 			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrdisable);
 		spin_lock (&ohci->lock);
-		dl_done_list (ohci, ptregs);
+		dl_done_list (ohci);
 		spin_unlock (&ohci->lock);
 		if (HC_IS_RUNNING(hcd->state))
 			ohci_writel (ohci, OHCI_INTR_WDH, &regs->intrenable); 
@@ -760,7 +760,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd, struct pt_regs *ptregs)
 	 */
 	spin_lock (&ohci->lock);
 	if (ohci->ed_rm_list)
-		finish_unlinks (ohci, ohci_frame_no(ohci), ptregs);
+		finish_unlinks (ohci, ohci_frame_no(ohci));
 	if ((ints & OHCI_INTR_SF) != 0 && !ohci->ed_rm_list
 			&& HC_IS_RUNNING(hcd->state))
 		ohci_writel (ohci, OHCI_INTR_SF, &regs->intrdisable);	
@@ -852,7 +852,7 @@ static int ohci_restart (struct ohci_hcd *ohci)
 		urb->status = -ESHUTDOWN;
 		spin_unlock (&urb->lock);
 	}
-	finish_unlinks (ohci, 0, NULL);
+	finish_unlinks (ohci, 0);
 	spin_unlock_irq(&ohci->lock);
 
 	/* paranoia, in case that didn't work: */

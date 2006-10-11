@@ -1243,7 +1243,7 @@ static int fdc_config(void)
 	TRACE_EXIT 0;
 }
 
-static irqreturn_t ftape_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ftape_interrupt(int irq, void *dev_id)
 {
 	void (*handler) (void) = *fdc.hook;
 	int handled = 0;

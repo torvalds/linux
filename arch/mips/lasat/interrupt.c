@@ -108,14 +108,14 @@ static unsigned long get_int_status_200(void)
 	return int_status;
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long int_status;
 	unsigned int cause = read_c0_cause();
 	int irq;
 
 	if (cause & CAUSEF_IP7) {	/* R4000 count / compare IRQ */
-		ll_timer_interrupt(7, regs);
+		ll_timer_interrupt(7);
 		return;
 	}
 
@@ -125,7 +125,7 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	if (int_status) {
 		irq = ls1bit32(int_status);
 
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	}
 }
 

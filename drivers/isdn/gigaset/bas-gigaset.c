@@ -454,7 +454,7 @@ inline static int update_basstate(struct bas_cardstate *ucs,
  *	urb	USB request block
  *		urb->context = inbuf structure for controller state
  */
-static void read_ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void read_ctrl_callback(struct urb *urb)
 {
 	struct inbuf_t *inbuf = urb->context;
 	struct cardstate *cs = inbuf->cs;
@@ -596,7 +596,7 @@ static int atread_submit(struct cardstate *cs, int timeout)
  *	urb	USB request block
  *		urb->context = controller state structure
  */
-static void read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void read_int_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;
@@ -762,7 +762,7 @@ resubmit:
  *	urb	USB request block of completed request
  *		urb->context = bc_state structure
  */
-static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
+static void read_iso_callback(struct urb *urb)
 {
 	struct bc_state *bcs;
 	struct bas_bc_state *ubc;
@@ -827,7 +827,7 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
  *	urb	USB request block of completed request
  *		urb->context = isow_urbctx_t structure
  */
-static void write_iso_callback(struct urb *urb, struct pt_regs *regs)
+static void write_iso_callback(struct urb *urb)
 {
 	struct isow_urbctx_t *ucx;
 	struct bas_bc_state *ubc;
@@ -1415,7 +1415,7 @@ static void req_timeout(unsigned long data)
  *	urb	USB request block of completed request
  *		urb->context = hardware specific controller state structure
  */
-static void write_ctrl_callback(struct urb *urb, struct pt_regs *regs)
+static void write_ctrl_callback(struct urb *urb)
 {
 	struct bas_cardstate *ucs = urb->context;
 	int rc;
@@ -1661,7 +1661,7 @@ static void complete_cb(struct cardstate *cs)
  *	urb	USB request block of completed request
  *		urb->context = controller state structure
  */
-static void write_command_callback(struct urb *urb, struct pt_regs *regs)
+static void write_command_callback(struct urb *urb)
 {
 	struct cardstate *cs = urb->context;
 	struct bas_cardstate *ucs = cs->hw.bas;

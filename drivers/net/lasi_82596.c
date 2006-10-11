@@ -403,7 +403,7 @@ static char init_setup[] =
 
 static int i596_open(struct net_device *dev);
 static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
 static struct net_device_stats *i596_get_stats(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
@@ -527,7 +527,7 @@ static void i596_display_data(struct net_device *dev)
 
 
 #if defined(ENABLE_MVME16x_NET) || defined(ENABLE_BVME6000_NET)
-static void i596_error(int irq, void *dev_id, struct pt_regs *regs)
+static void i596_error(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	volatile unsigned char *pcc2 = (unsigned char *) 0xfff42000;
@@ -1252,12 +1252,12 @@ static int __devinit i82596_probe(struct net_device *dev,
 static void i596_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	i596_interrupt(dev->irq, dev, NULL);
+	i596_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
 
-static irqreturn_t i596_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i596_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct i596_private *lp;

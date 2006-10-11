@@ -108,7 +108,7 @@ extern int hpet_set_alarm_time(unsigned char hrs, unsigned char min, unsigned ch
 extern int hpet_set_periodic_freq(unsigned long freq);
 extern int hpet_rtc_dropped_irq(void);
 extern int hpet_rtc_timer_init(void);
-extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif /* CONFIG_HPET_EMULATE_RTC */
 #endif /* CONFIG_HPET_TIMER */
 #endif /* _I386_HPET_H */

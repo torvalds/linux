@@ -614,7 +614,7 @@ static void s3c2410fb_write_palette(struct s3c2410fb_info *fbi)
 	}
 }
 
-static irqreturn_t s3c2410fb_irq(int irq, void *dev_id, struct pt_regs *r)
+static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 {
 	struct s3c2410fb_info *fbi = dev_id;
 	unsigned long lcdirq = readl(S3C2410_LCDINTPND);

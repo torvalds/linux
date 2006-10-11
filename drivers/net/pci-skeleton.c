@@ -502,8 +502,7 @@ static void netdrv_tx_timeout (struct net_device *dev);
 static void netdrv_init_ring (struct net_device *dev);
 static int netdrv_start_xmit (struct sk_buff *skb,
 			       struct net_device *dev);
-static irqreturn_t netdrv_interrupt (int irq, void *dev_instance,
-			       struct pt_regs *regs);
+static irqreturn_t netdrv_interrupt (int irq, void *dev_instance);
 static int netdrv_close (struct net_device *dev);
 static int netdrv_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
 static struct net_device_stats *netdrv_get_stats (struct net_device *dev);
@@ -1654,8 +1653,7 @@ static void netdrv_weird_interrupt (struct net_device *dev,
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t netdrv_interrupt (int irq, void *dev_instance,
-			       struct pt_regs *regs)
+static irqreturn_t netdrv_interrupt (int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct netdrv_private *tp = dev->priv;

@@ -140,7 +140,7 @@ typedef struct {
 static int fcc_enet_open(struct net_device *dev);
 static int fcc_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int fcc_enet_rx(struct net_device *dev);
-static irqreturn_t fcc_enet_interrupt(int irq, void *dev_id, struct pt_regs *);
+static irqreturn_t fcc_enet_interrupt(int irq, void *dev_id);
 static int fcc_enet_close(struct net_device *dev);
 static struct net_device_stats *fcc_enet_get_stats(struct net_device *dev);
 /* static void set_multicast_list(struct net_device *dev); */
@@ -524,7 +524,7 @@ fcc_enet_timeout(struct net_device *dev)
 
 /* The interrupt handler. */
 static irqreturn_t
-fcc_enet_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+fcc_enet_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile struct	fcc_enet_private *cep;
@@ -1563,7 +1563,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 #ifdef PHY_INTERRUPT
 /* This interrupt occurs when the PHY detects a link change. */
 static irqreturn_t
-mii_link_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+mii_link_interrupt(int irq, void * dev_id)
 {
 	struct	net_device *dev = dev_id;
 	struct fcc_enet_private *fep = dev->priv;

@@ -3119,7 +3119,7 @@ lpfc_sli_flush_mbox_queue(struct lpfc_hba * phba)
 }
 
 irqreturn_t
-lpfc_intr_handler(int irq, void *dev_id, struct pt_regs * regs)
+lpfc_intr_handler(int irq, void *dev_id)
 {
 	struct lpfc_hba *phba;
 	uint32_t ha_copy;

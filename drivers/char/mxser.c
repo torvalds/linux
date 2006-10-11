@@ -407,7 +407,7 @@ static void mxser_stop(struct tty_struct *);
 static void mxser_start(struct tty_struct *);
 static void mxser_hangup(struct tty_struct *);
 static void mxser_rs_break(struct tty_struct *, int);
-static irqreturn_t mxser_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t mxser_interrupt(int, void *);
 static void mxser_receive_chars(struct mxser_struct *, int *);
 static void mxser_transmit_chars(struct mxser_struct *);
 static void mxser_check_modem_status(struct mxser_struct *, int);
@@ -1916,7 +1916,7 @@ static void mxser_rs_break(struct tty_struct *tty, int break_state)
 /*
  * This is the serial driver's generic interrupt routine
  */
-static irqreturn_t mxser_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mxser_interrupt(int irq, void *dev_id)
 {
 	int status, iir, i;
 	struct mxser_struct *info;

@@ -1698,11 +1698,10 @@ static void mgsl_isr_transmit_dma( struct mgsl_struct *info )
  * 
  * 	irq		interrupt number that caused interrupt
  * 	dev_id		device ID supplied during interrupt registration
- * 	regs		interrupted processor context
  * 	
  * Return Value: None
  */
-static irqreturn_t mgsl_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t mgsl_interrupt(int irq, void *dev_id)
 {
 	struct mgsl_struct * info;
 	u16 UscVector;

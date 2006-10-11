@@ -202,7 +202,7 @@ static void hp_sdc_take (int irq, void *dev_id, uint8_t status, uint8_t data) {
 	}
 }
 
-static irqreturn_t hp_sdc_isr(int irq, void *dev_id, struct pt_regs * regs) {
+static irqreturn_t hp_sdc_isr(int irq, void *dev_id) {
 	uint8_t status, data;
 
 	status = hp_sdc_status_in8();
@@ -253,7 +253,7 @@ static irqreturn_t hp_sdc_isr(int irq, void *dev_id, struct pt_regs * regs) {
 }
 
 
-static irqreturn_t hp_sdc_nmisr(int irq, void *dev_id, struct pt_regs * regs) {
+static irqreturn_t hp_sdc_nmisr(int irq, void *dev_id) {
 	int status;
 	
 	status = hp_sdc_status_in8();

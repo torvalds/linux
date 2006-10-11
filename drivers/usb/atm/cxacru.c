@@ -171,7 +171,7 @@ struct cxacru_data {
 };
 
 /* the following three functions are stolen from drivers/usb/core/message.c */
-static void cxacru_blocking_completion(struct urb *urb, struct pt_regs *regs)
+static void cxacru_blocking_completion(struct urb *urb)
 {
 	complete((struct completion *)urb->context);
 }

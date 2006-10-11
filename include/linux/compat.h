@@ -163,7 +163,7 @@ asmlinkage long
 compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
 			   compat_size_t len);
 asmlinkage long
-compat_sys_get_robust_list(int pid, compat_uptr_t *head_ptr,
+compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr);
 
 long compat_sys_semctl(int first, int second, int third, void __user *uptr);

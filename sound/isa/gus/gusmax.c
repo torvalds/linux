@@ -105,9 +105,9 @@ static int __init snd_gusmax_detect(struct snd_gus_card * gus)
 	return 0;
 }
 
-static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id)
 {
-	struct snd_gusmax *maxcard = (struct snd_gusmax *) dev_id;
+	struct snd_gusmax *maxcard = dev_id;
 	int loop, max = 5;
 	int handled = 0;
 
@@ -115,12 +115,12 @@ static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id, struct pt_regs *r
 		loop = 0;
 		if (inb(maxcard->gus_status_reg)) {
 			handled = 1;
-			snd_gus_interrupt(irq, maxcard->gus, regs);
+			snd_gus_interrupt(irq, maxcard->gus);
 			loop++;
 		}
 		if (inb(maxcard->pcm_status_reg) & 0x01) { /* IRQ bit is set? */
 			handled = 1;
-			snd_cs4231_interrupt(irq, maxcard->cs4231, regs);
+			snd_cs4231_interrupt(irq, maxcard->cs4231);
 			loop++;
 		}
 	} while (loop && --max > 0);

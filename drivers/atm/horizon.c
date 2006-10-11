@@ -1382,23 +1382,12 @@ static inline void rx_data_av_handler (hrz_dev * dev) {
 
 /********** interrupt handler **********/
 
-static irqreturn_t interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *pt_regs) {
+static irqreturn_t interrupt_handler(int irq, void *dev_id) {
   hrz_dev * dev = (hrz_dev *) dev_id;
   u32 int_source;
   unsigned int irq_ok;
-  (void) pt_regs;
   
   PRINTD (DBG_FLOW, "interrupt_handler: %p", dev_id);
-  
-  if (!dev_id) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq with NULL dev_id: %d", irq);
-    return IRQ_NONE;
-  }
-  if (irq != dev->irq) {
-    PRINTD (DBG_IRQ|DBG_ERR, "irq mismatch: %d", irq);
-    return IRQ_NONE;
-  }
   
   // definitely for us
   irq_ok = 0;

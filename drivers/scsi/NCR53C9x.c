@@ -96,7 +96,7 @@ enum {
 static struct NCR_ESP *espchain;
 int nesps = 0, esps_in_use = 0, esps_running = 0;
 
-irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs);
+irqreturn_t esp_intr(int irq, void *dev_id);
 
 /* Debugging routines */
 static struct esp_cmdstrings {
@@ -3533,7 +3533,7 @@ state_machine:
 }
 
 #ifndef CONFIG_SMP
-irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs)
+irqreturn_t esp_intr(int irq, void *dev_id)
 {
 	struct NCR_ESP *esp;
 	unsigned long flags;
@@ -3570,7 +3570,7 @@ repeat:
 }
 #else
 /* For SMP we only service one ESP on the list list at our IRQ level! */
-irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs)
+irqreturn_t esp_intr(int irq, void *dev_id)
 {
 	struct NCR_ESP *esp;
 	unsigned long flags;

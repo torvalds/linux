@@ -200,7 +200,7 @@ static void netx_txint(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
-static void netx_rxint(struct uart_port *port, struct pt_regs *regs)
+static void netx_rxint(struct uart_port *port)
 {
 	unsigned char rx, flg, status;
 	struct tty_struct *tty = port->info->tty;
@@ -235,7 +235,7 @@ static void netx_rxint(struct uart_port *port, struct pt_regs *regs)
 				flg = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, rx, regs))
+		if (uart_handle_sysrq_char(port, rx))
 			continue;
 
 		uart_insert_char(port, status, SR_OE, rx, flg);
@@ -245,9 +245,9 @@ static void netx_rxint(struct uart_port *port, struct pt_regs *regs)
 	return;
 }
 
-static irqreturn_t netx_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t netx_int(int irq, void *dev_id)
 {
-	struct uart_port *port = (struct uart_port *)dev_id;
+	struct uart_port *port = dev_id;
 	unsigned long flags;
 	unsigned char status;
 
@@ -256,7 +256,7 @@ static irqreturn_t netx_int(int irq, void *dev_id, struct pt_regs *regs)
 	status = readl(port->membase + UART_IIR) & IIR_MASK;
 	while (status) {
 		if (status & IIR_RIS)
-			netx_rxint(port, regs);
+			netx_rxint(port);
 		if (status & IIR_TIS)
 			netx_txint(port);
 		if (status & IIR_MIS) {

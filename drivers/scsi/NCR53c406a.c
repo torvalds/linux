@@ -168,8 +168,8 @@ enum Phase {
 };
 
 /* Static function prototypes */
-static void NCR53c406a_intr(int, void *, struct pt_regs *);
-static irqreturn_t do_NCR53c406a_intr(int, void *, struct pt_regs *);
+static void NCR53c406a_intr(void *);
+static irqreturn_t do_NCR53c406a_intr(int, void *);
 static void chip_init(void);
 static void calc_port_addr(void);
 #ifndef IRQ_LEV
@@ -685,7 +685,7 @@ static void wait_intr(void)
 		return;
 	}
 
-	NCR53c406a_intr(0, NULL, NULL);
+	NCR53c406a_intr(NULL);
 }
 #endif
 
@@ -761,19 +761,18 @@ static int NCR53c406a_biosparm(struct scsi_device *disk,
 	return 0;
 }
 
-static irqreturn_t do_NCR53c406a_intr(int unused, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t do_NCR53c406a_intr(int unused, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = dev_id;
 
 	spin_lock_irqsave(dev->host_lock, flags);
-	NCR53c406a_intr(0, dev_id, regs);
+	NCR53c406a_intr(dev_id);
 	spin_unlock_irqrestore(dev->host_lock, flags);
 	return IRQ_HANDLED;
 }
 
-static void NCR53c406a_intr(int unused, void *dev_id, struct pt_regs *regs)
+static void NCR53c406a_intr(void *dev_id)
 {
 	DEB(unsigned char fifo_size;
 	    )

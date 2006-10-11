@@ -2556,8 +2556,7 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
    interupt 
  ------------------------------------------------------------*/
 
-static irqreturn_t snd_hdspm_interrupt(int irq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t snd_hdspm_interrupt(int irq, void *dev_id)
 {
 	struct hdspm *hdspm = (struct hdspm *) dev_id;
 	unsigned int status;

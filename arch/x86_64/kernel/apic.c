@@ -885,14 +885,14 @@ void setup_APIC_extened_lvt(unsigned char lvt_off, unsigned char vector,
  * value into /proc/profile.
  */
 
-void smp_local_timer_interrupt(struct pt_regs *regs)
+void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #ifdef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	if (apic_runs_main_timer > 1 && smp_processor_id() == boot_cpu_id)
-		main_timer_handler(regs);
+		main_timer_handler();
 	/*
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
@@ -915,6 +915,8 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
  */
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
 	/*
 	 * the NMI deadlock-detector uses this.
 	 */
@@ -932,8 +934,9 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 */
 	exit_idle();
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*

@@ -582,7 +582,7 @@ static int stv680_set_pict (struct usb_stv *stv680, struct video_picture *p)
 	return 0;
 }
 
-static void stv680_video_irq (struct urb *urb, struct pt_regs *regs)
+static void stv680_video_irq (struct urb *urb)
 {
 	struct usb_stv *stv680 = urb->context;
 	int length = urb->actual_length;

@@ -53,7 +53,7 @@
  */
 
 static void inline
-tioce_mmr_war_pre(struct tioce_kernel *kern, void *mmr_addr)
+tioce_mmr_war_pre(struct tioce_kernel *kern, void __iomem *mmr_addr)
 {
 	u64 mmr_base;
 	u64 mmr_offset;
@@ -62,7 +62,7 @@ tioce_mmr_war_pre(struct tioce_kernel *kern, void *mmr_addr)
 		return;
 
 	mmr_base = kern->ce_common->ce_pcibus.bs_base;
-	mmr_offset = (u64)mmr_addr - mmr_base;
+	mmr_offset = (unsigned long)mmr_addr - mmr_base;
 
 	if (mmr_offset < 0x45000) {
 		u64 mmr_war_offset;
@@ -79,7 +79,7 @@ tioce_mmr_war_pre(struct tioce_kernel *kern, void *mmr_addr)
 }
 
 static void inline
-tioce_mmr_war_post(struct tioce_kernel *kern, void *mmr_addr)
+tioce_mmr_war_post(struct tioce_kernel *kern, void __iomem *mmr_addr)
 {
 	u64 mmr_base;
 	u64 mmr_offset;
@@ -88,7 +88,7 @@ tioce_mmr_war_post(struct tioce_kernel *kern, void *mmr_addr)
 		return;
 
 	mmr_base = kern->ce_common->ce_pcibus.bs_base;
-	mmr_offset = (u64)mmr_addr - mmr_base;
+	mmr_offset = (unsigned long)mmr_addr - mmr_base;
 
 	if (mmr_offset < 0x45000) {
 		if (mmr_offset == 0x100)
@@ -223,7 +223,7 @@ tioce_dma_d64(unsigned long ct_addr, int dma_flags)
  * @pci_dev.
  */
 static inline void
-pcidev_to_tioce(struct pci_dev *pdev, struct tioce **base,
+pcidev_to_tioce(struct pci_dev *pdev, struct tioce __iomem **base,
 		struct tioce_kernel **kernel, int *port)
 {
 	struct pcidev_info *pcidev_info;
@@ -235,7 +235,7 @@ pcidev_to_tioce(struct pci_dev *pdev, struct tioce **base,
 	ce_kernel = (struct tioce_kernel *)ce_common->ce_kernel_private;
 
 	if (base)
-		*base = (struct tioce *)ce_common->ce_pcibus.bs_base;
+		*base = (struct tioce __iomem *)ce_common->ce_pcibus.bs_base;
 	if (kernel)
 		*kernel = ce_kernel;
 
@@ -275,13 +275,13 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
 	u64 pagesize;
 	int msi_capable, msi_wanted;
 	u64 *ate_shadow;
-	u64 *ate_reg;
+	u64 __iomem *ate_reg;
 	u64 addr;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 	u64 bus_base;
 	struct tioce_dmamap *map;
 
-	ce_mmr = (struct tioce *)ce_kern->ce_common->ce_pcibus.bs_base;
+	ce_mmr = (struct tioce __iomem *)ce_kern->ce_common->ce_pcibus.bs_base;
 
 	switch (type) {
 	case TIOCE_ATE_M32:
@@ -386,7 +386,7 @@ tioce_dma_d32(struct pci_dev *pdev, u64 ct_addr, int dma_flags)
 {
 	int dma_ok;
 	int port;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 	struct tioce_kernel *ce_kern;
 	u64 ct_upper;
 	u64 ct_lower;
@@ -461,7 +461,7 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 	int i;
 	int port;
 	struct tioce_kernel *ce_kern;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 	unsigned long flags;
 
 	bus_addr = tioce_dma_barrier(bus_addr, 0);
@@ -666,12 +666,11 @@ tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma
  * tioce_error_intr_handler - SGI TIO CE error interrupt handler
  * @irq: unused
  * @arg: pointer to tioce_common struct for the given CE
- * @pt: unused
  *
  * Handle a CE error interrupt.  Simply a wrapper around a SAL call which
  * defers processing to the SGI prom.
  */ static irqreturn_t
-tioce_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
+tioce_error_intr_handler(int irq, void *arg)
 {
 	struct tioce_common *soft = arg;
 	struct ia64_sal_retval ret_stuff;
@@ -701,9 +700,9 @@ static void
 tioce_reserve_m32(struct tioce_kernel *ce_kern, u64 base, u64 limit)
 {
 	int ate_index, last_ate, ps;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 
-	ce_mmr = (struct tioce *)ce_kern->ce_common->ce_pcibus.bs_base;
+	ce_mmr = (struct tioce __iomem *)ce_kern->ce_common->ce_pcibus.bs_base;
 	ps = ce_kern->ce_ate3240_pagesize;
 	ate_index = ATE_PAGE(base, ps);
 	last_ate = ate_index + ATE_NPAGES(base, limit-base+1, ps) - 1;
@@ -737,7 +736,7 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	int dev;
 	u32 tmp;
 	unsigned int seg, bus;
-	struct tioce *tioce_mmr;
+	struct tioce __iomem *tioce_mmr;
 	struct tioce_kernel *tioce_kern;
 
 	tioce_kern = kzalloc(sizeof(struct tioce_kernel), GFP_KERNEL);
@@ -768,7 +767,7 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	 * the ate's.
 	 */
 
-	tioce_mmr = (struct tioce *)tioce_common->ce_pcibus.bs_base;
+	tioce_mmr = (struct tioce __iomem *)tioce_common->ce_pcibus.bs_base;
 	tioce_mmr_clri(tioce_kern, &tioce_mmr->ce_ure_page_map,
 		       CE_URE_PAGESIZE_MASK);
 	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_ure_page_map,
@@ -859,7 +858,7 @@ tioce_force_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcidev_info *pcidev_info;
 	struct tioce_common *ce_common;
 	struct tioce_kernel *ce_kern;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 	u64 force_int_val;
 
 	if (!sn_irq_info->irq_bridge)
@@ -873,7 +872,7 @@ tioce_force_interrupt(struct sn_irq_info *sn_irq_info)
 		return;
 
 	ce_common = (struct tioce_common *)pcidev_info->pdi_pcibus_info;
-	ce_mmr = (struct tioce *)ce_common->ce_pcibus.bs_base;
+	ce_mmr = (struct tioce __iomem *)ce_common->ce_pcibus.bs_base;
 	ce_kern = (struct tioce_kernel *)ce_common->ce_kernel_private;
 
 	/*
@@ -954,7 +953,7 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcidev_info *pcidev_info;
 	struct tioce_common *ce_common;
 	struct tioce_kernel *ce_kern;
-	struct tioce *ce_mmr;
+	struct tioce __iomem *ce_mmr;
 	int bit;
 	u64 vector;
 
@@ -963,7 +962,7 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 		return;
 
 	ce_common = (struct tioce_common *)pcidev_info->pdi_pcibus_info;
-	ce_mmr = (struct tioce *)ce_common->ce_pcibus.bs_base;
+	ce_mmr = (struct tioce __iomem *)ce_common->ce_pcibus.bs_base;
 	ce_kern = (struct tioce_kernel *)ce_common->ce_kernel_private;
 
 	bit = sn_irq_info->irq_int_bit;
@@ -995,7 +994,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	cnodeid_t my_cnode, mem_cnode;
 	struct tioce_common *tioce_common;
 	struct tioce_kernel *tioce_kern;
-	struct tioce *tioce_mmr;
+	struct tioce __iomem *tioce_mmr;
 
 	/*
 	 * Allocate kernel bus soft and copy from prom.
@@ -1019,7 +1018,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * interrupt handler.
 	 */
 
-	tioce_mmr = (struct tioce *)tioce_common->ce_pcibus.bs_base;
+	tioce_mmr = (struct tioce __iomem *)tioce_common->ce_pcibus.bs_base;
 	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_adm_int_status_alias, ~0ULL);
 	tioce_mmr_seti(tioce_kern, &tioce_mmr->ce_adm_error_summary_alias,
 		       ~0ULL);

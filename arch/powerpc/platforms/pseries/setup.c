@@ -121,12 +121,11 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc,
-			  struct pt_regs *regs)
+void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cascade_irq = i8259_irq(regs);
+	unsigned int cascade_irq = i8259_irq();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 

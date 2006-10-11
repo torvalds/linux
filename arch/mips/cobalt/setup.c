@@ -50,8 +50,8 @@ const char *get_system_type(void)
 
 void __init plat_timer_setup(struct irqaction *irq)
 {
-	/* Load timer value for 1KHz (TCLK is 50MHz) */
-	GALILEO_OUTL(50*1000*1000 / 1000, GT_TC0_OFS);
+	/* Load timer value for HZ (TCLK is 50MHz) */
+	GALILEO_OUTL(50*1000*1000 / HZ, GT_TC0_OFS);
 
 	/* Enable timer */
 	GALILEO_OUTL(GALILEO_ENTC0 | GALILEO_SELTC0, GT_TC_CONTROL_OFS);

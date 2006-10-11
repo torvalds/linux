@@ -409,7 +409,7 @@ static int wait_dma_channel_stop(int channel)
 	return limit;
 }
 
-static void dma_handler(int channel, void *data, struct pt_regs *regs)
+static void dma_handler(int channel, void *data)
 {
 	struct driver_data *drv_data = data;
 	struct spi_message *msg = drv_data->cur_msg;
@@ -667,9 +667,9 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ssp_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ssp_int(int irq, void *dev_id)
 {
-	struct driver_data *drv_data = (struct driver_data *)dev_id;
+	struct driver_data *drv_data = dev_id;
 	void *reg = drv_data->ioaddr;
 
 	if (!drv_data->cur_msg) {

@@ -516,11 +516,10 @@ int mbcs_gscr_mmap(struct file *fp, struct vm_area_struct *vma)
  * mbcs_completion_intr_handler - Primary completion handler.
  * @irq: irq
  * @arg: soft struct for device
- * @ep: regs
  *
  */
 static irqreturn_t
-mbcs_completion_intr_handler(int irq, void *arg, struct pt_regs *ep)
+mbcs_completion_intr_handler(int irq, void *arg)
 {
 	struct mbcs_soft *soft = (struct mbcs_soft *)arg;
 	void *mmr_base;

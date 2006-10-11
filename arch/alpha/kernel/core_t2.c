@@ -551,8 +551,7 @@ t2_clear_errors(int cpu)
  * Hence all the taken/expected/any_expected/last_taken stuff...
  */
 void
-t2_machine_check(unsigned long vector, unsigned long la_ptr,
-		 struct pt_regs * regs)
+t2_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	int cpu = smp_processor_id();
 #ifdef CONFIG_VERBOSE_MCHECK
@@ -618,5 +617,5 @@ t2_machine_check(unsigned long vector, unsigned long la_ptr,
 	}
 #endif
 
-	process_mcheck_info(vector, la_ptr, regs, "T2", mcheck_expected(cpu));
+	process_mcheck_info(vector, la_ptr, "T2", mcheck_expected(cpu));
 }

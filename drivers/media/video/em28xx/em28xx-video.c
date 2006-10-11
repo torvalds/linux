@@ -174,7 +174,7 @@ static void em28xx_config_i2c(struct em28xx *dev)
 
 	route.input = INPUT(dev->ctl_input)->vmux;
 	route.output = 0;
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, 0);
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, NULL);
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
 

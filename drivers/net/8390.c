@@ -391,7 +391,6 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * ei_interrupt - handle the interrupts from an 8390
  * @irq: interrupt number
  * @dev_id: a pointer to the net_device
- * @regs: unused
  *
  * Handle the ether interface interrupts. We pull packets from
  * the 8390 via the card specific functions and fire them at the networking
@@ -400,21 +399,15 @@ static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * needed.
  */
 
-irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t ei_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	long e8390_base;
 	int interrupts, nr_serviced = 0;
 	struct ei_device *ei_local;
 
-	if (dev == NULL)
-	{
-		printk ("net_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
-
 	e8390_base = dev->base_addr;
-	ei_local = (struct ei_device *) netdev_priv(dev);
+	ei_local = netdev_priv(dev);
 
 	/*
 	 *	Protect the irq test too.
@@ -506,7 +499,7 @@ irqreturn_t ei_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 void ei_poll(struct net_device *dev)
 {
 	disable_irq_lockdep(dev->irq);
-	ei_interrupt(dev->irq, dev, NULL);
+	ei_interrupt(dev->irq, dev);
 	enable_irq_lockdep(dev->irq);
 }
 #endif

@@ -118,7 +118,7 @@ ev7_collect_logout_frame_subpackets(struct el_subpacket *el_ptr,
 }
 
 void
-ev7_machine_check(u64 vector, u64 la_ptr, struct pt_regs *regs)
+ev7_machine_check(u64 vector, u64 la_ptr)
 {
 	struct el_subpacket *el_ptr = (struct el_subpacket *)la_ptr;
 	char *saved_err_prefix = err_print_prefix;

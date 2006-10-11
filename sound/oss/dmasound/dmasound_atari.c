@@ -133,7 +133,7 @@ static int FalconSetFormat(int format);
 static int FalconSetVolume(int volume);
 static void AtaPlayNextFrame(int index);
 static void AtaPlay(void);
-static irqreturn_t AtaInterrupt(int irq, void *dummy, struct pt_regs *fp);
+static irqreturn_t AtaInterrupt(int irq, void *dummy);
 
 /*** Mid level stuff *********************************************************/
 
@@ -1257,7 +1257,7 @@ static void AtaPlay(void)
 }
 
 
-static irqreturn_t AtaInterrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t AtaInterrupt(int irq, void *dummy)
 {
 #if 0
 	/* ++TeSche: if you should want to test this... */

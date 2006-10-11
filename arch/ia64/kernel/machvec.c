@@ -60,7 +60,7 @@ machvec_setup (char **arg)
 EXPORT_SYMBOL(machvec_setup);
 
 void
-machvec_timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+machvec_timer_interrupt (int irq, void *dev_id)
 {
 }
 EXPORT_SYMBOL(machvec_timer_interrupt);

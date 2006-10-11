@@ -80,11 +80,11 @@ static void klsi_105_close	         (struct usb_serial_port *port,
 static int  klsi_105_write	         (struct usb_serial_port *port,
 					  const unsigned char *buf,
 					  int count);
-static void klsi_105_write_bulk_callback (struct urb *urb, struct pt_regs *regs);
+static void klsi_105_write_bulk_callback (struct urb *urb);
 static int  klsi_105_chars_in_buffer     (struct usb_serial_port *port);
 static int  klsi_105_write_room          (struct usb_serial_port *port);
 
-static void klsi_105_read_bulk_callback  (struct urb *urb, struct pt_regs *regs);
+static void klsi_105_read_bulk_callback  (struct urb *urb);
 static void klsi_105_set_termios         (struct usb_serial_port *port,
 					  struct termios * old);
 static int  klsi_105_ioctl	         (struct usb_serial_port *port,
@@ -556,7 +556,7 @@ exit:
 	return bytes_sent;	/* that's how much we wrote */
 } /* klsi_105_write */
 
-static void klsi_105_write_bulk_callback ( struct urb *urb, struct pt_regs *regs)
+static void klsi_105_write_bulk_callback ( struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 
@@ -616,7 +616,7 @@ static int klsi_105_write_room (struct usb_serial_port *port)
 
 
 
-static void klsi_105_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void klsi_105_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);

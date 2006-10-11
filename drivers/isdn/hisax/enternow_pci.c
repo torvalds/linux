@@ -240,7 +240,7 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 }
 
 static irqreturn_t
-enpci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+enpci_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	unsigned char s0val, s1val, ir;

@@ -77,7 +77,7 @@ static int match_posponed;
 #endif
 
 static irqreturn_t
-sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+sa1100_timer_interrupt(int irq, void *dev_id)
 {
 	unsigned int next_match;
 
@@ -99,7 +99,7 @@ sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * handlers.
 	 */
 	do {
-		timer_tick(regs);
+		timer_tick();
 		OSSR = OSSR_M0;  /* Clear match on timer 0 */
 		next_match = (OSMR0 += LATCH);
 	} while ((signed long)(next_match - OSCR) <= 0);
@@ -151,13 +151,13 @@ static void sa1100_dyn_tick_reprogram(unsigned long ticks)
 }
 
 static irqreturn_t
-sa1100_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+sa1100_dyn_tick_handler(int irq, void *dev_id)
 {
 	if (match_posponed) {
 		match_posponed = 0;
 		OSMR0 = initial_match;
 		if ((signed long)(initial_match - OSCR) <= 0)
-			return sa1100_timer_interrupt(irq, dev_id, regs);
+			return sa1100_timer_interrupt(irq, dev_id);
 	}
 	return IRQ_NONE;
 }

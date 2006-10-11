@@ -1012,7 +1012,7 @@ static int start_tx(struct atm_dev *dev)
 /*------------------------------- interrupts --------------------------------*/
 
 
-static irqreturn_t zatm_int(int irq,void *dev_id,struct pt_regs *regs)
+static irqreturn_t zatm_int(int irq,void *dev_id)
 {
 	struct atm_dev *dev;
 	struct zatm_dev *zatm_dev;

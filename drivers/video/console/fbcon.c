@@ -204,7 +204,7 @@ static struct class_device *fbcon_class_device;
  */
 static int vbl_detected;
 
-static irqreturn_t fb_vbl_detect(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t fb_vbl_detect(int irq, void *dummy)
 {
 	vbl_detected++;
 	return IRQ_HANDLED;
@@ -414,7 +414,7 @@ static void fb_flashcursor(void *private)
 
 #if defined(CONFIG_ATARI) || defined(CONFIG_MAC)
 static int cursor_blink_rate;
-static irqreturn_t fb_vbl_handler(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t fb_vbl_handler(int irq, void *dev_id)
 {
 	struct fb_info *info = dev_id;
 

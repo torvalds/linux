@@ -159,7 +159,7 @@ static void hangcheck_fire(unsigned long data)
 		if (hangcheck_dump_tasks) {
 			printk(KERN_CRIT "Hangcheck: Task state:\n");
 #ifdef CONFIG_MAGIC_SYSRQ
-			handle_sysrq('t', NULL, NULL);
+			handle_sysrq('t', NULL);
 #endif  /* CONFIG_MAGIC_SYSRQ */
 		}
 		if (hangcheck_reboot) {

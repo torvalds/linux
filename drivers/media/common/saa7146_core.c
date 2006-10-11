@@ -230,7 +230,7 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 
 /********************************************************************************/
 /* interrupt handler */
-static irqreturn_t interrupt_hw(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t interrupt_hw(int irq, void *dev_id)
 {
 	struct saa7146_dev *dev = dev_id;
 	u32 isr = 0;

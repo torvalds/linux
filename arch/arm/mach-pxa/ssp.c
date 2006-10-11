@@ -65,7 +65,7 @@ static const struct ssp_info_ ssp_info[PXA_SSP_PORTS] = {
 static DEFINE_MUTEX(mutex);
 static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
 
-static irqreturn_t ssp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
 	struct ssp_dev *dev = (struct ssp_dev*) dev_id;
 	unsigned int status = SSSR_P(dev->port);

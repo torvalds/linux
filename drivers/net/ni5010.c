@@ -99,7 +99,7 @@ struct ni5010_local {
 static int	ni5010_probe1(struct net_device *dev, int ioaddr);
 static int	ni5010_open(struct net_device *dev);
 static int	ni5010_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t ni5010_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ni5010_interrupt(int irq, void *dev_id);
 static void	ni5010_rx(struct net_device *dev);
 static void	ni5010_timeout(struct net_device *dev);
 static int	ni5010_close(struct net_device *dev);
@@ -468,7 +468,7 @@ static int ni5010_send_packet(struct sk_buff *skb, struct net_device *dev)
  * The typical workload of the driver:
  * Handle the network interface interrupts.
  */
-static irqreturn_t ni5010_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ni5010_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct ni5010_local *lp;

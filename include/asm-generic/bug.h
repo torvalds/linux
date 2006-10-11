@@ -41,14 +41,14 @@
 #endif
 #endif
 
-#define WARN_ON_ONCE(condition)	({			\
-	static int __warn_once = 1;			\
-	typeof(condition) __ret_warn_once = (condition);\
-							\
-	if (likely(__warn_once))			\
-		if (WARN_ON(__ret_warn_once)) 		\
-			__warn_once = 0;		\
-	unlikely(__ret_warn_once);			\
+#define WARN_ON_ONCE(condition)	({				\
+	static int __warned;					\
+	typeof(condition) __ret_warn_once = (condition);	\
+								\
+	if (unlikely(__ret_warn_once))				\
+		if (WARN_ON(!__warned)) 			\
+			__warned = 1;				\
+	unlikely(__ret_warn_once);				\
 })
 
 #ifdef CONFIG_SMP

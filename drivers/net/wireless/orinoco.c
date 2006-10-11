@@ -1952,9 +1952,9 @@ static void __orinoco_ev_wterr(struct net_device *dev, hermes_t *hw)
 	       dev->name);
 }
 
-irqreturn_t orinoco_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct orinoco_private *priv = netdev_priv(dev);
 	hermes_t *hw = &priv->hw;
 	int count = MAX_IRQLOOPS_PER_IRQ;

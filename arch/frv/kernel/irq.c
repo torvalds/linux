@@ -143,7 +143,7 @@ static struct irq_chip frv_cpu_pic = {
 asmlinkage void do_IRQ(void)
 {
 	irq_enter();
-	generic_handle_irq(__get_IRL(), __frame);
+	generic_handle_irq(__get_IRL());
 	irq_exit();
 }
 

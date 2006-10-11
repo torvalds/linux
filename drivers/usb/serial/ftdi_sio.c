@@ -589,8 +589,8 @@ static void ftdi_close			(struct usb_serial_port *port, struct file *filp);
 static int  ftdi_write			(struct usb_serial_port *port, const unsigned char *buf, int count);
 static int  ftdi_write_room		(struct usb_serial_port *port);
 static int  ftdi_chars_in_buffer	(struct usb_serial_port *port);
-static void ftdi_write_bulk_callback	(struct urb *urb, struct pt_regs *regs);
-static void ftdi_read_bulk_callback	(struct urb *urb, struct pt_regs *regs);
+static void ftdi_write_bulk_callback	(struct urb *urb);
+static void ftdi_read_bulk_callback	(struct urb *urb);
 static void ftdi_process_read		(void *param);
 static void ftdi_set_termios		(struct usb_serial_port *port, struct termios * old);
 static int  ftdi_tiocmget               (struct usb_serial_port *port, struct file *file);
@@ -1508,7 +1508,7 @@ static int ftdi_write (struct usb_serial_port *port,
 
 /* This function may get called when the device is closed */
 
-static void ftdi_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void ftdi_write_bulk_callback (struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
@@ -1591,7 +1591,7 @@ static int ftdi_chars_in_buffer (struct usb_serial_port *port)
 
 
 
-static void ftdi_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void ftdi_read_bulk_callback (struct urb *urb)
 { /* ftdi_read_bulk_callback */
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct tty_struct *tty;

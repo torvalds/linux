@@ -63,14 +63,14 @@ static int gIER,gIFR,gBufA,gBufB;
 static int  nubus_active;
 
 void via_debug_dump(void);
-irqreturn_t via1_irq(int, void *, struct pt_regs *);
-irqreturn_t via2_irq(int, void *, struct pt_regs *);
-irqreturn_t via_nubus_irq(int, void *, struct pt_regs *);
+irqreturn_t via1_irq(int, void *);
+irqreturn_t via2_irq(int, void *);
+irqreturn_t via_nubus_irq(int, void *);
 void via_irq_enable(int irq);
 void via_irq_disable(int irq);
 void via_irq_clear(int irq);
 
-extern irqreturn_t mac_scc_dispatch(int, void *, struct pt_regs *);
+extern irqreturn_t mac_scc_dispatch(int, void *);
 extern int oss_present;
 
 /*
@@ -235,7 +235,7 @@ void __init via_init(void)
  * Start the 100 Hz clock
  */
 
-void __init via_init_clock(irqreturn_t (*func)(int, void *, struct pt_regs *))
+void __init via_init_clock(irq_handler_t func)
 {
 	via1[vACR] |= 0x40;
 	via1[vT1LL] = MAC_CLOCK_LOW;
@@ -412,7 +412,7 @@ void __init via_nubus_init(void)
  * the machspec interrupt number after clearing the interrupt.
  */
 
-irqreturn_t via1_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t via1_irq(int irq, void *dev_id)
 {
 	int irq_bit, i;
 	unsigned char events, mask;
@@ -424,7 +424,7 @@ irqreturn_t via1_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 7 ; i++, irq_bit <<= 1)
 		if (events & irq_bit) {
 			via1[vIER] = irq_bit;
-			m68k_handle_int(VIA1_SOURCE_BASE + i, regs);
+			m68k_handle_int(VIA1_SOURCE_BASE + i);
 			via1[vIFR] = irq_bit;
 			via1[vIER] = irq_bit | 0x80;
 		}
@@ -439,14 +439,14 @@ irqreturn_t via1_irq(int irq, void *dev_id, struct pt_regs *regs)
 		/* No, it won't be set. that's why we're doing this. */
 		via_irq_disable(IRQ_MAC_NUBUS);
 		via_irq_clear(IRQ_MAC_NUBUS);
-		m68k_handle_int(IRQ_MAC_NUBUS, regs);
+		m68k_handle_int(IRQ_MAC_NUBUS);
 		via_irq_enable(IRQ_MAC_NUBUS);
 	}
 #endif
 	return IRQ_HANDLED;
 }
 
-irqreturn_t via2_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t via2_irq(int irq, void *dev_id)
 {
 	int irq_bit, i;
 	unsigned char events, mask;
@@ -459,7 +459,7 @@ irqreturn_t via2_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if (events & irq_bit) {
 			via2[gIER] = irq_bit;
 			via2[gIFR] = irq_bit | rbv_clear;
-			m68k_handle_int(VIA2_SOURCE_BASE + i, regs);
+			m68k_handle_int(VIA2_SOURCE_BASE + i);
 			via2[gIER] = irq_bit | 0x80;
 		}
 	return IRQ_HANDLED;
@@ -470,7 +470,7 @@ irqreturn_t via2_irq(int irq, void *dev_id, struct pt_regs *regs)
  * VIA2 dispatcher as a fast interrupt handler.
  */
 
-irqreturn_t via_nubus_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t via_nubus_irq(int irq, void *dev_id)
 {
 	int irq_bit, i;
 	unsigned char events;
@@ -481,7 +481,7 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id, struct pt_regs *regs)
 	for (i = 0, irq_bit = 1 ; i < 7 ; i++, irq_bit <<= 1) {
 		if (events & irq_bit) {
 			via_irq_disable(NUBUS_SOURCE_BASE + i);
-			m68k_handle_int(NUBUS_SOURCE_BASE + i, regs);
+			m68k_handle_int(NUBUS_SOURCE_BASE + i);
 			via_irq_enable(NUBUS_SOURCE_BASE + i);
 		}
 	}

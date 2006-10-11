@@ -5,6 +5,7 @@
 
 struct scatterlist;
 
+#ifndef CONFIG_MMU_SUN3
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	return 1;
@@ -26,7 +27,7 @@ static inline int dma_is_consistent(dma_addr_t dma_addr)
 }
 
 extern void *dma_alloc_coherent(struct device *, size_t,
-				dma_addr_t *, int);
+				dma_addr_t *, gfp_t);
 extern void dma_free_coherent(struct device *, size_t,
 			      void *, dma_addr_t);
 
@@ -87,5 +88,9 @@ static inline int dma_mapping_error(dma_addr_t handle)
 {
 	return 0;
 }
+
+#else
+#include <asm-generic/dma-mapping-broken.h>
+#endif
 
 #endif  /* _M68K_DMA_MAPPING_H */

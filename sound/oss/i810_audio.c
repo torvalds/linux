@@ -1523,9 +1523,9 @@ static void i810_channel_interrupt(struct i810_card *card)
 #endif
 }
 
-static irqreturn_t i810_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i810_interrupt(int irq, void *dev_id)
 {
-	struct i810_card *card = (struct i810_card *)dev_id;
+	struct i810_card *card = dev_id;
 	u32 status;
 
 	spin_lock(&card->lock);

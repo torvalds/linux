@@ -400,7 +400,7 @@ W6692B_interrupt(struct IsdnCardState *cs, u_char bchan)
 }
 
 static irqreturn_t
-W6692_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+W6692_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState	*cs = dev_id;
 	u_char			val, exval, v1;
@@ -715,7 +715,7 @@ dbusy_timer_handler(struct IsdnCardState *cs)
 			}
 			cs->writeW6692(cs, W_D_CMDR, W_D_CMDR_XRST);	/* Transmitter reset */
 			spin_unlock_irqrestore(&cs->lock, flags);
-			cs->irq_func(cs->irq, cs, NULL);
+			cs->irq_func(cs->irq, cs);
 			return;
 		}
 	}

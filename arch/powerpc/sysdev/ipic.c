@@ -709,7 +709,7 @@ void ipic_clear_mcp_status(u32 mask)
 }
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
-unsigned int ipic_get_irq(struct pt_regs *regs)
+unsigned int ipic_get_irq(void)
 {
 	int irq;
 

@@ -497,8 +497,7 @@ static int option_setup(char *);
 static int ldn_access_load(int, int);
 static int ldn_access_total_read_write(int);
 
-static irqreturn_t interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t interrupt_handler(int irq, void *dev_id)
 {
 	int host_index, ihost_index;
 	unsigned int intr_reg;

@@ -985,7 +985,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 }
 
-static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
 	irqreturn_t result;
 	struct sdhci_host* host = dev_id;
@@ -1329,7 +1329,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
+	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
 
 	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		host->slot_descr, host);

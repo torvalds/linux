@@ -475,7 +475,7 @@ static void snd_via82xx_channel_reset(struct via82xx_modem *chip, struct viadev 
  *  Interrupt handler
  */
 
-static irqreturn_t snd_via82xx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_via82xx_interrupt(int irq, void *dev_id)
 {
 	struct via82xx_modem *chip = dev_id;
 	unsigned int status;

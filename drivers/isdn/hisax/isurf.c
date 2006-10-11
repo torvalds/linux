@@ -83,7 +83,7 @@ WriteISAR(struct IsdnCardState *cs, int mode, u_char offset, u_char value)
 }
 
 static irqreturn_t
-isurf_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+isurf_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;

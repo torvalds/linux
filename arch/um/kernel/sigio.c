@@ -17,7 +17,7 @@
 /* Protected by sigio_lock() called from write_sigio_workaround */
 static int sigio_irq_fd = -1;
 
-static irqreturn_t sigio_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t sigio_interrupt(int irq, void *data)
 {
 	char c;
 

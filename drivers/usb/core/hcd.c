@@ -522,7 +522,7 @@ error:
 	if (urb->status == -EINPROGRESS)
 		urb->status = status;
 	spin_unlock (&urb->lock);
-	usb_hcd_giveback_urb (hcd, urb, NULL);
+	usb_hcd_giveback_urb (hcd, urb);
 	local_irq_restore (flags);
 	return 0;
 }
@@ -572,7 +572,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 
 		/* local irqs are always blocked in completions */
 		if (length > 0)
-			usb_hcd_giveback_urb (hcd, urb, NULL);
+			usb_hcd_giveback_urb (hcd, urb);
 		else
 			hcd->poll_pending = 1;
 		local_irq_restore (flags);
@@ -656,7 +656,7 @@ static int usb_rh_urb_dequeue (struct usb_hcd *hcd, struct urb *urb)
 			urb = NULL;		/* wasn't fully queued */
 		spin_unlock (&hcd_root_hub_lock);
 		if (urb)
-			usb_hcd_giveback_urb (hcd, urb, NULL);
+			usb_hcd_giveback_urb (hcd, urb);
 		local_irq_restore (flags);
 	}
 
@@ -1498,7 +1498,6 @@ EXPORT_SYMBOL (usb_bus_start_enum);
  * usb_hcd_giveback_urb - return URB from HCD to device driver
  * @hcd: host controller returning the URB
  * @urb: urb being returned to the USB device driver.
- * @regs: pt_regs, passed down to the URB completion handler
  * Context: in_interrupt()
  *
  * This hands the URB from HCD to its USB device driver, using its
@@ -1507,7 +1506,7 @@ EXPORT_SYMBOL (usb_bus_start_enum);
  * the device driver won't cause problems if it frees, modifies,
  * or resubmits this URB.
  */
-void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb, struct pt_regs *regs)
+void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 {
 	int at_root_hub;
 
@@ -1534,7 +1533,7 @@ void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb, struct pt_regs 
 
 	usbmon_urb_complete (&hcd->self, urb);
 	/* pass ownership to the completion handler */
-	urb->complete (urb, regs);
+	urb->complete (urb);
 	atomic_dec (&urb->use_count);
 	if (unlikely (urb->reject))
 		wake_up (&usb_kill_urb_queue);
@@ -1553,7 +1552,7 @@ EXPORT_SYMBOL (usb_hcd_giveback_urb);
  * If the controller isn't HALTed, calls the driver's irq handler.
  * Checks whether the controller is now dead.
  */
-irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs * r)
+irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 {
 	struct usb_hcd		*hcd = __hcd;
 	int			start = hcd->state;
@@ -1561,7 +1560,7 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs * r)
 	if (unlikely(start == HC_STATE_HALT ||
 	    !test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
 		return IRQ_NONE;
-	if (hcd->driver->irq (hcd, r) == IRQ_NONE)
+	if (hcd->driver->irq (hcd) == IRQ_NONE)
 		return IRQ_NONE;
 
 	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);

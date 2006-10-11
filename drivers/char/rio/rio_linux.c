@@ -363,12 +363,12 @@ static void rio_reset_interrupt(struct Host *HostP)
 }
 
 
-static irqreturn_t rio_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t rio_interrupt(int irq, void *ptr)
 {
 	struct Host *HostP;
 	func_enter();
 
-	HostP = (struct Host *) ptr;	/* &p->RIOHosts[(long)ptr]; */
+	HostP = ptr;			/* &p->RIOHosts[(long)ptr]; */
 	rio_dprintk(RIO_DEBUG_IFLOW, "rio: enter rio_interrupt (%d/%d)\n", irq, HostP->Ivec);
 
 	/* AAargh! The order in which to do these things is essential and
@@ -402,7 +402,7 @@ static irqreturn_t rio_interrupt(int irq, void *ptr, struct pt_regs *regs)
 		return IRQ_HANDLED;
 	}
 
-	RIOServiceHost(p, HostP, irq);
+	RIOServiceHost(p, HostP);
 
 	rio_dprintk(RIO_DEBUG_IFLOW, "riointr() doing host %p type %d\n", ptr, HostP->Type);
 
@@ -417,7 +417,7 @@ static void rio_pollfunc(unsigned long data)
 {
 	func_enter();
 
-	rio_interrupt(0, &p->RIOHosts[data], NULL);
+	rio_interrupt(0, &p->RIOHosts[data]);
 	p->RIOHosts[data].timer.expires = jiffies + rio_poll;
 	add_timer(&p->RIOHosts[data].timer);
 

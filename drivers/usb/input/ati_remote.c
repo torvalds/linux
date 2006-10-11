@@ -283,9 +283,9 @@ static void ati_remote_dump		(unsigned char *data, unsigned int actual_length);
 static int ati_remote_open		(struct input_dev *inputdev);
 static void ati_remote_close		(struct input_dev *inputdev);
 static int ati_remote_sendpacket	(struct ati_remote *ati_remote, u16 cmd, unsigned char *data);
-static void ati_remote_irq_out		(struct urb *urb, struct pt_regs *regs);
-static void ati_remote_irq_in		(struct urb *urb, struct pt_regs *regs);
-static void ati_remote_input_report	(struct urb *urb, struct pt_regs *regs);
+static void ati_remote_irq_out		(struct urb *urb);
+static void ati_remote_irq_in		(struct urb *urb);
+static void ati_remote_input_report	(struct urb *urb);
 static int ati_remote_initialize	(struct ati_remote *ati_remote);
 static int ati_remote_probe		(struct usb_interface *interface, const struct usb_device_id *id);
 static void ati_remote_disconnect	(struct usb_interface *interface);
@@ -344,7 +344,7 @@ static void ati_remote_close(struct input_dev *inputdev)
 /*
  *		ati_remote_irq_out
  */
-static void ati_remote_irq_out(struct urb *urb, struct pt_regs *regs)
+static void ati_remote_irq_out(struct urb *urb)
 {
 	struct ati_remote *ati_remote = urb->context;
 
@@ -453,7 +453,7 @@ static int ati_remote_compute_accel(struct ati_remote *ati_remote)
 /*
  *	ati_remote_report_input
  */
-static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
+static void ati_remote_input_report(struct urb *urb)
 {
 	struct ati_remote *ati_remote = urb->context;
 	unsigned char *data= ati_remote->inbuf;
@@ -491,7 +491,6 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		remote_num, data[1], data[2], index, ati_remote_tbl[index].code);
 
 	if (ati_remote_tbl[index].kind == KIND_LITERAL) {
-		input_regs(dev, regs);
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code,
 			ati_remote_tbl[index].value);
@@ -520,7 +519,6 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 			return;
 
 
-		input_regs(dev, regs);
 		input_event(dev, ati_remote_tbl[index].type,
 			ati_remote_tbl[index].code, 1);
 		input_sync(dev);
@@ -537,7 +535,6 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		 */
 		acc = ati_remote_compute_accel(ati_remote);
 
-		input_regs(dev, regs);
 		switch (ati_remote_tbl[index].kind) {
 		case KIND_ACCEL:
 			input_event(dev, ati_remote_tbl[index].type,
@@ -575,14 +572,14 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 /*
  *	ati_remote_irq_in
  */
-static void ati_remote_irq_in(struct urb *urb, struct pt_regs *regs)
+static void ati_remote_irq_in(struct urb *urb)
 {
 	struct ati_remote *ati_remote = urb->context;
 	int retval;
 
 	switch (urb->status) {
 	case 0:			/* success */
-		ati_remote_input_report(urb, regs);
+		ati_remote_input_report(urb);
 		break;
 	case -ECONNRESET:	/* unlink */
 	case -ENOENT:

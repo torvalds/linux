@@ -62,15 +62,13 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 };
 
 
-static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 {
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev = psmouse->dev;
 
 	if (psmouse->pktcnt != 3)
 		return PSMOUSE_GOOD_DATA;
-
-	input_regs(dev, regs);
 
 	/* calculate X and Y */
 	if ((packet[0] & 0x08) == 0x00) {
