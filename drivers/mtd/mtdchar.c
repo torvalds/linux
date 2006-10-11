@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -100,8 +101,8 @@ static int mtd_open(struct inode *inode, struct file *file)
 
 	mtd = get_mtd_device(NULL, devnum);
 
-	if (!mtd)
-		return -ENODEV;
+	if (IS_ERR(mtd))
+		return PTR_ERR(mtd);
 
 	if (MTD_ABSENT == mtd->type) {
 		put_mtd_device(mtd);

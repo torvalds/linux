@@ -20,6 +20,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/cfi.h>
 #include <linux/reboot.h>
+#include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/root_dev.h>
 #include <asm/io.h>
@@ -178,7 +179,7 @@ int nettel_eraseconfig(void)
 
 	init_waitqueue_head(&wait_q);
 	mtd = get_mtd_device(NULL, 2);
-	if (mtd) {
+	if (!IS_ERR(mtd)) {
 		nettel_erase.mtd = mtd;
 		nettel_erase.callback = nettel_erasecallback;
 		nettel_erase.callback = NULL;

@@ -193,14 +193,14 @@ int unregister_mtd_user (struct mtd_notifier *old)
  *	Given a number and NULL address, return the num'th entry in the device
  *	table, if any.	Given an address and num == -1, search the device table
  *	for a device with that address and return if it's still present. Given
- *	both, return the num'th driver only if its address matches. Return NULL
- *	if not.
+ *	both, return the num'th driver only if its address matches. Return
+ *	error code if not.
  */
 
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
 	struct mtd_info *ret = NULL;
-	int i;
+	int i, err = -ENODEV;
 
 	mutex_lock(&mtd_table_mutex);
 
@@ -217,22 +217,24 @@ struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 	if (!ret)
 		goto out_unlock;
 
-	if (!try_module_get(ret->owner)) {
-		ret = NULL;
+	if (!try_module_get(ret->owner))
 		goto out_unlock;
-	}
 
-	if (ret->get_device && ret->get_device(ret)) {
-		module_put(ret->owner);
-		ret = NULL;
-		goto out_unlock;
+	if (ret->get_device) {
+		err = ret->get_device(ret);
+		if (err)
+			goto out_put;
 	}
 
 	ret->usecount++;
-
-out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
+
+out_put:
+	module_put(ret->owner);
+out_unlock:
+	mutex_unlock(&mtd_table_mutex);
+	return ERR_PTR(err);
 }
 
 /**
