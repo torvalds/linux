@@ -25,6 +25,24 @@
  */
 
 /*
+ * Calculate the block group number and offset, given a block number
+ */
+void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
+		unsigned long *blockgrpp, ext4_grpblk_t *offsetp)
+{
+        struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+	ext4_grpblk_t offset;
+
+        blocknr = blocknr - le32_to_cpu(es->s_first_data_block);
+        offset = sector_div(blocknr, EXT4_BLOCKS_PER_GROUP(sb));
+	if (offsetp)
+		*offsetp = offset;
+	if (blockgrpp)
+	        *blockgrpp = blocknr;
+
+}
+
+/*
  * The free blocks are managed by bitmaps.  A file system contains several
  * blocks groups.  Each group contains 1 bitmap block for blocks, 1 bitmap
  * block for inodes, N blocks for the inode table and data blocks.
