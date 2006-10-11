@@ -90,7 +90,7 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 
 	info.si_signo = SIGFPE;
 	info.si_code = sicode;
-	info.si_addr = (void *)(instruction_pointer(regs) - 4);
+	info.si_addr = (void __user *)(instruction_pointer(regs) - 4);
 
 	/*
 	 * This is the same as NWFPE, because it's not clear what
