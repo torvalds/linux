@@ -357,6 +357,8 @@ struct snd_ymfpci {
 	wait_queue_head_t interrupt_sleep;
 	atomic_t interrupt_sleep_count;
 	struct snd_info_entry *proc_entry;
+	const struct firmware *dsp_microcode;
+	const struct firmware *controller_microcode;
 
 #ifdef CONFIG_PM
 	u32 *saved_regs;

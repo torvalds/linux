@@ -1,7 +1,7 @@
 #ifndef _HWMCODE_
 #define _HWMCODE_
 
-static unsigned long DspInst[YDSXG_DSPLENGTH / 4] = {
+static u32 DspInst[YDSXG_DSPLENGTH / 4] = {
 	0x00000081, 0x000001a4, 0x0000000a, 0x0000002f,
 	0x00080253, 0x01800317, 0x0000407b, 0x0000843f,
 	0x0001483c, 0x0001943c, 0x0005d83c, 0x00001c3c,
@@ -12,7 +12,7 @@ static unsigned long DspInst[YDSXG_DSPLENGTH / 4] = {
 	0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
-static unsigned long CntrlInst[YDSXG_CTRLLENGTH / 4] = {
+static u32 CntrlInst[YDSXG_CTRLLENGTH / 4] = {
 	0x000007, 0x240007, 0x0C0007, 0x1C0007,
 	0x060007, 0x700002, 0x000020, 0x030040,
 	0x007104, 0x004286, 0x030040, 0x000F0D,
@@ -791,7 +791,7 @@ static unsigned long CntrlInst[YDSXG_CTRLLENGTH / 4] = {
 // 04/09  creat
 // 04/12  stop nise fix
 // 06/21  WorkingOff timming
-static unsigned long CntrlInst1E[YDSXG_CTRLLENGTH / 4] = {
+static u32 CntrlInst1E[YDSXG_CTRLLENGTH / 4] = {
 	0x000007, 0x240007, 0x0C0007, 0x1C0007,
 	0x060007, 0x700002, 0x000020, 0x030040,
 	0x007104, 0x004286, 0x030040, 0x000F0D,

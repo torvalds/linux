@@ -735,6 +735,7 @@ config SND_VX222
 config SND_YMFPCI
 	tristate "Yamaha YMF724/740/744/754"
 	depends on SND
+	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_AC97_CODEC

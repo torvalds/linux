@@ -2,12 +2,6 @@
  *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>
  *  Routines for control of YMF724/740/744/754 chips
  *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
- *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -26,6 +20,7 @@
 
 #include <sound/driver.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -42,10 +37,7 @@
 #include <sound/mpu401.h>
 
 #include <asm/io.h>
-
-/*
- *  constants
- */
+#include <asm/byteorder.h>
 
 /*
  *  common I/O routines
@@ -1971,13 +1963,94 @@ static void snd_ymfpci_disable_dsp(struct snd_ymfpci *chip)
 	}
 }
 
+#define FIRMWARE_IN_THE_KERNEL
+
+#ifdef FIRMWARE_IN_THE_KERNEL
+
 #include "ymfpci_image.h"
+
+static struct firmware snd_ymfpci_dsp_microcode = {
+	.size = YDSXG_DSPLENGTH,
+	.data = (u8 *)DspInst,
+};
+static struct firmware snd_ymfpci_controller_microcode = {
+	.size = YDSXG_CTRLLENGTH,
+	.data = (u8 *)CntrlInst,
+};
+static struct firmware snd_ymfpci_controller_1e_microcode = {
+	.size = YDSXG_CTRLLENGTH,
+	.data = (u8 *)CntrlInst1E,
+};
+#endif
+
+#ifdef __LITTLE_ENDIAN
+static inline void snd_ymfpci_convert_from_le(const struct firmware *fw) { }
+#else
+static void snd_ymfpci_convert_from_le(const struct firmware *fw)
+{
+	int i;
+	u32 *data = (u32 *)fw->data;
+
+	for (i = 0; i < fw->size / 4; ++i)
+		le32_to_cpus(&data[i]);
+}
+#endif
+
+static int snd_ymfpci_request_firmware(struct snd_ymfpci *chip)
+{
+	int err, is_1e;
+	const char *name;
+
+	err = request_firmware(&chip->dsp_microcode, "yamaha/ds1_dsp.fw",
+			       &chip->pci->dev);
+	if (err >= 0) {
+		if (chip->dsp_microcode->size == YDSXG_DSPLENGTH)
+			snd_ymfpci_convert_from_le(chip->dsp_microcode);
+		else {
+			snd_printk(KERN_ERR "DSP microcode has wrong size\n");
+			err = -EINVAL;
+		}
+	}
+	if (err < 0) {
+#ifdef FIRMWARE_IN_THE_KERNEL
+		chip->dsp_microcode = &snd_ymfpci_dsp_microcode;
+#else
+		return err;
+#endif
+	}
+	is_1e = chip->device_id == PCI_DEVICE_ID_YAMAHA_724F ||
+		chip->device_id == PCI_DEVICE_ID_YAMAHA_740C ||
+		chip->device_id == PCI_DEVICE_ID_YAMAHA_744 ||
+		chip->device_id == PCI_DEVICE_ID_YAMAHA_754;
+	name = is_1e ? "yamaha/ds1e_ctrl.fw" : "yamaha/ds1_ctrl.fw";
+	err = request_firmware(&chip->controller_microcode, name,
+			       &chip->pci->dev);
+	if (err >= 0) {
+		if (chip->controller_microcode->size == YDSXG_CTRLLENGTH)
+			snd_ymfpci_convert_from_le(chip->controller_microcode);
+		else {
+			snd_printk(KERN_ERR "controller microcode"
+				   " has wrong size\n");
+			err = -EINVAL;
+		}
+	}
+	if (err < 0) {
+#ifdef FIRMWARE_IN_THE_KERNEL
+		chip->controller_microcode =
+			is_1e ? &snd_ymfpci_controller_1e_microcode
+			      : &snd_ymfpci_controller_microcode;
+#else
+		return err;
+#endif
+	}
+	return 0;
+}
 
 static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 {
 	int i;
 	u16 ctrl;
-	unsigned long *inst;
+	u32 *inst;
 
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0x00000000);
 	snd_ymfpci_disable_dsp(chip);
@@ -1992,21 +2065,12 @@ static void snd_ymfpci_download_image(struct snd_ymfpci *chip)
 	snd_ymfpci_writew(chip, YDSXGR_GLOBALCTRL, ctrl & ~0x0007);
 
 	/* setup DSP instruction code */
+	inst = (u32 *)chip->dsp_microcode->data;
 	for (i = 0; i < YDSXG_DSPLENGTH / 4; i++)
-		snd_ymfpci_writel(chip, YDSXGR_DSPINSTRAM + (i << 2), DspInst[i]);
+		snd_ymfpci_writel(chip, YDSXGR_DSPINSTRAM + (i << 2), inst[i]);
 
 	/* setup control instruction code */
-	switch (chip->device_id) {
-	case PCI_DEVICE_ID_YAMAHA_724F:
-	case PCI_DEVICE_ID_YAMAHA_740C:
-	case PCI_DEVICE_ID_YAMAHA_744:
-	case PCI_DEVICE_ID_YAMAHA_754:
-		inst = CntrlInst1E;
-		break;
-	default:
-		inst = CntrlInst;
-		break;
-	}
+	inst = (u32 *)chip->controller_microcode->data;
 	for (i = 0; i < YDSXG_CTRLLENGTH / 4; i++)
 		snd_ymfpci_writel(chip, YDSXGR_CTRLINSTRAM + (i << 2), inst[i]);
 
@@ -2160,6 +2224,15 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
 	
 	pci_disable_device(chip->pci);
+#ifdef FIRMWARE_IN_THE_KERNEL
+	if (chip->dsp_microcode != &snd_ymfpci_dsp_microcode)
+#endif
+		release_firmware(chip->dsp_microcode);
+#ifdef FIRMWARE_IN_THE_KERNEL
+	if (chip->controller_microcode != &snd_ymfpci_controller_microcode &&
+	    chip->controller_microcode != &snd_ymfpci_controller_1e_microcode)
+#endif
+		release_firmware(chip->controller_microcode);
 	kfree(chip);
 	return 0;
 }
@@ -2315,6 +2388,12 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		return -EIO;
 	}
 
+	err = snd_ymfpci_request_firmware(chip);
+	if (err < 0) {
+		snd_printk(KERN_ERR "firmware request failed: %d\n", err);
+		snd_ymfpci_free(chip);
+		return err;
+	}
 	snd_ymfpci_download_image(chip);
 
 	udelay(100); /* seems we need a delay after downloading image.. */
