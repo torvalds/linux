@@ -27,7 +27,7 @@ static int verify_group_input(struct super_block *sb,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	ext4_fsblk_t start = le32_to_cpu(es->s_blocks_count);
+	ext4_fsblk_t start = ext4_blocks_count(es);
 	ext4_fsblk_t end = start + input->blocks_count;
 	unsigned group = input->group;
 	ext4_fsblk_t itend = input->inode_table + sbi->s_itb_per_group;
@@ -68,43 +68,43 @@ static int verify_group_input(struct super_block *sb,
 			     end - 1);
 	else if (outside(input->block_bitmap, start, end))
 		ext4_warning(sb, __FUNCTION__,
-			     "Block bitmap not in group (block %u)",
+			     "Block bitmap not in group (block %llu)",
 			     input->block_bitmap);
 	else if (outside(input->inode_bitmap, start, end))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode bitmap not in group (block %u)",
+			     "Inode bitmap not in group (block %llu)",
 			     input->inode_bitmap);
 	else if (outside(input->inode_table, start, end) ||
 	         outside(itend - 1, start, end))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode table not in group (blocks %u-"E3FSBLK")",
+			     "Inode table not in group (blocks %llu-%llu)",
 			     input->inode_table, itend - 1);
 	else if (input->inode_bitmap == input->block_bitmap)
 		ext4_warning(sb, __FUNCTION__,
-			     "Block bitmap same as inode bitmap (%u)",
+			     "Block bitmap same as inode bitmap (%llu)",
 			     input->block_bitmap);
 	else if (inside(input->block_bitmap, input->inode_table, itend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Block bitmap (%u) in inode table (%u-"E3FSBLK")",
+			     "Block bitmap (%llu) in inode table (%llu-%llu)",
 			     input->block_bitmap, input->inode_table, itend-1);
 	else if (inside(input->inode_bitmap, input->inode_table, itend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode bitmap (%u) in inode table (%u-"E3FSBLK")",
+			     "Inode bitmap (%llu) in inode table (%llu-%llu)",
 			     input->inode_bitmap, input->inode_table, itend-1);
 	else if (inside(input->block_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Block bitmap (%u) in GDT table"
+			     "Block bitmap (%llu) in GDT table"
 			     " ("E3FSBLK"-"E3FSBLK")",
 			     input->block_bitmap, start, metaend - 1);
 	else if (inside(input->inode_bitmap, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode bitmap (%u) in GDT table"
+			     "Inode bitmap (%llu) in GDT table"
 			     " ("E3FSBLK"-"E3FSBLK")",
 			     input->inode_bitmap, start, metaend - 1);
 	else if (inside(input->inode_table, start, metaend) ||
 	         inside(itend - 1, start, metaend))
 		ext4_warning(sb, __FUNCTION__,
-			     "Inode table (%u-"E3FSBLK") overlaps"
+			     "Inode table ("E3FSBLK"-"E3FSBLK") overlaps"
 			     "GDT table ("E3FSBLK"-"E3FSBLK")",
 			     input->inode_table, itend - 1, start, metaend - 1);
 	else
@@ -286,6 +286,7 @@ exit_journal:
 	return err;
 }
 
+
 /*
  * Iterate through the groups which hold BACKUP superblock/GDT copies in an
  * ext4 filesystem.  The counters should be initialized to 1, 5, and 7 before
@@ -340,12 +341,15 @@ static int verify_reserved_gdb(struct super_block *sb,
 	int gdbackups = 0;
 
 	while ((grp = ext4_list_backups(sb, &three, &five, &seven)) < end) {
-		if (le32_to_cpu(*p++) != grp * EXT4_BLOCKS_PER_GROUP(sb) + blk){
+		if (le32_to_cpu(*p++) !=
+		    grp * EXT4_BLOCKS_PER_GROUP(sb) + blk){
 			ext4_warning(sb, __FUNCTION__,
 				     "reserved GDT "E3FSBLK
 				     " missing grp %d ("E3FSBLK")",
 				     blk, grp,
-				     grp * EXT4_BLOCKS_PER_GROUP(sb) + blk);
+				     grp *
+				     (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
+				     blk);
 			return -EINVAL;
 		}
 		if (++gdbackups > EXT4_ADDR_PER_BLOCK(sb))
@@ -731,8 +735,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 		return -EPERM;
 	}
 
-	if (le32_to_cpu(es->s_blocks_count) + input->blocks_count <
-	    le32_to_cpu(es->s_blocks_count)) {
+	if (ext4_blocks_count(es) + input->blocks_count <
+	    ext4_blocks_count(es)) {
 		ext4_warning(sb, __FUNCTION__, "blocks_count overflow\n");
 		return -EINVAL;
 	}
@@ -830,9 +834,9 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	/* Update group descriptor block for new group */
 	gdp = (struct ext4_group_desc *)primary->b_data + gdb_off;
 
-	gdp->bg_block_bitmap = cpu_to_le32(input->block_bitmap);
-	gdp->bg_inode_bitmap = cpu_to_le32(input->inode_bitmap);
-	gdp->bg_inode_table = cpu_to_le32(input->inode_table);
+	ext4_block_bitmap_set(gdp, input->block_bitmap); /* LV FIXME */
+	ext4_inode_bitmap_set(gdp, input->inode_bitmap); /* LV FIXME */
+	ext4_inode_table_set(gdp, input->inode_table); /* LV FIXME */
 	gdp->bg_free_blocks_count = cpu_to_le16(input->free_blocks_count);
 	gdp->bg_free_inodes_count = cpu_to_le16(EXT4_INODES_PER_GROUP(sb));
 
@@ -846,7 +850,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 * blocks/inodes before the group is live won't actually let us
 	 * allocate the new space yet.
 	 */
-	es->s_blocks_count = cpu_to_le32(le32_to_cpu(es->s_blocks_count) +
+	ext4_blocks_count_set(es, ext4_blocks_count(es) +
 		input->blocks_count);
 	es->s_inodes_count = cpu_to_le32(le32_to_cpu(es->s_inodes_count) +
 		EXT4_INODES_PER_GROUP(sb));
@@ -882,7 +886,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	/* Update the reserved block counts only once the new group is
 	 * active. */
-	es->s_r_blocks_count = cpu_to_le32(le32_to_cpu(es->s_r_blocks_count) +
+	ext4_r_blocks_count_set(es, ext4_r_blocks_count(es) +
 		input->reserved_blocks);
 
 	/* Update the free space counts */
@@ -933,7 +937,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	/* We don't need to worry about locking wrt other resizers just
 	 * yet: we're going to revalidate es->s_blocks_count after
 	 * taking lock_super() below. */
-	o_blocks_count = le32_to_cpu(es->s_blocks_count);
+	o_blocks_count = ext4_blocks_count(es);
 	o_groups_count = EXT4_SB(sb)->s_groups_count;
 
 	if (test_opt(sb, DEBUG))
@@ -1004,7 +1008,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	}
 
 	lock_super(sb);
-	if (o_blocks_count != le32_to_cpu(es->s_blocks_count)) {
+	if (o_blocks_count != ext4_blocks_count(es)) {
 		ext4_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
 		unlock_super(sb);
@@ -1020,7 +1024,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		ext4_journal_stop(handle);
 		goto exit_put;
 	}
-	es->s_blocks_count = cpu_to_le32(o_blocks_count + add);
+	ext4_blocks_count_set(es, o_blocks_count + add);
 	ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
 	sb->s_dirt = 1;
 	unlock_super(sb);
@@ -1032,8 +1036,8 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	if ((err = ext4_journal_stop(handle)))
 		goto exit_put;
 	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG "EXT4-fs: extended group to %u blocks\n",
-		       le32_to_cpu(es->s_blocks_count));
+		printk(KERN_DEBUG "EXT4-fs: extended group to %llu blocks\n",
+		       ext4_blocks_count(es));
 	update_backups(sb, EXT4_SB(sb)->s_sbh->b_blocknr, (char *)es,
 		       sizeof(struct ext4_super_block));
 exit_put:

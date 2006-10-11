@@ -128,10 +128,17 @@ struct ext4_group_desc
 	__le16	bg_free_blocks_count;	/* Free blocks count */
 	__le16	bg_free_inodes_count;	/* Free inodes count */
 	__le16	bg_used_dirs_count;	/* Directories count */
-	__u16	bg_pad;
-	__le32	bg_reserved[3];
+	__u16	bg_flags;
+	__le16	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
+	__le16	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
+	__le16	bg_inode_table_hi;	/* Inodes table block MSB */
+	__u16	bg_reserved[3];
 };
 
+#ifdef __KERNEL__
+#include <linux/ext4_fs_i.h>
+#include <linux/ext4_fs_sb.h>
+#endif
 /*
  * Macro-instructions used to manage group descriptors
  */
@@ -194,9 +201,9 @@ struct ext4_group_desc
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {
 	__u32 group;            /* Group number for this data */
-	__u32 block_bitmap;     /* Absolute block number of block bitmap */
-	__u32 inode_bitmap;     /* Absolute block number of inode bitmap */
-	__u32 inode_table;      /* Absolute block number of inode table start */
+	__u64 block_bitmap;     /* Absolute block number of block bitmap */
+	__u64 inode_bitmap;     /* Absolute block number of inode bitmap */
+	__u64 inode_table;      /* Absolute block number of inode table start */
 	__u32 blocks_count;     /* Total number of blocks in this group */
 	__u16 reserved_blocks;  /* Number of reserved blocks in this group */
 	__u16 unused;
@@ -205,9 +212,9 @@ struct ext4_new_group_input {
 /* The struct ext4_new_group_input in kernel space, with free_blocks_count */
 struct ext4_new_group_data {
 	__u32 group;
-	__u32 block_bitmap;
-	__u32 inode_bitmap;
-	__u32 inode_table;
+	__u64 block_bitmap;
+	__u64 inode_bitmap;
+	__u64 inode_table;
 	__u32 blocks_count;
 	__u16 reserved_blocks;
 	__u16 unused;
@@ -494,14 +501,18 @@ struct ext4_super_block {
 	__u8	s_def_hash_version;	/* Default hash version to use */
 	__u8	s_reserved_char_pad;
 	__u16	s_reserved_word_pad;
-	__le32	s_default_mount_opts;
+/*100*/	__le32	s_default_mount_opts;
 	__le32	s_first_meta_bg;	/* First metablock block group */
-	__u32	s_reserved[190];	/* Padding to the end of the block */
+	__le32	s_mkfs_time;		/* When the filesystem was created */
+	__le32	s_jnl_blocks[17];	/* Backup of the journal inode */
+	/* 64bit support valid if EXT4_FEATURE_COMPAT_64BIT */
+/*150*/	__le32	s_blocks_count_hi;	/* Blocks count */
+	__le32	s_r_blocks_count_hi;	/* Reserved blocks count */
+	__le32	s_free_blocks_count_hi;	/* Free blocks count */
+	__u32	s_reserved[169];	/* Padding to the end of the block */
 };
 
 #ifdef __KERNEL__
-#include <linux/ext4_fs_i.h>
-#include <linux/ext4_fs_sb.h>
 static inline struct ext4_sb_info * EXT4_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -588,12 +599,14 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_INCOMPAT_JOURNAL_DEV	0x0008 /* Journal device */
 #define EXT4_FEATURE_INCOMPAT_META_BG		0x0010
 #define EXT4_FEATURE_INCOMPAT_EXTENTS		0x0040 /* extents support */
+#define EXT4_FEATURE_INCOMPAT_64BIT		0x0080
 
 #define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
 #define EXT4_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
 					 EXT4_FEATURE_INCOMPAT_RECOVER| \
 					 EXT4_FEATURE_INCOMPAT_META_BG| \
-					 EXT4_FEATURE_INCOMPAT_EXTENTS)
+					 EXT4_FEATURE_INCOMPAT_EXTENTS| \
+					 EXT4_FEATURE_INCOMPAT_64BIT)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
@@ -888,6 +901,53 @@ extern void ext4_abort (struct super_block *, const char *, const char *, ...)
 extern void ext4_warning (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_update_dynamic_rev (struct super_block *sb);
+extern ext4_fsblk_t ext4_block_bitmap(struct ext4_group_desc *bg);
+extern ext4_fsblk_t ext4_inode_bitmap(struct ext4_group_desc *bg);
+extern ext4_fsblk_t ext4_inode_table(struct ext4_group_desc *bg);
+extern void ext4_block_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern void ext4_inode_bitmap_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
+extern void ext4_inode_table_set(struct ext4_group_desc *bg, ext4_fsblk_t blk);
+
+static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
+{
+	return ((ext4_fsblk_t)le32_to_cpu(es->s_blocks_count_hi) << 32) |
+		le32_to_cpu(es->s_blocks_count);
+}
+
+static inline ext4_fsblk_t ext4_r_blocks_count(struct ext4_super_block *es)
+{
+	return ((ext4_fsblk_t)le32_to_cpu(es->s_r_blocks_count_hi) << 32) |
+		le32_to_cpu(es->s_r_blocks_count);
+}
+
+static inline ext4_fsblk_t ext4_free_blocks_count(struct ext4_super_block *es)
+{
+	return ((ext4_fsblk_t)le32_to_cpu(es->s_free_blocks_count_hi) << 32) |
+		le32_to_cpu(es->s_free_blocks_count);
+}
+
+static inline void ext4_blocks_count_set(struct ext4_super_block *es,
+					 ext4_fsblk_t blk)
+{
+	es->s_blocks_count = cpu_to_le32((u32)blk);
+	es->s_blocks_count_hi = cpu_to_le32(blk >> 32);
+}
+
+static inline void ext4_free_blocks_count_set(struct ext4_super_block *es,
+					      ext4_fsblk_t blk)
+{
+	es->s_free_blocks_count = cpu_to_le32((u32)blk);
+	es->s_free_blocks_count_hi = cpu_to_le32(blk >> 32);
+}
+
+static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
+					   ext4_fsblk_t blk)
+{
+	es->s_r_blocks_count = cpu_to_le32((u32)blk);
+	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
+}
+
+
 
 #define ext4_std_error(sb, errno)				\
 do {								\

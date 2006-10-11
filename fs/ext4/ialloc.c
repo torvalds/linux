@@ -60,12 +60,12 @@ read_inode_bitmap(struct super_block * sb, unsigned long block_group)
 	if (!desc)
 		goto error_out;
 
-	bh = sb_bread(sb, le32_to_cpu(desc->bg_inode_bitmap));
+	bh = sb_bread(sb, ext4_inode_bitmap(desc));
 	if (!bh)
 		ext4_error(sb, "read_inode_bitmap",
 			    "Cannot read inode bitmap - "
-			    "block_group = %lu, inode_bitmap = %u",
-			    block_group, le32_to_cpu(desc->bg_inode_bitmap));
+			    "block_group = %lu, inode_bitmap = %llu",
+			    block_group, ext4_inode_bitmap(desc));
 error_out:
 	return bh;
 }
@@ -304,7 +304,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 		goto fallback;
 	}
 
-	blocks_per_dir = le32_to_cpu(es->s_blocks_count) - freeb;
+	blocks_per_dir = ext4_blocks_count(es) - freeb;
 	sector_div(blocks_per_dir, ndirs);
 
 	max_dirs = ndirs / ngroups + inodes_per_group / 16;

@@ -99,12 +99,13 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	desc = ext4_get_group_desc (sb, block_group, NULL);
 	if (!desc)
 		goto error_out;
-	bh = sb_bread(sb, le32_to_cpu(desc->bg_block_bitmap));
+	bh = sb_bread(sb, ext4_block_bitmap(desc));
 	if (!bh)
 		ext4_error (sb, "read_block_bitmap",
 			    "Cannot read block bitmap - "
-			    "block_group = %d, block_bitmap = %u",
-			    block_group, le32_to_cpu(desc->bg_block_bitmap));
+			    "block_group = %d, block_bitmap = "E3FSBLK,
+			    block_group,
+			    ext4_block_bitmap(desc));
 error_out:
 	return bh;
 }
@@ -432,14 +433,14 @@ void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
 	es = sbi->s_es;
 	if (block < le32_to_cpu(es->s_first_data_block) ||
 	    block + count < block ||
-	    block + count > le32_to_cpu(es->s_blocks_count)) {
+	    block + count > ext4_blocks_count(es)) {
 		ext4_error (sb, "ext4_free_blocks",
 			    "Freeing blocks not in datazone - "
 			    "block = "E3FSBLK", count = %lu", block, count);
 		goto error_return;
 	}
 
-	ext4_debug ("freeing block(s) %lu-%lu\n", block, block + count - 1);
+	ext4_debug ("freeing block(s) %llu-%llu\n", block, block + count - 1);
 
 do_more:
 	overflow = 0;
@@ -460,12 +461,11 @@ do_more:
 	if (!desc)
 		goto error_return;
 
-	if (in_range (le32_to_cpu(desc->bg_block_bitmap), block, count) ||
-	    in_range (le32_to_cpu(desc->bg_inode_bitmap), block, count) ||
-	    in_range (block, le32_to_cpu(desc->bg_inode_table),
-		      sbi->s_itb_per_group) ||
-	    in_range (block + count - 1, le32_to_cpu(desc->bg_inode_table),
-		      sbi->s_itb_per_group))
+	if (in_range(ext4_block_bitmap(desc), block, count) ||
+	    in_range(ext4_inode_bitmap(desc), block, count) ||
+	    in_range(block, ext4_inode_table(desc), sbi->s_itb_per_group) ||
+	    in_range(block + count - 1, ext4_inode_table(desc),
+		     sbi->s_itb_per_group))
 		ext4_error (sb, "ext4_free_blocks",
 			    "Freeing blocks in system zones - "
 			    "Block = "E3FSBLK", count = %lu",
@@ -552,8 +552,8 @@ do_more:
 						bit + i, bitmap_bh->b_data)) {
 			jbd_unlock_bh_state(bitmap_bh);
 			ext4_error(sb, __FUNCTION__,
-				"bit already cleared for block "E3FSBLK,
-				 block + i);
+				   "bit already cleared for block "E3FSBLK,
+				   (ext4_fsblk_t)(block + i));
 			jbd_lock_bh_state(bitmap_bh);
 			BUFFER_TRACE(bitmap_bh, "bit already cleared");
 		} else {
@@ -1351,7 +1351,7 @@ static int ext4_has_free_blocks(struct ext4_sb_info *sbi)
 	ext4_fsblk_t free_blocks, root_blocks;
 
 	free_blocks = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
-	root_blocks = le32_to_cpu(sbi->s_es->s_r_blocks_count);
+	root_blocks = ext4_r_blocks_count(sbi->s_es);
 	if (free_blocks < root_blocks + 1 && !capable(CAP_SYS_RESOURCE) &&
 		sbi->s_resuid != current->fsuid &&
 		(sbi->s_resgid == 0 || !in_group_p (sbi->s_resgid))) {
@@ -1462,7 +1462,7 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 	 * First, test whether the goal block is free.
 	 */
 	if (goal < le32_to_cpu(es->s_first_data_block) ||
-	    goal >= le32_to_cpu(es->s_blocks_count))
+	    goal >= ext4_blocks_count(es))
 		goal = le32_to_cpu(es->s_first_data_block);
 	ext4_get_group_no_and_offset(sb, goal, &group_no, &grp_target_blk);
 	goal_group = group_no;
@@ -1561,12 +1561,12 @@ allocated:
 
 	ret_block = grp_alloc_blk + ext4_group_first_block_no(sb, group_no);
 
-	if (in_range(le32_to_cpu(gdp->bg_block_bitmap), ret_block, num) ||
-	    in_range(le32_to_cpu(gdp->bg_inode_bitmap), ret_block, num) ||
-	    in_range(ret_block, le32_to_cpu(gdp->bg_inode_table),
-		      EXT4_SB(sb)->s_itb_per_group) ||
-	    in_range(ret_block + num - 1, le32_to_cpu(gdp->bg_inode_table),
-		      EXT4_SB(sb)->s_itb_per_group))
+	if (in_range(ext4_block_bitmap(gdp), ret_block, num) ||
+	    in_range(ext4_block_bitmap(gdp), ret_block, num) ||
+	    in_range(ret_block, ext4_inode_table(gdp),
+		     EXT4_SB(sb)->s_itb_per_group) ||
+	    in_range(ret_block + num - 1, ext4_inode_table(gdp),
+		     EXT4_SB(sb)->s_itb_per_group))
 		ext4_error(sb, "ext4_new_block",
 			    "Allocating block in system zone - "
 			    "blocks from "E3FSBLK", length %lu",
@@ -1604,11 +1604,11 @@ allocated:
 	jbd_unlock_bh_state(bitmap_bh);
 #endif
 
-	if (ret_block + num - 1 >= le32_to_cpu(es->s_blocks_count)) {
+	if (ret_block + num - 1 >= ext4_blocks_count(es)) {
 		ext4_error(sb, "ext4_new_block",
-			    "block("E3FSBLK") >= blocks count(%d) - "
+			    "block("E3FSBLK") >= blocks count("E3FSBLK") - "
 			    "block_group = %lu, es == %p ", ret_block,
-			le32_to_cpu(es->s_blocks_count), group_no, es);
+			ext4_blocks_count(es), group_no, es);
 		goto out;
 	}
 
@@ -1707,7 +1707,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 	brelse(bitmap_bh);
 	printk("ext4_count_free_blocks: stored = "E3FSBLK
 		", computed = "E3FSBLK", "E3FSBLK"\n",
-	       le32_to_cpu(es->s_free_blocks_count),
+	       EXT4_FREE_BLOCKS_COUNT(es),
 		desc_count, bitmap_count);
 	return bitmap_count;
 #else
