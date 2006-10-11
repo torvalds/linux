@@ -110,7 +110,7 @@ static int monwrite_new_hdr(struct mon_private *monpriv)
 		monbuf = kzalloc(sizeof(struct mon_buf), GFP_KERNEL);
 		if (!monbuf)
 			return -ENOMEM;
-		monbuf->data = kzalloc(monbuf->hdr.datalen,
+		monbuf->data = kzalloc(monhdr->datalen,
 				       GFP_KERNEL | GFP_DMA);
 		if (!monbuf->data) {
 			kfree(monbuf);
