@@ -249,7 +249,7 @@ static int packetize_data(void *data, size_t length)
 		if ((rc = create_packet(temp, packet_length)))
 			return rc;
 
-		pr_debug("%p:%lu\n", temp, (end - temp));
+		pr_debug("%p:%td\n", temp, (end - temp));
 		temp += packet_length;
 	}
 
