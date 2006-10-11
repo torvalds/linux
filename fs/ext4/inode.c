@@ -2643,6 +2643,11 @@ void ext4_read_inode(struct inode * inode)
 	ei->i_frag_size = raw_inode->i_fsize;
 #endif
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl);
+	if ((sizeof(sector_t) > 4) &&
+	    (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
+	     cpu_to_le32(EXT4_OS_HURD)))
+		ei->i_file_acl |=
+			((__u64)le16_to_cpu(raw_inode->i_file_acl_high)) << 32;
 	if (!S_ISREG(inode->i_mode)) {
 		ei->i_dir_acl = le32_to_cpu(raw_inode->i_dir_acl);
 	} else {
@@ -2776,6 +2781,11 @@ static int ext4_do_update_inode(handle_t *handle,
 	raw_inode->i_frag = ei->i_frag_no;
 	raw_inode->i_fsize = ei->i_frag_size;
 #endif
+	if ((sizeof(sector_t) > 4) &&
+	    (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
+	     cpu_to_le32(EXT4_OS_HURD)))
+		raw_inode->i_file_acl_high =
+			cpu_to_le16(ei->i_file_acl >> 32);
 	raw_inode->i_file_acl = cpu_to_le32(ei->i_file_acl);
 	if (!S_ISREG(inode->i_mode)) {
 		raw_inode->i_dir_acl = cpu_to_le32(ei->i_dir_acl);
