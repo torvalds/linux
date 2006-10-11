@@ -207,6 +207,13 @@ struct mtd_info {
 
 	struct module *owner;
 	int usecount;
+
+	/* If the driver is something smart, like UBI, it may need to maintain
+	 * its own reference counting. The below functions are only for driver.
+	 * The driver may register its callbacks. These callbacks are not
+	 * supposed to be called by MTD users */
+	int (*get_device) (struct mtd_info *mtd);
+	void (*put_device) (struct mtd_info *mtd);
 };
 
 

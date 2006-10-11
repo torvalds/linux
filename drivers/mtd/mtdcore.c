@@ -214,12 +214,23 @@ struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 			ret = NULL;
 	}
 
-	if (ret && !try_module_get(ret->owner))
+	if (!ret)
+		goto out_unlock;
+
+	if (!try_module_get(ret->owner)) {
 		ret = NULL;
+		goto out_unlock;
+	}
 
-	if (ret)
-		ret->usecount++;
+	if (ret->get_device && ret->get_device(ret)) {
+		module_put(ret->owner);
+		ret = NULL;
+		goto out_unlock;
+	}
 
+	ret->usecount++;
+
+out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
 }
@@ -235,8 +246,8 @@ struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
-	int i;
-	struct mtd_info *mtd = ERR_PTR(-ENODEV);
+	int i, err = -ENODEV;
+	struct mtd_info *mtd = NULL;
 
 	mutex_lock(&mtd_table_mutex);
 
@@ -247,17 +258,27 @@ struct mtd_info *get_mtd_device_nm(const char *name)
 		}
 	}
 
-	if (i == MAX_MTD_DEVICES)
+	if (!mtd)
 		goto out_unlock;
 
 	if (!try_module_get(mtd->owner))
 		goto out_unlock;
 
-	mtd->usecount++;
+	if (mtd->get_device) {
+		err = mtd->get_device(mtd);
+		if (err)
+			goto out_put;
+	}
 
-out_unlock:
+	mtd->usecount++;
 	mutex_unlock(&mtd_table_mutex);
 	return mtd;
+
+out_put:
+	module_put(mtd->owner);
+out_unlock:
+	mutex_unlock(&mtd_table_mutex);
+	return ERR_PTR(err);
 }
 
 void put_mtd_device(struct mtd_info *mtd)
@@ -266,6 +287,8 @@ void put_mtd_device(struct mtd_info *mtd)
 
 	mutex_lock(&mtd_table_mutex);
 	c = --mtd->usecount;
+	if (mtd->put_device)
+		mtd->put_device(mtd);
 	mutex_unlock(&mtd_table_mutex);
 	BUG_ON(c < 0);
 
