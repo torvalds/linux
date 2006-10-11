@@ -93,21 +93,18 @@ static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 
 static struct elevator_type *elevator_find(const char *name)
 {
-	struct elevator_type *e = NULL;
+	struct elevator_type *e;
 	struct list_head *entry;
 
 	list_for_each(entry, &elv_list) {
-		struct elevator_type *__e;
 
-		__e = list_entry(entry, struct elevator_type, list);
+		e = list_entry(entry, struct elevator_type, list);
 
-		if (!strcmp(__e->elevator_name, name)) {
-			e = __e;
-			break;
-		}
+		if (!strcmp(e->elevator_name, name))
+			return e;
 	}
 
-	return e;
+	return NULL;
 }
 
 static void elevator_put(struct elevator_type *e)
