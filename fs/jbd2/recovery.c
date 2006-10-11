@@ -178,19 +178,20 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
  * Count the number of in-use tags in a journal descriptor block.
  */
 
-static int count_tags(struct buffer_head *bh, int size)
+static int count_tags(journal_t *journal, struct buffer_head *bh)
 {
 	char *			tagp;
 	journal_block_tag_t *	tag;
-	int			nr = 0;
+	int			nr = 0, size = journal->j_blocksize;
+	int			tag_bytes = journal_tag_bytes(journal);
 
 	tagp = &bh->b_data[sizeof(journal_header_t)];
 
-	while ((tagp - bh->b_data + sizeof(journal_block_tag_t)) <= size) {
+	while ((tagp - bh->b_data + tag_bytes) <= size) {
 		tag = (journal_block_tag_t *) tagp;
 
 		nr++;
-		tagp += sizeof(journal_block_tag_t);
+		tagp += tag_bytes;
 		if (!(tag->t_flags & cpu_to_be32(JBD2_FLAG_SAME_UUID)))
 			tagp += 16;
 
@@ -307,6 +308,14 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 	return err;
 }
 
+static inline sector_t read_tag_block(int tag_bytes, journal_block_tag_t *tag)
+{
+	sector_t block = be32_to_cpu(tag->t_blocknr);
+	if (tag_bytes > JBD_TAG_SIZE32)
+		block |= (u64)be32_to_cpu(tag->t_blocknr_high) << 32;
+	return block;
+}
+
 static int do_one_pass(journal_t *journal,
 			struct recovery_info *info, enum passtype pass)
 {
@@ -318,11 +327,12 @@ static int do_one_pass(journal_t *journal,
 	struct buffer_head *	bh;
 	unsigned int		sequence;
 	int			blocktype;
+	int			tag_bytes = journal_tag_bytes(journal);
 
 	/* Precompute the maximum metadata descriptors in a descriptor block */
 	int			MAX_BLOCKS_PER_DESC;
 	MAX_BLOCKS_PER_DESC = ((journal->j_blocksize-sizeof(journal_header_t))
-			       / sizeof(journal_block_tag_t));
+			       / tag_bytes);
 
 	/*
 	 * First thing is to establish what we expect to find in the log
@@ -412,8 +422,7 @@ static int do_one_pass(journal_t *journal,
 			 * in pass REPLAY; otherwise, just skip over the
 			 * blocks it describes. */
 			if (pass != PASS_REPLAY) {
-				next_log_block +=
-					count_tags(bh, journal->j_blocksize);
+				next_log_block += count_tags(journal, bh);
 				wrap(journal, next_log_block);
 				brelse(bh);
 				continue;
@@ -424,7 +433,7 @@ static int do_one_pass(journal_t *journal,
 			 * getting done here! */
 
 			tagp = &bh->b_data[sizeof(journal_header_t)];
-			while ((tagp - bh->b_data +sizeof(journal_block_tag_t))
+			while ((tagp - bh->b_data + tag_bytes)
 			       <= journal->j_blocksize) {
 				unsigned long io_block;
 
@@ -446,7 +455,8 @@ static int do_one_pass(journal_t *journal,
 					unsigned long blocknr;
 
 					J_ASSERT(obh != NULL);
-					blocknr = be32_to_cpu(tag->t_blocknr);
+					blocknr = read_tag_block(tag_bytes,
+								 tag);
 
 					/* If the block has been
 					 * revoked, then we're all done
@@ -494,7 +504,7 @@ static int do_one_pass(journal_t *journal,
 				}
 
 			skip_write:
-				tagp += sizeof(journal_block_tag_t);
+				tagp += tag_bytes;
 				if (!(flags & JBD2_FLAG_SAME_UUID))
 					tagp += 16;
 
@@ -572,17 +582,24 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 {
 	jbd2_journal_revoke_header_t *header;
 	int offset, max;
+	int record_len = 4;
 
 	header = (jbd2_journal_revoke_header_t *) bh->b_data;
 	offset = sizeof(jbd2_journal_revoke_header_t);
 	max = be32_to_cpu(header->r_count);
 
-	while (offset < max) {
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+		record_len = 8;
+
+	while (offset + record_len <= max) {
 		unsigned long blocknr;
 		int err;
 
-		blocknr = be32_to_cpu(* ((__be32 *) (bh->b_data+offset)));
-		offset += 4;
+		if (record_len == 4)
+			blocknr = be32_to_cpu(* ((__be32 *) (bh->b_data+offset)));
+		else
+			blocknr = be64_to_cpu(* ((__be64 *) (bh->b_data+offset)));
+		offset += record_len;
 		err = jbd2_journal_set_revoke(journal, blocknr, sequence);
 		if (err)
 			return err;

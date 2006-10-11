@@ -150,13 +150,20 @@ typedef struct journal_header_s
 
 
 /*
- * The block tag: used to describe a single buffer in the journal
+ * The block tag: used to describe a single buffer in the journal.
+ * t_blocknr_high is only used if INCOMPAT_64BIT is set, so this
+ * raw struct shouldn't be used for pointer math or sizeof() - use
+ * journal_tag_bytes(journal) instead to compute this.
  */
 typedef struct journal_block_tag_s
 {
 	__be32		t_blocknr;	/* The on-disk block number */
 	__be32		t_flags;	/* See below */
+	__be32		t_blocknr_high; /* most-significant high 32bits. */
 } journal_block_tag_t;
+
+#define JBD_TAG_SIZE32 (offsetof(journal_block_tag_t, t_blocknr_high))
+#define JBD_TAG_SIZE64 (sizeof(journal_block_tag_t))
 
 /*
  * The revoke descriptor: used on disk to describe a series of blocks to
@@ -235,11 +242,13 @@ typedef struct journal_superblock_s
 	 ((j)->j_superblock->s_feature_incompat & cpu_to_be32((mask))))
 
 #define JBD2_FEATURE_INCOMPAT_REVOKE	0x00000001
+#define JBD2_FEATURE_INCOMPAT_64BIT	0x00000002
 
 /* Features known to this kernel version: */
 #define JBD2_KNOWN_COMPAT_FEATURES	0
 #define JBD2_KNOWN_ROCOMPAT_FEATURES	0
-#define JBD2_KNOWN_INCOMPAT_FEATURES	JBD2_FEATURE_INCOMPAT_REVOKE
+#define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
+					 JBD2_FEATURE_INCOMPAT_64BIT)
 
 #ifdef __KERNEL__
 
@@ -1052,6 +1061,7 @@ static inline int tid_geq(tid_t x, tid_t y)
 }
 
 extern int jbd2_journal_blocks_per_page(struct inode *inode);
+extern size_t journal_tag_bytes(journal_t *journal);
 
 /*
  * Return the minimum number of blocks which must be free in the journal

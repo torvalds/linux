@@ -584,9 +584,17 @@ static void write_one_revoke_record(journal_t *journal,
 		*descriptorp = descriptor;
 	}
 
-	* ((__be32 *)(&jh2bh(descriptor)->b_data[offset])) =
-		cpu_to_be32(record->blocknr);
-	offset += 4;
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT)) {
+		* ((__be64 *)(&jh2bh(descriptor)->b_data[offset])) =
+			cpu_to_be64(record->blocknr);
+		offset += 8;
+
+	} else {
+		* ((__be32 *)(&jh2bh(descriptor)->b_data[offset])) =
+			cpu_to_be32(record->blocknr);
+		offset += 4;
+	}
+
 	*offsetp = offset;
 }
 

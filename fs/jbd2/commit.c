@@ -271,6 +271,14 @@ write_out_data:
 	journal_do_submit_data(wbuf, bufs);
 }
 
+static inline void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
+				   sector_t block)
+{
+	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
+	if (tag_bytes > JBD_TAG_SIZE32)
+		tag->t_blocknr_high = cpu_to_be32((block >> 31) >> 1);
+}
+
 /*
  * jbd2_journal_commit_transaction
  *
@@ -293,6 +301,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int first_tag = 0;
 	int tag_flag;
 	int i;
+	int tag_bytes = journal_tag_bytes(journal);
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -597,10 +606,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 			tag_flag |= JBD2_FLAG_SAME_UUID;
 
 		tag = (journal_block_tag_t *) tagp;
-		tag->t_blocknr = cpu_to_be32(jh2bh(jh)->b_blocknr);
+		write_tag_block(tag_bytes, tag, jh2bh(jh)->b_blocknr);
 		tag->t_flags = cpu_to_be32(tag_flag);
-		tagp += sizeof(journal_block_tag_t);
-		space_left -= sizeof(journal_block_tag_t);
+		tagp += tag_bytes;
+		space_left -= tag_bytes;
 
 		if (first_tag) {
 			memcpy (tagp, journal->j_uuid, 16);
@@ -614,7 +623,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 		if (bufs == journal->j_wbufsize ||
 		    commit_transaction->t_buffers == NULL ||
-		    space_left < sizeof(journal_block_tag_t) + 16) {
+		    space_left < tag_bytes + 16) {
 
 			jbd_debug(4, "JBD: Submit %d IOs\n", bufs);
 

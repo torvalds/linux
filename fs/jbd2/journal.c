@@ -1610,6 +1610,17 @@ int jbd2_journal_blocks_per_page(struct inode *inode)
 }
 
 /*
+ * helper functions to deal with 32 or 64bit block numbers.
+ */
+size_t journal_tag_bytes(journal_t *journal)
+{
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal, JBD2_FEATURE_INCOMPAT_64BIT))
+		return JBD_TAG_SIZE64;
+	else
+		return JBD_TAG_SIZE32;
+}
+
+/*
  * Simple support for retrying memory allocations.  Introduced to help to
  * debug different VM deadlock avoidance strategies.
  */
