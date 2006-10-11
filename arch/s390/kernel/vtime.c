@@ -209,11 +209,11 @@ static void list_add_sorted(struct vtimer_list *timer, struct list_head *head)
  * Do the callback functions of expired vtimer events.
  * Called from within the interrupt handler.
  */
-static void do_callbacks(struct list_head *cb_list, struct pt_regs *regs)
+static void do_callbacks(struct list_head *cb_list)
 {
 	struct vtimer_queue *vt_list;
 	struct vtimer_list *event, *tmp;
-	void (*fn)(unsigned long, struct pt_regs*);
+	void (*fn)(unsigned long);
 	unsigned long data;
 
 	if (list_empty(cb_list))
@@ -224,7 +224,7 @@ static void do_callbacks(struct list_head *cb_list, struct pt_regs *regs)
 	list_for_each_entry_safe(event, tmp, cb_list, entry) {
 		fn = event->function;
 		data = event->data;
-		fn(data, regs);
+		fn(data);
 
 		if (!event->interval)
 			/* delete one shot timer */
@@ -275,7 +275,7 @@ static void do_cpu_timer_interrupt(__u16 error_code)
 		list_move_tail(&event->entry, &cb_list);
 	}
 	spin_unlock(&vt_list->lock);
-	do_callbacks(&cb_list, get_irq_regs());
+	do_callbacks(&cb_list);
 
 	/* next event is first in list */
 	spin_lock(&vt_list->lock);
