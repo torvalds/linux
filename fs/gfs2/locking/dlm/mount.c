@@ -45,7 +45,7 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, struct gfs2_sbd *sdp,
 	strncpy(buf, table_name, 256);
 	buf[255] = '\0';
 
-	p = strstr(buf, ":");
+	p = strchr(buf, ':');
 	if (!p) {
 		log_info("invalid table_name \"%s\"", table_name);
 		kfree(ls);
