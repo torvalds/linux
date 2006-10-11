@@ -1413,7 +1413,7 @@ int bitmap_create(mddev_t *mddev)
 	int err;
 	sector_t start;
 
-	BUG_ON(sizeof(bitmap_super_t) != 256);
+	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
 	if (!file && !mddev->bitmap_offset) /* bitmap disabled, nothing to do */
 		return 0;
