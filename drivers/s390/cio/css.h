@@ -170,7 +170,7 @@ void device_trigger_reprobe(struct subchannel *);
 
 /* Helper functions for vary on/off. */
 int device_is_online(struct subchannel *);
-void device_set_waiting(struct subchannel *);
+void device_kill_io(struct subchannel *);
 
 /* Machine check helper function. */
 void device_kill_pending_timer(struct subchannel *);

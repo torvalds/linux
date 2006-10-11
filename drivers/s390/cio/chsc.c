@@ -707,8 +707,7 @@ chp_process_crw(int chpid, int on)
 	return chp_add(chpid);
 }
 
-static inline int
-__check_for_io_and_kill(struct subchannel *sch, int index)
+static inline int check_for_io_on_path(struct subchannel *sch, int index)
 {
 	int cc;
 
@@ -718,10 +717,8 @@ __check_for_io_and_kill(struct subchannel *sch, int index)
 	cc = stsch(sch->schid, &sch->schib);
 	if (cc)
 		return 0;
-	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index)) {
-		device_set_waiting(sch);
+	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index))
 		return 1;
-	}
 	return 0;
 }
 
@@ -750,12 +747,10 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 		} else {
 			sch->opm &= ~(0x80 >> chp);
 			sch->lpm &= ~(0x80 >> chp);
-			/*
-			 * Give running I/O a grace period in which it
-			 * can successfully terminate, even using the
-			 * just varied off path. Then kill it.
-			 */
-			if (!__check_for_io_and_kill(sch, chp) && !sch->lpm) {
+			if (check_for_io_on_path(sch, chp))
+				/* Path verification is done after killing. */
+				device_kill_io(sch);
+			else if (!sch->lpm) {
 				if (css_enqueue_subchannel_slow(sch->schid)) {
 					css_clear_subchannel_slow_list();
 					need_rescan = 1;
