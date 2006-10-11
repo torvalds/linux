@@ -37,7 +37,7 @@ extern void jazz_machine_restart(char *command);
 extern void jazz_machine_halt(void);
 extern void jazz_machine_power_off(void);
 
-void __init plat_time_init(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* set the clock to 100 Hz */
 	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);
