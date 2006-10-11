@@ -15,6 +15,7 @@
 #include <linux/timer.h>
 #include <linux/major.h>
 #include <linux/fs.h>
+#include <linux/err.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
 #include <linux/mtd/compatmac.h>
@@ -223,6 +224,42 @@ struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 	return ret;
 }
 
+/**
+ *	get_mtd_device_nm - obtain a validated handle for an MTD device by
+ *	device name
+ *	@name: MTD device name to open
+ *
+ * 	This function returns MTD device description structure in case of
+ * 	success and an error code in case of failure.
+ */
+
+struct mtd_info *get_mtd_device_nm(const char *name)
+{
+	int i;
+	struct mtd_info *mtd = ERR_PTR(-ENODEV);
+
+	mutex_lock(&mtd_table_mutex);
+
+	for (i = 0; i < MAX_MTD_DEVICES; i++) {
+		if (mtd_table[i] && !strcmp(name, mtd_table[i]->name)) {
+			mtd = mtd_table[i];
+			break;
+		}
+	}
+
+	if (i == MAX_MTD_DEVICES)
+		goto out_unlock;
+
+	if (!try_module_get(mtd->owner))
+		goto out_unlock;
+
+	mtd->usecount++;
+
+out_unlock:
+	mutex_unlock(&mtd_table_mutex);
+	return mtd;
+}
+
 void put_mtd_device(struct mtd_info *mtd)
 {
 	int c;
@@ -267,6 +304,7 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 EXPORT_SYMBOL(add_mtd_device);
 EXPORT_SYMBOL(del_mtd_device);
 EXPORT_SYMBOL(get_mtd_device);
+EXPORT_SYMBOL(get_mtd_device_nm);
 EXPORT_SYMBOL(put_mtd_device);
 EXPORT_SYMBOL(register_mtd_user);
 EXPORT_SYMBOL(unregister_mtd_user);
