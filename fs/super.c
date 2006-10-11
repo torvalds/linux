@@ -260,17 +260,17 @@ int fsync_super(struct super_block *sb)
  *	that need destruction out of superblock, call generic_shutdown_super()
  *	and release aforementioned objects.  Note: dentries and inodes _are_
  *	taken care of and do not need specific handling.
+ *
+ *	Upon calling this function, the filesystem may no longer alter or
+ *	rearrange the set of dentries belonging to this super_block, nor may it
+ *	change the attachments of dentries to inodes.
  */
 void generic_shutdown_super(struct super_block *sb)
 {
-	struct dentry *root = sb->s_root;
 	struct super_operations *sop = sb->s_op;
 
-	if (root) {
-		sb->s_root = NULL;
-		shrink_dcache_parent(root);
-		shrink_dcache_sb(sb);
-		dput(root);
+	if (sb->s_root) {
+		shrink_dcache_for_umount(sb);
 		fsync_super(sb);
 		lock_super(sb);
 		sb->s_flags &= ~MS_ACTIVE;
