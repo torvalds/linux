@@ -28,8 +28,8 @@
  * indirection blocks, the group and superblock summaries, and the data
  * block to complete the transaction.
  *
- * For extents-enabled fs we may have to allocate and modify upto
- * 5 levels of tree + root which is stored in inode. */
+ * For extents-enabled fs we may have to allocate and modify up to
+ * 5 levels of tree + root which are stored in the inode. */
 
 #define EXT4_SINGLEDATA_TRANS_BLOCKS(sb)				\
 	(EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)	\

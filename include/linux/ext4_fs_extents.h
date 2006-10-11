@@ -22,29 +22,29 @@
 #include <linux/ext4_fs.h>
 
 /*
- * with AGRESSIVE_TEST defined capacity of index/leaf blocks
- * become very little, so index split, in-depth growing and
- * other hard changes happens much more often
- * this is for debug purposes only
+ * With AGRESSIVE_TEST defined, the capacity of index/leaf blocks
+ * becomes very small, so index split, in-depth growing and
+ * other hard changes happen much more often.
+ * This is for debug purposes only.
  */
 #define AGRESSIVE_TEST_
 
 /*
- * with EXTENTS_STATS defined number of blocks and extents
- * are collected in truncate path. they'll be showed at
- * umount time
+ * With EXTENTS_STATS defined, the number of blocks and extents
+ * are collected in the truncate path. They'll be shown at
+ * umount time.
  */
 #define EXTENTS_STATS__
 
 /*
- * if CHECK_BINSEARCH defined, then results of binary search
- * will be checked by linear search
+ * If CHECK_BINSEARCH is defined, then the results of the binary search
+ * will also be checked by linear search.
  */
 #define CHECK_BINSEARCH__
 
 /*
- * if EXT_DEBUG is defined you can use 'extdebug' mount option
- * to get lots of info what's going on
+ * If EXT_DEBUG is defined you can use the 'extdebug' mount option
+ * to get lots of info about what's going on.
  */
 #define EXT_DEBUG__
 #ifdef EXT_DEBUG
@@ -54,58 +54,58 @@
 #endif
 
 /*
- * if EXT_STATS is defined then stats numbers are collected
- * these number will be displayed at umount time
+ * If EXT_STATS is defined then stats numbers are collected.
+ * These number will be displayed at umount time.
  */
 #define EXT_STATS_
 
 
 /*
- * ext4_inode has i_block array (60 bytes total)
- * first 12 bytes store ext4_extent_header
- * the remain stores array of ext4_extent
+ * ext4_inode has i_block array (60 bytes total).
+ * The first 12 bytes store ext4_extent_header;
+ * the remainder stores an array of ext4_extent.
  */
 
 /*
- * this is extent on-disk structure
- * it's used at the bottom of the tree
+ * This is the extent on-disk structure.
+ * It's used at the bottom of the tree.
  */
 struct ext4_extent {
 	__le32	ee_block;	/* first logical block extent covers */
 	__le16	ee_len;		/* number of blocks covered by extent */
 	__le16	ee_start_hi;	/* high 16 bits of physical block */
-	__le32	ee_start;	/* low 32 bigs of physical block */
+	__le32	ee_start;	/* low 32 bits of physical block */
 };
 
 /*
- * this is index on-disk structure
- * it's used at all the levels, but the bottom
+ * This is index on-disk structure.
+ * It's used at all the levels except the bottom.
  */
 struct ext4_extent_idx {
 	__le32	ei_block;	/* index covers logical blocks from 'block' */
 	__le32	ei_leaf;	/* pointer to the physical block of the next *
-				 * level. leaf or next index could bet here */
+				 * level. leaf or next index could be there */
 	__le16	ei_leaf_hi;	/* high 16 bits of physical block */
 	__u16	ei_unused;
 };
 
 /*
- * each block (leaves and indexes), even inode-stored has header
+ * Each block (leaves and indexes), even inode-stored has header.
  */
 struct ext4_extent_header {
 	__le16	eh_magic;	/* probably will support different formats */
 	__le16	eh_entries;	/* number of valid entries */
 	__le16	eh_max;		/* capacity of store in entries */
-	__le16	eh_depth;	/* has tree real underlaying blocks? */
+	__le16	eh_depth;	/* has tree real underlying blocks? */
 	__le32	eh_generation;	/* generation of the tree */
 };
 
 #define EXT4_EXT_MAGIC		cpu_to_le16(0xf30a)
 
 /*
- * array of ext4_ext_path contains path to some extent
- * creation/lookup routines use it for traversal/splitting/etc
- * truncate uses it to simulate recursive walking
+ * Array of ext4_ext_path contains path to some extent.
+ * Creation/lookup routines use it for traversal/splitting/etc.
+ * Truncate uses it to simulate recursive walking.
  */
 struct ext4_ext_path {
 	ext4_fsblk_t			p_block;

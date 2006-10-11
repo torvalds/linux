@@ -44,7 +44,10 @@
 #include <asm/uaccess.h>
 
 
-/* this macro combines low and hi parts of phys. blocknr into ext4_fsblk_t */
+/*
+ * ext_pblock:
+ * combine low and high parts of physical block number into ext4_fsblk_t
+ */
 static inline ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
 {
 	ext4_fsblk_t block;
@@ -55,7 +58,10 @@ static inline ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
 	return block;
 }
 
-/* this macro combines low and hi parts of phys. blocknr into ext4_fsblk_t */
+/*
+ * idx_pblock:
+ * combine low and high parts of a leaf physical block number into ext4_fsblk_t
+ */
 static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 {
 	ext4_fsblk_t block;
@@ -66,7 +72,11 @@ static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 	return block;
 }
 
-/* the routine stores large phys. blocknr into extent breaking it into parts */
+/*
+ * ext4_ext_store_pblock:
+ * stores a large physical block number into an extent struct,
+ * breaking it into parts
+ */
 static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
 {
 	ex->ee_start = cpu_to_le32((unsigned long) (pb & 0xffffffff));
@@ -74,7 +84,11 @@ static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb
 		ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
 }
 
-/* the routine stores large phys. blocknr into index breaking it into parts */
+/*
+ * ext4_idx_store_pblock:
+ * stores a large physical block number into an index struct,
+ * breaking it into parts
+ */
 static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
 {
 	ix->ei_leaf = cpu_to_le32((unsigned long) (pb & 0xffffffff));
@@ -179,8 +193,8 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 		if ((ex = path[depth].p_ext))
 			return ext_pblock(ex)+(block-le32_to_cpu(ex->ee_block));
 
-		/* it looks index is empty
-		 * try to find starting from index itself */
+		/* it looks like index is empty;
+		 * try to find starting block from index itself */
 		if (path[depth].p_bh)
 			return path[depth].p_bh->b_blocknr;
 	}
@@ -317,7 +331,8 @@ static void ext4_ext_drop_refs(struct ext4_ext_path *path)
 }
 
 /*
- * binary search for closest index by given block
+ * ext4_ext_binsearch_idx:
+ * binary search for the closest index of the given block
  */
 static void
 ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int block)
@@ -375,7 +390,8 @@ ext4_ext_binsearch_idx(struct inode *inode, struct ext4_ext_path *path, int bloc
 }
 
 /*
- * binary search for closest extent by given block
+ * ext4_ext_binsearch:
+ * binary search for closest extent of the given block
  */
 static void
 ext4_ext_binsearch(struct inode *inode, struct ext4_ext_path *path, int block)
@@ -388,8 +404,8 @@ ext4_ext_binsearch(struct inode *inode, struct ext4_ext_path *path, int block)
 
 	if (eh->eh_entries == 0) {
 		/*
-		 * this leaf is empty yet:
-		 *  we get such a leaf in split/add case
+		 * this leaf is empty:
+		 * we get such a leaf in split/add case
 		 */
 		return;
 	}
@@ -520,8 +536,9 @@ err:
 }
 
 /*
- * insert new index [logical;ptr] into the block at cupr
- * it check where to insert: before curp or after curp
+ * ext4_ext_insert_index:
+ * insert new index [@logical;@ptr] into the block at @curp;
+ * check where to insert: before @curp or after @curp
  */
 static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 				struct ext4_ext_path *curp,
@@ -574,13 +591,14 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 }
 
 /*
- * routine inserts new subtree into the path, using free index entry
- * at depth 'at:
- *  - allocates all needed blocks (new leaf and all intermediate index blocks)
- *  - makes decision where to split
- *  - moves remaining extens and index entries (right to the split point)
- *    into the newly allocated blocks
- *  - initialize subtree
+ * ext4_ext_split:
+ * inserts new subtree into the path, using free index entry
+ * at depth @at:
+ * - allocates all needed blocks (new leaf and all intermediate index blocks)
+ * - makes decision where to split
+ * - moves remaining extents and index entries (right to the split point)
+ *   into the newly allocated blocks
+ * - initializes subtree
  */
 static int ext4_ext_split(handle_t *handle, struct inode *inode,
 				struct ext4_ext_path *path,
@@ -598,14 +616,14 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	int err = 0;
 
 	/* make decision: where to split? */
-	/* FIXME: now desicion is simplest: at current extent */
+	/* FIXME: now decision is simplest: at current extent */
 
-	/* if current leaf will be splitted, then we should use
+	/* if current leaf will be split, then we should use
 	 * border from split point */
 	BUG_ON(path[depth].p_ext > EXT_MAX_EXTENT(path[depth].p_hdr));
 	if (path[depth].p_ext != EXT_MAX_EXTENT(path[depth].p_hdr)) {
 		border = path[depth].p_ext[1].ee_block;
-		ext_debug("leaf will be splitted."
+		ext_debug("leaf will be split."
 				" next leaf starts at %d\n",
 			          le32_to_cpu(border));
 	} else {
@@ -616,16 +634,16 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	}
 
 	/*
-	 * if error occurs, then we break processing
-	 * and turn filesystem read-only. so, index won't
+	 * If error occurs, then we break processing
+	 * and mark filesystem read-only. index won't
 	 * be inserted and tree will be in consistent
-	 * state. next mount will repair buffers too
+	 * state. Next mount will repair buffers too.
 	 */
 
 	/*
-	 * get array to track all allocated blocks
-	 * we need this to handle errors and free blocks
-	 * upon them
+	 * Get array to track all allocated blocks.
+	 * We need this to handle errors and free blocks
+	 * upon them.
 	 */
 	ablocks = kmalloc(sizeof(ext4_fsblk_t) * depth, GFP_NOFS);
 	if (!ablocks)
@@ -661,7 +679,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	neh->eh_depth = 0;
 	ex = EXT_FIRST_EXTENT(neh);
 
-	/* move remain of path[depth] to the new leaf */
+	/* move remainder of path[depth] to the new leaf */
 	BUG_ON(path[depth].p_hdr->eh_entries != path[depth].p_hdr->eh_max);
 	/* start copy from next extent */
 	/* TODO: we could do it by single memmove */
@@ -813,11 +831,12 @@ cleanup:
 }
 
 /*
- * routine implements tree growing procedure:
- *  - allocates new block
- *  - moves top-level data (index block or leaf) into the new block
- *  - initialize new top-level, creating index that points to the
- *    just created block
+ * ext4_ext_grow_indepth:
+ * implements tree growing procedure:
+ * - allocates new block
+ * - moves top-level data (index block or leaf) into the new block
+ * - initializes new top-level, creating index that points to the
+ *   just created block
  */
 static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 					struct ext4_ext_path *path,
@@ -892,8 +911,9 @@ out:
 }
 
 /*
- * routine finds empty index and adds new leaf. if no free index found
- * then it requests in-depth growing
+ * ext4_ext_create_new_leaf:
+ * finds empty index and adds new leaf.
+ * if no free index is found, then it requests in-depth growing.
  */
 static int ext4_ext_create_new_leaf(handle_t *handle, struct inode *inode,
 					struct ext4_ext_path *path,
@@ -912,8 +932,8 @@ repeat:
 		curp--;
 	}
 
-	/* we use already allocated block for index block
-	 * so, subsequent data blocks should be contigoues */
+	/* we use already allocated block for index block,
+	 * so subsequent data blocks should be contiguous */
 	if (EXT_HAS_FREE_INDEX(curp)) {
 		/* if we found index with free entry, then use that
 		 * entry: create all needed subtree and add new leaf */
@@ -943,12 +963,12 @@ repeat:
 		}
 
 		/*
-		 * only first (depth 0 -> 1) produces free space
-		 * in all other cases we have to split growed tree
+		 * only first (depth 0 -> 1) produces free space;
+		 * in all other cases we have to split the grown tree
 		 */
 		depth = ext_depth(inode);
 		if (path[depth].p_hdr->eh_entries == path[depth].p_hdr->eh_max) {
-			/* now we need split */
+			/* now we need to split */
 			goto repeat;
 		}
 	}
@@ -958,10 +978,11 @@ out:
 }
 
 /*
- * returns allocated block in subsequent extent or EXT_MAX_BLOCK
- * NOTE: it consider block number from index entry as
- * allocated block. thus, index entries have to be consistent
- * with leafs
+ * ext4_ext_next_allocated_block:
+ * returns allocated block in subsequent extent or EXT_MAX_BLOCK.
+ * NOTE: it considers block number from index entry as
+ * allocated block. Thus, index entries have to be consistent
+ * with leaves.
  */
 static unsigned long
 ext4_ext_next_allocated_block(struct ext4_ext_path *path)
@@ -993,6 +1014,7 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
 }
 
 /*
+ * ext4_ext_next_leaf_block:
  * returns first allocated block from next leaf or EXT_MAX_BLOCK
  */
 static unsigned ext4_ext_next_leaf_block(struct inode *inode,
@@ -1021,8 +1043,9 @@ static unsigned ext4_ext_next_leaf_block(struct inode *inode,
 }
 
 /*
- * if leaf gets modified and modified extent is first in the leaf
- * then we have to correct all indexes above
+ * ext4_ext_correct_indexes:
+ * if leaf gets modified and modified extent is first in the leaf,
+ * then we have to correct all indexes above.
  * TODO: do we need to correct tree in all cases?
  */
 int ext4_ext_correct_indexes(handle_t *handle, struct inode *inode,
@@ -1050,7 +1073,7 @@ int ext4_ext_correct_indexes(handle_t *handle, struct inode *inode,
 	}
 
 	/*
-	 * TODO: we need correction if border is smaller then current one
+	 * TODO: we need correction if border is smaller than current one
 	 */
 	k = depth - 1;
 	border = path[depth].p_ext->ee_block;
@@ -1085,7 +1108,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	/*
 	 * To allow future support for preallocated extents to be added
 	 * as an RO_COMPAT feature, refuse to merge to extents if
-	 * can result in the top bit of ee_len being set
+	 * this can result in the top bit of ee_len being set.
 	 */
 	if (le16_to_cpu(ex1->ee_len) + le16_to_cpu(ex2->ee_len) > EXT_MAX_LEN)
 		return 0;
@@ -1100,9 +1123,10 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 }
 
 /*
- * this routine tries to merge requsted extent into the existing
- * extent or inserts requested extent as new one into the tree,
- * creating new leaf in no-space case
+ * ext4_ext_insert_extent:
+ * tries to merge requsted extent into the existing extent or
+ * inserts requested extent as new one into the tree,
+ * creating new leaf in the no-space case.
  */
 int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 				struct ext4_ext_path *path,
@@ -1163,8 +1187,8 @@ repeat:
 	}
 
 	/*
-	 * there is no free space in found leaf
-	 * we're gonna add new leaf in the tree
+	 * There is no free space in the found leaf.
+	 * We're gonna add a new leaf in the tree.
 	 */
 	err = ext4_ext_create_new_leaf(handle, inode, path, newext);
 	if (err)
@@ -1377,7 +1401,8 @@ ext4_ext_put_in_cache(struct inode *inode, __u32 block,
 }
 
 /*
- * this routine calculate boundaries of the gap requested block fits into
+ * ext4_ext_put_gap_in_cache:
+ * calculate boundaries of the gap that the requested block fits into
  * and cache this gap
  */
 static inline void
@@ -1452,9 +1477,10 @@ ext4_ext_in_cache(struct inode *inode, unsigned long block,
 }
 
 /*
- * routine removes index from the index block
- * it's used in truncate case only. thus all requests are for
- * last index in the block only
+ * ext4_ext_rm_idx:
+ * removes index from the index block.
+ * It's used in truncate case only, thus all requests are for
+ * last index in the block only.
  */
 int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 			struct ext4_ext_path *path)
@@ -1480,11 +1506,12 @@ int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 }
 
 /*
- * This routine returns max. credits extent tree can consume.
+ * ext4_ext_calc_credits_for_insert:
+ * This routine returns max. credits that the extent tree can consume.
  * It should be OK for low-performance paths like ->writepage()
- * To allow many writing process to fit a single transaction,
- * caller should calculate credits under truncate_mutex and
- * pass actual path.
+ * To allow many writing processes to fit into a single transaction,
+ * the caller should calculate credits under truncate_mutex and
+ * pass the actual path.
  */
 int inline ext4_ext_calc_credits_for_insert(struct inode *inode,
 						struct ext4_ext_path *path)
@@ -1500,9 +1527,9 @@ int inline ext4_ext_calc_credits_for_insert(struct inode *inode,
 	}
 
 	/*
-	 * given 32bit logical block (4294967296 blocks), max. tree
+	 * given 32-bit logical block (4294967296 blocks), max. tree
 	 * can be 4 levels in depth -- 4 * 340^4 == 53453440000.
-	 * let's also add one more level for imbalance.
+	 * Let's also add one more level for imbalance.
 	 */
 	depth = 5;
 
@@ -1510,13 +1537,13 @@ int inline ext4_ext_calc_credits_for_insert(struct inode *inode,
 	needed = 2;
 
 	/*
-	 * tree can be full, so it'd need to grow in depth:
+	 * tree can be full, so it would need to grow in depth:
 	 * allocation + old root + new root
 	 */
 	needed += 2 + 1 + 1;
 
 	/*
-	 * Index split can happen, we'd need:
+	 * Index split can happen, we would need:
 	 *    allocate intermediate indexes (bitmap + group)
 	 *  + change two blocks at each level, but root (already included)
 	 */
@@ -1634,7 +1661,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			BUG_ON(b != ex_ee_block + ex_ee_len - 1);
 		}
 
-		/* at present, extent can't cross block group */
+		/* at present, extent can't cross block group: */
 		/* leaf + bitmap + group desc + sb + inode */
 		credits = 5;
 		if (ex == EXT_FIRST_EXTENT(eh)) {
@@ -1660,7 +1687,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			goto out;
 
 		if (num == 0) {
-			/* this extent is removed entirely mark slot unused */
+			/* this extent is removed; mark slot entirely unused */
 			ext4_ext_store_pblock(ex, 0);
 			eh->eh_entries = cpu_to_le16(le16_to_cpu(eh->eh_entries)-1);
 		}
@@ -1692,7 +1719,8 @@ out:
 }
 
 /*
- * returns 1 if current index have to be freed (even partial)
+ * ext4_ext_more_to_rm:
+ * returns 1 if current index has to be freed (even partial)
  */
 static int inline
 ext4_ext_more_to_rm(struct ext4_ext_path *path)
@@ -1703,7 +1731,7 @@ ext4_ext_more_to_rm(struct ext4_ext_path *path)
 		return 0;
 
 	/*
-	 * if truncate on deeper level happened it it wasn't partial
+	 * if truncate on deeper level happened, it wasn't partial,
 	 * so we have to consider current index for truncation
 	 */
 	if (le16_to_cpu(path->p_hdr->eh_entries) == path->p_block)
@@ -1729,8 +1757,8 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 	ext4_ext_invalidate_cache(inode);
 
 	/*
-	 * we start scanning from right side freeing all the blocks
-	 * after i_size and walking into the deep
+	 * We start scanning from right side, freeing all the blocks
+	 * after i_size and walking into the tree depth-wise.
 	 */
 	path = kmalloc(sizeof(struct ext4_ext_path) * (depth + 1), GFP_KERNEL);
 	if (path == NULL) {
@@ -1749,7 +1777,7 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 		if (i == depth) {
 			/* this is leaf block */
 			err = ext4_ext_rm_leaf(handle, inode, path, start);
-			/* root level have p_bh == NULL, brelse() eats this */
+			/* root level has p_bh == NULL, brelse() eats this */
 			brelse(path[i].p_bh);
 			path[i].p_bh = NULL;
 			i--;
@@ -1772,14 +1800,14 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 		BUG_ON(path[i].p_hdr->eh_magic != EXT4_EXT_MAGIC);
 
 		if (!path[i].p_idx) {
-			/* this level hasn't touched yet */
+			/* this level hasn't been touched yet */
 			path[i].p_idx = EXT_LAST_INDEX(path[i].p_hdr);
 			path[i].p_block = le16_to_cpu(path[i].p_hdr->eh_entries)+1;
 			ext_debug("init index ptr: hdr 0x%p, num %d\n",
 				  path[i].p_hdr,
 				  le16_to_cpu(path[i].p_hdr->eh_entries));
 		} else {
-			/* we've already was here, see at next index */
+			/* we were already here, see at next index */
 			path[i].p_idx--;
 		}
 
@@ -1799,19 +1827,19 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 				break;
 			}
 
-			/* put actual number of indexes to know is this
-			 * number got changed at the next iteration */
+			/* save actual number of indexes since this
+			 * number is changed at the next iteration */
 			path[i].p_block = le16_to_cpu(path[i].p_hdr->eh_entries);
 			i++;
 		} else {
-			/* we finish processing this index, go up */
+			/* we finished processing this index, go up */
 			if (path[i].p_hdr->eh_entries == 0 && i > 0) {
-				/* index is empty, remove it
+				/* index is empty, remove it;
 				 * handle must be already prepared by the
 				 * truncatei_leaf() */
 				err = ext4_ext_rm_idx(handle, inode, path + i);
 			}
-			/* root level have p_bh == NULL, brelse() eats this */
+			/* root level has p_bh == NULL, brelse() eats this */
 			brelse(path[i].p_bh);
 			path[i].p_bh = NULL;
 			i--;
@@ -1822,8 +1850,8 @@ int ext4_ext_remove_space(struct inode *inode, unsigned long start)
 	/* TODO: flexible tree reduction should be here */
 	if (path->p_hdr->eh_entries == 0) {
 		/*
-		 * truncate to zero freed all the tree
-		 * so, we need to correct eh_depth
+		 * truncate to zero freed all the tree,
+		 * so we need to correct eh_depth
 		 */
 		err = ext4_ext_get_access(handle, inode, path);
 		if (err == 0) {
@@ -1912,7 +1940,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		if (goal == EXT4_EXT_CACHE_GAP) {
 			if (!create) {
 				/* block isn't allocated yet and
-				 * user don't want to allocate it */
+				 * user doesn't want to allocate it */
 				goto out2;
 			}
 			/* we should allocate requested block */
@@ -1921,7 +1949,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		        newblock = iblock
 		                   - le32_to_cpu(newex.ee_block)
 			           + ext_pblock(&newex);
-			/* number of remain blocks in the extent */
+			/* number of remaining blocks in the extent */
 			allocated = le16_to_cpu(newex.ee_len) -
 					(iblock - le32_to_cpu(newex.ee_block));
 			goto out;
@@ -1941,8 +1969,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	depth = ext_depth(inode);
 
 	/*
-	 * consistent leaf must not be empty
-	 * this situations is possible, though, _during_ tree modification
+	 * consistent leaf must not be empty;
+	 * this situation is possible, though, _during_ tree modification;
 	 * this is why assert can't be put in ext4_ext_find_extent()
 	 */
 	BUG_ON(path[depth].p_ext == NULL && depth != 0);
@@ -1960,10 +1988,10 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 */
 		if (ee_len > EXT_MAX_LEN)
 			goto out2;
-		/* if found exent covers block, simple return it */
+		/* if found extent covers block, simply return it */
 	        if (iblock >= ee_block && iblock < ee_block + ee_len) {
 			newblock = iblock - ee_block + ee_start;
-			/* number of remain blocks in the extent */
+			/* number of remaining blocks in the extent */
 			allocated = ee_len - (iblock - ee_block);
 			ext_debug("%d fit into %lu:%d -> "E3FSBLK"\n", (int) iblock,
 					ee_block, ee_len, newblock);
@@ -1974,17 +2002,18 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	/*
-	 * requested block isn't allocated yet
+	 * requested block isn't allocated yet;
 	 * we couldn't try to create block if create flag is zero
 	 */
 	if (!create) {
-		/* put just found gap into cache to speedup subsequest reqs */
+		/* put just found gap into cache to speed up
+		 * subsequent requests */
 		ext4_ext_put_gap_in_cache(inode, path, iblock);
 		goto out2;
 	}
 	/*
          * Okay, we need to do block allocation.  Lazily initialize the block
-         * allocation info here if necessary
+         * allocation info here if necessary.
         */
 	if (S_ISREG(inode->i_mode) && (!EXT4_I(inode)->i_block_alloc_info))
 		ext4_init_block_alloc_info(inode);
@@ -2062,9 +2091,9 @@ void ext4_ext_truncate(struct inode * inode, struct page *page)
 	ext4_ext_invalidate_cache(inode);
 
 	/*
-	 * TODO: optimization is possible here
-	 * probably we need not scaning at all,
-	 * because page truncation is enough
+	 * TODO: optimization is possible here.
+	 * Probably we need not scan at all,
+	 * because page truncation is enough.
 	 */
 	if (ext4_orphan_add(handle, inode))
 		goto out_stop;
@@ -2078,13 +2107,13 @@ void ext4_ext_truncate(struct inode * inode, struct page *page)
 	err = ext4_ext_remove_space(inode, last_block);
 
 	/* In a multi-transaction truncate, we only make the final
-	 * transaction synchronous */
+	 * transaction synchronous. */
 	if (IS_SYNC(inode))
 		handle->h_sync = 1;
 
 out_stop:
 	/*
-	 * If this was a simple ftruncate(), and the file will remain alive
+	 * If this was a simple ftruncate() and the file will remain alive,
 	 * then we need to clear up the orphan record which we created above.
 	 * However, if this was a real unlink then we were called by
 	 * ext4_delete_inode(), and we allow that function to clean up the
@@ -2098,7 +2127,8 @@ out_stop:
 }
 
 /*
- * this routine calculate max number of blocks we could modify
+ * ext4_ext_writepage_trans_blocks:
+ * calculate max number of blocks we could modify
  * in order to allocate new block for an inode
  */
 int ext4_ext_writepage_trans_blocks(struct inode *inode, int num)
@@ -2107,7 +2137,7 @@ int ext4_ext_writepage_trans_blocks(struct inode *inode, int num)
 
 	needed = ext4_ext_calc_credits_for_insert(inode, NULL);
 
-	/* caller want to allocate num blocks, but note it includes sb */
+	/* caller wants to allocate num blocks, but note it includes sb */
 	needed = needed * num - (num - 1);
 
 #ifdef CONFIG_QUOTA
