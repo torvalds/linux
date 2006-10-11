@@ -317,9 +317,6 @@ struct module
 	/* Am I unsafe to unload? */
 	int unsafe;
 
-	/* Am I GPL-compatible */
-	int license_gplok;
-
 	unsigned int taints;	/* same bits as kernel:tainted */
 
 #ifdef CONFIG_MODULE_UNLOAD
