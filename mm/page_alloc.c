@@ -2294,19 +2294,6 @@ unsigned long __init zone_absent_pages_in_node(int nid,
 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
 }
 
-/* Return the zone index a PFN is in */
-int memmap_zone_idx(struct page *lmem_map)
-{
-	int i;
-	unsigned long phys_addr = virt_to_phys(lmem_map);
-	unsigned long pfn = phys_addr >> PAGE_SHIFT;
-
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		if (pfn < arch_zone_highest_possible_pfn[i])
-			break;
-
-	return i;
-}
 #else
 static inline unsigned long zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
@@ -2325,10 +2312,6 @@ static inline unsigned long zone_absent_pages_in_node(int nid,
 	return zholes_size[zone_type];
 }
 
-static inline int memmap_zone_idx(struct page *lmem_map)
-{
-	return MAX_NR_ZONES;
-}
 #endif
 
 static void __init calculate_node_totalpages(struct pglist_data *pgdat,
