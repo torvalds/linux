@@ -1897,7 +1897,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 }
 #endif
 
-static struct hw_interrupt_type ht_irq_chip = {
+static struct irq_chip ht_irq_chip = {
 	.name		= "PCI-HT",
 	.mask		= mask_ht_irq,
 	.unmask		= unmask_ht_irq,
