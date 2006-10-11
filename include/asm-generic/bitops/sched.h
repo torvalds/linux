@@ -15,7 +15,7 @@ static inline int sched_find_first_bit(const unsigned long *b)
 #if BITS_PER_LONG == 64
 	if (unlikely(b[0]))
 		return __ffs(b[0]);
-	if (unlikely(b[1]))
+	if (likely(b[1]))
 		return __ffs(b[1]) + 64;
 	return __ffs(b[2]) + 128;
 #elif BITS_PER_LONG == 32

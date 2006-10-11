@@ -1822,14 +1822,14 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	struct mm_struct *mm = next->mm;
 	struct mm_struct *oldmm = prev->active_mm;
 
-	if (unlikely(!mm)) {
+	if (!mm) {
 		next->active_mm = oldmm;
 		atomic_inc(&oldmm->mm_count);
 		enter_lazy_tlb(oldmm, next);
 	} else
 		switch_mm(oldmm, mm, next);
 
-	if (unlikely(!prev->mm)) {
+	if (!prev->mm) {
 		prev->active_mm = NULL;
 		WARN_ON(rq->prev_mm);
 		rq->prev_mm = oldmm;
@@ -3491,7 +3491,7 @@ asmlinkage void __sched preempt_schedule(void)
 	 * If there is a non-zero preempt_count or interrupts are disabled,
 	 * we do not want to preempt the current task.  Just return..
 	 */
-	if (unlikely(ti->preempt_count || irqs_disabled()))
+	if (likely(ti->preempt_count || irqs_disabled()))
 		return;
 
 need_resched:
