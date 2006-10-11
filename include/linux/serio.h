@@ -41,6 +41,7 @@ struct serio {
 	void (*stop)(struct serio *);
 
 	struct serio *parent, *child;
+	unsigned int depth;		/* level of nesting in serio hierarchy */
 
 	struct serio_driver *drv;	/* accessed from interrupt, must be protected by serio->lock and serio->sem */
 	struct mutex drv_mutex;		/* protects serio->drv so attributes can pin driver */

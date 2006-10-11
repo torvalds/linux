@@ -538,8 +538,12 @@ static void serio_init_port(struct serio *serio)
 		 "serio%ld", (long)atomic_inc_return(&serio_no) - 1);
 	serio->dev.bus = &serio_bus;
 	serio->dev.release = serio_release_port;
-	if (serio->parent)
+	if (serio->parent) {
 		serio->dev.parent = &serio->parent->dev;
+		serio->depth = serio->parent->depth + 1;
+	} else
+		serio->depth = 0;
+	lockdep_set_subclass(&serio->lock, serio->depth);
 }
 
 /*
