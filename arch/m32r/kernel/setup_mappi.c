@@ -86,7 +86,7 @@ void __init init_IRQ(void)
 	/* INT0 : LAN controller (RTL8019AS) */
 	irq_desc[M32R_IRQ_INT0].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_INT0].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_INT0].action = 0;
+	irq_desc[M32R_IRQ_INT0].action = NULL;
 	irq_desc[M32R_IRQ_INT0].depth = 1;
 	icu_data[M32R_IRQ_INT0].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
 	disable_mappi_irq(M32R_IRQ_INT0);
@@ -95,7 +95,7 @@ void __init init_IRQ(void)
 	/* MFT2 : system timer */
 	irq_desc[M32R_IRQ_MFT2].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_MFT2].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_MFT2].action = 0;
+	irq_desc[M32R_IRQ_MFT2].action = NULL;
 	irq_desc[M32R_IRQ_MFT2].depth = 1;
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
 	disable_mappi_irq(M32R_IRQ_MFT2);
@@ -104,7 +104,7 @@ void __init init_IRQ(void)
 	/* SIO0_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO0_R].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_SIO0_R].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_SIO0_R].action = 0;
+	irq_desc[M32R_IRQ_SIO0_R].action = NULL;
 	irq_desc[M32R_IRQ_SIO0_R].depth = 1;
 	icu_data[M32R_IRQ_SIO0_R].icucr = 0;
 	disable_mappi_irq(M32R_IRQ_SIO0_R);
@@ -112,7 +112,7 @@ void __init init_IRQ(void)
 	/* SIO0_S : uart send data */
 	irq_desc[M32R_IRQ_SIO0_S].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_SIO0_S].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_SIO0_S].action = 0;
+	irq_desc[M32R_IRQ_SIO0_S].action = NULL;
 	irq_desc[M32R_IRQ_SIO0_S].depth = 1;
 	icu_data[M32R_IRQ_SIO0_S].icucr = 0;
 	disable_mappi_irq(M32R_IRQ_SIO0_S);
@@ -120,7 +120,7 @@ void __init init_IRQ(void)
 	/* SIO1_R : uart receive data */
 	irq_desc[M32R_IRQ_SIO1_R].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_SIO1_R].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_SIO1_R].action = 0;
+	irq_desc[M32R_IRQ_SIO1_R].action = NULL;
 	irq_desc[M32R_IRQ_SIO1_R].depth = 1;
 	icu_data[M32R_IRQ_SIO1_R].icucr = 0;
 	disable_mappi_irq(M32R_IRQ_SIO1_R);
@@ -128,7 +128,7 @@ void __init init_IRQ(void)
 	/* SIO1_S : uart send data */
 	irq_desc[M32R_IRQ_SIO1_S].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_SIO1_S].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_SIO1_S].action = 0;
+	irq_desc[M32R_IRQ_SIO1_S].action = NULL;
 	irq_desc[M32R_IRQ_SIO1_S].depth = 1;
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
 	disable_mappi_irq(M32R_IRQ_SIO1_S);
@@ -138,7 +138,7 @@ void __init init_IRQ(void)
 	/* INT1 : pccard0 interrupt */
 	irq_desc[M32R_IRQ_INT1].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_INT1].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_INT1].action = 0;
+	irq_desc[M32R_IRQ_INT1].action = NULL;
 	irq_desc[M32R_IRQ_INT1].depth = 1;
 	icu_data[M32R_IRQ_INT1].icucr = M32R_ICUCR_IEN | M32R_ICUCR_ISMOD00;
 	disable_mappi_irq(M32R_IRQ_INT1);
@@ -146,7 +146,7 @@ void __init init_IRQ(void)
 	/* INT2 : pccard1 interrupt */
 	irq_desc[M32R_IRQ_INT2].status = IRQ_DISABLED;
 	irq_desc[M32R_IRQ_INT2].chip = &mappi_irq_type;
-	irq_desc[M32R_IRQ_INT2].action = 0;
+	irq_desc[M32R_IRQ_INT2].action = NULL;
 	irq_desc[M32R_IRQ_INT2].depth = 1;
 	icu_data[M32R_IRQ_INT2].icucr = M32R_ICUCR_IEN | M32R_ICUCR_ISMOD00;
 	disable_mappi_irq(M32R_IRQ_INT2);
