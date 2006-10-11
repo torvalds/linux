@@ -1706,14 +1706,15 @@ static void __b44_set_rx_mode(struct net_device *dev)
 
 		__b44_set_mac_addr(bp);
 
-		if (dev->flags & IFF_ALLMULTI)
+		if ((dev->flags & IFF_ALLMULTI) ||
+		    (dev->mc_count > B44_MCAST_TABLE_SIZE))
 			val |= RXCONFIG_ALLMULTI;
 		else
 			i = __b44_load_mcast(bp, dev);
 
-		for (; i < 64; i++) {
+		for (; i < 64; i++)
 			__b44_cam_write(bp, zero, i);
-		}
+
 		bw32(bp, B44_RXCONFIG, val);
         	val = br32(bp, B44_CAM_CTRL);
 	        bw32(bp, B44_CAM_CTRL, val | CAM_CTRL_ENABLE);
@@ -2055,7 +2056,7 @@ static int b44_read_eeprom(struct b44 *bp, u8 *data)
 	u16 *ptr = (u16 *) data;
 
 	for (i = 0; i < 128; i += 2)
-		ptr[i / 2] = readw(bp->regs + 4096 + i);
+		ptr[i / 2] = cpu_to_le16(readw(bp->regs + 4096 + i));
 
 	return 0;
 }

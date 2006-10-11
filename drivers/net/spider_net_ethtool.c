@@ -76,7 +76,7 @@ spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 	/* clear and fill out info */
 	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
 	strncpy(drvinfo->driver, spider_net_driver_name, 32);
-	strncpy(drvinfo->version, "0.1", 32);
+	strncpy(drvinfo->version, VERSION, 32);
 	strcpy(drvinfo->fw_version, "no information");
 	strncpy(drvinfo->bus_info, pci_name(card->pdev), 32);
 }
@@ -158,9 +158,9 @@ spider_net_ethtool_get_ringparam(struct net_device *netdev,
 	struct spider_net_card *card = netdev->priv;
 
 	ering->tx_max_pending = SPIDER_NET_TX_DESCRIPTORS_MAX;
-	ering->tx_pending = card->tx_desc;
+	ering->tx_pending = card->num_tx_desc;
 	ering->rx_max_pending = SPIDER_NET_RX_DESCRIPTORS_MAX;
-	ering->rx_pending = card->rx_desc;
+	ering->rx_pending = card->num_rx_desc;
 }
 
 static int spider_net_get_stats_count(struct net_device *netdev)
