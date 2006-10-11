@@ -178,22 +178,6 @@ extern void iounmap(void *addr);
 unsigned long onchip_remap(unsigned long addr, unsigned long size, const char* name);
 extern void onchip_unmap(unsigned long vaddr);
 
-static __inline__ int check_signature(volatile void __iomem *io_addr,
-			const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 /*
  * The caches on some architectures aren't dma-coherent and have need to
  * handle this in software.  There are three types of operations that

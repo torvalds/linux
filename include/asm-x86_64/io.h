@@ -254,33 +254,6 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
 
 #define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void *)(b),(c),(d))
 
-/**
- *	check_signature		-	find BIOS signatures
- *	@io_addr: mmio address to check 
- *	@signature:  signature block
- *	@length: length of signature
- *
- *	Perform a signature comparison with the mmio address io_addr. This
- *	address should have been obtained by ioremap.
- *	Returns 1 on a match.
- */
- 
-static inline int check_signature(void __iomem *io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
-
 /* Nothing to do */
 
 #define dma_cache_inv(_start,_size)		do { } while (0)
