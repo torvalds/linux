@@ -302,7 +302,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	if (page->mapping != mapping)
 		return 0;
 
-	if (PagePrivate(page) && !try_to_release_page(page, 0))
+	if (PagePrivate(page) && !try_to_release_page(page, GFP_KERNEL))
 		return 0;
 
 	write_lock_irq(&mapping->tree_lock);
