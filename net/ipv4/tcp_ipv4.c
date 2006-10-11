@@ -578,7 +578,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	struct tcphdr *th = skb->h.th;
 	struct {
 		struct tcphdr th;
-		u32 tsopt[3];
+		u32 tsopt[TCPOLEN_TSTAMP_ALIGNED >> 2];
 	} rep;
 	struct ip_reply_arg arg;
 

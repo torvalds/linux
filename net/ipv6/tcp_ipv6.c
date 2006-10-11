@@ -653,7 +653,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 	int tot_len = sizeof(struct tcphdr);
 
 	if (ts)
-		tot_len += 3*4;
+		tot_len += TCPOLEN_TSTAMP_ALIGNED;
 
 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
 			 GFP_ATOMIC);
