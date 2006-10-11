@@ -275,7 +275,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	avefreei = freei / ngroups;
 	freeb = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
 	avefreeb = freeb;
-	sector_div(avefreeb, ngroups);
+	do_div(avefreeb, ngroups);
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
 	if ((parent == sb->s_root->d_inode) ||
@@ -305,14 +305,14 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 	}
 
 	blocks_per_dir = ext4_blocks_count(es) - freeb;
-	sector_div(blocks_per_dir, ndirs);
+	do_div(blocks_per_dir, ndirs);
 
 	max_dirs = ndirs / ngroups + inodes_per_group / 16;
 	min_inodes = avefreei - inodes_per_group / 4;
 	min_blocks = avefreeb - EXT4_BLOCKS_PER_GROUP(sb) / 4;
 
 	max_debt = EXT4_BLOCKS_PER_GROUP(sb);
-	sector_div(max_debt, max(blocks_per_dir, (ext4_fsblk_t)BLOCK_COST));
+	max_debt /= max_t(int, blocks_per_dir, BLOCK_COST);
 	if (max_debt * INODE_COST > inodes_per_group)
 		max_debt = inodes_per_group / INODE_COST;
 	if (max_debt > 255)
