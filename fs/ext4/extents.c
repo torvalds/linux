@@ -53,8 +53,7 @@ static inline ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
 	ext4_fsblk_t block;
 
 	block = le32_to_cpu(ex->ee_start);
-	if (sizeof(ext4_fsblk_t) > 4)
-		block |= ((ext4_fsblk_t) le16_to_cpu(ex->ee_start_hi) << 31) << 1;
+	block |= ((ext4_fsblk_t) le16_to_cpu(ex->ee_start_hi) << 31) << 1;
 	return block;
 }
 
@@ -67,8 +66,7 @@ static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 	ext4_fsblk_t block;
 
 	block = le32_to_cpu(ix->ei_leaf);
-	if (sizeof(ext4_fsblk_t) > 4)
-		block |= ((ext4_fsblk_t) le16_to_cpu(ix->ei_leaf_hi) << 31) << 1;
+	block |= ((ext4_fsblk_t) le16_to_cpu(ix->ei_leaf_hi) << 31) << 1;
 	return block;
 }
 
@@ -80,8 +78,7 @@ static inline ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
 {
 	ex->ee_start = cpu_to_le32((unsigned long) (pb & 0xffffffff));
-	if (sizeof(ext4_fsblk_t) > 4)
-		ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
+	ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
 }
 
 /*
@@ -92,8 +89,7 @@ static inline void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb
 static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix, ext4_fsblk_t pb)
 {
 	ix->ei_leaf = cpu_to_le32((unsigned long) (pb & 0xffffffff));
-	if (sizeof(ext4_fsblk_t) > 4)
-		ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
+	ix->ei_leaf_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);
 }
 
 static int ext4_ext_check_header(const char *function, struct inode *inode,
