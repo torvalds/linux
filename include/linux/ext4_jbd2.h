@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/ext4_jbd.h
+ * linux/include/linux/ext4_jbd2.h
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
@@ -16,7 +16,7 @@
 #define _LINUX_EXT4_JBD_H
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/ext4_fs.h>
 
 #define EXT4_JOURNAL(inode)	(EXT4_SB((inode)->i_sb)->s_journal)
@@ -116,7 +116,7 @@ static inline int
 __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 				struct buffer_head *bh)
 {
-	int err = journal_get_undo_access(handle, bh);
+	int err = jbd2_journal_get_undo_access(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -126,7 +126,7 @@ static inline int
 __ext4_journal_get_write_access(const char *where, handle_t *handle,
 				struct buffer_head *bh)
 {
-	int err = journal_get_write_access(handle, bh);
+	int err = jbd2_journal_get_write_access(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -135,13 +135,13 @@ __ext4_journal_get_write_access(const char *where, handle_t *handle,
 static inline void
 ext4_journal_release_buffer(handle_t *handle, struct buffer_head *bh)
 {
-	journal_release_buffer(handle, bh);
+	jbd2_journal_release_buffer(handle, bh);
 }
 
 static inline int
 __ext4_journal_forget(const char *where, handle_t *handle, struct buffer_head *bh)
 {
-	int err = journal_forget(handle, bh);
+	int err = jbd2_journal_forget(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -151,7 +151,7 @@ static inline int
 __ext4_journal_revoke(const char *where, handle_t *handle,
 		      unsigned long blocknr, struct buffer_head *bh)
 {
-	int err = journal_revoke(handle, blocknr, bh);
+	int err = jbd2_journal_revoke(handle, blocknr, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -161,7 +161,7 @@ static inline int
 __ext4_journal_get_create_access(const char *where,
 				 handle_t *handle, struct buffer_head *bh)
 {
-	int err = journal_get_create_access(handle, bh);
+	int err = jbd2_journal_get_create_access(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -171,7 +171,7 @@ static inline int
 __ext4_journal_dirty_metadata(const char *where,
 			      handle_t *handle, struct buffer_head *bh)
 {
-	int err = journal_dirty_metadata(handle, bh);
+	int err = jbd2_journal_dirty_metadata(handle, bh);
 	if (err)
 		ext4_journal_abort_handle(where, __FUNCTION__, bh, handle,err);
 	return err;
@@ -211,22 +211,22 @@ static inline handle_t *ext4_journal_current_handle(void)
 
 static inline int ext4_journal_extend(handle_t *handle, int nblocks)
 {
-	return journal_extend(handle, nblocks);
+	return jbd2_journal_extend(handle, nblocks);
 }
 
 static inline int ext4_journal_restart(handle_t *handle, int nblocks)
 {
-	return journal_restart(handle, nblocks);
+	return jbd2_journal_restart(handle, nblocks);
 }
 
 static inline int ext4_journal_blocks_per_page(struct inode *inode)
 {
-	return journal_blocks_per_page(inode);
+	return jbd2_journal_blocks_per_page(inode);
 }
 
 static inline int ext4_journal_force_commit(journal_t *journal)
 {
-	return journal_force_commit(journal);
+	return jbd2_journal_force_commit(journal);
 }
 
 /* super.c */

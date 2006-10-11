@@ -2,6 +2,6 @@
 # Makefile for the linux journaling routines.
 #
 
-obj-$(CONFIG_JBD) += jbd.o
+obj-$(CONFIG_JBD2) += jbd2.o
 
-jbd-objs := transaction.o commit.o recovery.o checkpoint.o revoke.o journal.o
+jbd2-objs := transaction.o commit.o recovery.o checkpoint.o revoke.o journal.o

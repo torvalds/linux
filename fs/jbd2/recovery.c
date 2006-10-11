@@ -18,7 +18,7 @@
 #else
 #include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#include <linux/jbd2.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #endif
@@ -86,7 +86,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	nbufs = 0;
 
 	for (next = start; next < max; next++) {
-		err = journal_bmap(journal, next, &blocknr);
+		err = jbd2_journal_bmap(journal, next, &blocknr);
 
 		if (err) {
 			printk (KERN_ERR "JBD: bad block at offset %u\n",
@@ -142,7 +142,7 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 		return -EIO;
 	}
 
-	err = journal_bmap(journal, offset, &blocknr);
+	err = jbd2_journal_bmap(journal, offset, &blocknr);
 
 	if (err) {
 		printk (KERN_ERR "JBD: bad block at offset %u\n",
@@ -191,10 +191,10 @@ static int count_tags(struct buffer_head *bh, int size)
 
 		nr++;
 		tagp += sizeof(journal_block_tag_t);
-		if (!(tag->t_flags & cpu_to_be32(JFS_FLAG_SAME_UUID)))
+		if (!(tag->t_flags & cpu_to_be32(JBD2_FLAG_SAME_UUID)))
 			tagp += 16;
 
-		if (tag->t_flags & cpu_to_be32(JFS_FLAG_LAST_TAG))
+		if (tag->t_flags & cpu_to_be32(JBD2_FLAG_LAST_TAG))
 			break;
 	}
 
@@ -210,7 +210,7 @@ do {									\
 } while (0)
 
 /**
- * journal_recover - recovers a on-disk journal
+ * jbd2_journal_recover - recovers a on-disk journal
  * @journal: the journal to recover
  *
  * The primary function for recovering the log contents when mounting a
@@ -221,7 +221,7 @@ do {									\
  * blocks.  In the third and final pass, we replay any un-revoked blocks
  * in the log.
  */
-int journal_recover(journal_t *journal)
+int jbd2_journal_recover(journal_t *journal)
 {
 	int			err;
 	journal_superblock_t *	sb;
@@ -260,13 +260,13 @@ int journal_recover(journal_t *journal)
 	 * any existing commit records in the log. */
 	journal->j_transaction_sequence = ++info.end_transaction;
 
-	journal_clear_revoke(journal);
+	jbd2_journal_clear_revoke(journal);
 	sync_blockdev(journal->j_fs_dev);
 	return err;
 }
 
 /**
- * journal_skip_recovery - Start journal and wipe exiting records
+ * jbd2_journal_skip_recovery - Start journal and wipe exiting records
  * @journal: journal to startup
  *
  * Locate any valid recovery information from the journal and set up the
@@ -278,7 +278,7 @@ int journal_recover(journal_t *journal)
  * much recovery information is being erased, and to let us initialise
  * the journal transaction sequence numbers to the next unused ID.
  */
-int journal_skip_recovery(journal_t *journal)
+int jbd2_journal_skip_recovery(journal_t *journal)
 {
 	int			err;
 	journal_superblock_t *	sb;
@@ -387,7 +387,7 @@ static int do_one_pass(journal_t *journal,
 
 		tmp = (journal_header_t *)bh->b_data;
 
-		if (tmp->h_magic != cpu_to_be32(JFS_MAGIC_NUMBER)) {
+		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER)) {
 			brelse(bh);
 			break;
 		}
@@ -407,7 +407,7 @@ static int do_one_pass(journal_t *journal,
 		 * to do with it?  That depends on the pass... */
 
 		switch(blocktype) {
-		case JFS_DESCRIPTOR_BLOCK:
+		case JBD2_DESCRIPTOR_BLOCK:
 			/* If it is a valid descriptor block, replay it
 			 * in pass REPLAY; otherwise, just skip over the
 			 * blocks it describes. */
@@ -451,7 +451,7 @@ static int do_one_pass(journal_t *journal,
 					/* If the block has been
 					 * revoked, then we're all done
 					 * here. */
-					if (journal_test_revoke
+					if (jbd2_journal_test_revoke
 					    (journal, blocknr,
 					     next_commit_ID)) {
 						brelse(obh);
@@ -477,9 +477,9 @@ static int do_one_pass(journal_t *journal,
 					lock_buffer(nbh);
 					memcpy(nbh->b_data, obh->b_data,
 							journal->j_blocksize);
-					if (flags & JFS_FLAG_ESCAPE) {
+					if (flags & JBD2_FLAG_ESCAPE) {
 						*((__be32 *)bh->b_data) =
-						cpu_to_be32(JFS_MAGIC_NUMBER);
+						cpu_to_be32(JBD2_MAGIC_NUMBER);
 					}
 
 					BUFFER_TRACE(nbh, "marking dirty");
@@ -495,17 +495,17 @@ static int do_one_pass(journal_t *journal,
 
 			skip_write:
 				tagp += sizeof(journal_block_tag_t);
-				if (!(flags & JFS_FLAG_SAME_UUID))
+				if (!(flags & JBD2_FLAG_SAME_UUID))
 					tagp += 16;
 
-				if (flags & JFS_FLAG_LAST_TAG)
+				if (flags & JBD2_FLAG_LAST_TAG)
 					break;
 			}
 
 			brelse(bh);
 			continue;
 
-		case JFS_COMMIT_BLOCK:
+		case JBD2_COMMIT_BLOCK:
 			/* Found an expected commit block: not much to
 			 * do other than move on to the next sequence
 			 * number. */
@@ -513,7 +513,7 @@ static int do_one_pass(journal_t *journal,
 			next_commit_ID++;
 			continue;
 
-		case JFS_REVOKE_BLOCK:
+		case JBD2_REVOKE_BLOCK:
 			/* If we aren't in the REVOKE pass, then we can
 			 * just skip over this block. */
 			if (pass != PASS_REVOKE) {
@@ -570,11 +570,11 @@ static int do_one_pass(journal_t *journal,
 static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 			       tid_t sequence, struct recovery_info *info)
 {
-	journal_revoke_header_t *header;
+	jbd2_journal_revoke_header_t *header;
 	int offset, max;
 
-	header = (journal_revoke_header_t *) bh->b_data;
-	offset = sizeof(journal_revoke_header_t);
+	header = (jbd2_journal_revoke_header_t *) bh->b_data;
+	offset = sizeof(jbd2_journal_revoke_header_t);
 	max = be32_to_cpu(header->r_count);
 
 	while (offset < max) {
@@ -583,7 +583,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 
 		blocknr = be32_to_cpu(* ((__be32 *) (bh->b_data+offset)));
 		offset += 4;
-		err = journal_set_revoke(journal, blocknr, sequence);
+		err = jbd2_journal_set_revoke(journal, blocknr, sequence);
 		if (err)
 			return err;
 		++info->nr_revokes;
