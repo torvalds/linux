@@ -97,8 +97,8 @@
 #include <linux/blkdev.h>
 #include <linux/stat.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 

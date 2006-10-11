@@ -48,9 +48,9 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/dma.h>
 

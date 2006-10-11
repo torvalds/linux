@@ -238,7 +238,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/irq.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/blkdev.h>
 #include <asm/system.h>
 #include <linux/errno.h>

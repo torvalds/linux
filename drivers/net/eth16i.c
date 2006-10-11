@@ -162,9 +162,9 @@ static char *version =
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 
 

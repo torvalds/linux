@@ -109,7 +109,7 @@
 #include <asm/system.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/stat.h>

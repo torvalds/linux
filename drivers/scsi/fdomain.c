@@ -278,9 +278,9 @@
 #include <linux/pci.h>
 #include <linux/stat.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <scsi/scsicam.h>
 
-#include <asm/io.h>
 #include <asm/system.h>
 
 #include <scsi/scsi.h>

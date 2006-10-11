@@ -178,10 +178,10 @@
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/stat.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/dma.h>
-#include <asm/io.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
