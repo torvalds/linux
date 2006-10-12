@@ -49,6 +49,6 @@ void __init init_r7780rp_IRQ(void)
 		disable_irq_nosync(i);
 		set_irq_chip_and_handler(i, &r7780rp_irq_chip,
 					 handle_level_irq);
-		disable_r7780rp_irq(i);
+		enable_r7780rp_irq(i);
 	}
 }
