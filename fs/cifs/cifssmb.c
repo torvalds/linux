@@ -3675,6 +3675,14 @@ getDFSRetry:
 		strncpy(pSMB->RequestFileName, searchName, name_len);
 	}
 
+	if(ses->server) {
+		if(ses->server->secMode &
+		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
+	}
+
+        pSMB->hdr.Uid = ses->Suid;
+
 	params = 2 /* level */  + name_len /*includes null */ ;
 	pSMB->TotalDataCount = 0;
 	pSMB->DataCount = 0;
