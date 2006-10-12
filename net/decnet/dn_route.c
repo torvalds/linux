@@ -267,9 +267,14 @@ static void dn_dst_link_failure(struct sk_buff *skb)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return memcmp(&fl1->nl_u.dn_u, &fl2->nl_u.dn_u, sizeof(fl1->nl_u.dn_u)) == 0 &&
-		fl1->oif == fl2->oif &&
-		fl1->iif == fl2->iif;
+	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
+		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
+#ifdef CONFIG_IP_ROUTE_FWMARK
+		(fl1->nl_u.dn_u.fwmark ^ fl2->nl_u.dn_u.fwmark) |
+#endif
+		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |
+		(fl1->oif ^ fl2->oif) |
+		(fl1->iif ^ fl2->iif)) == 0;
 }
 
 static int dn_insert_route(struct dn_route *rt, unsigned hash, struct dn_route **rp)
