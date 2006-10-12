@@ -373,6 +373,7 @@ config FORCED_INLINING
 
 config HEADERS_CHECK
 	bool "Run 'make headers_check' when building vmlinux"
+	depends on !UML
 	help
 	  This option will extract the user-visible kernel headers whenever
 	  building the kernel, and will run basic sanity checks on them to
