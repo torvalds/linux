@@ -55,7 +55,7 @@ extern int SendReceiveBlockingLock(const unsigned int /* xid */ ,
 				struct smb_hdr * /* input */ ,
 				struct smb_hdr * /* out */ ,
 				int * /* bytes returned */);
-extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
+extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb, struct TCP_Server_Info *);
 extern int is_size_safe_to_change(struct cifsInodeInfo *);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *);
