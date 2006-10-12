@@ -58,6 +58,7 @@ struct zfcp_data zfcp_data = {
 		.cmd_per_lun		= 1,
 		.use_clustering		= 1,
 		.sdev_attrs		= zfcp_sysfs_sdev_attrs,
+		.max_sectors		= ZFCP_MAX_SECTORS,
 	},
 	.driver_version = ZFCP_VERSION,
 };
