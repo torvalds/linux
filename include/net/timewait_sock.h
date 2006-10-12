@@ -19,6 +19,7 @@ struct timewait_sock_ops {
 	unsigned int	twsk_obj_size;
 	int		(*twsk_unique)(struct sock *sk,
 				       struct sock *sktw, void *twp);
+	void		(*twsk_destructor)(struct sock *sk);
 };
 
 static inline int twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
@@ -26,6 +27,12 @@ static inline int twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	if (sk->sk_prot->twsk_prot->twsk_unique != NULL)
 		return sk->sk_prot->twsk_prot->twsk_unique(sk, sktw, twp);
 	return 0;
+}
+
+static inline void twsk_destructor(struct sock *sk)
+{
+	if (sk->sk_prot->twsk_prot->twsk_destructor != NULL)
+		sk->sk_prot->twsk_prot->twsk_destructor(sk);
 }
 
 #endif /* _TIMEWAIT_SOCK_H */

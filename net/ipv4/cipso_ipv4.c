@@ -43,6 +43,7 @@
 #include <net/tcp.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <asm/atomic.h>
 #include <asm/bug.h>
 
 struct cipso_v4_domhsh_entry {
@@ -79,7 +80,7 @@ struct cipso_v4_map_cache_entry {
 	unsigned char *key;
 	size_t key_len;
 
-	struct netlbl_lsm_cache lsm_data;
+	struct netlbl_lsm_cache *lsm_data;
 
 	u32 activity;
 	struct list_head list;
@@ -188,13 +189,14 @@ static void cipso_v4_doi_domhsh_free(struct rcu_head *entry)
  * @entry: the entry to free
  *
  * Description:
- * This function frees the memory associated with a cache entry.
+ * This function frees the memory associated with a cache entry including the
+ * LSM cache data if there are no longer any users, i.e. reference count == 0.
  *
  */
 static void cipso_v4_cache_entry_free(struct cipso_v4_map_cache_entry *entry)
 {
-	if (entry->lsm_data.free)
-		entry->lsm_data.free(entry->lsm_data.data);
+	if (entry->lsm_data)
+		netlbl_secattr_cache_free(entry->lsm_data);
 	kfree(entry->key);
 	kfree(entry);
 }
@@ -315,8 +317,8 @@ static int cipso_v4_cache_check(const unsigned char *key,
 		    entry->key_len == key_len &&
 		    memcmp(entry->key, key, key_len) == 0) {
 			entry->activity += 1;
-			secattr->cache.free = entry->lsm_data.free;
-			secattr->cache.data = entry->lsm_data.data;
+			atomic_inc(&entry->lsm_data->refcount);
+			secattr->cache = entry->lsm_data;
 			if (prev_entry == NULL) {
 				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
@@ -383,8 +385,8 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	memcpy(entry->key, cipso_ptr, cipso_ptr_len);
 	entry->key_len = cipso_ptr_len;
 	entry->hash = cipso_v4_map_cache_hash(cipso_ptr, cipso_ptr_len);
-	entry->lsm_data.free = secattr->cache.free;
-	entry->lsm_data.data = secattr->cache.data;
+	atomic_inc(&secattr->cache->refcount);
+	entry->lsm_data = secattr->cache;
 
 	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
 	spin_lock_bh(&cipso_v4_cache[bkt].lock);

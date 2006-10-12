@@ -618,6 +618,7 @@ void policydb_destroy(struct policydb *p)
 			c = c->next;
 			ocontext_destroy(ctmp,i);
 		}
+		p->ocontexts[i] = NULL;
 	}
 
 	g = p->genfs;
@@ -633,6 +634,7 @@ void policydb_destroy(struct policydb *p)
 		g = g->next;
 		kfree(gtmp);
 	}
+	p->genfs = NULL;
 
 	cond_policydb_destroy(p);
 

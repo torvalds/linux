@@ -2928,11 +2928,6 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 		if (*dir)
 			goto out;
 	}
-	else {
-		*dir = security_xfrm_sock_policy_alloc(xp, sk);
-		if (*dir)
-			goto out;
-	}
 
 	*dir = pol->sadb_x_policy_dir-1;
 	return xp;

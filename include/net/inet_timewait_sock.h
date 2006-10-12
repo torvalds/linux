@@ -196,6 +196,7 @@ static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 {
 	if (atomic_dec_and_test(&tw->tw_refcnt)) {
 		struct module *owner = tw->tw_prot->owner;
+		twsk_destructor((struct sock *)tw);
 #ifdef SOCK_REFCNT_DEBUG
 		printk(KERN_DEBUG "%s timewait_sock %p released\n",
 		       tw->tw_prot->name, tw);

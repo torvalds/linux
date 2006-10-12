@@ -63,6 +63,7 @@ struct sctp_ulpevent {
 	__u32 cumtsn;
 	int msg_flags;
 	int iif;
+	unsigned int rmem_len;
 };
 
 /* Retrieve the skb this event sits inside of. */

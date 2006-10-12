@@ -1178,8 +1178,10 @@ static int dn_getname(struct socket *sock, struct sockaddr *uaddr,int *uaddr_len
 	if (peer) {
 		if ((sock->state != SS_CONNECTED && 
 		     sock->state != SS_CONNECTING) && 
-		    scp->accept_mode == ACC_IMMED)
+		    scp->accept_mode == ACC_IMMED) {
+		    	release_sock(sk);
 			return -ENOTCONN;
+		}
 
 		memcpy(sa, &scp->peer, sizeof(struct sockaddr_dn));
 	} else {
