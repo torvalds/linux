@@ -1827,7 +1827,7 @@ config CIFS_EXPERIMENTAL
 config CIFS_UPCALL
 	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
 	  depends on CIFS_EXPERIMENTAL
-	  select CONNECTOR
+	  depends on CONNECTOR
 	  help
 	    Enables an upcall mechanism for CIFS which will be used to contact
 	    userspace helper utilities to provide SPNEGO packaged Kerberos
