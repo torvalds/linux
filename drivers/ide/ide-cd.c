@@ -716,7 +716,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 		ide_error(drive, "request sense failure", stat);
 		return 1;
 
-	} else if (blk_pc_request(rq)) {
+	} else if (blk_pc_request(rq) || rq->cmd_type == REQ_TYPE_ATA_PC) {
 		/* All other functions, except for READ. */
 		unsigned long flags;
 
