@@ -109,9 +109,9 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 static void AdjustForTZ(struct cifsTconInfo * tcon, struct inode * inode)
 {
 	if((tcon) && (tcon->ses) && (tcon->ses->server)) {
-		inode->i_ctime.tv_sec += tcon->ses->server.timeAdj;
-		inode->i_mtime.tv_sec += tcon->ses->server.timeAdj;
-		inode->i_atime.tv_sec += tcon->ses->server.timeAdj;
+		inode->i_ctime.tv_sec += tcon->ses->server->timeAdj;
+		inode->i_mtime.tv_sec += tcon->ses->server->timeAdj;
+		inode->i_atime.tv_sec += tcon->ses->server->timeAdj;
 	}
 	return;
 }
