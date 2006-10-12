@@ -10,93 +10,32 @@
  * These are the "new Hitachi style" interrupts, as present on the
  * Hitachi 7751, the STM ST40 STB1, SH7760, and SH7780.
  */
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/machvec.h>
-
-struct intc2_data {
-	unsigned char msk_offset;
-	unsigned char msk_shift;
-
-	int (*clear_irq) (int);
-};
-
-static struct intc2_data intc2_data[NR_INTC2_IRQS];
-
-static void enable_intc2_irq(unsigned int irq);
-static void disable_intc2_irq(unsigned int irq);
-
-/* shutdown is same as "disable" */
-#define shutdown_intc2_irq disable_intc2_irq
-
-static void mask_and_ack_intc2(unsigned int);
-static void end_intc2_irq(unsigned int irq);
-
-static unsigned int startup_intc2_irq(unsigned int irq)
-{
-	enable_intc2_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static struct hw_interrupt_type intc2_irq_type = {
-	.typename	= "INTC2-IRQ",
-	.startup	= startup_intc2_irq,
-	.shutdown	= shutdown_intc2_irq,
-	.enable		= enable_intc2_irq,
-	.disable	= disable_intc2_irq,
-	.ack		= mask_and_ack_intc2,
-	.end		= end_intc2_irq
-};
 
 static void disable_intc2_irq(unsigned int irq)
 {
-	int irq_offset = irq - INTC2_FIRST_IRQ;
-	int msk_shift, msk_offset;
-
-	/* Sanity check */
-	if (unlikely(irq_offset < 0 || irq_offset >= NR_INTC2_IRQS))
-		return;
-
-	msk_shift = intc2_data[irq_offset].msk_shift;
-	msk_offset = intc2_data[irq_offset].msk_offset;
-
-	ctrl_outl(1 << msk_shift,
-		  INTC2_BASE + INTC2_INTMSK_OFFSET + msk_offset);
+	struct intc2_data *p = get_irq_chip_data(irq);
+	ctrl_outl(1 << p->msk_shift,
+		  INTC2_BASE + INTC2_INTMSK_OFFSET + p->msk_offset);
 }
 
 static void enable_intc2_irq(unsigned int irq)
 {
-	int irq_offset = irq - INTC2_FIRST_IRQ;
-	int msk_shift, msk_offset;
-
-	/* Sanity check */
-	if (unlikely(irq_offset < 0 || irq_offset >= NR_INTC2_IRQS))
-		return;
-
-	msk_shift = intc2_data[irq_offset].msk_shift;
-	msk_offset = intc2_data[irq_offset].msk_offset;
-
-	ctrl_outl(1 << msk_shift,
-		  INTC2_BASE + INTC2_INTMSKCLR_OFFSET + msk_offset);
+	struct intc2_data *p = get_irq_chip_data(irq);
+	ctrl_outl(1 << p->msk_shift,
+		  INTC2_BASE + INTC2_INTMSKCLR_OFFSET + p->msk_offset);
 }
 
-static void mask_and_ack_intc2(unsigned int irq)
-{
-	disable_intc2_irq(irq);
-}
-
-static void end_intc2_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_intc2_irq(irq);
-
-	if (unlikely(intc2_data[irq - INTC2_FIRST_IRQ].clear_irq))
-		intc2_data[irq - INTC2_FIRST_IRQ].clear_irq(irq);
-}
+static struct irq_chip intc2_irq_chip = {
+	.typename	= "intc2",
+	.mask		= disable_intc2_irq,
+	.unmask		= enable_intc2_irq,
+	.mask_ack	= disable_intc2_irq,
+};
 
 /*
  * Setup an INTC2 style interrupt.
@@ -108,46 +47,30 @@ static void end_intc2_irq(unsigned int irq)
  *                         |     |             |  |
  *    make_intc2_irq(84,   0,   16,            0, 13);
  */
-void make_intc2_irq(unsigned int irq,
-		    unsigned int ipr_offset, unsigned int ipr_shift,
-		    unsigned int msk_offset, unsigned int msk_shift,
-		    unsigned int priority)
+void make_intc2_irq(struct intc2_data *p)
 {
-	int irq_offset = irq - INTC2_FIRST_IRQ;
 	unsigned int flags;
 	unsigned long ipr;
 
-	if (unlikely(irq_offset < 0 || irq_offset >= NR_INTC2_IRQS))
-		return;
-
-	disable_irq_nosync(irq);
-
-	/* Fill the data we need */
-	intc2_data[irq_offset].msk_offset = msk_offset;
-	intc2_data[irq_offset].msk_shift  = msk_shift;
-	intc2_data[irq_offset].clear_irq = NULL;
+	disable_irq_nosync(p->irq);
 
 	/* Set the priority level */
 	local_irq_save(flags);
 
-	ipr = ctrl_inl(INTC2_BASE + INTC2_INTPRI_OFFSET + ipr_offset);
-	ipr &= ~(0xf << ipr_shift);
-	ipr |= priority << ipr_shift;
-	ctrl_outl(ipr, INTC2_BASE + INTC2_INTPRI_OFFSET + ipr_offset);
+	ipr = ctrl_inl(INTC2_BASE + INTC2_INTPRI_OFFSET + p->ipr_offset);
+	ipr &= ~(0xf << p->ipr_shift);
+	ipr |= p->priority << p->ipr_shift;
+	ctrl_outl(ipr, INTC2_BASE + INTC2_INTPRI_OFFSET + p->ipr_offset);
 
 	local_irq_restore(flags);
 
-	irq_desc[irq].chip = &intc2_irq_type;
+	set_irq_chip_and_handler(p->irq, &intc2_irq_chip, handle_level_irq);
+	set_irq_chip_data(p->irq, p);
 
-	disable_intc2_irq(irq);
+	enable_intc2_irq(p->irq);
 }
 
-static struct intc2_init {
-	unsigned short irq;
-	unsigned char ipr_offset, ipr_shift;
-	unsigned char msk_offset, msk_shift;
-	unsigned char priority;
-} intc2_init_data[]  __initdata = {
+static struct intc2_data intc2_irq_table[] = {
 #if defined(CONFIG_CPU_SUBTYPE_ST40)
 	{64,  0,  0, 0,  0, 13},	/* PCI serr */
 	{65,  0,  4, 0,  1, 13},	/* PCI err */
@@ -266,19 +189,6 @@ void __init init_IRQ_intc2(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(intc2_init_data); i++) {
-		struct intc2_init *p = intc2_init_data + i;
-		make_intc2_irq(p->irq, p->ipr_offset, p->ipr_shift,
-			       p-> msk_offset, p->msk_shift, p->priority);
-	}
+	for (i = 0; i < ARRAY_SIZE(intc2_irq_table); i++)
+		make_intc2_irq(intc2_irq_table + i);
 }
-
-/* Adds a termination callback to the interrupt */
-void intc2_add_clear_irq(int irq, int (*fn)(int))
-{
-	if (unlikely(irq < INTC2_FIRST_IRQ))
-		return;
-
-	intc2_data[irq - INTC2_FIRST_IRQ].clear_irq = fn;
-}
-

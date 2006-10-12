@@ -69,7 +69,6 @@ static void __init pci_write_config(unsigned long busNo,
 
 static unsigned char m_irq_mask = 0xfb;
 static unsigned char s_irq_mask = 0xff;
-volatile unsigned long irq_err_count;
 
 static void disable_mpc1211_irq(unsigned int irq)
 {
@@ -118,7 +117,7 @@ static void mask_and_ack_mpc1211(unsigned int irq)
 	if(irq < 8) {
 		if(m_irq_mask & (1<<irq)){
 		  if(!mpc1211_irq_real(irq)){
-		    irq_err_count++;
+		    atomic_inc(&irq_err_count)
 		    printk("spurious 8259A interrupt: IRQ %x\n",irq);
 		   }
 		} else {
@@ -131,7 +130,7 @@ static void mask_and_ack_mpc1211(unsigned int irq)
 	} else {
 		if(s_irq_mask & (1<<(irq - 8))){
 		  if(!mpc1211_irq_real(irq)){
-		    irq_err_count++;
+		    atomic_inc(&irq_err_count);
 		    printk("spurious 8259A interrupt: IRQ %x\n",irq);
 		  }
 		} else {

@@ -45,6 +45,9 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_IOMAP
 	bool
 
+config GENERIC_TIME
+	def_bool n
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 
@@ -357,6 +360,7 @@ config CPU_HAS_SR_RB
 endmenu
 
 menu "Timer support"
+depends on !GENERIC_TIME
 
 config SH_TMU
 	bool "TMU timer support"

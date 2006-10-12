@@ -161,7 +161,7 @@ static char * pci_commands[16]={
 	"Memory Write-and-Invalidate"
 };
 
-static irqreturn_t st40_pci_irq(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t st40_pci_irq(int irq, void *dev_instance)
 {
 	unsigned pci_int, pci_air, pci_cir, pci_aint;
 	static int count=0;

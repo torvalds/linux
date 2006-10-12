@@ -155,7 +155,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	 */
 	pr_debug("PCI: Mapping IO address 0x%x - 0x%x to base 0x%x\n",
 		 PCIBIOS_MIN_IO, (64 << 10),
-		 SH4_PCI_IO_BASE + PCIBIOS_MIN_IO);
+		 SH7751_PCI_IO_BASE + PCIBIOS_MIN_IO);
 
 	/*
 	 * XXX: For now, leave this board-specific. In the event we have other
@@ -163,7 +163,7 @@ int __init sh7751_pcic_init(struct sh4_pci_address_map *map)
 	 */
 #ifdef CONFIG_SH_BIGSUR
 	bigsur_port_map(PCIBIOS_MIN_IO, (64 << 10),
-			SH4_PCI_IO_BASE + PCIBIOS_MIN_IO, 0);
+			SH7751_PCI_IO_BASE + PCIBIOS_MIN_IO, 0);
 #endif
 
 	/* Make sure the MSB's of IO window are set to access PCI space
