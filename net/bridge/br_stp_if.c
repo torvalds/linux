@@ -113,6 +113,8 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	del_timer(&p->forward_delay_timer);
 	del_timer(&p->hold_timer);
 
+	br_fdb_delete_by_port(br, p, 0);
+
 	br_configuration_update(br);
 
 	br_port_state_selection(br);

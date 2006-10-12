@@ -128,7 +128,10 @@ void br_fdb_cleanup(unsigned long _data)
 	mod_timer(&br->gc_timer, jiffies + HZ/10);
 }
 
-void br_fdb_delete_by_port(struct net_bridge *br, struct net_bridge_port *p)
+
+void br_fdb_delete_by_port(struct net_bridge *br,
+			   const struct net_bridge_port *p,
+			   int do_all)
 {
 	int i;
 
@@ -142,6 +145,8 @@ void br_fdb_delete_by_port(struct net_bridge *br, struct net_bridge_port *p)
 			if (f->dst != p) 
 				continue;
 
+			if (f->is_static && !do_all)
+				continue;
 			/*
 			 * if multiple ports all have the same device address
 			 * then when one port is deleted, assign
