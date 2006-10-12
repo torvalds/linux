@@ -759,7 +759,12 @@ static int hub_configure(struct usb_hub *hub,
 		dev_dbg(hub_dev, "%sover-current condition exists\n",
 			(hubstatus & HUB_STATUS_OVERCURRENT) ? "" : "no ");
 
-	/* set up the interrupt endpoint */
+	/* set up the interrupt endpoint
+	 * We use the EP's maxpacket size instead of (PORTS+1+7)/8
+	 * bytes as USB2.0[11.12.3] says because some hubs are known
+	 * to send more data (and thus cause overflow). For root hubs,
+	 * maxpktsize is defined in hcd.c's fake endpoint descriptors
+	 * to be big enough for at least USB_MAXCHILDREN ports. */
 	pipe = usb_rcvintpipe(hdev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(hdev, pipe, usb_pipeout(pipe));
 
