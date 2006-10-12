@@ -548,7 +548,7 @@ static int receive_from_sock(void)
 	}
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	r = ret = kernel_recvmsg(sctp_con.sock, &msg, iov, 1, len,
+	r = ret = kernel_recvmsg(sctp_con.sock, &msg, iov, msg.msg_iovlen, len,
 				 MSG_NOSIGNAL | MSG_DONTWAIT);
 	if (ret <= 0)
 		goto out_close;
