@@ -1046,7 +1046,6 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_samsung_tcpn_2121p30a_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_ntsc_ranges),
-		.has_tda9887 = 1,
 	},
 };
 
