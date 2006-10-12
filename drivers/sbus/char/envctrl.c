@@ -20,16 +20,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
+#include <linux/syscalls.h>
 
 #include <asm/ebus.h>
 #include <asm/uaccess.h>

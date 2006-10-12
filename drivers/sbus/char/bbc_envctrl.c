@@ -4,10 +4,8 @@
  * Copyright (C) 2001 David S. Miller (davem@redhat.com)
  */
 
-#include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
+#include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <asm/oplib.h>
 #include <asm/ebus.h>
