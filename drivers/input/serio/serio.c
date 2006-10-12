@@ -118,6 +118,8 @@ static int serio_match_port(const struct serio_device_id *ids, struct serio *ser
 
 static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 {
+	int error;
+
 	down_write(&serio_bus.subsys.rwsem);
 
 	if (serio_match_port(drv->id_table, serio)) {
@@ -126,9 +128,19 @@ static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 			serio->dev.driver = NULL;
 			goto out;
 		}
-		device_bind_driver(&serio->dev);
+		error = device_bind_driver(&serio->dev);
+		if (error) {
+			printk(KERN_WARNING
+				"serio: device_bind_driver() failed "
+				"for %s (%s) and %s, error: %d\n",
+				serio->phys, serio->name,
+				drv->description, error);
+			serio_disconnect_driver(serio);
+			serio->dev.driver = NULL;
+			goto out;
+		}
 	}
-out:
+ out:
 	up_write(&serio_bus.subsys.rwsem);
 }
 
