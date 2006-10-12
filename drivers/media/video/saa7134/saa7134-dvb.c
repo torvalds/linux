@@ -1210,6 +1210,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &philips_tiger_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;
 			dev->dvb.frontend->ops.tuner_ops.init = asus_p7131_dual_tuner_init;
 			dev->dvb.frontend->ops.tuner_ops.sleep = asus_p7131_dual_tuner_sleep;
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tiger_tuner_set_params;
