@@ -602,7 +602,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		goto errout;
 	}
 
-	err = rtnl_unicast(skb, NETLINK_CB(skb).pid);
+	err = rtnl_unicast(nskb, NETLINK_CB(skb).pid);
 errout:
 	kfree(iw_buf);
 	dev_put(dev);
