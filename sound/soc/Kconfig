@@ -23,6 +23,7 @@ config SND_SOC
 menu "SoC Platforms"
 depends on SND_SOC
 source "sound/soc/at91/Kconfig"
+source "sound/soc/pxa/Kconfig"
 endmenu
 
 # Supported codecs
