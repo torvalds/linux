@@ -106,6 +106,17 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 	return rc;
 }
 
+static void AdjustForTZ(struct cifsTconInfo * tcon, struct inode * inode)
+{
+	if((tcon) && (tcon->ses) && (tcon->ses->server)) {
+		inode->i_ctime.tv_sec += tcon->ses->server.timeAdj;
+		inode->i_mtime.tv_sec += tcon->ses->server.timeAdj;
+		inode->i_atime.tv_sec += tcon->ses->server.timeAdj;
+	}
+	return;
+}
+
+
 static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		char * buf, int *pobject_type, int isNewInode)
 {
@@ -148,7 +159,7 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
                 tmp_inode->i_ctime = cnvrtDosUnixTm(
                                 le16_to_cpu(pfindData->LastWriteDate),
                                 le16_to_cpu(pfindData->LastWriteTime));
-
+		AdjustForTZ(cifs_sb->tcon, tmp_inode);
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
 		end_of_file = le32_to_cpu(pfindData->DataSize);

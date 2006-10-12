@@ -942,7 +942,7 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		cERROR(1,("illegal date, month %d day: %d", month, days));
 	month -= 1;
 	days += total_days_of_prev_months[month];
-	days += 3653; /* account for difference in days between 1980 and 1970 */
+	days += 3652; /* account for difference in days between 1980 and 1970 */
 	year = sd->Year;
 	days += year * 365;
 	days += (year/4); /* leap year */
