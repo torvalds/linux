@@ -338,6 +338,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		pfindData = (FILE_ALL_INFO *)buf;
 		/* could do find first instead but this returns more info */
 		rc = CIFSSMBQPathInfo(xid, pTcon, search_path, pfindData,
+			      0 /* not legacy */,
 			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 		/* BB optimize code so we do not make the above call
@@ -385,8 +386,10 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* get new inode */
 		if (*pinode == NULL) {
 			*pinode = new_inode(sb);
-			if (*pinode == NULL)
+			if (*pinode == NULL) {
+				kfree(buf);
 				return -ENOMEM;
+			}
 			/* Is an i_ino of zero legal? Can we use that to check
 			   if the server supports returning inode numbers?  Are
 			   there other sanity checks we can use to ensure that

@@ -2969,6 +2969,7 @@ int
 CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 		 const unsigned char *searchName,
 		 FILE_ALL_INFO * pFindData,
+		 int legacy /* old style infolevel */,
 		 const struct nls_table *nls_codepage, int remap)
 {
 /* level 263 SMB_QUERY_FILE_ALL_INFO */
@@ -3017,7 +3018,10 @@ QPathInfoRetry:
 	byte_count = params + 1 /* pad */ ;
 	pSMB->TotalParameterCount = cpu_to_le16(params);
 	pSMB->ParameterCount = pSMB->TotalParameterCount;
-	pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_FILE_ALL_INFO);
+	if(legacy)
+		pSMB->InformationLevel = cpu_to_le16(SMB_INFO_STANDARD);
+	else
+		pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_FILE_ALL_INFO);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
 	pSMB->ByteCount = cpu_to_le16(byte_count);
@@ -3029,13 +3033,24 @@ QPathInfoRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < 40)) 
+		if (rc) /* BB add auto retry on EOPNOTSUPP? */
+			rc = -EIO;
+		else if (!legacy && (pSMBr->ByteCount < 40)) 
 			rc = -EIO;	/* bad smb */
+		else if(legacy && (pSMBr->ByteCount < 24))
+			rc = -EIO;  /* 24 or 26 expected but we do not read last field */
 		else if (pFindData){
+			int size;
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+			if(legacy) /* we do not read the last field, EAsize, fortunately
+					   since it varies by subdialect and on Set vs. Get, is  
+					   two bytes or 4 bytes depending but we don't care here */
+				size = sizeof(FILE_INFO_STANDARD);
+			else
+				size = sizeof(FILE_ALL_INFO);
 			memcpy((char *) pFindData,
 			       (char *) &pSMBr->hdr.Protocol +
-			       data_offset, sizeof (FILE_ALL_INFO));
+			       data_offset, size);
 		} else
 		    rc = -ENOMEM;
 	}
