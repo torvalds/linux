@@ -660,7 +660,7 @@ next:
 		}
 		if (old_vector >= 0) {
 			int old_cpu;
-			for_each_cpu_mask(old_cpu, domain)
+			for_each_cpu_mask(old_cpu, irq_domain[irq])
 				per_cpu(vector_irq, old_cpu)[old_vector] = -1;
 		}
 		for_each_cpu_mask(new_cpu, domain)
