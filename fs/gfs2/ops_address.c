@@ -162,7 +162,7 @@ static int zero_readpage(struct page *page)
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 
 	SetPageUptodate(page);
 
@@ -195,7 +195,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
 	       ip->i_di.di_size);
 	memset(kaddr + ip->i_di.di_size, 0, PAGE_CACHE_SIZE - ip->i_di.di_size);
-	kunmap_atomic(page, KM_USER0);
+	kunmap_atomic(kaddr, KM_USER0);
 
 	brelse(dibh);
 
@@ -485,7 +485,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		kaddr = kmap_atomic(page, KM_USER0);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode) + from,
 		       kaddr + from, to - from);
-		kunmap_atomic(page, KM_USER0);
+		kunmap_atomic(kaddr, KM_USER0);
 
 		SetPageUptodate(page);
 
