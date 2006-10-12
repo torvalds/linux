@@ -268,6 +268,8 @@ static inline int lockdep_internal(void)
 		do { (void)(key); } while (0)
 #define lockdep_set_class_and_subclass(lock, key, sub) \
 		do { (void)(key); } while (0)
+#define lockdep_set_subclass(lock, sub)		do { } while (0)
+
 # define INIT_LOCKDEP
 # define lockdep_reset()		do { debug_locks = 1; } while (0)
 # define lockdep_free_key_range(start, size)	do { } while (0)
