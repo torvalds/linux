@@ -441,14 +441,14 @@ update_bridge_base(struct pci_bus *bus, int i)
 		end = res->end - off;
 		io_base_lo = (start >> 8) & PCI_IO_RANGE_MASK;
 		io_limit_lo = (end >> 8) & PCI_IO_RANGE_MASK;
-		if (end > 0xffff) {
-			pci_write_config_word(dev, PCI_IO_BASE_UPPER16,
-					      start >> 16);
-			pci_write_config_word(dev, PCI_IO_LIMIT_UPPER16,
-					      end >> 16);
+		if (end > 0xffff)
 			io_base_lo |= PCI_IO_RANGE_TYPE_32;
-		} else
+		else
 			io_base_lo |= PCI_IO_RANGE_TYPE_16;
+		pci_write_config_word(dev, PCI_IO_BASE_UPPER16,
+				start >> 16);
+		pci_write_config_word(dev, PCI_IO_LIMIT_UPPER16,
+				end >> 16);
 		pci_write_config_byte(dev, PCI_IO_BASE, io_base_lo);
 		pci_write_config_byte(dev, PCI_IO_LIMIT, io_limit_lo);
 
