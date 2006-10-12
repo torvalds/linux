@@ -336,6 +336,7 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 		snprintf(ir->c.name, sizeof(ir->c.name), "Pinnacle PCTV");
 		if (pinnacle_remote == 0) {
 			ir->get_key   = get_key_pinnacle_color;
