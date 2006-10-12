@@ -894,6 +894,16 @@ static struct tda1004x_config pinnacle_pctv_310i_config = {
 
 /* ------------------------------------------------------------------ */
 
+static struct tda1004x_config asus_p7131_dual_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.if_freq       = TDA10046_FREQ_045,
+	.request_firmware = philips_tda1004x_request_firmware,
+};
+
 static int asus_p7131_dual_tuner_init(struct dvb_frontend *fe)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
@@ -1207,7 +1217,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 		dev->dvb.frontend = dvb_attach(tda10046_attach,
-					       &philips_tiger_config,
+					       &asus_p7131_dual_config,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dev->dvb.frontend->ops.i2c_gate_ctrl = tda8290_i2c_gate_ctrl;

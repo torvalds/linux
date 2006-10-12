@@ -2462,14 +2462,17 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 1,
 			.amux = TV,
 			.tv   = 1,
+			.gpio = 0x0000000,
 		},{
 			.name = name_comp1,
 			.vmux = 3,
 			.amux = LINE2,
+			.gpio = 0x0200000,
 		},{
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE2,
+			.gpio = 0x0200000,
 		}},
 		.radio = {
 			.name = name_radio,
@@ -3718,6 +3721,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0x9715,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_STUDIO_507,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x4876,
+		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
