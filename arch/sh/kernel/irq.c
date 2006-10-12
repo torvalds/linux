@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -26,6 +27,7 @@ atomic_t irq_err_count;
  */
 void ack_bad_irq(unsigned int irq)
 {
+	atomic_inc(&irq_err_count);
 	printk("unexpected IRQ trap at vector %02x\n", irq);
 }
 
@@ -85,7 +87,7 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      struct pt_regs regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(&regs);
-	int irq = r4;
+	int irq;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
 #endif
@@ -109,20 +111,9 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_CPU_HAS_INTEVT
-	__asm__ __volatile__ (
-#ifdef CONFIG_CPU_HAS_SR_RB
-		"stc	r2_bank, %0\n\t"
+	irq = (ctrl_inl(INTEVT) >> 5) - 16;
 #else
-		"mov.l	@%1, %0\n\t"
-#endif
-		"shlr2	%0\n\t"
-		"shlr2	%0\n\t"
-		"shlr	%0\n\t"
-		"add	#-16, %0\n\t"
-		: "=z" (irq), "=r" (r4)
-		: "1" (INTEVT)
-		: "memory"
-	);
+	irq = r4;
 #endif
 
 	irq = irq_demux(irq);
@@ -147,9 +138,9 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		__asm__ __volatile__ (
 			"mov	%0, r4		\n"
 			"mov	r15, r9		\n"
-			"jsr	@%2		\n"
+			"jsr	@%1		\n"
 			/* swith to the irq stack */
-			" mov	%3, r15		\n"
+			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
 			"mov	r9, r15		\n"
 			: /* no outputs */
