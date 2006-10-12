@@ -30,7 +30,7 @@ target(struct sk_buff **pskb,
 {
 	const struct ipt_tos_target_info *tosinfo = targinfo;
 	struct iphdr *iph = (*pskb)->nh.iph;
-	__be16 oldtos;
+	u_int16_t oldtos;
 
 	if ((iph->tos & IPTOS_TOS_MASK) != tosinfo->tos) {
 		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
@@ -38,8 +38,8 @@ target(struct sk_buff **pskb,
 		iph = (*pskb)->nh.iph;
 		oldtos = iph->tos;
 		iph->tos = (iph->tos & IPTOS_PREC_MASK) | tosinfo->tos;
-		iph->check = nf_csum_update(oldtos ^ htons(0xFFFF), iph->tos,
-					    iph->check);
+		iph->check = nf_csum_update(htons(oldtos) ^ htons(0xFFFF),
+					    htons(iph->tos), iph->check);
 	}
 	return IPT_CONTINUE;
 }
