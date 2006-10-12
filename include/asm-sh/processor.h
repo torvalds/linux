@@ -255,6 +255,8 @@ extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
  */
 #define thread_saved_pc(tsk)	(tsk->thread.pc)
 
+void show_trace(struct task_struct *tsk, unsigned long *sp,
+		struct pt_regs *regs);
 extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
