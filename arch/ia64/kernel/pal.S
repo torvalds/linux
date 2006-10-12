@@ -50,12 +50,10 @@ END(ia64_pal_default_handler)
  *
  * in0         Index of PAL service
  * in1 - in3   Remaining PAL arguments
- * in4	       1 ==> clear psr.ic,  0 ==> don't clear psr.ic
- *
  */
 GLOBAL_ENTRY(ia64_pal_call_static)
-	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(5)
-	alloc loc1 = ar.pfs,5,5,0,0
+	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(4)
+	alloc loc1 = ar.pfs,4,5,0,0
 	movl loc2 = pal_entry_point
 1:	{
 	  mov r28 = in0
@@ -64,7 +62,6 @@ GLOBAL_ENTRY(ia64_pal_call_static)
 	}
 	;;
 	ld8 loc2 = [loc2]		// loc2 <- entry point
-	tbit.nz p6,p7 = in4, 0
 	adds r8 = 1f-1b,r8
 	mov loc4=ar.rsc			// save RSE configuration
 	;;
@@ -74,13 +71,11 @@ GLOBAL_ENTRY(ia64_pal_call_static)
 	.body
 	mov r30 = in2
 
-(p6)	rsm psr.i | psr.ic
 	mov r31 = in3
 	mov b7 = loc2
 
-(p7)	rsm psr.i
+	rsm psr.i
 	;;
-(p6)	srlz.i
 	mov rp = r8
 	br.cond.sptk.many b7
 1:	mov psr.l = loc3
