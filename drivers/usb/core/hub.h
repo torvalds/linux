@@ -229,7 +229,7 @@ struct usb_hub {
 	unsigned		resume_root_hub:1;
 
 	unsigned		has_indicators:1;
-	enum hub_led_mode	indicator[USB_MAXCHILDREN];
+	u8			indicator[USB_MAXCHILDREN];
 	struct work_struct	leds;
 };
 
