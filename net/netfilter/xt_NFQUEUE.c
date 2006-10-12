@@ -68,7 +68,7 @@ static int __init xt_nfqueue_init(void)
 
 static void __exit xt_nfqueue_fini(void)
 {
-	xt_register_targets(xt_nfqueue_target, ARRAY_SIZE(xt_nfqueue_target));
+	xt_unregister_targets(xt_nfqueue_target, ARRAY_SIZE(xt_nfqueue_target));
 }
 
 module_init(xt_nfqueue_init);
