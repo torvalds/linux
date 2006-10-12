@@ -12,7 +12,7 @@
 #include <asm/fpu.h>
 #include <asm/machvec.h>
 
-#include <asm/unistd.h>
+#include <linux/syscalls.h>
 
 /* these are C runtime functions with special calling conventions: */
 extern void __divl (void);
