@@ -905,7 +905,8 @@ P:	David Teigland
 M:	teigland@redhat.com
 L:	cluster-devel@redhat.com
 W:	http://sources.redhat.com/cluster/
-T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
 S:	Supported
 
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
@@ -1188,7 +1189,8 @@ P:	Steven Whitehouse
 M:	swhiteho@redhat.com
 L:	cluster-devel@redhat.com
 W:	http://sources.redhat.com/cluster/
-T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
 S:	Supported
 
 GIGASET ISDN DRIVERS
