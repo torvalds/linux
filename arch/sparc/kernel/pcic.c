@@ -34,6 +34,7 @@
 #include <asm/pcic.h>
 #include <asm/timer.h>
 #include <asm/uaccess.h>
+#include <asm/irq_regs.h>
 
 
 unsigned int pcic_pin_to_irq(unsigned int pin, char *name);

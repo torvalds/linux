@@ -121,16 +121,6 @@ static struct console prom_debug_console = {
 	.index =	-1,
 };
 
-int obp_system_intr(void)
-{
-	if (boot_flags & BOOTME_DEBUG) {
-		printk("OBP: system interrupted\n");
-		prom_halt();
-		return 1;
-	}
-	return 0;
-}
-
 /* 
  * Process kernel command line switches that are specific to the
  * SPARC or that require special low-level processing.
