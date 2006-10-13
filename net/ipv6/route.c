@@ -2246,7 +2246,6 @@ struct rt6_proc_arg
 static int rt6_info_route(struct rt6_info *rt, void *p_arg)
 {
 	struct rt6_proc_arg *arg = (struct rt6_proc_arg *) p_arg;
-	int i;
 
 	if (arg->skip < arg->offset / RT6_INFO_LEN) {
 		arg->skip++;
@@ -2256,38 +2255,28 @@ static int rt6_info_route(struct rt6_info *rt, void *p_arg)
 	if (arg->len >= arg->length)
 		return 0;
 
-	for (i=0; i<16; i++) {
-		sprintf(arg->buffer + arg->len, "%02x",
-			rt->rt6i_dst.addr.s6_addr[i]);
-		arg->len += 2;
-	}
-	arg->len += sprintf(arg->buffer + arg->len, " %02x ",
+	arg->len += sprintf(arg->buffer + arg->len,
+			    NIP6_SEQFMT " %02x ",
+			    NIP6(rt->rt6i_dst.addr),
 			    rt->rt6i_dst.plen);
 
 #ifdef CONFIG_IPV6_SUBTREES
-	for (i=0; i<16; i++) {
-		sprintf(arg->buffer + arg->len, "%02x",
-			rt->rt6i_src.addr.s6_addr[i]);
-		arg->len += 2;
-	}
-	arg->len += sprintf(arg->buffer + arg->len, " %02x ",
+	arg->len += sprintf(arg->buffer + arg->len,
+			    NIP6_SEQFMT " %02x ",
+			    NIP6(rt->rt6i_src.addr),
 			    rt->rt6i_src.plen);
 #else
-	sprintf(arg->buffer + arg->len,
-		"00000000000000000000000000000000 00 ");
-	arg->len += 36;
+	arg->len += sprintf(arg->buffer + arg->len,
+			    "00000000000000000000000000000000 00 ");
 #endif
 
 	if (rt->rt6i_nexthop) {
-		for (i=0; i<16; i++) {
-			sprintf(arg->buffer + arg->len, "%02x",
-				rt->rt6i_nexthop->primary_key[i]);
-			arg->len += 2;
-		}
+		arg->len += sprintf(arg->buffer + arg->len,
+				    NIP6_SEQFMT,
+				    NIP6(*((struct in6_addr *)rt->rt6i_nexthop->primary_key)));
 	} else {
-		sprintf(arg->buffer + arg->len,
-			"00000000000000000000000000000000");
-		arg->len += 32;
+		arg->len += sprintf(arg->buffer + arg->len,
+				    "00000000000000000000000000000000");
 	}
 	arg->len += sprintf(arg->buffer + arg->len,
 			    " %08x %08x %08x %08x %8s\n",
