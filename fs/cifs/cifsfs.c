@@ -63,6 +63,7 @@ extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
 extern struct task_struct * dnotifyThread; /* remove sparse warning */
 struct task_struct * dnotifyThread = NULL;
+static struct super_operations cifs_super_ops; 
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -198,10 +199,12 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
     /* Only need to call the old QFSInfo if failed
     on newer one */
     if(rc)
-	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
+	if(pTcon->ses->capabilities & CAP_NT_SMBS)
+		rc = CIFSSMBQFSInfo(xid, pTcon, buf); /* not supported by OS2 */
 
-	/* Old Windows servers do not support level 103, retry with level 
-	   one if old server failed the previous call */ 
+	/* Some old Windows servers also do not support level 103, retry with
+	   older level one if old server failed the previous call or we
+	   bypassed it because we detected that this was an older LANMAN sess */
 	if(rc)
 		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
@@ -435,13 +438,21 @@ static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 	return;
 }
 
+#ifdef CONFIG_CIFS_STATS2
+static int cifs_show_stats(struct seq_file *s, struct vfsmount *mnt)
+{
+	/* BB FIXME */
+	return 0;
+}
+#endif
+
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
 	*flags |= MS_NODIRATIME;
 	return 0;
 }
 
-struct super_operations cifs_super_ops = {
+static struct super_operations cifs_super_ops = {
 	.read_inode = cifs_read_inode,
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
@@ -454,6 +465,9 @@ struct super_operations cifs_super_ops = {
 	.show_options = cifs_show_options,
 	.umount_begin   = cifs_umount_begin,
 	.remount_fs = cifs_remount,
+#ifdef CONFIG_CIFS_STATS2
+	.show_stats = cifs_show_stats,
+#endif
 };
 
 static int
@@ -495,7 +509,7 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 {
 	/* origin == SEEK_END => we must revalidate the cached file length */
-	if (origin == 2) {
+	if (origin == SEEK_END) {
 		int retval = cifs_revalidate(file->f_dentry);
 		if (retval < 0)
 			return (loff_t)retval;
@@ -903,7 +917,7 @@ init_cifs(void)
 #ifdef CONFIG_PROC_FS
 	cifs_proc_init();
 #endif
-	INIT_LIST_HEAD(&GlobalServerList);	/* BB not implemented yet */
+/*	INIT_LIST_HEAD(&GlobalServerList);*/	/* BB not implemented yet */
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
@@ -931,6 +945,7 @@ init_cifs(void)
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
+	memset(Local_System_Name, 0, 15);
 	rwlock_init(&GlobalSMBSeslock);
 	spin_lock_init(&GlobalMid_Lock);
 

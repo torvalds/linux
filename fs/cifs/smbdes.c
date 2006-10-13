@@ -364,20 +364,20 @@ E_P24(unsigned char *p21, unsigned char *c8, unsigned char *p24)
 	smbhash(p24 + 16, c8, p21 + 14, 1);
 }
 
-void
+#if 0 /* currently unsued */
+static void
 D_P16(unsigned char *p14, unsigned char *in, unsigned char *out)
 {
 	smbhash(out, in, p14, 0);
 	smbhash(out + 8, in + 8, p14 + 7, 0);
 }
 
-void
+static void
 E_old_pw_hash(unsigned char *p14, unsigned char *in, unsigned char *out)
 {
 	smbhash(out, in, p14, 1);
 	smbhash(out + 8, in + 8, p14 + 7, 1);
 }
-#if 0
 /* these routines are currently unneeded, but may be
 	needed later */
 void
