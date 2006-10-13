@@ -28,6 +28,9 @@ struct dib3000mc_config {
 	u16 max_time;
 	u16 ln_adc_level;
 
+	u8 agc_command1 :1;
+	u8 agc_command2 :1;
+
 	u8 mobile_mode;
 
 	u8 output_mpeg2_in_188_bytes;
