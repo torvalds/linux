@@ -26,6 +26,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/pfn.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
