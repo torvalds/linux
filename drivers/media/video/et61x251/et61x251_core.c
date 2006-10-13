@@ -973,16 +973,32 @@ static CLASS_DEVICE_ATTR(i2c_val, S_IRUGO | S_IWUSR,
 			 et61x251_show_i2c_val, et61x251_store_i2c_val);
 
 
-static void et61x251_create_sysfs(struct et61x251_device* cam)
+static int et61x251_create_sysfs(struct et61x251_device* cam)
 {
 	struct video_device *v4ldev = cam->v4ldev;
+	int rc;
 
-	video_device_create_file(v4ldev, &class_device_attr_reg);
-	video_device_create_file(v4ldev, &class_device_attr_val);
+	rc = video_device_create_file(v4ldev, &class_device_attr_reg);
+	if (rc) goto err;
+	rc = video_device_create_file(v4ldev, &class_device_attr_val);
+	if (rc) goto err_reg;
 	if (cam->sensor.sysfs_ops) {
-		video_device_create_file(v4ldev, &class_device_attr_i2c_reg);
-		video_device_create_file(v4ldev, &class_device_attr_i2c_val);
+		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_reg);
+		if (rc) goto err_val;
+		rc = video_device_create_file(v4ldev, &class_device_attr_i2c_val);
+		if (rc) goto err_i2c_reg;
 	}
+
+	return 0;
+
+err_i2c_reg:
+	video_device_remove_file(v4ldev, &class_device_attr_i2c_reg);
+err_val:
+	video_device_remove_file(v4ldev, &class_device_attr_val);
+err_reg:
+	video_device_remove_file(v4ldev, &class_device_attr_reg);
+err:
+	return rc;
 }
 #endif /* CONFIG_VIDEO_ADV_DEBUG */
 
@@ -2534,7 +2550,9 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	dev_nr = (dev_nr < ET61X251_MAX_DEVICES-1) ? dev_nr+1 : 0;
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	et61x251_create_sysfs(cam);
+	err = et61x251_create_sysfs(cam);
+	if (err)
+		goto fail2;
 	DBG(2, "Optional device control through 'sysfs' interface ready");
 #endif
 
@@ -2544,6 +2562,13 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	return 0;
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+fail2:
+	video_nr[dev_nr] = -1;
+	dev_nr = (dev_nr < ET61X251_MAX_DEVICES-1) ? dev_nr+1 : 0;
+	mutex_unlock(&cam->dev_mutex);
+	video_unregister_device(cam->v4ldev);
+#endif
 fail:
 	if (cam) {
 		kfree(cam->control_buffer);
