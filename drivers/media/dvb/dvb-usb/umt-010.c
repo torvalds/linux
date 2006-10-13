@@ -99,21 +99,21 @@ static struct dvb_usb_device_properties umt_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
-	.frontend_attach  = umt_mt352_frontend_attach,
-	.tuner_attach     = umt_tuner_attach,
+			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+			.frontend_attach  = umt_mt352_frontend_attach,
+			.tuner_attach     = umt_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 20,
-		.endpoint = 0x06,
-		.u = {
-			.bulk = {
-				.buffersize = 512,
-			}
-		}
-	},
+				.count = 20,
+				.endpoint = 0x06,
+				.u = {
+					.bulk = {
+						.buffersize = 512,
+					}
+				}
+			},
 
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}

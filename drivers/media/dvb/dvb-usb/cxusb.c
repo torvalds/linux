@@ -529,20 +529,20 @@ static struct dvb_usb_device_properties cxusb_medion_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = cxusb_streaming_ctrl,
-	.frontend_attach  = cxusb_cx22702_frontend_attach,
-	.tuner_attach     = cxusb_fmd1216me_tuner_attach,
-	/* parameter for the MPEG2-data transfer */
-			.stream = {
-				.type = USB_BULK,
-		.count = 5,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_cx22702_frontend_attach,
+			.tuner_attach     = cxusb_fmd1216me_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
+					.stream = {
+						.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 
 		},
 	},
@@ -575,21 +575,21 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = cxusb_streaming_ctrl,
-	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
-	.tuner_attach     = cxusb_lgdt3303_tuner_attach,
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_lgdt3303_frontend_attach,
+			.tuner_attach     = cxusb_lgdt3303_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
-			.stream = {
-				.type = USB_BULK,
-		.count = 5,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+			/* parameter for the MPEG2-data transfer */
+					.stream = {
+						.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		},
 	},
 
@@ -627,20 +627,20 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = cxusb_streaming_ctrl,
-	.frontend_attach  = cxusb_dee1601_frontend_attach,
-	.tuner_attach     = cxusb_dee1601_tuner_attach,
-	/* parameter for the MPEG2-data transfer */
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_dee1601_frontend_attach,
+			.tuner_attach     = cxusb_dee1601_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 5,
-		.endpoint = 0x04,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+				.count = 5,
+				.endpoint = 0x04,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		},
 	},
 
@@ -686,21 +686,21 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties = {
 	.num_adapters = 2,
 	.adapter = {
 		{
-	.streaming_ctrl   = cxusb_streaming_ctrl,
-	.frontend_attach  = cxusb_mt352_frontend_attach,
-	.tuner_attach     = cxusb_lgz201_tuner_attach,
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_mt352_frontend_attach,
+			.tuner_attach     = cxusb_lgz201_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 5,
-		.endpoint = 0x04,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+				.count = 5,
+				.endpoint = 0x04,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		},
 	},
 	.power_ctrl       = cxusb_bluebird_power_ctrl,
@@ -736,21 +736,21 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.streaming_ctrl   = cxusb_streaming_ctrl,
-	.frontend_attach  = cxusb_mt352_frontend_attach,
-	.tuner_attach     = cxusb_dtt7579_tuner_attach,
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_mt352_frontend_attach,
+			.tuner_attach     = cxusb_dtt7579_tuner_attach,
 
-	/* parameter for the MPEG2-data transfer */
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 5,
-		.endpoint = 0x04,
-		.u = {
-			.bulk = {
-				.buffersize = 8192,
-			}
-		}
-	},
+				.count = 5,
+				.endpoint = 0x04,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
 		},
 	},
 	.power_ctrl       = cxusb_bluebird_power_ctrl,

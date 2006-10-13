@@ -217,18 +217,18 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-	.frontend_attach  = vp7045_frontend_attach,
-	/* parameter for the MPEG2-data transfer */
+			.frontend_attach  = vp7045_frontend_attach,
+			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
-		.count = 7,
-		.endpoint = 0x02,
-		.u = {
-			.bulk = {
-				.buffersize = 4096,
-			}
-		}
-	},
+				.count = 7,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
 		}
 	},
 	.power_ctrl       = vp7045_power_ctrl,
