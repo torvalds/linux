@@ -190,6 +190,13 @@ UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0370,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_MAX_SECTORS_64 ),
 
+/* Reported by Alex Corcoles <alex@corcoles.net> */
+UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
+		"Nokia",
+		"6234",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
 		"SMSC",
