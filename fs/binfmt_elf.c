@@ -1152,7 +1152,7 @@ static int dump_write(struct file *file, const void *addr, int nr)
 static int dump_seek(struct file *file, loff_t off)
 {
 	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
-		if (file->f_op->llseek(file, off, 1) != off)
+		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
 			return 0;
 	} else {
 		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
