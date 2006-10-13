@@ -101,14 +101,6 @@ ia64_do_tlb_purge:
 	;;
 	srlz.d
 	;;
-	// 2. Purge DTR for PERCPU data.
-	movl r16=PERCPU_ADDR
-	mov r18=PERCPU_PAGE_SHIFT<<2
-	;;
-	ptr.d r16,r18
-	;;
-	srlz.d
-	;;
 	// 3. Purge ITR for PAL code.
 	GET_THIS_PADDR(r2, ia64_mca_pal_base)
 	;;
@@ -194,22 +186,6 @@ ia64_reload_tr:
         itr.d dtr[r16]=r18
         ;;
 	srlz.i
-	srlz.d
-	;;
-	// 2. Reload DTR register for PERCPU data.
-	GET_THIS_PADDR(r2, ia64_mca_per_cpu_pte)
-	;;
-	movl r16=PERCPU_ADDR		// vaddr
-	movl r18=PERCPU_PAGE_SHIFT<<2
-	;;
-	mov cr.itir=r18
-	mov cr.ifa=r16
-	;;
-	ld8 r18=[r2]			// load per-CPU PTE
-	mov r16=IA64_TR_PERCPU_DATA;
-	;;
-	itr.d dtr[r16]=r18
-	;;
 	srlz.d
 	;;
 	// 3. Reload ITR for PAL code.

@@ -374,6 +374,7 @@ ENTRY(alt_dtlb_miss)
 	movl r19=(((1 << IA64_MAX_PHYS_BITS) - 1) & ~0xfff)
 	mov r21=cr.ipsr
 	mov r31=pr
+	mov r24=PERCPU_ADDR
 	;;
 #ifdef CONFIG_DISABLE_VHPT
 	shr.u r22=r16,61			// get the region number into r21
@@ -386,22 +387,30 @@ ENTRY(alt_dtlb_miss)
 (p8)	mov r29=b0				// save b0
 (p8)	br.cond.dptk dtlb_fault
 #endif
+	cmp.ge p10,p11=r16,r24			// access to per_cpu_data?
+	tbit.z p12,p0=r16,61			// access to region 6?
+	mov r25=PERCPU_PAGE_SHIFT << 2
+	mov r26=PERCPU_PAGE_SIZE
+	nop.m 0
+	nop.b 0
+	;;
+(p10)	mov r19=IA64_KR(PER_CPU_DATA)
+(p11)	and r19=r19,r16				// clear non-ppn fields
 	extr.u r23=r21,IA64_PSR_CPL0_BIT,2	// extract psr.cpl
 	and r22=IA64_ISR_CODE_MASK,r20		// get the isr.code field
 	tbit.nz p6,p7=r20,IA64_ISR_SP_BIT	// is speculation bit on?
-	shr.u r18=r16,57			// move address bit 61 to bit 4
-	and r19=r19,r16				// clear ed, reserved bits, and PTE control bits
 	tbit.nz p9,p0=r20,IA64_ISR_NA_BIT	// is non-access bit on?
 	;;
-	andcm r18=0x10,r18	// bit 4=~address-bit(61)
+(p10)	sub r19=r19,r26
+(p10)	mov cr.itir=r25
 	cmp.ne p8,p0=r0,r23
 (p9)	cmp.eq.or.andcm p6,p7=IA64_ISR_CODE_LFETCH,r22	// check isr.code field
+(p12)	dep r17=-1,r17,4,1			// set ma=UC for region 6 addr
 (p8)	br.cond.spnt page_fault
 
 	dep r21=-1,r21,IA64_PSR_ED_BIT,1
-	or r19=r19,r17		// insert PTE control bits into r19
 	;;
-	or r19=r19,r18		// set bit 4 (uncached) if the access was to region 6
+	or r19=r19,r17		// insert PTE control bits into r19
 (p6)	mov cr.ipsr=r21
 	;;
 (p7)	itc.d r19		// insert the TLB entry
