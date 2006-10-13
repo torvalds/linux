@@ -1141,9 +1141,9 @@ smp_apic_timer_interrupt(struct pt_regs *regs)
 fastcall void
 smp_qic_timer_interrupt(struct pt_regs *regs)
 {
-	ack_QIC_CPI(QIC_TIMER_CPI);
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	wrapper_smp_local_timer_interrupt(void);
+	ack_QIC_CPI(QIC_TIMER_CPI);
+	wrapper_smp_local_timer_interrupt();
 	set_irq_regs(old_regs);
 }
 
@@ -1267,12 +1267,10 @@ smp_send_stop(void)
 /* this function is triggered in time.c when a clock tick fires
  * we need to re-broadcast the tick to all CPUs */
 void
-smp_vic_timer_interrupt(struct pt_regs *regs)
+smp_vic_timer_interrupt(void)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	send_CPI_allbutself(VIC_TIMER_CPI);
 	smp_local_timer_interrupt();
-	set_irq_regs(old_regs);
 }
 
 /* local (per CPU) timer interrupt.  It does both profiling and
@@ -1307,7 +1305,7 @@ smp_local_timer_interrupt(void)
 						per_cpu(prof_counter, cpu);
 		}
 
-		update_process_times(user_mode_vm(irq_regs));
+		update_process_times(user_mode_vm(get_irq_regs()));
 	}
 
 	if( ((1<<cpu) & voyager_extended_vic_processors) == 0)
