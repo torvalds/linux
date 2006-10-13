@@ -52,9 +52,9 @@ static struct snd_soc_dai_mode at91rm9200_i2s[] = {
 
 	/* 8k: BCLK = (MCLK/10) = (60MHz/50) = 1.2MHz */
 	{
-		.fmt = AT91RM9200_I2S_DAIFMT, 
-		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE, 
-		.pcmrate = SNDRV_PCM_RATE_8000, 
+		.fmt = AT91RM9200_I2S_DAIFMT,
+		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE,
+		.pcmrate = SNDRV_PCM_RATE_8000,
 		.pcmdir = AT91RM9200_I2S_DIR,
 		.flags = SND_SOC_DAI_BFS_DIV,
 		.fs = 1500,
@@ -63,38 +63,38 @@ static struct snd_soc_dai_mode at91rm9200_i2s[] = {
 	},
 
 	/* 16k: BCLK = (MCLK/3) ~= (60MHz/14) = 4.285714MHz */
-	{ 
+	{
 		.fmt = AT91RM9200_I2S_DAIFMT,
 		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE,
 		.pcmrate = SNDRV_PCM_RATE_16000,
 		.pcmdir = AT91RM9200_I2S_DIR,
-		.flags = SND_SOC_DAI_BFS_DIV, 
-		.fs = 750, 
+		.flags = SND_SOC_DAI_BFS_DIV,
+		.fs = 750,
 		.bfs = SND_SOC_FSBD(3),
 		.flags (7 << 16 | 133),
 	},
 
 	/* 24k: BCLK = (MCLK/10) = (60MHz/50) = 1.2MHz */
-	{ 
+	{
 		.fmt = AT91RM9200_I2S_DAIFMT,
-		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE, 
-		.pcmrate = SNDRV_PCM_RATE_22050, 
+		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE,
+		.pcmrate = SNDRV_PCM_RATE_22050,
 		.pcmdir = AT91RM9200_I2S_DIR,
-		.flags = SND_SOC_DAI_BFS_DIV, 
-		.fs = 500, 
-		.bfs = SND_SOC_FSBD(10), 
+		.flags = SND_SOC_DAI_BFS_DIV,
+		.fs = 500,
+		.bfs = SND_SOC_FSBD(10),
 		.priv = (25 << 16 | 24),
 	},
 
 	/* 48kHz: BCLK = (MCLK/5) ~= (60MHz/26) = 2.3076923MHz */
-	{ 
+	{
 		.fmt = AT91RM9200_I2S_DAIFMT,
 		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE,
-		.pcmrate = SNDRV_PCM_RATE_48000, 
+		.pcmrate = SNDRV_PCM_RATE_48000,
 		.pcmdir = AT91RM9200_I2S_DIR,
-		.flags = SND_SOC_DAI_BFS_DIV, 
-		.fs = 250, 
-		.bfs SND_SOC_FSBD(5), 
+		.flags = SND_SOC_DAI_BFS_DIV,
+		.fs = 250,
+		.bfs SND_SOC_FSBD(5),
 		.priv = (13 << 16 | 23),
 	},
 };
