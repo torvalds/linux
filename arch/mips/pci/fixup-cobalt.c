@@ -94,22 +94,21 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 #if 0
 	if (galileo_id >= 0x10) {
 		/* New Galileo, assumes PCI stop line to VIA is connected. */
-		GALILEO_OUTL(0x4020, GT_PCI0_TOR_OFS);
+		GT_WRITE(GT_PCI0_TOR_OFS, 0x4020);
 	} else if (galileo_id == 0x1 || galileo_id == 0x2)
 #endif
 	{
 		signed int timeo;
 		/* XXX WE MUST DO THIS ELSE GALILEO LOCKS UP! -DaveM */
-		timeo = GALILEO_INL(GT_PCI0_TOR_OFS);
+		timeo = GT_READ(GT_PCI0_TOR_OFS);
 		/* Old Galileo, assumes PCI STOP line to VIA is disconnected. */
-		GALILEO_OUTL(
+		GT_WRITE(GT_PCI0_TOR_OFS,
 			(0xff << 16) |		/* retry count */
 			(0xff << 8) |		/* timeout 1   */
-			0xff,			/* timeout 0   */
-			GT_PCI0_TOR_OFS);
+			0xff);			/* timeout 0   */
 
 		/* enable PCI retry exceeded interrupt */
-		GALILEO_OUTL(GALILEO_INTR_RETRY_CTR | GALILEO_INL(GT_INTRMASK_OFS), GT_INTRMASK_OFS);
+		GT_WRITE(GT_INTRMASK_OFS, GT_INTR_RETRYCTR0_MSK | GT_READ(GT_INTRMASK_OFS));
 	}
 }
 
