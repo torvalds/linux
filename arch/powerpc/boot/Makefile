@@ -94,13 +94,13 @@ $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S
 $(obj)/wrapper.a: $(obj-wlib)
 	$(call cmd,bootar)
 
-hostprogs-y	:= addnote addRamDisk hack-coff
+hostprogs-y	:= addnote addRamDisk hack-coff mktree
 
 extra-y		:= $(obj)/crt0.o $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff)
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree)
 
 #############
 # Bits for building various flavours of zImage
