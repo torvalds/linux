@@ -5119,7 +5119,7 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x009f,
 	  .config = ALC883_ACER },
 	{ .pci_subvendor = 0x161f, .pci_subdevice = 0x2054,
-	  .modelname = "medion", .config = ALC883_MEDION }
+	  .modelname = "medion", .config = ALC883_MEDION },
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };
