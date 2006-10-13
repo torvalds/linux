@@ -99,7 +99,9 @@
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
 	int mt2060_present;
+};
 
+struct dibusb_device_state {
 	/* for RC5 remote control */
 	int old_toggle;
 	int last_repeat_count;

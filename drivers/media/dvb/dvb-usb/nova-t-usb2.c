@@ -75,7 +75,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	u8 key[5],cmd[2] = { DIBUSB_REQ_POLL_REMOTE, 0x35 }, data,toggle,custom;
 	u16 raw;
 	int i;
-	struct dibusb_state *st = d->priv;
+	struct dibusb_device_state *st = d->priv;
 
 	dvb_usb_generic_rw(d,cmd,2,key,5,0);
 
@@ -184,6 +184,7 @@ static struct dvb_usb_device_properties nova_t_properties = {
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},
+	.size_of_priv     = sizeof(struct dibusb_device_state),
 
 	.power_ctrl       = dibusb2_0_power_ctrl,
 	.read_mac_address = nova_t_read_mac_address,
