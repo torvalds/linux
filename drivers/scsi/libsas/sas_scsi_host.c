@@ -828,8 +828,14 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
 
-	if (qc->tf.protocol == ATA_PROT_DMA)
+	switch (qc->tf.protocol) {
+	case ATA_PROT_NCQ:
+		task->ata_task.use_ncq = 1;
+		/* fall through */
+	case ATA_PROT_DMA:
 		task->ata_task.dma_xfer = 1;
+		break;
+	}
 
 	if (sas_ha->lldd_max_execute_num < 2)
 		res = i->dft->lldd_execute_task(task, 1, GFP_ATOMIC);
@@ -962,7 +968,7 @@ static struct ata_port_operations sas_sata_ops = {
 
 static struct ata_port_info sata_port_info = {
 	.flags = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY | ATA_FLAG_SATA_RESET |
-		ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA,
+		ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA | ATA_FLAG_NCQ,
 	.pio_mask = 0x1f, /* PIO0-4 */
 	.mwdma_mask = 0x07, /* MWDMA0-2 */
 	.udma_mask = ATA_UDMA6,
@@ -1031,6 +1037,7 @@ int sas_target_alloc(struct scsi_target *starget)
 
 		ap->private_data = found_dev;
 		ap->cbl = ATA_CBL_SATA;
+		ap->scsi_host = shost;
 		found_dev->sata_dev.ap = ap;
 	}
 
