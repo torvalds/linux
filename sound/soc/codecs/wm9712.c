@@ -44,8 +44,11 @@ static int ac97_write(struct snd_soc_codec *codec,
 
 /* may need to expand this */
 static struct snd_soc_dai_mode ac97_modes[] = {
-	{0, 0,	SNDRV_PCM_FMTBIT_S16_LE,	AC97_RATES},
-	{0, 0,	SNDRV_PCM_FMTBIT_S18_3LE,	AC97_RATES},
+	{
+		.pcmfmt = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE,	
+		.pcmrate = AC97_RATES,
+		.pcmdir = AC97_DIR,
+	},
 };
 
 /*
