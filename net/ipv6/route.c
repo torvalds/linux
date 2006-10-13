@@ -529,12 +529,16 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 		.nl_u = {
 			.ip6_u = {
 				.daddr = *daddr,
-				/* TODO: saddr */
 			},
 		},
 	};
 	struct dst_entry *dst;
 	int flags = strict ? RT6_LOOKUP_F_IFACE : 0;
+
+	if (saddr) {
+		memcpy(&fl.fl6_src, saddr, sizeof(*saddr));
+		flags |= RT6_LOOKUP_F_HAS_SADDR;
+	}
 
 	dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_lookup);
 	if (dst->error == 0)
@@ -697,6 +701,7 @@ out2:
 void ip6_route_input(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = skb->nh.ipv6h;
+	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct flowi fl = {
 		.iif = skb->dev->ifindex,
 		.nl_u = {
@@ -711,7 +716,9 @@ void ip6_route_input(struct sk_buff *skb)
 		},
 		.proto = iph->nexthdr,
 	};
-	int flags = rt6_need_strict(&iph->daddr) ? RT6_LOOKUP_F_IFACE : 0;
+
+	if (rt6_need_strict(&iph->daddr))
+		flags |= RT6_LOOKUP_F_IFACE;
 
 	skb->dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_input);
 }
@@ -793,6 +800,9 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 
 	if (rt6_need_strict(&fl->fl6_dst))
 		flags |= RT6_LOOKUP_F_IFACE;
+
+	if (!ipv6_addr_any(&fl->fl6_src))
+		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
 	return fib6_rule_lookup(fl, flags, ip6_pol_route_output);
 }
@@ -1345,6 +1355,7 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 					   struct in6_addr *gateway,
 					   struct net_device *dev)
 {
+	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct ip6rd_flowi rdfl = {
 		.fl = {
 			.oif = dev->ifindex,
@@ -1357,7 +1368,9 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 		},
 		.gateway = *gateway,
 	};
-	int flags = rt6_need_strict(dest) ? RT6_LOOKUP_F_IFACE : 0;
+
+	if (rt6_need_strict(dest))
+		flags |= RT6_LOOKUP_F_IFACE;
 
 	return (struct rt6_info *)fib6_rule_lookup((struct flowi *)&rdfl, flags, __ip6_route_redirect);
 }
