@@ -1712,16 +1712,16 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	if (ha->eft)
 		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
 
+	ha->flags.online = 0;
+
 	/* Stop currently executing firmware. */
-	qla2x00_stop_firmware(ha);
+	qla2x00_try_to_stop_firmware(ha);
 
 	/* turn-off interrupts on the card */
 	if (ha->interrupts_on)
 		ha->isp_ops.disable_intrs(ha);
 
 	qla2x00_mem_free(ha);
-
-	ha->flags.online = 0;
 
 	/* Detach interrupts */
 	if (ha->host->irq)

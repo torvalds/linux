@@ -3948,3 +3948,24 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 fail_fw_integrity:
 	return QLA_FUNCTION_FAILED;
 }
+
+void
+qla2x00_try_to_stop_firmware(scsi_qla_host_t *ha)
+{
+	int ret, retries;
+
+	if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
+		return;
+
+	ret = qla2x00_stop_firmware(ha);
+	for (retries = 5; ret != QLA_SUCCESS && retries ; retries--) {
+		qla2x00_reset_chip(ha);
+		if (qla2x00_chip_diag(ha) != QLA_SUCCESS)
+			continue;
+		if (qla2x00_setup_chip(ha) != QLA_SUCCESS)
+			continue;
+		qla_printk(KERN_INFO, ha,
+		    "Attempting retry of stop-firmware command...\n");
+		ret = qla2x00_stop_firmware(ha);
+	}
+}
