@@ -104,6 +104,16 @@ name:
 #endif
 
 /*
+ * If physical stack register size is different from DEF_NUM_STACK_REG,
+ * dynamically patch the kernel for correct size.
+ */
+	.section ".data.patch.phys_stack_reg", "a"
+	.previous
+#define LOAD_PHYS_STACK_REG_SIZE(reg)			\
+[1:]	adds reg=IA64_NUM_PHYS_STACK_REG*8+8,r0;	\
+	.xdata4 ".data.patch.phys_stack_reg", 1b-.
+
+/*
  * Up until early 2004, use of .align within a function caused bad unwind info.
  * TEXT_ALIGN(n) expands into ".align n" if a fixed GAS is available or into nothing
  * otherwise.
