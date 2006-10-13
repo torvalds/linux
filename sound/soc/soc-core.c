@@ -575,10 +575,11 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	dbg("asoc: %s <-> %s info:\n", rtd->codec_dai->name, rtd->cpu_dai->name);
-	dbg("asoc: rate mask 0x%x \nasoc: min ch %d max ch %d\n"
-		"asoc: min rate %d max rate %d\n",
-		runtime->hw.rates, runtime->hw.channels_min,
-		runtime->hw.channels_max, runtime->hw.rate_min, runtime->hw.rate_max);
+	dbg("asoc: rate mask 0x%x\n", runtime->hw.rates);
+	dbg("asoc: min ch %d max ch %d\n", runtime->hw.channels_min,
+		runtime->hw.channels_max);
+	dbg("asoc: min rate %d max rate %d\n", runtime->hw.rate_min,
+		runtime->hw.rate_max);
 
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
