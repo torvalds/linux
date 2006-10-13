@@ -1220,7 +1220,7 @@ static int notesize(struct memelfnote *en)
 
 static int alignfile(struct file *file, loff_t *foffset)
 {
-	char buf[4] = { 0, };
+	static const char buf[4] = { 0, };
 	DUMP_WRITE(buf, roundup(*foffset, 4) - *foffset, foffset);
 	return 1;
 }
@@ -1569,7 +1569,8 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 
 	DUMP_WRITE(elf, sizeof(*elf));
 	offset += sizeof(*elf);				/* Elf header */
-	offset += (segs+1) * sizeof(struct elf_phdr);	/* Program headers */
+	offset += (segs + 1) * sizeof(struct elf_phdr); /* Program headers */
+	foffset = offset;
 
 	/* Write notes phdr entry */
 	{
@@ -1585,8 +1586,6 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		offset += sz;
 		DUMP_WRITE(&phdr, sizeof(phdr));
 	}
-
-	foffset = offset;
 
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
@@ -1612,7 +1611,6 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file)
 		phdr.p_align = ELF_EXEC_PAGESIZE;
 
 		DUMP_WRITE(&phdr, sizeof(phdr));
-		foffset += sizeof(phdr);
 	}
 
 #ifdef ELF_CORE_WRITE_EXTRA_PHDRS
