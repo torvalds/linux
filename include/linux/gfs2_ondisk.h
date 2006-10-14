@@ -405,6 +405,16 @@ struct gfs2_log_header {
 	__be32 lh_hash;
 };
 
+struct gfs2_log_header_host {
+	struct gfs2_meta_header lh_header;
+
+	__u64 lh_sequence;	/* Sequence number of this transaction */
+	__u32 lh_flags;	/* GFS2_LOG_HEAD_... */
+	__u32 lh_tail;		/* Block number of log tail */
+	__u32 lh_blkno;
+	__u32 lh_hash;
+};
+
 /*
  * Log type descriptor
  */
@@ -492,7 +502,7 @@ extern void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf);
 extern void gfs2_dinode_out(const struct gfs2_dinode_host *di, void *buf);
 extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
 extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
-extern void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf);
+extern void gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf);
 extern void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf);
 extern void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf);
 extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf);

@@ -251,7 +251,7 @@ void gfs2_dinode_print(const struct gfs2_dinode_host *di)
 	printk(KERN_INFO "  di_eattr = %llu\n", (unsigned long long)di->di_eattr);
 }
 
-void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf)
+void gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf)
 {
 	const struct gfs2_log_header *str = buf;
 

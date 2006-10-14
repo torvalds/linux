@@ -182,7 +182,7 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 }
 
 static void buf_lo_before_scan(struct gfs2_jdesc *jd,
-			       struct gfs2_log_header *head, int pass)
+			       struct gfs2_log_header_host *head, int pass)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
@@ -328,7 +328,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 }
 
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
-				  struct gfs2_log_header *head, int pass)
+				  struct gfs2_log_header_host *head, int pass)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 

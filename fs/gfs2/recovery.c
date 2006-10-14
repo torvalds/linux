@@ -132,10 +132,10 @@ void gfs2_revoke_clean(struct gfs2_sbd *sdp)
  */
 
 static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
-			  struct gfs2_log_header *head)
+			  struct gfs2_log_header_host *head)
 {
 	struct buffer_head *bh;
-	struct gfs2_log_header lh;
+	struct gfs2_log_header_host lh;
 	u32 hash;
 	int error;
 
@@ -143,7 +143,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 	if (error)
 		return error;
 
-	memcpy(&lh, bh->b_data, sizeof(struct gfs2_log_header));
+	memcpy(&lh, bh->b_data, sizeof(struct gfs2_log_header));	/* XXX */
 	lh.lh_hash = 0;
 	hash = gfs2_disk_hash((char *)&lh, sizeof(struct gfs2_log_header));
 	gfs2_log_header_in(&lh, bh->b_data);
@@ -174,7 +174,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
  */
 
 static int find_good_lh(struct gfs2_jdesc *jd, unsigned int *blk,
-			struct gfs2_log_header *head)
+			struct gfs2_log_header_host *head)
 {
 	unsigned int orig_blk = *blk;
 	int error;
@@ -205,10 +205,10 @@ static int find_good_lh(struct gfs2_jdesc *jd, unsigned int *blk,
  * Returns: errno
  */
 
-static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
+static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 {
 	unsigned int blk = head->lh_blkno;
-	struct gfs2_log_header lh;
+	struct gfs2_log_header_host lh;
 	int error;
 
 	for (;;) {
@@ -245,9 +245,9 @@ static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
  * Returns: errno
  */
 
-int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
+int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 {
-	struct gfs2_log_header lh_1, lh_m;
+	struct gfs2_log_header_host lh_1, lh_m;
 	u32 blk_1, blk_2, blk_m;
 	int error;
 
@@ -320,7 +320,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 		length = be32_to_cpu(ld->ld_length);
 
 		if (be32_to_cpu(ld->ld_header.mh_type) == GFS2_METATYPE_LH) {
-			struct gfs2_log_header lh;
+			struct gfs2_log_header_host lh;
 			error = get_log_header(jd, start, &lh);
 			if (!error) {
 				gfs2_replay_incr_blk(sdp, &start);
@@ -363,7 +363,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
  * Returns: errno
  */
 
-static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
+static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
@@ -425,7 +425,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	struct gfs2_log_header head;
+	struct gfs2_log_header_host head;
 	struct gfs2_holder j_gh, ji_gh, t_gh;
 	unsigned long t;
 	int ro = 0;

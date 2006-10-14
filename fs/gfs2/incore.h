@@ -41,7 +41,7 @@ struct gfs2_log_operations {
 	void (*lo_before_commit) (struct gfs2_sbd *sdp);
 	void (*lo_after_commit) (struct gfs2_sbd *sdp, struct gfs2_ail *ai);
 	void (*lo_before_scan) (struct gfs2_jdesc *jd,
-				struct gfs2_log_header *head, int pass);
+				struct gfs2_log_header_host *head, int pass);
 	int (*lo_scan_elements) (struct gfs2_jdesc *jd, unsigned int start,
 				 struct gfs2_log_descriptor *ld, __be64 *ptr,
 				 int pass);

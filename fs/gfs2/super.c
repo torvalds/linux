@@ -508,7 +508,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_holder t_gh;
-	struct gfs2_log_header head;
+	struct gfs2_log_header_host head;
 	int error;
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
@@ -873,7 +873,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
 	struct gfs2_jdesc *jd;
 	struct lfcc *lfcc;
 	LIST_HEAD(list);
-	struct gfs2_log_header lh;
+	struct gfs2_log_header_host lh;
 	int error;
 
 	error = gfs2_jindex_hold(sdp, &ji_gh);

@@ -491,7 +491,7 @@ static void trans_go_xmote_bh(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 	struct gfs2_glock *j_gl = ip->i_gl;
-	struct gfs2_log_header head;
+	struct gfs2_log_header_host head;
 	int error;
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
