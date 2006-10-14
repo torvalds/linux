@@ -68,7 +68,7 @@ struct gfs2_rgrpd {
 	struct list_head rd_recent;	/* Recently used rgrps */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	struct gfs2_rindex rd_ri;
-	struct gfs2_rgrp rd_rg;
+	struct gfs2_rgrp_host rd_rg;
 	u64 rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;

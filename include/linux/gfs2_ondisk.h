@@ -193,6 +193,15 @@ struct gfs2_rgrp {
 	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
 };
 
+struct gfs2_rgrp_host {
+	struct gfs2_meta_header rg_header;
+
+	__u32 rg_flags;
+	__u32 rg_free;
+	__u32 rg_dinodes;
+	__u64 rg_igeneration;
+};
+
 /*
  * quota structure
  */
@@ -470,8 +479,8 @@ extern void gfs2_inum_out(const struct gfs2_inum *no, void *buf);
 extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
 extern void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf);
 extern void gfs2_rindex_out(const struct gfs2_rindex *ri, void *buf);
-extern void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf);
-extern void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf);
+extern void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf);
+extern void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf);
 extern void gfs2_quota_in(struct gfs2_quota *qu, const void *buf);
 extern void gfs2_quota_out(const struct gfs2_quota *qu, void *buf);
 extern void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf);

@@ -120,7 +120,7 @@ void gfs2_rindex_print(const struct gfs2_rindex *ri)
 	pv(ri, ri_bitbytes, "%u");
 }
 
-void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf)
+void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf)
 {
 	const struct gfs2_rgrp *str = buf;
 
@@ -131,7 +131,7 @@ void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf)
 	rg->rg_igeneration = be64_to_cpu(str->rg_igeneration);
 }
 
-void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf)
+void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
 
