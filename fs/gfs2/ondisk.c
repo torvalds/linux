@@ -297,7 +297,7 @@ void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf)
 	str->sc_dinodes = cpu_to_be64(sc->sc_dinodes);
 }
 
-void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf)
+void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf)
 {
 	const struct gfs2_quota_change *str = buf;
 

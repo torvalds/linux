@@ -517,6 +517,12 @@ struct gfs2_quota_change {
 	__be32 qc_id;
 };
 
+struct gfs2_quota_change_host {
+	__u64 qc_change;
+	__u32 qc_flags;	/* GFS2_QCF_... */
+	__u32 qc_id;
+};
+
 #ifdef __KERNEL__
 /* Translation functions */
 
@@ -537,7 +543,7 @@ extern void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf)
 extern void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf);
 extern void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf);
 extern void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf);
-extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);
+extern void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf);
 
 /* Printing functions */
 

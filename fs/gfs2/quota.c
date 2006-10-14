@@ -1103,7 +1103,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
 		     y++, slot++) {
-			struct gfs2_quota_change qc;
+			struct gfs2_quota_change_host qc;
 			struct gfs2_quota_data *qd;
 
 			gfs2_quota_change_in(&qc, bh->b_data +
