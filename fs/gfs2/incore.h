@@ -229,7 +229,7 @@ struct gfs2_inode {
 	unsigned long i_flags;		/* GIF_... */
 
 	u64 i_vn;
-	struct gfs2_dinode i_di; /* To be replaced by ref to block */
+	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */
 
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;

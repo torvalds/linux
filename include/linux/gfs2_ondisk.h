@@ -275,41 +275,34 @@ struct gfs2_dinode_host {
 
 	struct gfs2_inum di_num;
 
-	__be32 di_mode;	/* mode of file */
-	__be32 di_uid;	/* owner's user id */
-	__be32 di_gid;	/* owner's group id */
-	__be32 di_nlink;	/* number of links to this file */
-	__be64 di_size;	/* number of bytes in file */
-	__be64 di_blocks;	/* number of blocks in file */
-	__be64 di_atime;	/* time last accessed */
-	__be64 di_mtime;	/* time last modified */
-	__be64 di_ctime;	/* time last changed */
-	__be32 di_major;	/* device major number */
-	__be32 di_minor;	/* device minor number */
+	__u32 di_mode;	/* mode of file */
+	__u32 di_uid;	/* owner's user id */
+	__u32 di_gid;	/* owner's group id */
+	__u32 di_nlink;	/* number of links to this file */
+	__u64 di_size;	/* number of bytes in file */
+	__u64 di_blocks;	/* number of blocks in file */
+	__u64 di_atime;	/* time last accessed */
+	__u64 di_mtime;	/* time last modified */
+	__u64 di_ctime;	/* time last changed */
+	__u32 di_major;	/* device major number */
+	__u32 di_minor;	/* device minor number */
 
 	/* This section varies from gfs1. Padding added to align with
          * remainder of dinode
 	 */
-	__be64 di_goal_meta;	/* rgrp to alloc from next */
-	__be64 di_goal_data;	/* data block goal */
-	__be64 di_generation;	/* generation number for NFS */
+	__u64 di_goal_meta;	/* rgrp to alloc from next */
+	__u64 di_goal_data;	/* data block goal */
+	__u64 di_generation;	/* generation number for NFS */
 
-	__be32 di_flags;	/* GFS2_DIF_... */
-	__be32 di_payload_format;  /* GFS2_FORMAT_... */
-	__u16 __pad1;	/* Was ditype in gfs1 */
-	__be16 di_height;	/* height of metadata */
-	__u32 __pad2;	/* Unused incarnation number from gfs1 */
+	__u32 di_flags;	/* GFS2_DIF_... */
+	__u32 di_payload_format;  /* GFS2_FORMAT_... */
+	__u16 di_height;	/* height of metadata */
 
 	/* These only apply to directories  */
-	__u16 __pad3;	/* Padding */
-	__be16 di_depth;	/* Number of bits in the table */
-	__be32 di_entries;	/* The number of entries in the directory */
+	__u16 di_depth;	/* Number of bits in the table */
+	__u32 di_entries;	/* The number of entries in the directory */
 
-	struct gfs2_inum __pad4; /* Unused even in current gfs1 */
-
-	__be64 di_eattr;	/* extended attribute block number */
-
-	__u8 di_reserved[56];
+	__u64 di_eattr;	/* extended attribute block number */
 };
 
 /*
