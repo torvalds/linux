@@ -316,13 +316,16 @@ config I8XX_TCO
 	  To compile this driver as a module, choose M here: the
 	  module will be called i8xx_tco.
 
+	  Note: This driver will be removed in the near future. Please
+	  use the Intel TCO Timer/Watchdog driver.
+
 config ITCO_WDT
-	tristate "Intel TCO Timer/Watchdog (EXPERIMENTAL)"
-	depends on WATCHDOG && (X86 || IA64) && PCI && EXPERIMENTAL
+	tristate "Intel TCO Timer/Watchdog"
+	depends on WATCHDOG && (X86 || IA64) && PCI
 	---help---
 	  Hardware driver for the intel TCO timer based watchdog devices.
 	  These drivers are included in the Intel 82801 I/O Controller
-	  Hub family 'from ICH0 up to ICH7) and in the Intel 6300ESB
+	  Hub family (from ICH0 up to ICH8) and in the Intel 6300ESB
 	  controller hub.
 
 	  The TCO (Total Cost of Ownership) timer is a watchdog timer
@@ -590,7 +593,7 @@ config SH_WDT_MMAP
 	help
 	  If you say Y here, user applications will be able to mmap the
 	  WDT/CPG registers.
-#
+
 # SPARC64 Architecture
 
 config WATCHDOG_CP1XXX
