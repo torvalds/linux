@@ -48,7 +48,7 @@
 void gfs2_inode_attr_in(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
-	struct gfs2_dinode *di = &ip->i_di;
+	struct gfs2_dinode_host *di = &ip->i_di;
 
 	inode->i_ino = ip->i_num.no_addr;
 
@@ -98,7 +98,7 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 void gfs2_inode_attr_out(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
-	struct gfs2_dinode *di = &ip->i_di;
+	struct gfs2_dinode_host *di = &ip->i_di;
 	gfs2_assert_withdraw(GFS2_SB(inode),
 		(di->di_mode & S_IFMT) == (inode->i_mode & S_IFMT));
 	di->di_mode = inode->i_mode;

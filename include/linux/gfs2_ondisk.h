@@ -270,6 +270,48 @@ struct gfs2_dinode {
 	__u8 di_reserved[56];
 };
 
+struct gfs2_dinode_host {
+	struct gfs2_meta_header di_header;
+
+	struct gfs2_inum di_num;
+
+	__be32 di_mode;	/* mode of file */
+	__be32 di_uid;	/* owner's user id */
+	__be32 di_gid;	/* owner's group id */
+	__be32 di_nlink;	/* number of links to this file */
+	__be64 di_size;	/* number of bytes in file */
+	__be64 di_blocks;	/* number of blocks in file */
+	__be64 di_atime;	/* time last accessed */
+	__be64 di_mtime;	/* time last modified */
+	__be64 di_ctime;	/* time last changed */
+	__be32 di_major;	/* device major number */
+	__be32 di_minor;	/* device minor number */
+
+	/* This section varies from gfs1. Padding added to align with
+         * remainder of dinode
+	 */
+	__be64 di_goal_meta;	/* rgrp to alloc from next */
+	__be64 di_goal_data;	/* data block goal */
+	__be64 di_generation;	/* generation number for NFS */
+
+	__be32 di_flags;	/* GFS2_DIF_... */
+	__be32 di_payload_format;  /* GFS2_FORMAT_... */
+	__u16 __pad1;	/* Was ditype in gfs1 */
+	__be16 di_height;	/* height of metadata */
+	__u32 __pad2;	/* Unused incarnation number from gfs1 */
+
+	/* These only apply to directories  */
+	__u16 __pad3;	/* Padding */
+	__be16 di_depth;	/* Number of bits in the table */
+	__be32 di_entries;	/* The number of entries in the directory */
+
+	struct gfs2_inum __pad4; /* Unused even in current gfs1 */
+
+	__be64 di_eattr;	/* extended attribute block number */
+
+	__u8 di_reserved[56];
+};
+
 /*
  * directory structure - many of these per directory file
  */
@@ -422,8 +464,8 @@ extern void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf);
 extern void gfs2_rgrp_out(const struct gfs2_rgrp *rg, void *buf);
 extern void gfs2_quota_in(struct gfs2_quota *qu, const void *buf);
 extern void gfs2_quota_out(const struct gfs2_quota *qu, void *buf);
-extern void gfs2_dinode_in(struct gfs2_dinode *di, const void *buf);
-extern void gfs2_dinode_out(const struct gfs2_dinode *di, void *buf);
+extern void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf);
+extern void gfs2_dinode_out(const struct gfs2_dinode_host *di, void *buf);
 extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
 extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
 extern void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf);
@@ -436,7 +478,7 @@ extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);
 /* Printing functions */
 
 extern void gfs2_rindex_print(const struct gfs2_rindex *ri);
-extern void gfs2_dinode_print(const struct gfs2_dinode *di);
+extern void gfs2_dinode_print(const struct gfs2_dinode_host *di);
 
 #endif /* __KERNEL__ */
 
