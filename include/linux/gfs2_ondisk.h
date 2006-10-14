@@ -89,6 +89,12 @@ struct gfs2_meta_header {
 	__be32 __pad1;		/* Was incarnation number in gfs1 */
 };
 
+struct gfs2_meta_header_host {
+	__u32 mh_magic;
+	__u32 mh_type;
+	__u32 mh_format;
+};
+
 /*
  * super-block structure
  *
@@ -129,7 +135,7 @@ struct gfs2_sb {
 };
 
 struct gfs2_sb_host {
-	struct gfs2_meta_header sb_header;
+	struct gfs2_meta_header_host sb_header;
 
 	__u32 sb_fs_format;
 	__u32 sb_multihost_format;
@@ -194,7 +200,7 @@ struct gfs2_rgrp {
 };
 
 struct gfs2_rgrp_host {
-	struct gfs2_meta_header rg_header;
+	struct gfs2_meta_header_host rg_header;
 
 	__u32 rg_flags;
 	__u32 rg_free;
@@ -297,7 +303,7 @@ struct gfs2_dinode {
 };
 
 struct gfs2_dinode_host {
-	struct gfs2_meta_header di_header;
+	struct gfs2_meta_header_host di_header;
 
 	struct gfs2_inum di_num;
 
@@ -406,7 +412,7 @@ struct gfs2_log_header {
 };
 
 struct gfs2_log_header_host {
-	struct gfs2_meta_header lh_header;
+	struct gfs2_meta_header_host lh_header;
 
 	__u64 lh_sequence;	/* Sequence number of this transaction */
 	__u32 lh_flags;	/* GFS2_LOG_HEAD_... */

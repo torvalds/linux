@@ -54,7 +54,7 @@ static void gfs2_inum_print(const struct gfs2_inum *no)
 	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);
 }
 
-static void gfs2_meta_header_in(struct gfs2_meta_header *mh, const void *buf)
+static void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf)
 {
 	const struct gfs2_meta_header *str = buf;
 
@@ -63,7 +63,7 @@ static void gfs2_meta_header_in(struct gfs2_meta_header *mh, const void *buf)
 	mh->mh_format = be32_to_cpu(str->mh_format);
 }
 
-static void gfs2_meta_header_out(const struct gfs2_meta_header *mh, void *buf)
+static void gfs2_meta_header_out(const struct gfs2_meta_header_host *mh, void *buf)
 {
 	struct gfs2_meta_header *str = buf;
 
@@ -72,7 +72,7 @@ static void gfs2_meta_header_out(const struct gfs2_meta_header *mh, void *buf)
 	str->mh_format = cpu_to_be32(mh->mh_format);
 }
 
-static void gfs2_meta_header_print(const struct gfs2_meta_header *mh)
+static void gfs2_meta_header_print(const struct gfs2_meta_header_host *mh)
 {
 	pv(mh, mh_magic, "0x%.8X");
 	pv(mh, mh_type, "%u");
