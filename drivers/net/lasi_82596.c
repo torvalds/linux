@@ -384,7 +384,7 @@ struct i596_private {
 	struct device *dev;
 };
 
-static char init_setup[] =
+static const char init_setup[] =
 {
 	0x8E,			/* length, prefetch on */
 	0xC8,			/* fifo to 8, monitor off */
@@ -683,7 +683,7 @@ static int init_i596_mem(struct net_device *dev)
 	enable_irq(dev->irq);	/* enable IRQs from LAN */
 
 	DEB(DEB_INIT, printk("%s: queuing CmdConfigure\n", dev->name));
-	memcpy(lp->cf_cmd.i596_config, init_setup, 14);
+	memcpy(lp->cf_cmd.i596_config, init_setup, sizeof(init_setup));
 	lp->cf_cmd.cmd.command = CmdConfigure;
 	CHECK_WBACK(lp, &(lp->cf_cmd), sizeof(struct cf_cmd));
 	i596_add_cmd(dev, &lp->cf_cmd.cmd);
@@ -1156,32 +1156,12 @@ static int __devinit i82596_probe(struct net_device *dev,
 	dma_addr_t dma_addr;
 
 	/* This lot is ensure things have been cache line aligned. */
-	if (sizeof(struct i596_rfd) != 32) {
-	    printk("82596: sizeof(struct i596_rfd) = %d\n",
-			    (int)sizeof(struct i596_rfd));
-	    return -ENODEV;
-	}
-	if ((sizeof(struct i596_rbd) % 32) != 0) {
-	    printk("82596: sizeof(struct i596_rbd) = %d\n",
-			    (int)sizeof(struct i596_rbd));
-	    return -ENODEV;
-	}
-	if ((sizeof(struct tx_cmd) % 32) != 0) {
-	    printk("82596: sizeof(struct tx_cmd) = %d\n",
-			    (int)sizeof(struct tx_cmd));
-	    return -ENODEV;
-	}
-	if (sizeof(struct i596_tbd) != 32) {
-	    printk("82596: sizeof(struct i596_tbd) = %d\n",
-			    (int)sizeof(struct i596_tbd));
-	    return -ENODEV;
-	}
+	BUILD_BUG_ON(sizeof(struct i596_rfd) != 32);
+	BUILD_BUG_ON(sizeof(struct i596_rbd) &  31);
+	BUILD_BUG_ON(sizeof(struct tx_cmd)   &  31);
+	BUILD_BUG_ON(sizeof(struct i596_tbd) != 32);
 #ifndef __LP64__
-	if (sizeof(struct i596_private) > 4096) {
-	    printk("82596: sizeof(struct i596_private) = %d\n",
-			    (int)sizeof(struct i596_private));
-	    return -ENODEV;
-	}
+	BUILD_BUG_ON(sizeof(struct i596_private) > 4096);
 #endif
 
 	if (!dev->base_addr || !dev->irq)
