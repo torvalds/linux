@@ -1130,7 +1130,7 @@ static struct notifier_block acpi_processor_latency_notifier = {
 	.notifier_call = acpi_processor_latency_notify,
 };
 
-int acpi_processor_power_init(struct acpi_processor *pr,
+int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
 	acpi_status status = 0;

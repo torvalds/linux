@@ -216,9 +216,7 @@ static int acpi_power_off_device(acpi_handle handle)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
-	struct acpi_device *device = NULL;
 	struct acpi_power_resource *resource = NULL;
-
 
 	result = acpi_power_get_context(handle, &resource);
 	if (result)
@@ -230,13 +228,13 @@ static int acpi_power_off_device(acpi_handle handle)
 	if (resource->references) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Resource [%s] is still in use, dereferencing\n",
-				  device->pnp.bus_id));
+				  resource->device->pnp.bus_id));
 		return 0;
 	}
 
 	if (resource->state == ACPI_POWER_RESOURCE_STATE_OFF) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] already off\n",
-				  device->pnp.bus_id));
+				  resource->device->pnp.bus_id));
 		return 0;
 	}
 
@@ -251,8 +249,7 @@ static int acpi_power_off_device(acpi_handle handle)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
-	device = resource->device;
-	device->power.state = ACPI_STATE_D3;
+	resource->device->power.state = ACPI_STATE_D3;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned off\n",
 			  resource->name));
