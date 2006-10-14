@@ -131,16 +131,13 @@ struct gfs2_sb {
 struct gfs2_sb_host {
 	struct gfs2_meta_header sb_header;
 
-	__be32 sb_fs_format;
-	__be32 sb_multihost_format;
-	__u32  __pad0;	/* Was superblock flags in gfs1 */
+	__u32 sb_fs_format;
+	__u32 sb_multihost_format;
 
-	__be32 sb_bsize;
-	__be32 sb_bsize_shift;
-	__u32 __pad1;	/* Was journal segment size in gfs1 */
+	__u32 sb_bsize;
+	__u32 sb_bsize_shift;
 
 	struct gfs2_inum sb_master_dir; /* Was jindex dinode in gfs1 */
-	struct gfs2_inum __pad2; /* Was rindex dinode in gfs1 */
 	struct gfs2_inum sb_root_dir;
 
 	char sb_lockproto[GFS2_LOCKNAME_LEN];
