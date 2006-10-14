@@ -399,6 +399,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	struct TCP_Server_Info * server;
 	u16 count;
 	unsigned int secFlags;
+	u16 dialect;
 
 	if(ses->server)
 		server = ses->server;
@@ -438,9 +439,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	if (rc != 0) 
 		goto neg_err_exit;
 
-	cFYI(1,("Dialect: %d", pSMBr->DialectIndex));
+	dialect = le16_to_cpu(pSMBr->DialectIndex);
+	cFYI(1,("Dialect: %d", dialect));
 	/* Check wct = 1 error case */
-	if((pSMBr->hdr.WordCount < 13) || (pSMBr->DialectIndex == BAD_PROT)) {
+	if((pSMBr->hdr.WordCount < 13) || (dialect == BAD_PROT)) {
 		/* core returns wct = 1, but we do not ask for core - otherwise
 		small wct just comes when dialect index is -1 indicating we 
 		could not negotiate a common dialect */
@@ -448,8 +450,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		goto neg_err_exit;
 #ifdef CONFIG_CIFS_WEAK_PW_HASH 
 	} else if((pSMBr->hdr.WordCount == 13)
-			&& ((pSMBr->DialectIndex == LANMAN_PROT)
-				|| (pSMBr->DialectIndex == LANMAN2_PROT))) {
+			&& ((dialect == LANMAN_PROT)
+				|| (dialect == LANMAN2_PROT))) {
 		__s16 tmp;
 		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
 
@@ -2943,7 +2945,7 @@ QInfRetry:
 		ts.tv_nsec = 0;
 		ts.tv_sec = time;
 		/* decode time fields */
-		pFinfo->ChangeTime = cifs_UnixTimeToNT(ts);
+		pFinfo->ChangeTime = cpu_to_le64(cifs_UnixTimeToNT(ts));
 		pFinfo->LastWriteTime = pFinfo->ChangeTime;
 		pFinfo->LastAccessTime = 0;
 		pFinfo->AllocationSize =
