@@ -1194,7 +1194,7 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 			   int *copied)
 {
 	const struct gfs2_dirent *dent, *dent_next;
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	u64 off, off_next;
 	unsigned int x, y;
 	int run = 0;
@@ -1456,7 +1456,7 @@ out:
  */
 
 int gfs2_dir_search(struct inode *dir, const struct qstr *name,
-		    struct gfs2_inum *inum, unsigned int *type)
+		    struct gfs2_inum_host *inum, unsigned int *type)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
@@ -1531,7 +1531,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
  */
 
 int gfs2_dir_add(struct inode *inode, const struct qstr *name,
-		 const struct gfs2_inum *inum, unsigned type)
+		 const struct gfs2_inum_host *inum, unsigned type)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct buffer_head *bh;
@@ -1666,7 +1666,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
  */
 
 int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
-		   struct gfs2_inum *inum, unsigned int new_type)
+		   struct gfs2_inum_host *inum, unsigned int new_type)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;

@@ -139,7 +139,7 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
  */
 
 static int filldir_func(void *opaque, const char *name, unsigned int length,
-			u64 offset, struct gfs2_inum *inum,
+			u64 offset, struct gfs2_inum_host *inum,
 			unsigned int type)
 {
 	struct filldir_reg *fdr = (struct filldir_reg *)opaque;

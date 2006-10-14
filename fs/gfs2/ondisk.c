@@ -32,7 +32,7 @@
  * first arg: the cpu-order structure
  */
 
-void gfs2_inum_in(struct gfs2_inum *no, const void *buf)
+void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf)
 {
 	const struct gfs2_inum *str = buf;
 
@@ -40,7 +40,7 @@ void gfs2_inum_in(struct gfs2_inum *no, const void *buf)
 	no->no_addr = be64_to_cpu(str->no_addr);
 }
 
-void gfs2_inum_out(const struct gfs2_inum *no, void *buf)
+void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf)
 {
 	struct gfs2_inum *str = buf;
 
@@ -48,7 +48,7 @@ void gfs2_inum_out(const struct gfs2_inum *no, void *buf)
 	str->no_addr = cpu_to_be64(no->no_addr);
 }
 
-static void gfs2_inum_print(const struct gfs2_inum *no)
+static void gfs2_inum_print(const struct gfs2_inum_host *no)
 {
 	printk(KERN_INFO "  no_formal_ino = %llu\n", (unsigned long long)no->no_formal_ino);
 	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);

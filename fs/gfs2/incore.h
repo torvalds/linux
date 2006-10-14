@@ -224,7 +224,7 @@ enum {
 
 struct gfs2_inode {
 	struct inode i_inode;
-	struct gfs2_inum i_num;
+	struct gfs2_inum_host i_num;
 
 	unsigned long i_flags;		/* GIF_... */
 

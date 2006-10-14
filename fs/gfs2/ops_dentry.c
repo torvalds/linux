@@ -43,7 +43,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	struct inode *inode = dentry->d_inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip;
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	unsigned int type;
 	int error;
 

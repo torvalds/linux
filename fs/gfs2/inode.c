@@ -112,7 +112,7 @@ void gfs2_inode_attr_out(struct gfs2_inode *ip)
 static int iget_test(struct inode *inode, void *opaque)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_inum *inum = opaque;
+	struct gfs2_inum_host *inum = opaque;
 
 	if (ip && ip->i_num.no_addr == inum->no_addr)
 		return 1;
@@ -123,19 +123,19 @@ static int iget_test(struct inode *inode, void *opaque)
 static int iget_set(struct inode *inode, void *opaque)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_inum *inum = opaque;
+	struct gfs2_inum_host *inum = opaque;
 
 	ip->i_num = *inum;
 	return 0;
 }
 
-struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum *inum)
+struct inode *gfs2_ilookup(struct super_block *sb, struct gfs2_inum_host *inum)
 {
 	return ilookup5(sb, (unsigned long)inum->no_formal_ino,
 			iget_test, inum);
 }
 
-static struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum *inum)
+static struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum_host *inum)
 {
 	return iget5_locked(sb, (unsigned long)inum->no_formal_ino,
 		     iget_test, iget_set, inum);
@@ -150,7 +150,7 @@ static struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum *inum)
  * Returns: A VFS inode, or an error
  */
 
-struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum *inum, unsigned int type)
+struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum_host *inum, unsigned int type)
 {
 	struct inode *inode = gfs2_iget(sb, inum);
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -394,7 +394,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_holder d_gh;
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	unsigned int type;
 	int error = 0;
 	struct inode *inode = NULL;
@@ -610,7 +610,7 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 		*gid = current->fsgid;
 }
 
-static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum *inum,
+static int alloc_dinode(struct gfs2_inode *dip, struct gfs2_inum_host *inum,
 			u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
@@ -650,7 +650,7 @@ out:
  */
 
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
-			const struct gfs2_inum *inum, unsigned int mode,
+			const struct gfs2_inum_host *inum, unsigned int mode,
 			unsigned int uid, unsigned int gid,
 			const u64 *generation)
 {
@@ -707,7 +707,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 }
 
 static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
-		       unsigned int mode, const struct gfs2_inum *inum,
+		       unsigned int mode, const struct gfs2_inum_host *inum,
 		       const u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
@@ -866,7 +866,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	struct gfs2_inode *dip = ghs->gh_gl->gl_object;
 	struct inode *dir = &dip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	int error;
 	u64 generation;
 
@@ -1018,7 +1018,7 @@ int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 		   struct gfs2_inode *ip)
 {
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	unsigned int type;
 	int error;
 

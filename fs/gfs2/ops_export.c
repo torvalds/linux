@@ -35,7 +35,7 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     void *context)
 {
 	struct gfs2_fh_obj fh_obj;
-	struct gfs2_inum *this, parent;
+	struct gfs2_inum_host *this, parent;
 
 	if (fh_type != fh_len)
 		return NULL;
@@ -114,12 +114,12 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 }
 
 struct get_name_filldir {
-	struct gfs2_inum inum;
+	struct gfs2_inum_host inum;
 	char *name;
 };
 
 static int get_name_filldir(void *opaque, const char *name, unsigned int length,
-			    u64 offset, struct gfs2_inum *inum,
+			    u64 offset, struct gfs2_inum_host *inum,
 			    unsigned int type)
 {
 	struct get_name_filldir *gnfd = (struct get_name_filldir *)opaque;
@@ -202,7 +202,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_obj)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_fh_obj *fh_obj = (struct gfs2_fh_obj *)inum_obj;
-	struct gfs2_inum *inum = &fh_obj->this;
+	struct gfs2_inum_host *inum = &fh_obj->this;
 	struct gfs2_holder i_gh, ri_gh, rgd_gh;
 	struct gfs2_rgrpd *rgd;
 	struct inode *inode;
