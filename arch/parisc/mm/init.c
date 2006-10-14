@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>	/* for release_pages and page_cache_release */
 
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/pdc_chassis.h>
 #include <asm/mmzone.h>
@@ -453,6 +454,9 @@ unsigned long pcxl_dma_start __read_mostly;
 
 void __init mem_init(void)
 {
+	int codesize, reservedpages, datasize, initsize;
+	int tmp;
+
 	high_memory = __va((max_pfn << PAGE_SHIFT));
 
 #ifndef CONFIG_DISCONTIGMEM
@@ -466,8 +470,17 @@ void __init mem_init(void)
 			totalram_pages += free_all_bootmem_node(NODE_DATA(i));
 	}
 #endif
+	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
+	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
+	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
-	printk(KERN_INFO "Memory: %luk available\n", num_physpages << (PAGE_SHIFT-10));
+	reservedpages = 0;
+	for (tmp = 0; tmp < max_low_pfn; tmp++)
+		/*
+		 * Only count reserved RAM pages
+		 */
+		if (PageReserved(pfn_to_page(tmp)))
+			reservedpages++;
 
 #ifdef CONFIG_PA11
 	if (hppa_dma_ops == &pcxl_dma_ops) {
@@ -481,6 +494,39 @@ void __init mem_init(void)
 	vmalloc_start = SET_MAP_OFFSET(MAP_START);
 #endif
 
+	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
+		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
+		num_physpages << (PAGE_SHIFT-10),
+		codesize >> 10,
+		reservedpages << (PAGE_SHIFT-10),
+		datasize >> 10,
+		initsize >> 10,
+		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10))
+	       );
+
+#ifdef CONFIG_DEBUG_KERNEL /* double-sanity-check paranoia */
+	printk("virtual kernel memory layout:\n"
+	       "    vmalloc : 0x%p - 0x%p   (%4ld MB)\n"
+	       "    lowmem  : 0x%p - 0x%p   (%4ld MB)\n"
+	       "      .init : 0x%p - 0x%p   (%4ld kB)\n"
+	       "      .data : 0x%p - 0x%p   (%4ld kB)\n"
+	       "      .text : 0x%p - 0x%p   (%4ld kB)\n",
+
+	       (void*)VMALLOC_START, (void*)VMALLOC_END,
+	       (VMALLOC_END - VMALLOC_START) >> 20,
+
+	       __va(0), high_memory,
+	       ((unsigned long)high_memory - (unsigned long)__va(0)) >> 20,
+
+	       &__init_begin, &__init_end,
+	       ((unsigned long)&__init_end - (unsigned long)&__init_begin) >> 10,
+
+	       &_etext, &_edata,
+	       ((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
+
+	       &_text, &_etext,
+	       ((unsigned long)&_etext - (unsigned long)&_text) >> 10);
+#endif
 }
 
 unsigned long *empty_zero_page __read_mostly;
