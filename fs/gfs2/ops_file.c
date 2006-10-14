@@ -71,7 +71,7 @@ static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
 		size = count;
 
 	kaddr = kmap(page);
-	memcpy(desc->arg.buf, kaddr + offset, size);
+	memcpy(desc->arg.data, kaddr + offset, size);
 	kunmap(page);
 
 	desc->count = count - size;
@@ -86,7 +86,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 	struct inode *inode = &ip->i_inode;
 	read_descriptor_t desc;
 	desc.written = 0;
-	desc.arg.buf = buf;
+	desc.arg.data = buf;
 	desc.count = size;
 	desc.error = 0;
 	do_generic_mapping_read(inode->i_mapping, ra_state,
