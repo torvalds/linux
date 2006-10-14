@@ -815,7 +815,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	leaf = (struct gfs2_leaf *)bh->b_data;
 	leaf->lf_depth = cpu_to_be16(depth);
 	leaf->lf_entries = 0;
-	leaf->lf_dirent_format = cpu_to_be16(GFS2_FORMAT_DE);
+	leaf->lf_dirent_format = cpu_to_be32(GFS2_FORMAT_DE);
 	leaf->lf_next = 0;
 	memset(leaf->lf_reserved, 0, sizeof(leaf->lf_reserved));
 	dent = (struct gfs2_dirent *)(leaf+1);
