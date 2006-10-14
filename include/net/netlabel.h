@@ -136,7 +136,7 @@ struct netlbl_lsm_secattr {
  * on success, NULL on failure.
  *
  */
-static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(int flags)
+static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
 {
 	struct netlbl_lsm_cache *cache;
 
