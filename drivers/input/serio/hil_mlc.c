@@ -391,23 +391,23 @@ static int hilse_operate(hil_mlc *mlc, int repoll) {
 }
 
 #define FUNC(funct, funct_arg, zero_rc, neg_rc, pos_rc) \
-{ HILSE_FUNC,		{ func: &funct }, funct_arg, zero_rc, neg_rc, pos_rc },
+{ HILSE_FUNC,		{ .func = funct }, funct_arg, zero_rc, neg_rc, pos_rc },
 #define OUT(pack) \
-{ HILSE_OUT,		{ packet: pack }, 0, HILSEN_NEXT, HILSEN_DOZE, 0 },
+{ HILSE_OUT,		{ .packet = pack }, 0, HILSEN_NEXT, HILSEN_DOZE, 0 },
 #define CTS \
-{ HILSE_CTS,		{ packet: 0    }, 0, HILSEN_NEXT | HILSEN_SCHED | HILSEN_BREAK, HILSEN_DOZE, 0 },
+{ HILSE_CTS,		{ .packet = 0    }, 0, HILSEN_NEXT | HILSEN_SCHED | HILSEN_BREAK, HILSEN_DOZE, 0 },
 #define EXPECT(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT,		{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT,		{ .packet = comp }, to, got, got_wrong, timed_out },
 #define EXPECT_LAST(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT_LAST,	{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT_LAST,	{ .packet = comp }, to, got, got_wrong, timed_out },
 #define EXPECT_DISC(comp, to, got, got_wrong, timed_out) \
-{ HILSE_EXPECT_DISC,	{ packet: comp }, to, got, got_wrong, timed_out },
+{ HILSE_EXPECT_DISC,	{ .packet = comp }, to, got, got_wrong, timed_out },
 #define IN(to, got, got_error, timed_out) \
-{ HILSE_IN,		{ packet: 0    }, to, got, got_error, timed_out },
+{ HILSE_IN,		{ .packet = 0    }, to, got, got_error, timed_out },
 #define OUT_DISC(pack) \
-{ HILSE_OUT_DISC,	{ packet: pack }, 0, 0, 0, 0 },
+{ HILSE_OUT_DISC,	{ .packet = pack }, 0, 0, 0, 0 },
 #define OUT_LAST(pack) \
-{ HILSE_OUT_LAST,	{ packet: pack }, 0, 0, 0, 0 },
+{ HILSE_OUT_LAST,	{ .packet = pack }, 0, 0, 0, 0 },
 
 struct hilse_node hil_mlc_se[HILSEN_END] = {
 
