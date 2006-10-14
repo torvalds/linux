@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include "../pci.h"
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"

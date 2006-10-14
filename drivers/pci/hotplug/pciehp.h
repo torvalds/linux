@@ -31,11 +31,11 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/delay.h>
 #include <linux/sched.h>		/* signal_pending() */
 #include <linux/pcieport_if.h>
 #include <linux/mutex.h>
-#include "pci_hotplug.h"
 
 #define MY_NAME	"pciehp"
 

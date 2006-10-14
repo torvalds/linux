@@ -35,7 +35,6 @@
 #include <linux/moduleparam.h>
 
 #include "acpiphp.h"
-#include "pci_hotplug.h"
 
 #define DRIVER_VERSION	"1.0.1"
 #define DRIVER_AUTHOR	"Irene Zubarev <zubarev@us.ibm.com>, Vernon Mauery <vernux@us.ibm.com>"

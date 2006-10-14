@@ -45,11 +45,11 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
 
 #include "../pci.h"
-#include "pci_hotplug.h"
 #include "acpiphp.h"
 
 static LIST_HEAD(bridge_list);

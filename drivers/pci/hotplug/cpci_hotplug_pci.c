@@ -26,9 +26,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/proc_fs.h>
 #include "../pci.h"
-#include "pci_hotplug.h"
 #include "cpci_hotplug.h"
 
 #define MY_NAME	"cpci_hotplug"

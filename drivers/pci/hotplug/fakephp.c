@@ -35,10 +35,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include "pci_hotplug.h"
 #include "../pci.h"
 
 #if !defined(MODULE)
