@@ -497,6 +497,12 @@ struct gfs2_statfs_change {
 	__be64 sc_dinodes;
 };
 
+struct gfs2_statfs_change_host {
+	__u64 sc_total;
+	__u64 sc_free;
+	__u64 sc_dinodes;
+};
+
 /*
  * Quota change
  * Describes an allocation change for a particular
@@ -529,8 +535,8 @@ extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
 extern void gfs2_log_header_in(struct gfs2_log_header_host *lh, const void *buf);
 extern void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf);
 extern void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf);
-extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf);
-extern void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf);
+extern void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf);
+extern void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf);
 extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);
 
 /* Printing functions */

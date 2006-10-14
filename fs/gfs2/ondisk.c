@@ -279,7 +279,7 @@ void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf)
 	str->ir_length = cpu_to_be64(ir->ir_length);
 }
 
-void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf)
+void gfs2_statfs_change_in(struct gfs2_statfs_change_host *sc, const void *buf)
 {
 	const struct gfs2_statfs_change *str = buf;
 
@@ -288,7 +288,7 @@ void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf)
 	sc->sc_dinodes = be64_to_cpu(str->sc_dinodes);
 }
 
-void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf)
+void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc, void *buf)
 {
 	struct gfs2_statfs_change *str = buf;
 

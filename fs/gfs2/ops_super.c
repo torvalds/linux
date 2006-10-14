@@ -215,7 +215,7 @@ static int gfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_inode->i_sb;
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_statfs_change sc;
+	struct gfs2_statfs_change_host sc;
 	int error;
 
 	if (gfs2_tune_get(sdp, gt_statfs_slow))

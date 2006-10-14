@@ -587,9 +587,9 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 int gfs2_statfs_init(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
-	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *m_bh, *l_bh;
 	struct gfs2_holder gh;
 	int error;
@@ -634,7 +634,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 			s64 dinodes)
 {
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
-	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *l_bh;
 	int error;
 
@@ -660,8 +660,8 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
-	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
-	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct gfs2_holder gh;
 	struct buffer_head *m_bh, *l_bh;
 	int error;
@@ -727,10 +727,10 @@ out:
  * Returns: errno
  */
 
-int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
+int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
 {
-	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
-	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
+	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 
 	spin_lock(&sdp->sd_statfs_spin);
 
@@ -760,7 +760,7 @@ int gfs2_statfs_i(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
  */
 
 static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
-			    struct gfs2_statfs_change *sc)
+			    struct gfs2_statfs_change_host *sc)
 {
 	gfs2_rgrp_verify(rgd);
 	sc->sc_total += rgd->rd_ri.ri_data;
@@ -782,7 +782,7 @@ static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
  * Returns: errno
  */
 
-int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
+int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host *sc)
 {
 	struct gfs2_holder ri_gh;
 	struct gfs2_rgrpd *rgd_next;
@@ -792,7 +792,7 @@ int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
 	int done;
 	int error = 0, err;
 
-	memset(sc, 0, sizeof(struct gfs2_statfs_change));
+	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
 	gha = kcalloc(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
 	if (!gha)
 		return -ENOMEM;
