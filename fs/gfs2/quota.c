@@ -539,8 +539,7 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 		qc->qc_id = cpu_to_be32(qd->qd_id);
 	}
 
-	x = qc->qc_change;
-	x = be64_to_cpu(x) + change;
+	x = be64_to_cpu(qc->qc_change) + change;
 	qc->qc_change = cpu_to_be64(x);
 
 	spin_lock(&sdp->sd_quota_spin);

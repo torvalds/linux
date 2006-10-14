@@ -500,21 +500,22 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, u64 *formal_ino)
 	if (!ir.ir_length) {
 		struct buffer_head *m_bh;
 		u64 x, y;
+		__be64 z;
 
 		error = gfs2_meta_inode_buffer(m_ip, &m_bh);
 		if (error)
 			goto out_brelse;
 
-		x = *(u64 *)(m_bh->b_data + sizeof(struct gfs2_dinode));
-		x = y = be64_to_cpu(x);
+		z = *(__be64 *)(m_bh->b_data + sizeof(struct gfs2_dinode));
+		x = y = be64_to_cpu(z);
 		ir.ir_start = x;
 		ir.ir_length = GFS2_INUM_QUANTUM;
 		x += GFS2_INUM_QUANTUM;
 		if (x < y)
 			gfs2_consist_inode(m_ip);
-		x = cpu_to_be64(x);
+		z = cpu_to_be64(x);
 		gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
-		*(u64 *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = x;
+		*(__be64 *)(m_bh->b_data + sizeof(struct gfs2_dinode)) = z;
 
 		brelse(m_bh);
 	}

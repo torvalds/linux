@@ -38,8 +38,8 @@ struct metapath {
 };
 
 typedef int (*block_call_t) (struct gfs2_inode *ip, struct buffer_head *dibh,
-			     struct buffer_head *bh, u64 *top,
-			     u64 *bottom, unsigned int height,
+			     struct buffer_head *bh, __be64 *top,
+			     __be64 *bottom, unsigned int height,
 			     void *data);
 
 struct strip_mine {
@@ -230,7 +230,7 @@ static int build_height(struct inode *inode, unsigned height)
 	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
 	struct gfs2_dinode *di;
 	int error;
-	u64 *bp;
+	__be64 *bp;
 	u64 bn;
 	unsigned n;
 
@@ -255,7 +255,7 @@ static int build_height(struct inode *inode, unsigned height)
 					  GFS2_FORMAT_IN);
 			gfs2_buffer_clear_tail(blocks[n],
 					       sizeof(struct gfs2_meta_header));
-			bp = (u64 *)(blocks[n]->b_data +
+			bp = (__be64 *)(blocks[n]->b_data +
 				     sizeof(struct gfs2_meta_header));
 			*bp = cpu_to_be64(blocks[n+1]->b_blocknr);
 			brelse(blocks[n]);
@@ -360,15 +360,15 @@ static void find_metapath(struct gfs2_inode *ip, u64 block,
  * metadata tree.
  */
 
-static inline u64 *metapointer(struct buffer_head *bh, int *boundary,
+static inline __be64 *metapointer(struct buffer_head *bh, int *boundary,
 			       unsigned int height, const struct metapath *mp)
 {
 	unsigned int head_size = (height > 0) ?
 		sizeof(struct gfs2_meta_header) : sizeof(struct gfs2_dinode);
-	u64 *ptr;
+	__be64 *ptr;
 	*boundary = 0;
-	ptr = ((u64 *)(bh->b_data + head_size)) + mp->mp_list[height];
-	if (ptr + 1 == (u64 *)(bh->b_data + bh->b_size))
+	ptr = ((__be64 *)(bh->b_data + head_size)) + mp->mp_list[height];
+	if (ptr + 1 == (__be64 *)(bh->b_data + bh->b_size))
 		*boundary = 1;
 	return ptr;
 }
@@ -394,7 +394,7 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 			int *new, u64 *block)
 {
 	int boundary;
-	u64 *ptr = metapointer(bh, &boundary, height, mp);
+	__be64 *ptr = metapointer(bh, &boundary, height, mp);
 
 	if (*ptr) {
 		*block = be64_to_cpu(*ptr);
@@ -600,7 +600,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh = NULL;
-	u64 *top, *bottom;
+	__be64 *top, *bottom;
 	u64 bn;
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
@@ -611,17 +611,17 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 			return error;
 		dibh = bh;
 
-		top = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + mp->mp_list[0];
-		bottom = (u64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + sdp->sd_diptrs;
+		top = (__be64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + mp->mp_list[0];
+		bottom = (__be64 *)(bh->b_data + sizeof(struct gfs2_dinode)) + sdp->sd_diptrs;
 	} else {
 		error = gfs2_meta_indirect_buffer(ip, height, block, 0, &bh);
 		if (error)
 			return error;
 
-		top = (u64 *)(bh->b_data + mh_size) +
+		top = (__be64 *)(bh->b_data + mh_size) +
 				  (first ? mp->mp_list[height] : 0);
 
-		bottom = (u64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
+		bottom = (__be64 *)(bh->b_data + mh_size) + sdp->sd_inptrs;
 	}
 
 	error = bc(ip, dibh, bh, top, bottom, height, data);
@@ -660,7 +660,7 @@ out:
  */
 
 static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
-		    struct buffer_head *bh, u64 *top, u64 *bottom,
+		    struct buffer_head *bh, __be64 *top, __be64 *bottom,
 		    unsigned int height, void *data)
 {
 	struct strip_mine *sm = data;
@@ -668,7 +668,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	struct gfs2_rgrp_list rlist;
 	u64 bn, bstart;
 	u32 blen;
-	u64 *p;
+	__be64 *p;
 	unsigned int rg_blocks = 0;
 	int metadata;
 	unsigned int revokes = 0;

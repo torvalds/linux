@@ -713,12 +713,12 @@ static int get_leaf(struct gfs2_inode *dip, u64 leaf_no,
 static int get_leaf_nr(struct gfs2_inode *dip, u32 index,
 		       u64 *leaf_out)
 {
-	u64 leaf_no;
+	__be64 leaf_no;
 	int error;
 
 	error = gfs2_dir_read_data(dip, (char *)&leaf_no,
-				    index * sizeof(u64),
-				    sizeof(u64), 0);
+				    index * sizeof(__be64),
+				    sizeof(__be64), 0);
 	if (error != sizeof(u64))
 		return (error < 0) ? error : -EIO;
 
@@ -837,7 +837,8 @@ static int dir_make_exhash(struct inode *inode)
 	struct gfs2_leaf *leaf;
 	int y;
 	u32 x;
-	u64 *lp, bn;
+	__be64 *lp;
+	u64 bn;
 	int error;
 
 	error = gfs2_meta_inode_buffer(dip, &dibh);
@@ -893,7 +894,7 @@ static int dir_make_exhash(struct inode *inode)
 	gfs2_trans_add_bh(dip->i_gl, dibh, 1);
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
-	lp = (u64 *)(dibh->b_data + sizeof(struct gfs2_dinode));
+	lp = (__be64 *)(dibh->b_data + sizeof(struct gfs2_dinode));
 
 	for (x = sdp->sd_hash_ptrs; x--; lp++)
 		*lp = cpu_to_be64(bn);
@@ -929,7 +930,8 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	struct gfs2_leaf *nleaf, *oleaf;
 	struct gfs2_dirent *dent = NULL, *prev = NULL, *next = NULL, *new;
 	u32 start, len, half_len, divider;
-	u64 bn, *lp, leaf_no;
+	u64 bn, leaf_no;
+	__be64 *lp;
 	u32 index;
 	int x, moved = 0;
 	int error;
@@ -974,7 +976,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	/* Change the pointers.
 	   Don't bother distinguishing stuffed from non-stuffed.
 	   This code is complicated enough already. */
-	lp = kmalloc(half_len * sizeof(u64), GFP_NOFS | __GFP_NOFAIL);
+	lp = kmalloc(half_len * sizeof(__be64), GFP_NOFS | __GFP_NOFAIL);
 	/*  Change the pointers  */
 	for (x = 0; x < half_len; x++)
 		lp[x] = cpu_to_be64(bn);
@@ -1341,7 +1343,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	u32 hsize, len = 0;
 	u32 ht_offset, lp_offset, ht_offset_cur = -1;
 	u32 hash, index;
-	u64 *lp;
+	__be64 *lp;
 	int copied = 0;
 	int error = 0;
 	unsigned depth = 0;
@@ -1365,7 +1367,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 
 		if (ht_offset_cur != ht_offset) {
 			error = gfs2_dir_read_data(dip, (char *)lp,
-						ht_offset * sizeof(u64),
+						ht_offset * sizeof(__be64),
 						sdp->sd_hash_bsize, 1);
 			if (error != sdp->sd_hash_bsize) {
 				if (error >= 0)
@@ -1715,7 +1717,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 	u32 hsize, len;
 	u32 ht_offset, lp_offset, ht_offset_cur = -1;
 	u32 index = 0;
-	u64 *lp;
+	__be64 *lp;
 	u64 leaf_no;
 	int error = 0;
 
@@ -1735,7 +1737,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 
 		if (ht_offset_cur != ht_offset) {
 			error = gfs2_dir_read_data(dip, (char *)lp,
-						ht_offset * sizeof(u64),
+						ht_offset * sizeof(__be64),
 						sdp->sd_hash_bsize, 1);
 			if (error != sdp->sd_hash_bsize) {
 				if (error >= 0)
