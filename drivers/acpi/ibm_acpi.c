@@ -1702,13 +1702,11 @@ static struct ibm_struct ibms[] = {
 	 .name = "brightness",
 	 .read = brightness_read,
 	 .write = brightness_write,
-	 .experimental = 1,
 	 },
 	{
 	 .name = "volume",
 	 .read = volume_read,
 	 .write = volume_write,
-	 .experimental = 1,
 	 },
 	{
 	 .name = "fan",
