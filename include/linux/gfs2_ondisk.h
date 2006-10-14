@@ -445,6 +445,11 @@ struct gfs2_inum_range {
 	__be64 ir_length;
 };
 
+struct gfs2_inum_range_host {
+	__u64 ir_start;
+	__u64 ir_length;
+};
+
 /*
  * Statfs change
  * Describes an change to the pool of free and allocated
@@ -488,8 +493,8 @@ extern void gfs2_dinode_out(const struct gfs2_dinode_host *di, void *buf);
 extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
 extern void gfs2_ea_header_out(const struct gfs2_ea_header *ea, void *buf);
 extern void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf);
-extern void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf);
-extern void gfs2_inum_range_out(const struct gfs2_inum_range *ir, void *buf);
+extern void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf);
+extern void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf);
 extern void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, const void *buf);
 extern void gfs2_statfs_change_out(const struct gfs2_statfs_change *sc, void *buf);
 extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);

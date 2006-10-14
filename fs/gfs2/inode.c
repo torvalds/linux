@@ -436,7 +436,7 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, u64 *formal_ino)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_ir_inode);
 	struct buffer_head *bh;
-	struct gfs2_inum_range ir;
+	struct gfs2_inum_range_host ir;
 	int error;
 
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
@@ -479,7 +479,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, u64 *formal_ino)
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_inum_inode);
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
-	struct gfs2_inum_range ir;
+	struct gfs2_inum_range_host ir;
 	int error;
 
 	error = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);

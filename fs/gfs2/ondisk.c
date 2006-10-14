@@ -263,7 +263,7 @@ void gfs2_log_header_in(struct gfs2_log_header *lh, const void *buf)
 	lh->lh_hash = be32_to_cpu(str->lh_hash);
 }
 
-void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf)
+void gfs2_inum_range_in(struct gfs2_inum_range_host *ir, const void *buf)
 {
 	const struct gfs2_inum_range *str = buf;
 
@@ -271,7 +271,7 @@ void gfs2_inum_range_in(struct gfs2_inum_range *ir, const void *buf)
 	ir->ir_length = be64_to_cpu(str->ir_length);
 }
 
-void gfs2_inum_range_out(const struct gfs2_inum_range *ir, void *buf)
+void gfs2_inum_range_out(const struct gfs2_inum_range_host *ir, void *buf)
 {
 	struct gfs2_inum_range *str = buf;
 
