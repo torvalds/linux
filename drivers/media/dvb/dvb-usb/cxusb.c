@@ -396,7 +396,7 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int cxusb_lgdt3303_tuner_attach(struct dvb_usb_adapter *adap)
+static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	adap->fe->ops.tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
 	return 0;
@@ -577,7 +577,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties = {
 		{
 			.streaming_ctrl   = cxusb_streaming_ctrl,
 			.frontend_attach  = cxusb_lgdt3303_frontend_attach,
-			.tuner_attach     = cxusb_lgdt3303_tuner_attach,
+			.tuner_attach     = cxusb_lgh064f_tuner_attach,
 
 			/* parameter for the MPEG2-data transfer */
 					.stream = {
