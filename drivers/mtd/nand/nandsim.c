@@ -349,8 +349,7 @@ static u_char ns_verify_buf[NS_LARGEST_PAGE_SIZE];
  *
  * RETURNS: 0 if success, -ENOMEM if memory alloc fails.
  */
-static int
-alloc_device(struct nandsim *ns)
+static int alloc_device(struct nandsim *ns)
 {
 	int i;
 
@@ -369,8 +368,7 @@ alloc_device(struct nandsim *ns)
 /*
  * Free any allocated pages, and free the array of page pointers.
  */
-static void
-free_device(struct nandsim *ns)
+static void free_device(struct nandsim *ns)
 {
 	int i;
 
@@ -388,8 +386,7 @@ free_device(struct nandsim *ns)
  *
  * RETURNS: 0 if success, -ERRNO if failure.
  */
-static int
-init_nandsim(struct mtd_info *mtd)
+static int init_nandsim(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	struct nandsim   *ns   = (struct nandsim *)(chip->priv);
@@ -505,8 +502,7 @@ error:
 /*
  * Free the nandsim structure.
  */
-static void
-free_nandsim(struct nandsim *ns)
+static void free_nandsim(struct nandsim *ns)
 {
 	kfree(ns->buf.byte);
 	free_device(ns);
@@ -517,8 +513,7 @@ free_nandsim(struct nandsim *ns)
 /*
  * Returns the string representation of 'state' state.
  */
-static char *
-get_state_name(uint32_t state)
+static char *get_state_name(uint32_t state)
 {
 	switch (NS_STATE(state)) {
 		case STATE_CMD_READ0:
@@ -576,8 +571,7 @@ get_state_name(uint32_t state)
  *
  * RETURNS: 1 if wrong command, 0 if right.
  */
-static int
-check_command(int cmd)
+static int check_command(int cmd)
 {
 	switch (cmd) {
 
@@ -603,8 +597,7 @@ check_command(int cmd)
 /*
  * Returns state after command is accepted by command number.
  */
-static uint32_t
-get_state_by_command(unsigned command)
+static uint32_t get_state_by_command(unsigned command)
 {
 	switch (command) {
 		case NAND_CMD_READ0:
@@ -640,8 +633,7 @@ get_state_by_command(unsigned command)
 /*
  * Move an address byte to the correspondent internal register.
  */
-static inline void
-accept_addr_byte(struct nandsim *ns, u_char bt)
+static inline void accept_addr_byte(struct nandsim *ns, u_char bt)
 {
 	uint byte = (uint)bt;
 
@@ -659,8 +651,7 @@ accept_addr_byte(struct nandsim *ns, u_char bt)
 /*
  * Switch to STATE_READY state.
  */
-static inline void
-switch_to_ready_state(struct nandsim *ns, u_char status)
+static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
 {
 	NS_DBG("switch_to_ready_state: switch to %s state\n", get_state_name(STATE_READY));
 
@@ -719,8 +710,7 @@ switch_to_ready_state(struct nandsim *ns, u_char status)
  *          -1 - several matches.
  *           0 - operation is found.
  */
-static int
-find_operation(struct nandsim *ns, uint32_t flag)
+static int find_operation(struct nandsim *ns, uint32_t flag)
 {
 	int opsfound = 0;
 	int i, j, idx = 0;
@@ -887,8 +877,7 @@ static int prog_page(struct nandsim *ns, int num)
  *
  * RETURNS: 0 if success, -1 if error.
  */
-static int
-do_state_action(struct nandsim *ns, uint32_t action)
+static int do_state_action(struct nandsim *ns, uint32_t action)
 {
 	int num;
 	int busdiv = ns->busw == 8 ? 1 : 2;
@@ -1020,8 +1009,7 @@ do_state_action(struct nandsim *ns, uint32_t action)
 /*
  * Switch simulator's state.
  */
-static void
-switch_state(struct nandsim *ns)
+static void switch_state(struct nandsim *ns)
 {
 	if (ns->op) {
 		/*
@@ -1162,8 +1150,7 @@ switch_state(struct nandsim *ns)
 	}
 }
 
-static u_char
-ns_nand_read_byte(struct mtd_info *mtd)
+static u_char ns_nand_read_byte(struct mtd_info *mtd)
 {
         struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
 	u_char outb = 0x00;
@@ -1236,8 +1223,7 @@ ns_nand_read_byte(struct mtd_info *mtd)
 	return outb;
 }
 
-static void
-ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 {
         struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
 
@@ -1400,15 +1386,13 @@ static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
 		ns_nand_write_byte(mtd, cmd);
 }
 
-static int
-ns_device_ready(struct mtd_info *mtd)
+static int ns_device_ready(struct mtd_info *mtd)
 {
 	NS_DBG("device_ready\n");
 	return 1;
 }
 
-static uint16_t
-ns_nand_read_word(struct mtd_info *mtd)
+static uint16_t ns_nand_read_word(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 
@@ -1417,8 +1401,7 @@ ns_nand_read_word(struct mtd_info *mtd)
 	return chip->read_byte(mtd) | (chip->read_byte(mtd) << 8);
 }
 
-static void
-ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
         struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
 
@@ -1445,8 +1428,7 @@ ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	}
 }
 
-static void
-ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 {
         struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
 
@@ -1499,8 +1481,7 @@ ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	return;
 }
 
-static int
-ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static int ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	ns_nand_read_buf(mtd, (u_char *)&ns_verify_buf[0], len);
 
