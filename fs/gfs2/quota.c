@@ -743,7 +743,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
 	struct gfs2_holder i_gh;
-	struct gfs2_quota q;
+	struct gfs2_quota_host q;
 	char buf[sizeof(struct gfs2_quota)];
 	struct file_ra_state ra_state;
 	int error;

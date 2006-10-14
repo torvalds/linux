@@ -144,7 +144,7 @@ void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf)
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 
-void gfs2_quota_in(struct gfs2_quota *qu, const void *buf)
+void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf)
 {
 	const struct gfs2_quota *str = buf;
 

@@ -232,6 +232,12 @@ struct gfs2_quota {
 	__u8 qu_reserved[64];
 };
 
+struct gfs2_quota_host {
+	__u64 qu_limit;
+	__u64 qu_warn;
+	__u64 qu_value;
+};
+
 /*
  * dinode structure
  */
@@ -515,8 +521,7 @@ extern void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf);
 extern void gfs2_rindex_out(const struct gfs2_rindex_host *ri, void *buf);
 extern void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf);
 extern void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf);
-extern void gfs2_quota_in(struct gfs2_quota *qu, const void *buf);
-extern void gfs2_quota_out(const struct gfs2_quota *qu, void *buf);
+extern void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf);
 extern void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf);
 extern void gfs2_dinode_out(const struct gfs2_dinode_host *di, void *buf);
 extern void gfs2_ea_header_in(struct gfs2_ea_header *ea, const void *buf);
