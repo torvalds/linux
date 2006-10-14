@@ -168,6 +168,14 @@ struct gfs2_rindex {
 	__u8 ri_reserved[64];
 };
 
+struct gfs2_rindex_host {
+	__u64 ri_addr;	/* grp block disk address */
+	__u64 ri_data0;	/* first data location */
+	__u32 ri_length;	/* length of rgrp header in fs blocks */
+	__u32 ri_data;	/* num of data blocks in rgrp */
+	__u32 ri_bitbytes;	/* number of bytes in data bitmaps */
+};
+
 /*
  * resource group header structure
  */
@@ -498,8 +506,8 @@ struct gfs2_quota_change {
 extern void gfs2_inum_in(struct gfs2_inum *no, const void *buf);
 extern void gfs2_inum_out(const struct gfs2_inum *no, void *buf);
 extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
-extern void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf);
-extern void gfs2_rindex_out(const struct gfs2_rindex *ri, void *buf);
+extern void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf);
+extern void gfs2_rindex_out(const struct gfs2_rindex_host *ri, void *buf);
 extern void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf);
 extern void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf);
 extern void gfs2_quota_in(struct gfs2_quota *qu, const void *buf);
@@ -517,7 +525,7 @@ extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, const void *buf);
 
 /* Printing functions */
 
-extern void gfs2_rindex_print(const struct gfs2_rindex *ri);
+extern void gfs2_rindex_print(const struct gfs2_rindex_host *ri);
 extern void gfs2_dinode_print(const struct gfs2_dinode_host *di);
 
 #endif /* __KERNEL__ */

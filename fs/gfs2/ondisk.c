@@ -97,7 +97,7 @@ void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
 }
 
-void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf)
+void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf)
 {
 	const struct gfs2_rindex *str = buf;
 
@@ -109,7 +109,7 @@ void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf)
 
 }
 
-void gfs2_rindex_print(const struct gfs2_rindex *ri)
+void gfs2_rindex_print(const struct gfs2_rindex_host *ri)
 {
 	printk(KERN_INFO "  ri_addr = %llu\n", (unsigned long long)ri->ri_addr);
 	pv(ri, ri_length, "%u");

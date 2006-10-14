@@ -253,7 +253,7 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 
 }
 
-static inline int rgrp_contains_block(struct gfs2_rindex *ri, u64 block)
+static inline int rgrp_contains_block(struct gfs2_rindex_host *ri, u64 block)
 {
 	u64 first = ri->ri_data0;
 	u64 last = first + ri->ri_data;
