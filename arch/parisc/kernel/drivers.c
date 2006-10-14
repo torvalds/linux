@@ -689,7 +689,9 @@ parse_tree_node(struct device *parent, int index, struct hardware_path *modpath)
 		.fn	= check_parent,
 	};
 
-	device_for_each_child(parent, &recurse_data, descend_children);
+	if (device_for_each_child(parent, &recurse_data, descend_children))
+		/* nothing */;
+
 	return d.dev;
 }
 
@@ -835,8 +837,8 @@ static void print_parisc_device(struct parisc_device *dev)
 	static int count;
 
 	print_pa_hwpath(dev, hw_path);
-	printk(KERN_INFO "%d. %s at 0x%lx [%s] { %d, 0x%x, 0x%.3x, 0x%.5x }",
-		++count, dev->name, dev->hpa.start, hw_path, dev->id.hw_type,
+	printk(KERN_INFO "%d. %s at 0x%p [%s] { %d, 0x%x, 0x%.3x, 0x%.5x }",
+		++count, dev->name, (void*) dev->hpa.start, hw_path, dev->id.hw_type,
 		dev->id.hversion_rev, dev->id.hversion, dev->id.sversion);
 
 	if (dev->num_addrs) {

@@ -200,8 +200,8 @@ static void
 pcibios_link_hba_resources( struct resource *hba_res, struct resource *r)
 {
 	if (!r->parent) {
-		printk(KERN_EMERG "PCI: resource not parented! [%lx-%lx]\n",
-				r->start, r->end);
+		printk(KERN_EMERG "PCI: resource not parented! [%p-%p]\n",
+				(void*) r->start, (void*) r->end);
 		r->parent = hba_res;
 
 		/* reverse link is harder *sigh*  */
