@@ -30,6 +30,7 @@
 #define DVB_PLL_PHILIPS_TD1316         19
 #define DVB_PLL_THOMSON_FE6600         20
 #define DVB_PLL_OPERA1                 21
+#define DVB_PLL_FCV1236D               22
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.
