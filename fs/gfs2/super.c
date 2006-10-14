@@ -97,7 +97,7 @@ void gfs2_tune_init(struct gfs2_tune *gt)
  * changed.
  */
 
-int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
+int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent)
 {
 	unsigned int x;
 

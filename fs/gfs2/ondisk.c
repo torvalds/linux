@@ -79,7 +79,7 @@ static void gfs2_meta_header_print(const struct gfs2_meta_header *mh)
 	pv(mh, mh_format, "%u");
 }
 
-void gfs2_sb_in(struct gfs2_sb *sb, const void *buf)
+void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 {
 	const struct gfs2_sb *str = buf;
 

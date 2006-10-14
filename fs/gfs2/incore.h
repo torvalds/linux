@@ -450,7 +450,7 @@ struct gfs2_sbd {
 	struct super_block *sd_vfs_meta;
 	struct kobject sd_kobj;
 	unsigned long sd_flags;	/* SDF_... */
-	struct gfs2_sb sd_sb;
+	struct gfs2_sb_host sd_sb;
 
 	/* Constants computed on mount */
 

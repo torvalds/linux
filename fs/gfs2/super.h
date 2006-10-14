@@ -14,7 +14,7 @@
 
 void gfs2_tune_init(struct gfs2_tune *gt);
 
-int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent);
+int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent);
 int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent);
 struct page *gfs2_read_super(struct super_block *sb, sector_t sector);
 

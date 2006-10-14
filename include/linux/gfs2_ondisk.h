@@ -128,6 +128,26 @@ struct gfs2_sb {
 	/* In gfs1, quota and license dinodes followed */
 };
 
+struct gfs2_sb_host {
+	struct gfs2_meta_header sb_header;
+
+	__be32 sb_fs_format;
+	__be32 sb_multihost_format;
+	__u32  __pad0;	/* Was superblock flags in gfs1 */
+
+	__be32 sb_bsize;
+	__be32 sb_bsize_shift;
+	__u32 __pad1;	/* Was journal segment size in gfs1 */
+
+	struct gfs2_inum sb_master_dir; /* Was jindex dinode in gfs1 */
+	struct gfs2_inum __pad2; /* Was rindex dinode in gfs1 */
+	struct gfs2_inum sb_root_dir;
+
+	char sb_lockproto[GFS2_LOCKNAME_LEN];
+	char sb_locktable[GFS2_LOCKNAME_LEN];
+	/* In gfs1, quota and license dinodes followed */
+};
+
 /*
  * resource index structure
  */
@@ -450,7 +470,7 @@ struct gfs2_quota_change {
 
 extern void gfs2_inum_in(struct gfs2_inum *no, const void *buf);
 extern void gfs2_inum_out(const struct gfs2_inum *no, void *buf);
-extern void gfs2_sb_in(struct gfs2_sb *sb, const void *buf);
+extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
 extern void gfs2_rindex_in(struct gfs2_rindex *ri, const void *buf);
 extern void gfs2_rindex_out(const struct gfs2_rindex *ri, void *buf);
 extern void gfs2_rgrp_in(struct gfs2_rgrp *rg, const void *buf);
