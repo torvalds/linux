@@ -630,10 +630,6 @@ static int asd_flash_getid(struct asd_ha_struct *asd_ha)
 
 	reg = asd_read_reg_dword(asd_ha, EXSICNFGR);
 
-	if (!(reg & FLASHEX)) {
-		ASD_DPRINTK("flash doesn't exist\n");
-		return -ENOENT;
-	}
 	if (pci_read_config_dword(asd_ha->pcidev, PCI_CONF_FLSH_BAR,
 				  &asd_ha->hw_prof.flash.bar)) {
 		asd_printk("couldn't read PCI_CONF_FLSH_BAR of %s\n",
