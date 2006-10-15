@@ -2216,7 +2216,8 @@ static int __init l2cap_init(void)
 		goto error;
 	}
 
-	class_create_file(bt_class, &class_attr_l2cap);
+	if (class_create_file(bt_class, &class_attr_l2cap) < 0)
+		BT_ERR("Failed to create L2CAP info file");
 
 	BT_INFO("L2CAP ver %s", VERSION);
 	BT_INFO("L2CAP socket layer initialized");

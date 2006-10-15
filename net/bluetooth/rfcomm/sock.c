@@ -944,7 +944,8 @@ int __init rfcomm_init_sockets(void)
 	if (err < 0)
 		goto error;
 
-	class_create_file(bt_class, &class_attr_rfcomm);
+	if (class_create_file(bt_class, &class_attr_rfcomm) < 0)
+		BT_ERR("Failed to create RFCOMM info file");
 
 	BT_INFO("RFCOMM socket layer initialized");
 

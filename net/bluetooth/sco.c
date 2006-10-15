@@ -967,7 +967,8 @@ static int __init sco_init(void)
 		goto error;
 	}
 
-	class_create_file(bt_class, &class_attr_sco);
+	if (class_create_file(bt_class, &class_attr_sco) < 0)
+		BT_ERR("Failed to create SCO info file");
 
 	BT_INFO("SCO (Voice Link) ver %s", VERSION);
 	BT_INFO("SCO socket layer initialized");

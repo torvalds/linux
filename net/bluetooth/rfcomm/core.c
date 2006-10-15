@@ -2058,7 +2058,8 @@ static int __init rfcomm_init(void)
 
 	kernel_thread(rfcomm_run, NULL, CLONE_KERNEL);
 
-	class_create_file(bt_class, &class_attr_rfcomm_dlc);
+	if (class_create_file(bt_class, &class_attr_rfcomm_dlc) < 0)
+		BT_ERR("Failed to create RFCOMM info file");
 
 	rfcomm_init_sockets();
 
