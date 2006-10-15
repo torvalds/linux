@@ -1096,7 +1096,6 @@ static void ei_watchdog(u_long arg)
 
     /* Check for pending interrupt with expired latency timer: with
        this, we can limp along even if the interrupt is blocked */
-    outb_p(E8390_NODMA+E8390_PAGE0, nic_base + E8390_CMD);
     if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
