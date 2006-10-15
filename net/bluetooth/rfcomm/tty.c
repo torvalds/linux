@@ -765,6 +765,9 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct termios *old)
 
 	BT_DBG("tty %p termios %p", tty, old);
 
+	if (!dev)
+		return;
+
 	/* Handle turning off CRTSCTS */
 	if ((old->c_cflag & CRTSCTS) && !(new->c_cflag & CRTSCTS)) 
 		BT_DBG("Turning off CRTSCTS unsupported");
