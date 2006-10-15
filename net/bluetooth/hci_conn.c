@@ -51,7 +51,7 @@
 #define BT_DBG(D...)
 #endif
 
-static void hci_acl_connect(struct hci_conn *conn)
+void hci_acl_connect(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct inquiry_entry *ie;
@@ -62,6 +62,8 @@ static void hci_acl_connect(struct hci_conn *conn)
 	conn->state = BT_CONNECT;
 	conn->out   = 1;
 	conn->link_mode = HCI_LM_MASTER;
+
+	conn->attempt++;
 
 	memset(&cp, 0, sizeof(cp));
 	bacpy(&cp.bdaddr, &conn->dst);
@@ -80,7 +82,7 @@ static void hci_acl_connect(struct hci_conn *conn)
 		cp.role_switch	= 0x01;
 	else
 		cp.role_switch	= 0x00;
-		
+
 	hci_send_cmd(hdev, OGF_LINK_CTL, OCF_CREATE_CONN, sizeof(cp), &cp);
 }
 
