@@ -187,7 +187,7 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 
 	if (table_ptr->length < sizeof(struct acpi_table_header)) {
 		ACPI_ERROR((AE_INFO,
-			    "RSDT/XSDT length (%X) is smaller than minimum (%X)",
+			    "RSDT/XSDT length (%X) is smaller than minimum (%zX)",
 			    table_ptr->length,
 			    sizeof(struct acpi_table_header)));
 

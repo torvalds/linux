@@ -324,7 +324,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 	if (header->length < sizeof(struct acpi_table_header)) {
 		ACPI_ERROR((AE_INFO,
-			    "Table length (%X) is smaller than minimum (%X)",
+			    "Table length (%X) is smaller than minimum (%zX)",
 			    header->length, sizeof(struct acpi_table_header)));
 
 		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
