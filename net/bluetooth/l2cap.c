@@ -559,7 +559,7 @@ static int l2cap_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &l2cap_sock_ops;
 
-	sk = l2cap_sock_alloc(sock, protocol, GFP_KERNEL);
+	sk = l2cap_sock_alloc(sock, protocol, GFP_ATOMIC);
 	if (!sk)
 		return -ENOMEM;
 

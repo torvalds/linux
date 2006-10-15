@@ -336,7 +336,8 @@ static int rfcomm_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &rfcomm_sock_ops;
 
-	if (!(sk = rfcomm_sock_alloc(sock, protocol, GFP_KERNEL)))
+	sk = rfcomm_sock_alloc(sock, protocol, GFP_ATOMIC);
+	if (!sk)
 		return -ENOMEM;
 
 	rfcomm_sock_init(sk, NULL);

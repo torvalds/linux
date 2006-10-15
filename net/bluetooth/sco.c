@@ -452,7 +452,8 @@ static int sco_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &sco_sock_ops;
 
-	if (!(sk = sco_sock_alloc(sock, protocol, GFP_KERNEL)))
+	sk = sco_sock_alloc(sock, protocol, GFP_ATOMIC);
+	if (!sk)
 		return -ENOMEM;
 
 	sco_sock_init(sk, NULL);
