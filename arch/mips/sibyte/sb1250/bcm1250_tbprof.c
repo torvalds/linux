@@ -88,7 +88,7 @@ static void arm_tb(void)
 	sbp.tb_armed = 1;
 }
 
-static irqreturn_t sbprof_tb_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 {
 	int i;
 	DBG(printk(DEVNAME ": tb_intr\n"));
@@ -138,7 +138,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sbprof_pc_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sbprof_pc_intr(int irq, void *dev_id)
 {
 	printk(DEVNAME ": unexpected pc_intr");
 	return IRQ_NONE;
