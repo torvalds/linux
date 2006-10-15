@@ -345,7 +345,7 @@ static int dib3000mc_init(struct dvb_frontend *demod)
 
 	/* agc */
 	dib3000mc_write_word(state, 36, state->cfg->max_time);
-	dib3000mc_write_word(state, 37, agc->setup);
+	dib3000mc_write_word(state, 37, (state->cfg->agc_command1 << 13) | (state->cfg->agc_command2 << 12) | (0x1d << 0));
 	dib3000mc_write_word(state, 38, state->cfg->pwm3_value);
 	dib3000mc_write_word(state, 39, state->cfg->ln_adc_level);
 

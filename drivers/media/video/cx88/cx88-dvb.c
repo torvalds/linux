@@ -315,13 +315,20 @@ static struct cx22702_config hauppauge_novat_config = {
 	.demod_address = 0x43,
 	.output_mode   = CX22702_SERIAL_OUTPUT,
 };
+
 static struct cx22702_config hauppauge_hvr1100_config = {
 	.demod_address = 0x63,
 	.output_mode   = CX22702_SERIAL_OUTPUT,
 };
+
 static struct cx22702_config hauppauge_hvr1300_config = {
 	.demod_address = 0x63,
 	.output_mode   = CX22702_SERIAL_OUTPUT,
+};
+
+static struct cx22702_config hauppauge_hvr3000_config = {
+	.demod_address = 0x63,
+	.output_mode = CX22702_SERIAL_OUTPUT,
 };
 
 static int or51132_set_ts_param(struct dvb_frontend* fe,
@@ -551,6 +558,16 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &hauppauge_hvr1300_config,
+					       &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
+				   &dev->core->i2c_adap,
+				   &dvb_pll_fmd1216me);
+		}
+		break;
+	case CX88_BOARD_HAUPPAUGE_HVR3000:
+		dev->dvb.frontend = dvb_attach(cx22702_attach,
+					       &hauppauge_hvr3000_config,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,

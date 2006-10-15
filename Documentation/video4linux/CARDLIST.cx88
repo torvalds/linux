@@ -51,7 +51,7 @@
  50 -> NPG Tech Real TV FM Top 10                          [14f1:0842]
  51 -> WinFast DTV2000 H                                   [107d:665e]
  52 -> Geniatech DVB-S                                     [14f1:0084]
- 53 -> Hauppauge WinTV-HVR3000 TriMode Analog/DVB-S/DVB-T  [0070:1404]
+ 53 -> Hauppauge WinTV-HVR3000 TriMode Analog/DVB-S/DVB-T  [0070:1404,0070:1400,0070:1401,0070:1402]
  54 -> Norwood Micro TV Tuner
  55 -> Shenzhen Tungsten Ages Tech TE-DTV-250 / Swann OEM  [c180:c980]
  56 -> Hauppauge WinTV-HVR1300 DVB-T/Hybrid MPEG Encoder   [0070:9600,0070:9601,0070:9602]

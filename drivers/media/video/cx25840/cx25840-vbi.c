@@ -235,6 +235,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 			0, 0, V4L2_SLICED_VPS, 0, 0,	/* 9 */
 			0, 0, 0, 0
 		};
+		int is_pal = !(cx25840_get_v4lstd(client) & V4L2_STD_525_60);
 		int i;
 
 		fmt = arg;
@@ -246,13 +247,25 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		if ((cx25840_read(client, 0x404) & 0x10) == 0)
 			break;
 
-		for (i = 7; i <= 23; i++) {
-			u8 v = cx25840_read(client, 0x424 + i - 7);
+		if (is_pal) {
+			for (i = 7; i <= 23; i++) {
+				u8 v = cx25840_read(client, 0x424 + i - 7);
 
-			svbi->service_lines[0][i] = lcr2vbi[v >> 4];
-			svbi->service_lines[1][i] = lcr2vbi[v & 0xf];
-			svbi->service_set |=
-				 svbi->service_lines[0][i] | svbi->service_lines[1][i];
+				svbi->service_lines[0][i] = lcr2vbi[v >> 4];
+				svbi->service_lines[1][i] = lcr2vbi[v & 0xf];
+				svbi->service_set |=
+					svbi->service_lines[0][i] | svbi->service_lines[1][i];
+			}
+		}
+		else {
+			for (i = 10; i <= 21; i++) {
+				u8 v = cx25840_read(client, 0x424 + i - 10);
+
+				svbi->service_lines[0][i] = lcr2vbi[v >> 4];
+				svbi->service_lines[1][i] = lcr2vbi[v & 0xf];
+				svbi->service_set |=
+					svbi->service_lines[0][i] | svbi->service_lines[1][i];
+			}
 		}
 		break;
 	}

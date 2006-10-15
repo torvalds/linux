@@ -169,7 +169,7 @@ EXPORT_SYMBOL(dibusb_read_eeprom_byte);
 // Config Adjacent channels  Perf -cal22
 static struct dibx000_agc_config dib3000p_mt2060_agc_config = {
 	.band_caps = BAND_VHF | BAND_UHF,
-	.setup     = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+	.setup     = (1 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (0 << 2) | (2 << 0),
 
 	.agc1_max = 48497,
 	.agc1_min = 23593,
@@ -196,10 +196,14 @@ static struct dib3000mc_config stk3000p_dib3000p_config = {
 	.ln_adc_level = 0x1cc7,
 
 	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_command1 = 1,
+	.agc_command2 = 1,
 };
 
 static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
-	.setup    = (0 << 15) | (0 << 14) | (1 << 13) | (1 << 12) | (29 << 0),
+	.band_caps = BAND_VHF | BAND_UHF,
+	.setup     = (1 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (0 << 2) | (2 << 0),
 
 	.agc1_max = 56361,
 	.agc1_min = 22282,
@@ -226,6 +230,9 @@ static struct dib3000mc_config mod3000p_dib3000p_config = {
 	.ln_adc_level = 0x1cc7,
 
 	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_command1 = 1,
+	.agc_command2 = 1,
 };
 
 int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
