@@ -172,12 +172,10 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 		return NULL;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
-	if (!conn)
-		return NULL;
 
 	hci_dev_put(hdev);
 
-	return &conn->dev;
+	return conn ? &conn->dev : NULL;
 }
 
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)

@@ -528,12 +528,10 @@ static struct device *bnep_get_device(struct bnep_session *session)
 		return NULL;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
-	if (!conn)
-		return NULL;
 
 	hci_dev_put(hdev);
 
-	return &conn->dev;
+	return conn ? &conn->dev : NULL;
 }
 
 int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
