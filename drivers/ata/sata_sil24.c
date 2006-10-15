@@ -104,6 +104,10 @@ enum {
 	PORT_LRAM_SLOT_SZ	= 0x0080, /* 32 bytes PRB + 2 SGE, ACT... */
 
 	PORT_PMP		= 0x0f80, /* 8 bytes PMP * 16 (128 bytes) */
+	PORT_PMP_STATUS		= 0x0000, /* port device status offset */
+	PORT_PMP_QACTIVE	= 0x0004, /* port device QActive offset */
+	PORT_PMP_SIZE		= 0x0008, /* 8 bytes per PMP */
+
 		/* 32 bit regs */
 	PORT_CTRL_STAT		= 0x1000, /* write: ctrl-set, read: stat */
 	PORT_CTRL_CLR		= 0x1004, /* write: ctrl-clear */
@@ -126,6 +130,7 @@ enum {
 	PORT_PHY_CFG		= 0x1050,
 	PORT_SLOT_STAT		= 0x1800,
 	PORT_CMD_ACTIVATE	= 0x1c00, /* 64 bit cmd activate * 31 (248 bytes) */
+	PORT_CONTEXT		= 0x1e04,
 	PORT_EXEC_DIAG		= 0x1e00, /* 32bit exec diag * 16 (64 bytes, 0-10 used on 3124) */
 	PORT_PSD_DIAG		= 0x1e40, /* 32bit psd diag * 16 (64 bytes, 0-8 used on 3124) */
 	PORT_SCONTROL		= 0x1f00,
