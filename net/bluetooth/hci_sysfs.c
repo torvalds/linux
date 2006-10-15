@@ -299,11 +299,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
 	dev->class = bt_class;
-
-	if (hdev->parent)
-		dev->parent = hdev->parent;
-	else
-		dev->parent = &bt_platform->dev;
+	dev->parent = hdev->parent;
 
 	strlcpy(dev->bus_id, hdev->name, BUS_ID_SIZE);
 
