@@ -481,8 +481,8 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			break;
 		case ISCSI_OP_ASYNC_EVENT:
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
-			/* we need sth like iscsi_async_event_rsp() */
-			rc = ISCSI_ERR_BAD_OPCODE;
+			if (iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen))
+				rc = ISCSI_ERR_CONN_FAILED;
 			break;
 		default:
 			rc = ISCSI_ERR_BAD_OPCODE;
