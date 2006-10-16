@@ -427,6 +427,7 @@ int genphy_update_link(struct phy_device *phydev)
 
 	return 0;
 }
+EXPORT_SYMBOL(genphy_update_link);
 
 /* genphy_read_status
  *
