@@ -1,26 +1,22 @@
 /*
  *      NS pc87413-wdt Watchdog Timer driver for Linux 2.6.x.x
  *
- *      This code is based on wdt.c with original copyright
+ *      This code is based on wdt.c with original copyright.
  *
- *      (C) Copyright 2006 Marcus Junker, <junker@anduras.de>
- *                     and Sven Anders, <anders@anduras.de>
+ *      (C) Copyright 2006 Sven Anders, <anders@anduras.de>
+ *                     and Marcus Junker, <junker@anduras.de>
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  *
- *      Neither Marcus Junker, Sven Anders nor ANDURAS AG
+ *      Neither Sven Anders, Marcus Junker nor ANDURAS AG
  *      admit liability nor provide warranty for any of this software.
  *      This material is provided "AS-IS" and at no charge.
  *
- *      Release 1.00.
- *
+ *      Release 1.1
  */
-
-
-/* #define DEBUG 1 */
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -41,57 +37,44 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-#define WATCHDOG_NAME "pc87413 WDT"
-#define PFX WATCHDOG_NAME ": "
-#define DPFX WATCHDOG_NAME " - DEBUG: "
+/* #define DEBUG 1 */
 
-#define WDT_INDEX_IO_PORT   (io+0)                /* */
+#define DEFAULT_TIMEOUT     1            /* 1 minute */
+#define MAX_TIMEOUT         255
+
+#define VERSION             "1.1"
+#define MODNAME             "pc87413 WDT"
+#define PFX                 MODNAME ": "
+#define DPFX                MODNAME " - DEBUG: "
+
+#define WDT_INDEX_IO_PORT   (io+0)       /* I/O port base (index register) */
 #define WDT_DATA_IO_PORT    (WDT_INDEX_IO_PORT+1)
-#define SWC_LDN              0x04
-#define SIOCFG2              0x22                 /* Serial IO register */
-#define WDCTL                0x10                 /* Watchdog-Timer-Controll-Register */
-#define WDTO                 0x11                 /* Watchdog timeout register */
-#define WDCFG                0x12                 /* Watchdog config register */
+#define SWC_LDN             0x04
+#define SIOCFG2             0x22         /* Serial IO register */
+#define WDCTL               0x10         /* Watchdog-Timer-Controll-Register */
+#define WDTO                0x11         /* Watchdog timeout register */
+#define WDCFG               0x12         /* Watchdog config register */
 
-#define WD_TIMEOUT 1				   /* minutes (1 ... 255) */
+static int io = 0x2E;		         /* Address used on Portwell Boards */
 
+static int timeout = DEFAULT_TIMEOUT;    /* timeout value */
+static unsigned long timer_enabled = 0;  /* is the timer enabled? */
 
-static int pc87413_is_open=0;
+static char expect_close;                /* is the close expected? */
 
-/*
- *	You must set these - there is no sane way to probe for this board.
- *	You can use pc87413=x to set these now.
- */
+static spinlock_t io_lock;               /* to guard the watchdog from io races */
 
+static int nowayout = WATCHDOG_NOWAYOUT;
 
+/* -- Low level function ----------------------------------------*/
 
-/**
- *	module_params
- *
- *	Setup options. The board isn't really probe-able so we have to
- *	get the user to tell us the configuration.
- */
+/* Select pins for Watchdog output */
 
-static int io=0x2E;		/* Normally used addres on Portwell Boards */
-module_param(io, int, 0);
-MODULE_PARM_DESC(wdt_io, WATCHDOG_NAME  " io port (default 0x2E)");
-
-static int timeout = WD_TIMEOUT;  /* in minutes */
-module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in minutes. 1<= timeout <=63, default=" __MODULE_STRING(WD_TIMEOUT) ".");
-
-
-/******************************************
- *      Helper functions
- ******************************************/
-
-static void
-pc87413_select_wdt_out (void)
+static inline void pc87413_select_wdt_out (void)
 {
+	unsigned int cr_data = 0;
 
-	unsigned int    cr_data=0;
-
-	/* Select multiple pin,pin55,as WDT output */
+	/* Step 1: Select multiple pin,pin55,as WDT output */
 
 	outb_p(SIOCFG2, WDT_INDEX_IO_PORT);
 
@@ -102,17 +85,17 @@ pc87413_select_wdt_out (void)
 
 	outb_p(cr_data, WDT_DATA_IO_PORT);
 
-
-	#ifdef DEBUG
-	printk(KERN_INFO DPFX "Select multiple pin,pin55,as WDT output: Bit7 to 1: %d\n", cr_data);
-	#endif
+#ifdef DEBUG
+	printk(KERN_INFO DPFX "Select multiple pin,pin55,as WDT output:"
+	                      " Bit7 to 1: %d\n", cr_data);
+#endif
 }
 
-static void
-pc87413_enable_swc(void)
-{
+/* Enable SWC functions */
 
-	unsigned int    cr_data=0;
+static inline void pc87413_enable_swc(void)
+{
+	unsigned int cr_data=0;
 
 	/* Step 2: Enable SWC functions */
 
@@ -120,135 +103,162 @@ pc87413_enable_swc(void)
 	outb_p(SWC_LDN, WDT_DATA_IO_PORT);
 
 	outb_p(0x30, WDT_INDEX_IO_PORT);        /* Read Index 0x30 First */
-	cr_data = inb (WDT_DATA_IO_PORT);
+	cr_data = inb(WDT_DATA_IO_PORT);
 	cr_data |= 0x01;                        /* Set Bit0 to 1 */
 	outb_p(0x30, WDT_INDEX_IO_PORT);
 	outb_p(cr_data, WDT_DATA_IO_PORT);      /* Index0x30_bit0P1 */
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "pc87413 - Enable SWC functions\n");
-	#endif
+#endif
 }
 
-static unsigned int
-pc87413_get_swc_base(void)
+/* Read SWC I/O base address */
+
+static inline unsigned int pc87413_get_swc_base(void)
 {
-	unsigned int    swc_base_addr = 0;
-	unsigned char   addr_l, addr_h = 0;
+	unsigned int  swc_base_addr = 0;
+	unsigned char addr_l, addr_h = 0;
 
 	/* Step 3: Read SWC I/O Base Address */
 
 	outb_p(0x60, WDT_INDEX_IO_PORT);        /* Read Index 0x60 */
-	addr_h = inb (WDT_DATA_IO_PORT);
+	addr_h = inb(WDT_DATA_IO_PORT);
 
 	outb_p(0x61, WDT_INDEX_IO_PORT);        /* Read Index 0x61 */
 
-	addr_l = inb (WDT_DATA_IO_PORT);
-
+	addr_l = inb(WDT_DATA_IO_PORT);
 
 	swc_base_addr = (addr_h << 8) + addr_l;
 
-	#ifdef DEBUG
-	printk(KERN_INFO DPFX "Read SWC I/O Base Address:  low %d, high %d, res %d\n", addr_l, addr_h, swc_base_addr);
-	#endif
+#ifdef DEBUG
+	printk(KERN_INFO DPFX "Read SWC I/O Base Address: low %d, high %d,"
+	                      " res %d\n", addr_l, addr_h, swc_base_addr);
+#endif
 
 	return swc_base_addr;
 }
 
-static void
-pc87413_swc_bank3(unsigned int swc_base_addr)
+/* Select Bank 3 of SWC */
+
+static inline void pc87413_swc_bank3(unsigned int swc_base_addr)
 {
 	/* Step 4: Select Bank3 of SWC */
 
-	outb_p (inb (swc_base_addr + 0x0f) | 0x03, swc_base_addr + 0x0f);
+	outb_p(inb(swc_base_addr + 0x0f) | 0x03, swc_base_addr + 0x0f);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "Select Bank3 of SWC\n");
-	#endif
-
+#endif
 }
 
-static void
-pc87413_programm_wdto (unsigned int swc_base_addr, char pc87413_time)
+/* Set watchdog timeout to x minutes */
+
+static inline void pc87413_programm_wdto(unsigned int swc_base_addr,
+					 char pc87413_time)
 {
 	/* Step 5: Programm WDTO, Twd. */
 
-	outb_p (pc87413_time, swc_base_addr + WDTO);
+	outb_p(pc87413_time, swc_base_addr + WDTO);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "Set WDTO to %d minutes\n", pc87413_time);
-	#endif
+#endif
 }
 
-static void
-pc87413_enable_wden (unsigned int swc_base_addr)
+/* Enable WDEN */
+
+static inline void pc87413_enable_wden(unsigned int swc_base_addr)
 {
 	/* Step 6: Enable WDEN */
 
 	outb_p(inb (swc_base_addr + WDCTL) | 0x01, swc_base_addr + WDCTL);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "Enable WDEN\n");
-	#endif
+#endif
 }
 
-static void
-pc87413_enable_sw_wd_tren (unsigned int swc_base_addr)
+/* Enable SW_WD_TREN */
+static inline void pc87413_enable_sw_wd_tren(unsigned int swc_base_addr)
 {
 	/* Enable SW_WD_TREN */
 
 	outb_p(inb (swc_base_addr + WDCFG) | 0x80, swc_base_addr + WDCFG);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "Enable SW_WD_TREN\n");
-	#endif
+#endif
 }
 
-static void
-pc87413_disable_sw_wd_tren (unsigned int swc_base_addr)
+/* Disable SW_WD_TREN */
+
+static inline void pc87413_disable_sw_wd_tren(unsigned int swc_base_addr)
 {
 	/* Disable SW_WD_TREN */
 
 	outb_p(inb (swc_base_addr + WDCFG) & 0x7f, swc_base_addr + WDCFG);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "pc87413 - Disable SW_WD_TREN\n");
-	#endif
+#endif
 }
 
+/* Enable SW_WD_TRG */
 
-static void
-pc87413_enable_sw_wd_trg (unsigned int swc_base_addr)
+static inline void pc87413_enable_sw_wd_trg(unsigned int swc_base_addr)
 {
-
 	/* Enable SW_WD_TRG */
 
 	outb_p(inb (swc_base_addr + WDCTL) | 0x80, swc_base_addr + WDCTL);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "pc87413 - Enable SW_WD_TRG\n");
-	#endif
+#endif
 }
 
-static void
-pc87413_disable_sw_wd_trg (unsigned int swc_base_addr)
-{
+/* Disable SW_WD_TRG */
 
+static inline void pc87413_disable_sw_wd_trg(unsigned int swc_base_addr)
+{
 	/* Disable SW_WD_TRG */
 
 	outb_p(inb (swc_base_addr + WDCTL) & 0x7f, swc_base_addr + WDCTL);
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	printk(KERN_INFO DPFX "Disable SW_WD_TRG\n");
-	#endif
+#endif
 }
 
+/* -- Higher level functions ------------------------------------*/
 
+/* Enable the watchdog */
 
-static void
-pc87413_disable(void)
+static void pc87413_enable(void)
 {
-	unsigned int    swc_base_addr;
+	unsigned int swc_base_addr;
+
+	spin_lock(&io_lock);
+
+	pc87413_select_wdt_out();
+	pc87413_enable_swc();
+	swc_base_addr = pc87413_get_swc_base();
+	pc87413_swc_bank3(swc_base_addr);
+	pc87413_programm_wdto(swc_base_addr, timeout);
+	pc87413_enable_wden(swc_base_addr);
+	pc87413_enable_sw_wd_tren(swc_base_addr);
+	pc87413_enable_sw_wd_trg(swc_base_addr);
+
+	spin_unlock(&io_lock);
+}
+
+/* Disable the watchdog */
+
+static void pc87413_disable(void)
+{
+	unsigned int swc_base_addr;
+
+	spin_lock(&io_lock);
 
 	pc87413_select_wdt_out();
 	pc87413_enable_swc();
@@ -257,13 +267,17 @@ pc87413_disable(void)
 	pc87413_disable_sw_wd_tren(swc_base_addr);
 	pc87413_disable_sw_wd_trg(swc_base_addr);
 	pc87413_programm_wdto(swc_base_addr, 0);
+
+	spin_unlock(&io_lock);
 }
 
+/* Refresh the watchdog */
 
-static void
-pc87413_refresh(char pc87413_time)
+static void pc87413_refresh(void)
 {
-	unsigned int    swc_base_addr;
+	unsigned int swc_base_addr;
+
+	spin_lock(&io_lock);
 
 	pc87413_select_wdt_out();
 	pc87413_enable_swc();
@@ -271,102 +285,125 @@ pc87413_refresh(char pc87413_time)
 	pc87413_swc_bank3(swc_base_addr);
 	pc87413_disable_sw_wd_tren(swc_base_addr);
 	pc87413_disable_sw_wd_trg(swc_base_addr);
-	pc87413_programm_wdto(swc_base_addr, pc87413_time);
+	pc87413_programm_wdto(swc_base_addr, timeout);
 	pc87413_enable_wden(swc_base_addr);
 	pc87413_enable_sw_wd_tren(swc_base_addr);
 	pc87413_enable_sw_wd_trg(swc_base_addr);
+
+	spin_unlock(&io_lock);
 }
 
+/* -- File operations -------------------------------------------*/
 
-static void
-pc87413_enable(char pc87413_time)
+/**
+ *	pc87413_open:
+ *	@inode: inode of device
+ *	@file: file handle to device
+ *
+ */
+
+static int pc87413_open(struct inode *inode, struct file *file)
 {
-	unsigned int    swc_base_addr;
+	/* /dev/watchdog can only be opened once */
 
-	pc87413_select_wdt_out();
-	pc87413_enable_swc();
-	swc_base_addr = pc87413_get_swc_base();
-	pc87413_swc_bank3(swc_base_addr);
-	pc87413_programm_wdto(swc_base_addr, pc87413_time);
-	pc87413_enable_wden(swc_base_addr);
-	pc87413_enable_sw_wd_tren(swc_base_addr);
-	pc87413_enable_sw_wd_trg(swc_base_addr);
+	if (test_and_set_bit(0, &timer_enabled))
+		return -EBUSY;
 
+	if (nowayout)
+		__module_get(THIS_MODULE);
+
+	/* Reload and activate timer */
+	pc87413_refresh();
+
+	printk(KERN_INFO MODNAME "Watchdog enabled. Timeout set to"
+	                         " %d minute(s).\n", timeout);
+
+	return nonseekable_open(inode, file);
 }
 
+/**
+ *	pc87413_release:
+ *	@inode: inode to board
+ *	@file: file handle to board
+ *
+ *	The watchdog has a configurable API. There is a religious dispute
+ *	between people who want their watchdog to be able to shut down and
+ *	those who want to be sure if the watchdog manager dies the machine
+ *	reboots. In the former case we disable the counters, in the latter
+ *	case you have to open it again very soon.
+ */
 
-/*******************************************
- *	Kernel methods.
- *******************************************/
+static int pc87413_release(struct inode *inode, struct file *file)
+{
+	/* Shut off the timer. */
 
+	if (expect_close == 42) {
+		pc87413_disable();
+		printk(KERN_INFO MODNAME "Watchdog disabled,"
+		                         " sleeping again...\n");
+	} else {
+		printk(KERN_CRIT MODNAME "Unexpected close, not stopping"
+		                         " watchdog!\n");
+		pc87413_refresh();
+	}
+
+	clear_bit(0, &timer_enabled);
+	expect_close = 0;
+
+	return 0;
+}
 
 /**
  *	pc87413_status:
  *
- *	Extract the status information from a WDT watchdog device. There are
- *	several board variants so we have to know which bits are valid. Some
- *	bits default to one and some to zero in order to be maximally painful.
- *
- *	we then map the bits onto the status ioctl flags.
+ *      return, if the watchdog is enabled (timeout is set...)
  */
+
 
 static int pc87413_status(void)
 {
-	/* Not supported */
-
-	return 1;
-}
-
-static long long pc87413_llseek(struct file *file, long long offset, int origin)
-{
-	return -ESPIPE;
+	  return 1; /* currently not supported */
 }
 
 /**
  *	pc87413_write:
  *	@file: file handle to the watchdog
- *	@buf: buffer to write (unused as data does not matter here
- *	@count: count of bytes
+ *	@data: data buffer to write
+ *	@len: length in bytes
  *	@ppos: pointer to the position to write. No seeks allowed
  *
  *	A write to a watchdog device is defined as a keepalive signal. Any
  *	write of data will do, as we we don't define content meaning.
  */
 
-static ssize_t
-pc87413_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t pc87413_write(struct file *file, const char __user *data,
+			     size_t len, loff_t *ppos)
 {
-	if (count) {
-	        pc87413_refresh (WD_TIMEOUT);
-	        #ifdef DEBUG
-	        printk(KERN_INFO DPFX "Write\n");
-	        #endif
+	/* See if we got the magic character 'V' and reload the timer */
+	if (len) {
+		if (!nowayout) {
+			size_t i;
+
+			/* reset expect flag */
+			expect_close = 0;
+
+			/* scan to see whether or not we got the magic character */
+			for (i = 0; i != len; i++) {
+				char c;
+				if (get_user(c, data+i))
+					return -EFAULT;
+				if (c == 'V')
+					expect_close = 42;
+			}
+		}
+
+		/* someone wrote to us, we should reload the timer */
+		pc87413_refresh();
 	}
-	return count;
+	return len;
 }
 
-/*
- *      Read reports the temperature in degrees Fahrenheit.
- */
-static ssize_t
-pc87413_read(struct file *file, char *buf, size_t count, loff_t *ptr)
-{
-
-//	char timeout;
-//
-//	outb_p(0x08, WDT_EFER);		/* Select locical device 8 */
-//	outb_p(0x0F6, WDT_EFER);		/* Select CRF6 */
-//	timeout = inb(WDT_EFDR);	/* Read Timeout counter from CRF6 */
-
-
-//	if(copy_to_user(buf,&timeout,1))
-//		return -EFAULT;
-	return 1;
-
-
-}
-
- /**
+/**
  *	pc87413_ioctl:
  *	@inode: inode of the device
  *	@file: file handle to the device
@@ -378,102 +415,91 @@ pc87413_read(struct file *file, char *buf, size_t count, loff_t *ptr)
  *	querying capabilities and current status.
  */
 
-static int
-pc87413_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	unsigned long arg)
+static int pc87413_ioctl(struct inode *inode, struct file *file,
+			 unsigned int cmd, unsigned long arg)
 {
-	static struct watchdog_info ident=
-	{
-	        .options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
-	        .firmware_version = 1,
-		.identity = "pc87413(HF/F)"
+	int new_timeout;
+
+	union {
+		struct watchdog_info __user *ident;
+		int __user *i;
+	} uarg;
+
+	static struct watchdog_info ident = {
+		.options          = WDIOF_KEEPALIVEPING |
+		                    WDIOF_SETTIMEOUT |
+		                    WDIOF_MAGICCLOSE,
+		.firmware_version = 1,
+		.identity         = "PC87413(HF/F) watchdog"
 	};
 
-	ident.options=1;	/* Mask down to the card we have */
+	uarg.i = (int __user *)arg;
 
-	switch(cmd)
-	{
+	switch(cmd) {
 		default:
-			return -ENOIOCTLCMD;
+			return -ENOTTY;
+
 		case WDIOC_GETSUPPORT:
-			return copy_to_user((struct watchdog_info *)arg, &ident, sizeof(ident))?-EFAULT:0;
+			return copy_to_user(uarg.ident, &ident,
+				sizeof(ident)) ? -EFAULT : 0;
+
 		case WDIOC_GETSTATUS:
-			return put_user(pc87413_status(),(int *)arg);
+			return put_user(pc87413_status(), uarg.i);
+
 		case WDIOC_GETBOOTSTATUS:
-			return put_user(0, (int *)arg);
+			return put_user(0, uarg.i);
+
 		case WDIOC_KEEPALIVE:
-			pc87413_refresh(WD_TIMEOUT);
-			#ifdef DEBUG
-			printk(KERN_INFO DPFX "keepalive\n");
-			#endif
-			return 0;
-	}
-}
-
-/**
- *	pc87413_open:
- *	@inode: inode of device
- *	@file: file handle to device
- *
- *	One of our two misc devices has been opened. The watchdog device is
- *	single open and on opening we load the counters. Counter zero is a
- *	100Hz cascade, into counter 1 which downcounts to reboot. When the
- *	counter triggers counter 2 downcounts the length of the reset pulse
- *	which set set to be as long as possible.
- */
-
-static int
-pc87413_open(struct inode *inode, struct file *file)
-{
-	switch(MINOR(inode->i_rdev))
-	{
-		case WATCHDOG_MINOR:
-			if(pc87413_is_open)
-				return -EBUSY;
-			/*
-			 *	Activate
-			 */
-
-			pc87413_is_open=1;
-			pc87413_refresh(WD_TIMEOUT);
-			#ifdef DEBUG
-			printk(KERN_INFO DPFX "Open\n");
-			#endif
-			return 0;
-		case TEMP_MINOR:
-			return 0;
-		default:
-			return -ENODEV;
-	}
-}
-
-/**
- *	pc87413_close:
- *	@inode: inode to board
- *	@file: file handle to board
- *
- *	The watchdog has a configurable API. There is a religious dispute
- *	between people who want their watchdog to be able to shut down and
- *	those who want to be sure if the watchdog manager dies the machine
- *	reboots. In the former case we disable the counters, in the latter
- *	case you have to open it again very soon.
- */
-
-static int
-pc87413_release(struct inode *inode, struct file *file)
-{
-	if(MINOR(inode->i_rdev)==WATCHDOG_MINOR)
-	{
-#ifndef CONFIG_WATCHDOG_NOWAYOUT
-		pc87413_disable();
+			pc87413_refresh();
+#ifdef DEBUG
+	                printk(KERN_INFO DPFX "keepalive\n");
 #endif
-		pc87413_is_open=0;
-		#ifdef DEBUG
-		printk(KERN_INFO DPFX "Release\n");
-		#endif
+			return 0;
+
+		case WDIOC_SETTIMEOUT:
+			if (get_user(new_timeout, uarg.i))
+				return -EFAULT;
+
+			// the API states this is given in secs
+			new_timeout /= 60;
+
+			if (new_timeout < 0 || new_timeout > MAX_TIMEOUT)
+				return -EINVAL;
+
+			timeout = new_timeout;
+			pc87413_refresh();
+
+			// fall through and return the new timeout...
+
+		case WDIOC_GETTIMEOUT:
+
+		        new_timeout = timeout * 60;
+
+			return put_user(new_timeout, uarg.i);
+
+		case WDIOC_SETOPTIONS:
+		{
+			int options, retval = -EINVAL;
+
+			if (get_user(options, uarg.i))
+				return -EFAULT;
+
+			if (options & WDIOS_DISABLECARD) {
+			        pc87413_disable();
+				retval = 0;
+			}
+
+			if (options & WDIOS_ENABLECARD) {
+				pc87413_enable();
+				retval = 0;
+			}
+
+			return retval;
+		}
 	}
-	return 0;
 }
+
+/* -- Notifier funtions -----------------------------------------*/
 
 /**
  *	notify_sys:
@@ -487,11 +513,11 @@ pc87413_release(struct inode *inode, struct file *file)
  *	trust me - if it happens it does suck.
  */
 
-static int
-pc87413_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
+static int pc87413_notify_sys(struct notifier_block *this,
+			      unsigned long code,
+			      void *unused)
 {
-	if(code==SYS_DOWN || code==SYS_HALT)
+	if (code == SYS_DOWN || code == SYS_HALT)
 	{
 		/* Turn the card off */
 		pc87413_disable();
@@ -499,44 +525,73 @@ pc87413_notify_sys(struct notifier_block *this, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-
-/*****************************************************
- *	Kernel Interfaces
- *****************************************************/
-
+/* -- Module's structures ---------------------------------------*/
 
 static struct file_operations pc87413_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= pc87413_llseek,
-	.read		= pc87413_read,
+	.llseek		= no_llseek,
 	.write		= pc87413_write,
 	.ioctl		= pc87413_ioctl,
 	.open		= pc87413_open,
 	.release	= pc87413_release,
 };
 
+static struct notifier_block pc87413_notifier =
+{
+	.notifier_call  = pc87413_notify_sys,
+};
+
 static struct miscdevice pc87413_miscdev=
 {
-	.minor = WATCHDOG_MINOR,
-	.name = "watchdog",
-	.fops = &pc87413_fops
+	.minor          = WATCHDOG_MINOR,
+	.name           = "watchdog",
+	.fops           = &pc87413_fops
 };
 
-/*
- *	The WDT card needs to learn about soft shutdowns in order to
- *	turn the timebomb registers off.
- */
-
-static struct notifier_block pc87413_notifier=
-{
-	pc87413_notify_sys,
-	NULL,
-	0
-};
-
+/* -- Module init functions -------------------------------------*/
 
 /**
- *	pc87413_exit:
+ * 	pc87413_init: module's "constructor"
+ *
+ *	Set up the WDT watchdog board. All we have to do is grab the
+ *	resources we require and bitch if anyone beat us to them.
+ *	The open() function will actually kick the board off.
+ */
+
+static int __init pc87413_init(void)
+{
+	int ret;
+
+	spin_lock_init(&io_lock);
+
+	printk(KERN_INFO PFX "Version " VERSION " at io 0x%X\n", WDT_INDEX_IO_PORT);
+
+	/* request_region(io, 2, "pc87413"); */
+
+	ret = register_reboot_notifier(&pc87413_notifier);
+	if (ret != 0) {
+		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
+			ret);
+	}
+
+	ret = misc_register(&pc87413_miscdev);
+
+	if (ret != 0) {
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			WATCHDOG_MINOR, ret);
+		unregister_reboot_notifier(&pc87413_notifier);
+		return ret;
+	}
+
+	printk(KERN_INFO PFX "initialized. timeout=%d min \n", timeout);
+
+	pc87413_enable();
+
+	return 0;
+}
+
+/**
+ *	pc87413_exit: module's "destructor"
  *
  *	Unload the watchdog. You cannot do this with any file handles open.
  *	If your watchdog is set to continue ticking on close and you unload
@@ -545,66 +600,37 @@ static struct notifier_block pc87413_notifier=
  *	module in 60 seconds or reboot.
  */
 
-static void
-pc87413_exit(void)
+static void __exit pc87413_exit(void)
 {
-	pc87413_disable();
+	/* Stop the timer before we leave */
+	if (!nowayout)
+	{
+		pc87413_disable();
+		printk(KERN_INFO MODNAME "Watchdog disabled.\n");
+	}
+
 	misc_deregister(&pc87413_miscdev);
 	unregister_reboot_notifier(&pc87413_notifier);
 	/* release_region(io,2); */
+
+	printk(MODNAME " watchdog component driver removed.\n");
 }
-
-
-/**
- * 	pc87413_init:
- *
- *	Set up the WDT watchdog board. All we have to do is grab the
- *	resources we require and bitch if anyone beat us to them.
- *	The open() function will actually kick the board off.
- */
-
-static int
-pc87413_init(void)
-{
-	int ret;
-
-	printk(KERN_INFO PFX "Version 1.00 at io 0x%X\n", WDT_INDEX_IO_PORT);
-
-
-	/* request_region(io, 2, "pc87413"); */
-
-
-	ret = register_reboot_notifier(&pc87413_notifier);
-	if (ret != 0) {
-	        printk (KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
-	                ret);
-	}
-
-
-
-	ret = misc_register(&pc87413_miscdev);
-
-	if (ret != 0) {
-	        printk (KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-	                WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&pc87413_notifier);
-		return ret;
-	}
-
-	printk (KERN_INFO PFX "initialized. timeout=%d min \n", timeout);
-
-
-	pc87413_enable(WD_TIMEOUT);
-
-	return 0;
-}
-
 
 module_init(pc87413_init);
 module_exit(pc87413_exit);
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Marcus Junker <junker@anduras.de>, Sven Anders <anders@anduras.de>");
+MODULE_AUTHOR("Sven Anders <anders@anduras.de>, Marcus Junker <junker@anduras.de>,");
 MODULE_DESCRIPTION("PC87413 WDT driver");
+MODULE_LICENSE("GPL");
+
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+
+module_param(io, int, 0);
+MODULE_PARM_DESC(wdt_io, MODNAME " I/O port (default: " __MODULE_STRING(io) ").");
+
+module_param(timeout, int, 0);
+MODULE_PARM_DESC(timeout, "Watchdog timeout in minutes (default=" __MODULE_STRING(timeout) ").");
+
+module_param(nowayout, int, 0);
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=CONFIG_WATCHDOG_NOWAYOUT)");
 
