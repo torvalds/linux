@@ -328,6 +328,15 @@ config PATA_TRIFLEX
 
 	  If unsure, say N.
 
+config PATA_MARVELL
+	tristate "Marvell PATA support via legacy mode"
+	depends on PCI
+	help
+	  This option enables limited support for the Marvell 88SE6145 ATA
+	  controller.
+
+	  If unsure, say N.
+
 config PATA_MPIIX
 	tristate "Intel PATA MPIIX support"
 	depends on PCI
