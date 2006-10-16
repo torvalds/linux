@@ -179,11 +179,11 @@ if [ -z "$cacheit" ]; then
 fi
 
 if [ -n "$initrd" ]; then
-    addsec $tmp "$initrd" initrd
+    addsec $tmp "$initrd" $isection
 fi
 
 if [ -n "$dtb" ]; then
-    addsec $tmp "$dtb" dtb
+    addsec $tmp "$dtb" .kernel:dtb
 fi
 
 if [ "$platform" != "miboot" ]; then

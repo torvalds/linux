@@ -27,6 +27,8 @@ extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
+extern char _dtb_start[];
+extern char _dtb_end[];
 
 struct addr_range {
 	unsigned long addr;
@@ -250,10 +252,6 @@ static void prep_kernel(unsigned long *a1, unsigned long *a2)
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
 }
 
-void __attribute__ ((weak)) ft_init(void *dt_blob)
-{
-}
-
 /* A buffer that may be edited by tools operating on a zImage binary so as to
  * edit the command line passed to vmlinux (by setting /chosen/bootargs).
  * The buffer is put in it's own section so that tools may locate it easier.
@@ -285,19 +283,12 @@ static void set_cmdline(char *buf)
 		setprop(devp, "bootargs", buf, strlen(buf) + 1);
 }
 
-/* Section where ft can be tacked on after zImage is built */
-union blobspace {
-	struct boot_param_header hdr;
-	char space[8*1024];
-} dt_blob __attribute__((__section__("__builtin_ft")));
-
 struct platform_ops platform_ops;
 struct dt_ops dt_ops;
 struct console_ops console_ops;
 
 void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
-	int have_dt = 0;
 	kernel_entry_t kentry;
 	char cmdline[COMMAND_LINE_SIZE];
 
@@ -306,15 +297,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	memset(&dt_ops, 0, sizeof(dt_ops));
 	memset(&console_ops, 0, sizeof(console_ops));
 
-	/* Override the dt_ops and device tree if there was an flat dev
-	 * tree attached to the zImage.
-	 */
-	if (dt_blob.hdr.magic == OF_DT_HEADER) {
-		have_dt = 1;
-		ft_init(&dt_blob);
-	}
-
-	if (platform_init(promptr))
+	if (platform_init(promptr, _dtb_start, _dtb_end))
 		exit();
 	if (console_ops.open && (console_ops.open() < 0))
 		exit();
@@ -342,8 +325,10 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		console_ops.close();
 
 	kentry = (kernel_entry_t) vmlinux.addr;
-	if (have_dt)
+	if (_dtb_end > _dtb_start) {
+		dt_ops.ft_pack();
 		kentry(dt_ops.ft_addr(), 0, NULL);
+	}
 	else
 		/* XXX initrd addr/size should be passed in properties */
 		kentry(a1, a2, promptr);
