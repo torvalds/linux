@@ -1481,19 +1481,18 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 	u8 p;
 
 	mutex_lock(&lock);
-	list_for_each_entry(cma_dev, &dev_list, list)
-		for (p = 1; p <= cma_dev->device->phys_port_cnt; ++p)
-			if (!ib_query_port (cma_dev->device, p, &port_attr) &&
-			    port_attr.state == IB_PORT_ACTIVE)
-				goto port_found;
-
-	if (!list_empty(&dev_list)) {
-		p = 1;
-		cma_dev = list_entry(dev_list.next, struct cma_device, list);
-	} else {
+	if (list_empty(&dev_list)) {
 		ret = -ENODEV;
 		goto out;
 	}
+	list_for_each_entry(cma_dev, &dev_list, list)
+		for (p = 1; p <= cma_dev->device->phys_port_cnt; ++p)
+			if (!ib_query_port(cma_dev->device, p, &port_attr) &&
+			    port_attr.state == IB_PORT_ACTIVE)
+				goto port_found;
+
+	p = 1;
+	cma_dev = list_entry(dev_list.next, struct cma_device, list);
 
 port_found:
 	ret = ib_get_cached_gid(cma_dev->device, p, 0, &gid);
