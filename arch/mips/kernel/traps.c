@@ -669,8 +669,6 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	unsigned int opcode, bcode;
 	siginfo_t info;
 
-	die_if_kernel("Break instruction in kernel code", regs);
-
 	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
 
@@ -693,6 +691,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	switch (bcode) {
 	case BRK_OVERFLOW << 10:
 	case BRK_DIVZERO << 10:
+		die_if_kernel("Break instruction in kernel code", regs);
 		if (bcode == (BRK_DIVZERO << 10))
 			info.si_code = FPE_INTDIV;
 		else
@@ -702,7 +701,11 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Break instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
 
@@ -714,8 +717,6 @@ asmlinkage void do_tr(struct pt_regs *regs)
 {
 	unsigned int opcode, tcode = 0;
 	siginfo_t info;
-
-	die_if_kernel("Trap instruction in kernel code", regs);
 
 	if (get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
@@ -733,6 +734,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	switch (tcode) {
 	case BRK_OVERFLOW:
 	case BRK_DIVZERO:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		if (tcode == BRK_DIVZERO)
 			info.si_code = FPE_INTDIV;
 		else
@@ -742,7 +744,11 @@ asmlinkage void do_tr(struct pt_regs *regs)
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
+	case BRK_BUG:
+		die("Kernel bug detected", regs);
+		break;
 	default:
+		die_if_kernel("Trap instruction in kernel code", regs);
 		force_sig(SIGTRAP, current);
 	}
 
