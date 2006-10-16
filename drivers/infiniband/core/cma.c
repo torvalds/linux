@@ -2122,8 +2122,6 @@ static void cma_add_one(struct ib_device *device)
 
 	cma_dev->device = device;
 	cma_dev->node_guid = device->node_guid;
-	if (!cma_dev->node_guid)
-		goto err;
 
 	init_completion(&cma_dev->comp);
 	atomic_set(&cma_dev->refcount, 1);
@@ -2135,9 +2133,6 @@ static void cma_add_one(struct ib_device *device)
 	list_for_each_entry(id_priv, &listen_any_list, list)
 		cma_listen_on_dev(id_priv, cma_dev);
 	mutex_unlock(&lock);
-	return;
-err:
-	kfree(cma_dev);
 }
 
 static int cma_remove_id_dev(struct rdma_id_private *id_priv)
