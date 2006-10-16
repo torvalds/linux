@@ -578,6 +578,27 @@ void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_failure);
 
+static int iscsi_xmit_imm_task(struct iscsi_conn *conn)
+{
+	struct iscsi_hdr *hdr = conn->mtask->hdr;
+	int rc, was_logout = 0;
+
+	if ((hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGOUT) {
+		conn->session->state = ISCSI_STATE_IN_RECOVERY;
+		iscsi_block_session(session_to_cls(conn->session));
+		was_logout = 1;
+	}
+	rc = conn->session->tt->xmit_mgmt_task(conn, conn->mtask);
+	if (rc)
+		return rc;
+
+	if (was_logout) {
+		set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
+		return -ENODATA;
+	}
+	return 0;
+}
+
 /**
  * iscsi_data_xmit - xmit any command into the scheduled connection
  * @conn: iscsi connection
@@ -623,7 +644,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 		conn->ctask = NULL;
 	}
 	if (conn->mtask) {
-		rc = tt->xmit_mgmt_task(conn, conn->mtask);
+		rc = iscsi_xmit_imm_task(conn);
 	        if (rc)
 		        goto again;
 		/* done with this in-progress mtask */
@@ -638,7 +659,7 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
 			spin_unlock_bh(&conn->session->lock);
-			rc = tt->xmit_mgmt_task(conn, conn->mtask);
+			rc = iscsi_xmit_imm_task(conn);
 		        if (rc)
 			        goto again;
 	        }
