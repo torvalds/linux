@@ -27,7 +27,6 @@ config CRYPTO_HASH
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
 	select CRYPTO_ALGAPI
-	default m
 	help
 	  Create default cryptographic template instantiations such as
 	  cbc(aes).
@@ -35,6 +34,7 @@ config CRYPTO_MANAGER
 config CRYPTO_HMAC
 	tristate "HMAC support"
 	select CRYPTO_HASH
+	select CRYPTO_MANAGER
 	help
 	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
 	  This is required for IPSec.
@@ -131,6 +131,7 @@ config CRYPTO_TGR192
 config CRYPTO_ECB
 	tristate "ECB support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	default m
 	help
 	  ECB: Electronic CodeBook mode
@@ -140,6 +141,7 @@ config CRYPTO_ECB
 config CRYPTO_CBC
 	tristate "CBC support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
 	default m
 	help
 	  CBC: Cipher Block Chaining mode
