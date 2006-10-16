@@ -608,7 +608,7 @@ void show_mem(void)
 
 				printk("Zone list for zone %d on node %d: ", j, i);
 				for (k = 0; zl->zones[k] != NULL; k++) 
-					printk("[%d/%s] ", zone_to_nid(zl->zones[k]), zl->zones[k]->name);
+					printk("[%ld/%s] ", zone_to_nid(zl->zones[k]), zl->zones[k]->name);
 				printk("\n");
 			}
 		}
