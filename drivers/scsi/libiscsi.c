@@ -661,8 +661,6 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 		spin_unlock_bh(&conn->session->lock);
 
 		rc = tt->xmit_cmd_task(conn, conn->ctask);
-		if (rc)
-			goto again;
 
 		spin_lock_bh(&conn->session->lock);
 		__iscsi_put_ctask(conn->ctask);
