@@ -735,7 +735,6 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		case SAM_CHECK_COND:
 		case SAS_OPEN_TO:
 		case SAS_OPEN_REJECT:
-		case SAS_PROTO_RESPONSE:
 			SAS_DPRINTK("%s: Saw error %d.  What to do?\n",
 				    __FUNCTION__, ts->stat);
 			return AC_ERR_OTHER;
@@ -743,6 +742,10 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		case SAS_ABORTED_TASK:
 			return AC_ERR_DEV;
 
+		case SAS_PROTO_RESPONSE:
+			/* This means the ending_fis has the error
+			 * value; return 0 here to collect it */
+			return 0;
 		default:
 			return 0;
 	}
@@ -756,23 +759,25 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
 	enum ata_completion_errors ac;
 
-	ac = sas_to_ata_err(stat);
-	if (ac) {
-		SAS_DPRINTK("%s: SAS error %x\n", __FUNCTION__, stat->stat);
-		/* We saw a SAS error. Send a vague error. */
-		qc->err_mask = ac;
-		dev->sata_dev.tf.feature = 0x04; /* status err */
-		dev->sata_dev.tf.command = ATA_ERR;
-		goto end;
+	if (stat->stat == SAS_PROTO_RESPONSE) {
+		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
+		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+		dev->sata_dev.sstatus = resp->sstatus;
+		dev->sata_dev.serror = resp->serror;
+		dev->sata_dev.scontrol = resp->scontrol;
+		dev->sata_dev.ap->sactive = resp->sactive;
+	} else if (stat->stat != SAM_STAT_GOOD) {
+		ac = sas_to_ata_err(stat);
+		if (ac) {
+			SAS_DPRINTK("%s: SAS error %x\n", __FUNCTION__,
+				    stat->stat);
+			/* We saw a SAS error. Send a vague error. */
+			qc->err_mask = ac;
+			dev->sata_dev.tf.feature = 0x04; /* status err */
+			dev->sata_dev.tf.command = ATA_ERR;
+		}
 	}
 
-	ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
-	qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
-	dev->sata_dev.sstatus = resp->sstatus;
-	dev->sata_dev.serror = resp->serror;
-	dev->sata_dev.scontrol = resp->scontrol;
-	dev->sata_dev.ap->sactive = resp->sactive;
-end:
 	ata_qc_complete(qc);
 	list_del_init(&task->list);
 	sas_free_task(task);
@@ -810,7 +815,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ata_tf_to_fis(&qc->tf, (u8*)&task->ata_task.fis, 0);
 	task->uldd_task = qc;
 	if (is_atapi_taskfile(&qc->tf)) {
-		memcpy(task->ata_task.atapi_packet, qc->cdb, ATAPI_CDB_LEN);
+		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes + qc->pad_len;
 		task->num_scatter = qc->pad_len ? qc->n_elem + 1 : qc->n_elem;
 	} else {
@@ -832,6 +837,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	case ATA_PROT_NCQ:
 		task->ata_task.use_ncq = 1;
 		/* fall through */
+	case ATA_PROT_ATAPI_DMA:
 	case ATA_PROT_DMA:
 		task->ata_task.dma_xfer = 1;
 		break;
