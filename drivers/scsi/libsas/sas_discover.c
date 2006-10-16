@@ -371,6 +371,7 @@ static int sas_issue_ata_cmd(struct domain_device *dev, u8 command,
 
 	task->dev = dev;
 
+	task->ata_task.fis.fis_type = 0x27;
 	task->ata_task.fis.command = command;
 	task->ata_task.fis.features = features;
 	task->ata_task.fis.device = d2h_fis->device;
@@ -483,11 +484,7 @@ cont1:
 
 	sas_fill_in_rphy(dev, dev->rphy);
 
-	res = sas_rphy_add(dev->rphy);
-	if (res)
-		goto out_err;
-
-	return res;
+	return 0;
 out_err:
 	dev->sata_dev.identify_packet_device = NULL;
 	dev->sata_dev.identify_device = NULL;
@@ -555,7 +552,7 @@ int sas_discover_sata(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		goto out_err2;
+		return res;
 
 	switch (dev->dev_type) {
 	case SATA_DEV:
@@ -567,23 +564,12 @@ int sas_discover_sata(struct domain_device *dev)
 	default:
 		break;
 	}
-	if (res)
-		goto out_err;
-
 	sas_notify_lldd_dev_gone(dev);
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		goto out_err2;
+	if (!res) {
+		sas_notify_lldd_dev_found(dev);
+		res = sas_rphy_add(dev->rphy);
+	}
 
-	res = sas_rphy_add(dev->rphy);
-	if (res)
-		goto out_err;
-
-	return res;
-
-out_err:
-	sas_notify_lldd_dev_gone(dev);
-out_err2:
 	return res;
 }
 

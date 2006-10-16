@@ -812,6 +812,12 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
 
+	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
+	    qc->tf.command == ATA_CMD_FPDMA_READ) {
+		/* Need to zero out the tag libata assigned us */
+		qc->tf.nsect = 0;
+	}
+
 	ata_tf_to_fis(&qc->tf, (u8*)&task->ata_task.fis, 0);
 	task->uldd_task = qc;
 	if (is_atapi_taskfile(&qc->tf)) {

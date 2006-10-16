@@ -391,7 +391,6 @@ static int asd_build_ata_ascb(struct asd_ascb *ascb, struct sas_task *task,
 
 	scb->ata_task.total_xfer_len = cpu_to_le32(task->total_xfer_len);
 	scb->ata_task.fis = task->ata_task.fis;
-	scb->ata_task.fis.fis_type = 0x27;
 	if (likely(!task->ata_task.device_control_reg_update))
 		scb->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
 	scb->ata_task.fis.flags &= 0xF0; /* PM_PORT field shall be 0 */
