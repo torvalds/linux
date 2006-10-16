@@ -524,8 +524,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	task_ioreg_t *hobsptr	= args.hobRegister;
 	int err			= 0;
 	int tasksize		= sizeof(struct ide_task_request_s);
-	int taskin		= 0;
-	int taskout		= 0;
+	unsigned int taskin	= 0;
+	unsigned int taskout	= 0;
 	u8 io_32bit		= drive->io_32bit;
 	char __user *buf = (char __user *)arg;
 
@@ -538,8 +538,13 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 	}
 
-	taskout = (int) req_task->out_size;
-	taskin  = (int) req_task->in_size;
+	taskout = req_task->out_size;
+	taskin  = req_task->in_size;
+	
+	if (taskin > 65536 || taskout > 65536) {
+		err = -EINVAL;
+		goto abort;
+	}
 
 	if (taskout) {
 		int outtotal = tasksize;
