@@ -614,6 +614,14 @@ out:
 	return x;
 }
 
+static void xfrm_hash_grow_check(int have_hash_collision)
+{
+	if (have_hash_collision &&
+	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
+	    xfrm_state_num > xfrm_state_hmask)
+		schedule_work(&xfrm_hash_work);
+}
+
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	unsigned int h;
@@ -642,10 +650,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	xfrm_state_num++;
 
-	if (x->bydst.next != NULL &&
-	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
-	    xfrm_state_num > xfrm_state_hmask)
-		schedule_work(&xfrm_hash_work);
+	xfrm_hash_grow_check(x->bydst.next != NULL);
 }
 
 /* xfrm_state_lock is held */
@@ -753,6 +758,10 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
+
+		xfrm_state_num++;
+
+		xfrm_hash_grow_check(x->bydst.next != NULL);
 	}
 
 	return x;

@@ -43,6 +43,7 @@
 #include <linux/ioctl.h>
 #include <linux/file.h>
 #include <linux/init.h>
+#include <linux/compat.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -146,24 +147,56 @@ static int bnep_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static int bnep_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	if (cmd == BNEPGETCONNLIST) {
+		struct bnep_connlist_req cl;
+		uint32_t uci;
+		int err;
+
+		if (get_user(cl.cnum, (uint32_t __user *) arg) ||
+				get_user(uci, (u32 __user *) (arg + 4)))
+			return -EFAULT;
+
+		cl.ci = compat_ptr(uci);
+
+		if (cl.cnum <= 0)
+			return -EINVAL;
+	
+		err = bnep_get_connlist(&cl);
+
+		if (!err && put_user(cl.cnum, (uint32_t __user *) arg))
+			err = -EFAULT;
+
+		return err;
+	}
+
+	return bnep_sock_ioctl(sock, cmd, arg);
+}
+#endif
+
 static const struct proto_ops bnep_sock_ops = {
-	.family     = PF_BLUETOOTH,
-	.owner      = THIS_MODULE,
-	.release    = bnep_sock_release,
-	.ioctl      = bnep_sock_ioctl,
-	.bind       = sock_no_bind,
-	.getname    = sock_no_getname,
-	.sendmsg    = sock_no_sendmsg,
-	.recvmsg    = sock_no_recvmsg,
-	.poll       = sock_no_poll,
-	.listen     = sock_no_listen,
-	.shutdown   = sock_no_shutdown,
-	.setsockopt = sock_no_setsockopt,
-	.getsockopt = sock_no_getsockopt,
-	.connect    = sock_no_connect,
-	.socketpair = sock_no_socketpair,
-	.accept     = sock_no_accept,
-	.mmap       = sock_no_mmap
+	.family		= PF_BLUETOOTH,
+	.owner		= THIS_MODULE,
+	.release	= bnep_sock_release,
+	.ioctl		= bnep_sock_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= bnep_sock_compat_ioctl,
+#endif
+	.bind		= sock_no_bind,
+	.getname	= sock_no_getname,
+	.sendmsg	= sock_no_sendmsg,
+	.recvmsg	= sock_no_recvmsg,
+	.poll		= sock_no_poll,
+	.listen		= sock_no_listen,
+	.shutdown	= sock_no_shutdown,
+	.setsockopt	= sock_no_setsockopt,
+	.getsockopt	= sock_no_getsockopt,
+	.connect	= sock_no_connect,
+	.socketpair	= sock_no_socketpair,
+	.accept		= sock_no_accept,
+	.mmap		= sock_no_mmap
 };
 
 static struct proto bnep_proto = {
@@ -181,7 +214,7 @@ static int bnep_sock_create(struct socket *sock, int protocol)
 	if (sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
 
-	sk = sk_alloc(PF_BLUETOOTH, GFP_KERNEL, &bnep_proto, 1);
+	sk = sk_alloc(PF_BLUETOOTH, GFP_ATOMIC, &bnep_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 

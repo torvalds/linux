@@ -48,41 +48,56 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.10"
+#define VERSION "2.11"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
 static struct net_proto_family *bt_proto[BT_MAX_PROTO];
+static DEFINE_RWLOCK(bt_proto_lock);
 
 int bt_sock_register(int proto, struct net_proto_family *ops)
 {
+	int err = 0;
+
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
 
-	if (bt_proto[proto])
-		return -EEXIST;
+	write_lock(&bt_proto_lock);
 
-	bt_proto[proto] = ops;
-	return 0;
+	if (bt_proto[proto])
+		err = -EEXIST;
+	else
+		bt_proto[proto] = ops;
+
+	write_unlock(&bt_proto_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(bt_sock_register);
 
 int bt_sock_unregister(int proto)
 {
+	int err = 0;
+
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
 
-	if (!bt_proto[proto])
-		return -ENOENT;
+	write_lock(&bt_proto_lock);
 
-	bt_proto[proto] = NULL;
-	return 0;
+	if (!bt_proto[proto])
+		err = -ENOENT;
+	else
+		bt_proto[proto] = NULL;
+
+	write_unlock(&bt_proto_lock);
+
+	return err;
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
 static int bt_sock_create(struct socket *sock, int proto)
 {
-	int err = 0;
+	int err;
 
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
@@ -92,11 +107,18 @@ static int bt_sock_create(struct socket *sock, int proto)
 		request_module("bt-proto-%d", proto);
 	}
 #endif
+
 	err = -EPROTONOSUPPORT;
+
+	read_lock(&bt_proto_lock);
+
 	if (bt_proto[proto] && try_module_get(bt_proto[proto]->owner)) {
 		err = bt_proto[proto]->create(sock, proto);
 		module_put(bt_proto[proto]->owner);
 	}
+
+	read_unlock(&bt_proto_lock);
+
 	return err; 
 }
 

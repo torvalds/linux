@@ -163,7 +163,7 @@ static void del_nbp(struct net_bridge_port *p)
 	br_stp_disable_port(p);
 	spin_unlock_bh(&br->lock);
 
-	br_fdb_delete_by_port(br, p);
+	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);
 
@@ -448,7 +448,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	return 0;
 err2:
-	br_fdb_delete_by_port(br, p);
+	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_del(&p->kobj);
 err0:

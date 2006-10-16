@@ -269,7 +269,7 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
 	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
 		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
-#ifdef CONFIG_IP_ROUTE_FWMARK
+#ifdef CONFIG_DECNET_ROUTE_FWMARK
 		(fl1->nl_u.dn_u.fwmark ^ fl2->nl_u.dn_u.fwmark) |
 #endif
 		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |

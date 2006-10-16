@@ -510,11 +510,11 @@ static int hidp_session(void *arg)
 	if (intr_sk->sk_state != BT_CONNECTED)
 		wait_event_timeout(*(ctrl_sk->sk_sleep), (ctrl_sk->sk_state == BT_CLOSED), HZ);
 
-	fput(session->ctrl_sock->file);
+	fput(session->intr_sock->file);
 
 	wait_event_timeout(*(intr_sk->sk_sleep), (intr_sk->sk_state == BT_CLOSED), HZ);
 
-	fput(session->intr_sock->file);
+	fput(session->ctrl_sock->file);
 
 	__hidp_unlink_session(session);
 
@@ -541,12 +541,10 @@ static struct device *hidp_get_device(struct hidp_session *session)
 		return NULL;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
-	if (!conn)
-		return NULL;
 
 	hci_dev_put(hdev);
 
-	return &conn->dev;
+	return conn ? &conn->dev : NULL;
 }
 
 static inline void hidp_setup_input(struct hidp_session *session, struct hidp_connadd_req *req)

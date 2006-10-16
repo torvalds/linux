@@ -2399,31 +2399,33 @@ static int selinux_netlbl_socket_setsid(struct socket *sock, u32 sid)
 	if (!ss_initialized)
 		return 0;
 
+	netlbl_secattr_init(&secattr);
+
 	POLICY_RDLOCK;
 
 	ctx = sidtab_search(&sidtab, sid);
 	if (ctx == NULL)
 		goto netlbl_socket_setsid_return;
 
-	netlbl_secattr_init(&secattr);
 	secattr.domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
 				 GFP_ATOMIC);
 	mls_export_lvl(ctx, &secattr.mls_lvl, NULL);
 	secattr.mls_lvl_vld = 1;
-	mls_export_cat(ctx,
-		       &secattr.mls_cat,
-		       &secattr.mls_cat_len,
-		       NULL,
-		       NULL);
+	rc = mls_export_cat(ctx,
+			    &secattr.mls_cat,
+			    &secattr.mls_cat_len,
+			    NULL,
+			    NULL);
+	if (rc != 0)
+		goto netlbl_socket_setsid_return;
 
 	rc = netlbl_socket_setattr(sock, &secattr);
 	if (rc == 0)
 		sksec->nlbl_state = NLBL_LABELED;
 
-	netlbl_secattr_destroy(&secattr);
-
 netlbl_socket_setsid_return:
 	POLICY_RDUNLOCK;
+	netlbl_secattr_destroy(&secattr);
 	return rc;
 }
 

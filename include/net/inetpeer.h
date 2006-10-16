@@ -19,7 +19,7 @@ struct inet_peer
 {
 	struct inet_peer	*avl_left, *avl_right;
 	struct inet_peer	*unused_next, **unused_prevp;
-	unsigned long		dtime;		/* the time of last use of not
+	__u32			dtime;		/* the time of last use of not
 						 * referenced entries */
 	atomic_t		refcnt;
 	__be32			v4daddr;	/* peer's address */
@@ -35,21 +35,8 @@ void			inet_initpeers(void) __init;
 /* can be called with or without local BH being disabled */
 struct inet_peer	*inet_getpeer(__be32 daddr, int create);
 
-extern spinlock_t inet_peer_unused_lock;
-extern struct inet_peer **inet_peer_unused_tailp;
 /* can be called from BH context or outside */
-static inline void	inet_putpeer(struct inet_peer *p)
-{
-	spin_lock_bh(&inet_peer_unused_lock);
-	if (atomic_dec_and_test(&p->refcnt)) {
-		p->unused_prevp = inet_peer_unused_tailp;
-		p->unused_next = NULL;
-		*inet_peer_unused_tailp = p;
-		inet_peer_unused_tailp = &p->unused_next;
-		p->dtime = jiffies;
-	}
-	spin_unlock_bh(&inet_peer_unused_lock);
-}
+extern void inet_putpeer(struct inet_peer *p);
 
 extern spinlock_t inet_peer_idlock;
 /* can be called with or without local BH being disabled */
