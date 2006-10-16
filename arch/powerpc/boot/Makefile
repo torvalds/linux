@@ -41,7 +41,7 @@ $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) \
 		$(addprefix $(obj)/,$(zlibheader))
 
 src-wlib := string.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
-		ns16550.c serial.c div64.S util.S $(zlib)
+		ns16550.c serial.c simple_alloc.c div64.S util.S $(zlib)
 src-plat := of.c
 src-boot := crt0.S $(src-wlib) $(src-plat) empty.c
 
