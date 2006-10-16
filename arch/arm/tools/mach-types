@@ -4,7 +4,7 @@
 #
 # Up to date versions of this file can be obtained from:
 #
-#   http://www.arm.linux.org.uk/developer/machines/?action=download
+#   http://www.arm.linux.org.uk/developer/machines/download.php
 #
 # Please do not send patches to this file; it is automatically generated!
 # To add an entry into this database, please see Documentation/arm/README,
@@ -12,7 +12,7 @@
 #
 #   http://www.arm.linux.org.uk/developer/machines/?action=new
 #
-# Last update: Sat Sep 23 13:20:43 2006
+# Last update: Mon Oct 16 21:13:36 2006
 #
 # machine_is_xxx	CONFIG_xxxx		MACH_TYPE_xxx		number
 #
@@ -1157,3 +1157,17 @@ adsturboxb		MACH_ADSTURBOXB		ADSTURBOXB		1143
 oti4110			MACH_OTI4110		OTI4110			1144
 hme_pxa			MACH_HME_PXA		HME_PXA			1145
 deisterdca		MACH_DEISTERDCA		DEISTERDCA		1146
+ces_ssem2		MACH_CES_SSEM2		CES_SSEM2		1147
+ces_mtr			MACH_CES_MTR		CES_MTR			1148
+tds_avng_sbc		MACH_TDS_AVNG_SBC	TDS_AVNG_SBC		1149
+everest			MACH_EVEREST		EVEREST			1150
+pnx4010			MACH_PNX4010		PNX4010			1151
+oxnas			MACH_OXNAS		OXNAS			1152
+fiori			MACH_FIORI		FIORI			1153
+ml1200			MACH_ML1200		ML1200			1154
+cactus			MACH_CACTUS		CACTUS			1155
+nb2xxx			MACH_NB2XXX		NB2XXX			1156
+hw6900			MACH_HW6900		HW6900			1157
+cdcs_quoll		MACH_CDCS_QUOLL		CDCS_QUOLL		1158
+quicksilver		MACH_QUICKSILVER	QUICKSILVER		1159
+uplat926		MACH_UPLAT926		UPLAT926		1160
