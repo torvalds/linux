@@ -670,8 +670,8 @@ static struct domain_device *sas_ex_discover_end_dev(
 		       sizeof(struct dev_to_host_fis));
 
 		rphy = sas_end_device_alloc(phy->port);
-		/* FIXME: error handling */
-		BUG_ON(!rphy);
+		if (unlikely(!rphy))
+			goto out_free;
 
 		sas_init_dev(child);
 
