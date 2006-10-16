@@ -4940,7 +4940,7 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 	}
 
 	hdsp->irq = pci->irq;
-	hdsp->precise_ptr = 1;
+	hdsp->precise_ptr = 0;
 	hdsp->use_midi_tasklet = 1;
 
 	if ((err = snd_hdsp_initialize_memory(hdsp)) < 0)
