@@ -99,7 +99,7 @@
 #define DCSR_SETCMPST	(1 << 25)       /* Set Descriptor Compare Status */
 #define DCSR_CLRCMPST	(1 << 24)       /* Clear Descriptor Compare Status */
 #define DCSR_CMPST	(1 << 10)       /* The Descriptor Compare Status */
-#define DCSR_ENRINTR	(1 << 9)        /* The end of Receive */
+#define DCSR_EORINTR	(1 << 9)        /* The end of Receive */
 #endif
 #define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
 #define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
