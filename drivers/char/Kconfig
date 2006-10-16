@@ -1046,7 +1046,7 @@ source "drivers/char/tpm/Kconfig"
 
 config TELCLOCK
 	tristate "Telecom clock driver for MPBL0010 ATCA SBC"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && X86
 	default n
 	help
 	  The telecom clock device is specific to the MPBL0010 ATCA computer and
