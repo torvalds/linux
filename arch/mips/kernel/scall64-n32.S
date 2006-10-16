@@ -280,7 +280,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_sync
 	PTR	sys_acct
 	PTR	sys32_settimeofday
-	PTR	sys_mount			/* 6160 */
+	PTR	compat_sys_mount		/* 6160 */
 	PTR	sys_umount
 	PTR	sys_swapon
 	PTR	sys_swapoff

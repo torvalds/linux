@@ -226,7 +226,7 @@ sys_call_table:
 	PTR	sys_ni_syscall			/* was sys_stat */
 	PTR	sys_lseek
 	PTR	sys_getpid			/* 4020 */
-	PTR	sys_mount
+	PTR	compat_sys_mount
 	PTR	sys_oldumount
 	PTR	sys_setuid
 	PTR	sys_getuid
