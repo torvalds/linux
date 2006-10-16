@@ -357,6 +357,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x0000fde6, // 0x0000fda6 L,R RCA audio in?
+			.extadc = 1,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
