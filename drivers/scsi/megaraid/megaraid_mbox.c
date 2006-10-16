@@ -884,7 +884,7 @@ megaraid_init_mbox(adapter_t *adapter)
 
 	if (((magic64 == HBA_SIGNATURE_64_BIT) &&
 		((adapter->pdev->subsystem_device !=
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_6) ||
+		PCI_SUBSYS_ID_MEGARAID_SATA_150_6) &&
 		(adapter->pdev->subsystem_device !=
 		PCI_SUBSYS_ID_MEGARAID_SATA_150_4))) ||
 		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
