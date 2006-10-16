@@ -803,12 +803,11 @@
 #define UDCISR0         __REG(0x4060000C) /* UDC Interrupt Status Register 0 */
 #define UDCISR1         __REG(0x40600010) /* UDC Interrupt Status Register 1 */
 #define UDCISR_INT(n,intr) (((intr) & 0x03) << (((n) & 0x0F) * 2))
-#define UDCISR1_IECC	(1 << 31)	/* IntEn - Configuration Change */
-#define UDCISR1_IESOF	(1 << 30)	/* IntEn - Start of Frame */
-#define UDCISR1_IERU	(1 << 29)	/* IntEn - Resume */
-#define UDCISR1_IESU	(1 << 28)	/* IntEn - Suspend */
-#define UDCISR1_IERS	(1 << 27)	/* IntEn - Reset */
-
+#define UDCISR1_IRCC	(1 << 31)	/* IntReq - Configuration Change */
+#define UDCISR1_IRSOF	(1 << 30)	/* IntReq - Start of Frame */
+#define UDCISR1_IRRU	(1 << 29)	/* IntReq - Resume */
+#define UDCISR1_IRSU	(1 << 28)	/* IntReq - Suspend */
+#define UDCISR1_IRRS	(1 << 27)	/* IntReq - Reset */
 
 #define UDCFNR          __REG(0x40600014) /* UDC Frame Number Register */
 #define UDCOTGICR	__REG(0x40600018) /* UDC On-The-Go interrupt control */
