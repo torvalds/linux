@@ -1714,26 +1714,7 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 	}
 
 	sky2->speed = sky2_phy_speed(hw, aux);
-	if (sky2->speed == SPEED_1000) {
-		u16 ctl2 = gm_phy_read(hw, port, PHY_MARV_1000T_CTRL);
-		u16 lpa2 = gm_phy_read(hw, port, PHY_MARV_1000T_STAT);
-		if (lpa2  & PHY_B_1000S_MSF) {
-			printk(KERN_ERR PFX "%s: master/slave fault",
-			       sky2->netdev->name);
-			return -1;
-		}
-
-		if ((ctl2 & PHY_M_1000C_AFD) && (lpa2 & PHY_B_1000S_LP_FD))
-			sky2->duplex = DUPLEX_FULL;
-		else
-			sky2->duplex = DUPLEX_HALF;
-	} else {
-		u16 adv = gm_phy_read(hw, port, PHY_MARV_AUNE_ADV);
-		if ((aux & adv) & PHY_AN_FULL)
-			sky2->duplex = DUPLEX_FULL;
-		else
-			sky2->duplex = DUPLEX_HALF;
-	}
+	sky2->duplex = (aux & PHY_M_PS_FULL_DUP) ? DUPLEX_FULL : DUPLEX_HALF;
 
 	/* Pause bits are offset (9..8) */
 	if (hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)
