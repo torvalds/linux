@@ -139,7 +139,7 @@ static void queue_req(struct addr_req *req)
 
 	mutex_lock(&lock);
 	list_for_each_entry_reverse(temp_req, &req_list, list) {
-		if (time_after(req->timeout, temp_req->timeout))
+		if (time_after_eq(req->timeout, temp_req->timeout))
 			break;
 	}
 
