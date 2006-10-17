@@ -931,11 +931,10 @@ qla1280_error_action(struct scsi_cmnd *cmd, enum action action)
 
 	case BUS_RESET:
 		if (qla1280_verbose)
-			printk(KERN_INFO "qla1280(%ld:%d): Issuing BUS "
-			       "DEVICE RESET\n", ha->host_no, bus);
-		if (qla1280_bus_reset(ha, bus == 0))
+			printk(KERN_INFO "qla1280(%ld:%d): Issued bus "
+			       "reset.\n", ha->host_no, bus);
+		if (qla1280_bus_reset(ha, bus) == 0)
 			result = SUCCESS;
-
 		break;
 
 	case ADAPTER_RESET:
