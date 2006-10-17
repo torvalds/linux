@@ -195,9 +195,9 @@ static int rtc_probe(struct platform_device *pdev)
 	 * are all disabled */
 	v3020_set_reg(chip, V3020_STATUS_0, 0x0);
 
-	dev_info(&pdev->dev, "Chip available at physical address 0x%p,"
+	dev_info(&pdev->dev, "Chip available at physical address 0x%llx,"
 		"data connected to D%d\n",
-		(void*)pdev->resource[0].start,
+		(unsigned long long)pdev->resource[0].start,
 		chip->leftshift);
 
 	platform_set_drvdata(pdev, chip);
