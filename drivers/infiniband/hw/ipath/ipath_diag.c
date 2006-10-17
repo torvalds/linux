@@ -67,19 +67,54 @@ static struct file_operations diag_file_ops = {
 	.release = ipath_diag_release
 };
 
+static ssize_t ipath_diagpkt_write(struct file *fp,
+				   const char __user *data,
+				   size_t count, loff_t *off);
+
+static struct file_operations diagpkt_file_ops = {
+	.owner = THIS_MODULE,
+	.write = ipath_diagpkt_write,
+};
+
+static atomic_t diagpkt_count = ATOMIC_INIT(0);
+static struct cdev *diagpkt_cdev;
+static struct class_device *diagpkt_class_dev;
+
 int ipath_diag_add(struct ipath_devdata *dd)
 {
 	char name[16];
+	int ret = 0;
+
+	if (atomic_inc_return(&diagpkt_count) == 1) {
+		ret = ipath_cdev_init(IPATH_DIAGPKT_MINOR,
+				      "ipath_diagpkt", &diagpkt_file_ops,
+				      &diagpkt_cdev, &diagpkt_class_dev);
+
+		if (ret) {
+			ipath_dev_err(dd, "Couldn't create ipath_diagpkt "
+				      "device: %d", ret);
+			goto done;
+		}
+	}
 
 	snprintf(name, sizeof(name), "ipath_diag%d", dd->ipath_unit);
 
-	return ipath_cdev_init(IPATH_DIAG_MINOR_BASE + dd->ipath_unit, name,
-			       &diag_file_ops, &dd->diag_cdev,
-			       &dd->diag_class_dev);
+	ret = ipath_cdev_init(IPATH_DIAG_MINOR_BASE + dd->ipath_unit, name,
+			      &diag_file_ops, &dd->diag_cdev,
+			      &dd->diag_class_dev);
+	if (ret)
+		ipath_dev_err(dd, "Couldn't create %s device: %d",
+			      name, ret);
+
+done:
+	return ret;
 }
 
 void ipath_diag_remove(struct ipath_devdata *dd)
 {
+	if (atomic_dec_and_test(&diagpkt_count))
+		ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_class_dev);
+
 	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_class_dev);
 }
 
@@ -273,30 +308,6 @@ bail:
 	mutex_unlock(&ipath_mutex);
 
 	return ret;
-}
-
-static ssize_t ipath_diagpkt_write(struct file *fp,
-				   const char __user *data,
-				   size_t count, loff_t *off);
-
-static struct file_operations diagpkt_file_ops = {
-	.owner = THIS_MODULE,
-	.write = ipath_diagpkt_write,
-};
-
-static struct cdev *diagpkt_cdev;
-static struct class_device *diagpkt_class_dev;
-
-int __init ipath_diagpkt_add(void)
-{
-	return ipath_cdev_init(IPATH_DIAGPKT_MINOR,
-			       "ipath_diagpkt", &diagpkt_file_ops,
-			       &diagpkt_cdev, &diagpkt_class_dev);
-}
-
-void __exit ipath_diagpkt_remove(void)
-{
-	ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_class_dev);
 }
 
 /**
