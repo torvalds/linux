@@ -39,6 +39,8 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#include <asm/io.h>
+
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_pack.h>
@@ -1732,6 +1734,11 @@ out:
 		mthca_write64(doorbell,
 			      dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+		/*
+		 * Make sure doorbells don't leak out of SQ spinlock
+		 * and reach the HCA out of order:
+		 */
+		mmiowb();
 	}
 
 	qp->sq.next_ind = ind;
@@ -1850,6 +1857,12 @@ out:
 
 	qp->rq.next_ind = ind;
 	qp->rq.head    += nreq;
+
+	/*
+	 * Make sure doorbells don't leak out of RQ spinlock and reach
+	 * the HCA out of order:
+	 */
+	mmiowb();
 
 	spin_unlock_irqrestore(&qp->rq.lock, flags);
 	return err;
@@ -2111,6 +2124,12 @@ out:
 			      dev->kar + MTHCA_SEND_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}
+
+	/*
+	 * Make sure doorbells don't leak out of SQ spinlock and reach
+	 * the HCA out of order:
+	 */
+	mmiowb();
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 	return err;
