@@ -86,7 +86,7 @@
 
 
 /* Worst case buffer size needed for holding an integer. */
-#define PROC_NUMBUF 10
+#define PROC_NUMBUF 13
 
 struct pid_entry {
 	int len;
