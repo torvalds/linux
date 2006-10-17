@@ -323,9 +323,7 @@ static void nfs_execute_read(struct nfs_read_data *data)
 	sigset_t oldset;
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	lock_kernel();
 	rpc_execute(&data->task);
-	unlock_kernel();
 	rpc_clnt_sigunmask(clnt, &oldset);
 }
 

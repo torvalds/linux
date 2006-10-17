@@ -307,9 +307,7 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct read call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -475,9 +473,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
-	lock_kernel();
 	rpc_execute(&data->task);
-	unlock_kernel();
 }
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
@@ -641,9 +637,7 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		data->task.tk_priority = RPC_PRIORITY_NORMAL;
 		data->task.tk_cookie = (unsigned long) inode;
 
-		lock_kernel();
 		rpc_execute(&data->task);
-		unlock_kernel();
 
 		dfprintk(VFS, "NFS: %5u initiated direct write call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
