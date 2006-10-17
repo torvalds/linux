@@ -378,6 +378,12 @@ static pageout_t pageout(struct page *page, struct address_space *mapping)
 	return PAGE_CLEAN;
 }
 
+/*
+ * Attempt to detach a locked page from its ->mapping.  If it is dirty or if
+ * someone else has a ref on the page, abort and return 0.  If it was
+ * successfully detached, return 1.  Assumes the caller has a single ref on
+ * this page.
+ */
 int remove_mapping(struct address_space *mapping, struct page *page)
 {
 	BUG_ON(!PageLocked(page));
