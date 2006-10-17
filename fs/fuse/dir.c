@@ -935,14 +935,30 @@ static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
 	}
 }
 
+static void fuse_vmtruncate(struct inode *inode, loff_t offset)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	int need_trunc;
+
+	spin_lock(&fc->lock);
+	need_trunc = inode->i_size > offset;
+	i_size_write(inode, offset);
+	spin_unlock(&fc->lock);
+
+	if (need_trunc) {
+		struct address_space *mapping = inode->i_mapping;
+		unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+		truncate_inode_pages(mapping, offset);
+	}
+}
+
 /*
  * Set attributes, and at the same time refresh them.
  *
  * Truncation is slightly complicated, because the 'truncate' request
  * may fail, in which case we don't want to touch the mapping.
- * vmtruncate() doesn't allow for this case.  So do the rlimit
- * checking by hand and call vmtruncate() only after the file has
- * actually been truncated.
+ * vmtruncate() doesn't allow for this case, so do the rlimit checking
+ * and the actual truncation by hand.
  */
 static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 {
@@ -993,12 +1009,8 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 			make_bad_inode(inode);
 			err = -EIO;
 		} else {
-			if (is_truncate) {
-				loff_t origsize = i_size_read(inode);
-				i_size_write(inode, outarg.attr.size);
-				if (origsize > outarg.attr.size)
-					vmtruncate(inode, outarg.attr.size);
-			}
+			if (is_truncate)
+				fuse_vmtruncate(inode, outarg.attr.size);
 			fuse_change_attributes(inode, &outarg.attr);
 			fi->i_time = time_to_jiffies(outarg.attr_valid,
 						     outarg.attr_valid_nsec);
