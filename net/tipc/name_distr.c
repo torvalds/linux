@@ -122,7 +122,7 @@ void tipc_named_publish(struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_add(&publ->local_list, &publ_root);
+	list_add_tail(&publ->local_list, &publ_root);
 	publ_cnt++;
 
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
