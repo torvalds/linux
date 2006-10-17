@@ -172,7 +172,6 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	struct inode *inode;
 	struct fuse_inode *fi;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
-	int retried = 0;
 
  retry:
 	inode = iget5_locked(sb, nodeid, fuse_inode_eq, fuse_inode_set, &nodeid);
@@ -186,11 +185,9 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 		fuse_init_inode(inode, attr);
 		unlock_new_inode(inode);
 	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
-		BUG_ON(retried);
 		/* Inode has changed type, any I/O on the old should fail */
 		make_bad_inode(inode);
 		iput(inode);
-		retried = 1;
 		goto retry;
 	}
 
