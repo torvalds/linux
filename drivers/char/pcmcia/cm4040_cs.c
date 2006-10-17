@@ -721,14 +721,14 @@ static int __init cm4040_init(void)
 
 	printk(KERN_INFO "%s\n", version);
 	cmx_class = class_create(THIS_MODULE, "cardman_4040");
-	if (!cmx_class)
-		return -1;
+	if (IS_ERR(cmx_class))
+		return PTR_ERR(cmx_class);
 
 	major = register_chrdev(0, DEVICE_NAME, &reader_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
-		return -1;
+		return major;
 	}
 
 	rc = pcmcia_register_driver(&reader_driver);

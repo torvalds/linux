@@ -1973,14 +1973,14 @@ static int __init cmm_init(void)
 	printk(KERN_INFO "%s\n", version);
 
 	cmm_class = class_create(THIS_MODULE, "cardman_4000");
-	if (!cmm_class)
-		return -1;
+	if (IS_ERR(cmm_class))
+		return PTR_ERR(cmm_class);
 
 	major = register_chrdev(0, DEVICE_NAME, &cm4000_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
-		return -1;
+		return major;
 	}
 
 	rc = pcmcia_register_driver(&cm4000_driver);
