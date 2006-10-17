@@ -616,6 +616,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		memcpy(&oi.eccpos, mtd->ecclayout->eccpos, sizeof(oi.eccpos));
 		memcpy(&oi.oobfree, mtd->ecclayout->oobfree,
 		       sizeof(oi.oobfree));
+		oi.eccbytes = mtd->ecclayout->eccbytes;
 
 		if (copy_to_user(argp, &oi, sizeof(struct nand_oobinfo)))
 			return -EFAULT;
@@ -715,7 +716,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!mtd->ecclayout)
 			return -EOPNOTSUPP;
 
-		if (copy_to_user(argp, &mtd->ecclayout,
+		if (copy_to_user(argp, mtd->ecclayout,
 				 sizeof(struct nand_ecclayout)))
 			return -EFAULT;
 		break;
