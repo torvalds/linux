@@ -781,6 +781,17 @@ static int __init create_spu(struct device_node *spe)
 	if (!spu)
 		goto out;
 
+	spu->node = find_spu_node_id(spe);
+	if (spu->node >= MAX_NUMNODES) {
+		printk(KERN_WARNING "SPE %s on node %d ignored,"
+		       " node number too big\n", spe->full_name, spu->node);
+		printk(KERN_WARNING "Check if CONFIG_NUMA is enabled.\n");
+		return -ENODEV;
+	}
+	spu->nid = of_node_to_nid(spe);
+	if (spu->nid == -1)
+		spu->nid = 0;
+
 	ret = spu_map_device(spu, spe);
 	/* try old method */
 	if (ret)
@@ -788,10 +799,6 @@ static int __init create_spu(struct device_node *spe)
 	if (ret)
 		goto out_free;
 
-	spu->node = find_spu_node_id(spe);
-	spu->nid = of_node_to_nid(spe);
-	if (spu->nid == -1)
-		spu->nid = 0;
 	ret = spu_map_interrupts(spu, spe);
 	if (ret)
 		ret = spu_map_interrupts_old(spu, spe);

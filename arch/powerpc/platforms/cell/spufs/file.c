@@ -246,6 +246,7 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 
 static struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
+	.release = simple_attr_close,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
