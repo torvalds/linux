@@ -3326,9 +3326,8 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 
 	if (!hw->msi_detected) {
 		/* MSI test failed, go back to INTx mode */
-		printk(KERN_WARNING PFX "%s: No interrupt was generated using MSI, "
-		       "switching to INTx mode. Please report this failure to "
-		       "the PCI maintainer and include system chipset information.\n",
+		printk(KERN_INFO PFX "%s: No interrupt generated using MSI, "
+		       "switching to INTx mode.\n",
 		       pci_name(pdev));
 
 		err = -EOPNOTSUPP;
@@ -3336,6 +3335,7 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	}
 
 	sky2_write32(hw, B0_IMSK, 0);
+	sky2_read32(hw, B0_IMSK);
 
 	free_irq(pdev->irq, hw);
 
