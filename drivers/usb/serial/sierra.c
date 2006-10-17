@@ -29,30 +29,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/* Function prototypes */
-static int  sierra_open(struct usb_serial_port *port, struct file *filp);
-static void sierra_close(struct usb_serial_port *port, struct file *filp);
-static int  sierra_startup(struct usb_serial *serial);
-static void sierra_shutdown(struct usb_serial *serial);
-static void sierra_rx_throttle(struct usb_serial_port *port);
-static void sierra_rx_unthrottle(struct usb_serial_port *port);
-static int  sierra_write_room(struct usb_serial_port *port);
-
-static void sierra_instat_callback(struct urb *urb);
-
-static int sierra_write(struct usb_serial_port *port,
-			const unsigned char *buf, int count);
-
-static int  sierra_chars_in_buffer(struct usb_serial_port *port);
-static int  sierra_ioctl(struct usb_serial_port *port, struct file *file,
-			unsigned int cmd, unsigned long arg);
-static void sierra_set_termios(struct usb_serial_port *port,
-				struct termios *old);
-static void sierra_break_ctl(struct usb_serial_port *port, int break_state);
-static int  sierra_tiocmget(struct usb_serial_port *port, struct file *file);
-static int  sierra_tiocmset(struct usb_serial_port *port, struct file *file,
-				unsigned int set, unsigned int clear);
-static int  sierra_send_setup(struct usb_serial_port *port);
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
@@ -68,6 +44,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0F3D, 0x0112) }, /* AirPrime/Sierra PC 5220 */
 	{ }
 };
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_device_id id_table_1port [] = {
 	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
@@ -87,88 +64,22 @@ static struct usb_device_id id_table_3port [] = {
 	{ }
 };
 
-
-MODULE_DEVICE_TABLE(usb, id_table);
-
 static struct usb_driver sierra_driver = {
 	.name       = "sierra",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table   = id_table,
-	.no_dynamic_id = 	3,
+	.no_dynamic_id = 	1,
 };
 
 
-//static struct usb_serial_driver *sierra_device;
-
-static struct usb_serial_driver sierra_1port_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"sierra1",
-	},
-	.description       = "Sierra USB modem (1 port)",
-	.id_table          = id_table_1port,
-	.num_interrupt_in  = NUM_DONT_CARE,
-	.num_bulk_in       = 1,
-	.num_bulk_out      = 1,
-	.num_ports         = 1,
-	.open              = sierra_open,
-	.close             = sierra_close,
-	.write             = sierra_write,
-	.write_room        = sierra_write_room,
-	.chars_in_buffer   = sierra_chars_in_buffer,
-	.throttle          = sierra_rx_throttle,
-	.unthrottle        = sierra_rx_unthrottle,
-	.ioctl             = sierra_ioctl,
-	.set_termios       = sierra_set_termios,
-	.break_ctl         = sierra_break_ctl,
-	.tiocmget          = sierra_tiocmget,
-	.tiocmset          = sierra_tiocmset,
-	.attach            = sierra_startup,
-	.shutdown          = sierra_shutdown,
-	.read_int_callback = sierra_instat_callback,
-};
-
-static struct usb_serial_driver sierra_3port_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"sierra3",
-	},
-	.description       = "Sierra USB modem (3 port)",
-	.id_table          = id_table_3port,
-	.num_interrupt_in  = NUM_DONT_CARE,
-	.num_bulk_in       = 3,
-	.num_bulk_out      = 3,
-	.num_ports         = 3,
-	.open              = sierra_open,
-	.close             = sierra_close,
-	.write             = sierra_write,
-	.write_room        = sierra_write_room,
-	.chars_in_buffer   = sierra_chars_in_buffer,
-	.throttle          = sierra_rx_throttle,
-	.unthrottle        = sierra_rx_unthrottle,
-	.ioctl             = sierra_ioctl,
-	.set_termios       = sierra_set_termios,
-	.break_ctl         = sierra_break_ctl,
-	.tiocmget          = sierra_tiocmget,
-	.tiocmset          = sierra_tiocmset,
-	.attach            = sierra_startup,
-	.shutdown          = sierra_shutdown,
-	.read_int_callback = sierra_instat_callback,
-};
-
-#ifdef CONFIG_USB_DEBUG
 static int debug;
-#else
-#define debug 0
-#endif
 
 /* per port private data */
-
-#define N_IN_URB 4
-#define N_OUT_URB 1
-#define IN_BUFLEN 4096
-#define OUT_BUFLEN 128
+#define N_IN_URB	4
+#define N_OUT_URB	1
+#define IN_BUFLEN	4096
+#define OUT_BUFLEN	128
 
 struct sierra_port_private {
 	/* Input endpoints and buffer for this port */
@@ -189,43 +100,29 @@ struct sierra_port_private {
 	unsigned long tx_start_time[N_OUT_URB];
 };
 
-/* Functions used by new usb-serial code. */
-static int __init sierra_init(void)
+static int sierra_send_setup(struct usb_serial_port *port)
 {
-	int retval;
-	retval = usb_serial_register(&sierra_1port_device);
-	if (retval)
-		goto failed_1port_device_register;
-	retval = usb_serial_register(&sierra_3port_device);
-	if (retval)
-		goto failed_3port_device_register;
+	struct usb_serial *serial = port->serial;
+	struct sierra_port_private *portdata;
 
+	dbg("%s", __FUNCTION__);
 
-	retval = usb_register(&sierra_driver);
-	if (retval)
-		goto failed_driver_register;
+	portdata = usb_get_serial_port_data(port);
 
-	info(DRIVER_DESC ": " DRIVER_VERSION);
+	if (port->tty) {
+		int val = 0;
+		if (portdata->dtr_state)
+			val |= 0x01;
+		if (portdata->rts_state)
+			val |= 0x02;
+
+		return usb_control_msg(serial->dev,
+				usb_rcvctrlpipe(serial->dev, 0),
+				0x22,0x21,val,0,NULL,0,USB_CTRL_SET_TIMEOUT);
+	}
 
 	return 0;
-
-failed_driver_register:
-	usb_serial_deregister(&sierra_3port_device);
-failed_3port_device_register:
-	usb_serial_deregister(&sierra_1port_device);
-failed_1port_device_register:
-	return retval;
 }
-
-static void __exit sierra_exit(void)
-{
-	usb_deregister (&sierra_driver);
-	usb_serial_deregister(&sierra_1port_device);
-	usb_serial_deregister(&sierra_3port_device);
-}
-
-module_init(sierra_init);
-module_exit(sierra_exit);
 
 static void sierra_rx_throttle(struct usb_serial_port *port)
 {
@@ -578,8 +475,8 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 
 /* Helper functions used by sierra_setup_urbs */
 static struct urb *sierra_setup_urb(struct usb_serial *serial, int endpoint,
-		int dir, void *ctx, char *buf, int len,
-		void (*callback)(struct urb *))
+				    int dir, void *ctx, char *buf, int len,
+				    usb_complete_t callback)
 {
 	struct urb *urb;
 
@@ -627,30 +524,6 @@ static void sierra_setup_urbs(struct usb_serial *serial)
                   	portdata->out_buffer[j], OUT_BUFLEN, sierra_outdat_callback);
 		}
 	}
-}
-
-static int sierra_send_setup(struct usb_serial_port *port)
-{
-	struct usb_serial *serial = port->serial;
-	struct sierra_port_private *portdata;
-
-	dbg("%s", __FUNCTION__);
-
-	portdata = usb_get_serial_port_data(port);
-
-	if (port->tty) {
-		int val = 0;
-		if (portdata->dtr_state)
-			val |= 0x01;
-		if (portdata->rts_state)
-			val |= 0x02;
-
-		return usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				0x22,0x21,val,0,NULL,0,USB_CTRL_SET_TIMEOUT);
-	}
-
-	return 0;
 }
 
 static int sierra_startup(struct usb_serial *serial)
@@ -729,6 +602,100 @@ static void sierra_shutdown(struct usb_serial *serial)
 		kfree(usb_get_serial_port_data(port));
 	}
 }
+
+static struct usb_serial_driver sierra_1port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"sierra1",
+	},
+	.description       = "Sierra USB modem (1 port)",
+	.id_table          = id_table_1port,
+	.num_interrupt_in  = NUM_DONT_CARE,
+	.num_bulk_in       = 1,
+	.num_bulk_out      = 1,
+	.num_ports         = 1,
+	.open              = sierra_open,
+	.close             = sierra_close,
+	.write             = sierra_write,
+	.write_room        = sierra_write_room,
+	.chars_in_buffer   = sierra_chars_in_buffer,
+	.throttle          = sierra_rx_throttle,
+	.unthrottle        = sierra_rx_unthrottle,
+	.ioctl             = sierra_ioctl,
+	.set_termios       = sierra_set_termios,
+	.break_ctl         = sierra_break_ctl,
+	.tiocmget          = sierra_tiocmget,
+	.tiocmset          = sierra_tiocmset,
+	.attach            = sierra_startup,
+	.shutdown          = sierra_shutdown,
+	.read_int_callback = sierra_instat_callback,
+};
+
+static struct usb_serial_driver sierra_3port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"sierra3",
+	},
+	.description       = "Sierra USB modem (3 port)",
+	.id_table          = id_table_3port,
+	.num_interrupt_in  = NUM_DONT_CARE,
+	.num_bulk_in       = 3,
+	.num_bulk_out      = 3,
+	.num_ports         = 3,
+	.open              = sierra_open,
+	.close             = sierra_close,
+	.write             = sierra_write,
+	.write_room        = sierra_write_room,
+	.chars_in_buffer   = sierra_chars_in_buffer,
+	.throttle          = sierra_rx_throttle,
+	.unthrottle        = sierra_rx_unthrottle,
+	.ioctl             = sierra_ioctl,
+	.set_termios       = sierra_set_termios,
+	.break_ctl         = sierra_break_ctl,
+	.tiocmget          = sierra_tiocmget,
+	.tiocmset          = sierra_tiocmset,
+	.attach            = sierra_startup,
+	.shutdown          = sierra_shutdown,
+	.read_int_callback = sierra_instat_callback,
+};
+
+/* Functions used by new usb-serial code. */
+static int __init sierra_init(void)
+{
+	int retval;
+	retval = usb_serial_register(&sierra_1port_device);
+	if (retval)
+		goto failed_1port_device_register;
+	retval = usb_serial_register(&sierra_3port_device);
+	if (retval)
+		goto failed_3port_device_register;
+
+
+	retval = usb_register(&sierra_driver);
+	if (retval)
+		goto failed_driver_register;
+
+	info(DRIVER_DESC ": " DRIVER_VERSION);
+
+	return 0;
+
+failed_driver_register:
+	usb_serial_deregister(&sierra_3port_device);
+failed_3port_device_register:
+	usb_serial_deregister(&sierra_1port_device);
+failed_1port_device_register:
+	return retval;
+}
+
+static void __exit sierra_exit(void)
+{
+	usb_deregister (&sierra_driver);
+	usb_serial_deregister(&sierra_1port_device);
+	usb_serial_deregister(&sierra_3port_device);
+}
+
+module_init(sierra_init);
+module_exit(sierra_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
