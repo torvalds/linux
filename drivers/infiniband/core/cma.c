@@ -935,13 +935,8 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	mutex_lock(&lock);
 	ret = cma_acquire_dev(conn_id);
 	mutex_unlock(&lock);
-	if (ret) {
-		ret = -ENODEV;
-		cma_exch(conn_id, CMA_DESTROYING);
-		cma_release_remove(conn_id);
-		rdma_destroy_id(&conn_id->id);
-		goto out;
-	}
+	if (ret)
+		goto release_conn_id;
 
 	conn_id->cm_id.ib = cm_id;
 	cm_id->context = conn_id;
@@ -951,13 +946,17 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	ret = cma_notify_user(conn_id, RDMA_CM_EVENT_CONNECT_REQUEST, 0,
 			      ib_event->private_data + offset,
 			      IB_CM_REQ_PRIVATE_DATA_SIZE - offset);
-	if (ret) {
-		/* Destroy the CM ID by returning a non-zero value. */
-		conn_id->cm_id.ib = NULL;
-		cma_exch(conn_id, CMA_DESTROYING);
-		cma_release_remove(conn_id);
-		rdma_destroy_id(&conn_id->id);
-	}
+	if (!ret)
+		goto out;
+
+	/* Destroy the CM ID by returning a non-zero value. */
+	conn_id->cm_id.ib = NULL;
+
+release_conn_id:
+	cma_exch(conn_id, CMA_DESTROYING);
+	cma_release_remove(conn_id);
+	rdma_destroy_id(&conn_id->id);
+
 out:
 	cma_release_remove(listen_id);
 	return ret;
