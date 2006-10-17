@@ -158,11 +158,6 @@ struct rpc_xprt {
 				resvport   : 1; /* use a reserved port */
 
 	/*
-	 * XID
-	 */
-	__u32			xid;		/* Next XID value to use */
-
-	/*
 	 * State of TCP reply receive stuff
 	 */
 	__be32			tcp_recm,	/* Fragment header */
@@ -193,8 +188,8 @@ struct rpc_xprt {
 	 */
 	spinlock_t		transport_lock;	/* lock transport info */
 	spinlock_t		reserve_lock;	/* lock slot table */
+	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
-
 	struct list_head	recv;
 
 	struct {
