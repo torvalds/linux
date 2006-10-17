@@ -90,7 +90,7 @@ int tipc_random;
 atomic_t tipc_user_count = ATOMIC_INIT(0);
 
 const char tipc_alphabet[] = 
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
 
 /* configurable TIPC parameters */
 

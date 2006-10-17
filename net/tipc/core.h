@@ -275,11 +275,15 @@ static inline void k_term_timer(struct timer_list *timer)
 /*
  * TIPC message buffer code
  *
- * TIPC message buffer headroom leaves room for 14 byte Ethernet header, 
+ * TIPC message buffer headroom reserves space for a link-level header
+ * (in case the message is sent off-node),
  * while ensuring TIPC header is word aligned for quicker access
+ *
+ * The largest header currently supported is 18 bytes, which is used when
+ * the standard 14 byte Ethernet header has 4 added bytes for VLAN info
  */
 
-#define BUF_HEADROOM 16u 
+#define BUF_HEADROOM 20u
 
 struct tipc_skb_cb {
 	void *handle;
