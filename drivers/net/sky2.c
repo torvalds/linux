@@ -50,7 +50,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.9"
+#define DRV_VERSION		"1.10"
 #define PFX			DRV_NAME " "
 
 /*
