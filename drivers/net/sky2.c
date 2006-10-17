@@ -2014,6 +2014,10 @@ oversize:
 
 error:
 	++sky2->net_stats.rx_errors;
+	if (status & GMR_FS_RX_FF_OV) {
+		sky2->net_stats.rx_fifo_errors++;
+		goto resubmit;
+	}
 
 	if (netif_msg_rx_err(sky2) && net_ratelimit())
 		printk(KERN_INFO PFX "%s: rx error, status 0x%x length %d\n",
@@ -2025,8 +2029,6 @@ error:
 		sky2->net_stats.rx_frame_errors++;
 	if (status & GMR_FS_CRC_ERR)
 		sky2->net_stats.rx_crc_errors++;
-	if (status & GMR_FS_RX_FF_OV)
-		sky2->net_stats.rx_fifo_errors++;
 
 	goto resubmit;
 }
