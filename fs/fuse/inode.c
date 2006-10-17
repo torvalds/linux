@@ -195,7 +195,9 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	}
 
 	fi = get_fuse_inode(inode);
+	spin_lock(&fc->lock);
 	fi->nlookup ++;
+	spin_unlock(&fc->lock);
 	fuse_change_attributes(inode, attr);
 	return inode;
 }

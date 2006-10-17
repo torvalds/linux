@@ -163,7 +163,9 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 				fuse_send_forget(fc, req, outarg.nodeid, 1);
 				return 0;
 			}
+			spin_lock(&fc->lock);
 			fi->nlookup ++;
+			spin_unlock(&fc->lock);
 		}
 		fuse_put_request(fc, req);
 		if (err || (outarg.attr.mode ^ inode->i_mode) & S_IFMT)
