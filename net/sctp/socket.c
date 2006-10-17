@@ -821,7 +821,7 @@ out:
  * addrs is a pointer to an array of one or more socket addresses. Each
  * address is contained in its appropriate structure (i.e. struct
  * sockaddr_in or struct sockaddr_in6) the family of the address type
- * must be used to distengish the address length (note that this
+ * must be used to distinguish the address length (note that this
  * representation is termed a "packed array" of addresses). The caller
  * specifies the number of addresses in the array with addrcnt.
  *
