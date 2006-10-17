@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 2005-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 /* This file contains the master driver module for use by SGI IOC4 subdrivers.
@@ -29,9 +29,9 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ioc4.h>
-#include <linux/mmtimer.h>
-#include <linux/rtc.h>
+#include <linux/ktime.h>
 #include <linux/mutex.h>
+#include <linux/time.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/clksupport.h>
 #include <asm/sn/shub_mmr.h>
@@ -43,7 +43,7 @@
 /* Tweakable values */
 
 /* PCI bus speed detection/calibration */
-#define IOC4_CALIBRATE_COUNT 63	/* Calibration cycle period */
+#define IOC4_CALIBRATE_COUNT 63		/* Calibration cycle period */
 #define IOC4_CALIBRATE_CYCLES 256	/* Average over this many cycles */
 #define IOC4_CALIBRATE_DISCARD 2	/* Discard first few cycles */
 #define IOC4_CALIBRATE_LOW_MHZ 25	/* Lower bound on bus speed sanity */
@@ -143,11 +143,11 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
 static void
 ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 {
-	extern unsigned long sn_rtc_cycles_per_second;
 	union ioc4_int_out int_out;
 	union ioc4_gpcr gpcr;
 	unsigned int state, last_state = 1;
-	uint64_t start = 0, end, period;
+	struct timespec start_ts, end_ts;
+	uint64_t start, end, period;
 	unsigned int count = 0;
 
 	/* Enable output */
@@ -175,30 +175,28 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 		if (!last_state && state) {
 			count++;
 			if (count == IOC4_CALIBRATE_END) {
-				end = rtc_time();
+				ktime_get_ts(&end_ts);
 				break;
 			} else if (count == IOC4_CALIBRATE_DISCARD)
-				start = rtc_time();
+				ktime_get_ts(&start_ts);
 		}
 		last_state = state;
 	} while (1);
 
 	/* Calculation rearranged to preserve intermediate precision.
 	 * Logically:
-	 * 1. "end - start" gives us number of RTC cycles over all the
-	 *    square wave cycles measured.
-	 * 2. Divide by number of square wave cycles to get number of
-	 *    RTC cycles per square wave cycle.
+	 * 1. "end - start" gives us the measurement period over all
+	 *    the square wave cycles.
+	 * 2. Divide by number of square wave cycles to get the period
+	 *    of a square wave cycle.
 	 * 3. Divide by 2*(int_out.fields.count+1), which is the formula
 	 *    by which the IOC4 generates the square wave, to get the
-	 *    number of RTC cycles per IOC4 INT_OUT count.
-	 * 4. Divide by sn_rtc_cycles_per_second to get seconds per
-	 *    count.
-	 * 5. Multiply by 1E9 to get nanoseconds per count.
+	 *    period of an IOC4 INT_OUT count.
 	 */
-	period = ((end - start) * 1000000000) /
-	    (IOC4_CALIBRATE_CYCLES * 2 * (IOC4_CALIBRATE_COUNT + 1)
-	     * sn_rtc_cycles_per_second);
+	end = end_ts.tv_sec * NSEC_PER_SEC + end_ts.tv_nsec;
+	start = start_ts.tv_sec * NSEC_PER_SEC + start_ts.tv_nsec;
+	period = (end - start) /
+		(IOC4_CALIBRATE_CYCLES * 2 * (IOC4_CALIBRATE_COUNT + 1));
 
 	/* Bounds check the result. */
 	if (period > IOC4_CALIBRATE_LOW_LIMIT ||
