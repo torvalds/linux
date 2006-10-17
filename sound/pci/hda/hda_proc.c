@@ -45,7 +45,7 @@ static const char *get_wid_type_name(unsigned int wid_value)
 	if (names[wid_value])
 		return names[wid_value];
 	else
-		return "UNKOWN Widget";
+		return "UNKNOWN Widget";
 }
 
 static void print_amp_caps(struct snd_info_buffer *buffer,
