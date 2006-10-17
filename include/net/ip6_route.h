@@ -36,13 +36,6 @@ struct route_info {
 #define RT6_LOOKUP_F_REACHABLE	0x2
 #define RT6_LOOKUP_F_HAS_SADDR	0x4
 
-struct pol_chain {
-	int			type;
-	int			priority;
-	struct fib6_node	*rules;
-	struct pol_chain	*next;
-};
-
 extern struct rt6_info	ip6_null_entry;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
