@@ -223,8 +223,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
 	wacom_wac->features = get_wacom_feature(id);
-	if (wacom_wac->features->pktlen > 10)
-		BUG();
+	BUG_ON(wacom_wac->features->pktlen > 10);
 
 	input_dev->name = wacom_wac->features->name;
 	wacom->wacom_wac = wacom_wac;
