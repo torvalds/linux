@@ -421,7 +421,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 
 	/* Create RPC client */
 	cb->cb_client = rpc_create(&args);
-	if (!cb->cb_client) {
+	if (IS_ERR(cb->cb_client)) {
 		dprintk("NFSD: couldn't create callback client\n");
 		goto out_err;
 	}
@@ -448,10 +448,10 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 out_rpciod:
 	atomic_dec(&clp->cl_count);
 	rpciod_down();
-	cb->cb_client = NULL;
 out_clnt:
 	rpc_shutdown_client(cb->cb_client);
 out_err:
+	cb->cb_client = NULL;
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
 }
