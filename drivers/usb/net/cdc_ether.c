@@ -498,7 +498,7 @@ static struct usb_driver cdc_driver = {
 
 static int __init cdc_init(void)
 {
-	BUG_ON((sizeof(((struct usbnet *)0)->data)
+	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data)
 			< sizeof(struct cdc_state)));
 
  	return usb_register(&cdc_driver);

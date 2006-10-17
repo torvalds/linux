@@ -207,6 +207,14 @@ config USB_NET_PLUSB
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
 
+config USB_NET_MCS7830
+	tristate "MosChip MCS7830 based Ethernet adapters"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a 10/100 Ethernet USB2
+	  adapter based on the MosChip 7830 controller. This includes
+	  adapters marketed under the DeLOCK brand.
+
 config USB_NET_RNDIS_HOST
 	tristate "Host for RNDIS devices (EXPERIMENTAL)"
 	depends on USB_USBNET && EXPERIMENTAL
