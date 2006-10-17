@@ -215,17 +215,17 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	}
 
 	dst = ip6_route_output(NULL, &fl);
-	if (dst) {
+	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
 		SCTP_DEBUG_PRINTK(
 			"rt6_dst:" NIP6_FMT " rt6_src:" NIP6_FMT "\n",
 			NIP6(rt->rt6i_dst.addr), NIP6(rt->rt6i_src.addr));
-	} else {
-		SCTP_DEBUG_PRINTK("NO ROUTE\n");
+		return dst;
 	}
-
-	return dst;
+	SCTP_DEBUG_PRINTK("NO ROUTE\n");
+	dst_release(dst);
+	return NULL;
 }
 
 /* Returns the number of consecutive initial bits that match in the 2 ipv6
