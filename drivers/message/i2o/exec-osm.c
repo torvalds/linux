@@ -325,13 +325,24 @@ static DEVICE_ATTR(product_id, S_IRUGO, i2o_exec_show_product_id, NULL);
 static int i2o_exec_probe(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
+	int rc;
 
-	i2o_event_register(i2o_dev, &i2o_exec_driver, 0, 0xffffffff);
+	rc = i2o_event_register(i2o_dev, &i2o_exec_driver, 0, 0xffffffff);
+	if (rc) goto err_out;
 
-	device_create_file(dev, &dev_attr_vendor_id);
-	device_create_file(dev, &dev_attr_product_id);
+	rc = device_create_file(dev, &dev_attr_vendor_id);
+	if (rc) goto err_evtreg;
+	rc = device_create_file(dev, &dev_attr_product_id);
+	if (rc) goto err_vid;
 
 	return 0;
+
+err_vid:
+	device_remove_file(dev, &dev_attr_vendor_id);
+err_evtreg:
+	i2o_event_register(to_i2o_device(dev), &i2o_exec_driver, 0, 0);
+err_out:
+	return rc;
 };
 
 /**

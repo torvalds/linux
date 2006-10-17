@@ -80,18 +80,26 @@ static DEVICE_ATTR(scan, S_IWUSR, NULL, i2o_bus_store_scan);
  *	@dev: device to verify if it is a I2O Bus Adapter device
  *
  *	Because we want all Bus Adapters always return 0.
+ *	Except when we fail.  Then we are sad.
  *
- *	Returns 0.
+ *	Returns 0, except when we fail to excel.
  */
 static int i2o_bus_probe(struct device *dev)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(get_device(dev));
+	int rc;
 
-	device_create_file(dev, &dev_attr_scan);
+	rc = device_create_file(dev, &dev_attr_scan);
+	if (rc)
+		goto err_out;
 
 	osm_info("device added (TID: %03x)\n", i2o_dev->lct_data.tid);
 
 	return 0;
+
+err_out:
+	put_device(dev);
+	return rc;
 };
 
 /**
