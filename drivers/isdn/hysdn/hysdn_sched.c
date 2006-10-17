@@ -155,8 +155,7 @@ hysdn_tx_cfgline(hysdn_card *card, unsigned char *line, unsigned short chan)
 	if (card->debug_flags & LOG_SCHED_ASYN)
 		hysdn_addlog(card, "async tx-cfg chan=%d len=%d", chan, strlen(line) + 1);
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&card->hysdn_lock, flags);
 	while (card->async_busy) {
 		sti();
 
@@ -165,7 +164,7 @@ hysdn_tx_cfgline(hysdn_card *card, unsigned char *line, unsigned short chan)
 
 		msleep_interruptible(20);		/* Timeout 20ms */
 		if (!--cnt) {
-			restore_flags(flags);
+			spin_unlock_irqrestore(&card->hysdn_lock, flags);
 			return (-ERR_ASYNC_TIME);	/* timed out */
 		}
 		cli();
@@ -194,13 +193,13 @@ hysdn_tx_cfgline(hysdn_card *card, unsigned char *line, unsigned short chan)
 
 		msleep_interruptible(20);		/* Timeout 20ms */
 		if (!--cnt) {
-			restore_flags(flags);
+			spin_unlock_irqrestore(&card->hysdn_lock, flags);
 			return (-ERR_ASYNC_TIME);	/* timed out */
 		}
 		cli();
 	}			/* wait for buffer to become free again */
 
-	restore_flags(flags);
+	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 
 	if (card->debug_flags & LOG_SCHED_ASYN)
 		hysdn_addlog(card, "async tx-cfg data send");
