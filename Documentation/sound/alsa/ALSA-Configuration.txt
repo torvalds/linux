@@ -801,6 +801,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  fujitsu	Fujitsu Laptop
 	  hp-bpc	HP xw4400/6400/8400/9400 laptops
 	  benq		Benq ED8
+	  hippo		Hippo (ATI) with jack detection
+	  hippo_1	Hippo (Benq) with jack detection
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
@@ -818,6 +820,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  6stack-dig-demo  6-jack digital for Intel demo board
 	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
 	  medion	Medion Laptops
+	  targa-dig	Targa/MSI
+	  targa-2ch-dig	Targs/MSI with 2-channel
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
