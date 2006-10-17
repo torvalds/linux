@@ -3502,8 +3502,6 @@ static int __init net_dev_init(void)
 
 	BUG_ON(!dev_boot_phase);
 
-	net_random_init();
-
 	if (dev_proc_init())
 		goto out;
 
