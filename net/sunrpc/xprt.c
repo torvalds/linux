@@ -891,39 +891,25 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
  */
 struct rpc_xprt *xprt_create_transport(int proto, struct sockaddr *ap, size_t size, struct rpc_timeout *to)
 {
-	int result;
 	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
 
-	if ((xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL)) == NULL) {
-		dprintk("RPC:      xprt_create_transport: no memory\n");
-		return ERR_PTR(-ENOMEM);
-	}
-	if (size <= sizeof(xprt->addr)) {
-		memcpy(&xprt->addr, ap, size);
-		xprt->addrlen = size;
-	} else {
-		kfree(xprt);
-		dprintk("RPC:      xprt_create_transport: address too large\n");
-		return ERR_PTR(-EBADF);
-	}
-
 	switch (proto) {
 	case IPPROTO_UDP:
-		result = xs_setup_udp(xprt, to);
+		xprt = xs_setup_udp(ap, size, to);
 		break;
 	case IPPROTO_TCP:
-		result = xs_setup_tcp(xprt, to);
+		xprt = xs_setup_tcp(ap, size, to);
 		break;
 	default:
 		printk(KERN_ERR "RPC: unrecognized transport protocol: %d\n",
 				proto);
 		return ERR_PTR(-EIO);
 	}
-	if (result) {
-		kfree(xprt);
-		dprintk("RPC:      xprt_create_transport: failed, %d\n", result);
-		return ERR_PTR(result);
+	if (IS_ERR(xprt)) {
+		dprintk("RPC:      xprt_create_transport: failed, %ld\n",
+				-PTR_ERR(xprt));
+		return xprt;
 	}
 
 	kref_init(&xprt->kref);
@@ -969,8 +955,11 @@ static void xprt_destroy(struct kref *kref)
 	dprintk("RPC:      destroying transport %p\n", xprt);
 	xprt->shutdown = 1;
 	del_timer_sync(&xprt->timer);
+
+	/*
+	 * Tear down transport state and free the rpc_xprt
+	 */
 	xprt->ops->destroy(xprt);
-	kfree(xprt);
 }
 
 /**

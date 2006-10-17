@@ -518,6 +518,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);
 	kfree(xprt->slot);
+	kfree(xprt);
 }
 
 static inline struct rpc_xprt *xprt_from_sock(struct sock *sk)
@@ -1339,26 +1340,53 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
+static struct rpc_xprt *xs_setup_xprt(struct sockaddr *addr, size_t addrlen, unsigned int slot_table_size)
+{
+	struct rpc_xprt *xprt;
+
+	if (addrlen > sizeof(xprt->addr)) {
+		dprintk("RPC:      xs_setup_xprt: address too large\n");
+		return ERR_PTR(-EBADF);
+	}
+
+	xprt = kzalloc(sizeof(struct rpc_xprt), GFP_KERNEL);
+	if (xprt == NULL) {
+		dprintk("RPC:      xs_setup_xprt: couldn't allocate rpc_xprt\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	xprt->max_reqs = slot_table_size;
+	xprt->slot = kcalloc(xprt->max_reqs, sizeof(struct rpc_rqst), GFP_KERNEL);
+	if (xprt->slot == NULL) {
+		kfree(xprt);
+		dprintk("RPC:      xs_setup_xprt: couldn't allocate slot table\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	memcpy(&xprt->addr, addr, addrlen);
+	xprt->addrlen = addrlen;
+	xprt->port = xs_get_random_port();
+
+	return xprt;
+}
+
 /**
  * xs_setup_udp - Set up transport to use a UDP socket
- * @xprt: transport to set up
+ * @addr: address of remote server
+ * @addrlen: length of address in bytes
  * @to:   timeout parameters
  *
  */
-int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_udp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
 {
-	size_t slot_table_size;
-	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
+	struct rpc_xprt *xprt;
 
-	xprt->max_reqs = xprt_udp_slot_table_entries;
-	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
-	if (xprt->slot == NULL)
-		return -ENOMEM;
+	xprt = xs_setup_xprt(addr, addrlen, xprt_udp_slot_table_entries);
+	if (IS_ERR(xprt))
+		return xprt;
 
-	if (ntohs(addr->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
 		xprt_set_bound(xprt);
-	xprt->port = xs_get_random_port();
 
 	xprt->prot = IPPROTO_UDP;
 	xprt->tsh_size = 0;
@@ -1382,29 +1410,26 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	dprintk("RPC:      set up transport to address %s\n",
 			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
 
-	return 0;
+	return xprt;
 }
 
 /**
  * xs_setup_tcp - Set up transport to use a TCP socket
- * @xprt: transport to set up
+ * @addr: address of remote server
+ * @addrlen: length of address in bytes
  * @to: timeout parameters
  *
  */
-int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
+struct rpc_xprt *xs_setup_tcp(struct sockaddr *addr, size_t addrlen, struct rpc_timeout *to)
 {
-	size_t slot_table_size;
-	struct sockaddr_in *addr = (struct sockaddr_in *) &xprt->addr;
+	struct rpc_xprt *xprt;
 
-	xprt->max_reqs = xprt_tcp_slot_table_entries;
-	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
-	if (xprt->slot == NULL)
-		return -ENOMEM;
+	xprt = xs_setup_xprt(addr, addrlen, xprt_tcp_slot_table_entries);
+	if (IS_ERR(xprt))
+		return xprt;
 
-	if (ntohs(addr->sin_port) != 0)
+	if (ntohs(((struct sockaddr_in *)addr)->sin_port) != 0)
 		xprt_set_bound(xprt);
-	xprt->port = xs_get_random_port();
 
 	xprt->prot = IPPROTO_TCP;
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
@@ -1427,5 +1452,5 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	dprintk("RPC:      set up transport to address %s\n",
 			xs_print_peer_address(xprt, RPC_DISPLAY_ALL));
 
-	return 0;
+	return xprt;
 }
