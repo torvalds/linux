@@ -1225,11 +1225,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_fasteoi_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					 handle_fasteoi_irq, "fasteoi");
 	else
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					 handle_edge_irq, "edge");
 	set_intr_gate(vector, interrupt[irq]);
 }
 
@@ -2235,7 +2235,8 @@ static inline void check_timer(void)
 	printk(KERN_INFO "...trying to set up timer as Virtual Wire IRQ...");
 
 	disable_8259A_irq(0);
-	set_irq_chip_and_handler(0, &lapic_chip, handle_fasteoi_irq);
+	set_irq_chip_and_handler_name(0, &lapic_chip, handle_fasteoi_irq,
+				      "fasteio");
 	apic_write_around(APIC_LVT0, APIC_DM_FIXED | vector);	/* Fixed mode */
 	enable_8259A_irq(0);
 
@@ -2541,7 +2542,8 @@ int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
 
 	write_msi_msg(irq, &msg);
 
-	set_irq_chip_and_handler(irq, &msi_chip, handle_edge_irq);
+	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
+				      "edge");
 
 	return 0;
 }
@@ -2636,7 +2638,8 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		write_ht_irq_low(irq, low);
 		write_ht_irq_high(irq, high);
 
-		set_irq_chip_and_handler(irq, &ht_irq_chip, handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
+					      handle_edge_irq, "edge");
 	}
 	return vector;
 }

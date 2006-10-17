@@ -696,11 +696,11 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 			trigger == IOAPIC_LEVEL)
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_fasteoi_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					      handle_fasteoi_irq, "fasteoi");
 	else
-		set_irq_chip_and_handler(irq, &ioapic_chip,
-					 handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ioapic_chip,
+					      handle_edge_irq, "edge");
 }
 
 static void __init setup_IO_APIC_irqs(void)
@@ -806,7 +806,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	 * The timer IRQ doesn't have to know that behind the
 	 * scene we have a 8259A-master in AEOI mode ...
 	 */
-	set_irq_chip_and_handler(0, &ioapic_chip, handle_edge_irq);
+	set_irq_chip_and_handler_name(0, &ioapic_chip, handle_edge_irq, "edge");
 
 	/*
 	 * Add it to the IO-APIC irq-routing table:
@@ -1839,7 +1839,7 @@ int arch_setup_msi_irq(unsigned int irq, struct pci_dev *dev)
 
 	write_msi_msg(irq, &msg);
 
-	set_irq_chip_and_handler(irq, &msi_chip, handle_edge_irq);
+	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
 
 	return 0;
 }
@@ -1936,7 +1936,8 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		write_ht_irq_low(irq, low);
 		write_ht_irq_high(irq, high);
 
-		set_irq_chip_and_handler(irq, &ht_irq_chip, handle_edge_irq);
+		set_irq_chip_and_handler_name(irq, &ht_irq_chip,
+					      handle_edge_irq, "edge");
 	}
 	return vector;
 }

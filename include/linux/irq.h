@@ -141,6 +141,7 @@ struct irq_chip {
  * @pending_mask:	pending rebalanced interrupts
  * @dir:		/proc/irq/ procfs entry
  * @affinity_entry:	/proc/irq/smp_affinity procfs entry on SMP
+ * @name:		flow handler name for /proc/interrupts output
  *
  * Pad this out to 32 bytes for cache and indexing reasons.
  */
@@ -165,8 +166,9 @@ struct irq_desc {
 	cpumask_t		pending_mask;
 #endif
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *dir;
+	struct proc_dir_entry	*dir;
 #endif
+	const char		*name;
 } ____cacheline_aligned;
 
 extern struct irq_desc irq_desc[NR_IRQS];
@@ -272,12 +274,6 @@ extern void fastcall handle_percpu_irq(unsigned int irq, struct irq_desc *desc);
 extern void fastcall handle_bad_irq(unsigned int irq, struct irq_desc *desc);
 
 /*
- * Get a descriptive string for the highlevel handler, for
- * /proc/interrupts output:
- */
-extern const char *handle_irq_name(irq_flow_handler_t handle);
-
-/*
  * Monolithic do_IRQ implementation.
  * (is an explicit fastcall, because i386 4KSTACKS calls it from assembly)
  */
@@ -326,10 +322,12 @@ extern struct irq_chip no_irq_chip;
 extern struct irq_chip dummy_irq_chip;
 
 extern void
-set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 irq_flow_handler_t handle);
+set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
+			      irq_flow_handler_t handle, const char *name);
+
 extern void
-__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained);
+__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
+		  const char *name);
 
 /*
  * Set a highlevel flow handler for a given IRQ:
@@ -337,7 +335,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained);
 static inline void
 set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
 {
-	__set_irq_handler(irq, handle, 0);
+	__set_irq_handler(irq, handle, 0, NULL);
 }
 
 /*
@@ -349,7 +347,7 @@ static inline void
 set_irq_chained_handler(unsigned int irq,
 			irq_flow_handler_t handle)
 {
-	__set_irq_handler(irq, handle, 1);
+	__set_irq_handler(irq, handle, 1, NULL);
 }
 
 /* Handle dynamic irq creation and destruction */
