@@ -138,6 +138,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		struct fuse_entry_out outarg;
 		struct fuse_conn *fc;
 		struct fuse_req *req;
+		struct dentry *parent;
 
 		/* Doesn't hurt to "reset" the validity timeout */
 		fuse_invalidate_entry_cache(entry);
@@ -151,8 +152,10 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		if (IS_ERR(req))
 			return 0;
 
-		fuse_lookup_init(req, entry->d_parent->d_inode, entry, &outarg);
+		parent = dget_parent(entry);
+		fuse_lookup_init(req, parent->d_inode, entry, &outarg);
 		request_send(fc, req);
+		dput(parent);
 		err = req->out.h.error;
 		/* Zero nodeid is same as -ENOENT */
 		if (!err && !outarg.nodeid)
