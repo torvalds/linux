@@ -153,6 +153,7 @@ static struct cpufreq_driver sc520_freq_driver = {
 static int __init sc520_freq_init(void)
 {
 	struct cpuinfo_x86 *c = cpu_data;
+	int err;
 
 	/* Test if we have the right hardware */
 	if(c->x86_vendor != X86_VENDOR_AMD ||
@@ -166,7 +167,11 @@ static int __init sc520_freq_init(void)
 		return -ENOMEM;
 	}
 
-	return cpufreq_register_driver(&sc520_freq_driver);
+	err = cpufreq_register_driver(&sc520_freq_driver);
+	if (err)
+		iounmap(cpuctl);
+
+	return err;
 }
 
 
