@@ -484,7 +484,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 do { \
 	if (rt == &ip6_null_entry) { \
 		struct fib6_node *pn; \
-		while (fn) { \
+		while (1) { \
 			if (fn->fn_flags & RTN_TL_ROOT) \
 				goto out; \
 			pn = fn->parent; \
