@@ -96,29 +96,97 @@ static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 }
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
-/*
-static struct mt2060_config stk7000p_mt2060_config = {
-	0x60
+static struct dibx000_agc_config stk7700p_dib7000m_agc_config = {
+	BAND_UHF | BAND_VHF,       // band_caps
+
+	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=5, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
+	 * P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=2, P_agc_write=0 */
+	(0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (2 << 1) | (0 << 0), // setup
+
+	712,  // inv_gain
+	41,  // time_stabiliz
+
+	0,  // alpha_level
+	118,  // thlock
+
+	0,     // wbd_inv
+	4095,  // wbd_ref
+	0,     // wbd_sel
+	0,     // wbd_alpha
+
+	42598,  // agc1_max
+	17694,  // agc1_min
+	45875,  // agc2_max
+	2621,  // agc2_min
+	0,  // agc1_pt1
+	76,  // agc1_pt2
+	139,  // agc1_pt3
+	52,  // agc1_slope1
+	59,  // agc1_slope2
+	107,  // agc2_pt1
+	172,  // agc2_pt2
+	57,  // agc2_slope1
+	70,  // agc2_slope2
+
+	21,  // alpha_mant
+	25,  // alpha_exp
+	28,  // beta_mant
+	48,  // beta_exp
+
+	1,  // perform_agc_softsplit
+	{  0,     // split_min
+	   107,   // split_max
+	   51800, // global_split_min
+	   24700  // global_split_max
+	},
 };
-*/
+
+static struct dibx000_bandwidth_config stk7700p_dib7000m_mt2060_config = {
+	60000, 30000, // internal, sampling
+	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
+	0, 0, 1, 1, 0, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
+	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
+	60258167, // ifreq
+	20452225, // timf
+};
+
+static struct dib7000m_config stk7700p_dib7000m_config = {
+	.dvbt_mode = 1,
+	.output_mpeg2_in_188_bytes = 1,
+	.quartz_direct = 1,
+
+	.agc_config_count = 1,
+	.agc = &stk7700p_dib7000m_agc_config,
+	.bw  = &stk7700p_dib7000m_mt2060_config,
+
+	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
+	.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
+	.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+};
 
 static int stk7700p_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	struct dib0700_state *st = adap->dev->priv;
 	/* unless there is no real power management in DVB - we leave the device on GPIO6 */
-	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0); msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1); msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1); msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 0); msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 1); msleep(10);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0); msleep(10);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1); msleep(10);
 
-//	adap->fe = dib7000m_attach(&adap->dev->i2c_adap, &stk7700p_dib7000m_config, 18);
-	return 0;
+	st->mt2060_if1[0] = 1220;
+	return (adap->fe = dvb_attach(dib7000m_attach, &adap->dev->i2c_adap, 18, &stk7700p_dib7000m_config)) == NULL ? -ENODEV : 0;
 }
+
+static struct mt2060_config stk7700p_mt2060_config = {
+	0x60
+};
 
 static int stk7700p_tuner_attach(struct dvb_usb_adapter *adap)
 {
-//	tun_i2c = dib7000m_get_tuner_i2c_master(adap->fe, 1);
-//	return mt2060_attach(adap->fe, tun_i2c, &stk3000p_mt2060_config, if1);
-	return 0;
+	struct dib0700_state *st = adap->dev->priv;
+	struct i2c_adapter *tun_i2c = dib7000m_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
+	return dvb_attach(mt2060_attach,adap->fe, tun_i2c, &stk7700p_mt2060_config,
+		st->mt2060_if1[0]) == NULL ? -ENODEV : 0;
 }
 
 struct usb_device_id dib0700_usb_id_table[] = {
@@ -127,6 +195,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_2) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK) },
 		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR) },
+		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P_PC) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -171,7 +240,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 3,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
-				{ &dib0700_usb_id_table[0], NULL },
+				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[5] },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-T Stick",

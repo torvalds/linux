@@ -172,6 +172,14 @@ config DVB_DIB3000MC
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
+config DVB_DIB7000M
+	tristate "DiBcom 7000MA/MB/PA/PB/MC"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
+	  to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 

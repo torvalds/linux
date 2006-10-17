@@ -32,12 +32,13 @@ struct dib7000m_config {
 	u8 quartz_direct;
 
 	u8 input_clk_is_div_2;
+
+	int (*agc_control) (struct dvb_frontend *, u8 before);
 };
 
 #define DEFAULT_DIB7000M_I2C_ADDRESS 18
 
-extern int dib7000m_attach(struct i2c_adapter *i2c_adap, int no_of_demods, u8 default_addr , u8 do_i2c_enum, struct dib7000m_config[], struct dvb_frontend*[]);
-
+extern struct dvb_frontend * dib7000m_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib7000m_config *cfg);
 extern struct i2c_adapter * dib7000m_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 
 /* TODO
