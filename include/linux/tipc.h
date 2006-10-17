@@ -129,6 +129,7 @@ static inline unsigned int tipc_node(__u32 addr)
 
 #define TIPC_SUB_PORTS     	0x01  	/* filter for port availability */
 #define TIPC_SUB_SERVICE     	0x02  	/* filter for service availability */
+#define TIPC_SUB_CANCEL         0x04    /* cancel a subscription */
 #if 0
 /* The following filter options are not currently implemented */
 #define TIPC_SUB_NO_BIND_EVTS	0x04	/* filter out "publish" events */
