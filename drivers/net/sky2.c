@@ -384,20 +384,31 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 				adv |= PHY_M_AN_10_FD;
 			if (sky2->advertising & ADVERTISED_10baseT_Half)
 				adv |= PHY_M_AN_10_HD;
+
+			/* desired flow control */
+			if (sky2->tx_pause && sky2->rx_pause)	/* both */
+				adv |= PHY_M_AN_PC | PHY_M_AN_ASP;
+			else if (sky2->tx_pause)
+				adv |= PHY_M_AN_ASP;
+			else if (sky2->rx_pause)
+				adv |= PHY_M_AN_PC;
+
+
 		} else {	/* special defines for FIBER (88E1040S only) */
 			if (sky2->advertising & ADVERTISED_1000baseT_Full)
 				adv |= PHY_M_AN_1000X_AFD;
 			if (sky2->advertising & ADVERTISED_1000baseT_Half)
 				adv |= PHY_M_AN_1000X_AHD;
-		}
 
-		/* Set Flow-control capabilities */
-		if (sky2->tx_pause && sky2->rx_pause)
-			adv |= PHY_AN_PAUSE_CAP;	/* symmetric */
-		else if (sky2->rx_pause && !sky2->tx_pause)
-			adv |= PHY_AN_PAUSE_ASYM | PHY_AN_PAUSE_CAP;
-		else if (!sky2->rx_pause && sky2->tx_pause)
-			adv |= PHY_AN_PAUSE_ASYM;	/* local */
+			if (sky2->tx_pause && sky2->rx_pause)	/* both */
+ 				adv |= PHY_M_P_BOTH_MD_X;
+			else if (sky2->tx_pause)
+				adv |= PHY_M_P_ASYM_MD_X;
+			else if (sky2->rx_pause)
+ 				adv |= PHY_M_P_SYM_MD_X;
+			else
+				adv |= PHY_M_P_NO_PAUSE_X;
+		}
 
 		/* Restart Auto-negotiation */
 		ctrl |= PHY_CT_ANE | PHY_CT_RE_CFG;
