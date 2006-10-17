@@ -2,7 +2,7 @@
  * net/tipc/socket.c: TIPC socket API
  * 
  * Copyright (c) 2001-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -629,6 +629,9 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
                         return -ENOTCONN;
         }
 
+	if (unlikely(m->msg_name))
+		return -EISCONN;
+
 	/* 
 	 * Send each iovec entry using one or more messages
 	 *
@@ -641,6 +644,8 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 	curr_iovlen = m->msg_iovlen;
 	my_msg.msg_iov = &my_iov;
 	my_msg.msg_iovlen = 1;
+	my_msg.msg_flags = m->msg_flags;
+	my_msg.msg_name = NULL;
 	bytes_sent = 0;
 
 	while (curr_iovlen--) {
