@@ -183,11 +183,6 @@ static int sx_poll = HZ;
 
 static struct tty_driver *specialix_driver;
 
-static unsigned long baud_table[] =  {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 0,
-};
-
 static struct specialix_board sx_board[SX_NBOARD] =  {
 	{ 0, SX_IOBASE1,  9, },
 	{ 0, SX_IOBASE2, 11, },
@@ -1090,9 +1085,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 
 	if (baud == 38400) {
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			baud ++;
+			baud = 57600;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			baud += 2;
+			baud = 115200;
 	}
 
 	if (!baud) {
@@ -1150,11 +1145,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 	sx_out(bp, CD186x_RBPRL, tmp & 0xff);
 	sx_out(bp, CD186x_TBPRL, tmp & 0xff);
 	spin_unlock_irqrestore(&bp->lock, flags);
-	if (port->custom_divisor) {
+	if (port->custom_divisor)
 		baud = (SX_OSCFREQ + port->custom_divisor/2) / port->custom_divisor;
-		baud = ( baud + 5 ) / 10;
-	} else
-		baud = (baud_table[baud] + 5) / 10;   /* Estimated CPS */
+	baud = (baud + 5) / 10;		/* Estimated CPS */
 
 	/* Two timer ticks seems enough to wakeup something like SLIP driver */
 	tmp = ((baud + HZ/2) / HZ) * 2 - CD186x_NFIFO;
