@@ -82,17 +82,19 @@ static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device
 {
 	struct fm801_gp *gp;
 	struct gameport *port;
+	int error;
 
 	gp = kzalloc(sizeof(struct fm801_gp), GFP_KERNEL);
 	port = gameport_allocate_port();
 	if (!gp || !port) {
 		printk(KERN_ERR "fm801-gp: Memory allocation failed\n");
-		kfree(gp);
-		gameport_free_port(port);
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_out_free;
 	}
 
-	pci_enable_device(pci);
+	error = pci_enable_device(pci);
+	if (error)
+		goto err_out_free;
 
 	port->open = fm801_gp_open;
 #ifdef HAVE_COOKED
@@ -108,9 +110,8 @@ static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device
 	if (!gp->res_port) {
 		printk(KERN_DEBUG "fm801-gp: unable to grab region 0x%x-0x%x\n",
 			port->io, port->io + 0x0f);
-		gameport_free_port(port);
-		kfree(gp);
-		return -EBUSY;
+		error = -EBUSY;
+		goto err_out_disable_dev;
 	}
 
 	pci_set_drvdata(pci, gp);
@@ -119,6 +120,13 @@ static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device
 	gameport_register_port(port);
 
 	return 0;
+
+ err_out_disable_dev:
+	pci_disable_device(pci);
+ err_out_free:
+	gameport_free_port(port);
+	kfree(gp);
+	return error;
 }
 
 static void __devexit fm801_gp_remove(struct pci_dev *pci)

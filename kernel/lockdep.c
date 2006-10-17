@@ -1176,7 +1176,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * itself, so actual lookup of the hash should be once per lock object.
  */
 static inline struct lock_class *
-register_lock_class(struct lockdep_map *lock, unsigned int subclass)
+register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
 	struct lockdep_subclass_key *key;
 	struct list_head *hash_head;
@@ -1248,7 +1248,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass)
 out_unlock_set:
 	__raw_spin_unlock(&hash_lock);
 
-	if (!subclass)
+	if (!subclass || force)
 		lock->class_cache = class;
 
 	DEBUG_LOCKS_WARN_ON(class->subclass != subclass);
@@ -1936,7 +1936,7 @@ void trace_softirqs_off(unsigned long ip)
  * Initialize a lock instance's lock-class mapping info:
  */
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key)
+		      struct lock_class_key *key, int subclass)
 {
 	if (unlikely(!debug_locks))
 		return;
@@ -1956,6 +1956,8 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	lock->name = name;
 	lock->key = key;
 	lock->class_cache = NULL;
+	if (subclass)
+		register_lock_class(lock, subclass, 1);
 }
 
 EXPORT_SYMBOL_GPL(lockdep_init_map);
@@ -1994,7 +1996,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * Not cached yet or subclass?
 	 */
 	if (unlikely(!class)) {
-		class = register_lock_class(lock, subclass);
+		class = register_lock_class(lock, subclass, 0);
 		if (!class)
 			return 0;
 	}
