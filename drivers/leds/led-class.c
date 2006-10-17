@@ -91,6 +91,8 @@ EXPORT_SYMBOL_GPL(led_classdev_resume);
  */
 int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 {
+	int rc;
+
 	led_cdev->class_dev = class_device_create(leds_class, NULL, 0,
 						parent, "%s", led_cdev->name);
 	if (unlikely(IS_ERR(led_cdev->class_dev)))
@@ -99,8 +101,10 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	class_set_devdata(led_cdev->class_dev, led_cdev);
 
 	/* register the attributes */
-	class_device_create_file(led_cdev->class_dev,
-				&class_device_attr_brightness);
+	rc = class_device_create_file(led_cdev->class_dev,
+				      &class_device_attr_brightness);
+	if (rc)
+		goto err_out;
 
 	/* add to the list of leds */
 	write_lock(&leds_list_lock);
@@ -110,16 +114,28 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 #ifdef CONFIG_LEDS_TRIGGERS
 	rwlock_init(&led_cdev->trigger_lock);
 
-	led_trigger_set_default(led_cdev);
+	rc = class_device_create_file(led_cdev->class_dev,
+				      &class_device_attr_trigger);
+	if (rc)
+		goto err_out_led_list;
 
-	class_device_create_file(led_cdev->class_dev,
-				&class_device_attr_trigger);
+	led_trigger_set_default(led_cdev);
 #endif
 
 	printk(KERN_INFO "Registered led device: %s\n",
 			led_cdev->class_dev->class_id);
 
 	return 0;
+
+#ifdef CONFIG_LEDS_TRIGGERS
+err_out_led_list:
+	class_device_remove_file(led_cdev->class_dev,
+				&class_device_attr_brightness);
+	list_del(&led_cdev->node);
+#endif
+err_out:
+	class_device_unregister(led_cdev->class_dev);
+	return rc;
 }
 EXPORT_SYMBOL_GPL(led_classdev_register);
 
