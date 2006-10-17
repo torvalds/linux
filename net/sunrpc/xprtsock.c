@@ -168,37 +168,52 @@ static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
 
-static inline int xs_send_head(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, unsigned int len)
+static int xs_send_kvec(struct socket *sock, struct sockaddr *addr, int addrlen, struct kvec *vec, unsigned int base, int more)
 {
-	struct kvec iov = {
-		.iov_base	= xdr->head[0].iov_base + base,
-		.iov_len	= len - base,
-	};
 	struct msghdr msg = {
 		.msg_name	= addr,
 		.msg_namelen	= addrlen,
-		.msg_flags	= XS_SENDMSG_FLAGS,
+		.msg_flags	= XS_SENDMSG_FLAGS | (more ? MSG_MORE : 0),
+	};
+	struct kvec iov = {
+		.iov_base	= vec->iov_base + base,
+		.iov_len	= vec->iov_len - base,
 	};
 
-	if (xdr->len > len)
-		msg.msg_flags |= MSG_MORE;
-
-	if (likely(iov.iov_len))
+	if (iov.iov_len != 0)
 		return kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
 	return kernel_sendmsg(sock, &msg, NULL, 0, 0);
 }
 
-static int xs_send_tail(struct socket *sock, struct xdr_buf *xdr, unsigned int base, unsigned int len)
+static int xs_send_pagedata(struct socket *sock, struct xdr_buf *xdr, unsigned int base, int more)
 {
-	struct kvec iov = {
-		.iov_base	= xdr->tail[0].iov_base + base,
-		.iov_len	= len - base,
-	};
-	struct msghdr msg = {
-		.msg_flags	= XS_SENDMSG_FLAGS,
-	};
+	struct page **ppage;
+	unsigned int remainder;
+	int err, sent = 0;
 
-	return kernel_sendmsg(sock, &msg, &iov, 1, iov.iov_len);
+	remainder = xdr->page_len - base;
+	base += xdr->page_base;
+	ppage = xdr->pages + (base >> PAGE_SHIFT);
+	base &= ~PAGE_MASK;
+	for(;;) {
+		unsigned int len = min_t(unsigned int, PAGE_SIZE - base, remainder);
+		int flags = XS_SENDMSG_FLAGS;
+
+		remainder -= len;
+		if (remainder != 0 || more)
+			flags |= MSG_MORE;
+		err = sock->ops->sendpage(sock, *ppage, base, len, flags);
+		if (remainder == 0 || err != len)
+			break;
+		sent += err;
+		ppage++;
+		base = 0;
+	}
+	if (sent == 0)
+		return err;
+	if (err > 0)
+		sent += err;
+	return sent;
 }
 
 /**
@@ -210,76 +225,51 @@ static int xs_send_tail(struct socket *sock, struct xdr_buf *xdr, unsigned int b
  * @base: starting position in the buffer
  *
  */
-static inline int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base)
+static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base)
 {
-	struct page **ppage = xdr->pages;
-	unsigned int len, pglen = xdr->page_len;
-	int err, ret = 0;
+	unsigned int remainder = xdr->len - base;
+	int err, sent = 0;
 
 	if (unlikely(!sock))
 		return -ENOTCONN;
 
 	clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
+	if (base != 0) {
+		addr = NULL;
+		addrlen = 0;
+	}
 
-	len = xdr->head[0].iov_len;
-	if (base < len || (addr != NULL && base == 0)) {
-		err = xs_send_head(sock, addr, addrlen, xdr, base, len);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-		if (err != (len - base))
+	if (base < xdr->head[0].iov_len || addr != NULL) {
+		unsigned int len = xdr->head[0].iov_len - base;
+		remainder -= len;
+		err = xs_send_kvec(sock, addr, addrlen, &xdr->head[0], base, remainder != 0);
+		if (remainder == 0 || err != len)
 			goto out;
+		sent += err;
 		base = 0;
 	} else
-		base -= len;
+		base -= xdr->head[0].iov_len;
 
-	if (unlikely(pglen == 0))
-		goto copy_tail;
-	if (unlikely(base >= pglen)) {
-		base -= pglen;
-		goto copy_tail;
-	}
-	if (base || xdr->page_base) {
-		pglen -= base;
-		base += xdr->page_base;
-		ppage += base >> PAGE_CACHE_SHIFT;
-		base &= ~PAGE_CACHE_MASK;
-	}
-
-	do {
-		int flags = XS_SENDMSG_FLAGS;
-
-		len = PAGE_CACHE_SIZE;
-		if (base)
-			len -= base;
-		if (pglen < len)
-			len = pglen;
-
-		if (pglen != len || xdr->tail[0].iov_len != 0)
-			flags |= MSG_MORE;
-
-		err = kernel_sendpage(sock, *ppage, base, len, flags);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-		if (err != len)
+	if (base < xdr->page_len) {
+		unsigned int len = xdr->page_len - base;
+		remainder -= len;
+		err = xs_send_pagedata(sock, xdr, base, remainder != 0);
+		if (remainder == 0 || err != len)
 			goto out;
+		sent += err;
 		base = 0;
-		ppage++;
-	} while ((pglen -= len) != 0);
-copy_tail:
-	len = xdr->tail[0].iov_len;
-	if (base < len) {
-		err = xs_send_tail(sock, xdr, base, len);
-		if (ret == 0)
-			ret = err;
-		else if (err > 0)
-			ret += err;
-	}
+	} else
+		base -= xdr->page_len;
+
+	if (base >= xdr->tail[0].iov_len)
+		return sent;
+	err = xs_send_kvec(sock, NULL, 0, &xdr->tail[0], base, 0);
 out:
-	return ret;
+	if (sent == 0)
+		return err;
+	if (err > 0)
+		sent += err;
+	return sent;
 }
 
 /**
