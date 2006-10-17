@@ -68,20 +68,18 @@ fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 }
 
 static int
-do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
+do_open_permission(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open, int accmode)
 {
-	int accmode, status;
+	int status;
 
 	if (open->op_truncate &&
 		!(open->op_share_access & NFS4_SHARE_ACCESS_WRITE))
 		return nfserr_inval;
 
-	accmode = MAY_NOP;
 	if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
-		accmode = MAY_READ;
+		accmode |= MAY_READ;
 	if (open->op_share_deny & NFS4_SHARE_ACCESS_WRITE)
 		accmode |= (MAY_WRITE | MAY_TRUNC);
-	accmode |= MAY_OWNER_OVERRIDE;
 
 	status = fh_verify(rqstp, current_fh, S_IFREG, accmode);
 
@@ -124,7 +122,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 				&resfh.fh_handle.fh_base,
 				resfh.fh_handle.fh_size);
 
-		status = do_open_permission(rqstp, current_fh, open);
+		status = do_open_permission(rqstp, current_fh, open, MAY_NOP);
 	}
 
 	fh_put(&resfh);
@@ -155,7 +153,7 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
 		(open->op_iattr.ia_size == 0);
 
-	status = do_open_permission(rqstp, current_fh, open);
+	status = do_open_permission(rqstp, current_fh, open, MAY_OWNER_OVERRIDE);
 
 	return status;
 }
