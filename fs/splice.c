@@ -713,6 +713,7 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 {
 	int ret, do_wakeup, err;
 	struct splice_desc sd;
+	struct inode *inode = out->f_mapping->host;
 
 	ret = 0;
 	do_wakeup = 0;
@@ -722,8 +723,13 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	sd.file = out;
 	sd.pos = *ppos;
 
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
+	/*
+	 * The actor worker might be calling ->prepare_write and
+	 * ->commit_write. Most of the time, these expect i_mutex to
+	 * be held. Since this may result in an ABBA deadlock with
+	 * pipe->inode, we have to order lock acquiry here.
+	 */
+	inode_double_lock(inode, pipe->inode);
 
 	for (;;) {
 		if (pipe->nrbufs) {
@@ -797,8 +803,7 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		pipe_wait(pipe);
 	}
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	inode_double_unlock(inode, pipe->inode);
 
 	if (do_wakeup) {
 		smp_mb();
@@ -1400,13 +1405,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	 * grabbing by inode address. Otherwise two different processes
 	 * could deadlock (one doing tee from A -> B, the other from B -> A).
 	 */
-	if (ipipe->inode < opipe->inode) {
-		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_CHILD);
-	} else {
-		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_CHILD);
-	}
+	inode_double_lock(ipipe->inode, opipe->inode);
 
 	do {
 		if (!opipe->readers) {
@@ -1450,8 +1449,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		i++;
 	} while (len);
 
-	mutex_unlock(&ipipe->inode->i_mutex);
-	mutex_unlock(&opipe->inode->i_mutex);
+	inode_double_unlock(ipipe->inode, opipe->inode);
 
 	/*
 	 * If we put data in the output pipe, wakeup any potential readers.
