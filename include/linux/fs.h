@@ -656,7 +656,11 @@ static inline loff_t i_size_read(struct inode *inode)
 #endif
 }
 
-
+/*
+ * NOTE: unlike i_size_read(), i_size_write() does need locking around it
+ * (normally i_mutex), otherwise on 32bit/SMP an update of i_size_seqcount
+ * can be lost, resulting in subsequent i_size_read() calls spinning forever.
+ */
 static inline void i_size_write(struct inode *inode, loff_t i_size)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
