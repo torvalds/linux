@@ -688,56 +688,64 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 	return 0;
 }
 
-/* obj is assumed to point to allocated memory of size at least len: */
-int
-read_bytes_from_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
+static void __read_bytes_from_xdr_buf(struct xdr_buf *subbuf, void *obj, unsigned int len)
 {
-	struct xdr_buf subbuf;
 	unsigned int this_len;
-	int status;
 
-	status = xdr_buf_subsegment(buf, &subbuf, base, len);
-	if (status)
-		goto out;
-	this_len = min_t(unsigned int, len, subbuf.head[0].iov_len);
-	memcpy(obj, subbuf.head[0].iov_base, this_len);
+	this_len = min_t(unsigned int, len, subbuf->head[0].iov_len);
+	memcpy(obj, subbuf->head[0].iov_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min_t(unsigned int, len, subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf->page_len);
 	if (this_len)
-		_copy_from_pages(obj, subbuf.pages, subbuf.page_base, this_len);
+		_copy_from_pages(obj, subbuf->pages, subbuf->page_base, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min_t(unsigned int, len, subbuf.tail[0].iov_len);
-	memcpy(obj, subbuf.tail[0].iov_base, this_len);
-out:
-	return status;
+	this_len = min_t(unsigned int, len, subbuf->tail[0].iov_len);
+	memcpy(obj, subbuf->tail[0].iov_base, this_len);
 }
 
 /* obj is assumed to point to allocated memory of size at least len: */
-int
-write_bytes_to_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
+int read_bytes_from_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
 {
 	struct xdr_buf subbuf;
-	unsigned int this_len;
 	int status;
 
 	status = xdr_buf_subsegment(buf, &subbuf, base, len);
-	if (status)
-		goto out;
-	this_len = min_t(unsigned int, len, subbuf.head[0].iov_len);
-	memcpy(subbuf.head[0].iov_base, obj, this_len);
+	if (status != 0)
+		return status;
+	__read_bytes_from_xdr_buf(&subbuf, obj, len);
+	return 0;
+}
+
+static void __write_bytes_to_xdr_buf(struct xdr_buf *subbuf, void *obj, unsigned int len)
+{
+	unsigned int this_len;
+
+	this_len = min_t(unsigned int, len, subbuf->head[0].iov_len);
+	memcpy(subbuf->head[0].iov_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min_t(unsigned int, len, subbuf.page_len);
+	this_len = min_t(unsigned int, len, subbuf->page_len);
 	if (this_len)
-		_copy_to_pages(subbuf.pages, subbuf.page_base, obj, this_len);
+		_copy_to_pages(subbuf->pages, subbuf->page_base, obj, this_len);
 	len -= this_len;
 	obj += this_len;
-	this_len = min_t(unsigned int, len, subbuf.tail[0].iov_len);
-	memcpy(subbuf.tail[0].iov_base, obj, this_len);
-out:
-	return status;
+	this_len = min_t(unsigned int, len, subbuf->tail[0].iov_len);
+	memcpy(subbuf->tail[0].iov_base, obj, this_len);
+}
+
+/* obj is assumed to point to allocated memory of size at least len: */
+int write_bytes_to_xdr_buf(struct xdr_buf *buf, unsigned int base, void *obj, unsigned int len)
+{
+	struct xdr_buf subbuf;
+	int status;
+
+	status = xdr_buf_subsegment(buf, &subbuf, base, len);
+	if (status != 0)
+		return status;
+	__write_bytes_to_xdr_buf(&subbuf, obj, len);
+	return 0;
 }
 
 int
