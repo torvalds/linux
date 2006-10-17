@@ -356,16 +356,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
 	}
 
-	ctrl = gm_phy_read(hw, port, PHY_MARV_CTRL);
-	if (sky2->autoneg == AUTONEG_DISABLE)
-		ctrl &= ~PHY_CT_ANE;
-	else
-		ctrl |= PHY_CT_ANE;
-
-	ctrl |= PHY_CT_RESET;
-	gm_phy_write(hw, port, PHY_MARV_CTRL, ctrl);
-
-	ctrl = 0;
+	ctrl = PHY_CT_RESET;
 	ct1000 = 0;
 	adv = PHY_AN_CSMA;
 	reg = 0;
@@ -450,8 +441,6 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 			sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_ON);
 		else
 			sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
-
-		ctrl |= PHY_CT_RESET;
 	}
 
 	gma_write16(hw, port, GM_GP_CTRL, reg);
