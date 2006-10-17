@@ -135,12 +135,6 @@ out_unlock:
 
 out_free:
 	kfree(file);
-#ifdef CONFIG_LOCKD_V4
-	if (nfserr == 1)
-		nfserr = nlm4_stale_fh;
-	else
-#endif
-	nfserr = nlm_lck_denied;
 	goto out_unlock;
 }
 

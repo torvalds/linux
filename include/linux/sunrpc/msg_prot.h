@@ -56,7 +56,9 @@ enum rpc_accept_stat {
 	RPC_PROG_MISMATCH = 2,
 	RPC_PROC_UNAVAIL = 3,
 	RPC_GARBAGE_ARGS = 4,
-	RPC_SYSTEM_ERR = 5
+	RPC_SYSTEM_ERR = 5,
+	/* internal use only */
+	RPC_DROP_REPLY = 60000,
 };
 
 enum rpc_reject_stat {
