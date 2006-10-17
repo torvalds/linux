@@ -65,7 +65,7 @@
 #define assert(i)  BUG_ON(!(i))
 
 struct tipc_msg;
-extern struct print_buf *TIPC_CONS, *TIPC_LOG;
+extern struct print_buf *TIPC_NULL, *TIPC_CONS, *TIPC_LOG;
 extern struct print_buf *TIPC_TEE(struct print_buf *, struct print_buf *);
 void tipc_msg_print(struct print_buf*,struct tipc_msg *,const char*);
 void tipc_printf(struct print_buf *, const char *fmt, ...);
@@ -94,11 +94,11 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
  * here, or on a per .c file basis, by redefining these symbols.  The following
  * print buffer options are available:
  *
- * NULL				: Output to null print buffer (i.e. print nowhere)
- * TIPC_CONS			: Output to system console
- * TIPC_LOG			: Output to TIPC log buffer 
- * &buf				: Output to user-defined buffer (struct print_buf *)
- * TIPC_TEE(&buf_a,&buf_b)	: Output to two print buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG) )
+ * TIPC_NULL		   : null buffer (i.e. print nowhere)
+ * TIPC_CONS		   : system console
+ * TIPC_LOG		   : TIPC log buffer
+ * &buf			   : user-defined buffer (struct print_buf *)
+ * TIPC_TEE(&buf_a,&buf_b) : list of buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG))
  */
 
 #ifndef TIPC_OUTPUT
@@ -106,7 +106,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #endif
 
 #ifndef DBG_OUTPUT
-#define DBG_OUTPUT NULL
+#define DBG_OUTPUT TIPC_NULL
 #endif
 
 #else
@@ -136,7 +136,7 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
 #define TIPC_OUTPUT TIPC_CONS
 
 #undef  DBG_OUTPUT
-#define DBG_OUTPUT NULL
+#define DBG_OUTPUT TIPC_NULL
 
 #endif			  
 
