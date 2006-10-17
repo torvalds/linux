@@ -239,6 +239,9 @@ struct fuse_conn {
 	/** Lock protecting accessess to  members of this structure */
 	spinlock_t lock;
 
+	/** Mutex protecting against directory alias creation */
+	struct mutex inst_mutex;
+
 	/** Refcount */
 	atomic_t count;
 

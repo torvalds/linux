@@ -379,6 +379,7 @@ static struct fuse_conn *new_conn(void)
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc) {
 		spin_lock_init(&fc->lock);
+		mutex_init(&fc->inst_mutex);
 		atomic_set(&fc->count, 1);
 		init_waitqueue_head(&fc->waitq);
 		init_waitqueue_head(&fc->blocked_waitq);
@@ -398,8 +399,10 @@ static struct fuse_conn *new_conn(void)
 
 void fuse_conn_put(struct fuse_conn *fc)
 {
-	if (atomic_dec_and_test(&fc->count))
+	if (atomic_dec_and_test(&fc->count)) {
+		mutex_destroy(&fc->inst_mutex);
 		kfree(fc);
+	}
 }
 
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)

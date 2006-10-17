@@ -177,22 +177,6 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 	return 1;
 }
 
-/*
- * Check if there's already a hashed alias of this directory inode.
- * If yes, then lookup and mkdir must not create a new alias.
- */
-static int dir_alias(struct inode *inode)
-{
-	if (S_ISDIR(inode->i_mode)) {
-		struct dentry *alias = d_find_alias(inode);
-		if (alias) {
-			dput(alias);
-			return 1;
-		}
-	}
-	return 0;
-}
-
 static int invalid_nodeid(u64 nodeid)
 {
 	return !nodeid || nodeid == FUSE_ROOT_ID;
@@ -206,6 +190,24 @@ static int valid_mode(int m)
 {
 	return S_ISREG(m) || S_ISDIR(m) || S_ISLNK(m) || S_ISCHR(m) ||
 		S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m);
+}
+
+/*
+ * Add a directory inode to a dentry, ensuring that no other dentry
+ * refers to this inode.  Called with fc->inst_mutex.
+ */
+static int fuse_d_add_directory(struct dentry *entry, struct inode *inode)
+{
+	struct dentry *alias = d_find_alias(inode);
+	if (alias) {
+		/* This tries to shrink the subtree below alias */
+		fuse_invalidate_entry(alias);
+		dput(alias);
+		if (!list_empty(&inode->i_dentry))
+			return -EBUSY;
+	}
+	d_add(entry, inode);
+	return 0;
 }
 
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
@@ -243,11 +245,17 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	if (err && err != -ENOENT)
 		return ERR_PTR(err);
 
-	if (inode && dir_alias(inode)) {
-		iput(inode);
-		return ERR_PTR(-EIO);
-	}
-	d_add(entry, inode);
+	if (inode && S_ISDIR(inode->i_mode)) {
+		mutex_lock(&fc->inst_mutex);
+		err = fuse_d_add_directory(entry, inode);
+		mutex_unlock(&fc->inst_mutex);
+		if (err) {
+			iput(inode);
+			return ERR_PTR(err);
+		}
+	} else
+		d_add(entry, inode);
+
 	entry->d_op = &fuse_dentry_operations;
 	if (!err)
 		fuse_change_timeout(entry, &outarg);
@@ -403,12 +411,22 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	}
 	fuse_put_request(fc, req);
 
-	if (dir_alias(inode)) {
-		iput(inode);
-		return -EIO;
-	}
+	if (S_ISDIR(inode->i_mode)) {
+		struct dentry *alias;
+		mutex_lock(&fc->inst_mutex);
+		alias = d_find_alias(inode);
+		if (alias) {
+			/* New directory must have moved since mkdir */
+			mutex_unlock(&fc->inst_mutex);
+			dput(alias);
+			iput(inode);
+			return -EBUSY;
+		}
+		d_instantiate(entry, inode);
+		mutex_unlock(&fc->inst_mutex);
+	} else
+		d_instantiate(entry, inode);
 
-	d_instantiate(entry, inode);
 	fuse_change_timeout(entry, &outarg);
 	fuse_invalidate_attr(dir);
 	return 0;
