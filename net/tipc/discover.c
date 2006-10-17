@@ -195,7 +195,8 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 		struct sk_buff *rbuf;
 		struct tipc_media_addr *addr;
 		struct node *n_ptr = tipc_node_find(orig);
-		int link_up;
+		int link_fully_up;
+
 		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
 			n_ptr = tipc_node_create(orig);
@@ -225,9 +226,9 @@ void tipc_disc_recv_msg(struct sk_buff *buf)
 			memcpy(addr, &media_addr, sizeof(*addr));
 			tipc_link_reset(link);     
 		}
-		link_up = tipc_link_is_up(link);
+		link_fully_up = (link->state == WORKING_WORKING);
 		spin_unlock_bh(&n_ptr->lock);                
-		if ((type == DSC_RESP_MSG) || link_up)
+		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {
