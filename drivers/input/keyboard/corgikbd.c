@@ -207,7 +207,7 @@ static irqreturn_t corgikbd_interrupt(int irq, void *dev_id)
 static void corgikbd_timer_callback(unsigned long data)
 {
 	struct corgikbd *corgikbd_data = (struct corgikbd *) data;
-	corgikbd_scankeyboard(corgikbd_data, NULL);
+	corgikbd_scankeyboard(corgikbd_data);
 }
 
 /*

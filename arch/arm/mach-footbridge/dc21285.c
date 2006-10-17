@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/irq.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
