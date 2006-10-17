@@ -125,7 +125,25 @@ static struct dvb_usb_rc_key vp7045_rc_keys[] = {
 	{ 0x00, 0x00, KEY_TAB }, /* Tab */
 	{ 0x00, 0x48, KEY_INFO }, /* Preview */
 	{ 0x00, 0x04, KEY_LIST }, /* RecordList */
-	{ 0x00, 0x0f, KEY_TEXT } /* Teletext */
+	{ 0x00, 0x0f, KEY_TEXT }, /* Teletext */
+	{ 0x00, 0x41, KEY_PREVIOUSSONG },
+	{ 0x00, 0x42, KEY_NEXTSONG },
+	{ 0x00, 0x4b, KEY_UP },
+	{ 0x00, 0x51, KEY_DOWN },
+	{ 0x00, 0x4e, KEY_LEFT },
+	{ 0x00, 0x52, KEY_RIGHT },
+	{ 0x00, 0x4f, KEY_ENTER },
+	{ 0x00, 0x13, KEY_CANCEL },
+	{ 0x00, 0x4a, KEY_CLEAR },
+	{ 0x00, 0x54, KEY_PRINT }, /* Capture */
+	{ 0x00, 0x43, KEY_SUBTITLE }, /* Subtitle/CC */
+	{ 0x00, 0x08, KEY_VIDEO }, /* A/V */
+	{ 0x00, 0x07, KEY_SLEEP }, /* Hibernate */
+	{ 0x00, 0x45, KEY_ZOOM }, /* Zoom+ */
+	{ 0x00, 0x18, KEY_RED},
+	{ 0x00, 0x53, KEY_GREEN},
+	{ 0x00, 0x5e, KEY_YELLOW},
+	{ 0x00, 0x5f, KEY_BLUE}
 };
 
 static int vp7045_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
