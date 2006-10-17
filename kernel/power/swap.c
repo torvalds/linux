@@ -425,7 +425,8 @@ static int submit(int rw, pgoff_t page_off, struct page *page,
 			bio_set_pages_dirty(bio);
 		bio_put(bio);
 	} else {
-		get_page(page);
+		if (rw == READ)
+			get_page(page);	/* These pages are freed later */
 		bio->bi_private = *bio_chain;
 		*bio_chain = bio;
 		submit_bio(rw | (1 << BIO_RW_SYNC), bio);
