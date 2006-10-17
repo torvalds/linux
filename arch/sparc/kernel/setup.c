@@ -103,7 +103,6 @@ void prom_sync_me(void)
 
 unsigned int boot_flags __initdata = 0;
 #define BOOTME_DEBUG  0x1
-#define BOOTME_SINGLE 0x2
 
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size __initdata = 0;
@@ -132,7 +131,6 @@ static void __init process_switch(char c)
 		boot_flags |= BOOTME_DEBUG;
 		break;
 	case 's':
-		boot_flags |= BOOTME_SINGLE;
 		break;
 	case 'h':
 		prom_printf("boot_flags_init: Halt!\n");
