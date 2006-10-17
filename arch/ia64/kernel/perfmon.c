@@ -5558,12 +5558,13 @@ report_spurious2:
 }
 
 static irqreturn_t
-pfm_interrupt_handler(int irq, void *arg, struct pt_regs *regs)
+pfm_interrupt_handler(int irq, void *arg)
 {
 	unsigned long start_cycles, total_cycles;
 	unsigned long min, max;
 	int this_cpu;
 	int ret;
+	struct pt_regs *regs = get_irq_regs();
 
 	this_cpu = get_cpu();
 	if (likely(!pfm_alt_intr_handler)) {
