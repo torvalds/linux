@@ -1208,7 +1208,8 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 	atomic_inc(&tipc_queue_size);
 	skb_queue_tail(&sock->sk->sk_receive_queue, buf);
 
-        wake_up_interruptible(sock->sk->sk_sleep);
+	if (waitqueue_active(sock->sk->sk_sleep))
+		wake_up_interruptible(sock->sk->sk_sleep);
 	return TIPC_OK;
 }
 
@@ -1223,7 +1224,8 @@ static void wakeupdispatch(struct tipc_port *tport)
 {
 	struct tipc_sock *tsock = (struct tipc_sock *)tport->usr_handle;
 
-        wake_up_interruptible(tsock->sk.sk_sleep);
+	if (waitqueue_active(tsock->sk.sk_sleep))
+		wake_up_interruptible(tsock->sk.sk_sleep);
 }
 
 /**
