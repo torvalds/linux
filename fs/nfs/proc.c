@@ -545,13 +545,10 @@ nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	};
 	int			status;
 
-	lock_kernel();
-
 	dprintk("NFS call  readdir %d\n", (unsigned int)cookie);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	dprintk("NFS reply readdir: %d\n", status);
-	unlock_kernel();
 	return status;
 }
 

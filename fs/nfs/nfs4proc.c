@@ -2223,13 +2223,11 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name,
 			(unsigned long long)cookie);
-	lock_kernel();
 	nfs4_setup_readdir(cookie, NFS_COOKIEVERF(dir), dentry, &args);
 	res.pgbase = args.pgbase;
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	if (status == 0)
 		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
-	unlock_kernel();
 	dprintk("%s: returns %d\n", __FUNCTION__, status);
 	return status;
 }

@@ -690,8 +690,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	};
 	int			status;
 
-	lock_kernel();
-
 	if (plus)
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_READDIRPLUS];
 
@@ -702,7 +700,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_refresh_inode(dir, &dir_attr);
 	dprintk("NFS reply readdir: %d\n", status);
-	unlock_kernel();
 	return status;
 }
 
