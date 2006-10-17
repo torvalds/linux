@@ -57,7 +57,7 @@ static cycle_t jiffies_read(void)
 
 struct clocksource clocksource_jiffies = {
 	.name		= "jiffies",
-	.rating		= 0, /* lowest rating*/
+	.rating		= 1, /* lowest valid rating*/
 	.read		= jiffies_read,
 	.mask		= 0xffffffff, /*32bits*/
 	.mult		= NSEC_PER_JIFFY << JIFFIES_SHIFT, /* details above */
