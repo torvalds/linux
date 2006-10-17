@@ -707,13 +707,12 @@ out_ret:
  * key here is the 'actor' worker passed in that actually moves the data
  * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
  */
-ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
-			 loff_t *ppos, size_t len, unsigned int flags,
-			 splice_actor *actor)
+static ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
+				  struct file *out, loff_t *ppos, size_t len,
+				  unsigned int flags, splice_actor *actor)
 {
 	int ret, do_wakeup, err;
 	struct splice_desc sd;
-	struct inode *inode = out->f_mapping->host;
 
 	ret = 0;
 	do_wakeup = 0;
@@ -722,14 +721,6 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	sd.flags = flags;
 	sd.file = out;
 	sd.pos = *ppos;
-
-	/*
-	 * The actor worker might be calling ->prepare_write and
-	 * ->commit_write. Most of the time, these expect i_mutex to
-	 * be held. Since this may result in an ABBA deadlock with
-	 * pipe->inode, we have to order lock acquiry here.
-	 */
-	inode_double_lock(inode, pipe->inode);
 
 	for (;;) {
 		if (pipe->nrbufs) {
@@ -803,8 +794,6 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		pipe_wait(pipe);
 	}
 
-	inode_double_unlock(inode, pipe->inode);
-
 	if (do_wakeup) {
 		smp_mb();
 		if (waitqueue_active(&pipe->wait))
@@ -814,6 +803,69 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 
 	return ret;
 }
+
+ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+			 loff_t *ppos, size_t len, unsigned int flags,
+			 splice_actor *actor)
+{
+	ssize_t ret;
+	struct inode *inode = out->f_mapping->host;
+
+	/*
+	 * The actor worker might be calling ->prepare_write and
+	 * ->commit_write. Most of the time, these expect i_mutex to
+	 * be held. Since this may result in an ABBA deadlock with
+	 * pipe->inode, we have to order lock acquiry here.
+	 */
+	inode_double_lock(inode, pipe->inode);
+	ret = __splice_from_pipe(pipe, out, ppos, len, flags, actor);
+	inode_double_unlock(inode, pipe->inode);
+
+	return ret;
+}
+
+/**
+ * generic_file_splice_write_nolock - generic_file_splice_write without mutexes
+ * @pipe:	pipe info
+ * @out:	file to write to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Will either move or copy pages (determined by @flags options) from
+ * the given pipe inode to the given file. The caller is responsible
+ * for acquiring i_mutex on both inodes.
+ *
+ */
+ssize_t
+generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
+				 loff_t *ppos, size_t len, unsigned int flags)
+{
+	struct address_space *mapping = out->f_mapping;
+	struct inode *inode = mapping->host;
+	ssize_t ret;
+	int err;
+
+	ret = __splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	if (ret > 0) {
+		*ppos += ret;
+
+		/*
+		 * If file or inode is SYNC and we actually wrote some data,
+		 * sync it.
+		 */
+		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			err = generic_osync_inode(inode, mapping,
+						  OSYNC_METADATA|OSYNC_DATA);
+
+			if (err)
+				ret = err;
+		}
+	}
+
+	return ret;
+}
+
+EXPORT_SYMBOL(generic_file_splice_write_nolock);
 
 /**
  * generic_file_splice_write - splice data from a pipe to a file
