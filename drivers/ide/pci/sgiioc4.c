@@ -774,7 +774,7 @@ ioc4_ide_exit(void)
 	ioc4_unregister_submodule(&ioc4_ide_submodule);
 }
 
-module_init(ioc4_ide_init);
+late_initcall(ioc4_ide_init); /* Call only after IDE init is done */
 module_exit(ioc4_ide_exit);
 
 MODULE_AUTHOR("Aniket Malatpure/Jeremy Higdon");

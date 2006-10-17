@@ -32,9 +32,6 @@
 #include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
-#include <asm/sn/addrs.h>
-#include <asm/sn/clksupport.h>
-#include <asm/sn/shub_mmr.h>
 
 /***************
  * Definitions *
@@ -208,10 +205,12 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 		       IOC4_CALIBRATE_DEFAULT / IOC4_EXTINT_COUNT_DIVISOR);
 		period = IOC4_CALIBRATE_DEFAULT;
 	} else {
+		u64 ns = period;
+
+		do_div(ns, IOC4_EXTINT_COUNT_DIVISOR);
 		printk(KERN_DEBUG
-		       "IOC4 %s: PCI clock is %ld ns.\n",
-		       pci_name(idd->idd_pdev),
-		       period / IOC4_EXTINT_COUNT_DIVISOR);
+		       "IOC4 %s: PCI clock is %lld ns.\n",
+		       pci_name(idd->idd_pdev), ns);
 	}
 
 	/* Remember results.  We store the extint clock period rather
