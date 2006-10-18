@@ -351,7 +351,7 @@ void handler_irq(int irq, struct pt_regs * regs)
 }
 
 #ifdef CONFIG_BLK_DEV_FD
-extern void floppy_interrupt(int irq, void *dev_id)
+extern void floppy_interrupt(int irq, void *dev_id);
 
 void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
