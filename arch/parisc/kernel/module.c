@@ -822,7 +822,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	       me->name, strtab, symhdr);
 
 	if(me->arch.got_count > MAX_GOTS) {
-		printk(KERN_ERR "%s: Global Offset Table overflow (used %ld, allowed %d\n", me->name, me->arch.got_count, MAX_GOTS);
+		printk(KERN_ERR "%s: Global Offset Table overflow (used %ld, allowed %d)\n",
+				me->name, me->arch.got_count, MAX_GOTS);
 		return -EINVAL;
 	}
 	
