@@ -961,10 +961,18 @@ bad_stack:
  * any task or sent any task a signal, you should use
  * ret_from_except or ret_from_except_lite instead of this.
  */
+fast_exc_return_irq:			/* restores irq state too */
+	ld	r3,SOFTE(r1)
+	ld	r12,_MSR(r1)
+	stb	r3,PACASOFTIRQEN(r13)	/* restore paca->soft_enabled */
+	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
+	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
+	b	1f
+
 	.globl	fast_exception_return
 fast_exception_return:
 	ld	r12,_MSR(r1)
-	ld	r11,_NIP(r1)
+1:	ld	r11,_NIP(r1)
 	andi.	r3,r12,MSR_RI		/* check if RI is set */
 	beq-	unrecov_fer
 
@@ -1361,6 +1369,16 @@ BEGIN_FW_FTR_SECTION
 	 * interrupts if necessary.
 	 */
 	beq	.ret_from_except_lite
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
+#endif
+BEGIN_FW_FTR_SECTION
+	/*
+	 * Here we have interrupts hard-disabled, so it is sufficient
+	 * to restore paca->{soft,hard}_enable and get out.
+	 */
+	beq	fast_exc_return_irq	/* Return from exception on success */
+END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
+
 	/* For a hash failure, we don't bother re-enabling interrupts */
 	ble-	12f
 
@@ -1372,14 +1390,6 @@ BEGIN_FW_FTR_SECTION
 	ld	r3,SOFTE(r1)
 	bl	.local_irq_restore
 	b	11f
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif
-BEGIN_FW_FTR_SECTION
-	beq	fast_exception_return   /* Return from exception on success */
-	ble-	12f			/* Failure return from hash_page */
-
-	/* fall through */
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 /* Here we have a page fault that hash_page can't handle. */
 _GLOBAL(handle_page_fault)

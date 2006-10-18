@@ -489,6 +489,10 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	andi.	r0,r3,MSR_RI
 	beq-	unrecov_restore
 
+	/* extract EE bit and use it to restore paca->hard_enabled */
+	rldicl	r4,r3,49,63		/* r0 = (r3 >> 15) & 1 */
+	stb	r4,PACAHARDIRQEN(r13)
+
 	andi.	r0,r3,MSR_PR
 
 	/*
