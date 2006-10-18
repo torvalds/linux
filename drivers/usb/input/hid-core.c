@@ -968,20 +968,29 @@ static void hid_retry_timeout(unsigned long _hid)
 		hid_io_error(hid);
 }
 
-/* Workqueue routine to reset the device */
+/* Workqueue routine to reset the device or clear a halt */
 static void hid_reset(void *_hid)
 {
 	struct hid_device *hid = (struct hid_device *) _hid;
-	int rc_lock, rc;
+	int rc_lock, rc = 0;
 
-	dev_dbg(&hid->intf->dev, "resetting device\n");
-	rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
-	if (rc_lock >= 0) {
-		rc = usb_reset_composite_device(hid->dev, hid->intf);
-		if (rc_lock)
-			usb_unlock_device(hid->dev);
+	if (test_bit(HID_CLEAR_HALT, &hid->iofl)) {
+		dev_dbg(&hid->intf->dev, "clear halt\n");
+		rc = usb_clear_halt(hid->dev, hid->urbin->pipe);
+		clear_bit(HID_CLEAR_HALT, &hid->iofl);
+		hid_start_in(hid);
 	}
-	clear_bit(HID_RESET_PENDING, &hid->iofl);
+
+	else if (test_bit(HID_RESET_PENDING, &hid->iofl)) {
+		dev_dbg(&hid->intf->dev, "resetting device\n");
+		rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
+		if (rc_lock >= 0) {
+			rc = usb_reset_composite_device(hid->dev, hid->intf);
+			if (rc_lock)
+				usb_unlock_device(hid->dev);
+		}
+		clear_bit(HID_RESET_PENDING, &hid->iofl);
+	}
 
 	switch (rc) {
 	case 0:
@@ -1023,9 +1032,8 @@ static void hid_io_error(struct hid_device *hid)
 
 		/* Retries failed, so do a port reset */
 		if (!test_and_set_bit(HID_RESET_PENDING, &hid->iofl)) {
-			if (schedule_work(&hid->reset_work))
-				goto done;
-			clear_bit(HID_RESET_PENDING, &hid->iofl);
+			schedule_work(&hid->reset_work);
+			goto done;
 		}
 	}
 
@@ -1049,6 +1057,11 @@ static void hid_irq_in(struct urb *urb)
 			hid->retry_delay = 0;
 			hid_input_report(HID_INPUT_REPORT, urb, 1);
 			break;
+		case -EPIPE:		/* stall */
+			clear_bit(HID_IN_RUNNING, &hid->iofl);
+			set_bit(HID_CLEAR_HALT, &hid->iofl);
+			schedule_work(&hid->reset_work);
+			return;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
 		case -ESHUTDOWN:	/* unplug */
