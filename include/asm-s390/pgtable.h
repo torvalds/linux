@@ -200,17 +200,44 @@ extern char empty_zero_page[PAGE_SIZE];
  */
 
 /* Hardware bits in the page table entry */
-#define _PAGE_RO        0x200          /* HW read-only                     */
-#define _PAGE_INVALID   0x400          /* HW invalid                       */
+#define _PAGE_RO	0x200		/* HW read-only bit  */
+#define _PAGE_INVALID	0x400		/* HW invalid bit    */
+#define _PAGE_SWT	0x001		/* SW pte type bit t */
+#define _PAGE_SWX	0x002		/* SW pte type bit x */
 
-/* Mask and six different types of pages. */
-#define _PAGE_TYPE_MASK		0x601
+/* Six different types of pages. */
 #define _PAGE_TYPE_EMPTY	0x400
 #define _PAGE_TYPE_NONE		0x401
-#define _PAGE_TYPE_SWAP		0x600
-#define _PAGE_TYPE_FILE		0x601
+#define _PAGE_TYPE_SWAP		0x403
+#define _PAGE_TYPE_FILE		0x601	/* bit 0x002 is used for offset !! */
 #define _PAGE_TYPE_RO		0x200
 #define _PAGE_TYPE_RW		0x000
+
+/*
+ * PTE type bits are rather complicated. handle_pte_fault uses pte_present,
+ * pte_none and pte_file to find out the pte type WITHOUT holding the page
+ * table lock. ptep_clear_flush on the other hand uses ptep_clear_flush to
+ * invalidate a given pte. ipte sets the hw invalid bit and clears all tlbs
+ * for the page. The page table entry is set to _PAGE_TYPE_EMPTY afterwards.
+ * This change is done while holding the lock, but the intermediate step
+ * of a previously valid pte with the hw invalid bit set can be observed by
+ * handle_pte_fault. That makes it necessary that all valid pte types with
+ * the hw invalid bit set must be distinguishable from the four pte types
+ * empty, none, swap and file.
+ *
+ *			irxt  ipte  irxt
+ * _PAGE_TYPE_EMPTY	1000   ->   1000
+ * _PAGE_TYPE_NONE	1001   ->   1001
+ * _PAGE_TYPE_SWAP	1011   ->   1011
+ * _PAGE_TYPE_FILE	11?1   ->   11?1
+ * _PAGE_TYPE_RO	0100   ->   1100
+ * _PAGE_TYPE_RW	0000   ->   1000
+ *
+ * pte_none is true for bits combinations 1000, 1100
+ * pte_present is true for bits combinations 0000, 0010, 0100, 0110, 1001
+ * pte_file is true for bits combinations 1101, 1111
+ * swap pte is 1011 and 0001, 0011, 0101, 0111, 1010 and 1110 are invalid.
+ */
 
 #ifndef __s390x__
 
@@ -365,18 +392,21 @@ static inline int pmd_bad(pmd_t pmd)
 
 static inline int pte_none(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_EMPTY;
+	return (pte_val(pte) & _PAGE_INVALID) && !(pte_val(pte) & _PAGE_SWT);
 }
 
 static inline int pte_present(pte_t pte)
 {
-	return !(pte_val(pte) & _PAGE_INVALID) ||
-		(pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_NONE;
+	unsigned long mask = _PAGE_RO | _PAGE_INVALID | _PAGE_SWT | _PAGE_SWX;
+	return (pte_val(pte) & mask) == _PAGE_TYPE_NONE ||
+		(!(pte_val(pte) & _PAGE_INVALID) &&
+		 !(pte_val(pte) & _PAGE_SWT));
 }
 
 static inline int pte_file(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_TYPE_MASK) == _PAGE_TYPE_FILE;
+	unsigned long mask = _PAGE_RO | _PAGE_INVALID | _PAGE_SWT;
+	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
 }
 
 #define pte_same(a,b)	(pte_val(a) == pte_val(b))
