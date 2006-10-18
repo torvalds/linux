@@ -227,6 +227,21 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
+	{	/* PPC970GX */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x00450000,
+		.cpu_name		= "PPC970GX",
+		.cpu_features		= CPU_FTRS_PPC970,
+		.cpu_user_features	= COMMON_USER_POWER4 |
+			PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 8,
+		.cpu_setup		= __setup_cpu_ppc970,
+		.oprofile_cpu_type	= "ppc64/970",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.platform		= "ppc970",
+	},
 	{	/* Power5 GR */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003a0000,

@@ -591,6 +591,7 @@
 #define PV_630		0x0040
 #define PV_630p	0x0041
 #define PV_970MP	0x0044
+#define PV_970GX	0x0045
 #define PV_BE		0x0070
 #define PV_PA6T		0x0090
 
