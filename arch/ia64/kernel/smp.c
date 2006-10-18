@@ -108,7 +108,7 @@ cpu_die(void)
 }
 
 irqreturn_t
-handle_IPI (int irq, void *dev_id, struct pt_regs *regs)
+handle_IPI (int irq, void *dev_id)
 {
 	int this_cpu = get_cpu();
 	unsigned long *pending_ipis = &__ia64_per_cpu_var(ipi_operation);
