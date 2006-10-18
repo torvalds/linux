@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <asm/cpu.h>
 #include <linux/notifier.h>
+#include <linux/jiffies.h>
 #include <asm/therm_throt.h>
 
 /* How long to wait between reporting thermal events */
