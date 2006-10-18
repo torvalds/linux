@@ -884,13 +884,14 @@ static int __video1394_ioctl(struct file *file,
 		struct dma_iso_ctx *d;
 		int next_prg;
 
-		if (copy_from_user(&v, argp, sizeof(v)))
+		if (unlikely(copy_from_user(&v, argp, sizeof(v))))
 			return -EFAULT;
 
 		d = find_ctx(&ctx->context_list, OHCI_ISO_RECEIVE, v.channel);
-		if (d == NULL) return -EFAULT;
+		if (unlikely(d == NULL))
+			return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>=d->num_desc - 1)) {
+		if (unlikely((v.buffer<0) || (v.buffer>=d->num_desc - 1))) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -898,7 +899,7 @@ static int __video1394_ioctl(struct file *file,
 
 		spin_lock_irqsave(&d->lock,flags);
 
-		if (d->buffer_status[v.buffer]==VIDEO1394_BUFFER_QUEUED) {
+		if (unlikely(d->buffer_status[v.buffer]==VIDEO1394_BUFFER_QUEUED)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d is already used",v.buffer);
 			spin_unlock_irqrestore(&d->lock,flags);
@@ -949,13 +950,14 @@ static int __video1394_ioctl(struct file *file,
 		struct dma_iso_ctx *d;
 		int i = 0;
 
-		if (copy_from_user(&v, argp, sizeof(v)))
+		if (unlikely(copy_from_user(&v, argp, sizeof(v))))
 			return -EFAULT;
 
 		d = find_ctx(&ctx->context_list, OHCI_ISO_RECEIVE, v.channel);
-		if (d == NULL) return -EFAULT;
+		if (unlikely(d == NULL))
+			return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>d->num_desc - 1)) {
+		if (unlikely((v.buffer<0) || (v.buffer>d->num_desc - 1))) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1008,7 +1010,7 @@ static int __video1394_ioctl(struct file *file,
 		spin_unlock_irqrestore(&d->lock, flags);
 
 		v.buffer=i;
-		if (copy_to_user(argp, &v, sizeof(v)))
+		if (unlikely(copy_to_user(argp, &v, sizeof(v))))
 			return -EFAULT;
 
 		return 0;
