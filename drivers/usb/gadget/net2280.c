@@ -1774,8 +1774,8 @@ static DEVICE_ATTR (queues, S_IRUGO, show_queues, NULL);
 
 #else
 
-#define device_create_file(a,b)	do {} while (0)
-#define device_remove_file	device_create_file
+#define device_create_file(a,b)	(0)
+#define device_remove_file(a,b)	do { } while (0)
 
 #endif
 
