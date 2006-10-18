@@ -943,20 +943,6 @@ out:
 	return ret;
 }
 
-static inline int ocfs2_write_should_remove_suid(struct inode *inode)
-{
-	mode_t mode = inode->i_mode;
-
-	if (!capable(CAP_FSETID)) {
-		if (unlikely(mode & S_ISUID))
-			return 1;
-
-		if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
-			return 1;
-	}
-	return 0;
-}
-
 static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 				    const struct iovec *iov,
 				    unsigned long nr_segs,
@@ -1021,7 +1007,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		 * inode. There's also the dinode i_size state which
 		 * can be lost via setattr during extending writes (we
 		 * set inode->i_size at the end of a write. */
-		if (ocfs2_write_should_remove_suid(inode)) {
+		if (should_remove_suid(filp->f_dentry)) {
 			if (meta_level == 0) {
 				ocfs2_meta_unlock(inode, meta_level);
 				meta_level = 1;
