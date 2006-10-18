@@ -1893,6 +1893,7 @@ int should_remove_suid(struct dentry *dentry)
 
 	return 0;
 }
+EXPORT_SYMBOL(should_remove_suid);
 
 int __remove_suid(struct dentry *dentry, int kill)
 {
