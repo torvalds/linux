@@ -408,6 +408,16 @@ static int usb_match_one_id(struct usb_interface *interface,
 	    (id->bDeviceProtocol != dev->descriptor.bDeviceProtocol))
 		return 0;
 
+	/* The interface class, subclass, and protocol should never be
+	 * checked for a match if the device class is Vendor Specific,
+	 * unless the match record specifies the Vendor ID. */
+	if (dev->descriptor.bDeviceClass == USB_CLASS_VENDOR_SPEC &&
+			!(id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
+			(id->match_flags & (USB_DEVICE_ID_MATCH_INT_CLASS |
+				USB_DEVICE_ID_MATCH_INT_SUBCLASS |
+				USB_DEVICE_ID_MATCH_INT_PROTOCOL)))
+		return 0;
+
 	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
 	    (id->bInterfaceClass != intf->desc.bInterfaceClass))
 		return 0;
@@ -476,7 +486,17 @@ static int usb_match_one_id(struct usb_interface *interface,
  * most general; they let drivers bind to any interface on a
  * multiple-function device.  Use the USB_INTERFACE_INFO
  * macro, or its siblings, to match class-per-interface style
- * devices (as recorded in bDeviceClass).
+ * devices (as recorded in bInterfaceClass).
+ *
+ * Note that an entry created by USB_INTERFACE_INFO won't match
+ * any interface if the device class is set to Vendor-Specific.
+ * This is deliberate; according to the USB spec the meanings of
+ * the interface class/subclass/protocol for these devices are also
+ * vendor-specific, and hence matching against a standard product
+ * class wouldn't work anyway.  If you really want to use an
+ * interface-based match for such a device, create a match record
+ * that also specifies the vendor ID.  (Unforunately there isn't a
+ * standard macro for creating records like this.)
  *
  * Within those groups, remember that not all combinations are
  * meaningful.  For example, don't give a product version range
