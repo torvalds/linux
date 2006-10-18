@@ -3238,7 +3238,11 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 		dev->poll = sky2_poll;
 	dev->weight = NAPI_WEIGHT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = sky2_netpoll;
+	/* Network console (only works on port 0)
+	 * because netpoll makes assumptions about NAPI
+	 */
+	if (port == 0)
+		dev->poll_controller = sky2_netpoll;
 #endif
 
 	sky2 = netdev_priv(dev);
