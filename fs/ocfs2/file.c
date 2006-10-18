@@ -31,6 +31,7 @@
 #include <linux/pagemap.h>
 #include <linux/uio.h>
 #include <linux/sched.h>
+#include <linux/pipe_fs_i.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -943,53 +944,21 @@ out:
 	return ret;
 }
 
-static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
-				    const struct iovec *iov,
-				    unsigned long nr_segs,
-				    loff_t pos)
+static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
+					 loff_t *ppos,
+					 size_t count,
+					 int appending)
 {
-	int ret, rw_level = -1, meta_level = -1, have_alloc_sem = 0;
+	int ret = 0, meta_level = appending;
+	struct inode *inode = dentry->d_inode;
 	u32 clusters;
-	struct file *filp = iocb->ki_filp;
-	struct inode *inode = filp->f_dentry->d_inode;
 	loff_t newsize, saved_pos;
-
-	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
-		   (unsigned int)nr_segs,
-		   filp->f_dentry->d_name.len,
-		   filp->f_dentry->d_name.name);
-
-	/* happy write of zero bytes */
-	if (iocb->ki_left == 0)
-		return 0;
-
-	if (!inode) {
-		mlog(0, "bad inode\n");
-		return -EIO;
-	}
-
-	mutex_lock(&inode->i_mutex);
-	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
-	if (filp->f_flags & O_DIRECT) {
-		have_alloc_sem = 1;
-		down_read(&inode->i_alloc_sem);
-	}
-
-	/* concurrent O_DIRECT writes are allowed */
-	rw_level = (filp->f_flags & O_DIRECT) ? 0 : 1;
-	ret = ocfs2_rw_lock(inode, rw_level);
-	if (ret < 0) {
-		rw_level = -1;
-		mlog_errno(ret);
-		goto out;
-	}
 
 	/* 
 	 * We sample i_size under a read level meta lock to see if our write
 	 * is extending the file, if it is we back off and get a write level
 	 * meta lock.
 	 */
-	meta_level = (filp->f_flags & O_APPEND) ? 1 : 0;
 	for(;;) {
 		ret = ocfs2_meta_lock(inode, NULL, meta_level);
 		if (ret < 0) {
@@ -1007,7 +976,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		 * inode. There's also the dinode i_size state which
 		 * can be lost via setattr during extending writes (we
 		 * set inode->i_size at the end of a write. */
-		if (should_remove_suid(filp->f_dentry)) {
+		if (should_remove_suid(dentry)) {
 			if (meta_level == 0) {
 				ocfs2_meta_unlock(inode, meta_level);
 				meta_level = 1;
@@ -1017,19 +986,19 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 			ret = ocfs2_write_remove_suid(inode);
 			if (ret < 0) {
 				mlog_errno(ret);
-				goto out;
+				goto out_unlock;
 			}
 		}
 
 		/* work on a copy of ppos until we're sure that we won't have
 		 * to recalculate it due to relocking. */
-		if (filp->f_flags & O_APPEND) {
+		if (appending) {
 			saved_pos = i_size_read(inode);
 			mlog(0, "O_APPEND: inode->i_size=%llu\n", saved_pos);
 		} else {
-			saved_pos = iocb->ki_pos;
+			saved_pos = *ppos;
 		}
-		newsize = iocb->ki_left + saved_pos;
+		newsize = count + saved_pos;
 
 		mlog(0, "pos=%lld newsize=%lld cursize=%lld\n",
 		     (long long) saved_pos, (long long) newsize,
@@ -1062,19 +1031,66 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		if (!clusters)
 			break;
 
-		ret = ocfs2_extend_file(inode, NULL, newsize, iocb->ki_left);
+		ret = ocfs2_extend_file(inode, NULL, newsize, count);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
-			goto out;
+			goto out_unlock;
 		}
 		break;
 	}
 
-	/* ok, we're done with i_size and alloc work */
-	iocb->ki_pos = saved_pos;
+	if (appending)
+		*ppos = saved_pos;
+
+out_unlock:
 	ocfs2_meta_unlock(inode, meta_level);
-	meta_level = -1;
+
+out:
+	return ret;
+}
+
+static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
+				    const struct iovec *iov,
+				    unsigned long nr_segs,
+				    loff_t pos)
+{
+	int ret, rw_level, have_alloc_sem = 0;
+	struct file *filp = iocb->ki_filp;
+	struct inode *inode = filp->f_dentry->d_inode;
+	int appending = filp->f_flags & O_APPEND ? 1 : 0;
+
+	mlog_entry("(0x%p, %u, '%.*s')\n", filp,
+		   (unsigned int)nr_segs,
+		   filp->f_dentry->d_name.len,
+		   filp->f_dentry->d_name.name);
+
+	/* happy write of zero bytes */
+	if (iocb->ki_left == 0)
+		return 0;
+
+	mutex_lock(&inode->i_mutex);
+	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
+	if (filp->f_flags & O_DIRECT) {
+		have_alloc_sem = 1;
+		down_read(&inode->i_alloc_sem);
+	}
+
+	/* concurrent O_DIRECT writes are allowed */
+	rw_level = (filp->f_flags & O_DIRECT) ? 0 : 1;
+	ret = ocfs2_rw_lock(inode, rw_level);
+	if (ret < 0) {
+		rw_level = -1;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_prepare_inode_for_write(filp->f_dentry, &iocb->ki_pos,
+					    iocb->ki_left, appending);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
 
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb);
@@ -1100,14 +1116,83 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	}
 
 out:
-	if (meta_level != -1)
-		ocfs2_meta_unlock(inode, meta_level);
 	if (have_alloc_sem)
 		up_read(&inode->i_alloc_sem);
 	if (rw_level != -1) 
 		ocfs2_rw_unlock(inode, rw_level);
 	mutex_unlock(&inode->i_mutex);
 
+	mlog_exit(ret);
+	return ret;
+}
+
+static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
+				       struct file *out,
+				       loff_t *ppos,
+				       size_t len,
+				       unsigned int flags)
+{
+	int ret;
+	struct inode *inode = out->f_dentry->d_inode;
+
+	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", out, pipe,
+		   (unsigned int)len,
+		   out->f_dentry->d_name.len,
+		   out->f_dentry->d_name.name);
+
+	inode_double_lock(inode, pipe->inode);
+
+	ret = ocfs2_rw_lock(inode, 1);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_prepare_inode_for_write(out->f_dentry, ppos, len, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_unlock;
+	}
+
+	/* ok, we're done with i_size and alloc work */
+	ret = generic_file_splice_write_nolock(pipe, out, ppos, len, flags);
+
+out_unlock:
+	ocfs2_rw_unlock(inode, 1);
+out:
+	inode_double_unlock(inode, pipe->inode);
+
+	mlog_exit(ret);
+	return ret;
+}
+
+static ssize_t ocfs2_file_splice_read(struct file *in,
+				      loff_t *ppos,
+				      struct pipe_inode_info *pipe,
+				      size_t len,
+				      unsigned int flags)
+{
+	int ret = 0;
+	struct inode *inode = in->f_dentry->d_inode;
+
+	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", in, pipe,
+		   (unsigned int)len,
+		   in->f_dentry->d_name.len,
+		   in->f_dentry->d_name.name);
+
+	/*
+	 * See the comment in ocfs2_file_aio_read()
+	 */
+	ret = ocfs2_meta_lock(inode, NULL, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto bail;
+	}
+	ocfs2_meta_unlock(inode, 0);
+
+	ret = generic_file_splice_read(in, ppos, pipe, len, flags);
+
+bail:
 	mlog_exit(ret);
 	return ret;
 }
@@ -1210,6 +1295,8 @@ const struct file_operations ocfs2_fops = {
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
 	.ioctl		= ocfs2_ioctl,
+	.splice_read	= ocfs2_file_splice_read,
+	.splice_write	= ocfs2_file_splice_write,
 };
 
 const struct file_operations ocfs2_dops = {
