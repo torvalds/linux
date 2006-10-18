@@ -360,9 +360,6 @@ static int __init speedstep_init(void)
 	case SPEEDSTEP_PROCESSOR_PIII_C:
 	case SPEEDSTEP_PROCESSOR_PIII_C_EARLY:
 		break;
-	case SPEEDSTEP_PROCESSOR_P4M:
-		printk(KERN_INFO "speedstep-smi: you're trying to use this cpufreq driver on a Pentium 4-based CPU. Most likely it will not work.\n");
-		break;
 	default:
 		speedstep_processor = 0;
 	}
