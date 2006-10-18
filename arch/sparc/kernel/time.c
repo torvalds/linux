@@ -95,6 +95,8 @@ unsigned long profile_pc(struct pt_regs *regs)
 	return pc;
 }
 
+EXPORT_SYMBOL(profile_pc);
+
 __volatile__ unsigned int *master_l10_counter;
 __volatile__ unsigned int *master_l10_limit;
 

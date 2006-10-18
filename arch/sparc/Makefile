@@ -30,6 +30,8 @@ HEAD_Y := $(head-y)
 core-y += arch/sparc/kernel/ arch/sparc/mm/ arch/sparc/math-emu/
 libs-y += arch/sparc/prom/ arch/sparc/lib/
 
+drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
+
 # Export what is needed by arch/sparc/boot/Makefile
 # Renaming is done to avoid confusing pattern matching rules in 2.5.45 (multy-)
 INIT_Y		:= $(patsubst %/, %/built-in.o, $(init-y))
