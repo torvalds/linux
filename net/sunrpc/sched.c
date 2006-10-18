@@ -588,7 +588,9 @@ void rpc_delay(struct rpc_task *task, unsigned long delay)
  */
 static void rpc_prepare_task(struct rpc_task *task)
 {
+	lock_kernel();
 	task->tk_ops->rpc_call_prepare(task, task->tk_calldata);
+	unlock_kernel();
 }
 
 /*
@@ -598,7 +600,9 @@ void rpc_exit_task(struct rpc_task *task)
 {
 	task->tk_action = NULL;
 	if (task->tk_ops->rpc_call_done != NULL) {
+		lock_kernel();
 		task->tk_ops->rpc_call_done(task, task->tk_calldata);
+		unlock_kernel();
 		if (task->tk_action != NULL) {
 			WARN_ON(RPC_ASSASSINATED(task));
 			/* Always release the RPC slot and buffer memory */
@@ -651,9 +655,7 @@ static int __rpc_execute(struct rpc_task *task)
 			 */
 			save_callback=task->tk_callback;
 			task->tk_callback=NULL;
-			lock_kernel();
 			save_callback(task);
-			unlock_kernel();
 		}
 
 		/*
@@ -664,9 +666,7 @@ static int __rpc_execute(struct rpc_task *task)
 		if (!RPC_IS_QUEUED(task)) {
 			if (task->tk_action == NULL)
 				break;
-			lock_kernel();
 			task->tk_action(task);
-			unlock_kernel();
 		}
 
 		/*
