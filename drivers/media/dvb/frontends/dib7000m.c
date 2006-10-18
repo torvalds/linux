@@ -637,15 +637,14 @@ static int dib7000m_autosearch_start(struct dvb_frontend *demod, struct dibx000_
 	struct dib7000m_state *state = demod->demodulator_priv;
 	struct dibx000_ofdm_channel auto_ch;
 	int ret = 0;
-	u8 seq;
 	u32 value;
 
 	INIT_OFDM_CHANNEL(&auto_ch);
 	auto_ch.RF_kHz           = ch->RF_kHz;
 	auto_ch.Bw               = ch->Bw;
 	auto_ch.nqam             = 2;
-	auto_ch.guard            = ch->guard == GUARD_INTERVAL_AUTO ? 0 : ch->guard;
-	auto_ch.nfft             = ch->nfft  == -1            ? 1 : ch->nfft;
+	auto_ch.guard            = 0;
+	auto_ch.nfft             = 1;
 	auto_ch.vit_alpha        = 1;
 	auto_ch.vit_select_hp    = 1;
 	auto_ch.vit_code_rate_hp = 2;
@@ -653,20 +652,16 @@ static int dib7000m_autosearch_start(struct dvb_frontend *demod, struct dibx000_
 	auto_ch.vit_hrch         = 0;
 	auto_ch.intlv_native     = 1;
 
-	seq = 0;
-	if (ch->nfft == -1 && ch->guard == GUARD_INTERVAL_AUTO) seq = 7;
-	if (ch->nfft == -1 && ch->guard != GUARD_INTERVAL_AUTO) seq = 2;
-	if (ch->nfft != -1 && ch->guard == GUARD_INTERVAL_AUTO) seq = 3;
-	dib7000m_set_channel(state, &auto_ch, seq);
+	dib7000m_set_channel(state, &auto_ch, 7);
 
 	// always use the setting for 8MHz here lock_time for 7,6 MHz are longer
-	value = 30 * state->cfg.bw[BANDWIDTH_8_MHZ].internal;
+	value = 30 * state->cfg.bw->internal;
 	ret |= dib7000m_write_word(state, 6,  (u16) ((value >> 16) & 0xffff)); // lock0 wait time
 	ret |= dib7000m_write_word(state, 7,  (u16)  (value        & 0xffff)); // lock0 wait time
-	value = 100 * state->cfg.bw[BANDWIDTH_8_MHZ].internal;
+	value = 100 * state->cfg.bw->internal;
 	ret |= dib7000m_write_word(state, 8,  (u16) ((value >> 16) & 0xffff)); // lock1 wait time
 	ret |= dib7000m_write_word(state, 9,  (u16)  (value        & 0xffff)); // lock1 wait time
-	value = 500 * state->cfg.bw[BANDWIDTH_8_MHZ].internal;
+	value = 500 * state->cfg.bw->internal;
 	ret |= dib7000m_write_word(state, 10, (u16) ((value >> 16) & 0xffff)); // lock2 wait time
 	ret |= dib7000m_write_word(state, 11, (u16)  (value        & 0xffff)); // lock2 wait time
 
@@ -919,7 +914,7 @@ static int dib7000m_get_frontend(struct dvb_frontend* fe,
 
 	fep->u.ofdm.bandwidth = state->current_bandwidth;
 
-	switch ((tps >> 8) & 0x2) {
+	switch ((tps >> 8) & 0x3) {
 		case 0: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_2K; break;
 		case 1: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_8K; break;
 		/* case 2: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_4K; break; */
