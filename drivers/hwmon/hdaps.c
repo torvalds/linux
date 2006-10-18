@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/dmi.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #define HDAPS_LOW_PORT		0x1600	/* first port used by hdaps */

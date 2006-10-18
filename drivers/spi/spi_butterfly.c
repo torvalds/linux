@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/parport.h>
 
+#include <linux/sched.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/flash.h>
