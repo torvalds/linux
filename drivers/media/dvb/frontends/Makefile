@@ -14,6 +14,7 @@ obj-$(CONFIG_DVB_L64781) += l64781.o
 obj-$(CONFIG_DVB_DIB3000MB) += dib3000mb.o
 obj-$(CONFIG_DVB_DIB3000MC) += dib3000mc.o dibx000_common.o
 obj-$(CONFIG_DVB_DIB7000M) += dib7000m.o dibx000_common.o
+obj-$(CONFIG_DVB_DIB7000P) += dib7000p.o dibx000_common.o
 obj-$(CONFIG_DVB_MT312) += mt312.o
 obj-$(CONFIG_DVB_VES1820) += ves1820.o
 obj-$(CONFIG_DVB_VES1X93) += ves1x93.o
