@@ -166,4 +166,4 @@ module_exit(corgibl_exit);
 
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Corgi Backlight Driver");
-MODULE_LICENSE("GPLv2");
+MODULE_LICENSE("GPL");
