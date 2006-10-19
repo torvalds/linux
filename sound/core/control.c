@@ -1018,10 +1018,6 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	}
 	switch (info->type) {
 	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
-		private_size = sizeof(char);
-		if (info->count > 128)
-			return -EINVAL;
-		break;
 	case SNDRV_CTL_ELEM_TYPE_INTEGER:
 		private_size = sizeof(long);
 		if (info->count > 128)
