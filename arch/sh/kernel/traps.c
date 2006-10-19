@@ -11,27 +11,15 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/timer.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
-#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
-
+#include <linux/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/atomic.h>
-#include <asm/processor.h>
-#include <asm/sections.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
@@ -581,7 +569,10 @@ int is_dsp_inst(struct pt_regs *regs)
 #define is_dsp_inst(regs)	(0)
 #endif /* CONFIG_SH_DSP */
 
-extern int do_fpu_inst(unsigned short, struct pt_regs*);
+/* arch/sh/kernel/cpu/sh4/fpu.c */
+extern int do_fpu_inst(unsigned short, struct pt_regs *);
+extern asmlinkage void do_fpu_state_restore(unsigned long r4, unsigned long r5,
+		unsigned long r6, unsigned long r7, struct pt_regs regs);
 
 asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
@@ -740,14 +731,20 @@ void __init per_cpu_trap_init(void)
 		     : "memory");
 }
 
-void __init trap_init(void)
+void *set_exception_table_vec(unsigned int vec, void *handler)
 {
 	extern void *exception_handling_table[];
+	void *old_handler;
+	
+	old_handler = exception_handling_table[vec];
+	exception_handling_table[vec] = handler;
+	return old_handler;
+}
 
-	exception_handling_table[TRAP_RESERVED_INST]
-		= (void *)do_reserved_inst;
-	exception_handling_table[TRAP_ILLEGAL_SLOT_INST]
-		= (void *)do_illegal_slot_inst;
+void __init trap_init(void)
+{
+	set_exception_table_vec(TRAP_RESERVED_INST, do_reserved_inst);
+	set_exception_table_vec(TRAP_ILLEGAL_SLOT_INST, do_illegal_slot_inst);
 
 #if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SH_FPU) || \
     defined(CONFIG_SH_FPU_EMU)
@@ -756,9 +753,11 @@ void __init trap_init(void)
 	 * reserved. They'll be handled in the math-emu case, or faulted on
 	 * otherwise.
 	 */
-	/* entry 64 corresponds to EXPEVT=0x800 */
-	exception_handling_table[64] = (void *)do_reserved_inst;
-	exception_handling_table[65] = (void *)do_illegal_slot_inst;
+	set_exception_table_evt(0x800, do_reserved_inst);
+	set_exception_table_evt(0x820, do_illegal_slot_inst);
+#elif defined(CONFIG_SH_FPU)
+	set_exception_table_evt(0x800, do_fpu_state_restore);
+	set_exception_table_evt(0x820, do_fpu_state_restore);
 #endif
 		
 	/* Setup VBR for boot cpu */
