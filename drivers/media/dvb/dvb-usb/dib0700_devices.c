@@ -318,7 +318,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 4,
+		.num_device_descs = 5,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
 				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
