@@ -131,8 +131,13 @@ static int of_device_resume(struct device * dev)
 void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name)
 {
 	unsigned long ret = res->start + offset;
+	struct resource *r;
 
-	if (!request_region(ret, size, name))
+	if (res->flags & IORESOURCE_MEM)
+		r = request_mem_region(ret, size, name);
+	else
+		r = request_region(ret, size, name);
+	if (!r)
 		ret = 0;
 
 	return (void __iomem *) ret;
