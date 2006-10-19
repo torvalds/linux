@@ -1275,7 +1275,6 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			goto e_inval;
 
 		res.type = RTN_LOCAL;
-		flags |= RTCF_DIRECTSRC;
 	} else {
 		__le16 src_map = fl.fld_src;
 		free_res = 1;
@@ -1346,7 +1345,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			goto make_route;
 
 		/* Packet was intra-ethernet, so we know its on-link */
-		if (cb->rt_flags | DN_RT_F_IE) {
+		if (cb->rt_flags & DN_RT_F_IE) {
 			gateway = cb->src;
 			flags |= RTCF_DIRECTSRC;
 			goto make_route;
