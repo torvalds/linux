@@ -1,4 +1,4 @@
-/* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
+/* Copyright (c) 2006 Coraid, Inc.  See COPYING for GPL terms. */
 /*
  * aoenet.c
  * Ethernet portion of AoE driver
@@ -74,7 +74,7 @@ set_aoe_iflist(const char __user *user_str, size_t size)
 		return -EINVAL;
 
 	if (copy_from_user(aoe_iflist, user_str, size)) {
-		printk(KERN_INFO "aoe: %s: copy from user failed\n", __FUNCTION__);
+		printk(KERN_INFO "aoe: copy from user failed\n");
 		return -EFAULT;
 	}
 	aoe_iflist[size] = 0x00;
@@ -132,8 +132,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		if (n > NECODES)
 			n = 0;
 		if (net_ratelimit())
-			printk(KERN_ERR "aoe: aoenet_rcv: error packet from %d.%d; "
-			       "ecode=%d '%s'\n",
+			printk(KERN_ERR "aoe: error packet from %d.%d; ecode=%d '%s'\n",
 			       be16_to_cpu(h->major), h->minor, 
 			       h->err, aoe_errlist[n]);
 		goto exit;
@@ -147,7 +146,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 		aoecmd_cfg_rsp(skb);
 		break;
 	default:
-		printk(KERN_INFO "aoe: aoenet_rcv: unknown cmd %d\n", h->cmd);
+		printk(KERN_INFO "aoe: unknown cmd %d\n", h->cmd);
 	}
 exit:
 	dev_kfree_skb(skb);
