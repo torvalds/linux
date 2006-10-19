@@ -95,11 +95,13 @@ config SENSORS_ADM9240
 	  will be called adm9240.
 
 config SENSORS_K8TEMP
-	tristate "AMD K8 processor sensor"
+	tristate "AMD Athlon64/FX or Opteron temperature sensor"
 	depends on HWMON && X86 && PCI && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the temperature
-	  sensor(s) inside your AMD K8 CPU.
+	  sensor(s) inside your CPU. Supported is whole AMD K8
+	  microarchitecture. Please note that you will need at least
+	  lm-sensors 2.10.1 for proper userspace support.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k8temp.
@@ -369,8 +371,8 @@ config SENSORS_SMSC47M1
 	help
 	  If you say yes here you get support for the integrated fan
 	  monitoring and control capabilities of the SMSC LPC47B27x,
-	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x, LPC47M192 and
-	  LPC47M997 chips.
+	  LPC47M10x, LPC47M112, LPC47M13x, LPC47M14x, LPC47M15x,
+	  LPC47M192 and LPC47M997 chips.
 
 	  The temperature and voltage sensor features of the LPC47M192
 	  and LPC47M997 are supported by another driver, select also

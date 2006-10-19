@@ -1668,6 +1668,12 @@ M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
 S:	Maintained
 
+K8TEMP HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 KCONFIG
 P:	Roman Zippel
 M:	zippel@linux-m68k.org

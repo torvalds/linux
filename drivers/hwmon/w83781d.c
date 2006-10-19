@@ -1099,7 +1099,8 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	   bank. */
 	if (kind < 0) {
 		if (w83781d_read_value(client, W83781D_REG_CONFIG) & 0x80) {
-			dev_dbg(dev, "Detection failed at step 3\n");
+			dev_dbg(&adapter->dev, "Detection of w83781d chip "
+				"failed at step 3\n");
 			err = -ENODEV;
 			goto ERROR2;
 		}
@@ -1109,7 +1110,8 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 		if ((!(val1 & 0x07)) &&
 		    (((!(val1 & 0x80)) && (val2 != 0xa3) && (val2 != 0xc3))
 		     || ((val1 & 0x80) && (val2 != 0x5c) && (val2 != 0x12)))) {
-			dev_dbg(dev, "Detection failed at step 4\n");
+			dev_dbg(&adapter->dev, "Detection of w83781d chip "
+				"failed at step 4\n");
 			err = -ENODEV;
 			goto ERROR2;
 		}
@@ -1119,7 +1121,8 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 				  ((val1 & 0x80) && (val2 == 0x5c)))) {
 			if (w83781d_read_value
 			    (client, W83781D_REG_I2C_ADDR) != address) {
-				dev_dbg(dev, "Detection failed at step 5\n");
+				dev_dbg(&adapter->dev, "Detection of w83781d "
+					"chip failed at step 5\n");
 				err = -ENODEV;
 				goto ERROR2;
 			}
@@ -1141,8 +1144,8 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 		else if (val2 == 0x12)
 			vendid = asus;
 		else {
-			dev_dbg(dev, "Chip was made by neither "
-				"Winbond nor Asus?\n");
+			dev_dbg(&adapter->dev, "w83781d chip vendor is "
+				"neither Winbond nor Asus\n");
 			err = -ENODEV;
 			goto ERROR2;
 		}
@@ -1161,10 +1164,9 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 			kind = as99127f;
 		else {
 			if (kind == 0)
-				dev_warn(dev, "Ignoring 'force' "
+				dev_warn(&adapter->dev, "Ignoring 'force' "
 					 "parameter for unknown chip at "
-					 "adapter %d, address 0x%02x\n",
-					 i2c_adapter_id(adapter), address);
+					 "address 0x%02x\n", address);
 			err = -EINVAL;
 			goto ERROR2;
 		}
@@ -1685,11 +1687,10 @@ sensors_w83781d_init(void)
 	if (res)
 		return res;
 
-	res = i2c_isa_add_driver(&w83781d_isa_driver);
-	if (res) {
-		i2c_del_driver(&w83781d_driver);
-		return res;
-	}
+	/* Don't exit if this one fails, we still want the I2C variants
+	   to work! */
+	if (i2c_isa_add_driver(&w83781d_isa_driver))
+		isa_address = 0;
 
 	return 0;
 }
@@ -1697,7 +1698,8 @@ sensors_w83781d_init(void)
 static void __exit
 sensors_w83781d_exit(void)
 {
-	i2c_isa_del_driver(&w83781d_isa_driver);
+	if (isa_address)
+		i2c_isa_del_driver(&w83781d_isa_driver);
 	i2c_del_driver(&w83781d_driver);
 }
 

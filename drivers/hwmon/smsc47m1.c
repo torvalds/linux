@@ -2,8 +2,8 @@
     smsc47m1.c - Part of lm_sensors, Linux kernel modules
                  for hardware monitoring
 
-    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M13x, LPC47M14x,
-    LPC47M15x, LPC47M192 and LPC47M997 Super-I/O chips.
+    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M112, LPC47M13x,
+    LPC47M14x, LPC47M15x, LPC47M192 and LPC47M997 Super-I/O chips.
 
     Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
     Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
@@ -380,8 +380,8 @@ static int __init smsc47m1_find(unsigned short *addr)
 	val = superio_inb(SUPERIO_REG_DEVID);
 
 	/*
-	 * SMSC LPC47M10x/LPC47M13x (device id 0x59), LPC47M14x (device id
-	 * 0x5F) and LPC47B27x (device id 0x51) have fan control.
+	 * SMSC LPC47M10x/LPC47M112/LPC47M13x (device id 0x59), LPC47M14x
+	 * (device id 0x5F) and LPC47B27x (device id 0x51) have fan control.
 	 * The LPC47M15x and LPC47M192 chips "with hardware monitoring block"
 	 * can do much more besides (device id 0x60).
 	 * The LPC47M997 is undocumented, but seems to be compatible with
@@ -390,7 +390,8 @@ static int __init smsc47m1_find(unsigned short *addr)
 	if (val == 0x51)
 		printk(KERN_INFO "smsc47m1: Found SMSC LPC47B27x\n");
 	else if (val == 0x59)
-		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M10x/LPC47M13x\n");
+		printk(KERN_INFO "smsc47m1: Found SMSC "
+		       "LPC47M10x/LPC47M112/LPC47M13x\n");
 	else if (val == 0x5F)
 		printk(KERN_INFO "smsc47m1: Found SMSC LPC47M14x\n");
 	else if (val == 0x60)

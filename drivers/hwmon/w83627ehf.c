@@ -354,6 +354,8 @@ static void w83627ehf_write_fan_div(struct i2c_client *client, int nr)
 	case 0:
 		reg = (w83627ehf_read_value(client, W83627EHF_REG_FANDIV1) & 0xcf)
 		    | ((data->fan_div[0] & 0x03) << 4);
+		/* fan5 input control bit is write only, compute the value */
+		reg |= (data->has_fan & (1 << 4)) ? 1 : 0;
 		w83627ehf_write_value(client, W83627EHF_REG_FANDIV1, reg);
 		reg = (w83627ehf_read_value(client, W83627EHF_REG_VBAT) & 0xdf)
 		    | ((data->fan_div[0] & 0x04) << 3);
@@ -362,6 +364,8 @@ static void w83627ehf_write_fan_div(struct i2c_client *client, int nr)
 	case 1:
 		reg = (w83627ehf_read_value(client, W83627EHF_REG_FANDIV1) & 0x3f)
 		    | ((data->fan_div[1] & 0x03) << 6);
+		/* fan5 input control bit is write only, compute the value */
+		reg |= (data->has_fan & (1 << 4)) ? 1 : 0;
 		w83627ehf_write_value(client, W83627EHF_REG_FANDIV1, reg);
 		reg = (w83627ehf_read_value(client, W83627EHF_REG_VBAT) & 0xbf)
 		    | ((data->fan_div[1] & 0x04) << 4);
@@ -1216,13 +1220,16 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	superio_exit();
 
 	/* It looks like fan4 and fan5 pins can be alternatively used
-	   as fan on/off switches */
+	   as fan on/off switches, but fan5 control is write only :/
+	   We assume that if the serial interface is disabled, designers
+	   connected fan5 as input unless they are emitting log 1, which
+	   is not the default. */
 
 	data->has_fan = 0x07; /* fan1, fan2 and fan3 */
 	i = w83627ehf_read_value(client, W83627EHF_REG_FANDIV1);
 	if ((i & (1 << 2)) && (!fan4pin))
 		data->has_fan |= (1 << 3);
-	if ((i & (1 << 0)) && (!fan5pin))
+	if (!(i & (1 << 1)) && (!fan5pin))
 		data->has_fan |= (1 << 4);
 
 	/* Register sysfs hooks */
