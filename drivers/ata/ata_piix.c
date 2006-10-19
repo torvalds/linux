@@ -432,9 +432,9 @@ static const struct piix_map_db ich8_map_db = {
 	.present_shift = 8,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
-		{  P0,  NA,  P1,  NA }, /* 00b (hardwired) */
+		{  P0,  P2,  P1,  P3 }, /* 00b (hardwired when in AHCI) */
 		{  RV,  RV,  RV,  RV },
-		{  RV,  RV,  RV,  RV }, /* 10b (never) */
+		{  IDE,  IDE,  NA,  NA }, /* 10b (IDE mode) */
 		{  RV,  RV,  RV,  RV },
 	},
 };
