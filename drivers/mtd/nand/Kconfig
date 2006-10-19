@@ -232,6 +232,13 @@ config MTD_NAND_CS553X
 
 	  If you say "m", the module will be called "cs553x_nand.ko".
 
+config MTD_NAND_AT91
+	bool "Support for NAND Flash / SmartMedia on AT91"
+	depends on MTD_NAND && ARCH_AT91
+	help
+	  Enables support for NAND Flash / Smart Media Card interface
+	  on Atmel AT91 processors.
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
 	depends on MTD_NAND && MTD_PARTITIONS
