@@ -33,7 +33,7 @@ static void disable_r7780rp_irq(unsigned int irq)
 }
 
 static struct irq_chip r7780rp_irq_chip __read_mostly = {
-	.name		= "r7780rp",
+	.name		= "R7780RP",
 	.mask		= disable_r7780rp_irq,
 	.unmask		= enable_r7780rp_irq,
 	.mask_ack	= disable_r7780rp_irq,
@@ -48,8 +48,8 @@ void __init init_r7780rp_IRQ(void)
 
 	for (i = 0; i < 15; i++) {
 		disable_irq_nosync(i);
-		set_irq_chip_and_handler(i, &r7780rp_irq_chip,
-					 handle_level_irq);
+		set_irq_chip_and_handler_name(i, &r7780rp_irq_chip,
+					      handle_level_irq, "level");
 		enable_r7780rp_irq(i);
 	}
 }

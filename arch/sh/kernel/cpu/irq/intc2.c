@@ -31,7 +31,7 @@ static void enable_intc2_irq(unsigned int irq)
 }
 
 static struct irq_chip intc2_irq_chip = {
-	.typename	= "intc2",
+	.name		= "INTC2",
 	.mask		= disable_intc2_irq,
 	.unmask		= enable_intc2_irq,
 	.mask_ack	= disable_intc2_irq,
@@ -64,7 +64,8 @@ void make_intc2_irq(struct intc2_data *p)
 
 	local_irq_restore(flags);
 
-	set_irq_chip_and_handler(p->irq, &intc2_irq_chip, handle_level_irq);
+	set_irq_chip_and_handler_name(p->irq, &intc2_irq_chip,
+				      handle_level_irq, "level");
 	set_irq_chip_data(p->irq, p);
 
 	enable_intc2_irq(p->irq);
