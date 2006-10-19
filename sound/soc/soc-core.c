@@ -51,6 +51,8 @@
 #define dbgc(format, arg...)
 #endif
 
+#define CODEC_CPU(codec, cpu)	((codec << 4) | cpu)
+
 static DEFINE_MUTEX(pcm_mutex);
 static DEFINE_MUTEX(io_mutex);
 static struct workqueue_struct *soc_workq;
@@ -150,11 +152,11 @@ static unsigned inline int soc_get_mclk(struct snd_soc_pcm_runtime *rtd,
 }
 
 /* changes a bitclk multiplier mask to a divider mask */
-static u16 soc_bfs_mult_to_div(u16 bfs, int rate, unsigned int mclk,
+static u64 soc_bfs_rcw_to_div(u64 bfs, int rate, unsigned int mclk,
 	unsigned int pcmfmt, unsigned int chn)
 {
 	int i, j;
-	u16 bfs_ = 0;
+	u64 bfs_ = 0;
 	int size = snd_pcm_format_physical_width(pcmfmt), min = 0;
 
 	if (size <= 0)
@@ -162,17 +164,14 @@ static u16 soc_bfs_mult_to_div(u16 bfs, int rate, unsigned int mclk,
 
 	/* the minimum bit clock that has enough bandwidth */
 	min = size * rate * chn;
-	dbgc("mult --> div min bclk %d with mclk %d\n", min, mclk);
+	dbgc("rcw --> div min bclk %d with mclk %d\n", min, mclk);
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 64; i++) {
 		if ((bfs >> i) & 0x1) {
-			j = rate * SND_SOC_FSB_REAL(1<<i);
-
-			if (j >= min) {
-				bfs_ |= SND_SOC_FSBD(mclk/j);
-				dbgc("mult --> div support mult %d\n",
-					SND_SOC_FSB_REAL(1<<i));
-			}
+			j = min * (i + 1);
+			bfs_ |= SND_SOC_FSBD(mclk/j);
+			dbgc("rcw --> div support mult %d\n",
+				SND_SOC_FSBD_REAL(1<<i));
 		}
 	}
 
@@ -180,11 +179,11 @@ static u16 soc_bfs_mult_to_div(u16 bfs, int rate, unsigned int mclk,
 }
 
 /* changes a bitclk divider mask to a multiplier mask */
-static u16 soc_bfs_div_to_mult(u16 bfs, int rate, unsigned int mclk,
+static u64 soc_bfs_div_to_rcw(u64 bfs, int rate, unsigned int mclk,
 	unsigned int pcmfmt, unsigned int chn)
 {
 	int i, j;
-	u16 bfs_ = 0;
+	u64 bfs_ = 0;
 
 	int size = snd_pcm_format_physical_width(pcmfmt), min = 0;
 
@@ -193,20 +192,66 @@ static u16 soc_bfs_div_to_mult(u16 bfs, int rate, unsigned int mclk,
 
 	/* the minimum bit clock that has enough bandwidth */
 	min = size * rate * chn;
-	dbgc("div to mult min bclk %d with mclk %d\n", min, mclk);
+	dbgc("div to rcw min bclk %d with mclk %d\n", min, mclk);
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 64; i++) {
 		if ((bfs >> i) & 0x1) {
-			j = mclk / (SND_SOC_FSBD_REAL(1<<i));
+			j = mclk / (i + 1);
 			if (j >= min) {
-				bfs_ |= SND_SOC_FSB(j/rate);
-				dbgc("div --> mult support div %d\n",
-					SND_SOC_FSBD_REAL(1<<i));
+				bfs_ |= SND_SOC_FSBW(j/min);
+				dbgc("div --> rcw support div %d\n",
+					SND_SOC_FSBW_REAL(1<<i));
 			}
 		}
 	}
 
 	return bfs_;
+}
+
+/* changes a constant bitclk to a multiplier mask */
+static u64 soc_bfs_rate_to_rcw(u64 bfs, int rate, unsigned int mclk,
+	unsigned int pcmfmt, unsigned int chn)
+{
+	unsigned int bfs_ = rate * bfs;
+	int size = snd_pcm_format_physical_width(pcmfmt), min = 0;
+
+	if (size <= 0)
+		return 0;
+
+	/* the minimum bit clock that has enough bandwidth */
+	min = size * rate * chn;
+	dbgc("rate --> rcw min bclk %d with mclk %d\n", min, mclk);
+
+	if (bfs_ < min)
+		return 0;
+	else {
+		bfs_ = SND_SOC_FSBW(bfs_/min);
+		dbgc("rate --> rcw support div %d\n", SND_SOC_FSBW_REAL(bfs_));
+		return bfs_;
+	}
+}
+
+/* changes a bitclk multiplier mask to a divider mask */
+static u64 soc_bfs_rate_to_div(u64 bfs, int rate, unsigned int mclk,
+	unsigned int pcmfmt, unsigned int chn)
+{
+	unsigned int bfs_ = rate * bfs;
+	int size = snd_pcm_format_physical_width(pcmfmt), min = 0;
+
+	if (size <= 0)
+		return 0;
+
+	/* the minimum bit clock that has enough bandwidth */
+	min = size * rate * chn;
+	dbgc("rate --> div min bclk %d with mclk %d\n", min, mclk);
+
+	if (bfs_ < min)
+		return 0;
+	else {
+		bfs_ = SND_SOC_FSBW(mclk/bfs_);
+		dbgc("rate --> div support div %d\n", SND_SOC_FSBD_REAL(bfs_));
+		return bfs_;
+	}
 }
 
 /* Matches codec DAI and SoC CPU DAI hardware parameters */
@@ -217,9 +262,10 @@ static int soc_hw_match_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai_mode *codec_dai_mode = NULL;
 	struct snd_soc_dai_mode *cpu_dai_mode = NULL;
 	struct snd_soc_clock_info clk_info;
-	unsigned int fs, mclk, codec_bfs, cpu_bfs, rate = params_rate(params),
+	unsigned int fs, mclk, rate = params_rate(params),
 		chn, j, k, cpu_bclk, codec_bclk, pcmrate;
 	u16 fmt = 0;
+	u64 codec_bfs, cpu_bfs;
 
 	dbg("asoc: match version %s\n", SND_SOC_VERSION);
 	clk_info.rate = rate;
@@ -309,44 +355,98 @@ static int soc_hw_match_params(struct snd_pcm_substream *substream,
 			 * used in the codec and cpu DAI modes. We always choose the
 			 * lowest possible clocks to reduce power.
 			 */
-			if (codec_dai_mode->flags & cpu_dai_mode->flags &
-				SND_SOC_DAI_BFS_DIV) {
+			switch (CODEC_CPU(codec_dai_mode->flags, cpu_dai_mode->flags)) {
+			case CODEC_CPU(SND_SOC_DAI_BFS_DIV, SND_SOC_DAI_BFS_DIV):
 				/* cpu & codec bfs dividers */
 				rtd->cpu_dai->dai_runtime.bfs =
 					rtd->codec_dai->dai_runtime.bfs =
 					1 << (fls(codec_dai_mode->bfs & cpu_dai_mode->bfs) - 1);
-			} else if (codec_dai_mode->flags & SND_SOC_DAI_BFS_DIV) {
-				/* normalise bfs codec divider & cpu mult */
-				codec_bfs = soc_bfs_div_to_mult(codec_dai_mode->bfs, rate,
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_DIV, SND_SOC_DAI_BFS_RCW):
+				/* normalise bfs codec divider & cpu rcw mult */
+				codec_bfs = soc_bfs_div_to_rcw(codec_dai_mode->bfs, rate,
 					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
 				rtd->cpu_dai->dai_runtime.bfs =
 					1 << (ffs(codec_bfs & cpu_dai_mode->bfs) - 1);
-				cpu_bfs = soc_bfs_mult_to_div(cpu_dai_mode->bfs, rate, mclk,
+				cpu_bfs = soc_bfs_rcw_to_div(cpu_dai_mode->bfs, rate, mclk,
 						rtd->codec_dai->dai_runtime.pcmfmt, chn);
 				rtd->codec_dai->dai_runtime.bfs =
 					1 << (fls(codec_dai_mode->bfs & cpu_bfs) - 1);
-			} else if (cpu_dai_mode->flags & SND_SOC_DAI_BFS_DIV) {
-				/* normalise bfs codec mult & cpu divider */
-				codec_bfs = soc_bfs_mult_to_div(codec_dai_mode->bfs, rate,
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RCW, SND_SOC_DAI_BFS_DIV):
+				/* normalise bfs codec rcw mult & cpu divider */
+				codec_bfs = soc_bfs_rcw_to_div(codec_dai_mode->bfs, rate,
 					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
 				rtd->cpu_dai->dai_runtime.bfs =
 					1 << (fls(codec_bfs & cpu_dai_mode->bfs) -1);
-				cpu_bfs = soc_bfs_div_to_mult(cpu_dai_mode->bfs, rate, mclk,
+				cpu_bfs = soc_bfs_div_to_rcw(cpu_dai_mode->bfs, rate, mclk,
 						rtd->codec_dai->dai_runtime.pcmfmt, chn);
 				rtd->codec_dai->dai_runtime.bfs =
 					1 << (ffs(codec_dai_mode->bfs & cpu_bfs) -1);
-			} else {
-				/* codec & cpu bfs rate multipliers */
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RCW, SND_SOC_DAI_BFS_RCW):
+				/* codec & cpu bfs rate rcw multipliers */
 				rtd->cpu_dai->dai_runtime.bfs =
 					rtd->codec_dai->dai_runtime.bfs =
 					1 << (ffs(codec_dai_mode->bfs & cpu_dai_mode->bfs) -1);
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_DIV, SND_SOC_DAI_BFS_RATE):
+				/* normalise cpu bfs rate const multiplier & codec div */
+				cpu_bfs = soc_bfs_rate_to_div(cpu_dai_mode->bfs, rate,
+					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
+				if(codec_dai_mode->bfs & cpu_bfs) {
+					rtd->codec_dai->dai_runtime.bfs = cpu_bfs;
+					rtd->cpu_dai->dai_runtime.bfs = cpu_dai_mode->bfs;
+				} else
+					rtd->cpu_dai->dai_runtime.bfs = 0;
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RCW, SND_SOC_DAI_BFS_RATE):
+				/* normalise cpu bfs rate const multiplier & codec rcw mult */
+				cpu_bfs = soc_bfs_rate_to_rcw(cpu_dai_mode->bfs, rate,
+					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
+				if(codec_dai_mode->bfs & cpu_bfs) {
+					rtd->codec_dai->dai_runtime.bfs = cpu_bfs;
+					rtd->cpu_dai->dai_runtime.bfs = cpu_dai_mode->bfs;
+				} else
+					rtd->cpu_dai->dai_runtime.bfs = 0;
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RATE, SND_SOC_DAI_BFS_RCW):
+				/* normalise cpu bfs rate rcw multiplier & codec const mult */
+				codec_bfs = soc_bfs_rate_to_rcw(codec_dai_mode->bfs, rate,
+					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
+				if(cpu_dai_mode->bfs & codec_bfs) {
+					rtd->cpu_dai->dai_runtime.bfs = codec_bfs;
+					rtd->codec_dai->dai_runtime.bfs = codec_dai_mode->bfs;
+				} else
+					rtd->cpu_dai->dai_runtime.bfs = 0;
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RATE, SND_SOC_DAI_BFS_DIV):
+				/* normalise cpu bfs div & codec const mult */
+				codec_bfs = soc_bfs_rate_to_div(codec_dai_mode->bfs, rate,
+					mclk, rtd->codec_dai->dai_runtime.pcmfmt, chn);
+				if(codec_dai_mode->bfs & codec_bfs) {
+					rtd->cpu_dai->dai_runtime.bfs = codec_bfs;
+					rtd->codec_dai->dai_runtime.bfs = codec_dai_mode->bfs;
+				} else
+					rtd->cpu_dai->dai_runtime.bfs = 0;
+				break;
+			case CODEC_CPU(SND_SOC_DAI_BFS_RATE, SND_SOC_DAI_BFS_RATE):
+				/* cpu & codec constant mult */
+				if(codec_dai_mode->bfs == cpu_dai_mode->bfs)
+					rtd->cpu_dai->dai_runtime.bfs =
+						rtd->codec_dai->dai_runtime.bfs =
+						codec_dai_mode->bfs;
+				else
+					rtd->cpu_dai->dai_runtime.bfs =
+						rtd->codec_dai->dai_runtime.bfs = 0;
+				break;
 			}
 
 			/* make sure the bit clock speed is acceptable */
 			if (!rtd->cpu_dai->dai_runtime.bfs ||
 				!rtd->codec_dai->dai_runtime.bfs) {
 				dbgc("asoc: DAI[%d:%d] failed to match BFS\n", j, k);
-				dbgc("asoc: cpu_dai %x codec %x\n",
+				dbgc("asoc: cpu_dai %llu codec %llu\n",
 					rtd->cpu_dai->dai_runtime.bfs,
 					rtd->codec_dai->dai_runtime.bfs);
 				dbgc("asoc: mclk %d hwfmt %x\n", mclk, fmt);
@@ -378,26 +478,41 @@ found:
 		dbg("asoc: codec fs %d mclk %d bfs div %d bclk %d\n",
 			rtd->codec_dai->dai_runtime.fs, mclk,
 			SND_SOC_FSBD_REAL(rtd->codec_dai->dai_runtime.bfs),	codec_bclk);
-	} else {
-		codec_bclk = params_rate(params) *
-			SND_SOC_FSB_REAL(rtd->codec_dai->dai_runtime.bfs);
-		dbg("asoc: codec fs %d mclk %d bfs mult %d bclk %d\n",
+	} else if(rtd->codec_dai->dai_runtime.flags == SND_SOC_DAI_BFS_RATE) {
+		codec_bclk = params_rate(params) * rtd->codec_dai->dai_runtime.bfs;
+		dbg("asoc: codec fs %d mclk %d bfs rate mult %llu bclk %d\n",
 			rtd->codec_dai->dai_runtime.fs, mclk,
-			SND_SOC_FSB_REAL(rtd->codec_dai->dai_runtime.bfs), codec_bclk);
-	}
+			rtd->codec_dai->dai_runtime.bfs, codec_bclk);
+	} else if (rtd->cpu_dai->dai_runtime.flags == SND_SOC_DAI_BFS_RCW) {
+		codec_bclk = params_rate(params) * params_channels(params) *
+			snd_pcm_format_physical_width(rtd->codec_dai->dai_runtime.pcmfmt) *
+			SND_SOC_FSBW_REAL(rtd->codec_dai->dai_runtime.bfs);
+		dbg("asoc: codec fs %d mclk %d bfs rcw mult %d bclk %d\n",
+			rtd->codec_dai->dai_runtime.fs, mclk,
+			SND_SOC_FSBW_REAL(rtd->codec_dai->dai_runtime.bfs), codec_bclk);
+	} else
+		codec_bclk = 0;
+
 	if (rtd->cpu_dai->dai_runtime.flags == SND_SOC_DAI_BFS_DIV) {
 		cpu_bclk = (rtd->cpu_dai->dai_runtime.fs * params_rate(params)) /
 			SND_SOC_FSBD_REAL(rtd->cpu_dai->dai_runtime.bfs);
 		dbg("asoc: cpu fs %d mclk %d bfs div %d bclk %d\n",
 			rtd->cpu_dai->dai_runtime.fs, mclk,
 			SND_SOC_FSBD_REAL(rtd->cpu_dai->dai_runtime.bfs), cpu_bclk);
-	} else {
-		cpu_bclk = params_rate(params) *
-			SND_SOC_FSB_REAL(rtd->cpu_dai->dai_runtime.bfs);
-		dbg("asoc: cpu fs %d mclk %d bfs mult %d bclk %d\n",
+	} else if (rtd->cpu_dai->dai_runtime.flags == SND_SOC_DAI_BFS_RATE) {
+		cpu_bclk = params_rate(params) * rtd->cpu_dai->dai_runtime.bfs;
+		dbg("asoc: cpu fs %d mclk %d bfs rate mult %llu bclk %d\n",
 			rtd->cpu_dai->dai_runtime.fs, mclk,
-			SND_SOC_FSB_REAL(rtd->cpu_dai->dai_runtime.bfs), cpu_bclk);
-	}
+			rtd->cpu_dai->dai_runtime.bfs, cpu_bclk);
+	} else if (rtd->cpu_dai->dai_runtime.flags == SND_SOC_DAI_BFS_RCW) {
+		cpu_bclk = params_rate(params) * params_channels(params) *
+			snd_pcm_format_physical_width(rtd->cpu_dai->dai_runtime.pcmfmt) *
+			SND_SOC_FSBW_REAL(rtd->cpu_dai->dai_runtime.bfs);
+		dbg("asoc: cpu fs %d mclk %d bfs mult rcw %d bclk %d\n",
+			rtd->cpu_dai->dai_runtime.fs, mclk,
+			SND_SOC_FSBW_REAL(rtd->cpu_dai->dai_runtime.bfs), cpu_bclk);
+	} else
+		cpu_bclk = 0;
 
 	/*
 	 * Check we have matching bitclocks. If we don't then it means the
@@ -405,7 +520,7 @@ found:
 	 * machine sysclock function) is wrong compared with the supported DAI
 	 * modes for the codec or cpu DAI.
 	 */
-	if (cpu_bclk != codec_bclk){
+	if (cpu_bclk != codec_bclk && cpu_bclk){
 		printk(KERN_ERR
 			"asoc: codec and cpu bitclocks differ, audio may be wrong speed\n"
 			);
@@ -723,14 +838,18 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	mutex_lock(&pcm_mutex);
 	if (platform->pcm_ops->prepare) {
 		ret = platform->pcm_ops->prepare(substream);
-		if (ret < 0)
+		if (ret < 0) {
+			printk(KERN_ERR "asoc: platform prepare error\n");
 			goto out;
+		}
 	}
 
 	if (rtd->codec_dai->ops.prepare) {
 		ret = rtd->codec_dai->ops.prepare(substream);
-		if (ret < 0)
+		if (ret < 0) {
+			printk(KERN_ERR "asoc: codec DAI prepare error\n");
 			goto out;
+		}
 	}
 
 	if (rtd->cpu_dai->ops.prepare)

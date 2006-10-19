@@ -343,7 +343,7 @@ static struct snd_soc_dai_mode wm8750_modes[] = {
 		.pcmdir = WM8750_DIR,
 		.flags = SND_SOC_DAI_BFS_DIV,
 		.fs = SND_SOC_FS_ALL,
-		.bfs = SND_SOC_FSBD_ALL,
+		.bfs = SND_SOC_FSB_ALL,
 	},
 };
 
@@ -829,6 +829,9 @@ static inline int get_coeff(int mclk, int rate)
 		if (coeff_div[i].rate == rate && coeff_div[i].mclk == mclk)
 			return i;
 	}
+
+	printk(KERN_ERR "wm8750: could not get coeff for mclk %d @ rate %d\n",
+		mclk, rate);
 	return -EINVAL;
 }
 
@@ -836,13 +839,7 @@ static inline int get_coeff(int mclk, int rate)
 static unsigned int wm8750_config_sysclk(struct snd_soc_codec_dai *dai,
 	struct snd_soc_clock_info *info, unsigned int clk)
 {
-	dai->mclk = 0;
-
-	/* check that the calculated FS and rate actually match a clock from
-	 * the machine driver */
-	if (info->fs * info->rate == clk)
-		dai->mclk = clk;
-
+	dai->mclk = clk;
 	return dai->mclk;
 }
 
@@ -859,7 +856,7 @@ static int wm8750_pcm_prepare(struct snd_pcm_substream *substream)
 	if (i < 0)
 		return i;
 
-	bfs = SND_SOC_FSB_REAL(rtd->codec_dai->dai_runtime.bfs);
+	bfs = SND_SOC_FSBD_REAL(rtd->codec_dai->dai_runtime.bfs);
 
 	/* set master/slave audio interface */
 	switch (rtd->codec_dai->dai_runtime.fmt & SND_SOC_DAIFMT_CLOCK_MASK) {

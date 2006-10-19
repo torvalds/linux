@@ -126,7 +126,8 @@ static struct snd_soc_dai_mode pxa2xx_i2s_modes[] = {
 		.pcmrate = PXA_I2S_RATES,
 		.pcmdir = PXA_I2S_DIR,
 		.fs = SND_SOC_FS_ALL,
-		.bfs = SND_SOC_FSB(64),
+		.flags = SND_SOC_DAI_BFS_RATE,
+		.bfs = 64,
 		.priv = 0x48,
 	},
 };

@@ -21,7 +21,7 @@
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
-#define SND_SOC_VERSION "0.11.8"
+#define SND_SOC_VERSION "0.12"
 
 /*
  * Convenience kcontrol builders
@@ -141,19 +141,24 @@
 /* bit clock dividers */
 #define SND_SOC_FSBD(x)			(1 << (x - 1))	/* ratio mclk:bclk */
 #define SND_SOC_FSBD_REAL(x)	(ffs(x))
-#define SND_SOC_FSBD_ALL		0xffff /* all bit clock dividers supported */
 
-/* bit clock ratio to sample rate */
-#define SND_SOC_FSB(x)			(1 << ((x - 16) / 16))
-#define SND_SOC_FSB_REAL(x)		(((ffs(x) - 1) * 16) + 16)
+/* bit clock ratio to (sample rate * channels * word size) */
+#define SND_SOC_FSBW(x)			(1 << (x - 1))
+#define SND_SOC_FSBW_REAL(x)		(ffs(x))
 /* all bclk ratios supported */
-#define SND_SOC_FSB_ALL			SND_SOC_FSBD_ALL
+#define SND_SOC_FSB_ALL			~0ULL
 
 /*
  * DAI hardware flags
  */
-/* use bfs mclk divider mode, else sample rate ratio */
-#define SND_SOC_DAI_BFS_DIV	0x1
+/* use bfs mclk divider mode (BCLK = MCLK / x) */
+#define SND_SOC_DAI_BFS_DIV		0x1
+/* use bfs rate mulitplier  (BCLK = RATE * x)*/
+#define SND_SOC_DAI_BFS_RATE	0x2
+/* use bfs rcw multiplier (BCLK = RATE * CHN * WORD SIZE) */
+#define SND_SOC_DAI_BFS_RCW		0x4
+/* capture and playback can use different clocks */
+#define SND_SOC_DAI_ASYNC		0x8
 
 /*
  * AC97 codec ID's bitmask
@@ -264,7 +269,7 @@ struct snd_soc_dai_mode {
 	u16 pcmdir:2;	/* SND_SOC_HWDIR_* */
 	u16 flags:8;	/* hw flags */
 	u16 fs;			/* mclk to rate divider */
-	u32 bfs;		/* mclk to bclk dividers */
+	u64 bfs;		/* mclk to bclk dividers */
 	unsigned long priv;		/* private mode data */
 };
 

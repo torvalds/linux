@@ -90,32 +90,36 @@ static struct snd_soc_dai_mode wm8731_modes[] = {
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_8000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 1536,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_8000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 2304,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_8000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 1408,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_8000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 2112,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 
 	/* 32k */
@@ -124,16 +128,18 @@ static struct snd_soc_dai_mode wm8731_modes[] = {
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_32000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 384,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_32000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 576,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 
 	/* 44.1k & 48k */
@@ -142,16 +148,18 @@ static struct snd_soc_dai_mode wm8731_modes[] = {
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 256,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 384,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 
 	/* 88.2 & 96k */
@@ -160,17 +168,18 @@ static struct snd_soc_dai_mode wm8731_modes[] = {
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 128,
-		.bfs = SND_SOC_FSB(64),
-		
+		.bfs = 64,
 	},
 	{
 		.fmt = WM8731_DAIFMT | SND_SOC_DAIFMT_CBM_CFM,
 		.pcmfmt = WM8731_HIFI_BITS,
 		.pcmrate = SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000,
 		.pcmdir = WM8731_DIR,
+		.flags = SND_SOC_DAI_BFS_RATE,
 		.fs = 192,
-		.bfs = SND_SOC_FSB(64),
+		.bfs = 64,
 	},
 
 	/* USB codec frame and clock master modes */
@@ -237,7 +246,7 @@ static struct snd_soc_dai_mode wm8731_modes[] = {
 		.pcmdir = WM8731_DIR,
 		.flags = SND_SOC_DAI_BFS_DIV,
 		.fs = SND_SOC_FS_ALL,
-		.bfs = SND_SOC_FSBD_ALL,
+		.bfs = SND_SOC_FSB_ALL,
 	},
 };
 
