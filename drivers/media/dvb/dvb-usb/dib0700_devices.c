@@ -276,6 +276,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK) },
 		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500) },
+		{ USB_DEVICE(USB_VID_UNIWILL,   USB_PID_UNIWILL_STK7700P) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -333,6 +334,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Compro Videomate U500",
 				{ &dib0700_usb_id_table[6], NULL },
+				{ NULL },
+			},
+			{   "Uniwill STK7700P based (Hama and others)",
+				{ &dib0700_usb_id_table[7], NULL },
 				{ NULL },
 			}
 		}
