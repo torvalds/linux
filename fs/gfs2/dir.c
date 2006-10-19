@@ -315,8 +315,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf, u64 offset,
 			if (!ra)
 				extlen = 1;
 			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
-		}
-		if (!bh) {
+		} else {
 			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, &bh);
 			if (error)
 				goto fail;
@@ -330,7 +329,6 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf, u64 offset,
 		extlen--;
 		memcpy(buf, bh->b_data + o, amount);
 		brelse(bh);
-		bh = NULL;
 		buf += amount;
 		copied += amount;
 		lblock++;
