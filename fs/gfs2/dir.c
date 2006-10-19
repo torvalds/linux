@@ -184,7 +184,7 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 	while (copied < size) {
 		unsigned int amount;
 		struct buffer_head *bh;
-		int new;
+		int new = 0;
 
 		amount = size - copied;
 		if (amount > sdp->sd_sb.sb_bsize - o)
