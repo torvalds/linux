@@ -794,8 +794,8 @@ static int fill_super_meta(struct super_block *sb, struct super_block *new,
 		fs_err(sdp, "can't get root dentry\n");
 		error = -ENOMEM;
 		iput(inode);
-	}
-	new->s_root->d_op = &gfs2_dops;
+	} else
+		new->s_root->d_op = &gfs2_dops;
 
 	return error;
 }
