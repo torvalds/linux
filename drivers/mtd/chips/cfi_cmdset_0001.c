@@ -2224,6 +2224,8 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 		case FL_CFI_QUERY:
 		case FL_JEDEC_QUERY:
 			if (chip->oldstate == FL_READY) {
+				/* place the chip in a known state before suspend */
+				map_write(map, CMD(0xFF), cfi->chips[i].start);
 				chip->oldstate = chip->state;
 				chip->state = FL_PM_SUSPENDED;
 				/* No need to wake_up() on this state change -
