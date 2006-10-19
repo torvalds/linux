@@ -372,19 +372,30 @@ int bus_add_device(struct device * dev)
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
 		error = device_add_attrs(bus, dev);
 		if (error)
-			goto out;
+			goto out_put;
 		error = sysfs_create_link(&bus->devices.kobj,
 						&dev->kobj, dev->bus_id);
 		if (error)
-			goto out;
+			goto out_id;
 		error = sysfs_create_link(&dev->kobj,
 				&dev->bus->subsys.kset.kobj, "subsystem");
 		if (error)
-			goto out;
+			goto out_subsys;
 		error = sysfs_create_link(&dev->kobj,
 				&dev->bus->subsys.kset.kobj, "bus");
+		if (error)
+			goto out_deprecated;
 	}
-out:
+	return 0;
+
+out_deprecated:
+	sysfs_remove_link(&dev->kobj, "subsystem");
+out_subsys:
+	sysfs_remove_link(&bus->devices.kobj, dev->bus_id);
+out_id:
+	device_remove_attrs(bus, dev);
+out_put:
+	put_bus(dev->bus);
 	return error;
 }
 
@@ -428,8 +439,10 @@ void bus_remove_device(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "bus");
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		dev->is_registered = 0;
-		klist_del(&dev->knode_bus);
+		if (dev->is_registered) {
+			dev->is_registered = 0;
+			klist_del(&dev->knode_bus);
+		}
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
 		put_bus(dev->bus);
@@ -505,34 +518,36 @@ int bus_add_driver(struct device_driver *drv)
 	struct bus_type * bus = get_bus(drv->bus);
 	int error = 0;
 
-	if (bus) {
-		pr_debug("bus %s: add driver %s\n", bus->name, drv->name);
-		error = kobject_set_name(&drv->kobj, "%s", drv->name);
-		if (error)
-			goto out_put_bus;
-		drv->kobj.kset = &bus->drivers;
-		if ((error = kobject_register(&drv->kobj)))
-			goto out_put_bus;
+	if (!bus)
+		return 0;
 
-		error = driver_attach(drv);
-		if (error)
-			goto out_unregister;
-		klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
-		module_add_driver(drv->owner, drv);
+	pr_debug("bus %s: add driver %s\n", bus->name, drv->name);
+	error = kobject_set_name(&drv->kobj, "%s", drv->name);
+	if (error)
+		goto out_put_bus;
+	drv->kobj.kset = &bus->drivers;
+	if ((error = kobject_register(&drv->kobj)))
+		goto out_put_bus;
 
-		error = driver_add_attrs(bus, drv);
-		if (error) {
-			/* How the hell do we get out of this pickle? Give up */
-			printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
-				__FUNCTION__, drv->name);
-		}
-		error = add_bind_files(drv);
-		if (error) {
-			/* Ditto */
-			printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
-				__FUNCTION__, drv->name);
-		}
+	error = driver_attach(drv);
+	if (error)
+		goto out_unregister;
+	klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
+	module_add_driver(drv->owner, drv);
+
+	error = driver_add_attrs(bus, drv);
+	if (error) {
+		/* How the hell do we get out of this pickle? Give up */
+		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
+			__FUNCTION__, drv->name);
 	}
+	error = add_bind_files(drv);
+	if (error) {
+		/* Ditto */
+		printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
+			__FUNCTION__, drv->name);
+	}
+
 	return error;
 out_unregister:
 	kobject_unregister(&drv->kobj);
@@ -552,16 +567,17 @@ out_put_bus:
 
 void bus_remove_driver(struct device_driver * drv)
 {
-	if (drv->bus) {
-		remove_bind_files(drv);
-		driver_remove_attrs(drv->bus, drv);
-		klist_remove(&drv->knode_bus);
-		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
-		driver_detach(drv);
-		module_remove_driver(drv);
-		kobject_unregister(&drv->kobj);
-		put_bus(drv->bus);
-	}
+	if (!drv->bus)
+		return;
+
+	remove_bind_files(drv);
+	driver_remove_attrs(drv->bus, drv);
+	klist_remove(&drv->knode_bus);
+	pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
+	driver_detach(drv);
+	module_remove_driver(drv);
+	kobject_unregister(&drv->kobj);
+	put_bus(drv->bus);
 }
 
 
@@ -732,11 +748,15 @@ int bus_register(struct bus_type * bus)
 
 	klist_init(&bus->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&bus->klist_drivers, NULL, NULL);
-	bus_add_attrs(bus);
+	retval = bus_add_attrs(bus);
+	if (retval)
+		goto bus_attrs_fail;
 
 	pr_debug("bus type '%s' registered\n", bus->name);
 	return 0;
 
+bus_attrs_fail:
+	kset_unregister(&bus->drivers);
 bus_drivers_fail:
 	kset_unregister(&bus->devices);
 bus_devices_fail:

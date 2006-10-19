@@ -171,6 +171,8 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		 drv->bus->name, dev->bus_id, drv->name);
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 	data->drv = drv;
 	data->dev = dev;
 
@@ -178,7 +180,7 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 		probe_task = kthread_run(really_probe, data,
 					 "probe-%s", dev->bus_id);
 		if (IS_ERR(probe_task))
-			ret = PTR_ERR(probe_task);
+			ret = really_probe(data);
 	} else
 		ret = really_probe(data);
 
