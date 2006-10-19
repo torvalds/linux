@@ -854,7 +854,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 	int error = 0;
 	struct super_block *sb = NULL, *new;
 	struct gfs2_sbd *sdp;
-	char *gfs2mnt = NULL;
 
 	sb = get_gfs2_sb(dev_name);
 	if (!sb) {
@@ -892,8 +891,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 	atomic_inc(&sdp->sd_gfs2mnt->mnt_count);
 	return simple_set_mnt(mnt, new);
 error:
-	if (gfs2mnt)
-		kfree(gfs2mnt);
 	return error;
 }
 
