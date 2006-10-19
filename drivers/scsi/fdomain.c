@@ -1736,6 +1736,15 @@ struct scsi_host_template fdomain_driver_template = {
 };
 
 #ifndef PCMCIA
+
+static struct pci_device_id fdomain_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_FD, PCI_DEVICE_ID_FD_36C70,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ }
+};
+MODULE_DEVICE_TABLE(pci, fdomain_pci_tbl);
+
 #define driver_template fdomain_driver_template
 #include "scsi_module.c"
+
 #endif

@@ -1391,6 +1391,9 @@ void hid_close(struct hid_device *hid)
 
 #define USB_VENDOR_ID_PANJIT		0x134c
 
+#define USB_VENDOR_ID_TURBOX		0x062a
+#define USB_DEVICE_ID_TURBOX_KEYBOARD	0x0201
+
 /*
  * Initialize all reports
  */
@@ -1778,6 +1781,8 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_PANJIT, 0x0003, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_PANJIT, 0x0004, HID_QUIRK_IGNORE },
 
+	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
+	
 	{ 0, 0 }
 };
 
