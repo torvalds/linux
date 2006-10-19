@@ -302,21 +302,51 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
 	add_timer(&php_ctlr->int_poll_timer);
 }
 
+static inline int is_ctrl_busy(struct controller *ctrl)
+{
+	u16 cmd_status = shpc_readw(ctrl, CMD_STATUS);
+	return cmd_status & 0x1;
+}
+
+/*
+ * Returns 1 if SHPC finishes executing a command within 1 sec,
+ * otherwise returns 0.
+ */
+static inline int shpc_poll_ctrl_busy(struct controller *ctrl)
+{
+	int i;
+
+	if (!is_ctrl_busy(ctrl))
+		return 1;
+
+	/* Check every 0.1 sec for a total of 1 sec */
+	for (i = 0; i < 10; i++) {
+		msleep(100);
+		if (!is_ctrl_busy(ctrl))
+			return 1;
+	}
+
+	return 0;
+}
+
 static inline int shpc_wait_cmd(struct controller *ctrl)
 {
 	int retval = 0;
-	unsigned int timeout_msec = shpchp_poll_mode ? 2000 : 1000;
-	unsigned long timeout = msecs_to_jiffies(timeout_msec);
-	int rc = wait_event_interruptible_timeout(ctrl->queue,
-						  !ctrl->cmd_busy, timeout);
-	if (!rc) {
+	unsigned long timeout = msecs_to_jiffies(1000);
+	int rc;
+
+	if (shpchp_poll_mode)
+		rc = shpc_poll_ctrl_busy(ctrl);
+	else
+		rc = wait_event_interruptible_timeout(ctrl->queue,
+						!is_ctrl_busy(ctrl), timeout);
+	if (!rc && is_ctrl_busy(ctrl)) {
 		retval = -EIO;
-		err("Command not completed in %d msec\n", timeout_msec);
+		err("Command not completed in 1000 msec\n");
 	} else if (rc < 0) {
 		retval = -EINTR;
 		info("Command was interrupted by a signal\n");
 	}
-	ctrl->cmd_busy = 0;
 
 	return retval;
 }
@@ -327,26 +357,15 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	u16 cmd_status;
 	int retval = 0;
 	u16 temp_word;
-	int i;
 
 	DBG_ENTER_ROUTINE 
 
 	mutex_lock(&slot->ctrl->cmd_lock);
 
-	for (i = 0; i < 10; i++) {
-		cmd_status = shpc_readw(ctrl, CMD_STATUS);
-		
-		if (!(cmd_status & 0x1))
-			break;
-		/*  Check every 0.1 sec for a total of 1 sec*/
-		msleep(100);
-	}
-
-	cmd_status = shpc_readw(ctrl, CMD_STATUS);
-	
-	if (cmd_status & 0x1) { 
+	if (!shpc_poll_ctrl_busy(ctrl)) {
 		/* After 1 sec and and the controller is still busy */
-		err("%s : Controller is still busy after 1 sec.\n", __FUNCTION__);
+		err("%s : Controller is still busy after 1 sec.\n",
+		    __FUNCTION__);
 		retval = -EBUSY;
 		goto out;
 	}
@@ -358,7 +377,6 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	/* To make sure the Controller Busy bit is 0 before we send out the
 	 * command. 
 	 */
-	slot->ctrl->cmd_busy = 1;
 	shpc_writew(ctrl, CMD, temp_word);
 
 	/*
@@ -908,7 +926,6 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 		serr_int &= ~SERR_INTR_RSVDZ_MASK;
 		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
-		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
@@ -1101,7 +1118,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
 	void *instance_id = ctrl;
-	int rc, num_slots = 0;
+	int rc = -1, num_slots = 0;
 	u8 hp_slot;
 	u32 shpc_base_offset;
 	u32 tempdword, slot_reg, slot_config;
@@ -1167,11 +1184,15 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor, 
 		pdev->subsystem_device);
 	
-	if (pci_enable_device(pdev))
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		err("%s: pci_enable_device failed\n", __FUNCTION__);
 		goto abort_free_ctlr;
+	}
 
 	if (!request_mem_region(ctrl->mmio_base, ctrl->mmio_size, MY_NAME)) {
 		err("%s: cannot reserve MMIO region\n", __FUNCTION__);
+		rc = -1;
 		goto abort_free_ctlr;
 	}
 
@@ -1180,6 +1201,7 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		err("%s: cannot remap MMIO region %lx @ %lx\n", __FUNCTION__,
 		    ctrl->mmio_size, ctrl->mmio_base);
 		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
+		rc = -1;
 		goto abort_free_ctlr;
 	}
 	dbg("%s: php_ctlr->creg %p\n", __FUNCTION__, php_ctlr->creg);
@@ -1282,8 +1304,10 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	 */
 	if (atomic_add_return(1, &shpchp_num_controllers) == 1) {
 		shpchp_wq = create_singlethread_workqueue("shpchpd");
-		if (!shpchp_wq)
-			return -ENOMEM;
+		if (!shpchp_wq) {
+			rc = -ENOMEM;
+			goto abort_free_ctlr;
+		}
 	}
 
 	/*
@@ -1313,8 +1337,10 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 
 	/* We end up here for the many possible ways to fail this API.  */
 abort_free_ctlr:
+	if (php_ctlr->creg)
+		iounmap(php_ctlr->creg);
 	kfree(php_ctlr);
 abort:
 	DBG_LEAVE_ROUTINE
-	return -1;
+	return rc;
 }

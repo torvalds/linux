@@ -35,10 +35,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include "pci_hotplug.h"
 #include "../pci.h"
 
 #if !defined(MODULE)
@@ -181,7 +181,9 @@ static void pci_rescan_slot(struct pci_dev *temp)
 
 	if (!pci_read_config_byte(temp, PCI_HEADER_TYPE, &hdr_type)) {
 		temp->hdr_type = hdr_type & 0x7f;
-		if (!pci_find_slot(bus->number, temp->devfn)) {
+		if ((dev = pci_get_slot(bus, temp->devfn)) != NULL)
+			pci_dev_put(dev);
+		else {
 			dev = pci_scan_single_device(bus, temp->devfn);
 			if (dev) {
 				dbg("New device on %s function %x:%x\n",
@@ -205,7 +207,9 @@ static void pci_rescan_slot(struct pci_dev *temp)
 				continue;
 			temp->hdr_type = hdr_type & 0x7f;
 
-			if (!pci_find_slot(bus->number, temp->devfn)) {
+			if ((dev = pci_get_slot(bus, temp->devfn)) != NULL)
+				pci_dev_put(dev);
+			else {
 				dev = pci_scan_single_device(bus, temp->devfn);
 				if (dev) {
 					dbg("New device on %s function %x:%x\n",
@@ -305,7 +309,7 @@ static int disable_slot(struct hotplug_slot *slot)
 	/* search for subfunctions and disable them first */
 	if (!(dslot->dev->devfn & 7)) {
 		for (func = 1; func < 8; func++) {
-			dev = pci_find_slot(dslot->dev->bus->number,
+			dev = pci_get_slot(dslot->dev->bus,
 					dslot->dev->devfn + func);
 			if (dev) {
 				hslot = get_slot_from_dev(dev);
@@ -315,6 +319,7 @@ static int disable_slot(struct hotplug_slot *slot)
 					err("Hotplug slot not found for subfunction of PCI device\n");
 					return -ENODEV;
 				}
+				pci_dev_put(dev);
 			} else
 				dbg("No device in slot found\n");
 		}

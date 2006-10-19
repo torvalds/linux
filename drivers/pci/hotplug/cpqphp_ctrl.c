@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include "cpqphp.h"
 
 static u32 configure_new_device(struct controller* ctrl, struct pci_func *func,

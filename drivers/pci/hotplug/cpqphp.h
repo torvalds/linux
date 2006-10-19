@@ -28,7 +28,6 @@
 #ifndef _CPQPHP_H
 #define _CPQPHP_H
 
-#include "pci_hotplug.h"
 #include <linux/interrupt.h>
 #include <asm/io.h>		/* for read? and write? functions */
 #include <linux/delay.h>	/* for delays */
