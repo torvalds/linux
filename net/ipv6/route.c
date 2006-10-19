@@ -94,9 +94,6 @@ static int		 ip6_dst_gc(void);
 
 static int		ip6_pkt_discard(struct sk_buff *skb);
 static int		ip6_pkt_discard_out(struct sk_buff *skb);
-static int		ip6_pkt_prohibit(struct sk_buff *skb);
-static int		ip6_pkt_prohibit_out(struct sk_buff *skb);
-static int		ip6_pkt_blk_hole(struct sk_buff *skb);
 static void		ip6_link_failure(struct sk_buff *skb);
 static void		ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 
@@ -143,6 +140,10 @@ struct rt6_info ip6_null_entry = {
 };
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+
+static int ip6_pkt_prohibit(struct sk_buff *skb);
+static int ip6_pkt_prohibit_out(struct sk_buff *skb);
+static int ip6_pkt_blk_hole(struct sk_buff *skb);
 
 struct rt6_info ip6_prohibit_entry = {
 	.u = {
@@ -1768,6 +1769,8 @@ static int ip6_pkt_discard_out(struct sk_buff *skb)
 	return ip6_pkt_discard(skb);
 }
 
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+
 static int ip6_pkt_prohibit(struct sk_buff *skb)
 {
 	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED);
@@ -1784,6 +1787,8 @@ static int ip6_pkt_blk_hole(struct sk_buff *skb)
 	kfree_skb(skb);
 	return 0;
 }
+
+#endif
 
 /*
  *	Allocate a dst for local (unicast / anycast) address.
