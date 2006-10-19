@@ -8106,7 +8106,10 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 
 	if ((ering->rx_pending > TG3_RX_RING_SIZE - 1) ||
 	    (ering->rx_jumbo_pending > TG3_RX_JUMBO_RING_SIZE - 1) ||
-	    (ering->tx_pending > TG3_TX_RING_SIZE - 1))
+	    (ering->tx_pending > TG3_TX_RING_SIZE - 1) ||
+	    (ering->tx_pending <= MAX_SKB_FRAGS) ||
+	    ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1_BUG) &&
+	     (ering->tx_pending <= (MAX_SKB_FRAGS * 3))))
 		return -EINVAL;
 
 	if (netif_running(dev)) {
