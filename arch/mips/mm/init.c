@@ -90,9 +90,9 @@ unsigned long setup_zero_pages(void)
 	if (!empty_zero_page)
 		panic("Oh boy, that early out of memory?");
 
-	page = virt_to_page(empty_zero_page);
+	page = virt_to_page((void *)empty_zero_page);
 	split_page(page, order);
-	while (page < virt_to_page(empty_zero_page + (PAGE_SIZE << order))) {
+	while (page < virt_to_page((void *)(empty_zero_page + (PAGE_SIZE << order)))) {
 		SetPageReserved(page);
 		page++;
 	}
@@ -448,8 +448,8 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	unsigned long addr;
 
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
+		ClearPageReserved(virt_to_page((void *)addr));
+		init_page_count(virt_to_page((void *)addr));
 		memset((void *)addr, 0xcc, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
