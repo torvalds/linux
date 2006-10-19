@@ -8,12 +8,10 @@
  * Modified for RTS7751R2D by
  * Atom Create Engineering Co., Ltd. 2002.
  */
-
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/rts7751r2d/rts7751r2d.h>
+#include <linux/io.h>
+#include <asm/rts7751r2d.h>
 
 #if defined(CONFIG_RTS7751R2D_REV11)
 static int mask_pos[] = {11, 9, 8, 12, 10, 6, 5, 4, 7, 14, 13, 0, 0, 0, 0};

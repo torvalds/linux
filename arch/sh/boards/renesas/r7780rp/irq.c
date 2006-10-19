@@ -10,7 +10,8 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <asm/r7780rp.h>
 
 #ifdef CONFIG_SH_R7780MP
 static int mask_pos[] = {12, 11, 9, 14, 15, 8, 13, 6, 5, 4, 3, 2, 0, 0, 1, 0};
