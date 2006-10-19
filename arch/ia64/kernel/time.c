@@ -84,6 +84,12 @@ timer_interrupt (int irq, void *dev_id)
 
 		if (time_after(new_itm, ia64_get_itc()))
 			break;
+
+		/*
+		 * Allow IPIs to interrupt the timer loop.
+		 */
+		local_irq_enable();
+		local_irq_disable();
 	}
 
 	do {
