@@ -212,8 +212,6 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 		gfs2_trans_add_bh(ip->i_gl, bh, 1);
 		memcpy(bh->b_data + o, buf, amount);
 		brelse(bh);
-		if (error)
-			goto fail;
 
 		buf += amount;
 		copied += amount;
