@@ -269,11 +269,13 @@ static int stk7700p_tuner_attach(struct dvb_usb_adapter *adap)
 
 struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P) },
+		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P_PC) },
+
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_2) },
 		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK) },
 		{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR) },
-		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P_PC) },
+		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500) },
 		{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -315,20 +317,24 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
-				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[5] },
+				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-T Stick",
-				{ &dib0700_usb_id_table[3], NULL },
-				{ NULL },
-			},
-			{   "AVerMedia AVerTV DVB-T Volar",
 				{ &dib0700_usb_id_table[4], NULL },
 				{ NULL },
 			},
+			{   "AVerMedia AVerTV DVB-T Volar",
+				{ &dib0700_usb_id_table[5], NULL },
+				{ NULL },
+			},
+			{   "Compro Videomate U500",
+				{ &dib0700_usb_id_table[6], NULL },
+				{ NULL },
+			}
 		}
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
@@ -350,7 +356,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_device_descs = 1,
 		.devices = {
 			{   "Hauppauge Nova-T 500 Dual DVB-T",
-				{ &dib0700_usb_id_table[1], &dib0700_usb_id_table[2], NULL },
+				{ &dib0700_usb_id_table[2], &dib0700_usb_id_table[3], NULL },
 				{ NULL },
 			},
 		}
