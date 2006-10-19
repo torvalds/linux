@@ -940,7 +940,7 @@ struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
 	fib6_force_start_gc();
 
 out:
-	return (struct dst_entry *)rt;
+	return &rt->u.dst;
 }
 
 int ndisc_dst_gc(int *more)
@@ -1223,7 +1223,7 @@ out:
 	if (idev)
 		in6_dev_put(idev);
 	if (rt)
-		dst_free((struct dst_entry *) rt);
+		dst_free(&rt->u.dst);
 	return err;
 }
 
@@ -1822,7 +1822,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 		rt->rt6i_flags |= RTF_LOCAL;
 	rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
 	if (rt->rt6i_nexthop == NULL) {
-		dst_free((struct dst_entry *) rt);
+		dst_free(&rt->u.dst);
 		return ERR_PTR(-ENOMEM);
 	}
 
