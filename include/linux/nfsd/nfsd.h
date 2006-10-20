@@ -50,7 +50,7 @@
  * Callback function for readdir
  */
 struct readdir_cd {
-	int			err;	/* 0, nfserr, or nfserr_eof */
+	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
 typedef int		(*encode_dent_fn)(struct readdir_cd *, const char *,
 						int, loff_t, ino_t, unsigned int);

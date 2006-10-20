@@ -158,7 +158,7 @@ static __be32 nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessarg
 /*
  * XDR decode functions
  */
-static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclargs *argp)
 {
 	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
@@ -169,7 +169,7 @@ static int nfsaclsvc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
 }
 
 
-static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_setaclargs *argp)
 {
 	struct kvec *head = rqstp->rq_arg.head;
@@ -194,7 +194,7 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
 	return (n > 0);
 }
 
-static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd_fhandle *argp)
 {
 	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
@@ -202,7 +202,7 @@ static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, u32 *p,
 	return xdr_argsize_check(rqstp, p);
 }
 
-static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_accessargs *argp)
 {
 	if (!(p = nfs2svc_decode_fh(p, &argp->fh)))
@@ -217,7 +217,7 @@ static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, u32 *p,
  */
 
 /* GETACL */
-static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	struct dentry *dentry = resp->fh.fh_dentry;
@@ -259,7 +259,7 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
 	return 1;
 }
 
-static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd_attrstat *resp)
 {
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh);
@@ -267,7 +267,7 @@ static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, u32 *p,
 }
 
 /* ACCESS */
-static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_accessres *resp)
 {
 	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh);
@@ -278,7 +278,7 @@ static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, u32 *p,
 /*
  * XDR release functions
  */
-static int nfsaclsvc_release_getacl(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_release_getacl(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	fh_put(&resp->fh);
@@ -287,7 +287,7 @@ static int nfsaclsvc_release_getacl(struct svc_rqst *rqstp, u32 *p,
 	return 1;
 }
 
-static int nfsaclsvc_release_fhandle(struct svc_rqst *rqstp, u32 *p,
+static int nfsaclsvc_release_fhandle(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd_fhandle *resp)
 {
 	fh_put(&resp->fh);
