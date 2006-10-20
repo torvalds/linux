@@ -1452,6 +1452,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
 			memset(kaddr, 0, PAGE_SIZE);
 		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(dst);
 		return;
 		
 	}
