@@ -35,7 +35,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst * rqstp,
 {
 	svc_fh *fh;
 	struct posix_acl *acl;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	dprintk("nfsd: GETACL(2acl)   %s\n", SVCFH_fmt(&argp->fh));
 
@@ -102,7 +102,7 @@ static __be32 nfsacld_proc_setacl(struct svc_rqst * rqstp,
 		struct nfsd_attrstat *resp)
 {
 	svc_fh *fh;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	dprintk("nfsd: SETACL(2acl)   %s\n", SVCFH_fmt(&argp->fh));
 
@@ -143,7 +143,7 @@ static __be32 nfsacld_proc_getattr(struct svc_rqst * rqstp,
 static __be32 nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
 		struct nfsd3_accessres *resp)
 {
-	int nfserr;
+	__be32 nfserr;
 
 	dprintk("nfsd: ACCESS(2acl)   %s 0x%x\n",
 			SVCFH_fmt(&argp->fh),

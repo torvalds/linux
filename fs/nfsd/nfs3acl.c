@@ -33,7 +33,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 {
 	svc_fh *fh;
 	struct posix_acl *acl;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
 	if ((nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP)))
@@ -98,7 +98,7 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 		struct nfsd3_attrstat *resp)
 {
 	svc_fh *fh;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
 	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_SATTR);

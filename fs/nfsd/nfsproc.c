@@ -36,16 +36,16 @@ nfsd_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 	return nfs_ok;
 }
 
-static int
-nfsd_return_attrs(int err, struct nfsd_attrstat *resp)
+static __be32
+nfsd_return_attrs(__be32 err, struct nfsd_attrstat *resp)
 {
 	if (err) return err;
 	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_mnt,
 				    resp->fh.fh_dentry,
 				    &resp->stat));
 }
-static int
-nfsd_return_dirop(int err, struct nfsd_diropres *resp)
+static __be32
+nfsd_return_dirop(__be32 err, struct nfsd_diropres *resp)
 {
 	if (err) return err;
 	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_mnt,
@@ -60,7 +60,7 @@ static __be32
 nfsd_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					  struct nfsd_attrstat *resp)
 {
-	int nfserr;
+	__be32 nfserr;
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
 
 	fh_copy(&resp->fh, &argp->fh);
@@ -76,7 +76,7 @@ static __be32
 nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 					  struct nfsd_attrstat  *resp)
 {
-	int nfserr;
+	__be32 nfserr;
 	dprintk("nfsd: SETATTR  %s, valid=%x, size=%ld\n",
 		SVCFH_fmt(&argp->fh),
 		argp->attrs.ia_valid, (long) argp->attrs.ia_size);
@@ -96,7 +96,7 @@ static __be32
 nfsd_proc_lookup(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 					 struct nfsd_diropres  *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: LOOKUP   %s %.*s\n",
 		SVCFH_fmt(&argp->fh), argp->len, argp->name);
@@ -116,7 +116,7 @@ static __be32
 nfsd_proc_readlink(struct svc_rqst *rqstp, struct nfsd_readlinkargs *argp,
 					   struct nfsd_readlinkres *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: READLINK %s\n", SVCFH_fmt(&argp->fh));
 
@@ -136,7 +136,7 @@ static __be32
 nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 				       struct nfsd_readres  *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: READ    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
@@ -176,7 +176,7 @@ static __be32
 nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 					struct nfsd_attrstat  *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 	int	stable = 1;
 
 	dprintk("nfsd: WRITE    %s %d bytes at %d\n",
@@ -206,7 +206,8 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	struct iattr	*attr = &argp->attrs;
 	struct inode	*inode;
 	struct dentry	*dchild;
-	int		nfserr, type, mode;
+	int		type, mode;
+	__be32		nfserr;
 	dev_t		rdev = 0, wanted = new_decode_dev(attr->ia_size);
 
 	dprintk("nfsd: CREATE   %s %.*s\n",
@@ -352,7 +353,7 @@ static __be32
 nfsd_proc_remove(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 					 void		       *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: REMOVE   %s %.*s\n", SVCFH_fmt(&argp->fh),
 		argp->len, argp->name);
@@ -367,7 +368,7 @@ static __be32
 nfsd_proc_rename(struct svc_rqst *rqstp, struct nfsd_renameargs *argp,
 				  	 void		        *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: RENAME   %s %.*s -> \n",
 		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname);
@@ -385,7 +386,7 @@ static __be32
 nfsd_proc_link(struct svc_rqst *rqstp, struct nfsd_linkargs *argp,
 				void			    *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: LINK     %s ->\n",
 		SVCFH_fmt(&argp->ffh));
@@ -406,7 +407,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
 				          void			  *resp)
 {
 	struct svc_fh	newfh;
-	int		nfserr;
+	__be32		nfserr;
 
 	dprintk("nfsd: SYMLINK  %s %.*s -> %.*s\n",
 		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname,
@@ -434,7 +435,7 @@ static __be32
 nfsd_proc_mkdir(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 					struct nfsd_diropres   *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: MKDIR    %s %.*s\n", SVCFH_fmt(&argp->fh), argp->len, argp->name);
 
@@ -458,7 +459,7 @@ static __be32
 nfsd_proc_rmdir(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 				 	void		      *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: RMDIR    %s %.*s\n", SVCFH_fmt(&argp->fh), argp->len, argp->name);
 
@@ -474,7 +475,8 @@ static __be32
 nfsd_proc_readdir(struct svc_rqst *rqstp, struct nfsd_readdirargs *argp,
 					  struct nfsd_readdirres  *resp)
 {
-	int		nfserr, count;
+	int		count;
+	__be32		nfserr;
 	loff_t		offset;
 
 	dprintk("nfsd: READDIR  %s %d bytes at %d\n",
@@ -513,7 +515,7 @@ static __be32
 nfsd_proc_statfs(struct svc_rqst * rqstp, struct nfsd_fhandle   *argp,
 					  struct nfsd_statfsres *resp)
 {
-	int	nfserr;
+	__be32	nfserr;
 
 	dprintk("nfsd: STATFS   %s\n", SVCFH_fmt(&argp->fh));
 
