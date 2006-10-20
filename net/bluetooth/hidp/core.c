@@ -507,12 +507,10 @@ static int hidp_session(void *arg)
 
 	hidp_del_timer(session);
 
-	if (intr_sk->sk_state != BT_CONNECTED)
-		wait_event_timeout(*(ctrl_sk->sk_sleep), (ctrl_sk->sk_state == BT_CLOSED), HZ);
-
 	fput(session->intr_sock->file);
 
-	wait_event_timeout(*(intr_sk->sk_sleep), (intr_sk->sk_state == BT_CLOSED), HZ);
+	wait_event_timeout(*(ctrl_sk->sk_sleep),
+		(ctrl_sk->sk_state == BT_CLOSED), msecs_to_jiffies(500));
 
 	fput(session->ctrl_sock->file);
 

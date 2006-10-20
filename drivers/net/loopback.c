@@ -58,7 +58,11 @@
 #include <linux/tcp.h>
 #include <linux/percpu.h>
 
-static DEFINE_PER_CPU(struct net_device_stats, loopback_stats);
+struct pcpu_lstats {
+	unsigned long packets;
+	unsigned long bytes;
+};
+static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 
 #define LOOPBACK_OVERHEAD (128 + MAX_HEADER + 16 + 16)
 
@@ -128,7 +132,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
  */
 static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *lb_stats;
+	struct pcpu_lstats *lb_stats;
 
 	skb_orphan(skb);
 
@@ -149,16 +153,14 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	dev->last_rx = jiffies;
 
-	lb_stats = &per_cpu(loopback_stats, get_cpu());
-	lb_stats->rx_bytes += skb->len;
-	lb_stats->tx_bytes = lb_stats->rx_bytes;
-	lb_stats->rx_packets++;
-	lb_stats->tx_packets = lb_stats->rx_packets;
-	put_cpu();
+	/* it's OK to use __get_cpu_var() because BHs are off */
+	lb_stats = &__get_cpu_var(pcpu_lstats);
+	lb_stats->bytes += skb->len;
+	lb_stats->packets++;
 
 	netif_rx(skb);
 
-	return(0);
+	return 0;
 }
 
 static struct net_device_stats loopback_stats;
@@ -166,20 +168,21 @@ static struct net_device_stats loopback_stats;
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
 	struct net_device_stats *stats = &loopback_stats;
+	unsigned long bytes = 0;
+	unsigned long packets = 0;
 	int i;
 
-	memset(stats, 0, sizeof(struct net_device_stats));
-
 	for_each_possible_cpu(i) {
-		struct net_device_stats *lb_stats;
+		const struct pcpu_lstats *lb_stats;
 
-		lb_stats = &per_cpu(loopback_stats, i);
-		stats->rx_bytes   += lb_stats->rx_bytes;
-		stats->tx_bytes   += lb_stats->tx_bytes;
-		stats->rx_packets += lb_stats->rx_packets;
-		stats->tx_packets += lb_stats->tx_packets;
+		lb_stats = &per_cpu(pcpu_lstats, i);
+		bytes   += lb_stats->bytes;
+		packets += lb_stats->packets;
 	}
-
+	stats->rx_packets = packets;
+	stats->tx_packets = packets;
+	stats->rx_bytes = bytes;
+	stats->tx_bytes = bytes;
 	return stats;
 }
 

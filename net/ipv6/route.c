@@ -141,6 +141,10 @@ struct rt6_info ip6_null_entry = {
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 
+static int ip6_pkt_prohibit(struct sk_buff *skb);
+static int ip6_pkt_prohibit_out(struct sk_buff *skb);
+static int ip6_pkt_blk_hole(struct sk_buff *skb);
+
 struct rt6_info ip6_prohibit_entry = {
 	.u = {
 		.dst = {
@@ -150,8 +154,8 @@ struct rt6_info ip6_prohibit_entry = {
 			.obsolete	= -1,
 			.error		= -EACCES,
 			.metrics	= { [RTAX_HOPLIMIT - 1] = 255, },
-			.input		= ip6_pkt_discard,
-			.output		= ip6_pkt_discard_out,
+			.input		= ip6_pkt_prohibit,
+			.output		= ip6_pkt_prohibit_out,
 			.ops		= &ip6_dst_ops,
 			.path		= (struct dst_entry*)&ip6_prohibit_entry,
 		}
@@ -170,8 +174,8 @@ struct rt6_info ip6_blk_hole_entry = {
 			.obsolete	= -1,
 			.error		= -EINVAL,
 			.metrics	= { [RTAX_HOPLIMIT - 1] = 255, },
-			.input		= ip6_pkt_discard,
-			.output		= ip6_pkt_discard_out,
+			.input		= ip6_pkt_blk_hole,
+			.output		= ip6_pkt_blk_hole,
 			.ops		= &ip6_dst_ops,
 			.path		= (struct dst_entry*)&ip6_blk_hole_entry,
 		}
@@ -484,7 +488,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 do { \
 	if (rt == &ip6_null_entry) { \
 		struct fib6_node *pn; \
-		while (fn) { \
+		while (1) { \
 			if (fn->fn_flags & RTN_TL_ROOT) \
 				goto out; \
 			pn = fn->parent; \
@@ -618,8 +622,6 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *d
 		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
 		rt->rt6i_dst.plen = 128;
 		rt->rt6i_flags |= RTF_CACHE;
-		if (rt->rt6i_flags & RTF_REJECT)
-			rt->u.dst.error = ort->u.dst.error;
 		rt->u.dst.flags |= DST_HOST;
 		rt->rt6i_nexthop = neigh_clone(ort->rt6i_nexthop);
 	}
@@ -1540,6 +1542,7 @@ static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 		rt->u.dst.output = ort->u.dst.output;
 
 		memcpy(rt->u.dst.metrics, ort->u.dst.metrics, RTAX_MAX*sizeof(u32));
+		rt->u.dst.error = ort->u.dst.error;
 		rt->u.dst.dev = ort->u.dst.dev;
 		if (rt->u.dst.dev)
 			dev_hold(rt->u.dst.dev);
@@ -1743,16 +1746,21 @@ int ipv6_route_ioctl(unsigned int cmd, void __user *arg)
  *	Drop the packet on the floor
  */
 
-static int ip6_pkt_discard(struct sk_buff *skb)
+static inline int ip6_pkt_drop(struct sk_buff *skb, int code)
 {
 	int type = ipv6_addr_type(&skb->nh.ipv6h->daddr);
 	if (type == IPV6_ADDR_ANY || type == IPV6_ADDR_RESERVED)
 		IP6_INC_STATS(IPSTATS_MIB_INADDRERRORS);
 
 	IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);
-	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_NOROUTE, 0, skb->dev);
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0, skb->dev);
 	kfree_skb(skb);
 	return 0;
+}
+
+static int ip6_pkt_discard(struct sk_buff *skb)
+{
+	return ip6_pkt_drop(skb, ICMPV6_NOROUTE);
 }
 
 static int ip6_pkt_discard_out(struct sk_buff *skb)
@@ -1760,6 +1768,27 @@ static int ip6_pkt_discard_out(struct sk_buff *skb)
 	skb->dev = skb->dst->dev;
 	return ip6_pkt_discard(skb);
 }
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+
+static int ip6_pkt_prohibit(struct sk_buff *skb)
+{
+	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED);
+}
+
+static int ip6_pkt_prohibit_out(struct sk_buff *skb)
+{
+	skb->dev = skb->dst->dev;
+	return ip6_pkt_prohibit(skb);
+}
+
+static int ip6_pkt_blk_hole(struct sk_buff *skb)
+{
+	kfree_skb(skb);
+	return 0;
+}
+
+#endif
 
 /*
  *	Allocate a dst for local (unicast / anycast) address.

@@ -505,8 +505,13 @@ static void port_timeout(unsigned long ref)
 	struct port *p_ptr = tipc_port_lock(ref);
 	struct sk_buff *buf = NULL;
 
-	if (!p_ptr || !p_ptr->publ.connected)
+	if (!p_ptr)
 		return;
+
+	if (!p_ptr->publ.connected) {
+		tipc_port_unlock(p_ptr);
+		return;
+	}
 
 	/* Last probe answered ? */
 	if (p_ptr->probing_state == PROBING) {

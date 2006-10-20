@@ -25,12 +25,14 @@
 static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
 
-static int xfrm6_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
+static int xfrm6_dst_lookup(struct xfrm_dst **xdst, struct flowi *fl)
 {
-	int err = 0;
-	*dst = (struct xfrm_dst*)ip6_route_output(NULL, fl);
-	if (!*dst)
-		err = -ENETUNREACH;
+	struct dst_entry *dst = ip6_route_output(NULL, fl);
+	int err = dst->error;
+	if (!err)
+		*xdst = (struct xfrm_dst *) dst;
+	else
+		dst_release(dst);
 	return err;
 }
 

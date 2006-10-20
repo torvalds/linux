@@ -17,14 +17,15 @@
 
 struct inet_peer
 {
+	/* group together avl_left,avl_right,v4daddr to speedup lookups */
 	struct inet_peer	*avl_left, *avl_right;
+	__be32			v4daddr;	/* peer's address */
+	__u16			avl_height;
+	__u16			ip_id_count;	/* IP ID for the next packet */
 	struct inet_peer	*unused_next, **unused_prevp;
 	__u32			dtime;		/* the time of last use of not
 						 * referenced entries */
 	atomic_t		refcnt;
-	__be32			v4daddr;	/* peer's address */
-	__u16			avl_height;
-	__u16			ip_id_count;	/* IP ID for the next packet */
 	atomic_t		rid;		/* Frag reception counter */
 	__u32			tcp_ts;
 	unsigned long		tcp_ts_stamp;
