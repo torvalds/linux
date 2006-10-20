@@ -161,7 +161,7 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 		return 1;
 
 	/* Find the bridge device.  It is always 0:0.0 */
-	if (!(bridge_dev = pci_find_slot(0, PCI_DEVFN(0, 0)))) {
+	if (!(bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0)))) {
 		ERR_MSG("cannot find bridge device\n");
 		return 1;
 	}
@@ -169,6 +169,8 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	/* Get the fb aperture size and "stolen" memory amount. */
 	tmp = 0;
 	pci_read_config_word(bridge_dev, INTEL_GMCH_CTRL, &tmp);
+	pci_dev_put(bridge_dev);
+
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_915G:
 	case PCI_DEVICE_ID_INTEL_915GM:
