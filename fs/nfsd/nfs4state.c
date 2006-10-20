@@ -2646,6 +2646,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	struct file_lock conflock;
 	__be32 status = 0;
 	unsigned int strhashval;
+	int err;
 
 	dprintk("NFSD: nfsd4_lock: start=%Ld length=%Ld\n",
 		(long long) lock->lk_offset,
@@ -2758,13 +2759,14 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	 * locks_copy_lock: */
 	conflock.fl_ops = NULL;
 	conflock.fl_lmops = NULL;
-	status = posix_lock_file_conf(filp, &file_lock, &conflock);
+	err = posix_lock_file_conf(filp, &file_lock, &conflock);
 	dprintk("NFSD: nfsd4_lock: posix_lock_file_conf status %d\n",status);
-	switch (-status) {
+	switch (-err) {
 	case 0: /* success! */
 		update_stateid(&lock_stp->st_stateid);
 		memcpy(&lock->lk_resp_stateid, &lock_stp->st_stateid, 
 				sizeof(stateid_t));
+		status = 0;
 		break;
 	case (EAGAIN):		/* conflock holds conflicting lock */
 		status = nfserr_denied;
@@ -2775,7 +2777,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 		status = nfserr_deadlock;
 		break;
 	default:        
-		dprintk("NFSD: nfsd4_lock: posix_lock_file_conf() failed! status %d\n",status);
+		dprintk("NFSD: nfsd4_lock: posix_lock_file_conf() failed! status %d\n",err);
 		status = nfserr_resource;
 		break;
 	}
@@ -2880,6 +2882,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	struct file *filp = NULL;
 	struct file_lock file_lock;
 	__be32 status;
+	int err;
 						        
 	dprintk("NFSD: nfsd4_locku: start=%Ld length=%Ld\n",
 		(long long) locku->lu_offset,
@@ -2917,8 +2920,8 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	/*
 	*  Try to unlock the file in the VFS.
 	*/
-	status = posix_lock_file(filp, &file_lock); 
-	if (status) {
+	err = posix_lock_file(filp, &file_lock);
+	if (err) {
 		dprintk("NFSD: nfs4_locku: posix_lock_file failed!\n");
 		goto out_nfserr;
 	}
@@ -2937,7 +2940,7 @@ out:
 	return status;
 
 out_nfserr:
-	status = nfserrno(status);
+	status = nfserrno(err);
 	goto out;
 }
 

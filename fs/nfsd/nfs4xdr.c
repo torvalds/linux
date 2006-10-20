@@ -247,6 +247,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 	int expected_len, len = 0;
 	u32 dummy32;
 	char *buf;
+	int host_err;
 
 	DECODE_HEAD;
 	iattr->ia_valid = 0;
@@ -280,7 +281,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 
 		*acl = nfs4_acl_new();
 		if (*acl == NULL) {
-			status = -ENOMEM;
+			host_err = -ENOMEM;
 			goto out_nfserr;
 		}
 		defer_free(argp, (void (*)(const void *))nfs4_acl_free, *acl);
@@ -295,20 +296,20 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 			len += XDR_QUADLEN(dummy32) << 2;
 			READMEM(buf, dummy32);
 			ace.whotype = nfs4_acl_get_whotype(buf, dummy32);
-			status = 0;
+			host_err = 0;
 			if (ace.whotype != NFS4_ACL_WHO_NAMED)
 				ace.who = 0;
 			else if (ace.flag & NFS4_ACE_IDENTIFIER_GROUP)
-				status = nfsd_map_name_to_gid(argp->rqstp,
+				host_err = nfsd_map_name_to_gid(argp->rqstp,
 						buf, dummy32, &ace.who);
 			else
-				status = nfsd_map_name_to_uid(argp->rqstp,
+				host_err = nfsd_map_name_to_uid(argp->rqstp,
 						buf, dummy32, &ace.who);
-			if (status)
+			if (host_err)
 				goto out_nfserr;
-			status = nfs4_acl_add_ace(*acl, ace.type, ace.flag,
+			host_err = nfs4_acl_add_ace(*acl, ace.type, ace.flag,
 				 ace.access_mask, ace.whotype, ace.who);
-			if (status)
+			if (host_err)
 				goto out_nfserr;
 		}
 	} else
@@ -327,7 +328,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 		READ_BUF(dummy32);
 		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
-		if ((status = nfsd_map_name_to_uid(argp->rqstp, buf, dummy32, &iattr->ia_uid)))
+		if ((host_err = nfsd_map_name_to_uid(argp->rqstp, buf, dummy32, &iattr->ia_uid)))
 			goto out_nfserr;
 		iattr->ia_valid |= ATTR_UID;
 	}
@@ -338,7 +339,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 		READ_BUF(dummy32);
 		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
-		if ((status = nfsd_map_name_to_gid(argp->rqstp, buf, dummy32, &iattr->ia_gid)))
+		if ((host_err = nfsd_map_name_to_gid(argp->rqstp, buf, dummy32, &iattr->ia_gid)))
 			goto out_nfserr;
 		iattr->ia_valid |= ATTR_GID;
 	}
@@ -414,7 +415,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 	DECODE_TAIL;
 
 out_nfserr:
-	status = nfserrno(status);
+	status = nfserrno(host_err);
 	goto out;
 }
 
@@ -1438,6 +1439,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	u32 rdattr_err = 0;
 	__be32 *p = buffer;
 	__be32 status;
+	int err;
 	int aclsupport = 0;
 	struct nfs4_acl *acl = NULL;
 
@@ -1451,14 +1453,14 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			goto out;
 	}
 
-	status = vfs_getattr(exp->ex_mnt, dentry, &stat);
-	if (status)
+	err = vfs_getattr(exp->ex_mnt, dentry, &stat);
+	if (err)
 		goto out_nfserr;
 	if ((bmval0 & (FATTR4_WORD0_FILES_FREE | FATTR4_WORD0_FILES_TOTAL)) ||
 	    (bmval1 & (FATTR4_WORD1_SPACE_AVAIL | FATTR4_WORD1_SPACE_FREE |
 		       FATTR4_WORD1_SPACE_TOTAL))) {
-		status = vfs_statfs(dentry, &statfs);
-		if (status)
+		err = vfs_statfs(dentry, &statfs);
+		if (err)
 			goto out_nfserr;
 	}
 	if ((bmval0 & (FATTR4_WORD0_FILEHANDLE | FATTR4_WORD0_FSID)) && !fhp) {
@@ -1470,15 +1472,15 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	}
 	if (bmval0 & (FATTR4_WORD0_ACL | FATTR4_WORD0_ACLSUPPORT
 			| FATTR4_WORD0_SUPPORTED_ATTRS)) {
-		status = nfsd4_get_nfs4_acl(rqstp, dentry, &acl);
-		aclsupport = (status == 0);
+		err = nfsd4_get_nfs4_acl(rqstp, dentry, &acl);
+		aclsupport = (err == 0);
 		if (bmval0 & FATTR4_WORD0_ACL) {
-			if (status == -EOPNOTSUPP)
+			if (err == -EOPNOTSUPP)
 				bmval0 &= ~FATTR4_WORD0_ACL;
-			else if (status == -EINVAL) {
+			else if (err == -EINVAL) {
 				status = nfserr_attrnotsupp;
 				goto out;
-			} else if (status != 0)
+			} else if (err != 0)
 				goto out_nfserr;
 		}
 	}
@@ -1818,7 +1820,7 @@ out:
 		fh_put(&tempfh);
 	return status;
 out_nfserr:
-	status = nfserrno(status);
+	status = nfserrno(err);
 	goto out;
 out_resource:
 	*countp = 0;
