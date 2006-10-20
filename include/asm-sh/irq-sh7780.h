@@ -6,16 +6,6 @@
  *
  * Copyright (C) 2004 Takashi SHUDO <shudo@hitachi-ul.co.jp>
  */
-
-#ifdef CONFIG_IDE
-# ifndef IRQ_CFCARD
-#  define IRQ_CFCARD	14
-# endif
-# ifndef IRQ_PCMCIA
-#  define IRQ_PCMCIA	15
-# endif
-#endif
-
 #define INTC_BASE	0xffd00000
 #define INTC_ICR0	(INTC_BASE+0x0)
 #define INTC_ICR1	(INTC_BASE+0x1c)

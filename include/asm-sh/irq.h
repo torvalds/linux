@@ -685,7 +685,7 @@ struct intc2_data {
 	unsigned char priority;
 };
 
-void make_intc2_irq(struct intc2_data *);
+void make_intc2_irq(struct intc2_data *, unsigned int nr_irqs);
 void init_IRQ_intc2(void);
 #endif
 

@@ -81,7 +81,6 @@
 #define IRQ_PCISLOT2    66              /* PCI Slot #2 IRQ */
 #define IRQ_PCISLOT3    67              /* PCI Slot #3 IRQ */
 #define IRQ_PCISLOT4    68              /* PCI Slot #4 IRQ */
-#define IRQ_CFCARD      1               /* CF Card IRQ */
 // #define IRQ_CFINST   0               /* CF Card Insert IRQ */
 #define IRQ_TP          2               /* Touch Panel IRQ */
 #define IRQ_SCI1        3               /* SCI1 IRQ */
@@ -153,7 +152,6 @@
 #define IRQ_PCISLOT2	1		/* PCI Slot #2 IRQ */
 #define IRQ_PCISLOT3	2		/* PCI Slot #3 IRQ */
 #define IRQ_PCISLOT4	3		/* PCI Slot #4 IRQ */
-#define IRQ_CFCARD	4		/* CF Card IRQ */
 #define IRQ_CFINST	5		/* CF Card Insert IRQ */
 #define IRQ_M66596	6		/* M66596 IRQ */
 #define IRQ_SDCARD	7		/* SD Card IRQ */
