@@ -634,6 +634,10 @@ config FUSE_FS
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
 
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
 if BLOCK
 menu "CD-ROM/DVD Filesystems"
 
@@ -2079,10 +2083,6 @@ config 9P_FS
 	  See <http://v9fs.sf.net> for more information.
 
 	  If unsure, say N.
-
-config GENERIC_ACL
-	bool
-	select FS_POSIX_ACL
 
 endmenu
 
