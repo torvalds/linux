@@ -294,23 +294,21 @@ static inline int jffs2_encode_dev(union jffs2_device_node *jdev, dev_t rdev)
 
 static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_node *node = rb_first(root);
 
 	if (!node)
 		return NULL;
-	while(node->rb_left)
-		node = node->rb_left;
+
 	return rb_entry(node, struct jffs2_node_frag, rb);
 }
 
 static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_node *node = rb_last(root);
 
 	if (!node)
 		return NULL;
-	while(node->rb_right)
-		node = node->rb_right;
+
 	return rb_entry(node, struct jffs2_node_frag, rb);
 }
 
