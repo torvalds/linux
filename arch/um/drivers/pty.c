@@ -13,6 +13,7 @@
 #include "user_util.h"
 #include "kern_util.h"
 #include "os.h"
+#include "um_malloc.h"
 
 struct pty_chan {
 	void (*announce)(char *dev_name, int dev);
