@@ -140,8 +140,8 @@ static void esb2rom_cleanup(struct esb2rom_window *window)
 		window->virt = NULL;
 		window->phys = 0;
 		window->size = 0;
-		window->pdev = NULL;
 	}
+	pci_dev_put(window->pdev);
 }
 
 static int __devinit esb2rom_init_one(struct pci_dev *pdev,
@@ -164,7 +164,7 @@ static int __devinit esb2rom_init_one(struct pci_dev *pdev,
 	 * Also you can page firmware hubs if an 8MiB window isn't enough
 	 * but don't currently handle that case either.
 	 */
-	window->pdev = pdev;
+	window->pdev = pci_dev_get(pdev);
 
 	/* RLG:  experiment 2.  Force the window registers to the widest values */
 
@@ -418,7 +418,7 @@ static int __init init_esb2rom(void)
 	pdev = NULL;
 	for (id = esb2rom_pci_tbl; id->vendor; id++) {
 		printk(KERN_DEBUG "device id = %x\n", id->device);
-		pdev = pci_find_device(id->vendor, id->device, NULL);
+		pdev = pci_get_device(id->vendor, id->device, NULL);
 		if (pdev) {
 			printk(KERN_DEBUG "matched device = %x\n", id->device);
 			break;
@@ -427,6 +427,7 @@ static int __init init_esb2rom(void)
 	if (pdev) {
 		printk(KERN_DEBUG "matched device id %x\n", id->device);
 		retVal = esb2rom_init_one(pdev, &esb2rom_pci_tbl[0]);
+		pci_dev_put(pdev);
 		printk(KERN_DEBUG "retVal = %d\n", retVal);
 		return retVal;
 	}
