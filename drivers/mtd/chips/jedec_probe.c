@@ -154,6 +154,7 @@
 #define SST39SF010A	0x00B5
 #define SST39SF020A	0x00B6
 #define SST49LF004B	0x0060
+#define SST49LF040B	0x0050
 #define SST49LF008A	0x005a
 #define SST49LF030A	0x001C
 #define SST49LF040A	0x0051
@@ -1400,6 +1401,20 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x01000,64),
 		}
 	}, {
+		.mfr_id		= MANUFACTURER_SST,
+		.dev_id         = SST49LF040B,
+		.name           = "SST 49LF040B",
+		.uaddr          = {
+			[0] = MTD_UADDR_0x5555_0x2AAA /* x8 */
+		},
+		.DevSize        = SIZE_512KiB,
+		.CmdSet         = P_ID_AMD_STD,
+		.NumEraseRegions= 1,
+		.regions        = {
+			ERASEINFO(0x01000,128),
+		}
+	}, {
+
 		.mfr_id		= MANUFACTURER_SST,
 		.dev_id		= SST49LF004B,
 		.name		= "SST 49LF004B",

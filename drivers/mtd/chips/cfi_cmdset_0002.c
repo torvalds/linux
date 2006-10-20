@@ -48,6 +48,7 @@
 #define MANUFACTURER_ATMEL	0x001F
 #define MANUFACTURER_SST	0x00BF
 #define SST49LF004B	        0x0060
+#define SST49LF040B	        0x0050
 #define SST49LF008A		0x005a
 #define AT49BV6416		0x00d6
 
@@ -233,6 +234,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 };
 static struct cfi_fixup jedec_fixup_table[] = {
 	{ MANUFACTURER_SST, SST49LF004B, fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_SST, SST49LF040B, fixup_use_fwh_lock, NULL, },
 	{ MANUFACTURER_SST, SST49LF008A, fixup_use_fwh_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
@@ -519,10 +521,12 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		if (mode == FL_WRITING) /* FIXME: Erase-suspend-program appears broken. */
 			goto sleep;
 
-		if (!(mode == FL_READY || mode == FL_POINT
+		if (!(   mode == FL_READY
+		      || mode == FL_POINT
 		      || !cfip
 		      || (mode == FL_WRITING && (cfip->EraseSuspend & 0x2))
-		      || (mode == FL_WRITING && (cfip->EraseSuspend & 0x1))))
+		      || (mode == FL_WRITING && (cfip->EraseSuspend & 0x1)
+		    )))
 			goto sleep;
 
 		/* We could check to see if we're trying to access the sector
