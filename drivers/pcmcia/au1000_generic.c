@@ -351,6 +351,7 @@ struct skt_dev_info {
 int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops, int first, int nr)
 {
 	struct skt_dev_info *sinfo;
+	struct au1000_pcmcia_socket *skt;
 	int ret, i;
 
 	sinfo = kzalloc(sizeof(struct skt_dev_info), GFP_KERNEL);
@@ -365,7 +366,7 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 	 * Initialise the per-socket structure.
 	 */
 	for (i = 0; i < nr; i++) {
-		struct au1000_pcmcia_socket *skt = PCMCIA_SOCKET(i);
+		skt = PCMCIA_SOCKET(i);
 		memset(skt, 0, sizeof(*skt));
 
 		skt->socket.resource_ops = &pccard_static_ops;
@@ -438,17 +439,19 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 	dev_set_drvdata(dev, sinfo);
 	return 0;
 
-	do {
-		struct au1000_pcmcia_socket *skt = PCMCIA_SOCKET(i);
+
+out_err:
+	flush_scheduled_work();
+	ops->hw_shutdown(skt);
+	while (i-- > 0) {
+		skt = PCMCIA_SOCKET(i);
 
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
-out_err:
 		flush_scheduled_work();
 		ops->hw_shutdown(skt);
 
-		i--;
-	} while (i > 0);
+	}
 	kfree(sinfo);
 out:
 	return ret;
