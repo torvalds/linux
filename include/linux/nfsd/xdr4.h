@@ -258,9 +258,9 @@ struct nfsd4_readdir {
 	struct svc_fh * rd_fhp;             /* response */
 
 	struct readdir_cd	common;
-	u32 *			buffer;
+	__be32 *		buffer;
 	int			buflen;
-	u32 *			offset;
+	__be32 *		offset;
 };
 
 struct nfsd4_release_lockowner {
@@ -371,12 +371,12 @@ struct nfsd4_op {
 
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
-	u32 *				p;
-	u32 *				end;
+	__be32 *			p;
+	__be32 *			end;
 	struct page **			pagelist;
 	int				pagelen;
-	u32				tmp[8];
-	u32 *				tmpp;
+	__be32				tmp[8];
+	__be32 *			tmpp;
 	struct tmpbuf {
 		struct tmpbuf *next;
 		void (*release)(const void *);
@@ -395,15 +395,15 @@ struct nfsd4_compoundargs {
 
 struct nfsd4_compoundres {
 	/* scratch variables for XDR encode */
-	u32 *				p;
-	u32 *				end;
+	__be32 *			p;
+	__be32 *			end;
 	struct xdr_buf *		xbuf;
 	struct svc_rqst *		rqstp;
 
 	u32				taglen;
 	char *				tag;
 	u32				opcnt;
-	u32 *				tagp; /* where to encode tag and  opcount */
+	__be32 *			tagp; /* where to encode tag and  opcount */
 };
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
@@ -419,10 +419,10 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 	cinfo->after_ctime_nsec = fhp->fh_post_ctime.tv_nsec;
 }
 
-int nfs4svc_encode_voidres(struct svc_rqst *, u32 *, void *);
-int nfs4svc_decode_compoundargs(struct svc_rqst *, u32 *, 
+int nfs4svc_encode_voidres(struct svc_rqst *, __be32 *, void *);
+int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);
-int nfs4svc_encode_compoundres(struct svc_rqst *, u32 *, 
+int nfs4svc_encode_compoundres(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundres *);
 void nfsd4_encode_operation(struct nfsd4_compoundres *, struct nfsd4_op *);
 void nfsd4_encode_replay(struct nfsd4_compoundres *resp, struct nfsd4_op *op);

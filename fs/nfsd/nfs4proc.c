@@ -664,7 +664,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_writ
 static int
 nfsd4_verify(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_verify *verify)
 {
-	u32 *buf, *p;
+	__be32 *buf, *p;
 	int count;
 	int status;
 
