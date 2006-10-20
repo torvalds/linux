@@ -43,7 +43,7 @@ static int	nfs3_ftypes[] = {
 /*
  * NULL call.
  */
-static int
+static __be32
 nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return nfs_ok;
@@ -52,7 +52,7 @@ nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get a file's attributes
  */
-static int
+static __be32
 nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					   struct nfsd3_attrstat *resp)
 {
@@ -76,7 +76,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 /*
  * Set a file's attributes
  */
-static int
+static __be32
 nfsd3_proc_setattr(struct svc_rqst *rqstp, struct nfsd3_sattrargs *argp,
 					   struct nfsd3_attrstat  *resp)
 {
@@ -94,7 +94,7 @@ nfsd3_proc_setattr(struct svc_rqst *rqstp, struct nfsd3_sattrargs *argp,
 /*
  * Look up a path name component
  */
-static int
+static __be32
 nfsd3_proc_lookup(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 					  struct nfsd3_diropres  *resp)
 {
@@ -118,7 +118,7 @@ nfsd3_proc_lookup(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 /*
  * Check file access
  */
-static int
+static __be32
 nfsd3_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
 					  struct nfsd3_accessres *resp)
 {
@@ -137,7 +137,7 @@ nfsd3_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
 /*
  * Read a symlink.
  */
-static int
+static __be32
 nfsd3_proc_readlink(struct svc_rqst *rqstp, struct nfsd3_readlinkargs *argp,
 					   struct nfsd3_readlinkres *resp)
 {
@@ -155,7 +155,7 @@ nfsd3_proc_readlink(struct svc_rqst *rqstp, struct nfsd3_readlinkargs *argp,
 /*
  * Read a portion of a file.
  */
-static int
+static __be32
 nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 				        struct nfsd3_readres  *resp)
 {
@@ -195,7 +195,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 /*
  * Write data to a file
  */
-static int
+static __be32
 nfsd3_proc_write(struct svc_rqst *rqstp, struct nfsd3_writeargs *argp,
 					 struct nfsd3_writeres  *resp)
 {
@@ -223,7 +223,7 @@ nfsd3_proc_write(struct svc_rqst *rqstp, struct nfsd3_writeargs *argp,
  * At least in theory; we'll see how it fares in practice when the
  * first reports about SunOS compatibility problems start to pour in...
  */
-static int
+static __be32
 nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 					  struct nfsd3_diropres   *resp)
 {
@@ -265,7 +265,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 /*
  * Make directory. This operation is not idempotent.
  */
-static int
+static __be32
 nfsd3_proc_mkdir(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 					 struct nfsd3_diropres   *resp)
 {
@@ -285,7 +285,7 @@ nfsd3_proc_mkdir(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	RETURN_STATUS(nfserr);
 }
 
-static int
+static __be32
 nfsd3_proc_symlink(struct svc_rqst *rqstp, struct nfsd3_symlinkargs *argp,
 					   struct nfsd3_diropres    *resp)
 {
@@ -307,7 +307,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp, struct nfsd3_symlinkargs *argp,
 /*
  * Make socket/fifo/device.
  */
-static int
+static __be32
 nfsd3_proc_mknod(struct svc_rqst *rqstp, struct nfsd3_mknodargs *argp,
 					 struct nfsd3_diropres  *resp)
 {
@@ -343,7 +343,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp, struct nfsd3_mknodargs *argp,
 /*
  * Remove file/fifo/socket etc.
  */
-static int
+static __be32
 nfsd3_proc_remove(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 					  struct nfsd3_attrstat  *resp)
 {
@@ -363,7 +363,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 /*
  * Remove a directory
  */
-static int
+static __be32
 nfsd3_proc_rmdir(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 					 struct nfsd3_attrstat  *resp)
 {
@@ -379,7 +379,7 @@ nfsd3_proc_rmdir(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 	RETURN_STATUS(nfserr);
 }
 
-static int
+static __be32
 nfsd3_proc_rename(struct svc_rqst *rqstp, struct nfsd3_renameargs *argp,
 					  struct nfsd3_renameres  *resp)
 {
@@ -401,7 +401,7 @@ nfsd3_proc_rename(struct svc_rqst *rqstp, struct nfsd3_renameargs *argp,
 	RETURN_STATUS(nfserr);
 }
 
-static int
+static __be32
 nfsd3_proc_link(struct svc_rqst *rqstp, struct nfsd3_linkargs *argp,
 					struct nfsd3_linkres  *resp)
 {
@@ -424,7 +424,7 @@ nfsd3_proc_link(struct svc_rqst *rqstp, struct nfsd3_linkargs *argp,
 /*
  * Read a portion of a directory.
  */
-static int
+static __be32
 nfsd3_proc_readdir(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 					   struct nfsd3_readdirres  *resp)
 {
@@ -459,7 +459,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
  * Read a portion of a directory, including file handles and attrs.
  * For now, we choose to ignore the dircount parameter.
  */
-static int
+static __be32
 nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 					       struct nfsd3_readdirres  *resp)
 {
@@ -517,7 +517,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp, struct nfsd3_readdirargs *argp,
 /*
  * Get file system stats
  */
-static int
+static __be32
 nfsd3_proc_fsstat(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 					   struct nfsd3_fsstatres *resp)
 {
@@ -534,7 +534,7 @@ nfsd3_proc_fsstat(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 /*
  * Get file system info
  */
-static int
+static __be32
 nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 					   struct nfsd3_fsinfores *resp)
 {
@@ -576,7 +576,7 @@ nfsd3_proc_fsinfo(struct svc_rqst * rqstp, struct nfsd_fhandle    *argp,
 /*
  * Get pathconf info for the specified file
  */
-static int
+static __be32
 nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 					     struct nfsd3_pathconfres *resp)
 {
@@ -619,7 +619,7 @@ nfsd3_proc_pathconf(struct svc_rqst * rqstp, struct nfsd_fhandle      *argp,
 /*
  * Commit a file (range) to stable storage.
  */
-static int
+static __be32
 nfsd3_proc_commit(struct svc_rqst * rqstp, struct nfsd3_commitargs *argp,
 					   struct nfsd3_commitres  *resp)
 {

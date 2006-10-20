@@ -30,7 +30,7 @@ typedef struct svc_buf	svc_buf;
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
 
-static int
+static __be32
 nfsd_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return nfs_ok;
@@ -56,7 +56,7 @@ nfsd_return_dirop(int err, struct nfsd_diropres *resp)
  * Get a file's attributes
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					  struct nfsd_attrstat *resp)
 {
@@ -72,7 +72,7 @@ nfsd_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
  * Set a file's attributes
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 					  struct nfsd_attrstat  *resp)
 {
@@ -92,7 +92,7 @@ nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
  * doesn't exist yet.
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_lookup(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 					 struct nfsd_diropres  *resp)
 {
@@ -112,7 +112,7 @@ nfsd_proc_lookup(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 /*
  * Read a symlink.
  */
-static int
+static __be32
 nfsd_proc_readlink(struct svc_rqst *rqstp, struct nfsd_readlinkargs *argp,
 					   struct nfsd_readlinkres *resp)
 {
@@ -132,7 +132,7 @@ nfsd_proc_readlink(struct svc_rqst *rqstp, struct nfsd_readlinkargs *argp,
  * Read a portion of a file.
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 				       struct nfsd_readres  *resp)
 {
@@ -172,7 +172,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
  * Write data to a file
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 					struct nfsd_attrstat  *resp)
 {
@@ -197,7 +197,7 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
  * and the actual create() call in compliance with VFS protocols.
  * N.B. After this call _both_ argp->fh and resp->fh need an fh_put
  */
-static int
+static __be32
 nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 					 struct nfsd_diropres   *resp)
 {
@@ -348,7 +348,7 @@ done:
 	return nfsd_return_dirop(nfserr, resp);
 }
 
-static int
+static __be32
 nfsd_proc_remove(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 					 void		       *resp)
 {
@@ -363,7 +363,7 @@ nfsd_proc_remove(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 	return nfserr;
 }
 
-static int
+static __be32
 nfsd_proc_rename(struct svc_rqst *rqstp, struct nfsd_renameargs *argp,
 				  	 void		        *resp)
 {
@@ -381,7 +381,7 @@ nfsd_proc_rename(struct svc_rqst *rqstp, struct nfsd_renameargs *argp,
 	return nfserr;
 }
 
-static int
+static __be32
 nfsd_proc_link(struct svc_rqst *rqstp, struct nfsd_linkargs *argp,
 				void			    *resp)
 {
@@ -401,7 +401,7 @@ nfsd_proc_link(struct svc_rqst *rqstp, struct nfsd_linkargs *argp,
 	return nfserr;
 }
 
-static int
+static __be32
 nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
 				          void			  *resp)
 {
@@ -430,7 +430,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
  * Make directory. This operation is not idempotent.
  * N.B. After this call resp->fh needs an fh_put
  */
-static int
+static __be32
 nfsd_proc_mkdir(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 					struct nfsd_diropres   *resp)
 {
@@ -454,7 +454,7 @@ nfsd_proc_mkdir(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 /*
  * Remove a directory
  */
-static int
+static __be32
 nfsd_proc_rmdir(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 				 	void		      *resp)
 {
@@ -470,7 +470,7 @@ nfsd_proc_rmdir(struct svc_rqst *rqstp, struct nfsd_diropargs *argp,
 /*
  * Read a portion of a directory.
  */
-static int
+static __be32
 nfsd_proc_readdir(struct svc_rqst *rqstp, struct nfsd_readdirargs *argp,
 					  struct nfsd_readdirres  *resp)
 {
@@ -509,7 +509,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp, struct nfsd_readdirargs *argp,
 /*
  * Get file system info
  */
-static int
+static __be32
 nfsd_proc_statfs(struct svc_rqst * rqstp, struct nfsd_fhandle   *argp,
 					  struct nfsd_statfsres *resp)
 {

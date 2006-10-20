@@ -21,7 +21,7 @@
 /*
  * NULL call.
  */
-static int
+static __be32
 nfsacld_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return nfs_ok;
@@ -30,7 +30,7 @@ nfsacld_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get the Access and/or Default ACL of a file.
  */
-static int nfsacld_proc_getacl(struct svc_rqst * rqstp,
+static __be32 nfsacld_proc_getacl(struct svc_rqst * rqstp,
 		struct nfsd3_getaclargs *argp, struct nfsd3_getaclres *resp)
 {
 	svc_fh *fh;
@@ -97,7 +97,7 @@ fail:
 /*
  * Set the Access and/or Default ACL of a file.
  */
-static int nfsacld_proc_setacl(struct svc_rqst * rqstp,
+static __be32 nfsacld_proc_setacl(struct svc_rqst * rqstp,
 		struct nfsd3_setaclargs *argp,
 		struct nfsd_attrstat *resp)
 {
@@ -128,7 +128,7 @@ static int nfsacld_proc_setacl(struct svc_rqst * rqstp,
 /*
  * Check file attributes
  */
-static int nfsacld_proc_getattr(struct svc_rqst * rqstp,
+static __be32 nfsacld_proc_getattr(struct svc_rqst * rqstp,
 		struct nfsd_fhandle *argp, struct nfsd_attrstat *resp)
 {
 	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
@@ -140,7 +140,7 @@ static int nfsacld_proc_getattr(struct svc_rqst * rqstp,
 /*
  * Check file access
  */
-static int nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
+static __be32 nfsacld_proc_access(struct svc_rqst *rqstp, struct nfsd3_accessargs *argp,
 		struct nfsd3_accessres *resp)
 {
 	int nfserr;

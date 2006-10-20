@@ -19,7 +19,7 @@
 /*
  * NULL call.
  */
-static int
+static __be32
 nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return nfs_ok;
@@ -28,7 +28,7 @@ nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get the Access and/or Default ACL of a file.
  */
-static int nfsd3_proc_getacl(struct svc_rqst * rqstp,
+static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 		struct nfsd3_getaclargs *argp, struct nfsd3_getaclres *resp)
 {
 	svc_fh *fh;
@@ -93,7 +93,7 @@ fail:
 /*
  * Set the Access and/or Default ACL of a file.
  */
-static int nfsd3_proc_setacl(struct svc_rqst * rqstp,
+static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 		struct nfsd3_setaclargs *argp,
 		struct nfsd3_attrstat *resp)
 {

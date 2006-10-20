@@ -36,7 +36,7 @@ struct callback_op {
 
 static struct callback_op callback_ops[];
 
-static int nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return htonl(NFS4_OK);
 }
@@ -399,7 +399,7 @@ static unsigned process_op(struct svc_rqst *rqstp,
 /*
  * Decode, process and encode a COMPOUND
  */
-static int nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
+static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	struct cb_compound_hdr_arg hdr_arg;
 	struct cb_compound_hdr_res hdr_res;
