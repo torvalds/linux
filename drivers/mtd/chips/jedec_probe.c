@@ -1889,7 +1889,7 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 
 
 /*
- * There is a BIG problem properly ID'ing the JEDEC devic and guaranteeing
+ * There is a BIG problem properly ID'ing the JEDEC device and guaranteeing
  * the mapped address, unlock addresses, and proper chip ID.  This function
  * attempts to minimize errors.  It is doubtfull that this probe will ever
  * be perfect - consequently there should be some module parameters that
