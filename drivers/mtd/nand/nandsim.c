@@ -852,6 +852,7 @@ static void erase_sector(struct nandsim *ns)
  */
 static int prog_page(struct nandsim *ns, int num)
 {
+	int i;
 	union ns_mem *mypage;
 	u_char *pg_off;
 
@@ -867,7 +868,8 @@ static int prog_page(struct nandsim *ns, int num)
 	}
 
 	pg_off = NS_PAGE_BYTE_OFF(ns);
-	memcpy(pg_off, ns->buf.byte, num);
+	for (i = 0; i < num; i++)
+		pg_off[i] &= ns->buf.byte[i];
 
 	return 0;
 }
