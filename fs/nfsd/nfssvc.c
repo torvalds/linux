@@ -495,8 +495,8 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 {
 	struct svc_procedure	*proc;
 	kxdrproc_t		xdr;
-	u32			nfserr;
-	u32			*nfserrp;
+	__be32			nfserr;
+	__be32			*nfserrp;
 
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
@@ -515,7 +515,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 
 	/* Decode arguments */
 	xdr = proc->pc_decode;
-	if (xdr && !xdr(rqstp, (u32*)rqstp->rq_arg.head[0].iov_base,
+	if (xdr && !xdr(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base,
 			rqstp->rq_argp)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
@@ -528,7 +528,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 	 */
 	nfserrp = rqstp->rq_res.head[0].iov_base
 		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(u32);
+	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
 
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
