@@ -75,8 +75,8 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *  ->mmap_sem
  *    ->lock_page		(access_process_vm)
  *
- *  ->mmap_sem
- *    ->i_mutex			(msync)
+ *  ->i_mutex			(generic_file_buffered_write)
+ *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
  *
  *  ->i_mutex
  *    ->i_alloc_sem             (various)
