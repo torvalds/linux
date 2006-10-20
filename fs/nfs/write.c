@@ -57,6 +57,8 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs_page.h>
+#include <linux/backing-dev.h>
+
 #include <asm/uaccess.h>
 #include <linux/smp_lock.h>
 
@@ -395,7 +397,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 out:
 	clear_bit(BDI_write_congested, &bdi->state);
 	wake_up_all(&nfs_write_congestion);
-	writeback_congestion_end();
+	congestion_end(WRITE);
 	return err;
 }
 

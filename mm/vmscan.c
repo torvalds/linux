@@ -1059,7 +1059,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 
 		/* Take a nap, wait for some writeback to complete */
 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
-			blk_congestion_wait(WRITE, HZ/10);
+			congestion_wait(WRITE, HZ/10);
 	}
 	/* top priority shrink_caches still had more to do? don't OOM, then */
 	if (!sc.all_unreclaimable)
@@ -1214,7 +1214,7 @@ scan:
 		 * another pass across the zones.
 		 */
 		if (total_scanned && priority < DEF_PRIORITY - 2)
-			blk_congestion_wait(WRITE, HZ/10);
+			congestion_wait(WRITE, HZ/10);
 
 		/*
 		 * We do this so kswapd doesn't build up large priorities for
@@ -1458,7 +1458,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 				goto out;
 
 			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
-				blk_congestion_wait(WRITE, HZ / 10);
+				congestion_wait(WRITE, HZ / 10);
 		}
 
 		lru_pages = 0;
