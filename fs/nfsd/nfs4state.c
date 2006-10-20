@@ -1477,7 +1477,7 @@ nfsd4_process_open1(struct nfsd4_open *open)
 	}
 	if (open->op_seqid == sop->so_seqid - 1) {
 		if (sop->so_replay.rp_buflen)
-			return NFSERR_REPLAY_ME;
+			return nfserr_replay_me;
 		/* The original OPEN failed so spectacularly
 		 * that we don't even have replay data saved!
 		 * Therefore, we have no choice but to continue
@@ -2233,7 +2233,7 @@ check_replay:
 	if (seqid == sop->so_seqid - 1) {
 		dprintk("NFSD: preprocess_seqid_op: retransmission?\n");
 		/* indicate replay to calling function */
-		return NFSERR_REPLAY_ME;
+		return nfserr_replay_me;
 	}
 	printk("NFSD: preprocess_seqid_op: bad seqid (expected %d, got %d)\n",
 			sop->so_seqid, seqid);

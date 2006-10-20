@@ -177,7 +177,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 
 	/* check seqid for replay. set nfs4_owner */
 	status = nfsd4_process_open1(open);
-	if (status == NFSERR_REPLAY_ME) {
+	if (status == nfserr_replay_me) {
 		struct nfs4_replay *rp = &open->op_stateowner->so_replay;
 		fh_put(current_fh);
 		current_fh->fh_handle.fh_size = rp->rp_openfh_len;
@@ -188,7 +188,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open 
 			dprintk("nfsd4_open: replay failed"
 				" restoring previous filehandle\n");
 		else
-			status = NFSERR_REPLAY_ME;
+			status = nfserr_replay_me;
 	}
 	if (status)
 		goto out;
@@ -937,7 +937,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		}
 
 encode_op:
-		if (op->status == NFSERR_REPLAY_ME) {
+		if (op->status == nfserr_replay_me) {
 			op->replay = &replay_owner->so_replay;
 			nfsd4_encode_replay(resp, op);
 			status = op->status = op->replay->rp_status;
