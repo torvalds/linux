@@ -403,7 +403,7 @@ ergo_releasehardware(hysdn_card * card)
 	free_irq(card->irq, card);	/* release interrupt */
 	release_region(card->iobase + PCI9050_INTR_REG, 1);	/* release all io ports */
 	release_region(card->iobase + PCI9050_USER_IO, 1);
-	vfree(card->dpram);
+	iounmap(card->dpram);
 	card->dpram = NULL;	/* release shared mem */
 }				/* ergo_releasehardware */
 
