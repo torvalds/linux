@@ -1519,8 +1519,8 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	pagevec_init(&lru_pvec, 0);
 	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
 							GFP_KERNEL)) {
-		if (!pagevec_add(&lru_pvec, page))
-			__pagevec_lru_add(&lru_pvec);
+		pagevec_add(&lru_pvec, page);
+		pagevec_lru_add(&lru_pvec);
 		SetPageUptodate(page);
 		unlock_page(page);
 	} else
