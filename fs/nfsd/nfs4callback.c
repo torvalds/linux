@@ -461,7 +461,7 @@ nfs4_cb_null(struct rpc_task *task, void *dummy)
 {
 	struct nfs4_client *clp = (struct nfs4_client *)task->tk_msg.rpc_argp;
 	struct nfs4_callback *cb = &clp->cl_callback;
-	u32 addr = htonl(cb->cb_addr);
+	__be32 addr = htonl(cb->cb_addr);
 
 	dprintk("NFSD: nfs4_cb_null task->tk_status %d\n", task->tk_status);
 

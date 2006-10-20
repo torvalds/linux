@@ -25,7 +25,7 @@
 static u32
 nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp)
 {
-	u32		nfserr;
+	__be32		nfserr;
 	struct svc_fh	fh;
 
 	/* must initialize before using! but maxsize doesn't matter */

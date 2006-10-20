@@ -1148,12 +1148,12 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
  * for a given NFSv4 client.   The root is defined to be the
  * export point with fsid==0
  */
-int
+__be32
 exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	       struct cache_req *creq)
 {
 	struct svc_export *exp;
-	int rv;
+	__be32 rv;
 	u32 fsidv[2];
 
 	mk_fsid_v1(fsidv, 0);

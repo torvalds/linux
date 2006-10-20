@@ -491,7 +491,7 @@ out:
 }
 
 int
-nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
+nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	struct svc_procedure	*proc;
 	kxdrproc_t		xdr;

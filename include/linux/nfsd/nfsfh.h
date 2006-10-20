@@ -157,7 +157,7 @@ typedef struct svc_fh {
 	__u64			fh_post_size;	/* i_size */
 	unsigned long		fh_post_blocks; /* i_blocks */
 	unsigned long		fh_post_blksize;/* i_blksize */
-	__u32			fh_post_rdev[2];/* i_rdev */
+	__be32			fh_post_rdev[2];/* i_rdev */
 	struct timespec		fh_post_atime;	/* i_atime */
 	struct timespec		fh_post_mtime;	/* i_mtime */
 	struct timespec		fh_post_ctime;	/* i_ctime */

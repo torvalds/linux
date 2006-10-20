@@ -64,7 +64,7 @@ extern struct svc_serv		*nfsd_serv;
  * Function prototypes.
  */
 int		nfsd_svc(unsigned short port, int nrservs);
-int		nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp);
+int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
 
 /* nfsd/vfs.c */
 int		fh_lock_parent(struct svc_fh *, struct dentry *);

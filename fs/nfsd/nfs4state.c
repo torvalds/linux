@@ -713,7 +713,7 @@ out_err:
 __be32
 nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_setclientid *setclid)
 {
-	u32 			ip_addr = rqstp->rq_addr.sin_addr.s_addr;
+	__be32 			ip_addr = rqstp->rq_addr.sin_addr.s_addr;
 	struct xdr_netobj 	clname = { 
 		.len = setclid->se_namelen,
 		.data = setclid->se_name,
@@ -878,7 +878,7 @@ out:
 __be32
 nfsd4_setclientid_confirm(struct svc_rqst *rqstp, struct nfsd4_setclientid_confirm *setclientid_confirm)
 {
-	u32 ip_addr = rqstp->rq_addr.sin_addr.s_addr;
+	__be32 ip_addr = rqstp->rq_addr.sin_addr.s_addr;
 	struct nfs4_client *conf, *unconf;
 	nfs4_verifier confirm = setclientid_confirm->sc_confirm; 
 	clientid_t * clid = &setclientid_confirm->sc_clientid;
