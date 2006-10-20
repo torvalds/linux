@@ -1292,16 +1292,15 @@ static int nfsd4_encode_fs_location4(struct nfsd4_fs_location *location,
  * Returned string is safe to use as long as the caller holds a reference
  * to @exp.
  */
-static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp)
+static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, u32 *stat)
 {
 	struct svc_fh tmp_fh;
 	char *path, *rootpath;
-	int stat;
 
 	fh_init(&tmp_fh, NFS4_FHSIZE);
-	stat = exp_pseudoroot(rqstp->rq_client, &tmp_fh, &rqstp->rq_chandle);
-	if (stat)
-		return ERR_PTR(stat);
+	*stat = exp_pseudoroot(rqstp->rq_client, &tmp_fh, &rqstp->rq_chandle);
+	if (*stat)
+		return NULL;
 	rootpath = tmp_fh.fh_export->ex_path;
 
 	path = exp->ex_path;
@@ -1309,7 +1308,8 @@ static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp)
 	if (strncmp(path, rootpath, strlen(rootpath))) {
 		printk("nfsd: fs_locations failed;"
 			"%s is not contained in %s\n", path, rootpath);
-		return ERR_PTR(-EOPNOTSUPP);
+		*stat = nfserr_notsupp;
+		return NULL;
 	}
 
 	return path + strlen(rootpath);
@@ -1322,13 +1322,14 @@ static int nfsd4_encode_fs_locations(struct svc_rqst *rqstp,
 				     struct svc_export *exp,
 				     u32 **pp, int *buflen)
 {
-	int status, i;
+	u32 status;
+	int i;
 	u32 *p = *pp;
 	struct nfsd4_fs_locations *fslocs = &exp->ex_fslocs;
-	char *root = nfsd4_path(rqstp, exp);
+	char *root = nfsd4_path(rqstp, exp, &status);
 
-	if (IS_ERR(root))
-		return PTR_ERR(root);
+	if (status)
+		return status;
 	status = nfsd4_encode_components('/', root, &p, buflen);
 	if (status)
 		return status;
