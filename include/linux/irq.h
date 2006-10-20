@@ -322,6 +322,9 @@ extern struct irq_chip no_irq_chip;
 extern struct irq_chip dummy_irq_chip;
 
 extern void
+set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
+			 irq_flow_handler_t handle);
+extern void
 set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
 			      irq_flow_handler_t handle, const char *name);
 
