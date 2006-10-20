@@ -44,7 +44,7 @@ struct cb_getattrargs {
 };
 
 struct cb_getattrres {
-	uint32_t status;
+	__be32 status;
 	uint32_t bitmap[2];
 	uint64_t size;
 	uint64_t change_attr;
@@ -59,8 +59,8 @@ struct cb_recallargs {
 	uint32_t truncate;
 };
 
-extern unsigned nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
-extern unsigned nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
+extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
+extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
 
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(void);
