@@ -473,6 +473,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
 	unsigned int j;
+	int rc;
 
 	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 
@@ -501,6 +502,16 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				return -ENOSPC;
 			}
 		}
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			if (dbs_enable == 1)
+				destroy_workqueue(kondemand_wq);
+			dbs_enable--;
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
 		for_each_cpu_mask(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
@@ -510,7 +521,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info->prev_cpu_wall = get_jiffies_64();
 		}
 		this_dbs_info->enable = 1;
-		sysfs_create_group(&policy->kobj, &dbs_attr_group);
 		/*
 		 * Start the timerschedule work, when this governor
 		 * is used for first time

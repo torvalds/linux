@@ -453,6 +453,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
 	unsigned int j;
+	int rc;
 
 	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 
@@ -469,6 +470,13 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			break;
 		 
 		mutex_lock(&dbs_mutex);
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
 		for_each_cpu_mask(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
@@ -481,7 +489,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		this_dbs_info->enable = 1;
 		this_dbs_info->down_skip = 0;
 		this_dbs_info->requested_freq = policy->cur;
-		sysfs_create_group(&policy->kobj, &dbs_attr_group);
+
 		dbs_enable++;
 		/*
 		 * Start the timerschedule work, when this governor
