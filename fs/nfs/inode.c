@@ -583,7 +583,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 
 	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	lock_kernel();
-	if (!inode || is_bad_inode(inode))
+	if (is_bad_inode(inode))
  		goto out_nowait;
 	if (NFS_STALE(inode))
  		goto out_nowait;
