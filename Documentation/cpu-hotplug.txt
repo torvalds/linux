@@ -46,7 +46,7 @@ maxcpus=n    Restrict boot time cpus to n. Say if you have 4 cpus, using
              maxcpus=2 will only boot 2. You can choose to bring the
              other cpus later online, read FAQ's for more info.
 
-additional_cpus*=n	Use this to limit hotpluggable cpus. This option sets
+additional_cpus=n (*)	Use this to limit hotpluggable cpus. This option sets
   			cpu_possible_map = cpu_present_map + additional_cpus
 
 (*) Option valid only for following architectures
@@ -101,15 +101,15 @@ cpu_possible_map/for_each_possible_cpu() to iterate.
 
 Never use anything other than cpumask_t to represent bitmap of CPUs.
 
-#include <linux/cpumask.h>
+	#include <linux/cpumask.h>
 
-for_each_possible_cpu     - Iterate over cpu_possible_map
-for_each_online_cpu       - Iterate over cpu_online_map
-for_each_present_cpu      - Iterate over cpu_present_map
-for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.
+	for_each_possible_cpu     - Iterate over cpu_possible_map
+	for_each_online_cpu       - Iterate over cpu_online_map
+	for_each_present_cpu      - Iterate over cpu_present_map
+	for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.
 
-#include <linux/cpu.h>
-lock_cpu_hotplug() and unlock_cpu_hotplug():
+	#include <linux/cpu.h>
+	lock_cpu_hotplug() and unlock_cpu_hotplug():
 
 The above calls are used to inhibit cpu hotplug operations. While holding the
 cpucontrol mutex, cpu_online_map will not change. If you merely need to avoid
@@ -120,7 +120,7 @@ will work as long as stop_machine_run() is used to take a cpu down.
 
 CPU Hotplug - Frequently Asked Questions.
 
-Q: How to i enable my kernel to support CPU hotplug?
+Q: How to enable my kernel to support CPU hotplug?
 A: When doing make defconfig, Enable CPU hotplug support
 
    "Processor type and Features" -> Support for Hotpluggable CPUs
@@ -141,39 +141,39 @@ A: You should now notice an entry in sysfs.
 Check if sysfs is mounted, using the "mount" command. You should notice
 an entry as shown below in the output.
 
-....
-none on /sys type sysfs (rw)
-....
+	....
+	none on /sys type sysfs (rw)
+	....
 
-if this is not mounted, do the following.
+If this is not mounted, do the following.
 
-#mkdir /sysfs
-#mount -t sysfs sys /sys
+	 #mkdir /sysfs
+	#mount -t sysfs sys /sys
 
-now you should see entries for all present cpu, the following is an example
+Now you should see entries for all present cpu, the following is an example
 in a 8-way system.
 
-#pwd
-#/sys/devices/system/cpu
-#ls -l
-total 0
-drwxr-xr-x  10 root root 0 Sep 19 07:44 .
-drwxr-xr-x  13 root root 0 Sep 19 07:45 ..
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu0
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu1
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu2
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu3
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu4
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu5
-drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu6
-drwxr-xr-x   3 root root 0 Sep 19 07:48 cpu7
+	#pwd
+	#/sys/devices/system/cpu
+	#ls -l
+	total 0
+	drwxr-xr-x  10 root root 0 Sep 19 07:44 .
+	drwxr-xr-x  13 root root 0 Sep 19 07:45 ..
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu0
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu1
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu2
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu3
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu4
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu5
+	drwxr-xr-x   3 root root 0 Sep 19 07:44 cpu6
+	drwxr-xr-x   3 root root 0 Sep 19 07:48 cpu7
 
 Under each directory you would find an "online" file which is the control
 file to logically online/offline a processor.
 
 Q: Does hot-add/hot-remove refer to physical add/remove of cpus?
 A: The usage of hot-add/remove may not be very consistently used in the code.
-CONFIG_CPU_HOTPLUG enables logical online/offline capability in the kernel.
+CONFIG_HOTPLUG_CPU enables logical online/offline capability in the kernel.
 To support physical addition/removal, one would need some BIOS hooks and
 the platform should have something like an attention button in PCI hotplug.
 CONFIG_ACPI_HOTPLUG_CPU enables ACPI support for physical add/remove of CPUs.
@@ -181,17 +181,17 @@ CONFIG_ACPI_HOTPLUG_CPU enables ACPI support for physical add/remove of CPUs.
 Q: How do i logically offline a CPU?
 A: Do the following.
 
-#echo 0 > /sys/devices/system/cpu/cpuX/online
+	#echo 0 > /sys/devices/system/cpu/cpuX/online
 
-once the logical offline is successful, check
+Once the logical offline is successful, check
 
-#cat /proc/interrupts
+	#cat /proc/interrupts
 
-you should now not see the CPU that you removed. Also online file will report
+You should now not see the CPU that you removed. Also online file will report
 the state as 0 when a cpu if offline and 1 when its online.
 
-#To display the current cpu state.
-#cat /sys/devices/system/cpu/cpuX/online
+	#To display the current cpu state.
+	#cat /sys/devices/system/cpu/cpuX/online
 
 Q: Why cant i remove CPU0 on some systems?
 A: Some architectures may have some special dependency on a certain CPU.
@@ -234,8 +234,8 @@ Q: If i have some kernel code that needs to be aware of CPU arrival and
    departure, how to i arrange for proper notification?
 A: This is what you would need in your kernel code to receive notifications.
 
-    #include <linux/cpu.h>
-    static int __cpuinit foobar_cpu_callback(struct notifier_block *nfb,
+	#include <linux/cpu.h>
+	static int __cpuinit foobar_cpu_callback(struct notifier_block *nfb,
 					    unsigned long action, void *hcpu)
 	{
 		unsigned int cpu = (unsigned long)hcpu;
@@ -279,10 +279,10 @@ Q: I don't see my action being called for all CPUs already up and running?
 A: Yes, CPU notifiers are called only when new CPUs are on-lined or offlined.
    If you need to perform some action for each cpu already in the system, then
 
-  for_each_online_cpu(i) {
+	for_each_online_cpu(i) {
 		foobar_cpu_callback(&foobar_cpu_notifier, CPU_UP_PREPARE, i);
-		foobar_cpu_callback(&foobar-cpu_notifier, CPU_ONLINE, i);
-  }
+		foobar_cpu_callback(&foobar_cpu_notifier, CPU_ONLINE, i);
+	}
 
 Q: If i would like to develop cpu hotplug support for a new architecture,
    what do i need at a minimum?
@@ -307,38 +307,38 @@ Q: I need to ensure that a particular cpu is not removed when there is some
    work specific to this cpu is in progress.
 A: First switch the current thread context to preferred cpu
 
-   int my_func_on_cpu(int cpu)
-   {
-       cpumask_t saved_mask, new_mask = CPU_MASK_NONE;
-       int curr_cpu, err = 0;
+	int my_func_on_cpu(int cpu)
+	{
+		cpumask_t saved_mask, new_mask = CPU_MASK_NONE;
+		int curr_cpu, err = 0;
 
-       saved_mask = current->cpus_allowed;
-       cpu_set(cpu, new_mask);
-       err = set_cpus_allowed(current, new_mask);
+		saved_mask = current->cpus_allowed;
+		cpu_set(cpu, new_mask);
+		err = set_cpus_allowed(current, new_mask);
 
-       if (err)
-           return err;
+		if (err)
+			return err;
 
-       /*
-        * If we got scheduled out just after the return from
-        * set_cpus_allowed() before running the work, this ensures
-        * we stay locked.
-        */
-       curr_cpu = get_cpu();
+		/*
+		 * If we got scheduled out just after the return from
+		 * set_cpus_allowed() before running the work, this ensures
+		 * we stay locked.
+		 */
+		curr_cpu = get_cpu();
 
-       if (curr_cpu != cpu) {
-	   err = -EAGAIN;
-           goto ret;
-       } else {
-       	   /*
-	    * Do work : But cant sleep, since get_cpu() disables preempt
-	    */
-       }
-    ret:
-    	put_cpu();
-	set_cpus_allowed(current, saved_mask);
-	return err;
-    }
+		if (curr_cpu != cpu) {
+			err = -EAGAIN;
+			goto ret;
+		} else {
+			/*
+			 * Do work : But cant sleep, since get_cpu() disables preempt
+			 */
+		}
+		ret:
+			put_cpu();
+			set_cpus_allowed(current, saved_mask);
+			return err;
+		}
 
 
 Q: How do we determine how many CPUs are available for hotplug.
