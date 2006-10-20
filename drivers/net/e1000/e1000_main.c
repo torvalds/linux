@@ -4914,10 +4914,6 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	/* Perform card reset only on one instance of the card */
-	if (PCI_FUNC (pdev->devfn) != 0)
-		return PCI_ERS_RESULT_RECOVERED;
-
 	e1000_reset(adapter);
 	E1000_WRITE_REG(&adapter->hw, WUS, ~0);
 
