@@ -6,6 +6,7 @@ menu "Serial ATA (prod) and Parallel ATA (experimental) drivers"
 
 config ATA
 	tristate "ATA device support"
+	depends on BLOCK
 	depends on !(M32R || M68K) || BROKEN
 	depends on !SUN4 || BROKEN
 	select SCSI
