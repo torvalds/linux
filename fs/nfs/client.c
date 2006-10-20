@@ -849,6 +849,7 @@ error:
  */
 static int nfs4_init_client(struct nfs_client *clp,
 		int proto, int timeo, int retrans,
+		const char *ip_addr,
 		rpc_authflavor_t authflavour)
 {
 	int error;
@@ -865,6 +866,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour);
 	if (error < 0)
 		goto error;
+	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	error = nfs_idmap_new(clp);
 	if (error < 0) {
@@ -888,6 +890,7 @@ error:
  */
 static int nfs4_set_client(struct nfs_server *server,
 		const char *hostname, const struct sockaddr_in *addr,
+		const char *ip_addr,
 		rpc_authflavor_t authflavour,
 		int proto, int timeo, int retrans)
 {
@@ -902,7 +905,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, proto, timeo, retrans, authflavour);
+	error = nfs4_init_client(clp, proto, timeo, retrans, ip_addr, authflavour);
 	if (error < 0)
 		goto error_put;
 
@@ -971,7 +974,7 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* Get a client record */
-	error = nfs4_set_client(server, hostname, addr, authflavour,
+	error = nfs4_set_client(server, hostname, addr, ip_addr, authflavour,
 			data->proto, data->timeo, data->retrans);
 	if (error < 0)
 		goto error;
@@ -1041,6 +1044,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
 	error = nfs4_set_client(server, data->hostname, data->addr,
+			parent_client->cl_ipaddr,
 			data->authflavor,
 			parent_server->client->cl_xprt->prot,
 			parent_client->retrans_timeo,
