@@ -664,7 +664,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	int index = dinfo->pll_index;
 	DBG_MSG("intelfbhw_print_hw_state\n");
 
-	if (!hw || !dinfo)
+	if (!hw)
 		return;
 	/* Read in as much of the HW state as possible. */
 	printk("hw state dump start\n");
