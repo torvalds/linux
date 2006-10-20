@@ -709,10 +709,7 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 
 static int i82092aa_module_init(void)
 {
-	enter("i82092aa_module_init");
-	pci_register_driver(&i82092aa_pci_drv);
-	leave("i82092aa_module_init");
-	return 0;
+	return pci_register_driver(&i82092aa_pci_drv);
 }
 
 static void i82092aa_module_exit(void)
