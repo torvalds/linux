@@ -78,14 +78,14 @@ static inline unsigned int file_hash(struct nfs_fh *f)
  * This is not quite right, but for now, we assume the client performs
  * the proper R/W checking.
  */
-u32
+__be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 					struct nfs_fh *f)
 {
 	struct hlist_node *pos;
 	struct nlm_file	*file;
 	unsigned int	hash;
-	u32		nfserr;
+	__be32		nfserr;
 
 	nlm_debug_print_fh("nlm_file_lookup", f);
 
