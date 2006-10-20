@@ -433,7 +433,7 @@ struct scsi_lun {
 #define SCSI_IOCTL_GET_PCI		0x5387
 
 /* Pull a u32 out of a SCSI message (using BE SCSI conventions) */
-static inline u32 scsi_to_u32(u8 *ptr)
+static inline __u32 scsi_to_u32(__u8 *ptr)
 {
 	return (ptr[0]<<24) + (ptr[1]<<16) + (ptr[2]<<8) + ptr[3];
 }
