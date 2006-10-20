@@ -92,8 +92,8 @@ extern struct cpu_spec		*cur_cpu_spec;
 extern unsigned int __start___ftr_fixup, __stop___ftr_fixup;
 
 extern struct cpu_spec *identify_cpu(unsigned long offset);
-extern void do_feature_fixups(unsigned long offset, unsigned long value,
-			      void *fixup_start, void *fixup_end);
+extern void do_feature_fixups(unsigned long value, void *fixup_start,
+			      void *fixup_end);
 
 #endif /* __ASSEMBLY__ */
 
@@ -435,32 +435,11 @@ static inline int cpu_has_feature(unsigned long feature)
 #ifdef __ASSEMBLY__
 
 #define BEGIN_FTR_SECTION_NESTED(label)	label:
-#define BEGIN_FTR_SECTION		BEGIN_FTR_SECTION_NESTED(98)
-
-#ifndef __powerpc64__
+#define BEGIN_FTR_SECTION		BEGIN_FTR_SECTION_NESTED(97)
 #define END_FTR_SECTION_NESTED(msk, val, label) \
-99:						\
-	.section __ftr_fixup,"a";		\
-	.align 2;				\
-	.long msk;				\
-	.long val;				\
-	.long label##b;				\
-	.long 99b;				\
-	.previous
-#else /* __powerpc64__ */
-#define END_FTR_SECTION_NESTED(msk, val, label) \
-99:						\
-	.section __ftr_fixup,"a";		\
-	.align 3;				\
-	.llong msk;				\
-	.llong val;				\
-	.llong label##b;				\
-	.llong 99b;	 			\
-	.previous
-#endif /* __powerpc64__ */
-
+	MAKE_FTR_SECTION_ENTRY(msk, val, label, __ftr_fixup)
 #define END_FTR_SECTION(msk, val)		\
-	END_FTR_SECTION_NESTED(msk, val, 98)
+	END_FTR_SECTION_NESTED(msk, val, 97)
 
 #define END_FTR_SECTION_IFSET(msk)	END_FTR_SECTION((msk), (msk))
 #define END_FTR_SECTION_IFCLR(msk)	END_FTR_SECTION((msk), 0)

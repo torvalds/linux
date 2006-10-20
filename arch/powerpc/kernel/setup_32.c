@@ -103,7 +103,7 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	 */
 	spec = identify_cpu(offset);
 
-	do_feature_fixups(offset, spec->cpu_features,
+	do_feature_fixups(spec->cpu_features,
 			  PTRRELOC(&__start___ftr_fixup),
 			  PTRRELOC(&__stop___ftr_fixup));
 

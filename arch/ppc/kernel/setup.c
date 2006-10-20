@@ -314,7 +314,7 @@ early_init(int r3, int r4, int r5)
 	 * that depend on which cpu we have.
 	 */
 	spec = identify_cpu(offset);
-	do_feature_fixups(offset, spec->cpu_features,
+	do_feature_fixups(spec->cpu_features,
 			  PTRRELOC(&__start___ftr_fixup),
 			  PTRRELOC(&__stop___ftr_fixup));
 

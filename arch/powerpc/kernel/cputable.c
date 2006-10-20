@@ -1202,14 +1202,13 @@ struct cpu_spec *identify_cpu(unsigned long offset)
 	return NULL;
 }
 
-void do_feature_fixups(unsigned long offset, unsigned long value,
-		       void *fixup_start, void *fixup_end)
+void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 {
 	struct fixup_entry {
 		unsigned long	mask;
 		unsigned long	value;
-		unsigned int	*start;
-		unsigned int	*end;
+		long		start_off;
+		long		end_off;
 	} *fcur, *fend;
 
 	fcur = fixup_start;
@@ -1224,8 +1223,8 @@ void do_feature_fixups(unsigned long offset, unsigned long value,
 		/* These PTRRELOCs will disappear once the new scheme for
 		 * modules and vdso is implemented
 		 */
-		pstart = PTRRELOC(fcur->start);
-		pend = PTRRELOC(fcur->end);
+		pstart = ((unsigned int *)fcur) + (fcur->start_off / 4);
+		pend = ((unsigned int *)fcur) + (fcur->end_off / 4);
 
 		for (p = pstart; p < pend; p++) {
 			*p = 0x60000000u;

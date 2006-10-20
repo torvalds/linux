@@ -354,9 +354,9 @@ void __init setup_system(void)
 	/* Apply the CPUs-specific and firmware specific fixups to kernel
 	 * text (nop out sections not relevant to this CPU or this firmware)
 	 */
-	do_feature_fixups(0, cur_cpu_spec->cpu_features,
+	do_feature_fixups(cur_cpu_spec->cpu_features,
 			  &__start___ftr_fixup, &__stop___ftr_fixup);
-	do_feature_fixups(0, powerpc_firmware_features,
+	do_feature_fixups(powerpc_firmware_features,
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 
 	/*
