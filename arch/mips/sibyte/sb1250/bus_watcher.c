@@ -171,7 +171,7 @@ static void create_proc_decoder(struct bw_stats_struct *stats)
  * notes: possible re-entry due to multiple sources
  *        should check/indicate saturation
  */
-static irqreturn_t sibyte_bw_int(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t sibyte_bw_int(int irq, void *data)
 {
 	struct bw_stats_struct *stats = data;
 	unsigned long cntr;

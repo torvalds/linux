@@ -32,6 +32,7 @@
 #include <asm/i8259.h>
 #include <asm/irq_cpu.h>
 #include <asm/io.h>
+#include <asm/irq_regs.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/mips-boards/piix4.h>
@@ -131,7 +132,7 @@ static void corehi_irqdispatch(void)
 	unsigned int intedge, intsteer, pcicmd, pcibadaddr;
         unsigned int pcimstat, intisr, inten, intpol;
 	unsigned int intrcause,datalo,datahi;
-	struct pt_regs *regs;
+	struct pt_regs *regs = get_irq_regs();
 
         printk("CoreHI interrupt, shouldn't happen, so we die here!!!\n");
         printk("epc   : %08lx\nStatus: %08lx\n"
