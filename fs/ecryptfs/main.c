@@ -104,10 +104,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		inode->i_op = &ecryptfs_dir_iops;
 	if (S_ISDIR(lower_inode->i_mode))
 		inode->i_fop = &ecryptfs_dir_fops;
-	/* TODO: Is there a better way to identify if the inode is
-	 * special? */
-	if (S_ISBLK(lower_inode->i_mode) || S_ISCHR(lower_inode->i_mode) ||
-	    S_ISFIFO(lower_inode->i_mode) || S_ISSOCK(lower_inode->i_mode))
+	if (special_file(lower_inode->i_mode))
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 	dentry->d_op = &ecryptfs_dops;
