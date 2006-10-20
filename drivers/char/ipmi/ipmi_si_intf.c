@@ -1789,7 +1789,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ENOMEM;
+		return -ENOMEM;
 
 	info->addr_source = "PCI";
 
@@ -1810,7 +1810,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 		kfree(info);
 		printk(KERN_INFO "ipmi_si: %s: Unknown IPMI type: %d\n",
 		       pci_name(pdev), class_type);
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	rv = pci_enable_device(pdev);
