@@ -130,6 +130,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/io.h>
 #include <asm/page.h>

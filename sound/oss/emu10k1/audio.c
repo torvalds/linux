@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 #include <asm/io.h>
 #include <linux/sched.h>
+#include <linux/mm.h>
 #include <linux/smp_lock.h>
 
 #include "hwaccess.h"

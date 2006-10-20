@@ -101,6 +101,7 @@
 #include <linux/ac97_codec.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 
