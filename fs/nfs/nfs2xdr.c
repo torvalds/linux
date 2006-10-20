@@ -66,15 +66,15 @@
 /*
  * Common NFS XDR functions as inlines
  */
-static inline u32 *
-xdr_encode_fhandle(u32 *p, struct nfs_fh *fhandle)
+static inline __be32 *
+xdr_encode_fhandle(__be32 *p, struct nfs_fh *fhandle)
 {
 	memcpy(p, fhandle->data, NFS2_FHSIZE);
 	return p + XDR_QUADLEN(NFS2_FHSIZE);
 }
 
-static inline u32 *
-xdr_decode_fhandle(u32 *p, struct nfs_fh *fhandle)
+static inline __be32 *
+xdr_decode_fhandle(__be32 *p, struct nfs_fh *fhandle)
 {
 	/* NFSv2 handles have a fixed length */
 	fhandle->size = NFS2_FHSIZE;
@@ -82,8 +82,8 @@ xdr_decode_fhandle(u32 *p, struct nfs_fh *fhandle)
 	return p + XDR_QUADLEN(NFS2_FHSIZE);
 }
 
-static inline u32*
-xdr_encode_time(u32 *p, struct timespec *timep)
+static inline __be32*
+xdr_encode_time(__be32 *p, struct timespec *timep)
 {
 	*p++ = htonl(timep->tv_sec);
 	/* Convert nanoseconds into microseconds */
@@ -91,8 +91,8 @@ xdr_encode_time(u32 *p, struct timespec *timep)
 	return p;
 }
 
-static inline u32*
-xdr_encode_current_server_time(u32 *p, struct timespec *timep)
+static inline __be32*
+xdr_encode_current_server_time(__be32 *p, struct timespec *timep)
 {
 	/*
 	 * Passing the invalid value useconds=1000000 is a
@@ -108,8 +108,8 @@ xdr_encode_current_server_time(u32 *p, struct timespec *timep)
 	return p;
 }
 
-static inline u32*
-xdr_decode_time(u32 *p, struct timespec *timep)
+static inline __be32*
+xdr_decode_time(__be32 *p, struct timespec *timep)
 {
 	timep->tv_sec = ntohl(*p++);
 	/* Convert microseconds into nanoseconds */
@@ -117,8 +117,8 @@ xdr_decode_time(u32 *p, struct timespec *timep)
 	return p;
 }
 
-static u32 *
-xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
+static __be32 *
+xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 {
 	u32 rdev;
 	fattr->type = (enum nfs_ftype) ntohl(*p++);
@@ -146,10 +146,10 @@ xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
 	return p;
 }
 
-static inline u32 *
-xdr_encode_sattr(u32 *p, struct iattr *attr)
+static inline __be32 *
+xdr_encode_sattr(__be32 *p, struct iattr *attr)
 {
-	const u32 not_set = __constant_htonl(0xFFFFFFFF);
+	const __be32 not_set = __constant_htonl(0xFFFFFFFF);
 
 	*p++ = (attr->ia_valid & ATTR_MODE) ? htonl(attr->ia_mode) : not_set;
 	*p++ = (attr->ia_valid & ATTR_UID) ? htonl(attr->ia_uid) : not_set;
@@ -184,7 +184,7 @@ xdr_encode_sattr(u32 *p, struct iattr *attr)
  * GETATTR, READLINK, STATFS
  */
 static int
-nfs_xdr_fhandle(struct rpc_rqst *req, u32 *p, struct nfs_fh *fh)
+nfs_xdr_fhandle(struct rpc_rqst *req, __be32 *p, struct nfs_fh *fh)
 {
 	p = xdr_encode_fhandle(p, fh);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
@@ -195,7 +195,7 @@ nfs_xdr_fhandle(struct rpc_rqst *req, u32 *p, struct nfs_fh *fh)
  * Encode SETATTR arguments
  */
 static int
-nfs_xdr_sattrargs(struct rpc_rqst *req, u32 *p, struct nfs_sattrargs *args)
+nfs_xdr_sattrargs(struct rpc_rqst *req, __be32 *p, struct nfs_sattrargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_sattr(p, args->sattr);
@@ -208,7 +208,7 @@ nfs_xdr_sattrargs(struct rpc_rqst *req, u32 *p, struct nfs_sattrargs *args)
  * LOOKUP, REMOVE, RMDIR
  */
 static int
-nfs_xdr_diropargs(struct rpc_rqst *req, u32 *p, struct nfs_diropargs *args)
+nfs_xdr_diropargs(struct rpc_rqst *req, __be32 *p, struct nfs_diropargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -222,7 +222,7 @@ nfs_xdr_diropargs(struct rpc_rqst *req, u32 *p, struct nfs_diropargs *args)
  * exactly to the page we want to fetch.
  */
 static int
-nfs_xdr_readargs(struct rpc_rqst *req, u32 *p, struct nfs_readargs *args)
+nfs_xdr_readargs(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
 	struct rpc_auth	*auth = req->rq_task->tk_auth;
 	unsigned int replen;
@@ -246,7 +246,7 @@ nfs_xdr_readargs(struct rpc_rqst *req, u32 *p, struct nfs_readargs *args)
  * Decode READ reply
  */
 static int
-nfs_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
+nfs_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 {
 	struct kvec *iov = req->rq_rcv_buf.head;
 	int	status, count, recvd, hdrlen;
@@ -286,7 +286,7 @@ nfs_xdr_readres(struct rpc_rqst *req, u32 *p, struct nfs_readres *res)
  * Write arguments. Splice the buffer to be written into the iovec.
  */
 static int
-nfs_xdr_writeargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
+nfs_xdr_writeargs(struct rpc_rqst *req, __be32 *p, struct nfs_writeargs *args)
 {
 	struct xdr_buf *sndbuf = &req->rq_snd_buf;
 	u32 offset = (u32)args->offset;
@@ -309,7 +309,7 @@ nfs_xdr_writeargs(struct rpc_rqst *req, u32 *p, struct nfs_writeargs *args)
  * CREATE, MKDIR
  */
 static int
-nfs_xdr_createargs(struct rpc_rqst *req, u32 *p, struct nfs_createargs *args)
+nfs_xdr_createargs(struct rpc_rqst *req, __be32 *p, struct nfs_createargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fh);
 	p = xdr_encode_array(p, args->name, args->len);
@@ -322,7 +322,7 @@ nfs_xdr_createargs(struct rpc_rqst *req, u32 *p, struct nfs_createargs *args)
  * Encode RENAME arguments
  */
 static int
-nfs_xdr_renameargs(struct rpc_rqst *req, u32 *p, struct nfs_renameargs *args)
+nfs_xdr_renameargs(struct rpc_rqst *req, __be32 *p, struct nfs_renameargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_array(p, args->fromname, args->fromlen);
@@ -336,7 +336,7 @@ nfs_xdr_renameargs(struct rpc_rqst *req, u32 *p, struct nfs_renameargs *args)
  * Encode LINK arguments
  */
 static int
-nfs_xdr_linkargs(struct rpc_rqst *req, u32 *p, struct nfs_linkargs *args)
+nfs_xdr_linkargs(struct rpc_rqst *req, __be32 *p, struct nfs_linkargs *args)
 {
 	p = xdr_encode_fhandle(p, args->fromfh);
 	p = xdr_encode_fhandle(p, args->tofh);
@@ -349,7 +349,7 @@ nfs_xdr_linkargs(struct rpc_rqst *req, u32 *p, struct nfs_linkargs *args)
  * Encode SYMLINK arguments
  */
 static int
-nfs_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_symlinkargs *args)
+nfs_xdr_symlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs_symlinkargs *args)
 {
 	struct xdr_buf *sndbuf = &req->rq_snd_buf;
 	size_t pad;
@@ -378,7 +378,7 @@ nfs_xdr_symlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_symlinkargs *args)
  * Encode arguments to readdir call
  */
 static int
-nfs_xdr_readdirargs(struct rpc_rqst *req, u32 *p, struct nfs_readdirargs *args)
+nfs_xdr_readdirargs(struct rpc_rqst *req, __be32 *p, struct nfs_readdirargs *args)
 {
 	struct rpc_task	*task = req->rq_task;
 	struct rpc_auth	*auth = task->tk_auth;
@@ -404,7 +404,7 @@ nfs_xdr_readdirargs(struct rpc_rqst *req, u32 *p, struct nfs_readdirargs *args)
  * from nfs_readdir for each entry.
  */
 static int
-nfs_xdr_readdirres(struct rpc_rqst *req, u32 *p, void *dummy)
+nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
@@ -412,7 +412,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, u32 *p, void *dummy)
 	int hdrlen, recvd;
 	int status, nr;
 	unsigned int len, pglen;
-	u32 *end, *entry, *kaddr;
+	__be32 *end, *entry, *kaddr;
 
 	if ((status = ntohl(*p++)))
 		return -nfs_stat_to_errno(status);
@@ -432,8 +432,8 @@ nfs_xdr_readdirres(struct rpc_rqst *req, u32 *p, void *dummy)
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	kaddr = p = (u32 *)kmap_atomic(*page, KM_USER0);
-	end = (u32 *)((char *)p + pglen);
+	kaddr = p = kmap_atomic(*page, KM_USER0);
+	end = (__be32 *)((char *)p + pglen);
 	entry = p;
 	for (nr = 0; *p++; nr++) {
 		if (p + 2 > end)
@@ -496,7 +496,7 @@ nfs_decode_dirent(u32 *p, struct nfs_entry *entry, int plus)
  * Decode simple status reply
  */
 static int
-nfs_xdr_stat(struct rpc_rqst *req, u32 *p, void *dummy)
+nfs_xdr_stat(struct rpc_rqst *req, __be32 *p, void *dummy)
 {
 	int	status;
 
@@ -510,7 +510,7 @@ nfs_xdr_stat(struct rpc_rqst *req, u32 *p, void *dummy)
  * GETATTR, SETATTR, WRITE
  */
 static int
-nfs_xdr_attrstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
+nfs_xdr_attrstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 {
 	int	status;
 
@@ -525,7 +525,7 @@ nfs_xdr_attrstat(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
  * LOOKUP, CREATE, MKDIR
  */
 static int
-nfs_xdr_diropres(struct rpc_rqst *req, u32 *p, struct nfs_diropok *res)
+nfs_xdr_diropres(struct rpc_rqst *req, __be32 *p, struct nfs_diropok *res)
 {
 	int	status;
 
@@ -540,7 +540,7 @@ nfs_xdr_diropres(struct rpc_rqst *req, u32 *p, struct nfs_diropok *res)
  * Encode READLINK args
  */
 static int
-nfs_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_readlinkargs *args)
+nfs_xdr_readlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs_readlinkargs *args)
 {
 	struct rpc_auth *auth = req->rq_task->tk_auth;
 	unsigned int replen;
@@ -558,7 +558,7 @@ nfs_xdr_readlinkargs(struct rpc_rqst *req, u32 *p, struct nfs_readlinkargs *args
  * Decode READLINK reply
  */
 static int
-nfs_xdr_readlinkres(struct rpc_rqst *req, u32 *p, void *dummy)
+nfs_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, void *dummy)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
@@ -601,7 +601,7 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, u32 *p, void *dummy)
  * Decode WRITE reply
  */
 static int
-nfs_xdr_writeres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
+nfs_xdr_writeres(struct rpc_rqst *req, __be32 *p, struct nfs_writeres *res)
 {
 	res->verf->committed = NFS_FILE_SYNC;
 	return nfs_xdr_attrstat(req, p, res->fattr);
@@ -611,7 +611,7 @@ nfs_xdr_writeres(struct rpc_rqst *req, u32 *p, struct nfs_writeres *res)
  * Decode STATFS reply
  */
 static int
-nfs_xdr_statfsres(struct rpc_rqst *req, u32 *p, struct nfs2_fsstat *res)
+nfs_xdr_statfsres(struct rpc_rqst *req, __be32 *p, struct nfs2_fsstat *res)
 {
 	int	status;
 
