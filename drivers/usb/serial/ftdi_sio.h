@@ -55,6 +55,9 @@
 /* iPlus device */
 #define FTDI_IPLUS_PID 0xD070 /* Product Id */
 
+/* DMX4ALL DMX Interfaces */
+#define FTDI_DMX4ALL 0xC850
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
