@@ -1233,7 +1233,7 @@ int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
 	if (!ret)
 		nodemgr_create_drv_files(driver);
 
-	return 0;
+	return ret;
 }
 
 void hpsb_unregister_protocol(struct hpsb_protocol_driver *driver)
