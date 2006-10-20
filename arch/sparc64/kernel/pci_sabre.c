@@ -1465,5 +1465,5 @@ void sabre_init(struct device_node *dp, char *model_name)
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, dp, vdma[0], vdma[1]);
+	sabre_pbm_init(p, dp, vdma[0], vdma[0] + vdma[1]);
 }
