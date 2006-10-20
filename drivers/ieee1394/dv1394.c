@@ -1536,27 +1536,20 @@ static ssize_t dv1394_read(struct file *file,  char __user *buffer, size_t count
 
 static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct video_card *video;
+	struct video_card *video = file_to_video_card(file);
 	unsigned long flags;
 	int ret = -EINVAL;
 	void __user *argp = (void __user *)arg;
 
 	DECLARE_WAITQUEUE(wait, current);
 
-	lock_kernel();
-	video = file_to_video_card(file);
-
 	/* serialize this to prevent multi-threaded mayhem */
 	if (file->f_flags & O_NONBLOCK) {
-		if (!mutex_trylock(&video->mtx)) {
-			unlock_kernel();
+		if (!mutex_trylock(&video->mtx))
 			return -EAGAIN;
-		}
 	} else {
-		if (mutex_lock_interruptible(&video->mtx)) {
-			unlock_kernel();
+		if (mutex_lock_interruptible(&video->mtx))
 			return -ERESTARTSYS;
-		}
 	}
 
 	switch(cmd)
@@ -1780,7 +1773,6 @@ static long dv1394_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
  out:
 	mutex_unlock(&video->mtx);
-	unlock_kernel();
 	return ret;
 }
 
