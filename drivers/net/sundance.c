@@ -264,8 +264,6 @@ enum alta_offsets {
 	ASICCtrl = 0x30,
 	EEData = 0x34,
 	EECtrl = 0x36,
-	TxStartThresh = 0x3c,
-	RxEarlyThresh = 0x3e,
 	FlashAddr = 0x40,
 	FlashData = 0x44,
 	TxStatus = 0x46,
@@ -1111,6 +1109,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	int tx_cnt;
 	int tx_status;
 	int handled = 0;
+	int i;
 
 
 	do {
@@ -1153,17 +1152,14 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 						np->stats.tx_fifo_errors++;
 					if (tx_status & 0x02)
 						np->stats.tx_window_errors++;
+
 					/*
 					** This reset has been verified on
 					** DFE-580TX boards ! phdm@macqel.be.
 					*/
 					if (tx_status & 0x10) {	/* TxUnderrun */
-						unsigned short txthreshold;
-
-						txthreshold = ioread16 (ioaddr + TxStartThresh);
 						/* Restart Tx FIFO and transmitter */
 						sundance_reset(dev, (NetworkReset|FIFOReset|TxReset) << 16);
-						iowrite16 (txthreshold, ioaddr + TxStartThresh);
 						/* No need to reset the Tx pointer here */
 					}
 					/* Restart the Tx. */
