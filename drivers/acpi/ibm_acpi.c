@@ -78,6 +78,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
+#include <linux/backlight.h>
 #include <asm/uaccess.h>
 
 #include <acpi/acpi_drivers.h>
@@ -242,6 +243,8 @@ struct ibm_struct {
 };
 
 static struct proc_dir_entry *proc_dir = NULL;
+
+static struct backlight_device *ibm_backlight_device;
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -1381,12 +1384,22 @@ static int ecdump_write(char *buf)
 
 static int brightness_offset = 0x31;
 
+static int brightness_get(struct backlight_device *bd)
+{
+       u8 level;
+       if (!acpi_ec_read(brightness_offset, &level))
+               return -EIO;
+
+       level &= 0x7;
+       return level;
+}
+
 static int brightness_read(char *p)
 {
 	int len = 0;
-	u8 level;
+	int level;
 
-	if (!acpi_ec_read(brightness_offset, &level)) {
+	if ((level = brightness_get(NULL)) < 0) {
 		len += sprintf(p + len, "level:\t\tunreadable\n");
 	} else {
 		len += sprintf(p + len, "level:\t\t%d\n", level & 0x7);
@@ -1401,16 +1414,34 @@ static int brightness_read(char *p)
 #define BRIGHTNESS_UP	4
 #define BRIGHTNESS_DOWN	5
 
-static int brightness_write(char *buf)
+static int brightness_set(int value)
 {
 	int cmos_cmd, inc, i;
-	u8 level;
+	int current_value = brightness_get(NULL);
+
+	value &= 7;
+
+	cmos_cmd = value > current_value ? BRIGHTNESS_UP : BRIGHTNESS_DOWN;
+	inc = value > current_value ? 1 : -1;
+	for (i = current_value; i != value; i += inc) {
+		if (!cmos_eval(cmos_cmd))
+			return -EIO;
+		if (!acpi_ec_write(brightness_offset, i + inc))
+			return -EIO;
+	}
+
+	return 0;
+}
+
+static int brightness_write(char *buf)
+{
+	int level;
 	int new_level;
 	char *cmd;
 
 	while ((cmd = next_cmd(&buf))) {
-		if (!acpi_ec_read(brightness_offset, &level))
-			return -EIO;
+		if ((level = brightness_get(NULL)) < 0)
+			return level;
 		level &= 7;
 
 		if (strlencmp(cmd, "up") == 0) {
@@ -1423,17 +1454,15 @@ static int brightness_write(char *buf)
 		} else
 			return -EINVAL;
 
-		cmos_cmd = new_level > level ? BRIGHTNESS_UP : BRIGHTNESS_DOWN;
-		inc = new_level > level ? 1 : -1;
-		for (i = level; i != new_level; i += inc) {
-			if (!cmos_eval(cmos_cmd))
-				return -EIO;
-			if (!acpi_ec_write(brightness_offset, i + inc))
-				return -EIO;
-		}
+		brightness_set(new_level);
 	}
 
 	return 0;
+}
+
+static int brightness_update_status(struct backlight_device *bd)
+{
+	return brightness_set(bd->props->brightness);
 }
 
 static int volume_offset = 0x30;
@@ -1963,9 +1992,19 @@ IBM_PARAM(brightness);
 IBM_PARAM(volume);
 IBM_PARAM(fan);
 
+static struct backlight_properties ibm_backlight_data = {
+        .owner          = THIS_MODULE,
+        .get_brightness = brightness_get,
+        .update_status  = brightness_update_status,
+        .max_brightness = 7,
+};
+
 static void acpi_ibm_exit(void)
 {
 	int i;
+
+	if (ibm_backlight_device)
+		backlight_device_unregister(ibm_backlight_device);
 
 	for (i = ARRAY_SIZE(ibms) - 1; i >= 0; i--)
 		ibm_exit(&ibms[i]);
@@ -2032,6 +2071,14 @@ static int __init acpi_ibm_init(void)
 			acpi_ibm_exit();
 			return ret;
 		}
+	}
+
+	ibm_backlight_device = backlight_device_register("ibm", NULL,
+							 &ibm_backlight_data);
+        if (IS_ERR(ibm_backlight_device)) {
+		printk(IBM_ERR "Could not register ibm backlight device\n");
+		ibm_backlight_device = NULL;
+		acpi_ibm_exit();
 	}
 
 	return 0;
