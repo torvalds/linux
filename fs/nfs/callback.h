@@ -31,10 +31,10 @@ struct cb_compound_hdr_arg {
 };
 
 struct cb_compound_hdr_res {
-	uint32_t *status;
+	__be32 *status;
 	int taglen;
 	const char *tag;
-	uint32_t *nops;
+	__be32 *nops;
 };
 
 struct cb_getattrargs {
