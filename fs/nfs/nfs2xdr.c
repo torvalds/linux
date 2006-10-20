@@ -468,8 +468,8 @@ err_unmap:
 	goto out;
 }
 
-u32 *
-nfs_decode_dirent(u32 *p, struct nfs_entry *entry, int plus)
+__be32 *
+nfs_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 {
 	if (!*p++) {
 		if (!*p)
