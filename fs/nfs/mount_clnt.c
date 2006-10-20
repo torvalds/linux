@@ -95,7 +95,7 @@ mnt_create(char *hostname, struct sockaddr_in *srvaddr, int version,
  * XDR encode/decode functions for MOUNT
  */
 static int
-xdr_encode_dirpath(struct rpc_rqst *req, u32 *p, const char *path)
+xdr_encode_dirpath(struct rpc_rqst *req, __be32 *p, const char *path)
 {
 	p = xdr_encode_string(p, path);
 
@@ -104,7 +104,7 @@ xdr_encode_dirpath(struct rpc_rqst *req, u32 *p, const char *path)
 }
 
 static int
-xdr_decode_fhstatus(struct rpc_rqst *req, u32 *p, struct mnt_fhstatus *res)
+xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
@@ -116,7 +116,7 @@ xdr_decode_fhstatus(struct rpc_rqst *req, u32 *p, struct mnt_fhstatus *res)
 }
 
 static int
-xdr_decode_fhstatus3(struct rpc_rqst *req, u32 *p, struct mnt_fhstatus *res)
+xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p, struct mnt_fhstatus *res)
 {
 	struct nfs_fh *fh = res->fh;
 
