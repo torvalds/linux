@@ -1557,12 +1557,6 @@ static void __exit mv643xx_cleanup_module(void)
 module_init(mv643xx_init_module);
 module_exit(mv643xx_cleanup_module);
 
-static struct pci_device_id pci_marvell_mv64360[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_MV64360) },
-	{}
-};
-MODULE_DEVICE_TABLE(pci, pci_marvell_mv64360);
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(	"Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, Manish Lachwani"
 		" and Dale Farnsworth");
