@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <asm/io.h>
@@ -43,6 +44,23 @@ struct amd76xrom_map_info {
 	struct resource rsrc;
 	char map_name[sizeof(MOD_NAME) + 2 + ADDRESS_NAME_LEN];
 };
+
+/* The 2 bits controlling the window size are often set to allow reading
+ * the BIOS, but too small to allow writing, since the lock registers are
+ * 4MiB lower in the address space than the data.
+ *
+ * This is intended to prevent flashing the bios, perhaps accidentally.
+ *
+ * This parameter allows the normal driver to over-ride the BIOS settings.
+ *
+ * The bits are 6 and 7.  If both bits are set, it is a 5MiB window.
+ * If only the 7 Bit is set, it is a 4MiB window.  Otherwise, a
+ * 64KiB window.
+ *
+ */
+static uint win_size_bits;
+module_param(win_size_bits, uint, 0);
+MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, normally set by BIOS.");
 
 static struct amd76xrom_window amd76xrom_window = {
 	.maps = LIST_HEAD_INIT(amd76xrom_window.maps),
@@ -95,6 +113,16 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 	/* Remember the pci dev I find the window in - already have a ref */
 	window->pdev = pdev;
 
+	/* Enable the selected rom window.  This is often incorrectly
+	 * set up by the BIOS, and the 4MiB offset for the lock registers
+	 * requires the full 5MiB of window space.
+	 *
+	 * This 'write, then read' approach leaves the bits for
+	 * other uses of the hardware info.
+	 */
+	pci_read_config_byte(pdev, 0x43, &byte);
+	pci_write_config_byte(pdev, 0x43, byte | win_size_bits );
+
 	/* Assume the rom window is properly setup, and find it's size */
 	pci_read_config_byte(pdev, 0x43, &byte);
 	if ((byte & ((1<<7)|(1<<6))) == ((1<<7)|(1<<6))) {
@@ -129,12 +157,6 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 			(unsigned long long)window->rsrc.end);
 	}
 
-#if 0
-
-	/* Enable the selected rom window */
-	pci_read_config_byte(pdev, 0x43, &byte);
-	pci_write_config_byte(pdev, 0x43, byte | rwindow->segen_bits);
-#endif
 
 	/* Enable writes through the rom window */
 	pci_read_config_byte(pdev, 0x40, &byte);
