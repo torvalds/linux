@@ -579,11 +579,11 @@ struct svc_version	nfsd_version2 = {
 /*
  * Map errnos to NFS errnos.
  */
-int
+__be32
 nfserrno (int errno)
 {
 	static struct {
-		int	nfserr;
+		__be32	nfserr;
 		int	syserr;
 	} nfs_errtbl[] = {
 		{ nfs_ok, 0 },
@@ -615,11 +615,10 @@ nfserrno (int errno)
 		{ nfserr_badname, -ESRCH },
 		{ nfserr_io, -ETXTBSY },
 		{ nfserr_notsupp, -EOPNOTSUPP },
-		{ -1, -EIO }
 	};
 	int	i;
 
-	for (i = 0; nfs_errtbl[i].nfserr != -1; i++) {
+	for (i = 0; i < ARRAY_SIZE(nfs_errtbl); i++) {
 		if (nfs_errtbl[i].syserr == errno)
 			return nfs_errtbl[i].nfserr;
 	}
