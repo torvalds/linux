@@ -122,7 +122,7 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 /*
  * XDR decode functions
  */
-static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclargs *args)
 {
 	if (!(p = nfs3svc_decode_fh(p, &args->fh)))
@@ -133,7 +133,7 @@ static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
 }
 
 
-static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_setaclargs *args)
 {
 	struct kvec *head = rqstp->rq_arg.head;
@@ -163,7 +163,7 @@ static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
  */
 
 /* GETACL */
-static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	struct dentry *dentry = resp->fh.fh_dentry;
@@ -208,7 +208,7 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
 }
 
 /* SETACL */
-static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_attrstat *resp)
 {
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
@@ -219,7 +219,7 @@ static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, u32 *p,
 /*
  * XDR release functions
  */
-static int nfs3svc_release_getacl(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_release_getacl(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	fh_put(&resp->fh);
