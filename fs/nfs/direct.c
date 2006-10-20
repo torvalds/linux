@@ -532,10 +532,12 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 
 	spin_lock(&dreq->lock);
 
-	if (likely(status >= 0))
-		dreq->count += data->res.count;
-	else
-		dreq->error = task->tk_status;
+	if (unlikely(status < 0)) {
+		dreq->error = status;
+		goto out_unlock;
+	}
+
+	dreq->count += data->res.count;
 
 	if (data->res.verf->committed != NFS_FILE_SYNC) {
 		switch (dreq->flags) {
@@ -550,7 +552,7 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 				}
 		}
 	}
-
+out_unlock:
 	spin_unlock(&dreq->lock);
 }
 
