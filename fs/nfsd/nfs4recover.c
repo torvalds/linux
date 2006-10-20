@@ -83,13 +83,13 @@ md5_to_hex(char *out, char *md5)
 	*out = '\0';
 }
 
-int
+__be32
 nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
 	struct hash_desc desc;
 	struct scatterlist sg[1];
-	int status = nfserr_resource;
+	__be32 status = nfserr_resource;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
@@ -193,7 +193,7 @@ nfsd4_build_dentrylist(void *arg, const char *name, int namlen,
 	struct dentry_list *child;
 
 	if (name && isdotent(name, namlen))
-		return nfs_ok;
+		return 0;
 	dentry = lookup_one_len(name, parent, namlen);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
@@ -333,14 +333,14 @@ purge_old(struct dentry *parent, struct dentry *child)
 	int status;
 
 	if (nfs4_has_reclaimed_state(child->d_name.name))
-		return nfs_ok;
+		return 0;
 
 	status = nfsd4_clear_clid_dir(parent, child);
 	if (status)
 		printk("failed to remove client recovery directory %s\n",
 				child->d_name.name);
 	/* Keep trying, success or failure: */
-	return nfs_ok;
+	return 0;
 }
 
 void
@@ -365,10 +365,10 @@ load_recdir(struct dentry *parent, struct dentry *child)
 		printk("nfsd4: illegal name %s in recovery directory\n",
 				child->d_name.name);
 		/* Keep trying; maybe the others are OK: */
-		return nfs_ok;
+		return 0;
 	}
 	nfs4_client_to_reclaim(child->d_name.name);
-	return nfs_ok;
+	return 0;
 }
 
 int
