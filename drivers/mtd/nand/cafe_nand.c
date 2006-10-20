@@ -5,7 +5,7 @@
  * Copyright © 2006 David Woodhouse <dwmw2@infradead.org>
  */
 
-//#define DEBUG
+#define DEBUG
 
 #include <linux/device.h>
 #undef DEBUG
@@ -53,15 +53,24 @@ struct cafe_priv {
 static int usedma = 1;
 module_param(usedma, int, 0644);
 
+static int skipbbt = 0;
+module_param(skipbbt, int, 0644);
+
+static int debug = 0;
+module_param(debug, int, 0644);
+
+#define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
+
+
 static int cafe_device_ready(struct mtd_info *mtd)
 {
 	struct cafe_priv *cafe = mtd->priv;
 	int result = !!(readl(cafe->mmio + CAFE_NAND_STATUS) | 0x40000000);
 
-	uint32_t irqs = readl(cafe->mmio + 0x10);
-	writel(irqs, cafe->mmio+0x10);
-	dev_dbg(&cafe->pdev->dev, "NAND device is%s ready, IRQ %x (%x) (%x,%x)\n",
-		result?"":" not", irqs, readl(cafe->mmio + 0x10),
+	uint32_t irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
+	writel(irqs, cafe->mmio+CAFE_NAND_IRQ);
+	cafe_dev_dbg(&cafe->pdev->dev, "NAND device is%s ready, IRQ %x (%x) (%x,%x)\n",
+		result?"":" not", irqs, readl(cafe->mmio + CAFE_NAND_IRQ),
 		readl(cafe->mmio + 0x3008), readl(cafe->mmio + 0x300c));
 	return result;
 }
@@ -77,7 +86,7 @@ static void cafe_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 		memcpy_toio(cafe->mmio + CAFE_NAND_WRITE_DATA + cafe->datalen, buf, len);
 	cafe->datalen += len;
 
-	dev_dbg(&cafe->pdev->dev, "Copy 0x%x bytes to write buffer. datalen 0x%x\n",
+	cafe_dev_dbg(&cafe->pdev->dev, "Copy 0x%x bytes to write buffer. datalen 0x%x\n",
 		len, cafe->datalen);
 }
 
@@ -90,7 +99,7 @@ static void cafe_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	else
 		memcpy_fromio(buf, cafe->mmio + CAFE_NAND_READ_DATA + cafe->datalen, len);
 
-	dev_dbg(&cafe->pdev->dev, "Copy 0x%x bytes from position 0x%x in read buffer.\n",
+	cafe_dev_dbg(&cafe->pdev->dev, "Copy 0x%x bytes from position 0x%x in read buffer.\n",
 		  len, cafe->datalen);
 	cafe->datalen += len;
 }
@@ -101,7 +110,7 @@ static uint8_t cafe_read_byte(struct mtd_info *mtd)
 	uint8_t d;
 
 	cafe_read_buf(mtd, &d, 1);
-	dev_dbg(&cafe->pdev->dev, "Read %02x\n", d);
+	cafe_dev_dbg(&cafe->pdev->dev, "Read %02x\n", d);
 
 	return d;
 }
@@ -115,14 +124,14 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	uint32_t doneint = 0x80000000;
 	int i;
 
-	dev_dbg(&cafe->pdev->dev, "cmdfunc %02x, 0x%x, 0x%x\n",
+	cafe_dev_dbg(&cafe->pdev->dev, "cmdfunc %02x, 0x%x, 0x%x\n",
 		command, column, page_addr);
 
 	if (command == NAND_CMD_ERASE2 || command == NAND_CMD_PAGEPROG) {
 		/* Second half of a command we already calculated */
 		writel(cafe->ctl2 | 0x100 | command, cafe->mmio + 0x04);
 		ctl1 = cafe->ctl1;
-		dev_dbg(&cafe->pdev->dev, "Continue command, ctl1 %08x, #data %d\n",
+		cafe_dev_dbg(&cafe->pdev->dev, "Continue command, ctl1 %08x, #data %d\n",
 			  cafe->ctl1, cafe->nr_data);
 		goto do_command;
 	}
@@ -163,7 +172,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	if (command == NAND_CMD_READID || command == NAND_CMD_STATUS) {
 		ctl1 |= (1<<26); /* rd */
 		/* Always 5 bytes, for now */
-		cafe->datalen = 5;
+		cafe->datalen = 4;
 		/* And one address cycle -- even for STATUS, since the controller doesn't work without */
 		adrbytes = 1;
 	} else if (command == NAND_CMD_READ0 || command == NAND_CMD_READ1 ||
@@ -183,7 +192,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		   deals with them both at once, later */
 		cafe->ctl1 = ctl1;
 		cafe->ctl2 = 0;
-		dev_dbg(&cafe->pdev->dev, "Setup for delayed command, ctl1 %08x, dlen %x\n",
+		cafe_dev_dbg(&cafe->pdev->dev, "Setup for delayed command, ctl1 %08x, dlen %x\n",
 			  cafe->ctl1, cafe->datalen);
 		return;
 	}
@@ -194,13 +203,14 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		writel(cafe->ctl2 | 0x100 | NAND_CMD_READSTART, cafe->mmio + CAFE_NAND_CTRL2);
 
  do_command:
-	if (cafe->datalen == 2112)
-		cafe->datalen = 2062;
-	dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
+	// ECC on read only works if we ...
+	//	if (cafe->datalen == 2112)
+	//		cafe->datalen = 2062;
+	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
 		cafe->datalen, ctl1, readl(cafe->mmio+CAFE_NAND_CTRL2));
 	/* NB: The datasheet lies -- we really should be subtracting 1 here */
 	writel(cafe->datalen, cafe->mmio + CAFE_NAND_DATA_LEN);
-	writel(0x90000000, cafe->mmio + 0x10);
+	writel(0x90000000, cafe->mmio + CAFE_NAND_IRQ);
 	if (usedma && (ctl1 & (3<<25))) {
 		uint32_t dmactl = 0xc0000000 + cafe->datalen;
 		/* If WR or RD bits set, set up DMA */
@@ -230,20 +240,20 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	ndelay(100);
 
 	if (1) {
-		int c = 50000;
+		int c = 500000;
 		uint32_t irqs;
 
 		while (c--) {
-			irqs = readl(cafe->mmio + 0x10);
+			irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
 			if (irqs & doneint)
 				break;
 			udelay(1);
-			if (!(c & 1000))
-			dev_dbg(&cafe->pdev->dev, "Wait for ready, IRQ %x\n", irqs);
+			if (!(c % 100000))
+				cafe_dev_dbg(&cafe->pdev->dev, "Wait for ready, IRQ %x\n", irqs);
 			cpu_relax();
 		}
-		writel(doneint, cafe->mmio + 0x10);
-		dev_dbg(&cafe->pdev->dev, "Command %x completed after %d usec, irqs %x (%x)\n", command, 50000-c, irqs, readl(cafe->mmio + 0x10));
+		writel(doneint, cafe->mmio + CAFE_NAND_IRQ);
+		cafe_dev_dbg(&cafe->pdev->dev, "Command %x completed after %d usec, irqs %x (%x)\n", command, 50000-c, irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
 	}
 
 
@@ -276,18 +286,18 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	//struct cafe_priv *cafe = mtd->priv;
-	//	dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
+	//	cafe_dev_dbg(&cafe->pdev->dev, "select_chip %d\n", chipnr);
 }
 static int cafe_nand_interrupt(int irq, void *id, struct pt_regs *regs)
 {
 	struct mtd_info *mtd = id;
 	struct cafe_priv *cafe = mtd->priv;
-	uint32_t irqs = readl(cafe->mmio + 0x10);
-	writel(irqs & ~0x90000000, cafe->mmio + 0x10);
+	uint32_t irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
+	writel(irqs & ~0x90000000, cafe->mmio + CAFE_NAND_IRQ);
 	if (!irqs)
 		return IRQ_NONE;
 
-	dev_dbg(&cafe->pdev->dev, "irq, bits %x (%x)\n", irqs, readl(cafe->mmio + 0x10));
+	cafe_dev_dbg(&cafe->pdev->dev, "irq, bits %x (%x)\n", irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
 	return IRQ_HANDLED;
 }
 
@@ -335,7 +345,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	WARN_ON(chip->oob_poi != chip->buffers->oobrbuf);
 
-	dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n", readl(cafe->mmio + 0x3c), readl(cafe->mmio + 0x50));
+	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n", readl(cafe->mmio + 0x3c), readl(cafe->mmio + 0x50));
 
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -343,7 +353,44 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static char foo[14];
+static struct nand_ecclayout cafe_oobinfo_2048 = {
+	.eccbytes = 14,
+	.eccpos = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+	.oobfree = {{14, 50}}
+};
+
+/* Ick. The BBT code really ought to be able to work this bit out 
+   for itself from the above */
+static uint8_t cafe_bbt_pattern[] = {'B', 'b', 't', '0' };
+static uint8_t cafe_mirror_pattern[] = {'1', 't', 'b', 'B' };
+
+static struct nand_bbt_descr cafe_bbt_main_descr_2048 = {
+	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs =	14,
+	.len = 4,
+	.veroffs = 18,
+	.maxblocks = 4,
+	.pattern = cafe_bbt_pattern
+};
+
+static struct nand_bbt_descr cafe_bbt_mirror_descr_2048 = {
+	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
+		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+	.offs =	14,
+	.len = 4,
+	.veroffs = 18,
+	.maxblocks = 4,
+	.pattern = cafe_mirror_pattern
+};
+
+static struct nand_ecclayout cafe_oobinfo_512 = {
+	.eccbytes = 14,
+	.eccpos = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+	.oobfree = {{14, 2}}
+};
+
+
 static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 					  struct nand_chip *chip, const uint8_t *buf)
 {
@@ -352,8 +399,7 @@ static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 	WARN_ON(chip->oob_poi != chip->buffers->oobwbuf);
 
 	chip->write_buf(mtd, buf, mtd->writesize);
-	chip->write_buf(mtd, foo, 14);
-	//	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<27) | (1<<30);
@@ -410,6 +456,10 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
+static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
+{
+	return 0;
+}
 
 static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
@@ -461,6 +511,11 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 
 	/* Enable the following for a flash based bad block table */
 	cafe->nand.options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR | NAND_OWN_BUFFERS;
+
+	if (skipbbt) {
+		cafe->nand.options |= NAND_SKIP_BBTSCAN;
+		cafe->nand.block_bad = cafe_nand_block_bad;
+	}
 	
 	/* Timings from Marvell's test code (not verified or calculated by us) */
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
@@ -473,7 +528,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING2);
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING3);
 #endif
-	writel(0xdfffffff, cafe->mmio + 0x14);
+	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
@@ -498,18 +553,18 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		writel((cafe->dmaaddr >> 16) >> 16, cafe->mmio + 0x48);
 	else
 		writel(0, cafe->mmio + 0x48);
-	dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
+	cafe_dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
 		readl(cafe->mmio+0x44), cafe->dmabuf);
 
 	/* Enable NAND IRQ in global IRQ mask register */
 	writel(0x80000007, cafe->mmio + 0x300c);
-	dev_dbg(&cafe->pdev->dev, "Control %x, IRQ mask %x\n",
+	cafe_dev_dbg(&cafe->pdev->dev, "Control %x, IRQ mask %x\n",
 		readl(cafe->mmio + 0x3004), readl(cafe->mmio + 0x300c));
 #endif
 #if 1
 	mtd->writesize=2048;
 	mtd->oobsize = 0x40;
-	memset(cafe->dmabuf, 0xa5, 2112);
+	memset(cafe->dmabuf, 0x5a, 2112);
 	cafe->nand.cmdfunc(mtd, NAND_CMD_READID, 0, -1);
 	cafe->nand.read_byte(mtd);
 	cafe->nand.read_byte(mtd);
@@ -528,7 +583,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 #if 0
 	writel(0x84600070, cafe->mmio);
 	udelay(10);
-	dev_dbg(&cafe->pdev->dev, "Status %x\n", readl(cafe->mmio + 0x30));
+	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", readl(cafe->mmio + 0x30));
 #endif		
 	/* Scan to find existance of the device */
 	if (nand_scan_ident(mtd, 1)) {
@@ -545,6 +600,9 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 		cafe->nand.ecc.size = mtd->writesize;
 		cafe->nand.ecc.bytes = 14;
+		cafe->nand.ecc.layout = &cafe_oobinfo_2048;
+		cafe->nand.bbt_td = &cafe_bbt_main_descr_2048;
+		cafe->nand.bbt_md = &cafe_bbt_mirror_descr_2048;
 		cafe->nand.ecc.hwctl  = (void *)cafe_nand_bug;
 		cafe->nand.ecc.calculate = (void *)cafe_nand_bug;
 		cafe->nand.ecc.correct  = (void *)cafe_nand_bug;
@@ -563,7 +621,6 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	err = nand_scan_tail(mtd);
 	if (err)
 		goto out_irq;
-
 
 	pci_set_drvdata(pdev, mtd);
 	add_mtd_device(mtd);
@@ -633,3 +690,9 @@ MODULE_DESCRIPTION("NAND flash driver for OLPC CAFE chip");
 
 /* Correct ECC for 2048 bytes of 0xff:
    41 a0 71 65 54 27 f3 93 ec a9 be ed 0b a1 */
+
+/* dwmw2's B-test board, in case of completely screwing it:
+Bad eraseblock 2394 at 0x12b40000
+Bad eraseblock 2627 at 0x14860000
+Bad eraseblock 3349 at 0x1a2a0000
+*/
