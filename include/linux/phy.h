@@ -20,6 +20,9 @@
 
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#include <asm/irq.h>
 
 #define PHY_BASIC_FEATURES	(SUPPORTED_10baseT_Half | \
 				 SUPPORTED_10baseT_Full | \
