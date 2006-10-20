@@ -2,6 +2,10 @@
  * X-Box gamepad - v0.0.6
  *
  * Copyright (c) 2002 Marko Friedemann <mfr@bmx-chemnitz.de>
+ *               2004 Oliver Schwartz <Oliver.Schwartz@gmx.de>,
+ *                    Steven Toth <steve@toth.demon.co.uk>,
+ *                    Franz Lehner <franz@caos.at>,
+ *                    Ivan Hawkes <blackhawk@ivanhawkes.com>
  *               2005 Dominic Cerquetti <binary1230@yahoo.com>
  *               2006 Adam Buchbinder <adam.buchbinder@gmail.com>
  *
@@ -29,6 +33,7 @@
  *  - ITO Takayuki for providing essential xpad information on his website
  *  - Vojtech Pavlik     - iforce driver / input subsystem
  *  - Greg Kroah-Hartman - usb-skeleton driver
+ *  - XBOX Linux project - extra USB id's
  *
  * TODO:
  *  - fine tune axes (especially trigger axes)
@@ -54,6 +59,13 @@
  *  - fixed d-pad to axes mapping
  *
  * 2002-07-17 - 0.0.5 : simplified d-pad handling
+ *
+ * 2004-10-02 - 0.0.6 : DDR pad support
+ *  - borrowed from the XBOX linux kernel
+ *  - USB id's for commonly used dance pads are present
+ *  - dance pads will map D-PAD to buttons, not axes
+ *  - pass the module paramater 'dpad_to_buttons' to force
+ *    the D-PAD to map to buttons if your pad is not detected
  */
 
 #include <linux/kernel.h>
@@ -90,8 +102,35 @@ static const struct xpad_device {
 	{ 0x045e, 0x0202, "Microsoft X-Box pad v1 (US)", MAP_DPAD_TO_AXES },
 	{ 0x045e, 0x0289, "Microsoft X-Box pad v2 (US)", MAP_DPAD_TO_AXES },
 	{ 0x045e, 0x0285, "Microsoft X-Box pad (Japan)", MAP_DPAD_TO_AXES },
-	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", MAP_DPAD_TO_AXES },
+	{ 0x045e, 0x0287, "Microsoft Xbox Controller S", MAP_DPAD_TO_AXES },
 	{ 0x0c12, 0x8809, "RedOctane Xbox Dance Pad", MAP_DPAD_TO_BUTTONS },
+	{ 0x044f, 0x0f07, "Thrustmaster, Inc. Controller", MAP_DPAD_TO_AXES },
+	{ 0x046d, 0xca84, "Logitech Xbox Cordless Controller", MAP_DPAD_TO_AXES },
+	{ 0x046d, 0xca88, "Logitech Compact Controller for Xbox", MAP_DPAD_TO_AXES },
+	{ 0x05fd, 0x1007, "Mad Catz Controller (unverified)", MAP_DPAD_TO_AXES },
+	{ 0x05fd, 0x107a, "InterAct 'PowerPad Pro' X-Box pad (Germany)", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4516, "Mad Catz Control Pad", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4522, "Mad Catz LumiCON", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4526, "Mad Catz Control Pad Pro", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4536, "Mad Catz MicroCON", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x4540, "Mad Catz Beat Pad", MAP_DPAD_TO_BUTTONS },
+	{ 0x0738, 0x4556, "Mad Catz Lynx Wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0738, 0x6040, "Mad Catz Beat Pad Pro", MAP_DPAD_TO_BUTTONS },
+	{ 0x0c12, 0x8802, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES },
+	{ 0x0c12, 0x8810, "Zeroplus Xbox Controller", MAP_DPAD_TO_AXES },
+	{ 0x0c12, 0x9902, "HAMA VibraX - *FAULTY HARDWARE*", MAP_DPAD_TO_AXES },
+	{ 0x0e4c, 0x1097, "Radica Gamester Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e4c, 0x2390, "Radica Games Jtech Controller", MAP_DPAD_TO_AXES},
+	{ 0x0e6f, 0x0003, "Logic3 Freebird wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e6f, 0x0005, "Eclipse wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e6f, 0x0006, "Edge wireless Controller", MAP_DPAD_TO_AXES },
+	{ 0x0e8f, 0x0201, "SmartJoy Frag Xpad/PS2 adaptor", MAP_DPAD_TO_AXES },
+	{ 0x0f30, 0x0202, "Joytech Advanced Controller", MAP_DPAD_TO_AXES },
+	{ 0x0f30, 0x8888, "BigBen XBMiniPad Controller", MAP_DPAD_TO_AXES },
+	{ 0x102c, 0xff0c, "Joytech Wireless Advanced Controller", MAP_DPAD_TO_AXES },
+	{ 0x12ab, 0x8809, "Xbox DDR dancepad", MAP_DPAD_TO_BUTTONS },
+	{ 0x1430, 0x8888, "TX6500+ Dance Pad (first generation)", MAP_DPAD_TO_BUTTONS },
+	{ 0xffff, 0xffff, "Chinese-made Xbox Controller", MAP_DPAD_TO_AXES },
 	{ 0x0000, 0x0000, "Generic X-Box pad", MAP_DPAD_UNKNOWN }
 };
 
