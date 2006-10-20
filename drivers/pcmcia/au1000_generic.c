@@ -449,6 +449,16 @@ out_err:
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
 		flush_scheduled_work();
+		if (i == 0) {
+			iounmap(skt->virt_io + (u32)mips_io_port_base);
+			skt->virt_io = NULL;
+		}
+#ifndef CONFIG_MIPS_XXS1500
+		else {
+			iounmap(skt->virt_io + (u32)mips_io_port_base);
+			skt->virt_io = NULL;
+		}
+#endif
 		ops->hw_shutdown(skt);
 
 	}

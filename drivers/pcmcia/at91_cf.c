@@ -310,9 +310,10 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 	return 0;
 
 fail2:
-	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(io->start, io->end + 1 - io->start);
 fail1:
+	if (cf->socket.io_offset)
+		iounmap((void __iomem *) cf->socket.io_offset);
 	if (board->irq_pin)
 		free_irq(board->irq_pin, cf);
 fail0a:
