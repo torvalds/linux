@@ -136,8 +136,6 @@ int xterm_open(int input, int output, int primary, void *d,
 		return(pid);
 	}
 
-	if(data->stack == 0) free_stack(stack, 0);
-
 	if (data->direct_rcv) {
 		new = os_rcv_fd(fd, &data->helper_pid);
 	} else {

@@ -50,7 +50,8 @@ static int helper_child(void *arg)
 }
 
 /* Returns either the pid of the child process we run or -E* on failure.
- * XXX The alloc_stack here breaks if this is called in the tracing thread */
+ * XXX The alloc_stack here breaks if this is called in the tracing thread, so
+ * we need to receive a preallocated stack (a local buffer is ok). */
 int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	       unsigned long *stack_out)
 {
@@ -113,10 +114,8 @@ out_close:
 		close(fds[1]);
 	close(fds[0]);
 out_free:
-	if (stack_out == NULL)
+	if ((stack_out == NULL) || (*stack_out == 0))
 		free_stack(stack, 0);
-	else
-		*stack_out = stack;
 	return ret;
 }
 
