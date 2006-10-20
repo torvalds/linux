@@ -1197,8 +1197,12 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	ret = pcmcia_register_socket(&socket->socket);
 	if (ret == 0) {
 		/* Add the yenta register attributes */
-		device_create_file(&dev->dev, &dev_attr_yenta_registers);
-		goto out;
+		ret = device_create_file(&dev->dev, &dev_attr_yenta_registers);
+		if (ret == 0)
+			goto out;
+
+		/* error path... */
+		pcmcia_unregister_socket(&socket->socket);
 	}
 
  unmap:
@@ -1248,12 +1252,18 @@ static int yenta_dev_resume (struct pci_dev *dev)
 	struct yenta_socket *socket = pci_get_drvdata(dev);
 
 	if (socket) {
+		int rc;
+
 		pci_set_power_state(dev, 0);
 		/* FIXME: pci_restore_state needs to have a better interface */
 		pci_restore_state(dev);
 		pci_write_config_dword(dev, 16*4, socket->saved_state[0]);
 		pci_write_config_dword(dev, 17*4, socket->saved_state[1]);
-		pci_enable_device(dev);
+
+		rc = pci_enable_device(dev);
+		if (rc)
+			return rc;
+
 		pci_set_master(dev);
 
 		if (socket->type && socket->type->restore_state)
