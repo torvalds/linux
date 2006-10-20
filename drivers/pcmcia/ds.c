@@ -1292,10 +1292,22 @@ struct bus_type pcmcia_bus_type = {
 
 static int __init init_pcmcia_bus(void)
 {
+	int ret;
+
 	spin_lock_init(&pcmcia_dev_list_lock);
 
-	bus_register(&pcmcia_bus_type);
-	class_interface_register(&pcmcia_bus_interface);
+	ret = bus_register(&pcmcia_bus_type);
+	if (ret < 0) {
+		printk(KERN_WARNING "pcmcia: bus_register error: %d\n", ret);
+		return ret;
+	}
+	ret = class_interface_register(&pcmcia_bus_interface);
+	if (ret < 0) {
+		printk(KERN_WARNING
+			"pcmcia: class_interface_register error: %d\n", ret);
+		bus_unregister(&pcmcia_bus_type);
+		return ret;
+	}
 
 	pcmcia_setup_ioctl();
 
