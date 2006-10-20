@@ -668,7 +668,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 {
 	struct inode		*dir = dentry->d_inode;
 	struct nfs_fattr	dir_attr;
-	u32			*verf = NFS_COOKIEVERF(dir);
+	__be32			*verf = NFS_COOKIEVERF(dir);
 	struct nfs3_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
 		.cookie		= cookie,

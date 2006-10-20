@@ -157,7 +157,7 @@ struct nfs_inode {
 	 * This is the cookie verifier used for NFSv3 readdir
 	 * operations
 	 */
-	__u32			cookieverf[2];
+	__be32			cookieverf[2];
 
 	/*
 	 * This is the list of dirty unwritten pages.

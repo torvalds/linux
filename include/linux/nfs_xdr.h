@@ -266,7 +266,7 @@ struct nfs_writeargs {
 
 struct nfs_writeverf {
 	enum nfs3_stable_how	committed;
-	__u32			verifier[2];
+	__be32			verifier[2];
 };
 
 struct nfs_writeres {
@@ -420,7 +420,7 @@ struct nfs3_createargs {
 	unsigned int		len;
 	struct iattr *		sattr;
 	enum nfs3_createmode	createmode;
-	__u32			verifier[2];
+	__be32			verifier[2];
 };
 
 struct nfs3_mkdirargs {
@@ -467,7 +467,7 @@ struct nfs3_linkargs {
 struct nfs3_readdirargs {
 	struct nfs_fh *		fh;
 	__u64			cookie;
-	__u32			verf[2];
+	__be32			verf[2];
 	int			plus;
 	unsigned int            count;
 	struct page **		pages;
@@ -503,7 +503,7 @@ struct nfs3_linkres {
 
 struct nfs3_readdirres {
 	struct nfs_fattr *	dir_attr;
-	__u32 *			verf;
+	__be32 *		verf;
 	int			plus;
 };
 
