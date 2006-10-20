@@ -962,7 +962,7 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 
 	result = acpi_processor_get_power_info_cst(pr);
 	if (result == -ENODEV)
-		acpi_processor_get_power_info_fadt(pr);
+		result = acpi_processor_get_power_info_fadt(pr);
 
 	if (result)
 		return result;
