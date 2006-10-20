@@ -414,7 +414,7 @@ static int acpi_memory_device_add(struct acpi_device *device)
 	/* Set the device state */
 	mem_device->state = MEMORY_POWER_ON_STATE;
 
-	printk(KERN_INFO "%s \n", acpi_device_name(device));
+	printk(KERN_DEBUG "%s \n", acpi_device_name(device));
 
 	return result;
 }
