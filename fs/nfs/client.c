@@ -232,11 +232,15 @@ void nfs_put_client(struct nfs_client *clp)
  * Find a client by address
  * - caller must hold nfs_client_lock
  */
-static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int nfsversion)
+static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int nfsversion, int match_port)
 {
 	struct nfs_client *clp;
 
 	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+		/* Don't match clients that failed to initialise properly */
+		if (clp->cl_cons_state < 0)
+			continue;
+
 		/* Different NFS versions cannot share the same nfs_client */
 		if (clp->cl_nfsversion != nfsversion)
 			continue;
@@ -245,7 +249,7 @@ static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int 
 			   sizeof(clp->cl_addr.sin_addr)) != 0)
 			continue;
 
-		if (clp->cl_addr.sin_port == addr->sin_port)
+		if (!match_port || clp->cl_addr.sin_port == addr->sin_port)
 			goto found;
 	}
 
@@ -265,11 +269,12 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 	struct nfs_client *clp;
 
 	spin_lock(&nfs_client_lock);
-	clp = __nfs_find_client(addr, nfsversion);
+	clp = __nfs_find_client(addr, nfsversion, 0);
 	spin_unlock(&nfs_client_lock);
-
-	BUG_ON(clp && clp->cl_cons_state == 0);
-
+	if (clp != NULL && clp->cl_cons_state != NFS_CS_READY) {
+		nfs_put_client(clp);
+		clp = NULL;
+	}
 	return clp;
 }
 
@@ -292,7 +297,7 @@ static struct nfs_client *nfs_get_client(const char *hostname,
 	do {
 		spin_lock(&nfs_client_lock);
 
-		clp = __nfs_find_client(addr, nfsversion);
+		clp = __nfs_find_client(addr, nfsversion, 1);
 		if (clp)
 			goto found_client;
 		if (new)
