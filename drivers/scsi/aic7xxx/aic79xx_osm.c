@@ -293,7 +293,7 @@ static uint32_t aic79xx_seltime;
  * force all outstanding transactions to be serviced prior to a new
  * transaction.
  */
-uint32_t aic79xx_periodic_otag;
+static uint32_t aic79xx_periodic_otag;
 
 /* Some storage boxes are using an LSI chip which has a bug making it
  * impossible to use aic79xx Rev B chip in 320 speeds.  The following

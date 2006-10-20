@@ -328,7 +328,7 @@ static uint32_t aic7xxx_seltime;
  * force all outstanding transactions to be serviced prior to a new
  * transaction.
  */
-uint32_t aic7xxx_periodic_otag;
+static uint32_t aic7xxx_periodic_otag;
 
 /*
  * Module information and settable options.

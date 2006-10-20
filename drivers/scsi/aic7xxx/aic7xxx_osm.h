@@ -533,8 +533,6 @@ ahc_unlock(struct ahc_softc *ahc, unsigned long *flags)
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
 
-extern struct pci_driver aic7xxx_pci_driver;
-
 typedef enum
 {
 	AHC_POWER_STATE_D0,
