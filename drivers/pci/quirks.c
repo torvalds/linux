@@ -714,33 +714,6 @@ static void __devinit quirk_vt82c598_id(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C597_0,	quirk_vt82c598_id );
 
-#ifdef CONFIG_ACPI_SLEEP
-
-/*
- * Some VIA systems boot with the abnormal status flag set. This can cause
- * the BIOS to re-POST the system on resume rather than passing control
- * back to the OS.  Clear the flag on boot
- */
-static void __devinit quirk_via_abnormal_poweroff(struct pci_dev *dev)
-{
-	u32 reg;
-
-	acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_STATUS,
-				&reg);
-
-	if (reg & 0x800) {
-		printk("Clearing abnormal poweroff flag\n");
-		acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
-					ACPI_REGISTER_PM1_STATUS,
-					(u16)0x800);
-	}
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235, quirk_via_abnormal_poweroff);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, quirk_via_abnormal_poweroff);
-
-#endif
-
 /*
  * CardBus controllers have a legacy base address that enables them
  * to respond as i82365 pcmcia controllers.  We don't want them to
