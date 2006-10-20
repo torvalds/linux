@@ -1213,7 +1213,7 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 	return ret;
 }
 
-
+#ifdef CONFIG_PM
 static int yenta_dev_suspend (struct pci_dev *dev, pm_message_t state)
 {
 	struct yenta_socket *socket = pci_get_drvdata(dev);
@@ -1262,7 +1262,7 @@ static int yenta_dev_resume (struct pci_dev *dev)
 
 	return pcmcia_socket_dev_resume(&dev->dev);
 }
-
+#endif
 
 #define CB_ID(vend,dev,type)				\
 	{						\
@@ -1359,8 +1359,10 @@ static struct pci_driver yenta_cardbus_driver = {
 	.id_table	= yenta_table,
 	.probe		= yenta_probe,
 	.remove		= __devexit_p(yenta_close),
+#ifdef CONFIG_PM
 	.suspend	= yenta_dev_suspend,
 	.resume		= yenta_dev_resume,
+#endif
 };
 
 
