@@ -67,7 +67,7 @@ static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
 {
 	quadlet_t q;
 	u8 i, *speed, old_speed, good_speed;
-	int ret;
+	int error;
 
 	speed = &(ci->host->speed[NODEID_TO_NODE(ci->nodeid)]);
 	old_speed = *speed;
@@ -79,9 +79,9 @@ static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
 	 * just finished its initialization. */
 	for (i = IEEE1394_SPEED_100; i <= old_speed; i++) {
 		*speed = i;
-		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
-				&q, sizeof(quadlet_t));
-		if (ret)
+		error = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
+				  &q, sizeof(quadlet_t));
+		if (error)
 			break;
 		*buffer = q;
 		good_speed = i;
@@ -95,19 +95,19 @@ static int nodemgr_check_speed(struct nodemgr_csr_info *ci, u64 addr,
 		return 0;
 	}
 	*speed = old_speed;
-	return ret;
+	return error;
 }
 
 static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
                             void *buffer, void *__ci)
 {
 	struct nodemgr_csr_info *ci = (struct nodemgr_csr_info*)__ci;
-	int i, ret;
+	int i, error;
 
 	for (i = 1; ; i++) {
-		ret = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
-				buffer, length);
-		if (!ret) {
+		error = hpsb_read(ci->host, ci->nodeid, ci->generation, addr,
+				  buffer, length);
+		if (!error) {
 			ci->speed_unverified = 0;
 			break;
 		}
@@ -118,14 +118,14 @@ static int nodemgr_bus_read(struct csr1212_csr *csr, u64 addr, u16 length,
 		/* The ieee1394_core guessed the node's speed capability from
 		 * the self ID.  Check whether a lower speed works. */
 		if (ci->speed_unverified && length == sizeof(quadlet_t)) {
-			ret = nodemgr_check_speed(ci, addr, buffer);
-			if (!ret)
+			error = nodemgr_check_speed(ci, addr, buffer);
+			if (!error)
 				break;
 		}
 		if (msleep_interruptible(334))
 			return -EINTR;
 	}
-	return ret;
+	return error;
 }
 
 static int nodemgr_get_max_rom(quadlet_t *bus_info_data, void *__ci)
@@ -1226,14 +1226,11 @@ static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
 
 int hpsb_register_protocol(struct hpsb_protocol_driver *driver)
 {
-	int ret;
-
 	/* This will cause a probe for devices */
-	ret = driver_register(&driver->driver);
-	if (!ret)
+	int error = driver_register(&driver->driver);
+	if (!error)
 		nodemgr_create_drv_files(driver);
-
-	return ret;
+	return error;
 }
 
 void hpsb_unregister_protocol(struct hpsb_protocol_driver *driver)
@@ -1468,7 +1465,7 @@ static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
 {
 	const u64 bc_addr = (CSR_REGISTER_BASE | CSR_BROADCAST_CHANNEL);
 	quadlet_t bc_remote, bc_local;
-	int ret;
+	int error;
 
 	if (!ne->host->is_irm || ne->generation != generation ||
 	    ne->nodeid == ne->host->node_id)
@@ -1477,9 +1474,9 @@ static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
 	bc_local = cpu_to_be32(ne->host->csr.broadcast_channel);
 
 	/* Check if the register is implemented and 1394a compliant. */
-	ret = hpsb_read(ne->host, ne->nodeid, generation, bc_addr, &bc_remote,
-			sizeof(bc_remote));
-	if (!ret && bc_remote & cpu_to_be32(0x80000000) &&
+	error = hpsb_read(ne->host, ne->nodeid, generation, bc_addr, &bc_remote,
+			  sizeof(bc_remote));
+	if (!error && bc_remote & cpu_to_be32(0x80000000) &&
 	    bc_remote != bc_local)
 		hpsb_node_write(ne, bc_addr, &bc_local, sizeof(bc_local));
 }
@@ -1569,7 +1566,7 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 static int nodemgr_send_resume_packet(struct hpsb_host *host)
 {
 	struct hpsb_packet *packet;
-	int ret = 1;
+	int error = -ENOMEM;
 
 	packet = hpsb_make_phypacket(host,
 			EXTPHYPACKET_TYPE_RESUME |
@@ -1577,12 +1574,12 @@ static int nodemgr_send_resume_packet(struct hpsb_host *host)
 	if (packet) {
 		packet->no_waiter = 1;
 		packet->generation = get_hpsb_generation(host);
-		ret = hpsb_send_packet(packet);
+		error = hpsb_send_packet(packet);
 	}
-	if (ret)
+	if (error)
 		HPSB_WARN("fw-host%d: Failed to broadcast resume packet",
 			  host->id);
-	return ret;
+	return error;
 }
 
 /* Perform a few high-level IRM responsibilities. */
@@ -1852,20 +1849,19 @@ static struct hpsb_highlevel nodemgr_highlevel = {
 
 int init_ieee1394_nodemgr(void)
 {
-	int ret;
+	int error;
 
-	ret = class_register(&nodemgr_ne_class);
-	if (ret < 0)
-		return ret;
+	error = class_register(&nodemgr_ne_class);
+	if (error)
+		return error;
 
-	ret = class_register(&nodemgr_ud_class);
-	if (ret < 0) {
+	error = class_register(&nodemgr_ud_class);
+	if (error) {
 		class_unregister(&nodemgr_ne_class);
-		return ret;
+		return error;
 	}
 
 	hpsb_register_highlevel(&nodemgr_highlevel);
-
 	return 0;
 }
 
