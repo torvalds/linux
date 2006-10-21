@@ -2447,6 +2447,11 @@ config MYRI10GE
 	  <file:Documentation/networking/net-modules.txt>.  The module
 	  will be called myri10ge.
 
+config NETXEN_NIC
+	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
+	help
+	  This enables the support for NetXen's Gigabit Ethernet card.
+
 endmenu
 
 source "drivers/net/tokenring/Kconfig"

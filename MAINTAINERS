@@ -2132,6 +2132,13 @@ L:	netdev@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
+NETXEN (1/10) GbE SUPPORT
+P:	Amit S. Kale
+M:	amitkale@netxen.com
+L:	netdev@vger.kernel.org
+W:	http://www.netxen.com
+S:	Supported
+
 IPVS
 P:	Wensong Zhang
 M:	wensong@linux-vs.org
