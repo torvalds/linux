@@ -2932,8 +2932,8 @@ static int __init hrz_module_init (void) {
 
 static void __exit hrz_module_exit (void) {
   PRINTD (DBG_FLOW, "cleanup_module");
-  
-  return pci_unregister_driver(&hrz_driver);
+
+  pci_unregister_driver(&hrz_driver);
 }
 
 module_init(hrz_module_init);
