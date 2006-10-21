@@ -42,6 +42,10 @@ cflags-$(CONFIG_REGPARM) += -mregparm=3
 # temporary until string.h is fixed
 cflags-y += -ffreestanding
 
+# this works around some issues with generating unwind tables in older gccs
+# newer gccs do it by default
+cflags-y += -maccumulate-outgoing-args
+
 # Disable unit-at-a-time mode on pre-gcc-4.0 compilers, it makes gcc use
 # a lot more stack due to the lack of sharing of stacklots:
 CFLAGS				+= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
