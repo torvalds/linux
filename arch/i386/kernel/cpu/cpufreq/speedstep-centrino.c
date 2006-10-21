@@ -379,6 +379,7 @@ static int centrino_cpu_early_init_acpi(void)
 }
 
 
+#ifdef CONFIG_SMP
 /*
  * Some BIOSes do SW_ANY coordination internally, either set it up in hw
  * or do it in BIOS firmware and won't inform about it to OS. If not
@@ -392,7 +393,6 @@ static int sw_any_bug_found(struct dmi_system_id *d)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	{
 		.callback = sw_any_bug_found,

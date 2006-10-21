@@ -554,6 +554,7 @@ static int acpi_cpufreq_early_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_SMP
 /*
  * Some BIOSes do SW_ANY coordination internally, either set it up in hw
  * or do it in BIOS firmware and won't inform about it to OS. If not
@@ -580,6 +581,7 @@ static struct dmi_system_id sw_any_bug_dmi_table[] = {
 	},
 	{ }
 };
+#endif
 
 static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
