@@ -537,8 +537,6 @@ END(stub_rt_sigreturn)
 1:	incl	%gs:pda_irqcount
 	cmoveq %gs:pda_irqstackptr,%rsp
 	push    %rbp			# backlink for old unwinder
-	CFI_ADJUST_CFA_OFFSET 8
-	CFI_REL_OFFSET rbp,0
 	/*
 	 * We entered an interrupt context - irqs are off:
 	 */
@@ -1178,7 +1176,6 @@ ENTRY(call_softirq)
 	incl %gs:pda_irqcount
 	cmove %gs:pda_irqstackptr,%rsp
 	push  %rbp			# backlink for old unwinder
-	CFI_ADJUST_CFA_OFFSET    8
 	call __do_softirq
 	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
