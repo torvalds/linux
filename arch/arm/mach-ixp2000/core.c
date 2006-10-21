@@ -204,7 +204,7 @@ unsigned long ixp2000_gettimeoffset (void)
 	return offset / ticks_per_usec;
 }
 
-static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static int ixp2000_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -213,7 +213,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	while ((signed long)(next_jiffy_time - *missing_jiffy_timer_csr)
 							>= ticks_per_jiffy) {
-		timer_tick(regs);
+		timer_tick();
 		next_jiffy_time -= ticks_per_jiffy;
 	}
 
@@ -308,7 +308,7 @@ EXPORT_SYMBOL(gpio_line_config);
 /*************************************************************************
  * IRQ handling IXP2000
  *************************************************************************/
-static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc)
 {                               
 	int i;
 	unsigned long status = *IXP2000_GPIO_INST;
@@ -316,7 +316,7 @@ static void ixp2000_GPIO_irq_handler(unsigned int irq, struct irqdesc *desc, str
 	for (i = 0; i <= 7; i++) {
 		if (status & (1<<i)) {
 			desc = irq_desc + i + IRQ_IXP2000_GPIO0;
-			desc_handle_irq(i + IRQ_IXP2000_GPIO0, desc, regs);
+			desc_handle_irq(i + IRQ_IXP2000_GPIO0, desc);
 		}
 	}
 }
@@ -401,7 +401,7 @@ static void ixp2000_pci_irq_unmask(unsigned int irq)
 /*
  * Error interrupts. These are used extensively by the microengine drivers
  */
-static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  struct pt_regs *regs)
+static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	int i;
 	unsigned long status = *IXP2000_IRQ_ERR_STATUS;
@@ -409,7 +409,7 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  str
 	for(i = 31; i >= 0; i--) {
 		if(status & (1 << i)) {
 			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
-			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc);
 		}
 	}
 }

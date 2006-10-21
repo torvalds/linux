@@ -209,7 +209,7 @@ static int pvr2fb_set_par(struct fb_info *info);
 static void pvr2_update_display(struct fb_info *info);
 static void pvr2_init_display(struct fb_info *info);
 static void pvr2_do_blank(void);
-static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id, struct pt_regs *fp);
+static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id);
 static int pvr2_init_cable(void);
 static int pvr2_get_param(const struct pvr2_params *p, const char *s,
                             int val, int size);
@@ -626,7 +626,7 @@ static void pvr2_do_blank(void)
 	is_blanked = do_blank > 0 ? do_blank : 0;
 }
 
-static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id)
 {
 	struct fb_info *info = dev_id;
 

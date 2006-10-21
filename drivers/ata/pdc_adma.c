@@ -124,8 +124,7 @@ struct adma_port_priv {
 
 static int adma_ata_init_one (struct pci_dev *pdev,
 				const struct pci_device_id *ent);
-static irqreturn_t adma_intr (int irq, void *dev_instance,
-				struct pt_regs *regs);
+static irqreturn_t adma_intr (int irq, void *dev_instance);
 static int adma_port_start(struct ata_port *ap);
 static void adma_host_stop(struct ata_host *host);
 static void adma_port_stop(struct ata_port *ap);
@@ -192,8 +191,7 @@ static struct ata_port_info adma_port_info[] = {
 };
 
 static const struct pci_device_id adma_ata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PDC, 0x1841, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_1841_idx },
+	{ PCI_VDEVICE(PDC, 0x1841), board_1841_idx },
 
 	{ }	/* terminate list */
 };
@@ -509,7 +507,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 	return handled;
 }
 
-static irqreturn_t adma_intr(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t adma_intr(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int handled = 0;

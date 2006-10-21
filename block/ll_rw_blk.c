@@ -56,11 +56,6 @@ static kmem_cache_t *requestq_cachep;
  */
 static kmem_cache_t *iocontext_cachep;
 
-static wait_queue_head_t congestion_wqh[2] = {
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
-		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
-	};
-
 /*
  * Controlling structure to kblockd
  */
@@ -112,35 +107,6 @@ static void blk_queue_congestion_threshold(struct request_queue *q)
 	q->nr_congestion_off = nr;
 }
 
-/*
- * A queue has just exitted congestion.  Note this in the global counter of
- * congested queues, and wake up anyone who was waiting for requests to be
- * put back.
- */
-static void clear_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	clear_bit(bit, &q->backing_dev_info.state);
-	smp_mb__after_clear_bit();
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
-
-/*
- * A queue has just entered congestion.  Flag that in the queue's VM-visible
- * state flags and increment the global gounter of congested queues.
- */
-static void set_queue_congested(request_queue_t *q, int rw)
-{
-	enum bdi_state bit;
-
-	bit = (rw == WRITE) ? BDI_write_congested : BDI_read_congested;
-	set_bit(bit, &q->backing_dev_info.state);
-}
-
 /**
  * blk_get_backing_dev_info - get the address of a queue's backing_dev_info
  * @bdev:	device
@@ -159,7 +125,6 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 		ret = &q->backing_dev_info;
 	return ret;
 }
-
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
 void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
@@ -167,7 +132,6 @@ void blk_queue_activity_fn(request_queue_t *q, activity_fn *fn, void *data)
 	q->activity_fn = fn;
 	q->activity_data = data;
 }
-
 EXPORT_SYMBOL(blk_queue_activity_fn);
 
 /**
@@ -840,12 +804,7 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
  **/
 struct request *blk_queue_find_tag(request_queue_t *q, int tag)
 {
-	struct blk_queue_tag *bqt = q->queue_tags;
-
-	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
-		return NULL;
-
-	return bqt->tag_index[tag];
+	return blk_map_queue_find_tag(q->queue_tags, tag);
 }
 
 EXPORT_SYMBOL(blk_queue_find_tag);
@@ -2072,7 +2031,7 @@ static void __freed_request(request_queue_t *q, int rw)
 	struct request_list *rl = &q->rq;
 
 	if (rl->count[rw] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, rw);
+		blk_clear_queue_congested(q, rw);
 
 	if (rl->count[rw] + 1 <= q->nr_requests) {
 		if (waitqueue_active(&rl->wait[rw]))
@@ -2142,7 +2101,7 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 				}
 			}
 		}
-		set_queue_congested(q, rw);
+		blk_set_queue_congested(q, rw);
 	}
 
 	/*
@@ -2759,41 +2718,6 @@ void blk_end_sync_rq(struct request *rq, int error)
 	complete(waiting);
 }
 EXPORT_SYMBOL(blk_end_sync_rq);
-
-/**
- * blk_congestion_wait - wait for a queue to become uncongested
- * @rw: READ or WRITE
- * @timeout: timeout in jiffies
- *
- * Waits for up to @timeout jiffies for a queue (any queue) to exit congestion.
- * If no queues are congested then just wait for the next request to be
- * returned.
- */
-long blk_congestion_wait(int rw, long timeout)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-	return ret;
-}
-
-EXPORT_SYMBOL(blk_congestion_wait);
-
-/**
- * blk_congestion_end - wake up sleepers on a congestion queue
- * @rw: READ or WRITE
- */
-void blk_congestion_end(int rw)
-{
-	wait_queue_head_t *wqh = &congestion_wqh[rw];
-
-	if (waitqueue_active(wqh))
-		wake_up(wqh);
-}
 
 /*
  * Has to be called with the request spinlock acquired
@@ -3770,14 +3694,14 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	blk_queue_congestion_threshold(q);
 
 	if (rl->count[READ] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, READ);
+		blk_set_queue_congested(q, READ);
 	else if (rl->count[READ] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, READ);
+		blk_clear_queue_congested(q, READ);
 
 	if (rl->count[WRITE] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, WRITE);
+		blk_set_queue_congested(q, WRITE);
 	else if (rl->count[WRITE] < queue_congestion_off_threshold(q))
-		clear_queue_congested(q, WRITE);
+		blk_clear_queue_congested(q, WRITE);
 
 	if (rl->count[READ] >= q->nr_requests) {
 		blk_set_queue_full(q, READ);

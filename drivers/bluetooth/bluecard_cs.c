@@ -497,7 +497,7 @@ static void bluecard_receive(bluecard_info_t *info, unsigned int offset)
 }
 
 
-static irqreturn_t bluecard_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
+static irqreturn_t bluecard_interrupt(int irq, void *dev_inst)
 {
 	bluecard_info_t *info = dev_inst;
 	unsigned int iobase;

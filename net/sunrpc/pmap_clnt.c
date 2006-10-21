@@ -101,11 +101,13 @@ void rpc_getport(struct rpc_task *task)
 	/* Autobind on cloned rpc clients is discouraged */
 	BUG_ON(clnt->cl_parent != clnt);
 
-	if (xprt_test_and_set_binding(xprt)) {
-		task->tk_status = -EACCES;	/* tell caller to check again */
-		rpc_sleep_on(&xprt->binding, task, NULL, NULL);
-		return;
-	}
+	/* Put self on queue before sending rpcbind request, in case
+	 * pmap_getport_done completes before we return from rpc_run_task */
+	rpc_sleep_on(&xprt->binding, task, NULL, NULL);
+
+	status = -EACCES;		/* tell caller to check again */
+	if (xprt_test_and_set_binding(xprt))
+		goto bailout_nofree;
 
 	/* Someone else may have bound if we slept */
 	status = 0;
@@ -133,8 +135,6 @@ void rpc_getport(struct rpc_task *task)
 	if (IS_ERR(child))
 		goto bailout;
 	rpc_release_task(child);
-
-	rpc_sleep_on(&xprt->binding, task, NULL, NULL);
 
 	task->tk_xprt->stat.bind_count++;
 	return;

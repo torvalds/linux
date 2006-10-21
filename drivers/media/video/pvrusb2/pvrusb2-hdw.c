@@ -2552,7 +2552,7 @@ void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *hdw,int v)
 }
 
 
-static void pvr2_ctl_write_complete(struct urb *urb, struct pt_regs *regs)
+static void pvr2_ctl_write_complete(struct urb *urb)
 {
 	struct pvr2_hdw *hdw = urb->context;
 	hdw->ctl_write_pend_flag = 0;
@@ -2561,7 +2561,7 @@ static void pvr2_ctl_write_complete(struct urb *urb, struct pt_regs *regs)
 }
 
 
-static void pvr2_ctl_read_complete(struct urb *urb, struct pt_regs *regs)
+static void pvr2_ctl_read_complete(struct urb *urb)
 {
 	struct pvr2_hdw *hdw = urb->context;
 	hdw->ctl_read_pend_flag = 0;

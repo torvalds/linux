@@ -297,7 +297,7 @@ static void epic_init_ring(struct net_device *dev);
 static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int epic_rx(struct net_device *dev, int budget);
 static int epic_poll(struct net_device *dev, int *budget);
-static irqreturn_t epic_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t epic_interrupt(int irq, void *dev_instance);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int epic_close(struct net_device *dev);
@@ -1081,7 +1081,7 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t epic_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct epic_private *ep = dev->priv;

@@ -41,6 +41,7 @@ struct serio {
 	void (*stop)(struct serio *);
 
 	struct serio *parent, *child;
+	unsigned int depth;		/* level of nesting in serio hierarchy */
 
 	struct serio_driver *drv;	/* accessed from interrupt, must be protected by serio->lock and serio->sem */
 	struct mutex drv_mutex;		/* protects serio->drv so attributes can pin driver */
@@ -60,8 +61,7 @@ struct serio_driver {
 	unsigned int manual_bind;
 
 	void (*write_wakeup)(struct serio *);
-	irqreturn_t (*interrupt)(struct serio *, unsigned char,
-			unsigned int, struct pt_regs *);
+	irqreturn_t (*interrupt)(struct serio *, unsigned char, unsigned int);
 	int  (*connect)(struct serio *, struct serio_driver *drv);
 	int  (*reconnect)(struct serio *);
 	void (*disconnect)(struct serio *);
@@ -75,7 +75,7 @@ int serio_open(struct serio *serio, struct serio_driver *drv);
 void serio_close(struct serio *serio);
 void serio_rescan(struct serio *serio);
 void serio_reconnect(struct serio *serio);
-irqreturn_t serio_interrupt(struct serio *serio, unsigned char data, unsigned int flags, struct pt_regs *regs);
+irqreturn_t serio_interrupt(struct serio *serio, unsigned char data, unsigned int flags);
 
 void __serio_register_port(struct serio *serio, struct module *owner);
 static inline void serio_register_port(struct serio *serio)

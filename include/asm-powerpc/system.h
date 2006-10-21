@@ -91,10 +91,6 @@ DEBUGGER_BOILERPLATE(debugger_iabr_match)
 DEBUGGER_BOILERPLATE(debugger_dabr_match)
 DEBUGGER_BOILERPLATE(debugger_fault_handler)
 
-#ifdef CONFIG_XMON
-extern void xmon_init(int enable);
-#endif
-
 #else
 static inline int debugger(struct pt_regs *regs) { return 0; }
 static inline int debugger_ipi(struct pt_regs *regs) { return 0; }

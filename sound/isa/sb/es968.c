@@ -70,8 +70,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_es968_pnpids);
 
 #define	DRIVER_NAME	"snd-card-es968"
 
-static irqreturn_t snd_card_es968_interrupt(int irq, void *dev_id,
-					    struct pt_regs *regs)
+static irqreturn_t snd_card_es968_interrupt(int irq, void *dev_id)
 {
 	struct snd_sb *chip = dev_id;
 

@@ -55,7 +55,8 @@ UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
                 US_SC_DEVICE, US_PR_DEVICE, NULL,
                 US_FL_IGNORE_RESIDUE),
 
-UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
+/* modified by Tobias Lorenz <tobias.lorenz@gmx.net> */
+UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0200,
 		"Mitsumi",
 		"USB FDD",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -181,6 +182,20 @@ UNUSUAL_DEV(  0x0421, 0x044e, 0x0100, 0x0100,
 		"E61",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
+
+/* Reported by Bardur Arantsson <bardur@scientician.net> */
+UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0370,
+		"Nokia",
+		"6131",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
+/* Reported by Alex Corcoles <alex@corcoles.net> */
+UNUSUAL_DEV(  0x0421, 0x0495, 0x0370, 0x0370,
+		"Nokia",
+		"6234",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
 
 /* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
 UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
@@ -1281,6 +1296,13 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,
 		"Sony Ericsson",
 		"M600i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
+/* Reported by Jan Mate <mate@fiit.stuba.sk> */
+UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 

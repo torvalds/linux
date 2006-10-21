@@ -48,22 +48,22 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP2)		/* int0 hardware line */
-		do_IRQ(2, regs);
+		do_IRQ(2);
 	else if (pending & STATUSF_IP3)		/* int1 hardware line */
-		do_IRQ(3, regs);
+		do_IRQ(3);
 	else if (pending & STATUSF_IP4)		/* int2 hardware line */
-		do_IRQ(4, regs);
+		do_IRQ(4);
 	else if (pending & STATUSF_IP5)		/* int3 hardware line */
-		do_IRQ(5, regs);
+		do_IRQ(5);
 	else if (pending & STATUSF_IP6)		/* int4 hardware line */
-		do_IRQ(6, regs);
+		do_IRQ(6);
 	else if (pending & STATUSF_IP7)		/* cpu timer */
-		do_IRQ(7, regs);
+		do_IRQ(7);
 	else {
 		/*
 		 * Now look at the extended interrupts
@@ -71,13 +71,13 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		pending = (read_c0_cause() & (read_c0_intcontrol() << 8)) >> 16;
 
 		if (pending & STATUSF_IP8)		/* int6 hardware line */
-			do_IRQ(8, regs);
+			do_IRQ(8);
 		else if (pending & STATUSF_IP9)		/* int7 hardware line */
-			do_IRQ(9, regs);
+			do_IRQ(9);
 		else if (pending & STATUSF_IP10)	/* int8 hardware line */
-			do_IRQ(10, regs);
+			do_IRQ(10);
 		else if (pending & STATUSF_IP11)	/* int9 hardware line */
-			do_IRQ(11, regs);
+			do_IRQ(11);
 	}
 }
 

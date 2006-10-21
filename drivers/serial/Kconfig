@@ -299,33 +299,33 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_AT91
-	bool "AT91RM9200 / AT91SAM9261 serial port support"
-	depends on ARM && (ARCH_AT91RM9200 || ARCH_AT91SAM9261)
+config SERIAL_ATMEL
+	bool "AT91 / AT32 on-chip serial port support"
+	depends on (ARM && ARCH_AT91) || AVR32
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
-	  AT91RM9200 and AT91SAM926 processor.
+	  AT91 and AT32 processors.
 
-config SERIAL_AT91_CONSOLE
-	bool "Support for console on AT91RM9200 / AT91SAM9261 serial port"
-	depends on SERIAL_AT91=y
+config SERIAL_ATMEL_CONSOLE
+	bool "Support for console on AT91 / AT32 serial port"
+	depends on SERIAL_ATMEL=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Say Y here if you wish to use a UART on the Atmel AT91RM9200 or
-	  AT91SAM9261 as the system console (the system console is the device
-	  which receives all kernel messages and warnings and which allows
-	  logins in single user mode).
+	  Say Y here if you wish to use an on-chip UART on a Atmel
+	  AT91 or AT32 processor as the system console (the system
+	  console is the device which receives all kernel messages and
+	  warnings and which allows logins in single user mode).
 
-config SERIAL_AT91_TTYAT
-	bool "Install as device ttyAT0-4 instead of ttyS0-4"
-	depends on SERIAL_AT91=y
+config SERIAL_ATMEL_TTYAT
+	bool "Install as device ttyATn instead of ttySn"
+	depends on SERIAL_ATMEL=y
 	help
-	  Say Y here if you wish to have the five internal AT91RM9200 UARTs
-	  appear as /dev/ttyAT0-4 (major 204, minor 154-158) instead of the
-	  normal /dev/ttyS0-4 (major 4, minor 64-68). This is necessary if
-	  you also want other UARTs, such as external 8250/16C550 compatible
-	  UARTs.
+	  Say Y here if you wish to have the internal AT91 / AT32 UARTs
+	  appear as /dev/ttyATn (major 204, minor starting at 154)
+	  instead of the normal /dev/ttySn (major 4, minor starting at
+	  64). This is necessary if you also want other UARTs, such as
+	  external 8250/16C550 compatible UARTs.
 	  The ttySn nodes are legally reserved for the 8250 serial driver
 	  but are often misused by other serial drivers.
 
@@ -556,10 +556,11 @@ config SERIAL_MUX
 	default y
 	---help---
 	  Saying Y here will enable the hardware MUX serial driver for
-	  the Nova and K class systems.  The hardware MUX is not 8250/16550 
-	  compatible therefore the /dev/ttyB0 device is shared between the 
-	  Serial MUX and the PDC software console.  The following steps 
-	  need to be completed to use the Serial MUX:
+	  the Nova, K class systems and D class with a 'remote control card'.
+	  The hardware MUX is not 8250/16550 compatible therefore the
+	  /dev/ttyB0 device is shared between the Serial MUX and the PDC
+	  software console. The following steps need to be completed to use
+	  the Serial MUX:
 
 	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
 	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
@@ -766,37 +767,37 @@ config SERIAL_CPM_SCC1
 	bool "Support for SCC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC1 as a serial port
+	  Select this option to use SCC1 as a serial port
 
 config SERIAL_CPM_SCC2
 	bool "Support for SCC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC2 as a serial port
+	  Select this option to use SCC2 as a serial port
 
 config SERIAL_CPM_SCC3
 	bool "Support for SCC3 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC3 as a serial port
+	  Select this option to use SCC3 as a serial port
 
 config SERIAL_CPM_SCC4
 	bool "Support for SCC4 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SCC4 as a serial port
+	  Select this option to use SCC4 as a serial port
 
 config SERIAL_CPM_SMC1
 	bool "Support for SMC1 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC1 as a serial port
+	  Select this option to use SMC1 as a serial port
 
 config SERIAL_CPM_SMC2
 	bool "Support for SMC2 serial port"
 	depends on SERIAL_CPM=y
 	help
-	  Select the is option to use SMC2 as a serial port
+	  Select this option to use SMC2 as a serial port
 
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"

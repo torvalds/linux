@@ -56,7 +56,6 @@
 #include <asm/irq.h>
 #include <asm/pci.h>
 #include <asm/processor.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
 #include <linux/bootmem.h>

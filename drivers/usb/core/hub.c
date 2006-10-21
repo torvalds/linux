@@ -291,7 +291,7 @@ void usb_kick_khubd(struct usb_device *hdev)
 
 
 /* completion function, fires on port status changes and various faults */
-static void hub_irq(struct urb *urb, struct pt_regs *regs)
+static void hub_irq(struct urb *urb)
 {
 	struct usb_hub *hub = urb->context;
 	int status;

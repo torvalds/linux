@@ -15,6 +15,7 @@ SECTIONS
   {
     *(.rodata*)
     *(.data*)
+    *(__builtin_*)
     *(.sdata*)
     __got2_start = .;
     *(.got2)

@@ -34,6 +34,7 @@
 #include <asm/pcic.h>
 #include <asm/timer.h>
 #include <asm/uaccess.h>
+#include <asm/irq_regs.h>
 
 
 unsigned int pcic_pin_to_irq(unsigned int pin, char *name);
@@ -708,13 +709,13 @@ static void pcic_clear_clock_irq(void)
 	pcic_timer_dummy = readl(pcic0.pcic_regs+PCI_SYS_LIMIT);
 }
 
-static irqreturn_t pcic_timer_handler (int irq, void *h, struct pt_regs *regs)
+static irqreturn_t pcic_timer_handler (int irq, void *h)
 {
 	write_seqlock(&xtime_lock);	/* Dummy, to show that we remember */
 	pcic_clear_clock_irq();
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;

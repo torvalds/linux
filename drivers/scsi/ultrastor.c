@@ -287,8 +287,8 @@ static const unsigned short ultrastor_ports_14f[] = {
 };
 #endif
 
-static void ultrastor_interrupt(int, void *, struct pt_regs *);
-static irqreturn_t do_ultrastor_interrupt(int, void *, struct pt_regs *);
+static void ultrastor_interrupt(void *);
+static irqreturn_t do_ultrastor_interrupt(int, void *);
 static inline void build_sg_list(struct mscp *, struct scsi_cmnd *SCpnt);
 
 
@@ -893,7 +893,7 @@ static int ultrastor_abort(struct scsi_cmnd *SCpnt)
 	
 	spin_lock_irqsave(host->host_lock, flags);
 	/* FIXME: Ewww... need to think about passing host around properly */
-	ultrastor_interrupt(0, NULL, NULL);
+	ultrastor_interrupt(NULL);
 	spin_unlock_irqrestore(host->host_lock, flags);
 	return SUCCESS;
       }
@@ -1039,7 +1039,7 @@ int ultrastor_biosparam(struct scsi_device *sdev, struct block_device *bdev,
     return 0;
 }
 
-static void ultrastor_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void ultrastor_interrupt(void *dev_id)
 {
     unsigned int status;
 #if ULTRASTOR_MAX_CMDS > 1
@@ -1171,14 +1171,13 @@ static void ultrastor_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 }
 
-static irqreturn_t do_ultrastor_interrupt(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t do_ultrastor_interrupt(int irq, void *dev_id)
 {
     unsigned long flags;
     struct Scsi_Host *dev = dev_id;
     
     spin_lock_irqsave(dev->host_lock, flags);
-    ultrastor_interrupt(irq, dev_id, regs);
+    ultrastor_interrupt(dev_id);
     spin_unlock_irqrestore(dev->host_lock, flags);
     return IRQ_HANDLED;
 }

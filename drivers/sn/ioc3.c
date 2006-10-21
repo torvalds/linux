@@ -398,10 +398,10 @@ static inline uint32_t get_pending_intrs(struct ioc3_driver_data *idd)
 	return intrs;
 }
 
-static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t ioc3_intr_io(int irq, void *arg)
 {
 	unsigned long flags;
-	struct ioc3_driver_data *idd = (struct ioc3_driver_data *)arg;
+	struct ioc3_driver_data *idd = arg;
 	int handled = 1, id;
 	unsigned int pending;
 
@@ -412,7 +412,7 @@ static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
 		if(ioc3_ethernet && idd->active[ioc3_ethernet->id] &&
 						ioc3_ethernet->intr) {
 			handled = handled && !ioc3_ethernet->intr(ioc3_ethernet,
-							idd, 0, regs);
+							idd, 0);
 		}
 	}
 	pending = get_pending_intrs(idd);	/* look at the IO IRQs */
@@ -424,8 +424,7 @@ static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
 			write_ireg(idd, ioc3_submodules[id]->irq_mask,
 							IOC3_W_IEC);
 			if(!ioc3_submodules[id]->intr(ioc3_submodules[id],
-				   idd, pending & ioc3_submodules[id]->irq_mask,
-					regs))
+				   idd, pending & ioc3_submodules[id]->irq_mask))
 				pending &= ~ioc3_submodules[id]->irq_mask;
 			if (ioc3_submodules[id]->reset_mask)
 				write_ireg(idd, ioc3_submodules[id]->irq_mask,
@@ -442,7 +441,7 @@ static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
 	return handled?IRQ_HANDLED:IRQ_NONE;
 }
 
-static irqreturn_t ioc3_intr_eth(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t ioc3_intr_eth(int irq, void *arg)
 {
 	unsigned long flags;
 	struct ioc3_driver_data *idd = (struct ioc3_driver_data *)arg;
@@ -453,8 +452,7 @@ static irqreturn_t ioc3_intr_eth(int irq, void *arg, struct pt_regs *regs)
 	read_lock_irqsave(&ioc3_submodules_lock, flags);
 	if(ioc3_ethernet && idd->active[ioc3_ethernet->id]
 				&& ioc3_ethernet->intr)
-		handled = handled && !ioc3_ethernet->intr(ioc3_ethernet, idd, 0,
-								regs);
+		handled = handled && !ioc3_ethernet->intr(ioc3_ethernet, idd, 0);
 	read_unlock_irqrestore(&ioc3_submodules_lock, flags);
 	return handled?IRQ_HANDLED:IRQ_NONE;
 }

@@ -1131,7 +1131,7 @@ static void pcxhr_update_timer_pos(struct pcxhr_mgr *mgr,
 }
 
 
-irqreturn_t pcxhr_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 {
 	struct pcxhr_mgr *mgr = dev_id;
 	unsigned int reg;

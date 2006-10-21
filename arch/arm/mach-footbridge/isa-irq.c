@@ -85,17 +85,17 @@ static struct irqchip isa_hi_chip = {
 };
 
 static void
-isa_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+isa_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int isa_irq = *(unsigned char *)PCIIACK_BASE;
 
 	if (isa_irq < _ISA_IRQ(0) || isa_irq >= _ISA_IRQ(16)) {
-		do_bad_IRQ(isa_irq, desc, regs);
+		do_bad_IRQ(isa_irq, desc);
 		return;
 	}
 
 	desc = irq_desc + isa_irq;
-	desc_handle_irq(isa_irq, desc, regs);
+	desc_handle_irq(isa_irq, desc);
 }
 
 static struct irqaction irq_cascade = {

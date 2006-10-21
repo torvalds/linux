@@ -64,9 +64,9 @@ static int at91_cf_ss_init(struct pcmcia_socket *s)
 	return 0;
 }
 
-static irqreturn_t at91_cf_irq(int irq, void *_cf, struct pt_regs *r)
+static irqreturn_t at91_cf_irq(int irq, void *_cf)
 {
-	struct at91_cf_socket	*cf = (struct at91_cf_socket *) _cf;
+	struct at91_cf_socket *cf = _cf;
 
 	if (irq == cf->board->det_pin) {
 		unsigned present = at91_cf_present(cf);

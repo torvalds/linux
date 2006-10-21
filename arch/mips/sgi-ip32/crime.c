@@ -14,7 +14,6 @@
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
-#include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/ip32/crime.h>
 #include <asm/ip32/mace.h>
@@ -40,8 +39,7 @@ void __init crime_init(void)
 		id, rev, field, (unsigned long) CRIME_BASE);
 }
 
-irqreturn_t
-crime_memerr_intr (unsigned int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t crime_memerr_intr(unsigned int irq, void *dev_id)
 {
 	unsigned long stat, addr;
 	int fatal = 0;
@@ -92,8 +90,7 @@ crime_memerr_intr (unsigned int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t
-crime_cpuerr_intr (unsigned int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t crime_cpuerr_intr(unsigned int irq, void *dev_id)
 {
 	unsigned long stat = crime->cpu_error_stat & CRIME_CPU_ERROR_MASK;
 	unsigned long addr = crime->cpu_error_addr & CRIME_CPU_ERROR_ADDR_MASK;

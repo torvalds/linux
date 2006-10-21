@@ -536,16 +536,14 @@ void ehea_send_irq_tasklet(unsigned long data)
 		tasklet_hi_schedule(&pr->send_comp_task);
 }
 
-static irqreturn_t ehea_send_irq_handler(int irq, void *param,
-					 struct pt_regs *regs)
+static irqreturn_t ehea_send_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
 	tasklet_hi_schedule(&pr->send_comp_task);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
-					 struct pt_regs *regs)
+static irqreturn_t ehea_recv_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
 	struct ehea_port *port = pr->port;
@@ -553,8 +551,7 @@ static irqreturn_t ehea_recv_irq_handler(int irq, void *param,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param,
-					   struct pt_regs *regs)
+static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 {
 	struct ehea_port *port = param;
 	struct ehea_eqe *eqe;
@@ -769,7 +766,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		if (EHEA_BMASK_GET(NEQE_PORT_UP, eqe)) {
 			if (!netif_carrier_ok(port->netdev)) {
 				ret = ehea_sense_port_attr(
-					adapter->port[portnum]);
+					port);
 				if (ret) {
 					ehea_error("failed resensing port "
 						   "attributes");
@@ -821,7 +818,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		netif_stop_queue(port->netdev);
 		break;
 	default:
-		ehea_error("unknown event code %x", ec);
+		ehea_error("unknown event code %x, eqe=0x%lX", ec, eqe);
 		break;
 	}
 }
@@ -850,8 +847,7 @@ static void ehea_neq_tasklet(unsigned long data)
 			    adapter->neq->fw_handle, event_mask);
 }
 
-static irqreturn_t ehea_interrupt_neq(int irq, void *param,
-				      struct pt_regs *regs)
+static irqreturn_t ehea_interrupt_neq(int irq, void *param)
 {
 	struct ehea_adapter *adapter = param;
 	tasklet_hi_schedule(&adapter->neq_tasklet);
@@ -1845,7 +1841,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (netif_msg_tx_queued(port)) {
 		ehea_info("post swqe on QP %d", pr->qp->init_attr.qp_nr);
-		ehea_dump(swqe, sizeof(*swqe), "swqe");
+		ehea_dump(swqe, 512, "swqe");
 	}
 
 	ehea_post_swqe(pr->qp, swqe);

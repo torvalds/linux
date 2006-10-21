@@ -329,7 +329,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	if (sk->sk_state == TCP_TIME_WAIT) {
-		inet_twsk_put((struct inet_timewait_sock *)sk);
+		inet_twsk_put(inet_twsk(sk));
 		return;
 	}
 
@@ -653,7 +653,7 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 	int tot_len = sizeof(struct tcphdr);
 
 	if (ts)
-		tot_len += 3*4;
+		tot_len += TCPOLEN_TSTAMP_ALIGNED;
 
 	buff = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) + tot_len,
 			 GFP_ATOMIC);
@@ -749,7 +749,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 			bh_lock_sock(nsk);
 			return nsk;
 		}
-		inet_twsk_put((struct inet_timewait_sock *)nsk);
+		inet_twsk_put(inet_twsk(nsk));
 		return NULL;
 	}
 
@@ -1283,18 +1283,17 @@ discard_and_relse:
 
 do_time_wait:
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-		inet_twsk_put((struct inet_timewait_sock *)sk);
+		inet_twsk_put(inet_twsk(sk));
 		goto discard_it;
 	}
 
 	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
 		TCP_INC_STATS_BH(TCP_MIB_INERRS);
-		inet_twsk_put((struct inet_timewait_sock *)sk);
+		inet_twsk_put(inet_twsk(sk));
 		goto discard_it;
 	}
 
-	switch (tcp_timewait_state_process((struct inet_timewait_sock *)sk,
-					   skb, th)) {
+	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {
 	case TCP_TW_SYN:
 	{
 		struct sock *sk2;

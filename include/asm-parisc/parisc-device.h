@@ -1,3 +1,6 @@
+#ifndef _ASM_PARISC_PARISC_DEVICE_H_
+#define _ASM_PARISC_PARISC_DEVICE_H_
+
 #include <linux/device.h>
 
 struct parisc_device {
@@ -57,3 +60,5 @@ parisc_get_drvdata(struct parisc_device *d)
 }
 
 extern struct bus_type parisc_bus_type;
+
+#endif /*_ASM_PARISC_PARISC_DEVICE_H_*/

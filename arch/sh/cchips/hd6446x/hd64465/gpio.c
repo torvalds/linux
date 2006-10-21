@@ -85,7 +85,7 @@ static struct {
     void *dev;
 } handlers[GPIO_NPORTS * 8];
 
-static irqreturn_t hd64465_gpio_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t hd64465_gpio_interrupt(int irq, void *dev)
 {
     	unsigned short port, pin, isr, mask, portpin;
 	

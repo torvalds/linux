@@ -409,9 +409,9 @@ extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 void smp_mpic_message_pass(int target, int msg);
 
 /* Fetch interrupt from a given mpic */
-extern unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs);
+extern unsigned int mpic_get_one_irq(struct mpic *mpic);
 /* This one gets to the primary mpic */
-extern unsigned int mpic_get_irq(struct pt_regs *regs);
+extern unsigned int mpic_get_irq(void);
 
 /* Set the EPIC clock ratio */
 void mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio);

@@ -37,17 +37,15 @@
  * Lockd host handle (used both by the client and server personality).
  */
 struct nlm_host {
-	struct nlm_host *	h_next;		/* linked list (hash table) */
+	struct hlist_node	h_hash;		/* doubly linked list */
 	struct sockaddr_in	h_addr;		/* peer address */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
-	char			h_name[20];	/* remote hostname */
+	char *			h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
 	unsigned short		h_proto;	/* transport proto */
 	unsigned short		h_reclaiming : 1,
 				h_server     : 1, /* server side, not client side */
-				h_inuse      : 1,
-				h_killed     : 1,
-				h_monitored  : 1;
+				h_inuse      : 1;
 	wait_queue_head_t	h_gracewait;	/* wait while reclaiming */
 	struct rw_semaphore	h_rwsem;	/* Reboot recovery lock */
 	u32			h_state;	/* pseudo-state counter */
@@ -61,6 +59,16 @@ struct nlm_host {
 	spinlock_t		h_lock;
 	struct list_head	h_granted;	/* Locks in GRANTED state */
 	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
+	struct nsm_handle *	h_nsmhandle;	/* NSM status handle */
+};
+
+struct nsm_handle {
+	struct list_head	sm_link;
+	atomic_t		sm_count;
+	char *			sm_name;
+	struct sockaddr_in	sm_addr;
+	unsigned int		sm_monitored : 1,
+				sm_sticky : 1;	/* don't unmonitor */
 };
 
 /*
@@ -96,15 +104,14 @@ struct nlm_rqst {
  * an NFS client.
  */
 struct nlm_file {
-	struct nlm_file *	f_next;		/* linked list */
+	struct hlist_node	f_list;		/* linked list */
 	struct nfs_fh		f_handle;	/* NFS file handle */
 	struct file *		f_file;		/* VFS file pointer */
 	struct nlm_share *	f_shares;	/* DOS shares */
-	struct nlm_block *	f_blocks;	/* blocked locks */
+	struct list_head	f_blocks;	/* blocked locks */
 	unsigned int		f_locks;	/* guesstimate # of locks */
 	unsigned int		f_count;	/* reference count */
-	struct semaphore	f_sema;		/* avoid concurrent access */
-	int		       	f_hash;		/* hash of f_handle */
+	struct mutex		f_mutex;	/* avoid concurrent access */
 };
 
 /*
@@ -114,24 +121,16 @@ struct nlm_file {
 #define NLM_NEVER		(~(unsigned long) 0)
 struct nlm_block {
 	struct kref		b_count;	/* Reference count */
-	struct nlm_block *	b_next;		/* linked list (all blocks) */
-	struct nlm_block *	b_fnext;	/* linked list (per file) */
+	struct list_head	b_list;		/* linked list of all blocks */
+	struct list_head	b_flist;	/* linked list (per file) */
 	struct nlm_rqst	*	b_call;		/* RPC args & callback info */
 	struct svc_serv *	b_daemon;	/* NLM service */
 	struct nlm_host *	b_host;		/* host handle for RPC clnt */
 	unsigned long		b_when;		/* next re-xmit */
 	unsigned int		b_id;		/* block id */
-	unsigned char		b_queued;	/* re-queued */
 	unsigned char		b_granted;	/* VFS granted lock */
 	struct nlm_file *	b_file;		/* file in question */
 };
-
-/*
- * Valid actions for nlmsvc_traverse_files
- */
-#define NLM_ACT_CHECK		0		/* check for locks */
-#define NLM_ACT_MARK		1		/* mark & sweep */
-#define NLM_ACT_UNLOCK		2		/* release all locks */
 
 /*
  * Global variables
@@ -143,6 +142,7 @@ extern struct svc_procedure	nlmsvc_procedures4[];
 #endif
 extern int			nlmsvc_grace_period;
 extern unsigned long		nlmsvc_timeout;
+extern int			nsm_use_hostnames;
 
 /*
  * Lockd client functions
@@ -154,42 +154,51 @@ int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
-u32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
-void		  nlmclnt_recovery(struct nlm_host *, u32);
+__be32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
+void		  nlmclnt_recovery(struct nlm_host *);
 int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
+void		  nlmclnt_next_cookie(struct nlm_cookie *);
 
 /*
  * Host cache
  */
-struct nlm_host * nlmclnt_lookup_host(struct sockaddr_in *, int, int);
-struct nlm_host * nlmsvc_lookup_host(struct svc_rqst *);
-struct nlm_host * nlm_lookup_host(int server, struct sockaddr_in *, int, int);
+struct nlm_host * nlmclnt_lookup_host(const struct sockaddr_in *, int, int, const char *, int);
+struct nlm_host * nlmsvc_lookup_host(struct svc_rqst *, const char *, int);
+struct nlm_host * nlm_lookup_host(int server, const struct sockaddr_in *, int, int, const char *, int);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
-extern struct nlm_host *nlm_find_client(void);
+extern void	  nlm_host_rebooted(const struct sockaddr_in *, const char *, int, u32);
+struct nsm_handle *nsm_find(const struct sockaddr_in *, const char *, int);
+void		  nsm_release(struct nsm_handle *);
 
+
+/*
+ * This is used in garbage collection and resource reclaim
+ * A return value != 0 means destroy the lock/block/share
+ */
+typedef int	  (*nlm_host_match_fn_t)(struct nlm_host *cur, struct nlm_host *ref);
 
 /*
  * Server-side lock handling
  */
-u32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
+__be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 					struct nlm_lock *, int, struct nlm_cookie *);
-u32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
-u32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
+__be32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
 					struct nlm_lock *);
-u32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
+__be32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
-					int action);
-void	  nlmsvc_grant_reply(struct svc_rqst *, struct nlm_cookie *, u32);
+					nlm_host_match_fn_t match);
+void		  nlmsvc_grant_reply(struct nlm_cookie *, u32);
 
 /*
  * File handling for the server personality
  */
-u32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
+__be32		  nlm_lookup_file(struct svc_rqst *, struct nlm_file **,
 					struct nfs_fh *);
 void		  nlm_release_file(struct nlm_file *);
 void		  nlmsvc_mark_resources(void);

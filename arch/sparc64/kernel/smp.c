@@ -31,6 +31,7 @@
 #include <asm/cpudata.h>
 
 #include <asm/irq.h>
+#include <asm/irq_regs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
@@ -1187,6 +1188,7 @@ void smp_percpu_timer_interrupt(struct pt_regs *regs)
 	unsigned long compare, tick, pstate;
 	int cpu = smp_processor_id();
 	int user = user_mode(regs);
+	struct pt_regs *old_regs;
 
 	/*
 	 * Check for level 14 softint.
@@ -1203,8 +1205,9 @@ void smp_percpu_timer_interrupt(struct pt_regs *regs)
 		clear_softint(tick_mask);
 	}
 
+	old_regs = set_irq_regs(regs);
 	do {
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 		if (!--prof_counter(cpu)) {
 			irq_enter();
 
@@ -1236,6 +1239,7 @@ void smp_percpu_timer_interrupt(struct pt_regs *regs)
 				     : /* no outputs */
 				     : "r" (pstate));
 	} while (time_after_eq(tick, compare));
+	set_irq_regs(old_regs);
 }
 
 static void __init smp_setup_percpu_timer(void)

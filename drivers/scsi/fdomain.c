@@ -278,9 +278,9 @@
 #include <linux/pci.h>
 #include <linux/stat.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <scsi/scsicam.h>
 
-#include <asm/io.h>
 #include <asm/system.h>
 
 #include <scsi/scsi.h>
@@ -403,8 +403,7 @@ static volatile int      in_interrupt_flag;
 static int               FIFO_Size = 0x2000; /* 8k FIFO for
 						pre-tmc18c30 chips */
 
-static irqreturn_t       do_fdomain_16x0_intr( int irq, void *dev_id,
-					    struct pt_regs * regs );
+static irqreturn_t       do_fdomain_16x0_intr( int irq, void *dev_id );
 /* Allow insmod parameters to be like LILO parameters.  For example:
    insmod fdomain fdomain=0x140,11 */
 static char * fdomain = NULL;
@@ -1094,8 +1093,7 @@ static void my_done(int error)
 #endif
 }
 
-static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
-					struct pt_regs * regs )
+static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id)
 {
    unsigned long flags;
    int      status;
@@ -1738,6 +1736,15 @@ struct scsi_host_template fdomain_driver_template = {
 };
 
 #ifndef PCMCIA
+
+static struct pci_device_id fdomain_pci_tbl[] __devinitdata = {
+	{ PCI_VENDOR_ID_FD, PCI_DEVICE_ID_FD_36C70,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ }
+};
+MODULE_DEVICE_TABLE(pci, fdomain_pci_tbl);
+
 #define driver_template fdomain_driver_template
 #include "scsi_module.c"
+
 #endif

@@ -142,7 +142,8 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id netcell_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NETCELL, PCI_DEVICE_ID_REVOLUTION), },
+	{ PCI_VDEVICE(NETCELL, PCI_DEVICE_ID_REVOLUTION), },
+
 	{ }	/* terminate list */
 };
 

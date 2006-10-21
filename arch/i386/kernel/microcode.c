@@ -656,14 +656,18 @@ static struct attribute_group mc_attr_group = {
 
 static int mc_sysdev_add(struct sys_device *sys_dev)
 {
-	int cpu = sys_dev->id;
+	int err, cpu = sys_dev->id;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	if (!cpu_online(cpu))
 		return 0;
+
 	pr_debug("Microcode:CPU %d added\n", cpu);
 	memset(uci, 0, sizeof(*uci));
-	sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
+
+	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
+	if (err)
+		return err;
 
 	microcode_init_cpu(cpu);
 	return 0;

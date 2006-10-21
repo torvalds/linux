@@ -86,7 +86,7 @@ static inline unsigned long long get_time(void)
 	return nsecs;
 }
 
-irqreturn_t um_timer(int irq, void *dev, struct pt_regs *regs)
+irqreturn_t um_timer(int irq, void *dev)
 {
 	unsigned long long nsecs;
 	unsigned long flags;

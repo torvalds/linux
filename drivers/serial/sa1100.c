@@ -190,7 +190,7 @@ static void sa1100_enable_ms(struct uart_port *port)
 }
 
 static void
-sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
+sa1100_rx_chars(struct sa1100_port *sport)
 {
 	struct tty_struct *tty = sport->port.info->tty;
 	unsigned int status, ch, flg;
@@ -228,7 +228,7 @@ sa1100_rx_chars(struct sa1100_port *sport, struct pt_regs *regs)
 #endif
 		}
 
-		if (uart_handle_sysrq_char(&sport->port, ch, regs))
+		if (uart_handle_sysrq_char(&sport->port, ch))
 			goto ignore_char;
 
 		uart_insert_char(&sport->port, status, UTSR1_TO_SM(UTSR1_ROR), ch, flg);
@@ -281,7 +281,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 		sa1100_stop_tx(&sport->port);
 }
 
-static irqreturn_t sa1100_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sa1100_int(int irq, void *dev_id)
 {
 	struct sa1100_port *sport = dev_id;
 	unsigned int status, pass_counter = 0;
@@ -294,7 +294,7 @@ static irqreturn_t sa1100_int(int irq, void *dev_id, struct pt_regs *regs)
 			/* Clear the receiver idle bit, if set */
 			if (status & UTSR0_RID)
 				UART_PUT_UTSR0(sport, UTSR0_RID);
-			sa1100_rx_chars(sport, regs);
+			sa1100_rx_chars(sport);
 		}
 
 		/* Clear the relevant break bits */

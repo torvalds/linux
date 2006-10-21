@@ -10,7 +10,7 @@
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-typedef void (*ext_int_handler_t)(struct pt_regs *regs, __u16 code);
+typedef void (*ext_int_handler_t)(__u16 code);
 
 /*
  * Warning: if you change ext_int_info_t you have to change the

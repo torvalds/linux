@@ -16,7 +16,6 @@
 #ifndef CPM_UART_H
 #define CPM_UART_H
 
-#include <linux/config.h>
 #include <linux/platform_device.h>
 #include <linux/fs_uart_pd.h>
 

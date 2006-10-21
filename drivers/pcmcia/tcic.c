@@ -116,7 +116,7 @@ module_param(cycle_time, int, 0444);
 
 /*====================================================================*/
 
-static irqreturn_t tcic_interrupt(int irq, void *dev, struct pt_regs *regs);
+static irqreturn_t tcic_interrupt(int irq, void *dev);
 static void tcic_timer(u_long data);
 static struct pccard_operations tcic_operations;
 
@@ -218,7 +218,7 @@ static int to_cycles(int ns)
 
 static volatile u_int irq_hits;
 
-static irqreturn_t __init tcic_irq_count(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t __init tcic_irq_count(int irq, void *dev)
 {
     irq_hits++;
     return IRQ_HANDLED;
@@ -505,7 +505,7 @@ static int __init init_tcic(void)
     }
     
     /* jump start interrupt handler, if needed */
-    tcic_interrupt(0, NULL, NULL);
+    tcic_interrupt(0, NULL);
 
     platform_device_register(&tcic_device);
 
@@ -547,7 +547,7 @@ static void __exit exit_tcic(void)
 
 /*====================================================================*/
 
-static irqreturn_t tcic_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t tcic_interrupt(int irq, void *dev)
 {
     int i, quick = 0;
     u_char latch, sstat;
@@ -606,7 +606,7 @@ static void tcic_timer(u_long data)
 {
     debug(2, "tcic_timer()\n");
     tcic_timer_pending = 0;
-    tcic_interrupt(0, NULL, NULL);
+    tcic_interrupt(0, NULL);
 } /* tcic_timer */
 
 /*====================================================================*/

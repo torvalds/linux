@@ -922,7 +922,7 @@ static void lh7a40x_reset_intr(struct lh7a40x_udc *dev)
 /*
  *	lh7a40x usb client interrupt handler.
  */
-static irqreturn_t lh7a40x_udc_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t lh7a40x_udc_irq(int irq, void *_dev)
 {
 	struct lh7a40x_udc *dev = _dev;
 

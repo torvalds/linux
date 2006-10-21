@@ -158,7 +158,7 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usbnet_get_endpoints);
 
-static void intr_complete (struct urb *urb, struct pt_regs *regs);
+static void intr_complete (struct urb *urb);
 
 static int init_status (struct usbnet *dev, struct usb_interface *intf)
 {
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(usbnet_defer_kevent);
 
 /*-------------------------------------------------------------------------*/
 
-static void rx_complete (struct urb *urb, struct pt_regs *regs);
+static void rx_complete (struct urb *urb);
 
 static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 {
@@ -383,7 +383,7 @@ error:
 
 /*-------------------------------------------------------------------------*/
 
-static void rx_complete (struct urb *urb, struct pt_regs *regs)
+static void rx_complete (struct urb *urb)
 {
 	struct sk_buff		*skb = (struct sk_buff *) urb->context;
 	struct skb_data		*entry = (struct skb_data *) skb->cb;
@@ -467,7 +467,7 @@ block:
 		devdbg (dev, "no read resubmitted");
 }
 
-static void intr_complete (struct urb *urb, struct pt_regs *regs)
+static void intr_complete (struct urb *urb)
 {
 	struct usbnet	*dev = urb->context;
 	int		status = urb->status;
@@ -669,6 +669,37 @@ done:
  * they'll probably want to use this base set.
  */
 
+int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	if (!dev->mii.mdio_read)
+		return -EOPNOTSUPP;
+
+	return mii_ethtool_gset(&dev->mii, cmd);
+}
+EXPORT_SYMBOL_GPL(usbnet_get_settings);
+
+int usbnet_set_settings (struct net_device *net, struct ethtool_cmd *cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+	int retval;
+
+	if (!dev->mii.mdio_write)
+		return -EOPNOTSUPP;
+
+	retval = mii_ethtool_sset(&dev->mii, cmd);
+
+	/* link speed/duplex might have changed */
+	if (dev->driver_info->link_reset)
+		dev->driver_info->link_reset(dev);
+
+	return retval;
+
+}
+EXPORT_SYMBOL_GPL(usbnet_set_settings);
+
+
 void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -682,7 +713,7 @@ void usbnet_get_drvinfo (struct net_device *net, struct ethtool_drvinfo *info)
 }
 EXPORT_SYMBOL_GPL(usbnet_get_drvinfo);
 
-static u32 usbnet_get_link (struct net_device *net)
+u32 usbnet_get_link (struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
 
@@ -690,9 +721,14 @@ static u32 usbnet_get_link (struct net_device *net)
 	if (dev->driver_info->check_connect)
 		return dev->driver_info->check_connect (dev) == 0;
 
+	/* if the device has mii operations, use those */
+	if (dev->mii.mdio_read)
+		return mii_link_ok(&dev->mii);
+
 	/* Otherwise, say we're up (to avoid breaking scripts) */
 	return 1;
 }
+EXPORT_SYMBOL_GPL(usbnet_get_link);
 
 u32 usbnet_get_msglevel (struct net_device *net)
 {
@@ -710,10 +746,24 @@ void usbnet_set_msglevel (struct net_device *net, u32 level)
 }
 EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
+int usbnet_nway_reset(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	if (!dev->mii.mdio_write)
+		return -EOPNOTSUPP;
+
+	return mii_nway_restart(&dev->mii);
+}
+EXPORT_SYMBOL_GPL(usbnet_nway_reset);
+
 /* drivers may override default ethtool_ops in their bind() routine */
 static struct ethtool_ops usbnet_ethtool_ops = {
+	.get_settings		= usbnet_get_settings,
+	.set_settings		= usbnet_set_settings,
 	.get_drvinfo		= usbnet_get_drvinfo,
 	.get_link		= usbnet_get_link,
+	.nway_reset		= usbnet_nway_reset,
 	.get_msglevel		= usbnet_get_msglevel,
 	.set_msglevel		= usbnet_set_msglevel,
 };
@@ -797,7 +847,7 @@ kevent (void *data)
 
 /*-------------------------------------------------------------------------*/
 
-static void tx_complete (struct urb *urb, struct pt_regs *regs)
+static void tx_complete (struct urb *urb)
 {
 	struct sk_buff		*skb = (struct sk_buff *) urb->context;
 	struct skb_data		*entry = (struct skb_data *) skb->cb;
@@ -1094,6 +1144,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);
+	mutex_init (&dev->phy_mutex);
 
 	SET_MODULE_OWNER (net);
 	dev->net = net;
@@ -1225,7 +1276,7 @@ EXPORT_SYMBOL_GPL(usbnet_resume);
 static int __init usbnet_init(void)
 {
 	/* compiler should optimize this out */
-	BUG_ON (sizeof (((struct sk_buff *)0)->cb)
+	BUILD_BUG_ON (sizeof (((struct sk_buff *)0)->cb)
 			< sizeof (struct skb_data));
 
 	random_ether_addr(node_id);

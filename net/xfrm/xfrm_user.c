@@ -211,6 +211,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	case XFRM_MODE_TRANSPORT:
 	case XFRM_MODE_TUNNEL:
 	case XFRM_MODE_ROUTEOPTIMIZATION:
+	case XFRM_MODE_BEET:
 		break;
 
 	default:
@@ -1990,15 +1991,6 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 	copy_from_user_policy(xp, p);
 	xp->type = XFRM_POLICY_TYPE_MAIN;
 	copy_templates(xp, ut, nr);
-
-	if (!xp->security) {
-		int err = security_xfrm_sock_policy_alloc(xp, sk);
-		if (err) {
-			kfree(xp);
-			*dir = err;
-			return NULL;
-		}
-	}
 
 	*dir = p->dir;
 

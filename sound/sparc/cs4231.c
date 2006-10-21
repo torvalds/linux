@@ -1753,7 +1753,7 @@ out_err:
 
 #ifdef SBUS_SUPPORT
 
-static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_cs4231_sbus_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned char status;

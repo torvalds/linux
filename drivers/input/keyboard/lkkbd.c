@@ -453,8 +453,7 @@ lkkbd_detection_done (struct lkkbd *lk)
  * is received.
  */
 static irqreturn_t
-lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
-		struct pt_regs *regs)
+lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags)
 {
 	struct lkkbd *lk = serio_get_drvdata (serio);
 	int i;
@@ -473,7 +472,6 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 
 	switch (data) {
 		case LK_ALL_KEYS_UP:
-			input_regs (lk->dev, regs);
 			for (i = 0; i < ARRAY_SIZE (lkkbd_keycode); i++)
 				if (lk->keycode[i] != KEY_RESERVED)
 					input_report_key (lk->dev, lk->keycode[i], 0);
@@ -501,7 +499,6 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 
 		default:
 			if (lk->keycode[data] != KEY_RESERVED) {
-				input_regs (lk->dev, regs);
 				if (!test_bit (lk->keycode[data], lk->dev->key))
 					input_report_key (lk->dev, lk->keycode[data], 1);
 				else

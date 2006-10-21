@@ -1557,7 +1557,7 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
  * SCSI controller interrupt handler.
  */
 irqreturn_t
-ahd_linux_isr(int irq, void *dev_id, struct pt_regs * regs)
+ahd_linux_isr(int irq, void *dev_id)
 {
 	struct	ahd_softc *ahd;
 	u_long	flags;

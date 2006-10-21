@@ -134,9 +134,11 @@ static inline void restore_fp(struct task_struct *tsk)
 
 static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
 {
-	if (cpu_has_fpu) {
-		if ((tsk == current) && __is_fpu_owner())
+	if (tsk == current) {
+		preempt_disable();
+		if (is_fpu_owner())
 			_save_fp(current);
+		preempt_enable();
 	}
 
 	return tsk->thread.fpu.fpr;

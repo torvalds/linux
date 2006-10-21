@@ -13,7 +13,6 @@
 #ifndef __CPCI405_H__
 #define __CPCI405_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm405gp.h>
 #include <asm/ppcboot.h>
 

@@ -114,7 +114,7 @@ struct xircom_private {
 /* Function prototypes */
 static int xircom_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void xircom_remove(struct pci_dev *pdev);
-static irqreturn_t xircom_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t xircom_interrupt(int irq, void *dev_instance);
 static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int xircom_open(struct net_device *dev);
 static int xircom_close(struct net_device *dev);
@@ -334,7 +334,7 @@ static void __devexit xircom_remove(struct pci_dev *pdev)
 	leave("xircom_remove");
 }
 
-static irqreturn_t xircom_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct xircom_private *card = netdev_priv(dev);
@@ -513,7 +513,7 @@ static struct net_device_stats *xircom_get_stats(struct net_device *dev)
 static void xircom_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	xircom_interrupt(dev->irq, dev, NULL);
+	xircom_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

@@ -51,6 +51,7 @@
 #include <linux/rtc.h>
 #include <linux/jiffies.h>
 #include <linux/posix-timers.h>
+#include <linux/irq.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -643,6 +644,7 @@ static void iSeries_tb_recal(void)
  */
 void timer_interrupt(struct pt_regs * regs)
 {
+	struct pt_regs *old_regs;
 	int next_dec;
 	int cpu = smp_processor_id();
 	unsigned long ticks;
@@ -653,9 +655,10 @@ void timer_interrupt(struct pt_regs * regs)
 		do_IRQ(regs);
 #endif
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 	calculate_steal_time();
 
 #ifdef CONFIG_PPC_ISERIES
@@ -703,7 +706,7 @@ void timer_interrupt(struct pt_regs * regs)
 
 #ifdef CONFIG_PPC_ISERIES
 	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
+		process_hvlpevents();
 #endif
 
 #ifdef CONFIG_PPC64
@@ -715,6 +718,7 @@ void timer_interrupt(struct pt_regs * regs)
 #endif
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 void wakeup_decrementer(void)

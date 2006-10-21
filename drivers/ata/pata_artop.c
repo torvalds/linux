@@ -426,7 +426,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &artop6260_ops,
 	};
 	struct ata_port_info *port_info[2];
-	struct ata_port_info *info;
+	struct ata_port_info *info = NULL;
 	int ports = 2;
 
 	if (!printed_version++)
@@ -470,16 +470,20 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_write_config_byte(pdev, 0x4a, (reg & ~0x01) | 0x80);
 
 	}
+
+	BUG_ON(info == NULL);
+
 	port_info[0] = port_info[1] = info;
 	return ata_pci_init_one(pdev, port_info, ports);
 }
 
 static const struct pci_device_id artop_pci_tbl[] = {
-	{ 0x1191, 0x0005, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ 0x1191, 0x0006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ 0x1191, 0x0007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ 0x1191, 0x0008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{ 0x1191, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
+	{ PCI_VDEVICE(ARTOP, 0x0005), 0 },
+	{ PCI_VDEVICE(ARTOP, 0x0006), 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0007), 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0008), 2 },
+	{ PCI_VDEVICE(ARTOP, 0x0009), 2 },
+
 	{ }	/* terminate list */
 };
 
@@ -499,7 +503,6 @@ static void __exit artop_exit(void)
 {
 	pci_unregister_driver(&artop_pci_driver);
 }
-
 
 module_init(artop_init);
 module_exit(artop_exit);

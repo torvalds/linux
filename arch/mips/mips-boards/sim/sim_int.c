@@ -71,12 +71,7 @@ static inline unsigned int irq_ffs(unsigned int pending)
 #endif
 }
 
-static inline void sim_hw0_irqdispatch(struct pt_regs *regs)
-{
-	do_IRQ(2, regs);
-}
-
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 	int irq;
@@ -84,9 +79,9 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	irq = irq_ffs(pending);
 
 	if (irq > 0)
-		do_IRQ(MIPSCPU_INT_BASE + irq, regs);
+		do_IRQ(MIPSCPU_INT_BASE + irq);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 void __init arch_init_irq(void)

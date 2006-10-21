@@ -417,7 +417,7 @@ static int w9968cf_write_fsb(struct w9968cf_device*, u16* data);
 static int w9968cf_write_sb(struct w9968cf_device*, u16 value);
 static int w9968cf_read_sb(struct w9968cf_device*);
 static int w9968cf_upload_quantizationtables(struct w9968cf_device*);
-static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs);
+static void w9968cf_urb_complete(struct urb *urb);
 
 /* Low-level I2C (SMBus) I/O */
 static int w9968cf_smbus_start(struct w9968cf_device*);
@@ -781,7 +781,7 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
   If there are no requested frames in the FIFO list, packets are collected into
   a temporary buffer.
   --------------------------------------------------------------------------*/
-static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs)
+static void w9968cf_urb_complete(struct urb *urb)
 {
 	struct w9968cf_device* cam = (struct w9968cf_device*)urb->context;
 	struct w9968cf_frame_t** f;

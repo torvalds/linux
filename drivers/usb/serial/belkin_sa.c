@@ -91,7 +91,7 @@ static int  belkin_sa_startup		(struct usb_serial *serial);
 static void belkin_sa_shutdown		(struct usb_serial *serial);
 static int  belkin_sa_open		(struct usb_serial_port *port, struct file *filp);
 static void belkin_sa_close		(struct usb_serial_port *port, struct file *filp);
-static void belkin_sa_read_int_callback (struct urb *urb, struct pt_regs *regs);
+static void belkin_sa_read_int_callback (struct urb *urb);
 static void belkin_sa_set_termios	(struct usb_serial_port *port, struct termios * old);
 static int  belkin_sa_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
 static void belkin_sa_break_ctl		(struct usb_serial_port *port, int break_state );
@@ -248,7 +248,7 @@ static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
 } /* belkin_sa_close */
 
 
-static void belkin_sa_read_int_callback (struct urb *urb, struct pt_regs *regs)
+static void belkin_sa_read_int_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct belkin_sa_private *priv;

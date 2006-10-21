@@ -67,8 +67,8 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
-/* Atmel AT91xxx SoC */
-#define PORT_AT91	49
+/* Atmel AT91 / AT32 SoC */
+#define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */
 #define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
@@ -409,13 +409,12 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
  * The following are helper functions for the low level drivers.
  */
 static inline int
-uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
-		       struct pt_regs *regs)
+uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 {
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, regs, port->info->tty);
+			handle_sysrq(ch, port->info->tty);
 			port->sysrq = 0;
 			return 1;
 		}
@@ -425,7 +424,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch,
 	return 0;
 }
 #ifndef SUPPORT_SYSRQ
-#define uart_handle_sysrq_char(port,ch,regs) uart_handle_sysrq_char(port, 0, NULL)
+#define uart_handle_sysrq_char(port,ch) uart_handle_sysrq_char(port, 0)
 #endif
 
 /*

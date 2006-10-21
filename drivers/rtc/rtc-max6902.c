@@ -19,7 +19,6 @@
  *                - Initial driver creation.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/version.h>
 
@@ -137,7 +136,7 @@ static int max6902_get_datetime(struct device *dev, struct rtc_time *dt)
 	dt->tm_min	= BCD2BIN(chip->buf[2]);
 	dt->tm_hour	= BCD2BIN(chip->buf[3]);
 	dt->tm_mday	= BCD2BIN(chip->buf[4]);
-	dt->tm_mon	= BCD2BIN(chip->buf[5] - 1);
+	dt->tm_mon	= BCD2BIN(chip->buf[5]) - 1;
 	dt->tm_wday	= BCD2BIN(chip->buf[6]);
 	dt->tm_year = BCD2BIN(chip->buf[7]);
 

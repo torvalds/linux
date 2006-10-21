@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 static short rpcmouse_lastx, rpcmouse_lasty;
 static struct input_dev *rpcmouse_dev;
 
-static irqreturn_t rpcmouse_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t rpcmouse_irq(int irq, void *dev_id)
 {
 	struct input_dev *dev = dev_id;
 	short x, y, dx, dy, b;
@@ -50,8 +50,6 @@ static irqreturn_t rpcmouse_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	rpcmouse_lastx = x;
 	rpcmouse_lasty = y;
-
-	input_regs(dev, regs);
 
 	input_report_rel(dev, REL_X, dx);
 	input_report_rel(dev, REL_Y, -dy);

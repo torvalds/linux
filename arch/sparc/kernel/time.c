@@ -42,6 +42,7 @@
 #include <asm/page.h>
 #include <asm/pcic.h>
 #include <asm/of_device.h>
+#include <asm/irq_regs.h>
 
 DEFINE_SPINLOCK(rtc_lock);
 enum sparc_clock_type sp_clock_typ;
@@ -94,6 +95,8 @@ unsigned long profile_pc(struct pt_regs *regs)
 	return pc;
 }
 
+EXPORT_SYMBOL(profile_pc);
+
 __volatile__ unsigned int *master_l10_counter;
 __volatile__ unsigned int *master_l10_limit;
 
@@ -104,13 +107,13 @@ __volatile__ unsigned int *master_l10_limit;
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update;
 
 #ifndef CONFIG_SMP
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #endif
 
 	/* Protect counter clear so that do_gettimeoffset works */
@@ -128,7 +131,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 
 

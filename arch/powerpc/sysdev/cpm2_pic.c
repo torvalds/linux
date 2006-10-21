@@ -147,7 +147,7 @@ static struct irq_chip cpm2_pic = {
 	.end = cpm2_end_irq,
 };
 
-int cpm2_get_irq(struct pt_regs *regs)
+unsigned int cpm2_get_irq(void)
 {
 	int irq;
 	unsigned long bits;

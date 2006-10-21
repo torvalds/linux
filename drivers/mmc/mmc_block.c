@@ -28,6 +28,7 @@
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -154,17 +155,82 @@ static int mmc_blk_prep_rq(struct mmc_queue *mq, struct request *req)
 	return stat;
 }
 
+static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
+{
+	int err;
+	u32 blocks;
+
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+	unsigned int timeout_us;
+
+	struct scatterlist sg;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = MMC_APP_CMD;
+	cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+
+	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD))
+		return (u32)-1;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = SD_APP_SEND_NUM_WR_BLKS;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	data.timeout_ns = card->csd.tacc_ns * 100;
+	data.timeout_clks = card->csd.tacc_clks * 100;
+
+	timeout_us = data.timeout_ns / 1000;
+	timeout_us += data.timeout_clks * 1000 /
+		(card->host->ios.clock / 1000);
+
+	if (timeout_us > 100000) {
+		data.timeout_ns = 100000000;
+		data.timeout_clks = 0;
+	}
+
+	data.blksz = 4;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	sg_init_one(&sg, &blocks, 4);
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE)
+		return (u32)-1;
+
+	blocks = ntohl(blocks);
+
+	return blocks;
+}
+
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
+	struct mmc_blk_request brq;
 	int ret;
 
 	if (mmc_card_claim_host(card))
 		goto cmd_err;
 
 	do {
-		struct mmc_blk_request brq;
 		struct mmc_command cmd;
 		u32 readcmd, writecmd;
 
@@ -184,10 +250,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		/*
 		 * If the host doesn't support multiple block writes, force
-		 * block writes to single block.
+		 * block writes to single block. SD cards are excepted from
+		 * this rule as they support querying the number of
+		 * successfully written sectors.
 		 */
 		if (rq_data_dir(req) != READ &&
-		    !(card->host->caps & MMC_CAP_MULTIWRITE))
+		    !(card->host->caps & MMC_CAP_MULTIWRITE) &&
+		    !mmc_card_sd(card))
 			brq.data.blocks = 1;
 
 		if (brq.data.blocks > 1) {
@@ -276,19 +345,46 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	return 1;
 
  cmd_err:
+	ret = 1;
+
+ 	/*
+ 	 * If this is an SD card and we're writing, we can first
+ 	 * mark the known good sectors as ok.
+ 	 *
+	 * If the card is not SD, we can still ok written sectors
+	 * if the controller can do proper error reporting.
+	 *
+	 * For reads we just fail the entire chunk as that should
+	 * be safe in all cases.
+	 */
+ 	if (rq_data_dir(req) != READ && mmc_card_sd(card)) {
+		u32 blocks;
+		unsigned int bytes;
+
+		blocks = mmc_sd_num_wr_blocks(card);
+		if (blocks != (u32)-1) {
+			if (card->csd.write_partial)
+				bytes = blocks << md->block_bits;
+			else
+				bytes = blocks << 9;
+			spin_lock_irq(&md->lock);
+			ret = end_that_request_chunk(req, 1, bytes);
+			spin_unlock_irq(&md->lock);
+		}
+	} else if (rq_data_dir(req) != READ &&
+		   (card->host->caps & MMC_CAP_MULTIWRITE)) {
+		spin_lock_irq(&md->lock);
+		ret = end_that_request_chunk(req, 1, brq.data.bytes_xfered);
+		spin_unlock_irq(&md->lock);
+	}
+
 	mmc_card_release_host(card);
 
-	/*
-	 * This is a little draconian, but until we get proper
-	 * error handling sorted out here, its the best we can
-	 * do - especially as some hosts have no idea how much
-	 * data was transferred before the error occurred.
-	 */
 	spin_lock_irq(&md->lock);
-	do {
+	while (ret) {
 		ret = end_that_request_chunk(req, 0,
 				req->current_nr_sectors << 9);
-	} while (ret);
+	}
 
 	add_disk_randomness(req->rq_disk);
 	blkdev_dequeue_request(req);

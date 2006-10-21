@@ -267,7 +267,8 @@ static void iommu_table_setparms(struct pci_controller *phb,
 				 struct iommu_table *tbl)
 {
 	struct device_node *node;
-	const unsigned long *basep, *sizep;
+	const unsigned long *basep;
+	const u32 *sizep;
 
 	node = (struct device_node *)phb->arch_data;
 

@@ -27,7 +27,7 @@
  * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
  */
 void fastcall
-handle_bad_irq(unsigned int irq, struct irq_desc *desc, struct pt_regs *regs)
+handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
 	kstat_this_cpu.irqs[irq]++;
@@ -115,7 +115,7 @@ struct irq_chip dummy_irq_chip = {
 /*
  * Special, empty irq handler:
  */
-irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
+irqreturn_t no_action(int cpl, void *dev_id)
 {
 	return IRQ_NONE;
 }
@@ -123,13 +123,11 @@ irqreturn_t no_action(int cpl, void *dev_id, struct pt_regs *regs)
 /**
  * handle_IRQ_event - irq action chain handler
  * @irq:	the interrupt number
- * @regs:	pointer to a register structure
  * @action:	the interrupt action chain for this irq
  *
  * Handles the action chain of an irq event
  */
-irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
-			     struct irqaction *action)
+irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 {
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
@@ -140,7 +138,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 		local_irq_enable_in_hardirq();
 
 	do {
-		ret = action->handler(irq, action->dev_id, regs);
+		ret = action->handler(irq, action->dev_id);
 		if (ret == IRQ_HANDLED)
 			status |= action->flags;
 		retval |= ret;
@@ -158,7 +156,6 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
 /**
  * __do_IRQ - original all in one highlevel IRQ handler
  * @irq:	the interrupt number
- * @regs:	pointer to a register structure
  *
  * __do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
@@ -167,7 +164,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct pt_regs *regs,
  * This is the original x86 implementation which is used for every
  * interrupt type.
  */
-fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
+fastcall unsigned int __do_IRQ(unsigned int irq)
 {
 	struct irq_desc *desc = irq_desc + irq;
 	struct irqaction *action;
@@ -182,7 +179,7 @@ fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 		 */
 		if (desc->chip->ack)
 			desc->chip->ack(irq);
-		action_ret = handle_IRQ_event(irq, regs, desc->action);
+		action_ret = handle_IRQ_event(irq, desc->action);
 		desc->chip->end(irq);
 		return 1;
 	}
@@ -233,11 +230,11 @@ fastcall unsigned int __do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 		spin_unlock(&desc->lock);
 
-		action_ret = handle_IRQ_event(irq, regs, action);
+		action_ret = handle_IRQ_event(irq, action);
 
 		spin_lock(&desc->lock);
 		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret, regs);
+			note_interrupt(irq, desc, action_ret);
 		if (likely(!(desc->status & IRQ_PENDING)))
 			break;
 		desc->status &= ~IRQ_PENDING;

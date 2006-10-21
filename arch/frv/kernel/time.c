@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h> /* CONFIG_HEARTBEAT */
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -41,7 +40,7 @@ unsigned long __nongprelbss __dsu_clock_speed_HZ;
 unsigned long __nongprelbss __serial_clock_speed_HZ;
 unsigned long __delay_loops_MHz;
 
-static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs *regs);
+static irqreturn_t timer_interrupt(int irq, void *dummy);
 
 static struct irqaction timer_irq  = {
 	timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL
@@ -56,7 +55,7 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
+static irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update = 0;
@@ -71,8 +70,8 @@ static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
 	write_seqlock(&xtime_lock);
 
 	do_timer(1);
-	update_process_times(user_mode(regs));
-	profile_tick(CPU_PROFILING, regs);
+	update_process_times(user_mode(get_irq_regs()));
+	profile_tick(CPU_PROFILING);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

@@ -300,7 +300,8 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id radisys_pci_tbl[] = {
-	{ 0x1331, 0x8201, PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VDEVICE(RADISYS, 0x8201), },
+
 	{ }	/* terminate list */
 };
 
@@ -320,7 +321,6 @@ static void __exit radisys_exit(void)
 {
 	pci_unregister_driver(&radisys_pci_driver);
 }
-
 
 module_init(radisys_init);
 module_exit(radisys_exit);

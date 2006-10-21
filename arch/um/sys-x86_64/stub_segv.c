@@ -5,7 +5,6 @@
 
 #include <stddef.h>
 #include <signal.h>
-#include <linux/compiler.h>
 #include <asm/unistd.h>
 #include "uml-config.h"
 #include "sysdep/sigcontext.h"

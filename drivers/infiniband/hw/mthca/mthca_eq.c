@@ -405,7 +405,7 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 	return eqes_found;
 }
 
-static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr, struct pt_regs *regs)
+static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr)
 {
 	struct mthca_dev *dev = dev_ptr;
 	u32 ecr;
@@ -432,8 +432,7 @@ static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr, struct pt_regs 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr,
-					 struct pt_regs *regs)
+static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr)
 {
 	struct mthca_eq  *eq  = eq_ptr;
 	struct mthca_dev *dev = eq->dev;
@@ -446,7 +445,7 @@ static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr, struct pt_regs *regs)
+static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr)
 {
 	struct mthca_dev *dev = dev_ptr;
 	int work = 0;
@@ -467,8 +466,7 @@ static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr, struct pt_regs 
 	return IRQ_RETVAL(work);
 }
 
-static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr,
-					       struct pt_regs *regs)
+static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr)
 {
 	struct mthca_eq  *eq  = eq_ptr;
 	struct mthca_dev *dev = eq->dev;

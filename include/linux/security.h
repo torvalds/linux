@@ -882,7 +882,8 @@ struct request_sock;
  *	Check permission when a flow selects a xfrm_policy for processing
  *	XFRMs on a packet.  The hook is called when selecting either a
  *	per-socket policy or a generic xfrm policy.
- *	Return 0 if permission is granted.
+ *	Return 0 if permission is granted, -ESRCH otherwise, or -errno
+ *	on other errors.
  * @xfrm_state_pol_flow_match:
  *	@x contains the state to match.
  *	@xp contains the policy to check for a match.
@@ -891,6 +892,7 @@ struct request_sock;
  * @xfrm_flow_state_match:
  *	@fl contains the flow key to match.
  *	@xfrm points to the xfrm_state to match.
+ *	@xp points to the xfrm_policy to match.
  *	Return 1 if there is a match.
  * @xfrm_decode_session:
  *	@skb points to skb to decode.
@@ -1388,7 +1390,8 @@ struct security_operations {
 	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
 	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
-	int (*xfrm_flow_state_match)(struct flowi *fl, struct xfrm_state *xfrm);
+	int (*xfrm_flow_state_match)(struct flowi *fl, struct xfrm_state *xfrm,
+			struct xfrm_policy *xp);
 	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
@@ -3120,11 +3123,6 @@ static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm
 	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx, NULL);
 }
 
-static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
-{
-	return security_ops->xfrm_policy_alloc_security(xp, NULL, sk);
-}
-
 static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
 {
 	return security_ops->xfrm_policy_clone_security(old, new);
@@ -3175,9 +3173,10 @@ static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	return security_ops->xfrm_state_pol_flow_match(x, xp, fl);
 }
 
-static inline int security_xfrm_flow_state_match(struct flowi *fl, struct xfrm_state *xfrm)
+static inline int security_xfrm_flow_state_match(struct flowi *fl,
+			struct xfrm_state *xfrm, struct xfrm_policy *xp)
 {
-	return security_ops->xfrm_flow_state_match(fl, xfrm);
+	return security_ops->xfrm_flow_state_match(fl, xfrm, xp);
 }
 
 static inline int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
@@ -3193,11 +3192,6 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 }
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
-{
-	return 0;
-}
-
-static inline int security_xfrm_sock_policy_alloc(struct xfrm_policy *xp, struct sock *sk)
 {
 	return 0;
 }
@@ -3249,7 +3243,7 @@ static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 }
 
 static inline int security_xfrm_flow_state_match(struct flowi *fl,
-                                struct xfrm_state *xfrm)
+			struct xfrm_state *xfrm, struct xfrm_policy *xp)
 {
 	return 1;
 }

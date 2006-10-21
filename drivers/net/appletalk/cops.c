@@ -188,7 +188,7 @@ static void cops_reset (struct net_device *dev, int sleep);
 static void cops_load (struct net_device *dev);
 static int  cops_nodeid (struct net_device *dev, int nodeid);
 
-static irqreturn_t cops_interrupt (int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t cops_interrupt (int irq, void *dev_id);
 static void cops_poll (unsigned long ltdev);
 static void cops_timeout(struct net_device *dev);
 static void cops_rx (struct net_device *dev);
@@ -721,7 +721,7 @@ static void cops_poll(unsigned long ltdev)
  *      The typical workload of the driver:
  *      Handle the network interface interrupts.
  */
-static irqreturn_t cops_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t cops_interrupt(int irq, void *dev_id)
 {
         struct net_device *dev = dev_id;
         struct cops_local *lp;

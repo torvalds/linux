@@ -102,7 +102,7 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define	ENABLE_IRQ()	enable_irq( IRQ_SUN3_SCSI ); 
 
 
-static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp);
+static irqreturn_t scsi_sun3_intr(int irq, void *dummy);
 static inline unsigned char sun3scsi_read(int reg);
 static inline void sun3scsi_write(int reg, int value);
 
@@ -371,7 +371,7 @@ const char * sun3scsi_info (struct Scsi_Host *spnt) {
 // safe bits for the CSR
 #define CSR_GOOD 0x060f
 
-static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t scsi_sun3_intr(int irq, void *dummy)
 {
 	unsigned short csr = dregs->csr;
 	int handled = 0;
@@ -388,7 +388,7 @@ static irqreturn_t scsi_sun3_intr(int irq, void *dummy, struct pt_regs *fp)
 	}
 
 	if(csr & (CSR_SDB_INT | CSR_DMA_INT)) {
-		NCR5380_intr(irq, dummy, fp);
+		NCR5380_intr(irq, dummy);
 		handled = 1;
 	}
 

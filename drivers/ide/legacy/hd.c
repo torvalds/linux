@@ -673,7 +673,7 @@ static int hd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  * be forgotten about...
  */
 
-static irqreturn_t hd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t hd_interrupt(int irq, void *dev_id)
 {
 	void (*handler)(void) = do_hd;
 

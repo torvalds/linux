@@ -267,7 +267,7 @@ static pcc_t pcc[] = {
 	{ "xnux2", 0 }, { "xnux2", 0 },
 };
 
-static irqreturn_t pcc_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t pcc_interrupt(int, void *);
 
 /*====================================================================*/
 
@@ -352,7 +352,7 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr
 
 /*====================================================================*/
 
-static irqreturn_t pcc_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t pcc_interrupt(int irq, void *dev)
 {
 	int i, j, irc;
 	u_int events, active;
@@ -395,7 +395,7 @@ static irqreturn_t pcc_interrupt(int irq, void *dev, struct pt_regs *regs)
 
 static void pcc_interrupt_wrapper(u_long data)
 {
-	pcc_interrupt(0, NULL, NULL);
+	pcc_interrupt(0, NULL);
 	init_timer(&poll_timer);
 	poll_timer.expires = jiffies + poll_interval;
 	add_timer(&poll_timer);

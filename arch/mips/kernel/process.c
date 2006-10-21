@@ -115,7 +115,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	status |= KU_USER;
 	regs->cp0_status = status;
 	clear_used_math();
-	lose_fpu();
+	clear_fpu_owner();
 	if (cpu_has_dsp)
 		__init_dsp();
 	regs->cp0_epc = pc;
@@ -358,10 +358,8 @@ static int __init frame_info_init(void)
 	unsigned long size = 0;
 #ifdef CONFIG_KALLSYMS
 	unsigned long ofs;
-	char *modname;
-	char namebuf[KSYM_NAME_LEN + 1];
 
-	kallsyms_lookup((unsigned long)schedule, &size, &ofs, &modname, namebuf);
+	kallsyms_lookup_size_offset((unsigned long)schedule, &size, &ofs);
 #endif
 	schedule_mfi.func = schedule;
 	schedule_mfi.func_size = size;
@@ -403,8 +401,6 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 {
 	unsigned long stack_page;
 	struct mips_frame_info info;
-	char *modname;
-	char namebuf[KSYM_NAME_LEN + 1];
 	unsigned long size, ofs;
 	int leaf;
 	extern void ret_from_irq(void);
@@ -433,7 +429,7 @@ unsigned long unwind_stack(struct task_struct *task, unsigned long *sp,
 		}
 		return 0;
 	}
-	if (!kallsyms_lookup(pc, &size, &ofs, &modname, namebuf))
+	if (!kallsyms_lookup_size_offset(pc, &size, &ofs))
 		return 0;
 	/*
 	 * Return ra if an exception occured at the first instruction

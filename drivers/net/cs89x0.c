@@ -249,7 +249,7 @@ struct net_local {
 static int cs89x0_probe1(struct net_device *dev, int ioaddr, int modular);
 static int net_open(struct net_device *dev);
 static int net_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t net_interrupt(int irq, void *dev_id);
 static void set_multicast_list(struct net_device *dev);
 static void net_timeout(struct net_device *dev);
 static void net_rx(struct net_device *dev);
@@ -495,7 +495,7 @@ get_eeprom_cksum(int off, int len, int *buffer)
 static void net_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	net_interrupt(dev->irq, dev, NULL);
+	net_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1573,7 +1573,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 /* The typical workload of the driver:
    Handle the network interface interrupts. */
 
-static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t net_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *lp;

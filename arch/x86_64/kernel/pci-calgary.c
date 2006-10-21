@@ -2,8 +2,9 @@
  * Derived from arch/powerpc/kernel/iommu.c
  *
  * Copyright (C) IBM Corporation, 2006
+ * Copyright (C) 2006  Jon Mason <jdmason@kudzu.us>
  *
- * Author: Jon Mason <jdmason@us.ibm.com>
+ * Author: Jon Mason <jdmason@kudzu.us>
  * Author: Muli Ben-Yehuda <muli@il.ibm.com>
 
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +22,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -715,7 +715,7 @@ static void calgary_watchdog(unsigned long data)
 
 	/* If no error, the agent ID in the CSR is not valid */
 	if (val32 & CSR_AGENT_MASK) {
-		printk(KERN_EMERG "calgary_watchdog: DMA error on bus %d, "
+		printk(KERN_EMERG "calgary_watchdog: DMA error on PHB %#x, "
 				  "CSR = %#x\n", dev->bus->number, val32);
 		writel(0, target);
 
@@ -749,7 +749,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 |= PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE;
 
-	printk(KERN_INFO "Calgary: enabling translation on PHB %d\n", busnum);
+	printk(KERN_INFO "Calgary: enabling translation on PHB %#x\n", busnum);
 	printk(KERN_INFO "Calgary: errant DMAs will now be prevented on this "
 	       "bus.\n");
 
@@ -779,7 +779,7 @@ static void __init calgary_disable_translation(struct pci_dev *dev)
 	val32 = be32_to_cpu(readl(target));
 	val32 &= ~(PHB_TCE_ENABLE | PHB_DAC_DISABLE | PHB_MCSR_ENABLE);
 
-	printk(KERN_INFO "Calgary: disabling translation on PHB %d!\n", busnum);
+	printk(KERN_INFO "Calgary: disabling translation on PHB %#x!\n", busnum);
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
@@ -791,7 +791,16 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 	int rionodeid;
 	u32 address;
 
-	rionodeid = (dev->bus->number % 15 > 4) ? 3 : 2;
+	/*
+	 * Each Calgary has four busses. The first four busses (first Calgary)
+	 * have RIO node ID 2, then the next four (second Calgary) have RIO
+	 * node ID 3, the next four (third Calgary) have node ID 2 again, etc.
+	 * We use a gross hack - relying on the dev->bus->number ordering,
+	 * modulo 14 - to decide which Calgary a given bus is on. Busses 0, 1,
+	 * 2 and 4 are on the first Calgary (id 2), 6, 8, a and c are on the
+	 * second (id 3), and then it repeats modulo 14.
+ 	 */
+	rionodeid = (dev->bus->number % 14 > 4) ? 3 : 2;
 	/*
 	 * register space address calculation as follows:
 	 * FE0MB-8MB*OneBasedChassisNumber+1MB*(RioNodeId-ChassisBase)
@@ -799,7 +808,7 @@ static inline unsigned int __init locate_register_space(struct pci_dev *dev)
 	 * RioNodeId is 2 for first Calgary, 3 for second Calgary
 	 */
 	address = START_ADDRESS	-
-		(0x800000 * (ONE_BASED_CHASSIS_NUM + dev->bus->number / 15)) +
+		(0x800000 * (ONE_BASED_CHASSIS_NUM + dev->bus->number / 14)) +
 		(0x100000) * (rionodeid - CHASSIS_BASE);
 	return address;
 }
@@ -816,6 +825,8 @@ static int __init calgary_init_one(struct pci_dev *dev)
 	u32 address;
 	void __iomem *bbar;
 	int ret;
+
+	BUG_ON(dev->bus->number >= MAX_PHB_BUS_NUM);
 
 	address = locate_register_space(dev);
 	/* map entire 1MB of Calgary config space */
@@ -843,10 +854,10 @@ done:
 
 static int __init calgary_init(void)
 {
-	int i, ret = -ENODEV;
+	int ret = -ENODEV;
 	struct pci_dev *dev = NULL;
 
-	for (i = 0; i < MAX_PHB_BUS_NUM; i++) {
+	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM,
 				     PCI_DEVICE_ID_IBM_CALGARY,
 				     dev);
@@ -862,12 +873,12 @@ static int __init calgary_init(void)
 		ret = calgary_init_one(dev);
 		if (ret)
 			goto error;
-	}
+	} while (1);
 
 	return ret;
 
 error:
-	for (i--; i >= 0; i--) {
+	do {
 		dev = pci_find_device_reverse(PCI_VENDOR_ID_IBM,
 					      PCI_DEVICE_ID_IBM_CALGARY,
 					      dev);
@@ -883,7 +894,7 @@ error:
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
 		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
-	}
+	} while (1);
 
 	return ret;
 }
@@ -1053,7 +1064,7 @@ static int __init calgary_parse_options(char *p)
 
 			if (bridge < MAX_PHB_BUS_NUM) {
 				printk(KERN_INFO "Calgary: disabling "
-				       "translation for PHB 0x%x\n", bridge);
+				       "translation for PHB %#x\n", bridge);
 				bus_info[bridge].translation_disabled = 1;
 			}
 		}

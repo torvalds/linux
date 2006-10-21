@@ -203,7 +203,7 @@ static u16 rc_keys[] = {
 static void ttusb_dec_set_model(struct ttusb_dec *dec,
 				enum ttusb_dec_model model);
 
-static void ttusb_dec_handle_irq( struct urb *urb, struct pt_regs *regs)
+static void ttusb_dec_handle_irq( struct urb *urb)
 {
 	struct ttusb_dec * dec = urb->context;
 	char *buffer = dec->irq_buffer;
@@ -755,7 +755,7 @@ static void ttusb_dec_process_urb_frame_list(unsigned long data)
 	}
 }
 
-static void ttusb_dec_process_urb(struct urb *urb, struct pt_regs *ptregs)
+static void ttusb_dec_process_urb(struct urb *urb)
 {
 	struct ttusb_dec *dec = urb->context;
 

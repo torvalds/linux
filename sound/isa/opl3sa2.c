@@ -294,7 +294,7 @@ static int __devinit snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
 	return 0;
 }
 
-static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id)
 {
 	unsigned short status;
 	struct snd_opl3sa2 *chip = dev_id;
@@ -312,12 +312,12 @@ static irqreturn_t snd_opl3sa2_interrupt(int irq, void *dev_id, struct pt_regs *
 
 	if ((status & 0x10) && chip->rmidi != NULL) {
 		handled = 1;
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 	}
 
 	if (status & 0x07) {	/* TI,CI,PI */
 		handled = 1;
-		snd_cs4231_interrupt(irq, chip->cs4231, regs);
+		snd_cs4231_interrupt(irq, chip->cs4231);
 	}
 
 	if (status & 0x40) { /* hardware volume change */

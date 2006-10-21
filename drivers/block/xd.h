@@ -109,8 +109,7 @@ static int xd_ioctl (struct inode *inode,struct file *file,unsigned int cmd,unsi
 static int xd_readwrite (u_char operation,XD_INFO *disk,char *buffer,u_int block,u_int count);
 static void xd_recalibrate (u_char drive);
 
-static irqreturn_t xd_interrupt_handler(int irq, void *dev_id,
-					struct pt_regs *regs);
+static irqreturn_t xd_interrupt_handler(int irq, void *dev_id);
 static u_char xd_setup_dma (u_char opcode,u_char *buffer,u_int count);
 static u_char *xd_build (u_char *cmdblk,u_char command,u_char drive,u_char head,u_short cylinder,u_char sector,u_char count,u_char control);
 static void xd_watchdog (unsigned long unused);

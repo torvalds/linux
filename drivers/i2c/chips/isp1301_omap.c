@@ -669,7 +669,7 @@ pulldown:
 	dump_regs(isp, "otg->isp1301");
 }
 
-static irqreturn_t omap_otg_irq(int irq, void *_isp, struct pt_regs *regs)
+static irqreturn_t omap_otg_irq(int irq, void *_isp)
 {
 	u16		otg_irq = OTG_IRQ_SRC_REG;
 	u32		otg_ctrl;
@@ -1181,7 +1181,7 @@ isp1301_work(void *data)
 	isp->working = 0;
 }
 
-static irqreturn_t isp1301_irq(int irq, void *isp, struct pt_regs *regs)
+static irqreturn_t isp1301_irq(int irq, void *isp)
 {
 	isp1301_defer_work(isp, WORK_UPDATE_OTG);
 	return IRQ_HANDLED;

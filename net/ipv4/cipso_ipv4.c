@@ -43,6 +43,7 @@
 #include <net/tcp.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <asm/atomic.h>
 #include <asm/bug.h>
 
 struct cipso_v4_domhsh_entry {
@@ -79,7 +80,7 @@ struct cipso_v4_map_cache_entry {
 	unsigned char *key;
 	size_t key_len;
 
-	struct netlbl_lsm_cache lsm_data;
+	struct netlbl_lsm_cache *lsm_data;
 
 	u32 activity;
 	struct list_head list;
@@ -188,13 +189,14 @@ static void cipso_v4_doi_domhsh_free(struct rcu_head *entry)
  * @entry: the entry to free
  *
  * Description:
- * This function frees the memory associated with a cache entry.
+ * This function frees the memory associated with a cache entry including the
+ * LSM cache data if there are no longer any users, i.e. reference count == 0.
  *
  */
 static void cipso_v4_cache_entry_free(struct cipso_v4_map_cache_entry *entry)
 {
-	if (entry->lsm_data.free)
-		entry->lsm_data.free(entry->lsm_data.data);
+	if (entry->lsm_data)
+		netlbl_secattr_cache_free(entry->lsm_data);
 	kfree(entry->key);
 	kfree(entry);
 }
@@ -315,8 +317,8 @@ static int cipso_v4_cache_check(const unsigned char *key,
 		    entry->key_len == key_len &&
 		    memcmp(entry->key, key, key_len) == 0) {
 			entry->activity += 1;
-			secattr->cache.free = entry->lsm_data.free;
-			secattr->cache.data = entry->lsm_data.data;
+			atomic_inc(&entry->lsm_data->refcount);
+			secattr->cache = entry->lsm_data;
 			if (prev_entry == NULL) {
 				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
@@ -383,8 +385,8 @@ int cipso_v4_cache_add(const struct sk_buff *skb,
 	memcpy(entry->key, cipso_ptr, cipso_ptr_len);
 	entry->key_len = cipso_ptr_len;
 	entry->hash = cipso_v4_map_cache_hash(cipso_ptr, cipso_ptr_len);
-	entry->lsm_data.free = secattr->cache.free;
-	entry->lsm_data.data = secattr->cache.data;
+	atomic_inc(&secattr->cache->refcount);
+	entry->lsm_data = secattr->cache;
 
 	bkt = entry->hash & (CIPSO_V4_CACHE_BUCKETBITS - 1);
 	spin_lock_bh(&cipso_v4_cache[bkt].lock);
@@ -771,13 +773,15 @@ static int cipso_v4_map_cat_rbm_valid(const struct cipso_v4_doi *doi_def,
 {
 	int cat = -1;
 	u32 bitmap_len_bits = bitmap_len * 8;
-	u32 cipso_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *cipso_array = doi_def->map.std->cat.cipso;
+	u32 cipso_cat_size;
+	u32 *cipso_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
 		return 0;
 	case CIPSO_V4_MAP_STD:
+		cipso_cat_size = doi_def->map.std->cat.cipso_size;
+		cipso_array = doi_def->map.std->cat.cipso;
 		for (;;) {
 			cat = cipso_v4_bitmap_walk(bitmap,
 						   bitmap_len_bits,
@@ -823,19 +827,21 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 	u32 net_spot_max = 0;
 	u32 host_clen_bits = host_cat_len * 8;
 	u32 net_clen_bits = net_cat_len * 8;
-	u32 host_cat_size = doi_def->map.std->cat.local_size;
-	u32 *host_cat_array = doi_def->map.std->cat.local;
+	u32 host_cat_size;
+	u32 *host_cat_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
-		net_spot_max = host_cat_len - 1;
-		while (net_spot_max > 0 && host_cat[net_spot_max] == 0)
+		net_spot_max = host_cat_len;
+		while (net_spot_max > 0 && host_cat[net_spot_max - 1] == 0)
 			net_spot_max--;
 		if (net_spot_max > net_cat_len)
 			return -EINVAL;
 		memcpy(net_cat, host_cat, net_spot_max);
 		return net_spot_max;
 	case CIPSO_V4_MAP_STD:
+		host_cat_size = doi_def->map.std->cat.local_size;
+		host_cat_array = doi_def->map.std->cat.local;
 		for (;;) {
 			host_spot = cipso_v4_bitmap_walk(host_cat,
 							 host_clen_bits,
@@ -891,8 +897,8 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 	int net_spot = -1;
 	u32 net_clen_bits = net_cat_len * 8;
 	u32 host_clen_bits = host_cat_len * 8;
-	u32 net_cat_size = doi_def->map.std->cat.cipso_size;
-	u32 *net_cat_array = doi_def->map.std->cat.cipso;
+	u32 net_cat_size;
+	u32 *net_cat_array;
 
 	switch (doi_def->type) {
 	case CIPSO_V4_MAP_PASS:
@@ -901,6 +907,8 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 		memcpy(host_cat, net_cat, net_cat_len);
 		return net_cat_len;
 	case CIPSO_V4_MAP_STD:
+		net_cat_size = doi_def->map.std->cat.cipso_size;
+		net_cat_array = doi_def->map.std->cat.cipso;
 		for (;;) {
 			net_spot = cipso_v4_bitmap_walk(net_cat,
 							net_clen_bits,

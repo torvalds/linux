@@ -6,7 +6,6 @@
 
 #include "linux/stddef.h"
 #include "linux/sched.h"
-#include "linux/config.h"
 #include "linux/mm.h"
 #include "asm/page.h"
 #include "asm/pgtable.h"

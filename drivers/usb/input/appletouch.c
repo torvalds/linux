@@ -210,7 +210,7 @@ static inline void atp_report_fingers(struct input_dev *input, int fingers)
 	input_report_key(input, BTN_TOOL_TRIPLETAP, fingers > 2);
 }
 
-static void atp_complete(struct urb* urb, struct pt_regs* regs)
+static void atp_complete(struct urb* urb)
 {
 	int x, y, x_z, y_z, x_f, y_f;
 	int retval, i, j;

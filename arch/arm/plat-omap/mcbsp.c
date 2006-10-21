@@ -96,7 +96,7 @@ static void omap_mcbsp_dump_reg(u8 id)
 	DBG("***********************\n");
 }
 
-static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp * mcbsp_tx = (struct omap_mcbsp *)(dev_id);
 
@@ -106,7 +106,7 @@ static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id, struct pt_re
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp * mcbsp_rx = (struct omap_mcbsp *)(dev_id);
 

@@ -238,18 +238,26 @@ void cpu_idle (void)
  * We execute MONITOR against need_resched and enter optimized wait state
  * through MWAIT. Whenever someone changes need_resched, we would be woken
  * up from MWAIT (without an IPI).
+ *
+ * New with Core Duo processors, MWAIT can take some hints based on CPU
+ * capability.
  */
+void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+{
+	if (!need_resched()) {
+		__monitor((void *)&current_thread_info()->flags, 0, 0);
+		smp_mb();
+		if (!need_resched())
+			__mwait(eax, ecx);
+	}
+}
+
+/* Default MONITOR/MWAIT with no hints, used for default C1 state */
 static void mwait_idle(void)
 {
 	local_irq_enable();
-
-	while (!need_resched()) {
-		__monitor((void *)&current_thread_info()->flags, 0, 0);
-		smp_mb();
-		if (need_resched())
-			break;
-		__mwait(0, 0);
-	}
+	while (!need_resched())
+		mwait_idle_with_hints(0,0);
 }
 
 void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
@@ -615,6 +623,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		prev->gsindex = gsindex;
 	}
 
+	/* Must be after DS reload */
+	unlazy_fpu(prev_p);
+
 	/* 
 	 * Switch the PDA and FPU contexts.
 	 */
@@ -622,10 +633,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	write_pda(oldrsp, next->userrsp); 
 	write_pda(pcurrent, next_p); 
 
-	/* This must be here to ensure both math_state_restore() and
-	   kernel_fpu_begin() work consistently. 
-	   And the AMD workaround requires it to be after DS reload. */
-	unlazy_fpu(prev_p);
 	write_pda(kernelstack,
 	(unsigned long)task_stack_page(next_p) + THREAD_SIZE - PDA_STACKOFFSET);
 #ifdef CONFIG_CC_STACKPROTECTOR

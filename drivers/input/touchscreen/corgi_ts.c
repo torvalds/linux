@@ -173,7 +173,7 @@ static int read_xydata(struct corgi_ts *corgi_ts)
 	return 1;
 }
 
-static void new_data(struct corgi_ts *corgi_ts, struct pt_regs *regs)
+static void new_data(struct corgi_ts *corgi_ts)
 {
 	if (corgi_ts->power_mode != PWR_MODE_ACTIVE)
 		return;
@@ -181,7 +181,6 @@ static void new_data(struct corgi_ts *corgi_ts, struct pt_regs *regs)
 	if (!corgi_ts->tc.pressure && corgi_ts->pendown == 0)
 		return;
 
-	input_regs(corgi_ts->input, regs);
 	input_report_abs(corgi_ts->input, ABS_X, corgi_ts->tc.x);
 	input_report_abs(corgi_ts->input, ABS_Y, corgi_ts->tc.y);
 	input_report_abs(corgi_ts->input, ABS_PRESSURE, corgi_ts->tc.pressure);
@@ -189,14 +188,14 @@ static void new_data(struct corgi_ts *corgi_ts, struct pt_regs *regs)
 	input_sync(corgi_ts->input);
 }
 
-static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer, struct pt_regs *regs)
+static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer)
 {
 	if ((GPLR(IRQ_TO_GPIO(corgi_ts->irq_gpio)) & GPIO_bit(IRQ_TO_GPIO(corgi_ts->irq_gpio))) == 0) {
 		/* Disable Interrupt */
 		set_irq_type(corgi_ts->irq_gpio, IRQT_NOEDGE);
 		if (read_xydata(corgi_ts)) {
 			corgi_ts->pendown = 1;
-			new_data(corgi_ts, regs);
+			new_data(corgi_ts);
 		}
 		mod_timer(&corgi_ts->timer, jiffies + HZ / 100);
 	} else {
@@ -208,7 +207,7 @@ static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer, struct pt_
 
 		if (corgi_ts->pendown) {
 			corgi_ts->tc.pressure = 0;
-			new_data(corgi_ts, regs);
+			new_data(corgi_ts);
 		}
 
 		/* Enable Falling Edge */
@@ -220,13 +219,13 @@ static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer, struct pt_
 static void corgi_ts_timer(unsigned long data)
 {
 	struct corgi_ts *corgits_data = (struct corgi_ts *) data;
-	ts_interrupt_main(corgits_data, 1, NULL);
+	ts_interrupt_main(corgits_data, 1);
 }
 
-static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ts_interrupt(int irq, void *dev_id)
 {
 	struct corgi_ts *corgits_data = dev_id;
-	ts_interrupt_main(corgits_data, 0, regs);
+	ts_interrupt_main(corgits_data, 0);
 	return IRQ_HANDLED;
 }
 
@@ -238,7 +237,7 @@ static int corgits_suspend(struct platform_device *dev, pm_message_t state)
 	if (corgi_ts->pendown) {
 		del_timer_sync(&corgi_ts->timer);
 		corgi_ts->tc.pressure = 0;
-		new_data(corgi_ts, NULL);
+		new_data(corgi_ts);
 		corgi_ts->pendown = 0;
 	}
 	corgi_ts->power_mode = PWR_MODE_SUSPEND;

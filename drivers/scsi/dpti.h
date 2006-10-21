@@ -44,7 +44,7 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 
 
 /*
- * struct scsi_host_template (see hosts.h)
+ * struct scsi_host_template (see scsi/scsi_host.h)
  */
 
 #define DPT_DRIVER_NAME	"Adaptec I2O RAID"
@@ -263,7 +263,7 @@ struct sg_simple_element {
 static void adpt_i2o_sys_shutdown(void);
 static int adpt_init(void);
 static int adpt_i2o_build_sys_table(void);
-static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t adpt_isr(int irq, void *dev_id);
 #ifdef REBOOT_NOTIFIER
 static int adpt_reboot_event(struct notifier_block *n, ulong code, void *p);
 #endif

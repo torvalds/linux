@@ -351,9 +351,10 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	return ata_pci_init_one(dev, port_info, 1); /* For now */
 }
 
-static struct pci_device_id sl82c105[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105), },
-	{ 0, },
+static const struct pci_device_id sl82c105[] = {
+	{ PCI_VDEVICE(WINBOND, PCI_DEVICE_ID_WINBOND_82C105), },
+
+	{ },
 };
 
 static struct pci_driver sl82c105_pci_driver = {
@@ -368,12 +369,10 @@ static int __init sl82c105_init(void)
 	return pci_register_driver(&sl82c105_pci_driver);
 }
 
-
 static void __exit sl82c105_exit(void)
 {
 	pci_unregister_driver(&sl82c105_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Sl82c105");

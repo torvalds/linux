@@ -304,7 +304,7 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	printk("\n");
 }
 
-static void async_completed(struct urb *urb, struct pt_regs *regs)
+static void async_completed(struct urb *urb)
 {
         struct async *as = urb->context;
         struct dev_state *ps = as->ps;
@@ -1216,7 +1216,7 @@ static int proc_submiturb_compat(struct dev_state *ps, void __user *arg)
 {
 	struct usbdevfs_urb uurb;
 
-	if (get_urb32(&uurb,(struct usbdevfs_urb32 *)arg))
+	if (get_urb32(&uurb,(struct usbdevfs_urb32 __user *)arg))
 		return -EFAULT;
 
 	return proc_do_submiturb(ps, &uurb, ((struct usbdevfs_urb32 __user *)arg)->iso_frame_desc, arg);
@@ -1251,7 +1251,7 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	}
 
 	free_async(as);
-	if (put_user((u32)(u64)addr, (u32 __user *)arg))
+	if (put_user(ptr_to_compat(addr), (u32 __user *)arg))
 		return -EFAULT;
 	return 0;
 }
@@ -1520,7 +1520,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 	case USBDEVFS_IOCTL32:
 		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
-		ret = proc_ioctl_compat(ps, (compat_uptr_t)(long)p);
+		ret = proc_ioctl_compat(ps, ptr_to_compat(p));
 		break;
 #endif
 
@@ -1588,15 +1588,18 @@ const struct file_operations usbfs_device_file_operations = {
 	.release =	usbdev_release,
 };
 
-static void usbdev_add(struct usb_device *dev)
+static int usbdev_add(struct usb_device *dev)
 {
 	int minor = ((dev->bus->busnum-1) * 128) + (dev->devnum-1);
 
 	dev->class_dev = class_device_create(usb_device_class, NULL,
 				MKDEV(USB_DEVICE_MAJOR, minor), &dev->dev,
 				"usbdev%d.%d", dev->bus->busnum, dev->devnum);
+	if (IS_ERR(dev->class_dev))
+		return PTR_ERR(dev->class_dev);
 
 	dev->class_dev->class_data = dev;
+	return 0;
 }
 
 static void usbdev_remove(struct usb_device *dev)
@@ -1609,7 +1612,8 @@ static int usbdev_notify(struct notifier_block *self, unsigned long action,
 {
 	switch (action) {
 	case USB_DEVICE_ADD:
-		usbdev_add(dev);
+		if (usbdev_add(dev))
+			return NOTIFY_BAD;
 		break;
 	case USB_DEVICE_REMOVE:
 		usbdev_remove(dev);

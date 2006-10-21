@@ -125,7 +125,7 @@ static void qcm_report_buttonstat(struct qcm *cam)
 	}
 }
 
-static void qcm_int_irq(struct urb *urb, struct pt_regs *regs)
+static void qcm_int_irq(struct urb *urb)
 {
 	int ret;
 	struct uvd *uvd = urb->context;
@@ -606,7 +606,7 @@ static void resubmit_urb(struct uvd *uvd, struct urb *urb)
 		err("usb_submit_urb error (%d)", ret);
 }
 
-static void qcm_isoc_irq(struct urb *urb, struct pt_regs *regs)
+static void qcm_isoc_irq(struct urb *urb)
 {
 	int len;
 	struct uvd *uvd = urb->context;

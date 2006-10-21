@@ -57,6 +57,7 @@
 static int set_rtc_mmss(unsigned long);
 
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -104,7 +105,7 @@ unsigned long long sched_clock(void)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev)
 {
 	unsigned long delta;
 	__u32 now;
@@ -112,7 +113,7 @@ irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
 
 #ifndef CONFIG_SMP
 	/* Not SMP, do kernel PC profiling here.  */
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #endif
 
 	write_seqlock(&xtime_lock);
@@ -132,7 +133,7 @@ irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
 	while (nticks > 0) {
 		do_timer(1);
 #ifndef CONFIG_SMP
-		update_process_times(user_mode(regs));
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 		nticks--;
 	}

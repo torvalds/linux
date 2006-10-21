@@ -98,7 +98,7 @@ static struct usb_device_id mtouchusb_devices[] = {
 	{ }
 };
 
-static void mtouchusb_irq(struct urb *urb, struct pt_regs *regs)
+static void mtouchusb_irq(struct urb *urb)
 {
 	struct mtouch_usb *mtouch = urb->context;
 	int retval;
@@ -125,7 +125,6 @@ static void mtouchusb_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	input_regs(mtouch->input, regs);
 	input_report_key(mtouch->input, BTN_TOUCH,
 			 MTOUCHUSB_GET_TOUCHED(mtouch->data));
 	input_report_abs(mtouch->input, ABS_X, MTOUCHUSB_GET_XC(mtouch->data));

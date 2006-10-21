@@ -694,19 +694,17 @@ out:
 	spin_unlock(&lp->lock);
 }
 
-static irqreturn_t lance_dma_merr_int(const int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t lance_dma_merr_int(const int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 
 	printk("%s: DMA error\n", dev->name);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t lance_interrupt(const int irq, void *dev_id,
-				   struct pt_regs *regs)
+static irqreturn_t lance_interrupt(const int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct lance_private *lp = netdev_priv(dev);
 	volatile struct lance_regs *ll = lp->ll;
 	int csr0;

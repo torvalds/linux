@@ -102,7 +102,7 @@ static void omap_cf_timer(unsigned long _cf)
  * claim the card's IRQ.  It may also detect some card insertions, but
  * not removals; it can't always eliminate timer irqs.
  */
-static irqreturn_t omap_cf_irq(int irq, void *_cf, struct pt_regs *r)
+static irqreturn_t omap_cf_irq(int irq, void *_cf)
 {
 	omap_cf_timer((unsigned long)_cf);
 	return IRQ_HANDLED;

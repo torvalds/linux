@@ -184,7 +184,7 @@ static const char emac_stats_keys[EMAC_ETHTOOL_STATS_COUNT][ETH_GSTRING_LEN] = {
 	"tx_errors"
 };
 
-static irqreturn_t emac_irq(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t emac_irq(int irq, void *dev_instance);
 static void emac_clean_tx_ring(struct ocp_enet_private *dev);
 
 static inline int emac_phy_supports_gige(int phy_mode)
@@ -1515,7 +1515,7 @@ static void emac_rxde(void *param)
 }
 
 /* Hard IRQ */
-static irqreturn_t emac_irq(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t emac_irq(int irq, void *dev_instance)
 {
 	struct ocp_enet_private *dev = dev_instance;
 	struct emac_regs __iomem *p = dev->emacp;

@@ -198,7 +198,7 @@ islpci_state_t islpci_set_state(islpci_private *priv, islpci_state_t new_state);
 
 #define ISLPCI_TX_TIMEOUT               (2*HZ)
 
-irqreturn_t islpci_interrupt(int, void *, struct pt_regs *);
+irqreturn_t islpci_interrupt(int, void *);
 
 int prism54_post_setup(islpci_private *, int);
 int islpci_reset(islpci_private *, int);

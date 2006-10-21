@@ -48,8 +48,8 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	}
 	ehci->command = readl (&ehci->regs->command);
 	if (ehci->reclaim)
-		end_unlink_async (ehci, NULL);
-	ehci_work(ehci, NULL);
+		ehci->reclaim_ready = 1;
+	ehci_work(ehci);
 
 	/* suspend any active/unsuspended ports, maybe allow wakeup */
 	while (port--) {

@@ -480,8 +480,7 @@ static struct irqchip s3c_irq_adc = {
 
 /* irq demux for adc */
 static void s3c_irq_demux_adc(unsigned int irq,
-			      struct irqdesc *desc,
-			      struct pt_regs *regs)
+			      struct irqdesc *desc)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = 9;
@@ -500,17 +499,16 @@ static void s3c_irq_demux_adc(unsigned int irq,
 	if (subsrc != 0) {
 		if (subsrc & 1) {
 			mydesc = irq_desc + IRQ_TC;
-			desc_handle_irq(IRQ_TC, mydesc, regs);
+			desc_handle_irq(IRQ_TC, mydesc);
 		}
 		if (subsrc & 2) {
 			mydesc = irq_desc + IRQ_ADC;
-			desc_handle_irq(IRQ_ADC, mydesc, regs);
+			desc_handle_irq(IRQ_ADC, mydesc);
 		}
 	}
 }
 
-static void s3c_irq_demux_uart(unsigned int start,
-			       struct pt_regs *regs)
+static void s3c_irq_demux_uart(unsigned int start)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = start - IRQ_S3CUART_RX0;
@@ -533,17 +531,17 @@ static void s3c_irq_demux_uart(unsigned int start,
 		desc = irq_desc + start;
 
 		if (subsrc & 1)
-			desc_handle_irq(start, desc, regs);
+			desc_handle_irq(start, desc);
 
 		desc++;
 
 		if (subsrc & 2)
-			desc_handle_irq(start+1, desc, regs);
+			desc_handle_irq(start+1, desc);
 
 		desc++;
 
 		if (subsrc & 4)
-			desc_handle_irq(start+2, desc, regs);
+			desc_handle_irq(start+2, desc);
 	}
 }
 
@@ -551,35 +549,31 @@ static void s3c_irq_demux_uart(unsigned int start,
 
 static void
 s3c_irq_demux_uart0(unsigned int irq,
-		    struct irqdesc *desc,
-		    struct pt_regs *regs)
+		    struct irqdesc *desc)
 {
 	irq = irq;
-	s3c_irq_demux_uart(IRQ_S3CUART_RX0, regs);
+	s3c_irq_demux_uart(IRQ_S3CUART_RX0);
 }
 
 static void
 s3c_irq_demux_uart1(unsigned int irq,
-		    struct irqdesc *desc,
-		    struct pt_regs *regs)
+		    struct irqdesc *desc)
 {
 	irq = irq;
-	s3c_irq_demux_uart(IRQ_S3CUART_RX1, regs);
+	s3c_irq_demux_uart(IRQ_S3CUART_RX1);
 }
 
 static void
 s3c_irq_demux_uart2(unsigned int irq,
-		    struct irqdesc *desc,
-		    struct pt_regs *regs)
+		    struct irqdesc *desc)
 {
 	irq = irq;
-	s3c_irq_demux_uart(IRQ_S3CUART_RX2, regs);
+	s3c_irq_demux_uart(IRQ_S3CUART_RX2);
 }
 
 static void
 s3c_irq_demux_extint8(unsigned int irq,
-		      struct irqdesc *desc,
-		      struct pt_regs *regs)
+		      struct irqdesc *desc)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
@@ -594,15 +588,14 @@ s3c_irq_demux_extint8(unsigned int irq,
 		eintpnd &= ~(1<<irq);
 
 		irq += (IRQ_EINT4 - 4);
-		desc_handle_irq(irq, irq_desc + irq, regs);
+		desc_handle_irq(irq, irq_desc + irq);
 	}
 
 }
 
 static void
 s3c_irq_demux_extint4t7(unsigned int irq,
-			struct irqdesc *desc,
-			struct pt_regs *regs)
+			struct irqdesc *desc)
 {
 	unsigned long eintpnd = __raw_readl(S3C24XX_EINTPEND);
 	unsigned long eintmsk = __raw_readl(S3C24XX_EINTMASK);
@@ -618,7 +611,7 @@ s3c_irq_demux_extint4t7(unsigned int irq,
 
 		irq += (IRQ_EINT4 - 4);
 
-		desc_handle_irq(irq, irq_desc + irq, regs);
+		desc_handle_irq(irq, irq_desc + irq);
 	}
 }
 

@@ -216,10 +216,10 @@ static int CmdUrbs = 0;		/* Number of outstanding Command Write Urbs */
 /* local function prototypes */
 
 /* function prototypes for all URB callbacks */
-static void edge_interrupt_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_in_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_out_data_callback	(struct urb *urb, struct pt_regs *regs);
-static void edge_bulk_out_cmd_callback	(struct urb *urb, struct pt_regs *regs);
+static void edge_interrupt_callback	(struct urb *urb);
+static void edge_bulk_in_callback	(struct urb *urb);
+static void edge_bulk_out_data_callback	(struct urb *urb);
+static void edge_bulk_out_cmd_callback	(struct urb *urb);
 
 /* function prototypes for the usbserial callbacks */
 static int  edge_open			(struct usb_serial_port *port, struct file *filp);
@@ -534,7 +534,7 @@ static void get_product_info(struct edgeport_serial *edge_serial)
  *	this is the callback function for when we have received data on the 
  *	interrupt endpoint.
  *****************************************************************************/
-static void edge_interrupt_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_interrupt_callback (struct urb *urb)
 {
 	struct edgeport_serial	*edge_serial = (struct edgeport_serial *)urb->context;
 	struct edgeport_port *edge_port;
@@ -631,7 +631,7 @@ exit:
  *	this is the callback function for when we have received data on the 
  *	bulk in endpoint.
  *****************************************************************************/
-static void edge_bulk_in_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_in_callback (struct urb *urb)
 {
 	struct edgeport_serial	*edge_serial = (struct edgeport_serial *)urb->context;
 	unsigned char		*data = urb->transfer_buffer;
@@ -687,7 +687,7 @@ static void edge_bulk_in_callback (struct urb *urb, struct pt_regs *regs)
  *	this is the callback function for when we have finished sending serial data
  *	on the bulk out endpoint.
  *****************************************************************************/
-static void edge_bulk_out_data_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_out_data_callback (struct urb *urb)
 {
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	struct tty_struct *tty;
@@ -718,7 +718,7 @@ static void edge_bulk_out_data_callback (struct urb *urb, struct pt_regs *regs)
  *	this is the callback function for when we have finished sending a command
  *	on the bulk out endpoint.
  *****************************************************************************/
-static void edge_bulk_out_cmd_callback (struct urb *urb, struct pt_regs *regs)
+static void edge_bulk_out_cmd_callback (struct urb *urb)
 {
 	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
 	struct tty_struct *tty;

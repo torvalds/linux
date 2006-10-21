@@ -158,7 +158,7 @@ static struct usb_driver usb_pcwd_driver = {
 };
 
 
-static void usb_pcwd_intr_done(struct urb *urb, struct pt_regs *regs)
+static void usb_pcwd_intr_done(struct urb *urb)
 {
 	struct usb_pcwd_private *usb_pcwd = (struct usb_pcwd_private *)urb->context;
 	unsigned char *data = usb_pcwd->intr_buffer;

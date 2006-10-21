@@ -310,7 +310,7 @@ static void flush_tlb_all_ipi(void *info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(flush_tlb_all_ipi, 0, 1, 1);
+	on_each_cpu(flush_tlb_all_ipi, NULL, 1, 1);
 }
 
 static void flush_tlb_mm_ipi(void *mm)
@@ -467,14 +467,18 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 static int __init topology_init(void)
 {
-	int cpu;
-	int ret;
+	int i, ret;
 
-	for_each_present_cpu(cpu) {
-		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu);
+#ifdef CONFIG_NUMA
+	for_each_online_node(i)
+		register_one_node(i);
+#endif /* CONFIG_NUMA */
+
+	for_each_present_cpu(i) {
+		ret = register_cpu(&per_cpu(cpu_devices, i), i);
 		if (ret)
 			printk(KERN_WARNING "topology_init: register_cpu %d "
-			       "failed (%d)\n", cpu, ret);
+			       "failed (%d)\n", i, ret);
 	}
 
 	return 0;

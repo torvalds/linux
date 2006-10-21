@@ -1815,8 +1815,7 @@ static void devstate_irq(struct omap_udc *udc, u16 irq_src)
 	UDC_IRQ_SRC_REG = UDC_DS_CHG;
 }
 
-static irqreturn_t
-omap_udc_irq(int irq, void *_udc, struct pt_regs *r)
+static irqreturn_t omap_udc_irq(int irq, void *_udc)
 {
 	struct omap_udc	*udc = _udc;
 	u16		irq_src;
@@ -1888,8 +1887,7 @@ static void pio_out_timer(unsigned long _ep)
 	spin_unlock_irqrestore(&ep->udc->lock, flags);
 }
 
-static irqreturn_t
-omap_udc_pio_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t omap_udc_pio_irq(int irq, void *_dev)
 {
 	u16		epn_stat, irq_src;
 	irqreturn_t	status = IRQ_NONE;
@@ -1968,8 +1966,7 @@ omap_udc_pio_irq(int irq, void *_dev, struct pt_regs *r)
 }
 
 #ifdef	USE_ISO
-static irqreturn_t
-omap_udc_iso_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t omap_udc_iso_irq(int irq, void *_dev)
 {
 	struct omap_udc	*udc = _dev;
 	struct omap_ep	*ep;

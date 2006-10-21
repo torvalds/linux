@@ -3503,7 +3503,7 @@ check_middle:
 }
 
 static void
-ov51x_isoc_irq(struct urb *urb, struct pt_regs *regs)
+ov51x_isoc_irq(struct urb *urb)
 {
 	int i;
 	struct usb_ov511 *ov;
@@ -5648,17 +5648,49 @@ static ssize_t show_exposure(struct class_device *cd, char *buf)
 }
 static CLASS_DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
 
-static void ov_create_sysfs(struct video_device *vdev)
+static int ov_create_sysfs(struct video_device *vdev)
 {
-	video_device_create_file(vdev, &class_device_attr_custom_id);
-	video_device_create_file(vdev, &class_device_attr_model);
-	video_device_create_file(vdev, &class_device_attr_bridge);
-	video_device_create_file(vdev, &class_device_attr_sensor);
-	video_device_create_file(vdev, &class_device_attr_brightness);
-	video_device_create_file(vdev, &class_device_attr_saturation);
-	video_device_create_file(vdev, &class_device_attr_contrast);
-	video_device_create_file(vdev, &class_device_attr_hue);
-	video_device_create_file(vdev, &class_device_attr_exposure);
+	int rc;
+
+	rc = video_device_create_file(vdev, &class_device_attr_custom_id);
+	if (rc) goto err;
+	rc = video_device_create_file(vdev, &class_device_attr_model);
+	if (rc) goto err_id;
+	rc = video_device_create_file(vdev, &class_device_attr_bridge);
+	if (rc) goto err_model;
+	rc = video_device_create_file(vdev, &class_device_attr_sensor);
+	if (rc) goto err_bridge;
+	rc = video_device_create_file(vdev, &class_device_attr_brightness);
+	if (rc) goto err_sensor;
+	rc = video_device_create_file(vdev, &class_device_attr_saturation);
+	if (rc) goto err_bright;
+	rc = video_device_create_file(vdev, &class_device_attr_contrast);
+	if (rc) goto err_sat;
+	rc = video_device_create_file(vdev, &class_device_attr_hue);
+	if (rc) goto err_contrast;
+	rc = video_device_create_file(vdev, &class_device_attr_exposure);
+	if (rc) goto err_hue;
+
+	return 0;
+
+err_hue:
+	video_device_remove_file(vdev, &class_device_attr_hue);
+err_contrast:
+	video_device_remove_file(vdev, &class_device_attr_contrast);
+err_sat:
+	video_device_remove_file(vdev, &class_device_attr_saturation);
+err_bright:
+	video_device_remove_file(vdev, &class_device_attr_brightness);
+err_sensor:
+	video_device_remove_file(vdev, &class_device_attr_sensor);
+err_bridge:
+	video_device_remove_file(vdev, &class_device_attr_bridge);
+err_model:
+	video_device_remove_file(vdev, &class_device_attr_model);
+err_id:
+	video_device_remove_file(vdev, &class_device_attr_custom_id);
+err:
+	return rc;
 }
 
 /****************************************************************************
@@ -5817,7 +5849,11 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	     ov->vdev->minor);
 
 	usb_set_intfdata(intf, ov);
-	ov_create_sysfs(ov->vdev);
+	if (ov_create_sysfs(ov->vdev)) {
+		err("ov_create_sysfs failed");
+		goto error;
+	}
+
 	return 0;
 
 error:

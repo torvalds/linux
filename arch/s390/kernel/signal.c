@@ -113,17 +113,15 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 /* Returns non-zero on fault. */
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
-	unsigned long old_mask = regs->psw.mask;
 	_sigregs user_sregs;
 
 	save_access_regs(current->thread.acrs);
 
 	/* Copy a 'clean' PSW mask to the user to avoid leaking
 	   information about whether PER is currently on.  */
-	regs->psw.mask = PSW_MASK_MERGE(PSW_USER_BITS, regs->psw.mask);
-	memcpy(&user_sregs.regs.psw, &regs->psw, sizeof(sregs->regs.psw) +
-	       sizeof(sregs->regs.gprs));
-	regs->psw.mask = old_mask;
+	user_sregs.regs.psw.mask = PSW_MASK_MERGE(PSW_USER_BITS, regs->psw.mask);
+	user_sregs.regs.psw.addr = regs->psw.addr;
+	memcpy(&user_sregs.regs.gprs, &regs->gprs, sizeof(sregs->regs.gprs));
 	memcpy(&user_sregs.regs.acrs, current->thread.acrs,
 	       sizeof(sregs->regs.acrs));
 	/* 
@@ -139,7 +137,6 @@ static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 /* Returns positive number on error */
 static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
-	unsigned long old_mask = regs->psw.mask;
 	int err;
 	_sigregs user_sregs;
 
@@ -147,12 +144,12 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	err = __copy_from_user(&user_sregs, sregs, sizeof(_sigregs));
-	regs->psw.mask = PSW_MASK_MERGE(old_mask, regs->psw.mask);
-	regs->psw.addr |= PSW_ADDR_AMODE;
 	if (err)
 		return err;
-	memcpy(&regs->psw, &user_sregs.regs.psw, sizeof(sregs->regs.psw) +
-	       sizeof(sregs->regs.gprs));
+	regs->psw.mask = PSW_MASK_MERGE(regs->psw.mask,
+					user_sregs.regs.psw.mask);
+	regs->psw.addr = PSW_ADDR_AMODE | user_sregs.regs.psw.addr;
+	memcpy(&regs->gprs, &user_sregs.regs.gprs, sizeof(sregs->regs.gprs));
 	memcpy(&current->thread.acrs, &user_sregs.regs.acrs,
 	       sizeof(sregs->regs.acrs));
 	restore_access_regs(current->thread.acrs);

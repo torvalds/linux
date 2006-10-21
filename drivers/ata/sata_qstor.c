@@ -114,7 +114,7 @@ struct qs_port_priv {
 static u32 qs_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int qs_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
-static irqreturn_t qs_intr (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t qs_intr (int irq, void *dev_instance);
 static int qs_port_start(struct ata_port *ap);
 static void qs_host_stop(struct ata_host *host);
 static void qs_port_stop(struct ata_port *ap);
@@ -185,8 +185,7 @@ static const struct ata_port_info qs_port_info[] = {
 };
 
 static const struct pci_device_id qs_ata_pci_tbl[] = {
-	{ PCI_VENDOR_ID_PDC, 0x2068, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_2068_idx },
+	{ PCI_VDEVICE(PDC, 0x2068), board_2068_idx },
 
 	{ }	/* terminate list */
 };
@@ -455,7 +454,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 	return handled;
 }
 
-static irqreturn_t qs_intr(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t qs_intr(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int handled = 0;

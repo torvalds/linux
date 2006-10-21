@@ -20,7 +20,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
@@ -447,8 +446,7 @@ static void sci_transmit_chars(struct uart_port *port)
 /* On SH3, SCIF may read end-of-break as a space->mark char */
 #define STEPFN(c)  ({int __c=(c); (((__c-1)|(__c)) == -1); })
 
-static inline void sci_receive_chars(struct uart_port *port,
-				     struct pt_regs *regs)
+static inline void sci_receive_chars(struct uart_port *port)
 {
 	struct sci_port *sci_port = (struct sci_port *)port;
 	struct tty_struct *tty = port->info->tty;
@@ -477,7 +475,7 @@ static inline void sci_receive_chars(struct uart_port *port,
 
 		if (port->type == PORT_SCI) {
 			char c = sci_in(port, SCxRDR);
-			if (uart_handle_sysrq_char(port, c, regs) || sci_port->break_flag)
+			if (uart_handle_sysrq_char(port, c) || sci_port->break_flag)
 				count = 0;
 			else {
 				tty_insert_flip_char(tty, c, TTY_NORMAL);
@@ -505,7 +503,7 @@ static inline void sci_receive_chars(struct uart_port *port,
 					}
 				}
 #endif /* CONFIG_CPU_SH3 */
-				if (uart_handle_sysrq_char(port, c, regs)) {
+				if (uart_handle_sysrq_char(port, c)) {
 					count--; i--;
 					continue;
 				}
@@ -653,18 +651,18 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	return copied;
 }
 
-static irqreturn_t sci_rx_interrupt(int irq, void *port, struct pt_regs *regs)
+static irqreturn_t sci_rx_interrupt(int irq, void *port)
 {
 	/* I think sci_receive_chars has to be called irrespective
 	 * of whether the I_IXOFF is set, otherwise, how is the interrupt
 	 * to be disabled?
 	 */
-	sci_receive_chars(port, regs);
+	sci_receive_chars(port);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sci_tx_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sci_tx_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
 
@@ -675,7 +673,7 @@ static irqreturn_t sci_tx_interrupt(int irq, void *ptr, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sci_er_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sci_er_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
 
@@ -697,18 +695,18 @@ static irqreturn_t sci_er_interrupt(int irq, void *ptr, struct pt_regs *regs)
 			pr_debug("scif: overrun error\n");
 		}
 #endif
-		sci_rx_interrupt(irq, ptr, regs);
+		sci_rx_interrupt(irq, ptr);
 	}
 
 	sci_out(port, SCxSR, SCxSR_ERROR_CLEAR(port));
 
 	/* Kick the transmission */
-	sci_tx_interrupt(irq, ptr, regs);
+	sci_tx_interrupt(irq, ptr);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sci_br_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 {
 	struct uart_port *port = ptr;
 
@@ -725,7 +723,7 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
         unsigned short ssr_status, scr_status;
         struct uart_port *port = ptr;
@@ -735,16 +733,16 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr, struct pt_regs *regs)
 
 	/* Tx Interrupt */
         if ((ssr_status & 0x0020) && (scr_status & 0x0080))
-                sci_tx_interrupt(irq, ptr, regs);
+                sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
         if ((ssr_status & 0x0002) && (scr_status & 0x0040))
-                sci_rx_interrupt(irq, ptr, regs);
+                sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
         if ((ssr_status & 0x0080) && (scr_status & 0x0400))
-                sci_er_interrupt(irq, ptr, regs);
+                sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
         if ((ssr_status & 0x0010) && (scr_status & 0x0200))
-                sci_br_interrupt(irq, ptr, regs);
+                sci_br_interrupt(irq, ptr);
 
 	return IRQ_HANDLED;
 }
@@ -796,7 +794,7 @@ static struct notifier_block sci_nb = { &sci_notifier, NULL, 0 };
 static int sci_request_irq(struct sci_port *port)
 {
 	int i;
-	irqreturn_t (*handlers[4])(int irq, void *ptr, struct pt_regs *regs) = {
+	irqreturn_t (*handlers[4])(int irq, void *ptr) = {
 		sci_er_interrupt, sci_rx_interrupt, sci_tx_interrupt,
 		sci_br_interrupt,
 	};
@@ -810,7 +808,7 @@ static int sci_request_irq(struct sci_port *port)
 		}
 
 		if (request_irq(port->irqs[0], sci_mpxed_interrupt,
-				SA_INTERRUPT, "sci", port)) {
+				IRQF_DISABLED, "sci", port)) {
 			printk(KERN_ERR "sci: Cannot allocate irq.\n");
 			return -ENODEV;
 		}
@@ -819,7 +817,7 @@ static int sci_request_irq(struct sci_port *port)
 			if (!port->irqs[i])
 				continue;
 			if (request_irq(port->irqs[i], handlers[i],
-					SA_INTERRUPT, desc[i], port)) {
+					IRQF_DISABLED, desc[i], port)) {
 				printk(KERN_ERR "sci: Cannot allocate irq.\n");
 				return -ENODEV;
 			}

@@ -6,7 +6,6 @@
 #ifndef __KERN_UTIL_H__
 #define __KERN_UTIL_H__
 
-#include "linux/threads.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/faultinfo.h"
 

@@ -36,6 +36,8 @@
 
 #include "spufs.h"
 
+#define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
+
 
 static int
 spufs_mem_open(struct inode *inode, struct file *file)
@@ -88,7 +90,6 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 	return ret;
 }
 
-#ifdef CONFIG_SPUFS_MMAP
 static struct page *
 spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 		      unsigned long address, int *type)
@@ -101,12 +102,16 @@ spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 
 	spu_acquire(ctx);
 
-	if (ctx->state == SPU_STATE_SAVED)
+	if (ctx->state == SPU_STATE_SAVED) {
+		vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+					& ~(_PAGE_NO_CACHE | _PAGE_GUARDED));
 		page = vmalloc_to_page(ctx->csa.lscsa->ls + offset);
-	else
+	} else {
+		vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+					| _PAGE_NO_CACHE | _PAGE_GUARDED);
 		page = pfn_to_page((ctx->spu->local_store_phys + offset)
 				   >> PAGE_SHIFT);
-
+	}
 	spu_release(ctx);
 
 	if (type)
@@ -133,22 +138,19 @@ spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_mem_mmap_vmops;
 	return 0;
 }
-#endif
 
 static struct file_operations spufs_mem_fops = {
 	.open	 = spufs_mem_open,
 	.read    = spufs_mem_read,
 	.write   = spufs_mem_write,
 	.llseek  = generic_file_llseek,
-#ifdef CONFIG_SPUFS_MMAP
 	.mmap    = spufs_mem_mmap,
-#endif
 };
 
-#ifdef CONFIG_SPUFS_MMAP
 static struct page *spufs_ps_nopage(struct vm_area_struct *vma,
 				    unsigned long address,
-				    int *type, unsigned long ps_offs)
+				    int *type, unsigned long ps_offs,
+				    unsigned long ps_size)
 {
 	struct page *page = NOPAGE_SIGBUS;
 	int fault_type = VM_FAULT_SIGBUS;
@@ -158,7 +160,7 @@ static struct page *spufs_ps_nopage(struct vm_area_struct *vma,
 	int ret;
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
-	if (offset >= 0x4000)
+	if (offset >= ps_size)
 		goto out;
 
 	ret = spu_acquire_runnable(ctx);
@@ -179,10 +181,11 @@ static struct page *spufs_ps_nopage(struct vm_area_struct *vma,
 	return page;
 }
 
+#if SPUFS_MMAP_4K
 static struct page *spufs_cntl_mmap_nopage(struct vm_area_struct *vma,
 					   unsigned long address, int *type)
 {
-	return spufs_ps_nopage(vma, address, type, 0x4000);
+	return spufs_ps_nopage(vma, address, type, 0x4000, 0x1000);
 }
 
 static struct vm_operations_struct spufs_cntl_mmap_vmops = {
@@ -191,16 +194,11 @@ static struct vm_operations_struct spufs_cntl_mmap_vmops = {
 
 /*
  * mmap support for problem state control area [0x4000 - 0x4fff].
- * Mapping this area requires that the application have CAP_SYS_RAWIO,
- * as these registers require special care when read/writing.
  */
 static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
-
-	if (!capable(CAP_SYS_RAWIO))
-		return -EPERM;
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
@@ -209,7 +207,30 @@ static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_cntl_mmap_vmops;
 	return 0;
 }
-#endif
+#else /* SPUFS_MMAP_4K */
+#define spufs_cntl_mmap NULL
+#endif /* !SPUFS_MMAP_4K */
+
+static u64 spufs_cntl_get(void *data)
+{
+	struct spu_context *ctx = data;
+	u64 val;
+
+	spu_acquire(ctx);
+	val = ctx->ops->status_read(ctx);
+	spu_release(ctx);
+
+	return val;
+}
+
+static void spufs_cntl_set(void *data, u64 val)
+{
+	struct spu_context *ctx = data;
+
+	spu_acquire(ctx);
+	ctx->ops->runcntl_write(ctx, val);
+	spu_release(ctx);
+}
 
 static int spufs_cntl_open(struct inode *inode, struct file *file)
 {
@@ -219,32 +240,16 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	file->private_data = ctx;
 	file->f_mapping = inode->i_mapping;
 	ctx->cntl = inode->i_mapping;
-	return 0;
-}
-
-static ssize_t
-spufs_cntl_read(struct file *file, char __user *buffer,
-		size_t size, loff_t *pos)
-{
-	/* FIXME: read from spu status */
-	return -EINVAL;
-}
-
-static ssize_t
-spufs_cntl_write(struct file *file, const char __user *buffer,
-		 size_t size, loff_t *pos)
-{
-	/* FIXME: write to runctl bit */
-	return -EINVAL;
+	return simple_attr_open(inode, file, spufs_cntl_get,
+					spufs_cntl_set, "0x%08lx");
 }
 
 static struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
-	.read = spufs_cntl_read,
-	.write = spufs_cntl_write,
-#ifdef CONFIG_SPUFS_MMAP
+	.release = simple_attr_close,
+	.read = simple_attr_read,
+	.write = simple_attr_write,
 	.mmap = spufs_cntl_mmap,
-#endif
 };
 
 static int
@@ -356,27 +361,54 @@ static int spufs_pipe_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+/*
+ * Read as many bytes from the mailbox as possible, until
+ * one of the conditions becomes true:
+ *
+ * - no more data available in the mailbox
+ * - end of the user provided buffer
+ * - end of the mapped area
+ */
 static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
-	u32 mbox_data;
-	int ret;
+	u32 mbox_data, __user *udata;
+	ssize_t count;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
-	ret = ctx->ops->mbox_read(ctx, &mbox_data);
-	spu_release(ctx);
-
-	if (!ret)
-		return -EAGAIN;
-
-	if (copy_to_user(buf, &mbox_data, sizeof mbox_data))
+	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
-	return 4;
+	udata = (void __user *)buf;
+
+	spu_acquire(ctx);
+	for (count = 0; count <= len; count += 4, udata++) {
+		int ret;
+		ret = ctx->ops->mbox_read(ctx, &mbox_data);
+		if (ret == 0)
+			break;
+
+		/*
+		 * at the end of the mapped area, we can fault
+		 * but still need to return the data we have
+		 * read successfully so far.
+		 */
+		ret = __put_user(mbox_data, udata);
+		if (ret) {
+			if (!count)
+				count = -EFAULT;
+			break;
+		}
+	}
+	spu_release(ctx);
+
+	if (!count)
+		count = -EAGAIN;
+
+	return count;
 }
 
 static struct file_operations spufs_mbox_fops = {
@@ -432,36 +464,70 @@ void spufs_ibox_callback(struct spu *spu)
 	kill_fasync(&ctx->ibox_fasync, SIGIO, POLLIN);
 }
 
+/*
+ * Read as many bytes from the interrupt mailbox as possible, until
+ * one of the conditions becomes true:
+ *
+ * - no more data available in the mailbox
+ * - end of the user provided buffer
+ * - end of the mapped area
+ *
+ * If the file is opened without O_NONBLOCK, we wait here until
+ * any data is available, but return when we have been able to
+ * read something.
+ */
 static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
-	u32 ibox_data;
-	ssize_t ret;
+	u32 ibox_data, __user *udata;
+	ssize_t count;
 
 	if (len < 4)
 		return -EINVAL;
 
+	if (!access_ok(VERIFY_WRITE, buf, len))
+		return -EFAULT;
+
+	udata = (void __user *)buf;
+
 	spu_acquire(ctx);
 
-	ret = 0;
+	/* wait only for the first element */
+	count = 0;
 	if (file->f_flags & O_NONBLOCK) {
 		if (!spu_ibox_read(ctx, &ibox_data))
-			ret = -EAGAIN;
+			count = -EAGAIN;
 	} else {
-		ret = spufs_wait(ctx->ibox_wq, spu_ibox_read(ctx, &ibox_data));
+		count = spufs_wait(ctx->ibox_wq, spu_ibox_read(ctx, &ibox_data));
+	}
+	if (count)
+		goto out;
+
+	/* if we can't write at all, return -EFAULT */
+	count = __put_user(ibox_data, udata);
+	if (count)
+		goto out;
+
+	for (count = 4, udata++; (count + 4) <= len; count += 4, udata++) {
+		int ret;
+		ret = ctx->ops->ibox_read(ctx, &ibox_data);
+		if (ret == 0)
+			break;
+		/*
+		 * at the end of the mapped area, we can fault
+		 * but still need to return the data we have
+		 * read successfully so far.
+		 */
+		ret = __put_user(ibox_data, udata);
+		if (ret)
+			break;
 	}
 
+out:
 	spu_release(ctx);
 
-	if (ret)
-		return ret;
-
-	ret = 4;
-	if (copy_to_user(buf, &ibox_data, sizeof ibox_data))
-		ret = -EFAULT;
-
-	return ret;
+	return count;
 }
 
 static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
@@ -534,32 +600,67 @@ void spufs_wbox_callback(struct spu *spu)
 	kill_fasync(&ctx->wbox_fasync, SIGIO, POLLOUT);
 }
 
+/*
+ * Write as many bytes to the interrupt mailbox as possible, until
+ * one of the conditions becomes true:
+ *
+ * - the mailbox is full
+ * - end of the user provided buffer
+ * - end of the mapped area
+ *
+ * If the file is opened without O_NONBLOCK, we wait here until
+ * space is availabyl, but return when we have been able to
+ * write something.
+ */
 static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
-	u32 wbox_data;
-	int ret;
+	u32 wbox_data, __user *udata;
+	ssize_t count;
 
 	if (len < 4)
 		return -EINVAL;
 
-	if (copy_from_user(&wbox_data, buf, sizeof wbox_data))
+	udata = (void __user *)buf;
+	if (!access_ok(VERIFY_READ, buf, len))
+		return -EFAULT;
+
+	if (__get_user(wbox_data, udata))
 		return -EFAULT;
 
 	spu_acquire(ctx);
 
-	ret = 0;
+	/*
+	 * make sure we can at least write one element, by waiting
+	 * in case of !O_NONBLOCK
+	 */
+	count = 0;
 	if (file->f_flags & O_NONBLOCK) {
 		if (!spu_wbox_write(ctx, wbox_data))
-			ret = -EAGAIN;
+			count = -EAGAIN;
 	} else {
-		ret = spufs_wait(ctx->wbox_wq, spu_wbox_write(ctx, wbox_data));
+		count = spufs_wait(ctx->wbox_wq, spu_wbox_write(ctx, wbox_data));
 	}
 
-	spu_release(ctx);
+	if (count)
+		goto out;
 
-	return ret ? ret : sizeof wbox_data;
+	/* write aѕ much as possible */
+	for (count = 4, udata++; (count + 4) <= len; count += 4, udata++) {
+		int ret;
+		ret = __get_user(wbox_data, udata);
+		if (ret)
+			break;
+
+		ret = spu_wbox_write(ctx, wbox_data);
+		if (ret == 0)
+			break;
+	}
+
+out:
+	spu_release(ctx);
+	return count;
 }
 
 static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
@@ -657,11 +758,19 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
-#ifdef CONFIG_SPUFS_MMAP
 static struct page *spufs_signal1_mmap_nopage(struct vm_area_struct *vma,
 					      unsigned long address, int *type)
 {
-	return spufs_ps_nopage(vma, address, type, 0x14000);
+#if PAGE_SIZE == 0x1000
+	return spufs_ps_nopage(vma, address, type, 0x14000, 0x1000);
+#elif PAGE_SIZE == 0x10000
+	/* For 64k pages, both signal1 and signal2 can be used to mmap the whole
+	 * signal 1 and 2 area
+	 */
+	return spufs_ps_nopage(vma, address, type, 0x10000, 0x10000);
+#else
+#error unsupported page size
+#endif
 }
 
 static struct vm_operations_struct spufs_signal1_mmap_vmops = {
@@ -680,15 +789,12 @@ static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_signal1_mmap_vmops;
 	return 0;
 }
-#endif
 
 static struct file_operations spufs_signal1_fops = {
 	.open = spufs_signal1_open,
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
-#ifdef CONFIG_SPUFS_MMAP
 	.mmap = spufs_signal1_mmap,
-#endif
 };
 
 static int spufs_signal2_open(struct inode *inode, struct file *file)
@@ -743,11 +849,20 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
-#ifdef CONFIG_SPUFS_MMAP
+#if SPUFS_MMAP_4K
 static struct page *spufs_signal2_mmap_nopage(struct vm_area_struct *vma,
 					      unsigned long address, int *type)
 {
-	return spufs_ps_nopage(vma, address, type, 0x1c000);
+#if PAGE_SIZE == 0x1000
+	return spufs_ps_nopage(vma, address, type, 0x1c000, 0x1000);
+#elif PAGE_SIZE == 0x10000
+	/* For 64k pages, both signal1 and signal2 can be used to mmap the whole
+	 * signal 1 and 2 area
+	 */
+	return spufs_ps_nopage(vma, address, type, 0x10000, 0x10000);
+#else
+#error unsupported page size
+#endif
 }
 
 static struct vm_operations_struct spufs_signal2_mmap_vmops = {
@@ -767,15 +882,15 @@ static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_signal2_mmap_vmops;
 	return 0;
 }
-#endif
+#else /* SPUFS_MMAP_4K */
+#define spufs_signal2_mmap NULL
+#endif /* !SPUFS_MMAP_4K */
 
 static struct file_operations spufs_signal2_fops = {
 	.open = spufs_signal2_open,
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
-#ifdef CONFIG_SPUFS_MMAP
 	.mmap = spufs_signal2_mmap,
-#endif
 };
 
 static void spufs_signal1_type_set(void *data, u64 val)
@@ -824,11 +939,11 @@ static u64 spufs_signal2_type_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 					spufs_signal2_type_set, "%llu");
 
-#ifdef CONFIG_SPUFS_MMAP
+#if SPUFS_MMAP_4K
 static struct page *spufs_mss_mmap_nopage(struct vm_area_struct *vma,
 					   unsigned long address, int *type)
 {
-	return spufs_ps_nopage(vma, address, type, 0x0000);
+	return spufs_ps_nopage(vma, address, type, 0x0000, 0x1000);
 }
 
 static struct vm_operations_struct spufs_mss_mmap_vmops = {
@@ -837,16 +952,11 @@ static struct vm_operations_struct spufs_mss_mmap_vmops = {
 
 /*
  * mmap support for problem state MFC DMA area [0x0000 - 0x0fff].
- * Mapping this area requires that the application have CAP_SYS_RAWIO,
- * as these registers require special care when read/writing.
  */
 static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
-
-	if (!capable(CAP_SYS_RAWIO))
-		return -EPERM;
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
@@ -855,7 +965,9 @@ static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_mss_mmap_vmops;
 	return 0;
 }
-#endif
+#else /* SPUFS_MMAP_4K */
+#define spufs_mss_mmap NULL
+#endif /* !SPUFS_MMAP_4K */
 
 static int spufs_mss_open(struct inode *inode, struct file *file)
 {
@@ -867,17 +979,54 @@ static int spufs_mss_open(struct inode *inode, struct file *file)
 
 static struct file_operations spufs_mss_fops = {
 	.open	 = spufs_mss_open,
-#ifdef CONFIG_SPUFS_MMAP
 	.mmap	 = spufs_mss_mmap,
-#endif
+};
+
+static struct page *spufs_psmap_mmap_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x0000, 0x20000);
+}
+
+static struct vm_operations_struct spufs_psmap_mmap_vmops = {
+	.nopage = spufs_psmap_mmap_nopage,
+};
+
+/*
+ * mmap support for full problem state area [0x00000 - 0x1ffff].
+ */
+static int spufs_psmap_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE | _PAGE_GUARDED);
+
+	vma->vm_ops = &spufs_psmap_mmap_vmops;
+	return 0;
+}
+
+static int spufs_psmap_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+
+	file->private_data = i->i_ctx;
+	return nonseekable_open(inode, file);
+}
+
+static struct file_operations spufs_psmap_fops = {
+	.open	 = spufs_psmap_open,
+	.mmap	 = spufs_psmap_mmap,
 };
 
 
-#ifdef CONFIG_SPUFS_MMAP
+#if SPUFS_MMAP_4K
 static struct page *spufs_mfc_mmap_nopage(struct vm_area_struct *vma,
 					   unsigned long address, int *type)
 {
-	return spufs_ps_nopage(vma, address, type, 0x3000);
+	return spufs_ps_nopage(vma, address, type, 0x3000, 0x1000);
 }
 
 static struct vm_operations_struct spufs_mfc_mmap_vmops = {
@@ -886,16 +1035,11 @@ static struct vm_operations_struct spufs_mfc_mmap_vmops = {
 
 /*
  * mmap support for problem state MFC DMA area [0x0000 - 0x0fff].
- * Mapping this area requires that the application have CAP_SYS_RAWIO,
- * as these registers require special care when read/writing.
  */
 static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
-
-	if (!capable(CAP_SYS_RAWIO))
-		return -EPERM;
 
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
@@ -904,7 +1048,9 @@ static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &spufs_mfc_mmap_vmops;
 	return 0;
 }
-#endif
+#else /* SPUFS_MMAP_4K */
+#define spufs_mfc_mmap NULL
+#endif /* !SPUFS_MMAP_4K */
 
 static int spufs_mfc_open(struct inode *inode, struct file *file)
 {
@@ -1194,9 +1340,7 @@ static struct file_operations spufs_mfc_fops = {
 	.flush	 = spufs_mfc_flush,
 	.fsync	 = spufs_mfc_fsync,
 	.fasync	 = spufs_mfc_fasync,
-#ifdef CONFIG_SPUFS_MMAP
 	.mmap	 = spufs_mfc_mmap,
-#endif
 };
 
 static void spufs_npc_set(void *data, u64 val)
@@ -1344,6 +1488,21 @@ static u64 spufs_id_get(void *data)
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_id_ops, spufs_id_get, NULL, "0x%llx\n")
 
+static u64 spufs_object_id_get(void *data)
+{
+	struct spu_context *ctx = data;
+	return ctx->object_id;
+}
+
+static void spufs_object_id_set(void *data, u64 id)
+{
+	struct spu_context *ctx = data;
+	ctx->object_id = id;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(spufs_object_id_ops, spufs_object_id_get,
+		spufs_object_id_set, "0x%llx\n");
+
 struct tree_descr spufs_dir_contents[] = {
 	{ "mem",  &spufs_mem_fops,  0666, },
 	{ "regs", &spufs_regs_fops,  0666, },
@@ -1367,6 +1526,8 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "spu_tag_mask", &spufs_spu_tag_mask_ops, 0666, },
 	{ "event_mask", &spufs_event_mask_ops, 0666, },
 	{ "srr0", &spufs_srr0_ops, 0666, },
+	{ "psmap", &spufs_psmap_fops, 0666, },
 	{ "phys-id", &spufs_id_ops, 0666, },
+	{ "object-id", &spufs_object_id_ops, 0666, },
 	{},
 };

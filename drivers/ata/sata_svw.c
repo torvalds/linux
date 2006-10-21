@@ -177,7 +177,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	u8 dmactl;
-	void *mmio = (void *) ap->ioaddr.bmdma_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
 	writel(ap->prd_dma, mmio + ATA_DMA_TABLE_OFS);
@@ -205,7 +205,7 @@ static void k2_bmdma_setup_mmio (struct ata_queued_cmd *qc)
 static void k2_bmdma_start_mmio (struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void *mmio = (void *) ap->ioaddr.bmdma_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
 	u8 dmactl;
 
 	/* start host DMA transaction */
@@ -469,14 +469,14 @@ err_out:
  * controller
  * */
 static const struct pci_device_id k2_sata_pci_tbl[] = {
-	{ 0x1166, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
-	{ 0x1166, 0x0241, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
-	{ 0x1166, 0x0242, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8 },
-	{ 0x1166, 0x024a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
-	{ 0x1166, 0x024b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0240), 4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0241), 4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0242), 8 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x024a), 4 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x024b), 4 },
+
 	{ }
 };
-
 
 static struct pci_driver k2_sata_pci_driver = {
 	.name			= DRV_NAME,
@@ -485,18 +485,15 @@ static struct pci_driver k2_sata_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-
 static int __init k2_sata_init(void)
 {
 	return pci_register_driver(&k2_sata_pci_driver);
 }
 
-
 static void __exit k2_sata_exit(void)
 {
 	pci_unregister_driver(&k2_sata_pci_driver);
 }
-
 
 MODULE_AUTHOR("Benjamin Herrenschmidt");
 MODULE_DESCRIPTION("low-level driver for K2 SATA controller");

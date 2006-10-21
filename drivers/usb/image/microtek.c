@@ -370,7 +370,7 @@ static int
 mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback);
 
 static void mts_transfer_cleanup( struct urb *transfer );
-static void mts_do_sg(struct urb * transfer, struct pt_regs *regs);
+static void mts_do_sg(struct urb * transfer);
 
 static inline
 void mts_int_submit_urb (struct urb* transfer,
@@ -417,7 +417,7 @@ static void mts_transfer_cleanup( struct urb *transfer )
 
 }
 
-static void mts_transfer_done( struct urb *transfer, struct pt_regs *regs )
+static void mts_transfer_done( struct urb *transfer )
 {
 	MTS_INT_INIT();
 
@@ -443,7 +443,7 @@ static void mts_get_status( struct urb *transfer )
 			   mts_transfer_done );
 }
 
-static void mts_data_done( struct urb* transfer, struct pt_regs *regs )
+static void mts_data_done( struct urb* transfer )
 /* Interrupt context! */
 {
 	MTS_INT_INIT();
@@ -460,7 +460,7 @@ static void mts_data_done( struct urb* transfer, struct pt_regs *regs )
 }
 
 
-static void mts_command_done( struct urb *transfer, struct pt_regs *regs )
+static void mts_command_done( struct urb *transfer )
 /* Interrupt context! */
 {
 	MTS_INT_INIT();
@@ -501,7 +501,7 @@ static void mts_command_done( struct urb *transfer, struct pt_regs *regs )
 	return;
 }
 
-static void mts_do_sg (struct urb* transfer, struct pt_regs *regs)
+static void mts_do_sg (struct urb* transfer)
 {
 	struct scatterlist * sg;
 	MTS_INT_INIT();

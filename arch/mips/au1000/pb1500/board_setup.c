@@ -56,7 +56,7 @@ void __init board_setup(void)
 	au_writel(0, SYS_PINSTATERD);
 	udelay(100);
 
-#if defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
+#ifdef CONFIG_USB_OHCI
 
 	/* GPIO201 is input for PCMCIA card detect */
 	/* GPIO203 is input for PCMCIA interrupt request */
@@ -88,19 +88,14 @@ void __init board_setup(void)
 #ifdef CONFIG_USB_OHCI
 	sys_clksrc |= ((4<<12) | (0<<11) | (0<<10));
 #endif
-#ifdef CONFIG_AU1X00_USB_DEVICE
-	sys_clksrc |= ((4<<7) | (0<<6) | (0<<5));
-#endif
 	au_writel(sys_clksrc, SYS_CLKSRC);
 
 
 	pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x8000);
-#ifndef CONFIG_AU1X00_USB_DEVICE
 	// 2nd USB port is USB host
 	pin_func |= 0x8000;
-#endif
 	au_writel(pin_func, SYS_PINFUNC);
-#endif // defined (CONFIG_USB_OHCI) || defined (CONFIG_AU1X00_USB_DEVICE)
+#endif // defined (CONFIG_USB_OHCI)
 
 
 

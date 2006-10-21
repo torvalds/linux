@@ -25,9 +25,9 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/errno.h>
+#include <asm/irq_regs.h>
 #include <asm/signal.h>
 #include <asm/system.h>
-#include <asm/ptrace.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/bcm1480_regs.h>
@@ -284,8 +284,7 @@ void __init init_bcm1480_irqs(void)
 }
 
 
-static irqreturn_t bcm1480_dummy_handler(int irq, void *dev_id,
-	struct pt_regs *regs)
+static irqreturn_t bcm1480_dummy_handler(int irq, void *dev_id)
 {
 	return IRQ_NONE;
 }
@@ -453,7 +452,7 @@ void __init arch_init_irq(void)
 #define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 #define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 
-void bcm1480_kgdb_interrupt(struct pt_regs *regs)
+static void bcm1480_kgdb_interrupt(void)
 {
 	/*
 	 * Clear break-change status (allow some time for the remote
@@ -464,16 +463,15 @@ void bcm1480_kgdb_interrupt(struct pt_regs *regs)
 	mdelay(500);
 	duart_out(R_DUART_CMD, V_DUART_MISC_CMD_RESET_BREAK_INT |
 				M_DUART_RX_EN | M_DUART_TX_EN);
-	set_async_breakpoint(&regs->cp0_epc);
+	set_async_breakpoint(&get_irq_regs()->cp0_epc);
 }
 
 #endif 	/* CONFIG_KGDB */
 
-extern void bcm1480_timer_interrupt(struct pt_regs *regs);
-extern void bcm1480_mailbox_interrupt(struct pt_regs *regs);
-extern void bcm1480_kgdb_interrupt(struct pt_regs *regs);
+extern void bcm1480_timer_interrupt(void);
+extern void bcm1480_mailbox_interrupt(void);
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending;
 
@@ -486,21 +484,21 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
 	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
-		sbprof_cpu_intr(exception_epc(regs));
+		sbprof_cpu_intr();
 	else
 #endif
 
 	if (pending & CAUSEF_IP4)
-		bcm1480_timer_interrupt(regs);
+		bcm1480_timer_interrupt();
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)
-		bcm1480_mailbox_interrupt(regs);
+		bcm1480_mailbox_interrupt();
 #endif
 
 #ifdef CONFIG_KGDB
 	else if (pending & CAUSEF_IP6)
-		bcm1480_kgdb_interrupt(regs);		/* KGDB (uart 1) */
+		bcm1480_kgdb_interrupt();		/* KGDB (uart 1) */
 #endif
 
 	else if (pending & CAUSEF_IP2) {
@@ -521,9 +519,9 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 
 		if (mask_h) {
 			if (mask_h ^ 1)
-				do_IRQ(fls64(mask_h) - 1, regs);
+				do_IRQ(fls64(mask_h) - 1);
 			else
-				do_IRQ(63 + fls64(mask_l), regs);
+				do_IRQ(63 + fls64(mask_l));
 		}
 	}
 }

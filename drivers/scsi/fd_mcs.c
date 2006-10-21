@@ -281,7 +281,7 @@ static struct fd_mcs_adapters_struct fd_mcs_adapters[] = {
 
 #define FD_BRDS ARRAY_SIZE(fd_mcs_adapters)
 
-static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t fd_mcs_intr(int irq, void *dev_id);
 
 static unsigned long addresses[] = { 0xc8000, 0xca000, 0xce000, 0xde000 };
 static unsigned short ports[] = { 0x140, 0x150, 0x160, 0x170 };
@@ -617,7 +617,7 @@ static void my_done(struct Scsi_Host *shpnt, int error)
 }
 
 /* only my_done needs to be protected  */
-static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t fd_mcs_intr(int irq, void *dev_id)
 {
 	unsigned long flags;
 	int status;

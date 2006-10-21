@@ -1952,7 +1952,7 @@ intelfbhw_cursor_reset(struct intelfb_info *dinfo) {
 }
 
 static irqreturn_t
-intelfbhw_irq(int irq, void *dev_id, struct pt_regs *fp) {
+intelfbhw_irq(int irq, void *dev_id) {
 	int handled = 0;
 	u16 tmp;
 	struct intelfb_info *dinfo = (struct intelfb_info *)dev_id;

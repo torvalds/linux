@@ -444,7 +444,7 @@ struct ensoniq {
 #endif
 };
 
-static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id);
 
 static struct pci_device_id snd_audiopci_ids[] = {
 #ifdef CHIP1370
@@ -2404,7 +2404,7 @@ static int __devinit snd_ensoniq_midi(struct ensoniq * ensoniq, int device,
  *  Interrupt handler
  */
 
-static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id)
 {
 	struct ensoniq *ensoniq = dev_id;
 	unsigned int status, sctrl;

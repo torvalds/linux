@@ -269,7 +269,7 @@ static ssize_t pp_write (struct file * file, const char __user * buf,
 	return bytes_written;
 }
 
-static void pp_irq (int irq, void * private, struct pt_regs * unused)
+static void pp_irq (int irq, void * private)
 {
 	struct pp_struct * pp = (struct pp_struct *) private;
 

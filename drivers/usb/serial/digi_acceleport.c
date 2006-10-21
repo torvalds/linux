@@ -456,7 +456,7 @@ static int digi_tiocmget( struct usb_serial_port *port, struct file *file );
 static int digi_tiocmset( struct usb_serial_port *port, struct file *file,
 	unsigned int set, unsigned int clear );
 static int digi_write( struct usb_serial_port *port, const unsigned char *buf, int count );
-static void digi_write_bulk_callback( struct urb *urb, struct pt_regs *regs );
+static void digi_write_bulk_callback( struct urb *urb );
 static int digi_write_room( struct usb_serial_port *port );
 static int digi_chars_in_buffer( struct usb_serial_port *port );
 static int digi_open( struct usb_serial_port *port, struct file *filp );
@@ -464,7 +464,7 @@ static void digi_close( struct usb_serial_port *port, struct file *filp );
 static int digi_startup_device( struct usb_serial *serial );
 static int digi_startup( struct usb_serial *serial );
 static void digi_shutdown( struct usb_serial *serial );
-static void digi_read_bulk_callback( struct urb *urb, struct pt_regs *regs );
+static void digi_read_bulk_callback( struct urb *urb );
 static int digi_read_inb_callback( struct urb *urb );
 static int digi_read_oob_callback( struct urb *urb );
 
@@ -1336,7 +1336,7 @@ dbg( "digi_write: returning %d", ret );
 } 
 
 
-static void digi_write_bulk_callback( struct urb *urb, struct pt_regs *regs )
+static void digi_write_bulk_callback( struct urb *urb )
 {
 
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
@@ -1754,7 +1754,7 @@ dbg( "digi_shutdown: TOP, in_interrupt()=%ld", in_interrupt() );
 }
 
 
-static void digi_read_bulk_callback( struct urb *urb, struct pt_regs *regs )
+static void digi_read_bulk_callback( struct urb *urb )
 {
 
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;

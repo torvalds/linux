@@ -1144,7 +1144,7 @@ static void amifb_deinit(void);
 	 */
 
 static int flash_cursor(void);
-static irqreturn_t amifb_interrupt(int irq, void *dev_id, struct pt_regs *fp);
+static irqreturn_t amifb_interrupt(int irq, void *dev_id);
 static u_long chipalloc(u_long size);
 static void chipfree(void);
 
@@ -2492,7 +2492,7 @@ static int flash_cursor(void)
 	 * VBlank Display Interrupt
 	 */
 
-static irqreturn_t amifb_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t amifb_interrupt(int irq, void *dev_id)
 {
 	if (do_vmode_pan || do_vmode_full)
 		ami_update_display();

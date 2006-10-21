@@ -20,7 +20,7 @@
 
 #define LINE_BUFSIZE 4096
 
-static irqreturn_t line_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
@@ -364,8 +364,7 @@ void line_unthrottle(struct tty_struct *tty)
 		reactivate_chan(&line->chan_list, line->driver->read_irq);
 }
 
-static irqreturn_t line_write_interrupt(int irq, void *data,
-					struct pt_regs *unused)
+static irqreturn_t line_write_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
@@ -712,7 +711,7 @@ struct winch {
 	struct tty_struct *tty;
 };
 
-static irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
+static irqreturn_t winch_interrupt(int irq, void *data)
 {
 	struct winch *winch = data;
 	struct tty_struct *tty;

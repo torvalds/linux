@@ -85,7 +85,7 @@ static struct uart_port mpc52xx_uart_ports[MPC52xx_PSC_MAXNUM];
 
 
 /* Forward declaration of the interruption handling routine */
-static irqreturn_t mpc52xx_uart_int(int irq,void *dev_id,struct pt_regs *regs);
+static irqreturn_t mpc52xx_uart_int(int irq,void *dev_id);
 
 
 /* Simple macro to test if a port is console or not. This one is taken
@@ -410,7 +410,7 @@ static struct uart_ops mpc52xx_uart_ops = {
 /* ======================================================================== */
 	
 static inline int
-mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
+mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_struct *tty = port->info->tty;
 	unsigned char ch, flag;
@@ -425,7 +425,7 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port, struct pt_regs *regs)
 
 		/* Handle sysreq char */
 #ifdef SUPPORT_SYSRQ
-		if (uart_handle_sysrq_char(port, ch, regs)) {
+		if (uart_handle_sysrq_char(port, ch)) {
 			port->sysrq = 0;
 			continue;
 		}
@@ -510,20 +510,12 @@ mpc52xx_uart_int_tx_chars(struct uart_port *port)
 }
 
 static irqreturn_t 
-mpc52xx_uart_int(int irq, void *dev_id, struct pt_regs *regs)
+mpc52xx_uart_int(int irq, void *dev_id)
 {
-	struct uart_port *port = (struct uart_port *) dev_id;
+	struct uart_port *port = dev_id;
 	unsigned long pass = ISR_PASS_LIMIT;
 	unsigned int keepgoing;
 	unsigned short status;
-	
-	if ( irq != port->irq ) {
-		printk( KERN_WARNING
-		        "mpc52xx_uart_int : " \
-		        "Received wrong int %d. Waiting for %d\n",
-		       irq, port->irq);
-		return IRQ_NONE;
-	}
 	
 	spin_lock(&port->lock);
 	
@@ -539,7 +531,7 @@ mpc52xx_uart_int(int irq, void *dev_id, struct pt_regs *regs)
 		/* Do we need to receive chars ? */
 		/* For this RX interrupts must be on and some chars waiting */
 		if ( status & MPC52xx_PSC_IMR_RXRDY )
-			keepgoing |= mpc52xx_uart_int_rx_chars(port, regs);
+			keepgoing |= mpc52xx_uart_int_rx_chars(port);
 
 		/* Do we need to send chars ? */
 		/* For this, TX must be ready and TX interrupt enabled */

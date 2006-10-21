@@ -212,7 +212,7 @@ static void ld_usb_delete(struct ld_usb *dev)
 /**
  *	ld_usb_interrupt_in_callback
  */
-static void ld_usb_interrupt_in_callback(struct urb *urb, struct pt_regs *regs)
+static void ld_usb_interrupt_in_callback(struct urb *urb)
 {
 	struct ld_usb *dev = urb->context;
 	size_t *actual_buffer;
@@ -264,7 +264,7 @@ exit:
 /**
  *	ld_usb_interrupt_out_callback
  */
-static void ld_usb_interrupt_out_callback(struct urb *urb, struct pt_regs *regs)
+static void ld_usb_interrupt_out_callback(struct urb *urb)
 {
 	struct ld_usb *dev = urb->context;
 

@@ -128,10 +128,10 @@ static unsigned long s3c2410_gettimeoffset (void)
  * IRQ handler for the timer
  */
 static irqreturn_t
-s3c2410_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+s3c2410_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
-	timer_tick(regs);
+	timer_tick();
 	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }

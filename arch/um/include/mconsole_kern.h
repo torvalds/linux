@@ -6,7 +6,6 @@
 #ifndef __MCONSOLE_KERN_H__
 #define __MCONSOLE_KERN_H__
 
-#include "linux/config.h"
 #include "linux/list.h"
 #include "mconsole.h"
 

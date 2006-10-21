@@ -427,8 +427,7 @@ EXPORT_SYMBOL(free_irq);
  *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *
  */
-int request_irq(unsigned int irq,
-		irqreturn_t (*handler)(int, void *, struct pt_regs *),
+int request_irq(unsigned int irq, irq_handler_t handler,
 		unsigned long irqflags, const char *devname, void *dev_id)
 {
 	struct irqaction *action;
@@ -475,4 +474,3 @@ int request_irq(unsigned int irq,
 	return retval;
 }
 EXPORT_SYMBOL(request_irq);
-

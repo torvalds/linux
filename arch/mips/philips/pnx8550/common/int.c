@@ -23,6 +23,7 @@
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  */
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
@@ -52,7 +53,7 @@ static char gic_prio[PNX8550_INT_GIC_TOTINT] = {
 	1			//  70
 };
 
-static void hw0_irqdispatch(int irq, struct pt_regs *regs)
+static void hw0_irqdispatch(int irq)
 {
 	/* find out which interrupt */
 	irq = PNX8550_GIC_VECTOR_0 >> 3;
@@ -61,42 +62,39 @@ static void hw0_irqdispatch(int irq, struct pt_regs *regs)
 		printk("hw0_irqdispatch: irq 0, spurious interrupt?\n");
 		return;
 	}
-	do_IRQ(PNX8550_INT_GIC_MIN + irq, regs);
+	do_IRQ(PNX8550_INT_GIC_MIN + irq);
 }
 
 
-static void timer_irqdispatch(int irq, struct pt_regs *regs)
+static void timer_irqdispatch(int irq)
 {
 	irq = (0x01c0 & read_c0_config7()) >> 6;
 
-	if (irq == 0) {
+	if (unlikely(irq == 0)) {
 		printk("timer_irqdispatch: irq 0, spurious interrupt?\n");
 		return;
 	}
 
-	if (irq & 0x1) {
-		do_IRQ(PNX8550_INT_TIMER1, regs);
-	}
-	if (irq & 0x2) {
-		do_IRQ(PNX8550_INT_TIMER2, regs);
-	}
-	if (irq & 0x4) {
-		do_IRQ(PNX8550_INT_TIMER3, regs);
-	}
+	if (irq & 0x1)
+		do_IRQ(PNX8550_INT_TIMER1);
+	if (irq & 0x2)
+		do_IRQ(PNX8550_INT_TIMER2);
+	if (irq & 0x4)
+		do_IRQ(PNX8550_INT_TIMER3);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP2)
-		do_IRQ(2, regs);
+		hw0_irqdispatch(2);
 	else if (pending & STATUSF_IP7) {
 		if (read_c0_config7() & 0x01c0)
-			timer_irqdispatch(7, regs);
+			timer_irqdispatch(7);
 	}
 
-	spurious_interrupt(regs);
+	spurious_interrupt();
 }
 
 static inline void modify_cp0_intmask(unsigned clr_mask, unsigned set_mask)

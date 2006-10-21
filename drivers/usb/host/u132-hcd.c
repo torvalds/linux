@@ -35,7 +35,6 @@
 * via an ELAN U132 adapter.
 *
 */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -558,7 +557,7 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
         u132_ring_queue_work(u132, ring, 0);
         up(&u132->scheduler_lock);
         u132_endp_put_kref(u132, endp);
-        usb_hcd_giveback_urb(hcd, urb, NULL);
+        usb_hcd_giveback_urb(hcd, urb);
         return;
 }
 
@@ -591,7 +590,7 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
                 endp->active = 0;
                 spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
                 kfree(urbq);
-        } usb_hcd_giveback_urb(hcd, urb, NULL);
+        } usb_hcd_giveback_urb(hcd, urb);
         return;
 }
 
@@ -2435,7 +2434,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
                         endp->queue_size -= 1;
                         urb->error_count = 0;
                         urb->hcpriv = NULL;
-                        usb_hcd_giveback_urb(hcd, urb, NULL);
+                        usb_hcd_giveback_urb(hcd, urb);
                         return 0;
                 } else
                         continue;
@@ -2513,7 +2512,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                                 kfree(urbq);
                         } urb->error_count = 0;
                         urb->hcpriv = NULL;
-                        usb_hcd_giveback_urb(hcd, urb, NULL);
+                        usb_hcd_giveback_urb(hcd, urb);
                         return 0;
                 } else if (list_empty(&endp->urb_more)) {
                         dev_err(&u132->platform_dev->dev, "urb=%p not found in "

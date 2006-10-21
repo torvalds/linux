@@ -226,14 +226,14 @@ NCR_D700_probe_one(struct NCR_D700_private *p, int siop, int irq,
 }
 
 static int
-NCR_D700_intr(int irq, void *data, struct pt_regs *regs)
+NCR_D700_intr(int irq, void *data)
 {
 	struct NCR_D700_private *p = (struct NCR_D700_private *)data;
 	int i, found = 0;
 
 	for (i = 0; i < 2; i++)
 		if (p->hosts[i] &&
-		    NCR_700_intr(irq, p->hosts[i], regs) == IRQ_HANDLED)
+		    NCR_700_intr(irq, p->hosts[i]) == IRQ_HANDLED)
 			found++;
 
 	return found ? IRQ_HANDLED : IRQ_NONE;

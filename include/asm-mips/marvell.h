@@ -53,6 +53,6 @@ struct mv_pci_controller {
 	unsigned long   config_vreg;
 };
 
-extern void ll_mv64340_irq(struct pt_regs *regs);
+extern void ll_mv64340_irq(void);
 
 #endif	/* __ASM_MIPS_MARVELL_H */

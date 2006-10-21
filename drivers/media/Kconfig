@@ -54,6 +54,7 @@ config VIDEO_V4L1_COMPAT
 
 config VIDEO_V4L2
 	bool
+	depends on VIDEO_DEV
 	default y
 
 source "drivers/media/video/Kconfig"

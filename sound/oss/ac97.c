@@ -112,25 +112,6 @@ ac97_init (struct ac97_hwint *dev)
     return 0;
 }
 
-/* Reset the mixer to the currently saved settings.  */
-int
-ac97_reset (struct ac97_hwint *dev)
-{
-    int x;
-
-    if (dev->reset_device (dev))
-	return -1;
-
-    /* Now set the registers back to their last-written values. */
-    for (x = 0; mixerRegs[x].ac97_regnum != -1; x++) {
-	int regnum = mixerRegs[x].ac97_regnum;
-	int value = dev->last_written_mixer_values [regnum / 2];
-	if (value >= 0)
-	    ac97_put_register (dev, regnum, value);
-    }
-    return 0;
-}
-
 /* Return the contents of register REG; use the cache if the value in it
    is valid.  Returns a negative error code on failure. */
 static int
@@ -441,7 +422,6 @@ EXPORT_SYMBOL(ac97_init);
 EXPORT_SYMBOL(ac97_set_values);
 EXPORT_SYMBOL(ac97_put_register);
 EXPORT_SYMBOL(ac97_mixer_ioctl);
-EXPORT_SYMBOL(ac97_reset);
 MODULE_LICENSE("GPL");
 
 

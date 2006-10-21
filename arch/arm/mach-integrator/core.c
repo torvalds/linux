@@ -248,7 +248,7 @@ unsigned long integrator_gettimeoffset(void)
  * IRQ handler for the timer
  */
 static irqreturn_t
-integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+integrator_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -262,7 +262,7 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * primary CPU
 	 */
 	if (hard_smp_processor_id() == 0) {
-		timer_tick(regs);
+		timer_tick();
 #ifdef CONFIG_SMP
 		smp_send_timer();
 #endif
@@ -272,7 +272,7 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/*
 	 * this is the ARM equivalent of the APIC timer interrupt
 	 */
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif /* CONFIG_SMP */
 
 	write_sequnlock(&xtime_lock);

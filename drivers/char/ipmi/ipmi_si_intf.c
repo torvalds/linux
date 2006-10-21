@@ -872,7 +872,7 @@ static void smi_timeout(unsigned long data)
 	add_timer(&(smi_info->si_timer));
 }
 
-static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t si_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	unsigned long   flags;
@@ -899,14 +899,14 @@ static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t si_bt_irq_handler(int irq, void *data)
 {
 	struct smi_info *smi_info = data;
 	/* We need to clear the IRQ flag for the BT interface. */
 	smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
 			     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
 			     | IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
-	return si_irq_handler(irq, data, regs);
+	return si_irq_handler(irq, data);
 }
 
 static int smi_start_processing(void       *send_info,
@@ -1789,7 +1789,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ENOMEM;
+		return -ENOMEM;
 
 	info->addr_source = "PCI";
 
@@ -1810,7 +1810,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 		kfree(info);
 		printk(KERN_INFO "ipmi_si: %s: Unknown IPMI type: %d\n",
 		       pci_name(pdev), class_type);
-		return ENOMEM;
+		return -ENOMEM;
 	}
 
 	rv = pci_enable_device(pdev);

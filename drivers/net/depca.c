@@ -518,7 +518,7 @@ struct depca_private {
 */
 static int depca_open(struct net_device *dev);
 static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t depca_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t depca_interrupt(int irq, void *dev_id);
 static int depca_close(struct net_device *dev);
 static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void depca_tx_timeout(struct net_device *dev);
@@ -965,7 +965,7 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 /*
 ** The DEPCA interrupt handler.
 */
-static irqreturn_t depca_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t depca_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct depca_private *lp;

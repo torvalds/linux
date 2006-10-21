@@ -1366,7 +1366,7 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 	if (xprt->slot == NULL)
 		return -ENOMEM;
 
-	if (ntohs(addr->sin_port != 0))
+	if (ntohs(addr->sin_port) != 0)
 		xprt_set_bound(xprt);
 	xprt->port = xs_get_random_port();
 

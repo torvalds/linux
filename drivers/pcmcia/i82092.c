@@ -315,7 +315,7 @@ static int to_cycles(int ns)
 
 /* Interrupt handler functionality */
 
-static irqreturn_t i82092aa_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 {
 	int i;
 	int loopcount = 0;

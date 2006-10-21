@@ -19,7 +19,7 @@
  *
  * Author: Dipankar Sarma <dipankar@in.ibm.com>
  * 
- * Based on the original work by Paul McKenney <paul.mckenney@us.ibm.com>
+ * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  * Papers:
  * http://www.rdrop.com/users/paulmck/paper/rclockpdcsproof.pdf
@@ -66,6 +66,8 @@ struct rcu_ctrlblk {
 	long	completed;	/* Number of the last completed batch         */
 	int	next_pending;	/* Is the next batch already waiting?         */
 
+	int	signaled;
+
 	spinlock_t	lock	____cacheline_internodealigned_in_smp;
 	cpumask_t	cpumask; /* CPUs that need to switch in order    */
 	                         /* for current batch to proceed.        */
@@ -106,9 +108,6 @@ struct rcu_data {
 	long		blimit;		 /* Upper limit on a processed batch */
 	int cpu;
 	struct rcu_head barrier;
-#ifdef CONFIG_SMP
-	long		last_rs_qlen;	 /* qlen during the last resched */
-#endif
 };
 
 DECLARE_PER_CPU(struct rcu_data, rcu_data);

@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 static int amimouse_lastx, amimouse_lasty;
 static struct input_dev *amimouse_dev;
 
-static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t amimouse_interrupt(int irq, void *dummy)
 {
 	unsigned short joy0dat, potgor;
 	int nx, ny, dx, dy;
@@ -58,8 +58,6 @@ static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 	amimouse_lasty = ny;
 
 	potgor = amiga_custom.potgor;
-
-	input_regs(amimouse_dev, fp);
 
 	input_report_rel(amimouse_dev, REL_X, dx);
 	input_report_rel(amimouse_dev, REL_Y, dy);

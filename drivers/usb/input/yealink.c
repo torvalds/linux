@@ -233,11 +233,10 @@ static int map_p1k_to_key(int scancode)
  *
  * The key parameter can be cascaded: key2 << 8 | key1
  */
-static void report_key(struct yealink_dev *yld, int key, struct pt_regs *regs)
+static void report_key(struct yealink_dev *yld, int key)
 {
 	struct input_dev *idev = yld->idev;
 
-	input_regs(idev, regs);
 	if (yld->key_code >= 0) {
 		/* old key up */
 		input_report_key(idev, yld->key_code & 0xff, 0);
@@ -422,7 +421,7 @@ send_update:
  * error,start
  *
  */
-static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
+static void urb_irq_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
 	int ret;
@@ -439,7 +438,7 @@ static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
 	case CMD_SCANCODE:
 		dbg("get scancode %x", yld->irq_data->data[0]);
 
-		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]), regs);
+		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]));
 		break;
 
 	default:
@@ -453,7 +452,7 @@ static void urb_irq_callback(struct urb *urb, struct pt_regs *regs)
 		err("%s - usb_submit_urb failed %d", __FUNCTION__, ret);
 }
 
-static void urb_ctl_callback(struct urb *urb, struct pt_regs *regs)
+static void urb_ctl_callback(struct urb *urb)
 {
 	struct yealink_dev *yld = urb->context;
 	int ret;

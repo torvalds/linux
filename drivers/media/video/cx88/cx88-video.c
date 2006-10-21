@@ -1744,7 +1744,7 @@ static void cx8800_vid_irq(struct cx8800_dev *dev)
 	}
 }
 
-static irqreturn_t cx8800_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cx8800_irq(int irq, void *dev_id)
 {
 	struct cx8800_dev *dev = dev_id;
 	struct cx88_core *core = dev->core;

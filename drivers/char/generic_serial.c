@@ -33,8 +33,6 @@
 
 #define DEBUG 
 
-static char *                  tmp_buf; 
-
 static int gs_debug;
 
 #ifdef DEBUG
@@ -205,7 +203,7 @@ int gs_write(struct tty_struct * tty,
 	if (!tty) return -EIO;
 
 	port = tty->driver_data;
-	if (!port || !port->xmit_buf || !tmp_buf)
+	if (!port || !port->xmit_buf)
 		return -EIO;
 
 	local_save_flags(flags);
@@ -837,23 +835,8 @@ void gs_set_termios (struct tty_struct * tty,
 int gs_init_port(struct gs_port *port)
 {
 	unsigned long flags;
-	unsigned long page;
 
 	func_enter ();
-
-        if (!tmp_buf) {
-		page = get_zeroed_page(GFP_KERNEL);
-		spin_lock_irqsave (&port->driver_lock, flags); /* Don't expect this to make a difference. */
-		if (tmp_buf)
-			free_page(page);
-		else
-			tmp_buf = (unsigned char *) page;
-		spin_unlock_irqrestore (&port->driver_lock, flags);
-		if (!tmp_buf) {
-			func_exit ();
-			return -ENOMEM;
-		}
-	}
 
 	if (port->flags & ASYNC_INITIALIZED) {
 		func_exit ();

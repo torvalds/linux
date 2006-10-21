@@ -1145,7 +1145,7 @@ next:
 	}
 }
 
-static irqreturn_t service_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t service_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct atmel_private *priv = netdev_priv(dev);

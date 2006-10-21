@@ -261,7 +261,7 @@ static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int rem
 /*
  * PIO data transfer IRQ handler.
  */
-static irqreturn_t mmci_pio_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
 	void __iomem *base = host->base;
@@ -347,7 +347,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id, struct pt_regs *regs)
 /*
  * Handle completion of command and data transfers.
  */
-static irqreturn_t mmci_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mmci_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
 	u32 status;

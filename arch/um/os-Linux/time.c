@@ -16,6 +16,7 @@
 #include "process.h"
 #include "kern_constants.h"
 #include "os.h"
+#include "uml-config.h"
 
 int set_interval(int is_virtual)
 {
@@ -30,7 +31,7 @@ int set_interval(int is_virtual)
 	return 0;
 }
 
-#ifdef CONFIG_MODE_TT
+#ifdef UML_CONFIG_MODE_TT
 void enable_timer(void)
 {
 	set_interval(1);

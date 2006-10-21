@@ -85,7 +85,7 @@ static void serial21285_enable_ms(struct uart_port *port)
 {
 }
 
-static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct tty_struct *tty = port->info->tty;
@@ -123,7 +123,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id, struct pt_regs *r
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t serial21285_tx_chars(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t serial21285_tx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct circ_buf *xmit = &port->info->xmit;

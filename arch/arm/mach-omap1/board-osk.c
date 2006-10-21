@@ -327,7 +327,7 @@ static struct spi_board_info __initdata mistral_boardinfo[] = { {
 
 #ifdef	CONFIG_PM
 static irqreturn_t
-osk_mistral_wake_interrupt(int irq, void *ignored, struct pt_regs *regs)
+osk_mistral_wake_interrupt(int irq, void *ignored)
 {
 	return IRQ_HANDLED;
 }

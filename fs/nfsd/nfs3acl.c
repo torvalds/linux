@@ -19,7 +19,7 @@
 /*
  * NULL call.
  */
-static int
+static __be32
 nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 {
 	return nfs_ok;
@@ -28,12 +28,12 @@ nfsd3_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 /*
  * Get the Access and/or Default ACL of a file.
  */
-static int nfsd3_proc_getacl(struct svc_rqst * rqstp,
+static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 		struct nfsd3_getaclargs *argp, struct nfsd3_getaclres *resp)
 {
 	svc_fh *fh;
 	struct posix_acl *acl;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
 	if ((nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_NOP)))
@@ -93,12 +93,12 @@ fail:
 /*
  * Set the Access and/or Default ACL of a file.
  */
-static int nfsd3_proc_setacl(struct svc_rqst * rqstp,
+static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 		struct nfsd3_setaclargs *argp,
 		struct nfsd3_attrstat *resp)
 {
 	svc_fh *fh;
-	int nfserr = 0;
+	__be32 nfserr = 0;
 
 	fh = fh_copy(&resp->fh, &argp->fh);
 	nfserr = fh_verify(rqstp, &resp->fh, 0, MAY_SATTR);
@@ -122,7 +122,7 @@ static int nfsd3_proc_setacl(struct svc_rqst * rqstp,
 /*
  * XDR decode functions
  */
-static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclargs *args)
 {
 	if (!(p = nfs3svc_decode_fh(p, &args->fh)))
@@ -133,7 +133,7 @@ static int nfs3svc_decode_getaclargs(struct svc_rqst *rqstp, u32 *p,
 }
 
 
-static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_setaclargs *args)
 {
 	struct kvec *head = rqstp->rq_arg.head;
@@ -163,7 +163,7 @@ static int nfs3svc_decode_setaclargs(struct svc_rqst *rqstp, u32 *p,
  */
 
 /* GETACL */
-static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	struct dentry *dentry = resp->fh.fh_dentry;
@@ -185,7 +185,7 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
 
 		rqstp->rq_res.page_len = w;
 		while (w > 0) {
-			if (!svc_take_res_page(rqstp))
+			if (!rqstp->rq_respages[rqstp->rq_resused++])
 				return 0;
 			w -= PAGE_SIZE;
 		}
@@ -208,7 +208,7 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, u32 *p,
 }
 
 /* SETACL */
-static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_attrstat *resp)
 {
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
@@ -219,7 +219,7 @@ static int nfs3svc_encode_setaclres(struct svc_rqst *rqstp, u32 *p,
 /*
  * XDR release functions
  */
-static int nfs3svc_release_getacl(struct svc_rqst *rqstp, u32 *p,
+static int nfs3svc_release_getacl(struct svc_rqst *rqstp, __be32 *p,
 		struct nfsd3_getaclres *resp)
 {
 	fh_put(&resp->fh);
@@ -263,5 +263,6 @@ struct svc_version	nfsd_acl_version3 = {
 		.vs_proc	= nfsd_acl_procedures3,
 		.vs_dispatch	= nfsd_dispatch,
 		.vs_xdrsize	= NFS3_SVC_XDRSIZE,
+		.vs_hidden	= 1,
 };
 

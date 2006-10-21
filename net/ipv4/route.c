@@ -566,9 +566,15 @@ static inline u32 rt_score(struct rtable *rt)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return memcmp(&fl1->nl_u.ip4_u, &fl2->nl_u.ip4_u, sizeof(fl1->nl_u.ip4_u)) == 0 &&
-	       fl1->oif     == fl2->oif &&
-	       fl1->iif     == fl2->iif;
+	return ((fl1->nl_u.ip4_u.daddr ^ fl2->nl_u.ip4_u.daddr) |
+		(fl1->nl_u.ip4_u.saddr ^ fl2->nl_u.ip4_u.saddr) |
+#ifdef CONFIG_IP_ROUTE_FWMARK
+		(fl1->nl_u.ip4_u.fwmark ^ fl2->nl_u.ip4_u.fwmark) |
+#endif
+		(*(u16 *)&fl1->nl_u.ip4_u.tos ^
+		 *(u16 *)&fl2->nl_u.ip4_u.tos) |
+		(fl1->oif ^ fl2->oif) |
+		(fl1->iif ^ fl2->iif)) == 0;
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED

@@ -218,7 +218,7 @@ static void sis900_init_rx_ring(struct net_device *net_dev);
 static int sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 static int sis900_rx(struct net_device *net_dev);
 static void sis900_finish_xmit (struct net_device *net_dev);
-static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t sis900_interrupt(int irq, void *dev_instance);
 static int sis900_close(struct net_device *net_dev);
 static int mii_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd);
 static struct net_device_stats *sis900_get_stats(struct net_device *net_dev);
@@ -988,7 +988,7 @@ static u16 sis900_reset_phy(struct net_device *net_dev, int phy_addr)
 static void sis900_poll(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	sis900_interrupt(dev->irq, dev, NULL);
+	sis900_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1642,7 +1642,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
  *	and cleans up after the Tx thread
  */
 
-static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *net_dev = dev_instance;
 	struct sis900_private *sis_priv = net_dev->priv;

@@ -81,7 +81,6 @@
 
 static struct riscom_board * IRQ_to_board[16];
 static struct tty_driver *riscom_driver;
-static unsigned char * tmp_buf;
 
 static unsigned long baud_table[] =  {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
@@ -551,7 +550,7 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 }
 
 /* The main interrupt processing routine */
-static irqreturn_t rc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t rc_interrupt(int irq, void * dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
@@ -560,11 +559,10 @@ static irqreturn_t rc_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 	int handled = 0;
 
 	bp = IRQ_to_board[irq];
-	
-	if (!bp || !(bp->flags & RC_BOARD_ACTIVE))  {
+
+	if (!(bp->flags & RC_BOARD_ACTIVE))
 		return IRQ_NONE;
-	}
-	
+
 	while ((++loop < 16) && ((status = ~(rc_in(bp, RC_BSR))) &
 				 (RC_BSR_TOUT | RC_BSR_TINT |
 				  RC_BSR_MINT | RC_BSR_RINT))) {
@@ -1124,7 +1122,7 @@ static int rc_write(struct tty_struct * tty,
 	
 	bp = port_Board(port);
 
-	if (!tty || !port->xmit_buf || !tmp_buf)
+	if (!tty || !port->xmit_buf)
 		return 0;
 
 	save_flags(flags);
@@ -1612,11 +1610,6 @@ static inline int rc_init_drivers(void)
 	if (!riscom_driver)	
 		return -ENOMEM;
 	
-	if (!(tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL))) {
-		printk(KERN_ERR "rc: Couldn't get free page.\n");
-		put_tty_driver(riscom_driver);
-		return 1;
-	}
 	memset(IRQ_to_board, 0, sizeof(IRQ_to_board));
 	riscom_driver->owner = THIS_MODULE;
 	riscom_driver->name = "ttyL";
@@ -1629,7 +1622,6 @@ static inline int rc_init_drivers(void)
 	riscom_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(riscom_driver, &riscom_ops);
 	if ((error = tty_register_driver(riscom_driver)))  {
-		free_page((unsigned long)tmp_buf);
 		put_tty_driver(riscom_driver);
 		printk(KERN_ERR "rc: Couldn't register RISCom/8 driver, "
 				"error = %d\n",
@@ -1657,7 +1649,6 @@ static void rc_release_drivers(void)
 
 	save_flags(flags);
 	cli();
-	free_page((unsigned long)tmp_buf);
 	tty_unregister_driver(riscom_driver);
 	put_tty_driver(riscom_driver);
 	restore_flags(flags);

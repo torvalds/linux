@@ -71,13 +71,12 @@ struct skbd {
 };
 
 static irqreturn_t skbd_interrupt(struct serio *serio, unsigned char data,
-				  unsigned int flags, struct pt_regs *regs)
+				  unsigned int flags)
 {
 	struct skbd *skbd = serio_get_drvdata(serio);
 	struct input_dev *dev = skbd->dev;
 
 	if (skbd->keycode[data & SKBD_KEY_MASK]) {
-		input_regs(dev, regs);
 		input_report_key(dev, skbd->keycode[data & SKBD_KEY_MASK],
 				 !(data & SKBD_RELEASE));
 		input_sync(dev);

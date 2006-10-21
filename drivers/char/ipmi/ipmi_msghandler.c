@@ -1928,13 +1928,8 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 			(long long) bmc->guid[8]);
 }
 
-static void
-cleanup_bmc_device(struct kref *ref)
+static void remove_files(struct bmc_device *bmc)
 {
-	struct bmc_device *bmc;
-
-	bmc = container_of(ref, struct bmc_device, refcount);
-
 	device_remove_file(&bmc->dev->dev,
 			   &bmc->device_id_attr);
 	device_remove_file(&bmc->dev->dev,
@@ -1951,12 +1946,23 @@ cleanup_bmc_device(struct kref *ref)
 			   &bmc->manufacturer_id_attr);
 	device_remove_file(&bmc->dev->dev,
 			   &bmc->product_id_attr);
+
 	if (bmc->id.aux_firmware_revision_set)
 		device_remove_file(&bmc->dev->dev,
 				   &bmc->aux_firmware_rev_attr);
 	if (bmc->guid_set)
 		device_remove_file(&bmc->dev->dev,
 				   &bmc->guid_attr);
+}
+
+static void
+cleanup_bmc_device(struct kref *ref)
+{
+	struct bmc_device *bmc;
+
+	bmc = container_of(ref, struct bmc_device, refcount);
+
+	remove_files(bmc);
 	platform_device_unregister(bmc->dev);
 	kfree(bmc);
 }
@@ -1975,6 +1981,79 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->refcount, cleanup_bmc_device);
 	mutex_unlock(&ipmidriver_mutex);
+}
+
+static int create_files(struct bmc_device *bmc)
+{
+	int err;
+
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->device_id_attr);
+	if (err) goto out;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->provides_dev_sdrs_attr);
+	if (err) goto out_devid;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->revision_attr);
+	if (err) goto out_sdrs;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->firmware_rev_attr);
+	if (err) goto out_rev;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->version_attr);
+	if (err) goto out_firm;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->add_dev_support_attr);
+	if (err) goto out_version;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->manufacturer_id_attr);
+	if (err) goto out_add_dev;
+	err = device_create_file(&bmc->dev->dev,
+			   &bmc->product_id_attr);
+	if (err) goto out_manu;
+	if (bmc->id.aux_firmware_revision_set) {
+		err = device_create_file(&bmc->dev->dev,
+				   &bmc->aux_firmware_rev_attr);
+		if (err) goto out_prod_id;
+	}
+	if (bmc->guid_set) {
+		err = device_create_file(&bmc->dev->dev,
+				   &bmc->guid_attr);
+		if (err) goto out_aux_firm;
+	}
+
+	return 0;
+
+out_aux_firm:
+	if (bmc->id.aux_firmware_revision_set)
+		device_remove_file(&bmc->dev->dev,
+				   &bmc->aux_firmware_rev_attr);
+out_prod_id:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->product_id_attr);
+out_manu:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->manufacturer_id_attr);
+out_add_dev:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->add_dev_support_attr);
+out_version:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->version_attr);
+out_firm:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->firmware_rev_attr);
+out_rev:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->revision_attr);
+out_sdrs:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->provides_dev_sdrs_attr);
+out_devid:
+	device_remove_file(&bmc->dev->dev,
+			   &bmc->device_id_attr);
+out:
+	return err;
 }
 
 static int ipmi_bmc_register(ipmi_smi_t intf)
@@ -2051,7 +2130,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf)
 		bmc->provides_dev_sdrs_attr.attr.mode = S_IRUGO;
 		bmc->provides_dev_sdrs_attr.show = provides_dev_sdrs_show;
 
-
 		bmc->revision_attr.attr.name = "revision";
 		bmc->revision_attr.attr.owner = THIS_MODULE;
 		bmc->revision_attr.attr.mode = S_IRUGO;
@@ -2093,28 +2171,14 @@ static int ipmi_bmc_register(ipmi_smi_t intf)
 		bmc->aux_firmware_rev_attr.attr.mode = S_IRUGO;
 		bmc->aux_firmware_rev_attr.show = aux_firmware_rev_show;
 
-		device_create_file(&bmc->dev->dev,
-				   &bmc->device_id_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->provides_dev_sdrs_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->revision_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->firmware_rev_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->version_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->add_dev_support_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->manufacturer_id_attr);
-		device_create_file(&bmc->dev->dev,
-				   &bmc->product_id_attr);
-		if (bmc->id.aux_firmware_revision_set)
-			device_create_file(&bmc->dev->dev,
-					   &bmc->aux_firmware_rev_attr);
-		if (bmc->guid_set)
-			device_create_file(&bmc->dev->dev,
-					   &bmc->guid_attr);
+		rv = create_files(bmc);
+		if (rv) {
+			mutex_lock(&ipmidriver_mutex);
+			platform_device_unregister(bmc->dev);
+			mutex_unlock(&ipmidriver_mutex);
+
+			return rv;
+		}
 
 		printk(KERN_INFO
 		       "ipmi: Found new BMC (man_id: 0x%6.6x, "

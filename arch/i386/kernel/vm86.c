@@ -714,7 +714,7 @@ static int irqbits;
 	| (1 << SIGUSR1) | (1 << SIGUSR2) | (1 << SIGIO)  | (1 << SIGURG) \
 	| (1 << SIGUNUSED) )
 	
-static irqreturn_t irq_handler(int intno, void *dev_id, struct pt_regs * regs)
+static irqreturn_t irq_handler(int intno, void *dev_id)
 {
 	int irq_bit;
 	unsigned long flags;

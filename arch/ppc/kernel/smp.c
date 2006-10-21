@@ -84,7 +84,7 @@ smp_message_pass(int target, int msg)
 /*
  * Common functions
  */
-void smp_message_recv(int msg, struct pt_regs *regs)
+void smp_message_recv(int msg)
 {
 	atomic_inc(&ipi_recv);
 
@@ -100,7 +100,7 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 		break;
 #ifdef CONFIG_XMON
 	case PPC_MSG_XMON_BREAK:
-		xmon(regs);
+		xmon(get_irq_regs());
 		break;
 #endif /* CONFIG_XMON */
 	default:

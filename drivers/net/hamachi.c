@@ -556,7 +556,7 @@ static void hamachi_timer(unsigned long data);
 static void hamachi_tx_timeout(struct net_device *dev);
 static void hamachi_init_ring(struct net_device *dev);
 static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t hamachi_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t hamachi_interrupt(int irq, void *dev_instance);
 static int hamachi_rx(struct net_device *dev);
 static inline int hamachi_tx(struct net_device *dev);
 static void hamachi_error(struct net_device *dev, int intr_status);
@@ -1376,7 +1376,7 @@ static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t hamachi_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
+static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct hamachi_private *hmp = netdev_priv(dev);

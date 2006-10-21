@@ -60,9 +60,9 @@ static inline unsigned int calc_xmit_shift(struct dma_channel *chan)
  * Besides that it needs to waken any waiting process, which should handle
  * setting up the next transfer.
  */
-static irqreturn_t dma_tei(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_tei(int irq, void *dev_id)
 {
-	struct dma_channel *chan = (struct dma_channel *)dev_id;
+	struct dma_channel *chan = dev_id;
 	u32 chcr;
 
 	chcr = ctrl_inl(CHCR[chan->chan]);
@@ -228,7 +228,7 @@ static inline int dmaor_reset(void)
 }
 
 #if defined(CONFIG_CPU_SH4)
-static irqreturn_t dma_err(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_err(int irq, void *dummy)
 {
 	dmaor_reset();
 	disable_irq(irq);

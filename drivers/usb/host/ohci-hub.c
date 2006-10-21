@@ -47,8 +47,8 @@ static void ohci_rhsc_enable (struct usb_hcd *hcd)
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
 
-static void dl_done_list (struct ohci_hcd *, struct pt_regs *);
-static void finish_unlinks (struct ohci_hcd *, u16 , struct pt_regs *);
+static void dl_done_list (struct ohci_hcd *);
+static void finish_unlinks (struct ohci_hcd *, u16);
 
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
 __releases(ohci->lock)
@@ -94,8 +94,8 @@ __acquires(ohci->lock)
 		msleep (8);
 		spin_lock_irq (&ohci->lock);
 	}
-	dl_done_list (ohci, NULL);
-	finish_unlinks (ohci, ohci_frame_no(ohci), NULL);
+	dl_done_list (ohci);
+	finish_unlinks (ohci, ohci_frame_no(ohci));
 
 	/* maybe resume can wake root hub */
 	if (device_may_wakeup(&ohci_to_hcd(ohci)->self.root_hub->dev) ||

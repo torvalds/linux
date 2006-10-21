@@ -39,7 +39,7 @@ extern irqreturn_t q40_process_int (int level, struct pt_regs *regs);
 extern void q40_init_IRQ (void);
 static void q40_get_model(char *model);
 static int  q40_get_hardware_list(char *buffer);
-extern void q40_sched_init(irqreturn_t (*handler)(int, void *, struct pt_regs *));
+extern void q40_sched_init(irq_handler_t handler);
 
 extern unsigned long q40_gettimeoffset (void);
 extern int q40_hwclk (int, struct rtc_time *);

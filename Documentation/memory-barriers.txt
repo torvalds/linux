@@ -1898,7 +1898,7 @@ queue before processing any further requests:
 	smp_wmb();
 	<A:modify v=2>	<C:busy>
 			<C:queue v=2>
-	p = &b;		q = p;
+	p = &v;		q = p;
 			<D:request p>
 	<B:modify p=&v>	<D:commit p=&v>
 		  	<D:read p>

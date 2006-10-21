@@ -97,7 +97,7 @@ struct machdep_calls {
 	void		(*show_percpuinfo)(struct seq_file *m, int i);
 
 	void		(*init_IRQ)(void);
-	unsigned int	(*get_irq)(struct pt_regs *);
+	unsigned int	(*get_irq)(void);
 #ifdef CONFIG_KEXEC
 	void		(*kexec_cpu_down)(int crash_shutdown, int secondary);
 #endif

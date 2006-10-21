@@ -17,7 +17,7 @@
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
 
-static void usb_api_blocking_completion(struct urb *urb, struct pt_regs *regs)
+static void usb_api_blocking_completion(struct urb *urb)
 {
 	complete((struct completion *)urb->context);
 }
@@ -246,7 +246,7 @@ static void sg_clean (struct usb_sg_request *io)
 	io->dev = NULL;
 }
 
-static void sg_complete (struct urb *urb, struct pt_regs *regs)
+static void sg_complete (struct urb *urb)
 {
 	struct usb_sg_request	*io = urb->context;
 

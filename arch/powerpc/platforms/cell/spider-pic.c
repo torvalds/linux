@@ -213,8 +213,7 @@ static struct irq_host_ops spider_host_ops = {
 	.xlate = spider_host_xlate,
 };
 
-static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc,
-			       struct pt_regs *regs)
+static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct spider_pic *pic = desc->handler_data;
 	unsigned int cs, virq;
@@ -225,7 +224,7 @@ static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc,
 	else
 		virq = irq_linear_revmap(pic->host, cs);
 	if (virq != NO_IRQ)
-		generic_handle_irq(virq, regs);
+		generic_handle_irq(virq);
 	desc->chip->eoi(irq);
 }
 
@@ -243,9 +242,7 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	const u32 *imap, *tmp;
 	int imaplen, intsize, unit;
 	struct device_node *iic;
-	struct irq_host *iic_host;
 
-#if 0 /* Enable that when we have a way to retreive the node as well */
 	/* First, we check wether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
@@ -253,9 +250,8 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	if (of_irq_map_one(pic->of_node, 0, &oirq) == 0) {
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
-		goto bail;
+		return virq;
 	}
-#endif
 
 	/* Now do the horrible hacks */
 	tmp = get_property(pic->of_node, "#interrupt-cells", NULL);
@@ -289,11 +285,11 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	 * the iic host from the iic OF node, but that way I'm still compatible
 	 * with really really old old firmwares for which we don't have a node
 	 */
-	iic_host = iic_get_irq_host(pic->node_id);
-	if (iic_host == NULL)
-		return NO_IRQ;
 	/* Manufacture an IIC interrupt number of class 2 */
-	virq = irq_create_mapping(iic_host, 0x20 | unit);
+	virq = irq_create_mapping(NULL,
+				  (pic->node_id << IIC_IRQ_NODE_SHIFT) |
+				  (2 << IIC_IRQ_CLASS_SHIFT) |
+				  unit);
 	if (virq == NO_IRQ)
 		printk(KERN_ERR "spider_pic: failed to map cascade !");
 	return virq;
@@ -370,7 +366,7 @@ void __init spider_init_IRQ(void)
 		} else if (device_is_compatible(dn, "sti,platform-spider-pic")
 			   && (chip < 2)) {
 			static long hard_coded_pics[] =
-				{ 0x24000008000, 0x34000008000 };
+				{ 0x24000008000ul, 0x34000008000ul};
 			r.start = hard_coded_pics[chip];
 		} else
 			continue;

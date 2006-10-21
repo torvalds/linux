@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/svcauth.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
@@ -56,7 +57,8 @@ struct svc_serv {
 	struct svc_stat *	sv_stats;	/* RPC statistics */
 	spinlock_t		sv_lock;
 	unsigned int		sv_nrthreads;	/* # of server threads */
-	unsigned int		sv_bufsz;	/* datagram buffer size */
+	unsigned int		sv_max_payload;	/* datagram payload size */
+	unsigned int		sv_max_mesg;	/* max_payload + 1 page for overheads */
 	unsigned int		sv_xdrsize;	/* XDR buffer size */
 
 	struct list_head	sv_permsocks;	/* all permanent sockets */
@@ -95,8 +97,28 @@ static inline void svc_get(struct svc_serv *serv)
  * Maximum payload size supported by a kernel RPC server.
  * This is use to determine the max number of pages nfsd is
  * willing to return in a single READ operation.
+ *
+ * These happen to all be powers of 2, which is not strictly
+ * necessary but helps enforce the real limitation, which is
+ * that they should be multiples of PAGE_CACHE_SIZE.
+ *
+ * For UDP transports, a block plus NFS,RPC, and UDP headers
+ * has to fit into the IP datagram limit of 64K.  The largest
+ * feasible number for all known page sizes is probably 48K,
+ * but we choose 32K here.  This is the same as the historical
+ * Linux limit; someone who cares more about NFS/UDP performance
+ * can test a larger number.
+ *
+ * For TCP transports we have more freedom.  A size of 1MB is
+ * chosen to match the client limit.  Other OSes are known to
+ * have larger limits, but those numbers are probably beyond
+ * the point of diminishing returns.
  */
-#define RPCSVC_MAXPAYLOAD	(64*1024u)
+#define RPCSVC_MAXPAYLOAD	(1*1024*1024u)
+#define RPCSVC_MAXPAYLOAD_TCP	RPCSVC_MAXPAYLOAD
+#define RPCSVC_MAXPAYLOAD_UDP	(32*1024u)
+
+extern u32 svc_max_payload(const struct svc_rqst *rqstp);
 
 /*
  * RPC Requsts and replies are stored in one or more pages.
@@ -170,7 +192,6 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
 /*
  * The context of a single thread, including the request currently being
  * processed.
- * NOTE: First two items must be prev/next.
  */
 struct svc_rqst {
 	struct list_head	rq_list;	/* idle list */
@@ -189,12 +210,11 @@ struct svc_rqst {
 
 	struct xdr_buf		rq_arg;
 	struct xdr_buf		rq_res;
-	struct page *		rq_argpages[RPCSVC_MAXPAGES];
-	struct page *		rq_respages[RPCSVC_MAXPAGES];
-	int			rq_restailpage;
-	short			rq_argused;	/* pages used for argument */
-	short			rq_arghi;	/* pages available in argument page list */
-	short			rq_resused;	/* pages used for result */
+	struct page *		rq_pages[RPCSVC_MAXPAGES];
+	struct page *		*rq_respages;	/* points into rq_pages */
+	int			rq_resused;	/* number of pages used for result */
+
+	struct kvec		rq_vec[RPCSVC_MAXPAGES]; /* generally useful.. */
 
 	__be32			rq_xid;		/* transmission id */
 	u32			rq_prog;	/* program number */
@@ -255,60 +275,15 @@ xdr_ressize_check(struct svc_rqst *rqstp, __be32 *p)
 	return vec->iov_len <= PAGE_SIZE;
 }
 
-static inline struct page *
-svc_take_res_page(struct svc_rqst *rqstp)
+static inline void svc_free_res_pages(struct svc_rqst *rqstp)
 {
-	if (rqstp->rq_arghi <= rqstp->rq_argused)
-		return NULL;
-	rqstp->rq_arghi--;
-	rqstp->rq_respages[rqstp->rq_resused] =
-		rqstp->rq_argpages[rqstp->rq_arghi];
-	return rqstp->rq_respages[rqstp->rq_resused++];
-}
-
-static inline void svc_take_page(struct svc_rqst *rqstp)
-{
-	if (rqstp->rq_arghi <= rqstp->rq_argused) {
-		WARN_ON(1);
-		return;
-	}
-	rqstp->rq_arghi--;
-	rqstp->rq_respages[rqstp->rq_resused] =
-		rqstp->rq_argpages[rqstp->rq_arghi];
-	rqstp->rq_resused++;
-}
-
-static inline void svc_pushback_allpages(struct svc_rqst *rqstp)
-{
-        while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		rqstp->rq_argpages[rqstp->rq_arghi++] =
-			rqstp->rq_respages[rqstp->rq_resused];
-		rqstp->rq_respages[rqstp->rq_resused] = NULL;
-	}
-}
-
-static inline void svc_pushback_unused_pages(struct svc_rqst *rqstp)
-{
-	while (rqstp->rq_resused &&
-	       rqstp->rq_res.pages != &rqstp->rq_respages[rqstp->rq_resused]) {
-
-		if (rqstp->rq_respages[--rqstp->rq_resused] != NULL) {
-			rqstp->rq_argpages[rqstp->rq_arghi++] =
-				rqstp->rq_respages[rqstp->rq_resused];
-			rqstp->rq_respages[rqstp->rq_resused] = NULL;
+	while (rqstp->rq_resused) {
+		struct page **pp = (rqstp->rq_respages +
+				    --rqstp->rq_resused);
+		if (*pp) {
+			put_page(*pp);
+			*pp = NULL;
 		}
-	}
-}
-
-static inline void svc_free_allpages(struct svc_rqst *rqstp)
-{
-        while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		put_page(rqstp->rq_respages[rqstp->rq_resused]);
-		rqstp->rq_respages[rqstp->rq_resused] = NULL;
 	}
 }
 
@@ -347,6 +322,9 @@ struct svc_version {
 	struct svc_procedure *	vs_proc;	/* per-procedure info */
 	u32			vs_xdrsize;	/* xdrsize needed for this version */
 
+	unsigned int		vs_hidden : 1;	/* Don't register with portmapper.
+						 * Only used for nfsacl so far. */
+
 	/* Override dispatch function (e.g. when caching replies).
 	 * A return value of 0 means drop the request. 
 	 * vs_dispatch == NULL means use default dispatcher.
@@ -357,7 +335,7 @@ struct svc_version {
 /*
  * RPC procedure info
  */
-typedef int	(*svc_procfunc)(struct svc_rqst *, void *argp, void *resp);
+typedef __be32	(*svc_procfunc)(struct svc_rqst *, void *argp, void *resp);
 struct svc_procedure {
 	svc_procfunc		pc_func;	/* process the request */
 	kxdrproc_t		pc_decode;	/* XDR decode args */

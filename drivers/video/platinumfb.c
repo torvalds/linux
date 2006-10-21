@@ -339,11 +339,12 @@ static int __devinit platinum_init_fb(struct fb_info *info)
 
 	sense = read_platinum_sense(pinfo);
 	printk(KERN_INFO "platinumfb: Monitor sense value = 0x%x, ", sense);
-
 	if (default_vmode == VMODE_NVRAM) {
+#ifdef CONFIG_NVRAM
 		default_vmode = nvram_read_byte(NV_VMODE);
 		if (default_vmode <= 0 || default_vmode > VMODE_MAX ||
 		    !platinum_reg_init[default_vmode-1])
+#endif
 			default_vmode = VMODE_CHOOSE;
 	}
 	if (default_vmode == VMODE_CHOOSE) {
@@ -351,8 +352,10 @@ static int __devinit platinum_init_fb(struct fb_info *info)
 	}
 	if (default_vmode <= 0 || default_vmode > VMODE_MAX)
 		default_vmode = VMODE_640_480_60;
+#ifdef CONFIG_NVRAM
 	if (default_cmode == CMODE_NVRAM)
 		default_cmode = nvram_read_byte(NV_CMODE);
+#endif
 	if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
 		default_cmode = CMODE_8;
 	/*

@@ -1628,7 +1628,7 @@ stall:
 		handled = 1; \
 		}
 
-static irqreturn_t goku_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t goku_irq(int irq, void *_dev)
 {
 	struct goku_udc			*dev = _dev;
 	struct goku_udc_regs __iomem	*regs = dev->regs;

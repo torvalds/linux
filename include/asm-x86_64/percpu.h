@@ -32,13 +32,13 @@
 
 /* var is in discarded region: offset to particular copy we want */
 #define per_cpu(var, cpu) (*({				\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)); }))
 #define __get_cpu_var(var) (*({				\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
 #define __raw_get_cpu_var(var) (*({			\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()); }))
 
 /* A macro to avoid #include hell... */

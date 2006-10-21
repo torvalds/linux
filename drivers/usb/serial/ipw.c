@@ -161,7 +161,7 @@ static struct usb_driver usb_ipw_driver = {
 
 static int debug;
 
-static void ipw_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void ipw_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
@@ -367,7 +367,7 @@ static void ipw_close(struct usb_serial_port *port, struct file * filp)
 	usb_kill_urb(port->write_urb);
 }
 
-static void ipw_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void ipw_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 

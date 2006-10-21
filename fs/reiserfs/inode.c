@@ -1780,7 +1780,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		err = -EDQUOT;
 		goto out_end_trans;
 	}
-	if (!dir || !dir->i_nlink) {
+	if (!dir->i_nlink) {
 		err = -EPERM;
 		goto out_bad_inode;
 	}

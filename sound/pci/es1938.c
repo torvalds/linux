@@ -241,7 +241,7 @@ struct es1938 {
 #endif
 };
 
-static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id);
 
 static struct pci_device_id snd_es1938_ids[] = {
         { 0x125d, 0x1969, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* Solo-1 */
@@ -1642,7 +1642,7 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 /* --------------------------------------------------------------------
  * Interrupt handler
  * -------------------------------------------------------------------- */
-static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 {
 	struct es1938 *chip = dev_id;
 	unsigned char status, audiostatus;
@@ -1714,7 +1714,7 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *r
 		// snd_es1938_mixer_bits(chip, ESSSB_IREG_MPU401CONTROL, 0x40, 0); /* ack? */
 		if (chip->rmidi) {
 			handled = 1;
-			snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+			snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 		}
 	}
 	return IRQ_RETVAL(handled);

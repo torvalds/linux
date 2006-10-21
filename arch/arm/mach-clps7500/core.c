@@ -292,11 +292,11 @@ extern void ioctime_init(void);
 extern unsigned long ioc_timer_gettimeoffset(void);
 
 static irqreturn_t
-clps7500_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+clps7500_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
-	timer_tick(regs);
+	timer_tick();
 
 	/* Why not using do_leds interface?? */
 	{

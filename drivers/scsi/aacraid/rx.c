@@ -46,11 +46,11 @@
 
 #include "aacraid.h"
 
-static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t aac_rx_intr(int irq, void *dev_id)
 {
 	struct aac_dev *dev = dev_id;
 
-	dprintk((KERN_DEBUG "aac_rx_intr(%d,%p,%p)\n", irq, dev_id, regs));
+	dprintk((KERN_DEBUG "aac_rx_intr(%d,%p)\n", irq, dev_id));
 	if (dev->new_comm_interface) {
 		u32 Index = rx_readl(dev, MUnit.OutboundQueue);
 		if (Index == 0xFFFFFFFFL)

@@ -1047,9 +1047,7 @@ static void snd_ali_interrupt(struct snd_ali * codec)
 }
 
 
-static irqreturn_t snd_ali_card_interrupt(int irq,
-				   void *dev_id,
-				   struct pt_regs *regs)
+static irqreturn_t snd_ali_card_interrupt(int irq, void *dev_id)
 {
 	struct snd_ali 	*codec = dev_id;
 

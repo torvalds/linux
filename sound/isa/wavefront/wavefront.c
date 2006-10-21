@@ -263,9 +263,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 #endif /* CONFIG_PNP */
 
-static irqreturn_t snd_wavefront_ics2115_interrupt(int irq, 
-					    void *dev_id, 
-					    struct pt_regs *regs)
+static irqreturn_t snd_wavefront_ics2115_interrupt(int irq, void *dev_id)
 {
 	snd_wavefront_card_t *acard;
 

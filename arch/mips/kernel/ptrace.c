@@ -106,6 +106,7 @@ int ptrace_setregs (struct task_struct *child, __s64 __user *data)
 int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
 {
 	int i;
+	unsigned int tmp;
 
 	if (!access_ok(VERIFY_WRITE, data, 33 * 8))
 		return -EIO;
@@ -121,10 +122,10 @@ int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
 
 	__put_user (child->thread.fpu.fcr31, data + 64);
 
+	preempt_disable();
 	if (cpu_has_fpu) {
-		unsigned int flags, tmp;
+		unsigned int flags;
 
-		preempt_disable();
 		if (cpu_has_mipsmt) {
 			unsigned int vpflags = dvpe();
 			flags = read_c0_status();
@@ -138,11 +139,11 @@ int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
 			__asm__ __volatile__("cfc1\t%0,$0" : "=r" (tmp));
 			write_c0_status(flags);
 		}
-		preempt_enable();
-		__put_user (tmp, data + 65);
 	} else {
-		__put_user ((__u32) 0, data + 65);
+		tmp = 0;
 	}
+	preempt_enable();
+	__put_user (tmp, data + 65);
 
 	return 0;
 }
@@ -245,16 +246,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned int mtflags;
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-			if (!cpu_has_fpu)
+			preempt_disable();
+			if (!cpu_has_fpu) {
+				preempt_enable();
 				break;
+			}
 
 #ifdef CONFIG_MIPS_MT_SMTC
 			/* Read-modify-write of Status must be atomic */
 			local_irq_save(irqflags);
 			mtflags = dmt();
 #endif /* CONFIG_MIPS_MT_SMTC */
-
-			preempt_disable();
 			if (cpu_has_mipsmt) {
 				unsigned int vpflags = dvpe();
 				flags = read_c0_status();

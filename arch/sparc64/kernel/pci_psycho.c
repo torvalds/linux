@@ -533,7 +533,7 @@ static void psycho_check_iommu_error(struct pci_controller_info *p,
 #define  PSYCHO_UEAFSR_RESV2	0x00000000007fffffUL /* Reserved                     */
 #define PSYCHO_UE_AFAR	0x0038UL
 
-static irqreturn_t psycho_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_A.controller_regs + PSYCHO_UE_AFSR;
@@ -610,7 +610,7 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id, struct pt_regs *regs)
 #define  PSYCHO_CEAFSR_RESV2	0x00000000007fffffUL /* Reserved                     */
 #define PSYCHO_CE_AFAR	0x0040UL
 
-static irqreturn_t psycho_ce_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 {
 	struct pci_controller_info *p = dev_id;
 	unsigned long afsr_reg = p->pbm_A.controller_regs + PSYCHO_CE_AFSR;
@@ -735,7 +735,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm
 	return ret;
 }
 
-static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
 	struct pci_controller_info *p = pbm->parent;

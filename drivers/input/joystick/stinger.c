@@ -64,14 +64,12 @@ struct stinger {
  * Stinger. It updates the data accordingly.
  */
 
-static void stinger_process_packet(struct stinger *stinger, struct pt_regs *regs)
+static void stinger_process_packet(struct stinger *stinger)
 {
 	struct input_dev *dev = stinger->dev;
 	unsigned char *data = stinger->data;
 
 	if (!stinger->idx) return;
-
-	input_regs(dev, regs);
 
 	input_report_key(dev, BTN_A,	  ((data[0] & 0x20) >> 5));
 	input_report_key(dev, BTN_B,	  ((data[0] & 0x10) >> 4));
@@ -99,7 +97,7 @@ static void stinger_process_packet(struct stinger *stinger, struct pt_regs *regs
  */
 
 static irqreturn_t stinger_interrupt(struct serio *serio,
-	unsigned char data, unsigned int flags, struct pt_regs *regs)
+	unsigned char data, unsigned int flags)
 {
 	struct stinger *stinger = serio_get_drvdata(serio);
 
@@ -109,7 +107,7 @@ static irqreturn_t stinger_interrupt(struct serio *serio,
 		stinger->data[stinger->idx++] = data;
 
 	if (stinger->idx == 4) {
-		stinger_process_packet(stinger, regs);
+		stinger_process_packet(stinger);
 		stinger->idx = 0;
 	}
 

@@ -20,10 +20,7 @@
 #include <asm/mipsmtregs.h>
 #endif
 
-#ifdef CONFIG_PREEMPT
-	.macro	preempt_stop
-	.endm
-#else
+#ifndef CONFIG_PREEMPT
 	.macro	preempt_stop
 	local_irq_disable
 	.endm
@@ -32,9 +29,16 @@
 
 	.text
 	.align	5
+FEXPORT(ret_from_irq)
+	LONG_S	s0, TI_REGS($28)
+#ifdef CONFIG_PREEMPT
+FEXPORT(ret_from_exception)
+#else
+	b	_ret_from_irq
 FEXPORT(ret_from_exception)
 	preempt_stop
-FEXPORT(ret_from_irq)
+#endif
+FEXPORT(_ret_from_irq)
 	LONG_L	t0, PT_STATUS(sp)		# returning to kernel mode?
 	andi	t0, t0, KU_USER
 	beqz	t0, resume_kernel
@@ -79,7 +83,6 @@ FEXPORT(syscall_exit)
 FEXPORT(restore_all)			# restore full frame
 #ifdef CONFIG_MIPS_MT_SMTC
 /* Detect and execute deferred IPI "interrupts" */
-	move	a0,sp
 	jal	deferred_smtc_ipi
 /* Re-arm any temporarily masked interrupts not explicitly "acked" */
 	mfc0	v0, CP0_TCSTATUS

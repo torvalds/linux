@@ -77,13 +77,6 @@ struct cache_sizes {
 extern struct cache_sizes malloc_sizes[];
 
 extern void *__kmalloc(size_t, gfp_t);
-#ifndef CONFIG_DEBUG_SLAB
-#define ____kmalloc(size, flags) __kmalloc(size, flags)
-#else
-extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
-#define ____kmalloc(size, flags) \
-    __kmalloc_track_caller(size, flags, __builtin_return_address(0))
-#endif
 
 /**
  * kmalloc - allocate memory
@@ -152,6 +145,23 @@ found:
 	}
 	return __kmalloc(size, flags);
 }
+
+/*
+ * kmalloc_track_caller is a special version of kmalloc that records the
+ * calling function of the routine calling it for slab leak tracking instead
+ * of just the calling function (confusing, eh?).
+ * It's useful when the call to kmalloc comes from a widely-used standard
+ * allocator where we care about the real place the memory allocation
+ * request comes from.
+ */
+#ifndef CONFIG_DEBUG_SLAB
+#define kmalloc_track_caller(size, flags) \
+	__kmalloc(size, flags)
+#else
+extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
+#define kmalloc_track_caller(size, flags) \
+	__kmalloc_track_caller(size, flags, __builtin_return_address(0))
+#endif
 
 extern void *__kzalloc(size_t, gfp_t);
 
@@ -271,7 +281,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 #define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
 #define kmalloc_node(s, f, n) kmalloc(s, f)
 #define kzalloc(s, f) __kzalloc(s, f)
-#define ____kmalloc kmalloc
+#define kmalloc_track_caller kmalloc
 
 #endif /* CONFIG_SLOB */
 

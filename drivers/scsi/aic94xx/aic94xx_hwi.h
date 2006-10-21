@@ -371,7 +371,7 @@ static inline void asd_ascb_free_list(struct asd_ascb *ascb_list)
 /* ---------- Function declarations ---------- */
 
 int  asd_init_hw(struct asd_ha_struct *asd_ha);
-irqreturn_t asd_hw_isr(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t asd_hw_isr(int irq, void *dev_id);
 
 
 struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct

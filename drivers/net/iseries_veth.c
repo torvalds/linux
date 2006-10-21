@@ -586,7 +586,7 @@ static void veth_handle_int(struct veth_lpevent *event)
 	};
 }
 
-static void veth_handle_event(struct HvLpEvent *event, struct pt_regs *regs)
+static void veth_handle_event(struct HvLpEvent *event)
 {
 	struct veth_lpevent *veth_event = (struct veth_lpevent *)event;
 

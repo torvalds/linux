@@ -120,7 +120,7 @@ iop3xx_i2c_transaction_cleanup(struct i2c_algo_iop3xx_data *iop3xx_adap)
  * Then it passes the SR flags of interest to BH via adap data
  */
 static irqreturn_t 
-iop3xx_i2c_irq_handler(int this_irq, void *dev_id, struct pt_regs *regs) 
+iop3xx_i2c_irq_handler(int this_irq, void *dev_id) 
 {
 	struct i2c_algo_iop3xx_data *iop3xx_adap = dev_id;
 	u32 sr = __raw_readl(iop3xx_adap->ioaddr + SR_OFFSET);

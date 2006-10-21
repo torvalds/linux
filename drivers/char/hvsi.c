@@ -406,7 +406,7 @@ static void hvsi_insert_chars(struct hvsi_struct *hp, const char *buf, int len)
 			hp->sysrq = 1;
 			continue;
 		} else if (hp->sysrq) {
-			handle_sysrq(c, NULL, hp->tty);
+			handle_sysrq(c, hp->tty);
 			hp->sysrq = 0;
 			continue;
 		}
@@ -555,7 +555,7 @@ static void hvsi_send_overflow(struct hvsi_struct *hp)
  * must get all pending data because we only get an irq on empty->non-empty
  * transition
  */
-static irqreturn_t hvsi_interrupt(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t hvsi_interrupt(int irq, void *arg)
 {
 	struct hvsi_struct *hp = (struct hvsi_struct *)arg;
 	struct tty_struct *flip;
@@ -616,7 +616,7 @@ static int __init poll_for_state(struct hvsi_struct *hp, int state)
 	unsigned long end_jiffies = jiffies + HVSI_TIMEOUT;
 
 	for (;;) {
-		hvsi_interrupt(hp->virq, (void *)hp, NULL); /* get pending data */
+		hvsi_interrupt(hp->virq, (void *)hp); /* get pending data */
 
 		if (hp->state == state)
 			return 0;

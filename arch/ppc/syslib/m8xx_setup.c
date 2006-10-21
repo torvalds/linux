@@ -169,7 +169,7 @@ abort(void)
 }
 
 /* A place holder for time base interrupts, if they are ever enabled. */
-irqreturn_t timebase_interrupt(int irq, void * dev, struct pt_regs * regs)
+irqreturn_t timebase_interrupt(int irq, void * dev)
 {
 	printk ("timebase_interrupt()\n");
 

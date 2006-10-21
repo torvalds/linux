@@ -328,7 +328,7 @@ static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb, u8 *buffer, in
 	fc_usb->tmp_buffer_length = l;
 }
 
-static void flexcop_usb_urb_complete(struct urb *urb, struct pt_regs *ptregs)
+static void flexcop_usb_urb_complete(struct urb *urb)
 {
 	struct flexcop_usb *fc_usb = urb->context;
 	int i;

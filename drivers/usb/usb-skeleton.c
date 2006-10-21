@@ -158,7 +158,7 @@ exit:
 	return retval;
 }
 
-static void skel_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void skel_write_bulk_callback(struct urb *urb)
 {
 	struct usb_skel *dev;
 

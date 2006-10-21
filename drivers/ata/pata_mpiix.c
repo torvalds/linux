@@ -274,11 +274,10 @@ static void __devexit mpiix_remove_one(struct pci_dev *pdev)
 	dev_set_drvdata(dev, NULL);
 }
 
-
-
 static const struct pci_device_id mpiix[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371MX), },
-	{ 0, },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82371MX), },
+
+	{ },
 };
 
 static struct pci_driver mpiix_pci_driver = {
@@ -293,12 +292,10 @@ static int __init mpiix_init(void)
 	return pci_register_driver(&mpiix_pci_driver);
 }
 
-
 static void __exit mpiix_exit(void)
 {
 	pci_unregister_driver(&mpiix_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Intel MPIIX");

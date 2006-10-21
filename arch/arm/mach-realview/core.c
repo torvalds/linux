@@ -515,18 +515,18 @@ static unsigned long realview_gettimeoffset(void)
 /*
  * IRQ handler for the timer
  */
-static irqreturn_t realview_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
 	// ...clear the interrupt
 	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
-	timer_tick(regs);
+	timer_tick();
 
 #if defined(CONFIG_SMP) && !defined(CONFIG_LOCAL_TIMERS)
 	smp_send_timer();
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 
 	write_sequnlock(&xtime_lock);

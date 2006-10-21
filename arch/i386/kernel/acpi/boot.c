@@ -62,8 +62,6 @@ static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return
 #include <mach_mpparse.h>
 #endif				/* CONFIG_X86_LOCAL_APIC */
 
-static inline int gsi_irq_sharing(int gsi) { return gsi; }
-
 #endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \
@@ -334,7 +332,7 @@ acpi_parse_ioapic(acpi_table_entry_header * header, const unsigned long end)
 /*
  * Parse Interrupt Source Override for the ACPI SCI
  */
-static void acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
+static void acpi_sci_ioapic_setup(u32 bus_irq, u32 gsi, u16 polarity, u16 trigger)
 {
 	if (trigger == 0)	/* compatible SCI trigger is level */
 		trigger = 3;
@@ -354,13 +352,13 @@ static void acpi_sci_ioapic_setup(u32 gsi, u16 polarity, u16 trigger)
 	 * If GSI is < 16, this will update its flags,
 	 * else it will create a new mp_irqs[] entry.
 	 */
-	mp_override_legacy_irq(gsi, polarity, trigger, gsi);
+	mp_override_legacy_irq(bus_irq, polarity, trigger, gsi);
 
 	/*
 	 * stash over-ride to indicate we've been here
 	 * and for later update of acpi_fadt
 	 */
-	acpi_sci_override_gsi = gsi;
+	acpi_sci_override_gsi = bus_irq;
 	return;
 }
 
@@ -378,7 +376,7 @@ acpi_parse_int_src_ovr(acpi_table_entry_header * header,
 	acpi_table_print_madt_entry(header);
 
 	if (intsrc->bus_irq == acpi_fadt.sci_int) {
-		acpi_sci_ioapic_setup(intsrc->global_irq,
+		acpi_sci_ioapic_setup(intsrc->bus_irq, intsrc->global_irq,
 				      intsrc->flags.polarity,
 				      intsrc->flags.trigger);
 		return 0;
@@ -468,12 +466,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
-#ifdef CONFIG_X86_IO_APIC
-	if (use_pci_vector() && !platform_legacy_irq(gsi))
-		*irq = IO_APIC_VECTOR(gsi);
-	else
-#endif
-		*irq = gsi_irq_sharing(gsi);
+	*irq = gsi;
 	return 0;
 }
 
@@ -886,7 +879,7 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * pretend we got one so we can set the SCI flags.
 	 */
 	if (!acpi_sci_override_gsi)
-		acpi_sci_ioapic_setup(acpi_fadt.sci_int, 0, 0);
+		acpi_sci_ioapic_setup(acpi_fadt.sci_int, acpi_fadt.sci_int, 0, 0);
 
 	/* Fill in identity legacy mapings where no override */
 	mp_config_acpi_legacy_irqs();

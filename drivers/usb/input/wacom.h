@@ -63,6 +63,7 @@
  *      v1.46 (pc) - Split wacom.c into wacom_sys.c and wacom_wac.c,
  *		   - where wacom_sys.c deals with system specific code,
  * 		   - and wacom_wac.c deals with Wacom specific code
+ *		   - Support Intuos3 4x6
  */
 
 /*
@@ -106,20 +107,19 @@ struct wacom {
 struct wacom_combo {
 	struct wacom * wacom;
 	struct urb * urb;
-	struct pt_regs *regs;
 };
 
 extern int wacom_wac_irq(struct wacom_wac * wacom_wac, void * wcombo);
-extern void wacom_sys_irq(struct urb *urb, struct pt_regs *regs);
+extern void wacom_sys_irq(struct urb *urb);
 extern void wacom_report_abs(void *wcombo, unsigned int abs_type, int abs_data);
 extern void wacom_report_rel(void *wcombo, unsigned int rel_type, int rel_data);
 extern void wacom_report_key(void *wcombo, unsigned int key_type, int key_data);
 extern void wacom_input_event(void *wcombo, unsigned int type, unsigned int code, int value);
-extern void wacom_input_regs(void *wcombo);
 extern void wacom_input_sync(void *wcombo);
 extern void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_g4(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_g(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
+extern void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac);
 extern void input_dev_pl(struct input_dev *input_dev, struct wacom_wac *wacom_wac);

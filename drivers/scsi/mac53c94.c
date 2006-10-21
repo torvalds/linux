@@ -60,8 +60,8 @@ struct fsc_state {
 
 static void mac53c94_init(struct fsc_state *);
 static void mac53c94_start(struct fsc_state *);
-static void mac53c94_interrupt(int, void *, struct pt_regs *);
-static irqreturn_t do_mac53c94_interrupt(int, void *, struct pt_regs *);
+static void mac53c94_interrupt(int, void *);
+static irqreturn_t do_mac53c94_interrupt(int, void *);
 static void cmd_done(struct fsc_state *, int result);
 static void set_dma_cmds(struct fsc_state *, struct scsi_cmnd *);
 
@@ -177,18 +177,18 @@ static void mac53c94_start(struct fsc_state *state)
 		set_dma_cmds(state, cmd);
 }
 
-static irqreturn_t do_mac53c94_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t do_mac53c94_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = ((struct fsc_state *) dev_id)->current_req->device->host;
 	
 	spin_lock_irqsave(dev->host_lock, flags);
-	mac53c94_interrupt(irq, dev_id, ptregs);
+	mac53c94_interrupt(irq, dev_id);
 	spin_unlock_irqrestore(dev->host_lock, flags);
 	return IRQ_HANDLED;
 }
 
-static void mac53c94_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+static void mac53c94_interrupt(int irq, void *dev_id)
 {
 	struct fsc_state *state = (struct fsc_state *) dev_id;
 	struct mac53c94_regs __iomem *regs = state->regs;

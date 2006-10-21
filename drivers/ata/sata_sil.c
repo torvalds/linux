@@ -116,20 +116,20 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
-static irqreturn_t sil_interrupt(int irq, void *dev_instance,
-				 struct pt_regs *regs);
+static irqreturn_t sil_interrupt(int irq, void *dev_instance);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
 
 
 static const struct pci_device_id sil_pci_tbl[] = {
-	{ 0x1095, 0x3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
-	{ 0x1095, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
-	{ 0x1095, 0x3512, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3512 },
-	{ 0x1095, 0x3114, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3114 },
-	{ 0x1002, 0x436e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
-	{ 0x1002, 0x4379, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_no_sata_irq },
-	{ 0x1002, 0x437a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_no_sata_irq },
+	{ PCI_VDEVICE(CMD, 0x3112), sil_3112 },
+	{ PCI_VDEVICE(CMD, 0x0240), sil_3112 },
+	{ PCI_VDEVICE(CMD, 0x3512), sil_3512 },
+	{ PCI_VDEVICE(CMD, 0x3114), sil_3114 },
+	{ PCI_VDEVICE(ATI, 0x436e), sil_3112 },
+	{ PCI_VDEVICE(ATI, 0x4379), sil_3112_no_sata_irq },
+	{ PCI_VDEVICE(ATI, 0x437a), sil_3112_no_sata_irq },
+
 	{ }	/* terminate list */
 };
 
@@ -349,7 +349,7 @@ static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg)
 
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
-	void *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
+	void __iomem *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
 	if (mmio)
 		writel(val, mmio);
 }
@@ -436,8 +436,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	ata_port_freeze(ap);
 }
 
-static irqreturn_t sil_interrupt(int irq, void *dev_instance,
-				 struct pt_regs *regs)
+static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	void __iomem *mmio_base = host->mmio_base;

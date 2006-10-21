@@ -11,7 +11,6 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/timer.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/string.h>

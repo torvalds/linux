@@ -332,7 +332,7 @@ static void tx_timeout(struct net_device *dev);
 static int alloc_ringdesc(struct net_device *dev);
 static void free_ringdesc(struct netdev_private *np);
 static int  start_tx(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t intr_handler(int irq, void *dev_instance);
 static void netdev_error(struct net_device *dev, int intr_status);
 static int  netdev_rx(struct net_device *dev);
 static u32 __set_rx_mode(struct net_device *dev);
@@ -1110,7 +1110,7 @@ static void netdev_tx_done(struct net_device *dev)
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
-static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs)
+static irqreturn_t intr_handler(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct netdev_private *np = netdev_priv(dev);

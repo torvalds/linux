@@ -3603,7 +3603,7 @@ static void hdsp_midi_tasklet(unsigned long arg)
 		snd_hdsp_midi_input_read (&hdsp->midi[1]);
 } 
 
-static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_hdsp_interrupt(int irq, void *dev_id)
 {
 	struct hdsp *hdsp = (struct hdsp *) dev_id;
 	unsigned int status;

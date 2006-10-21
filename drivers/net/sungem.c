@@ -932,7 +932,7 @@ static int gem_poll(struct net_device *dev, int *budget)
 	return 0;
 }
 
-static irqreturn_t gem_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t gem_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct gem *gp = dev->priv;
@@ -975,7 +975,7 @@ static void gem_poll_controller(struct net_device *dev)
 	/* gem_interrupt is safe to reentrance so no need
 	 * to disable_irq here.
 	 */
-	gem_interrupt(dev->irq, dev, NULL);
+	gem_interrupt(dev->irq, dev);
 }
 #endif
 

@@ -20,9 +20,6 @@
 /* size of the nodename buffer */
 #define UNX_MAXNODENAME	32
 
-/* Maximum size (in bytes) of an rpc credential or verifier */
-#define RPC_MAX_AUTH_SIZE (400)
-
 /* Work around the lack of a VFS credential */
 struct auth_cred {
 	uid_t	uid;

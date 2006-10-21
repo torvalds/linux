@@ -870,7 +870,11 @@ static unsigned int ata_id_xfermask(const u16 *id)
 		 * the PIO timing number for the maximum. Turn it into
 		 * a mask.
 		 */
-		pio_mask = (2 << (id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+		u8 mode = id[ATA_ID_OLD_PIO_MODES] & 0xFF;
+		if (mode < 5)	/* Valid PIO range */
+                	pio_mask = (2 << mode) - 1;
+		else
+			pio_mask = 1;
 
 		/* But wait.. there's more. Design your standards by
 		 * committee and you too can get a free iordy field to
@@ -2340,7 +2344,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 
 	if (status & ATA_BUSY)
 		ata_port_printk(ap, KERN_WARNING,
-				"port is slow to respond, please be patient\n");
+				"port is slow to respond, please be patient "
+				"(Status 0x%x)\n", status);
 
 	timeout = timer_start + tmout;
 	while ((status & ATA_BUSY) && (time_before(jiffies, timeout))) {
@@ -2350,7 +2355,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 
 	if (status & ATA_BUSY) {
 		ata_port_printk(ap, KERN_ERR, "port failed to respond "
-				"(%lu secs)\n", tmout / HZ);
+				"(%lu secs, Status 0x%x)\n",
+				tmout / HZ, status);
 		return 1;
 	}
 
@@ -4855,7 +4861,6 @@ idle_irq:
  *	ata_interrupt - Default ATA host interrupt handler
  *	@irq: irq line (unused)
  *	@dev_instance: pointer to our ata_host information structure
- *	@regs: unused
  *
  *	Default interrupt handler for PCI IDE devices.  Calls
  *	ata_host_intr() for each port that is not disabled.
@@ -4867,7 +4872,7 @@ idle_irq:
  *	IRQ_NONE or IRQ_HANDLED.
  */
 
-irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
+irqreturn_t ata_interrupt (int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
@@ -5478,10 +5483,9 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		int irq_line = ent->irq;
 
 		ap = ata_port_add(ent, host, i);
+		host->ports[i] = ap;
 		if (!ap)
 			goto err_out;
-
-		host->ports[i] = ap;
 
 		/* dummy? */
 		if (ent->dummy_port_mask & (1 << i)) {
@@ -5740,7 +5744,7 @@ void ata_host_remove(struct ata_host *host)
 
 /**
  *	ata_scsi_release - SCSI layer callback hook for host unload
- *	@host: libata host to be unloaded
+ *	@shost: libata host to be unloaded
  *
  *	Performs all duties necessary to shut down a libata port...
  *	Kill port kthread, disable port, and release resources.
@@ -5786,6 +5790,7 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 	probe_ent->mwdma_mask = port->mwdma_mask;
 	probe_ent->udma_mask = port->udma_mask;
 	probe_ent->port_ops = port->port_ops;
+	probe_ent->private_data = port->private_data;
 
 	return probe_ent;
 }

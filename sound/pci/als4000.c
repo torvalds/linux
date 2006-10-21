@@ -385,7 +385,7 @@ static snd_pcm_uframes_t snd_als4000_playback_pointer(struct snd_pcm_substream *
  * SB IRQ status.
  * And do we *really* need the lock here for *reading* SB_DSP4_IRQSTATUS??
  * */
-static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id)
 {
 	struct snd_sb *chip = dev_id;
 	unsigned gcr_status;
@@ -399,7 +399,7 @@ static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *
 	if ((gcr_status & 0x40) && (chip->capture_substream)) /* capturing */
 		snd_pcm_period_elapsed(chip->capture_substream);
 	if ((gcr_status & 0x10) && (chip->rmidi)) /* MPU401 interrupt */
-		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
 	/* release the gcr */
 	outb(gcr_status, chip->alt_port + 0xe);
 	

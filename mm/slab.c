@@ -86,7 +86,6 @@
  *	All object allocations for a node occur from node specific slab lists.
  */
 
-#include	<linux/config.h>
 #include	<linux/slab.h>
 #include	<linux/mm.h>
 #include	<linux/poison.h>
@@ -1107,15 +1106,18 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	int nodeid = slabp->nodeid;
 	struct kmem_list3 *l3;
 	struct array_cache *alien = NULL;
+	int node;
+
+	node = numa_node_id();
 
 	/*
 	 * Make sure we are not freeing a object from another node to the array
 	 * cache on this cpu.
 	 */
-	if (likely(slabp->nodeid == numa_node_id()))
+	if (likely(slabp->nodeid == node))
 		return 0;
 
-	l3 = cachep->nodelists[numa_node_id()];
+	l3 = cachep->nodelists[node];
 	STATS_INC_NODEFREES(cachep);
 	if (l3->alien && l3->alien[nodeid]) {
 		alien = l3->alien[nodeid];
@@ -1326,7 +1328,6 @@ static void init_list(struct kmem_cache *cachep, struct kmem_list3 *list,
 {
 	struct kmem_list3 *ptr;
 
-	BUG_ON(cachep->nodelists[nodeid] != list);
 	ptr = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, nodeid);
 	BUG_ON(!ptr);
 
@@ -1353,6 +1354,7 @@ void __init kmem_cache_init(void)
 	struct cache_names *names;
 	int i;
 	int order;
+	int node;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++) {
 		kmem_list3_init(&initkmem_list3[i]);
@@ -1387,12 +1389,14 @@ void __init kmem_cache_init(void)
 	 * 6) Resize the head arrays of the kmalloc caches to their final sizes.
 	 */
 
+	node = numa_node_id();
+
 	/* 1) create the cache_cache */
 	INIT_LIST_HEAD(&cache_chain);
 	list_add(&cache_cache.next, &cache_chain);
 	cache_cache.colour_off = cache_line_size();
 	cache_cache.array[smp_processor_id()] = &initarray_cache.cache;
-	cache_cache.nodelists[numa_node_id()] = &initkmem_list3[CACHE_CACHE];
+	cache_cache.nodelists[node] = &initkmem_list3[CACHE_CACHE];
 
 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
 					cache_line_size());
@@ -1497,19 +1501,18 @@ void __init kmem_cache_init(void)
 	}
 	/* 5) Replace the bootstrap kmem_list3's */
 	{
-		int node;
-		/* Replace the static kmem_list3 structures for the boot cpu */
-		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE],
-			  numa_node_id());
+		int nid;
 
-		for_each_online_node(node) {
+		/* Replace the static kmem_list3 structures for the boot cpu */
+		init_list(&cache_cache, &initkmem_list3[CACHE_CACHE], node);
+
+		for_each_online_node(nid) {
 			init_list(malloc_sizes[INDEX_AC].cs_cachep,
-				  &initkmem_list3[SIZE_AC + node], node);
+				  &initkmem_list3[SIZE_AC + nid], nid);
 
 			if (INDEX_AC != INDEX_L3) {
 				init_list(malloc_sizes[INDEX_L3].cs_cachep,
-					  &initkmem_list3[SIZE_L3 + node],
-					  node);
+					  &initkmem_list3[SIZE_L3 + nid], nid);
 			}
 		}
 	}
@@ -2919,6 +2922,9 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 	int batchcount;
 	struct kmem_list3 *l3;
 	struct array_cache *ac;
+	int node;
+
+	node = numa_node_id();
 
 	check_irq_off();
 	ac = cpu_cache_get(cachep);
@@ -2932,7 +2938,7 @@ retry:
 		 */
 		batchcount = BATCHREFILL_LIMIT;
 	}
-	l3 = cachep->nodelists[numa_node_id()];
+	l3 = cachep->nodelists[node];
 
 	BUG_ON(ac->avail > 0 || !l3);
 	spin_lock(&l3->list_lock);
@@ -2962,7 +2968,7 @@ retry:
 			STATS_SET_HIGH(cachep);
 
 			ac->entry[ac->avail++] = slab_get_obj(cachep, slabp,
-							    numa_node_id());
+							    node);
 		}
 		check_slabp(cachep, slabp);
 
@@ -2981,7 +2987,7 @@ alloc_done:
 
 	if (unlikely(!ac->avail)) {
 		int x;
-		x = cache_grow(cachep, flags, numa_node_id());
+		x = cache_grow(cachep, flags, node);
 
 		/* cache_grow can reenable interrupts, then ac could change. */
 		ac = cpu_cache_get(cachep);
@@ -3488,22 +3494,25 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 }
 
 
+#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc(size_t size, gfp_t flags)
 {
-#ifndef CONFIG_DEBUG_SLAB
-	return __do_kmalloc(size, flags, NULL);
-#else
 	return __do_kmalloc(size, flags, __builtin_return_address(0));
-#endif
 }
 EXPORT_SYMBOL(__kmalloc);
 
-#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc_track_caller(size_t size, gfp_t flags, void *caller)
 {
 	return __do_kmalloc(size, flags, caller);
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
+
+#else
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return __do_kmalloc(size, flags, NULL);
+}
+EXPORT_SYMBOL(__kmalloc);
 #endif
 
 /**

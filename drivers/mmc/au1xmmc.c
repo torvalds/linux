@@ -750,7 +750,7 @@ static void au1xmmc_dma_callback(int irq, void *dev_id)
 #define STATUS_DATA_IN  (SD_STATUS_NE)
 #define STATUS_DATA_OUT (SD_STATUS_TH)
 
-static irqreturn_t au1xmmc_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t au1xmmc_irq(int irq, void *dev_id)
 {
 
 	u32 status;

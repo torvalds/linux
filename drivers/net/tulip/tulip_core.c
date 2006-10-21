@@ -1823,7 +1823,7 @@ static void poll_tulip (struct net_device *dev)
 	/* disable_irq here is not very nice, but with the lockless
 	   interrupt handler we have no other choice. */
 	disable_irq(dev->irq);
-	tulip_interrupt (dev->irq, dev, NULL);
+	tulip_interrupt (dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

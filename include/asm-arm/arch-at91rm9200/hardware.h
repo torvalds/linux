@@ -44,7 +44,7 @@
 #define AT91_SRAM_VIRT_BASE	(AT91_IO_VIRT_BASE - AT91RM9200_SRAM_SIZE)
 
 /* Serial ports */
-#define AT91_NR_UART		5		/* 4 USART3's and one DBGU port */
+#define ATMEL_MAX_UART		5		/* 4 USART3's and one DBGU port */
 
 /* FLASH */
 #define AT91_FLASH_BASE		0x10000000	/* NCS0: Flash physical base address */

@@ -677,6 +677,8 @@ config VIDEO_M32R_AR_M64278
 menu "V4L USB devices"
 	depends on USB && VIDEO_DEV
 
+source "drivers/media/video/pvrusb2/Kconfig"
+
 source "drivers/media/video/em28xx/Kconfig"
 
 source "drivers/media/video/usbvideo/Kconfig"

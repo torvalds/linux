@@ -491,7 +491,7 @@ static void isr_serial(struct slgt_info *info);
 static void isr_rdma(struct slgt_info *info);
 static void isr_txeom(struct slgt_info *info, unsigned short status);
 static void isr_tdma(struct slgt_info *info);
-static irqreturn_t slgt_interrupt(int irq, void *dev_id, struct pt_regs * regs);
+static irqreturn_t slgt_interrupt(int irq, void *dev_id);
 
 static int  alloc_dma_bufs(struct slgt_info *info);
 static void free_dma_bufs(struct slgt_info *info);
@@ -2217,9 +2217,8 @@ static void isr_gpio(struct slgt_info *info, unsigned int changed, unsigned int 
  *
  * 	irq	interrupt number
  * 	dev_id	device ID supplied during interrupt registration
- * 	regs	interrupted processor context
  */
-static irqreturn_t slgt_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t slgt_interrupt(int irq, void *dev_id)
 {
 	struct slgt_info *info;
 	unsigned int gsr;

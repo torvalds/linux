@@ -46,7 +46,7 @@ static unsigned long timer_alive;
 /*
  *	If the timer expires..
  */
-static void watchdog_fire(int irq, void *dev_id, struct pt_regs *regs)
+static void watchdog_fire(int irq, void *dev_id)
 {
 	printk(KERN_CRIT "Watchdog: Would Reboot.\n");
 	*CSR_TIMER4_CNTL = 0;

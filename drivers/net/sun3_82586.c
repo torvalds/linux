@@ -122,7 +122,7 @@ sizeof(nop_cmd) = 8;
      DELAY_16(); DELAY_16(); } }
 
 static int     sun3_82586_probe1(struct net_device *dev,int ioaddr);
-static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id,struct pt_regs *reg_ptr);
+static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id);
 static int     sun3_82586_open(struct net_device *dev);
 static int     sun3_82586_close(struct net_device *dev);
 static int     sun3_82586_send_packet(struct sk_buff *,struct net_device *);
@@ -330,7 +330,7 @@ out2:
 out1:
 	free_netdev(dev);
 out:
-	iounmap((void *)ioaddr);
+	iounmap((void __iomem *)ioaddr);
 	return ERR_PTR(err);
 }
 
@@ -678,7 +678,7 @@ static void *alloc_rfa(struct net_device *dev,void *ptr)
  * Interrupt Handler ...
  */
 
-static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id,struct pt_regs *reg_ptr)
+static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	unsigned short stat;

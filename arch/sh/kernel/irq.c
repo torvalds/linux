@@ -11,11 +11,14 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/thread_info.h>
 #include <asm/cpu/mmu_context.h>
+
+atomic_t irq_err_count;
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -24,6 +27,7 @@
  */
 void ack_bad_irq(unsigned int irq)
 {
+	atomic_inc(&irq_err_count);
 	printk("unexpected IRQ trap at vector %02x\n", irq);
 }
 
@@ -47,8 +51,10 @@ int show_interrupts(struct seq_file *p, void *v)
 		if (!action)
 			goto unlock;
 		seq_printf(p, "%3d: ",i);
-		seq_printf(p, "%10u ", kstat_irqs(i));
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
+		seq_printf(p, "-%s", handle_irq_name(irq_desc[i].handle_irq));
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -56,7 +62,9 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 unlock:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	}
+	} else if (i == NR_IRQS)
+		seq_printf(p, "Err: %10u\n", atomic_read(&irq_err_count));
+
 	return 0;
 }
 #endif
@@ -78,7 +86,8 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 		      unsigned long r6, unsigned long r7,
 		      struct pt_regs regs)
 {
-	int irq = r4;
+	struct pt_regs *old_regs = set_irq_regs(&regs);
+	int irq;
 #ifdef CONFIG_4KSTACKS
 	union irq_ctx *curctx, *irqctx;
 #endif
@@ -102,20 +111,9 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_CPU_HAS_INTEVT
-	__asm__ __volatile__ (
-#ifdef CONFIG_CPU_HAS_SR_RB
-		"stc	r2_bank, %0\n\t"
+	irq = (ctrl_inl(INTEVT) >> 5) - 16;
 #else
-		"mov.l	@%1, %0\n\t"
-#endif
-		"shlr2	%0\n\t"
-		"shlr2	%0\n\t"
-		"shlr	%0\n\t"
-		"add	#-16, %0\n\t"
-		: "=z" (irq), "=r" (r4)
-		: "1" (INTEVT)
-		: "memory"
-	);
+	irq = r4;
 #endif
 
 	irq = irq_demux(irq);
@@ -139,25 +137,25 @@ asmlinkage int do_IRQ(unsigned long r4, unsigned long r5,
 
 		__asm__ __volatile__ (
 			"mov	%0, r4		\n"
-			"mov	%1, r5		\n"
 			"mov	r15, r9		\n"
-			"jsr	@%2		\n"
+			"jsr	@%1		\n"
 			/* swith to the irq stack */
-			" mov	%3, r15		\n"
+			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
 			"mov	r9, r15		\n"
 			: /* no outputs */
-			: "r" (irq), "r" (&regs), "r" (__do_IRQ), "r" (isp)
+			: "r" (irq), "r" (generic_handle_irq), "r" (isp)
 			/* XXX: A somewhat excessive clobber list? -PFM */
 			: "memory", "r0", "r1", "r2", "r3", "r4",
 			  "r5", "r6", "r7", "r8", "t", "pr"
 		);
 	} else
 #endif
-		__do_IRQ(irq, &regs);
+		generic_handle_irq(irq);
 
 	irq_exit();
 
+	set_irq_regs(old_regs);
 	return 1;
 }
 

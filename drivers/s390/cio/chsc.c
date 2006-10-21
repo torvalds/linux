@@ -200,11 +200,13 @@ css_get_ssd_info(struct subchannel *sch)
 	spin_unlock_irq(&sch->lock);
 	free_page((unsigned long)page);
 	if (!ret) {
-		int j, chpid;
+		int j, chpid, mask;
 		/* Allocate channel path structures, if needed. */
 		for (j = 0; j < 8; j++) {
+			mask = 0x80 >> j;
 			chpid = sch->ssd_info.chpid[j];
-			if (chpid && (get_chp_status(chpid) < 0))
+			if ((sch->schib.pmcw.pim & mask) &&
+			    (get_chp_status(chpid) < 0))
 			    new_channel_path(chpid);
 		}
 	}
@@ -222,13 +224,15 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 
 	sch = to_subchannel(dev);
 	chpid = data;
-	for (j = 0; j < 8; j++)
-		if (sch->schib.pmcw.chpid[j] == chpid->id)
+	for (j = 0; j < 8; j++) {
+		mask = 0x80 >> j;
+		if ((sch->schib.pmcw.pim & mask) &&
+		    (sch->schib.pmcw.chpid[j] == chpid->id))
 			break;
+	}
 	if (j >= 8)
 		return 0;
 
-	mask = 0x80 >> j;
 	spin_lock_irq(&sch->lock);
 
 	stsch(sch->schid, &schib);
@@ -366,7 +370,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 	struct res_acc_data *res_data;
 	struct subchannel *sch;
 
-	res_data = (struct res_acc_data *)data;
+	res_data = data;
 	sch = get_subchannel_by_schid(schid);
 	if (!sch)
 		/* Check if a subchannel is newly available. */
@@ -440,7 +444,7 @@ __get_chpid_from_lir(void *data)
 		u32 isinfo[28];
 	} *lir;
 
-	lir = (struct lir*) data;
+	lir = data;
 	if (!(lir->iq&0x80))
 		/* NULL link incident record */
 		return -EINVAL;
@@ -620,18 +624,20 @@ __chp_add_new_sch(struct subchannel_id schid)
 static int
 __chp_add(struct subchannel_id schid, void *data)
 {
-	int i;
+	int i, mask;
 	struct channel_path *chp;
 	struct subchannel *sch;
 
-	chp = (struct channel_path *)data;
+	chp = data;
 	sch = get_subchannel_by_schid(schid);
 	if (!sch)
 		/* Check if the subchannel is now available. */
 		return __chp_add_new_sch(schid);
 	spin_lock_irq(&sch->lock);
-	for (i=0; i<8; i++)
-		if (sch->schib.pmcw.chpid[i] == chp->id) {
+	for (i=0; i<8; i++) {
+		mask = 0x80 >> i;
+		if ((sch->schib.pmcw.pim & mask) &&
+		    (sch->schib.pmcw.chpid[i] == chp->id)) {
 			if (stsch(sch->schid, &sch->schib) != 0) {
 				/* Endgame. */
 				spin_unlock_irq(&sch->lock);
@@ -639,6 +645,7 @@ __chp_add(struct subchannel_id schid, void *data)
 			}
 			break;
 		}
+	}
 	if (i==8) {
 		spin_unlock_irq(&sch->lock);
 		return 0;
@@ -646,7 +653,7 @@ __chp_add(struct subchannel_id schid, void *data)
 	sch->lpm = ((sch->schib.pmcw.pim &
 		     sch->schib.pmcw.pam &
 		     sch->schib.pmcw.pom)
-		    | 0x80 >> i) & sch->opm;
+		    | mask) & sch->opm;
 
 	if (sch->driver && sch->driver->verify)
 		sch->driver->verify(&sch->dev);
@@ -700,8 +707,7 @@ chp_process_crw(int chpid, int on)
 	return chp_add(chpid);
 }
 
-static inline int
-__check_for_io_and_kill(struct subchannel *sch, int index)
+static inline int check_for_io_on_path(struct subchannel *sch, int index)
 {
 	int cc;
 
@@ -711,10 +717,8 @@ __check_for_io_and_kill(struct subchannel *sch, int index)
 	cc = stsch(sch->schid, &sch->schib);
 	if (cc)
 		return 0;
-	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index)) {
-		device_set_waiting(sch);
+	if (sch->schib.scsw.actl && sch->schib.pmcw.lpum == (0x80 >> index))
 		return 1;
-	}
 	return 0;
 }
 
@@ -743,12 +747,10 @@ __s390_subchannel_vary_chpid(struct subchannel *sch, __u8 chpid, int on)
 		} else {
 			sch->opm &= ~(0x80 >> chp);
 			sch->lpm &= ~(0x80 >> chp);
-			/*
-			 * Give running I/O a grace period in which it
-			 * can successfully terminate, even using the
-			 * just varied off path. Then kill it.
-			 */
-			if (!__check_for_io_and_kill(sch, chp) && !sch->lpm) {
+			if (check_for_io_on_path(sch, chp))
+				/* Path verification is done after killing. */
+				device_kill_io(sch);
+			else if (!sch->lpm) {
 				if (css_enqueue_subchannel_slow(sch->schid)) {
 					css_clear_subchannel_slow_list();
 					need_rescan = 1;

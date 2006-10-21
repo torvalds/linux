@@ -362,7 +362,7 @@ static void ub_end_rq(struct request *rq, unsigned int status);
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_request *urq, struct ub_scsi_cmd *cmd);
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
-static void ub_urb_complete(struct urb *urb, struct pt_regs *pt);
+static void ub_urb_complete(struct urb *urb);
 static void ub_scsi_action(unsigned long _dev);
 static void ub_scsi_dispatch(struct ub_dev *sc);
 static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
@@ -959,7 +959,7 @@ static void ub_urb_timeout(unsigned long arg)
  * the sc->lock taken) and from an interrupt (while we do NOT have
  * the sc->lock taken). Therefore, bounce this off to a tasklet.
  */
-static void ub_urb_complete(struct urb *urb, struct pt_regs *pt)
+static void ub_urb_complete(struct urb *urb)
 {
 	struct ub_dev *sc = urb->context;
 
@@ -1923,7 +1923,7 @@ err_alloc:
 
 /*
  */
-static void ub_probe_urb_complete(struct urb *urb, struct pt_regs *pt)
+static void ub_probe_urb_complete(struct urb *urb)
 {
 	struct completion *cop = urb->context;
 	complete(cop);

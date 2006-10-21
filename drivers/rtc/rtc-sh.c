@@ -73,7 +73,7 @@ struct sh_rtc {
 	spinlock_t lock;
 };
 
-static irqreturn_t sh_rtc_interrupt(int irq, void *id, struct pt_regs *regs)
+static irqreturn_t sh_rtc_interrupt(int irq, void *id)
 {
 	struct platform_device *pdev = id;
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
@@ -97,7 +97,7 @@ static irqreturn_t sh_rtc_interrupt(int irq, void *id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t sh_rtc_periodic(int irq, void *id, struct pt_regs *regs)
+static irqreturn_t sh_rtc_periodic(int irq, void *id)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(id);
 
@@ -160,7 +160,7 @@ static int sh_rtc_open(struct device *dev)
 	tmp |= RCR1_CIE;
 	writeb(tmp, rtc->regbase + RCR1);
 
-	ret = request_irq(rtc->periodic_irq, sh_rtc_periodic, SA_INTERRUPT,
+	ret = request_irq(rtc->periodic_irq, sh_rtc_periodic, IRQF_DISABLED,
 			  "sh-rtc period", dev);
 	if (unlikely(ret)) {
 		dev_err(dev, "request period IRQ failed with %d, IRQ %d\n",
@@ -168,7 +168,7 @@ static int sh_rtc_open(struct device *dev)
 		return ret;
 	}
 
-	ret = request_irq(rtc->carry_irq, sh_rtc_interrupt, SA_INTERRUPT,
+	ret = request_irq(rtc->carry_irq, sh_rtc_interrupt, IRQF_DISABLED,
 			  "sh-rtc carry", dev);
 	if (unlikely(ret)) {
 		dev_err(dev, "request carry IRQ failed with %d, IRQ %d\n",
@@ -177,7 +177,7 @@ static int sh_rtc_open(struct device *dev)
 		goto err_bad_carry;
 	}
 
-	ret = request_irq(rtc->alarm_irq, sh_rtc_interrupt, SA_INTERRUPT,
+	ret = request_irq(rtc->alarm_irq, sh_rtc_interrupt, IRQF_DISABLED,
 			  "sh-rtc alarm", dev);
 	if (unlikely(ret)) {
 		dev_err(dev, "request alarm IRQ failed with %d, IRQ %d\n",

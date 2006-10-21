@@ -39,7 +39,7 @@ struct ps2pp_info {
  * Process a PS2++ or PS2T++ packet.
  */
 
-static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 {
 	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
@@ -50,8 +50,6 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse, struct pt_regs 
 /*
  * Full packet accumulated, process it
  */
-
-	input_regs(dev, regs);
 
 	if ((packet[0] & 0x48) == 0x48 && (packet[1] & 0x02) == 0x02) {
 

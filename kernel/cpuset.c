@@ -2137,7 +2137,7 @@ static int cpuset_handle_cpuhp(struct notifier_block *nb,
  * See also the previous routine cpuset_handle_cpuhp().
  */
 
-void cpuset_track_online_nodes()
+void cpuset_track_online_nodes(void)
 {
 	common_cpu_mem_hotplug_unplug();
 }

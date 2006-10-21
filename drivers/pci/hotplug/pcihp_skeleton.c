@@ -33,8 +33,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/init.h>
-#include "pci_hotplug.h"
 
 #define SLOT_NAME_SIZE	10
 struct slot {

@@ -434,6 +434,15 @@ config INET_XFRM_MODE_TUNNEL
 
 	  If unsure, say Y.
 
+config INET_XFRM_MODE_BEET
+	tristate "IP: IPsec BEET mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec BEET mode.
+
+	  If unsure, say Y.
+
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y

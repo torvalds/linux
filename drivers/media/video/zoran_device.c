@@ -1408,15 +1408,14 @@ error_handler (struct zoran *zr,
 
 irqreturn_t
 zoran_irq (int             irq,
-	   void           *dev_id,
-	   struct pt_regs *regs)
+	   void           *dev_id)
 {
 	u32 stat, astat;
 	int count;
 	struct zoran *zr;
 	unsigned long flags;
 
-	zr = (struct zoran *) dev_id;
+	zr = dev_id;
 	count = 0;
 
 	if (zr->testing) {

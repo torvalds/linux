@@ -178,10 +178,10 @@
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/stat.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/dma.h>
-#include <asm/io.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -998,7 +998,7 @@ static int make_code(unsigned hosterr, unsigned scsierr)
 #define wd7000_intr_ack(host)   outb (0, host->iobase + ASC_INTR_ACK)
 
 
-static irqreturn_t wd7000_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wd7000_intr(int irq, void *dev_id)
 {
 	Adapter *host = (Adapter *) dev_id;
 	int flag, icmb, errstatus, icmb_status;

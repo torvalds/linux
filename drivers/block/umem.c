@@ -571,7 +571,7 @@ static int mm_make_request(request_queue_t *q, struct bio *bio)
 --                              mm_interrupt
 -----------------------------------------------------------------------------------
 */
-static irqreturn_t mm_interrupt(int irq, void *__card, struct pt_regs *regs)
+static irqreturn_t mm_interrupt(int irq, void *__card)
 {
 	struct cardinfo *card = (struct cardinfo *) __card;
 	unsigned int dma_status;

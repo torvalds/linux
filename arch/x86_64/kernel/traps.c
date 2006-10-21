@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/kallsyms.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
@@ -115,7 +116,6 @@ static int call_trace = 1;
 #endif
 
 #ifdef CONFIG_KALLSYMS
-# include <linux/kallsyms.h>
 void printk_address(unsigned long address)
 {
 	unsigned long offset = 0, symsize;

@@ -10,6 +10,8 @@
 
 #include <asm/atomic.h>
 
+struct page;
+
 /*
  * Bits in backing_dev_info.state
  */
@@ -87,6 +89,11 @@ static inline int bdi_rw_congested(struct backing_dev_info *bdi)
 	return bdi_congested(bdi, (1 << BDI_read_congested)|
 				  (1 << BDI_write_congested));
 }
+
+void clear_bdi_congested(struct backing_dev_info *bdi, int rw);
+void set_bdi_congested(struct backing_dev_info *bdi, int rw);
+long congestion_wait(int rw, long timeout);
+void congestion_end(int rw);
 
 #define bdi_cap_writeback_dirty(bdi) \
 	(!((bdi)->capabilities & BDI_CAP_NO_WRITEBACK))

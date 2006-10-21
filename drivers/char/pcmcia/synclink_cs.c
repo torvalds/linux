@@ -35,7 +35,6 @@
 
 #define MAX_DEVICE_COUNT 4
 
-#include <linux/config.h>	
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -417,7 +416,7 @@ static void rx_reset_buffers(MGSLPC_INFO *info);
 static int  rx_alloc_buffers(MGSLPC_INFO *info);
 static void rx_free_buffers(MGSLPC_INFO *info);
 
-static irqreturn_t mgslpc_isr(int irq, void *dev_id, struct pt_regs * regs);
+static irqreturn_t mgslpc_isr(int irq, void *dev_id);
 
 /*
  * Bottom half interrupt handlers
@@ -1235,9 +1234,8 @@ static void ri_change(MGSLPC_INFO *info)
  * 
  * irq     interrupt number that caused interrupt
  * dev_id  device ID supplied during interrupt registration
- * regs    interrupted processor context
  */
-static irqreturn_t mgslpc_isr(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t mgslpc_isr(int irq, void *dev_id)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)dev_id;
 	unsigned short isr;

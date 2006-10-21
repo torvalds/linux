@@ -248,7 +248,7 @@ int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
 	return (chars);
 }
 
-void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+void usb_serial_generic_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct usb_serial *serial = port->serial;
@@ -287,7 +287,7 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb, struct pt_regs *reg
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
-void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
+void usb_serial_generic_write_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 

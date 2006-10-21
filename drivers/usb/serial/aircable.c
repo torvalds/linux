@@ -403,7 +403,7 @@ static int aircable_write(struct usb_serial_port *port,
 
 }
 
-static void aircable_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void aircable_write_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	int result;
@@ -444,7 +444,7 @@ static void aircable_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	aircable_send(port);
 }
 
-static void aircable_read_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void aircable_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct aircable_private *priv = usb_get_serial_port_data(port);

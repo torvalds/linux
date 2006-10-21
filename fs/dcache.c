@@ -291,9 +291,9 @@ struct dentry * dget_locked(struct dentry *dentry)
  * it can be unhashed only if it has no children, or if it is the root
  * of a filesystem.
  *
- * If the inode has a DCACHE_DISCONNECTED alias, then prefer
+ * If the inode has an IS_ROOT, DCACHE_DISCONNECTED alias, then prefer
  * any other hashed alias over that one unless @want_discon is set,
- * in which case only return a DCACHE_DISCONNECTED alias.
+ * in which case only return an IS_ROOT, DCACHE_DISCONNECTED alias.
  */
 
 static struct dentry * __d_find_alias(struct inode *inode, int want_discon)
@@ -309,7 +309,8 @@ static struct dentry * __d_find_alias(struct inode *inode, int want_discon)
 		prefetch(next);
 		alias = list_entry(tmp, struct dentry, d_alias);
  		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
-			if (alias->d_flags & DCACHE_DISCONNECTED)
+			if (IS_ROOT(alias) &&
+			    (alias->d_flags & DCACHE_DISCONNECTED))
 				discon_alias = alias;
 			else if (!want_discon) {
 				__dget_locked(alias);
@@ -545,6 +546,136 @@ repeat:
 		goto repeat;
 	}
 	spin_unlock(&dcache_lock);
+}
+
+/*
+ * destroy a single subtree of dentries for unmount
+ * - see the comments on shrink_dcache_for_umount() for a description of the
+ *   locking
+ */
+static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
+{
+	struct dentry *parent;
+
+	BUG_ON(!IS_ROOT(dentry));
+
+	/* detach this root from the system */
+	spin_lock(&dcache_lock);
+	if (!list_empty(&dentry->d_lru)) {
+		dentry_stat.nr_unused--;
+		list_del_init(&dentry->d_lru);
+	}
+	__d_drop(dentry);
+	spin_unlock(&dcache_lock);
+
+	for (;;) {
+		/* descend to the first leaf in the current subtree */
+		while (!list_empty(&dentry->d_subdirs)) {
+			struct dentry *loop;
+
+			/* this is a branch with children - detach all of them
+			 * from the system in one go */
+			spin_lock(&dcache_lock);
+			list_for_each_entry(loop, &dentry->d_subdirs,
+					    d_u.d_child) {
+				if (!list_empty(&loop->d_lru)) {
+					dentry_stat.nr_unused--;
+					list_del_init(&loop->d_lru);
+				}
+
+				__d_drop(loop);
+				cond_resched_lock(&dcache_lock);
+			}
+			spin_unlock(&dcache_lock);
+
+			/* move to the first child */
+			dentry = list_entry(dentry->d_subdirs.next,
+					    struct dentry, d_u.d_child);
+		}
+
+		/* consume the dentries from this leaf up through its parents
+		 * until we find one with children or run out altogether */
+		do {
+			struct inode *inode;
+
+			if (atomic_read(&dentry->d_count) != 0) {
+				printk(KERN_ERR
+				       "BUG: Dentry %p{i=%lx,n=%s}"
+				       " still in use (%d)"
+				       " [unmount of %s %s]\n",
+				       dentry,
+				       dentry->d_inode ?
+				       dentry->d_inode->i_ino : 0UL,
+				       dentry->d_name.name,
+				       atomic_read(&dentry->d_count),
+				       dentry->d_sb->s_type->name,
+				       dentry->d_sb->s_id);
+				BUG();
+			}
+
+			parent = dentry->d_parent;
+			if (parent == dentry)
+				parent = NULL;
+			else
+				atomic_dec(&parent->d_count);
+
+			list_del(&dentry->d_u.d_child);
+			dentry_stat.nr_dentry--;	/* For d_free, below */
+
+			inode = dentry->d_inode;
+			if (inode) {
+				dentry->d_inode = NULL;
+				list_del_init(&dentry->d_alias);
+				if (dentry->d_op && dentry->d_op->d_iput)
+					dentry->d_op->d_iput(dentry, inode);
+				else
+					iput(inode);
+			}
+
+			d_free(dentry);
+
+			/* finished when we fall off the top of the tree,
+			 * otherwise we ascend to the parent and move to the
+			 * next sibling if there is one */
+			if (!parent)
+				return;
+
+			dentry = parent;
+
+		} while (list_empty(&dentry->d_subdirs));
+
+		dentry = list_entry(dentry->d_subdirs.next,
+				    struct dentry, d_u.d_child);
+	}
+}
+
+/*
+ * destroy the dentries attached to a superblock on unmounting
+ * - we don't need to use dentry->d_lock, and only need dcache_lock when
+ *   removing the dentry from the system lists and hashes because:
+ *   - the superblock is detached from all mountings and open files, so the
+ *     dentry trees will not be rearranged by the VFS
+ *   - s_umount is write-locked, so the memory pressure shrinker will ignore
+ *     any dentries belonging to this superblock that it comes across
+ *   - the filesystem itself is no longer permitted to rearrange the dentries
+ *     in this superblock
+ */
+void shrink_dcache_for_umount(struct super_block *sb)
+{
+	struct dentry *dentry;
+
+	if (down_read_trylock(&sb->s_umount))
+		BUG();
+
+	dentry = sb->s_root;
+	sb->s_root = NULL;
+	atomic_dec(&dentry->d_count);
+	shrink_dcache_for_umount_subtree(dentry);
+
+	while (!hlist_empty(&sb->s_anon)) {
+		dentry = hlist_entry(sb->s_anon.first, struct dentry, d_hash);
+		shrink_dcache_for_umount_subtree(dentry);
+	}
 }
 
 /*
@@ -1004,7 +1135,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 {
 	struct dentry *new = NULL;
 
-	if (inode) {
+	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&dcache_lock);
 		new = __d_find_alias(inode, 1);
 		if (new) {

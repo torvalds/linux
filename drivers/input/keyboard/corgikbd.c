@@ -129,7 +129,7 @@ static inline void corgikbd_reset_col(int col)
  */
 
 /* Scan the hardware keyboard and push any changes up through the input layer */
-static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs *regs)
+static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data)
 {
 	unsigned int row, col, rowd;
 	unsigned long flags;
@@ -139,9 +139,6 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 		return;
 
 	spin_lock_irqsave(&corgikbd_data->lock, flags);
-
-	if (regs)
-		input_regs(corgikbd_data->input, regs);
 
 	num_pressed = 0;
 	for (col = 0; col < KB_COLS; col++) {
@@ -191,14 +188,14 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 /*
  * corgi keyboard interrupt handler.
  */
-static irqreturn_t corgikbd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t corgikbd_interrupt(int irq, void *dev_id)
 {
 	struct corgikbd *corgikbd_data = dev_id;
 
 	if (!timer_pending(&corgikbd_data->timer)) {
 		/** wait chattering delay **/
 		udelay(20);
-		corgikbd_scankeyboard(corgikbd_data, regs);
+		corgikbd_scankeyboard(corgikbd_data);
 	}
 
 	return IRQ_HANDLED;
@@ -210,7 +207,7 @@ static irqreturn_t corgikbd_interrupt(int irq, void *dev_id, struct pt_regs *reg
 static void corgikbd_timer_callback(unsigned long data)
 {
 	struct corgikbd *corgikbd_data = (struct corgikbd *) data;
-	corgikbd_scankeyboard(corgikbd_data, NULL);
+	corgikbd_scankeyboard(corgikbd_data);
 }
 
 /*

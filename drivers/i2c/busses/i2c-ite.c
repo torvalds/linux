@@ -140,8 +140,7 @@ static void iic_ite_waitforpin(void) {
 }
 
 
-static irqreturn_t iic_ite_handler(int this_irq, void *dev_id,
-							struct pt_regs *regs)
+static irqreturn_t iic_ite_handler(int this_irq, void *dev_id)
 {
 	spin_lock(&lock);
 	iic_pending = 1;

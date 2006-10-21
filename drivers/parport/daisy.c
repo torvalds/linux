@@ -216,7 +216,7 @@ void parport_daisy_fini(struct parport *port)
 
 struct pardevice *parport_open(int devnum, const char *name,
 				int (*pf) (void *), void (*kf) (void *),
-				void (*irqf) (int, void *, struct pt_regs *),
+				void (*irqf) (int, void *),
 				int flags, void *handle)
 {
 	struct daisydev *p = topology;

@@ -567,7 +567,7 @@ static void ecard_check_lockup(struct irqdesc *desc)
 }
 
 static void
-ecard_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+ecard_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	ecard_t *ec;
 	int called = 0;
@@ -586,7 +586,7 @@ ecard_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 		if (pending) {
 			struct irqdesc *d = irq_desc + ec->irq;
-			desc_handle_irq(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d);
 			called ++;
 		}
 	}
@@ -609,7 +609,7 @@ static unsigned char first_set[] =
 };
 
 static void
-ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc)
 {
 	const unsigned int statusmask = 15;
 	unsigned int status;
@@ -633,7 +633,7 @@ ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
 			 * otherwise you will lose serial data at high speeds!
 			 */
-			desc_handle_irq(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d);
 		} else {
 			printk(KERN_WARNING "card%d: interrupt from unclaimed "
 			       "card???\n", slot);

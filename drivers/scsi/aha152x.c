@@ -238,7 +238,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/irq.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/blkdev.h>
 #include <asm/system.h>
 #include <linux/errno.h>
@@ -673,7 +673,7 @@ static struct {
 };
 
 /* setup & interrupt */
-static irqreturn_t intr(int irq, void *dev_id, struct pt_regs *);
+static irqreturn_t intr(int irq, void *dev_id);
 static void reset_ports(struct Scsi_Host *shpnt);
 static void aha152x_error(struct Scsi_Host *shpnt, char *msg);
 static void done(struct Scsi_Host *shpnt, int error);
@@ -757,14 +757,9 @@ static inline Scsi_Cmnd *remove_SC(Scsi_Cmnd **SC, Scsi_Cmnd *SCp)
 	return ptr;
 }
 
-static irqreturn_t swintr(int irqno, void *dev_id, struct pt_regs *regs)
+static irqreturn_t swintr(int irqno, void *dev_id)
 {
-	struct Scsi_Host *shpnt = (struct Scsi_Host *)dev_id;
-
-	if (!shpnt) {
-        	printk(KERN_ERR "aha152x: catched software interrupt %d for unknown controller.\n", irqno);
-		return IRQ_NONE;
-	}
+	struct Scsi_Host *shpnt = dev_id;
 
 	HOSTDATA(shpnt)->swint++;
 
@@ -1463,7 +1458,7 @@ static void run(void)
  * Interrupt handler
  *
  */
-static irqreturn_t intr(int irqno, void *dev_id, struct pt_regs *regs)
+static irqreturn_t intr(int irqno, void *dev_id)
 {
 	struct Scsi_Host *shpnt = (struct Scsi_Host *)dev_id;
 	unsigned long flags;

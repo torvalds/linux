@@ -1252,7 +1252,7 @@ static void NCR5380_dma_complete( struct Scsi_Host *instance )
  *
  */
 
-static irqreturn_t NCR5380_intr (int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t NCR5380_intr (int irq, void *dev_id)
 {
     struct Scsi_Host *instance = first_instance;
     int done = 1, handled = 0;

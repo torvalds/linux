@@ -32,7 +32,7 @@
 
 static struct dma_channel {
 	char *name;
-	void (*irq_handler) (int, int, void *, struct pt_regs *);
+	void (*irq_handler) (int, int, void *);
 	void *data;
 	struct pnx4008_dma_ll *ll;
 	u32 ll_dma;
@@ -150,8 +150,7 @@ static inline void pnx4008_dma_unlock(void)
 #define VALID_CHANNEL(c)	(((c) >= 0) && ((c) < MAX_DMA_CHANNELS))
 
 int pnx4008_request_channel(char *name, int ch,
-			    void (*irq_handler) (int, int, void *,
-						 struct pt_regs *), void *data)
+			    void (*irq_handler) (int, int, void *), void *data)
 {
 	int i, found = 0;
 
@@ -1033,7 +1032,7 @@ int pnx4008_dma_ch_enabled(int ch)
 
 EXPORT_SYMBOL_GPL(pnx4008_dma_ch_enabled);
 
-static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
 	int i;
 	unsigned long dint = __raw_readl(DMAC_INT_STAT);
@@ -1053,8 +1052,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 					cause |= DMA_ERR_INT;
 				if (tcint & i_bit)
 					cause |= DMA_TC_INT;
-				channel->irq_handler(i, cause, channel->data,
-						     regs);
+				channel->irq_handler(i, cause, channel->data);
 			} else {
 				/*
 				 * IRQ for an unregistered DMA channel

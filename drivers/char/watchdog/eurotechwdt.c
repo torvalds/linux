@@ -153,7 +153,7 @@ static void eurwdt_activate_timer(void)
  * Kernel methods.
  */
 
-static irqreturn_t eurwdt_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t eurwdt_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_CRIT "timeout WDT timeout\n");
 

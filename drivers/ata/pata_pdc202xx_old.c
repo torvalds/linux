@@ -385,17 +385,18 @@ static int pdc_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	return ata_pci_init_one(dev, port_info, 2);
 }
 
-static struct pci_device_id pdc[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20246), 0},
-	{ PCI_DEVICE(PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20262), 1},
-	{ PCI_DEVICE(PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20263), 1},
-	{ PCI_DEVICE(PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20265), 2},
-	{ PCI_DEVICE(PCI_VENDOR_ID_PROMISE, PCI_DEVICE_ID_PROMISE_20267), 2},
-	{ 0, },
+static const struct pci_device_id pdc[] = {
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20246), 0 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20262), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20263), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20265), 2 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20267), 2 },
+
+	{ },
 };
 
 static struct pci_driver pdc_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= pdc,
 	.probe 		= pdc_init_one,
 	.remove		= ata_pci_remove_one
@@ -406,12 +407,10 @@ static int __init pdc_init(void)
 	return pci_register_driver(&pdc_pci_driver);
 }
 
-
 static void __exit pdc_exit(void)
 {
 	pci_unregister_driver(&pdc_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Promise 2024x and 20262-20267");

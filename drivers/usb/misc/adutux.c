@@ -177,7 +177,7 @@ static void adu_delete(struct adu_device *dev)
 	dbg(2, "%s : leave", __FUNCTION__);
 }
 
-static void adu_interrupt_in_callback(struct urb *urb, struct pt_regs *regs)
+static void adu_interrupt_in_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
 
@@ -221,7 +221,7 @@ exit:
 	dbg(4," %s : leave, status %d", __FUNCTION__, urb->status);
 }
 
-static void adu_interrupt_out_callback(struct urb *urb, struct pt_regs *regs)
+static void adu_interrupt_out_callback(struct urb *urb)
 {
 	struct adu_device *dev = urb->context;
 
@@ -370,7 +370,8 @@ static int adu_release(struct inode *inode, struct file *file)
 	retval = adu_release_internal(dev);
 
 exit:
-	up(&dev->sem);
+	if (dev)
+		up(&dev->sem);
 	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
 	return retval;
 }

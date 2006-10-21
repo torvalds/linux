@@ -8,7 +8,6 @@
 #include "linux/sched.h"
 #include "linux/mm.h"
 #include "linux/spinlock.h"
-#include "linux/config.h"
 #include "linux/init.h"
 #include "linux/ptrace.h"
 #include "asm/semaphore.h"

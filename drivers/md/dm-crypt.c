@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/workqueue.h>
+#include <linux/backing-dev.h>
 #include <asm/atomic.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
@@ -602,7 +603,7 @@ static void process_write(struct crypt_io *io)
 
 		/* out of memory -> run queues */
 		if (remaining)
-			blk_congestion_wait(bio_data_dir(clone), HZ/100);
+			congestion_wait(bio_data_dir(clone), HZ/100);
 	}
 }
 

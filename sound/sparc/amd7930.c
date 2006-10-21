@@ -491,7 +491,7 @@ static void __amd7930_update_map(struct snd_amd7930 *amd)
 	__amd7930_write_map(amd);
 }
 
-static irqreturn_t snd_amd7930_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_amd7930_interrupt(int irq, void *dev_id)
 {
 	struct snd_amd7930 *amd = dev_id;
 	unsigned int elapsed;

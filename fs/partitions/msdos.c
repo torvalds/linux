@@ -32,13 +32,11 @@
 #include <asm/unaligned.h>
 
 #define SYS_IND(p)	(get_unaligned(&p->sys_ind))
-#define NR_SECTS(p)	({ __typeof__(p->nr_sects) __a =	\
-				get_unaligned(&p->nr_sects);	\
+#define NR_SECTS(p)	({ __le32 __a =	get_unaligned(&p->nr_sects);	\
 				le32_to_cpu(__a); \
 			})
 
-#define START_SECT(p)	({ __typeof__(p->start_sect) __a =	\
-				get_unaligned(&p->start_sect);	\
+#define START_SECT(p)	({ __le32 __a =	get_unaligned(&p->start_sect);	\
 				le32_to_cpu(__a); \
 			})
 

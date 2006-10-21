@@ -70,7 +70,8 @@ typedef void (bio_destructor_t) (struct bio *);
  * stacking drivers)
  */
 struct bio {
-	sector_t		bi_sector;
+	sector_t		bi_sector;	/* device address in 512 byte
+						   sectors */
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
 	unsigned long		bi_flags;	/* status, command, etc */

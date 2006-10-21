@@ -74,8 +74,7 @@ static void mc_work_proc(void *unused)
 
 static DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
 
-static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 {
 	/* long to avoid size mismatch warnings from gcc */
 	long fd;
@@ -674,8 +673,9 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 static void sysrq_proc(void *arg)
 {
 	char *op = arg;
-
-	handle_sysrq(*op, &current->thread.regs, NULL);
+	struct pt_regs *old_regs = set_irq_regs(&current->thread.regs);
+	handle_sysrq(*op, NULL);
+	set_irq_regs(old_regs);
 }
 
 void mconsole_sysrq(struct mc_request *req)

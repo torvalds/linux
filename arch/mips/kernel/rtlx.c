@@ -61,16 +61,16 @@ static int sp_stopping = 0;
 
 extern void *vpe_get_shared(int index);
 
-static void rtlx_dispatch(struct pt_regs *regs)
+static void rtlx_dispatch(void)
 {
-	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_RTLX_IRQ);
 }
 
 
 /* Interrupt handler may be called before rtlx_init has otherwise had
    a chance to run.
 */
-static irqreturn_t rtlx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t rtlx_interrupt(int irq, void *dev_id)
 {
 	int i;
 

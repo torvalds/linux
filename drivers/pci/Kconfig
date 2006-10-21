@@ -52,3 +52,11 @@ config PCI_DEBUG
 
 	  When in doubt, say N.
 
+config HT_IRQ
+	bool "Interrupts on hypertransport devices"
+	default y
+	depends on PCI && X86_LOCAL_APIC && X86_IO_APIC
+	help
+	   This allows native hypertransport devices to use interrupts.
+
+	   If unsure say Y.

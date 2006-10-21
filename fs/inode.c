@@ -162,7 +162,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 				bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
 			mapping->backing_dev_info = bdi;
 		}
-		inode->i_private = 0;
+		inode->i_private = NULL;
 		inode->i_mapping = mapping;
 	}
 	return inode;

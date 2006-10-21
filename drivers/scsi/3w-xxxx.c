@@ -2078,8 +2078,7 @@ static int tw_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd 
 } /* End tw_scsi_queue() */
 
 /* This function is the interrupt service routine */
-static irqreturn_t tw_interrupt(int irq, void *dev_instance,
-		     struct pt_regs *regs) 
+static irqreturn_t tw_interrupt(int irq, void *dev_instance) 
 {
 	int request_id;
 	u32 status_reg_value;
@@ -2486,7 +2485,7 @@ static int __init tw_init(void)
 {
 	printk(KERN_WARNING "3ware Storage Controller device driver for Linux v%s.\n", TW_DRIVER_VERSION);
 
-	return pci_module_init(&tw_driver);
+	return pci_register_driver(&tw_driver);
 } /* End tw_init() */
 
 /* This function is called on driver exit */

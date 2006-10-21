@@ -203,7 +203,7 @@ void ucb1x00_adc_disable(struct ucb1x00 *ucb)
  * SIBCLK to talk to the chip.  We leave the clock running until
  * we have finished processing all interrupts from the chip.
  */
-static irqreturn_t ucb1x00_irq(int irqnr, void *devid, struct pt_regs *regs)
+static irqreturn_t ucb1x00_irq(int irqnr, void *devid)
 {
 	struct ucb1x00 *ucb = devid;
 	struct ucb1x00_irq *irq;

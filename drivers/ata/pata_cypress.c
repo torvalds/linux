@@ -184,8 +184,8 @@ static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *i
 	};
 	static struct ata_port_info *port_info[1] = { &info };
 
-	/* Devfn 1 is the ATA primary. The secondary is magic and on devfn2. For the
-	   moment we don't handle the secondary. FIXME */
+	/* Devfn 1 is the ATA primary. The secondary is magic and on devfn2.
+	   For the moment we don't handle the secondary. FIXME */
 
 	if (PCI_FUNC(pdev->devfn) != 1)
 		return -ENODEV;
@@ -193,13 +193,14 @@ static int cy82c693_init_one(struct pci_dev *pdev, const struct pci_device_id *i
 	return ata_pci_init_one(pdev, port_info, 1);
 }
 
-static struct pci_device_id cy82c693[] = {
-	{ PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ 0, },
+static const struct pci_device_id cy82c693[] = {
+	{ PCI_VDEVICE(CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693), },
+
+	{ },
 };
 
 static struct pci_driver cy82c693_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= cy82c693,
 	.probe 		= cy82c693_init_one,
 	.remove		= ata_pci_remove_one

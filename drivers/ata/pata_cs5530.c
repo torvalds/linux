@@ -353,13 +353,14 @@ fail_put:
 	return -ENODEV;
 }
 
-static struct pci_device_id cs5530[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
-	{ 0, },
+static const struct pci_device_id cs5530[] = {
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_IDE), },
+
+	{ },
 };
 
 static struct pci_driver cs5530_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= cs5530,
 	.probe 		= cs5530_init_one,
 	.remove		= ata_pci_remove_one
@@ -370,12 +371,10 @@ static int __init cs5530_init(void)
 	return pci_register_driver(&cs5530_pci_driver);
 }
 
-
 static void __exit cs5530_exit(void)
 {
 	pci_unregister_driver(&cs5530_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the Cyrix/NS/AMD 5530");

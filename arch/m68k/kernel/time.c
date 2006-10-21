@@ -10,7 +10,6 @@
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/config.h> /* CONFIG_HEARTBEAT */
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -22,6 +21,7 @@
 
 #include <asm/machdep.h>
 #include <asm/io.h>
+#include <asm/irq_regs.h>
 
 #include <linux/time.h>
 #include <linux/timex.h>
@@ -38,13 +38,13 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs * regs)
+static irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 	do_timer(1);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 #ifdef CONFIG_HEARTBEAT
 	/* use power LED as a heartbeat instead -- much more useful

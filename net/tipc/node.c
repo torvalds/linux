@@ -648,7 +648,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
 
-        if (!tipc_nodes)
+        if (tipc_mode != TIPC_NET_MODE)
                 return tipc_cfg_reply_none();
 	
 	/* Get space for all unicast links + multicast link */

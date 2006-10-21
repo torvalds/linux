@@ -431,6 +431,10 @@ asmlinkage long sys_epoll_ctl(int epfd, int op, int fd,
 				struct epoll_event __user *event);
 asmlinkage long sys_epoll_wait(int epfd, struct epoll_event __user *events,
 				int maxevents, int timeout);
+asmlinkage long sys_epoll_pwait(int epfd, struct epoll_event __user *events,
+				int maxevents, int timeout,
+				const sigset_t __user *sigmask,
+				size_t sigsetsize);
 asmlinkage long sys_gethostname(char __user *name, int len);
 asmlinkage long sys_sethostname(char __user *name, int len);
 asmlinkage long sys_setdomainname(char __user *name, int len);
@@ -593,7 +597,7 @@ asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags);
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 					unsigned int flags);
 asmlinkage long sys_get_robust_list(int pid,
-				    struct robust_list_head __user **head_ptr,
+				    struct robust_list_head __user * __user *head_ptr,
 				    size_t __user *len_ptr);
 asmlinkage long sys_set_robust_list(struct robust_list_head __user *head,
 				    size_t len);

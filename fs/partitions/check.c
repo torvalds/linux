@@ -376,18 +376,48 @@ static char *make_block_name(struct gendisk *disk)
 	return name;
 }
 
-static void disk_sysfs_symlinks(struct gendisk *disk)
+static int disk_sysfs_symlinks(struct gendisk *disk)
 {
 	struct device *target = get_device(disk->driverfs_dev);
+	int err;
+	char *disk_name = NULL;
+
 	if (target) {
-		char *disk_name = make_block_name(disk);
-		sysfs_create_link(&disk->kobj,&target->kobj,"device");
-		if (disk_name) {
-			sysfs_create_link(&target->kobj,&disk->kobj,disk_name);
-			kfree(disk_name);
+		disk_name = make_block_name(disk);
+		if (!disk_name) {
+			err = -ENOMEM;
+			goto err_out;
 		}
+
+		err = sysfs_create_link(&disk->kobj, &target->kobj, "device");
+		if (err)
+			goto err_out_disk_name;
+
+		err = sysfs_create_link(&target->kobj, &disk->kobj, disk_name);
+		if (err)
+			goto err_out_dev_link;
 	}
-	sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj, "subsystem");
+
+	err = sysfs_create_link(&disk->kobj, &block_subsys.kset.kobj,
+				"subsystem");
+	if (err)
+		goto err_out_disk_name_lnk;
+
+	kfree(disk_name);
+
+	return 0;
+
+err_out_disk_name_lnk:
+	if (target) {
+		sysfs_remove_link(&target->kobj, disk_name);
+err_out_dev_link:
+		sysfs_remove_link(&disk->kobj, "device");
+err_out_disk_name:
+		kfree(disk_name);
+err_out:
+		put_device(target);
+	}
+	return err;
 }
 
 /* Not exported, helper to add_disk(). */
@@ -406,7 +436,11 @@ void register_disk(struct gendisk *disk)
 		*s = '!';
 	if ((err = kobject_add(&disk->kobj)))
 		return;
-	disk_sysfs_symlinks(disk);
+	err = disk_sysfs_symlinks(disk);
+	if (err) {
+		kobject_del(&disk->kobj);
+		return;
+	}
  	disk_sysfs_add_subdirs(disk);
 
 	/* No minors to use for partitions */

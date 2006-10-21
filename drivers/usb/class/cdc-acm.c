@@ -218,7 +218,7 @@ static int acm_write_start(struct acm *acm)
  */
 
 /* control interface reports status changes with "interrupt" transfers */
-static void acm_ctrl_irq(struct urb *urb, struct pt_regs *regs)
+static void acm_ctrl_irq(struct urb *urb)
 {
 	struct acm *acm = urb->context;
 	struct usb_cdc_notification *dr = urb->transfer_buffer;
@@ -285,7 +285,7 @@ exit:
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
-static void acm_read_bulk(struct urb *urb, struct pt_regs *regs)
+static void acm_read_bulk(struct urb *urb)
 {
 	struct acm_rb *buf;
 	struct acm_ru *rcv = urb->context;
@@ -325,7 +325,7 @@ static void acm_rx_tasklet(unsigned long _acm)
 	struct acm_rb *buf;
 	struct tty_struct *tty = acm->tty;
 	struct acm_ru *rcv;
-	//unsigned long flags;
+	unsigned long flags;
 	int i = 0;
 	dbg("Entering acm_rx_tasklet");
 
@@ -333,15 +333,15 @@ static void acm_rx_tasklet(unsigned long _acm)
 		return;
 
 next_buffer:
-	spin_lock(&acm->read_lock);
+	spin_lock_irqsave(&acm->read_lock, flags);
 	if (list_empty(&acm->filled_read_bufs)) {
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 		goto urbs;
 	}
 	buf = list_entry(acm->filled_read_bufs.next,
 			 struct acm_rb, list);
 	list_del(&buf->list);
-	spin_unlock(&acm->read_lock);
+	spin_unlock_irqrestore(&acm->read_lock, flags);
 
 	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d", buf, buf->size);
 
@@ -356,29 +356,29 @@ next_buffer:
 		memmove(buf->base, buf->base + i, buf->size - i);
 		buf->size -= i;
 		spin_unlock(&acm->throttle_lock);
-		spin_lock(&acm->read_lock);
+		spin_lock_irqsave(&acm->read_lock, flags);
 		list_add(&buf->list, &acm->filled_read_bufs);
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 		return;
 	}
 	spin_unlock(&acm->throttle_lock);
 
-	spin_lock(&acm->read_lock);
+	spin_lock_irqsave(&acm->read_lock, flags);
 	list_add(&buf->list, &acm->spare_read_bufs);
-	spin_unlock(&acm->read_lock);
+	spin_unlock_irqrestore(&acm->read_lock, flags);
 	goto next_buffer;
 
 urbs:
 	while (!list_empty(&acm->spare_read_bufs)) {
-		spin_lock(&acm->read_lock);
+		spin_lock_irqsave(&acm->read_lock, flags);
 		if (list_empty(&acm->spare_read_urbs)) {
-			spin_unlock(&acm->read_lock);
+			spin_unlock_irqrestore(&acm->read_lock, flags);
 			return;
 		}
 		rcv = list_entry(acm->spare_read_urbs.next,
 				 struct acm_ru, list);
 		list_del(&rcv->list);
-		spin_unlock(&acm->read_lock);
+		spin_unlock_irqrestore(&acm->read_lock, flags);
 
 		buf = list_entry(acm->spare_read_bufs.next,
 				 struct acm_rb, list);
@@ -400,16 +400,16 @@ urbs:
 		   free-urbs-pool and resubmited ASAP */
 		if (usb_submit_urb(rcv->urb, GFP_ATOMIC) < 0) {
 			list_add(&buf->list, &acm->spare_read_bufs);
-			spin_lock(&acm->read_lock);
+			spin_lock_irqsave(&acm->read_lock, flags);
 			list_add(&rcv->list, &acm->spare_read_urbs);
-			spin_unlock(&acm->read_lock);
+			spin_unlock_irqrestore(&acm->read_lock, flags);
 			return;
 		}
 	}
 }
 
 /* data interface wrote those outgoing bytes */
-static void acm_write_bulk(struct urb *urb, struct pt_regs *regs)
+static void acm_write_bulk(struct urb *urb)
 {
 	struct acm *acm = (struct acm *)urb->context;
 
@@ -1081,6 +1081,9 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x0482, 0x0203), /* KYOCERA AH-K3001V */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x079b, 0x000f), /* BT On-Air USB MODEM */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x0ace, 0x1608), /* ZyDAS 56K USB MODEM */

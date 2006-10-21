@@ -158,7 +158,7 @@ static const char *amikbd_messages[8] = {
 
 static struct input_dev *amikbd_dev;
 
-static irqreturn_t amikbd_interrupt(int irq, void *dummy, struct pt_regs *fp)
+static irqreturn_t amikbd_interrupt(int irq, void *dummy)
 {
 	unsigned char scancode, down;
 
@@ -171,8 +171,6 @@ static irqreturn_t amikbd_interrupt(int irq, void *dummy, struct pt_regs *fp)
 	scancode >>= 1;
 
 	if (scancode < 0x78) {		/* scancodes < 0x78 are keys */
-		input_regs(amikbd_dev, fp);
-
 		if (scancode == 98) {	/* CapsLock is a toggle switch key on Amiga */
 			input_report_key(amikbd_dev, scancode, 1);
 			input_report_key(amikbd_dev, scancode, 0);

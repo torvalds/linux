@@ -75,7 +75,7 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
  * Interrupt Control Unit
  */
 extern int vr41xx_set_intassign(unsigned int irq, unsigned char intassign);
-extern int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int, struct pt_regs *));
+extern int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int));
 
 #define PIUINT_COMMAND		0x0040
 #define PIUINT_DATA		0x0020

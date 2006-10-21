@@ -40,6 +40,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/usb.h>
 #include <linux/bitops.h>
+#include <linux/dmi.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -196,12 +197,42 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 	return 0;
 }
 
+static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
+{
+	static struct dmi_system_id broken_wakeup_table[] = {
+		{
+			.ident = "Asus A7V8X",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK"),
+				DMI_MATCH(DMI_BOARD_NAME, "A7V8X"),
+				DMI_MATCH(DMI_BOARD_VERSION, "REV 1.xx"),
+			}
+		},
+		{ }
+	};
+	int port;
+
+	/* One of Asus's motherboards has a bug which causes it to
+	 * wake up immediately from suspend-to-RAM if any of the ports
+	 * are connected.  In such cases we will not set EGSM.
+	 */
+	if (dmi_check_system(broken_wakeup_table)) {
+		for (port = 0; port < uhci->rh_numports; ++port) {
+			if (inw(uhci->io_addr + USBPORTSC1 + port * 2) &
+					USBPORTSC_CCS)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
 	int auto_stop;
-	int int_enable;
+	int int_enable, egsm_enable;
 
 	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
 	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
@@ -217,15 +248,18 @@ __acquires(uhci->lock)
 	}
 
 	/* Enable resume-detect interrupts if they work.
-	 * Then enter Global Suspend mode, still configured.
+	 * Then enter Global Suspend mode if _it_ works, still configured.
 	 */
+	egsm_enable = USBCMD_EGSM;
 	uhci->working_RD = 1;
 	int_enable = USBINTR_RESUME;
-	if (resume_detect_interrupts_are_broken(uhci)) {
+	if (remote_wakeup_is_broken(uhci))
+		egsm_enable = 0;
+	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable)
 		uhci->working_RD = int_enable = 0;
-	}
+
 	outw(int_enable, uhci->io_addr + USBINTR);
-	outw(USBCMD_EGSM | USBCMD_CF, uhci->io_addr + USBCMD);
+	outw(egsm_enable | USBCMD_CF, uhci->io_addr + USBCMD);
 	mb();
 	udelay(5);
 
@@ -252,7 +286,7 @@ __acquires(uhci->lock)
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	uhci_fsbr_off(uhci);
 }
 
@@ -309,7 +343,7 @@ __acquires(uhci->lock)
 	mod_timer(&uhci_to_hcd(uhci)->rh_timer, jiffies);
 }
 
-static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
+static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned short status;
@@ -358,7 +392,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		usb_hcd_poll_rh_status(hcd);
 	else {
 		spin_lock_irqsave(&uhci->lock, flags);
-		uhci_scan_schedule(uhci, regs);
+		uhci_scan_schedule(uhci);
 		spin_unlock_irqrestore(&uhci->lock, flags);
 	}
 
@@ -671,7 +705,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&uhci->lock);
 	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) && !uhci->dead)
 		uhci_hc_died(uhci);
-	uhci_scan_schedule(uhci, NULL);
+	uhci_scan_schedule(uhci);
 	spin_unlock_irq(&uhci->lock);
 
 	del_timer_sync(&uhci->fsbr_timer);

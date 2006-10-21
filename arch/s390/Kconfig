@@ -30,6 +30,9 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_TIME
+	def_bool y
+
 config GENERIC_BUST_SPINLOCK
 	bool
 
@@ -232,6 +235,9 @@ config WARN_STACK_SIZE
 	help
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
 
 source "mm/Kconfig"
 

@@ -157,7 +157,7 @@ struct ioc4_driver_data {
 	unsigned long idd_bar0;
 	struct pci_dev *idd_pdev;
 	const struct pci_device_id *idd_pci_id;
-	struct __iomem ioc4_misc_regs *idd_misc_regs;
+	struct ioc4_misc_regs __iomem *idd_misc_regs;
 	unsigned long count_period;
 	void *idd_serial_data;
 	unsigned int idd_variant;

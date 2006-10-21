@@ -28,7 +28,6 @@
  *
  */
 
-#include <linux/config.h> /* for CONFIG_ZFT_DFLT_BLK_SZ */
 #include "../zftape/zftape-buffers.h"
 
 #define SEGMENTS_PER_TAPE  (ft_segments_per_track * ft_tracks_per_tape)

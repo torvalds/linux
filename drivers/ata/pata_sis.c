@@ -988,8 +988,9 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 static const struct pci_device_id sis_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x5513), },	/* SiS 5513 */
-	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x5518), },	/* SiS 5518 */
+	{ PCI_VDEVICE(SI, 0x5513), },	/* SiS 5513 */
+	{ PCI_VDEVICE(SI, 0x5518), },	/* SiS 5518 */
+
 	{ }
 };
 
@@ -1009,7 +1010,6 @@ static void __exit sis_exit(void)
 {
 	pci_unregister_driver(&sis_pci_driver);
 }
-
 
 module_init(sis_init);
 module_exit(sis_exit);

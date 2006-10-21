@@ -931,7 +931,7 @@ receive_emsg(struct IsdnCardState *cs)
 /* Interrupt handler */
 /*********************/
 static irqreturn_t
-hfcpci_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+hfcpci_interrupt(int intno, void *dev_id)
 {
 	u_long flags;
 	struct IsdnCardState *cs = dev_id;

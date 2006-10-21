@@ -291,7 +291,7 @@ static struct platform_device spitzts_device = {
 
 static struct pxamci_platform_data spitz_mci_platform_data;
 
-static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(int, void *, struct pt_regs *), void *data)
+static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, void *data)
 {
 	int err;
 

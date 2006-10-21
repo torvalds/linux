@@ -216,13 +216,13 @@ static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet
 	struct psmouse *child = serio_get_drvdata(ptport);
 
 	if (child && child->state == PSMOUSE_ACTIVATED) {
-		serio_interrupt(ptport, packet[1], 0, NULL);
-		serio_interrupt(ptport, packet[4], 0, NULL);
-		serio_interrupt(ptport, packet[5], 0, NULL);
+		serio_interrupt(ptport, packet[1], 0);
+		serio_interrupt(ptport, packet[4], 0);
+		serio_interrupt(ptport, packet[5], 0);
 		if (child->pktsize == 4)
-			serio_interrupt(ptport, packet[2], 0, NULL);
+			serio_interrupt(ptport, packet[2], 0);
 	} else
-		serio_interrupt(ptport, packet[1], 0, NULL);
+		serio_interrupt(ptport, packet[1], 0);
 }
 
 static void synaptics_pt_activate(struct psmouse *psmouse)
@@ -469,12 +469,9 @@ static unsigned char synaptics_detect_pkt_type(struct psmouse *psmouse)
 	return SYN_NEWABS_STRICT;
 }
 
-static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 {
-	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
-
-	input_regs(dev, regs);
 
 	if (psmouse->pktcnt >= 6) { /* Full packet received */
 		if (unlikely(priv->pkt_type == SYN_NEWABS))

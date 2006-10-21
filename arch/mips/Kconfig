@@ -440,13 +440,11 @@ config MIPS_XXS1500
 
 config PNX8550_V2PCI
 	bool "Philips PNX8550 based Viper2-PCI board"
-	depends on BROKEN
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_JBS
 	bool "Philips PNX8550 based JBS board"
-	depends on BROKEN
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -1012,11 +1010,6 @@ endchoice
 config ARC32
 	bool
 
-config AU1X00_USB_DEVICE
-	bool
-	depends on MIPS_PB1500 || MIPS_PB1100 || MIPS_PB1000
-	default n
-
 config BOOT_ELF32
 	bool
 
@@ -1467,6 +1460,18 @@ config MIPS_MT_DISABLED
 	  the option of an MT-enabled processor this option will be the only
 	  option in this menu.
 
+config MIPS_MT_SMP
+	bool "Use 1 TC on each available VPE for SMP"
+	depends on SYS_SUPPORTS_MULTITHREADING
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_SRS
+	select MIPS_MT
+	select SMP
+	select SYS_SUPPORTS_SMP
+	help
+	  This is a kernel model which is also known a VSMP or lately
+	  has been marketesed into SMVP.
+
 config MIPS_MT_SMTC
 	bool "SMTC: Use all TCs on all VPEs for SMP"
 	depends on CPU_MIPS32_R2
@@ -1480,18 +1485,6 @@ config MIPS_MT_SMTC
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
-
-config MIPS_MT_SMP
-	bool "Use 1 TC on each available VPE for SMP"
-	depends on SYS_SUPPORTS_MULTITHREADING
-	select CPU_MIPSR2_IRQ_VI
-	select CPU_MIPSR2_SRS
-	select MIPS_MT
-	select SMP
-	select SYS_SUPPORTS_SMP
-	help
-	  This is a kernel model which is also known a VSMP or lately
-	  has been marketesed into SMVP.
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."

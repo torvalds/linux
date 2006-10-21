@@ -75,7 +75,7 @@ static int match_posponed;
 #endif
 
 static irqreturn_t
-pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+pxa_timer_interrupt(int irq, void *dev_id)
 {
 	int next_match;
 
@@ -105,7 +105,7 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * exactly one tick period which should be a pretty rare event.
 	 */
 	do {
-		timer_tick(regs);
+		timer_tick();
 		OSSR = OSSR_M0;  /* Clear match on timer 0 */
 		next_match = (OSMR0 += LATCH);
 	} while( (signed long)(next_match - OSCR) <= 8 );
@@ -157,13 +157,13 @@ static void pxa_dyn_tick_reprogram(unsigned long ticks)
 }
 
 static irqreturn_t
-pxa_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+pxa_dyn_tick_handler(int irq, void *dev_id)
 {
 	if (match_posponed) {
 		match_posponed = 0;
 		OSMR0 = initial_match;
 		if ( (signed long)(initial_match - OSCR) <= 8 )
-			return pxa_timer_interrupt(irq, dev_id, regs);
+			return pxa_timer_interrupt(irq, dev_id);
 	}
 	return IRQ_NONE;
 }

@@ -184,7 +184,7 @@ enum {
 };
 
 /* Forward declarations. */
-static irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs);
+static irqreturn_t esp_intr(int irq, void *dev_id);
 
 /* Debugging routines */
 struct esp_cmdstrings {
@@ -4282,7 +4282,7 @@ state_machine:
 }
 
 /* Service only the ESP described by dev_id. */
-static irqreturn_t esp_intr(int irq, void *dev_id, struct pt_regs *pregs)
+static irqreturn_t esp_intr(int irq, void *dev_id)
 {
 	struct esp *esp = dev_id;
 	unsigned long flags;

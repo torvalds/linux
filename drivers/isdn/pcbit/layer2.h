@@ -124,7 +124,7 @@ struct frame_buf {
 extern int pcbit_l2_write(struct pcbit_dev * dev, ulong msg, ushort refnum, 
                           struct sk_buff *skb, unsigned short hdr_len);
 
-extern irqreturn_t pcbit_irq_handler(int interrupt, void *, struct pt_regs *regs);
+extern irqreturn_t pcbit_irq_handler(int interrupt, void *);
 
 extern struct pcbit_dev * dev_pcbit[MAX_PCBIT_CARDS];
 

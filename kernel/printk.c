@@ -820,15 +820,8 @@ void release_console_sem(void)
 	console_locked = 0;
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
-	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait)) {
-		/*
-		 * If we printk from within the lock dependency code,
-		 * from within the scheduler code, then do not lock
-		 * up due to self-recursion:
-		 */
-		if (!lockdep_internal())
-			wake_up_interruptible(&log_wait);
-	}
+	if (wake_klogd && !oops_in_progress && waitqueue_active(&log_wait))
+		wake_up_interruptible(&log_wait);
 }
 EXPORT_SYMBOL(release_console_sem);
 

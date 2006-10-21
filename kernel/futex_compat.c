@@ -18,7 +18,7 @@
  */
 static inline int
 fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **entry,
-		   compat_uptr_t *head, int *pi)
+		   compat_uptr_t __user *head, int *pi)
 {
 	if (get_user(*uentry, head))
 		return -EFAULT;
@@ -62,7 +62,7 @@ void compat_exit_robust_list(struct task_struct *curr)
 			       &head->list_op_pending, &pip))
 		return;
 	if (upending)
-		handle_futex_death((void *)pending + futex_offset, curr, pip);
+		handle_futex_death((void __user *)pending + futex_offset, curr, pip);
 
 	while (compat_ptr(uentry) != &head->list) {
 		/*
@@ -70,7 +70,7 @@ void compat_exit_robust_list(struct task_struct *curr)
 		 * dont process it twice:
 		 */
 		if (entry != pending)
-			if (handle_futex_death((void *)entry + futex_offset,
+			if (handle_futex_death((void __user *)entry + futex_offset,
 						curr, pi))
 				return;
 
@@ -78,7 +78,7 @@ void compat_exit_robust_list(struct task_struct *curr)
 		 * Fetch the next entry in the list:
 		 */
 		if (fetch_robust_entry(&uentry, &entry,
-				       (compat_uptr_t *)&entry->next, &pi))
+				       (compat_uptr_t __user *)&entry->next, &pi))
 			return;
 		/*
 		 * Avoid excessively long or circular lists:
@@ -103,10 +103,10 @@ compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
 }
 
 asmlinkage long
-compat_sys_get_robust_list(int pid, compat_uptr_t *head_ptr,
+compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr)
 {
-	struct compat_robust_list_head *head;
+	struct compat_robust_list_head __user *head;
 	unsigned long ret;
 
 	if (!pid)

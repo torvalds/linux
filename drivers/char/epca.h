@@ -130,7 +130,6 @@ struct channel
 	unsigned long  c_oflag;
 	unsigned char __iomem *txptr;
 	unsigned char __iomem *rxptr;
-	unsigned char *tmp_buf;
 	struct board_info           *board;
 	struct board_chan	    __iomem *brdchan;
 	struct digi_struct          digiext;

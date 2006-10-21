@@ -424,7 +424,7 @@ int tulip_read_eeprom(struct net_device *dev, int location, int addr_len);
 /* interrupt.c */
 extern unsigned int tulip_max_interrupt_work;
 extern int tulip_rx_copybreak;
-irqreturn_t tulip_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+irqreturn_t tulip_interrupt(int irq, void *dev_instance);
 int tulip_refill_rx(struct net_device *dev);
 #ifdef CONFIG_TULIP_NAPI
 int tulip_poll(struct net_device *dev, int *budget);

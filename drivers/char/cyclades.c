@@ -748,18 +748,6 @@ static struct cyclades_port cy_port[NR_PORTS];
 static int cy_next_channel; /* next minor available */
 
 /*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.  This buffer is
- * allocated when the first cy_open occurs.
- */
-static unsigned char *tmp_buf;
-
-/*
  * This is used to look up the divisor speeds and the timeouts
  * We're normally limited to 15 distinct baud rates.  The extra
  * are accessed via settings in info->flags.
@@ -1069,7 +1057,7 @@ detect_isa_irq(void __iomem *address)
    received, out buffer empty, modem change, etc.
  */
 static irqreturn_t
-cyy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+cyy_interrupt(int irq, void *dev_id)
 {
   struct tty_struct *tty;
   int status;
@@ -1814,7 +1802,7 @@ cyz_handle_cmd(struct cyclades_card *cinfo)
 
 #ifdef CONFIG_CYZ_INTR
 static irqreturn_t
-cyz_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+cyz_interrupt(int irq, void *dev_id)
 {
   struct cyclades_card *cinfo;
 
@@ -2466,7 +2454,6 @@ cy_open(struct tty_struct *tty, struct file * filp)
 {
   struct cyclades_port  *info;
   int retval, line;
-  unsigned long page;
 
     line = tty->index;
     if ((line < 0) || (NR_PORTS <= line)){
@@ -2545,15 +2532,6 @@ cy_open(struct tty_struct *tty, struct file * filp)
     printk("cyc:cy_open (%d): incrementing count to %d\n",
         current->pid, info->count);
 #endif
-    if (!tmp_buf) {
-	page = get_zeroed_page(GFP_KERNEL);
-	if (!page)
-	    return -ENOMEM;
-	if (tmp_buf)
-	    free_page(page);
-	else
-	    tmp_buf = (unsigned char *) page;
-    }
 
     /*
      * If the port is the middle of closing, bail out now
@@ -2832,7 +2810,7 @@ cy_write(struct tty_struct * tty, const unsigned char *buf, int count)
         return 0;
     }
         
-    if (!info->xmit_buf || !tmp_buf)
+    if (!info->xmit_buf)
 	return 0;
 
     CY_LOCK(info, flags);
@@ -5489,10 +5467,6 @@ cy_cleanup_module(void)
 			pci_release_regions(cy_card[i].pdev);
 #endif
         }
-    }
-    if (tmp_buf) {
-	free_page((unsigned long) tmp_buf);
-	tmp_buf = NULL;
     }
 } /* cy_cleanup_module */
 

@@ -248,8 +248,7 @@ static int		dfx_close(struct net_device *dev);
 static void		dfx_int_pr_halt_id(DFX_board_t *bp);
 static void		dfx_int_type_0_process(DFX_board_t *bp);
 static void		dfx_int_common(struct net_device *dev);
-static irqreturn_t	dfx_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs);
+static irqreturn_t	dfx_interrupt(int irq, void *dev_id);
 
 static struct		net_device_stats *dfx_ctl_get_stats(struct net_device *dev);
 static void		dfx_ctl_set_multicast_list(struct net_device *dev);
@@ -1693,7 +1692,6 @@ static void dfx_int_common(struct net_device *dev)
  * Arguments:
  *   irq	- interrupt vector
  *   dev_id	- pointer to device information
- *	 regs	- pointer to registers structure
  *
  * Functional Description:
  *   This routine calls the interrupt processing routine for this adapter.  It
@@ -1716,7 +1714,7 @@ static void dfx_int_common(struct net_device *dev)
  *   Interrupts are disabled, then reenabled at the adapter.
  */
 
-static irqreturn_t dfx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 {
 	struct net_device	*dev = dev_id;
 	DFX_board_t		*bp;	/* private board structure pointer */

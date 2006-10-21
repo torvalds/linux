@@ -287,7 +287,7 @@ static int smc_close(struct net_device *dev);
 static int smc_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void smc_tx_timeout(struct net_device *dev);
 static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t smc_interrupt(int irq, void *dev_id);
 static void smc_rx(struct net_device *dev);
 static struct net_device_stats *smc_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
@@ -1545,7 +1545,7 @@ static void smc_eph_irq(struct net_device *dev)
 
 /*====================================================================*/
 
-static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smc_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = dev_id;
     struct smc_private *smc = netdev_priv(dev);
@@ -1966,7 +1966,7 @@ static void media_check(u_long arg)
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
 	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
-	smc_interrupt(dev->irq, smc, NULL);
+	smc_interrupt(dev->irq, smc);
 	smc->fast_poll = HZ;
     }
     if (smc->fast_poll) {

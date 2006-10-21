@@ -426,7 +426,7 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 free_req:
 	blk_put_request(req);
 free_sense:
-	kfree(sioc);
+	kmem_cache_free(scsi_io_context_cache, sioc);
 	return DRIVER_ERROR << 24;
 }
 EXPORT_SYMBOL_GPL(scsi_execute_async);

@@ -109,7 +109,7 @@ static LIST_HEAD(appldata_ops_list);
  *
  * schedule work and reschedule timer
  */
-static void appldata_timer_function(unsigned long data, struct pt_regs *regs)
+static void appldata_timer_function(unsigned long data)
 {
 	P_DEBUG("   -= Timer =-\n");
 	P_DEBUG("CPU: %i, expire_count: %i\n", smp_processor_id(),

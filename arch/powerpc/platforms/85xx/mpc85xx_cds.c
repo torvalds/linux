@@ -11,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -133,13 +132,12 @@ mpc85xx_cds_pcibios_fixup(void)
 
 #ifdef CONFIG_PPC_I8259
 #warning The i8259 PIC support is currently broken
-static void mpc85xx_8259_cascade(unsigned int irq, struct
-		irq_desc *desc, struct pt_regs *regs)
+static void mpc85xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cascade_irq = i8259_irq(regs);
+	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 
 	desc->chip->eoi(irq);
 }
@@ -151,8 +149,10 @@ void __init mpc85xx_cds_pic_init(void)
 	struct mpic *mpic;
 	struct resource r;
 	struct device_node *np = NULL;
+#ifdef CONFIG_PPC_I8259
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
+#endif
 
 	np = of_find_node_by_type(np, "open-pic");
 

@@ -992,7 +992,7 @@ mpsc_make_ready(struct mpsc_port_info *pi)
  */
 
 static inline int
-mpsc_rx_intr(struct mpsc_port_info *pi, struct pt_regs *regs)
+mpsc_rx_intr(struct mpsc_port_info *pi)
 {
 	struct mpsc_rx_desc *rxre;
 	struct tty_struct *tty = pi->port.info->tty;
@@ -1072,7 +1072,7 @@ mpsc_rx_intr(struct mpsc_port_info *pi, struct pt_regs *regs)
 				flag = TTY_PARITY;
 		}
 
-		if (uart_handle_sysrq_char(&pi->port, *bp, regs)) {
+		if (uart_handle_sysrq_char(&pi->port, *bp)) {
 			bp++;
 			bytes_in--;
 			goto next_frame;
@@ -1257,7 +1257,7 @@ mpsc_tx_intr(struct mpsc_port_info *pi)
  * handling those descriptors, we restart the Rx/Tx engines if they're stopped.
  */
 static irqreturn_t
-mpsc_sdma_intr(int irq, void *dev_id, struct pt_regs *regs)
+mpsc_sdma_intr(int irq, void *dev_id)
 {
 	struct mpsc_port_info *pi = dev_id;
 	ulong iflags;
@@ -1267,7 +1267,7 @@ mpsc_sdma_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_lock_irqsave(&pi->port.lock, iflags);
 	mpsc_sdma_intr_ack(pi);
-	if (mpsc_rx_intr(pi, regs))
+	if (mpsc_rx_intr(pi))
 		rc = IRQ_HANDLED;
 	if (mpsc_tx_intr(pi))
 		rc = IRQ_HANDLED;

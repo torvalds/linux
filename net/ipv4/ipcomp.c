@@ -206,6 +206,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t;
+	u8 mode = XFRM_MODE_TUNNEL;
 	
 	t = xfrm_state_alloc();
 	if (t == NULL)
@@ -216,7 +217,9 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->id.daddr.a4 = x->id.daddr.a4;
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET;
-	t->props.mode = XFRM_MODE_TUNNEL;
+	if (x->props.mode == XFRM_MODE_BEET)
+		mode = x->props.mode;
+	t->props.mode = mode;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
 

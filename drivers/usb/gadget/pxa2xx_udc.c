@@ -43,11 +43,11 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/irq.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
@@ -110,7 +110,7 @@ static int use_dma = 1;
 module_param(use_dma, bool, 0);
 MODULE_PARM_DESC (use_dma, "true to use dma");
 
-static void dma_nodesc_handler (int dmach, void *_ep, struct pt_regs *r);
+static void dma_nodesc_handler (int dmach, void *_ep);
 static void kick_dma(struct pxa2xx_ep *ep, struct pxa2xx_request *req);
 
 #ifdef USE_OUT_DMA
@@ -828,7 +828,7 @@ static void cancel_dma(struct pxa2xx_ep *ep)
 }
 
 /* dma channel stopped ... normal tx end (IN), or on error (IN/OUT) */
-static void dma_nodesc_handler(int dmach, void *_ep, struct pt_regs *r)
+static void dma_nodesc_handler(int dmach, void *_ep)
 {
 	struct pxa2xx_ep	*ep = _ep;
 	struct pxa2xx_request	*req;
@@ -1724,7 +1724,7 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
  */
 
 static irqreturn_t
-lubbock_vbus_irq(int irq, void *_dev, struct pt_regs *r)
+lubbock_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			vbus;
@@ -1754,8 +1754,7 @@ lubbock_vbus_irq(int irq, void *_dev, struct pt_regs *r)
 
 #endif
 
-static irqreturn_t
-udc_vbus_irq(int irq, void *_dev, struct pt_regs *r)
+static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			vbus = pxa_gpio_get(dev->mach->gpio_vbus);
@@ -2084,7 +2083,7 @@ static void handle_ep(struct pxa2xx_ep *ep)
  * could cause usb protocol errors.
  */
 static irqreturn_t
-pxa2xx_udc_irq(int irq, void *_dev, struct pt_regs *r)
+pxa2xx_udc_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			handled;

@@ -523,33 +523,49 @@ void __init at32_add_system_devices(void)
  *  USART
  * -------------------------------------------------------------------- */
 
-static struct resource usart0_resource[] = {
+static struct atmel_uart_data atmel_usart0_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
+static struct resource atmel_usart0_resource[] = {
 	PBMEM(0xffe00c00),
 	IRQ(7),
 };
-DEFINE_DEV(usart, 0);
-DEV_CLK(usart, usart0, pba, 4);
+DEFINE_DEV_DATA(atmel_usart, 0);
+DEV_CLK(usart, atmel_usart0, pba, 4);
 
-static struct resource usart1_resource[] = {
+static struct atmel_uart_data atmel_usart1_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
+static struct resource atmel_usart1_resource[] = {
 	PBMEM(0xffe01000),
 	IRQ(7),
 };
-DEFINE_DEV(usart, 1);
-DEV_CLK(usart, usart1, pba, 4);
+DEFINE_DEV_DATA(atmel_usart, 1);
+DEV_CLK(usart, atmel_usart1, pba, 4);
 
-static struct resource usart2_resource[] = {
+static struct atmel_uart_data atmel_usart2_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
+static struct resource atmel_usart2_resource[] = {
 	PBMEM(0xffe01400),
 	IRQ(8),
 };
-DEFINE_DEV(usart, 2);
-DEV_CLK(usart, usart2, pba, 5);
+DEFINE_DEV_DATA(atmel_usart, 2);
+DEV_CLK(usart, atmel_usart2, pba, 5);
 
-static struct resource usart3_resource[] = {
+static struct atmel_uart_data atmel_usart3_data = {
+	.use_dma_tx	= 1,
+	.use_dma_rx	= 1,
+};
+static struct resource atmel_usart3_resource[] = {
 	PBMEM(0xffe01800),
 	IRQ(9),
 };
-DEFINE_DEV(usart, 3);
-DEV_CLK(usart, usart3, pba, 6);
+DEFINE_DEV_DATA(atmel_usart, 3);
+DEV_CLK(usart, atmel_usart3, pba, 6);
 
 static inline void configure_usart0_pins(void)
 {
@@ -575,51 +591,54 @@ static inline void configure_usart3_pins(void)
 	portmux_set_func(PIOB, 17, FUNC_B);	/* TXD	*/
 }
 
-static struct platform_device *setup_usart(unsigned int id)
+static struct platform_device *at32_usarts[4];
+
+void __init at32_map_usart(unsigned int hw_id, unsigned int line)
 {
 	struct platform_device *pdev;
 
-	switch (id) {
+	switch (hw_id) {
 	case 0:
-		pdev = &usart0_device;
+		pdev = &atmel_usart0_device;
 		configure_usart0_pins();
 		break;
 	case 1:
-		pdev = &usart1_device;
+		pdev = &atmel_usart1_device;
 		configure_usart1_pins();
 		break;
 	case 2:
-		pdev = &usart2_device;
+		pdev = &atmel_usart2_device;
 		configure_usart2_pins();
 		break;
 	case 3:
-		pdev = &usart3_device;
+		pdev = &atmel_usart3_device;
 		configure_usart3_pins();
 		break;
 	default:
-		pdev = NULL;
-		break;
+		return;
 	}
 
-	return pdev;
+	if (PXSEG(pdev->resource[0].start) == P4SEG) {
+		/* Addresses in the P4 segment are permanently mapped 1:1 */
+		struct atmel_uart_data *data = pdev->dev.platform_data;
+		data->regs = (void __iomem *)pdev->resource[0].start;
+	}
+
+	pdev->id = line;
+	at32_usarts[line] = pdev;
 }
 
 struct platform_device *__init at32_add_device_usart(unsigned int id)
 {
-	struct platform_device *pdev;
-
-	pdev = setup_usart(id);
-	if (pdev)
-		platform_device_register(pdev);
-
-	return pdev;
+	platform_device_register(at32_usarts[id]);
+	return at32_usarts[id];
 }
 
-struct platform_device *at91_default_console_device;
+struct platform_device *atmel_default_console_device;
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
-	at91_default_console_device = setup_usart(usart_id);
+	atmel_default_console_device = at32_usarts[usart_id];
 }
 
 /* --------------------------------------------------------------------
@@ -813,10 +832,10 @@ struct clk *at32_clock_list[] = {
 	&pio1_mck,
 	&pio2_mck,
 	&pio3_mck,
-	&usart0_usart,
-	&usart1_usart,
-	&usart2_usart,
-	&usart3_usart,
+	&atmel_usart0_usart,
+	&atmel_usart1_usart,
+	&atmel_usart2_usart,
+	&atmel_usart3_usart,
 	&macb0_hclk,
 	&macb0_pclk,
 	&spi0_mck,

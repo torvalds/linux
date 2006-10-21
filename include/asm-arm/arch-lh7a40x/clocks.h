@@ -8,8 +8,6 @@
  *
  */
 
-#include <linux/config.h>
-
 #ifndef __ASM_ARCH_CLOCKS_H
 #define __ASM_ARCH_CLOCKS_H
 

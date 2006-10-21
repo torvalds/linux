@@ -45,6 +45,7 @@
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
 #include <asm/prom.h>
+#include <asm/irq_regs.h>
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -452,7 +453,7 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned long ticks, compare, pstate;
 
@@ -460,8 +461,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
 	do {
 #ifndef CONFIG_SMP
-		profile_tick(CPU_PROFILING, regs);
-		update_process_times(user_mode(regs));
+		profile_tick(CPU_PROFILING);
+		update_process_times(user_mode(get_irq_regs()));
 #endif
 		do_timer(1);
 

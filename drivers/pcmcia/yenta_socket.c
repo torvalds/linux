@@ -442,7 +442,7 @@ static int yenta_set_mem_map(struct pcmcia_socket *sock, struct pccard_mem_map *
 
 
 
-static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t yenta_interrupt(int irq, void *dev_id)
 {
 	unsigned int events;
 	struct yenta_socket *socket = (struct yenta_socket *) dev_id;
@@ -478,7 +478,7 @@ static void yenta_interrupt_wrapper(unsigned long data)
 {
 	struct yenta_socket *socket = (struct yenta_socket *) data;
 
-	yenta_interrupt(0, (void *)socket, NULL);
+	yenta_interrupt(0, (void *)socket);
 	socket->poll_timer.expires = jiffies + HZ;
 	add_timer(&socket->poll_timer);
 }
@@ -896,7 +896,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 #ifdef CONFIG_YENTA_TI
 
 /* interrupt handler, only used during probing */
-static irqreturn_t yenta_probe_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t yenta_probe_handler(int irq, void *dev_id)
 {
 	struct yenta_socket *socket = (struct yenta_socket *) dev_id;
 	u8 csc;

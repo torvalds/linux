@@ -135,6 +135,26 @@ vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 }
 EXPORT_SYMBOL_GPL(vfs_getxattr);
 
+ssize_t
+vfs_listxattr(struct dentry *d, char *list, size_t size)
+{
+	ssize_t error;
+
+	error = security_inode_listxattr(d);
+	if (error)
+		return error;
+	error = -EOPNOTSUPP;
+	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
+		error = d->d_inode->i_op->listxattr(d, list, size);
+	} else {
+		error = security_inode_listsecurity(d->d_inode, list, size);
+		if (size && error > size)
+			error = -ERANGE;
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(vfs_listxattr);
+
 int
 vfs_removexattr(struct dentry *dentry, char *name)
 {
@@ -346,17 +366,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 			return -ENOMEM;
 	}
 
-	error = security_inode_listxattr(d);
-	if (error)
-		goto out;
-	error = -EOPNOTSUPP;
-	if (d->d_inode->i_op && d->d_inode->i_op->listxattr) {
-		error = d->d_inode->i_op->listxattr(d, klist, size);
-	} else {
-		error = security_inode_listsecurity(d->d_inode, klist, size);
-		if (size && error > size)
-			error = -ERANGE;
-	}
+	error = vfs_listxattr(d, klist, size);
 	if (error > 0) {
 		if (size && copy_to_user(list, klist, error))
 			error = -EFAULT;
@@ -365,7 +375,6 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		   than XATTR_LIST_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
-out:
 	kfree(klist);
 	return error;
 }

@@ -1614,7 +1614,7 @@ static int nodemgr_host_thread(void *__hi)
 {
 	struct host_info *hi = (struct host_info *)__hi;
 	struct hpsb_host *host = hi->host;
-	unsigned int g, generation = get_hpsb_generation(host) - 1;
+	unsigned int g, generation = 0;
 	int i, reset_cycles = 0;
 
 	/* Setup our device-model entries */

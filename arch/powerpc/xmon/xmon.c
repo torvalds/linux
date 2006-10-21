@@ -2,6 +2,8 @@
  * Routines providing a simple monitor for use on the PowerMac.
  *
  * Copyright (C) 1996-2005 Paul Mackerras.
+ * Copyright (C) 2001 PPC64 Team, IBM Corp
+ * Copyrignt (C) 2006 Michael Ellerman, IBM Corp
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -19,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -33,6 +36,7 @@
 #include <asm/rtas.h>
 #include <asm/sstep.h>
 #include <asm/bug.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -503,7 +507,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
 	mtmsr(msr);		/* restore interrupt enable */
 
-	return cmd != 'X';
+	return cmd != 'X' && cmd != EOF;
 }
 
 int xmon(struct pt_regs *excp)
@@ -518,13 +522,12 @@ int xmon(struct pt_regs *excp)
 }
 EXPORT_SYMBOL(xmon);
 
-irqreturn_t
-xmon_irq(int irq, void *d, struct pt_regs *regs)
+irqreturn_t xmon_irq(int irq, void *d)
 {
 	unsigned long flags;
 	local_irq_save(flags);
 	printf("Keyboard interrupt\n");
-	xmon(regs);
+	xmon(get_irq_regs());
 	local_irq_restore(flags);
 	return IRQ_HANDLED;
 }
@@ -2575,12 +2578,11 @@ void xmon_init(int enable)
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
-			      struct tty_struct *tty) 
+static void sysrq_handle_xmon(int key, struct tty_struct *tty) 
 {
 	/* ensure xmon is enabled */
 	xmon_init(1);
-	debugger(pt_regs);
+	debugger(get_irq_regs());
 }
 
 static struct sysrq_key_op sysrq_xmon_op = 
@@ -2597,3 +2599,34 @@ static int __init setup_xmon_sysrq(void)
 }
 __initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
+
+int __initdata xmon_early, xmon_off;
+
+static int __init early_parse_xmon(char *p)
+{
+	if (!p || strncmp(p, "early", 5) == 0) {
+		/* just "xmon" is equivalent to "xmon=early" */
+		xmon_init(1);
+		xmon_early = 1;
+	} else if (strncmp(p, "on", 2) == 0)
+		xmon_init(1);
+	else if (strncmp(p, "off", 3) == 0)
+		xmon_off = 1;
+	else if (strncmp(p, "nobt", 4) == 0)
+		xmon_no_auto_backtrace = 1;
+	else
+		return 1;
+
+	return 0;
+}
+early_param("xmon", early_parse_xmon);
+
+void __init xmon_setup(void)
+{
+#ifdef CONFIG_XMON_DEFAULT
+	if (!xmon_off)
+		xmon_init(1);
+#endif
+	if (xmon_early)
+		debugger(NULL);
+}

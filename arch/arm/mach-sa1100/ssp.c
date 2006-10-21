@@ -25,7 +25,7 @@
 
 #define TIMEOUT 100000
 
-static irqreturn_t ssp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
 	unsigned int status = Ser4SSSR;
 

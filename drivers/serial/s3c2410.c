@@ -310,7 +310,7 @@ static int s3c24xx_serial_rx_fifocnt(struct s3c24xx_uart_port *ourport,
 #define S3C2410_UERSTAT_PARITY (0x1000)
 
 static irqreturn_t
-s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
+s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
@@ -379,7 +379,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, ch, regs))
+		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
 		uart_insert_char(port, uerstat, S3C2410_UERSTAT_OVERRUN, ch, flag);
@@ -393,7 +393,7 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id, struct pt_regs *regs)
+static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 {
 	struct s3c24xx_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;

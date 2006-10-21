@@ -378,7 +378,7 @@ void vio_set_hostlp(void)
 }
 EXPORT_SYMBOL(vio_set_hostlp);
 
-static void vio_handleEvent(struct HvLpEvent *event, struct pt_regs *regs)
+static void vio_handleEvent(struct HvLpEvent *event)
 {
 	HvLpIndex remoteLp;
 	int subtype = (event->xSubtype & VIOMAJOR_SUBTYPE_MASK)

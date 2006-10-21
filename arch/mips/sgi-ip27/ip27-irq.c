@@ -30,7 +30,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-#include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pci/bridge.h>
 #include <asm/sn/addrs.h>
@@ -129,7 +128,7 @@ static int ms1bit(unsigned long x)
  * Kanoj 05.13.00
  */
 
-static void ip27_do_irq_mask0(struct pt_regs *regs)
+static void ip27_do_irq_mask0(void)
 {
 	int irq, swlevel;
 	hubreg_t pend0, mask0;
@@ -164,13 +163,13 @@ static void ip27_do_irq_mask0(struct pt_regs *regs)
 		struct slice_data *si = cpu_data[cpu].data;
 
 		irq = si->level_to_irq[swlevel];
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	}
 
 	LOCAL_HUB_L(PI_INT_PEND0);
 }
 
-static void ip27_do_irq_mask1(struct pt_regs *regs)
+static void ip27_do_irq_mask1(void)
 {
 	int irq, swlevel;
 	hubreg_t pend1, mask1;
@@ -190,17 +189,17 @@ static void ip27_do_irq_mask1(struct pt_regs *regs)
 	/* "map" swlevel to irq */
 	irq = si->level_to_irq[swlevel];
 	LOCAL_HUB_CLR_INTR(swlevel);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 
 	LOCAL_HUB_L(PI_INT_PEND1);
 }
 
-static void ip27_prof_timer(struct pt_regs *regs)
+static void ip27_prof_timer(void)
 {
 	panic("CPU %d got a profiling interrupt", smp_processor_id());
 }
 
-static void ip27_hub_error(struct pt_regs *regs)
+static void ip27_hub_error(void)
 {
 	panic("CPU %d got a hub error interrupt", smp_processor_id());
 }
@@ -418,22 +417,22 @@ int __devinit request_bridge_irq(struct bridge_controller *bc)
 	return irq;
 }
 
-extern void ip27_rt_timer_interrupt(struct pt_regs *regs);
+extern void ip27_rt_timer_interrupt(void);
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned long pending = read_c0_cause() & read_c0_status();
 
 	if (pending & CAUSEF_IP4)
-		ip27_rt_timer_interrupt(regs);
+		ip27_rt_timer_interrupt();
 	else if (pending & CAUSEF_IP2)	/* PI_INT_PEND_0 or CC_PEND_{A|B} */
-		ip27_do_irq_mask0(regs);
+		ip27_do_irq_mask0();
 	else if (pending & CAUSEF_IP3)	/* PI_INT_PEND_1 */
-		ip27_do_irq_mask1(regs);
+		ip27_do_irq_mask1();
 	else if (pending & CAUSEF_IP5)
-		ip27_prof_timer(regs);
+		ip27_prof_timer();
 	else if (pending & CAUSEF_IP6)
-		ip27_hub_error(regs);
+		ip27_hub_error();
 }
 
 void __init arch_init_irq(void)

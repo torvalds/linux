@@ -80,7 +80,7 @@ static struct irq_chip frv_fpga_pic = {
 /*
  * FPGA PIC interrupt handler
  */
-static irqreturn_t fpga_interrupt(int irq, void *_mask, struct pt_regs *regs)
+static irqreturn_t fpga_interrupt(int irq, void *_mask)
 {
 	uint16_t imr, mask = (unsigned long) _mask;
 
@@ -95,7 +95,7 @@ static irqreturn_t fpga_interrupt(int irq, void *_mask, struct pt_regs *regs)
 		irq = 31 - irq;
 		mask &= ~(1 << irq);
 
-		generic_handle_irq(IRQ_BASE_FPGA + irq, regs);
+		generic_handle_irq(IRQ_BASE_FPGA + irq);
 	}
 
 	return IRQ_HANDLED;

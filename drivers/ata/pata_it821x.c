@@ -808,14 +808,15 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
-static struct pci_device_id it821x[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_8211), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_8212), },
-	{ 0, },
+static const struct pci_device_id it821x[] = {
+	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), },
+	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8212), },
+
+	{ },
 };
 
 static struct pci_driver it821x_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= it821x,
 	.probe 		= it821x_init_one,
 	.remove		= ata_pci_remove_one
@@ -826,12 +827,10 @@ static int __init it821x_init(void)
 	return pci_register_driver(&it821x_pci_driver);
 }
 
-
 static void __exit it821x_exit(void)
 {
 	pci_unregister_driver(&it821x_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the IT8211/IT8212 IDE RAID controller");

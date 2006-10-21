@@ -430,20 +430,29 @@ int remove_save_link(struct inode *inode, int truncate)
 	return journal_end(&th, inode->i_sb, JOURNAL_PER_BALANCE_CNT);
 }
 
+static void reiserfs_kill_sb(struct super_block *s)
+{
+	if (REISERFS_SB(s)) {
+		if (REISERFS_SB(s)->xattr_root) {
+			d_invalidate(REISERFS_SB(s)->xattr_root);
+			dput(REISERFS_SB(s)->xattr_root);
+			REISERFS_SB(s)->xattr_root = NULL;
+		}
+
+		if (REISERFS_SB(s)->priv_root) {
+			d_invalidate(REISERFS_SB(s)->priv_root);
+			dput(REISERFS_SB(s)->priv_root);
+			REISERFS_SB(s)->priv_root = NULL;
+		}
+	}
+
+	kill_block_super(s);
+}
+
 static void reiserfs_put_super(struct super_block *s)
 {
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
-
-	if (REISERFS_SB(s)->xattr_root) {
-		d_invalidate(REISERFS_SB(s)->xattr_root);
-		dput(REISERFS_SB(s)->xattr_root);
-	}
-
-	if (REISERFS_SB(s)->priv_root) {
-		d_invalidate(REISERFS_SB(s)->priv_root);
-		dput(REISERFS_SB(s)->priv_root);
-	}
 
 	/* change file system state to current state if it was mounted with read-write permissions */
 	if (!(s->s_flags & MS_RDONLY)) {
@@ -2156,7 +2165,7 @@ struct file_system_type reiserfs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "reiserfs",
 	.get_sb = get_super_block,
-	.kill_sb = kill_block_super,
+	.kill_sb = reiserfs_kill_sb,
 	.fs_flags = FS_REQUIRES_DEV,
 };
 

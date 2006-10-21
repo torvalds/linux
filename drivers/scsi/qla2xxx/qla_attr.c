@@ -691,13 +691,13 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	uint32_t speed = 0;
 
 	switch (ha->link_data_rate) {
-	case LDR_1GB:
+	case PORT_SPEED_1GB:
 		speed = 1;
 		break;
-	case LDR_2GB:
+	case PORT_SPEED_2GB:
 		speed = 2;
 		break;
-	case LDR_4GB:
+	case PORT_SPEED_4GB:
 		speed = 4;
 		break;
 	}
@@ -849,6 +849,49 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	return pfc_host_stat;
 }
 
+static void
+qla2x00_get_host_symbolic_name(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	qla2x00_get_sym_node_name(ha, fc_host_symbolic_name(shost));
+}
+
+static void
+qla2x00_set_host_system_hostname(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
+}
+
+static void
+qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	u64 node_name;
+
+	if (ha->device_flags & SWITCH_FOUND)
+		node_name = wwn_to_u64(ha->fabric_node_name);
+	else
+		node_name = wwn_to_u64(ha->node_name);
+
+	fc_host_fabric_name(shost) = node_name;
+}
+
+static void
+qla2x00_get_host_port_state(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+
+	if (!ha->flags.online)
+		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
+	else if (atomic_read(&ha->loop_state) == LOOP_TIMEOUT)
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+	else
+		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -861,6 +904,14 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_speed = 1,
 	.get_host_port_type = qla2x00_get_host_port_type,
 	.show_host_port_type = 1,
+	.get_host_symbolic_name = qla2x00_get_host_symbolic_name,
+	.show_host_symbolic_name = 1,
+	.set_host_system_hostname = qla2x00_set_host_system_hostname,
+	.show_host_system_hostname = 1,
+	.get_host_fabric_name = qla2x00_get_host_fabric_name,
+	.show_host_fabric_name = 1,
+	.get_host_port_state = qla2x00_get_host_port_state,
+	.show_host_port_state = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,

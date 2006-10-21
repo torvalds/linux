@@ -4029,8 +4029,7 @@ static int s2io_chk_rx_buffers(nic_t *sp, int rng_n)
 	return 0;
 }
 
-static irqreturn_t
-s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t s2io_msi_handle(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	nic_t *sp = dev->priv;
@@ -4063,8 +4062,7 @@ s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t
-s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 {
 	ring_info_t *ring = (ring_info_t *)dev_id;
 	nic_t *sp = ring->nic;
@@ -4078,8 +4076,7 @@ s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t
-s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 {
 	fifo_info_t *fifo = (fifo_info_t *)dev_id;
 	nic_t *sp = fifo->nic;
@@ -4155,7 +4152,6 @@ static void s2io_txpic_intr_handle(nic_t *sp)
  *  s2io_isr - ISR handler of the device .
  *  @irq: the irq of the device.
  *  @dev_id: a void pointer to the dev structure of the NIC.
- *  @pt_regs: pointer to the registers pushed on the stack.
  *  Description:  This function is the ISR handler of the device. It
  *  identifies the reason for the interrupt and calls the relevant
  *  service routines. As a contongency measure, this ISR allocates the
@@ -4165,7 +4161,7 @@ static void s2io_txpic_intr_handle(nic_t *sp)
  *   IRQ_HANDLED: will be returned if IRQ was handled by this routine
  *   IRQ_NONE: will be returned if interrupt is not from our device
  */
-static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t s2io_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	nic_t *sp = dev->priv;

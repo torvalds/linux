@@ -850,7 +850,7 @@ static void i2c_pxa_irq_rxfull(struct pxa_i2c *i2c, u32 isr)
 	ICR = icr;
 }
 
-static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 {
 	struct pxa_i2c *i2c = dev_id;
 	u32 isr = ISR;

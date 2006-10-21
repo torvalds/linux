@@ -1,11 +1,10 @@
 /*
- * arch/sh/kernel/cpu/irq/ipr.c
+ * Interrupt handling for IPR-based IRQ.
  *
  * Copyright (C) 1999  Niibe Yutaka & Takeshi Yaegashi
  * Copyright (C) 2000  Kazumoto Kojima
- * Copyright (C) 2003 Takashi Kusuda <kusuda-takashi@hitachi-ul.co.jp>
- *
- * Interrupt handling for IPR-based IRQ.
+ * Copyright (C) 2003  Takashi Kusuda <kusuda-takashi@hitachi-ul.co.jp>
+ * Copyright (C) 2006  Paul Mundt
  *
  * Supported system:
  *	On-chip supporting modules (TMU, RTC, etc.).
@@ -13,12 +12,13 @@
  *	Hitachi SolutionEngine external I/O:
  *		MS7709SE01, MS7709ASE01, and MS7750SE01
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/machvec.h>
@@ -28,93 +28,45 @@ struct ipr_data {
 	int shift;		/* Shifts of the 16-bit data */
 	int priority;		/* The priority */
 };
-static struct ipr_data ipr_data[NR_IRQS];
-
-static void enable_ipr_irq(unsigned int irq);
-static void disable_ipr_irq(unsigned int irq);
-
-/* shutdown is same as "disable" */
-#define shutdown_ipr_irq disable_ipr_irq
-
-static void mask_and_ack_ipr(unsigned int);
-static void end_ipr_irq(unsigned int irq);
-
-static unsigned int startup_ipr_irq(unsigned int irq)
-{
-	enable_ipr_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static struct hw_interrupt_type ipr_irq_type = {
-	.typename = "IPR-IRQ",
-	.startup = startup_ipr_irq,
-	.shutdown = shutdown_ipr_irq,
-	.enable = enable_ipr_irq,
-	.disable = disable_ipr_irq,
-	.ack = mask_and_ack_ipr,
-	.end = end_ipr_irq
-};
 
 static void disable_ipr_irq(unsigned int irq)
 {
-	unsigned long val;
-	unsigned int addr = ipr_data[irq].addr;
-	unsigned short mask = 0xffff ^ (0x0f << ipr_data[irq].shift);
-
+	struct ipr_data *p = get_irq_chip_data(irq);
 	/* Set the priority in IPR to 0 */
-	val = ctrl_inw(addr);
-	val &= mask;
-	ctrl_outw(val, addr);
+	ctrl_outw(ctrl_inw(p->addr) & (0xffff ^ (0xf << p->shift)), p->addr);
 }
 
 static void enable_ipr_irq(unsigned int irq)
 {
-	unsigned long val;
-	unsigned int addr = ipr_data[irq].addr;
-	int priority = ipr_data[irq].priority;
-	unsigned short value = (priority << ipr_data[irq].shift);
-
+	struct ipr_data *p = get_irq_chip_data(irq);
 	/* Set priority in IPR back to original value */
-	val = ctrl_inw(addr);
-	val |= value;
-	ctrl_outw(val, addr);
+	ctrl_outw(ctrl_inw(p->addr) | (p->priority << p->shift), p->addr);
 }
 
-static void mask_and_ack_ipr(unsigned int irq)
-{
-	disable_ipr_irq(irq);
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7707) || defined(CONFIG_CPU_SUBTYPE_SH7709) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7300) || defined(CONFIG_CPU_SUBTYPE_SH7705)
-	/* This is needed when we use edge triggered setting */
-	/* XXX: Is it really needed? */
-	if (IRQ0_IRQ <= irq && irq <= IRQ5_IRQ) {
-		/* Clear external interrupt request */
-		int a = ctrl_inb(INTC_IRR0);
-		a &= ~(1 << (irq - IRQ0_IRQ));
-		ctrl_outb(a, INTC_IRR0);
-	}
-#endif
-}
-
-static void end_ipr_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_ipr_irq(irq);
-}
+static struct irq_chip ipr_irq_chip = {
+	.name		= "ipr",
+	.mask		= disable_ipr_irq,
+	.unmask		= enable_ipr_irq,
+	.mask_ack	= disable_ipr_irq,
+};
 
 void make_ipr_irq(unsigned int irq, unsigned int addr, int pos, int priority)
 {
-	disable_irq_nosync(irq);
-	ipr_data[irq].addr = addr;
-	ipr_data[irq].shift = pos*4; /* POSition (0-3) x 4 means shift */
-	ipr_data[irq].priority = priority;
+	struct ipr_data ipr_data;
 
-	irq_desc[irq].chip = &ipr_irq_type;
-	disable_ipr_irq(irq);
+	disable_irq_nosync(irq);
+
+	ipr_data.addr = addr;
+	ipr_data.shift = pos*4; /* POSition (0-3) x 4 means shift */
+	ipr_data.priority = priority;
+
+	set_irq_chip_and_handler(irq, &ipr_irq_chip, handle_level_irq);
+	set_irq_chip_data(irq, &ipr_data);
+
+	enable_ipr_irq(irq);
 }
 
+/* XXX: This needs to die a horrible death.. */
 void __init init_IRQ(void)
 {
 #ifndef CONFIG_CPU_SUBTYPE_SH7780

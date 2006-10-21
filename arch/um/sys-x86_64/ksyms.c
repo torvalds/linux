@@ -14,6 +14,3 @@ EXPORT_SYMBOL(__up_wakeup);
 
 /*XXX: we need them because they would be exported by x86_64 */
 EXPORT_SYMBOL(__memcpy);
-
-/* Networking helper routines. */
-EXPORT_SYMBOL(ip_compute_csum);

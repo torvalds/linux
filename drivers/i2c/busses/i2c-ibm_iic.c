@@ -320,7 +320,7 @@ err:
 /*
  * IIC interrupt handler
  */
-static irqreturn_t iic_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t iic_handler(int irq, void *dev_id)
 {
 	struct ibm_iic_private* dev = (struct ibm_iic_private*)dev_id;
 	volatile struct iic_regs __iomem *iic = dev->vaddr;

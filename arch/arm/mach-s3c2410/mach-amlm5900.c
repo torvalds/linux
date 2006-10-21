@@ -226,7 +226,7 @@ static struct s3c2410fb_mach_info __initdata amlm5900_lcd_info = {
 #endif
 
 static irqreturn_t
-amlm5900_wake_interrupt(int irq, void *ignored, struct pt_regs *regs)
+amlm5900_wake_interrupt(int irq, void *ignored)
 {
 	return IRQ_HANDLED;
 }

@@ -122,7 +122,7 @@ static void flexcop_pci_irq_check_work(void *data)
 /* When PID filtering is turned on, we use the timer IRQ, because small amounts
  * of data need to be passed to the user space instantly as well. When PID
  * filtering is turned off, we use the page-change-IRQ */
-static irqreturn_t flexcop_pci_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t flexcop_pci_isr(int irq, void *dev_id)
 {
 	struct flexcop_pci *fc_pci = dev_id;
 	struct flexcop_device *fc = fc_pci->fc_dev;

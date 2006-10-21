@@ -289,9 +289,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	autotest	[IA64]
 
-	awe=		[HW,OSS] AWE32/SB32/AWE64 wave table synth
-			Format: <io>,<memsize>,<isapnp>
-
 	aztcd=		[HW,CD] Aztech CD268 CDROM driver
 			Format: <io>,0x79 (?)
 
@@ -536,10 +533,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is 0.
 			Value can be changed at runtime via /selinux/enforce.
 
-	es1370=		[HW,OSS]
-			Format: <lineout>[,<micbias>]
-			See also header of sound/oss/es1370.c.
-
 	es1371=		[HW,OSS]
 			Format: <spdif>,[<nomix>,[<amplifier>]]
 			See also header of sound/oss/es1371.c.
@@ -579,9 +572,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	gscd=		[HW,CD]
 			Format: <io>
-
-	gus=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma16>
 
 	gvp11=		[HW,SCSI]
 
@@ -840,12 +830,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	machvec=	[IA64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
-
-	mad16=		[HW,OSS] Format:
-			<io>,<irq>,<dma>,<dma16>,<mpu_io>,<mpu_irq>,<joystick>
-
-	maui=		[HW,OSS]
-			Format: <io>,<irq>
 
 	max_loop=	[LOOP] Maximum number of loopback devices that can
 			be mounted
@@ -1114,9 +1098,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	opl3=		[HW,OSS]
 			Format: <io>
 
-	opl3sa=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>,<mpu_io>,<mpu_irq>
-
 	opl3sa2=	[HW,OSS] Format:
 			<io>,<irq>,<dma>,<dma2>,<mss_io>,<mpu_io>,<ymode>,<loopback>[,<isapnp>,<multiple]
 
@@ -1250,6 +1231,11 @@ and is between 256 and 4096 characters. It is defined in the file
 				machine check when some devices' config space
 				is read. But various workarounds are disabled
 				and some IOMMU drivers will not work.
+		bfsort		Sort PCI devices into breadth-first order.
+				This sorting is done to get a device
+				order compatible with older (<= 2.4) kernels.
+		nobfsort	Don't sort PCI devices into breadth-first order.
+
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
@@ -1357,10 +1343,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
 			RCU callbacks below which batch limiting is re-enabled.
 
-	rcu.rsinterval=	[KNL,BOOT,SMP] Set the number of additional
-			RCU callbacks to queued before forcing reschedule
-			on all cpus.
-
 	rdinit=		[KNL]
 			Format: <full_path>
 			Run specified binary instead of /init from the ramdisk,
@@ -1454,9 +1436,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	serialnumber	[BUGS=IA-32]
 
 	sg_def_reserved_size=	[SCSI]
-
-	sgalaxy=	[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>,<sgbase>
 
 	shapers=	[NET]
 			Maximal number of shapers.
@@ -1597,9 +1576,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	snd-wavefront=	[HW,ALSA]
 
 	snd-ymfpci=	[HW,ALSA]
-
-	sonicvibes=	[HW,OSS]
-			Format: <reverb>
 
 	sonycd535=	[HW,CD]
 			Format: <io>[,<irq>]

@@ -613,7 +613,7 @@ ignore:
 	return;
 }
 
-void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, struct pt_regs *regs)
+void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input;
 	int *quirks = &hid->quirks;
@@ -622,8 +622,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 
 	input = field->hidinput->input;
-
-	input_regs(input, regs);
 
 	if (!usage->type)
 		return;

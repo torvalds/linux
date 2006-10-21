@@ -697,13 +697,15 @@ extern int ipr_irq_demux(int irq);
 
 #define INTC2_INTPRI_OFFSET	0x00
 
-void make_intc2_irq(unsigned int irq,
-		    unsigned int ipr_offset, unsigned int ipr_shift,
-		    unsigned int msk_offset, unsigned int msk_shift,
-		    unsigned int priority);
-void init_IRQ_intc2(void);
-void intc2_add_clear_irq(int irq, int (*fn)(int));
+struct intc2_data {
+	unsigned short irq;
+	unsigned char ipr_offset, ipr_shift;
+	unsigned char msk_offset, msk_shift;
+	unsigned char priority;
+};
 
+void make_intc2_irq(struct intc2_data *);
+void init_IRQ_intc2(void);
 #endif
 
 extern int shmse_irq_demux(int irq);

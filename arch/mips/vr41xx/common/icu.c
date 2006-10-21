@@ -635,7 +635,7 @@ int vr41xx_set_intassign(unsigned int irq, unsigned char intassign)
 
 EXPORT_SYMBOL(vr41xx_set_intassign);
 
-static int icu_get_irq(unsigned int irq, struct pt_regs *regs)
+static int icu_get_irq(unsigned int irq)
 {
 	uint16_t pend1, pend2;
 	uint16_t mask1, mask2;

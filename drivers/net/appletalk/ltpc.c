@@ -790,7 +790,7 @@ static int sendup_buffer (struct net_device *dev)
 /* the handler for the board interrupt */
  
 static irqreturn_t
-ltpc_interrupt(int irq, void *dev_id, struct pt_regs *reg_ptr)
+ltpc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 

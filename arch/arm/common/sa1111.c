@@ -147,7 +147,7 @@ void __init sa1111_adjust_zones(int node, unsigned long *size, unsigned long *ho
  * will call us again if there are more interrupts to process.
  */
 static void
-sa1111_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+sa1111_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int stat0, stat1, i;
 	void __iomem *base = get_irq_data(irq);
@@ -162,17 +162,17 @@ sa1111_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 	sa1111_writel(stat1, base + SA1111_INTSTATCLR1);
 
 	if (stat0 == 0 && stat1 == 0) {
-		do_bad_IRQ(irq, desc, regs);
+		do_bad_IRQ(irq, desc);
 		return;
 	}
 
 	for (i = IRQ_SA1111_START; stat0; i++, stat0 >>= 1)
 		if (stat0 & 1)
-			handle_edge_irq(i, irq_desc + i, regs);
+			handle_edge_irq(i, irq_desc + i);
 
 	for (i = IRQ_SA1111_START + 32; stat1; i++, stat1 >>= 1)
 		if (stat1 & 1)
-			handle_edge_irq(i, irq_desc + i, regs);
+			handle_edge_irq(i, irq_desc + i);
 
 	/* For level-based interrupts */
 	desc->chip->unmask(irq);

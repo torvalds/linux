@@ -72,18 +72,13 @@
 #define DMA2_MASK_ALL_REG       0xDE    /* all-channels mask (w) */
 #define DMA2_EXT_MODE_REG	(0x400 | DMA2_MODE_REG)
 
-extern spinlock_t dma_spin_lock;
-
 static __inline__ unsigned long claim_dma_lock(void)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&dma_spin_lock, flags);
-	return flags;
+	return 0;
 }
 
 static __inline__ void release_dma_lock(unsigned long flags)
 {
-	spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
 
 

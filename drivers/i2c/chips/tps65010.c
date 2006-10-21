@@ -446,7 +446,7 @@ static void tps65010_work(void *_tps)
 	mutex_unlock(&tps->lock);
 }
 
-static irqreturn_t tps65010_irq(int irq, void *_tps, struct pt_regs *regs)
+static irqreturn_t tps65010_irq(int irq, void *_tps)
 {
 	struct tps65010		*tps = _tps;
 

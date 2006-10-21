@@ -116,7 +116,7 @@ static inline void writeq(unsigned long long v, void __iomem *addr)
 }
 #endif
 
-static irqreturn_t hpet_interrupt(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t hpet_interrupt(int irq, void *data)
 {
 	struct hpet_dev *devp;
 	unsigned long isr;

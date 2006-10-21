@@ -1,7 +1,6 @@
 #ifndef _COMPAT_SIGNAL_H
 #define _COMPAT_SIGNAL_H
 
-#include <linux/config.h>
 #include <linux/compat.h>
 #include <asm/signal.h>
 

@@ -22,11 +22,12 @@
 #include <sound/core.h>
 #include "pdaudiocf.h"
 #include <sound/initval.h>
+#include <asm/irq_regs.h>
 
 /*
  *
  */
-irqreturn_t pdacf_interrupt(int irq, void *dev, struct pt_regs *regs)
+irqreturn_t pdacf_interrupt(int irq, void *dev)
 {
 	struct snd_pdacf *chip = dev;
 	unsigned short stat;
@@ -45,7 +46,7 @@ irqreturn_t pdacf_interrupt(int irq, void *dev, struct pt_regs *regs)
 		if (!(stat & PDAUDIOCF_IRQAKM))
 			stat |= PDAUDIOCF_IRQAKM;	/* check rate */
 	}
-	if (regs != NULL)
+	if (get_irq_regs() != NULL)
 		snd_ak4117_check_rate_and_errors(chip->ak4117, 0);
 	return IRQ_HANDLED;
 }

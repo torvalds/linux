@@ -903,7 +903,7 @@ static void ipmi_register_watchdog(int ipmi_intf)
 
 #ifdef HAVE_NMI_HANDLER
 static int
-ipmi_nmi(void *dev_id, struct pt_regs *regs, int cpu, int handled)
+ipmi_nmi(void *dev_id, int cpu, int handled)
 {
         /* If we are not expecting a timeout, ignore it. */
 	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)

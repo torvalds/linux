@@ -104,7 +104,7 @@ struct twidjoy {
  * Twiddler. It updates the data accordingly.
  */
 
-static void twidjoy_process_packet(struct twidjoy *twidjoy, struct pt_regs *regs)
+static void twidjoy_process_packet(struct twidjoy *twidjoy)
 {
 	struct input_dev *dev = twidjoy->dev;
 	unsigned char *data = twidjoy->data;
@@ -112,8 +112,6 @@ static void twidjoy_process_packet(struct twidjoy *twidjoy, struct pt_regs *regs
 	int button_bits, abs_x, abs_y;
 
 	button_bits = ((data[1] & 0x7f) << 7) | (data[0] & 0x7f);
-
-	input_regs(dev, regs);
 
 	for (bp = twidjoy_buttons; bp->bitmask; bp++) {
 		int value = (button_bits & (bp->bitmask << bp->bitshift)) >> bp->bitshift;
@@ -141,7 +139,7 @@ static void twidjoy_process_packet(struct twidjoy *twidjoy, struct pt_regs *regs
  * packet processing routine.
  */
 
-static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, unsigned int flags, struct pt_regs *regs)
+static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, unsigned int flags)
 {
 	struct twidjoy *twidjoy = serio_get_drvdata(serio);
 
@@ -158,7 +156,7 @@ static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, un
 		twidjoy->data[twidjoy->idx++] = data;
 
 	if (twidjoy->idx == TWIDJOY_MAX_LENGTH) {
-		twidjoy_process_packet(twidjoy, regs);
+		twidjoy_process_packet(twidjoy);
 		twidjoy->idx = 0;
 	}
 

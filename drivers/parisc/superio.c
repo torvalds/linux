@@ -94,7 +94,7 @@ static struct superio_device sio_dev;
 #define PFX	SUPERIO ": "
 
 static irqreturn_t
-superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
+superio_interrupt(int parent_irq, void *devp)
 {
 	u8 results;
 	u8 local_irq;
@@ -138,7 +138,7 @@ superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 	}
 
 	/* Call the appropriate device's interrupt */
-	__do_IRQ(local_irq, regs);
+	__do_IRQ(local_irq);
 
 	/* set EOI - forces a new interrupt if a lower priority device
 	 * still needs service.

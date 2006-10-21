@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/config.h>	/* CONFIG_PROC_FS */
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
@@ -131,7 +130,7 @@ static struct board_type products[] = {
 static ctlr_info_t *hba[MAX_CTLR];
 
 static void do_cciss_request(request_queue_t *q);
-static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t do_cciss_intr(int irq, void *dev_id);
 static int cciss_open(struct inode *inode, struct file *filep);
 static int cciss_release(struct inode *inode, struct file *filep);
 static int cciss_ioctl(struct inode *inode, struct file *filep,
@@ -2301,7 +2300,7 @@ static int sendcmd(__u8 cmd, int ctlr, void *buff, size_t size, unsigned int use
 #ifdef CONFIG_CISS_SCSI_TAPE
 	/* if we saved some commands for later, process them now. */
 	if (info_p->scsi_rejects.ncompletions > 0)
-		do_cciss_intr(0, info_p, NULL);
+		do_cciss_intr(0, info_p);
 #endif
 	cmd_free(info_p, c, 1);
 	return status;
@@ -2653,7 +2652,7 @@ static inline long interrupt_not_for_us(ctlr_info_t *h)
 #endif
 }
 
-static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_cciss_intr(int irq, void *dev_id)
 {
 	ctlr_info_t *h = dev_id;
 	CommandList_struct *c;

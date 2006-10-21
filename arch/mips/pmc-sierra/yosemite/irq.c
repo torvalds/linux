@@ -56,15 +56,13 @@
 #define HYPERTRANSPORT_INTC     0x7a		/* INTC# */
 #define HYPERTRANSPORT_INTD     0x7b		/* INTD# */
 
-extern void jaguar_mailbox_irq(struct pt_regs *);
-
 /*
  * Handle hypertransport & SMP interrupts. The interrupt lines are scarce.
  * For interprocessor interrupts, the best thing to do is to use the INTMSG
  * register. We use the same external interrupt line, i.e. INTB3 and monitor
  * another status bit
  */
-asmlinkage void ll_ht_smp_irq_handler(int irq, struct pt_regs *regs)
+static void ll_ht_smp_irq_handler(int irq)
 {
 	u32 status = OCD_READ(RM9000x2_OCD_INTP0STATUS4);
 
@@ -107,50 +105,35 @@ asmlinkage void ll_ht_smp_irq_handler(int irq, struct pt_regs *regs)
 	}
 #endif /* CONFIG_HT_LEVEL_TRIGGER */
 
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
-asmlinkage void do_extended_irq(struct pt_regs *regs)
-{
-	unsigned int intcontrol = read_c0_intcontrol();
-	unsigned int cause = read_c0_cause();
-	unsigned int status = read_c0_status();
-	unsigned int pending_sr, pending_ic;
-
-	pending_sr = status & cause & 0xff00;
-	pending_ic = (cause >> 8) & intcontrol & 0xff00;
-
-	if (pending_ic & (1 << 13))
-		do_IRQ(13, regs);
-
-}
-
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int cause = read_c0_cause();
 	unsigned int status = read_c0_status();
 	unsigned int pending = cause & status;
 
 	if (pending & STATUSF_IP7) {
-		do_IRQ(7, regs);
+		do_IRQ(7);
 	} else if (pending & STATUSF_IP2) {
 #ifdef CONFIG_HYPERTRANSPORT
-		ll_ht_smp_irq_handler(2, regs);
+		ll_ht_smp_irq_handler(2);
 #else
-		do_IRQ(2, regs);
+		do_IRQ(2);
 #endif
 	} else if (pending & STATUSF_IP3) {
-		do_IRQ(3, regs);
+		do_IRQ(3);
 	} else if (pending & STATUSF_IP4) {
-		do_IRQ(4, regs);
+		do_IRQ(4);
 	} else if (pending & STATUSF_IP5) {
 #ifdef CONFIG_SMP
-		titan_mailbox_irq(regs);
+		titan_mailbox_irq();
 #else
-		do_IRQ(5, regs);
+		do_IRQ(5);
 #endif
 	} else if (pending & STATUSF_IP6) {
-		do_IRQ(4, regs);
+		do_IRQ(4);
 	}
 }
 
@@ -178,18 +161,3 @@ void __init arch_init_irq(void)
 	register_gdb_console();
 #endif
 }
-
-#ifdef CONFIG_KGDB
-/*
- * The 16550 DUART has two ports, but is allocated one IRQ
- * for the serial console. Hence, a generic framework for
- * serial IRQ routing in place. Currently, just calls the
- * do_IRQ fuction. But, going in the future, need to check
- * DUART registers for channel A and B, then decide the
- * appropriate action
- */
-asmlinkage void yosemite_kgdb_irq(int irq, struct pt_regs *regs)
-{
-	do_IRQ(irq, regs);
-}
-#endif

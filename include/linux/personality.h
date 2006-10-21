@@ -1,6 +1,8 @@
 #ifndef _LINUX_PERSONALITY_H
 #define _LINUX_PERSONALITY_H
 
+#ifdef __KERNEL__
+
 /*
  * Handling of different ABIs (personalities).
  */
@@ -11,6 +13,8 @@ struct pt_regs;
 extern int		register_exec_domain(struct exec_domain *);
 extern int		unregister_exec_domain(struct exec_domain *);
 extern int		__set_personality(unsigned long);
+
+#endif /* __KERNEL__ */
 
 /*
  * Flags for bug emulation.
@@ -71,6 +75,7 @@ enum {
 	PER_MASK =		0x00ff,
 };
 
+#ifdef __KERNEL__
 
 /*
  * Description of an execution domain.
@@ -110,5 +115,7 @@ struct exec_domain {
  */
 #define set_personality(pers) \
 	((current->personality == pers) ? 0 : __set_personality(pers))
+
+#endif /* __KERNEL__ */
 
 #endif /* _LINUX_PERSONALITY_H */

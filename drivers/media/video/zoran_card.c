@@ -1278,9 +1278,7 @@ find_zr36057 (void)
 
 	zoran_num = 0;
 	while (zoran_num < BUZ_MAX &&
-	       (dev =
-		pci_find_device(PCI_VENDOR_ID_ZORAN,
-				PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
+	       (dev = pci_get_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
 		card_num = card[zoran_num];
 		zr = &zoran[zoran_num];
 		memset(zr, 0, sizeof(struct zoran));	// Just in case if previous cycle failed
@@ -1541,7 +1539,8 @@ find_zr36057 (void)
 				goto zr_detach_vfe;
 			}
 		}
-
+		/* Success so keep the pci_dev referenced */
+		pci_dev_get(zr->pci_dev);
 		zoran_num++;
 		continue;
 
@@ -1563,6 +1562,9 @@ find_zr36057 (void)
 		iounmap(zr->zr36057_mem);
 		continue;
 	}
+	if (dev)	/* Clean up ref count on early exit */
+		pci_dev_put(dev);
+
 	if (zoran_num == 0) {
 		dprintk(1, KERN_INFO "No known MJPEG cards found.\n");
 	}

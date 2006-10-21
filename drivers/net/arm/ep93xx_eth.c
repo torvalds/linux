@@ -9,7 +9,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -436,7 +435,7 @@ static void ep93xx_tx_complete(struct net_device *dev)
 		netif_wake_queue(dev);
 }
 
-static irqreturn_t ep93xx_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct ep93xx_priv *ep = netdev_priv(dev);

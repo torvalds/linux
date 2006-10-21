@@ -182,14 +182,8 @@
 #include <linux/dma-mapping.h>
 
 #include <scsi/sg.h>
-
 #include "scsi.h"
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
-#include "hosts.h"
-#else
 #include <scsi/scsi_host.h>
-#endif
 
 #include "ips.h"
 
@@ -250,11 +244,11 @@ module_param(ips, charp, 0);
  */
 static int ips_detect(struct scsi_host_template *);
 static int ips_release(struct Scsi_Host *);
-static int ips_eh_abort(Scsi_Cmnd *);
-static int ips_eh_reset(Scsi_Cmnd *);
-static int ips_queue(Scsi_Cmnd *, void (*)(Scsi_Cmnd *));
+static int ips_eh_abort(struct scsi_cmnd *);
+static int ips_eh_reset(struct scsi_cmnd *);
+static int ips_queue(struct scsi_cmnd *, void (*)(struct scsi_cmnd *));
 static const char *ips_info(struct Scsi_Host *);
-static irqreturn_t do_ipsintr(int, void *, struct pt_regs *);
+static irqreturn_t do_ipsintr(int, void *);
 static int ips_hainit(ips_ha_t *);
 static int ips_map_status(ips_ha_t *, ips_scb_t *, ips_stat_t *);
 static int ips_send_wait(ips_ha_t *, ips_scb_t *, int, int);
@@ -325,24 +319,26 @@ static uint32_t ips_statupd_copperhead_memio(ips_ha_t *);
 static uint32_t ips_statupd_morpheus(ips_ha_t *);
 static ips_scb_t *ips_getscb(ips_ha_t *);
 static void ips_putq_scb_head(ips_scb_queue_t *, ips_scb_t *);
-static void ips_putq_wait_tail(ips_wait_queue_t *, Scsi_Cmnd *);
+static void ips_putq_wait_tail(ips_wait_queue_t *, struct scsi_cmnd *);
 static void ips_putq_copp_tail(ips_copp_queue_t *,
 				      ips_copp_wait_item_t *);
 static ips_scb_t *ips_removeq_scb_head(ips_scb_queue_t *);
 static ips_scb_t *ips_removeq_scb(ips_scb_queue_t *, ips_scb_t *);
-static Scsi_Cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
-static Scsi_Cmnd *ips_removeq_wait(ips_wait_queue_t *, Scsi_Cmnd *);
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *,
+					  struct scsi_cmnd *);
 static ips_copp_wait_item_t *ips_removeq_copp(ips_copp_queue_t *,
 						     ips_copp_wait_item_t *);
 static ips_copp_wait_item_t *ips_removeq_copp_head(ips_copp_queue_t *);
 
-static int ips_is_passthru(Scsi_Cmnd *);
-static int ips_make_passthru(ips_ha_t *, Scsi_Cmnd *, ips_scb_t *, int);
+static int ips_is_passthru(struct scsi_cmnd *);
+static int ips_make_passthru(ips_ha_t *, struct scsi_cmnd *, ips_scb_t *, int);
 static int ips_usrcmd(ips_ha_t *, ips_passthru_t *, ips_scb_t *);
 static void ips_cleanup_passthru(ips_ha_t *, ips_scb_t *);
-static void ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data,
+static void ips_scmd_buf_write(struct scsi_cmnd * scmd, void *data,
 			       unsigned int count);
-static void ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned int count);
+static void ips_scmd_buf_read(struct scsi_cmnd * scmd, void *data,
+			      unsigned int count);
 
 static int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 static int ips_host_info(ips_ha_t *, char *, off_t, int);
@@ -812,8 +808,7 @@ ips_halt(struct notifier_block *nb, ulong event, void *buf)
 /*   Abort a command (using the new error code stuff)                       */
 /* Note: this routine is called under the io_request_lock                   */
 /****************************************************************************/
-int
-ips_eh_abort(Scsi_Cmnd * SC)
+int ips_eh_abort(struct scsi_cmnd *SC)
 {
 	ips_ha_t *ha;
 	ips_copp_wait_item_t *item;
@@ -871,8 +866,7 @@ ips_eh_abort(Scsi_Cmnd * SC)
 /* NOTE: this routine is called under the io_request_lock spinlock          */
 /*                                                                          */
 /****************************************************************************/
-static int
-__ips_eh_reset(Scsi_Cmnd * SC)
+static int __ips_eh_reset(struct scsi_cmnd *SC)
 {
 	int ret;
 	int i;
@@ -968,7 +962,7 @@ __ips_eh_reset(Scsi_Cmnd * SC)
 	ret = (*ha->func.reset) (ha);
 
 	if (!ret) {
-		Scsi_Cmnd *scsi_cmd;
+		struct scsi_cmnd *scsi_cmd;
 
 		IPS_PRINTK(KERN_NOTICE, ha->pcidev,
 			   "Controller reset failed - controller now offline.\n");
@@ -997,7 +991,7 @@ __ips_eh_reset(Scsi_Cmnd * SC)
 	}
 
 	if (!ips_clear_adapter(ha, IPS_INTR_IORL)) {
-		Scsi_Cmnd *scsi_cmd;
+		struct scsi_cmnd *scsi_cmd;
 
 		IPS_PRINTK(KERN_NOTICE, ha->pcidev,
 			   "Controller reset failed - controller now offline.\n");
@@ -1059,8 +1053,7 @@ __ips_eh_reset(Scsi_Cmnd * SC)
 
 }
 
-static int
-ips_eh_reset(Scsi_Cmnd * SC)
+static int ips_eh_reset(struct scsi_cmnd *SC)
 {
 	int rc;
 
@@ -1083,8 +1076,7 @@ ips_eh_reset(Scsi_Cmnd * SC)
 /*    Linux obtains io_request_lock before calling this function            */
 /*                                                                          */
 /****************************************************************************/
-static int
-ips_queue(Scsi_Cmnd * SC, void (*done) (Scsi_Cmnd *))
+static int ips_queue(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *))
 {
 	ips_ha_t *ha;
 	ips_passthru_t *pt;
@@ -1336,7 +1328,7 @@ ips_slave_configure(struct scsi_device * SDptr)
 /*                                                                          */
 /****************************************************************************/
 static irqreturn_t
-do_ipsintr(int irq, void *dev_id, struct pt_regs * regs)
+do_ipsintr(int irq, void *dev_id)
 {
 	ips_ha_t *ha;
 	unsigned long cpu_flags;
@@ -1602,8 +1594,7 @@ ips_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 /*   Determine if the specified SCSI command is really a passthru command   */
 /*                                                                          */
 /****************************************************************************/
-static int
-ips_is_passthru(Scsi_Cmnd * SC)
+static int ips_is_passthru(struct scsi_cmnd *SC)
 {
 	unsigned long flags;
 
@@ -1685,7 +1676,7 @@ ips_alloc_passthru_buffer(ips_ha_t * ha, int length)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_make_passthru(ips_ha_t * ha, Scsi_Cmnd * SC, ips_scb_t * scb, int intr)
+ips_make_passthru(ips_ha_t *ha, struct scsi_cmnd *SC, ips_scb_t *scb, int intr)
 {
 	ips_passthru_t *pt;
 	int length = 0;
@@ -2734,9 +2725,9 @@ static void
 ips_next(ips_ha_t * ha, int intr)
 {
 	ips_scb_t *scb;
-	Scsi_Cmnd *SC;
-	Scsi_Cmnd *p;
-	Scsi_Cmnd *q;
+	struct scsi_cmnd *SC;
+	struct scsi_cmnd *p;
+	struct scsi_cmnd *q;
 	ips_copp_wait_item_t *item;
 	int ret;
 	unsigned long cpu_flags = 0;
@@ -2847,7 +2838,7 @@ ips_next(ips_ha_t * ha, int intr)
 			dcdb_active[scmd_channel(p) -
 				    1] & (1 << scmd_id(p)))) {
 			ips_freescb(ha, scb);
-			p = (Scsi_Cmnd *) p->host_scribble;
+			p = (struct scsi_cmnd *) p->host_scribble;
 			continue;
 		}
 
@@ -2962,7 +2953,7 @@ ips_next(ips_ha_t * ha, int intr)
 			break;
 		}		/* end case */
 
-		p = (Scsi_Cmnd *) p->host_scribble;
+		p = (struct scsi_cmnd *) p->host_scribble;
 
 	}			/* end while */
 
@@ -3090,8 +3081,7 @@ ips_removeq_scb(ips_scb_queue_t * queue, ips_scb_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static void
-ips_putq_wait_tail(ips_wait_queue_t * queue, Scsi_Cmnd * item)
+static void ips_putq_wait_tail(ips_wait_queue_t *queue, struct scsi_cmnd *item)
 {
 	METHOD_TRACE("ips_putq_wait_tail", 1);
 
@@ -3122,10 +3112,9 @@ ips_putq_wait_tail(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static Scsi_Cmnd *
-ips_removeq_wait_head(ips_wait_queue_t * queue)
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *queue)
 {
-	Scsi_Cmnd *item;
+	struct scsi_cmnd *item;
 
 	METHOD_TRACE("ips_removeq_wait_head", 1);
 
@@ -3135,7 +3124,7 @@ ips_removeq_wait_head(ips_wait_queue_t * queue)
 		return (NULL);
 	}
 
-	queue->head = (Scsi_Cmnd *) item->host_scribble;
+	queue->head = (struct scsi_cmnd *) item->host_scribble;
 	item->host_scribble = NULL;
 
 	if (queue->tail == item)
@@ -3157,10 +3146,10 @@ ips_removeq_wait_head(ips_wait_queue_t * queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static Scsi_Cmnd *
-ips_removeq_wait(ips_wait_queue_t * queue, Scsi_Cmnd * item)
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *queue,
+					  struct scsi_cmnd *item)
 {
-	Scsi_Cmnd *p;
+	struct scsi_cmnd *p;
 
 	METHOD_TRACE("ips_removeq_wait", 1);
 
@@ -3173,8 +3162,8 @@ ips_removeq_wait(ips_wait_queue_t * queue, Scsi_Cmnd * item)
 
 	p = queue->head;
 
-	while ((p) && (item != (Scsi_Cmnd *) p->host_scribble))
-		p = (Scsi_Cmnd *) p->host_scribble;
+	while ((p) && (item != (struct scsi_cmnd *) p->host_scribble))
+		p = (struct scsi_cmnd *) p->host_scribble;
 
 	if (p) {
 		/* found a match */
@@ -3659,11 +3648,10 @@ ips_send_wait(ips_ha_t * ha, ips_scb_t * scb, int timeout, int intr)
 /* Routine Name: ips_scmd_buf_write                                         */
 /*                                                                          */
 /* Routine Description:                                                     */
-/*  Write data to Scsi_Cmnd request_buffer at proper offsets                */
+/*  Write data to struct scsi_cmnd request_buffer at proper offsets	    */
 /****************************************************************************/
 static void
-ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data, unsigned
-		   int count)
+ips_scmd_buf_write(struct scsi_cmnd *scmd, void *data, unsigned int count)
 {
 	if (scmd->use_sg) {
 		int i;
@@ -3698,11 +3686,10 @@ ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data, unsigned
 /* Routine Name: ips_scmd_buf_read                                          */
 /*                                                                          */
 /* Routine Description:                                                     */
-/*  Copy data from a Scsi_Cmnd to a new, linear buffer                      */
+/*  Copy data from a struct scsi_cmnd to a new, linear buffer		    */
 /****************************************************************************/
 static void
-ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned
-		  int count)
+ips_scmd_buf_read(struct scsi_cmnd *scmd, void *data, unsigned int count)
 {
 	if (scmd->use_sg) {
 		int i;
@@ -7078,7 +7065,7 @@ ips_remove_device(struct pci_dev *pci_dev)
 static int __init
 ips_module_init(void)
 {
-	if (pci_module_init(&ips_pci_driver) < 0)
+	if (pci_register_driver(&ips_pci_driver) < 0)
 		return -ENODEV;
 	ips_driver_template.module = THIS_MODULE;
 	ips_order_controllers();

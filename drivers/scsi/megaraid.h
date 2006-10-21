@@ -991,8 +991,8 @@ static scb_t * mega_build_cmd(adapter_t *, Scsi_Cmnd *, int *);
 static void __mega_runpendq(adapter_t *);
 static int issue_scb_block(adapter_t *, u_char *);
 
-static irqreturn_t megaraid_isr_memmapped(int, void *, struct pt_regs *);
-static irqreturn_t megaraid_isr_iomapped(int, void *, struct pt_regs *);
+static irqreturn_t megaraid_isr_memmapped(int, void *);
+static irqreturn_t megaraid_isr_iomapped(int, void *);
 
 static void mega_free_scb(adapter_t *, scb_t *);
 

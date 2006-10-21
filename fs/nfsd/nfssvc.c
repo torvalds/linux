@@ -198,9 +198,26 @@ int nfsd_create_serv(void)
 		unlock_kernel();
 		return 0;
 	}
+	if (nfsd_max_blksize == 0) {
+		/* choose a suitable default */
+		struct sysinfo i;
+		si_meminfo(&i);
+		/* Aim for 1/4096 of memory per thread
+		 * This gives 1MB on 4Gig machines
+		 * But only uses 32K on 128M machines.
+		 * Bottom out at 8K on 32M and smaller.
+		 * Of course, this is only a default.
+		 */
+		nfsd_max_blksize = NFSSVC_MAXBLKSIZE;
+		i.totalram <<= PAGE_SHIFT - 12;
+		while (nfsd_max_blksize > i.totalram &&
+		       nfsd_max_blksize >= 8*1024*2)
+			nfsd_max_blksize /= 2;
+	}
 
 	atomic_set(&nfsd_busy, 0);
-	nfsd_serv = svc_create_pooled(&nfsd_program, NFSD_BUFSIZE,
+	nfsd_serv = svc_create_pooled(&nfsd_program,
+				      nfsd_max_blksize,
 				      nfsd_last_thread,
 				      nfsd, SIG_NOCLEAN, THIS_MODULE);
 	if (nfsd_serv == NULL)
@@ -474,12 +491,12 @@ out:
 }
 
 int
-nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
+nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 {
 	struct svc_procedure	*proc;
 	kxdrproc_t		xdr;
-	u32			nfserr;
-	u32			*nfserrp;
+	__be32			nfserr;
+	__be32			*nfserrp;
 
 	dprintk("nfsd_dispatch: vers %d proc %d\n",
 				rqstp->rq_vers, rqstp->rq_proc);
@@ -498,7 +515,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 
 	/* Decode arguments */
 	xdr = proc->pc_decode;
-	if (xdr && !xdr(rqstp, (u32*)rqstp->rq_arg.head[0].iov_base,
+	if (xdr && !xdr(rqstp, (__be32*)rqstp->rq_arg.head[0].iov_base,
 			rqstp->rq_argp)) {
 		dprintk("nfsd: failed to decode arguments!\n");
 		nfsd_cache_update(rqstp, RC_NOCACHE, NULL);
@@ -511,7 +528,7 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 	 */
 	nfserrp = rqstp->rq_res.head[0].iov_base
 		+ rqstp->rq_res.head[0].iov_len;
-	rqstp->rq_res.head[0].iov_len += sizeof(u32);
+	rqstp->rq_res.head[0].iov_len += sizeof(__be32);
 
 	/* Now call the procedure handler, and encode NFS status. */
 	nfserr = proc->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);

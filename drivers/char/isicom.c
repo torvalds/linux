@@ -546,7 +546,7 @@ static void isicom_bottomhalf(void *data)
  *	Main interrupt handler routine
  */
 
-static irqreturn_t isicom_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 {
 	struct isi_board *card = dev_id;
 	struct isi_port *port;

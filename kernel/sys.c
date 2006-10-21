@@ -153,7 +153,7 @@ static int __kprobes notifier_call_chain(struct notifier_block **nl,
 
 /*
  *	Atomic notifier chain routines.  Registration and unregistration
- *	use a mutex, and call_chain is synchronized by RCU (no locks).
+ *	use a spinlock, and call_chain is synchronized by RCU (no locks).
  */
 
 /**
@@ -400,6 +400,129 @@ int raw_notifier_call_chain(struct raw_notifier_head *nh,
 }
 
 EXPORT_SYMBOL_GPL(raw_notifier_call_chain);
+
+/*
+ *	SRCU notifier chain routines.    Registration and unregistration
+ *	use a mutex, and call_chain is synchronized by SRCU (no locks).
+ */
+
+/**
+ *	srcu_notifier_chain_register - Add notifier to an SRCU notifier chain
+ *	@nh: Pointer to head of the SRCU notifier chain
+ *	@n: New entry in notifier chain
+ *
+ *	Adds a notifier to an SRCU notifier chain.
+ *	Must be called in process context.
+ *
+ *	Currently always returns zero.
+ */
+
+int srcu_notifier_chain_register(struct srcu_notifier_head *nh,
+		struct notifier_block *n)
+{
+	int ret;
+
+	/*
+	 * This code gets used during boot-up, when task switching is
+	 * not yet working and interrupts must remain disabled.  At
+	 * such times we must not call mutex_lock().
+	 */
+	if (unlikely(system_state == SYSTEM_BOOTING))
+		return notifier_chain_register(&nh->head, n);
+
+	mutex_lock(&nh->mutex);
+	ret = notifier_chain_register(&nh->head, n);
+	mutex_unlock(&nh->mutex);
+	return ret;
+}
+
+EXPORT_SYMBOL_GPL(srcu_notifier_chain_register);
+
+/**
+ *	srcu_notifier_chain_unregister - Remove notifier from an SRCU notifier chain
+ *	@nh: Pointer to head of the SRCU notifier chain
+ *	@n: Entry to remove from notifier chain
+ *
+ *	Removes a notifier from an SRCU notifier chain.
+ *	Must be called from process context.
+ *
+ *	Returns zero on success or %-ENOENT on failure.
+ */
+int srcu_notifier_chain_unregister(struct srcu_notifier_head *nh,
+		struct notifier_block *n)
+{
+	int ret;
+
+	/*
+	 * This code gets used during boot-up, when task switching is
+	 * not yet working and interrupts must remain disabled.  At
+	 * such times we must not call mutex_lock().
+	 */
+	if (unlikely(system_state == SYSTEM_BOOTING))
+		return notifier_chain_unregister(&nh->head, n);
+
+	mutex_lock(&nh->mutex);
+	ret = notifier_chain_unregister(&nh->head, n);
+	mutex_unlock(&nh->mutex);
+	synchronize_srcu(&nh->srcu);
+	return ret;
+}
+
+EXPORT_SYMBOL_GPL(srcu_notifier_chain_unregister);
+
+/**
+ *	srcu_notifier_call_chain - Call functions in an SRCU notifier chain
+ *	@nh: Pointer to head of the SRCU notifier chain
+ *	@val: Value passed unmodified to notifier function
+ *	@v: Pointer passed unmodified to notifier function
+ *
+ *	Calls each function in a notifier chain in turn.  The functions
+ *	run in a process context, so they are allowed to block.
+ *
+ *	If the return value of the notifier can be and'ed
+ *	with %NOTIFY_STOP_MASK then srcu_notifier_call_chain
+ *	will return immediately, with the return value of
+ *	the notifier function which halted execution.
+ *	Otherwise the return value is the return value
+ *	of the last notifier function called.
+ */
+
+int srcu_notifier_call_chain(struct srcu_notifier_head *nh,
+		unsigned long val, void *v)
+{
+	int ret;
+	int idx;
+
+	idx = srcu_read_lock(&nh->srcu);
+	ret = notifier_call_chain(&nh->head, val, v);
+	srcu_read_unlock(&nh->srcu, idx);
+	return ret;
+}
+
+EXPORT_SYMBOL_GPL(srcu_notifier_call_chain);
+
+/**
+ *	srcu_init_notifier_head - Initialize an SRCU notifier head
+ *	@nh: Pointer to head of the srcu notifier chain
+ *
+ *	Unlike other sorts of notifier heads, SRCU notifier heads require
+ *	dynamic initialization.  Be sure to call this routine before
+ *	calling any of the other SRCU notifier routines for this head.
+ *
+ *	If an SRCU notifier head is deallocated, it must first be cleaned
+ *	up by calling srcu_cleanup_notifier_head().  Otherwise the head's
+ *	per-cpu data (used by the SRCU mechanism) will leak.
+ */
+
+void srcu_init_notifier_head(struct srcu_notifier_head *nh)
+{
+	mutex_init(&nh->mutex);
+	if (init_srcu_struct(&nh->srcu) < 0)
+		BUG();
+	nh->head = NULL;
+}
+
+EXPORT_SYMBOL_GPL(srcu_init_notifier_head);
 
 /**
  *	register_reboot_notifier - Register function to be called at reboot time

@@ -111,12 +111,7 @@ static void pl010_enable_ms(struct uart_port *port)
 	writel(cr, port->membase + UART010_CR);
 }
 
-static void
-#ifdef SUPPORT_SYSRQ
-pl010_rx_chars(struct uart_port *port, struct pt_regs *regs)
-#else
-pl010_rx_chars(struct uart_port *port)
-#endif
+static void pl010_rx_chars(struct uart_port *port)
 {
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flag, rsr, max_count = 256;
@@ -156,7 +151,7 @@ pl010_rx_chars(struct uart_port *port)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(port, ch, regs))
+		if (uart_handle_sysrq_char(port, ch))
 			goto ignore_char;
 
 		uart_insert_char(port, rsr, UART01x_RSR_OE, ch, flag);
@@ -227,7 +222,7 @@ static void pl010_modem_status(struct uart_port *port)
 	wake_up_interruptible(&uap->port.info->delta_msr_wait);
 }
 
-static irqreturn_t pl010_int(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t pl010_int(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
@@ -239,11 +234,7 @@ static irqreturn_t pl010_int(int irq, void *dev_id, struct pt_regs *regs)
 	if (status) {
 		do {
 			if (status & (UART010_IIR_RTIS | UART010_IIR_RIS))
-#ifdef SUPPORT_SYSRQ
-				pl010_rx_chars(port, regs);
-#else
 				pl010_rx_chars(port);
-#endif
 			if (status & UART010_IIR_MIS)
 				pl010_modem_status(port);
 			if (status & UART010_IIR_TIS)

@@ -45,10 +45,6 @@ extern int
 toshibaboards_setup_irq(int irq, struct irqaction * new);
 
 
-#ifdef CONFIG_TX_BRANCH_LIKELY_BUG_WORKAROUND
-extern void tx_branch_likely_bug_fixup(struct pt_regs *regs);
-#endif
-
 extern int (*toshibaboards_gen_iack)(void);
 
 #endif /* !__ASSEMBLY__ */

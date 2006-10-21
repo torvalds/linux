@@ -282,7 +282,10 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	serv->sv_program   = prog;
 	serv->sv_nrthreads = 1;
 	serv->sv_stats     = prog->pg_stats;
-	serv->sv_bufsz	   = bufsize? bufsize : 4096;
+	if (bufsize > RPCSVC_MAXPAYLOAD)
+		bufsize = RPCSVC_MAXPAYLOAD;
+	serv->sv_max_payload = bufsize? bufsize : 4096;
+	serv->sv_max_mesg  = roundup(serv->sv_max_payload + PAGE_SIZE, PAGE_SIZE);
 	serv->sv_shutdown  = shutdown;
 	xdrsize = 0;
 	while (prog) {
@@ -414,21 +417,18 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 	int pages;
 	int arghi;
 	
-	if (size > RPCSVC_MAXPAYLOAD)
-		size = RPCSVC_MAXPAYLOAD;
-	pages = 2 + (size+ PAGE_SIZE -1) / PAGE_SIZE;
-	rqstp->rq_argused = 0;
-	rqstp->rq_resused = 0;
+	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
+				       * We assume one is at most one page
+				       */
 	arghi = 0;
 	BUG_ON(pages > RPCSVC_MAXPAGES);
 	while (pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p)
 			break;
-		rqstp->rq_argpages[arghi++] = p;
+		rqstp->rq_pages[arghi++] = p;
 		pages--;
 	}
-	rqstp->rq_arghi = arghi;
 	return ! pages;
 }
 
@@ -438,14 +438,10 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 static void
 svc_release_buffer(struct svc_rqst *rqstp)
 {
-	while (rqstp->rq_arghi)
-		put_page(rqstp->rq_argpages[--rqstp->rq_arghi]);
-	while (rqstp->rq_resused) {
-		if (rqstp->rq_respages[--rqstp->rq_resused] == NULL)
-			continue;
-		put_page(rqstp->rq_respages[rqstp->rq_resused]);
-	}
-	rqstp->rq_argused = 0;
+	int i;
+	for (i=0; i<ARRAY_SIZE(rqstp->rq_pages); i++)
+		if (rqstp->rq_pages[i])
+			put_page(rqstp->rq_pages[i]);
 }
 
 /*
@@ -470,7 +466,7 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 
 	if (!(rqstp->rq_argp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
 	 || !(rqstp->rq_resp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
-	 || !svc_init_buffer(rqstp, serv->sv_bufsz))
+	 || !svc_init_buffer(rqstp, serv->sv_max_mesg))
 		goto out_thread;
 
 	serv->sv_nrthreads++;
@@ -651,23 +647,32 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 	unsigned long		flags;
 	int			i, error = 0, dummy;
 
-	progp = serv->sv_program;
-
-	dprintk("RPC: svc_register(%s, %s, %d)\n",
-		progp->pg_name, proto == IPPROTO_UDP? "udp" : "tcp", port);
-
 	if (!port)
 		clear_thread_flag(TIF_SIGPENDING);
 
-	for (i = 0; i < progp->pg_nvers; i++) {
-		if (progp->pg_vers[i] == NULL)
-			continue;
-		error = rpc_register(progp->pg_prog, i, proto, port, &dummy);
-		if (error < 0)
-			break;
-		if (port && !dummy) {
-			error = -EACCES;
-			break;
+	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
+		for (i = 0; i < progp->pg_nvers; i++) {
+			if (progp->pg_vers[i] == NULL)
+				continue;
+
+			dprintk("RPC: svc_register(%s, %s, %d, %d)%s\n",
+					progp->pg_name,
+					proto == IPPROTO_UDP?  "udp" : "tcp",
+					port,
+					i,
+					progp->pg_vers[i]->vs_hidden?
+						" (but not telling portmap)" : "");
+
+			if (progp->pg_vers[i]->vs_hidden)
+				continue;
+
+			error = rpc_register(progp->pg_prog, i, proto, port, &dummy);
+			if (error < 0)
+				break;
+			if (port && !dummy) {
+				error = -EACCES;
+				break;
+			}
 		}
 	}
 
@@ -697,7 +702,7 @@ svc_process(struct svc_rqst *rqstp)
 	u32			dir, prog, vers, proc;
 	__be32			auth_stat, rpc_stat;
 	int			auth_res;
-	__be32			*accept_statp;
+	__be32			*reply_statp;
 
 	rpc_stat = rpc_success;
 
@@ -707,10 +712,10 @@ svc_process(struct svc_rqst *rqstp)
 	/* setup response xdr_buf.
 	 * Initially it has just one page 
 	 */
-	svc_take_page(rqstp); /* must succeed */
+	rqstp->rq_resused = 1;
 	resv->iov_base = page_address(rqstp->rq_respages[0]);
 	resv->iov_len = 0;
-	rqstp->rq_res.pages = rqstp->rq_respages+1;
+	rqstp->rq_res.pages = rqstp->rq_respages + 1;
 	rqstp->rq_res.len = 0;
 	rqstp->rq_res.page_base = 0;
 	rqstp->rq_res.page_len = 0;
@@ -738,7 +743,7 @@ svc_process(struct svc_rqst *rqstp)
 		goto err_bad_rpc;
 
 	/* Save position in case we later decide to reject: */
-	accept_statp = resv->iov_base + resv->iov_len;
+	reply_statp = resv->iov_base + resv->iov_len;
 
 	svc_putnl(resv, 0);		/* ACCEPT */
 
@@ -823,6 +828,11 @@ svc_process(struct svc_rqst *rqstp)
 		*statp = procp->pc_func(rqstp, rqstp->rq_argp, rqstp->rq_resp);
 
 		/* Encode reply */
+		if (*statp == rpc_drop_reply) {
+			if (procp->pc_release)
+				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
+			goto dropit;
+		}
 		if (*statp == rpc_success && (xdr = procp->pc_encode)
 		 && !xdr(rqstp, resv->iov_base+resv->iov_len, rqstp->rq_resp)) {
 			dprintk("svc: failed to encode reply\n");
@@ -886,7 +896,7 @@ err_bad_auth:
 	dprintk("svc: authentication failed (%d)\n", ntohl(auth_stat));
 	serv->sv_stats->rpcbadauth++;
 	/* Restore write pointer to location of accept status: */
-	xdr_ressize_check(rqstp, accept_statp);
+	xdr_ressize_check(rqstp, reply_statp);
 	svc_putnl(resv, 1);	/* REJECT */
 	svc_putnl(resv, 1);	/* AUTH_ERROR */
 	svc_putnl(resv, ntohl(auth_stat));	/* status */
@@ -926,3 +936,18 @@ err_bad:
 	svc_putnl(resv, ntohl(rpc_stat));
 	goto sendit;
 }
+
+/*
+ * Return (transport-specific) limit on the rpc payload.
+ */
+u32 svc_max_payload(const struct svc_rqst *rqstp)
+{
+	int max = RPCSVC_MAXPAYLOAD_TCP;
+
+	if (rqstp->rq_sock->sk_sock->type == SOCK_DGRAM)
+		max = RPCSVC_MAXPAYLOAD_UDP;
+	if (rqstp->rq_server->sv_max_payload < max)
+		max = rqstp->rq_server->sv_max_payload;
+	return max;
+}
+EXPORT_SYMBOL_GPL(svc_max_payload);

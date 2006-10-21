@@ -72,7 +72,7 @@ extern int show_mac_interrupts(struct seq_file *, void *);
 extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
-extern void via_init_clock(irqreturn_t (*func)(int, void *, struct pt_regs *));
+extern void via_init_clock(irq_handler_t func);
 extern void via_flush_cache(void);
 extern void oss_init(void);
 extern void psc_init(void);
@@ -88,7 +88,7 @@ extern void mac_debugging_long(int, long);
 
 static void mac_get_model(char *str);
 
-static void mac_sched_init(irqreturn_t (*vector)(int, void *, struct pt_regs *))
+static void mac_sched_init(irq_handler_t vector)
 {
 	via_init_clock(vector);
 }

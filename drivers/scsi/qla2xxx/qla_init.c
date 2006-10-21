@@ -1644,7 +1644,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	 * Set host adapter parameters.
 	 */
 	if (nv->host_p[0] & BIT_7)
-		extended_error_logging = 1;
+		qla2_extended_error_logging = 1;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
@@ -2074,6 +2074,19 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 			new_fcport->flags &= ~FCF_FABRIC_DEVICE;
 		}
 
+		/* Base iIDMA settings on HBA port speed. */
+		switch (ha->link_data_rate) {
+		case PORT_SPEED_1GB:
+			fcport->fp_speed = cpu_to_be16(BIT_15);
+			break;
+		case PORT_SPEED_2GB:
+			fcport->fp_speed = cpu_to_be16(BIT_14);
+			break;
+		case PORT_SPEED_4GB:
+			fcport->fp_speed = cpu_to_be16(BIT_13);
+			break;
+		}
+
 		qla2x00_update_fcport(ha, fcport);
 
 		found_devs++;
@@ -2109,6 +2122,62 @@ qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
 	}
 }
 
+static void
+qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
+{
+#define LS_UNKNOWN      2
+	static char *link_speeds[5] = { "1", "2", "?", "4" };
+	int rval;
+	uint16_t port_speed, mb[6];
+
+	if (!IS_QLA24XX(ha))
+		return;
+
+	switch (be16_to_cpu(fcport->fp_speed)) {
+	case BIT_15:
+		port_speed = PORT_SPEED_1GB;
+		break;
+	case BIT_14:
+		port_speed = PORT_SPEED_2GB;
+		break;
+	case BIT_13:
+		port_speed = PORT_SPEED_4GB;
+		break;
+	default:
+		DEBUG2(printk("scsi(%ld): %02x%02x%02x%02x%02x%02x%02x%02x -- "
+		    "unsupported FM port operating speed (%04x).\n",
+		    ha->host_no, fcport->port_name[0], fcport->port_name[1],
+		    fcport->port_name[2], fcport->port_name[3],
+		    fcport->port_name[4], fcport->port_name[5],
+		    fcport->port_name[6], fcport->port_name[7],
+		    be16_to_cpu(fcport->fp_speed)));
+		port_speed = PORT_SPEED_UNKNOWN;
+		break;
+	}
+	if (port_speed == PORT_SPEED_UNKNOWN)
+		return;
+
+	rval = qla2x00_set_idma_speed(ha, fcport->loop_id, port_speed, mb);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(printk("scsi(%ld): Unable to adjust iIDMA "
+		    "%02x%02x%02x%02x%02x%02x%02x%02x -- %04x %x %04x %04x.\n",
+		    ha->host_no, fcport->port_name[0], fcport->port_name[1],
+		    fcport->port_name[2], fcport->port_name[3],
+		    fcport->port_name[4], fcport->port_name[5],
+		    fcport->port_name[6], fcport->port_name[7], rval,
+		    port_speed, mb[0], mb[1]));
+	} else {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "iIDMA adjusted to %s GB/s on "
+		    "%02x%02x%02x%02x%02x%02x%02x%02x.\n",
+		    link_speeds[port_speed], fcport->port_name[0],
+		    fcport->port_name[1], fcport->port_name[2],
+		    fcport->port_name[3], fcport->port_name[4],
+		    fcport->port_name[5], fcport->port_name[6],
+		    fcport->port_name[7]));
+	}
+}
+
 /*
  * qla2x00_update_fcport
  *	Updates device on list.
@@ -2134,6 +2203,8 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
+
+	qla2x00_iidma_fcport(ha, fcport);
 
 	atomic_set(&fcport->state, FCS_ONLINE);
 
@@ -2209,7 +2280,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		loop_id = NPH_F_PORT;
 	else
 		loop_id = SNS_FL_PORT;
-	rval = qla2x00_get_port_name(ha, loop_id, NULL, 0);
+	rval = qla2x00_get_port_name(ha, loop_id, ha->fabric_node_name, 1);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): MBC_GET_PORT_NAME Failed, No FL "
 		    "Port\n", ha->host_no));
@@ -2217,6 +2288,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 		ha->device_flags &= ~SWITCH_FOUND;
 		return (QLA_SUCCESS);
 	}
+	ha->device_flags |= SWITCH_FOUND;
 
 	/* Mark devices that need re-synchronization. */
 	rval2 = qla2x00_device_resync(ha);
@@ -2416,6 +2488,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		} else if (qla2x00_gnn_id(ha, swl) != QLA_SUCCESS) {
 			kfree(swl);
 			swl = NULL;
+		} else if (qla2x00_gfpn_id(ha, swl) == QLA_SUCCESS) {
+			qla2x00_gpsc(ha, swl);
 		}
 	}
 	swl_idx = 0;
@@ -2450,6 +2524,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 				    swl[swl_idx].node_name, WWN_SIZE);
 				memcpy(new_fcport->port_name,
 				    swl[swl_idx].port_name, WWN_SIZE);
+				memcpy(new_fcport->fabric_port_name,
+				    swl[swl_idx].fabric_port_name, WWN_SIZE);
+				new_fcport->fp_speed = swl[swl_idx].fp_speed;
 
 				if (swl[swl_idx].d_id.b.rsvd_1 != 0) {
 					last_dev = 1;
@@ -2506,6 +2583,11 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 				continue;
 
 			found++;
+
+			/* Update port state. */
+			memcpy(fcport->fabric_port_name,
+			    new_fcport->fabric_port_name, WWN_SIZE);
+			fcport->fp_speed = new_fcport->fp_speed;
 
 			/*
 			 * If address the same and state FCS_ONLINE, nothing

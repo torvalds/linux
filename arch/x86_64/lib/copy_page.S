@@ -1,6 +1,5 @@
 /* Written 2003 by Andi Kleen, based on a kernel by Evandro Menezes */
-	
-#include <linux/config.h>
+
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 

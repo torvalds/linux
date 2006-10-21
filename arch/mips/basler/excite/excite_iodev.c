@@ -38,7 +38,7 @@ static int iodev_open(struct inode *, struct file *);
 static int iodev_release(struct inode *, struct file *);
 static ssize_t iodev_read(struct file *, char __user *, size_t s, loff_t *);
 static unsigned int iodev_poll(struct file *, struct poll_table_struct *);
-static irqreturn_t iodev_irqhdl(int, void *, struct pt_regs *);
+static irqreturn_t iodev_irqhdl(int, void *);
 
 
 
@@ -108,15 +108,11 @@ static int __exit iodev_remove(struct device *dev)
 	return misc_deregister(&miscdev);
 }
 
-
-
 static int iodev_open(struct inode *i, struct file *f)
 {
 	return request_irq(iodev_irq, iodev_irqhdl, IRQF_DISABLED,
 			   iodev_name, &miscdev);
 }
-
-
 
 static int iodev_release(struct inode *i, struct file *f)
 {
@@ -148,16 +144,12 @@ static unsigned int iodev_poll(struct file *f, struct poll_table_struct *p)
 	return POLLOUT | POLLWRNORM;
 }
 
-
-
-
-static irqreturn_t iodev_irqhdl(int irq, void *ctxt, struct pt_regs *regs)
+static irqreturn_t iodev_irqhdl(int irq, void *ctxt)
 {
 	wake_up(&wq);
+
 	return IRQ_HANDLED;
 }
-
-
 
 static int __init iodev_init_module(void)
 {

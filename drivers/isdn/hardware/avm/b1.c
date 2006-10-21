@@ -485,7 +485,7 @@ void b1_parse_version(avmctrl_info *cinfo)
 
 /* ------------------------------------------------------------- */
 
-irqreturn_t b1_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+irqreturn_t b1_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 	avmctrl_info *cinfo = &card->ctrlinfo[0];

@@ -237,7 +237,7 @@ static int lance_probe( struct net_device *dev);
 static int lance_open( struct net_device *dev );
 static void lance_init_ring( struct net_device *dev );
 static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev );
-static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp );
+static irqreturn_t lance_interrupt( int irq, void *dev_id);
 static int lance_rx( struct net_device *dev );
 static int lance_close( struct net_device *dev );
 static struct net_device_stats *lance_get_stats( struct net_device *dev );
@@ -286,7 +286,7 @@ struct net_device * __init sun3lance_probe(int unit)
 
 out1:
 #ifdef CONFIG_SUN3
-	iounmap((void *)dev->base_addr);
+	iounmap((void __iomem *)dev->base_addr);
 #endif
 out:
 	free_netdev(dev);
@@ -326,7 +326,7 @@ static int __init lance_probe( struct net_device *dev)
 		ioaddr_probe[1] = tmp2;
 
 #ifdef CONFIG_SUN3
-		iounmap((void *)ioaddr);
+		iounmap((void __iomem *)ioaddr);
 #endif
 		return 0;
 	}
@@ -642,7 +642,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 /* The LANCE interrupt handler. */
 
-static irqreturn_t lance_interrupt( int irq, void *dev_id, struct pt_regs *fp)
+static irqreturn_t lance_interrupt( int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct lance_private *lp = netdev_priv(dev);
@@ -956,7 +956,7 @@ void cleanup_module(void)
 {
 	unregister_netdev(sun3lance_dev);
 #ifdef CONFIG_SUN3
-	iounmap((void *)sun3lance_dev->base_addr);
+	iounmap((void __iomem *)sun3lance_dev->base_addr);
 #endif
 	free_netdev(sun3lance_dev);
 }

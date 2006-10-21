@@ -987,10 +987,9 @@ intr_connect(struct ioc4_soft *soft, int type,
  * ioc4_intr - Top level IOC4 interrupt handler.
  * @irq: irq value
  * @arg: handler arg
- * @regs: registers
  */
 
-static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t ioc4_intr(int irq, void *arg)
 {
 	struct ioc4_soft *soft;
 	uint32_t this_ir, this_mir;
@@ -2936,7 +2935,7 @@ static void __devexit ioc4_serial_exit(void)
 	uart_unregister_driver(&ioc4_uart_rs422);
 }
 
-module_init(ioc4_serial_init);
+late_initcall(ioc4_serial_init); /* Call only after tty init is done */
 module_exit(ioc4_serial_exit);
 
 MODULE_AUTHOR("Pat Gefre - Silicon Graphics Inc. (SGI) <pfg@sgi.com>");

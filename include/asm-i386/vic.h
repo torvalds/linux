@@ -58,4 +58,4 @@ static const int VIC_CPI_Registers[] =
 
 #define VIC_BOOT_INTERRUPT_MASK		0xfe
 
-extern void smp_vic_timer_interrupt(struct pt_regs *regs);
+extern void smp_vic_timer_interrupt(void);

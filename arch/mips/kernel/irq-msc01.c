@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2004 MIPS Inc
- * Author: chris@mips.com
- *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
+ *
+ * Copyright (c) 2004 MIPS Inc
+ * Author: chris@mips.com
+ *
+ * Copyright (C) 2004, 06 Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <asm/io.h>
@@ -115,14 +116,14 @@ static void end_msc_irq(unsigned int irq)
 /*
  * Interrupt handler for interrupts coming from SOC-it.
  */
-void ll_msc_irq(struct pt_regs *regs)
+void ll_msc_irq(void)
 {
  	unsigned int irq;
 
 	/* read the interrupt vector register */
 	MSCIC_READ(MSC01_IC_VEC, irq);
 	if (irq < 64)
-		do_IRQ(irq + irq_base, regs);
+		do_IRQ(irq + irq_base);
 	else {
 		/* Ignore spurious interrupt */
 	}

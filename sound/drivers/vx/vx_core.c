@@ -537,7 +537,7 @@ static void vx_interrupt(unsigned long private_data)
 /**
  * snd_vx_irq_handler - interrupt handler
  */
-irqreturn_t snd_vx_irq_handler(int irq, void *dev, struct pt_regs *regs)
+irqreturn_t snd_vx_irq_handler(int irq, void *dev)
 {
 	struct vx_core *chip = dev;
 

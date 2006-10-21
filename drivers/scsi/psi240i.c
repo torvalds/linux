@@ -247,12 +247,11 @@ static ULONG DecodeError (struct Scsi_Host *pshost, UCHAR status)
  *
  *	Parameters:		irq		- Hardware IRQ number.
  *					dev_id	-
- *					regs	-
  *
  *	Returns:		TRUE if drive is not ready in time.
  *
  ****************************************************************/
-static void Irq_Handler (int irq, void *dev_id, struct pt_regs *regs)
+static void Irq_Handler (int irq, void *dev_id)
 	{
 	struct Scsi_Host   *shost;			// Pointer to host data block
 	PADAPTER240I		padapter;		// Pointer to adapter control structure
@@ -368,13 +367,13 @@ irqerror:;
 	SCpnt->scsi_done (SCpnt);
 	}
 
-static irqreturn_t do_Irq_Handler (int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_Irq_Handler (int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct Scsi_Host *dev = dev_id;
 	
 	spin_lock_irqsave(dev->host_lock, flags);
-	Irq_Handler(irq, dev_id, regs);
+	Irq_Handler(irq, dev_id);
 	spin_unlock_irqrestore(dev->host_lock, flags);
 	return IRQ_HANDLED;
 }

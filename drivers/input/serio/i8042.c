@@ -106,9 +106,10 @@ static unsigned char i8042_ctr;
 static unsigned char i8042_mux_present;
 static unsigned char i8042_kbd_irq_registered;
 static unsigned char i8042_aux_irq_registered;
+static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
 
-static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t i8042_interrupt(int irq, void *dev_id);
 
 /*
  * The i8042_wait_read() and i8042_wait_write functions wait for the i8042 to
@@ -271,7 +272,7 @@ static int i8042_aux_write(struct serio *serio, unsigned char c)
  * characters later.
  */
 
-	i8042_interrupt(0, NULL, NULL);
+	i8042_interrupt(0, NULL);
 	return retval;
 }
 
@@ -309,14 +310,14 @@ static void i8042_stop(struct serio *serio)
  * to the upper layers.
  */
 
-static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 {
 	struct i8042_port *port;
 	unsigned long flags;
 	unsigned char str, data;
 	unsigned int dfl;
 	unsigned int port_no;
-	int ret;
+	int ret = 1;
 
 	spin_lock_irqsave(&i8042_lock, flags);
 	str = i8042_read_status();
@@ -378,10 +379,16 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	    dfl & SERIO_PARITY ? ", bad parity" : "",
 	    dfl & SERIO_TIMEOUT ? ", timeout" : "");
 
-	if (likely(port->exists))
-		serio_interrupt(port->serio, data, dfl, regs);
+	if (unlikely(i8042_suppress_kbd_ack))
+		if (port_no == I8042_KBD_PORT_NO &&
+		    (data == 0xfa || data == 0xfe)) {
+			i8042_suppress_kbd_ack = 0;
+			goto out;
+		}
 
-	ret = 1;
+	if (likely(port->exists))
+		serio_interrupt(port->serio, data, dfl);
+
  out:
 	return IRQ_RETVAL(ret);
 }
@@ -519,7 +526,7 @@ static int __devinit i8042_check_mux(void)
 static struct completion i8042_aux_irq_delivered __devinitdata;
 static int i8042_irq_being_tested __devinitdata;
 
-static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t __devinit i8042_aux_test_irq(int irq, void *dev_id)
 {
 	unsigned long flags;
 	unsigned char str, data;
@@ -842,11 +849,13 @@ static long i8042_panic_blink(long count)
 	led ^= 0x01 | 0x04;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
+	i8042_suppress_kbd_ack = 1;
 	i8042_write_data(0xed); /* set leds */
 	DELAY;
 	while (i8042_read_status() & I8042_STR_IBF)
 		DELAY;
 	DELAY;
+	i8042_suppress_kbd_ack = 1;
 	i8042_write_data(led);
 	DELAY;
 	last_blink = count;
@@ -905,7 +914,7 @@ static int i8042_resume(struct platform_device *dev)
 	if (i8042_ports[I8042_KBD_PORT_NO].serio)
 		i8042_enable_kbd_port();
 
-	i8042_interrupt(0, NULL, NULL);
+	i8042_interrupt(0, NULL);
 
 	return 0;
 }

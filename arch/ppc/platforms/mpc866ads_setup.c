@@ -259,7 +259,7 @@ static void mpc866ads_fixup_enet_pdata(struct platform_device *pdev, int fs_no)
 	/* Get pointer to Communication Processor */
 	cp = cpmp;
 
-	if(fs_no > ARRAY_SIZE(mpc8xx_enet_pdata)) {
+	if(fs_no >= ARRAY_SIZE(mpc8xx_enet_pdata)) {
 		printk(KERN_ERR"No network-suitable #%d device on bus", fs_no);
 		return;
 	}
@@ -305,7 +305,7 @@ static void __init mpc866ads_fixup_uart_pdata(struct platform_device *pdev,
 	int id = fs_uart_id_smc2fsid(idx);
 
 	/* no need to alter anything if console */
-	if ((id <= num) && (!pdev->dev.platform_data)) {
+	if ((id < num) && (!pdev->dev.platform_data)) {
 		pinfo = &mpc866_uart_pdata[id];
 		pinfo->uart_clk = bd->bi_intfreq;
 		pdev->dev.platform_data = pinfo;

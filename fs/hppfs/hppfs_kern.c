@@ -572,7 +572,7 @@ struct hppfs_dirent {
 };
 
 static int hppfs_filldir(void *d, const char *name, int size,
-			 loff_t offset, ino_t inode, unsigned int type)
+			 loff_t offset, u64 inode, unsigned int type)
 {
 	struct hppfs_dirent *dirent = d;
 

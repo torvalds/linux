@@ -85,8 +85,8 @@ static int ack_QIC_CPI(__u8 cpi);
 static void ack_special_QIC_CPI(__u8 cpi);
 static void ack_VIC_CPI(__u8 cpi);
 static void send_CPI_allbutself(__u8 cpi);
-static void enable_vic_irq(unsigned int irq);
-static void disable_vic_irq(unsigned int irq);
+static void mask_vic_irq(unsigned int irq);
+static void unmask_vic_irq(unsigned int irq);
 static unsigned int startup_vic_irq(unsigned int irq);
 static void enable_local_vic_irq(unsigned int irq);
 static void disable_local_vic_irq(unsigned int irq);
@@ -126,10 +126,10 @@ send_QIC_CPI(__u32 cpuset, __u8 cpi)
 }
 
 static inline void
-wrapper_smp_local_timer_interrupt(struct pt_regs *regs)
+wrapper_smp_local_timer_interrupt(void)
 {
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
 }
 
@@ -205,15 +205,12 @@ ack_CPI(__u8 cpi)
 /* The VIC IRQ descriptors -- these look almost identical to the
  * 8259 IRQs except that masks and things must be kept per processor
  */
-static struct hw_interrupt_type vic_irq_type = {
-	.typename = "VIC-level",
-	.startup = startup_vic_irq,
-	.shutdown = disable_vic_irq,
-	.enable = enable_vic_irq,
-	.disable = disable_vic_irq,
-	.ack = before_handle_vic_irq,
-	.end = after_handle_vic_irq,
-	.set_affinity = set_vic_irq_affinity,
+static struct irq_chip vic_chip = {
+	.name		= "VIC",
+	.startup	= startup_vic_irq,
+	.mask		= mask_vic_irq,
+	.unmask		= unmask_vic_irq,
+	.set_affinity	= set_vic_irq_affinity,
 };
 
 /* used to count up as CPUs are brought on line (starts at 0) */
@@ -786,7 +783,7 @@ fastcall void
 smp_vic_sys_interrupt(struct pt_regs *regs)
 {
 	ack_CPI(VIC_SYS_INT);
-	printk("Voyager SYSTEM INTERRUPT\n");
+	printk("Voyager SYSTEM INTERRUPT\n");	
 }
 
 /* Handle a voyager CMN_INT; These interrupts occur either because of
@@ -1135,15 +1132,19 @@ EXPORT_SYMBOL(smp_call_function);
 fastcall void 
 smp_apic_timer_interrupt(struct pt_regs *regs)
 {
-	wrapper_smp_local_timer_interrupt(regs);
+	struct pt_regs *old_regs = set_irq_regs(regs);
+	wrapper_smp_local_timer_interrupt();
+	set_irq_regs(old_regs);
 }
 
 /* All of the QUAD interrupt GATES */
 fastcall void
 smp_qic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	ack_QIC_CPI(QIC_TIMER_CPI);
-	wrapper_smp_local_timer_interrupt(regs);
+	wrapper_smp_local_timer_interrupt();
+	set_irq_regs(old_regs);
 }
 
 fastcall void
@@ -1177,6 +1178,7 @@ smp_qic_call_function_interrupt(struct pt_regs *regs)
 fastcall void
 smp_vic_cpi_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	__u8 cpu = smp_processor_id();
 
 	if(is_cpu_quad())
@@ -1185,7 +1187,7 @@ smp_vic_cpi_interrupt(struct pt_regs *regs)
 		ack_VIC_CPI(VIC_CPI_LEVEL0);
 
 	if(test_and_clear_bit(VIC_TIMER_CPI, &vic_cpi_mailbox[cpu]))
-		wrapper_smp_local_timer_interrupt(regs);
+		wrapper_smp_local_timer_interrupt();
 	if(test_and_clear_bit(VIC_INVALIDATE_CPI, &vic_cpi_mailbox[cpu]))
 		smp_invalidate_interrupt();
 	if(test_and_clear_bit(VIC_RESCHEDULE_CPI, &vic_cpi_mailbox[cpu]))
@@ -1194,6 +1196,7 @@ smp_vic_cpi_interrupt(struct pt_regs *regs)
 		smp_enable_irq_interrupt();
 	if(test_and_clear_bit(VIC_CALL_FUNCTION_CPI, &vic_cpi_mailbox[cpu]))
 		smp_call_function_interrupt();
+	set_irq_regs(old_regs);
 }
 
 static void
@@ -1264,10 +1267,10 @@ smp_send_stop(void)
 /* this function is triggered in time.c when a clock tick fires
  * we need to re-broadcast the tick to all CPUs */
 void
-smp_vic_timer_interrupt(struct pt_regs *regs)
+smp_vic_timer_interrupt(void)
 {
 	send_CPI_allbutself(VIC_TIMER_CPI);
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 }
 
 /* local (per CPU) timer interrupt.  It does both profiling and
@@ -1279,12 +1282,12 @@ smp_vic_timer_interrupt(struct pt_regs *regs)
  * value into /proc/profile.
  */
 void
-smp_local_timer_interrupt(struct pt_regs * regs)
+smp_local_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
 	long weight;
 
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 	if (--per_cpu(prof_counter, cpu) <= 0) {
 		/*
 		 * The multiplier may have changed since the last time we got
@@ -1302,7 +1305,7 @@ smp_local_timer_interrupt(struct pt_regs * regs)
 						per_cpu(prof_counter, cpu);
 		}
 
-		update_process_times(user_mode_vm(regs));
+		update_process_times(user_mode_vm(get_irq_regs()));
 	}
 
 	if( ((1<<cpu) & voyager_extended_vic_processors) == 0)
@@ -1389,6 +1392,17 @@ setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+/* This is a bit of a mess, but forced on us by the genirq changes
+ * there's no genirq handler that really does what voyager wants
+ * so hack it up with the simple IRQ handler */
+static void fastcall
+handle_vic_irq(unsigned int irq, struct irq_desc *desc)
+{
+	before_handle_vic_irq(irq);
+	handle_simple_irq(irq, desc);
+	after_handle_vic_irq(irq);
+}
+
 
 /*  The CPIs are handled in the per cpu 8259s, so they must be
  *  enabled to be received: FIX: enabling the CPIs in the early
@@ -1425,7 +1439,7 @@ smp_intr_init(void)
 	 * This is for later: first 16 correspond to PC IRQs; next 16
 	 * are Primary MC IRQs and final 16 are Secondary MC IRQs */
 	for(i = 0; i < 48; i++)
-		irq_desc[i].chip = &vic_irq_type;
+		set_irq_chip_and_handler(i, &vic_chip, handle_vic_irq);
 }
 
 /* send a CPI at level cpi to a set of cpus in cpuset (set 1 bit per
@@ -1523,7 +1537,7 @@ ack_VIC_CPI(__u8 cpi)
 static unsigned int
 startup_vic_irq(unsigned int irq)
 {
-	enable_vic_irq(irq);
+	unmask_vic_irq(irq);
 
 	return 0;
 }
@@ -1550,7 +1564,7 @@ startup_vic_irq(unsigned int irq)
  *    adjust their masks accordingly.  */
 
 static void
-enable_vic_irq(unsigned int irq)
+unmask_vic_irq(unsigned int irq)
 {
 	/* linux doesn't to processor-irq affinity, so enable on
 	 * all CPUs we know about */
@@ -1559,7 +1573,7 @@ enable_vic_irq(unsigned int irq)
 	__u32 processorList = 0;
 	unsigned long flags;
 
-	VDEBUG(("VOYAGER: enable_vic_irq(%d) CPU%d affinity 0x%lx\n",
+	VDEBUG(("VOYAGER: unmask_vic_irq(%d) CPU%d affinity 0x%lx\n",
 		irq, cpu, cpu_irq_affinity[cpu]));
 	spin_lock_irqsave(&vic_irq_lock, flags);
 	for_each_online_cpu(real_cpu) {
@@ -1583,7 +1597,7 @@ enable_vic_irq(unsigned int irq)
 }
 
 static void
-disable_vic_irq(unsigned int irq)
+mask_vic_irq(unsigned int irq)
 {
 	/* lazy disable, do nothing */
 }
@@ -1811,7 +1825,7 @@ set_vic_irq_affinity(unsigned int irq, cpumask_t mask)
 	 * disabled again as it comes in (voyager lazy disable).  If
 	 * the affinity map is tightened to disable the interrupt on a
 	 * cpu, it will be pushed off when it comes in */
-	enable_vic_irq(irq);
+	unmask_vic_irq(irq);
 }
 
 static void

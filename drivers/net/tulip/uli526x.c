@@ -224,7 +224,7 @@ static struct net_device_stats * uli526x_get_stats(struct net_device *);
 static void uli526x_set_filter_mode(struct net_device *);
 static const struct ethtool_ops netdev_ethtool_ops;
 static u16 read_srom_word(long, int);
-static irqreturn_t uli526x_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t uli526x_interrupt(int, void *);
 static void uli526x_descriptor_init(struct uli526x_board_info *, unsigned long);
 static void allocate_rx_buffer(struct uli526x_board_info *);
 static void update_cr6(u32, unsigned long);
@@ -659,7 +659,7 @@ static int uli526x_stop(struct net_device *dev)
  *	receive the packet to upper layer, free the transmitted packet
  */
 
-static irqreturn_t uli526x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct uli526x_board_info *db = netdev_priv(dev);

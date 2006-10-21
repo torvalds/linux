@@ -70,7 +70,7 @@ unsigned long event_scan_interval;
  * has to include <linux/interrupt.h> (to get irqreturn_t), which
  * causes all sorts of problems.  -- paulus
  */
-extern irqreturn_t xmon_irq(int, void *, struct pt_regs *);
+extern irqreturn_t xmon_irq(int, void *);
 
 extern unsigned long loops_per_jiffy;
 
@@ -335,12 +335,11 @@ chrp_event_scan(unsigned long unused)
 		  jiffies + event_scan_interval);
 }
 
-static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc,
-			      struct pt_regs *regs)
+static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int cascade_irq = i8259_irq(regs);
+	unsigned int cascade_irq = i8259_irq();
 	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq, regs);
+		generic_handle_irq(cascade_irq);
 	desc->chip->eoi(irq);
 }
 

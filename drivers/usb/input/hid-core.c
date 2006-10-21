@@ -750,21 +750,31 @@ static __inline__ __u32 s32ton(__s32 value, unsigned n)
 }
 
 /*
- * Extract/implement a data field from/to a report.
+ * Extract/implement a data field from/to a little endian report (bit array).
  */
 
 static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	return (le64_to_cpu(get_unaligned((__le64*)report)) >> offset) & ((1ULL << n) - 1);
+	u32 x;
+
+	report += offset >> 3;  /* adjust byte index */
+	offset &= 8 - 1;
+	x = get_unaligned((u32 *) report);
+	x = le32_to_cpu(x);
+	x = (x >> offset) & ((1 << n) - 1);
+	return x;
 }
 
 static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
 {
-	report += (offset >> 5) << 2; offset &= 31;
-	put_unaligned((get_unaligned((__le64*)report)
-		& cpu_to_le64(~((((__u64) 1 << n) - 1) << offset)))
-		| cpu_to_le64((__u64)value << offset), (__le64*)report);
+	u32 x;
+
+	report += offset >> 3;
+	offset &= 8 - 1;
+	x = get_unaligned((u32 *)report);
+	x &= cpu_to_le32(~((((__u32) 1 << n) - 1) << offset));
+	x |= cpu_to_le32(value << offset);
+	put_unaligned(x,(u32 *)report);
 }
 
 /*
@@ -780,13 +790,13 @@ static __inline__ int search(__s32 *array, __s32 value, unsigned n)
 	return -1;
 }
 
-static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, int interrupt, struct pt_regs *regs)
+static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, int interrupt)
 {
 	hid_dump_input(usage, value);
 	if (hid->claimed & HID_CLAIMED_INPUT)
-		hidinput_hid_event(hid, field, usage, value, regs);
+		hidinput_hid_event(hid, field, usage, value);
 	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt)
-		hiddev_hid_event(hid, field, usage, value, regs);
+		hiddev_hid_event(hid, field, usage, value);
 }
 
 /*
@@ -795,7 +805,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt, struct pt_regs *regs)
+static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -822,19 +832,19 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field, __u
 	for (n = 0; n < count; n++) {
 
 		if (HID_MAIN_ITEM_VARIABLE & field->flags) {
-			hid_process_event(hid, field, &field->usage[n], value[n], interrupt, regs);
+			hid_process_event(hid, field, &field->usage[n], value[n], interrupt);
 			continue;
 		}
 
 		if (field->value[n] >= min && field->value[n] <= max
 			&& field->usage[field->value[n] - min].hid
 			&& search(value, field->value[n], count))
-				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt, regs);
+				hid_process_event(hid, field, &field->usage[field->value[n] - min], 0, interrupt);
 
 		if (value[n] >= min && value[n] <= max
 			&& field->usage[value[n] - min].hid
 			&& search(field->value, value[n], count))
-				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt, regs);
+				hid_process_event(hid, field, &field->usage[value[n] - min], 1, interrupt);
 	}
 
 	memcpy(field->value, value, count * sizeof(__s32));
@@ -842,7 +852,7 @@ exit:
 	kfree(value);
 }
 
-static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_regs *regs)
+static int hid_input_report(int type, struct urb *urb, int interrupt)
 {
 	struct hid_device *hid = urb->context;
 	struct hid_report_enum *report_enum = hid->report_enum + type;
@@ -892,7 +902,7 @@ static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_
 		hiddev_report_event(hid, report);
 
 	for (n = 0; n < report->maxfield; n++)
-		hid_input_field(hid, report->field[n], data, interrupt, regs);
+		hid_input_field(hid, report->field[n], data, interrupt);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
@@ -1004,7 +1014,7 @@ done:
  * Input interrupt completion handler.
  */
 
-static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
+static void hid_irq_in(struct urb *urb)
 {
 	struct hid_device	*hid = urb->context;
 	int			status;
@@ -1012,7 +1022,7 @@ static void hid_irq_in(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 		case 0:			/* success */
 			hid->retry_delay = 0;
-			hid_input_report(HID_INPUT_REPORT, urb, 1, regs);
+			hid_input_report(HID_INPUT_REPORT, urb, 1);
 			break;
 		case -ECONNRESET:	/* unlink */
 		case -ENOENT:
@@ -1193,7 +1203,7 @@ static int hid_submit_ctrl(struct hid_device *hid)
  * Output interrupt completion handler.
  */
 
-static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
+static void hid_irq_out(struct urb *urb)
 {
 	struct hid_device *hid = urb->context;
 	unsigned long flags;
@@ -1238,7 +1248,7 @@ static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
  * Control pipe completion handler.
  */
 
-static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
+static void hid_ctrl(struct urb *urb)
 {
 	struct hid_device *hid = urb->context;
 	unsigned long flags;
@@ -1249,7 +1259,7 @@ static void hid_ctrl(struct urb *urb, struct pt_regs *regs)
 	switch (urb->status) {
 		case 0:			/* success */
 			if (hid->ctrl[hid->ctrltail].dir == USB_DIR_IN)
-				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0, regs);
+				hid_input_report(hid->ctrl[hid->ctrltail].report->type, urb, 0);
 			break;
 		case -ESHUTDOWN:	/* unplug */
 			unplug = 1;
@@ -1380,6 +1390,9 @@ void hid_close(struct hid_device *hid)
 }
 
 #define USB_VENDOR_ID_PANJIT		0x134c
+
+#define USB_VENDOR_ID_TURBOX		0x062a
+#define USB_DEVICE_ID_TURBOX_KEYBOARD	0x0201
 
 /*
  * Initialize all reports
@@ -1768,6 +1781,8 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_PANJIT, 0x0003, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_PANJIT, 0x0004, HID_QUIRK_IGNORE },
 
+	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
+	
 	{ 0, 0 }
 };
 

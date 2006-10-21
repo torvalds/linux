@@ -248,7 +248,7 @@ static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
 /*
  * Transmit characters, refill buffer descriptor, if possible
  */
-static void cpm_uart_int_tx(struct uart_port *port, struct pt_regs *regs)
+static void cpm_uart_int_tx(struct uart_port *port)
 {
 	pr_debug("CPM uart[%d]:TX INT\n", port->line);
 
@@ -258,7 +258,7 @@ static void cpm_uart_int_tx(struct uart_port *port, struct pt_regs *regs)
 /*
  * Receive characters
  */
-static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
+static void cpm_uart_int_rx(struct uart_port *port)
 {
 	int i;
 	unsigned char ch, *cp;
@@ -304,7 +304,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 			if (status &
 			    (BD_SC_BR | BD_SC_FR | BD_SC_PR | BD_SC_OV))
 				goto handle_error;
-			if (uart_handle_sysrq_char(port, ch, regs))
+			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
 		      error_return:
@@ -373,7 +373,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 /*
  * Asynchron mode interrupt handler
  */
-static irqreturn_t cpm_uart_int(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t cpm_uart_int(int irq, void *data)
 {
 	u8 events;
 	struct uart_port *port = (struct uart_port *)data;
@@ -389,18 +389,18 @@ static irqreturn_t cpm_uart_int(int irq, void *data, struct pt_regs *regs)
 		if (events & SMCM_BRKE)
 			uart_handle_break(port);
 		if (events & SMCM_RX)
-			cpm_uart_int_rx(port, regs);
+			cpm_uart_int_rx(port);
 		if (events & SMCM_TX)
-			cpm_uart_int_tx(port, regs);
+			cpm_uart_int_tx(port);
 	} else {
 		events = sccp->scc_scce;
 		sccp->scc_scce = events;
 		if (events & UART_SCCM_BRKE)
 			uart_handle_break(port);
 		if (events & UART_SCCM_RX)
-			cpm_uart_int_rx(port, regs);
+			cpm_uart_int_rx(port);
 		if (events & UART_SCCM_TX)
-			cpm_uart_int_tx(port, regs);
+			cpm_uart_int_tx(port);
 	}
 	return (events) ? IRQ_HANDLED : IRQ_NONE;
 }

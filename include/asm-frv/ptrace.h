@@ -12,6 +12,7 @@
 #define _ASM_PTRACE_H
 
 #include <asm/registers.h>
+#include <asm/irq_regs.h>
 
 #define in_syscall(regs) (((regs)->tbr & TBR_TT) == TBR_TT_TRAP0)
 

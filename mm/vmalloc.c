@@ -428,8 +428,11 @@ void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	if (array_size > PAGE_SIZE) {
 		pages = __vmalloc_node(array_size, gfp_mask, PAGE_KERNEL, node);
 		area->flags |= VM_VPAGES;
-	} else
-		pages = kmalloc_node(array_size, (gfp_mask & ~__GFP_HIGHMEM), node);
+	} else {
+		pages = kmalloc_node(array_size,
+				(gfp_mask & ~(__GFP_HIGHMEM | __GFP_ZERO)),
+				node);
+	}
 	area->pages = pages;
 	if (!area->pages) {
 		remove_vm_area(area->addr);

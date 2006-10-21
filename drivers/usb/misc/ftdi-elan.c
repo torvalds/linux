@@ -35,7 +35,6 @@
 * via an ELAN U132 adapter.
 *
 */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -514,8 +513,6 @@ static void ftdi_elan_respond_work(void *data)
                         ftdi->disconnected += 1;
                 } else if (retval == -ENODEV) {
                         ftdi->disconnected += 1;
-                } else if (retval == -ENODEV) {
-                        ftdi->disconnected += 1;
                 } else if (retval == -EILSEQ) {
                         ftdi->disconnected += 1;
                 } else {
@@ -759,7 +756,7 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
                 return bytes_read;
 }
 
-static void ftdi_elan_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void ftdi_elan_write_bulk_callback(struct urb *urb)
 {
         struct usb_ftdi *ftdi = (struct usb_ftdi *)urb->context;
         if (urb->status && !(urb->status == -ENOENT || urb->status ==
@@ -1187,11 +1184,8 @@ static ssize_t ftdi_elan_write(struct file *file,
         int retval = 0;
         struct urb *urb;
         char *buf;
-        char data[30 *3 + 4];
-        char *d = data;
-        const char __user *s = user_buffer;
-        int m = (sizeof(data) - 1) / 3;
-        struct usb_ftdi *ftdi = (struct usb_ftdi *)file->private_data;
+        struct usb_ftdi *ftdi = file->private_data;
+
         if (ftdi->disconnected > 0) {
                 return -ENODEV;
         }
@@ -1221,27 +1215,18 @@ static ssize_t ftdi_elan_write(struct file *file,
         if (retval) {
                 dev_err(&ftdi->udev->dev, "failed submitting write urb, error %"
                         "d\n", retval);
-                goto error_4;
+                goto error_3;
         }
         usb_free_urb(urb);
-      exit:;
-        if (count > m) {
-                int I = m - 1;
-                while (I-- > 0) {
-                        d += sprintf(d, " %02X", 0x000000FF & *s++);
-                }
-                d += sprintf(d, " ..");
-        } else {
-                int I = count;
-                while (I-- > 0) {
-                        d += sprintf(d, " %02X", 0x000000FF & *s++);
-                }
-        }
+
+exit:
         return count;
-      error_4: error_3:usb_buffer_free(ftdi->udev, count, buf,
-              urb->transfer_dma);
-      error_2:usb_free_urb(urb);
-      error_1:return retval;
+error_3:
+	usb_buffer_free(ftdi->udev, count, buf, urb->transfer_dma);
+error_2:
+	usb_free_urb(urb);
+error_1:
+	return retval;
 }
 
 static struct file_operations ftdi_elan_fops = {

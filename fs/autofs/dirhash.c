@@ -246,5 +246,4 @@ void autofs_hash_nuke(struct autofs_sb_info *sbi)
 			kfree(ent);
 		}
 	}
-	shrink_dcache_sb(sbi->sb);
 }

@@ -13,7 +13,6 @@
  * rw semaphores implemented November 1999 by Benjamin LaHaise <bcrl@kvack.org>
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <asm/rwlock.h>
 #include <asm/alternative-asm.i>
@@ -153,6 +152,8 @@ ENTRY(__read_lock_failed)
 
 #endif
 
+#ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
+
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
 	CFI_STARTPROC
@@ -215,3 +216,4 @@ ENTRY(call_rwsem_downgrade_wake)
 	CFI_ENDPROC
 	END(call_rwsem_downgrade_wake)
 
+#endif

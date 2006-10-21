@@ -254,7 +254,7 @@ static pcc_t pcc[] = {
 #endif	/* CONFIG_PLAT_USRV */
 };
 
-static irqreturn_t pcc_interrupt(int, void *, struct pt_regs *);
+static irqreturn_t pcc_interrupt(int, void *);
 
 /*====================================================================*/
 
@@ -372,14 +372,13 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr
 
 /*====================================================================*/
 
-static irqreturn_t pcc_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t pcc_interrupt(int irq, void *dev)
 {
 	int i;
 	u_int events = 0;
 	int handled = 0;
 
-	debug(3, "m32r_cfc: pcc_interrupt: irq=%d, dev=%p, regs=%p\n",
-		irq, dev, regs);
+	debug(3, "m32r_cfc: pcc_interrupt: irq=%d, dev=%p\n", irq, dev);
 	for (i = 0; i < pcc_sockets; i++) {
 		if (socket[i].cs_irq1 != irq && socket[i].cs_irq2 != irq)
 			continue;

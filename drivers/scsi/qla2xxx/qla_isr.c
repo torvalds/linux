@@ -20,14 +20,13 @@ static void qla24xx_ms_entry(scsi_qla_host_t *, struct ct_entry_24xx *);
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla2100_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_2xxx __iomem *reg;
@@ -100,14 +99,13 @@ qla2100_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
  * qla2300_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla2300_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla2300_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_2xxx __iomem *reg;
@@ -400,7 +398,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	case MBA_LOOP_UP:		/* Loop Up Event */
 		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 			link_speed = link_speeds[0];
-			ha->link_data_rate = LDR_1GB;
+			ha->link_data_rate = PORT_SPEED_1GB;
 		} else {
 			link_speed = link_speeds[LS_UNKNOWN];
 			if (mb[1] < 5)
@@ -429,7 +427,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		}
 
 		ha->flags.management_server_logged_in = 0;
-		ha->link_data_rate = LDR_UNKNOWN;
+		ha->link_data_rate = PORT_SPEED_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 		break;
@@ -1338,14 +1336,13 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
  * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
  * @dev_id: SCSI driver HA context
- * @regs:
  *
  * Called by system whenever the host adapter generates an interrupt.
  *
  * Returns handled flag.
  */
 irqreturn_t
-qla24xx_intr_handler(int irq, void *dev_id, struct pt_regs *regs)
+qla24xx_intr_handler(int irq, void *dev_id)
 {
 	scsi_qla_host_t	*ha;
 	struct device_reg_24xx __iomem *reg;

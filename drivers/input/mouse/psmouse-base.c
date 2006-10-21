@@ -124,7 +124,7 @@ struct psmouse_protocol {
  * relevant events to the input module once full packet has arrived.
  */
 
-static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 {
 	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
@@ -135,8 +135,6 @@ static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse, struct pt_reg
 /*
  * Full packet accumulated, process it
  */
-
-	input_regs(dev, regs);
 
 /*
  * Scroll wheel on IntelliMice, scroll buttons on NetMice
@@ -231,9 +229,9 @@ static void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_st
  * by calling corresponding protocol handler.
  */
 
-static int psmouse_handle_byte(struct psmouse *psmouse, struct pt_regs *regs)
+static int psmouse_handle_byte(struct psmouse *psmouse)
 {
-	psmouse_ret_t rc = psmouse->protocol_handler(psmouse, regs);
+	psmouse_ret_t rc = psmouse->protocol_handler(psmouse);
 
 	switch (rc) {
 		case PSMOUSE_BAD_DATA:
@@ -271,7 +269,7 @@ static int psmouse_handle_byte(struct psmouse *psmouse, struct pt_regs *regs)
  */
 
 static irqreturn_t psmouse_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct psmouse *psmouse = serio_get_drvdata(serio);
 
@@ -327,7 +325,7 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
  * Not a new device, try processing first byte normally
  */
 		psmouse->pktcnt = 1;
-		if (psmouse_handle_byte(psmouse, regs))
+		if (psmouse_handle_byte(psmouse))
 			goto out;
 
 		psmouse->packet[psmouse->pktcnt++] = data;
@@ -346,7 +344,7 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 	}
 
 	psmouse->last = jiffies;
-	psmouse_handle_byte(psmouse, regs);
+	psmouse_handle_byte(psmouse);
 
  out:
 	return IRQ_HANDLED;
@@ -940,7 +938,7 @@ static void psmouse_resync(void *p)
 			psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
 			for (i = 0; i < psmouse->pktsize; i++) {
 				psmouse->pktcnt++;
-				rc = psmouse->protocol_handler(psmouse, NULL);
+				rc = psmouse->protocol_handler(psmouse);
 				if (rc != PSMOUSE_GOOD_DATA)
 					break;
 			}

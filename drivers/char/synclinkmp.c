@@ -2596,8 +2596,7 @@ void isr_io_pin( SLMP_INFO *info, u16 status )
  * 	dev_id		device ID supplied during interrupt registration
  * 	regs		interrupted processor context
  */
-static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id,
-					struct pt_regs *regs)
+static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id)
 {
 	SLMP_INFO * info;
 	unsigned char status, status0, status1=0;

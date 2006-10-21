@@ -303,7 +303,8 @@ static int oldpiix_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 }
 
 static const struct pci_device_id oldpiix_pci_tbl[] = {
-	{ PCI_DEVICE(0x8086, 0x1230), },
+	{ PCI_VDEVICE(INTEL, 0x1230), },
+
 	{ }	/* terminate list */
 };
 
@@ -323,7 +324,6 @@ static void __exit oldpiix_exit(void)
 {
 	pci_unregister_driver(&oldpiix_pci_driver);
 }
-
 
 module_init(oldpiix_init);
 module_exit(oldpiix_exit);

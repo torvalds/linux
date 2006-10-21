@@ -233,6 +233,7 @@ paging_init (void)
 	efi_memmap_walk(count_pages, &num_physpages);
 
 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = max_dma;
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 

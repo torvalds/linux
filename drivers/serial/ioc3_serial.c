@@ -1428,13 +1428,12 @@ static int receive_chars(struct uart_port *the_port)
  * @is : submodule
  * @idd: driver data
  * @pending: interrupts to handle
- * @regs: pt_regs
  */
 
 static int inline
 ioc3uart_intr_one(struct ioc3_submodule *is,
 			struct ioc3_driver_data *idd,
-			unsigned int pending, struct pt_regs *regs)
+			unsigned int pending)
 {
 	int port_num = GET_PORT_FROM_SIO_IR(pending);
 	struct port_hooks *hooks;
@@ -1628,13 +1627,12 @@ ioc3uart_intr_one(struct ioc3_submodule *is,
  * @is : submodule
  * @idd: driver data
  * @pending: interrupts to handle
- * @regs: pt_regs
  *
  */
 
 static int ioc3uart_intr(struct ioc3_submodule *is,
 			struct ioc3_driver_data *idd,
-			unsigned int pending, struct pt_regs *regs)
+			unsigned int pending)
 {
 	int ret = 0;
 
@@ -1644,9 +1642,9 @@ static int ioc3uart_intr(struct ioc3_submodule *is,
 	 */
 
 	if (pending & SIO_IR_SA)
-		ret |= ioc3uart_intr_one(is, idd, pending & SIO_IR_SA, regs);
+		ret |= ioc3uart_intr_one(is, idd, pending & SIO_IR_SA);
 	if (pending & SIO_IR_SB)
-		ret |= ioc3uart_intr_one(is, idd, pending & SIO_IR_SB, regs);
+		ret |= ioc3uart_intr_one(is, idd, pending & SIO_IR_SB);
 
 	return ret;
 }

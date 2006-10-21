@@ -824,7 +824,7 @@ static char *irq_name[] = { "", "", "", "OFLOW", "", "", "", "", "", "", "",
 			    "RISCI", "FBUS", "FTRGT", "FDSR", "PPERR",
 			    "RIPERR", "PABORT", "OCERR", "SCERR" };
 
-static irqreturn_t btaudio_irq(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t btaudio_irq(int irq, void *dev_id)
 {
 	int count = 0;
 	u32 stat,astat;

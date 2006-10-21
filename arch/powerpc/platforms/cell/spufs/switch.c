@@ -1779,6 +1779,15 @@ static inline void restore_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	 */
 	out_be64(&priv2->mfc_control_RW, csa->priv2.mfc_control_RW);
 	eieio();
+	/*
+	 * FIXME: this is to restart a DMA that we were processing
+	 *        before the save. better remember the fault information
+	 *        in the csa instead.
+	 */
+	if ((csa->priv2.mfc_control_RW & MFC_CNTL_SUSPEND_DMA_QUEUE_MASK)) {
+		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
+		eieio();
+	}
 }
 
 static inline void enable_user_access(struct spu_state *csa, struct spu *spu)

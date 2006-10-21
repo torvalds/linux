@@ -6,8 +6,6 @@
  * (c) 2006 Benjamin Herrenschmidt <benh@kernel.crashing.org>, IBM Corp.
  */
 
-
-#include <linux/config.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
 

@@ -75,8 +75,7 @@ static struct irq_chip lpd270_irq_chip = {
 	.unmask		= lpd270_unmask_irq,
 };
 
-static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned long pending;
 
@@ -86,7 +85,7 @@ static void lpd270_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 
 			pending = __raw_readw(LPD270_INT_STATUS) &
 						lpd270_irq_enabled;

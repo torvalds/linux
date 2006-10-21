@@ -452,6 +452,7 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 			       bdevname(bh->b_bdev, b));
 		}
 		set_bit(AS_EIO, &page->mapping->flags);
+		set_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
 		SetPageError(page);
 	}
@@ -571,6 +572,10 @@ EXPORT_SYMBOL(mark_buffer_async_write);
 static inline void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
+	WARN_ON(!bh->b_assoc_map);
+	if (buffer_write_io_error(bh))
+		set_bit(AS_EIO, &bh->b_assoc_map->flags);
+	bh->b_assoc_map = NULL;
 }
 
 int inode_has_buffers(struct inode *inode)
@@ -669,6 +674,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 		spin_lock(&buffer_mapping->private_lock);
 		list_move_tail(&bh->b_assoc_buffers,
 				&mapping->private_list);
+		bh->b_assoc_map = mapping;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 }
@@ -701,7 +707,10 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  */
 int __set_page_dirty_buffers(struct page *page)
 {
-	struct address_space * const mapping = page->mapping;
+	struct address_space * const mapping = page_mapping(page);
+
+	if (unlikely(!mapping))
+		return !TestSetPageDirty(page);
 
 	spin_lock(&mapping->private_lock);
 	if (page_has_buffers(page)) {
@@ -762,7 +771,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 	spin_lock(lock);
 	while (!list_empty(list)) {
 		bh = BH_ENTRY(list->next);
-		list_del_init(&bh->b_assoc_buffers);
+		__remove_assoc_queue(bh);
 		if (buffer_dirty(bh) || buffer_locked(bh)) {
 			list_add(&bh->b_assoc_buffers, &tmp);
 			if (buffer_dirty(bh)) {
@@ -783,7 +792,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 
 	while (!list_empty(&tmp)) {
 		bh = BH_ENTRY(tmp.prev);
-		__remove_assoc_queue(bh);
+		list_del_init(&bh->b_assoc_buffers);
 		get_bh(bh);
 		spin_unlock(lock);
 		wait_on_buffer(bh);
@@ -1039,8 +1048,21 @@ grow_buffers(struct block_device *bdev, sector_t block, int size)
 	} while ((size << sizebits) < PAGE_SIZE);
 
 	index = block >> sizebits;
-	block = index << sizebits;
 
+	/*
+	 * Check for a block which wants to lie outside our maximum possible
+	 * pagecache index.  (this comparison is done using sector_t types).
+	 */
+	if (unlikely(index != block >> sizebits)) {
+		char b[BDEVNAME_SIZE];
+
+		printk(KERN_ERR "%s: requested out-of-range block %llu for "
+			"device %s\n",
+			__FUNCTION__, (unsigned long long)block,
+			bdevname(bdev, b));
+		return -EIO;
+	}
+	block = index << sizebits;
 	/* Create a page with the proper size buffers.. */
 	page = grow_dev_page(bdev, block, index, size);
 	if (!page)
@@ -1067,12 +1089,16 @@ __getblk_slow(struct block_device *bdev, sector_t block, int size)
 
 	for (;;) {
 		struct buffer_head * bh;
+		int ret;
 
 		bh = __find_get_block(bdev, block, size);
 		if (bh)
 			return bh;
 
-		if (!grow_buffers(bdev, block, size))
+		ret = grow_buffers(bdev, block, size);
+		if (ret < 0)
+			return NULL;
+		if (ret == 0)
 			free_more_memory();
 	}
 }
@@ -1147,6 +1173,7 @@ void __bforget(struct buffer_head *bh)
 
 		spin_lock(&buffer_mapping->private_lock);
 		list_del_init(&bh->b_assoc_buffers);
+		bh->b_assoc_map = NULL;
 		spin_unlock(&buffer_mapping->private_lock);
 	}
 	__brelse(bh);
@@ -1834,6 +1861,7 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 			clear_buffer_new(bh);
 			kaddr = kmap_atomic(page, KM_USER0);
 			memset(kaddr+block_start, 0, bh->b_size);
+			flush_dcache_page(page);
 			kunmap_atomic(kaddr, KM_USER0);
 			set_buffer_uptodate(bh);
 			mark_buffer_dirty(bh);
@@ -2340,6 +2368,7 @@ failed:
 	 */
 	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
+	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
 	SetPageUptodate(page);
 	set_page_dirty(page);

@@ -85,8 +85,7 @@ static struct irq_chip lubbock_irq_chip = {
 	.unmask		= lubbock_unmask_irq,
 };
 
-static void lubbock_irq_handler(unsigned int irq, struct irqdesc *desc,
-				struct pt_regs *regs)
+static void lubbock_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned long pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	do {
@@ -94,7 +93,7 @@ static void lubbock_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = LUBBOCK_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		}
 		pending = LUB_IRQ_SET_CLR & lubbock_irq_enabled;
 	} while (pending);
@@ -379,7 +378,7 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 #define	MMC_POLL_RATE		msecs_to_jiffies(1000)
 
 static void lubbock_mmc_poll(unsigned long);
-static irqreturn_t (*mmc_detect_int)(int, void *, struct pt_regs *);
+static irq_handler_t mmc_detect_int;
 
 static struct timer_list mmc_timer = {
 	.function	= lubbock_mmc_poll,
@@ -398,22 +397,22 @@ static void lubbock_mmc_poll(unsigned long data)
 	if (LUB_IRQ_SET_CLR & (1 << 0))
 		mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
 	else {
-		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data, NULL);
+		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data);
 		enable_irq(LUBBOCK_SD_IRQ);
 	}
 }
 
-static irqreturn_t lubbock_detect_int(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t lubbock_detect_int(int irq, void *data)
 {
 	/* IRQ is level triggered; disable, and poll for removal */
 	disable_irq(irq);
 	mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
 
-	return mmc_detect_int(irq, data, regs);
+	return mmc_detect_int(irq, data);
 }
 
 static int lubbock_mci_init(struct device *dev,
-		irqreturn_t (*detect_int)(int, void *, struct pt_regs *),
+		irq_handler_t detect_int,
 		void *data)
 {
 	/* setup GPIO for PXA25x MMC controller	*/

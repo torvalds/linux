@@ -100,6 +100,7 @@ static DEVICE_ATTR(pos, S_IRUGO, mca_show_pos, NULL);
 int __init mca_register_device(int bus, struct mca_device *mca_dev)
 {
 	struct mca_bus *mca_bus = mca_root_busses[bus];
+	int rc;
 
 	mca_dev->dev.parent = &mca_bus->dev;
 	mca_dev->dev.bus = &mca_bus_type;
@@ -108,13 +109,23 @@ int __init mca_register_device(int bus, struct mca_device *mca_dev)
 	mca_dev->dev.dma_mask = &mca_dev->dma_mask;
 	mca_dev->dev.coherent_dma_mask = mca_dev->dma_mask;
 
-	if (device_register(&mca_dev->dev))
-		return 0;
+	rc = device_register(&mca_dev->dev);
+	if (rc)
+		goto err_out;
 
-	device_create_file(&mca_dev->dev, &dev_attr_id);
-	device_create_file(&mca_dev->dev, &dev_attr_pos);
+	rc = device_create_file(&mca_dev->dev, &dev_attr_id);
+	if (rc) goto err_out_devreg;
+	rc = device_create_file(&mca_dev->dev, &dev_attr_pos);
+	if (rc) goto err_out_id;
 
 	return 1;
+
+err_out_id:
+	device_remove_file(&mca_dev->dev, &dev_attr_id);
+err_out_devreg:
+	device_unregister(&mca_dev->dev);
+err_out:
+	return 0;
 }
 
 /* */
@@ -130,13 +141,16 @@ struct mca_bus * __devinit mca_attach_bus(int bus)
 		return NULL;
 	}
 
-	mca_bus = kmalloc(sizeof(struct mca_bus), GFP_KERNEL);
+	mca_bus = kzalloc(sizeof(struct mca_bus), GFP_KERNEL);
 	if (!mca_bus)
 		return NULL;
-	memset(mca_bus, 0, sizeof(struct mca_bus));
+
 	sprintf(mca_bus->dev.bus_id,"mca%d",bus);
 	sprintf(mca_bus->name,"Host %s MCA Bridge", bus ? "Secondary" : "Primary");
-	device_register(&mca_bus->dev);
+	if (device_register(&mca_bus->dev)) {
+		kfree(mca_bus);
+		return NULL;
+	}
 
 	mca_root_busses[bus] = mca_bus;
 

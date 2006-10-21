@@ -73,6 +73,7 @@ static unsigned int acpi_irq_irq;
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
+static struct workqueue_struct *kacpi_notify_wq;
 
 acpi_status acpi_os_initialize(void)
 {
@@ -91,8 +92,9 @@ acpi_status acpi_os_initialize1(void)
 		return AE_NULL_ENTRY;
 	}
 	kacpid_wq = create_singlethread_workqueue("kacpid");
+	kacpi_notify_wq = create_singlethread_workqueue("kacpi_notify");
 	BUG_ON(!kacpid_wq);
-
+	BUG_ON(!kacpi_notify_wq);
 	return AE_OK;
 }
 
@@ -104,6 +106,7 @@ acpi_status acpi_os_terminate(void)
 	}
 
 	destroy_workqueue(kacpid_wq);
+	destroy_workqueue(kacpi_notify_wq);
 
 	return AE_OK;
 }
@@ -237,7 +240,7 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	return AE_OK;
 }
 
-static irqreturn_t acpi_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
 	return (*acpi_irq_handler) (acpi_irq_context) ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -566,10 +569,7 @@ void acpi_os_derive_pci_id(acpi_handle rhandle,	/* upper bound  */
 
 static void acpi_os_execute_deferred(void *context)
 {
-	struct acpi_os_dpc *dpc = NULL;
-
-
-	dpc = (struct acpi_os_dpc *)context;
+	struct acpi_os_dpc *dpc = (struct acpi_os_dpc *)context;
 	if (!dpc) {
 		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
 		return;
@@ -604,14 +604,12 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	struct acpi_os_dpc *dpc;
 	struct work_struct *task;
 
-	ACPI_FUNCTION_TRACE("os_queue_for_execution");
-
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
 
 	if (!function)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return AE_BAD_PARAMETER;
 
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
@@ -624,26 +622,20 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 * from the same memory.
 	 */
 
-	dpc =
-	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
-		    GFP_ATOMIC);
+	dpc = kmalloc(sizeof(struct acpi_os_dpc) +
+			sizeof(struct work_struct), GFP_ATOMIC);
 	if (!dpc)
-		return_ACPI_STATUS(AE_NO_MEMORY);
-
+		return AE_NO_MEMORY;
 	dpc->function = function;
 	dpc->context = context;
-
 	task = (void *)(dpc + 1);
 	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-
-	if (!queue_work(kacpid_wq, task)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Call to queue_work() failed.\n"));
-		kfree(dpc);
+	if (!queue_work((type == OSL_NOTIFY_HANDLER)?
+			kacpi_notify_wq : kacpid_wq, task)) {
 		status = AE_ERROR;
+		kfree(dpc);
 	}
-
-	return_ACPI_STATUS(status);
+	return status;
 }
 
 EXPORT_SYMBOL(acpi_os_execute);

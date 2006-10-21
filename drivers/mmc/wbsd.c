@@ -1256,7 +1256,7 @@ end:
  * Interrupt handling
  */
 
-static irqreturn_t wbsd_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wbsd_irq(int irq, void *dev_id)
 {
 	struct wbsd_host *host = dev_id;
 	int isr;

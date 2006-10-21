@@ -1834,7 +1834,7 @@ static void bcm43xx_interrupt_ack(struct bcm43xx_private *bcm, u32 reason)
 }
 
 /* Interrupt handler top-half */
-static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id)
 {
 	irqreturn_t ret = IRQ_HANDLED;
 	struct bcm43xx_private *bcm = dev_id;
@@ -3963,7 +3963,7 @@ static void bcm43xx_net_poll_controller(struct net_device *net_dev)
 
 	local_irq_save(flags);
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)
-		bcm43xx_interrupt_handler(bcm->irq, bcm, NULL);
+		bcm43xx_interrupt_handler(bcm->irq, bcm);
 	local_irq_restore(flags);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */

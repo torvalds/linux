@@ -26,7 +26,7 @@ static void dummywr(struct IsdnCardState *cs, int chan, u_char off, u_char value
 }
 
 static irqreturn_t
-netjet_u_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+netjet_u_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val, sval;

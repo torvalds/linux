@@ -91,7 +91,6 @@ struct srp_device {
 };
 
 struct srp_host {
-	u8			initiator_port_id[16];
 	struct srp_device      *dev;
 	u8			port;
 	struct class_device	class_dev;
@@ -122,6 +121,7 @@ struct srp_target_port {
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
+	__be64			initiator_ext;
 	u16			io_class;
 	struct srp_host	       *srp_host;
 	struct Scsi_Host       *scsi_host;

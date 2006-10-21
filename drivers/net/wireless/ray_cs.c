@@ -130,7 +130,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, i
 static void verify_dl_startup(u_long);
 
 /* Prototypes for interrpt time functions **********************************/
-static irqreturn_t ray_interrupt (int reg, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ray_interrupt (int reg, void *dev_id);
 static void clear_interrupt(ray_dev_t *local);
 static void rx_deauthenticate(ray_dev_t *local, struct rcs __iomem *prcs, 
                        unsigned int pkt_addr, int rx_len);
@@ -1940,7 +1940,7 @@ static void set_multicast_list(struct net_device *dev)
 /*=============================================================================
  * All routines below here are run at interrupt time.
 =============================================================================*/
-static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t ray_interrupt(int irq, void *dev_id)
 {
     struct net_device *dev = (struct net_device *)dev_id;
     struct pcmcia_device *link;

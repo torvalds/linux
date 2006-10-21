@@ -3844,8 +3844,7 @@ static int ucc_geth_poll(struct net_device *dev, int *budget)
 }
 #endif				/* CONFIG_UGETH_NAPI */
 
-static irqreturn_t ucc_geth_irq_handler(int irq, void *info,
-					struct pt_regs *regs)
+static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 {
 	struct net_device *dev = (struct net_device *)info;
 	ucc_geth_private_t *ugeth = netdev_priv(dev);
@@ -3910,7 +3909,7 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t phy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t phy_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	ucc_geth_private_t *ugeth = netdev_priv(dev);

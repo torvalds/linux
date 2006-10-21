@@ -18,7 +18,6 @@
 #ifndef __MACH_MPC85XXADS_H
 #define __MACH_MPC85XXADS_H
 
-#include <linux/config.h>
 #include <linux/initrd.h>
 #include <sysdev/fsl_soc.h>
 

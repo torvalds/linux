@@ -58,7 +58,7 @@ struct usb_acecad {
 	dma_addr_t data_dma;
 };
 
-static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
+static void usb_acecad_irq(struct urb *urb)
 {
 	struct usb_acecad *acecad = urb->context;
 	unsigned char *data = acecad->data;

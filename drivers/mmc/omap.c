@@ -377,7 +377,7 @@ static inline void mmc_omap_report_irq(u16 status)
 		}
 }
 
-static irqreturn_t mmc_omap_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 {
 	struct mmc_omap_host * host = (struct mmc_omap_host *)dev_id;
 	u16 status;
@@ -514,7 +514,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t mmc_omap_switch_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mmc_omap_switch_irq(int irq, void *dev_id)
 {
 	struct mmc_omap_host *host = (struct mmc_omap_host *) dev_id;
 

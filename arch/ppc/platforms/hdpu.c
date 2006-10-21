@@ -659,8 +659,7 @@ static void __init hdpu_map_io(void)
 char hdpu_smp0[] = "SMP Cpu #0";
 char hdpu_smp1[] = "SMP Cpu #1";
 
-static irqreturn_t hdpu_smp_cpu0_int_handler(int irq, void *dev_id,
-					     struct pt_regs *regs)
+static irqreturn_t hdpu_smp_cpu0_int_handler(int irq, void *dev_id)
 {
 	volatile unsigned int doorbell;
 
@@ -670,22 +669,21 @@ static irqreturn_t hdpu_smp_cpu0_int_handler(int irq, void *dev_id,
 	mv64x60_write(&bh, MV64360_CPU0_DOORBELL_CLR, doorbell);
 
 	if (doorbell & 1) {
-		smp_message_recv(0, regs);
+		smp_message_recv(0);
 	}
 	if (doorbell & 2) {
-		smp_message_recv(1, regs);
+		smp_message_recv(1);
 	}
 	if (doorbell & 4) {
-		smp_message_recv(2, regs);
+		smp_message_recv(2);
 	}
 	if (doorbell & 8) {
-		smp_message_recv(3, regs);
+		smp_message_recv(3);
 	}
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t hdpu_smp_cpu1_int_handler(int irq, void *dev_id,
-					     struct pt_regs *regs)
+static irqreturn_t hdpu_smp_cpu1_int_handler(int irq, void *dev_id)
 {
 	volatile unsigned int doorbell;
 
@@ -695,16 +693,16 @@ static irqreturn_t hdpu_smp_cpu1_int_handler(int irq, void *dev_id,
 	mv64x60_write(&bh, MV64360_CPU1_DOORBELL_CLR, doorbell);
 
 	if (doorbell & 1) {
-		smp_message_recv(0, regs);
+		smp_message_recv(0);
 	}
 	if (doorbell & 2) {
-		smp_message_recv(1, regs);
+		smp_message_recv(1);
 	}
 	if (doorbell & 4) {
-		smp_message_recv(2, regs);
+		smp_message_recv(2);
 	}
 	if (doorbell & 8) {
-		smp_message_recv(3, regs);
+		smp_message_recv(3);
 	}
 	return IRQ_HANDLED;
 }

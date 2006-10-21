@@ -282,7 +282,7 @@ TimerRun(struct IsdnCardState *cs)
 #include "hscx_irq.c"
 
 static irqreturn_t
-elsa_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+elsa_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_long flags;
@@ -361,7 +361,7 @@ elsa_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-elsa_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
+elsa_interrupt_ipac(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_long flags;

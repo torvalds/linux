@@ -92,8 +92,7 @@ static inline int touchkit_get_y(char *data)
 
 
 /* processes one input packet. */
-static void touchkit_process_pkt(struct touchkit_usb *touchkit,
-                                 struct pt_regs *regs, char *pkt)
+static void touchkit_process_pkt(struct touchkit_usb *touchkit, char *pkt)
 {
 	int x, y;
 
@@ -109,7 +108,6 @@ static void touchkit_process_pkt(struct touchkit_usb *touchkit,
 		y = touchkit_get_y(pkt);
 	}
 
-	input_regs(touchkit->input, regs);
 	input_report_key(touchkit->input, BTN_TOUCH, touchkit_get_touched(pkt));
 	input_report_abs(touchkit->input, ABS_X, x);
 	input_report_abs(touchkit->input, ABS_Y, y);
@@ -130,8 +128,7 @@ static int touchkit_get_pkt_len(char *buf)
 	return 0;
 }
 
-static void touchkit_process(struct touchkit_usb *touchkit, int len,
-                             struct pt_regs *regs)
+static void touchkit_process(struct touchkit_usb *touchkit, int len)
 {
 	char *buffer;
 	int pkt_len, buf_len, pos;
@@ -153,7 +150,7 @@ static void touchkit_process(struct touchkit_usb *touchkit, int len,
 		/* append, process */
 		tmp = pkt_len - touchkit->buf_len;
 		memcpy(touchkit->buffer + touchkit->buf_len, touchkit->data, tmp);
-		touchkit_process_pkt(touchkit, regs, touchkit->buffer);
+		touchkit_process_pkt(touchkit, touchkit->buffer);
 
 		buffer = touchkit->data + tmp;
 		buf_len = len - tmp;
@@ -181,7 +178,7 @@ static void touchkit_process(struct touchkit_usb *touchkit, int len,
 
 		/* full packet: process */
 		if (likely(pkt_len <= buf_len)) {
-			touchkit_process_pkt(touchkit, regs, buffer + pos);
+			touchkit_process_pkt(touchkit, buffer + pos);
 		} else {
 			/* incomplete packet: save in buffer */
 			memcpy(touchkit->buffer, buffer + pos, buf_len - pos);
@@ -192,7 +189,7 @@ static void touchkit_process(struct touchkit_usb *touchkit, int len,
 }
 
 
-static void touchkit_irq(struct urb *urb, struct pt_regs *regs)
+static void touchkit_irq(struct urb *urb)
 {
 	struct touchkit_usb *touchkit = urb->context;
 	int retval;
@@ -219,7 +216,7 @@ static void touchkit_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	touchkit_process(touchkit, urb->actual_length, regs);
+	touchkit_process(touchkit, urb->actual_length);
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);

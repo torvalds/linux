@@ -10,7 +10,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 
@@ -233,11 +232,15 @@ void nfs_put_client(struct nfs_client *clp)
  * Find a client by address
  * - caller must hold nfs_client_lock
  */
-static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int nfsversion)
+static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int nfsversion, int match_port)
 {
 	struct nfs_client *clp;
 
 	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+		/* Don't match clients that failed to initialise properly */
+		if (clp->cl_cons_state < 0)
+			continue;
+
 		/* Different NFS versions cannot share the same nfs_client */
 		if (clp->cl_nfsversion != nfsversion)
 			continue;
@@ -246,7 +249,7 @@ static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int 
 			   sizeof(clp->cl_addr.sin_addr)) != 0)
 			continue;
 
-		if (clp->cl_addr.sin_port == addr->sin_port)
+		if (!match_port || clp->cl_addr.sin_port == addr->sin_port)
 			goto found;
 	}
 
@@ -266,11 +269,12 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 	struct nfs_client *clp;
 
 	spin_lock(&nfs_client_lock);
-	clp = __nfs_find_client(addr, nfsversion);
+	clp = __nfs_find_client(addr, nfsversion, 0);
 	spin_unlock(&nfs_client_lock);
-
-	BUG_ON(clp && clp->cl_cons_state == 0);
-
+	if (clp != NULL && clp->cl_cons_state != NFS_CS_READY) {
+		nfs_put_client(clp);
+		clp = NULL;
+	}
 	return clp;
 }
 
@@ -293,7 +297,7 @@ static struct nfs_client *nfs_get_client(const char *hostname,
 	do {
 		spin_lock(&nfs_client_lock);
 
-		clp = __nfs_find_client(addr, nfsversion);
+		clp = __nfs_find_client(addr, nfsversion, 1);
 		if (clp)
 			goto found_client;
 		if (new)
@@ -323,25 +327,11 @@ found_client:
 	if (new)
 		nfs_free_client(new);
 
-	if (clp->cl_cons_state == NFS_CS_INITING) {
-		DECLARE_WAITQUEUE(myself, current);
-
-		add_wait_queue(&nfs_client_active_wq, &myself);
-
-		for (;;) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (signal_pending(current) ||
-			    clp->cl_cons_state > NFS_CS_READY)
-				break;
-			schedule();
-		}
-
-		remove_wait_queue(&nfs_client_active_wq, &myself);
-
-		if (signal_pending(current)) {
-			nfs_put_client(clp);
-			return ERR_PTR(-ERESTARTSYS);
-		}
+	error = wait_event_interruptible(nfs_client_active_wq,
+				clp->cl_cons_state != NFS_CS_INITING);
+	if (error < 0) {
+		nfs_put_client(clp);
+		return ERR_PTR(-ERESTARTSYS);
 	}
 
 	if (clp->cl_cons_state < NFS_CS_READY) {
@@ -864,6 +854,7 @@ error:
  */
 static int nfs4_init_client(struct nfs_client *clp,
 		int proto, int timeo, int retrans,
+		const char *ip_addr,
 		rpc_authflavor_t authflavour)
 {
 	int error;
@@ -880,6 +871,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	error = nfs_create_rpc_client(clp, proto, timeo, retrans, authflavour);
 	if (error < 0)
 		goto error;
+	memcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	error = nfs_idmap_new(clp);
 	if (error < 0) {
@@ -903,6 +895,7 @@ error:
  */
 static int nfs4_set_client(struct nfs_server *server,
 		const char *hostname, const struct sockaddr_in *addr,
+		const char *ip_addr,
 		rpc_authflavor_t authflavour,
 		int proto, int timeo, int retrans)
 {
@@ -917,7 +910,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, proto, timeo, retrans, authflavour);
+	error = nfs4_init_client(clp, proto, timeo, retrans, ip_addr, authflavour);
 	if (error < 0)
 		goto error_put;
 
@@ -986,7 +979,7 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* Get a client record */
-	error = nfs4_set_client(server, hostname, addr, authflavour,
+	error = nfs4_set_client(server, hostname, addr, ip_addr, authflavour,
 			data->proto, data->timeo, data->retrans);
 	if (error < 0)
 		goto error;
@@ -1056,6 +1049,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
 	error = nfs4_set_client(server, data->hostname, data->addr,
+			parent_client->cl_ipaddr,
 			data->authflavor,
 			parent_server->client->cl_xprt->prot,
 			parent_client->retrans_timeo,

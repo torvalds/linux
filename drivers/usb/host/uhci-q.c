@@ -1244,7 +1244,7 @@ done:
  * Finish unlinking an URB and give it back
  */
 static void uhci_giveback_urb(struct uhci_hcd *uhci, struct uhci_qh *qh,
-		struct urb *urb, struct pt_regs *regs)
+		struct urb *urb)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
@@ -1293,7 +1293,7 @@ __acquires(uhci->lock)
 	}
 
 	spin_unlock(&uhci->lock);
-	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb, regs);
+	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);
 	spin_lock(&uhci->lock);
 
 	/* If the queue is now empty, we can unlink the QH and give up its
@@ -1313,8 +1313,7 @@ __acquires(uhci->lock)
 		(qh->state == QH_STATE_UNLINKING &&	\
 		uhci->frame_number + uhci->is_stopped != qh->unlink_frame)
 
-static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
-		struct pt_regs *regs)
+static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	struct urb_priv *urbp;
 	struct urb *urb;
@@ -1347,7 +1346,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 				return;
 		}
 
-		uhci_giveback_urb(uhci, qh, urb, regs);
+		uhci_giveback_urb(uhci, qh, urb);
 		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
 			break;
 	}
@@ -1372,7 +1371,7 @@ restart:
 				qh->is_stopped = 0;
 				return;
 			}
-			uhci_giveback_urb(uhci, qh, urb, regs);
+			uhci_giveback_urb(uhci, qh, urb);
 			goto restart;
 		}
 	}
@@ -1487,7 +1486,7 @@ done:
 /*
  * Process events in the schedule, but only in one thread at a time
  */
-static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
+static void uhci_scan_schedule(struct uhci_hcd *uhci)
 {
 	int i;
 	struct uhci_qh *qh;
@@ -1515,7 +1514,7 @@ rescan:
 					struct uhci_qh, node);
 
 			if (uhci_advance_check(uhci, qh)) {
-				uhci_scan_qh(uhci, qh, regs);
+				uhci_scan_qh(uhci, qh);
 				if (qh->state == QH_STATE_ACTIVE) {
 					uhci_urbp_wants_fsbr(uhci,
 	list_entry(qh->queue.next, struct urb_priv, node));

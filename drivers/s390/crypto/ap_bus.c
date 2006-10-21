@@ -449,8 +449,6 @@ static int ap_device_probe(struct device *dev)
 
 	ap_dev->drv = ap_drv;
 	rc = ap_drv->probe ? ap_drv->probe(ap_dev) : -ENODEV;
-	if (rc)
-		ap_dev->unregistered = 1;
 	return rc;
 }
 
@@ -487,14 +485,7 @@ static int ap_device_remove(struct device *dev)
 	struct ap_device *ap_dev = to_ap_dev(dev);
 	struct ap_driver *ap_drv = ap_dev->drv;
 
-	spin_lock_bh(&ap_dev->lock);
-	__ap_flush_queue(ap_dev);
-	/**
-	 * set ->unregistered to 1 while holding the lock. This prevents
-	 * new messages to be put on the queue from now on.
-	 */
-	ap_dev->unregistered = 1;
-	spin_unlock_bh(&ap_dev->lock);
+	ap_flush_queue(ap_dev);
 	if (ap_drv->remove)
 		ap_drv->remove(ap_dev);
 	return 0;
@@ -763,6 +754,7 @@ static void ap_scan_bus(void *data)
 			break;
 		ap_dev->qid = qid;
 		ap_dev->queue_depth = queue_depth;
+		ap_dev->unregistered = 1;
 		spin_lock_init(&ap_dev->lock);
 		INIT_LIST_HEAD(&ap_dev->pendingq);
 		INIT_LIST_HEAD(&ap_dev->requestq);
@@ -784,7 +776,12 @@ static void ap_scan_bus(void *data)
 		/* Add device attributes. */
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&ap_dev_attr_group);
-		if (rc)
+		if (!rc) {
+			spin_lock_bh(&ap_dev->lock);
+			ap_dev->unregistered = 0;
+			spin_unlock_bh(&ap_dev->lock);
+		}
+		else
 			device_unregister(&ap_dev->device);
 	}
 }
@@ -970,6 +967,8 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 			rc = __ap_queue_message(ap_dev, ap_msg);
 		if (!rc)
 			wake_up(&ap_poll_wait);
+		if (rc == -ENODEV)
+			ap_dev->unregistered = 1;
 	} else {
 		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 		rc = 0;
@@ -1028,6 +1027,8 @@ static int __ap_poll_all(struct device *dev, void *data)
 	spin_lock(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
 		rc = ap_poll_queue(to_ap_dev(dev), (unsigned long *) data);
+		if (rc)
+			ap_dev->unregistered = 1;
 	} else
 		rc = 0;
 	spin_unlock(&ap_dev->lock);
@@ -1061,7 +1062,7 @@ static int ap_poll_thread(void *data)
 	unsigned long flags;
 	int requests;
 
-	set_user_nice(current, -20);
+	set_user_nice(current, 19);
 	while (1) {
 		if (need_resched()) {
 			schedule();

@@ -258,7 +258,7 @@ static void sharpsl_ac_timer(unsigned long data)
 }
 
 
-irqreturn_t sharpsl_ac_isr(int irq, void *dev_id, struct pt_regs *fp)
+irqreturn_t sharpsl_ac_isr(int irq, void *dev_id)
 {
 	/* Delay the event slightly to debounce */
 	/* Must be a smaller delay than the chrg_full_isr below */
@@ -293,7 +293,7 @@ static void sharpsl_chrg_full_timer(unsigned long data)
 /* Charging Finished Interrupt (Not present on Corgi) */
 /* Can trigger at the same time as an AC staus change so
    delay until after that has been processed */
-irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id, struct pt_regs *fp)
+irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id)
 {
 	if (sharpsl_pm.flags & SHARPSL_SUSPENDED)
 		return IRQ_HANDLED;
@@ -304,7 +304,7 @@ irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id, struct pt_regs *fp)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id, struct pt_regs *fp)
+irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id)
 {
 	int is_fatal = 0;
 

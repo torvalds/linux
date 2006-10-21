@@ -143,17 +143,17 @@ struct iop_msg {
 	int	status;			/* status of this message            */
 	__u8	message[IOP_MSG_LEN];	/* the message being sent/received   */
 	__u8	reply[IOP_MSG_LEN];	/* the reply to the message          */
-	void	(*handler)(struct iop_msg *, struct pt_regs *);
+	void	(*handler)(struct iop_msg *);
 					/* function to call when reply recvd */
 };
 
 extern int iop_scc_present,iop_ism_present;
 
 extern int iop_listen(uint, uint,
-			void (*handler)(struct iop_msg *, struct pt_regs *),
+			void (*handler)(struct iop_msg *),
 			const char *);
 extern int iop_send_message(uint, uint, void *, uint, __u8 *,
-			    void (*)(struct iop_msg *, struct pt_regs *));
+			    void (*)(struct iop_msg *));
 extern void iop_complete_message(struct iop_msg *);
 extern void iop_upload_code(uint, __u8 *, uint, __u16);
 extern void iop_download_code(uint, __u8 *, uint, __u16);

@@ -1685,8 +1685,7 @@ static void snd_m3_update_hw_volume(unsigned long private_data)
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
 }
 
-static irqreturn_t
-snd_m3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_m3_interrupt(int irq, void *dev_id)
 {
 	struct snd_m3 *chip = dev_id;
 	u8 status;

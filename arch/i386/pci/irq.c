@@ -981,10 +981,6 @@ static void __init pcibios_fixup_irqs(void)
 							pci_name(bridge), 'A' + pin, irq);
 				}
 				if (irq >= 0) {
-					if (use_pci_vector() &&
-						!platform_legacy_irq(irq))
-						irq = IO_APIC_VECTOR(irq);
-
 					printk(KERN_INFO "PCI->APIC IRQ transform: %s[%c] -> IRQ %d\n",
 						pci_name(dev), 'A' + pin, irq);
 					dev->irq = irq;
@@ -1145,10 +1141,6 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			}
 			dev = temp_dev;
 			if (irq >= 0) {
-#ifdef CONFIG_PCI_MSI
-				if (!platform_legacy_irq(irq))
-					irq = IO_APIC_VECTOR(irq);
-#endif
 				printk(KERN_INFO "PCI->APIC IRQ transform: %s[%c] -> IRQ %d\n",
 					pci_name(dev), 'A' + pin, irq);
 				dev->irq = irq;
@@ -1168,34 +1160,4 @@ static int pirq_enable_irq(struct pci_dev *dev)
 		       'A' + pin, pci_name(dev), msg);
 	}
 	return 0;
-}
-
-int pci_vector_resources(int last, int nr_released)
-{
-	int count = nr_released;
-
-	int next = last;
-	int offset = (last % 8);
-
-	while (next < FIRST_SYSTEM_VECTOR) {
-		next += 8;
-#ifdef CONFIG_X86_64
-		if (next == IA32_SYSCALL_VECTOR)
-			continue;
-#else
-		if (next == SYSCALL_VECTOR)
-			continue;
-#endif
-		count++;
-		if (next >= FIRST_SYSTEM_VECTOR) {
-			if (offset%8) {
-				next = FIRST_DEVICE_VECTOR + offset;
-				offset++;
-				continue;
-			}
-			count--;
-		}
-	}
-
-	return count;
 }

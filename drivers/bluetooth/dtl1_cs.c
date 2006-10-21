@@ -291,7 +291,7 @@ static void dtl1_receive(dtl1_info_t *info)
 }
 
 
-static irqreturn_t dtl1_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
+static irqreturn_t dtl1_interrupt(int irq, void *dev_inst)
 {
 	dtl1_info_t *info = dev_inst;
 	unsigned int iobase;
@@ -711,6 +711,7 @@ static void dtl1_release(struct pcmcia_device *link)
 
 static struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
+	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-4", 0xe1bfdd64, 0x9102bc82),
 	PCMCIA_DEVICE_PROD_ID12("Socket", "CF", 0xb38bcc2e, 0x44ebf863),
 	PCMCIA_DEVICE_PROD_ID12("Socket", "CF+ Personal Network Card", 0xb38bcc2e, 0xe732bae3),
 	PCMCIA_DEVICE_NULL

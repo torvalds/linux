@@ -529,15 +529,16 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id via[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C576_1), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_6410), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_SATA_EIDE), },
-	{ 0, },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C576_1), },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C586_1), },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_6410), },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_SATA_EIDE), },
+
+	{ },
 };
 
 static struct pci_driver via_pci_driver = {
-        .name 		= DRV_NAME,
+	.name 		= DRV_NAME,
 	.id_table	= via,
 	.probe 		= via_init_one,
 	.remove		= ata_pci_remove_one
@@ -548,12 +549,10 @@ static int __init via_init(void)
 	return pci_register_driver(&via_pci_driver);
 }
 
-
 static void __exit via_exit(void)
 {
 	pci_unregister_driver(&via_pci_driver);
 }
-
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for VIA PATA");

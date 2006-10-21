@@ -168,7 +168,7 @@ static int myri_do_handshake(struct myri_eth *mp)
 	return 0;
 }
 
-static int myri_load_lanai(struct myri_eth *mp)
+static int __devinit myri_load_lanai(struct myri_eth *mp)
 {
 	struct net_device	*dev = mp->dev;
 	struct myri_shmem __iomem *shmem = mp->shmem;
@@ -536,7 +536,7 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 	}
 }
 
-static irqreturn_t myri_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t myri_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev		= (struct net_device *) dev_id;
 	struct myri_eth *mp		= (struct myri_eth *) dev->priv;
@@ -891,7 +891,7 @@ static void dump_eeprom(struct myri_eth *mp)
 }
 #endif
 
-static int __init myri_ether_init(struct sbus_dev *sdev)
+static int __devinit myri_ether_init(struct sbus_dev *sdev)
 {
 	static int num;
 	static unsigned version_printed;

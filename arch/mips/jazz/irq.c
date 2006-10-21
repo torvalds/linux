@@ -94,26 +94,26 @@ void __init arch_init_irq(void)
 	change_c0_status(ST0_IM, IE_IRQ4 | IE_IRQ3 | IE_IRQ2 | IE_IRQ1);
 }
 
-static void loc_call(unsigned int irq, struct pt_regs *regs, unsigned int mask)
+static void loc_call(unsigned int irq, unsigned int mask)
 {
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
 	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) & mask);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
 	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) | mask);
 }
 
-static void ll_local_dev(struct pt_regs *regs)
+static void ll_local_dev(void)
 {
 	switch (r4030_read_reg32(JAZZ_IO_IRQ_SOURCE)) {
 	case 0:
 		panic("Unimplemented loc_no_irq handler");
 		break;
 	case 4:
-		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_PARALLEL);
+		loc_call(JAZZ_PARALLEL_IRQ, JAZZ_IE_PARALLEL);
 		break;
 	case 8:
-		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_FLOPPY);
+		loc_call(JAZZ_PARALLEL_IRQ, JAZZ_IE_FLOPPY);
 		break;
 	case 12:
 		panic("Unimplemented loc_sound handler");
@@ -122,27 +122,27 @@ static void ll_local_dev(struct pt_regs *regs)
 		panic("Unimplemented loc_video handler");
 		break;
 	case 20:
-		loc_call(JAZZ_ETHERNET_IRQ, regs, JAZZ_IE_ETHERNET);
+		loc_call(JAZZ_ETHERNET_IRQ, JAZZ_IE_ETHERNET);
 		break;
 	case 24:
-		loc_call(JAZZ_SCSI_IRQ, regs, JAZZ_IE_SCSI);
+		loc_call(JAZZ_SCSI_IRQ, JAZZ_IE_SCSI);
 		break;
 	case 28:
-		loc_call(JAZZ_KEYBOARD_IRQ, regs, JAZZ_IE_KEYBOARD);
+		loc_call(JAZZ_KEYBOARD_IRQ, JAZZ_IE_KEYBOARD);
 		break;
 	case 32:
-		loc_call(JAZZ_MOUSE_IRQ, regs, JAZZ_IE_MOUSE);
+		loc_call(JAZZ_MOUSE_IRQ, JAZZ_IE_MOUSE);
 		break;
 	case 36:
-		loc_call(JAZZ_SERIAL1_IRQ, regs, JAZZ_IE_SERIAL1);
+		loc_call(JAZZ_SERIAL1_IRQ, JAZZ_IE_SERIAL1);
 		break;
 	case 40:
-		loc_call(JAZZ_SERIAL2_IRQ, regs, JAZZ_IE_SERIAL2);
+		loc_call(JAZZ_SERIAL2_IRQ, JAZZ_IE_SERIAL2);
 		break;
 	}
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 
@@ -150,13 +150,13 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 		write_c0_compare(0);
 	else if (pending & IE_IRQ4) {
 		r4030_read_reg32(JAZZ_TIMER_REGISTER);
-		do_IRQ(JAZZ_TIMER_IRQ, regs);
+		do_IRQ(JAZZ_TIMER_IRQ);
 	} else if (pending & IE_IRQ3)
 		panic("Unimplemented ISA NMI handler");
 	else if (pending & IE_IRQ2)
-		do_IRQ(r4030_read_reg32(JAZZ_EISA_IRQ_ACK), regs);
+		do_IRQ(r4030_read_reg32(JAZZ_EISA_IRQ_ACK));
 	else if (pending & IE_IRQ1) {
-		ll_local_dev(regs);
+		ll_local_dev();
 	} else if (unlikely(pending & IE_IRQ0))
 		panic("Unimplemented local_dma handler");
 	else if (pending & IE_SW1) {

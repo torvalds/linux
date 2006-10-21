@@ -2195,7 +2195,8 @@ enum {
 	XM_IS_RX_COMP	= 1<<0,	/* Bit  0:	Frame Rx Complete */
 };
 
-#define XM_DEF_MSK	(~(XM_IS_RXC_OV | XM_IS_TXC_OV | XM_IS_RXF_OV | XM_IS_TXF_UR))
+#define XM_DEF_MSK	(~(XM_IS_INP_ASS | XM_IS_LIPA_RC | \
+			   XM_IS_RXF_OV | XM_IS_TXF_UR))
 
 
 /*	XM_HW_CFG	16 bit r/w	Hardware Config Register */
@@ -2426,12 +2427,23 @@ struct skge_hw {
 	struct mutex	     phy_mutex;
 };
 
-enum {
-	FLOW_MODE_NONE 		= 0, /* No Flow-Control */
-	FLOW_MODE_LOC_SEND	= 1, /* Local station sends PAUSE */
-	FLOW_MODE_REM_SEND	= 2, /* Symmetric or just remote */
+enum pause_control {
+	FLOW_MODE_NONE 		= 1, /* No Flow-Control */
+	FLOW_MODE_LOC_SEND	= 2, /* Local station sends PAUSE */
 	FLOW_MODE_SYMMETRIC	= 3, /* Both stations may send PAUSE */
+	FLOW_MODE_SYM_OR_REM	= 4, /* Both stations may send PAUSE or
+				      * just the remote station may send PAUSE
+				      */
 };
+
+enum pause_status {
+	FLOW_STAT_INDETERMINATED=0,	/* indeterminated */
+	FLOW_STAT_NONE,			/* No Flow Control */
+	FLOW_STAT_REM_SEND,		/* Remote Station sends PAUSE */
+	FLOW_STAT_LOC_SEND,		/* Local station sends PAUSE */
+	FLOW_STAT_SYMMETRIC,		/* Both station may send PAUSE */
+};
+
 
 struct skge_port {
 	u32		     msg_enable;
@@ -2445,9 +2457,10 @@ struct skge_port {
 	struct net_device_stats net_stats;
 
 	struct work_struct   link_thread;
+	enum pause_control   flow_control;
+	enum pause_status    flow_status;
 	u8		     rx_csum;
 	u8		     blink_on;
-	u8		     flow_control;
 	u8		     wol;
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */
 	u8		     duplex;	/* DUPLEX_HALF, DUPLEX_FULL */

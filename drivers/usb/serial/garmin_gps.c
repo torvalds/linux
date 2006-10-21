@@ -1031,7 +1031,7 @@ static void garmin_close (struct usb_serial_port *port, struct file * filp)
 }
 
 
-static void garmin_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void garmin_write_bulk_callback (struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
@@ -1274,7 +1274,7 @@ static void garmin_read_process(struct garmin_data * garmin_data_p,
 }
 
 
-static void garmin_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void garmin_read_bulk_callback (struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
@@ -1330,7 +1330,7 @@ static void garmin_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 }
 
 
-static void garmin_read_int_callback (struct urb *urb, struct pt_regs *regs)
+static void garmin_read_int_callback (struct urb *urb)
 {
 	unsigned long flags;
 	int status;

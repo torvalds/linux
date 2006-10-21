@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/uio.h>
-#include <linux/config.h>
 #include <linux/uaccess.h>
 
 size_t

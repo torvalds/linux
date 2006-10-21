@@ -23,7 +23,6 @@
 
 #undef REALLY_SLOW_IO		/* most systems can safely undef this */
 
-#include <linux/config.h> /* for CONFIG_BLK_DEV_IDEPCI */
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -238,10 +237,12 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 	if (dev->vendor == PCI_VENDOR_ID_JMICRON && PCI_FUNC(dev->devfn) != 1)
 		goto out;
 
-	pci_read_config_word(dev, PCI_COMMAND, &command);
-	if (!(command & PCI_COMMAND_IO)) {
-		printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
-		goto out;
+	if (dev->vendor != PCI_VENDOR_ID_JMICRON) {
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if (!(command & PCI_COMMAND_IO)) {
+			printk(KERN_INFO "Skipping disabled %s IDE controller.\n", d->name);
+			goto out;
+		}
 	}
 	ret = ide_setup_pci_device(dev, d);
 out:

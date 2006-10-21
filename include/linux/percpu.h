@@ -19,7 +19,7 @@
  * we force a syntax error here if it isn't.
  */
 #define get_cpu_var(var) (*({				\
-	extern int simple_indentifier_##var(void);	\
+	extern int simple_identifier_##var(void);	\
 	preempt_disable();				\
 	&__get_cpu_var(var); }))
 #define put_cpu_var(var) preempt_enable()

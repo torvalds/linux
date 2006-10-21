@@ -63,7 +63,7 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
  */
 extern void __iomem * __ioremap_pfn(unsigned long, unsigned long, size_t, unsigned long);
 extern void __iomem * __ioremap(unsigned long, size_t, unsigned long);
-extern void __iounmap(void __iomem *addr);
+extern void __iounmap(volatile void __iomem *addr);
 
 /*
  * Bad read/write accesses...
@@ -192,23 +192,6 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 
 #define eth_io_copy_and_sum(s,c,l,b) \
 				eth_copy_and_sum((s),__mem_pci(c),(l),(b))
-
-static inline int
-check_signature(void __iomem *io_addr, const unsigned char *signature,
-		int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
 
 #elif !defined(readb)
 

@@ -63,7 +63,6 @@
 #define MAX_PCI_DEVICES 10
 #define MAX_TOTAL_DEVICES 20
 
-#include <linux/config.h>	
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -134,8 +133,8 @@ static MGSL_PARAMS default_params = {
 };
 
 #define SHARED_MEM_ADDRESS_SIZE 0x40000
-#define BUFFERLISTSIZE (PAGE_SIZE)
-#define DMABUFFERSIZE (PAGE_SIZE)
+#define BUFFERLISTSIZE 4096
+#define DMABUFFERSIZE 4096
 #define MAXRXFRAMES 7
 
 typedef struct _DMABUFFERENTRY
@@ -1699,11 +1698,10 @@ static void mgsl_isr_transmit_dma( struct mgsl_struct *info )
  * 
  * 	irq		interrupt number that caused interrupt
  * 	dev_id		device ID supplied during interrupt registration
- * 	regs		interrupted processor context
  * 	
  * Return Value: None
  */
-static irqreturn_t mgsl_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t mgsl_interrupt(int irq, void *dev_id)
 {
 	struct mgsl_struct * info;
 	u16 UscVector;

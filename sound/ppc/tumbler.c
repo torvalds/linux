@@ -1017,7 +1017,7 @@ static void tumbler_update_automute(struct snd_pmac *chip, int do_notify)
 
 
 /* interrupt - headphone plug changed */
-static irqreturn_t headphone_intr(int irq, void *devid, struct pt_regs *regs)
+static irqreturn_t headphone_intr(int irq, void *devid)
 {
 	struct snd_pmac *chip = devid;
 	if (chip->update_automute && chip->initialized) {

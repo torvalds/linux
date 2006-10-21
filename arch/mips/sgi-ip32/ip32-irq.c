@@ -120,10 +120,8 @@ static void inline flush_mace_bus(void)
 static DEFINE_SPINLOCK(ip32_irq_lock);
 
 /* Some initial interrupts to set up */
-extern irqreturn_t crime_memerr_intr (int irq, void *dev_id,
-				      struct pt_regs *regs);
-extern irqreturn_t crime_cpuerr_intr (int irq, void *dev_id,
-				      struct pt_regs *regs);
+extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
+extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
 struct irqaction memerr_irq = { crime_memerr_intr, IRQF_DISABLED,
 			CPU_MASK_NONE, "CRIME memory error", NULL, NULL };
@@ -479,7 +477,7 @@ static struct irq_chip ip32_mace_interrupt = {
 	.end = end_mace_irq,
 };
 
-static void ip32_unknown_interrupt(struct pt_regs *regs)
+static void ip32_unknown_interrupt(void)
 {
 	printk ("Unknown interrupt occurred!\n");
 	printk ("cp0_status: %08x\n", read_c0_status());
@@ -492,7 +490,7 @@ static void ip32_unknown_interrupt(struct pt_regs *regs)
 	printk ("MACE PCI control register: %08x\n", mace->pci.control);
 
 	printk("Register dump:\n");
-	show_regs(regs);
+	show_regs(get_irq_regs());
 
 	printk("Please mail this report to linux-mips@linux-mips.org\n");
 	printk("Spinning...");
@@ -501,7 +499,7 @@ static void ip32_unknown_interrupt(struct pt_regs *regs)
 
 /* CRIME 1.1 appears to deliver all interrupts to this one pin. */
 /* change this to loop over all edge-triggered irqs, exception masked out ones */
-static void ip32_irq0(struct pt_regs *regs)
+static void ip32_irq0(void)
 {
 	uint64_t crime_int;
 	int irq = 0;
@@ -516,50 +514,50 @@ static void ip32_irq0(struct pt_regs *regs)
 	}
 	irq++;
 	DBG("*irq %u*\n", irq);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 }
 
-static void ip32_irq1(struct pt_regs *regs)
+static void ip32_irq1(void)
 {
-	ip32_unknown_interrupt(regs);
+	ip32_unknown_interrupt();
 }
 
-static void ip32_irq2(struct pt_regs *regs)
+static void ip32_irq2(void)
 {
-	ip32_unknown_interrupt(regs);
+	ip32_unknown_interrupt();
 }
 
-static void ip32_irq3(struct pt_regs *regs)
+static void ip32_irq3(void)
 {
-	ip32_unknown_interrupt(regs);
+	ip32_unknown_interrupt();
 }
 
-static void ip32_irq4(struct pt_regs *regs)
+static void ip32_irq4(void)
 {
-	ip32_unknown_interrupt(regs);
+	ip32_unknown_interrupt();
 }
 
-static void ip32_irq5(struct pt_regs *regs)
+static void ip32_irq5(void)
 {
-	ll_timer_interrupt(IP32_R4K_TIMER_IRQ, regs);
+	ll_timer_interrupt(IP32_R4K_TIMER_IRQ);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_cause();
 
 	if (likely(pending & IE_IRQ0))
-		ip32_irq0(regs);
+		ip32_irq0();
 	else if (unlikely(pending & IE_IRQ1))
-		ip32_irq1(regs);
+		ip32_irq1();
 	else if (unlikely(pending & IE_IRQ2))
-		ip32_irq2(regs);
+		ip32_irq2();
 	else if (unlikely(pending & IE_IRQ3))
-		ip32_irq3(regs);
+		ip32_irq3();
 	else if (unlikely(pending & IE_IRQ4))
-		ip32_irq4(regs);
+		ip32_irq4();
 	else if (likely(pending & IE_IRQ5))
-		ip32_irq5(regs);
+		ip32_irq5();
 }
 
 void __init arch_init_irq(void)

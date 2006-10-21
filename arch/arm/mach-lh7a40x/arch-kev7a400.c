@@ -71,14 +71,13 @@ static struct irq_chip kev7a400_cpld_chip = {
 };
 
 
-static void kev7a400_cpld_handler (unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void kev7a400_cpld_handler (unsigned int irq, struct irqdesc *desc)
 {
 	u32 mask = CPLD_LATCHED_INTS;
 	irq = IRQ_KEV7A400_CPLD;
 	for (; mask; mask >>= 1, ++irq) {
 		if (mask & 1)
-			desc[irq].handle (irq, desc, regs);
+			desc[irq].handle (irq, desc);
 	}
 }
 

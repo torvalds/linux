@@ -166,7 +166,7 @@ config KEYBOARD_AMIGA
 
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
-	depends on GSC
+	depends on GSC || HP300
 	default y
 	help
 	  The "Human Interface Loop" is a older, 8-channel USB-like
@@ -183,7 +183,7 @@ config KEYBOARD_HIL_OLD
 
 config KEYBOARD_HIL
 	tristate "HP HIL keyboard support"
-	depends on GSC
+	depends on GSC || HP300
 	default y
 	select HP_SDC
 	select HIL_MLC

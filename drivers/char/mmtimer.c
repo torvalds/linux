@@ -422,7 +422,6 @@ static int inline reschedule_periodic_timer(mmtimer_t *x)
  * mmtimer_interrupt - timer interrupt handler
  * @irq: irq received
  * @dev_id: device the irq came from
- * @regs: register state upon receipt of the interrupt
  *
  * Called when one of the comarators matches the counter, This
  * routine will send signals to processes that have requested
@@ -433,7 +432,7 @@ static int inline reschedule_periodic_timer(mmtimer_t *x)
  * registers.
  */
 static irqreturn_t
-mmtimer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+mmtimer_interrupt(int irq, void *dev_id)
 {
 	int i;
 	unsigned long expires = 0;

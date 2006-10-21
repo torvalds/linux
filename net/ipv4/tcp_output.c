@@ -273,10 +273,10 @@ static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp)
 {
 	if (tp->rx_opt.tstamp_ok) {
-		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) |
-					  (TCPOPT_NOP << 16) |
-					  (TCPOPT_TIMESTAMP << 8) |
-					  TCPOLEN_TIMESTAMP);
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_TIMESTAMP << 8) |
+			       TCPOLEN_TIMESTAMP);
 		*ptr++ = htonl(tstamp);
 		*ptr++ = htonl(tp->rx_opt.ts_recent);
 	}
@@ -325,18 +325,27 @@ static void tcp_syn_build_options(__be32 *ptr, int mss, int ts, int sack,
 	*ptr++ = htonl((TCPOPT_MSS << 24) | (TCPOLEN_MSS << 16) | mss);
 	if (ts) {
 		if(sack)
-			*ptr++ = __constant_htonl((TCPOPT_SACK_PERM << 24) | (TCPOLEN_SACK_PERM << 16) |
-						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+			*ptr++ = htonl((TCPOPT_SACK_PERM << 24) |
+				       (TCPOLEN_SACK_PERM << 16) |
+				       (TCPOPT_TIMESTAMP << 8) |
+				       TCPOLEN_TIMESTAMP);
 		else
-			*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+			*ptr++ = htonl((TCPOPT_NOP << 24) |
+				       (TCPOPT_NOP << 16) |
+				       (TCPOPT_TIMESTAMP << 8) |
+				       TCPOLEN_TIMESTAMP);
 		*ptr++ = htonl(tstamp);		/* TSVAL */
 		*ptr++ = htonl(ts_recent);	/* TSECR */
 	} else if(sack)
-		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
-					  (TCPOPT_SACK_PERM << 8) | TCPOLEN_SACK_PERM);
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_NOP << 16) |
+			       (TCPOPT_SACK_PERM << 8) |
+			       TCPOLEN_SACK_PERM);
 	if (offer_wscale)
-		*ptr++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_WINDOW << 16) | (TCPOLEN_WINDOW << 8) | (wscale));
+		*ptr++ = htonl((TCPOPT_NOP << 24) |
+			       (TCPOPT_WINDOW << 16) |
+			       (TCPOLEN_WINDOW << 8) |
+			       (wscale));
 }
 
 /* This routine actually transmits TCP packets queued in by
@@ -1087,10 +1096,14 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 	u32 send_win, cong_win, limit, in_flight;
 
 	if (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN)
-		return 0;
+		goto send_now;
 
 	if (icsk->icsk_ca_state != TCP_CA_Open)
-		return 0;
+		goto send_now;
+
+	/* Defer for less than two clock ticks. */
+	if (!tp->tso_deferred && ((jiffies<<1)>>1) - (tp->tso_deferred>>1) > 1)
+		goto send_now;
 
 	in_flight = tcp_packets_in_flight(tp);
 
@@ -1106,7 +1119,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 
 	/* If a full-sized TSO skb can be sent, do it. */
 	if (limit >= 65536)
-		return 0;
+		goto send_now;
 
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
@@ -1116,7 +1129,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 		 */
 		chunk /= sysctl_tcp_tso_win_divisor;
 		if (limit >= chunk)
-			return 0;
+			goto send_now;
 	} else {
 		/* Different approach, try not to defer past a single
 		 * ACK.  Receiver should ACK every other full sized
@@ -1124,11 +1137,17 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 		 * then send now.
 		 */
 		if (limit > tcp_max_burst(tp) * tp->mss_cache)
-			return 0;
+			goto send_now;
 	}
 
 	/* Ok, it looks like it is advisable to defer.  */
+	tp->tso_deferred = 1 | (jiffies<<1);
+
 	return 1;
+
+send_now:
+	tp->tso_deferred = 0;
+	return 0;
 }
 
 /* Create a new MTU probe if we are ready.

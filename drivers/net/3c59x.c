@@ -717,8 +717,8 @@ static int vortex_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int vortex_rx(struct net_device *dev);
 static int boomerang_rx(struct net_device *dev);
-static irqreturn_t vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-static irqreturn_t boomerang_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t vortex_interrupt(int irq, void *dev_id);
+static irqreturn_t boomerang_interrupt(int irq, void *dev_id);
 static int vortex_close(struct net_device *dev);
 static void dump_tx_ring(struct net_device *dev);
 static void update_stats(void __iomem *ioaddr, struct net_device *dev);
@@ -794,7 +794,7 @@ static void poll_vortex(struct net_device *dev)
 	unsigned long flags;
 	local_save_flags(flags);
 	local_irq_disable();
-	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev,NULL);
+	(vp->full_bus_master_rx ? boomerang_interrupt:vortex_interrupt)(dev->irq,dev);
 	local_irq_restore(flags);
 }
 #endif
@@ -1849,9 +1849,9 @@ static void vortex_tx_timeout(struct net_device *dev)
 			unsigned long flags;
 			local_irq_save(flags);
 			if (vp->full_bus_master_tx)
-				boomerang_interrupt(dev->irq, dev, NULL);
+				boomerang_interrupt(dev->irq, dev);
 			else
-				vortex_interrupt(dev->irq, dev, NULL);
+				vortex_interrupt(dev->irq, dev);
 			local_irq_restore(flags);
 		}
 	}
@@ -2149,7 +2149,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
  */
 
 static irqreturn_t
-vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+vortex_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);
@@ -2254,7 +2254,7 @@ handler_exit:
  */
 
 static irqreturn_t
-boomerang_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+boomerang_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct vortex_private *vp = netdev_priv(dev);

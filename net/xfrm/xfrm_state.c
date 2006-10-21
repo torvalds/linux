@@ -63,10 +63,11 @@ static inline unsigned int xfrm_dst_hash(xfrm_address_t *daddr,
 	return __xfrm_dst_hash(daddr, saddr, reqid, family, xfrm_state_hmask);
 }
 
-static inline unsigned int xfrm_src_hash(xfrm_address_t *addr,
+static inline unsigned int xfrm_src_hash(xfrm_address_t *daddr,
+					 xfrm_address_t *saddr,
 					 unsigned short family)
 {
-	return __xfrm_src_hash(addr, family, xfrm_state_hmask);
+	return __xfrm_src_hash(daddr, saddr, family, xfrm_state_hmask);
 }
 
 static inline unsigned int
@@ -92,7 +93,8 @@ static void xfrm_hash_transfer(struct hlist_head *list,
 				    nhashmask);
 		hlist_add_head(&x->bydst, ndsttable+h);
 
-		h = __xfrm_src_hash(&x->props.saddr, x->props.family,
+		h = __xfrm_src_hash(&x->id.daddr, &x->props.saddr,
+				    x->props.family,
 				    nhashmask);
 		hlist_add_head(&x->bysrc, nsrctable+h);
 
@@ -458,7 +460,7 @@ static struct xfrm_state *__xfrm_state_lookup(xfrm_address_t *daddr, __be32 spi,
 
 static struct xfrm_state *__xfrm_state_lookup_byaddr(xfrm_address_t *daddr, xfrm_address_t *saddr, u8 proto, unsigned short family)
 {
-	unsigned int h = xfrm_src_hash(saddr, family);
+	unsigned int h = xfrm_src_hash(daddr, saddr, family);
 	struct xfrm_state *x;
 	struct hlist_node *entry;
 
@@ -587,7 +589,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		if (km_query(x, tmpl, pol) == 0) {
 			x->km.state = XFRM_STATE_ACQ;
 			hlist_add_head(&x->bydst, xfrm_state_bydst+h);
-			h = xfrm_src_hash(saddr, family);
+			h = xfrm_src_hash(daddr, saddr, family);
 			hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 			if (x->id.spi) {
 				h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, family);
@@ -612,6 +614,14 @@ out:
 	return x;
 }
 
+static void xfrm_hash_grow_check(int have_hash_collision)
+{
+	if (have_hash_collision &&
+	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
+	    xfrm_state_num > xfrm_state_hmask)
+		schedule_work(&xfrm_hash_work);
+}
+
 static void __xfrm_state_insert(struct xfrm_state *x)
 {
 	unsigned int h;
@@ -622,7 +632,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 			  x->props.reqid, x->props.family);
 	hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 
-	h = xfrm_src_hash(&x->props.saddr, x->props.family);
+	h = xfrm_src_hash(&x->id.daddr, &x->props.saddr, x->props.family);
 	hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 
 	if (x->id.spi) {
@@ -640,10 +650,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	xfrm_state_num++;
 
-	if (x->bydst.next != NULL &&
-	    (xfrm_state_hmask + 1) < xfrm_state_hashmax &&
-	    xfrm_state_num > xfrm_state_hmask)
-		schedule_work(&xfrm_hash_work);
+	xfrm_hash_grow_check(x->bydst.next != NULL);
 }
 
 /* xfrm_state_lock is held */
@@ -748,9 +755,13 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		x->timer.expires = jiffies + XFRM_ACQ_EXPIRES*HZ;
 		add_timer(&x->timer);
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
-		h = xfrm_src_hash(saddr, family);
+		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
 		wake_up(&km_waitq);
+
+		xfrm_state_num++;
+
+		xfrm_hash_grow_check(x->bydst.next != NULL);
 	}
 
 	return x;

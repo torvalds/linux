@@ -96,7 +96,7 @@ void autofs4_free_ino(struct autofs_info *ino)
  */
 static void autofs4_force_release(struct autofs_sb_info *sbi)
 {
-	struct dentry *this_parent = sbi->root;
+	struct dentry *this_parent = sbi->sb->s_root;
 	struct list_head *next;
 
 	spin_lock(&dcache_lock);
@@ -127,7 +127,7 @@ resume:
 		spin_lock(&dcache_lock);
 	}
 
-	if (this_parent != sbi->root) {
+	if (this_parent != sbi->sb->s_root) {
 		struct dentry *dentry = this_parent;
 
 		next = this_parent->d_u.d_child.next;
@@ -140,15 +140,9 @@ resume:
 		goto resume;
 	}
 	spin_unlock(&dcache_lock);
-
-	dput(sbi->root);
-	sbi->root = NULL;
-	shrink_dcache_sb(sbi->sb);
-
-	return;
 }
 
-static void autofs4_put_super(struct super_block *sb)
+void autofs4_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(sb);
 
@@ -163,6 +157,7 @@ static void autofs4_put_super(struct super_block *sb)
 	kfree(sbi);
 
 	DPRINTK("shutting down");
+	kill_anon_super(sb);
 }
 
 static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
@@ -189,7 +184,6 @@ static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
 }
 
 static struct super_operations autofs4_sops = {
-	.put_super	= autofs4_put_super,
 	.statfs		= simple_statfs,
 	.show_options	= autofs4_show_options,
 };
@@ -315,7 +309,6 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
-	sbi->root = NULL;
 	sbi->pipefd = -1;
 	sbi->catatonic = 0;
 	sbi->exp_timeout = 0;
@@ -395,13 +388,6 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->pipefd = pipefd;
-
-	/*
-	 * Take a reference to the root dentry so we get a chance to
-	 * clean up the dentry tree on umount.
-	 * See autofs4_force_release.
-	 */
-	sbi->root = dget(root);
 
 	/*
 	 * Success! Install the root dentry now to indicate completion.

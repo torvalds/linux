@@ -651,7 +651,7 @@ static void fritz_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 // ----------------------------------------------------------------------
 
 static irqreturn_t
-fcpci2_irq(int intno, void *dev, struct pt_regs *regs)
+fcpci2_irq(int intno, void *dev)
 {
 	struct fritz_adapter *adapter = dev;
 	unsigned char val;
@@ -671,7 +671,7 @@ fcpci2_irq(int intno, void *dev, struct pt_regs *regs)
 }
 
 static irqreturn_t
-fcpci_irq(int intno, void *dev, struct pt_regs *regs)
+fcpci_irq(int intno, void *dev)
 {
 	struct fritz_adapter *adapter = dev;
 	unsigned char sval;

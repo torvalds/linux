@@ -109,7 +109,7 @@ static struct cpia_camera_ops cpia_usb_ops = {
 static LIST_HEAD(cam_list);
 static spinlock_t cam_list_lock_usb;
 
-static void cpia_usb_complete(struct urb *urb, struct pt_regs *regs)
+static void cpia_usb_complete(struct urb *urb)
 {
 	int i;
 	char *cdata;

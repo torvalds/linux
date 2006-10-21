@@ -340,7 +340,7 @@ static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		skb = skb_dequeue(&audit_skb_queue);
 		wake_up(&audit_backlog_wait);
 		if (skb) {
@@ -369,6 +369,7 @@ static int kauditd_thread(void *dummy)
 			remove_wait_queue(&kauditd_wait, &wait);
 		}
 	}
+	return 0;
 }
 
 int audit_send_list(void *_dest)

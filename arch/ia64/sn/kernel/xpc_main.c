@@ -222,7 +222,7 @@ xpc_timeout_partition_disengage_request(unsigned long data)
  * Notify the heartbeat check thread that an IRQ has been received.
  */
 static irqreturn_t
-xpc_act_IRQ_handler(int irq, void *dev_id, struct pt_regs *regs)
+xpc_act_IRQ_handler(int irq, void *dev_id)
 {
 	atomic_inc(&xpc_act_IRQ_rcvd);
 	wake_up_interruptible(&xpc_act_IRQ_wq);
@@ -607,12 +607,9 @@ xpc_activate_partition(struct xpc_partition *part)
  *	irq - Interrupt ReQuest number. NOT USED.
  *
  *	dev_id - partid of IPI's potential sender.
- *
- *	regs - processor's context before the processor entered
- *	       interrupt code. NOT USED.
  */
 irqreturn_t
-xpc_notify_IRQ_handler(int irq, void *dev_id, struct pt_regs *regs)
+xpc_notify_IRQ_handler(int irq, void *dev_id)
 {
 	partid_t partid = (partid_t) (u64) dev_id;
 	struct xpc_partition *part = &xpc_partitions[partid];

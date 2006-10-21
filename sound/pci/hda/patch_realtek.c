@@ -5076,6 +5076,10 @@ static struct hda_board_config alc883_cfg_tbl[] = {
 	{ .modelname = "acer", .config = ALC883_ACER },
 	{ .pci_subvendor = 0x1025, .pci_subdevice = 0/*0x0102*/,
 	  .config = ALC883_ACER },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0102,
+	  .config = ALC883_ACER },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x009f,
+	  .config = ALC883_ACER },
 	{ .modelname = "auto", .config = ALC883_AUTO },
 	{}
 };

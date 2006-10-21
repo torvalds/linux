@@ -182,7 +182,7 @@ static void indirect_write16(struct pd6729_socket *socket, unsigned short reg,
 
 /* Interrupt handler functionality */
 
-static irqreturn_t pd6729_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t pd6729_interrupt(int irq, void *dev)
 {
 	struct pd6729_socket *socket = (struct pd6729_socket *)dev;
 	int i;
@@ -249,7 +249,7 @@ static void pd6729_interrupt_wrapper(unsigned long data)
 {
 	struct pd6729_socket *socket = (struct pd6729_socket *) data;
 
-	pd6729_interrupt(0, (void *)socket, NULL);
+	pd6729_interrupt(0, (void *)socket);
 	mod_timer(&socket->poll_timer, jiffies + HZ);
 }
 
@@ -575,7 +575,7 @@ static struct pccard_operations pd6729_operations = {
 	.set_mem_map		= pd6729_set_mem_map,
 };
 
-static irqreturn_t pd6729_test(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t pd6729_test(int irq, void *dev)
 {
 	dprintk("-> hit on irq %d\n", irq);
 	return IRQ_HANDLED;

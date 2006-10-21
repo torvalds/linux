@@ -938,7 +938,7 @@ static void do_mfm_request(request_queue_t *q)
 	mfm_request();
 }
 
-static void mfm_interrupt_handler(int unused, void *dev_id, struct pt_regs *regs)
+static void mfm_interrupt_handler(int unused, void *dev_id)
 {
 	void (*handler) (void) = do_mfm;
 

@@ -30,6 +30,7 @@
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
+#include <asm/firmware.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -198,8 +199,14 @@ struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 	pci_setup_pci_controller(phb);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
-	if (dev)
-		PHB_SET_NODE(phb, of_node_to_nid(dev));
+	if (dev) {
+		int nid = of_node_to_nid(dev);
+
+		if (nid < 0 || !node_online(nid))
+			nid = -1;
+
+		PHB_SET_NODE(phb, nid);
+	}
 	return phb;
 }
 
@@ -209,7 +216,6 @@ void pcibios_free_controller(struct pci_controller *phb)
 		kfree(phb);
 }
 
-#ifndef CONFIG_PPC_ISERIES
 void __devinit pcibios_claim_one_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
@@ -238,10 +244,12 @@ static void __init pcibios_claim_of_setup(void)
 {
 	struct pci_bus *b;
 
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return;
+
 	list_for_each_entry(b, &pci_root_buses, node)
 		pcibios_claim_one_bus(b);
 }
-#endif
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
@@ -554,9 +562,8 @@ static int __init pcibios_init(void)
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
-#ifdef CONFIG_PPC_ISERIES
-	iSeries_pcibios_init(); 
-#endif
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		iSeries_pcibios_init();
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware\n");
 
@@ -566,15 +573,15 @@ static int __init pcibios_init(void)
 		pci_bus_add_devices(hose->bus);
 	}
 
-#ifndef CONFIG_PPC_ISERIES
-	if (pci_probe_only)
-		pcibios_claim_of_setup();
-	else
-		/* FIXME: `else' will be removed when
-		   pci_assign_unassigned_resources() is able to work
-		   correctly with [partially] allocated PCI tree. */
-		pci_assign_unassigned_resources();
-#endif /* !CONFIG_PPC_ISERIES */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES)) {
+		if (pci_probe_only)
+			pcibios_claim_of_setup();
+		else
+			/* FIXME: `else' will be removed when
+			   pci_assign_unassigned_resources() is able to work
+			   correctly with [partially] allocated PCI tree. */
+			pci_assign_unassigned_resources();
+	}
 
 	/* Call machine dependent final fixup */
 	if (ppc_md.pcibios_fixup)
@@ -586,8 +593,9 @@ static int __init pcibios_init(void)
 		printk(KERN_DEBUG "ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-	/* map in PCI I/O space */
-	phbs_remap_io();
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		/* map in PCI I/O space */
+		phbs_remap_io();
 #endif
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
@@ -637,13 +645,13 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
  */
 int pci_domain_nr(struct pci_bus *bus)
 {
-#ifdef CONFIG_PPC_ISERIES
-	return 0;
-#else
-	struct pci_controller *hose = pci_bus_to_host(bus);
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
+	else {
+		struct pci_controller *hose = pci_bus_to_host(bus);
 
-	return hose->global_number;
-#endif
+		return hose->global_number;
+	}
 }
 
 EXPORT_SYMBOL(pci_domain_nr);
@@ -651,12 +659,12 @@ EXPORT_SYMBOL(pci_domain_nr);
 /* Decide whether to display the domain number in /proc */
 int pci_proc_domain(struct pci_bus *bus)
 {
-#ifdef CONFIG_PPC_ISERIES
-	return 0;
-#else
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	return hose->buid;
-#endif
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return 0;
+	else {
+		struct pci_controller *hose = pci_bus_to_host(bus);
+		return hose->buid;
+	}
 }
 
 /*

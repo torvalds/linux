@@ -204,8 +204,7 @@ static int snd_als300_dev_free(struct snd_device *device)
 	return snd_als300_free(chip);
 }
 
-static irqreturn_t snd_als300_interrupt(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t snd_als300_interrupt(int irq, void *dev_id)
 {
 	u8 status;
 	struct snd_als300 *chip = dev_id;
@@ -236,8 +235,7 @@ static irqreturn_t snd_als300_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t snd_als300plus_interrupt(int irq, void *dev_id,
-						struct pt_regs *regs)
+static irqreturn_t snd_als300plus_interrupt(int irq, void *dev_id)
 {
 	u8 general, mpu, dram;
 	struct snd_als300 *chip = dev_id;

@@ -43,7 +43,7 @@ struct ias_value irias_missing = { IAS_MISSING, 0, 0, 0, {0}};
  *
  * Faster, check boundary... Jean II
  */
-static char *strndup(char *str, int max)
+static char *strndup(char *str, size_t max)
 {
 	char *new_str;
 	int len;

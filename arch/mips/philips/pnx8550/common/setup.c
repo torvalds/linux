@@ -24,7 +24,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/serial_ip3106.h>
+#include <linux/serial_pnx8xxx.h>
 #include <linux/pm.h>
 
 #include <asm/cpu.h>
@@ -56,7 +56,7 @@ extern char *prom_getcmdline(void);
 
 struct resource standard_io_resources[] = {
 	{
-		.start	= .0x00,
+		.start	= 0x00,
 		.end	= 0x1f,
 		.name	= "dma1",
 		.flags	= IORESOURCE_BUSY
@@ -144,7 +144,7 @@ void __init plat_mem_setup(void)
 		/* We must initialize the UART (console) before prom_printf */
 		/* Set LCR to 8-bit and BAUD to 38400 (no 5)                */
 		ip3106_lcr(UART_BASE, pnx8550_console_port) =
-			IP3106_UART_LCR_8BIT;
+			PNX8XXX_UART_LCR_8BIT;
 		ip3106_baud(UART_BASE, pnx8550_console_port) = 5;
 	}
 

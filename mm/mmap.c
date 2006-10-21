@@ -900,17 +900,6 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 	int accountable = 1;
 	unsigned long charged = 0, reqprot = prot;
 
-	if (file) {
-		if (is_file_hugepages(file))
-			accountable = 0;
-
-		if (!file->f_op || !file->f_op->mmap)
-			return -ENODEV;
-
-		if ((prot & PROT_EXEC) &&
-		    (file->f_vfsmnt->mnt_flags & MNT_NOEXEC))
-			return -EPERM;
-	}
 	/*
 	 * Does the application expect PROT_READ to imply PROT_EXEC?
 	 *
@@ -1000,6 +989,16 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 		case MAP_PRIVATE:
 			if (!(file->f_mode & FMODE_READ))
 				return -EACCES;
+			if (file->f_vfsmnt->mnt_flags & MNT_NOEXEC) {
+				if (vm_flags & VM_EXEC)
+					return -EPERM;
+				vm_flags &= ~VM_MAYEXEC;
+			}
+			if (is_file_hugepages(file))
+				accountable = 0;
+
+			if (!file->f_op || !file->f_op->mmap)
+				return -ENODEV;
 			break;
 
 		default:

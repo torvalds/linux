@@ -81,10 +81,10 @@ static int scc_ioctl(struct tty_struct * tty, struct file * filp,
                      unsigned int cmd, unsigned long arg);
 static void scc_throttle(struct tty_struct *tty);
 static void scc_unthrottle(struct tty_struct *tty);
-static irqreturn_t scc_tx_int(int irq, void *data, struct pt_regs *fp);
-static irqreturn_t scc_rx_int(int irq, void *data, struct pt_regs *fp);
-static irqreturn_t scc_stat_int(int irq, void *data, struct pt_regs *fp);
-static irqreturn_t scc_spcond_int(int irq, void *data, struct pt_regs *fp);
+static irqreturn_t scc_tx_int(int irq, void *data);
+static irqreturn_t scc_rx_int(int irq, void *data);
+static irqreturn_t scc_stat_int(int irq, void *data);
+static irqreturn_t scc_spcond_int(int irq, void *data);
 static void scc_setsignals(struct scc_port *port, int dtr, int rts);
 static void scc_break_ctl(struct tty_struct *tty, int break_state);
 
@@ -419,7 +419,7 @@ module_init(vme_scc_init);
  * Interrupt handlers
  *--------------------------------------------------------------------------*/
 
-static irqreturn_t scc_rx_int(int irq, void *data, struct pt_regs *fp)
+static irqreturn_t scc_rx_int(int irq, void *data)
 {
 	unsigned char	ch;
 	struct scc_port *port = data;
@@ -440,7 +440,7 @@ static irqreturn_t scc_rx_int(int irq, void *data, struct pt_regs *fp)
 	 */
 	if (SCCread(INT_PENDING_REG) &
 	    (port->channel == CHANNEL_A ? IPR_A_RX : IPR_B_RX)) {
-		scc_spcond_int (irq, data, fp);
+		scc_spcond_int (irq, data);
 		return IRQ_HANDLED;
 	}
 
@@ -451,7 +451,7 @@ static irqreturn_t scc_rx_int(int irq, void *data, struct pt_regs *fp)
 }
 
 
-static irqreturn_t scc_spcond_int(int irq, void *data, struct pt_regs *fp)
+static irqreturn_t scc_spcond_int(int irq, void *data)
 {
 	struct scc_port *port = data;
 	struct tty_struct *tty = port->gs.tty;
@@ -496,7 +496,7 @@ static irqreturn_t scc_spcond_int(int irq, void *data, struct pt_regs *fp)
 }
 
 
-static irqreturn_t scc_tx_int(int irq, void *data, struct pt_regs *fp)
+static irqreturn_t scc_tx_int(int irq, void *data)
 {
 	struct scc_port *port = data;
 	SCC_ACCESS_INIT(port);
@@ -538,7 +538,7 @@ static irqreturn_t scc_tx_int(int irq, void *data, struct pt_regs *fp)
 }
 
 
-static irqreturn_t scc_stat_int(int irq, void *data, struct pt_regs *fp)
+static irqreturn_t scc_stat_int(int irq, void *data)
 {
 	struct scc_port *port = data;
 	unsigned channel = port->channel;
@@ -593,7 +593,7 @@ static void scc_enable_tx_interrupts(void *ptr)
 	local_irq_save(flags);
 	SCCmod(INT_AND_DMA_REG, 0xff, IDR_TX_INT_ENAB);
 	/* restart the transmitter */
-	scc_tx_int (0, port, 0);
+	scc_tx_int (0, port);
 	local_irq_restore(flags);
 }
 

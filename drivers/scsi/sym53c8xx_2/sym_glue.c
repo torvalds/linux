@@ -652,7 +652,7 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
 /*
  *  Linux entry point of the interrupt handler.
  */
-static irqreturn_t sym53c8xx_intr(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 {
 	unsigned long flags;
 	struct sym_hcb *np = (struct sym_hcb *)dev_id;

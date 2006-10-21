@@ -22,7 +22,7 @@
 void hubiio_crb_error_handler(struct hubdev_info *hubdev_info);
 extern void bte_crb_error_handler(cnodeid_t, int, int, ioerror_t *,
 				  int);
-static irqreturn_t hub_eint_handler(int irq, void *arg, struct pt_regs *ep)
+static irqreturn_t hub_eint_handler(int irq, void *arg)
 {
 	struct hubdev_info *hubdev_info;
 	struct ia64_sal_retval ret_stuff;
@@ -178,7 +178,7 @@ void hubiio_crb_error_handler(struct hubdev_info *hubdev_info)
  */
 void hub_error_init(struct hubdev_info *hubdev_info)
 {
-	if (request_irq(SGI_II_ERROR, (void *)hub_eint_handler, IRQF_SHARED,
+	if (request_irq(SGI_II_ERROR, hub_eint_handler, IRQF_SHARED,
 			"SN_hub_error", (void *)hubdev_info))
 		printk("hub_error_init: Failed to request_irq for 0x%p\n",
 		    hubdev_info);

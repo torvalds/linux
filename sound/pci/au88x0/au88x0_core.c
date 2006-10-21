@@ -2385,7 +2385,7 @@ static void vortex_disable_int(vortex_t * card)
 		hwread(card->mmio, VORTEX_CTRL) & ~CTRL_IRQ_ENABLE);
 }
 
-static irqreturn_t vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 {
 	vortex_t *vortex = dev_id;
 	int i, handled;
@@ -2462,7 +2462,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 	if (source & IRQ_MIDI) {
 		snd_mpu401_uart_interrupt(vortex->irq,
-					  vortex->rmidi->private_data, regs);
+					  vortex->rmidi->private_data);
 		handled = 1;
 	}
 

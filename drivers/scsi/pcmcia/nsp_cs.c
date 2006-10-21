@@ -80,7 +80,6 @@ static int       free_ports = 0;
 module_param(free_ports, bool, 0);
 MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=no))");
 
-/* /usr/src/linux/drivers/scsi/hosts.h */
 static struct scsi_host_template nsp_driver_template = {
 	.proc_name	         = "nsp_cs",
 	.proc_info		 = nsp_proc_info,
@@ -949,7 +948,7 @@ static int nsp_nexus(Scsi_Cmnd *SCpnt)
 /*
  * interrupt handler
  */
-static irqreturn_t nspintr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t nspintr(int irq, void *dev_id)
 {
 	unsigned int   base;
 	unsigned char  irq_status, irq_phase, phase;

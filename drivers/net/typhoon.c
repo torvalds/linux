@@ -1826,7 +1826,7 @@ typhoon_poll(struct net_device *dev, int *total_budget)
 }
 
 static irqreturn_t
-typhoon_interrupt(int irq, void *dev_instance, struct pt_regs *rgs)
+typhoon_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = (struct net_device *) dev_instance;
 	struct typhoon *tp = dev->priv;

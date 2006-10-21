@@ -45,8 +45,8 @@ static struct audio_driver nm256_audio_driver;
 
 static int nm256_grabInterrupt (struct nm256_info *card);
 static int nm256_releaseInterrupt (struct nm256_info *card);
-static irqreturn_t nm256_interrupt (int irq, void *dev_id, struct pt_regs *dummy);
-static irqreturn_t nm256_interrupt_zx (int irq, void *dev_id, struct pt_regs *dummy);
+static irqreturn_t nm256_interrupt (int irq, void *dev_id);
+static irqreturn_t nm256_interrupt_zx (int irq, void *dev_id);
 
 /* These belong in linux/pci.h. */
 #define PCI_DEVICE_ID_NEOMAGIC_NM256AV_AUDIO 0x8005
@@ -526,7 +526,7 @@ nm256_initHw (struct nm256_info *card)
  */
 
 static irqreturn_t
-nm256_interrupt (int irq, void *dev_id, struct pt_regs *dummy)
+nm256_interrupt (int irq, void *dev_id)
 {
     struct nm256_info *card = (struct nm256_info *)dev_id;
     u16 status;
@@ -629,7 +629,7 @@ nm256_interrupt (int irq, void *dev_id, struct pt_regs *dummy)
  */
 
 static irqreturn_t
-nm256_interrupt_zx (int irq, void *dev_id, struct pt_regs *dummy)
+nm256_interrupt_zx (int irq, void *dev_id)
 {
     struct nm256_info *card = (struct nm256_info *)dev_id;
     u32 status;

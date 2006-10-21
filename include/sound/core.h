@@ -89,9 +89,9 @@ struct snd_device {
 struct snd_monitor_file {
 	struct file *file;
 	struct snd_monitor_file *next;
+	const struct file_operations *disconnected_f_op;
+	struct list_head shutdown_list;
 };
-
-struct snd_shutdown_f_ops;	/* define it later in init.c */
 
 /* main structure for soundcard */
 

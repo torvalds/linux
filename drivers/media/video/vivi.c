@@ -272,7 +272,7 @@ static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
 
 	/* Get first addr pointed to pixel position */
 	oldpg=get_addr_pos(pos,pages,to_addr);
-	pg=pfn_to_page(to_addr[oldpg].sg->dma_address >> PAGE_SHIFT);
+	pg=pfn_to_page(sg_dma_address(to_addr[oldpg].sg) >> PAGE_SHIFT);
 	basep = kmap_atomic(pg, KM_BOUNCE_READ)+to_addr[oldpg].sg->offset;
 
 	/* We will just duplicate the second pixel at the packet */
@@ -287,7 +287,7 @@ static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
 		for (color=0;color<4;color++) {
 			pgpos=get_addr_pos(pos,pages,to_addr);
 			if (pgpos!=oldpg) {
-				pg=pfn_to_page(to_addr[pgpos].sg->dma_address >> PAGE_SHIFT);
+				pg=pfn_to_page(sg_dma_address(to_addr[pgpos].sg) >> PAGE_SHIFT);
 				kunmap_atomic(basep, KM_BOUNCE_READ);
 				basep= kmap_atomic(pg, KM_BOUNCE_READ)+to_addr[pgpos].sg->offset;
 				oldpg=pgpos;
@@ -339,8 +339,8 @@ static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
 				for (color=0;color<4;color++) {
 					pgpos=get_addr_pos(pos,pages,to_addr);
 					if (pgpos!=oldpg) {
-						pg=pfn_to_page(to_addr[pgpos].
-								sg->dma_address
+						pg=pfn_to_page(sg_dma_address(
+								to_addr[pgpos].sg)
 								>> PAGE_SHIFT);
 						kunmap_atomic(basep,
 								KM_BOUNCE_READ);
@@ -386,7 +386,7 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	struct timeval ts;
 
 	/* Test if DMA mapping is ready */
-	if (!vb->dma.sglist[0].dma_address)
+	if (!sg_dma_address(&vb->dma.sglist[0]))
 		return;
 
 	prep_to_addr(to_addr,vb);
@@ -783,7 +783,7 @@ static int vivi_map_sg(void *dev, struct scatterlist *sg, int nents,
 	for (i = 0; i < nents; i++ ) {
 		BUG_ON(!sg[i].page);
 
-		sg[i].dma_address = page_to_phys(sg[i].page) + sg[i].offset;
+		sg_dma_address(&sg[i]) = page_to_phys(sg[i].page) + sg[i].offset;
 	}
 
 	return nents;

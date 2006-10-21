@@ -19,6 +19,7 @@
 #include <asm/cio.h>
 #include <asm/delay.h>
 #include <asm/irq.h>
+#include <asm/irq_regs.h>
 #include <asm/setup.h>
 #include "airq.h"
 #include "cio.h"
@@ -606,15 +607,17 @@ do_IRQ (struct pt_regs *regs)
 	struct tpi_info *tpi_info;
 	struct subchannel *sch;
 	struct irb *irb;
+	struct pt_regs *old_regs;
 
-	irq_enter ();
+	old_regs = set_irq_regs(regs);
+	irq_enter();
 	asm volatile ("mc 0,0");
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		/**
 		 * Make sure that the i/o interrupt did not "overtake"
 		 * the last HZ timer interrupt.
 		 */
-		account_ticks(regs);
+		account_ticks();
 	/*
 	 * Get interrupt information from lowcore
 	 */
@@ -652,7 +655,8 @@ do_IRQ (struct pt_regs *regs)
 		 * out of the sie which costs more cycles than it saves.
 		 */
 	} while (!MACHINE_IS_VM && tpi (NULL) != 0);
-	irq_exit ();
+	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 #ifdef CONFIG_CCW_CONSOLE

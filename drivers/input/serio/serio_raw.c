@@ -250,7 +250,7 @@ static struct file_operations serio_raw_fops = {
  *********************************************************************/
 
 static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
-					unsigned int dfl, struct pt_regs *regs)
+					unsigned int dfl)
 {
 	struct serio_raw *serio_raw = serio_get_drvdata(serio);
 	struct serio_raw_list *list;

@@ -1843,7 +1843,7 @@ static int __devinit riva_get_EDID_OF(struct fb_info *info, struct pci_dev *pd)
 		for (i = 0; propnames[i] != NULL; ++i) {
 			pedid = get_property(dp, propnames[i], NULL);
 			if (pedid != NULL) {
-				par->EDID = pedid;
+				par->EDID = (unsigned char *)pedid;
 				NVTRACE("LCD found.\n");
 				return 1;
 			}

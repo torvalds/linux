@@ -38,7 +38,7 @@
 #include "am79c961a.h"
 
 static irqreturn_t
-am79c961_interrupt (int irq, void *dev_id, struct pt_regs *regs);
+am79c961_interrupt (int irq, void *dev_id);
 
 static unsigned int net_debug = NET_DEBUG;
 
@@ -596,7 +596,7 @@ am79c961_tx(struct net_device *dev, struct dev_priv *priv)
 }
 
 static irqreturn_t
-am79c961_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+am79c961_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct dev_priv *priv = netdev_priv(dev);

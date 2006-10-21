@@ -804,7 +804,7 @@ static int stir_transmit_thread(void *arg)
  * Wakes up every ms (usb round trip) with wrapped 
  * data.
  */
-static void stir_rcv_irq(struct urb *urb, struct pt_regs *regs)
+static void stir_rcv_irq(struct urb *urb)
 {
 	struct stir_cb *stir = urb->context;
 	int err;

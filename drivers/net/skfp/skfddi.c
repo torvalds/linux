@@ -101,7 +101,7 @@ static const char * const boot_msg =
 static int skfp_driver_init(struct net_device *dev);
 static int skfp_open(struct net_device *dev);
 static int skfp_close(struct net_device *dev);
-static irqreturn_t skfp_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t skfp_interrupt(int irq, void *dev_id);
 static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev);
 static void skfp_ctl_set_multicast_list(struct net_device *dev);
 static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev);
@@ -593,7 +593,6 @@ static int skfp_close(struct net_device *dev)
  * Arguments:
  *   irq        - interrupt vector
  *   dev_id     - pointer to device information
- *       regs   - pointer to registers structure
  *
  * Functional Description:
  *   This routine calls the interrupt processing routine for this adapter.  It
@@ -615,16 +614,11 @@ static int skfp_close(struct net_device *dev)
  *   Interrupts are disabled, then reenabled at the adapter.
  */
 
-irqreturn_t skfp_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t skfp_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct s_smc *smc;	/* private board structure pointer */
 	skfddi_priv *bp;
-
-	if (dev == NULL) {
-		printk("%s: irq %d for unknown device\n", dev->name, irq);
-		return IRQ_NONE;
-	}
 
 	smc = netdev_priv(dev);
 	bp = &smc->os;

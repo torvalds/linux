@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <asm/sections.h>
 #include <asm/semaphore.h>
+#include <asm/irq_regs.h>
 
 struct profile_hit {
 	u32 pc, hits;
@@ -366,8 +367,10 @@ void profile_hit(int type, void *__pc)
 }
 #endif /* !CONFIG_SMP */
 
-void profile_tick(int type, struct pt_regs *regs)
+void profile_tick(int type)
 {
+	struct pt_regs *regs = get_irq_regs();
+
 	if (type == CPU_PROFILING && timer_hook)
 		timer_hook(regs);
 	if (!user_mode(regs) && cpu_isset(smp_processor_id(), prof_cpu_mask))
@@ -396,7 +399,7 @@ static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffe
 	unsigned long full_count = count, err;
 	cpumask_t new_value;
 
-	err = cpumask_parse(buffer, count, new_value);
+	err = cpumask_parse_user(buffer, count, new_value);
 	if (err)
 		return err;
 

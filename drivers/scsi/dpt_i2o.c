@@ -1989,7 +1989,7 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd,
 }
 
 
-static irqreturn_t adpt_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t adpt_isr(int irq, void *dev_id)
 {
 	struct scsi_cmnd* cmd;
 	adpt_hba* pHba = dev_id;
@@ -2212,7 +2212,7 @@ static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht)
 	 */
 	host->io_port = 0;
 	host->n_io_port = 0;
-				/* see comments in hosts.h */
+				/* see comments in scsi_host.h */
 	host->max_id = 16;
 	host->max_lun = 256;
 	host->max_channel = pHba->top_scsi_channel + 1;

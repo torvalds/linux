@@ -124,8 +124,7 @@ naut_sys_machine_check(unsigned long vector, unsigned long la_ptr,
    in the system.  They are analysed separately but all starts here.  */
 
 void
-nautilus_machine_check(unsigned long vector, unsigned long la_ptr,
-		       struct pt_regs *regs)
+nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	char *mchk_class;
 
@@ -165,7 +164,7 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr,
 	else if (vector == SCB_Q_SYSMCHK)
 		mchk_class = "Fatal";
 	else {
-		ev6_machine_check(vector, la_ptr, regs);
+		ev6_machine_check(vector, la_ptr);
 		return;
 	}
 
@@ -173,7 +172,7 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr,
 			 "[%s System Machine Check (NMI)]\n",
 	       vector, mchk_class);
 
-	naut_sys_machine_check(vector, la_ptr, regs);
+	naut_sys_machine_check(vector, la_ptr, get_irq_regs());
 
 	/* Tell the PALcode to clear the machine check */
 	draina();

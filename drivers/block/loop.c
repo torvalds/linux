@@ -295,7 +295,7 @@ fail:
  * and do_lo_send_write().
  */
 static int __do_lo_send_write(struct file *file,
-		u8 __user *buf, const int len, loff_t pos)
+		u8 *buf, const int len, loff_t pos)
 {
 	ssize_t bw;
 	mm_segment_t old_fs = get_fs();
@@ -324,7 +324,7 @@ static int do_lo_send_direct_write(struct loop_device *lo,
 		struct bio_vec *bvec, int bsize, loff_t pos, struct page *page)
 {
 	ssize_t bw = __do_lo_send_write(lo->lo_backing_file,
-			(u8 __user *)kmap(bvec->bv_page) + bvec->bv_offset,
+			kmap(bvec->bv_page) + bvec->bv_offset,
 			bvec->bv_len, pos);
 	kunmap(bvec->bv_page);
 	cond_resched();
@@ -351,7 +351,7 @@ static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
 			bvec->bv_offset, bvec->bv_len, pos >> 9);
 	if (likely(!ret))
 		return __do_lo_send_write(lo->lo_backing_file,
-				(u8 __user *)page_address(page), bvec->bv_len,
+				page_address(page), bvec->bv_len,
 				pos);
 	printk(KERN_ERR "loop: Transfer error at byte offset %llu, "
 			"length %i.\n", (unsigned long long)pos, bvec->bv_len);
@@ -1187,7 +1187,7 @@ struct compat_loop_info {
  * - noinlined to reduce stack space usage in main part of driver
  */
 static noinline int
-loop_info64_from_compat(const struct compat_loop_info *arg,
+loop_info64_from_compat(const struct compat_loop_info __user *arg,
 			struct loop_info64 *info64)
 {
 	struct compat_loop_info info;

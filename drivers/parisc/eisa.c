@@ -199,7 +199,7 @@ static struct hw_interrupt_type eisa_interrupt_type = {
 	.end =		no_end_irq,
 };
 
-static irqreturn_t eisa_irq(int wax_irq, void *intr_dev, struct pt_regs *regs)
+static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
 {
 	int irq = gsc_readb(0xfc01f000); /* EISA supports 16 irqs */
 	unsigned long flags;
@@ -234,7 +234,7 @@ static irqreturn_t eisa_irq(int wax_irq, void *intr_dev, struct pt_regs *regs)
 	}
 	spin_unlock_irqrestore(&eisa_irq_lock, flags);
 
-	__do_IRQ(irq, regs);
+	__do_IRQ(irq);
    
 	spin_lock_irqsave(&eisa_irq_lock, flags);
 	/* unmask */
@@ -249,7 +249,7 @@ static irqreturn_t eisa_irq(int wax_irq, void *intr_dev, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t dummy_irq2_handler(int _, void *dev, struct pt_regs *regs)
+static irqreturn_t dummy_irq2_handler(int _, void *dev)
 {
 	printk(KERN_ALERT "eisa: uhh, irq2?\n");
 	return IRQ_HANDLED;

@@ -105,15 +105,15 @@ wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff)
 # Bits for building various flavours of zImage
 
 ifneq ($(CROSS32_COMPILE),)
-CROSSWRAP := -C $(CROSS32_COMPILE)
+CROSSWRAP := -C "$(CROSS32_COMPILE)"
 else
 ifneq ($(CROSS_COMPILE),)
-CROSSWRAP := -C $(CROSS_COMPILE)
+CROSSWRAP := -C "$(CROSS_COMPILE)"
 endif
 endif
 
 quiet_cmd_wrap	= WRAP    $@
-      cmd_wrap	=$(wrapper) -c -o $@ -p $2 $(CROSSWRAP) vmlinux
+      cmd_wrap	=$(CONFIG_SHELL) $(wrapper) -c -o $@ -p $2 $(CROSSWRAP) vmlinux
 quiet_cmd_wrap_initrd = WRAP    $@
       cmd_wrap_initrd =$(wrapper) -c -o $@ -p $2 $(CROSSWRAP) \
 				-i $(obj)/ramdisk.image.gz vmlinux
@@ -151,12 +151,12 @@ $(obj)/zImage.initrd.miboot: vmlinux $(wrapperbits)
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call cmd,wrap,uboot)
 
-image-$(CONFIG_PPC_PSERIES)	+= zImage.pseries
-image-$(CONFIG_PPC_MAPLE)	+= zImage.pseries
-image-$(CONFIG_PPC_CELL)	+= zImage.pseries
-image-$(CONFIG_PPC_CHRP)	+= zImage.chrp
-image-$(CONFIG_PPC_PMAC)	+= zImage.pmac
-image-$(CONFIG_DEFAULT_UIMAGE)	+= uImage
+image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
+image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
+image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
+image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
+image-$(CONFIG_PPC_PMAC)		+= zImage.pmac
+image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 
 # For 32-bit powermacs, build the COFF and miboot images
 # as well as the ELF images.

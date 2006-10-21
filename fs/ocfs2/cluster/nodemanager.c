@@ -152,14 +152,16 @@ static struct o2nm_node *o2nm_node_ip_tree_lookup(struct o2nm_cluster *cluster,
 	struct o2nm_node *node, *ret = NULL;
 
 	while (*p) {
+		int cmp;
+
 		parent = *p;
 		node = rb_entry(parent, struct o2nm_node, nd_ip_node);
 
-		if (memcmp(&ip_needle, &node->nd_ipv4_address,
-		           sizeof(ip_needle)) < 0)
+		cmp = memcmp(&ip_needle, &node->nd_ipv4_address,
+				sizeof(ip_needle));
+		if (cmp < 0)
 			p = &(*p)->rb_left;
-		else if (memcmp(&ip_needle, &node->nd_ipv4_address,
-			        sizeof(ip_needle)) > 0)
+		else if (cmp > 0)
 			p = &(*p)->rb_right;
 		else {
 			ret = node;

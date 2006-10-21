@@ -355,7 +355,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 	if (sk->sk_state == TCP_TIME_WAIT) {
-		inet_twsk_put((struct inet_timewait_sock *)sk);
+		inet_twsk_put(inet_twsk(sk));
 		return;
 	}
 
@@ -373,7 +373,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 	seq = ntohl(th->seq);
 	if (sk->sk_state != TCP_LISTEN &&
 	    !between(seq, tp->snd_una, tp->snd_nxt)) {
-		NET_INC_STATS(LINUX_MIB_OUTOFWINDOWICMPS);
+		NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
 	}
 
@@ -578,7 +578,7 @@ static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
 	struct tcphdr *th = skb->h.th;
 	struct {
 		struct tcphdr th;
-		u32 tsopt[3];
+		u32 tsopt[TCPOLEN_TSTAMP_ALIGNED >> 2];
 	} rep;
 	struct ip_reply_arg arg;
 
@@ -960,7 +960,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 			bh_lock_sock(nsk);
 			return nsk;
 		}
-		inet_twsk_put((struct inet_timewait_sock *)nsk);
+		inet_twsk_put(inet_twsk(nsk));
 		return NULL;
 	}
 
@@ -1154,26 +1154,24 @@ discard_and_relse:
 
 do_time_wait:
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-		inet_twsk_put((struct inet_timewait_sock *) sk);
+		inet_twsk_put(inet_twsk(sk));
 		goto discard_it;
 	}
 
 	if (skb->len < (th->doff << 2) || tcp_checksum_complete(skb)) {
 		TCP_INC_STATS_BH(TCP_MIB_INERRS);
-		inet_twsk_put((struct inet_timewait_sock *) sk);
+		inet_twsk_put(inet_twsk(sk));
 		goto discard_it;
 	}
-	switch (tcp_timewait_state_process((struct inet_timewait_sock *)sk,
-					   skb, th)) {
+	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {
 	case TCP_TW_SYN: {
 		struct sock *sk2 = inet_lookup_listener(&tcp_hashinfo,
 							skb->nh.iph->daddr,
 							th->dest,
 							inet_iif(skb));
 		if (sk2) {
-			inet_twsk_deschedule((struct inet_timewait_sock *)sk,
-					     &tcp_death_row);
-			inet_twsk_put((struct inet_timewait_sock *)sk);
+			inet_twsk_deschedule(inet_twsk(sk), &tcp_death_row);
+			inet_twsk_put(inet_twsk(sk));
 			sk = sk2;
 			goto process;
 		}

@@ -217,7 +217,7 @@ uctrl_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static irqreturn_t uctrl_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 {
 	struct uctrl_driver *driver = (struct uctrl_driver *)dev_id;
 	printk("in uctrl_interrupt\n");
@@ -400,7 +400,7 @@ static int __init ts102_uctrl_init(void)
 	}
 
 	driver->regs->uctrl_intr = UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK;
-	printk("uctrl: 0x%x (irq %d)\n", driver->regs, driver->irq);
+	printk("uctrl: 0x%p (irq %d)\n", driver->regs, driver->irq);
 	uctrl_get_event_status();
 	uctrl_get_external_status();
         return 0;

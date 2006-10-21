@@ -223,7 +223,7 @@ struct catc {
  * Receive routines.
  */
 
-static void catc_rx_done(struct urb *urb, struct pt_regs *regs)
+static void catc_rx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	u8 *pkt_start = urb->transfer_buffer;
@@ -289,7 +289,7 @@ static void catc_rx_done(struct urb *urb, struct pt_regs *regs)
 	}
 }
 
-static void catc_irq_done(struct urb *urb, struct pt_regs *regs)
+static void catc_irq_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	u8 *data = urb->transfer_buffer;
@@ -376,7 +376,7 @@ static void catc_tx_run(struct catc *catc)
 	catc->netdev->trans_start = jiffies;
 }
 
-static void catc_tx_done(struct urb *urb, struct pt_regs *regs)
+static void catc_tx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	unsigned long flags;
@@ -486,7 +486,7 @@ static void catc_ctrl_run(struct catc *catc)
 		err("submit(ctrl_urb) status %d", status);
 }
 
-static void catc_ctrl_done(struct urb *urb, struct pt_regs *regs)
+static void catc_ctrl_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	struct ctrl_queue *q;

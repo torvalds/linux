@@ -19,7 +19,6 @@
  *    Questions/Comments/Bugfixes to iss_storagedev@hp.com
  *
  */
-#include <linux/config.h>	/* CONFIG_PROC_FS */
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -170,7 +169,7 @@ static inline cmdlist_t *removeQ(cmdlist_t **Qptr, cmdlist_t *c);
 static inline void complete_buffers(struct bio *bio, int ok);
 static inline void complete_command(cmdlist_t *cmd, int timeout);
 
-static irqreturn_t do_ida_intr(int irq, void *dev_id, struct pt_regs * regs);
+static irqreturn_t do_ida_intr(int irq, void *dev_id);
 static void ida_timer(unsigned long tdata);
 static int ida_revalidate(struct gendisk *disk);
 static int revalidate_allvol(ctlr_info_t *host);
@@ -1043,7 +1042,7 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
  *  Find the command on the completion queue, remove it, tell the OS and
  *  try to queue up more IO
  */
-static irqreturn_t do_ida_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_ida_intr(int irq, void *dev_id)
 {
 	ctlr_info_t *h = dev_id;
 	cmdlist_t *c;

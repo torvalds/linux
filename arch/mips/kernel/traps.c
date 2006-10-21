@@ -66,7 +66,7 @@ extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
-	struct mips_fpu_struct *ctx);
+	struct mips_fpu_struct *ctx, int has_fpu);
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -641,7 +641,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		preempt_enable();
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu);
+		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu, 1);
 
 		preempt_disable();
 
@@ -791,11 +791,13 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 			set_used_math();
 		}
 
-		preempt_enable();
-
-		if (!cpu_has_fpu) {
-			int sig = fpu_emulator_cop1Handler(regs,
-						&current->thread.fpu);
+		if (cpu_has_fpu) {
+			preempt_enable();
+		} else {
+			int sig;
+			preempt_enable();
+			sig = fpu_emulator_cop1Handler(regs,
+						&current->thread.fpu, 0);
 			if (sig)
 				force_sig(sig, current);
 #ifdef CONFIG_MIPS_MT_FPAFF

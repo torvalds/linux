@@ -1185,7 +1185,7 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern int ide_spin_wait_hwgroup(ide_drive_t *);
 extern void ide_timer_expiry(unsigned long);
-extern irqreturn_t ide_intr(int irq, void *dev_id, struct pt_regs *regs);
+extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern void do_ide_request(request_queue_t *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);

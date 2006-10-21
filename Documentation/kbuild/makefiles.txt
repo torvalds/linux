@@ -390,7 +390,7 @@ more details, with real examples.
 	The kernel may be built with several different versions of
 	$(CC), each supporting a unique set of features and options.
 	kbuild provide basic support to check for valid options for $(CC).
-	$(CC) is useally the gcc compiler, but other alternatives are
+	$(CC) is usually the gcc compiler, but other alternatives are
 	available.
 
     as-option

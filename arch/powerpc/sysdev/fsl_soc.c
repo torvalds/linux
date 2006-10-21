@@ -37,6 +37,7 @@
 #include <asm/cpm2.h>
 
 extern void init_fcc_ioports(struct fs_platform_info*);
+extern void init_scc_ioports(struct fs_uart_platform_info*);
 static phys_addr_t immrbase = -1;
 
 phys_addr_t get_immrbase(void)
@@ -566,7 +567,7 @@ static int __init fs_enet_of_init(void)
 		struct resource r[4];
 		struct device_node *phy, *mdio;
 		struct fs_platform_info fs_enet_data;
-		const unsigned int *id, *phy_addr;
+		const unsigned int *id, *phy_addr, *phy_irq;
 		const void *mac_addr;
 		const phandle *ph;
 		const char *model;
@@ -588,6 +589,7 @@ static int __init fs_enet_of_init(void)
 		if (ret)
 			goto err;
 		r[2].name = fcc_regs_c;
+		fs_enet_data.fcc_regs_c = r[2].start;
 
 		r[3].start = r[3].end = irq_of_parse_and_map(np, 0);
 		r[3].flags = IORESOURCE_IRQ;
@@ -620,6 +622,8 @@ static int __init fs_enet_of_init(void)
 		phy_addr = get_property(phy, "reg", NULL);
 		fs_enet_data.phy_addr = *phy_addr;
 
+		phy_irq = get_property(phy, "interrupts", NULL);
+
 		id = get_property(np, "device-id", NULL);
 		fs_enet_data.fs_no = *id;
 		strcpy(fs_enet_data.fs_type, model);
@@ -637,6 +641,7 @@ static int __init fs_enet_of_init(void)
 
 		if (strstr(model, "FCC")) {
 			int fcc_index = *id - 1;
+			const unsigned char *mdio_bb_prop;
 
 			fs_enet_data.dpram_offset = (u32)cpm_dpram_addr(0);
 			fs_enet_data.rx_ring = 32;
@@ -652,16 +657,60 @@ static int __init fs_enet_of_init(void)
 							(u32)res.start, fs_enet_data.phy_addr);
 			fs_enet_data.bus_id = (char*)&bus_id[(*id)];
 			fs_enet_data.init_ioports = init_fcc_ioports;
+
+			mdio_bb_prop = get_property(phy, "bitbang", NULL);
+			if (mdio_bb_prop) {
+				struct platform_device *fs_enet_mdio_bb_dev;
+				struct fs_mii_bb_platform_info fs_enet_mdio_bb_data;
+
+				fs_enet_mdio_bb_dev =
+					platform_device_register_simple("fsl-bb-mdio",
+							i, NULL, 0);
+				memset(&fs_enet_mdio_bb_data, 0,
+						sizeof(struct fs_mii_bb_platform_info));
+				fs_enet_mdio_bb_data.mdio_dat.bit =
+					mdio_bb_prop[0];
+				fs_enet_mdio_bb_data.mdio_dir.bit =
+					mdio_bb_prop[1];
+				fs_enet_mdio_bb_data.mdc_dat.bit =
+					mdio_bb_prop[2];
+				fs_enet_mdio_bb_data.mdio_port =
+					mdio_bb_prop[3];
+				fs_enet_mdio_bb_data.mdc_port =
+					mdio_bb_prop[4];
+				fs_enet_mdio_bb_data.delay =
+					mdio_bb_prop[5];
+
+				fs_enet_mdio_bb_data.irq[0] = phy_irq[0];
+				fs_enet_mdio_bb_data.irq[1] = -1;
+				fs_enet_mdio_bb_data.irq[2] = -1;
+				fs_enet_mdio_bb_data.irq[3] = phy_irq[0];
+				fs_enet_mdio_bb_data.irq[31] = -1;
+
+				fs_enet_mdio_bb_data.mdio_dat.offset =
+					(u32)&cpm2_immr->im_ioport.iop_pdatc;
+				fs_enet_mdio_bb_data.mdio_dir.offset =
+					(u32)&cpm2_immr->im_ioport.iop_pdirc;
+				fs_enet_mdio_bb_data.mdc_dat.offset =
+					(u32)&cpm2_immr->im_ioport.iop_pdatc;
+
+				ret = platform_device_add_data(
+						fs_enet_mdio_bb_dev,
+						&fs_enet_mdio_bb_data,
+						sizeof(struct fs_mii_bb_platform_info));
+				if (ret)
+					goto unreg;
+			}
+			
+			of_node_put(phy);
+			of_node_put(mdio);
+
+			ret = platform_device_add_data(fs_enet_dev, &fs_enet_data,
+						     sizeof(struct
+							    fs_platform_info));
+			if (ret)
+				goto unreg;
 		}
-
-		of_node_put(phy);
-		of_node_put(mdio);
-
-		ret = platform_device_add_data(fs_enet_dev, &fs_enet_data,
-					     sizeof(struct
-						    fs_platform_info));
-		if (ret)
-			goto unreg;
 	}
 	return 0;
 

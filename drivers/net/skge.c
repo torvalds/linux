@@ -43,7 +43,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.8"
+#define DRV_VERSION		"1.9"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -197,8 +197,8 @@ static u32 skge_supported_modes(const struct skge_hw *hw)
 		else if (hw->chip_id == CHIP_ID_YUKON)
 			supported &= ~SUPPORTED_1000baseT_Half;
 	} else
-		supported = SUPPORTED_1000baseT_Full | SUPPORTED_FIBRE
-			| SUPPORTED_Autoneg;
+		supported = SUPPORTED_1000baseT_Full | SUPPORTED_1000baseT_Half
+			| SUPPORTED_FIBRE | SUPPORTED_Autoneg;
 
 	return supported;
 }
@@ -487,31 +487,37 @@ static void skge_get_pauseparam(struct net_device *dev,
 {
 	struct skge_port *skge = netdev_priv(dev);
 
-	ecmd->tx_pause = (skge->flow_control == FLOW_MODE_LOC_SEND)
-		|| (skge->flow_control == FLOW_MODE_SYMMETRIC);
-	ecmd->rx_pause = (skge->flow_control == FLOW_MODE_REM_SEND)
-		|| (skge->flow_control == FLOW_MODE_SYMMETRIC);
+	ecmd->rx_pause = (skge->flow_control == FLOW_MODE_SYMMETRIC)
+		|| (skge->flow_control == FLOW_MODE_SYM_OR_REM);
+	ecmd->tx_pause = ecmd->rx_pause || (skge->flow_control == FLOW_MODE_LOC_SEND);
 
-	ecmd->autoneg = skge->autoneg;
+	ecmd->autoneg = ecmd->rx_pause || ecmd->tx_pause;
 }
 
 static int skge_set_pauseparam(struct net_device *dev,
 			       struct ethtool_pauseparam *ecmd)
 {
 	struct skge_port *skge = netdev_priv(dev);
+	struct ethtool_pauseparam old;
 
-	skge->autoneg = ecmd->autoneg;
-	if (ecmd->rx_pause && ecmd->tx_pause)
-		skge->flow_control = FLOW_MODE_SYMMETRIC;
-	else if (ecmd->rx_pause && !ecmd->tx_pause)
-		skge->flow_control = FLOW_MODE_REM_SEND;
-	else if (!ecmd->rx_pause && ecmd->tx_pause)
-		skge->flow_control = FLOW_MODE_LOC_SEND;
-	else
-		skge->flow_control = FLOW_MODE_NONE;
+	skge_get_pauseparam(dev, &old);
+
+	if (ecmd->autoneg != old.autoneg)
+		skge->flow_control = ecmd->autoneg ? FLOW_MODE_NONE : FLOW_MODE_SYMMETRIC;
+	else {
+		if (ecmd->rx_pause && ecmd->tx_pause)
+			skge->flow_control = FLOW_MODE_SYMMETRIC;
+		else if (ecmd->rx_pause && !ecmd->tx_pause)
+			skge->flow_control = FLOW_MODE_SYM_OR_REM;
+		else if (!ecmd->rx_pause && ecmd->tx_pause)
+			skge->flow_control = FLOW_MODE_LOC_SEND;
+		else
+			skge->flow_control = FLOW_MODE_NONE;
+	}
 
 	if (netif_running(dev))
 		skge_phy_reset(skge);
+
 	return 0;
 }
 
@@ -854,6 +860,23 @@ static int skge_rx_fill(struct net_device *dev)
 	return 0;
 }
 
+static const char *skge_pause(enum pause_status status)
+{
+	switch(status) {
+	case FLOW_STAT_NONE:
+		return "none";
+	case FLOW_STAT_REM_SEND:
+		return "rx only";
+	case FLOW_STAT_LOC_SEND:
+		return "tx_only";
+	case FLOW_STAT_SYMMETRIC:		/* Both station may send PAUSE */
+		return "both";
+	default:
+		return "indeterminated";
+	}
+}
+
+
 static void skge_link_up(struct skge_port *skge)
 {
 	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG),
@@ -862,16 +885,13 @@ static void skge_link_up(struct skge_port *skge)
 	netif_carrier_on(skge->netdev);
 	netif_wake_queue(skge->netdev);
 
-	if (netif_msg_link(skge))
+	if (netif_msg_link(skge)) {
 		printk(KERN_INFO PFX
 		       "%s: Link is up at %d Mbps, %s duplex, flow control %s\n",
 		       skge->netdev->name, skge->speed,
 		       skge->duplex == DUPLEX_FULL ? "full" : "half",
-		       (skge->flow_control == FLOW_MODE_NONE) ? "none" :
-		       (skge->flow_control == FLOW_MODE_LOC_SEND) ? "tx only" :
-		       (skge->flow_control == FLOW_MODE_REM_SEND) ? "rx only" :
-		       (skge->flow_control == FLOW_MODE_SYMMETRIC) ? "tx and rx" :
-		       "unknown");
+		       skge_pause(skge->flow_status));
+	}
 }
 
 static void skge_link_down(struct skge_port *skge)
@@ -882,6 +902,29 @@ static void skge_link_down(struct skge_port *skge)
 
 	if (netif_msg_link(skge))
 		printk(KERN_INFO PFX "%s: Link is down.\n", skge->netdev->name);
+}
+
+
+static void xm_link_down(struct skge_hw *hw, int port)
+{
+	struct net_device *dev = hw->dev[port];
+	struct skge_port *skge = netdev_priv(dev);
+	u16 cmd, msk;
+
+	if (hw->phy_type == SK_PHY_XMAC) {
+		msk = xm_read16(hw, port, XM_IMSK);
+		msk |= XM_IS_INP_ASS | XM_IS_LIPA_RC | XM_IS_RX_PAGE | XM_IS_AND;
+		xm_write16(hw, port, XM_IMSK, msk);
+	}
+
+	cmd = xm_read16(hw, port, XM_MMU_CMD);
+	cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
+	xm_write16(hw, port, XM_MMU_CMD, cmd);
+	/* dummy read to ensure writing */
+	(void) xm_read16(hw, port, XM_MMU_CMD);
+
+	if (netif_carrier_ok(dev))
+		skge_link_down(skge);
 }
 
 static int __xm_phy_read(struct skge_hw *hw, int port, u16 reg, u16 *val)
@@ -992,7 +1035,15 @@ static const u16 phy_pause_map[] = {
 	[FLOW_MODE_NONE] =	0,
 	[FLOW_MODE_LOC_SEND] =	PHY_AN_PAUSE_ASYM,
 	[FLOW_MODE_SYMMETRIC] = PHY_AN_PAUSE_CAP,
-	[FLOW_MODE_REM_SEND]  = PHY_AN_PAUSE_CAP | PHY_AN_PAUSE_ASYM,
+	[FLOW_MODE_SYM_OR_REM]  = PHY_AN_PAUSE_CAP | PHY_AN_PAUSE_ASYM,
+};
+
+/* special defines for FIBER (88E1011S only) */
+static const u16 fiber_pause_map[] = {
+	[FLOW_MODE_NONE]	= PHY_X_P_NO_PAUSE,
+	[FLOW_MODE_LOC_SEND]	= PHY_X_P_ASYM_MD,
+	[FLOW_MODE_SYMMETRIC]	= PHY_X_P_SYM_MD,
+	[FLOW_MODE_SYM_OR_REM]	= PHY_X_P_BOTH_MD,
 };
 
 
@@ -1008,14 +1059,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 	status = xm_phy_read(hw, port, PHY_BCOM_STAT);
 
 	if ((status & PHY_ST_LSYNC) == 0) {
-		u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
-		cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-		xm_write16(hw, port, XM_MMU_CMD, cmd);
-		/* dummy read to ensure writing */
-		(void) xm_read16(hw, port, XM_MMU_CMD);
-
-		if (netif_carrier_ok(dev))
-			skge_link_down(skge);
+		xm_link_down(hw, port);
 		return;
 	}
 
@@ -1048,20 +1092,19 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 			return;
 		}
 
-
 		/* We are using IEEE 802.3z/D5.0 Table 37-4 */
 		switch (aux & PHY_B_AS_PAUSE_MSK) {
 		case PHY_B_AS_PAUSE_MSK:
-			skge->flow_control = FLOW_MODE_SYMMETRIC;
+			skge->flow_status = FLOW_STAT_SYMMETRIC;
 			break;
 		case PHY_B_AS_PRR:
-			skge->flow_control = FLOW_MODE_REM_SEND;
+			skge->flow_status = FLOW_STAT_REM_SEND;
 			break;
 		case PHY_B_AS_PRT:
-			skge->flow_control = FLOW_MODE_LOC_SEND;
+			skge->flow_status = FLOW_STAT_LOC_SEND;
 			break;
 		default:
-			skge->flow_control = FLOW_MODE_NONE;
+			skge->flow_status = FLOW_STAT_NONE;
 		}
 		skge->speed = SPEED_1000;
 	}
@@ -1191,17 +1234,7 @@ static void xm_phy_init(struct skge_port *skge)
 		if (skge->advertising & ADVERTISED_1000baseT_Full)
 			ctrl |= PHY_X_AN_FD;
 
-		switch(skge->flow_control) {
-		case FLOW_MODE_NONE:
-			ctrl |= PHY_X_P_NO_PAUSE;
-			break;
-		case FLOW_MODE_LOC_SEND:
-			ctrl |= PHY_X_P_ASYM_MD;
-			break;
-		case FLOW_MODE_SYMMETRIC:
-			ctrl |= PHY_X_P_BOTH_MD;
-			break;
-		}
+		ctrl |= fiber_pause_map[skge->flow_control];
 
 		xm_phy_write(hw, port, PHY_XMAC_AUNE_ADV, ctrl);
 
@@ -1235,14 +1268,7 @@ static void xm_check_link(struct net_device *dev)
 	status = xm_phy_read(hw, port, PHY_XMAC_STAT);
 
 	if ((status & PHY_ST_LSYNC) == 0) {
-		u16 cmd = xm_read16(hw, port, XM_MMU_CMD);
-		cmd &= ~(XM_MMU_ENA_RX | XM_MMU_ENA_TX);
-		xm_write16(hw, port, XM_MMU_CMD, cmd);
-		/* dummy read to ensure writing */
-		(void) xm_read16(hw, port, XM_MMU_CMD);
-
-		if (netif_carrier_ok(dev))
-			skge_link_down(skge);
+		xm_link_down(hw, port);
 		return;
 	}
 
@@ -1276,15 +1302,20 @@ static void xm_check_link(struct net_device *dev)
 		}
 
 		/* We are using IEEE 802.3z/D5.0 Table 37-4 */
-		if (lpa & PHY_X_P_SYM_MD)
-			skge->flow_control = FLOW_MODE_SYMMETRIC;
-		else if ((lpa & PHY_X_RS_PAUSE) == PHY_X_P_ASYM_MD)
-			skge->flow_control = FLOW_MODE_REM_SEND;
-		else if ((lpa & PHY_X_RS_PAUSE) == PHY_X_P_BOTH_MD)
-			skge->flow_control = FLOW_MODE_LOC_SEND;
+		if ((skge->flow_control == FLOW_MODE_SYMMETRIC ||
+		     skge->flow_control == FLOW_MODE_SYM_OR_REM) &&
+		    (lpa & PHY_X_P_SYM_MD))
+			skge->flow_status = FLOW_STAT_SYMMETRIC;
+		else if (skge->flow_control == FLOW_MODE_SYM_OR_REM &&
+			 (lpa & PHY_X_RS_PAUSE) == PHY_X_P_ASYM_MD)
+			/* Enable PAUSE receive, disable PAUSE transmit */
+			skge->flow_status  = FLOW_STAT_REM_SEND;
+		else if (skge->flow_control == FLOW_MODE_LOC_SEND &&
+			 (lpa & PHY_X_RS_PAUSE) == PHY_X_P_BOTH_MD)
+			/* Disable PAUSE receive, enable PAUSE transmit */
+			skge->flow_status = FLOW_STAT_LOC_SEND;
 		else
-			skge->flow_control = FLOW_MODE_NONE;
-
+			skge->flow_status = FLOW_STAT_NONE;
 
 		skge->speed = SPEED_1000;
 	}
@@ -1568,6 +1599,10 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 		printk(KERN_DEBUG PFX "%s: mac interrupt status 0x%x\n",
 		       skge->netdev->name, status);
 
+	if (hw->phy_type == SK_PHY_XMAC &&
+	    (status & (XM_IS_INP_ASS | XM_IS_LIPA_RC)))
+		xm_link_down(hw, port);
+
 	if (status & XM_IS_TXF_UR) {
 		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
 		++skge->net_stats.tx_fifo_errors;
@@ -1582,7 +1617,7 @@ static void genesis_link_up(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u16 cmd;
+	u16 cmd, msk;
 	u32 mode;
 
 	cmd = xm_read16(hw, port, XM_MMU_CMD);
@@ -1591,8 +1626,8 @@ static void genesis_link_up(struct skge_port *skge)
 	 * enabling pause frame reception is required for 1000BT
 	 * because the XMAC is not reset if the link is going down
 	 */
-	if (skge->flow_control == FLOW_MODE_NONE ||
-	    skge->flow_control == FLOW_MODE_LOC_SEND)
+	if (skge->flow_status == FLOW_STAT_NONE ||
+	    skge->flow_status == FLOW_STAT_LOC_SEND)
 		/* Disable Pause Frame Reception */
 		cmd |= XM_MMU_IGN_PF;
 	else
@@ -1602,8 +1637,8 @@ static void genesis_link_up(struct skge_port *skge)
 	xm_write16(hw, port, XM_MMU_CMD, cmd);
 
 	mode = xm_read32(hw, port, XM_MODE);
-	if (skge->flow_control == FLOW_MODE_SYMMETRIC ||
-	    skge->flow_control == FLOW_MODE_LOC_SEND) {
+	if (skge->flow_status== FLOW_STAT_SYMMETRIC ||
+	    skge->flow_status == FLOW_STAT_LOC_SEND) {
 		/*
 		 * Configure Pause Frame Generation
 		 * Use internal and external Pause Frame Generation.
@@ -1631,7 +1666,11 @@ static void genesis_link_up(struct skge_port *skge)
 	}
 
 	xm_write32(hw, port, XM_MODE, mode);
-	xm_write16(hw, port, XM_IMSK, XM_DEF_MSK);
+	msk = XM_DEF_MSK;
+	if (hw->phy_type != SK_PHY_XMAC)
+		msk |= XM_IS_INP_ASS;	/* disable GP0 interrupt bit */
+
+	xm_write16(hw, port, XM_IMSK, msk);
 	xm_read16(hw, port, XM_ISRC);
 
 	/* get MMU Command Reg. */
@@ -1779,11 +1818,17 @@ static void yukon_init(struct skge_hw *hw, int port)
 				adv |= PHY_M_AN_10_FD;
 			if (skge->advertising & ADVERTISED_10baseT_Half)
 				adv |= PHY_M_AN_10_HD;
-		} else	/* special defines for FIBER (88E1011S only) */
-			adv |= PHY_M_AN_1000X_AHD | PHY_M_AN_1000X_AFD;
 
-		/* Set Flow-control capabilities */
-		adv |= phy_pause_map[skge->flow_control];
+			/* Set Flow-control capabilities */
+			adv |= phy_pause_map[skge->flow_control];
+		} else {
+			if (skge->advertising & ADVERTISED_1000baseT_Full)
+				adv |= PHY_M_AN_1000X_AFD;
+			if (skge->advertising & ADVERTISED_1000baseT_Half)
+				adv |= PHY_M_AN_1000X_AHD;
+
+			adv |= fiber_pause_map[skge->flow_control];
+		}
 
 		/* Restart Auto-negotiation */
 		ctrl |= PHY_CT_ANE | PHY_CT_RE_CFG;
@@ -1917,6 +1962,11 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	case FLOW_MODE_LOC_SEND:
 		/* disable Rx flow-control */
 		reg |= GM_GPCR_FC_RX_DIS | GM_GPCR_AU_FCT_DIS;
+		break;
+	case FLOW_MODE_SYMMETRIC:
+	case FLOW_MODE_SYM_OR_REM:
+		/* enable Tx & Rx flow-control */
+		break;
 	}
 
 	gma_write16(hw, port, GM_GP_CTRL, reg);
@@ -2111,13 +2161,11 @@ static void yukon_link_down(struct skge_port *skge)
 	ctrl &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, ctrl);
 
-	if (skge->flow_control == FLOW_MODE_REM_SEND) {
+	if (skge->flow_status == FLOW_STAT_REM_SEND) {
+		ctrl = gm_phy_read(hw, port, PHY_MARV_AUNE_ADV);
+		ctrl |= PHY_M_AN_ASP;
 		/* restore Asymmetric Pause bit */
-		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
-				  gm_phy_read(hw, port,
-						   PHY_MARV_AUNE_ADV)
-				  | PHY_M_AN_ASP);
-
+		gm_phy_write(hw, port, PHY_MARV_AUNE_ADV, ctrl);
 	}
 
 	yukon_reset(hw, port);
@@ -2164,19 +2212,19 @@ static void yukon_phy_intr(struct skge_port *skge)
 		/* We are using IEEE 802.3z/D5.0 Table 37-4 */
 		switch (phystat & PHY_M_PS_PAUSE_MSK) {
 		case PHY_M_PS_PAUSE_MSK:
-			skge->flow_control = FLOW_MODE_SYMMETRIC;
+			skge->flow_status = FLOW_STAT_SYMMETRIC;
 			break;
 		case PHY_M_PS_RX_P_EN:
-			skge->flow_control = FLOW_MODE_REM_SEND;
+			skge->flow_status = FLOW_STAT_REM_SEND;
 			break;
 		case PHY_M_PS_TX_P_EN:
-			skge->flow_control = FLOW_MODE_LOC_SEND;
+			skge->flow_status = FLOW_STAT_LOC_SEND;
 			break;
 		default:
-			skge->flow_control = FLOW_MODE_NONE;
+			skge->flow_status = FLOW_STAT_NONE;
 		}
 
-		if (skge->flow_control == FLOW_MODE_NONE ||
+		if (skge->flow_status == FLOW_STAT_NONE ||
 		    (skge->speed < SPEED_1000 && skge->duplex == DUPLEX_HALF))
 			skge_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
 		else
@@ -3051,7 +3099,7 @@ static void skge_extirq(void *arg)
 	spin_unlock_irq(&hw->hw_lock);
 }
 
-static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t skge_intr(int irq, void *dev_id)
 {
 	struct skge_hw *hw = dev_id;
 	u32 status;
@@ -3125,7 +3173,7 @@ static void skge_netpoll(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 
 	disable_irq(dev->irq);
-	skge_intr(dev->irq, skge->hw, NULL);
+	skge_intr(dev->irq, skge->hw);
 	enable_irq(dev->irq);
 }
 #endif
@@ -3399,7 +3447,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* Auto speed and flow control */
 	skge->autoneg = AUTONEG_ENABLE;
-	skge->flow_control = FLOW_MODE_SYMMETRIC;
+	skge->flow_control = FLOW_MODE_SYM_OR_REM;
 	skge->duplex = -1;
 	skge->speed = -1;
 	skge->advertising = skge_supported_modes(hw);

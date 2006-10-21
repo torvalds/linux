@@ -12,7 +12,8 @@
 enum {
 	IPSEC_MODE_ANY		= 0,	/* We do not support this for SA */
 	IPSEC_MODE_TRANSPORT	= 1,
-	IPSEC_MODE_TUNNEL	= 2
+	IPSEC_MODE_TUNNEL	= 2,
+	IPSEC_MODE_BEET         = 3
 };
 
 enum {

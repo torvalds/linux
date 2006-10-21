@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1995, 1996, 1999, 2001 Ralf Baechle
+ * Copyright (C) 1995, 96, 99, 2001, 06 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
@@ -13,14 +13,8 @@
 #include <linux/posix_types.h>
 
 typedef unsigned char cc_t;
-#if (_MIPS_SZLONG == 32)
-typedef unsigned long speed_t;
-typedef unsigned long tcflag_t;
-#endif
-#if (_MIPS_SZLONG == 64)
-typedef __u32 speed_t;
-typedef __u32 tcflag_t;
-#endif
+typedef unsigned int speed_t;
+typedef unsigned int tcflag_t;
 
 /*
  * The ABI says nothing about NCC but seems to use NCCS as

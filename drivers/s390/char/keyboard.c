@@ -304,7 +304,7 @@ kbd_keycode(struct kbd_data *kbd, unsigned int keycode)
 		if (kbd->sysrq) {
 			if (kbd->sysrq == K(KT_LATIN, '-')) {
 				kbd->sysrq = 0;
-				handle_sysrq(value, NULL, kbd->tty);
+				handle_sysrq(value, kbd->tty);
 				return;
 			}
 			if (value == '-') {

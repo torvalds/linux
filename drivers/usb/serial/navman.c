@@ -32,7 +32,7 @@ static struct usb_driver navman_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static void navman_read_int_callback(struct urb *urb, struct pt_regs *regs)
+static void navman_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;

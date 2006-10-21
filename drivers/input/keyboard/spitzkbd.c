@@ -176,7 +176,7 @@ static inline int spitzkbd_get_row_status(int col)
  */
 
 /* Scan the hardware keyboard and push any changes up through the input layer */
-static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs *regs)
+static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data)
 {
 	unsigned int row, col, rowd;
 	unsigned long flags;
@@ -186,8 +186,6 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 		return;
 
 	spin_lock_irqsave(&spitzkbd_data->lock, flags);
-
-	input_regs(spitzkbd_data->input, regs);
 
 	num_pressed = 0;
 	for (col = 0; col < KB_COLS; col++) {
@@ -239,14 +237,14 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 /*
  * spitz keyboard interrupt handler.
  */
-static irqreturn_t spitzkbd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t spitzkbd_interrupt(int irq, void *dev_id)
 {
 	struct spitzkbd *spitzkbd_data = dev_id;
 
 	if (!timer_pending(&spitzkbd_data->timer)) {
 		/** wait chattering delay **/
 		udelay(20);
-		spitzkbd_scankeyboard(spitzkbd_data, regs);
+		spitzkbd_scankeyboard(spitzkbd_data);
 	}
 
 	return IRQ_HANDLED;
@@ -259,7 +257,7 @@ static void spitzkbd_timer_callback(unsigned long data)
 {
 	struct spitzkbd *spitzkbd_data = (struct spitzkbd *) data;
 
-	spitzkbd_scankeyboard(spitzkbd_data, NULL);
+	spitzkbd_scankeyboard(spitzkbd_data);
 }
 
 /*
@@ -267,7 +265,7 @@ static void spitzkbd_timer_callback(unsigned long data)
  * We debounce the switches and pass them to the input system.
  */
 
-static irqreturn_t spitzkbd_hinge_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t spitzkbd_hinge_isr(int irq, void *dev_id)
 {
 	struct spitzkbd *spitzkbd_data = dev_id;
 

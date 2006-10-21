@@ -20,7 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -85,7 +84,7 @@ struct appledisplay {
 static atomic_t count_displays = ATOMIC_INIT(0);
 static struct workqueue_struct *wq;
 
-static void appledisplay_complete(struct urb *urb, struct pt_regs *regs)
+static void appledisplay_complete(struct urb *urb)
 {
 	struct appledisplay *pdata = urb->context;
 	unsigned long flags;

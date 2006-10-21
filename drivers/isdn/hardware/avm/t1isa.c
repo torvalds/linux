@@ -131,7 +131,7 @@ static int t1_detectandinit(unsigned int base, unsigned irq, int cardnr)
         return 0;
 }
 
-static irqreturn_t t1isa_interrupt(int interrupt, void *devptr, struct pt_regs *regs)
+static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 {
 	avmcard *card = devptr;
 	avmctrl_info *cinfo = &card->ctrlinfo[0];

@@ -185,7 +185,7 @@ MODULE_SUPPORTED_DEVICE
 #ifdef WD_DEBUG
 static void wd_dumpregs(void);
 #endif
-static irqreturn_t wd_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t wd_interrupt(int irq, void *dev_id);
 static void wd_toggleintr(struct wd_timer* pTimer, int enable);
 static void wd_pingtimer(struct wd_timer* pTimer);
 static void wd_starttimer(struct wd_timer* pTimer);
@@ -444,7 +444,7 @@ static ssize_t wd_read(struct file * file, char __user *buffer,
 #endif /* ifdef WD_DEBUG */
 }
 
-static irqreturn_t wd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wd_interrupt(int irq, void *dev_id)
 {
 	/* Only WD0 will interrupt-- others are NMI and we won't
 	 * see them here....

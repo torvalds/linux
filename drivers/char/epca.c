@@ -1113,11 +1113,8 @@ static void __exit epca_module_exit(void)
 		ch = card_ptr[crd];
 		for (count = 0; count < bd->numports; count++, ch++) 
 		{ /* Begin for each port */
-			if (ch) {
-				if (ch->tty)
-					tty_hangup(ch->tty);
-				kfree(ch->tmp_buf);
-			}
+			if (ch && ch->tty)
+				tty_hangup(ch->tty);
 		} /* End for each port */
 	} /* End for each card */
 	pci_unregister_driver (&epca_driver);
@@ -1160,6 +1157,7 @@ static int __init pc_init(void)
 	int crd;
 	struct board_info *bd;
 	unsigned char board_id = 0;
+	int err = -ENOMEM;
 
 	int pci_boards_found, pci_count;
 
@@ -1167,13 +1165,11 @@ static int __init pc_init(void)
 
 	pc_driver = alloc_tty_driver(MAX_ALLOC);
 	if (!pc_driver)
-		return -ENOMEM;
+		goto out1;
 
 	pc_info = alloc_tty_driver(MAX_ALLOC);
-	if (!pc_info) {
-		put_tty_driver(pc_driver);
-		return -ENOMEM;
-	}
+	if (!pc_info)
+		goto out2;
 
 	/* -----------------------------------------------------------------------
 		If epca_setup has not been ran by LILO set num_cards to defaults; copy
@@ -1373,11 +1369,17 @@ static int __init pc_init(void)
 
 	} /* End for each card */
 
-	if (tty_register_driver(pc_driver))
-		panic("Couldn't register Digi PC/ driver");
+	err = tty_register_driver(pc_driver);
+	if (err) {
+		printk(KERN_ERR "Couldn't register Digi PC/ driver");
+		goto out3;
+	}
 
-	if (tty_register_driver(pc_info))
-		panic("Couldn't register Digi PC/ info ");
+	err = tty_register_driver(pc_info);
+	if (err) {
+		printk(KERN_ERR "Couldn't register Digi PC/ info ");
+		goto out4;
+	}
 
 	/* -------------------------------------------------------------------
 	   Start up the poller to check for events on all enabled boards
@@ -1387,6 +1389,15 @@ static int __init pc_init(void)
 	epca_timer.function = epcapoll;
 	mod_timer(&epca_timer, jiffies + HZ/25);
 	return 0;
+
+out4:
+	tty_unregister_driver(pc_driver);
+out3:
+	put_tty_driver(pc_info);
+out2:
+	put_tty_driver(pc_driver);
+out1:
+	return err;
 
 } /* End pc_init */
 
@@ -1635,16 +1646,6 @@ static void post_fep_init(unsigned int crd)
 		init_waitqueue_head(&ch->close_wait);
 
 		spin_unlock_irqrestore(&epca_lock, flags);
-
-		ch->tmp_buf = kmalloc(ch->txbufsize,GFP_KERNEL);
-		if (!ch->tmp_buf) {
-			printk(KERN_ERR "POST FEP INIT : kmalloc failed for port 0x%x\n",i);
-			release_region((int)bd->port, 4);
-			while(i-- > 0)
-				kfree((ch--)->tmp_buf);
-			return;
-		} else
-			memset((void *)ch->tmp_buf,0,ch->txbufsize);
 	} /* End for each port */
 
 	printk(KERN_INFO 

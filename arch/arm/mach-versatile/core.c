@@ -77,12 +77,12 @@ static struct irq_chip sic_chip = {
 };
 
 static void
-sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+sic_handle_irq(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned long status = readl(VA_SIC_BASE + SIC_IRQ_STATUS);
 
 	if (status == 0) {
-		do_bad_IRQ(irq, desc, regs);
+		do_bad_IRQ(irq, desc);
 		return;
 	}
 
@@ -93,7 +93,7 @@ sic_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 		irq += IRQ_SIC_START;
 
 		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc, regs);
+		desc_handle_irq(irq, desc);
 	} while (status);
 }
 
@@ -188,12 +188,12 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_BASE),
 		.length		= VERSATILE_PCI_BASE_SIZE,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	=  VERSATILE_PCI_CFG_VIRT_BASE,
+		.virtual	=  (unsigned long)VERSATILE_PCI_CFG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_CFG_BASE),
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
 		.type		= MT_DEVICE
@@ -851,14 +851,14 @@ static unsigned long versatile_gettimeoffset(void)
 /*
  * IRQ handler for the timer
  */
-static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t versatile_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
 	// ...clear the interrupt
 	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
 
-	timer_tick(regs);
+	timer_tick();
 
 	write_sequnlock(&xtime_lock);
 

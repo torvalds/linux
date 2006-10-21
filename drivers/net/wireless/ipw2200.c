@@ -10467,7 +10467,7 @@ static const struct ethtool_ops ipw_ethtool_ops = {
 	.set_eeprom = ipw_ethtool_set_eeprom,
 };
 
-static irqreturn_t ipw_isr(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t ipw_isr(int irq, void *data)
 {
 	struct ipw_priv *priv = data;
 	u32 inta, inta_mask;

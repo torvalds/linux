@@ -13,7 +13,6 @@
 
 //#define DEBUG
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -197,7 +196,7 @@ static int s3c24xx_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	return hw->count;
 }
 
-static irqreturn_t s3c24xx_spi_irq(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 {
 	struct s3c24xx_spi *hw = dev;
 	unsigned int spsta = readb(hw->regs + S3C2410_SPSTA);

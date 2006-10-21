@@ -191,7 +191,7 @@ enum {
 /* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
 struct dccp_so_feat {
 	__u8 dccpsf_feat;
-	__u8 *dccpsf_val;
+	__u8 __user *dccpsf_val;
 	__u8 dccpsf_len;
 };
 

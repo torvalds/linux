@@ -1120,8 +1120,7 @@ static void mpi_receive_802_3(struct airo_info *ai);
 static void mpi_receive_802_11(struct airo_info *ai);
 static int waitbusy (struct airo_info *ai);
 
-static irqreturn_t airo_interrupt( int irq, void* dev_id, struct pt_regs
-			    *regs);
+static irqreturn_t airo_interrupt( int irq, void* dev_id);
 static int airo_thread(void *data);
 static void timer_func( struct net_device *dev );
 static int airo_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -3151,7 +3150,7 @@ static int airo_thread(void *data) {
 	return 0;
 }
 
-static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs) {
+static irqreturn_t airo_interrupt ( int irq, void* dev_id) {
 	struct net_device *dev = (struct net_device *)dev_id;
 	u16 status;
 	u16 fid;

@@ -1,0 +1,44 @@
+config GFS2_FS
+	tristate "GFS2 file system support"
+	depends on EXPERIMENTAL
+	select FS_POSIX_ACL
+	help
+	A cluster filesystem.
+
+	Allows a cluster of computers to simultaneously use a block device
+	that is shared between them (with FC, iSCSI, NBD, etc...).  GFS reads
+	and writes to the block device like a local filesystem, but also uses
+	a lock module to allow the computers coordinate their I/O so
+	filesystem consistency is maintained.  One of the nifty features of
+	GFS is perfect consistency -- changes made to the filesystem on one
+	machine show up immediately on all other machines in the cluster.
+
+	To use the GFS2 filesystem, you will need to enable one or more of
+	the below locking modules. Documentation and utilities for GFS2 can
+	be found here: http://sources.redhat.com/cluster
+
+config GFS2_FS_LOCKING_NOLOCK
+	tristate "GFS2 \"nolock\" locking module"
+	depends on GFS2_FS
+	help
+	Single node locking module for GFS2.
+
+	Use this module if you want to use GFS2 on a single node without
+	its clustering features. You can still take advantage of the
+	large file support, and upgrade to running a full cluster later on
+	if required.
+
+	If you will only be using GFS2 in cluster mode, you do not need this
+	module.
+
+config GFS2_FS_LOCKING_DLM
+	tristate "GFS2 DLM locking module"
+	depends on GFS2_FS
+	select DLM
+	help
+	Multiple node locking module for GFS2
+
+	Most users of GFS2 will require this module. It provides the locking
+	interface between GFS2 and the DLM, which is required to use GFS2
+	in a cluster environment.
+

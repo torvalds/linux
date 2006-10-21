@@ -35,6 +35,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "c2.h"
 #include "c2_vq.h"
 #include "c2_status.h"
@@ -705,10 +707,8 @@ static inline void c2_activity(struct c2_dev *c2dev, u32 mq_index, u16 shared)
 	 * cannot get on the bus and the card and system hang in a
 	 * deadlock -- thus the need for this code. [TOT]
 	 */
-	while (readl(c2dev->regs + PCI_BAR0_ADAPTER_HINT) & 0x80000000) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(0);
-	}
+	while (readl(c2dev->regs + PCI_BAR0_ADAPTER_HINT) & 0x80000000)
+		udelay(10);
 
 	__raw_writel(C2_HINT_MAKE(mq_index, shared),
 		     c2dev->regs + PCI_BAR0_ADAPTER_HINT);
@@ -766,6 +766,7 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	struct c2_dev *c2dev = to_c2dev(ibqp->device);
 	struct c2_qp *qp = to_c2qp(ibqp);
 	union c2wr wr;
+	unsigned long lock_flags;
 	int err = 0;
 
 	u32 flags;
@@ -881,8 +882,10 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 		/*
 		 * Post the puppy!
 		 */
+		spin_lock_irqsave(&qp->lock, lock_flags);
 		err = qp_wr_post(&qp->sq_mq, &wr, qp, msg_size);
 		if (err) {
+			spin_unlock_irqrestore(&qp->lock, lock_flags);
 			break;
 		}
 
@@ -890,6 +893,7 @@ int c2_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 		 * Enqueue mq index to activity FIFO.
 		 */
 		c2_activity(c2dev, qp->sq_mq.index, qp->sq_mq.hint_count);
+		spin_unlock_irqrestore(&qp->lock, lock_flags);
 
 		ib_wr = ib_wr->next;
 	}
@@ -905,6 +909,7 @@ int c2_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 	struct c2_dev *c2dev = to_c2dev(ibqp->device);
 	struct c2_qp *qp = to_c2qp(ibqp);
 	union c2wr wr;
+	unsigned long lock_flags;
 	int err = 0;
 
 	if (qp->state > IB_QPS_RTS)
@@ -945,8 +950,10 @@ int c2_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 			break;
 		}
 
+		spin_lock_irqsave(&qp->lock, lock_flags);
 		err = qp_wr_post(&qp->rq_mq, &wr, qp, qp->rq_mq.msg_size);
 		if (err) {
+			spin_unlock_irqrestore(&qp->lock, lock_flags);
 			break;
 		}
 
@@ -954,6 +961,7 @@ int c2_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 		 * Enqueue mq index to activity FIFO
 		 */
 		c2_activity(c2dev, qp->rq_mq.index, qp->rq_mq.hint_count);
+		spin_unlock_irqrestore(&qp->lock, lock_flags);
 
 		ib_wr = ib_wr->next;
 	}

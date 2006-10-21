@@ -424,7 +424,7 @@
 
 static void gdth_delay(int milliseconds);
 static void gdth_eval_mapping(ulong32 size, ulong32 *cyls, int *heads, int *secs);
-static irqreturn_t gdth_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t gdth_interrupt(int irq, void *dev_id);
 static int gdth_sync_event(int hanum,int service,unchar index,Scsi_Cmnd *scp);
 static int gdth_async_event(int hanum);
 static void gdth_log_event(gdth_evt_data *dvr, char *buffer);
@@ -1804,7 +1804,7 @@ static int gdth_wait(int hanum,int index,ulong32 time)
 
     gdth_from_wait = TRUE;
     do {
-        gdth_interrupt((int)ha->irq,ha,NULL);
+        gdth_interrupt((int)ha->irq,ha);
         if (wait_hanum==hanum && wait_index==index) {
             answer_found = TRUE;
             break;
@@ -3406,7 +3406,7 @@ static void gdth_clear_events(void)
 
 /* SCSI interface functions */
 
-static irqreturn_t gdth_interrupt(int irq,void *dev_id,struct pt_regs *regs)
+static irqreturn_t gdth_interrupt(int irq,void *dev_id)
 {
     gdth_ha_str *ha2 = (gdth_ha_str *)dev_id;
     register gdth_ha_str *ha;

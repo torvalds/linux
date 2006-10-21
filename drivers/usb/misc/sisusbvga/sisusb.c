@@ -36,7 +36,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -210,7 +209,7 @@ sisusb_free_outbuf(struct sisusb_usb_data *sisusb, int index)
 /* completion callback */
 
 static void
-sisusb_bulk_completeout(struct urb *urb, struct pt_regs *regs)
+sisusb_bulk_completeout(struct urb *urb)
 {
 	struct sisusb_urb_context *context = urb->context;
 	struct sisusb_usb_data *sisusb;
@@ -289,7 +288,7 @@ sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe,
 /* completion callback */
 
 static void
-sisusb_bulk_completein(struct urb *urb, struct pt_regs *regs)
+sisusb_bulk_completein(struct urb *urb)
 {
 	struct sisusb_usb_data *sisusb = urb->context;
 

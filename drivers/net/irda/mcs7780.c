@@ -764,7 +764,7 @@ static struct net_device_stats *mcs_net_get_stats(struct net_device *netdev)
 }
 
 /* Receive callback function.  */
-static void mcs_receive_irq(struct urb *urb, struct pt_regs *regs)
+static void mcs_receive_irq(struct urb *urb)
 {
 	__u8 *bytes;
 	struct mcs_cb *mcs = urb->context;
@@ -813,7 +813,7 @@ static void mcs_receive_irq(struct urb *urb, struct pt_regs *regs)
 }
 
 /* Transmit callback funtion.  */
-static void mcs_send_irq(struct urb *urb, struct pt_regs *regs)
+static void mcs_send_irq(struct urb *urb)
 {
 	struct mcs_cb *mcs = urb->context;
 	struct net_device *ndev = mcs->netdev;

@@ -196,7 +196,7 @@ static void update_linkspeed(struct net_device *dev, int silent)
 /*
  * Handle interrupts from the PHY
  */
-static irqreturn_t at91ether_phy_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t at91ether_phy_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct at91_private *lp = (struct at91_private *) dev->priv;
@@ -888,7 +888,7 @@ static void at91ether_rx(struct net_device *dev)
 /*
  * MAC interrupt handler
  */
-static irqreturn_t at91ether_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct at91_private *lp = (struct at91_private *) dev->priv;

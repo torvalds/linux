@@ -56,7 +56,7 @@ struct tr {
 };
 
 static irqreturn_t tr_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct tr *tr = serio_get_drvdata(serio);
 	struct input_dev *dev = tr->dev;
@@ -65,7 +65,6 @@ static irqreturn_t tr_interrupt(struct serio *serio,
 
 	if ((tr->data[0] & TR_FORMAT_STATUS_MASK) == TR_FORMAT_STATUS_BYTE) {
 		if (++tr->idx == TR_LENGTH) {
-			input_regs(dev, regs);
 			input_report_abs(dev, ABS_X,
 				(tr->data[1] << 5) | (tr->data[2] >> 1));
 			input_report_abs(dev, ABS_Y,

@@ -18,7 +18,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -62,8 +61,7 @@ pci_dram_offset = MPC7448_HPC2_PCI_MEM_OFFSET;
 extern int tsi108_setup_pci(struct device_node *dev);
 extern void _nmask_and_or_msr(unsigned long nmask, unsigned long or_val);
 extern void tsi108_pci_int_init(void);
-extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc,
-			    struct pt_regs *regs);
+extern void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc);
 
 int mpc7448_hpc2_exclude_device(u_char bus, u_char devfn)
 {
@@ -201,7 +199,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 	tsi_pic = of_find_node_by_type(NULL, "open-pic");
 	if (tsi_pic) {
 		unsigned int size;
-		void *prop = get_property(tsi_pic, "reg", &size);
+		const void *prop = get_property(tsi_pic, "reg", &size);
 		mpic_paddr = of_translate_address(tsi_pic, prop);
 	}
 

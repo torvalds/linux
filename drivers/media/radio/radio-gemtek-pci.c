@@ -449,7 +449,7 @@ static int __init gemtek_pci_init_module( void )
 
 static void __exit gemtek_pci_cleanup_module( void )
 {
-	return pci_unregister_driver( &gemtek_pci_driver );
+	pci_unregister_driver(&gemtek_pci_driver);
 }
 
 MODULE_AUTHOR( "Vladimir Shebordaev <vshebordaev@mail.ru>" );

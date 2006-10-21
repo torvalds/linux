@@ -88,8 +88,7 @@ static struct hw_interrupt_type voyagergx_irq_type = {
 	.end = end_voyagergx_irq,
 };
 
-static irqreturn_t voyagergx_interrupt(int irq, void *dev_id,
-				      struct pt_regs *regs)
+static irqreturn_t voyagergx_interrupt(int irq, void *dev_id)
 {
 	printk(KERN_INFO
 	       "VoyagerGX: spurious interrupt, status: 0x%x\n",

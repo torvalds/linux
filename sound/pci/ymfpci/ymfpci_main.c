@@ -753,7 +753,7 @@ static void snd_ymfpci_irq_wait(struct snd_ymfpci *chip)
 	}
 }
 
-static irqreturn_t snd_ymfpci_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_ymfpci_interrupt(int irq, void *dev_id)
 {
 	struct snd_ymfpci *chip = dev_id;
 	u32 status, nvoice, mode;
@@ -799,7 +799,7 @@ static irqreturn_t snd_ymfpci_interrupt(int irq, void *dev_id, struct pt_regs *r
 	snd_ymfpci_writew(chip, YDSXGR_INTFLAG, status);
 
 	if (chip->rawmidi)
-		snd_mpu401_uart_interrupt(irq, chip->rawmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, chip->rawmidi->private_data);
 	return IRQ_HANDLED;
 }
 

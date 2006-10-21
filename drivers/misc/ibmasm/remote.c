@@ -158,12 +158,10 @@ static void print_input(struct remote_input *input)
 	}
 }
 
-static void send_mouse_event(struct input_dev *dev, struct pt_regs *regs,
-		struct remote_input *input)
+static void send_mouse_event(struct input_dev *dev, struct remote_input *input)
 {
 	unsigned char buttons = input->mouse_buttons;
 
-	input_regs(dev, regs);
 	input_report_abs(dev, ABS_X, input->data.mouse.x);
 	input_report_abs(dev, ABS_Y, input->data.mouse.y);
 	input_report_key(dev, BTN_LEFT, buttons & REMOTE_BUTTON_LEFT);
@@ -172,7 +170,7 @@ static void send_mouse_event(struct input_dev *dev, struct pt_regs *regs,
 	input_sync(dev);
 }
 
-static void send_keyboard_event(struct input_dev *dev, struct pt_regs *regs,
+static void send_keyboard_event(struct input_dev *dev,
 		struct remote_input *input)
 {
 	unsigned int key;
@@ -182,13 +180,11 @@ static void send_keyboard_event(struct input_dev *dev, struct pt_regs *regs,
 		key = xlate_high[code & 0xff];
 	else
 		key = xlate[code];
-	input_regs(dev, regs);
 	input_report_key(dev, key, (input->data.keyboard.key_down) ? 1 : 0);
 	input_sync(dev);
 }
 
-void ibmasm_handle_mouse_interrupt(struct service_processor *sp,
-		struct pt_regs *regs)
+void ibmasm_handle_mouse_interrupt(struct service_processor *sp)
 {
 	unsigned long reader;
 	unsigned long writer;
@@ -203,9 +199,9 @@ void ibmasm_handle_mouse_interrupt(struct service_processor *sp,
 
 		print_input(&input);
 		if (input.type == INPUT_TYPE_MOUSE) {
-			send_mouse_event(sp->remote.mouse_dev, regs, &input);
+			send_mouse_event(sp->remote.mouse_dev, &input);
 		} else if (input.type == INPUT_TYPE_KEYBOARD) {
-			send_keyboard_event(sp->remote.keybd_dev, regs, &input);
+			send_keyboard_event(sp->remote.keybd_dev, &input);
 		} else
 			break;
 

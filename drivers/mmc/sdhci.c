@@ -35,6 +35,8 @@ static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+/* Controller doesn't like some resets when there is no card inserted. */
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -51,7 +53,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
+				  SDHCI_QUIRK_NO_CARD_NO_RESET,
 	},
 
 	{
@@ -124,6 +127,12 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 static void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	unsigned long timeout;
+
+	if (host->chip->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
+		if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
+			SDHCI_CARD_PRESENT))
+			return;
+	}
 
 	writeb(mask, host->ioaddr + SDHCI_SOFTWARE_RESET);
 
@@ -717,6 +726,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	} else
 		sdhci_send_command(host, mrq->cmd);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -753,6 +763,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -860,6 +871,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 
 	sdhci_deactivate_led(host);
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
@@ -893,6 +905,7 @@ static void sdhci_timeout_timer(unsigned long data)
 		}
 	}
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -972,7 +985,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 }
 
-static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
 	irqreturn_t result;
 	struct sdhci_host* host = dev_id;
@@ -1030,6 +1043,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	result = IRQ_HANDLED;
 
+	mmiowb();
 out:
 	spin_unlock(&host->lock);
 
@@ -1095,6 +1109,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
 		sdhci_init(chip->hosts[i]);
+		mmiowb();
 		ret = mmc_resume_host(chip->hosts[i]->mmc);
 		if (ret)
 			return ret;
@@ -1167,6 +1182,9 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+
+	host->chip = chip;
+	chip->hosts[slot] = host;
 
 	host->bar = first_bar + slot;
 
@@ -1311,7 +1329,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	tasklet_init(&host->finish_tasklet,
 		sdhci_tasklet_finish, (unsigned long)host);
 
-	setup_timer(&host->timer, sdhci_timeout_timer, (long)host);
+	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
 
 	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		host->slot_descr, host);
@@ -1324,8 +1342,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	sdhci_dumpregs(host);
 #endif
 
-	host->chip = chip;
-	chip->hosts[slot] = host;
+	mmiowb();
 
 	mmc_add_host(mmc);
 

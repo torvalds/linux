@@ -732,7 +732,7 @@ static u16 irqtx_handler(struct net_device *dev, u16 oldcsr0)
 
 /* general interrupt entry */
 
-static irqreturn_t irq_handler(int irq, void *device, struct pt_regs *regs)
+static irqreturn_t irq_handler(int irq, void *device)
 {
 	struct net_device *dev = (struct net_device *) device;
 	u16 csr0val;

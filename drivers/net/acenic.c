@@ -2144,7 +2144,7 @@ static inline void ace_tx_int(struct net_device *dev,
 }
 
 
-static irqreturn_t ace_interrupt(int irq, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t ace_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct ace_private *ap = netdev_priv(dev);

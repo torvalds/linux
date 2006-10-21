@@ -28,6 +28,7 @@
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/hardirq.h>
+#include <linux/mempolicy.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -244,6 +245,12 @@ static int worker_thread(void *__cwq)
 	sigfillset(&blocked);
 	sigprocmask(SIG_BLOCK, &blocked, NULL);
 	flush_signals(current);
+
+	/*
+	 * We inherited MPOL_INTERLEAVE from the booting kernel.
+	 * Set MPOL_DEFAULT to insure node local allocations.
+	 */
+	numa_default_policy();
 
 	/* SIG_IGN makes children autoreap: see do_notify_parent(). */
 	sa.sa.sa_handler = SIG_IGN;

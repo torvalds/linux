@@ -110,7 +110,7 @@ extern int __get_user_4(void *);
 #define get_user(x,p)							\
 	({								\
 		const register typeof(*(p)) __user *__p asm("r0") = (p);\
-		register unsigned int __r2 asm("r2");			\
+		register unsigned long __r2 asm("r2");			\
 		register int __e asm("r0");				\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\

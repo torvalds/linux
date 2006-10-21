@@ -728,7 +728,7 @@ EXPORT_SYMBOL(z8530_nop);
  *	channel). c->lock for both channels points to dev->lock
  */
 
-irqreturn_t z8530_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t z8530_interrupt(int irq, void *dev_id)
 {
 	struct z8530_dev *dev=dev_id;
 	u8 intr;

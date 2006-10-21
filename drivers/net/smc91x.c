@@ -1284,7 +1284,7 @@ static void smc_eph_interrupt(struct net_device *dev)
  * This is the main routine of the driver, to handle the device when
  * it needs some attention.
  */
-static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t smc_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct smc_local *lp = netdev_priv(dev);
@@ -1400,7 +1400,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static void smc_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	smc_interrupt(dev->irq, dev, NULL);
+	smc_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif

@@ -284,7 +284,7 @@ static void rx_dma_buf_pt_init(pc300_t *, int);
 static void rx_dma_buf_init(pc300_t *, int);
 static void tx_dma_buf_check(pc300_t *, int);
 static void rx_dma_buf_check(pc300_t *, int);
-static irqreturn_t cpc_intr(int, void *, struct pt_regs *);
+static irqreturn_t cpc_intr(int, void *);
 static struct net_device_stats *cpc_get_stats(struct net_device *);
 static int clock_rate_calc(uclong, uclong, int *);
 static uclong detect_ram(pc300_t *);
@@ -2363,7 +2363,7 @@ static void falc_intr(pc300_t * card)
 	}
 }
 
-static irqreturn_t cpc_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpc_intr(int irq, void *dev_id)
 {
 	pc300_t *card;
 	volatile ucchar plx_status;

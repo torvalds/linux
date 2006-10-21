@@ -58,7 +58,7 @@ usb_simtec_powercontrol(int port, int to)
 }
 
 static irqreturn_t
-usb_simtec_ocirq(int irq, void *pw, struct pt_regs *regs)
+usb_simtec_ocirq(int irq, void *pw)
 {
 	struct s3c2410_hcd_info *info = (struct s3c2410_hcd_info *)pw;
 

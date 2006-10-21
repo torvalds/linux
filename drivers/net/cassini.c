@@ -2469,7 +2469,7 @@ static inline void cas_handle_irqN(struct net_device *dev,
 		cas_post_rxcs_ringN(dev, cp, ring);
 }
 
-static irqreturn_t cas_interruptN(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cas_interruptN(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct cas *cp = netdev_priv(dev);
@@ -2522,7 +2522,7 @@ static inline void cas_handle_irq1(struct cas *cp, const u32 status)
 }
 
 /* ring 2 handles a few more events than 3 and 4 */
-static irqreturn_t cas_interrupt1(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cas_interrupt1(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct cas *cp = netdev_priv(dev);
@@ -2574,7 +2574,7 @@ static inline void cas_handle_irq(struct net_device *dev,
 		cas_post_rxcs_ringN(dev, cp, 0);
 }
 
-static irqreturn_t cas_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cas_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct cas *cp = netdev_priv(dev);
@@ -2689,7 +2689,7 @@ static void cas_netpoll(struct net_device *dev)
 	struct cas *cp = netdev_priv(dev);
 
 	cas_disable_irq(cp, 0);
-	cas_interrupt(cp->pdev->irq, dev, NULL);
+	cas_interrupt(cp->pdev->irq, dev);
 	cas_enable_irq(cp, 0);
 
 #ifdef USE_PCI_INTB

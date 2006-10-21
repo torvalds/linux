@@ -23,8 +23,7 @@ static void do_poweroff(void *dummy)
 
 static DECLARE_WORK(poweroff_work, do_poweroff, NULL);
 
-static void handle_poweroff(int key, struct pt_regs *pt_regs,
-				struct tty_struct *tty)
+static void handle_poweroff(int key, struct tty_struct *tty)
 {
 	schedule_work(&poweroff_work);
 }

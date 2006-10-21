@@ -16,8 +16,6 @@
 #include "act2000_isa.h"
 #include "capi.h"
 
-static act2000_card *irq2card_map[16];
-
 /*
  * Reset Controller, then try to read the Card's signature.
  + Return:
@@ -63,16 +61,11 @@ act2000_isa_detect(unsigned short portbase)
 }
 
 static irqreturn_t
-act2000_isa_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+act2000_isa_interrupt(int irq, void *dev_id)
 {
-        act2000_card *card = irq2card_map[irq];
+        act2000_card *card = dev_id;
         u_char istatus;
 
-        if (!card) {
-                printk(KERN_WARNING
-                       "act2000: Spurious interrupt!\n");
-                return IRQ_NONE;
-        }
         istatus = (inb(ISA_PORT_ISR) & 0x07);
         if (istatus & ISA_ISR_OUT) {
                 /* RX fifo has data */
@@ -139,17 +132,15 @@ int
 act2000_isa_config_irq(act2000_card * card, short irq)
 {
         if (card->flags & ACT2000_FLAGS_IVALID) {
-                free_irq(card->irq, NULL);
-                irq2card_map[card->irq] = NULL;
+                free_irq(card->irq, card);
         }
         card->flags &= ~ACT2000_FLAGS_IVALID;
         outb(ISA_COR_IRQOFF, ISA_PORT_COR);
         if (!irq)
                 return 0;
 
-	if (!request_irq(irq, &act2000_isa_interrupt, 0, card->regname, NULL)) {
+	if (!request_irq(irq, &act2000_isa_interrupt, 0, card->regname, card)) {
 		card->irq = irq;
-		irq2card_map[card->irq] = card;
 		card->flags |= ACT2000_FLAGS_IVALID;
                 printk(KERN_WARNING
                        "act2000: Could not request irq %d\n",irq);
@@ -188,10 +179,9 @@ act2000_isa_release(act2000_card * card)
         unsigned long flags;
 
         spin_lock_irqsave(&card->lock, flags);
-        if (card->flags & ACT2000_FLAGS_IVALID) {
-                free_irq(card->irq, NULL);
-                irq2card_map[card->irq] = NULL;
-        }
+        if (card->flags & ACT2000_FLAGS_IVALID)
+                free_irq(card->irq, card);
+
         card->flags &= ~ACT2000_FLAGS_IVALID;
         if (card->flags & ACT2000_FLAGS_PVALID)
                 release_region(card->port, ISA_REGION);

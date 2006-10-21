@@ -97,8 +97,7 @@ static u8 get_row_gpio_val(struct omap_kp *omap_kp)
 #define		get_row_gpio_val(x)	0
 #endif
 
-static irqreturn_t omap_kp_interrupt(int irq, void *dev_id,
-				     struct pt_regs *regs)
+static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 {
 	struct omap_kp *omap_kp = dev_id;
 

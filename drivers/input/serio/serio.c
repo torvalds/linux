@@ -118,6 +118,8 @@ static int serio_match_port(const struct serio_device_id *ids, struct serio *ser
 
 static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 {
+	int error;
+
 	down_write(&serio_bus.subsys.rwsem);
 
 	if (serio_match_port(drv->id_table, serio)) {
@@ -126,9 +128,19 @@ static void serio_bind_driver(struct serio *serio, struct serio_driver *drv)
 			serio->dev.driver = NULL;
 			goto out;
 		}
-		device_bind_driver(&serio->dev);
+		error = device_bind_driver(&serio->dev);
+		if (error) {
+			printk(KERN_WARNING
+				"serio: device_bind_driver() failed "
+				"for %s (%s) and %s, error: %d\n",
+				serio->phys, serio->name,
+				drv->description, error);
+			serio_disconnect_driver(serio);
+			serio->dev.driver = NULL;
+			goto out;
+		}
 	}
-out:
+ out:
 	up_write(&serio_bus.subsys.rwsem);
 }
 
@@ -538,8 +550,12 @@ static void serio_init_port(struct serio *serio)
 		 "serio%ld", (long)atomic_inc_return(&serio_no) - 1);
 	serio->dev.bus = &serio_bus;
 	serio->dev.release = serio_release_port;
-	if (serio->parent)
+	if (serio->parent) {
 		serio->dev.parent = &serio->parent->dev;
+		serio->depth = serio->parent->depth + 1;
+	} else
+		serio->depth = 0;
+	lockdep_set_subclass(&serio->lock, serio->depth);
 }
 
 /*
@@ -911,7 +927,7 @@ void serio_close(struct serio *serio)
 }
 
 irqreturn_t serio_interrupt(struct serio *serio,
-		unsigned char data, unsigned int dfl, struct pt_regs *regs)
+		unsigned char data, unsigned int dfl)
 {
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
@@ -919,7 +935,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 	spin_lock_irqsave(&serio->lock, flags);
 
         if (likely(serio->drv)) {
-                ret = serio->drv->interrupt(serio, data, dfl, regs);
+                ret = serio->drv->interrupt(serio, data, dfl);
 	} else if (!dfl && serio->registered) {
 		serio_rescan(serio);
 		ret = IRQ_HANDLED;

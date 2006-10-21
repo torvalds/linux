@@ -143,8 +143,7 @@ static struct irq_chip pxa_low_gpio_chip = {
  * Demux handler for GPIO>=2 edge detect interrupts
  */
 
-static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
-				   struct pt_regs *regs)
+static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int mask;
 	int loop;
@@ -160,7 +159,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			mask >>= 2;
 			do {
 				if (mask & 1)
-					desc_handle_irq(irq, desc, regs);
+					desc_handle_irq(irq, desc);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -175,7 +174,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc_handle_irq(irq, desc, regs);
+					desc_handle_irq(irq, desc);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -190,7 +189,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc_handle_irq(irq, desc, regs);
+					desc_handle_irq(irq, desc);
 				irq++;
 				desc++;
 				mask >>= 1;
@@ -206,7 +205,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irqdesc *desc,
 			desc = irq_desc + irq;
 			do {
 				if (mask & 1)
-					desc_handle_irq(irq, desc, regs);
+					desc_handle_irq(irq, desc);
 				irq++;
 				desc++;
 				mask >>= 1;

@@ -256,7 +256,7 @@ static unsigned volatile last_jiffy_time;
 
 #define CLOCK_TICKS_PER_USEC	((CLOCK_TICK_RATE + USEC_PER_SEC/2) / USEC_PER_SEC)
 
-static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -267,7 +267,7 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 	 * Catch up with the real idea of time
 	 */
 	while ((signed long)(*IXP4XX_OSTS - last_jiffy_time) >= LATCH) {
-		timer_tick(regs);
+		timer_tick();
 		last_jiffy_time += LATCH;
 	}
 

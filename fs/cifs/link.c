@@ -254,7 +254,11 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 				tmpbuffer,
 				len - 1,
 				cifs_sb->local_nls);
-	else {
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+		cERROR(1,("SFU style symlinks not implemented yet"));
+		/* add open and read as in fs/cifs/inode.c */
+	
+	} else {
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, GENERIC_READ,
 				OPEN_REPARSE_POINT,&fid, &oplock, NULL, 
 				cifs_sb->local_nls, 

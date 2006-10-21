@@ -46,8 +46,6 @@ extern u8 x86_cpu_to_apicid[];
 
 #define cpu_physical_id(cpu)	x86_cpu_to_apicid[cpu]
 
-extern u8 apicid_2_node[];
-
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
@@ -101,6 +99,9 @@ extern unsigned int num_processors;
 #endif
 
 #ifndef __ASSEMBLY__
+
+extern u8 apicid_2_node[];
+
 #ifdef CONFIG_X86_LOCAL_APIC
 static __inline int logical_smp_processor_id(void)
 {

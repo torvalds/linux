@@ -13,7 +13,6 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  */
 
-#include <linux/config.h>
 #include <linux/netdevice.h>
 
 #include <net/fib_rules.h>
@@ -118,12 +117,15 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib6_rule *r = (struct fib6_rule *) rule;
 
-	if (!ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
+	if (r->dst.plen &&
+	    !ipv6_prefix_equal(&fl->fl6_dst, &r->dst.addr, r->dst.plen))
 		return 0;
 
-	if ((flags & RT6_LOOKUP_F_HAS_SADDR) &&
-	    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
-		return 0;
+	if (r->src.plen) {
+		if (!(flags & RT6_LOOKUP_F_HAS_SADDR) ||
+		    !ipv6_prefix_equal(&fl->fl6_src, &r->src.addr, r->src.plen))
+			return 0;
+	}
 
 	if (r->tclass && r->tclass != ((ntohl(fl->fl6_flowlabel) >> 20) & 0xff))
 		return 0;

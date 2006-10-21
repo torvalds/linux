@@ -20,7 +20,8 @@
 #include <linux/sched.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
+#include <linux/irq.h>
+
 #include <asm/system.h>
 
 #include "op_counter.h"
@@ -341,7 +342,7 @@ static void inline __xsc2_check_ctrs(void)
 	__asm__ __volatile__ ("mcr p14, 0, %0, c5, c1, 0" : : "r" (flag));
 }
 
-static irqreturn_t xscale_pmu_interrupt(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t xscale_pmu_interrupt(int irq, void *arg)
 {
 	int i;
 	u32 pmnc;
@@ -356,7 +357,7 @@ static irqreturn_t xscale_pmu_interrupt(int irq, void *arg, struct pt_regs *regs
 			continue;
 
 		write_counter(i, -(u32)results[i].reset_counter);
-		oprofile_add_sample(regs, i);
+		oprofile_add_sample(get_irq_regs(), i);
 		results[i].ovf--;
 	}
 

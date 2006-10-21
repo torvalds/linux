@@ -71,8 +71,7 @@ static struct irq_chip mainstone_irq_chip = {
 	.unmask		= mainstone_unmask_irq,
 };
 
-static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
-				  struct pt_regs *regs)
+static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned long pending = MST_INTSETCLR & mainstone_irq_enabled;
 	do {
@@ -80,7 +79,7 @@ static void mainstone_irq_handler(unsigned int irq, struct irqdesc *desc,
 		if (likely(pending)) {
 			irq = MAINSTONE_IRQ(0) + __ffs(pending);
 			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc, regs);
+			desc_handle_irq(irq, desc);
 		}
 		pending = MST_INTSETCLR & mainstone_irq_enabled;
 	} while (pending);
@@ -314,7 +313,7 @@ static struct pxafb_mach_info mainstone_pxafb_info = {
 	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
-static int mainstone_mci_init(struct device *dev, irqreturn_t (*mstone_detect_int)(int, void *, struct pt_regs *), void *data)
+static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_int, void *data)
 {
 	int err;
 

@@ -447,7 +447,6 @@ static int sn_debug_printf(const char *fmt, ...)
 /**
  * sn_receive_chars - Grab characters, pass them to tty layer
  * @port: Port to operate on
- * @regs: Saved registers (needed by uart_handle_sysrq_char)
  * @flags: irq flags
  *
  * Note: If we're not registered with the serial core infrastructure yet,
@@ -455,8 +454,7 @@ static int sn_debug_printf(const char *fmt, ...)
  *
  */
 static void
-sn_receive_chars(struct sn_cons_port *port, struct pt_regs *regs,
-		 unsigned long flags)
+sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 {
 	int ch;
 	struct tty_struct *tty;
@@ -494,7 +492,7 @@ sn_receive_chars(struct sn_cons_port *port, struct pt_regs *regs,
                         sysrq_requested = 0;
                         if (ch && time_before(jiffies, sysrq_timeout)) {
                                 spin_unlock_irqrestore(&port->sc_port.lock, flags);
-                                handle_sysrq(ch, regs, NULL);
+                                handle_sysrq(ch, NULL);
                                 spin_lock_irqsave(&port->sc_port.lock, flags);
                                 /* ignore actual sysrq command char */
                                 continue;
@@ -615,10 +613,9 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
  * sn_sal_interrupt - Handle console interrupts
  * @irq: irq #, useful for debug statements
  * @dev_id: our pointer to our port (sn_cons_port which contains the uart port)
- * @regs: Saved registers, used by sn_receive_chars for uart_handle_sysrq_char
  *
  */
-static irqreturn_t sn_sal_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sn_sal_interrupt(int irq, void *dev_id)
 {
 	struct sn_cons_port *port = (struct sn_cons_port *)dev_id;
 	unsigned long flags;
@@ -629,7 +626,7 @@ static irqreturn_t sn_sal_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_lock_irqsave(&port->sc_port.lock, flags);
 	if (status & SAL_CONSOLE_INTR_RECV) {
-		sn_receive_chars(port, regs, flags);
+		sn_receive_chars(port, flags);
 	}
 	if (status & SAL_CONSOLE_INTR_XMIT) {
 		sn_transmit_chars(port, TRANSMIT_BUFFERED);
@@ -677,7 +674,7 @@ static void sn_sal_timer_poll(unsigned long data)
 	if (!port->sc_port.irq) {
 		spin_lock_irqsave(&port->sc_port.lock, flags);
 		if (sn_process_input)
-			sn_receive_chars(port, NULL, flags);
+			sn_receive_chars(port, flags);
 		sn_transmit_chars(port, TRANSMIT_RAW);
 		spin_unlock_irqrestore(&port->sc_port.lock, flags);
 		mod_timer(&port->sc_timer,

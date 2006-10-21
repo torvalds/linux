@@ -135,7 +135,6 @@ static inline void check_wait(void)
 	case CPU_R5000:
 	case CPU_NEVADA:
 	case CPU_RM7000:
-	case CPU_RM9000:
 	case CPU_4KC:
 	case CPU_4KEC:
 	case CPU_4KSC:
@@ -163,6 +162,14 @@ static inline void check_wait(void)
 			printk(" available.\n");
 		} else
 			printk(" unavailable.\n");
+		break;
+	case CPU_RM9000:
+		if ((c->processor_id & 0x00ff) >= 0x40) {
+			cpu_wait = r4k_wait;
+			printk(" available.\n");
+		} else {
+			printk(" unavailable.\n");
+		}
 		break;
 	default:
 		printk(" unavailable.\n");

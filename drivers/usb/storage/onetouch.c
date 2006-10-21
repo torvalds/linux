@@ -53,7 +53,7 @@ struct usb_onetouch {
 	unsigned int is_open:1;
 };
 
-static void usb_onetouch_irq(struct urb *urb, struct pt_regs *regs)
+static void usb_onetouch_irq(struct urb *urb)
 {
 	struct usb_onetouch *onetouch = urb->context;
 	signed char *data = onetouch->data;
@@ -72,7 +72,6 @@ static void usb_onetouch_irq(struct urb *urb, struct pt_regs *regs)
 		goto resubmit;
 	}
 
-	input_regs(dev, regs);
 	input_report_key(dev, ONETOUCH_BUTTON, data[0] & 0x02);
 	input_sync(dev);
 

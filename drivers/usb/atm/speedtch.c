@@ -55,7 +55,6 @@ static const char speedtch_driver_name[] = "speedtch";
 #define OFFSET_d	9		/* size 4 */
 #define OFFSET_e	13		/* size 1 */
 #define OFFSET_f	14		/* size 1 */
-#define TOTAL		15
 
 #define SIZE_7		1
 #define SIZE_b		8
@@ -79,6 +78,18 @@ static int dl_512_first = DEFAULT_DL_512_FIRST;
 static int enable_isoc = DEFAULT_ENABLE_ISOC;
 static int sw_buffering = DEFAULT_SW_BUFFERING;
 
+#define DEFAULT_B_MAX_DSL	8128
+#define DEFAULT_MODEM_MODE	11
+#define MODEM_OPTION_LENGTH	16
+static const unsigned char DEFAULT_MODEM_OPTION[MODEM_OPTION_LENGTH] = {
+	0x10, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static unsigned int BMaxDSL = DEFAULT_B_MAX_DSL;
+static unsigned char ModemMode = DEFAULT_MODEM_MODE;
+static unsigned char ModemOption[MODEM_OPTION_LENGTH];
+static int num_ModemOption;
+
 module_param(altsetting, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(altsetting,
 		"Alternative setting for data interface (bulk_default: "
@@ -100,6 +111,17 @@ MODULE_PARM_DESC(sw_buffering,
 		 "Enable software buffering (default: "
 		 __MODULE_STRING(DEFAULT_SW_BUFFERING) ")");
 
+module_param(BMaxDSL, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(BMaxDSL,
+		"default: " __MODULE_STRING(DEFAULT_B_MAX_DSL));
+
+module_param(ModemMode, byte, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ModemMode,
+		"default: " __MODULE_STRING(DEFAULT_MODEM_MODE));
+
+module_param_array(ModemOption, byte, &num_ModemOption, S_IRUGO);
+MODULE_PARM_DESC(ModemOption, "default: 0x10,0x00,0x00,0x00,0x20");
+
 #define INTERFACE_DATA		1
 #define ENDPOINT_INT		0x81
 #define ENDPOINT_BULK_DATA	0x07
@@ -108,10 +130,17 @@ MODULE_PARM_DESC(sw_buffering,
 
 #define hex2int(c) ( (c >= '0') && (c <= '9') ? (c - '0') : ((c & 0xf) + 9) )
 
+struct speedtch_params {
+	unsigned int altsetting;
+	unsigned int BMaxDSL;
+	unsigned char ModemMode;
+	unsigned char ModemOption[MODEM_OPTION_LENGTH];
+};
+
 struct speedtch_instance_data {
 	struct usbatm_data *usbatm;
 
-	unsigned int altsetting;
+	struct speedtch_params params; /* set in probe, constant afterwards */
 
 	struct work_struct status_checker;
 
@@ -123,7 +152,7 @@ struct speedtch_instance_data {
 	struct urb *int_urb;
 	unsigned char int_data[16];
 
-	unsigned char scratch_buffer[TOTAL];
+	unsigned char scratch_buffer[16];
 };
 
 /***************
@@ -186,6 +215,34 @@ static void speedtch_test_sequence(struct speedtch_instance_data *instance)
 			      0x01, 0x40, 0x04, 0x00, buf, 3, CTRL_TIMEOUT);
 	if (ret < 0)
 		usb_warn(usbatm, "%s failed on URB150: %d\n", __func__, ret);
+
+	/* Extra initialisation in recent drivers - gives higher speeds */
+
+	/* URBext1 */
+	buf[0] = instance->params.ModemMode;
+	ret = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
+			      0x01, 0x40, 0x11, 0x00, buf, 1, CTRL_TIMEOUT);
+	if (ret < 0)
+		usb_warn(usbatm, "%s failed on URBext1: %d\n", __func__, ret);
+
+	/* URBext2 */
+	/* This seems to be the one which actually triggers the higher sync
+	   rate -- it does require the new firmware too, although it works OK
+	   with older firmware */
+	ret = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
+			      0x01, 0x40, 0x14, 0x00,
+			      instance->params.ModemOption,
+			      MODEM_OPTION_LENGTH, CTRL_TIMEOUT);
+	if (ret < 0)
+		usb_warn(usbatm, "%s failed on URBext2: %d\n", __func__, ret);
+
+	/* URBext3 */
+	buf[0] = instance->params.BMaxDSL & 0xff;
+	buf[1] = instance->params.BMaxDSL >> 8;
+	ret = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
+			      0x01, 0x40, 0x12, 0x00, buf, 2, CTRL_TIMEOUT);
+	if (ret < 0)
+		usb_warn(usbatm, "%s failed on URBext3: %d\n", __func__, ret);
 }
 
 static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
@@ -285,8 +342,8 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 	   because we're in our own kernel thread anyway. */
 	msleep_interruptible(1000);
 
-	if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
-		usb_err(usbatm, "%s: setting interface to %d failed (%d)!\n", __func__, instance->altsetting, ret);
+	if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->params.altsetting)) < 0) {
+		usb_err(usbatm, "%s: setting interface to %d failed (%d)!\n", __func__, instance->params.altsetting, ret);
 		goto out_free;
 	}
 
@@ -372,7 +429,7 @@ static int speedtch_read_status(struct speedtch_instance_data *instance)
 	unsigned char *buf = instance->scratch_buffer;
 	int ret;
 
-	memset(buf, 0, TOTAL);
+	memset(buf, 0, 16);
 
 	ret = usb_control_msg(usb_dev, usb_rcvctrlpipe(usb_dev, 0),
 			      0x12, 0xc0, 0x07, 0x00, buf + OFFSET_7, SIZE_7,
@@ -547,7 +604,7 @@ static void speedtch_resubmit_int(unsigned long data)
 	}
 }
 
-static void speedtch_handle_int(struct urb *int_urb, struct pt_regs *regs)
+static void speedtch_handle_int(struct urb *int_urb)
 {
 	struct speedtch_instance_data *instance = int_urb->context;
 	struct usbatm_data *usbatm = instance->usbatm;
@@ -746,17 +803,21 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	instance->usbatm = usbatm;
 
-	/* altsetting and enable_isoc may change at any moment, so take a snapshot */
-	instance->altsetting = altsetting;
+	/* module parameters may change at any moment, so take a snapshot */
+	instance->params.altsetting = altsetting;
+	instance->params.BMaxDSL = BMaxDSL;
+	instance->params.ModemMode = ModemMode;
+	memcpy(instance->params.ModemOption, DEFAULT_MODEM_OPTION, MODEM_OPTION_LENGTH);
+	memcpy(instance->params.ModemOption, ModemOption, num_ModemOption);
 	use_isoc = enable_isoc;
 
-	if (instance->altsetting)
-		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->altsetting)) < 0) {
-			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, instance->altsetting, ret);
-			instance->altsetting = 0; /* fall back to default */
+	if (instance->params.altsetting)
+		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, instance->params.altsetting)) < 0) {
+			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, instance->params.altsetting, ret);
+			instance->params.altsetting = 0; /* fall back to default */
 		}
 
-	if (!instance->altsetting && use_isoc)
+	if (!instance->params.altsetting && use_isoc)
 		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_ISOC_ALTSETTING)) < 0) {
 			usb_dbg(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_ISOC_ALTSETTING, ret);
 			use_isoc = 0; /* fall back to bulk */
@@ -783,14 +844,14 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 			usb_info(usbatm, "isochronous transfer not supported - using bulk\n");
 	}
 
-	if (!use_isoc && !instance->altsetting)
+	if (!use_isoc && !instance->params.altsetting)
 		if ((ret = usb_set_interface(usb_dev, INTERFACE_DATA, DEFAULT_BULK_ALTSETTING)) < 0) {
 			usb_err(usbatm, "%s: setting interface to %2d failed (%d)!\n", __func__, DEFAULT_BULK_ALTSETTING, ret);
 			goto fail_free;
 		}
 
-	if (!instance->altsetting)
-		instance->altsetting = use_isoc ? DEFAULT_ISOC_ALTSETTING : DEFAULT_BULK_ALTSETTING;
+	if (!instance->params.altsetting)
+		instance->params.altsetting = use_isoc ? DEFAULT_ISOC_ALTSETTING : DEFAULT_BULK_ALTSETTING;
 
 	usbatm->flags |= (use_isoc ? UDSL_USE_ISOC : 0);
 

@@ -30,18 +30,18 @@
 #include <asm/irq_cpu.h>
 #include <asm/gt64120.h>
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP7)
-		do_IRQ(WRPPMC_MIPS_TIMER_IRQ, regs);	/* CPU Compare/Count internal timer */
+		do_IRQ(WRPPMC_MIPS_TIMER_IRQ);	/* CPU Compare/Count internal timer */
 	else if (pending & STATUSF_IP6)
-		do_IRQ(WRPPMC_UART16550_IRQ, regs);	/* UART 16550 port */
+		do_IRQ(WRPPMC_UART16550_IRQ);	/* UART 16550 port */
 	else if (pending & STATUSF_IP3)
-		do_IRQ(WRPPMC_PCI_INTA_IRQ, regs);	/* PCI INT_A */
+		do_IRQ(WRPPMC_PCI_INTA_IRQ);	/* PCI INT_A */
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 /**

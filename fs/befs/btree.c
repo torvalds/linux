@@ -30,7 +30,6 @@
 #include "befs.h"
 #include "btree.h"
 #include "datastream.h"
-#include "endian.h"
 
 /*
  * The btree functions in this file are built on top of the
@@ -80,7 +79,7 @@
  * In memory structure of each btree node
  */
 typedef struct {
-	befs_btree_nodehead head;	/* head of node converted to cpu byteorder */
+	befs_host_btree_nodehead head;	/* head of node converted to cpu byteorder */
 	struct buffer_head *bh;
 	befs_btree_nodehead *od_node;	/* on disk node */
 } befs_btree_node;
@@ -102,9 +101,9 @@ static int befs_bt_read_node(struct super_block *sb, befs_data_stream * ds,
 
 static int befs_leafnode(befs_btree_node * node);
 
-static u16 *befs_bt_keylen_index(befs_btree_node * node);
+static fs16 *befs_bt_keylen_index(befs_btree_node * node);
 
-static befs_off_t *befs_bt_valarray(befs_btree_node * node);
+static fs64 *befs_bt_valarray(befs_btree_node * node);
 
 static char *befs_bt_keydata(befs_btree_node * node);
 
@@ -136,7 +135,7 @@ befs_bt_read_super(struct super_block *sb, befs_data_stream * ds,
 		   befs_btree_super * sup)
 {
 	struct buffer_head *bh = NULL;
-	befs_btree_super *od_sup = NULL;
+	befs_disk_btree_super *od_sup = NULL;
 
 	befs_debug(sb, "---> befs_btree_read_super()");
 
@@ -146,7 +145,7 @@ befs_bt_read_super(struct super_block *sb, befs_data_stream * ds,
 		befs_error(sb, "Couldn't read index header.");
 		goto error;
 	}
-	od_sup = (befs_btree_super *) bh->b_data;
+	od_sup = (befs_disk_btree_super *) bh->b_data;
 	befs_dump_index_entry(sb, od_sup);
 
 	sup->magic = fs32_to_cpu(sb, od_sup->magic);
@@ -342,7 +341,7 @@ befs_find_key(struct super_block *sb, befs_btree_node * node,
 	u16 keylen;
 	int findkey_len;
 	char *thiskey;
-	befs_off_t *valarray;
+	fs64 *valarray;
 
 	befs_debug(sb, "---> befs_find_key() %s", findkey);
 
@@ -422,7 +421,7 @@ befs_btree_read(struct super_block *sb, befs_data_stream * ds,
 	befs_btree_super bt_super;
 	befs_off_t node_off = 0;
 	int cur_key;
-	befs_off_t *valarray;
+	fs64 *valarray;
 	char *keystart;
 	u16 keylen;
 	int res;
@@ -572,7 +571,7 @@ befs_btree_seekleaf(struct super_block *sb, befs_data_stream * ds,
 				   this_node->head.overflow);
 			*node_off = this_node->head.overflow;
 		} else {
-			befs_off_t *valarray = befs_bt_valarray(this_node);
+			fs64 *valarray = befs_bt_valarray(this_node);
 			*node_off = fs64_to_cpu(sb, valarray[0]);
 		}
 		if (befs_bt_read_node(sb, ds, this_node, *node_off) != BEFS_OK) {
@@ -622,7 +621,7 @@ befs_leafnode(befs_btree_node * node)
  *
  * Except that rounding up to 8 works, and rounding up to 4 doesn't.
  */
-static u16 *
+static fs16 *
 befs_bt_keylen_index(befs_btree_node * node)
 {
 	const int keylen_align = 8;
@@ -633,7 +632,7 @@ befs_bt_keylen_index(befs_btree_node * node)
 	if (tmp)
 		off += keylen_align - tmp;
 
-	return (u16 *) ((void *) node->od_node + off);
+	return (fs16 *) ((void *) node->od_node + off);
 }
 
 /**
@@ -643,13 +642,13 @@ befs_bt_keylen_index(befs_btree_node * node)
  * Returns a pointer to the start of the value array
  * of the node pointed to by the node header
  */
-static befs_off_t *
+static fs64 *
 befs_bt_valarray(befs_btree_node * node)
 {
 	void *keylen_index_start = (void *) befs_bt_keylen_index(node);
-	size_t keylen_index_size = node->head.all_key_count * sizeof (u16);
+	size_t keylen_index_size = node->head.all_key_count * sizeof (fs16);
 
-	return (befs_off_t *) (keylen_index_start + keylen_index_size);
+	return (fs64 *) (keylen_index_start + keylen_index_size);
 }
 
 /**
@@ -681,7 +680,7 @@ befs_bt_get_key(struct super_block *sb, befs_btree_node * node,
 {
 	int prev_key_end;
 	char *keystart;
-	u16 *keylen_index;
+	fs16 *keylen_index;
 
 	if (index < 0 || index > node->head.all_key_count) {
 		*keylen = 0;

@@ -172,7 +172,7 @@ extern unsigned long isa_slot_offset;
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
 extern void __iomem * __ioremap(phys_t offset, phys_t size, unsigned long flags);
-extern void __iounmap(volatile void __iomem *addr);
+extern void __iounmap(const volatile void __iomem *addr);
 
 static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	unsigned long flags)
@@ -279,7 +279,7 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 #define ioremap_uncached_accelerated(offset, size)			\
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED_ACCELERATED)
 
-static inline void iounmap(volatile void __iomem *addr)
+static inline void iounmap(const volatile void __iomem *addr)
 {
 #define __IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
@@ -560,32 +560,6 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
  * just copy it. The net code will then do the checksum later.
  */
 #define eth_io_copy_and_sum(skb,src,len,unused) memcpy_fromio((skb)->data,(src),(len))
-
-/*
- *     check_signature         -       find BIOS signatures
- *     @io_addr: mmio address to check
- *     @signature:  signature block
- *     @length: length of signature
- *
- *     Perform a signature comparison with the mmio address io_addr. This
- *     address should have been obtained by ioremap.
- *     Returns 1 on a match.
- */
-static inline int check_signature(char __iomem *io_addr,
-	const unsigned char *signature, int length)
-{
-	int retval = 0;
-	do {
-		if (readb(io_addr) != *signature)
-			goto out;
-		io_addr++;
-		signature++;
-		length--;
-	} while (length);
-	retval = 1;
-out:
-	return retval;
-}
 
 /*
  * The caches on some architectures aren't dma-coherent and have need to

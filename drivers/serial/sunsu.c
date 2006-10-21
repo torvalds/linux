@@ -310,7 +310,7 @@ static void sunsu_enable_ms(struct uart_port *port)
 }
 
 static struct tty_struct *
-receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs *regs)
+receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 {
 	struct tty_struct *tty = up->port.info->tty;
 	unsigned char ch, flag;
@@ -367,7 +367,7 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs 
 			else if (*status & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch, regs))
+		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 		if ((*status & up->port.ignore_status_mask) == 0)
 			tty_insert_flip_char(tty, ch, flag);
@@ -445,7 +445,7 @@ static void check_modem_status(struct uart_sunsu_port *up)
 	wake_up_interruptible(&up->port.info->delta_msr_wait);
 }
 
-static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)
 {
 	struct uart_sunsu_port *up = dev_id;
 	unsigned long flags;
@@ -459,7 +459,7 @@ static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id, struct pt_regs 
 		status = serial_inp(up, UART_LSR);
 		tty = NULL;
 		if (status & UART_LSR_DR)
-			tty = receive_chars(up, &status, regs);
+			tty = receive_chars(up, &status);
 		check_modem_status(up);
 		if (status & UART_LSR_THRE)
 			transmit_chars(up);
@@ -497,7 +497,7 @@ static void sunsu_change_mouse_baud(struct uart_sunsu_port *up)
 	sunsu_change_speed(&up->port, up->cflag, 0, quot);
 }
 
-static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *regs, int is_break)
+static void receive_kbd_ms_chars(struct uart_sunsu_port *up, int is_break)
 {
 	do {
 		unsigned char ch = serial_inp(up, UART_RX);
@@ -505,7 +505,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *reg
 		/* Stop-A is handled by drivers/char/keyboard.c now. */
 		if (up->su_type == SU_PORT_KBD) {
 #ifdef CONFIG_SERIO
-			serio_interrupt(&up->serio, ch, 0, regs);
+			serio_interrupt(&up->serio, ch, 0);
 #endif
 		} else if (up->su_type == SU_PORT_MS) {
 			int ret = suncore_mouse_baud_detection(ch, is_break);
@@ -519,7 +519,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *reg
 
 			case 0:
 #ifdef CONFIG_SERIO
-				serio_interrupt(&up->serio, ch, 0, regs);
+				serio_interrupt(&up->serio, ch, 0);
 #endif
 				break;
 			};
@@ -527,7 +527,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *reg
 	} while (serial_in(up, UART_LSR) & UART_LSR_DR);
 }
 
-static irqreturn_t sunsu_kbd_ms_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sunsu_kbd_ms_interrupt(int irq, void *dev_id)
 {
 	struct uart_sunsu_port *up = dev_id;
 
@@ -535,8 +535,7 @@ static irqreturn_t sunsu_kbd_ms_interrupt(int irq, void *dev_id, struct pt_regs 
 		unsigned char status = serial_inp(up, UART_LSR);
 
 		if ((status & UART_LSR_DR) || (status & UART_LSR_BI))
-			receive_kbd_ms_chars(up, regs,
-					     (status & UART_LSR_BI) != 0);
+			receive_kbd_ms_chars(up, (status & UART_LSR_BI) != 0);
 	}
 
 	return IRQ_HANDLED;

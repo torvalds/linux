@@ -109,4 +109,20 @@ config MMC_IMX
 
 	  If unsure, say N.
 
+config MMC_TIFM_SD
+	tristate "TI Flash Media MMC/SD Interface support  (EXPERIMENTAL)"
+	depends on MMC && EXPERIMENTAL
+	select TIFM_CORE
+	help
+	  Say Y here if you want to be able to access MMC/SD cards with
+	  the Texas Instruments(R) Flash Media card reader, found in many
+	  laptops.
+	  This option 'selects' (turns on, enables) 'TIFM_CORE', but you
+	  probably also need appropriate card reader host adapter, such as
+	  'Misc devices: TI Flash Media PCI74xx/PCI76xx host adapter support
+	  (TIFM_7XX1)'.
+
+          To compile this driver as a module, choose M here: the
+	  module will be called tifm_sd.
+
 endmenu

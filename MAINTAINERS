@@ -641,7 +641,7 @@ CALGARY x86-64 IOMMU
 P:	Muli Ben-Yehuda
 M:	muli@il.ibm.com
 P:	Jon D. Mason
-M:	jdmason@us.ibm.com
+M:	jdmason@kudzu.us
 L:	linux-kernel@vger.kernel.org
 L:	discuss@x86-64.org
 S:	Maintained
@@ -898,6 +898,17 @@ M:	jack@suse.cz
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+DISTRIBUTED LOCK MANAGER
+P:	Patrick Caulfield
+M:	pcaulfie@redhat.com
+P:	David Teigland
+M:	teigland@redhat.com
+L:	cluster-devel@redhat.com
+W:	http://sources.redhat.com/cluster/
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
+S:	Supported
+
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
 P:	Tobias Ringstrom
 M:	tori@unhappy.mine.nu
@@ -976,6 +987,13 @@ L:	ebtables-user@lists.sourceforge.net
 L:	ebtables-devel@lists.sourceforge.net
 W:	http://ebtables.sourceforge.net/
 S:	Maintained
+
+ECRYPT FILE SYSTEM
+P:	Mike Halcrow, Phillip Hellewell
+M:	mhalcrow@us.ibm.com, phillip@hellewell.homeip.net
+L:	ecryptfs-devel@lists.sourceforge.net
+W:	http://ecryptfs.sourceforge.net/
+S:	Supported
 
 EDAC-CORE
 P:	Doug Thompson
@@ -1165,6 +1183,15 @@ P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
 S:	Maintained
+
+GFS2 FILE SYSTEM
+P:	Steven Whitehouse
+M:	swhiteho@redhat.com
+L:	cluster-devel@redhat.com
+W:	http://sources.redhat.com/cluster/
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-fixes.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/steve/gfs2-2.6-nmw.git
+S:	Supported
 
 GIGASET ISDN DRIVERS
 P:	Hansjoerg Lipp
@@ -1641,6 +1668,12 @@ M:	sct@redhat.com, akpm@osdl.org
 L:	ext2-devel@lists.sourceforge.net
 S:	Maintained
 
+K8TEMP HARDWARE MONITORING DRIVER
+P:	Rudolf Marek
+M:	r.marek@assembler.cz
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 KCONFIG
 P:	Roman Zippel
 M:	zippel@linux-m68k.org
@@ -1893,11 +1926,6 @@ M: 	rroesler@syskonnect.de
 W: 	http://www.syskonnect.com
 S: 	Supported
 
-MAESTRO PCI SOUND DRIVERS
-P:	Zach Brown
-M:	zab@zabbo.net
-S:	Odd Fixes
-
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 P: Michael Kerrisk
 M: mtk-manpages@gmx.net
@@ -1976,6 +2004,13 @@ M:	rubini@ipvvis.unipv.it
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MSI LAPTOP SUPPORT
+P:	Lennart Poettering
+M:	mzxreary@0pointer.de
+L:	https://tango.0pointer.de/mailman/listinfo/s270-linux
+W:	http://0pointer.de/lennart/tchibo.html
+S:	Maintained
+
 MTRR AND SIMILAR SUPPORT [i386]
 P:	Richard Gooch
 M:	rgooch@atnf.csiro.au
@@ -1983,8 +2018,11 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
-MULTIMEDIA CARD (MMC) SUBSYSTEM
-S:	Orphan
+MULTIMEDIA CARD (MMC) AND SECURE DIGITAL (SD) SUBSYSTEM
+P:	Pierre Ossman
+M:	drzeus-mmc@drzeus.cx
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
 
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
@@ -2020,11 +2058,13 @@ P:	Marc Boucher
 P:	James Morris
 P:	Harald Welte
 P:	Jozsef Kadlecsik
-M:	coreteam@netfilter.org
+P:	Patrick McHardy
+M:	kaber@trash.net
+L:	netfilter-devel@lists.netfilter.org
+L:	netfilter@lists.netfilter.org
+L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-L:	netfilter@lists.netfilter.org
-L:	netfilter-devel@lists.netfilter.org
 S:	Supported
 
 NETLABEL
@@ -2241,6 +2281,17 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
 T:	cvs cvs.parisc-linux.org:/var/cvs/linux-2.6
 S:	Maintained
 
+PC87360 HARDWARE MONITORING DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
+PC8736x GPIO DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
+
 PCI ERROR RECOVERY
 P:	Linas Vepstas
 M:	linas@austin.ibm.com
@@ -2264,8 +2315,8 @@ T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Supported
 
 PCI HOTPLUG CORE
-P:	Greg Kroah-Hartman
-M:	gregkh@suse.de
+P: 	Kristen Carlson Accardi
+M:	kristen.c.accardi@intel.com
 S:	Supported
 
 PCI HOTPLUG COMPAQ DRIVER
@@ -2434,6 +2485,19 @@ M:	mporter@kernel.crashing.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+READ-COPY UPDATE (RCU)
+P:	Dipankar Sarma
+M:	dipankar@in.ibm.com
+W:	http://www.rdrop.com/users/paulmck/rclock/
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+
+RCUTORTURE MODULE
+P:	Josh Triplett
+M:	josh@freedesktop.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 REAL TIME CLOCK DRIVER
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
@@ -2559,10 +2623,19 @@ L: lksctp-developers@lists.sourceforge.net
 S: Supported
 
 SCx200 CPU SUPPORT
-P:	Christer Weinigel
-M:	christer@weinigel.se
-W:	http://www.weinigel.se
-S:	Supported
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Odd Fixes
+
+SCx200 GPIO DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
+
+SCx200 HRT CLOCKSOURCE DRIVER
+P:	Jim Cromie
+M:	jim.cromie@gmail.com
+S:	Maintained
 
 SECURITY CONTACT
 P:	Security Officers
@@ -2727,14 +2800,7 @@ S:	Maintained
 UltraSPARC (sparc64):
 P:	David S. Miller
 M:	davem@davemloft.net
-P:	Eddie C. Dost
-M:	ecd@brainaid.de
-P:	Jakub Jelinek
-M:	jj@sunsite.ms.mff.cuni.cz
-P:	Anton Blanchard
-M:	anton@samba.org
 L:	sparclinux@vger.kernel.org
-L:	ultralinux@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
@@ -2853,6 +2919,11 @@ P:	Hung Hing Lun, Mike
 M:	hlhung3i@gmail.com
 W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
+
+TI FLASH MEDIA INTERFACE DRIVER
+P:      Alex Dubov
+M:      oakad@yahoo.com
+S:      Maintained
 
 TI OMAP RANDOM NUMBER GENERATOR SUPPORT
 P:	Deepak Saxena
@@ -3376,12 +3447,6 @@ P:	Henk Vergonet
 M:	Henk.Vergonet@gmail.com
 L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
-
-YMFPCI YAMAHA PCI SOUND (Use ALSA instead)
-P:	Pete Zaitcev
-M:	zaitcev@yahoo.com
-L:	linux-kernel@vger.kernel.org
-S:	Obsolete
 
 Z8530 DRIVER FOR AX.25
 P:	Joerg Reuter

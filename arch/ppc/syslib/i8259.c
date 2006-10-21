@@ -28,7 +28,7 @@ static int i8259_pic_irq_offset;
  * which is called.  It should be noted that polling is broken on some
  * IBM and Motorola PReP boxes so we must use the int-ack feature on them.
  */
-int i8259_irq(struct pt_regs *regs)
+int i8259_irq(void)
 {
 	int irq;
 

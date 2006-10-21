@@ -533,19 +533,6 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define eth_io_copy_and_sum(skb,src,len,unused) \
   memcpy_fromio((skb)->data,src,len)
 
-static inline int
-check_signature(const volatile void __iomem *io_addr,
-		const unsigned char *signature, int length)
-{
-	do {
-		if (readb(io_addr) != *signature)
-			return 0;
-		io_addr++;
-		signature++;
-	} while (--length);
-	return 1;
-}
-
 /*
  * The Alpha Jensen hardware for some rather strange reason puts
  * the RTC clock at 0x170 instead of 0x70. Probably due to some

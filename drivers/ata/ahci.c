@@ -204,7 +204,7 @@ static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
-static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t ahci_interrupt (int irq, void *dev_instance);
 static void ahci_irq_clear(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
@@ -299,76 +299,46 @@ static const struct ata_port_info ahci_port_info[] = {
 
 static const struct pci_device_id ahci_pci_tbl[] = {
 	/* Intel */
-	{ PCI_VENDOR_ID_INTEL, 0x2652, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH6 */
-	{ PCI_VENDOR_ID_INTEL, 0x2653, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH6M */
-	{ PCI_VENDOR_ID_INTEL, 0x27c1, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH7 */
-	{ PCI_VENDOR_ID_INTEL, 0x27c5, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH7M */
-	{ PCI_VENDOR_ID_INTEL, 0x27c3, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH7R */
-	{ PCI_VENDOR_ID_AL, 0x5288, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ULi M5288 */
-	{ PCI_VENDOR_ID_INTEL, 0x2681, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ESB2 */
-	{ PCI_VENDOR_ID_INTEL, 0x2682, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ESB2 */
-	{ PCI_VENDOR_ID_INTEL, 0x2683, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ESB2 */
-	{ PCI_VENDOR_ID_INTEL, 0x27c6, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH7-M DH */
-	{ PCI_VENDOR_ID_INTEL, 0x2821, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH8 */
-	{ PCI_VENDOR_ID_INTEL, 0x2822, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH8 */
-	{ PCI_VENDOR_ID_INTEL, 0x2824, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH8 */
-	{ PCI_VENDOR_ID_INTEL, 0x2829, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH8M */
-	{ PCI_VENDOR_ID_INTEL, 0x282a, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ICH8M */
+	{ PCI_VDEVICE(INTEL, 0x2652), board_ahci }, /* ICH6 */
+	{ PCI_VDEVICE(INTEL, 0x2653), board_ahci }, /* ICH6M */
+	{ PCI_VDEVICE(INTEL, 0x27c1), board_ahci }, /* ICH7 */
+	{ PCI_VDEVICE(INTEL, 0x27c5), board_ahci }, /* ICH7M */
+	{ PCI_VDEVICE(INTEL, 0x27c3), board_ahci }, /* ICH7R */
+	{ PCI_VDEVICE(AL, 0x5288), board_ahci }, /* ULi M5288 */
+	{ PCI_VDEVICE(INTEL, 0x2681), board_ahci }, /* ESB2 */
+	{ PCI_VDEVICE(INTEL, 0x2682), board_ahci }, /* ESB2 */
+	{ PCI_VDEVICE(INTEL, 0x2683), board_ahci }, /* ESB2 */
+	{ PCI_VDEVICE(INTEL, 0x27c6), board_ahci }, /* ICH7-M DH */
+	{ PCI_VDEVICE(INTEL, 0x2821), board_ahci }, /* ICH8 */
+	{ PCI_VDEVICE(INTEL, 0x2822), board_ahci }, /* ICH8 */
+	{ PCI_VDEVICE(INTEL, 0x2824), board_ahci }, /* ICH8 */
+	{ PCI_VDEVICE(INTEL, 0x2829), board_ahci }, /* ICH8M */
+	{ PCI_VDEVICE(INTEL, 0x282a), board_ahci }, /* ICH8M */
 
 	/* JMicron */
-	{ 0x197b, 0x2360, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* JMicron JMB360 */
-	{ 0x197b, 0x2361, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* JMicron JMB361 */
-	{ 0x197b, 0x2363, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* JMicron JMB363 */
-	{ 0x197b, 0x2365, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* JMicron JMB365 */
-	{ 0x197b, 0x2366, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* JMicron JMB366 */
+	{ PCI_VDEVICE(JMICRON, 0x2360), board_ahci }, /* JMicron JMB360 */
+	{ PCI_VDEVICE(JMICRON, 0x2361), board_ahci }, /* JMicron JMB361 */
+	{ PCI_VDEVICE(JMICRON, 0x2363), board_ahci }, /* JMicron JMB363 */
+	{ PCI_VDEVICE(JMICRON, 0x2365), board_ahci }, /* JMicron JMB365 */
+	{ PCI_VDEVICE(JMICRON, 0x2366), board_ahci }, /* JMicron JMB366 */
 
 	/* ATI */
-	{ PCI_VENDOR_ID_ATI, 0x4380, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ATI SB600 non-raid */
-	{ PCI_VENDOR_ID_ATI, 0x4381, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* ATI SB600 raid */
+	{ PCI_VDEVICE(ATI, 0x4380), board_ahci }, /* ATI SB600 non-raid */
+	{ PCI_VDEVICE(ATI, 0x4381), board_ahci }, /* ATI SB600 raid */
 
 	/* VIA */
-	{ PCI_VENDOR_ID_VIA, 0x3349, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci_vt8251 }, /* VIA VT8251 */
+	{ PCI_VDEVICE(VIA, 0x3349), board_ahci_vt8251 }, /* VIA VT8251 */
 
 	/* NVIDIA */
-	{ PCI_VENDOR_ID_NVIDIA, 0x044c, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci },		/* MCP65 */
-	{ PCI_VENDOR_ID_NVIDIA, 0x044d, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci },		/* MCP65 */
-	{ PCI_VENDOR_ID_NVIDIA, 0x044e, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci },		/* MCP65 */
-	{ PCI_VENDOR_ID_NVIDIA, 0x044f, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x044c), board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x044d), board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x044e), board_ahci },		/* MCP65 */
+	{ PCI_VDEVICE(NVIDIA, 0x044f), board_ahci },		/* MCP65 */
 
 	/* SiS */
-	{ PCI_VENDOR_ID_SI, 0x1184, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* SiS 966 */
-	{ PCI_VENDOR_ID_SI, 0x1185, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* SiS 966 */
-	{ PCI_VENDOR_ID_SI, 0x0186, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	  board_ahci }, /* SiS 968 */
+	{ PCI_VDEVICE(SI, 0x1184), board_ahci }, /* SiS 966 */
+	{ PCI_VDEVICE(SI, 0x1185), board_ahci }, /* SiS 966 */
+	{ PCI_VDEVICE(SI, 0x0186), board_ahci }, /* SiS 968 */
 
 	{ }	/* terminate list */
 };
@@ -1089,7 +1059,7 @@ static void ahci_irq_clear(struct ata_port *ap)
 	/* TODO */
 }
 
-static irqreturn_t ahci_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv;

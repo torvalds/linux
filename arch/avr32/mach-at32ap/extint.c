@@ -102,8 +102,7 @@ struct irq_chip eim_chip = {
 	.set_type	= eim_set_irq_type,
 };
 
-static void demux_eim_irq(unsigned int irq, struct irq_desc *desc,
-			  struct pt_regs *regs)
+static void demux_eim_irq(unsigned int irq, struct irq_desc *desc)
 {
 	struct at32_sm *sm = desc->handler_data;
 	struct irq_desc *ext_desc;
@@ -121,7 +120,7 @@ static void demux_eim_irq(unsigned int irq, struct irq_desc *desc,
 
 		ext_irq = i + sm->eim_first_irq;
 		ext_desc = irq_desc + ext_irq;
-		ext_desc->handle_irq(ext_irq, ext_desc, regs);
+		ext_desc->handle_irq(ext_irq, ext_desc);
 	}
 
 	spin_unlock(&sm->lock);

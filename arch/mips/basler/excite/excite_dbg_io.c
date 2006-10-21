@@ -112,7 +112,7 @@ int putDebugChar(int data)
 }
 
 /* KGDB interrupt handler */
-asmlinkage void excite_kgdb_inthdl(struct pt_regs *regs)
+asmlinkage void excite_kgdb_inthdl(void)
 {
 	if (unlikely(
 		((titan_readl(UAIIR) & 0x7) == 4)

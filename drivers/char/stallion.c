@@ -1927,13 +1927,12 @@ stl_readdone:
  *	calls off to the approrpriate board interrupt handlers.
  */
 
-static irqreturn_t stl_intr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t stl_intr(int irq, void *dev_id)
 {
 	stlbrd_t	*brdp = (stlbrd_t *) dev_id;
 
 #ifdef DEBUG
-	printk("stl_intr(brdp=%x,irq=%d,regs=%x)\n", (int) brdp, irq,
-	    (int) regs);
+	printk("stl_intr(brdp=%x,irq=%d)\n", (int) brdp, irq);
 #endif
 
 	return IRQ_RETVAL((* brdp->isr)(brdp));

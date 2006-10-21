@@ -1,6 +1,5 @@
 #define DEBUG
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>

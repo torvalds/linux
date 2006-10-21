@@ -74,7 +74,6 @@ prom_console_write(struct console *con, const char *s, unsigned n)
 
 unsigned int boot_flags = 0;
 #define BOOTME_DEBUG  0x1
-#define BOOTME_SINGLE 0x2
 
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size = 0;
@@ -91,16 +90,6 @@ void kernel_enter_debugger(void)
 {
 }
 
-int obp_system_intr(void)
-{
-	if (boot_flags & BOOTME_DEBUG) {
-		printk("OBP: system interrupted\n");
-		prom_halt();
-		return 1;
-	}
-	return 0;
-}
-
 /* 
  * Process kernel command line switches that are specific to the
  * SPARC or that require special low-level processing.
@@ -112,7 +101,6 @@ static void __init process_switch(char c)
 		boot_flags |= BOOTME_DEBUG;
 		break;
 	case 's':
-		boot_flags |= BOOTME_SINGLE;
 		break;
 	case 'h':
 		prom_printf("boot_flags_init: Halt!\n");

@@ -256,7 +256,7 @@ static void nsp32_sack_negate (nsp32_hw_data *);
 static void nsp32_do_bus_reset(nsp32_hw_data *);
 
 /* hardware interrupt handler */
-static irqreturn_t do_nsp32_isr(int, void *, struct pt_regs *);
+static irqreturn_t do_nsp32_isr(int, void *);
 
 /* initialize hardware */
 static int  nsp32hw_init(nsp32_hw_data *);
@@ -1201,7 +1201,7 @@ static int nsp32hw_init(nsp32_hw_data *data)
 
 
 /* interrupt routine */
-static irqreturn_t do_nsp32_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 {
 	nsp32_hw_data *data = dev_id;
 	unsigned int base = data->BaseAddress;
@@ -3581,7 +3581,7 @@ static struct pci_driver nsp32_driver = {
  */
 static int __init init_nsp32(void) {
 	nsp32_msg(KERN_INFO, "loading...");
-	return pci_module_init(&nsp32_driver);
+	return pci_register_driver(&nsp32_driver);
 }
 
 static void __exit exit_nsp32(void) {

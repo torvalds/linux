@@ -45,7 +45,7 @@ static int get_card_from_irq(int irq)
 /*
  * 
  */
-irqreturn_t interrupt_handler(int interrupt, void *cardptr, struct pt_regs *regs)
+irqreturn_t interrupt_handler(int interrupt, void *cardptr)
 {
 
 	RspMessage rcvmsg;

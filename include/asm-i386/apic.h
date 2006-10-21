@@ -98,7 +98,7 @@ extern void sync_Arb_IDs (void);
 extern void init_bsp_APIC (void);
 extern void setup_local_APIC (void);
 extern void init_apic_mappings (void);
-extern void smp_local_timer_interrupt (struct pt_regs * regs);
+extern void smp_local_timer_interrupt (void);
 extern void setup_boot_APIC_clock (void);
 extern void setup_secondary_APIC_clock (void);
 extern int APIC_init_uniprocessor (void);
@@ -107,7 +107,7 @@ extern void enable_APIC_timer(void);
 
 extern void enable_NMI_through_LVT0 (void * dummy);
 
-void smp_send_timer_broadcast_ipi(struct pt_regs *regs);
+void smp_send_timer_broadcast_ipi(void);
 void switch_APIC_timer_to_ipi(void *cpumask);
 void switch_ipi_to_APIC_timer(void *cpumask);
 #define ARCH_APICTIMER_STOPS_ON_C3	1

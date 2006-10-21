@@ -341,7 +341,7 @@ static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
 		u8 id = readb(devbase + pos + PCI_CAP_LIST_ID);
 		if (id == PCI_CAP_ID_HT) {
 			id = readb(devbase + pos + 3);
-			if (id == 0x80)
+			if (id == HT_CAPTYPE_IRQ)
 				break;
 		}
 	}
@@ -489,9 +489,9 @@ static inline void mpic_eoi(struct mpic *mpic)
 }
 
 #ifdef CONFIG_SMP
-static irqreturn_t mpic_ipi_action(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t mpic_ipi_action(int irq, void *dev_id)
 {
-	smp_message_recv(mpic_irq_to_hw(irq) - MPIC_VEC_IPI_0, regs);
+	smp_message_recv(mpic_irq_to_hw(irq) - MPIC_VEC_IPI_0);
 	return IRQ_HANDLED;
 }
 #endif /* CONFIG_SMP */
@@ -1217,7 +1217,7 @@ void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask)
 		       mpic_physmask(cpu_mask & cpus_addr(cpu_online_map)[0]));
 }
 
-unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
+unsigned int mpic_get_one_irq(struct mpic *mpic)
 {
 	u32 src;
 
@@ -1230,13 +1230,13 @@ unsigned int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
 	return irq_linear_revmap(mpic->irqhost, src);
 }
 
-unsigned int mpic_get_irq(struct pt_regs *regs)
+unsigned int mpic_get_irq(void)
 {
 	struct mpic *mpic = mpic_primary;
 
 	BUG_ON(mpic == NULL);
 
-	return mpic_get_one_irq(mpic, regs);
+	return mpic_get_one_irq(mpic);
 }
 
 

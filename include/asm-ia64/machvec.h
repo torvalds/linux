@@ -20,12 +20,13 @@ struct page;
 struct mm_struct;
 struct pci_bus;
 struct task_struct;
+struct pci_dev;
 
 typedef void ia64_mv_setup_t (char **);
 typedef void ia64_mv_cpu_init_t (void);
 typedef void ia64_mv_irq_init_t (void);
 typedef void ia64_mv_send_ipi_t (int, int, int, int);
-typedef void ia64_mv_timer_interrupt_t (int, void *, struct pt_regs *);
+typedef void ia64_mv_timer_interrupt_t (int, void *);
 typedef void ia64_mv_global_tlb_purge_t (struct mm_struct *, unsigned long, unsigned long, unsigned long);
 typedef void ia64_mv_tlb_migrate_finish_t (struct mm_struct *);
 typedef unsigned int ia64_mv_local_vector_to_irq (u8);
@@ -75,7 +76,9 @@ typedef unsigned char ia64_mv_readb_relaxed_t (const volatile void __iomem *);
 typedef unsigned short ia64_mv_readw_relaxed_t (const volatile void __iomem *);
 typedef unsigned int ia64_mv_readl_relaxed_t (const volatile void __iomem *);
 typedef unsigned long ia64_mv_readq_relaxed_t (const volatile void __iomem *);
-typedef int ia64_mv_msi_init_t (void);
+
+typedef int ia64_mv_setup_msi_irq_t (unsigned int irq, struct pci_dev *pdev);
+typedef void ia64_mv_teardown_msi_irq_t (unsigned int irq);
 
 static inline void
 machvec_noop (void)
@@ -93,7 +96,7 @@ machvec_noop_task (struct task_struct *task)
 }
 
 extern void machvec_setup (char **);
-extern void machvec_timer_interrupt (int, void *, struct pt_regs *);
+extern void machvec_timer_interrupt (int, void *);
 extern void machvec_dma_sync_single (struct device *, dma_addr_t, size_t, int);
 extern void machvec_dma_sync_sg (struct device *, struct scatterlist *, int, int);
 extern void machvec_tlb_migrate_finish (struct mm_struct *);
@@ -154,7 +157,8 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_readl_relaxed        ia64_mv.readl_relaxed
 #  define platform_readq_relaxed        ia64_mv.readq_relaxed
 #  define platform_migrate		ia64_mv.migrate
-#  define platform_msi_init		ia64_mv.msi_init
+#  define platform_setup_msi_irq	ia64_mv.setup_msi_irq
+#  define platform_teardown_msi_irq	ia64_mv.teardown_msi_irq
 # endif
 
 /* __attribute__((__aligned__(16))) is required to make size of the
@@ -204,7 +208,8 @@ struct ia64_machine_vector {
 	ia64_mv_readl_relaxed_t *readl_relaxed;
 	ia64_mv_readq_relaxed_t *readq_relaxed;
 	ia64_mv_migrate_t *migrate;
-	ia64_mv_msi_init_t *msi_init;
+	ia64_mv_setup_msi_irq_t *setup_msi_irq;
+	ia64_mv_teardown_msi_irq_t *teardown_msi_irq;
 } __attribute__((__aligned__(16))); /* align attrib? see above comment */
 
 #define MACHVEC_INIT(name)			\
@@ -250,7 +255,8 @@ struct ia64_machine_vector {
 	platform_readl_relaxed,			\
 	platform_readq_relaxed,			\
 	platform_migrate,			\
-	platform_msi_init,			\
+	platform_setup_msi_irq,			\
+	platform_teardown_msi_irq,		\
 }
 
 extern struct ia64_machine_vector ia64_mv;
@@ -404,8 +410,11 @@ extern int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size
 #ifndef platform_migrate
 # define platform_migrate machvec_noop_task
 #endif
-#ifndef platform_msi_init
-# define platform_msi_init	((ia64_mv_msi_init_t*)NULL)
+#ifndef platform_setup_msi_irq
+# define platform_setup_msi_irq		((ia64_mv_setup_msi_irq_t*)NULL)
+#endif
+#ifndef platform_teardown_msi_irq
+# define platform_teardown_msi_irq	((ia64_mv_teardown_msi_irq_t*)NULL)
 #endif
 
 #endif /* _ASM_IA64_MACHVEC_H */

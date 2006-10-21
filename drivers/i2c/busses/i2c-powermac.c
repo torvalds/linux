@@ -182,9 +182,9 @@ static const struct i2c_algorithm i2c_powermac_algorithm = {
 };
 
 
-static int i2c_powermac_remove(struct device *dev)
+static int i2c_powermac_remove(struct platform_device *dev)
 {
-	struct i2c_adapter	*adapter = dev_get_drvdata(dev);
+	struct i2c_adapter	*adapter = platform_get_drvdata(dev);
 	struct pmac_i2c_bus	*bus = i2c_get_adapdata(adapter);
 	int			rc;
 
@@ -195,16 +195,16 @@ static int i2c_powermac_remove(struct device *dev)
 	if (rc)
 		printk("i2c-powermac.c: Failed to remove bus %s !\n",
 		       adapter->name);
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 	kfree(adapter);
 
 	return 0;
 }
 
 
-static int i2c_powermac_probe(struct device *dev)
+static int __devexit i2c_powermac_probe(struct platform_device *dev)
 {
-	struct pmac_i2c_bus *bus = dev->platform_data;
+	struct pmac_i2c_bus *bus = dev->dev.platform_data;
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
 	char name[32];
@@ -246,11 +246,11 @@ static int i2c_powermac_probe(struct device *dev)
 		printk(KERN_ERR "i2c-powermac: can't allocate inteface !\n");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(dev, adapter);
+	platform_set_drvdata(dev, adapter);
 	strcpy(adapter->name, name);
 	adapter->algo = &i2c_powermac_algorithm;
 	i2c_set_adapdata(adapter, bus);
-	adapter->dev.parent = dev;
+	adapter->dev.parent = &dev->dev;
 	pmac_i2c_attach_adapter(bus, adapter);
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
@@ -265,23 +265,25 @@ static int i2c_powermac_probe(struct device *dev)
 }
 
 
-static struct device_driver i2c_powermac_driver = {
-	.name = "i2c-powermac",
-	.bus = &platform_bus_type,
+static struct platform_driver i2c_powermac_driver = {
 	.probe = i2c_powermac_probe,
-	.remove = i2c_powermac_remove,
+	.remove = __devexit_p(i2c_powermac_remove),
+	.driver = {
+		.name = "i2c-powermac",
+		.bus = &platform_bus_type,
+	},
 };
 
 static int __init i2c_powermac_init(void)
 {
-	driver_register(&i2c_powermac_driver);
+	platform_driver_register(&i2c_powermac_driver);
 	return 0;
 }
 
 
 static void __exit i2c_powermac_cleanup(void)
 {
-	driver_unregister(&i2c_powermac_driver);
+	platform_driver_unregister(&i2c_powermac_driver);
 }
 
 module_init(i2c_powermac_init);

@@ -88,7 +88,7 @@ void RIOHostReset(unsigned int, struct DpRam __iomem *, unsigned int);
 
 /* riointr.c */
 void RIOTxEnable(char *);
-void RIOServiceHost(struct rio_info *, struct Host *, int);
+void RIOServiceHost(struct rio_info *, struct Host *);
 int riotproc(struct rio_info *, struct ttystatics *, int, int);
 
 /* rioparam.c */

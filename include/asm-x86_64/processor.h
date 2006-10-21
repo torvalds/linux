@@ -475,6 +475,8 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 		: :"a" (eax), "c" (ecx));
 }
 
+extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
+
 #define stack_current() \
 ({								\
 	struct thread_info *ti;					\

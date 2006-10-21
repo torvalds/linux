@@ -115,7 +115,7 @@ void __devinit smp_generic_kick_cpu(int nr)
 }
 #endif
 
-void smp_message_recv(int msg, struct pt_regs *regs)
+void smp_message_recv(int msg)
 {
 	switch(msg) {
 	case PPC_MSG_CALL_FUNCTION:
@@ -127,11 +127,11 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 		break;
 	case PPC_MSG_DEBUGGER_BREAK:
 		if (crash_ipi_function_ptr) {
-			crash_ipi_function_ptr(regs);
+			crash_ipi_function_ptr(get_irq_regs());
 			break;
 		}
 #ifdef CONFIG_DEBUGGER
-		debugger_ipi(regs);
+		debugger_ipi(get_irq_regs());
 		break;
 #endif /* CONFIG_DEBUGGER */
 		/* FALLTHROUGH */

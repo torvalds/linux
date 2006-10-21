@@ -132,7 +132,7 @@ static int iop_get_proc_info(char *, char **, off_t, int);
 
 struct listener {
 	const char *devname;
-	void (*handler)(struct iop_msg *, struct pt_regs *);
+	void (*handler)(struct iop_msg *);
 };
 
 /*
@@ -152,7 +152,7 @@ static struct iop_msg iop_msg_pool[NUM_IOP_MSGS];
 static struct iop_msg *iop_send_queue[NUM_IOPS][NUM_IOP_CHAN];
 static struct listener iop_listeners[NUM_IOPS][NUM_IOP_CHAN];
 
-irqreturn_t iop_ism_irq(int, void *, struct pt_regs *);
+irqreturn_t iop_ism_irq(int, void *);
 
 extern void oss_irq_enable(int);
 
@@ -342,7 +342,7 @@ void __init iop_register_interrupts(void)
  */
 
 int iop_listen(uint iop_num, uint chan,
-		void (*handler)(struct iop_msg *, struct pt_regs *),
+		void (*handler)(struct iop_msg *),
 		const char *devname)
 {
 	if ((iop_num >= NUM_IOPS) || !iop_base[iop_num]) return -EINVAL;
@@ -407,7 +407,7 @@ static void iop_do_send(struct iop_msg *msg)
  * has gone into the IOP_MSG_COMPLETE state.
  */
 
-static void iop_handle_send(uint iop_num, uint chan, struct pt_regs *regs)
+static void iop_handle_send(uint iop_num, uint chan)
 {
 	volatile struct mac_iop *iop = iop_base[iop_num];
 	struct iop_msg *msg,*msg2;
@@ -426,7 +426,7 @@ static void iop_handle_send(uint iop_num, uint chan, struct pt_regs *regs)
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
 		msg->reply[i] = iop_readb(iop, offset);
 	}
-	if (msg->handler) (*msg->handler)(msg, regs);
+	if (msg->handler) (*msg->handler)(msg);
 	msg2 = msg;
 	msg = msg->next;
 	iop_free_msg(msg2);
@@ -440,7 +440,7 @@ static void iop_handle_send(uint iop_num, uint chan, struct pt_regs *regs)
  * gone into the IOP_MSG_NEW state.
  */
 
-static void iop_handle_recv(uint iop_num, uint chan, struct pt_regs *regs)
+static void iop_handle_recv(uint iop_num, uint chan)
 {
 	volatile struct mac_iop *iop = iop_base[iop_num];
 	int i,offset;
@@ -468,7 +468,7 @@ static void iop_handle_recv(uint iop_num, uint chan, struct pt_regs *regs)
 	/* the message ourselves to avoid possible stalls.         */
 
 	if (msg->handler) {
-		(*msg->handler)(msg, regs);
+		(*msg->handler)(msg);
 	} else {
 #ifdef DEBUG_IOP
 		printk("iop_handle_recv: unclaimed message on iop %d channel %d\n", iop_num, chan);
@@ -492,7 +492,7 @@ static void iop_handle_recv(uint iop_num, uint chan, struct pt_regs *regs)
 
 int iop_send_message(uint iop_num, uint chan, void *privdata,
 		      uint msg_len, __u8 *msg_data,
-		      void (*handler)(struct iop_msg *, struct pt_regs *))
+		      void (*handler)(struct iop_msg *))
 {
 	struct iop_msg *msg, *q;
 
@@ -584,7 +584,7 @@ __u8 *iop_compare_code(uint iop_num, __u8 *code_start,
  * Handle an ISM IOP interrupt
  */
 
-irqreturn_t iop_ism_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t iop_ism_irq(int irq, void *dev_id)
 {
 	uint iop_num = (uint) dev_id;
 	volatile struct mac_iop *iop = iop_base[iop_num];
@@ -608,7 +608,7 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id, struct pt_regs *regs)
 			printk(" %02X", state);
 #endif
 			if (state == IOP_MSG_COMPLETE) {
-				iop_handle_send(iop_num, i, regs);
+				iop_handle_send(iop_num, i);
 			}
 		}
 #ifdef DEBUG_IOP
@@ -628,7 +628,7 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id, struct pt_regs *regs)
 			printk(" %02X", state);
 #endif
 			if (state == IOP_MSG_NEW) {
-				iop_handle_recv(iop_num, i, regs);
+				iop_handle_recv(iop_num, i);
 			}
 		}
 #ifdef DEBUG_IOP

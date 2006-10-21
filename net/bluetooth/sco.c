@@ -452,7 +452,8 @@ static int sco_sock_create(struct socket *sock, int protocol)
 
 	sock->ops = &sco_sock_ops;
 
-	if (!(sk = sco_sock_alloc(sock, protocol, GFP_KERNEL)))
+	sk = sco_sock_alloc(sock, protocol, GFP_ATOMIC);
+	if (!sk)
 		return -ENOMEM;
 
 	sco_sock_init(sk, NULL);
@@ -967,7 +968,8 @@ static int __init sco_init(void)
 		goto error;
 	}
 
-	class_create_file(bt_class, &class_attr_sco);
+	if (class_create_file(bt_class, &class_attr_sco) < 0)
+		BT_ERR("Failed to create SCO info file");
 
 	BT_INFO("SCO (Voice Link) ver %s", VERSION);
 	BT_INFO("SCO socket layer initialized");

@@ -126,7 +126,7 @@ static inline void locomokbd_reset_col(unsigned long membase, int col)
  */
 
 /* Scan the hardware keyboard and push any changes up through the input layer */
-static void locomokbd_scankeyboard(struct locomokbd *locomokbd, struct pt_regs *regs)
+static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 {
 	unsigned int row, col, rowd, scancode;
 	unsigned long flags;
@@ -134,8 +134,6 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd, struct pt_regs *
 	unsigned long membase = locomokbd->base;
 
 	spin_lock_irqsave(&locomokbd->lock, flags);
-
-	input_regs(locomokbd->input, regs);
 
 	locomokbd_charge_all(membase);
 
@@ -171,13 +169,13 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd, struct pt_regs *
 /*
  * LoCoMo keyboard interrupt handler.
  */
-static irqreturn_t locomokbd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
 {
 	struct locomokbd *locomokbd = dev_id;
 	/** wait chattering delay **/
 	udelay(100);
 
-	locomokbd_scankeyboard(locomokbd, regs);
+	locomokbd_scankeyboard(locomokbd);
 
 	return IRQ_HANDLED;
 }
@@ -188,7 +186,7 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id, struct pt_regs *re
 static void locomokbd_timer_callback(unsigned long data)
 {
 	struct locomokbd *locomokbd = (struct locomokbd *) data;
-	locomokbd_scankeyboard(locomokbd, NULL);
+	locomokbd_scankeyboard(locomokbd);
 }
 
 static int locomokbd_probe(struct locomo_dev *dev)

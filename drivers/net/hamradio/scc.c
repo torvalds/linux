@@ -200,7 +200,7 @@ static void z8530_init(void);
 
 static void init_channel(struct scc_channel *scc);
 static void scc_key_trx (struct scc_channel *scc, char tx);
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t scc_isr(int irq, void *dev_id);
 static void scc_init_timer(struct scc_channel *scc);
 
 static int scc_net_alloc(const char *name, struct scc_channel *scc);
@@ -626,7 +626,7 @@ static void scc_isr_dispatch(struct scc_channel *scc, int vector)
 
 #define SCC_IRQTIMEOUT 30000
 
-static irqreturn_t scc_isr(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t scc_isr(int irq, void *dev_id)
 {
 	unsigned char vector;	
 	struct scc_channel *scc;

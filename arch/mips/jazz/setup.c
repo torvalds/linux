@@ -19,12 +19,12 @@
 #include <linux/fb.h>
 #include <linux/ide.h>
 #include <linux/pm.h>
+#include <linux/screen_info.h>
 
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
-#include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -37,7 +37,7 @@ extern void jazz_machine_restart(char *command);
 extern void jazz_machine_halt(void);
 extern void jazz_machine_power_off(void);
 
-void __init plat_time_init(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* set the clock to 100 Hz */
 	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);
@@ -45,10 +45,27 @@ void __init plat_time_init(struct irqaction *irq)
 }
 
 static struct resource jazz_io_resources[] = {
-	{ "dma1", 0x00, 0x1f, IORESOURCE_BUSY },
-	{ "timer", 0x40, 0x5f, IORESOURCE_BUSY },
-	{ "dma page reg", 0x80, 0x8f, IORESOURCE_BUSY },
-	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
+	{
+		.start	= 0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.end	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	}
 };
 
 void __init plat_mem_setup(void)
@@ -80,8 +97,6 @@ void __init plat_mem_setup(void)
 	_machine_restart = jazz_machine_restart;
 	_machine_halt = jazz_machine_halt;
 	pm_power_off = jazz_machine_power_off;
-
-#warning "Somebody should check if screen_info is ok for Jazz."
 
 	screen_info = (struct screen_info) {
 		0, 0,		/* orig-x, orig-y */

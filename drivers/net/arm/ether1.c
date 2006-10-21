@@ -68,7 +68,7 @@ static unsigned int net_debug = NET_DEBUG;
 
 static int ether1_open(struct net_device *dev);
 static int ether1_sendpacket(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t ether1_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ether1_interrupt(int irq, void *dev_id);
 static int ether1_close(struct net_device *dev);
 static struct net_device_stats *ether1_getstats(struct net_device *dev);
 static void ether1_setmulticastlist(struct net_device *dev);
@@ -908,7 +908,7 @@ ether1_recv_done (struct net_device *dev)
 }
 
 static irqreturn_t
-ether1_interrupt (int irq, void *dev_id, struct pt_regs *regs)
+ether1_interrupt (int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	int status;

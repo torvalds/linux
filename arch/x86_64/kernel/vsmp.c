@@ -14,6 +14,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pci_regs.h>
 #include <asm/pci-direct.h>
+#include <asm/io.h>
 
 static int __init vsmp_init(void)
 {

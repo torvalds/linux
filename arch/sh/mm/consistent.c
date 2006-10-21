@@ -28,6 +28,7 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle)
 	split_page(page, order);
 
 	ret = page_address(page);
+	memset(ret, 0, size);
 	*handle = virt_to_phys(ret);
 
 	/*

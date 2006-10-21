@@ -356,14 +356,16 @@ nomem:
 	return -ENOMEM;
 }
 
-void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
-			  unsigned long end)
+void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
 	pte_t *ptep;
 	pte_t pte;
 	struct page *page;
+	struct page *tmp;
+	LIST_HEAD(page_list);
 
 	WARN_ON(!is_vm_hugetlb_page(vma));
 	BUG_ON(start & ~HPAGE_MASK);
@@ -384,12 +386,34 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 			continue;
 
 		page = pte_page(pte);
-		put_page(page);
+		list_add(&page->lru, &page_list);
 		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
 
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
+	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+		list_del(&page->lru);
+		put_page(page);
+	}
+}
+
+void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+			  unsigned long end)
+{
+	/*
+	 * It is undesirable to test vma->vm_file as it should be non-null
+	 * for valid hugetlb area. However, vm_file will be NULL in the error
+	 * cleanup path of do_mmap_pgoff. When hugetlbfs ->mmap method fails,
+	 * do_mmap_pgoff() nullifies vma->vm_file before calling this function
+	 * to clean up. Since no pte has actually been setup, it is safe to
+	 * do nothing in this case.
+	 */
+	if (vma->vm_file) {
+		spin_lock(&vma->vm_file->f_mapping->i_mmap_lock);
+		__unmap_hugepage_range(vma, start, end);
+		spin_unlock(&vma->vm_file->f_mapping->i_mmap_lock);
+	}
 }
 
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,

@@ -20,6 +20,7 @@
 unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 				PCI_PROBE_MMCONF;
 
+int pci_bf_sort;
 int pci_routeirq;
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
@@ -118,6 +119,20 @@ void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 }
 
 /*
+ * Only use DMI information to set this if nothing was passed
+ * on the kernel command line (which was parsed earlier).
+ */
+
+static int __devinit set_bf_sort(struct dmi_system_id *d)
+{
+	if (pci_bf_sort == pci_bf_sort_default) {
+		pci_bf_sort = pci_dmi_bf;
+		printk(KERN_INFO "PCI: %s detected, enabling pci=bfsort.\n", d->ident);
+	}
+	return 0;
+}
+
+/*
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
@@ -130,11 +145,11 @@ static int __devinit assign_all_busses(struct dmi_system_id *d)
 }
 #endif
 
+static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
+#ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards
  */
-static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
-#ifdef __i386__
 	{
 		.callback = assign_all_busses,
 		.ident = "Samsung X20 Laptop",
@@ -144,6 +159,38 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 		},
 	},
 #endif		/* __i386__ */
+	{
+		.callback = set_bf_sort,
+		.ident = "Dell PowerEdge 1950",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 1950"),
+		},
+	},
+	{
+		.callback = set_bf_sort,
+		.ident = "Dell PowerEdge 1955",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 1955"),
+		},
+	},
+	{
+		.callback = set_bf_sort,
+		.ident = "Dell PowerEdge 2900",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 2900"),
+		},
+	},
+	{
+		.callback = set_bf_sort,
+		.ident = "Dell PowerEdge 2950",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 2950"),
+		},
+	},
 	{}
 };
 
@@ -189,6 +236,8 @@ static int __init pcibios_init(void)
 
 	pcibios_resource_survey();
 
+	if (pci_bf_sort >= pci_force_bf)
+		pci_sort_breadthfirst();
 #ifdef CONFIG_PCI_BIOS
 	if ((pci_probe & PCI_BIOS_SORT) && !(pci_probe & PCI_NO_SORT))
 		pcibios_sort();
@@ -202,6 +251,12 @@ char * __devinit  pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
+		return NULL;
+	} else if (!strcmp(str, "bfsort")) {
+		pci_bf_sort = pci_force_bf;
+		return NULL;
+	} else if (!strcmp(str, "nobfsort")) {
+		pci_bf_sort = pci_force_nobf;
 		return NULL;
 	}
 #ifdef CONFIG_PCI_BIOS

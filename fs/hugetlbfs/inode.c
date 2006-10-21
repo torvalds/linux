@@ -293,7 +293,7 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
 		if (h_vm_pgoff >= h_pgoff)
 			v_offset = 0;
 
-		unmap_hugepage_range(vma,
+		__unmap_hugepage_range(vma,
 				vma->vm_start + v_offset, vma->vm_end);
 	}
 }

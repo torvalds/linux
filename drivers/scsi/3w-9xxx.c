@@ -1192,7 +1192,7 @@ out:
 } /* End twa_initialize_device_extension() */
 
 /* This function is the interrupt service routine */
-static irqreturn_t twa_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t twa_interrupt(int irq, void *dev_instance)
 {
 	int request_id, error = 0;
 	u32 status_reg_value;
@@ -2211,7 +2211,7 @@ static int __init twa_init(void)
 {
 	printk(KERN_WARNING "3ware 9000 Storage Controller device driver for Linux v%s.\n", TW_DRIVER_VERSION);
 
-	return pci_module_init(&twa_driver);
+	return pci_register_driver(&twa_driver);
 } /* End twa_init() */
 
 /* This function is called on driver exit */

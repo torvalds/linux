@@ -29,7 +29,7 @@
  * is rather unfortunate.
  */
 static void
-neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+neponset_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
 	unsigned int irr;
 
@@ -69,12 +69,12 @@ neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 
 			if (irr & IRR_ETHERNET) {
 				d = irq_desc + IRQ_NEPONSET_SMC9196;
-				desc_handle_irq(IRQ_NEPONSET_SMC9196, d, regs);
+				desc_handle_irq(IRQ_NEPONSET_SMC9196, d);
 			}
 
 			if (irr & IRR_USAR) {
 				d = irq_desc + IRQ_NEPONSET_USAR;
-				desc_handle_irq(IRQ_NEPONSET_USAR, d, regs);
+				desc_handle_irq(IRQ_NEPONSET_USAR, d);
 			}
 
 			desc->chip->unmask(irq);
@@ -82,7 +82,7 @@ neponset_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 
 		if (irr & IRR_SA1111) {
 			d = irq_desc + IRQ_NEPONSET_SA1111;
-			desc_handle_irq(IRQ_NEPONSET_SA1111, d, regs);
+			desc_handle_irq(IRQ_NEPONSET_SA1111, d);
 		}
 	}
 }

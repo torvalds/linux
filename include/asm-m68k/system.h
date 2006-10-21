@@ -78,13 +78,13 @@ static inline int irqs_disabled(void)
 #define mb()		barrier()
 #define rmb()		barrier()
 #define wmb()		barrier()
-#define read_barrier_depends()	do { } while(0)
-#define set_mb(var, value)    do { xchg(&var, value); } while (0)
+#define read_barrier_depends()	((void)0)
+#define set_mb(var, value)	({ (var) = (value); wmb(); })
 
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do { } while(0)
+#define smp_read_barrier_depends()	((void)0)
 
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))

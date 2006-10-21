@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/usb.h>
 #include "usb.h"
 

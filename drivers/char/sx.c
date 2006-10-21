@@ -203,9 +203,7 @@
 #define RCS_ID "$Id: sx.c,v 1.33 2000/03/08 10:01:02 wolff, pvdl Exp $"
 #define RCS_REV "$Revision: 1.33 $"
 
-
 #include <linux/module.h>
-#include <linux/config.h> 
 #include <linux/kdev_t.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -1194,7 +1192,7 @@ static inline void sx_check_modem_signals (struct sx_port *port)
  * Small, elegant, clear.
  */
 
-static irqreturn_t sx_interrupt (int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t sx_interrupt (int irq, void *ptr)
 {
 	struct sx_board *board = ptr;
 	struct sx_port *port;
@@ -1302,7 +1300,7 @@ static void sx_pollfunc (unsigned long data)
 
 	func_enter ();
 
-	sx_interrupt (0, board, NULL);
+	sx_interrupt (0, board);
 
 	init_timer(&board->timer);
 
@@ -2604,7 +2602,7 @@ static void __exit sx_exit (void)
 		}
 	}
 	if (misc_deregister(&sx_fw_device) < 0) {
-		printk (KERN_INFO "sx: couldn't deregister firmware loader devic\n");
+		printk (KERN_INFO "sx: couldn't deregister firmware loader device\n");
 	}
 	sx_dprintk (SX_DEBUG_CLEANUP, "Cleaning up drivers (%d)\n", sx_initialized);
 	if (sx_initialized)

@@ -53,14 +53,14 @@ DEFINE_SPINLOCK(q40kbd_lock);
 static struct serio *q40kbd_port;
 static struct platform_device *q40kbd_device;
 
-static irqreturn_t q40kbd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t q40kbd_interrupt(int irq, void *dev_id)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&q40kbd_lock, flags);
 
 	if (Q40_IRQ_KEYB_MASK & master_inb(INTERRUPT_REG))
-		serio_interrupt(q40kbd_port, master_inb(KEYCODE_REG), 0, regs);
+		serio_interrupt(q40kbd_port, master_inb(KEYCODE_REG), 0);
 
 	master_outb(-1, KEYBOARD_UNLOCK_REG);
 

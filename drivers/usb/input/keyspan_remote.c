@@ -176,7 +176,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 /*
  * Routine that handles all the logic needed to parse out the message from the remote.
  */
-static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
+static void keyspan_check_data(struct usb_keyspan *remote)
 {
 	int i;
 	int found = 0;
@@ -311,7 +311,6 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			__FUNCTION__, message.system, message.button, message.toggle);
 
 		if (message.toggle != remote->toggle) {
-			input_regs(remote->input, regs);
 			input_report_key(remote->input, keyspan_key_table[message.button], 1);
 			input_report_key(remote->input, keyspan_key_table[message.button], 0);
 			input_sync(remote->input);
@@ -361,7 +360,7 @@ static int keyspan_setup(struct usb_device* dev)
 /*
  * Routine used to handle a new message that has come in.
  */
-static void keyspan_irq_recv(struct urb *urb, struct pt_regs *regs)
+static void keyspan_irq_recv(struct urb *urb)
 {
 	struct usb_keyspan *dev = urb->context;
 	int retval;
@@ -385,7 +384,7 @@ static void keyspan_irq_recv(struct urb *urb, struct pt_regs *regs)
 	if (debug)
 		keyspan_print(dev);
 
-	keyspan_check_data(dev, regs);
+	keyspan_check_data(dev);
 
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);

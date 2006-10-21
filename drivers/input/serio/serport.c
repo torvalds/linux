@@ -117,9 +117,6 @@ static void serport_ldisc_close(struct tty_struct *tty)
  * serport_ldisc_receive() is called by the low level tty driver when characters
  * are ready for us. We forward the characters, one by one to the 'interrupt'
  * routine.
- *
- * FIXME: We should get pt_regs from the tty layer and forward them to
- *	  serio_interrupt here.
  */
 
 static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
@@ -134,7 +131,7 @@ static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *c
 		goto out;
 
 	for (i = 0; i < count; i++)
-		serio_interrupt(serport->serio, cp[i], 0, NULL);
+		serio_interrupt(serport->serio, cp[i], 0);
 
 out:
 	spin_unlock_irqrestore(&serport->lock, flags);

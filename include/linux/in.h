@@ -40,6 +40,7 @@ enum {
 
   IPPROTO_ESP = 50,            /* Encapsulation Security Payload protocol */
   IPPROTO_AH = 51,             /* Authentication Header protocol       */
+  IPPROTO_BEETPH = 94,	       /* IP option pseudo header for BEET */
   IPPROTO_PIM    = 103,		/* Protocol Independent Multicast	*/
 
   IPPROTO_COMP   = 108,                /* Compression Header protocol */

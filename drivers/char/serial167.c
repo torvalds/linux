@@ -62,6 +62,7 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/tty_flip.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -117,17 +118,6 @@ struct cyclades_port cy_port[] = {
         {-1 },      /* ttyS3 */
 };
 #define NR_PORTS        ARRAY_SIZE(cy_port)
-
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char *tmp_buf = 0;
 
 /*
  * This is used to look up the divisor speeds and the timeouts
@@ -381,7 +371,7 @@ cy_sched_event(struct cyclades_port *info, int event)
    received, out buffer empty, modem change, etc.
  */
 static irqreturn_t
-cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_rxerr_interrupt(int irq, void *dev_id)
 {
     struct tty_struct *tty;
     struct cyclades_port *info;
@@ -438,8 +428,9 @@ cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 		       overflowing, we still loose
 		       the next incoming character.
 		     */
-		    tty_insert_flip_char(tty, data, TTY_NORMAL);
-		}
+		    if (tty_buffer_request_room(tty, 1) != 0){
+			tty_insert_flip_char(tty, data, TTY_FRAME);
+		    }
 		/* These two conditions may imply */
 		/* a normal read should be done. */
 		/* else if(data & CyTIMEOUT) */
@@ -448,21 +439,21 @@ cd2401_rxerr_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 		    tty_insert_flip_char(tty, 0, TTY_NORMAL);
 		}
 	    }else{
-		    tty_insert_flip_char(tty, data, TTY_NORMAL);
+		tty_insert_flip_char(tty, data, TTY_NORMAL);
 	    }
 	}else{
 	    /* there was a software buffer overrun
 	       and nothing could be done about it!!! */
 	}
     }
-    schedule_delayed_work(&tty->flip.work, 1);
+    tty_schedule_flip(tty);
     /* end of service */
     base_addr[CyREOIR] = rfoc ? 0 : CyNOTRANS;
     return IRQ_HANDLED;
 } /* cy_rxerr_interrupt */
 
 static irqreturn_t
-cd2401_modem_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_modem_interrupt(int irq, void *dev_id)
 {
     struct cyclades_port *info;
     volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
@@ -517,7 +508,7 @@ cd2401_modem_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 } /* cy_modem_interrupt */
 
 static irqreturn_t
-cd2401_tx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_tx_interrupt(int irq, void *dev_id)
 {
     struct cyclades_port *info;
     volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
@@ -637,7 +628,7 @@ cd2401_tx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 } /* cy_tx_interrupt */
 
 static irqreturn_t
-cd2401_rx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
+cd2401_rx_interrupt(int irq, void *dev_id)
 {
     struct tty_struct *tty;
     struct cyclades_port *info;
@@ -646,6 +637,7 @@ cd2401_rx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
     char data;
     int char_count;
     int save_cnt;
+    int len;
 
     /* determine the channel and change to that context */
     channel = (u_short ) (base_addr[CyLICR] >> 2);
@@ -678,14 +670,15 @@ cd2401_rx_interrupt(int irq, void *dev_id, struct pt_regs *fp)
 	    info->mon.char_max = char_count;
 	info->mon.char_last = char_count;
 #endif
-	while(char_count--){
+	len = tty_buffer_request_room(tty, char_count);
+	while(len--){
 	    data = base_addr[CyRDR];
 	    tty_insert_flip_char(tty, data, TTY_NORMAL);
 #ifdef CYCLOM_16Y_HACK
 	    udelay(10L);
 #endif
         }
-	schedule_delayed_work(&tty->flip.work, 1);
+	tty_schedule_flip(tty);
     }
     /* end of service */
     base_addr[CyREOIR] = save_cnt ? 0 : CyNOTRANS;
@@ -846,7 +839,7 @@ shutdown(struct cyclades_port * info)
     local_irq_save(flags);
 	if (info->xmit_buf){
 	    free_page((unsigned long) info->xmit_buf);
-	    info->xmit_buf = 0;
+	    info->xmit_buf = NULL;
 	}
 
 	base_addr[CyCAR] = (u_char)channel;
@@ -1132,7 +1125,7 @@ cy_put_char(struct tty_struct *tty, unsigned char ch)
     if (serial_paranoia_check(info, tty->name, "cy_put_char"))
 	return;
 
-    if (!tty || !info->xmit_buf)
+    if (!info->xmit_buf)
 	return;
 
     local_irq_save(flags);
@@ -1198,7 +1191,7 @@ cy_write(struct tty_struct * tty,
 	return 0;
     }
 	
-    if (!tty || !info->xmit_buf || !tmp_buf){
+    if (!info->xmit_buf){
         return 0;
     }
 
@@ -1361,7 +1354,7 @@ cy_unthrottle(struct tty_struct * tty)
 
 static int
 get_serial_info(struct cyclades_port * info,
-                           struct serial_struct * retinfo)
+                           struct serial_struct __user * retinfo)
 {
   struct serial_struct tmp;
 
@@ -1383,7 +1376,7 @@ get_serial_info(struct cyclades_port * info,
 
 static int
 set_serial_info(struct cyclades_port * info,
-                           struct serial_struct * new_info)
+                           struct serial_struct __user * new_info)
 {
   struct serial_struct new_serial;
   struct cyclades_port old_info;
@@ -1433,7 +1426,6 @@ cy_tiocmget(struct tty_struct *tty, struct file *file)
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
   unsigned char status;
-  unsigned int result;
 
     channel = info->line;
 
@@ -1457,7 +1449,6 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
   int channel;
   volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
   unsigned long flags;
-  unsigned int arg;
 	  
     channel = info->line;
 
@@ -1512,7 +1503,7 @@ send_break( struct cyclades_port * info, int duration)
 } /* send_break */
 
 static int
-get_mon_info(struct cyclades_port * info, struct cyclades_monitor * mon)
+get_mon_info(struct cyclades_port * info, struct cyclades_monitor __user * mon)
 {
 
    if (copy_to_user(mon, &info->mon, sizeof(struct cyclades_monitor)))
@@ -1525,7 +1516,7 @@ get_mon_info(struct cyclades_port * info, struct cyclades_monitor * mon)
 }
 
 static int
-set_threshold(struct cyclades_port * info, unsigned long *arg)
+set_threshold(struct cyclades_port * info, unsigned long __user *arg)
 {
    volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
    unsigned long value;
@@ -1542,7 +1533,7 @@ set_threshold(struct cyclades_port * info, unsigned long *arg)
 }
 
 static int
-get_threshold(struct cyclades_port * info, unsigned long *value)
+get_threshold(struct cyclades_port * info, unsigned long __user *value)
 {
    volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
    int channel;
@@ -1555,7 +1546,7 @@ get_threshold(struct cyclades_port * info, unsigned long *value)
 }
 
 static int
-set_default_threshold(struct cyclades_port * info, unsigned long *arg)
+set_default_threshold(struct cyclades_port * info, unsigned long __user *arg)
 {
    unsigned long value;
 
@@ -1567,13 +1558,13 @@ set_default_threshold(struct cyclades_port * info, unsigned long *arg)
 }
 
 static int
-get_default_threshold(struct cyclades_port * info, unsigned long *value)
+get_default_threshold(struct cyclades_port * info, unsigned long __user *value)
 {
    return put_user(info->default_threshold,value);
 }
 
 static int
-set_timeout(struct cyclades_port * info, unsigned long *arg)
+set_timeout(struct cyclades_port * info, unsigned long __user *arg)
 {
    volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
    int channel;
@@ -1590,7 +1581,7 @@ set_timeout(struct cyclades_port * info, unsigned long *arg)
 }
 
 static int
-get_timeout(struct cyclades_port * info, unsigned long *value)
+get_timeout(struct cyclades_port * info, unsigned long __user *value)
 {
    volatile unsigned char *base_addr = (u_char *)BASE_ADDR;
    int channel;
@@ -1610,7 +1601,7 @@ set_default_timeout(struct cyclades_port * info, unsigned long value)
 }
 
 static int
-get_default_timeout(struct cyclades_port * info, unsigned long *value)
+get_default_timeout(struct cyclades_port * info, unsigned long __user *value)
 {
    return put_user(info->default_timeout,value);
 }
@@ -1622,6 +1613,7 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
   unsigned long val;
   struct cyclades_port * info = (struct cyclades_port *)tty->driver_data;
   int ret_val = 0;
+  void __user *argp = (void __user *)arg;
 
 #ifdef SERIAL_DEBUG_OTHER
     printk("cy_ioctl %s, cmd = %x arg = %lx\n", tty->name, cmd, arg); /* */
@@ -1629,28 +1621,28 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
 
     switch (cmd) {
         case CYGETMON:
-            ret_val = get_mon_info(info, (struct cyclades_monitor *)arg);
+            ret_val = get_mon_info(info, argp);
 	    break;
         case CYGETTHRESH:
-	    ret_val = get_threshold(info, (unsigned long *)arg);
+	    ret_val = get_threshold(info, argp);
  	    break;
         case CYSETTHRESH:
-            ret_val = set_threshold(info, (unsigned long *)arg);
+            ret_val = set_threshold(info, argp);
 	    break;
         case CYGETDEFTHRESH:
-	    ret_val = get_default_threshold(info, (unsigned long *)arg);
+	    ret_val = get_default_threshold(info, argp);
  	    break;
         case CYSETDEFTHRESH:
-            ret_val = set_default_threshold(info, (unsigned long *)arg);
+            ret_val = set_default_threshold(info, argp);
 	    break;
         case CYGETTIMEOUT:
-	    ret_val = get_timeout(info, (unsigned long *)arg);
+	    ret_val = get_timeout(info, argp);
  	    break;
         case CYSETTIMEOUT:
-            ret_val = set_timeout(info, (unsigned long *)arg);
+            ret_val = set_timeout(info, argp);
 	    break;
         case CYGETDEFTIMEOUT:
-	    ret_val = get_default_timeout(info, (unsigned long *)arg);
+	    ret_val = get_default_timeout(info, argp);
  	    break;
         case CYSETDEFTIMEOUT:
             ret_val = set_default_timeout(info, (unsigned long)arg);
@@ -1673,21 +1665,20 @@ cy_ioctl(struct tty_struct *tty, struct file * file,
 
 /* The following commands are incompletely implemented!!! */
         case TIOCGSOFTCAR:
-            ret_val = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long *) arg);
+            ret_val = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) argp);
             break;
         case TIOCSSOFTCAR:
-            ret_val = get_user(val, (unsigned long *) arg);
+            ret_val = get_user(val, (unsigned long __user *) argp);
 	    if (ret_val)
 		    break;
             tty->termios->c_cflag =
                     ((tty->termios->c_cflag & ~CLOCAL) | (val ? CLOCAL : 0));
             break;
         case TIOCGSERIAL:
-            ret_val = get_serial_info(info, (struct serial_struct *) arg);
+            ret_val = get_serial_info(info, argp);
             break;
         case TIOCSSERIAL:
-            ret_val = set_serial_info(info,
-                                   (struct serial_struct *) arg);
+            ret_val = set_serial_info(info, argp);
             break;
         default:
 	    ret_val = -ENOIOCTLCMD;
@@ -1782,7 +1773,7 @@ cy_close(struct tty_struct * tty, struct file * filp)
 	tty->driver->flush_buffer(tty);
     tty_ldisc_flush(tty);
     info->event = 0;
-    info->tty = 0;
+    info->tty = NULL;
     if (info->blocked_open) {
 	if (info->close_delay) {
 	    msleep_interruptible(jiffies_to_msecs(info->close_delay));
@@ -1982,13 +1973,6 @@ cy_open(struct tty_struct *tty, struct file * filp)
 #endif
     tty->driver_data = info;
     info->tty = tty;
-
-    if (!tmp_buf) {
-	tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL);
-	if (!tmp_buf){
-	    return -ENOMEM;
-        }
-    }
 
     /*
      * Start up serial port
@@ -2266,7 +2250,7 @@ scrn[1] = '\0';
 		info->card = index;
 		info->line = port_num;
 		info->flags = STD_COM_FLAGS;
-		info->tty = 0;
+		info->tty = NULL;
 		info->xmit_fifo_size = 12;
 		info->cor1 = CyPARITY_NONE|Cy_8_BITS;
 		info->cor2 = CyETC;

@@ -160,13 +160,13 @@ static inline int tag_get(struct radix_tree_node *node, unsigned int tag,
 
 static inline void root_tag_set(struct radix_tree_root *root, unsigned int tag)
 {
-	root->gfp_mask |= (1 << (tag + __GFP_BITS_SHIFT));
+	root->gfp_mask |= (__force gfp_t)(1 << (tag + __GFP_BITS_SHIFT));
 }
 
 
 static inline void root_tag_clear(struct radix_tree_root *root, unsigned int tag)
 {
-	root->gfp_mask &= ~(1 << (tag + __GFP_BITS_SHIFT));
+	root->gfp_mask &= (__force gfp_t)~(1 << (tag + __GFP_BITS_SHIFT));
 }
 
 static inline void root_tag_clear_all(struct radix_tree_root *root)
@@ -176,7 +176,7 @@ static inline void root_tag_clear_all(struct radix_tree_root *root)
 
 static inline int root_tag_get(struct radix_tree_root *root, unsigned int tag)
 {
-	return root->gfp_mask & (1 << (tag + __GFP_BITS_SHIFT));
+	return (__force unsigned)root->gfp_mask & (1 << (tag + __GFP_BITS_SHIFT));
 }
 
 /*

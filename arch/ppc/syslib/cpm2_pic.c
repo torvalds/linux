@@ -123,7 +123,7 @@ static struct hw_interrupt_type cpm2_pic = {
 	.end = cpm2_end_irq,
 };
 
-int cpm2_get_irq(struct pt_regs *regs)
+int cpm2_get_irq(void)
 {
 	int irq;
         unsigned long bits;

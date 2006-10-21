@@ -33,7 +33,7 @@
 
 
 static void 
-miata_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
+miata_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -56,7 +56,7 @@ miata_srm_device_interrupt(unsigned long vector, struct pt_regs * regs)
 	if (irq >= 16)
 		irq = irq + 8;
 
-	handle_irq(irq, regs);
+	handle_irq(irq);
 }
 
 static void __init

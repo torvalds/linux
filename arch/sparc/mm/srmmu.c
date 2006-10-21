@@ -402,7 +402,7 @@ void srmmu_nocache_calcsize(void)
 	srmmu_nocache_end = SRMMU_NOCACHE_VADDR + srmmu_nocache_size;
 }
 
-void srmmu_nocache_init(void)
+void __init srmmu_nocache_init(void)
 {
 	unsigned int bitmap_bits;
 	pgd_t *pgd;

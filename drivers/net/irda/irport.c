@@ -87,8 +87,7 @@ static struct net_device_stats *irport_net_get_stats(struct net_device *dev);
 static int irport_change_speed_complete(struct irda_task *task);
 static void irport_timeout(struct net_device *dev);
 
-static irqreturn_t irport_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs);
+static irqreturn_t irport_interrupt(int irq, void *dev_id);
 static int irport_hard_xmit(struct sk_buff *skb, struct net_device *dev);
 static void irport_change_speed(void *priv, __u32 speed);
 static int irport_net_open(struct net_device *dev);
@@ -761,25 +760,20 @@ static inline void irport_receive(struct irport_cb *self)
 }
 
 /*
- * Function irport_interrupt (irq, dev_id, regs)
+ * Function irport_interrupt (irq, dev_id)
  *
  *    Interrupt handler
  */
-static irqreturn_t irport_interrupt(int irq, void *dev_id,
-				    struct pt_regs *regs) 
+static irqreturn_t irport_interrupt(int irq, void *dev_id) 
 {
-	struct net_device *dev = (struct net_device *) dev_id;
+	struct net_device *dev = dev_id;
 	struct irport_cb *self;
 	int boguscount = 0;
 	int iobase;
 	int iir, lsr;
 	int handled = 0;
 
-	if (!dev) {
-		IRDA_WARNING("%s() irq %d for unknown device.\n", __FUNCTION__, irq);
-		return IRQ_NONE;
-	}
-	self = (struct irport_cb *) dev->priv;
+	self = dev->priv;
 
 	spin_lock(&self->lock);
 

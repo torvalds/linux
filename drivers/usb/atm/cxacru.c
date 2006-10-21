@@ -171,7 +171,7 @@ struct cxacru_data {
 };
 
 /* the following three functions are stolen from drivers/usb/core/message.c */
-static void cxacru_blocking_completion(struct urb *urb, struct pt_regs *regs)
+static void cxacru_blocking_completion(struct urb *urb)
 {
 	complete((struct completion *)urb->context);
 }
@@ -792,6 +792,9 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 	},
 	{ /* V = Conexant			P = ADSL modem				*/
 		USB_DEVICE(0x0572, 0xcb06),	.driver_info = (unsigned long) &cxacru_cb00
+	},
+	{ /* V = Conexant			P = ADSL modem (ZTE ZXDSL 852)		*/
+		USB_DEVICE(0x0572, 0xcb07),	.driver_info = (unsigned long) &cxacru_cb00
 	},
 	{ /* V = Olitec				P = ADSL modem version 2		*/
 		USB_DEVICE(0x08e3, 0x0100),	.driver_info = (unsigned long) &cxacru_cafe

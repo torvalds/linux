@@ -83,7 +83,7 @@ static void iomd_get_next_sg(struct scatterlist *sg, dma_t *dma)
 	sg->length |= flags;
 }
 
-static irqreturn_t iomd_dma_handle(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t iomd_dma_handle(int irq, void *dev_id)
 {
 	dma_t *dma = (dma_t *)dev_id;
 	unsigned long base = dma->dma_base;

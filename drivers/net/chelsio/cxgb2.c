@@ -918,7 +918,7 @@ static void t1_netpoll(struct net_device *dev)
 	struct adapter *adapter = dev->priv;
 
 	local_irq_save(flags);
-        t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter, NULL);
+        t1_select_intr_handler(adapter)(adapter->pdev->irq, adapter);
 	local_irq_restore(flags);
 }
 #endif

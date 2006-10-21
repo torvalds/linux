@@ -62,19 +62,21 @@ void show_mem(void)
 {
         int i, total = 0, reserved = 0;
         int shared = 0, cached = 0;
+	struct page *page;
 
         printk("Mem-info:\n");
         show_free_areas();
         printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
         i = max_mapnr;
         while (i-- > 0) {
+		page = pfn_to_page(i);
                 total++;
-                if (PageReserved(mem_map+i))
+		if (PageReserved(page))
                         reserved++;
-                else if (PageSwapCache(mem_map+i))
+		else if (PageSwapCache(page))
                         cached++;
-                else if (page_count(mem_map+i))
-                        shared += page_count(mem_map+i) - 1;
+		else if (page_count(page))
+			shared += page_count(page) - 1;
         }
         printk("%d pages of RAM\n",total);
         printk("%d reserved pages\n",reserved);
@@ -82,7 +84,6 @@ void show_mem(void)
         printk("%d pages swap cached\n",cached);
 }
 
-extern unsigned long __initdata zholes_size[];
 /*
  * paging_init() sets up the page tables
  */
@@ -99,16 +100,15 @@ void __init paging_init(void)
         unsigned long pgdir_k = (__pa(swapper_pg_dir) & PAGE_MASK) | _KERNSEG_TABLE;
         static const int ssm_mask = 0x04000000L;
 	unsigned long ro_start_pfn, ro_end_pfn;
-	unsigned long zones_size[MAX_NR_ZONES];
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 	ro_start_pfn = PFN_DOWN((unsigned long)&__start_rodata);
 	ro_end_pfn = PFN_UP((unsigned long)&__end_rodata);
 
-	memset(zones_size, 0, sizeof(zones_size));
-	zones_size[ZONE_DMA] = max_low_pfn;
-	free_area_init_node(0, &contig_page_data, zones_size,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
-			    zholes_size);
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = max_low_pfn;
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	free_area_init_nodes(max_zone_pfns);
 
 	/* unmap whole virtual address space */
 	
@@ -153,7 +153,6 @@ void __init paging_init(void)
 	__raw_local_irq_ssm(ssm_mask);
 
         local_flush_tlb();
-        return;
 }
 
 #else /* CONFIG_64BIT */
@@ -169,26 +168,16 @@ void __init paging_init(void)
         unsigned long pgdir_k = (__pa(swapper_pg_dir) & PAGE_MASK) |
           _KERN_REGION_TABLE;
 	static const int ssm_mask = 0x04000000L;
-	unsigned long zones_size[MAX_NR_ZONES];
-	unsigned long dma_pfn, high_pfn;
 	unsigned long ro_start_pfn, ro_end_pfn;
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
-	memset(zones_size, 0, sizeof(zones_size));
-	dma_pfn = MAX_DMA_ADDRESS >> PAGE_SHIFT;
-	high_pfn = max_low_pfn;
 	ro_start_pfn = PFN_DOWN((unsigned long)&__start_rodata);
 	ro_end_pfn = PFN_UP((unsigned long)&__end_rodata);
 
-	if (dma_pfn > high_pfn)
-		zones_size[ZONE_DMA] = high_pfn;
-	else {
-		zones_size[ZONE_DMA] = dma_pfn;
-		zones_size[ZONE_NORMAL] = high_pfn - dma_pfn;
-	}
-
-	/* Initialize mem_map[].  */
-	free_area_init_node(0, &contig_page_data, zones_size,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, zholes_size);
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	free_area_init_nodes(max_zone_pfns);
 
 	/*
 	 * map whole physical memory to virtual memory (identity mapping) 
@@ -237,8 +226,6 @@ void __init paging_init(void)
 	__raw_local_irq_ssm(ssm_mask);
 
         local_flush_tlb();
-
-        return;
 }
 #endif /* CONFIG_64BIT */
 

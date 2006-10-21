@@ -5,7 +5,6 @@
  * Licensed under the GPL.
  */
 
-#include "linux/config.h"
 #include "linux/kernel.h"
 #include "linux/netdevice.h"
 #include "linux/rtnetlink.h"
@@ -78,7 +77,7 @@ static void uml_dev_close(void* dev)
 	dev_close( (struct net_device *) dev);
 }
 
-irqreturn_t uml_net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct uml_net_private *lp = dev->priv;

@@ -195,7 +195,7 @@ sizeof(nop_cmd) = 8;
 #define NI52_ADDR2 0x01
 
 static int     ni52_probe1(struct net_device *dev,int ioaddr);
-static irqreturn_t ni52_interrupt(int irq,void *dev_id,struct pt_regs *reg_ptr);
+static irqreturn_t ni52_interrupt(int irq,void *dev_id);
 static int     ni52_open(struct net_device *dev);
 static int     ni52_close(struct net_device *dev);
 static int     ni52_send_packet(struct sk_buff *,struct net_device *);
@@ -837,7 +837,7 @@ static void *alloc_rfa(struct net_device *dev,void *ptr)
  * Interrupt Handler ...
  */
 
-static irqreturn_t ni52_interrupt(int irq,void *dev_id,struct pt_regs *reg_ptr)
+static irqreturn_t ni52_interrupt(int irq,void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	unsigned short stat;

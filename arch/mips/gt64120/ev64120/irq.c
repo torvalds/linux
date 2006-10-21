@@ -46,22 +46,22 @@
 #include <asm/system.h>
 #include <asm/gt64120.h>
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 
 	if (pending & STATUSF_IP4)		/* int2 hardware line (timer) */
-		do_IRQ(4, regs);
+		do_IRQ(4);
 	else if (pending & STATUSF_IP2)		/* int0 hardware line */
-		do_IRQ(GT_INTA, regs);
+		do_IRQ(GT_INTA);
 	else if (pending & STATUSF_IP5)		/* int3 hardware line */
-		do_IRQ(GT_INTD, regs);
+		do_IRQ(GT_INTD);
 	else if (pending & STATUSF_IP6)		/* int4 hardware line */
-		do_IRQ(6, regs);
+		do_IRQ(6);
 	else if (pending & STATUSF_IP7)		/* compare int */
-		do_IRQ(7, regs);
+		do_IRQ(7);
 	else
-		spurious_interrupt(regs);
+		spurious_interrupt();
 }
 
 static void disable_ev64120_irq(unsigned int irq_nr)

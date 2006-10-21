@@ -262,7 +262,7 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 /*
  * BOARD Specific: Handles IRQ calls
  */
-static irqreturn_t cx8801_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cx8801_irq(int irq, void *dev_id)
 {
 	snd_cx88_card_t *chip = dev_id;
 	struct cx88_core *core = chip->core;

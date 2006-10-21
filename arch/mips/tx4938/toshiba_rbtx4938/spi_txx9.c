@@ -35,7 +35,8 @@ void __init txx9_spi_init(unsigned long base, int (*cs_func)(int chipid, int on)
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(txx9_spi_wait);
-static void txx9_spi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+
+static void txx9_spi_interrupt(int irq, void *dev_id)
 {
 	/* disable rx intr */
 	tx4938_spiptr->cr0 &= ~TXx9_SPCR0_RBSIE;

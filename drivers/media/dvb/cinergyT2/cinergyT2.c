@@ -238,7 +238,7 @@ static void cinergyt2_sleep (struct cinergyt2 *cinergyt2, int sleep)
 	cinergyt2->sleeping = sleep;
 }
 
-static void cinergyt2_stream_irq (struct urb *urb, struct pt_regs *regs);
+static void cinergyt2_stream_irq (struct urb *urb);
 
 static int cinergyt2_submit_stream_urb (struct cinergyt2 *cinergyt2, struct urb *urb)
 {
@@ -258,7 +258,7 @@ static int cinergyt2_submit_stream_urb (struct cinergyt2 *cinergyt2, struct urb 
 	return err;
 }
 
-static void cinergyt2_stream_irq (struct urb *urb, struct pt_regs *regs)
+static void cinergyt2_stream_irq (struct urb *urb)
 {
 	struct cinergyt2 *cinergyt2 = urb->context;
 

@@ -106,7 +106,7 @@ static void ixdp2x00_irq_unmask(unsigned int irq)
 		ixp2000_release_slowport(&old_cfg);
 }
 
-static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc)
 {
         volatile u32 ex_interrupt = 0;
 	static struct slowport_cfg old_cfg;
@@ -132,7 +132,7 @@ static void ixdp2x00_irq_handler(unsigned int irq, struct irqdesc *desc, struct 
 			struct irqdesc *cpld_desc;
 			int cpld_irq = IXP2000_BOARD_IRQ(0) + i;
 			cpld_desc = irq_desc + cpld_irq;
-			desc_handle_irq(cpld_irq, cpld_desc, regs);
+			desc_handle_irq(cpld_irq, cpld_desc);
 		}
 	}
 
@@ -241,11 +241,14 @@ void ixdp2x00_slave_pci_postinit(void)
 	/*
 	 * Remove PMC device is there is one
 	 */
-	if((dev = pci_find_slot(1, IXDP2X00_PMC_DEVFN)))
+	if((dev = pci_get_bus_and_slot(1, IXDP2X00_PMC_DEVFN))) {
 		pci_remove_bus_device(dev);
+		pci_dev_put(dev);
+	}
 
-	dev = pci_find_slot(0, IXDP2X00_21555_DEVFN);
+	dev = pci_get_bus_and_slot(0, IXDP2X00_21555_DEVFN);
 	pci_remove_bus_device(dev);
+	pci_dev_put(dev);
 }
 
 /**************************************************************************

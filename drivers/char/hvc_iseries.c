@@ -29,6 +29,7 @@
 #include <asm/hvconsole.h>
 #include <asm/vio.h>
 #include <asm/prom.h>
+#include <asm/firmware.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/hv_call.h>
 #include <asm/iseries/hv_lp_config.h>
@@ -488,6 +489,9 @@ static int hvc_vio_init(void)
 	atomic_t wait_flag;
 	int rc;
 
+	if (!firmware_has_feature(FW_FEATURE_ISERIES))
+		return -EIO;
+
 	/* +2 for fudge */
 	rc = viopath_open(HvLpConfig_getPrimaryLpIndex(),
 			viomajorsubtype_chario, VIOCHAR_WINDOW + 2);
@@ -562,7 +566,7 @@ static int hvc_find_vtys(void)
 
 	for (vty = of_find_node_by_name(NULL, "vty"); vty != NULL;
 			vty = of_find_node_by_name(vty, "vty")) {
-		uint32_t *vtermno;
+		const uint32_t *vtermno;
 
 		/* We have statically defined space for only a certain number
 		 * of console adapters.
@@ -571,7 +575,7 @@ static int hvc_find_vtys(void)
 				(num_found >= VTTY_PORTS))
 			break;
 
-		vtermno = (uint32_t *)get_property(vty, "reg", NULL);
+		vtermno = get_property(vty, "reg", NULL);
 		if (!vtermno)
 			continue;
 

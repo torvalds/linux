@@ -315,7 +315,7 @@ int gt64260_get_base(u32 *base);
 int gt64260_pci_exclude_device(u8 bus, u8 devfn);
 
 void gt64260_init_irq(void);
-int gt64260_get_irq(struct pt_regs *regs);
+int gt64260_get_irq(void);
 
 void gt64260_mpsc_progress(char *s, unsigned short hex);
 

@@ -69,20 +69,20 @@ static struct irq_chip pciasic_irq_type = {
  * hwint0 should deal with MP agent, ASIC PCI, EISA NMI and debug
  * button interrupts.  Later ...
  */
-static void pciasic_hwint0(struct pt_regs *regs)
+static void pciasic_hwint0(void)
 {
 	panic("Received int0 but no handler yet ...");
 }
 
 /* This interrupt was used for the com1 console on the first prototypes.  */
-static void pciasic_hwint2(struct pt_regs *regs)
+static void pciasic_hwint2(void)
 {
 	/* I think this shouldn't happen on production machines.  */
 	panic("hwint2 and no handler yet");
 }
 
 /* hwint5 is the r4k count / compare interrupt  */
-static void pciasic_hwint5(struct pt_regs *regs)
+static void pciasic_hwint5(void)
 {
 	panic("hwint5 and no handler yet");
 }
@@ -103,7 +103,7 @@ static unsigned int ls1bit8(unsigned int x)
  *
  * The EISA_INT bit in CSITPEND is high active, all others are low active.
  */
-static void pciasic_hwint1(struct pt_regs *regs)
+static void pciasic_hwint1(void)
 {
 	u8 pend = *(volatile char *)PCIMT_CSITPEND;
 	unsigned long flags;
@@ -119,13 +119,13 @@ static void pciasic_hwint1(struct pt_regs *regs)
 		if (unlikely(irq < 0))
 			return;
 
-		do_IRQ(irq, regs);
+		do_IRQ(irq);
 	}
 
 	if (!(pend & IT_SCSI)) {
 		flags = read_c0_status();
 		clear_c0_status(ST0_IM);
-		do_IRQ(PCIMT_IRQ_SCSI, regs);
+		do_IRQ(PCIMT_IRQ_SCSI);
 		write_c0_status(flags);
 	}
 }
@@ -133,7 +133,7 @@ static void pciasic_hwint1(struct pt_regs *regs)
 /*
  * hwint 3 should deal with the PCI A - D interrupts,
  */
-static void pciasic_hwint3(struct pt_regs *regs)
+static void pciasic_hwint3(void)
 {
 	u8 pend = *(volatile char *)PCIMT_CSITPEND;
 	int irq;
@@ -141,21 +141,21 @@ static void pciasic_hwint3(struct pt_regs *regs)
 	pend &= (IT_INTA | IT_INTB | IT_INTC | IT_INTD);
 	clear_c0_status(IE_IRQ3);
 	irq = PCIMT_IRQ_INT2 + ls1bit8(pend);
-	do_IRQ(irq, regs);
+	do_IRQ(irq);
 	set_c0_status(IE_IRQ3);
 }
 
 /*
  * hwint 4 is used for only the onboard PCnet 32.
  */
-static void pciasic_hwint4(struct pt_regs *regs)
+static void pciasic_hwint4(void)
 {
 	clear_c0_status(IE_IRQ4);
-	do_IRQ(PCIMT_IRQ_ETHERNET, regs);
+	do_IRQ(PCIMT_IRQ_ETHERNET);
 	set_c0_status(IE_IRQ4);
 }
 
-asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
 	static unsigned char led_cache;
@@ -163,17 +163,17 @@ asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 	*(volatile unsigned char *) PCIMT_CSLED = ++led_cache;
 
 	if (pending & 0x0800)
-		pciasic_hwint1(regs);
+		pciasic_hwint1();
 	else if (pending & 0x4000)
-		pciasic_hwint4(regs);
+		pciasic_hwint4();
 	else if (pending & 0x2000)
-		pciasic_hwint3(regs);
+		pciasic_hwint3();
 	else if (pending & 0x1000)
-		pciasic_hwint2(regs);
+		pciasic_hwint2();
 	else if (pending & 0x8000)
-		pciasic_hwint5(regs);
+		pciasic_hwint5();
 	else if (pending & 0x0400)
-		pciasic_hwint0(regs);
+		pciasic_hwint0();
 }
 
 void __init init_pciasic(void)

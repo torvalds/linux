@@ -156,7 +156,7 @@ WriteHSCX(struct IsdnCardState *cs, int hscx, u_char offset, u_char value)
 #include "hscx_irq.c"
 
 static irqreturn_t
-asuscom_interrupt(int intno, void *dev_id, struct pt_regs *regs)
+asuscom_interrupt(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char val;
@@ -194,7 +194,7 @@ asuscom_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 }
 
 static irqreturn_t
-asuscom_interrupt_ipac(int intno, void *dev_id, struct pt_regs *regs)
+asuscom_interrupt_ipac(int intno, void *dev_id)
 {
 	struct IsdnCardState *cs = dev_id;
 	u_char ista, val, icnt = 5;

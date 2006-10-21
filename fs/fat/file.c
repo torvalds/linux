@@ -13,6 +13,7 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
@@ -118,7 +119,7 @@ static int fat_file_release(struct inode *inode, struct file *filp)
 	if ((filp->f_mode & FMODE_WRITE) &&
 	     MSDOS_SB(inode->i_sb)->options.flush) {
 		fat_flush_inodes(inode->i_sb, inode, NULL);
-		blk_congestion_wait(WRITE, HZ/10);
+		congestion_wait(WRITE, HZ/10);
 	}
 	return 0;
 }

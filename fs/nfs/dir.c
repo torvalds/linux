@@ -142,12 +142,12 @@ nfs_opendir(struct inode *inode, struct file *filp)
 	return res;
 }
 
-typedef u32 * (*decode_dirent_t)(u32 *, struct nfs_entry *, int);
+typedef __be32 * (*decode_dirent_t)(__be32 *, struct nfs_entry *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
 	unsigned long	page_index;
-	u32		*ptr;
+	__be32		*ptr;
 	u64		*dir_cookie;
 	loff_t		current_index;
 	struct nfs_entry *entry;
@@ -203,8 +203,10 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	 * Note: assumes we have exclusive access to this mapping either
 	 *	 through inode->i_mutex or some other mechanism.
 	 */
-	if (page->index == 0)
-		invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1);
+	if (page->index == 0 && invalidate_inode_pages2_range(inode->i_mapping, PAGE_CACHE_SIZE, -1) < 0) {
+		/* Should never happen */
+		nfs_zap_mapping(inode, inode->i_mapping);
+	}
 	unlock_page(page);
 	return 0;
  error:
@@ -218,7 +220,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 static inline
 int dir_decode(nfs_readdir_descriptor_t *desc)
 {
-	u32	*p = desc->ptr;
+	__be32	*p = desc->ptr;
 	p = desc->decode(p, desc->entry, desc->plus);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
@@ -1517,8 +1519,8 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 	pagevec_init(&lru_pvec, 0);
 	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
 							GFP_KERNEL)) {
-		if (!pagevec_add(&lru_pvec, page))
-			__pagevec_lru_add(&lru_pvec);
+		pagevec_add(&lru_pvec, page);
+		pagevec_lru_add(&lru_pvec);
 		SetPageUptodate(page);
 		unlock_page(page);
 	} else

@@ -115,7 +115,7 @@ struct nm256_info
     int has_irq;
 
     /* The card interrupt service routine. */
-    irqreturn_t (*introutine) (int, void *, struct pt_regs *);
+    irq_handler_t introutine;
 
     /* Current audio config, cached. */
     struct sinfo {

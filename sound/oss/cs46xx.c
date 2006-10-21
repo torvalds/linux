@@ -1613,7 +1613,7 @@ static void cs_handle_midi(struct cs_card *card)
                 wake_up(&card->midi.owait);
 }
 
-static irqreturn_t cs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cs_interrupt(int irq, void *dev_id)
 {
 	struct cs_card *card = (struct cs_card *)dev_id;
 	/* Single channel card */

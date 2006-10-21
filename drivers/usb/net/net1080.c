@@ -368,7 +368,7 @@ static int net1080_check_connect(struct usbnet *dev)
 	return 0;
 }
 
-static void nc_flush_complete(struct urb *urb, struct pt_regs *regs)
+static void nc_flush_complete(struct urb *urb)
 {
 	kfree(urb->context);
 	usb_free_urb(urb);

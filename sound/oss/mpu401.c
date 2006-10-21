@@ -432,19 +432,10 @@ static void mpu401_input_loop(struct mpu_config *devc)
 	devc->m_busy = 0;
 }
 
-int intchk_mpu401(void *dev_id)
+static irqreturn_t mpuintr(int irq, void *dev_id)
 {
 	struct mpu_config *devc;
-	int dev = (int) dev_id;
-
-	devc = &dev_conf[dev];
-	return input_avail(devc);
-}
-
-irqreturn_t mpuintr(int irq, void *dev_id, struct pt_regs *dummy)
-{
-	struct mpu_config *devc;
-	int dev = (int) dev_id;
+	int dev = (int)(unsigned long) dev_id;
 	int handled = 0;
 
 	devc = &dev_conf[dev];
@@ -1761,8 +1752,6 @@ static int mpu_timer_init(int midi_dev)
 EXPORT_SYMBOL(probe_mpu401);
 EXPORT_SYMBOL(attach_mpu401);
 EXPORT_SYMBOL(unload_mpu401);
-EXPORT_SYMBOL(intchk_mpu401);
-EXPORT_SYMBOL(mpuintr);
 
 static struct address_info cfg;
 

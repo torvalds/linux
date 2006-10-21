@@ -406,7 +406,7 @@ static void send_osd_data(struct saa7146 *saa)
 	}
 }
 
-static irqreturn_t saa7146_irq(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t saa7146_irq(int irq, void *dev_id)
 {
 	struct saa7146 *saa = dev_id;
 	u32 stat, astat;

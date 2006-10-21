@@ -1083,16 +1083,15 @@ static unsigned long __init setup_memory(void)
 
 void __init zone_sizes_init(void)
 {
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] =
+		virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 #ifdef CONFIG_HIGHMEM
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
-			max_low_pfn,
-			highend_pfn};
+	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
 	add_active_range(0, 0, highend_pfn);
 #else
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-			virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT,
-			max_low_pfn};
 	add_active_range(0, 0, max_low_pfn);
 #endif
 

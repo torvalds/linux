@@ -3753,7 +3753,7 @@ bttv_irq_switch_vbi(struct bttv *btv)
 	spin_unlock(&btv->s_lock);
 }
 
-static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
+static irqreturn_t bttv_irq(int irq, void *dev_id)
 {
 	u32 stat,astat;
 	u32 dstat;

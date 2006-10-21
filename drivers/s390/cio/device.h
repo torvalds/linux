@@ -21,7 +21,6 @@ enum dev_state {
 	/* states to wait for i/o completion before doing something */
 	DEV_STATE_CLEAR_VERIFY,
 	DEV_STATE_TIMEOUT_KILL,
-	DEV_STATE_WAIT4IO,
 	DEV_STATE_QUIESCE,
 	/* special states for devices gone not operational */
 	DEV_STATE_DISCONNECTED,

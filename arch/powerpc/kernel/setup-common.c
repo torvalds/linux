@@ -442,31 +442,6 @@ void __init smp_setup_cpu_maps(void)
 }
 #endif /* CONFIG_SMP */
 
-int __initdata do_early_xmon;
-#ifdef CONFIG_XMON
-extern int xmon_no_auto_backtrace;
-
-static int __init early_xmon(char *p)
-{
-	/* ensure xmon is enabled */
-	if (p) {
-		if (strncmp(p, "on", 2) == 0)
-			xmon_init(1);
-		if (strncmp(p, "off", 3) == 0)
-			xmon_init(0);
-		if (strncmp(p, "nobt", 4) == 0)
-			xmon_no_auto_backtrace = 1;
-		if (strncmp(p, "early", 5) != 0)
-			return 0;
-	}
-	xmon_init(1);
-	do_early_xmon = 1;
-
-	return 0;
-}
-early_param("xmon", early_xmon);
-#endif
-
 static __init int add_pcspkr(void)
 {
 	struct device_node *np;

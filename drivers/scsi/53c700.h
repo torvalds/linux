@@ -57,7 +57,7 @@ struct NCR_700_Host_Parameters;
 struct Scsi_Host *NCR_700_detect(struct scsi_host_template *,
 		struct NCR_700_Host_Parameters *, struct device *);
 int NCR_700_release(struct Scsi_Host *host);
-irqreturn_t NCR_700_intr(int, void *, struct pt_regs *);
+irqreturn_t NCR_700_intr(int, void *);
 
 
 enum NCR_700_Host_State {

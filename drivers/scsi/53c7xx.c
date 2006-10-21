@@ -323,7 +323,7 @@ static int shutdown (struct Scsi_Host *host);
 static void abnormal_finished (struct NCR53c7x0_cmd *cmd, int result);
 static int disable (struct Scsi_Host *host);
 static int NCR53c7xx_run_tests (struct Scsi_Host *host);
-static irqreturn_t NCR53c7x0_intr(int irq, void *dev_id, struct pt_regs * regs);
+static irqreturn_t NCR53c7x0_intr(int irq, void *dev_id);
 static void NCR53c7x0_intfly (struct Scsi_Host *host);
 static int ncr_halt (struct Scsi_Host *host);
 static void intr_phase_mismatch (struct Scsi_Host *host, struct NCR53c7x0_cmd 
@@ -4227,7 +4227,7 @@ restart:
 }
 
 /*
- * Function : static irqreturn_t NCR53c7x0_intr (int irq, void *dev_id, struct pt_regs * regs)
+ * Function : static irqreturn_t NCR53c7x0_intr (int irq, void *dev_id)
  *
  * Purpose : handle NCR53c7x0 interrupts for all NCR devices sharing
  *	the same IRQ line.  
@@ -4241,7 +4241,7 @@ restart:
  */
 
 static irqreturn_t
-NCR53c7x0_intr (int irq, void *dev_id, struct pt_regs * regs)
+NCR53c7x0_intr (int irq, void *dev_id)
 {
     NCR53c7x0_local_declare();
     struct Scsi_Host *host;			/* Host we are looking at */

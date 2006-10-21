@@ -127,15 +127,14 @@ module_param(cpoint_count, int, 06444);
 MODULE_PARM_DESC(cpoint_count, "Crash Point Count, number of times the \
 				crash point is to be hit to trigger action");
 
-unsigned int jp_do_irq(unsigned int irq, struct pt_regs *regs)
+unsigned int jp_do_irq(unsigned int irq)
 {
 	lkdtm_handler();
 	jprobe_return();
 	return 0;
 }
 
-irqreturn_t jp_handle_irq_event(unsigned int irq, struct pt_regs *regs,
-			struct irqaction *action)
+irqreturn_t jp_handle_irq_event(unsigned int irq, struct irqaction *action)
 {
 	lkdtm_handler();
 	jprobe_return();

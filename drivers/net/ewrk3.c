@@ -300,7 +300,7 @@ struct ewrk3_private {
  */
 static int ewrk3_open(struct net_device *dev);
 static int ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t ewrk3_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t ewrk3_interrupt(int irq, void *dev_id);
 static int ewrk3_close(struct net_device *dev);
 static struct net_device_stats *ewrk3_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -884,7 +884,7 @@ err_out:
 /*
    ** The EWRK3 interrupt handler.
  */
-static irqreturn_t ewrk3_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ewrk3_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct ewrk3_private *lp;

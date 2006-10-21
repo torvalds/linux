@@ -823,7 +823,7 @@ static void inline sock_lock_init(struct sock *sk)
 				   af_family_slock_key_strings[sk->sk_family]);
 	lockdep_init_map(&sk->sk_lock.dep_map,
 			 af_family_key_strings[sk->sk_family],
-			 af_family_keys + sk->sk_family);
+			 af_family_keys + sk->sk_family, 0);
 }
 
 /**

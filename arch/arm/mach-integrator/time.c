@@ -96,8 +96,7 @@ static struct rtc_ops rtc_ops = {
 	.set_alarm	= integrator_rtc_set_alarm,
 };
 
-static irqreturn_t arm_rtc_interrupt(int irq, void *dev_id,
-				     struct pt_regs *regs)
+static irqreturn_t arm_rtc_interrupt(int irq, void *dev_id)
 {
 	writel(0, rtc_base + RTC_EOI);
 	return IRQ_HANDLED;

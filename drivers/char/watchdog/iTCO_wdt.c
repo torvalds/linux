@@ -49,7 +49,6 @@
 #define PFX		DRV_NAME ": "
 
 /* Includes */
-#include <linux/config.h>		/* For CONFIG_WATCHDOG_NOWAYOUT/... */
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */

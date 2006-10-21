@@ -220,7 +220,7 @@ au1000_dma_start(struct audio_stream *stream)
 }
 
 static irqreturn_t
-au1000_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+au1000_dma_interrupt(int irq, void *dev_id)
 {
 	struct audio_stream *stream = (struct audio_stream *) dev_id;
 	struct snd_pcm_substream *substream = stream->substream;

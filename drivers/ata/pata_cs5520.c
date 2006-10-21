@@ -299,10 +299,11 @@ static void __devexit cs5520_remove_one(struct pci_dev *pdev)
 /* For now keep DMA off. We can set it for all but A rev CS5510 once the
    core ATA code can handle it */
 
-static struct pci_device_id pata_cs5520[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520), },
-	{ 0, },
+static const struct pci_device_id pata_cs5520[] = {
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
+	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5520), },
+
+	{ },
 };
 
 static struct pci_driver cs5520_pci_driver = {
@@ -311,7 +312,6 @@ static struct pci_driver cs5520_pci_driver = {
 	.probe 		= cs5520_init_one,
 	.remove		= cs5520_remove_one
 };
-
 
 static int __init cs5520_init(void)
 {

@@ -1294,7 +1294,7 @@ static int snd_cmipci_capture_spdif_hw_free(struct snd_pcm_substream *subs)
 /*
  * interrupt handler
  */
-static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id)
 {
 	struct cmipci *cm = dev_id;
 	unsigned int status, mask = 0;
@@ -1315,7 +1315,7 @@ static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id, struct pt_regs *r
 	spin_unlock(&cm->reg_lock);
 
 	if (cm->rmidi && (status & CM_UARTINT))
-		snd_mpu401_uart_interrupt(irq, cm->rmidi->private_data, regs);
+		snd_mpu401_uart_interrupt(irq, cm->rmidi->private_data);
 
 	if (cm->pcm) {
 		if ((status & CM_CHINT0) && cm->channel[0].running)

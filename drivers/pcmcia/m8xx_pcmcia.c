@@ -266,7 +266,7 @@ static const u32 m8xx_size_to_gray[M8XX_SIZES_NO] =
 
 /* ------------------------------------------------------------------------- */
 
-static irqreturn_t m8xx_interrupt(int irq, void *dev, struct pt_regs *regs);
+static irqreturn_t m8xx_interrupt(int irq, void *dev);
 
 #define PCMCIA_BMT_LIMIT (15*4)  /* Bus Monitor Timeout value */
 
@@ -646,7 +646,7 @@ static struct platform_device m8xx_device = {
 static u32 pending_events[PCMCIA_SOCKETS_NO];
 static DEFINE_SPINLOCK(pending_event_lock);
 
-static irqreturn_t m8xx_interrupt(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t m8xx_interrupt(int irq, void *dev)
 {
 	struct socket_info *s;
 	struct event_table *e;

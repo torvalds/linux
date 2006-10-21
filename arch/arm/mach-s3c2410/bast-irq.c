@@ -112,8 +112,7 @@ static struct irqchip  bast_pc104_chip = {
 
 static void
 bast_irq_pc104_demux(unsigned int irq,
-		     struct irqdesc *desc,
-		     struct pt_regs *regs)
+		     struct irqdesc *desc)
 {
 	unsigned int stat;
 	unsigned int irqno;
@@ -133,7 +132,7 @@ bast_irq_pc104_demux(unsigned int irq,
 			if (stat & 1) {
 				irqno = bast_pc104_irqs[i];
 				desc = irq_desc + irqno;
-				desc_handle_irq(irqno, desc, regs);
+				desc_handle_irq(irqno, desc);
 			}
 		}
 	}

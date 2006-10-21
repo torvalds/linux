@@ -9,6 +9,7 @@
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
+#include <linux/backing-dev.h>
 #include <asm/uaccess.h>
 #include <asm/mmx.h>
 
@@ -179,7 +180,7 @@ __clear_user(void __user *to, unsigned long n)
 EXPORT_SYMBOL(__clear_user);
 
 /**
- * strlen_user: - Get the size of a string in user space.
+ * strnlen_user: - Get the size of a string in user space.
  * @s: The string to measure.
  * @n: The maximum valid length
  *
@@ -741,7 +742,7 @@ survive:
 
 			if (retval == -ENOMEM && is_init(current)) {
 				up_read(&current->mm->mmap_sem);
-				blk_congestion_wait(WRITE, HZ/50);
+				congestion_wait(WRITE, HZ/50);
 				goto survive;
 			}
 

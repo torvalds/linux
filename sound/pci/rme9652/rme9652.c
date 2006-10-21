@@ -1882,7 +1882,7 @@ static void snd_rme9652_set_defaults(struct snd_rme9652 *rme9652)
 	rme9652_set_rate(rme9652, 48000);
 }
 
-static irqreturn_t snd_rme9652_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t snd_rme9652_interrupt(int irq, void *dev_id)
 {
 	struct snd_rme9652 *rme9652 = (struct snd_rme9652 *) dev_id;
 

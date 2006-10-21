@@ -145,7 +145,7 @@ typedef struct msc_irqmap {
 #define MSC01_IRQ_EDGE		1
 
 extern void __init init_msc_irqs(unsigned int base, msc_irqmap_t *imp, int nirq);
-extern void ll_msc_irq(struct pt_regs *regs);
+extern void ll_msc_irq(void);
 
 #endif /* __ASM_MIPS_BOARDS_MSC01_IC_H */
 

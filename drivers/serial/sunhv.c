@@ -73,7 +73,7 @@ static inline long hypervisor_con_putchar(long ch)
 
 static int hung_up = 0;
 
-static struct tty_struct *receive_chars(struct uart_port *port, struct pt_regs *regs)
+static struct tty_struct *receive_chars(struct uart_port *port)
 {
 	struct tty_struct *tty = NULL;
 	int saw_console_brk = 0;
@@ -106,7 +106,7 @@ static struct tty_struct *receive_chars(struct uart_port *port, struct pt_regs *
 		}
 
 		if (tty == NULL) {
-			uart_handle_sysrq_char(port, c, regs);
+			uart_handle_sysrq_char(port, c);
 			continue;
 		}
 
@@ -119,7 +119,7 @@ static struct tty_struct *receive_chars(struct uart_port *port, struct pt_regs *
 			flag = TTY_BREAK;
 		}
 
-		if (uart_handle_sysrq_char(port, c, regs))
+		if (uart_handle_sysrq_char(port, c))
 			continue;
 
 		if ((port->ignore_status_mask & IGNORE_ALL) ||
@@ -161,14 +161,14 @@ static void transmit_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
-static irqreturn_t sunhv_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sunhv_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct tty_struct *tty;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	tty = receive_chars(port, regs);
+	tty = receive_chars(port);
 	transmit_chars(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 

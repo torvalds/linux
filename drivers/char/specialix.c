@@ -183,11 +183,6 @@ static int sx_poll = HZ;
 
 static struct tty_driver *specialix_driver;
 
-static unsigned long baud_table[] =  {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 0,
-};
-
 static struct specialix_board sx_board[SX_NBOARD] =  {
 	{ 0, SX_IOBASE1,  9, },
 	{ 0, SX_IOBASE2, 11, },
@@ -200,7 +195,7 @@ static struct specialix_port sx_port[SX_NBOARD * SX_NPORT];
 
 #ifdef SPECIALIX_TIMER
 static struct timer_list missed_irq_timer;
-static irqreturn_t sx_interrupt(int irq, void * dev_id, struct pt_regs * regs);
+static irqreturn_t sx_interrupt(int irq, void * dev_id);
 #endif
 
 
@@ -897,7 +892,7 @@ static inline void sx_check_modem(struct specialix_board * bp)
 
 
 /* The main interrupt processing routine */
-static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sx_interrupt(int irq, void *dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
@@ -912,7 +907,7 @@ static irqreturn_t sx_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	spin_lock_irqsave(&bp->lock, flags);
 
 	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __FUNCTION__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
-	if (!bp || !(bp->flags & SX_BOARD_ACTIVE)) {
+	if (!(bp->flags & SX_BOARD_ACTIVE)) {
 		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", irq);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		func_exit();
@@ -1090,9 +1085,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 
 	if (baud == 38400) {
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			baud ++;
+			baud = 57600;
 		if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			baud += 2;
+			baud = 115200;
 	}
 
 	if (!baud) {
@@ -1150,11 +1145,9 @@ static void sx_change_speed(struct specialix_board *bp, struct specialix_port *p
 	sx_out(bp, CD186x_RBPRL, tmp & 0xff);
 	sx_out(bp, CD186x_TBPRL, tmp & 0xff);
 	spin_unlock_irqrestore(&bp->lock, flags);
-	if (port->custom_divisor) {
+	if (port->custom_divisor)
 		baud = (SX_OSCFREQ + port->custom_divisor/2) / port->custom_divisor;
-		baud = ( baud + 5 ) / 10;
-	} else
-		baud = (baud_table[baud] + 5) / 10;   /* Estimated CPS */
+	baud = (baud + 5) / 10;		/* Estimated CPS */
 
 	/* Two timer ticks seems enough to wakeup something like SLIP driver */
 	tmp = ((baud + HZ/2) / HZ) * 2 - CD186x_NFIFO;

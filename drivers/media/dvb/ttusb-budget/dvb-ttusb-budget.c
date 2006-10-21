@@ -732,7 +732,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 	}
 }
 
-static void ttusb_iso_irq(struct urb *urb, struct pt_regs *ptregs)
+static void ttusb_iso_irq(struct urb *urb)
 {
 	struct ttusb *ttusb = urb->context;
 

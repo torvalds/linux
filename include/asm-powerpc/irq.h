@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <linux/list.h>
 #include <linux/radix-tree.h>
@@ -826,7 +825,7 @@ extern struct thread_info *softirq_ctx[NR_CPUS];
 
 extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
-extern int call_handle_irq(int irq, void *p1, void *p2,
+extern int call_handle_irq(int irq, void *p1,
 			   struct thread_info *tp, void *func);
 #else
 #define irq_ctx_init()

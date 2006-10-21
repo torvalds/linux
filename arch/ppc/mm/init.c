@@ -374,11 +374,12 @@ void __init paging_init(void)
 	end_pfn = start_pfn + (total_memory >> PAGE_SHIFT);
 	add_active_range(0, start_pfn, end_pfn);
 
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_HIGHMEM
-	max_zone_pfns[0] = total_lowmem >> PAGE_SHIFT;
-	max_zone_pfns[1] = total_memory >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_DMA] = total_lowmem >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_HIGHMEM] = total_memory >> PAGE_SHIFT;
 #else
-	max_zone_pfns[0] = total_memory >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_DMA] = total_memory >> PAGE_SHIFT;
 #endif /* CONFIG_HIGHMEM */
 	free_area_init_nodes(max_zone_pfns);
 }

@@ -875,7 +875,7 @@ static unsigned long io_port[] = {
 /* But transfer orientation from the 16 bit data register is Little Endian */
 #define REG2H(x)   le16_to_cpu(x)
 
-static irqreturn_t do_interrupt_handler(int, void *, struct pt_regs *);
+static irqreturn_t do_interrupt_handler(int, void *);
 static void flush_dev(struct scsi_device *, unsigned long, struct hostdata *,
 		      unsigned int);
 static int do_trace = 0;
@@ -2555,8 +2555,7 @@ static irqreturn_t ihdlr(int irq, struct Scsi_Host *shost)
 	return IRQ_NONE;
 }
 
-static irqreturn_t do_interrupt_handler(int irq, void *shap,
-					struct pt_regs *regs)
+static irqreturn_t do_interrupt_handler(int irq, void *shap)
 {
 	struct Scsi_Host *shost;
 	unsigned int j;

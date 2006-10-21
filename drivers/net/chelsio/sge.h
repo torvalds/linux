@@ -43,13 +43,6 @@
 #include <linux/interrupt.h>
 #include <asm/byteorder.h>
 
-#ifndef IRQ_RETVAL
-#define IRQ_RETVAL(x)
-typedef void irqreturn_t;
-#endif
-
-typedef irqreturn_t (*intr_handler_t)(int, void *, struct pt_regs *);
-
 struct sge_intr_counts {
 	unsigned int respQ_empty;      /* # times respQ empty */
 	unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
@@ -88,7 +81,7 @@ struct sge *t1_sge_create(struct adapter *, struct sge_params *);
 int t1_sge_configure(struct sge *, struct sge_params *);
 int t1_sge_set_coalesce_params(struct sge *, struct sge_params *);
 void t1_sge_destroy(struct sge *);
-intr_handler_t t1_select_intr_handler(adapter_t *adapter);
+irq_handler_t t1_select_intr_handler(adapter_t *adapter);
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void t1_set_vlan_accel(struct adapter *adapter, int on_off);
 void t1_sge_start(struct sge *);

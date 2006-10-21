@@ -85,11 +85,10 @@ static struct pcie_port_service_driver aerdrv = {
  * aer_irq - Root Port's ISR
  * @irq: IRQ assigned to Root Port
  * @context: pointer to Root Port data structure
- * @r: pointer struct pt_regs
  *
  * Invoked when Root Port detects AER messages.
  **/
-static irqreturn_t aer_irq(int irq, void *context, struct pt_regs * r)
+static irqreturn_t aer_irq(int irq, void *context)
 {
 	unsigned int status, id;
 	struct pcie_device *pdev = (struct pcie_device *)context;

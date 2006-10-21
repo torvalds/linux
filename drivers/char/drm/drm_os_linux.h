@@ -38,7 +38,7 @@
 			drm_device_t	*dev	= priv->head->dev
 
 /** IRQ handler arguments and return type and values */
-#define DRM_IRQ_ARGS		int irq, void *arg, struct pt_regs *regs
+#define DRM_IRQ_ARGS		int irq, void *arg
 
 /** AGP types */
 #if __OS_HAS_AGP

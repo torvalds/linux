@@ -1148,7 +1148,7 @@ static int myri10ge_poll(struct net_device *netdev, int *budget)
 	return 1;
 }
 
-static irqreturn_t myri10ge_intr(int irq, void *arg, struct pt_regs *regs)
+static irqreturn_t myri10ge_intr(int irq, void *arg)
 {
 	struct myri10ge_priv *mgp = arg;
 	struct mcp_irq_data *stats = mgp->fw_stats;

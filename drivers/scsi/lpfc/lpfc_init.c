@@ -389,7 +389,8 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	if (lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT) != MBX_SUCCESS) {
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba,
 				KERN_ERR,
 				LOG_INIT,
@@ -406,7 +407,8 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 		readl(phba->HAregaddr); /* flush */
 
 		phba->hba_state = LPFC_HBA_ERROR;
-		mempool_free(pmb, phba->mbox_mem_pool);
+		if (rc != MBX_BUSY)
+			mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
 	/* MBOX buffer will be freed in mbox compl */

@@ -89,7 +89,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 
 static unsigned int rt_timer_irq;
 
-void ip27_rt_timer_interrupt(struct pt_regs *regs)
+void ip27_rt_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
 	int cpuA = cputoslice(cpu) == 0;
@@ -111,7 +111,7 @@ again:
 	if (cpu == 0)
 		do_timer(1);
 
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update

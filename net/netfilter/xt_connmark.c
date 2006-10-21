@@ -147,7 +147,7 @@ static int __init xt_connmark_init(void)
 
 static void __exit xt_connmark_fini(void)
 {
-	xt_register_matches(xt_connmark_match, ARRAY_SIZE(xt_connmark_match));
+	xt_unregister_matches(xt_connmark_match, ARRAY_SIZE(xt_connmark_match));
 }
 
 module_init(xt_connmark_init);

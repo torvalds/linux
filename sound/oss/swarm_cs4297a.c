@@ -2505,7 +2505,7 @@ static /*const */ struct file_operations cs4297a_audio_fops = {
 	.release	= cs4297a_release,
 };
 
-static void cs4297a_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static void cs4297a_interrupt(int irq, void *dev_id)
 {
 	struct cs4297a_state *s = (struct cs4297a_state *) dev_id;
         u32 status;

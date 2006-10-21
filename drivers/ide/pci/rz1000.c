@@ -17,7 +17,6 @@
 
 #undef REALLY_SLOW_IO		/* most systems can safely undef this */
 
-#include <linux/config.h> /* for CONFIG_BLK_DEV_IDEPCI */
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

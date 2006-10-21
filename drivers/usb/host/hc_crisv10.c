@@ -478,9 +478,9 @@ static int etrax_usb_submit_urb(struct urb *urb, unsigned mem_flags);
 static int etrax_usb_unlink_urb(struct urb *urb, int status);
 static int etrax_usb_get_frame_number(struct usb_device *usb_dev);
 
-static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc, struct pt_regs *regs);
-static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc, struct pt_regs *regs);
-static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc, struct pt_regs *regs);
+static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc);
+static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc);
+static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc);
 static void etrax_usb_hc_interrupt_bottom_half(void *data);
 
 static void etrax_usb_isoc_descr_interrupt_bottom_half(void *data);
@@ -1573,7 +1573,7 @@ static int etrax_usb_get_frame_number(struct usb_device *usb_dev)
 	return (*R_USB_FM_NUMBER & 0x7ff);
 }
 
-static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_tx_interrupt(int irq, void *vhc)
 {
 	DBFENTER;
 
@@ -1839,7 +1839,7 @@ static void etrax_usb_isoc_descr_interrupt_bottom_half(void *data)
 
 
 
-static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_rx_interrupt(int irq, void *vhc)
 {
 	struct urb *urb;
 	etrax_urb_priv_t *urb_priv;
@@ -3280,7 +3280,7 @@ static void etrax_usb_complete_urb(struct urb *urb, int status)
 
 
 
-static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc, struct pt_regs *regs)
+static irqreturn_t etrax_usb_hc_interrupt_top_half(int irq, void *vhc)
 {
 	usb_interrupt_registers_t *reg;
 	unsigned long flags;

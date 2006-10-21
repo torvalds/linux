@@ -311,7 +311,7 @@ struct eepro_local {
 static int	eepro_probe1(struct net_device *dev, int autoprobe);
 static int	eepro_open(struct net_device *dev);
 static int	eepro_send_packet(struct sk_buff *skb, struct net_device *dev);
-static irqreturn_t eepro_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t eepro_interrupt(int irq, void *dev_id);
 static void 	eepro_rx(struct net_device *dev);
 static void 	eepro_transmit_interrupt(struct net_device *dev);
 static int	eepro_close(struct net_device *dev);
@@ -994,16 +994,6 @@ static int eepro_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-#ifdef irq2dev_map
-	if  (((irq2dev_map[dev->irq] != 0)
-		|| (irq2dev_map[dev->irq] = dev) == 0) &&
-		(irq2dev_map[dev->irq]!=dev)) {
-		/* printk("%s: IRQ map wrong\n", dev->name); */
-	        free_irq(dev->irq, dev);
-		return -EAGAIN;
-	}
-#endif
-
 	/* Initialize the 82595. */
 
 	eepro_sw2bank2(ioaddr); /* be CAREFUL, BANK 2 now */
@@ -1196,18 +1186,12 @@ static int eepro_send_packet(struct sk_buff *skb, struct net_device *dev)
 	Handle the network interface interrupts. */
 
 static irqreturn_t
-eepro_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+eepro_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev =  (struct net_device *)dev_id;
-	                      /* (struct net_device *)(irq2dev_map[irq]);*/
+	struct net_device *dev = dev_id;
 	struct eepro_local *lp;
 	int ioaddr, status, boguscount = 20;
 	int handled = 0;
-
-	if (dev == NULL) {
-                printk (KERN_ERR "eepro_interrupt(): irq %d for unknown device.\\n", irq);
-                return IRQ_NONE;
-        }
 
 	lp = netdev_priv(dev);
 
@@ -1287,10 +1271,6 @@ static int eepro_close(struct net_device *dev)
 
 	/* release the interrupt */
 	free_irq(dev->irq, dev);
-
-#ifdef irq2dev_map
-	irq2dev_map[dev->irq] = 0;
-#endif
 
 	/* Update the statistics here. What statistics? */
 

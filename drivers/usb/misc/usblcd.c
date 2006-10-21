@@ -165,7 +165,7 @@ static int lcd_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	return 0;
 }
 
-static void lcd_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
+static void lcd_write_bulk_callback(struct urb *urb)
 {
 	struct usb_lcd *dev;
 

@@ -270,14 +270,13 @@ static int wdtpci_get_temperature(int *temperature)
  *	wdtpci_interrupt:
  *	@irq:		Interrupt number
  *	@dev_id:	Unused as we don't allow multiple devices.
- *	@regs:		Unused.
  *
  *	Handle an interrupt from the board. These are raised when the status
  *	map changes in what the board considers an interesting way. That means
  *	a failure condition occurring.
  */
 
-static irqreturn_t wdtpci_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 {
 	/*
 	 *	Read the status register see what is up and

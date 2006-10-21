@@ -492,7 +492,7 @@ apus_halt(void)
 
 static unsigned char last_ipl[8];
 
-int apus_get_irq(struct pt_regs* regs)
+int apus_get_irq(void)
 {
 	unsigned char ipl_emu, mask;
 	unsigned int level;

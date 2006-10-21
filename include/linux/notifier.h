@@ -12,9 +12,10 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/srcu.h>
 
 /*
- * Notifier chains are of three types:
+ * Notifier chains are of four types:
  *
  *	Atomic notifier chains: Chain callbacks run in interrupt/atomic
  *		context. Callouts are not allowed to block.
@@ -23,13 +24,27 @@
  *	Raw notifier chains: There are no restrictions on callbacks,
  *		registration, or unregistration.  All locking and protection
  *		must be provided by the caller.
+ *	SRCU notifier chains: A variant of blocking notifier chains, with
+ *		the same restrictions.
  *
  * atomic_notifier_chain_register() may be called from an atomic context,
- * but blocking_notifier_chain_register() must be called from a process
- * context.  Ditto for the corresponding _unregister() routines.
+ * but blocking_notifier_chain_register() and srcu_notifier_chain_register()
+ * must be called from a process context.  Ditto for the corresponding
+ * _unregister() routines.
  *
- * atomic_notifier_chain_unregister() and blocking_notifier_chain_unregister()
- * _must not_ be called from within the call chain.
+ * atomic_notifier_chain_unregister(), blocking_notifier_chain_unregister(),
+ * and srcu_notifier_chain_unregister() _must not_ be called from within
+ * the call chain.
+ *
+ * SRCU notifier chains are an alternative form of blocking notifier chains.
+ * They use SRCU (Sleepable Read-Copy Update) instead of rw-semaphores for
+ * protection of the chain links.  This means there is _very_ low overhead
+ * in srcu_notifier_call_chain(): no cache bounces and no memory barriers.
+ * As compensation, srcu_notifier_chain_unregister() is rather expensive.
+ * SRCU notifier chains should be used when the chain will be called very
+ * often but notifier_blocks will seldom be removed.  Also, SRCU notifier
+ * chains are slightly more difficult to use because they require special
+ * runtime initialization.
  */
 
 struct notifier_block {
@@ -52,6 +67,12 @@ struct raw_notifier_head {
 	struct notifier_block *head;
 };
 
+struct srcu_notifier_head {
+	struct mutex mutex;
+	struct srcu_struct srcu;
+	struct notifier_block *head;
+};
+
 #define ATOMIC_INIT_NOTIFIER_HEAD(name) do {	\
 		spin_lock_init(&(name)->lock);	\
 		(name)->head = NULL;		\
@@ -64,6 +85,11 @@ struct raw_notifier_head {
 		(name)->head = NULL;		\
 	} while (0)
 
+/* srcu_notifier_heads must be initialized and cleaned up dynamically */
+extern void srcu_init_notifier_head(struct srcu_notifier_head *nh);
+#define srcu_cleanup_notifier_head(name)	\
+		cleanup_srcu_struct(&(name)->srcu);
+
 #define ATOMIC_NOTIFIER_INIT(name) {				\
 		.lock = __SPIN_LOCK_UNLOCKED(name.lock),	\
 		.head = NULL }
@@ -72,6 +98,7 @@ struct raw_notifier_head {
 		.head = NULL }
 #define RAW_NOTIFIER_INIT(name)	{				\
 		.head = NULL }
+/* srcu_notifier_heads cannot be initialized statically */
 
 #define ATOMIC_NOTIFIER_HEAD(name)				\
 	struct atomic_notifier_head name =			\
@@ -91,6 +118,8 @@ extern int blocking_notifier_chain_register(struct blocking_notifier_head *,
 		struct notifier_block *);
 extern int raw_notifier_chain_register(struct raw_notifier_head *,
 		struct notifier_block *);
+extern int srcu_notifier_chain_register(struct srcu_notifier_head *,
+		struct notifier_block *);
 
 extern int atomic_notifier_chain_unregister(struct atomic_notifier_head *,
 		struct notifier_block *);
@@ -98,12 +127,16 @@ extern int blocking_notifier_chain_unregister(struct blocking_notifier_head *,
 		struct notifier_block *);
 extern int raw_notifier_chain_unregister(struct raw_notifier_head *,
 		struct notifier_block *);
+extern int srcu_notifier_chain_unregister(struct srcu_notifier_head *,
+		struct notifier_block *);
 
 extern int atomic_notifier_call_chain(struct atomic_notifier_head *,
 		unsigned long val, void *v);
 extern int blocking_notifier_call_chain(struct blocking_notifier_head *,
 		unsigned long val, void *v);
 extern int raw_notifier_call_chain(struct raw_notifier_head *,
+		unsigned long val, void *v);
+extern int srcu_notifier_call_chain(struct srcu_notifier_head *,
 		unsigned long val, void *v);
 
 #define NOTIFY_DONE		0x0000		/* Don't care */

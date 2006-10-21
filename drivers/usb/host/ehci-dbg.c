@@ -754,7 +754,9 @@ show_registers (struct class_device *class_dev, char *buf)
 	}
 
 	if (ehci->reclaim) {
-		temp = scnprintf (next, size, "reclaim qh %p\n", ehci->reclaim);
+		temp = scnprintf (next, size, "reclaim qh %p%s\n",
+				ehci->reclaim,
+				ehci->reclaim_ready ? " ready" : "");
 		size -= temp;
 		next += temp;
 	}

@@ -29,14 +29,6 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers that were depending on OBSOLETE_OSS_DRIVER
-        (config options already removed)
-When:	before 2.6.19
-Why:	OSS drivers with ALSA replacements
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
 When:	November 2006
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
@@ -263,7 +255,7 @@ Who:	Stephen Hemminger <shemminger@osdl.org>
 
 
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
-When:	Oktober 2008
+When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
 	inconsistent.
 	Class devices should not carry any of these properties, and bus

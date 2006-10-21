@@ -984,6 +984,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (!p)
 		goto fork_out;
 
+	rt_mutex_init_task(p);
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	DEBUG_LOCKS_WARN_ON(!p->hardirqs_enabled);
 	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
@@ -1087,8 +1089,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->curr_chain_key = 0;
 	p->lockdep_recursion = 0;
 #endif
-
-	rt_mutex_init_task(p);
 
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */

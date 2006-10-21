@@ -94,7 +94,7 @@ static char *drive_names[7] = {
 int swimiop_init(void);
 static void swimiop_init_request(struct swim_iop_req *);
 static int swimiop_send_request(struct swim_iop_req *);
-static void swimiop_receive(struct iop_msg *, struct pt_regs *);
+static void swimiop_receive(struct iop_msg *);
 static void swimiop_status_update(int, struct swim_drvstatus *);
 static int swimiop_eject(struct floppy_state *fs);
 
@@ -257,7 +257,7 @@ static int swimiop_send_request(struct swim_iop_req *req)
  * 2. An unsolicited message was received from the IOP.
  */
 
-void swimiop_receive(struct iop_msg *msg, struct pt_regs *regs)
+void swimiop_receive(struct iop_msg *msg)
 {
 	struct swim_iop_req *req;
 	struct swimmsg_status *sm;

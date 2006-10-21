@@ -82,15 +82,13 @@ struct spaceball {
  * SpaceBall.
  */
 
-static void spaceball_process_packet(struct spaceball* spaceball, struct pt_regs *regs)
+static void spaceball_process_packet(struct spaceball* spaceball)
 {
 	struct input_dev *dev = spaceball->dev;
 	unsigned char *data = spaceball->data;
 	int i;
 
 	if (spaceball->idx < 2) return;
-
-	input_regs(dev, regs);
 
 	switch (spaceball->data[0]) {
 
@@ -151,13 +149,13 @@ static void spaceball_process_packet(struct spaceball* spaceball, struct pt_regs
  */
 
 static irqreturn_t spaceball_interrupt(struct serio *serio,
-		unsigned char data, unsigned int flags, struct pt_regs *regs)
+		unsigned char data, unsigned int flags)
 {
 	struct spaceball *spaceball = serio_get_drvdata(serio);
 
 	switch (data) {
 		case 0xd:
-			spaceball_process_packet(spaceball, regs);
+			spaceball_process_packet(spaceball);
 			spaceball->idx = 0;
 			spaceball->escape = 0;
 			break;

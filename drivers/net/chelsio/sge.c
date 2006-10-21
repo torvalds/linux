@@ -1217,7 +1217,7 @@ static inline int napi_is_scheduled(struct net_device *dev)
 /*
  * NAPI version of the main interrupt handler.
  */
-static irqreturn_t t1_interrupt_napi(int irq, void *data, struct pt_regs *regs)
+static irqreturn_t t1_interrupt_napi(int irq, void *data)
 {
 	int handled;
 	struct adapter *adapter = data;
@@ -1279,7 +1279,7 @@ static irqreturn_t t1_interrupt_napi(int irq, void *data, struct pt_regs *regs)
  * 5. If we took an interrupt, but no valid respQ descriptors was found we
  *      let the slow_intr_handler run and do error handling.
  */
-static irqreturn_t t1_interrupt(int irq, void *cookie, struct pt_regs *regs)
+static irqreturn_t t1_interrupt(int irq, void *cookie)
 {
 	int work_done;
 	struct respQ_e *e;
@@ -1312,7 +1312,7 @@ static irqreturn_t t1_interrupt(int irq, void *cookie, struct pt_regs *regs)
 	return IRQ_RETVAL(work_done != 0);
 }
 
-intr_handler_t t1_select_intr_handler(adapter_t *adapter)
+irq_handler_t t1_select_intr_handler(adapter_t *adapter)
 {
 	return adapter->params.sge.polling ? t1_interrupt_napi : t1_interrupt;
 }

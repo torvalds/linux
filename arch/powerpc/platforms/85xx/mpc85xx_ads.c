@@ -66,13 +66,12 @@ mpc85xx_pcibios_fixup(void)
 
 #ifdef CONFIG_CPM2
 
-static void cpm2_cascade(unsigned int irq, struct irq_desc *desc,
-			 struct pt_regs *regs)
+static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	int cascade_irq;
 
-	while ((cascade_irq = cpm2_get_irq(regs)) >= 0) {
-		generic_handle_irq(cascade_irq, regs);
+	while ((cascade_irq = cpm2_get_irq()) >= 0) {
+		generic_handle_irq(cascade_irq);
 	}
 	desc->chip->eoi(irq);
 }

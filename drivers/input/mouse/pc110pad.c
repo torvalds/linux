@@ -57,7 +57,7 @@ static struct input_dev *pc110pad_dev;
 static int pc110pad_data[3];
 static int pc110pad_count;
 
-static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
+static irqreturn_t pc110pad_interrupt(int irq, void *ptr)
 {
 	int value     = inb_p(pc110pad_io);
 	int handshake = inb_p(pc110pad_io + 2);
@@ -71,7 +71,6 @@ static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
 	if (pc110pad_count < 3)
 		return IRQ_HANDLED;
 
-	input_regs(pc110pad_dev, regs);
 	input_report_key(pc110pad_dev, BTN_TOUCH,
 		pc110pad_data[0] & 0x01);
 	input_report_abs(pc110pad_dev, ABS_X,
@@ -91,9 +90,9 @@ static void pc110pad_close(struct input_dev *dev)
 
 static int pc110pad_open(struct input_dev *dev)
 {
-	pc110pad_interrupt(0, NULL, NULL);
-	pc110pad_interrupt(0, NULL, NULL);
-	pc110pad_interrupt(0, NULL, NULL);
+	pc110pad_interrupt(0, NULL);
+	pc110pad_interrupt(0, NULL);
+	pc110pad_interrupt(0, NULL);
 	outb(PC110PAD_ON, pc110pad_io + 2);
 	pc110pad_count = 0;
 

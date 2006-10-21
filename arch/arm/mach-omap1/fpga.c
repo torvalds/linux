@@ -84,8 +84,7 @@ static void fpga_mask_ack_irq(unsigned int irq)
 	fpga_ack_irq(irq);
 }
 
-void innovator_fpga_IRQ_demux(unsigned int irq, struct irqdesc *desc,
-			      struct pt_regs *regs)
+void innovator_fpga_IRQ_demux(unsigned int irq, struct irqdesc *desc)
 {
 	struct irqdesc *d;
 	u32 stat;
@@ -101,7 +100,7 @@ void innovator_fpga_IRQ_demux(unsigned int irq, struct irqdesc *desc,
 	     fpga_irq++, stat >>= 1) {
 		if (stat & 1) {
 			d = irq_desc + fpga_irq;
-			desc_handle_irq(fpga_irq, d, regs);
+			desc_handle_irq(fpga_irq, d);
 		}
 	}
 }

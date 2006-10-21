@@ -6,7 +6,6 @@
  * of ugly preprocessor tricks. Talk about very very poor man's inheritance.
  */ 
 #include <linux/types.h>
-#include <linux/config.h> 
 #include <linux/stddef.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>

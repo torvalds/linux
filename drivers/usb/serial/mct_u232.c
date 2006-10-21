@@ -96,7 +96,7 @@ static int  mct_u232_open	         (struct usb_serial_port *port,
 					  struct file *filp);
 static void mct_u232_close	         (struct usb_serial_port *port,
 					  struct file *filp);
-static void mct_u232_read_int_callback   (struct urb *urb, struct pt_regs *regs);
+static void mct_u232_read_int_callback   (struct urb *urb);
 static void mct_u232_set_termios         (struct usb_serial_port *port,
 					  struct termios * old);
 static int  mct_u232_ioctl	         (struct usb_serial_port *port,
@@ -466,7 +466,7 @@ static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 } /* mct_u232_close */
 
 
-static void mct_u232_read_int_callback (struct urb *urb, struct pt_regs *regs)
+static void mct_u232_read_int_callback (struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);

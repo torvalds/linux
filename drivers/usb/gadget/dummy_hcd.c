@@ -1551,7 +1551,7 @@ return_urb:
 			ep->already_seen = ep->setup_stage = 0;
 
 		spin_unlock (&dum->lock);
-		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb, NULL);
+		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb);
 		spin_lock (&dum->lock);
 
 		goto restart;

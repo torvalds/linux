@@ -62,6 +62,7 @@
 #include <asm/cache.h>
 #include <asm/8xx_immap.h>
 #include <asm/machdep.h>
+#include <asm/irq_regs.h>
 
 #include <asm/time.h>
 
@@ -129,6 +130,7 @@ void wakeup_decrementer(void)
  */
 void timer_interrupt(struct pt_regs * regs)
 {
+	struct pt_regs *old_regs;
 	int next_dec;
 	unsigned long cpu = smp_processor_id();
 	unsigned jiffy_stamp = last_jiffy_stamp(cpu);
@@ -137,12 +139,13 @@ void timer_interrupt(struct pt_regs * regs)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
 
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 	while ((next_dec = tb_ticks_per_jiffy - tb_delta(&jiffy_stamp)) <= 0) {
 		jiffy_stamp += tb_ticks_per_jiffy;
 		
-		profile_tick(CPU_PROFILING, regs);
+		profile_tick(CPU_PROFILING);
 		update_process_times(user_mode(regs));
 
 	  	if (smp_processor_id())
@@ -188,6 +191,7 @@ void timer_interrupt(struct pt_regs * regs)
 		ppc_md.heartbeat();
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*

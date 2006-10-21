@@ -349,8 +349,8 @@ static int tsc_update_callback(void)
 	int change = 0;
 
 	/* check to see if we should switch to the safe clocksource: */
-	if (clocksource_tsc.rating != 50 && check_tsc_unstable()) {
-		clocksource_tsc.rating = 50;
+	if (clocksource_tsc.rating != 0 && check_tsc_unstable()) {
+		clocksource_tsc.rating = 0;
 		clocksource_reselect();
 		change = 1;
 	}
@@ -461,7 +461,7 @@ static int __init init_tsc_clocksource(void)
 							clocksource_tsc.shift);
 		/* lower the rating if we already know its unstable: */
 		if (check_tsc_unstable())
-			clocksource_tsc.rating = 50;
+			clocksource_tsc.rating = 0;
 
 		init_timer(&verify_tsc_freq_timer);
 		verify_tsc_freq_timer.function = verify_tsc_freq;

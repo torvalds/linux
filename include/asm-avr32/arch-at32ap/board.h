@@ -9,9 +9,15 @@
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 
-#define AT91_NR_UART	4
-extern struct platform_device *at91_default_console_device;
+#define ATMEL_MAX_UART	4
+extern struct platform_device *atmel_default_console_device;
 
+struct atmel_uart_data {
+	short		use_dma_tx;	/* use transmit DMA? */
+	short		use_dma_rx;	/* use receive DMA? */
+	void __iomem	*regs;		/* virtual base address, if any */
+};
+void at32_map_usart(unsigned int hw_id, unsigned int line);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
 struct eth_platform_data {

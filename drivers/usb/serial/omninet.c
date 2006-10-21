@@ -64,8 +64,8 @@ static int debug;
 /* function prototypes */
 static int  omninet_open		(struct usb_serial_port *port, struct file *filp);
 static void omninet_close		(struct usb_serial_port *port, struct file *filp);
-static void omninet_read_bulk_callback	(struct urb *urb, struct pt_regs *regs);
-static void omninet_write_bulk_callback	(struct urb *urb, struct pt_regs *regs);
+static void omninet_read_bulk_callback	(struct urb *urb);
+static void omninet_write_bulk_callback	(struct urb *urb);
 static int  omninet_write		(struct usb_serial_port *port, const unsigned char *buf, int count);
 static int  omninet_write_room		(struct usb_serial_port *port);
 static void omninet_shutdown		(struct usb_serial *serial);
@@ -194,7 +194,7 @@ static void omninet_close (struct usb_serial_port *port, struct file * filp)
 #define OMNINET_HEADERLEN	sizeof(struct omninet_header)
 #define OMNINET_BULKOUTSIZE 	(64 - OMNINET_HEADERLEN)
 
-static void omninet_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void omninet_read_bulk_callback (struct urb *urb)
 {
 	struct usb_serial_port 	*port 	= (struct usb_serial_port *)urb->context;
 	unsigned char 		*data 	= urb->transfer_buffer;
@@ -306,7 +306,7 @@ static int omninet_write_room (struct usb_serial_port *port)
 	return (room);
 }
 
-static void omninet_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
+static void omninet_write_bulk_callback (struct urb *urb)
 {
 /*	struct omninet_header	*header = (struct omninet_header  *) urb->transfer_buffer; */
 	struct usb_serial_port 	*port   = (struct usb_serial_port *) urb->context;

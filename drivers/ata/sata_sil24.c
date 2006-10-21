@@ -330,7 +330,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance);
 static void sil24_freeze(struct ata_port *ap);
 static void sil24_thaw(struct ata_port *ap);
 static void sil24_error_handler(struct ata_port *ap);
@@ -344,11 +344,12 @@ static int sil24_pci_device_resume(struct pci_dev *pdev);
 #endif
 
 static const struct pci_device_id sil24_pci_tbl[] = {
-	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x8086, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
-	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
-	{ 0x1095, 0x3131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
-	{ 0x1095, 0x3531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(INTEL, 0x3124), BID_SIL3124 },
+	{ PCI_VDEVICE(CMD, 0x3132), BID_SIL3132 },
+	{ PCI_VDEVICE(CMD, 0x3131), BID_SIL3131 },
+	{ PCI_VDEVICE(CMD, 0x3531), BID_SIL3131 },
+
 	{ } /* terminate list */
 };
 
@@ -869,7 +870,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 			slot_stat, ap->active_tag, ap->sactive);
 }
 
-static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
+static irqreturn_t sil24_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct sil24_host_priv *hpriv = host->private_data;

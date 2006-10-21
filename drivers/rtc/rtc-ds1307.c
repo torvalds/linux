@@ -141,9 +141,9 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
-		"write", dt->tm_sec, dt->tm_min,
-		dt->tm_hour, dt->tm_mday,
-		dt->tm_mon, dt->tm_year, dt->tm_wday);
+		"write", t->tm_sec, t->tm_min,
+		t->tm_hour, t->tm_mday,
+		t->tm_mon, t->tm_year, t->tm_wday);
 
 	*buf++ = 0;		/* first register addr */
 	buf[DS1307_REG_SECS] = BIN2BCD(t->tm_sec);
