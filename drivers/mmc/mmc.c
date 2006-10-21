@@ -4,6 +4,7 @@
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
  *  SD support Copyright (C) 2005 Pierre Ossman, All Rights Reserved.
+ *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -953,6 +954,114 @@ static void mmc_read_csds(struct mmc_host *host)
 	}
 }
 
+static void mmc_process_ext_csds(struct mmc_host *host)
+{
+	int err;
+	struct mmc_card *card;
+
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+
+	struct scatterlist sg;
+
+	/*
+	 * As the ext_csd is so large and mostly unused, we don't store the
+	 * raw block in mmc_card.
+	 */
+	u8 *ext_csd;
+	ext_csd = kmalloc(512, GFP_KERNEL);
+	if (!ext_csd) {
+		printk("%s: could not allocate a buffer to receive the ext_csd."
+		       "mmc v4 cards will be treated as v3.\n",
+			mmc_hostname(host));
+		return;
+	}
+
+	list_for_each_entry(card, &host->cards, node) {
+		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
+			continue;
+		if (mmc_card_sd(card))
+			continue;
+		if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
+			continue;
+
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = MMC_SEND_EXT_CSD;
+		cmd.arg = 0;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+
+		memset(&data, 0, sizeof(struct mmc_data));
+
+		mmc_set_data_timeout(&data, card, 0);
+
+		data.blksz = 512;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		sg_init_one(&sg, ext_csd, 512);
+
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		switch (ext_csd[EXT_CSD_CARD_TYPE]) {
+		case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
+			card->ext_csd.hs_max_dtr = 52000000;
+			break;
+		case EXT_CSD_CARD_TYPE_26:
+			card->ext_csd.hs_max_dtr = 26000000;
+			break;
+		default:
+			/* MMC v4 spec says this cannot happen */
+			printk("%s: card is mmc v4 but doesn't support "
+			       "any high-speed modes.\n",
+				mmc_hostname(card->host));
+			mmc_card_set_bad(card);
+			continue;
+		}
+
+		/* Activate highspeed support. */
+		cmd.opcode = MMC_SWITCH;
+		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+			  (EXT_CSD_HS_TIMING << 16) |
+			  (1 << 8) |
+			  EXT_CSD_CMD_SET_NORMAL;
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE) {
+			printk("%s: failed to switch card to mmc v4 "
+			       "high-speed mode.\n",
+			       mmc_hostname(card->host));
+			continue;
+		}
+
+		mmc_card_set_highspeed(card);
+	}
+
+	kfree(ext_csd);
+
+	mmc_deselect_cards(host);
+}
+
 static void mmc_read_scrs(struct mmc_host *host)
 {
 	int err;
@@ -1031,8 +1140,14 @@ static unsigned int mmc_calculate_clock(struct mmc_host *host)
 	unsigned int max_dtr = host->f_max;
 
 	list_for_each_entry(card, &host->cards, node)
-		if (!mmc_card_dead(card) && max_dtr > card->csd.max_dtr)
-			max_dtr = card->csd.max_dtr;
+		if (!mmc_card_dead(card)) {
+			if (mmc_card_highspeed(card)) {
+				if (max_dtr > card->ext_csd.hs_max_dtr)
+			    		max_dtr = card->ext_csd.hs_max_dtr;
+			} else if (max_dtr > card->csd.max_dtr) {
+				max_dtr = card->csd.max_dtr;
+			}
+		}
 
 	pr_debug("%s: selected %d.%03dMHz transfer rate\n",
 		 mmc_hostname(host),
@@ -1152,6 +1267,8 @@ static void mmc_setup(struct mmc_host *host)
 
 	if (host->mode == MMC_MODE_SD)
 		mmc_read_scrs(host);
+	else
+		mmc_process_ext_csds(host);
 }
 
 
