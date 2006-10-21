@@ -286,9 +286,7 @@ struct nand_ecc_ctrl {
  * struct nand_buffers - buffer structure for read/write
  * @ecccalc:	buffer for calculated ecc
  * @ecccode:	buffer for ecc read from flash
- * @oobwbuf:	buffer for write oob data
  * @databuf:	buffer for data - dynamically sized
- * @oobrbuf:	buffer to read oob data
  *
  * Do not change the order of buffers. databuf and oobrbuf must be in
  * consecutive order.
@@ -296,9 +294,7 @@ struct nand_ecc_ctrl {
 struct nand_buffers {
 	uint8_t	ecccalc[NAND_MAX_OOBSIZE];
 	uint8_t	ecccode[NAND_MAX_OOBSIZE];
-	uint8_t	oobwbuf[NAND_MAX_OOBSIZE];
-	uint8_t databuf[NAND_MAX_PAGESIZE];
-	uint8_t	oobrbuf[NAND_MAX_OOBSIZE];
+	uint8_t databuf[NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE];
 };
 
 /**

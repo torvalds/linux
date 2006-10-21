@@ -971,7 +971,6 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	page = realpage & chip->pagemask;
 
 	col = (int)(from & (mtd->writesize - 1));
-	chip->oob_poi = chip->buffers->oobrbuf;
 
 	buf = ops->datbuf;
 	oob = ops->oobbuf;
@@ -1269,8 +1268,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	/* Shift to get page */
 	realpage = (int)(from >> chip->page_shift);
 	page = realpage & chip->pagemask;
-
-	chip->oob_poi = chip->buffers->oobrbuf;
 
 	while(1) {
 		sndcmd = chip->ecc.read_oob(mtd, chip, page, sndcmd);
@@ -1625,7 +1622,9 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 	    (chip->pagebuf << chip->page_shift) < (to + ops->len))
 		chip->pagebuf = -1;
 
-	chip->oob_poi = chip->buffers->oobwbuf;
+	/* If we're not given explicit OOB data, let it be 0xFF */
+	if (likely(!oob))
+		memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	while(1) {
 		int cached = writelen > bytes && page != blockmask;
@@ -1653,9 +1652,6 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 			chip->select_chip(mtd, chipnr);
 		}
 	}
-
-	if (unlikely(oob))
-		memset(chip->oob_poi, 0xff, mtd->oobsize);
 
 	ops->retlen = ops->len - writelen;
 	return ret;
@@ -1744,7 +1740,6 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	if (page == chip->pagebuf)
 		chip->pagebuf = -1;
 
-	chip->oob_poi = chip->buffers->oobwbuf;
 	memset(chip->oob_poi, 0xff, mtd->oobsize);
 	nand_fill_oob(chip, ops->oobbuf, ops);
 	status = chip->ecc.write_oob(mtd, chip, page & chip->pagemask);
@@ -2348,8 +2343,8 @@ int nand_scan_tail(struct mtd_info *mtd)
 	if (!chip->buffers)
 		return -ENOMEM;
 
-	/* Preset the internal oob write buffer */
-	memset(chip->buffers->oobwbuf, 0xff, mtd->oobsize);
+	/* Set the internal oob buffer location, just after the page data */
+	chip->oob_poi = chip->buffers + mtd->writesize;
 
 	/*
 	 * If no default placement scheme is given, select an appropriate one
