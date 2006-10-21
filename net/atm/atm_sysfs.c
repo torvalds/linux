@@ -141,7 +141,7 @@ static struct class atm_class = {
 int atm_register_sysfs(struct atm_dev *adev)
 {
 	struct class_device *cdev = &adev->class_dev;
-	int i, err;
+	int i, j, err;
 
 	cdev->class = &atm_class;
 	class_set_devdata(cdev, adev);
@@ -151,10 +151,19 @@ int atm_register_sysfs(struct atm_dev *adev)
 	if (err < 0)
 		return err;
 
-	for (i = 0; atm_attrs[i]; i++)
-		class_device_create_file(cdev, atm_attrs[i]);
+	for (i = 0; atm_attrs[i]; i++) {
+		err = class_device_create_file(cdev, atm_attrs[i]);
+		if (err)
+			goto err_out;
+	}
 
 	return 0;
+
+err_out:
+	for (j = 0; j < i; j++)
+		class_device_remove_file(cdev, atm_attrs[j]);
+	class_device_del(cdev);
+	return err;
 }
 
 void atm_unregister_sysfs(struct atm_dev *adev)
