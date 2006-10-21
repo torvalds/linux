@@ -242,7 +242,7 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 			//TODO
 			break;
 		case BCM43xx_LED_ASSOC:
-			if (bcm->softmac->associated)
+			if (bcm->softmac->associnfo.associated)
 				turn_on = 1;
 			break;
 #ifdef CONFIG_BCM43XX_DEBUG
