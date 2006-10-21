@@ -1923,7 +1923,6 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 {
 	int return_code;
 	unsigned long t;
-	unsigned long rem;
 
 	memset(inq_buff, 0, sizeof(InquiryData_struct));
 	if (withirq)
@@ -1939,26 +1938,23 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			printk(KERN_WARNING
 			       "cciss: reading geometry failed, volume "
 			       "does not support reading geometry\n");
-			drv->block_size = block_size;
-			drv->nr_blocks = total_size;
 			drv->heads = 255;
 			drv->sectors = 32;	// Sectors per track
-			t = drv->heads * drv->sectors;
-			drv->cylinders = total_size;
-			rem = do_div(drv->cylinders, t);
 		} else {
-			drv->block_size = block_size;
-			drv->nr_blocks = total_size;
 			drv->heads = inq_buff->data_byte[6];
 			drv->sectors = inq_buff->data_byte[7];
 			drv->cylinders = (inq_buff->data_byte[4] & 0xff) << 8;
 			drv->cylinders += inq_buff->data_byte[5];
 			drv->raid_level = inq_buff->data_byte[8];
-			t = drv->heads * drv->sectors;
-			if (t > 1) {
-				drv->cylinders = total_size;
-				rem = do_div(drv->cylinders, t);
-			}
+		}
+		drv->block_size = block_size;
+		drv->nr_blocks = total_size;
+		t = drv->heads * drv->sectors;
+		if (t > 1) {
+			unsigned rem = sector_div(total_size, t);
+			if (rem)
+				total_size++;
+			drv->cylinders = total_size;
 		}
 	} else {		/* Get geometry failed */
 		printk(KERN_WARNING "cciss: reading geometry failed\n");
