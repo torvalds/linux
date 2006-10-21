@@ -1255,12 +1255,15 @@ static int ioapic_retrigger_irq(unsigned int irq)
 {
 	cpumask_t mask;
 	unsigned vector;
+	unsigned long flags;
 
+	spin_lock_irqsave(&vector_lock, flags);
 	vector = irq_vector[irq];
 	cpus_clear(mask);
-	cpu_set(vector >> 8, mask);
+	cpu_set(first_cpu(irq_domain[irq]), mask);
 
-	send_IPI_mask(mask, vector & 0xff);
+	send_IPI_mask(mask, vector);
+	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
 }
