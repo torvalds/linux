@@ -366,6 +366,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 { 
 	pte_t pte;
 	pte_val(pte) = physpage | pgprot_val(pgprot); 
+	pte_val(pte) &= __supported_pte_mask;
 	return pte; 
 }
  

@@ -57,7 +57,7 @@ static int no_timer_check;
 
 static int disable_timer_pin_1 __initdata;
 
-int timer_over_8254 __initdata = 0;
+int timer_over_8254 __initdata = 1;
 
 /* Where if anywhere is the i8259 connect in external int mode */
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
@@ -651,12 +651,12 @@ next:
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
 		for_each_cpu_mask(new_cpu, domain)
-			if (per_cpu(vector_irq, cpu)[vector] != -1)
+			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
 		for_each_cpu_mask(new_cpu, domain) {
-			pos[cpu].vector = vector;
-			pos[cpu].offset = offset;
+			pos[new_cpu].vector = vector;
+			pos[new_cpu].offset = offset;
 		}
 		if (old_vector >= 0) {
 			int old_cpu;
@@ -1255,12 +1255,15 @@ static int ioapic_retrigger_irq(unsigned int irq)
 {
 	cpumask_t mask;
 	unsigned vector;
+	unsigned long flags;
 
+	spin_lock_irqsave(&vector_lock, flags);
 	vector = irq_vector[irq];
 	cpus_clear(mask);
-	cpu_set(vector >> 8, mask);
+	cpu_set(first_cpu(irq_domain[irq]), mask);
 
-	send_IPI_mask(mask, vector & 0xff);
+	send_IPI_mask(mask, vector);
+	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
 }

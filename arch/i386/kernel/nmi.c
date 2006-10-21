@@ -219,11 +219,11 @@ static int __init check_nmi_watchdog(void)
 	int cpu;
 
 	/* Enable NMI watchdog for newer systems.
-           Actually it should be safe for most systems before 2004 too except
-	   for some IBM systems that corrupt registers when NMI happens
-	   during SMM. Unfortunately we don't have more exact information
- 	   on these and use this coarse check. */
-	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004)
+	   Probably safe on most older systems too, but let's be careful.
+	   IBM ThinkPads use INT10 inside SMM and that allows early NMI inside SMM
+	   which hangs the system. Disable watchdog for all thinkpads */
+	if (nmi_watchdog == NMI_DEFAULT && dmi_get_year(DMI_BIOS_DATE) >= 2004 &&
+		!dmi_name_in_vendors("ThinkPad"))
 		nmi_watchdog = NMI_LOCAL_APIC;
 
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DEFAULT))

@@ -3,7 +3,7 @@
 #
 # Reuse the i386 PCI subsystem
 #
-CFLAGS += -Iarch/i386/pci
+EXTRA_CFLAGS += -Iarch/i386/pci
 
 obj-y		:= i386.o
 obj-$(CONFIG_PCI_DIRECT)+= direct.o
