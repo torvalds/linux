@@ -980,11 +980,6 @@ ENTRY(kernel_thread)
 	call do_fork
 	movq %rax,RAX(%rsp)
 	xorl %edi,%edi
-	test %rax,%rax
-	jnz  1f
-	/* terminate stack in child */
-	movq %rdi,RIP(%rsp)
-1:
 
 	/*
 	 * It isn't worth to check for reschedule here,
