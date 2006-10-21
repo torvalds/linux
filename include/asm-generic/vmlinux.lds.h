@@ -125,6 +125,10 @@
 		*(__param)						\
 		VMLINUX_SYMBOL(__stop___param) = .;			\
 	}								\
+									\
+	/* Unwind data binary search table */				\
+	EH_FRAME_HDR							\
+									\
 	__end_rodata = .;						\
 	. = ALIGN(4096);
 
@@ -156,6 +160,18 @@
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
+
+#ifdef CONFIG_STACK_UNWIND
+		/* Unwind data binary search table */
+#define EH_FRAME_HDR							\
+        	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr) - LOAD_OFFSET) {	\
+			VMLINUX_SYMBOL(__start_unwind_hdr) = .;		\
+			*(.eh_frame_hdr)				\
+			VMLINUX_SYMBOL(__end_unwind_hdr) = .;		\
+		}
+#else
+#define EH_FRAME_HDR
+#endif
 
 		/* DWARF debug sections.
 		Symbols in the DWARF debugging sections are relative to
