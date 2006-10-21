@@ -707,9 +707,9 @@ out_ret:
  * key here is the 'actor' worker passed in that actually moves the data
  * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
  */
-ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
-			 loff_t *ppos, size_t len, unsigned int flags,
-			 splice_actor *actor)
+static ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
+				  struct file *out, loff_t *ppos, size_t len,
+				  unsigned int flags, splice_actor *actor)
 {
 	int ret, do_wakeup, err;
 	struct splice_desc sd;
@@ -721,9 +721,6 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	sd.flags = flags;
 	sd.file = out;
 	sd.pos = *ppos;
-
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
 
 	for (;;) {
 		if (pipe->nrbufs) {
@@ -797,9 +794,6 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		pipe_wait(pipe);
 	}
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
-
 	if (do_wakeup) {
 		smp_mb();
 		if (waitqueue_active(&pipe->wait))
@@ -809,6 +803,73 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 
 	return ret;
 }
+
+ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+			 loff_t *ppos, size_t len, unsigned int flags,
+			 splice_actor *actor)
+{
+	ssize_t ret;
+	struct inode *inode = out->f_mapping->host;
+
+	/*
+	 * The actor worker might be calling ->prepare_write and
+	 * ->commit_write. Most of the time, these expect i_mutex to
+	 * be held. Since this may result in an ABBA deadlock with
+	 * pipe->inode, we have to order lock acquiry here.
+	 */
+	inode_double_lock(inode, pipe->inode);
+	ret = __splice_from_pipe(pipe, out, ppos, len, flags, actor);
+	inode_double_unlock(inode, pipe->inode);
+
+	return ret;
+}
+
+/**
+ * generic_file_splice_write_nolock - generic_file_splice_write without mutexes
+ * @pipe:	pipe info
+ * @out:	file to write to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Will either move or copy pages (determined by @flags options) from
+ * the given pipe inode to the given file. The caller is responsible
+ * for acquiring i_mutex on both inodes.
+ *
+ */
+ssize_t
+generic_file_splice_write_nolock(struct pipe_inode_info *pipe, struct file *out,
+				 loff_t *ppos, size_t len, unsigned int flags)
+{
+	struct address_space *mapping = out->f_mapping;
+	struct inode *inode = mapping->host;
+	ssize_t ret;
+	int err;
+
+	err = remove_suid(out->f_dentry);
+	if (unlikely(err))
+		return err;
+
+	ret = __splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	if (ret > 0) {
+		*ppos += ret;
+
+		/*
+		 * If file or inode is SYNC and we actually wrote some data,
+		 * sync it.
+		 */
+		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			err = generic_osync_inode(inode, mapping,
+						  OSYNC_METADATA|OSYNC_DATA);
+
+			if (err)
+				ret = err;
+		}
+	}
+
+	return ret;
+}
+
+EXPORT_SYMBOL(generic_file_splice_write_nolock);
 
 /**
  * generic_file_splice_write - splice data from a pipe to a file
@@ -826,12 +887,21 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			  loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct address_space *mapping = out->f_mapping;
+	struct inode *inode = mapping->host;
 	ssize_t ret;
+	int err;
+
+	err = should_remove_suid(out->f_dentry);
+	if (unlikely(err)) {
+		mutex_lock(&inode->i_mutex);
+		err = __remove_suid(out->f_dentry, err);
+		mutex_unlock(&inode->i_mutex);
+		if (err)
+			return err;
+	}
 
 	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
-		struct inode *inode = mapping->host;
-
 		*ppos += ret;
 
 		/*
@@ -839,8 +909,6 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		 * sync it.
 		 */
 		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
-			int err;
-
 			mutex_lock(&inode->i_mutex);
 			err = generic_osync_inode(inode, mapping,
 						  OSYNC_METADATA|OSYNC_DATA);
@@ -1400,13 +1468,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	 * grabbing by inode address. Otherwise two different processes
 	 * could deadlock (one doing tee from A -> B, the other from B -> A).
 	 */
-	if (ipipe->inode < opipe->inode) {
-		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_CHILD);
-	} else {
-		mutex_lock_nested(&opipe->inode->i_mutex, I_MUTEX_PARENT);
-		mutex_lock_nested(&ipipe->inode->i_mutex, I_MUTEX_CHILD);
-	}
+	inode_double_lock(ipipe->inode, opipe->inode);
 
 	do {
 		if (!opipe->readers) {
@@ -1450,8 +1512,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		i++;
 	} while (len);
 
-	mutex_unlock(&ipipe->inode->i_mutex);
-	mutex_unlock(&opipe->inode->i_mutex);
+	inode_double_unlock(ipipe->inode, opipe->inode);
 
 	/*
 	 * If we put data in the output pipe, wakeup any potential readers.

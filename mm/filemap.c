@@ -1884,11 +1884,10 @@ repeat:
  *	if suid or (sgid and xgrp)
  *		remove privs
  */
-int remove_suid(struct dentry *dentry)
+int should_remove_suid(struct dentry *dentry)
 {
 	mode_t mode = dentry->d_inode->i_mode;
 	int kill = 0;
-	int result = 0;
 
 	/* suid always must be killed */
 	if (unlikely(mode & S_ISUID))
@@ -1901,13 +1900,28 @@ int remove_suid(struct dentry *dentry)
 	if (unlikely((mode & S_ISGID) && (mode & S_IXGRP)))
 		kill |= ATTR_KILL_SGID;
 
-	if (unlikely(kill && !capable(CAP_FSETID))) {
-		struct iattr newattrs;
+	if (unlikely(kill && !capable(CAP_FSETID)))
+		return kill;
 
-		newattrs.ia_valid = ATTR_FORCE | kill;
-		result = notify_change(dentry, &newattrs);
-	}
-	return result;
+	return 0;
+}
+
+int __remove_suid(struct dentry *dentry, int kill)
+{
+	struct iattr newattrs;
+
+	newattrs.ia_valid = ATTR_FORCE | kill;
+	return notify_change(dentry, &newattrs);
+}
+
+int remove_suid(struct dentry *dentry)
+{
+	int kill = should_remove_suid(dentry);
+
+	if (unlikely(kill))
+		return __remove_suid(dentry, kill);
+
+	return 0;
 }
 EXPORT_SYMBOL(remove_suid);
 
