@@ -488,7 +488,6 @@ static struct acpi_device * bay_create_acpi_device(acpi_handle handle)
 static void bay_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *dev;
-	struct bay *bay = data;
 
 	bay_dprintk(handle, "Bay event");
 
