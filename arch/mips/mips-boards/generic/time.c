@@ -187,7 +187,7 @@ out:
 }
 
 /*
- * Estimate CPU frequency.  Sets mips_counter_frequency as a side-effect
+ * Estimate CPU frequency.  Sets mips_hpt_frequency as a side-effect
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {

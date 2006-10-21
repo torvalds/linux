@@ -63,7 +63,7 @@ the following functions or values:
   a) board_time_init - a function pointer.  Invoked at the beginnig of
      time_init().  It is optional.
 	1. (optional) set up RTC routines
-	2. (optional) calibrate and set the mips_counter_frequency
+	2. (optional) calibrate and set the mips_hpt_frequency
 
   b) plat_timer_setup - a function pointer.  Invoked at the end of time_init()
 	1. (optional) over-ride any decisions made in time_init()
@@ -72,7 +72,7 @@ the following functions or values:
 
   c) (optional) board-specific RTC routines.
 
-  d) (optional) mips_counter_frequency - It must be definied if the board
+  d) (optional) mips_hpt_frequency - It must be definied if the board
      is using CPU counter for timer interrupt or it is using fixed rate
      gettimeoffset().
 
@@ -104,7 +104,7 @@ Step 1: decide how you like to implement the time services.
      or use an exnternal timer?
 
      In order to use CPU counter register as the timer interrupt source, you
-     must know the counter speed (mips_counter_frequency).  It is usually the
+     must know the counter speed (mips_hpt_frequency).  It is usually the
      same as the CPU speed or an integral divisor of it.
 
   d) decide on whether you want to use high-level or low-level timer
@@ -121,8 +121,8 @@ Step 3: implement rtc routines, board_time_init() and plat_timer_setup()
   if needed.
 
   board_time_init() -
-  	a) (optional) set up RTC routines, 
-        b) (optional) calibrate and set the mips_counter_frequency
+  	a) (optional) set up RTC routines,
+        b) (optional) calibrate and set the mips_hpt_frequency
  	    (only needed if you intended to use fixed_rate_gettimeoffset
  	     or use cpu counter as timer interrupt source)
 
