@@ -314,6 +314,23 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 		   struct ieee80211_txb *txb);
 void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring);
 
+/* Helper function that returns the dma mask for this device. */
+static inline
+u64 bcm43xx_get_supported_dma_mask(struct bcm43xx_private *bcm)
+{
+	int dma64 = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATEHIGH) &
+				   BCM43xx_SBTMSTATEHIGH_DMA64BIT;
+	u16 mmio_base = bcm43xx_dmacontroller_base(dma64, 0);
+	u32 mask = BCM43xx_DMA32_TXADDREXT_MASK;
+
+	if (dma64)
+		return DMA_64BIT_MASK;
+	bcm43xx_write32(bcm, mmio_base + BCM43xx_DMA32_TXCTL, mask);
+	if (bcm43xx_read32(bcm, mmio_base + BCM43xx_DMA32_TXCTL) & mask)
+		return DMA_32BIT_MASK;
+	return DMA_30BIT_MASK;
+}
+
 #else /* CONFIG_BCM43XX_DMA */
 
 

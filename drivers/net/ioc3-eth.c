@@ -1017,7 +1017,7 @@ static void ioc3_init(struct net_device *dev)
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3 *ioc3 = ip->regs;
 
-	del_timer(&ip->ioc3_timer);		/* Kill if running	*/
+	del_timer_sync(&ip->ioc3_timer);	/* Kill if running	*/
 
 	ioc3_w_emcr(EMCR_RST);			/* Reset		*/
 	(void) ioc3_r_emcr();			/* Flush WB		*/
@@ -1081,7 +1081,7 @@ static int ioc3_close(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	del_timer(&ip->ioc3_timer);
+	del_timer_sync(&ip->ioc3_timer);
 
 	netif_stop_queue(dev);
 

@@ -126,7 +126,7 @@ struct ugeth_mii_info {
 	/* And management functions */
 	struct phy_info *phyinfo;
 
-	ucc_mii_mng_t *mii_regs;
+	struct ucc_mii_mng *mii_regs;
 
 	/* forced speed & duplex (no autoneg)
 	 * partner speed & duplex & pause (autoneg)

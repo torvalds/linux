@@ -2288,7 +2288,7 @@ config UGETH_TX_ON_DEMOND
 
 config UGETH_HAS_GIGA
 	bool
-	depends on UCC_GETH && MPC836x
+	depends on UCC_GETH && PPC_MPC836x
 
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
