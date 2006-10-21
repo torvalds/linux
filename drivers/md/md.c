@@ -974,12 +974,13 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
  * version 1 superblock
  */
 
-static unsigned int calc_sb_1_csum(struct mdp_superblock_1 * sb)
+static __le32 calc_sb_1_csum(struct mdp_superblock_1 * sb)
 {
-	unsigned int disk_csum, csum;
+	__le32 disk_csum;
+	u32 csum;
 	unsigned long long newcsum;
 	int size = 256 + le32_to_cpu(sb->max_dev)*2;
-	unsigned int *isuper = (unsigned int*)sb;
+	__le32 *isuper = (__le32*)sb;
 	int i;
 
 	disk_csum = sb->sb_csum;
@@ -989,7 +990,7 @@ static unsigned int calc_sb_1_csum(struct mdp_superblock_1 * sb)
 		newcsum += le32_to_cpu(*isuper++);
 
 	if (size == 2)
-		newcsum += le16_to_cpu(*(unsigned short*) isuper);
+		newcsum += le16_to_cpu(*(__le16*) isuper);
 
 	csum = (newcsum & 0xffffffff) + (newcsum >> 32);
 	sb->sb_csum = disk_csum;
@@ -1106,7 +1107,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (le32_to_cpu(sb->chunksize))
 		rdev->size &= ~((sector_t)le32_to_cpu(sb->chunksize)/2 - 1);
 
-	if (le32_to_cpu(sb->size) > rdev->size*2)
+	if (le64_to_cpu(sb->size) > rdev->size*2)
 		return -EINVAL;
 	return ret;
 }
@@ -1228,7 +1229,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	else
 		sb->resync_offset = cpu_to_le64(0);
 
-	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
+	sb->cnt_corrected_read = cpu_to_le32(atomic_read(&rdev->corrected_errors));
 
 	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
 	sb->size = cpu_to_le64(mddev->size<<1);
