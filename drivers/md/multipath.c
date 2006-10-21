@@ -501,7 +501,7 @@ static int multipath_run (mddev_t *mddev)
 			mdname(mddev));
 		goto out_free_conf;
 	}
-	mddev->degraded = conf->raid_disks = conf->working_disks;
+	mddev->degraded = conf->raid_disks - conf->working_disks;
 
 	conf->pool = mempool_create_kzalloc_pool(NR_RESERVED_BUFS,
 						 sizeof(struct multipath_bh));
