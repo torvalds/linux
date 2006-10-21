@@ -651,12 +651,12 @@ next:
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
 		for_each_cpu_mask(new_cpu, domain)
-			if (per_cpu(vector_irq, cpu)[vector] != -1)
+			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
 		for_each_cpu_mask(new_cpu, domain) {
-			pos[cpu].vector = vector;
-			pos[cpu].offset = offset;
+			pos[new_cpu].vector = vector;
+			pos[new_cpu].offset = offset;
 		}
 		if (old_vector >= 0) {
 			int old_cpu;
