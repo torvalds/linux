@@ -214,6 +214,7 @@ static struct pci_device_id rtl8169_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8168), 0, 0, RTL_CFG_2 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK,	0x8169), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK,	0x4300), 0, 0, RTL_CFG_0 },
+	{ PCI_DEVICE(0x1259,			0xc107), 0, 0, RTL_CFG_0 },
 	{ PCI_DEVICE(0x16ec,			0x0116), 0, 0, RTL_CFG_0 },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
 		PCI_ANY_ID, 0x0024, 0, 0, RTL_CFG_0 },
@@ -2700,6 +2701,7 @@ static void rtl8169_down(struct net_device *dev)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned int poll_locked = 0;
+	unsigned int intrmask;
 
 	rtl8169_delete_timer(dev);
 
@@ -2738,8 +2740,11 @@ core_down:
 	 * 2) dev->change_mtu
 	 *    -> rtl8169_poll can not be issued again and re-enable the
 	 *       interruptions. Let's simply issue the IRQ down sequence again.
+	 *
+	 * No loop if hotpluged or major error (0xffff).
 	 */
-	if (RTL_R16(IntrMask))
+	intrmask = RTL_R16(IntrMask);
+	if (intrmask && (intrmask != 0xffff))
 		goto core_down;
 
 	rtl8169_tx_clear(tp);
