@@ -948,7 +948,7 @@ __cpuinit int unsynchronized_tsc(void)
  	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
 #ifdef CONFIG_ACPI
 		/* But TSC doesn't tick in C3 so don't use it there */
-		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 100)
+		if (acpi_fadt.length > 0 && acpi_fadt.plvl3_lat < 1000)
 			return 1;
 #endif
  		return 0;

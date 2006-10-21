@@ -52,7 +52,8 @@
 #define ONE_BASED_CHASSIS_NUM   1
 
 /* register offsets inside the host bridge space */
-#define PHB_CSR_OFFSET		0x0110
+#define CALGARY_CONFIG_REG	0x0108
+#define PHB_CSR_OFFSET		0x0110 /* Channel Status */
 #define PHB_PLSSR_OFFSET	0x0120
 #define PHB_CONFIG_RW_OFFSET	0x0160
 #define PHB_IOBASE_BAR_LOW	0x0170
@@ -83,6 +84,8 @@
 #define TAR_VALID		0x0000000000000008UL
 /* CSR (Channel/DMA Status Register) */
 #define CSR_AGENT_MASK		0xffe0ffff
+/* CCR (Calgary Configuration Register) */
+#define CCR_2SEC_TIMEOUT        0x000000000000000EUL
 
 #define MAX_NUM_OF_PHBS		8 /* how many PHBs in total? */
 #define MAX_NUM_CHASSIS		8 /* max number of chassis */
@@ -732,6 +735,38 @@ static void calgary_watchdog(unsigned long data)
 	}
 }
 
+static void __init calgary_increase_split_completion_timeout(void __iomem *bbar,
+	unsigned char busnum)
+{
+	u64 val64;
+	void __iomem *target;
+	unsigned long phb_shift = -1;
+	u64 mask;
+
+	switch (busno_to_phbid(busnum)) {
+	case 0: phb_shift = (63 - 19);
+		break;
+	case 1: phb_shift = (63 - 23);
+		break;
+	case 2: phb_shift = (63 - 27);
+		break;
+	case 3: phb_shift = (63 - 35);
+		break;
+	default:
+		BUG_ON(busno_to_phbid(busnum));
+	}
+
+	target = calgary_reg(bbar, CALGARY_CONFIG_REG);
+	val64 = be64_to_cpu(readq(target));
+
+	/* zero out this PHB's timer bits */
+	mask = ~(0xFUL << phb_shift);
+	val64 &= mask;
+	val64 |= (CCR_2SEC_TIMEOUT << phb_shift);
+	writeq(cpu_to_be64(val64), target);
+	readq(target); /* flush */
+}
+
 static void __init calgary_enable_translation(struct pci_dev *dev)
 {
 	u32 val32;
@@ -755,6 +790,13 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
+
+	/*
+	 * Give split completion a longer timeout on bus 1 for aic94xx
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
+	 */
+	if (busnum == 1)
+		calgary_increase_split_completion_timeout(bbar, busnum);
 
 	init_timer(&tbl->watchdog_timer);
 	tbl->watchdog_timer.function = &calgary_watchdog;
