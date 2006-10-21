@@ -20,7 +20,7 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_marvell"
-#define DRV_VERSION	"0.0.4t"
+#define DRV_VERSION	"0.0.5u"
 
 /**
  *	marvell_pre_reset	-	check for 40/80 pin
@@ -33,14 +33,12 @@ static int marvell_pre_reset(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 devices;
-	unsigned long bar5;
 	void __iomem *barp;
 	int i;
 
 	/* Check if our port is enabled */
 
-	bar5 = pci_resource_start(pdev, 5);
-	barp = ioremap(bar5, 0x10);
+	barp = pci_iomap(pdev, 5, 0x10);
 	if (barp == NULL)
 		return -ENOMEM;
 	printk("BAR5:");
@@ -49,24 +47,25 @@ static int marvell_pre_reset(struct ata_port *ap)
 	printk("\n");
 	
 	devices = readl(barp + 0x0C);
-	iounmap(barp);
+	pci_iounmap(pdev, barp);
 	
-	if (pdev->device == 0x6145 && ap->port_no == 0 && !(devices & 0x10))	/* PATA enable ? */
+	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
+	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;
 
 	/* Cable type */
 	switch(ap->port_no)
 	{
-		case 0:
-			/* Might be backward, docs unclear */
-			if(inb(ap->ioaddr.bmdma_addr + 1) & 1)
-				ap->cbl = ATA_CBL_PATA80;
-			else
-				ap->cbl = ATA_CBL_PATA40;
-			
-		case 1: /* Legacy SATA port */
-			ap->cbl = ATA_CBL_SATA;
-			break;
+	case 0:
+		/* Might be backward, docs unclear */
+		if (inb(ap->ioaddr.bmdma_addr + 1) & 1)
+			ap->cbl = ATA_CBL_PATA80;
+		else
+			ap->cbl = ATA_CBL_PATA40;
+
+	case 1: /* Legacy SATA port */
+		ap->cbl = ATA_CBL_SATA;
+		break;
 	}
 	return ata_std_prereset(ap);
 }
@@ -81,7 +80,8 @@ static int marvell_pre_reset(struct ata_port *ap)
 
 static void marvell_error_handler(struct ata_port *ap)
 {
-	return ata_bmdma_drive_eh(ap, marvell_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
+	return ata_bmdma_drive_eh(ap, marvell_pre_reset, ata_std_softreset,
+				  NULL, ata_std_postreset);
 }
 
 /* No PIO or DMA methods needed for this device */
@@ -130,7 +130,6 @@ static const struct ata_port_operations marvell_ops = {
 	.data_xfer		= ata_pio_data_xfer,
 
 	/* Timeout handling */
-	.eng_timeout		= ata_eng_timeout,
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 
@@ -159,7 +158,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 {
 	static struct ata_port_info info = {
 		.sht		= &marvell_sht,
-		.flags	= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
@@ -170,7 +169,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	static struct ata_port_info info_sata = {
 		.sht		= &marvell_sht,
 		/* Slave possible as its magically mapped not real */
-		.flags	= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 
 		.pio_mask	= 0x1f,
 		.mwdma_mask	= 0x07,
@@ -180,10 +179,10 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	};
 	struct ata_port_info *port_info[2] = { &info, &info_sata };
 	int n_port = 2;
-	
+
 	if (pdev->device == 0x6101)
 		n_port = 1;
-	
+
 	return ata_pci_init_one(pdev, port_info, n_port);
 }
 
