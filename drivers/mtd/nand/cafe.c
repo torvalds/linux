@@ -29,11 +29,19 @@
 #define CAFE_NAND_TIMING2	0x28
 #define CAFE_NAND_TIMING3	0x2c
 #define CAFE_NAND_NONMEM	0x30
+#define CAFE_NAND_ECC_RESULT	0x3C
+#define CAFE_NAND_ECC_SYN01	0x50
+#define CAFE_NAND_ECC_SYN23	0x54
+#define CAFE_NAND_ECC_SYN45	0x58
+#define CAFE_NAND_ECC_SYN67	0x5c
 #define CAFE_NAND_DMA_CTRL	0x40
 #define CAFE_NAND_DMA_ADDR0	0x44
 #define CAFE_NAND_DMA_ADDR1	0x48
 #define CAFE_NAND_READ_DATA	0x1000
 #define CAFE_NAND_WRITE_DATA	0x2000
+
+int cafe_correct_ecc(unsigned char *buf,
+		     unsigned short *chk_syndrome_list);
 
 struct cafe_priv {
 	struct nand_chip nand;
@@ -50,7 +58,7 @@ struct cafe_priv {
 	
 };
 
-static int usedma = 1;
+static int usedma = 0;
 module_param(usedma, int, 0644);
 
 static int skipbbt = 0;
@@ -59,6 +67,7 @@ module_param(skipbbt, int, 0644);
 static int debug = 0;
 module_param(debug, int, 0644);
 
+/* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
 
 
@@ -203,9 +212,11 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		writel(cafe->ctl2 | 0x100 | NAND_CMD_READSTART, cafe->mmio + CAFE_NAND_CTRL2);
 
  do_command:
+#if 0
 	// ECC on read only works if we ...
-	//	if (cafe->datalen == 2112)
-	//		cafe->datalen = 2062;
+	if (cafe->datalen == 2112)
+		cafe->datalen = 2062;
+#endif
 	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
 		cafe->datalen, ctl1, readl(cafe->mmio+CAFE_NAND_CTRL2));
 	/* NB: The datasheet lies -- we really should be subtracting 1 here */
@@ -311,8 +322,6 @@ static int cafe_nand_write_oob(struct mtd_info *mtd,
 {
 	int status = 0;
 
-	WARN_ON(chip->oob_poi != chip->buffers->oobwbuf);
-
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize, page);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
@@ -343,12 +352,32 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct cafe_priv *cafe = mtd->priv;
 
-	WARN_ON(chip->oob_poi != chip->buffers->oobrbuf);
-
-	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n", readl(cafe->mmio + 0x3c), readl(cafe->mmio + 0x50));
+	dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n",
+		readl(cafe->mmio + CAFE_NAND_ECC_RESULT),
+		readl(cafe->mmio + CAFE_NAND_ECC_SYN01));
 
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	if (readl(cafe->mmio + CAFE_NAND_ECC_RESULT) & (1<<18)) {
+		unsigned short syn[8];
+		int i;
+
+		for (i=0; i<8; i+=2) {
+			uint32_t tmp = readl(cafe->mmio + CAFE_NAND_ECC_SYN01 + (i*2));
+			syn[i] = tmp & 0xfff;
+			syn[i+1] = (tmp >> 16) & 0xfff;
+		} 
+
+		if ((i = cafe_correct_ecc(buf, syn)) < 0) {
+			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC\n");
+			mtd->ecc_stats.failed++;
+		} else {
+			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", i);
+			mtd->ecc_stats.corrected += i;
+		}
+	}
+
 
 	return 0;
 }
@@ -390,13 +419,10 @@ static struct nand_ecclayout cafe_oobinfo_512 = {
 	.oobfree = {{14, 2}}
 };
 
-
 static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 					  struct nand_chip *chip, const uint8_t *buf)
 {
 	struct cafe_priv *cafe = mtd->priv;
-
-	WARN_ON(chip->oob_poi != chip->buffers->oobwbuf);
 
 	chip->write_buf(mtd, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -411,8 +437,6 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				const uint8_t *buf, int page, int cached, int raw)
 {
 	int status;
-
-	WARN_ON(chip->oob_poi != chip->buffers->oobwbuf);
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
