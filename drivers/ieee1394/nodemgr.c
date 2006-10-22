@@ -374,11 +374,11 @@ static ssize_t fw_set_ignore_driver(struct device *dev, struct device_attribute 
 	int state = simple_strtoul(buf, NULL, 10);
 
 	if (state == 1) {
-		down_write(&dev->bus->subsys.rwsem);
-		device_release_driver(dev);
 		ud->ignore_driver = 1;
-		up_write(&dev->bus->subsys.rwsem);
-	} else if (!state)
+		down_write(&ieee1394_bus_type.subsys.rwsem);
+		device_release_driver(dev);
+		up_write(&ieee1394_bus_type.subsys.rwsem);
+	} else if (state == 0)
 		ud->ignore_driver = 0;
 
 	return count;
@@ -436,7 +436,7 @@ static ssize_t fw_set_ignore_drivers(struct bus_type *bus, const char *buf, size
 
 	if (state == 1)
 		ignore_drivers = 1;
-	else if (!state)
+	else if (state == 0)
 		ignore_drivers = 0;
 
 	return count;
@@ -734,20 +734,65 @@ static int nodemgr_bus_match(struct device * dev, struct device_driver * drv)
 }
 
 
+static DEFINE_MUTEX(nodemgr_serialize_remove_uds);
+
 static void nodemgr_remove_uds(struct node_entry *ne)
 {
-	struct class_device *cdev, *next;
-	struct unit_directory *ud;
+	struct class_device *cdev;
+	struct unit_directory *ud, **unreg;
+	size_t i, count;
 
-	list_for_each_entry_safe(cdev, next, &nodemgr_ud_class.children, node) {
+	/*
+	 * This is awkward:
+	 * Iteration over nodemgr_ud_class.children has to be protected by
+	 * nodemgr_ud_class.sem, but class_device_unregister() will eventually
+	 * take nodemgr_ud_class.sem too. Therefore store all uds to be
+	 * unregistered in a temporary array, release the semaphore, and then
+	 * unregister the uds.
+	 *
+	 * Since nodemgr_remove_uds can also run in other contexts than the
+	 * knodemgrds (which are currently globally serialized), protect the
+	 * gap after release of the semaphore by nodemgr_serialize_remove_uds.
+	 */
+
+	mutex_lock(&nodemgr_serialize_remove_uds);
+
+	down(&nodemgr_ud_class.sem);
+	count = 0;
+	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
-
-		if (ud->ne != ne)
-			continue;
-
-		class_device_unregister(&ud->class_dev);
-		device_unregister(&ud->device);
+		if (ud->ne == ne)
+			count++;
 	}
+	if (!count) {
+		up(&nodemgr_ud_class.sem);
+		mutex_unlock(&nodemgr_serialize_remove_uds);
+		return;
+	}
+	unreg = kcalloc(count, sizeof(*unreg), GFP_KERNEL);
+	if (!unreg) {
+		HPSB_ERR("NodeMgr: out of memory in nodemgr_remove_uds");
+		up(&nodemgr_ud_class.sem);
+		mutex_unlock(&nodemgr_serialize_remove_uds);
+		return;
+	}
+	i = 0;
+	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
+		ud = container_of(cdev, struct unit_directory, class_dev);
+		if (ud->ne == ne) {
+			BUG_ON(i >= count);
+			unreg[i++] = ud;
+		}
+	}
+	up(&nodemgr_ud_class.sem);
+
+	for (i = 0; i < count; i++) {
+		class_device_unregister(&unreg[i]->class_dev);
+		device_unregister(&unreg[i]->device);
+	}
+	kfree(unreg);
+
+	mutex_unlock(&nodemgr_serialize_remove_uds);
 }
 
 
@@ -880,12 +925,11 @@ fail_alloc:
 
 static struct node_entry *find_entry_by_guid(u64 guid)
 {
-	struct class *class = &nodemgr_ne_class;
 	struct class_device *cdev;
 	struct node_entry *ne, *ret_ne = NULL;
 
-	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node) {
+	down(&nodemgr_ne_class.sem);
+	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
 		ne = container_of(cdev, struct node_entry, class_dev);
 
 		if (ne->guid == guid) {
@@ -893,20 +937,20 @@ static struct node_entry *find_entry_by_guid(u64 guid)
 			break;
 		}
 	}
-	up_read(&class->subsys.rwsem);
+	up(&nodemgr_ne_class.sem);
 
         return ret_ne;
 }
 
 
-static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host, nodeid_t nodeid)
+static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host,
+					       nodeid_t nodeid)
 {
-	struct class *class = &nodemgr_ne_class;
 	struct class_device *cdev;
 	struct node_entry *ne, *ret_ne = NULL;
 
-	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node) {
+	down(&nodemgr_ne_class.sem);
+	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
 		ne = container_of(cdev, struct node_entry, class_dev);
 
 		if (ne->host == host && ne->nodeid == nodeid) {
@@ -914,7 +958,7 @@ static struct node_entry *find_entry_by_nodeid(struct hpsb_host *host, nodeid_t 
 			break;
 		}
 	}
-	up_read(&class->subsys.rwsem);
+	up(&nodemgr_ne_class.sem);
 
 	return ret_ne;
 }
@@ -1377,7 +1421,6 @@ static void nodemgr_node_scan(struct host_info *hi, int generation)
 }
 
 
-/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader. */
 static void nodemgr_suspend_ne(struct node_entry *ne)
 {
 	struct class_device *cdev;
@@ -1389,19 +1432,20 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 	ne->in_limbo = 1;
 	WARN_ON(device_create_file(&ne->device, &dev_attr_ne_in_limbo));
 
-	down_write(&ne->device.bus->subsys.rwsem);
+	down(&nodemgr_ud_class.sem);
 	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
-
 		if (ud->ne != ne)
 			continue;
 
+		down_write(&ieee1394_bus_type.subsys.rwsem);
 		if (ud->device.driver &&
 		    (!ud->device.driver->suspend ||
 		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND)))
 			device_release_driver(&ud->device);
+		up_write(&ieee1394_bus_type.subsys.rwsem);
 	}
-	up_write(&ne->device.bus->subsys.rwsem);
+	up(&nodemgr_ud_class.sem);
 }
 
 
@@ -1413,45 +1457,47 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 	ne->in_limbo = 0;
 	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
 
-	down_read(&nodemgr_ud_class.subsys.rwsem);
-	down_read(&ne->device.bus->subsys.rwsem);
+	down(&nodemgr_ud_class.sem);
 	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
-
 		if (ud->ne != ne)
 			continue;
 
+		down_read(&ieee1394_bus_type.subsys.rwsem);
 		if (ud->device.driver && ud->device.driver->resume)
 			ud->device.driver->resume(&ud->device);
+		up_read(&ieee1394_bus_type.subsys.rwsem);
 	}
-	up_read(&ne->device.bus->subsys.rwsem);
-	up_read(&nodemgr_ud_class.subsys.rwsem);
+	up(&nodemgr_ud_class.sem);
 
 	HPSB_DEBUG("Node resumed: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid), (unsigned long long)ne->guid);
 }
 
 
-/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader. */
 static void nodemgr_update_pdrv(struct node_entry *ne)
 {
 	struct unit_directory *ud;
 	struct hpsb_protocol_driver *pdrv;
 	struct class_device *cdev;
 
+	down(&nodemgr_ud_class.sem);
 	list_for_each_entry(cdev, &nodemgr_ud_class.children, node) {
 		ud = container_of(cdev, struct unit_directory, class_dev);
-		if (ud->ne != ne || !ud->device.driver)
+		if (ud->ne != ne)
 			continue;
 
-		pdrv = container_of(ud->device.driver, struct hpsb_protocol_driver, driver);
-
-		if (pdrv->update && pdrv->update(ud)) {
-			down_write(&ud->device.bus->subsys.rwsem);
-			device_release_driver(&ud->device);
-			up_write(&ud->device.bus->subsys.rwsem);
+		down_write(&ieee1394_bus_type.subsys.rwsem);
+		if (ud->device.driver) {
+			pdrv = container_of(ud->device.driver,
+					    struct hpsb_protocol_driver,
+					    driver);
+			if (pdrv->update && pdrv->update(ud))
+				device_release_driver(&ud->device);
 		}
+		up_write(&ieee1394_bus_type.subsys.rwsem);
 	}
+	up(&nodemgr_ud_class.sem);
 }
 
 
@@ -1482,8 +1528,6 @@ static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
 }
 
 
-/* Caller needs to hold nodemgr_ud_class.subsys.rwsem as reader because the
- * calls to nodemgr_update_pdrv() and nodemgr_suspend_ne() here require it. */
 static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int generation)
 {
 	struct device *dev;
@@ -1516,7 +1560,6 @@ static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int ge
 static void nodemgr_node_probe(struct host_info *hi, int generation)
 {
 	struct hpsb_host *host = hi->host;
-	struct class *class = &nodemgr_ne_class;
 	struct class_device *cdev;
 	struct node_entry *ne;
 
@@ -1529,18 +1572,18 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * while probes are time-consuming. (Well, those probes need some
 	 * improvement...) */
 
-	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node) {
+	down(&nodemgr_ne_class.sem);
+	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
 		ne = container_of(cdev, struct node_entry, class_dev);
 		if (!ne->needs_probe)
 			nodemgr_probe_ne(hi, ne, generation);
 	}
-	list_for_each_entry(cdev, &class->children, node) {
+	list_for_each_entry(cdev, &nodemgr_ne_class.children, node) {
 		ne = container_of(cdev, struct node_entry, class_dev);
 		if (ne->needs_probe)
 			nodemgr_probe_ne(hi, ne, generation);
 	}
-        up_read(&class->subsys.rwsem);
+        up(&nodemgr_ne_class.sem);
 
 
 	/* If we had a bus reset while we were scanning the bus, it is
@@ -1752,19 +1795,18 @@ exit:
 
 int nodemgr_for_each_host(void *__data, int (*cb)(struct hpsb_host *, void *))
 {
-	struct class *class = &hpsb_host_class;
 	struct class_device *cdev;
 	struct hpsb_host *host;
 	int error = 0;
 
-	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node) {
+	down(&hpsb_host_class.sem);
+	list_for_each_entry(cdev, &hpsb_host_class.children, node) {
 		host = container_of(cdev, struct hpsb_host, class_dev);
 
 		if ((error = cb(host, __data)))
 			break;
 	}
-	up_read(&class->subsys.rwsem);
+	up(&hpsb_host_class.sem);
 
 	return error;
 }
