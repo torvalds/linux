@@ -2344,7 +2344,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return -ENOMEM;
 
 	/* Set the internal oob buffer location, just after the page data */
-	chip->oob_poi = chip->buffers + mtd->writesize;
+	chip->oob_poi = chip->buffers->databuf + mtd->writesize;
 
 	/*
 	 * If no default placement scheme is given, select an appropriate one
