@@ -474,6 +474,21 @@ config CRYPTO_CRC32C
 	  See Castagnoli93.  This implementation uses lib/libcrc32c.
           Module will be crc32c.
 
+config CRYPTO_CAMELLIA
+	tristate "Camellia cipher algorithms"
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Camellia cipher algorithms module.
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
 config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m
