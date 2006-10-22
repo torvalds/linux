@@ -25,4 +25,5 @@ obj-$(CONFIG_MTD_NAND_CS553X)		+= cs553x_nand.o
 obj-$(CONFIG_MTD_NAND_NDFC)		+= ndfc.o
 obj-$(CONFIG_MTD_NAND_AT91)		+= at91_nand.o
 
-nand-objs = nand_base.o nand_bbt.o
+nand-objs := nand_base.o nand_bbt.o
+cafe_nand-objs := cafe.o cafe_ecc.o
