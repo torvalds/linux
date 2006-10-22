@@ -363,11 +363,11 @@ iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	int err;
 
-	err = iscsi_conn_start(cls_conn);
+	err = iser_conn_set_full_featured_mode(conn);
 	if (err)
 		return err;
 
-	return iser_conn_set_full_featured_mode(conn);
+	return iscsi_conn_start(cls_conn);
 }
 
 static struct iscsi_transport iscsi_iser_transport;
