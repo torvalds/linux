@@ -454,11 +454,11 @@ static void mmc_deselect_cards(struct mmc_host *host)
 
 static inline void mmc_delay(unsigned int ms)
 {
-	if (ms < HZ / 1000) {
-		yield();
+	if (ms < 1000 / HZ) {
+		cond_resched();
 		mdelay(ms);
 	} else {
-		msleep_interruptible (ms);
+		msleep(ms);
 	}
 }
 
