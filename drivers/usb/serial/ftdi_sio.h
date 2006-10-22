@@ -175,9 +175,15 @@
 #define FTDI_ASK_RDR400_PID	0xC991	/* ASK RDR 400 series card reader */
 
 /*
+ * FTDI USB UART chips used in construction projects from the
+ * Elektor Electronics magazine (http://elektor-electronics.co.uk)
+ */
+#define ELEKTOR_VID		0x0C7D
+#define ELEKTOR_FT323R_PID	0x0005	/* RFID-Reader, issue 09-2006 */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
- 
 #define FTDI_DSS20_PID          0xFC82  
 
 /*
