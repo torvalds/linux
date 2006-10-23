@@ -160,11 +160,6 @@ static unsigned int dec_ioasic_hpt_read(void)
 	return ioasic_read(IO_REG_FCTR);
 }
 
-static void dec_ioasic_hpt_init(unsigned int count)
-{
-	ioasic_write(IO_REG_FCTR, ioasic_read(IO_REG_FCTR) - count);
-}
-
 
 void __init dec_time_init(void)
 {
@@ -174,11 +169,9 @@ void __init dec_time_init(void)
 	mips_timer_state = dec_timer_state;
 	mips_timer_ack = dec_timer_ack;
 
-	if (!cpu_has_counter && IOASIC) {
+	if (!cpu_has_counter && IOASIC)
 		/* For pre-R4k systems we use the I/O ASIC's counter.  */
 		mips_hpt_read = dec_ioasic_hpt_read;
-		mips_hpt_init = dec_ioasic_hpt_init;
-	}
 
 	/* Set up the rate of periodic DS1287 interrupts.  */
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - __ffs(HZ)), RTC_REG_A);

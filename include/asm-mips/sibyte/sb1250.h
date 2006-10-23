@@ -51,8 +51,8 @@ extern void sb1250_mask_irq(int cpu, int irq);
 extern void sb1250_unmask_irq(int cpu, int irq);
 extern void sb1250_smp_finish(void);
 
+extern void bcm1480_hpt_setup(void);
 extern void bcm1480_time_init(void);
-extern unsigned long bcm1480_gettimeoffset(void);
 extern void bcm1480_mask_irq(int cpu, int irq);
 extern void bcm1480_unmask_irq(int cpu, int irq);
 extern void bcm1480_smp_finish(void);
