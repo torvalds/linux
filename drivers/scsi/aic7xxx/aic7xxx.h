@@ -1279,6 +1279,7 @@ typedef enum {
 } ahc_queue_alg;
 
 void			ahc_set_tags(struct ahc_softc *ahc,
+				     struct scsi_cmnd *cmd,
 				     struct ahc_devinfo *devinfo,
 				     ahc_queue_alg alg);
 
