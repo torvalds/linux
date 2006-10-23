@@ -170,6 +170,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return NET_XMIT_BYPASS;
 	}
 
+	skb_orphan(skb);
+
 	/*
 	 * If we need to duplicate packet, then re-insert at top of the
 	 * qdisc tree, since parent queuer expects that only one

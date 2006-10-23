@@ -1002,6 +1002,10 @@ static int fs_open(struct atm_vcc *atm_vcc)
 					r = ROUND_UP;
 				}
 				error = make_rate (pcr, r, &tmc0, NULL);
+				if (error) {
+					kfree(tc);
+					return error;
+				}
 			}
 			fs_dprintk (FS_DEBUG_OPEN, "pcr = %d.\n", pcr);
 		}

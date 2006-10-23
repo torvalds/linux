@@ -2759,7 +2759,7 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 {
    ns_dev *card;
    pool_levels pl;
-   int btype;
+   long btype;
    unsigned long flags;
 
    card = dev->dev_data;
@@ -2859,7 +2859,7 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
       case NS_ADJBUFLEV:
          if (!capable(CAP_NET_ADMIN))
 	    return -EPERM;
-         btype = (int) arg;	/* an int is the same size as a pointer */
+         btype = (long) arg;	/* a long is the same size as a pointer or bigger */
          switch (btype)
 	 {
 	    case NS_BUFTYPE_SMALL:

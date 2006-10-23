@@ -884,8 +884,7 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 
 /**
  *	sk_filter_release: Release a socket filter
- *	@sk: socket
- *	@fp: filter to remove
+ *	@rcu: rcu_head that contains the sk_filter info to remove
  *
  *	Remove a filter from a socket and release its resources.
  */

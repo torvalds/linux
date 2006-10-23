@@ -2452,8 +2452,8 @@ static int __init amb_module_init (void)
 static void __exit amb_module_exit (void)
 {
   PRINTD (DBG_FLOW|DBG_INIT, "cleanup_module");
-  
-  return pci_unregister_driver(&amb_driver);
+
+  pci_unregister_driver(&amb_driver);
 }
 
 module_init(amb_module_init);
