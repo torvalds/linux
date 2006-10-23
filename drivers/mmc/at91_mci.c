@@ -80,8 +80,6 @@
 
 #undef	SUPPORT_4WIRE
 
-static struct clk *mci_clk;
-
 #define FL_SENT_COMMAND (1 << 0)
 #define FL_SENT_STOP (1 << 1)
 
@@ -105,6 +103,8 @@ struct at91mci_host
 
 	struct at91_mmc_data *board;
 	int present;
+
+	struct clk *mci_clk;
 
 	/*
 	 * Flag indicating when the command has been sent. This is used to
@@ -598,7 +598,7 @@ static void at91_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	int clkdiv;
 	struct at91mci_host *host = mmc_priv(mmc);
-	unsigned long at91_master_clock = clk_get_rate(mci_clk);
+	unsigned long at91_master_clock = clk_get_rate(host->mci_clk);
 
 	host->bus_mode = ios->bus_mode;
 
@@ -834,8 +834,8 @@ static int at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Get Clock
 	 */
-	mci_clk = clk_get(&pdev->dev, "mci_clk");
-	if (IS_ERR(mci_clk)) {
+	host->mci_clk = clk_get(&pdev->dev, "mci_clk");
+	if (IS_ERR(host->mci_clk)) {
 		printk(KERN_ERR "AT91 MMC: no clock defined.\n");
 		mmc_free_host(mmc);
 		release_mem_region(res->start, res->end - res->start + 1);
@@ -847,7 +847,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 	 */
 	host->baseaddr = ioremap(res->start, res->end - res->start + 1);
 	if (!host->baseaddr) {
-		clk_put(mci_clk);
+		clk_put(host->mci_clk);
 		mmc_free_host(mmc);
 		release_mem_region(res->start, res->end - res->start + 1);
 		return -ENOMEM;
@@ -856,7 +856,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 	/*
 	 * Reset hardware
 	 */
-	clk_enable(mci_clk);			/* Enable the peripheral clock */
+	clk_enable(host->mci_clk);		/* Enable the peripheral clock */
 	at91_mci_disable(host);
 	at91_mci_enable(host);
 
@@ -867,8 +867,8 @@ static int at91_mci_probe(struct platform_device *pdev)
 	ret = request_irq(host->irq, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret) {
 		printk(KERN_ERR "Failed to request MCI interrupt\n");
-		clk_disable(mci_clk);
-		clk_put(mci_clk);
+		clk_disable(host->mci_clk);
+		clk_put(host->mci_clk);
 		mmc_free_host(mmc);
 		iounmap(host->baseaddr);
 		release_mem_region(res->start, res->end - res->start + 1);
@@ -925,8 +925,8 @@ static int at91_mci_remove(struct platform_device *pdev)
 	mmc_remove_host(mmc);
 	free_irq(host->irq, host);
 
-	clk_disable(mci_clk);				/* Disable the peripheral clock */
-	clk_put(mci_clk);
+	clk_disable(host->mci_clk);			/* Disable the peripheral clock */
+	clk_put(host->mci_clk);
 
 	iounmap(host->baseaddr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
