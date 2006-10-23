@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/machvec.h>
-#include <asm/r7780rp/r7780rp.h>
+#include <asm/r7780rp.h>
 #include <asm/clock.h>
 #include <asm/io.h>
 

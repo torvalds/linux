@@ -14,16 +14,6 @@
 #include <asm/machvec.h>
 #include <asm/ptrace.h>		/* for pt_regs */
 
-#if defined(CONFIG_SH_HP6XX) || \
-    defined(CONFIG_SH_RTS7751R2D) || \
-    defined(CONFIG_SH_HS7751RVOIP) || \
-    defined(CONFIG_SH_HS7751RVOIP) || \
-    defined(CONFIG_SH_SH03) || \
-    defined(CONFIG_SH_R7780RP) || \
-    defined(CONFIG_SH_LANDISK)
-#include <asm/mach/ide.h>
-#endif
-
 #ifndef CONFIG_CPU_SUBTYPE_SH7780
 
 #define INTC_DMAC0_MSK	0
@@ -36,15 +26,6 @@
 #define INTC_IPRB	0xffd00008UL
 #define INTC_IPRC	0xffd0000cUL
 #define INTC_IPRD	0xffd00010UL
-#endif
-
-#ifdef CONFIG_IDE
-# ifndef IRQ_CFCARD
-#  define IRQ_CFCARD	14
-# endif
-# ifndef IRQ_PCMCIA
-#  define IRQ_PCMCIA	15
-# endif
 #endif
 
 #define TIMER_IRQ	16
@@ -704,7 +685,7 @@ struct intc2_data {
 	unsigned char priority;
 };
 
-void make_intc2_irq(struct intc2_data *);
+void make_intc2_irq(struct intc2_data *, unsigned int nr_irqs);
 void init_IRQ_intc2(void);
 #endif
 

@@ -44,7 +44,7 @@ static void enable_ipr_irq(unsigned int irq)
 }
 
 static struct irq_chip ipr_irq_chip = {
-	.name		= "ipr",
+	.name		= "IPR",
 	.mask		= disable_ipr_irq,
 	.unmask		= enable_ipr_irq,
 	.mask_ack	= disable_ipr_irq,
@@ -60,7 +60,8 @@ void make_ipr_irq(unsigned int irq, unsigned int addr, int pos, int priority)
 	ipr_data.shift = pos*4; /* POSition (0-3) x 4 means shift */
 	ipr_data.priority = priority;
 
-	set_irq_chip_and_handler(irq, &ipr_irq_chip, handle_level_irq);
+	set_irq_chip_and_handler_name(irq, &ipr_irq_chip,
+				      handle_level_irq, "level");
 	set_irq_chip_data(irq, &ipr_data);
 
 	enable_ipr_irq(irq);

@@ -12,9 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/pm.h>
-#include <asm/io.h>
 #include <asm/machvec.h>
 #include <asm/mach/rts7751r2d.h>
+#include <asm/io.h>
 #include <asm/voyagergx.h>
 
 extern void heartbeat_rts7751r2d(void);

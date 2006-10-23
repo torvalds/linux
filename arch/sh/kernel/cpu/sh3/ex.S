@@ -4,7 +4,7 @@
  *  The SH-3 exception vector table.
 
  *  Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- *  Copyright (C) 2003  Paul Mundt
+ *  Copyright (C) 2003 - 2006  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -49,3 +49,10 @@ ENTRY(nmi_slot)
 #endif
 ENTRY(user_break_point_trap)
 	.long	break_point_trap	/* 1E0 */
+
+	/*
+	 * Pad the remainder of the table out, exceptions residing in far
+	 * away offsets can be manually inserted in to their appropriate
+	 * location via set_exception_table_{evt,vec}().
+	 */
+	.balign 4096,0,4096

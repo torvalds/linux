@@ -10,15 +10,10 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/hdreg.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
+#include <asm/hs7751rvoip.h>
 #include <asm/io.h>
-#include <asm/hs7751rvoip/hs7751rvoip.h>
 #include <asm/machvec.h>
-#include <asm/rtc.h>
-#include <asm/irq.h>
 
 static void __init hs7751rvoip_init_irq(void)
 {
