@@ -1634,7 +1634,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1
  * is marked here since the boot video device will be the only enabled
  * video device at this point.
  */
-
+#if 0
 static void __devinit fixup_video(struct pci_dev *pdev)
 {
 	struct pci_dev *bridge;
@@ -1663,7 +1663,7 @@ static void __devinit fixup_video(struct pci_dev *pdev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, fixup_video);
-
+#endif
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_fixup *end)
 {
