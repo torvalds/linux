@@ -2694,7 +2694,25 @@ static void ahd_linux_set_hold_mcs(struct scsi_target *starget, int hold)
 	ahd_unlock(ahd, &flags);
 }
 
+static void ahd_linux_get_signalling(struct Scsi_Host *shost)
+{
+	struct ahd_softc *ahd = *(struct ahd_softc **)shost->hostdata;
+	unsigned long flags;
+	u8 mode;
 
+	ahd_lock(ahd, &flags);
+	ahd_pause(ahd);
+	mode = ahd_inb(ahd, SBLKCTL);
+	ahd_unpause(ahd);
+	ahd_unlock(ahd, &flags);
+
+	if (mode & ENAB40)
+		spi_signalling(shost) = SPI_SIGNAL_LVD;
+	else if (mode & ENAB20)
+		spi_signalling(shost) = SPI_SIGNAL_SE;
+	else
+		spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+}
 
 static struct spi_function_template ahd_linux_transport_functions = {
 	.set_offset	= ahd_linux_set_offset,
@@ -2719,6 +2737,7 @@ static struct spi_function_template ahd_linux_transport_functions = {
 	.show_pcomp_en	= 1,
 	.set_hold_mcs	= ahd_linux_set_hold_mcs,
 	.show_hold_mcs	= 1,
+	.get_signalling = ahd_linux_get_signalling,
 };
 
 static int __init
