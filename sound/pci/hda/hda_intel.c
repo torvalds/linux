@@ -86,6 +86,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{ATI, SB450},"
 			 "{ATI, SB600},"
 			 "{ATI, RS600},"
+			 "{ATI, RS690},"
 			 "{VIA, VT8251},"
 			 "{VIA, VT8237A},"
 			 "{SiS, SIS966},"
@@ -336,6 +337,7 @@ struct azx {
 	unsigned int initialized :1;
 	unsigned int single_cmd :1;
 	unsigned int polling_mode :1;
+	unsigned int msi :1;
 };
 
 /* driver types */
@@ -396,6 +398,7 @@ static char *driver_short_names[] __devinitdata = {
  */
 #define upper_32bit(addr) (sizeof(addr) > 4 ? (u32)((addr) >> 32) : (u32)0)
 
+static int azx_acquire_irq(struct azx *chip, int do_disconnect);
 
 /*
  * Interface for HD codec
@@ -534,6 +537,18 @@ static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 			return chip->rirb.res; /* the last value */
 		schedule_timeout_interruptible(1);
 	} while (time_after_eq(timeout, jiffies));
+
+	if (chip->msi) {
+		snd_printk(KERN_WARNING "hda_intel: No response from codec, "
+			   "disabling MSI...\n");
+		free_irq(chip->irq, chip);
+		chip->irq = -1;
+		pci_disable_msi(chip->pci);
+		chip->msi = 0;
+		if (azx_acquire_irq(chip, 1) < 0)
+			return -1;
+		goto again;
+	}
 
 	if (!chip->polling_mode) {
 		snd_printk(KERN_WARNING "hda_intel: azx_get_response timeout, "
@@ -1363,6 +1378,20 @@ static int __devinit azx_init_stream(struct azx *chip)
 	return 0;
 }
 
+static int azx_acquire_irq(struct azx *chip, int do_disconnect)
+{
+	if (request_irq(chip->pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
+			"HDA Intel", chip)) {
+		printk(KERN_ERR "hda-intel: unable to grab IRQ %d, "
+		       "disabling device\n", chip->pci->irq);
+		if (do_disconnect)
+			snd_card_disconnect(chip->card);
+		return -1;
+	}
+	chip->irq = chip->pci->irq;
+	return 0;
+}
+
 
 #ifdef CONFIG_PM
 /*
@@ -1379,12 +1408,16 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
 	azx_free_cmd_io(chip);
-	if (chip->irq >= 0)
+	if (chip->irq >= 0) {
+		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
-	if (!disable_msi)
+		chip->irq = -1;
+	}
+	if (chip->msi)
 		pci_disable_msi(chip->pci);
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -1393,15 +1426,20 @@ static int azx_resume(struct pci_dev *pci)
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
-	if (!disable_msi)
-		pci_enable_msi(pci);
-	/* FIXME: need proper error handling */
-	request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
-		    "HDA Intel", chip);
-	chip->irq = pci->irq;
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "hda-intel: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
+	if (chip->msi)
+		if (pci_enable_msi(pci) < 0)
+			chip->msi = 0;
+	if (azx_acquire_irq(chip, 1) < 0)
+		return -EIO;
 	azx_init_chip(chip);
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -1431,15 +1469,14 @@ static int azx_free(struct azx *chip)
 		/* disable position buffer */
 		azx_writel(chip, DPLBASE, 0);
 		azx_writel(chip, DPUBASE, 0);
-
-		synchronize_irq(chip->irq);
 	}
 
 	if (chip->irq >= 0) {
+		synchronize_irq(chip->irq);
 		free_irq(chip->irq, (void*)chip);
-		if (!disable_msi)
-			pci_disable_msi(chip->pci);
 	}
+	if (chip->msi)
+		pci_disable_msi(chip->pci);
 	if (chip->remap_addr)
 		iounmap(chip->remap_addr);
 
@@ -1494,6 +1531,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->driver_type = driver_type;
+	chip->msi = !disable_msi;
 
 	chip->position_fix = position_fix;
 	chip->single_cmd = single_cmd;
@@ -1523,16 +1561,14 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 	}
 
-	if (!disable_msi)
-		pci_enable_msi(pci);
+	if (chip->msi)
+		if (pci_enable_msi(pci) < 0)
+			chip->msi = 0;
 
-	if (request_irq(pci->irq, azx_interrupt, IRQF_DISABLED|IRQF_SHARED,
-			"HDA Intel", (void*)chip)) {
-		snd_printk(KERN_ERR SFX "unable to grab IRQ %d\n", pci->irq);
+	if (azx_acquire_irq(chip, 0) < 0) {
 		err = -EBUSY;
 		goto errout;
 	}
-	chip->irq = pci->irq;
 
 	pci_set_master(pci);
 	synchronize_irq(chip->irq);
@@ -1677,6 +1713,7 @@ static struct pci_device_id azx_ids[] = {
 	{ 0x1002, 0x437b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATI }, /* ATI SB450 */
 	{ 0x1002, 0x4383, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATI }, /* ATI SB600 */
 	{ 0x1002, 0x793b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS600 HDMI */
+	{ 0x1002, 0x7919, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ATIHDMI }, /* ATI RS690 HDMI */
 	{ 0x1106, 0x3288, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_VIA }, /* VIA VT8251/VT8237A */
 	{ 0x1039, 0x7502, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_SIS }, /* SIS966 */
 	{ 0x10b9, 0x5461, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AZX_DRIVER_ULI }, /* ULI M5461 */

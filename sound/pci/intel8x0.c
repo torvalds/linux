@@ -2476,10 +2476,14 @@ static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
 	if (chip->device_type == DEVICE_INTEL_ICH4)
 		chip->sdm_saved = igetbyte(chip, ICHREG(SDM));
 
-	if (chip->irq >= 0)
+	if (chip->irq >= 0) {
+		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
+		chip->irq = -1;
+	}
 	pci_disable_device(pci);
 	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
 }
 
@@ -2489,11 +2493,22 @@ static int intel8x0_resume(struct pci_dev *pci)
 	struct intel8x0 *chip = card->private_data;
 	int i;
 
+	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "intel8x0: pci_enable_device failed, "
+		       "disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	pci_set_master(pci);
-	request_irq(pci->irq, snd_intel8x0_interrupt, IRQF_DISABLED|IRQF_SHARED,
-		    card->shortname, chip);
+	if (request_irq(pci->irq, snd_intel8x0_interrupt,
+			IRQF_DISABLED|IRQF_SHARED, card->shortname, chip)) {
+		printk(KERN_ERR "intel8x0: unable to grab IRQ %d, "
+		       "disabling device\n", pci->irq);
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
 	snd_intel8x0_chip_init(chip, 0);

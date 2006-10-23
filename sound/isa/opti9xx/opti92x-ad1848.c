@@ -1683,6 +1683,8 @@ static int __init snd_card_opti9xx_pnp(struct snd_opti9xx *chip, struct pnp_card
 	struct pnp_resource_table *cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
 	int err;
 
+	if (!cfg)
+		return -ENOMEM;
 	chip->dev = pnp_request_card_device(card, pid->devs[0].id, NULL);
 	if (chip->dev == NULL) {
 		kfree(cfg);
