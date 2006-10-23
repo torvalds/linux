@@ -362,7 +362,7 @@ static int pc87413_release(struct inode *inode, struct file *file)
 
 static int pc87413_status(void)
 {
-	  return 1; /* currently not supported */
+	  return 0; /* currently not supported */
 }
 
 /**
@@ -626,7 +626,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(io, int, 0);
-MODULE_PARM_DESC(wdt_io, MODNAME " I/O port (default: " __MODULE_STRING(io) ").");
+MODULE_PARM_DESC(io, MODNAME " I/O port (default: " __MODULE_STRING(io) ").");
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in minutes (default=" __MODULE_STRING(timeout) ").");
