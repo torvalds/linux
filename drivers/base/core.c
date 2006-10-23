@@ -384,6 +384,19 @@ void device_initialize(struct device *dev)
 	device_init_wakeup(dev, 0);
 }
 
+#ifdef CONFIG_SYSFS_DEPRECATED
+int setup_parent(struct device *dev, struct device *parent)
+{
+	/* Set the parent to the class, not the parent device */
+	/* this keeps sysfs from having a symlink to make old udevs happy */
+	if (dev->class)
+		dev->kobj.parent = &dev->class->subsys.kset.kobj;
+	else if (parent)
+		dev->kobj.parent = &parent->kobj;
+
+	return 0;
+}
+#else
 static int virtual_device_parent(struct device *dev)
 {
 	if (!dev->class)
@@ -400,6 +413,22 @@ static int virtual_device_parent(struct device *dev)
 	dev->kobj.parent = dev->class->virtual_dir;
 	return 0;
 }
+
+int setup_parent(struct device *dev, struct device *parent)
+{
+	int error;
+
+	/* if this is a class device, and has no parent, create one */
+	if ((dev->class) && (parent == NULL)) {
+		error = virtual_device_parent(dev);
+		if (error)
+			return error;
+	} else if (parent)
+		dev->kobj.parent = &parent->kobj;
+
+	return 0;
+}
+#endif
 
 /**
  *	device_add - add device to device hierarchy.
@@ -423,23 +452,18 @@ int device_add(struct device *dev)
 	if (!dev || !strlen(dev->bus_id))
 		goto Error;
 
-	/* if this is a class device, and has no parent, create one */
-	if ((dev->class) && (dev->parent == NULL)) {
-		error = virtual_device_parent(dev);
-		if (error)
-			goto Error;
-	}
+	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
 
 	parent = get_device(dev->parent);
 
-	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
+	error = setup_parent(dev, parent);
+	if (error)
+		goto Error;
 
 	/* first, register with generic layer. */
 	kobject_set_name(&dev->kobj, "%s", dev->bus_id);
-	if (parent)
-		dev->kobj.parent = &parent->kobj;
-
-	if ((error = kobject_add(&dev->kobj)))
+	error = kobject_add(&dev->kobj);
+	if (error)
 		goto Error;
 
 	/* notify platform of device entry */
@@ -484,8 +508,11 @@ int device_add(struct device *dev)
 	if (dev->class) {
 		sysfs_create_link(&dev->kobj, &dev->class->subsys.kset.kobj,
 				  "subsystem");
-		sysfs_create_link(&dev->class->subsys.kset.kobj, &dev->kobj,
-				  dev->bus_id);
+		/* If this is not a "fake" compatible device, then create the
+		 * symlink from the class to the device. */
+		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
+			sysfs_create_link(&dev->class->subsys.kset.kobj,
+					  &dev->kobj, dev->bus_id);
 		if (parent) {
 			sysfs_create_link(&dev->kobj, &dev->parent->kobj, "device");
 			class_name = make_class_name(dev->class->name, &dev->kobj);
@@ -623,7 +650,11 @@ void device_del(struct device * dev)
 	}
 	if (dev->class) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
-		sysfs_remove_link(&dev->class->subsys.kset.kobj, dev->bus_id);
+		/* If this is not a "fake" compatible device, remove the
+		 * symlink from the class to the device. */
+		if (dev->kobj.parent != &dev->class->subsys.kset.kobj)
+			sysfs_remove_link(&dev->class->subsys.kset.kobj,
+					  dev->bus_id);
 		class_name = make_class_name(dev->class->name, &dev->kobj);
 		if (parent) {
 			sysfs_remove_link(&dev->kobj, "device");
