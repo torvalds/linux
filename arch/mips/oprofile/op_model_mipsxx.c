@@ -220,7 +220,7 @@ static inline int n_counters(void)
 {
 	int counters = __n_counters();
 
-#ifndef CONFIG_SMP
+#ifdef CONFIG_MIPS_MT_SMP
 	if (current_cpu_data.cputype == CPU_34K)
 		return counters >> 1;
 #endif
