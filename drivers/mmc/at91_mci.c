@@ -80,10 +80,12 @@
 
 #undef	SUPPORT_4WIRE
 
-#define FL_SENT_COMMAND (1 << 0)
-#define FL_SENT_STOP (1 << 1)
+#define FL_SENT_COMMAND	(1 << 0)
+#define FL_SENT_STOP	(1 << 1)
 
-
+#define AT91_MCI_ERRORS	(AT91_MCI_RINDE | AT91_MCI_RDIRE | AT91_MCI_RCRCE	\
+		| AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE		\
+		| AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)			
 
 #define at91_mci_read(host, reg)	__raw_readl((host)->baseaddr + (reg))
 #define at91_mci_write(host, reg, val)	__raw_writel((val), (host)->baseaddr + (reg))
@@ -507,7 +509,7 @@ static void at91mci_process_command(struct at91mci_host *host, struct mmc_comman
 	pr_debug("setting ier to %08X\n", ier);
 
 	/* Stop on errors or the required value */
-	at91_mci_write(host, AT91_MCI_IER, 0xffff0000 | ier);
+	at91_mci_write(host, AT91_MCI_IER, AT91_MCI_ERRORS | ier);
 }
 
 /*
@@ -652,39 +654,40 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 {
 	struct at91mci_host *host = devid;
 	int completed = 0;
-
-	unsigned int int_status;
+	unsigned int int_status, int_mask;
 
 	int_status = at91_mci_read(host, AT91_MCI_SR);
-	pr_debug("MCI irq: status = %08X, %08lX, %08lX\n", int_status, at91_mci_read(host, AT91_MCI_IMR),
-		int_status & at91_mci_read(host, AT91_MCI_IMR));
+	int_mask = at91_mci_read(host, AT91_MCI_IMR);
+	
+	pr_debug("MCI irq: status = %08X, %08lX, %08lX\n", int_status, int_mask,
+		int_status & int_mask);
+	
+	int_status = int_status & int_mask;
 
-	if ((int_status & at91_mci_read(host, AT91_MCI_IMR)) & 0xffff0000)
+	if (int_status & AT91_MCI_ERRORS) {
 		completed = 1;
+		
+		if (int_status & AT91_MCI_UNRE)
+			pr_debug("MMC: Underrun error\n");
+		if (int_status & AT91_MCI_OVRE)
+			pr_debug("MMC: Overrun error\n");
+		if (int_status & AT91_MCI_DTOE)
+			pr_debug("MMC: Data timeout\n");
+		if (int_status & AT91_MCI_DCRCE)
+			pr_debug("MMC: CRC error in data\n");
+		if (int_status & AT91_MCI_RTOE)
+			pr_debug("MMC: Response timeout\n");
+		if (int_status & AT91_MCI_RENDE)
+			pr_debug("MMC: Response end bit error\n");
+		if (int_status & AT91_MCI_RCRCE)
+			pr_debug("MMC: Response CRC error\n");
+		if (int_status & AT91_MCI_RDIRE)
+			pr_debug("MMC: Response direction error\n");
+		if (int_status & AT91_MCI_RINDE)
+			pr_debug("MMC: Response index error\n");
+	} else {
+		/* Only continue processing if no errors */
 
-	int_status &= at91_mci_read(host, AT91_MCI_IMR);
-
-	if (int_status & AT91_MCI_UNRE)
-		pr_debug("MMC: Underrun error\n");
-	if (int_status & AT91_MCI_OVRE)
-		pr_debug("MMC: Overrun error\n");
-	if (int_status & AT91_MCI_DTOE)
-		pr_debug("MMC: Data timeout\n");
-	if (int_status & AT91_MCI_DCRCE)
-		pr_debug("MMC: CRC error in data\n");
-	if (int_status & AT91_MCI_RTOE)
-		pr_debug("MMC: Response timeout\n");
-	if (int_status & AT91_MCI_RENDE)
-		pr_debug("MMC: Response end bit error\n");
-	if (int_status & AT91_MCI_RCRCE)
-		pr_debug("MMC: Response CRC error\n");
-	if (int_status & AT91_MCI_RDIRE)
-		pr_debug("MMC: Response direction error\n");
-	if (int_status & AT91_MCI_RINDE)
-		pr_debug("MMC: Response index error\n");
-
-	/* Only continue processing if no errors */
-	if (!completed) {
 		if (int_status & AT91_MCI_TXBUFE) {
 			pr_debug("TX buffer empty\n");
 			at91_mci_handle_transmitted(host);
@@ -695,9 +698,8 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 			at91_mci_write(host, AT91_MCI_IER, AT91_MCI_CMDRDY);
 		}
 
-		if (int_status & AT91_MCI_ENDTX) {
+		if (int_status & AT91_MCI_ENDTX)
 			pr_debug("Transmit has ended\n");
-		}
 
 		if (int_status & AT91_MCI_ENDRX) {
 			pr_debug("Receive has ended\n");
@@ -709,34 +711,30 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 			at91_mci_write(host, AT91_MCI_IER, AT91_MCI_CMDRDY);
 		}
 
-		if (int_status & AT91_MCI_DTIP) {
+		if (int_status & AT91_MCI_DTIP)
 			pr_debug("Data transfer in progress\n");
-		}
 
-		if (int_status & AT91_MCI_BLKE) {
+		if (int_status & AT91_MCI_BLKE)
 			pr_debug("Block transfer has ended\n");
-		}
 
-		if (int_status & AT91_MCI_TXRDY) {
+		if (int_status & AT91_MCI_TXRDY)
 			pr_debug("Ready to transmit\n");
-		}
 
-		if (int_status & AT91_MCI_RXRDY) {
+		if (int_status & AT91_MCI_RXRDY)
 			pr_debug("Ready to receive\n");
-		}
 
 		if (int_status & AT91_MCI_CMDRDY) {
 			pr_debug("Command ready\n");
 			completed = 1;
 		}
 	}
-	at91_mci_write(host, AT91_MCI_IDR, int_status);
 
 	if (completed) {
 		pr_debug("Completed command\n");
 		at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
 		at91mci_completed_command(host);
-	}
+	} else
+		at91_mci_write(host, AT91_MCI_IDR, int_status);
 
 	return IRQ_HANDLED;
 }
