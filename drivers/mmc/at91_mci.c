@@ -101,6 +101,7 @@ struct at91mci_host
 	struct mmc_request *request;
 
 	void __iomem *baseaddr;
+	int irq;
 
 	struct at91_mmc_data *board;
 	int present;
@@ -792,13 +793,22 @@ static int at91_mci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct at91mci_host *host;
+	struct resource *res;
 	int ret;
 
 	pr_debug("Probe MCI devices\n");
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+
+	if (!request_mem_region(res->start, res->end - res->start + 1, DRIVER_NAME))
+		return -EBUSY;
+
 	mmc = mmc_alloc_host(sizeof(struct at91mci_host), &pdev->dev);
 	if (!mmc) {
 		pr_debug("Failed to allocate mmc host\n");
+		release_mem_region(res->start, res->end - res->start + 1);
 		return -ENOMEM;
 	}
 
@@ -828,27 +838,40 @@ static int at91_mci_probe(struct platform_device *pdev)
 	if (IS_ERR(mci_clk)) {
 		printk(KERN_ERR "AT91 MMC: no clock defined.\n");
 		mmc_free_host(mmc);
+		release_mem_region(res->start, res->end - res->start + 1);
 		return -ENODEV;
 	}
-	clk_enable(mci_clk);			/* Enable the peripheral clock */
 
-	host->baseaddr = (void __iomem *)AT91_VA_BASE_MCI;
+	/*
+	 * Map I/O region
+	 */
+	host->baseaddr = ioremap(res->start, res->end - res->start + 1);
+	if (!host->baseaddr) {
+		clk_put(mci_clk);
+		mmc_free_host(mmc);
+		release_mem_region(res->start, res->end - res->start + 1);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Reset hardware
 	 */
+	clk_enable(mci_clk);			/* Enable the peripheral clock */
 	at91_mci_disable(host);
 	at91_mci_enable(host);
 
 	/*
 	 * Allocate the MCI interrupt
 	 */
-	ret = request_irq(AT91RM9200_ID_MCI, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
+	host->irq = platform_get_irq(pdev, 0);
+	ret = request_irq(host->irq, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret) {
 		printk(KERN_ERR "Failed to request MCI interrupt\n");
 		clk_disable(mci_clk);
 		clk_put(mci_clk);
 		mmc_free_host(mmc);
+		iounmap(host->baseaddr);
+		release_mem_region(res->start, res->end - res->start + 1);
 		return ret;
 	}
 
@@ -886,6 +909,7 @@ static int at91_mci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct at91mci_host *host;
+	struct resource *res;
 
 	if (!mmc)
 		return -1;
@@ -897,16 +921,19 @@ static int at91_mci_remove(struct platform_device *pdev)
 		cancel_delayed_work(&host->mmc->detect);
 	}
 
-	mmc_remove_host(mmc);
 	at91_mci_disable(host);
-	free_irq(AT91RM9200_ID_MCI, host);
-	mmc_free_host(mmc);
+	mmc_remove_host(mmc);
+	free_irq(host->irq, host);
 
 	clk_disable(mci_clk);				/* Disable the peripheral clock */
 	clk_put(mci_clk);
 
-	platform_set_drvdata(pdev, NULL);
+	iounmap(host->baseaddr);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(res->start, res->end - res->start + 1);
 
+	mmc_free_host(mmc);
+	platform_set_drvdata(pdev, NULL);
 	pr_debug("MCI Removed\n");
 
 	return 0;
