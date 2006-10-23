@@ -1154,10 +1154,12 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			 * If a target takes us into the command phase
 			 * assume that it has been externally reset and
 			 * has thus lost our previous packetized negotiation
-			 * agreement.
-			 * Revert to async/narrow transfers until we
-			 * can renegotiate with the device and notify
-			 * the OSM about the reset.
+			 * agreement.  Since we have not sent an identify
+			 * message and may not have fully qualified the
+			 * connection, we change our command to TUR, assert
+			 * ATN and ABORT the task when we go to message in
+			 * phase.  The OSM will see the REQUEUE_REQUEST
+			 * status and retry the command.
 			 */
 			scbid = ahd_get_scbptr(ahd);
 			scb = ahd_lookup_scb(ahd, scbid);
@@ -1184,7 +1186,28 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
 					 /*offset*/0, /*ppr_options*/0,
 					 AHD_TRANS_ACTIVE, /*paused*/TRUE);
-			scb->flags |= SCB_EXTERNAL_RESET;
+			/* Hand-craft TUR command */
+			ahd_outb(ahd, SCB_CDB_STORE, 0);
+			ahd_outb(ahd, SCB_CDB_STORE+1, 0);
+			ahd_outb(ahd, SCB_CDB_STORE+2, 0);
+			ahd_outb(ahd, SCB_CDB_STORE+3, 0);
+			ahd_outb(ahd, SCB_CDB_STORE+4, 0);
+			ahd_outb(ahd, SCB_CDB_STORE+5, 0);
+			ahd_outb(ahd, SCB_CDB_LEN, 6);
+			scb->hscb->control &= ~(TAG_ENB|SCB_TAG_TYPE);
+			scb->hscb->control |= MK_MESSAGE;
+			ahd_outb(ahd, SCB_CONTROL, scb->hscb->control);
+			ahd_outb(ahd, MSG_OUT, HOST_MSG);
+			ahd_outb(ahd, SAVED_SCSIID, scb->hscb->scsiid);
+			/*
+			 * The lun is 0, regardless of the SCB's lun
+			 * as we have not sent an identify message.
+			 */
+			ahd_outb(ahd, SAVED_LUN, 0);
+			ahd_outb(ahd, SEQ_FLAGS, 0);
+			ahd_assert_atn(ahd);
+			scb->flags &= ~SCB_PACKETIZED;
+			scb->flags |= SCB_ABORT|SCB_EXTERNAL_RESET;
 			ahd_freeze_devq(ahd, scb);
 			ahd_set_transaction_status(scb, CAM_REQUEUE_REQ);
 			ahd_freeze_scb(scb);
@@ -1620,8 +1643,10 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 	/*
 	 * Ignore external resets after a bus reset.
 	 */
-	if (((status & SCSIRSTI) != 0) && (ahd->flags & AHD_BUS_RESET_ACTIVE))
+	if (((status & SCSIRSTI) != 0) && (ahd->flags & AHD_BUS_RESET_ACTIVE)) {
+		ahd_outb(ahd, CLRSINT1, CLRSCSIRSTI);
 		return;
+	}
 
 	/*
 	 * Clear bus reset flag
@@ -2301,6 +2326,22 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			if (sent_msg == MSG_ABORT_TAG)
 				tag = SCB_GET_TAG(scb);
 
+			if ((scb->flags & SCB_EXTERNAL_RESET) != 0) {
+				/*
+				 * This abort is in response to an
+				 * unexpected switch to command phase
+				 * for a packetized connection.  Since
+				 * the identify message was never sent,
+				 * "saved lun" is 0.  We really want to
+				 * abort only the SCB that encountered
+				 * this error, which could have a different
+				 * lun.  The SCB will be retried so the OS
+				 * will see the UA after renegotiating to
+				 * packetized.
+				 */
+				tag = SCB_GET_TAG(scb);
+				saved_lun = scb->hscb->lun;
+			}
 			found = ahd_abort_scbs(ahd, target, 'A', saved_lun,
 					       tag, ROLE_INITIATOR,
 					       CAM_REQ_ABORTED);
@@ -7985,6 +8026,11 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 	ahd_clear_fifo(ahd, 1);
 
 	/*
+	 * Clear SCSI interrupt status
+	 */
+	ahd_outb(ahd, CLRSINT1, CLRSCSIRSTI);
+
+	/*
 	 * Reenable selections
 	 */
 	ahd_outb(ahd, SIMODE1, ahd_inb(ahd, SIMODE1) | ENSCSIRST);
@@ -8017,10 +8063,6 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 		}
 	}
 #endif
-	/* Notify the XPT that a bus reset occurred */
-	ahd_send_async(ahd, devinfo.channel, CAM_TARGET_WILDCARD,
-		       CAM_LUN_WILDCARD, AC_BUS_RESET);
-
 	/*
 	 * Revert to async/narrow transfers until we renegotiate.
 	 */
@@ -8041,6 +8083,10 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 					 AHD_TRANS_CUR, /*paused*/TRUE);
 		}
 	}
+
+	/* Notify the XPT that a bus reset occurred */
+	ahd_send_async(ahd, devinfo.channel, CAM_TARGET_WILDCARD,
+		       CAM_LUN_WILDCARD, AC_BUS_RESET);
 
 	ahd_restart(ahd);
 
