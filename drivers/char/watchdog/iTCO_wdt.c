@@ -35,6 +35,10 @@
  *	82801GDH (ICH7DH)    : document number 307013-002, 307014-009,
  *	82801GBM (ICH7-M)    : document number 307013-002, 307014-009,
  *	82801GHM (ICH7-M DH) : document number 307013-002, 307014-009,
+ *	82801HB  (ICH8)      : document number 313056-002, 313057-004,
+ *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
+ *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
+ *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
  *	6300ESB  (6300ESB)   : document number 300641-003
  */
 
@@ -45,7 +49,7 @@
 /* Module and version information */
 #define DRV_NAME        "iTCO_wdt"
 #define DRV_VERSION     "1.00"
-#define DRV_RELDATE     "30-Jul-2006"
+#define DRV_RELDATE     "08-Oct-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -85,6 +89,9 @@ enum iTCO_chipsets {
 	TCO_ICH7,	/* ICH7 & ICH7R */
 	TCO_ICH7M,	/* ICH7-M */
 	TCO_ICH7MDH,	/* ICH7-M DH */
+	TCO_ICH8,	/* ICH8 & ICH8R */
+	TCO_ICH8DH,	/* ICH8DH */
+	TCO_ICH8DO,	/* ICH8DO */
 };
 
 static struct {
@@ -108,6 +115,9 @@ static struct {
 	{"ICH7 or ICH7R", 2},
 	{"ICH7-M", 2},
 	{"ICH7-M DH", 2},
+	{"ICH8 or ICH8R", 2},
+	{"ICH8DH", 2},
+	{"ICH8DO", 2},
 	{NULL,0}
 };
 
@@ -135,6 +145,9 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7    },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7M   },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_31,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7MDH },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DH  },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_3,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DO  },
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE (pci, iTCO_wdt_pci_tbl);
@@ -355,7 +368,8 @@ static int iTCO_wdt_get_timeleft (int *time_left)
 		spin_unlock(&iTCO_wdt_private.io_lock);
 
 		*time_left = (val8 * 6) / 10;
-	}
+	} else
+		return -EINVAL;
 	return 0;
 }
 
@@ -426,7 +440,6 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 {
 	int new_options, retval = -EINVAL;
 	int new_heartbeat;
-	int time_left;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
@@ -486,6 +499,8 @@ static int iTCO_wdt_ioctl (struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMELEFT:
 		{
+			int time_left;
+
 			if (iTCO_wdt_get_timeleft(&time_left))
 				return -EINVAL;
 
