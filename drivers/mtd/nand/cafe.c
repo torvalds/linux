@@ -67,6 +67,9 @@ module_param(skipbbt, int, 0644);
 static int debug = 0;
 module_param(debug, int, 0644);
 
+static int checkecc = 0;
+module_param(checkecc, int, 0644);
+
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
 
@@ -214,7 +217,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		writel(cafe->ctl2 | 0x100 | NAND_CMD_READSTART, cafe->mmio + CAFE_NAND_CTRL2);
 
  do_command:
-#if 1
+#if 0
 	/* http://dev.laptop.org/ticket/200
 	   ECC on read only works if we read precisely 0x80e bytes */
 	if (cafe->datalen == 2112)
@@ -382,7 +385,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	if (readl(cafe->mmio + CAFE_NAND_ECC_RESULT) & (1<<18)) {
+	if (checkecc && readl(cafe->mmio + CAFE_NAND_ECC_RESULT) & (1<<18)) {
 		unsigned short syn[8];
 		int i;
 
