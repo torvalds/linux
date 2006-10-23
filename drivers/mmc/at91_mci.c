@@ -336,10 +336,10 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 static void at91_mci_enable(struct at91mci_host *host)
 {
 	at91_mci_write(host, AT91_MCI_CR, AT91_MCI_MCIEN);
-	at91_mci_write(host, AT91_MCI_IDR, 0xFFFFFFFF);
+	at91_mci_write(host, AT91_MCI_IDR, 0xffffffff);
 	at91_mci_write(host, AT91_MCI_DTOR, AT91_MCI_DTOMUL_1M | AT91_MCI_DTOCYC);
-	at91_mci_write(host, AT91_MCI_MR, 0x834A);
-	at91_mci_write(host, AT91_MCI_SDCR, 0x0);
+	at91_mci_write(host, AT91_MCI_MR, AT91_MCI_PDCMODE | 0x34a);
+	at91_mci_write(host, AT91_MCI_SDCR, 0);
 }
 
 /*
@@ -420,7 +420,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 	/*
 	 * Set the arguments and send the command
 	 */
-	pr_debug("Sending command %d as %08X, arg = %08X, blocks = %d, length = %d (MR = %08lX)\n",
+	pr_debug("Sending command %d as %08X, arg = %08X, blocks = %d, length = %d (MR = %08X)\n",
 		cmd->opcode, cmdr, cmd->arg, blocks, block_length, at91_mci_read(host, AT91_MCI_MR));
 
 	if (!data) {
@@ -659,7 +659,7 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 	int_status = at91_mci_read(host, AT91_MCI_SR);
 	int_mask = at91_mci_read(host, AT91_MCI_IMR);
 	
-	pr_debug("MCI irq: status = %08X, %08lX, %08lX\n", int_status, int_mask,
+	pr_debug("MCI irq: status = %08X, %08X, %08X\n", int_status, int_mask,
 		int_status & int_mask);
 	
 	int_status = int_status & int_mask;
@@ -825,7 +825,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 #ifdef SUPPORT_4WIRE
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 #else
-		printk("MMC: 4 wire bus mode not supported by this driver - using 1 wire\n");
+		printk("AT91 MMC: 4 wire bus mode not supported by this driver - using 1 wire\n");
 #endif
 	}
 
@@ -864,7 +864,7 @@ static int at91_mci_probe(struct platform_device *pdev)
 	host->irq = platform_get_irq(pdev, 0);
 	ret = request_irq(host->irq, at91_mci_irq, IRQF_SHARED, DRIVER_NAME, host);
 	if (ret) {
-		printk(KERN_ERR "Failed to request MCI interrupt\n");
+		printk(KERN_ERR "AT91 MMC: Failed to request MCI interrupt\n");
 		clk_disable(host->mci_clk);
 		clk_put(host->mci_clk);
 		mmc_free_host(mmc);
@@ -892,10 +892,10 @@ static int at91_mci_probe(struct platform_device *pdev)
 		ret = request_irq(host->board->det_pin, at91_mmc_det_irq,
 				0, DRIVER_NAME, host);
 		if (ret)
-			printk(KERN_ERR "couldn't allocate MMC detect irq\n");
+			printk(KERN_ERR "AT91 MMC: Couldn't allocate MMC detect irq\n");
 	}
 
-	pr_debug(KERN_INFO "Added MCI driver\n");
+	pr_debug("Added MCI driver\n");
 
 	return 0;
 }
