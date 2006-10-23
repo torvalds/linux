@@ -328,20 +328,18 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 	}
 
 	if (uvt->data_len) {
-		uvt->data = kmalloc(uvt->data_len, GFP_KERNEL);
+		uvt->data = kmemdup(evt->private_data, uvt->data_len, GFP_KERNEL);
 		if (!uvt->data)
 			goto err1;
 
-		memcpy(uvt->data, evt->private_data, uvt->data_len);
 		uvt->resp.present |= IB_UCM_PRES_DATA;
 	}
 
 	if (uvt->info_len) {
-		uvt->info = kmalloc(uvt->info_len, GFP_KERNEL);
+		uvt->info = kmemdup(info, uvt->info_len, GFP_KERNEL);
 		if (!uvt->info)
 			goto err2;
 
-		memcpy(uvt->info, info, uvt->info_len);
 		uvt->resp.present |= IB_UCM_PRES_INFO;
 	}
 	return 0;

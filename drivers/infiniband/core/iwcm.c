@@ -140,10 +140,9 @@ static int copy_private_data(struct iwcm_id_private *cm_id_priv,
 {
 	void *p;
 
-	p = kmalloc(event->private_data_len, GFP_ATOMIC);
+	p = kmemdup(event->private_data, event->private_data_len, GFP_ATOMIC);
 	if (!p)
 		return -ENOMEM;
-	memcpy(p, event->private_data, event->private_data_len);
 	event->private_data = p;
 	return 0;
 }

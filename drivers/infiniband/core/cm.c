@@ -240,11 +240,10 @@ static void * cm_copy_private_data(const void *private_data,
 	if (!private_data || !private_data_len)
 		return NULL;
 
-	data = kmalloc(private_data_len, GFP_KERNEL);
+	data = kmemdup(private_data, private_data_len, GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(data, private_data, private_data_len);
 	return data;
 }
 
