@@ -362,7 +362,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		 * access
 		 */
 		ofs += mtd->oobsize;
-		chip->ops.len = 2;
+		chip->ops.len = chip->ops.ooblen = 2;
 		chip->ops.datbuf = NULL;
 		chip->ops.oobbuf = buf;
 		chip->ops.ooboffs = chip->badblockpos & ~0x01;
