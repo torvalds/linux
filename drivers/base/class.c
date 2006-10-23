@@ -893,23 +893,6 @@ void class_interface_unregister(struct class_interface *class_intf)
 	class_put(parent);
 }
 
-int virtual_device_parent(struct device *dev)
-{
-	if (!dev->class)
-		return -ENODEV;
-
-	if (!dev->class->virtual_dir) {
-		static struct kobject *virtual_dir = NULL;
-
-		if (!virtual_dir)
-			virtual_dir = kobject_add_dir(&devices_subsys.kset.kobj, "virtual");
-		dev->class->virtual_dir = kobject_add_dir(virtual_dir, dev->class->name);
-	}
-
-	dev->kobj.parent = dev->class->virtual_dir;
-	return 0;
-}
-
 int __init classes_init(void)
 {
 	int retval;

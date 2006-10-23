@@ -440,8 +440,6 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 				    __attribute__((format(printf,4,5)));
 extern void device_destroy(struct class *cls, dev_t devt);
 
-extern int virtual_device_parent(struct device *dev);
-
 /*
  * Platform "fixup" functions - allow the platform to have their say
  * about devices and actions that the general device layer doesn't
