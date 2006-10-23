@@ -2636,8 +2636,22 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 		       pcomp ? "Enable" : "Disable");
 #endif
 
-	if (pcomp)
+	if (pcomp) {
+		uint8_t precomp;
+
+		if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
+			struct ahd_linux_iocell_opts *iocell_opts;
+
+			iocell_opts = &aic79xx_iocell_info[ahd->unit];
+			precomp = iocell_opts->precomp;
+		} else {
+			precomp = AIC79XX_DEFAULT_PRECOMP;
+		}
 		ppr_options |= MSG_EXT_PPR_PCOMP_EN;
+		AHD_SET_PRECOMP(ahd, precomp);
+	} else {
+		AHD_SET_PRECOMP(ahd, 0);
+	}
 
 	ahd_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
