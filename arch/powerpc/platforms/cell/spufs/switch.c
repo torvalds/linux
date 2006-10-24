@@ -2165,9 +2165,6 @@ static void init_priv1(struct spu_state *csa)
 	    MFC_STATE1_PROBLEM_STATE_MASK |
 	    MFC_STATE1_RELOCATE_MASK | MFC_STATE1_BUS_TLBIE_MASK;
 
-	/* Set storage description.  */
-	csa->priv1.mfc_sdr_RW = mfspr(SPRN_SDR1);
-
 	/* Enable OS-specific set of interrupts. */
 	csa->priv1.int_mask_class0_RW = CLASS0_ENABLE_DMA_ALIGNMENT_INTR |
 	    CLASS0_ENABLE_INVALID_DMA_COMMAND_INTR |

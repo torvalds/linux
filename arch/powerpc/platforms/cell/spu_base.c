@@ -805,7 +805,7 @@ static int __init create_spu(struct device_node *spe)
 	if (ret)
 		goto out_unmap;
 	spin_lock_init(&spu->register_lock);
-	spu_mfc_sdr_set(spu, mfspr(SPRN_SDR1));
+	spu_mfc_sdr_setup(spu);
 	spu_mfc_sr1_set(spu, 0x33);
 	mutex_lock(&spu_mutex);
 

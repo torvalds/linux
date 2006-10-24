@@ -37,7 +37,7 @@ struct spu_priv1_ops
 	u64 (*mfc_dar_get) (struct spu *spu);
 	u64 (*mfc_dsisr_get) (struct spu *spu);
 	void (*mfc_dsisr_set) (struct spu *spu, u64 dsisr);
-	void (*mfc_sdr_set) (struct spu *spu, u64 sdr);
+	void (*mfc_sdr_setup) (struct spu *spu);
 	void (*mfc_sr1_set) (struct spu *spu, u64 sr1);
 	u64 (*mfc_sr1_get) (struct spu *spu);
 	void (*mfc_tclass_id_set) (struct spu *spu, u64 tclass_id);
@@ -112,9 +112,9 @@ spu_mfc_dsisr_set (struct spu *spu, u64 dsisr)
 }
 
 static inline void
-spu_mfc_sdr_set (struct spu *spu, u64 sdr)
+spu_mfc_sdr_setup (struct spu *spu)
 {
-	spu_priv1_ops->mfc_sdr_set(spu, sdr);
+	spu_priv1_ops->mfc_sdr_setup(spu);
 }
 
 static inline void

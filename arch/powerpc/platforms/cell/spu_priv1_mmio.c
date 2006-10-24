@@ -84,9 +84,9 @@ static void mfc_dsisr_set(struct spu *spu, u64 dsisr)
 	out_be64(&spu->priv1->mfc_dsisr_RW, dsisr);
 }
 
-static void mfc_sdr_set(struct spu *spu, u64 sdr)
+static void mfc_sdr_setup(struct spu *spu)
 {
-	out_be64(&spu->priv1->mfc_sdr_RW, sdr);
+	out_be64(&spu->priv1->mfc_sdr_RW, mfspr(SPRN_SDR1));
 }
 
 static void mfc_sr1_set(struct spu *spu, u64 sr1)
@@ -146,7 +146,7 @@ const struct spu_priv1_ops spu_priv1_mmio_ops =
 	.mfc_dar_get = mfc_dar_get,
 	.mfc_dsisr_get = mfc_dsisr_get,
 	.mfc_dsisr_set = mfc_dsisr_set,
-	.mfc_sdr_set = mfc_sdr_set,
+	.mfc_sdr_setup = mfc_sdr_setup,
 	.mfc_sr1_set = mfc_sr1_set,
 	.mfc_sr1_get = mfc_sr1_get,
 	.mfc_tclass_id_set = mfc_tclass_id_set,
