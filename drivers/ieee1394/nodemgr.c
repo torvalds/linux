@@ -362,7 +362,7 @@ static ssize_t fw_show_ne_tlabels_mask(struct device *dev,
 #endif
 	spin_unlock_irqrestore(&hpsb_tlabel_lock, flags);
 
-	return sprintf(buf, "0x%016llx\n", tm);
+	return sprintf(buf, "0x%016llx\n", (unsigned long long)tm);
 }
 static DEVICE_ATTR(tlabels_mask, S_IRUGO, fw_show_ne_tlabels_mask, NULL);
 #endif /* HPSB_DEBUG_TLABELS */
