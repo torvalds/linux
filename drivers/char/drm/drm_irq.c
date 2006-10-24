@@ -296,8 +296,6 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 				      ? &dev->vbl_sigs2 : &dev->vbl_sigs;
 		drm_vbl_sig_t *vbl_sig;
 
-		vblwait.reply.sequence = seq;
-
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
 		/* Check if this task has already scheduled the same signal
@@ -310,6 +308,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 			    && vbl_sig->task == current) {
 				spin_unlock_irqrestore(&dev->vbl_lock,
 						       irqflags);
+				vblwait.reply.sequence = seq;
 				goto done;
 			}
 		}
@@ -340,6 +339,8 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		list_add_tail((struct list_head *)vbl_sig, &vbl_sigs->head);
 
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+
+		vblwait.reply.sequence = seq;
 	} else {
 		if (flags & _DRM_VBLANK_SECONDARY) {
 			if (dev->driver->vblank_wait2)
