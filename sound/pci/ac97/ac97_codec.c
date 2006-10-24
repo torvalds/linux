@@ -194,6 +194,13 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 
 
 static void update_power_regs(struct snd_ac97 *ac97);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+#define ac97_is_power_save_mode(ac97) \
+	((ac97->scaps & AC97_SCAP_POWER_SAVE) && power_save)
+#else
+#define ac97_is_power_save_mode(ac97) 0
+#endif
+
 
 /*
  *  I/O routines
@@ -982,8 +989,7 @@ static int snd_ac97_free(struct snd_ac97 *ac97)
 {
 	if (ac97) {
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-		if (ac97->power_workq)
-			destroy_workqueue(ac97->power_workq);
+		cancel_delayed_work(&ac97->power_work);
 #endif
 		snd_ac97_proc_done(ac97);
 		if (ac97->bus)
@@ -1989,7 +1995,6 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	mutex_init(&ac97->reg_mutex);
 	mutex_init(&ac97->page_mutex);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-	ac97->power_workq = create_workqueue("ac97");
 	INIT_DELAYED_WORK(&ac97->power_work, do_update_power);
 #endif
 
@@ -2275,15 +2280,13 @@ static void snd_ac97_powerdown(struct snd_ac97 *ac97)
 	udelay(100);
 	power |= AC97_PD_PR2 | AC97_PD_PR3;	/* Analog Mixer powerdown */
 	snd_ac97_write(ac97, AC97_POWERDOWN, power);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
-	if (power_save) {
+	if (ac97_is_power_save_mode(ac97)) {
 		udelay(100);
 		/* AC-link powerdown, internal Clk disable */
 		/* FIXME: this may cause click noises on some boards */
 		power |= AC97_PD_PR4 | AC97_PD_PR5;
 		snd_ac97_write(ac97, AC97_POWERDOWN, power);
 	}
-#endif
 }
 
 
@@ -2337,14 +2340,16 @@ int snd_ac97_update_power(struct snd_ac97 *ac97, int reg, int powerup)
 		}
 	}
 
-	if (power_save && !powerup && ac97->power_workq)
+	if (ac97_is_power_save_mode(ac97) && !powerup)
 		/* adjust power-down bits after two seconds delay
 		 * (for avoiding loud click noises for many (OSS) apps
 		 *  that open/close frequently)
 		 */
-		queue_delayed_work(ac97->power_workq, &ac97->power_work, HZ*2);
-	else
+		schedule_delayed_work(&ac97->power_work, HZ*2);
+	else {
+		cancel_delayed_work(&ac97->power_work);
 		update_power_regs(ac97);
+	}
 
 	return 0;
 }
@@ -2357,19 +2362,15 @@ static void update_power_regs(struct snd_ac97 *ac97)
 	unsigned int power_up, bits;
 	int i;
 
+	power_up = (1 << PWIDX_FRONT) | (1 << PWIDX_ADC);
+	power_up |= (1 << PWIDX_MIC);
+	if (ac97->scaps & AC97_SCAP_SURROUND_DAC)
+		power_up |= (1 << PWIDX_SURR);
+	if (ac97->scaps & AC97_SCAP_CENTER_LFE_DAC)
+		power_up |= (1 << PWIDX_CLFE);
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-	if (power_save)
+	if (ac97_is_power_save_mode(ac97))
 		power_up = ac97->power_up;
-	else {
-#endif
-		power_up = (1 << PWIDX_FRONT) | (1 << PWIDX_ADC);
-		power_up |= (1 << PWIDX_MIC);
-		if (ac97->scaps & AC97_SCAP_SURROUND_DAC)
-			power_up |= (1 << PWIDX_SURR);
-		if (ac97->scaps & AC97_SCAP_CENTER_LFE_DAC)
-			power_up |= (1 << PWIDX_CLFE);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
-	}
 #endif
 	if (power_up) {
 		if (ac97->regs[AC97_POWERDOWN] & AC97_PD_PR2) {

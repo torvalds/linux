@@ -1823,7 +1823,7 @@ static int __devinit snd_via82xx_mixer_new(struct via82xx *chip, const char *qui
 	ac97.private_data = chip;
 	ac97.private_free = snd_via82xx_mixer_free_ac97;
 	ac97.pci = chip->pci;
-	ac97.scaps = AC97_SCAP_SKIP_MODEM;
+	ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 	if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97)) < 0)
 		return err;
 

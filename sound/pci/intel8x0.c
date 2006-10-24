@@ -2057,7 +2057,7 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	ac97.private_free = snd_intel8x0_mixer_free_ac97;
-	ac97.scaps = AC97_SCAP_SKIP_MODEM;
+	ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 	if (chip->xbox)
 		ac97.scaps |= AC97_SCAP_DETECT_BY_VENDOR;
 	if (chip->device_type != DEVICE_ALI) {

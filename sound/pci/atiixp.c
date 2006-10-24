@@ -1396,7 +1396,7 @@ static int __devinit snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 		ac97.private_data = chip;
 		ac97.pci = chip->pci;
 		ac97.num = i;
-		ac97.scaps = AC97_SCAP_SKIP_MODEM;
+		ac97.scaps = AC97_SCAP_SKIP_MODEM | AC97_SCAP_POWER_SAVE;
 		if (! chip->spdif_over_aclink)
 			ac97.scaps |= AC97_SCAP_NO_SPDIF;
 		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {

@@ -375,6 +375,7 @@
 #define AC97_SCAP_DETECT_BY_VENDOR (1<<8) /* use vendor registers for read tests */
 #define AC97_SCAP_NO_SPDIF	(1<<9)	/* don't build SPDIF controls */
 #define AC97_SCAP_EAPD_LED	(1<<10)	/* EAPD as mute LED */
+#define AC97_SCAP_POWER_SAVE	(1<<11)	/* capable for aggresive power-saving */
 
 /* ac97->flags */
 #define AC97_HAS_PC_BEEP	(1<<0)	/* force PC Speaker usage */
@@ -511,7 +512,6 @@ struct snd_ac97 {
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
 	unsigned int power_up;	/* power states */
-	struct workqueue_struct *power_workq;
 	struct delayed_work power_work;
 #endif
 	struct device dev;

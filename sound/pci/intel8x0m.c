@@ -830,7 +830,7 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0m *chip, int ac97_clock)
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.private_data = chip;
 	ac97.private_free = snd_intel8x0_mixer_free_ac97;
-	ac97.scaps = AC97_SCAP_SKIP_AUDIO;
+	ac97.scaps = AC97_SCAP_SKIP_AUDIO | AC97_SCAP_POWER_SAVE;
 
 	glob_sta = igetdword(chip, ICHREG(GLOB_STA));
 
