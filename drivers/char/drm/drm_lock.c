@@ -155,7 +155,7 @@ int drm_unlock(struct inode *inode, struct file *filp,
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_lock_t lock;
-	unsigned int irqflags;
+	unsigned long irqflags;
 
 	if (copy_from_user(&lock, (drm_lock_t __user *) arg, sizeof(lock)))
 		return -EFAULT;
