@@ -612,10 +612,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	static struct {
-		int vector;
-		int offset;
-	} pos[NR_CPUS] = { [ 0 ... NR_CPUS - 1] = {FIRST_DEVICE_VECTOR, 0} };
+	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
 	int old_vector = -1;
 	int cpu;
 
@@ -631,14 +628,13 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 
 	for_each_cpu_mask(cpu, mask) {
 		cpumask_t domain;
-		int first, new_cpu;
+		int new_cpu;
 		int vector, offset;
 
 		domain = vector_allocation_domain(cpu);
-		first = first_cpu(domain);
 
-		vector = pos[first].vector;
-		offset = pos[first].offset;
+		vector = current_vector;
+		offset = current_offset;
 next:
 		vector += 8;
 		if (vector >= FIRST_SYSTEM_VECTOR) {
@@ -646,7 +642,7 @@ next:
 			offset = (offset + 1) % 8;
 			vector = FIRST_DEVICE_VECTOR + offset;
 		}
-		if (unlikely(pos[first].vector == vector))
+		if (unlikely(current_vector == vector))
 			continue;
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
@@ -654,10 +650,8 @@ next:
 			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
-		for_each_cpu_mask(new_cpu, domain) {
-			pos[new_cpu].vector = vector;
-			pos[new_cpu].offset = offset;
-		}
+		current_vector = vector;
+		current_offset = offset;
 		if (old_vector >= 0) {
 			int old_cpu;
 			for_each_cpu_mask(old_cpu, irq_domain[irq])
