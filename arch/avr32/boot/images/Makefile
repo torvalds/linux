@@ -37,14 +37,12 @@ OBJCOPYFLAGS_vmlinux.elf := --change-section-lma .text-0x80000000 \
 			    --change-section-lma .data-0x80000000 \
 			    --change-section-lma .init-0x80000000 \
 			    --change-section-lma .bss-0x80000000 \
-			    --change-section-lma .initrd-0x80000000 \
 			    --change-section-lma __param-0x80000000 \
 			    --change-section-lma __ksymtab-0x80000000 \
 			    --change-section-lma __ksymtab_gpl-0x80000000 \
 			    --change-section-lma __kcrctab-0x80000000 \
 			    --change-section-lma __kcrctab_gpl-0x80000000 \
 			    --change-section-lma __ksymtab_strings-0x80000000 \
-			    --change-section-lma .got-0x80000000 \
 			    --set-start 0xa0000000
 $(obj)/vmlinux.elf: vmlinux FORCE
 	$(call if_changed,objcopy)
@@ -59,4 +57,4 @@ install: $(BOOTIMAGE)
 	sh $(srctree)/install-kernel.sh $<
 
 # Generated files to be removed upon make clean
-clean-files	:= vmlinux* uImage uImage.srec
+clean-files	:= vmlinux.elf vmlinux.bin vmlinux.gz uImage uImage.srec

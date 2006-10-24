@@ -7,7 +7,7 @@
 
 # Default target when executing plain make
 .PHONY: all
-all: uImage vmlinux.elf linux.lst
+all: uImage vmlinux.elf
 
 KBUILD_DEFCONFIG	:= atstk1002_defconfig
 
@@ -21,9 +21,7 @@ cpuflags-$(CONFIG_CPU_AP7000)	+= -mcpu=ap7000
 CFLAGS		+= $(cpuflags-y)
 AFLAGS		+= $(cpuflags-y)
 
-CHECKFLAGS	+= -D__avr32__
-
-LIBGCC		:= $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+CHECKFLAGS	+= -D__avr32__ -D__BIG_ENDIAN
 
 head-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/head.o
 head-y					+= arch/avr32/kernel/head.o
@@ -32,7 +30,7 @@ core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
 core-y					+= arch/avr32/kernel/
 core-y					+= arch/avr32/mm/
-libs-y					+= arch/avr32/lib/ #$(LIBGCC)
+libs-y					+= arch/avr32/lib/
 
 archincdir-$(CONFIG_PLATFORM_AT32AP)	:= arch-at32ap
 
@@ -47,6 +45,8 @@ endif
 	@touch $@
 
 archprepare: include/asm-avr32/.arch
+
+CLEAN_FILES += include/asm-avr32/.arch include/asm-avr32/arch
 
 BOOT_TARGETS := vmlinux.elf vmlinux.bin uImage uImage.srec
 
@@ -71,14 +71,19 @@ vmlinux.elf vmlinux.bin uImage.srec uImage vmlinux.cso: vmlinux
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
 
-linux.s: vmlinux
+vmlinux.s: vmlinux
 	$(call if_changed,disasm)
 
-linux.lst: vmlinux
+vmlinux.lst: vmlinux
 	$(call if_changed,listing)
+
+CLEAN_FILES += vmlinux.s vmlinux.lst
+
+archclean:
+	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp
   @echo '* vmlinux.elf		- ELF image with load address 0'
   @echo '  vmlinux.cso		- PathFinder CSO image'
-  @echo '  uImage		- Create a bootable image for U-Boot'
+  @echo '* uImage		- Create a bootable image for U-Boot'
 endef
