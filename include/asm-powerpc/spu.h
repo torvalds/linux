@@ -118,7 +118,6 @@ struct spu {
 	int number;
 	int nid;
 	unsigned int irqs[3];
-	u32 isrc;
 	u32 node;
 	u64 flags;
 	u64 dar;

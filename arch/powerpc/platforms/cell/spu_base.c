@@ -364,8 +364,7 @@ struct spu *spu_alloc_node(int node)
 	if (!list_empty(&spu_list[node])) {
 		spu = list_entry(spu_list[node].next, struct spu, list);
 		list_del_init(&spu->list);
-		pr_debug("Got SPU %x %d %d\n",
-			 spu->isrc, spu->number, spu->node);
+		pr_debug("Got SPU %d %d\n", spu->number, spu->node);
 		spu_init_channels(spu);
 	}
 	mutex_unlock(&spu_mutex);
@@ -591,7 +590,6 @@ static int __init spu_map_interrupts_old(struct spu *spu, struct device_node *np
 
 	/* Add the node number */
 	isrc |= spu->node << IIC_IRQ_NODE_SHIFT;
-	spu->isrc = isrc;
 
 	/* Now map interrupts of all 3 classes */
 	spu->irqs[0] = irq_create_mapping(NULL, IIC_IRQ_CLASS_0 | isrc);
@@ -733,16 +731,6 @@ struct sysdev_class spu_sysdev_class = {
 	set_kset_name("spu")
 };
 
-static ssize_t spu_show_isrc(struct sys_device *sysdev, char *buf)
-{
-	struct spu *spu = container_of(sysdev, struct spu, sysdev);
-	return sprintf(buf, "%d\n", spu->isrc);
-
-}
-static SYSDEV_ATTR(isrc, 0400, spu_show_isrc, NULL);
-
-extern int attach_sysdev_to_node(struct sys_device *dev, int nid);
-
 static int spu_create_sysdev(struct spu *spu)
 {
 	int ret;
@@ -756,8 +744,6 @@ static int spu_create_sysdev(struct spu *spu)
 		return ret;
 	}
 
-	if (spu->isrc != 0)
-		sysdev_create_file(&spu->sysdev, &attr_isrc);
 	sysfs_add_device_to_node(&spu->sysdev, spu->nid);
 
 	return 0;
@@ -765,7 +751,6 @@ static int spu_create_sysdev(struct spu *spu)
 
 static void spu_destroy_sysdev(struct spu *spu)
 {
-	sysdev_remove_file(&spu->sysdev, &attr_isrc);
 	sysfs_remove_device_from_node(&spu->sysdev, spu->nid);
 	sysdev_unregister(&spu->sysdev);
 }
@@ -821,8 +806,8 @@ static int __init create_spu(struct device_node *spe)
 	list_add(&spu->list, &spu_list[spu->node]);
 	mutex_unlock(&spu_mutex);
 
-	pr_debug(KERN_DEBUG "Using SPE %s %02x %p %p %p %p %d\n",
-		spu->name, spu->isrc, spu->local_store,
+	pr_debug(KERN_DEBUG "Using SPE %s %p %p %p %p %d\n",
+		spu->name, spu->local_store,
 		spu->problem, spu->priv1, spu->priv2, spu->number);
 	goto out;
 
