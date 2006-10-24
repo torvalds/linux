@@ -2992,6 +2992,11 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
+	/* 82571 and newer doesn't need the workaround that limited descriptor
+	 * length to 4kB */
+	if (adapter->hw.mac_type >= e1000_82571)
+		max_per_txd = 8192;
+
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->gso_size;
 	/* The controller does a simple calculation to
