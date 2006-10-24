@@ -121,6 +121,7 @@ static int drm_irq_install(drm_device_t * dev)
 		spin_lock_init(&dev->vbl_lock);
 
 		INIT_LIST_HEAD(&dev->vbl_sigs.head);
+		INIT_LIST_HEAD(&dev->vbl_sigs2.head);
 
 		dev->vbl_pending = 0;
 	}
@@ -248,9 +249,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 	struct timeval now;
 	int ret = 0;
 	unsigned int flags;
-
-	if (!drm_core_check_feature(dev, DRIVER_IRQ_VBL))
-		return -EINVAL;
+	atomic_t *seq;
 
 	if (!dev->irq)
 		return -EINVAL;
@@ -258,9 +257,26 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 	if (copy_from_user(&vblwait, argp, sizeof(vblwait)))
 		return -EFAULT;
 
-	switch (vblwait.request.type & ~_DRM_VBLANK_FLAGS_MASK) {
+	if (vblwait.request.type &
+	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK)) {
+		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
+			  vblwait.request.type,
+			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK));
+		return -EINVAL;
+	}
+
+	flags = vblwait.request.type & _DRM_VBLANK_FLAGS_MASK;
+
+	if (!drm_core_check_feature(dev, (flags & _DRM_VBLANK_SECONDARY) ?
+				    DRIVER_IRQ_VBL2 : DRIVER_IRQ_VBL))
+		return -EINVAL;
+
+	seq = (flags & _DRM_VBLANK_SECONDARY) ? &dev->vbl_received2 :
+	      &dev->vbl_received;
+
+	switch (vblwait.request.type & _DRM_VBLANK_TYPES_MASK) {
 	case _DRM_VBLANK_RELATIVE:
-		vblwait.request.sequence += atomic_read(&dev->vbl_received);
+		vblwait.request.sequence += atomic_read(seq);
 		vblwait.request.type &= ~_DRM_VBLANK_RELATIVE;
 	case _DRM_VBLANK_ABSOLUTE:
 		break;
@@ -268,13 +284,13 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	flags = vblwait.request.type & _DRM_VBLANK_FLAGS_MASK;
-
 	if (flags & _DRM_VBLANK_SIGNAL) {
 		unsigned long irqflags;
+		drm_vbl_sig_t *vbl_sigs = (flags & _DRM_VBLANK_SECONDARY)
+				      ? &dev->vbl_sigs2 : &dev->vbl_sigs;
 		drm_vbl_sig_t *vbl_sig;
 
-		vblwait.reply.sequence = atomic_read(&dev->vbl_received);
+		vblwait.reply.sequence = atomic_read(seq);
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
@@ -282,7 +298,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 		 * for the same vblank sequence number; nothing to be done in
 		 * that case
 		 */
-		list_for_each_entry(vbl_sig, &dev->vbl_sigs.head, head) {
+		list_for_each_entry(vbl_sig, &vbl_sigs->head, head) {
 			if (vbl_sig->sequence == vblwait.request.sequence
 			    && vbl_sig->info.si_signo == vblwait.request.signal
 			    && vbl_sig->task == current) {
@@ -315,11 +331,14 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
-		list_add_tail((struct list_head *)vbl_sig, &dev->vbl_sigs.head);
+		list_add_tail((struct list_head *)vbl_sig, &vbl_sigs->head);
 
 		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	} else {
-		if (dev->driver->vblank_wait)
+		if (flags & _DRM_VBLANK_SECONDARY) {
+			if (dev->driver->vblank_wait2)
+				ret = dev->driver->vblank_wait2(dev, &vblwait.request.sequence);
+		} else if (dev->driver->vblank_wait)
 			ret =
 			    dev->driver->vblank_wait(dev,
 						     &vblwait.request.sequence);
@@ -347,25 +366,32 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
  */
 void drm_vbl_send_signals(drm_device_t * dev)
 {
-	struct list_head *list, *tmp;
-	drm_vbl_sig_t *vbl_sig;
-	unsigned int vbl_seq = atomic_read(&dev->vbl_received);
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&dev->vbl_lock, flags);
 
-	list_for_each_safe(list, tmp, &dev->vbl_sigs.head) {
-		vbl_sig = list_entry(list, drm_vbl_sig_t, head);
-		if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
-			vbl_sig->info.si_code = vbl_seq;
-			send_sig_info(vbl_sig->info.si_signo, &vbl_sig->info,
-				      vbl_sig->task);
+	for (i = 0; i < 2; i++) {
+		struct list_head *list, *tmp;
+		drm_vbl_sig_t *vbl_sig;
+		drm_vbl_sig_t *vbl_sigs = i ? &dev->vbl_sigs2 : &dev->vbl_sigs;
+		unsigned int vbl_seq = atomic_read(i ? &dev->vbl_received2 :
+						   &dev->vbl_received);
 
-			list_del(list);
+		list_for_each_safe(list, tmp, &vbl_sigs->head) {
+			vbl_sig = list_entry(list, drm_vbl_sig_t, head);
+			if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
+				vbl_sig->info.si_code = vbl_seq;
+				send_sig_info(vbl_sig->info.si_signo,
+					      &vbl_sig->info, vbl_sig->task);
 
-			drm_free(vbl_sig, sizeof(*vbl_sig), DRM_MEM_DRIVER);
+				list_del(list);
 
-			dev->vbl_pending--;
+				drm_free(vbl_sig, sizeof(*vbl_sig),
+					 DRM_MEM_DRIVER);
+
+				dev->vbl_pending--;
+			}
 		}
 	}
 

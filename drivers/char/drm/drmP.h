@@ -97,6 +97,7 @@
 #define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
 #define DRIVER_FB_DMA      0x400
+#define DRIVER_IRQ_VBL2    0x800
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -562,6 +563,7 @@ struct drm_driver {
 	void (*kernel_context_switch_unlock) (struct drm_device * dev,
 					      drm_lock_t *lock);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
+	int (*vblank_wait2) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
 	/**
@@ -708,8 +710,10 @@ typedef struct drm_device {
 
 	wait_queue_head_t vbl_queue;	/**< VBLANK wait queue */
 	atomic_t vbl_received;
+	atomic_t vbl_received2;		/**< number of secondary VBLANK interrupts */
 	spinlock_t vbl_lock;
 	drm_vbl_sig_t vbl_sigs;		/**< signal list to send on VBLANK */
+	drm_vbl_sig_t vbl_sigs2;	/**< signals to send on secondary VBLANK */
 	unsigned int vbl_pending;
 
 	/*@} */
