@@ -344,7 +344,7 @@ static int cma_init_ib_qp(struct rdma_id_private *id_priv, struct ib_qp *qp)
 		return ret;
 
 	qp_attr.qp_state = IB_QPS_INIT;
-	qp_attr.qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+	qp_attr.qp_access_flags = 0;
 	qp_attr.port_num = id_priv->id.port_num;
 	return ib_modify_qp(qp, &qp_attr, IB_QP_STATE | IB_QP_ACCESS_FLAGS |
 					  IB_QP_PKEY_INDEX | IB_QP_PORT);
