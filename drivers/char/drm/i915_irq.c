@@ -60,7 +60,16 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		DRM_WAKEUP(&dev_priv->irq_queue);
 
 	if (temp & (VSYNC_PIPEA_FLAG | VSYNC_PIPEB_FLAG)) {
-		atomic_inc(&dev->vbl_received);
+		if ((dev_priv->vblank_pipe &
+		     (DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B))
+		    == (DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B)) {
+			if (temp & VSYNC_PIPEA_FLAG)
+				atomic_inc(&dev->vbl_received);
+			if (temp & VSYNC_PIPEB_FLAG)
+				atomic_inc(&dev->vbl_received2);
+		} else
+			atomic_inc(&dev->vbl_received);
+
 		DRM_WAKEUP(&dev->vbl_queue);
 		drm_vbl_send_signals(dev);
 	}
@@ -120,7 +129,8 @@ static int i915_wait_irq(drm_device_t * dev, int irq_nr)
 	return ret;
 }
 
-int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+static int i915_driver_vblank_do_wait(drm_device_t *dev, unsigned int *sequence,
+				      atomic_t *counter)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned int cur_vblank;
@@ -132,7 +142,7 @@ int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
 	}
 
 	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(&dev->vbl_received))
+		    (((cur_vblank = atomic_read(counter))
 			- *sequence) <= (1<<23)));
 	
 	*sequence = cur_vblank;
@@ -140,6 +150,16 @@ int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
 	return ret;
 }
 
+
+int i915_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence)
+{
+	return i915_driver_vblank_do_wait(dev, sequence, &dev->vbl_received);
+}
+
+int i915_driver_vblank_wait2(drm_device_t *dev, unsigned int *sequence)
+{
+	return i915_driver_vblank_do_wait(dev, sequence, &dev->vbl_received2);
+}
 
 /* Needs the lock as it touches the ring.
  */
