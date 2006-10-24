@@ -89,8 +89,11 @@ struct cpu_spec {
 
 extern struct cpu_spec		*cur_cpu_spec;
 
-extern void identify_cpu(unsigned long offset, unsigned long cpu);
-extern void do_cpu_ftr_fixups(unsigned long offset);
+extern unsigned int __start___ftr_fixup, __stop___ftr_fixup;
+
+extern struct cpu_spec *identify_cpu(unsigned long offset);
+extern void do_feature_fixups(unsigned long offset, unsigned long value,
+			      void *fixup_start, void *fixup_end);
 
 #endif /* __ASSEMBLY__ */
 

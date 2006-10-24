@@ -96,6 +96,8 @@ extern void machine_check_fwnmi(void);
 /* This is true if we are using the firmware NMI handler (typically LPAR) */
 extern int fwnmi_active;
 
+extern unsigned int __start___fw_ftr_fixup, __stop___fw_ftr_fixup;
+
 #else /* __ASSEMBLY__ */
 
 #define BEGIN_FW_FTR_SECTION		96:
