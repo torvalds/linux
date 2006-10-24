@@ -119,7 +119,6 @@ static int drm_irq_install(drm_device_t * dev)
 		init_waitqueue_head(&dev->vbl_queue);
 
 		spin_lock_init(&dev->vbl_lock);
-		spin_lock_init(&dev->tasklet_lock);
 
 		INIT_LIST_HEAD(&dev->vbl_sigs.head);
 		INIT_LIST_HEAD(&dev->vbl_sigs2.head);
@@ -456,7 +455,8 @@ void drm_locked_tasklet(drm_device_t *dev, void (*func)(drm_device_t*))
 	unsigned long irqflags;
 	static DECLARE_TASKLET(drm_tasklet, drm_locked_tasklet_func, 0);
 
-	if (test_bit(TASKLET_STATE_SCHED, &drm_tasklet.state))
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ) ||
+	    test_bit(TASKLET_STATE_SCHED, &drm_tasklet.state))
 		return;
 
 	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
