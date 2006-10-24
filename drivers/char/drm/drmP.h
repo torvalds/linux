@@ -431,7 +431,8 @@ typedef struct drm_device_dma {
 	enum {
 		_DRM_DMA_USE_AGP = 0x01,
 		_DRM_DMA_USE_SG = 0x02,
-		_DRM_DMA_USE_FB = 0x04
+		_DRM_DMA_USE_FB = 0x04,
+		_DRM_DMA_USE_PCI_RO = 0x08
 	} flags;
 
 } drm_device_dma_t;
