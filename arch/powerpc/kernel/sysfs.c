@@ -299,6 +299,72 @@ static struct notifier_block __cpuinitdata sysfs_cpu_nb = {
 	.notifier_call	= sysfs_cpu_notify,
 };
 
+static DEFINE_MUTEX(cpu_mutex);
+
+int cpu_add_sysdev_attr(struct sysdev_attribute *attr)
+{
+	int cpu;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev_create_file(get_cpu_sysdev(cpu), attr);
+	}
+
+	mutex_unlock(&cpu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cpu_add_sysdev_attr);
+
+int cpu_add_sysdev_attr_group(struct attribute_group *attrs)
+{
+	int cpu;
+	struct sys_device *sysdev;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev = get_cpu_sysdev(cpu);
+		sysfs_create_group(&sysdev->kobj, attrs);
+	}
+
+	mutex_unlock(&cpu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cpu_add_sysdev_attr_group);
+
+
+void cpu_remove_sysdev_attr(struct sysdev_attribute *attr)
+{
+	int cpu;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev_remove_file(get_cpu_sysdev(cpu), attr);
+	}
+
+	mutex_unlock(&cpu_mutex);
+}
+EXPORT_SYMBOL_GPL(cpu_remove_sysdev_attr);
+
+void cpu_remove_sysdev_attr_group(struct attribute_group *attrs)
+{
+	int cpu;
+	struct sys_device *sysdev;
+
+	mutex_lock(&cpu_mutex);
+
+	for_each_possible_cpu(cpu) {
+		sysdev = get_cpu_sysdev(cpu);
+		sysfs_remove_group(&sysdev->kobj, attrs);
+	}
+
+	mutex_unlock(&cpu_mutex);
+}
+EXPORT_SYMBOL_GPL(cpu_remove_sysdev_attr_group);
+
+
 /* NUMA stuff */
 
 #ifdef CONFIG_NUMA

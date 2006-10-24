@@ -33,6 +33,14 @@ struct cpu {
 
 extern int register_cpu(struct cpu *cpu, int num);
 extern struct sys_device *get_cpu_sysdev(unsigned cpu);
+
+extern int cpu_add_sysdev_attr(struct sysdev_attribute *attr);
+extern void cpu_remove_sysdev_attr(struct sysdev_attribute *attr);
+
+extern int cpu_add_sysdev_attr_group(struct attribute_group *attrs);
+extern void cpu_remove_sysdev_attr_group(struct attribute_group *attrs);
+
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *cpu);
 #endif
