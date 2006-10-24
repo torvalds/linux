@@ -216,7 +216,8 @@ Commands:\n\
   s	single step\n"
 #ifdef CONFIG_PPC_CELL
 "  ss	stop execution on all spus\n\
-  sr	restore execution on stopped spus\n"
+  sr	restore execution on stopped spus\n\
+  sf #	dump spu fields for spu # (in hex)\n"
 #endif
 "  S	print special registers\n\
   t	print backtrace\n\
@@ -2744,8 +2745,66 @@ static void restart_spus(void)
 	}
 }
 
+#define DUMP_WIDTH	23
+#define DUMP_FIELD(obj, format, field)					\
+do {									\
+	if (setjmp(bus_error_jmp) == 0) {				\
+		catch_memory_errors = 1;				\
+		sync();							\
+		printf("  %-*s = "format"\n", DUMP_WIDTH,		\
+				#field, obj->field);			\
+		sync();							\
+		__delay(200);						\
+	} else {							\
+		catch_memory_errors = 0;				\
+		printf("  %-*s = *** Error reading field.\n",		\
+					DUMP_WIDTH, #field);		\
+	}								\
+	catch_memory_errors = 0;					\
+} while (0)
+
+static void dump_spu_fields(struct spu *spu)
+{
+	printf("Dumping spu fields at address %p:\n", spu);
+
+	DUMP_FIELD(spu, "0x%x", number);
+	DUMP_FIELD(spu, "%s", name);
+	DUMP_FIELD(spu, "%s", devnode->full_name);
+	DUMP_FIELD(spu, "0x%x", nid);
+	DUMP_FIELD(spu, "0x%lx", local_store_phys);
+	DUMP_FIELD(spu, "0x%p", local_store);
+	DUMP_FIELD(spu, "0x%lx", ls_size);
+	DUMP_FIELD(spu, "0x%x", node);
+	DUMP_FIELD(spu, "0x%lx", flags);
+	DUMP_FIELD(spu, "0x%lx", dar);
+	DUMP_FIELD(spu, "0x%lx", dsisr);
+	DUMP_FIELD(spu, "%d", class_0_pending);
+	DUMP_FIELD(spu, "0x%lx", irqs[0]);
+	DUMP_FIELD(spu, "0x%lx", irqs[1]);
+	DUMP_FIELD(spu, "0x%lx", irqs[2]);
+	DUMP_FIELD(spu, "0x%x", slb_replace);
+	DUMP_FIELD(spu, "%d", pid);
+	DUMP_FIELD(spu, "%d", prio);
+	DUMP_FIELD(spu, "0x%p", mm);
+	DUMP_FIELD(spu, "0x%p", ctx);
+	DUMP_FIELD(spu, "0x%p", rq);
+	DUMP_FIELD(spu, "0x%p", timestamp);
+	DUMP_FIELD(spu, "0x%lx", problem_phys);
+	DUMP_FIELD(spu, "0x%p", problem);
+	DUMP_FIELD(spu, "0x%x", problem->spu_runcntl_RW);
+	DUMP_FIELD(spu, "0x%x", problem->spu_status_R);
+	DUMP_FIELD(spu, "0x%x", problem->spu_npc_RW);
+	DUMP_FIELD(spu, "0x%p", priv1);
+
+	if (spu->priv1)
+		DUMP_FIELD(spu, "0x%lx", priv1->mfc_sr1_RW);
+
+	DUMP_FIELD(spu, "0x%p", priv2);
+}
+
 static int do_spu_cmd(void)
 {
+	unsigned long num = 0;
 	int cmd;
 
 	cmd = inchar();
@@ -2755,6 +2814,12 @@ static int do_spu_cmd(void)
 		break;
 	case 'r':
 		restart_spus();
+		break;
+	case 'f':
+		if (scanhex(&num) && num < XMON_NUM_SPUS && spu_info[num].spu)
+			dump_spu_fields(spu_info[num].spu);
+		else
+			printf("*** Error: invalid spu number\n");
 		break;
 	default:
 		return -1;
