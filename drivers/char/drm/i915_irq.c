@@ -392,11 +392,6 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 		return DRM_ERR(EINVAL);
 	}
 
-	if (dev_priv->swaps_pending >= 100) {
-		DRM_DEBUG("Too many swaps queued\n");
-		return DRM_ERR(EBUSY);
-	}
-
 	DRM_COPY_FROM_USER_IOCTL(swap, (drm_i915_vblank_swap_t __user *) data,
 				 sizeof(swap));
 
@@ -460,6 +455,11 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	}
 
 	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+
+	if (dev_priv->swaps_pending >= 100) {
+		DRM_DEBUG("Too many swaps queued\n");
+		return DRM_ERR(EBUSY);
+	}
 
 	vbl_swap = drm_calloc(1, sizeof(vbl_swap), DRM_MEM_DRIVER);
 
