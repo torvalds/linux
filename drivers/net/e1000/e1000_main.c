@@ -1808,9 +1808,11 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 	 * followed by the page buffers.  Therefore, skb->data is
 	 * sized to hold the largest protocol header.
 	 */
+	/* allocations using alloc_page take too long for regular MTU
+	 * so only enable packet split for jumbo frames */
 	pages = PAGE_USE_COUNT(adapter->netdev->mtu);
-	if ((adapter->hw.mac_type > e1000_82547_rev_2) && (pages <= 3) &&
-	    PAGE_SIZE <= 16384)
+	if ((adapter->hw.mac_type >= e1000_82571) && (pages <= 3) &&
+	    PAGE_SIZE <= 16384 && (rctl & E1000_RCTL_LPE))
 		adapter->rx_ps_pages = pages;
 	else
 		adapter->rx_ps_pages = 0;
