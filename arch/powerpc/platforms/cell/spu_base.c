@@ -38,6 +38,7 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/mmu_context.h>
+#include <asm/xmon.h>
 
 #include "interrupt.h"
 
@@ -943,6 +944,9 @@ static int __init init_spu_base(void)
 			break;
 		}
 	}
+
+	xmon_register_spus(&spu_full_list);
+
 	return ret;
 }
 module_init(init_spu_base);
