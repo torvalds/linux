@@ -375,7 +375,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_vblank_swap_t swap;
 	drm_i915_vbl_swap_t *vbl_swap;
-	unsigned int irqflags;
+	unsigned int pipe, seqtype, irqflags, curseq;
 	struct list_head *list;
 
 	if (!dev_priv) {
@@ -396,8 +396,23 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	DRM_COPY_FROM_USER_IOCTL(swap, (drm_i915_vblank_swap_t __user *) data,
 				 sizeof(swap));
 
-	if (swap.pipe > 1 || !(dev_priv->vblank_pipe & (1 << swap.pipe))) {
-		DRM_ERROR("Invalid pipe %d\n", swap.pipe);
+	if (swap.seqtype & ~(_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE |
+			     _DRM_VBLANK_SECONDARY)) {
+		DRM_ERROR("Invalid sequence type 0x%x\n", swap.seqtype);
+		return DRM_ERR(EINVAL);
+	}
+
+	pipe = (swap.seqtype & _DRM_VBLANK_SECONDARY) ? 1 : 0;
+
+	seqtype = swap.seqtype & (_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE);
+
+	if (seqtype == _DRM_VBLANK_RELATIVE && swap.sequence == 0) {
+		DRM_DEBUG("Not scheduling swap for current sequence\n");
+		return DRM_ERR(EINVAL);
+	}
+
+	if (!(dev_priv->vblank_pipe & (1 << pipe))) {
+		DRM_ERROR("Invalid pipe %d\n", pipe);
 		return DRM_ERR(EINVAL);
 	}
 
@@ -411,13 +426,28 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
+	curseq = atomic_read(pipe ? &dev->vbl_received2 : &dev->vbl_received);
+
 	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
+
+	switch (seqtype) {
+	case _DRM_VBLANK_RELATIVE:
+		swap.sequence += curseq;
+		break;
+	case _DRM_VBLANK_ABSOLUTE:
+		if ((curseq - swap.sequence) > (1<<23)) {
+			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+			DRM_DEBUG("Missed target sequence\n");
+			return DRM_ERR(EINVAL);
+		}
+		break;
+	}
 
 	list_for_each(list, &dev_priv->vbl_swaps.head) {
 		vbl_swap = list_entry(list, drm_i915_vbl_swap_t, head);
 
 		if (vbl_swap->drw_id == swap.drawable &&
-		    vbl_swap->pipe == swap.pipe &&
+		    vbl_swap->pipe == pipe &&
 		    vbl_swap->sequence == swap.sequence) {
 			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
 			DRM_DEBUG("Already scheduled\n");
@@ -437,7 +467,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	DRM_DEBUG("\n");
 
 	vbl_swap->drw_id = swap.drawable;
-	vbl_swap->pipe = swap.pipe;
+	vbl_swap->pipe = pipe;
 	vbl_swap->sequence = swap.sequence;
 
 	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
@@ -446,6 +476,9 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	dev_priv->swaps_pending++;
 
 	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+
+	DRM_COPY_TO_USER_IOCTL((drm_i915_vblank_swap_t __user *) data, swap,
+			       sizeof(swap));
 
 	return 0;
 }
