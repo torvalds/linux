@@ -132,6 +132,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_DESTROY_HEAP	0x0c
 #define DRM_I915_SET_VBLANK_PIPE	0x0d
 #define DRM_I915_GET_VBLANK_PIPE	0x0e
+#define DRM_I915_VBLANK_SWAP	0x0f
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -242,5 +243,13 @@ typedef struct drm_i915_mem_destroy_heap {
 typedef struct drm_i915_vblank_pipe {
 	int pipe;
 } drm_i915_vblank_pipe_t;
+
+/* Schedule buffer swap at given vertical blank:
+ */
+typedef struct drm_i915_vblank_swap {
+	drm_drawable_t drawable;
+	unsigned int pipe;
+	unsigned int sequence;
+} drm_i915_vblank_swap_t;
 
 #endif				/* _I915_DRM_H_ */

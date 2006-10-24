@@ -37,6 +37,99 @@
 
 #define MAX_NOPID ((u32)~0)
 
+/**
+ * Emit blits for scheduled buffer swaps.
+ *
+ * This function will be called with the HW lock held.
+ */
+static void i915_vblank_tasklet(drm_device_t *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned int irqflags;
+	struct list_head *list, *tmp;
+
+	DRM_DEBUG("\n");
+
+	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
+
+	list_for_each_safe(list, tmp, &dev_priv->vbl_swaps.head) {
+		drm_i915_vbl_swap_t *vbl_swap =
+			list_entry(list, drm_i915_vbl_swap_t, head);
+		atomic_t *counter = vbl_swap->pipe ? &dev->vbl_received2 :
+			&dev->vbl_received;
+
+		if ((atomic_read(counter) - vbl_swap->sequence) <= (1<<23)) {
+			drm_drawable_info_t *drw;
+
+			spin_unlock(&dev_priv->swaps_lock);
+
+			spin_lock(&dev->drw_lock);
+
+			drw = drm_get_drawable_info(dev, vbl_swap->drw_id);
+				
+			if (drw) {
+				int i, num_rects = drw->num_rects;
+				drm_clip_rect_t *rect = drw->rects;
+				drm_i915_sarea_t *sarea_priv =
+				    dev_priv->sarea_priv;
+				u32 cpp = dev_priv->cpp;
+				u32 cmd = (cpp == 4) ? (XY_SRC_COPY_BLT_CMD |
+							XY_SRC_COPY_BLT_WRITE_ALPHA |
+							XY_SRC_COPY_BLT_WRITE_RGB)
+						     : XY_SRC_COPY_BLT_CMD;
+				u32 pitchropcpp = (sarea_priv->pitch * cpp) |
+						  (0xcc << 16) | (cpp << 23) |
+						  (1 << 24);
+				RING_LOCALS;
+
+				i915_kernel_lost_context(dev);
+
+				BEGIN_LP_RING(6);
+
+				OUT_RING(GFX_OP_DRAWRECT_INFO);
+				OUT_RING(0);
+				OUT_RING(0);
+				OUT_RING(sarea_priv->width |
+					 sarea_priv->height << 16);
+				OUT_RING(sarea_priv->width |
+					 sarea_priv->height << 16);
+				OUT_RING(0);
+
+				ADVANCE_LP_RING();
+
+				sarea_priv->ctxOwner = DRM_KERNEL_CONTEXT;
+
+				for (i = 0; i < num_rects; i++, rect++) {
+					BEGIN_LP_RING(8);
+
+					OUT_RING(cmd);
+					OUT_RING(pitchropcpp);
+					OUT_RING((rect->y1 << 16) | rect->x1);
+					OUT_RING((rect->y2 << 16) | rect->x2);
+					OUT_RING(sarea_priv->front_offset);
+					OUT_RING((rect->y1 << 16) | rect->x1);
+					OUT_RING(pitchropcpp & 0xffff);
+					OUT_RING(sarea_priv->back_offset);
+
+					ADVANCE_LP_RING();
+				}
+			}
+
+			spin_unlock(&dev->drw_lock);
+
+			spin_lock(&dev_priv->swaps_lock);
+
+			list_del(list);
+
+			drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
+
+			dev_priv->swaps_pending--;
+		}
+	}
+
+	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	drm_device_t *dev = (drm_device_t *) arg;
@@ -72,6 +165,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 		DRM_WAKEUP(&dev->vbl_queue);
 		drm_vbl_send_signals(dev);
+
+		drm_locked_tasklet(dev, i915_vblank_tasklet);
 	}
 
 	return IRQ_HANDLED;
@@ -271,6 +366,90 @@ int i915_vblank_pipe_get(DRM_IOCTL_ARGS)
 	return 0;
 }
 
+/**
+ * Schedule buffer swap at given vertical blank.
+ */
+int i915_vblank_swap(DRM_IOCTL_ARGS)
+{
+	DRM_DEVICE;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_vblank_swap_t swap;
+	drm_i915_vbl_swap_t *vbl_swap;
+	unsigned int irqflags;
+	struct list_head *list;
+
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __func__);
+		return DRM_ERR(EINVAL);
+	}
+
+	if (dev_priv->sarea_priv->rotation) {
+		DRM_DEBUG("Rotation not supported\n");
+		return DRM_ERR(EINVAL);
+	}
+
+	if (dev_priv->swaps_pending >= 100) {
+		DRM_DEBUG("Too many swaps queued\n");
+		return DRM_ERR(EBUSY);
+	}
+
+	DRM_COPY_FROM_USER_IOCTL(swap, (drm_i915_vblank_swap_t __user *) data,
+				 sizeof(swap));
+
+	if (swap.pipe > 1 || !(dev_priv->vblank_pipe & (1 << swap.pipe))) {
+		DRM_ERROR("Invalid pipe %d\n", swap.pipe);
+		return DRM_ERR(EINVAL);
+	}
+
+	spin_lock_irqsave(&dev->drw_lock, irqflags);
+
+	if (!drm_get_drawable_info(dev, swap.drawable)) {
+		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+		DRM_ERROR("Invalid drawable ID %d\n", swap.drawable);
+		return DRM_ERR(EINVAL);
+	}
+
+	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+
+	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
+
+	list_for_each(list, &dev_priv->vbl_swaps.head) {
+		vbl_swap = list_entry(list, drm_i915_vbl_swap_t, head);
+
+		if (vbl_swap->drw_id == swap.drawable &&
+		    vbl_swap->pipe == swap.pipe &&
+		    vbl_swap->sequence == swap.sequence) {
+			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+			DRM_DEBUG("Already scheduled\n");
+			return 0;
+		}
+	}
+
+	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+
+	vbl_swap = drm_calloc(1, sizeof(vbl_swap), DRM_MEM_DRIVER);
+
+	if (!vbl_swap) {
+		DRM_ERROR("Failed to allocate memory to queue swap\n");
+		return DRM_ERR(ENOMEM);
+	}
+
+	DRM_DEBUG("\n");
+
+	vbl_swap->drw_id = swap.drawable;
+	vbl_swap->pipe = swap.pipe;
+	vbl_swap->sequence = swap.sequence;
+
+	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
+
+	list_add_tail((struct list_head *)vbl_swap, &dev_priv->vbl_swaps.head);
+	dev_priv->swaps_pending++;
+
+	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+
+	return 0;
+}
+
 /* drm_dma.h hooks
 */
 void i915_driver_irq_preinstall(drm_device_t * dev)
@@ -285,6 +464,10 @@ void i915_driver_irq_preinstall(drm_device_t * dev)
 void i915_driver_irq_postinstall(drm_device_t * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	dev_priv->swaps_lock = SPIN_LOCK_UNLOCKED;
+	INIT_LIST_HEAD(&dev_priv->vbl_swaps.head);
+	dev_priv->swaps_pending = 0;
 
 	i915_enable_interrupt(dev);
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
