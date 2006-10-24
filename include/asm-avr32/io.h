@@ -76,6 +76,39 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 #define readsw(p, d, l)		__raw_readsw((unsigned int)p, d, l)
 #define readsl(p, d, l)		__raw_readsl((unsigned int)p, d, l)
 
+
+/*
+ * io{read,write}{8,16,32} macros in both le (for PCI style consumers) and native be
+ */
+#ifndef ioread8
+
+#define ioread8(p)	({ unsigned int __v = __raw_readb(p); __v; })
+
+#define ioread16(p)	({ unsigned int __v = le16_to_cpu(__raw_readw(p)); __v; })
+#define ioread16be(p)	({ unsigned int __v = be16_to_cpu(__raw_readw(p)); __v; })
+
+#define ioread32(p)	({ unsigned int __v = le32_to_cpu(__raw_readl(p)); __v; })
+#define ioread32be(p)	({ unsigned int __v = be32_to_cpu(__raw_readl(p)); __v; })
+
+#define iowrite8(v,p)	__raw_writeb(v, p)
+
+#define iowrite16(v,p)	__raw_writew(cpu_to_le16(v), p)
+#define iowrite16be(v,p)	__raw_writew(cpu_to_be16(v), p)
+
+#define iowrite32(v,p)	__raw_writel(cpu_to_le32(v), p)
+#define iowrite32be(v,p)	__raw_writel(cpu_to_be32(v), p)
+
+#define ioread8_rep(p,d,c)	__raw_readsb(p,d,c)
+#define ioread16_rep(p,d,c)	__raw_readsw(p,d,c)
+#define ioread32_rep(p,d,c)	__raw_readsl(p,d,c)
+
+#define iowrite8_rep(p,s,c)	__raw_writesb(p,s,c)
+#define iowrite16_rep(p,s,c)	__raw_writesw(p,s,c)
+#define iowrite32_rep(p,s,c)	__raw_writesl(p,s,c)
+
+#endif
+
+
 /*
  * These two are only here because ALSA _thinks_ it needs them...
  */
