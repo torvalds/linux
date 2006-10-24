@@ -1691,6 +1691,7 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter, struct ethtool_wol
 	int retval = 1; /* fail by default */
 
 	switch (hw->device_id) {
+	case E1000_DEV_ID_82542:
 	case E1000_DEV_ID_82543GC_FIBER:
 	case E1000_DEV_ID_82543GC_COPPER:
 	case E1000_DEV_ID_82544EI_FIBER:
