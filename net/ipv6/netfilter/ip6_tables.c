@@ -111,7 +111,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		 const char *outdev,
 		 const struct ip6t_ip6 *ip6info,
 		 unsigned int *protoff,
-		 int *fragoff)
+		 int *fragoff, int *hotdrop)
 {
 	size_t i;
 	unsigned long ret;
@@ -169,9 +169,11 @@ ip6_packet_match(const struct sk_buff *skb,
 		unsigned short _frag_off;
 
 		protohdr = ipv6_find_hdr(skb, protoff, -1, &_frag_off);
-		if (protohdr < 0)
+		if (protohdr < 0) {
+			if (_frag_off == 0)
+				*hotdrop = 1;
 			return 0;
-
+		}
 		*fragoff = _frag_off;
 
 		dprintf("Packet protocol %hi ?= %s%hi.\n",
@@ -290,7 +292,7 @@ ip6t_do_table(struct sk_buff **pskb,
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (ip6_packet_match(*pskb, indev, outdev, &e->ipv6,
-			&protoff, &offset)) {
+			&protoff, &offset, &hotdrop)) {
 			struct ip6t_entry_target *t;
 
 			if (IP6T_MATCH_ITERATE(e, do_match,
