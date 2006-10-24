@@ -32,6 +32,7 @@
 #include <linux/ktime.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
+#include <asm/io.h>
 
 /***************
  * Definitions *
