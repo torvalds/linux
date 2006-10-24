@@ -344,28 +344,6 @@ static struct rpc_version *	nfs_cb_version[] = {
 	&nfs_cb_version4,
 };
 
-/*
- * Use the SETCLIENTID credential
- */
-static struct rpc_cred *
-nfsd4_lookupcred(struct nfs4_client *clp, int taskflags)
-{
-        struct auth_cred acred;
-	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
-	struct rpc_cred *ret;
-
-        get_group_info(clp->cl_cred.cr_group_info);
-        acred.uid = clp->cl_cred.cr_uid;
-        acred.gid = clp->cl_cred.cr_gid;
-        acred.group_info = clp->cl_cred.cr_group_info;
-
-        dprintk("NFSD:     looking up %s cred\n",
-                clnt->cl_auth->au_ops->au_name);
-        ret = rpcauth_lookup_credcache(clnt->cl_auth, &acred, taskflags);
-        put_group_info(clp->cl_cred.cr_group_info);
-        return ret;
-}
-
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cb_set an atomic? */
 
@@ -379,18 +357,13 @@ static int do_probe_callback(void *data)
 	};
 	int status;
 
-	msg.rpc_cred = nfsd4_lookupcred(clp, 0);
-	if (IS_ERR(msg.rpc_cred))
-		goto out;
 	status = rpc_call_sync(cb->cb_client, &msg, RPC_TASK_SOFT);
-	put_rpccred(msg.rpc_cred);
 
 	if (status) {
 		rpc_shutdown_client(cb->cb_client);
 		cb->cb_client = NULL;
 	} else
 		atomic_set(&cb->cb_set, 1);
-out:
 	put_nfs4_client(clp);
 	return 0;
 }
@@ -488,10 +461,6 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 	if ((!atomic_read(&clp->cl_callback.cb_set)) || !clnt)
 		return;
 
-	msg.rpc_cred = nfsd4_lookupcred(clp, 0);
-	if (IS_ERR(msg.rpc_cred))
-		goto out;
-
 	cbr->cbr_trunc = 0; /* XXX need to implement truncate optimization */
 	cbr->cbr_dp = dp;
 
@@ -512,8 +481,6 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
 	}
 out_put_cred:
-	put_rpccred(msg.rpc_cred);
-out:
 	if (status == -EIO)
 		atomic_set(&clp->cl_callback.cb_set, 0);
 	/* Success or failure, now we're either waiting for lease expiration
