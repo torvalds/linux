@@ -20,4 +20,9 @@ config CBE_RAS
 	bool "RAS features for bare metal Cell BE"
 	default y
 
+config CBE_THERM
+	tristate "CBE thermal support"
+	default m
+	depends on CBE_RAS
+
 endmenu
