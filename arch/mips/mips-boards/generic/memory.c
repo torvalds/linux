@@ -176,7 +176,7 @@ unsigned long __init prom_free_prom_memory(void)
 		if (boot_mem_map.map[i].type != BOOT_MEM_ROM_DATA)
 			continue;
 
-		addr = boot_mem_map.map[i].addr;
+		addr = PAGE_ALIGN(boot_mem_map.map[i].addr);
 		while (addr < boot_mem_map.map[i].addr
 			      + boot_mem_map.map[i].size) {
 			ClearPageReserved(virt_to_page(__va(addr)));
