@@ -92,13 +92,13 @@ done:
 		bitfield[i] = 0;
 	}
 
-	draw.handle = i * 8 * sizeof(*bitfield) + j;
+	draw.handle = i * 8 * sizeof(*bitfield) + j + 1;
 	DRM_DEBUG("%d\n", draw.handle);
 
 	spin_lock_irqsave(&dev->drw_lock, irqflags);
 
 	bitfield[i] |= 1 << j;
-	info[draw.handle] = NULL;
+	info[draw.handle - 1] = NULL;
 
 	if (bitfield != dev->drw_bitfield) {
 		memcpy(bitfield, dev->drw_bitfield, dev->drw_bitfield_length *
@@ -132,7 +132,7 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_draw_t draw;
-	unsigned int idx, shift;
+ 	unsigned int id, idx, shift;
 	unsigned long irqflags;
 	u32 *bitfield = dev->drw_bitfield;
 	unsigned int bitfield_length = dev->drw_bitfield_length;
@@ -142,10 +142,11 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 	DRM_COPY_FROM_USER_IOCTL(draw, (drm_draw_t __user *) data,
 				 sizeof(draw));
 
-	idx = draw.handle / (8 * sizeof(*bitfield));
-	shift = draw.handle % (8 * sizeof(*bitfield));
+	id = draw.handle - 1;
+	idx = id / (8 * sizeof(*bitfield));
+	shift = id % (8 * sizeof(*bitfield));
 
-	if (idx >= bitfield_length ||
+	if (idx < 0 || idx >= bitfield_length ||
 	    !(bitfield[idx] & (1 << shift))) {
 		DRM_DEBUG("No such drawable %d\n", draw.handle);
 		return 0;
@@ -157,6 +158,12 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
+	if (info[id]) {
+		drm_free(info[id]->rects, info[id]->num_rects *
+			 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+		drm_free(info[id], sizeof(**info), DRM_MEM_BUFS);
+	}
+
 	/* Can we shrink the arrays? */
 	if (idx == bitfield_length - 1) {
 		while (idx >= 0 && !bitfield[idx])
@@ -164,7 +171,7 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 
 		bitfield_length = idx + 1;
 
-		if (idx != draw.handle / (8 * sizeof(*bitfield)))
+		if (idx != id / (8 * sizeof(*bitfield)))
 			bitfield = drm_alloc(bitfield_length *
 					     sizeof(*bitfield), DRM_MEM_BUFS);
 
@@ -222,11 +229,12 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 	DRM_COPY_FROM_USER_IOCTL(update, (drm_update_draw_t __user *) data,
 				 sizeof(update));
 
-	id = update.handle;
+	id = update.handle - 1;
 	idx = id / (8 * sizeof(*bitfield));
 	shift = id % (8 * sizeof(*bitfield));
 
-	if (idx >= bitfield_length || !(bitfield[idx] & (1 << shift))) {
+	if (idx < 0 || idx >= bitfield_length ||
+	    !(bitfield[idx] & (1 << shift))) {
 		DRM_ERROR("No such drawable %d\n", update.handle);
 		return DRM_ERR(EINVAL);
 	}
@@ -304,10 +312,13 @@ error:
  */
 drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev, drm_drawable_t id) {
 	u32 *bitfield = dev->drw_bitfield;
-	unsigned int idx = id / (8 * sizeof(*bitfield));
-	unsigned int shift = id % (8 * sizeof(*bitfield));
+	unsigned int idx, shift;
 
-	if (idx >= dev->drw_bitfield_length ||
+	id--;
+	idx = id / (8 * sizeof(*bitfield));
+	shift = id % (8 * sizeof(*bitfield));
+
+	if (idx < 0 || idx >= dev->drw_bitfield_length ||
 	    !(bitfield[idx] & (1 << shift))) {
 		DRM_DEBUG("No such drawable %d\n", id);
 		return NULL;

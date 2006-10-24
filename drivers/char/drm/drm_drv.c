@@ -153,6 +153,18 @@ int drm_lastclose(drm_device_t * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
+	/* Free drawable information memory */
+	for (i = 0; i < dev->drw_bitfield_length / sizeof(*dev->drw_bitfield);
+	     i++) {
+		drm_drawable_info_t *info = drm_get_drawable_info(dev, i);
+
+		if (info) {
+			drm_free(info->rects, info->num_rects *
+				 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+			drm_free(info, sizeof(*info), DRM_MEM_BUFS);
+		}
+	}
+
 	mutex_lock(&dev->struct_mutex);
 	del_timer(&dev->timer);
 
