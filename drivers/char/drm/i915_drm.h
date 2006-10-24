@@ -104,6 +104,15 @@ typedef struct _drm_i915_sarea {
 	unsigned int depth_tiled;
 	unsigned int rotated_tiled;
 	unsigned int rotated2_tiled;
+
+	int pipeA_x;
+	int pipeA_y;
+	int pipeA_w;
+	int pipeA_h;
+	int pipeB_x;
+	int pipeB_y;
+	int pipeB_w;
+	int pipeB_h;
 } drm_i915_sarea_t;
 
 /* Flags for perf_boxes
