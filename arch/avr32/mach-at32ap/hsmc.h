@@ -120,8 +120,8 @@
 
 /* Register access macros */
 #define hsmc_readl(port,reg)						\
-	readl((port)->regs + HSMC_##reg)
+	__raw_readl((port)->regs + HSMC_##reg)
 #define hsmc_writel(port,reg,value)					\
-	writel((value), (port)->regs + HSMC_##reg)
+	__raw_writel((value), (port)->regs + HSMC_##reg)
 
 #endif /* __ASM_AVR32_HSMC_H__ */
