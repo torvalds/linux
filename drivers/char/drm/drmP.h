@@ -742,6 +742,15 @@ typedef struct drm_device {
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
 	drm_head_t primary;		/**< primary screen head */
+
+	/** \name Drawable information */
+	/*@{ */
+	spinlock_t drw_lock;
+	unsigned int drw_bitfield_length;
+	u32 *drw_bitfield;
+	unsigned int drw_info_length;
+	drm_drawable_info_t **drw_info;
+	/*@} */
 } drm_device_t;
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -889,6 +898,10 @@ extern int drm_adddraw(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg);
 extern int drm_rmdraw(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg);
+extern int drm_update_drawable_info(struct inode *inode, struct file *filp,
+		       unsigned int cmd, unsigned long arg);
+extern drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev,
+						  drm_drawable_t id);
 
 				/* Authentication IOCTL support (drm_auth.h) */
 extern int drm_getmagic(struct inode *inode, struct file *filp,
