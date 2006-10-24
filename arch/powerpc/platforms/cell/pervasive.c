@@ -54,9 +54,9 @@ static void __init cbe_enable_pause_zero(void)
 	pr_debug("Power Management: CPU %d\n", smp_processor_id());
 
 	 /* Enable Pause(0) control bit */
-	temp_register = in_be64(&pregs->pm_control);
+	temp_register = in_be64(&pregs->pmcr);
 
-	out_be64(&pregs->pm_control,
+	out_be64(&pregs->pmcr,
 		 temp_register | CBE_PMD_PAUSE_ZERO_CONTROL);
 
 	/* Enable DEC and EE interrupt request */
@@ -87,7 +87,7 @@ static void cbe_idle(void)
 	unsigned long ctrl;
 
 	/* Why do we do that on every idle ? Couldn't that be done once for
-	 * all or do we lose the state some way ? Also, the pm_control
+	 * all or do we lose the state some way ? Also, the pmcr
 	 * register setting, that can't be set once at boot ? We really want
 	 * to move that away in order to implement a simple powersave
 	 */
