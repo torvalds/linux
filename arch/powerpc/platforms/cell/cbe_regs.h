@@ -121,6 +121,41 @@ extern struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_node *np);
 extern struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu);
 
 /*
+ * PMU shadow registers
+ *
+ * Many of the registers in the performance monitoring unit are write-only,
+ * so we need to save a copy of what we write to those registers.
+ *
+ * The actual data counters are read/write. However, writing to the counters
+ * only takes effect if the PMU is enabled. Otherwise the value is stored in
+ * a hardware latch until the next time the PMU is enabled. So we save a copy
+ * of the counter values if we need to read them back while the PMU is
+ * disabled. The counter_value_in_latch field is a bitmap indicating which
+ * counters currently have a value waiting to be written.
+ */
+
+#define NR_PHYS_CTRS	4
+#define NR_CTRS		(NR_PHYS_CTRS * 2)
+
+struct cbe_pmd_shadow_regs {
+	u32 group_control;
+	u32 debug_bus_control;
+	u32 trace_address;
+	u32 ext_tr_timer;
+	u32 pm_status;
+	u32 pm_control;
+	u32 pm_interval;
+	u32 pm_start_stop;
+	u32 pm07_control[NR_CTRS];
+
+	u32 pm_ctr[NR_PHYS_CTRS];
+	u32 counter_value_in_latch;
+};
+
+extern struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_node *np);
+extern struct cbe_pmd_shadow_regs *cbe_get_cpu_pmd_shadow_regs(int cpu);
+
+/*
  *
  * IIC unit register definitions
  *

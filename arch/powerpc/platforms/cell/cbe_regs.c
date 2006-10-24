@@ -30,6 +30,7 @@ static struct cbe_regs_map
 	struct cbe_pmd_regs __iomem *pmd_regs;
 	struct cbe_iic_regs __iomem *iic_regs;
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
+	struct cbe_pmd_shadow_regs pmd_shadow_regs;
 } cbe_regs_maps[MAX_CBE];
 static int cbe_regs_map_count;
 
@@ -79,6 +80,22 @@ struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu)
 	return map->pmd_regs;
 }
 EXPORT_SYMBOL_GPL(cbe_get_cpu_pmd_regs);
+
+struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_node *np)
+{
+	struct cbe_regs_map *map = cbe_find_map(np);
+	if (map == NULL)
+		return NULL;
+	return &map->pmd_shadow_regs;
+}
+
+struct cbe_pmd_shadow_regs *cbe_get_cpu_pmd_shadow_regs(int cpu)
+{
+	struct cbe_regs_map *map = cbe_thread_map[cpu].regs;
+	if (map == NULL)
+		return NULL;
+	return &map->pmd_shadow_regs;
+}
 
 struct cbe_iic_regs __iomem *cbe_get_iic_regs(struct device_node *np)
 {
