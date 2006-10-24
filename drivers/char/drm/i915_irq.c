@@ -304,7 +304,7 @@ int i915_irq_wait(DRM_IOCTL_ARGS)
 	return i915_wait_irq(dev, irqwait.irq_seq);
 }
 
-static int i915_enable_interrupt (drm_device_t *dev)
+static void i915_enable_interrupt (drm_device_t *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u16 flag;
@@ -314,13 +314,8 @@ static int i915_enable_interrupt (drm_device_t *dev)
 		flag |= VSYNC_PIPEA_FLAG;
 	if (dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_B)
 		flag |= VSYNC_PIPEB_FLAG;
-	if (dev_priv->vblank_pipe & ~(DRM_I915_VBLANK_PIPE_A|DRM_I915_VBLANK_PIPE_B)) {
-		DRM_ERROR("%s called with invalid pipe 0x%x\n",
-			  __FUNCTION__, dev_priv->vblank_pipe);
-		return DRM_ERR(EINVAL);
-	}
+
 	I915_WRITE16(I915REG_INT_ENABLE_R, USER_INT_FLAG | flag);
-	return 0;
 }
 
 /* Set the vblank monitor pipe
@@ -339,8 +334,17 @@ int i915_vblank_pipe_set(DRM_IOCTL_ARGS)
 	DRM_COPY_FROM_USER_IOCTL(pipe, (drm_i915_vblank_pipe_t __user *) data,
 				 sizeof(pipe));
 
+	if (pipe.pipe & ~(DRM_I915_VBLANK_PIPE_A|DRM_I915_VBLANK_PIPE_B)) {
+		DRM_ERROR("%s called with invalid pipe 0x%x\n", 
+			  __FUNCTION__, pipe.pipe);
+		return DRM_ERR(EINVAL);
+	}
+
 	dev_priv->vblank_pipe = pipe.pipe;
-	return i915_enable_interrupt (dev);
+
+	i915_enable_interrupt (dev);
+
+	return 0;
 }
 
 int i915_vblank_pipe_get(DRM_IOCTL_ARGS)
@@ -502,6 +506,8 @@ void i915_driver_irq_postinstall(drm_device_t * dev)
 	INIT_LIST_HEAD(&dev_priv->vbl_swaps.head);
 	dev_priv->swaps_pending = 0;
 
+	if (!dev_priv->vblank_pipe)
+		dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A;
 	i915_enable_interrupt(dev);
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 }
