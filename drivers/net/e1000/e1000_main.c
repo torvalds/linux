@@ -3786,9 +3786,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 
-		/* adjust length to remove Ethernet CRC */
-		length -= 4;
-
 		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
@@ -3815,6 +3812,10 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				goto next_desc;
 			}
 		}
+
+		/* adjust length to remove Ethernet CRC, this must be
+		 * done after the TBI_ACCEPT workaround above */
+		length -= 4;
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
