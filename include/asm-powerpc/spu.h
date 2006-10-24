@@ -291,8 +291,8 @@ struct spu_problem {
 #define SPU_STATUS_INVALID_INSTR        0x20
 #define SPU_STATUS_INVALID_CH           0x40
 #define SPU_STATUS_ISOLATED_STATE       0x80
-#define SPU_STATUS_ISOLATED_LOAD_STAUTUS 0x200
-#define SPU_STATUS_ISOLATED_EXIT_STAUTUS 0x400
+#define SPU_STATUS_ISOLATED_LOAD_STATUS 0x200
+#define SPU_STATUS_ISOLATED_EXIT_STATUS 0x400
 	u8  pad_0x4028_0x402c[0x4];				/* 0x4028 */
 	u32 spu_spe_R;						/* 0x402c */
 	u8  pad_0x4030_0x4034[0x4];				/* 0x4030 */

@@ -102,7 +102,7 @@ static inline int check_spu_isolate(struct spu_state *csa, struct spu *spu)
 	 *     saved at this time.
 	 */
 	isolate_state = SPU_STATUS_ISOLATED_STATE |
-	    SPU_STATUS_ISOLATED_LOAD_STAUTUS | SPU_STATUS_ISOLATED_EXIT_STAUTUS;
+	    SPU_STATUS_ISOLATED_LOAD_STATUS | SPU_STATUS_ISOLATED_EXIT_STATUS;
 	return (in_be32(&prob->spu_status_R) & isolate_state) ? 1 : 0;
 }
 
@@ -1046,12 +1046,12 @@ static inline int suspend_spe(struct spu_state *csa, struct spu *spu)
 	 */
 	if (in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING) {
 		if (in_be32(&prob->spu_status_R) &
-		    SPU_STATUS_ISOLATED_EXIT_STAUTUS) {
+		    SPU_STATUS_ISOLATED_EXIT_STATUS) {
 			POLL_WHILE_TRUE(in_be32(&prob->spu_status_R) &
 					SPU_STATUS_RUNNING);
 		}
 		if ((in_be32(&prob->spu_status_R) &
-		     SPU_STATUS_ISOLATED_LOAD_STAUTUS)
+		     SPU_STATUS_ISOLATED_LOAD_STATUS)
 		    || (in_be32(&prob->spu_status_R) &
 			SPU_STATUS_ISOLATED_STATE)) {
 			out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_STOP);
@@ -1085,7 +1085,7 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 	 */
 	if (!(in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING)) {
 		if (in_be32(&prob->spu_status_R) &
-		    SPU_STATUS_ISOLATED_EXIT_STAUTUS) {
+		    SPU_STATUS_ISOLATED_EXIT_STATUS) {
 			spu_mfc_sr1_set(spu,
 					MFC_STATE1_MASTER_RUN_CONTROL_MASK);
 			eieio();
@@ -1095,7 +1095,7 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 					SPU_STATUS_RUNNING);
 		}
 		if ((in_be32(&prob->spu_status_R) &
-		     SPU_STATUS_ISOLATED_LOAD_STAUTUS)
+		     SPU_STATUS_ISOLATED_LOAD_STATUS)
 		    || (in_be32(&prob->spu_status_R) &
 			SPU_STATUS_ISOLATED_STATE)) {
 			spu_mfc_sr1_set(spu,
