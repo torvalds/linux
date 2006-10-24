@@ -50,6 +50,10 @@ static void ohci_rhsc_enable (struct usb_hcd *hcd)
 static void dl_done_list (struct ohci_hcd *);
 static void finish_unlinks (struct ohci_hcd *, u16);
 
+#ifdef	CONFIG_PM
+static int ohci_restart(struct ohci_hcd *ohci);
+#endif
+
 static int ohci_rh_suspend (struct ohci_hcd *ohci, int autostop)
 __releases(ohci->lock)
 __acquires(ohci->lock)
@@ -131,8 +135,6 @@ static inline struct ed *find_head (struct ed *ed)
 		ed = ed->ed_prev;
 	return ed;
 }
-
-static int ohci_restart (struct ohci_hcd *ohci);
 
 /* caller has locked the root hub */
 static int ohci_rh_resume (struct ohci_hcd *ohci)
