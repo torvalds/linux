@@ -25,4 +25,13 @@ config CBE_THERM
 	default m
 	depends on CBE_RAS
 
+config CBE_CPUFREQ
+	tristate "CBE frequency scaling"
+	depends on CBE_RAS && CPU_FREQ
+	default m
+	help
+	  This adds the cpufreq driver for Cell BE processors.
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+	  If you don't have such processor, say N
+
 endmenu

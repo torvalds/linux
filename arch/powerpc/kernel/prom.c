@@ -1672,6 +1672,7 @@ struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(of_get_cpu_node);
 
 #ifdef DEBUG
 static struct debugfs_blob_wrapper flat_dt_blob;
