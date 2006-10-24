@@ -153,20 +153,26 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		DRM_WAKEUP(&dev_priv->irq_queue);
 
 	if (temp & (VSYNC_PIPEA_FLAG | VSYNC_PIPEB_FLAG)) {
-		if ((dev_priv->vblank_pipe &
+		int vblank_pipe = dev_priv->vblank_pipe;
+
+		if ((vblank_pipe &
 		     (DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B))
 		    == (DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B)) {
 			if (temp & VSYNC_PIPEA_FLAG)
 				atomic_inc(&dev->vbl_received);
 			if (temp & VSYNC_PIPEB_FLAG)
 				atomic_inc(&dev->vbl_received2);
-		} else
+		} else if (((temp & VSYNC_PIPEA_FLAG) &&
+			    (vblank_pipe & DRM_I915_VBLANK_PIPE_A)) ||
+			   ((temp & VSYNC_PIPEB_FLAG) &&
+			    (vblank_pipe & DRM_I915_VBLANK_PIPE_B)))
 			atomic_inc(&dev->vbl_received);
 
 		DRM_WAKEUP(&dev->vbl_queue);
 		drm_vbl_send_signals(dev);
 
-		drm_locked_tasklet(dev, i915_vblank_tasklet);
+		if (dev_priv->swaps_pending > 0)
+			drm_locked_tasklet(dev, i915_vblank_tasklet);
 	}
 
 	return IRQ_HANDLED;
@@ -397,7 +403,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 				 sizeof(swap));
 
 	if (swap.seqtype & ~(_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE |
-			     _DRM_VBLANK_SECONDARY)) {
+			     _DRM_VBLANK_SECONDARY | _DRM_VBLANK_NEXTONMISS)) {
 		DRM_ERROR("Invalid sequence type 0x%x\n", swap.seqtype);
 		return DRM_ERR(EINVAL);
 	}
@@ -405,11 +411,6 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	pipe = (swap.seqtype & _DRM_VBLANK_SECONDARY) ? 1 : 0;
 
 	seqtype = swap.seqtype & (_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE);
-
-	if (seqtype == _DRM_VBLANK_RELATIVE && swap.sequence == 0) {
-		DRM_DEBUG("Not scheduling swap for current sequence\n");
-		return DRM_ERR(EINVAL);
-	}
 
 	if (!(dev_priv->vblank_pipe & (1 << pipe))) {
 		DRM_ERROR("Invalid pipe %d\n", pipe);
@@ -428,20 +429,19 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	curseq = atomic_read(pipe ? &dev->vbl_received2 : &dev->vbl_received);
 
-	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
-
-	switch (seqtype) {
-	case _DRM_VBLANK_RELATIVE:
+	if (seqtype == _DRM_VBLANK_RELATIVE)
 		swap.sequence += curseq;
-		break;
-	case _DRM_VBLANK_ABSOLUTE:
-		if ((curseq - swap.sequence) <= (1<<23)) {
-			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+
+	if ((curseq - swap.sequence) <= (1<<23)) {
+		if (swap.seqtype & _DRM_VBLANK_NEXTONMISS) {
+			swap.sequence = curseq + 1;
+		} else {
 			DRM_DEBUG("Missed target sequence\n");
 			return DRM_ERR(EINVAL);
 		}
-		break;
 	}
+
+	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
 
 	list_for_each(list, &dev_priv->vbl_swaps.head) {
 		vbl_swap = list_entry(list, drm_i915_vbl_swap_t, head);
