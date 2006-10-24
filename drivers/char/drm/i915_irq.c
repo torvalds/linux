@@ -439,7 +439,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 		swap.sequence += curseq;
 		break;
 	case _DRM_VBLANK_ABSOLUTE:
-		if ((curseq - swap.sequence) > (1<<23)) {
+		if ((curseq - swap.sequence) <= (1<<23)) {
 			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
 			DRM_DEBUG("Missed target sequence\n");
 			return DRM_ERR(EINVAL);
