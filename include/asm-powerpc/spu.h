@@ -181,8 +181,10 @@ extern struct spufs_calls {
  */
 #define SPU_CREATE_EVENTS_ENABLED	0x0001
 #define SPU_CREATE_GANG			0x0002
+#define SPU_CREATE_NOSCHED		0x0004
+#define SPU_CREATE_ISOLATE		0x0008
 
-#define SPU_CREATE_FLAG_ALL		0x0003 /* mask of all valid flags */
+#define SPU_CREATE_FLAG_ALL		0x000f /* mask of all valid flags */
 
 
 #ifdef CONFIG_SPU_FS_MODULE
@@ -276,6 +278,7 @@ struct spu_problem {
 	u32 spu_runcntl_RW;					/* 0x401c */
 #define SPU_RUNCNTL_STOP	0L
 #define SPU_RUNCNTL_RUNNABLE	1L
+#define SPU_RUNCNTL_ISOLATE	2L
 	u8  pad_0x4020_0x4024[0x4];				/* 0x4020 */
 	u32 spu_status_R;					/* 0x4024 */
 #define SPU_STOP_STATUS_SHIFT           16

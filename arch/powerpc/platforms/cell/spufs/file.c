@@ -1531,3 +1531,25 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "object-id", &spufs_object_id_ops, 0666, },
 	{},
 };
+
+struct tree_descr spufs_dir_nosched_contents[] = {
+	{ "mem",  &spufs_mem_fops,  0666, },
+	{ "mbox", &spufs_mbox_fops, 0444, },
+	{ "ibox", &spufs_ibox_fops, 0444, },
+	{ "wbox", &spufs_wbox_fops, 0222, },
+	{ "mbox_stat", &spufs_mbox_stat_fops, 0444, },
+	{ "ibox_stat", &spufs_ibox_stat_fops, 0444, },
+	{ "wbox_stat", &spufs_wbox_stat_fops, 0444, },
+	{ "signal1", &spufs_signal1_fops, 0666, },
+	{ "signal2", &spufs_signal2_fops, 0666, },
+	{ "signal1_type", &spufs_signal1_type, 0666, },
+	{ "signal2_type", &spufs_signal2_type, 0666, },
+	{ "mss", &spufs_mss_fops, 0666, },
+	{ "mfc", &spufs_mfc_fops, 0666, },
+	{ "cntl", &spufs_cntl_fops,  0666, },
+	{ "npc", &spufs_npc_ops, 0666, },
+	{ "psmap", &spufs_psmap_fops, 0666, },
+	{ "phys-id", &spufs_id_ops, 0666, },
+	{ "object-id", &spufs_object_id_ops, 0666, },
+	{},
+};

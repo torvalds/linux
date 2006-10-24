@@ -219,8 +219,11 @@ static char *spu_hw_get_ls(struct spu_context *ctx)
 
 static void spu_hw_runcntl_write(struct spu_context *ctx, u32 val)
 {
-	eieio();
+	spin_lock_irq(&ctx->spu->register_lock);
+	if (val & SPU_RUNCNTL_ISOLATE)
+		out_be64(&ctx->spu->priv2->spu_privcntl_RW, 4LL);
 	out_be32(&ctx->spu->problem->spu_runcntl_RW, val);
+	spin_unlock_irq(&ctx->spu->register_lock);
 }
 
 static void spu_hw_runcntl_stop(struct spu_context *ctx)

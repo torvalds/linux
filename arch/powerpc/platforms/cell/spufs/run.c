@@ -51,11 +51,17 @@ static inline int spu_stopped(struct spu_context *ctx, u32 * stat)
 static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 {
 	int ret;
+	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
 
 	if ((ret = spu_acquire_runnable(ctx)) != 0)
 		return ret;
-	ctx->ops->npc_write(ctx, *npc);
-	ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
+
+	if (ctx->flags & SPU_CREATE_ISOLATE)
+		runcntl |= SPU_RUNCNTL_ISOLATE;
+	else
+		ctx->ops->npc_write(ctx, *npc);
+
+	ctx->ops->runcntl_write(ctx, runcntl);
 	return 0;
 }
 

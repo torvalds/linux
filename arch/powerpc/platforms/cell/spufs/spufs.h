@@ -135,6 +135,7 @@ struct spufs_inode_info {
 	container_of(inode, struct spufs_inode_info, vfs_inode)
 
 extern struct tree_descr spufs_dir_contents[];
+extern struct tree_descr spufs_dir_nosched_contents[];
 
 /* system call implementation */
 long spufs_run_spu(struct file *file,

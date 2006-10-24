@@ -258,7 +258,12 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 	inode->i_op = &spufs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
-	ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
+	if (flags & SPU_CREATE_NOSCHED)
+		ret = spufs_fill_dir(dentry, spufs_dir_nosched_contents,
+					 mode, ctx);
+	else
+		ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
+
 	if (ret)
 		goto out_free_ctx;
 
@@ -306,6 +311,16 @@ static int spufs_create_context(struct inode *inode,
 			struct vfsmount *mnt, int flags, int mode)
 {
 	int ret;
+
+	ret = -EPERM;
+	if ((flags & SPU_CREATE_NOSCHED) &&
+	    !capable(CAP_SYS_NICE))
+		goto out_unlock;
+
+	ret = -EINVAL;
+	if ((flags & (SPU_CREATE_NOSCHED | SPU_CREATE_ISOLATE))
+	    == SPU_CREATE_ISOLATE)
+		goto out_unlock;
 
 	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
 	if (ret)
