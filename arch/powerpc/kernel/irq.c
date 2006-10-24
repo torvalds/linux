@@ -648,10 +648,14 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 void irq_dispose_mapping(unsigned int virq)
 {
-	struct irq_host *host = irq_map[virq].host;
+	struct irq_host *host;
 	irq_hw_number_t hwirq;
 	unsigned long flags;
 
+	if (virq == NO_IRQ)
+		return;
+
+	host = irq_map[virq].host;
 	WARN_ON (host == NULL);
 	if (host == NULL)
 		return;
