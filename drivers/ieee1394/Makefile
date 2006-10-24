@@ -3,8 +3,11 @@
 #
 
 ieee1394-objs := ieee1394_core.o ieee1394_transactions.o hosts.o \
-		 highlevel.o csr.o nodemgr.o oui.o dma.o iso.o \
+		 highlevel.o csr.o nodemgr.o dma.o iso.o \
 		 csr1212.o config_roms.o
+ifdef CONFIG_IEEE1394_OUI_DB
+ieee1394-objs += oui.o
+endif
 
 obj-$(CONFIG_IEEE1394) += ieee1394.o
 obj-$(CONFIG_IEEE1394_PCILYNX) += pcilynx.o
