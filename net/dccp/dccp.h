@@ -50,7 +50,7 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 #define DCCP_TIMEWAIT_LEN (60 * HZ) /* how long to wait to destroy TIME-WAIT
 				     * state, about 60 seconds */
 
-/* draft-ietf-dccp-spec-11.txt initial RTO value */
+/* RFC 1122, 4.2.3.1 initial RTO value */
 #define DCCP_TIMEOUT_INIT ((unsigned)(3 * HZ))
 
 /* Maximal interval between probes for local resources.  */

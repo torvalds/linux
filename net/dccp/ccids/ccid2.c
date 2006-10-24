@@ -23,7 +23,7 @@
  */
 
 /*
- * This implementation should follow: draft-ietf-dccp-ccid2-10.txt
+ * This implementation should follow RFC 4341
  *
  * BUGS:
  * - sequence number wrapping

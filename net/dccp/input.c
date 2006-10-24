@@ -216,11 +216,11 @@ send_sync:
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq,
 			       DCCP_PKT_SYNCACK);
 		/*
-		 * From the draft:
+		 * From RFC 4340, sec. 5.7
 		 *
 		 * As with DCCP-Ack packets, DCCP-Sync and DCCP-SyncAck packets
 		 * MAY have non-zero-length application data areas, whose
-		 * contents * receivers MUST ignore.
+		 * contents receivers MUST ignore.
 		 */
 		goto discard;
 	}
