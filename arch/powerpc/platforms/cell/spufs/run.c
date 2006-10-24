@@ -1,3 +1,5 @@
+#define DEBUG
+
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 
@@ -56,12 +58,12 @@ static inline int spu_run_init(struct spu_context *ctx, u32 * npc)
 	if ((ret = spu_acquire_runnable(ctx)) != 0)
 		return ret;
 
-	if (ctx->flags & SPU_CREATE_ISOLATE)
-		runcntl |= SPU_RUNCNTL_ISOLATE;
-	else
+	/* if we're in isolated mode, we would have started the SPU
+	 * earlier, so don't do it again now. */
+	if (!(ctx->flags & SPU_CREATE_ISOLATE)) {
 		ctx->ops->npc_write(ctx, *npc);
-
-	ctx->ops->runcntl_write(ctx, runcntl);
+		ctx->ops->runcntl_write(ctx, runcntl);
+	}
 	return 0;
 }
 

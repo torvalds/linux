@@ -33,6 +33,8 @@
 #include <linux/slab.h>
 #include <linux/parser.h>
 
+#include <asm/prom.h>
+#include <asm/spu_priv1.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
 #include <asm/spu.h>
@@ -41,6 +43,7 @@
 #include "spufs.h"
 
 static kmem_cache_t *spufs_inode_cache;
+static char *isolated_loader;
 
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
@@ -232,6 +235,89 @@ struct file_operations spufs_context_fops = {
 	.fsync		= simple_sync_file,
 };
 
+static int spu_setup_isolated(struct spu_context *ctx)
+{
+	int ret;
+	u64 __iomem *mfc_cntl;
+	u64 sr1;
+	u32 status;
+	unsigned long timeout;
+	const u32 status_loading = SPU_STATUS_RUNNING
+		| SPU_STATUS_ISOLATED_STATE | SPU_STATUS_ISOLATED_LOAD_STATUS;
+
+	if (!isolated_loader)
+		return -ENODEV;
+
+	if ((ret = spu_acquire_runnable(ctx)) != 0)
+		return ret;
+
+	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
+
+	/* purge the MFC DMA queue to ensure no spurious accesses before we
+	 * enter kernel mode */
+	timeout = jiffies + HZ;
+	out_be64(mfc_cntl, MFC_CNTL_PURGE_DMA_REQUEST);
+	while ((in_be64(mfc_cntl) & MFC_CNTL_PURGE_DMA_STATUS_MASK)
+			!= MFC_CNTL_PURGE_DMA_COMPLETE) {
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
+					__FUNCTION__);
+			ret = -EIO;
+			goto out_unlock;
+		}
+		cond_resched();
+	}
+
+	/* put the SPE in kernel mode to allow access to the loader */
+	sr1 = spu_mfc_sr1_get(ctx->spu);
+	sr1 &= ~MFC_STATE1_PROBLEM_STATE_MASK;
+	spu_mfc_sr1_set(ctx->spu, sr1);
+
+	/* start the loader */
+	ctx->ops->signal1_write(ctx, (unsigned long)isolated_loader >> 32);
+	ctx->ops->signal2_write(ctx,
+			(unsigned long)isolated_loader & 0xffffffff);
+
+	ctx->ops->runcntl_write(ctx,
+			SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
+
+	ret = 0;
+	timeout = jiffies + HZ;
+	while (((status = ctx->ops->status_read(ctx)) & status_loading) ==
+				status_loading) {
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR "%s: timeout waiting for loader\n",
+					__FUNCTION__);
+			ret = -EIO;
+			goto out_drop_priv;
+		}
+		cond_resched();
+	}
+
+	if (!(status & SPU_STATUS_RUNNING)) {
+		/* If isolated LOAD has failed: run SPU, we will get a stop-and
+		 * signal later. */
+		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
+		ret = -EACCES;
+
+	} else if (!(status & SPU_STATUS_ISOLATED_STATE)) {
+		/* This isn't allowed by the CBEA, but check anyway */
+		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
+		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
+		ret = -EINVAL;
+	}
+
+out_drop_priv:
+	/* Finished accessing the loader. Drop kernel mode */
+	sr1 |= MFC_STATE1_PROBLEM_STATE_MASK;
+	spu_mfc_sr1_set(ctx->spu, sr1);
+
+out_unlock:
+	up_write(&ctx->state_sema);
+	return ret;
+}
+
 static int
 spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		int mode)
@@ -255,6 +341,11 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		goto out_iput;
 
 	ctx->flags = flags;
+	if (flags & SPU_CREATE_ISOLATE) {
+		ret = spu_setup_isolated(ctx);
+		if (ret)
+			goto out_iput;
+	}
 
 	inode->i_op = &spufs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
@@ -555,6 +646,30 @@ spufs_parse_options(char *options, struct inode *root)
 	return 1;
 }
 
+static void
+spufs_init_isolated_loader(void)
+{
+	struct device_node *dn;
+	const char *loader;
+	int size;
+
+	dn = of_find_node_by_path("/spu-isolation");
+	if (!dn)
+		return;
+
+	loader = get_property(dn, "loader", &size);
+	if (!loader)
+		return;
+
+	/* kmalloc should align on a 16 byte boundary..* */
+	isolated_loader = kmalloc(size, GFP_KERNEL);
+	if (!isolated_loader)
+		return;
+
+	memcpy(isolated_loader, loader, size);
+	printk(KERN_INFO "spufs: SPU isolation mode enabled\n");
+}
+
 static int
 spufs_create_root(struct super_block *sb, void *data)
 {
@@ -640,6 +755,8 @@ static int __init spufs_init(void)
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
+
+	spufs_init_isolated_loader();
 	return 0;
 out_fs:
 	unregister_filesystem(&spufs_type);

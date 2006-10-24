@@ -89,23 +89,36 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		printk("%s: invalid access during switch!\n", __func__);
 		return 1;
 	}
-	if (!mm || (REGION_ID(ea) != USER_REGION_ID)) {
+	esid = (ea & ESID_MASK) | SLB_ESID_V;
+
+	switch(REGION_ID(ea)) {
+	case USER_REGION_ID:
+#ifdef CONFIG_HUGETLB_PAGE
+		if (in_hugepage_area(mm->context, ea))
+			llp = mmu_psize_defs[mmu_huge_psize].sllp;
+		else
+#endif
+			llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+		vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
+				SLB_VSID_USER | llp;
+		break;
+	case VMALLOC_REGION_ID:
+		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+			SLB_VSID_KERNEL | llp;
+		break;
+	case KERNEL_REGION_ID:
+		llp = mmu_psize_defs[mmu_linear_psize].sllp;
+		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+			SLB_VSID_KERNEL | llp;
+		break;
+	default:
 		/* Future: support kernel segments so that drivers
 		 * can use SPUs.
 		 */
 		pr_debug("invalid region access at %016lx\n", ea);
 		return 1;
 	}
-
-	esid = (ea & ESID_MASK) | SLB_ESID_V;
-#ifdef CONFIG_HUGETLB_PAGE
-	if (in_hugepage_area(mm->context, ea))
-		llp = mmu_psize_defs[mmu_huge_psize].sllp;
-	else
-#endif
-		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
-	vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
-			SLB_VSID_USER | llp;
 
 	out_be64(&priv2->slb_index_W, spu->slb_replace);
 	out_be64(&priv2->slb_vsid_RW, vsid);
