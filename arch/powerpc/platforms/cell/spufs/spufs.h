@@ -163,6 +163,12 @@ void spu_acquire(struct spu_context *ctx);
 void spu_release(struct spu_context *ctx);
 int spu_acquire_runnable(struct spu_context *ctx);
 void spu_acquire_saved(struct spu_context *ctx);
+int spu_acquire_exclusive(struct spu_context *ctx);
+
+static inline void spu_release_exclusive(struct spu_context *ctx)
+{
+	up_write(&ctx->state_sema);
+}
 
 int spu_activate(struct spu_context *ctx, u64 flags);
 void spu_deactivate(struct spu_context *ctx);
@@ -170,6 +176,7 @@ void spu_yield(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
+int spu_recycle_isolated(struct spu_context *ctx);
 /*
  * spufs_wait
  * 	Same as wait_event_interruptible(), except that here

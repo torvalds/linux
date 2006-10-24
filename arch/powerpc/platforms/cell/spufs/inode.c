@@ -248,7 +248,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	if (!isolated_loader)
 		return -ENODEV;
 
-	if ((ret = spu_acquire_runnable(ctx)) != 0)
+	if ((ret = spu_acquire_exclusive(ctx)) != 0)
 		return ret;
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
@@ -314,8 +314,14 @@ out_drop_priv:
 	spu_mfc_sr1_set(ctx->spu, sr1);
 
 out_unlock:
-	up_write(&ctx->state_sema);
+	spu_release_exclusive(ctx);
 	return ret;
+}
+
+int spu_recycle_isolated(struct spu_context *ctx)
+{
+	ctx->ops->runcntl_stop(ctx);
+	return spu_setup_isolated(ctx);
 }
 
 static int
@@ -341,12 +347,6 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 		goto out_iput;
 
 	ctx->flags = flags;
-	if (flags & SPU_CREATE_ISOLATE) {
-		ret = spu_setup_isolated(ctx);
-		if (ret)
-			goto out_iput;
-	}
-
 	inode->i_op = &spufs_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	if (flags & SPU_CREATE_NOSCHED)
@@ -432,6 +432,13 @@ static int spufs_create_context(struct inode *inode,
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
 out:
+	if (ret >= 0 && (flags & SPU_CREATE_ISOLATE)) {
+		int setup_err = spu_setup_isolated(
+				SPUFS_I(dentry->d_inode)->i_ctx);
+		if (setup_err)
+			ret = setup_err;
+	}
+
 	dput(dentry);
 	return ret;
 }
