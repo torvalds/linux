@@ -12,6 +12,7 @@
  *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright 2006 Tungsten Graphics, Inc., Bismarck, North Dakota.
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -36,70 +37,86 @@
 
 #include "drmP.h"
 
-/** No-op. */
+/**
+ * Allocate drawable ID and memory to store information about it.
+ */
 int drm_adddraw(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	unsigned long irqflags;
-	int i, j = 0;
+	int i, j;
+	u32 *bitfield = dev->drw_bitfield;
+	unsigned int bitfield_length = dev->drw_bitfield_length;
+	drm_drawable_info_t **info = dev->drw_info;
+	unsigned int info_length = dev->drw_info_length;
 	drm_draw_t draw;
 
-	spin_lock_irqsave(&dev->drw_lock, irqflags);
-
-	for (i = 0; i < dev->drw_bitfield_length; i++) {
-		u32 bitfield = dev->drw_bitfield[i];
-
-		if (bitfield == ~0)
+	for (i = 0, j = 0; i < bitfield_length; i++) {
+		if (bitfield[i] == ~0)
 			continue;
 
-		for (; j < sizeof(bitfield); j++)
-			if (!(bitfield & (1 << j)))
+		for (; j < 8 * sizeof(*bitfield); j++)
+			if (!(bitfield[i] & (1 << j)))
 				goto done;
 	}
 done:
 
-	if (i == dev->drw_bitfield_length) {
-		u32 *new_bitfield = drm_realloc(dev->drw_bitfield, i * 4,
-						(i + 1) * 4, DRM_MEM_BUFS);
+	if (i == bitfield_length) {
+		bitfield_length++;
 
-		if (!new_bitfield) {
+		bitfield = drm_alloc(bitfield_length * sizeof(*bitfield),
+				     DRM_MEM_BUFS);
+
+		if (!bitfield) {
 			DRM_ERROR("Failed to allocate new drawable bitfield\n");
-			spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 			return DRM_ERR(ENOMEM);
 		}
 
-		if (32 * (i + 1) > dev->drw_info_length) {
-			void *new_info = drm_realloc(dev->drw_info,
-						     dev->drw_info_length *
-						     sizeof(drm_drawable_info_t*),
-						     32 * (i + 1) *
-						     sizeof(drm_drawable_info_t*),
-						     DRM_MEM_BUFS);
+		if (8 * sizeof(*bitfield) * bitfield_length > info_length) {
+			info_length += 8 * sizeof(*bitfield);
 
-			if (!new_info) {
+			info = drm_alloc(info_length * sizeof(*info),
+					 DRM_MEM_BUFS);
+
+			if (!info) {
 				DRM_ERROR("Failed to allocate new drawable info"
 					  " array\n");
 
-				drm_free(new_bitfield, (i + 1) * 4, DRM_MEM_BUFS);
-				spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+				drm_free(bitfield,
+					 bitfield_length * sizeof(*bitfield),
+					 DRM_MEM_BUFS);
 				return DRM_ERR(ENOMEM);
 			}
-
-			dev->drw_info = (drm_drawable_info_t**)new_info;
 		}
 
-		new_bitfield[i] = 0;
-
-		dev->drw_bitfield = new_bitfield;
-		dev->drw_bitfield_length++;
+		bitfield[i] = 0;
 	}
 
-	dev->drw_bitfield[i] |= 1 << j;
-
-	draw.handle = i * sizeof(u32) + j;
+	draw.handle = i * 8 * sizeof(*bitfield) + j;
 	DRM_DEBUG("%d\n", draw.handle);
 
-	dev->drw_info[draw.handle] = NULL;
+	spin_lock_irqsave(&dev->drw_lock, irqflags);
+
+	bitfield[i] |= 1 << j;
+	info[draw.handle] = NULL;
+
+	if (bitfield != dev->drw_bitfield) {
+		memcpy(bitfield, dev->drw_bitfield, dev->drw_bitfield_length *
+		       sizeof(*bitfield));
+		drm_free(dev->drw_bitfield, sizeof(*bitfield) *
+			 dev->drw_bitfield_length, DRM_MEM_BUFS);
+		dev->drw_bitfield = bitfield;
+		dev->drw_bitfield_length = bitfield_length;
+	}
+
+	if (info != dev->drw_info) {
+		memcpy(info, dev->drw_info, dev->drw_info_length *
+		       sizeof(*info));
+		drm_free(dev->drw_info, sizeof(*info) * dev->drw_info_length,
+			 DRM_MEM_BUFS);
+		dev->drw_info = info;
+		dev->drw_info_length = info_length;
+	}
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
@@ -108,63 +125,85 @@ done:
 	return 0;
 }
 
-/** No-op. */
+/**
+ * Free drawable ID and memory to store information about it.
+ */
 int drm_rmdraw(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 	drm_draw_t draw;
-	unsigned int idx, mod;
+	unsigned int idx, shift;
 	unsigned long irqflags;
+	u32 *bitfield = dev->drw_bitfield;
+	unsigned int bitfield_length = dev->drw_bitfield_length;
+	drm_drawable_info_t **info = dev->drw_info;
+	unsigned int info_length = dev->drw_info_length;
 
 	DRM_COPY_FROM_USER_IOCTL(draw, (drm_draw_t __user *) data,
 				 sizeof(draw));
 
-	idx = draw.handle / 32;
-	mod = draw.handle % 32;
+	idx = draw.handle / (8 * sizeof(*bitfield));
+	shift = draw.handle % (8 * sizeof(*bitfield));
 
-	spin_lock_irqsave(&dev->drw_lock, irqflags);
-
-	if (idx >= dev->drw_bitfield_length ||
-	    !(dev->drw_bitfield[idx] & (1 << mod))) {
+	if (idx >= bitfield_length ||
+	    !(bitfield[idx] & (1 << shift))) {
 		DRM_DEBUG("No such drawable %d\n", draw.handle);
-		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 		return 0;
 	}
 
-	dev->drw_bitfield[idx] &= ~(1 << mod);
+	spin_lock_irqsave(&dev->drw_lock, irqflags);
 
-	if (idx == (dev->drw_bitfield_length - 1)) {
-		while (idx >= 0 && !dev->drw_bitfield[idx])
-			--idx;
-
-		if (idx != draw.handle / 32) {
-			u32 *new_bitfield = drm_realloc(dev->drw_bitfield,
-							dev->drw_bitfield_length * 4,
-							(idx + 1) * 4,
-							DRM_MEM_BUFS);
-
-			if (new_bitfield || idx == -1) {
-				dev->drw_bitfield = new_bitfield;
-				dev->drw_bitfield_length = idx + 1;
-			}
-		}
-	}
-
-	if (32 * dev->drw_bitfield_length < dev->drw_info_length) {
-		void *new_info = drm_realloc(dev->drw_info,
-					     dev->drw_info_length *
-					     sizeof(drm_drawable_info_t*),
-					     32 * dev->drw_bitfield_length *
-					     sizeof(drm_drawable_info_t*),
-					     DRM_MEM_BUFS);
-
-		if (new_info || !dev->drw_bitfield_length) {
-			dev->drw_info = (drm_drawable_info_t**)new_info;
-			dev->drw_info_length = 32 * dev->drw_bitfield_length;
-		}
-	}
+	bitfield[idx] &= ~(1 << shift);
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+
+	/* Can we shrink the arrays? */
+	if (idx == bitfield_length - 1) {
+		while (idx >= 0 && !bitfield[idx])
+			--idx;
+
+		bitfield_length = idx + 1;
+
+		if (idx != draw.handle / (8 * sizeof(*bitfield)))
+			bitfield = drm_alloc(bitfield_length *
+					     sizeof(*bitfield), DRM_MEM_BUFS);
+
+		if (!bitfield && bitfield_length) {
+			bitfield = dev->drw_bitfield;
+			bitfield_length = dev->drw_bitfield_length;
+		}
+	}
+
+	if (bitfield != dev->drw_bitfield) {
+		info_length = 8 * sizeof(*bitfield) * bitfield_length;
+
+		info = drm_alloc(info_length * sizeof(*info), DRM_MEM_BUFS);
+
+		if (!info && info_length) {
+			info = dev->drw_info;
+			info_length = dev->drw_info_length;
+		}
+
+		spin_lock_irqsave(&dev->drw_lock, irqflags);
+
+		memcpy(bitfield, dev->drw_bitfield, bitfield_length *
+		       sizeof(*bitfield));
+		drm_free(dev->drw_bitfield, sizeof(*bitfield) *
+			 dev->drw_bitfield_length, DRM_MEM_BUFS);
+		dev->drw_bitfield = bitfield;
+		dev->drw_bitfield_length = bitfield_length;
+
+		if (info != dev->drw_info) {
+			memcpy(info, dev->drw_info, info_length *
+			       sizeof(*info));
+			drm_free(dev->drw_info, sizeof(*info) *
+				 dev->drw_info_length, DRM_MEM_BUFS);
+			dev->drw_info = info;
+			dev->drw_info_length = info_length;
+		}
+
+		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+	}
 
 	DRM_DEBUG("%d\n", draw.handle);
 	return 0;
@@ -173,24 +212,22 @@ int drm_rmdraw(DRM_IOCTL_ARGS)
 int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 	DRM_DEVICE;
 	drm_update_draw_t update;
-	unsigned int id, idx, mod;
-	unsigned long irqflags;
+	unsigned int id, idx, shift;
+	u32 *bitfield = dev->drw_bitfield;
+	unsigned long irqflags, bitfield_length = dev->drw_bitfield_length;
 	drm_drawable_info_t *info;
-	void *new_data;
+	drm_clip_rect_t *rects;
+	int err;
 
 	DRM_COPY_FROM_USER_IOCTL(update, (drm_update_draw_t __user *) data,
 				 sizeof(update));
 
 	id = update.handle;
-	idx = id / 32;
-	mod = id % 32;
+	idx = id / (8 * sizeof(*bitfield));
+	shift = id % (8 * sizeof(*bitfield));
 
-	spin_lock_irqsave(&dev->drw_lock, irqflags);
-
-	if (idx >= dev->drw_bitfield_length ||
-	    !(dev->drw_bitfield[idx] & (1 << mod))) {
+	if (idx >= bitfield_length || !(bitfield[idx] & (1 << shift))) {
 		DRM_ERROR("No such drawable %d\n", update.handle);
-		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 		return DRM_ERR(EINVAL);
 	}
 
@@ -201,66 +238,77 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS) {
 
 		if (!info) {
 			DRM_ERROR("Failed to allocate drawable info memory\n");
-			spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 			return DRM_ERR(ENOMEM);
 		}
-
-		dev->drw_info[id] = info;
 	}
 
 	switch (update.type) {
 	case DRM_DRAWABLE_CLIPRECTS:
 		if (update.num != info->num_rects) {
-			new_data = drm_alloc(update.num *
-					     sizeof(drm_clip_rect_t),
-					     DRM_MEM_BUFS);
+			rects = drm_alloc(update.num * sizeof(drm_clip_rect_t),
+					 DRM_MEM_BUFS);
+		} else
+			rects = info->rects;
 
-			if (!new_data) {
-				DRM_ERROR("Can't allocate cliprect memory\n");
-				spin_unlock_irqrestore(&dev->drw_lock, irqflags);
-				return DRM_ERR(ENOMEM);
-			}
-
-			info->rects = new_data;
+		if (update.num && !rects) {
+			DRM_ERROR("Failed to allocate cliprect memory\n");
+			err = DRM_ERR(ENOMEM);
+			goto error;
 		}
 
-		if (DRM_COPY_FROM_USER(info->rects,
-				       (drm_clip_rect_t __user *)
-				       (unsigned long)update.data,
-				       update.num * sizeof(drm_clip_rect_t))) {
-			DRM_ERROR("Can't copy cliprects from userspace\n");
-			spin_unlock_irqrestore(&dev->drw_lock, irqflags);
-			return DRM_ERR(EFAULT);
+		if (update.num && DRM_COPY_FROM_USER(rects,
+						     (drm_clip_rect_t __user *)
+						     (unsigned long)update.data,
+						     update.num *
+						     sizeof(*rects))) {
+			DRM_ERROR("Failed to copy cliprects from userspace\n");
+			err = DRM_ERR(EFAULT);
+			goto error;
 		}
 
-		if (update.num != info->num_rects) {
+		spin_lock_irqsave(&dev->drw_lock, irqflags);
+
+		if (rects != info->rects) {
 			drm_free(info->rects, info->num_rects *
 				 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
-			info->num_rects = update.num;
 		}
+
+		info->rects = rects;
+		info->num_rects = update.num;
+		dev->drw_info[id] = info;
+
+		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 
 		DRM_DEBUG("Updated %d cliprects for drawable %d\n",
 			  info->num_rects, id);
 		break;
 	default:
 		DRM_ERROR("Invalid update type %d\n", update.type);
-		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 		return DRM_ERR(EINVAL);
 	}
 
-	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
-
 	return 0;
+
+error:
+	if (!dev->drw_info[id])
+		drm_free(info, sizeof(*info), DRM_MEM_BUFS);
+	else if (rects != dev->drw_info[id]->rects)
+		drm_free(rects, update.num *
+			 sizeof(drm_clip_rect_t), DRM_MEM_BUFS);
+
+	return err;
 }
 
 /**
  * Caller must hold the drawable spinlock!
  */
 drm_drawable_info_t *drm_get_drawable_info(drm_device_t *dev, drm_drawable_t id) {
-	unsigned int idx = id / 32, mod = id % 32;
+	u32 *bitfield = dev->drw_bitfield;
+	unsigned int idx = id / (8 * sizeof(*bitfield));
+	unsigned int shift = id % (8 * sizeof(*bitfield));
 
 	if (idx >= dev->drw_bitfield_length ||
-	    !(dev->drw_bitfield[idx] & (1 << mod))) {
+	    !(bitfield[idx] & (1 << shift))) {
 		DRM_DEBUG("No such drawable %d\n", id);
 		return NULL;
 	}
