@@ -169,7 +169,8 @@ __acquires(ohci->lock)
 		break;
 	case OHCI_USB_RESUME:
 		/* HCFS changes sometime after INTR_RD */
-		ohci_info (ohci, "wakeup\n");
+		ohci_info(ohci, "%swakeup\n",
+				autostopped ? "auto-" : "");
 		break;
 	case OHCI_USB_OPER:
 		/* this can happen after resuming a swsusp snapshot */
