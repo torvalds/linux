@@ -35,6 +35,11 @@
  *
  */
 
+/* Macros for the pm_control register. */
+#define CBE_PM_16BIT_CTR(ctr)			(1 << (24 - ((ctr) & (NR_PHYS_CTRS - 1))))
+#define CBE_PM_ENABLE_PERF_MON			0x80000000
+
+
 union spe_reg {
 	u64 val;
 	u8 spe[8];

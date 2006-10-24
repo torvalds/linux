@@ -1,5 +1,6 @@
 obj-$(CONFIG_PPC_CELL_NATIVE)		+= interrupt.o iommu.o setup.o \
-					   cbe_regs.o spider-pic.o pervasive.o
+					   cbe_regs.o spider-pic.o pervasive.o \
+					   pmu.o
 obj-$(CONFIG_CBE_RAS)			+= ras.o
 
 ifeq ($(CONFIG_SMP),y)
