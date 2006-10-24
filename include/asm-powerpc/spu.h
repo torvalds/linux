@@ -115,6 +115,7 @@ struct spu {
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
 	struct list_head sched_list;
+	struct list_head full_list;
 	int number;
 	int nid;
 	unsigned int irqs[3];
@@ -142,6 +143,8 @@ struct spu {
 	char irq_c0[8];
 	char irq_c1[8];
 	char irq_c2[8];
+
+	struct device_node *devnode;
 
 	struct sys_device sysdev;
 };
@@ -199,6 +202,12 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 {
 }
 #endif /* MODULE */
+
+int spu_add_sysdev_attr(struct sysdev_attribute *attr);
+void spu_remove_sysdev_attr(struct sysdev_attribute *attr);
+
+int spu_add_sysdev_attr_group(struct attribute_group *attrs);
+void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
 
 
 /*

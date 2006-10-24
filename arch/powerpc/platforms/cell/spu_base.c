@@ -333,6 +333,7 @@ static void spu_free_irqs(struct spu *spu)
 }
 
 static struct list_head spu_list[MAX_NUMNODES];
+static LIST_HEAD(spu_full_list);
 static DEFINE_MUTEX(spu_mutex);
 
 static void spu_init_channels(struct spu *spu)
@@ -744,6 +745,57 @@ struct sysdev_class spu_sysdev_class = {
 	set_kset_name("spu")
 };
 
+int spu_add_sysdev_attr(struct sysdev_attribute *attr)
+{
+	struct spu *spu;
+	mutex_lock(&spu_mutex);
+
+	list_for_each_entry(spu, &spu_full_list, full_list)
+		sysdev_create_file(&spu->sysdev, attr);
+
+	mutex_unlock(&spu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
+
+int spu_add_sysdev_attr_group(struct attribute_group *attrs)
+{
+	struct spu *spu;
+	mutex_lock(&spu_mutex);
+
+	list_for_each_entry(spu, &spu_full_list, full_list)
+		sysfs_create_group(&spu->sysdev.kobj, attrs);
+
+	mutex_unlock(&spu_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
+
+
+void spu_remove_sysdev_attr(struct sysdev_attribute *attr)
+{
+	struct spu *spu;
+	mutex_lock(&spu_mutex);
+
+	list_for_each_entry(spu, &spu_full_list, full_list)
+		sysdev_remove_file(&spu->sysdev, attr);
+
+	mutex_unlock(&spu_mutex);
+}
+EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr);
+
+void spu_remove_sysdev_attr_group(struct attribute_group *attrs)
+{
+	struct spu *spu;
+	mutex_lock(&spu_mutex);
+
+	list_for_each_entry(spu, &spu_full_list, full_list)
+		sysfs_remove_group(&spu->sysdev.kobj, attrs);
+
+	mutex_unlock(&spu_mutex);
+}
+EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr_group);
+
 static int spu_create_sysdev(struct spu *spu)
 {
 	int ret;
@@ -817,6 +869,9 @@ static int __init create_spu(struct device_node *spe)
 		goto out_free_irqs;
 
 	list_add(&spu->list, &spu_list[spu->node]);
+	list_add(&spu->full_list, &spu_full_list);
+	spu->devnode = of_node_get(spe);
+
 	mutex_unlock(&spu_mutex);
 
 	pr_debug(KERN_DEBUG "Using SPE %s %p %p %p %p %d\n",
@@ -839,6 +894,9 @@ out:
 static void destroy_spu(struct spu *spu)
 {
 	list_del_init(&spu->list);
+	list_del_init(&spu->full_list);
+
+	of_node_put(spu->devnode);
 
 	spu_destroy_sysdev(spu);
 	spu_free_irqs(spu);
