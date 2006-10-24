@@ -250,8 +250,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 	drm_wait_vblank_t vblwait;
 	struct timeval now;
 	int ret = 0;
-	unsigned int flags;
-	atomic_t *seq;
+	unsigned int flags, seq;
 
 	if (!dev->irq)
 		return -EINVAL;
@@ -273,17 +272,22 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 				    DRIVER_IRQ_VBL2 : DRIVER_IRQ_VBL))
 		return -EINVAL;
 
-	seq = (flags & _DRM_VBLANK_SECONDARY) ? &dev->vbl_received2 :
-	      &dev->vbl_received;
+	seq = atomic_read((flags & _DRM_VBLANK_SECONDARY) ? &dev->vbl_received2
+			  : &dev->vbl_received);
 
 	switch (vblwait.request.type & _DRM_VBLANK_TYPES_MASK) {
 	case _DRM_VBLANK_RELATIVE:
-		vblwait.request.sequence += atomic_read(seq);
+		vblwait.request.sequence += seq;
 		vblwait.request.type &= ~_DRM_VBLANK_RELATIVE;
 	case _DRM_VBLANK_ABSOLUTE:
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	if ((flags & _DRM_VBLANK_NEXTONMISS) &&
+	    (seq - vblwait.request.sequence) <= (1<<23)) {
+		vblwait.request.sequence = seq + 1;
 	}
 
 	if (flags & _DRM_VBLANK_SIGNAL) {
@@ -292,7 +296,7 @@ int drm_wait_vblank(DRM_IOCTL_ARGS)
 				      ? &dev->vbl_sigs2 : &dev->vbl_sigs;
 		drm_vbl_sig_t *vbl_sig;
 
-		vblwait.reply.sequence = atomic_read(seq);
+		vblwait.reply.sequence = seq;
 
 		spin_lock_irqsave(&dev->vbl_lock, irqflags);
 
