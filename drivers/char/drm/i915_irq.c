@@ -45,7 +45,7 @@
 static void i915_vblank_tasklet(drm_device_t *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned int irqflags;
+	unsigned long irqflags;
 	struct list_head *list, *tmp;
 
 	DRM_DEBUG("\n");
@@ -379,7 +379,8 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_vblank_swap_t swap;
 	drm_i915_vbl_swap_t *vbl_swap;
-	unsigned int pipe, seqtype, irqflags, curseq;
+	unsigned int pipe, seqtype, curseq;
+	unsigned long irqflags;
 	struct list_head *list;
 
 	if (!dev_priv) {
