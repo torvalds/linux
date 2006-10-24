@@ -1962,6 +1962,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x10f7,
+		.subdevice = 0x834c,
+		.name = "Panasonic CF-R4",
+		.type = AC97_TUNE_HP_ONLY,
+	},
+	{
 		.subvendor = 0x110a,
 		.subdevice = 0x0056,
 		.name = "Fujitsu-Siemens Scenic",	/* AD1981? */
