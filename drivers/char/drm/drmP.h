@@ -715,6 +715,8 @@ typedef struct drm_device {
 	drm_vbl_sig_t vbl_sigs;		/**< signal list to send on VBLANK */
 	drm_vbl_sig_t vbl_sigs2;	/**< signals to send on secondary VBLANK */
 	unsigned int vbl_pending;
+	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
+	void (*locked_tasklet_func)(struct drm_device *dev);
 
 	/*@} */
 	cycles_t ctx_start;
@@ -966,6 +968,7 @@ extern int drm_wait_vblank(struct inode *inode, struct file *filp,
 			   unsigned int cmd, unsigned long arg);
 extern int drm_vblank_wait(drm_device_t * dev, unsigned int *vbl_seq);
 extern void drm_vbl_send_signals(drm_device_t * dev);
+extern void drm_locked_tasklet(drm_device_t *dev, void(*func)(drm_device_t*));
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern drm_agp_head_t *drm_agp_init(drm_device_t * dev);
