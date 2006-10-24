@@ -1762,22 +1762,29 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 
 	if (!cma_any_addr(addr)) {
 		ret = rdma_translate_ip(addr, &id->route.addr.dev_addr);
-		if (!ret) {
-			mutex_lock(&lock);
-			ret = cma_acquire_dev(id_priv);
-			mutex_unlock(&lock);
-		}
 		if (ret)
-			goto err;
+			goto err1;
+
+		mutex_lock(&lock);
+		ret = cma_acquire_dev(id_priv);
+		mutex_unlock(&lock);
+		if (ret)
+			goto err1;
 	}
 
 	memcpy(&id->route.addr.src_addr, addr, ip_addr_size(addr));
 	ret = cma_get_port(id_priv);
 	if (ret)
-		goto err;
+		goto err2;
 
 	return 0;
-err:
+err2:
+	if (!cma_any_addr(addr)) {
+		mutex_lock(&lock);
+		cma_detach_from_dev(id_priv);
+		mutex_unlock(&lock);
+	}
+err1:
 	cma_comp_exch(id_priv, CMA_ADDR_BOUND, CMA_IDLE);
 	return ret;
 }
