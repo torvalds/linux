@@ -183,7 +183,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 		dccp_sync_mss(sk, mtu);
 
 		/*
-		 * From: draft-ietf-dccp-spec-11.txt
+		 * From RFC 4340, sec. 14.1:
 		 *
 		 *	DCCP-Sync packets are the best choice for upward
 		 *	probing, since DCCP-Sync probes do not risk application
@@ -733,7 +733,7 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dccp_hdr_reset(skb)->dccph_reset_code =
 				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
 
-	/* See "8.3.1. Abnormal Termination" in draft-ietf-dccp-spec-11 */
+	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
 	seqno = 0;
 	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);

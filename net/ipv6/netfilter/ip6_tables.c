@@ -111,7 +111,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		 const char *outdev,
 		 const struct ip6t_ip6 *ip6info,
 		 unsigned int *protoff,
-		 int *fragoff)
+		 int *fragoff, int *hotdrop)
 {
 	size_t i;
 	unsigned long ret;
@@ -169,9 +169,11 @@ ip6_packet_match(const struct sk_buff *skb,
 		unsigned short _frag_off;
 
 		protohdr = ipv6_find_hdr(skb, protoff, -1, &_frag_off);
-		if (protohdr < 0)
+		if (protohdr < 0) {
+			if (_frag_off == 0)
+				*hotdrop = 1;
 			return 0;
-
+		}
 		*fragoff = _frag_off;
 
 		dprintf("Packet protocol %hi ?= %s%hi.\n",
@@ -290,7 +292,7 @@ ip6t_do_table(struct sk_buff **pskb,
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (ip6_packet_match(*pskb, indev, outdev, &e->ipv6,
-			&protoff, &offset)) {
+			&protoff, &offset, &hotdrop)) {
 			struct ip6t_entry_target *t;
 
 			if (IP6T_MATCH_ITERATE(e, do_match,
@@ -1438,6 +1440,9 @@ static void __exit ip6_tables_fini(void)
  * If target header is found, its offset is set in *offset and return protocol
  * number. Otherwise, return -1.
  *
+ * If the first fragment doesn't contain the final protocol header or
+ * NEXTHDR_NONE it is considered invalid.
+ *
  * Note that non-1st fragment is special case that "the protocol number
  * of last header" is "next header" field in Fragment header. In this case,
  * *offset is meaningless and fragment offset is stored in *fragoff if fragoff
@@ -1461,12 +1466,12 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		if ((!ipv6_ext_hdr(nexthdr)) || nexthdr == NEXTHDR_NONE) {
 			if (target < 0)
 				break;
-			return -1;
+			return -ENOENT;
 		}
 
 		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
 		if (hp == NULL)
-			return -1;
+			return -EBADMSG;
 		if (nexthdr == NEXTHDR_FRAGMENT) {
 			unsigned short _frag_off, *fp;
 			fp = skb_header_pointer(skb,
@@ -1475,7 +1480,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 						sizeof(_frag_off),
 						&_frag_off);
 			if (fp == NULL)
-				return -1;
+				return -EBADMSG;
 
 			_frag_off = ntohs(*fp) & ~0x7;
 			if (_frag_off) {
@@ -1486,7 +1491,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 						*fragoff = _frag_off;
 					return hp->nexthdr;
 				}
-				return -1;
+				return -ENOENT;
 			}
 			hdrlen = 8;
 		} else if (nexthdr == NEXTHDR_AUTH)

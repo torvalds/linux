@@ -28,8 +28,7 @@
 
 /** struct dccp_ackvec - ack vector
  *
- * This data structure is the one defined in the DCCP draft
- * Appendix A.
+ * This data structure is the one defined in RFC 4340, Appendix A.
  *
  * @dccpav_buf_head - circular buffer head
  * @dccpav_buf_tail - circular buffer tail

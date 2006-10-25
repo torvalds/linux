@@ -215,7 +215,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				      elapsed_time);
 			break;
 			/*
-			 * From draft-ietf-dccp-spec-11.txt:
+			 * From RFC 4340, sec. 10.3:
 			 *
 			 *	Option numbers 128 through 191 are for
 			 *	options sent from the HC-Sender to the

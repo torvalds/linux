@@ -379,8 +379,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more, int len)
 		packet->dccphtx_seqno  = dp->dccps_gss;
 		/*
 		 * Check if win_count have changed
-		 * Algorithm in "8.1. Window Counter Valuer" in
-		 * draft-ietf-dccp-ccid3-11.txt
+		 * Algorithm in "8.1. Window Counter Value" in RFC 4342.
 		 */
 		quarter_rtt = timeval_delta(&now, &hctx->ccid3hctx_t_last_win_count);
 		if (likely(hctx->ccid3hctx_rtt > 8))
