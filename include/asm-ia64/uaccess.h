@@ -389,7 +389,7 @@ xlate_dev_kmem_ptr (char * p)
 	struct page *page;
 	char * ptr;
 
-	page = virt_to_page((unsigned long)p >> PAGE_SHIFT);
+	page = virt_to_page((unsigned long)p);
 	if (PageUncached(page))
 		ptr = (char *)__pa(p) + __IA64_UNCACHED_OFFSET;
 	else
