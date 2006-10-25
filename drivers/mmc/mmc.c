@@ -1178,13 +1178,28 @@ static void mmc_rescan(void *data)
 {
 	struct mmc_host *host = data;
 	struct list_head *l, *n;
+	unsigned char power_mode;
 
 	mmc_claim_host(host);
 
-	if (host->ios.power_mode == MMC_POWER_ON)
+	/*
+	 * Check for removed cards and newly inserted ones. We check for
+	 * removed cards first so we can intelligently re-select the VDD.
+	 */
+	power_mode = host->ios.power_mode;
+	if (power_mode == MMC_POWER_ON)
 		mmc_check_cards(host);
 
 	mmc_setup(host);
+
+	/*
+	 * Some broken cards process CMD1 even in stand-by state. There is
+	 * no reply, but an ILLEGAL_COMMAND error is cached and returned
+	 * after next command. We poll for card status here to clear any
+	 * possibly pending error.
+	 */
+	if (power_mode == MMC_POWER_ON)
+		mmc_check_cards(host);
 
 	if (!list_empty(&host->cards)) {
 		/*
