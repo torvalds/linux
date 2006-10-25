@@ -1641,6 +1641,8 @@ _GLOBAL(__start_initialization_multiplatform)
 	cmpwi	r0,0x3c		/* 970FX */
 	beq	1f
 	cmpwi	r0,0x44		/* 970MP */
+	beq	1f
+	cmpwi	r0,0x45		/* 970GX */
 	bne	2f
 1:	bl	.__cpu_preinit_ppc970
 2:
