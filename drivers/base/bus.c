@@ -724,6 +724,8 @@ int bus_register(struct bus_type * bus)
 {
 	int retval;
 
+	BLOCKING_INIT_NOTIFIER_HEAD(&bus->bus_notifier);
+
 	retval = kobject_set_name(&bus->subsys.kset.kobj, "%s", bus->name);
 	if (retval)
 		goto out;
@@ -781,6 +783,18 @@ void bus_unregister(struct bus_type * bus)
 	kset_unregister(&bus->devices);
 	subsystem_unregister(&bus->subsys);
 }
+
+int bus_register_notifier(struct bus_type *bus, struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&bus->bus_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(bus_register_notifier);
+
+int bus_unregister_notifier(struct bus_type *bus, struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&bus->bus_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(bus_unregister_notifier);
 
 int __init buses_init(void)
 {

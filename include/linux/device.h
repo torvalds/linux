@@ -42,6 +42,8 @@ struct bus_type {
 	struct klist		klist_devices;
 	struct klist		klist_drivers;
 
+	struct blocking_notifier_head bus_notifier;
+
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
 	struct driver_attribute	* drv_attrs;
@@ -74,6 +76,29 @@ struct device * bus_find_device(struct bus_type *bus, struct device *start,
 int __must_check bus_for_each_drv(struct bus_type *bus,
 		struct device_driver *start, void *data,
 		int (*fn)(struct device_driver *, void *));
+
+/*
+ * Bus notifiers: Get notified of addition/removal of devices
+ * and binding/unbinding of drivers to devices.
+ * In the long run, it should be a replacement for the platform
+ * notify hooks.
+ */
+struct notifier_block;
+
+extern int bus_register_notifier(struct bus_type *bus,
+				 struct notifier_block *nb);
+extern int bus_unregister_notifier(struct bus_type *bus,
+				   struct notifier_block *nb);
+
+/* All 4 notifers below get called with the target struct device *
+ * as an argument. Note that those functions are likely to be called
+ * with the device semaphore held in the core, so be careful.
+ */
+#define BUS_NOTIFY_ADD_DEVICE		0x00000001 /* device added */
+#define BUS_NOTIFY_DEL_DEVICE		0x00000002 /* device removed */
+#define BUS_NOTIFY_BOUND_DRIVER		0x00000003 /* driver bound to device */
+#define BUS_NOTIFY_UNBIND_DRIVER	0x00000004 /* driver about to be
+						      unbound */
 
 /* driverfs interface for exporting bus attributes */
 

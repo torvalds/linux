@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/kdev_t.h>
+#include <linux/notifier.h>
 
 #include <asm/semaphore.h>
 
@@ -428,6 +429,11 @@ int device_add(struct device *dev)
 	if (platform_notify)
 		platform_notify(dev);
 
+	/* notify clients of device entry (new way) */
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_ADD_DEVICE, dev);
+
 	dev->uevent_attr.attr.name = "uevent";
 	dev->uevent_attr.attr.mode = S_IWUSR;
 	if (dev->driver)
@@ -504,6 +510,9 @@ int device_add(struct device *dev)
  BusError:
 	device_pm_remove(dev);
  PMError:
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_remove_groups(dev);
  GroupError:
  	device_remove_attrs(dev);
@@ -622,6 +631,9 @@ void device_del(struct device * dev)
 	 */
 	if (platform_notify_remove)
 		platform_notify_remove(dev);
+	if (dev->bus)
+		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+					     BUS_NOTIFY_DEL_DEVICE, dev);
 	bus_remove_device(dev);
 	device_pm_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
