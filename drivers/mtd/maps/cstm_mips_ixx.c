@@ -115,7 +115,7 @@ int __init init_cstm_mips_ixx(void)
 		//printk(KERN_NOTICE "phymap %d cfi_probe: mymtd is %x\n",i,(unsigned int)mymtd);
 		if (!mymtd) {
 			jedec = 1;
-			mymtd = (struct mtd_info *)do_map_probe("jedec", &cstm_mips_ixx_map[i]);
+			mymtd = (struct mtd_info *)do_map_probe("jedec_probe", &cstm_mips_ixx_map[i]);
 		        printk(KERN_NOTICE "cstm_mips_ixx %d jedec: mymtd is %x\n",i,(unsigned int)mymtd);
 		}
 		if (mymtd) {
