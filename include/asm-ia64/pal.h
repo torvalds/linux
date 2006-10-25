@@ -487,10 +487,12 @@ typedef struct pal_cache_check_info_s {
 						 * error occurred
 						 */
 			wiv		: 1,	/* Way field valid */
-			reserved2	: 10,
+			reserved2	: 1,
+			dp		: 1,	/* Data poisoned on MBE */
+			reserved3	: 8,
 
 			index		: 20,	/* Cache line index */
-			reserved3	: 2,
+			reserved4	: 2,
 
 			is		: 1,	/* instruction set (1 == ia32) */
 			iv		: 1,	/* instruction set field valid */
@@ -557,7 +559,7 @@ typedef struct pal_bus_check_info_s {
 			type		: 8,	/* Bus xaction type*/
 			sev		: 5,	/* Bus error severity*/
 			hier		: 2,	/* Bus hierarchy level */
-			reserved1	: 1,
+			dp		: 1,	/* Data poisoned on MBE */
 			bsi		: 8,	/* Bus error status
 						 * info
 						 */
