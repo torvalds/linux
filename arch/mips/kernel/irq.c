@@ -88,25 +88,6 @@ atomic_t irq_err_count;
 unsigned long irq_hwmask[NR_IRQS];
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-#undef do_IRQ
-
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-asmlinkage unsigned int do_IRQ(unsigned int irq)
-{
-	irq_enter();
-
-	__DO_IRQ_SMTC_HOOK();
-	__do_IRQ(irq);
-
-	irq_exit();
-
-	return 1;
-}
-
 /*
  * Generic, controller-independent functions:
  */
