@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -19,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/seq_file.h>
+#include <linux/irq.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -474,25 +476,26 @@ void show_local_irqs(struct seq_file *p)
 	seq_putc(p, '\n');
 }
 
-static void ipi_timer(struct pt_regs *regs)
+static void ipi_timer(void)
 {
-	int user = user_mode(regs);
-
 	irq_enter();
-	profile_tick(CPU_PROFILING, regs);
-	update_process_times(user);
+	profile_tick(CPU_PROFILING);
+	update_process_times(user_mode(get_irq_regs()));
 	irq_exit();
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
 asmlinkage void do_local_timer(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	int cpu = smp_processor_id();
 
 	if (local_timer_ack()) {
 		irq_stat[cpu].local_timer_irqs++;
-		ipi_timer(regs);
+		ipi_timer();
 	}
+
+	set_irq_regs(old_regs);
 }
 #endif
 
@@ -551,6 +554,7 @@ asmlinkage void do_IPI(struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
+	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	ipi->ipi_count++;
 
@@ -574,7 +578,7 @@ asmlinkage void do_IPI(struct pt_regs *regs)
 
 			switch (nextmsg) {
 			case IPI_TIMER:
-				ipi_timer(regs);
+				ipi_timer();
 				break;
 
 			case IPI_RESCHEDULE:
@@ -599,6 +603,8 @@ asmlinkage void do_IPI(struct pt_regs *regs)
 			}
 		} while (msgs);
 	}
+
+	set_irq_regs(old_regs);
 }
 
 void smp_send_reschedule(int cpu)
