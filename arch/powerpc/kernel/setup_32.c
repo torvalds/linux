@@ -92,7 +92,8 @@ unsigned long __init early_init(unsigned long dt_ptr)
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, _end - __bss_start);
+	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
+			__bss_stop - __bss_start);
 
 	/*
 	 * Identify the CPU type and fix up code sections
