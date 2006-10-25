@@ -250,6 +250,9 @@ NESTED(smp_bootstrap, 16, sp)
 	 */
 	page	swapper_pg_dir, _PGD_ORDER
 #ifdef CONFIG_64BIT
+#if defined(CONFIG_MODULES) && !defined(CONFIG_BUILD_ELF64)
+	page	module_pg_dir, _PGD_ORDER
+#endif
 	page	invalid_pmd_table, _PMD_ORDER
 #endif
 	page	invalid_pte_table, _PTE_ORDER

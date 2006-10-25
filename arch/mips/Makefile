@@ -63,9 +63,7 @@ cflags-y		+= -mabi=64
 ifdef CONFIG_BUILD_ELF64
 cflags-y		+= $(call cc-option,-mno-explicit-relocs)
 else
-# -msym32 can not be used for modules since they are loaded into XKSEG
-CFLAGS_MODULE		+= $(call cc-option,-mno-explicit-relocs)
-CFLAGS_KERNEL		+= $(call cc-option,-msym32)
+cflags-y		+= $(call cc-option,-msym32)
 endif
 endif
 
