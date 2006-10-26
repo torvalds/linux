@@ -350,11 +350,7 @@ static int idmouse_probe(struct usb_interface *interface,
 
 	/* set up the endpoint information - use only the first bulk-in endpoint */
 	endpoint = &iface_desc->endpoint[0].desc;
-	if (!dev->bulk_in_endpointAddr
-		&& (endpoint->bEndpointAddress & USB_DIR_IN)
-		&& ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		USB_ENDPOINT_XFER_BULK)) {
-
+	if (!dev->bulk_in_endpointAddr && usb_endpoint_is_bulk_in(endpoint)) {
 		/* we found a bulk in endpoint */
 		dev->orig_bi_size = le16_to_cpu(endpoint->wMaxPacketSize);
 		dev->bulk_in_size = 0x200; /* works _much_ faster */
