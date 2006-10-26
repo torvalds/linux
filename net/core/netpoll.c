@@ -55,9 +55,25 @@ static void queue_process(void *p)
 	struct netpoll_info *npinfo = p;
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(&npinfo->txq)))
-		dev_queue_xmit(skb);
+	while ((skb = skb_dequeue(&npinfo->txq))) {
+		struct net_device *dev = skb->dev;
 
+		if (!netif_device_present(dev) || !netif_running(dev)) {
+			__kfree_skb(skb);
+			continue;
+		}
+
+		netif_tx_lock_bh(dev);
+		if (netif_queue_stopped(dev) ||
+		    dev->hard_start_xmit(skb, dev) != NETDEV_TX_OK) {
+			skb_queue_head(&npinfo->txq, skb);
+			netif_tx_unlock_bh(dev);
+
+			schedule_delayed_work(&npinfo->tx_work, HZ/10);
+			return;
+		}
+		netif_tx_unlock_bh(dev);
+	}
 }
 
 void netpoll_queue(struct sk_buff *skb)
@@ -765,6 +781,7 @@ void netpoll_cleanup(struct netpoll *np)
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				skb_queue_purge(&npinfo->arp_tx);
  				skb_queue_purge(&npinfo->txq);
+				cancel_rearming_delayed_work(&npinfo->tx_work);
  				flush_scheduled_work();
 
 				kfree(npinfo);
