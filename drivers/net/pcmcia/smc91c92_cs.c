@@ -999,12 +999,8 @@ static int smc91c92_config(struct pcmcia_device *link)
     link->conf.ConfigBase = parse->config.base;
     link->conf.Present = parse->config.rmask[0];
 
-    tuple->DesiredTuple = CISTPL_MANFID;
-    tuple->Attributes = TUPLE_RETURN_COMMON;
-    if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
-	smc->manfid = parse->manfid.manf;
-	smc->cardid = parse->manfid.card;
-    }
+    smc->manfid = link->manf_id;
+    smc->cardid = link->card_id;
 
     if ((smc->manfid == MANFID_OSITECH) &&
 	(smc->cardid != PRODID_OSITECH_SEVEN)) {

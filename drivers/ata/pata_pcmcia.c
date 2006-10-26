@@ -164,9 +164,9 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if (!pcmcia_get_first_tuple(pdev, &tuple) && !pcmcia_get_tuple_data(pdev, &tuple) && !pcmcia_parse_tuple(pdev, &tuple, &stk->parse))
-			is_kme = ((stk->parse.manfid.manf == MANFID_KME) && ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) || (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
+	is_kme = ((pdev->manf_id == MANFID_KME) &&
+		  ((pdev->card_id == PRODID_KME_KXLC005_A) ||
+		   (pdev->card_id == PRODID_KME_KXLC005_B)));
 
 	/* Not sure if this is right... look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(pdev, &stk->conf));

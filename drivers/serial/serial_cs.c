@@ -757,27 +757,25 @@ static int serial_config(struct pcmcia_device * link)
 
 	/* Is this a multiport card? */
 	tuple->DesiredTuple = CISTPL_MANFID;
-	if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
-		info->manfid = parse->manfid.manf;
-		info->prodid = parse->manfid.card;
+	info->manfid = link->manf_id;
+	info->prodid = link->card_id;
 
-		for (i = 0; i < ARRAY_SIZE(quirks); i++)
-			if ((quirks[i].manfid == ~0 ||
-			     quirks[i].manfid == info->manfid) &&
-			    (quirks[i].prodid == ~0 ||
-			     quirks[i].prodid == info->prodid)) {
-				info->quirk = &quirks[i];
-				break;
-			}
-	}
+	for (i = 0; i < ARRAY_SIZE(quirks); i++)
+		if ((quirks[i].manfid == ~0 ||
+		     quirks[i].manfid == info->manfid) &&
+		    (quirks[i].prodid == ~0 ||
+		     quirks[i].prodid == info->prodid)) {
+			info->quirk = &quirks[i];
+			break;
+		}
 
 	/* Another check for dual-serial cards: look for either serial or
 	   multifunction cards that ask for appropriate IO port ranges */
 	tuple->DesiredTuple = CISTPL_FUNCID;
 	if ((info->multi == 0) &&
-	    ((first_tuple(link, tuple, parse) != CS_SUCCESS) ||
-	     (parse->funcid.func == CISTPL_FUNCID_MULTI) ||
-	     (parse->funcid.func == CISTPL_FUNCID_SERIAL))) {
+	    (link->has_func_id) &&
+	    ((link->func_id == CISTPL_FUNCID_MULTI) ||
+	     (link->func_id == CISTPL_FUNCID_SERIAL))) {
 		tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
 		if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
 			if ((cf->io.nwin == 1) && (cf->io.win[0].len % 8 == 0))

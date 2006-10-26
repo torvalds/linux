@@ -199,13 +199,9 @@ static int ide_config(struct pcmcia_device *link)
     link->conf.ConfigBase = stk->parse.config.base;
     link->conf.Present = stk->parse.config.rmask[0];
 
-    tuple.DesiredTuple = CISTPL_MANFID;
-    if (!pcmcia_get_first_tuple(link, &tuple) &&
-	!pcmcia_get_tuple_data(link, &tuple) &&
-	!pcmcia_parse_tuple(link, &tuple, &stk->parse))
-	is_kme = ((stk->parse.manfid.manf == MANFID_KME) &&
-		  ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) ||
-		   (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
+    is_kme = ((link->manf_id == MANFID_KME) &&
+	      ((link->card_id == PRODID_KME_KXLC005_A) ||
+	       (link->card_id == PRODID_KME_KXLC005_B)));
 
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
