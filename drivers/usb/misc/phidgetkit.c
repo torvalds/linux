@@ -551,7 +551,7 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 		return -ENODEV;
 
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80)) 
+	if (!usb_endpoint_dir_in(endpoint))
 		return -ENODEV;
 	/*
 	 * bmAttributes
