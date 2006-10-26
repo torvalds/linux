@@ -1690,6 +1690,7 @@ config NR_CPUS
 	depends on SMP
 	default "64" if SGI_IP27
 	default "2"
+	default "8" if MIPS_MT_SMTC
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 32 for 32-bit
