@@ -2633,10 +2633,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
         for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
                 endpoint = &iface_desc->endpoint[i].desc;
                 if (!ftdi->bulk_in_endpointAddr &&
-                        ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-                        == USB_DIR_IN) && ((endpoint->bmAttributes &
-                        USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-                        {
+		    usb_endpoint_is_bulk_in(endpoint)) {
                         buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
                         ftdi->bulk_in_size = buffer_size;
                         ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
@@ -2649,10 +2646,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
                         }
                 }
                 if (!ftdi->bulk_out_endpointAddr &&
-                        ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
-                        == USB_DIR_OUT) && ((endpoint->bmAttributes &
-                        USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_BULK))
-                        {
+		    usb_endpoint_is_bulk_out(endpoint)) {
                         ftdi->bulk_out_endpointAddr =
                                 endpoint->bEndpointAddress;
                 }
