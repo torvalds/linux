@@ -236,7 +236,7 @@ int ccio_allocate_resource(const struct parisc_device *dev,
 		unsigned long min, unsigned long max, unsigned long align);
 #else /* !CONFIG_IOMMU_CCIO */
 #define ccio_get_iommu(dev) NULL
-#define ccio_request_resource(dev, res) request_resource(&iomem_resource, res)
+#define ccio_request_resource(dev, res) insert_resource(&iomem_resource, res)
 #define ccio_allocate_resource(dev, res, size, min, max, align) \
 		allocate_resource(&iomem_resource, res, size, min, max, \
 				align, NULL, NULL)
