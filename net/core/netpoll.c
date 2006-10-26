@@ -658,8 +658,11 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->tries = MAX_RETRIES;
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);
-	} else
+		atomic_set(&npinfo->refcnt, 1);
+	} else {
 		npinfo = ndev->npinfo;
+		atomic_inc(&npinfo->refcnt);
+	}
 
 	if (!ndev->poll_controller) {
 		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
@@ -766,12 +769,22 @@ void netpoll_cleanup(struct netpoll *np)
 
 	if (np->dev) {
 		npinfo = np->dev->npinfo;
-		if (npinfo && npinfo->rx_np == np) {
-			spin_lock_irqsave(&npinfo->rx_lock, flags);
-			npinfo->rx_np = NULL;
-			npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
-			spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+		if (npinfo) {
+			if (npinfo->rx_np == np) {
+				spin_lock_irqsave(&npinfo->rx_lock, flags);
+				npinfo->rx_np = NULL;
+				npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
+				spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+			}
+
+			np->dev->npinfo = NULL;
+			if (atomic_dec_and_test(&npinfo->refcnt)) {
+				skb_queue_purge(&npinfo->arp_tx);
+
+				kfree(npinfo);
+			}
 		}
+
 		dev_put(np->dev);
 	}
 

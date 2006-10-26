@@ -25,6 +25,7 @@ struct netpoll {
 };
 
 struct netpoll_info {
+	atomic_t refcnt;
 	spinlock_t poll_lock;
 	int poll_owner;
 	int tries;
