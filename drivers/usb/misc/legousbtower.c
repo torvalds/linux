@@ -898,14 +898,11 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
-			dev->interrupt_in_endpoint = endpoint;
-		}
-
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
-			dev->interrupt_out_endpoint = endpoint;
+		if (usb_endpoint_xfer_int(endpoint)) {
+			if (usb_endpoint_dir_in(endpoint))
+				dev->interrupt_in_endpoint = endpoint;
+			else
+				dev->interrupt_out_endpoint = endpoint;
 		}
 	}
 	if(dev->interrupt_in_endpoint == NULL) {
