@@ -38,10 +38,6 @@
 
 static struct sk_buff_head skb_pool;
 
-static DEFINE_SPINLOCK(queue_lock);
-static int queue_depth;
-static struct sk_buff *queue_head, *queue_tail;
-
 static atomic_t trapped;
 
 #define NETPOLL_RX_ENABLED  1
@@ -56,46 +52,25 @@ static void arp_reply(struct sk_buff *skb);
 
 static void queue_process(void *p)
 {
-	unsigned long flags;
+	struct netpoll_info *npinfo = p;
 	struct sk_buff *skb;
 
-	while (queue_head) {
-		spin_lock_irqsave(&queue_lock, flags);
-
-		skb = queue_head;
-		queue_head = skb->next;
-		if (skb == queue_tail)
-			queue_head = NULL;
-
-		queue_depth--;
-
-		spin_unlock_irqrestore(&queue_lock, flags);
-
+	while ((skb = skb_dequeue(&npinfo->txq)))
 		dev_queue_xmit(skb);
-	}
-}
 
-static DECLARE_WORK(send_queue, queue_process, NULL);
+}
 
 void netpoll_queue(struct sk_buff *skb)
 {
-	unsigned long flags;
+	struct net_device *dev = skb->dev;
+	struct netpoll_info *npinfo = dev->npinfo;
 
-	if (queue_depth == MAX_QUEUE_DEPTH) {
-		__kfree_skb(skb);
-		return;
+	if (!npinfo)
+		kfree_skb(skb);
+	else {
+		skb_queue_tail(&npinfo->txq, skb);
+		schedule_work(&npinfo->tx_work);
 	}
-
-	spin_lock_irqsave(&queue_lock, flags);
-	if (!queue_head)
-		queue_head = skb;
-	else
-		queue_tail->next = skb;
-	queue_tail = skb;
-	queue_depth++;
-	spin_unlock_irqrestore(&queue_lock, flags);
-
-	schedule_work(&send_queue);
 }
 
 static int checksum_udp(struct sk_buff *skb, struct udphdr *uh,
@@ -658,6 +633,9 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->tries = MAX_RETRIES;
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);
+		skb_queue_head_init(&npinfo->txq);
+		INIT_WORK(&npinfo->tx_work, queue_process, npinfo);
+
 		atomic_set(&npinfo->refcnt, 1);
 	} else {
 		npinfo = ndev->npinfo;
@@ -780,6 +758,8 @@ void netpoll_cleanup(struct netpoll *np)
 			np->dev->npinfo = NULL;
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				skb_queue_purge(&npinfo->arp_tx);
+ 				skb_queue_purge(&npinfo->txq);
+ 				flush_scheduled_work();
 
 				kfree(npinfo);
 			}
