@@ -14,7 +14,7 @@ config MACH_LPD7A400
 	bool "LPD7A400 Card Engine"
 	select ARCH_LH7A400
 #	select IDE_POLL
-	select HAS_TOUCHSCREEN_ADS7843_LH7
+#	select HAS_TOUCHSCREEN_ADS7843_LH7
 	help
 	  Say Y here if you are using Logic Product Development's
 	  LPD7A400 CardEngine.  For the time being, the LPD7A400 and
@@ -24,7 +24,7 @@ config MACH_LPD7A404
 	bool "LPD7A404 Card Engine"
 	select ARCH_LH7A404
 #	select IDE_POLL
-	select HAS_TOUCHSCREEN_ADC_LH7
+#	select HAS_TOUCHSCREEN_ADC_LH7
 	help
 	  Say Y here if you are using Logic Product Development's
 	  LPD7A404 CardEngine. For the time being, the LPD7A400 and
