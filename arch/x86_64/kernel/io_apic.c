@@ -63,7 +63,7 @@ int timer_over_8254 __initdata = 1;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
+DEFINE_SPINLOCK(vector_lock);
 
 /*
  * # of IRQ routing registers
@@ -612,14 +612,14 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	static struct {
-		int vector;
-		int offset;
-	} pos[NR_CPUS] = { [ 0 ... NR_CPUS - 1] = {FIRST_DEVICE_VECTOR, 0} };
+	static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
 	int old_vector = -1;
 	int cpu;
 
 	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
+
+	/* Only try and allocate irqs on cpus that are present */
+	cpus_and(mask, mask, cpu_online_map);
 
 	if (irq_vector[irq] > 0)
 		old_vector = irq_vector[irq];
@@ -630,15 +630,15 @@ static int __assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	}
 
 	for_each_cpu_mask(cpu, mask) {
-		cpumask_t domain;
-		int first, new_cpu;
+		cpumask_t domain, new_mask;
+		int new_cpu;
 		int vector, offset;
 
 		domain = vector_allocation_domain(cpu);
-		first = first_cpu(domain);
+		cpus_and(new_mask, domain, cpu_online_map);
 
-		vector = pos[first].vector;
-		offset = pos[first].offset;
+		vector = current_vector;
+		offset = current_offset;
 next:
 		vector += 8;
 		if (vector >= FIRST_SYSTEM_VECTOR) {
@@ -646,24 +646,24 @@ next:
 			offset = (offset + 1) % 8;
 			vector = FIRST_DEVICE_VECTOR + offset;
 		}
-		if (unlikely(pos[first].vector == vector))
+		if (unlikely(current_vector == vector))
 			continue;
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
-		for_each_cpu_mask(new_cpu, domain)
+		for_each_cpu_mask(new_cpu, new_mask)
 			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
-		for_each_cpu_mask(new_cpu, domain) {
-			pos[new_cpu].vector = vector;
-			pos[new_cpu].offset = offset;
-		}
+		current_vector = vector;
+		current_offset = offset;
 		if (old_vector >= 0) {
+			cpumask_t old_mask;
 			int old_cpu;
-			for_each_cpu_mask(old_cpu, irq_domain[irq])
+			cpus_and(old_mask, irq_domain[irq], cpu_online_map);
+			for_each_cpu_mask(old_cpu, old_mask)
 				per_cpu(vector_irq, old_cpu)[old_vector] = -1;
 		}
-		for_each_cpu_mask(new_cpu, domain)
+		for_each_cpu_mask(new_cpu, new_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		irq_vector[irq] = vector;
 		irq_domain[irq] = domain;
@@ -683,6 +683,32 @@ static int assign_irq_vector(int irq, cpumask_t mask, cpumask_t *result)
 	spin_unlock_irqrestore(&vector_lock, flags);
 	return vector;
 }
+
+void __setup_vector_irq(int cpu)
+{
+	/* Initialize vector_irq on a new cpu */
+	/* This function must be called with vector_lock held */
+	unsigned long flags;
+	int irq, vector;
+
+
+	/* Mark the inuse vectors */
+	for (irq = 0; irq < NR_IRQ_VECTORS; ++irq) {
+		if (!cpu_isset(cpu, irq_domain[irq]))
+			continue;
+		vector = irq_vector[irq];
+		per_cpu(vector_irq, cpu)[vector] = irq;
+	}
+	/* Mark the free vectors */
+	for (vector = 0; vector < NR_VECTORS; ++vector) {
+		irq = per_cpu(vector_irq, cpu)[vector];
+		if (irq < 0)
+			continue;
+		if (!cpu_isset(cpu, irq_domain[irq]))
+			per_cpu(vector_irq, cpu)[vector] = -1;
+	}
+}
+
 
 extern void (*interrupt[NR_IRQS])(void);
 
