@@ -401,9 +401,8 @@ static int uea_send_modem_cmd(struct usb_device *usb,
 	int ret = -ENOMEM;
 	u8 *xfer_buff;
 
-	xfer_buff = kmalloc(size, GFP_KERNEL);
+	xfer_buff = kmemdup(buff, size, GFP_KERNEL);
 	if (xfer_buff) {
-		memcpy(xfer_buff, buff, size);
 		ret = usb_control_msg(usb,
 				      usb_sndctrlpipe(usb, 0),
 				      LOAD_INTERNAL,
@@ -595,13 +594,11 @@ static int uea_idma_write(struct uea_softc *sc, void *data, u32 size)
 	u8 *xfer_buff;
 	int bytes_read;
 
-	xfer_buff = kmalloc(size, GFP_KERNEL);
+	xfer_buff = kmemdup(data, size, GFP_KERNEL);
 	if (!xfer_buff) {
 		uea_err(INS_TO_USBDEV(sc), "can't allocate xfer_buff\n");
 		return ret;
 	}
-
-	memcpy(xfer_buff, data, size);
 
 	ret = usb_bulk_msg(sc->usb_dev,
 			 usb_sndbulkpipe(sc->usb_dev, UEA_IDMA_PIPE),
@@ -765,12 +762,11 @@ static int uea_request(struct uea_softc *sc,
 	u8 *xfer_buff;
 	int ret = -ENOMEM;
 
-	xfer_buff = kmalloc(size, GFP_KERNEL);
+	xfer_buff = kmemdup(data, size, GFP_KERNEL);
 	if (!xfer_buff) {
 		uea_err(INS_TO_USBDEV(sc), "can't allocate xfer_buff\n");
 		return ret;
 	}
-	memcpy(xfer_buff, data, size);
 
 	ret = usb_control_msg(sc->usb_dev, usb_sndctrlpipe(sc->usb_dev, 0),
 			      UCDC_SEND_ENCAPSULATED_COMMAND,
