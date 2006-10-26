@@ -456,7 +456,9 @@ typedef struct pal_process_state_info_s {
 						 * by the processor
 						 */
 
-			reserved2	: 11,
+			se		: 1,	/* Shared error.  MCA in a
+						   shared structure */
+			reserved2	: 10,
 			cc		: 1,	/* Cache check */
 			tc		: 1,	/* TLB check */
 			bc		: 1,	/* Bus check */
