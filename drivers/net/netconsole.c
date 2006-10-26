@@ -102,6 +102,8 @@ __setup("netconsole=", option_setup);
 
 static int init_netconsole(void)
 {
+	int err;
+
 	if(strlen(config))
 		option_setup(config);
 
@@ -110,8 +112,9 @@ static int init_netconsole(void)
 		return 0;
 	}
 
-	if(netpoll_setup(&np))
-		return -EINVAL;
+	err = netpoll_setup(&np);
+	if (err)
+		return err;
 
 	register_console(&netconsole);
 	printk(KERN_INFO "netconsole: network logging started\n");
