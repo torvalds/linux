@@ -851,7 +851,7 @@ static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
 			return;
 		}
 	} while (unw_unwind(info) >= 0);
-	lp->bsp = 0;
+	lp->bsp = NULL;
 	lp->cfm = 0;
 	return;
 }
