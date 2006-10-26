@@ -34,12 +34,12 @@
 #define MAX_UDP_CHUNK 1460
 #define MAX_SKBS 32
 #define MAX_QUEUE_DEPTH (MAX_SKBS / 2)
-#define MAX_RETRIES 20000
 
 static struct sk_buff_head skb_pool;
 
 static atomic_t trapped;
 
+#define USEC_PER_POLL	50
 #define NETPOLL_RX_ENABLED  1
 #define NETPOLL_RX_DROP     2
 
@@ -72,6 +72,7 @@ static void queue_process(void *p)
 			schedule_delayed_work(&npinfo->tx_work, HZ/10);
 			return;
 		}
+
 		netif_tx_unlock_bh(dev);
 	}
 }
@@ -244,50 +245,44 @@ repeat:
 
 static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
-	int status;
-	struct netpoll_info *npinfo;
+	int status = NETDEV_TX_BUSY;
+	unsigned long tries;
+ 	struct net_device *dev = np->dev;
+ 	struct netpoll_info *npinfo = np->dev->npinfo;
 
-	if (!np || !np->dev || !netif_running(np->dev)) {
-		__kfree_skb(skb);
-		return;
+ 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
+ 		__kfree_skb(skb);
+ 		return;
+ 	}
+
+	/* don't get messages out of order, and no recursion */
+	if ( !(np->drop == netpoll_queue && skb_queue_len(&npinfo->txq))
+	     && npinfo->poll_owner != smp_processor_id()
+	     && netif_tx_trylock(dev)) {
+
+		/* try until next clock tick */
+		for(tries = jiffies_to_usecs(1)/USEC_PER_POLL; tries > 0; --tries) {
+			if (!netif_queue_stopped(dev))
+				status = dev->hard_start_xmit(skb, dev);
+
+			if (status == NETDEV_TX_OK)
+				break;
+
+			/* tickle device maybe there is some cleanup */
+			netpoll_poll(np);
+
+			udelay(USEC_PER_POLL);
+		}
+		netif_tx_unlock(dev);
 	}
 
-	npinfo = np->dev->npinfo;
-
-	/* avoid recursion */
-	if (npinfo->poll_owner == smp_processor_id() ||
-	    np->dev->xmit_lock_owner == smp_processor_id()) {
+	if (status != NETDEV_TX_OK) {
+		/* requeue for later */
 		if (np->drop)
 			np->drop(skb);
 		else
 			__kfree_skb(skb);
-		return;
 	}
-
-	do {
-		npinfo->tries--;
-		netif_tx_lock(np->dev);
-
-		/*
-		 * network drivers do not expect to be called if the queue is
-		 * stopped.
-		 */
-		status = NETDEV_TX_BUSY;
-		if (!netif_queue_stopped(np->dev))
-			status = np->dev->hard_start_xmit(skb, np->dev);
-
-		netif_tx_unlock(np->dev);
-
-		/* success */
-		if(!status) {
-			npinfo->tries = MAX_RETRIES; /* reset */
-			return;
-		}
-
-		/* transmit busy */
-		netpoll_poll(np);
-		udelay(50);
-	} while (npinfo->tries > 0);
 }
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
@@ -649,7 +644,7 @@ int netpoll_setup(struct netpoll *np)
 		npinfo->rx_np = NULL;
 		spin_lock_init(&npinfo->poll_lock);
 		npinfo->poll_owner = -1;
-		npinfo->tries = MAX_RETRIES;
+
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);
 		skb_queue_head_init(&npinfo->txq);
