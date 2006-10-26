@@ -12,16 +12,15 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 
-struct netpoll;
-
 struct netpoll {
 	struct net_device *dev;
-	char dev_name[16], *name;
+	char dev_name[IFNAMSIZ];
+	const char *name;
 	void (*rx_hook)(struct netpoll *, int, char *, int);
 
 	u32 local_ip, remote_ip;
 	u16 local_port, remote_port;
-	unsigned char local_mac[6], remote_mac[6];
+ 	u8 local_mac[ETH_ALEN], remote_mac[ETH_ALEN];
 };
 
 struct netpoll_info {
