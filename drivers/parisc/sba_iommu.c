@@ -846,7 +846,7 @@ static void *sba_alloc_consistent(struct device *hwdev, size_t size,
 	if (!hwdev) {
 		/* only support PCI */
 		*dma_handle = 0;
-		return 0;
+		return NULL;
 	}
 
         ret = (void *) __get_free_pages(gfp, get_order(size));

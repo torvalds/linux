@@ -980,7 +980,7 @@ LBA_PORT_IN(32, 0)
 #define LBA_PORT_OUT(size, mask) \
 static void lba_pat_out##size (struct pci_hba_data *l, u16 addr, u##size val) \
 { \
-	void *where = (void *) PIOP_TO_GMMIO(LBA_DEV(l), addr); \
+	void __iomem *where = PIOP_TO_GMMIO(LBA_DEV(l), addr); \
 	DBG_PORT("%s(0x%p, 0x%x, 0x%x)\n", __FUNCTION__, l, addr, val); \
 	WRITE_REG##size(val, where); \
 	/* flush the I/O down to the elroy at least */ \
