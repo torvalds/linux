@@ -1998,7 +1998,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
 			interval = hid_mousepoll_interval;
 
-		if (endpoint->bEndpointAddress & USB_DIR_IN) {
+		if (usb_endpoint_dir_in(endpoint)) {
 			if (hid->urbin)
 				continue;
 			if (!(hid->urbin = usb_alloc_urb(0, GFP_KERNEL)))
