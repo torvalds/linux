@@ -342,7 +342,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     tuple_t tuple;
     cisparse_t parse;
     u_short buf[32];
-    int i, last_fn, last_ret, ret;
+    int i, last_fn = 0, last_ret = 0, ret;
     kio_addr_t ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
@@ -350,21 +350,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = (u_char *)buf;
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-
-    link->conf.ConfigBase = parse.config.base; 
-    link->conf.Present = parse.config.rmask[0];
-
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
     if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {

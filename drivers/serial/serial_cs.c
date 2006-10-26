@@ -723,7 +723,7 @@ static int serial_config(struct pcmcia_device * link)
 	u_char *buf;
 	cisparse_t *parse;
 	cistpl_cftable_entry_t *cf;
-	int i, last_ret, last_fn;
+	int i;
 
 	DEBUG(0, "serial_config(0x%p)\n", link);
 
@@ -740,15 +740,6 @@ static int serial_config(struct pcmcia_device * link)
 	tuple->TupleOffset = 0;
 	tuple->TupleDataMax = 255;
 	tuple->Attributes = 0;
-	/* Get configuration register information */
-	tuple->DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(link, tuple, parse);
-	if (last_ret != CS_SUCCESS) {
-		last_fn = ParseTuple;
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse->config.base;
-	link->conf.Present = parse->config.rmask[0];
 
 	/* Is this a compliant multifunction card? */
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
@@ -812,8 +803,6 @@ static int serial_config(struct pcmcia_device * link)
 	kfree(cfg_mem);
 	return 0;
 
- cs_failed:
-	cs_error(link, last_fn, last_ret);
  failed:
 	serial_remove(link);
 	kfree(cfg_mem);

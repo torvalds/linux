@@ -219,34 +219,14 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static int pdacf_config(struct pcmcia_device *link)
 {
 	struct snd_pdacf *pdacf = link->priv;
-	tuple_t tuple;
-	cisparse_t *parse = NULL;
-	u_short buf[32];
 	int last_fn, last_ret;
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
-	parse = kmalloc(sizeof(*parse), GFP_KERNEL);
-	if (! parse) {
-		snd_printk(KERN_ERR "pdacf_config: cannot allocate\n");
-		return -ENOMEM;
-	}
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	tuple.Attributes = 0;
-	tuple.TupleData = (cisdata_t *)buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
-	link->conf.ConfigBase = parse->config.base;
 	link->conf.ConfigIndex = 0x5;
 
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
 	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
-
-	kfree(parse);
 
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
@@ -255,7 +235,6 @@ static int pdacf_config(struct pcmcia_device *link)
 	return 0;
 
 cs_failed:
-	kfree(parse);
 	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);

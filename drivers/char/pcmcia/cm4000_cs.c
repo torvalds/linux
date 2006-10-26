@@ -1764,28 +1764,10 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 	int rc;
 
 	/* read the config-tuples */
-	tuple.DesiredTuple = CISTPL_CONFIG;
 	tuple.Attributes = 0;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-
-	if ((fail_rc = pcmcia_get_first_tuple(link, &tuple)) != CS_SUCCESS) {
-		fail_fn = GetFirstTuple;
-		goto cs_failed;
-	}
-	if ((fail_rc = pcmcia_get_tuple_data(link, &tuple)) != CS_SUCCESS) {
-		fail_fn = GetTupleData;
-		goto cs_failed;
-	}
-	if ((fail_rc =
-	     pcmcia_parse_tuple(link, &tuple, &parse)) != CS_SUCCESS) {
-		fail_fn = ParseTuple;
-		goto cs_failed;
-	}
-
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
 
 	link->io.BasePort2 = 0;
 	link->io.NumPorts2 = 0;
@@ -1841,8 +1823,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 
 	return 0;
 
-cs_failed:
-	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	cm4000_release(link);
 	return -ENODEV;

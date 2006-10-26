@@ -959,34 +959,12 @@ static int smc91c92_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    u_char *buf;
     char *name;
     int i, j, rev;
     kio_addr_t ioaddr;
     u_long mir;
 
     DEBUG(0, "smc91c92_config(0x%p)\n", link);
-
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	goto config_failed;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 64;
-
-    tuple->DesiredTuple = CISTPL_CONFIG;
-    i = first_tuple(link, tuple, parse);
-    CS_EXIT_TEST(i, ParseTuple, config_failed);
-    link->conf.ConfigBase = parse->config.base;
-    link->conf.Present = parse->config.rmask[0];
 
     smc->manfid = link->manf_id;
     smc->cardid = link->card_id;
@@ -1119,14 +1097,12 @@ static int smc91c92_config(struct pcmcia_device *link)
     	    printk(KERN_NOTICE "  No MII transceivers found!\n");
 	}
     }
-    kfree(cfg_mem);
     return 0;
 
 config_undo:
     unregister_netdev(dev);
 config_failed:			/* CS_EXIT_TEST() calls jump to here... */
     smc91c92_release(link);
-    kfree(cfg_mem);
     return -ENODEV;
 } /* smc91c92_config */
 

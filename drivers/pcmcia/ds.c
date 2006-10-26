@@ -313,6 +313,7 @@ static int pcmcia_device_probe(struct device * dev)
 	struct pcmcia_driver *p_drv;
 	struct pcmcia_device_id *did;
 	struct pcmcia_socket *s;
+	cistpl_config_t cis_config;
 	int ret = 0;
 
 	dev = get_device(dev);
@@ -327,6 +328,18 @@ static int pcmcia_device_probe(struct device * dev)
 	    (!try_module_get(p_drv->owner))) {
 		ret = -EINVAL;
 		goto put_dev;
+	}
+
+	/* set up some more device information */
+	ret = pccard_read_tuple(p_dev->socket, p_dev->func, CISTPL_CONFIG,
+				&cis_config);
+	if (!ret) {
+		p_dev->conf.ConfigBase = cis_config.base;
+		p_dev->conf.Present = cis_config.rmask[0];
+	} else {
+		printk(KERN_INFO "pcmcia: could not parse base and rmask0 of CIS\n");
+		p_dev->conf.ConfigBase = 0;
+		p_dev->conf.Present = 0;
 	}
 
 	ret = p_drv->probe(p_dev);

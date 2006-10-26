@@ -781,13 +781,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto failure;
     }
 
-    /* get configuration stuff */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    if ((err=first_tuple(link, &tuple, &parse)))
-	goto cis_error;
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present =    parse.config.rmask[0];
-
     /* get the ethernet address from the CIS */
     tuple.DesiredTuple = CISTPL_FUNCE;
     for (err = first_tuple(link, &tuple, &parse); !err;
@@ -1051,8 +1044,6 @@ xirc2ps_config(struct pcmcia_device * link)
     xirc2ps_release(link);
     return -ENODEV;
 
-  cis_error:
-    printk(KNOT_XIRC "unable to parse CIS\n");
   failure:
     return -ENODEV;
 } /* xirc2ps_config */

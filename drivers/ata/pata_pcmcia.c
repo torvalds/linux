@@ -154,13 +154,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_CONFIG;
-
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(pdev, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(pdev, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(pdev, &tuple, &stk->parse));
-	pdev->conf.ConfigBase = stk->parse.config.base;
-	pdev->conf.Present = stk->parse.config.rmask[0];
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */

@@ -242,23 +242,6 @@ static int elsa_cs_config(struct pcmcia_device *link)
     DEBUG(0, "elsa_config(0x%p)\n", link);
     dev = link->priv;
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = 255;
-    tuple.TupleOffset = 0;
-    tuple.Attributes = 0;
-    i = first_tuple(link, &tuple, &parse);
-    if (i != CS_SUCCESS) {
-        last_fn = ParseTuple;
-	goto cs_failed;
-    }
-    link->conf.ConfigBase = parse.config.base;
-    link->conf.Present = parse.config.rmask[0];
-
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
     tuple.Attributes = 0;

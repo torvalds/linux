@@ -192,12 +192,6 @@ static int ide_config(struct pcmcia_device *link)
     tuple.TupleOffset = 0;
     tuple.TupleDataMax = 255;
     tuple.Attributes = 0;
-    tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &stk->parse));
-    link->conf.ConfigBase = stk->parse.config.base;
-    link->conf.Present = stk->parse.config.rmask[0];
 
     is_kme = ((link->manf_id == MANFID_KME) &&
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||

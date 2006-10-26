@@ -216,28 +216,6 @@ static int avma1cs_config(struct pcmcia_device *link)
 
     DEBUG(0, "avma1cs_config(0x%p)\n", link);
 
-    /*
-       This reads the card's CONFIG tuple to find its configuration
-       registers.
-    */
-    do {
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	i = pcmcia_get_first_tuple(link, &tuple);
-	if (i != CS_SUCCESS) break;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = 64;
-	tuple.TupleOffset = 0;
-	i = pcmcia_get_tuple_data(link, &tuple);
-	if (i != CS_SUCCESS) break;
-	i = pcmcia_parse_tuple(link, &tuple, &parse);
-	if (i != CS_SUCCESS) break;
-	link->conf.ConfigBase = parse.config.base;
-    } while (0);
-    if (i != CS_SUCCESS) {
-	cs_error(link, ParseTuple, i);
-	return -ENODEV;
-    }
-
     do {
 	devname[0] = 0;
 	if (link->prod_id[1])
