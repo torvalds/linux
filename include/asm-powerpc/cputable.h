@@ -89,8 +89,11 @@ struct cpu_spec {
 
 extern struct cpu_spec		*cur_cpu_spec;
 
-extern void identify_cpu(unsigned long offset, unsigned long cpu);
-extern void do_cpu_ftr_fixups(unsigned long offset);
+extern unsigned int __start___ftr_fixup, __stop___ftr_fixup;
+
+extern struct cpu_spec *identify_cpu(unsigned long offset);
+extern void do_feature_fixups(unsigned long value, void *fixup_start,
+			      void *fixup_end);
 
 #endif /* __ASSEMBLY__ */
 
@@ -144,6 +147,7 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTR_CI_LARGE_PAGE		LONG_ASM_CONST(0x0000100000000000)
 #define CPU_FTR_PAUSE_ZERO		LONG_ASM_CONST(0x0000200000000000)
 #define CPU_FTR_PURR			LONG_ASM_CONST(0x0000400000000000)
+#define CPU_FTR_CELL_TB_BUG		LONG_ASM_CONST(0x0000800000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -332,7 +336,7 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTRS_CELL	(CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_CTRL | \
 	    CPU_FTR_ALTIVEC_COMP | CPU_FTR_MMCRA | CPU_FTR_SMT | \
-	    CPU_FTR_PAUSE_ZERO | CPU_FTR_CI_LARGE_PAGE)
+	    CPU_FTR_PAUSE_ZERO | CPU_FTR_CI_LARGE_PAGE | CPU_FTR_CELL_TB_BUG)
 #define CPU_FTRS_PA6T (CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | \
 	    CPU_FTR_ALTIVEC_COMP | CPU_FTR_CI_LARGE_PAGE | \
@@ -431,29 +435,12 @@ static inline int cpu_has_feature(unsigned long feature)
 
 #ifdef __ASSEMBLY__
 
-#define BEGIN_FTR_SECTION		98:
-
-#ifndef __powerpc64__
+#define BEGIN_FTR_SECTION_NESTED(label)	label:
+#define BEGIN_FTR_SECTION		BEGIN_FTR_SECTION_NESTED(97)
+#define END_FTR_SECTION_NESTED(msk, val, label) \
+	MAKE_FTR_SECTION_ENTRY(msk, val, label, __ftr_fixup)
 #define END_FTR_SECTION(msk, val)		\
-99:						\
-	.section __ftr_fixup,"a";		\
-	.align 2;				\
-	.long msk;				\
-	.long val;				\
-	.long 98b;				\
-	.long 99b;				\
-	.previous
-#else /* __powerpc64__ */
-#define END_FTR_SECTION(msk, val)		\
-99:						\
-	.section __ftr_fixup,"a";		\
-	.align 3;				\
-	.llong msk;				\
-	.llong val;				\
-	.llong 98b;				\
-	.llong 99b;	 			\
-	.previous
-#endif /* __powerpc64__ */
+	END_FTR_SECTION_NESTED(msk, val, 97)
 
 #define END_FTR_SECTION_IFSET(msk)	END_FTR_SECTION((msk), (msk))
 #define END_FTR_SECTION_IFCLR(msk)	END_FTR_SECTION((msk), 0)

@@ -163,7 +163,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 
 	/* check if the UCC port number is in range. */
 	if ((uf_info->ucc_num < 0) || (uf_info->ucc_num > UCC_MAX_NUM - 1)) {
-		uccf_err("ucc_fast_init: Illagal UCC number!");
+		uccf_err("ucc_fast_init: Illegal UCC number!");
 		return -EINVAL;
 	}
 

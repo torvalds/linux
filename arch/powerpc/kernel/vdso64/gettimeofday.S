@@ -229,8 +229,10 @@ V_FUNCTION_BEGIN(__do_get_xsec)
 	xor	r0,r8,r8		/* create dependency */
 	add	r3,r3,r0
 
-	/* Get TB & offset it */
-	mftb	r7
+	/* Get TB & offset it. We use the MFTB macro which will generate
+	 * workaround code for Cell.
+	 */
+	MFTB(r7)
 	ld	r9,CFG_TB_ORIG_STAMP(r3)
 	subf	r7,r9,r7
 
