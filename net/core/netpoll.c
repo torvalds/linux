@@ -77,19 +77,6 @@ static void queue_process(void *p)
 	}
 }
 
-void netpoll_queue(struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	struct netpoll_info *npinfo = dev->npinfo;
-
-	if (!npinfo)
-		kfree_skb(skb);
-	else {
-		skb_queue_tail(&npinfo->txq, skb);
-		schedule_work(&npinfo->tx_work);
-	}
-}
-
 static int checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 			     unsigned short ulen, u32 saddr, u32 daddr)
 {
@@ -256,7 +243,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
  	}
 
 	/* don't get messages out of order, and no recursion */
-	if ( !(np->drop == netpoll_queue && skb_queue_len(&npinfo->txq))
+	if ( skb_queue_len(&npinfo->txq) == 0
 	     && npinfo->poll_owner != smp_processor_id()
 	     && netif_tx_trylock(dev)) {
 
@@ -277,11 +264,8 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	}
 
 	if (status != NETDEV_TX_OK) {
-		/* requeue for later */
-		if (np->drop)
-			np->drop(skb);
-		else
-			__kfree_skb(skb);
+		skb_queue_tail(&npinfo->txq, skb);
+		schedule_work(&npinfo->tx_work);
 	}
 }
 
@@ -809,4 +793,3 @@ EXPORT_SYMBOL(netpoll_setup);
 EXPORT_SYMBOL(netpoll_cleanup);
 EXPORT_SYMBOL(netpoll_send_udp);
 EXPORT_SYMBOL(netpoll_poll);
-EXPORT_SYMBOL(netpoll_queue);
