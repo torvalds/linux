@@ -44,15 +44,17 @@
  * latency of the processor. The governor will work on any processor with 
  * transition latency <= 10mS, using appropriate sampling 
  * rate.
- * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
- * this governor will not work.
+ * For CPUs with transition latency > 10mS (mostly drivers
+ * with CPUFREQ_ETERNAL), this governor will not work.
  * All times here are in uS.
  */
 static unsigned int 				def_sampling_rate;
 #define MIN_SAMPLING_RATE_RATIO			(2)
 /* for correct statistics, we need at least 10 ticks between each measure */
-#define MIN_STAT_SAMPLING_RATE			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
-#define MIN_SAMPLING_RATE			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
+#define MIN_STAT_SAMPLING_RATE			\
+			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
+#define MIN_SAMPLING_RATE			\
+			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
 #define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
@@ -103,11 +105,16 @@ static struct dbs_tuners dbs_tuners_ins = {
 
 static inline unsigned int get_cpu_idle_time(unsigned int cpu)
 {
-	return	kstat_cpu(cpu).cpustat.idle +
+	unsigned int add_nice = 0, ret;
+
+	if (dbs_tuners_ins.ignore_nice)
+		add_nice = kstat_cpu(cpu).cpustat.nice;
+
+	ret = 	kstat_cpu(cpu).cpustat.idle +
 		kstat_cpu(cpu).cpustat.iowait +
-		( dbs_tuners_ins.ignore_nice ?
-		  kstat_cpu(cpu).cpustat.nice :
-		  0);
+		add_nice;
+
+	return ret;
 }
 
 /************************** sysfs interface ************************/

@@ -9,7 +9,8 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, "freq-table", msg)
+#define dprintk(msg...) \
+	cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, "freq-table", msg)
 
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
@@ -29,7 +30,8 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 
 			continue;
 		}
-		dprintk("table entry %u: %u kHz, %u index\n", i, freq, table[i].index);
+		dprintk("table entry %u: %u kHz, %u index\n",
+					i, freq, table[i].index);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -54,13 +56,14 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	unsigned int i;
 	unsigned int count = 0;
 
-	dprintk("request for verification of policy (%u - %u kHz) for cpu %u\n", policy->min, policy->max, policy->cpu);
+	dprintk("request for verification of policy (%u - %u kHz) for cpu %u\n",
+					policy->min, policy->max, policy->cpu);
 
 	if (!cpu_online(policy->cpu))
 		return -EINVAL;
 
-	cpufreq_verify_within_limits(policy,
-				     policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     policy->cpuinfo.max_freq);
 
 	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
@@ -75,10 +78,11 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	if (!count)
 		policy->max = next_larger;
 
-	cpufreq_verify_within_limits(policy,
-				     policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     policy->cpuinfo.max_freq);
 
-	dprintk("verification lead to (%u - %u kHz) for cpu %u\n", policy->min, policy->max, policy->cpu);
+	dprintk("verification lead to (%u - %u kHz) for cpu %u\n",
+				policy->min, policy->max, policy->cpu);
 
 	return 0;
 }
@@ -101,7 +105,8 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	};
 	unsigned int i;
 
-	dprintk("request for target %u kHz (relation: %u) for cpu %u\n", target_freq, relation, policy->cpu);
+	dprintk("request for target %u kHz (relation: %u) for cpu %u\n",
+					target_freq, relation, policy->cpu);
 
 	switch (relation) {
 	case CPUFREQ_RELATION_H:
@@ -192,7 +197,10 @@ static ssize_t show_available_freqs (struct cpufreq_policy *policy, char *buf)
 }
 
 struct freq_attr cpufreq_freq_attr_scaling_available_freqs = {
-	.attr = { .name = "scaling_available_frequencies", .mode = 0444, .owner=THIS_MODULE },
+	.attr = { .name = "scaling_available_frequencies",
+		  .mode = 0444,
+		  .owner=THIS_MODULE
+		},
 	.show = show_available_freqs,
 };
 EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
