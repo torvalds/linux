@@ -78,7 +78,6 @@ void io_subchannel_recog_done(struct ccw_device *cdev);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
 
-int ccw_device_register(struct ccw_device *);
 void ccw_device_do_unreg_rereg(void *);
 void ccw_device_call_sch_unregister(void *);
 
