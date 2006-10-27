@@ -216,10 +216,17 @@
 
 #define INITCALLS							\
   	*(.initcall1.init)						\
+  	*(.initcall1s.init)						\
   	*(.initcall2.init)						\
+  	*(.initcall2s.init)						\
   	*(.initcall3.init)						\
+  	*(.initcall3s.init)						\
   	*(.initcall4.init)						\
+  	*(.initcall4s.init)						\
   	*(.initcall5.init)						\
+  	*(.initcall5s.init)						\
   	*(.initcall6.init)						\
-  	*(.initcall7.init)
+  	*(.initcall6s.init)						\
+  	*(.initcall7.init)						\
+  	*(.initcall7s.init)
 
