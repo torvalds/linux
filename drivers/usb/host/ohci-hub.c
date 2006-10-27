@@ -204,18 +204,6 @@ __acquires(ohci->lock)
 		goto skip_resume;
 	spin_unlock_irq (&ohci->lock);
 
-	temp = ohci->num_ports;
-	while (temp--) {
-		u32 stat = ohci_readl (ohci,
-				       &ohci->regs->roothub.portstatus [temp]);
-
-		/* force global, not selective, resume */
-		if (!(stat & RH_PS_PSS))
-			continue;
-		ohci_writel (ohci, RH_PS_POCI,
-				&ohci->regs->roothub.portstatus [temp]);
-	}
-
 	/* Some controllers (lucent erratum) need extra-long delays */
 	msleep (20 /* usb 11.5.1.10 */ + 12 /* 32 msec counter */ + 1);
 
@@ -223,6 +211,7 @@ __acquires(ohci->lock)
 	temp &= OHCI_CTRL_HCFS;
 	if (temp != OHCI_USB_RESUME) {
 		ohci_err (ohci, "controller won't resume\n");
+		spin_lock_irq(&ohci->lock);
 		return -EBUSY;
 	}
 
