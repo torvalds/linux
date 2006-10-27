@@ -1045,7 +1045,6 @@ static unsigned short err_pos_lut[4096] = {
 static unsigned short err_pos(unsigned short din)
 {
 	BUG_ON(din > 4096);
-	BUG_ON(err_pos_lut[din] == 0xfff);
 	return err_pos_lut[din];
 }
 static int chk_no_err_only(unsigned short *chk_syndrome_list, unsigned short *err_info)
