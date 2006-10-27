@@ -217,11 +217,9 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 		}
 		/* wait until we get a transfer done or error */
 		timeout = jiffies + HZ/100 + 1; /* 10ms */
+		/* first read usually delivers bogus results... */
+		saa7146_i2c_status(dev);
 		while(1) {
-			/**
-			 *  first read usually delivers bogus results...
-			 */
-			saa7146_i2c_status(dev);
 			status = saa7146_i2c_status(dev);
 			if ((status & 0x3) != 1)
 				break;
@@ -232,10 +230,10 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 				DEB_I2C(("saa7146_i2c_writeout: timed out waiting for end of xfer\n"));
 				return -EIO;
 			}
-			if ((++trial < 20) && short_delay)
+			if (++trial < 50 && short_delay)
 				udelay(10);
 			else
-			msleep(1);
+				msleep(1);
 		}
 	}
 
