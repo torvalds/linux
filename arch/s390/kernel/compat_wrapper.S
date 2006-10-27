@@ -1664,4 +1664,4 @@ sys_getcpu_wrapper:
 	llgtr	%r2,%r2			# unsigned *
 	llgtr	%r3,%r3			# unsigned *
 	llgtr	%r4,%r4			# struct getcpu_cache *
-	jg	sys_tee
+	jg	sys_getcpu
