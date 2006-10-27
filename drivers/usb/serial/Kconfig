@@ -54,10 +54,10 @@ config USB_SERIAL_GENERIC
 	  properly.
 
 config USB_SERIAL_AIRCABLE
-	tristate "AIRcable USB Bluetooth Dongle Driver (EXPERIMENTAL)"
+	tristate "USB AIRcable Bluetooth Dongle Driver (EXPERIMENTAL)"
 	depends on USB_SERIAL && EXPERIMENTAL
 	help
-	    Say Y here if you want to use AIRcable USB Bluetoot Dongle.
+	    Say Y here if you want to use USB AIRcable Bluetooth Dongle.
 
 	    To compile this driver as a module, choose M here: the module
 	    will be called aircable.
