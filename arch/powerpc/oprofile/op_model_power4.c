@@ -82,7 +82,7 @@ static inline int mmcra_must_set_sample(void)
 	return 0;
 }
 
-static void power4_cpu_setup(void *unused)
+static void power4_cpu_setup(struct op_counter_config *ctr)
 {
 	unsigned int mmcr0 = mmcr0_val;
 	unsigned long mmcra = mmcra_val;
