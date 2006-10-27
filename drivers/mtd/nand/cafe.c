@@ -598,6 +598,10 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe->nand.block_bad = cafe_nand_block_bad;
 	}
 	
+	/* Start off by resetting the NAND controller completely */
+	writel(1, cafe->mmio + 0x3034);
+	writel(0, cafe->mmio + 0x3034);
+
 	/* Timings from Marvell's test code (not verified or calculated by us) */
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
 #if 1
