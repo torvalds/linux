@@ -444,7 +444,6 @@ static __init void probe_cache_sizes(void)
 void sb1_cache_init(void)
 {
 	extern char except_vec2_sb1;
-	extern char handle_vec2_sb1;
 
 	/* Special cache error handler for SB1 */
 	set_uncached_handler (0x100, &except_vec2_sb1, 0x80);
