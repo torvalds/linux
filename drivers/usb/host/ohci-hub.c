@@ -41,7 +41,11 @@ static void ohci_rhsc_enable (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
-	ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrenable);
+	spin_lock_irq(&ohci->lock);
+	if (!ohci->autostop)
+		del_timer(&hcd->rh_timer);	/* Prevent next poll */
+	ohci_writel(ohci, OHCI_INTR_RHSC, &ohci->regs->intrenable);
+	spin_unlock_irq(&ohci->lock);
 }
 
 #define OHCI_SCHED_ENABLES \
@@ -348,7 +352,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		i, changed = 0, length = 1;
-	int		any_connected = 0, rhsc_enabled = 1;
+	int		any_connected = 0;
 	unsigned long	flags;
 
 	spin_lock_irqsave (&ohci->lock, flags);
@@ -389,19 +393,6 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		}
 	}
 
-	/* NOTE:  vendors didn't always make the same implementation
-	 * choices for RHSC.  Sometimes it triggers on an edge (like
-	 * setting and maybe clearing a port status change bit); and
-	 * it's level-triggered on other silicon, active until khubd
-	 * clears all active port status change bits.  If it's still
-	 * set (level-triggered) we must disable it and rely on
-	 * polling until khubd re-enables it.
-	 */
-	if (ohci_readl (ohci, &ohci->regs->intrstatus) & OHCI_INTR_RHSC) {
-		ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrdisable);
-		(void) ohci_readl (ohci, &ohci->regs->intrdisable);
-		rhsc_enabled = 0;
-	}
 	hcd->poll_rh = 1;
 
 	/* carry out appropriate state changes */
@@ -412,7 +403,8 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		 * and RHSC is enabled */
 		if (!ohci->autostop) {
 			if (any_connected) {
-				if (rhsc_enabled)
+				if (ohci_readl(ohci, &ohci->regs->intrenable) &
+						OHCI_INTR_RHSC)
 					hcd->poll_rh = 0;
 			} else {
 				ohci->autostop = 1;
