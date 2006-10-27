@@ -356,26 +356,6 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * The hw generator calculates the error syndrome automatically. Therefor
  * we need a special oob layout and handling.
  */
-
-static unsigned short cafe_empty_syndromes[8] = { 4095, 748, 2629, 2920, 875, 1454, 51, 1456 };
-
-static int is_all_ff(unsigned char *buf, int len)
-{
-	unsigned long *lbuf = (void *)buf;
-	int i;
-
-	for (i=0; i < (len/sizeof(long)); i++) {
-		if (lbuf[i] != ~0UL)
-			return 0;
-	}
-	i *= sizeof(long);
-	for (; i< len; i++) {
-		if (buf[i] != 0xff)
-			return 0;
-	}
-	return 1;
-}
-
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			       uint8_t *buf)
 {
@@ -398,13 +378,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			syn[i+1] = (tmp >> 16) & 0xfff;
 		} 
 
-		/* FIXME: http://dev.laptop.org/ticket/215 */
-		if (!memcmp(syn, cafe_empty_syndromes, sizeof(syn))
-		    && is_all_ff(chip->oob_poi, 14)
-		    && is_all_ff(buf, mtd->writesize)) {
-			dev_dbg(&cafe->pdev->dev, "ECC error reported on empty block\n");
-			/* It was an empty block. Nothing to fix here except the hardware */
-		} else if ((i = cafe_correct_ecc(buf, syn)) < 0) {
+		if ((i = cafe_correct_ecc(buf, syn)) < 0) {
 			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC\n");
 			mtd->ecc_stats.failed++;
 		} else {
