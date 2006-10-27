@@ -46,7 +46,14 @@
 #include "bsbe1.h"
 #include "bsru6.h"
 
-#define DEBIADDR_IR		0x1234
+/*
+ * Regarding DEBIADDR_IR:
+ * Some CI modules hang if random addresses are read.
+ * Using address 0x4000 for the IR read means that we
+ * use the same address as for CI version, which should
+ * be a safe default.
+ */
+#define DEBIADDR_IR		0x4000
 #define DEBIADDR_CICONTROL	0x0000
 #define DEBIADDR_CIVERSION	0x4000
 #define DEBIADDR_IO		0x1000
