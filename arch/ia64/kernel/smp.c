@@ -328,10 +328,14 @@ int
 smp_call_function (void (*func) (void *info), void *info, int nonatomic, int wait)
 {
 	struct call_data_struct data;
-	int cpus = num_online_cpus()-1;
+	int cpus;
 
-	if (!cpus)
+	spin_lock(&call_lock);
+	cpus = num_online_cpus() - 1;
+	if (!cpus) {
+		spin_unlock(&call_lock);
 		return 0;
+	}
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -342,8 +346,6 @@ smp_call_function (void (*func) (void *info), void *info, int nonatomic, int wai
 	data.wait = wait;
 	if (wait)
 		atomic_set(&data.finished, 0);
-
-	spin_lock(&call_lock);
 
 	call_data = &data;
 	mb();	/* ensure store to call_data precedes setting of IPI_CALL_FUNC */
