@@ -42,7 +42,7 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	dev->mtd = mtd;
 	dev->devnum = mtd->index;
-	dev->blksize = 512;
+
 	dev->size = mtd->size >> 9;
 	dev->tr = tr;
 	dev->readonly = 1;
@@ -60,6 +60,7 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 	.name		= "mtdblock",
 	.major		= 31,
 	.part_bits	= 0,
+	.blksize 	= 512,
 	.readsect	= mtdblock_readsect,
 	.writesect	= mtdblock_writesect,
 	.add_mtd	= mtdblock_add_mtd,

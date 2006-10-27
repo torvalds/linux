@@ -67,7 +67,7 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	nftl->mbd.mtd = mtd;
 	nftl->mbd.devnum = -1;
-	nftl->mbd.blksize = 512;
+
 	nftl->mbd.tr = tr;
 
         if (NFTL_mount(nftl) < 0) {
@@ -797,6 +797,7 @@ static struct mtd_blktrans_ops nftl_tr = {
 	.name		= "nftl",
 	.major		= NFTL_MAJOR,
 	.part_bits	= NFTL_PARTN_BITS,
+	.blksize 	= 512,
 	.getgeo		= nftl_getgeo,
 	.readsect	= nftl_readblock,
 #ifdef CONFIG_NFTL_RW

@@ -77,7 +77,7 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	inftl->mbd.mtd = mtd;
 	inftl->mbd.devnum = -1;
-	inftl->mbd.blksize = 512;
+
 	inftl->mbd.tr = tr;
 
 	if (INFTL_mount(inftl) < 0) {
@@ -945,6 +945,7 @@ static struct mtd_blktrans_ops inftl_tr = {
 	.name		= "inftl",
 	.major		= INFTL_MAJOR,
 	.part_bits	= INFTL_PARTN_BITS,
+	.blksize 	= 512,
 	.getgeo		= inftl_getgeo,
 	.readsect	= inftl_readblock,
 	.writesect	= inftl_writeblock,

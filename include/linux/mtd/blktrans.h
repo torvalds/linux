@@ -24,7 +24,6 @@ struct mtd_blktrans_dev {
 	struct mtd_info *mtd;
 	struct mutex lock;
 	int devnum;
-	int blksize;
 	unsigned long size;
 	int readonly;
 	void *blkcore_priv; /* gendisk in 2.5, devfs_handle in 2.4 */
@@ -36,6 +35,8 @@ struct mtd_blktrans_ops {
 	char *name;
 	int major;
 	int part_bits;
+	int blksize;
+	int blkshift;
 
 	/* Access functions */
 	int (*readsect)(struct mtd_blktrans_dev *dev,

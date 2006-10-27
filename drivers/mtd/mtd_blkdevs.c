@@ -42,19 +42,20 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	unsigned long block, nsect;
 	char *buf;
 
-	block = req->sector;
-	nsect = req->current_nr_sectors;
+	block = req->sector << 9 >> tr->blkshift;
+	nsect = req->current_nr_sectors << 9 >> tr->blkshift;
+
 	buf = req->buffer;
 
 	if (!blk_fs_request(req))
 		return 0;
 
-	if (block + nsect > get_capacity(req->rq_disk))
+	if (req->sector + req->current_nr_sectors > get_capacity(req->rq_disk))
 		return 0;
 
 	switch(rq_data_dir(req)) {
 	case READ:
-		for (; nsect > 0; nsect--, block++, buf += 512)
+		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->readsect(dev, block, buf))
 				return 0;
 		return 1;
@@ -63,7 +64,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 		if (!tr->writesect)
 			return 0;
 
-		for (; nsect > 0; nsect--, block++, buf += 512)
+		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->writesect(dev, block, buf))
 				return 0;
 		return 1;
@@ -297,7 +298,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	/* 2.5 has capacity in units of 512 bytes while still
 	   having BLOCK_SIZE_BITS set to 10. Just to keep us amused. */
-	set_capacity(gd, (new->size * new->blksize) >> 9);
+	set_capacity(gd, (new->size * tr->blksize) >> 9);
 
 	gd->private_data = new;
 	new->blkcore_priv = gd;
@@ -401,6 +402,8 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	}
 
 	tr->blkcore_priv->rq->queuedata = tr;
+	blk_queue_hardsect_size(tr->blkcore_priv->rq, tr->blksize);
+	tr->blkshift = ffs(tr->blksize) - 1;
 
 	ret = kernel_thread(mtd_blktrans_thread, tr, CLONE_KERNEL);
 	if (ret < 0) {
