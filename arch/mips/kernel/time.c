@@ -88,12 +88,6 @@ static unsigned int null_hpt_read(void)
 	return 0;
 }
 
-static void __init null_hpt_init(void)
-{
-	/* nothing */
-}
-
-
 /*
  * Timer ack for an R4k-compatible timer of a known frequency.
  */
@@ -133,7 +127,6 @@ static void __init c0_hpt_timer_init(void)
 int (*mips_timer_state)(void);
 void (*mips_timer_ack)(void);
 unsigned int (*mips_hpt_read)(void);
-void (*mips_hpt_init)(void) __initdata = null_hpt_init;
 unsigned int mips_hpt_mask = 0xffffffff;
 
 /* last time when xtime and rtc are sync'ed up */
@@ -383,15 +376,19 @@ void __init time_init(void)
 
 			if (!mips_timer_state) {
 				/* No external timer interrupt -- use R4k.  */
-				mips_hpt_init = c0_hpt_timer_init;
 				mips_timer_ack = c0_timer_ack;
+				/* Calculate cache parameters.  */
+				cycles_per_jiffy =
+					(mips_hpt_frequency + HZ / 2) / HZ;
+				/*
+				 * This sets up the high precision
+				 * timer for the first interrupt.
+				 */
+				c0_hpt_timer_init();
 			}
 		}
 		if (!mips_hpt_frequency)
 			mips_hpt_frequency = calibrate_hpt();
-
-		/* Calculate cache parameters.  */
-		cycles_per_jiffy = (mips_hpt_frequency + HZ / 2) / HZ;
 
 		/* Report the high precision timer rate for a reference.  */
 		printk("Using %u.%03u MHz high precision timer.\n",
@@ -402,9 +399,6 @@ void __init time_init(void)
 	if (!mips_timer_ack)
 		/* No timer interrupt ack (e.g. i8254).  */
 		mips_timer_ack = null_timer_ack;
-
-	/* This sets up the high precision timer for the first interrupt.  */
-	mips_hpt_init();
 
 	/*
 	 * Call board specific timer interrupt setup.

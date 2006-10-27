@@ -48,7 +48,6 @@ extern void (*mips_timer_ack)(void);
  * If mips_hpt_read is NULL, an R4k-compatible timer setup is attempted.
  */
 extern unsigned int (*mips_hpt_read)(void);
-extern void (*mips_hpt_init)(void);
 extern unsigned int mips_hpt_mask;
 
 /*
