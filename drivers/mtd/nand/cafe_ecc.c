@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/errno.h>
 
 static unsigned short gf4096_mul(unsigned short, unsigned short);
@@ -1322,15 +1323,42 @@ void correct_12bit_symbol(unsigned char *buf, unsigned short sym,
 		buf[2+(3*(sym-2))/2] ^= (val >> 8);
 		buf[3+(3*(sym-2))/2] ^= (val & 0xff);
 	}
-
-		
 }
+
+static int debugecc = 0;
+module_param(debugecc, int, 0644);
 
 int cafe_correct_ecc(unsigned char *buf,
 		     unsigned short *chk_syndrome_list)
 {
 	unsigned short err_info[9];
 	int i;
+
+	if (debugecc) {
+		printk(KERN_WARNING "cafe_correct_ecc invoked. Syndromes %x %x %x %x %x %x %x %x\n",
+		       chk_syndrome_list[0], chk_syndrome_list[1],
+		       chk_syndrome_list[2], chk_syndrome_list[3],
+		       chk_syndrome_list[4], chk_syndrome_list[5],
+		       chk_syndrome_list[6], chk_syndrome_list[7]);
+		for (i=0; i < 2048; i+=16) {
+			printk(KERN_WARNING "D %04x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			       i,
+			       buf[i], buf[i+1], buf[i+2], buf[i+3],
+			       buf[i+4], buf[i+5], buf[i+6], buf[i+7],
+			       buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+			       buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+		}
+		for ( ; i < 2112; i+=16) {
+			printk(KERN_WARNING "O   %02x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			       i - 2048,
+			       buf[i], buf[i+1], buf[i+2], buf[i+3],
+			       buf[i+4], buf[i+5], buf[i+6], buf[i+7],
+			       buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+			       buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+		}
+	}
+			
+
 
 	if (chk_no_err_only(chk_syndrome_list, err_info) &&
 	    chk_1_err_only(chk_syndrome_list, err_info) &&
@@ -1340,8 +1368,13 @@ int cafe_correct_ecc(unsigned char *buf,
 		return -EIO;
 	}
 
-	for (i=0; i < err_info[0]; i++)
+	for (i=0; i < err_info[0]; i++) {
+		if (debugecc)
+			printk(KERN_WARNING "Correct symbol %d with 0x%03x\n",
+			       err_info[1+i], err_info[5+i]);
+
 		correct_12bit_symbol(buf, err_info[1+i], err_info[5+i]);
+	}
 
 	return err_info[0];
 }
