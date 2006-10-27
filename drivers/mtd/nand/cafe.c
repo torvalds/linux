@@ -58,7 +58,7 @@ struct cafe_priv {
 	
 };
 
-static int usedma = 0;
+static int usedma = 1;
 module_param(usedma, int, 0644);
 
 static int skipbbt = 0;
@@ -67,8 +67,11 @@ module_param(skipbbt, int, 0644);
 static int debug = 0;
 module_param(debug, int, 0644);
 
-static int checkecc = 0;
+static int checkecc = 1;
 module_param(checkecc, int, 0644);
+
+static int slowtiming = 0;
+module_param(slowtiming, int, 0644);
 
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
@@ -604,15 +607,16 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 
 	/* Timings from Marvell's test code (not verified or calculated by us) */
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
-#if 1
-	writel(0x01010a0a, cafe->mmio + CAFE_NAND_TIMING1);
-	writel(0x24121212, cafe->mmio + CAFE_NAND_TIMING2);
-	writel(0x11000000, cafe->mmio + CAFE_NAND_TIMING3);
-#else
-	writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING1);
-	writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING2);
-	writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING3);
-#endif
+
+	if (!slowtiming) {
+		writel(0x01010a0a, cafe->mmio + CAFE_NAND_TIMING1);
+		writel(0x24121212, cafe->mmio + CAFE_NAND_TIMING2);
+		writel(0x11000000, cafe->mmio + CAFE_NAND_TIMING3);
+	} else {
+		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING1);
+		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING2);
+		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING3);
+	}
 	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
 	if (err) {
