@@ -2261,7 +2261,7 @@ unsigned long __init __absent_pages_in_range(int nid,
 
 	/* Account for ranges past physical memory on this node */
 	if (range_end_pfn > prev_end_pfn)
-		hole_pages = range_end_pfn -
+		hole_pages += range_end_pfn -
 				max(range_start_pfn, prev_end_pfn);
 
 	return hole_pages;
