@@ -196,7 +196,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 #define BITS_TO_COMPAT_LONGS(bits) \
 	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
 
-long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
+long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
 long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 		       unsigned long bitmap_size);

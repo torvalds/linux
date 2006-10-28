@@ -678,7 +678,7 @@ int get_compat_sigevent(struct sigevent *event,
 		? -EFAULT : 0;
 }
 
-long compat_get_bitmap(unsigned long *mask, compat_ulong_t __user *umask,
+long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size)
 {
 	int i, j;
