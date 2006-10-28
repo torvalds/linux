@@ -307,6 +307,8 @@ enum {
 	   (some horkage may be drive/controller pair dependant */
 
 	ATA_HORKAGE_DIAGNOSTIC	= (1 << 0),	/* Failed boot diag */
+	ATA_HORKAGE_NODMA	= (1 << 1),	/* DMA problems */
+	ATA_HORKAGE_NONCQ	= (1 << 2),	/* Don't use NCQ */
 };
 
 enum hsm_task_states {
@@ -787,6 +789,7 @@ extern void ata_id_string(const u16 *id, unsigned char *s,
 			  unsigned int ofs, unsigned int len);
 extern void ata_id_c_string(const u16 *id, unsigned char *s,
 			    unsigned int ofs, unsigned int len);
+extern unsigned long ata_device_blacklisted(const struct ata_device *dev);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
