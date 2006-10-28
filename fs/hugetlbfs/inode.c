@@ -624,7 +624,6 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 				do_div(size, 100);
 				rest++;
 			}
-			size &= HPAGE_MASK;
 			pconfig->nr_blocks = (size >> HPAGE_SHIFT);
 			value = rest;
 		} else if (!strcmp(opt,"nr_inodes")) {
