@@ -478,6 +478,9 @@ int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 retry:
 	page = find_lock_page(mapping, idx);
 	if (!page) {
+		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
+		if (idx >= size)
+			goto out;
 		if (hugetlb_get_quota(mapping))
 			goto out;
 		page = alloc_huge_page(vma, address);
