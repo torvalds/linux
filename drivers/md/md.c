@@ -2003,6 +2003,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	kobject_init(&rdev->kobj);
 
 	rdev->desc_nr = -1;
+	rdev->saved_raid_disk = -1;
 	rdev->flags = 0;
 	rdev->data_offset = 0;
 	rdev->sb_events = 0;
