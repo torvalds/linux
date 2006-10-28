@@ -2407,7 +2407,7 @@ static void __meminit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 		zone->free_pages = 0;
 
-		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
+		zone->prev_priority = DEF_PRIORITY;
 
 		zone_pcp_init(zone);
 		INIT_LIST_HEAD(&zone->active_list);

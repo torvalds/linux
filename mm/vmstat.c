@@ -587,11 +587,9 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 		seq_printf(m,
 			   "\n  all_unreclaimable: %u"
 			   "\n  prev_priority:     %i"
-			   "\n  temp_priority:     %i"
 			   "\n  start_pfn:         %lu",
 			   zone->all_unreclaimable,
 			   zone->prev_priority,
-			   zone->temp_priority,
 			   zone->zone_start_pfn);
 		spin_unlock_irqrestore(&zone->lock, flags);
 		seq_putc(m, '\n');
