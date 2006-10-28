@@ -320,7 +320,7 @@ char *strstrip(char *s)
 		return s;
 
 	end = s + size - 1;
-	while (end != s && isspace(*end))
+	while (end >= s && isspace(*end))
 		end--;
 	*(end + 1) = '\0';
 
