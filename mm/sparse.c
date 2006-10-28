@@ -211,7 +211,7 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 	struct page *page, *ret;
 	unsigned long memmap_size = sizeof(struct page) * nr_pages;
 
-	page = alloc_pages(GFP_KERNEL, get_order(memmap_size));
+	page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
 	if (page)
 		goto got_map_page;
 
