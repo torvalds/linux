@@ -247,8 +247,10 @@ static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_devi
 	    (!(PCI_FUNC(dev->devfn) & 1)))
 		goto out;
 
-	if (dev->vendor == PCI_VENDOR_ID_JMICRON && PCI_FUNC(dev->devfn) != 1)
-		goto out;
+	if (dev->vendor == PCI_VENDOR_ID_JMICRON) {
+		if (dev->device != PCI_DEVICE_ID_JMICRON_JMB368 && PCI_FUNC(dev->devfn) != 1)
+			goto out;
+	}
 
 	if (dev->vendor != PCI_VENDOR_ID_JMICRON) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
