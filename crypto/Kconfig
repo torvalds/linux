@@ -39,6 +39,17 @@ config CRYPTO_HMAC
 	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
 	  This is required for IPSec.
 
+config CRYPTO_XCBC
+	tristate "XCBC support"
+	depends on EXPERIMENTAL
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  XCBC: Keyed-Hashing with encryption algorithm
+		http://www.ietf.org/rfc/rfc3566.txt
+		http://csrc.nist.gov/encryption/modes/proposedmodes/
+		 xcbc-mac/xcbc-mac-spec.pdf
+
 config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_ALGAPI
