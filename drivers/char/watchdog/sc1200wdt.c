@@ -392,7 +392,7 @@ static int __init sc1200wdt_init(void)
 	if (io == -1) {
 		printk(KERN_ERR PFX "io parameter must be specified\n");
 		ret = -EINVAL;
-		goto out_clean;
+		goto out_pnp;
 	}
 
 #if defined CONFIG_PNP
@@ -405,7 +405,7 @@ static int __init sc1200wdt_init(void)
 	if (!request_region(io, io_len, SC1200_MODULE_NAME)) {
 		printk(KERN_ERR PFX "Unable to register IO port %#x\n", io);
 		ret = -EBUSY;
-		goto out_clean;
+		goto out_pnp;
 	}
 
 	ret = sc1200wdt_probe();
@@ -435,6 +435,11 @@ out_rbt:
 out_io:
 	release_region(io, io_len);
 
+out_pnp:
+#if defined CONFIG_PNP
+	if (isapnp)
+		pnp_unregister_driver(&scl200wdt_pnp_driver);
+#endif
 	goto out_clean;
 }
 
