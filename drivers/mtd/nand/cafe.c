@@ -272,7 +272,8 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			cpu_relax();
 		}
 		writel(doneint, cafe->mmio + CAFE_NAND_IRQ);
-		cafe_dev_dbg(&cafe->pdev->dev, "Command %x completed after %d usec, irqs %x (%x)\n", command, 50000-c, irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
+		cafe_dev_dbg(&cafe->pdev->dev, "Command %x completed after %d usec, irqs %x (%x)\n",
+			     command, 500000-c, irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
 	}
 
 
