@@ -174,21 +174,19 @@ static void send_cpu_listeners(struct sk_buff *skb, unsigned int cpu)
 	up_write(&listeners->sem);
 }
 
-static int fill_pid(pid_t pid, struct task_struct *pidtsk,
+static int fill_pid(pid_t pid, struct task_struct *tsk,
 		struct taskstats *stats)
 {
 	int rc = 0;
-	struct task_struct *tsk = pidtsk;
 
-	if (!pidtsk) {
-		read_lock(&tasklist_lock);
+	if (!tsk) {
+		rcu_read_lock();
 		tsk = find_task_by_pid(pid);
-		if (!tsk) {
-			read_unlock(&tasklist_lock);
+		if (tsk)
+			get_task_struct(tsk);
+		rcu_read_unlock();
+		if (!tsk)
 			return -ESRCH;
-		}
-		get_task_struct(tsk);
-		read_unlock(&tasklist_lock);
 	} else
 		get_task_struct(tsk);
 
@@ -214,40 +212,28 @@ static int fill_pid(pid_t pid, struct task_struct *pidtsk,
 
 }
 
-static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
+static int fill_tgid(pid_t tgid, struct task_struct *first,
 		struct taskstats *stats)
 {
-	struct task_struct *tsk, *first;
+	struct task_struct *tsk;
 	unsigned long flags;
+	int rc = -ESRCH;
 
 	/*
 	 * Add additional stats from live tasks except zombie thread group
 	 * leaders who are already counted with the dead tasks
 	 */
-	first = tgidtsk;
-	if (!first) {
-		read_lock(&tasklist_lock);
+	rcu_read_lock();
+	if (!first)
 		first = find_task_by_pid(tgid);
-		if (!first) {
-			read_unlock(&tasklist_lock);
-			return -ESRCH;
-		}
-		get_task_struct(first);
-		read_unlock(&tasklist_lock);
-	} else
-		get_task_struct(first);
 
+	if (!first || !lock_task_sighand(first, &flags))
+		goto out;
+
+	if (first->signal->stats)
+		memcpy(stats, first->signal->stats, sizeof(*stats));
 
 	tsk = first;
-	read_lock(&tasklist_lock);
-	/* Start with stats from dead tasks */
-	if (first->sighand) {
-		spin_lock_irqsave(&first->sighand->siglock, flags);
-		if (first->signal->stats)
-			memcpy(stats, first->signal->stats, sizeof(*stats));
-		spin_unlock_irqrestore(&first->sighand->siglock, flags);
-	}
-
 	do {
 		if (tsk->exit_state == EXIT_ZOMBIE && thread_group_leader(tsk))
 			continue;
@@ -260,15 +246,18 @@ static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
 		delayacct_add_tsk(stats, tsk);
 
 	} while_each_thread(first, tsk);
-	read_unlock(&tasklist_lock);
-	stats->version = TASKSTATS_VERSION;
 
+	unlock_task_sighand(first, &flags);
+	rc = 0;
+out:
+	rcu_read_unlock();
+
+	stats->version = TASKSTATS_VERSION;
 	/*
 	 * Accounting subsytems can also add calls here to modify
 	 * fields of taskstats.
 	 */
-	put_task_struct(first);
-	return 0;
+	return rc;
 }
 
 
