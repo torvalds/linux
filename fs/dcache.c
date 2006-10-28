@@ -478,11 +478,12 @@ static void prune_dcache(int count, struct super_block *sb)
 			up_read(s_umount);
 		}
 		spin_unlock(&dentry->d_lock);
-		/* Cannot remove the first dentry, and it isn't appropriate
-		 * to move it to the head of the list, so give up, and try
-		 * later
+		/*
+		 * Insert dentry at the head of the list as inserting at the
+		 * tail leads to a cycle.
 		 */
-		break;
+ 		list_add(&dentry->d_lru, &dentry_unused);
+		dentry_stat.nr_unused++;
 	}
 	spin_unlock(&dcache_lock);
 }
