@@ -271,26 +271,24 @@ static void hugetlbfs_drop_inode(struct inode *inode)
 		hugetlbfs_forget_inode(inode);
 }
 
-/*
- * h_pgoff is in HPAGE_SIZE units.
- * vma->vm_pgoff is in PAGE_SIZE units.
- */
 static inline void
-hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
+hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
 {
 	struct vm_area_struct *vma;
 	struct prio_tree_iter iter;
 
-	vma_prio_tree_foreach(vma, &iter, root, h_pgoff, ULONG_MAX) {
-		unsigned long h_vm_pgoff;
+	vma_prio_tree_foreach(vma, &iter, root, pgoff, ULONG_MAX) {
 		unsigned long v_offset;
 
-		h_vm_pgoff = vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT);
-		v_offset = (h_pgoff - h_vm_pgoff) << HPAGE_SHIFT;
 		/*
-		 * Is this VMA fully outside the truncation point?
+		 * Can the expression below overflow on 32-bit arches?
+		 * No, because the prio_tree returns us only those vmas
+		 * which overlap the truncated area starting at pgoff,
+		 * and no vma on a 32-bit arch can span beyond the 4GB.
 		 */
-		if (h_vm_pgoff >= h_pgoff)
+		if (vma->vm_pgoff < pgoff)
+			v_offset = (pgoff - vma->vm_pgoff) << PAGE_SHIFT;
+		else
 			v_offset = 0;
 
 		__unmap_hugepage_range(vma,
@@ -303,14 +301,14 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
  */
 static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 {
-	unsigned long pgoff;
+	pgoff_t pgoff;
 	struct address_space *mapping = inode->i_mapping;
 
 	if (offset > inode->i_size)
 		return -EINVAL;
 
 	BUG_ON(offset & ~HPAGE_MASK);
-	pgoff = offset >> HPAGE_SHIFT;
+	pgoff = offset >> PAGE_SHIFT;
 
 	inode->i_size = offset;
 	spin_lock(&mapping->i_mmap_lock);
