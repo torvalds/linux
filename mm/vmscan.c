@@ -760,7 +760,7 @@ static inline int zone_is_near_oom(struct zone *zone)
  * But we had to alter page->flags anyway.
  */
 static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
-				struct scan_control *sc)
+				struct scan_control *sc, int priority)
 {
 	unsigned long pgmoved;
 	int pgdeactivate = 0;
@@ -784,7 +784,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		 * `distress' is a measure of how much trouble we're having
 		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
 		 */
-		distress = 100 >> zone->prev_priority;
+		distress = 100 >> min(zone->prev_priority, priority);
 
 		/*
 		 * The point of this algorithm is to decide when to start
@@ -936,7 +936,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 			nr_to_scan = min(nr_active,
 					(unsigned long)sc->swap_cluster_max);
 			nr_active -= nr_to_scan;
-			shrink_active_list(nr_to_scan, zone, sc);
+			shrink_active_list(nr_to_scan, zone, sc, priority);
 		}
 
 		if (nr_inactive) {
@@ -1384,7 +1384,7 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int pass,
 			if (zone->nr_scan_active >= nr_pages || pass > 3) {
 				zone->nr_scan_active = 0;
 				nr_to_scan = min(nr_pages, zone->nr_active);
-				shrink_active_list(nr_to_scan, zone, sc);
+				shrink_active_list(nr_to_scan, zone, sc, prio);
 			}
 		}
 
