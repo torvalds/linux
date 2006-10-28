@@ -532,8 +532,7 @@ device_remove_files(struct device *dev)
 
 /* this is a simple abstraction for device_register that sets the
  * correct bus type and adds the bus specific files */
-int
-ccw_device_register(struct ccw_device *cdev)
+static int ccw_device_register(struct ccw_device *cdev)
 {
 	struct device *dev = &cdev->dev;
 	int ret;

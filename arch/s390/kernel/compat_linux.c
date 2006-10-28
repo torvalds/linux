@@ -757,7 +757,9 @@ asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
 			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
 				error = -EFAULT;
 		}
-		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
+		if (copy_to_user(args->__unused, tmp.__unused,
+				 sizeof(tmp.__unused)))
+			error = -EFAULT;
 	}
 	return error;
 }
