@@ -235,7 +235,7 @@ static int fill_tgid(pid_t tgid, struct task_struct *first,
 
 	tsk = first;
 	do {
-		if (tsk->exit_state == EXIT_ZOMBIE && thread_group_leader(tsk))
+		if (tsk->exit_state)
 			continue;
 		/*
 		 * Accounting subsystem can call its functions here to
