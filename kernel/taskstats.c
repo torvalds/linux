@@ -241,11 +241,11 @@ static int fill_tgid(pid_t tgid, struct task_struct *tgidtsk,
 	tsk = first;
 	read_lock(&tasklist_lock);
 	/* Start with stats from dead tasks */
-	if (first->signal) {
-		spin_lock_irqsave(&first->signal->stats_lock, flags);
+	if (first->sighand) {
+		spin_lock_irqsave(&first->sighand->siglock, flags);
 		if (first->signal->stats)
 			memcpy(stats, first->signal->stats, sizeof(*stats));
-		spin_unlock_irqrestore(&first->signal->stats_lock, flags);
+		spin_unlock_irqrestore(&first->sighand->siglock, flags);
 	}
 
 	do {
@@ -276,7 +276,7 @@ static void fill_tgid_exit(struct task_struct *tsk)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
+	spin_lock_irqsave(&tsk->sighand->siglock, flags);
 	if (!tsk->signal->stats)
 		goto ret;
 
@@ -288,7 +288,7 @@ static void fill_tgid_exit(struct task_struct *tsk)
 	 */
 	delayacct_add_tsk(tsk->signal->stats, tsk);
 ret:
-	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
+	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
 	return;
 }
 
@@ -464,14 +464,9 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	size_t size;
 	int is_thread_group;
 	struct nlattr *na;
-	unsigned long flags;
 
 	if (!family_registered || !tidstats)
 		return;
-
-	spin_lock_irqsave(&tsk->signal->stats_lock, flags);
-	is_thread_group = tsk->signal->stats ? 1 : 0;
-	spin_unlock_irqrestore(&tsk->signal->stats_lock, flags);
 
 	rc = 0;
 	/*
@@ -480,6 +475,7 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	size = nla_total_size(sizeof(u32)) +
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
+	is_thread_group = (tsk->signal->stats != NULL);
 	if (is_thread_group)
 		size = 2 * size;	/* PID + STATS + TGID + STATS */
 
