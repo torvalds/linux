@@ -557,6 +557,7 @@ repeat:
 static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 {
 	struct dentry *parent;
+	unsigned detached = 0;
 
 	BUG_ON(!IS_ROOT(dentry));
 
@@ -621,7 +622,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 				atomic_dec(&parent->d_count);
 
 			list_del(&dentry->d_u.d_child);
-			dentry_stat.nr_dentry--;	/* For d_free, below */
+			detached++;
 
 			inode = dentry->d_inode;
 			if (inode) {
@@ -639,7 +640,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 			 * otherwise we ascend to the parent and move to the
 			 * next sibling if there is one */
 			if (!parent)
-				return;
+				goto out;
 
 			dentry = parent;
 
@@ -648,6 +649,11 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 		dentry = list_entry(dentry->d_subdirs.next,
 				    struct dentry, d_u.d_child);
 	}
+out:
+	/* several dentries were freed, need to correct nr_dentry */
+	spin_lock(&dcache_lock);
+	dentry_stat.nr_dentry -= detached;
+	spin_unlock(&dcache_lock);
 }
 
 /*
