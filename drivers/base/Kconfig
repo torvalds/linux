@@ -37,8 +37,8 @@ config DEBUG_DRIVER
 
 	  If you are unsure about this, say N here.
 
-endmenu
-
 config SYS_HYPERVISOR
 	bool
 	default n
+
+endmenu
