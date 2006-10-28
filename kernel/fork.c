@@ -897,7 +897,6 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 void __cleanup_signal(struct signal_struct *sig)
 {
 	exit_thread_group_keys(sig);
-	taskstats_tgid_free(sig);
 	kmem_cache_free(signal_cachep, sig);
 }
 

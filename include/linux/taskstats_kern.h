@@ -49,17 +49,8 @@ static inline void taskstats_tgid_alloc(struct signal_struct *sig)
 
 static inline void taskstats_tgid_free(struct signal_struct *sig)
 {
-	struct taskstats *stats = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sig->stats_lock, flags);
-	if (sig->stats) {
-		stats = sig->stats;
-		sig->stats = NULL;
-	}
-	spin_unlock_irqrestore(&sig->stats_lock, flags);
-	if (stats)
-		kmem_cache_free(taskstats_cache, stats);
+	if (sig->stats)
+		kmem_cache_free(taskstats_cache, sig->stats);
 }
 
 extern void taskstats_exit_alloc(struct taskstats **, unsigned int *);
