@@ -74,7 +74,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		wait_on_page_writeback(page);
 
 		if (PagePrivate(page))
-			try_to_release_page(page, mapping_gfp_mask(mapping));
+			try_to_release_page(page, GFP_KERNEL);
 
 		/*
 		 * If we succeeded in removing the mapping, set LRU flag
@@ -333,7 +333,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 				break;
 
 			error = add_to_page_cache_lru(page, mapping, index,
-					      mapping_gfp_mask(mapping));
+					      GFP_KERNEL);
 			if (unlikely(error)) {
 				page_cache_release(page);
 				if (error == -EEXIST)
@@ -557,7 +557,6 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	struct file *file = sd->file;
 	struct address_space *mapping = file->f_mapping;
-	gfp_t gfp_mask = mapping_gfp_mask(mapping);
 	unsigned int offset, this_len;
 	struct page *page;
 	pgoff_t index;
@@ -591,7 +590,7 @@ static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			goto find_page;
 
 		page = buf->page;
-		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
+		if (add_to_page_cache(page, mapping, index, GFP_KERNEL)) {
 			unlock_page(page);
 			goto find_page;
 		}
@@ -613,7 +612,7 @@ find_page:
 			 * This will also lock the page
 			 */
 			ret = add_to_page_cache_lru(page, mapping, index,
-						    gfp_mask);
+						    GFP_KERNEL);
 			if (unlikely(ret))
 				goto out;
 		}

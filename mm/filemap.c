@@ -467,25 +467,15 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 }
 
 #ifdef CONFIG_NUMA
-struct page *page_cache_alloc(struct address_space *x)
+struct page *__page_cache_alloc(gfp_t gfp)
 {
 	if (cpuset_do_page_mem_spread()) {
 		int n = cpuset_mem_spread_node();
-		return alloc_pages_node(n, mapping_gfp_mask(x), 0);
+		return alloc_pages_node(n, gfp, 0);
 	}
-	return alloc_pages(mapping_gfp_mask(x), 0);
+	return alloc_pages(gfp, 0);
 }
-EXPORT_SYMBOL(page_cache_alloc);
-
-struct page *page_cache_alloc_cold(struct address_space *x)
-{
-	if (cpuset_do_page_mem_spread()) {
-		int n = cpuset_mem_spread_node();
-		return alloc_pages_node(n, mapping_gfp_mask(x)|__GFP_COLD, 0);
-	}
-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
-}
-EXPORT_SYMBOL(page_cache_alloc_cold);
+EXPORT_SYMBOL(__page_cache_alloc);
 #endif
 
 static int __sleep_on_page_lock(void *word)
@@ -826,7 +816,6 @@ struct page *
 grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 {
 	struct page *page = find_get_page(mapping, index);
-	gfp_t gfp_mask;
 
 	if (page) {
 		if (!TestSetPageLocked(page))
@@ -834,9 +823,8 @@ grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 		page_cache_release(page);
 		return NULL;
 	}
-	gfp_mask = mapping_gfp_mask(mapping) & ~__GFP_FS;
-	page = alloc_pages(gfp_mask, 0);
-	if (page && add_to_page_cache_lru(page, mapping, index, gfp_mask)) {
+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
+	if (page && add_to_page_cache_lru(page, mapping, index, GFP_KERNEL)) {
 		page_cache_release(page);
 		page = NULL;
 	}

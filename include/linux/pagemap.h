@@ -52,19 +52,23 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 void release_pages(struct page **pages, int nr, int cold);
 
 #ifdef CONFIG_NUMA
-extern struct page *page_cache_alloc(struct address_space *x);
-extern struct page *page_cache_alloc_cold(struct address_space *x);
+extern struct page *__page_cache_alloc(gfp_t gfp);
 #else
+static inline struct page *__page_cache_alloc(gfp_t gfp)
+{
+	return alloc_pages(gfp, 0);
+}
+#endif
+
 static inline struct page *page_cache_alloc(struct address_space *x)
 {
-	return alloc_pages(mapping_gfp_mask(x), 0);
+	return __page_cache_alloc(mapping_gfp_mask(x));
 }
 
 static inline struct page *page_cache_alloc_cold(struct address_space *x)
 {
-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
+	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
 }
-#endif
 
 typedef int filler_t(void *, struct page *);
 
