@@ -32,6 +32,9 @@ static inline void taskstats_tgid_alloc(struct signal_struct *sig)
 	struct taskstats *stats;
 	unsigned long flags;
 
+	if (sig->stats != NULL)
+		return;
+
 	stats = kmem_cache_zalloc(taskstats_cache, SLAB_KERNEL);
 	if (!stats)
 		return;
