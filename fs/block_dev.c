@@ -1131,6 +1131,8 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	filp->f_flags |= O_LARGEFILE;
 
 	bdev = bd_acquire(inode);
+	if (bdev == NULL)
+		return -ENOMEM;
 
 	res = do_open(bdev, filp, BD_MUTEX_NORMAL);
 	if (res)
