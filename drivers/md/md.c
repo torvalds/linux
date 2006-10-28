@@ -4045,11 +4045,8 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		return -EBUSY;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		sector_t avail;
-		if (rdev->sb_offset > rdev->data_offset)
-			avail = (rdev->sb_offset*2) - rdev->data_offset;
-		else
-			avail = get_capacity(rdev->bdev->bd_disk)
-				- rdev->data_offset;
+		avail = rdev->size * 2;
+
 		if (fit && (size == 0 || size > avail/2))
 			size = avail/2;
 		if (avail < ((sector_t)size << 1))
