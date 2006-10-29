@@ -1078,10 +1078,9 @@ static struct unit_directory *nodemgr_process_unit_directory
 			/* Logical Unit Number */
 			if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
 				if (ud->flags & UNIT_DIRECTORY_HAS_LUN) {
-					ud_child = kmalloc(sizeof(*ud_child), GFP_KERNEL);
+					ud_child = kmemdup(ud, sizeof(*ud_child), GFP_KERNEL);
 					if (!ud_child)
 						goto unit_directory_error;
-					memcpy(ud_child, ud, sizeof(*ud_child));
 					nodemgr_register_device(ne, ud_child, &ne->device);
 					ud_child = NULL;
 					
