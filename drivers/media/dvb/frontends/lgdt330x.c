@@ -31,9 +31,6 @@
  *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
  *   pcHDTV HD5500
  *
- * TODO:
- * signal strength always returns 0.
- *
  */
 
 #include <linux/kernel.h>
@@ -46,8 +43,12 @@
 #include <asm/byteorder.h>
 
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "lgdt330x_priv.h"
 #include "lgdt330x.h"
+
+/* Use Equalizer Mean Squared Error instead of Phaser Tracker MSE */
+/* #define USE_EQMSE */
 
 static int debug = 0;
 module_param(debug, int, 0644);
@@ -68,6 +69,7 @@ struct lgdt330x_state
 
 	/* Demodulator private data */
 	fe_modulation_t current_modulation;
+	u32 snr; /* Result of last SNR calculation */
 
 	/* Tuner private data */
 	u32 current_frequency;
@@ -543,151 +545,150 @@ static int lgdt3303_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-static int lgdt330x_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+/* Calculate SNR estimation (scaled by 2^24)
+
+   8-VSB SNR equations from LGDT3302 and LGDT3303 datasheets, QAM
+   equations from LGDT3303 datasheet.  VSB is the same between the '02
+   and '03, so maybe QAM is too?  Perhaps someone with a newer datasheet
+   that has QAM information could verify?
+
+   For 8-VSB: (two ways, take your pick)
+   LGDT3302:
+     SNR_EQ = 10 * log10(25 * 24^2 / EQ_MSE)
+   LGDT3303:
+     SNR_EQ = 10 * log10(25 * 32^2 / EQ_MSE)
+   LGDT3302 & LGDT3303:
+     SNR_PT = 10 * log10(25 * 32^2 / PT_MSE)  (we use this one)
+   For 64-QAM:
+     SNR    = 10 * log10( 688128   / MSEQAM)
+   For 256-QAM:
+     SNR    = 10 * log10( 696320   / MSEQAM)
+
+   We re-write the snr equation as:
+     SNR * 2^24 = 10*(c - intlog10(MSE))
+   Where for 256-QAM, c = log10(696320) * 2^24, and so on. */
+
+static u32 calculate_snr(u32 mse, u32 c)
 {
-	/* not directly available. */
-	*strength = 0;
-	return 0;
+	if (mse == 0) /* No signal */
+		return 0;
+
+	mse = intlog10(mse);
+	if (mse > c) {
+		/* Negative SNR, which is possible, but realisticly the
+		demod will lose lock before the signal gets this bad.  The
+		API only allows for unsigned values, so just return 0 */
+		return 0;
+	}
+	return 10*(c - mse);
 }
 
 static int lgdt3302_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-#ifdef SNR_IN_DB
-	/*
-	 * Spec sheet shows formula for SNR_EQ = 10 log10(25 * 24**2 / noise)
-	 * and SNR_PH = 10 log10(25 * 32**2 / noise) for equalizer and phase tracker
-	 * respectively. The following tables are built on these formulas.
-	 * The usual definition is SNR = 20 log10(signal/noise)
-	 * If the specification is wrong the value retuned is 1/2 the actual SNR in db.
-	 *
-	 * This table is a an ordered list of noise values computed by the
-	 * formula from the spec sheet such that the index into the table
-	 * starting at 43 or 45 is the SNR value in db. There are duplicate noise
-	 * value entries at the beginning because the SNR varies more than
-	 * 1 db for a change of 1 digit in noise at very small values of noise.
-	 *
-	 * Examples from SNR_EQ table:
-	 * noise SNR
-	 *   0    43
-	 *   1    42
-	 *   2    39
-	 *   3    37
-	 *   4    36
-	 *   5    35
-	 *   6    34
-	 *   7    33
-	 *   8    33
-	 *   9    32
-	 *   10   32
-	 *   11   31
-	 *   12   31
-	 *   13   30
-	 */
-
-	static const u32 SNR_EQ[] =
-		{ 1,     2,      2,      2, 3,      3,      4,     4,     5,     7,
-		  9,     11,     13,     17, 21,     26,     33,    41,    52,    65,
-		  81,    102,    129,    162, 204,    257,    323,   406,   511,   644,
-		  810,   1020,   1284,   1616, 2035,   2561,   3224,  4059,  5110,  6433,
-		  8098,  10195,  12835,  16158, 20341,  25608,  32238, 40585, 51094, 64323,
-		  80978, 101945, 128341, 161571, 203406, 256073, 0x40000
-		};
-
-	static const u32 SNR_PH[] =
-		{ 1,     2,      2,      2,      3,      3,     4,     5,     6,     8,
-		  10,    12,     15,     19,     23,     29, 37,    46,    58,    73,
-		  91,    115,    144,    182,    229,    288, 362,   456,   574,   722,
-		  909,   1144,   1440,   1813,   2282,   2873, 3617,  4553,  5732,  7216,
-		  9084,  11436,  14396,  18124,  22817,  28724,  36161, 45524, 57312, 72151,
-		  90833, 114351, 143960, 181235, 228161, 0x080000
-		};
-
-	static u8 buf[5];/* read data buffer */
-	static u32 noise;   /* noise value */
-	static u32 snr_db;  /* index into SNR_EQ[] */
 	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
+	u8 buf[5];	/* read data buffer */
+	u32 noise;	/* noise value */
+	u32 c;		/* per-modulation SNR calculation constant */
 
-	/* read both equalizer and phase tracker noise data */
-	i2c_read_demod_bytes(state, EQPH_ERR0, buf, sizeof(buf));
-
-	if (state->current_modulation == VSB_8) {
-		/* Equalizer Mean-Square Error Register for VSB */
+	switch(state->current_modulation) {
+	case VSB_8:
+		i2c_read_demod_bytes(state, LGDT3302_EQPH_ERR0, buf, 5);
+#ifdef USE_EQMSE
+		/* Use Equalizer Mean-Square Error Register */
+		/* SNR for ranges from -15.61 to +41.58 */
 		noise = ((buf[0] & 7) << 16) | (buf[1] << 8) | buf[2];
-
-		/*
-		 * Look up noise value in table.
-		 * A better search algorithm could be used...
-		 * watch out there are duplicate entries.
-		 */
-		for (snr_db = 0; snr_db < sizeof(SNR_EQ); snr_db++) {
-			if (noise < SNR_EQ[snr_db]) {
-				*snr = 43 - snr_db;
-				break;
-			}
-		}
-	} else {
-		/* Phase Tracker Mean-Square Error Register for QAM */
-		noise = ((buf[0] & 7<<3) << 13) | (buf[3] << 8) | buf[4];
-
-		/* Look up noise value in table. */
-		for (snr_db = 0; snr_db < sizeof(SNR_PH); snr_db++) {
-			if (noise < SNR_PH[snr_db]) {
-				*snr = 45 - snr_db;
-				break;
-			}
-		}
-	}
+		c = 69765745; /* log10(25*24^2)*2^24 */
 #else
-	/* Return the raw noise value */
-	static u8 buf[5];/* read data buffer */
-	static u32 noise;   /* noise value */
-	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
-
-	/* read both equalizer and pase tracker noise data */
-	i2c_read_demod_bytes(state, EQPH_ERR0, buf, sizeof(buf));
-
-	if (state->current_modulation == VSB_8) {
-		/* Phase Tracker Mean-Square Error Register for VSB */
+		/* Use Phase Tracker Mean-Square Error Register */
+		/* SNR for ranges from -13.11 to +44.08 */
 		noise = ((buf[0] & 7<<3) << 13) | (buf[3] << 8) | buf[4];
-	} else {
-
-		/* Carrier Recovery Mean-Square Error for QAM */
-		i2c_read_demod_bytes(state, 0x1a, buf, 2);
+		c = 73957994; /* log10(25*32^2)*2^24 */
+#endif
+		break;
+	case QAM_64:
+	case QAM_256:
+		i2c_read_demod_bytes(state, CARRIER_MSEQAM1, buf, 2);
 		noise = ((buf[0] & 3) << 8) | buf[1];
+		c = state->current_modulation == QAM_64 ? 97939837 : 98026066;
+		/* log10(688128)*2^24 and log10(696320)*2^24 */
+		break;
+	default:
+		printk(KERN_ERR "lgdt330x: %s: Modulation set to unsupported value\n",
+		       __FUNCTION__);
+		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
-	/* Small values for noise mean signal is better so invert noise */
-	*snr = ~noise;
-#endif
+	state->snr = calculate_snr(noise, c);
+	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
-	dprintk("%s: noise = 0x%05x, snr = %idb\n",__FUNCTION__, noise, *snr);
+	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __FUNCTION__, noise,
+		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;
 }
 
 static int lgdt3303_read_snr(struct dvb_frontend* fe, u16* snr)
 {
-	/* Return the raw noise value */
-	static u8 buf[5];/* read data buffer */
-	static u32 noise;   /* noise value */
 	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
+	u8 buf[5];	/* read data buffer */
+	u32 noise;	/* noise value */
+	u32 c;		/* per-modulation SNR calculation constant */
 
-	if (state->current_modulation == VSB_8) {
-
-		i2c_read_demod_bytes(state, 0x6e, buf, 5);
-		/* Phase Tracker Mean-Square Error Register for VSB */
+	switch(state->current_modulation) {
+	case VSB_8:
+		i2c_read_demod_bytes(state, LGDT3303_EQPH_ERR0, buf, 5);
+#ifdef USE_EQMSE
+		/* Use Equalizer Mean-Square Error Register */
+		/* SNR for ranges from -16.12 to +44.08 */
+		noise = ((buf[0] & 0x78) << 13) | (buf[1] << 8) | buf[2];
+		c = 73957994; /* log10(25*32^2)*2^24 */
+#else
+		/* Use Phase Tracker Mean-Square Error Register */
+		/* SNR for ranges from -13.11 to +44.08 */
 		noise = ((buf[0] & 7) << 16) | (buf[3] << 8) | buf[4];
-	} else {
-
-		/* Carrier Recovery Mean-Square Error for QAM */
-		i2c_read_demod_bytes(state, 0x1a, buf, 2);
+		c = 73957994; /* log10(25*32^2)*2^24 */
+#endif
+		break;
+	case QAM_64:
+	case QAM_256:
+		i2c_read_demod_bytes(state, CARRIER_MSEQAM1, buf, 2);
 		noise = (buf[0] << 8) | buf[1];
+		c = state->current_modulation == QAM_64 ? 97939837 : 98026066;
+		/* log10(688128)*2^24 and log10(696320)*2^24 */
+		break;
+	default:
+		printk(KERN_ERR "lgdt330x: %s: Modulation set to unsupported value\n",
+		       __FUNCTION__);
+		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
-	/* Small values for noise mean signal is better so invert noise */
-	*snr = ~noise;
+	state->snr = calculate_snr(noise, c);
+	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
-	dprintk("%s: noise = 0x%05x, snr = %idb\n",__FUNCTION__, noise, *snr);
+	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __FUNCTION__, noise,
+		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
+
+	return 0;
+}
+
+static int lgdt330x_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+{
+	/* Calculate Strength from SNR up to 35dB */
+	/* Even though the SNR can go higher than 35dB, there is some comfort */
+	/* factor in having a range of strong signals that can show at 100%   */
+	struct lgdt330x_state* state = (struct lgdt330x_state*) fe->demodulator_priv;
+	u16 snr;
+	int ret;
+
+	ret = fe->ops.read_snr(fe, &snr);
+	if (ret != 0)
+		return ret;
+	/* Rather than use the 8.8 value snr, use state->snr which is 8.24 */
+	/* scale the range 0 - 35*2^24 into 0 - 65535 */
+	if (state->snr >= 8960 * 0x10000)
+		*strength = 0xffff;
+	else
+		*strength = state->snr / 8960;
 
 	return 0;
 }
