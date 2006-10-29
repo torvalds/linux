@@ -1600,9 +1600,8 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * just removed.  */
 
 	if (generation == get_hpsb_generation(host))
-		WARN_ON(bus_rescan_devices(&ieee1394_bus_type));
-
-	return;
+		if (bus_rescan_devices(&ieee1394_bus_type))
+			HPSB_DEBUG("bus_rescan_devices had an error");
 }
 
 static int nodemgr_send_resume_packet(struct hpsb_host *host)
