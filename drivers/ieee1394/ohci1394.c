@@ -3534,6 +3534,9 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	int err;
 	struct ti_ohci *ohci = pci_get_drvdata(pdev);
 
+	printk(KERN_INFO "%s does not fully support suspend and resume yet\n",
+	       OHCI1394_DRIVER_NAME);
+
 	PRINT(KERN_DEBUG, "suspend called");
 	if (!ohci)
 		return -ENXIO;
@@ -3558,11 +3561,17 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	ohci_soft_reset(ohci);
 
 	err = pci_save_state(pdev);
-	if (err)
+	if (err) {
+		printk(KERN_ERR "%s: pci_save_state failed with %d\n",
+		       OHCI1394_DRIVER_NAME, err);
 		return err;
+	}
 	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+#ifdef OHCI1394_DEBUG
 	if (err)
-		return err;
+		printk(KERN_DEBUG "%s: pci_set_power_state failed with %d\n",
+		       OHCI1394_DRIVER_NAME, err);
+#endif /* OHCI1394_DEBUG */
 
 /* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
