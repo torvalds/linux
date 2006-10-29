@@ -411,7 +411,7 @@ static int taskstats_user_cmd(struct sk_buff *skb, struct genl_info *info)
 	return send_reply(rep_skb, info->snd_pid);
 
 nla_put_failure:
-	return genlmsg_cancel(rep_skb, reply);
+	rc = genlmsg_cancel(rep_skb, reply);
 err:
 	nlmsg_free(rep_skb);
 	return rc;
@@ -507,7 +507,6 @@ send:
 
 nla_put_failure:
 	genlmsg_cancel(rep_skb, reply);
-	goto ret;
 err_skb:
 	nlmsg_free(rep_skb);
 ret:
