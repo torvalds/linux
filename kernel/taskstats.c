@@ -77,7 +77,8 @@ static int prepare_reply(struct genl_info *info, u8 cmd, struct sk_buff **skbp,
 	/*
 	 * If new attributes are added, please revisit this allocation
 	 */
-	skb = nlmsg_new(genlmsg_total_size(size), GFP_KERNEL);
+	size = nlmsg_total_size(genlmsg_total_size(size));
+	skb = nlmsg_new(size, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
