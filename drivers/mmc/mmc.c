@@ -397,23 +397,23 @@ static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 		return err;
 
 	/*
-	 * Default bus width is 1 bit.
-	 */
-	host->ios.bus_width = MMC_BUS_WIDTH_1;
-
-	/*
-	 * We can only change the bus width of the selected
-	 * card so therefore we have to put the handling
+	 * We can only change the bus width of SD cards when
+	 * they are selected so we have to put the handling
 	 * here.
+	 *
+	 * The card is in 1 bit mode by default so
+	 * we only need to change if it supports the
+	 * wider version.
 	 */
-	if (host->caps & MMC_CAP_4_BIT_DATA) {
+	if (mmc_card_sd(card) &&
+		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+
 		/*
-		 * The card is in 1 bit mode by default so
-		 * we only need to change if it supports the
-		 * wider version.
-		 */
-		if (mmc_card_sd(card) &&
-			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		* Default bus width is 1 bit.
+		*/
+		host->ios.bus_width = MMC_BUS_WIDTH_1;
+
+		if (host->caps & MMC_CAP_4_BIT_DATA) {
 			struct mmc_command cmd;
 			cmd.opcode = SD_APP_SET_BUS_WIDTH;
 			cmd.arg = SD_BUS_WIDTH_4;
@@ -1055,6 +1055,29 @@ static void mmc_process_ext_csds(struct mmc_host *host)
 		}
 
 		mmc_card_set_highspeed(card);
+
+		/* Check for host support for wide-bus modes. */
+		if (!(host->caps & MMC_CAP_4_BIT_DATA)) {
+			continue;
+		}
+
+		/* Activate 4-bit support. */
+		cmd.opcode = MMC_SWITCH;
+		cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+			  (EXT_CSD_BUS_WIDTH << 16) |
+			  (EXT_CSD_BUS_WIDTH_4 << 8) |
+			  EXT_CSD_CMD_SET_NORMAL;
+		cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
+		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+		if (err != MMC_ERR_NONE) {
+			printk("%s: failed to switch card to "
+			       "mmc v4 4-bit bus mode.\n",
+			       mmc_hostname(card->host));
+			continue;
+		}
+
+		host->ios.bus_width = MMC_BUS_WIDTH_4;
 	}
 
 	kfree(ext_csd);
