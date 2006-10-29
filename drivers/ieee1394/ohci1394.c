@@ -3537,9 +3537,12 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	printk(KERN_INFO "%s does not fully support suspend and resume yet\n",
 	       OHCI1394_DRIVER_NAME);
 
-	PRINT(KERN_DEBUG, "suspend called");
-	if (!ohci)
+	if (!ohci) {
+		printk(KERN_ERR "%s: tried to suspend nonexisting host\n",
+		       OHCI1394_DRIVER_NAME);
 		return -ENXIO;
+	}
+	DBGMSG("suspend called");
 
 	/* Clear the async DMA contexts and stop using the controller */
 	hpsb_bus_reset(ohci->host);
@@ -3562,16 +3565,12 @@ static int ohci1394_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	err = pci_save_state(pdev);
 	if (err) {
-		printk(KERN_ERR "%s: pci_save_state failed with %d\n",
-		       OHCI1394_DRIVER_NAME, err);
+		PRINT(KERN_ERR, "pci_save_state failed with %d", err);
 		return err;
 	}
 	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
-#ifdef OHCI1394_DEBUG
 	if (err)
-		printk(KERN_DEBUG "%s: pci_set_power_state failed with %d\n",
-		       OHCI1394_DRIVER_NAME, err);
-#endif /* OHCI1394_DEBUG */
+		DBGMSG("pci_set_power_state failed with %d", err);
 
 /* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
@@ -3593,9 +3592,12 @@ static int ohci1394_pci_resume(struct pci_dev *pdev)
 	int err;
 	struct ti_ohci *ohci = pci_get_drvdata(pdev);
 
-	PRINT(KERN_DEBUG, "resume called");
-	if (!ohci)
+	if (!ohci) {
+		printk(KERN_ERR "%s: tried to resume nonexisting host\n",
+		       OHCI1394_DRIVER_NAME);
 		return -ENXIO;
+	}
+	DBGMSG("resume called");
 
 /* PowerMac resume code comes first */
 #ifdef CONFIG_PPC_PMAC
@@ -3612,8 +3614,10 @@ static int ohci1394_pci_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	err = pci_enable_device(pdev);
-	if (err)
+	if (err) {
+		PRINT(KERN_ERR, "pci_enable_device failed with %d", err);
 		return err;
+	}
 
 	/* See ohci1394_pci_probe() for comments on this sequence */
 	ohci_soft_reset(ohci);
