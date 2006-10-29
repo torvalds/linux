@@ -182,7 +182,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long fl
 	addr = ALIGN(start, align);
 	size = PAGE_ALIGN(size);
 
-	area = kmalloc_node(sizeof(*area), gfp_mask, node);
+	area = kmalloc_node(sizeof(*area), gfp_mask & GFP_LEVEL_MASK, node);
 	if (unlikely(!area))
 		return NULL;
 
