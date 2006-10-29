@@ -3552,12 +3552,21 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	int err;
 
+	printk(KERN_INFO "%s does not fully support suspend and resume yet\n",
+	       OHCI1394_DRIVER_NAME);
+
 	err = pci_save_state(pdev);
-	if (err)
-		goto out;
+	if (err) {
+		printk(KERN_ERR "%s: pci_save_state failed with %d\n",
+		       OHCI1394_DRIVER_NAME, err);
+		return err;
+	}
 	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+#ifdef OHCI1394_DEBUG
 	if (err)
-		goto out;
+		printk(KERN_DEBUG "%s: pci_set_power_state failed with %d\n",
+		       OHCI1394_DRIVER_NAME, err);
+#endif /* OHCI1394_DEBUG */
 
 /* PowerMac suspend code comes last */
 #ifdef CONFIG_PPC_PMAC
@@ -3570,8 +3579,8 @@ static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, of_node, 0, 0);
 	}
 #endif /* CONFIG_PPC_PMAC */
-out:
-	return err;
+
+	return 0;
 }
 #endif /* CONFIG_PM */
 
