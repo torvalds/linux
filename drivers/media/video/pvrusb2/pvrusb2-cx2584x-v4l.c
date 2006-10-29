@@ -221,7 +221,7 @@ static unsigned int decoder_describe(struct pvr2_v4l_cx2584x *ctxt,
 static void decoder_reset(struct pvr2_v4l_cx2584x *ctxt)
 {
 	int ret;
-	ret = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_RESET,0);
+	ret = pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_RESET,NULL);
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c cx25840 decoder_reset (ret=%d)",ret);
 }
 
