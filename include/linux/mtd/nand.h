@@ -355,7 +355,7 @@ struct nand_buffers {
  * @priv:		[OPTIONAL] pointer to private chip date
  * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks
  *			(determine if errors are correctable)
- * @write_page		[REPLACEABLE] High-level page write function
+ * @write_page:		[REPLACEABLE] High-level page write function
  */
 
 struct nand_chip {
