@@ -528,6 +528,8 @@ struct sas_task {
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
+
+	struct work_struct abort_work;
 };
 
 
@@ -626,5 +628,7 @@ int  sas_discover_end_dev(struct domain_device *);
 void sas_unregister_dev(struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
+
+void sas_task_abort(struct sas_task *task);
 
 #endif /* _SASLIB_H_ */

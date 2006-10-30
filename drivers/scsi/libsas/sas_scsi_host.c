@@ -33,6 +33,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include "../scsi_sas_internal.h"
+#include "../scsi_transport_api.h"
 
 #include <linux/err.h>
 #include <linux/blkdev.h>
@@ -798,6 +799,64 @@ void sas_shutdown_queue(struct sas_ha_struct *sas_ha)
 	spin_unlock_irqrestore(&core->task_queue_lock, flags);
 }
 
+static int do_sas_task_abort(struct sas_task *task)
+{
+	struct scsi_cmnd *sc = task->uldd_task;
+	struct sas_internal *si =
+		to_sas_internal(task->dev->port->ha->core.shost->transportt);
+	unsigned long flags;
+	int res;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		SAS_DPRINTK("%s: Task %p already aborted.\n", __FUNCTION__,
+			    task);
+		return 0;
+	}
+
+	task->task_state_flags |= SAS_TASK_INITIATOR_ABORTED;
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!si->dft->lldd_abort_task)
+		return -ENODEV;
+
+	res = si->dft->lldd_abort_task(task);
+	if ((task->task_state_flags & SAS_TASK_STATE_DONE) ||
+	    (res == TMF_RESP_FUNC_COMPLETE))
+	{
+		/* SMP commands don't have scsi_cmds(?) */
+		if (!sc) {
+			task->task_done(task);
+			return 0;
+		}
+		scsi_req_abort_cmd(sc);
+		scsi_schedule_eh(sc->device->host);
+		return 0;
+	}
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	task->task_state_flags &= ~SAS_TASK_INITIATOR_ABORTED;
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+		task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	return -EAGAIN;
+}
+
+void sas_task_abort(struct sas_task *task)
+{
+	int i;
+
+	for (i = 0; i < 5; i++)
+		if (!do_sas_task_abort(task))
+			return;
+
+	SAS_DPRINTK("%s: Could not kill task!\n", __FUNCTION__);
+}
+
 EXPORT_SYMBOL_GPL(sas_queuecommand);
 EXPORT_SYMBOL_GPL(sas_target_alloc);
 EXPORT_SYMBOL_GPL(sas_slave_configure);
@@ -805,3 +864,4 @@ EXPORT_SYMBOL_GPL(sas_slave_destroy);
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
 EXPORT_SYMBOL_GPL(sas_change_queue_type);
 EXPORT_SYMBOL_GPL(sas_bios_param);
+EXPORT_SYMBOL_GPL(sas_task_abort);
