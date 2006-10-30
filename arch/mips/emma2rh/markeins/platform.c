@@ -51,8 +51,8 @@ static struct resource i2c_emma_resources_0[] = {
 		.flags	= IORESOURCE_IRQ
 	}, {
 		.name	= NULL,
-		.start	= KSEG1ADDR(EMMA2RH_PIIC0_BASE),
-		.end	= KSEG1ADDR(EMMA2RH_PIIC0_BASE + 0x1000),
+		.start	= EMMA2RH_PIIC0_BASE,
+		.end	= EMMA2RH_PIIC0_BASE + 0x1000,
 		.flags	= 0
 	},
 };
@@ -65,8 +65,8 @@ struct resource i2c_emma_resources_1[] = {
 		.flags	= IORESOURCE_IRQ
 	}, {
 		.name	= NULL,
-		.start	= KSEG1ADDR(EMMA2RH_PIIC1_BASE),
-		.end	= KSEG1ADDR(EMMA2RH_PIIC1_BASE + 0x1000),
+		.start	= EMMA2RH_PIIC1_BASE,
+		.end	= EMMA2RH_PIIC1_BASE + 0x1000,
 		.flags	= 0
 	},
 };
@@ -79,8 +79,8 @@ struct resource i2c_emma_resources_2[] = {
 		.flags	= IORESOURCE_IRQ
 	}, {
 		.name	= NULL,
-		.start	= KSEG1ADDR(EMMA2RH_PIIC2_BASE),
-		.end	= KSEG1ADDR(EMMA2RH_PIIC2_BASE + 0x1000),
+		.start	= EMMA2RH_PIIC2_BASE,
+		.end	= EMMA2RH_PIIC2_BASE + 0x1000,
 		.flags	= 0
 	},
 };
