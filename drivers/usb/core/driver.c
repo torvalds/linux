@@ -1322,6 +1322,28 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usb_autopm_get_interface);
 
+/**
+ * usb_autopm_set_interface - set a USB interface's autosuspend state
+ * @intf: the usb_interface whose state should be set
+ *
+ * This routine sets the autosuspend state of @intf's device according
+ * to @intf's usage counter, which the caller must have set previously.
+ * If the counter is <= 0, the device is autosuspended (if it isn't
+ * already suspended and if nothing else prevents the autosuspend).  If
+ * the counter is > 0, the device is autoresumed (if it isn't already
+ * awake).
+ */
+int usb_autopm_set_interface(struct usb_interface *intf)
+{
+	int	status;
+
+	status = usb_autopm_do_interface(intf, 0);
+	// dev_dbg(&intf->dev, "%s: status %d cnt %d\n",
+	//		__FUNCTION__, status, intf->pm_usage_cnt);
+	return status;
+}
+EXPORT_SYMBOL_GPL(usb_autopm_set_interface);
+
 #endif /* CONFIG_USB_SUSPEND */
 
 static int usb_suspend(struct device *dev, pm_message_t message)
