@@ -334,7 +334,7 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ep93xx_priv *ep = netdev_priv(dev);
 	int entry;
 
-	if (unlikely(skb->len) > MAX_PKT_SIZE) {
+	if (unlikely(skb->len > MAX_PKT_SIZE)) {
 		ep->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
