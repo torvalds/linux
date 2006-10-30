@@ -5985,6 +5985,11 @@ static int set_rxd_buffer_pointer(nic_t *sp, RxD_t *rxdp, buffAdd_t *ba,
 			((RxD3_t*)rxdp)->Buffer1_ptr = *temp1;
 		} else {
 			*skb = dev_alloc_skb(size);
+			if (!(*skb)) {
+				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+					  dev->name);
+				return -ENOMEM;
+			}
 			((RxD3_t*)rxdp)->Buffer2_ptr = *temp2 =
 				pci_map_single(sp->pdev, (*skb)->data,
 					       dev->mtu + 4,
@@ -6007,7 +6012,11 @@ static int set_rxd_buffer_pointer(nic_t *sp, RxD_t *rxdp, buffAdd_t *ba,
 			((RxD3_t*)rxdp)->Buffer2_ptr = *temp2;
 		} else {
 			*skb = dev_alloc_skb(size);
-
+			if (!(*skb)) {
+				DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n",
+					  dev->name);
+				return -ENOMEM;
+			}
 			((RxD3_t*)rxdp)->Buffer0_ptr = *temp0 =
 				pci_map_single(sp->pdev, ba->ba_0, BUF0_LEN,
 					       PCI_DMA_FROMDEVICE);
