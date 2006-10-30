@@ -147,10 +147,8 @@ auth_domain_lookup(char *name, struct auth_domain *new)
 			return hp;
 		}
 	}
-	if (new) {
+	if (new)
 		hlist_add_head(&new->hash, head);
-		kref_get(&new->ref);
-	}
 	spin_unlock(&auth_domain_lock);
 	return new;
 }
