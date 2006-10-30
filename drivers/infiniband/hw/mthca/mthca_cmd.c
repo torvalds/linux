@@ -1820,11 +1820,11 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 
 #define MAD_IFC_BOX_SIZE      0x400
 #define MAD_IFC_MY_QPN_OFFSET 0x100
-#define MAD_IFC_RQPN_OFFSET   0x104
-#define MAD_IFC_SL_OFFSET     0x108
-#define MAD_IFC_G_PATH_OFFSET 0x109
-#define MAD_IFC_RLID_OFFSET   0x10a
-#define MAD_IFC_PKEY_OFFSET   0x10e
+#define MAD_IFC_RQPN_OFFSET   0x108
+#define MAD_IFC_SL_OFFSET     0x10c
+#define MAD_IFC_G_PATH_OFFSET 0x10d
+#define MAD_IFC_RLID_OFFSET   0x10e
+#define MAD_IFC_PKEY_OFFSET   0x112
 #define MAD_IFC_GRH_OFFSET    0x140
 
 	inmailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
@@ -1862,7 +1862,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 
 		val = in_wc->dlid_path_bits |
 			(in_wc->wc_flags & IB_WC_GRH ? 0x80 : 0);
-		MTHCA_PUT(inbox, val,               MAD_IFC_GRH_OFFSET);
+		MTHCA_PUT(inbox, val,               MAD_IFC_G_PATH_OFFSET);
 
 		MTHCA_PUT(inbox, in_wc->slid,       MAD_IFC_RLID_OFFSET);
 		MTHCA_PUT(inbox, in_wc->pkey_index, MAD_IFC_PKEY_OFFSET);
@@ -1870,7 +1870,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 		if (in_grh)
 			memcpy(inbox + MAD_IFC_GRH_OFFSET, in_grh, 40);
 
-		op_modifier |= 0x10;
+		op_modifier |= 0x4;
 
 		in_modifier |= in_wc->slid << 16;
 	}
