@@ -230,9 +230,6 @@ static int ep93xx_rx(struct net_device *dev, int *budget)
 					 " %.8x %.8x\n", rstat0, rstat1);
 
 		if (!(rstat0 & RSTAT0_RWE)) {
-			printk(KERN_NOTICE "ep93xx_rx: receive error "
-					 " %.8x %.8x\n", rstat0, rstat1);
-
 			ep->stats.rx_errors++;
 			if (rstat0 & RSTAT0_OE)
 				ep->stats.rx_fifo_errors++;
