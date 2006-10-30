@@ -468,7 +468,6 @@ static int get_nb_iso_ctx(struct ti_ohci *ohci, int reg)
 /* Global initialization */
 static void ohci_initialize(struct ti_ohci *ohci)
 {
-	char irq_buf[16];
 	quadlet_t buf;
 	int num_ports, i;
 
@@ -586,11 +585,10 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_linkEnable);
 
 	buf = reg_read(ohci, OHCI1394_Version);
-	sprintf (irq_buf, "%d", ohci->dev->irq);
-	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%s]  "
+	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%d]  "
 	      "MMIO=[%llx-%llx]  Max Packet=[%d]  IR/IT contexts=[%d/%d]",
 	      ((((buf) >> 16) & 0xf) + (((buf) >> 20) & 0xf) * 10),
-	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), irq_buf,
+	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), ohci->dev->irq,
 	      (unsigned long long)pci_resource_start(ohci->dev, 0),
 	      (unsigned long long)pci_resource_start(ohci->dev, 0) + OHCI1394_REGISTER_SIZE - 1,
 	      ohci->max_packet_size,
