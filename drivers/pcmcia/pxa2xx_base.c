@@ -166,7 +166,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 }
 #endif
 
-int pxa2xx_drv_pcmcia_probe(struct device *dev)
+int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 {
 	int ret;
 	struct pcmcia_low_level *ops;
@@ -203,35 +203,52 @@ int pxa2xx_drv_pcmcia_probe(struct device *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL(pxa2xx_drv_pcmcia_probe);
+EXPORT_SYMBOL(__pxa2xx_drv_pcmcia_probe);
 
-static int pxa2xx_drv_pcmcia_resume(struct device *dev)
+
+static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 {
-	struct pcmcia_low_level *ops = dev->platform_data;
+	return __pxa2xx_drv_pcmcia_probe(&dev->dev);
+}
+
+static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
+{
+	return soc_common_drv_pcmcia_remove(&dev->dev);
+}
+
+static int pxa2xx_drv_pcmcia_suspend(struct platform_device *dev, pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
+
+static int pxa2xx_drv_pcmcia_resume(struct platform_device *dev)
+{
+	struct pcmcia_low_level *ops = dev->dev.platform_data;
 	int nr = ops ? ops->nr : 0;
 
 	MECR = nr > 1 ? MECR_CIT | MECR_NOS : (nr > 0 ? MECR_CIT : 0);
 
-	return pcmcia_socket_dev_resume(dev);
+	return pcmcia_socket_dev_resume(&dev->dev);
 }
 
-static struct device_driver pxa2xx_pcmcia_driver = {
+static struct platform_driver pxa2xx_pcmcia_driver = {
 	.probe		= pxa2xx_drv_pcmcia_probe,
-	.remove		= soc_common_drv_pcmcia_remove,
-	.suspend 	= pcmcia_socket_dev_suspend,
+	.remove		= pxa2xx_drv_pcmcia_remove,
+	.suspend 	= pxa2xx_drv_pcmcia_suspend,
 	.resume 	= pxa2xx_drv_pcmcia_resume,
-	.name		= "pxa2xx-pcmcia",
-	.bus		= &platform_bus_type,
+	.driver		= {
+		.name	= "pxa2xx-pcmcia",
+	},
 };
 
 static int __init pxa2xx_pcmcia_init(void)
 {
-	return driver_register(&pxa2xx_pcmcia_driver);
+	return platform_driver_register(&pxa2xx_pcmcia_driver);
 }
 
 static void __exit pxa2xx_pcmcia_exit(void)
 {
-	driver_unregister(&pxa2xx_pcmcia_driver);
+	platform_driver_unregister(&pxa2xx_pcmcia_driver);
 }
 
 fs_initcall(pxa2xx_pcmcia_init);
