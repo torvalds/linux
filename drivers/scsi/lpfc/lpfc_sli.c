@@ -2983,7 +2983,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 			 struct lpfc_iocbq * prspiocbq,
 			 uint32_t timeout)
 {
-	DECLARE_WAIT_QUEUE_HEAD(done_q);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
 	long timeleft, timeout_req = 0;
 	int retval = IOCB_SUCCESS;
 	uint32_t creg_val;
@@ -3061,7 +3061,7 @@ int
 lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout)
 {
-	DECLARE_WAIT_QUEUE_HEAD(done_q);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
 	DECLARE_WAITQUEUE(wq_entry, current);
 	uint32_t timeleft = 0;
 	int retval;

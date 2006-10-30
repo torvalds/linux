@@ -79,6 +79,15 @@ struct task_struct;
 
 extern void init_waitqueue_head(wait_queue_head_t *q);
 
+#ifdef CONFIG_LOCKDEP
+# define __WAIT_QUEUE_HEAD_INIT_ONSTACK(name) \
+	({ init_waitqueue_head(&name); name; })
+# define DECLARE_WAIT_QUEUE_HEAD_ONSTACK(name) \
+	wait_queue_head_t name = __WAIT_QUEUE_HEAD_INIT_ONSTACK(name)
+#else
+# define DECLARE_WAIT_QUEUE_HEAD_ONSTACK(name) DECLARE_WAIT_QUEUE_HEAD(name)
+#endif
+
 static inline void init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
 {
 	q->flags = 0;

@@ -282,7 +282,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 		clear_bit(ready_bit, &(info->tx_state));
 
 		if (bt_cb(skb)->pkt_type & 0x80) {
-			DECLARE_WAIT_QUEUE_HEAD(wq);
+			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 			DEFINE_WAIT(wait);
 
 			unsigned char baud_reg;

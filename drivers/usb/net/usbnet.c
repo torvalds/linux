@@ -554,7 +554,7 @@ static int usbnet_stop (struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	int			temp;
-	DECLARE_WAIT_QUEUE_HEAD (unlink_wakeup); 
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK (unlink_wakeup);
 	DECLARE_WAITQUEUE (wait, current);
 
 	netif_stop_queue (net);
