@@ -299,8 +299,9 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 static inline void
 svc_sock_put(struct svc_sock *svsk)
 {
-	if (atomic_dec_and_test(&svsk->sk_inuse) && test_bit(SK_DEAD, &svsk->sk_flags)) {
-		printk("svc: releasing dead socket\n");
+	if (atomic_dec_and_test(&svsk->sk_inuse) &&
+			test_bit(SK_DEAD, &svsk->sk_flags)) {
+		dprintk("svc: releasing dead socket\n");
 		if (svsk->sk_sock->file)
 			sockfd_put(svsk->sk_sock);
 		else
