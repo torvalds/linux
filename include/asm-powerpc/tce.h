@@ -22,6 +22,8 @@
 #define _ASM_POWERPC_TCE_H
 #ifdef __KERNEL__
 
+#include <asm/iommu.h>
+
 /*
  * Tces come in two formats, one for the virtual bus and a different
  * format for PCI
@@ -33,7 +35,6 @@
 
 #define TCE_SHIFT	12
 #define TCE_PAGE_SIZE	(1 << TCE_SHIFT)
-#define TCE_PAGE_FACTOR	(PAGE_SHIFT - TCE_SHIFT)
 
 #define TCE_ENTRY_SIZE		8		/* each TCE is 64 bits */
 
