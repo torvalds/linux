@@ -1362,6 +1362,7 @@ cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	struct rb_node **p;
 	struct rb_node *parent;
 	struct cfq_io_context *__cic;
+	unsigned long flags;
 	void *k;
 
 	cic->ioc = ioc;
@@ -1391,9 +1392,9 @@ restart:
 	rb_link_node(&cic->rb_node, parent, p);
 	rb_insert_color(&cic->rb_node, &ioc->cic_root);
 
-	spin_lock_irq(cfqd->queue->queue_lock);
+	spin_lock_irqsave(cfqd->queue->queue_lock, flags);
 	list_add(&cic->queue_list, &cfqd->cic_list);
-	spin_unlock_irq(cfqd->queue->queue_lock);
+	spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
 }
 
 /*
