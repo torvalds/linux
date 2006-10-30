@@ -1195,6 +1195,7 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 #endif /* (_MIPS_SIM == _MIPS_SIM_NABI32) || (_MIPS_SIM == _MIPS_SIM_ABI64) */
 
 
+#define __ARCH_OMIT_COMPAT_SYS_GETDENTS64
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
