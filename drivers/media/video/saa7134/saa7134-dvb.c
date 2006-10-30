@@ -336,7 +336,7 @@ static struct tda1004x_config philips_tu1216_61_config = {
 
 /* ------------------------------------------------------------------ */
 
-static int philips_europa_tuner_init(struct dvb_frontend *fe)
+static int philips_td1316_tuner_init(struct dvb_frontend *fe)
 {
 	struct saa7134_dev *dev = fe->dvb->priv;
 	static u8 msg[] = { 0x0b, 0xf5, 0x86, 0xab };
@@ -347,24 +347,30 @@ static int philips_europa_tuner_init(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &init_msg, 1) != 1)
 		return -EIO;
-	msleep(1);
-
-	/* switch the board to dvb mode */
-	init_msg.addr = 0x43;
-	init_msg.len  = 0x02;
-	msg[0] = 0x00;
-	msg[1] = 0x40;
 	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&dev->i2c_adap, &init_msg, 1) != 1)
-		return -EIO;
-
+		fe->ops.i2c_gate_ctrl(fe, 0);
 	return 0;
 }
 
 static int philips_td1316_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	return philips_tda6651_pll_set(0x61, fe, params);
+}
+
+static int philips_europa_tuner_init(struct dvb_frontend *fe)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	static u8 msg[] = { 0x00, 0x40};
+	struct i2c_msg init_msg = {.addr = 0x43,.flags = 0,.buf = msg,.len = sizeof(msg) };
+
+
+	if (philips_td1316_tuner_init(fe))
+		return -EIO;
+	msleep(1);
+	if (i2c_transfer(&dev->i2c_adap, &init_msg, 1) != 1)
+		return -EIO;
+
+	return 0;
 }
 
 static int philips_europa_tuner_sleep(struct dvb_frontend *fe)
@@ -1324,7 +1330,15 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
 		}
 		break;
-
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
+		dev->dvb.frontend = dvb_attach(tda10046_attach,
+				&philips_europa_config,
+				&dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.tuner_ops.init = philips_td1316_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
+		}
+		break;
 	default:
 		printk("%s: Huh? unknown DVB card?\n",dev->name);
 		break;

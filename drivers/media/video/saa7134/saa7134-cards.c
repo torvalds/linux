@@ -3101,6 +3101,31 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x00,
 		},
 	},
+	[SAA7134_BOARD_VIDEOMATE_DVBT_200A] = {
+		/* Francis Barber <fedora@barber-family.id.au> */
+		.name           = "Compro Videomate DVB-T200A",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 1,
+			.amux   = LINE2,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3823,6 +3848,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
@@ -4062,6 +4088,29 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				if (2 != i2c_master_send(&dev->i2c_client,&buffer[i*2],2))
 					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
 					       dev->name, i);
+		}
+		break;
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
+		/* The T200 and the T200A share the same pci id.  Consequently,
+		 * we are going to query eeprom to try to find out which one we
+		 * are actually looking at. */
+
+		/* Don't do this if the board was specifically selected with an
+		 * insmod option or if we have the default configuration T200*/
+		if(!dev->autodetected || (dev->eedata[0x41] == 0xd0))
+			break;
+		if(dev->eedata[0x41] == 0x02) {
+			/* Reconfigure board  as T200A */
+			dev->board = SAA7134_BOARD_VIDEOMATE_DVBT_200A;
+			dev->tuner_type   = saa7134_boards[dev->board].tuner_type;
+			dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
+			printk(KERN_INFO "%s: Reconfigured board as %s\n",
+				dev->name, saa7134_boards[dev->board].name);
+		} else {
+			printk(KERN_WARNING "%s: Unexpected tuner type info: %x in eeprom\n",
+				dev->name, dev->eedata[0x41]);
+			break;
 		}
 		break;
 	}
