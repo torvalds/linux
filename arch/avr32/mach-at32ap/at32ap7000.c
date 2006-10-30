@@ -646,6 +646,15 @@ DEFINE_DEV_DATA(macb, 0);
 DEV_CLK(hclk, macb0, hsb, 8);
 DEV_CLK(pclk, macb0, pbb, 6);
 
+static struct eth_platform_data macb1_data;
+static struct resource macb1_resource[] = {
+	PBMEM(0xfff01c00),
+	IRQ(26),
+};
+DEFINE_DEV_DATA(macb, 1);
+DEV_CLK(hclk, macb1, hsb, 9);
+DEV_CLK(pclk, macb1, pbb, 7);
+
 struct platform_device *__init
 at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 {
@@ -676,6 +685,33 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 			select_peripheral(PC(12), PERIPH_A, 0);	/* RXD3	*/
 			select_peripheral(PC(14), PERIPH_A, 0);	/* RXCK	*/
 			select_peripheral(PC(18), PERIPH_A, 0);	/* SPD	*/
+		}
+		break;
+
+	case 1:
+		pdev = &macb1_device;
+
+		select_peripheral(PD(13), PERIPH_B, 0);		/* TXD0	*/
+		select_peripheral(PD(14), PERIPH_B, 0);		/* TXD1	*/
+		select_peripheral(PD(11), PERIPH_B, 0);		/* TXEN	*/
+		select_peripheral(PD(12), PERIPH_B, 0);		/* TXCK */
+		select_peripheral(PD(10), PERIPH_B, 0);		/* RXD0	*/
+		select_peripheral(PD(6),  PERIPH_B, 0);		/* RXD1	*/
+		select_peripheral(PD(5),  PERIPH_B, 0);		/* RXER	*/
+		select_peripheral(PD(4),  PERIPH_B, 0);		/* RXDV	*/
+		select_peripheral(PD(3),  PERIPH_B, 0);		/* MDC	*/
+		select_peripheral(PD(2),  PERIPH_B, 0);		/* MDIO	*/
+
+		if (!data->is_rmii) {
+			select_peripheral(PC(19), PERIPH_B, 0);	/* COL	*/
+			select_peripheral(PC(23), PERIPH_B, 0);	/* CRS	*/
+			select_peripheral(PC(26), PERIPH_B, 0);	/* TXER	*/
+			select_peripheral(PC(27), PERIPH_B, 0);	/* TXD2	*/
+			select_peripheral(PC(28), PERIPH_B, 0);	/* TXD3 */
+			select_peripheral(PC(29), PERIPH_B, 0);	/* RXD2	*/
+			select_peripheral(PC(30), PERIPH_B, 0);	/* RXD3	*/
+			select_peripheral(PC(24), PERIPH_B, 0);	/* RXCK	*/
+			select_peripheral(PD(15), PERIPH_B, 0);	/* SPD	*/
 		}
 		break;
 
@@ -830,6 +866,8 @@ struct clk *at32_clock_list[] = {
 	&atmel_usart3_usart,
 	&macb0_hclk,
 	&macb0_pclk,
+	&macb1_hclk,
+	&macb1_pclk,
 	&spi0_mck,
 	&lcdc0_hclk,
 	&lcdc0_pixclk,
