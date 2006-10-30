@@ -338,6 +338,8 @@ struct sas_ha_struct {
 	void (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
 	void *lldd_ha;		  /* not touched by sas class code */
+
+	struct list_head eh_done_q;
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
@@ -530,9 +532,10 @@ struct sas_task {
 
 
 
-#define SAS_TASK_STATE_PENDING  1
-#define SAS_TASK_STATE_DONE     2
-#define SAS_TASK_STATE_ABORTED  4
+#define SAS_TASK_STATE_PENDING      1
+#define SAS_TASK_STATE_DONE         2
+#define SAS_TASK_STATE_ABORTED      4
+#define SAS_TASK_INITIATOR_ABORTED  8
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {

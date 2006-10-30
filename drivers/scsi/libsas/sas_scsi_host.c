@@ -29,6 +29,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include "../scsi_sas_internal.h"
@@ -46,6 +47,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 {
 	struct task_status_struct *ts = &task->task_status;
 	struct scsi_cmnd *sc = task->uldd_task;
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(sc->device->host);
 	unsigned ts_flags = task->task_state_flags;
 	int hs = 0, stat = 0;
 
@@ -116,7 +118,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 	sas_free_task(task);
 	/* This is very ugly but this is how SCSI Core works. */
 	if (ts_flags & SAS_TASK_STATE_ABORTED)
-		scsi_finish_command(sc);
+		scsi_eh_finish_cmd(sc, &sas_ha->eh_done_q);
 	else
 		sc->scsi_done(sc);
 }
@@ -307,6 +309,15 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_unlock_irqrestore(&core->task_queue_lock, flags);
 	}
 
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_INITIATOR_ABORTED) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		SAS_DPRINTK("%s: task 0x%p already aborted\n",
+			    __FUNCTION__, task);
+		return TASK_IS_ABORTED;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
 	for (i = 0; i < 5; i++) {
 		SAS_DPRINTK("%s: aborting task 0x%p\n", __FUNCTION__, task);
 		res = si->dft->lldd_abort_task(task);
@@ -409,13 +420,16 @@ Again:
 	SAS_DPRINTK("going over list...\n");
 	list_for_each_entry_safe(cmd, n, &error_q, eh_entry) {
 		struct sas_task *task = TO_SAS_TASK(cmd);
-
-		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		list_del_init(&cmd->eh_entry);
+
+		if (!task) {
+			SAS_DPRINTK("%s: taskless cmd?!\n", __FUNCTION__);
+			continue;
+		}
+		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
 		cmd->eh_eflags = 0;
-		shost->host_failed--;
 
 		switch (res) {
 		case TASK_IS_DONE:
@@ -491,6 +505,7 @@ Again:
 		}
 	}
 out:
+	scsi_eh_flush_done_q(&ha->eh_done_q);
 	SAS_DPRINTK("--- Exit %s\n", __FUNCTION__);
 	return;
 clear_q:
@@ -508,12 +523,18 @@ enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 	unsigned long flags;
 
 	if (!task) {
-		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
+		SAS_DPRINTK("command 0x%p, task 0x%p, gone: EH_HANDLED\n",
 			    cmd, task);
 		return EH_HANDLED;
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_INITIATOR_ABORTED) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		SAS_DPRINTK("command 0x%p, task 0x%p, aborted by initiator: "
+			    "EH_NOT_HANDLED\n", cmd, task);
+		return EH_NOT_HANDLED;
+	}
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
