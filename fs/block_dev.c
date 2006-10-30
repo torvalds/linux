@@ -751,8 +751,11 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 
 	mutex_lock_nested(&bdev->bd_mutex, BD_MUTEX_PARTITION);
 	res = bd_claim(bdev, holder);
-	if (res == 0)
+	if (res == 0) {
 		res = add_bd_holder(bdev, bo);
+		if (res)
+			bd_release(bdev);
+	}
 	if (res)
 		free_bd_holder(bo);
 	mutex_unlock(&bdev->bd_mutex);
