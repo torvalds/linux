@@ -448,6 +448,9 @@ struct saa7134_dev {
 	struct v4l2_prio_state     prio;
 #endif
 
+	/* insmod option/autodetected */
+	int                        autodetected;
+
 	/* various device info */
 	unsigned int               resources;
 	struct video_device        *video_dev;
