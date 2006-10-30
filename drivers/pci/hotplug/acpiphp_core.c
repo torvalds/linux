@@ -303,8 +303,10 @@ static int __init init_acpi(void)
 	/* read initial number of slots */
 	if (!retval) {
 		num_slots = acpiphp_get_num_slots();
-		if (num_slots == 0)
+		if (num_slots == 0) {
+			acpiphp_glue_exit();
 			retval = -ENODEV;
+		}
 	}
 
 	return retval;
