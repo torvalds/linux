@@ -1527,7 +1527,7 @@ cleanup_matches:
 
 static inline int compat_copy_match_from_user(struct ipt_entry_match *m,
 	void **dstptr, compat_uint_t *size, const char *name,
-	const struct ipt_ip *ip, unsigned int hookmask, int *i)
+	const struct ipt_ip *ip, unsigned int hookmask)
 {
 	struct ipt_entry_match *dm;
 	struct ipt_match *match;
@@ -1540,22 +1540,13 @@ static inline int compat_copy_match_from_user(struct ipt_entry_match *m,
 	ret = xt_check_match(match, AF_INET, dm->u.match_size - sizeof(*dm),
 			     name, hookmask, ip->proto,
 			     ip->invflags & IPT_INV_PROTO);
-	if (ret)
-		goto err;
-
-	if (m->u.kernel.match->checkentry
+	if (!ret && m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ip, match, dm->data,
 					      hookmask)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
 		ret = -EINVAL;
-		goto err;
 	}
-	(*i)++;
-	return 0;
-
-err:
-	module_put(m->u.kernel.match->me);
 	return ret;
 }
 
@@ -1567,19 +1558,18 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	struct ipt_target *target;
 	struct ipt_entry *de;
 	unsigned int origsize;
-	int ret, h, j;
+	int ret, h;
 
 	ret = 0;
 	origsize = *size;
 	de = (struct ipt_entry *)*dstptr;
 	memcpy(de, e, sizeof(struct ipt_entry));
 
-	j = 0;
 	*dstptr += sizeof(struct compat_ipt_entry);
 	ret = IPT_MATCH_ITERATE(e, compat_copy_match_from_user, dstptr, size,
-			name, &de->ip, de->comefrom, &j);
+			name, &de->ip, de->comefrom);
 	if (ret)
-		goto cleanup_matches;
+		goto err;
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = ipt_get_target(e);
 	target = t->u.kernel.target;
@@ -1613,12 +1603,7 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 		goto err;
 	}
 	ret = 0;
-	return ret;
-
 err:
-	module_put(t->u.kernel.target->me);
-cleanup_matches:
-	IPT_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;
 }
 
@@ -1632,7 +1617,7 @@ translate_compat_table(const char *name,
 		unsigned int *hook_entries,
 		unsigned int *underflows)
 {
-	unsigned int i;
+	unsigned int i, j;
 	struct xt_table_info *newinfo, *info;
 	void *pos, *entry0, *entry1;
 	unsigned int size;
@@ -1650,21 +1635,21 @@ translate_compat_table(const char *name,
 	}
 
 	duprintf("translate_compat_table: size %u\n", info->size);
-	i = 0;
+	j = 0;
 	xt_compat_lock(AF_INET);
 	/* Walk through entries, checking offsets. */
 	ret = IPT_ENTRY_ITERATE(entry0, total_size,
 				check_compat_entry_size_and_hooks,
 				info, &size, entry0,
 				entry0 + total_size,
-				hook_entries, underflows, &i, name);
+				hook_entries, underflows, &j, name);
 	if (ret != 0)
 		goto out_unlock;
 
 	ret = -EINVAL;
-	if (i != number) {
+	if (j != number) {
 		duprintf("translate_compat_table: %u not %u entries\n",
-			 i, number);
+			 j, number);
 		goto out_unlock;
 	}
 
@@ -1723,6 +1708,7 @@ translate_compat_table(const char *name,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
+	IPT_ENTRY_ITERATE(entry0, total_size, cleanup_entry, &j);
 	return ret;
 out_unlock:
 	compat_flush_offsets();
