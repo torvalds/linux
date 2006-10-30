@@ -2051,7 +2051,6 @@ static void cryptocop_job_queue_close(void)
 	spin_lock_irqsave(&cryptocop_process_lock, process_flags);
 
 	/* Empty the job queue. */
-	spin_lock_irqsave(&cryptocop_process_lock, process_flags);
 	for (i = 0; i < cryptocop_prio_no_prios; i++){
 		if (!list_empty(&(cryptocop_job_queues[i].jobs))){
 			list_for_each_safe(node, tmp, &(cryptocop_job_queues[i].jobs)) {
