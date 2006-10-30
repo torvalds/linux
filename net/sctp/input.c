@@ -135,6 +135,9 @@ int sctp_rcv(struct sk_buff *skb)
 
 	SCTP_INC_STATS_BH(SCTP_MIB_INSCTPPACKS);
 
+	if (skb_linearize(skb))
+		goto discard_it;
+
 	sh = (struct sctphdr *) skb->h.raw;
 
 	/* Pull up the IP and SCTP headers. */
