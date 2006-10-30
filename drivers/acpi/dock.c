@@ -44,7 +44,7 @@ struct dock_station {
 	unsigned long last_dock_time;
 	u32 flags;
 	spinlock_t dd_lock;
-	spinlock_t hp_lock;
+	struct mutex hp_lock;
 	struct list_head dependent_devices;
 	struct list_head hotplug_devices;
 };
@@ -114,9 +114,9 @@ static void
 dock_add_hotplug_device(struct dock_station *ds,
 			struct dock_dependent_device *dd)
 {
-	spin_lock(&ds->hp_lock);
+	mutex_lock(&ds->hp_lock);
 	list_add_tail(&dd->hotplug_list, &ds->hotplug_devices);
-	spin_unlock(&ds->hp_lock);
+	mutex_unlock(&ds->hp_lock);
 }
 
 /**
@@ -130,9 +130,9 @@ static void
 dock_del_hotplug_device(struct dock_station *ds,
 			struct dock_dependent_device *dd)
 {
-	spin_lock(&ds->hp_lock);
+	mutex_lock(&ds->hp_lock);
 	list_del(&dd->hotplug_list);
-	spin_unlock(&ds->hp_lock);
+	mutex_unlock(&ds->hp_lock);
 }
 
 /**
@@ -295,7 +295,7 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 {
 	struct dock_dependent_device *dd;
 
-	spin_lock(&ds->hp_lock);
+	mutex_lock(&ds->hp_lock);
 
 	/*
 	 * First call driver specific hotplug functions
@@ -317,7 +317,7 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 		else
 			dock_create_acpi_device(dd->handle);
 	}
-	spin_unlock(&ds->hp_lock);
+	mutex_unlock(&ds->hp_lock);
 }
 
 static void dock_event(struct dock_station *ds, u32 event, int num)
@@ -625,7 +625,7 @@ static int dock_add(acpi_handle handle)
 	INIT_LIST_HEAD(&dock_station->dependent_devices);
 	INIT_LIST_HEAD(&dock_station->hotplug_devices);
 	spin_lock_init(&dock_station->dd_lock);
-	spin_lock_init(&dock_station->hp_lock);
+	mutex_init(&dock_station->hp_lock);
 	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 
 	/* Find dependent devices */
