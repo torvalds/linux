@@ -1,6 +1,9 @@
 Version 1.46
 ------------
 Support deep tree mounts.  Better support OS/2, Win9x (DOS) time stamps.
+Allow null user to be specified on mount ("username="). Do not return
+EINVAL on readdir when filldir fails due to overwritten blocksize
+(fixes FC problem)
 
 Version 1.45
 ------------
