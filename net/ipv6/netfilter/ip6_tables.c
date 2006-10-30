@@ -586,12 +586,19 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 		return -EINVAL;
 	}
 
+	if (e->target_offset + sizeof(struct ip6t_entry_target) >
+								e->next_offset)
+		return -EINVAL;
+
 	j = 0;
 	ret = IP6T_MATCH_ITERATE(e, check_match, name, &e->ipv6, e->comefrom, &j);
 	if (ret != 0)
 		goto cleanup_matches;
 
 	t = ip6t_get_target(e);
+	ret = -EINVAL;
+	if (e->target_offset + t->u.target_size > e->next_offset)
+			goto cleanup_matches;
 	target = try_then_request_module(xt_find_target(AF_INET6,
 							t->u.user.name,
 							t->u.user.revision),
@@ -751,19 +758,17 @@ translate_table(const char *name,
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks, entry0))
-		return -ELOOP;
-
 	/* Finally, each sanity check must pass */
 	i = 0;
 	ret = IP6T_ENTRY_ITERATE(entry0, newinfo->size,
 				check_entry, name, size, &i);
 
-	if (ret != 0) {
-		IP6T_ENTRY_ITERATE(entry0, newinfo->size,
-				  cleanup_entry, &i);
-		return ret;
-	}
+	if (ret != 0)
+		goto cleanup;
+
+	ret = -ELOOP;
+	if (!mark_source_chains(newinfo, valid_hooks, entry0))
+		goto cleanup;
 
 	/* And one copy for every other CPU */
 	for_each_possible_cpu(i) {
@@ -771,6 +776,9 @@ translate_table(const char *name,
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
+	return 0;
+cleanup:
+	IP6T_ENTRY_ITERATE(entry0, newinfo->size, cleanup_entry, &i);
 	return ret;
 }
 
