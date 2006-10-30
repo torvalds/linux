@@ -642,16 +642,38 @@ static void free_bd_holder(struct bd_holder *bo)
 }
 
 /**
+ * find_bd_holder - find matching struct bd_holder from the block device
+ *
+ * @bdev:	struct block device to be searched
+ * @bo:		target struct bd_holder
+ *
+ * Returns matching entry with @bo in @bdev->bd_holder_list.
+ * If found, increment the reference count and return the pointer.
+ * If not found, returns NULL.
+ */
+static int find_bd_holder(struct block_device *bdev, struct bd_holder *bo)
+{
+	struct bd_holder *tmp;
+
+	list_for_each_entry(tmp, &bdev->bd_holder_list, list)
+		if (tmp->sdir == bo->sdir) {
+			tmp->count++;
+			return tmp;
+		}
+
+	return NULL;
+}
+
+/**
  * add_bd_holder - create sysfs symlinks for bd_claim() relationship
  *
  * @bdev:	block device to be bd_claimed
  * @bo:		preallocated and initialized by alloc_bd_holder()
  *
- * If there is no matching entry with @bo in @bdev->bd_holder_list,
- * add @bo to the list, create symlinks.
+ * Add @bo to @bdev->bd_holder_list, create symlinks.
  *
- * Returns 0 if symlinks are created or already there.
- * Returns -ve if something fails and @bo can be freed.
+ * Returns 0 if symlinks are created.
+ * Returns -ve if something fails.
  */
 static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 {
@@ -660,15 +682,6 @@ static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 
 	if (!bo)
 		return -EINVAL;
-
-	list_for_each_entry(tmp, &bdev->bd_holder_list, list) {
-		if (tmp->sdir == bo->sdir) {
-			tmp->count++;
-			/* We've already done what we need to do here. */
-			free_bd_holder(bo);
-			return 0;
-		}
-	}
 
 	if (!bd_holder_grab_dirs(bdev, bo))
 		return -EBUSY;
@@ -740,7 +753,7 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 				struct kobject *kobj)
 {
 	int res;
-	struct bd_holder *bo;
+	struct bd_holder *bo, *found;
 
 	if (!kobj)
 		return -EINVAL;
@@ -752,11 +765,15 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 	mutex_lock_nested(&bdev->bd_mutex, BD_MUTEX_PARTITION);
 	res = bd_claim(bdev, holder);
 	if (res == 0) {
-		res = add_bd_holder(bdev, bo);
-		if (res)
-			bd_release(bdev);
+		found = find_bd_holder(bdev, bo);
+		if (found == NULL) {
+			res = add_bd_holder(bdev, bo);
+			if (res)
+				bd_release(bdev);
+		}
 	}
-	if (res)
+
+	if (res || found)
 		free_bd_holder(bo);
 	mutex_unlock(&bdev->bd_mutex);
 
