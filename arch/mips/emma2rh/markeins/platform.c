@@ -83,32 +83,29 @@ struct platform_device i2c_emma_devices[] = {
 #define EMMA2RH_SERIAL_FLAGS UPF_BOOT_AUTOCONF | UPF_SKIP_TEST
 
 static struct  plat_serial8250_port platform_serial_ports[] = {
-       [0] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR0_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR0,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [1] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR1_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR1,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [2] = {
-         .membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR2_BASE + 3),
-         .irq = EMMA2RH_IRQ_PFUR2,
-         .uartclk = EMMA2RH_SERIAL_CLOCK,
-         .regshift = 4,
-         .iotype = UPIO_MEM,
-         .flags = EMMA2RH_SERIAL_FLAGS,
-       },
-       [3] = {
-	 .flags = 0,
+	[0] = {
+		.membase= (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR0_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR0,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [1] = {
+		.membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR1_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR1,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [2] = {
+		.membase = (void __iomem*)KSEG1ADDR(EMMA2RH_PFUR2_BASE + 3),
+		.irq = EMMA2RH_IRQ_PFUR2,
+		.uartclk = EMMA2RH_SERIAL_CLOCK,
+		.regshift = 4,
+		.iotype = UPIO_MEM,
+		.flags = EMMA2RH_SERIAL_FLAGS,
+       }, [3] = {
+		.flags = 0,
        },
 };
 
