@@ -106,6 +106,8 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 
 #define DRIVER_NAME "uml-blkdev"
 
+/* Can be taken in interrupt context, and is passed to the block layer to lock
+ * the request queue. Kernel side code knows that. */
 static DEFINE_SPINLOCK(ubd_io_lock);
 
 static DEFINE_MUTEX(ubd_lock);
@@ -497,6 +499,8 @@ static void __ubd_finish(struct request *req, int error)
 	end_request(req, 1);
 }
 
+/* Callable only from interrupt context - otherwise you need to do
+ * spin_lock_irq()/spin_lock_irqsave() */
 static inline void ubd_finish(struct request *req, int error)
 {
  	spin_lock(&ubd_io_lock);
@@ -504,7 +508,7 @@ static inline void ubd_finish(struct request *req, int error)
 	spin_unlock(&ubd_io_lock);
 }
 
-/* Called without ubd_io_lock held */
+/* Called without ubd_io_lock held, and only in interrupt context. */
 static void ubd_handler(void)
 {
 	struct io_thread_req req;
@@ -525,7 +529,9 @@ static void ubd_handler(void)
 
 	ubd_finish(rq, req.error);
 	reactivate_fd(thread_fd, UBD_IRQ);	
+	spin_lock(&ubd_io_lock);
 	do_ubd_request(ubd_queue);
+	spin_unlock(&ubd_io_lock);
 }
 
 static irqreturn_t ubd_intr(int irq, void *dev)
