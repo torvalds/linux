@@ -167,7 +167,7 @@ config SLUB_DEBUG_ON
 
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
-	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
+	depends on DEBUG_KERNEL && PREEMPT && (TRACE_IRQFLAGS_SUPPORT || PPC64)
 	default y
 	help
 	  If you say Y here then the kernel will use a debug variant of the

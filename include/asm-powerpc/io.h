@@ -86,7 +86,7 @@ extern unsigned long pci_dram_offset;
  */
 
 #ifdef CONFIG_PPC64
-#define IO_SET_SYNC_FLAG()	do { get_paca()->io_sync = 1; } while(0)
+#define IO_SET_SYNC_FLAG()	do { local_paca->io_sync = 1; } while(0)
 #else
 #define IO_SET_SYNC_FLAG()
 #endif
