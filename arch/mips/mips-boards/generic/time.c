@@ -208,7 +208,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 		count = 6000000;
 #endif
 #if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
-	unsigned int flags;
+	unsigned long flags;
 
 	local_irq_save(flags);
 
