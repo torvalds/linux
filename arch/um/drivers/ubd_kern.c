@@ -107,7 +107,8 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 #define DRIVER_NAME "uml-blkdev"
 
 static DEFINE_SPINLOCK(ubd_io_lock);
-static DEFINE_SPINLOCK(ubd_lock);
+
+static DEFINE_MUTEX(ubd_lock);
 
 static void (*do_ubd)(void);
 
@@ -314,7 +315,7 @@ static int ubd_setup_common(char *str, int *index_out)
 		}
 
 		err = 1;
- 		spin_lock(&ubd_lock);
+ 		mutex_lock(&ubd_lock);
  		if(fake_major != MAJOR_NR){
  			printk(KERN_ERR "Can't assign a fake major twice\n");
  			goto out1;
@@ -326,7 +327,7 @@ static int ubd_setup_common(char *str, int *index_out)
 		       major);
  		err = 0;
  	out1:
- 		spin_unlock(&ubd_lock);
+ 		mutex_unlock(&ubd_lock);
 		return(err);
 	}
 
@@ -343,7 +344,7 @@ static int ubd_setup_common(char *str, int *index_out)
 	}
 
 	err = 1;
-	spin_lock(&ubd_lock);
+	mutex_lock(&ubd_lock);
 
 	ubd_dev = &ubd_devs[n];
 	if(ubd_dev->file != NULL){
@@ -405,7 +406,7 @@ break_loop:
 	ubd_dev->cow.file = backing_file;
 	ubd_dev->boot_openflags = flags;
 out:
-	spin_unlock(&ubd_lock);
+	mutex_unlock(&ubd_lock);
 	return(err);
 }
 
@@ -710,11 +711,11 @@ static int ubd_config(char *str)
 	}
 	if(n == -1) return(0);
 
- 	spin_lock(&ubd_lock);
+ 	mutex_lock(&ubd_lock);
 	err = ubd_add(n);
 	if(err)
 		ubd_devs[n].file = NULL;
- 	spin_unlock(&ubd_lock);
+ 	mutex_unlock(&ubd_lock);
 
 	return(err);
 }
@@ -731,7 +732,7 @@ static int ubd_get_config(char *name, char *str, int size, char **error_out)
 	}
 
 	ubd_dev = &ubd_devs[n];
-	spin_lock(&ubd_lock);
+	mutex_lock(&ubd_lock);
 
 	if(ubd_dev->file == NULL){
 		CONFIG_CHUNK(str, size, len, "", 1);
@@ -747,7 +748,7 @@ static int ubd_get_config(char *name, char *str, int size, char **error_out)
 	else CONFIG_CHUNK(str, size, len, "", 1);
 
  out:
-	spin_unlock(&ubd_lock);
+	mutex_unlock(&ubd_lock);
 	return(len);
 }
 
@@ -766,7 +767,7 @@ static int ubd_remove(int n)
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
 
-	spin_lock(&ubd_lock);
+	mutex_lock(&ubd_lock);
 
 	if(ubd_gendisk[n] == NULL)
 		goto out;
@@ -795,7 +796,7 @@ static int ubd_remove(int n)
 	*ubd_dev = ((struct ubd) DEFAULT_UBD);
 	err = 0;
 out:
-	spin_unlock(&ubd_lock);
+	mutex_unlock(&ubd_lock);
 	return err;
 }
 
