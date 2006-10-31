@@ -338,7 +338,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	ip->i_inode.i_nlink = nlink;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
 
@@ -792,7 +792,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		goto fail_end_trans;
 	ip->i_di.di_nlink = 1;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	return 0;
 
@@ -1349,7 +1349,7 @@ __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 		gfs2_inode_attr_out(ip);
 
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
 	}
 	return error;

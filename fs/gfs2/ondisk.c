@@ -15,6 +15,8 @@
 
 #include "gfs2.h"
 #include <linux/gfs2_ondisk.h>
+#include <linux/lm_interface.h>
+#include "incore.h"
 
 #define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", \
 				       struct->member);
@@ -187,8 +189,9 @@ void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf)
 
 }
 
-void gfs2_dinode_out(const struct gfs2_dinode_host *di, void *buf)
+void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
+	const struct gfs2_dinode_host *di = &ip->i_di;
 	struct gfs2_dinode *str = buf;
 
 	gfs2_meta_header_out(&di->di_header, buf);

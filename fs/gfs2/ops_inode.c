@@ -339,7 +339,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 
 	if (!gfs2_assert_withdraw(sdp, !error)) {
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		memcpy(dibh->b_data + sizeof(struct gfs2_dinode), symname,
 		       size);
 		brelse(dibh);
@@ -414,7 +414,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		gfs2_inum_out(&dip->i_num, &dent->de_inum);
 		dent->de_type = cpu_to_be16(DT_DIR);
 
-		gfs2_dinode_out(&ip->i_di, di);
+		gfs2_dinode_out(ip, di);
 
 		brelse(dibh);
 	}
@@ -541,7 +541,7 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 
 	if (!gfs2_assert_withdraw(sdp, !error)) {
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
 	}
 
@@ -762,7 +762,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_end_trans;
 		ip->i_di.di_ctime = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		brelse(dibh);
 	}
 
@@ -949,7 +949,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	gfs2_inode_attr_out(ip);
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
 	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {

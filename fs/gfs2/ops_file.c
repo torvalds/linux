@@ -336,7 +336,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		goto out_trans_end;
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	ip->i_di.di_flags = new_flags;
-	gfs2_dinode_out(&ip->i_di, bh->b_data);
+	gfs2_dinode_out(ip, bh->b_data);
 	brelse(bh);
 out_trans_end:
 	gfs2_trans_end(sdp);

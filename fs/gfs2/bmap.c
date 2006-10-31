@@ -498,7 +498,7 @@ static int gfs2_block_pointers(struct inode *inode, u64 lblock, int create,
 			error = gfs2_meta_inode_buffer(ip, &dibh);
 			if (!error) {
 				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-				gfs2_dinode_out(&ip->i_di, dibh->b_data);
+				gfs2_dinode_out(ip, dibh->b_data);
 				brelse(dibh);
 			}
 			set_buffer_new(bh_map);
@@ -780,7 +780,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 
 	up_write(&ip->i_rw_mutex);
 
@@ -860,7 +860,7 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 		goto out_end_trans;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
 out_end_trans:
@@ -970,7 +970,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 		ip->i_di.di_size = size;
 		ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
+		gfs2_dinode_out(ip, dibh->b_data);
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
 		error = 1;
 
@@ -983,7 +983,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 			ip->i_di.di_mtime = ip->i_di.di_ctime = get_seconds();
 			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-			gfs2_dinode_out(&ip->i_di, dibh->b_data);
+			gfs2_dinode_out(ip, dibh->b_data);
 		}
 	}
 
@@ -1057,7 +1057,7 @@ static int trunc_end(struct gfs2_inode *ip)
 	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 
 out:
