@@ -229,7 +229,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	gfs2_dinode_in(&ip->i_di, dibh->b_data);
+	gfs2_dinode_in(ip, dibh->b_data);
 
 	brelse(dibh);
 

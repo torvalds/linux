@@ -155,8 +155,9 @@ void gfs2_quota_in(struct gfs2_quota_host *qu, const void *buf)
 	qu->qu_value = be64_to_cpu(str->qu_value);
 }
 
-void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf)
+void gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
+	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
 
 	gfs2_meta_header_in(&di->di_header, buf);
@@ -186,7 +187,6 @@ void gfs2_dinode_in(struct gfs2_dinode_host *di, const void *buf)
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
-
 }
 
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
