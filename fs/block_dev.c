@@ -651,7 +651,8 @@ static void free_bd_holder(struct bd_holder *bo)
  * If found, increment the reference count and return the pointer.
  * If not found, returns NULL.
  */
-static int find_bd_holder(struct block_device *bdev, struct bd_holder *bo)
+static struct bd_holder *find_bd_holder(struct block_device *bdev,
+					struct bd_holder *bo)
 {
 	struct bd_holder *tmp;
 
@@ -677,7 +678,6 @@ static int find_bd_holder(struct block_device *bdev, struct bd_holder *bo)
  */
 static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
 {
-	struct bd_holder *tmp;
 	int ret;
 
 	if (!bo)
