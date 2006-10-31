@@ -208,6 +208,40 @@ fail:
 	return ERR_PTR(error);
 }
 
+static void gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
+{
+	struct gfs2_dinode_host *di = &ip->i_di;
+	const struct gfs2_dinode *str = buf;
+
+	gfs2_meta_header_in(&di->di_header, buf);
+	gfs2_inum_in(&di->di_num, &str->di_num);
+
+	di->di_mode = be32_to_cpu(str->di_mode);
+	di->di_uid = be32_to_cpu(str->di_uid);
+	di->di_gid = be32_to_cpu(str->di_gid);
+	di->di_nlink = be32_to_cpu(str->di_nlink);
+	di->di_size = be64_to_cpu(str->di_size);
+	di->di_blocks = be64_to_cpu(str->di_blocks);
+	di->di_atime = be64_to_cpu(str->di_atime);
+	di->di_mtime = be64_to_cpu(str->di_mtime);
+	di->di_ctime = be64_to_cpu(str->di_ctime);
+	di->di_major = be32_to_cpu(str->di_major);
+	di->di_minor = be32_to_cpu(str->di_minor);
+
+	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
+	di->di_goal_data = be64_to_cpu(str->di_goal_data);
+	di->di_generation = be64_to_cpu(str->di_generation);
+
+	di->di_flags = be32_to_cpu(str->di_flags);
+	di->di_payload_format = be32_to_cpu(str->di_payload_format);
+	di->di_height = be16_to_cpu(str->di_height);
+
+	di->di_depth = be16_to_cpu(str->di_depth);
+	di->di_entries = be32_to_cpu(str->di_entries);
+
+	di->di_eattr = be64_to_cpu(str->di_eattr);
+}
+
 /**
  * gfs2_inode_refresh - Refresh the incore copy of the dinode
  * @ip: The GFS2 inode
