@@ -174,8 +174,8 @@ struct ubd {
 	__u64 size;
 	struct openflags boot_openflags;
 	struct openflags openflags;
-	int shared;
-	int no_cow;
+	unsigned shared:1;
+	unsigned no_cow:1;
 	struct cow cow;
 	struct platform_device pdev;
 };
