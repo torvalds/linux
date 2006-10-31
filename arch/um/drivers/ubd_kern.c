@@ -706,27 +706,36 @@ out:
 
 static int ubd_config(char *str)
 {
-	int n, err;
+	int n, ret;
 
 	str = kstrdup(str, GFP_KERNEL);
-	if(str == NULL){
+	if (str == NULL) {
 		printk(KERN_ERR "ubd_config failed to strdup string\n");
-		return(1);
+		ret = 1;
+		goto out;
 	}
-	err = ubd_setup_common(str, &n);
-	if(err){
-		kfree(str);
-		return(-1);
+	ret = ubd_setup_common(str, &n);
+	if (ret) {
+		ret = -1;
+		goto err_free;
 	}
-	if(n == -1) return(0);
+	if (n == -1) {
+		ret = 0;
+		goto out;
+	}
 
  	mutex_lock(&ubd_lock);
-	err = ubd_add(n);
-	if(err)
+	ret = ubd_add(n);
+	if (ret)
 		ubd_devs[n].file = NULL;
  	mutex_unlock(&ubd_lock);
 
-	return(err);
+out:
+ 	return ret;
+
+err_free:
+	kfree(str);
+	goto out;
 }
 
 static int ubd_get_config(char *name, char *str, int size, char **error_out)
