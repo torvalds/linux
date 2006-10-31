@@ -552,7 +552,7 @@ static int ubd_file_size(struct ubd *ubd_dev, __u64 *size_out)
 	return(os_file_size(file, size_out));
 }
 
-static void ubd_close(struct ubd *ubd_dev)
+static void ubd_close_dev(struct ubd *ubd_dev)
 {
 	os_close_file(ubd_dev->fd);
 	if(ubd_dev->cow.file == NULL)
@@ -624,7 +624,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	return(err);
 }
 
-static int ubd_new_disk(int major, u64 size, int unit,
+static int ubd_disk_register(int major, u64 size, int unit,
 			struct gendisk **disk_out)
 			
 {
@@ -676,12 +676,12 @@ static int ubd_add(int n)
 
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
-	err = ubd_new_disk(MAJOR_NR, ubd_dev->size, n, &ubd_gendisk[n]);
+	err = ubd_disk_register(MAJOR_NR, ubd_dev->size, n, &ubd_gendisk[n]);
 	if(err)
 		goto out;
 
 	if(fake_major != MAJOR_NR)
-		ubd_new_disk(fake_major, ubd_dev->size, n,
+		ubd_disk_register(fake_major, ubd_dev->size, n,
 			     &fake_gendisk[n]);
 
 	/* perhaps this should also be under the "if (fake_major)" above */
@@ -898,7 +898,7 @@ static int ubd_open(struct inode *inode, struct file *filp)
 	/* This should no more be needed. And it didn't work anyway to exclude
 	 * read-write remounting of filesystems.*/
 	/*if((filp->f_mode & FMODE_WRITE) && !ubd_dev->openflags.w){
-	        if(--ubd_dev->count == 0) ubd_close(ubd_dev);
+	        if(--ubd_dev->count == 0) ubd_close_dev(ubd_dev);
 	        err = -EROFS;
 	}*/
  out:
@@ -911,7 +911,7 @@ static int ubd_release(struct inode * inode, struct file * file)
 	struct ubd *ubd_dev = disk->private_data;
 
 	if(--ubd_dev->count == 0)
-		ubd_close(ubd_dev);
+		ubd_close_dev(ubd_dev);
 	return(0);
 }
 
