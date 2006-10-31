@@ -117,7 +117,7 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-#define MAX_DEV (8)
+#define MAX_DEV (16)
 
 static struct block_device_operations ubd_blops = {
         .owner		= THIS_MODULE,
@@ -277,7 +277,7 @@ static int parse_unit(char **ptr)
 			return(-1);
 		*ptr = end;
 	}
-	else if (('a' <= *str) && (*str <= 'h')) {
+	else if (('a' <= *str) && (*str <= 'z')) {
 		n = *str - 'a';
 		str++;
 		*ptr = str;
