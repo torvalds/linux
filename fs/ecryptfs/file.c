@@ -198,6 +198,33 @@ retry:
 
 struct kmem_cache *ecryptfs_file_info_cache;
 
+int ecryptfs_open_lower_file(struct file **lower_file,
+			     struct dentry *lower_dentry,
+			     struct vfsmount *lower_mnt, int flags)
+{
+	int rc = 0;
+
+	dget(lower_dentry);
+	mntget(lower_mnt);
+	*lower_file = dentry_open(lower_dentry, lower_mnt, flags);
+	if (IS_ERR(*lower_file)) {
+		printk(KERN_ERR "Error opening lower file for lower_dentry "
+		       "[0x%p], lower_mnt [0x%p], and flags [0x%x]\n",
+		       lower_dentry, lower_mnt, flags);
+		rc = PTR_ERR(*lower_file);
+		*lower_file = NULL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+int ecryptfs_close_lower_file(struct file *lower_file)
+{
+	fput(lower_file);
+	return 0;
+}
+
 /**
  * ecryptfs_open
  * @inode: inode speciying file to open
@@ -244,19 +271,15 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 		ECRYPTFS_SET_FLAG(crypt_stat->flags, ECRYPTFS_ENCRYPTED);
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	/* This mntget & dget is undone via fput when the file is released */
-	dget(lower_dentry);
 	lower_flags = file->f_flags;
 	if ((lower_flags & O_ACCMODE) == O_WRONLY)
 		lower_flags = (lower_flags & O_ACCMODE) | O_RDWR;
 	if (file->f_flags & O_APPEND)
 		lower_flags &= ~O_APPEND;
 	lower_mnt = ecryptfs_dentry_to_lower_mnt(ecryptfs_dentry);
-	mntget(lower_mnt);
 	/* Corresponding fput() in ecryptfs_release() */
-	lower_file = dentry_open(lower_dentry, lower_mnt, lower_flags);
-	if (IS_ERR(lower_file)) {
-		rc = PTR_ERR(lower_file);
+	if ((rc = ecryptfs_open_lower_file(&lower_file, lower_dentry, lower_mnt,
+					   lower_flags))) {
 		ecryptfs_printk(KERN_ERR, "Error opening lower file\n");
 		goto out_puts;
 	}
@@ -341,11 +364,16 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 	struct file *lower_file = ecryptfs_file_to_lower(file);
 	struct ecryptfs_file_info *file_info = ecryptfs_file_to_private(file);
 	struct inode *lower_inode = ecryptfs_inode_to_lower(inode);
+	int rc;
 
-	fput(lower_file);
+	if ((rc = ecryptfs_close_lower_file(lower_file))) {
+		printk(KERN_ERR "Error closing lower_file\n");
+		goto out;
+	}
 	inode->i_blocks = lower_inode->i_blocks;
 	kmem_cache_free(ecryptfs_file_info_cache, file_info);
-	return 0;
+out:
+	return rc;
 }
 
 static int

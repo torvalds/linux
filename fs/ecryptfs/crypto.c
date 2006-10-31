@@ -1191,28 +1191,28 @@ int ecryptfs_cipher_code_to_string(char *str, u16 cipher_code)
 int ecryptfs_read_header_region(char *data, struct dentry *dentry,
 				struct vfsmount *mnt)
 {
-	struct file *file;
+	struct file *lower_file;
 	mm_segment_t oldfs;
 	int rc;
 
-	mnt = mntget(mnt);
-	file = dentry_open(dentry, mnt, O_RDONLY);
-	if (IS_ERR(file)) {
-		ecryptfs_printk(KERN_DEBUG, "Error opening file to "
-				"read header region\n");
-		mntput(mnt);
-		rc = PTR_ERR(file);
+	if ((rc = ecryptfs_open_lower_file(&lower_file, dentry, mnt,
+					   O_RDONLY))) {
+		printk(KERN_ERR
+		       "Error opening lower_file to read header region\n");
 		goto out;
 	}
-	file->f_pos = 0;
+	lower_file->f_pos = 0;
 	oldfs = get_fs();
 	set_fs(get_ds());
 	/* For releases 0.1 and 0.2, all of the header information
 	 * fits in the first data extent-sized region. */
-	rc = file->f_op->read(file, (char __user *)data,
-			      ECRYPTFS_DEFAULT_EXTENT_SIZE, &file->f_pos);
+	rc = lower_file->f_op->read(lower_file, (char __user *)data,
+			      ECRYPTFS_DEFAULT_EXTENT_SIZE, &lower_file->f_pos);
 	set_fs(oldfs);
-	fput(file);
+	if ((rc = ecryptfs_close_lower_file(lower_file))) {
+		printk(KERN_ERR "Error closing lower_file\n");
+		goto out;
+	}
 	rc = 0;
 out:
 	return rc;

@@ -482,5 +482,9 @@ ecryptfs_process_cipher(struct crypto_blkcipher **key_tfm, char *cipher_name,
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
 int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
 void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
+int ecryptfs_open_lower_file(struct file **lower_file,
+			     struct dentry *lower_dentry,
+			     struct vfsmount *lower_mnt, int flags);
+int ecryptfs_close_lower_file(struct file *lower_file);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */
