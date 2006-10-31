@@ -153,6 +153,8 @@ static void __init smp_copy_vpe_config(void)
 
 	/* Propagate Config7 */
 	write_vpe_c0_config7(read_c0_config7());
+
+	write_vpe_c0_count(read_c0_count());
 }
 
 static unsigned int __init smp_vpe_init(unsigned int tc, unsigned int mvpconf0,

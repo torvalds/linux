@@ -209,6 +209,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 #endif
 #if defined(CONFIG_MIPS_ATLAS) || defined(CONFIG_MIPS_MALTA)
 	unsigned long flags;
+	unsigned int start;
 
 	local_irq_save(flags);
 
@@ -217,13 +218,13 @@ static unsigned int __init estimate_cpu_frequency(void)
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
 	/* Start r4k counter. */
-	write_c0_count(0);
+	start = read_c0_count();
 
 	/* Read counter exactly on falling edge of update flag */
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 
-	count = read_c0_count();
+	count = read_c0_count() - start;
 
 	/* restore interrupts */
 	local_irq_restore(flags);
