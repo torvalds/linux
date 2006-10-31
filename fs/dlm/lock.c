@@ -3028,10 +3028,17 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 
 	while (1) {
 		if (dlm_locking_stopped(ls)) {
-			if (!recovery)
-				dlm_add_requestqueue(ls, nodeid, hd);
-			error = -EINTR;
-			goto out;
+			if (recovery) {
+				error = -EINTR;
+				goto out;
+			}
+			error = dlm_add_requestqueue(ls, nodeid, hd);
+			if (error == -EAGAIN)
+				continue;
+			else {
+				error = -EINTR;
+				goto out;
+			}
 		}
 
 		if (lock_recovery_try(ls))

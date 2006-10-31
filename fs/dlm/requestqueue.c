@@ -30,26 +30,39 @@ struct rq_entry {
  * lockspace is enabled on some while still suspended on others.
  */
 
-void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
+int dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_header *hd)
 {
 	struct rq_entry *e;
 	int length = hd->h_length;
+	int rv = 0;
 
 	if (dlm_is_removed(ls, nodeid))
-		return;
+		return 0;
 
 	e = kmalloc(sizeof(struct rq_entry) + length, GFP_KERNEL);
 	if (!e) {
 		log_print("dlm_add_requestqueue: out of memory\n");
-		return;
+		return 0;
 	}
 
 	e->nodeid = nodeid;
 	memcpy(e->request, hd, length);
 
+	/* We need to check dlm_locking_stopped() after taking the mutex to
+	   avoid a race where dlm_recoverd enables locking and runs
+	   process_requestqueue between our earlier dlm_locking_stopped check
+	   and this addition to the requestqueue. */
+
 	mutex_lock(&ls->ls_requestqueue_mutex);
-	list_add_tail(&e->list, &ls->ls_requestqueue);
+	if (dlm_locking_stopped(ls))
+		list_add_tail(&e->list, &ls->ls_requestqueue);
+	else {
+		log_debug(ls, "dlm_add_requestqueue skip from %d", nodeid);
+		kfree(e);
+		rv = -EAGAIN;
+	}
 	mutex_unlock(&ls->ls_requestqueue_mutex);
+	return rv;
 }
 
 int dlm_process_requestqueue(struct dlm_ls *ls)
