@@ -2999,6 +2999,7 @@ void generic_make_request(struct bio *bio)
 {
 	request_queue_t *q;
 	sector_t maxsector;
+	sector_t old_sector;
 	int ret, nr_sectors = bio_sectors(bio);
 	dev_t old_dev;
 
@@ -3027,7 +3028,7 @@ void generic_make_request(struct bio *bio)
 	 * NOTE: we don't repeat the blk_size check for each new device.
 	 * Stacking drivers are expected to know what they are doing.
 	 */
-	maxsector = -1;
+	old_sector = -1;
 	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
@@ -3061,14 +3062,29 @@ end_io:
 		 */
 		blk_partition_remap(bio);
 
-		if (maxsector != -1)
+		if (old_sector != -1)
 			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
-					    maxsector);
+					    old_sector);
 
 		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
 
-		maxsector = bio->bi_sector;
+		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
+
+		maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+		if (maxsector) {
+			sector_t sector = bio->bi_sector;
+
+			if (maxsector < nr_sectors || maxsector - nr_sectors < sector) {
+				/*
+				 * This may well happen - partitions are not checked
+				 * to make sure they are within the size of the
+				 * whole device.
+				 */
+				handle_bad_sector(bio);
+				goto end_io;
+			}
+		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
