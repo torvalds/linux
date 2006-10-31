@@ -372,16 +372,16 @@ parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
 }
 
 /**
- * ip6ip6_err - tunnel error handler
+ * ip6_tnl_err - tunnel error handler
  *
  * Description:
- *   ip6ip6_err() should handle errors in the tunnel according
+ *   ip6_tnl_err() should handle errors in the tunnel according
  *   to the specifications in RFC 2473.
  **/
 
 static int
-ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-	   int type, int code, int offset, __be32 info)
+ip6_tnl_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+	    int *type, int *code, int *msg, __be32 *info, int offset)
 {
 	struct ipv6hdr *ipv6h = (struct ipv6hdr *) skb->data;
 	struct ip6_tnl *t;
@@ -402,7 +402,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	err = 0;
 
-	switch (type) {
+	switch (*type) {
 		__u32 teli;
 		struct ipv6_tlv_tnl_enc_lim *tel;
 		__u32 mtu;
@@ -414,7 +414,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		rel_msg = 1;
 		break;
 	case ICMPV6_TIME_EXCEED:
-		if (code == ICMPV6_EXC_HOPLIMIT) {
+		if ((*code) == ICMPV6_EXC_HOPLIMIT) {
 			if (net_ratelimit())
 				printk(KERN_WARNING
 				       "%s: Too small hop limit or "
@@ -425,10 +425,10 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		break;
 	case ICMPV6_PARAMPROB:
 		teli = 0;
-		if (code == ICMPV6_HDR_FIELD)
+		if ((*code) == ICMPV6_HDR_FIELD)
 			teli = parse_tlv_tnl_enc_lim(skb, skb->data);
 
-		if (teli && teli == ntohl(info) - 2) {
+		if (teli && teli == ntohl(*info) - 2) {
 			tel = (struct ipv6_tlv_tnl_enc_lim *) &skb->data[teli];
 			if (tel->encap_limit == 0) {
 				if (net_ratelimit())
@@ -445,7 +445,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		}
 		break;
 	case ICMPV6_PKT_TOOBIG:
-		mtu = ntohl(info) - offset;
+		mtu = ntohl(*info) - offset;
 		if (mtu < IPV6_MIN_MTU)
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;
@@ -458,12 +458,38 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		}
 		break;
 	}
-	if (rel_msg &&  pskb_may_pull(skb, offset + sizeof (*ipv6h))) {
+
+	*type = rel_type;
+	*code = rel_code;
+	*info = rel_info;
+	*msg = rel_msg;
+
+out:
+	read_unlock(&ip6ip6_lock);
+	return err;
+}
+
+static int
+ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+	   int type, int code, int offset, __u32 info)
+{
+	int rel_msg = 0;
+	int rel_type = type;
+	int rel_code = code;
+	__u32 rel_info = info;
+	int err;
+
+	err = ip6_tnl_err(skb, opt, &rel_type, &rel_code, &rel_msg, &rel_info,
+			  offset);
+	if (err < 0)
+		return err;
+
+	if (rel_msg && pskb_may_pull(skb, offset + sizeof(struct ipv6hdr))) {
 		struct rt6_info *rt;
 		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
 		if (!skb2)
-			goto out;
+			return 0;
 
 		dst_release(skb2->dst);
 		skb2->dst = NULL;
@@ -483,9 +509,8 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		kfree_skb(skb2);
 	}
-out:
-	read_unlock(&ip6ip6_lock);
-	return err;
+
+	return 0;
 }
 
 static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
