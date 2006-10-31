@@ -140,15 +140,88 @@ static struct irqaction irq_call = {
 	.name		= "IPI_call"
 };
 
+static void __init smp_copy_vpe_config(void)
+{
+	write_vpe_c0_status(
+		(read_c0_status() & ~(ST0_IM | ST0_IE | ST0_KSU)) | ST0_CU0);
+
+	/* set config to be the same as vpe0, particularly kseg0 coherency alg */
+	write_vpe_c0_config( read_c0_config());
+
+	/* make sure there are no software interrupts pending */
+	write_vpe_c0_cause(0);
+
+	/* Propagate Config7 */
+	write_vpe_c0_config7(read_c0_config7());
+}
+
+static unsigned int __init smp_vpe_init(unsigned int tc, unsigned int mvpconf0,
+	unsigned int ncpu)
+{
+	if (tc > ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT))
+		return ncpu;
+
+	/* Deactivate all but VPE 0 */
+	if (tc != 0) {
+		unsigned long tmp = read_vpe_c0_vpeconf0();
+
+		tmp &= ~VPECONF0_VPA;
+
+		/* master VPE */
+		tmp |= VPECONF0_MVP;
+		write_vpe_c0_vpeconf0(tmp);
+
+		/* Record this as available CPU */
+		cpu_set(tc, phys_cpu_present_map);
+		__cpu_number_map[tc]	= ++ncpu;
+		__cpu_logical_map[ncpu]	= tc;
+	}
+
+	/* Disable multi-threading with TC's */
+	write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() & ~VPECONTROL_TE);
+
+	if (tc != 0)
+		smp_copy_vpe_config();
+
+	return ncpu;
+}
+
+static void __init smp_tc_init(unsigned int tc, unsigned int mvpconf0)
+{
+	unsigned long tmp;
+
+	if (!tc)
+		return;
+
+	/* bind a TC to each VPE, May as well put all excess TC's
+	   on the last VPE */
+	if (tc >= (((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT)+1))
+		write_tc_c0_tcbind(read_tc_c0_tcbind() | ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT));
+	else {
+		write_tc_c0_tcbind(read_tc_c0_tcbind() | tc);
+
+		/* and set XTC */
+		write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() | (tc << VPECONF0_XTC_SHIFT));
+	}
+
+	tmp = read_tc_c0_tcstatus();
+
+	/* mark not allocated and not dynamically allocatable */
+	tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
+	tmp |= TCSTATUS_IXMT;		/* interrupt exempt */
+	write_tc_c0_tcstatus(tmp);
+
+	write_tc_c0_tchalt(TCHALT_H);
+}
+
 /*
  * Common setup before any secondaries are started
  * Make sure all CPU's are in a sensible state before we boot any of the
  * secondarys
  */
-void plat_smp_setup(void)
+void __init plat_smp_setup(void)
 {
-	unsigned long val;
-	int i, num;
+	unsigned int mvpconf0, ntc, tc, ncpu = 0;
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -167,75 +240,16 @@ void plat_smp_setup(void)
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
-	val = read_c0_mvpconf0();
+	mvpconf0 = read_c0_mvpconf0();
+	ntc = (mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT;
 
 	/* we'll always have more TC's than VPE's, so loop setting everything
 	   to a sensible state */
-	for (i = 0, num = 0; i <= ((val & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT); i++) {
-		settc(i);
+	for (tc = 0; tc <= ntc; tc++) {
+		settc(tc);
 
-		/* VPE's */
-		if (i <= ((val & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT)) {
-
-			/* deactivate all but vpe0 */
-			if (i != 0) {
-				unsigned long tmp = read_vpe_c0_vpeconf0();
-
-				tmp &= ~VPECONF0_VPA;
-
-				/* master VPE */
-				tmp |= VPECONF0_MVP;
-				write_vpe_c0_vpeconf0(tmp);
-
-				/* Record this as available CPU */
-				cpu_set(i, phys_cpu_present_map);
-				__cpu_number_map[i]	= ++num;
-				__cpu_logical_map[num]	= i;
-			}
-
-			/* disable multi-threading with TC's */
-			write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() & ~VPECONTROL_TE);
-
-			if (i != 0) {
-				write_vpe_c0_status((read_c0_status() & ~(ST0_IM | ST0_IE | ST0_KSU)) | ST0_CU0);
-
-				/* set config to be the same as vpe0, particularly kseg0 coherency alg */
-				write_vpe_c0_config( read_c0_config());
-
-				/* make sure there are no software interrupts pending */
-				write_vpe_c0_cause(0);
-
-				/* Propagate Config7 */
-				write_vpe_c0_config7(read_c0_config7());
-			}
-
-		}
-
-		/* TC's */
-
-		if (i != 0) {
-			unsigned long tmp;
-
-			/* bind a TC to each VPE, May as well put all excess TC's
-			   on the last VPE */
-			if ( i >= (((val & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT)+1) )
-				write_tc_c0_tcbind(read_tc_c0_tcbind() | ((val & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) );
-			else {
-				write_tc_c0_tcbind( read_tc_c0_tcbind() | i);
-
-				/* and set XTC */
-				write_vpe_c0_vpeconf0( read_vpe_c0_vpeconf0() | (i << VPECONF0_XTC_SHIFT));
-			}
-
-			tmp = read_tc_c0_tcstatus();
-
-			/* mark not allocated and not dynamically allocatable */
-			tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
-			tmp |= TCSTATUS_IXMT;		/* interrupt exempt */
-			write_tc_c0_tcstatus(tmp);
-
-			write_tc_c0_tchalt(TCHALT_H);
-		}
+		smp_tc_init(tc, mvpconf0);
+		ncpu = smp_vpe_init(tc, mvpconf0, ncpu);
 	}
 
 	/* Release config state */
@@ -243,7 +257,7 @@ void plat_smp_setup(void)
 
 	/* We'll wait until starting the secondaries before starting MVPE */
 
-	printk(KERN_INFO "Detected %i available secondary CPU(s)\n", num);
+	printk(KERN_INFO "Detected %i available secondary CPU(s)\n", ncpu);
 }
 
 void __init plat_prepare_cpus(unsigned int max_cpus)
