@@ -455,10 +455,9 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 	int is_thread_group;
 	struct nlattr *na;
 
-	if (!family_registered || !tidstats)
+	if (!family_registered)
 		return;
 
-	rc = 0;
 	/*
 	 * Size includes space for nested attributes
 	 */
@@ -466,8 +465,15 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 		nla_total_size(sizeof(struct taskstats)) + nla_total_size(0);
 
 	is_thread_group = (tsk->signal->stats != NULL);
-	if (is_thread_group)
-		size = 2 * size;	/* PID + STATS + TGID + STATS */
+	if (is_thread_group) {
+		/* PID + STATS + TGID + STATS */
+		size = 2 * size;
+		/* fill the tsk->signal->stats structure */
+		fill_tgid_exit(tsk);
+	}
+
+	if (!tidstats)
+		return;
 
 	rc = prepare_reply(NULL, TASKSTATS_CMD_NEW, &rep_skb, &reply, size);
 	if (rc < 0)
@@ -487,11 +493,8 @@ void taskstats_exit_send(struct task_struct *tsk, struct taskstats *tidstats,
 		goto send;
 
 	/*
-	 * tsk has/had a thread group so fill the tsk->signal->stats structure
 	 * Doesn't matter if tsk is the leader or the last group member leaving
 	 */
-
-	fill_tgid_exit(tsk);
 	if (!group_dead)
 		goto send;
 
