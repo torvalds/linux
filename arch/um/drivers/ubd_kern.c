@@ -112,7 +112,9 @@ static DEFINE_SPINLOCK(ubd_io_lock);
 
 static DEFINE_MUTEX(ubd_lock);
 
-static void (*do_ubd)(void);
+/* XXX - this made sense in 2.4 days, now it's only used as a boolean, and
+ * probably it doesn't make sense even for that. */
+static int do_ubd;
 
 static int ubd_open(struct inode * inode, struct file * filp);
 static int ubd_release(struct inode * inode, struct file * file);
@@ -508,6 +510,7 @@ static inline void ubd_finish(struct request *req, int error)
 	spin_unlock(&ubd_io_lock);
 }
 
+/* XXX - move this inside ubd_intr. */
 /* Called without ubd_io_lock held, and only in interrupt context. */
 static void ubd_handler(void)
 {
@@ -515,7 +518,7 @@ static void ubd_handler(void)
 	struct request *rq = elv_next_request(ubd_queue);
 	int n;
 
-	do_ubd = NULL;
+	do_ubd = 0;
 	intr_count++;
 	n = os_read_file(thread_fd, &req, sizeof(req));
 	if(n != sizeof(req)){
@@ -1043,7 +1046,7 @@ static void do_ubd_request(request_queue_t *q)
 			return;
 		err = prepare_request(req, &io_req);
 		if(!err){
-			do_ubd = ubd_handler;
+			do_ubd = 1;
 			n = os_write_file(thread_fd, (char *) &io_req,
 					 sizeof(io_req));
 			if(n != sizeof(io_req))
