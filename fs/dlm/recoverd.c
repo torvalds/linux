@@ -219,6 +219,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	return error;
 }
 
+/* The dlm_ls_start() that created the rv we take here may already have been
+   stopped via dlm_ls_stop(); in that case we need to leave the RECOVERY_STOP
+   flag set. */
+
 static void do_ls_recovery(struct dlm_ls *ls)
 {
 	struct dlm_recover *rv = NULL;
@@ -226,7 +230,8 @@ static void do_ls_recovery(struct dlm_ls *ls)
 	spin_lock(&ls->ls_recover_lock);
 	rv = ls->ls_recover_args;
 	ls->ls_recover_args = NULL;
-	clear_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
+	if (rv && ls->ls_recover_seq == rv->seq)
+		clear_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
 	spin_unlock(&ls->ls_recover_lock);
 
 	if (rv) {
