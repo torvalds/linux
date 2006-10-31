@@ -22,6 +22,7 @@
  * the speedstep_get_processor_frequency() call. */
 #define SPEEDSTEP_PROCESSOR_PM			0xFFFFFF03  /* Pentium M  */
 #define SPEEDSTEP_PROCESSOR_P4D			0xFFFFFF04  /* desktop P4  */
+#define SPEEDSTEP_PROCESSOR_PCORE		0xFFFFFF05  /* Core */
 
 /* speedstep states -- only two of them */
 

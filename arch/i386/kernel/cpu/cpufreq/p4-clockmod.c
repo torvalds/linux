@@ -163,29 +163,27 @@ static int cpufreq_p4_verify(struct cpufreq_policy *policy)
 
 static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 {
-	if ((c->x86 == 0x06) && (c->x86_model == 0x09)) {
-		/* Pentium M (Banias) */
-		printk(KERN_WARNING PFX "Warning: Pentium M detected. "
-		       "The speedstep_centrino module offers voltage scaling"
-		       " in addition of frequency scaling. You should use "
-		       "that instead of p4-clockmod, if possible.\n");
-		return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PM);
-	}
-
-	if ((c->x86 == 0x06) && (c->x86_model == 0x0D)) {
-		/* Pentium M (Dothan) */
-		printk(KERN_WARNING PFX "Warning: Pentium M detected. "
-		       "The speedstep_centrino module offers voltage scaling"
-		       " in addition of frequency scaling. You should use "
-		       "that instead of p4-clockmod, if possible.\n");
-		/* on P-4s, the TSC runs with constant frequency independent whether
-		 * throttling is active or not. */
-		p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
-		return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PM);
+	if (c->x86 == 0x06) {
+		if (cpu_has(c, X86_FEATURE_EST))
+			printk(KERN_WARNING PFX "Warning: EST-capable CPU detected. "
+			       "The acpi-cpufreq module offers voltage scaling"
+			       " in addition of frequency scaling. You should use "
+			       "that instead of p4-clockmod, if possible.\n");
+		switch (c->x86_model) {
+		case 0x0E: /* Core */
+		case 0x0F: /* Core Duo */
+			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
+			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PCORE);
+		case 0x0D: /* Pentium M (Dothan) */
+			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
+			/* fall through */
+		case 0x09: /* Pentium M (Banias) */
+			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PM);
+		}
 	}
 
 	if (c->x86 != 0xF) {
-		printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. Please send an e-mail to <linux@brodo.de>\n");
+		printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. Please send an e-mail to <cpufreq@lists.linux.org.uk>\n");
 		return 0;
 	}
 
