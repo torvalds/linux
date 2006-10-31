@@ -25,6 +25,7 @@ SECTIONS
   . = ALIGN(4096);		/* Init code and data */
 #endif
 
+  _text = .;
   _stext = .;
   __init_begin = .;
   .init.text : {
