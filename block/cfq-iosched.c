@@ -456,6 +456,9 @@ static void cfq_add_rq_rb(struct request *rq)
 	 */
 	while ((__alias = elv_rb_add(&cfqq->sort_list, rq)) != NULL)
 		cfq_dispatch_insert(cfqd->queue, __alias);
+
+	if (!cfq_cfqq_on_rr(cfqq))
+		cfq_add_cfqq_rr(cfqd, cfqq);
 }
 
 static inline void
@@ -1651,9 +1654,6 @@ static void cfq_insert_request(request_queue_t *q, struct request *rq)
 	cfq_init_prio_data(cfqq);
 
 	cfq_add_rq_rb(rq);
-
-	if (!cfq_cfqq_on_rr(cfqq))
-		cfq_add_cfqq_rr(cfqd, cfqq);
 
 	list_add_tail(&rq->queuelist, &cfqq->fifo);
 
