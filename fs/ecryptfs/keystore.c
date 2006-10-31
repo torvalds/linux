@@ -493,19 +493,16 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 			goto out;
 		}
 	}
-	if (password_s_ptr->session_key_encryption_key_bytes
-	    < crypto_tfm_alg_min_keysize(tfm)) {
-		printk(KERN_WARNING "Session key encryption key is [%d] bytes; "
-		       "minimum keysize for selected cipher is [%d] bytes.\n",
-		       password_s_ptr->session_key_encryption_key_bytes,
-		       crypto_tfm_alg_min_keysize(tfm));
-		rc = -EINVAL;
-		goto out;
-	}
 	if (tfm_mutex)
 		mutex_lock(tfm_mutex);
-	crypto_cipher_setkey(tfm, password_s_ptr->session_key_encryption_key,
-			     crypt_stat->key_size);
+	rc = crypto_cipher_setkey(tfm,
+				  password_s_ptr->session_key_encryption_key,
+				  crypt_stat->key_size);
+	if (rc < 0) {
+		printk(KERN_ERR "Error setting key for crypto context\n");
+		rc = -EINVAL;
+		goto out_free_tfm;
+	}
 	/* TODO: virt_to_scatterlist */
 	encrypted_session_key = (char *)__get_free_page(GFP_KERNEL);
 	if (!encrypted_session_key) {

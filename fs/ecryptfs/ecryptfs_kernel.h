@@ -473,8 +473,8 @@ ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
 int
-ecryptfs_process_cipher(struct crypto_tfm **tfm, struct crypto_tfm **key_tfm,
-			char *cipher_name, size_t key_size);
+ecryptfs_process_cipher(struct crypto_tfm **key_tfm, char *cipher_name,
+			size_t *key_size);
 int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
 int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
 void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);

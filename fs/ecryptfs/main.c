@@ -208,7 +208,6 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 	char *cipher_name_dst;
 	char *cipher_name_src;
 	char *cipher_key_bytes_src;
-	struct crypto_tfm *tmp_tfm;
 	int cipher_name_len;
 
 	if (!options) {
@@ -305,20 +304,12 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		    = '\0';
 	}
 	if (!cipher_key_bytes_set) {
-		mount_crypt_stat->global_default_cipher_key_size =
-			ECRYPTFS_DEFAULT_KEY_BYTES;
-		ecryptfs_printk(KERN_DEBUG, "Cipher key size was not "
-				"specified.  Defaulting to [%d]\n",
-				mount_crypt_stat->
-				global_default_cipher_key_size);
+		mount_crypt_stat->global_default_cipher_key_size = 0;
 	}
 	rc = ecryptfs_process_cipher(
-		&tmp_tfm,
 		&mount_crypt_stat->global_key_tfm,
 		mount_crypt_stat->global_default_cipher_name,
-		mount_crypt_stat->global_default_cipher_key_size);
-	if (tmp_tfm)
-		crypto_free_tfm(tmp_tfm);
+		&mount_crypt_stat->global_default_cipher_key_size);
 	if (rc) {
 		printk(KERN_ERR "Error attempting to initialize cipher [%s] "
 		       "with key size [%Zd] bytes; rc = [%d]\n",

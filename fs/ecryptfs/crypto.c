@@ -1573,35 +1573,26 @@ out:
 
 /**
  * ecryptfs_process_cipher - Perform cipher initialization.
- * @tfm: Crypto context set by this function
  * @key_tfm: Crypto context for key material, set by this function
- * @cipher_name: Name of the cipher.
- * @key_size: Size of the key in bytes.
+ * @cipher_name: Name of the cipher
+ * @key_size: Size of the key in bytes
  *
  * Returns zero on success. Any crypto_tfm structs allocated here
  * should be released by other functions, such as on a superblock put
  * event, regardless of whether this function succeeds for fails.
  */
 int
-ecryptfs_process_cipher(struct crypto_tfm **tfm, struct crypto_tfm **key_tfm,
-			char *cipher_name, size_t key_size)
+ecryptfs_process_cipher(struct crypto_tfm **key_tfm, char *cipher_name,
+			size_t *key_size)
 {
 	char dummy_key[ECRYPTFS_MAX_KEY_BYTES];
 	int rc;
 
-	*tfm = *key_tfm = NULL;
-	if (key_size > ECRYPTFS_MAX_KEY_BYTES) {
+	*key_tfm = NULL;
+	if (*key_size > ECRYPTFS_MAX_KEY_BYTES) {
 		rc = -EINVAL;
 		printk(KERN_ERR "Requested key size is [%Zd] bytes; maximum "
-		       "allowable is [%d]\n", key_size, ECRYPTFS_MAX_KEY_BYTES);
-		goto out;
-	}
-	*tfm = crypto_alloc_tfm(cipher_name, (ECRYPTFS_DEFAULT_CHAINING_MODE
-					      | CRYPTO_TFM_REQ_WEAK_KEY));
-	if (!(*tfm)) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Unable to allocate crypto cipher with name "
-		       "[%s]\n", cipher_name);
+		      "allowable is [%d]\n", *key_size, ECRYPTFS_MAX_KEY_BYTES);
 		goto out;
 	}
 	*key_tfm = crypto_alloc_tfm(cipher_name, CRYPTO_TFM_REQ_WEAK_KEY);
@@ -1611,46 +1602,13 @@ ecryptfs_process_cipher(struct crypto_tfm **tfm, struct crypto_tfm **key_tfm,
 		       "[%s]\n", cipher_name);
 		goto out;
 	}
-	if (key_size < crypto_tfm_alg_min_keysize(*tfm)) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Request key size is [%Zd]; minimum key size "
-		       "supported by cipher [%s] is [%d]\n", key_size,
-		       cipher_name, crypto_tfm_alg_min_keysize(*tfm));
-		goto out;
-	}
-	if (key_size < crypto_tfm_alg_min_keysize(*key_tfm)) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Request key size is [%Zd]; minimum key size "
-		       "supported by cipher [%s] is [%d]\n", key_size,
-		       cipher_name, crypto_tfm_alg_min_keysize(*key_tfm));
-		goto out;
-	}
-	if (key_size > crypto_tfm_alg_max_keysize(*tfm)) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Request key size is [%Zd]; maximum key size "
-		       "supported by cipher [%s] is [%d]\n", key_size,
-		       cipher_name, crypto_tfm_alg_min_keysize(*tfm));
-		goto out;
-	}
-	if (key_size > crypto_tfm_alg_max_keysize(*key_tfm)) {
-		rc = -EINVAL;
-		printk(KERN_ERR "Request key size is [%Zd]; maximum key size "
-		       "supported by cipher [%s] is [%d]\n", key_size,
-		       cipher_name, crypto_tfm_alg_min_keysize(*key_tfm));
-		goto out;
-	}
-	get_random_bytes(dummy_key, key_size);
-	rc = crypto_cipher_setkey(*tfm, dummy_key, key_size);
+	if (*key_size == 0)
+		*key_size = crypto_tfm_alg_max_keysize(*key_tfm);
+	get_random_bytes(dummy_key, *key_size);
+	rc = crypto_cipher_setkey(*key_tfm, dummy_key, *key_size);
 	if (rc) {
 		printk(KERN_ERR "Error attempting to set key of size [%Zd] for "
-		       "cipher [%s]; rc = [%d]\n", key_size, cipher_name, rc);
-		rc = -EINVAL;
-		goto out;
-	}
-	rc = crypto_cipher_setkey(*key_tfm, dummy_key, key_size);
-	if (rc) {
-		printk(KERN_ERR "Error attempting to set key of size [%Zd] for "
-		       "cipher [%s]; rc = [%d]\n", key_size, cipher_name, rc);
+		       "cipher [%s]; rc = [%d]\n", *key_size, cipher_name, rc);
 		rc = -EINVAL;
 		goto out;
 	}
