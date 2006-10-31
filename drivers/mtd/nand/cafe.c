@@ -40,6 +40,11 @@
 #define CAFE_NAND_READ_DATA	0x1000
 #define CAFE_NAND_WRITE_DATA	0x2000
 
+#define CAFE_GLOBAL_CTRL	0x3004
+#define CAFE_GLOBAL_IRQ		0x3008
+#define CAFE_GLOBAL_IRQ_MASK	0x300c
+#define CAFE_NAND_RESET		0x3034
+
 int cafe_correct_ecc(unsigned char *buf,
 		     unsigned short *chk_syndrome_list);
 
@@ -76,18 +81,21 @@ module_param(slowtiming, int, 0644);
 /* Hrm. Why isn't this already conditional on something in the struct device? */
 #define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
 
+/* Make it easier to switch to PIO if we need to */
+#define cafe_readl(cafe, addr)			readl((cafe)->mmio + CAFE_##addr)
+#define cafe_writel(cafe, datum, addr)		writel(datum, (cafe)->mmio + CAFE_##addr)
 
 static int cafe_device_ready(struct mtd_info *mtd)
 {
 	struct cafe_priv *cafe = mtd->priv;
-	int result = !!(readl(cafe->mmio + CAFE_NAND_STATUS) | 0x40000000);
-	uint32_t irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
+	int result = !!(cafe_readl(cafe, NAND_STATUS) | 0x40000000);
+	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
 
-	writel(irqs, cafe->mmio+CAFE_NAND_IRQ);
+	cafe_writel(cafe, irqs, NAND_IRQ);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "NAND device is%s ready, IRQ %x (%x) (%x,%x)\n",
-		result?"":" not", irqs, readl(cafe->mmio + CAFE_NAND_IRQ),
-		readl(cafe->mmio + 0x3008), readl(cafe->mmio + 0x300c));
+		result?"":" not", irqs, cafe_readl(cafe, NAND_IRQ),
+		cafe_readl(cafe, GLOBAL_IRQ), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	return result;
 }
@@ -146,14 +154,14 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	if (command == NAND_CMD_ERASE2 || command == NAND_CMD_PAGEPROG) {
 		/* Second half of a command we already calculated */
-		writel(cafe->ctl2 | 0x100 | command, cafe->mmio + CAFE_NAND_CTRL2);
+		cafe_writel(cafe, cafe->ctl2 | 0x100 | command, NAND_CTRL2);
 		ctl1 = cafe->ctl1;
 		cafe_dev_dbg(&cafe->pdev->dev, "Continue command, ctl1 %08x, #data %d\n",
 			  cafe->ctl1, cafe->nr_data);
 		goto do_command;
 	}
 	/* Reset ECC engine */
-	writel(0, cafe->mmio + CAFE_NAND_CTRL2);
+	cafe_writel(cafe, 0, NAND_CTRL2);
 
 	/* Emulate NAND_CMD_READOOB on large-page chips */
 	if (mtd->writesize > 512 &&
@@ -166,15 +174,15 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	   for small-page chips, to position the buffer correctly? */
 
 	if (column != -1) {
-		writel(column, cafe->mmio + CAFE_NAND_ADDR1);
+		cafe_writel(cafe, column, NAND_ADDR1);
 		adrbytes = 2;
 		if (page_addr != -1)
 			goto write_adr2;
 	} else if (page_addr != -1) {
-		writel(page_addr & 0xffff, cafe->mmio + CAFE_NAND_ADDR1);
+		cafe_writel(cafe, page_addr & 0xffff, NAND_ADDR1);
 		page_addr >>= 16;
 	write_adr2:
-		writel(page_addr, cafe->mmio+0x20);
+		cafe_writel(cafe, page_addr, NAND_ADDR2);
 		adrbytes += 2;
 		if (mtd->size > mtd->writesize << 16)
 			adrbytes++;
@@ -215,9 +223,9 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	}
 	/* RNDOUT and READ0 commands need a following byte */
 	if (command == NAND_CMD_RNDOUT)
-		writel(cafe->ctl2 | 0x100 | NAND_CMD_RNDOUTSTART, cafe->mmio + CAFE_NAND_CTRL2);
+		cafe_writel(cafe, cafe->ctl2 | 0x100 | NAND_CMD_RNDOUTSTART, NAND_CTRL2);
 	else if (command == NAND_CMD_READ0 && mtd->writesize > 512)
-		writel(cafe->ctl2 | 0x100 | NAND_CMD_READSTART, cafe->mmio + CAFE_NAND_CTRL2);
+		cafe_writel(cafe, cafe->ctl2 | 0x100 | NAND_CMD_READSTART, NAND_CTRL2);
 
  do_command:
 #if 0
@@ -227,11 +235,11 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		cafe->datalen = 2062;
 #endif
 	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
-		cafe->datalen, ctl1, readl(cafe->mmio+CAFE_NAND_CTRL2));
+		cafe->datalen, ctl1, cafe_readl(cafe, NAND_CTRL2));
 
 	/* NB: The datasheet lies -- we really should be subtracting 1 here */
-	writel(cafe->datalen, cafe->mmio + CAFE_NAND_DATA_LEN);
-	writel(0x90000000, cafe->mmio + CAFE_NAND_IRQ);
+	cafe_writel(cafe, cafe->datalen, NAND_DATA_LEN);
+	cafe_writel(cafe, 0x90000000, NAND_IRQ);
 	if (usedma && (ctl1 & (3<<25))) {
 		uint32_t dmactl = 0xc0000000 + cafe->datalen;
 		/* If WR or RD bits set, set up DMA */
@@ -242,7 +250,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			   the command. */
 			doneint = 0x10000000;
 		}
-		writel(dmactl, cafe->mmio + CAFE_NAND_DMA_CTRL);
+		cafe_writel(cafe, dmactl, NAND_DMA_CTRL);
 	}
 	cafe->datalen = 0;
 
@@ -253,7 +261,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		printk("Register %x: %08x\n", i, readl(cafe->mmio + i));
 	}
 #endif
-	writel(ctl1, cafe->mmio + CAFE_NAND_CTRL1);
+	cafe_writel(cafe, ctl1, NAND_CTRL1);
 	/* Apply this short delay always to ensure that we do wait tWB in
 	 * any case on any machine. */
 	ndelay(100);
@@ -263,7 +271,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		uint32_t irqs;
 
 		while (c--) {
-			irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
+			irqs = cafe_readl(cafe, NAND_IRQ);
 			if (irqs & doneint)
 				break;
 			udelay(1);
@@ -271,9 +279,9 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 				cafe_dev_dbg(&cafe->pdev->dev, "Wait for ready, IRQ %x\n", irqs);
 			cpu_relax();
 		}
-		writel(doneint, cafe->mmio + CAFE_NAND_IRQ);
+		cafe_writel(cafe, doneint, NAND_IRQ);
 		cafe_dev_dbg(&cafe->pdev->dev, "Command %x completed after %d usec, irqs %x (%x)\n",
-			     command, 500000-c, irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
+			     command, 500000-c, irqs, cafe_readl(cafe, NAND_IRQ));
 	}
 
 
@@ -296,11 +304,11 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_STATUS_ERROR1:
 	case NAND_CMD_STATUS_ERROR2:
 	case NAND_CMD_STATUS_ERROR3:
-		writel(cafe->ctl2, cafe->mmio + CAFE_NAND_CTRL2);
+		cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 		return;
 	}
 	nand_wait_ready(mtd);
-	writel(cafe->ctl2, cafe->mmio + CAFE_NAND_CTRL2);
+	cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 }
 
 static void cafe_select_chip(struct mtd_info *mtd, int chipnr)
@@ -313,12 +321,12 @@ static int cafe_nand_interrupt(int irq, void *id, struct pt_regs *regs)
 {
 	struct mtd_info *mtd = id;
 	struct cafe_priv *cafe = mtd->priv;
-	uint32_t irqs = readl(cafe->mmio + CAFE_NAND_IRQ);
-	writel(irqs & ~0x90000000, cafe->mmio + CAFE_NAND_IRQ);
+	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
+	cafe_writel(cafe, irqs & ~0x90000000, NAND_IRQ);
 	if (!irqs)
 		return IRQ_NONE;
 
-	cafe_dev_dbg(&cafe->pdev->dev, "irq, bits %x (%x)\n", irqs, readl(cafe->mmio + CAFE_NAND_IRQ));
+	cafe_dev_dbg(&cafe->pdev->dev, "irq, bits %x (%x)\n", irqs, cafe_readl(cafe, NAND_IRQ));
 	return IRQ_HANDLED;
 }
 
@@ -363,18 +371,18 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct cafe_priv *cafe = mtd->priv;
 
 	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n",
-		     readl(cafe->mmio + CAFE_NAND_ECC_RESULT),
-		     readl(cafe->mmio + CAFE_NAND_ECC_SYN01));
+		     cafe_readl(cafe, NAND_ECC_RESULT),
+		     cafe_readl(cafe, NAND_ECC_SYN01));
 
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	if (checkecc && readl(cafe->mmio + CAFE_NAND_ECC_RESULT) & (1<<18)) {
+	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
 		unsigned short syn[8];
 		int i;
 
 		for (i=0; i<8; i+=2) {
-			uint32_t tmp = readl(cafe->mmio + CAFE_NAND_ECC_SYN01 + (i*2));
+			uint32_t tmp = cafe_readl(cafe, NAND_ECC_SYN01 + (i*2));
 			syn[i] = tmp & 0xfff;
 			syn[i+1] = (tmp >> 16) & 0xfff;
 		} 
@@ -577,22 +585,22 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	}
 	
 	/* Start off by resetting the NAND controller completely */
-	writel(1, cafe->mmio + 0x3034);
-	writel(0, cafe->mmio + 0x3034);
+	cafe_writel(cafe, 1, NAND_RESET);
+	cafe_writel(cafe, 0, NAND_RESET);
+
+	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
 
 	/* Timings from Marvell's test code (not verified or calculated by us) */
-	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
-
 	if (!slowtiming) {
-		writel(0x01010a0a, cafe->mmio + CAFE_NAND_TIMING1);
-		writel(0x24121212, cafe->mmio + CAFE_NAND_TIMING2);
-		writel(0x11000000, cafe->mmio + CAFE_NAND_TIMING3);
+		cafe_writel(cafe, 0x01010a0a, NAND_TIMING1);
+		cafe_writel(cafe, 0x24121212, NAND_TIMING2);
+		cafe_writel(cafe, 0x11000000, NAND_TIMING3);
 	} else {
-		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING1);
-		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING2);
-		writel(0xffffffff, cafe->mmio + CAFE_NAND_TIMING3);
+		cafe_writel(cafe, 0xffffffff, NAND_TIMING1);
+		cafe_writel(cafe, 0xffffffff, NAND_TIMING2);
+		cafe_writel(cafe, 0xffffffff, NAND_TIMING3);
 	}
-	writel(0xffffffff, cafe->mmio + CAFE_NAND_IRQ_MASK);
+	cafe_writel(cafe, 0xffffffff, NAND_IRQ_MASK);
 	err = request_irq(pdev->irq, &cafe_nand_interrupt, SA_SHIRQ, "CAFE NAND", mtd);
 	if (err) {
 		dev_warn(&pdev->dev, "Could not register IRQ %d\n", pdev->irq);
@@ -601,31 +609,31 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	}
 #if 1
 	/* Disable master reset, enable NAND clock */
-	ctrl = readl(cafe->mmio + 0x3004);
+	ctrl = cafe_readl(cafe, GLOBAL_CTRL);
 	ctrl &= 0xffffeff0;
 	ctrl |= 0x00007000;
-	writel(ctrl | 0x05, cafe->mmio + 0x3004);
-	writel(ctrl | 0x0a, cafe->mmio + 0x3004);
-	writel(0, cafe->mmio + CAFE_NAND_DMA_CTRL);
+	cafe_writel(cafe, ctrl | 0x05, GLOBAL_CTRL);
+	cafe_writel(cafe, ctrl | 0x0a, GLOBAL_CTRL);
+	cafe_writel(cafe, 0, NAND_DMA_CTRL);
 
-	writel(0x7006, cafe->mmio + 0x3004);
-	writel(0x700a, cafe->mmio + 0x3004);
+	cafe_writel(cafe, 0x7006, GLOBAL_CTRL);
+	cafe_writel(cafe, 0x700a, GLOBAL_CTRL);
 
 	/* Set up DMA address */
-	writel(cafe->dmaaddr & 0xffffffff, cafe->mmio + CAFE_NAND_DMA_ADDR0);
+	cafe_writel(cafe, cafe->dmaaddr & 0xffffffff, NAND_DMA_ADDR0);
 	if (sizeof(cafe->dmaaddr) > 4)
 		/* Shift in two parts to shut the compiler up */
-		writel((cafe->dmaaddr >> 16) >> 16, cafe->mmio + CAFE_NAND_DMA_ADDR1);
+		cafe_writel(cafe, (cafe->dmaaddr >> 16) >> 16, NAND_DMA_ADDR1);
 	else
-		writel(0, cafe->mmio + CAFE_NAND_DMA_ADDR1);
+		cafe_writel(cafe, 0, NAND_DMA_ADDR1);
 
 	cafe_dev_dbg(&cafe->pdev->dev, "Set DMA address to %x (virt %p)\n",
-		readl(cafe->mmio + CAFE_NAND_DMA_ADDR0), cafe->dmabuf);
+		cafe_readl(cafe, NAND_DMA_ADDR0), cafe->dmabuf);
 
 	/* Enable NAND IRQ in global IRQ mask register */
-	writel(0x80000007, cafe->mmio + 0x300c);
+	cafe_writel(cafe, 0x80000007, GLOBAL_IRQ_MASK);
 	cafe_dev_dbg(&cafe->pdev->dev, "Control %x, IRQ mask %x\n",
-		readl(cafe->mmio + 0x3004), readl(cafe->mmio + 0x300c));
+		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 #endif
 #if 1
 	mtd->writesize=2048;
@@ -649,7 +657,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 #if 0
 	writel(0x84600070, cafe->mmio);
 	udelay(10);
-	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", readl(cafe->mmio + 0x30));
+	cafe_dev_dbg(&cafe->pdev->dev, "Status %x\n", cafe_readl(cafe, NAND_NONMEM));
 #endif		
 	/* Scan to find existance of the device */
 	if (nand_scan_ident(mtd, 1)) {
@@ -697,7 +705,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 
  out_irq:
 	/* Disable NAND IRQ in global IRQ mask register */
-	writel(~1 & readl(cafe->mmio + 0x300c), cafe->mmio + 0x300c);
+	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
 	free_irq(pdev->irq, mtd);
  out_free_dma:
 	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
@@ -716,7 +724,7 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 
 	del_mtd_device(mtd);
 	/* Disable NAND IRQ in global IRQ mask register */
-	writel(~1 & readl(cafe->mmio + 0x300c), cafe->mmio + 0x300c);
+	cafe_writel(cafe, ~1 & cafe_readl(cafe, GLOBAL_IRQ_MASK), GLOBAL_IRQ_MASK);
 	free_irq(pdev->irq, mtd);
 	nand_release(mtd);
 	pci_iounmap(pdev, cafe->mmio);
