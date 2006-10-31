@@ -1035,6 +1035,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 	case 0x1012:		// TT DVB-T CI budget (tda10046/Philips tdm1316l(tda6651tt))
 		budget_ci->tuner_pll_address = 0x60;
+		philips_tdm1316l_config.invert = 1;
 		budget_ci->budget.dvb_frontend =
 			dvb_attach(tda10046_attach, &philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
