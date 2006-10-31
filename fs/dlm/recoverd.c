@@ -164,6 +164,13 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 */
 
 		dlm_recover_rsbs(ls);
+	} else {
+		/*
+		 * Other lockspace members may be going through the "neg" steps
+		 * while also adding us to the lockspace, in which case they'll
+		 * be looking for this status bit during dlm_recover_locks().
+		 */
+		dlm_set_recover_status(ls, DLM_RS_LOCKS);
 	}
 
 	dlm_release_root_list(ls);
