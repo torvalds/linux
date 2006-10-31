@@ -458,14 +458,16 @@ out:
 static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 			       struct ecryptfs_crypt_stat *crypt_stat)
 {
-	int rc = 0;
 	struct ecryptfs_password *password_s_ptr;
-	struct crypto_tfm *tfm = NULL;
 	struct scatterlist src_sg[2], dst_sg[2];
 	struct mutex *tfm_mutex = NULL;
 	/* TODO: Use virt_to_scatterlist for these */
 	char *encrypted_session_key;
 	char *session_key;
+	struct blkcipher_desc desc = {
+		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
+	};
+	int rc = 0;
 
 	password_s_ptr = &auth_tok->token.password;
 	if (ECRYPTFS_CHECK_FLAG(password_s_ptr->flags,
@@ -482,22 +484,32 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	if (!strcmp(crypt_stat->cipher,
 		    crypt_stat->mount_crypt_stat->global_default_cipher_name)
 	    && crypt_stat->mount_crypt_stat->global_key_tfm) {
-		tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
+		desc.tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
 		tfm_mutex = &crypt_stat->mount_crypt_stat->global_key_tfm_mutex;
 	} else {
-		tfm = crypto_alloc_tfm(crypt_stat->cipher,
-				       CRYPTO_TFM_REQ_WEAK_KEY);
-		if (!tfm) {
-			printk(KERN_ERR "Error allocating crypto context\n");
-			rc = -ENOMEM;
+		char *full_alg_name;
+
+		rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name,
+							    crypt_stat->cipher,
+							    "ecb");
+		if (rc)
+			goto out;
+		desc.tfm = crypto_alloc_blkcipher(full_alg_name, 0,
+						  CRYPTO_ALG_ASYNC);
+		kfree(full_alg_name);
+		if (IS_ERR(desc.tfm)) {
+			rc = PTR_ERR(desc.tfm);
+			printk(KERN_ERR "Error allocating crypto context; "
+			       "rc = [%d]\n", rc);
 			goto out;
 		}
+		crypto_blkcipher_set_flags(desc.tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 	}
 	if (tfm_mutex)
 		mutex_lock(tfm_mutex);
-	rc = crypto_cipher_setkey(tfm,
-				  password_s_ptr->session_key_encryption_key,
-				  crypt_stat->key_size);
+	rc = crypto_blkcipher_setkey(desc.tfm,
+				     password_s_ptr->session_key_encryption_key,
+				     crypt_stat->key_size);
 	if (rc < 0) {
 		printk(KERN_ERR "Error setting key for crypto context\n");
 		rc = -EINVAL;
@@ -528,9 +540,12 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	auth_tok->session_key.decrypted_key_size =
 	    auth_tok->session_key.encrypted_key_size;
 	dst_sg[0].length = auth_tok->session_key.encrypted_key_size;
-	/* TODO: Handle error condition */
-	crypto_cipher_decrypt(tfm, dst_sg, src_sg,
-			      auth_tok->session_key.encrypted_key_size);
+	rc = crypto_blkcipher_decrypt(&desc, dst_sg, src_sg,
+				      auth_tok->session_key.encrypted_key_size);
+	if (rc) {
+		printk(KERN_ERR "Error decrypting; rc = [%d]\n", rc);
+		goto out_free_memory;
+	}
 	auth_tok->session_key.decrypted_key_size =
 	    auth_tok->session_key.encrypted_key_size;
 	memcpy(auth_tok->session_key.decrypted_key, session_key,
@@ -543,6 +558,7 @@ static int decrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	if (ecryptfs_verbosity > 0)
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
+out_free_memory:
 	memset(encrypted_session_key, 0, PAGE_CACHE_SIZE);
 	free_page((unsigned long)encrypted_session_key);
 	memset(session_key, 0, PAGE_CACHE_SIZE);
@@ -551,7 +567,7 @@ out_free_tfm:
 	if (tfm_mutex)
 		mutex_unlock(tfm_mutex);
 	else
-		crypto_free_tfm(tfm);
+		crypto_free_blkcipher(desc.tfm);
 out:
 	return rc;
 }
@@ -800,19 +816,21 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 		   struct ecryptfs_crypt_stat *crypt_stat,
 		   struct ecryptfs_key_record *key_rec, size_t *packet_size)
 {
-	int rc = 0;
-
 	size_t i;
 	size_t signature_is_valid = 0;
 	size_t encrypted_session_key_valid = 0;
 	char session_key_encryption_key[ECRYPTFS_MAX_KEY_BYTES];
 	struct scatterlist dest_sg[2];
 	struct scatterlist src_sg[2];
-	struct crypto_tfm *tfm = NULL;
 	struct mutex *tfm_mutex = NULL;
 	size_t key_rec_size;
 	size_t packet_size_length;
 	size_t cipher_code;
+	struct blkcipher_desc desc = {
+		.tfm = NULL,
+		.flags = CRYPTO_TFM_REQ_MAY_SLEEP
+	};
+	int rc = 0;
 
 	(*packet_size) = 0;
 	/* Check for a valid signature on the auth_tok */
@@ -879,33 +897,48 @@ write_tag_3_packet(char *dest, size_t max, struct ecryptfs_auth_tok *auth_tok,
 	if (!strcmp(crypt_stat->cipher,
 		    crypt_stat->mount_crypt_stat->global_default_cipher_name)
 	    && crypt_stat->mount_crypt_stat->global_key_tfm) {
-		tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
+		desc.tfm = crypt_stat->mount_crypt_stat->global_key_tfm;
 		tfm_mutex = &crypt_stat->mount_crypt_stat->global_key_tfm_mutex;
-	} else
-		tfm = crypto_alloc_tfm(crypt_stat->cipher, 0);
-	if (!tfm) {
-		ecryptfs_printk(KERN_ERR, "Could not initialize crypto "
-				"context for cipher [%s]\n",
-				crypt_stat->cipher);
-		rc = -EINVAL;
-		goto out;
+	} else {
+		char *full_alg_name;
+
+		rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name,
+							    crypt_stat->cipher,
+							    "ecb");
+		if (rc)
+			goto out;
+		desc.tfm = crypto_alloc_blkcipher(full_alg_name, 0,
+						  CRYPTO_ALG_ASYNC);
+		kfree(full_alg_name);
+		if (IS_ERR(desc.tfm)) {
+			rc = PTR_ERR(desc.tfm);
+			ecryptfs_printk(KERN_ERR, "Could not initialize crypto "
+					"context for cipher [%s]; rc = [%d]\n",
+					crypt_stat->cipher, rc);
+			goto out;
+		}
+		crypto_blkcipher_set_flags(desc.tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 	}
 	if (tfm_mutex)
 		mutex_lock(tfm_mutex);
-	rc = crypto_cipher_setkey(tfm, session_key_encryption_key,
-				  crypt_stat->key_size);
+	rc = crypto_blkcipher_setkey(desc.tfm, session_key_encryption_key,
+				     crypt_stat->key_size);
 	if (rc < 0) {
 		if (tfm_mutex)
 			mutex_unlock(tfm_mutex);
 		ecryptfs_printk(KERN_ERR, "Error setting key for crypto "
-				"context\n");
+				"context; rc = [%d]\n", rc);
 		goto out;
 	}
 	rc = 0;
 	ecryptfs_printk(KERN_DEBUG, "Encrypting [%d] bytes of the key\n",
 			crypt_stat->key_size);
-	crypto_cipher_encrypt(tfm, dest_sg, src_sg,
-			      (*key_rec).enc_key_size);
+	rc = crypto_blkcipher_encrypt(&desc, dest_sg, src_sg,
+				      (*key_rec).enc_key_size);
+	if (rc) {
+		printk(KERN_ERR "Error encrypting; rc = [%d]\n", rc);
+		goto out;
+	}
 	if (tfm_mutex)
 		mutex_unlock(tfm_mutex);
 	ecryptfs_printk(KERN_DEBUG, "This should be the encrypted key:\n");
@@ -968,8 +1001,8 @@ encrypted_session_key_set:
 	       (*key_rec).enc_key_size);
 	(*packet_size) += (*key_rec).enc_key_size;
 out:
-	if (tfm && !tfm_mutex)
-		crypto_free_tfm(tfm);
+	if (desc.tfm && !tfm_mutex)
+		crypto_free_blkcipher(desc.tfm);
 	if (rc)
 		(*packet_size) = 0;
 	return rc;

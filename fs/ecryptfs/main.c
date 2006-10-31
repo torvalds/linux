@@ -315,6 +315,8 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		       "with key size [%Zd] bytes; rc = [%d]\n",
 		       mount_crypt_stat->global_default_cipher_name,
 		       mount_crypt_stat->global_default_cipher_key_size, rc);
+		mount_crypt_stat->global_key_tfm = NULL;
+		mount_crypt_stat->global_auth_tok_key = NULL;
 		rc = -EINVAL;
 		goto out;
 	}
