@@ -112,8 +112,6 @@ void print_cp0(char *key, int num, char *name, u32 val)
 	return;
 }
 
-indent: Standard input:25: Error:Unexpected end of file
-
 void
 dump_cp0(char *key)
 {
