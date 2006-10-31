@@ -136,6 +136,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 {
 	struct buffer_head *bh;
 	struct gfs2_log_header_host lh;
+static const u32 nothing = 0;
 	u32 hash;
 	int error;
 
@@ -143,11 +144,11 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 	if (error)
 		return error;
 
-	memcpy(&lh, bh->b_data, sizeof(struct gfs2_log_header));	/* XXX */
-	lh.lh_hash = 0;
-	hash = gfs2_disk_hash((char *)&lh, sizeof(struct gfs2_log_header));
+	hash = crc32_le((u32)~0, bh->b_data, sizeof(struct gfs2_log_header) -
+					     sizeof(u32));
+	hash = crc32_le(hash, (unsigned char const *)&nothing, sizeof(nothing));
+	hash ^= (u32)~0;
 	gfs2_log_header_in(&lh, bh->b_data);
-
 	brelse(bh);
 
 	if (lh.lh_header.mh_magic != GFS2_MAGIC ||
