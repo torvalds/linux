@@ -138,23 +138,6 @@ static void ecryptfs_clear_inode(struct inode *inode)
 }
 
 /**
- * ecryptfs_umount_begin
- *
- * Called in do_umount().
- */
-static void ecryptfs_umount_begin(struct vfsmount *vfsmnt, int flags)
-{
-	struct vfsmount *lower_mnt =
-		ecryptfs_dentry_to_lower_mnt(vfsmnt->mnt_sb->s_root);
-	struct super_block *lower_sb;
-
-	mntput(lower_mnt);
-	lower_sb = lower_mnt->mnt_sb;
-	if (lower_sb->s_op->umount_begin)
-		lower_sb->s_op->umount_begin(lower_mnt, flags);
-}
-
-/**
  * ecryptfs_show_options
  *
  * Prints the directory we are currently mounted over.
@@ -193,6 +176,5 @@ struct super_operations ecryptfs_sops = {
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.clear_inode = ecryptfs_clear_inode,
-	.umount_begin = ecryptfs_umount_begin,
 	.show_options = ecryptfs_show_options
 };
