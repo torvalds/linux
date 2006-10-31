@@ -330,8 +330,10 @@ fl_create(struct in6_flowlabel_req *freq, char __user *optval, int optlen, int *
 	fl->share = freq->flr_share;
 	addr_type = ipv6_addr_type(&freq->flr_dst);
 	if ((addr_type&IPV6_ADDR_MAPPED)
-	    || addr_type == IPV6_ADDR_ANY)
+	    || addr_type == IPV6_ADDR_ANY) {
+		err = -EINVAL;
 		goto done;
+	}
 	ipv6_addr_copy(&fl->dst, &freq->flr_dst);
 	atomic_set(&fl->users, 1);
 	switch (fl->share) {
