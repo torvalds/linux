@@ -102,6 +102,51 @@ shmse_irq_demux(int irq)
 static struct irqaction irq5 = { no_action, 0, CPU_MASK_NONE, "IRQ5-cascade",
 				NULL, NULL};
 
+static struct ipr_data se7343_irq5_ipr_map[] = {
+	{ IRQ5_IRQ, IRQ5_IPR_ADDR+2, IRQ5_IPR_POS, IRQ5_PRIORITY },
+};
+static struct ipr_data se7343_siof0_vpu_ipr_map[] = {
+	{ SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY },
+	{ VPU_IRQ, VPU_IPR_ADDR, VPU_IPR_POS, 8 },
+};
+static struct ipr_data se7343_other_ipr_map[] = {
+	{ DMTE0_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE1_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE2_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE3_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY },
+	{ DMTE4_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY },
+	{ DMTE5_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY },
+
+	/* I2C block */
+	{ IIC0_ALI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_TACKI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_WAITI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+	{ IIC0_DTEI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY },
+
+	{ IIC1_ALI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY },
+	{ IIC1_TACKI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY },
+	{ IIC1_WAITI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY },
+	{ IIC1_DTEI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY },
+
+	/* SIOF */
+	{ SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY },
+
+	/* SIU */
+	{ SIU_IRQ, SIU_IPR_ADDR, SIU_IPR_POS, SIU_PRIORITY },
+
+	/* VIO interrupt */
+	{ CEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+	{ BEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+	{ VEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY },
+
+	/*MFI interrupt*/
+
+	{ MFI_IRQ, MFI_IPR_ADDR, MFI_IPR_POS, MFI_PRIORITY },
+
+	/* LCD controller */
+	{ LCDC_IRQ, LCDC_IPR_ADDR, LCDC_IPR_POS, LCDC_PRIORITY },
+};
+
 /*
  * Initialize IRQ setting
  */
@@ -138,54 +183,17 @@ init_7343se_IRQ(void)
 	/* Setup all external interrupts to be active low */
 	ctrl_outw(0xaaaa, INTC_ICR1);
 
-	make_ipr_irq(IRQ5_IRQ, IRQ5_IPR_ADDR+2, IRQ5_IPR_POS, IRQ5_PRIORITY);
+	make_ipr_irq(se7343_irq5_ipr_map, ARRAY_SIZE(se7343_irq5_ipr_map));
+
 	setup_irq(IRQ5_IRQ, &irq5);
 	/* Set port control to use IRQ5 */
 	*(u16 *)0xA4050108 &= ~0xc;
 
-	make_ipr_irq(SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY);
-	make_ipr_irq(VPU_IRQ, VPU_IPR_ADDR, VPU_IPR_POS, 8);
+	make_ipr_irq(se7343_siof0_vpu_ipr_map, ARRAY_SIZE(se7343_siof0_vpu_ipr_map));
 
 	ctrl_outb(0x0f, INTC_IMCR5);	/* enable SCIF IRQ */
 
-	make_ipr_irq(DMTE0_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE1_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE2_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE3_IRQ, DMA1_IPR_ADDR, DMA1_IPR_POS, DMA1_PRIORITY);
-	make_ipr_irq(DMTE4_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY);
-	make_ipr_irq(DMTE5_IRQ, DMA2_IPR_ADDR, DMA2_IPR_POS, DMA2_PRIORITY);
+	make_ipr_irq(se7343_other_ipr_map, ARRAY_SIZE(se7343_other_ipr_map));
 
-	/* I2C block */
-	make_ipr_irq(IIC0_ALI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY);
-	make_ipr_irq(IIC0_TACKI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS,
-		     IIC0_PRIORITY);
-	make_ipr_irq(IIC0_WAITI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS,
-		     IIC0_PRIORITY);
-	make_ipr_irq(IIC0_DTEI_IRQ, IIC0_IPR_ADDR, IIC0_IPR_POS, IIC0_PRIORITY);
-
-	make_ipr_irq(IIC1_ALI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY);
-	make_ipr_irq(IIC1_TACKI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS,
-		     IIC1_PRIORITY);
-	make_ipr_irq(IIC1_WAITI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS,
-		     IIC1_PRIORITY);
-	make_ipr_irq(IIC1_DTEI_IRQ, IIC1_IPR_ADDR, IIC1_IPR_POS, IIC1_PRIORITY);
-
-	/* SIOF */
-	make_ipr_irq(SIOF0_IRQ, SIOF0_IPR_ADDR, SIOF0_IPR_POS, SIOF0_PRIORITY);
-
-	/* SIU */
-	make_ipr_irq(SIU_IRQ, SIU_IPR_ADDR, SIU_IPR_POS, SIU_PRIORITY);
-
-	/* VIO interrupt */
-	make_ipr_irq(CEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-	make_ipr_irq(BEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-	make_ipr_irq(VEU_IRQ, VIO_IPR_ADDR, VIO_IPR_POS, VIO_PRIORITY);
-
-	/*MFI interrupt*/
-
-	make_ipr_irq(MFI_IRQ, MFI_IPR_ADDR, MFI_IPR_POS, MFI_PRIORITY);
-
-	/* LCD controller */
-	make_ipr_irq(LCDC_IRQ, LCDC_IPR_ADDR, LCDC_IPR_POS, LCDC_PRIORITY);
 	ctrl_outw(0x2000, PA_MRSHPC + 0x0c);	/* mrshpc irq enable */
 }

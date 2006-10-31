@@ -324,8 +324,11 @@
 #define __NR_sync_file_range	314
 #define __NR_tee		315
 #define __NR_vmsplice		316
+#define __NR_move_pages		317
+#define __NR_getcpu		318
+#define __NR_epoll_pwait	319
 
-#define NR_syscalls 317
+#define NR_syscalls 320
 
 #ifdef __KERNEL__
 
