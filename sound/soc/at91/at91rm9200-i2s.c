@@ -373,7 +373,7 @@ static void at91rm9200_i2s_shutdown(struct snd_pcm_substream *substream)
 	if (!ssc_p->dir_mask) {
 		/* Shutdown the SSC clock. */
 		DBG("Stopping pid %d clock\n", ssc_p->pid);
-		at91_sys_write(AT91_PMC_PCDR, ssc_p->pid);
+		at91_sys_write(AT91_PMC_PCDR, 1<<ssc_p->pid);
 
 		if (ssc_p->initialized)
 			free_irq(ssc_p->pid, ssc_p);
