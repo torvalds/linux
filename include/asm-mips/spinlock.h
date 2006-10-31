@@ -3,12 +3,13 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999, 2000 by Ralf Baechle
+ * Copyright (C) 1999, 2000, 06 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #ifndef _ASM_SPINLOCK_H
 #define _ASM_SPINLOCK_H
 
+#include <asm/barrier.h>
 #include <asm/war.h>
 
 /*
@@ -40,7 +41,6 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
 		"	 nop						\n"
-		"	sync						\n"
 		"	.set	reorder					\n"
 		: "=m" (lock->lock), "=&r" (tmp)
 		: "m" (lock->lock)
@@ -53,19 +53,22 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"	 li	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
 		: "=m" (lock->lock), "=&r" (tmp)
 		: "m" (lock->lock)
 		: "memory");
 	}
+
+	smp_mb();
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
+	smp_mb();
+
 	__asm__ __volatile__(
 	"	.set	noreorder	# __raw_spin_unlock	\n"
-	"	sync						\n"
 	"	sw	$0, %0					\n"
 	"	.set\treorder					\n"
 	: "=m" (lock->lock)
@@ -86,7 +89,6 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
 		"	beqzl	%2, 1b					\n"
 		"	 nop						\n"
 		"	andi	%2, %0, 1				\n"
-		"	sync						\n"
 		"	.set	reorder"
 		: "=&r" (temp), "=m" (lock->lock), "=&r" (res)
 		: "m" (lock->lock)
@@ -99,12 +101,13 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
 		"	sc	%2, %1					\n"
 		"	beqz	%2, 1b					\n"
 		"	 andi	%2, %0, 1				\n"
-		"	sync						\n"
 		"	.set	reorder"
 		: "=&r" (temp), "=m" (lock->lock), "=&r" (res)
 		: "m" (lock->lock)
 		: "memory");
 	}
+
+	smp_mb();
 
 	return res == 0;
 }
@@ -143,7 +146,6 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
 		"	 nop						\n"
-		"	sync						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -156,12 +158,14 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		"	 addu	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
 		: "memory");
 	}
+
+	smp_mb();
 }
 
 /* Note the use of sub, not subu which will make the kernel die with an
@@ -171,13 +175,14 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
 
+	smp_mb();
+
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
 		"1:	ll	%1, %2		# __raw_read_unlock	\n"
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
-		"	sync						\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
 		: "memory");
@@ -188,7 +193,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 		"	sub	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -208,7 +213,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -221,18 +226,22 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
 		: "memory");
 	}
+
+	smp_mb();
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
+	smp_mb();
+
 	__asm__ __volatile__(
-	"	sync			# __raw_write_unlock	\n"
+	"				# __raw_write_unlock	\n"
 	"	sw	$0, %0					\n"
 	: "=m" (rw->lock)
 	: "m" (rw->lock)
@@ -252,11 +261,10 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 		"	bnez	%1, 2f					\n"
 		"	 addu	%1, 1					\n"
 		"	sc	%1, %0					\n"
-		"	beqzl	%1, 1b					\n"
 		"	.set	reorder					\n"
-#ifdef CONFIG_SMP
-		"	 sync						\n"
-#endif
+		"	beqzl	%1, 1b					\n"
+		"	 nop						\n"
+		__WEAK_ORDERING_MB
 		"	li	%2, 1					\n"
 		"2:							\n"
 		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
@@ -271,10 +279,9 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 		"	 addu	%1, 1					\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
+		"	 nop						\n"
 		"	.set	reorder					\n"
-#ifdef CONFIG_SMP
-		"	 sync						\n"
-#endif
+		__WEAK_ORDERING_MB
 		"	li	%2, 1					\n"
 		"2:							\n"
 		: "=m" (rw->lock), "=&r" (tmp), "=&r" (ret)
@@ -299,7 +306,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
+		__WEAK_ORDERING_MB
 		"	li	%2, 1					\n"
 		"	.set	reorder					\n"
 		"2:							\n"
@@ -315,7 +323,8 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 sync						\n"
+		"	 nop						\n"
+		__WEAK_ORDERING_MB
 		"	li	%2, 1					\n"
 		"	.set	reorder					\n"
 		"2:							\n"

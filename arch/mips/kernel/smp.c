@@ -172,7 +172,7 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 
 	spin_lock(&smp_call_lock);
 	call_data = &data;
-	mb();
+	smp_mb();
 
 	/* Send a message to all other CPUs and wait for them to respond */
 	for_each_online_cpu(i)
@@ -204,7 +204,7 @@ void smp_call_function_interrupt(void)
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function.
 	 */
-	mb();
+	smp_mb();
 	atomic_inc(&call_data->started);
 
 	/*
@@ -215,7 +215,7 @@ void smp_call_function_interrupt(void)
 	irq_exit();
 
 	if (wait) {
-		mb();
+		smp_mb();
 		atomic_inc(&call_data->finished);
 	}
 }
