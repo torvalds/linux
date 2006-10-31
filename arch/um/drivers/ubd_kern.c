@@ -202,17 +202,6 @@ struct ubd {
 
 struct ubd ubd_devs[MAX_DEV] = { [ 0 ... MAX_DEV - 1 ] = DEFAULT_UBD };
 
-static int ubd0_init(void)
-{
-	struct ubd *ubd_dev = &ubd_devs[0];
-
-	if(ubd_dev->file == NULL)
-		ubd_dev->file = "root_fs";
-	return(0);
-}
-
-__initcall(ubd0_init);
-
 /* Only changed by fake_ide_setup which is a setup */
 static int fake_ide = 0;
 static struct proc_dir_entry *proc_ide_root = NULL;
@@ -293,6 +282,10 @@ static int parse_unit(char **ptr)
 	return(n);
 }
 
+/* If *index_out == -1 at exit, the passed option was a general one;
+ * otherwise, the str pointer is used (and owned) inside ubd_devs array, so it
+ * should not be freed on exit.
+ */
 static int ubd_setup_common(char *str, int *index_out)
 {
 	struct ubd *ubd_dev;
@@ -480,8 +473,9 @@ int thread_fd = -1;
 
 /* Changed by ubd_handler, which is serialized because interrupts only
  * happen on CPU 0.
+ * XXX: currently unused.
  */
-int intr_count = 0;
+static int intr_count = 0;
 
 /* call ubd_finish if you need to serialize */
 static void __ubd_finish(struct request *req, int error)
@@ -554,7 +548,7 @@ void kill_io_thread(void)
 
 __uml_exitcall(kill_io_thread);
 
-static int ubd_file_size(struct ubd *ubd_dev, __u64 *size_out)
+static inline int ubd_file_size(struct ubd *ubd_dev, __u64 *size_out)
 {
 	char *file;
 
@@ -724,7 +718,7 @@ static int ubd_config(char *str)
 	}
 	if (n == -1) {
 		ret = 0;
-		goto out;
+		goto err_free;
 	}
 
  	mutex_lock(&ubd_lock);
@@ -821,6 +815,7 @@ out:
 	return err;
 }
 
+/* All these are called by mconsole in process context and without ubd-specific locks. */
 static struct mc_device ubd_mc = {
 	.name		= "ubd",
 	.config		= ubd_config,
@@ -829,7 +824,7 @@ static struct mc_device ubd_mc = {
 	.remove		= ubd_remove,
 };
 
-static int ubd_mc_init(void)
+static int __init ubd_mc_init(void)
 {
 	mconsole_register_dev(&ubd_mc);
 	return 0;
@@ -837,13 +832,24 @@ static int ubd_mc_init(void)
 
 __initcall(ubd_mc_init);
 
+static int __init ubd0_init(void)
+{
+	struct ubd *ubd_dev = &ubd_devs[0];
+
+	if(ubd_dev->file == NULL)
+		ubd_dev->file = "root_fs";
+	return(0);
+}
+
+__initcall(ubd0_init);
+
 static struct platform_driver ubd_driver = {
 	.driver = {
 		.name  = DRIVER_NAME,
 	},
 };
 
-int ubd_init(void)
+static int __init ubd_init(void)
 {
         int i;
 
@@ -871,7 +877,7 @@ int ubd_init(void)
 
 late_initcall(ubd_init);
 
-int ubd_driver_init(void){
+static int __init ubd_driver_init(void){
 	unsigned long stack;
 	int err;
 
@@ -1378,8 +1384,8 @@ void do_io(struct io_thread_req *req)
  */
 int kernel_fd = -1;
 
-/* Only changed by the io thread */
-int io_count = 0;
+/* Only changed by the io thread. XXX: currently unused. */
+static int io_count = 0;
 
 int io_thread(void *arg)
 {

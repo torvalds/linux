@@ -176,7 +176,6 @@ struct {
 int signal_index[32];
 int nsignals = 0;
 int debug_trace = 0;
-extern int io_nsignals, io_count, intr_count;
 
 extern void signal_usr1(int sig);
 
