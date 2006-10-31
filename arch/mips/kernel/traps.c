@@ -1111,7 +1111,7 @@ static struct shadow_registers {
 static void mips_srs_init(void)
 {
 	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
-	printk(KERN_INFO "%d MIPSR2 register sets available\n",
+	printk(KERN_INFO "%ld MIPSR2 register sets available\n",
 	       shadow_registers.sr_supported);
 	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
 }
