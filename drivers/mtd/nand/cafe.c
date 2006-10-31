@@ -72,6 +72,9 @@ module_param(skipbbt, int, 0644);
 static int debug = 0;
 module_param(debug, int, 0644);
 
+static int regdebug = 0;
+module_param(regdebug, int, 0644);
+
 static int checkecc = 1;
 module_param(checkecc, int, 0644);
 
@@ -228,12 +231,6 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		cafe_writel(cafe, cafe->ctl2 | 0x100 | NAND_CMD_READSTART, NAND_CTRL2);
 
  do_command:
-#if 0
-	/* http://dev.laptop.org/ticket/200
-	   ECC on read only works if we read precisely 0x80e bytes */
-	if (cafe->datalen == 2112)
-		cafe->datalen = 2062;
-#endif
 	cafe_dev_dbg(&cafe->pdev->dev, "dlen %x, ctl1 %x, ctl2 %x\n", 
 		cafe->datalen, ctl1, cafe_readl(cafe, NAND_CTRL2));
 
@@ -254,13 +251,13 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	}
 	cafe->datalen = 0;
 
-#if 0
-	{ int i;
-	printk("About to write command %08x\n", ctl1);
-	for (i=0; i< 0x5c; i+=4)
-		printk("Register %x: %08x\n", i, readl(cafe->mmio + i));
+	if (unlikely(regdebug)) {
+		int i;
+		printk("About to write command %08x to register 0\n", ctl1);
+		for (i=4; i< 0x5c; i+=4)
+			printk("Register %x: %08x\n", i, readl(cafe->mmio + i));
 	}
-#endif
+
 	cafe_writel(cafe, ctl1, NAND_CTRL1);
 	/* Apply this short delay always to ensure that we do wait tWB in
 	 * any case on any machine. */
@@ -388,7 +385,10 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		} 
 
 		if ((i = cafe_correct_ecc(buf, syn)) < 0) {
-			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC\n");
+			dev_dbg(&cafe->pdev->dev, "Failed to correct ECC at %08x\n",
+				cafe_readl(cafe, NAND_ADDR2) * 2048);
+			for (i=0; i< 0x5c; i+=4)
+				printk("Register %x: %08x\n", i, readl(cafe->mmio + i));
 			mtd->ecc_stats.failed++;
 		} else {
 			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", i);
