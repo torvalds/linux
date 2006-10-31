@@ -578,33 +578,36 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	struct openflags flags;
 	char **back_ptr;
 	int err, create_cow, *create_ptr;
+	int fd;
 
 	ubd_dev->openflags = ubd_dev->boot_openflags;
 	create_cow = 0;
 	create_ptr = (ubd_dev->cow.file != NULL) ? &create_cow : NULL;
 	back_ptr = ubd_dev->no_cow ? NULL : &ubd_dev->cow.file;
-	ubd_dev->fd = open_ubd_file(ubd_dev->file, &ubd_dev->openflags, ubd_dev->shared,
+
+	fd = open_ubd_file(ubd_dev->file, &ubd_dev->openflags, ubd_dev->shared,
 				back_ptr, &ubd_dev->cow.bitmap_offset,
 				&ubd_dev->cow.bitmap_len, &ubd_dev->cow.data_offset,
 				create_ptr);
 
-	if((ubd_dev->fd == -ENOENT) && create_cow){
-		ubd_dev->fd = create_cow_file(ubd_dev->file, ubd_dev->cow.file,
+	if((fd == -ENOENT) && create_cow){
+		fd = create_cow_file(ubd_dev->file, ubd_dev->cow.file,
 					  ubd_dev->openflags, 1 << 9, PAGE_SIZE,
 					  &ubd_dev->cow.bitmap_offset,
 					  &ubd_dev->cow.bitmap_len,
 					  &ubd_dev->cow.data_offset);
-		if(ubd_dev->fd >= 0){
+		if(fd >= 0){
 			printk(KERN_INFO "Creating \"%s\" as COW file for "
 			       "\"%s\"\n", ubd_dev->file, ubd_dev->cow.file);
 		}
 	}
 
-	if(ubd_dev->fd < 0){
+	if(fd < 0){
 		printk("Failed to open '%s', errno = %d\n", ubd_dev->file,
-		       -ubd_dev->fd);
-		return(ubd_dev->fd);
+		       -fd);
+		return fd;
 	}
+	ubd_dev->fd = fd;
 
 	if(ubd_dev->cow.file != NULL){
 		err = -ENOMEM;
