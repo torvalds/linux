@@ -53,6 +53,9 @@ void selinux_netlbl_sk_security_init(struct sk_security_struct *ssec,
 void selinux_netlbl_sk_clone_security(struct sk_security_struct *ssec,
 				      struct sk_security_struct *newssec);
 int selinux_netlbl_inode_permission(struct inode *inode, int mask);
+int selinux_netlbl_socket_setsockopt(struct socket *sock,
+				     int level,
+				     int optname);
 #else
 static inline void selinux_netlbl_cache_invalidate(void)
 {
@@ -111,6 +114,13 @@ static inline void selinux_netlbl_sk_clone_security(
 
 static inline int selinux_netlbl_inode_permission(struct inode *inode,
 						  int mask)
+{
+	return 0;
+}
+
+static inline int selinux_netlbl_socket_setsockopt(struct socket *sock,
+						   int level,
+						   int optname)
 {
 	return 0;
 }

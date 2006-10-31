@@ -64,6 +64,7 @@
 #include <linux/ethtool.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
+#include <asm/unaligned.h>
 #include <net/arp.h>
 
 #include "config_roms.h"
@@ -491,7 +492,7 @@ static void ether1394_reset_priv (struct net_device *dev, int set_mtu)
 	int i;
 	struct eth1394_priv *priv = netdev_priv(dev);
 	struct hpsb_host *host = priv->host;
-	u64 guid = *((u64*)&(host->csr.rom->bus_info_data[3]));
+	u64 guid = get_unaligned((u64*)&(host->csr.rom->bus_info_data[3]));
 	u16 maxpayload = 1 << (host->csr.max_rec + 1);
 	int max_speed = IEEE1394_SPEED_MAX;
 
@@ -514,8 +515,8 @@ static void ether1394_reset_priv (struct net_device *dev, int set_mtu)
 				      ETHER1394_GASP_OVERHEAD)));
 
 		/* Set our hardware address while we're at it */
-		*(u64*)dev->dev_addr = guid;
-		*(u64*)dev->broadcast = ~0x0ULL;
+		memcpy(dev->dev_addr, &guid, sizeof(u64));
+		memset(dev->broadcast, 0xff, sizeof(u64));
 	}
 
 	spin_unlock_irqrestore (&priv->lock, flags);
@@ -894,6 +895,7 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 		u16 maxpayload;
 		struct eth1394_node_ref *node;
 		struct eth1394_node_info *node_info;
+		__be64 guid;
 
 		/* Sanity check. MacOSX seems to be sending us 131 in this
 		 * field (atleast on my Panther G5). Not sure why. */
@@ -902,8 +904,9 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 
 		maxpayload = min(eth1394_speedto_maxpayload[sspd], (u16)(1 << (max_rec + 1)));
 
+		guid = get_unaligned(&arp1394->s_uniq_id);
 		node = eth1394_find_node_guid(&priv->ip_node_list,
-					      be64_to_cpu(arp1394->s_uniq_id));
+					      be64_to_cpu(guid));
 		if (!node) {
 			return 0;
 		}
@@ -931,10 +934,9 @@ static inline u16 ether1394_parse_encap(struct sk_buff *skb,
 		arp_ptr += arp->ar_pln;		/* skip over sender IP addr */
 
 		if (arp->ar_op == htons(ARPOP_REQUEST))
-			/* just set ARP req target unique ID to 0 */
-			*((u64*)arp_ptr) = 0;
+			memset(arp_ptr, 0, sizeof(u64));
 		else
-			*((u64*)arp_ptr) = *((u64*)dev->dev_addr);
+			memcpy(arp_ptr, dev->dev_addr, sizeof(u64));
 	}
 
 	/* Now add the ethernet header. */
@@ -1675,8 +1677,10 @@ static int ether1394_tx (struct sk_buff *skb, struct net_device *dev)
 		if (max_payload < dg_size + hdr_type_len[ETH1394_HDR_LF_UF])
 			priv->bc_dgl++;
 	} else {
+		__be64 guid = get_unaligned((u64 *)eth->h_dest);
+
 		node = eth1394_find_node_guid(&priv->ip_node_list,
-					      be64_to_cpu(*(u64*)eth->h_dest));
+					      be64_to_cpu(guid));
 		if (!node) {
 			ret = -EAGAIN;
 			goto fail;

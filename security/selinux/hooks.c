@@ -3313,7 +3313,13 @@ static int selinux_socket_getpeername(struct socket *sock)
 
 static int selinux_socket_setsockopt(struct socket *sock,int level,int optname)
 {
-	return socket_has_perm(current, sock, SOCKET__SETOPT);
+	int err;
+
+	err = socket_has_perm(current, sock, SOCKET__SETOPT);
+	if (err)
+		return err;
+
+	return selinux_netlbl_socket_setsockopt(sock, level, optname);
 }
 
 static int selinux_socket_getsockopt(struct socket *sock, int level,

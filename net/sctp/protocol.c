@@ -591,7 +591,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 	newinet->dport = htons(asoc->peer.port);
 	newinet->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
 	newinet->pmtudisc = inet->pmtudisc;
-      	newinet->id = 0;
+      	newinet->id = asoc->next_tsn ^ jiffies;
 
 	newinet->uc_ttl = -1;
 	newinet->mc_loop = 1;

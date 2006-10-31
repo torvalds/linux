@@ -1946,7 +1946,7 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 	do {
 		struct sk_buff *nskb;
 		skb_frag_t *frag;
-		int hsize, nsize;
+		int hsize;
 		int k;
 		int size;
 
@@ -1957,11 +1957,10 @@ struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 		hsize = skb_headlen(skb) - offset;
 		if (hsize < 0)
 			hsize = 0;
-		nsize = hsize + doffset;
-		if (nsize > len + doffset || !sg)
-			nsize = len + doffset;
+		if (hsize > len || !sg)
+			hsize = len;
 
-		nskb = alloc_skb(nsize + headroom, GFP_ATOMIC);
+		nskb = alloc_skb(hsize + doffset + headroom, GFP_ATOMIC);
 		if (unlikely(!nskb))
 			goto err;
 

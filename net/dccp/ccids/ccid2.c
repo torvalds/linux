@@ -352,14 +352,14 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, int len)
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 	ccid2_pr_debug("pipe=%d\n", hctx->ccid2hctx_pipe);
-	ccid2_pr_debug("Sent: seq=%llu\n", seq);
+	ccid2_pr_debug("Sent: seq=%llu\n", (unsigned long long)seq);
 	do {
 		struct ccid2_seq *seqp = hctx->ccid2hctx_seqt;
 
 		while (seqp != hctx->ccid2hctx_seqh) {
 			ccid2_pr_debug("out seq=%llu acked=%d time=%lu\n",
-			       	       seqp->ccid2s_seq, seqp->ccid2s_acked,
-				       seqp->ccid2s_sent);
+			       	       (unsigned long long)seqp->ccid2s_seq,
+				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
 		}
 	} while (0);
@@ -480,7 +480,8 @@ static inline void ccid2_new_ack(struct sock *sk,
 		/* first measurement */
 		if (hctx->ccid2hctx_srtt == -1) {
 			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
-			       	       r, jiffies, seqp->ccid2s_seq);
+			       	       r, jiffies,
+				       (unsigned long long)seqp->ccid2s_seq);
 			ccid2_change_srtt(hctx, r);
 			hctx->ccid2hctx_rttvar = r >> 1;
 		} else {
@@ -636,8 +637,9 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			u64 ackno_end_rl;
 
 			dccp_set_seqno(&ackno_end_rl, ackno - rl);
-			ccid2_pr_debug("ackvec start:%llu end:%llu\n", ackno,
-				       ackno_end_rl);
+			ccid2_pr_debug("ackvec start:%llu end:%llu\n",
+				       (unsigned long long)ackno,
+				       (unsigned long long)ackno_end_rl);
 			/* if the seqno we are analyzing is larger than the
 			 * current ackno, then move towards the tail of our
 			 * seqnos.
@@ -672,7 +674,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 					seqp->ccid2s_acked = 1;
 					ccid2_pr_debug("Got ack for %llu\n",
-					       	       seqp->ccid2s_seq);
+						       (unsigned long long)seqp->ccid2s_seq);
 					ccid2_hc_tx_dec_pipe(sk);
 				}
 				if (seqp == hctx->ccid2hctx_seqt) {
@@ -718,7 +720,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		while (1) {
 			if (!seqp->ccid2s_acked) {
 				ccid2_pr_debug("Packet lost: %llu\n",
-					       seqp->ccid2s_seq);
+					       (unsigned long long)seqp->ccid2s_seq);
 				/* XXX need to traverse from tail -> head in
 				 * order to detect multiple congestion events in
 				 * one ack vector.

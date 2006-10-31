@@ -2682,4 +2682,41 @@ u32 selinux_netlbl_socket_getpeersec_dgram(struct sk_buff *skb)
 
 	return peer_sid;
 }
+
+/**
+ * selinux_netlbl_socket_setsockopt - Do not allow users to remove a NetLabel
+ * @sock: the socket
+ * @level: the socket level or protocol
+ * @optname: the socket option name
+ *
+ * Description:
+ * Check the setsockopt() call and if the user is trying to replace the IP
+ * options on a socket and a NetLabel is in place for the socket deny the
+ * access; otherwise allow the access.  Returns zero when the access is
+ * allowed, -EACCES when denied, and other negative values on error.
+ *
+ */
+int selinux_netlbl_socket_setsockopt(struct socket *sock,
+				     int level,
+				     int optname)
+{
+	int rc = 0;
+	struct inode *inode = SOCK_INODE(sock);
+	struct sk_security_struct *sksec = sock->sk->sk_security;
+	struct inode_security_struct *isec = inode->i_security;
+	struct netlbl_lsm_secattr secattr;
+
+	mutex_lock(&isec->lock);
+	if (level == IPPROTO_IP && optname == IP_OPTIONS &&
+	    sksec->nlbl_state == NLBL_LABELED) {
+		netlbl_secattr_init(&secattr);
+		rc = netlbl_socket_getattr(sock, &secattr);
+		if (rc == 0 && (secattr.cache || secattr.mls_lvl_vld))
+			rc = -EACCES;
+		netlbl_secattr_destroy(&secattr);
+	}
+	mutex_unlock(&isec->lock);
+
+	return rc;
+}
 #endif /* CONFIG_NETLABEL */
