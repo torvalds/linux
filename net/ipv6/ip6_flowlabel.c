@@ -627,9 +627,13 @@ static void ip6fl_seq_stop(struct seq_file *seq, void *v)
 	read_unlock_bh(&ip6_fl_lock);
 }
 
-static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
+static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
-	while(fl) {
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
+			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
+	else {
+		struct ip6_flowlabel *fl = v;
 		seq_printf(seq,
 			   "%05X %-1d %-6d %-6d %-6ld %-8ld " NIP6_SEQFMT " %-4d\n",
 			   (unsigned)ntohl(fl->label),
@@ -640,17 +644,7 @@ static void ip6fl_fl_seq_show(struct seq_file *seq, struct ip6_flowlabel *fl)
 			   (long)(fl->expires - jiffies)/HZ,
 			   NIP6(fl->dst),
 			   fl->opt ? fl->opt->opt_nflen : 0);
-		fl = fl->next;
 	}
-}
-
-static int ip6fl_seq_show(struct seq_file *seq, void *v)
-{
-	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
-			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
-	else
-		ip6fl_fl_seq_show(seq, v);
 	return 0;
 }
 
