@@ -150,8 +150,9 @@ static struct gendisk *fake_gendisk[MAX_DEV];
 static struct openflags global_openflags = OPEN_FLAGS;
 
 struct cow {
-	/* This is the backing file, actually */
+	/* backing file name */
 	char *file;
+	/* backing file fd */
 	int fd;
 	unsigned long *bitmap;
 	unsigned long bitmap_len;
@@ -160,6 +161,8 @@ struct cow {
 };
 
 struct ubd {
+	/* name (and fd, below) of the file opened for writing, either the
+	 * backing or the cow file. */
 	char *file;
 	int count;
 	int fd;
