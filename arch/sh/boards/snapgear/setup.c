@@ -68,6 +68,13 @@ module_init(eraseconfig_init);
  * IRL3 = crypto
  */
 
+static struct ipr_data snapgear_ipr_map[] = {
+	make_ipr_irq(IRL0_IRQ, IRL0_IPR_ADDR, IRL0_IPR_POS, IRL0_PRIORITY);
+	make_ipr_irq(IRL1_IRQ, IRL1_IPR_ADDR, IRL1_IPR_POS, IRL1_PRIORITY);
+	make_ipr_irq(IRL2_IRQ, IRL2_IPR_ADDR, IRL2_IPR_POS, IRL2_PRIORITY);
+	make_ipr_irq(IRL3_IRQ, IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY);
+};
+
 static void __init init_snapgear_IRQ(void)
 {
 	/* enable individual interrupt mode for externals */
@@ -75,10 +82,7 @@ static void __init init_snapgear_IRQ(void)
 
 	printk("Setup SnapGear IRQ/IPR ...\n");
 
-	make_ipr_irq(IRL0_IRQ, IRL0_IPR_ADDR, IRL0_IPR_POS, IRL0_PRIORITY);
-	make_ipr_irq(IRL1_IRQ, IRL1_IPR_ADDR, IRL1_IPR_POS, IRL1_PRIORITY);
-	make_ipr_irq(IRL2_IRQ, IRL2_IPR_ADDR, IRL2_IPR_POS, IRL2_PRIORITY);
-	make_ipr_irq(IRL3_IRQ, IRL3_IPR_ADDR, IRL3_IPR_POS, IRL3_PRIORITY);
+	make_ipr_irq(snapgear_ipr_map, ARRAY_SIZE(snapgear_ipr_map));
 }
 
 /*

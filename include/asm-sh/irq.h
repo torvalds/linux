@@ -327,11 +327,17 @@ extern unsigned short *irq_mask_register;
  */
 void init_IRQ_pint(void);
 
+struct ipr_data {
+	unsigned int irq;
+	unsigned int addr;	/* Address of Interrupt Priority Register */
+	int shift;		/* Shifts of the 16-bit data */
+	int priority;		/* The priority */
+};
+
 /*
  * Function for "on chip support modules".
  */
-extern void make_ipr_irq(unsigned int irq, unsigned int addr,
-			 int pos,  int priority);
+extern void make_ipr_irq(struct ipr_data *table, unsigned int nr_irqs);
 extern void make_imask_irq(unsigned int irq);
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7300)
