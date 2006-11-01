@@ -702,6 +702,8 @@ extern int sata_phy_debounce(struct ata_port *ap, const unsigned long *param);
 extern int sata_phy_resume(struct ata_port *ap, const unsigned long *param);
 extern int ata_std_prereset(struct ata_port *ap);
 extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
+extern int sata_port_hardreset(struct ata_port *ap,
+			       const unsigned long *timing);
 extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
