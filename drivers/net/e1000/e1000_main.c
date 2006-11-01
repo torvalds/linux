@@ -103,6 +103,9 @@ static struct pci_device_id e1000_pci_tbl[] = {
 	INTEL_E1000_ETHERNET_DEVICE(0x10B9),
 	INTEL_E1000_ETHERNET_DEVICE(0x10BA),
 	INTEL_E1000_ETHERNET_DEVICE(0x10BB),
+	INTEL_E1000_ETHERNET_DEVICE(0x10BC),
+	INTEL_E1000_ETHERNET_DEVICE(0x10C4),
+	INTEL_E1000_ETHERNET_DEVICE(0x10C5),
 	/* required last entry */
 	{0,}
 };
@@ -961,6 +964,7 @@ e1000_probe(struct pci_dev *pdev,
 		break;
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 	case E1000_DEV_ID_82571EB_QUAD_COPPER:
+	case E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE:
 		/* if quad port adapter, disable WoL on all but port A */
 		if (global_quad_port_a != 0)
 			adapter->eeprom_wol = 0;
