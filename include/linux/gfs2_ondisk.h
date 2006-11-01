@@ -322,10 +322,6 @@ struct gfs2_dinode {
 };
 
 struct gfs2_dinode_host {
-	struct gfs2_meta_header_host di_header;
-
-	struct gfs2_inum_host di_num;
-
 	__u32 di_mode;	/* mode of file */
 	__u32 di_uid;	/* owner's user id */
 	__u32 di_gid;	/* owner's group id */
@@ -528,7 +524,6 @@ struct gfs2_quota_change_host {
 
 extern void gfs2_inum_in(struct gfs2_inum_host *no, const void *buf);
 extern void gfs2_inum_out(const struct gfs2_inum_host *no, void *buf);
-extern void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf);
 extern void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf);
 extern void gfs2_rindex_in(struct gfs2_rindex_host *ri, const void *buf);
 extern void gfs2_rindex_out(const struct gfs2_rindex_host *ri, void *buf);

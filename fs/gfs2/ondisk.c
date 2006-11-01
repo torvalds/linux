@@ -56,7 +56,7 @@ static void gfs2_inum_print(const struct gfs2_inum_host *no)
 	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);
 }
 
-void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf)
+static void gfs2_meta_header_in(struct gfs2_meta_header_host *mh, const void *buf)
 {
 	const struct gfs2_meta_header *str = buf;
 
@@ -72,13 +72,6 @@ static void gfs2_meta_header_out(const struct gfs2_meta_header_host *mh, void *b
 	str->mh_magic = cpu_to_be32(mh->mh_magic);
 	str->mh_type = cpu_to_be32(mh->mh_type);
 	str->mh_format = cpu_to_be32(mh->mh_format);
-}
-
-static void gfs2_meta_header_print(const struct gfs2_meta_header_host *mh)
-{
-	pv(mh, mh_magic, "0x%.8X");
-	pv(mh, mh_type, "%u");
-	pv(mh, mh_format, "%u");
 }
 
 void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
@@ -160,8 +153,13 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	const struct gfs2_dinode_host *di = &ip->i_di;
 	struct gfs2_dinode *str = buf;
 
-	gfs2_meta_header_out(&di->di_header, buf);
-	gfs2_inum_out(&di->di_num, (char *)&str->di_num);
+	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
+	str->di_header.__pad0 = 0;
+	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
+	str->di_header.__pad1 = 0;
+
+	gfs2_inum_out(&ip->i_num, &str->di_num);
 
 	str->di_mode = cpu_to_be32(di->di_mode);
 	str->di_uid = cpu_to_be32(di->di_uid);
@@ -187,15 +185,13 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_entries = cpu_to_be32(di->di_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
-
 }
 
 void gfs2_dinode_print(const struct gfs2_inode *ip)
 {
 	const struct gfs2_dinode_host *di = &ip->i_di;
 
-	gfs2_meta_header_print(&di->di_header);
-	gfs2_inum_print(&di->di_num);
+	gfs2_inum_print(&ip->i_num);
 
 	pv(di, di_mode, "0%o");
 	pv(di, di_uid, "%u");

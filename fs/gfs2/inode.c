@@ -208,13 +208,18 @@ fail:
 	return ERR_PTR(error);
 }
 
-static void gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
+static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
 	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
 
-	gfs2_meta_header_in(&di->di_header, buf);
-	gfs2_inum_in(&di->di_num, &str->di_num);
+	if (ip->i_num.no_addr != be64_to_cpu(str->di_num.no_addr)) {
+		if (gfs2_consist_inode(ip))
+			gfs2_dinode_print(ip);
+		return -EIO;
+	}
+	if (ip->i_num.no_formal_ino != be64_to_cpu(str->di_num.no_formal_ino))
+		return -ESTALE;
 
 	di->di_mode = be32_to_cpu(str->di_mode);
 	di->di_uid = be32_to_cpu(str->di_uid);
@@ -240,6 +245,7 @@ static void gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
+	return 0;
 }
 
 /**
@@ -263,21 +269,12 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	gfs2_dinode_in(ip, dibh->b_data);
+	error = gfs2_dinode_in(ip, dibh->b_data);
 
 	brelse(dibh);
-
-	if (ip->i_num.no_addr != ip->i_di.di_num.no_addr) {
-		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(ip);
-		return -EIO;
-	}
-	if (ip->i_num.no_formal_ino != ip->i_di.di_num.no_formal_ino)
-		return -ESTALE;
-
 	ip->i_vn = ip->i_gl->gl_vn;
 
-	return 0;
+	return error;
 }
 
 int gfs2_dinode_dealloc(struct gfs2_inode *ip)
