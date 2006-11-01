@@ -711,9 +711,9 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (!error) {
 		if (er->er_flags & GFS2_ERF_MODE) {
 			gfs2_assert_withdraw(GFS2_SB(&ip->i_inode),
-					    (ip->i_di.di_mode & S_IFMT) ==
+					    (ip->i_inode.i_mode & S_IFMT) ==
 					    (er->er_mode & S_IFMT));
-			ip->i_di.di_mode = er->er_mode;
+			ip->i_inode.i_mode = er->er_mode;
 		}
 		ip->i_di.di_ctime = get_seconds();
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
@@ -847,8 +847,8 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	if (er->er_flags & GFS2_ERF_MODE) {
 		gfs2_assert_withdraw(GFS2_SB(&ip->i_inode),
-			(ip->i_di.di_mode & S_IFMT) == (er->er_mode & S_IFMT));
-		ip->i_di.di_mode = er->er_mode;
+			(ip->i_inode.i_mode & S_IFMT) == (er->er_mode & S_IFMT));
+		ip->i_inode.i_mode = er->er_mode;
 	}
 	ip->i_di.di_ctime = get_seconds();
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);

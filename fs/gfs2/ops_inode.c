@@ -144,7 +144,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	int alloc_required;
 	int error;
 
-	if (S_ISDIR(ip->i_di.di_mode))
+	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
@@ -220,7 +220,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	error = gfs2_dir_add(dir, &dentry->d_name, &ip->i_num,
-			     IF2DT(ip->i_di.di_mode));
+			     IF2DT(inode->i_mode));
 	if (error)
 		goto out_end_trans;
 
@@ -564,11 +564,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	/* Make sure we aren't trying to move a dirctory into it's subdir */
 
-	if (S_ISDIR(ip->i_di.di_mode) && odip != ndip) {
+	if (S_ISDIR(ip->i_inode.i_mode) && odip != ndip) {
 		dir_rename = 1;
 
-		error = gfs2_glock_nq_init(sdp->sd_rename_gl,
-					   LM_ST_EXCLUSIVE, 0,
+		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE, 0,
 					   &r_gh);
 		if (error)
 			goto out;
@@ -609,7 +608,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock;
 
-		if (S_ISDIR(nip->i_di.di_mode)) {
+		if (S_ISDIR(nip->i_inode.i_mode)) {
 			if (nip->i_di.di_entries < 2) {
 				if (gfs2_consist_inode(nip))
 					gfs2_dinode_print(nip);
@@ -646,7 +645,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 				error = -EFBIG;
 				goto out_gunlock;
 			}
-			if (S_ISDIR(ip->i_di.di_mode) &&
+			if (S_ISDIR(ip->i_inode.i_mode) &&
 			    ndip->i_di.di_nlink == (u32)-1) {
 				error = -EMLINK;
 				goto out_gunlock;
@@ -701,7 +700,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	/* Remove the target file, if it exists */
 
 	if (nip) {
-		if (S_ISDIR(nip->i_di.di_mode))
+		if (S_ISDIR(nip->i_inode.i_mode))
 			error = gfs2_rmdiri(ndip, &ndentry->d_name, nip);
 		else {
 			error = gfs2_dir_del(ndip, &ndentry->d_name);
@@ -743,7 +742,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		goto out_end_trans;
 
 	error = gfs2_dir_add(ndir, &ndentry->d_name, &ip->i_num,
-			     IF2DT(ip->i_di.di_mode));
+			     IF2DT(ip->i_inode.i_mode));
 	if (error)
 		goto out_end_trans;
 

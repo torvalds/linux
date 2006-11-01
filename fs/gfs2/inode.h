@@ -22,7 +22,7 @@ static inline int gfs2_is_jdata(struct gfs2_inode *ip)
 
 static inline int gfs2_is_dir(struct gfs2_inode *ip)
 {
-	return S_ISDIR(ip->i_di.di_mode);
+	return S_ISDIR(ip->i_inode.i_mode);
 }
 
 void gfs2_inode_attr_in(struct gfs2_inode *ip);

@@ -76,7 +76,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	if (!gfs2_inum_equal(&ip->i_num, &inum))
 		goto invalid_gunlock;
 
-	if (IF2DT(ip->i_di.di_mode) != type) {
+	if (IF2DT(ip->i_inode.i_mode) != type) {
 		gfs2_consist_inode(dip);
 		goto fail_gunlock;
 	}

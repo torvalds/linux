@@ -1109,7 +1109,7 @@ int gfs2_truncatei(struct gfs2_inode *ip, u64 size)
 {
 	int error;
 
-	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), S_ISREG(ip->i_di.di_mode)))
+	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), S_ISREG(ip->i_inode.i_mode)))
 		return -EINVAL;
 
 	if (size > ip->i_di.di_size)

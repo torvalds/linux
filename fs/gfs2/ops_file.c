@@ -425,7 +425,7 @@ static int gfs2_open(struct inode *inode, struct file *file)
 	gfs2_assert_warn(GFS2_SB(inode), !file->private_data);
 	file->private_data = fp;
 
-	if (S_ISREG(ip->i_di.di_mode)) {
+	if (S_ISREG(ip->i_inode.i_mode)) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
 		if (error)
@@ -515,7 +515,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
-	if ((ip->i_di.di_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
+	if ((ip->i_inode.i_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
 		return -ENOLCK;
 
 	if (sdp->sd_args.ar_localflocks) {
@@ -617,7 +617,7 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
-	if ((ip->i_di.di_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
+	if ((ip->i_inode.i_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
 		return -ENOLCK;
 
 	if (sdp->sd_args.ar_localflocks)

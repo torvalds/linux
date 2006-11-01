@@ -92,7 +92,7 @@ static void gfs2_pte_inval(struct gfs2_glock *gl)
 
 	ip = gl->gl_object;
 	inode = &ip->i_inode;
-	if (!ip || !S_ISREG(ip->i_di.di_mode))
+	if (!ip || !S_ISREG(inode->i_mode))
 		return;
 
 	if (!test_bit(GIF_PAGED, &ip->i_flags))
@@ -119,7 +119,7 @@ static void gfs2_page_inval(struct gfs2_glock *gl)
 
 	ip = gl->gl_object;
 	inode = &ip->i_inode;
-	if (!ip || !S_ISREG(ip->i_di.di_mode))
+	if (!ip || !S_ISREG(inode->i_mode))
 		return;
 
 	truncate_inode_pages(inode->i_mapping, 0);
@@ -142,7 +142,7 @@ static void gfs2_page_wait(struct gfs2_glock *gl)
 	struct address_space *mapping = inode->i_mapping;
 	int error;
 
-	if (!S_ISREG(ip->i_di.di_mode))
+	if (!S_ISREG(inode->i_mode))
 		return;
 
 	error = filemap_fdatawait(mapping);
@@ -164,7 +164,7 @@ static void gfs2_page_writeback(struct gfs2_glock *gl)
 	struct inode *inode = &ip->i_inode;
 	struct address_space *mapping = inode->i_mapping;
 
-	if (!S_ISREG(ip->i_di.di_mode))
+	if (!S_ISREG(inode->i_mode))
 		return;
 
 	filemap_fdatawrite(mapping);

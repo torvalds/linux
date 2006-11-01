@@ -51,7 +51,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	struct gfs2_dinode_host *di = &ip->i_di;
 
 	inode->i_ino = ip->i_num.no_addr;
-	inode->i_mode = di->di_mode;
 	inode->i_nlink = di->di_nlink;
 	inode->i_uid = di->di_uid;
 	inode->i_gid = di->di_gid;
@@ -88,9 +87,6 @@ void gfs2_inode_attr_out(struct gfs2_inode *ip)
 {
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_dinode_host *di = &ip->i_di;
-	gfs2_assert_withdraw(GFS2_SB(inode),
-		(di->di_mode & S_IFMT) == (inode->i_mode & S_IFMT));
-	di->di_mode = inode->i_mode;
 	di->di_uid = inode->i_uid;
 	di->di_gid = inode->i_gid;
 	di->di_atime = inode->i_atime.tv_sec;
@@ -210,9 +206,9 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	if (ip->i_num.no_formal_ino != be64_to_cpu(str->di_num.no_formal_ino))
 		return -ESTALE;
 
-	di->di_mode = be32_to_cpu(str->di_mode);
+	ip->i_inode.i_mode = be32_to_cpu(str->di_mode);
 	ip->i_inode.i_rdev = 0;
-	switch (di->di_mode & S_IFMT) {
+	switch (ip->i_inode.i_mode & S_IFMT) {
 	case S_IFBLK:
 	case S_IFCHR:
 		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
@@ -620,7 +616,7 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 			       unsigned int *uid, unsigned int *gid)
 {
 	if (GFS2_SB(&dip->i_inode)->sd_args.ar_suiddir &&
-	    (dip->i_di.di_mode & S_ISUID) && dip->i_di.di_uid) {
+	    (dip->i_inode.i_mode & S_ISUID) && dip->i_di.di_uid) {
 		if (S_ISDIR(*mode))
 			*mode |= S_ISUID;
 		else if (dip->i_di.di_uid != current->fsuid)
@@ -629,7 +625,7 @@ static void munge_mode_uid_gid(struct gfs2_inode *dip, unsigned int *mode,
 	} else
 		*uid = current->fsuid;
 
-	if (dip->i_di.di_mode & S_ISGID) {
+	if (dip->i_inode.i_mode & S_ISGID) {
 		if (S_ISDIR(*mode))
 			*mode |= S_ISGID;
 		*gid = dip->i_di.di_gid;
@@ -810,7 +806,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 			goto fail_quota_locks;
 	}
 
-	error = gfs2_dir_add(&dip->i_inode, name, &ip->i_num, IF2DT(ip->i_di.di_mode));
+	error = gfs2_dir_add(&dip->i_inode, name, &ip->i_num, IF2DT(ip->i_inode.i_mode));
 	if (error)
 		goto fail_end_trans;
 
@@ -1053,7 +1049,7 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 	if (IS_IMMUTABLE(&ip->i_inode) || IS_APPEND(&ip->i_inode))
 		return -EPERM;
 
-	if ((dip->i_di.di_mode & S_ISVTX) &&
+	if ((dip->i_inode.i_mode & S_ISVTX) &&
 	    dip->i_di.di_uid != current->fsuid &&
 	    ip->i_di.di_uid != current->fsuid && !capable(CAP_FOWNER))
 		return -EPERM;
@@ -1072,7 +1068,7 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 	if (!gfs2_inum_equal(&inum, &ip->i_num))
 		return -ENOENT;
 
-	if (IF2DT(ip->i_di.di_mode) != type) {
+	if (IF2DT(ip->i_inode.i_mode) != type) {
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}

@@ -498,7 +498,6 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		di->di_size = cpu_to_be64(inode->i_size);
 	}
 
-	di->di_mode = cpu_to_be32(inode->i_mode);
 	di->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
 	di->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
 	di->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);

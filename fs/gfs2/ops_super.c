@@ -407,7 +407,7 @@ static void gfs2_delete_inode(struct inode *inode)
 	if (error)
 		goto out_uninit;
 
-	if (S_ISDIR(ip->i_di.di_mode) &&
+	if (S_ISDIR(inode->i_mode) &&
 	    (ip->i_di.di_flags & GFS2_DIF_EXHASH)) {
 		error = gfs2_dir_exhash_dealloc(ip);
 		if (error)

@@ -2078,7 +2078,7 @@ static int dump_inode(struct gfs2_inode *ip)
 	printk(KERN_INFO "    num = %llu %llu\n",
 		    (unsigned long long)ip->i_num.no_formal_ino,
 		    (unsigned long long)ip->i_num.no_addr);
-	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_di.di_mode));
+	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_inode.i_mode));
 	printk(KERN_INFO "    i_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &ip->i_flags))
