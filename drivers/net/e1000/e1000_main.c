@@ -3842,12 +3842,11 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				/* save the skb in buffer_info as good */
 				buffer_info->skb = skb;
 				skb = new_skb;
-				skb_put(skb, length);
 			}
-		} else
-			skb_put(skb, length);
-
+			/* else just continue with the old one */
+		}
 		/* end copybreak code */
+		skb_put(skb, length);
 
 		/* Receive Checksum Offload */
 		e1000_rx_checksum(adapter,
