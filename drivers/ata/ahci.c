@@ -167,9 +167,8 @@ enum {
 	AHCI_FLAG_MSI		= (1 << 0),
 
 	/* ap->flags bits */
-	AHCI_FLAG_RESET_NEEDS_CLO	= (1 << 24),
-	AHCI_FLAG_NO_NCQ		= (1 << 25),
-	AHCI_FLAG_IGN_IRQ_IF_ERR	= (1 << 26), /* ignore IRQ_IF_ERR */
+	AHCI_FLAG_NO_NCQ		= (1 << 24),
+	AHCI_FLAG_IGN_IRQ_IF_ERR	= (1 << 25), /* ignore IRQ_IF_ERR */
 };
 
 struct ahci_cmd_hdr {
@@ -291,8 +290,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.sht		= &ahci_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  ATA_FLAG_SKIP_D2H_BSY |
-				  AHCI_FLAG_RESET_NEEDS_CLO | AHCI_FLAG_NO_NCQ,
+				  ATA_FLAG_SKIP_D2H_BSY | AHCI_FLAG_NO_NCQ,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &ahci_ops,
@@ -727,17 +725,6 @@ static int ahci_clo(struct ata_port *ap)
 		return -EIO;
 
 	return 0;
-}
-
-static int ahci_prereset(struct ata_port *ap)
-{
-	if ((ap->flags & AHCI_FLAG_RESET_NEEDS_CLO) &&
-	    (ata_busy_wait(ap, ATA_BUSY, 1000) & ATA_BUSY)) {
-		/* ATA_BUSY hasn't cleared, so send a CLO */
-		ahci_clo(ap);
-	}
-
-	return ata_std_prereset(ap);
 }
 
 static int ahci_softreset(struct ata_port *ap, unsigned int *class)
@@ -1196,7 +1183,7 @@ static void ahci_error_handler(struct ata_port *ap)
 	}
 
 	/* perform recovery */
-	ata_do_eh(ap, ahci_prereset, ahci_softreset, ahci_hardreset,
+	ata_do_eh(ap, ata_std_prereset, ahci_softreset, ahci_hardreset,
 		  ahci_postreset);
 }
 
