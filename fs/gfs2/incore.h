@@ -217,6 +217,7 @@ struct gfs2_alloc {
 };
 
 enum {
+	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
 	GIF_PAGED		= 2,
 	GIF_SW_PAGED		= 3,
@@ -228,7 +229,6 @@ struct gfs2_inode {
 
 	unsigned long i_flags;		/* GIF_... */
 
-	u64 i_vn;
 	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */
 
 	struct gfs2_glock *i_gl; /* Move into i_gh? */

@@ -844,7 +844,7 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	struct gfs2_holder i_gh;
 	int error;
 
-	if (ip->i_vn == ip->i_gl->gl_vn)
+	if (!test_bit(GIF_INVALID, &ip->i_flags))
 		return generic_permission(inode, mask, gfs2_check_acl);
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);

@@ -305,8 +305,9 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 	int data = (flags & DIO_DATA);
 
 	if (meta) {
+		struct gfs2_inode *ip = gl->gl_object;
 		gfs2_meta_inval(gl);
-		gl->gl_vn++;
+		set_bit(GIF_INVALID, &ip->i_flags);
 	}
 	if (data)
 		gfs2_page_inval(gl);
@@ -351,7 +352,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 	if (!ip)
 		return 0;
 
-	if (ip->i_vn != gl->gl_vn) {
+	if (test_bit(GIF_INVALID, &ip->i_flags)) {
 		error = gfs2_inode_refresh(ip);
 		if (error)
 			return error;

@@ -145,7 +145,7 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, struct gfs2_inum_host *i
 		if (unlikely(error))
 			goto fail_put;
 
-		ip->i_vn = ip->i_gl->gl_vn - 1;
+		set_bit(GIF_INVALID, &ip->i_flags);
 		error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 		if (unlikely(error))
 			goto fail_iopen;
@@ -242,7 +242,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 	error = gfs2_dinode_in(ip, dibh->b_data);
 	brelse(dibh);
-	ip->i_vn = ip->i_gl->gl_vn;
+	clear_bit(GIF_INVALID, &ip->i_flags);
 
 	return error;
 }
