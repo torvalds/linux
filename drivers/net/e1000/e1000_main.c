@@ -1580,8 +1580,11 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	e1000_config_collision_dist(hw);
 
 	/* Setup Transmit Descriptor Settings for eop descriptor */
-	adapter->txd_cmd = E1000_TXD_CMD_IDE | E1000_TXD_CMD_EOP |
-		E1000_TXD_CMD_IFCS;
+	adapter->txd_cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_IFCS;
+
+	/* only set IDE if we are delaying interrupts using the timers */
+	if (adapter->tx_int_delay)
+		adapter->txd_cmd |= E1000_TXD_CMD_IDE;
 
 	if (hw->mac_type < e1000_82543)
 		adapter->txd_cmd |= E1000_TXD_CMD_RPS;
