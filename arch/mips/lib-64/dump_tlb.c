@@ -149,7 +149,7 @@ void dump_list_process(struct task_struct *t, void *address)
 	printk("Addr                 == %08lx\n", addr);
 	printk("tasks->mm.pgd        == %08lx\n", (unsigned long) t->mm->pgd);
 
-	page_dir = pgd_offset(t->mm, 0);
+	page_dir = pgd_offset(t->mm, 0UL);
 	printk("page_dir == %016lx\n", (unsigned long) page_dir);
 
 	pgd = pgd_offset(t->mm, addr);
@@ -184,13 +184,13 @@ void dump_list_current(void *address)
 	dump_list_process(current, address);
 }
 
-unsigned int vtop(void *address)
+unsigned long vtop(void *address)
 {
 	pgd_t	*pgd;
 	pud_t	*pud;
 	pmd_t	*pmd;
 	pte_t	*pte;
-	unsigned int addr, paddr;
+	unsigned long addr, paddr;
 
 	addr = (unsigned long) address;
 	pgd = pgd_offset(current->mm, addr);
