@@ -128,11 +128,13 @@ typedef enum {
 /* PCI bus widths */
 typedef enum {
     e1000_bus_width_unknown = 0,
+    /* These PCIe values should literally match the possible return values
+     * from config space */
+    e1000_bus_width_pciex_1 = 1,
+    e1000_bus_width_pciex_2 = 2,
+    e1000_bus_width_pciex_4 = 4,
     e1000_bus_width_32,
     e1000_bus_width_64,
-    e1000_bus_width_pciex_1,
-    e1000_bus_width_pciex_2,
-    e1000_bus_width_pciex_4,
     e1000_bus_width_reserved
 } e1000_bus_width;
 
