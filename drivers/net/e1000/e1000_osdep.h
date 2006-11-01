@@ -107,16 +107,16 @@ typedef enum {
 
 #define E1000_WRITE_FLUSH(a) E1000_READ_REG(a, STATUS)
 
-#define E1000_WRITE_ICH8_REG(a, reg, value) ( \
+#define E1000_WRITE_ICH_FLASH_REG(a, reg, value) ( \
     writel((value), ((a)->flash_address + reg)))
 
-#define E1000_READ_ICH8_REG(a, reg) ( \
+#define E1000_READ_ICH_FLASH_REG(a, reg) ( \
     readl((a)->flash_address + reg))
 
-#define E1000_WRITE_ICH8_REG16(a, reg, value) ( \
+#define E1000_WRITE_ICH_FLASH_REG16(a, reg, value) ( \
     writew((value), ((a)->flash_address + reg)))
 
-#define E1000_READ_ICH8_REG16(a, reg) ( \
+#define E1000_READ_ICH_FLASH_REG16(a, reg) ( \
     readw((a)->flash_address + reg))
 
 #endif /* _E1000_OSDEP_H_ */
