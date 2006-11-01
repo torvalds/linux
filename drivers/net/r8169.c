@@ -1286,11 +1286,6 @@ static void rtl8169_hw_phy_config(struct net_device *dev)
 	/* Shazam ! */
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_04) {
-		mdio_write(ioaddr, 31, 0x0001);
-		mdio_write(ioaddr,  9, 0x273a);
-		mdio_write(ioaddr, 14, 0x7bfb);
-		mdio_write(ioaddr, 27, 0x841e);
-
 		mdio_write(ioaddr, 31, 0x0002);
 		mdio_write(ioaddr,  1, 0x90d0);
 		mdio_write(ioaddr, 31, 0x0000);
