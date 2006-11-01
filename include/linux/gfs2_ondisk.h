@@ -331,8 +331,6 @@ struct gfs2_dinode_host {
 	__u64 di_atime;	/* time last accessed */
 	__u64 di_mtime;	/* time last modified */
 	__u64 di_ctime;	/* time last changed */
-	__u32 di_major;	/* device major number */
-	__u32 di_minor;	/* device minor number */
 
 	/* This section varies from gfs1. Padding added to align with
          * remainder of dinode

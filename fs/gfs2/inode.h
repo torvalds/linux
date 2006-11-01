@@ -37,7 +37,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			   int is_root, struct nameidata *nd);
 struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
-			   unsigned int mode);
+			   unsigned int mode, dev_t dev);
 int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 		struct gfs2_inode *ip);
 int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,

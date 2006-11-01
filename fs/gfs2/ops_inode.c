@@ -59,7 +59,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
 	for (;;) {
-		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode);
+		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode, 0);
 		if (!IS_ERR(inode)) {
 			gfs2_trans_end(sdp);
 			if (dip->i_alloc.al_rgd)
@@ -326,7 +326,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO);
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO, 0);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
@@ -379,7 +379,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode);
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode, 0);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
@@ -504,45 +504,17 @@ out:
 static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 		      dev_t dev)
 {
-	struct gfs2_inode *dip = GFS2_I(dir), *ip;
+	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
-	struct buffer_head *dibh;
-	u32 major = 0, minor = 0;
-	int error;
-
-	switch (mode & S_IFMT) {
-	case S_IFBLK:
-	case S_IFCHR:
-		major = MAJOR(dev);
-		minor = MINOR(dev);
-		break;
-	case S_IFIFO:
-	case S_IFSOCK:
-		break;
-	default:
-		return -EOPNOTSUPP;
-	};
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	inode = gfs2_createi(ghs, &dentry->d_name, mode);
+	inode = gfs2_createi(ghs, &dentry->d_name, mode, dev);
 	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
 		return PTR_ERR(inode);
-	}
-
-	ip = ghs[1].gh_gl->gl_object;
-
-	ip->i_di.di_major = major;
-	ip->i_di.di_minor = minor;
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-
-	if (!gfs2_assert_withdraw(sdp, !error)) {
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
 	}
 
 	gfs2_trans_end(sdp);

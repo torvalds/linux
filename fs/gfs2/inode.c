@@ -51,17 +51,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	struct gfs2_dinode_host *di = &ip->i_di;
 
 	inode->i_ino = ip->i_num.no_addr;
-
-	switch (di->di_mode & S_IFMT) {
-	case S_IFBLK:
-	case S_IFCHR:
-		inode->i_rdev = MKDEV(di->di_major, di->di_minor);
-		break;
-	default:
-		inode->i_rdev = 0;
-		break;
-	};
-
 	inode->i_mode = di->di_mode;
 	inode->i_nlink = di->di_nlink;
 	inode->i_uid = di->di_uid;
@@ -222,6 +211,15 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		return -ESTALE;
 
 	di->di_mode = be32_to_cpu(str->di_mode);
+	ip->i_inode.i_rdev = 0;
+	switch (di->di_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		ip->i_inode.i_rdev = MKDEV(be32_to_cpu(str->di_major),
+					   be32_to_cpu(str->di_minor));
+		break;
+	};
+
 	di->di_uid = be32_to_cpu(str->di_uid);
 	di->di_gid = be32_to_cpu(str->di_gid);
 	di->di_nlink = be32_to_cpu(str->di_nlink);
@@ -230,8 +228,6 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_atime = be64_to_cpu(str->di_atime);
 	di->di_mtime = be64_to_cpu(str->di_mtime);
 	di->di_ctime = be64_to_cpu(str->di_ctime);
-	di->di_major = be32_to_cpu(str->di_major);
-	di->di_minor = be32_to_cpu(str->di_minor);
 
 	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
 	di->di_goal_data = be64_to_cpu(str->di_goal_data);
@@ -270,7 +266,6 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 	}
 
 	error = gfs2_dinode_in(ip, dibh->b_data);
-
 	brelse(dibh);
 	ip->i_vn = ip->i_gl->gl_vn;
 
@@ -684,7 +679,7 @@ out:
 static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 			const struct gfs2_inum_host *inum, unsigned int mode,
 			unsigned int uid, unsigned int gid,
-			const u64 *generation)
+			const u64 *generation, dev_t dev)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_dinode *di;
@@ -705,7 +700,8 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_size = cpu_to_be64(0);
 	di->di_blocks = cpu_to_be64(1);
 	di->di_atime = di->di_mtime = di->di_ctime = cpu_to_be64(get_seconds());
-	di->di_major = di->di_minor = cpu_to_be32(0);
+	di->di_major = cpu_to_be32(MAJOR(dev));
+	di->di_minor = cpu_to_be32(MINOR(dev));
 	di->di_goal_meta = di->di_goal_data = cpu_to_be64(inum->no_addr);
 	di->di_generation = cpu_to_be64(*generation);
 	di->di_flags = cpu_to_be32(0);
@@ -740,7 +736,7 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 
 static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		       unsigned int mode, const struct gfs2_inum_host *inum,
-		       const u64 *generation)
+		       const u64 *generation, dev_t dev)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	unsigned int uid, gid;
@@ -761,7 +757,7 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	if (error)
 		goto out_quota;
 
-	init_dinode(dip, gl, inum, mode, uid, gid, generation);
+	init_dinode(dip, gl, inum, mode, uid, gid, generation, dev);
 	gfs2_quota_change(dip, +1, uid, gid);
 	gfs2_trans_end(sdp);
 
@@ -892,7 +888,7 @@ static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
  */
 
 struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
-			   unsigned int mode)
+			   unsigned int mode, dev_t dev)
 {
 	struct inode *inode;
 	struct gfs2_inode *dip = ghs->gh_gl->gl_object;
@@ -950,7 +946,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 			goto fail_gunlock;
 	}
 
-	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation);
+	error = make_dinode(dip, ghs[1].gh_gl, mode, &inum, &generation, dev);
 	if (error)
 		goto fail_gunlock2;
 

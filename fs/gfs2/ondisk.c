@@ -170,8 +170,6 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_atime = cpu_to_be64(di->di_atime);
 	str->di_mtime = cpu_to_be64(di->di_mtime);
 	str->di_ctime = cpu_to_be64(di->di_ctime);
-	str->di_major = cpu_to_be32(di->di_major);
-	str->di_minor = cpu_to_be32(di->di_minor);
 
 	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
 	str->di_goal_data = cpu_to_be64(di->di_goal_data);
@@ -202,8 +200,6 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  di_atime = %lld\n", (long long)di->di_atime);
 	printk(KERN_INFO "  di_mtime = %lld\n", (long long)di->di_mtime);
 	printk(KERN_INFO "  di_ctime = %lld\n", (long long)di->di_ctime);
-	pv(di, di_major, "%u");
-	pv(di, di_minor, "%u");
 
 	printk(KERN_INFO "  di_goal_meta = %llu\n", (unsigned long long)di->di_goal_meta);
 	printk(KERN_INFO "  di_goal_data = %llu\n", (unsigned long long)di->di_goal_data);
