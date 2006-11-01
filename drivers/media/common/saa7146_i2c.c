@@ -189,13 +189,21 @@ static int saa7146_i2c_writeout(struct saa7146_dev *dev, u32* dword, int short_d
 		saa7146_write(dev, I2C_TRANSFER, *dword);
 
 		dev->i2c_op = 1;
+		SAA7146_ISR_CLEAR(dev, MASK_16|MASK_17);
 		SAA7146_IER_ENABLE(dev, MASK_16|MASK_17);
 		saa7146_write(dev, MC2, (MASK_00 | MASK_16));
 
-		wait_event_interruptible(dev->i2c_wq, dev->i2c_op == 0);
-		if (signal_pending (current)) {
-			/* a signal arrived */
-			return -ERESTARTSYS;
+		timeout = HZ/100 + 1; /* 10ms */
+		timeout = wait_event_interruptible_timeout(dev->i2c_wq, dev->i2c_op == 0, timeout);
+		if (timeout == -ERESTARTSYS || dev->i2c_op) {
+			SAA7146_IER_DISABLE(dev, MASK_16|MASK_17);
+			SAA7146_ISR_CLEAR(dev, MASK_16|MASK_17);
+			if (timeout == -ERESTARTSYS)
+				/* a signal arrived */
+				return -ERESTARTSYS;
+
+			printk(KERN_WARNING "saa7146_i2c_writeout: timed out waiting for end of xfer\n");
+			return -EIO;
 		}
 		status = saa7146_read(dev, I2C_STATUS);
 	} else {
