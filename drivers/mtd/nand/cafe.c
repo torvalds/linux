@@ -159,6 +159,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		/* Second half of a command we already calculated */
 		cafe_writel(cafe, cafe->ctl2 | 0x100 | command, NAND_CTRL2);
 		ctl1 = cafe->ctl1;
+		cafe->ctl2 &= ~(1<<30);
 		cafe_dev_dbg(&cafe->pdev->dev, "Continue command, ctl1 %08x, #data %d\n",
 			  cafe->ctl1, cafe->nr_data);
 		goto do_command;
@@ -219,7 +220,6 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		/* Ignore the first command of a pair; the hardware 
 		   deals with them both at once, later */
 		cafe->ctl1 = ctl1;
-		cafe->ctl2 = 0;
 		cafe_dev_dbg(&cafe->pdev->dev, "Setup for delayed command, ctl1 %08x, dlen %x\n",
 			  cafe->ctl1, cafe->datalen);
 		return;
@@ -281,9 +281,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			     command, 500000-c, irqs, cafe_readl(cafe, NAND_IRQ));
 	}
 
-
-	cafe->ctl2 &= ~(1<<8);
-	cafe->ctl2 &= ~(1<<30);
+	WARN_ON(cafe->ctl2 & (1<<30));
 
 	switch (command) {
 
@@ -471,9 +469,7 @@ static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
-	cafe->ctl2 |= (1<<27) | (1<<30);
-	if (mtd->writesize == 2048)
-		cafe->ctl2 |= (1<<29);
+	cafe->ctl2 |= (1<<30);
 }
 
 static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
