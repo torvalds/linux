@@ -3173,6 +3173,7 @@ struct e1000_host_command_info {
 #define IGP3_VR_CTRL \
         PHY_REG(776, 18) /* Voltage regulator control register */
 #define IGP3_VR_CTRL_MODE_SHUT       0x0200 /* Enter powerdown, shutdown VRs */
+#define IGP3_VR_CTRL_MODE_MASK       0x0300 /* Shutdown VR Mask */
 
 #define IGP3_CAPABILITY \
         PHY_REG(776, 19) /* IGP3 Capability Register */

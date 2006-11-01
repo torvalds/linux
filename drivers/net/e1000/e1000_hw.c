@@ -3942,14 +3942,15 @@ e1000_phy_powerdown_workaround(struct e1000_hw *hw)
         E1000_WRITE_REG(hw, PHY_CTRL, reg | E1000_PHY_CTRL_GBE_DISABLE |
                         E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 
-        /* Write VR power-down enable */
+        /* Write VR power-down enable - bits 9:8 should be 10b */
         e1000_read_phy_reg(hw, IGP3_VR_CTRL, &phy_data);
-        e1000_write_phy_reg(hw, IGP3_VR_CTRL, phy_data |
-                            IGP3_VR_CTRL_MODE_SHUT);
+        phy_data |= (1 << 9);
+        phy_data &= ~(1 << 8);
+        e1000_write_phy_reg(hw, IGP3_VR_CTRL, phy_data);
 
         /* Read it back and test */
         e1000_read_phy_reg(hw, IGP3_VR_CTRL, &phy_data);
-        if ((phy_data & IGP3_VR_CTRL_MODE_SHUT) || retry)
+        if (((phy_data & IGP3_VR_CTRL_MODE_MASK) == IGP3_VR_CTRL_MODE_SHUT) || retry)
             break;
 
         /* Issue PHY reset and repeat at most one more time */
