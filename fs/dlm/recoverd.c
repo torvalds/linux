@@ -168,9 +168,15 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		/*
 		 * Other lockspace members may be going through the "neg" steps
 		 * while also adding us to the lockspace, in which case they'll
-		 * be looking for this status bit during dlm_recover_locks().
+		 * be doing the recover_locks (RS_LOCKS) barrier.
 		 */
 		dlm_set_recover_status(ls, DLM_RS_LOCKS);
+
+		error = dlm_recover_locks_wait(ls);
+		if (error) {
+			log_error(ls, "recover_locks_wait failed %d", error);
+			goto fail;
+		}
 	}
 
 	dlm_release_root_list(ls);
