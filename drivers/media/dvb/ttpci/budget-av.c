@@ -1290,7 +1290,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
 	.name = "budget_av",
-	.flags = SAA7146_I2C_SHORT_DELAY,
+	.flags = SAA7146_USE_I2C_IRQ,
 
 	.pci_tbl = pci_tbl,
 
