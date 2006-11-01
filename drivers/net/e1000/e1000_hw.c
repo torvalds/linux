@@ -2367,6 +2367,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 
         /* Need to reset the PHY or these changes will be ignored */
         mii_ctrl_reg |= MII_CR_RESET;
+
     /* Disable MDI-X support for 10/100 */
     } else if (hw->phy_type == e1000_phy_ife) {
         ret_val = e1000_read_phy_reg(hw, IFE_PHY_MDIX_CONTROL, &phy_data);
@@ -2379,6 +2380,7 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
         ret_val = e1000_write_phy_reg(hw, IFE_PHY_MDIX_CONTROL, phy_data);
         if (ret_val)
             return ret_val;
+
     } else {
         /* Clear Auto-Crossover to force MDI manually.  IGP requires MDI
          * forced whenever speed or duplex are forced.
@@ -5841,6 +5843,7 @@ e1000_mta_set(struct e1000_hw *hw,
     hash_reg = (hash_value >> 5) & 0x7F;
     if (hw->mac_type == e1000_ich8lan)
         hash_reg &= 0x1F;
+
     hash_bit = hash_value & 0x1F;
 
     mta = E1000_READ_REG_ARRAY(hw, MTA, hash_reg);
@@ -6026,6 +6029,7 @@ e1000_id_led_init(struct e1000_hw * hw)
         else
             eeprom_data = ID_LED_DEFAULT;
     }
+
     for (i = 0; i < 4; i++) {
         temp = (eeprom_data >> (i << 2)) & led_mask;
         switch (temp) {
@@ -9012,6 +9016,4 @@ e1000_init_lcd_from_nvm(struct e1000_hw *hw)
 
     return E1000_SUCCESS;
 }
-
-
 

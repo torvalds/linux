@@ -119,5 +119,4 @@ typedef enum {
 #define E1000_READ_ICH8_REG16(a, reg) ( \
     readw((a)->flash_address + reg))
 
-
 #endif /* _E1000_OSDEP_H_ */

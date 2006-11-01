@@ -326,6 +326,7 @@ int32_t e1000_phy_hw_reset(struct e1000_hw *hw);
 int32_t e1000_phy_reset(struct e1000_hw *hw);
 int32_t e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
 int32_t e1000_validate_mdi_setting(struct e1000_hw *hw);
+
 void e1000_phy_powerdown_workaround(struct e1000_hw *hw);
 
 /* EEPROM Functions */
@@ -390,7 +391,6 @@ int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer,
                                   uint16_t length);
 boolean_t e1000_check_mng_mode(struct e1000_hw *hw);
 boolean_t e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
-
 int32_t e1000_read_eeprom(struct e1000_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
 int32_t e1000_validate_eeprom_checksum(struct e1000_hw *hw);
 int32_t e1000_update_eeprom_checksum(struct e1000_hw *hw);
@@ -576,6 +576,7 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
  * E1000_RAR_ENTRIES - 1 multicast addresses.
  */
 #define E1000_RAR_ENTRIES 15
+
 #define E1000_RAR_ENTRIES_ICH8LAN  6
 
 #define MIN_NUMBER_OF_DESCRIPTORS  8
@@ -1335,9 +1336,9 @@ struct e1000_hw_stats {
     uint64_t gotch;
     uint64_t rnbc;
     uint64_t ruc;
+    uint64_t rfc;
     uint64_t roc;
     uint64_t rlerrc;
-    uint64_t rfc;
     uint64_t rjc;
     uint64_t mgprc;
     uint64_t mgpdc;

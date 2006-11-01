@@ -133,9 +133,7 @@ e1000_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		if (hw->autoneg == 1) {
 			ecmd->advertising |= ADVERTISED_Autoneg;
-
 			/* the e1000 autoneg seems to match ethtool nicely */
-
 			ecmd->advertising |= hw->autoneg_advertised;
 		}
 
@@ -285,7 +283,7 @@ e1000_set_pauseparam(struct net_device *netdev,
 			e1000_reset(adapter);
 	} else
 		retval = ((hw->media_type == e1000_media_type_fiber) ?
-			   e1000_setup_link(hw) : e1000_force_mac_fc(hw));
+			  e1000_setup_link(hw) : e1000_force_mac_fc(hw));
 
 	clear_bit(__E1000_RESETTING, &adapter->flags);
 	return retval;
@@ -774,7 +772,7 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
 	 */
-        switch (adapter->hw.mac_type) {
+	switch (adapter->hw.mac_type) {
 	/* there are several bits on newer hardware that are r/w */
 	case e1000_82571:
 	case e1000_82572:
@@ -802,12 +800,14 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	}
 	/* restore previous status */
 	E1000_WRITE_REG(&adapter->hw, STATUS, before);
+
 	if (adapter->hw.mac_type != e1000_ich8lan) {
 		REG_PATTERN_TEST(FCAL, 0xFFFFFFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(FCAH, 0x0000FFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(FCT, 0x0000FFFF, 0xFFFFFFFF);
 		REG_PATTERN_TEST(VET, 0x0000FFFF, 0xFFFFFFFF);
 	}
+
 	REG_PATTERN_TEST(RDTR, 0x0000FFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
 	REG_PATTERN_TEST(RDLEN, 0x000FFF80, 0x000FFFFF);
@@ -820,8 +820,9 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	REG_PATTERN_TEST(TDLEN, 0x000FFF80, 0x000FFFFF);
 
 	REG_SET_AND_CHECK(RCTL, 0xFFFFFFFF, 0x00000000);
+
 	before = (adapter->hw.mac_type == e1000_ich8lan ?
-			0x06C3B33E : 0x06DFB3FE);
+	          0x06C3B33E : 0x06DFB3FE);
 	REG_SET_AND_CHECK(RCTL, before, 0x003FFFFB);
 	REG_SET_AND_CHECK(TCTL, 0xFFFFFFFF, 0x00000000);
 
@@ -834,10 +835,10 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 		REG_PATTERN_TEST(TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
 		REG_PATTERN_TEST(TIDV, 0x0000FFFF, 0x0000FFFF);
 		value = (adapter->hw.mac_type == e1000_ich8lan ?
-				E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
+		         E1000_RAR_ENTRIES_ICH8LAN : E1000_RAR_ENTRIES);
 		for (i = 0; i < value; i++) {
 			REG_PATTERN_TEST(RA + (((i << 1) + 1) << 2), 0x8003FFFF,
-					 0xFFFFFFFF);
+			                 0xFFFFFFFF);
 		}
 
 	} else {
@@ -883,8 +884,7 @@ e1000_eeprom_test(struct e1000_adapter *adapter, uint64_t *data)
 }
 
 static irqreturn_t
-e1000_test_intr(int irq,
-		void *data)
+e1000_test_intr(int irq, void *data)
 {
 	struct net_device *netdev = (struct net_device *) data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -905,11 +905,11 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 	/* NOTE: we don't test MSI interrupts here, yet */
 	/* Hook up test interrupt handler just for this test */
-	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED,
-			 netdev->name, netdev))
+	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
+	                 netdev))
 		shared_int = FALSE;
 	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
-			      netdev->name, netdev)) {
+	         netdev->name, netdev)) {
 		*data = 1;
 		return -1;
 	}
@@ -925,6 +925,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 
 		if (adapter->hw.mac_type == e1000_ich8lan && i == 8)
 			continue;
+
 		/* Interrupt to test */
 		mask = 1 << i;
 
@@ -1674,7 +1675,7 @@ e1000_diag_test(struct net_device *netdev,
 		if (e1000_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Offline tests aren't run; pass by default */
+		/* Online tests aren't run; pass by default */
 		data[0] = 0;
 		data[1] = 0;
 		data[2] = 0;
