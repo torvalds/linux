@@ -51,7 +51,6 @@ void gfs2_inode_attr_in(struct gfs2_inode *ip)
 	struct gfs2_dinode_host *di = &ip->i_di;
 
 	inode->i_ino = ip->i_num.no_addr;
-	inode->i_nlink = di->di_nlink;
 	i_size_write(inode, di->di_size);
 	inode->i_atime.tv_sec = di->di_atime;
 	inode->i_mtime.tv_sec = di->di_mtime;
@@ -214,7 +213,12 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 
 	ip->i_inode.i_uid = be32_to_cpu(str->di_uid);
 	ip->i_inode.i_gid = be32_to_cpu(str->di_gid);
-	di->di_nlink = be32_to_cpu(str->di_nlink);
+	/*
+	 * We will need to review setting the nlink count here in the
+	 * light of the forthcoming ro bind mount work. This is a reminder
+	 * to do that.
+	 */
+	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
 	di->di_size = be64_to_cpu(str->di_size);
 	di->di_blocks = be64_to_cpu(str->di_blocks);
 	di->di_atime = be64_to_cpu(str->di_atime);
@@ -336,12 +340,12 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	u32 nlink;
 	int error;
 
-	BUG_ON(ip->i_di.di_nlink != ip->i_inode.i_nlink);
-	nlink = ip->i_di.di_nlink + diff;
+	BUG_ON(diff != 1 && diff != -1);
+	nlink = ip->i_inode.i_nlink + diff;
 
 	/* If we are reducing the nlink count, but the new value ends up being
 	   bigger than the old one, we must have underflowed. */
-	if (diff < 0 && nlink > ip->i_di.di_nlink) {
+	if (diff < 0 && nlink > ip->i_inode.i_nlink) {
 		if (gfs2_consist_inode(ip))
 			gfs2_dinode_print(ip);
 		return -EIO;
@@ -351,16 +355,19 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	if (error)
 		return error;
 
-	ip->i_di.di_nlink = nlink;
+	if (diff > 0)
+		inc_nlink(&ip->i_inode);
+	else
+		drop_nlink(&ip->i_inode);
+
 	ip->i_di.di_ctime = get_seconds();
-	ip->i_inode.i_nlink = nlink;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
 	mark_inode_dirty(&ip->i_inode);
 
-	if (ip->i_di.di_nlink == 0) {
+	if (ip->i_inode.i_nlink == 0) {
 		struct gfs2_rgrpd *rgd;
 		struct gfs2_holder ri_gh, rg_gh;
 
@@ -375,7 +382,6 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 		if (error)
 			goto out_norgrp;
 
-		clear_nlink(&ip->i_inode);
 		gfs2_unlink_di(&ip->i_inode); /* mark inode unlinked */
 		gfs2_glock_dq_uninit(&rg_gh);
 out_norgrp:
@@ -586,7 +592,7 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 		return error;
 
 	/*  Don't create entries in an unlinked directory  */
-	if (!dip->i_di.di_nlink)
+	if (!dip->i_inode.i_nlink)
 		return -EPERM;
 
 	error = gfs2_dir_search(&dip->i_inode, name, NULL, NULL);
@@ -602,7 +608,7 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 
 	if (dip->i_di.di_entries == (u32)-1)
 		return -EFBIG;
-	if (S_ISDIR(mode) && dip->i_di.di_nlink == (u32)-1)
+	if (S_ISDIR(mode) && dip->i_inode.i_nlink == (u32)-1)
 		return -EMLINK;
 
 	return 0;
@@ -808,7 +814,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto fail_end_trans;
-	ip->i_di.di_nlink = 1;
+	ip->i_inode.i_nlink = 1;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
@@ -1016,7 +1022,12 @@ int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 	if (error)
 		return error;
 
-	error = gfs2_change_nlink(ip, -2);
+	/* It looks odd, but it really should be done twice */
+	error = gfs2_change_nlink(ip, -1);
+	if (error)
+		return error;
+
+	error = gfs2_change_nlink(ip, -1);
 	if (error)
 		return error;
 
