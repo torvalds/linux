@@ -1934,6 +1934,12 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 		E1000_WRITE_REG(hw, RXCSUM, rxcsum);
 	}
 
+	/* enable early receives on 82573, only takes effect if using > 2048
+	 * byte total frame size.  for example only for jumbo frames */
+#define E1000_ERT_2048 0x100
+	if (hw->mac_type == e1000_82573)
+		E1000_WRITE_REG(hw, ERT, E1000_ERT_2048);
+
 	/* Enable Receives */
 	E1000_WRITE_REG(hw, RCTL, rctl);
 }
