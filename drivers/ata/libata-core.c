@@ -1533,6 +1533,11 @@ int ata_dev_configure(struct ata_device *dev)
 				       cdb_intr_string);
 	}
 
+	/* determine max_sectors */
+	dev->max_sectors = ATA_MAX_SECTORS;
+	if (dev->flags & ATA_DFLAG_LBA48)
+		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
+
 	if (dev->horkage & ATA_HORKAGE_DIAGNOSTIC) {
 		/* Let the user know. We don't want to disallow opens for
 		   rescue purposes, or in case the vendor is just a blithering

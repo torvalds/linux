@@ -807,23 +807,10 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 static void ata_scsi_dev_config(struct scsi_device *sdev,
 				struct ata_device *dev)
 {
-	unsigned int max_sectors;
+	/* configure max sectors */
+	blk_queue_max_sectors(sdev->request_queue, dev->max_sectors);
 
-	/* TODO: 2048 is an arbitrary number, not the
-	 * hardware maximum.  This should be increased to
-	 * 65534 when Jens Axboe's patch for dynamically
-	 * determining max_sectors is merged.
-	 */
-	max_sectors = ATA_MAX_SECTORS;
-	if (dev->flags & ATA_DFLAG_LBA48)
-		max_sectors = ATA_MAX_SECTORS_LBA48;
-	if (dev->max_sectors)
-		max_sectors = dev->max_sectors;
-
-	blk_queue_max_sectors(sdev->request_queue, max_sectors);
-
-	/*
-	 * SATA DMA transfers must be multiples of 4 byte, so
+	/* SATA DMA transfers must be multiples of 4 byte, so
 	 * we need to pad ATAPI transfers using an extra sg.
 	 * Decrement max hw segments accordingly.
 	 */
