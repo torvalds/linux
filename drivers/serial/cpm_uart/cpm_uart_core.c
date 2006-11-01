@@ -1349,11 +1349,10 @@ static int cpm_uart_init(void) {
 		pr_info("cpm_uart: WARNING: no UART devices found on platform bus!\n");
 		pr_info(
 		"cpm_uart: the driver will guess configuration, but this mode is no longer supported.\n");
-#ifndef CONFIG_SERIAL_CPM_CONSOLE
-		ret = cpm_uart_init_portdesc();
-		if (ret)
-			return ret;
-#endif
+
+		/* Don't run this again, if the console driver did it already */
+		if (cpm_uart_nr == 0)
+			cpm_uart_init_portdesc();
 
 		cpm_reg.nr = cpm_uart_nr;
 		ret = uart_register_driver(&cpm_reg);
@@ -1365,6 +1364,8 @@ static int cpm_uart_init(void) {
 			int con = cpm_uart_port_map[i];
 			cpm_uart_ports[con].port.line = i;
 			cpm_uart_ports[con].port.flags = UPF_BOOT_AUTOCONF;
+			if (cpm_uart_ports[con].set_lineif)
+				cpm_uart_ports[con].set_lineif(&cpm_uart_ports[con]);
 			uart_add_one_port(&cpm_reg, &cpm_uart_ports[con].port);
 		}
 
